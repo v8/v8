@@ -9858,15 +9858,16 @@ THREADED_TEST(ConstructorForObject) {
     value = CompileRun("new obj2(28)");
     CHECK(try_catch.HasCaught());
     String::Utf8Value exception_value1(try_catch.Exception());
-    CHECK_EQ(0, strcmp("TypeError: obj2 is not a function", *exception_value1));
+    CHECK_EQ(0,
+             strcmp("TypeError: obj2 is not a constructor", *exception_value1));
     try_catch.Reset();
 
     Local<Value> args[] = {v8_num(29)};
     value = instance->CallAsConstructor(1, args);
     CHECK(try_catch.HasCaught());
     String::Utf8Value exception_value2(try_catch.Exception());
-    CHECK_EQ(0,
-             strcmp("TypeError: object is not a function", *exception_value2));
+    CHECK_EQ(
+        0, strcmp("TypeError: object is not a constructor", *exception_value2));
     try_catch.Reset();
   }
 

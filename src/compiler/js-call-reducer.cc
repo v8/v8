@@ -216,10 +216,10 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
       // Raise a TypeError if the {target} is a "classConstructor".
       if (IsClassConstructor(shared->kind())) {
         NodeProperties::RemoveFrameStateInput(node, 0);
-        NodeProperties::RemoveValueInputs(node);
+        NodeProperties::ReplaceValueInputs(node, target);
         NodeProperties::ChangeOp(
             node, javascript()->CallRuntime(
-                      Runtime::kThrowConstructorNonCallableError, 0));
+                      Runtime::kThrowConstructorNonCallableError, 1));
         return Changed(node);
       }
 

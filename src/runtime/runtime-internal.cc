@@ -443,5 +443,15 @@ RUNTIME_FUNCTION(Runtime_ThrowCalledNonCallable) {
       isolate, NewTypeError(MessageTemplate::kCalledNonCallable, callsite));
 }
 
+
+RUNTIME_FUNCTION(Runtime_ThrowConstructedNonConstructable) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  Handle<String> callsite = RenderCallSite(isolate, object);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kNotConstructor, callsite));
+}
+
 }  // namespace internal
 }  // namespace v8

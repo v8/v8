@@ -12732,6 +12732,10 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   shared_info->set_dont_crankshaft(lit->flags() &
                                    AstProperties::kDontCrankshaft);
   shared_info->set_kind(lit->kind());
+  if (!IsConstructable(lit->kind(), lit->language_mode())) {
+    shared_info->set_construct_stub(
+        *shared_info->GetIsolate()->builtins()->ConstructedNonConstructable());
+  }
   shared_info->set_needs_home_object(lit->scope()->NeedsHomeObject());
   shared_info->set_asm_function(lit->scope()->asm_function());
 }

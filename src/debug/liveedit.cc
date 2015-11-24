@@ -1146,9 +1146,6 @@ void LiveEdit::ReplaceFunctionCode(
 
   LiteralFixer::PatchLiterals(&compile_info_wrapper, shared_info, isolate);
 
-  shared_info->set_construct_stub(
-      isolate->builtins()->builtin(Builtins::kJSConstructStubGeneric));
-
   DeoptimizeDependentFunctions(*shared_info);
   isolate->compilation_cache()->Remove(shared_info);
 }

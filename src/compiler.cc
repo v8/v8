@@ -746,7 +746,7 @@ MUST_USE_RESULT static MaybeHandle<Code> GetUnoptimizedCodeCommon(
   if (!Parser::ParseStatic(info->parse_info())) return MaybeHandle<Code>();
   Handle<SharedFunctionInfo> shared = info->shared_info();
   FunctionLiteral* lit = info->literal();
-  shared->set_language_mode(lit->language_mode());
+  DCHECK_EQ(shared->language_mode(), lit->language_mode());
   SetExpectedNofPropertiesFromEstimate(shared, lit->expected_property_count());
   MaybeDisableOptimization(shared, lit->dont_optimize_reason());
 

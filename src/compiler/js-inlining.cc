@@ -291,6 +291,15 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
     return NoChange();
   }
 
+  if (node->opcode() == IrOpcode::kJSCallConstruct &&
+      !function->IsConstructor()) {
+    // Constructor must be constructable.
+    TRACE("Not inlining %s into %s since constructor is not constructable.\n",
+          function->shared()->DebugName()->ToCString().get(),
+          info_->shared_info()->DebugName()->ToCString().get());
+    return NoChange();
+  }
+
   // Class constructors are callable, but [[Call]] will raise an exception.
   // See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList ).
   if (IsClassConstructor(function->shared()->kind())) {
@@ -418,6 +427,8 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
   // constructor dispatch and turn the constructor call into a regular call.
   // This models the behavior usually accomplished by our {JSConstructStub}.
   // Note that the context has to be the callers context (input to call node).
+  // TODO(4544): Once we support inlining builtins, make sure no implicit
+  // receiver is created for builtins that don't expect any.
   if (node->opcode() == IrOpcode::kJSCallConstruct) {
     Node* effect = NodeProperties::GetEffectInput(node);
     Node* context = NodeProperties::GetContextInput(node);

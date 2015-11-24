@@ -1022,6 +1022,15 @@ inline bool IsClassConstructor(FunctionKind kind) {
 }
 
 
+inline bool IsConstructable(FunctionKind kind, LanguageMode mode) {
+  if (IsAccessorFunction(kind)) return false;
+  if (IsConciseMethod(kind) && !IsGeneratorFunction(kind)) return false;
+  if (IsArrowFunction(kind)) return false;
+  if (is_strong(mode)) return IsClassConstructor(kind);
+  return true;
+}
+
+
 inline bool IsInObjectLiteral(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
   return kind & FunctionKind::kInObjectLiteral;

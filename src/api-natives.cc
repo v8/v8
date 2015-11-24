@@ -445,7 +445,9 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
   } else {
     code = isolate->builtins()->HandleApiCall();
   }
-  Handle<Code> construct_stub = isolate->builtins()->JSConstructStubApi();
+  Handle<Code> construct_stub =
+      prototype.is_null() ? isolate->builtins()->ConstructedNonConstructable()
+                          : isolate->builtins()->JSConstructStubApi();
 
   obj->set_instantiated(true);
   Handle<JSFunction> result;

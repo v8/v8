@@ -73,24 +73,24 @@ namespace internal {
   F(AtomicsFutexNumWaitersForTesting, 2, 1)
 
 
-#define FOR_EACH_INTRINSIC_CLASSES(F)         \
-  F(ThrowNonMethodError, 0, 1)                \
-  F(ThrowUnsupportedSuperError, 0, 1)         \
-  F(ThrowConstructorNonCallableError, 0, 1)   \
-  F(ThrowArrayNotSubclassableError, 0, 1)     \
-  F(ThrowStaticPrototypeError, 0, 1)          \
-  F(ThrowIfStaticPrototype, 1, 1)             \
-  F(HomeObjectSymbol, 0, 1)                   \
-  F(DefineClass, 5, 1)                        \
-  F(FinalizeClassDefinition, 2, 1)            \
-  F(DefineClassMethod, 3, 1)                  \
-  F(ClassGetSourceCode, 1, 1)                 \
-  F(LoadFromSuper, 4, 1)                      \
-  F(LoadKeyedFromSuper, 4, 1)                 \
-  F(StoreToSuper_Strict, 4, 1)                \
-  F(StoreToSuper_Sloppy, 4, 1)                \
-  F(StoreKeyedToSuper_Strict, 4, 1)           \
-  F(StoreKeyedToSuper_Sloppy, 4, 1)           \
+#define FOR_EACH_INTRINSIC_CLASSES(F)       \
+  F(ThrowNonMethodError, 0, 1)              \
+  F(ThrowUnsupportedSuperError, 0, 1)       \
+  F(ThrowConstructorNonCallableError, 1, 1) \
+  F(ThrowArrayNotSubclassableError, 0, 1)   \
+  F(ThrowStaticPrototypeError, 0, 1)        \
+  F(ThrowIfStaticPrototype, 1, 1)           \
+  F(HomeObjectSymbol, 0, 1)                 \
+  F(DefineClass, 5, 1)                      \
+  F(FinalizeClassDefinition, 2, 1)          \
+  F(DefineClassMethod, 3, 1)                \
+  F(ClassGetSourceCode, 1, 1)               \
+  F(LoadFromSuper, 4, 1)                    \
+  F(LoadKeyedFromSuper, 4, 1)               \
+  F(StoreToSuper_Strict, 4, 1)              \
+  F(StoreToSuper_Sloppy, 4, 1)              \
+  F(StoreKeyedToSuper_Strict, 4, 1)         \
+  F(StoreKeyedToSuper_Sloppy, 4, 1)         \
   F(DefaultConstructorCallSuper, 2, 1)
 
 
@@ -356,6 +356,7 @@ namespace internal {
   F(GetTypeFeedbackVector, 1, 1)              \
   F(GetCallerJSFunction, 0, 1)                \
   F(GetCodeStubExportsObject, 0, 1)           \
+  F(ThrowConstructedNonConstructable, 1, 1)   \
   F(ThrowCalledNonCallable, 1, 1)
 
 

@@ -86,6 +86,8 @@ enum BuiltinExtraArguments {
 #define BUILTIN_LIST_A(V)                                                     \
   V(ArgumentsAdaptorTrampoline, BUILTIN, UNINITIALIZED, kNoExtraICState)      \
                                                                               \
+  V(ConstructedNonConstructable, BUILTIN, UNINITIALIZED, kNoExtraICState)     \
+                                                                              \
   V(CallFunction_ReceiverIsNullOrUndefined, BUILTIN, UNINITIALIZED,           \
     kNoExtraICState)                                                          \
   V(CallFunction_ReceiverIsNotNullOrUndefined, BUILTIN, UNINITIALIZED,        \
@@ -283,6 +285,7 @@ class Builtins {
   static void Generate_Adaptor(MacroAssembler* masm,
                                CFunctionId id,
                                BuiltinExtraArguments extra_args);
+  static void Generate_ConstructedNonConstructable(MacroAssembler* masm);
   static void Generate_CompileLazy(MacroAssembler* masm);
   static void Generate_InOptimizationQueue(MacroAssembler* masm);
   static void Generate_CompileOptimized(MacroAssembler* masm);

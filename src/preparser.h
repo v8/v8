@@ -3337,7 +3337,8 @@ ParserBase<Traits>::ParseLeftHandSideExpression(
           return this->EmptyExpression();
         }
         int pos;
-        if (scanner()->current_token() == Token::IDENTIFIER) {
+        if (scanner()->current_token() == Token::IDENTIFIER ||
+            scanner()->current_token() == Token::SUPER) {
           // For call of an identifier we want to report position of
           // the identifier as position of the call in the stack trace.
           pos = position();
@@ -3677,8 +3678,8 @@ typename ParserBase<Traits>::ExpressionT
 ParserBase<Traits>::ParseSuperExpression(bool is_new,
                                          ExpressionClassifier* classifier,
                                          bool* ok) {
-  int pos = position();
   Expect(Token::SUPER, CHECK_OK);
+  int pos = position();
 
   Scope* scope = scope_->ReceiverScope();
   FunctionKind kind = scope->function_kind();

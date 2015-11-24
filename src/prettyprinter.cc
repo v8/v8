@@ -321,6 +321,13 @@ void CallPrinter::VisitCallNew(CallNew* node) {
 
 
 void CallPrinter::VisitCallRuntime(CallRuntime* node) {
+  if (node->function() ==
+      Runtime::FunctionForId(Runtime::kInlineDefaultConstructorCallSuper)) {
+    found_ = true;
+    Print("super");
+    done_ = true;
+    return;
+  }
   FindArguments(node->arguments());
 }
 
@@ -380,7 +387,9 @@ void CallPrinter::VisitThisFunction(ThisFunction* node) {}
 void CallPrinter::VisitSuperPropertyReference(SuperPropertyReference* node) {}
 
 
-void CallPrinter::VisitSuperCallReference(SuperCallReference* node) {}
+void CallPrinter::VisitSuperCallReference(SuperCallReference* node) {
+  Print("super");
+}
 
 
 void CallPrinter::FindStatements(ZoneList<Statement*>* statements) {

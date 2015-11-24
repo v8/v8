@@ -1044,11 +1044,7 @@ RUNTIME_FUNCTION(Runtime_NewObject) {
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, new_target, 1);
 
-  // TODO(verwaest): Make sure |constructor| is guaranteed to be a constructor.
-  if (!constructor->IsConstructor()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kNotConstructor, constructor));
-  }
+  DCHECK(constructor->IsConstructor());
 
   // If called through new, new.target can be:
   // - a subclass of constructor,

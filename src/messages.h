@@ -100,7 +100,7 @@ class CallSite {
   T(CircularStructure, "Converting circular structure to JSON")                \
   T(ConstAssign, "Assignment to constant variable.")                           \
   T(ConstructorNonCallable,                                                    \
-    "Class constructors cannot be invoked without 'new'")                      \
+    "Class constructor % cannot be invoked without 'new'")                     \
   T(ConstructorNotFunction, "Constructor % requires 'new'")                    \
   T(CurrencyCode, "Currency code is required with currency style.")            \
   T(DataViewNotArrayBuffer,                                                    \

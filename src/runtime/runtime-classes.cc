@@ -36,9 +36,11 @@ RUNTIME_FUNCTION(Runtime_ThrowUnsupportedSuperError) {
 
 RUNTIME_FUNCTION(Runtime_ThrowConstructorNonCallableError) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 0);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, 0);
+  Handle<Object> name(constructor->shared()->name(), isolate);
   THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError(MessageTemplate::kConstructorNonCallable));
+      isolate, NewTypeError(MessageTemplate::kConstructorNonCallable, name));
 }
 
 

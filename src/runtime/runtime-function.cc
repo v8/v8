@@ -107,6 +107,8 @@ RUNTIME_FUNCTION(Runtime_FunctionRemovePrototype) {
 
   CONVERT_ARG_CHECKED(JSFunction, f, 0);
   RUNTIME_ASSERT(f->RemovePrototype());
+  f->shared()->set_construct_stub(
+      *isolate->builtins()->ConstructedNonConstructable());
 
   return isolate->heap()->undefined_value();
 }
@@ -395,6 +397,8 @@ RUNTIME_FUNCTION(Runtime_FunctionBindArguments) {
   bound_function->shared()->set_optimized_code_map(
       isolate->heap()->cleared_optimized_code_map());
   bound_function->shared()->set_inferred_name(isolate->heap()->empty_string());
+  bound_function->shared()->set_construct_stub(
+      *isolate->builtins()->JSBuiltinsConstructStub());
   // Get all arguments of calling function (Function.prototype.bind).
   int argc = 0;
   base::SmartArrayPointer<Handle<Object>> arguments =

@@ -654,6 +654,13 @@ void Builtins::Generate_JSBuiltinsConstructStub(MacroAssembler* masm) {
 }
 
 
+void Builtins::Generate_ConstructedNonConstructable(MacroAssembler* masm) {
+  FrameScope scope(masm, StackFrame::INTERNAL);
+  __ Push(x1);
+  __ CallRuntime(Runtime::kThrowConstructedNonConstructable, 1);
+}
+
+
 enum IsTagged { kArgcIsSmiTagged, kArgcIsUntaggedInt };
 
 
@@ -1673,7 +1680,8 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   __ bind(&class_constructor);
   {
     FrameScope frame(masm, StackFrame::INTERNAL);
-    __ CallRuntime(Runtime::kThrowConstructorNonCallableError, 0);
+    __ Push(x1);
+    __ CallRuntime(Runtime::kThrowConstructorNonCallableError, 1);
   }
 }
 
@@ -1800,11 +1808,8 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   // Called Construct on an Object that doesn't have a [[Construct]] internal
   // method.
   __ bind(&non_constructor);
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-    __ Push(x1);
-    __ CallRuntime(Runtime::kThrowCalledNonCallable, 1);
-  }
+  __ Jump(masm->isolate()->builtins()->ConstructedNonConstructable(),
+          RelocInfo::CODE_TARGET);
 }
 
 

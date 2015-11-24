@@ -1398,8 +1398,7 @@ Reduction JSTypedLowering::ReduceJSCreate(Node* node) {
       target_type->AsConstant()->Value()->IsJSFunction()) {
     Handle<JSFunction> constructor =
         Handle<JSFunction>::cast(target_type->AsConstant()->Value());
-    // Check that function is a constructor.
-    if (!constructor->IsConstructor()) return NoChange();
+    DCHECK(constructor->IsConstructor());
     // Force completion of inobject slack tracking before
     // generating code to finalize the instance size.
     if (constructor->IsInobjectSlackTrackingInProgress()) {

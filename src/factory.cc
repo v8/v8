@@ -1202,7 +1202,8 @@ Handle<JSFunction> Factory::NewFunction(Handle<Map> map,
                                         Handle<String> name,
                                         MaybeHandle<Code> code) {
   Handle<Context> context(isolate()->native_context());
-  Handle<SharedFunctionInfo> info = NewSharedFunctionInfo(name, code);
+  Handle<SharedFunctionInfo> info =
+      NewSharedFunctionInfo(name, code, map->is_constructor());
   DCHECK(is_sloppy(info->language_mode()) &&
          (map.is_identical_to(isolate()->sloppy_function_map()) ||
           map.is_identical_to(
@@ -2022,7 +2023,8 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
     Handle<Code> code, Handle<ScopeInfo> scope_info,
     Handle<TypeFeedbackVector> feedback_vector) {
   DCHECK(IsValidFunctionKind(kind));
-  Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo(name, code);
+  Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo(
+      name, code, IsConstructable(kind, scope_info->language_mode()));
   shared->set_scope_info(*scope_info);
   shared->set_feedback_vector(*feedback_vector);
   shared->set_kind(kind);
@@ -2055,8 +2057,7 @@ Handle<JSMessageObject> Factory::NewJSMessageObject(
 
 
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
-    Handle<String> name,
-    MaybeHandle<Code> maybe_code) {
+    Handle<String> name, MaybeHandle<Code> maybe_code, bool is_constructor) {
   Handle<Map> map = shared_function_info_map();
   Handle<SharedFunctionInfo> share = New<SharedFunctionInfo>(map, OLD_SPACE);
 
@@ -2064,14 +2065,15 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
   share->set_name(*name);
   Handle<Code> code;
   if (!maybe_code.ToHandle(&code)) {
-    code = handle(isolate()->builtins()->builtin(Builtins::kIllegal));
+    code = isolate()->builtins()->Illegal();
   }
   share->set_code(*code);
   share->set_optimized_code_map(*cleared_optimized_code_map());
   share->set_scope_info(ScopeInfo::Empty(isolate()));
-  Code* construct_stub =
-      isolate()->builtins()->builtin(Builtins::kJSConstructStubGeneric);
-  share->set_construct_stub(construct_stub);
+  Handle<Code> construct_stub =
+      is_constructor ? isolate()->builtins()->JSConstructStubGeneric()
+                     : isolate()->builtins()->ConstructedNonConstructable();
+  share->set_construct_stub(*construct_stub);
   share->set_instance_class_name(*Object_string());
   share->set_function_data(*undefined_value(), SKIP_WRITE_BARRIER);
   share->set_script(*undefined_value(), SKIP_WRITE_BARRIER);

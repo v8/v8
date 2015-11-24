@@ -78,7 +78,7 @@ Graph* BytecodeGraphBuilderTest::GetCompletedGraph(
   Handle<String> name = factory()->NewStringFromStaticChars("test");
   Handle<String> script = factory()->NewStringFromStaticChars("test() {}");
   Handle<SharedFunctionInfo> shared_info =
-      factory()->NewSharedFunctionInfo(name, MaybeHandle<Code>());
+      factory()->NewSharedFunctionInfo(name, MaybeHandle<Code>(), true);
   shared_info->set_script(*factory()->NewScript(script));
   if (!feedback_vector.is_null()) {
     shared_info->set_feedback_vector(*feedback_vector.ToHandleChecked());
