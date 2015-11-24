@@ -1138,7 +1138,6 @@ void CompatibleReceiverCheck(MacroAssembler* masm, Register receiver,
   Register constructor = r9;
   Register scratch = r10;
 
-  __ JumpIfSmi(receiver, receiver_check_failed);
   __ CompareObjectType(receiver, map, no_reg, FIRST_JS_OBJECT_TYPE);
   __ blt(receiver_check_failed);
 
@@ -1157,9 +1156,8 @@ void CompatibleReceiverCheck(MacroAssembler* masm, Register receiver,
   __ JumpIfRoot(receiver, Heap::kNullValueRootIndex, receiver_check_failed);
   __ LoadP(map, FieldMemOperand(receiver, HeapObject::kMapOffset));
   __ LoadP(scratch, FieldMemOperand(map, Map::kBitField3Offset));
-  __ DecodeField<Map::IsHiddenPrototype>(scratch);
-  __ cmpi(scratch, Operand::Zero());
-  __ bne(receiver_check_failed);
+  __ DecodeField<Map::IsHiddenPrototype>(scratch, SetRC);
+  __ bne(receiver_check_failed, cr0);
 
 
   // Get the constructor, if any.
@@ -1214,8 +1212,7 @@ void Builtins::Generate_HandleFastApiCall(MacroAssembler* masm) {
 
   // Load the receiver.
   __ ShiftLeftImm(r11, r3, Operand(kPointerSizeLog2));
-  __ add(r11, sp, r11);
-  __ LoadP(r5, MemOperand(r11));
+  __ LoadPX(r5, MemOperand(sp, r11));
 
   // Update the receiver if this is a contextual call.
   Label set_global_proxy, valid_receiver;
@@ -1232,21 +1229,21 @@ void Builtins::Generate_HandleFastApiCall(MacroAssembler* masm) {
 
   // Get the callback offset from the FunctionTemplateInfo, and jump to the
   // beginning of the code.
-  __ LoadP(r6, FieldMemOperand(r6, FunctionTemplateInfo::kCallCodeOffset));
-  __ LoadP(r6, FieldMemOperand(r6, CallHandlerInfo::kFastHandlerOffset));
-  __ addi(r6, r6, Operand(Code::kHeaderSize - kHeapObjectTag));
-  __ Jump(r6);
+  __ LoadP(r7, FieldMemOperand(r6, FunctionTemplateInfo::kCallCodeOffset));
+  __ LoadP(r7, FieldMemOperand(r7, CallHandlerInfo::kFastHandlerOffset));
+  __ addi(ip, r7, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ JumpToJSEntry(ip);
 
   __ bind(&set_global_proxy);
   __ LoadGlobalProxy(r5);
-  __ StoreP(r5, MemOperand(r11));
+  __ StorePX(r5, MemOperand(sp, r11));
   __ b(&valid_receiver);
 
   // Compatible receiver check failed: throw an Illegal Invocation exception.
   __ bind(&receiver_check_failed);
   // Drop the arguments (including the receiver);
   __ addi(r11, r11, Operand(kPointerSize));
-  __ StoreP(sp, MemOperand(r11));
+  __ add(sp, sp, r11);
   __ TailCallRuntime(Runtime::kThrowIllegalInvocation, 0, 1);
 }
 
