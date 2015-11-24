@@ -76,14 +76,7 @@ class ScavengingVisitor : public StaticVisitorBase {
     table_.Register(kVisitJSRegExp,
                     &ObjectEvacuationStrategy<POINTER_OBJECT>::Visit);
 
-    if (marks_handling == IGNORE_MARKS) {
-      table_.Register(
-          kVisitJSFunction,
-          &ObjectEvacuationStrategy<POINTER_OBJECT>::template VisitSpecialized<
-              JSFunction::kSize>);
-    } else {
-      table_.Register(kVisitJSFunction, &EvacuateJSFunction);
-    }
+    table_.Register(kVisitJSFunction, &EvacuateJSFunction);
 
     table_.RegisterSpecializations<ObjectEvacuationStrategy<DATA_OBJECT>,
                                    kVisitDataObject, kVisitDataObjectGeneric>();
@@ -242,8 +235,9 @@ class ScavengingVisitor : public StaticVisitorBase {
 
   static inline void EvacuateJSFunction(Map* map, HeapObject** slot,
                                         HeapObject* object) {
-    ObjectEvacuationStrategy<POINTER_OBJECT>::template VisitSpecialized<
-        JSFunction::kSize>(map, slot, object);
+    ObjectEvacuationStrategy<POINTER_OBJECT>::Visit(map, slot, object);
+
+    if (marks_handling == IGNORE_MARKS) return;
 
     MapWord map_word = object->map_word();
     DCHECK(map_word.IsForwardingAddress());

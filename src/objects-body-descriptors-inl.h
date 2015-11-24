@@ -116,10 +116,7 @@ class JSFunction::BodyDescriptorImpl final : public BodyDescriptorBase {
 
   static bool IsValidSlot(HeapObject* obj, int offset) {
     if (offset < kSize) return true;
-    // TODO(ishell): v8:4531, fix when JFunctions are allowed to have
-    // in-object properties
-    // return IsValidSlotImpl(obj, offset);
-    return true;
+    return IsValidSlotImpl(obj, offset);
   }
 
   template <typename ObjectVisitor>
@@ -134,10 +131,7 @@ class JSFunction::BodyDescriptorImpl final : public BodyDescriptorBase {
     if (body_visiting_policy & kVisitNextFunction) {
       IteratePointers(obj, kNextFunctionLinkOffset, kSize, v);
     }
-
-    // TODO(ishell): v8:4531, fix when JFunctions are allowed to have in-object
-    // properties
-    // IterateBodyImpl(obj, kSize, object_size, v);
+    IterateBodyImpl(obj, kSize, object_size, v);
   }
 
   template <typename StaticVisitor>
@@ -154,16 +148,11 @@ class JSFunction::BodyDescriptorImpl final : public BodyDescriptorBase {
     if (body_visiting_policy & kVisitNextFunction) {
       IteratePointers<StaticVisitor>(heap, obj, kNextFunctionLinkOffset, kSize);
     }
-
-    // TODO(ishell): v8:4531, fix when JFunctions are allowed to have in-object
-    // properties
-    // IterateBodyImpl<StaticVisitor>(heap, obj, kSize, object_size);
+    IterateBodyImpl<StaticVisitor>(heap, obj, kSize, object_size);
   }
 
   static inline int SizeOf(Map* map, HeapObject* object) {
-    // TODO(ishell): v8:4531, fix when JFunctions are allowed to have in-object
-    // properties
-    return JSFunction::kSize;
+    return map->instance_size();
   }
 };
 
@@ -555,14 +544,14 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3) {
 template <typename ObjectVisitor>
 void HeapObject::IterateFast(ObjectVisitor* v) {
   BodyDescriptorBase::IteratePointer(this, kMapOffset, v);
-  IterateBody(v);
+  IterateBodyFast(v);
 }
 
 
 template <typename ObjectVisitor>
 void HeapObject::IterateBodyFast(ObjectVisitor* v) {
   Map* m = map();
-  IterateBody(m->instance_type(), SizeFromMap(m), v);
+  IterateBodyFast(m->instance_type(), SizeFromMap(m), v);
 }
 
 

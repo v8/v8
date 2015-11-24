@@ -11960,6 +11960,7 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_MAP_ITERATOR_TYPE:
     case JS_ITERATOR_RESULT_TYPE:
     case JS_PROMISE_TYPE:
+    case JS_FUNCTION_TYPE:
       return true;
 
     case JS_TYPED_ARRAY_TYPE:
@@ -11972,7 +11973,6 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_WEAK_MAP_TYPE:
     case JS_WEAK_SET_TYPE:
     case JS_ARRAY_BUFFER_TYPE:
-    case JS_FUNCTION_TYPE:
       return false;
 
     case JS_GLOBAL_PROXY_TYPE:
