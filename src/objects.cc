@@ -15254,9 +15254,9 @@ void JSObject::CollectOwnPropertyNames(KeyAccumulator* keys,
       keys->AddKey(key);
     }
   } else if (IsJSGlobalObject()) {
-    global_dictionary()->CollectKeysTo(keys, filter);
+    GlobalDictionary::CollectKeysTo(handle(global_dictionary()), keys, filter);
   } else {
-    property_dictionary()->CollectKeysTo(keys, filter);
+    NameDictionary::CollectKeysTo(handle(property_dictionary()), keys, filter);
   }
 }
 
@@ -17201,29 +17201,35 @@ int Dictionary<Derived, Shape, Key>::CopyKeysTo(
 
 
 template <typename Derived, typename Shape, typename Key>
-void Dictionary<Derived, Shape, Key>::CollectKeysTo(KeyAccumulator* keys,
-                                                    PropertyAttributes filter) {
-  int capacity = this->Capacity();
+void Dictionary<Derived, Shape, Key>::CollectKeysTo(
+    Handle<Dictionary<Derived, Shape, Key> > dictionary, KeyAccumulator* keys,
+    PropertyAttributes filter) {
+  int capacity = dictionary->Capacity();
   Handle<FixedArray> array =
-      keys->isolate()->factory()->NewFixedArray(this->NumberOfElements());
+      keys->isolate()->factory()->NewFixedArray(dictionary->NumberOfElements());
   int array_size = 0;
 
-  for (int i = 0; i < capacity; i++) {
-    Object* k = this->KeyAt(i);
-    if (!this->IsKey(k) || k->FilterKey(filter)) continue;
-    if (this->IsDeleted(i)) continue;
-    PropertyDetails details = this->DetailsAt(i);
-    PropertyAttributes attr = details.attributes();
-    if ((attr & filter) != 0) continue;
-    array->set(array_size++, Smi::FromInt(i));
+  {
+    DisallowHeapAllocation no_gc;
+    Dictionary<Derived, Shape, Key>* raw_dict = *dictionary;
+    for (int i = 0; i < capacity; i++) {
+      Object* k = raw_dict->KeyAt(i);
+      if (!raw_dict->IsKey(k) || k->FilterKey(filter)) continue;
+      if (raw_dict->IsDeleted(i)) continue;
+      PropertyDetails details = raw_dict->DetailsAt(i);
+      PropertyAttributes attr = details.attributes();
+      if ((attr & filter) != 0) continue;
+      array->set(array_size++, Smi::FromInt(i));
+    }
+
+    EnumIndexComparator<Derived> cmp(static_cast<Derived*>(raw_dict));
+    Smi** start = reinterpret_cast<Smi**>(array->GetFirstElementAddress());
+    std::sort(start, start + array_size, cmp);
   }
 
-  EnumIndexComparator<Derived> cmp(static_cast<Derived*>(this));
-  Smi** start = reinterpret_cast<Smi**>(array->GetFirstElementAddress());
-  std::sort(start, start + array_size, cmp);
   for (int i = 0; i < array_size; i++) {
     int index = Smi::cast(array->get(i))->value();
-    keys->AddKey(this->KeyAt(index));
+    keys->AddKey(dictionary->KeyAt(index));
   }
 }
 

@@ -3406,7 +3406,8 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
                  SortMode sort_mode);
   // Collect the keys into the given KeyAccumulator, in ascending chronological
   // order of property creation.
-  void CollectKeysTo(KeyAccumulator* keys, PropertyAttributes filter);
+  static void CollectKeysTo(Handle<Dictionary<Derived, Shape, Key> > dictionary,
+                            KeyAccumulator* keys, PropertyAttributes filter);
 
   // Copies enumerable keys to preallocated fixed array.
   void CopyEnumKeysTo(FixedArray* storage);
