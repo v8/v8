@@ -410,6 +410,36 @@ const CreateClosureParameters& CreateClosureParametersOf(const Operator* op) {
 }
 
 
+bool operator==(CreateLiteralParameters const& lhs,
+                CreateLiteralParameters const& rhs) {
+  return lhs.constants().location() == rhs.constants().location() &&
+         lhs.flags() == rhs.flags() && lhs.index() == rhs.index();
+}
+
+
+bool operator!=(CreateLiteralParameters const& lhs,
+                CreateLiteralParameters const& rhs) {
+  return !(lhs == rhs);
+}
+
+
+size_t hash_value(CreateLiteralParameters const& p) {
+  return base::hash_combine(p.constants().location(), p.flags(), p.index());
+}
+
+
+std::ostream& operator<<(std::ostream& os, CreateLiteralParameters const& p) {
+  return os << Brief(*p.constants()) << ", " << p.flags() << ", " << p.index();
+}
+
+
+const CreateLiteralParameters& CreateLiteralParametersOf(const Operator* op) {
+  DCHECK(op->opcode() == IrOpcode::kJSCreateLiteralArray ||
+         op->opcode() == IrOpcode::kJSCreateLiteralObject);
+  return OpParameter<CreateLiteralParameters>(op);
+}
+
+
 #define CACHED_OP_LIST(V)                             \
   V(Equal, Operator::kNoProperties, 2, 1)             \
   V(NotEqual, Operator::kNoProperties, 2, 1)          \
@@ -723,21 +753,29 @@ const Operator* JSOperatorBuilder::CreateClosure(
 }
 
 
-const Operator* JSOperatorBuilder::CreateLiteralArray(int literal_flags) {
-  return new (zone()) Operator1<int>(                            // --
+const Operator* JSOperatorBuilder::CreateLiteralArray(
+    Handle<FixedArray> constant_elements, int literal_flags,
+    int literal_index) {
+  CreateLiteralParameters parameters(constant_elements, literal_flags,
+                                     literal_index);
+  return new (zone()) Operator1<CreateLiteralParameters>(        // --
       IrOpcode::kJSCreateLiteralArray, Operator::kNoProperties,  // opcode
       "JSCreateLiteralArray",                                    // name
-      3, 1, 1, 1, 1, 2,                                          // counts
-      literal_flags);                                            // parameter
+      1, 1, 1, 1, 1, 2,                                          // counts
+      parameters);                                               // parameter
 }
 
 
-const Operator* JSOperatorBuilder::CreateLiteralObject(int literal_flags) {
-  return new (zone()) Operator1<int>(                             // --
+const Operator* JSOperatorBuilder::CreateLiteralObject(
+    Handle<FixedArray> constant_properties, int literal_flags,
+    int literal_index) {
+  CreateLiteralParameters parameters(constant_properties, literal_flags,
+                                     literal_index);
+  return new (zone()) Operator1<CreateLiteralParameters>(         // --
       IrOpcode::kJSCreateLiteralObject, Operator::kNoProperties,  // opcode
       "JSCreateLiteralObject",                                    // name
-      3, 1, 1, 1, 1, 2,                                           // counts
-      literal_flags);                                             // parameter
+      1, 1, 1, 1, 1, 2,                                           // counts
+      parameters);                                                // parameter
 }
 
 

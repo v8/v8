@@ -1765,9 +1765,9 @@ Reduction JSTypedLowering::ReduceJSCreateClosure(Node* node) {
 
 Reduction JSTypedLowering::ReduceJSCreateLiteralArray(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateLiteralArray, node->opcode());
-  HeapObjectMatcher mconst(NodeProperties::GetValueInput(node, 2));
-  int length = Handle<FixedArray>::cast(mconst.Value())->length();
-  int flags = OpParameter<int>(node->op());
+  CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
+  int const length = p.constants()->length();
+  int const flags = p.flags();
 
   // Use the FastCloneShallowArrayStub only for shallow boilerplates up to the
   // initial length limit for arrays with "fast" elements kind.
@@ -1784,7 +1784,11 @@ Reduction JSTypedLowering::ReduceJSCreateLiteralArray(Node* node) {
             : CallDescriptor::kNoFlags);
     const Operator* new_op = common()->Call(desc);
     Node* stub_code = jsgraph()->HeapConstant(callable.code());
+    Node* literal_index = jsgraph()->SmiConstant(p.index());
+    Node* constant_elements = jsgraph()->HeapConstant(p.constants());
     node->InsertInput(graph()->zone(), 0, stub_code);
+    node->InsertInput(graph()->zone(), 2, literal_index);
+    node->InsertInput(graph()->zone(), 3, constant_elements);
     NodeProperties::ChangeOp(node, new_op);
     return Changed(node);
   }
@@ -1795,10 +1799,10 @@ Reduction JSTypedLowering::ReduceJSCreateLiteralArray(Node* node) {
 
 Reduction JSTypedLowering::ReduceJSCreateLiteralObject(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateLiteralObject, node->opcode());
-  HeapObjectMatcher mconst(NodeProperties::GetValueInput(node, 2));
+  CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
   // Constants are pairs, see ObjectLiteral::properties_count().
-  int length = Handle<FixedArray>::cast(mconst.Value())->length() / 2;
-  int flags = OpParameter<int>(node->op());
+  int const length = p.constants()->length() / 2;
+  int const flags = p.flags();
 
   // Use the FastCloneShallowObjectStub only for shallow boilerplates without
   // elements up to the number of properties that the stubs can handle.
@@ -1813,8 +1817,13 @@ Reduction JSTypedLowering::ReduceJSCreateLiteralObject(Node* node) {
             : CallDescriptor::kNoFlags);
     const Operator* new_op = common()->Call(desc);
     Node* stub_code = jsgraph()->HeapConstant(callable.code());
-    node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(flags));
+    Node* literal_index = jsgraph()->SmiConstant(p.index());
+    Node* literal_flags = jsgraph()->SmiConstant(flags);
+    Node* constant_elements = jsgraph()->HeapConstant(p.constants());
     node->InsertInput(graph()->zone(), 0, stub_code);
+    node->InsertInput(graph()->zone(), 2, literal_index);
+    node->InsertInput(graph()->zone(), 3, constant_elements);
+    node->InsertInput(graph()->zone(), 4, literal_flags);
     NodeProperties::ChangeOp(node, new_op);
     return Changed(node);
   }

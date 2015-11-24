@@ -1091,22 +1091,26 @@ TEST_F(JSTypedLoweringTest, JSCreateClosure) {
 
 
 TEST_F(JSTypedLoweringTest, JSCreateLiteralArray) {
-  Node* const input0 = Parameter(0);
-  Node* const input1 = Parameter(1);
-  Node* const input2 = HeapConstant(factory()->NewFixedArray(12));
-  Node* const context = UndefinedConstant();
+  Handle<FixedArray> const constant_elements = factory()->NewFixedArray(12);
+  int const literal_flags = ArrayLiteral::kShallowElements;
+  int const literal_index = 1;
+  Node* const input = Parameter(0);
+  Node* const context = Parameter(1);
   Node* const frame_state = EmptyFrameState();
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
-  Reduction const r = Reduce(graph()->NewNode(
-      javascript()->CreateLiteralArray(ArrayLiteral::kShallowElements), input0,
-      input1, input2, context, frame_state, effect, control));
+  Reduction const r = Reduce(
+      graph()->NewNode(javascript()->CreateLiteralArray(
+                           constant_elements, literal_flags, literal_index),
+                       input, context, frame_state, effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(
       r.replacement(),
       IsCall(_, IsHeapConstant(
                     CodeFactory::FastCloneShallowArray(isolate()).code()),
-             input0, input1, input2, context, frame_state, effect, control));
+             input, IsNumberConstant(literal_index),
+             IsHeapConstant(constant_elements), context, frame_state, effect,
+             control));
 }
 
 
@@ -1115,22 +1119,27 @@ TEST_F(JSTypedLoweringTest, JSCreateLiteralArray) {
 
 
 TEST_F(JSTypedLoweringTest, JSCreateLiteralObject) {
-  Node* const input0 = Parameter(0);
-  Node* const input1 = Parameter(1);
-  Node* const input2 = HeapConstant(factory()->NewFixedArray(2 * 6));
-  Node* const context = UndefinedConstant();
+  Handle<FixedArray> const constant_properties =
+      factory()->NewFixedArray(6 * 2);
+  int const literal_flags = ObjectLiteral::kShallowProperties;
+  int const literal_index = 1;
+  Node* const input = Parameter(0);
+  Node* const context = Parameter(1);
   Node* const frame_state = EmptyFrameState();
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
-  Reduction const r = Reduce(graph()->NewNode(
-      javascript()->CreateLiteralObject(ObjectLiteral::kShallowProperties),
-      input0, input1, input2, context, frame_state, effect, control));
+  Reduction const r = Reduce(
+      graph()->NewNode(javascript()->CreateLiteralObject(
+                           constant_properties, literal_flags, literal_index),
+                       input, context, frame_state, effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(
       r.replacement(),
       IsCall(_, IsHeapConstant(
                     CodeFactory::FastCloneShallowObject(isolate(), 6).code()),
-             input0, input1, input2, _, context, frame_state, effect, control));
+             input, IsNumberConstant(literal_index),
+             IsHeapConstant(constant_properties), _, context, frame_state,
+             effect, control));
 }
 
 

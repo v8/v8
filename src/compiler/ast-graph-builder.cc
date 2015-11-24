@@ -1715,11 +1715,10 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
   // Create node to deep-copy the literal boilerplate.
   Node* literals_array =
       BuildLoadObjectField(closure, JSFunction::kLiteralsOffset);
-  Node* literal_index = jsgraph()->Constant(expr->literal_index());
-  Node* constants = jsgraph()->Constant(expr->constant_properties());
-  const Operator* op =
-      javascript()->CreateLiteralObject(expr->ComputeFlags(true));
-  Node* literal = NewNode(op, literals_array, literal_index, constants);
+  const Operator* op = javascript()->CreateLiteralObject(
+      expr->constant_properties(), expr->ComputeFlags(true),
+      expr->literal_index());
+  Node* literal = NewNode(op, literals_array);
   PrepareFrameState(literal, expr->CreateLiteralId(),
                     OutputFrameStateCombine::Push());
 
@@ -1921,11 +1920,10 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   // Create node to deep-copy the literal boilerplate.
   Node* literals_array =
       BuildLoadObjectField(closure, JSFunction::kLiteralsOffset);
-  Node* literal_index = jsgraph()->Constant(expr->literal_index());
-  Node* constants = jsgraph()->Constant(expr->constant_elements());
-  const Operator* op =
-      javascript()->CreateLiteralArray(expr->ComputeFlags(true));
-  Node* literal = NewNode(op, literals_array, literal_index, constants);
+  const Operator* op = javascript()->CreateLiteralArray(
+      expr->constant_elements(), expr->ComputeFlags(true),
+      expr->literal_index());
+  Node* literal = NewNode(op, literals_array);
   PrepareFrameState(literal, expr->CreateLiteralId(),
                     OutputFrameStateCombine::Push());
 

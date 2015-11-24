@@ -504,15 +504,19 @@ void JSGenericLowering::LowerJSCreateClosure(Node* node) {
 
 
 void JSGenericLowering::LowerJSCreateLiteralArray(Node* node) {
-  int literal_flags = OpParameter<int>(node->op());
-  node->InsertInput(zone(), 3, jsgraph()->SmiConstant(literal_flags));
+  CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
+  node->InsertInput(zone(), 1, jsgraph()->SmiConstant(p.index()));
+  node->InsertInput(zone(), 2, jsgraph()->HeapConstant(p.constants()));
+  node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.flags()));
   ReplaceWithRuntimeCall(node, Runtime::kCreateArrayLiteral);
 }
 
 
 void JSGenericLowering::LowerJSCreateLiteralObject(Node* node) {
-  int literal_flags = OpParameter<int>(node->op());
-  node->InsertInput(zone(), 3, jsgraph()->SmiConstant(literal_flags));
+  CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
+  node->InsertInput(zone(), 1, jsgraph()->SmiConstant(p.index()));
+  node->InsertInput(zone(), 2, jsgraph()->HeapConstant(p.constants()));
+  node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.flags()));
   ReplaceWithRuntimeCall(node, Runtime::kCreateObjectLiteral);
 }
 
