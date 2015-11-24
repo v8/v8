@@ -1929,10 +1929,9 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   PrepareFrameState(literal, expr->CreateLiteralId(),
                     OutputFrameStateCombine::Push());
 
-  // The array and the literal index are both expected on the operand stack
-  // during computation of the element values.
+  // The array is expected on the operand stack during computation of the
+  // element values.
   environment()->Push(literal);
-  environment()->Push(literal_index);
 
   // Create nodes to evaluate all the non-constant subexpressions and to store
   // them into the newly cloned array.
@@ -1948,7 +1947,7 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
       VectorSlotPair pair = CreateVectorSlotPair(expr->LiteralFeedbackSlot());
       Node* value = environment()->Pop();
       Node* index = jsgraph()->Constant(array_index);
-      Node* literal = environment()->Peek(1);
+      Node* literal = environment()->Top();
       Node* store = BuildKeyedStore(literal, index, value, pair);
       states.AddToNode(store, expr->GetIdForElement(array_index),
                        OutputFrameStateCombine::Ignore());
@@ -1960,7 +1959,6 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   // above. The second part is the part after the first spread expression
   // (inclusive) and these elements gets appended to the array. Note that the
   // number elements an iterable produces is unknown ahead of time.
-  environment()->Pop();  // Array literal index.
   for (; array_index < expr->values()->length(); array_index++) {
     Expression* subexpr = expr->values()->at(array_index);
     Node* result;

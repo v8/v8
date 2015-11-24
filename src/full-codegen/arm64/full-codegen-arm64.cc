@@ -1750,14 +1750,13 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     if (CompileTimeValue::IsCompileTimeValue(subexpr)) continue;
 
     if (!result_saved) {
-      __ Mov(x1, Smi::FromInt(expr->literal_index()));
-      __ Push(x0, x1);
+      __ Push(x0);
       result_saved = true;
     }
     VisitForAccumulatorValue(subexpr);
 
     __ Mov(StoreDescriptor::NameRegister(), Smi::FromInt(array_index));
-    __ Peek(StoreDescriptor::ReceiverRegister(), kPointerSize);
+    __ Peek(StoreDescriptor::ReceiverRegister(), 0);
     EmitLoadStoreICSlot(expr->LiteralFeedbackSlot());
     Handle<Code> ic =
         CodeFactory::KeyedStoreIC(isolate(), language_mode()).code();
@@ -1772,7 +1771,6 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   // (inclusive) and these elements gets appended to the array. Note that the
   // number elements an iterable produces is unknown ahead of time.
   if (array_index < length && result_saved) {
-    __ Drop(1);  // literal index
     __ Pop(x0);
     result_saved = false;
   }
@@ -1793,7 +1791,6 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   }
 
   if (result_saved) {
-    __ Drop(1);   // literal index
     context()->PlugTOS();
   } else {
     context()->Plug(x0);

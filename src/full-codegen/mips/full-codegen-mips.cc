@@ -1764,14 +1764,13 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
 
     if (!result_saved) {
       __ push(v0);  // array literal
-      __ Push(Smi::FromInt(expr->literal_index()));
       result_saved = true;
     }
 
     VisitForAccumulatorValue(subexpr);
 
     __ li(StoreDescriptor::NameRegister(), Operand(Smi::FromInt(array_index)));
-    __ lw(StoreDescriptor::ReceiverRegister(), MemOperand(sp, kPointerSize));
+    __ lw(StoreDescriptor::ReceiverRegister(), MemOperand(sp, 0));
     __ mov(StoreDescriptor::ValueRegister(), result_register());
     EmitLoadStoreICSlot(expr->LiteralFeedbackSlot());
     Handle<Code> ic =
@@ -1787,7 +1786,6 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   // (inclusive) and these elements gets appended to the array. Note that the
   // number elements an iterable produces is unknown ahead of time.
   if (array_index < length && result_saved) {
-    __ Pop();  // literal index
     __ Pop(v0);
     result_saved = false;
   }
@@ -1808,7 +1806,6 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   }
 
   if (result_saved) {
-    __ Pop();  // literal index
     context()->PlugTOS();
   } else {
     context()->Plug(v0);
