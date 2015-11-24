@@ -2432,7 +2432,8 @@ void LinearScanAllocator::AllocateRegisters() {
   DCHECK(active_live_ranges().empty());
   DCHECK(inactive_live_ranges().empty());
 
-  SplitAndSpillRangesDefinedByMemoryOperand(false);
+  SplitAndSpillRangesDefinedByMemoryOperand(code()->VirtualRegisterCount() <=
+                                            num_allocatable_registers());
 
   for (TopLevelLiveRange* range : data()->live_ranges()) {
     if (!CanProcessRange(range)) continue;
