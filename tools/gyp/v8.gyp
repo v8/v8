@@ -1879,7 +1879,6 @@
           '../../src/js/harmony-object-observe.js',
           '../../src/js/harmony-sharedarraybuffer.js',
           '../../src/js/harmony-simd.js',
-          '../../src/js/promise-extra.js',
         ],
         'code_stub_library_files': [
           '../../src/js/macros.py',
