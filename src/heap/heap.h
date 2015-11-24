@@ -2149,6 +2149,11 @@ class Heap {
   // For keeping track of context disposals.
   int contexts_disposed_;
 
+  // The length of the retained_maps array at the time of context disposal.
+  // This separates maps in the retained_maps array that were created before
+  // and after context disposal.
+  int number_of_disposed_maps_;
+
   int global_ic_age_;
 
   int scan_on_scavenge_pages_;

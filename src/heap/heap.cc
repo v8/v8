@@ -91,6 +91,7 @@ Heap::Heap()
       survived_last_scavenge_(0),
       always_allocate_scope_count_(0),
       contexts_disposed_(0),
+      number_of_disposed_maps_(0),
       global_ic_age_(0),
       scan_on_scavenge_pages_(0),
       new_space_(this),
@@ -1037,7 +1038,7 @@ int Heap::NotifyContextDisposed(bool dependant_context) {
     isolate()->optimizing_compile_dispatcher()->Flush();
   }
   AgeInlineCaches();
-  set_retained_maps(ArrayList::cast(empty_fixed_array()));
+  number_of_disposed_maps_ = retained_maps()->Length();
   tracer()->AddContextDisposalTime(MonotonicallyIncreasingTimeInMs());
   return ++contexts_disposed_;
 }
@@ -5366,7 +5367,6 @@ DependentCode* Heap::LookupWeakObjectToCodeDependency(Handle<HeapObject> obj) {
 
 
 void Heap::AddRetainedMap(Handle<Map> map) {
-  if (FLAG_retain_maps_for_n_gc == 0) return;
   Handle<WeakCell> cell = Map::WeakCellForMap(map);
   Handle<ArrayList> array(retained_maps(), isolate());
   array = ArrayList::Add(

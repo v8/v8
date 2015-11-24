@@ -349,16 +349,7 @@ void MarkCompactCollector::CollectGarbage() {
 
   DCHECK(heap_->incremental_marking()->IsStopped());
 
-  // ClearNonLiveReferences can deoptimize code in dependent code arrays.
-  // Process weak cells before so that weak cells in dependent code
-  // arrays are cleared or contain only live code objects.
-  ProcessAndClearWeakCells();
-
-  ClearNonLiveReferences();
-
-  ClearWeakCollections();
-
-  heap_->set_encountered_weak_cells(Smi::FromInt(0));
+  ProcessWeakReferences();
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
@@ -1821,18 +1812,40 @@ void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor) {
 }
 
 
-void MarkCompactCollector::RetainMaps() {
-  if (heap()->ShouldReduceMemory() || heap()->ShouldAbortIncrementalMarking() ||
-      FLAG_retain_maps_for_n_gc == 0) {
-    // Do not retain dead maps if flag disables it or there is
-    // - memory pressure (reduce_memory_footprint_),
-    // - GC is requested by tests or dev-tools (abort_incremental_marking_).
-    return;
+bool ShouldRetainMap(Map* map, int age) {
+  if (age == 0) {
+    // The map has aged. Do not retain this map.
+    return false;
   }
+  Object* constructor = map->GetConstructor();
+  if (!constructor->IsHeapObject() ||
+      Marking::IsWhite(Marking::MarkBitFrom(HeapObject::cast(constructor)))) {
+    // The constructor is dead, no new objects with this map can
+    // be created. Do not retain this map.
+    return false;
+  }
+  return true;
+}
+
+
+void MarkCompactCollector::RetainMaps() {
+  // Do not retain dead maps if flag disables it or there is
+  // - memory pressure (reduce_memory_footprint_),
+  // - GC is requested by tests or dev-tools (abort_incremental_marking_).
+  bool map_retaining_is_disabled = heap()->ShouldReduceMemory() ||
+                                   heap()->ShouldAbortIncrementalMarking() ||
+                                   FLAG_retain_maps_for_n_gc == 0;
 
   ArrayList* retained_maps = heap()->retained_maps();
   int length = retained_maps->Length();
   int new_length = 0;
+  // The number_of_disposed_maps separates maps in the retained_maps
+  // array that were created before and after context disposal.
+  // We do not age and retain disposed maps to avoid memory leaks.
+  int number_of_disposed_maps = heap()->number_of_disposed_maps_;
+  int new_number_of_disposed_maps = 0;
+  // This loop compacts the array by removing cleared weak cells,
+  // ages and retains dead maps.
   for (int i = 0; i < length; i += 2) {
     DCHECK(retained_maps->Get(i)->IsWeakCell());
     WeakCell* cell = WeakCell::cast(retained_maps->Get(i));
@@ -1841,20 +1854,13 @@ void MarkCompactCollector::RetainMaps() {
     int new_age;
     Map* map = Map::cast(cell->value());
     MarkBit map_mark = Marking::MarkBitFrom(map);
-    if (Marking::IsWhite(map_mark)) {
-      if (age == 0) {
-        // The map has aged. Do not retain this map.
-        continue;
-      }
-      Object* constructor = map->GetConstructor();
-      if (!constructor->IsHeapObject() || Marking::IsWhite(Marking::MarkBitFrom(
-                                              HeapObject::cast(constructor)))) {
-        // The constructor is dead, no new objects with this map can
-        // be created. Do not retain this map.
-        continue;
+    if (i >= number_of_disposed_maps && !map_retaining_is_disabled &&
+        Marking::IsWhite(map_mark)) {
+      if (ShouldRetainMap(map, age)) {
+        MarkObject(map, map_mark);
       }
       Object* prototype = map->prototype();
-      if (prototype->IsHeapObject() &&
+      if (age > 0 && prototype->IsHeapObject() &&
           Marking::IsWhite(Marking::MarkBitFrom(HeapObject::cast(prototype)))) {
         // The prototype is not marked, age the map.
         new_age = age - 1;
@@ -1863,10 +1869,10 @@ void MarkCompactCollector::RetainMaps() {
         // transition tree alive, not JSObjects. Do not age the map.
         new_age = age;
       }
-      MarkObject(map, map_mark);
     } else {
       new_age = FLAG_retain_maps_for_n_gc;
     }
+    // Compact the array and update the age.
     if (i != new_length) {
       retained_maps->Set(new_length, cell);
       Object** slot = retained_maps->Slot(new_length);
@@ -1875,14 +1881,45 @@ void MarkCompactCollector::RetainMaps() {
     } else if (new_age != age) {
       retained_maps->Set(new_length + 1, Smi::FromInt(new_age));
     }
+    if (i < number_of_disposed_maps) {
+      new_number_of_disposed_maps++;
+    }
     new_length += 2;
   }
+  heap()->number_of_disposed_maps_ = new_number_of_disposed_maps;
   Object* undefined = heap()->undefined_value();
   for (int i = new_length; i < length; i++) {
     retained_maps->Clear(i, undefined);
   }
   if (new_length != length) retained_maps->SetLength(new_length);
   ProcessMarkingDeque();
+}
+
+
+DependentCode* MarkCompactCollector::DependentCodeListFromNonLiveMaps() {
+  GCTracer::Scope gc_scope(heap()->tracer(),
+                           GCTracer::Scope::MC_EXTRACT_DEPENDENT_CODE);
+  ArrayList* retained_maps = heap()->retained_maps();
+  int length = retained_maps->Length();
+  DependentCode* head = DependentCode::cast(heap()->empty_fixed_array());
+  for (int i = 0; i < length; i += 2) {
+    DCHECK(retained_maps->Get(i)->IsWeakCell());
+    WeakCell* cell = WeakCell::cast(retained_maps->Get(i));
+    DCHECK(!cell->cleared());
+    Map* map = Map::cast(cell->value());
+    MarkBit map_mark = Marking::MarkBitFrom(map);
+    if (Marking::IsWhite(map_mark)) {
+      DependentCode* candidate = map->dependent_code();
+      // We rely on the fact that the weak code group comes first.
+      STATIC_ASSERT(DependentCode::kWeakCodeGroup == 0);
+      if (candidate->length() > 0 &&
+          candidate->group() == DependentCode::kWeakCodeGroup) {
+        candidate->set_next_link(head);
+        head = candidate;
+      }
+    }
+  }
+  return head;
 }
 
 
@@ -2192,6 +2229,26 @@ void MarkCompactCollector::ProcessAndClearOptimizedCodeMaps() {
 }
 
 
+void MarkCompactCollector::ProcessWeakReferences() {
+  // This should be done before processing weak cells because it checks
+  // mark bits of maps in weak cells.
+  DependentCode* dependent_code_list = DependentCodeListFromNonLiveMaps();
+
+  // Process weak cells before MarkCodeForDeoptimization and
+  // ClearNonLiveReferences  so that weak cells in dependent code arrays are
+  // cleared or contain only live code objects.
+  ProcessAndClearWeakCells();
+
+  MarkDependentCodeListForDeoptimization(dependent_code_list);
+
+  ClearNonLiveReferences();
+
+  ClearWeakCollections();
+
+  heap_->set_encountered_weak_cells(Smi::FromInt(0));
+}
+
+
 void MarkCompactCollector::ClearNonLiveReferences() {
   GCTracer::Scope gc_scope(heap()->tracer(),
                            GCTracer::Scope::MC_NONLIVEREFERENCES);
@@ -2209,10 +2266,6 @@ void MarkCompactCollector::ClearNonLiveReferences() {
       ClearNonLivePrototypeTransitions(map);
     } else {
       ClearNonLiveMapTransitions(map);
-      have_code_to_deoptimize_ |=
-          map->dependent_code()->MarkCodeForDeoptimization(
-              isolate(), DependentCode::kWeakCodeGroup);
-      map->set_dependent_code(DependentCode::cast(heap()->empty_fixed_array()));
     }
   }
 
@@ -2233,6 +2286,20 @@ void MarkCompactCollector::ClearNonLiveReferences() {
       table->set(value_index, heap_->the_hole_value());
       table->ElementRemoved();
     }
+  }
+}
+
+
+void MarkCompactCollector::MarkDependentCodeListForDeoptimization(
+    DependentCode* list_head) {
+  GCTracer::Scope gc_scope(heap()->tracer(),
+                           GCTracer::Scope::MC_DEOPT_DEPENDENT_CODE);
+  Isolate* isolate = this->isolate();
+  DependentCode* current = list_head;
+  while (current->length() > 0) {
+    have_code_to_deoptimize_ |= current->MarkCodeForDeoptimization(
+        isolate, DependentCode::kWeakCodeGroup);
+    current = current->next_link();
   }
 }
 

@@ -528,6 +528,8 @@ void GCTracer::PrintNVP() const {
                    "weakcollection_abort=%.1f "
                    "weakcells=%.1f "
                    "nonlive_refs=%.1f "
+                   "extract_dependent_code=%.1f "
+                   "deopt_dependent_code=%.1f "
                    "steps_count=%d "
                    "steps_took=%.1f "
                    "longest_step=%.1f "
@@ -595,6 +597,8 @@ void GCTracer::PrintNVP() const {
                    current_.scopes[Scope::MC_WEAKCOLLECTION_ABORT],
                    current_.scopes[Scope::MC_WEAKCELL],
                    current_.scopes[Scope::MC_NONLIVEREFERENCES],
+                   current_.scopes[Scope::MC_EXTRACT_DEPENDENT_CODE],
+                   current_.scopes[Scope::MC_DEOPT_DEPENDENT_CODE],
                    current_.incremental_marking_steps,
                    current_.incremental_marking_duration,
                    current_.longest_incremental_marking_step,
