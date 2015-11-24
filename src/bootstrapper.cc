@@ -1729,24 +1729,6 @@ static Handle<JSObject> ResolveBuiltinIdHolder(Handle<Context> native_context,
 }
 
 
-template <typename Data>
-Handle<JSTypedArray> CreateTypedArray(Isolate* isolate, ExternalArrayType type,
-                                      size_t num_elements, Data** data) {
-  size_t byte_length = num_elements * sizeof(**data);
-  Handle<JSArrayBuffer> buffer =
-      isolate->factory()->NewJSArrayBuffer(SharedFlag::kNotShared, TENURED);
-  bool is_external = (*data != nullptr);
-  if (!is_external) {
-    *data = reinterpret_cast<Data*>(
-        isolate->array_buffer_allocator()->Allocate(byte_length));
-  }
-  JSArrayBuffer::Setup(buffer, isolate, is_external, *data, byte_length,
-                       SharedFlag::kNotShared);
-  return isolate->factory()->NewJSTypedArray(type, buffer, 0, num_elements,
-                                             TENURED);
-}
-
-
 void Genesis::ConfigureUtilsObject(ContextType context_type) {
   switch (context_type) {
     // We still need the utils object to find debug functions.

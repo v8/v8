@@ -543,7 +543,7 @@ UNINITIALIZED_TEST(CustomContextSerialization) {
           "  e = function(s) { return eval (s); }"
           "})();"
           "var o = this;"
-          "var r = Math.random() + Math.cos(0);"
+          "var r = Math.sin(0) + Math.cos(0);"
           "var f = (function(a, b) { return a + b; }).bind(1, 2, 3);"
           "var s = parseInt('12345');");
 
@@ -654,7 +654,7 @@ UNINITIALIZED_DEPENDENT_TEST(CustomContextDeserialization,
                      ->ToNumber(v8_isolate->GetCurrentContext())
                      .ToLocalChecked()
                      ->Value();
-      CHECK(r >= 1 && r <= 2);
+      CHECK_EQ(1, r);
       int f = CompileRun("f()")
                   ->ToNumber(v8_isolate->GetCurrentContext())
                   .ToLocalChecked()
