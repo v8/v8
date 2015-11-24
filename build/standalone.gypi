@@ -1215,7 +1215,7 @@
         ['CC', '<(clang_dir)/bin/clang-cl'],
       ],
     }],
-    ['OS=="linux" and target_arch=="arm" and host_arch!="arm" and clang==0', {
+    ['OS=="linux" and target_arch=="arm" and host_arch!="arm" and clang==0 and "<(GENERATOR)"=="ninja"', {
       # Set default ARM cross tools on linux.  These can be overridden
       # using CC,CXX,CC.host and CXX.host environment variables.
       'make_global_settings': [
