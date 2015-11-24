@@ -15,8 +15,8 @@ var GlobalRegExp = global.RegExp;
 var InternalArray = utils.InternalArray;
 var InternalPackedArray = utils.InternalPackedArray;
 var MakeTypeError;
+var matchSymbol = utils.ImportNow("match_symbol");
 var splitSymbol = utils.ImportNow("split_symbol");
-var matchSymbol = utils.ImportNow("match_symbol");;
 
 utils.ImportFromExperimental(function(from) {
   FLAG_harmony_tolength = from.FLAG_harmony_tolength;
@@ -355,6 +355,21 @@ function RegExpSplit(string, limit) {
 }
 
 
+// ES6 21.2.5.6.
+function RegExpMatch(string) {
+  if (!IS_REGEXP(this)) {
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        "RegExp.prototype.@@match", this);
+  }
+  var subject = TO_STRING(string);
+
+  if (!REGEXP_GLOBAL(this)) return RegExpExecNoTests(this, subject, 0);
+  this.lastIndex = 0;
+  var result = %StringMatch(subject, this, RegExpLastMatchInfo);
+  return result;
+}
+
+
 // Getters for the static properties lastMatch, lastParen, leftContext, and
 // rightContext of the RegExp constructor.  The properties are computed based
 // on the captures array of the last successful match and the subject string
@@ -472,6 +487,7 @@ utils.InstallFunctions(GlobalRegExp.prototype, DONT_ENUM, [
   "test", RegExpTest,
   "toString", RegExpToString,
   "compile", RegExpCompileJS,
+  matchSymbol, RegExpMatch,
   splitSymbol, RegExpSplit,
 ]);
 

@@ -19,6 +19,7 @@ var MakeRangeError;
 var MakeTypeError;
 var MathMax;
 var MathMin;
+var matchSymbol = utils.ImportNow("match_symbol");
 var RegExpExec;
 var RegExpExecNoTests;
 var RegExpLastMatchInfo;
@@ -155,18 +156,23 @@ function StringLocaleCompareJS(other) {
 
 
 // ECMA-262 section 15.5.4.10
-function StringMatchJS(regexp) {
+function StringMatchJS(pattern) {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.match");
 
-  var subject = TO_STRING(this);
-  if (IS_REGEXP(regexp)) {
-    if (!REGEXP_GLOBAL(regexp)) return RegExpExecNoTests(regexp, subject, 0);
-    var result = %StringMatch(subject, regexp, RegExpLastMatchInfo);
-    regexp.lastIndex = 0;
-    return result;
+  if (!IS_NULL_OR_UNDEFINED(pattern)) {
+    var matcher = pattern[matchSymbol];
+    if (!IS_UNDEFINED(matcher)) {
+      if (!IS_CALLABLE(matcher)) {
+        throw MakeTypeError(kCalledNonCallable, matcher);
+      }
+      return %_Call(matcher, pattern, this);
+    }
   }
+
+  var subject = TO_STRING(this);
+
   // Non-regexp argument.
-  regexp = new GlobalRegExp(regexp);
+  var regexp = new GlobalRegExp(pattern);
   return RegExpExecNoTests(regexp, subject, 0);
 }
 
