@@ -107,8 +107,8 @@ RUNTIME_FUNCTION(Runtime_MathExpRT) {
   isolate->counters()->math_exp()->Increment();
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  lazily_initialize_fast_exp();
-  return *isolate->factory()->NewNumber(fast_exp(x));
+  lazily_initialize_fast_exp(isolate);
+  return *isolate->factory()->NewNumber(fast_exp(x, isolate));
 }
 
 

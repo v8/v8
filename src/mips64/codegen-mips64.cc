@@ -18,23 +18,21 @@ namespace internal {
 
 
 #if defined(USE_SIMULATOR)
-byte* fast_exp_mips_machine_code = NULL;
-double fast_exp_simulator(double x) {
-  return Simulator::current(Isolate::Current())->CallFP(
-      fast_exp_mips_machine_code, x, 0);
+byte* fast_exp_mips_machine_code = nullptr;
+double fast_exp_simulator(double x, Isolate* isolate) {
+  return Simulator::current(isolate)->CallFP(fast_exp_mips_machine_code, x, 0);
 }
 #endif
 
 
-UnaryMathFunction CreateExpFunction() {
-  if (!FLAG_fast_math) return &std::exp;
+UnaryMathFunctionWithIsolate CreateExpFunction(Isolate* isolate) {
   size_t actual_size;
   byte* buffer =
       static_cast<byte*>(base::OS::Allocate(1 * KB, &actual_size, true));
-  if (buffer == NULL) return &std::exp;
+  if (buffer == nullptr) return nullptr;
   ExternalReference::InitializeMathExpData();
 
-  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
+  MacroAssembler masm(nullptr, buffer, static_cast<int>(actual_size));
 
   {
     DoubleRegister input = f12;
@@ -63,7 +61,7 @@ UnaryMathFunction CreateExpFunction() {
   base::OS::ProtectCode(buffer, actual_size);
 
 #if !defined(USE_SIMULATOR)
-  return FUNCTION_CAST<UnaryMathFunction>(buffer);
+  return FUNCTION_CAST<UnaryMathFunctionWithIsolate>(buffer);
 #else
   fast_exp_mips_machine_code = buffer;
   return &fast_exp_simulator;

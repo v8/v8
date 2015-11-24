@@ -16,9 +16,9 @@ namespace internal {
 #define __ ACCESS_MASM(masm)
 
 #if defined(USE_SIMULATOR)
-byte* fast_exp_arm64_machine_code = NULL;
-double fast_exp_simulator(double x) {
-  Simulator * simulator = Simulator::current(Isolate::Current());
+byte* fast_exp_arm64_machine_code = nullptr;
+double fast_exp_simulator(double x, Isolate* isolate) {
+  Simulator * simulator = Simulator::current(isolate);
   Simulator::CallArgument args[] = {
       Simulator::CallArgument(x),
       Simulator::CallArgument::End()
@@ -28,19 +28,17 @@ double fast_exp_simulator(double x) {
 #endif
 
 
-UnaryMathFunction CreateExpFunction() {
-  if (!FLAG_fast_math) return &std::exp;
-
+UnaryMathFunctionWithIsolate CreateExpFunction(Isolate* isolate) {
   // Use the Math.exp implemetation in MathExpGenerator::EmitMathExp() to create
   // an AAPCS64-compliant exp() function. This will be faster than the C
   // library's exp() function, but probably less accurate.
   size_t actual_size;
   byte* buffer =
       static_cast<byte*>(base::OS::Allocate(1 * KB, &actual_size, true));
-  if (buffer == NULL) return &std::exp;
+  if (buffer == nullptr) return nullptr;
 
   ExternalReference::InitializeMathExpData();
-  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
+  MacroAssembler masm(nullptr, buffer, static_cast<int>(actual_size));
   masm.SetStackPointer(csp);
 
   // The argument will be in d0 on entry.
@@ -64,11 +62,11 @@ UnaryMathFunction CreateExpFunction() {
   masm.GetCode(&desc);
   DCHECK(!RelocInfo::RequiresRelocation(desc));
 
-  Assembler::FlushICacheWithoutIsolate(buffer, actual_size);
+  Assembler::FlushICache(isolate, buffer, actual_size);
   base::OS::ProtectCode(buffer, actual_size);
 
 #if !defined(USE_SIMULATOR)
-  return FUNCTION_CAST<UnaryMathFunction>(buffer);
+  return FUNCTION_CAST<UnaryMathFunctionWithIsolate>(buffer);
 #else
   fast_exp_arm64_machine_code = buffer;
   return &fast_exp_simulator;

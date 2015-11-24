@@ -36,7 +36,7 @@ void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
 
 UnaryMathFunction CreateExpFunction() {
   // No SSE2 support
-  return &std::exp;
+  return nullptr;
 }
 
 

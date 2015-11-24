@@ -73,15 +73,32 @@ double fast_##name(double x) {                           \
   return (*fast_##name##_function)(x);                   \
 }
 
-UNARY_MATH_FUNCTION(exp, CreateExpFunction())
 UNARY_MATH_FUNCTION(sqrt, CreateSqrtFunction())
 
 #undef UNARY_MATH_FUNCTION
 
+static UnaryMathFunctionWithIsolate fast_exp_function = NULL;
 
-void lazily_initialize_fast_exp() {
-  if (fast_exp_function == NULL) {
-    init_fast_exp_function();
+
+double std_exp(double x, Isolate* isolate) {
+  return std::exp(x);
+}
+
+
+void init_fast_exp_function(Isolate* isolate) {
+    if (FLAG_fast_math) fast_exp_function = CreateExpFunction(isolate);
+    if (!fast_exp_function) fast_exp_function = std_exp;
+}
+
+
+double fast_exp(double x, Isolate* isolate) {
+  return (*fast_exp_function)(x, isolate);
+}
+
+
+void lazily_initialize_fast_exp(Isolate* isolate) {
+  if (fast_exp_function == nullptr) {
+    init_fast_exp_function(isolate);
   }
 }
 
