@@ -368,6 +368,9 @@
 
   # BUG(v8:3097)
   'debug-references': [SKIP],
+
+  # BUG(v8:4570)
+  'mjsunit/harmony/reflect-own-keys': [SKIP],
 }],  # 'gc_stress == True'
 
 ##############################################################################
