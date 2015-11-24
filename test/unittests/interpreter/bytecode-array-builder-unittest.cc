@@ -94,7 +94,10 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .StoreKeyedProperty(reg, reg, 2056, LanguageMode::STRICT);
 
   // Emit closure operations.
-  builder.CreateClosure(NOT_TENURED);
+  Factory* factory = isolate()->factory();
+  Handle<SharedFunctionInfo> shared_info = factory->NewSharedFunctionInfo(
+      factory->NewStringFromStaticChars("function_a"), MaybeHandle<Code>());
+  builder.CreateClosure(shared_info, NOT_TENURED);
 
   // Emit argument creation operations.
   builder.CreateArguments(CreateArgumentsType::kMappedArguments)
@@ -214,6 +217,11 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
     builder.GetConstantPoolEntry(handle(Smi::FromInt(i), isolate()));
   }
   builder.LoadLiteral(Smi::FromInt(20000000));
+
+  // CreateClosureWide
+  Handle<SharedFunctionInfo> shared_info2 = factory->NewSharedFunctionInfo(
+      factory->NewStringFromStaticChars("function_b"), MaybeHandle<Code>());
+  builder.CreateClosure(shared_info2, NOT_TENURED);
 
   builder.Return();
 

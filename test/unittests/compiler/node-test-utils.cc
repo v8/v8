@@ -27,6 +27,7 @@ bool operator==(Handle<HeapObject> const& lhs, Handle<HeapObject> const& rhs) {
   return lhs.is_identical_to(rhs);
 }
 
+
 namespace compiler {
 
 namespace {
@@ -1858,6 +1859,56 @@ class IsJSCallMatcher final : public NodeMatcher {
   const Matcher<Node*> control_matcher_;
 };
 
+
+class IsCreateClosureMatcher final : public NodeMatcher {
+ public:
+  IsCreateClosureMatcher(
+      const Matcher<Handle<SharedFunctionInfo>>& shared_info_matcher,
+      const Matcher<PretenureFlag>& pretenure_matcher,
+      const Matcher<Node*>& effect_matcher,
+      const Matcher<Node*>& control_matcher)
+      : NodeMatcher(IrOpcode::Value::kJSCreateClosure),
+        shared_info_matcher_(shared_info_matcher),
+        pretenure_matcher_(pretenure_matcher),
+        effect_matcher_(effect_matcher),
+        control_matcher_(control_matcher) {}
+
+  void DescribeTo(std::ostream* os) const final {
+    NodeMatcher::DescribeTo(os);
+    *os << " whose value (";
+    shared_info_matcher_.DescribeTo(os);
+    *os << ",";
+    pretenure_matcher_.DescribeTo(os);
+    *os << "), effect (";
+    effect_matcher_.DescribeTo(os);
+    *os << ") and control (";
+    control_matcher_.DescribeTo(os);
+    *os << ")";
+  }
+
+  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
+    if (!NodeMatcher::MatchAndExplain(node, listener)) {
+      return false;
+    }
+    return (PrintMatchAndExplain(
+                OpParameter<const CreateClosureParameters>(node).shared_info(),
+                "value", shared_info_matcher_, listener) &&
+            PrintMatchAndExplain(
+                OpParameter<CreateClosureParameters>(node).pretenure(), "value",
+                pretenure_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetEffectInput(node), "effect",
+                                 effect_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetControlInput(node),
+                                 "control", control_matcher_, listener));
+  }
+
+ private:
+  const Matcher<Handle<SharedFunctionInfo>> shared_info_matcher_;
+  const Matcher<PretenureFlag> pretenure_matcher_;
+  const Matcher<Node*> effect_matcher_;
+  const Matcher<Node*> control_matcher_;
+};
+
 }  // namespace
 
 
@@ -2532,6 +2583,15 @@ Matcher<Node*> IsJSCallRuntime(std::vector<Matcher<Node*>> value_matchers,
   return MakeMatcher(new IsJSCallMatcher(IrOpcode::kJSCallRuntime,
                                          value_matchers, effect_matcher,
                                          control_matcher));
+}
+
+
+Matcher<Node*> IsCreateClosure(const Handle<SharedFunctionInfo> shared_info,
+                               PretenureFlag pretenure,
+                               const Matcher<Node*>& effect_matcher,
+                               const Matcher<Node*>& control_matcher) {
+  return MakeMatcher(new IsCreateClosureMatcher(
+      shared_info, pretenure, effect_matcher, control_matcher));
 }
 
 

@@ -2665,7 +2665,7 @@ TEST(Delete) {
        "return delete a[1];",
        2 * kPointerSize,
        1,
-       29,
+       28,
        {
            B(CallRuntime), U16(Runtime::kNewFunctionContext),       //
                             R(closure), U8(1),                      //
@@ -2673,8 +2673,7 @@ TEST(Delete) {
            B(LdaConstant), U8(0),                                   //
            B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),  //
            B(StaContextSlot), R(0), U8(first_context_slot),         //
-           B(LdaConstant), U8(1),                                   //
-           B(CreateClosure), U8(0),                                 //
+           B(CreateClosure), U8(1), U8(0),                          //
            B(LdaContextSlot), R(0), U8(first_context_slot),         //
            B(Star), R(1),                                           //
            B(LdaSmi8), U8(1),                                       //
@@ -2795,23 +2794,21 @@ TEST(FunctionLiterals) {
       {"return function(){ }",
        0,
        1,
-       5,
+       4,
        {
-           B(LdaConstant), U8(0),    //
-           B(CreateClosure), U8(0),  //
-           B(Return)                 //
+           B(CreateClosure), U8(0), U8(0),  //
+           B(Return)                        //
        },
        1,
        {InstanceType::SHARED_FUNCTION_INFO_TYPE}},
       {"return (function(){ })()",
        2 * kPointerSize,
        1,
-       15,
+       14,
        {
            B(LdaUndefined),                                         //
            B(Star), R(1),                                           //
-           B(LdaConstant), U8(0),                                   //
-           B(CreateClosure), U8(0),                                 //
+           B(CreateClosure), U8(0), U8(0),                          //
            B(Star), R(0),                                           //
            B(Call), R(0), R(1), U8(0), U8(vector->GetIndex(slot)),  //
            B(Return)                                                //
@@ -2821,12 +2818,11 @@ TEST(FunctionLiterals) {
       {"return (function(x){ return x; })(1)",
        3 * kPointerSize,
        1,
-       19,
+       18,
        {
            B(LdaUndefined),                                         //
            B(Star), R(1),                                           //
-           B(LdaConstant), U8(0),                                   //
-           B(CreateClosure), U8(0),                                 //
+           B(CreateClosure), U8(0), U8(0),                          //
            B(Star), R(0),                                           //
            B(LdaSmi8), U8(1),                                       //
            B(Star), R(2),                                           //
@@ -3104,13 +3100,12 @@ TEST(ObjectLiterals) {
       {"return { func: function() { } };",
        1 * kPointerSize,
        1,
-       18,
+       17,
        {
            B(LdaConstant), U8(0),                                       //
            B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),      //
            B(Star), R(0),                                               //
-           B(LdaConstant), U8(2),                                       //
-           B(CreateClosure), U8(0),                                     //
+           B(CreateClosure), U8(2), U8(0),                              //
            B(StoreICSloppy), R(0), U8(1), U8(vector->GetIndex(slot1)),  //
            B(Ldar), R(0),                                               //
            B(Return),                                                   //
@@ -3122,13 +3117,12 @@ TEST(ObjectLiterals) {
       {"return { func(a) { return a; } };",
        1 * kPointerSize,
        1,
-       18,
+       17,
        {
            B(LdaConstant), U8(0),                                       //
            B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),      //
            B(Star), R(0),                                               //
-           B(LdaConstant), U8(2),                                       //
-           B(CreateClosure), U8(0),                                     //
+           B(CreateClosure), U8(2), U8(0),                              //
            B(StoreICSloppy), R(0), U8(1), U8(vector->GetIndex(slot1)),  //
            B(Ldar), R(0),                                               //
            B(Return),                                                   //
@@ -3140,15 +3134,14 @@ TEST(ObjectLiterals) {
       {"return { get a() { return 2; } };",
        5 * kPointerSize,
        1,
-       31,
+       30,
        {
            B(LdaConstant), U8(0),                                           //
            B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),          //
            B(Star), R(0),                                                   //
            B(LdaConstant), U8(1),                                           //
            B(Star), R(1),                                                   //
-           B(LdaConstant), U8(2),                                           //
-           B(CreateClosure), U8(0),                                         //
+           B(CreateClosure), U8(2), U8(0),                                  //
            B(Star), R(2),                                                   //
            B(LdaNull),                                                      //
            B(Star), R(3),                                                   //
@@ -3166,18 +3159,16 @@ TEST(ObjectLiterals) {
       {"return { get a() { return this.x; }, set a(val) { this.x = val } };",
        5 * kPointerSize,
        1,
-       34,
+       32,
        {
            B(LdaConstant), U8(0),                                           //
            B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),          //
            B(Star), R(0),                                                   //
            B(LdaConstant), U8(1),                                           //
            B(Star), R(1),                                                   //
-           B(LdaConstant), U8(2),                                           //
-           B(CreateClosure), U8(0),                                         //
+           B(CreateClosure), U8(2), U8(0),                                  //
            B(Star), R(2),                                                   //
-           B(LdaConstant), U8(3),                                           //
-           B(CreateClosure), U8(0),                                         //
+           B(CreateClosure), U8(3), U8(0),                                  //
            B(Star), R(3),                                                   //
            B(LdaZero),                                                      //
            B(Star), R(4),                                                   //
@@ -3194,7 +3185,7 @@ TEST(ObjectLiterals) {
       {"return { set b(val) { this.y = val } };",
        5 * kPointerSize,
        1,
-       31,
+       30,
        {
            B(LdaConstant), U8(0),                                           //
            B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),          //
@@ -3203,8 +3194,7 @@ TEST(ObjectLiterals) {
            B(Star), R(1),                                                   //
            B(LdaNull),                                                      //
            B(Star), R(2),                                                   //
-           B(LdaConstant), U8(2),                                           //
-           B(CreateClosure), U8(0),                                         //
+           B(CreateClosure), U8(2), U8(0),                                  //
            B(Star), R(3),                                                   //
            B(LdaZero),                                                      //
            B(Star), R(4),                                                   //
@@ -3339,7 +3329,7 @@ TEST(ObjectLiterals) {
       {"var n = 'name'; return { [n]: 'val', get a() { }, set a(b) {} };",
        5 * kPointerSize,
        1,
-       69,
+       67,
        {
            B(LdaConstant), U8(0),                                             //
            B(Star), R(0),                                                     //
@@ -3358,8 +3348,7 @@ TEST(ObjectLiterals) {
            B(LdaConstant), U8(3),                                             //
            B(ToName),                                                         //
            B(Star), R(2),                                                     //
-           B(LdaConstant), U8(4),                                             //
-           B(CreateClosure), U8(0),                                           //
+           B(CreateClosure), U8(4), U8(0),                                    //
            B(Star), R(3),                                                     //
            B(LdaZero),                                                        //
            B(Star), R(4),                                                     //
@@ -3368,8 +3357,7 @@ TEST(ObjectLiterals) {
            B(LdaConstant), U8(3),                                             //
            B(ToName),                                                         //
            B(Star), R(2),                                                     //
-           B(LdaConstant), U8(5),                                             //
-           B(CreateClosure), U8(0),                                           //
+           B(CreateClosure), U8(5), U8(0),                                    //
            B(Star), R(3),                                                     //
            B(LdaZero),                                                        //
            B(Star), R(4),                                                     //
@@ -3406,7 +3394,7 @@ TEST(TopLevelObjectLiterals) {
       {"var a = { func: function() { } };",
        5 * kPointerSize,
        1,
-       50,
+       49,
        {
            B(LdaConstant), U8(0),                                            //
            B(Star), R(1),                                                    //
@@ -3420,8 +3408,7 @@ TEST(TopLevelObjectLiterals) {
            B(LdaConstant), U8(2),                                            //
            B(CreateObjectLiteral), U8(0), U8(has_function_flags),            //
            B(Star), R(4),                                                    //
-           B(LdaConstant), U8(4),                                            //
-           B(CreateClosure), U8(1),                                          //
+           B(CreateClosure), U8(4), U8(1),                                   //
            B(StoreICSloppy), R(4), U8(3), U8(5),                             //
            B(CallRuntime), U16(Runtime::kToFastProperties), R(4), U8(1),     //
            B(Ldar), R(4),                                                    //
@@ -3663,13 +3650,12 @@ TEST(ContextVariables) {
       {"var a; return function() { a = 1; };",
        1 * kPointerSize,
        1,
-       12,
+       11,
        {
            B(CallRuntime), U16(Runtime::kNewFunctionContext),  //
                            R(closure), U8(1),                  //
            B(PushContext), R(0),                               //
-           B(LdaConstant), U8(0),                              //
-           B(CreateClosure), U8(0),                            //
+           B(CreateClosure), U8(0), U8(0),                     //
            B(Return),                                          //
        },
        1,
@@ -3677,15 +3663,14 @@ TEST(ContextVariables) {
       {"var a = 1; return function() { a = 2; };",
        1 * kPointerSize,
        1,
-       17,
+       16,
        {
            B(CallRuntime), U16(Runtime::kNewFunctionContext),  //
                            R(closure), U8(1),                  //
            B(PushContext), R(0),                               //
            B(LdaSmi8), U8(1),                                  //
            B(StaContextSlot), R(0), U8(first_context_slot),    //
-           B(LdaConstant), U8(0),                              //
-           B(CreateClosure), U8(0),                            //
+           B(CreateClosure), U8(0), U8(0),                     //
            B(Return),                                          //
        },
        1,
@@ -3693,7 +3678,7 @@ TEST(ContextVariables) {
       {"var a = 1; var b = 2; return function() { a = 2; b = 3 };",
        1 * kPointerSize,
        1,
-       22,
+       21,
        {
            B(CallRuntime), U16(Runtime::kNewFunctionContext),    //
                            R(closure), U8(1),                    //
@@ -3702,8 +3687,7 @@ TEST(ContextVariables) {
            B(StaContextSlot), R(0), U8(first_context_slot),      //
            B(LdaSmi8), U8(2),                                    //
            B(StaContextSlot), R(0), U8(first_context_slot + 1),  //
-           B(LdaConstant), U8(0),                                //
-           B(CreateClosure), U8(0),                              //
+           B(CreateClosure), U8(0), U8(0),                       //
            B(Return),                                            //
        },
        1,
@@ -3711,15 +3695,14 @@ TEST(ContextVariables) {
       {"var a; (function() { a = 2; })(); return a;",
        3 * kPointerSize,
        1,
-       25,
+       24,
        {
            B(CallRuntime), U16(Runtime::kNewFunctionContext),       //
                            R(closure), U8(1),                       //
            B(PushContext), R(0),                                    //
            B(LdaUndefined),                                         //
            B(Star), R(2),                                           //
-           B(LdaConstant), U8(0),                                   //
-           B(CreateClosure), U8(0),                                 //
+           B(CreateClosure), U8(0), U8(0),                          //
            B(Star), R(1),                                           //
            B(Call), R(1), R(2), U8(0), U8(vector->GetIndex(slot)),  //
            B(LdaContextSlot), R(0), U8(first_context_slot),         //
@@ -3730,7 +3713,7 @@ TEST(ContextVariables) {
       {"'use strict'; let a = 1; { let b = 2; return function() { a + b; }; }",
        4 * kPointerSize,
        1,
-       45,
+       44,
        {
            B(CallRuntime), U16(Runtime::kNewFunctionContext),             //
                            R(closure), U8(1),                             //
@@ -3749,8 +3732,7 @@ TEST(ContextVariables) {
            B(StaContextSlot), R(1), U8(first_context_slot),               //
            B(LdaSmi8), U8(2),                                             //
            B(StaContextSlot), R(1), U8(first_context_slot),               //
-           B(LdaConstant), U8(1),                                         //
-           B(CreateClosure), U8(0),                                       //
+           B(CreateClosure), U8(1), U8(0),                                //
            B(Return),                                                     //
        },
        2,
@@ -3777,15 +3759,14 @@ TEST(ContextParameters) {
       {"function f(arg1) { return function() { arg1 = 2; }; }",
        1 * kPointerSize,
        2,
-       17,
+       16,
        {
            B(CallRuntime), U16(Runtime::kNewFunctionContext),  //
                            R(closure), U8(1),                  //
            B(PushContext), R(0),                               //
            B(Ldar), R(helper.kLastParamIndex),                 //
            B(StaContextSlot), R(0), U8(first_context_slot),    //
-           B(LdaConstant), U8(0),                              //
-           B(CreateClosure), U8(0),                            //
+           B(CreateClosure), U8(0), U8(0),                     //
            B(Return),                                          //
        },
        1,
@@ -3793,15 +3774,14 @@ TEST(ContextParameters) {
       {"function f(arg1) { var a = function() { arg1 = 2; }; return arg1; }",
        2 * kPointerSize,
        2,
-       22,
+       21,
        {
            B(CallRuntime), U16(Runtime::kNewFunctionContext),  //
                            R(closure), U8(1),                  //
            B(PushContext), R(1),                               //
            B(Ldar), R(helper.kLastParamIndex),                 //
            B(StaContextSlot), R(1), U8(first_context_slot),    //
-           B(LdaConstant), U8(0),                              //
-           B(CreateClosure), U8(0),                            //
+           B(CreateClosure), U8(0), U8(0),                     //
            B(Star), R(0),                                      //
            B(LdaContextSlot), R(1), U8(first_context_slot),    //
            B(Return),                                          //
@@ -3811,7 +3791,7 @@ TEST(ContextParameters) {
       {"function f(a1, a2, a3, a4) { return function() { a1 = a3; }; }",
        1 * kPointerSize,
        5,
-       22,
+       21,
        {
            B(CallRuntime), U16(Runtime::kNewFunctionContext),    //
                            R(closure), U8(1),                    //
@@ -3820,8 +3800,7 @@ TEST(ContextParameters) {
            B(StaContextSlot), R(0), U8(first_context_slot + 1),  //
            B(Ldar), R(helper.kLastParamIndex -1),                //
            B(StaContextSlot), R(0), U8(first_context_slot),      //
-           B(LdaConstant), U8(0),                                //
-           B(CreateClosure), U8(0),                              //
+           B(CreateClosure), U8(0), U8(0),                       //
            B(Return),                                            //
        },
        1,
@@ -3829,15 +3808,14 @@ TEST(ContextParameters) {
       {"function f() { var self = this; return function() { self = 2; }; }",
        1 * kPointerSize,
        1,
-       17,
+       16,
        {
            B(CallRuntime), U16(Runtime::kNewFunctionContext),  //
                            R(closure), U8(1),                  //
            B(PushContext), R(0),                               //
            B(Ldar), R(helper.kLastParamIndex),                 //
            B(StaContextSlot), R(0), U8(first_context_slot),    //
-           B(LdaConstant), U8(0),                              //
-           B(CreateClosure), U8(0),                            //
+           B(CreateClosure), U8(0), U8(0),                     //
            B(Return),                                          //
        },
        1,
@@ -4075,15 +4053,14 @@ TEST(CountOperators) {
       {"var a = 1; var b = function() { return a }; return ++a;",
        2 * kPointerSize,
        1,
-       27,
+       26,
        {
            B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure),  //
                            U8(1),                                          //
            B(PushContext), R(1),                                           //
            B(LdaSmi8), U8(1),                                              //
            B(StaContextSlot), R(1), U8(first_context_slot),                //
-           B(LdaConstant), U8(0),                                          //
-           B(CreateClosure), U8(0),                                        //
+           B(CreateClosure), U8(0), U8(0),                                 //
            B(Star), R(0),                                                  //
            B(LdaContextSlot), R(1), U8(first_context_slot),                //
            B(ToNumber),                                                    //
@@ -4096,15 +4073,14 @@ TEST(CountOperators) {
       {"var a = 1; var b = function() { return a }; return a--;",
        3 * kPointerSize,
        1,
-       31,
+       30,
        {
            B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure),  //
                            U8(1),                                          //
            B(PushContext), R(1),                                           //
            B(LdaSmi8), U8(1),                                              //
            B(StaContextSlot), R(1), U8(first_context_slot),                //
-           B(LdaConstant), U8(0),                                          //
-           B(CreateClosure), U8(0),                                        //
+           B(CreateClosure), U8(0), U8(0),                                 //
            B(Star), R(0),                                                  //
            B(LdaContextSlot), R(1), U8(first_context_slot),                //
            B(ToNumber),                                                    //
@@ -4314,15 +4290,14 @@ TEST(CompoundExpressions) {
       {"var a = 1; (function f() { return a; }); a |= 24;",
        2 * kPointerSize,
        1,
-       30,
+       29,
        {
            B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure),  //
                            U8(1),                                          //
            B(PushContext), R(0),                                           //
            B(LdaSmi8), U8(1),                                              //
            B(StaContextSlot), R(0), U8(first_context_slot),                //
-           B(LdaConstant), U8(0),                                          //
-           B(CreateClosure), U8(0),                                        //
+           B(CreateClosure), U8(0), U8(0),                                 //
            B(LdaContextSlot), R(0), U8(first_context_slot),                //
            B(Star), R(1),                                                  //
            B(LdaSmi8), U8(24),                                             //
