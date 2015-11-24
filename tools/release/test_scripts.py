@@ -1031,6 +1031,7 @@ deps = {
 
   def testChromiumRollUpToDate(self):
     TEST_CONFIG["CHROMIUM"] = self.MakeEmptyTempDirectory()
+    json_output_file = os.path.join(TEST_CONFIG["CHROMIUM"], "out.json")
     TextToFile(self.FAKE_DEPS, os.path.join(TEST_CONFIG["CHROMIUM"], "DEPS"))
     self.Expect([
       Cmd("git fetch origin", ""),
@@ -1047,12 +1048,18 @@ deps = {
     ])
 
     result = auto_roll.AutoRoll(TEST_CONFIG, self).Run(
-        AUTO_PUSH_ARGS + ["-c", TEST_CONFIG["CHROMIUM"]])
+        AUTO_PUSH_ARGS + [
+          "-c", TEST_CONFIG["CHROMIUM"],
+          "--json-output", json_output_file])
     self.assertEquals(0, result)
+    json_output = json.loads(FileToText(json_output_file))
+    self.assertEquals("up_to_date", json_output["monitoring_state"])
+
 
   def testChromiumRoll(self):
     # Setup fake directory structures.
     TEST_CONFIG["CHROMIUM"] = self.MakeEmptyTempDirectory()
+    json_output_file = os.path.join(TEST_CONFIG["CHROMIUM"], "out.json")
     TextToFile(self.FAKE_DEPS, os.path.join(TEST_CONFIG["CHROMIUM"], "DEPS"))
     TextToFile("", os.path.join(TEST_CONFIG["CHROMIUM"], ".git"))
     chrome_dir = TEST_CONFIG["CHROMIUM"]
@@ -1096,11 +1103,14 @@ deps = {
     self.Expect(expectations)
 
     args = ["-a", "author@chromium.org", "-c", chrome_dir,
-            "-r", "reviewer@chromium.org"]
+            "-r", "reviewer@chromium.org", "--json-output", json_output_file]
     auto_roll.AutoRoll(TEST_CONFIG, self).Run(args)
 
     deps = FileToText(os.path.join(chrome_dir, "DEPS"))
     self.assertTrue(re.search("\"v8_revision\": \"22624\"", deps))
+
+    json_output = json.loads(FileToText(json_output_file))
+    self.assertEquals("success", json_output["monitoring_state"])
 
   def testCheckLastPushRecently(self):
     self.Expect([

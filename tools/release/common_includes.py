@@ -738,9 +738,12 @@ class Step(GitRecipesMixin):
 
 
 class BootstrapStep(Step):
-  MESSAGE = "Bootstrapping v8 checkout."
+  MESSAGE = "Bootstrapping checkout and state."
 
   def RunStep(self):
+    # Reserve state entry for json output.
+    self['json_output'] = {}
+
     if os.path.realpath(self.default_cwd) == os.path.realpath(V8_BASE):
       self.Die("Can't use v8 checkout with calling script as work checkout.")
     # Directory containing the working v8 checkout.
@@ -868,17 +871,15 @@ class ScriptsBase(object):
     for (number, step_class) in enumerate([BootstrapStep] + step_classes):
       steps.append(MakeStep(step_class, number, self._state, self._config,
                             options, self._side_effect_handler))
-    step_summary = []
+
     try:
       for step in steps[options.step:]:
-        terminate = step.Run()
-        step_summary.append(step._text)
-        if terminate:
+        if step.Run():
           return 0
     finally:
       if options.json_output:
         with open(options.json_output, "w") as f:
-          json.dump({"step_summary": step_summary}, f)
+          json.dump(self._state['json_output'], f)
 
     return 0
 
