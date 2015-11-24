@@ -1621,8 +1621,8 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   // r5 : number of parameters (tagged)
   // r6 : parameters pointer
   // Registers used over whole function:
-  //  r8 : arguments count (tagged)
-  //  r9 : mapped parameter count (tagged)
+  // r8 : arguments count (tagged)
+  // r9 : mapped parameter count (tagged)
 
   DCHECK(r4.is(ArgumentsAccessNewDescriptor::function()));
   DCHECK(r5.is(ArgumentsAccessNewDescriptor::parameter_count()));
@@ -1693,7 +1693,7 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   __ addi(r11, r11, Operand(Heap::kSloppyArgumentsObjectSize));
 
   // Do the allocation of all three objects in one go.
-  __ Allocate(r11, r3, r7, r11, &runtime, TAG_OBJECT);
+  __ Allocate(r11, r3, r11, r7, &runtime, TAG_OBJECT);
 
   // r3 = address of new object(s) (tagged)
   // r5 = argument count (smi-tagged)
