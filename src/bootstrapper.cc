@@ -2068,11 +2068,11 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexp_lookbehind)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(promise_extra)
 
 
-static void SimpleInstallFunction(Handle<JSObject>& base, const char* name,
+static void SimpleInstallFunction(Handle<JSObject> base, Handle<Name> name,
                                   Builtins::Name call, int len, bool adapt) {
   Handle<JSFunction> fun =
       InstallFunction(base, name, JS_OBJECT_TYPE, JSObject::kHeaderSize,
-                      MaybeHandle<JSObject>(), call);
+                      MaybeHandle<JSObject>(), call, DONT_ENUM);
   if (adapt) {
     fun->shared()->set_internal_formal_parameter_count(len);
   } else {
@@ -2126,35 +2126,35 @@ void Genesis::InitializeGlobal_harmony_regexp_subclass() {
 void Genesis::InitializeGlobal_harmony_reflect() {
   if (!FLAG_harmony_reflect) return;
 
+  Factory* factory = isolate()->factory();
   Handle<JSGlobalObject> global(JSGlobalObject::cast(
       native_context()->global_object()));
-  Handle<String> reflect_string =
-      factory()->NewStringFromStaticChars("Reflect");
+  Handle<String> reflect_string = factory->NewStringFromStaticChars("Reflect");
   Handle<JSObject> reflect =
-      factory()->NewJSObject(isolate()->object_function(), TENURED);
+      factory->NewJSObject(isolate()->object_function(), TENURED);
   JSObject::AddProperty(global, reflect_string, reflect, DONT_ENUM);
 
-  SimpleInstallFunction(reflect, "defineProperty",
+  SimpleInstallFunction(reflect, factory->defineProperty_string(),
                         Builtins::kReflectDefineProperty, 3, true);
-  SimpleInstallFunction(reflect, "deleteProperty",
+  SimpleInstallFunction(reflect, factory->deleteProperty_string(),
                         Builtins::kReflectDeleteProperty, 2, true);
-  SimpleInstallFunction(reflect, "get",
+  SimpleInstallFunction(reflect, factory->get_string(),
                         Builtins::kReflectGet, 3, false);
-  SimpleInstallFunction(reflect, "getOwnPropertyDescriptor",
+  SimpleInstallFunction(reflect, factory->getOwnPropertyDescriptor_string(),
                         Builtins::kReflectGetOwnPropertyDescriptor, 2, true);
-  SimpleInstallFunction(reflect, "getPrototypeOf",
+  SimpleInstallFunction(reflect, factory->getPrototypeOf_string(),
                         Builtins::kReflectGetPrototypeOf, 1, true);
-  SimpleInstallFunction(reflect, "has",
+  SimpleInstallFunction(reflect, factory->has_string(),
                         Builtins::kReflectHas, 2, true);
-  SimpleInstallFunction(reflect, "isExtensible",
+  SimpleInstallFunction(reflect, factory->isExtensible_string(),
                         Builtins::kReflectIsExtensible, 1, true);
-  SimpleInstallFunction(reflect, "ownKeys",
+  SimpleInstallFunction(reflect, factory->ownKeys_string(),
                         Builtins::kReflectOwnKeys, 1, true);
-  SimpleInstallFunction(reflect, "preventExtensions",
+  SimpleInstallFunction(reflect, factory->preventExtensions_string(),
                         Builtins::kReflectPreventExtensions, 1, true);
-  SimpleInstallFunction(reflect, "set",
+  SimpleInstallFunction(reflect, factory->set_string(),
                         Builtins::kReflectSet, 3, false);
-  SimpleInstallFunction(reflect, "setPrototypeOf",
+  SimpleInstallFunction(reflect, factory->setPrototypeOf_string(),
                         Builtins::kReflectSetPrototypeOf, 2, true);
 }
 
