@@ -1499,7 +1499,7 @@ void NewSpace::ResetAllocationInfo() {
   while (it.has_next()) {
     Bitmap::Clear(it.next());
   }
-  InlineAllocationStep(old_top, allocation_info_.top());
+  InlineAllocationStep(old_top, allocation_info_.top(), nullptr, 0);
 }
 
 
@@ -1579,7 +1579,7 @@ bool NewSpace::EnsureAllocation(int size_in_bytes,
       return false;
     }
 
-    InlineAllocationStep(old_top, allocation_info_.top());
+    InlineAllocationStep(old_top, allocation_info_.top(), nullptr, 0);
 
     old_top = allocation_info_.top();
     high = to_space_.page_high();
@@ -1595,7 +1595,8 @@ bool NewSpace::EnsureAllocation(int size_in_bytes,
     // or because idle scavenge job wants to get a chance to post a task.
     // Set the new limit accordingly.
     Address new_top = old_top + aligned_size_in_bytes;
-    InlineAllocationStep(new_top, new_top);
+    Address soon_object = old_top + filler_size;
+    InlineAllocationStep(new_top, new_top, soon_object, size_in_bytes);
     UpdateInlineAllocationLimit(aligned_size_in_bytes);
   }
   return true;
@@ -1640,7 +1641,7 @@ void NewSpace::RemoveInlineAllocationObserver(
 
 void NewSpace::PauseInlineAllocationObservers() {
   // Do a step to account for memory allocated so far.
-  InlineAllocationStep(top(), top());
+  InlineAllocationStep(top(), top(), nullptr, 0);
   inline_allocation_observers_paused_ = true;
   top_on_previous_step_ = 0;
   UpdateInlineAllocationLimit(0);
@@ -1654,11 +1655,13 @@ void NewSpace::ResumeInlineAllocationObservers() {
 }
 
 
-void NewSpace::InlineAllocationStep(Address top, Address new_top) {
+void NewSpace::InlineAllocationStep(Address top, Address new_top,
+                                    Address soon_object, size_t size) {
   if (top_on_previous_step_) {
     int bytes_allocated = static_cast<int>(top - top_on_previous_step_);
     for (int i = 0; i < inline_allocation_observers_.length(); ++i) {
-      inline_allocation_observers_[i]->InlineAllocationStep(bytes_allocated);
+      inline_allocation_observers_[i]->InlineAllocationStep(bytes_allocated,
+                                                            soon_object, size);
     }
     top_on_previous_step_ = new_top;
   }

@@ -221,7 +221,7 @@ class IncrementalMarking {
         : InlineAllocationObserver(step_size),
           incremental_marking_(incremental_marking) {}
 
-    virtual void Step(int bytes_allocated) {
+    void Step(int bytes_allocated, Address, size_t) override {
       incremental_marking_.Step(bytes_allocated,
                                 IncrementalMarking::GC_VIA_STACK_GUARD);
     }

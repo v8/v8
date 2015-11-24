@@ -57,7 +57,7 @@ class IdleScavengeObserver : public InlineAllocationObserver {
   IdleScavengeObserver(Heap& heap, intptr_t step_size)
       : InlineAllocationObserver(step_size), heap_(heap) {}
 
-  virtual void Step(int bytes_allocated) {
+  void Step(int bytes_allocated, Address, size_t) override {
     heap_.ScheduleIdleScavengeIfNeeded(bytes_allocated);
   }
 

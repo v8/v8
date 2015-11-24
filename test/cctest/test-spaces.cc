@@ -804,7 +804,7 @@ class Observer : public InlineAllocationObserver {
   explicit Observer(intptr_t step_size)
       : InlineAllocationObserver(step_size), count_(0) {}
 
-  virtual void Step(int bytes_allocated) { count_++; }
+  void Step(int bytes_allocated, Address, size_t) override { count_++; }
 
   int count() const { return count_; }
 
