@@ -87,6 +87,7 @@ class AstGraphBuilder : public AstVisitor {
   // Nodes representing values in the activation record.
   SetOncePointer<Node> function_closure_;
   SetOncePointer<Node> function_context_;
+  SetOncePointer<Node> new_target_;
 
   // Tracks how many try-blocks are currently entered.
   int try_catch_nesting_level_;
@@ -147,12 +148,15 @@ class AstGraphBuilder : public AstVisitor {
   // Create the main graph body by visiting the AST.
   void CreateGraphBody(bool stack_check);
 
-  // Get or create the node that represents the outer function closure.
+  // Get or create the node that represents the incoming function closure.
   Node* GetFunctionClosureForContext();
   Node* GetFunctionClosure();
 
-  // Get or create the node that represents the outer function context.
+  // Get or create the node that represents the incoming function context.
   Node* GetFunctionContext();
+
+  // Get or create the node that represents the incoming new target value.
+  Node* GetNewTarget();
 
   // Node creation helpers.
   Node* NewNode(const Operator* op, bool incomplete = false) {

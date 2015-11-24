@@ -304,14 +304,19 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
 
 static void CallRuntimePassFunction(
     MacroAssembler* masm, Runtime::FunctionId function_id) {
+  // ----------- S t a t e -------------
+  //  -- a1 : target function (preserved for callee)
+  //  -- a3 : new target (preserved for callee)
+  // -----------------------------------
+
   FrameScope scope(masm, StackFrame::INTERNAL);
   // Push a copy of the function onto the stack.
-  // Push call kind information and function as parameter to the runtime call.
-  __ Push(a1, a1);
+  // Push a copy of the target function and the new target.
+  __ Push(a1, a3, a1);
 
   __ CallRuntime(function_id, 1);
-  // Restore call kind information and receiver.
-  __ Pop(a1);
+  // Restore target function and new target.
+  __ Pop(a1, a3);
 }
 
 
@@ -546,26 +551,28 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // a0: number of arguments
     // a1: constructor function
     // a2: address of last argument (caller sp)
-    // a3: number of arguments (smi-tagged)
+    // a3: new target
+    // t0: number of arguments (smi-tagged)
     // sp[0]: receiver
     // sp[1]: receiver
     // sp[2]: new.target
     // sp[3]: number of arguments (smi-tagged)
     Label loop, entry;
-    __ mov(a3, a0);
+    __ mov(t0, a0);
     __ jmp(&entry);
     __ bind(&loop);
-    __ dsll(a4, a3, kPointerSizeLog2);
+    __ dsll(a4, t0, kPointerSizeLog2);
     __ Daddu(a4, a2, Operand(a4));
     __ ld(a5, MemOperand(a4));
     __ push(a5);
     __ bind(&entry);
-    __ Daddu(a3, a3, Operand(-1));
-    __ Branch(&loop, greater_equal, a3, Operand(zero_reg));
+    __ Daddu(t0, t0, Operand(-1));
+    __ Branch(&loop, greater_equal, t0, Operand(zero_reg));
 
     // Call the function.
     // a0: number of arguments
     // a1: constructor function
+    // a3: new target
     if (is_api_function) {
       __ ld(cp, FieldMemOperand(a1, JSFunction::kContextOffset));
       Handle<Code> code =
@@ -573,7 +580,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ Call(code, RelocInfo::CODE_TARGET);
     } else {
       ParameterCount actual(a0);
-      __ InvokeFunction(a1, actual, CALL_FUNCTION, NullCallWrapper());
+      __ InvokeFunction(a1, a3, actual, CALL_FUNCTION, NullCallWrapper());
     }
 
     // Store offset of return address for deoptimizer.
@@ -993,8 +1000,9 @@ static void GenerateMakeCodeYoungAgainCommon(MacroAssembler* masm) {
   // the runtime:
   //   a0 - contains return address (beginning of patch sequence)
   //   a1 - isolate
+  //   a3 - new target
   RegList saved_regs =
-      (a0.bit() | a1.bit() | ra.bit() | fp.bit()) & ~sp.bit();
+      (a0.bit() | a1.bit() | a3.bit() | ra.bit() | fp.bit()) & ~sp.bit();
   FrameScope scope(masm, StackFrame::MANUAL);
   __ MultiPush(saved_regs);
   __ PrepareCallCFunction(2, 0, a2);
@@ -1032,8 +1040,9 @@ void Builtins::Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm) {
   // the runtime:
   //   a0 - contains return address (beginning of patch sequence)
   //   a1 - isolate
+  //   a3 - new target
   RegList saved_regs =
-      (a0.bit() | a1.bit() | ra.bit() | fp.bit()) & ~sp.bit();
+      (a0.bit() | a1.bit() | a3.bit() | ra.bit() | fp.bit()) & ~sp.bit();
   FrameScope scope(masm, StackFrame::MANUAL);
   __ MultiPush(saved_regs);
   __ PrepareCallCFunction(2, 0, a2);
@@ -1566,10 +1575,10 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
 
   __ lw(a2,
         FieldMemOperand(a2, SharedFunctionInfo::kFormalParameterCountOffset));
-  __ ld(a3, FieldMemOperand(a1, JSFunction::kCodeEntryOffset));
+  __ ld(t0, FieldMemOperand(a1, JSFunction::kCodeEntryOffset));
   ParameterCount actual(a0);
   ParameterCount expected(a2);
-  __ InvokeCode(a3, expected, actual, JUMP_FUNCTION, NullCallWrapper());
+  __ InvokeCode(t0, no_reg, expected, actual, JUMP_FUNCTION, NullCallWrapper());
 
   // The function is a "classConstructor", need to raise an exception.
   __ bind(&class_constructor);

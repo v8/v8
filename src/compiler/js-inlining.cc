@@ -425,9 +425,6 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
                                               call.target(), call.new_target(),
                                               context, frame_state, effect);
     NodeProperties::ReplaceEffectInput(node, create);
-    // TODO(4544): For now Runtime_GetNewTarget depends on the actual target to
-    // coincide with the new target. Fix this!
-    CHECK_EQ(call.target(), call.new_target());
     // TODO(4544): For derived constructors we should not allocate an implicit
     // receiver and also the return value should not be checked afterwards.
     CHECK(!IsClassConstructor(function->shared()->kind()));

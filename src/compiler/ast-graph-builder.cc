@@ -493,6 +493,18 @@ Node* AstGraphBuilder::GetFunctionContext() {
 }
 
 
+Node* AstGraphBuilder::GetNewTarget() {
+  if (!new_target_.is_set()) {
+    int params = info()->num_parameters_including_this();
+    int index = Linkage::GetJSCallNewTargetParamIndex(params);
+    const Operator* op = common()->Parameter(index, "%new.target");
+    Node* node = NewNode(op, graph()->start());
+    new_target_.set(node);
+  }
+  return new_target_.get();
+}
+
+
 bool AstGraphBuilder::CreateGraph(bool stack_check) {
   Scope* scope = info()->scope();
   DCHECK(graph() != NULL);
@@ -3225,11 +3237,8 @@ Node* AstGraphBuilder::BuildThisFunctionVariable(Variable* this_function_var) {
 Node* AstGraphBuilder::BuildNewTargetVariable(Variable* new_target_var) {
   if (new_target_var == nullptr) return nullptr;
 
-  // Retrieve the new target in case we are called as a constructor.
-  const Operator* op = javascript()->CallRuntime(Runtime::kGetNewTarget, 0);
-  Node* object = NewNode(op);
-  // TODO(4544): Bailout id only needed for JavaScriptFrame::Summarize.
-  PrepareFrameState(object, BailoutId::FunctionContext());
+  // Retrieve the new target we were called with.
+  Node* object = GetNewTarget();
 
   // Assign the object to the {new.target} variable. This should never lazy
   // deopt, so it is fine to send invalid bailout id.

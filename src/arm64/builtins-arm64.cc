@@ -288,15 +288,20 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
 
 static void CallRuntimePassFunction(MacroAssembler* masm,
                                     Runtime::FunctionId function_id) {
+  // ----------- S t a t e -------------
+  //  -- x1 : target function (preserved for callee)
+  //  -- x3 : new target (preserved for callee)
+  // -----------------------------------
+
   FrameScope scope(masm, StackFrame::INTERNAL);
-  //   - Push a copy of the function onto the stack.
-  //   - Push another copy as a parameter to the runtime call.
-  __ Push(x1, x1);
+  // Push a copy of the target function and the new target.
+  // Push another copy as a parameter to the runtime call.
+  __ Push(x1, x3, x1);
 
   __ CallRuntime(function_id, 1);
 
-  //   - Restore receiver.
-  __ Pop(x1);
+  // Restore target function and new target.
+  __ Pop(x3, x1);
 }
 
 
@@ -548,19 +553,20 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // x0: number of arguments
     // x1: constructor function
     // x2: address of last argument (caller sp)
+    // x3: new target
     // jssp[0]: receiver
     // jssp[1]: receiver
     // jssp[2]: new.target
     // jssp[3]: number of arguments (smi-tagged)
     // Compute the start address of the copy in x3.
-    __ Add(x3, x2, Operand(argc, LSL, kPointerSizeLog2));
+    __ Add(x4, x2, Operand(argc, LSL, kPointerSizeLog2));
     Label loop, entry, done_copying_arguments;
     __ B(&entry);
     __ Bind(&loop);
-    __ Ldp(x10, x11, MemOperand(x3, -2 * kPointerSize, PreIndex));
+    __ Ldp(x10, x11, MemOperand(x4, -2 * kPointerSize, PreIndex));
     __ Push(x11, x10);
     __ Bind(&entry);
-    __ Cmp(x3, x2);
+    __ Cmp(x4, x2);
     __ B(gt, &loop);
     // Because we copied values 2 by 2 we may have copied one extra value.
     // Drop it if that is the case.
@@ -571,6 +577,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // Call the function.
     // x0: number of arguments
     // x1: constructor function
+    // x3: new target
     if (is_api_function) {
       __ Ldr(cp, FieldMemOperand(constructor, JSFunction::kContextOffset));
       Handle<Code> code =
@@ -578,7 +585,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ Call(code, RelocInfo::CODE_TARGET);
     } else {
       ParameterCount actual(argc);
-      __ InvokeFunction(constructor, actual, CALL_FUNCTION, NullCallWrapper());
+      __ InvokeFunction(constructor, new_target, actual, CALL_FUNCTION,
+                        NullCallWrapper());
     }
 
     // Store offset of return address for deoptimizer.
@@ -946,16 +954,17 @@ static void GenerateMakeCodeYoungAgainCommon(MacroAssembler* masm) {
   // calling through to the runtime:
   //   x0 - The address from which to resume execution.
   //   x1 - isolate
+  //   x3 - new target
   //   lr - The return address for the JSFunction itself. It has not yet been
   //        preserved on the stack because the frame setup code was replaced
   //        with a call to this stub, to handle code ageing.
   {
     FrameScope scope(masm, StackFrame::MANUAL);
-    __ Push(x0, x1, fp, lr);
+    __ Push(x0, x1, x3, fp, lr);
     __ Mov(x1, ExternalReference::isolate_address(masm->isolate()));
     __ CallCFunction(
         ExternalReference::get_make_code_young_function(masm->isolate()), 2);
-    __ Pop(lr, fp, x1, x0);
+    __ Pop(lr, fp, x3, x1, x0);
   }
 
   // The calling function has been made young again, so return to execute the
@@ -986,17 +995,18 @@ void Builtins::Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm) {
   // calling through to the runtime:
   //   x0 - The address from which to resume execution.
   //   x1 - isolate
+  //   x3 - new target
   //   lr - The return address for the JSFunction itself. It has not yet been
   //        preserved on the stack because the frame setup code was replaced
   //        with a call to this stub, to handle code ageing.
   {
     FrameScope scope(masm, StackFrame::MANUAL);
-    __ Push(x0, x1, fp, lr);
+    __ Push(x0, x1, x3, fp, lr);
     __ Mov(x1, ExternalReference::isolate_address(masm->isolate()));
     __ CallCFunction(
         ExternalReference::get_mark_code_as_executed_function(
             masm->isolate()), 2);
-    __ Pop(lr, fp, x1, x0);
+    __ Pop(lr, fp, x3, x1, x0);
 
     // Perform prologue operations usually performed by the young code stub.
     __ EmitFrameSetupForCodeAgePatching(masm);
@@ -1541,10 +1551,10 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
 
   __ Ldrsw(
       x2, FieldMemOperand(x2, SharedFunctionInfo::kFormalParameterCountOffset));
-  __ Ldr(x3, FieldMemOperand(x1, JSFunction::kCodeEntryOffset));
+  __ Ldr(x4, FieldMemOperand(x1, JSFunction::kCodeEntryOffset));
   ParameterCount actual(x0);
   ParameterCount expected(x2);
-  __ InvokeCode(x3, expected, actual, JUMP_FUNCTION, NullCallWrapper());
+  __ InvokeCode(x4, no_reg, expected, actual, JUMP_FUNCTION, NullCallWrapper());
 
   // The function is a "classConstructor", need to raise an exception.
   __ bind(&class_constructor);

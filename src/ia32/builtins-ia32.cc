@@ -75,14 +75,21 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
 
 static void CallRuntimePassFunction(
     MacroAssembler* masm, Runtime::FunctionId function_id) {
+  // ----------- S t a t e -------------
+  //  -- edx : new target (preserved for callee)
+  //  -- edi : target function (preserved for callee)
+  // -----------------------------------
+
   FrameScope scope(masm, StackFrame::INTERNAL);
-  // Push a copy of the function.
+  // Push a copy of the target function and the new target.
   __ push(edi);
+  __ push(edx);
   // Function is also the parameter to the runtime call.
   __ push(edi);
 
   __ CallRuntime(function_id, 1);
-  // Restore receiver.
+  // Restore target function and new target.
+  __ pop(edx);
   __ pop(edi);
 }
 
@@ -332,8 +339,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ call(code, RelocInfo::CODE_TARGET);
     } else {
       ParameterCount actual(eax);
-      __ InvokeFunction(edi, actual, CALL_FUNCTION,
-                        NullCallWrapper());
+      __ InvokeFunction(edi, edx, actual, CALL_FUNCTION, NullCallWrapper());
     }
 
     // Store offset of return address for deoptimizer.
@@ -1528,8 +1534,8 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   __ SmiUntag(ebx);
   ParameterCount actual(eax);
   ParameterCount expected(ebx);
-  __ InvokeCode(FieldOperand(edi, JSFunction::kCodeEntryOffset), expected,
-                actual, JUMP_FUNCTION, NullCallWrapper());
+  __ InvokeCode(FieldOperand(edi, JSFunction::kCodeEntryOffset), no_reg,
+                expected, actual, JUMP_FUNCTION, NullCallWrapper());
 
   // The function is a "classConstructor", need to raise an exception.
   __ bind(&class_constructor);

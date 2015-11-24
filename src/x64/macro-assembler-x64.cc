@@ -707,8 +707,8 @@ void MacroAssembler::InvokeBuiltin(int native_context_index, InvokeFlag flag,
   // arguments match the expected number of arguments. Fake a
   // parameter count to avoid emitting code to do the check.
   ParameterCount expected(0);
-  GetBuiltinEntry(rdx, native_context_index);
-  InvokeCode(rdx, expected, expected, flag, call_wrapper);
+  GetBuiltinEntry(r8, native_context_index);
+  InvokeCode(r8, no_reg, expected, expected, flag, call_wrapper);
 }
 
 
@@ -3976,15 +3976,16 @@ void MacroAssembler::DebugBreak() {
 
 
 void MacroAssembler::InvokeFunction(Register function,
+                                    Register new_target,
                                     const ParameterCount& actual,
                                     InvokeFlag flag,
                                     const CallWrapper& call_wrapper) {
-  movp(rdx, FieldOperand(function, JSFunction::kSharedFunctionInfoOffset));
+  movp(rbx, FieldOperand(function, JSFunction::kSharedFunctionInfoOffset));
   LoadSharedFunctionInfoSpecialField(
-      rbx, rdx, SharedFunctionInfo::kFormalParameterCountOffset);
+      rbx, rbx, SharedFunctionInfo::kFormalParameterCountOffset);
 
   ParameterCount expected(rbx);
-  InvokeFunction(function, expected, actual, flag, call_wrapper);
+  InvokeFunction(function, new_target, expected, actual, flag, call_wrapper);
 }
 
 
@@ -3994,31 +3995,40 @@ void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
                                     InvokeFlag flag,
                                     const CallWrapper& call_wrapper) {
   Move(rdi, function);
-  InvokeFunction(rdi, expected, actual, flag, call_wrapper);
+  InvokeFunction(rdi, no_reg, expected, actual, flag, call_wrapper);
 }
 
 
 void MacroAssembler::InvokeFunction(Register function,
+                                    Register new_target,
                                     const ParameterCount& expected,
                                     const ParameterCount& actual,
                                     InvokeFlag flag,
                                     const CallWrapper& call_wrapper) {
   DCHECK(function.is(rdi));
   movp(rsi, FieldOperand(function, JSFunction::kContextOffset));
-  // Advances rdx to the end of the Code object header, to the start of
+  // Advances r8 to the end of the Code object header, to the start of
   // the executable code.
-  movp(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
-  InvokeCode(rdx, expected, actual, flag, call_wrapper);
+  movp(r8, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
+  InvokeCode(r8, new_target, expected, actual, flag, call_wrapper);
 }
 
 
 void MacroAssembler::InvokeCode(Register code,
+                                Register new_target,
                                 const ParameterCount& expected,
                                 const ParameterCount& actual,
                                 InvokeFlag flag,
                                 const CallWrapper& call_wrapper) {
   // You can't call a function without a valid frame.
   DCHECK(flag == JUMP_FUNCTION || has_frame());
+
+  // Ensure new target is passed in the correct register. Otherwise clear the
+  // appropriate register in case new target is not given.
+  DCHECK_IMPLIES(new_target.is_valid(), new_target.is(rdx));
+  if (!new_target.is_valid()) {
+    LoadRoot(rdx, Heap::kUndefinedValueRootIndex);
+  }
 
   Label done;
   bool definitely_mismatches = false;

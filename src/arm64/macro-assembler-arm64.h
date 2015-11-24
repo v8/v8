@@ -1185,6 +1185,7 @@ class MacroAssembler : public Assembler {
                       bool* definitely_mismatches,
                       const CallWrapper& call_wrapper);
   void InvokeCode(Register code,
+                  Register new_target,
                   const ParameterCount& expected,
                   const ParameterCount& actual,
                   InvokeFlag flag,
@@ -1192,6 +1193,7 @@ class MacroAssembler : public Assembler {
   // Invoke the JavaScript function in the given register.
   // Changes the current context to the context in the function before invoking.
   void InvokeFunction(Register function,
+                      Register new_target,
                       const ParameterCount& actual,
                       InvokeFlag flag,
                       const CallWrapper& call_wrapper);

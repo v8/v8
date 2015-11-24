@@ -292,14 +292,21 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
 
 static void CallRuntimePassFunction(
     MacroAssembler* masm, Runtime::FunctionId function_id) {
+  // ----------- S t a t e -------------
+  //  -- r1 : target function (preserved for callee)
+  //  -- r3 : new target (preserved for callee)
+  // -----------------------------------
+
   FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
-  // Push a copy of the function onto the stack.
+  // Push a copy of the target function and the new target.
   __ push(r1);
+  __ push(r3);
   // Push function as parameter to the runtime call.
   __ Push(r1);
 
   __ CallRuntime(function_id, 1);
-  // Restore receiver.
+  // Restore target function and new target.
+  __ pop(r3);
   __ pop(r1);
 }
 
@@ -539,24 +546,26 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // r0: number of arguments
     // r1: constructor function
     // r2: address of last argument (caller sp)
-    // r3: number of arguments (smi-tagged)
+    // r3: new target
+    // r4: number of arguments (smi-tagged)
     // sp[0]: receiver
     // sp[1]: receiver
     // sp[2]: new.target
     // sp[3]: number of arguments (smi-tagged)
     Label loop, entry;
-    __ SmiTag(r3, r0);
+    __ SmiTag(r4, r0);
     __ b(&entry);
     __ bind(&loop);
-    __ ldr(ip, MemOperand(r2, r3, LSL, kPointerSizeLog2 - 1));
+    __ ldr(ip, MemOperand(r2, r4, LSL, kPointerSizeLog2 - 1));
     __ push(ip);
     __ bind(&entry);
-    __ sub(r3, r3, Operand(2), SetCC);
+    __ sub(r4, r4, Operand(2), SetCC);
     __ b(ge, &loop);
 
     // Call the function.
     // r0: number of arguments
     // r1: constructor function
+    // r3: new target
     if (is_api_function) {
       __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
       Handle<Code> code =
@@ -564,7 +573,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ Call(code, RelocInfo::CODE_TARGET);
     } else {
       ParameterCount actual(r0);
-      __ InvokeFunction(r1, actual, CALL_FUNCTION, NullCallWrapper());
+      __ InvokeFunction(r1, r3, actual, CALL_FUNCTION, NullCallWrapper());
     }
 
     // Store offset of return address for deoptimizer.
@@ -986,13 +995,14 @@ static void GenerateMakeCodeYoungAgainCommon(MacroAssembler* masm) {
   // the runtime:
   //   r0 - contains return address (beginning of patch sequence)
   //   r1 - isolate
+  //   r3 - new target
   FrameScope scope(masm, StackFrame::MANUAL);
-  __ stm(db_w, sp, r0.bit() | r1.bit() | fp.bit() | lr.bit());
+  __ stm(db_w, sp, r0.bit() | r1.bit() | r3.bit() | fp.bit() | lr.bit());
   __ PrepareCallCFunction(2, 0, r2);
   __ mov(r1, Operand(ExternalReference::isolate_address(masm->isolate())));
   __ CallCFunction(
       ExternalReference::get_make_code_young_function(masm->isolate()), 2);
-  __ ldm(ia_w, sp, r0.bit() | r1.bit() | fp.bit() | lr.bit());
+  __ ldm(ia_w, sp, r0.bit() | r1.bit() | r3.bit() | fp.bit() | lr.bit());
   __ mov(pc, r0);
 }
 
@@ -1019,13 +1029,14 @@ void Builtins::Generate_MarkCodeAsExecutedOnce(MacroAssembler* masm) {
   // the runtime:
   //   r0 - contains return address (beginning of patch sequence)
   //   r1 - isolate
+  //   r3 - new target
   FrameScope scope(masm, StackFrame::MANUAL);
-  __ stm(db_w, sp, r0.bit() | r1.bit() | fp.bit() | lr.bit());
+  __ stm(db_w, sp, r0.bit() | r1.bit() | r3.bit() | fp.bit() | lr.bit());
   __ PrepareCallCFunction(2, 0, r2);
   __ mov(r1, Operand(ExternalReference::isolate_address(masm->isolate())));
   __ CallCFunction(ExternalReference::get_mark_code_as_executed_function(
         masm->isolate()), 2);
-  __ ldm(ia_w, sp, r0.bit() | r1.bit() | fp.bit() | lr.bit());
+  __ ldm(ia_w, sp, r0.bit() | r1.bit() | r3.bit() | fp.bit() | lr.bit());
 
   // Perform prologue operations usually performed by the young code stub.
   __ PushFixedFrame(r1);
@@ -1548,10 +1559,10 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   __ ldr(r2,
          FieldMemOperand(r2, SharedFunctionInfo::kFormalParameterCountOffset));
   __ SmiUntag(r2);
-  __ ldr(r3, FieldMemOperand(r1, JSFunction::kCodeEntryOffset));
+  __ ldr(r4, FieldMemOperand(r1, JSFunction::kCodeEntryOffset));
   ParameterCount actual(r0);
   ParameterCount expected(r2);
-  __ InvokeCode(r3, expected, actual, JUMP_FUNCTION, NullCallWrapper());
+  __ InvokeCode(r4, no_reg, expected, actual, JUMP_FUNCTION, NullCallWrapper());
 
   // The function is a "classConstructor", need to raise an exception.
   __ bind(&class_constructor);
