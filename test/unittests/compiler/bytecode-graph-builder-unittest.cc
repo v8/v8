@@ -40,6 +40,12 @@ class BytecodeGraphBuilderTest : public TestWithIsolateAndZone {
  public:
   BytecodeGraphBuilderTest() {}
 
+  std::pair<Graph*, Handle<SharedFunctionInfo>> GetCompletedGraphAndSharedInfo(
+      Handle<BytecodeArray> bytecode_array,
+      MaybeHandle<TypeFeedbackVector> feedback_vector =
+          MaybeHandle<TypeFeedbackVector>(),
+      LanguageMode language_mode = LanguageMode::SLOPPY);
+
   Graph* GetCompletedGraph(Handle<BytecodeArray> bytecode_array,
                            MaybeHandle<TypeFeedbackVector> feedback_vector =
                                MaybeHandle<TypeFeedbackVector>(),
@@ -63,7 +69,8 @@ class BytecodeGraphBuilderTest : public TestWithIsolateAndZone {
 };
 
 
-Graph* BytecodeGraphBuilderTest::GetCompletedGraph(
+std::pair<Graph*, Handle<SharedFunctionInfo>>
+BytecodeGraphBuilderTest::GetCompletedGraphAndSharedInfo(
     Handle<BytecodeArray> bytecode_array,
     MaybeHandle<TypeFeedbackVector> feedback_vector,
     LanguageMode language_mode) {
@@ -91,7 +98,17 @@ Graph* BytecodeGraphBuilderTest::GetCompletedGraph(
 
   BytecodeGraphBuilder graph_builder(zone(), &info, jsgraph);
   graph_builder.CreateGraph();
-  return graph;
+  return std::make_pair(graph_builder.graph(), shared_info);
+}
+
+
+Graph* BytecodeGraphBuilderTest::GetCompletedGraph(
+    Handle<BytecodeArray> bytecode_array,
+    MaybeHandle<TypeFeedbackVector> feedback_vector,
+    LanguageMode language_mode) {
+  return GetCompletedGraphAndSharedInfo(bytecode_array, feedback_vector,
+                                        language_mode)
+      .first;
 }
 
 
@@ -805,6 +822,39 @@ TEST_F(BytecodeGraphBuilderTest, New) {
   Matcher<Node*> call_construct =
       IsJSCallConstruct(construct_inputs, start, start);
   EXPECT_THAT(ret, IsReturn(call_construct, call_construct, IsIfSuccess(_)));
+}
+
+
+TEST_F(BytecodeGraphBuilderTest, CreateClosure) {
+  PretenureFlag kPretenureFlags[] = {NOT_TENURED, TENURED};
+  TRACED_FOREACH(PretenureFlag, pretenure_flag, kPretenureFlags) {
+    interpreter::BytecodeArrayBuilder inner_builder(isolate(), zone());
+    inner_builder.set_locals_count(0);
+    inner_builder.set_context_count(0);
+    inner_builder.set_parameter_count(3);
+    inner_builder.LoadAccumulatorWithRegister(inner_builder.Parameter(2))
+        .BinaryOperation(Token::Value::ADD, inner_builder.Parameter(1),
+                         Strength::WEAK)
+        .Return();
+
+    std::pair<Graph*, Handle<SharedFunctionInfo>> inner_graph_and_shared_info =
+        GetCompletedGraphAndSharedInfo(inner_builder.ToBytecodeArray());
+    Handle<SharedFunctionInfo> shared_info = inner_graph_and_shared_info.second;
+
+    interpreter::BytecodeArrayBuilder builder(isolate(), zone());
+    builder.set_locals_count(4);
+    builder.set_context_count(0);
+    builder.set_parameter_count(3);
+    builder.CreateClosure(shared_info, pretenure_flag).Return();
+
+    Graph* graph = GetCompletedGraph(builder.ToBytecodeArray());
+    Node* start = graph->start();
+    Node* ret = graph->end()->InputAt(0);
+
+    Matcher<Node*> create_closure =
+        IsCreateClosure(shared_info, pretenure_flag, start, start);
+    EXPECT_THAT(ret, IsReturn(create_closure, create_closure, start));
+  }
 }
 
 }  // namespace compiler

@@ -575,6 +575,45 @@ TEST(BytecodeGraphBuilderCallNew) {
 }
 
 
+TEST(BytecodeGraphBuilderCreateClosure) {
+  HandleAndZoneScope scope;
+  Isolate* isolate = scope.main_isolate();
+  Zone* zone = scope.main_zone();
+  Factory* factory = isolate->factory();
+
+  ExpectedSnippet<0> snippets[] = {
+      {"function f() {\n"
+       "  function counter() { this.count = 20; }\n"
+       "  var c = new counter();\n"
+       "  return c.count;\n"
+       "}; f()",
+       {factory->NewNumberFromInt(20)}},
+      {"function f() {\n"
+       "  function counter(arg0) { this.count = 17; this.x = arg0; }\n"
+       "  var c = new counter(6);\n"
+       "  return c.count + c.x;\n"
+       "}; f()",
+       {factory->NewNumberFromInt(23)}},
+      {"function f() {\n"
+       "  function counter(arg0, arg1) {\n"
+       "    this.count = 17; this.x = arg0; this.y = arg1;\n"
+       "  }\n"
+       "  var c = new counter(3, 5);\n"
+       "  return c.count + c.x + c.y;\n"
+       "}; f()",
+       {factory->NewNumberFromInt(25)}},
+  };
+
+  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
+  for (size_t i = 0; i < num_snippets; i++) {
+    BytecodeGraphTester tester(isolate, zone, snippets[i].code_snippet);
+    auto callable = tester.GetCallable<>();
+    Handle<Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*snippets[i].return_value()));
+  }
+}
+
+
 TEST(BytecodeGraphBuilderCallRuntime) {
   HandleAndZoneScope scope;
   Isolate* isolate = scope.main_isolate();

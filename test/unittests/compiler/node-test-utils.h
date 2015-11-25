@@ -17,6 +17,7 @@ class ExternalReference;
 template <typename T>
 class Handle;
 class HeapObject;
+class SharedFunctionInfo;
 template <class>
 class TypeImpl;
 enum TypeofMode : int;
@@ -405,6 +406,10 @@ Matcher<Node*> IsJSDeleteProperty(const Matcher<Node*>& object_value_matcher,
                                   const Matcher<Node*>& key_matcher,
                                   const Matcher<Node*>& effect_matcher,
                                   const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsCreateClosure(const Handle<SharedFunctionInfo> shared_info,
+                               PretenureFlag pretenure,
+                               const Matcher<Node*>& effect_matcher,
+                               const Matcher<Node*>& control_matcher);
 
 }  // namespace compiler
 }  // namespace internal

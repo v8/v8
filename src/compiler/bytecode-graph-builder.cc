@@ -643,7 +643,20 @@ void BytecodeGraphBuilder::VisitPopContext(
 
 void BytecodeGraphBuilder::VisitCreateClosure(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  Handle<SharedFunctionInfo> shared_info =
+      Handle<SharedFunctionInfo>::cast(iterator.GetConstantForIndexOperand(0));
+  PretenureFlag tenured =
+      iterator.GetImmediateOperand(1) ? TENURED : NOT_TENURED;
+  const Operator* op = javascript()->CreateClosure(shared_info, tenured);
+  Node* closure = NewNode(op);
+  AddEmptyFrameStateInputs(closure);
+  environment()->BindAccumulator(closure);
+}
+
+
+void BytecodeGraphBuilder::VisitCreateClosureWide(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  VisitCreateClosure(iterator);
 }
 
 
