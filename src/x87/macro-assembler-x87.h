@@ -332,20 +332,17 @@ class MacroAssembler: public Assembler {
                   const ParameterCount& actual,
                   InvokeFlag flag,
                   const CallWrapper& call_wrapper) {
-    InvokeCode(Operand(code), expected, actual, flag, call_wrapper);
+    InvokeCode(Operand(code), no_reg, expected, actual, flag, call_wrapper);
   }
 
-  void InvokeCode(const Operand& code,
-                  const ParameterCount& expected,
-                  const ParameterCount& actual,
-                  InvokeFlag flag,
-                  const CallWrapper& call_wrapper);
+  void InvokeCode(const Operand& code, Register new_target,
+                  const ParameterCount& expected, const ParameterCount& actual,
+                  InvokeFlag flag, const CallWrapper& call_wrapper);
 
   // Invoke the JavaScript function in the given register. Changes the
   // current context to the context in the function before invoking.
-  void InvokeFunction(Register function,
-                      const ParameterCount& actual,
-                      InvokeFlag flag,
+  void InvokeFunction(Register function, Register new_target,
+                      const ParameterCount& actual, InvokeFlag flag,
                       const CallWrapper& call_wrapper);
 
   void InvokeFunction(Register function,
@@ -959,12 +956,10 @@ class MacroAssembler: public Assembler {
 
   // Helper functions for generating invokes.
   void InvokePrologue(const ParameterCount& expected,
-                      const ParameterCount& actual,
-                      Label* done,
-                      bool* definitely_mismatches,
-                      InvokeFlag flag,
+                      const ParameterCount& actual, Label* done,
+                      bool* definitely_mismatches, InvokeFlag flag,
                       Label::Distance done_distance,
-                      const CallWrapper& call_wrapper = NullCallWrapper());
+                      const CallWrapper& call_wrapper);
 
   void EnterExitFramePrologue();
   void EnterExitFrameEpilogue(int argc, bool save_doubles);
