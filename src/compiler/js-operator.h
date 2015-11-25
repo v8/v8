@@ -404,19 +404,19 @@ const CreateClosureParameters& CreateClosureParametersOf(const Operator* op);
 
 
 // Defines shared information for the literal that should be created. This is
-// used as parameter by JSCreateLiteralArray, JSCreateLiteralObject and
-// JSCreateLiteralRegExp operators.
+// used as parameter by JSCreateLiteralArray and JSCreateLiteralObject
+// operators.
 class CreateLiteralParameters final {
  public:
-  CreateLiteralParameters(Handle<HeapObject> constant, int flags, int index)
-      : constant_(constant), flags_(flags), index_(index) {}
+  CreateLiteralParameters(Handle<FixedArray> constants, int flags, int index)
+      : constants_(constants), flags_(flags), index_(index) {}
 
-  Handle<HeapObject> constant() const { return constant_; }
+  Handle<FixedArray> constants() const { return constants_; }
   int flags() const { return flags_; }
   int index() const { return index_; }
 
  private:
-  Handle<HeapObject> const constant_;
+  Handle<FixedArray> const constants_;
   int const flags_;
   int const index_;
 };
@@ -475,8 +475,6 @@ class JSOperatorBuilder final : public ZoneObject {
   const Operator* CreateLiteralArray(Handle<FixedArray> constant_elements,
                                      int literal_flags, int literal_index);
   const Operator* CreateLiteralObject(Handle<FixedArray> constant_properties,
-                                      int literal_flags, int literal_index);
-  const Operator* CreateLiteralRegExp(Handle<String> constant_pattern,
                                       int literal_flags, int literal_index);
 
   const Operator* CallFunction(

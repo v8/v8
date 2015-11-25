@@ -115,7 +115,6 @@
   V(JSCreateClosure)         \
   V(JSCreateLiteralArray)    \
   V(JSCreateLiteralObject)   \
-  V(JSCreateLiteralRegExp)   \
   V(JSLoadProperty)          \
   V(JSLoadNamed)             \
   V(JSLoadGlobal)            \
