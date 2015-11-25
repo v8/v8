@@ -240,6 +240,8 @@
   # BUG(3331). Fails on windows.
   'test-heap/NoWeakHashTableLeakWithIncrementalMarking': [SKIP],
 
+  # BUG(v8:4573).
+  'test-api/MultipleIsolatesOnIndividualThreads': [PASS, NO_VARIANTS],
 }],  # 'system == windows'
 
 ##############################################################################
