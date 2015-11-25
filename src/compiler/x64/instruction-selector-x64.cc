@@ -1138,6 +1138,11 @@ void InstructionSelector::VisitFloat64Sqrt(Node* node) {
 }
 
 
+void InstructionSelector::VisitFloat32RoundDown(Node* node) {
+  VisitRR(this, node, kSSEFloat32Round | MiscField::encode(kRoundDown));
+}
+
+
 void InstructionSelector::VisitFloat64RoundDown(Node* node) {
   VisitRR(this, node, kSSEFloat64Round | MiscField::encode(kRoundDown));
 }
@@ -1694,7 +1699,8 @@ InstructionSelector::SupportedMachineOperatorFlags() {
     flags |= MachineOperatorBuilder::kFloat64RoundDown |
              MachineOperatorBuilder::kFloat64RoundUp |
              MachineOperatorBuilder::kFloat64RoundTruncate |
-             MachineOperatorBuilder::kFloat64RoundTiesEven;
+             MachineOperatorBuilder::kFloat64RoundTiesEven |
+             MachineOperatorBuilder::kFloat32RoundDown;
   }
   return flags;
 }

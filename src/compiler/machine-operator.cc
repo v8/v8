@@ -186,6 +186,7 @@ CheckedStoreRepresentation CheckedStoreRepresentationOf(Operator const* op) {
   V(Float32Min, Operator::kNoProperties, 2, 0, 1)           \
   V(Float64Max, Operator::kNoProperties, 2, 0, 1)           \
   V(Float64Min, Operator::kNoProperties, 2, 0, 1)           \
+  V(Float32RoundDown, Operator::kNoProperties, 1, 0, 1)     \
   V(Float64RoundDown, Operator::kNoProperties, 1, 0, 1)     \
   V(Float64RoundUp, Operator::kNoProperties, 1, 0, 1)       \
   V(Float64RoundTruncate, Operator::kNoProperties, 1, 0, 1) \

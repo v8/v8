@@ -842,6 +842,9 @@ void InstructionSelector::VisitFloat64Sqrt(Node* node) {
 }
 
 
+void InstructionSelector::VisitFloat32RoundDown(Node* node) { UNIMPLEMENTED(); }
+
+
 void InstructionSelector::VisitFloat64RoundDown(Node* node) {
   X87OperandGenerator g(this);
   Emit(kX87Float64Round | MiscField::encode(kRoundDown),

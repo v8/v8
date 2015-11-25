@@ -43,6 +43,7 @@ namespace compiler {
   V(SSEFloat32Abs)                 \
   V(SSEFloat32Neg)                 \
   V(SSEFloat32Sqrt)                \
+  V(SSEFloat32Round)               \
   V(SSEFloat64Cmp)                 \
   V(SSEFloat64Add)                 \
   V(SSEFloat64Sub)                 \

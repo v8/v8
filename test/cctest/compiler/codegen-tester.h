@@ -512,7 +512,7 @@ static inline void CheckFloatEq(volatile float x, volatile float y) {
   if (std::isnan(x)) {
     CHECK(std::isnan(y));
   } else {
-    CHECK(x == y);
+    CHECK_EQ(x, y);
   }
 }
 

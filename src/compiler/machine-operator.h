@@ -116,23 +116,24 @@ class MachineOperatorBuilder final : public ZoneObject {
     kFloat32Min = 1u << 1,
     kFloat64Max = 1u << 2,
     kFloat64Min = 1u << 3,
-    kFloat64RoundDown = 1u << 4,
-    kFloat64RoundUp = 1u << 5,
-    kFloat64RoundTruncate = 1u << 6,
-    kFloat64RoundTiesEven = 1u << 7,
-    kFloat64RoundTiesAway = 1u << 8,
-    kInt32DivIsSafe = 1u << 9,
-    kUint32DivIsSafe = 1u << 10,
-    kWord32ShiftIsSafe = 1u << 11,
-    kWord32Ctz = 1u << 12,
-    kWord64Ctz = 1u << 13,
-    kWord32Popcnt = 1u << 14,
-    kWord64Popcnt = 1u << 15,
+    kFloat32RoundDown = 1u << 4,
+    kFloat64RoundDown = 1u << 5,
+    kFloat64RoundUp = 1u << 6,
+    kFloat64RoundTruncate = 1u << 7,
+    kFloat64RoundTiesEven = 1u << 8,
+    kFloat64RoundTiesAway = 1u << 9,
+    kInt32DivIsSafe = 1u << 10,
+    kUint32DivIsSafe = 1u << 11,
+    kWord32ShiftIsSafe = 1u << 12,
+    kWord32Ctz = 1u << 13,
+    kWord64Ctz = 1u << 14,
+    kWord32Popcnt = 1u << 15,
+    kWord64Popcnt = 1u << 16,
     kAllOptionalOps = kFloat32Max | kFloat32Min | kFloat64Max | kFloat64Min |
                       kFloat64RoundDown | kFloat64RoundUp |
                       kFloat64RoundTruncate | kFloat64RoundTiesAway |
                       kFloat64RoundTiesEven | kWord32Ctz | kWord64Ctz |
-                      kWord32Popcnt | kWord64Popcnt
+                      kWord32Popcnt | kWord64Popcnt | kFloat32RoundDown
   };
   typedef base::Flags<Flag, unsigned> Flags;
 
@@ -268,6 +269,7 @@ class MachineOperatorBuilder final : public ZoneObject {
   const Operator* Float64Abs();
 
   // Floating point rounding.
+  const OptionalOperator Float32RoundDown();
   const OptionalOperator Float64RoundDown();
   const OptionalOperator Float64RoundUp();
   const OptionalOperator Float64RoundTruncate();

@@ -63,6 +63,7 @@ namespace compiler {
   V(SSEFloat32Max)                 \
   V(SSEFloat32Min)                 \
   V(SSEFloat32ToFloat64)           \
+  V(SSEFloat32Round)               \
   V(SSEFloat64Cmp)                 \
   V(SSEFloat64Add)                 \
   V(SSEFloat64Sub)                 \

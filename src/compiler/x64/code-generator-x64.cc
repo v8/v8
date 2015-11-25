@@ -937,6 +937,13 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kSSEFloat32ToFloat64:
       ASSEMBLE_SSE_UNOP(Cvtss2sd);
       break;
+    case kSSEFloat32Round: {
+      CpuFeatureScope sse_scope(masm(), SSE4_1);
+      RoundingMode const mode =
+          static_cast<RoundingMode>(MiscField::decode(instr->opcode()));
+      __ Roundss(i.OutputDoubleRegister(), i.InputDoubleRegister(0), mode);
+      break;
+    }
     case kSSEFloat64Cmp:
       ASSEMBLE_SSE_BINOP(Ucomisd);
       break;

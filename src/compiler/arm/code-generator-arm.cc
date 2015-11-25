@@ -726,6 +726,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArmVnegF32:
       __ vneg(i.OutputFloat32Register(), i.InputFloat32Register(0));
       break;
+    case kArmVrintmF32:
+      __ vrintm(i.OutputFloat32Register(), i.InputFloat32Register(0));
+      break;
     case kArmVcmpF64:
       if (instr->InputAt(1)->IsDoubleRegister()) {
         __ VFPCompareAndSetFlags(i.InputFloat64Register(0),

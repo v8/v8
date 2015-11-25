@@ -2194,6 +2194,19 @@ void Assembler::ucomisd(XMMRegister dst, const Operand& src) {
 }
 
 
+void Assembler::roundss(XMMRegister dst, XMMRegister src, RoundingMode mode) {
+  DCHECK(IsEnabled(SSE4_1));
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0x3A);
+  EMIT(0x0A);
+  emit_sse_operand(dst, src);
+  // Mask precision exeption.
+  EMIT(static_cast<byte>(mode) | 0x8);
+}
+
+
 void Assembler::roundsd(XMMRegister dst, XMMRegister src, RoundingMode mode) {
   DCHECK(IsEnabled(SSE4_1));
   EnsureSpace ensure_space(this);

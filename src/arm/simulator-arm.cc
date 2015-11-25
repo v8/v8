@@ -3869,44 +3869,71 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
       break;
     case 0x1D:
       if (instr->Opc1Value() == 0x7 && instr->Opc3Value() == 0x1 &&
-          instr->Bits(11, 9) == 0x5 && instr->Bits(19, 18) == 0x2 &&
-          instr->Bit(8) == 0x1) {
-        int vm = instr->VFPMRegValue(kDoublePrecision);
-        int vd = instr->VFPDRegValue(kDoublePrecision);
-        double dm_value = get_double_from_d_register(vm);
-        double dd_value = 0.0;
-        int rounding_mode = instr->Bits(17, 16);
-        switch (rounding_mode) {
-          case 0x0:  // vrinta - round with ties to away from zero
-            dd_value = round(dm_value);
-            break;
-          case 0x1: {  // vrintn - round with ties to even
-            dd_value = std::floor(dm_value);
-            double error = dm_value - dd_value;
-            // Take care of correctly handling the range [-0.5, -0.0], which
-            // must yield -0.0.
-            if ((-0.5 <= dm_value) && (dm_value < 0.0)) {
-              dd_value = -0.0;
-              // If the error is greater than 0.5, or is equal to 0.5 and the
-              // integer result is odd, round up.
-            } else if ((error > 0.5) ||
-                       ((error == 0.5) && (fmod(dd_value, 2) != 0))) {
-              dd_value++;
+          instr->Bits(11, 9) == 0x5 && instr->Bits(19, 18) == 0x2) {
+        if (instr->SzValue() == 0x1) {
+          int vm = instr->VFPMRegValue(kDoublePrecision);
+          int vd = instr->VFPDRegValue(kDoublePrecision);
+          double dm_value = get_double_from_d_register(vm);
+          double dd_value = 0.0;
+          int rounding_mode = instr->Bits(17, 16);
+          switch (rounding_mode) {
+            case 0x0:  // vrinta - round with ties to away from zero
+              dd_value = round(dm_value);
+              break;
+            case 0x1: {  // vrintn - round with ties to even
+              dd_value = std::floor(dm_value);
+              double error = dm_value - dd_value;
+              // Take care of correctly handling the range [-0.5, -0.0], which
+              // must yield -0.0.
+              if ((-0.5 <= dm_value) && (dm_value < 0.0)) {
+                dd_value = -0.0;
+                // If the error is greater than 0.5, or is equal to 0.5 and the
+                // integer result is odd, round up.
+              } else if ((error > 0.5) ||
+                         ((error == 0.5) && (fmod(dd_value, 2) != 0))) {
+                dd_value++;
+              }
+              break;
             }
-            break;
+            case 0x2:  // vrintp - ceil
+              dd_value = std::ceil(dm_value);
+              break;
+            case 0x3:  // vrintm - floor
+              dd_value = std::floor(dm_value);
+              break;
+            default:
+              UNREACHABLE();  // Case analysis is exhaustive.
+              break;
           }
-          case 0x2:  // vrintp - ceil
-            dd_value = std::ceil(dm_value);
-            break;
-          case 0x3:  // vrintm - floor
-            dd_value = std::floor(dm_value);
-            break;
-          default:
-            UNREACHABLE();  // Case analysis is exhaustive.
-            break;
+          dd_value = canonicalizeNaN(dd_value);
+          set_d_register_from_double(vd, dd_value);
+        } else {
+          int m = instr->VFPMRegValue(kSinglePrecision);
+          int d = instr->VFPDRegValue(kSinglePrecision);
+          float sm_value = get_float_from_s_register(m);
+          float sd_value = 0.0;
+          int rounding_mode = instr->Bits(17, 16);
+          switch (rounding_mode) {
+            case 0x0:  // vrinta - round with ties to away from zero
+              sd_value = roundf(sm_value);
+              break;
+            case 0x1: {  // vrintn - round with ties to even
+              sd_value = nearbyintf(sm_value);
+              break;
+            }
+            case 0x2:  // vrintp - ceil
+              sd_value = ceilf(sm_value);
+              break;
+            case 0x3:  // vrintm - floor
+              sd_value = floorf(sm_value);
+              break;
+            default:
+              UNREACHABLE();  // Case analysis is exhaustive.
+              break;
+          }
+          sd_value = canonicalizeNaN(sd_value);
+          set_s_register_from_float(d, sd_value);
         }
-        dd_value = canonicalizeNaN(dd_value);
-        set_d_register_from_double(vd, dd_value);
       } else {
         UNIMPLEMENTED();
       }

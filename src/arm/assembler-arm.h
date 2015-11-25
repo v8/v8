@@ -1213,6 +1213,7 @@ class Assembler : public AssemblerBase {
   // ARMv8 rounding instructions.
   void vrinta(const DwVfpRegister dst, const DwVfpRegister src);
   void vrintn(const DwVfpRegister dst, const DwVfpRegister src);
+  void vrintm(const SwVfpRegister dst, const SwVfpRegister src);
   void vrintm(const DwVfpRegister dst, const DwVfpRegister src);
   void vrintp(const DwVfpRegister dst, const DwVfpRegister src);
   void vrintz(const DwVfpRegister dst, const DwVfpRegister src,

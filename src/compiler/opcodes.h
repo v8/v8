@@ -294,6 +294,7 @@
   V(Float32Min)                 \
   V(Float32Abs)                 \
   V(Float32Sqrt)                \
+  V(Float32RoundDown)           \
   V(Float64Add)                 \
   V(Float64Sub)                 \
   V(Float64Mul)                 \

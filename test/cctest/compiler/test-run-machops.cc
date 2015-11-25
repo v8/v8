@@ -5144,6 +5144,16 @@ static double kValues[] = {0.1,
                            -two_52 + 1 - 0.7};
 
 
+TEST(RunFloat32RoundDown) {
+  BufferedRawMachineAssemblerTester<float> m(kMachFloat32);
+  if (!m.machine()->Float32RoundDown().IsSupported()) return;
+
+  m.Return(m.Float32RoundDown(m.Parameter(0)));
+
+  FOR_FLOAT32_INPUTS(i) { CheckFloatEq(floorf(*i), m.Call(*i)); }
+}
+
+
 TEST(RunFloat64RoundDown1) {
   BufferedRawMachineAssemblerTester<double> m(kMachFloat64);
   if (!m.machine()->Float64RoundDown().IsSupported()) return;

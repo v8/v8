@@ -989,6 +989,7 @@ class Assembler : public AssemblerBase {
   void ucomisd(XMMRegister dst, XMMRegister src) { ucomisd(dst, Operand(src)); }
   void ucomisd(XMMRegister dst, const Operand& src);
 
+  void roundss(XMMRegister dst, XMMRegister src, RoundingMode mode);
   void roundsd(XMMRegister dst, XMMRegister src, RoundingMode mode);
 
   void movmskpd(Register dst, XMMRegister src);

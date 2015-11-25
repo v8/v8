@@ -483,6 +483,9 @@ class RawMachineAssembler {
   Node* BitcastInt64ToFloat64(Node* a) {
     return AddNode(machine()->BitcastInt64ToFloat64(), a);
   }
+  Node* Float32RoundDown(Node* a) {
+    return AddNode(machine()->Float32RoundDown().op(), a);
+  }
   Node* Float64RoundDown(Node* a) {
     return AddNode(machine()->Float64RoundDown().op(), a);
   }
