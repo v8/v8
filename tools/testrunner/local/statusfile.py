@@ -25,6 +25,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import os
 
 # These outcomes can occur in a TestCase's outcomes list:
 SKIP = "SKIP"
@@ -125,10 +126,14 @@ def _ParseOutcomeList(rule, outcomes, target_dict, variables):
     target_dict[rule] = result
 
 
-def ReadStatusFile(path, variables):
+def ReadContent(path):
   with open(path) as f:
     global KEYWORDS
-    contents = eval(f.read(), KEYWORDS)
+    return eval(f.read(), KEYWORDS)
+
+
+def ReadStatusFile(path, variables):
+  contents = ReadContent(path)
 
   rules = {}
   wildcards = {}
@@ -146,3 +151,25 @@ def ReadStatusFile(path, variables):
       else:
         _ParseOutcomeList(rule, section[rule], rules, variables)
   return rules, wildcards
+
+
+def PresubmitCheck(path):
+  contents = ReadContent(path)
+  root_prefix = os.path.basename(os.path.dirname(path)) + "/"
+
+  try:
+    for section in contents:
+      assert type(section) == list
+      assert len(section) == 2
+      section = section[1]
+      assert type(section) == dict
+      for rule in section:
+        assert type(rule) == str
+        assert not rule.startswith(root_prefix), (
+            "Suite name prefix must not be used in status files")
+        assert not rule.endswith('.js'), (
+            ".js extension must not be used in status files.")
+    return True
+  except Exception as e:
+    print e
+    return False

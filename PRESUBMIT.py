@@ -69,6 +69,7 @@ def _V8PresubmitChecks(input_api, output_api):
   from presubmit import SourceProcessor
   from presubmit import CheckExternalReferenceRegistration
   from presubmit import CheckAuthorizedAuthor
+  from presubmit import CheckStatusFiles
 
   results = []
   if not CppLintProcessor().Run(input_api.PresubmitLocalPath()):
@@ -80,6 +81,8 @@ def _V8PresubmitChecks(input_api, output_api):
   if not CheckExternalReferenceRegistration(input_api.PresubmitLocalPath()):
     results.append(output_api.PresubmitError(
         "External references registration check failed"))
+  if not CheckStatusFiles(input_api.PresubmitLocalPath()):
+    results.append(output_api.PresubmitError("Status file check failed"))
   results.extend(CheckAuthorizedAuthor(input_api, output_api))
   return results
 

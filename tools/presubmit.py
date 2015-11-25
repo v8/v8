@@ -45,6 +45,10 @@ import subprocess
 import multiprocessing
 from subprocess import PIPE
 
+from testrunner.local import statusfile
+from testrunner.local import testsuite
+from testrunner.local import utils
+
 # Special LINT rules diverging from default and reason.
 # build/header_guard: Our guards have the form "V8_FOO_H_", not "SRC_FOO_H_".
 # build/include_what_you_use: Started giving false positives for variables
@@ -403,6 +407,17 @@ def CheckExternalReferenceRegistration(workspace):
       [sys.executable, join(workspace, "tools", "external-reference-check.py")])
   return code == 0
 
+def CheckStatusFiles(workspace):
+  suite_paths = utils.GetSuitePaths(join(workspace, "test"))
+  for root in suite_paths:
+    suite_path = join(workspace, "test", root)
+    status_file_path = join(suite_path, root + ".status")
+    suite = testsuite.TestSuite.LoadTestSuite(suite_path)
+    if suite and exists(status_file_path):
+      if not statusfile.PresubmitCheck(status_file_path):
+        return False
+  return True
+
 def CheckAuthorizedAuthor(input_api, output_api):
   """For non-googler/chromites committers, verify the author's email address is
   in AUTHORS.
@@ -450,6 +465,7 @@ def Main():
         "two empty lines between declarations check..."
   success = SourceProcessor().Run(workspace) and success
   success = CheckExternalReferenceRegistration(workspace) and success
+  success = CheckStatusFiles(workspace) and success
   if success:
     return 0
   else:
