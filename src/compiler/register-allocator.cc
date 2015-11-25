@@ -713,52 +713,6 @@ void TopLevelLiveRange::RecordSpillLocation(Zone* zone, int gap_index,
 }
 
 
-void TopLevelLiveRange::MarkSpilledInDeferredBlock(
-    const InstructionSequence* code) {
-  if (!FLAG_turbo_preprocess_ranges || IsEmpty() || HasNoSpillType() ||
-      !HasSpillRange()) {
-    return;
-  }
-
-  int count = 0;
-  for (const LiveRange* child = this; child != nullptr; child = child->next()) {
-    int first_instr = child->Start().ToInstructionIndex();
-
-    // If the range starts at instruction end, the first instruction index is
-    // the next one.
-    if (!child->Start().IsGapPosition() && !child->Start().IsStart()) {
-      ++first_instr;
-    }
-
-    // We only look at where the range starts. It doesn't matter where it ends:
-    // if it ends past this block, then either there is a phi there already,
-    // or ResolveControlFlow will adapt the last instruction gap of this block
-    // as if there were a phi. In either case, data flow will be correct.
-    const InstructionBlock* block = code->GetInstructionBlock(first_instr);
-
-    // If we have slot uses in a subrange, bail out, because we need the value
-    // on the stack before that use.
-    bool has_slot_use = child->NextSlotPosition(child->Start()) != nullptr;
-    if (!block->IsDeferred()) {
-      if (child->spilled() || has_slot_use) {
-        TRACE(
-            "Live Range %d must be spilled at definition: found a "
-            "slot-requiring non-deferred child range %d.\n",
-            TopLevel()->vreg(), child->relative_id());
-        return;
-      }
-    } else {
-      if (child->spilled() || has_slot_use) ++count;
-    }
-  }
-  if (count == 0) return;
-
-  spill_start_index_ = -1;
-  spilled_in_deferred_blocks_ = true;
-  spill_move_insertion_locations_ = nullptr;
-}
-
-
 bool TopLevelLiveRange::TryCommitSpillInDeferredBlock(
     InstructionSequence* code, const InstructionOperand& spill_operand) {
   if (!IsSpilledOnlyInDeferredBlocks()) return false;
@@ -854,17 +808,12 @@ void TopLevelLiveRange::Splinter(LifetimePosition start, LifetimePosition end,
 
   TopLevelLiveRange splinter_temp(-1, machine_type());
   UsePosition* last_in_splinter = nullptr;
-  if (start <= Start()) {
-    // TODO(mtrofin): here, the TopLevel part is in the deferred range, so we
-    // may want to continue processing the splinter. However, if the value is
-    // defined in a cold block, and then used in a hot block, it follows that
-    // it should terminate on the RHS of a phi, defined on the hot path. We
-    // should check this, however, this may not be the place, because we don't
-    // have access to the instruction sequence.
-    DCHECK(end < End());
-    DetachAt(end, &splinter_temp, zone);
-    next_ = nullptr;
-  } else if (end >= End()) {
+  // Live ranges defined in deferred blocks stay in deferred blocks, so we
+  // don't need to splinter them. That means that start should always be
+  // after the beginning of the range.
+  DCHECK(start > Start());
+
+  if (end >= End()) {
     DCHECK(start > Start());
     DetachAt(start, &splinter_temp, zone);
     next_ = nullptr;
@@ -1394,6 +1343,37 @@ bool RegisterAllocationData::ExistsUseWithoutDefinition() {
     iterator.Advance();
   }
   return found;
+}
+
+
+// If a range is defined in a deferred block, we can expect all the range
+// to only cover positions in deferred blocks. Otherwise, a block on the
+// hot path would be dominated by a deferred block, meaning it is unreachable
+// without passing through the deferred block, which is contradictory.
+// In particular, when such a range contributes a result back on the hot
+// path, it will be as one of the inputs of a phi. In that case, the value
+// will be transferred via a move in the Gap::END's of the last instruction
+// of a deferred block.
+bool RegisterAllocationData::RangesDefinedInDeferredStayInDeferred() {
+  for (const TopLevelLiveRange* range : live_ranges()) {
+    if (range == nullptr || range->IsEmpty() ||
+        !code()
+             ->GetInstructionBlock(range->Start().ToInstructionIndex())
+             ->IsDeferred()) {
+      continue;
+    }
+    for (const UseInterval* i = range->first_interval(); i != nullptr;
+         i = i->next()) {
+      int first = i->FirstInstructionIndex();
+      int last = i->LastInstructionIndex();
+      for (int instr = first; instr <= last;) {
+        const InstructionBlock* block = code()->GetInstructionBlock(instr);
+        if (!block->IsDeferred()) return false;
+        instr = block->last_instruction_index() + 1;
+      }
+    }
+  }
+  return true;
 }
 
 
@@ -2964,7 +2944,6 @@ void SpillSlotLocator::LocateSpillSlots() {
     if (range == nullptr || range->IsEmpty()) continue;
     // We care only about ranges which spill in the frame.
     if (!range->HasSpillRange()) continue;
-    range->MarkSpilledInDeferredBlock(data()->code());
     if (range->IsSpilledOnlyInDeferredBlocks()) {
       for (LiveRange* child = range; child != nullptr; child = child->next()) {
         if (child->spilled()) {

@@ -1372,6 +1372,8 @@ void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
   }
   if (verifier != nullptr) {
     CHECK(!data->register_allocation_data()->ExistsUseWithoutDefinition());
+    CHECK(data->register_allocation_data()
+              ->RangesDefinedInDeferredStayInDeferred());
   }
 
   if (FLAG_turbo_preprocess_ranges) {

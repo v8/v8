@@ -194,6 +194,22 @@ class UseInterval final : public ZoneObject {
     return start_ <= point && point < end_;
   }
 
+  int FirstInstructionIndex() const {
+    int ret = start_.ToInstructionIndex();
+    if (start_.IsInstructionPosition() && start_.IsEnd()) {
+      ++ret;
+    }
+    return ret;
+  }
+
+  int LastInstructionIndex() const {
+    int ret = end_.ToInstructionIndex();
+    if (end_.IsGapPosition() || end_.IsStart()) {
+      --ret;
+    }
+    return ret;
+  }
+
  private:
   LifetimePosition start_;
   LifetimePosition end_;
@@ -550,7 +566,12 @@ class TopLevelLiveRange final : public LiveRange {
   // and instead let the LiveRangeConnector perform the spills within the
   // deferred blocks. If so, we insert here spills for non-spilled ranges
   // with slot use positions.
-  void MarkSpilledInDeferredBlock(const InstructionSequence* code);
+  void MarkSpilledInDeferredBlock() {
+    spill_start_index_ = -1;
+    spilled_in_deferred_blocks_ = true;
+    spill_move_insertion_locations_ = nullptr;
+  }
+
   bool TryCommitSpillInDeferredBlock(InstructionSequence* code,
                                      const InstructionOperand& spill_operand);
 
@@ -771,6 +792,7 @@ class RegisterAllocationData final : public ZoneObject {
   }
 
   bool ExistsUseWithoutDefinition();
+  bool RangesDefinedInDeferredStayInDeferred();
 
   void MarkAllocated(RegisterKind kind, int index);
 
