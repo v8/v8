@@ -961,6 +961,7 @@
   'regress/regress-crbug-349079': [SKIP],
   'regress/regress-crbug-350864': [SKIP],
   'regress/regress-crbug-352058': [SKIP],
+  'regress/regress-353551': [SKIP],
   'regress/regress-crbug-357137': [SKIP],
   'regress/regress-crbug-385002': [SKIP],
   'regress/regress-crbug-387599': [SKIP],
