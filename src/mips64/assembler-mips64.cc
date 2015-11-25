@@ -3274,7 +3274,7 @@ void Assembler::set_target_address_at(Address pc,
       | (itarget & kImm16Mask);
 
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    CpuFeatures::FlushICache(pc, 4 * Assembler::kInstrSize);
+    Assembler::FlushICacheWithoutIsolate(pc, 4 * Assembler::kInstrSize);
   }
 }
 

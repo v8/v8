@@ -92,7 +92,7 @@ void RelocInfo::apply(intptr_t delta) {
     // Absolute code pointer inside code object moves with the code object.
     byte* p = reinterpret_cast<byte*>(pc_);
     int count = Assembler::RelocateInternalReference(rmode_, p, delta);
-    CpuFeatures::FlushICache(p, count * sizeof(uint32_t));
+    Assembler::FlushICacheWithoutIsolate(p, count * sizeof(uint32_t));
   }
 }
 

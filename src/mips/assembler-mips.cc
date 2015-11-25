@@ -3047,7 +3047,7 @@ void Assembler::set_target_address_at(Address pc,
 
 
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    CpuFeatures::FlushICache(pc, 2 * sizeof(int32_t));
+    Assembler::FlushICacheWithoutIsolate(pc, 2 * sizeof(int32_t));
   }
 }
 

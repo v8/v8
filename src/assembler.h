@@ -236,17 +236,18 @@ class CpuFeatures : public AllStatic {
   static void PrintTarget();
   static void PrintFeatures();
 
+ private:
+  friend class ExternalReference;
+  friend class AssemblerBase;
   // Flush instruction cache.
   static void FlushICache(void* start, size_t size);
 
- private:
   // Platform-dependent implementation.
   static void ProbeImpl(bool cross_compile);
 
   static unsigned supported_;
   static unsigned cache_line_size_;
   static bool initialized_;
-  friend class ExternalReference;
   DISALLOW_COPY_AND_ASSIGN(CpuFeatures);
 };
 
