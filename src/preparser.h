@@ -1708,9 +1708,10 @@ class PreParserTraits {
     return !tag.IsNoTemplateTag();
   }
 
-  void AddFormalParameter(
-      PreParserFormalParameters* parameters, PreParserExpression pattern,
-      PreParserExpression initializer, bool is_rest) {
+  void AddFormalParameter(PreParserFormalParameters* parameters,
+                          PreParserExpression pattern,
+                          PreParserExpression initializer,
+                          int initializer_end_position, bool is_rest) {
     ++parameters->arity;
   }
   void DeclareFormalParameter(Scope* scope, PreParserIdentifier parameter,
@@ -3839,7 +3840,8 @@ void ParserBase<Traits>::ParseFormalParameter(
     classifier->RecordNonSimpleParameter();
   }
 
-  Traits::AddFormalParameter(parameters, pattern, initializer, is_rest);
+  Traits::AddFormalParameter(parameters, pattern, initializer,
+                             scanner()->location().end_pos, is_rest);
 }
 
 

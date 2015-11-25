@@ -4077,7 +4077,11 @@ void ParserTraits::ParseArrowFunctionFormalParameters(
                                      parser_->scope_, parameters->scope);
   }
 
-  AddFormalParameter(parameters, expr, initializer, is_rest);
+  // TODO(adamk): params_loc.end_pos is not the correct initializer position,
+  // but it should be conservative enough to trigger hole checks for variables
+  // referenced in the initializer (if any).
+  AddFormalParameter(parameters, expr, initializer, params_loc.end_pos,
+                     is_rest);
 }
 
 
@@ -4539,7 +4543,15 @@ Block* Parser::BuildParameterInitializationBlock(
     descriptor.is_const = false;
     descriptor.needs_init = true;
     descriptor.declaration_pos = parameter.pattern->position();
+    // The position that will be used by the AssignmentExpression
+    // which copies from the temp parameter to the pattern.
+    //
+    // TODO(adamk): Should this be RelocInfo::kNoPosition, since
+    // it's just copying from a temp var to the real param var?
     descriptor.initialization_pos = parameter.pattern->position();
+    // The initializer position which will end up in,
+    // Variable::initializer_position(), used for hole check elimination.
+    int initializer_position = parameter.pattern->position();
     Expression* initial_value =
         factory()->NewVariableProxy(parameters.scope->parameter(i));
     if (parameter.initializer != nullptr) {
@@ -4554,6 +4566,7 @@ Block* Parser::BuildParameterInitializationBlock(
           condition, parameter.initializer, initial_value,
           RelocInfo::kNoPosition);
       descriptor.initialization_pos = parameter.initializer->position();
+      initializer_position = parameter.initializer_end_position;
     } else if (parameter.is_rest) {
       // $rest = [];
       // for (var $argument_index = $rest_index;
@@ -4565,7 +4578,6 @@ Block* Parser::BuildParameterInitializationBlock(
       DCHECK(parameter.pattern->IsVariableProxy());
       DCHECK_EQ(i, parameters.params.length() - 1);
 
-      int pos = parameter.pattern->position();
       Variable* temp_var = parameters.scope->parameter(i);
       auto empty_values = new (zone()) ZoneList<Expression*>(0, zone());
       auto empty_array = factory()->NewArrayLiteral(
@@ -4629,8 +4641,6 @@ Block* Parser::BuildParameterInitializationBlock(
           zone());
 
       init_block->statements()->Add(loop, zone());
-
-      descriptor.initialization_pos = pos;
     }
 
     Scope* param_scope = scope_;
@@ -4649,7 +4659,7 @@ Block* Parser::BuildParameterInitializationBlock(
     {
       BlockState block_state(&scope_, param_scope);
       DeclarationParsingResult::Declaration decl(
-          parameter.pattern, parameter.pattern->position(), initial_value);
+          parameter.pattern, initializer_position, initial_value);
       PatternRewriter::DeclareAndInitializeVariables(param_block, &descriptor,
                                                      &decl, nullptr, CHECK_OK);
     }

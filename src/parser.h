@@ -551,12 +551,17 @@ class SingletonLogger;
 struct ParserFormalParameters : FormalParametersBase {
   struct Parameter {
     Parameter(const AstRawString* name, Expression* pattern,
-              Expression* initializer, bool is_rest)
-        : name(name), pattern(pattern), initializer(initializer),
+              Expression* initializer, int initializer_end_position,
+              bool is_rest)
+        : name(name),
+          pattern(pattern),
+          initializer(initializer),
+          initializer_end_position(initializer_end_position),
           is_rest(is_rest) {}
     const AstRawString* name;
     Expression* pattern;
     Expression* initializer;
+    int initializer_end_position;
     bool is_rest;
     bool is_simple() const {
       return pattern->IsVariableProxy() && initializer == nullptr && !is_rest;
@@ -793,9 +798,10 @@ class ParserTraits {
   V8_INLINE Scope* NewScope(Scope* parent_scope, ScopeType scope_type,
                             FunctionKind kind = kNormalFunction);
 
-  V8_INLINE void AddFormalParameter(
-      ParserFormalParameters* parameters, Expression* pattern,
-      Expression* initializer, bool is_rest);
+  V8_INLINE void AddFormalParameter(ParserFormalParameters* parameters,
+                                    Expression* pattern,
+                                    Expression* initializer,
+                                    int initializer_end_position, bool is_rest);
   V8_INLINE void DeclareFormalParameter(
       Scope* scope, const ParserFormalParameters::Parameter& parameter,
       ExpressionClassifier* classifier);
@@ -1337,9 +1343,11 @@ Expression* ParserTraits::SpreadCallNew(
 }
 
 
-void ParserTraits::AddFormalParameter(
-    ParserFormalParameters* parameters,
-    Expression* pattern, Expression* initializer, bool is_rest) {
+void ParserTraits::AddFormalParameter(ParserFormalParameters* parameters,
+                                      Expression* pattern,
+                                      Expression* initializer,
+                                      int initializer_end_position,
+                                      bool is_rest) {
   bool is_simple =
       !is_rest && pattern->IsVariableProxy() && initializer == nullptr;
   DCHECK(parser_->allow_harmony_destructuring_bind() ||
@@ -1349,7 +1357,8 @@ void ParserTraits::AddFormalParameter(
                                  ? pattern->AsVariableProxy()->raw_name()
                                  : parser_->ast_value_factory()->empty_string();
   parameters->params.Add(
-      ParserFormalParameters::Parameter(name, pattern, initializer, is_rest),
+      ParserFormalParameters::Parameter(name, pattern, initializer,
+                                        initializer_end_position, is_rest),
       parameters->scope->zone());
 }
 
