@@ -3432,6 +3432,14 @@ void Heap::InitializeJSObjectFromMap(JSObject* obj, FixedArray* properties,
   // fixed array (e.g. Heap::empty_fixed_array()).  Currently, the object
   // verification code has to cope with (temporarily) invalid objects.  See
   // for example, JSArray::JSArrayVerify).
+  InitializeJSObjectBody(obj, map, JSObject::kHeaderSize);
+}
+
+
+void Heap::InitializeJSObjectBody(JSObject* obj, Map* map, int start_offset) {
+  if (start_offset == map->instance_size()) return;
+  DCHECK_LT(start_offset, map->instance_size());
+
   Object* filler;
   // We cannot always fill with one_pointer_filler_map because objects
   // created from API functions expect their internal fields to be initialized
@@ -3448,7 +3456,7 @@ void Heap::InitializeJSObjectFromMap(JSObject* obj, FixedArray* properties,
   } else {
     filler = Heap::undefined_value();
   }
-  obj->InitializeBody(map, Heap::undefined_value(), filler);
+  obj->InitializeBody(map, start_offset, Heap::undefined_value(), filler);
 }
 
 

@@ -2288,7 +2288,7 @@ Object* JSObject::InObjectPropertyAtPut(int index,
 }
 
 
-void JSObject::InitializeBody(Map* map,
+void JSObject::InitializeBody(Map* map, int start_offset,
                               Object* pre_allocated_value,
                               Object* filler_value) {
   DCHECK(!filler_value->IsHeapObject() ||
@@ -2296,7 +2296,7 @@ void JSObject::InitializeBody(Map* map,
   DCHECK(!pre_allocated_value->IsHeapObject() ||
          !GetHeap()->InNewSpace(pre_allocated_value));
   int size = map->instance_size();
-  int offset = kHeaderSize;
+  int offset = start_offset;
   if (filler_value != pre_allocated_value) {
     int end_of_pre_allocated_offset =
         size - (map->unused_property_fields() * kPointerSize);

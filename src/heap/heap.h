@@ -1728,6 +1728,10 @@ class Heap {
   // Initializes a JSObject based on its map.
   void InitializeJSObjectFromMap(JSObject* obj, FixedArray* properties,
                                  Map* map);
+
+  // Initializes JSObject body starting at given offset.
+  void InitializeJSObjectBody(JSObject* obj, Map* map, int start_offset);
+
   void InitializeAllocationMemento(AllocationMemento* memento,
                                    AllocationSite* allocation_site);
 
