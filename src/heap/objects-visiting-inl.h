@@ -386,6 +386,9 @@ void StaticMarkingVisitor<StaticVisitor>::VisitAllocationSite(
 template <typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::VisitWeakCollection(
     Map* map, HeapObject* object) {
+  typedef FlexibleBodyVisitor<StaticVisitor,
+                              JSWeakCollection::BodyDescriptorWeak,
+                              void> JSWeakCollectionBodyVisitor;
   Heap* heap = map->GetHeap();
   JSWeakCollection* weak_collection =
       reinterpret_cast<JSWeakCollection*>(object);
@@ -398,14 +401,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitWeakCollection(
 
   // Skip visiting the backing hash table containing the mappings and the
   // pointer to the other enqueued weak collections, both are post-processed.
-  StaticVisitor::VisitPointers(
-      heap, object,
-      HeapObject::RawField(object, JSWeakCollection::kPropertiesOffset),
-      HeapObject::RawField(object, JSWeakCollection::kTableOffset));
-  STATIC_ASSERT(JSWeakCollection::kTableOffset + kPointerSize ==
-                JSWeakCollection::kNextOffset);
-  STATIC_ASSERT(JSWeakCollection::kNextOffset + kPointerSize ==
-                JSWeakCollection::kSize);
+  JSWeakCollectionBodyVisitor::Visit(map, object);
 
   // Partially initialized weak collection is enqueued, but table is ignored.
   if (!weak_collection->table()->IsHashTable()) return;
@@ -521,9 +517,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitJSFunction(Map* map,
 template <typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::VisitJSRegExp(Map* map,
                                                         HeapObject* object) {
-  typedef FlexibleBodyVisitor<StaticVisitor, JSRegExp::BodyDescriptor, void>
-      JSRegExpBodyVisitor;
-  JSRegExpBodyVisitor::Visit(map, object);
+  JSObjectVisitor::Visit(map, object);
 }
 
 

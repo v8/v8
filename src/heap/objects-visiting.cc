@@ -89,8 +89,6 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
     case SHARED_FUNCTION_INFO_TYPE:
       return kVisitSharedFunctionInfo;
 
-    case JS_SET_TYPE:
-    case JS_MAP_TYPE:
     case JS_PROXY_TYPE:
     case JS_FUNCTION_PROXY_TYPE:
       return GetVisitorIdForSize(kVisitStruct, kVisitStructGeneric,
@@ -118,6 +116,8 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
     case JS_GLOBAL_PROXY_TYPE:
     case JS_GLOBAL_OBJECT_TYPE:
     case JS_MESSAGE_OBJECT_TYPE:
+    case JS_SET_TYPE:
+    case JS_MAP_TYPE:
     case JS_SET_ITERATOR_TYPE:
     case JS_MAP_ITERATOR_TYPE:
     case JS_ITERATOR_RESULT_TYPE:

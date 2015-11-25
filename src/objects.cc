@@ -12057,22 +12057,22 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_DATE_TYPE:
     case JS_ARRAY_TYPE:
     case JS_MESSAGE_OBJECT_TYPE:
+    case JS_SET_TYPE:
+    case JS_MAP_TYPE:
     case JS_SET_ITERATOR_TYPE:
     case JS_MAP_ITERATOR_TYPE:
     case JS_ITERATOR_RESULT_TYPE:
+    case JS_WEAK_MAP_TYPE:
+    case JS_WEAK_SET_TYPE:
     case JS_PROMISE_TYPE:
+    case JS_REGEXP_TYPE:
     case JS_FUNCTION_TYPE:
       return true;
 
     case JS_TYPED_ARRAY_TYPE:
     case JS_DATA_VIEW_TYPE:
-    case JS_REGEXP_TYPE:
-    case JS_SET_TYPE:
-    case JS_MAP_TYPE:
     case JS_PROXY_TYPE:
     case JS_FUNCTION_PROXY_TYPE:
-    case JS_WEAK_MAP_TYPE:
-    case JS_WEAK_SET_TYPE:
     case JS_ARRAY_BUFFER_TYPE:
       return false;
 
