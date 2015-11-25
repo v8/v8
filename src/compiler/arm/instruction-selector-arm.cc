@@ -1135,6 +1135,11 @@ void InstructionSelector::VisitFloat64RoundUp(Node* node) {
 }
 
 
+void InstructionSelector::VisitFloat32RoundTruncate(Node* node) {
+  VisitRR(this, kArmVrintzF32, node);
+}
+
+
 void InstructionSelector::VisitFloat64RoundTruncate(Node* node) {
   VisitRR(this, kArmVrintzF64, node);
 }
@@ -1579,6 +1584,7 @@ InstructionSelector::SupportedMachineOperatorFlags() {
              MachineOperatorBuilder::kFloat64RoundDown |
              MachineOperatorBuilder::kFloat32RoundUp |
              MachineOperatorBuilder::kFloat64RoundUp |
+             MachineOperatorBuilder::kFloat32RoundTruncate |
              MachineOperatorBuilder::kFloat64RoundTruncate |
              MachineOperatorBuilder::kFloat64RoundTiesAway |
              MachineOperatorBuilder::kFloat64RoundTiesEven;

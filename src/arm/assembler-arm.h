@@ -1211,12 +1211,16 @@ class Assembler : public AssemblerBase {
              const Condition cond = al);
 
   // ARMv8 rounding instructions.
+  void vrinta(const SwVfpRegister dst, const SwVfpRegister src);
   void vrinta(const DwVfpRegister dst, const DwVfpRegister src);
+  void vrintn(const SwVfpRegister dst, const SwVfpRegister src);
   void vrintn(const DwVfpRegister dst, const DwVfpRegister src);
   void vrintm(const SwVfpRegister dst, const SwVfpRegister src);
   void vrintm(const DwVfpRegister dst, const DwVfpRegister src);
   void vrintp(const SwVfpRegister dst, const SwVfpRegister src);
   void vrintp(const DwVfpRegister dst, const DwVfpRegister src);
+  void vrintz(const SwVfpRegister dst, const SwVfpRegister src,
+              const Condition cond = al);
   void vrintz(const DwVfpRegister dst, const DwVfpRegister src,
               const Condition cond = al);
 

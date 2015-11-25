@@ -1144,6 +1144,11 @@ void InstructionSelector::VisitFloat64RoundUp(Node* node) {
 }
 
 
+void InstructionSelector::VisitFloat32RoundTruncate(Node* node) {
+  UNREACHABLE();
+}
+
+
 void InstructionSelector::VisitFloat64RoundTruncate(Node* node) {
   VisitRR(this, kPPC_TruncateDouble, node);
 }

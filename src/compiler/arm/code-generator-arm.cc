@@ -803,6 +803,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArmVrintpF64:
       __ vrintp(i.OutputFloat64Register(), i.InputFloat64Register(0));
       break;
+    case kArmVrintzF32:
+      __ vrintz(i.OutputFloat32Register(), i.InputFloat32Register(0));
+      break;
     case kArmVrintzF64:
       __ vrintz(i.OutputFloat64Register(), i.InputFloat64Register(0));
       break;

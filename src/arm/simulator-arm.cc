@@ -3178,10 +3178,17 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
         }
       } else if (((instr->Opc2Value() == 0x6)) && (instr->Opc3Value() == 0x3)) {
         // vrintz - truncate
-        double dm_value = get_double_from_d_register(vm);
-        double dd_value = trunc(dm_value);
-        dd_value = canonicalizeNaN(dd_value);
-        set_d_register_from_double(vd, dd_value);
+        if (instr->SzValue() == 0x1) {
+          double dm_value = get_double_from_d_register(vm);
+          double dd_value = trunc(dm_value);
+          dd_value = canonicalizeNaN(dd_value);
+          set_d_register_from_double(vd, dd_value);
+        } else {
+          float sm_value = get_float_from_s_register(m);
+          float sd_value = truncf(sm_value);
+          sd_value = canonicalizeNaN(sd_value);
+          set_s_register_from_float(d, sd_value);
+        }
       } else {
         UNREACHABLE();  // Not used by V8.
       }
@@ -3882,25 +3889,14 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
               dd_value = round(dm_value);
               break;
             case 0x1: {  // vrintn - round with ties to even
-              dd_value = std::floor(dm_value);
-              double error = dm_value - dd_value;
-              // Take care of correctly handling the range [-0.5, -0.0], which
-              // must yield -0.0.
-              if ((-0.5 <= dm_value) && (dm_value < 0.0)) {
-                dd_value = -0.0;
-                // If the error is greater than 0.5, or is equal to 0.5 and the
-                // integer result is odd, round up.
-              } else if ((error > 0.5) ||
-                         ((error == 0.5) && (fmod(dd_value, 2) != 0))) {
-                dd_value++;
-              }
+              dd_value = nearbyint(dm_value);
               break;
             }
             case 0x2:  // vrintp - ceil
-              dd_value = std::ceil(dm_value);
+              dd_value = ceil(dm_value);
               break;
             case 0x3:  // vrintm - floor
-              dd_value = std::floor(dm_value);
+              dd_value = floor(dm_value);
               break;
             default:
               UNREACHABLE();  // Case analysis is exhaustive.

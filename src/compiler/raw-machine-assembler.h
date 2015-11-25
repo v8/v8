@@ -495,6 +495,9 @@ class RawMachineAssembler {
   Node* Float64RoundUp(Node* a) {
     return AddNode(machine()->Float64RoundUp().op(), a);
   }
+  Node* Float32RoundTruncate(Node* a) {
+    return AddNode(machine()->Float32RoundTruncate().op(), a);
+  }
   Node* Float64RoundTruncate(Node* a) {
     return AddNode(machine()->Float64RoundTruncate().op(), a);
   }

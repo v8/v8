@@ -104,6 +104,7 @@ namespace compiler {
   V(Arm64Float32RoundUp)           \
   V(Arm64Float64RoundUp)           \
   V(Arm64Float64RoundTiesAway)     \
+  V(Arm64Float32RoundTruncate)     \
   V(Arm64Float64RoundTruncate)     \
   V(Arm64Float64RoundTiesEven)     \
   V(Arm64Float32ToFloat64)         \
