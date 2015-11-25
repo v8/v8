@@ -1450,47 +1450,12 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy,
 
 void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   Comment cmnt(masm_, "[ RegExpLiteral");
-  Label materialized;
-  // Registers will be used as follows:
-  // x5 = materialized value (RegExp literal)
-  // x4 = JS function, literals array
-  // x3 = literal index
-  // x2 = RegExp pattern
-  // x1 = RegExp flags
-  // x0 = RegExp literal clone
-  __ Ldr(x10, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
-  __ Ldr(x4, FieldMemOperand(x10, JSFunction::kLiteralsOffset));
-  int literal_offset = LiteralsArray::OffsetOfLiteralAt(expr->literal_index());
-  __ Ldr(x5, FieldMemOperand(x4, literal_offset));
-  __ JumpIfNotRoot(x5, Heap::kUndefinedValueRootIndex, &materialized);
-
-  // Create regexp literal using runtime function.
-  // Result will be in x0.
-  __ Mov(x3, Smi::FromInt(expr->literal_index()));
-  __ Mov(x2, Operand(expr->pattern()));
-  __ Mov(x1, Operand(expr->flags()));
-  __ Push(x4, x3, x2, x1);
-  __ CallRuntime(Runtime::kMaterializeRegExpLiteral, 4);
-  __ Mov(x5, x0);
-
-  __ Bind(&materialized);
-  int size = JSRegExp::kSize + JSRegExp::kInObjectFieldCount * kPointerSize;
-  Label allocated, runtime_allocate;
-  __ Allocate(size, x0, x2, x3, &runtime_allocate, TAG_OBJECT);
-  __ B(&allocated);
-
-  __ Bind(&runtime_allocate);
-  __ Mov(x10, Smi::FromInt(size));
-  __ Push(x5, x10);
-  __ CallRuntime(Runtime::kAllocateInNewSpace, 1);
-  __ Pop(x5);
-
-  __ Bind(&allocated);
-  // After this, registers are used as follows:
-  // x0: Newly allocated regexp.
-  // x5: Materialized regexp.
-  // x10, x11, x12: temps.
-  __ CopyFields(x0, x5, CPURegList(x10, x11, x12), size / kPointerSize);
+  __ Ldr(x3, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+  __ Mov(x2, Smi::FromInt(expr->literal_index()));
+  __ Mov(x1, Operand(expr->pattern()));
+  __ Mov(x0, Operand(expr->flags()));
+  FastCloneRegExpStub stub(isolate());
+  __ CallStub(&stub);
   context()->Plug(x0);
 }
 

@@ -1459,49 +1459,12 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy,
 
 void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   Comment cmnt(masm_, "[ RegExpLiteral");
-  Label materialized;
-  // Registers will be used as follows:
-  // t1 = materialized value (RegExp literal)
-  // t0 = JS function, literals array
-  // a3 = literal index
-  // a2 = RegExp pattern
-  // a1 = RegExp flags
-  // a0 = RegExp literal clone
-  __ lw(a0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
-  __ lw(t0, FieldMemOperand(a0, JSFunction::kLiteralsOffset));
-  int literal_offset = LiteralsArray::OffsetOfLiteralAt(expr->literal_index());
-  __ lw(t1, FieldMemOperand(t0, literal_offset));
-  __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
-  __ Branch(&materialized, ne, t1, Operand(at));
-
-  // Create regexp literal using runtime function.
-  // Result will be in v0.
-  __ li(a3, Operand(Smi::FromInt(expr->literal_index())));
-  __ li(a2, Operand(expr->pattern()));
-  __ li(a1, Operand(expr->flags()));
-  __ Push(t0, a3, a2, a1);
-  __ CallRuntime(Runtime::kMaterializeRegExpLiteral, 4);
-  __ mov(t1, v0);
-
-  __ bind(&materialized);
-  int size = JSRegExp::kSize + JSRegExp::kInObjectFieldCount * kPointerSize;
-  Label allocated, runtime_allocate;
-  __ Allocate(size, v0, a2, a3, &runtime_allocate, TAG_OBJECT);
-  __ jmp(&allocated);
-
-  __ bind(&runtime_allocate);
-  __ li(a0, Operand(Smi::FromInt(size)));
-  __ Push(t1, a0);
-  __ CallRuntime(Runtime::kAllocateInNewSpace, 1);
-  __ pop(t1);
-
-  __ bind(&allocated);
-
-  // After this, registers are used as follows:
-  // v0: Newly allocated regexp.
-  // t1: Materialized regexp.
-  // a2: temp.
-  __ CopyFields(v0, t1, a2.bit(), size / kPointerSize);
+  __ lw(a3, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+  __ li(a2, Operand(Smi::FromInt(expr->literal_index())));
+  __ li(a1, Operand(expr->pattern()));
+  __ li(a0, Operand(expr->flags()));
+  FastCloneRegExpStub stub(isolate());
+  __ CallStub(&stub);
   context()->Plug(v0);
 }
 

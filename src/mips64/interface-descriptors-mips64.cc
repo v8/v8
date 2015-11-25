@@ -125,6 +125,13 @@ void TypeofDescriptor::InitializePlatformSpecific(
 }
 
 
+void FastCloneRegExpDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {a3, a2, a1, a0};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+
 void FastCloneShallowArrayDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {a3, a2, a1};

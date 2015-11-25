@@ -1385,53 +1385,12 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy,
 
 void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   Comment cmnt(masm_, "[ RegExpLiteral");
-  Label materialized;
-  // Registers will be used as follows:
-  // edi = JS function.
-  // ecx = literals array.
-  // ebx = regexp literal.
-  // eax = regexp literal clone.
   __ mov(edi, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
-  __ mov(ecx, FieldOperand(edi, JSFunction::kLiteralsOffset));
-  int literal_offset = LiteralsArray::OffsetOfLiteralAt(expr->literal_index());
-  __ mov(ebx, FieldOperand(ecx, literal_offset));
-  __ cmp(ebx, isolate()->factory()->undefined_value());
-  __ j(not_equal, &materialized, Label::kNear);
-
-  // Create regexp literal using runtime function
-  // Result will be in eax.
-  __ push(ecx);
-  __ push(Immediate(Smi::FromInt(expr->literal_index())));
-  __ push(Immediate(expr->pattern()));
-  __ push(Immediate(expr->flags()));
-  __ CallRuntime(Runtime::kMaterializeRegExpLiteral, 4);
-  __ mov(ebx, eax);
-
-  __ bind(&materialized);
-  int size = JSRegExp::kSize + JSRegExp::kInObjectFieldCount * kPointerSize;
-  Label allocated, runtime_allocate;
-  __ Allocate(size, eax, ecx, edx, &runtime_allocate, TAG_OBJECT);
-  __ jmp(&allocated);
-
-  __ bind(&runtime_allocate);
-  __ push(ebx);
-  __ push(Immediate(Smi::FromInt(size)));
-  __ CallRuntime(Runtime::kAllocateInNewSpace, 1);
-  __ pop(ebx);
-
-  __ bind(&allocated);
-  // Copy the content into the newly allocated memory.
-  // (Unroll copy loop once for better throughput).
-  for (int i = 0; i < size - kPointerSize; i += 2 * kPointerSize) {
-    __ mov(edx, FieldOperand(ebx, i));
-    __ mov(ecx, FieldOperand(ebx, i + kPointerSize));
-    __ mov(FieldOperand(eax, i), edx);
-    __ mov(FieldOperand(eax, i + kPointerSize), ecx);
-  }
-  if ((size % (2 * kPointerSize)) != 0) {
-    __ mov(edx, FieldOperand(ebx, size - kPointerSize));
-    __ mov(FieldOperand(eax, size - kPointerSize), edx);
-  }
+  __ Move(eax, Immediate(Smi::FromInt(expr->literal_index())));
+  __ Move(ecx, Immediate(expr->pattern()));
+  __ Move(edx, Immediate(expr->flags()));
+  FastCloneRegExpStub stub(isolate());
+  __ CallStub(&stub);
   context()->Plug(eax);
 }
 

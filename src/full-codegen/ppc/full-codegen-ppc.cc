@@ -1426,49 +1426,12 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy,
 
 void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   Comment cmnt(masm_, "[ RegExpLiteral");
-  Label materialized;
-  // Registers will be used as follows:
-  // r8 = materialized value (RegExp literal)
-  // r7 = JS function, literals array
-  // r6 = literal index
-  // r5 = RegExp pattern
-  // r4 = RegExp flags
-  // r3 = RegExp literal clone
-  __ LoadP(r3, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
-  __ LoadP(r7, FieldMemOperand(r3, JSFunction::kLiteralsOffset));
-  int literal_offset = LiteralsArray::OffsetOfLiteralAt(expr->literal_index());
-  __ LoadP(r8, FieldMemOperand(r7, literal_offset), r0);
-  __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
-  __ cmp(r8, ip);
-  __ bne(&materialized);
-
-  // Create regexp literal using runtime function.
-  // Result will be in r3.
-  __ LoadSmiLiteral(r6, Smi::FromInt(expr->literal_index()));
-  __ mov(r5, Operand(expr->pattern()));
-  __ mov(r4, Operand(expr->flags()));
-  __ Push(r7, r6, r5, r4);
-  __ CallRuntime(Runtime::kMaterializeRegExpLiteral, 4);
-  __ mr(r8, r3);
-
-  __ bind(&materialized);
-  int size = JSRegExp::kSize + JSRegExp::kInObjectFieldCount * kPointerSize;
-  Label allocated, runtime_allocate;
-  __ Allocate(size, r3, r5, r6, &runtime_allocate, TAG_OBJECT);
-  __ b(&allocated);
-
-  __ bind(&runtime_allocate);
-  __ LoadSmiLiteral(r3, Smi::FromInt(size));
-  __ Push(r8, r3);
-  __ CallRuntime(Runtime::kAllocateInNewSpace, 1);
-  __ pop(r8);
-
-  __ bind(&allocated);
-  // After this, registers are used as follows:
-  // r3: Newly allocated regexp.
-  // r8: Materialized regexp.
-  // r5: temp.
-  __ CopyFields(r3, r8, r5.bit(), size / kPointerSize);
+  __ LoadP(r6, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+  __ LoadSmiLiteral(r5, Smi::FromInt(expr->literal_index()));
+  __ mov(r4, Operand(expr->pattern()));
+  __ mov(r3, Operand(expr->flags()));
+  FastCloneRegExpStub stub(isolate());
+  __ CallStub(&stub);
   context()->Plug(r3);
 }
 

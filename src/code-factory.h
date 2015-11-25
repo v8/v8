@@ -84,6 +84,7 @@ class CodeFactory final {
 
   static Callable Typeof(Isolate* isolate);
 
+  static Callable FastCloneRegExp(Isolate* isolate);
   static Callable FastCloneShallowArray(Isolate* isolate);
   static Callable FastCloneShallowObject(Isolate* isolate, int length);
 

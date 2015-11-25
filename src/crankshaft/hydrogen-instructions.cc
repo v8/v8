@@ -818,7 +818,6 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kParameter:
     case HValue::kPhi:
     case HValue::kPushArguments:
-    case HValue::kRegExpLiteral:
     case HValue::kReturn:
     case HValue::kSeqStringGetChar:
     case HValue::kStoreCodeEntry:

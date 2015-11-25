@@ -236,6 +236,25 @@ MUST_USE_RESULT static MaybeHandle<Object> CreateLiteralBoilerplate(
 }
 
 
+RUNTIME_FUNCTION(Runtime_CreateRegExpLiteral) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(4, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, closure, 0);
+  CONVERT_SMI_ARG_CHECKED(index, 1);
+  CONVERT_ARG_HANDLE_CHECKED(String, pattern, 2);
+  CONVERT_ARG_HANDLE_CHECKED(String, flags, 3);
+
+  // Check if boilerplate exists. If not, create it first.
+  Handle<Object> boilerplate(closure->literals()->literal(index), isolate);
+  if (boilerplate->IsUndefined()) {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, boilerplate,
+                                       JSRegExp::New(pattern, flags));
+    closure->literals()->set_literal(index, *boilerplate);
+  }
+  return *JSRegExp::Copy(Handle<JSRegExp>::cast(boilerplate));
+}
+
+
 RUNTIME_FUNCTION(Runtime_CreateObjectLiteral) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());

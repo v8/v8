@@ -2929,30 +2929,6 @@ void MacroAssembler::AllocateHeapNumberWithValue(Register result,
 }
 
 
-// Copies a fixed number of fields of heap objects from src to dst.
-void MacroAssembler::CopyFields(Register dst,
-                                Register src,
-                                LowDwVfpRegister double_scratch,
-                                int field_count) {
-  int double_count = field_count / (DwVfpRegister::kSizeInBytes / kPointerSize);
-  for (int i = 0; i < double_count; i++) {
-    vldr(double_scratch, FieldMemOperand(src, i * DwVfpRegister::kSizeInBytes));
-    vstr(double_scratch, FieldMemOperand(dst, i * DwVfpRegister::kSizeInBytes));
-  }
-
-  STATIC_ASSERT(SwVfpRegister::kSizeInBytes == kPointerSize);
-  STATIC_ASSERT(2 * SwVfpRegister::kSizeInBytes == DwVfpRegister::kSizeInBytes);
-
-  int remain = field_count % (DwVfpRegister::kSizeInBytes / kPointerSize);
-  if (remain != 0) {
-    vldr(double_scratch.low(),
-         FieldMemOperand(src, (field_count - 1) * kPointerSize));
-    vstr(double_scratch.low(),
-         FieldMemOperand(dst, (field_count - 1) * kPointerSize));
-  }
-}
-
-
 void MacroAssembler::CopyBytes(Register src,
                                Register dst,
                                Register length,

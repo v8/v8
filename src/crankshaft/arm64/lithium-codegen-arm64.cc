@@ -5564,48 +5564,6 @@ void LCodeGen::DoToFastProperties(LToFastProperties* instr) {
 }
 
 
-void LCodeGen::DoRegExpLiteral(LRegExpLiteral* instr) {
-  DCHECK(ToRegister(instr->context()).is(cp));
-  Label materialized;
-  // Registers will be used as follows:
-  // x7 = literals array.
-  // x1 = regexp literal.
-  // x0 = regexp literal clone.
-  // x10-x12 are used as temporaries.
-  int literal_offset =
-      LiteralsArray::OffsetOfLiteralAt(instr->hydrogen()->literal_index());
-  __ LoadObject(x7, instr->hydrogen()->literals());
-  __ Ldr(x1, FieldMemOperand(x7, literal_offset));
-  __ JumpIfNotRoot(x1, Heap::kUndefinedValueRootIndex, &materialized);
-
-  // Create regexp literal using runtime function
-  // Result will be in x0.
-  __ Mov(x12, Operand(Smi::FromInt(instr->hydrogen()->literal_index())));
-  __ Mov(x11, Operand(instr->hydrogen()->pattern()));
-  __ Mov(x10, Operand(instr->hydrogen()->flags()));
-  __ Push(x7, x12, x11, x10);
-  CallRuntime(Runtime::kMaterializeRegExpLiteral, 4, instr);
-  __ Mov(x1, x0);
-
-  __ Bind(&materialized);
-  int size = JSRegExp::kSize + JSRegExp::kInObjectFieldCount * kPointerSize;
-  Label allocated, runtime_allocate;
-
-  __ Allocate(size, x0, x10, x11, &runtime_allocate, TAG_OBJECT);
-  __ B(&allocated);
-
-  __ Bind(&runtime_allocate);
-  __ Mov(x0, Smi::FromInt(size));
-  __ Push(x1, x0);
-  CallRuntime(Runtime::kAllocateInNewSpace, 1, instr);
-  __ Pop(x1);
-
-  __ Bind(&allocated);
-  // Copy the content into the newly allocated memory.
-  __ CopyFields(x0, x1, CPURegList(x10, x11, x12), size / kPointerSize);
-}
-
-
 void LCodeGen::DoTransitionElementsKind(LTransitionElementsKind* instr) {
   Register object = ToRegister(instr->object());
 

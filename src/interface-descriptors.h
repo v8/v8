@@ -30,6 +30,7 @@ class PlatformInterfaceDescriptor;
   V(ToObject)                                 \
   V(NumberToString)                           \
   V(Typeof)                                   \
+  V(FastCloneRegExp)                          \
   V(FastCloneShallowArray)                    \
   V(FastCloneShallowObject)                   \
   V(CreateAllocationSite)                     \
@@ -415,6 +416,13 @@ class NumberToStringDescriptor : public CallInterfaceDescriptor {
 class TypeofDescriptor : public CallInterfaceDescriptor {
  public:
   DECLARE_DESCRIPTOR(TypeofDescriptor, CallInterfaceDescriptor)
+};
+
+
+class FastCloneRegExpDescriptor : public CallInterfaceDescriptor {
+ public:
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(FastCloneRegExpDescriptor,
+                                               CallInterfaceDescriptor)
 };
 
 

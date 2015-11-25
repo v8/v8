@@ -3599,32 +3599,6 @@ void MacroAssembler::AllocateHeapNumberWithValue(Register result,
 }
 
 
-// Copies a fixed number of fields of heap objects from src to dst.
-void MacroAssembler::CopyFields(Register dst,
-                                Register src,
-                                RegList temps,
-                                int field_count) {
-  DCHECK((temps & dst.bit()) == 0);
-  DCHECK((temps & src.bit()) == 0);
-  // Primitive implementation using only one temporary register.
-
-  Register tmp = no_reg;
-  // Find a temp register in temps list.
-  for (int i = 0; i < kNumRegisters; i++) {
-    if ((temps & (1 << i)) != 0) {
-      tmp.reg_code = i;
-      break;
-    }
-  }
-  DCHECK(!tmp.is(no_reg));
-
-  for (int i = 0; i < field_count; i++) {
-    lw(tmp, FieldMemOperand(src, i * kPointerSize));
-    sw(tmp, FieldMemOperand(dst, i * kPointerSize));
-  }
-}
-
-
 void MacroAssembler::CopyBytes(Register src,
                                Register dst,
                                Register length,

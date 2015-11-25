@@ -126,6 +126,13 @@ void NumberToStringDescriptor::InitializePlatformSpecific(
 }
 
 
+void FastCloneRegExpDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {rdi, rax, rcx, rdx};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+
 void FastCloneShallowArrayDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {rax, rbx, rcx};

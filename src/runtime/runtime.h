@@ -367,6 +367,7 @@ namespace internal {
 
 
 #define FOR_EACH_INTRINSIC_LITERALS(F)   \
+  F(CreateRegExpLiteral, 4, 1)           \
   F(CreateObjectLiteral, 4, 1)           \
   F(CreateArrayLiteral, 4, 1)            \
   F(CreateArrayLiteralStubBailout, 3, 1) \
@@ -564,7 +565,6 @@ namespace internal {
   F(RegExpSource, 1, 1)                        \
   F(RegExpConstructResult, 3, 1)               \
   F(RegExpInitializeAndCompile, 3, 1)          \
-  F(MaterializeRegExpLiteral, 4, 1)            \
   F(RegExpExecMultiple, 4, 1)                  \
   F(RegExpExecReThrow, 4, 1)                   \
   F(IsRegExp, 1, 1)

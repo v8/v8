@@ -1696,14 +1696,12 @@ void AstGraphBuilder::VisitRegExpLiteral(RegExpLiteral* expr) {
   Node* closure = GetFunctionClosure();
 
   // Create node to materialize a regular expression literal.
-  Node* literals_array =
-      BuildLoadObjectField(closure, JSFunction::kLiteralsOffset);
   Node* literal_index = jsgraph()->Constant(expr->literal_index());
   Node* pattern = jsgraph()->Constant(expr->pattern());
   Node* flags = jsgraph()->Constant(expr->flags());
   const Operator* op =
-      javascript()->CallRuntime(Runtime::kMaterializeRegExpLiteral, 4);
-  Node* literal = NewNode(op, literals_array, literal_index, pattern, flags);
+      javascript()->CallRuntime(Runtime::kCreateRegExpLiteral, 4);
+  Node* literal = NewNode(op, closure, literal_index, pattern, flags);
   PrepareFrameState(literal, expr->id(), ast_context()->GetStateCombine());
   ast_context()->ProduceValue(literal);
 }

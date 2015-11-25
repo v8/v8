@@ -15666,6 +15666,13 @@ MaybeHandle<JSRegExp> JSRegExp::New(Handle<String> pattern,
 }
 
 
+// static
+Handle<JSRegExp> JSRegExp::Copy(Handle<JSRegExp> regexp) {
+  Isolate* const isolate = regexp->GetIsolate();
+  return Handle<JSRegExp>::cast(isolate->factory()->CopyJSObject(regexp));
+}
+
+
 static JSRegExp::Flags RegExpFlagsFromString(Handle<String> flags,
                                              bool* success) {
   uint32_t value = JSRegExp::NONE;

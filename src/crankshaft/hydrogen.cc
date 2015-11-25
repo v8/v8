@@ -5774,12 +5774,14 @@ void HOptimizedGraphBuilder::VisitRegExpLiteral(RegExpLiteral* expr) {
   DCHECK(!HasStackOverflow());
   DCHECK(current_block() != NULL);
   DCHECK(current_block()->HasPredecessor());
-  Handle<JSFunction> closure = function_state()->compilation_info()->closure();
-  Handle<LiteralsArray> literals(closure->literals());
-  HRegExpLiteral* instr = New<HRegExpLiteral>(literals,
-                                              expr->pattern(),
-                                              expr->flags(),
-                                              expr->literal_index());
+  Callable callable = CodeFactory::FastCloneRegExp(isolate());
+  HValue* values[] = {
+      context(), AddThisFunction(), Add<HConstant>(expr->literal_index()),
+      Add<HConstant>(expr->pattern()), Add<HConstant>(expr->flags())};
+  HConstant* stub_value = Add<HConstant>(callable.code());
+  HInstruction* instr = New<HCallWithDescriptor>(
+      stub_value, 0, callable.descriptor(),
+      Vector<HValue*>(values, arraysize(values)), NORMAL_CALL);
   return ast_context()->ReturnInstruction(instr, expr->id());
 }
 

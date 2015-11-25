@@ -1413,53 +1413,12 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy,
 
 void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   Comment cmnt(masm_, "[ RegExpLiteral");
-  Label materialized;
-  // Registers will be used as follows:
-  // rdi = JS function.
-  // rcx = literals array.
-  // rbx = regexp literal.
-  // rax = regexp literal clone.
   __ movp(rdi, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
-  __ movp(rcx, FieldOperand(rdi, JSFunction::kLiteralsOffset));
-  int literal_offset = LiteralsArray::OffsetOfLiteralAt(expr->literal_index());
-  __ movp(rbx, FieldOperand(rcx, literal_offset));
-  __ CompareRoot(rbx, Heap::kUndefinedValueRootIndex);
-  __ j(not_equal, &materialized, Label::kNear);
-
-  // Create regexp literal using runtime function
-  // Result will be in rax.
-  __ Push(rcx);
-  __ Push(Smi::FromInt(expr->literal_index()));
-  __ Push(expr->pattern());
-  __ Push(expr->flags());
-  __ CallRuntime(Runtime::kMaterializeRegExpLiteral, 4);
-  __ movp(rbx, rax);
-
-  __ bind(&materialized);
-  int size = JSRegExp::kSize + JSRegExp::kInObjectFieldCount * kPointerSize;
-  Label allocated, runtime_allocate;
-  __ Allocate(size, rax, rcx, rdx, &runtime_allocate, TAG_OBJECT);
-  __ jmp(&allocated);
-
-  __ bind(&runtime_allocate);
-  __ Push(rbx);
-  __ Push(Smi::FromInt(size));
-  __ CallRuntime(Runtime::kAllocateInNewSpace, 1);
-  __ Pop(rbx);
-
-  __ bind(&allocated);
-  // Copy the content into the newly allocated memory.
-  // (Unroll copy loop once for better throughput).
-  for (int i = 0; i < size - kPointerSize; i += 2 * kPointerSize) {
-    __ movp(rdx, FieldOperand(rbx, i));
-    __ movp(rcx, FieldOperand(rbx, i + kPointerSize));
-    __ movp(FieldOperand(rax, i), rdx);
-    __ movp(FieldOperand(rax, i + kPointerSize), rcx);
-  }
-  if ((size % (2 * kPointerSize)) != 0) {
-    __ movp(rdx, FieldOperand(rbx, size - kPointerSize));
-    __ movp(FieldOperand(rax, size - kPointerSize), rdx);
-  }
+  __ Move(rax, Smi::FromInt(expr->literal_index()));
+  __ Move(rcx, expr->pattern());
+  __ Move(rdx, expr->flags());
+  FastCloneRegExpStub stub(isolate());
+  __ CallStub(&stub);
   context()->Plug(rax);
 }
 

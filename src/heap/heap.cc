@@ -3499,9 +3499,10 @@ AllocationResult Heap::CopyJSObject(JSObject* source, AllocationSite* site) {
   // Make the clone.
   Map* map = source->map();
 
-  // We can only clone normal objects or arrays. Copying anything else
+  // We can only clone regexps, normal objects or arrays. Copying anything else
   // will break invariants.
-  CHECK(map->instance_type() == JS_OBJECT_TYPE ||
+  CHECK(map->instance_type() == JS_REGEXP_TYPE ||
+        map->instance_type() == JS_OBJECT_TYPE ||
         map->instance_type() == JS_ARRAY_TYPE);
 
   int object_size = map->instance_size();

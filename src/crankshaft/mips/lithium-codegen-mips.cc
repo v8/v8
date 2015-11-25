@@ -5324,59 +5324,6 @@ void LCodeGen::DoToFastProperties(LToFastProperties* instr) {
 }
 
 
-void LCodeGen::DoRegExpLiteral(LRegExpLiteral* instr) {
-  DCHECK(ToRegister(instr->context()).is(cp));
-  Label materialized;
-  // Registers will be used as follows:
-  // t3 = literals array.
-  // a1 = regexp literal.
-  // a0 = regexp literal clone.
-  // a2 and t0-t2 are used as temporaries.
-  int literal_offset =
-      LiteralsArray::OffsetOfLiteralAt(instr->hydrogen()->literal_index());
-  __ li(t3, instr->hydrogen()->literals());
-  __ lw(a1, FieldMemOperand(t3, literal_offset));
-  __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
-  __ Branch(&materialized, ne, a1, Operand(at));
-
-  // Create regexp literal using runtime function
-  // Result will be in v0.
-  __ li(t2, Operand(Smi::FromInt(instr->hydrogen()->literal_index())));
-  __ li(t1, Operand(instr->hydrogen()->pattern()));
-  __ li(t0, Operand(instr->hydrogen()->flags()));
-  __ Push(t3, t2, t1, t0);
-  CallRuntime(Runtime::kMaterializeRegExpLiteral, 4, instr);
-  __ mov(a1, v0);
-
-  __ bind(&materialized);
-  int size = JSRegExp::kSize + JSRegExp::kInObjectFieldCount * kPointerSize;
-  Label allocated, runtime_allocate;
-
-  __ Allocate(size, v0, a2, a3, &runtime_allocate, TAG_OBJECT);
-  __ jmp(&allocated);
-
-  __ bind(&runtime_allocate);
-  __ li(a0, Operand(Smi::FromInt(size)));
-  __ Push(a1, a0);
-  CallRuntime(Runtime::kAllocateInNewSpace, 1, instr);
-  __ pop(a1);
-
-  __ bind(&allocated);
-  // Copy the content into the newly allocated memory.
-  // (Unroll copy loop once for better throughput).
-  for (int i = 0; i < size - kPointerSize; i += 2 * kPointerSize) {
-    __ lw(a3, FieldMemOperand(a1, i));
-    __ lw(a2, FieldMemOperand(a1, i + kPointerSize));
-    __ sw(a3, FieldMemOperand(v0, i));
-    __ sw(a2, FieldMemOperand(v0, i + kPointerSize));
-  }
-  if ((size % (2 * kPointerSize)) != 0) {
-    __ lw(a3, FieldMemOperand(a1, size - kPointerSize));
-    __ sw(a3, FieldMemOperand(v0, size - kPointerSize));
-  }
-}
-
-
 void LCodeGen::DoTypeof(LTypeof* instr) {
   DCHECK(ToRegister(instr->value()).is(a3));
   DCHECK(ToRegister(instr->result()).is(v0));

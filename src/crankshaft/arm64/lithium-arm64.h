@@ -138,7 +138,6 @@ class LCodeGen;
   V(Prologue)                                \
   V(PreparePushArguments)                    \
   V(PushArguments)                           \
-  V(RegExpLiteral)                           \
   V(Return)                                  \
   V(SeqStringGetChar)                        \
   V(SeqStringSetChar)                        \
@@ -2266,19 +2265,6 @@ class LPushArguments final : public LTemplateResultInstruction<0> {
 
   int TempCount() final { return 0; }
   LOperand* TempAt(int i) final { return NULL; }
-};
-
-
-class LRegExpLiteral final : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LRegExpLiteral(LOperand* context) {
-    inputs_[0] = context;
-  }
-
-  LOperand* context() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(RegExpLiteral, "regexp-literal")
-  DECLARE_HYDROGEN_ACCESSOR(RegExpLiteral)
 };
 
 

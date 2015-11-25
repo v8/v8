@@ -2384,13 +2384,6 @@ LInstruction* LChunkBuilder::DoAllocate(HAllocate* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoRegExpLiteral(HRegExpLiteral* instr) {
-  LOperand* context = UseFixed(instr->context(), cp);
-  return MarkAsCall(
-      DefineFixed(new(zone()) LRegExpLiteral(context), v0), instr);
-}
-
-
 LInstruction* LChunkBuilder::DoOsrEntry(HOsrEntry* instr) {
   DCHECK(argument_count_ == 0);
   allocator_->MarkAsOsrEntry();

@@ -1323,10 +1323,8 @@ void Interpreter::DoCreateRegExpLiteral(
   Node* flags_reg = __ BytecodeOperandReg(1);
   Node* flags = __ LoadRegister(flags_reg);
   Node* closure = __ LoadRegister(Register::function_closure());
-  Node* literals_array =
-      __ LoadObjectField(closure, JSFunction::kLiteralsOffset);
-  Node* result = __ CallRuntime(Runtime::kMaterializeRegExpLiteral,
-                                literals_array, literal_index, pattern, flags);
+  Node* result = __ CallRuntime(Runtime::kCreateRegExpLiteral, closure,
+                                literal_index, pattern, flags);
   __ SetAccumulator(result);
   __ Dispatch();
 }

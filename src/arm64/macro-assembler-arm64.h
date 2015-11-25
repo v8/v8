@@ -1028,17 +1028,6 @@ class MacroAssembler : public Assembler {
 
   // ---- Object Utilities ----
 
-  // Copy fields from 'src' to 'dst', where both are tagged objects.
-  // The 'temps' list is a list of X registers which can be used for scratch
-  // values. The temps list must include at least one register.
-  //
-  // Currently, CopyFields cannot make use of more than three registers from
-  // the 'temps' list.
-  //
-  // CopyFields expects to be able to take at least two registers from
-  // MacroAssembler::TmpList().
-  void CopyFields(Register dst, Register src, CPURegList temps, unsigned count);
-
   // Initialize fields with filler values.  Fields starting at |current_address|
   // not including |end_address| are overwritten with the value in |filler|.  At
   // the end the loop, |current_address| takes the value of |end_address|.
@@ -2010,19 +1999,6 @@ class MacroAssembler : public Assembler {
   void PopPostamble(int count, int size) { PopPostamble(count * size); }
 
  private:
-  // Helpers for CopyFields.
-  // These each implement CopyFields in a different way.
-  void CopyFieldsLoopPairsHelper(Register dst, Register src, unsigned count,
-                                 Register scratch1, Register scratch2,
-                                 Register scratch3, Register scratch4,
-                                 Register scratch5);
-  void CopyFieldsUnrolledPairsHelper(Register dst, Register src, unsigned count,
-                                     Register scratch1, Register scratch2,
-                                     Register scratch3, Register scratch4);
-  void CopyFieldsUnrolledHelper(Register dst, Register src, unsigned count,
-                                Register scratch1, Register scratch2,
-                                Register scratch3);
-
   // The actual Push and Pop implementations. These don't generate any code
   // other than that required for the push or pop. This allows
   // (Push|Pop)CPURegList to bundle together run-time assertions for a large

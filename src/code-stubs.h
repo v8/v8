@@ -70,6 +70,7 @@ namespace internal {
   V(CreateAllocationSite)                   \
   V(CreateWeakCell)                         \
   V(ElementsTransitionAndStore)             \
+  V(FastCloneRegExp)                        \
   V(FastCloneShallowArray)                  \
   V(FastCloneShallowObject)                 \
   V(FastNewClosure)                         \
@@ -790,6 +791,16 @@ class FastNewContextStub final : public HydrogenCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(FastNewContext);
   DEFINE_HYDROGEN_CODE_STUB(FastNewContext, HydrogenCodeStub);
+};
+
+
+class FastCloneRegExpStub final : public HydrogenCodeStub {
+ public:
+  explicit FastCloneRegExpStub(Isolate* isolate) : HydrogenCodeStub(isolate) {}
+
+ private:
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(FastCloneRegExp);
+  DEFINE_HYDROGEN_CODE_STUB(FastCloneRegExp, HydrogenCodeStub);
 };
 
 

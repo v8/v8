@@ -221,6 +221,13 @@ Callable CodeFactory::Typeof(Isolate* isolate) {
 
 
 // static
+Callable CodeFactory::FastCloneRegExp(Isolate* isolate) {
+  FastCloneRegExpStub stub(isolate);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
+
+
+// static
 Callable CodeFactory::FastCloneShallowArray(Isolate* isolate) {
   // TODO(mstarzinger): Thread through AllocationSiteMode at some point.
   FastCloneShallowArrayStub stub(isolate, DONT_TRACK_ALLOCATION_SITE);

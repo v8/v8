@@ -2024,13 +2024,6 @@ LInstruction* LChunkBuilder::DoPushArguments(HPushArguments* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoRegExpLiteral(HRegExpLiteral* instr) {
-  LOperand* context = UseFixed(instr->context(), cp);
-  return MarkAsCall(
-      DefineFixed(new(zone()) LRegExpLiteral(context), x0), instr);
-}
-
-
 LInstruction* LChunkBuilder::DoDoubleBits(HDoubleBits* instr) {
   HValue* value = instr->value();
   DCHECK(value->representation().IsDouble());

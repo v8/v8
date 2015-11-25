@@ -7715,6 +7715,7 @@ class JSRegExp: public JSObject {
   DECL_ACCESSORS(source, Object)
 
   static MaybeHandle<JSRegExp> New(Handle<String> source, Handle<String> flags);
+  static Handle<JSRegExp> Copy(Handle<JSRegExp> regexp);
 
   static MaybeHandle<JSRegExp> Initialize(Handle<JSRegExp> regexp,
                                           Handle<String> source,

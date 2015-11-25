@@ -839,22 +839,6 @@ RUNTIME_FUNCTION(Runtime_RegExpInitializeAndCompile) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_MaterializeRegExpLiteral) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 4);
-  CONVERT_ARG_HANDLE_CHECKED(LiteralsArray, literals, 0);
-  CONVERT_SMI_ARG_CHECKED(index, 1);
-  CONVERT_ARG_HANDLE_CHECKED(String, pattern, 2);
-  CONVERT_ARG_HANDLE_CHECKED(String, flags, 3);
-
-  Handle<JSRegExp> regexp;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, regexp,
-                                     JSRegExp::New(pattern, flags));
-  literals->set_literal(index, *regexp);
-  return *regexp;
-}
-
-
 // Only called from Runtime_RegExpExecMultiple so it doesn't need to maintain
 // separate last match info.  See comment on that function.
 template <bool has_capture>

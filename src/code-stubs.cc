@@ -694,6 +694,13 @@ void NumberToStringStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
 }
 
 
+void FastCloneRegExpStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
+  FastCloneRegExpDescriptor call_descriptor(isolate());
+  descriptor->Initialize(
+      Runtime::FunctionForId(Runtime::kCreateRegExpLiteral)->entry);
+}
+
+
 void FastCloneShallowArrayStub::InitializeDescriptor(
     CodeStubDescriptor* descriptor) {
   FastCloneShallowArrayDescriptor call_descriptor(isolate());
