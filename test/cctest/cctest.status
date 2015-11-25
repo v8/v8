@@ -96,8 +96,8 @@
   'test-debug/RecursiveBreakpoints': [PASS, FLAKY],
   'test-debug/RecursiveBreakpointsGlobal': [PASS, FLAKY],
 
-  # Fails sometimes.
-  'test-debug/ProcessDebugMessagesThreaded': [PASS, FLAKY],
+  # BUG(v8:4358). Hangs flakily.
+  'test-debug/ProcessDebugMessagesThreaded': [SKIP],
 
   # BUG(2340). Preprocessing stack traces is disabled at the moment.
   'test-heap/PreprocessStackTrace': [FAIL],
