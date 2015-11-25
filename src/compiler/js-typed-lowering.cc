@@ -1765,7 +1765,8 @@ Reduction JSTypedLowering::ReduceJSCreateClosure(Node* node) {
 Reduction JSTypedLowering::ReduceJSCreateLiteralArray(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateLiteralArray, node->opcode());
   CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
-  int const length = p.constants()->length();
+  Handle<FixedArray> const constants = Handle<FixedArray>::cast(p.constant());
+  int const length = constants->length();
   int const flags = p.flags();
 
   // Use the FastCloneShallowArrayStub only for shallow boilerplates up to the
@@ -1784,7 +1785,7 @@ Reduction JSTypedLowering::ReduceJSCreateLiteralArray(Node* node) {
     const Operator* new_op = common()->Call(desc);
     Node* stub_code = jsgraph()->HeapConstant(callable.code());
     Node* literal_index = jsgraph()->SmiConstant(p.index());
-    Node* constant_elements = jsgraph()->HeapConstant(p.constants());
+    Node* constant_elements = jsgraph()->HeapConstant(constants);
     node->InsertInput(graph()->zone(), 0, stub_code);
     node->InsertInput(graph()->zone(), 2, literal_index);
     node->InsertInput(graph()->zone(), 3, constant_elements);
@@ -1799,8 +1800,9 @@ Reduction JSTypedLowering::ReduceJSCreateLiteralArray(Node* node) {
 Reduction JSTypedLowering::ReduceJSCreateLiteralObject(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateLiteralObject, node->opcode());
   CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
+  Handle<FixedArray> const constants = Handle<FixedArray>::cast(p.constant());
   // Constants are pairs, see ObjectLiteral::properties_count().
-  int const length = p.constants()->length() / 2;
+  int const length = constants->length() / 2;
   int const flags = p.flags();
 
   // Use the FastCloneShallowObjectStub only for shallow boilerplates without
@@ -1818,7 +1820,7 @@ Reduction JSTypedLowering::ReduceJSCreateLiteralObject(Node* node) {
     Node* stub_code = jsgraph()->HeapConstant(callable.code());
     Node* literal_index = jsgraph()->SmiConstant(p.index());
     Node* literal_flags = jsgraph()->SmiConstant(flags);
-    Node* constant_elements = jsgraph()->HeapConstant(p.constants());
+    Node* constant_elements = jsgraph()->HeapConstant(constants);
     node->InsertInput(graph()->zone(), 0, stub_code);
     node->InsertInput(graph()->zone(), 2, literal_index);
     node->InsertInput(graph()->zone(), 3, constant_elements);
