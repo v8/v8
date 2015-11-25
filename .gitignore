@@ -50,6 +50,7 @@ shell_g
 /out
 /perf.data
 /perf.data.old
+/src/tracing/common
 /test/benchmarks/data
 /test/mozilla/data
 /test/promises-aplus/promises-tests

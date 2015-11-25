@@ -13,6 +13,9 @@ deps = {
     Var("git_url") + "/chromium/deps/icu.git" + "@" + "42c58d4e49f2250039f0e98d43e0b76e8f5ca024",
   "v8/buildtools":
     Var("git_url") + "/chromium/buildtools.git" + "@" + "818123dac34899ec230840936fc15b8b2b5556f9",
+  # TODO(fmeawad): this dependency is not currently used. Added to allow for developement of the V8 Tracing system.
+  "v8/src/tracing/common":
+    Var("git_url") + "/chromium/src/base/trace_event/common.git" + "@" + "d83d44b13d07c2fd0a40101a7deef9b93b841732",
   "v8/tools/swarming_client":
     Var('git_url') + '/external/swarming.client.git' + '@' + "df99a00d96fae932bae824dccba13156bf7eddd0",
   "v8/testing/gtest":
