@@ -281,6 +281,9 @@
   'harmony/arrow-rest-params': [PASS, NO_VARIANTS],
   'harmony/rest-params': [PASS, ['no_snap == True', NO_VARIANTS]],
 
+  # BUG(v8:4572).
+  'es6/classes-subclass-builtins': [PASS, ['no_snap == True', NO_VARIANTS]],
+
   # Slow tests.
   'copy-on-write-assert': [PASS, SLOW],
   'debug-scopes': [PASS, SLOW],
