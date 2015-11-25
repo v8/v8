@@ -644,7 +644,8 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
 #undef __
 
 
-CodeAgingHelper::CodeAgingHelper() {
+CodeAgingHelper::CodeAgingHelper(Isolate* isolate) {
+  USE(isolate);
   DCHECK(young_sequence_.length() == kNoCodeAgeSequenceLength);
   // The sequence of instructions that is patched out for aging code is the
   // following boilerplate stack-building prologue that is found both in

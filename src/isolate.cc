@@ -2151,7 +2151,7 @@ bool Isolate::Init(Deserializer* des) {
 #endif
 #endif
 
-  code_aging_helper_ = new CodeAgingHelper();
+  code_aging_helper_ = new CodeAgingHelper(this);
 
   { // NOLINT
     // Ensure that the thread has a valid stack guard.  The v8::Locker object

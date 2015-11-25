@@ -591,7 +591,8 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
 #undef __
 
 
-CodeAgingHelper::CodeAgingHelper() {
+CodeAgingHelper::CodeAgingHelper(Isolate* isolate) {
+  USE(isolate);
   DCHECK(young_sequence_.length() == kNoCodeAgeSequenceLength);
   CodePatcher patcher(young_sequence_.start(), young_sequence_.length());
   patcher.masm()->push(ebp);

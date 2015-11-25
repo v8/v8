@@ -1188,7 +1188,8 @@ static const uint32_t kCodeAgePatchFirstInstruction = 0x00010180;
 #endif
 
 
-CodeAgingHelper::CodeAgingHelper() {
+CodeAgingHelper::CodeAgingHelper(Isolate* isolate) {
+  USE(isolate);
   DCHECK(young_sequence_.length() == kNoCodeAgeSequenceLength);
   // Since patcher is a large object, allocate it dynamically when needed,
   // to avoid overloading the stack in stress conditions.

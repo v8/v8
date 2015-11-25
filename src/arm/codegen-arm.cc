@@ -885,7 +885,8 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
 static const uint32_t kCodeAgePatchFirstInstruction = 0xe24f0008;
 #endif
 
-CodeAgingHelper::CodeAgingHelper() {
+CodeAgingHelper::CodeAgingHelper(Isolate* isolate) {
+  USE(isolate);
   DCHECK(young_sequence_.length() == kNoCodeAgeSequenceLength);
   // Since patcher is a large object, allocate it dynamically when needed,
   // to avoid overloading the stack in stress conditions.

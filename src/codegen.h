@@ -146,7 +146,7 @@ static const int kNumberDictionaryProbes = 4;
 
 class CodeAgingHelper {
  public:
-  CodeAgingHelper();
+  explicit CodeAgingHelper(Isolate* isolate);
 
   uint32_t young_sequence_length() const { return young_sequence_.length(); }
   bool IsYoung(byte* candidate) const {
