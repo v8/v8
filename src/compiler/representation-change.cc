@@ -471,8 +471,7 @@ const Operator* RepresentationChanger::Float64OperatorFor(
 
 
 MachineType RepresentationChanger::TypeFromUpperBound(Type* type) {
-  if (type->Is(Type::None()))
-    return kTypeAny;  // TODO(titzer): should be an error
+  CHECK(!type->Is(Type::None()));
   if (type->Is(Type::Signed32())) return kTypeInt32;
   if (type->Is(Type::Unsigned32())) return kTypeUint32;
   if (type->Is(Type::Number())) return kTypeNumber;
