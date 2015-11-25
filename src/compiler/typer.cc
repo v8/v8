@@ -1233,11 +1233,16 @@ Type* Typer::Visitor::TypeJSCreateClosure(Node* node) {
 
 
 Type* Typer::Visitor::TypeJSCreateLiteralArray(Node* node) {
-  return Type::None(), Type::OtherObject();
+  return Type::OtherObject();
 }
 
 
 Type* Typer::Visitor::TypeJSCreateLiteralObject(Node* node) {
+  return Type::OtherObject();
+}
+
+
+Type* Typer::Visitor::TypeJSCreateLiteralRegExp(Node* node) {
   return Type::OtherObject();
 }
 

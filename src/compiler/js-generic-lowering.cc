@@ -506,7 +506,7 @@ void JSGenericLowering::LowerJSCreateClosure(Node* node) {
 void JSGenericLowering::LowerJSCreateLiteralArray(Node* node) {
   CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
   node->InsertInput(zone(), 1, jsgraph()->SmiConstant(p.index()));
-  node->InsertInput(zone(), 2, jsgraph()->HeapConstant(p.constants()));
+  node->InsertInput(zone(), 2, jsgraph()->HeapConstant(p.constant()));
   node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.flags()));
   ReplaceWithRuntimeCall(node, Runtime::kCreateArrayLiteral);
 }
@@ -515,9 +515,23 @@ void JSGenericLowering::LowerJSCreateLiteralArray(Node* node) {
 void JSGenericLowering::LowerJSCreateLiteralObject(Node* node) {
   CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
   node->InsertInput(zone(), 1, jsgraph()->SmiConstant(p.index()));
-  node->InsertInput(zone(), 2, jsgraph()->HeapConstant(p.constants()));
+  node->InsertInput(zone(), 2, jsgraph()->HeapConstant(p.constant()));
   node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.flags()));
   ReplaceWithRuntimeCall(node, Runtime::kCreateObjectLiteral);
+}
+
+
+void JSGenericLowering::LowerJSCreateLiteralRegExp(Node* node) {
+  CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
+  CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
+  Callable callable = CodeFactory::FastCloneRegExp(isolate());
+  Node* literal_index = jsgraph()->SmiConstant(p.index());
+  Node* literal_flags = jsgraph()->SmiConstant(p.flags());
+  Node* pattern = jsgraph()->HeapConstant(p.constant());
+  node->InsertInput(graph()->zone(), 1, literal_index);
+  node->InsertInput(graph()->zone(), 2, pattern);
+  node->InsertInput(graph()->zone(), 3, literal_flags);
+  ReplaceWithStubCall(node, callable, flags);
 }
 
 

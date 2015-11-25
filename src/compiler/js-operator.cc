@@ -412,7 +412,7 @@ const CreateClosureParameters& CreateClosureParametersOf(const Operator* op) {
 
 bool operator==(CreateLiteralParameters const& lhs,
                 CreateLiteralParameters const& rhs) {
-  return lhs.constants().location() == rhs.constants().location() &&
+  return lhs.constant().location() == rhs.constant().location() &&
          lhs.flags() == rhs.flags() && lhs.index() == rhs.index();
 }
 
@@ -424,18 +424,19 @@ bool operator!=(CreateLiteralParameters const& lhs,
 
 
 size_t hash_value(CreateLiteralParameters const& p) {
-  return base::hash_combine(p.constants().location(), p.flags(), p.index());
+  return base::hash_combine(p.constant().location(), p.flags(), p.index());
 }
 
 
 std::ostream& operator<<(std::ostream& os, CreateLiteralParameters const& p) {
-  return os << Brief(*p.constants()) << ", " << p.flags() << ", " << p.index();
+  return os << Brief(*p.constant()) << ", " << p.flags() << ", " << p.index();
 }
 
 
 const CreateLiteralParameters& CreateLiteralParametersOf(const Operator* op) {
   DCHECK(op->opcode() == IrOpcode::kJSCreateLiteralArray ||
-         op->opcode() == IrOpcode::kJSCreateLiteralObject);
+         op->opcode() == IrOpcode::kJSCreateLiteralObject ||
+         op->opcode() == IrOpcode::kJSCreateLiteralRegExp);
   return OpParameter<CreateLiteralParameters>(op);
 }
 
@@ -774,6 +775,18 @@ const Operator* JSOperatorBuilder::CreateLiteralObject(
   return new (zone()) Operator1<CreateLiteralParameters>(         // --
       IrOpcode::kJSCreateLiteralObject, Operator::kNoProperties,  // opcode
       "JSCreateLiteralObject",                                    // name
+      1, 1, 1, 1, 1, 2,                                           // counts
+      parameters);                                                // parameter
+}
+
+
+const Operator* JSOperatorBuilder::CreateLiteralRegExp(
+    Handle<String> constant_pattern, int literal_flags, int literal_index) {
+  CreateLiteralParameters parameters(constant_pattern, literal_flags,
+                                     literal_index);
+  return new (zone()) Operator1<CreateLiteralParameters>(         // --
+      IrOpcode::kJSCreateLiteralRegExp, Operator::kNoProperties,  // opcode
+      "JSCreateLiteralRegExp",                                    // name
       1, 1, 1, 1, 1, 2,                                           // counts
       parameters);                                                // parameter
 }

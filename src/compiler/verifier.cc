@@ -521,6 +521,7 @@ void Verifier::Visitor::Check(Node* node) {
       break;
     case IrOpcode::kJSCreateLiteralArray:
     case IrOpcode::kJSCreateLiteralObject:
+    case IrOpcode::kJSCreateLiteralRegExp:
       // Type is OtherObject.
       CheckUpperIs(node, Type::OtherObject());
       break;
