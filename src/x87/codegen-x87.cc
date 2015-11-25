@@ -32,11 +32,10 @@ void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
 
 
 #define __ masm.
+double x87_std_exp(double x, Isolate* isolate) { return std::exp(x); }
 
-
-UnaryMathFunction CreateExpFunction() {
-  // No SSE2 support
-  return nullptr;
+UnaryMathFunctionWithIsolate CreateExpFunction(Isolate* isolate) {
+  return x87_std_exp;
 }
 
 
