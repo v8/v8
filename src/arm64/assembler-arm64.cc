@@ -589,6 +589,7 @@ void Assembler::GetCode(CodeDesc* desc) {
         static_cast<int>((reinterpret_cast<byte*>(buffer_) + buffer_size_) -
                          reloc_info_writer.pos());
     desc->origin = this;
+    desc->constant_pool_size = 0;
   }
 }
 
