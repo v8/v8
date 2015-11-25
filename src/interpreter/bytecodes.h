@@ -260,6 +260,10 @@ class Register {
   static Register function_context();
   bool is_function_context() const;
 
+  // Returns the register for the incoming new target value.
+  static Register new_target();
+  bool is_new_target() const;
+
   static Register FromOperand(uint8_t operand);
   uint8_t ToOperand() const;
 

@@ -758,20 +758,6 @@ bool JavaScriptFrame::HasInlinedFrames() const {
 }
 
 
-Object* JavaScriptFrame::GetNewTarget() const {
-  DCHECK(!HasInlinedFrames());
-  Address fp = caller_fp();
-  if (has_adapted_arguments()) {
-    // Skip the arguments adaptor frame and look at the real caller.
-    fp = Memory::Address_at(fp + StandardFrameConstants::kCallerFPOffset);
-  }
-  DCHECK(IsConstructFrame(fp));
-  STATIC_ASSERT(ConstructFrameConstants::kNewTargetOffset ==
-                StandardFrameConstants::kExpressionsOffset - 3 * kPointerSize);
-  return GetExpression(fp, 3);
-}
-
-
 int JavaScriptFrame::GetArgumentsLength() const {
   // If there is an arguments adaptor frame get the arguments length from it.
   if (has_adapted_arguments()) {

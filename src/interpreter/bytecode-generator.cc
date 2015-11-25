@@ -2157,7 +2157,7 @@ void BytecodeGenerator::VisitNewTargetVariable(Variable* variable) {
   if (variable == nullptr) return;
 
   // Store the new target we were called with in the given variable.
-  builder()->CallRuntime(Runtime::kGetNewTarget, Register(), 0);
+  builder()->LoadAccumulatorWithRegister(Register::new_target());
   VisitVariableAssignment(variable, FeedbackVectorSlot::Invalid());
 }
 

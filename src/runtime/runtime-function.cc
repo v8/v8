@@ -589,19 +589,6 @@ RUNTIME_FUNCTION(Runtime_Apply) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_GetNewTarget) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 0);
-  JavaScriptFrameIterator it(isolate);
-  JavaScriptFrame* frame = it.frame();
-  // TODO(4544): By now the runtime function is only used by the interpreter,
-  // get rid of the entire runtime function once the interpreter is switched.
-  DCHECK(!frame->is_optimized() && !frame->HasInlinedFrames());
-  return frame->IsConstructor() ? frame->GetNewTarget()
-                                : isolate->heap()->undefined_value();
-}
-
-
 // ES6 section 9.2.1.2, OrdinaryCallBindThis for sloppy callee.
 RUNTIME_FUNCTION(Runtime_ConvertReceiver) {
   HandleScope scope(isolate);

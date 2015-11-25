@@ -595,6 +595,7 @@ void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
 //
 // The live registers are:
 //   o rdi: the JS function object being called
+//   o rdx: the new target
 //   o rsi: our context
 //   o rbp: the caller's frame pointer
 //   o rsp: stack pointer (pointing to return address)
@@ -612,6 +613,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ movp(rbp, rsp);
   __ Push(rsi);  // Callee's context.
   __ Push(rdi);  // Callee's JS function.
+  __ Push(rdx);  // Callee's new target.
 
   // Get the bytecode array from the function object and load the pointer to the
   // first entry into edi (InterpreterBytecodeRegister).
@@ -678,9 +680,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // registers.
   __ LoadRoot(kInterpreterAccumulatorRegister, Heap::kUndefinedValueRootIndex);
   __ movp(kInterpreterRegisterFileRegister, rbp);
-  __ subp(
-      kInterpreterRegisterFileRegister,
-      Immediate(kPointerSize + StandardFrameConstants::kFixedFrameSizeFromFp));
+  __ subp(kInterpreterRegisterFileRegister,
+          Immediate(2 * kPointerSize +
+                    StandardFrameConstants::kFixedFrameSizeFromFp));
   __ movp(kInterpreterBytecodeOffsetRegister,
           Immediate(BytecodeArray::kHeaderSize - kHeapObjectTag));
   __ LoadRoot(kInterpreterDispatchTableRegister,

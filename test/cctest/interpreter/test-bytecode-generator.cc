@@ -5190,16 +5190,28 @@ TEST(NewTarget) {
   InitializedHandleScope handle_scope;
   BytecodeGeneratorHelper helper;
 
+  int new_target = Register::new_target().index();
+
   ExpectedSnippet<int> snippets[] = {
       {"return new.target;",
        1 * kPointerSize,
        1,
-       8,
+       5,
        {
-           B(CallRuntime), U16(Runtime::kGetNewTarget), R(0), U8(0),  //
-           B(Star), R(0),                                             //
-           B(Return),                                                 //
-       }}
+           B(Ldar), R(new_target),  //
+           B(Star), R(0),           //
+           B(Return),               //
+       }},
+      {"new.target;",
+       1 * kPointerSize,
+       1,
+       6,
+       {
+           B(Ldar), R(new_target),  //
+           B(Star), R(0),           //
+           B(LdaUndefined),         //
+           B(Return),               //
+       }},
   };
 
   for (size_t i = 0; i < arraysize(snippets); i++) {
