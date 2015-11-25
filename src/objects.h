@@ -2972,23 +2972,6 @@ class DescriptorArray: public FixedArray {
   }
 
  private:
-  // WhitenessWitness is used to prove that a descriptor array is white
-  // (unmarked), so incremental write barriers can be skipped because the
-  // marking invariant cannot be broken and slots pointing into evacuation
-  // candidates will be discovered when the object is scanned. A witness is
-  // always stack-allocated right after creating an array. By allocating a
-  // witness, incremental marking is globally disabled. The witness is then
-  // passed along wherever needed to statically prove that the array is known to
-  // be white.
-  class WhitenessWitness {
-   public:
-    inline explicit WhitenessWitness(DescriptorArray* array);
-    inline ~WhitenessWitness();
-
-   private:
-    IncrementalMarking* marking_;
-  };
-
   // An entry in a DescriptorArray, represented as an (array, index) pair.
   class Entry {
    public:
@@ -3024,11 +3007,9 @@ class DescriptorArray: public FixedArray {
 
   // Transfer a complete descriptor from the src descriptor array to this
   // descriptor array.
-  void CopyFrom(int index, DescriptorArray* src, const WhitenessWitness&);
+  void CopyFrom(int index, DescriptorArray* src);
 
-  inline void Set(int descriptor_number,
-                  Descriptor* desc,
-                  const WhitenessWitness&);
+  inline void SetDescriptor(int descriptor_number, Descriptor* desc);
 
   // Swap first and second descriptor.
   inline void SwapSortedKeys(int first, int second);

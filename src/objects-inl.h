@@ -3037,20 +3037,12 @@ void DescriptorArray::Get(int descriptor_number, Descriptor* desc) {
 }
 
 
-void DescriptorArray::Set(int descriptor_number,
-                          Descriptor* desc,
-                          const WhitenessWitness&) {
+void DescriptorArray::SetDescriptor(int descriptor_number, Descriptor* desc) {
   // Range check.
   DCHECK(descriptor_number < number_of_descriptors());
-
-  NoIncrementalWriteBarrierSet(this,
-                               ToKeyIndex(descriptor_number),
-                               *desc->GetKey());
-  NoIncrementalWriteBarrierSet(this,
-                               ToValueIndex(descriptor_number),
-                               *desc->GetValue());
-  NoIncrementalWriteBarrierSet(this, ToDetailsIndex(descriptor_number),
-                               desc->GetDetails().AsSmi());
+  set(ToKeyIndex(descriptor_number), *desc->GetKey());
+  set(ToValueIndex(descriptor_number), *desc->GetValue());
+  set(ToDetailsIndex(descriptor_number), desc->GetDetails().AsSmi());
 }
 
 
@@ -3088,19 +3080,6 @@ void DescriptorArray::SwapSortedKeys(int first, int second) {
   int first_key = GetSortedKeyIndex(first);
   SetSortedKey(first, GetSortedKeyIndex(second));
   SetSortedKey(second, first_key);
-}
-
-
-DescriptorArray::WhitenessWitness::WhitenessWitness(DescriptorArray* array)
-    : marking_(array->GetHeap()->incremental_marking()) {
-  marking_->EnterNoMarkingScope();
-  DCHECK(!marking_->IsMarking() ||
-         Marking::Color(array) == Marking::WHITE_OBJECT);
-}
-
-
-DescriptorArray::WhitenessWitness::~WhitenessWitness() {
-  marking_->LeaveNoMarkingScope();
 }
 
 

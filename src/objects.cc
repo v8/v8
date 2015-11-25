@@ -9085,7 +9085,6 @@ Handle<DescriptorArray> DescriptorArray::CopyUpToAddAttributes(
 
   Handle<DescriptorArray> descriptors =
       DescriptorArray::Allocate(desc->GetIsolate(), size, slack);
-  DescriptorArray::WhitenessWitness witness(*descriptors);
 
   if (attributes != NONE) {
     for (int i = 0; i < size; ++i) {
@@ -9104,11 +9103,11 @@ Handle<DescriptorArray> DescriptorArray::CopyUpToAddAttributes(
       }
       Descriptor inner_desc(
           handle(key), handle(value, desc->GetIsolate()), details);
-      descriptors->Set(i, &inner_desc, witness);
+      descriptors->SetDescriptor(i, &inner_desc);
     }
   } else {
     for (int i = 0; i < size; ++i) {
-      descriptors->CopyFrom(i, *desc, witness);
+      descriptors->CopyFrom(i, *desc);
     }
   }
 
@@ -9867,21 +9866,16 @@ void DescriptorArray::SetEnumCache(Handle<DescriptorArray> descriptors,
 }
 
 
-void DescriptorArray::CopyFrom(int index, DescriptorArray* src,
-                               const WhitenessWitness& witness) {
+void DescriptorArray::CopyFrom(int index, DescriptorArray* src) {
   Object* value = src->GetValue(index);
   PropertyDetails details = src->GetDetails(index);
   Descriptor desc(handle(src->GetKey(index)),
                   handle(value, src->GetIsolate()),
                   details);
-  Set(index, &desc, witness);
+  SetDescriptor(index, &desc);
 }
 
 
-// We need the whiteness witness since sort will reshuffle the entries in the
-// descriptor array. If the descriptor array were to be black, the shuffling
-// would move a slot that was already recorded as pointing into an evacuation
-// candidate. This would result in missing updates upon evacuation.
 void DescriptorArray::Sort() {
   // In-place heap sort.
   int len = number_of_descriptors();
