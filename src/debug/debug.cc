@@ -731,6 +731,13 @@ void Debug::ClearAllBreakPoints() {
 
 void Debug::FloodWithOneShot(Handle<JSFunction> function,
                              BreakLocatorType type) {
+  if (!function->shared()->IsSubjectToDebugging()) {
+    // Builtin functions are not subject to stepping, but need to be
+    // deoptimized, because optimized code does not check for debug
+    // step in at call sites.
+    Deoptimizer::DeoptimizeFunction(*function);
+    return;
+  }
   // Make sure the function is compiled and has set up the debug info.
   Handle<SharedFunctionInfo> shared(function->shared());
   if (!EnsureDebugInfo(shared, function)) {

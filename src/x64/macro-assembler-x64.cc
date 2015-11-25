@@ -708,8 +708,8 @@ void MacroAssembler::InvokeBuiltin(int native_context_index, InvokeFlag flag,
   // arguments match the expected number of arguments. Fake a
   // parameter count to avoid emitting code to do the check.
   ParameterCount expected(0);
-  GetBuiltinEntry(r8, native_context_index);
-  InvokeCode(r8, no_reg, expected, expected, flag, call_wrapper);
+  GetBuiltinFunction(rdi, native_context_index);
+  InvokeFunctionCode(rdi, no_reg, expected, expected, flag, call_wrapper);
 }
 
 
@@ -719,15 +719,6 @@ void MacroAssembler::GetBuiltinFunction(Register target,
   movp(target, Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
   movp(target, FieldOperand(target, JSGlobalObject::kNativeContextOffset));
   movp(target, ContextOperand(target, native_context_index));
-}
-
-
-void MacroAssembler::GetBuiltinEntry(Register target,
-                                     int native_context_index) {
-  DCHECK(!target.is(rdi));
-  // Load the JavaScript builtin function from the builtins object.
-  GetBuiltinFunction(rdi, native_context_index);
-  movp(target, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
 }
 
 
@@ -4019,25 +4010,25 @@ void MacroAssembler::InvokeFunction(Register function,
                                     const CallWrapper& call_wrapper) {
   DCHECK(function.is(rdi));
   movp(rsi, FieldOperand(function, JSFunction::kContextOffset));
-  // Advances r8 to the end of the Code object header, to the start of
-  // the executable code.
-  movp(r8, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
-  InvokeCode(r8, new_target, expected, actual, flag, call_wrapper);
+  InvokeFunctionCode(rdi, new_target, expected, actual, flag, call_wrapper);
 }
 
 
-void MacroAssembler::InvokeCode(Register code,
-                                Register new_target,
-                                const ParameterCount& expected,
-                                const ParameterCount& actual,
-                                InvokeFlag flag,
-                                const CallWrapper& call_wrapper) {
+void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
+                                        const ParameterCount& expected,
+                                        const ParameterCount& actual,
+                                        InvokeFlag flag,
+                                        const CallWrapper& call_wrapper) {
   // You can't call a function without a valid frame.
   DCHECK(flag == JUMP_FUNCTION || has_frame());
-
-  // Ensure new target is passed in the correct register. Otherwise clear the
-  // appropriate register in case new target is not given.
+  DCHECK(function.is(rdi));
   DCHECK_IMPLIES(new_target.is_valid(), new_target.is(rdx));
+
+  if (call_wrapper.NeedsDebugStepCheck()) {
+    FloodFunctionIfStepping(function, new_target, expected, actual);
+  }
+
+  // Clear the new.target register if not given.
   if (!new_target.is_valid()) {
     LoadRoot(rdx, Heap::kUndefinedValueRootIndex);
   }
@@ -4052,6 +4043,10 @@ void MacroAssembler::InvokeCode(Register code,
                  Label::kNear,
                  call_wrapper);
   if (!definitely_mismatches) {
+    // We call indirectly through the code field in the function to
+    // allow recompilation to take effect without changing any of the
+    // call sites.
+    Operand code = FieldOperand(function, JSFunction::kCodeEntryOffset);
     if (flag == CALL_FUNCTION) {
       call_wrapper.BeforeCall(CallSize(code));
       call(code);
@@ -4128,6 +4123,49 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
     }
     bind(&invoke);
   }
+}
+
+
+void MacroAssembler::FloodFunctionIfStepping(Register fun, Register new_target,
+                                             const ParameterCount& expected,
+                                             const ParameterCount& actual) {
+  Label skip_flooding;
+  ExternalReference debug_step_action =
+      ExternalReference::debug_last_step_action_address(isolate());
+  Operand debug_step_action_operand = ExternalOperand(debug_step_action);
+  cmpb(debug_step_action_operand, Immediate(StepIn));
+  j(not_equal, &skip_flooding);
+  {
+    FrameScope frame(this,
+                     has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
+    if (expected.is_reg()) {
+      Integer32ToSmi(expected.reg(), expected.reg());
+      Push(expected.reg());
+    }
+    if (actual.is_reg()) {
+      Integer32ToSmi(actual.reg(), actual.reg());
+      Push(actual.reg());
+    }
+    if (new_target.is_valid()) {
+      Push(new_target);
+    }
+    Push(fun);
+    Push(fun);
+    CallRuntime(Runtime::kDebugPrepareStepInIfStepping, 1);
+    Pop(fun);
+    if (new_target.is_valid()) {
+      Pop(new_target);
+    }
+    if (actual.is_reg()) {
+      Pop(actual.reg());
+      SmiToInteger64(actual.reg(), actual.reg());
+    }
+    if (expected.is_reg()) {
+      Pop(expected.reg());
+      SmiToInteger64(expected.reg(), expected.reg());
+    }
+  }
+  bind(&skip_flooding);
 }
 
 

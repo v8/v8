@@ -570,7 +570,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ Call(code, RelocInfo::CODE_TARGET);
     } else {
       ParameterCount actual(r0);
-      __ InvokeFunction(r1, r3, actual, CALL_FUNCTION, NullCallWrapper());
+      __ InvokeFunction(r1, r3, actual, CALL_FUNCTION,
+                        CheckDebugStepCallWrapper());
     }
 
     // Store offset of return address for deoptimizer.
@@ -1686,10 +1687,10 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   __ ldr(r2,
          FieldMemOperand(r2, SharedFunctionInfo::kFormalParameterCountOffset));
   __ SmiUntag(r2);
-  __ ldr(r4, FieldMemOperand(r1, JSFunction::kCodeEntryOffset));
   ParameterCount actual(r0);
   ParameterCount expected(r2);
-  __ InvokeCode(r4, no_reg, expected, actual, JUMP_FUNCTION, NullCallWrapper());
+  __ InvokeFunctionCode(r1, no_reg, expected, actual, JUMP_FUNCTION,
+                        CheckDebugStepCallWrapper());
 
   // The function is a "classConstructor", need to raise an exception.
   __ bind(&class_constructor);
