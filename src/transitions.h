@@ -297,9 +297,7 @@ class TransitionArray: public FixedArray {
                                    PropertyKind kind2,
                                    PropertyAttributes attributes2);
 
-  inline void NoIncrementalWriteBarrierSet(int transition_number,
-                                           Name* key,
-                                           Map* target);
+  inline void Set(int transition_number, Name* key, Map* target);
 
   // Copy a single transition from the origin array.
   inline void NoIncrementalWriteBarrierCopyFrom(TransitionArray* origin,

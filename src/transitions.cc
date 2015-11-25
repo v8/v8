@@ -51,8 +51,7 @@ void TransitionArray::Insert(Handle<Map> map, Handle<Name> name,
     // Re-read existing data; the allocation might have caused it to be cleared.
     if (IsSimpleTransition(map->raw_transitions())) {
       old_target = GetSimpleTransition(map->raw_transitions());
-      result->NoIncrementalWriteBarrierSet(
-          0, GetSimpleTransitionKey(old_target), old_target);
+      result->Set(0, GetSimpleTransitionKey(old_target), old_target);
     } else {
       result->SetNumberOfTransitions(0);
     }
@@ -145,11 +144,11 @@ void TransitionArray::Insert(Handle<Map> map, Handle<Name> name,
 
   DCHECK_NE(kNotFound, insertion_index);
   for (int i = 0; i < insertion_index; ++i) {
-    result->NoIncrementalWriteBarrierCopyFrom(array, i, i);
+    result->Set(i, array->GetKey(i), array->GetTarget(i));
   }
-  result->NoIncrementalWriteBarrierSet(insertion_index, *name, *target);
+  result->Set(insertion_index, *name, *target);
   for (int i = insertion_index; i < number_of_transitions; ++i) {
-    result->NoIncrementalWriteBarrierCopyFrom(array, i, i + 1);
+    result->Set(i + 1, array->GetKey(i), array->GetTarget(i));
   }
 
   SLOW_DCHECK(result->IsSortedNoDuplicates());
@@ -400,15 +399,6 @@ Handle<TransitionArray> TransitionArray::Allocate(Isolate* isolate,
 }
 
 
-void TransitionArray::NoIncrementalWriteBarrierCopyFrom(TransitionArray* origin,
-                                                        int origin_transition,
-                                                        int target_transition) {
-  NoIncrementalWriteBarrierSet(target_transition,
-                               origin->GetKey(origin_transition),
-                               origin->GetTarget(origin_transition));
-}
-
-
 static void ZapTransitionArray(TransitionArray* transitions) {
   MemsetPointer(transitions->data_start(),
                 transitions->GetHeap()->the_hole_value(),
@@ -459,7 +449,7 @@ void TransitionArray::EnsureHasFullTransitionArray(Handle<Map> map) {
   } else if (nof == 1) {
     Map* target = GetSimpleTransition(raw_transitions);
     Name* key = GetSimpleTransitionKey(target);
-    result->NoIncrementalWriteBarrierSet(0, key, target);
+    result->Set(0, key, target);
   }
   ReplaceTransitions(map, *result);
 }
