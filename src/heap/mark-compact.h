@@ -119,8 +119,6 @@ class Marking : public AllStatic {
     markbit.Next().Set();
   }
 
-  static void TransferMark(Heap* heap, Address old_start, Address new_start);
-
 #ifdef DEBUG
   enum ObjectColor {
     BLACK_OBJECT,

@@ -827,14 +827,8 @@ class Heap {
   // when introducing gaps within pages.
   void CreateFillerObjectAt(Address addr, int size);
 
-  bool CanMoveObjectStart(HeapObject* object);
-
   // Maintain consistency of live bytes during incremental marking.
   void AdjustLiveBytes(HeapObject* object, int by, InvocationMode mode);
-
-  // Trim the given array from the left. Note that this relocates the object
-  // start and hence is only valid if there is only a single reference to it.
-  FixedArrayBase* LeftTrimFixedArray(FixedArrayBase* obj, int elements_to_trim);
 
   // Trim the given array from the right.
   template<Heap::InvocationMode mode>
