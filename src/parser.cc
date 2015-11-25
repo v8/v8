@@ -2381,16 +2381,6 @@ Block* Parser::ParseBlock(ZoneList<const AstRawString*>* labels, bool* ok) {
 }
 
 
-const AstRawString* Parser::DeclarationParsingResult::SingleName() const {
-  if (declarations.length() != 1) return nullptr;
-  const Declaration& declaration = declarations.at(0);
-  if (declaration.pattern->IsVariableProxy()) {
-    return declaration.pattern->AsVariableProxy()->raw_name();
-  }
-  return nullptr;
-}
-
-
 Block* Parser::DeclarationParsingResult::BuildInitializationBlock(
     ZoneList<const AstRawString*>* names, bool* ok) {
   Block* result = descriptor.parser->factory()->NewBlock(
@@ -3678,9 +3668,12 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
           *ok = false;
           return nullptr;
         }
+        DeclarationParsingResult::Declaration& decl =
+            parsing_result.declarations[0];
         if (parsing_result.first_initializer_loc.IsValid() &&
             (is_strict(language_mode()) || mode == ForEachStatement::ITERATE ||
-             IsLexicalVariableMode(parsing_result.descriptor.mode))) {
+             IsLexicalVariableMode(parsing_result.descriptor.mode) ||
+             !decl.pattern->IsVariableProxy())) {
           if (mode == ForEachStatement::ITERATE) {
             ReportMessageAt(parsing_result.first_initializer_loc,
                             MessageTemplate::kForOfLoopInitializer);
@@ -3693,23 +3686,22 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
           return nullptr;
         }
 
-        DCHECK(parsing_result.declarations.length() == 1);
         Block* init_block = nullptr;
 
         // special case for legacy for (var/const x =.... in)
         if (!IsLexicalVariableMode(parsing_result.descriptor.mode) &&
-            parsing_result.declarations[0].initializer != nullptr) {
+            decl.pattern->IsVariableProxy() && decl.initializer != nullptr) {
+          const AstRawString* name =
+              decl.pattern->AsVariableProxy()->raw_name();
           VariableProxy* single_var = scope_->NewUnresolved(
-              factory(), parsing_result.SingleName(), Variable::NORMAL,
-              each_beg_pos, each_end_pos);
+              factory(), name, Variable::NORMAL, each_beg_pos, each_end_pos);
           init_block = factory()->NewBlock(
               nullptr, 2, true, parsing_result.descriptor.declaration_pos);
           init_block->statements()->Add(
               factory()->NewExpressionStatement(
-                  factory()->NewAssignment(
-                      Token::ASSIGN, single_var,
-                      parsing_result.declarations[0].initializer,
-                      RelocInfo::kNoPosition),
+                  factory()->NewAssignment(Token::ASSIGN, single_var,
+                                           decl.initializer,
+                                           RelocInfo::kNoPosition),
                   RelocInfo::kNoPosition),
               zone());
         }
@@ -3752,9 +3744,6 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
         auto each_initialization_block =
             factory()->NewBlock(nullptr, 1, true, RelocInfo::kNoPosition);
         {
-          DCHECK(parsing_result.declarations.length() == 1);
-          DeclarationParsingResult::Declaration decl =
-              parsing_result.declarations[0];
           auto descriptor = parsing_result.descriptor;
           descriptor.declaration_pos = RelocInfo::kNoPosition;
           descriptor.initialization_pos = RelocInfo::kNoPosition;

@@ -1845,7 +1845,8 @@ class PreParser : public ParserBase<PreParserTraits> {
   Statement ParseVariableStatement(VariableDeclarationContext var_context,
                                    bool* ok);
   Statement ParseVariableDeclarations(VariableDeclarationContext var_context,
-                                      int* num_decl,
+                                      int* num_decl, bool* is_lexical,
+                                      bool* is_binding_pattern,
                                       Scanner::Location* first_initializer_loc,
                                       Scanner::Location* bindings_loc,
                                       bool* ok);

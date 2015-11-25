@@ -495,8 +495,8 @@ PreParser::Statement PreParser::ParseVariableStatement(
   // VariableStatement ::
   //   VariableDeclarations ';'
 
-  Statement result = ParseVariableDeclarations(var_context, nullptr, nullptr,
-                                               nullptr, CHECK_OK);
+  Statement result = ParseVariableDeclarations(
+      var_context, nullptr, nullptr, nullptr, nullptr, nullptr, CHECK_OK);
   ExpectSemicolon(CHECK_OK);
   return result;
 }
@@ -508,9 +508,9 @@ PreParser::Statement PreParser::ParseVariableStatement(
 // to initialize it properly. This mechanism is also used for the parsing
 // of 'for-in' loops.
 PreParser::Statement PreParser::ParseVariableDeclarations(
-    VariableDeclarationContext var_context, int* num_decl,
-    Scanner::Location* first_initializer_loc, Scanner::Location* bindings_loc,
-    bool* ok) {
+    VariableDeclarationContext var_context, int* num_decl, bool* is_lexical,
+    bool* is_binding_pattern, Scanner::Location* first_initializer_loc,
+    Scanner::Location* bindings_loc, bool* ok) {
   // VariableDeclarations ::
   //   ('var' | 'const') (Identifier ('=' AssignmentExpression)?)+[',']
   //
@@ -526,6 +526,7 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
   //   BindingPattern '=' AssignmentExpression
   bool require_initializer = false;
   bool lexical = false;
+  bool is_pattern = false;
   if (peek() == Token::VAR) {
     if (is_strong(language_mode())) {
       Scanner::Location location = scanner()->peek_location();
@@ -589,7 +590,7 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
       }
     }
 
-    bool is_pattern = pattern.IsObjectLiteral() || pattern.IsArrayLiteral();
+    is_pattern = pattern.IsObjectLiteral() || pattern.IsArrayLiteral();
 
     bool is_for_iteration_variable =
         var_context == kForStatement &&
@@ -623,7 +624,9 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
         Scanner::Location(bindings_start, scanner()->location().end_pos);
   }
 
-  if (num_decl != NULL) *num_decl = nvars;
+  if (num_decl != nullptr) *num_decl = nvars;
+  if (is_lexical != nullptr) *is_lexical = lexical;
+  if (is_binding_pattern != nullptr) *is_binding_pattern = is_pattern;
   return Statement::Default();
 }
 
@@ -912,11 +915,13 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
     if (peek() == Token::VAR || (peek() == Token::CONST && allow_const()) ||
         (peek() == Token::LET && IsNextLetKeyword())) {
       int decl_count;
+      bool is_lexical;
+      bool is_binding_pattern;
       Scanner::Location first_initializer_loc = Scanner::Location::invalid();
       Scanner::Location bindings_loc = Scanner::Location::invalid();
-      ParseVariableDeclarations(kForStatement, &decl_count,
-                                &first_initializer_loc, &bindings_loc,
-                                CHECK_OK);
+      ParseVariableDeclarations(kForStatement, &decl_count, &is_lexical,
+                                &is_binding_pattern, &first_initializer_loc,
+                                &bindings_loc, CHECK_OK);
       bool accept_IN = decl_count >= 1;
       if (accept_IN && CheckInOrOf(&mode, ok)) {
         if (!*ok) return Statement::Default();
@@ -930,7 +935,8 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
           return Statement::Default();
         }
         if (first_initializer_loc.IsValid() &&
-            (is_strict(language_mode()) || mode == ForEachStatement::ITERATE)) {
+            (is_strict(language_mode()) || mode == ForEachStatement::ITERATE ||
+             is_lexical || is_binding_pattern)) {
           if (mode == ForEachStatement::ITERATE) {
             ReportMessageAt(first_initializer_loc,
                             MessageTemplate::kForOfLoopInitializer);

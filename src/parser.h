@@ -1020,7 +1020,6 @@ class Parser : public ParserBase<ParserTraits> {
 
     Block* BuildInitializationBlock(ZoneList<const AstRawString*>* names,
                                     bool* ok);
-    const AstRawString* SingleName() const;
 
     DeclarationDescriptor descriptor;
     List<Declaration> declarations;
