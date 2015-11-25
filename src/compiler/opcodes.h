@@ -311,6 +311,7 @@
   V(Float32RoundTruncate)       \
   V(Float64RoundTruncate)       \
   V(Float64RoundTiesAway)       \
+  V(Float32RoundTiesEven)       \
   V(Float64RoundTiesEven)       \
   V(Float64ExtractLowWord32)    \
   V(Float64ExtractHighWord32)   \

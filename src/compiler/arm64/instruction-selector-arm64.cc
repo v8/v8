@@ -1508,6 +1508,11 @@ void InstructionSelector::VisitFloat64RoundTiesAway(Node* node) {
 }
 
 
+void InstructionSelector::VisitFloat32RoundTiesEven(Node* node) {
+  VisitRR(this, kArm64Float32RoundTiesEven, node);
+}
+
+
 void InstructionSelector::VisitFloat64RoundTiesEven(Node* node) {
   VisitRR(this, kArm64Float64RoundTiesEven, node);
 }
@@ -2088,6 +2093,7 @@ InstructionSelector::SupportedMachineOperatorFlags() {
          MachineOperatorBuilder::kFloat32RoundTruncate |
          MachineOperatorBuilder::kFloat64RoundTruncate |
          MachineOperatorBuilder::kFloat64RoundTiesAway |
+         MachineOperatorBuilder::kFloat32RoundTiesEven |
          MachineOperatorBuilder::kFloat64RoundTiesEven |
          MachineOperatorBuilder::kWord32ShiftIsSafe |
          MachineOperatorBuilder::kInt32DivIsSafe |

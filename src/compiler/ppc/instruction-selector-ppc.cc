@@ -1159,6 +1159,11 @@ void InstructionSelector::VisitFloat64RoundTiesAway(Node* node) {
 }
 
 
+void InstructionSelector::VisitFloat32RoundTiesEven(Node* node) {
+  UNREACHABLE();
+}
+
+
 void InstructionSelector::VisitFloat64RoundTiesEven(Node* node) {
   UNREACHABLE();
 }

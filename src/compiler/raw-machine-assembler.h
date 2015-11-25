@@ -504,6 +504,9 @@ class RawMachineAssembler {
   Node* Float64RoundTiesAway(Node* a) {
     return AddNode(machine()->Float64RoundTiesAway().op(), a);
   }
+  Node* Float32RoundTiesEven(Node* a) {
+    return AddNode(machine()->Float32RoundTiesEven().op(), a);
+  }
   Node* Float64RoundTiesEven(Node* a) {
     return AddNode(machine()->Float64RoundTiesEven().op(), a);
   }
