@@ -22,6 +22,13 @@ namespace compiler {
 
 static const char kFunctionName[] = "f";
 
+static const Token::Value kCompareOperators[] = {
+    Token::Value::EQ,        Token::Value::NE, Token::Value::EQ_STRICT,
+    Token::Value::NE_STRICT, Token::Value::LT, Token::Value::LTE,
+    Token::Value::GT,        Token::Value::GTE};
+
+static const int SMI_MAX = (1 << 30) - 1;
+static const int SMI_MIN = -(1 << 30);
 
 static MaybeHandle<Object> CallFunction(Isolate* isolate,
                                         Handle<JSFunction> function) {
@@ -760,6 +767,149 @@ TEST(BytecodeGraphBuilderDelete) {
         callable(snippets[i].parameter(0)).ToHandleChecked();
     CHECK(return_value->SameValue(*snippets[i].return_value()));
   }
+}
+
+
+bool get_compare_result(Token::Value opcode, Handle<Object> lhs_value,
+                        Handle<Object> rhs_value) {
+  switch (opcode) {
+    case Token::Value::EQ:
+      return Object::Equals(lhs_value, rhs_value).FromJust();
+    case Token::Value::NE:
+      return !Object::Equals(lhs_value, rhs_value).FromJust();
+    case Token::Value::EQ_STRICT:
+      return lhs_value->StrictEquals(*rhs_value);
+    case Token::Value::NE_STRICT:
+      return !lhs_value->StrictEquals(*rhs_value);
+    case Token::Value::LT:
+      return Object::LessThan(lhs_value, rhs_value).FromJust();
+    case Token::Value::LTE:
+      return Object::LessThanOrEqual(lhs_value, rhs_value).FromJust();
+    case Token::Value::GT:
+      return Object::GreaterThan(lhs_value, rhs_value).FromJust();
+    case Token::Value::GTE:
+      return Object::GreaterThanOrEqual(lhs_value, rhs_value).FromJust();
+    default:
+      UNREACHABLE();
+      return false;
+  }
+}
+
+
+const char* get_code_snippet(Token::Value opcode) {
+  switch (opcode) {
+    case Token::Value::EQ:
+      return "return p1 == p2;";
+    case Token::Value::NE:
+      return "return p1 != p2;";
+    case Token::Value::EQ_STRICT:
+      return "return p1 === p2;";
+    case Token::Value::NE_STRICT:
+      return "return p1 !== p2;";
+    case Token::Value::LT:
+      return "return p1 < p2;";
+    case Token::Value::LTE:
+      return "return p1 <= p2;";
+    case Token::Value::GT:
+      return "return p1 > p2;";
+    case Token::Value::GTE:
+      return "return p1 >= p2;";
+    default:
+      UNREACHABLE();
+      return "";
+  }
+}
+
+
+TEST(BytecodeGraphBuilderCompare) {
+  HandleAndZoneScope scope;
+  Isolate* isolate = scope.main_isolate();
+  Zone* zone = scope.main_zone();
+  Factory* factory = isolate->factory();
+  Handle<Object> lhs_values[] = {
+      factory->NewNumberFromInt(10), factory->NewHeapNumber(3.45),
+      factory->NewStringFromStaticChars("abc"),
+      factory->NewNumberFromInt(SMI_MAX), factory->NewNumberFromInt(SMI_MIN)};
+  Handle<Object> rhs_values[] = {factory->NewNumberFromInt(10),
+                                 factory->NewStringFromStaticChars("10"),
+                                 factory->NewNumberFromInt(20),
+                                 factory->NewStringFromStaticChars("abc"),
+                                 factory->NewHeapNumber(3.45),
+                                 factory->NewNumberFromInt(SMI_MAX),
+                                 factory->NewNumberFromInt(SMI_MIN)};
+
+  for (size_t i = 0; i < arraysize(kCompareOperators); i++) {
+    ScopedVector<char> script(1024);
+    SNPrintF(script, "function %s(p1, p2) { %s }\n%s({}, {});", kFunctionName,
+             get_code_snippet(kCompareOperators[i]), kFunctionName);
+
+    BytecodeGraphTester tester(isolate, zone, script.start());
+    auto callable = tester.GetCallable<Handle<Object>, Handle<Object>>();
+    for (size_t j = 0; j < arraysize(lhs_values); j++) {
+      for (size_t k = 0; k < arraysize(rhs_values); k++) {
+        Handle<Object> return_value =
+            callable(lhs_values[j], rhs_values[k]).ToHandleChecked();
+        bool result = get_compare_result(kCompareOperators[i], lhs_values[j],
+                                         rhs_values[k]);
+        CHECK(return_value->SameValue(*factory->ToBoolean(result)));
+      }
+    }
+  }
+}
+
+
+TEST(BytecodeGraphBuilderTestIn) {
+  HandleAndZoneScope scope;
+  Isolate* isolate = scope.main_isolate();
+  Zone* zone = scope.main_zone();
+  Factory* factory = isolate->factory();
+
+  ExpectedSnippet<2> snippets[] = {
+      {"return p2 in p1;",
+       {factory->true_value(), BytecodeGraphTester::NewObject("({val : 10})"),
+        factory->NewStringFromStaticChars("val")}},
+      {"return p2 in p1;",
+       {factory->true_value(), BytecodeGraphTester::NewObject("[]"),
+        factory->NewStringFromStaticChars("length")}},
+      {"return p2 in p1;",
+       {factory->true_value(), BytecodeGraphTester::NewObject("[]"),
+        factory->NewStringFromStaticChars("toString")}},
+      {"return p2 in p1;",
+       {factory->true_value(), BytecodeGraphTester::NewObject("({val : 10})"),
+        factory->NewStringFromStaticChars("toString")}},
+      {"return p2 in p1;",
+       {factory->false_value(), BytecodeGraphTester::NewObject("({val : 10})"),
+        factory->NewStringFromStaticChars("abc")}},
+      {"return p2 in p1;",
+       {factory->false_value(), BytecodeGraphTester::NewObject("({val : 10})"),
+        factory->NewNumberFromInt(10)}},
+      {"return p2 in p1;",
+       {factory->true_value(), BytecodeGraphTester::NewObject("({10 : 'val'})"),
+        factory->NewNumberFromInt(10)}},
+      {"return p2 in p1;",
+       {factory->false_value(),
+        BytecodeGraphTester::NewObject("({10 : 'val'})"),
+        factory->NewNumberFromInt(1)}},
+  };
+
+  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
+  for (size_t i = 0; i < num_snippets; i++) {
+    ScopedVector<char> script(1024);
+    SNPrintF(script, "function %s(p1, p2) { %s }\n%s({}, {});", kFunctionName,
+             snippets[i].code_snippet, kFunctionName);
+
+    BytecodeGraphTester tester(isolate, zone, script.start());
+    auto callable = tester.GetCallable<Handle<Object>, Handle<Object>>();
+    Handle<Object> return_value =
+        callable(snippets[i].parameter(0), snippets[i].parameter(1))
+            .ToHandleChecked();
+    CHECK(return_value->SameValue(*snippets[i].return_value()));
+  }
+}
+
+
+TEST(BytecodeGraphBuilderTestInstanceOf) {
+  // TODO(mythria): Add tests when CreateLiterals/CreateClousre are supported.
 }
 
 }  // namespace compiler

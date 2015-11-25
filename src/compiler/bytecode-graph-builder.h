@@ -117,6 +117,8 @@ class BytecodeGraphBuilder {
   void BuildCall(const interpreter::BytecodeArrayIterator& iterator);
   void BuildBinaryOp(const Operator* op,
                      const interpreter::BytecodeArrayIterator& iterator);
+  void BuildCompareOp(const Operator* op,
+                      const interpreter::BytecodeArrayIterator& iterator);
   void BuildDelete(const interpreter::BytecodeArrayIterator& iterator);
 
   // Growth increment for the temporary buffer used to construct input lists to

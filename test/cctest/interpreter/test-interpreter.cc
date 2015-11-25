@@ -1244,8 +1244,8 @@ TEST(InterpreterConditionalJumps2) {
 
 
 static const Token::Value kComparisonTypes[] = {
-    Token::Value::EQ,        Token::Value::NE,  Token::Value::EQ_STRICT,
-    Token::Value::NE_STRICT, Token::Value::LTE, Token::Value::LTE,
+    Token::Value::EQ,        Token::Value::NE, Token::Value::EQ_STRICT,
+    Token::Value::NE_STRICT, Token::Value::LT, Token::Value::LTE,
     Token::Value::GT,        Token::Value::GTE};
 
 

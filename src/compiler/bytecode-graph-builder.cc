@@ -938,63 +938,74 @@ void BytecodeGraphBuilder::VisitDeletePropertySloppy(
 }
 
 
+void BytecodeGraphBuilder::BuildCompareOp(
+    const Operator* js_op, const interpreter::BytecodeArrayIterator& iterator) {
+  Node* left = environment()->LookupRegister(iterator.GetRegisterOperand(0));
+  Node* right = environment()->LookupAccumulator();
+  Node* node = NewNode(js_op, left, right);
+
+  AddEmptyFrameStateInputs(node);
+  environment()->BindAccumulator(node);
+}
+
+
 void BytecodeGraphBuilder::VisitTestEqual(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  BuildCompareOp(javascript()->Equal(), iterator);
 }
 
 
 void BytecodeGraphBuilder::VisitTestNotEqual(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  BuildCompareOp(javascript()->NotEqual(), iterator);
 }
 
 
 void BytecodeGraphBuilder::VisitTestEqualStrict(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  BuildCompareOp(javascript()->StrictEqual(), iterator);
 }
 
 
 void BytecodeGraphBuilder::VisitTestNotEqualStrict(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  BuildCompareOp(javascript()->StrictNotEqual(), iterator);
 }
 
 
 void BytecodeGraphBuilder::VisitTestLessThan(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  BuildCompareOp(javascript()->LessThan(language_mode()), iterator);
 }
 
 
 void BytecodeGraphBuilder::VisitTestGreaterThan(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  BuildCompareOp(javascript()->GreaterThan(language_mode()), iterator);
 }
 
 
 void BytecodeGraphBuilder::VisitTestLessThanOrEqual(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  BuildCompareOp(javascript()->LessThanOrEqual(language_mode()), iterator);
 }
 
 
 void BytecodeGraphBuilder::VisitTestGreaterThanOrEqual(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  BuildCompareOp(javascript()->GreaterThanOrEqual(language_mode()), iterator);
 }
 
 
 void BytecodeGraphBuilder::VisitTestIn(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  BuildCompareOp(javascript()->HasProperty(), iterator);
 }
 
 
 void BytecodeGraphBuilder::VisitTestInstanceOf(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  BuildCompareOp(javascript()->InstanceOf(), iterator);
 }
 
 
