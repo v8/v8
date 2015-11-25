@@ -22,9 +22,9 @@ namespace internal {
 #define __
 
 
-MacroAssembler::MacroAssembler(Isolate* arg_isolate,
-                               byte * buffer,
-                               unsigned buffer_size)
+MacroAssembler::MacroAssembler(Isolate* arg_isolate, byte* buffer,
+                               unsigned buffer_size,
+                               CodeObjectRequired create_code_object)
     : Assembler(arg_isolate, buffer, buffer_size),
       generating_stub_(false),
 #if DEBUG
@@ -35,7 +35,7 @@ MacroAssembler::MacroAssembler(Isolate* arg_isolate,
       sp_(jssp),
       tmp_list_(DefaultTmpList()),
       fptmp_list_(DefaultFPTmpList()) {
-  if (isolate() != NULL) {
+  if (create_code_object == CodeObjectRequired::kYes) {
     code_object_ =
         Handle<Object>::New(isolate()->heap()->undefined_value(), isolate());
   }

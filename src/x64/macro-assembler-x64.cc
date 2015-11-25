@@ -17,12 +17,13 @@
 namespace v8 {
 namespace internal {
 
-MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size)
+MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size,
+                               CodeObjectRequired create_code_object)
     : Assembler(arg_isolate, buffer, size),
       generating_stub_(false),
       has_frame_(false),
       root_array_available_(true) {
-  if (isolate() != NULL) {
+  if (create_code_object == CodeObjectRequired::kYes) {
     code_object_ =
         Handle<Object>::New(isolate()->heap()->undefined_value(), isolate());
   }
@@ -5201,7 +5202,7 @@ bool AreAliased(Register reg1,
 CodePatcher::CodePatcher(byte* address, int size)
     : address_(address),
       size_(size),
-      masm_(NULL, address, size + Assembler::kGap) {
+      masm_(NULL, address, size + Assembler::kGap, CodeObjectRequired::kNo) {
   // Create a new macro assembler pointing to the address of the code to patch.
   // The size is adjusted with kGap on order for the assembler to generate size
   // bytes of instructions without failing with buffer size constraints.

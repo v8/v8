@@ -154,7 +154,8 @@ TEST(SmiMove) {
   CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
+  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+                           v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;  // Create a pointer for the __ macro.
   EntryCode(masm);
   Label exit;
@@ -239,7 +240,8 @@ TEST(SmiCompare) {
   CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
+  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+                           v8::internal::CodeObjectRequired::kYes);
 
   MacroAssembler* masm = &assembler;
   EntryCode(masm);
@@ -287,7 +289,8 @@ TEST(Integer32ToSmi) {
   CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
+  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+                           v8::internal::CodeObjectRequired::kYes);
 
   MacroAssembler* masm = &assembler;
   EntryCode(masm);
@@ -413,7 +416,8 @@ TEST(Integer64PlusConstantToSmi) {
   CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
+  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+                           v8::internal::CodeObjectRequired::kYes);
 
   MacroAssembler* masm = &assembler;
   EntryCode(masm);
@@ -455,7 +459,8 @@ TEST(SmiCheck) {
   CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
+  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+                           v8::internal::CodeObjectRequired::kYes);
 
   MacroAssembler* masm = &assembler;
   EntryCode(masm);
@@ -674,7 +679,8 @@ TEST(SmiNeg) {
   CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
+  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+                           v8::internal::CodeObjectRequired::kYes);
 
   MacroAssembler* masm = &assembler;
   EntryCode(masm);
@@ -885,7 +891,8 @@ TEST(SmiAdd) {
   CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
+  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+                           v8::internal::CodeObjectRequired::kYes);
 
   MacroAssembler* masm = &assembler;
   EntryCode(masm);
@@ -1101,7 +1108,8 @@ TEST(SmiSub) {
   CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
+  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+                           v8::internal::CodeObjectRequired::kYes);
 
   MacroAssembler* masm = &assembler;
   EntryCode(masm);
@@ -1189,7 +1197,8 @@ TEST(SmiMul) {
   CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
+  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+                           v8::internal::CodeObjectRequired::kYes);
 
   MacroAssembler* masm = &assembler;
   EntryCode(masm);
@@ -1292,7 +1301,8 @@ TEST(SmiDiv) {
   CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
+  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+                           v8::internal::CodeObjectRequired::kYes);
 
   MacroAssembler* masm = &assembler;
   EntryCode(masm);
@@ -1399,7 +1409,8 @@ TEST(SmiMod) {
   CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
+  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+                           v8::internal::CodeObjectRequired::kYes);
 
   MacroAssembler* masm = &assembler;
   EntryCode(masm);
@@ -1493,7 +1504,8 @@ TEST(SmiIndex) {
   CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
+  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+                           v8::internal::CodeObjectRequired::kYes);
 
   MacroAssembler* masm = &assembler;
   EntryCode(masm);
@@ -1559,7 +1571,8 @@ TEST(SmiSelectNonSmi) {
   CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
+  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+                           v8::internal::CodeObjectRequired::kYes);
 
   MacroAssembler* masm = &assembler;
   EntryCode(masm);
@@ -1635,7 +1648,8 @@ TEST(SmiAnd) {
   CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
+  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+                           v8::internal::CodeObjectRequired::kYes);
 
   MacroAssembler* masm = &assembler;
   EntryCode(masm);
@@ -1713,7 +1727,8 @@ TEST(SmiOr) {
   CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
+  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+                           v8::internal::CodeObjectRequired::kYes);
 
   MacroAssembler* masm = &assembler;
   EntryCode(masm);
@@ -1793,7 +1808,8 @@ TEST(SmiXor) {
   CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
+  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+                           v8::internal::CodeObjectRequired::kYes);
 
   MacroAssembler* masm = &assembler;
   EntryCode(masm);
@@ -1857,7 +1873,8 @@ TEST(SmiNot) {
   CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
+  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+                           v8::internal::CodeObjectRequired::kYes);
 
   MacroAssembler* masm = &assembler;
   EntryCode(masm);
@@ -1950,7 +1967,8 @@ TEST(SmiShiftLeft) {
   CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
+  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+                           v8::internal::CodeObjectRequired::kYes);
 
   MacroAssembler* masm = &assembler;
   EntryCode(masm);
@@ -2053,7 +2071,8 @@ TEST(SmiShiftLogicalRight) {
   CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
+  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+                           v8::internal::CodeObjectRequired::kYes);
 
   MacroAssembler* masm = &assembler;
   EntryCode(masm);
@@ -2119,7 +2138,8 @@ TEST(SmiShiftArithmeticRight) {
   CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
+  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+                           v8::internal::CodeObjectRequired::kYes);
 
   MacroAssembler* masm = &assembler;
   EntryCode(masm);
@@ -2180,7 +2200,8 @@ TEST(PositiveSmiTimesPowerOfTwoToInteger64) {
   CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
+  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+                           v8::internal::CodeObjectRequired::kYes);
 
   MacroAssembler* masm = &assembler;
   EntryCode(masm);
@@ -2220,7 +2241,8 @@ TEST(OperandOffset) {
   CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
+  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+                           v8::internal::CodeObjectRequired::kYes);
 
   MacroAssembler* masm = &assembler;
   Label exit;
@@ -2570,7 +2592,8 @@ TEST(LoadAndStoreWithRepresentation) {
   CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
+  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+                           v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;  // Create a pointer for the __ macro.
   EntryCode(masm);
   __ subq(rsp, Immediate(1 * kPointerSize));

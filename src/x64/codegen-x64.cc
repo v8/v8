@@ -39,7 +39,8 @@ UnaryMathFunctionWithIsolate CreateExpFunction(Isolate* isolate) {
   if (buffer == nullptr) return nullptr;
   ExternalReference::InitializeMathExpData();
 
-  MacroAssembler masm(nullptr, buffer, static_cast<int>(actual_size));
+  MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size),
+                      CodeObjectRequired::kNo);
   // xmm0: raw double input.
   XMMRegister input = xmm0;
   XMMRegister result = xmm1;
@@ -70,7 +71,8 @@ UnaryMathFunction CreateSqrtFunction() {
       static_cast<byte*>(base::OS::Allocate(1 * KB, &actual_size, true));
   if (buffer == NULL) return &std::sqrt;
 
-  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
+  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size),
+                      CodeObjectRequired::kNo);
   // xmm0: raw double input.
   // Move double input into registers.
   __ Sqrtsd(xmm0, xmm0);
@@ -94,7 +96,8 @@ ModuloFunction CreateModuloFunction() {
   byte* buffer = static_cast<byte*>(
       base::OS::Allocate(Assembler::kMinimalBufferSize, &actual_size, true));
   CHECK(buffer);
-  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
+  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size),
+                      CodeObjectRequired::kNo);
   // Generated code is put into a fixed, unmovable, buffer, and not into
   // the V8 heap. We can't, and don't, refer to any relocatable addresses
   // (e.g. the JavaScript nan-object).

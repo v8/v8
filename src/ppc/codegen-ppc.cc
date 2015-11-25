@@ -33,7 +33,8 @@ UnaryMathFunctionWithIsolate CreateExpFunction(Isolate* isolate) {
   if (buffer == nullptr) return nullptr;
   ExternalReference::InitializeMathExpData();
 
-  MacroAssembler masm(nullptr, buffer, static_cast<int>(actual_size));
+  MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size),
+                      CodeObjectRequired::kNo);
 
   {
     DoubleRegister input = d1;
@@ -82,7 +83,8 @@ UnaryMathFunction CreateSqrtFunction() {
       static_cast<byte*>(base::OS::Allocate(1 * KB, &actual_size, true));
   if (buffer == NULL) return &std::sqrt;
 
-  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
+  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size),
+                      CodeObjectRequired::kNo);
 
 // Called from C
   __ function_descriptor();

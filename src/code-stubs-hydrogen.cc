@@ -250,7 +250,7 @@ Handle<Code> HydrogenCodeStub::GenerateLightweightMissCode(
   Factory* factory = isolate()->factory();
 
   // Generate the new code.
-  MacroAssembler masm(isolate(), NULL, 256);
+  MacroAssembler masm(isolate(), NULL, 256, CodeObjectRequired::kYes);
 
   {
     // Update the static counter each time a new code stub is generated.

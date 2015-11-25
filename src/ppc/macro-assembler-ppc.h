@@ -114,7 +114,8 @@ class MacroAssembler : public Assembler {
   // not use isolate-dependent functionality. In this case, it's the
   // responsibility of the caller to never invoke such function on the
   // macro assembler.
-  MacroAssembler(Isolate* isolate, void* buffer, int size);
+  MacroAssembler(Isolate* isolate, void* buffer, int size,
+                 CodeObjectRequired create_code_object);
 
 
   // Returns the size of a call in instructions. Note, the value returned is

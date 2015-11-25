@@ -54,7 +54,8 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
       Assembler::kMinimalBufferSize, &actual_size, true));
   CHECK(buffer);
   HandleScope handles(isolate);
-  MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size));
+  MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size),
+                      v8::internal::CodeObjectRequired::kYes);
   DoubleToIStub stub(isolate, source_reg, destination_reg, 0, true,
                      inline_fastpath);
 

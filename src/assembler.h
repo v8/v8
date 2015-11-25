@@ -55,6 +55,9 @@ class StatsCounter;
 // -----------------------------------------------------------------------------
 // Platform independent assembler base class.
 
+enum class CodeObjectRequired { kNo, kYes };
+
+
 class AssemblerBase: public Malloced {
  public:
   AssemblerBase(Isolate* isolate, void* buffer, int buffer_size);

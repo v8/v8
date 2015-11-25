@@ -721,7 +721,8 @@ TEST(AssemblerX64SSE) {
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
   v8::internal::byte buffer[256];
-  MacroAssembler assm(isolate, buffer, sizeof buffer);
+  MacroAssembler assm(isolate, buffer, sizeof(buffer),
+                      v8::internal::CodeObjectRequired::kYes);
   {
     __ shufps(xmm0, xmm0, 0x0);  // brocast first argument
     __ shufps(xmm1, xmm1, 0x0);  // brocast second argument
@@ -758,7 +759,8 @@ TEST(AssemblerX64FMA_sd) {
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
   v8::internal::byte buffer[1024];
-  MacroAssembler assm(isolate, buffer, sizeof buffer);
+  MacroAssembler assm(isolate, buffer, sizeof(buffer),
+                      v8::internal::CodeObjectRequired::kYes);
   {
     CpuFeatureScope fscope(&assm, FMA3);
     Label exit;
@@ -983,7 +985,8 @@ TEST(AssemblerX64FMA_ss) {
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
   v8::internal::byte buffer[1024];
-  MacroAssembler assm(isolate, buffer, sizeof buffer);
+  MacroAssembler assm(isolate, buffer, sizeof(buffer),
+                      v8::internal::CodeObjectRequired::kYes);
   {
     CpuFeatureScope fscope(&assm, FMA3);
     Label exit;
@@ -1608,7 +1611,8 @@ TEST(AssemblerX64BMI1) {
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
   v8::internal::byte buffer[1024];
-  MacroAssembler assm(isolate, buffer, sizeof buffer);
+  MacroAssembler assm(isolate, buffer, sizeof(buffer),
+                      v8::internal::CodeObjectRequired::kYes);
   {
     CpuFeatureScope fscope(&assm, BMI1);
     Label exit;
@@ -1797,7 +1801,8 @@ TEST(AssemblerX64LZCNT) {
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
   v8::internal::byte buffer[256];
-  MacroAssembler assm(isolate, buffer, sizeof buffer);
+  MacroAssembler assm(isolate, buffer, sizeof(buffer),
+                      v8::internal::CodeObjectRequired::kYes);
   {
     CpuFeatureScope fscope(&assm, LZCNT);
     Label exit;
@@ -1856,7 +1861,8 @@ TEST(AssemblerX64POPCNT) {
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
   v8::internal::byte buffer[256];
-  MacroAssembler assm(isolate, buffer, sizeof buffer);
+  MacroAssembler assm(isolate, buffer, sizeof(buffer),
+                      v8::internal::CodeObjectRequired::kYes);
   {
     CpuFeatureScope fscope(&assm, POPCNT);
     Label exit;
@@ -1915,7 +1921,8 @@ TEST(AssemblerX64BMI2) {
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
   v8::internal::byte buffer[2048];
-  MacroAssembler assm(isolate, buffer, sizeof buffer);
+  MacroAssembler assm(isolate, buffer, sizeof(buffer),
+                      v8::internal::CodeObjectRequired::kYes);
   {
     CpuFeatureScope fscope(&assm, BMI2);
     Label exit;
@@ -2175,7 +2182,8 @@ TEST(AssemblerX64JumpTables1) {
   CcTest::InitializeVM();
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, nullptr, 0);
+  MacroAssembler assm(isolate, nullptr, 0,
+                      v8::internal::CodeObjectRequired::kYes);
 
   const int kNumCases = 512;
   int values[kNumCases];
@@ -2222,7 +2230,8 @@ TEST(AssemblerX64JumpTables2) {
   CcTest::InitializeVM();
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, nullptr, 0);
+  MacroAssembler assm(isolate, nullptr, 0,
+                      v8::internal::CodeObjectRequired::kYes);
 
   const int kNumCases = 512;
   int values[kNumCases];

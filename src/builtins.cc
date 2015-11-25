@@ -2306,7 +2306,8 @@ void Builtins::SetUp(Isolate* isolate, bool create_heap_objects) {
   // separate code object for each one.
   for (int i = 0; i < builtin_count; i++) {
     if (create_heap_objects) {
-      MacroAssembler masm(isolate, u.buffer, sizeof u.buffer);
+      MacroAssembler masm(isolate, u.buffer, sizeof u.buffer,
+                          CodeObjectRequired::kYes);
       // Generate the code/adaptor.
       typedef void (*Generator)(MacroAssembler*, int, BuiltinExtraArguments);
       Generator g = FUNCTION_CAST<Generator>(functions[i].generator);

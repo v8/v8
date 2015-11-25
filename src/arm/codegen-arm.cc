@@ -33,7 +33,8 @@ UnaryMathFunctionWithIsolate CreateExpFunction(Isolate* isolate) {
   if (buffer == nullptr) return nullptr;
   ExternalReference::InitializeMathExpData();
 
-  MacroAssembler masm(nullptr, buffer, static_cast<int>(actual_size));
+  MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size),
+                      CodeObjectRequired::kNo);
 
   {
     DwVfpRegister input = d0;
@@ -88,7 +89,8 @@ MemCopyUint8Function CreateMemCopyUint8Function(MemCopyUint8Function stub) {
       static_cast<byte*>(base::OS::Allocate(1 * KB, &actual_size, true));
   if (buffer == NULL) return stub;
 
-  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
+  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size),
+                      CodeObjectRequired::kNo);
 
   Register dest = r0;
   Register src = r1;
@@ -245,7 +247,8 @@ MemCopyUint16Uint8Function CreateMemCopyUint16Uint8Function(
       static_cast<byte*>(base::OS::Allocate(1 * KB, &actual_size, true));
   if (buffer == NULL) return stub;
 
-  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
+  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size),
+                      CodeObjectRequired::kNo);
 
   Register dest = r0;
   Register src = r1;
@@ -330,7 +333,8 @@ UnaryMathFunction CreateSqrtFunction() {
       static_cast<byte*>(base::OS::Allocate(1 * KB, &actual_size, true));
   if (buffer == NULL) return &std::sqrt;
 
-  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
+  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size),
+                      CodeObjectRequired::kNo);
 
   __ MovFromFloatParameter(d0);
   __ vsqrt(d0, d0);

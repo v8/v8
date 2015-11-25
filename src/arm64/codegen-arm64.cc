@@ -38,7 +38,8 @@ UnaryMathFunctionWithIsolate CreateExpFunction(Isolate* isolate) {
   if (buffer == nullptr) return nullptr;
 
   ExternalReference::InitializeMathExpData();
-  MacroAssembler masm(nullptr, buffer, static_cast<int>(actual_size));
+  MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size),
+                      CodeObjectRequired::kNo);
   masm.SetStackPointer(csp);
 
   // The argument will be in d0 on entry.

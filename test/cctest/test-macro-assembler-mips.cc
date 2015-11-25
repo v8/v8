@@ -85,7 +85,8 @@ TEST(CopyBytes) {
   byte* a0_;
   byte* a1_;
 
-  MacroAssembler assembler(isolate, NULL, 0);
+  MacroAssembler assembler(isolate, NULL, 0,
+                           v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;
 
   // Code to be generated: The stuff in CopyBytes followed by a store of a0 and
@@ -187,7 +188,8 @@ TEST(jump_tables4) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assembler(isolate, NULL, 0);
+  MacroAssembler assembler(isolate, NULL, 0,
+                           v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;
 
   const int kNumCases = 512;

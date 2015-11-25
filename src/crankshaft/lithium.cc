@@ -502,7 +502,8 @@ LChunk* LChunk::NewChunk(HGraph* graph) {
 
 
 Handle<Code> LChunk::Codegen() {
-  MacroAssembler assembler(info()->isolate(), NULL, 0);
+  MacroAssembler assembler(info()->isolate(), NULL, 0,
+                           CodeObjectRequired::kYes);
   LOG_CODE_EVENT(info()->isolate(),
                  CodeStartLinePosInfoRecordEvent(
                      assembler.positions_recorder()));

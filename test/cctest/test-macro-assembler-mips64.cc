@@ -86,7 +86,8 @@ TEST(CopyBytes) {
   byte* a0_;
   byte* a1_;
 
-  MacroAssembler assembler(isolate, NULL, 0);
+  MacroAssembler assembler(isolate, NULL, 0,
+                           v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;
 
   // Code to be generated: The stuff in CopyBytes followed by a store of a0 and
@@ -151,7 +152,8 @@ TEST(LoadConstants) {
     refConstants[i] = ~(mask << i);
   }
 
-  MacroAssembler assembler(isolate, NULL, 0);
+  MacroAssembler assembler(isolate, NULL, 0,
+                           v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;
 
   __ mov(a4, a0);
@@ -185,7 +187,8 @@ TEST(LoadAddress) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
 
-  MacroAssembler assembler(isolate, NULL, 0);
+  MacroAssembler assembler(isolate, NULL, 0,
+                           v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;
   Label to_jump, skip;
   __ mov(a4, a0);
@@ -228,7 +231,8 @@ TEST(jump_tables4) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assembler(isolate, NULL, 0);
+  MacroAssembler assembler(isolate, NULL, 0,
+                           v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;
 
   const int kNumCases = 512;

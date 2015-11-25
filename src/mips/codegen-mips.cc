@@ -32,7 +32,8 @@ UnaryMathFunctionWithIsolate CreateExpFunction(Isolate* isolate) {
   if (buffer == nullptr) return nullptr;
   ExternalReference::InitializeMathExpData();
 
-  MacroAssembler masm(nullptr, buffer, static_cast<int>(actual_size));
+  MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size),
+                      CodeObjectRequired::kNo);
 
   {
     DoubleRegister input = f12;
@@ -82,7 +83,8 @@ MemCopyUint8Function CreateMemCopyUint8Function(MemCopyUint8Function stub) {
 
   // This code assumes that cache lines are 32 bytes and if the cache line is
   // larger it will not work correctly.
-  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
+  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size),
+                      CodeObjectRequired::kNo);
 
   {
     Label lastb, unaligned, aligned, chkw,
@@ -611,7 +613,8 @@ UnaryMathFunction CreateSqrtFunction() {
       static_cast<byte*>(base::OS::Allocate(1 * KB, &actual_size, true));
   if (buffer == NULL) return &std::sqrt;
 
-  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
+  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size),
+                      CodeObjectRequired::kNo);
 
   __ MovFromFloatParameter(f12);
   __ sqrt_d(f0, f12);

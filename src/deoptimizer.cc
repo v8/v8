@@ -1831,7 +1831,7 @@ void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
   while (max_entry_id >= entry_count) entry_count *= 2;
   CHECK(entry_count <= Deoptimizer::kMaxNumberOfEntries);
 
-  MacroAssembler masm(isolate, NULL, 16 * KB);
+  MacroAssembler masm(isolate, NULL, 16 * KB, CodeObjectRequired::kYes);
   masm.set_emit_debug_code(false);
   GenerateDeoptimizationEntries(&masm, entry_count, type);
   CodeDesc desc;

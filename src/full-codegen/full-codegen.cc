@@ -38,7 +38,8 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   }
   CodeGenerator::MakeCodePrologue(info, "full");
   const int kInitialBufferSize = 4 * KB;
-  MacroAssembler masm(info->isolate(), NULL, kInitialBufferSize);
+  MacroAssembler masm(info->isolate(), NULL, kInitialBufferSize,
+                      CodeObjectRequired::kYes);
   if (info->will_serialize()) masm.enable_serializer();
 
   LOG_CODE_EVENT(isolate,

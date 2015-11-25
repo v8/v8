@@ -84,7 +84,8 @@ TEST(CopyBytes) {
   byte* r0_;
   byte* r1_;
 
-  MacroAssembler assembler(isolate, NULL, 0);
+  MacroAssembler assembler(isolate, NULL, 0,
+                           v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;
 
   // Code to be generated: The stuff in CopyBytes followed by a store of R0 and
@@ -147,7 +148,8 @@ TEST(LoadAndStoreWithRepresentation) {
   CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
+  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+                           v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;  // Create a pointer for the __ macro.
   __ sub(sp, sp, Operand(1 * kPointerSize));
   Label exit;

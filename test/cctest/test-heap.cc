@@ -4943,7 +4943,8 @@ TEST(NextCodeLinkIsWeak) {
 
 static Handle<Code> DummyOptimizedCode(Isolate* isolate) {
   i::byte buffer[i::Assembler::kMinimalBufferSize];
-  MacroAssembler masm(isolate, buffer, sizeof(buffer));
+  MacroAssembler masm(isolate, buffer, sizeof(buffer),
+                      v8::internal::CodeObjectRequired::kYes);
   CodeDesc desc;
   masm.Push(isolate->factory()->undefined_value());
   masm.Drop(1);

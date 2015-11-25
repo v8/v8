@@ -95,7 +95,7 @@ RegExpMacroAssemblerX64::RegExpMacroAssemblerX64(Isolate* isolate, Zone* zone,
                                                  Mode mode,
                                                  int registers_to_save)
     : NativeRegExpMacroAssembler(isolate, zone),
-      masm_(isolate, NULL, kRegExpCodeSize),
+      masm_(isolate, NULL, kRegExpCodeSize, CodeObjectRequired::kYes),
       no_root_array_scope_(&masm_),
       code_relative_fixup_positions_(4, zone),
       mode_(mode),

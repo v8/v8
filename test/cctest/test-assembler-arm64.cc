@@ -117,16 +117,17 @@ static void InitializeVM() {
 #ifdef USE_SIMULATOR
 
 // Run tests with the simulator.
-#define SETUP_SIZE(buf_size)                    \
-  Isolate* isolate = CcTest::i_isolate();       \
-  HandleScope scope(isolate);                   \
-  DCHECK(isolate != NULL);                      \
-  byte* buf = new byte[buf_size];               \
-  MacroAssembler masm(isolate, buf, buf_size);  \
-  Decoder<DispatchingDecoderVisitor>* decoder = \
-      new Decoder<DispatchingDecoderVisitor>(); \
-  Simulator simulator(decoder);                 \
-  PrintDisassembler* pdis = NULL;               \
+#define SETUP_SIZE(buf_size)                                   \
+  Isolate* isolate = CcTest::i_isolate();                      \
+  HandleScope scope(isolate);                                  \
+  DCHECK(isolate != NULL);                                     \
+  byte* buf = new byte[buf_size];                              \
+  MacroAssembler masm(isolate, buf, buf_size,                  \
+                      v8::internal::CodeObjectRequired::kYes); \
+  Decoder<DispatchingDecoderVisitor>* decoder =                \
+      new Decoder<DispatchingDecoderVisitor>();                \
+  Simulator simulator(decoder);                                \
+  PrintDisassembler* pdis = NULL;                              \
   RegisterDump core;
 
 /*  if (Cctest::trace_sim()) {                                                 \
@@ -171,12 +172,13 @@ static void InitializeVM() {
 
 #else  // ifdef USE_SIMULATOR.
 // Run the test on real hardware or models.
-#define SETUP_SIZE(buf_size)                   \
-  Isolate* isolate = CcTest::i_isolate();      \
-  HandleScope scope(isolate);                  \
-  DCHECK(isolate != NULL);                     \
-  byte* buf = new byte[buf_size];              \
-  MacroAssembler masm(isolate, buf, buf_size); \
+#define SETUP_SIZE(buf_size)                                   \
+  Isolate* isolate = CcTest::i_isolate();                      \
+  HandleScope scope(isolate);                                  \
+  DCHECK(isolate != NULL);                                     \
+  byte* buf = new byte[buf_size];                              \
+  MacroAssembler masm(isolate, buf, buf_size,                  \
+                      v8::internal::CodeObjectRequired::kYes); \
   RegisterDump core;
 
 #define RESET()                                                                \

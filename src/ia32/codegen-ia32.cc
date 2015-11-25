@@ -41,7 +41,8 @@ UnaryMathFunctionWithIsolate CreateExpFunction(Isolate* isolate) {
   if (buffer == nullptr) return nullptr;
   ExternalReference::InitializeMathExpData();
 
-  MacroAssembler masm(nullptr, buffer, static_cast<int>(actual_size));
+  MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size),
+                      CodeObjectRequired::kNo);
   // esp[1 * kPointerSize]: raw double input
   // esp[0 * kPointerSize]: return address
   {
@@ -76,7 +77,8 @@ UnaryMathFunction CreateSqrtFunction() {
   byte* buffer =
       static_cast<byte*>(base::OS::Allocate(1 * KB, &actual_size, true));
   if (buffer == NULL) return &std::sqrt;
-  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
+  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size),
+                      CodeObjectRequired::kNo);
   // esp[1 * kPointerSize]: raw double input
   // esp[0 * kPointerSize]: return address
   // Move double input into registers.
@@ -191,7 +193,8 @@ MemMoveFunction CreateMemMoveFunction() {
   byte* buffer =
       static_cast<byte*>(base::OS::Allocate(1 * KB, &actual_size, true));
   if (buffer == NULL) return NULL;
-  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
+  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size),
+                      CodeObjectRequired::kNo);
   LabelConverter conv(buffer);
 
   // Generated code is put into a fixed, unmovable buffer, and not into

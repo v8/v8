@@ -146,7 +146,8 @@ enum SeqStringSetCharCheckIndexType { kIndexIsSmi, kIndexIsInteger32 };
 
 class MacroAssembler : public Assembler {
  public:
-  MacroAssembler(Isolate* isolate, byte * buffer, unsigned buffer_size);
+  MacroAssembler(Isolate* isolate, byte* buffer, unsigned buffer_size,
+                 CodeObjectRequired create_code_object);
 
   inline Handle<Object> CodeObject();
 
