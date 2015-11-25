@@ -624,11 +624,6 @@
   'js1_5/Regress/regress-417893': [FAIL_OK],
 
 
-  # Unsupported use of "[]" as function parameter. We match JSC.
-  'js1_5/Regress/regress-416737-01': [FAIL_OK],
-  'js1_5/Regress/regress-416737-02': [FAIL_OK],
-
-
   # Illegal escape-sequences in string literals. Has already been fixed
   # by most engines (i.e. V8, JSC, Opera and FF).
   'ecma/Array/15.4.5.1-1': [FAIL_OK],

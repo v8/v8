@@ -211,7 +211,6 @@ DEFINE_IMPLICATION(es_staging, harmony_destructuring_bind)
 
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED(V)                                     \
-  V(harmony_destructuring_bind, "harmony destructuring")      \
   V(harmony_regexps, "harmony regular expression extensions") \
   V(harmony_sloppy, "harmony features in sloppy mode")        \
   V(harmony_sloppy_let, "harmony let in sloppy mode")
@@ -220,6 +219,7 @@ DEFINE_IMPLICATION(es_staging, harmony_destructuring_bind)
 #define HARMONY_SHIPPING(V)                                     \
   V(harmony_array_includes, "harmony Array.prototype.includes") \
   V(harmony_default_parameters, "harmony default parameters")   \
+  V(harmony_destructuring_bind, "harmony destructuring bind")   \
   V(harmony_object_observe, "harmony Object.observe")           \
   V(harmony_rest_parameters, "harmony rest parameters")         \
   V(harmony_concat_spreadable, "harmony isConcatSpreadable")    \
