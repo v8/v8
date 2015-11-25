@@ -103,9 +103,6 @@
   'built-ins/Symbol/species/builtin-getter-name': [FAIL],
   'built-ins/Symbol/species/subclassing': [FAIL],
 
-  # https://code.google.com/p/v8/issues/detail?id=4242
-  'built-ins/Date/15.9.1.15-1': [FAIL],
-
   # https://code.google.com/p/v8/issues/detail?id=4002
   'built-ins/Error/prototype/S15.11.4_A2': [FAIL],
 
@@ -139,9 +136,6 @@
   'built-ins/RegExp/from-regexp-like-get-source-err': [FAIL],
   'built-ins/RegExp/from-regexp-like-get-flags-err': [FAIL],
   'built-ins/RegExp/from-regexp-like-get-ctor-err': [FAIL],
-
-  # https://code.google.com/p/v8/issues/detail?id=4245
-  'built-ins/String/prototype/split/S15.5.4.14_A2_T37': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=4348
   'built-ins/String/prototype/Symbol.iterator/this-val-non-obj-coercible': [FAIL],
@@ -437,11 +431,6 @@
   'language/types/number/S8.5_A2.1': [PASS, FAIL_OK],
   'language/types/number/S8.5_A2.2': [PASS, FAIL_OK],
 
-  # 'if' should never return a completion whose value component is empty.
-  # https://bugs.ecmascript.org/show_bug.cgi?id=4540
-  'language/statements/for/S12.6.3_A9.1': [FAIL],
-  'language/statements/for/S12.6.3_A9': [FAIL],
-
   ############################ INVALID TESTS #############################
 
   # The reference value calculated by Test262 is incorrect if you run these
@@ -478,31 +467,6 @@
 
   # https://github.com/tc39/test262/issues/436
   'built-ins/RegExp/call_with_regexp_match_falsy': [FAIL],
-
-  # Number/Boolean/String.prototype were once plain objects in ES6,
-  # but will no longer be once we roll to a test262 including
-  # https://github.com/tc39/test262/commit/1da4c7805
-  #
-  # https://code.google.com/p/v8/issues/detail?id=4001
-  # https://code.google.com/p/v8/issues/detail?id=4006
-  'built-ins/Boolean/prototype/S15.6.3.1_A1': [FAIL],
-  'built-ins/Boolean/prototype/S15.6.4_A1': [FAIL],
-  'built-ins/Boolean/prototype/toString/S15.6.4.2_A1_T1': [FAIL],
-  'built-ins/Boolean/prototype/toString/S15.6.4.2_A1_T2': [FAIL],
-  'built-ins/Boolean/prototype/valueOf/S15.6.4.3_A1_T1': [FAIL],
-  'built-ins/Boolean/prototype/valueOf/S15.6.4.3_A1_T2': [FAIL],
-  'built-ins/Number/15.7.4-1': [FAIL],
-  'built-ins/Number/prototype/S15.7.3.1_A2_*': [FAIL],
-  'built-ins/Number/prototype/S15.7.3.1_A3': [FAIL],
-  'built-ins/Number/prototype/S15.7.4_A1': [FAIL],
-  'built-ins/Number/prototype/toFixed/S15.7.4.5_A1.1_T01': [FAIL],
-  'built-ins/Number/prototype/toString/S15.7.4.2_A1_*': [FAIL],
-  'built-ins/Number/prototype/toString/S15.7.4.2_A2_*': [FAIL],
-  'built-ins/Number/prototype/valueOf/S15.7.4.4_A1_*': [FAIL],
-  'built-ins/String/prototype/S15.5.4_A1': [FAIL],
-  'built-ins/String/prototype/S15.5.4_A2': [FAIL],
-  'built-ins/String/prototype/S15.5.4_A3': [FAIL],
-  'language/expressions/property-accessors/S11.2.1_A4_T5': [FAIL],
 
   ############################ SKIPPED TESTS #############################
 

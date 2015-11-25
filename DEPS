@@ -28,7 +28,7 @@ deps = {
     Var("git_url") + "/v8/deps/third_party/mozilla-tests.git" + "@" + "f6c578a10ea707b1a8ab0b88943fe5115ce2b9be",
   "v8/test/simdjs/data": Var("git_url") + "/external/github.com/tc39/ecmascript_simd.git" + "@" + "c8ef63c728283debc25891123eb00482fee4b8cd",
   "v8/test/test262/data":
-    Var("git_url") + "/external/github.com/tc39/test262.git" + "@" + "ea222fb7d09e334c321b987656315ad4056ded96",
+    Var("git_url") + "/external/github.com/tc39/test262.git" + "@" + "fd44cd73dfbce0b515a2474b7cd505d6176a9eb5",
   "v8/tools/clang":
     Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "aeba05c6d90e906ba60a328e9a5b68f25627dc29",
 }
