@@ -7680,7 +7680,7 @@ class JSMessageObject: public JSObject {
 // used for tracking the last usage (used for code flushing)..
 // - max number of registers used by irregexp implementations.
 // - number of capture registers (output values) of the regexp.
-class JSRegExp final : public JSObject {
+class JSRegExp: public JSObject {
  public:
   // Meaning of Type:
   // NOT_COMPILED: Initial value. No data has been stored in the JSRegExp yet.
