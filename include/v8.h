@@ -2663,10 +2663,10 @@ class V8_EXPORT Object : public Value {
   // will only be returned if the interceptor doesn't return a value.
   //
   // Note also that this only works for named properties.
-  V8_DEPRECATE_SOON("Use CreateDataProperty",
+  V8_DEPRECATE_SOON("Use CreateDataProperty / DefineOwnProperty",
                     bool ForceSet(Local<Value> key, Local<Value> value,
                                   PropertyAttribute attribs = None));
-  V8_DEPRECATE_SOON("Use CreateDataProperty",
+  V8_DEPRECATE_SOON("Use CreateDataProperty / DefineOwnProperty",
                     Maybe<bool> ForceSet(Local<Context> context,
                                          Local<Value> key, Local<Value> value,
                                          PropertyAttribute attribs = None));
@@ -2921,7 +2921,7 @@ class V8_EXPORT Object : public Value {
 
   V8_DEPRECATE_SOON("Use v8::Object::SetPrivate instead.",
                     bool SetHiddenValue(Local<String> key, Local<Value> value));
-  V8_DEPRECATE_SOON("Use v8::Object::GetHidden instead.",
+  V8_DEPRECATE_SOON("Use v8::Object::GetPrivate instead.",
                     Local<Value> GetHiddenValue(Local<String> key));
   V8_DEPRECATE_SOON("Use v8::Object::DeletePrivate instead.",
                     bool DeleteHiddenValue(Local<String> key));
