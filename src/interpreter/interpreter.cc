@@ -1365,31 +1365,20 @@ void Interpreter::DoCreateObjectLiteral(
 }
 
 
-// CreateClosure <index> <tenured>
+// CreateClosure <tenured>
 //
-// Creates a new closure for SharedFunctionInfo at position |index| in the
-// constant pool and with the PretenureFlag <tenured>.
+// Creates a new closure for SharedFunctionInfo in the accumulator with the
+// PretenureFlag <tenured>.
 void Interpreter::DoCreateClosure(compiler::InterpreterAssembler* assembler) {
   // TODO(rmcilroy): Possibly call FastNewClosureStub when possible instead of
   // calling into the runtime.
-  Node* index = __ BytecodeOperandIdx(0);
-  Node* shared = __ LoadConstantPoolEntry(index);
-  Node* tenured_raw = __ BytecodeOperandImm(1);
+  Node* shared = __ GetAccumulator();
+  Node* tenured_raw = __ BytecodeOperandImm(0);
   Node* tenured = __ SmiTag(tenured_raw);
   Node* result =
       __ CallRuntime(Runtime::kInterpreterNewClosure, shared, tenured);
   __ SetAccumulator(result);
   __ Dispatch();
-}
-
-
-// CreateClosureWide <index> <tenured>
-//
-// Creates a new closure for SharedFunctionInfo at position |index| in the
-// constant pool and with the PretenureFlag <tenured>.
-void Interpreter::DoCreateClosureWide(
-    compiler::InterpreterAssembler* assembler) {
-  return DoCreateClosure(assembler);
 }
 
 

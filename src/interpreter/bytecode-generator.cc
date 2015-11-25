@@ -971,8 +971,10 @@ void BytecodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
   Handle<SharedFunctionInfo> shared_info =
       Compiler::GetSharedFunctionInfo(expr, info()->script(), info());
   CHECK(!shared_info.is_null());  // TODO(rmcilroy): Set stack overflow?
-  builder()->CreateClosure(shared_info,
-                           expr->pretenure() ? TENURED : NOT_TENURED);
+
+  builder()
+      ->LoadLiteral(shared_info)
+      .CreateClosure(expr->pretenure() ? TENURED : NOT_TENURED);
   execution_result()->SetResultInAccumulator();
 }
 

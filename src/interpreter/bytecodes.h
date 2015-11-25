@@ -161,8 +161,7 @@ namespace interpreter {
   V(CreateObjectLiteral, OperandType::kIdx8, OperandType::kImm8)               \
                                                                                \
   /* Closure allocation */                                                     \
-  V(CreateClosure, OperandType::kIdx8, OperandType::kImm8)                     \
-  V(CreateClosureWide, OperandType::kIdx16, OperandType::kImm8)                \
+  V(CreateClosure, OperandType::kImm8)                                         \
                                                                                \
   /* Arguments allocation */                                                   \
   V(CreateMappedArguments, OperandType::kNone)                                 \
