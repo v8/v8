@@ -559,9 +559,17 @@ class RepresentationSelector {
             NodeProperties::GetType(node)->Is(Type::Signed32()));
   }
 
-  bool CanLowerToWord32AdditiveBinop(Node* node, Truncation use) {
+  bool CanLowerToInt32AdditiveBinop(Node* node, Truncation use) {
+    // It is safe to lower to word32 operation if:
+    // - the inputs are safe integers (so the low bits are not discarded), and
+    // - the uses can only observe the lowest 32 bits or they can recover the
+    //   the value from the type.
+    // TODO(jarin): we could support the uint32 case here, but that would
+    // require setting kTypeUint32 as the output type. Eventually, we will want
+    // to use only the big types, then this should work automatically.
     return BothInputsAre(node, safe_int_additive_range_) &&
-           use.TruncatesToWord32();
+           (use.TruncatesToWord32() ||
+            NodeProperties::GetType(node)->Is(Type::Signed32()));
   }
 
   // Dispatching routine for visiting the node {node} with the usage {use}.
@@ -689,7 +697,7 @@ class RepresentationSelector {
       case IrOpcode::kNumberSubtract: {
         // Add and subtract reduce to Int32Add/Sub if the inputs
         // are already integers and all uses are truncating.
-        if (CanLowerToWord32AdditiveBinop(node, truncation)) {
+        if (CanLowerToInt32AdditiveBinop(node, truncation)) {
           // => signed Int32Add/Sub
           VisitInt32Binop(node);
           if (lower()) NodeProperties::ChangeOp(node, Int32Op(node));
