@@ -1062,6 +1062,7 @@
   'regress/regress-165637': [SKIP],
   'regress/regress-2249': [SKIP],
   'regress/regress-319722-ArrayBuffer': [SKIP],
+  'regress/regress-411210': [SKIP],
   'regress/regress-542823': [SKIP],
   'regress/regress-634-debug': [SKIP],
   'regress/regress-78270': [SKIP],
