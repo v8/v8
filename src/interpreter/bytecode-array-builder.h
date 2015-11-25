@@ -123,7 +123,7 @@ class BytecodeArrayBuilder {
   BytecodeArrayBuilder& CreateArguments(CreateArgumentsType type);
 
   // Literals creation.  Constant elements should be in the accumulator.
-  BytecodeArrayBuilder& CreateRegExpLiteral(int literal_index, Register flags);
+  BytecodeArrayBuilder& CreateRegExpLiteral(int literal_index, int flags);
   BytecodeArrayBuilder& CreateArrayLiteral(int literal_index, int flags);
   BytecodeArrayBuilder& CreateObjectLiteral(int literal_index, int flags);
 

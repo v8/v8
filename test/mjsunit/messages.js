@@ -358,8 +358,8 @@ test(function() {
 
 // kInvalidRegExpFlags
 test(function() {
-  /a/x.test("a");
-}, "Invalid flags supplied to RegExp constructor 'x'", SyntaxError);
+  eval("/a/x.test(\"a\");");
+}, "Invalid regular expression flags", SyntaxError);
 
 // kMalformedRegExp
 test(function() {

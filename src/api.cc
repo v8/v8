@@ -6142,28 +6142,14 @@ void v8::Date::DateTimeConfigurationChangeNotification(Isolate* isolate) {
 }
 
 
-static i::Handle<i::String> RegExpFlagsToString(RegExp::Flags flags) {
-  i::Isolate* isolate = i::Isolate::Current();
-  uint8_t flags_buf[5];
-  int num_flags = 0;
-  if ((flags & RegExp::kGlobal) != 0) flags_buf[num_flags++] = 'g';
-  if ((flags & RegExp::kMultiline) != 0) flags_buf[num_flags++] = 'm';
-  if ((flags & RegExp::kIgnoreCase) != 0) flags_buf[num_flags++] = 'i';
-  if ((flags & RegExp::kSticky) != 0) flags_buf[num_flags++] = 'y';
-  if ((flags & RegExp::kUnicode) != 0) flags_buf[num_flags++] = 'u';
-  DCHECK(num_flags <= static_cast<int>(arraysize(flags_buf)));
-  return isolate->factory()->InternalizeOneByteString(
-      i::Vector<const uint8_t>(flags_buf, num_flags));
-}
-
-
 MaybeLocal<v8::RegExp> v8::RegExp::New(Local<Context> context,
                                        Local<String> pattern, Flags flags) {
   PREPARE_FOR_EXECUTION(context, "RegExp::New", RegExp);
   Local<v8::RegExp> result;
-  has_pending_exception = !ToLocal<RegExp>(
-      i::JSRegExp::New(Utils::OpenHandle(*pattern), RegExpFlagsToString(flags)),
-      &result);
+  has_pending_exception =
+      !ToLocal<RegExp>(i::JSRegExp::New(Utils::OpenHandle(*pattern),
+                                        static_cast<i::JSRegExp::Flags>(flags)),
+                       &result);
   RETURN_ON_FAILED_EXECUTION(RegExp);
   RETURN_ESCAPED(result);
 }
@@ -6184,20 +6170,20 @@ Local<v8::String> v8::RegExp::GetSource() const {
 
 
 // Assert that the static flags cast in GetFlags is valid.
-#define REGEXP_FLAG_ASSERT_EQ(api_flag, internal_flag)          \
-  STATIC_ASSERT(static_cast<int>(v8::RegExp::api_flag) ==       \
-                static_cast<int>(i::JSRegExp::internal_flag))
-REGEXP_FLAG_ASSERT_EQ(kNone, NONE);
-REGEXP_FLAG_ASSERT_EQ(kGlobal, GLOBAL);
-REGEXP_FLAG_ASSERT_EQ(kIgnoreCase, IGNORE_CASE);
-REGEXP_FLAG_ASSERT_EQ(kMultiline, MULTILINE);
-REGEXP_FLAG_ASSERT_EQ(kSticky, STICKY);
-REGEXP_FLAG_ASSERT_EQ(kUnicode, UNICODE_ESCAPES);
+#define REGEXP_FLAG_ASSERT_EQ(flag)                   \
+  STATIC_ASSERT(static_cast<int>(v8::RegExp::flag) == \
+                static_cast<int>(i::JSRegExp::flag))
+REGEXP_FLAG_ASSERT_EQ(kNone);
+REGEXP_FLAG_ASSERT_EQ(kGlobal);
+REGEXP_FLAG_ASSERT_EQ(kIgnoreCase);
+REGEXP_FLAG_ASSERT_EQ(kMultiline);
+REGEXP_FLAG_ASSERT_EQ(kSticky);
+REGEXP_FLAG_ASSERT_EQ(kUnicode);
 #undef REGEXP_FLAG_ASSERT_EQ
 
 v8::RegExp::Flags v8::RegExp::GetFlags() const {
   i::Handle<i::JSRegExp> obj = Utils::OpenHandle(this);
-  return static_cast<RegExp::Flags>(obj->GetFlags().value());
+  return RegExp::Flags(static_cast<int>(obj->GetFlags()));
 }
 
 

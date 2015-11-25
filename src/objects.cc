@@ -15656,9 +15656,49 @@ class StringSharedKey : public HashTableKey {
 };
 
 
+namespace {
+
+JSRegExp::Flags RegExpFlagsFromString(Handle<String> flags, bool* success) {
+  JSRegExp::Flags value = JSRegExp::kNone;
+  int length = flags->length();
+  // A longer flags string cannot be valid.
+  if (length > 5) return JSRegExp::Flags(0);
+  for (int i = 0; i < length; i++) {
+    JSRegExp::Flag flag = JSRegExp::kNone;
+    switch (flags->Get(i)) {
+      case 'g':
+        flag = JSRegExp::kGlobal;
+        break;
+      case 'i':
+        flag = JSRegExp::kIgnoreCase;
+        break;
+      case 'm':
+        flag = JSRegExp::kMultiline;
+        break;
+      case 'u':
+        if (!FLAG_harmony_unicode_regexps) return JSRegExp::Flags(0);
+        flag = JSRegExp::kUnicode;
+        break;
+      case 'y':
+        if (!FLAG_harmony_regexps) return JSRegExp::Flags(0);
+        flag = JSRegExp::kSticky;
+        break;
+      default:
+        return JSRegExp::Flags(0);
+    }
+    // Duplicate flag.
+    if (value & flag) return JSRegExp::Flags(0);
+    value |= flag;
+  }
+  *success = true;
+  return value;
+}
+
+}  // namespace
+
+
 // static
-MaybeHandle<JSRegExp> JSRegExp::New(Handle<String> pattern,
-                                    Handle<String> flags) {
+MaybeHandle<JSRegExp> JSRegExp::New(Handle<String> pattern, Flags flags) {
   Isolate* isolate = pattern->GetIsolate();
   Handle<JSFunction> constructor = isolate->regexp_function();
   Handle<JSRegExp> regexp =
@@ -15669,47 +15709,25 @@ MaybeHandle<JSRegExp> JSRegExp::New(Handle<String> pattern,
 
 
 // static
-Handle<JSRegExp> JSRegExp::Copy(Handle<JSRegExp> regexp) {
-  Isolate* const isolate = regexp->GetIsolate();
-  return Handle<JSRegExp>::cast(isolate->factory()->CopyJSObject(regexp));
+MaybeHandle<JSRegExp> JSRegExp::New(Handle<String> pattern,
+                                    Handle<String> flags_string) {
+  Isolate* isolate = pattern->GetIsolate();
+  bool success = false;
+  Flags flags = RegExpFlagsFromString(flags_string, &success);
+  if (!success) {
+    THROW_NEW_ERROR(
+        isolate,
+        NewSyntaxError(MessageTemplate::kInvalidRegExpFlags, flags_string),
+        JSRegExp);
+  }
+  return New(pattern, flags);
 }
 
 
-static JSRegExp::Flags RegExpFlagsFromString(Handle<String> flags,
-                                             bool* success) {
-  uint32_t value = JSRegExp::NONE;
-  int length = flags->length();
-  // A longer flags string cannot be valid.
-  if (length > 5) return JSRegExp::Flags(0);
-  for (int i = 0; i < length; i++) {
-    uint32_t flag = JSRegExp::NONE;
-    switch (flags->Get(i)) {
-      case 'g':
-        flag = JSRegExp::GLOBAL;
-        break;
-      case 'i':
-        flag = JSRegExp::IGNORE_CASE;
-        break;
-      case 'm':
-        flag = JSRegExp::MULTILINE;
-        break;
-      case 'u':
-        if (!FLAG_harmony_unicode_regexps) return JSRegExp::Flags(0);
-        flag = JSRegExp::UNICODE_ESCAPES;
-        break;
-      case 'y':
-        if (!FLAG_harmony_regexps) return JSRegExp::Flags(0);
-        flag = JSRegExp::STICKY;
-        break;
-      default:
-        return JSRegExp::Flags(0);
-    }
-    // Duplicate flag.
-    if (value & flag) return JSRegExp::Flags(0);
-    value |= flag;
-  }
-  *success = true;
-  return JSRegExp::Flags(value);
+// static
+Handle<JSRegExp> JSRegExp::Copy(Handle<JSRegExp> regexp) {
+  Isolate* const isolate = regexp->GetIsolate();
+  return Handle<JSRegExp>::cast(isolate->factory()->CopyJSObject(regexp));
 }
 
 
@@ -15771,27 +15789,34 @@ MaybeHandle<String> EscapeRegExpSource(Isolate* isolate,
 MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
                                            Handle<String> source,
                                            Handle<String> flags_string) {
-  Isolate* isolate = regexp->GetIsolate();
-  Factory* factory = isolate->factory();
-  // If source is the empty string we set it to "(?:)" instead as
-  // suggested by ECMA-262, 5th, section 15.10.4.1.
-  if (source->length() == 0) source = factory->query_colon_string();
-
+  Isolate* isolate = source->GetIsolate();
   bool success = false;
-  JSRegExp::Flags flags = RegExpFlagsFromString(flags_string, &success);
+  Flags flags = RegExpFlagsFromString(flags_string, &success);
   if (!success) {
     THROW_NEW_ERROR(
         isolate,
         NewSyntaxError(MessageTemplate::kInvalidRegExpFlags, flags_string),
         JSRegExp);
   }
+  return Initialize(regexp, source, flags);
+}
+
+
+// static
+MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
+                                           Handle<String> source, Flags flags) {
+  Isolate* isolate = regexp->GetIsolate();
+  Factory* factory = isolate->factory();
+  // If source is the empty string we set it to "(?:)" instead as
+  // suggested by ECMA-262, 5th, section 15.10.4.1.
+  if (source->length() == 0) source = factory->query_colon_string();
 
   Handle<String> escaped_source;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, escaped_source,
                              EscapeRegExpSource(isolate, source), JSRegExp);
 
   regexp->set_source(*escaped_source);
-  regexp->set_flags(Smi::FromInt(flags.value()));
+  regexp->set_flags(Smi::FromInt(flags));
 
   Map* map = regexp->map();
   Object* constructor = map->GetConstructor();
@@ -15821,8 +15846,7 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
 class RegExpKey : public HashTableKey {
  public:
   RegExpKey(Handle<String> string, JSRegExp::Flags flags)
-      : string_(string),
-        flags_(Smi::FromInt(flags.value())) { }
+      : string_(string), flags_(Smi::FromInt(flags)) {}
 
   // Rather than storing the key in the hash table, a pointer to the
   // stored value is stored where the key should be.  IsMatch then

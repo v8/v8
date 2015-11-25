@@ -101,7 +101,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CreateArguments(CreateArgumentsType::kUnmappedArguments);
 
   // Emit literal creation operations
-  builder.CreateRegExpLiteral(0, reg)
+  builder.CreateRegExpLiteral(0, 0)
       .CreateArrayLiteral(0, 0)
       .CreateObjectLiteral(0, 0);
 

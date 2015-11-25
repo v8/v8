@@ -1393,20 +1393,41 @@ bool Scanner::ScanRegExpPattern(bool seen_equal) {
 }
 
 
-bool Scanner::ScanRegExpFlags() {
+Maybe<RegExp::Flags> Scanner::ScanRegExpFlags() {
   // Scan regular expression flags.
   LiteralScope literal(this);
+  int flags = 0;
   while (c0_ >= 0 && unicode_cache_->IsIdentifierPart(c0_)) {
-    if (c0_ != '\\') {
-      AddLiteralCharAdvance();
-    } else {
-      return false;
+    RegExp::Flags flag = RegExp::kNone;
+    switch (c0_) {
+      case 'g':
+        flag = RegExp::kGlobal;
+        break;
+      case 'i':
+        flag = RegExp::kIgnoreCase;
+        break;
+      case 'm':
+        flag = RegExp::kMultiline;
+        break;
+      case 'u':
+        if (!FLAG_harmony_unicode_regexps) return Nothing<RegExp::Flags>();
+        flag = RegExp::kUnicode;
+        break;
+      case 'y':
+        if (!FLAG_harmony_regexps) return Nothing<RegExp::Flags>();
+        flag = RegExp::kSticky;
+        break;
+      default:
+        return Nothing<RegExp::Flags>();
     }
+    if (flags & flag) return Nothing<RegExp::Flags>();
+    AddLiteralCharAdvance();
+    flags |= flag;
   }
   literal.Complete();
 
   next_.location.end_pos = source_pos();
-  return true;
+  return Just(RegExp::Flags(flags));
 }
 
 

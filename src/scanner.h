@@ -445,9 +445,8 @@ class Scanner {
   // Scans the input as a regular expression pattern, previous
   // character(s) must be /(=). Returns true if a pattern is scanned.
   bool ScanRegExpPattern(bool seen_equal);
-  // Returns true if regexp flags are scanned (always since flags can
-  // be empty).
-  bool ScanRegExpFlags();
+  // Scans the input as regular expression flags. Returns the flags on success.
+  Maybe<RegExp::Flags> ScanRegExpFlags();
 
   // Scans the input as a template literal
   Token::Value ScanTemplateStart();

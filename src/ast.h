@@ -1565,12 +1565,11 @@ class RegExpLiteral final : public MaterializedLiteral {
   DECLARE_NODE_TYPE(RegExpLiteral)
 
   Handle<String> pattern() const { return pattern_->string(); }
-  Handle<String> flags() const { return flags_->string(); }
+  int flags() const { return flags_; }
 
  protected:
-  RegExpLiteral(Zone* zone, const AstRawString* pattern,
-                const AstRawString* flags, int literal_index, bool is_strong,
-                int pos)
+  RegExpLiteral(Zone* zone, const AstRawString* pattern, int flags,
+                int literal_index, bool is_strong, int pos)
       : MaterializedLiteral(zone, literal_index, is_strong, pos),
         pattern_(pattern),
         flags_(flags) {
@@ -1578,8 +1577,8 @@ class RegExpLiteral final : public MaterializedLiteral {
   }
 
  private:
-  const AstRawString* pattern_;
-  const AstRawString* flags_;
+  const AstRawString* const pattern_;
+  int const flags_;
 };
 
 
@@ -3438,11 +3437,8 @@ class AstNodeFactory final BASE_EMBEDDED {
         ast_value_factory_, key, value, is_static, is_computed_name);
   }
 
-  RegExpLiteral* NewRegExpLiteral(const AstRawString* pattern,
-                                  const AstRawString* flags,
-                                  int literal_index,
-                                  bool is_strong,
-                                  int pos) {
+  RegExpLiteral* NewRegExpLiteral(const AstRawString* pattern, int flags,
+                                  int literal_index, bool is_strong, int pos) {
     return new (local_zone_) RegExpLiteral(local_zone_, pattern, flags,
                                            literal_index, is_strong, pos);
   }

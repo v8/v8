@@ -1453,7 +1453,7 @@ void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   __ Ldr(x3, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   __ Mov(x2, Smi::FromInt(expr->literal_index()));
   __ Mov(x1, Operand(expr->pattern()));
-  __ Mov(x0, Operand(expr->flags()));
+  __ Mov(x0, Smi::FromInt(expr->flags()));
   FastCloneRegExpStub stub(isolate());
   __ CallStub(&stub);
   context()->Plug(x0);

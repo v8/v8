@@ -463,10 +463,11 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateArguments(
 
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateRegExpLiteral(
-    int literal_index, Register flags) {
+    int literal_index, int flags) {
+  DCHECK(FitsInImm8Operand(flags));  // Flags should fit in 8 bits.
   if (FitsInIdx8Operand(literal_index)) {
     Output(Bytecode::kCreateRegExpLiteral, static_cast<uint8_t>(literal_index),
-           flags.ToOperand());
+           static_cast<uint8_t>(flags));
   } else {
     UNIMPLEMENTED();
   }

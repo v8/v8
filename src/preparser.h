@@ -1250,10 +1250,8 @@ class PreParserFactory {
     return PreParserExpression::Default();
   }
   PreParserExpression NewRegExpLiteral(PreParserIdentifier js_pattern,
-                                       PreParserIdentifier js_flags,
-                                       int literal_index,
-                                       bool is_strong,
-                                       int pos) {
+                                       int js_flags, int literal_index,
+                                       bool is_strong, int pos) {
     return PreParserExpression::Default();
   }
   PreParserExpression NewArrayLiteral(PreParserExpressionList values,
@@ -2226,13 +2224,14 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseRegExpLiteral(
   int literal_index = function_state_->NextMaterializedLiteralIndex();
 
   IdentifierT js_pattern = this->GetNextSymbol(scanner());
-  if (!scanner()->ScanRegExpFlags()) {
+  Maybe<RegExp::Flags> flags = scanner()->ScanRegExpFlags();
+  if (flags.IsNothing()) {
     Next();
     ReportMessage(MessageTemplate::kMalformedRegExpFlags);
     *ok = false;
     return Traits::EmptyExpression();
   }
-  IdentifierT js_flags = this->GetNextSymbol(scanner());
+  int js_flags = flags.FromJust();
   Next();
   return factory()->NewRegExpLiteral(js_pattern, js_flags, literal_index,
                                      is_strong(language_mode()), pos);

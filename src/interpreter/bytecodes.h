@@ -156,7 +156,7 @@ namespace interpreter {
   V(ToObject, OperandType::kNone)                                              \
                                                                                \
   /* Literals */                                                               \
-  V(CreateRegExpLiteral, OperandType::kIdx8, OperandType::kReg8)               \
+  V(CreateRegExpLiteral, OperandType::kIdx8, OperandType::kImm8)               \
   V(CreateArrayLiteral, OperandType::kIdx8, OperandType::kImm8)                \
   V(CreateObjectLiteral, OperandType::kIdx8, OperandType::kImm8)               \
                                                                                \

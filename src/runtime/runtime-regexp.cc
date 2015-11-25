@@ -658,7 +658,7 @@ RUNTIME_FUNCTION(Runtime_StringReplaceGlobalRegExpWithString) {
   CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 1);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, last_match_info, 3);
 
-  RUNTIME_ASSERT(regexp->GetFlags().is_global());
+  RUNTIME_ASSERT(regexp->GetFlags() & JSRegExp::kGlobal);
   RUNTIME_ASSERT(last_match_info->HasFastObjectElements());
 
   subject = String::Flatten(subject);
@@ -1000,7 +1000,7 @@ RUNTIME_FUNCTION(Runtime_RegExpExecMultiple) {
   RUNTIME_ASSERT(result_array->HasFastObjectElements());
 
   subject = String::Flatten(subject);
-  RUNTIME_ASSERT(regexp->GetFlags().is_global());
+  RUNTIME_ASSERT(regexp->GetFlags() & JSRegExp::kGlobal);
 
   if (regexp->CaptureCount() == 0) {
     return SearchRegExpMultiple<false>(isolate, subject, regexp,

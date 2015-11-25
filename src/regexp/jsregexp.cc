@@ -146,25 +146,21 @@ MaybeHandle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
   RegExpCompileData parse_result;
   FlatStringReader reader(isolate, pattern);
   if (!RegExpParser::ParseRegExp(re->GetIsolate(), &zone, &reader,
-                                 flags.is_multiline(), flags.is_unicode(),
-                                 &parse_result)) {
+                                 flags & JSRegExp::kMultiline,
+                                 flags & JSRegExp::kUnicode, &parse_result)) {
     // Throw an exception if we fail to parse the pattern.
     return ThrowRegExpException(re, pattern, parse_result.error);
   }
 
   bool has_been_compiled = false;
 
-  if (parse_result.simple &&
-      !flags.is_ignore_case() &&
-      !flags.is_sticky() &&
-      !HasFewDifferentCharacters(pattern)) {
+  if (parse_result.simple && !(flags & JSRegExp::kIgnoreCase) &&
+      !(flags & JSRegExp::kSticky) && !HasFewDifferentCharacters(pattern)) {
     // Parse-tree is a single atom that is equal to the pattern.
     AtomCompile(re, pattern, flags, pattern);
     has_been_compiled = true;
-  } else if (parse_result.tree->IsAtom() &&
-      !flags.is_ignore_case() &&
-      !flags.is_sticky() &&
-      parse_result.capture_count == 0) {
+  } else if (parse_result.tree->IsAtom() && !(flags & JSRegExp::kIgnoreCase) &&
+             !(flags & JSRegExp::kSticky) && parse_result.capture_count == 0) {
     RegExpAtom* atom = parse_result.tree->AsAtom();
     Vector<const uc16> atom_pattern = atom->data();
     Handle<String> atom_string;
@@ -375,17 +371,18 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re,
   pattern = String::Flatten(pattern);
   RegExpCompileData compile_data;
   FlatStringReader reader(isolate, pattern);
-  if (!RegExpParser::ParseRegExp(isolate, &zone, &reader, flags.is_multiline(),
-                                 flags.is_unicode(), &compile_data)) {
+  if (!RegExpParser::ParseRegExp(isolate, &zone, &reader,
+                                 flags & JSRegExp::kMultiline,
+                                 flags & JSRegExp::kUnicode, &compile_data)) {
     // Throw an exception if we fail to parse the pattern.
     // THIS SHOULD NOT HAPPEN. We already pre-parsed it successfully once.
     USE(ThrowRegExpException(re, pattern, compile_data.error));
     return false;
   }
   RegExpEngine::CompilationResult result = RegExpEngine::Compile(
-      isolate, &zone, &compile_data, flags.is_ignore_case(), flags.is_global(),
-      flags.is_multiline(), flags.is_sticky(), pattern, sample_subject,
-      is_one_byte);
+      isolate, &zone, &compile_data, flags & JSRegExp::kIgnoreCase,
+      flags & JSRegExp::kGlobal, flags & JSRegExp::kMultiline,
+      flags & JSRegExp::kSticky, pattern, sample_subject, is_one_byte);
   if (result.error_message != NULL) {
     // Unable to compile regexp.
     Handle<String> error_message = isolate->factory()->NewStringFromUtf8(

@@ -2292,7 +2292,7 @@ void Factory::SetRegExpAtomData(Handle<JSRegExp> regexp,
 
   store->set(JSRegExp::kTagIndex, Smi::FromInt(type));
   store->set(JSRegExp::kSourceIndex, *source);
-  store->set(JSRegExp::kFlagsIndex, Smi::FromInt(flags.value()));
+  store->set(JSRegExp::kFlagsIndex, Smi::FromInt(flags));
   store->set(JSRegExp::kAtomPatternIndex, *data);
   regexp->set_data(*store);
 }
@@ -2307,7 +2307,7 @@ void Factory::SetRegExpIrregexpData(Handle<JSRegExp> regexp,
   Smi* uninitialized = Smi::FromInt(JSRegExp::kUninitializedValue);
   store->set(JSRegExp::kTagIndex, Smi::FromInt(type));
   store->set(JSRegExp::kSourceIndex, *source);
-  store->set(JSRegExp::kFlagsIndex, Smi::FromInt(flags.value()));
+  store->set(JSRegExp::kFlagsIndex, Smi::FromInt(flags));
   store->set(JSRegExp::kIrregexpLatin1CodeIndex, uninitialized);
   store->set(JSRegExp::kIrregexpUC16CodeIndex, uninitialized);
   store->set(JSRegExp::kIrregexpLatin1CodeSavedIndex, uninitialized);

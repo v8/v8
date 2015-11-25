@@ -242,13 +242,13 @@ RUNTIME_FUNCTION(Runtime_CreateRegExpLiteral) {
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, closure, 0);
   CONVERT_SMI_ARG_CHECKED(index, 1);
   CONVERT_ARG_HANDLE_CHECKED(String, pattern, 2);
-  CONVERT_ARG_HANDLE_CHECKED(String, flags, 3);
+  CONVERT_SMI_ARG_CHECKED(flags, 3);
 
   // Check if boilerplate exists. If not, create it first.
   Handle<Object> boilerplate(closure->literals()->literal(index), isolate);
   if (boilerplate->IsUndefined()) {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, boilerplate,
-                                       JSRegExp::New(pattern, flags));
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, boilerplate, JSRegExp::New(pattern, JSRegExp::Flags(flags)));
     closure->literals()->set_literal(index, *boilerplate);
   }
   return *JSRegExp::Copy(Handle<JSRegExp>::cast(boilerplate));

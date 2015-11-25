@@ -220,7 +220,7 @@ TEST(UsingCachedData) {
       "         42: 'number literal', for: 'keyword as propertyName', "
       "         f\\u006fr: 'keyword propertyname with escape'};"
       "var v = /RegExp Literal/;"
-      "var w = /RegExp Literal\\u0020With Escape/gin;"
+      "var w = /RegExp Literal\\u0020With Escape/gi;"
       "var y = { get getter() { return 42; }, "
       "          set setter(v) { this.value = v; }};"
       "var f = a => function (b) { return a + b; };"
@@ -2795,7 +2795,6 @@ TEST(NoErrorsRegexpLiteral) {
   const char* statement_data[] = {
     "/foo/",
     "/foo/g",
-    "/foo/whatever",  // This is an error but not detected by the parser.
     NULL
   };
 

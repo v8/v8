@@ -247,7 +247,11 @@ void CallPrinter::VisitRegExpLiteral(RegExpLiteral* node) {
   Print("/");
   PrintLiteral(node->pattern(), false);
   Print("/");
-  PrintLiteral(node->flags(), false);
+  if (node->flags() & RegExp::kGlobal) Print("g");
+  if (node->flags() & RegExp::kIgnoreCase) Print("i");
+  if (node->flags() & RegExp::kMultiline) Print("m");
+  if (node->flags() & RegExp::kUnicode) Print("u");
+  if (node->flags() & RegExp::kSticky) Print("y");
 }
 
 
@@ -738,7 +742,11 @@ void PrettyPrinter::VisitRegExpLiteral(RegExpLiteral* node) {
   Print(" RegExp(");
   PrintLiteral(node->pattern(), false);
   Print(",");
-  PrintLiteral(node->flags(), false);
+  if (node->flags() & RegExp::kGlobal) Print("g");
+  if (node->flags() & RegExp::kIgnoreCase) Print("i");
+  if (node->flags() & RegExp::kMultiline) Print("m");
+  if (node->flags() & RegExp::kUnicode) Print("u");
+  if (node->flags() & RegExp::kSticky) Print("y");
   Print(") ");
 }
 
@@ -1470,7 +1478,16 @@ void AstPrinter::VisitRegExpLiteral(RegExpLiteral* node) {
   SNPrintF(buf, "literal_index = %d\n", node->literal_index());
   PrintIndented(buf.start());
   PrintLiteralIndented("PATTERN", node->pattern(), false);
-  PrintLiteralIndented("FLAGS", node->flags(), false);
+  int i = 0;
+  if (node->flags() & RegExp::kGlobal) buf[i++] = 'g';
+  if (node->flags() & RegExp::kIgnoreCase) buf[i++] = 'i';
+  if (node->flags() & RegExp::kMultiline) buf[i++] = 'm';
+  if (node->flags() & RegExp::kUnicode) buf[i++] = 'u';
+  if (node->flags() & RegExp::kSticky) buf[i++] = 'y';
+  buf[i] = '\0';
+  PrintIndented("FLAGS ");
+  Print(buf.start());
+  Print("\n");
 }
 
 

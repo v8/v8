@@ -1311,25 +1311,6 @@ void Interpreter::DoJumpIfUndefinedConstant(
 }
 
 
-// CreateRegExpLiteral <idx> <flags_reg>
-//
-// Creates a regular expression literal for literal index <idx> with flags held
-// in <flags_reg> and the pattern in the accumulator.
-void Interpreter::DoCreateRegExpLiteral(
-    compiler::InterpreterAssembler* assembler) {
-  Node* pattern = __ GetAccumulator();
-  Node* literal_index_raw = __ BytecodeOperandIdx(0);
-  Node* literal_index = __ SmiTag(literal_index_raw);
-  Node* flags_reg = __ BytecodeOperandReg(1);
-  Node* flags = __ LoadRegister(flags_reg);
-  Node* closure = __ LoadRegister(Register::function_closure());
-  Node* result = __ CallRuntime(Runtime::kCreateRegExpLiteral, closure,
-                                literal_index, pattern, flags);
-  __ SetAccumulator(result);
-  __ Dispatch();
-}
-
-
 void Interpreter::DoCreateLiteral(Runtime::FunctionId function_id,
                                   compiler::InterpreterAssembler* assembler) {
   Node* constant_elements = __ GetAccumulator();
@@ -1342,6 +1323,16 @@ void Interpreter::DoCreateLiteral(Runtime::FunctionId function_id,
                                 constant_elements, flags);
   __ SetAccumulator(result);
   __ Dispatch();
+}
+
+
+// CreateRegExpLiteral <idx> <flags>
+//
+// Creates a regular expression literal for literal index <idx> with <flags> and
+// the pattern in the accumulator.
+void Interpreter::DoCreateRegExpLiteral(
+    compiler::InterpreterAssembler* assembler) {
+  DoCreateLiteral(Runtime::kCreateRegExpLiteral, assembler);
 }
 
 

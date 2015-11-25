@@ -11,6 +11,7 @@
 #include "src/assert-scope.h"
 #include "src/bailout-reason.h"
 #include "src/base/bits.h"
+#include "src/base/flags.h"
 #include "src/base/smart-pointers.h"
 #include "src/builtins.h"
 #include "src/checks.h"
@@ -7679,7 +7680,7 @@ class JSMessageObject: public JSObject {
 // used for tracking the last usage (used for code flushing)..
 // - max number of registers used by irregexp implementations.
 // - number of capture registers (output values) of the regexp.
-class JSRegExp: public JSObject {
+class JSRegExp final : public JSObject {
  public:
   // Meaning of Type:
   // NOT_COMPILED: Initial value. No data has been stored in the JSRegExp yet.
@@ -7688,34 +7689,25 @@ class JSRegExp: public JSObject {
   // IRREGEXP_NATIVE: Compiled to native code with Irregexp.
   enum Type { NOT_COMPILED, ATOM, IRREGEXP };
   enum Flag {
-    NONE = 0,
-    GLOBAL = 1,
-    IGNORE_CASE = 2,
-    MULTILINE = 4,
-    STICKY = 8,
-    UNICODE_ESCAPES = 16
+    kNone = 0,
+    kGlobal = 1 << 0,
+    kIgnoreCase = 1 << 1,
+    kMultiline = 1 << 2,
+    kSticky = 1 << 3,
+    kUnicode = 1 << 4,
   };
-
-  class Flags {
-   public:
-    explicit Flags(uint32_t value) : value_(value) { }
-    bool is_global() { return (value_ & GLOBAL) != 0; }
-    bool is_ignore_case() { return (value_ & IGNORE_CASE) != 0; }
-    bool is_multiline() { return (value_ & MULTILINE) != 0; }
-    bool is_sticky() { return (value_ & STICKY) != 0; }
-    bool is_unicode() { return (value_ & UNICODE_ESCAPES) != 0; }
-    uint32_t value() { return value_; }
-   private:
-    uint32_t value_;
-  };
+  typedef base::Flags<Flag> Flags;
 
   DECL_ACCESSORS(data, Object)
   DECL_ACCESSORS(flags, Object)
   DECL_ACCESSORS(source, Object)
 
+  static MaybeHandle<JSRegExp> New(Handle<String> source, Flags flags);
   static MaybeHandle<JSRegExp> New(Handle<String> source, Handle<String> flags);
   static Handle<JSRegExp> Copy(Handle<JSRegExp> regexp);
 
+  static MaybeHandle<JSRegExp> Initialize(Handle<JSRegExp> regexp,
+                                          Handle<String> source, Flags flags);
   static MaybeHandle<JSRegExp> Initialize(Handle<JSRegExp> regexp,
                                           Handle<String> source,
                                           Handle<String> flags_string);
@@ -7817,6 +7809,8 @@ class JSRegExp: public JSObject {
   // range.
   static const int kCodeAgeMask = 0xff;
 };
+
+DEFINE_OPERATORS_FOR_FLAGS(JSRegExp::Flags)
 
 
 class CompilationCacheShape : public BaseShape<HashTableKey*> {
