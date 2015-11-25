@@ -72,67 +72,57 @@ namespace {
 //    need the signedness information to produce the correct value.
 class UseInfo {
  public:
-  // Constructors
-  // ================================================================
-
-  // Uses truncating to the preferred representation.
+  UseInfo(MachineType preferred, Truncation truncation)
+      : preferred_(preferred), truncation_(truncation) {
+    DCHECK(preferred == (preferred & kRepMask));
+  }
   static UseInfo TruncatingWord32() {
-    return UseInfo(kTypeInt32 | kTypeUint32 | kRepWord32);
+    return UseInfo(kRepWord32, Truncation::Word32());
   }
   static UseInfo TruncatingWord64() {
-    return UseInfo(kTypeInt64 | kTypeUint64 | kRepWord64);
+    return UseInfo(kRepWord64, Truncation::Word64());
   }
-  static UseInfo Bool() { return UseInfo(kMachBool); }
-  static UseInfo Float32() { return UseInfo(kMachFloat32); }
-  static UseInfo Float64() { return UseInfo(kMachFloat64); }
+  static UseInfo Bool() { return UseInfo(kRepBit, Truncation::Bool()); }
+  static UseInfo Float32() {
+    return UseInfo(kRepFloat32, Truncation::Float32());
+  }
+  static UseInfo Float64() {
+    return UseInfo(kRepFloat64, Truncation::Float64());
+  }
   static UseInfo PointerInt() {
     return kPointerSize == 4 ? TruncatingWord32() : TruncatingWord64();
   }
+  static UseInfo AnyTagged() { return UseInfo(kRepTagged, Truncation::Any()); }
 
-  // Non-truncating uses.
-  static UseInfo AnyTagged() { return UseInfo(kMachAnyTagged); }
-  static UseInfo Any() { return UseInfo(kTypeAny); }
+  // Undetermined representation.
+  static UseInfo Any() { return UseInfo(kMachNone, Truncation::Any()); }
+  static UseInfo None() { return UseInfo(kMachNone, Truncation::None()); }
 
-  // Ignored-value 'use'.
-  static UseInfo None() { return UseInfo(kMachNone); }
-
-  // Truncating to a representation that is smaller than the preferred
+  // Truncation to a representation that is smaller than the preferred
   // one.
   static UseInfo Float64TruncatingToWord32() {
-    return UseInfo(kRepFloat64 | kTypeInt32 | kTypeUint32);
+    return UseInfo(kRepFloat64, Truncation::Word32());
   }
   static UseInfo Word64TruncatingToWord32() {
-    return UseInfo(kRepWord64 | kTypeInt32 | kTypeUint32);
+    return UseInfo(kRepWord64, Truncation::Word32());
   }
-  static UseInfo AnyTruncatingToBool() { return UseInfo(kTypeBool); }
-
-  UseInfo(MachineTypeUnion representation, MachineTypeUnion truncation)
-      : type_(representation | truncation) {
-    DCHECK(base::bits::CountPopulation32(representation & kRepMask) == 1);
-    DCHECK((representation & kTypeMask) == 0);
-    DCHECK((truncation & kRepMask) == 0);
-    // TODO(jarin) Check/normalize truncation?
+  static UseInfo AnyTruncatingToBool() {
+    return UseInfo(kMachNone, Truncation::Bool());
   }
 
-  // Queries
-  // ================================================================
-  MachineType GetRepresentation() const {
-    return static_cast<MachineType>(type_ & kRepMask);
-  }
-
-  // This should only be used by the Enqueue method.
-  MachineTypeUnion machine_type() const { return type_; }
+  MachineType preferred() const { return preferred_; }
+  Truncation truncation() const { return truncation_; }
 
  private:
-  explicit UseInfo(MachineTypeUnion type) : type_(type) {}
-
-  MachineTypeUnion type_;
+  MachineType preferred_;
+  Truncation truncation_;
 };
 
 
 UseInfo UseInfoFromMachineType(MachineType type) {
   MachineTypeUnion rep = RepresentationOf(type);
   DCHECK((rep & kTypeMask) == 0);
+
   if (rep & kRepTagged) return UseInfo::AnyTagged();
   if (rep & kRepFloat64) {
     DCHECK((rep & kRepWord64) == 0);
@@ -169,11 +159,29 @@ UseInfo UseInfoForBasePointer(const ElementAccess& access) {
 class RepresentationSelector {
  public:
   // Information for each node tracked during the fixpoint.
-  struct NodeInfo {
-    MachineTypeUnion use : 15;     // Union of all usages for the node.
-    bool queued : 1;           // Bookkeeping for the traversal.
-    bool visited : 1;          // Bookkeeping for the traversal.
-    MachineTypeUnion output : 15;  // Output type of the node.
+  class NodeInfo {
+   public:
+    // Adds new use to the node. Returns true if something has changed
+    // and the node has to be requeued.
+    bool AddUse(UseInfo info) {
+      Truncation old_truncation = truncation_;
+      truncation_ = Truncation::Generalize(truncation_, info.truncation());
+      return truncation_ != old_truncation;
+    }
+
+    void set_queued(bool value) { queued_ = value; }
+    bool queued() const { return queued_; }
+    void set_visited() { visited_ = true; }
+    bool visited() const { return visited_; }
+    Truncation truncation() const { return truncation_; }
+    void set_output_type(MachineTypeUnion type) { output_ = type; }
+    MachineTypeUnion output_type() const { return output_; }
+
+   private:
+    bool queued_ = false;                  // Bookkeeping for the traversal.
+    bool visited_ = false;                 // Bookkeeping for the traversal.
+    MachineTypeUnion output_ = kMachNone;  // Output type of the node.
+    Truncation truncation_ = Truncation::None();  // Information about uses.
   };
 
   RepresentationSelector(JSGraph* jsgraph, Zone* zone,
@@ -181,15 +189,13 @@ class RepresentationSelector {
                          SourcePositionTable* source_positions)
       : jsgraph_(jsgraph),
         count_(jsgraph->graph()->NodeCount()),
-        info_(zone->NewArray<NodeInfo>(count_)),
+        info_(count_, zone),
         nodes_(zone),
         replacements_(zone),
         phase_(PROPAGATE),
         changer_(changer),
         queue_(zone),
         source_positions_(source_positions) {
-    memset(info_, 0, sizeof(NodeInfo) * count_);
-
     safe_int_additive_range_ =
         Type::Range(-std::pow(2.0, 52.0), std::pow(2.0, 52.0), zone);
   }
@@ -204,11 +210,11 @@ class RepresentationSelector {
       Node* node = queue_.front();
       NodeInfo* info = GetInfo(node);
       queue_.pop();
-      info->queued = false;
+      info->set_queued(false);
       TRACE(" visit #%d: %s\n", node->id(), node->op()->mnemonic());
-      VisitNode(node, info->use, NULL);
+      VisitNode(node, info->truncation(), NULL);
       TRACE("  ==> output ");
-      PrintInfo(info->output);
+      PrintInfo(info->output_type());
       TRACE("\n");
     }
 
@@ -218,11 +224,12 @@ class RepresentationSelector {
     // Process nodes from the collected {nodes_} vector.
     for (NodeVector::iterator i = nodes_.begin(); i != nodes_.end(); ++i) {
       Node* node = *i;
+      NodeInfo* info = GetInfo(node);
       TRACE(" visit #%d: %s\n", node->id(), node->op()->mnemonic());
       // Reuse {VisitNode()} so the representation rules are in one place.
       SourcePositionTable::Scope scope(
           source_positions_, source_positions_->GetSourcePosition(node));
-      VisitNode(node, GetUseInfo(node), lowering);
+      VisitNode(node, info->truncation(), lowering);
     }
 
     // Perform the final replacements.
@@ -242,34 +249,31 @@ class RepresentationSelector {
   // Enqueue {node} if the {use} contains new information for that node.
   // Add {node} to {nodes_} if this is the first time it's been visited.
   void Enqueue(Node* node, UseInfo use_info = UseInfo::None()) {
-    MachineTypeUnion use = use_info.machine_type();
-
     if (phase_ != PROPAGATE) return;
     NodeInfo* info = GetInfo(node);
-    if (!info->visited) {
+    if (!info->visited()) {
       // First visit of this node.
-      info->visited = true;
-      info->queued = true;
+      info->set_visited();
+      info->set_queued(true);
       nodes_.push_back(node);
       queue_.push(node);
       TRACE("  initial: ");
-      info->use |= use;
-      PrintUseInfo(node);
+      info->AddUse(use_info);
+      PrintTruncation(info->truncation());
       return;
     }
     TRACE("   queue?: ");
-    PrintUseInfo(node);
-    if ((info->use & use) != use) {
+    PrintTruncation(info->truncation());
+    if (info->AddUse(use_info)) {
       // New usage information for the node is available.
-      if (!info->queued) {
+      if (!info->queued()) {
         queue_.push(node);
-        info->queued = true;
+        info->set_queued(true);
         TRACE("   added: ");
       } else {
         TRACE(" inqueue: ");
       }
-      info->use |= use;
-      PrintUseInfo(node);
+      PrintTruncation(info->truncation());
     }
   }
 
@@ -281,7 +285,7 @@ class RepresentationSelector {
     // instruction.
     DCHECK((output & kRepMask) == 0 ||
            base::bits::IsPowerOfTwo32(output & kRepMask));
-    GetInfo(node)->output = output;
+    GetInfo(node)->set_output_type(output);
   }
 
   bool BothInputsAre(Node* node, Type* type) {
@@ -297,7 +301,7 @@ class RepresentationSelector {
       Enqueue(input, UseInfo::TruncatingWord32());
     } else {
       // In the change phase, insert a change before the use if necessary.
-      MachineTypeUnion output = GetInfo(input)->output;
+      MachineTypeUnion output = GetInfo(input)->output_type();
       if ((output & (kRepBit | kRepWord8 | kRepWord16 | kRepWord32)) == 0) {
         // Output representation doesn't match usage.
         TRACE("  truncate-to-int32: #%d:%s(@%d #%d:%s) ", node->id(),
@@ -319,10 +323,10 @@ class RepresentationSelector {
   void ConvertInput(Node* node, int index, UseInfo use) {
     Node* input = node->InputAt(index);
     // In the change phase, insert a change before the use if necessary.
-    if (use.GetRepresentation() == kMachNone)
+    if (use.preferred() == kMachNone)
       return;  // No input requirement on the use.
-    MachineTypeUnion output = GetInfo(input)->output;
-    if ((output & kRepMask) != use.GetRepresentation()) {
+    MachineTypeUnion output = GetInfo(input)->output_type();
+    if ((output & kRepMask) != use.preferred()) {
       // Output representation doesn't match usage.
       TRACE("  change: #%d:%s(@%d #%d:%s) ", node->id(), node->op()->mnemonic(),
             index, input->id(), input->op()->mnemonic());
@@ -331,8 +335,8 @@ class RepresentationSelector {
       TRACE(" to ");
       PrintUseInfo(use);
       TRACE("\n");
-      Node* n =
-          changer_->GetRepresentationFor(input, output, use.machine_type());
+      Node* n = changer_->GetRepresentationFor(input, output, use.preferred(),
+                                               use.truncation());
       node->ReplaceInput(index, n);
     }
   }
@@ -440,13 +444,13 @@ class RepresentationSelector {
   }
 
   // Infer representation for phi-like nodes.
-  static MachineType GetRepresentationForPhi(Node* node, MachineTypeUnion use) {
+  static MachineType GetRepresentationForPhi(Node* node, Truncation use) {
     // Phis adapt to the output representation their uses demand.
     Type* upper = NodeProperties::GetType(node);
     if (upper->Is(Type::Signed32()) || upper->Is(Type::Unsigned32())) {
       // We are within 32 bits range => pick kRepWord32.
       return kRepWord32;
-    } else if (!CanObserveNonWord32(use)) {
+    } else if (use.TruncatesToWord32()) {
       // We only use 32 bits.
       return kRepWord32;
     } else if (upper->Is(Type::Boolean())) {
@@ -462,10 +466,10 @@ class RepresentationSelector {
   }
 
   // Helper for handling selects.
-  void VisitSelect(Node* node, MachineTypeUnion use,
+  void VisitSelect(Node* node, Truncation truncation,
                    SimplifiedLowering* lowering) {
     ProcessInput(node, 0, UseInfo::Bool());
-    MachineType output = GetRepresentationForPhi(node, use);
+    MachineType output = GetRepresentationForPhi(node, truncation);
 
     Type* upper = NodeProperties::GetType(node);
     MachineType output_type =
@@ -482,16 +486,16 @@ class RepresentationSelector {
       }
     }
     // Convert inputs to the output representation of this phi, pass the
-    // use truncation along.
-    UseInfo input_use(output, use & kTypeMask);
+    // truncation truncation along.
+    UseInfo input_use(output, truncation);
     ProcessInput(node, 1, input_use);
     ProcessInput(node, 2, input_use);
   }
 
   // Helper for handling phis.
-  void VisitPhi(Node* node, MachineTypeUnion use,
+  void VisitPhi(Node* node, Truncation truncation,
                 SimplifiedLowering* lowering) {
-    MachineType output = GetRepresentationForPhi(node, use);
+    MachineType output = GetRepresentationForPhi(node, truncation);
 
     Type* upper = NodeProperties::GetType(node);
     MachineType output_type =
@@ -509,8 +513,8 @@ class RepresentationSelector {
     }
 
     // Convert inputs to the output representation of this phi, pass the
-    // use truncation along.
-    UseInfo input_use(output, use & kTypeMask);
+    // truncation truncation along.
+    UseInfo input_use(output, truncation);
     for (int i = 0; i < node->InputCount(); i++) {
       ProcessInput(node, i, i < values ? input_use : UseInfo::None());
     }
@@ -550,7 +554,7 @@ class RepresentationSelector {
           new (zone->New(sizeof(ZoneVector<MachineType>)))
               ZoneVector<MachineType>(node->InputCount(), zone);
       for (int i = 0; i < node->InputCount(); i++) {
-        MachineTypeUnion input_type = GetInfo(node->InputAt(i))->output;
+        MachineTypeUnion input_type = GetInfo(node->InputAt(i))->output_type();
         (*types)[i] = static_cast<MachineType>(input_type);
       }
       NodeProperties::ChangeOp(node,
@@ -571,34 +575,20 @@ class RepresentationSelector {
     return changer_->Float64OperatorFor(node->opcode());
   }
 
-  bool CanLowerToInt32Binop(Node* node, MachineTypeUnion use) {
+  bool CanLowerToInt32Binop(Node* node, Truncation use) {
     return BothInputsAre(node, Type::Signed32()) &&
-           (!CanObserveNonWord32(use) ||
+           (use.TruncatesToWord32() ||
             NodeProperties::GetType(node)->Is(Type::Signed32()));
   }
 
-  bool CanLowerToWord32AdditiveBinop(Node* node, MachineTypeUnion use) {
+  bool CanLowerToWord32AdditiveBinop(Node* node, Truncation use) {
     return BothInputsAre(node, safe_int_additive_range_) &&
-           !CanObserveNonWord32(use);
-  }
-
-  bool CanLowerToUint32Binop(Node* node, MachineTypeUnion use) {
-    return BothInputsAre(node, Type::Unsigned32()) &&
-           (!CanObserveNonWord32(use) ||
-            NodeProperties::GetType(node)->Is(Type::Unsigned32()));
-  }
-
-  static bool CanObserveNonWord32(MachineTypeUnion use) {
-    return (use & kTypeMask & ~(kTypeInt32 | kTypeUint32)) != 0;
-  }
-
-  static bool CanObserveNaN(MachineTypeUnion use) {
-    return (use & (kTypeNumber | kTypeAny)) != 0;
+           use.TruncatesToWord32();
   }
 
   // Dispatching routine for visiting the node {node} with the usage {use}.
   // Depending on the operator, propagate new usage info to the inputs.
-  void VisitNode(Node* node, MachineTypeUnion use,
+  void VisitNode(Node* node, Truncation truncation,
                  SimplifiedLowering* lowering) {
     switch (node->opcode()) {
       //------------------------------------------------------------------
@@ -638,9 +628,9 @@ class RepresentationSelector {
         Enqueue(NodeProperties::GetControlInput(node, 0));
         break;
       case IrOpcode::kSelect:
-        return VisitSelect(node, use, lowering);
+        return VisitSelect(node, truncation, lowering);
       case IrOpcode::kPhi:
-        return VisitPhi(node, use, lowering);
+        return VisitPhi(node, truncation, lowering);
       case IrOpcode::kCall:
         return VisitCall(node, lowering);
 
@@ -663,7 +653,7 @@ class RepresentationSelector {
       //------------------------------------------------------------------
       case IrOpcode::kBooleanNot: {
         if (lower()) {
-          MachineTypeUnion input = GetInfo(node->InputAt(0))->output;
+          MachineTypeUnion input = GetInfo(node->InputAt(0))->output_type();
           if (input & kRepBit) {
             // BooleanNot(x: kRepBit) => Word32Equal(x, #0)
             node->AppendInput(jsgraph_->zone(), jsgraph_->Int32Constant(0));
@@ -682,7 +672,7 @@ class RepresentationSelector {
       }
       case IrOpcode::kBooleanToNumber: {
         if (lower()) {
-          MachineTypeUnion input = GetInfo(node->InputAt(0))->output;
+          MachineTypeUnion input = GetInfo(node->InputAt(0))->output_type();
           if (input & kRepBit) {
             // BooleanToNumber(x: kRepBit) => x
             DeferReplacement(node, node->InputAt(0));
@@ -721,7 +711,7 @@ class RepresentationSelector {
       case IrOpcode::kNumberSubtract: {
         // Add and subtract reduce to Int32Add/Sub if the inputs
         // are already integers and all uses are truncating.
-        if (CanLowerToWord32AdditiveBinop(node, use)) {
+        if (CanLowerToWord32AdditiveBinop(node, truncation)) {
           // => signed Int32Add/Sub
           VisitInt32Binop(node);
           if (lower()) NodeProperties::ChangeOp(node, Int32Op(node));
@@ -735,7 +725,7 @@ class RepresentationSelector {
       case IrOpcode::kNumberMultiply: {
         NumberMatcher right(node->InputAt(1));
         if (right.IsInRange(-1048576, 1048576)) {  // must fit double mantissa.
-          if (CanLowerToInt32Binop(node, use)) {
+          if (CanLowerToInt32Binop(node, truncation)) {
             // => signed Int32Mul
             VisitInt32Binop(node);
             if (lower()) NodeProperties::ChangeOp(node, Int32Op(node));
@@ -748,13 +738,14 @@ class RepresentationSelector {
         break;
       }
       case IrOpcode::kNumberDivide: {
-        if (CanLowerToInt32Binop(node, use)) {
+        if (CanLowerToInt32Binop(node, truncation)) {
           // => signed Int32Div
           VisitInt32Binop(node);
           if (lower()) DeferReplacement(node, lowering->Int32Div(node));
           break;
         }
-        if (BothInputsAre(node, Type::Unsigned32()) && !CanObserveNaN(use)) {
+        if (BothInputsAre(node, Type::Unsigned32()) &&
+            truncation.TruncatesNaNToZero()) {
           // => unsigned Uint32Div
           VisitUint32Binop(node);
           if (lower()) DeferReplacement(node, lowering->Uint32Div(node));
@@ -766,13 +757,14 @@ class RepresentationSelector {
         break;
       }
       case IrOpcode::kNumberModulus: {
-        if (CanLowerToInt32Binop(node, use)) {
+        if (CanLowerToInt32Binop(node, truncation)) {
           // => signed Int32Mod
           VisitInt32Binop(node);
           if (lower()) DeferReplacement(node, lowering->Int32Mod(node));
           break;
         }
-        if (BothInputsAre(node, Type::Unsigned32()) && !CanObserveNaN(use)) {
+        if (BothInputsAre(node, Type::Unsigned32()) &&
+            truncation.TruncatesNaNToZero()) {
           // => unsigned Uint32Mod
           VisitUint32Binop(node);
           if (lower()) DeferReplacement(node, lowering->Uint32Mod(node));
@@ -901,21 +893,27 @@ class RepresentationSelector {
         ProcessInput(node, 1, UseInfo::TruncatingWord32());  // offset
         ProcessInput(node, 2, UseInfo::TruncatingWord32());  // length
         ProcessRemainingInputs(node, 3);
-        // Tagged overrides everything if we have to do a typed array bounds
-        // check, because we may need to return undefined then.
+
         MachineType output_type;
-        if (use & kRepTagged) {
-          output_type = kMachAnyTagged;
-        } else if (use & kRepFloat64) {
-          if (access.machine_type() & kRepFloat32) {
+        if (truncation.TruncatesUndefinedToZeroOrNaN()) {
+          if (truncation.TruncatesNaNToZero()) {
+            // If undefined is truncated to a non-NaN number, we can use
+            // the load's representation.
             output_type = access.machine_type();
           } else {
-            output_type = kMachFloat64;
+            // If undefined is truncated to a number, but the use can
+            // observe NaN, we need to output at least the float32
+            // representation.
+            if (access.machine_type() & kRepFloat32) {
+              output_type = access.machine_type();
+            } else {
+              output_type = kMachFloat64;
+            }
           }
-        } else if (use & kRepFloat32) {
-          output_type = kMachFloat32;
         } else {
-          output_type = access.machine_type();
+          // If undefined is not truncated away, we need to have the tagged
+          // representation.
+          output_type = kMachAnyTagged;
         }
         SetOutput(node, output_type);
         if (lower()) lowering->DoLoadBuffer(node, output_type, changer_);
@@ -1125,7 +1123,7 @@ class RepresentationSelector {
           replacement->op()->mnemonic());
 
     if (replacement->id() < count_ &&
-        GetInfo(replacement)->output == GetInfo(node)->output) {
+        GetInfo(replacement)->output_type() == GetInfo(node)->output_type()) {
       // Replace with a previously existing node eagerly only if the type is the
       // same.
       node->ReplaceUses(replacement);
@@ -1140,12 +1138,6 @@ class RepresentationSelector {
     node->NullAllInputs();  // Node is now dead.
   }
 
-  void PrintUseInfo(Node* node) {
-    TRACE("#%d:%-20s ", node->id(), node->op()->mnemonic());
-    PrintInfo(GetUseInfo(node));
-    TRACE("\n");
-  }
-
   void PrintInfo(MachineTypeUnion info) {
     if (FLAG_trace_representation) {
       OFStream os(stdout);
@@ -1153,17 +1145,24 @@ class RepresentationSelector {
     }
   }
 
+  void PrintTruncation(Truncation truncation) {
+    if (FLAG_trace_representation) {
+      OFStream os(stdout);
+      os << truncation.description();
+    }
+  }
+
   void PrintUseInfo(UseInfo info) {
     if (FLAG_trace_representation) {
       OFStream os(stdout);
-      os << static_cast<MachineType>(info.machine_type());
+      os << info.preferred() << ":" << info.truncation().description();
     }
   }
 
  private:
   JSGraph* jsgraph_;
   size_t const count_;              // number of nodes in the graph
-  NodeInfo* info_;                  // node id -> usage information
+  ZoneVector<NodeInfo> info_;       // node id -> usage information
   NodeVector nodes_;                // collected nodes
   NodeVector replacements_;         // replacements to be done after lowering
   Phase phase_;                     // current phase of algorithm
@@ -1182,8 +1181,6 @@ class RepresentationSelector {
     DCHECK(node->id() < count_);
     return &info_[node->id()];
   }
-
-  MachineTypeUnion GetUseInfo(Node* node) { return GetInfo(node)->use; }
 };
 
 
@@ -1226,7 +1223,8 @@ void SimplifiedLowering::DoLoadBuffer(Node* node, MachineType output_type,
     Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
     Node* etrue =
         graph()->NewNode(machine()->Load(type), buffer, index, effect, if_true);
-    Node* vtrue = changer->GetRepresentationFor(etrue, type, output_type);
+    Node* vtrue = changer->GetRepresentationFor(
+        etrue, type, RepresentationOf(output_type), Truncation::None());
 
     Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
     Node* efalse = effect;

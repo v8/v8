@@ -452,11 +452,10 @@ TEST(SingleChanges) {
 TEST(SignednessInWord32) {
   RepresentationChangerTester r;
 
-  // TODO(titzer): assume that uses of a word32 without a sign mean kTypeInt32.
   CheckChange(IrOpcode::kChangeTaggedToInt32, kRepTagged | kTypeInt32,
-              kRepWord32 | kTypeInt32);
+              kRepWord32);
   CheckChange(IrOpcode::kChangeTaggedToUint32, kRepTagged | kTypeUint32,
-              kRepWord32 | kTypeUint32);
+              kRepWord32);
   CheckChange(IrOpcode::kChangeInt32ToFloat64, kRepWord32, kRepFloat64);
   CheckChange(IrOpcode::kChangeFloat64ToInt32, kRepFloat64 | kTypeInt32,
               kRepWord32);
@@ -480,7 +479,6 @@ TEST(Nops) {
   // 32-bit floats.
   r.CheckNop(kRepFloat32, kRepFloat32);
   r.CheckNop(kRepFloat32 | kTypeNumber, kRepFloat32);
-  r.CheckNop(kRepFloat32, kRepFloat32 | kTypeNumber);
 
   // 32-bit words can be used as smaller word sizes and vice versa, because
   // loads from memory implicitly sign or zero extend the value to the
@@ -508,39 +506,29 @@ TEST(TypeErrors) {
 
   // Wordish cannot be implicitly converted to/from comparison conditions.
   r.CheckTypeError(kRepWord8, kRepBit);
-  r.CheckTypeError(kRepWord8, kRepBit | kTypeBool);
   r.CheckTypeError(kRepWord16, kRepBit);
-  r.CheckTypeError(kRepWord16, kRepBit | kTypeBool);
   r.CheckTypeError(kRepWord32, kRepBit);
-  r.CheckTypeError(kRepWord32, kRepBit | kTypeBool);
   r.CheckTypeError(kRepWord64, kRepBit);
-  r.CheckTypeError(kRepWord64, kRepBit | kTypeBool);
 
   // Floats cannot be implicitly converted to/from comparison conditions.
   r.CheckTypeError(kRepFloat64, kRepBit);
-  r.CheckTypeError(kRepFloat64, kRepBit | kTypeBool);
   r.CheckTypeError(kRepBit, kRepFloat64);
   r.CheckTypeError(kRepBit | kTypeBool, kRepFloat64);
 
   // Floats cannot be implicitly converted to/from comparison conditions.
   r.CheckTypeError(kRepFloat32, kRepBit);
-  r.CheckTypeError(kRepFloat32, kRepBit | kTypeBool);
   r.CheckTypeError(kRepBit, kRepFloat32);
   r.CheckTypeError(kRepBit | kTypeBool, kRepFloat32);
 
   // Word64 is internal and shouldn't be implicitly converted.
-  r.CheckTypeError(kRepWord64, kRepTagged | kTypeBool);
   r.CheckTypeError(kRepWord64, kRepTagged);
-  r.CheckTypeError(kRepWord64, kRepTagged | kTypeBool);
   r.CheckTypeError(kRepTagged, kRepWord64);
   r.CheckTypeError(kRepTagged | kTypeBool, kRepWord64);
 
   // Word64 / Word32 shouldn't be implicitly converted.
   r.CheckTypeError(kRepWord64, kRepWord32);
   r.CheckTypeError(kRepWord32, kRepWord64);
-  r.CheckTypeError(kRepWord64, kRepWord32 | kTypeInt32);
   r.CheckTypeError(kRepWord32 | kTypeInt32, kRepWord64);
-  r.CheckTypeError(kRepWord64, kRepWord32 | kTypeUint32);
   r.CheckTypeError(kRepWord32 | kTypeUint32, kRepWord64);
 
   for (size_t i = 0; i < arraysize(all_reps); i++) {

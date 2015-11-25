@@ -16,10 +16,137 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+class Truncation final {
+ public:
+  // Constructors.
+  static Truncation None() { return Truncation(TruncationKind::kNone); }
+  static Truncation Bool() { return Truncation(TruncationKind::kBool); }
+  static Truncation Word32() { return Truncation(TruncationKind::kWord32); }
+  static Truncation Word64() { return Truncation(TruncationKind::kWord64); }
+  static Truncation Float32() { return Truncation(TruncationKind::kFloat32); }
+  static Truncation Float64() { return Truncation(TruncationKind::kFloat64); }
+  static Truncation Any() { return Truncation(TruncationKind::kAny); }
+
+  static Truncation Generalize(Truncation t1, Truncation t2) {
+    return Truncation(Generalize(t1.kind(), t2.kind()));
+  }
+
+  // Queries.
+  bool TruncatesToWord32() const {
+    return LessGeneral(kind_, TruncationKind::kWord32);
+  }
+
+  bool TruncatesNaNToZero() {
+    return LessGeneral(kind_, TruncationKind::kWord32) ||
+           LessGeneral(kind_, TruncationKind::kBool);
+  }
+
+  bool TruncatesUndefinedToZeroOrNaN() {
+    return LessGeneral(kind_, TruncationKind::kFloat64) ||
+           LessGeneral(kind_, TruncationKind::kWord64);
+  }
+
+  // Operators.
+  bool operator==(Truncation other) const { return kind() == other.kind(); }
+  bool operator!=(Truncation other) const { return !(*this == other); }
+
+  // Debug utilities.
+  const char* description() {
+    switch (kind()) {
+      case TruncationKind::kNone:
+        return "no-value-use";
+      case TruncationKind::kBool:
+        return "truncate-to-bool";
+      case TruncationKind::kWord32:
+        return "truncate-to-word32";
+      case TruncationKind::kWord64:
+        return "truncate-to-word64";
+      case TruncationKind::kFloat32:
+        return "truncate-to-float32";
+      case TruncationKind::kFloat64:
+        return "truncate-to-float64";
+      case TruncationKind::kAny:
+        return "no-truncation";
+    }
+    UNREACHABLE();
+    return nullptr;
+  }
+
+ private:
+  enum class TruncationKind : uint8_t {
+    kNone,
+    kBool,
+    kWord32,
+    kWord64,
+    kFloat32,
+    kFloat64,
+    kAny
+  };
+
+  explicit Truncation(TruncationKind kind) : kind_(kind) {}
+  TruncationKind kind() const { return kind_; }
+
+  TruncationKind kind_;
+
+  // Partial order for truncations:
+  //
+  //  kWord64       kAny
+  //     ^            ^
+  //     \            |
+  //      \         kFloat64  <--+
+  //       \        ^    ^       |
+  //        \       /    |       |
+  //         kWord32  kFloat32  kBool
+  //               ^     ^      ^
+  //               \     |      /
+  //                \    |     /
+  //                 \   |    /
+  //                  \  |   /
+  //                   \ |  /
+  //                   kNone
+  static TruncationKind Generalize(TruncationKind rep1, TruncationKind rep2) {
+    if (LessGeneral(rep1, rep2)) return rep2;
+    if (LessGeneral(rep2, rep1)) return rep1;
+    // Handle the generalization of float64-representable values.
+    if (LessGeneral(rep1, TruncationKind::kFloat64) &&
+        LessGeneral(rep2, TruncationKind::kFloat64)) {
+      return TruncationKind::kFloat64;
+    }
+    // All other combinations are illegal.
+    FATAL("Tried to combine incompatible representations");
+    return TruncationKind::kNone;
+  }
+
+  static bool LessGeneral(TruncationKind rep1, TruncationKind rep2) {
+    switch (rep1) {
+      case TruncationKind::kNone:
+        return true;
+      case TruncationKind::kBool:
+        return rep2 == TruncationKind::kBool || rep2 == TruncationKind::kAny;
+      case TruncationKind::kWord32:
+        return rep2 == TruncationKind::kWord32 ||
+               rep2 == TruncationKind::kWord64 ||
+               rep2 == TruncationKind::kFloat64 || rep2 == TruncationKind::kAny;
+      case TruncationKind::kWord64:
+        return rep2 == TruncationKind::kWord64;
+      case TruncationKind::kFloat32:
+        return rep2 == TruncationKind::kFloat32 ||
+               rep2 == TruncationKind::kFloat64 || rep2 == TruncationKind::kAny;
+      case TruncationKind::kFloat64:
+        return rep2 == TruncationKind::kFloat64 || rep2 == TruncationKind::kAny;
+      case TruncationKind::kAny:
+        return rep2 == TruncationKind::kAny;
+    }
+    UNREACHABLE();
+    return false;
+  }
+};
+
+
 // Contains logic related to changing the representation of values for constants
 // and other nodes, as well as lowering Simplified->Machine operators.
 // Eagerly folds any representation changes for constants.
-class RepresentationChanger {
+class RepresentationChanger final {
  public:
   RepresentationChanger(JSGraph* jsgraph, Isolate* isolate)
       : jsgraph_(jsgraph),
@@ -32,34 +159,40 @@ class RepresentationChanger {
     return (type & (kRepWord8 | kRepWord16 | kRepWord32)) != 0;
   }
 
+  // Changes representation from {output_type} to {use_rep}. The {truncation}
+  // parameter is only used for sanity checking - if the changer cannot figure
+  // out signedness for the word32->float64 conversion, then we check that the
+  // uses truncate to word32 (so they do not care about signedness).
   Node* GetRepresentationFor(Node* node, MachineTypeUnion output_type,
-                             MachineTypeUnion use_type) {
+                             MachineTypeUnion use_rep,
+                             Truncation truncation = Truncation::None()) {
+    DCHECK((use_rep & kRepMask) == use_rep);
     if (!base::bits::IsPowerOfTwo32(output_type & kRepMask)) {
       // There should be only one output representation.
-      return TypeError(node, output_type, use_type);
+      return TypeError(node, output_type, use_rep);
     }
-    if ((use_type & kRepMask) == (output_type & kRepMask)) {
+    if (use_rep == (output_type & kRepMask)) {
       // Representations are the same. That's a no-op.
       return node;
     }
-    if (IsWord(use_type) && IsWord(output_type)) {
+    if (IsWord(use_rep) && IsWord(output_type)) {
       // Both are words less than or equal to 32-bits.
       // Since loads of integers from memory implicitly sign or zero extend the
       // value to the full machine word size and stores implicitly truncate,
       // no representation change is necessary.
       return node;
     }
-    if (use_type & kRepTagged) {
+    if (use_rep & kRepTagged) {
       return GetTaggedRepresentationFor(node, output_type);
-    } else if (use_type & kRepFloat32) {
-      return GetFloat32RepresentationFor(node, output_type, use_type);
-    } else if (use_type & kRepFloat64) {
-      return GetFloat64RepresentationFor(node, output_type, use_type);
-    } else if (use_type & kRepBit) {
+    } else if (use_rep & kRepFloat32) {
+      return GetFloat32RepresentationFor(node, output_type, truncation);
+    } else if (use_rep & kRepFloat64) {
+      return GetFloat64RepresentationFor(node, output_type, truncation);
+    } else if (use_rep & kRepBit) {
       return GetBitRepresentationFor(node, output_type);
-    } else if (IsWord(use_type)) {
+    } else if (IsWord(use_rep)) {
       return GetWord32RepresentationFor(node, output_type);
-    } else if (use_type & kRepWord64) {
+    } else if (use_rep & kRepWord64) {
       return GetWord64RepresentationFor(node, output_type);
     } else {
       return node;
@@ -116,7 +249,7 @@ class RepresentationChanger {
   }
 
   Node* GetFloat32RepresentationFor(Node* node, MachineTypeUnion output_type,
-                                    MachineTypeUnion truncation) {
+                                    Truncation truncation) {
     // Eagerly fold representation changes for constants.
     switch (node->opcode()) {
       case IrOpcode::kFloat64Constant:
@@ -146,8 +279,7 @@ class RepresentationChanger {
       } else {
         // Either the output is int32 or the uses only care about the
         // low 32 bits (so we can pick int32 safely).
-        DCHECK(output_type & kTypeInt32 ||
-               !(truncation & ~(kTypeInt32 | kTypeUint32 | kRepMask)));
+        DCHECK(output_type & kTypeInt32 || truncation.TruncatesToWord32());
         op = machine()->ChangeInt32ToFloat64();
       }
       // int32 -> float64 -> float32
@@ -167,7 +299,7 @@ class RepresentationChanger {
   }
 
   Node* GetFloat64RepresentationFor(Node* node, MachineTypeUnion output_type,
-                                    MachineTypeUnion use_type) {
+                                    Truncation truncation) {
     // Eagerly fold representation changes for constants.
     switch (node->opcode()) {
       case IrOpcode::kNumberConstant:
@@ -197,8 +329,7 @@ class RepresentationChanger {
       } else {
         // Either the output is int32 or the uses only care about the
         // low 32 bits (so we can pick int32 safely).
-        DCHECK(output_type & kTypeInt32 ||
-               !(use_type & ~(kTypeInt32 | kTypeUint32 | kRepMask)));
+        DCHECK(output_type & kTypeInt32 || truncation.TruncatesToWord32());
         op = machine()->ChangeInt32ToFloat64();
       }
     } else if (output_type & kRepTagged) {
