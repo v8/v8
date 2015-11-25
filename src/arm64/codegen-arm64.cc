@@ -75,8 +75,8 @@ UnaryMathFunctionWithIsolate CreateExpFunction(Isolate* isolate) {
 }
 
 
-UnaryMathFunction CreateSqrtFunction() {
-  return &std::sqrt;
+UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate) {
+  return nullptr;
 }
 
 

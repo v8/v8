@@ -3105,7 +3105,8 @@ T Simulator::FPSqrt(T op) {
   } else if (op < 0.0) {
     return FPDefaultNaN<T>();
   } else {
-    return fast_sqrt(op);
+    lazily_initialize_fast_sqrt(isolate_);
+    return fast_sqrt(op, isolate_);
   }
 }
 

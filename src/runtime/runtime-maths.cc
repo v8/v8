@@ -150,7 +150,7 @@ RUNTIME_FUNCTION(Runtime_MathPow) {
   }
 
   CONVERT_DOUBLE_ARG_CHECKED(y, 1);
-  double result = power_helper(x, y);
+  double result = power_helper(isolate, x, y);
   if (std::isnan(result)) return isolate->heap()->nan_value();
   return *isolate->factory()->NewNumber(result);
 }
@@ -224,7 +224,8 @@ RUNTIME_FUNCTION(Runtime_MathSqrt) {
   isolate->counters()->math_sqrt()->Increment();
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return *isolate->factory()->NewNumber(fast_sqrt(x));
+  lazily_initialize_fast_sqrt(isolate);
+  return *isolate->factory()->NewNumber(fast_sqrt(x, isolate));
 }
 
 

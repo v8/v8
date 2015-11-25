@@ -2754,10 +2754,11 @@ void Simulator::ExecuteExt4(Instruction* instr) {
       return;
     }
     case FSQRT: {
+      lazily_initialize_fast_sqrt(isolate_);
       int frt = instr->RTValue();
       int frb = instr->RBValue();
       double frb_val = get_double_from_d_register(frb);
-      double frt_val = fast_sqrt(frb_val);
+      double frt_val = fast_sqrt(frb_val, isolate_);
       set_d_register_from_double(frt, frt_val);
       return;
     }

@@ -3157,14 +3157,15 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
         DecodeVCMP(instr);
       } else if (((instr->Opc2Value() == 0x1)) && (instr->Opc3Value() == 0x3)) {
         // vsqrt
+        lazily_initialize_fast_sqrt(isolate_);
         if (instr->SzValue() == 0x1) {
           double dm_value = get_double_from_d_register(vm);
-          double dd_value = fast_sqrt(dm_value);
+          double dd_value = fast_sqrt(dm_value, isolate_);
           dd_value = canonicalizeNaN(dd_value);
           set_d_register_from_double(vd, dd_value);
         } else {
           float sm_value = get_float_from_s_register(m);
-          float sd_value = fast_sqrt(sm_value);
+          float sd_value = fast_sqrt(sm_value, isolate_);
           sd_value = canonicalizeNaN(sd_value);
           set_s_register_from_float(d, sd_value);
         }

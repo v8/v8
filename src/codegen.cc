@@ -64,43 +64,24 @@ double modulo(double x, double y) {
 #endif  // defined(_WIN64)
 
 
-#define UNARY_MATH_FUNCTION(name, generator)             \
-static UnaryMathFunction fast_##name##_function = NULL;  \
-void init_fast_##name##_function() {                     \
-  fast_##name##_function = generator;                    \
-}                                                        \
-double fast_##name(double x) {                           \
-  return (*fast_##name##_function)(x);                   \
-}
+#define UNARY_MATH_FUNCTION(name, generator)                             \
+  static UnaryMathFunctionWithIsolate fast_##name##_function = nullptr;  \
+  double std_##name(double x, Isolate* isolate) { return std::name(x); } \
+  void init_fast_##name##_function(Isolate* isolate) {                   \
+    if (FLAG_fast_math) fast_##name##_function = generator(isolate);     \
+    if (!fast_##name##_function) fast_##name##_function = std_##name;    \
+  }                                                                      \
+  void lazily_initialize_fast_##name(Isolate* isolate) {                 \
+    if (!fast_##name##_function) init_fast_##name##_function(isolate);   \
+  }                                                                      \
+  double fast_##name(double x, Isolate* isolate) {                       \
+    return (*fast_##name##_function)(x, isolate);                        \
+  }
 
-UNARY_MATH_FUNCTION(sqrt, CreateSqrtFunction())
+UNARY_MATH_FUNCTION(sqrt, CreateSqrtFunction)
+UNARY_MATH_FUNCTION(exp, CreateExpFunction)
 
 #undef UNARY_MATH_FUNCTION
-
-static UnaryMathFunctionWithIsolate fast_exp_function = NULL;
-
-
-double std_exp(double x, Isolate* isolate) {
-  return std::exp(x);
-}
-
-
-void init_fast_exp_function(Isolate* isolate) {
-    if (FLAG_fast_math) fast_exp_function = CreateExpFunction(isolate);
-    if (!fast_exp_function) fast_exp_function = std_exp;
-}
-
-
-double fast_exp(double x, Isolate* isolate) {
-  return (*fast_exp_function)(x, isolate);
-}
-
-
-void lazily_initialize_fast_exp(Isolate* isolate) {
-  if (fast_exp_function == nullptr) {
-    init_fast_exp_function(isolate);
-  }
-}
 
 
 #define __ ACCESS_MASM(masm_)
