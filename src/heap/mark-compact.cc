@@ -2261,10 +2261,7 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     Map* map = Map::cast(obj);
     if (!map->CanTransition()) continue;
     MarkBit map_mark = Marking::MarkBitFrom(map);
-    bool alive = Marking::IsBlackOrGrey(map_mark);
-    if (alive) {
-      ClearNonLivePrototypeTransitions(map);
-    } else {
+    if (Marking::IsWhite(map_mark)) {
       ClearNonLiveMapTransitions(map);
     }
   }
@@ -2300,39 +2297,6 @@ void MarkCompactCollector::MarkDependentCodeListForDeoptimization(
     have_code_to_deoptimize_ |= current->MarkCodeForDeoptimization(
         isolate, DependentCode::kWeakCodeGroup);
     current = current->next_link();
-  }
-}
-
-
-void MarkCompactCollector::ClearNonLivePrototypeTransitions(Map* map) {
-  FixedArray* prototype_transitions =
-      TransitionArray::GetPrototypeTransitions(map);
-  int number_of_transitions =
-      TransitionArray::NumberOfPrototypeTransitions(prototype_transitions);
-
-  const int header = TransitionArray::kProtoTransitionHeaderSize;
-  int new_number_of_transitions = 0;
-  for (int i = 0; i < number_of_transitions; i++) {
-    Object* cell = prototype_transitions->get(header + i);
-    if (!WeakCell::cast(cell)->cleared()) {
-      if (new_number_of_transitions != i) {
-        prototype_transitions->set(header + new_number_of_transitions, cell);
-        Object** slot = prototype_transitions->RawFieldOfElementAt(
-            header + new_number_of_transitions);
-        RecordSlot(prototype_transitions, slot, cell);
-      }
-      new_number_of_transitions++;
-    }
-  }
-
-  if (new_number_of_transitions != number_of_transitions) {
-    TransitionArray::SetNumberOfPrototypeTransitions(prototype_transitions,
-                                                     new_number_of_transitions);
-  }
-
-  // Fill slots that became free with undefined value.
-  for (int i = new_number_of_transitions; i < number_of_transitions; i++) {
-    prototype_transitions->set_undefined(header + i);
   }
 }
 

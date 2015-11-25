@@ -2620,12 +2620,6 @@ TEST(InstanceOfStubWriteBarrier) {
 }
 
 
-static int NumberOfProtoTransitions(Map* map) {
-  return TransitionArray::NumberOfPrototypeTransitions(
-      TransitionArray::GetPrototypeTransitions(map));
-}
-
-
 TEST(PrototypeTransitionClearing) {
   if (FLAG_never_compact) return;
   CcTest::InitializeVM();
@@ -2639,7 +2633,8 @@ TEST(PrototypeTransitionClearing) {
       v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(
           CcTest::global()->Get(ctx, v8_str("base")).ToLocalChecked()));
 
-  int initialTransitions = NumberOfProtoTransitions(baseObject->map());
+  int initialTransitions =
+      TransitionArray::NumberOfPrototypeTransitionsForTest(baseObject->map());
 
   CompileRun(
       "var live = [];"
@@ -2651,12 +2646,14 @@ TEST(PrototypeTransitionClearing) {
       "}");
 
   // Verify that only dead prototype transitions are cleared.
-  CHECK_EQ(initialTransitions + 10,
-           NumberOfProtoTransitions(baseObject->map()));
+  CHECK_EQ(
+      initialTransitions + 10,
+      TransitionArray::NumberOfPrototypeTransitionsForTest(baseObject->map()));
   CcTest::heap()->CollectAllGarbage();
   const int transitions = 10 - 3;
-  CHECK_EQ(initialTransitions + transitions,
-           NumberOfProtoTransitions(baseObject->map()));
+  CHECK_EQ(
+      initialTransitions + transitions,
+      TransitionArray::NumberOfPrototypeTransitionsForTest(baseObject->map()));
 
   // Verify that prototype transitions array was compacted.
   FixedArray* trans =

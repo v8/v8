@@ -234,6 +234,61 @@ bool TransitionArray::CanHaveMoreTransitions(Handle<Map> map) {
 
 
 // static
+bool TransitionArray::CompactPrototypeTransitionArray(FixedArray* array) {
+  const int header = kProtoTransitionHeaderSize;
+  int number_of_transitions = NumberOfPrototypeTransitions(array);
+  if (number_of_transitions == 0) {
+    // Empty array cannot be compacted.
+    return false;
+  }
+  int new_number_of_transitions = 0;
+  for (int i = 0; i < number_of_transitions; i++) {
+    Object* cell = array->get(header + i);
+    if (!WeakCell::cast(cell)->cleared()) {
+      if (new_number_of_transitions != i) {
+        array->set(header + new_number_of_transitions, cell);
+      }
+      new_number_of_transitions++;
+    }
+  }
+  // Fill slots that became free with undefined value.
+  for (int i = new_number_of_transitions; i < number_of_transitions; i++) {
+    array->set_undefined(header + i);
+  }
+  if (number_of_transitions != new_number_of_transitions) {
+    SetNumberOfPrototypeTransitions(array, new_number_of_transitions);
+  }
+  return new_number_of_transitions < number_of_transitions;
+}
+
+
+// static
+Handle<FixedArray> TransitionArray::GrowPrototypeTransitionArray(
+    Handle<FixedArray> array, int new_capacity, Isolate* isolate) {
+  // Grow array by factor 2 up to MaxCachedPrototypeTransitions.
+  int capacity = array->length() - kProtoTransitionHeaderSize;
+  new_capacity = Min(kMaxCachedPrototypeTransitions, new_capacity);
+  DCHECK_GT(new_capacity, capacity);
+  int grow_by = new_capacity - capacity;
+  array = isolate->factory()->CopyFixedArrayAndGrow(array, grow_by);
+  if (capacity < 0) {
+    // There was no prototype transitions array before, so the size
+    // couldn't be copied. Initialize it explicitly.
+    SetNumberOfPrototypeTransitions(*array, 0);
+  }
+  return array;
+}
+
+
+// static
+int TransitionArray::NumberOfPrototypeTransitionsForTest(Map* map) {
+  FixedArray* transitions = GetPrototypeTransitions(map);
+  CompactPrototypeTransitionArray(transitions);
+  return TransitionArray::NumberOfPrototypeTransitions(transitions);
+}
+
+
+// static
 void TransitionArray::PutPrototypeTransition(Handle<Map> map,
                                              Handle<Object> prototype,
                                              Handle<Map> target_map) {
@@ -252,23 +307,16 @@ void TransitionArray::PutPrototypeTransition(Handle<Map> map,
   int transitions = NumberOfPrototypeTransitions(*cache) + 1;
 
   if (transitions > capacity) {
-    // Grow array by factor 2 up to MaxCachedPrototypeTransitions.
-    int new_capacity = Min(kMaxCachedPrototypeTransitions, transitions * 2);
-    if (new_capacity == capacity) return;
-    int grow_by = new_capacity - capacity;
-
-    Isolate* isolate = map->GetIsolate();
-    cache = isolate->factory()->CopyFixedArrayAndGrow(cache, grow_by);
-    if (capacity < 0) {
-      // There was no prototype transitions array before, so the size
-      // couldn't be copied. Initialize it explicitly.
-      SetNumberOfPrototypeTransitions(*cache, 0);
+    // Grow the array if compacting it doesn't free space.
+    if (!CompactPrototypeTransitionArray(*cache)) {
+      if (capacity == kMaxCachedPrototypeTransitions) return;
+      cache = GrowPrototypeTransitionArray(cache, 2 * transitions,
+                                           map->GetIsolate());
+      SetPrototypeTransitions(map, cache);
     }
-
-    SetPrototypeTransitions(map, cache);
   }
 
-  // Reload number of transitions as GC might shrink them.
+  // Reload number of transitions as they might have been compacted.
   int last = NumberOfPrototypeTransitions(*cache);
   int entry = header + last;
 
@@ -387,25 +435,9 @@ void TransitionArray::ReplaceTransitions(Handle<Map> map,
 }
 
 
-static void ZapPrototypeTransitions(Object* raw_transitions) {
-  DCHECK(TransitionArray::IsFullTransitionArray(raw_transitions));
-  TransitionArray* transitions = TransitionArray::cast(raw_transitions);
-  if (!transitions->HasPrototypeTransitions()) return;
-  FixedArray* proto_transitions = transitions->GetPrototypeTransitions();
-  MemsetPointer(proto_transitions->data_start(),
-                proto_transitions->GetHeap()->the_hole_value(),
-                proto_transitions->length());
-}
-
-
 void TransitionArray::SetPrototypeTransitions(
     Handle<Map> map, Handle<FixedArray> proto_transitions) {
   EnsureHasFullTransitionArray(map);
-  if (Heap::ShouldZapGarbage()) {
-    Object* raw_transitions = map->raw_transitions();
-    DCHECK(raw_transitions != *proto_transitions);
-    ZapPrototypeTransitions(raw_transitions);
-  }
   TransitionArray* transitions = TransitionArray::cast(map->raw_transitions());
   transitions->SetPrototypeTransitions(*proto_transitions);
 }
@@ -444,8 +476,10 @@ void TransitionArray::TraverseTransitionTreeInternal(Map* map,
       for (int i = 0; i < NumberOfPrototypeTransitions(proto_trans); ++i) {
         int index = TransitionArray::kProtoTransitionHeaderSize + i;
         WeakCell* cell = WeakCell::cast(proto_trans->get(index));
-        TraverseTransitionTreeInternal(Map::cast(cell->value()), callback,
-                                       data);
+        if (!cell->cleared()) {
+          TraverseTransitionTreeInternal(Map::cast(cell->value()), callback,
+                                         data);
+        }
       }
     }
     for (int i = 0; i < transitions->number_of_transitions(); ++i) {

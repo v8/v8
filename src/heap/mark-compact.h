@@ -656,7 +656,6 @@ class MarkCompactCollector {
   // Map transitions from a live map to a dead map must be killed.
   // We replace them with a null descriptor, with the same key.
   void ClearNonLiveReferences();
-  void ClearNonLivePrototypeTransitions(Map* map);
   void ClearNonLiveMapTransitions(Map* map);
   void ClearMapTransitions(Map* map, Map* dead_transition);
   bool ClearMapBackPointer(Map* map);

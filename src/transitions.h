@@ -113,6 +113,7 @@ class TransitionArray: public FixedArray {
     Object* raw = proto_transitions->get(kProtoTransitionNumberOfEntriesOffset);
     return Smi::cast(raw)->value();
   }
+  static int NumberOfPrototypeTransitionsForTest(Map* map);
 
   static void SetNumberOfPrototypeTransitions(FixedArray* proto_transitions,
                                               int value);
@@ -271,6 +272,11 @@ class TransitionArray: public FixedArray {
 
   static void SetPrototypeTransitions(Handle<Map> map,
                                       Handle<FixedArray> proto_transitions);
+
+  static bool CompactPrototypeTransitionArray(FixedArray* array);
+
+  static Handle<FixedArray> GrowPrototypeTransitionArray(
+      Handle<FixedArray> array, int new_capacity, Isolate* isolate);
 
   // Compares two tuples <key, kind, attributes>, returns -1 if
   // tuple1 is "less" than tuple2, 0 if tuple1 equal to tuple2 and 1 otherwise.
