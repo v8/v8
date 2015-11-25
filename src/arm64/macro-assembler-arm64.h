@@ -1174,13 +1174,12 @@ class MacroAssembler : public Assembler {
                       InvokeFlag flag,
                       bool* definitely_mismatches,
                       const CallWrapper& call_wrapper);
-  void FloodFunctionIfStepping(Register fun, Register new_target,
-                               const ParameterCount& expected,
-                               const ParameterCount& actual);
-  void InvokeFunctionCode(Register function, Register new_target,
-                          const ParameterCount& expected,
-                          const ParameterCount& actual, InvokeFlag flag,
-                          const CallWrapper& call_wrapper);
+  void InvokeCode(Register code,
+                  Register new_target,
+                  const ParameterCount& expected,
+                  const ParameterCount& actual,
+                  InvokeFlag flag,
+                  const CallWrapper& call_wrapper);
   // Invoke the JavaScript function in the given register.
   // Changes the current context to the context in the function before invoking.
   void InvokeFunction(Register function,

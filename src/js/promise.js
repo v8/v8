@@ -71,7 +71,7 @@ var GlobalPromise = function Promise(resolver) {
   var promise = PromiseInit(%NewObject(GlobalPromise, new.target));
 
   try {
-    %DebugPushPromise(promise, Promise);
+    %DebugPushPromise(promise, Promise, resolver);
     var callbacks = CreateResolvingFunctions(promise);
     resolver(callbacks.resolve, callbacks.reject);
   } catch (e) {
@@ -139,7 +139,7 @@ function PromiseCoerce(constructor, x) {
 
 function PromiseHandle(value, handler, deferred) {
   try {
-    %DebugPushPromise(deferred.promise, PromiseHandle);
+    %DebugPushPromise(deferred.promise, PromiseHandle, handler);
     var result = handler(value);
     if (result === deferred.promise)
       throw MakeTypeError(kPromiseCyclic, result);
@@ -340,10 +340,12 @@ function PromiseThen(onResolve, onReject) {
     function(x) {
       x = PromiseCoerce(constructor, x);
       if (x === that) {
+        DEBUG_PREPARE_STEP_IN_IF_STEPPING(onReject);
         return onReject(MakeTypeError(kPromiseCyclic, x));
       } else if (IsPromise(x)) {
         return x.then(onResolve, onReject);
       } else {
+        DEBUG_PREPARE_STEP_IN_IF_STEPPING(onResolve);
         return onResolve(x);
       }
     },

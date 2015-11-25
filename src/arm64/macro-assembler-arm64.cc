@@ -2393,7 +2393,7 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
       call_wrapper.AfterCall();
       if (!*definitely_mismatches) {
         // If the arg counts don't match, no extra code is emitted by
-        // MAsm::InvokeFunctionCode and we can just fall through.
+        // MAsm::InvokeCode and we can just fall through.
         B(done);
       }
     } else {
@@ -2404,62 +2404,18 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
 }
 
 
-void MacroAssembler::FloodFunctionIfStepping(Register fun, Register new_target,
-                                             const ParameterCount& expected,
-                                             const ParameterCount& actual) {
-  Label skip_flooding;
-  ExternalReference debug_step_action =
-      ExternalReference::debug_last_step_action_address(isolate());
-  Mov(x4, Operand(debug_step_action));
-  ldrb(x4, MemOperand(x4));
-  CompareAndBranch(x4, Operand(StepIn), ne, &skip_flooding);
-  {
-    FrameScope frame(this,
-                     has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
-    if (expected.is_reg()) {
-      SmiTag(expected.reg());
-      Push(expected.reg());
-    }
-    if (actual.is_reg()) {
-      SmiTag(actual.reg());
-      Push(actual.reg());
-    }
-    if (new_target.is_valid()) {
-      Push(new_target);
-    }
-    Push(fun);
-    Push(fun);
-    CallRuntime(Runtime::kDebugPrepareStepInIfStepping, 1);
-    Pop(fun);
-    if (new_target.is_valid()) {
-      Pop(new_target);
-    }
-    if (actual.is_reg()) {
-      Pop(actual.reg());
-      SmiUntag(actual.reg());
-    }
-    if (expected.is_reg()) {
-      Pop(expected.reg());
-      SmiUntag(expected.reg());
-    }
-  }
-  bind(&skip_flooding);
-}
-
-
-void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
-                                        const ParameterCount& expected,
-                                        const ParameterCount& actual,
-                                        InvokeFlag flag,
-                                        const CallWrapper& call_wrapper) {
+void MacroAssembler::InvokeCode(Register code,
+                                Register new_target,
+                                const ParameterCount& expected,
+                                const ParameterCount& actual,
+                                InvokeFlag flag,
+                                const CallWrapper& call_wrapper) {
   // You can't call a function without a valid frame.
   DCHECK(flag == JUMP_FUNCTION || has_frame());
-  DCHECK(function.is(x1));
+
+  // Ensure new target is passed in the correct register. Otherwise clear the
+  // appropriate register in case new target is not given.
   DCHECK_IMPLIES(new_target.is_valid(), new_target.is(x3));
-
-  FloodFunctionIfStepping(function, new_target, expected, actual);
-
-  // Clear the new.target register if not given.
   if (!new_target.is_valid()) {
     LoadRoot(x3, Heap::kUndefinedValueRootIndex);
   }
@@ -2473,11 +2429,6 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
   // have handled the call through the argument adaptor mechanism.
   // The called function expects the call kind in x5.
   if (!definitely_mismatches) {
-    // We call indirectly through the code field in the function to
-    // allow recompilation to take effect without changing any of the
-    // call sites.
-    Register code = x4;
-    Ldr(code, FieldMemOperand(function, JSFunction::kCodeEntryOffset));
     if (flag == CALL_FUNCTION) {
       call_wrapper.BeforeCall(CallSize(code));
       Call(code);
@@ -2507,6 +2458,7 @@ void MacroAssembler::InvokeFunction(Register function,
   DCHECK(function.is(x1));
 
   Register expected_reg = x2;
+  Register code_reg = x4;
 
   Ldr(cp, FieldMemOperand(function, JSFunction::kContextOffset));
   // The number of arguments is stored as an int32_t, and -1 is a marker
@@ -2517,10 +2469,11 @@ void MacroAssembler::InvokeFunction(Register function,
   Ldrsw(expected_reg,
         FieldMemOperand(expected_reg,
                         SharedFunctionInfo::kFormalParameterCountOffset));
+  Ldr(code_reg,
+      FieldMemOperand(function, JSFunction::kCodeEntryOffset));
 
   ParameterCount expected(expected_reg);
-  InvokeFunctionCode(function, new_target, expected, actual, flag,
-                     call_wrapper);
+  InvokeCode(code_reg, new_target, expected, actual, flag, call_wrapper);
 }
 
 
@@ -2536,10 +2489,16 @@ void MacroAssembler::InvokeFunction(Register function,
   // (See FullCodeGenerator::Generate().)
   DCHECK(function.Is(x1));
 
+  Register code_reg = x4;
+
   // Set up the context.
   Ldr(cp, FieldMemOperand(function, JSFunction::kContextOffset));
 
-  InvokeFunctionCode(function, no_reg, expected, actual, flag, call_wrapper);
+  // We call indirectly through the code field in the function to
+  // allow recompilation to take effect without changing any of the
+  // call sites.
+  Ldr(code_reg, FieldMemOperand(function, JSFunction::kCodeEntryOffset));
+  InvokeCode(code_reg, no_reg, expected, actual, flag, call_wrapper);
 }
 
 

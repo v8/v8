@@ -31,7 +31,7 @@ class DebugScope;
 
 
 // Step actions. NOTE: These values are in macros.py as well.
-enum StepAction : int8_t {
+enum StepAction {
   StepNone = -1,  // Stepping not prepared.
   StepOut = 0,    // Step out of the current function.
   StepNext = 1,   // Step to the next statement in the current function.
@@ -502,8 +502,8 @@ class Debug {
     return reinterpret_cast<Address>(address);
   }
 
-  Address last_step_action_addr() {
-    return reinterpret_cast<Address>(&thread_local_.last_step_action_);
+  Address step_in_fp_addr() {
+    return reinterpret_cast<Address>(&thread_local_.step_into_fp_);
   }
 
   StepAction last_step_action() { return thread_local_.last_step_action_; }

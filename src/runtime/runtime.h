@@ -200,8 +200,9 @@ namespace internal {
   F(CollectGarbage, 1, 1)                      \
   F(GetHeapUsage, 0, 1)                        \
   F(GetScript, 1, 1)                           \
+  F(DebugCallbackSupportsStepping, 1, 1)       \
   F(DebugPrepareStepInIfStepping, 1, 1)        \
-  F(DebugPushPromise, 2, 1)                    \
+  F(DebugPushPromise, 3, 1)                    \
   F(DebugPopPromise, 0, 1)                     \
   F(DebugPromiseEvent, 1, 1)                   \
   F(DebugAsyncTaskEvent, 1, 1)                 \

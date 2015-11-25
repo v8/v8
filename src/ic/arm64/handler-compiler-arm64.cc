@@ -255,8 +255,7 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
       ParameterCount actual(1);
       ParameterCount expected(expected_arguments);
       __ LoadAccessor(x1, holder, accessor_index, ACCESSOR_SETTER);
-      __ InvokeFunction(x1, expected, actual, CALL_FUNCTION,
-                        CheckDebugStepCallWrapper());
+      __ InvokeFunction(x1, expected, actual, CALL_FUNCTION, NullCallWrapper());
     } else {
       // If we generate a global code snippet for deoptimization only, remember
       // the place to continue after deoptimization.
@@ -293,8 +292,7 @@ void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
       ParameterCount actual(0);
       ParameterCount expected(expected_arguments);
       __ LoadAccessor(x1, holder, accessor_index, ACCESSOR_GETTER);
-      __ InvokeFunction(x1, expected, actual, CALL_FUNCTION,
-                        CheckDebugStepCallWrapper());
+      __ InvokeFunction(x1, expected, actual, CALL_FUNCTION, NullCallWrapper());
     } else {
       // If we generate a global code snippet for deoptimization only, remember
       // the place to continue after deoptimization.
