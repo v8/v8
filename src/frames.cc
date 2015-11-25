@@ -436,6 +436,8 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
         return JAVA_SCRIPT;
       case Code::OPTIMIZED_FUNCTION:
         return OPTIMIZED;
+      case Code::WASM_FUNCTION:
+        return STUB;
       case Code::BUILTIN:
         if (!marker->IsSmi()) {
           if (StandardFrame::IsArgumentsAdaptorFrame(state->fp)) {
