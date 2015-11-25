@@ -192,12 +192,7 @@ class ScavengingVisitor : public StaticVisitorBase {
       *slot = target;
 
       if (object_contents == POINTER_OBJECT) {
-        if (map->instance_type() == JS_FUNCTION_TYPE) {
-          heap->promotion_queue()->insert(target,
-                                          JSFunction::kNonWeakFieldsEndOffset);
-        } else {
-          heap->promotion_queue()->insert(target, object_size);
-        }
+        heap->promotion_queue()->insert(target, object_size);
       }
       heap->IncrementPromotedObjectsSize(object_size);
       return true;
