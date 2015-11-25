@@ -3390,6 +3390,20 @@ void Assembler::vrintn(const DwVfpRegister dst, const DwVfpRegister src) {
 }
 
 
+void Assembler::vrintp(const SwVfpRegister dst, const SwVfpRegister src) {
+  // cond=kSpecialCondition(31-28) | 11101(27-23)| D(22) | 11(21-20) |
+  // 10(19-18) | RM=10(17-16) |  Vd(15-12) | 101(11-9) | sz=0(8) | 01(7-6) |
+  // M(5) | 0(4) | Vm(3-0)
+  DCHECK(CpuFeatures::IsSupported(ARMv8));
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vm, m;
+  src.split_code(&vm, &m);
+  emit(kSpecialCondition | 0x1D * B23 | d * B22 | 0x3 * B20 | B19 | 0x2 * B16 |
+       vd * B12 | 0x5 * B9 | B6 | m * B5 | vm);
+}
+
+
 void Assembler::vrintp(const DwVfpRegister dst, const DwVfpRegister src) {
   // cond=kSpecialCondition(31-28) | 11101(27-23)| D(22) | 11(21-20) |
   // 10(19-18) | RM=10(17-16) |  Vd(15-12) | 101(11-9) | sz=1(8) | 01(7-6) |

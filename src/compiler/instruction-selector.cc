@@ -927,6 +927,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsFloat32(node), VisitFloat32RoundDown(node);
     case IrOpcode::kFloat64RoundDown:
       return MarkAsFloat64(node), VisitFloat64RoundDown(node);
+    case IrOpcode::kFloat32RoundUp:
+      return MarkAsFloat32(node), VisitFloat32RoundUp(node);
     case IrOpcode::kFloat64RoundUp:
       return MarkAsFloat64(node), VisitFloat64RoundUp(node);
     case IrOpcode::kFloat64RoundTruncate:

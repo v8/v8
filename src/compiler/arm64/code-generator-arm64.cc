@@ -629,6 +629,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArm64Float64RoundDown:
       __ Frintm(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
+    case kArm64Float32RoundUp:
+      __ Frintp(i.OutputFloat32Register(), i.InputFloat32Register(0));
+      break;
     case kArm64Float64RoundUp:
       __ Frintp(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;

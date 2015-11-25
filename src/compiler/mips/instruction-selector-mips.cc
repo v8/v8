@@ -655,6 +655,9 @@ void InstructionSelector::VisitFloat64RoundDown(Node* node) {
 }
 
 
+void InstructionSelector::VisitFloat32RoundUp(Node* node) { UNREACHABLE(); }
+
+
 void InstructionSelector::VisitFloat64RoundUp(Node* node) {
   VisitRR(this, kMipsFloat64RoundUp, node);
 }

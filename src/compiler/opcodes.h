@@ -305,6 +305,7 @@
   V(Float64Abs)                 \
   V(Float64Sqrt)                \
   V(Float64RoundDown)           \
+  V(Float32RoundUp)             \
   V(Float64RoundUp)             \
   V(Float64RoundTruncate)       \
   V(Float64RoundTiesAway)       \

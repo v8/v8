@@ -861,6 +861,11 @@ void InstructionSelector::VisitFloat64RoundDown(Node* node) {
 }
 
 
+void InstructionSelector::VisitFloat32RoundUp(Node* node) {
+  VisitRR(this, node, kSSEFloat32Round | MiscField::encode(kRoundUp));
+}
+
+
 void InstructionSelector::VisitFloat64RoundUp(Node* node) {
   VisitRR(this, node, kSSEFloat64Round | MiscField::encode(kRoundUp));
 }
@@ -1289,11 +1294,12 @@ InstructionSelector::SupportedMachineOperatorFlags() {
     flags |= MachineOperatorBuilder::kWord32Popcnt;
   }
   if (CpuFeatures::IsSupported(SSE4_1)) {
-    flags |= MachineOperatorBuilder::kFloat64RoundDown |
+    flags |= MachineOperatorBuilder::kFloat32RoundDown |
+             MachineOperatorBuilder::kFloat64RoundDown |
+             MachineOperatorBuilder::kFloat32RoundUp |
              MachineOperatorBuilder::kFloat64RoundUp |
              MachineOperatorBuilder::kFloat64RoundTruncate |
-             MachineOperatorBuilder::kFloat64RoundTiesEven |
-             MachineOperatorBuilder::kFloat32RoundDown;
+             MachineOperatorBuilder::kFloat64RoundTiesEven;
   }
   return flags;
 }

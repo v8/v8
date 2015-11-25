@@ -1215,6 +1215,7 @@ class Assembler : public AssemblerBase {
   void vrintn(const DwVfpRegister dst, const DwVfpRegister src);
   void vrintm(const SwVfpRegister dst, const SwVfpRegister src);
   void vrintm(const DwVfpRegister dst, const DwVfpRegister src);
+  void vrintp(const SwVfpRegister dst, const SwVfpRegister src);
   void vrintp(const DwVfpRegister dst, const DwVfpRegister src);
   void vrintz(const DwVfpRegister dst, const DwVfpRegister src,
               const Condition cond = al);

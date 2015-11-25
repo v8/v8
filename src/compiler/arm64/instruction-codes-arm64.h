@@ -101,6 +101,7 @@ namespace compiler {
   V(Arm64Float64Neg)               \
   V(Arm64Float64Sqrt)              \
   V(Arm64Float64RoundDown)         \
+  V(Arm64Float32RoundUp)           \
   V(Arm64Float64RoundUp)           \
   V(Arm64Float64RoundTiesAway)     \
   V(Arm64Float64RoundTruncate)     \

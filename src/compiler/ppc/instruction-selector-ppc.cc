@@ -1136,6 +1136,9 @@ void InstructionSelector::VisitFloat64RoundDown(Node* node) {
 }
 
 
+void InstructionSelector::VisitFloat32RoundUp(Node* node) { UNIMPLEMENTED(); }
+
+
 void InstructionSelector::VisitFloat64RoundUp(Node* node) {
   VisitRR(this, kPPC_CeilDouble, node);
 }

@@ -54,7 +54,6 @@ namespace compiler {
   V(ArmVabsF32)                    \
   V(ArmVnegF32)                    \
   V(ArmVsqrtF32)                   \
-  V(ArmVrintmF32)                  \
   V(ArmVcmpF64)                    \
   V(ArmVaddF64)                    \
   V(ArmVsubF64)                    \
@@ -66,7 +65,9 @@ namespace compiler {
   V(ArmVabsF64)                    \
   V(ArmVnegF64)                    \
   V(ArmVsqrtF64)                   \
+  V(ArmVrintmF32)                  \
   V(ArmVrintmF64)                  \
+  V(ArmVrintpF32)                  \
   V(ArmVrintpF64)                  \
   V(ArmVrintzF64)                  \
   V(ArmVrintaF64)                  \

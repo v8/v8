@@ -5177,6 +5177,15 @@ TEST(RunFloat64RoundDown2) {
 }
 
 
+TEST(RunFloat32RoundUp) {
+  BufferedRawMachineAssemblerTester<float> m(kMachFloat32);
+  if (!m.machine()->Float32RoundUp().IsSupported()) return;
+  m.Return(m.Float32RoundUp(m.Parameter(0)));
+
+  FOR_FLOAT32_INPUTS(i) { CheckFloatEq(std::ceil(*i), m.Call(*i)); }
+}
+
+
 TEST(RunFloat64RoundUp) {
   BufferedRawMachineAssemblerTester<double> m(kMachFloat64);
   if (!m.machine()->Float64RoundUp().IsSupported()) return;
