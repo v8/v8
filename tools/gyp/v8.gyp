@@ -597,6 +597,7 @@
         '../../src/compiler/register-allocator.h',
         '../../src/compiler/register-allocator-verifier.cc',
         '../../src/compiler/register-allocator-verifier.h',
+        '../../src/compiler/representation-change.cc',
         '../../src/compiler/representation-change.h',
         '../../src/compiler/schedule.cc',
         '../../src/compiler/schedule.h',

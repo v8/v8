@@ -294,28 +294,6 @@ class RepresentationSelector {
            NodeProperties::GetType(node->InputAt(1))->Is(type);
   }
 
-  void ProcessTruncateWord32Input(Node* node, int index) {
-    Node* input = node->InputAt(index);
-    if (phase_ == PROPAGATE) {
-      // In the propagate phase, propagate the usage information backward.
-      Enqueue(input, UseInfo::TruncatingWord32());
-    } else {
-      // In the change phase, insert a change before the use if necessary.
-      MachineTypeUnion output = GetInfo(input)->output_type();
-      if ((output & (kRepBit | kRepWord8 | kRepWord16 | kRepWord32)) == 0) {
-        // Output representation doesn't match usage.
-        TRACE("  truncate-to-int32: #%d:%s(@%d #%d:%s) ", node->id(),
-              node->op()->mnemonic(), index, input->id(),
-              input->op()->mnemonic());
-        TRACE(" from ");
-        PrintInfo(output);
-        TRACE("\n");
-        Node* n = changer_->GetTruncatedWord32For(input, output);
-        node->ReplaceInput(index, n);
-      }
-    }
-  }
-
   void EnqueueInputUse(Node* node, int index, UseInfo use) {
     Enqueue(node->InputAt(index), use);
   }
