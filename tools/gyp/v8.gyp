@@ -461,8 +461,6 @@
         '../../src/compiler/ast-loop-assignment-analyzer.h',
         '../../src/compiler/basic-block-instrumentor.cc',
         '../../src/compiler/basic-block-instrumentor.h',
-        '../../src/compiler/binary-operator-reducer.cc',
-        '../../src/compiler/binary-operator-reducer.h',
         '../../src/compiler/branch-elimination.cc',
         '../../src/compiler/branch-elimination.h',
         '../../src/compiler/bytecode-graph-builder.cc',
