@@ -95,7 +95,7 @@ class TestSuite(object):
       (f, pathname, description) = imp.find_module("testcfg", [root])
       module = imp.load_module("testcfg", f, pathname, description)
       return module.GetSuite(name, root)
-    except:
+    except ImportError:
       # Use default if no testcfg is present.
       return GoogleTestSuite(name, root)
     finally:
