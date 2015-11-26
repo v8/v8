@@ -350,7 +350,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       if (m.IsFoldable()) {  // K * K => K
         return ReplaceFloat64(m.left().Value() * m.right().Value());
       }
-      return ReduceFloat52Mul(node);
+      break;
     }
     case IrOpcode::kFloat64Div: {
       Float64BinopMatcher m(node);
@@ -364,7 +364,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       if (m.IsFoldable()) {  // K / K => K
         return ReplaceFloat64(m.left().Value() / m.right().Value());
       }
-      return ReduceFloat52Div(node);
+      break;
     }
     case IrOpcode::kFloat64Mod: {
       Float64BinopMatcher m(node);
@@ -1077,88 +1077,6 @@ Reduction MachineOperatorReducer::ReduceFloat64Compare(Node* node) {
     return Changed(node);
   }
   return NoChange();
-}
-
-
-Reduction MachineOperatorReducer::ReduceFloat52Mul(Node* node) {
-  if (!machine()->Is64()) return NoChange();
-
-  Float64BinopMatcher m(node);
-  if (!m.left().IsChangeInt32ToFloat64() ||
-      !m.right().IsChangeInt32ToFloat64()) {
-    return NoChange();
-  }
-
-  Type* type = NodeProperties::GetType(node);
-  Type::RangeType* range = type->GetRange();
-
-  // JavaScript has 52 bit precision in multiplication
-  if (range == nullptr || range->Min() < 0.0 ||
-      range->Max() > 0xFFFFFFFFFFFFFULL) {
-    return NoChange();
-  }
-
-  Node* mul = graph()->NewNode(machine()->Int64Mul(), m.left().InputAt(0),
-                               m.right().InputAt(0));
-
-  Type* range_type = Type::Range(range->Min(), range->Max(), graph()->zone());
-
-  // TODO(indutny): Is Type::Number() a proper thing here? It looks like
-  // every other place is using Type:Internal() for int64 values.
-  // Should we off-load range propagation to Typer?
-  NodeProperties::SetType(
-      mul, Type::Intersect(range_type, Type::Number(), graph()->zone()));
-
-  Node* out = graph()->NewNode(machine()->RoundInt64ToFloat64(), mul);
-  return Replace(out);
-}
-
-
-Reduction MachineOperatorReducer::ReduceFloat52Div(Node* node) {
-  if (!machine()->Is64()) return NoChange();
-
-  Float64BinopMatcher m(node);
-  if (!m.left().IsRoundInt64ToFloat64()) return NoChange();
-
-  // Right value should be positive...
-  if (!m.right().HasValue() || m.right().Value() <= 0) return NoChange();
-
-  // ...integer...
-  int64_t value = static_cast<int64_t>(m.right().Value());
-  if (value != static_cast<int64_t>(m.right().Value())) return NoChange();
-
-  // ...and should be a power of two.
-  if (!base::bits::IsPowerOfTwo64(value)) return NoChange();
-
-  Node* left = m.left().InputAt(0);
-  Type::RangeType* range = NodeProperties::GetType(left)->GetRange();
-
-  // The RoundInt64ToFloat64 input should fit into 52bit integer
-  if (range == nullptr || range->Min() < 0 ||
-      range->Max() > 0xFFFFFFFFFFFFFULL) {
-    return NoChange();
-  }
-
-  // The result should fit into 32bit word
-  int64_t min = static_cast<int64_t>(range->Min()) / value;
-  int64_t max = static_cast<int64_t>(range->Max()) / value;
-  if (min < 0 || max > 0xFFFFFFFLL) {
-    return NoChange();
-  }
-
-  int64_t shift = WhichPowerOf2_64(static_cast<int64_t>(m.right().Value()));
-
-  // Replace division with 64bit right shift
-  Node* shr =
-      graph()->NewNode(machine()->Word64Shr(), left,
-                       graph()->NewNode(common()->Int64Constant(shift)));
-
-  Type* range_type = Type::Range(min, max, graph()->zone());
-  NodeProperties::SetType(
-      shr, Type::Intersect(range_type, Type::Number(), graph()->zone()));
-
-  Node* out = graph()->NewNode(machine()->RoundInt64ToFloat64(), shr);
-  return Replace(out);
 }
 
 

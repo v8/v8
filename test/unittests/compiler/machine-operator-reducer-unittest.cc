@@ -1679,66 +1679,6 @@ TEST_F(MachineOperatorReducerTest, OverflowingRoundPlusTruncate) {
   ASSERT_TRUE(!r.Changed());
 }
 
-
-TEST_F(MachineOperatorReducerTest, Div52OfMul52) {
-  // This reduction applies only to 64bit arch
-  if (!machine()->Is64()) return;
-
-  Node* p0 = Parameter(0);
-  Node* p1 = Parameter(1);
-  Node* t0 = graph()->NewNode(machine()->ChangeInt32ToFloat64(), p0);
-  Node* t1 = graph()->NewNode(machine()->ChangeInt32ToFloat64(), p1);
-
-  int64_t max = 0xFFFFFFFFFFFFFULL;
-  Type* mul_range = Type::Range(0x0, max, graph()->zone());
-  Node* mul = graph()->NewNode(machine()->Float64Mul(), t0, t1);
-  NodeProperties::SetType(
-      mul, Type::Intersect(mul_range, Type::Number(), graph()->zone()));
-
-  Node* mul_replacement;
-  auto mul_matcher = IsInt64Mul(p0, p1);
-
-  Reduction r = Reduce(mul);
-  ASSERT_TRUE(r.Changed());
-  mul_replacement = r.replacement();
-  EXPECT_THAT(mul_replacement, IsRoundInt64ToFloat64(mul_matcher));
-
-  Node* power = Float64Constant(0x4000000);
-  Node* div = graph()->NewNode(machine()->Float64Div(), mul_replacement, power);
-
-  auto shr_matcher = IsWord64Shr(mul_matcher, IsInt64Constant(26));
-
-  r = Reduce(div);
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsRoundInt64ToFloat64(shr_matcher));
-
-  // It should set `shr` range for reduction of RoundInt64ToFloat64
-  Type* type = NodeProperties::GetType(r.replacement()->InputAt(0));
-  Type::RangeType* range = type->GetRange();
-  ASSERT_TRUE(range != nullptr && range->Min() == 0 &&
-              range->Max() == max / 0x4000000);
-}
-
-
-TEST_F(MachineOperatorReducerTest, Div52OfOverflowingValue) {
-  // This reduction applies only to 64bit arch
-  if (!machine()->Is64()) return;
-
-  Node* p0 = Parameter(0);
-  Node* t0 = graph()->NewNode(machine()->RoundInt64ToFloat64(), p0);
-
-  int64_t max = 0xFFFFFFFFFFFFFFULL;
-  Type* p0_range = Type::Range(0x0, max, graph()->zone());
-  NodeProperties::SetType(
-      p0, Type::Intersect(p0_range, Type::Number(), graph()->zone()));
-
-  Node* power = Float64Constant(0x4000000);
-  Node* div = graph()->NewNode(machine()->Float64Div(), t0, power);
-
-  Reduction r = Reduce(div);
-  ASSERT_TRUE(!r.Changed());
-}
-
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
