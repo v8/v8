@@ -1500,12 +1500,10 @@ BUILTIN(ReflectDeleteProperty) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, name,
                                      Object::ToName(isolate, key));
 
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, JSReceiver::DeletePropertyOrElement(
-                           Handle<JSReceiver>::cast(target), name));
-
-  return *result;
+  Maybe<bool> result = JSReceiver::DeletePropertyOrElement(
+      Handle<JSReceiver>::cast(target), name, SLOPPY);
+  MAYBE_RETURN(result, isolate->heap()->exception());
+  return *isolate->factory()->ToBoolean(result.FromJust());
 }
 
 

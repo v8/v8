@@ -911,7 +911,7 @@ TEST(ObjectProperties) {
   CHECK(Just(true) == JSReceiver::HasOwnProperty(obj, first));
 
   // delete first
-  JSReceiver::DeleteProperty(obj, first, SLOPPY).Check();
+  CHECK(Just(true) == JSReceiver::DeleteProperty(obj, first, SLOPPY));
   CHECK(Just(false) == JSReceiver::HasOwnProperty(obj, first));
 
   // add first and then second
@@ -921,9 +921,9 @@ TEST(ObjectProperties) {
   CHECK(Just(true) == JSReceiver::HasOwnProperty(obj, second));
 
   // delete first and then second
-  JSReceiver::DeleteProperty(obj, first, SLOPPY).Check();
+  CHECK(Just(true) == JSReceiver::DeleteProperty(obj, first, SLOPPY));
   CHECK(Just(true) == JSReceiver::HasOwnProperty(obj, second));
-  JSReceiver::DeleteProperty(obj, second, SLOPPY).Check();
+  CHECK(Just(true) == JSReceiver::DeleteProperty(obj, second, SLOPPY));
   CHECK(Just(false) == JSReceiver::HasOwnProperty(obj, first));
   CHECK(Just(false) == JSReceiver::HasOwnProperty(obj, second));
 
@@ -934,9 +934,9 @@ TEST(ObjectProperties) {
   CHECK(Just(true) == JSReceiver::HasOwnProperty(obj, second));
 
   // delete second and then first
-  JSReceiver::DeleteProperty(obj, second, SLOPPY).Check();
+  CHECK(Just(true) == JSReceiver::DeleteProperty(obj, second, SLOPPY));
   CHECK(Just(true) == JSReceiver::HasOwnProperty(obj, first));
-  JSReceiver::DeleteProperty(obj, first, SLOPPY).Check();
+  CHECK(Just(true) == JSReceiver::DeleteProperty(obj, first, SLOPPY));
   CHECK(Just(false) == JSReceiver::HasOwnProperty(obj, first));
   CHECK(Just(false) == JSReceiver::HasOwnProperty(obj, second));
 

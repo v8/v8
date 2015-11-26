@@ -118,14 +118,14 @@ static MaybeHandle<Object> KeyedGetObjectProperty(Isolate* isolate,
 }
 
 
-MaybeHandle<Object> Runtime::DeleteObjectProperty(Isolate* isolate,
-                                                  Handle<JSReceiver> receiver,
-                                                  Handle<Object> key,
-                                                  LanguageMode language_mode) {
+Maybe<bool> Runtime::DeleteObjectProperty(Isolate* isolate,
+                                          Handle<JSReceiver> receiver,
+                                          Handle<Object> key,
+                                          LanguageMode language_mode) {
   bool success = false;
   LookupIterator it = LookupIterator::PropertyOrElement(
       isolate, receiver, key, &success, LookupIterator::HIDDEN);
-  if (!success) return MaybeHandle<Object>();
+  if (!success) return Nothing<bool>();
 
   return JSReceiver::DeleteProperty(&it, language_mode);
 }
@@ -618,11 +618,10 @@ Object* DeleteProperty(Isolate* isolate, Handle<Object> object,
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kUndefinedOrNullToObject));
   }
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      Runtime::DeleteObjectProperty(isolate, receiver, key, language_mode));
-  return *result;
+  Maybe<bool> result =
+      Runtime::DeleteObjectProperty(isolate, receiver, key, language_mode);
+  MAYBE_RETURN(result, isolate->heap()->exception());
+  return isolate->heap()->ToBoolean(result.FromJust());
 }
 
 }  // namespace

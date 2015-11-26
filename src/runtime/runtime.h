@@ -1170,7 +1170,7 @@ class Runtime : public AllStatic {
   // Get the runtime intrinsic function table.
   static const Function* RuntimeFunctionTable(Isolate* isolate);
 
-  MUST_USE_RESULT static MaybeHandle<Object> DeleteObjectProperty(
+  MUST_USE_RESULT static Maybe<bool> DeleteObjectProperty(
       Isolate* isolate, Handle<JSReceiver> receiver, Handle<Object> key,
       LanguageMode language_mode);
 

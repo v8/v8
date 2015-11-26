@@ -181,8 +181,9 @@ class CallSite {
   T(ProtoObjectOrNull, "Object prototype may only be an Object or null: %")    \
   T(PrototypeParentNotAnObject,                                                \
     "Class extends value does not have valid prototype property %")            \
-  T(ProxyHandlerDeleteFailed,                                                  \
-    "Proxy handler % did not return a boolean value from 'delete' trap")       \
+  T(ProxyDeletePropertyViolatesInvariant,                                      \
+    "Trap 'deleteProperty' returned true but property '%' is not configurable" \
+    " in the proxy target")                                                    \
   T(ProxyHandlerNonObject, "Cannot create proxy with non-object as handler")   \
   T(ProxyHandlerReturned, "Proxy handler % returned % from '%' trap")          \
   T(ProxyHandlerTrapMissing, "Proxy handler % has no '%' trap")                \

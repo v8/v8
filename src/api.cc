@@ -3879,12 +3879,11 @@ Maybe<bool> v8::Object::Delete(Local<Context> context, Local<Value> key) {
   PREPARE_FOR_EXECUTION_PRIMITIVE(context, "v8::Object::Delete()", bool);
   auto self = Utils::OpenHandle(this);
   auto key_obj = Utils::OpenHandle(*key);
-  i::Handle<i::Object> obj;
-  has_pending_exception =
-      !i::Runtime::DeleteObjectProperty(isolate, self, key_obj, i::SLOPPY)
-           .ToHandle(&obj);
+  Maybe<bool> result =
+      i::Runtime::DeleteObjectProperty(isolate, self, key_obj, i::SLOPPY);
+  has_pending_exception = result.IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
-  return Just(obj->IsTrue());
+  return result;
 }
 
 
@@ -3937,11 +3936,10 @@ Maybe<bool> v8::Object::Delete(Local<Context> context, uint32_t index) {
   PREPARE_FOR_EXECUTION_PRIMITIVE(context, "v8::Object::DeleteProperty()",
                                   bool);
   auto self = Utils::OpenHandle(this);
-  i::Handle<i::Object> obj;
-  has_pending_exception =
-      !i::JSReceiver::DeleteElement(self, index).ToHandle(&obj);
+  Maybe<bool> result = i::JSReceiver::DeleteElement(self, index);
+  has_pending_exception = result.IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
-  return Just(obj->IsTrue());
+  return result;
 }
 
 

@@ -4643,33 +4643,54 @@ Maybe<bool> JSProxy::SetPropertyViaPrototypesWithHandler(
 }
 
 
-MaybeHandle<Object> JSProxy::DeletePropertyWithHandler(
-    Handle<JSProxy> proxy, Handle<Name> name, LanguageMode language_mode) {
+Maybe<bool> JSProxy::DeletePropertyOrElement(Handle<JSProxy> proxy,
+                                             Handle<Name> name,
+                                             LanguageMode language_mode) {
+  ShouldThrow should_throw =
+      is_sloppy(language_mode) ? DONT_THROW : THROW_ON_ERROR;
   Isolate* isolate = proxy->GetIsolate();
+  Factory* factory = isolate->factory();
+  Handle<String> trap_name = factory->deleteProperty_string();
 
-  // TODO(rossberg): adjust once there is a story for symbols vs proxies.
-  if (name->IsSymbol()) return isolate->factory()->false_value();
-
-  Handle<Object> args[] = { name };
-  Handle<Object> result;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, result,
-      CallTrap(proxy,
-               "delete",
-               Handle<Object>(),
-               arraysize(args),
-               args),
-      Object);
-
-  bool result_bool = result->BooleanValue();
-  if (is_strict(language_mode) && !result_bool) {
-    Handle<Object> handler(proxy->handler(), isolate);
-    THROW_NEW_ERROR(
-        isolate,
-        NewTypeError(MessageTemplate::kProxyHandlerDeleteFailed, handler),
-        Object);
+  if (IsRevoked(proxy)) {
+    isolate->Throw(
+        *factory->NewTypeError(MessageTemplate::kProxyRevoked, trap_name));
+    return Nothing<bool>();
   }
-  return isolate->factory()->ToBoolean(result_bool);
+
+  Handle<JSReceiver> target(JSReceiver::cast(proxy->target()), isolate);
+  Handle<JSReceiver> handler(JSReceiver::cast(proxy->handler()), isolate);
+
+  Handle<Object> trap;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, trap, GetTrap(proxy, trap_name),
+                                   Nothing<bool>());
+  if (trap->IsUndefined()) {
+    return JSReceiver::DeletePropertyOrElement(target, name, language_mode);
+  }
+
+  Handle<Object> trap_result;
+  Handle<Object> args[] = {target, name};
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, trap_result,
+      Execution::Call(isolate, trap, handler, arraysize(args), args),
+      Nothing<bool>());
+  if (!trap_result->BooleanValue()) {
+    RETURN_FAILURE(isolate, should_throw,
+                   NewTypeError(MessageTemplate::kProxyHandlerReturned, handler,
+                                factory->false_string(), trap_name));
+  }
+
+  // Enforce the invariant.
+  PropertyDescriptor target_desc;
+  bool owned =
+      JSReceiver::GetOwnPropertyDescriptor(isolate, target, name, &target_desc);
+  if (isolate->has_pending_exception()) return Nothing<bool>();
+  if (owned && !target_desc.configurable()) {
+    isolate->Throw(*factory->NewTypeError(
+        MessageTemplate::kProxyDeletePropertyViolatesInvariant, name));
+    return Nothing<bool>();
+  }
+  return Just(true);
 }
 
 
@@ -5762,8 +5783,7 @@ Handle<Object> JSObject::SetHiddenPropertiesHashTable(Handle<JSObject> object,
 }
 
 
-MaybeHandle<Object> JSObject::DeletePropertyWithInterceptor(
-    LookupIterator* it) {
+Maybe<bool> JSObject::DeletePropertyWithInterceptor(LookupIterator* it) {
   Isolate* isolate = it->isolate();
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
@@ -5771,7 +5791,7 @@ MaybeHandle<Object> JSObject::DeletePropertyWithInterceptor(
 
   DCHECK_EQ(LookupIterator::INTERCEPTOR, it->state());
   Handle<InterceptorInfo> interceptor(it->GetInterceptor());
-  if (interceptor->deleter()->IsUndefined()) return MaybeHandle<Object>();
+  if (interceptor->deleter()->IsUndefined()) return Nothing<bool>();
 
   Handle<JSObject> holder = it->GetHolder<JSObject>();
 
@@ -5786,7 +5806,7 @@ MaybeHandle<Object> JSObject::DeletePropertyWithInterceptor(
         ApiIndexedPropertyAccess("interceptor-indexed-delete", *holder, index));
     result = args.Call(deleter, index);
   } else if (it->name()->IsSymbol() && !interceptor->can_intercept_symbols()) {
-    return MaybeHandle<Object>();
+    return Nothing<bool>();
   } else {
     Handle<Name> name = it->name();
     v8::GenericNamedPropertyDeleterCallback deleter =
@@ -5797,14 +5817,14 @@ MaybeHandle<Object> JSObject::DeletePropertyWithInterceptor(
     result = args.Call(deleter, v8::Utils::ToLocal(name));
   }
 
-  RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
-  if (result.IsEmpty()) return MaybeHandle<Object>();
+  RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<bool>());
+  if (result.IsEmpty()) return Nothing<bool>();
 
   DCHECK(result->IsBoolean());
   Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
   result_internal->VerifyApiCallResultType();
   // Rebox CustomArguments::kReturnValueOffset before returning.
-  return handle(*result_internal, isolate);
+  return Just(result_internal->BooleanValue());
 }
 
 
@@ -5835,13 +5855,13 @@ void JSObject::DeleteNormalizedProperty(Handle<JSObject> object,
 }
 
 
-// ECMA-262, 3rd, 8.6.2.5
-MaybeHandle<Object> JSReceiver::DeleteProperty(LookupIterator* it,
-                                               LanguageMode language_mode) {
+Maybe<bool> JSReceiver::DeleteProperty(LookupIterator* it,
+                                       LanguageMode language_mode) {
   Isolate* isolate = it->isolate();
+
   if (it->state() == LookupIterator::JSPROXY) {
-    return JSProxy::DeletePropertyWithHandler(it->GetHolder<JSProxy>(),
-                                              it->GetName(), language_mode);
+    return JSProxy::DeletePropertyOrElement(it->GetHolder<JSProxy>(),
+                                            it->GetName(), language_mode);
   }
 
   Handle<JSObject> receiver = Handle<JSObject>::cast(it->GetReceiver());
@@ -5861,19 +5881,20 @@ MaybeHandle<Object> JSReceiver::DeleteProperty(LookupIterator* it,
       case LookupIterator::ACCESS_CHECK:
         if (it->HasAccess()) break;
         isolate->ReportFailedAccessCheck(it->GetHolder<JSObject>());
-        RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
-        return it->factory()->false_value();
+        RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<bool>());
+        return Just(false);
       case LookupIterator::INTERCEPTOR: {
-        MaybeHandle<Object> maybe_result =
-            JSObject::DeletePropertyWithInterceptor(it);
-        // Delete with interceptor succeeded. Return result.
-        if (!maybe_result.is_null()) return maybe_result;
+        Maybe<bool> result = JSObject::DeletePropertyWithInterceptor(it);
         // An exception was thrown in the interceptor. Propagate.
-        if (isolate->has_pending_exception()) return maybe_result;
+        if (isolate->has_pending_exception()) return Nothing<bool>();
+        // Delete with interceptor succeeded. Return result.
+        // TODO(neis): In strict mode, we should probably throw if the
+        // interceptor returns false.
+        if (result.IsJust()) return result;
         break;
       }
       case LookupIterator::INTEGER_INDEXED_EXOTIC:
-        return it->factory()->true_value();
+        return Just(true);
       case LookupIterator::DATA:
         if (is_observed) {
           old_value = it->GetDataValue();
@@ -5887,49 +5908,50 @@ MaybeHandle<Object> JSReceiver::DeleteProperty(LookupIterator* it,
                 receiver->map()->is_strong()
                     ? MessageTemplate::kStrongDeleteProperty
                     : MessageTemplate::kStrictDeleteProperty;
-            THROW_NEW_ERROR(
-                isolate, NewTypeError(templ, it->GetName(), receiver), Object);
+            isolate->Throw(*isolate->factory()->NewTypeError(
+                templ, it->GetName(), receiver));
+            return Nothing<bool>();
           }
-          return it->factory()->false_value();
+          return Just(false);
         }
 
         it->Delete();
 
         if (is_observed) {
-          RETURN_ON_EXCEPTION(isolate,
-                              JSObject::EnqueueChangeRecord(
-                                  receiver, "delete", it->GetName(), old_value),
-                              Object);
+          RETURN_ON_EXCEPTION_VALUE(
+              isolate, JSObject::EnqueueChangeRecord(receiver, "delete",
+                                                     it->GetName(), old_value),
+              Nothing<bool>());
         }
 
-        return it->factory()->true_value();
+        return Just(true);
       }
     }
   }
 
-  return it->factory()->true_value();
+  return Just(true);
 }
 
 
-MaybeHandle<Object> JSReceiver::DeleteElement(Handle<JSReceiver> object,
-                                              uint32_t index,
-                                              LanguageMode language_mode) {
+Maybe<bool> JSReceiver::DeleteElement(Handle<JSReceiver> object, uint32_t index,
+                                      LanguageMode language_mode) {
   LookupIterator it(object->GetIsolate(), object, index,
                     LookupIterator::HIDDEN);
   return DeleteProperty(&it, language_mode);
 }
 
 
-MaybeHandle<Object> JSReceiver::DeleteProperty(Handle<JSReceiver> object,
-                                               Handle<Name> name,
-                                               LanguageMode language_mode) {
+Maybe<bool> JSReceiver::DeleteProperty(Handle<JSReceiver> object,
+                                       Handle<Name> name,
+                                       LanguageMode language_mode) {
   LookupIterator it(object, name, LookupIterator::HIDDEN);
   return DeleteProperty(&it, language_mode);
 }
 
 
-MaybeHandle<Object> JSReceiver::DeletePropertyOrElement(
-    Handle<JSReceiver> object, Handle<Name> name, LanguageMode language_mode) {
+Maybe<bool> JSReceiver::DeletePropertyOrElement(Handle<JSReceiver> object,
+                                                Handle<Name> name,
+                                                LanguageMode language_mode) {
   LookupIterator it = LookupIterator::PropertyOrElement(
       name->GetIsolate(), object, name, LookupIterator::HIDDEN);
   return DeleteProperty(&it, language_mode);

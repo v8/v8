@@ -1811,16 +1811,16 @@ class JSReceiver: public HeapObject {
   MUST_USE_RESULT static inline Maybe<bool> HasOwnElement(
       Handle<JSReceiver> object, uint32_t index);
 
-  // Implementation of [[Delete]], ECMA-262 5th edition, section 8.12.7.
-  MUST_USE_RESULT static MaybeHandle<Object> DeletePropertyOrElement(
+  // Implementation of ES6 [[Delete]]
+  MUST_USE_RESULT static Maybe<bool> DeletePropertyOrElement(
       Handle<JSReceiver> object, Handle<Name> name,
       LanguageMode language_mode = SLOPPY);
-  MUST_USE_RESULT static MaybeHandle<Object> DeleteProperty(
+  MUST_USE_RESULT static Maybe<bool> DeleteProperty(
       Handle<JSReceiver> object, Handle<Name> name,
       LanguageMode language_mode = SLOPPY);
-  MUST_USE_RESULT static MaybeHandle<Object> DeleteProperty(
-      LookupIterator* it, LanguageMode language_mode);
-  MUST_USE_RESULT static MaybeHandle<Object> DeleteElement(
+  MUST_USE_RESULT static Maybe<bool> DeleteProperty(LookupIterator* it,
+                                                    LanguageMode language_mode);
+  MUST_USE_RESULT static Maybe<bool> DeleteElement(
       Handle<JSReceiver> object, uint32_t index,
       LanguageMode language_mode = SLOPPY);
 
@@ -2510,7 +2510,7 @@ class JSObject: public JSReceiver {
                               Handle<Object> value,
                               PropertyAttributes attributes);
 
-  MUST_USE_RESULT static MaybeHandle<Object> DeletePropertyWithInterceptor(
+  MUST_USE_RESULT static Maybe<bool> DeletePropertyWithInterceptor(
       LookupIterator* it);
 
   bool ReferencesObjectFromElements(FixedArray* elements,
@@ -9527,6 +9527,10 @@ class JSProxy: public JSReceiver {
                                 Handle<Object> key, PropertyDescriptor* desc,
                                 ShouldThrow should_throw);
 
+  // ES6 9.5.10 (when passed SLOPPY)
+  MUST_USE_RESULT static Maybe<bool> DeletePropertyOrElement(
+      Handle<JSProxy> proxy, Handle<Name> name, LanguageMode language_mode);
+
   MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithHandler(
       Handle<JSProxy> proxy,
       Handle<Object> receiver,
@@ -9581,9 +9585,6 @@ class JSProxy: public JSReceiver {
 
   MUST_USE_RESULT static Maybe<bool> HasPropertyWithHandler(
       Handle<JSProxy> proxy, Handle<Name> name);
-
-  MUST_USE_RESULT static MaybeHandle<Object> DeletePropertyWithHandler(
-      Handle<JSProxy> proxy, Handle<Name> name, LanguageMode language_mode);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSProxy);
 };

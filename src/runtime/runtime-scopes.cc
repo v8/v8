@@ -903,10 +903,9 @@ RUNTIME_FUNCTION(Runtime_DeleteLookupSlot) {
   // the global object, or the subject of a with.  Try to delete it
   // (respecting DONT_DELETE).
   Handle<JSObject> object = Handle<JSObject>::cast(holder);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                     JSReceiver::DeleteProperty(object, name));
-  return *result;
+  Maybe<bool> result = JSReceiver::DeleteProperty(object, name);
+  MAYBE_RETURN(result, isolate->heap()->exception());
+  return isolate->heap()->ToBoolean(result.FromJust());
 }
 
 

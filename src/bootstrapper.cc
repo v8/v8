@@ -687,7 +687,9 @@ Handle<JSFunction> Genesis::GetThrowTypeErrorIntrinsic(
   function->shared()->DontAdaptArguments();
 
   // %ThrowTypeError% must not have a name property.
-  JSReceiver::DeleteProperty(function, factory()->name_string()).Assert();
+  if (JSReceiver::DeleteProperty(function, factory()->name_string())
+          .IsNothing())
+    DCHECK(false);
 
   // length needs to be non configurable.
   Handle<Object> value(Smi::FromInt(function->shared()->length()), isolate());
