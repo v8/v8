@@ -187,13 +187,13 @@ class LabelConverter {
 };
 
 
-MemMoveFunction CreateMemMoveFunction() {
+MemMoveFunction CreateMemMoveFunction(Isolate* isolate) {
   size_t actual_size;
   // Allocate buffer in executable space.
   byte* buffer =
       static_cast<byte*>(base::OS::Allocate(1 * KB, &actual_size, true));
-  if (buffer == NULL) return NULL;
-  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size),
+  if (buffer == nullptr) return nullptr;
+  MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size),
                       CodeObjectRequired::kNo);
   LabelConverter conv(buffer);
 
@@ -507,7 +507,7 @@ MemMoveFunction CreateMemMoveFunction() {
   CodeDesc desc;
   masm.GetCode(&desc);
   DCHECK(!RelocInfo::RequiresRelocation(desc));
-  Assembler::FlushICacheWithoutIsolate(buffer, actual_size);
+  Assembler::FlushICache(isolate, buffer, actual_size);
   base::OS::ProtectCode(buffer, actual_size);
   // TODO(jkummerow): It would be nice to register this code creation event
   // with the PROFILE / GDBJIT system.

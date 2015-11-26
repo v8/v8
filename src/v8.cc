@@ -79,7 +79,6 @@ void V8::InitializeOncePerProcessImpl() {
 
   Sampler::SetUp();
   CpuFeatures::Probe(false);
-  init_memcopy_functions();
   ElementsAccessor::InitializeOncePerProcess();
   LOperand::SetUpCaches();
   SetUpJSCallerSavedCodeData();

@@ -1836,6 +1836,8 @@ Isolate::Isolate(bool enable_serializer)
 
   InitializeLoggingAndCounters();
   debug_ = new Debug(this);
+
+  init_memcopy_functions(this);
 }
 
 
