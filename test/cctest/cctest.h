@@ -368,6 +368,12 @@ static inline v8::Local<v8::Script> v8_compile(const char* x) {
 }
 
 
+static inline int32_t v8_run_int32value(v8::Local<v8::Script> script) {
+  v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
+  return script->Run(context).ToLocalChecked()->Int32Value(context).FromJust();
+}
+
+
 static inline v8::Local<v8::Script> CompileWithOrigin(
     v8::Local<v8::String> source, v8::Local<v8::String> origin_url) {
   v8::ScriptOrigin origin(origin_url);
