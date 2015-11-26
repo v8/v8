@@ -62,9 +62,7 @@ Debug.ExceptionBreak = { Caught : 0,
 Debug.StepAction = { StepOut: 0,
                      StepNext: 1,
                      StepIn: 2,
-                     StepMin: 3,
-                     StepInMin: 4,
-                     StepFrame: 5 };
+                     StepFrame: 3 };
 
 // The different types of scripts matching enum ScriptType in objects.h.
 Debug.ScriptType = { Native: 0,
@@ -1479,8 +1477,6 @@ DebugCommandProcessor.prototype.continueRequest_ = function(request, response) {
     if (stepaction) {
       if (stepaction == 'in') {
         action = Debug.StepAction.StepIn;
-      } else if (stepaction == 'min') {
-        action = Debug.StepAction.StepMin;
       } else if (stepaction == 'next') {
         action = Debug.StepAction.StepNext;
       } else if (stepaction == 'out') {

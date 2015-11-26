@@ -964,7 +964,7 @@ void Debug::PrepareStep(StepAction step_action,
     return;
   }
 
-  if (step_action != StepNext && step_action != StepMin) {
+  if (step_action != StepNext) {
     // If there's restarter frame on top of the stack, just get the pointer
     // to function which is going to be restarted.
     if (thread_local_.restarter_frame_function_pointer_ != NULL) {

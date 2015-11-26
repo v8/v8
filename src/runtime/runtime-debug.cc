@@ -1232,13 +1232,12 @@ RUNTIME_FUNCTION(Runtime_PrepareStep) {
   // Get the step action and check validity.
   StepAction step_action = static_cast<StepAction>(NumberToInt32(args[1]));
   if (step_action != StepIn && step_action != StepNext &&
-      step_action != StepOut && step_action != StepInMin &&
-      step_action != StepMin && step_action != StepFrame) {
+      step_action != StepOut && step_action != StepFrame) {
     return isolate->Throw(isolate->heap()->illegal_argument_string());
   }
 
   if (frame_id != StackFrame::NO_ID && step_action != StepNext &&
-      step_action != StepMin && step_action != StepOut) {
+      step_action != StepOut) {
     return isolate->ThrowIllegalOperation();
   }
 
