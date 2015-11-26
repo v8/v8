@@ -6313,7 +6313,7 @@ class V8_EXPORT V8 {
    * guarantee that visited objects are still alive.
    */
   V8_INLINE static V8_DEPRECATE_SOON(
-      "Use isoalte version",
+      "Use isolate version",
       void VisitExternalResources(ExternalResourceVisitor* visitor));
 
   /**
