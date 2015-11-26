@@ -347,6 +347,9 @@ static void PrepareStep(StepAction step_action) {
 }
 
 
+static void ClearStepping() { CcTest::i_isolate()->debug()->ClearStepping(); }
+
+
 // This function is in namespace v8::internal to be friend with class
 // v8::internal::Debug.
 namespace v8 {
@@ -3838,7 +3841,7 @@ TEST(DebugStepFunctionCallApply) {
 
   break_point_hit_count = 0;
   foo->Call(context, env->Global(), 0, NULL).ToLocalChecked();
-  CHECK_EQ(5, break_point_hit_count);
+  CHECK_EQ(6, break_point_hit_count);
 
   v8::Debug::SetDebugEventListener(NULL);
   CheckDebuggerUnloaded();
@@ -4211,6 +4214,7 @@ TEST(StepWithException) {
                     "function h() { x = 1; throw 1; }; ";
 
   // Step through invocation of a.
+  ClearStepping();
   v8::Local<v8::Function> a = CompileFunction(&env, src, "a");
   SetBreakPoint(a, 0);
   step_action = StepIn;
@@ -4221,6 +4225,7 @@ TEST(StepWithException) {
            break_point_hit_count);
 
   // Step through invocation of b + c.
+  ClearStepping();
   v8::Local<v8::Function> b = CompileFunction(&env, src, "b");
   SetBreakPoint(b, 0);
   step_action = StepIn;
@@ -4229,7 +4234,9 @@ TEST(StepWithException) {
   CHECK(b->Call(context, env->Global(), 0, NULL).IsEmpty());
   CHECK_EQ(StrLength(expected_step_sequence),
            break_point_hit_count);
+
   // Step through invocation of d + e.
+  ClearStepping();
   v8::Local<v8::Function> d = CompileFunction(&env, src, "d");
   SetBreakPoint(d, 0);
   ChangeBreakOnException(false, true);
@@ -4250,6 +4257,7 @@ TEST(StepWithException) {
            break_point_hit_count);
 
   // Step through invocation of f + g + h.
+  ClearStepping();
   v8::Local<v8::Function> f = CompileFunction(&env, src, "f");
   SetBreakPoint(f, 0);
   ChangeBreakOnException(false, true);

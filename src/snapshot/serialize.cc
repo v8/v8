@@ -60,8 +60,8 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
       "Heap::NewSpaceAllocationLimitAddress()");
   Add(ExternalReference::new_space_allocation_top_address(isolate).address(),
       "Heap::NewSpaceAllocationTopAddress()");
-  Add(ExternalReference::debug_step_in_fp_address(isolate).address(),
-      "Debug::step_in_fp_addr()");
+  Add(ExternalReference::debug_last_step_action_address(isolate).address(),
+      "Debug::last_step_action_addr()");
   Add(ExternalReference::mod_two_doubles_operation(isolate).address(),
       "mod_two_doubles");
   // Keyed lookup cache.

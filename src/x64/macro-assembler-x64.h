@@ -368,12 +368,10 @@ class MacroAssembler: public Assembler {
   // JavaScript invokes
 
   // Invoke the JavaScript function code by either calling or jumping.
-  void InvokeCode(Register code,
-                  Register new_target,
-                  const ParameterCount& expected,
-                  const ParameterCount& actual,
-                  InvokeFlag flag,
-                  const CallWrapper& call_wrapper);
+  void InvokeFunctionCode(Register function, Register new_target,
+                          const ParameterCount& expected,
+                          const ParameterCount& actual, InvokeFlag flag,
+                          const CallWrapper& call_wrapper);
 
   // Invoke the JavaScript function in the given register. Changes the
   // current context to the context in the function before invoking.
@@ -402,10 +400,6 @@ class MacroAssembler: public Assembler {
 
   // Store the function for the given builtin in the target register.
   void GetBuiltinFunction(Register target, int native_context_index);
-
-  // Store the code object for the given builtin in the target register.
-  void GetBuiltinEntry(Register target, int native_context_index);
-
 
   // ---------------------------------------------------------------------------
   // Smi tagging, untagging and operations on tagged smis.
@@ -1593,6 +1587,10 @@ class MacroAssembler: public Assembler {
                       InvokeFlag flag,
                       Label::Distance near_jump,
                       const CallWrapper& call_wrapper);
+
+  void FloodFunctionIfStepping(Register fun, Register new_target,
+                               const ParameterCount& expected,
+                               const ParameterCount& actual);
 
   void EnterExitFramePrologue(bool save_rax);
 
