@@ -299,11 +299,6 @@ class TransitionArray: public FixedArray {
 
   inline void Set(int transition_number, Name* key, Map* target);
 
-  // Copy a single transition from the origin array.
-  inline void NoIncrementalWriteBarrierCopyFrom(TransitionArray* origin,
-                                                int origin_transition,
-                                                int target_transition);
-
 #ifdef DEBUG
   static void CheckNewTransitionsAreConsistent(Handle<Map> map,
                                                TransitionArray* old_transitions,

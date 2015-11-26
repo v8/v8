@@ -2585,20 +2585,6 @@ void FixedArray::set(int index,
 }
 
 
-void FixedArray::NoIncrementalWriteBarrierSet(FixedArray* array,
-                                              int index,
-                                              Object* value) {
-  DCHECK(array->map() != array->GetHeap()->fixed_cow_array_map());
-  DCHECK(index >= 0 && index < array->length());
-  int offset = kHeaderSize + index * kPointerSize;
-  WRITE_FIELD(array, offset, value);
-  Heap* heap = array->GetHeap();
-  if (heap->InNewSpace(value)) {
-    heap->RecordWrite(array->address(), offset);
-  }
-}
-
-
 void FixedArray::NoWriteBarrierSet(FixedArray* array,
                                    int index,
                                    Object* value) {
