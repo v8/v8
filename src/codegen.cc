@@ -20,24 +20,7 @@ namespace v8 {
 namespace internal {
 
 
-#if defined(_WIN64)
-typedef double (*ModuloFunction)(double, double);
-static ModuloFunction modulo_function = NULL;
-// Defined in codegen-x64.cc.
-ModuloFunction CreateModuloFunction();
-
-void init_modulo_function() {
-  modulo_function = CreateModuloFunction();
-}
-
-
-double modulo(double x, double y) {
-  // Note: here we rely on dependent reads being ordered. This is true
-  // on all architectures we currently support.
-  return (*modulo_function)(x, y);
-}
-#elif defined(_WIN32)
-
+#if defined(V8_OS_WIN)
 double modulo(double x, double y) {
   // Workaround MS fmod bugs. ECMA-262 says:
   // dividend is finite and divisor is an infinity => result equals dividend
@@ -61,7 +44,7 @@ double modulo(double x, double y) {
   return std::fmod(x, y);
 #endif
 }
-#endif  // defined(_WIN64)
+#endif  // defined(V8_OS_WIN)
 
 
 #define UNARY_MATH_FUNCTION(name, generator)                             \

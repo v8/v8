@@ -80,9 +80,6 @@ void V8::InitializeOncePerProcessImpl() {
   Sampler::SetUp();
   CpuFeatures::Probe(false);
   init_memcopy_functions();
-#ifdef _WIN64
-  init_modulo_function();
-#endif
   ElementsAccessor::InitializeOncePerProcess();
   LOperand::SetUpCaches();
   SetUpJSCallerSavedCodeData();

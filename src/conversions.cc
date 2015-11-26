@@ -10,6 +10,7 @@
 
 #include "src/assert-scope.h"
 #include "src/char-predicates-inl.h"
+#include "src/codegen.h"
 #include "src/conversions-inl.h"
 #include "src/dtoa.h"
 #include "src/factory.h"
@@ -440,7 +441,7 @@ char* DoubleToRadixCString(double value, int radix) {
   // at least one digit.
   int integer_pos = kBufferSize - 2;
   do {
-    double remainder = std::fmod(integer_part, radix);
+    double remainder = modulo(integer_part, radix);
     integer_buffer[integer_pos--] = chars[static_cast<int>(remainder)];
     integer_part -= remainder;
     integer_part /= radix;
