@@ -45,7 +45,6 @@
         'cancelable-tasks-unittest.cc',
         'char-predicates-unittest.cc',
         'compiler/branch-elimination-unittest.cc',
-        'compiler/bytecode-graph-builder-unittest.cc',
         'compiler/change-lowering-unittest.cc',
         'compiler/coalesced-live-ranges-unittest.cc',
         'compiler/common-operator-reducer-unittest.cc',
