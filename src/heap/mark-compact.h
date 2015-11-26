@@ -327,6 +327,15 @@ class ThreadLocalTop;
 // Mark-Compact collector
 class MarkCompactCollector {
  public:
+  enum IterationMode {
+    kKeepMarking,
+    kClearMarkbits,
+  };
+
+  class EvacuateNewSpaceVisitor;
+  class EvacuateOldSpaceVisitor;
+  class HeapObjectVisitor;
+
   static void Initialize();
 
   void SetUp();
@@ -703,13 +712,12 @@ class MarkCompactCollector {
   // regions to each space's free list.
   void SweepSpaces();
 
-  int DiscoverAndEvacuateBlackObjectsOnPage(NewSpace* new_space,
-                                            NewSpacePage* p);
+  // Iterates through all live objects on a page using marking information.
+  // Returns whether all objects have successfully been visited.
+  bool IterateLiveObjectsOnPage(MemoryChunk* page, HeapObjectVisitor* visitor,
+                                IterationMode mode);
 
   void EvacuateNewSpace();
-
-  bool EvacuateLiveObjectsFromPage(Page* p, PagedSpace* target_space,
-                                   SlotsBuffer** evacuation_slots_buffer);
 
   void AddEvacuationSlotsBufferSynchronized(
       SlotsBuffer* evacuation_slots_buffer);
