@@ -547,6 +547,46 @@ function TestMapSetSubclassing(container, is_map) {
 
 
 (function() {
+  class A extends Promise {
+    constructor(...args) {
+      assertTrue(%IsConstructCall());
+      super(...args);
+      this.a = 42;
+      this.d = 4.2;
+      this.o = {foo:153};
+    }
+  }
+
+  var o = new A(function(resolve, reject) {
+    resolve("ok");
+  });
+  assertTrue(o instanceof Object);
+  assertTrue(o instanceof Promise);
+  assertTrue(o instanceof A);
+  assertEquals("object", typeof o);
+  checkPrototypeChain(o, [A, Promise, Object]);
+  assertEquals(42, o.a);
+  assertEquals(4.2, o.d);
+  assertEquals(153, o.o.foo);
+  o.then(
+      function(val) { assertEquals("ok", val); },
+      function(reason) { assertUnreachable(); })
+    .catch(function(reason) { %AbortJS("catch handler called: " + reason); });
+
+  var o1 = new A(function(resolve, reject) {
+    reject("fail");
+  });
+  o1.then(
+      function(val) { assertUnreachable(); },
+      function(reason) { assertEquals("fail", reason); })
+    .catch(function(reason) { %AbortJS("catch handler called: " + reason); });
+  assertTrue(%HaveSameMap(o, o1));
+
+  gc();
+})();
+
+
+(function() {
   class A extends Boolean {
     constructor() {
       assertTrue(%IsConstructCall());
