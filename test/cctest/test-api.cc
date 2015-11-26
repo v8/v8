@@ -7666,7 +7666,8 @@ THREADED_TEST(ExceptionCreateMessage) {
   CHECK(error->IsObject());
   CHECK(error.As<v8::Object>()->Get(message_str)->Equals(foo_str));
 
-  v8::Handle<v8::Message> message = v8::Exception::CreateMessage(error);
+  v8::Handle<v8::Message> message =
+      v8::Exception::CreateMessage(context->GetIsolate(), error);
   CHECK(!message.IsEmpty());
   CHECK_EQ(2, message->GetLineNumber());
   CHECK_EQ(2, message->GetStartColumn());
@@ -7696,7 +7697,7 @@ THREADED_TEST(ExceptionCreateMessage) {
   CHECK(error->IsObject());
   CHECK(error.As<v8::Object>()->Get(message_str)->Equals(foo_str));
 
-  message = v8::Exception::CreateMessage(error);
+  message = v8::Exception::CreateMessage(context->GetIsolate(), error);
   CHECK(!message.IsEmpty());
   CHECK_EQ(2, message->GetLineNumber());
   CHECK_EQ(9, message->GetStartColumn());
@@ -14913,8 +14914,8 @@ void PromiseRejectCallback(v8::PromiseRejectMessage reject_message) {
     promise_reject_counter++;
     CcTest::global()->Set(v8_str("rejected"), reject_message.GetPromise());
     CcTest::global()->Set(v8_str("value"), reject_message.GetValue());
-    v8::Handle<v8::Message> message =
-        v8::Exception::CreateMessage(reject_message.GetValue());
+    v8::Handle<v8::Message> message = v8::Exception::CreateMessage(
+        CcTest::isolate(), reject_message.GetValue());
     v8::Handle<v8::StackTrace> stack_trace = message->GetStackTrace();
 
     promise_reject_msg_line_number = message->GetLineNumber();
