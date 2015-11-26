@@ -4999,8 +4999,10 @@ class PromiseRejectMessage {
   V8_INLINE PromiseRejectEvent GetEvent() const { return event_; }
   V8_INLINE Local<Value> GetValue() const { return value_; }
 
-  // DEPRECATED. Use v8::Exception::CreateMessage(GetValue())->GetStackTrace()
-  V8_INLINE Local<StackTrace> GetStackTrace() const { return stack_trace_; }
+  V8_DEPRECATED("Use v8::Exception::CreateMessage(GetValue())->GetStackTrace()",
+                V8_INLINE Local<StackTrace> GetStackTrace() const) {
+    return stack_trace_;
+  }
 
  private:
   Local<Promise> promise_;
