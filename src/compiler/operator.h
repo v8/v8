@@ -30,7 +30,7 @@ namespace compiler {
 // meaningful to the operator itself.
 class Operator : public ZoneObject {
  public:
-  typedef uint8_t Opcode;
+  typedef uint16_t Opcode;
 
   // Properties inform the operator-independent optimizer about legal
   // transformations for nodes that have this operator.

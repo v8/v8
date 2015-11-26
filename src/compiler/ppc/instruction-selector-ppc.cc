@@ -927,6 +927,11 @@ void InstructionSelector::VisitChangeFloat64ToUint32(Node* node) {
 
 
 #if V8_TARGET_ARCH_PPC64
+void InstructionSelector::VisitTruncateFloat32ToInt64(Node* node) {
+  UNIMPLEMENTED();
+}
+
+
 void InstructionSelector::VisitTruncateFloat64ToInt64(Node* node) {
   VisitRR(this, kPPC_DoubleToInt64, node);
 }
