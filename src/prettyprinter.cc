@@ -325,8 +325,9 @@ void CallPrinter::VisitCallNew(CallNew* node) {
 
 
 void CallPrinter::VisitCallRuntime(CallRuntime* node) {
-  if (node->function() ==
-      Runtime::FunctionForId(Runtime::kInlineDefaultConstructorCallSuper)) {
+  if (!node->is_jsruntime() &&
+      node->function() ==
+          Runtime::FunctionForId(Runtime::kInlineDefaultConstructorCallSuper)) {
     found_ = true;
     Print("super");
     done_ = true;
