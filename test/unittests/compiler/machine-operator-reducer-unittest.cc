@@ -1649,34 +1649,13 @@ TEST_F(MachineOperatorReducerTest, StoreRepWord16WithWord32SarAndWord32Shl) {
 
 TEST_F(MachineOperatorReducerTest, RoundPlusTruncate) {
   Node* p0 = Parameter(0);
-
-  Type* p0_range = Type::Range(0x0, 0xFFFFFF8000001ULL, graph()->zone());
-  NodeProperties::SetType(
-      p0, Type::Intersect(p0_range, Type::Number(), graph()->zone()));
-
   Node* t0 = graph()->NewNode(machine()->RoundInt64ToFloat64(), p0);
   Node* t1 = graph()->NewNode(
       machine()->TruncateFloat64ToInt32(TruncationMode::kJavaScript), t0);
 
   Reduction r = Reduce(t1);
   ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsTruncateInt64ToInt32(p0));
-}
-
-
-TEST_F(MachineOperatorReducerTest, OverflowingRoundPlusTruncate) {
-  Node* p0 = Parameter(0);
-
-  Type* p0_range = Type::Range(0x0, 0x10000000000000ULL, graph()->zone());
-  NodeProperties::SetType(
-      p0, Type::Intersect(p0_range, Type::Number(), graph()->zone()));
-
-  Node* t0 = graph()->NewNode(machine()->RoundInt64ToFloat64(), p0);
-  Node* t1 = graph()->NewNode(
-      machine()->TruncateFloat64ToInt32(TruncationMode::kJavaScript), t0);
-
-  Reduction r = Reduce(t1);
-  ASSERT_TRUE(!r.Changed());
+  EXPECT_THAT(r.replacement(), p0);
 }
 
 }  // namespace compiler
