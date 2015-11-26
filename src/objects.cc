@@ -4694,51 +4694,6 @@ Maybe<bool> JSProxy::DeletePropertyOrElement(Handle<JSProxy> proxy,
 }
 
 
-// static
-MaybeHandle<Context> JSProxy::GetFunctionRealm(Handle<JSProxy> proxy) {
-  DCHECK(proxy->map()->is_constructor());
-  if (JSProxy::IsRevoked(proxy)) {
-    THROW_NEW_ERROR(proxy->GetIsolate(),
-                    NewTypeError(MessageTemplate::kProxyRevoked), Context);
-  }
-
-  // TODO(verwaest): Get rid of JSFunctionProxies.
-  Object* target = proxy->IsJSFunctionProxy()
-                       ? JSFunctionProxy::cast(*proxy)->construct_trap()
-                       : proxy->target();
-  return JSReceiver::GetFunctionRealm(handle(JSReceiver::cast(target)));
-}
-
-
-// static
-MaybeHandle<Context> JSFunction::GetFunctionRealm(Handle<JSFunction> function) {
-  DCHECK(function->map()->is_constructor());
-  return handle(function->context()->native_context());
-}
-
-
-// static
-MaybeHandle<Context> JSObject::GetFunctionRealm(Handle<JSObject> object) {
-  DCHECK(object->map()->is_constructor());
-  DCHECK(!object->IsJSFunction());
-  return handle(object->GetCreationContext());
-}
-
-
-// static
-MaybeHandle<Context> JSReceiver::GetFunctionRealm(Handle<JSReceiver> receiver) {
-  if (receiver->IsJSProxy()) {
-    return JSProxy::GetFunctionRealm(Handle<JSProxy>::cast(receiver));
-  }
-
-  if (receiver->IsJSFunction()) {
-    return JSFunction::GetFunctionRealm(Handle<JSFunction>::cast(receiver));
-  }
-
-  return JSObject::GetFunctionRealm(Handle<JSObject>::cast(receiver));
-}
-
-
 Maybe<PropertyAttributes> JSProxy::GetPropertyAttributes(LookupIterator* it) {
   Isolate* isolate = it->isolate();
   HandleScope scope(isolate);
@@ -12267,8 +12222,6 @@ Handle<Map> JSFunction::EnsureDerivedHasInitialMap(
   DCHECK(!constructor->shared()->is_generator());
 
   // Fetch or allocate prototype.
-  // TODO(verwaest): In case of non-instance prototype, use the
-  // intrinsicDefaultProto instead.
   Handle<Object> prototype;
   if (new_target->has_instance_prototype()) {
     prototype = handle(new_target->instance_prototype(), isolate);

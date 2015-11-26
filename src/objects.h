@@ -1800,8 +1800,6 @@ class JSReceiver: public HeapObject {
   MUST_USE_RESULT static MaybeHandle<Object> OrdinaryToPrimitive(
       Handle<JSReceiver> receiver, OrdinaryToPrimitiveHint hint);
 
-  static MaybeHandle<Context> GetFunctionRealm(Handle<JSReceiver> receiver);
-
   // Implementation of [[HasProperty]], ECMA-262 5th edition, section 8.12.6.
   MUST_USE_RESULT static Maybe<bool> HasProperty(LookupIterator* it);
   MUST_USE_RESULT static inline Maybe<bool> HasProperty(
@@ -1956,8 +1954,6 @@ class JSObject: public JSReceiver {
   inline NameDictionary* property_dictionary();
   // Gets global object properties.
   inline GlobalDictionary* global_dictionary();
-
-  static MaybeHandle<Context> GetFunctionRealm(Handle<JSObject> object);
 
   // [elements]: The elements (properties with names that are integers).
   //
@@ -7205,8 +7201,6 @@ class JSFunction: public JSObject {
   inline JSObject* global_proxy();
   inline Context* native_context();
 
-  static MaybeHandle<Context> GetFunctionRealm(Handle<JSFunction> function);
-
   // [code]: The generated code object for this function.  Executed
   // when the function is invoked, e.g. foo() or new foo(). See
   // [[Call]] and [[Construct]] description in ECMA-262, section
@@ -9500,8 +9494,6 @@ class JSProxy: public JSReceiver {
   DECL_ACCESSORS(target, Object)
   // [hash]: The hash code property (undefined if not initialized yet).
   DECL_ACCESSORS(hash, Object)
-
-  static MaybeHandle<Context> GetFunctionRealm(Handle<JSProxy> proxy);
 
   inline bool has_handler();
 
