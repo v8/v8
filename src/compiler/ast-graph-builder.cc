@@ -461,8 +461,7 @@ Node* AstGraphBuilder::GetFunctionClosureForContext() {
       closure_scope->is_module_scope()) {
     // Contexts nested in the native context have a canonical empty function as
     // their closure, not the anonymous closure containing the global code.
-    // Pass a SMI sentinel and let the runtime look up the empty function.
-    return jsgraph()->SmiConstant(0);
+    return BuildLoadNativeContextField(Context::CLOSURE_INDEX);
   } else {
     DCHECK(closure_scope->is_function_scope());
     return GetFunctionClosure();

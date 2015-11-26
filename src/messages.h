@@ -252,7 +252,6 @@ class CallSite {
     "Invalid property descriptor. Cannot both specify accessors and a value "  \
     "or writable attribute, %")                                                \
   T(VarRedeclaration, "Identifier '%' has already been declared")              \
-  T(WithExpression, "% has no properties")                                     \
   T(WrongArgs, "%: Arguments list has wrong type")                             \
   /* ReferenceError */                                                         \
   T(NonMethod, "'super' is referenced from non-method")                        \

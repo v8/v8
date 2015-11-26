@@ -4824,9 +4824,10 @@ void FullCodeGenerator::PushFunctionArgumentForContextAllocation() {
       closure_scope->is_module_scope()) {
     // Contexts nested in the native context have a canonical empty function
     // as their closure, not the anonymous closure containing the global
-    // code.  Pass a smi sentinel and let the runtime look up the empty
-    // function.
-    __ li(at, Operand(Smi::FromInt(0)));
+    // code.
+    __ ld(at, GlobalObjectOperand());
+    __ ld(at, FieldMemOperand(at, JSGlobalObject::kNativeContextOffset));
+    __ ld(at, ContextOperand(at, Context::CLOSURE_INDEX));
   } else if (closure_scope->is_eval_scope()) {
     // Contexts created by a call to eval have the same closure as the
     // context calling eval, not the anonymous closure containing the eval

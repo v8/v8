@@ -1838,13 +1838,8 @@ Reduction JSTypedLowering::ReduceJSCreateFunctionContext(Node* node) {
   int slot_count = OpParameter<int>(node->op());
   Node* const closure = NodeProperties::GetValueInput(node, 0);
 
-  // The closure can be NumberConstant(0) if the closure is global code
-  // (rather than a function). We exclude that case here.
-  // TODO(jarin) Find a better way to check that the closure is a function.
-
   // Use inline allocation for function contexts up to a size limit.
-  if (slot_count < kFunctionContextAllocationLimit &&
-      closure->opcode() != IrOpcode::kNumberConstant) {
+  if (slot_count < kFunctionContextAllocationLimit) {
     // JSCreateFunctionContext[slot_count < limit]](fun)
     Node* const effect = NodeProperties::GetEffectInput(node);
     Node* const control = NodeProperties::GetControlInput(node);
@@ -1892,15 +1887,10 @@ Reduction JSTypedLowering::ReduceJSCreateWithContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateWithContext, node->opcode());
   Node* const input = NodeProperties::GetValueInput(node, 0);
   Node* const closure = NodeProperties::GetValueInput(node, 1);
-  Type* input_type = NodeProperties::GetType(input);
-
-  // The closure can be NumberConstant(0) if the closure is global code
-  // (rather than a function). We exclude that case here.
-  // TODO(jarin) Find a better way to check that the closure is a function.
+  Type* const input_type = NodeProperties::GetType(input);
 
   // Use inline allocation for with contexts for regular objects.
-  if (input_type->Is(Type::Receiver()) &&
-      closure->opcode() != IrOpcode::kNumberConstant) {
+  if (input_type->Is(Type::Receiver())) {
     // JSCreateWithContext(o:receiver, fun)
     Node* const effect = NodeProperties::GetEffectInput(node);
     Node* const control = NodeProperties::GetControlInput(node);
@@ -1931,13 +1921,8 @@ Reduction JSTypedLowering::ReduceJSCreateBlockContext(Node* node) {
   int context_length = scope_info->ContextLength();
   Node* const closure = NodeProperties::GetValueInput(node, 0);
 
-  // The closure can be NumberConstant(0) if the closure is global code
-  // (rather than a function). We exclude that case here.
-  // TODO(jarin) Find a better way to check that the closure is a function.
-
   // Use inline allocation for block contexts up to a size limit.
-  if (context_length < kBlockContextAllocationLimit &&
-      closure->opcode() != IrOpcode::kNumberConstant) {
+  if (context_length < kBlockContextAllocationLimit) {
     // JSCreateBlockContext[scope[length < limit]](fun)
     Node* const effect = NodeProperties::GetEffectInput(node);
     Node* const control = NodeProperties::GetControlInput(node);

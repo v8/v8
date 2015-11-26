@@ -335,11 +335,6 @@ test(function() {
 }, "Invalid property descriptor. Cannot both specify accessors " +
    "and a value or writable attribute, #<Object>", TypeError);
 
-// kWithExpression
-test(function() {
-  with (null) {}
-}, "null has no properties", TypeError);
-
 // kWrongArgs
 test(function() {
   (function() {}).apply({}, 1);
