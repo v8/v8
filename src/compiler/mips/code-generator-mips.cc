@@ -192,31 +192,21 @@ class OutOfLineRound : public OutOfLineCode {
 };
 
 
-class OutOfLineTruncate final : public OutOfLineRound {
+class OutOfLineRound32 : public OutOfLineCode {
  public:
-  OutOfLineTruncate(CodeGenerator* gen, DoubleRegister result)
-      : OutOfLineRound(gen, result) {}
-};
+  OutOfLineRound32(CodeGenerator* gen, DoubleRegister result)
+      : OutOfLineCode(gen), result_(result) {}
 
+  void Generate() final {
+    // Handle rounding to zero case where sign has to be preserved.
+    // High bits of float input already in kScratchReg.
+    __ srl(at, kScratchReg, 31);
+    __ sll(at, at, 31);
+    __ mtc1(at, result_);
+  }
 
-class OutOfLineFloor final : public OutOfLineRound {
- public:
-  OutOfLineFloor(CodeGenerator* gen, DoubleRegister result)
-      : OutOfLineRound(gen, result) {}
-};
-
-
-class OutOfLineCeil final : public OutOfLineRound {
- public:
-  OutOfLineCeil(CodeGenerator* gen, DoubleRegister result)
-      : OutOfLineRound(gen, result) {}
-};
-
-
-class OutOfLineTiesEven final : public OutOfLineRound {
- public:
-  OutOfLineTiesEven(CodeGenerator* gen, DoubleRegister result)
-      : OutOfLineRound(gen, result) {}
+ private:
+  DoubleRegister const result_;
 };
 
 
@@ -432,10 +422,9 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool& predicate,
   } while (0)
 
 
-#define ASSEMBLE_ROUND_DOUBLE_TO_DOUBLE(asm_instr, operation)                  \
+#define ASSEMBLE_ROUND_DOUBLE_TO_DOUBLE(asm_instr)                             \
   do {                                                                         \
-    auto ool =                                                                 \
-        new (zone()) OutOfLine##operation(this, i.OutputDoubleRegister());     \
+    auto ool = new (zone()) OutOfLineRound(this, i.OutputDoubleRegister());    \
     Label done;                                                                \
     __ Mfhc1(kScratchReg, i.InputDoubleRegister(0));                           \
     __ Ext(at, kScratchReg, HeapNumber::kExponentShift,                        \
@@ -452,6 +441,26 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool& predicate,
     __ bind(&done);                                                            \
   } while (0)
 
+
+#define ASSEMBLE_ROUND_FLOAT_TO_FLOAT(asm_instr)                              \
+  do {                                                                        \
+    int32_t kFloat32ExponentBias = 127;                                       \
+    int32_t kFloat32MantissaBits = 23;                                        \
+    int32_t kFloat32ExponentBits = 8;                                         \
+    auto ool = new (zone()) OutOfLineRound32(this, i.OutputDoubleRegister()); \
+    Label done;                                                               \
+    __ mfc1(kScratchReg, i.InputDoubleRegister(0));                           \
+    __ Ext(at, kScratchReg, kFloat32MantissaBits, kFloat32ExponentBits);      \
+    __ Branch(USE_DELAY_SLOT, &done, hs, at,                                  \
+              Operand(kFloat32ExponentBias + kFloat32MantissaBits));          \
+    __ mov_s(i.OutputDoubleRegister(), i.InputDoubleRegister(0));             \
+    __ asm_instr(i.OutputDoubleRegister(), i.InputDoubleRegister(0));         \
+    __ mfc1(at, i.OutputDoubleRegister());                                    \
+    __ Branch(USE_DELAY_SLOT, ool->entry(), eq, at, Operand(zero_reg));       \
+    __ cvt_s_w(i.OutputDoubleRegister(), i.OutputDoubleRegister());           \
+    __ bind(ool->exit());                                                     \
+    __ bind(&done);                                                           \
+  } while (0)
 
 void CodeGenerator::AssembleDeconstructActivationRecord(int stack_param_delta) {
   int sp_slot_delta = TailCallFrameStackSlotDelta(stack_param_delta);
@@ -810,19 +819,35 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
                i.InputDoubleRegister(1));
       break;
     case kMipsFloat64RoundDown: {
-      ASSEMBLE_ROUND_DOUBLE_TO_DOUBLE(floor_l_d, Floor);
+      ASSEMBLE_ROUND_DOUBLE_TO_DOUBLE(floor_l_d);
+      break;
+    }
+    case kMipsFloat32RoundDown: {
+      ASSEMBLE_ROUND_FLOAT_TO_FLOAT(floor_w_s);
       break;
     }
     case kMipsFloat64RoundTruncate: {
-      ASSEMBLE_ROUND_DOUBLE_TO_DOUBLE(trunc_l_d, Truncate);
+      ASSEMBLE_ROUND_DOUBLE_TO_DOUBLE(trunc_l_d);
+      break;
+    }
+    case kMipsFloat32RoundTruncate: {
+      ASSEMBLE_ROUND_FLOAT_TO_FLOAT(trunc_w_s);
       break;
     }
     case kMipsFloat64RoundUp: {
-      ASSEMBLE_ROUND_DOUBLE_TO_DOUBLE(ceil_l_d, Ceil);
+      ASSEMBLE_ROUND_DOUBLE_TO_DOUBLE(ceil_l_d);
+      break;
+    }
+    case kMipsFloat32RoundUp: {
+      ASSEMBLE_ROUND_FLOAT_TO_FLOAT(ceil_w_s);
       break;
     }
     case kMipsFloat64RoundTiesEven: {
-      ASSEMBLE_ROUND_DOUBLE_TO_DOUBLE(round_l_d, TiesEven);
+      ASSEMBLE_ROUND_DOUBLE_TO_DOUBLE(round_l_d);
+      break;
+    }
+    case kMipsFloat32RoundTiesEven: {
+      ASSEMBLE_ROUND_FLOAT_TO_FLOAT(round_w_s);
       break;
     }
     case kMipsFloat64Max: {

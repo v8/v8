@@ -56,6 +56,10 @@ namespace compiler {
   V(MipsSqrtD)                     \
   V(MipsMaxD)                      \
   V(MipsMinD)                      \
+  V(MipsFloat32RoundDown)          \
+  V(MipsFloat32RoundTruncate)      \
+  V(MipsFloat32RoundUp)            \
+  V(MipsFloat32RoundTiesEven)      \
   V(MipsFloat64RoundDown)          \
   V(MipsFloat64RoundTruncate)      \
   V(MipsFloat64RoundUp)            \
