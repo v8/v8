@@ -264,6 +264,18 @@ Node* JSInliner::CreateArtificialFrameState(Node* node, Node* outer_frame_state,
 }
 
 
+namespace {
+
+// TODO(mstarzinger,verwaest): Move this predicate onto SharedFunctionInfo?
+bool NeedsImplicitReceiver(Handle<JSFunction> function, Isolate* isolate) {
+  Code* construct_stub = function->shared()->construct_stub();
+  return construct_stub != *isolate->builtins()->JSBuiltinsConstructStub() &&
+         construct_stub != *isolate->builtins()->ConstructedNonConstructable();
+}
+
+}  // namespace
+
+
 Reduction JSInliner::Reduce(Node* node) {
   if (!IrOpcode::IsInlineeOpcode(node->opcode())) return NoChange();
 
@@ -283,18 +295,18 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
   DCHECK(IrOpcode::IsInlineeOpcode(node->opcode()));
   JSCallAccessor call(node);
 
+  // Function must be inlineable.
   if (!function->shared()->IsInlineable()) {
-    // Function must be inlineable.
     TRACE("Not inlining %s into %s because callee is not inlineable\n",
           function->shared()->DebugName()->ToCString().get(),
           info_->shared_info()->DebugName()->ToCString().get());
     return NoChange();
   }
 
+  // Constructor must be constructable.
   if (node->opcode() == IrOpcode::kJSCallConstruct &&
       !function->IsConstructor()) {
-    // Constructor must be constructable.
-    TRACE("Not inlining %s into %s since constructor is not constructable.\n",
+    TRACE("Not inlining %s into %s because constructor is not constructable.\n",
           function->shared()->DebugName()->ToCString().get(),
           info_->shared_info()->DebugName()->ToCString().get());
     return NoChange();
@@ -302,15 +314,16 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
 
   // Class constructors are callable, but [[Call]] will raise an exception.
   // See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList ).
-  if (IsClassConstructor(function->shared()->kind())) {
-    TRACE("Not inlining %s into %s because callee is classConstructor\n",
+  if (node->opcode() == IrOpcode::kJSCallFunction &&
+      IsClassConstructor(function->shared()->kind())) {
+    TRACE("Not inlining %s into %s because callee is a class constructor.\n",
           function->shared()->DebugName()->ToCString().get(),
           info_->shared_info()->DebugName()->ToCString().get());
     return NoChange();
   }
 
+  // Function contains break points.
   if (function->shared()->HasDebugInfo()) {
-    // Function contains break points.
     TRACE("Not inlining %s into %s because callee may contain break points\n",
           function->shared()->DebugName()->ToCString().get(),
           info_->shared_info()->DebugName()->ToCString().get());
@@ -424,27 +437,18 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
   Node* new_target = jsgraph_->UndefinedConstant();
 
   // Insert nodes around the call that model the behavior required for a
-  // constructor dispatch and turn the constructor call into a regular call.
+  // constructor dispatch (allocate implicit receiver and check return value).
   // This models the behavior usually accomplished by our {JSConstructStub}.
   // Note that the context has to be the callers context (input to call node).
-  // TODO(4544): Once we support inlining builtins, make sure no implicit
-  // receiver is created for builtins that don't expect any.
-  if (node->opcode() == IrOpcode::kJSCallConstruct) {
+  Node* receiver = jsgraph_->UndefinedConstant();  // Implicit receiver.
+  if (node->opcode() == IrOpcode::kJSCallConstruct &&
+      NeedsImplicitReceiver(function, info_->isolate())) {
     Node* effect = NodeProperties::GetEffectInput(node);
     Node* context = NodeProperties::GetContextInput(node);
     Node* create = jsgraph_->graph()->NewNode(jsgraph_->javascript()->Create(),
                                               call.target(), call.new_target(),
                                               context, frame_state, effect);
     NodeProperties::ReplaceEffectInput(node, create);
-    // TODO(4544): For derived constructors we should not allocate an implicit
-    // receiver and also the return value should not be checked afterwards.
-    CHECK(!IsClassConstructor(function->shared()->kind()));
-    // Swizzle the inputs of the {JSCallConstruct} node to look like inputs to
-    // any {JSCallFunction} node so that the rest of the inlining machinery
-    // behaves as if we were dealing with a regular function invocation.
-    new_target = call.new_target();  // Retrieve new target value input.
-    node->RemoveInput(call.formal_arguments() + 1);  // Drop new target.
-    node->InsertInput(jsgraph_->graph()->zone(), 1, create);
     // Insert a check of the return value to determine whether the return value
     // or the implicit receiver should be selected as a result of the call.
     Node* check = jsgraph_->graph()->NewNode(
@@ -456,6 +460,16 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
     NodeProperties::ReplaceValueInput(select, node, 1);
     NodeProperties::ReplaceValueInput(check, node, 0);
     NodeProperties::ReplaceEffectInput(check, node);
+    receiver = create;  // The implicit receiver.
+  }
+
+  // Swizzle the inputs of the {JSCallConstruct} node to look like inputs to a
+  // normal {JSCallFunction} node so that the rest of the inlining machinery
+  // behaves as if we were dealing with a regular function invocation.
+  if (node->opcode() == IrOpcode::kJSCallConstruct) {
+    new_target = call.new_target();  // Retrieve new target value input.
+    node->RemoveInput(call.formal_arguments() + 1);  // Drop new target.
+    node->InsertInput(jsgraph_->graph()->zone(), 1, receiver);
     // Insert a construct stub frame into the chain of frame states. This will
     // reconstruct the proper frame when deoptimizing within the constructor.
     frame_state = CreateArtificialFrameState(
