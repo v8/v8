@@ -38,8 +38,8 @@
 #include "src/allocation.h"
 #include "src/builtins.h"
 #include "src/isolate.h"
+#include "src/parsing/token.h"
 #include "src/runtime/runtime.h"
-#include "src/token.h"
 
 namespace v8 {
 

@@ -5,12 +5,12 @@
 #ifndef V8_CRANKSHAFT_ARM_LITHIUM_CODEGEN_ARM_H_
 #define V8_CRANKSHAFT_ARM_LITHIUM_CODEGEN_ARM_H_
 
+#include "src/ast/scopes.h"
 #include "src/crankshaft/arm/lithium-arm.h"
 #include "src/crankshaft/arm/lithium-gap-resolver-arm.h"
 #include "src/crankshaft/lithium-codegen.h"
 #include "src/deoptimizer.h"
 #include "src/safepoint-table.h"
-#include "src/scopes.h"
 #include "src/utils.h"
 
 namespace v8 {

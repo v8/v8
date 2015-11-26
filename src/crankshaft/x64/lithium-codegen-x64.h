@@ -6,13 +6,13 @@
 #define V8_CRANKSHAFT_X64_LITHIUM_CODEGEN_X64_H_
 
 
+#include "src/ast/scopes.h"
 #include "src/base/logging.h"
 #include "src/crankshaft/lithium-codegen.h"
 #include "src/crankshaft/x64/lithium-gap-resolver-x64.h"
 #include "src/crankshaft/x64/lithium-x64.h"
 #include "src/deoptimizer.h"
 #include "src/safepoint-table.h"
-#include "src/scopes.h"
 #include "src/utils.h"
 
 namespace v8 {

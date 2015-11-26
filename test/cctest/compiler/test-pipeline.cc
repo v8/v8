@@ -8,7 +8,7 @@
 #include "src/compiler.h"
 #include "src/compiler/pipeline.h"
 #include "src/handles.h"
-#include "src/parser.h"
+#include "src/parsing/parser.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {

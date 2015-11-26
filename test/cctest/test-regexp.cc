@@ -33,10 +33,10 @@
 
 #include "src/v8.h"
 
-#include "src/ast.h"
+#include "src/ast/ast.h"
 #include "src/char-predicates-inl.h"
 #include "src/ostreams.h"
-#include "src/parser.h"
+#include "src/parsing/parser.h"
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-macro-assembler-irregexp.h"

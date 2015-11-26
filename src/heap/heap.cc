@@ -6,6 +6,7 @@
 
 #include "src/accessors.h"
 #include "src/api.h"
+#include "src/ast/scopeinfo.h"
 #include "src/base/bits.h"
 #include "src/base/once.h"
 #include "src/base/utils/random-number-generator.h"
@@ -32,7 +33,6 @@
 #include "src/interpreter/interpreter.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/runtime-profiler.h"
-#include "src/scopeinfo.h"
 #include "src/snapshot/natives.h"
 #include "src/snapshot/serialize.h"
 #include "src/snapshot/snapshot.h"

@@ -6,9 +6,9 @@
 
 #include "src/allocation-site-scopes.h"
 #include "src/arguments.h"
-#include "src/ast.h"
+#include "src/ast/ast.h"
 #include "src/isolate-inl.h"
-#include "src/parser.h"
+#include "src/parsing/parser.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {

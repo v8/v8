@@ -12,7 +12,7 @@
 #include "src/ic/handler-compiler.h"
 #include "src/ic/ic.h"
 #include "src/macro-assembler.h"
-#include "src/parser.h"
+#include "src/parsing/parser.h"
 #include "src/profiler/cpu-profiler.h"
 
 namespace v8 {

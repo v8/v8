@@ -12,7 +12,7 @@
 #include "src/handles.h"
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/interpreter.h"
-#include "src/parser.h"
+#include "src/parsing/parser.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {

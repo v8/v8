@@ -7,6 +7,7 @@
 
 #include <limits>
 
+#include "src/ast/scopes.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/change-lowering.h"
 #include "src/compiler/control-builders.h"
@@ -20,9 +21,8 @@
 #include "src/compiler/typer.h"
 #include "src/compiler/verifier.h"
 #include "src/execution.h"
-#include "src/parser.h"
-#include "src/rewriter.h"
-#include "src/scopes.h"
+#include "src/parsing/parser.h"
+#include "src/parsing/rewriter.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"
 #include "test/cctest/compiler/function-tester.h"

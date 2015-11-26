@@ -20,7 +20,6 @@
 #include "src/conversions.h"
 #include "src/double.h"
 #include "src/objects-inl.h"
-#include "src/scanner.h"
 #include "src/strtod.h"
 
 namespace v8 {

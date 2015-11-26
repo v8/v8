@@ -4,12 +4,12 @@
 
 #include "src/compiler/code-generator.h"
 
+#include "src/ast/scopes.h"
 #include "src/compiler/code-generator-impl.h"
 #include "src/compiler/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
 #include "src/ppc/macro-assembler-ppc.h"
-#include "src/scopes.h"
 
 namespace v8 {
 namespace internal {

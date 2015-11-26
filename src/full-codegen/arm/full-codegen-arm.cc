@@ -4,14 +4,14 @@
 
 #if V8_TARGET_ARCH_ARM
 
+#include "src/ast/scopes.h"
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
 #include "src/codegen.h"
 #include "src/debug/debug.h"
 #include "src/full-codegen/full-codegen.h"
 #include "src/ic/ic.h"
-#include "src/parser.h"
-#include "src/scopes.h"
+#include "src/parsing/parser.h"
 
 #include "src/arm/code-stubs-arm.h"
 #include "src/arm/macro-assembler-arm.h"

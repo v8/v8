@@ -15,7 +15,7 @@
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
 #include "src/objects.h"
-#include "src/parser.h"
+#include "src/parsing/parser.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/runtime/runtime.h"
 #include "src/snapshot/natives.h"

@@ -6,7 +6,7 @@
 #define V8_TYPING_ASM_H_
 
 #include "src/allocation.h"
-#include "src/ast.h"
+#include "src/ast/ast.h"
 #include "src/effects.h"
 #include "src/type-info.h"
 #include "src/types.h"

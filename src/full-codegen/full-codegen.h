@@ -7,7 +7,8 @@
 
 #include "src/allocation.h"
 #include "src/assert-scope.h"
-#include "src/ast.h"
+#include "src/ast/ast.h"
+#include "src/ast/scopes.h"
 #include "src/bit-vector.h"
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
@@ -15,7 +16,6 @@
 #include "src/compiler.h"
 #include "src/globals.h"
 #include "src/objects.h"
-#include "src/scopes.h"
 
 namespace v8 {
 namespace internal {

@@ -5,7 +5,7 @@
 #ifndef V8_INTERPRETER_BYTECODE_GENERATOR_H_
 #define V8_INTERPRETER_BYTECODE_GENERATOR_H_
 
-#include "src/ast.h"
+#include "src/ast/ast.h"
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/bytecodes.h"
 

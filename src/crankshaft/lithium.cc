@@ -4,7 +4,7 @@
 
 #include "src/crankshaft/lithium.h"
 
-#include "src/scopes.h"
+#include "src/ast/scopes.h"
 
 #if V8_TARGET_ARCH_IA32
 #include "src/crankshaft/ia32/lithium-ia32.h"  // NOLINT

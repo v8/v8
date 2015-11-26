@@ -7,11 +7,11 @@
 
 #include "src/accessors.h"
 #include "src/allocation.h"
-#include "src/ast.h"
+#include "src/ast/ast.h"
+#include "src/ast/scopes.h"
 #include "src/bailout-reason.h"
 #include "src/compiler.h"
 #include "src/crankshaft/hydrogen-instructions.h"
-#include "src/scopes.h"
 #include "src/zone.h"
 
 namespace v8 {

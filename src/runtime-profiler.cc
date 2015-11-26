@@ -5,6 +5,7 @@
 #include "src/runtime-profiler.h"
 
 #include "src/assembler.h"
+#include "src/ast/scopeinfo.h"
 #include "src/base/platform/platform.h"
 #include "src/bootstrapper.h"
 #include "src/code-stubs.h"
@@ -13,7 +14,6 @@
 #include "src/frames-inl.h"
 #include "src/full-codegen/full-codegen.h"
 #include "src/global-handles.h"
-#include "src/scopeinfo.h"
 
 namespace v8 {
 namespace internal {

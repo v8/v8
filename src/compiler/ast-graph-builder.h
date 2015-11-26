@@ -5,7 +5,7 @@
 #ifndef V8_COMPILER_AST_GRAPH_BUILDER_H_
 #define V8_COMPILER_AST_GRAPH_BUILDER_H_
 
-#include "src/ast.h"
+#include "src/ast/ast.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/liveness-analyzer.h"
 #include "src/compiler/state-values-utils.h"

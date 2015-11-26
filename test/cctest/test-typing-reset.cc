@@ -9,11 +9,11 @@
 
 #include "src/v8.h"
 
-#include "src/ast.h"
-#include "src/ast-expression-visitor.h"
-#include "src/parser.h"
-#include "src/rewriter.h"
-#include "src/scopes.h"
+#include "src/ast/ast.h"
+#include "src/ast/ast-expression-visitor.h"
+#include "src/ast/scopes.h"
+#include "src/parsing/parser.h"
+#include "src/parsing/rewriter.h"
 #include "src/typing-reset.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/function-tester.h"

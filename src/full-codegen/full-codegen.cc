@@ -4,8 +4,11 @@
 
 #include "src/full-codegen/full-codegen.h"
 
-#include "src/ast.h"
-#include "src/ast-numbering.h"
+#include "src/ast/ast.h"
+#include "src/ast/ast-numbering.h"
+#include "src/ast/prettyprinter.h"
+#include "src/ast/scopeinfo.h"
+#include "src/ast/scopes.h"
 #include "src/code-factory.h"
 #include "src/codegen.h"
 #include "src/compiler.h"
@@ -13,9 +16,6 @@
 #include "src/debug/liveedit.h"
 #include "src/isolate-inl.h"
 #include "src/macro-assembler.h"
-#include "src/prettyprinter.h"
-#include "src/scopeinfo.h"
-#include "src/scopes.h"
 #include "src/snapshot/snapshot.h"
 
 namespace v8 {

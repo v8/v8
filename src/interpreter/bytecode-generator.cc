@@ -4,12 +4,12 @@
 
 #include "src/interpreter/bytecode-generator.h"
 
+#include "src/ast/scopes.h"
 #include "src/compiler.h"
 #include "src/interpreter/control-flow-builders.h"
 #include "src/objects.h"
-#include "src/parser.h"
-#include "src/scopes.h"
-#include "src/token.h"
+#include "src/parsing/parser.h"
+#include "src/parsing/token.h"
 
 namespace v8 {
 namespace internal {

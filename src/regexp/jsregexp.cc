@@ -4,7 +4,7 @@
 
 #include "src/regexp/jsregexp.h"
 
-#include "src/ast.h"
+#include "src/ast/ast.h"
 #include "src/base/platform/platform.h"
 #include "src/compilation-cache.h"
 #include "src/compiler.h"
@@ -13,7 +13,7 @@
 #include "src/isolate-inl.h"
 #include "src/messages.h"
 #include "src/ostreams.h"
-#include "src/parser.h"
+#include "src/parsing/parser.h"
 #include "src/regexp/interpreter-irregexp.h"
 #include "src/regexp/jsregexp-inl.h"
 #include "src/regexp/regexp-macro-assembler.h"

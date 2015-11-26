@@ -4,10 +4,10 @@
 
 #include "src/contexts.h"
 
+#include "src/ast/scopeinfo.h"
 #include "src/bootstrapper.h"
 #include "src/debug/debug.h"
 #include "src/isolate-inl.h"
-#include "src/scopeinfo.h"
 
 namespace v8 {
 namespace internal {

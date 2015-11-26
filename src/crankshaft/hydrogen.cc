@@ -7,7 +7,8 @@
 #include <sstream>
 
 #include "src/allocation-site-scopes.h"
-#include "src/ast-numbering.h"
+#include "src/ast/ast-numbering.h"
+#include "src/ast/scopeinfo.h"
 #include "src/code-factory.h"
 #include "src/crankshaft/hydrogen-bce.h"
 #include "src/crankshaft/hydrogen-bch.h"
@@ -39,9 +40,8 @@
 // GetRootConstructor
 #include "src/ic/ic-inl.h"
 #include "src/isolate-inl.h"
-#include "src/parser.h"
+#include "src/parsing/parser.h"
 #include "src/runtime/runtime.h"
-#include "src/scopeinfo.h"
 
 #if V8_TARGET_ARCH_IA32
 #include "src/crankshaft/ia32/lithium-codegen-ia32.h"  // NOLINT

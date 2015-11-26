@@ -7,11 +7,11 @@
 
 #include "src/crankshaft/arm64/lithium-arm64.h"
 
+#include "src/ast/scopes.h"
 #include "src/crankshaft/arm64/lithium-gap-resolver-arm64.h"
 #include "src/crankshaft/lithium-codegen.h"
 #include "src/deoptimizer.h"
 #include "src/safepoint-table.h"
-#include "src/scopes.h"
 #include "src/utils.h"
 
 namespace v8 {

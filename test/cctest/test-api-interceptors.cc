@@ -13,7 +13,7 @@
 #include "src/compilation-cache.h"
 #include "src/execution.h"
 #include "src/objects.h"
-#include "src/parser.h"
+#include "src/parsing/parser.h"
 #include "src/unicode-inl.h"
 #include "src/utils.h"
 #include "src/vm-state.h"

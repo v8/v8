@@ -5,13 +5,13 @@
 #ifndef V8_CRANKSHAFT_IA32_LITHIUM_CODEGEN_IA32_H_
 #define V8_CRANKSHAFT_IA32_LITHIUM_CODEGEN_IA32_H_
 
+#include "src/ast/scopes.h"
 #include "src/base/logging.h"
 #include "src/crankshaft/ia32/lithium-gap-resolver-ia32.h"
 #include "src/crankshaft/ia32/lithium-ia32.h"
 #include "src/crankshaft/lithium-codegen.h"
 #include "src/deoptimizer.h"
 #include "src/safepoint-table.h"
-#include "src/scopes.h"
 #include "src/utils.h"
 
 namespace v8 {

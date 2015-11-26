@@ -4,8 +4,9 @@
 
 #include "src/compiler/js-inlining.h"
 
-#include "src/ast.h"
-#include "src/ast-numbering.h"
+#include "src/ast/ast.h"
+#include "src/ast/ast-numbering.h"
+#include "src/ast/scopes.h"
 #include "src/compiler.h"
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/ast-graph-builder.h"
@@ -16,9 +17,8 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
 #include "src/isolate-inl.h"
-#include "src/parser.h"
-#include "src/rewriter.h"
-#include "src/scopes.h"
+#include "src/parsing/parser.h"
+#include "src/parsing/rewriter.h"
 
 namespace v8 {
 namespace internal {

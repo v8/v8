@@ -4,7 +4,7 @@
 
 #include "src/type-info.h"
 
-#include "src/ast.h"
+#include "src/ast/ast.h"
 #include "src/code-stubs.h"
 #include "src/compiler.h"
 #include "src/ic/ic.h"

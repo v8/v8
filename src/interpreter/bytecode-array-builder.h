@@ -7,7 +7,7 @@
 
 #include <vector>
 
-#include "src/ast.h"
+#include "src/ast/ast.h"
 #include "src/identity-map.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/zone.h"

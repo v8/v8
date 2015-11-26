@@ -11,8 +11,8 @@
 #include "src/base/macros.h"
 #include "src/builtins.h"
 #include "src/interpreter/bytecodes.h"
+#include "src/parsing/token.h"
 #include "src/runtime/runtime.h"
-#include "src/token.h"
 
 namespace v8 {
 namespace internal {

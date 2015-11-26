@@ -5,7 +5,7 @@
 #ifndef V8_COMPILER_AST_LOOP_ASSIGNMENT_ANALYZER_H_
 #define V8_COMPILER_AST_LOOP_ASSIGNMENT_ANALYZER_H_
 
-#include "src/ast.h"
+#include "src/ast/ast.h"
 #include "src/bit-vector.h"
 #include "src/zone-containers.h"
 

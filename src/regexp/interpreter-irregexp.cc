@@ -6,7 +6,7 @@
 
 #include "src/regexp/interpreter-irregexp.h"
 
-#include "src/ast.h"
+#include "src/ast/ast.h"
 #include "src/regexp/bytecodes-irregexp.h"
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-macro-assembler.h"

@@ -46,7 +46,7 @@
 #include "src/execution.h"
 #include "src/futex-emulation.h"
 #include "src/objects.h"
-#include "src/parser.h"
+#include "src/parsing/parser.h"
 #include "src/unicode-inl.h"
 #include "src/utils.h"
 #include "src/vm-state.h"

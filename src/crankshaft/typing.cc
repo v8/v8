@@ -4,11 +4,11 @@
 
 #include "src/crankshaft/typing.h"
 
+#include "src/ast/scopes.h"
 #include "src/frames.h"
 #include "src/frames-inl.h"
 #include "src/ostreams.h"
-#include "src/parser.h"  // for CompileTimeValue; TODO(rossberg): should move
-#include "src/scopes.h"
+#include "src/parsing/parser.h"  // for CompileTimeValue; TODO(rossberg): move
 #include "src/splay-tree-inl.h"
 
 namespace v8 {

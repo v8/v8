@@ -6,14 +6,14 @@
 
 #include <sstream>
 
-#include "src/ast.h"
+#include "src/ast/ast.h"
+#include "src/ast/scopeinfo.h"
 #include "src/base/bits.h"
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/full-codegen/full-codegen.h"
 #include "src/register-configuration.h"
 #include "src/safepoint-table.h"
-#include "src/scopeinfo.h"
 #include "src/string-stream.h"
 #include "src/vm-state-inl.h"
 

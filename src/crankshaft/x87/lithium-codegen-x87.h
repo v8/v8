@@ -7,13 +7,13 @@
 
 #include <map>
 
+#include "src/ast/scopes.h"
 #include "src/base/logging.h"
 #include "src/crankshaft/lithium-codegen.h"
 #include "src/crankshaft/x87/lithium-gap-resolver-x87.h"
 #include "src/crankshaft/x87/lithium-x87.h"
 #include "src/deoptimizer.h"
 #include "src/safepoint-table.h"
-#include "src/scopes.h"
 #include "src/utils.h"
 
 namespace v8 {

@@ -6,7 +6,10 @@
 
 #include <algorithm>
 
-#include "src/ast-numbering.h"
+#include "src/ast/ast-numbering.h"
+#include "src/ast/prettyprinter.h"
+#include "src/ast/scopeinfo.h"
+#include "src/ast/scopes.h"
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
 #include "src/compilation-cache.h"
@@ -23,14 +26,11 @@
 #include "src/isolate-inl.h"
 #include "src/log-inl.h"
 #include "src/messages.h"
-#include "src/parser.h"
-#include "src/prettyprinter.h"
+#include "src/parsing/parser.h"
+#include "src/parsing/rewriter.h"
+#include "src/parsing/scanner-character-streams.h"
 #include "src/profiler/cpu-profiler.h"
-#include "src/rewriter.h"
 #include "src/runtime-profiler.h"
-#include "src/scanner-character-streams.h"
-#include "src/scopeinfo.h"
-#include "src/scopes.h"
 #include "src/snapshot/serialize.h"
 #include "src/vm-state-inl.h"
 

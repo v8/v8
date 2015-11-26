@@ -6,11 +6,11 @@
 
 #include "src/arm64/frames-arm64.h"
 #include "src/arm64/macro-assembler-arm64.h"
+#include "src/ast/scopes.h"
 #include "src/compiler/code-generator-impl.h"
 #include "src/compiler/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
-#include "src/scopes.h"
 
 namespace v8 {
 namespace internal {

@@ -6,11 +6,11 @@
 
 #include "src/accessors.h"
 #include "src/arguments.h"
+#include "src/ast/scopeinfo.h"
+#include "src/ast/scopes.h"
 #include "src/frames-inl.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
-#include "src/scopeinfo.h"
-#include "src/scopes.h"
 
 namespace v8 {
 namespace internal {

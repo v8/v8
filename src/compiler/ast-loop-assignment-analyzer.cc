@@ -4,7 +4,7 @@
 
 #include "src/compiler/ast-loop-assignment-analyzer.h"
 #include "src/compiler.h"
-#include "src/parser.h"
+#include "src/parsing/parser.h"
 
 namespace v8 {
 namespace internal {

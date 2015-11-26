@@ -4,7 +4,7 @@
 
 #include "src/regexp/regexp-macro-assembler-tracer.h"
 
-#include "src/ast.h"
+#include "src/ast/ast.h"
 
 namespace v8 {
 namespace internal {

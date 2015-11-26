@@ -4,12 +4,12 @@
 
 #include "src/debug/debug-scopes.h"
 
+#include "src/ast/scopes.h"
 #include "src/debug/debug.h"
 #include "src/frames-inl.h"
 #include "src/globals.h"
 #include "src/isolate-inl.h"
-#include "src/parser.h"
-#include "src/scopes.h"
+#include "src/parsing/parser.h"
 
 namespace v8 {
 namespace internal {

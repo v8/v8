@@ -34,14 +34,14 @@
 
 #include "src/v8.h"
 
+#include "src/ast/scopeinfo.h"
 #include "src/bootstrapper.h"
 #include "src/compilation-cache.h"
 #include "src/debug/debug.h"
 #include "src/heap/spaces.h"
 #include "src/objects.h"
-#include "src/parser.h"
+#include "src/parsing/parser.h"
 #include "src/runtime/runtime.h"
-#include "src/scopeinfo.h"
 #include "src/snapshot/natives.h"
 #include "src/snapshot/serialize.h"
 #include "src/snapshot/snapshot.h"

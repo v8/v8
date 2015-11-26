@@ -5,7 +5,8 @@
 #ifndef V8_CCTEST_COMPILER_FUNCTION_TESTER_H_
 #define V8_CCTEST_COMPILER_FUNCTION_TESTER_H_
 
-#include "src/ast-numbering.h"
+#include "src/ast/ast-numbering.h"
+#include "src/ast/scopes.h"
 #include "src/compiler.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/pipeline.h"
@@ -13,9 +14,8 @@
 #include "src/full-codegen/full-codegen.h"
 #include "src/handles.h"
 #include "src/objects-inl.h"
-#include "src/parser.h"
-#include "src/rewriter.h"
-#include "src/scopes.h"
+#include "src/parsing/parser.h"
+#include "src/parsing/rewriter.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {

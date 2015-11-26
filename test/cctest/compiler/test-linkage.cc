@@ -7,7 +7,7 @@
 
 #include "src/code-stubs.h"
 #include "src/compiler.h"
-#include "src/parser.h"
+#include "src/parsing/parser.h"
 #include "src/zone.h"
 
 #include "src/compiler/common-operator.h"

@@ -8,7 +8,7 @@
 #include "src/allocation.h"
 #include "src/contexts.h"
 #include "src/globals.h"
-#include "src/token.h"
+#include "src/parsing/token.h"
 #include "src/types.h"
 #include "src/zone.h"
 

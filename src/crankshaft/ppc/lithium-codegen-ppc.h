@@ -5,12 +5,12 @@
 #ifndef V8_CRANKSHAFT_PPC_LITHIUM_CODEGEN_PPC_H_
 #define V8_CRANKSHAFT_PPC_LITHIUM_CODEGEN_PPC_H_
 
+#include "src/ast/scopes.h"
 #include "src/crankshaft/lithium-codegen.h"
 #include "src/crankshaft/ppc/lithium-gap-resolver-ppc.h"
 #include "src/crankshaft/ppc/lithium-ppc.h"
 #include "src/deoptimizer.h"
 #include "src/safepoint-table.h"
-#include "src/scopes.h"
 #include "src/utils.h"
 
 namespace v8 {
