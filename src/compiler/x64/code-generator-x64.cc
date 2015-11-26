@@ -1043,6 +1043,13 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ AssertZeroExtended(i.OutputRegister());
       break;
     }
+    case kSSEFloat32ToInt64:
+      if (instr->InputAt(0)->IsDoubleRegister()) {
+        __ Cvttss2siq(i.OutputRegister(), i.InputDoubleRegister(0));
+      } else {
+        __ Cvttss2siq(i.OutputRegister(), i.InputOperand(0));
+      }
+      break;
     case kSSEFloat64ToInt64:
       if (instr->InputAt(0)->IsDoubleRegister()) {
         __ Cvttsd2siq(i.OutputRegister(), i.InputDoubleRegister(0));

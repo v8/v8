@@ -1077,6 +1077,8 @@ class Assembler : public AssemblerBase {
 
   void cvttsd2si(Register dst, const Operand& src);
   void cvttsd2si(Register dst, XMMRegister src);
+  void cvttss2siq(Register dst, XMMRegister src);
+  void cvttss2siq(Register dst, const Operand& src);
   void cvttsd2siq(Register dst, XMMRegister src);
   void cvttsd2siq(Register dst, const Operand& src);
 
@@ -1389,6 +1391,14 @@ class Assembler : public AssemblerBase {
   void vcvttsd2si(Register dst, const Operand& src) {
     XMMRegister idst = {dst.code()};
     vsd(0x2c, idst, xmm0, src, kF2, k0F, kW0);
+  }
+  void vcvttss2siq(Register dst, XMMRegister src) {
+    XMMRegister idst = {dst.code()};
+    vsd(0x2c, idst, xmm0, src, kF3, k0F, kW1);
+  }
+  void vcvttss2siq(Register dst, const Operand& src) {
+    XMMRegister idst = {dst.code()};
+    vsd(0x2c, idst, xmm0, src, kF3, k0F, kW1);
   }
   void vcvttsd2siq(Register dst, XMMRegister src) {
     XMMRegister idst = {dst.code()};
