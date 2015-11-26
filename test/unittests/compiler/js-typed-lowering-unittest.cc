@@ -1186,7 +1186,7 @@ TEST_F(JSTypedLoweringTest, JSCreateFunctionContextViaStub) {
 
 TEST_F(JSTypedLoweringTest, JSCreateWithContext) {
   Node* const object = Parameter(Type::Receiver());
-  Node* const closure = Parameter(Type::Any());
+  Node* const closure = Parameter(Type::Function());
   Node* const context = Parameter(Type::Any());
   Node* const frame_state = EmptyFrameState();
   Node* const effect = graph()->start();
@@ -1195,11 +1195,16 @@ TEST_F(JSTypedLoweringTest, JSCreateWithContext) {
       Reduce(graph()->NewNode(javascript()->CreateWithContext(), object,
                               closure, context, frame_state, effect, control));
   ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(),
-              IsFinishRegion(IsAllocate(IsNumberConstant(Context::SizeFor(
-                                            Context::MIN_CONTEXT_SLOTS)),
-                                        IsBeginRegion(effect), control),
-                             _));
+  EXPECT_THAT(
+      r.replacement(),
+      IsFinishRegion(
+          IsAllocate(
+              IsNumberConstant(Context::SizeFor(Context::MIN_CONTEXT_SLOTS)),
+              IsBeginRegion(IsLoadField(
+                  AccessBuilder::ForContextSlot(Context::GLOBAL_OBJECT_INDEX),
+                  context, effect, control)),
+              control),
+          _));
 }
 
 

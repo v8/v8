@@ -952,7 +952,12 @@ void FullCodeGenerator::VisitWithStatement(WithStatement* stmt) {
   Comment cmnt(masm_, "[ WithStatement");
   SetStatementPosition(stmt);
 
-  VisitForStackValue(stmt->expression());
+  VisitForAccumulatorValue(stmt->expression());
+  Callable callable = CodeFactory::ToObject(isolate());
+  __ Move(callable.descriptor().GetRegisterParameter(0), result_register());
+  __ Call(callable.code(), RelocInfo::CODE_TARGET);
+  PrepareForBailoutForId(stmt->ToObjectId(), NO_REGISTERS);
+  __ Push(result_register());
   PushFunctionArgumentForContextAllocation();
   __ CallRuntime(Runtime::kPushWithContext, 2);
   StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());

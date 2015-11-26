@@ -1007,8 +1007,9 @@ class WithStatement final : public Statement {
   void set_statement(Statement* s) { statement_ = s; }
 
   void set_base_id(int id) { base_id_ = id; }
-  static int num_ids() { return parent_num_ids() + 1; }
-  BailoutId EntryId() const { return BailoutId(local_id(0)); }
+  static int num_ids() { return parent_num_ids() + 2; }
+  BailoutId ToObjectId() const { return BailoutId(local_id(0)); }
+  BailoutId EntryId() const { return BailoutId(local_id(1)); }
 
  protected:
   WithStatement(Zone* zone, Scope* scope, Expression* expression,

@@ -706,13 +706,8 @@ RUNTIME_FUNCTION(Runtime_NewFunctionContext) {
 RUNTIME_FUNCTION(Runtime_PushWithContext) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, extension_object, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 1);
-  Handle<JSReceiver> extension_object;
-  if (!Object::ToObject(isolate, value).ToHandle(&extension_object)) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kUndefinedOrNullToObject));
-  }
   Handle<Context> current(isolate->context());
   Handle<Context> context =
       isolate->factory()->NewWithContext(function, current, extension_object);

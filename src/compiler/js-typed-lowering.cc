@@ -1885,33 +1885,25 @@ Reduction JSTypedLowering::ReduceJSCreateFunctionContext(Node* node) {
 
 Reduction JSTypedLowering::ReduceJSCreateWithContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateWithContext, node->opcode());
-  Node* const input = NodeProperties::GetValueInput(node, 0);
-  Node* const closure = NodeProperties::GetValueInput(node, 1);
-  Type* const input_type = NodeProperties::GetType(input);
-
-  // Use inline allocation for with contexts for regular objects.
-  if (input_type->Is(Type::Receiver())) {
-    // JSCreateWithContext(o:receiver, fun)
-    Node* const effect = NodeProperties::GetEffectInput(node);
-    Node* const control = NodeProperties::GetControlInput(node);
-    Node* const context = NodeProperties::GetContextInput(node);
-    Node* const load = graph()->NewNode(
-        simplified()->LoadField(
-            AccessBuilder::ForContextSlot(Context::GLOBAL_OBJECT_INDEX)),
-        context, effect, control);
-    AllocationBuilder a(jsgraph(), effect, control);
-    STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 4);  // Ensure fully covered.
-    a.AllocateArray(Context::MIN_CONTEXT_SLOTS, factory()->with_context_map());
-    a.Store(AccessBuilder::ForContextSlot(Context::CLOSURE_INDEX), closure);
-    a.Store(AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX), context);
-    a.Store(AccessBuilder::ForContextSlot(Context::EXTENSION_INDEX), input);
-    a.Store(AccessBuilder::ForContextSlot(Context::GLOBAL_OBJECT_INDEX), load);
-    RelaxControls(node);
-    a.FinishAndChange(node);
-    return Changed(node);
-  }
-
-  return NoChange();
+  Node* object = NodeProperties::GetValueInput(node, 0);
+  Node* closure = NodeProperties::GetValueInput(node, 1);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* global = effect = graph()->NewNode(
+      simplified()->LoadField(
+          AccessBuilder::ForContextSlot(Context::GLOBAL_OBJECT_INDEX)),
+      context, effect, control);
+  AllocationBuilder a(jsgraph(), effect, control);
+  STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 4);  // Ensure fully covered.
+  a.AllocateArray(Context::MIN_CONTEXT_SLOTS, factory()->with_context_map());
+  a.Store(AccessBuilder::ForContextSlot(Context::CLOSURE_INDEX), closure);
+  a.Store(AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX), context);
+  a.Store(AccessBuilder::ForContextSlot(Context::EXTENSION_INDEX), object);
+  a.Store(AccessBuilder::ForContextSlot(Context::GLOBAL_OBJECT_INDEX), global);
+  RelaxControls(node);
+  a.FinishAndChange(node);
+  return Changed(node);
 }
 
 
