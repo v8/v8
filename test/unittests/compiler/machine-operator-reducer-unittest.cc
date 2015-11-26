@@ -1646,18 +1646,6 @@ TEST_F(MachineOperatorReducerTest, StoreRepWord16WithWord32SarAndWord32Shl) {
   }
 }
 
-
-TEST_F(MachineOperatorReducerTest, RoundPlusTruncate) {
-  Node* p0 = Parameter(0);
-  Node* t0 = graph()->NewNode(machine()->RoundInt64ToFloat64(), p0);
-  Node* t1 = graph()->NewNode(
-      machine()->TruncateFloat64ToInt32(TruncationMode::kJavaScript), t0);
-
-  Reduction r = Reduce(t1);
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), p0);
-}
-
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
