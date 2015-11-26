@@ -18,6 +18,7 @@
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/source-position.h"
 #include "src/objects.h"
+#include "src/type-cache.h"
 
 namespace v8 {
 namespace internal {
@@ -195,10 +196,8 @@ class RepresentationSelector {
         phase_(PROPAGATE),
         changer_(changer),
         queue_(zone),
-        source_positions_(source_positions) {
-    safe_int_additive_range_ =
-        Type::Range(-std::pow(2.0, 52.0), std::pow(2.0, 52.0), zone);
-  }
+        source_positions_(source_positions),
+        type_cache_(TypeCache::Get()) {}
 
   void Run(SimplifiedLowering* lowering) {
     // Run propagation phase to a fixpoint.
@@ -567,9 +566,16 @@ class RepresentationSelector {
     // TODO(jarin): we could support the uint32 case here, but that would
     // require setting kTypeUint32 as the output type. Eventually, we will want
     // to use only the big types, then this should work automatically.
-    return BothInputsAre(node, safe_int_additive_range_) &&
+    return BothInputsAre(node, type_cache_.kAdditiveSafeInteger) &&
            (use.TruncatesToWord32() ||
             NodeProperties::GetType(node)->Is(Type::Signed32()));
+  }
+
+  bool CanLowerToInt32MultiplicativeBinop(Node* node, Truncation use) {
+    return BothInputsAre(node, Type::Signed32()) &&
+           (NodeProperties::GetType(node)->Is(Type::Signed32()) ||
+            (use.TruncatesToWord32() &&
+             NodeProperties::GetType(node)->Is(type_cache_.kSafeInteger)));
   }
 
   // Dispatching routine for visiting the node {node} with the usage {use}.
@@ -709,18 +715,17 @@ class RepresentationSelector {
         break;
       }
       case IrOpcode::kNumberMultiply: {
-        NumberMatcher right(node->InputAt(1));
-        if (right.IsInRange(-1048576, 1048576)) {  // must fit double mantissa.
-          if (CanLowerToInt32Binop(node, truncation)) {
-            // => signed Int32Mul
-            VisitInt32Binop(node);
-            if (lower()) NodeProperties::ChangeOp(node, Int32Op(node));
-            break;
-          }
+        // Multiply reduces to Int32Mul if the inputs are
+        // already integers and all uses are truncating.
+        if (CanLowerToInt32MultiplicativeBinop(node, truncation)) {
+          // => signed Int32Mul
+          VisitInt32Binop(node);
+          if (lower()) NodeProperties::ChangeOp(node, Int32Op(node));
+        } else {
+          // => Float64Mul
+          VisitFloat64Binop(node);
+          if (lower()) NodeProperties::ChangeOp(node, Float64Op(node));
         }
-        // => Float64Mul
-        VisitFloat64Binop(node);
-        if (lower()) NodeProperties::ChangeOp(node, Float64Op(node));
         break;
       }
       case IrOpcode::kNumberDivide: {
@@ -1160,7 +1165,7 @@ class RepresentationSelector {
   // lowering. Once this phase becomes a vanilla reducer, it should get source
   // position information via the SourcePositionWrapper like all other reducers.
   SourcePositionTable* source_positions_;
-  Type* safe_int_additive_range_;
+  TypeCache const& type_cache_;
 
   NodeInfo* GetInfo(Node* node) {
     DCHECK(node->id() >= 0);
@@ -1174,7 +1179,7 @@ SimplifiedLowering::SimplifiedLowering(JSGraph* jsgraph, Zone* zone,
                                        SourcePositionTable* source_positions)
     : jsgraph_(jsgraph),
       zone_(zone),
-      zero_thirtyone_range_(Type::Range(0, 31, zone)),
+      type_cache_(TypeCache::Get()),
       source_positions_(source_positions) {}
 
 
@@ -1555,7 +1560,7 @@ Node* SimplifiedLowering::Uint32Mod(Node* const node) {
 void SimplifiedLowering::DoShift(Node* node, Operator const* op) {
   Node* const rhs = NodeProperties::GetValueInput(node, 1);
   Type* const rhs_type = NodeProperties::GetType(rhs);
-  if (!rhs_type->Is(zero_thirtyone_range_)) {
+  if (!rhs_type->Is(type_cache_.kZeroToThirtyOne)) {
     node->ReplaceInput(1, graph()->NewNode(machine()->Word32And(), rhs,
                                            jsgraph()->Int32Constant(0x1f)));
   }

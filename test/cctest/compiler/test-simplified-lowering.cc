@@ -1605,22 +1605,6 @@ TEST(RunNumberDivide_minus_1_TruncatingToInt32) {
 }
 
 
-TEST(NumberMultiply_TruncatingToInt32) {
-  int32_t constants[] = {-100, -10, -1, 0, 1, 100, 1000};
-
-  for (size_t i = 0; i < arraysize(constants); i++) {
-    TestingGraph t(Type::Signed32());
-    Node* k = t.jsgraph.Constant(constants[i]);
-    Node* mul = t.graph()->NewNode(t.simplified()->NumberMultiply(), t.p0, k);
-    Node* trunc = t.graph()->NewNode(t.simplified()->NumberToInt32(), mul);
-    t.Return(trunc);
-    t.Lower();
-
-    CHECK_EQ(IrOpcode::kInt32Mul, mul->opcode());
-  }
-}
-
-
 TEST(RunNumberMultiply_TruncatingToInt32) {
   int32_t constants[] = {-100, -10, -1, 0, 1, 100, 1000, 3000999};
 

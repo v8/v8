@@ -12,6 +12,11 @@
 
 namespace v8 {
 namespace internal {
+
+// Forward declarations.
+class TypeCache;
+
+
 namespace compiler {
 
 // Forward declarations.
@@ -41,7 +46,7 @@ class SimplifiedLowering final {
  private:
   JSGraph* const jsgraph_;
   Zone* const zone_;
-  Type* const zero_thirtyone_range_;
+  TypeCache const& type_cache_;
 
   // TODO(danno): SimplifiedLowering shouldn't know anything about the source
   // positions table, but must for now since there currently is no other way to

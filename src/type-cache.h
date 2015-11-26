@@ -42,6 +42,7 @@ class TypeCache final {
   Type* const kSingletonZero = CreateRange(0.0, 0.0);
   Type* const kSingletonOne = CreateRange(1.0, 1.0);
   Type* const kZeroOrOne = CreateRange(0.0, 1.0);
+  Type* const kZeroToThirtyOne = CreateRange(0.0, 31.0);
   Type* const kZeroToThirtyTwo = CreateRange(0.0, 32.0);
   Type* const kZeroish =
       Type::Union(kSingletonZero, Type::MinusZeroOrNaN(), zone());
@@ -52,6 +53,9 @@ class TypeCache final {
   Type* const kIntegerOrMinusZeroOrNaN =
       Type::Union(kIntegerOrMinusZero, Type::NaN(), zone());
 
+  Type* const kAdditiveSafeInteger =
+      CreateRange(-4503599627370496.0, 4503599627370496.0);
+  Type* const kSafeInteger = CreateRange(-kMaxSafeInteger, kMaxSafeInteger);
   Type* const kPositiveSafeInteger = CreateRange(0.0, kMaxSafeInteger);
 
   // Asm.js related types.
