@@ -9265,7 +9265,7 @@ THREADED_TEST(CrossDomainFor) {
   // Change env2 to a different domain and set env1's global object
   // as the __proto__ of an object in env2 and enumerate properties
   // in for-in. It shouldn't enumerate properties on env1's global
-  // object.
+  // object. It shouldn't throw either, just silently ignore them.
   env2->SetSecurityToken(bar);
   {
     Context::Scope scope_env2(env2);
@@ -9315,9 +9315,9 @@ THREADED_TEST(CrossDomainForInOnPrototype) {
         "    for (var p in obj) {"
         "      if (p == 'prop') return false;"
         "    }"
-        "    return false;"
-        "  } catch (e) {"
         "    return true;"
+        "  } catch (e) {"
+        "    return false;"
         "  }"
         "})()");
     CHECK(result->IsTrue());
@@ -9817,6 +9817,7 @@ TEST(AccessControl) {
 
   // Enumeration doesn't enumerate accessors from inaccessible objects in
   // the prototype chain even if the accessors are in themselves accessible.
+  // Enumeration doesn't throw, it silently ignores what it can't access.
   value = CompileRun(
       "(function() {"
       "  var obj = { '__proto__': other };"
@@ -9828,9 +9829,9 @@ TEST(AccessControl) {
       "        return false;"
       "      }"
       "    }"
-      "    return false;"
-      "  } catch (e) {"
       "    return true;"
+      "  } catch (e) {"
+      "    return false;"
       "  }"
       "})()");
   CHECK(value->IsTrue());

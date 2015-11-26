@@ -1930,7 +1930,7 @@ class JSReceiver: public HeapObject {
   MUST_USE_RESULT static MaybeHandle<FixedArray> GetKeys(
       Handle<JSReceiver> object, KeyCollectionType type,
       KeyFilter filter = SKIP_SYMBOLS,
-      GetKeysConversion getConversion = KEEP_NUMBERS,
+      GetKeysConversion keys_conversion = KEEP_NUMBERS,
       Enumerability enum_policy = RESPECT_ENUMERABILITY);
 
  private:

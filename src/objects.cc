@@ -7987,107 +7987,134 @@ Handle<FixedArray> JSObject::GetEnumPropertyKeys(Handle<JSObject> object,
 }
 
 
-MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
-                                            KeyCollectionType type,
-                                            KeyFilter filter,
-                                            GetKeysConversion getConversion,
-                                            Enumerability enum_policy) {
-  USE(ContainsOnlyValidKeys);
-  Isolate* isolate = object->GetIsolate();
-  KeyAccumulator accumulator(isolate, filter);
-  Handle<JSFunction> arguments_function(
-      JSFunction::cast(isolate->sloppy_arguments_map()->GetConstructor()));
-  PrototypeIterator::WhereToEnd end = type == OWN_ONLY
-                                          ? PrototypeIterator::END_AT_NON_HIDDEN
-                                          : PrototypeIterator::END_AT_NULL;
+static bool GetKeysFromJSObject(Isolate* isolate, Handle<JSReceiver> receiver,
+                                Handle<JSObject> object, KeyFilter filter,
+                                Enumerability enum_policy,
+                                KeyAccumulator* accumulator) {
+  // Check access rights if required.
+  if (object->IsAccessCheckNeeded() &&
+      !isolate->MayAccess(handle(isolate->context()), object)) {
+    // TODO(jkummerow): Get whitelisted (all-can-read) keys.
+    // It's probably best to implement a "GetKeysWithFailedAccessCheck"
+    // helper, which will need to look at both interceptors and accessors.
+    return false;
+  }
+
   PropertyAttributes attr_filter = static_cast<PropertyAttributes>(
       (enum_policy == RESPECT_ENUMERABILITY ? DONT_ENUM : NONE) |
       PRIVATE_SYMBOL);
 
-  // Only collect keys if access is permitted.
+  JSObject::CollectOwnElementKeys(object, accumulator, attr_filter);
+
+  // Add the element keys from the interceptor.
+  if (object->HasIndexedInterceptor()) {
+    Handle<JSObject> result;
+    if (JSObject::GetKeysForIndexedInterceptor(object, receiver)
+            .ToHandle(&result)) {
+      accumulator->AddElementKeysFromInterceptor(result);
+    }
+    RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, false);
+  }
+
+  if (filter == SKIP_SYMBOLS) {
+    if (enum_policy == IGNORE_ENUMERABILITY) UNIMPLEMENTED();
+
+    // We can cache the computed property keys if access checks are
+    // not needed and no interceptors are involved.
+    //
+    // We do not use the cache if the object has elements and
+    // therefore it does not make sense to cache the property names
+    // for arguments objects.  Arguments objects will always have
+    // elements.
+    // Wrapped strings have elements, but don't have an elements
+    // array or dictionary.  So the fast inline test for whether to
+    // use the cache says yes, so we should not create a cache.
+    Handle<JSFunction> arguments_function(
+        JSFunction::cast(isolate->sloppy_arguments_map()->GetConstructor()));
+    bool cache_enum_length =
+        ((object->map()->GetConstructor() != *arguments_function) &&
+         !object->IsJSValue() && !object->IsAccessCheckNeeded() &&
+         !object->HasNamedInterceptor() && !object->HasIndexedInterceptor());
+    // Compute the property keys and cache them if possible.
+    Handle<FixedArray> enum_keys =
+        JSObject::GetEnumPropertyKeys(object, cache_enum_length);
+    accumulator->AddKeys(enum_keys);
+  } else {
+    DCHECK(filter == INCLUDE_SYMBOLS);
+    object->CollectOwnPropertyNames(accumulator, attr_filter);
+  }
+
+  // Add the property keys from the interceptor.
+  if (object->HasNamedInterceptor()) {
+    Handle<JSObject> result;
+    if (JSObject::GetKeysForNamedInterceptor(object, receiver)
+            .ToHandle(&result)) {
+      accumulator->AddKeys(result);
+    }
+    RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, false);
+  }
+  return true;
+}
+
+
+// Helper function for JSReceiver::GetKeys() below. Can be called recursively.
+// Returns false iff an exception was thrown.
+static bool GetKeys_Internal(Isolate* isolate, Handle<JSReceiver> receiver,
+                             Handle<JSReceiver> object,
+                             JSReceiver::KeyCollectionType type,
+                             KeyFilter filter, Enumerability enum_policy,
+                             KeyAccumulator* accumulator) {
+  PrototypeIterator::WhereToEnd end = type == JSReceiver::OWN_ONLY
+                                          ? PrototypeIterator::END_AT_NON_HIDDEN
+                                          : PrototypeIterator::END_AT_NULL;
   for (PrototypeIterator iter(isolate, object,
                               PrototypeIterator::START_AT_RECEIVER);
        !iter.IsAtEnd(end); iter.Advance()) {
-    accumulator.NextPrototype();
-    if (PrototypeIterator::GetCurrent(iter)->IsJSProxy()) {
-      Handle<JSProxy> proxy = PrototypeIterator::GetCurrent<JSProxy>(iter);
-      Handle<Object> args[] = { proxy };
+    accumulator->NextPrototype();
+    Handle<JSReceiver> current =
+        PrototypeIterator::GetCurrent<JSReceiver>(iter);
+    bool result = false;
+    if (current->IsJSProxy()) {
+      Handle<Object> args[] = {current};
       Handle<Object> names;
-      ASSIGN_RETURN_ON_EXCEPTION(
-          isolate, names,
-          Execution::Call(isolate,
-                          isolate->proxy_enumerate(),
-                          object,
-                          arraysize(args),
-                          args),
-          FixedArray);
-      accumulator.AddKeysFromProxy(Handle<JSObject>::cast(names));
-      break;
-    }
-
-    Handle<JSObject> current = PrototypeIterator::GetCurrent<JSObject>(iter);
-
-    // Check access rights if required.
-    if (current->IsAccessCheckNeeded() &&
-        !isolate->MayAccess(handle(isolate->context()), current)) {
-      if (iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN)) {
-        isolate->ReportFailedAccessCheck(current);
-        RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, FixedArray);
-      }
-      break;
-    }
-
-    JSObject::CollectOwnElementKeys(current, &accumulator, attr_filter);
-
-    // Add the element keys from the interceptor.
-    if (current->HasIndexedInterceptor()) {
-      Handle<JSObject> result;
-      if (JSObject::GetKeysForIndexedInterceptor(current, object)
-              .ToHandle(&result)) {
-        accumulator.AddElementKeysFromInterceptor(result);
-      }
-      RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, FixedArray);
-    }
-
-    if (filter == SKIP_SYMBOLS) {
-      if (enum_policy == IGNORE_ENUMERABILITY) UNIMPLEMENTED();
-
-      // We can cache the computed property keys if access checks are
-      // not needed and no interceptors are involved.
-      //
-      // We do not use the cache if the object has elements and
-      // therefore it does not make sense to cache the property names
-      // for arguments objects.  Arguments objects will always have
-      // elements.
-      // Wrapped strings have elements, but don't have an elements
-      // array or dictionary.  So the fast inline test for whether to
-      // use the cache says yes, so we should not create a cache.
-      bool cache_enum_length =
-          ((current->map()->GetConstructor() != *arguments_function) &&
-           !current->IsJSValue() && !current->IsAccessCheckNeeded() &&
-           !current->HasNamedInterceptor() &&
-           !current->HasIndexedInterceptor());
-      // Compute the property keys and cache them if possible.
-      Handle<FixedArray> enum_keys =
-          JSObject::GetEnumPropertyKeys(current, cache_enum_length);
-      accumulator.AddKeys(enum_keys);
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, names, Execution::Call(isolate, isolate->proxy_enumerate(),
+                                          current, arraysize(args), args),
+          false);
+      accumulator->AddKeysFromProxy(Handle<JSObject>::cast(names));
     } else {
-      DCHECK(filter == INCLUDE_SYMBOLS);
-      current->CollectOwnPropertyNames(&accumulator, attr_filter);
+      DCHECK(current->IsJSObject());
+      result = GetKeysFromJSObject(isolate, receiver,
+                                   Handle<JSObject>::cast(current), filter,
+                                   enum_policy, accumulator);
     }
-
-    // Add the property keys from the interceptor.
-    if (current->HasNamedInterceptor()) {
-      Handle<JSObject> result;
-      if (JSObject::GetKeysForNamedInterceptor(current, object)
-              .ToHandle(&result)) {
-        accumulator.AddKeys(result);
+    if (!result) {
+      if (isolate->has_pending_exception()) {
+        return false;
       }
-      RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, FixedArray);
+      // If there was no exception, then "false" means "stop iterating".
+      break;
     }
   }
+  return true;
+}
 
-  Handle<FixedArray> keys = accumulator.GetKeys(getConversion);
+
+MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
+                                            KeyCollectionType type,
+                                            KeyFilter filter,
+                                            GetKeysConversion keys_conversion,
+                                            Enumerability enum_policy) {
+  USE(ContainsOnlyValidKeys);
+  Isolate* isolate = object->GetIsolate();
+  KeyAccumulator accumulator(isolate, filter);
+  if (!GetKeys_Internal(isolate, object, object, type, filter, enum_policy,
+                        &accumulator)) {
+    DCHECK(isolate->has_pending_exception());
+    return MaybeHandle<FixedArray>();
+  }
+
+  Handle<FixedArray> keys = accumulator.GetKeys(keys_conversion);
   DCHECK(ContainsOnlyValidKeys(keys));
   return keys;
 }
