@@ -532,6 +532,7 @@ void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
 //
 // The live registers are:
 //   o edi: the JS function object being called
+//   o edx: the new target
 //   o esi: our context
 //   o ebp: the caller's frame pointer
 //   o esp: stack pointer (pointing to return address)
@@ -549,6 +550,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ mov(ebp, esp);
   __ push(esi);  // Callee's context.
   __ push(edi);  // Callee's JS function.
+  __ push(edx);  // Callee's new target.
 
   // Get the bytecode array from the function object and load the pointer to the
   // first entry into edi (InterpreterBytecodeRegister).
@@ -619,9 +621,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // registers.
   __ LoadRoot(kInterpreterAccumulatorRegister, Heap::kUndefinedValueRootIndex);
   __ mov(kInterpreterRegisterFileRegister, ebp);
-  __ sub(
-      kInterpreterRegisterFileRegister,
-      Immediate(kPointerSize + StandardFrameConstants::kFixedFrameSizeFromFp));
+  __ sub(kInterpreterRegisterFileRegister,
+         Immediate(2 * kPointerSize +
+                   StandardFrameConstants::kFixedFrameSizeFromFp));
   __ mov(kInterpreterBytecodeOffsetRegister,
          Immediate(BytecodeArray::kHeaderSize - kHeapObjectTag));
   // Since the dispatch table root might be set after builtins are generated,
