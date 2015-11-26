@@ -160,9 +160,6 @@
   'es6/debug-evaluate-blockscopes': [PASS, NO_VARIANTS],
   # Issue 4055: Scope chain length observed by debugger is off.
   'es6/generators-debug-scopes': [PASS, NO_VARIANTS],
-  # Issue 4544: Stepping in inlined constructors is borked.
-  'es6/debug-promises/throw-in-constructor': [PASS, NO_VARIANTS],
-  'es6/debug-step-into-constructor': [PASS, NO_VARIANTS],
 
   # TODO(4544): Investigate why assumptions about fast properties break.
   'fast-prototype': [PASS, NO_VARIANTS],
