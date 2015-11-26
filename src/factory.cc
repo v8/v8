@@ -1423,9 +1423,8 @@ Handle<Code> Factory::NewCode(const CodeDesc& desc,
   code->set_next_code_link(*undefined_value());
   code->set_handler_table(*empty_fixed_array(), SKIP_WRITE_BARRIER);
   code->set_prologue_offset(prologue_offset);
-  if (FLAG_enable_embedded_constant_pool) {
-    code->set_constant_pool_offset(desc.instr_size - desc.constant_pool_size);
-  }
+  code->set_constant_pool_offset(desc.instr_size - desc.constant_pool_size);
+
   if (code->kind() == Code::OPTIMIZED_FUNCTION) {
     code->set_marked_for_deoptimization(false);
   }
