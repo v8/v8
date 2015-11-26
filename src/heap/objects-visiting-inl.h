@@ -464,14 +464,6 @@ void StaticMarkingVisitor<StaticVisitor>::VisitJSFunction(Map* map,
       // non-flushable, because it is required for bailing out from
       // optimized code.
       collector->code_flusher()->AddCandidate(function);
-      // Visit shared function info immediately to avoid double checking
-      // of its flushability later. This is just an optimization because
-      // the shared function info would eventually be visited.
-      SharedFunctionInfo* shared = function->shared();
-      if (StaticVisitor::MarkObjectWithoutPush(heap, shared)) {
-        StaticVisitor::MarkObject(heap, shared->map());
-        VisitSharedFunctionInfoWeakCode(heap, shared);
-      }
       // Treat the reference to the code object weakly.
       VisitJSFunctionWeakCode(map, object);
       return;
