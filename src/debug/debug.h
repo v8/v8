@@ -343,6 +343,28 @@ class LockingCommandMessageQueue BASE_EMBEDDED {
 };
 
 
+class DebugFeatureTracker {
+ public:
+  enum Feature {
+    kActive = 1,
+    kBreakPoint = 2,
+    kStepping = 3,
+    kHeapSnapshot = 4,
+    kAllocationTracking = 5,
+    kProfiler = 6,
+    kLiveEdit = 7,
+  };
+
+  explicit DebugFeatureTracker(Isolate* isolate)
+      : isolate_(isolate), bitfield_(0) {}
+  void Track(Feature feature);
+
+ private:
+  Isolate* isolate_;
+  uint32_t bitfield_;
+};
+
+
 // This class contains the debugger support. The main purpose is to handle
 // setting break points in the code.
 //
@@ -508,6 +530,8 @@ class Debug {
 
   StepAction last_step_action() { return thread_local_.last_step_action_; }
 
+  DebugFeatureTracker* feature_tracker() { return &feature_tracker_; }
+
  private:
   explicit Debug(Isolate* isolate);
 
@@ -605,6 +629,9 @@ class Debug {
   // Note that this address is not GC safe.  It should be computed immediately
   // before returning to the DebugBreakCallHelper.
   Address after_break_target_;
+
+  // Used to collect histogram data on debugger feature usage.
+  DebugFeatureTracker feature_tracker_;
 
   // Per-thread data.
   class ThreadLocal {

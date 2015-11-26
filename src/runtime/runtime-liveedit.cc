@@ -229,6 +229,8 @@ RUNTIME_FUNCTION(Runtime_LiveEditCompareStrings) {
   CONVERT_ARG_HANDLE_CHECKED(String, s1, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, s2, 1);
 
+  isolate->debug()->feature_tracker()->Track(DebugFeatureTracker::kLiveEdit);
+
   return *LiveEdit::CompareStrings(s1, s2);
 }
 
