@@ -72,10 +72,6 @@ void StaticNewSpaceVisitor<StaticVisitor>::Initialize() {
 
   table_.Register(kVisitJSArrayBuffer, &VisitJSArrayBuffer);
 
-  table_.Register(kVisitJSTypedArray, &VisitJSTypedArray);
-
-  table_.Register(kVisitJSDataView, &VisitJSDataView);
-
   table_.Register(kVisitFreeSpace, &VisitFreeSpace);
 
   table_.Register(kVisitJSWeakCollection, &JSObjectVisitor::Visit);
@@ -103,28 +99,6 @@ int StaticNewSpaceVisitor<StaticVisitor>::VisitJSArrayBuffer(
     heap->array_buffer_tracker()->MarkLive(JSArrayBuffer::cast(object));
   }
   return JSArrayBufferBodyVisitor::Visit(map, object);
-}
-
-
-template <typename StaticVisitor>
-int StaticNewSpaceVisitor<StaticVisitor>::VisitJSTypedArray(
-    Map* map, HeapObject* object) {
-  VisitPointers(
-      map->GetHeap(), object,
-      HeapObject::RawField(object, JSTypedArray::BodyDescriptor::kStartOffset),
-      HeapObject::RawField(object, JSTypedArray::kSizeWithInternalFields));
-  return JSTypedArray::kSizeWithInternalFields;
-}
-
-
-template <typename StaticVisitor>
-int StaticNewSpaceVisitor<StaticVisitor>::VisitJSDataView(Map* map,
-                                                          HeapObject* object) {
-  VisitPointers(
-      map->GetHeap(), object,
-      HeapObject::RawField(object, JSDataView::BodyDescriptor::kStartOffset),
-      HeapObject::RawField(object, JSDataView::kSizeWithInternalFields));
-  return JSDataView::kSizeWithInternalFields;
 }
 
 
@@ -194,10 +168,6 @@ void StaticMarkingVisitor<StaticVisitor>::Initialize() {
   table_.Register(kVisitJSFunction, &VisitJSFunction);
 
   table_.Register(kVisitJSArrayBuffer, &VisitJSArrayBuffer);
-
-  table_.Register(kVisitJSTypedArray, &VisitJSTypedArray);
-
-  table_.Register(kVisitJSDataView, &VisitJSDataView);
 
   // Registration for kVisitJSRegExp is done by StaticVisitor.
 
@@ -535,24 +505,6 @@ void StaticMarkingVisitor<StaticVisitor>::VisitJSArrayBuffer(
       !heap->InNewSpace(object)) {
     heap->array_buffer_tracker()->MarkLive(JSArrayBuffer::cast(object));
   }
-}
-
-
-template <typename StaticVisitor>
-void StaticMarkingVisitor<StaticVisitor>::VisitJSTypedArray(
-    Map* map, HeapObject* object) {
-  typedef FlexibleBodyVisitor<StaticVisitor, JSTypedArray::BodyDescriptor, void>
-      JSTypedArrayBodyVisitor;
-  JSTypedArrayBodyVisitor::Visit(map, object);
-}
-
-
-template <typename StaticVisitor>
-void StaticMarkingVisitor<StaticVisitor>::VisitJSDataView(Map* map,
-                                                          HeapObject* object) {
-  typedef FlexibleBodyVisitor<StaticVisitor, JSDataView::BodyDescriptor, void>
-      JSDataViewBodyVisitor;
-  JSDataViewBodyVisitor::Visit(map, object);
 }
 
 
