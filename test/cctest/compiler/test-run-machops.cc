@@ -5391,24 +5391,6 @@ TEST(RunBitcastFloat64ToInt64) {
 }
 
 
-TEST(RunTruncateFloat32ToInt64) {
-  BufferedRawMachineAssemblerTester<int64_t> m(kMachFloat32);
-  m.Return(m.TruncateFloat32ToInt64(m.Parameter(0)));
-
-  FOR_INT64_INPUTS(i) {
-    float input = static_cast<float>(*i);
-    if (input < 9223372036854775808.0 && input > -9223372036854775809.0) {
-      CHECK_EQ(static_cast<int64_t>(input), m.Call(input));
-    }
-  }
-  FOR_FLOAT32_INPUTS(j) {
-    if (*j < 9223372036854775808.0 && *j > -9223372036854775809.0) {
-      CHECK_EQ(static_cast<int64_t>(*j), m.Call(*j));
-    }
-  }
-}
-
-
 TEST(RunTruncateFloat64ToInt64) {
   BufferedRawMachineAssemblerTester<int64_t> m(kMachFloat64);
   m.Return(m.TruncateFloat64ToInt64(m.Parameter(0)));

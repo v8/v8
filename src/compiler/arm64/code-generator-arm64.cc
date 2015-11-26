@@ -1022,9 +1022,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArm64Float64ToUint32:
       __ Fcvtzu(i.OutputRegister32(), i.InputDoubleRegister(0));
       break;
-    case kArm64Float32ToInt64:
-      __ Fcvtzs(i.OutputRegister64(), i.InputFloat32Register(0));
-      break;
     case kArm64Float64ToInt64:
       __ Fcvtzs(i.OutputRegister64(), i.InputDoubleRegister(0));
       break;

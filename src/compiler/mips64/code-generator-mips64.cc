@@ -991,13 +991,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ mfc1(i.OutputRegister(), scratch);
       break;
     }
-    case kMips64TruncLS: {
-      FPURegister scratch = kScratchDoubleReg;
-      // Other arches use round to zero here, so we follow.
-      __ trunc_l_s(scratch, i.InputDoubleRegister(0));
-      __ dmfc1(i.OutputRegister(), scratch);
-      break;
-    }
     case kMips64TruncLD: {
       FPURegister scratch = kScratchDoubleReg;
       // Other arches use round to zero here, so we follow.
