@@ -116,8 +116,9 @@ class BytecodeArrayBuilder {
                                            int feedback_slot,
                                            LanguageMode language_mode);
 
-  // Create a new closure for the SharedFunctionInfo in the accumulator.
-  BytecodeArrayBuilder& CreateClosure(PretenureFlag tenured);
+  // Create a new closure for the SharedFunctionInfo.
+  BytecodeArrayBuilder& CreateClosure(Handle<SharedFunctionInfo> shared_info,
+                                      PretenureFlag tenured);
 
   // Create a new arguments object in the accumulator.
   BytecodeArrayBuilder& CreateArguments(CreateArgumentsType type);

@@ -444,9 +444,18 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreKeyedProperty(
 
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateClosure(
-    PretenureFlag tenured) {
+    Handle<SharedFunctionInfo> shared_info, PretenureFlag tenured) {
+  size_t entry = GetConstantPoolEntry(shared_info);
   DCHECK(FitsInImm8Operand(tenured));
-  Output(Bytecode::kCreateClosure, static_cast<uint8_t>(tenured));
+  if (FitsInIdx8Operand(entry)) {
+    Output(Bytecode::kCreateClosure, static_cast<uint8_t>(entry),
+           static_cast<uint8_t>(tenured));
+  } else if (FitsInIdx16Operand(entry)) {
+    Output(Bytecode::kCreateClosureWide, static_cast<uint16_t>(entry),
+           static_cast<uint8_t>(tenured));
+  } else {
+    UNIMPLEMENTED();
+  }
   return *this;
 }
 
