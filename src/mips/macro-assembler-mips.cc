@@ -2094,270 +2094,273 @@ bool MacroAssembler::BranchShortHelperR6(int32_t offset, Label* L,
   // Be careful to always use shifted_branch_offset only just before the
   // branch instruction, as the location will be remember for patching the
   // target.
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  switch (cond) {
-    case cc_always:
-      bits = OffsetSize::kOffset26;
-      if (!is_near(L, bits)) return false;
-      offset = GetOffset(offset, L, bits);
-      bc(offset);
-      break;
-    case eq:
-      if (rs.code() == rt.rm_.reg_code) {
-        // Pre R6 beq is used here to make the code patchable. Otherwise bc
-        // should be used which has no condition field so is not patchable.
-        bits = OffsetSize::kOffset16;
-        if (!is_near(L, bits)) return false;
-        scratch = GetRtAsRegisterHelper(rt, scratch);
-        offset = GetOffset(offset, L, bits);
-        beq(rs, scratch, offset);
-        nop();
-      } else if (IsZero(rt)) {
-        bits = OffsetSize::kOffset21;
+  {
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    switch (cond) {
+      case cc_always:
+        bits = OffsetSize::kOffset26;
         if (!is_near(L, bits)) return false;
         offset = GetOffset(offset, L, bits);
-        beqzc(rs, offset);
-      } else {
-        // We don't want any other register but scratch clobbered.
-        bits = OffsetSize::kOffset16;
-        if (!is_near(L, bits)) return false;
-        scratch = GetRtAsRegisterHelper(rt, scratch);
-        offset = GetOffset(offset, L, bits);
-        beqc(rs, scratch, offset);
-      }
-      break;
-    case ne:
-      if (rs.code() == rt.rm_.reg_code) {
-        // Pre R6 bne is used here to make the code patchable. Otherwise we
-        // should not generate any instruction.
-        bits = OffsetSize::kOffset16;
-        if (!is_near(L, bits)) return false;
-        scratch = GetRtAsRegisterHelper(rt, scratch);
-        offset = GetOffset(offset, L, bits);
-        bne(rs, scratch, offset);
-        nop();
-      } else if (IsZero(rt)) {
-        bits = OffsetSize::kOffset21;
-        if (!is_near(L, bits)) return false;
-        offset = GetOffset(offset, L, bits);
-        bnezc(rs, offset);
-      } else {
-        // We don't want any other register but scratch clobbered.
-        bits = OffsetSize::kOffset16;
-        if (!is_near(L, bits)) return false;
-        scratch = GetRtAsRegisterHelper(rt, scratch);
-        offset = GetOffset(offset, L, bits);
-        bnec(rs, scratch, offset);
-      }
-      break;
+        bc(offset);
+        break;
+      case eq:
+        if (rs.code() == rt.rm_.reg_code) {
+          // Pre R6 beq is used here to make the code patchable. Otherwise bc
+          // should be used which has no condition field so is not patchable.
+          bits = OffsetSize::kOffset16;
+          if (!is_near(L, bits)) return false;
+          scratch = GetRtAsRegisterHelper(rt, scratch);
+          offset = GetOffset(offset, L, bits);
+          beq(rs, scratch, offset);
+          nop();
+        } else if (IsZero(rt)) {
+          bits = OffsetSize::kOffset21;
+          if (!is_near(L, bits)) return false;
+          offset = GetOffset(offset, L, bits);
+          beqzc(rs, offset);
+        } else {
+          // We don't want any other register but scratch clobbered.
+          bits = OffsetSize::kOffset16;
+          if (!is_near(L, bits)) return false;
+          scratch = GetRtAsRegisterHelper(rt, scratch);
+          offset = GetOffset(offset, L, bits);
+          beqc(rs, scratch, offset);
+        }
+        break;
+      case ne:
+        if (rs.code() == rt.rm_.reg_code) {
+          // Pre R6 bne is used here to make the code patchable. Otherwise we
+          // should not generate any instruction.
+          bits = OffsetSize::kOffset16;
+          if (!is_near(L, bits)) return false;
+          scratch = GetRtAsRegisterHelper(rt, scratch);
+          offset = GetOffset(offset, L, bits);
+          bne(rs, scratch, offset);
+          nop();
+        } else if (IsZero(rt)) {
+          bits = OffsetSize::kOffset21;
+          if (!is_near(L, bits)) return false;
+          offset = GetOffset(offset, L, bits);
+          bnezc(rs, offset);
+        } else {
+          // We don't want any other register but scratch clobbered.
+          bits = OffsetSize::kOffset16;
+          if (!is_near(L, bits)) return false;
+          scratch = GetRtAsRegisterHelper(rt, scratch);
+          offset = GetOffset(offset, L, bits);
+          bnec(rs, scratch, offset);
+        }
+        break;
 
-    // Signed comparison.
-    case greater:
-      // rs > rt
-      if (rs.code() == rt.rm_.reg_code) {
-        break;  // No code needs to be emitted.
-      } else if (rs.is(zero_reg)) {
-        bits = OffsetSize::kOffset16;
-        if (!is_near(L, bits)) return false;
-        scratch = GetRtAsRegisterHelper(rt, scratch);
-        offset = GetOffset(offset, L, bits);
-        bltzc(scratch, offset);
-      } else if (IsZero(rt)) {
-        bits = OffsetSize::kOffset16;
-        if (!is_near(L, bits)) return false;
-        offset = GetOffset(offset, L, bits);
-        bgtzc(rs, offset);
-      } else {
-        bits = OffsetSize::kOffset16;
-        if (!is_near(L, bits)) return false;
-        scratch = GetRtAsRegisterHelper(rt, scratch);
-        DCHECK(!rs.is(scratch));
-        offset = GetOffset(offset, L, bits);
-        bltc(scratch, rs, offset);
-      }
-      break;
-    case greater_equal:
-      // rs >= rt
-      if (rs.code() == rt.rm_.reg_code) {
-        bits = OffsetSize::kOffset26;
-        if (!is_near(L, bits)) return false;
-        offset = GetOffset(offset, L, bits);
-        bc(offset);
-      } else if (rs.is(zero_reg)) {
-        bits = OffsetSize::kOffset16;
-        if (!is_near(L, bits)) return false;
-        scratch = GetRtAsRegisterHelper(rt, scratch);
-        offset = GetOffset(offset, L, bits);
-        blezc(scratch, offset);
-      } else if (IsZero(rt)) {
-        bits = OffsetSize::kOffset16;
-        if (!is_near(L, bits)) return false;
-        offset = GetOffset(offset, L, bits);
-        bgezc(rs, offset);
-      } else {
-        bits = OffsetSize::kOffset16;
-        if (!is_near(L, bits)) return false;
-        scratch = GetRtAsRegisterHelper(rt, scratch);
-        DCHECK(!rs.is(scratch));
-        offset = GetOffset(offset, L, bits);
-        bgec(rs, scratch, offset);
-      }
-      break;
-    case less:
-      // rs < rt
-      if (rs.code() == rt.rm_.reg_code) {
-        break;  // No code needs to be emitted.
-      } else if (rs.is(zero_reg)) {
-        bits = OffsetSize::kOffset16;
-        if (!is_near(L, bits)) return false;
-        scratch = GetRtAsRegisterHelper(rt, scratch);
-        offset = GetOffset(offset, L, bits);
-        bgtzc(scratch, offset);
-      } else if (IsZero(rt)) {
-        bits = OffsetSize::kOffset16;
-        if (!is_near(L, bits)) return false;
-        offset = GetOffset(offset, L, bits);
-        bltzc(rs, offset);
-      } else {
-        bits = OffsetSize::kOffset16;
-        if (!is_near(L, bits)) return false;
-        scratch = GetRtAsRegisterHelper(rt, scratch);
-        DCHECK(!rs.is(scratch));
-        offset = GetOffset(offset, L, bits);
-        bltc(rs, scratch, offset);
-      }
-      break;
-    case less_equal:
-      // rs <= rt
-      if (rs.code() == rt.rm_.reg_code) {
-        bits = OffsetSize::kOffset26;
-        if (!is_near(L, bits)) return false;
-        offset = GetOffset(offset, L, bits);
-        bc(offset);
-      } else if (rs.is(zero_reg)) {
-        bits = OffsetSize::kOffset16;
-        if (!is_near(L, bits)) return false;
-        scratch = GetRtAsRegisterHelper(rt, scratch);
-        offset = GetOffset(offset, L, bits);
-        bgezc(scratch, offset);
-      } else if (IsZero(rt)) {
-        bits = OffsetSize::kOffset16;
-        if (!is_near(L, bits)) return false;
-        offset = GetOffset(offset, L, bits);
-        blezc(rs, offset);
-      } else {
-        bits = OffsetSize::kOffset16;
-        if (!is_near(L, bits)) return false;
-        scratch = GetRtAsRegisterHelper(rt, scratch);
-        DCHECK(!rs.is(scratch));
-        offset = GetOffset(offset, L, bits);
-        bgec(scratch, rs, offset);
-      }
-      break;
+      // Signed comparison.
+      case greater:
+        // rs > rt
+        if (rs.code() == rt.rm_.reg_code) {
+          break;  // No code needs to be emitted.
+        } else if (rs.is(zero_reg)) {
+          bits = OffsetSize::kOffset16;
+          if (!is_near(L, bits)) return false;
+          scratch = GetRtAsRegisterHelper(rt, scratch);
+          offset = GetOffset(offset, L, bits);
+          bltzc(scratch, offset);
+        } else if (IsZero(rt)) {
+          bits = OffsetSize::kOffset16;
+          if (!is_near(L, bits)) return false;
+          offset = GetOffset(offset, L, bits);
+          bgtzc(rs, offset);
+        } else {
+          bits = OffsetSize::kOffset16;
+          if (!is_near(L, bits)) return false;
+          scratch = GetRtAsRegisterHelper(rt, scratch);
+          DCHECK(!rs.is(scratch));
+          offset = GetOffset(offset, L, bits);
+          bltc(scratch, rs, offset);
+        }
+        break;
+      case greater_equal:
+        // rs >= rt
+        if (rs.code() == rt.rm_.reg_code) {
+          bits = OffsetSize::kOffset26;
+          if (!is_near(L, bits)) return false;
+          offset = GetOffset(offset, L, bits);
+          bc(offset);
+        } else if (rs.is(zero_reg)) {
+          bits = OffsetSize::kOffset16;
+          if (!is_near(L, bits)) return false;
+          scratch = GetRtAsRegisterHelper(rt, scratch);
+          offset = GetOffset(offset, L, bits);
+          blezc(scratch, offset);
+        } else if (IsZero(rt)) {
+          bits = OffsetSize::kOffset16;
+          if (!is_near(L, bits)) return false;
+          offset = GetOffset(offset, L, bits);
+          bgezc(rs, offset);
+        } else {
+          bits = OffsetSize::kOffset16;
+          if (!is_near(L, bits)) return false;
+          scratch = GetRtAsRegisterHelper(rt, scratch);
+          DCHECK(!rs.is(scratch));
+          offset = GetOffset(offset, L, bits);
+          bgec(rs, scratch, offset);
+        }
+        break;
+      case less:
+        // rs < rt
+        if (rs.code() == rt.rm_.reg_code) {
+          break;  // No code needs to be emitted.
+        } else if (rs.is(zero_reg)) {
+          bits = OffsetSize::kOffset16;
+          if (!is_near(L, bits)) return false;
+          scratch = GetRtAsRegisterHelper(rt, scratch);
+          offset = GetOffset(offset, L, bits);
+          bgtzc(scratch, offset);
+        } else if (IsZero(rt)) {
+          bits = OffsetSize::kOffset16;
+          if (!is_near(L, bits)) return false;
+          offset = GetOffset(offset, L, bits);
+          bltzc(rs, offset);
+        } else {
+          bits = OffsetSize::kOffset16;
+          if (!is_near(L, bits)) return false;
+          scratch = GetRtAsRegisterHelper(rt, scratch);
+          DCHECK(!rs.is(scratch));
+          offset = GetOffset(offset, L, bits);
+          bltc(rs, scratch, offset);
+        }
+        break;
+      case less_equal:
+        // rs <= rt
+        if (rs.code() == rt.rm_.reg_code) {
+          bits = OffsetSize::kOffset26;
+          if (!is_near(L, bits)) return false;
+          offset = GetOffset(offset, L, bits);
+          bc(offset);
+        } else if (rs.is(zero_reg)) {
+          bits = OffsetSize::kOffset16;
+          if (!is_near(L, bits)) return false;
+          scratch = GetRtAsRegisterHelper(rt, scratch);
+          offset = GetOffset(offset, L, bits);
+          bgezc(scratch, offset);
+        } else if (IsZero(rt)) {
+          bits = OffsetSize::kOffset16;
+          if (!is_near(L, bits)) return false;
+          offset = GetOffset(offset, L, bits);
+          blezc(rs, offset);
+        } else {
+          bits = OffsetSize::kOffset16;
+          if (!is_near(L, bits)) return false;
+          scratch = GetRtAsRegisterHelper(rt, scratch);
+          DCHECK(!rs.is(scratch));
+          offset = GetOffset(offset, L, bits);
+          bgec(scratch, rs, offset);
+        }
+        break;
 
-    // Unsigned comparison.
-    case Ugreater:
-      // rs > rt
-      if (rs.code() == rt.rm_.reg_code) {
-        break;  // No code needs to be emitted.
-      } else if (rs.is(zero_reg)) {
-        bits = OffsetSize::kOffset21;
-        if (!is_near(L, bits)) return false;
-        scratch = GetRtAsRegisterHelper(rt, scratch);
-        offset = GetOffset(offset, L, bits);
-        bnezc(scratch, offset);
-      } else if (IsZero(rt)) {
-        bits = OffsetSize::kOffset21;
-        if (!is_near(L, bits)) return false;
-        offset = GetOffset(offset, L, bits);
-        bnezc(rs, offset);
-      } else {
-        bits = OffsetSize::kOffset16;
-        if (!is_near(L, bits)) return false;
-        scratch = GetRtAsRegisterHelper(rt, scratch);
-        DCHECK(!rs.is(scratch));
-        offset = GetOffset(offset, L, bits);
-        bltuc(scratch, rs, offset);
-      }
-      break;
-    case Ugreater_equal:
-      // rs >= rt
-      if (rs.code() == rt.rm_.reg_code) {
-        bits = OffsetSize::kOffset26;
-        if (!is_near(L, bits)) return false;
-        offset = GetOffset(offset, L, bits);
-        bc(offset);
-      } else if (rs.is(zero_reg)) {
-        bits = OffsetSize::kOffset21;
-        if (!is_near(L, bits)) return false;
-        scratch = GetRtAsRegisterHelper(rt, scratch);
-        offset = GetOffset(offset, L, bits);
-        beqzc(scratch, offset);
-      } else if (IsZero(rt)) {
-        bits = OffsetSize::kOffset26;
-        if (!is_near(L, bits)) return false;
-        offset = GetOffset(offset, L, bits);
-        bc(offset);
-      } else {
-        bits = OffsetSize::kOffset16;
-        if (!is_near(L, bits)) return false;
-        scratch = GetRtAsRegisterHelper(rt, scratch);
-        DCHECK(!rs.is(scratch));
-        offset = GetOffset(offset, L, bits);
-        bgeuc(rs, scratch, offset);
-      }
-      break;
-    case Uless:
-      // rs < rt
-      if (rs.code() == rt.rm_.reg_code) {
-        break;  // No code needs to be emitted.
-      } else if (rs.is(zero_reg)) {
-        bits = OffsetSize::kOffset21;
-        if (!is_near(L, bits)) return false;
-        scratch = GetRtAsRegisterHelper(rt, scratch);
-        offset = GetOffset(offset, L, bits);
-        bnezc(scratch, offset);
-      } else if (IsZero(rt)) {
-        break;  // No code needs to be emitted.
-      } else {
-        bits = OffsetSize::kOffset16;
-        if (!is_near(L, bits)) return false;
-        scratch = GetRtAsRegisterHelper(rt, scratch);
-        DCHECK(!rs.is(scratch));
-        offset = GetOffset(offset, L, bits);
-        bltuc(rs, scratch, offset);
-      }
-      break;
-    case Uless_equal:
-      // rs <= rt
-      if (rs.code() == rt.rm_.reg_code) {
-        bits = OffsetSize::kOffset26;
-        if (!is_near(L, bits)) return false;
-        offset = GetOffset(offset, L, bits);
-        bc(offset);
-      } else if (rs.is(zero_reg)) {
-        bits = OffsetSize::kOffset26;
-        if (!is_near(L, bits)) return false;
-        scratch = GetRtAsRegisterHelper(rt, scratch);
-        offset = GetOffset(offset, L, bits);
-        bc(offset);
-      } else if (IsZero(rt)) {
-        bits = OffsetSize::kOffset21;
-        if (!is_near(L, bits)) return false;
-        offset = GetOffset(offset, L, bits);
-        beqzc(rs, offset);
-      } else {
-        bits = OffsetSize::kOffset16;
-        if (!is_near(L, bits)) return false;
-        scratch = GetRtAsRegisterHelper(rt, scratch);
-        DCHECK(!rs.is(scratch));
-        offset = GetOffset(offset, L, bits);
-        bgeuc(scratch, rs, offset);
-      }
-      break;
-    default:
-      UNREACHABLE();
+      // Unsigned comparison.
+      case Ugreater:
+        // rs > rt
+        if (rs.code() == rt.rm_.reg_code) {
+          break;  // No code needs to be emitted.
+        } else if (rs.is(zero_reg)) {
+          bits = OffsetSize::kOffset21;
+          if (!is_near(L, bits)) return false;
+          scratch = GetRtAsRegisterHelper(rt, scratch);
+          offset = GetOffset(offset, L, bits);
+          bnezc(scratch, offset);
+        } else if (IsZero(rt)) {
+          bits = OffsetSize::kOffset21;
+          if (!is_near(L, bits)) return false;
+          offset = GetOffset(offset, L, bits);
+          bnezc(rs, offset);
+        } else {
+          bits = OffsetSize::kOffset16;
+          if (!is_near(L, bits)) return false;
+          scratch = GetRtAsRegisterHelper(rt, scratch);
+          DCHECK(!rs.is(scratch));
+          offset = GetOffset(offset, L, bits);
+          bltuc(scratch, rs, offset);
+        }
+        break;
+      case Ugreater_equal:
+        // rs >= rt
+        if (rs.code() == rt.rm_.reg_code) {
+          bits = OffsetSize::kOffset26;
+          if (!is_near(L, bits)) return false;
+          offset = GetOffset(offset, L, bits);
+          bc(offset);
+        } else if (rs.is(zero_reg)) {
+          bits = OffsetSize::kOffset21;
+          if (!is_near(L, bits)) return false;
+          scratch = GetRtAsRegisterHelper(rt, scratch);
+          offset = GetOffset(offset, L, bits);
+          beqzc(scratch, offset);
+        } else if (IsZero(rt)) {
+          bits = OffsetSize::kOffset26;
+          if (!is_near(L, bits)) return false;
+          offset = GetOffset(offset, L, bits);
+          bc(offset);
+        } else {
+          bits = OffsetSize::kOffset16;
+          if (!is_near(L, bits)) return false;
+          scratch = GetRtAsRegisterHelper(rt, scratch);
+          DCHECK(!rs.is(scratch));
+          offset = GetOffset(offset, L, bits);
+          bgeuc(rs, scratch, offset);
+        }
+        break;
+      case Uless:
+        // rs < rt
+        if (rs.code() == rt.rm_.reg_code) {
+          break;  // No code needs to be emitted.
+        } else if (rs.is(zero_reg)) {
+          bits = OffsetSize::kOffset21;
+          if (!is_near(L, bits)) return false;
+          scratch = GetRtAsRegisterHelper(rt, scratch);
+          offset = GetOffset(offset, L, bits);
+          bnezc(scratch, offset);
+        } else if (IsZero(rt)) {
+          break;  // No code needs to be emitted.
+        } else {
+          bits = OffsetSize::kOffset16;
+          if (!is_near(L, bits)) return false;
+          scratch = GetRtAsRegisterHelper(rt, scratch);
+          DCHECK(!rs.is(scratch));
+          offset = GetOffset(offset, L, bits);
+          bltuc(rs, scratch, offset);
+        }
+        break;
+      case Uless_equal:
+        // rs <= rt
+        if (rs.code() == rt.rm_.reg_code) {
+          bits = OffsetSize::kOffset26;
+          if (!is_near(L, bits)) return false;
+          offset = GetOffset(offset, L, bits);
+          bc(offset);
+        } else if (rs.is(zero_reg)) {
+          bits = OffsetSize::kOffset26;
+          if (!is_near(L, bits)) return false;
+          scratch = GetRtAsRegisterHelper(rt, scratch);
+          offset = GetOffset(offset, L, bits);
+          bc(offset);
+        } else if (IsZero(rt)) {
+          bits = OffsetSize::kOffset21;
+          if (!is_near(L, bits)) return false;
+          offset = GetOffset(offset, L, bits);
+          beqzc(rs, offset);
+        } else {
+          bits = OffsetSize::kOffset16;
+          if (!is_near(L, bits)) return false;
+          scratch = GetRtAsRegisterHelper(rt, scratch);
+          DCHECK(!rs.is(scratch));
+          offset = GetOffset(offset, L, bits);
+          bgeuc(scratch, rs, offset);
+        }
+        break;
+      default:
+        UNREACHABLE();
+    }
   }
+  CheckTrampolinePoolQuick(1);
   return true;
 }
 
@@ -2374,121 +2377,122 @@ bool MacroAssembler::BranchShortHelper(int16_t offset, Label* L, Condition cond,
   // Be careful to always use shifted_branch_offset only just before the
   // branch instruction, as the location will be remember for patching the
   // target.
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  switch (cond) {
-    case cc_always:
-      offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
-      b(offset32);
-      break;
-    case eq:
-      if (IsZero(rt)) {
-        offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
-        beq(rs, zero_reg, offset32);
-      } else {
-        // We don't want any other register but scratch clobbered.
-        scratch = GetRtAsRegisterHelper(rt, scratch);
-        offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
-        beq(rs, scratch, offset32);
-      }
-      break;
-    case ne:
-      if (IsZero(rt)) {
-        offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
-        bne(rs, zero_reg, offset32);
-      } else {
-        // We don't want any other register but scratch clobbered.
-        scratch = GetRtAsRegisterHelper(rt, scratch);
-        offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
-        bne(rs, scratch, offset32);
-      }
-      break;
-
-    // Signed comparison.
-    case greater:
-      if (IsZero(rt)) {
-        offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
-        bgtz(rs, offset32);
-      } else {
-        Slt(scratch, GetRtAsRegisterHelper(rt, scratch), rs);
-        offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
-        bne(scratch, zero_reg, offset32);
-      }
-      break;
-    case greater_equal:
-      if (IsZero(rt)) {
-        offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
-        bgez(rs, offset32);
-      } else {
-        Slt(scratch, rs, rt);
-        offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
-        beq(scratch, zero_reg, offset32);
-      }
-      break;
-    case less:
-      if (IsZero(rt)) {
-        offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
-        bltz(rs, offset32);
-      } else {
-        Slt(scratch, rs, rt);
-        offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
-        bne(scratch, zero_reg, offset32);
-      }
-      break;
-    case less_equal:
-      if (IsZero(rt)) {
-        offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
-        blez(rs, offset32);
-      } else {
-        Slt(scratch, GetRtAsRegisterHelper(rt, scratch), rs);
-        offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
-        beq(scratch, zero_reg, offset32);
-      }
-      break;
-
-    // Unsigned comparison.
-    case Ugreater:
-      if (IsZero(rt)) {
-        offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
-        bne(rs, zero_reg, offset32);
-      } else {
-        Sltu(scratch, GetRtAsRegisterHelper(rt, scratch), rs);
-        offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
-        bne(scratch, zero_reg, offset32);
-      }
-      break;
-    case Ugreater_equal:
-      if (IsZero(rt)) {
+  {
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    switch (cond) {
+      case cc_always:
         offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
         b(offset32);
-      } else {
-        Sltu(scratch, rs, rt);
-        offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
-        beq(scratch, zero_reg, offset32);
-      }
-      break;
-    case Uless:
-      if (IsZero(rt)) {
-        return true;  // No code needs to be emitted.
-      } else {
-        Sltu(scratch, rs, rt);
-        offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
-        bne(scratch, zero_reg, offset32);
-      }
-      break;
-    case Uless_equal:
-      if (IsZero(rt)) {
-        offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
-        beq(rs, zero_reg, offset32);
-      } else {
-        Sltu(scratch, GetRtAsRegisterHelper(rt, scratch), rs);
-        offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
-        beq(scratch, zero_reg, offset32);
-      }
-      break;
-    default:
-      UNREACHABLE();
-  }
+        break;
+      case eq:
+        if (IsZero(rt)) {
+          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
+          beq(rs, zero_reg, offset32);
+        } else {
+          // We don't want any other register but scratch clobbered.
+          scratch = GetRtAsRegisterHelper(rt, scratch);
+          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
+          beq(rs, scratch, offset32);
+        }
+        break;
+      case ne:
+        if (IsZero(rt)) {
+          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
+          bne(rs, zero_reg, offset32);
+        } else {
+          // We don't want any other register but scratch clobbered.
+          scratch = GetRtAsRegisterHelper(rt, scratch);
+          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
+          bne(rs, scratch, offset32);
+        }
+        break;
 
+      // Signed comparison.
+      case greater:
+        if (IsZero(rt)) {
+          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
+          bgtz(rs, offset32);
+        } else {
+          Slt(scratch, GetRtAsRegisterHelper(rt, scratch), rs);
+          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
+          bne(scratch, zero_reg, offset32);
+        }
+        break;
+      case greater_equal:
+        if (IsZero(rt)) {
+          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
+          bgez(rs, offset32);
+        } else {
+          Slt(scratch, rs, rt);
+          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
+          beq(scratch, zero_reg, offset32);
+        }
+        break;
+      case less:
+        if (IsZero(rt)) {
+          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
+          bltz(rs, offset32);
+        } else {
+          Slt(scratch, rs, rt);
+          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
+          bne(scratch, zero_reg, offset32);
+        }
+        break;
+      case less_equal:
+        if (IsZero(rt)) {
+          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
+          blez(rs, offset32);
+        } else {
+          Slt(scratch, GetRtAsRegisterHelper(rt, scratch), rs);
+          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
+          beq(scratch, zero_reg, offset32);
+        }
+        break;
+
+      // Unsigned comparison.
+      case Ugreater:
+        if (IsZero(rt)) {
+          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
+          bne(rs, zero_reg, offset32);
+        } else {
+          Sltu(scratch, GetRtAsRegisterHelper(rt, scratch), rs);
+          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
+          bne(scratch, zero_reg, offset32);
+        }
+        break;
+      case Ugreater_equal:
+        if (IsZero(rt)) {
+          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
+          b(offset32);
+        } else {
+          Sltu(scratch, rs, rt);
+          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
+          beq(scratch, zero_reg, offset32);
+        }
+        break;
+      case Uless:
+        if (IsZero(rt)) {
+          return true;  // No code needs to be emitted.
+        } else {
+          Sltu(scratch, rs, rt);
+          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
+          bne(scratch, zero_reg, offset32);
+        }
+        break;
+      case Uless_equal:
+        if (IsZero(rt)) {
+          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
+          beq(rs, zero_reg, offset32);
+        } else {
+          Sltu(scratch, GetRtAsRegisterHelper(rt, scratch), rs);
+          offset32 = GetOffset(offset, L, OffsetSize::kOffset16);
+          beq(scratch, zero_reg, offset32);
+        }
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
   // Emit a nop in the branch delay slot if required.
   if (bdslot == PROTECT)
     nop();
