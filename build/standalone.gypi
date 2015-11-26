@@ -575,9 +575,11 @@
                 'cflags': [
                   '-fsanitize=memory',
                   '-fsanitize-memory-track-origins=<(msan_track_origins)',
+                  '-fPIC',
                 ],
                 'ldflags': [
                   '-fsanitize=memory',
+                  '-pie',
                 ],
                 'defines': [
                   'MEMORY_SANITIZER',
