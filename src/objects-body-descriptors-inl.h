@@ -166,22 +166,14 @@ class JSArrayBuffer::BodyDescriptor final : public BodyDescriptorBase {
   static bool IsValidSlot(HeapObject* obj, int offset) {
     if (offset < kBackingStoreOffset) return true;
     if (offset < kSize) return false;
-    if (offset < kSizeWithInternalFields) return true;
-    // TODO(ishell): v8:4531, fix when JSArrayBuffers are allowed to have
-    // in-object properties
-    // return IsValidSlotImpl(obj, offset);
-    return true;
+    return IsValidSlotImpl(obj, offset);
   }
 
   template <typename ObjectVisitor>
   static inline void IterateBody(HeapObject* obj, int object_size,
                                  ObjectVisitor* v) {
     IteratePointers(obj, kPropertiesOffset, kBackingStoreOffset, v);
-    IteratePointers(obj, kSize, kSizeWithInternalFields, v);
-
-    // TODO(ishell): v8:4531, fix when JSArrayBuffers are allowed to have
-    // in-object properties
-    // IterateBodyImpl(obj, kSize, object_size, v);
+    IterateBodyImpl(obj, kSize, object_size, v);
   }
 
   template <typename StaticVisitor>
@@ -189,18 +181,11 @@ class JSArrayBuffer::BodyDescriptor final : public BodyDescriptorBase {
     Heap* heap = obj->GetHeap();
     IteratePointers<StaticVisitor>(heap, obj, kPropertiesOffset,
                                    kBackingStoreOffset);
-    IteratePointers<StaticVisitor>(heap, obj, kSize, kSizeWithInternalFields);
-
-    // TODO(ishell): v8:4531, fix when JSArrayBuffers are allowed to have
-    // in-object properties
-    // IterateBodyImpl<StaticVisitor>(heap, obj, kSize, object_size);
+    IterateBodyImpl<StaticVisitor>(heap, obj, kSize, object_size);
   }
 
   static inline int SizeOf(Map* map, HeapObject* object) {
-    // TODO(ishell): v8:4531, fix when JSArrayBuffers are allowed to have
-    // in-object properties
-    // return map->instance_size();
-    return kSizeWithInternalFields;
+    return map->instance_size();
   }
 };
 

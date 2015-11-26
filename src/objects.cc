@@ -12061,6 +12061,7 @@ void JSFunction::SetInitialMap(Handle<JSFunction> function, Handle<Map> map,
 }
 
 
+#ifdef DEBUG
 namespace {
 
 bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
@@ -12073,6 +12074,7 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_DATE_TYPE:
     case JS_ARRAY_TYPE:
     case JS_MESSAGE_OBJECT_TYPE:
+    case JS_ARRAY_BUFFER_TYPE:
     case JS_TYPED_ARRAY_TYPE:
     case JS_DATA_VIEW_TYPE:
     case JS_SET_TYPE:
@@ -12087,11 +12089,8 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_FUNCTION_TYPE:
       return true;
 
-    case JS_PROXY_TYPE:
     case JS_FUNCTION_PROXY_TYPE:
-    case JS_ARRAY_BUFFER_TYPE:
-      return false;
-
+    case JS_PROXY_TYPE:
     case JS_GLOBAL_PROXY_TYPE:
     case JS_GLOBAL_OBJECT_TYPE:
     case FIXED_ARRAY_TYPE:
@@ -12129,6 +12128,7 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
 }
 
 }  // namespace
+#endif
 
 
 void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
@@ -12205,27 +12205,21 @@ Handle<Map> JSFunction::EnsureDerivedHasInitialMap(
   // Finally link initial map and constructor function if the original
   // constructor is actually a subclass constructor.
   if (IsSubclassConstructor(new_target->shared()->kind())) {
-    // TODO(ishell): v8:4531, allow ES6 built-ins subclasses to have
-    // in-object properties.
     InstanceType instance_type = constructor_initial_map->instance_type();
-    Handle<Map> map;
-    if (CanSubclassHaveInobjectProperties(instance_type)) {
-      int internal_fields =
-          JSObject::GetInternalFieldCount(*constructor_initial_map);
-      int pre_allocated = constructor_initial_map->GetInObjectProperties() -
-                          constructor_initial_map->unused_property_fields();
-      int instance_size;
-      int in_object_properties;
-      new_target->CalculateInstanceSizeForDerivedClass(
-          instance_type, internal_fields, &instance_size,
-          &in_object_properties);
+    DCHECK(CanSubclassHaveInobjectProperties(instance_type));
+    int internal_fields =
+        JSObject::GetInternalFieldCount(*constructor_initial_map);
+    int pre_allocated = constructor_initial_map->GetInObjectProperties() -
+                        constructor_initial_map->unused_property_fields();
+    int instance_size;
+    int in_object_properties;
+    new_target->CalculateInstanceSizeForDerivedClass(
+        instance_type, internal_fields, &instance_size, &in_object_properties);
 
-      int unused_property_fields = in_object_properties - pre_allocated;
-      map = Map::CopyInitialMap(constructor_initial_map, instance_size,
-                                in_object_properties, unused_property_fields);
-    } else {
-      map = Map::CopyInitialMap(constructor_initial_map);
-    }
+    int unused_property_fields = in_object_properties - pre_allocated;
+    Handle<Map> map =
+        Map::CopyInitialMap(constructor_initial_map, instance_size,
+                            in_object_properties, unused_property_fields);
 
     JSFunction::SetInitialMap(new_target, map, prototype);
     map->SetConstructor(*constructor);

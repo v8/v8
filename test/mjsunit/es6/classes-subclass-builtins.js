@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --harmony-reflect --harmony-regexp-subclass
+// Flags: --expose-gc
 
 "use strict";
 
@@ -24,6 +25,7 @@ function checkPrototypeChain(object, constructors) {
       super(...args);
       this.a = 42;
       this.d = 4.2;
+      this.o = {foo:153};
     }
   }
 
@@ -34,6 +36,7 @@ function checkPrototypeChain(object, constructors) {
   checkPrototypeChain(s, [A, Object]);
   assertEquals(42, s.a);
   assertEquals(4.2, s.d);
+  assertEquals(153, s.o.foo);
 
   var s1 = new A("bar");
   assertTrue(%HaveSameMap(s, s1));
@@ -46,6 +49,7 @@ function checkPrototypeChain(object, constructors) {
   checkPrototypeChain(s, [A, Object]);
   assertEquals(42, n.a);
   assertEquals(4.2, n.d);
+  assertEquals(153, n.o.foo);
 
   var n1 = new A(312);
   assertTrue(%HaveSameMap(n, n1));
@@ -59,10 +63,13 @@ function checkPrototypeChain(object, constructors) {
   checkPrototypeChain(s, [A, Object]);
   assertEquals(42, b.a);
   assertEquals(4.2, b.d);
+  assertEquals(153, b.o.foo);
 
   var b1 = new A(true);
   assertTrue(%HaveSameMap(b, b1));
   assertTrue(%HaveSameMap(b, s));
+
+  gc();
 })();
 
 
@@ -73,10 +80,11 @@ function checkPrototypeChain(object, constructors) {
       super(...args);
       this.a = 42;
       this.d = 4.2;
+      this.o = {foo:153};
     }
   }
 
-  var o = new A("this.foo = 153;");
+  var o = new A("this.foo = 113;");
   assertTrue(o instanceof Object);
   assertTrue(o instanceof Function);
   assertTrue(o instanceof A);
@@ -84,11 +92,14 @@ function checkPrototypeChain(object, constructors) {
   checkPrototypeChain(o, [A, Function, Object]);
   assertEquals(42, o.a);
   assertEquals(4.2, o.d);
+  assertEquals(153, o.o.foo);
   var oo = new o();
-  assertEquals(153, oo.foo);
+  assertEquals(113, oo.foo);
 
   var o1 = new A("return 312;");
   assertTrue(%HaveSameMap(o, o1));
+
+  gc();
 })();
 
 
@@ -99,6 +110,7 @@ function checkPrototypeChain(object, constructors) {
       super(...args);
       this.a = 42;
       this.d = 4.2;
+      this.o = {foo:153};
     }
   }
 
@@ -111,9 +123,12 @@ function checkPrototypeChain(object, constructors) {
   assertTrue(o.valueOf());
   assertEquals(42, o.a);
   assertEquals(4.2, o.d);
+  assertEquals(153, o.o.foo);
 
   var o1 = new A(false);
   assertTrue(%HaveSameMap(o, o1));
+
+  gc();
 })();
 
 
@@ -124,6 +139,7 @@ function TestErrorSubclassing(error) {
       super(...args);
       this.a = 42;
       this.d = 4.2;
+      this.o = {foo:153};
     }
   }
 
@@ -142,9 +158,12 @@ function TestErrorSubclassing(error) {
   assertEquals(error.name + ": message", o.toString());
   assertEquals(42, o.a);
   assertEquals(4.2, o.d);
+  assertEquals(153, o.o.foo);
 
   var o1 = new A("achtung!");
   assertTrue(%HaveSameMap(o, o1));
+
+  gc();
 }
 
 
@@ -166,6 +185,7 @@ function TestErrorSubclassing(error) {
       super(...args);
       this.a = 42;
       this.d = 4.2;
+      this.o = {foo:153};
     }
   }
 
@@ -178,9 +198,12 @@ function TestErrorSubclassing(error) {
   assertEquals(153, o.valueOf());
   assertEquals(42, o.a);
   assertEquals(4.2, o.d);
+  assertEquals(153, o.o.foo);
 
   var o1 = new A(312);
   assertTrue(%HaveSameMap(o, o1));
+
+  gc();
 })();
 
 
@@ -191,6 +214,7 @@ function TestErrorSubclassing(error) {
       super(...args);
       this.a = 42;
       this.d = 4.2;
+      this.o = {foo:153};
     }
   }
 
@@ -203,12 +227,15 @@ function TestErrorSubclassing(error) {
   assertEquals(1234567890, o.getTime());
   assertEquals(42, o.a);
   assertEquals(4.2, o.d);
+  assertEquals(153, o.o.foo);
 
   var o1 = new A(2015, 10, 29);
   assertEquals(2015, o1.getFullYear());
   assertEquals(10, o1.getMonth());
   assertEquals(29, o1.getDate());
   assertTrue(%HaveSameMap(o, o1));
+
+  gc();
 })();
 
 
@@ -219,6 +246,7 @@ function TestErrorSubclassing(error) {
       super(...args);
       this.a = 42;
       this.d = 4.2;
+      this.o = {foo:153};
     }
   }
 
@@ -232,9 +260,12 @@ function TestErrorSubclassing(error) {
   assertEquals("foo", o.valueOf());
   assertEquals(42, o.a);
   assertEquals(4.2, o.d);
+  assertEquals(153, o.o.foo);
 
   var o1 = new A("bar");
   assertTrue(%HaveSameMap(o, o1));
+
+  gc();
 })();
 
 
@@ -245,6 +276,7 @@ function TestErrorSubclassing(error) {
       super(...args);
       this.a = 42;
       this.d = 4.2;
+      this.o = {foo:153};
     }
   }
 
@@ -263,9 +295,12 @@ function TestErrorSubclassing(error) {
   assertEquals(10, o.lastIndex);
   assertEquals(42, o.a);
   assertEquals(4.2, o.d);
+  assertEquals(153, o.o.foo);
 
   var o1 = new A(7);
   assertTrue(%HaveSameMap(o, o1));
+
+  gc();
 })();
 
 
@@ -276,6 +311,7 @@ function TestArraySubclassing(array) {
       super(...args);
       this.a = 42;
       this.d = 4.2;
+      this.o = {foo:153};
     }
   }
 
@@ -295,6 +331,7 @@ function TestArraySubclassing(array) {
   assertEquals(10, o.length);
   assertEquals(42, o.a);
   assertEquals(4.2, o.d);
+  assertEquals(153, o.o.foo);
 
   var o1 = new A(7);
   assertTrue(%HaveSameMap(o, o1));
@@ -324,6 +361,7 @@ function TestMapSetSubclassing(container, is_map) {
       super(...args);
       this.a = 42;
       this.d = 4.2;
+      this.o = {foo:153};
     }
   }
 
@@ -358,9 +396,12 @@ function TestMapSetSubclassing(container, is_map) {
   }
   assertEquals(42, o.a);
   assertEquals(4.2, o.d);
+  assertEquals(153, o.o.foo);
 
   var o1 = new A();
   assertTrue(%HaveSameMap(o, o1));
+
+  gc();
 }
 
 
@@ -379,6 +420,7 @@ function TestMapSetSubclassing(container, is_map) {
       super(...args);
       this.a = 42;
       this.d = 4.2;
+      this.o = {foo:153};
     }
   }
 
@@ -392,6 +434,7 @@ function TestMapSetSubclassing(container, is_map) {
   assertEquals(16, o.byteLength);
   assertEquals(42, o.a);
   assertEquals(4.2, o.d);
+  assertEquals(153, o.o.foo);
 
   var o1 = new A("bar");
   assertTrue(%HaveSameMap(o, o1));
@@ -423,6 +466,8 @@ function TestMapSetSubclassing(container, is_map) {
   assertEquals(-1, int32view[1]);
   assertEquals(0xfffffffe, uint32view[0]);
   assertEquals(0xffffffff, uint32view[1]);
+
+  gc();
 })();
 
 
@@ -433,6 +478,7 @@ function TestMapSetSubclassing(container, is_map) {
       super(...args);
       this.a = 42;
       this.d = 4.2;
+      this.o = {foo:153};
     }
   }
 
@@ -449,10 +495,12 @@ function TestMapSetSubclassing(container, is_map) {
   assertEquals(0xbebafeca, o.getUint32(0, true));
   assertEquals(42, o.a);
   assertEquals(4.2, o.d);
+  assertEquals(153, o.o.foo);
 
   var o1 = new A(buffer);
   assertTrue(%HaveSameMap(o, o1));
 
+  gc();
 })();
 
 
@@ -465,6 +513,7 @@ function TestMapSetSubclassing(container, is_map) {
       super(...args);
       this.a = 42;
       this.d = 4.2;
+      this.o = {foo:153};
     }
   }
   var generator_func = new A("var index = 0; while (index < 5) { yield ++index; }");
@@ -476,6 +525,7 @@ function TestMapSetSubclassing(container, is_map) {
   checkPrototypeChain(generator_func, [A, GeneratorFunction, Function, Object]);
   assertEquals(42, generator_func.a);
   assertEquals(4.2, generator_func.d);
+  assertEquals(153, generator_func.o.foo);
 
   var o = new generator_func();
   assertTrue(o instanceof Object);
@@ -491,6 +541,8 @@ function TestMapSetSubclassing(container, is_map) {
 
   var generator_func1 = new A("return 0;");
   assertTrue(%HaveSameMap(generator_func, generator_func1));
+
+  gc();
 })();
 
 
@@ -584,6 +636,8 @@ function TestMapSetSubclassing(container, is_map) {
   assertTrue(o instanceof C);
   assertEquals("object", typeof o);
   checkPrototypeChain(o, [C, B, A, Boolean, Object]);
+
+  gc();
 })();
 
 
