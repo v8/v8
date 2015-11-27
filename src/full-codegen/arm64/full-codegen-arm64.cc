@@ -4903,7 +4903,8 @@ void BackEdgeTable::PatchAt(Code* unoptimized_code,
                             Code* replacement_code) {
   // Turn the jump into a nop.
   Address branch_address = pc - 3 * kInstructionSize;
-  PatchingAssembler patcher(unoptimized_code->GetIsolate(), branch_address, 1);
+  Isolate* isolate = unoptimized_code->GetIsolate();
+  PatchingAssembler patcher(isolate, branch_address, 1);
 
   DCHECK(Instruction::Cast(branch_address)
              ->IsNop(Assembler::INTERRUPT_CODE_NOP) ||
@@ -4937,25 +4938,17 @@ void BackEdgeTable::PatchAt(Code* unoptimized_code,
   Address interrupt_address_pointer =
       reinterpret_cast<Address>(load) + load->ImmPCOffset();
   DCHECK((Memory::uint64_at(interrupt_address_pointer) ==
-          reinterpret_cast<uint64_t>(unoptimized_code->GetIsolate()
-                                         ->builtins()
-                                         ->OnStackReplacement()
-                                         ->entry())) ||
+          reinterpret_cast<uint64_t>(
+              isolate->builtins()->OnStackReplacement()->entry())) ||
          (Memory::uint64_at(interrupt_address_pointer) ==
-          reinterpret_cast<uint64_t>(unoptimized_code->GetIsolate()
-                                         ->builtins()
-                                         ->InterruptCheck()
-                                         ->entry())) ||
+          reinterpret_cast<uint64_t>(
+              isolate->builtins()->InterruptCheck()->entry())) ||
          (Memory::uint64_at(interrupt_address_pointer) ==
-          reinterpret_cast<uint64_t>(unoptimized_code->GetIsolate()
-                                         ->builtins()
-                                         ->OsrAfterStackCheck()
-                                         ->entry())) ||
+          reinterpret_cast<uint64_t>(
+              isolate->builtins()->OsrAfterStackCheck()->entry())) ||
          (Memory::uint64_at(interrupt_address_pointer) ==
-          reinterpret_cast<uint64_t>(unoptimized_code->GetIsolate()
-                                         ->builtins()
-                                         ->OnStackReplacement()
-                                         ->entry())));
+          reinterpret_cast<uint64_t>(
+              isolate->builtins()->OnStackReplacement()->entry())));
   Memory::uint64_at(interrupt_address_pointer) =
       reinterpret_cast<uint64_t>(replacement_code->entry());
 

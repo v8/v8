@@ -110,9 +110,6 @@ class AssemblerBase: public Malloced {
 
   static void FlushICache(Isolate* isolate, void* start, size_t size);
 
-  // TODO(all): Help get rid of this one.
-  static void FlushICacheWithoutIsolate(void* start, size_t size);
-
  protected:
   // The buffer into which code and relocation info are generated. It could
   // either be owned by the assembler or be provided externally.

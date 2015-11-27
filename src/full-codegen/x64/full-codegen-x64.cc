@@ -4844,8 +4844,8 @@ void BackEdgeTable::PatchAt(Code* unoptimized_code,
       break;
   }
 
-  Assembler::set_target_address_at(call_target_address,
-                                   unoptimized_code,
+  Assembler::set_target_address_at(unoptimized_code->GetIsolate(),
+                                   call_target_address, unoptimized_code,
                                    replacement_code->entry());
   unoptimized_code->GetHeap()->incremental_marking()->RecordCodeTargetPatch(
       unoptimized_code, call_target_address, replacement_code);

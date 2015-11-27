@@ -205,19 +205,6 @@ void AssemblerBase::FlushICache(Isolate* isolate, void* start, size_t size) {
 }
 
 
-void AssemblerBase::FlushICacheWithoutIsolate(void* start, size_t size) {
-  // Ideally we would just call Isolate::Current() here. However, this flushes
-  // out issues because we usually only need the isolate when in the simulator.
-  Isolate* isolate;
-#if defined(USE_SIMULATOR)
-  isolate = Isolate::Current();
-#else
-  isolate = nullptr;
-#endif  // USE_SIMULATOR
-  FlushICache(isolate, start, size);
-}
-
-
 void AssemblerBase::Print() {
   OFStream os(stdout);
   v8::internal::Disassembler::Decode(isolate(), &os, buffer_, pc_, nullptr);

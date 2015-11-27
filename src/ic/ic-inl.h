@@ -74,7 +74,7 @@ void IC::SetTargetAtAddress(Address address, Code* target,
            StoreICState::GetLanguageMode(target->extra_ic_state()));
   }
 #endif
-  Assembler::set_target_address_at(address, constant_pool,
+  Assembler::set_target_address_at(heap->isolate(), address, constant_pool,
                                    target->instruction_start());
   if (heap->gc_state() == Heap::MARK_COMPACT) {
     heap->mark_compact_collector()->RecordCodeTargetPatch(address, target);

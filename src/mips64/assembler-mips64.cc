@@ -3240,7 +3240,7 @@ void Assembler::QuietNaN(HeapObject* object) {
 // There is an optimization below, which emits a nop when the address
 // fits in just 16 bits. This is unlikely to help, and should be benchmarked,
 // and possibly removed.
-void Assembler::set_target_address_at(Address pc,
+void Assembler::set_target_address_at(Isolate* isolate, Address pc,
                                       Address target,
                                       ICacheFlushMode icache_flush_mode) {
 // There is an optimization where only 4 instructions are used to load address
@@ -3273,7 +3273,7 @@ void Assembler::set_target_address_at(Address pc,
       | (itarget & kImm16Mask);
 
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    Assembler::FlushICacheWithoutIsolate(pc, 4 * Assembler::kInstrSize);
+    Assembler::FlushICache(isolate, pc, 4 * Assembler::kInstrSize);
   }
 }
 

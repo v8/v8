@@ -4901,7 +4901,8 @@ void BackEdgeTable::PatchAt(Code* unoptimized_code, Address pc,
                             Code* replacement_code) {
   Address mov_address = Assembler::target_address_from_return_address(pc);
   Address cmp_address = mov_address - 2 * Assembler::kInstrSize;
-  CodePatcher patcher(unoptimized_code->GetIsolate(), cmp_address, 1);
+  Isolate* isolate = unoptimized_code->GetIsolate();
+  CodePatcher patcher(isolate, cmp_address, 1);
 
   switch (target_state) {
     case INTERRUPT: {
@@ -4934,7 +4935,7 @@ void BackEdgeTable::PatchAt(Code* unoptimized_code, Address pc,
 
   // Replace the stack check address in the mov sequence with the
   // entry address of the replacement code.
-  Assembler::set_target_address_at(mov_address, unoptimized_code,
+  Assembler::set_target_address_at(isolate, mov_address, unoptimized_code,
                                    replacement_code->entry());
 
   unoptimized_code->GetHeap()->incremental_marking()->RecordCodeTargetPatch(

@@ -272,18 +272,18 @@ Address Assembler::target_address_at(Address pc, Address constant_pool) {
 }
 
 
-void Assembler::set_target_address_at(Address pc, Address constant_pool,
-                                      Address target,
+void Assembler::set_target_address_at(Isolate* isolate, Address pc,
+                                      Address constant_pool, Address target,
                                       ICacheFlushMode icache_flush_mode) {
   Memory::int32_at(pc) = static_cast<int32_t>(target - pc - 4);
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    Assembler::FlushICacheWithoutIsolate(pc, sizeof(int32_t));
+    Assembler::FlushICache(isolate, pc, sizeof(int32_t));
   }
 }
 
 
 void Assembler::deserialization_set_target_internal_reference_at(
-    Address pc, Address target, RelocInfo::Mode mode) {
+    Isolate* isolate, Address pc, Address target, RelocInfo::Mode mode) {
   Memory::Address_at(pc) = target;
 }
 
@@ -354,7 +354,8 @@ void RelocInfo::set_target_address(Address target,
                                    WriteBarrierMode write_barrier_mode,
                                    ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
-  Assembler::set_target_address_at(pc_, host_, target, icache_flush_mode);
+  Assembler::set_target_address_at(isolate_, pc_, host_, target,
+                                   icache_flush_mode);
   if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != NULL &&
       IsCodeTarget(rmode_)) {
     Object* target_code = Code::GetCodeFromTargetAddress(target);
@@ -469,7 +470,8 @@ void RelocInfo::WipeOut() {
     Memory::Address_at(pc_) = NULL;
   } else if (IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)) {
     // Effectively write zero into the relocation.
-    Assembler::set_target_address_at(pc_, host_, pc_ + sizeof(int32_t));
+    Assembler::set_target_address_at(isolate_, pc_, host_,
+                                     pc_ + sizeof(int32_t));
   } else {
     UNREACHABLE();
   }
@@ -512,8 +514,8 @@ void RelocInfo::set_code_age_stub(Code* stub,
                                   ICacheFlushMode icache_flush_mode) {
   DCHECK(*pc_ == kCallOpcode);
   DCHECK(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
-  Assembler::set_target_address_at(pc_ + 1, host_, stub->instruction_start(),
-                                   icache_flush_mode);
+  Assembler::set_target_address_at(
+      isolate_, pc_ + 1, host_, stub->instruction_start(), icache_flush_mode);
 }
 
 
