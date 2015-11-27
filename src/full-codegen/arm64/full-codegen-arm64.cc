@@ -1368,7 +1368,7 @@ void FullCodeGenerator::EmitGlobalVariableLoad(VariableProxy* proxy,
   Variable* var = proxy->var();
   DCHECK(var->IsUnallocatedOrGlobalSlot() ||
          (var->IsLookupSlot() && var->mode() == DYNAMIC_GLOBAL));
-  __ LoadGlobalObject(LoadDescriptor::ReceiverRegister());
+  __ Ldr(LoadDescriptor::ReceiverRegister(), GlobalObjectMemOperand());
   __ Mov(LoadDescriptor::NameRegister(), Operand(var->name()));
   __ Mov(LoadDescriptor::SlotRegister(),
          SmiFromSlot(proxy->VariableFeedbackSlot()));
@@ -2228,7 +2228,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op,
   if (var->IsUnallocated()) {
     // Global var, const, or let.
     __ Mov(StoreDescriptor::NameRegister(), Operand(var->name()));
-    __ LoadGlobalObject(StoreDescriptor::ReceiverRegister());
+    __ Ldr(StoreDescriptor::ReceiverRegister(), GlobalObjectMemOperand());
     EmitLoadStoreICSlot(slot);
     CallStoreIC();
 
@@ -3820,7 +3820,11 @@ void FullCodeGenerator::EmitCreateIterResultObject(CallRuntime* expr) {
   Register boolean_done = x3;
   Register empty_fixed_array = x4;
   Register untagged_result = x5;
-  __ LoadNativeContextSlot(Context::ITERATOR_RESULT_MAP_INDEX, map_reg);
+  __ Ldr(map_reg, GlobalObjectMemOperand());
+  __ Ldr(map_reg,
+         FieldMemOperand(map_reg, JSGlobalObject::kNativeContextOffset));
+  __ Ldr(map_reg,
+         ContextMemOperand(map_reg, Context::ITERATOR_RESULT_MAP_INDEX));
   __ Pop(boolean_done);
   __ Pop(result_value);
   __ LoadRoot(empty_fixed_array, Heap::kEmptyFixedArrayRootIndex);
@@ -3850,7 +3854,9 @@ void FullCodeGenerator::EmitLoadJSRuntimeFunction(CallRuntime* expr) {
   __ LoadRoot(x0, Heap::kUndefinedValueRootIndex);
   __ Push(x0);
 
-  __ LoadNativeContextSlot(expr->context_index(), x0);
+  __ Ldr(x0, GlobalObjectMemOperand());
+  __ Ldr(x0, FieldMemOperand(x0, JSGlobalObject::kNativeContextOffset));
+  __ Ldr(x0, ContextMemOperand(x0, expr->context_index()));
 }
 
 
@@ -3939,7 +3945,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
         bool is_this = var->HasThisName(isolate());
         DCHECK(is_sloppy(language_mode()) || is_this);
         if (var->IsUnallocatedOrGlobalSlot()) {
-          __ LoadGlobalObject(x12);
+          __ Ldr(x12, GlobalObjectMemOperand());
           __ Mov(x11, Operand(var->name()));
           __ Push(x12, x11);
           __ CallRuntime(Runtime::kDeleteProperty_Sloppy, 2);
@@ -4766,7 +4772,11 @@ void FullCodeGenerator::EmitCreateIteratorResult(bool done) {
   Register boolean_done = x3;
   Register empty_fixed_array = x4;
   Register untagged_result = x5;
-  __ LoadNativeContextSlot(Context::ITERATOR_RESULT_MAP_INDEX, map_reg);
+  __ Ldr(map_reg, GlobalObjectMemOperand());
+  __ Ldr(map_reg,
+         FieldMemOperand(map_reg, JSGlobalObject::kNativeContextOffset));
+  __ Ldr(map_reg,
+         ContextMemOperand(map_reg, Context::ITERATOR_RESULT_MAP_INDEX));
   __ Pop(result_value);
   __ LoadRoot(boolean_done,
               done ? Heap::kTrueValueRootIndex : Heap::kFalseValueRootIndex);
@@ -4823,7 +4833,9 @@ void FullCodeGenerator::PushFunctionArgumentForContextAllocation() {
     // as their closure, not the anonymous closure containing the global
     // code.
     DCHECK(kSmiTag == 0);
-    __ LoadNativeContextSlot(Context::CLOSURE_INDEX, x10);
+    __ Ldr(x10, GlobalObjectMemOperand());
+    __ Ldr(x10, FieldMemOperand(x10, JSGlobalObject::kNativeContextOffset));
+    __ Ldr(x10, ContextMemOperand(x10, Context::CLOSURE_INDEX));
   } else if (closure_scope->is_eval_scope()) {
     // Contexts created by a call to eval have the same closure as the
     // context calling eval, not the anonymous closure containing the eval

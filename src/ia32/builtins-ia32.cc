@@ -1921,8 +1921,8 @@ void Builtins::Generate_HandleFastApiCall(MacroAssembler* masm) {
   __ jmp(edx);
 
   __ bind(&set_global_proxy);
-  __ mov(ecx, NativeContextOperand());
-  __ mov(ecx, ContextOperand(ecx, Context::GLOBAL_PROXY_INDEX));
+  __ mov(ecx, GlobalObjectOperand());
+  __ mov(ecx, FieldOperand(ecx, JSGlobalObject::kGlobalProxyOffset));
   __ mov(receiver_operand, ecx);
   __ jmp(&valid_receiver, Label::kNear);
 

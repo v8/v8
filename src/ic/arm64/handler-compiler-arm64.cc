@@ -78,7 +78,9 @@ void PropertyHandlerCompiler::GenerateDictionaryNegativeLookup(
 
 void NamedLoadHandlerCompiler::GenerateDirectLoadGlobalFunctionPrototype(
     MacroAssembler* masm, int index, Register result, Label* miss) {
-  __ LoadNativeContextSlot(index, result);
+  __ Ldr(result, GlobalObjectMemOperand());
+  __ Ldr(result, FieldMemOperand(result, JSGlobalObject::kNativeContextOffset));
+  __ Ldr(result, ContextMemOperand(result, index));
   // Load its initial map. The global functions all have initial maps.
   __ Ldr(result,
          FieldMemOperand(result, JSFunction::kPrototypeOrInitialMapOffset));

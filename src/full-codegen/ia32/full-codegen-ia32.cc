@@ -1305,10 +1305,7 @@ void FullCodeGenerator::EmitGlobalVariableLoad(VariableProxy* proxy,
   Variable* var = proxy->var();
   DCHECK(var->IsUnallocatedOrGlobalSlot() ||
          (var->IsLookupSlot() && var->mode() == DYNAMIC_GLOBAL));
-  __ mov(LoadDescriptor::ReceiverRegister(), NativeContextOperand());
-  __ mov(LoadDescriptor::ReceiverRegister(),
-         ContextOperand(LoadDescriptor::ReceiverRegister(),
-                        Context::EXTENSION_INDEX));
+  __ mov(LoadDescriptor::ReceiverRegister(), GlobalObjectOperand());
   __ mov(LoadDescriptor::NameRegister(), var->name());
   __ mov(LoadDescriptor::SlotRegister(),
          Immediate(SmiFromSlot(proxy->VariableFeedbackSlot())));
@@ -2099,7 +2096,8 @@ void FullCodeGenerator::EmitCreateIteratorResult(bool done) {
   __ CallRuntime(Runtime::kAllocateInNewSpace, 1);
 
   __ bind(&done_allocate);
-  __ mov(ebx, NativeContextOperand());
+  __ mov(ebx, GlobalObjectOperand());
+  __ mov(ebx, FieldOperand(ebx, JSGlobalObject::kNativeContextOffset));
   __ mov(ebx, ContextOperand(ebx, Context::ITERATOR_RESULT_MAP_INDEX));
   __ mov(FieldOperand(eax, HeapObject::kMapOffset), ebx);
   __ mov(FieldOperand(eax, JSObject::kPropertiesOffset),
@@ -2421,10 +2419,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op,
   if (var->IsUnallocated()) {
     // Global var, const, or let.
     __ mov(StoreDescriptor::NameRegister(), var->name());
-    __ mov(StoreDescriptor::ReceiverRegister(), NativeContextOperand());
-    __ mov(StoreDescriptor::ReceiverRegister(),
-           ContextOperand(StoreDescriptor::ReceiverRegister(),
-                          Context::EXTENSION_INDEX));
+    __ mov(StoreDescriptor::ReceiverRegister(), GlobalObjectOperand());
     EmitLoadStoreICSlot(slot);
     CallStoreIC();
 
@@ -4043,7 +4038,8 @@ void FullCodeGenerator::EmitCreateIterResultObject(CallRuntime* expr) {
   Label runtime, done;
 
   __ Allocate(JSIteratorResult::kSize, eax, ecx, edx, &runtime, TAG_OBJECT);
-  __ mov(ebx, NativeContextOperand());
+  __ mov(ebx, GlobalObjectOperand());
+  __ mov(ebx, FieldOperand(ebx, JSGlobalObject::kNativeContextOffset));
   __ mov(ebx, ContextOperand(ebx, Context::ITERATOR_RESULT_MAP_INDEX));
   __ mov(FieldOperand(eax, HeapObject::kMapOffset), ebx);
   __ mov(FieldOperand(eax, JSObject::kPropertiesOffset),
@@ -4067,7 +4063,9 @@ void FullCodeGenerator::EmitLoadJSRuntimeFunction(CallRuntime* expr) {
   // Push undefined as receiver.
   __ push(Immediate(isolate()->factory()->undefined_value()));
 
-  __ LoadGlobalFunction(expr->context_index(), eax);
+  __ mov(eax, GlobalObjectOperand());
+  __ mov(eax, FieldOperand(eax, JSGlobalObject::kNativeContextOffset));
+  __ mov(eax, ContextOperand(eax, expr->context_index()));
 }
 
 
@@ -4156,8 +4154,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
         bool is_this = var->HasThisName(isolate());
         DCHECK(is_sloppy(language_mode()) || is_this);
         if (var->IsUnallocatedOrGlobalSlot()) {
-          __ mov(eax, NativeContextOperand());
-          __ push(ContextOperand(eax, Context::EXTENSION_INDEX));
+          __ push(GlobalObjectOperand());
           __ push(Immediate(var->name()));
           __ CallRuntime(Runtime::kDeleteProperty_Sloppy, 2);
           context()->Plug(eax);
@@ -4722,7 +4719,8 @@ void FullCodeGenerator::PushFunctionArgumentForContextAllocation() {
     // Contexts nested in the native context have a canonical empty function
     // as their closure, not the anonymous closure containing the global
     // code.
-    __ mov(eax, NativeContextOperand());
+    __ mov(eax, GlobalObjectOperand());
+    __ mov(eax, FieldOperand(eax, JSGlobalObject::kNativeContextOffset));
     __ push(ContextOperand(eax, Context::CLOSURE_INDEX));
   } else if (closure_scope->is_eval_scope()) {
     // Contexts nested inside eval code have the same closure as the context

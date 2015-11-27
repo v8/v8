@@ -216,9 +216,7 @@ void Interpreter::DoLoadGlobal(Callable ic,
                                compiler::InterpreterAssembler* assembler) {
   // Get the global object.
   Node* context = __ GetContext();
-  Node* native_context =
-      __ LoadContextSlot(context, Context::NATIVE_CONTEXT_INDEX);
-  Node* global = __ LoadContextSlot(native_context, Context::EXTENSION_INDEX);
+  Node* global = __ LoadContextSlot(context, Context::GLOBAL_OBJECT_INDEX);
 
   // Load the global via the LoadIC.
   Node* code_target = __ HeapConstant(ic.code());
@@ -332,9 +330,7 @@ void Interpreter::DoStoreGlobal(Callable ic,
                                 compiler::InterpreterAssembler* assembler) {
   // Get the global object.
   Node* context = __ GetContext();
-  Node* native_context =
-      __ LoadContextSlot(context, Context::NATIVE_CONTEXT_INDEX);
-  Node* global = __ LoadContextSlot(native_context, Context::EXTENSION_INDEX);
+  Node* global = __ LoadContextSlot(context, Context::GLOBAL_OBJECT_INDEX);
 
   // Store the global via the StoreIC.
   Node* code_target = __ HeapConstant(ic.code());
@@ -956,8 +952,9 @@ void Interpreter::DoCallJSRuntime(compiler::InterpreterAssembler* assembler) {
 
   // Get the function to call from the native context.
   Node* context = __ GetContext();
+  Node* global = __ LoadContextSlot(context, Context::GLOBAL_OBJECT_INDEX);
   Node* native_context =
-      __ LoadContextSlot(context, Context::NATIVE_CONTEXT_INDEX);
+      __ LoadObjectField(global, JSGlobalObject::kNativeContextOffset);
   Node* function = __ LoadContextSlot(native_context, context_index);
 
   // Call the function.

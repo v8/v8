@@ -550,6 +550,7 @@ void Verifier::Visitor::Check(Node* node) {
 
     case IrOpcode::kJSLoadContext:
     case IrOpcode::kJSLoadDynamic:
+    case IrOpcode::kJSLoadNativeContext:
       // Type can be anything.
       CheckUpperIs(node, Type::Any());
       break;

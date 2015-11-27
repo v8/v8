@@ -223,6 +223,7 @@ enum BindingFlags {
   V(PROXY_FUNCTION_INDEX, JSFunction, proxy_function)                          \
   V(REGEXP_FUNCTION_INDEX, JSFunction, regexp_function)                        \
   V(REGEXP_RESULT_MAP_INDEX, Map, regexp_result_map)                           \
+  V(RUNTIME_CONTEXT_INDEX, Context, runtime_context)                           \
   V(SCRIPT_CONTEXT_TABLE_INDEX, ScriptContextTable, script_context_table)      \
   V(SCRIPT_FUNCTION_INDEX, JSFunction, script_function)                        \
   V(SECURITY_TOKEN_INDEX, Object, security_token)                              \
@@ -367,12 +368,12 @@ class Context: public FixedArray {
     // These slots are in all contexts.
     CLOSURE_INDEX,
     PREVIOUS_INDEX,
-    // The extension slot is used for either the global object (in native
+    // The extension slot is used for either the global object (in global
     // contexts), eval extension object (function contexts), subject of with
     // (with contexts), or the variable name (catch contexts), the serialized
     // scope info (block contexts), or the module instance (module contexts).
     EXTENSION_INDEX,
-    NATIVE_CONTEXT_INDEX,
+    GLOBAL_OBJECT_INDEX,
 
     // These slots are only in native contexts.
 #define NATIVE_CONTEXT_SLOT(index, type, name) index,
@@ -421,19 +422,18 @@ class Context: public FixedArray {
   Context* declaration_context();
   bool is_declaration_context();
 
+  inline JSGlobalObject* global_object();
+  inline void set_global_object(JSGlobalObject* object);
+
   // Returns a JSGlobalProxy object or null.
   JSObject* global_proxy();
   void set_global_proxy(JSObject* global);
 
-  // Get the JSGlobalObject object.
-  JSGlobalObject* global_object();
-
   // Get the script context by traversing the context chain.
   Context* script_context();
 
-  // Compute the native context.
-  inline Context* native_context();
-  inline void set_native_context(Context* context);
+  // Compute the native context by traversing the context chain.
+  Context* native_context();
 
   // Predicates for context types.  IsNativeContext is also defined on Object
   // because we frequently have to know if arbitrary objects are natives
@@ -548,8 +548,8 @@ class Context: public FixedArray {
  private:
 #ifdef DEBUG
   // Bootstrapping-aware type checks.
-  static bool IsBootstrappingOrNativeContext(Isolate* isolate, Object* object);
   static bool IsBootstrappingOrValidParentContext(Object* object, Context* kid);
+  static bool IsBootstrappingOrGlobalObject(Isolate* isolate, Object* object);
 #endif
 
   STATIC_ASSERT(kHeaderSize == Internals::kContextHeaderSize);

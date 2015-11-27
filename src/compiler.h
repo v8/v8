@@ -288,18 +288,19 @@ class CompilationInfo {
         (FLAG_trap_on_stub_deopt && IsStub());
   }
 
-  bool has_native_context() const {
-    return !closure().is_null() && (closure()->native_context() != nullptr);
+  bool has_global_object() const {
+    return !closure().is_null() &&
+        (closure()->context()->global_object() != NULL);
   }
-
-  Context* native_context() const {
-    return has_native_context() ? closure()->native_context() : nullptr;
-  }
-
-  bool has_global_object() const { return has_native_context(); }
 
   JSGlobalObject* global_object() const {
-    return has_global_object() ? native_context()->global_object() : nullptr;
+    return has_global_object() ? closure()->context()->global_object() : NULL;
+  }
+
+  bool has_native_context() const { return has_global_object(); }
+
+  Context* native_context() const {
+    return has_native_context() ? global_object()->native_context() : nullptr;
   }
 
   // Accessors for the different compilation modes.

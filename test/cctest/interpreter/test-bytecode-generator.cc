@@ -2702,7 +2702,6 @@ TEST(Delete) {
 }
 
 
-/* TODO(oth): Regenerate this test.
 TEST(GlobalDelete) {
   InitializedHandleScope handle_scope;
   BytecodeGeneratorHelper helper;
@@ -2778,7 +2777,6 @@ TEST(GlobalDelete) {
     CheckBytecodeArrayEqual(snippets[i], bytecode_array);
   }
 }
-*/
 
 
 TEST(FunctionLiterals) {

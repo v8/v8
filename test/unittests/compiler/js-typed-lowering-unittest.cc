@@ -1159,7 +1159,7 @@ TEST_F(JSTypedLoweringTest, JSCreateFunctionContextViaInlinedAllocation) {
   EXPECT_THAT(r.replacement(),
               IsFinishRegion(IsAllocate(IsNumberConstant(Context::SizeFor(
                                             8 + Context::MIN_CONTEXT_SLOTS)),
-                                        IsBeginRegion(_), control),
+                                        IsBeginRegion(effect), control),
                              _));
 }
 
@@ -1195,11 +1195,16 @@ TEST_F(JSTypedLoweringTest, JSCreateWithContext) {
       Reduce(graph()->NewNode(javascript()->CreateWithContext(), object,
                               closure, context, frame_state, effect, control));
   ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(),
-              IsFinishRegion(IsAllocate(IsNumberConstant(Context::SizeFor(
-                                            Context::MIN_CONTEXT_SLOTS)),
-                                        IsBeginRegion(_), control),
-                             _));
+  EXPECT_THAT(
+      r.replacement(),
+      IsFinishRegion(
+          IsAllocate(
+              IsNumberConstant(Context::SizeFor(Context::MIN_CONTEXT_SLOTS)),
+              IsBeginRegion(IsLoadField(
+                  AccessBuilder::ForContextSlot(Context::GLOBAL_OBJECT_INDEX),
+                  context, effect, control)),
+              control),
+          _));
 }
 
 

@@ -969,8 +969,8 @@ inline Operand ContextOperand(Register context, Register index) {
   return Operand(context, index, times_pointer_size, Context::SlotOffset(0));
 }
 
-inline Operand NativeContextOperand() {
-  return ContextOperand(esi, Context::NATIVE_CONTEXT_INDEX);
+inline Operand GlobalObjectOperand() {
+  return ContextOperand(esi, Context::GLOBAL_OBJECT_INDEX);
 }
 
 #ifdef GENERATED_CODE_COVERAGE

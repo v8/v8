@@ -1859,9 +1859,11 @@ HValue* HGraphBuilder::BuildRegExpConstructResult(HValue* length,
       NOT_TENURED, JS_ARRAY_TYPE);
 
   // Initialize the JSRegExpResult header.
-  HValue* native_context = Add<HLoadNamedField>(
+  HValue* global_object = Add<HLoadNamedField>(
       context(), nullptr,
-      HObjectAccess::ForContextSlot(Context::NATIVE_CONTEXT_INDEX));
+      HObjectAccess::ForContextSlot(Context::GLOBAL_OBJECT_INDEX));
+  HValue* native_context = Add<HLoadNamedField>(
+      global_object, nullptr, HObjectAccess::ForJSGlobalObjectNativeContext());
   Add<HStoreNamedField>(
       result, HObjectAccess::ForMap(),
       Add<HLoadNamedField>(
@@ -3258,9 +3260,13 @@ void HGraphBuilder::BuildCreateAllocationMemento(
 
 
 HInstruction* HGraphBuilder::BuildGetNativeContext() {
-  return Add<HLoadNamedField>(
+  // Get the global object, then the native context
+  HValue* global_object = Add<HLoadNamedField>(
       context(), nullptr,
-      HObjectAccess::ForContextSlot(Context::NATIVE_CONTEXT_INDEX));
+      HObjectAccess::ForContextSlot(Context::GLOBAL_OBJECT_INDEX));
+  return Add<HLoadNamedField>(global_object, nullptr,
+                              HObjectAccess::ForObservableJSObjectOffset(
+                                  JSGlobalObject::kNativeContextOffset));
 }
 
 
@@ -3268,9 +3274,12 @@ HInstruction* HGraphBuilder::BuildGetNativeContext(HValue* closure) {
   // Get the global object, then the native context
   HInstruction* context = Add<HLoadNamedField>(
       closure, nullptr, HObjectAccess::ForFunctionContextPointer());
-  return Add<HLoadNamedField>(
+  HInstruction* global_object = Add<HLoadNamedField>(
       context, nullptr,
-      HObjectAccess::ForContextSlot(Context::NATIVE_CONTEXT_INDEX));
+      HObjectAccess::ForContextSlot(Context::GLOBAL_OBJECT_INDEX));
+  HObjectAccess access = HObjectAccess::ForObservableJSObjectOffset(
+      JSGlobalObject::kNativeContextOffset);
+  return Add<HLoadNamedField>(global_object, nullptr, access);
 }
 
 
@@ -3541,7 +3550,12 @@ HAllocate* HGraphBuilder::JSArrayBuilder::AllocateArray(
 
 
 HValue* HGraphBuilder::AddLoadJSBuiltin(int context_index) {
-  HValue* native_context = BuildGetNativeContext();
+  HValue* global_object = Add<HLoadNamedField>(
+      context(), nullptr,
+      HObjectAccess::ForContextSlot(Context::GLOBAL_OBJECT_INDEX));
+  HObjectAccess access = HObjectAccess::ForObservableJSObjectOffset(
+      JSGlobalObject::kNativeContextOffset);
+  HValue* native_context = Add<HLoadNamedField>(global_object, nullptr, access);
   HObjectAccess function_access = HObjectAccess::ForContextSlot(context_index);
   return Add<HLoadNamedField>(native_context, nullptr, function_access);
 }
@@ -5700,8 +5714,8 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
         }
       } else {
         HValue* global_object = Add<HLoadNamedField>(
-            BuildGetNativeContext(), nullptr,
-            HObjectAccess::ForContextSlot(Context::EXTENSION_INDEX));
+            context(), nullptr,
+            HObjectAccess::ForContextSlot(Context::GLOBAL_OBJECT_INDEX));
         HLoadGlobalGeneric* instr = New<HLoadGlobalGeneric>(
             global_object, variable->name(), ast_context()->typeof_mode());
         instr->SetVectorAndSlot(handle(current_feedback_vector(), isolate()),
@@ -6914,8 +6928,8 @@ void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(
     }
   } else {
     HValue* global_object = Add<HLoadNamedField>(
-        BuildGetNativeContext(), nullptr,
-        HObjectAccess::ForContextSlot(Context::EXTENSION_INDEX));
+        context(), nullptr,
+        HObjectAccess::ForContextSlot(Context::GLOBAL_OBJECT_INDEX));
     HStoreNamedGeneric* instr =
         Add<HStoreNamedGeneric>(global_object, var->name(), value,
                                 function_language_mode(), PREMONOMORPHIC);
@@ -10017,7 +10031,11 @@ HValue* HGraphBuilder::BuildAllocateEmptyArrayBuffer(HValue* byte_length) {
       BuildAllocate(Add<HConstant>(JSArrayBuffer::kSizeWithInternalFields),
                     HType::JSObject(), JS_ARRAY_BUFFER_TYPE, HAllocationMode());
 
-  HValue* native_context = BuildGetNativeContext();
+  HValue* global_object = Add<HLoadNamedField>(
+      context(), nullptr,
+      HObjectAccess::ForContextSlot(Context::GLOBAL_OBJECT_INDEX));
+  HValue* native_context = Add<HLoadNamedField>(
+      global_object, nullptr, HObjectAccess::ForJSGlobalObjectNativeContext());
   Add<HStoreNamedField>(
       result, HObjectAccess::ForMap(),
       Add<HLoadNamedField>(

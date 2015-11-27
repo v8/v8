@@ -67,15 +67,30 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
 // Load the built-in InternalArray function from the current context.
 static void GenerateLoadInternalArrayFunction(MacroAssembler* masm,
                                               Register result) {
-  // Load the InternalArray function from the current native context.
-  __ LoadNativeContextSlot(Context::INTERNAL_ARRAY_FUNCTION_INDEX, result);
+  // Load the native context.
+
+  __ ldr(result,
+         MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+  __ ldr(result, FieldMemOperand(result, JSGlobalObject::kNativeContextOffset));
+  // Load the InternalArray function from the native context.
+  __ ldr(result,
+         MemOperand(result,
+                    Context::SlotOffset(
+                        Context::INTERNAL_ARRAY_FUNCTION_INDEX)));
 }
 
 
 // Load the built-in Array function from the current context.
 static void GenerateLoadArrayFunction(MacroAssembler* masm, Register result) {
-  // Load the Array function from the current native context.
-  __ LoadNativeContextSlot(Context::ARRAY_FUNCTION_INDEX, result);
+  // Load the native context.
+
+  __ ldr(result,
+         MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+  __ ldr(result, FieldMemOperand(result, JSGlobalObject::kNativeContextOffset));
+  // Load the Array function from the native context.
+  __ ldr(result,
+         MemOperand(result,
+                    Context::SlotOffset(Context::ARRAY_FUNCTION_INDEX)));
 }
 
 
@@ -1233,7 +1248,8 @@ void Builtins::Generate_HandleFastApiCall(MacroAssembler* masm) {
   __ Jump(r4);
 
   __ bind(&set_global_proxy);
-  __ LoadGlobalProxy(r2);
+  __ ldr(r2, GlobalObjectOperand());
+  __ ldr(r2, FieldMemOperand(r2, JSGlobalObject::kGlobalProxyOffset));
   __ str(r2, MemOperand(sp, r0, LSL, kPointerSizeLog2));
   __ b(&valid_receiver);
 
@@ -1718,7 +1734,7 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   // Overwrite the original receiver the (original) target.
   __ str(r1, MemOperand(sp, r0, LSL, kPointerSizeLog2));
   // Let the "call_as_function_delegate" take care of the rest.
-  __ LoadNativeContextSlot(Context::CALL_AS_FUNCTION_DELEGATE_INDEX, r1);
+  __ LoadGlobalFunction(Context::CALL_AS_FUNCTION_DELEGATE_INDEX, r1);
   __ Jump(masm->isolate()->builtins()->CallFunction(
               ConvertReceiverMode::kNotNullOrUndefined),
           RelocInfo::CODE_TARGET);
@@ -1800,7 +1816,7 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
     // Overwrite the original receiver with the (original) target.
     __ str(r1, MemOperand(sp, r0, LSL, kPointerSizeLog2));
     // Let the "call_as_constructor_delegate" take care of the rest.
-    __ LoadNativeContextSlot(Context::CALL_AS_CONSTRUCTOR_DELEGATE_INDEX, r1);
+    __ LoadGlobalFunction(Context::CALL_AS_CONSTRUCTOR_DELEGATE_INDEX, r1);
     __ Jump(masm->isolate()->builtins()->CallFunction(),
             RelocInfo::CODE_TARGET);
   }

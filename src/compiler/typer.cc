@@ -1397,6 +1397,11 @@ Type* Typer::Visitor::TypeJSStoreContext(Node* node) {
 }
 
 
+Type* Typer::Visitor::TypeJSLoadNativeContext(Node* node) {
+  return Type::Intersect(Type::Internal(), Type::TaggedPointer(), zone());
+}
+
+
 Type* Typer::Visitor::TypeJSLoadDynamic(Node* node) { return Type::Any(); }
 
 

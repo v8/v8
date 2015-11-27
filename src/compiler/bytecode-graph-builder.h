@@ -47,6 +47,9 @@ class BytecodeGraphBuilder {
   // Builder for accessing type feedback vector.
   Node* BuildLoadFeedbackVector();
 
+  // Builder for loading the global object.
+  Node* BuildLoadGlobalObject();
+
   // Builder for loading the a native context field.
   Node* BuildLoadNativeContextField(int index);
 

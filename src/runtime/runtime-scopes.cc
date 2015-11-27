@@ -776,7 +776,7 @@ RUNTIME_FUNCTION(Runtime_PushModuleContext) {
   Context* previous = isolate->context();
   context->set_previous(previous);
   context->set_closure(previous->closure());
-  context->set_native_context(previous->native_context());
+  context->set_global_object(previous->global_object());
   isolate->set_context(*context);
 
   // Find hosting scope and initialize internal variable holding module there.

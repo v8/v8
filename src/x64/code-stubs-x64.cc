@@ -663,7 +663,8 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   // r11 = argument count (untagged)
   // Get the arguments map from the current native context into r9.
   Label has_mapped_parameters, instantiate;
-  __ movp(r9, NativeContextOperand());
+  __ movp(r9, Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+  __ movp(r9, FieldOperand(r9, JSGlobalObject::kNativeContextOffset));
   __ testp(rbx, rbx);
   __ j(not_zero, &has_mapped_parameters, Label::kNear);
 
@@ -944,8 +945,10 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   __ Allocate(rax, rax, rbx, no_reg, &runtime, TAG_OBJECT);
 
   // Get the arguments map from the current native context.
-  __ movp(rdi, NativeContextOperand());
-  __ movp(rdi, ContextOperand(rdi, Context::STRICT_ARGUMENTS_MAP_INDEX));
+  __ movp(rdi, Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
+  __ movp(rdi, FieldOperand(rdi, JSGlobalObject::kNativeContextOffset));
+  const int offset = Context::SlotOffset(Context::STRICT_ARGUMENTS_MAP_INDEX);
+  __ movp(rdi, Operand(rdi, offset));
 
   __ movp(FieldOperand(rax, JSObject::kMapOffset), rdi);
   __ LoadRoot(kScratchRegister, Heap::kEmptyFixedArrayRootIndex);
@@ -1820,7 +1823,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   __ j(not_equal, &miss);
 
   // Make sure the function is the Array() function
-  __ LoadNativeContextSlot(Context::ARRAY_FUNCTION_INDEX, r11);
+  __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, r11);
   __ cmpp(rdi, r11);
   __ j(not_equal, &megamorphic);
   __ jmp(&done);
@@ -1843,7 +1846,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   __ bind(&initialize);
 
   // Make sure the function is the Array() function
-  __ LoadNativeContextSlot(Context::ARRAY_FUNCTION_INDEX, r11);
+  __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, r11);
   __ cmpp(rdi, r11);
   __ j(not_equal, &not_array_function);
 
@@ -1911,7 +1914,7 @@ void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
   // rdx - slot id
   // rbx - vector
   // rcx - allocation site (loaded from vector[slot]).
-  __ LoadNativeContextSlot(Context::ARRAY_FUNCTION_INDEX, r8);
+  __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, r8);
   __ cmpp(rdi, r8);
   __ j(not_equal, miss);
 
@@ -2033,14 +2036,15 @@ void CallICStub::Generate(MacroAssembler* masm) {
 
   // Make sure the function is not the Array() function, which requires special
   // behavior on MISS.
-  __ LoadNativeContextSlot(Context::ARRAY_FUNCTION_INDEX, rcx);
+  __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, rcx);
   __ cmpp(rdi, rcx);
   __ j(equal, &miss);
 
-  // Make sure the function belongs to the same native context.
+  // Make sure the function belongs to the same native context (which implies
+  // the same global object).
   __ movp(rcx, FieldOperand(rdi, JSFunction::kContextOffset));
-  __ movp(rcx, ContextOperand(rcx, Context::NATIVE_CONTEXT_INDEX));
-  __ cmpp(rcx, NativeContextOperand());
+  __ movp(rcx, ContextOperand(rcx, Context::GLOBAL_OBJECT_INDEX));
+  __ cmpp(rcx, GlobalObjectOperand());
   __ j(not_equal, &miss);
 
   // Update stats.

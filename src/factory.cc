@@ -725,7 +725,6 @@ Handle<Context> Factory::NewNativeContext() {
       NewFixedArray(Context::NATIVE_CONTEXT_SLOTS, TENURED);
   array->set_map_no_write_barrier(*native_context_map());
   Handle<Context> context = Handle<Context>::cast(array);
-  context->set_native_context(*context);
   context->set_js_array_maps(*undefined_value());
   context->set_errors_thrown(Smi::FromInt(0));
   DCHECK(context->IsNativeContext());
@@ -742,7 +741,7 @@ Handle<Context> Factory::NewScriptContext(Handle<JSFunction> function,
   context->set_closure(*function);
   context->set_previous(function->context());
   context->set_extension(*scope_info);
-  context->set_native_context(function->native_context());
+  context->set_global_object(function->context()->global_object());
   DCHECK(context->IsScriptContext());
   return context;
 }
@@ -778,7 +777,7 @@ Handle<Context> Factory::NewFunctionContext(int length,
   context->set_closure(*function);
   context->set_previous(function->context());
   context->set_extension(Smi::FromInt(0));
-  context->set_native_context(function->native_context());
+  context->set_global_object(function->context()->global_object());
   return context;
 }
 
@@ -794,7 +793,7 @@ Handle<Context> Factory::NewCatchContext(Handle<JSFunction> function,
   context->set_closure(*function);
   context->set_previous(*previous);
   context->set_extension(*name);
-  context->set_native_context(previous->native_context());
+  context->set_global_object(previous->global_object());
   context->set(Context::THROWN_OBJECT_INDEX, *thrown_object);
   return context;
 }
@@ -809,7 +808,7 @@ Handle<Context> Factory::NewWithContext(Handle<JSFunction> function,
   context->set_closure(*function);
   context->set_previous(*previous);
   context->set_extension(*extension);
-  context->set_native_context(previous->native_context());
+  context->set_global_object(previous->global_object());
   return context;
 }
 
@@ -824,7 +823,7 @@ Handle<Context> Factory::NewBlockContext(Handle<JSFunction> function,
   context->set_closure(*function);
   context->set_previous(*previous);
   context->set_extension(*scope_info);
-  context->set_native_context(previous->native_context());
+  context->set_global_object(previous->global_object());
   return context;
 }
 
