@@ -988,14 +988,14 @@ int V8HeapExplorer::EstimateObjectsCount(HeapIterator* iterator) {
 
 class IndexedReferencesExtractor : public ObjectVisitor {
  public:
-  IndexedReferencesExtractor(V8HeapExplorer* generator,
-                             HeapObject* parent_obj,
+  IndexedReferencesExtractor(V8HeapExplorer* generator, HeapObject* parent_obj,
                              int parent)
       : generator_(generator),
         parent_obj_(parent_obj),
+        parent_start_(HeapObject::RawField(parent_obj_, 0)),
+        parent_end_(HeapObject::RawField(parent_obj_, parent_obj_->Size())),
         parent_(parent),
-        next_index_(0) {
-  }
+        next_index_(0) {}
   void VisitCodeEntry(Address entry_address) override {
      Code* code = Code::cast(Code::GetObjectFromEntryAddress(entry_address));
      generator_->SetInternalReference(parent_obj_, parent_, "code", code);
@@ -1003,40 +1003,24 @@ class IndexedReferencesExtractor : public ObjectVisitor {
   }
   void VisitPointers(Object** start, Object** end) override {
     for (Object** p = start; p < end; p++) {
+      intptr_t index =
+          static_cast<intptr_t>(p - HeapObject::RawField(parent_obj_, 0));
       ++next_index_;
-      if (CheckVisitedAndUnmark(p)) continue;
+      // |p| could be outside of the object, e.g., while visiting RelocInfo of
+      // code objects.
+      if (p >= parent_start_ && p < parent_end_ && generator_->marks_[index]) {
+        generator_->marks_[index] = false;
+        continue;
+      }
       generator_->SetHiddenReference(parent_obj_, parent_, next_index_, *p);
     }
   }
-  static void MarkVisitedField(HeapObject* obj, int offset) {
-    if (offset < 0) return;
-    Address field = obj->address() + offset;
-    DCHECK(Memory::Object_at(field)->IsHeapObject());
-    intptr_t p = reinterpret_cast<intptr_t>(Memory::Object_at(field));
-    DCHECK(!IsMarked(p));
-    intptr_t p_tagged = p | kTag;
-    Memory::Object_at(field) = reinterpret_cast<Object*>(p_tagged);
-  }
 
  private:
-  bool CheckVisitedAndUnmark(Object** field) {
-    intptr_t p = reinterpret_cast<intptr_t>(*field);
-    if (IsMarked(p)) {
-      intptr_t p_untagged = (p & ~kTaggingMask) | kHeapObjectTag;
-      *field = reinterpret_cast<Object*>(p_untagged);
-      DCHECK((*field)->IsHeapObject());
-      return true;
-    }
-    return false;
-  }
-
-  static const intptr_t kTaggingMask = 3;
-  static const intptr_t kTag = 3;
-
-  static bool IsMarked(intptr_t p) { return (p & kTaggingMask) == kTag; }
-
   V8HeapExplorer* generator_;
   HeapObject* parent_obj_;
+  Object** parent_start_;
+  Object** parent_end_;
   int parent_;
   int next_index_;
 };
@@ -1871,6 +1855,14 @@ bool V8HeapExplorer::IterateAndExtractSinglePass() {
        obj = iterator.next(), progress_->ProgressStep()) {
     if (interrupted) continue;
 
+    size_t max_pointer = obj->Size() / kPointerSize;
+    if (max_pointer > marks_.size()) {
+      // Clear the current bits.
+      std::vector<bool>().swap(marks_);
+      // Reallocate to right size.
+      marks_.resize(max_pointer, false);
+    }
+
     HeapEntry* heap_entry = GetEntry(obj);
     int entry = heap_entry->index();
     if ((this->*extractor)(entry, obj)) {
@@ -1915,8 +1907,16 @@ void V8HeapExplorer::SetContextReference(HeapObject* parent_obj,
                                parent_entry,
                                names_->GetName(reference_name),
                                child_entry);
-    IndexedReferencesExtractor::MarkVisitedField(parent_obj, field_offset);
+    MarkVisitedField(parent_obj, field_offset);
   }
+}
+
+
+void V8HeapExplorer::MarkVisitedField(HeapObject* obj, int offset) {
+  if (offset < 0) return;
+  int index = offset / kPointerSize;
+  DCHECK(!marks_[index]);
+  marks_[index] = true;
 }
 
 
@@ -1964,7 +1964,7 @@ void V8HeapExplorer::SetInternalReference(HeapObject* parent_obj,
                                reference_name,
                                child_entry);
   }
-  IndexedReferencesExtractor::MarkVisitedField(parent_obj, field_offset);
+  MarkVisitedField(parent_obj, field_offset);
 }
 
 
@@ -1982,7 +1982,7 @@ void V8HeapExplorer::SetInternalReference(HeapObject* parent_obj,
                                names_->GetName(index),
                                child_entry);
   }
-  IndexedReferencesExtractor::MarkVisitedField(parent_obj, field_offset);
+  MarkVisitedField(parent_obj, field_offset);
 }
 
 
@@ -2015,7 +2015,7 @@ void V8HeapExplorer::SetWeakReference(HeapObject* parent_obj,
                                reference_name,
                                child_entry);
   }
-  IndexedReferencesExtractor::MarkVisitedField(parent_obj, field_offset);
+  MarkVisitedField(parent_obj, field_offset);
 }
 
 
@@ -2033,7 +2033,7 @@ void V8HeapExplorer::SetWeakReference(HeapObject* parent_obj,
                                names_->GetFormatted("%d", index),
                                child_entry);
   }
-  IndexedReferencesExtractor::MarkVisitedField(parent_obj, field_offset);
+  MarkVisitedField(parent_obj, field_offset);
 }
 
 
@@ -2074,7 +2074,7 @@ void V8HeapExplorer::SetPropertyReference(HeapObject* parent_obj,
                                parent_entry,
                                name,
                                child_entry);
-    IndexedReferencesExtractor::MarkVisitedField(parent_obj, field_offset);
+    MarkVisitedField(parent_obj, field_offset);
   }
 }
 
