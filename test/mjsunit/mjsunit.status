@@ -302,7 +302,6 @@
   'array-feedback': [SKIP],
   'array-literal-feedback': [SKIP],
   'd8-performance-now': [SKIP],
-  'debug-stepout-scope-part8': [PASS, ['arch == arm ', FAIL]],
   'elements-kind': [SKIP],
   'elements-transition-hoisting': [SKIP],
   'fast-prototype': [SKIP],
@@ -411,11 +410,6 @@
   'regress/regress-91013': [SKIP],
   'regress/regress-99167': [SKIP],
 
-  # Long running tests.
-  'regress/regress-2185': [PASS, ['mode == debug', PASS, TIMEOUT]],
-  'regress/regress-2185-2': [PASS, TIMEOUT],
-  'whitespaces': [PASS, TIMEOUT, SLOW],
-
   # BUG(v8:3457).
   'deserialize-reference': [PASS, FAIL],
 
@@ -453,6 +447,7 @@
   'unicodelctest-no-optimization': [PASS, SLOW],
   'unicodelctest': [PASS, SLOW],
   'unicode-test': [PASS, SLOW],
+  'whitespaces': [PASS, TIMEOUT, SLOW],
 }],  # 'arch == arm64'
 
 ['arch == arm64 and mode == debug and simulator_run == True', {
@@ -501,7 +496,7 @@
   'try': [PASS, ['mode == debug', SKIP]],
   'debug-scripts-request': [PASS, ['mode == debug', SKIP]],
   'array-constructor': [PASS, ['mode == debug', SKIP]],
-  'regress/regress-1122': [PASS, ['mode == debug and arch == android_arm', SKIP]],
+  'regress/regress-1122': [PASS, SLOW, ['mode == debug and arch == android_arm', SKIP]],
 
   # Flaky test that can hit compilation-time stack overflow in debug mode.
   'unicode-test': [PASS, ['mode == debug', PASS, FAIL]],
@@ -509,10 +504,6 @@
   # Times out often in release mode on ARM.
   'compiler/regress-stacktrace-methods': [PASS, ['mode == release', TIMEOUT]],
   'array-splice': [PASS, TIMEOUT],
-
-  # Long running test.
-  'string-indexof-2': [PASS, TIMEOUT],
-  'mirror-object': [PASS, TIMEOUT],
 
   # Long running tests. Skipping because having them timeout takes too long on
   # the buildbot.
@@ -531,17 +522,16 @@
   # Currently always deopt on minus zero
   'math-floor-of-div-minus-zero': [SKIP],
 
-  ############################################################################
   # Slow tests.
-  'regress/regress-2185-2': [PASS, SLOW],
-  'mirror-object': [PASS, SLOW],
-  'compiler/osr-with-args': [PASS, SLOW],
   'array-sort': [PASS, SLOW],
+  'compiler/osr-with-args': [PASS, SLOW],
+  'mirror-object': [PASS, SLOW],
   'packed-elements': [PASS, SLOW],
-  'regress/regress-91008': [PASS, SLOW],
+  'regress/regress-2185-2': [PASS, SLOW],
   'regress/regress-2790': [PASS, SLOW],
+  'regress/regress-91008': [PASS, SLOW],
   'regress/regress-json-stringify-gc': [PASS, SLOW],
-  'regress/regress-1122': [PASS, SLOW],
+  'string-indexof-2': [PASS, TIMEOUT],
 }],  # 'arch == arm or arch == android_arm'
 
 ##############################################################################

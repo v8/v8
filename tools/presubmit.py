@@ -35,6 +35,7 @@ except ImportError, e:
   md5er = md5.new
 
 
+import json
 import optparse
 import os
 from os.path import abspath, join, dirname, basename, exists
@@ -407,16 +408,60 @@ def CheckExternalReferenceRegistration(workspace):
       [sys.executable, join(workspace, "tools", "external-reference-check.py")])
   return code == 0
 
+
+def _CheckStatusFileForDuplicateKeys(filepath):
+  comma_space_bracket = re.compile(", *]")
+  lines = []
+  with open(filepath) as f:
+    for line in f.readlines():
+      # Skip all-comment lines.
+      if line.lstrip().startswith("#"): continue
+      # Strip away comments at the end of the line.
+      comment_start = line.find("#")
+      if comment_start != -1:
+        line = line[:comment_start]
+      line = line.strip()
+      # Strip away trailing commas within the line.
+      line = comma_space_bracket.sub("]", line)
+      if len(line) > 0:
+        lines.append(line)
+
+  # Strip away trailing commas at line ends. Ugh.
+  for i in range(len(lines) - 1):
+    if (lines[i].endswith(",") and len(lines[i + 1]) > 0 and
+        lines[i + 1][0] in ("}", "]")):
+      lines[i] = lines[i][:-1]
+
+  contents = "\n".join(lines)
+  # JSON wants double-quotes.
+  contents = contents.replace("'", '"')
+  # Fill in keywords (like PASS, SKIP).
+  for key in statusfile.KEYWORDS:
+    contents = re.sub(r"\b%s\b" % key, "\"%s\"" % key, contents)
+
+  status = {"success": True}
+  def check_pairs(pairs):
+    keys = {}
+    for key, value in pairs:
+      if key in keys:
+        print("%s: Error: duplicate key %s" % (filepath, key))
+        status["success"] = False
+      keys[key] = True
+
+  json.loads(contents, object_pairs_hook=check_pairs)
+  return status["success"]
+
 def CheckStatusFiles(workspace):
+  success = True
   suite_paths = utils.GetSuitePaths(join(workspace, "test"))
   for root in suite_paths:
     suite_path = join(workspace, "test", root)
     status_file_path = join(suite_path, root + ".status")
     suite = testsuite.TestSuite.LoadTestSuite(suite_path)
     if suite and exists(status_file_path):
-      if not statusfile.PresubmitCheck(status_file_path):
-        return False
-  return True
+      success &= statusfile.PresubmitCheck(status_file_path)
+      success &= _CheckStatusFileForDuplicateKeys(status_file_path)
+  return success
 
 def CheckAuthorizedAuthor(input_api, output_api):
   """For non-googler/chromites committers, verify the author's email address is
@@ -460,12 +505,12 @@ def Main():
   success = True
   print "Running C++ lint check..."
   if not options.no_lint:
-    success = CppLintProcessor().Run(workspace) and success
+    success &= CppLintProcessor().Run(workspace)
   print "Running copyright header, trailing whitespaces and " \
         "two empty lines between declarations check..."
-  success = SourceProcessor().Run(workspace) and success
-  success = CheckExternalReferenceRegistration(workspace) and success
-  success = CheckStatusFiles(workspace) and success
+  success &= SourceProcessor().Run(workspace)
+  success &= CheckExternalReferenceRegistration(workspace)
+  success &= CheckStatusFiles(workspace)
   if success:
     return 0
   else:

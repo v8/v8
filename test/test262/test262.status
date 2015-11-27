@@ -64,7 +64,7 @@
 
   # https://code.google.com/p/v8/issues/detail?id=3305
   # This times out in sloppy mode because sloppy const assignment does not throw.
-  'language/statements/const/syntax/const-invalid-assignment-next-expression-for': [PASS, FAIL, TIMEOUT],
+  'language/statements/const/syntax/const-invalid-assignment-next-expression-for': [SKIP],
 
   # https://code.google.com/p/v8/issues/detail?id=1543
   'built-ins/Proxy/*': [FAIL],
@@ -399,10 +399,8 @@
   'intl402/Collator/10.1.2_a': [PASS, FAIL],
   'intl402/Collator/10.2.3_b': [PASS, FAIL],
   'intl402/Collator/prototype/10.3_a': [FAIL],
-  'intl402/Date/prototype/13.3.0_7': [FAIL],
   'intl402/DateTimeFormat/12.1.1': [FAIL],
   'intl402/DateTimeFormat/12.1.1_a': [FAIL],
-  'intl402/DateTimeFormat/12.1.1_1': [FAIL],
   'intl402/DateTimeFormat/12.1.2': [PASS, FAIL],
   'intl402/DateTimeFormat/12.1.2.1_4': [FAIL],
   'intl402/DateTimeFormat/12.2.3_b': [FAIL],
@@ -486,7 +484,6 @@
   'language/literals/regexp/S7.8.5_A1.4_T2': [SKIP],
   'language/literals/regexp/S7.8.5_A2.1_T2': [SKIP],
   'language/literals/regexp/S7.8.5_A2.4_T2': [SKIP],
-  'language/statements/const/syntax/const-invalid-assignment-next-expression-for': [SKIP],
   'built-ins/Array/prototype/slice/S15.4.4.10_A3_T1': [SKIP],
   'built-ins/Array/prototype/slice/S15.4.4.10_A3_T2': [SKIP],
 }],  # ALWAYS

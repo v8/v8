@@ -156,20 +156,25 @@ def ReadStatusFile(path, variables):
 def PresubmitCheck(path):
   contents = ReadContent(path)
   root_prefix = os.path.basename(os.path.dirname(path)) + "/"
-
+  status = {"success": True}
+  def _assert(check, message):  # Like "assert", but doesn't throw.
+    if not check:
+      print("%s: Error: %s" % (path, message))
+      status["success"] = False
   try:
     for section in contents:
-      assert type(section) == list
-      assert len(section) == 2
+      _assert(type(section) == list, "Section must be a list")
+      _assert(len(section) == 2, "Section list must have exactly 2 entries")
       section = section[1]
-      assert type(section) == dict
+      _assert(type(section) == dict,
+              "Second entry of section must be a dictionary")
       for rule in section:
-        assert type(rule) == str
-        assert not rule.startswith(root_prefix), (
-            "Suite name prefix must not be used in status files")
-        assert not rule.endswith('.js'), (
-            ".js extension must not be used in status files.")
-    return True
+        _assert(type(rule) == str, "Rule key must be a string")
+        _assert(not rule.startswith(root_prefix),
+                "Suite name prefix must not be used in rule keys")
+        _assert(not rule.endswith('.js'),
+                ".js extension must not be used in rule keys.")
+    return status["success"]
   except Exception as e:
     print e
     return False
