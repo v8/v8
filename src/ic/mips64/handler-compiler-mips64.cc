@@ -167,11 +167,7 @@ void PropertyHandlerCompiler::GenerateDictionaryNegativeLookup(
 
 void NamedLoadHandlerCompiler::GenerateDirectLoadGlobalFunctionPrototype(
     MacroAssembler* masm, int index, Register result, Label* miss) {
-  // Check we're still in the same context.
-  const int offset = Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX);
-  __ ld(result, MemOperand(cp, offset));
-  __ ld(result, FieldMemOperand(result, JSGlobalObject::kNativeContextOffset));
-  __ ld(result, MemOperand(result, Context::SlotOffset(index)));
+  __ LoadNativeContextSlot(index, result);
   // Load its initial map. The global functions all have initial maps.
   __ ld(result,
         FieldMemOperand(result, JSFunction::kPrototypeOrInitialMapOffset));

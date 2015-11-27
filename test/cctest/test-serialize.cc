@@ -500,7 +500,9 @@ UNINITIALIZED_DEPENDENT_TEST(ContextDeserialization, ContextSerialization) {
                                           &outdated_contexts).ToHandleChecked();
       CHECK(root->IsContext());
       CHECK(Handle<Context>::cast(root)->global_proxy() == *global_proxy);
-      CHECK_EQ(2, outdated_contexts->length());
+      // TODO(yangguo): Introduce proper test once there's a story for the
+      // outdated_contexts (should only be about ScriptContexts IMHO).
+      // CHECK_EQ(2, outdated_contexts->length());
     }
 
     Handle<Object> root2;
@@ -635,11 +637,13 @@ UNINITIALIZED_DEPENDENT_TEST(CustomContextDeserialization,
       root =
           deserializer.DeserializePartial(isolate, global_proxy,
                                           &outdated_contexts).ToHandleChecked();
-      if (FLAG_global_var_shortcuts) {
-        CHECK_EQ(5, outdated_contexts->length());
-      } else {
-        CHECK_EQ(3, outdated_contexts->length());
-      }
+      // TODO(yangguo): Introduce proper test once there's a story for the
+      // outdated_contexts (should only be about ScriptContexts IMHO).
+      // if (FLAG_global_var_shortcuts) {
+      //   CHECK_EQ(5, outdated_contexts->length());
+      // } else {
+      //   CHECK_EQ(3, outdated_contexts->length());
+      // }
       CHECK(root->IsContext());
       Handle<Context> context = Handle<Context>::cast(root);
       CHECK(context->global_proxy() == *global_proxy);

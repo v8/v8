@@ -2708,7 +2708,8 @@ TEST(GlobalDelete) {
   Zone zone;
 
   int context = Register::function_context().index();
-  int global_object_index = Context::GLOBAL_OBJECT_INDEX;
+  int native_context_index = Context::NATIVE_CONTEXT_INDEX;
+  int global_context_index = Context::EXTENSION_INDEX;
   FeedbackVectorSpec feedback_spec(&zone);
   FeedbackVectorSlot slot = feedback_spec.AddLoadICSlot();
 
@@ -2720,13 +2721,11 @@ TEST(GlobalDelete) {
        1 * kPointerSize,
        1,
        10,
-       {
-           B(LdaGlobalSloppy), U8(0), U8(vector->GetIndex(slot)),  //
-           B(Star), R(0),                                          //
-           B(LdaConstant), U8(1),                                  //
-           B(DeletePropertySloppy), R(0),                          //
-           B(Return)
-       },
+       {B(LdaGlobalSloppy), U8(0), U8(vector->GetIndex(slot)),  //
+        B(Star), R(0),                                          //
+        B(LdaConstant), U8(1),                                  //
+        B(DeletePropertySloppy), R(0),                          //
+        B(Return)},
        2,
        {InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
         InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
@@ -2735,39 +2734,37 @@ TEST(GlobalDelete) {
        1 * kPointerSize,
        1,
        10,
-       {
-           B(LdaGlobalStrict), U8(0), U8(vector->GetIndex(slot)),  //
-           B(Star), R(0),                                          //
-           B(LdaSmi8), U8(1),                                      //
-           B(DeletePropertyStrict), R(0),                          //
-           B(Return)
-       },
+       {B(LdaGlobalStrict), U8(0), U8(vector->GetIndex(slot)),  //
+        B(Star), R(0),                                          //
+        B(LdaSmi8), U8(1),                                      //
+        B(DeletePropertyStrict), R(0),                          //
+        B(Return)},
        1,
        {InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
       {"var a = {x:13, y:14};\n function f() { return delete a; };\n f();",
-       1 * kPointerSize,
+       2 * kPointerSize,
        1,
-       10,
-       {
-           B(LdaContextSlot), R(context), U8(global_object_index),  //
-           B(Star), R(0),                                           //
-           B(LdaConstant), U8(0),                                   //
-           B(DeletePropertySloppy), R(0),                           //
-           B(Return)
-       },
+       15,
+       {B(LdaContextSlot), R(context), U8(native_context_index),  //
+        B(Star), R(0),                                            //
+        B(LdaContextSlot), R(0), U8(global_context_index),        //
+        B(Star), R(1),                                            //
+        B(LdaConstant), U8(0),                                    //
+        B(DeletePropertySloppy), R(1),                            //
+        B(Return)},
        1,
        {InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
       {"b = 30;\n function f() { return delete b; };\n f();",
-       1 * kPointerSize,
+       2 * kPointerSize,
        1,
-       10,
-       {
-           B(LdaContextSlot), R(context), U8(global_object_index),  //
-           B(Star), R(0),                                           //
-           B(LdaConstant), U8(0),                                   //
-           B(DeletePropertySloppy), R(0),                           //
-           B(Return)
-       },
+       15,
+       {B(LdaContextSlot), R(context), U8(native_context_index),  //
+        B(Star), R(0),                                            //
+        B(LdaContextSlot), R(0), U8(global_context_index),        //
+        B(Star), R(1),                                            //
+        B(LdaConstant), U8(0),                                    //
+        B(DeletePropertySloppy), R(1),                            //
+        B(Return)},
        1,
        {InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}}};
 

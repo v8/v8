@@ -130,7 +130,6 @@
   V(JSLoadContext)            \
   V(JSStoreContext)           \
   V(JSLoadDynamic)            \
-  V(JSLoadNativeContext)      \
   V(JSCreateFunctionContext)  \
   V(JSCreateCatchContext)     \
   V(JSCreateWithContext)      \

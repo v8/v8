@@ -2364,7 +2364,7 @@ static int NumberOfGlobalObjects() {
   // Subtract two to compensate for the two global objects (not global
   // JSObjects, of which there would only be one) that are part of the code stub
   // context, which is always present.
-  return count - 2;
+  return count - 1;
 }
 
 
@@ -2384,7 +2384,7 @@ TEST(LeakNativeContextViaMap) {
   }
 
   CcTest::heap()->CollectAllAvailableGarbage();
-  CHECK_EQ(4, NumberOfGlobalObjects());
+  CHECK_EQ(2, NumberOfGlobalObjects());
 
   {
     v8::HandleScope inner_scope(isolate);
@@ -2410,7 +2410,7 @@ TEST(LeakNativeContextViaMap) {
     isolate->ContextDisposedNotification();
   }
   CcTest::heap()->CollectAllAvailableGarbage();
-  CHECK_EQ(2, NumberOfGlobalObjects());
+  CHECK_EQ(1, NumberOfGlobalObjects());
   ctx2p.Reset();
   CcTest::heap()->CollectAllAvailableGarbage();
   CHECK_EQ(0, NumberOfGlobalObjects());
@@ -2433,7 +2433,7 @@ TEST(LeakNativeContextViaFunction) {
   }
 
   CcTest::heap()->CollectAllAvailableGarbage();
-  CHECK_EQ(4, NumberOfGlobalObjects());
+  CHECK_EQ(2, NumberOfGlobalObjects());
 
   {
     v8::HandleScope inner_scope(isolate);
@@ -2459,7 +2459,7 @@ TEST(LeakNativeContextViaFunction) {
     isolate->ContextDisposedNotification();
   }
   CcTest::heap()->CollectAllAvailableGarbage();
-  CHECK_EQ(2, NumberOfGlobalObjects());
+  CHECK_EQ(1, NumberOfGlobalObjects());
   ctx2p.Reset();
   CcTest::heap()->CollectAllAvailableGarbage();
   CHECK_EQ(0, NumberOfGlobalObjects());
@@ -2480,7 +2480,7 @@ TEST(LeakNativeContextViaMapKeyed) {
   }
 
   CcTest::heap()->CollectAllAvailableGarbage();
-  CHECK_EQ(4, NumberOfGlobalObjects());
+  CHECK_EQ(2, NumberOfGlobalObjects());
 
   {
     v8::HandleScope inner_scope(isolate);
@@ -2506,7 +2506,7 @@ TEST(LeakNativeContextViaMapKeyed) {
     isolate->ContextDisposedNotification();
   }
   CcTest::heap()->CollectAllAvailableGarbage();
-  CHECK_EQ(2, NumberOfGlobalObjects());
+  CHECK_EQ(1, NumberOfGlobalObjects());
   ctx2p.Reset();
   CcTest::heap()->CollectAllAvailableGarbage();
   CHECK_EQ(0, NumberOfGlobalObjects());
@@ -2527,7 +2527,7 @@ TEST(LeakNativeContextViaMapProto) {
   }
 
   CcTest::heap()->CollectAllAvailableGarbage();
-  CHECK_EQ(4, NumberOfGlobalObjects());
+  CHECK_EQ(2, NumberOfGlobalObjects());
 
   {
     v8::HandleScope inner_scope(isolate);
@@ -2557,7 +2557,7 @@ TEST(LeakNativeContextViaMapProto) {
     isolate->ContextDisposedNotification();
   }
   CcTest::heap()->CollectAllAvailableGarbage();
-  CHECK_EQ(2, NumberOfGlobalObjects());
+  CHECK_EQ(1, NumberOfGlobalObjects());
   ctx2p.Reset();
   CcTest::heap()->CollectAllAvailableGarbage();
   CHECK_EQ(0, NumberOfGlobalObjects());

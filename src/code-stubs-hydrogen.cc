@@ -2137,14 +2137,13 @@ HValue* CodeStubGraphBuilder<FastNewContextStub>::BuildCodeStub() {
                         HObjectAccess::ForContextSlot(Context::EXTENSION_INDEX),
                         graph()->GetConstant0());
 
-  // Copy the global object from the previous context.
-  HValue* global_object = Add<HLoadNamedField>(
+  // Copy the native context from the previous context.
+  HValue* native_context = Add<HLoadNamedField>(
       context(), nullptr,
-      HObjectAccess::ForContextSlot(Context::GLOBAL_OBJECT_INDEX));
-  Add<HStoreNamedField>(function_context,
-                        HObjectAccess::ForContextSlot(
-                            Context::GLOBAL_OBJECT_INDEX),
-                        global_object);
+      HObjectAccess::ForContextSlot(Context::NATIVE_CONTEXT_INDEX));
+  Add<HStoreNamedField>(function_context, HObjectAccess::ForContextSlot(
+                                              Context::NATIVE_CONTEXT_INDEX),
+                        native_context);
 
   // Initialize the rest of the slots to undefined.
   for (int i = Context::MIN_CONTEXT_SLOTS; i < length; ++i) {

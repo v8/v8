@@ -1853,6 +1853,8 @@ void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   ObjectSerializer serializer(this, obj, sink_, how_to_code, where_to_point);
   serializer.Serialize();
 
+  // TODO(yangguo): We probably only need ScriptContext here for post-
+  // processing in Genesis::HookUpGlobalThisBinding.
   if (obj->IsContext() &&
       Context::cast(obj)->global_object() == global_object_) {
     // Context refers to the current global object. This reference will

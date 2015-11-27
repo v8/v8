@@ -65,7 +65,7 @@ TEST(ReduceJSLoadContext) {
   subcontext2->set_previous(*subcontext1);
   subcontext1->set_previous(*native);
   Handle<Object> expected = t.factory()->InternalizeUtf8String("gboy!");
-  const int slot = Context::GLOBAL_OBJECT_INDEX;
+  const int slot = Context::NATIVE_CONTEXT_INDEX;
   native->set(slot, *expected);
 
   Node* const_context = t.jsgraph()->Constant(native);
@@ -136,7 +136,7 @@ TEST(ReduceJSStoreContext) {
   subcontext2->set_previous(*subcontext1);
   subcontext1->set_previous(*native);
   Handle<Object> expected = t.factory()->InternalizeUtf8String("gboy!");
-  const int slot = Context::GLOBAL_OBJECT_INDEX;
+  const int slot = Context::NATIVE_CONTEXT_INDEX;
   native->set(slot, *expected);
 
   Node* const_context = t.jsgraph()->Constant(native);
@@ -204,7 +204,7 @@ TEST(SpecializeToContext) {
   // Make a context and initialize it a bit for this test.
   Handle<Context> native = t.factory()->NewNativeContext();
   Handle<Object> expected = t.factory()->InternalizeUtf8String("gboy!");
-  const int slot = Context::GLOBAL_OBJECT_INDEX;
+  const int slot = Context::NATIVE_CONTEXT_INDEX;
   native->set(slot, *expected);
 
   Node* const_context = t.jsgraph()->Constant(native);

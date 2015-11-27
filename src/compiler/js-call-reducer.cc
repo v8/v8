@@ -261,11 +261,9 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
       array_function = jsgraph()->HeapConstant(
           handle(native_context->array_function(), isolate()));
     } else {
-      Node* global_object = effect = graph()->NewNode(
-          javascript()->LoadContext(0, Context::GLOBAL_OBJECT_INDEX, true),
-          context, context, effect);
       Node* native_context = effect = graph()->NewNode(
-          javascript()->LoadNativeContext(), global_object, context, effect);
+          javascript()->LoadContext(0, Context::NATIVE_CONTEXT_INDEX, true),
+          context, context, effect);
       array_function = effect = graph()->NewNode(
           javascript()->LoadContext(0, Context::ARRAY_FUNCTION_INDEX, true),
           native_context, native_context, effect);
@@ -404,11 +402,9 @@ Reduction JSCallReducer::ReduceJSCallConstruct(Node* node) {
       array_function = jsgraph()->HeapConstant(
           handle(native_context->array_function(), isolate()));
     } else {
-      Node* global_object = effect = graph()->NewNode(
-          javascript()->LoadContext(0, Context::GLOBAL_OBJECT_INDEX, true),
-          context, context, effect);
       Node* native_context = effect = graph()->NewNode(
-          javascript()->LoadNativeContext(), global_object, context, effect);
+          javascript()->LoadContext(0, Context::NATIVE_CONTEXT_INDEX, true),
+          context, context, effect);
       array_function = effect = graph()->NewNode(
           javascript()->LoadContext(0, Context::ARRAY_FUNCTION_INDEX, true),
           native_context, native_context, effect);
