@@ -5565,7 +5565,6 @@ ACCESSORS(Box, value, Object, kValueOffset)
 ACCESSORS(PrototypeInfo, prototype_users, Object, kPrototypeUsersOffset)
 SMI_ACCESSORS(PrototypeInfo, registry_slot, kRegistrySlotOffset)
 ACCESSORS(PrototypeInfo, validity_cell, Object, kValidityCellOffset)
-ACCESSORS(PrototypeInfo, constructor_name, Object, kConstructorNameOffset)
 
 ACCESSORS(SloppyBlockWithEvalContextExtension, scope_info, ScopeInfo,
           kScopeInfoOffset)

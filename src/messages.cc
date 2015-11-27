@@ -417,7 +417,7 @@ MaybeHandle<String> ErrorToStringHelper::Stringify(Isolate* isolate,
   if (internal_error_lookup.IsFound() &&
       !ShadowsInternalError(isolate, &name_lookup, &internal_error_lookup)) {
     Handle<JSObject> holder = internal_error_lookup.GetHolder<JSObject>();
-    name = Handle<String>(holder->constructor_name());
+    name = JSReceiver::GetConstructorName(holder);
   } else {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, name,

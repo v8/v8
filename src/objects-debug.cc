@@ -877,7 +877,6 @@ void PrototypeInfo::PrototypeInfoVerify() {
     CHECK(prototype_users()->IsSmi());
   }
   CHECK(validity_cell()->IsCell() || validity_cell()->IsSmi());
-  VerifyPointer(constructor_name());
 }
 
 

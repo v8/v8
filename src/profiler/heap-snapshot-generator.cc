@@ -1724,14 +1724,11 @@ void V8HeapExplorer::ExtractInternalReferences(JSObject* js_obj, int entry) {
 
 
 String* V8HeapExplorer::GetConstructorName(JSObject* object) {
-  Heap* heap = object->GetHeap();
-  if (object->IsJSFunction()) return heap->closure_string();
-  String* constructor_name = object->constructor_name();
-  if (constructor_name == heap->Object_string()) {
-    // TODO(verwaest): Try to get object.constructor.name in this case.
-    // This requires handlification of the V8HeapExplorer.
-  }
-  return object->constructor_name();
+  Isolate* isolate = object->GetIsolate();
+  if (object->IsJSFunction()) return isolate->heap()->closure_string();
+  DisallowHeapAllocation no_gc;
+  HandleScope scope(isolate);
+  return *JSReceiver::GetConstructorName(handle(object, isolate));
 }
 
 

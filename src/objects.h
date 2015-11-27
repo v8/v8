@@ -1887,7 +1887,7 @@ class JSReceiver: public HeapObject {
 
   // Returns the constructor name (the name (possibly, inferred name) of the
   // function that was used to instantiate the object).
-  String* constructor_name();
+  static Handle<String> GetConstructorName(Handle<JSReceiver> receiver);
 
   Context* GetCreationContext();
 
@@ -5651,10 +5651,6 @@ class Map: public HeapObject {
   static Handle<Map> Normalize(Handle<Map> map, PropertyNormalizationMode mode,
                                const char* reason);
 
-  // Returns the constructor name (the name (possibly, inferred name) of the
-  // function that was used to instantiate the object).
-  String* constructor_name();
-
   // Tells whether the map is used for JSObjects in dictionary mode (ie
   // normalized objects, ie objects for which HasFastProperties returns false).
   // A map can never be used for both dictionary mode and fast mode JSObjects.
@@ -6159,8 +6155,6 @@ class PrototypeInfo : public Struct {
   // given receiver embed the currently valid cell for that receiver's prototype
   // during their compilation and check it on execution.
   DECL_ACCESSORS(validity_cell, Object)
-  // [constructor_name]: User-friendly name of the original constructor.
-  DECL_ACCESSORS(constructor_name, Object)
 
   DECLARE_CAST(PrototypeInfo)
 

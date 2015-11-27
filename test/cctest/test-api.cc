@@ -5550,10 +5550,10 @@ TEST(TryCatchInTryFinally) {
 static void check_reference_error_message(v8::Local<v8::Message> message,
                                           v8::Local<v8::Value> data) {
   const char* reference_error = "Uncaught ReferenceError: asdf is not defined";
-  CHECK(message->Get()
-            ->Equals(CcTest::isolate()->GetCurrentContext(),
-                     v8_str(reference_error))
-            .FromJust());
+  Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
+  const char* reference_error2 = "Uncaught Error: asdf is not defined";
+  CHECK(message->Get()->Equals(context, v8_str(reference_error)).FromJust() ||
+        message->Get()->Equals(context, v8_str(reference_error2)).FromJust());
 }
 
 
@@ -12891,11 +12891,13 @@ THREADED_TEST(ObjectGetConstructorName) {
       "function Parent() {};"
       "function Child() {};"
       "Child.prototype = new Parent();"
+      "Child.prototype.constructor = Child;"
       "var outer = { inner: function() { } };"
       "var p = new Parent();"
       "var c = new Child();"
       "var x = new outer.inner();"
-      "var proto = Child.prototype;")->Run();
+      "var proto = Child.prototype;")
+      ->Run();
 
   Local<v8::Value> p = context->Global()->Get(v8_str("p"));
   CHECK(p->IsObject() &&
@@ -12914,6 +12916,28 @@ THREADED_TEST(ObjectGetConstructorName) {
   CHECK(child_prototype->IsObject() &&
         child_prototype->ToObject(isolate)->GetConstructorName()->Equals(
             v8_str("Parent")));
+}
+
+
+THREADED_TEST(SubclassGetConstructorName) {
+  v8::Isolate* isolate = CcTest::isolate();
+  LocalContext context;
+  v8::HandleScope scope(isolate);
+  v8_compile(
+      "\"use strict\";"
+      "class Parent {}"
+      "class Child extends Parent {}"
+      "var p = new Parent();"
+      "var c = new Child();")
+      ->Run();
+
+  Local<v8::Value> p = context->Global()->Get(v8_str("p"));
+  CHECK(p->IsObject() &&
+        p->ToObject(isolate)->GetConstructorName()->Equals(v8_str("Parent")));
+
+  Local<v8::Value> c = context->Global()->Get(v8_str("c"));
+  CHECK(c->IsObject() &&
+        c->ToObject(isolate)->GetConstructorName()->Equals(v8_str("Child")));
 }
 
 

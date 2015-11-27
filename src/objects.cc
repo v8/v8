@@ -731,7 +731,9 @@ Handle<Object> JSReceiver::GetDataProperty(LookupIterator* it) {
       case LookupIterator::TRANSITION:
         UNREACHABLE();
       case LookupIterator::ACCESS_CHECK:
-        if (it->HasAccess()) continue;
+        // Support calling this method without an active context, but refuse
+        // access to access-checked objects in that case.
+        if (it->isolate()->context() != nullptr && it->HasAccess()) continue;
       // Fall through.
       case LookupIterator::JSPROXY:
         it->NotFound();
@@ -1815,9 +1817,7 @@ MaybeHandle<JSFunction> Map::GetConstructorFunction(
 void Map::PrintReconfiguration(FILE* file, int modify_index, PropertyKind kind,
                                PropertyAttributes attributes) {
   OFStream os(file);
-  os << "[reconfiguring ";
-  constructor_name()->PrintOn(file);
-  os << "] ";
+  os << "[reconfiguring]";
   Name* name = instance_descriptors()->GetKey(modify_index);
   if (name->IsString()) {
     String::cast(name)->PrintOn(file);
@@ -1842,9 +1842,7 @@ void Map::PrintGeneralization(FILE* file,
                               HeapType* old_field_type,
                               HeapType* new_field_type) {
   OFStream os(file);
-  os << "[generalizing ";
-  constructor_name()->PrintOn(file);
-  os << "] ";
+  os << "[generalizing]";
   Name* name = instance_descriptors()->GetKey(modify_index);
   if (name->IsString()) {
     String::cast(name)->PrintOn(file);
@@ -1876,9 +1874,7 @@ void Map::PrintGeneralization(FILE* file,
 void JSObject::PrintInstanceMigration(FILE* file,
                                       Map* original_map,
                                       Map* new_map) {
-  PrintF(file, "[migrating ");
-  map()->constructor_name()->PrintOn(file);
-  PrintF(file, "] ");
+  PrintF(file, "[migrating]");
   DescriptorArray* o = original_map->instance_descriptors();
   DescriptorArray* n = new_map->instance_descriptors();
   for (int i = 0; i < original_map->NumberOfOwnDescriptors(); i++) {
@@ -2230,31 +2226,38 @@ String* JSReceiver::class_name() {
 }
 
 
-String* Map::constructor_name() {
-  if (is_prototype_map() && prototype_info()->IsPrototypeInfo()) {
-    PrototypeInfo* proto_info = PrototypeInfo::cast(prototype_info());
-    if (proto_info->constructor_name()->IsString()) {
-      return String::cast(proto_info->constructor_name());
+// static
+Handle<String> JSReceiver::GetConstructorName(Handle<JSReceiver> receiver) {
+  Isolate* isolate = receiver->GetIsolate();
+  if (FLAG_harmony_tostring) {
+    Handle<Object> maybe_tag = JSReceiver::GetDataProperty(
+        receiver, isolate->factory()->to_string_tag_symbol());
+    if (maybe_tag->IsString()) return Handle<String>::cast(maybe_tag);
+  }
+
+  PrototypeIterator iter(isolate, receiver);
+  if (iter.IsAtEnd()) return handle(receiver->class_name());
+  Handle<JSReceiver> start = PrototypeIterator::GetCurrent<JSReceiver>(iter);
+  LookupIterator it(receiver, isolate->factory()->constructor_string(), start,
+                    LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
+  Handle<Object> maybe_constructor = JSReceiver::GetDataProperty(&it);
+  Handle<String> result = isolate->factory()->Object_string();
+  if (maybe_constructor->IsJSFunction()) {
+    JSFunction* constructor = JSFunction::cast(*maybe_constructor);
+    String* name = String::cast(constructor->shared()->name());
+    if (name->length() > 0) {
+      result = handle(name, isolate);
+    } else {
+      String* inferred_name = constructor->shared()->inferred_name();
+      if (inferred_name->length() > 0) {
+        result = handle(inferred_name, isolate);
+      }
     }
   }
-  Object* maybe_constructor = GetConstructor();
-  if (maybe_constructor->IsJSFunction()) {
-    JSFunction* constructor = JSFunction::cast(maybe_constructor);
-    String* name = String::cast(constructor->shared()->name());
-    if (name->length() > 0) return name;
-    String* inferred_name = constructor->shared()->inferred_name();
-    if (inferred_name->length() > 0) return inferred_name;
-    Object* proto = prototype();
-    if (proto->IsJSObject()) return JSObject::cast(proto)->constructor_name();
-  }
-  // TODO(rossberg): what about proxies?
-  // If the constructor is not present, return "Object".
-  return GetHeap()->Object_string();
-}
 
-
-String* JSReceiver::constructor_name() {
-  return map()->constructor_name();
+  return result.is_identical_to(isolate->factory()->Object_string())
+             ? handle(receiver->class_name())
+             : result;
 }
 
 
@@ -11754,13 +11757,9 @@ void JSObject::OptimizeAsPrototype(Handle<JSObject> object,
       Isolate* isolate = object->GetIsolate();
       if (!constructor->shared()->IsApiFunction() &&
           object->class_name() == isolate->heap()->Object_string()) {
-        Handle<String> constructor_name(object->constructor_name(), isolate);
         Context* context = constructor->context()->native_context();
         JSFunction* object_function = context->object_function();
         object->map()->SetConstructor(object_function);
-        Handle<PrototypeInfo> proto_info =
-            Map::GetOrCreatePrototypeInfo(object, isolate);
-        proto_info->set_constructor_name(*constructor_name);
       }
     }
   }

@@ -3870,7 +3870,7 @@ Local<String> v8::Object::ObjectProtoToString() {
 
 Local<String> v8::Object::GetConstructorName() {
   auto self = Utils::OpenHandle(this);
-  i::Handle<i::String> name(self->constructor_name());
+  i::Handle<i::String> name = i::JSReceiver::GetConstructorName(self);
   return Utils::ToLocal(name);
 }
 
