@@ -5420,6 +5420,24 @@ TEST(RunTruncateFloat64ToInt64) {
 }
 
 
+TEST(RunTruncateFloat32ToUint64) {
+  BufferedRawMachineAssemblerTester<uint64_t> m(kMachFloat32);
+  m.Return(m.TruncateFloat32ToUint64(m.Parameter(0)));
+
+  FOR_UINT64_INPUTS(i) {
+    float input = static_cast<float>(*i);
+    if (input < 18446744073709551616.0) {
+      CHECK_EQ(static_cast<uint64_t>(input), m.Call(input));
+    }
+  }
+  FOR_FLOAT32_INPUTS(j) {
+    if (*j < 18446744073709551616.0 && *j >= 0) {
+      CHECK_EQ(static_cast<uint64_t>(*j), m.Call(*j));
+    }
+  }
+}
+
+
 TEST(RunTruncateFloat64ToUint64) {
   BufferedRawMachineAssemblerTester<uint64_t> m(kMachFloat64);
   m.Return(m.TruncateFloat64ToUint64(m.Parameter(0)));

@@ -137,6 +137,7 @@ CheckedStoreRepresentation CheckedStoreRepresentationOf(Operator const* op) {
   V(ChangeFloat64ToUint32, Operator::kNoProperties, 1, 0, 1)                  \
   V(TruncateFloat32ToInt64, Operator::kNoProperties, 1, 0, 1)                 \
   V(TruncateFloat64ToInt64, Operator::kNoProperties, 1, 0, 1)                 \
+  V(TruncateFloat32ToUint64, Operator::kNoProperties, 1, 0, 1)                \
   V(TruncateFloat64ToUint64, Operator::kNoProperties, 1, 0, 1)                \
   V(ChangeInt32ToFloat64, Operator::kNoProperties, 1, 0, 1)                   \
   V(RoundInt64ToFloat32, Operator::kNoProperties, 1, 0, 1)                    \

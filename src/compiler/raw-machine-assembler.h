@@ -444,6 +444,9 @@ class RawMachineAssembler {
   Node* TruncateFloat64ToInt64(Node* a) {
     return AddNode(machine()->TruncateFloat64ToInt64(), a);
   }
+  Node* TruncateFloat32ToUint64(Node* a) {
+    return AddNode(machine()->TruncateFloat32ToUint64(), a);
+  }
   Node* TruncateFloat64ToUint64(Node* a) {
     return AddNode(machine()->TruncateFloat64ToUint64(), a);
   }
