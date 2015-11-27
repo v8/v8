@@ -11,7 +11,7 @@
 #include "src/debug/debug.h"
 #include "src/full-codegen/full-codegen.h"
 #include "src/ic/ic.h"
-#include "src/parser/parser.h"
+#include "src/parsing/parser.h"
 #include "src/x87/frames-x87.h"
 
 namespace v8 {
