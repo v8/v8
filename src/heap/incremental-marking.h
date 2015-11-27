@@ -240,6 +240,7 @@ class IncrementalMarking {
 
   void MarkRoots();
   void MarkObjectGroups();
+  void ProcessWeakCells();
 
   void ActivateIncrementalWriteBarrier(PagedSpace* space);
   static void ActivateIncrementalWriteBarrier(NewSpace* space);
