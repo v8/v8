@@ -1556,18 +1556,51 @@ class MarkCompactCollector::HeapObjectVisitor {
 };
 
 
-class MarkCompactCollector::EvacuateNewSpaceVisitor
+class MarkCompactCollector::EvacuateVisitorBase
     : public MarkCompactCollector::HeapObjectVisitor {
  public:
-  explicit EvacuateNewSpaceVisitor(Heap* heap) : heap_(heap) {}
+  EvacuateVisitorBase(Heap* heap, SlotsBuffer** evacuation_slots_buffer)
+      : heap_(heap), evacuation_slots_buffer_(evacuation_slots_buffer) {}
+
+  bool TryEvacuateObject(PagedSpace* target_space, HeapObject* object,
+                         HeapObject** target_object) {
+    int size = object->Size();
+    AllocationAlignment alignment = object->RequiredAlignment();
+    AllocationResult allocation = target_space->AllocateRaw(size, alignment);
+    if (allocation.To(target_object)) {
+      heap_->mark_compact_collector()->MigrateObject(
+          *target_object, object, size, target_space->identity(),
+          evacuation_slots_buffer_);
+      return true;
+    }
+    return false;
+  }
+
+ protected:
+  Heap* heap_;
+  SlotsBuffer** evacuation_slots_buffer_;
+};
+
+
+class MarkCompactCollector::EvacuateNewSpaceVisitor
+    : public MarkCompactCollector::EvacuateVisitorBase {
+ public:
+  explicit EvacuateNewSpaceVisitor(Heap* heap,
+                                   SlotsBuffer** evacuation_slots_buffer)
+      : EvacuateVisitorBase(heap, evacuation_slots_buffer) {}
 
   virtual bool Visit(HeapObject* object) {
     Heap::UpdateAllocationSiteFeedback(object, Heap::RECORD_SCRATCHPAD_SLOT);
     int size = object->Size();
-
-    // TODO(hpayer): Refactor EvacuateObject and call this function instead.
+    HeapObject* target_object = nullptr;
     if (heap_->ShouldBePromoted(object->address(), size) &&
-        heap_->mark_compact_collector()->TryPromoteObject(object, size)) {
+        TryEvacuateObject(heap_->old_space(), object, &target_object)) {
+      // If we end up needing more special cases, we should factor this out.
+      if (V8_UNLIKELY(target_object->IsJSArrayBuffer())) {
+        heap_->array_buffer_tracker()->Promote(
+            JSArrayBuffer::cast(target_object));
+      }
+      heap_->IncrementPromotedObjectsSize(size);
       return true;
     }
 
@@ -1594,43 +1627,31 @@ class MarkCompactCollector::EvacuateNewSpaceVisitor
     heap_->IncrementSemiSpaceCopiedObjectSize(size);
     return true;
   }
-
- private:
-  Heap* heap_;
 };
 
 
 class MarkCompactCollector::EvacuateOldSpaceVisitor
-    : public MarkCompactCollector::HeapObjectVisitor {
+    : public MarkCompactCollector::EvacuateVisitorBase {
  public:
   EvacuateOldSpaceVisitor(Heap* heap,
                           CompactionSpaceCollection* compaction_spaces,
                           SlotsBuffer** evacuation_slots_buffer)
-      : heap_(heap),
-        compaction_spaces_(compaction_spaces),
-        evacuation_slots_buffer_(evacuation_slots_buffer) {}
+      : EvacuateVisitorBase(heap, evacuation_slots_buffer),
+        compaction_spaces_(compaction_spaces) {}
 
   virtual bool Visit(HeapObject* object) {
-    int size = object->Size();
-    AllocationAlignment alignment = object->RequiredAlignment();
+    CompactionSpace* target_space = compaction_spaces_->Get(
+        Page::FromAddress(object->address())->owner()->identity());
     HeapObject* target_object = nullptr;
-    AllocationSpace id =
-        Page::FromAddress(object->address())->owner()->identity();
-    AllocationResult allocation =
-        compaction_spaces_->Get(id)->AllocateRaw(size, alignment);
-    if (!allocation.To(&target_object)) {
-      return false;
+    if (TryEvacuateObject(target_space, object, &target_object)) {
+      DCHECK(object->map_word().IsForwardingAddress());
+      return true;
     }
-    heap_->mark_compact_collector()->MigrateObject(
-        target_object, object, size, id, evacuation_slots_buffer_);
-    DCHECK(object->map_word().IsForwardingAddress());
-    return true;
+    return false;
   }
 
  private:
-  Heap* heap_;
   CompactionSpaceCollection* compaction_spaces_;
-  SlotsBuffer** evacuation_slots_buffer_;
 };
 
 
@@ -2989,28 +3010,6 @@ static String* UpdateReferenceInExternalStringTableEntry(Heap* heap,
 }
 
 
-bool MarkCompactCollector::TryPromoteObject(HeapObject* object,
-                                            int object_size) {
-  OldSpace* old_space = heap()->old_space();
-
-  HeapObject* target = nullptr;
-  AllocationAlignment alignment = object->RequiredAlignment();
-  AllocationResult allocation = old_space->AllocateRaw(object_size, alignment);
-  if (allocation.To(&target)) {
-    MigrateObject(target, object, object_size, old_space->identity(),
-                  &migration_slots_buffer_);
-    // If we end up needing more special cases, we should factor this out.
-    if (V8_UNLIKELY(target->IsJSArrayBuffer())) {
-      heap()->array_buffer_tracker()->Promote(JSArrayBuffer::cast(target));
-    }
-    heap()->IncrementPromotedObjectsSize(object_size);
-    return true;
-  }
-
-  return false;
-}
-
-
 bool MarkCompactCollector::IsSlotInBlackObject(Page* p, Address slot,
                                                HeapObject** out_object) {
   Space* owner = p->owner();
@@ -3183,7 +3182,7 @@ void MarkCompactCollector::EvacuateNewSpace() {
   // new entries in the store buffer and may cause some pages to be marked
   // scan-on-scavenge.
   NewSpacePageIterator it(from_bottom, from_top);
-  EvacuateNewSpaceVisitor new_space_visitor(heap());
+  EvacuateNewSpaceVisitor new_space_visitor(heap(), &migration_slots_buffer_);
   while (it.has_next()) {
     NewSpacePage* p = it.next();
     survivors_size += p->LiveBytes();
