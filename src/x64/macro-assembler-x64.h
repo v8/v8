@@ -398,9 +398,6 @@ class MacroAssembler: public Assembler {
   void InvokeBuiltin(int native_context_index, InvokeFlag flag,
                      const CallWrapper& call_wrapper = NullCallWrapper());
 
-  // Store the function for the given builtin in the target register.
-  void GetBuiltinFunction(Register target, int native_context_index);
-
   // ---------------------------------------------------------------------------
   // Smi tagging, untagging and operations on tagged smis.
 
@@ -1354,8 +1351,15 @@ class MacroAssembler: public Assembler {
   // Find the function context up the context chain.
   void LoadContext(Register dst, int context_chain_length);
 
+  // Load the global object from the current context.
+  void LoadGlobalObject(Register dst) {
+    LoadNativeContextSlot(Context::EXTENSION_INDEX, dst);
+  }
+
   // Load the global proxy from the current context.
-  void LoadGlobalProxy(Register dst);
+  void LoadGlobalProxy(Register dst) {
+    LoadNativeContextSlot(Context::GLOBAL_PROXY_INDEX, dst);
+  }
 
   // Conditionally load the cached Array transitioned map of type
   // transitioned_kind from the native context if the map in register
@@ -1368,8 +1372,8 @@ class MacroAssembler: public Assembler {
       Register scratch,
       Label* no_map_match);
 
-  // Load the global function with the given index.
-  void LoadGlobalFunction(int index, Register function);
+  // Load the native context slot with the current index.
+  void LoadNativeContextSlot(int index, Register dst);
 
   // Load the initial map from the global function. The registers
   // function and map can be the same.
@@ -1694,8 +1698,8 @@ inline Operand ContextOperand(Register context, Register index) {
 }
 
 
-inline Operand GlobalObjectOperand() {
-  return ContextOperand(rsi, Context::GLOBAL_OBJECT_INDEX);
+inline Operand NativeContextOperand() {
+  return ContextOperand(rsi, Context::NATIVE_CONTEXT_INDEX);
 }
 
 

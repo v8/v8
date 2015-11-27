@@ -58,7 +58,6 @@ class JSTypedLowering final : public AdvancedReducer {
   Reduction ReduceJSInstanceOf(Node* node);
   Reduction ReduceJSLoadContext(Node* node);
   Reduction ReduceJSStoreContext(Node* node);
-  Reduction ReduceJSLoadNativeContext(Node* node);
   Reduction ReduceJSEqual(Node* node, bool invert);
   Reduction ReduceJSStrictEqual(Node* node, bool invert);
   Reduction ReduceJSUnaryNot(Node* node);

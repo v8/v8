@@ -708,17 +708,8 @@ void MacroAssembler::InvokeBuiltin(int native_context_index, InvokeFlag flag,
   // arguments match the expected number of arguments. Fake a
   // parameter count to avoid emitting code to do the check.
   ParameterCount expected(0);
-  GetBuiltinFunction(rdi, native_context_index);
+  LoadNativeContextSlot(native_context_index, rdi);
   InvokeFunctionCode(rdi, no_reg, expected, expected, flag, call_wrapper);
-}
-
-
-void MacroAssembler::GetBuiltinFunction(Register target,
-                                        int native_context_index) {
-  // Load the builtins object into target register.
-  movp(target, Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-  movp(target, FieldOperand(target, JSGlobalObject::kNativeContextOffset));
-  movp(target, ContextOperand(target, native_context_index));
 }
 
 
@@ -4413,10 +4404,7 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
     Check(not_equal, kWeShouldNotHaveAnEmptyLexicalContext);
   }
   // Load the native context of the current context.
-  int offset =
-      Context::kHeaderSize + Context::GLOBAL_OBJECT_INDEX * kPointerSize;
-  movp(scratch, FieldOperand(scratch, offset));
-  movp(scratch, FieldOperand(scratch, JSGlobalObject::kNativeContextOffset));
+  movp(scratch, ContextOperand(scratch, Context::NATIVE_CONTEXT_INDEX));
 
   // Check the context is a native context.
   if (emit_debug_code()) {
@@ -5072,26 +5060,14 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
 }
 
 
-void MacroAssembler::LoadGlobalProxy(Register dst) {
-  movp(dst, GlobalObjectOperand());
-  movp(dst, FieldOperand(dst, JSGlobalObject::kGlobalProxyOffset));
-}
-
-
 void MacroAssembler::LoadTransitionedArrayMapConditional(
     ElementsKind expected_kind,
     ElementsKind transitioned_kind,
     Register map_in_out,
     Register scratch,
     Label* no_map_match) {
-  // Load the global or builtins object from the current context.
-  movp(scratch,
-       Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-  movp(scratch, FieldOperand(scratch, JSGlobalObject::kNativeContextOffset));
-
   // Check that the function's map is the same as the expected cached map.
-  movp(scratch, Operand(scratch,
-                        Context::SlotOffset(Context::JS_ARRAY_MAPS_INDEX)));
+  LoadNativeContextSlot(Context::JS_ARRAY_MAPS_INDEX, scratch);
 
   int offset = expected_kind * kPointerSize +
       FixedArrayBase::kHeaderSize;
@@ -5111,14 +5087,10 @@ static const int kRegisterPassedArguments = 4;
 static const int kRegisterPassedArguments = 6;
 #endif
 
-void MacroAssembler::LoadGlobalFunction(int index, Register function) {
-  // Load the global or builtins object from the current context.
-  movp(function,
-       Operand(rsi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-  // Load the native context from the global or builtins object.
-  movp(function, FieldOperand(function, JSGlobalObject::kNativeContextOffset));
-  // Load the function from the native context.
-  movp(function, Operand(function, Context::SlotOffset(index)));
+
+void MacroAssembler::LoadNativeContextSlot(int index, Register dst) {
+  movp(dst, NativeContextOperand());
+  movp(dst, ContextOperand(dst, index));
 }
 
 

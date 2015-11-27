@@ -1783,10 +1783,13 @@ void BytecodeGenerator::VisitDelete(UnaryOperation* expr) {
       case VariableLocation::GLOBAL:
       case VariableLocation::UNALLOCATED: {
         // Global var, let, const or variables not explicitly declared.
+        Register native_context = execution_result()->NewRegister();
         Register global_object = execution_result()->NewRegister();
         builder()
             ->LoadContextSlot(execution_context()->reg(),
-                              Context::GLOBAL_OBJECT_INDEX)
+                              Context::NATIVE_CONTEXT_INDEX)
+            .StoreAccumulatorInRegister(native_context)
+            .LoadContextSlot(native_context, Context::EXTENSION_INDEX)
             .StoreAccumulatorInRegister(global_object)
             .LoadLiteral(variable->name())
             .Delete(global_object, language_mode());

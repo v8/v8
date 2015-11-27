@@ -1600,8 +1600,7 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   const int kAliasedOffset =
       Context::SlotOffset(Context::FAST_ALIASED_ARGUMENTS_MAP_INDEX);
 
-  __ ldr(r4, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-  __ ldr(r4, FieldMemOperand(r4, JSGlobalObject::kNativeContextOffset));
+  __ ldr(r4, NativeContextMemOperand());
   __ cmp(r6, Operand::Zero());
   __ ldr(r4, MemOperand(r4, kNormalOffset), eq);
   __ ldr(r4, MemOperand(r4, kAliasedOffset), ne);
@@ -1793,10 +1792,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
               static_cast<AllocationFlags>(TAG_OBJECT | SIZE_IN_WORDS));
 
   // Get the arguments boilerplate from the current native context.
-  __ ldr(r4, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-  __ ldr(r4, FieldMemOperand(r4, JSGlobalObject::kNativeContextOffset));
-  __ ldr(r4, MemOperand(
-                 r4, Context::SlotOffset(Context::STRICT_ARGUMENTS_MAP_INDEX)));
+  __ LoadNativeContextSlot(Context::STRICT_ARGUMENTS_MAP_INDEX, r4);
 
   __ str(r4, FieldMemOperand(r0, JSObject::kMapOffset));
   __ LoadRoot(r5, Heap::kEmptyFixedArrayRootIndex);
@@ -2329,7 +2325,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   __ b(ne, &miss);
 
   // Make sure the function is the Array() function
-  __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, r5);
+  __ LoadNativeContextSlot(Context::ARRAY_FUNCTION_INDEX, r5);
   __ cmp(r1, r5);
   __ b(ne, &megamorphic);
   __ jmp(&done);
@@ -2352,7 +2348,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   __ bind(&initialize);
 
   // Make sure the function is the Array() function
-  __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, r5);
+  __ LoadNativeContextSlot(Context::ARRAY_FUNCTION_INDEX, r5);
   __ cmp(r1, r5);
   __ b(ne, &not_array_function);
 
@@ -2417,7 +2413,7 @@ void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
   // r3 - slot id
   // r2 - vector
   // r4 - allocation site (loaded from vector[slot])
-  __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, r5);
+  __ LoadNativeContextSlot(Context::ARRAY_FUNCTION_INDEX, r5);
   __ cmp(r1, r5);
   __ b(ne, miss);
 
@@ -2544,15 +2540,14 @@ void CallICStub::Generate(MacroAssembler* masm) {
 
   // Make sure the function is not the Array() function, which requires special
   // behavior on MISS.
-  __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, r4);
+  __ LoadNativeContextSlot(Context::ARRAY_FUNCTION_INDEX, r4);
   __ cmp(r1, r4);
   __ b(eq, &miss);
 
-  // Make sure the function belongs to the same native context (which implies
-  // the same global object).
+  // Make sure the function belongs to the same native context.
   __ ldr(r4, FieldMemOperand(r1, JSFunction::kContextOffset));
-  __ ldr(r4, ContextOperand(r4, Context::GLOBAL_OBJECT_INDEX));
-  __ ldr(ip, GlobalObjectOperand());
+  __ ldr(r4, ContextMemOperand(r4, Context::NATIVE_CONTEXT_INDEX));
+  __ ldr(ip, NativeContextMemOperand());
   __ cmp(r4, ip);
   __ b(ne, &miss);
 
@@ -4912,13 +4907,13 @@ void LoadGlobalViaContextStub::Generate(MacroAssembler* masm) {
 
   // Go up the context chain to the script context.
   for (int i = 0; i < depth(); ++i) {
-    __ ldr(result, ContextOperand(context, Context::PREVIOUS_INDEX));
+    __ ldr(result, ContextMemOperand(context, Context::PREVIOUS_INDEX));
     context = result;
   }
 
   // Load the PropertyCell value at the specified slot.
   __ add(result, context, Operand(slot, LSL, kPointerSizeLog2));
-  __ ldr(result, ContextOperand(result));
+  __ ldr(result, ContextMemOperand(result));
   __ ldr(result, FieldMemOperand(result, PropertyCell::kValueOffset));
 
   // If the result is not the_hole, return. Otherwise, handle in the runtime.
@@ -4954,13 +4949,13 @@ void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
 
   // Go up the context chain to the script context.
   for (int i = 0; i < depth(); i++) {
-    __ ldr(context_temp, ContextOperand(context, Context::PREVIOUS_INDEX));
+    __ ldr(context_temp, ContextMemOperand(context, Context::PREVIOUS_INDEX));
     context = context_temp;
   }
 
   // Load the PropertyCell at the specified slot.
   __ add(cell, context, Operand(slot, LSL, kPointerSizeLog2));
-  __ ldr(cell, ContextOperand(cell));
+  __ ldr(cell, ContextMemOperand(cell));
 
   // Load PropertyDetails for the cell (actually only the cell_type and kind).
   __ ldr(cell_details, FieldMemOperand(cell, PropertyCell::kDetailsOffset));

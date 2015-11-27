@@ -513,8 +513,6 @@ class JSOperatorBuilder final : public ZoneObject {
   const Operator* LoadContext(size_t depth, size_t index, bool immutable);
   const Operator* StoreContext(size_t depth, size_t index);
 
-  const Operator* LoadNativeContext();
-
   const Operator* LoadDynamic(const Handle<String>& name,
                               TypeofMode typeof_mode);
 

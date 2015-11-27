@@ -112,13 +112,13 @@ bool AreAliased(Register reg1,
 // -----------------------------------------------------------------------------
 // Static helper functions.
 
-inline MemOperand ContextOperand(Register context, int index) {
+inline MemOperand ContextMemOperand(Register context, int index) {
   return MemOperand(context, Context::SlotOffset(index));
 }
 
 
-inline MemOperand GlobalObjectOperand()  {
-  return ContextOperand(cp, Context::GLOBAL_OBJECT_INDEX);
+inline MemOperand NativeContextMemOperand() {
+  return ContextMemOperand(cp, Context::NATIVE_CONTEXT_INDEX);
 }
 
 
@@ -935,8 +935,15 @@ class MacroAssembler: public Assembler {
 
   void LoadContext(Register dst, int context_chain_length);
 
+  // Load the global object from the current context.
+  void LoadGlobalObject(Register dst) {
+    LoadNativeContextSlot(Context::EXTENSION_INDEX, dst);
+  }
+
   // Load the global proxy from the current context.
-  void LoadGlobalProxy(Register dst);
+  void LoadGlobalProxy(Register dst) {
+    LoadNativeContextSlot(Context::GLOBAL_PROXY_INDEX, dst);
+  }
 
   // Conditionally load the cached Array transitioned map of type
   // transitioned_kind from the native context if the map in register
@@ -949,7 +956,7 @@ class MacroAssembler: public Assembler {
       Register scratch,
       Label* no_map_match);
 
-  void LoadGlobalFunction(int index, Register function);
+  void LoadNativeContextSlot(int index, Register dst);
 
   // Load the initial map from the global function. The registers
   // function and map can be the same, function is then overwritten.
@@ -1329,13 +1336,6 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   // Invoke specified builtin JavaScript function.
   void InvokeBuiltin(int native_context_index, InvokeFlag flag,
                      const CallWrapper& call_wrapper = NullCallWrapper());
-
-  // Store the code object for the given builtin in the target register and
-  // setup the function in a1.
-  void GetBuiltinEntry(Register target, int native_context_index);
-
-  // Store the function for the given builtin in the target register.
-  void GetBuiltinFunction(Register target, int native_context_index);
 
   struct Unresolved {
     int pc;

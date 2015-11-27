@@ -3649,15 +3649,14 @@ Node* AstGraphBuilder::BuildLoadImmutableObjectField(Node* object, int offset) {
 
 
 Node* AstGraphBuilder::BuildLoadGlobalObject() {
-  const Operator* load_op =
-      javascript()->LoadContext(0, Context::GLOBAL_OBJECT_INDEX, true);
-  return NewNode(load_op, GetFunctionContext());
+  return BuildLoadNativeContextField(Context::EXTENSION_INDEX);
 }
 
 
 Node* AstGraphBuilder::BuildLoadNativeContextField(int index) {
-  Node* global = BuildLoadGlobalObject();
-  Node* native_context = NewNode(javascript()->LoadNativeContext(), global);
+  const Operator* op =
+      javascript()->LoadContext(0, Context::NATIVE_CONTEXT_INDEX, true);
+  Node* native_context = NewNode(op, current_context());
   return NewNode(javascript()->LoadContext(0, index, true), native_context);
 }
 

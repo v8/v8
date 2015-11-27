@@ -1248,10 +1248,9 @@ void V8HeapExplorer::ExtractContextReferences(int entry, Context* context) {
   EXTRACT_CONTEXT_FIELD(CLOSURE_INDEX, JSFunction, closure);
   EXTRACT_CONTEXT_FIELD(PREVIOUS_INDEX, Context, previous);
   EXTRACT_CONTEXT_FIELD(EXTENSION_INDEX, Object, extension);
-  EXTRACT_CONTEXT_FIELD(GLOBAL_OBJECT_INDEX, JSGlobalObject, global);
+  EXTRACT_CONTEXT_FIELD(NATIVE_CONTEXT_INDEX, Context, native_context);
   if (context->IsNativeContext()) {
     TagObject(context->normalized_map_cache(), "(context norm. map cache)");
-    TagObject(context->runtime_context(), "(runtime context)");
     TagObject(context->embedder_data(), "(context data)");
     NATIVE_CONTEXT_FIELDS(EXTRACT_CONTEXT_FIELD)
     EXTRACT_CONTEXT_FIELD(OPTIMIZED_FUNCTIONS_LIST, unused,

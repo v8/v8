@@ -464,7 +464,6 @@ const CreateLiteralParameters& CreateLiteralParametersOf(const Operator* op) {
   V(LoadMessage, Operator::kNoThrow, 0, 1)            \
   V(StoreMessage, Operator::kNoThrow, 1, 0)           \
   V(StackCheck, Operator::kNoProperties, 0, 0)        \
-  V(LoadNativeContext, Operator::kEliminatable, 1, 1) \
   V(CreateWithContext, Operator::kNoProperties, 2, 1) \
   V(CreateModuleContext, Operator::kNoProperties, 2, 1)
 

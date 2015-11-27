@@ -118,23 +118,17 @@ String* Context::catch_name() {
 }
 
 
+JSGlobalObject* Context::global_object() {
+  return JSGlobalObject::cast(native_context()->extension());
+}
+
+
 Context* Context::script_context() {
   Context* current = this;
   while (!current->IsScriptContext()) {
     current = current->previous();
   }
   return current;
-}
-
-
-Context* Context::native_context() {
-  // Fast case: the receiver context is already a native context.
-  if (IsNativeContext()) return this;
-  // The global object has a direct pointer to the native context. If the
-  // following DCHECK fails, the native context is probably being accessed
-  // indirectly during bootstrapping. This is unsupported.
-  DCHECK(global_object()->IsJSGlobalObject());
-  return global_object()->native_context();
 }
 
 
@@ -557,6 +551,15 @@ bool Context::IsJSBuiltin(Handle<Context> native_context,
 
 
 #ifdef DEBUG
+
+bool Context::IsBootstrappingOrNativeContext(Isolate* isolate, Object* object) {
+  // During bootstrapping we allow all objects to pass as global
+  // objects. This is necessary to fix circular dependencies.
+  return isolate->heap()->gc_state() != Heap::NOT_IN_GC ||
+         isolate->bootstrapper()->IsActive() || object->IsNativeContext();
+}
+
+
 bool Context::IsBootstrappingOrValidParentContext(
     Object* object, Context* child) {
   // During bootstrapping we allow all objects to pass as
@@ -568,13 +571,6 @@ bool Context::IsBootstrappingOrValidParentContext(
          context->IsModuleContext() || !child->IsModuleContext();
 }
 
-
-bool Context::IsBootstrappingOrGlobalObject(Isolate* isolate, Object* object) {
-  // During bootstrapping we allow all objects to pass as global
-  // objects. This is necessary to fix circular dependencies.
-  return isolate->heap()->gc_state() != Heap::NOT_IN_GC ||
-         isolate->bootstrapper()->IsActive() || object->IsJSGlobalObject();
-}
 #endif
 
 

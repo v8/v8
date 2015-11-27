@@ -437,10 +437,7 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
 #endif
 
   // Load the native context of the current context.
-  int offset =
-      Context::kHeaderSize + Context::GLOBAL_OBJECT_INDEX * kPointerSize;
-  ld(scratch, FieldMemOperand(scratch, offset));
-  ld(scratch, FieldMemOperand(scratch, JSGlobalObject::kNativeContextOffset));
+  ld(scratch, ContextMemOperand(scratch, Context::NATIVE_CONTEXT_INDEX));
 
   // Check the context is a native context.
   if (emit_debug_code()) {
@@ -4854,7 +4851,8 @@ void MacroAssembler::InvokeBuiltin(int native_context_index, InvokeFlag flag,
   // You can't call a builtin without a valid frame.
   DCHECK(flag == JUMP_FUNCTION || has_frame());
 
-  GetBuiltinEntry(t9, native_context_index);
+  LoadNativeContextSlot(native_context_index, a1);
+  ld(t9, FieldMemOperand(a1, JSFunction::kCodeEntryOffset));
   if (flag == CALL_FUNCTION) {
     call_wrapper.BeforeCall(CallSize(t9));
     Call(t9);
@@ -4863,25 +4861,6 @@ void MacroAssembler::InvokeBuiltin(int native_context_index, InvokeFlag flag,
     DCHECK(flag == JUMP_FUNCTION);
     Jump(t9);
   }
-}
-
-
-void MacroAssembler::GetBuiltinFunction(Register target,
-                                        int native_context_index) {
-  // Load the builtins object into target register.
-  ld(target, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-  ld(target, FieldMemOperand(target, JSGlobalObject::kNativeContextOffset));
-  // Load the JavaScript builtin function from the builtins object.
-  ld(target, ContextOperand(target, native_context_index));
-}
-
-
-void MacroAssembler::GetBuiltinEntry(Register target,
-                                     int native_context_index) {
-  DCHECK(!target.is(a1));
-  GetBuiltinFunction(a1, native_context_index);
-  // Load the code entry point from the builtins object.
-  ld(target, FieldMemOperand(a1, JSFunction::kCodeEntryOffset));
 }
 
 
@@ -5018,27 +4997,14 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
 }
 
 
-void MacroAssembler::LoadGlobalProxy(Register dst) {
-  ld(dst, GlobalObjectOperand());
-  ld(dst, FieldMemOperand(dst, JSGlobalObject::kGlobalProxyOffset));
-}
-
-
 void MacroAssembler::LoadTransitionedArrayMapConditional(
     ElementsKind expected_kind,
     ElementsKind transitioned_kind,
     Register map_in_out,
     Register scratch,
     Label* no_map_match) {
-  // Load the global or builtins object from the current context.
-  ld(scratch,
-     MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-  ld(scratch, FieldMemOperand(scratch, JSGlobalObject::kNativeContextOffset));
-
   // Check that the function's map is the same as the expected cached map.
-  ld(scratch,
-     MemOperand(scratch,
-                Context::SlotOffset(Context::JS_ARRAY_MAPS_INDEX)));
+  LoadNativeContextSlot(Context::JS_ARRAY_MAPS_INDEX, scratch);
   int offset = expected_kind * kPointerSize + FixedArrayBase::kHeaderSize;
   ld(at, FieldMemOperand(scratch, offset));
   Branch(no_map_match, ne, map_in_out, Operand(at));
@@ -5050,14 +5016,9 @@ void MacroAssembler::LoadTransitionedArrayMapConditional(
 }
 
 
-void MacroAssembler::LoadGlobalFunction(int index, Register function) {
-  // Load the global or builtins object from the current context.
-  ld(function,
-     MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-  // Load the native context from the global or builtins object.
-  ld(function, FieldMemOperand(function, JSGlobalObject::kNativeContextOffset));
-  // Load the function from the native context.
-  ld(function, MemOperand(function, Context::SlotOffset(index)));
+void MacroAssembler::LoadNativeContextSlot(int index, Register dst) {
+  ld(dst, NativeContextMemOperand());
+  ld(dst, ContextMemOperand(dst, index));
 }
 
 
