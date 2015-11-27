@@ -55,25 +55,26 @@ RUNTIME_FUNCTION(Runtime_CompleteFunctionConstruction) {
   CONVERT_ARG_HANDLE_CHECKED(Object, unchecked_new_target, 2);
   func->shared()->set_name_should_print_as_anonymous(true);
 
+  if (unchecked_new_target->IsUndefined()) return *func;
+
+  Handle<JSReceiver> new_target =
+      Handle<JSReceiver>::cast(unchecked_new_target);
   // If new.target is equal to |constructor| then the function |func| created
   // is already correctly setup and nothing else should be done here.
   // But if new.target is not equal to |constructor| then we are have a
   // Function builtin subclassing case and therefore the function |func|
   // has wrong initial map. To fix that we create a new function object with
   // correct initial map.
-  if (unchecked_new_target->IsUndefined() ||
-      *constructor == *unchecked_new_target) {
-    return *func;
-  }
+  if (*constructor == *new_target) return *func;
 
   // Create a new JSFunction object with correct initial map.
   HandleScope handle_scope(isolate);
-  Handle<JSFunction> new_target =
-      Handle<JSFunction>::cast(unchecked_new_target);
 
   DCHECK(constructor->has_initial_map());
-  Handle<Map> initial_map =
-      JSFunction::EnsureDerivedHasInitialMap(new_target, constructor);
+  Handle<Map> initial_map;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, initial_map,
+      JSFunction::GetDerivedMap(isolate, constructor, new_target));
 
   Handle<SharedFunctionInfo> shared_info(func->shared(), isolate);
   Handle<Context> context(func->context(), isolate);

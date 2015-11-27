@@ -272,16 +272,10 @@ Object* ArrayConstructorCommon(Isolate* isolate, Handle<JSFunction> constructor,
     }
   }
 
-  // TODO(verwaest): new_target could be a proxy. Read new.target.prototype in
-  // that case.
-  Handle<JSFunction> original_function = Handle<JSFunction>::cast(new_target);
-
-  JSFunction::EnsureHasInitialMap(constructor);
-
-  // TODO(verwaest): original_function could have non-instance-prototype
-  // (non-JSReceiver), requiring fallback to the intrinsicDefaultProto.
-  Handle<Map> initial_map =
-      JSFunction::EnsureDerivedHasInitialMap(original_function, constructor);
+  Handle<Map> initial_map;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, initial_map,
+      JSFunction::GetDerivedMap(isolate, constructor, new_target));
 
   ElementsKind to_kind = can_use_type_feedback ? site->GetElementsKind()
                                                : initial_map->elements_kind();

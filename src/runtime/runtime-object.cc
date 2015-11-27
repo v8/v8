@@ -1007,55 +1007,17 @@ RUNTIME_FUNCTION(Runtime_AllocateHeapNumber) {
 }
 
 
-static MaybeHandle<Map> GetDerivedMap(Isolate* isolate,
-                                      Handle<JSFunction> constructor,
-                                      Handle<JSReceiver> new_target) {
-  JSFunction::EnsureHasInitialMap(constructor);
-  DCHECK_NE(JS_FUNCTION_TYPE, constructor->initial_map()->instance_type());
-
-  if (new_target->IsJSProxy()) {
-    Handle<JSProxy> new_target_proxy = Handle<JSProxy>::cast(new_target);
-    Handle<Object> prototype;
-    Handle<String> prototype_string = isolate->factory()->prototype_string();
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, prototype,
-        JSReceiver::GetProperty(new_target_proxy, prototype_string), Map);
-    Handle<Map> constructor_initial_map(constructor->initial_map());
-    Handle<Map> map = Map::CopyInitialMap(constructor_initial_map);
-
-    if (!prototype->IsJSReceiver()) {
-      Handle<Context> context;
-      ASSIGN_RETURN_ON_EXCEPTION(
-          isolate, context, JSProxy::GetFunctionRealm(new_target_proxy), Map);
-      DCHECK(context->IsNativeContext());
-      // TODO(verwaest): Use the intrinsicDefaultProto instead.
-      prototype = handle(context->initial_object_prototype(), isolate);
-    }
-
-    if (map->prototype() != *prototype) {
-      Map::SetPrototype(map, prototype, FAST_PROTOTYPE);
-    }
-
-    map->SetConstructor(*constructor);
-    return map;
-  }
-
-  return JSFunction::EnsureDerivedHasInitialMap(
-      Handle<JSFunction>::cast(new_target), constructor);
-}
-
-
 static Object* Runtime_NewObjectHelper(Isolate* isolate,
                                        Handle<JSFunction> constructor,
                                        Handle<JSReceiver> new_target,
                                        Handle<AllocationSite> site) {
-  // The constructor should be compiled for the optimization hints to be
-  // available.
-  Compiler::Compile(constructor, CLEAR_EXCEPTION);
+  DCHECK(!constructor->has_initial_map() ||
+         constructor->initial_map()->instance_type() != JS_FUNCTION_TYPE);
 
   Handle<Map> initial_map;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, initial_map, GetDerivedMap(isolate, constructor, new_target));
+      isolate, initial_map,
+      JSFunction::GetDerivedMap(isolate, constructor, new_target));
 
   Handle<JSObject> result =
       isolate->factory()->NewJSObjectFromMap(initial_map, NOT_TENURED, site);

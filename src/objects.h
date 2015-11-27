@@ -7298,11 +7298,13 @@ class JSFunction: public JSObject {
                             Handle<Object> prototype);
   inline bool has_initial_map();
   static void EnsureHasInitialMap(Handle<JSFunction> function);
-  // Ensures that the |new_target| has correct initial map and
-  // returns it. If the |new_target| is not a subclass constructor
-  // its initial map is left unmodified.
-  static Handle<Map> EnsureDerivedHasInitialMap(Handle<JSFunction> new_target,
-                                                Handle<JSFunction> constructor);
+
+  // Creates a map that matches the constructor's initial map, but with
+  // [[prototype]] being new.target.prototype. Because new.target can be a
+  // JSProxy, this can call back into JavaScript.
+  static MUST_USE_RESULT MaybeHandle<Map> GetDerivedMap(
+      Isolate* isolate, Handle<JSFunction> constructor,
+      Handle<JSReceiver> new_target);
 
   // Get and set the prototype property on a JSFunction. If the
   // function has an initial map the prototype is set on the initial

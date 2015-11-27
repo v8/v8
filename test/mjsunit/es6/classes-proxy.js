@@ -39,3 +39,35 @@ function CreateConstructableProxy(handler) {
   assertTrue(Object.getPrototypeOf(o) === Object.prototype);
   assertEquals(100, Number.prototype.valueOf.call(o));
 })();
+
+(function() {
+  var prototype = { x: 1 };
+  var log = [];
+
+  var proxy = CreateConstructableProxy({
+    get(k) {
+      log.push("get trap");
+      return prototype;
+    }});
+
+  var o = Reflect.construct(Function, ["return 1000"], proxy);
+  assertEquals(["get trap"], log);
+  assertTrue(Object.getPrototypeOf(o) === prototype);
+  assertEquals(1000, o());
+})();
+
+(function() {
+  var prototype = { x: 1 };
+  var log = [];
+
+  var proxy = CreateConstructableProxy({
+    get(k) {
+      log.push("get trap");
+      return prototype;
+    }});
+
+  var o = Reflect.construct(Array, [1, 2, 3], proxy);
+  assertEquals(["get trap"], log);
+  assertTrue(Object.getPrototypeOf(o) === prototype);
+  assertEquals([1, 2, 3], o);
+})();
