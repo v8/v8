@@ -2119,7 +2119,7 @@ class JSObject: public JSReceiver {
 
   // Retrieve interceptors.
   InterceptorInfo* GetNamedInterceptor();
-  InterceptorInfo* GetIndexedInterceptor();
+  inline InterceptorInfo* GetIndexedInterceptor();
 
   // Used from JSReceiver.
   MUST_USE_RESULT static Maybe<PropertyAttributes>

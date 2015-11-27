@@ -92,10 +92,8 @@ void LookupIterator::RestartInternal(InterceptorState interceptor_state) {
 
 
 // static
-Handle<JSReceiver> LookupIterator::GetRoot(Isolate* isolate,
-                                           Handle<Object> receiver,
-                                           uint32_t index) {
-  if (receiver->IsJSReceiver()) return Handle<JSReceiver>::cast(receiver);
+Handle<JSReceiver> LookupIterator::GetRootForNonJSReceiver(
+    Isolate* isolate, Handle<Object> receiver, uint32_t index) {
   // Strings are the only objects with properties (only elements) directly on
   // the wrapper. Hence we can skip generating the wrapper for all other cases.
   if (index != kMaxUInt32 && receiver->IsString() &&
@@ -530,8 +528,6 @@ void LookupIterator::WriteDataValue(Handle<Object> value) {
 
 bool LookupIterator::IsIntegerIndexedExotic(JSReceiver* holder) {
   DCHECK(exotic_index_state_ != ExoticIndexState::kNotExotic);
-  // Currently typed arrays are the only such objects.
-  if (!holder->IsJSTypedArray()) return false;
   if (exotic_index_state_ == ExoticIndexState::kExotic) return true;
   if (!InternalHolderIsReceiverOrHiddenPrototype()) {
     exotic_index_state_ = ExoticIndexState::kNotExotic;
@@ -563,18 +559,6 @@ void LookupIterator::InternalizeName() {
 bool LookupIterator::HasInterceptor(Map* map) const {
   if (IsElement()) return map->has_indexed_interceptor();
   return map->has_named_interceptor();
-}
-
-
-Handle<InterceptorInfo> LookupIterator::GetInterceptor() const {
-  DCHECK_EQ(INTERCEPTOR, state_);
-  return handle(GetInterceptor(JSObject::cast(*holder_)), isolate_);
-}
-
-
-InterceptorInfo* LookupIterator::GetInterceptor(JSObject* holder) const {
-  if (IsElement()) return holder->GetIndexedInterceptor();
-  return holder->GetNamedInterceptor();
 }
 
 
@@ -633,7 +617,7 @@ LookupIterator::State LookupIterator::LookupInHolder(Map* const map,
     // Fall through.
     case ACCESS_CHECK:
       if (exotic_index_state_ != ExoticIndexState::kNotExotic &&
-          IsIntegerIndexedExotic(holder)) {
+          holder->IsJSTypedArray() && IsIntegerIndexedExotic(holder)) {
         return INTEGER_INDEXED_EXOTIC;
       }
       if (check_interceptor() && HasInterceptor(map) &&

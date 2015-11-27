@@ -203,8 +203,7 @@ class LookupIterator final BASE_EMBEDDED {
     DCHECK(IsFound());
     return Handle<T>::cast(holder_);
   }
-  static Handle<JSReceiver> GetRoot(Isolate* isolate, Handle<Object> receiver,
-                                    uint32_t index = kMaxUInt32);
+
   bool HolderIsReceiverOrHiddenPrototype() const;
 
   /* ACCESS_CHECK */
@@ -245,7 +244,10 @@ class LookupIterator final BASE_EMBEDDED {
   int GetConstantIndex() const;
   Handle<PropertyCell> GetPropertyCell() const;
   Handle<Object> GetAccessors() const;
-  Handle<InterceptorInfo> GetInterceptor() const;
+  inline Handle<InterceptorInfo> GetInterceptor() const {
+    DCHECK_EQ(INTERCEPTOR, state_);
+    return handle(GetInterceptor(JSObject::cast(*holder_)), isolate_);
+  }
   Handle<Object> GetDataValue() const;
   void WriteDataValue(Handle<Object> value);
   void InternalizeName();
@@ -269,10 +271,13 @@ class LookupIterator final BASE_EMBEDDED {
   State LookupNonMaskingInterceptorInHolder(Map* map, JSReceiver* holder);
   Handle<Object> FetchValue() const;
   void ReloadPropertyInformation();
-  bool SkipInterceptor(JSObject* holder);
+  inline bool SkipInterceptor(JSObject* holder);
   bool HasInterceptor(Map* map) const;
   bool InternalHolderIsReceiverOrHiddenPrototype() const;
-  InterceptorInfo* GetInterceptor(JSObject* holder) const;
+  inline InterceptorInfo* GetInterceptor(JSObject* holder) const {
+    if (IsElement()) return holder->GetIndexedInterceptor();
+    return holder->GetNamedInterceptor();
+  }
 
   bool check_hidden() const { return (configuration_ & kHidden) != 0; }
   bool check_interceptor() const {
@@ -302,8 +307,17 @@ class LookupIterator final BASE_EMBEDDED {
     }
   }
 
+  static Handle<JSReceiver> GetRootForNonJSReceiver(
+      Isolate* isolate, Handle<Object> receiver, uint32_t index = kMaxUInt32);
+  inline static Handle<JSReceiver> GetRoot(Isolate* isolate,
+                                           Handle<Object> receiver,
+                                           uint32_t index = kMaxUInt32) {
+    if (receiver->IsJSReceiver()) return Handle<JSReceiver>::cast(receiver);
+    return GetRootForNonJSReceiver(isolate, receiver, index);
+  }
+
   enum class ExoticIndexState { kUninitialized, kNotExotic, kExotic };
-  bool IsIntegerIndexedExotic(JSReceiver* holder);
+  inline bool IsIntegerIndexedExotic(JSReceiver* holder);
 
   // If configuration_ becomes mutable, update
   // HolderIsReceiverOrHiddenPrototype.
