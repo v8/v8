@@ -661,7 +661,7 @@ TEST_F(JSTypedLoweringTest, JSLoadContext) {
                               IsLoadField(AccessBuilder::ForContextSlot(
                                               Context::PREVIOUS_INDEX),
                                           context, effect, graph()->start()),
-                              effect, graph()->start()));
+                              _, graph()->start()));
     }
   }
 }
@@ -696,7 +696,7 @@ TEST_F(JSTypedLoweringTest, JSStoreContext) {
                                IsLoadField(AccessBuilder::ForContextSlot(
                                                Context::PREVIOUS_INDEX),
                                            context, effect, graph()->start()),
-                               value, effect, control));
+                               value, _, control));
     }
   }
 }

@@ -1219,14 +1219,14 @@ Reduction JSTypedLowering::ReduceJSInstanceOf(Node* node) {
 Reduction JSTypedLowering::ReduceJSLoadContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSLoadContext, node->opcode());
   ContextAccess const& access = ContextAccessOf(node->op());
-  Node* const effect = NodeProperties::GetEffectInput(node);
-  Node* const control = graph()->start();
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = graph()->start();
   for (size_t i = 0; i < access.depth(); ++i) {
-    node->ReplaceInput(
-        0, graph()->NewNode(
-               simplified()->LoadField(
-                   AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX)),
-               NodeProperties::GetValueInput(node, 0), effect, control));
+    Node* previous = effect = graph()->NewNode(
+        simplified()->LoadField(
+            AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX)),
+        NodeProperties::GetValueInput(node, 0), effect, control);
+    node->ReplaceInput(0, previous);
   }
   node->ReplaceInput(1, effect);
   node->ReplaceInput(2, control);
@@ -1240,16 +1240,17 @@ Reduction JSTypedLowering::ReduceJSLoadContext(Node* node) {
 Reduction JSTypedLowering::ReduceJSStoreContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSStoreContext, node->opcode());
   ContextAccess const& access = ContextAccessOf(node->op());
-  Node* const effect = NodeProperties::GetEffectInput(node);
-  Node* const control = graph()->start();
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = graph()->start();
   for (size_t i = 0; i < access.depth(); ++i) {
-    node->ReplaceInput(
-        0, graph()->NewNode(
-               simplified()->LoadField(
-                   AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX)),
-               NodeProperties::GetValueInput(node, 0), effect, control));
+    Node* previous = effect = graph()->NewNode(
+        simplified()->LoadField(
+            AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX)),
+        NodeProperties::GetValueInput(node, 0), effect, control);
+    node->ReplaceInput(0, previous);
   }
   node->RemoveInput(2);
+  node->ReplaceInput(2, effect);
   NodeProperties::ChangeOp(
       node,
       simplified()->StoreField(AccessBuilder::ForContextSlot(access.index())));
