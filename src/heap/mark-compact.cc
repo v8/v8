@@ -619,6 +619,48 @@ const char* AllocationSpaceName(AllocationSpace space) {
 }
 
 
+void MarkCompactCollector::ComputeEvacuationHeuristics(
+    int area_size, int* target_fragmentation_percent,
+    int* max_evacuated_bytes) {
+  // For memory reducing mode we directly define both constants.
+  const int kTargetFragmentationPercentForReduceMemory = 20;
+  const int kMaxEvacuatedBytesForReduceMemory = 12 * Page::kPageSize;
+
+  // For regular mode (which is latency critical) we define less aggressive
+  // defaults to start and switch to a trace-based (using compaction speed)
+  // approach as soon as we have enough samples.
+  const int kTargetFragmentationPercent = 70;
+  const int kMaxEvacuatedBytes = 4 * Page::kPageSize;
+  // Time to take for a single area (=payload of page). Used as soon as there
+  // exist enough compaction speed samples.
+  const int kTargetMsPerArea = 1;
+
+  if (heap()->ShouldReduceMemory()) {
+    *target_fragmentation_percent = kTargetFragmentationPercentForReduceMemory;
+    *max_evacuated_bytes = kMaxEvacuatedBytesForReduceMemory;
+  } else {
+    const intptr_t estimated_compaction_speed =
+        heap()->tracer()->CompactionSpeedInBytesPerMillisecond();
+    if (estimated_compaction_speed != 0) {
+      // Estimate the target fragmentation based on traced compaction speed
+      // and a goal for a single page.
+      const intptr_t estimated_ms_per_area =
+          1 + static_cast<intptr_t>(area_size) / estimated_compaction_speed;
+      *target_fragmentation_percent =
+          100 - 100 * kTargetMsPerArea / estimated_ms_per_area;
+      if (*target_fragmentation_percent <
+          kTargetFragmentationPercentForReduceMemory) {
+        *target_fragmentation_percent =
+            kTargetFragmentationPercentForReduceMemory;
+      }
+    } else {
+      *target_fragmentation_percent = kTargetFragmentationPercent;
+    }
+    *max_evacuated_bytes = kMaxEvacuatedBytes;
+  }
+}
+
+
 void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   DCHECK(space->identity() == OLD_SPACE || space->identity() == CODE_SPACE);
 
@@ -653,7 +695,7 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   int candidate_count = 0;
   int total_live_bytes = 0;
 
-  bool reduce_memory = heap()->ShouldReduceMemory();
+  const bool reduce_memory = heap()->ShouldReduceMemory();
   if (FLAG_manual_evacuation_candidates_selection) {
     for (size_t i = 0; i < pages.size(); i++) {
       Page* p = pages[i].second;
@@ -674,23 +716,25 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
       }
     }
   } else {
-    const int kTargetFragmentationPercent = 50;
-    const int kMaxEvacuatedBytes = 4 * Page::kPageSize;
-
-    const int kTargetFragmentationPercentForReduceMemory = 20;
-    const int kMaxEvacuatedBytesForReduceMemory = 12 * Page::kPageSize;
-
+    // The following approach determines the pages that should be evacuated.
+    //
+    // We use two conditions to decide whether a page qualifies as an evacuation
+    // candidate, or not:
+    // * Target fragmentation: How fragmented is a page, i.e., how is the ratio
+    //   between live bytes and capacity of this page (= area).
+    // * Evacuation quota: A global quota determining how much bytes should be
+    //   compacted.
+    //
+    // The algorithm sorts all pages by live bytes and then iterates through
+    // them starting with the page with the most free memory, adding them to the
+    // set of evacuation candidates as long as both conditions (fragmentation
+    // and quota) hold.
     int max_evacuated_bytes;
     int target_fragmentation_percent;
+    ComputeEvacuationHeuristics(area_size, &target_fragmentation_percent,
+                                &max_evacuated_bytes);
 
-    if (reduce_memory) {
-      target_fragmentation_percent = kTargetFragmentationPercentForReduceMemory;
-      max_evacuated_bytes = kMaxEvacuatedBytesForReduceMemory;
-    } else {
-      target_fragmentation_percent = kTargetFragmentationPercent;
-      max_evacuated_bytes = kMaxEvacuatedBytes;
-    }
-    intptr_t free_bytes_threshold =
+    const intptr_t free_bytes_threshold =
         target_fragmentation_percent * (area_size / 100);
 
     // Sort pages from the most free to the least free, then select
@@ -706,20 +750,20 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
       int live_bytes = pages[i].first;
       int free_bytes = area_size - live_bytes;
       if (FLAG_always_compact ||
-          (free_bytes >= free_bytes_threshold &&
-           total_live_bytes + live_bytes <= max_evacuated_bytes)) {
+          ((free_bytes >= free_bytes_threshold) &&
+           ((total_live_bytes + live_bytes) <= max_evacuated_bytes))) {
         candidate_count++;
         total_live_bytes += live_bytes;
       }
       if (FLAG_trace_fragmentation_verbose) {
-        PrintF(
-            "Page in %s: %d KB free [fragmented if this >= %d KB], "
-            "sum of live bytes in fragmented pages %d KB [max is %d KB]\n",
-            AllocationSpaceName(space->identity()),
-            static_cast<int>(free_bytes / KB),
-            static_cast<int>(free_bytes_threshold / KB),
-            static_cast<int>(total_live_bytes / KB),
-            static_cast<int>(max_evacuated_bytes / KB));
+        PrintIsolate(isolate(),
+                     "compaction-selection-page: space=%s free_bytes_page=%d "
+                     "fragmentation_limit_kb=%d fragmentation_limit_percent=%d "
+                     "sum_compaction_kb=%d "
+                     "compaction_limit_kb=%d\n",
+                     AllocationSpaceName(space->identity()), free_bytes / KB,
+                     free_bytes_threshold / KB, target_fragmentation_percent,
+                     total_live_bytes / KB, max_evacuated_bytes / KB);
       }
     }
     // How many pages we will allocated for the evacuated objects
@@ -728,20 +772,20 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
     DCHECK_LE(estimated_new_pages, candidate_count);
     int estimated_released_pages = candidate_count - estimated_new_pages;
     // Avoid (compact -> expand) cycles.
-    if (estimated_released_pages == 0 && !FLAG_always_compact)
+    if ((estimated_released_pages == 0) && !FLAG_always_compact) {
       candidate_count = 0;
+    }
     for (int i = 0; i < candidate_count; i++) {
       AddEvacuationCandidate(pages[i].second);
     }
   }
 
   if (FLAG_trace_fragmentation) {
-    PrintF(
-        "Collected %d evacuation candidates [%d KB live] for space %s "
-        "[mode %s]\n",
-        candidate_count, static_cast<int>(total_live_bytes / KB),
-        AllocationSpaceName(space->identity()),
-        (reduce_memory ? "reduce memory footprint" : "normal"));
+    PrintIsolate(isolate(),
+                 "compaction-selection: space=%s reduce_memory=%d pages=%d "
+                 "total_live_bytes=%d\n",
+                 AllocationSpaceName(space->identity()), reduce_memory,
+                 candidate_count, total_live_bytes / KB);
   }
 }
 

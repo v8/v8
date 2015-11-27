@@ -533,6 +533,10 @@ class MarkCompactCollector {
 
   void StartSweeperThreads();
 
+  void ComputeEvacuationHeuristics(int area_size,
+                                   int* target_fragmentation_percent,
+                                   int* max_evacuated_bytes);
+
 #ifdef DEBUG
   enum CollectorState {
     IDLE,
