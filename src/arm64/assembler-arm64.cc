@@ -511,7 +511,7 @@ void ConstPool::EmitEntries() {
 
       // Instruction to patch must be 'ldr rd, [pc, #offset]' with offset == 0.
       DCHECK(instr->IsLdrLiteral() && instr->ImmLLiteral() == 0);
-      instr->SetImmPCOffsetTarget(assm_->pc());
+      instr->SetImmPCOffsetTarget(assm_->isolate(), assm_->pc());
     }
     assm_->dc64(data);
   }
@@ -527,7 +527,7 @@ void ConstPool::EmitEntries() {
 
     // Instruction to patch must be 'ldr rd, [pc, #offset]' with offset == 0.
     DCHECK(instr->IsLdrLiteral() && instr->ImmLLiteral() == 0);
-    instr->SetImmPCOffsetTarget(assm_->pc());
+    instr->SetImmPCOffsetTarget(assm_->isolate(), assm_->pc());
     assm_->dc64(unique_it->first);
   }
   unique_entries_.clear();
@@ -658,22 +658,22 @@ void Assembler::RemoveBranchFromLabelLinkChain(Instruction* branch,
 
   } else if (branch == next_link) {
     // The branch is the last (but not also the first) instruction in the chain.
-    prev_link->SetImmPCOffsetTarget(prev_link);
+    prev_link->SetImmPCOffsetTarget(isolate(), prev_link);
 
   } else {
     // The branch is in the middle of the chain.
     if (prev_link->IsTargetInImmPCOffsetRange(next_link)) {
-      prev_link->SetImmPCOffsetTarget(next_link);
+      prev_link->SetImmPCOffsetTarget(isolate(), next_link);
     } else if (label_veneer != NULL) {
       // Use the veneer for all previous links in the chain.
-      prev_link->SetImmPCOffsetTarget(prev_link);
+      prev_link->SetImmPCOffsetTarget(isolate(), prev_link);
 
       end_of_chain = false;
       link = next_link;
       while (!end_of_chain) {
         next_link = link->ImmPCOffsetTarget();
         end_of_chain = (link == next_link);
-        link->SetImmPCOffsetTarget(label_veneer);
+        link->SetImmPCOffsetTarget(isolate(), label_veneer);
         link = next_link;
       }
     } else {
@@ -744,10 +744,11 @@ void Assembler::bind(Label* label) {
       // Internal references do not get patched to an instruction but directly
       // to an address.
       internal_reference_positions_.push_back(linkoffset);
-      PatchingAssembler patcher(link, 2);
+      PatchingAssembler patcher(isolate(), link, 2);
       patcher.dc64(reinterpret_cast<uintptr_t>(pc_));
     } else {
-      link->SetImmPCOffsetTarget(reinterpret_cast<Instruction*>(pc_));
+      link->SetImmPCOffsetTarget(isolate(),
+                                 reinterpret_cast<Instruction*>(pc_));
     }
 
     // Link the label to the previous link in the chain.
@@ -3030,7 +3031,7 @@ void Assembler::EmitVeneers(bool force_emit, bool need_protection, int margin) {
       // to the label.
       Instruction* veneer = reinterpret_cast<Instruction*>(pc_);
       RemoveBranchFromLabelLinkChain(branch, label, veneer);
-      branch->SetImmPCOffsetTarget(veneer);
+      branch->SetImmPCOffsetTarget(isolate(), veneer);
       b(label);
 #ifdef DEBUG
       DCHECK(SizeOfCodeGeneratedSince(&veneer_size_check) <=

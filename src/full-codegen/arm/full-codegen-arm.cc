@@ -4925,7 +4925,7 @@ void BackEdgeTable::PatchAt(Code* unoptimized_code,
                             Code* replacement_code) {
   Address pc_immediate_load_address = GetInterruptImmediateLoadAddress(pc);
   Address branch_address = pc_immediate_load_address - Assembler::kInstrSize;
-  CodePatcher patcher(branch_address, 1);
+  CodePatcher patcher(unoptimized_code->GetIsolate(), branch_address, 1);
   switch (target_state) {
     case INTERRUPT:
     {

@@ -1541,7 +1541,8 @@ class CodePatcher {
  public:
   enum FlushICache { FLUSH, DONT_FLUSH };
 
-  CodePatcher(byte* address, int instructions, FlushICache flush_cache = FLUSH);
+  CodePatcher(Isolate* isolate, byte* address, int instructions,
+              FlushICache flush_cache = FLUSH);
   ~CodePatcher();
 
   // Macro assembler to emit code.

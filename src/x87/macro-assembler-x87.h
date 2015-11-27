@@ -909,7 +909,7 @@ class MacroAssembler: public Assembler {
 // an assertion.
 class CodePatcher {
  public:
-  CodePatcher(byte* address, int size);
+  CodePatcher(Isolate* isolate, byte* address, int size);
   ~CodePatcher();
 
   // Macro assembler to emit code.

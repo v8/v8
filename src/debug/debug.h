@@ -783,8 +783,9 @@ class DebugCodegen : public AllStatic {
   static void GenerateSlot(MacroAssembler* masm, RelocInfo::Mode mode,
                            int call_argc = -1);
 
-  static void PatchDebugBreakSlot(Address pc, Handle<Code> code);
-  static void ClearDebugBreakSlot(Address pc);
+  static void PatchDebugBreakSlot(Isolate* isolate, Address pc,
+                                  Handle<Code> code);
+  static void ClearDebugBreakSlot(Isolate* isolate, Address pc);
 };
 
 

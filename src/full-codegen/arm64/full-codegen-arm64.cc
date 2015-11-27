@@ -4915,7 +4915,7 @@ void BackEdgeTable::PatchAt(Code* unoptimized_code,
                             Code* replacement_code) {
   // Turn the jump into a nop.
   Address branch_address = pc - 3 * kInstructionSize;
-  PatchingAssembler patcher(branch_address, 1);
+  PatchingAssembler patcher(unoptimized_code->GetIsolate(), branch_address, 1);
 
   DCHECK(Instruction::Cast(branch_address)
              ->IsNop(Assembler::INTERRUPT_CODE_NOP) ||

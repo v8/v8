@@ -625,9 +625,6 @@ class RelocInfo {
   template<typename StaticVisitor> inline void Visit(Heap* heap);
   inline void Visit(Isolate* isolate, ObjectVisitor* v);
 
-  // Patch the code with a call.
-  void PatchCodeWithCall(Address target, int guard_bytes);
-
   // Check whether this return sequence has been patched
   // with a call to the debugger.
   INLINE(bool IsPatchedReturnSequence());

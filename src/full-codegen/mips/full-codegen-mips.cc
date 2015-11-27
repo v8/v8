@@ -4909,7 +4909,7 @@ void BackEdgeTable::PatchAt(Code* unoptimized_code,
                             Code* replacement_code) {
   static const int kInstrSize = Assembler::kInstrSize;
   Address branch_address = pc - 6 * kInstrSize;
-  CodePatcher patcher(branch_address, 1);
+  CodePatcher patcher(unoptimized_code->GetIsolate(), branch_address, 1);
 
   switch (target_state) {
     case INTERRUPT:

@@ -101,14 +101,15 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
     } else {
       pointer = code->instruction_start();
     }
-    CodePatcher patcher(pointer, 1);
+    CodePatcher patcher(isolate, pointer, 1);
     patcher.masm()->int3();
 
     DeoptimizationInputData* data =
         DeoptimizationInputData::cast(code->deoptimization_data());
     int osr_offset = data->OsrPcOffset()->value();
     if (osr_offset > 0) {
-      CodePatcher osr_patcher(code->instruction_start() + osr_offset, 1);
+      CodePatcher osr_patcher(isolate, code->instruction_start() + osr_offset,
+                              1);
       osr_patcher.masm()->int3();
     }
   }
@@ -137,7 +138,7 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
     if (deopt_data->Pc(i)->value() == -1) continue;
     // Patch lazy deoptimization entry.
     Address call_address = code_start_address + deopt_data->Pc(i)->value();
-    CodePatcher patcher(call_address, patch_size());
+    CodePatcher patcher(isolate, call_address, patch_size());
     Address deopt_entry = GetDeoptimizationEntry(isolate, i, LAZY);
     patcher.masm()->call(deopt_entry, RelocInfo::NONE32);
     // We use RUNTIME_ENTRY for deoptimization bailouts.

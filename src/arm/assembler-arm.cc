@@ -843,8 +843,7 @@ void Assembler::target_at_put(int pos, int target_pos) {
     if (is_uint8(target24)) {
       // If the target fits in a byte then only patch with a mov
       // instruction.
-      CodePatcher patcher(reinterpret_cast<byte*>(buffer_ + pos),
-                          1,
+      CodePatcher patcher(isolate(), reinterpret_cast<byte*>(buffer_ + pos), 1,
                           CodePatcher::DONT_FLUSH);
       patcher.masm()->mov(dst, Operand(target24));
     } else {
@@ -853,14 +852,12 @@ void Assembler::target_at_put(int pos, int target_pos) {
       if (CpuFeatures::IsSupported(ARMv7)) {
         // Patch with movw/movt.
         if (target16_1 == 0) {
-          CodePatcher patcher(reinterpret_cast<byte*>(buffer_ + pos),
-                              1,
-                              CodePatcher::DONT_FLUSH);
+          CodePatcher patcher(isolate(), reinterpret_cast<byte*>(buffer_ + pos),
+                              1, CodePatcher::DONT_FLUSH);
           patcher.masm()->movw(dst, target16_0);
         } else {
-          CodePatcher patcher(reinterpret_cast<byte*>(buffer_ + pos),
-                              2,
-                              CodePatcher::DONT_FLUSH);
+          CodePatcher patcher(isolate(), reinterpret_cast<byte*>(buffer_ + pos),
+                              2, CodePatcher::DONT_FLUSH);
           patcher.masm()->movw(dst, target16_0);
           patcher.masm()->movt(dst, target16_1);
         }
@@ -870,15 +867,13 @@ void Assembler::target_at_put(int pos, int target_pos) {
         uint8_t target8_1 = target16_0 >> 8;
         uint8_t target8_2 = target16_1 & kImm8Mask;
         if (target8_2 == 0) {
-          CodePatcher patcher(reinterpret_cast<byte*>(buffer_ + pos),
-                              2,
-                              CodePatcher::DONT_FLUSH);
+          CodePatcher patcher(isolate(), reinterpret_cast<byte*>(buffer_ + pos),
+                              2, CodePatcher::DONT_FLUSH);
           patcher.masm()->mov(dst, Operand(target8_0));
           patcher.masm()->orr(dst, dst, Operand(target8_1 << 8));
         } else {
-          CodePatcher patcher(reinterpret_cast<byte*>(buffer_ + pos),
-                              3,
-                              CodePatcher::DONT_FLUSH);
+          CodePatcher patcher(isolate(), reinterpret_cast<byte*>(buffer_ + pos),
+                              3, CodePatcher::DONT_FLUSH);
           patcher.masm()->mov(dst, Operand(target8_0));
           patcher.masm()->orr(dst, dst, Operand(target8_1 << 8));
           patcher.masm()->orr(dst, dst, Operand(target8_2 << 16));

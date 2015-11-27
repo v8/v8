@@ -615,9 +615,10 @@ CodeAgingHelper::CodeAgingHelper(Isolate* isolate) {
   // to avoid overloading the stack in stress conditions.
   // DONT_FLUSH is used because the CodeAgingHelper is initialized early in
   // the process, before ARM simulator ICache is setup.
-  base::SmartPointer<CodePatcher> patcher(new CodePatcher(
-      young_sequence_.start(), young_sequence_.length() / Assembler::kInstrSize,
-      CodePatcher::DONT_FLUSH));
+  base::SmartPointer<CodePatcher> patcher(
+      new CodePatcher(isolate, young_sequence_.start(),
+                      young_sequence_.length() / Assembler::kInstrSize,
+                      CodePatcher::DONT_FLUSH));
   PredictableCodeSizeScope scope(patcher->masm(), young_sequence_.length());
   patcher->masm()->PushFixedFrame(r4);
   patcher->masm()->addi(fp, sp,
@@ -666,7 +667,8 @@ void Code::PatchPlatformCodeAge(Isolate* isolate, byte* sequence, Code::Age age,
   } else {
     // FIXED_SEQUENCE
     Code* stub = GetCodeAgeStub(isolate, age, parity);
-    CodePatcher patcher(sequence, young_length / Assembler::kInstrSize);
+    CodePatcher patcher(isolate, sequence,
+                        young_length / Assembler::kInstrSize);
     Assembler::BlockTrampolinePoolScope block_trampoline_pool(patcher.masm());
     intptr_t target = reinterpret_cast<intptr_t>(stub->instruction_start());
     // Don't use Call -- we need to preserve ip and lr.

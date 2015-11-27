@@ -281,10 +281,11 @@ void BreakLocation::SetDebugBreak() {
   if (IsDebugBreak()) return;
 
   DCHECK(IsDebugBreakSlot());
-  Builtins* builtins = debug_info_->GetIsolate()->builtins();
+  Isolate* isolate = debug_info_->GetIsolate();
+  Builtins* builtins = isolate->builtins();
   Handle<Code> target =
       IsReturn() ? builtins->Return_DebugBreak() : builtins->Slot_DebugBreak();
-  DebugCodegen::PatchDebugBreakSlot(pc(), target);
+  DebugCodegen::PatchDebugBreakSlot(isolate, pc(), target);
   DCHECK(IsDebugBreak());
 }
 
@@ -294,7 +295,7 @@ void BreakLocation::ClearDebugBreak() {
   if (IsDebuggerStatement()) return;
 
   DCHECK(IsDebugBreakSlot());
-  DebugCodegen::ClearDebugBreakSlot(pc());
+  DebugCodegen::ClearDebugBreakSlot(debug_info_->GetIsolate(), pc());
   DCHECK(!IsDebugBreak());
 }
 

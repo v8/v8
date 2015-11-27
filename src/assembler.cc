@@ -173,7 +173,8 @@ AssemblerBase::AssemblerBase(Isolate* isolate, void* buffer, int buffer_size)
       // We may use the assembler without an isolate.
       serializer_enabled_(isolate && isolate->serializer_enabled()),
       constant_pool_available_(false) {
-  if (FLAG_mask_constants_with_cookie && isolate != NULL)  {
+  DCHECK_NOT_NULL(isolate);
+  if (FLAG_mask_constants_with_cookie) {
     jit_cookie_ = isolate->random_number_generator()->NextInt();
   }
   own_buffer_ = buffer == NULL;

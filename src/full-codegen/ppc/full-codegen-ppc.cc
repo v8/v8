@@ -4901,7 +4901,7 @@ void BackEdgeTable::PatchAt(Code* unoptimized_code, Address pc,
                             Code* replacement_code) {
   Address mov_address = Assembler::target_address_from_return_address(pc);
   Address cmp_address = mov_address - 2 * Assembler::kInstrSize;
-  CodePatcher patcher(cmp_address, 1);
+  CodePatcher patcher(unoptimized_code->GetIsolate(), cmp_address, 1);
 
   switch (target_state) {
     case INTERRUPT: {

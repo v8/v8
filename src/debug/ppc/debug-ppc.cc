@@ -34,15 +34,16 @@ void DebugCodegen::GenerateSlot(MacroAssembler* masm, RelocInfo::Mode mode,
 }
 
 
-void DebugCodegen::ClearDebugBreakSlot(Address pc) {
-  CodePatcher patcher(pc, Assembler::kDebugBreakSlotInstructions);
+void DebugCodegen::ClearDebugBreakSlot(Isolate* isolate, Address pc) {
+  CodePatcher patcher(isolate, pc, Assembler::kDebugBreakSlotInstructions);
   EmitDebugBreakSlot(patcher.masm());
 }
 
 
-void DebugCodegen::PatchDebugBreakSlot(Address pc, Handle<Code> code) {
+void DebugCodegen::PatchDebugBreakSlot(Isolate* isolate, Address pc,
+                                       Handle<Code> code) {
   DCHECK_EQ(Code::BUILTIN, code->kind());
-  CodePatcher patcher(pc, Assembler::kDebugBreakSlotInstructions);
+  CodePatcher patcher(isolate, pc, Assembler::kDebugBreakSlotInstructions);
   // Patch the code changing the debug break slot code from
   //
   //   ori r3, r3, 0

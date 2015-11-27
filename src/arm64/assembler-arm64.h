@@ -2150,15 +2150,14 @@ class PatchingAssembler : public Assembler {
   // If more or fewer instructions than expected are generated or if some
   // relocation information takes space in the buffer, the PatchingAssembler
   // will crash trying to grow the buffer.
-  PatchingAssembler(Instruction* start, unsigned count)
-    : Assembler(NULL,
-                reinterpret_cast<byte*>(start),
-                count * kInstructionSize + kGap) {
+  PatchingAssembler(Isolate* isolate, Instruction* start, unsigned count)
+      : Assembler(isolate, reinterpret_cast<byte*>(start),
+                  count * kInstructionSize + kGap) {
     StartBlockPools();
   }
 
-  PatchingAssembler(byte* start, unsigned count)
-    : Assembler(NULL, start, count * kInstructionSize + kGap) {
+  PatchingAssembler(Isolate* isolate, byte* start, unsigned count)
+      : Assembler(isolate, start, count * kInstructionSize + kGap) {
     // Block constant pool emission.
     StartBlockPools();
   }
@@ -2173,7 +2172,7 @@ class PatchingAssembler : public Assembler {
     DCHECK(IsConstPoolEmpty());
     // Flush the Instruction cache.
     size_t length = buffer_size_ - kGap;
-    Assembler::FlushICacheWithoutIsolate(buffer_, length);
+    Assembler::FlushICache(isolate(), buffer_, length);
   }
 
   // See definition of PatchAdrFar() for details.

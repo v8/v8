@@ -453,7 +453,7 @@ void Assembler::target_at_put(int pos, int target_pos, bool* is_branch) {
       // pointer in a register.
       Register dst = Register::from_code(instr_at(pos + kInstrSize));
       int32_t offset = target_pos + (Code::kHeaderSize - kHeapObjectTag);
-      CodePatcher patcher(reinterpret_cast<byte*>(buffer_ + pos), 2,
+      CodePatcher patcher(isolate(), reinterpret_cast<byte*>(buffer_ + pos), 2,
                           CodePatcher::DONT_FLUSH);
       patcher.masm()->bitwise_mov32(dst, offset);
       break;
@@ -464,7 +464,7 @@ void Assembler::target_at_put(int pos, int target_pos, bool* is_branch) {
       Register dst = Register::from_code((operands >> 21) & 0x1f);
       Register base = Register::from_code((operands >> 16) & 0x1f);
       int32_t offset = target_pos + SIGN_EXT_IMM16(operands & kImm16Mask);
-      CodePatcher patcher(reinterpret_cast<byte*>(buffer_ + pos), 2,
+      CodePatcher patcher(isolate(), reinterpret_cast<byte*>(buffer_ + pos), 2,
                           CodePatcher::DONT_FLUSH);
       patcher.masm()->bitwise_add32(dst, base, offset);
       break;
@@ -472,7 +472,7 @@ void Assembler::target_at_put(int pos, int target_pos, bool* is_branch) {
     case kUnboundMovLabelAddrOpcode: {
       // Load the address of the label in a register.
       Register dst = Register::from_code(instr_at(pos + kInstrSize));
-      CodePatcher patcher(reinterpret_cast<byte*>(buffer_ + pos),
+      CodePatcher patcher(isolate(), reinterpret_cast<byte*>(buffer_ + pos),
                           kMovInstructionsNoConstantPool,
                           CodePatcher::DONT_FLUSH);
       // Keep internal references relative until EmitRelocations.
@@ -480,7 +480,7 @@ void Assembler::target_at_put(int pos, int target_pos, bool* is_branch) {
       break;
     }
     case kUnboundJumpTableEntryOpcode: {
-      CodePatcher patcher(reinterpret_cast<byte*>(buffer_ + pos),
+      CodePatcher patcher(isolate(), reinterpret_cast<byte*>(buffer_ + pos),
                           kPointerSize / kInstrSize, CodePatcher::DONT_FLUSH);
       // Keep internal references relative until EmitRelocations.
       patcher.masm()->dp(target_pos);

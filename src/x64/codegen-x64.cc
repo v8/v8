@@ -559,7 +559,8 @@ CodeAgingHelper::CodeAgingHelper(Isolate* isolate) {
   // The sequence of instructions that is patched out for aging code is the
   // following boilerplate stack-building prologue that is found both in
   // FUNCTION and OPTIMIZED_FUNCTION code:
-  CodePatcher patcher(young_sequence_.start(), young_sequence_.length());
+  CodePatcher patcher(isolate, young_sequence_.start(),
+                      young_sequence_.length());
   patcher.masm()->pushq(rbp);
   patcher.masm()->movp(rbp, rsp);
   patcher.masm()->Push(rsi);
@@ -606,7 +607,7 @@ void Code::PatchPlatformCodeAge(Isolate* isolate,
     Assembler::FlushICache(isolate, sequence, young_length);
   } else {
     Code* stub = GetCodeAgeStub(isolate, age, parity);
-    CodePatcher patcher(sequence, young_length);
+    CodePatcher patcher(isolate, sequence, young_length);
     patcher.masm()->call(stub->instruction_start());
     patcher.masm()->Nop(
         kNoCodeAgeSequenceLength - Assembler::kShortCallInstructionLength);

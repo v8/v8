@@ -31,16 +31,17 @@ void DebugCodegen::GenerateSlot(MacroAssembler* masm, RelocInfo::Mode mode,
 }
 
 
-void DebugCodegen::ClearDebugBreakSlot(Address pc) {
-  CodePatcher patcher(pc, Assembler::kDebugBreakSlotLength);
+void DebugCodegen::ClearDebugBreakSlot(Isolate* isolate, Address pc) {
+  CodePatcher patcher(isolate, pc, Assembler::kDebugBreakSlotLength);
   EmitDebugBreakSlot(patcher.masm());
 }
 
 
-void DebugCodegen::PatchDebugBreakSlot(Address pc, Handle<Code> code) {
+void DebugCodegen::PatchDebugBreakSlot(Isolate* isolate, Address pc,
+                                       Handle<Code> code) {
   DCHECK_EQ(Code::BUILTIN, code->kind());
   static const int kSize = Assembler::kDebugBreakSlotLength;
-  CodePatcher patcher(pc, kSize);
+  CodePatcher patcher(isolate, pc, kSize);
 
   // Add a label for checking the size of the code used for returning.
   Label check_codesize;

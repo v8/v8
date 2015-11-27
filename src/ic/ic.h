@@ -664,7 +664,8 @@ class ToBooleanIC : public IC {
 
 // Helper for BinaryOpIC and CompareIC.
 enum InlinedSmiCheck { ENABLE_INLINED_SMI_CHECK, DISABLE_INLINED_SMI_CHECK };
-void PatchInlinedSmiCode(Address address, InlinedSmiCheck check);
+void PatchInlinedSmiCode(Isolate* isolate, Address address,
+                         InlinedSmiCheck check);
 
 }  // namespace internal
 }  // namespace v8

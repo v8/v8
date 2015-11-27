@@ -853,7 +853,8 @@ bool CompareIC::HasInlinedSmiCode(Address address) {
 //
 // This code is paired with the JumpPatchSite class in full-codegen-ppc.cc
 //
-void PatchInlinedSmiCode(Address address, InlinedSmiCheck check) {
+void PatchInlinedSmiCode(Isolate* isolate, Address address,
+                         InlinedSmiCheck check) {
   Address cmp_instruction_address =
       Assembler::return_address_from_call_start(address);
 
@@ -891,7 +892,7 @@ void PatchInlinedSmiCode(Address address, InlinedSmiCheck check) {
   //  rlwinm(r0, value, 0, 31, 31, SetRC);
   //  bc(label, BT/BF, 2)
   // and vice-versa to be disabled again.
-  CodePatcher patcher(patch_address, 2);
+  CodePatcher patcher(isolate, patch_address, 2);
   Register reg = Assembler::GetRA(instr_at_patch);
   if (check == ENABLE_INLINED_SMI_CHECK) {
     DCHECK(Assembler::IsCmpRegister(instr_at_patch));

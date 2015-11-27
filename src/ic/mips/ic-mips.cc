@@ -840,7 +840,8 @@ bool CompareIC::HasInlinedSmiCode(Address address) {
 }
 
 
-void PatchInlinedSmiCode(Address address, InlinedSmiCheck check) {
+void PatchInlinedSmiCode(Isolate* isolate, Address address,
+                         InlinedSmiCheck check) {
   Address andi_instruction_address =
       address + Assembler::kCallTargetAddressOffset;
 
@@ -878,7 +879,7 @@ void PatchInlinedSmiCode(Address address, InlinedSmiCheck check) {
   //   andi at, rx, #kSmiTagMask
   //   Branch <target>, ne, at, Operand(zero_reg)
   // and vice-versa to be disabled again.
-  CodePatcher patcher(patch_address, 2);
+  CodePatcher patcher(isolate, patch_address, 2);
   Register reg = Register::from_code(Assembler::GetRs(instr_at_patch));
   if (check == ENABLE_INLINED_SMI_CHECK) {
     DCHECK(Assembler::IsAndImmediate(instr_at_patch));

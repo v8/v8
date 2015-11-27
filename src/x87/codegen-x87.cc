@@ -593,7 +593,8 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
 CodeAgingHelper::CodeAgingHelper(Isolate* isolate) {
   USE(isolate);
   DCHECK(young_sequence_.length() == kNoCodeAgeSequenceLength);
-  CodePatcher patcher(young_sequence_.start(), young_sequence_.length());
+  CodePatcher patcher(isolate, young_sequence_.start(),
+                      young_sequence_.length());
   patcher.masm()->push(ebp);
   patcher.masm()->mov(ebp, esp);
   patcher.masm()->push(esi);
@@ -640,7 +641,7 @@ void Code::PatchPlatformCodeAge(Isolate* isolate,
     Assembler::FlushICache(isolate, sequence, young_length);
   } else {
     Code* stub = GetCodeAgeStub(isolate, age, parity);
-    CodePatcher patcher(sequence, young_length);
+    CodePatcher patcher(isolate, sequence, young_length);
     patcher.masm()->call(stub->instruction_start(), RelocInfo::NONE32);
   }
 }
