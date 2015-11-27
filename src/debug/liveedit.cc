@@ -1307,7 +1307,8 @@ static Handle<Code> PatchPositionsInCode(
         int new_position = TranslatePosition(position,
                                              position_change_array);
         if (position != new_position) {
-          RelocInfo info_copy(rinfo->pc(), rinfo->rmode(), new_position, NULL);
+          RelocInfo info_copy(rinfo->isolate(), rinfo->pc(), rinfo->rmode(),
+                              new_position, NULL);
           buffer_writer.Write(&info_copy);
           continue;
         }

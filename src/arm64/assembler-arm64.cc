@@ -2831,6 +2831,7 @@ void Assembler::GrowBuffer() {
 
   // Set up new buffer.
   desc.buffer = NewArray<byte>(desc.buffer_size);
+  desc.origin = this;
 
   desc.instr_size = pc_offset();
   desc.reloc_size =
@@ -2868,7 +2869,7 @@ void Assembler::GrowBuffer() {
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   // We do not try to reuse pool constants.
-  RelocInfo rinfo(reinterpret_cast<byte*>(pc_), rmode, data, NULL);
+  RelocInfo rinfo(isolate(), reinterpret_cast<byte*>(pc_), rmode, data, NULL);
   if (((rmode >= RelocInfo::COMMENT) &&
        (rmode <= RelocInfo::DEBUG_BREAK_SLOT_AT_CONSTRUCT_CALL)) ||
       (rmode == RelocInfo::INTERNAL_REFERENCE) ||
@@ -2897,8 +2898,8 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
     }
     DCHECK(buffer_space() >= kMaxRelocSize);  // too late to grow buffer here
     if (rmode == RelocInfo::CODE_TARGET_WITH_ID) {
-      RelocInfo reloc_info_with_ast_id(
-          reinterpret_cast<byte*>(pc_), rmode, RecordedAstId().ToInt(), NULL);
+      RelocInfo reloc_info_with_ast_id(isolate(), reinterpret_cast<byte*>(pc_),
+                                       rmode, RecordedAstId().ToInt(), NULL);
       ClearRecordedAstId();
       reloc_info_writer.Write(&reloc_info_with_ast_id);
     } else {
@@ -2987,9 +2988,8 @@ bool Assembler::ShouldEmitVeneer(int max_reachable_pc, int margin) {
 
 
 void Assembler::RecordVeneerPool(int location_offset, int size) {
-  RelocInfo rinfo(buffer_ + location_offset,
-                  RelocInfo::VENEER_POOL, static_cast<intptr_t>(size),
-                  NULL);
+  RelocInfo rinfo(isolate(), buffer_ + location_offset, RelocInfo::VENEER_POOL,
+                  static_cast<intptr_t>(size), NULL);
   reloc_info_writer.Write(&rinfo);
 }
 

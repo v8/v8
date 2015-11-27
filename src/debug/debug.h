@@ -106,7 +106,7 @@ class BreakLocation {
 
 
   inline RelocInfo rinfo() const {
-    return RelocInfo(pc(), rmode(), data_, code());
+    return RelocInfo(debug_info_->GetIsolate(), pc(), rmode(), data_, code());
   }
 
   inline int position() const { return position_; }

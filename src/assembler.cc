@@ -741,7 +741,8 @@ void RelocIterator::next() {
 }
 
 
-RelocIterator::RelocIterator(Code* code, int mode_mask) {
+RelocIterator::RelocIterator(Code* code, int mode_mask)
+    : rinfo_(code->map()->GetIsolate()) {
   rinfo_.host_ = code;
   rinfo_.pc_ = code->instruction_start();
   rinfo_.data_ = 0;
@@ -766,7 +767,8 @@ RelocIterator::RelocIterator(Code* code, int mode_mask) {
 }
 
 
-RelocIterator::RelocIterator(const CodeDesc& desc, int mode_mask) {
+RelocIterator::RelocIterator(const CodeDesc& desc, int mode_mask)
+    : rinfo_(desc.origin->isolate()) {
   rinfo_.pc_ = desc.buffer;
   rinfo_.data_ = 0;
   // Relocation info is read backwards.

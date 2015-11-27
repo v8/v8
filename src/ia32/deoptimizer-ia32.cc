@@ -75,7 +75,7 @@ void Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code) {
         new_reloc->GetDataStartAddress() + padding, 0);
     intptr_t comment_string
         = reinterpret_cast<intptr_t>(RelocInfo::kFillerCommentString);
-    RelocInfo rinfo(0, RelocInfo::COMMENT, comment_string, NULL);
+    RelocInfo rinfo(isolate, 0, RelocInfo::COMMENT, comment_string, NULL);
     for (int i = 0; i < additional_comments; ++i) {
 #ifdef DEBUG
       byte* pos_before = reloc_info_writer.pos();
@@ -142,10 +142,9 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
     Address deopt_entry = GetDeoptimizationEntry(isolate, i, LAZY);
     patcher.masm()->call(deopt_entry, RelocInfo::NONE32);
     // We use RUNTIME_ENTRY for deoptimization bailouts.
-    RelocInfo rinfo(call_address + 1,  // 1 after the call opcode.
+    RelocInfo rinfo(isolate, call_address + 1,  // 1 after the call opcode.
                     RelocInfo::RUNTIME_ENTRY,
-                    reinterpret_cast<intptr_t>(deopt_entry),
-                    NULL);
+                    reinterpret_cast<intptr_t>(deopt_entry), NULL);
     reloc_info_writer.Write(&rinfo);
     DCHECK_GE(reloc_info_writer.pos(),
               reloc_info->address() + ByteArray::kHeaderSize);
