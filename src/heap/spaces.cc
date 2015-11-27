@@ -3146,7 +3146,7 @@ void LargeObjectSpace::ClearMarkingStateOfLiveObjects() {
   while (current != NULL) {
     HeapObject* object = current->GetObject();
     MarkBit mark_bit = Marking::MarkBitFrom(object);
-    DCHECK(Marking::IsBlackOrGrey(mark_bit));
+    DCHECK(Marking::IsBlack(mark_bit));
     Marking::BlackToWhite(mark_bit);
     Page::FromAddress(object->address())->ResetProgressBar();
     Page::FromAddress(object->address())->ResetLiveBytes();
@@ -3161,7 +3161,8 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
   while (current != NULL) {
     HeapObject* object = current->GetObject();
     MarkBit mark_bit = Marking::MarkBitFrom(object);
-    if (Marking::IsBlackOrGrey(mark_bit)) {
+    DCHECK(!Marking::IsGrey(mark_bit));
+    if (Marking::IsBlack(mark_bit)) {
       previous = current;
       current = current->next_page();
     } else {

@@ -1461,8 +1461,9 @@ typedef StringTableCleaner<true> ExternalStringTableCleaner;
 class MarkCompactWeakObjectRetainer : public WeakObjectRetainer {
  public:
   virtual Object* RetainAs(Object* object) {
-    if (Marking::IsBlackOrGrey(
-            Marking::MarkBitFrom(HeapObject::cast(object)))) {
+    MarkBit mark_bit = Marking::MarkBitFrom(HeapObject::cast(object));
+    DCHECK(!Marking::IsGrey(mark_bit));
+    if (Marking::IsBlack(mark_bit)) {
       return object;
     } else if (object->IsAllocationSite() &&
                !(AllocationSite::cast(object)->IsZombie())) {
@@ -2371,8 +2372,8 @@ void MarkCompactCollector::ClearNonLiveMapTransitions(Map* map) {
 
   // Follow back pointer, check whether we are dealing with a map transition
   // from a live map to a dead path and in case clear transitions of parent.
-  DCHECK(!Marking::IsBlackOrGrey(Marking::MarkBitFrom(map)));
-  bool parent_is_alive = Marking::IsBlackOrGrey(Marking::MarkBitFrom(parent));
+  DCHECK(!Marking::IsGrey(Marking::MarkBitFrom(map)));
+  bool parent_is_alive = Marking::IsBlack(Marking::MarkBitFrom(parent));
   if (parent_is_alive) {
     ClearMapTransitions(parent, map);
   }
@@ -2382,7 +2383,8 @@ void MarkCompactCollector::ClearNonLiveMapTransitions(Map* map) {
 // Clear a possible back pointer in case the transition leads to a dead map.
 // Return true in case a back pointer has been cleared and false otherwise.
 bool MarkCompactCollector::ClearMapBackPointer(Map* target) {
-  if (Marking::IsBlackOrGrey(Marking::MarkBitFrom(target))) return false;
+  DCHECK(!Marking::IsGrey(Marking::MarkBitFrom(target)));
+  if (Marking::IsBlack(Marking::MarkBitFrom(target))) return false;
   target->SetBackPointer(heap_->undefined_value(), SKIP_WRITE_BARRIER);
   return true;
 }
