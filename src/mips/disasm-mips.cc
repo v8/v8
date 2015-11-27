@@ -66,6 +66,7 @@ class Decoder {
   // Printing of common values.
   void PrintRegister(int reg);
   void PrintFPURegister(int freg);
+  void PrintFPUStatusRegister(int freg);
   void PrintRs(Instruction* instr);
   void PrintRt(Instruction* instr);
   void PrintRd(Instruction* instr);
@@ -179,6 +180,17 @@ void Decoder::PrintRd(Instruction* instr) {
 // Print the FPUregister name according to the active name converter.
 void Decoder::PrintFPURegister(int freg) {
   Print(converter_.NameOfXMMRegister(freg));
+}
+
+
+void Decoder::PrintFPUStatusRegister(int freg) {
+  switch (freg) {
+    case kFCSRRegister:
+      Print("FCSR");
+      break;
+    default:
+      Print(converter_.NameOfXMMRegister(freg));
+  }
 }
 
 
@@ -476,22 +488,42 @@ int Decoder::FormatRegister(Instruction* instr, const char* format) {
 // complexity of FormatOption.
 int Decoder::FormatFPURegister(Instruction* instr, const char* format) {
   DCHECK(format[0] == 'f');
-  if (format[1] == 's') {  // 'fs: fs register.
-    int reg = instr->FsValue();
-    PrintFPURegister(reg);
-    return 2;
-  } else if (format[1] == 't') {  // 'ft: ft register.
-    int reg = instr->FtValue();
-    PrintFPURegister(reg);
-    return 2;
-  } else if (format[1] == 'd') {  // 'fd: fd register.
-    int reg = instr->FdValue();
-    PrintFPURegister(reg);
-    return 2;
-  } else if (format[1] == 'r') {  // 'fr: fr register.
-    int reg = instr->FrValue();
-    PrintFPURegister(reg);
-    return 2;
+  if ((CTC1 == instr->RsFieldRaw()) || (CFC1 == instr->RsFieldRaw())) {
+    if (format[1] == 's') {  // 'fs: fs register.
+      int reg = instr->FsValue();
+      PrintFPUStatusRegister(reg);
+      return 2;
+    } else if (format[1] == 't') {  // 'ft: ft register.
+      int reg = instr->FtValue();
+      PrintFPUStatusRegister(reg);
+      return 2;
+    } else if (format[1] == 'd') {  // 'fd: fd register.
+      int reg = instr->FdValue();
+      PrintFPUStatusRegister(reg);
+      return 2;
+    } else if (format[1] == 'r') {  // 'fr: fr register.
+      int reg = instr->FrValue();
+      PrintFPUStatusRegister(reg);
+      return 2;
+    }
+  } else {
+    if (format[1] == 's') {  // 'fs: fs register.
+      int reg = instr->FsValue();
+      PrintFPURegister(reg);
+      return 2;
+    } else if (format[1] == 't') {  // 'ft: ft register.
+      int reg = instr->FtValue();
+      PrintFPURegister(reg);
+      return 2;
+    } else if (format[1] == 'd') {  // 'fd: fd register.
+      int reg = instr->FdValue();
+      PrintFPURegister(reg);
+      return 2;
+    } else if (format[1] == 'r') {  // 'fr: fr register.
+      int reg = instr->FrValue();
+      PrintFPURegister(reg);
+      return 2;
+    }
   }
   UNREACHABLE();
   return -1;

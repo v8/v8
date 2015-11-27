@@ -1066,3 +1066,13 @@ TEST(CVT_DISSASM) {
 
   VERIFY_RUN();
 }
+
+
+TEST(ctc1_cfc1_disasm) {
+  SET_UP();
+  COMPARE(abs_d(f10, f31), "4620fa85       abs.d   f10, f31");
+  COMPARE(ceil_w_s(f8, f31), "4600fa0e       ceil.w.s f8, f31");
+  COMPARE(ctc1(a0, FCSR), "44c4f800       ctc1    a0, FCSR");
+  COMPARE(cfc1(a0, FCSR), "4444f800       cfc1    a0, FCSR");
+  VERIFY_RUN();
+}
