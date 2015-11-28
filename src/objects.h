@@ -9528,16 +9528,6 @@ class JSProxy: public JSReceiver {
   MUST_USE_RESULT static Maybe<bool> DeletePropertyOrElement(
       Handle<JSProxy> proxy, Handle<Name> name, LanguageMode language_mode);
 
-  // ES6 9.5.11
-  static bool Enumerate(Isolate* isolate, Handle<JSReceiver> receiver,
-                        Handle<JSProxy> proxy, KeyAccumulator* accumulator);
-
-  // ES6 9.5.12
-  static bool OwnPropertyKeys(Isolate* isolate, Handle<JSReceiver> receiver,
-                              Handle<JSProxy> proxy, KeyFilter filter,
-                              Enumerability enum_policy,
-                              KeyAccumulator* accumulator);
-
   MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithHandler(
       Handle<JSProxy> proxy,
       Handle<Object> receiver,
