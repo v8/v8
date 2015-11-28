@@ -1035,6 +1035,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ Trunc_uw_d(i.InputDoubleRegister(0), i.OutputRegister(), scratch);
       break;
     }
+    case kMips64TruncUlS: {
+      FPURegister scratch = kScratchDoubleReg;
+      // TODO(plind): Fix wrong param order of Trunc_ul_s() macro-asm function.
+      __ Trunc_ul_s(i.InputDoubleRegister(0), i.OutputRegister(), scratch);
+      break;
+    }
     case kMips64TruncUlD: {
       FPURegister scratch = kScratchDoubleReg;
       // TODO(plind): Fix wrong param order of Trunc_ul_d() macro-asm function.
