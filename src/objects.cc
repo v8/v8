@@ -28,6 +28,7 @@
 #include "src/field-index-inl.h"
 #include "src/full-codegen/full-codegen.h"
 #include "src/ic/ic.h"
+#include "src/identity-map.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/isolate-inl.h"
 #include "src/key-accumulator.h"
@@ -46,6 +47,7 @@
 #include "src/string-search.h"
 #include "src/string-stream.h"
 #include "src/utils.h"
+#include "src/zone.h"
 
 #ifdef ENABLE_DISASSEMBLER
 #include "src/disasm.h"
@@ -8039,6 +8041,7 @@ static bool GetKeysFromJSObject(Isolate* isolate, Handle<JSReceiver> receiver,
                                 Handle<JSObject> object, KeyFilter filter,
                                 Enumerability enum_policy,
                                 KeyAccumulator* accumulator) {
+  accumulator->NextPrototype();
   // Check access rights if required.
   if (object->IsAccessCheckNeeded() &&
       !isolate->MayAccess(handle(isolate->context()), object)) {
@@ -8118,18 +8121,19 @@ static bool GetKeys_Internal(Isolate* isolate, Handle<JSReceiver> receiver,
   for (PrototypeIterator iter(isolate, object,
                               PrototypeIterator::START_AT_RECEIVER);
        !iter.IsAtEnd(end); iter.Advance()) {
-    accumulator->NextPrototype();
     Handle<JSReceiver> current =
         PrototypeIterator::GetCurrent<JSReceiver>(iter);
     bool result = false;
     if (current->IsJSProxy()) {
-      Handle<Object> args[] = {current};
-      Handle<Object> names;
-      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-          isolate, names, Execution::Call(isolate, isolate->proxy_enumerate(),
-                                          current, arraysize(args), args),
-          false);
-      accumulator->AddKeysFromProxy(Handle<JSObject>::cast(names));
+      if (type == JSReceiver::OWN_ONLY) {
+        result = JSProxy::OwnPropertyKeys(isolate, receiver,
+                                          Handle<JSProxy>::cast(current),
+                                          filter, enum_policy, accumulator);
+      } else {
+        DCHECK(type == JSReceiver::INCLUDE_PROTOS);
+        result = JSProxy::Enumerate(
+            isolate, receiver, Handle<JSProxy>::cast(current), accumulator);
+      }
     } else {
       DCHECK(current->IsJSObject());
       result = GetKeysFromJSObject(isolate, receiver,
@@ -8148,6 +8152,262 @@ static bool GetKeys_Internal(Isolate* isolate, Handle<JSReceiver> receiver,
 }
 
 
+// ES6 9.5.11
+// Returns false in case of exception.
+// static
+bool JSProxy::Enumerate(Isolate* isolate, Handle<JSReceiver> receiver,
+                        Handle<JSProxy> proxy, KeyAccumulator* accumulator) {
+  // 1. Let handler be the value of the [[ProxyHandler]] internal slot of O.
+  Handle<Object> handler(proxy->handler(), isolate);
+  // 2. If handler is null, throw a TypeError exception.
+  if (IsRevoked(proxy)) {
+    isolate->Throw(*isolate->factory()->NewTypeError(
+        MessageTemplate::kProxyRevoked,
+        isolate->factory()->enumerate_string()));
+    return false;
+  }
+  // 3. Assert: Type(handler) is Object.
+  DCHECK(handler->IsJSReceiver());
+  // 4. Let target be the value of the [[ProxyTarget]] internal slot of O.
+  Handle<JSReceiver> target(JSReceiver::cast(proxy->target()), isolate);
+  // 5. Let trap be ? GetMethod(handler, "enumerate").
+  Handle<Object> trap;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, trap, Object::GetMethod(Handle<JSReceiver>::cast(handler),
+                                       isolate->factory()->enumerate_string()),
+      false);
+  // 6. If trap is undefined, then
+  if (trap->IsUndefined()) {
+    // 6a. Return target.[[Enumerate]]().
+    return GetKeys_Internal(isolate, receiver, target, INCLUDE_PROTOS,
+                            SKIP_SYMBOLS, RESPECT_ENUMERABILITY, accumulator);
+  }
+  // The "proxy_enumerate" helper calls the trap (steps 7 - 9), which returns
+  // a generator; it then iterates over that generator until it's exhausted
+  // and returns an array containing the generated values.
+  Handle<Object> trap_result_array;
+  Handle<Object> args[] = {trap, handler, target};
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, trap_result_array,
+      Execution::Call(isolate, isolate->proxy_enumerate(),
+                      isolate->factory()->undefined_value(), arraysize(args),
+                      args),
+      false);
+  accumulator->NextPrototype();
+  accumulator->AddKeysFromProxy(Handle<JSObject>::cast(trap_result_array));
+  return true;
+}
+
+
+// ES6 7.3.17 for elementTypes = (String, Symbol)
+static MaybeHandle<FixedArray> CreateListFromArrayLike_StringSymbol(
+    Isolate* isolate, Handle<Object> object) {
+  // 1. ReturnIfAbrupt(object).
+  // 2. (default elementTypes -- not applicable.)
+  // 3. If Type(obj) is not Object, throw a TypeError exception.
+  if (!object->IsJSReceiver()) {
+    isolate->Throw(*isolate->factory()->NewTypeError(
+        MessageTemplate::kCalledOnNonObject,
+        isolate->factory()->NewStringFromAsciiChecked(
+            "CreateListFromArrayLike")));
+    return MaybeHandle<FixedArray>();
+  }
+  // 4. Let len be ? ToLength(? Get(obj, "length")).
+  Handle<Object> raw_length_obj;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, raw_length_obj,
+      JSReceiver::GetProperty(object, isolate->factory()->length_string()),
+      FixedArray);
+  Handle<Object> raw_length_number;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, raw_length_number,
+                             Object::ToLength(isolate, raw_length_obj),
+                             FixedArray);
+  uint32_t len;
+  if (!raw_length_number->ToUint32(&len) ||
+      len > static_cast<uint32_t>(FixedArray::kMaxLength)) {
+    isolate->Throw(*isolate->factory()->NewRangeError(
+        MessageTemplate::kInvalidArrayLength));
+    return MaybeHandle<FixedArray>();
+  }
+  // 5. Let list be an empty List.
+  Handle<FixedArray> list = isolate->factory()->NewFixedArray(len);
+  // 6. Let index be 0.
+  // 7. Repeat while index < len:
+  for (uint32_t index = 0; index < len; ++index) {
+    // 7a. Let indexName be ToString(index).
+    // 7b. Let next be ? Get(obj, indexName).
+    Handle<Object> next;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, next, Object::GetElement(isolate, object, index), FixedArray);
+    // 7c. If Type(next) is not an element of elementTypes, throw a
+    //     TypeError exception.
+    if (!next->IsName()) {
+      isolate->Throw(*isolate->factory()->NewTypeError(
+          MessageTemplate::kNotPropertyName, next));
+      return MaybeHandle<FixedArray>();
+    }
+    // 7d. Append next as the last element of list.
+    // Internalize on the fly so we can use pointer identity later.
+    list->set(index,
+              *isolate->factory()->InternalizeName(Handle<Name>::cast(next)));
+    // 7e. Set index to index + 1. (See loop header.)
+  }
+  // 8. Return list.
+  return list;
+}
+
+
+// ES6 9.5.12
+// Returns "false" in case of exception.
+// TODO(jkummerow): |filter| and |enum_policy| are currently ignored.
+// static
+bool JSProxy::OwnPropertyKeys(Isolate* isolate, Handle<JSReceiver> receiver,
+                              Handle<JSProxy> proxy, KeyFilter filter,
+                              Enumerability enum_policy,
+                              KeyAccumulator* accumulator) {
+  // 1. Let handler be the value of the [[ProxyHandler]] internal slot of O.
+  Handle<Object> handler(proxy->handler(), isolate);
+  // 2. If handler is null, throw a TypeError exception.
+  if (IsRevoked(proxy)) {
+    isolate->Throw(*isolate->factory()->NewTypeError(
+        MessageTemplate::kProxyRevoked, isolate->factory()->ownKeys_string()));
+    return false;
+  }
+  // 3. Assert: Type(handler) is Object.
+  DCHECK(handler->IsJSReceiver());
+  // 4. Let target be the value of the [[ProxyTarget]] internal slot of O.
+  Handle<JSReceiver> target(JSReceiver::cast(proxy->target()), isolate);
+  // 5. Let trap be ? GetMethod(handler, "ownKeys").
+  Handle<Object> trap;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, trap, Object::GetMethod(Handle<JSReceiver>::cast(handler),
+                                       isolate->factory()->ownKeys_string()),
+      false);
+  // 6. If trap is undefined, then
+  if (trap->IsUndefined()) {
+    // 6a. Return target.[[OwnPropertyKeys]]().
+    return GetKeys_Internal(isolate, receiver, target, OWN_ONLY, filter,
+                            enum_policy, accumulator);
+  }
+  // 7. Let trapResultArray be Call(trap, handler, «target»).
+  Handle<Object> trap_result_array;
+  Handle<Object> args[] = {target};
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, trap_result_array,
+      Execution::Call(isolate, trap, handler, arraysize(args), args), false);
+  // 8. Let trapResult be ? CreateListFromArrayLike(trapResultArray,
+  //    «String, Symbol»).
+  Handle<FixedArray> trap_result;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, trap_result,
+      CreateListFromArrayLike_StringSymbol(isolate, trap_result_array), false);
+  // 9. Let extensibleTarget be ? IsExtensible(target).
+  Maybe<bool> maybe_extensible = JSReceiver::IsExtensible(target);
+  if (maybe_extensible.IsNothing()) return false;
+  bool extensible_target = maybe_extensible.FromJust();
+  // 10. Let targetKeys be ? target.[[OwnPropertyKeys]]().
+  Handle<FixedArray> target_keys;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, target_keys,
+      JSReceiver::GetKeys(target, JSReceiver::OWN_ONLY, INCLUDE_SYMBOLS,
+                          CONVERT_TO_STRING, IGNORE_ENUMERABILITY),
+      false);
+  // 11. (Assert)
+  // 12. Let targetConfigurableKeys be an empty List.
+  // To save memory, we're re-using target_keys and will modify it in-place.
+  Handle<FixedArray> target_configurable_keys = target_keys;
+  // 13. Let targetNonconfigurableKeys be an empty List.
+  Handle<FixedArray> target_nonconfigurable_keys =
+      isolate->factory()->NewFixedArray(target_keys->length());
+  int nonconfigurable_keys_length = 0;
+  // 14. Repeat, for each element key of targetKeys:
+  for (int i = 0; i < target_keys->length(); ++i) {
+    // 14a. Let desc be ? target.[[GetOwnProperty]](key).
+    PropertyDescriptor desc;
+    bool found = JSReceiver::GetOwnPropertyDescriptor(
+        isolate, target, handle(target_keys->get(i), isolate), &desc);
+    if (isolate->has_pending_exception()) return false;
+    // 14b. If desc is not undefined and desc.[[Configurable]] is false, then
+    if (found && !desc.configurable()) {
+      // 14b i. Append key as an element of targetNonconfigurableKeys.
+      target_nonconfigurable_keys->set(nonconfigurable_keys_length,
+                                       target_keys->get(i));
+      nonconfigurable_keys_length++;
+      // The key was moved, null it out in the original list.
+      target_keys->set(i, Smi::FromInt(0));
+    } else {
+      // 14c. Else,
+      // 14c i. Append key as an element of targetConfigurableKeys.
+      // (No-op, just keep it in |target_keys|.)
+    }
+  }
+  accumulator->NextPrototype();  // Prepare for accumulating keys.
+  // 15. If extensibleTarget is true and targetNonconfigurableKeys is empty,
+  //     then:
+  if (extensible_target && nonconfigurable_keys_length == 0) {
+    // 15a. Return trapResult.
+    accumulator->AddKeysFromProxy(trap_result);
+    return true;
+  }
+  // 16. Let uncheckedResultKeys be a new List which is a copy of trapResult.
+  Zone set_zone;
+  const int kPresent = 1;
+  const int kGone = 0;
+  IdentityMap<int> unchecked_result_keys(isolate->heap(), &set_zone);
+  int unchecked_result_keys_size = trap_result->length();
+  for (int i = 0; i < trap_result->length(); ++i) {
+    DCHECK(trap_result->get(i)->IsUniqueName());
+    unchecked_result_keys.Set(trap_result->get(i), kPresent);
+  }
+  // 17. Repeat, for each key that is an element of targetNonconfigurableKeys:
+  for (int i = 0; i < nonconfigurable_keys_length; ++i) {
+    Object* key = target_nonconfigurable_keys->get(i);
+    // 17a. If key is not an element of uncheckedResultKeys, throw a
+    //      TypeError exception.
+    int* found = unchecked_result_keys.Find(key);
+    if (found == nullptr || *found == kGone) {
+      isolate->Throw(*isolate->factory()->NewTypeError(
+          MessageTemplate::kProxyTrapResultMustInclude, handle(key, isolate)));
+      return false;
+    }
+    // 17b. Remove key from uncheckedResultKeys.
+    *found = kGone;
+    unchecked_result_keys_size--;
+  }
+  // 18. If extensibleTarget is true, return trapResult.
+  if (extensible_target) {
+    accumulator->AddKeysFromProxy(trap_result);
+    return true;
+  }
+  // 19. Repeat, for each key that is an element of targetConfigurableKeys:
+  for (int i = 0; i < target_configurable_keys->length(); ++i) {
+    Object* key = target_configurable_keys->get(i);
+    if (key->IsSmi()) continue;  // Zapped entry, was nonconfigurable.
+    // 19a. If key is not an element of uncheckedResultKeys, throw a
+    //      TypeError exception.
+    int* found = unchecked_result_keys.Find(key);
+    if (found == nullptr || *found == kGone) {
+      isolate->Throw(*isolate->factory()->NewTypeError(
+          MessageTemplate::kProxyTrapResultMustInclude, handle(key, isolate)));
+      return false;
+    }
+    // 19b. Remove key from uncheckedResultKeys.
+    *found = kGone;
+    unchecked_result_keys_size--;
+  }
+  // 20. If uncheckedResultKeys is not empty, throw a TypeError exception.
+  if (unchecked_result_keys_size != 0) {
+    DCHECK_GT(unchecked_result_keys_size, 0);
+    isolate->Throw(*isolate->factory()->NewTypeError(
+        MessageTemplate::kProxyTargetNotExtensible));
+    return false;
+  }
+  // 21. Return trapResult.
+  accumulator->AddKeysFromProxy(trap_result);
+  return true;
+}
+
+
 MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
                                             KeyCollectionType type,
                                             KeyFilter filter,
@@ -8161,7 +8421,6 @@ MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
     DCHECK(isolate->has_pending_exception());
     return MaybeHandle<FixedArray>();
   }
-
   Handle<FixedArray> keys = accumulator.GetKeys(keys_conversion);
   DCHECK(ContainsOnlyValidKeys(keys));
   return keys;

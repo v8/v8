@@ -217,6 +217,18 @@ void KeyAccumulator::AddKeysFromProxy(Handle<JSObject> array_like) {
 }
 
 
+void KeyAccumulator::AddKeysFromProxy(Handle<FixedArray> keys) {
+  // Proxies define a complete list of keys with no distinction of
+  // elements and properties, which breaks the normal assumption for the
+  // KeyAccumulator.
+  AddKeys(keys, PROXY_MAGIC);
+  // Invert the current length to indicate a present proxy, so we can ignore
+  // element keys for this level. Otherwise we would not fully respect the order
+  // given by the proxy.
+  level_string_length_ = -level_string_length_;
+}
+
+
 void KeyAccumulator::AddElementKeysFromInterceptor(
     Handle<JSObject> array_like) {
   AddKeys(array_like, CONVERT_TO_ARRAY_INDEX);
