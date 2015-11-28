@@ -149,6 +149,7 @@ class CallSite {
   T(NotIntlObject, "% is not an i18n object.")                                 \
   T(NotGeneric, "% is not generic")                                            \
   T(NotIterable, "% is not iterable")                                          \
+  T(NotPropertyName, "% is not a valid property name")                         \
   T(NotTypedArray, "this is not a typed array.")                               \
   T(NotSharedTypedArray, "% is not a shared typed array.")                     \
   T(NotIntegerSharedTypedArray, "% is not an integer shared typed array.")     \
@@ -206,6 +207,7 @@ class CallSite {
     "Proxy target property '%' is not configurable")                           \
   T(ProxyTrapFunctionExpected,                                                 \
     "Proxy.createFunction called with non-function for '%' trap")              \
+  T(ProxyTrapResultMustInclude, "Trap result must include %.")                 \
   T(RedefineDisallowed, "Cannot redefine property: %")                         \
   T(RedefineExternalArray,                                                     \
     "Cannot redefine a property of an object with external array elements")    \
