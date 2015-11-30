@@ -4025,6 +4025,12 @@ void Simulator::DecodeTypeImmediate(Instruction* instr) {
         case BGEZAL:
           BranchAndLinkHelper(rs >= 0);
           break;
+        case DAHI:
+          SetResult(rs_reg, rs + (se_imm16 << 32));
+          break;
+        case DATI:
+          SetResult(rs_reg, rs + (se_imm16 << 48));
+          break;
         default:
           UNREACHABLE();
       }
@@ -4111,12 +4117,24 @@ void Simulator::DecodeTypeImmediate(Instruction* instr) {
     case XORI:
       SetResult(rt_reg, rs ^ oe_imm16);
       break;
-    case LUI: {
-      int32_t alu32_out = static_cast<int32_t>(oe_imm16 << 16);
-      // Sign-extend result of 32bit operation into 64bit register.
-      SetResult(rt_reg, static_cast<int64_t>(alu32_out));
+    case LUI:
+      if (rs_reg != 0) {
+        // AUI instruction.
+        DCHECK(kArchVariant == kMips64r6);
+        int32_t alu32_out = static_cast<int32_t>(rs + (se_imm16 << 16));
+        SetResult(rt_reg, static_cast<int64_t>(alu32_out));
+      } else {
+        // LUI instruction.
+        int32_t alu32_out = static_cast<int32_t>(oe_imm16 << 16);
+        // Sign-extend result of 32bit operation into 64bit register.
+        SetResult(rt_reg, static_cast<int64_t>(alu32_out));
+      }
       break;
-    }
+    case DAUI:
+      DCHECK(kArchVariant == kMips64r6);
+      DCHECK(rs_reg != 0);
+      SetResult(rt_reg, rs + (se_imm16 << 16));
+      break;
     // ------------- Memory instructions.
     case LB:
       set_register(rt_reg, ReadB(rs + se_imm16));

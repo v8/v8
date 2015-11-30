@@ -568,6 +568,11 @@ TEST(Type0) {
   COMPARE(lui(v0, 0xffff),
           "3c02ffff       lui     v0, 0xffff");
 
+  if (IsMipsArchVariant(kMips32r6)) {
+    COMPARE(aui(a0, a1, 0x1), "3ca40001       aui     a0, a1, 0x1");
+    COMPARE(aui(v0, v1, 0xffff), "3c62ffff       aui     v0, v1, 0xffff");
+  }
+
   COMPARE(sll(a0, a1, 0),
           "00052000       sll     a0, a1, 0");
   COMPARE(sll(s0, s1, 8),

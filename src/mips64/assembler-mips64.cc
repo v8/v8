@@ -1955,17 +1955,17 @@ void Assembler::lui(Register rd, int32_t j) {
 }
 
 
-void Assembler::aui(Register rs, Register rt, int32_t j) {
+void Assembler::aui(Register rt, Register rs, int32_t j) {
   // This instruction uses same opcode as 'lui'. The difference in encoding is
   // 'lui' has zero reg. for rs field.
-  DCHECK(!(rs.is(zero_reg)));
   DCHECK(is_uint16(j));
   GenInstrImmediate(LUI, rs, rt, j);
 }
 
 
-void Assembler::daui(Register rs, Register rt, int32_t j) {
+void Assembler::daui(Register rt, Register rs, int32_t j) {
   DCHECK(is_uint16(j));
+  DCHECK(!rs.is(zero_reg));
   GenInstrImmediate(DAUI, rs, rt, j);
 }
 

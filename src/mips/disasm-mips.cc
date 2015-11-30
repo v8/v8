@@ -1530,7 +1530,7 @@ void Decoder::DecodeTypeImmediate(Instruction* instr) {
         Format(instr, "lui     'rt, 'imm16x");
       } else {
         if (instr->RsValue() != 0) {
-          Format(instr, "aui     'rt, 'imm16x");
+          Format(instr, "aui     'rt, 'rs, 'imm16x");
         } else {
           Format(instr, "lui     'rt, 'imm16x");
         }

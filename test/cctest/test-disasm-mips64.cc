@@ -405,6 +405,20 @@ TEST(Type0) {
   COMPARE(lui(v0, 0xffff),
           "3c02ffff       lui     v0, 0xffff");
 
+  if (kArchVariant == (kMips64r6)) {
+    COMPARE(aui(a0, a1, 0x1), "3ca40001       aui     a0, a1, 0x1");
+    COMPARE(aui(v0, v1, 0xffff), "3c62ffff       aui     v0, v1, 0xffff");
+
+    COMPARE(daui(a0, a1, 0x1), "74a40001       daui    a0, a1, 0x1");
+    COMPARE(daui(v0, v1, 0xffff), "7462ffff       daui    v0, v1, 0xffff");
+
+    COMPARE(dahi(a0, 0x1), "04860001       dahi    a0, 0x1");
+    COMPARE(dahi(v0, 0xffff), "0446ffff       dahi    v0, 0xffff");
+
+    COMPARE(dati(a0, 0x1), "049e0001       dati    a0, 0x1");
+    COMPARE(dati(v0, 0xffff), "045effff       dati    v0, 0xffff");
+  }
+
   COMPARE(sll(a0, a1, 0),
           "00052000       sll     a0, a1, 0");
   COMPARE(sll(s0, s1, 8),

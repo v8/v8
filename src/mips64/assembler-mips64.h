@@ -741,8 +741,8 @@ class Assembler : public AssemblerBase {
   void ori(Register rd, Register rs, int32_t j);
   void xori(Register rd, Register rs, int32_t j);
   void lui(Register rd, int32_t j);
-  void aui(Register rs, Register rt, int32_t j);
-  void daui(Register rs, Register rt, int32_t j);
+  void aui(Register rt, Register rs, int32_t j);
+  void daui(Register rt, Register rs, int32_t j);
   void dahi(Register rs, int32_t j);
   void dati(Register rs, int32_t j);
 

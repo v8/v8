@@ -1567,10 +1567,10 @@ void Decoder::DecodeTypeImmediateREGIMM(Instruction* instr) {
       Format(instr, "bgezall 'rs, 'imm16u -> 'imm16p4s2");
       break;
     case DAHI:
-      Format(instr, "dahi    'rs, 'imm16u");
+      Format(instr, "dahi    'rs, 'imm16x");
       break;
     case DATI:
-      Format(instr, "dati    'rs, 'imm16u");
+      Format(instr, "dati    'rs, 'imm16x");
       break;
     default:
       UNREACHABLE();
@@ -1723,14 +1723,14 @@ void Decoder::DecodeTypeImmediate(Instruction* instr) {
         Format(instr, "lui     'rt, 'imm16x");
       } else {
         if (instr->RsValue() != 0) {
-          Format(instr, "aui     'rt, 'imm16x");
+          Format(instr, "aui     'rt, 'rs, 'imm16x");
         } else {
           Format(instr, "lui     'rt, 'imm16x");
         }
       }
       break;
     case DAUI:
-      Format(instr, "daui    'rt, 'imm16x");
+      Format(instr, "daui    'rt, 'rs, 'imm16x");
       break;
     // ------------- Memory instructions.
     case LB:

@@ -4717,6 +4717,187 @@ TEST(r6_auipc) {
 }
 
 
+uint64_t run_aui(uint64_t rs, uint16_t offset) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+
+  __ li(t0, rs);
+  __ aui(v0, t0, offset);
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+
+  F2 f = FUNCTION_CAST<F2>(code->entry());
+
+  uint64_t res =
+    reinterpret_cast<uint64_t>
+    (CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
+
+  return res;
+}
+
+
+uint64_t run_daui(uint64_t rs, uint16_t offset) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+
+  __ li(t0, rs);
+  __ daui(v0, t0, offset);
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+
+  F2 f = FUNCTION_CAST<F2>(code->entry());
+
+  uint64_t res =
+    reinterpret_cast<uint64_t>
+    (CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
+
+  return res;
+}
+
+
+uint64_t run_dahi(uint64_t rs, uint16_t offset) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+
+  __ li(v0, rs);
+  __ dahi(v0, offset);
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+
+  F2 f = FUNCTION_CAST<F2>(code->entry());
+
+  uint64_t res =
+    reinterpret_cast<uint64_t>
+    (CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
+
+  return res;
+}
+
+
+uint64_t run_dati(uint64_t rs, uint16_t offset) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+
+  __ li(v0, rs);
+  __ dati(v0, offset);
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+
+  F2 f = FUNCTION_CAST<F2>(code->entry());
+
+  uint64_t res =
+    reinterpret_cast<uint64_t>
+    (CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
+
+  return res;
+}
+
+
+TEST(r6_aui_family) {
+  if (kArchVariant == kMips64r6) {
+    CcTest::InitializeVM();
+
+    struct TestCaseAui {
+      uint64_t   rs;
+      uint16_t   offset;
+      uint64_t   ref_res;
+    };
+
+    // AUI test cases.
+    struct TestCaseAui aui_tc[] = {
+      {0xfffeffff, 0x1, 0xffffffffffffffff},
+      {0xffffffff, 0x0, 0xffffffffffffffff},
+      {0, 0xffff, 0xffffffffffff0000},
+      {0x0008ffff, 0xfff7, 0xffffffffffffffff},
+      {32767, 32767, 0x000000007fff7fff},
+      {0x00000000ffffffff, 0x1, 0x000000000000ffff},
+      {0xffffffff, 0xffff, 0xfffffffffffeffff},
+    };
+
+    size_t nr_test_cases = sizeof(aui_tc) / sizeof(TestCaseAui);
+    for (size_t i = 0; i < nr_test_cases; ++i) {
+      uint64_t res = run_aui(aui_tc[i].rs, aui_tc[i].offset);
+      CHECK_EQ(aui_tc[i].ref_res, res);
+    }
+
+    // DAUI test cases.
+    struct TestCaseAui daui_tc[] = {
+      {0xfffffffffffeffff, 0x1, 0xffffffffffffffff},
+      {0xffffffffffffffff, 0x0, 0xffffffffffffffff},
+      {0, 0xffff, 0xffffffffffff0000},
+      {0x0008ffff, 0xfff7, 0xffffffffffffffff},
+      {32767, 32767, 0x000000007fff7fff},
+      {0x00000000ffffffff, 0x1, 0x000000010000ffff},
+      {0xffffffff, 0xffff, 0x00000000fffeffff},
+    };
+
+    nr_test_cases = sizeof(daui_tc) / sizeof(TestCaseAui);
+    for (size_t i = 0; i < nr_test_cases; ++i) {
+      uint64_t res = run_daui(daui_tc[i].rs, daui_tc[i].offset);
+      CHECK_EQ(daui_tc[i].ref_res, res);
+    }
+
+    // DATI test cases.
+    struct TestCaseAui dati_tc[] = {
+      {0xfffffffffffeffff, 0x1, 0x0000fffffffeffff},
+      {0xffffffffffffffff, 0x0, 0xffffffffffffffff},
+      {0, 0xffff, 0xffff000000000000},
+      {0x0008ffff, 0xfff7, 0xfff700000008ffff},
+      {32767, 32767, 0x7fff000000007fff},
+      {0x00000000ffffffff, 0x1, 0x00010000ffffffff},
+      {0xffffffffffff, 0xffff, 0xffffffffffffffff},
+    };
+
+    nr_test_cases = sizeof(dati_tc) / sizeof(TestCaseAui);
+    for (size_t i = 0; i < nr_test_cases; ++i) {
+      uint64_t res = run_dati(dati_tc[i].rs, dati_tc[i].offset);
+      CHECK_EQ(dati_tc[i].ref_res, res);
+    }
+
+    // DAHI test cases.
+    struct TestCaseAui dahi_tc[] = {
+      {0xfffffffeffffffff, 0x1, 0xffffffffffffffff},
+      {0xffffffffffffffff, 0x0, 0xffffffffffffffff},
+      {0, 0xffff, 0xffffffff00000000},
+    };
+
+    nr_test_cases = sizeof(dahi_tc) / sizeof(TestCaseAui);
+    for (size_t i = 0; i < nr_test_cases; ++i) {
+      uint64_t res = run_dahi(dahi_tc[i].rs, dahi_tc[i].offset);
+      CHECK_EQ(dahi_tc[i].ref_res, res);
+    }
+  }
+}
+
+
 uint64_t run_lwpc(int offset) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);

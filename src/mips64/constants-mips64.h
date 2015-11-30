@@ -927,7 +927,7 @@ class Instruction {
       OpcodeToBitNumber(SWR) | OpcodeToBitNumber(LWC1) |
       OpcodeToBitNumber(LDC1) | OpcodeToBitNumber(SWC1) |
       OpcodeToBitNumber(SDC1) | OpcodeToBitNumber(PCREL) |
-      OpcodeToBitNumber(BC) | OpcodeToBitNumber(BALC);
+      OpcodeToBitNumber(DAUI) | OpcodeToBitNumber(BC) | OpcodeToBitNumber(BALC);
 
 #define FunctionFieldToBitNumber(function) (1ULL << function)
 

@@ -1819,7 +1819,7 @@ void Assembler::lui(Register rd, int32_t j) {
 }
 
 
-void Assembler::aui(Register rs, Register rt, int32_t j) {
+void Assembler::aui(Register rt, Register rs, int32_t j) {
   // This instruction uses same opcode as 'lui'. The difference in encoding is
   // 'lui' has zero reg. for rs field.
   DCHECK(!(rs.is(zero_reg)));
