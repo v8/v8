@@ -598,8 +598,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ JumpIfSmi(x0, &use_receiver);
 
       // If the type of the result (stored in its map) is less than
-      // FIRST_SPEC_OBJECT_TYPE, it is not an object in the ECMA sense.
-      __ JumpIfObjectType(x0, x1, x3, FIRST_SPEC_OBJECT_TYPE, &exit, ge);
+      // FIRST_JS_RECEIVER_TYPE, it is not an object in the ECMA sense.
+      __ JumpIfObjectType(x0, x1, x3, FIRST_JS_RECEIVER_TYPE, &exit, ge);
 
       // Throw away the result of the constructor invocation and use the
       // on-stack receiver as the result.

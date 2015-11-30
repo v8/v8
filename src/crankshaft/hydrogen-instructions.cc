@@ -1640,8 +1640,8 @@ void HCheckInstanceType::GetCheckInterval(InstanceType* first,
   DCHECK(is_interval_check());
   switch (check_) {
     case IS_SPEC_OBJECT:
-      *first = FIRST_SPEC_OBJECT_TYPE;
-      *last = LAST_SPEC_OBJECT_TYPE;
+      *first = FIRST_JS_RECEIVER_TYPE;
+      *last = LAST_JS_RECEIVER_TYPE;
       return;
     case IS_JS_ARRAY:
       *first = *last = JS_ARRAY_TYPE;

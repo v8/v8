@@ -130,7 +130,7 @@ void FullCodeGenerator::Generate() {
     __ AssertNotSmi(a2);
     __ GetObjectType(a2, a2, a2);
     __ Check(ge, kSloppyFunctionExpectsJSReceiverReceiver, a2,
-             Operand(FIRST_SPEC_OBJECT_TYPE));
+             Operand(FIRST_JS_RECEIVER_TYPE));
   }
 
   // Open a frame scope to indicate that there is a frame on the stack.  The
@@ -1044,7 +1044,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   Label convert, done_convert;
   __ JumpIfSmi(a0, &convert);
   __ GetObjectType(a0, a1, a1);
-  __ Branch(&done_convert, ge, a1, Operand(FIRST_SPEC_OBJECT_TYPE));
+  __ Branch(&done_convert, ge, a1, Operand(FIRST_JS_RECEIVER_TYPE));
   __ bind(&convert);
   ToObjectStub stub(isolate());
   __ CallStub(&stub);
@@ -1055,7 +1055,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // Check for proxies.
   Label call_runtime;
-  STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_SPEC_OBJECT_TYPE);
+  STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_JS_RECEIVER_TYPE);
   __ GetObjectType(a0, a1, a1);
   __ Branch(&call_runtime, le, a1, Operand(LAST_JS_PROXY_TYPE));
 
@@ -1117,7 +1117,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   __ li(a1, Operand(Smi::FromInt(1)));  // Smi indicates slow check
   __ lw(a2, MemOperand(sp, 0 * kPointerSize));  // Get enumerated object
-  STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_SPEC_OBJECT_TYPE);
+  STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_JS_RECEIVER_TYPE);
   __ GetObjectType(a2, a3, a3);
   __ Branch(&non_proxy, gt, a3, Operand(LAST_JS_PROXY_TYPE));
   __ li(a1, Operand(Smi::FromInt(0)));  // Zero indicates proxy
@@ -3101,7 +3101,7 @@ void FullCodeGenerator::EmitIsSpecObject(CallRuntime* expr) {
   __ JumpIfSmi(v0, if_false);
   __ GetObjectType(v0, a1, a1);
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
-  Split(ge, a1, Operand(FIRST_SPEC_OBJECT_TYPE),
+  Split(ge, a1, Operand(FIRST_JS_RECEIVER_TYPE),
         if_true, if_false, fall_through);
 
   context()->Plug(if_true, if_false);
@@ -3382,15 +3382,15 @@ void FullCodeGenerator::EmitClassOf(CallRuntime* expr) {
   // either end of the type range for JS object types. Saves extra comparisons.
   STATIC_ASSERT(NUM_OF_CALLABLE_SPEC_OBJECT_TYPES == 2);
   __ GetObjectType(v0, v0, a1);  // Map is now in v0.
-  __ Branch(&null, lt, a1, Operand(FIRST_SPEC_OBJECT_TYPE));
+  __ Branch(&null, lt, a1, Operand(FIRST_JS_RECEIVER_TYPE));
 
   STATIC_ASSERT(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE ==
-                FIRST_SPEC_OBJECT_TYPE + 1);
-  __ Branch(&function, eq, a1, Operand(FIRST_SPEC_OBJECT_TYPE));
+                FIRST_JS_RECEIVER_TYPE + 1);
+  __ Branch(&function, eq, a1, Operand(FIRST_JS_RECEIVER_TYPE));
 
   STATIC_ASSERT(LAST_NONCALLABLE_SPEC_OBJECT_TYPE ==
-                LAST_SPEC_OBJECT_TYPE - 1);
-  __ Branch(&function, eq, a1, Operand(LAST_SPEC_OBJECT_TYPE));
+                LAST_JS_RECEIVER_TYPE - 1);
+  __ Branch(&function, eq, a1, Operand(LAST_JS_RECEIVER_TYPE));
   // Assume that there is no larger type.
   STATIC_ASSERT(LAST_NONCALLABLE_SPEC_OBJECT_TYPE == LAST_TYPE - 1);
 
@@ -4654,9 +4654,9 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     __ JumpIfSmi(v0, if_false);
     __ LoadRoot(at, Heap::kNullValueRootIndex);
     __ Branch(if_true, eq, v0, Operand(at));
-    STATIC_ASSERT(LAST_SPEC_OBJECT_TYPE == LAST_TYPE);
+    STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
     __ GetObjectType(v0, v0, a1);
-    __ Branch(if_false, lt, a1, Operand(FIRST_SPEC_OBJECT_TYPE));
+    __ Branch(if_false, lt, a1, Operand(FIRST_JS_RECEIVER_TYPE));
     // Check for callable or undetectable objects => false.
     __ lbu(a1, FieldMemOperand(v0, Map::kBitFieldOffset));
     __ And(a1, a1,

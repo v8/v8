@@ -2153,7 +2153,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
         // spec object -> true.
         __ lbu(at, FieldMemOperand(map, Map::kInstanceTypeOffset));
         __ Branch(instr->TrueLabel(chunk_),
-                  ge, at, Operand(FIRST_SPEC_OBJECT_TYPE));
+                  ge, at, Operand(FIRST_JS_RECEIVER_TYPE));
       }
 
       if (expected.Contains(ToBooleanStub::STRING)) {
@@ -2525,15 +2525,15 @@ void LCodeGen::EmitClassOfTest(Label* is_true,
     // for both being a function type and being in the object type range.
     STATIC_ASSERT(NUM_OF_CALLABLE_SPEC_OBJECT_TYPES == 2);
     STATIC_ASSERT(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE ==
-                  FIRST_SPEC_OBJECT_TYPE + 1);
+                  FIRST_JS_RECEIVER_TYPE + 1);
     STATIC_ASSERT(LAST_NONCALLABLE_SPEC_OBJECT_TYPE ==
-                  LAST_SPEC_OBJECT_TYPE - 1);
-    STATIC_ASSERT(LAST_SPEC_OBJECT_TYPE == LAST_TYPE);
+                  LAST_JS_RECEIVER_TYPE - 1);
+    STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
 
     __ GetObjectType(input, temp, temp2);
-    __ Branch(is_false, lt, temp2, Operand(FIRST_SPEC_OBJECT_TYPE));
-    __ Branch(is_true, eq, temp2, Operand(FIRST_SPEC_OBJECT_TYPE));
-    __ Branch(is_true, eq, temp2, Operand(LAST_SPEC_OBJECT_TYPE));
+    __ Branch(is_false, lt, temp2, Operand(FIRST_JS_RECEIVER_TYPE));
+    __ Branch(is_true, eq, temp2, Operand(FIRST_JS_RECEIVER_TYPE));
+    __ Branch(is_true, eq, temp2, Operand(LAST_JS_RECEIVER_TYPE));
   } else {
     // Faster code path to avoid two compares: subtract lower bound from the
     // actual type and do a signed compare with the width of the type range.
@@ -3236,7 +3236,7 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
 
   __ GetObjectType(receiver, scratch, scratch);
   DeoptimizeIf(lt, instr, Deoptimizer::kNotAJavaScriptObject, scratch,
-               Operand(FIRST_SPEC_OBJECT_TYPE));
+               Operand(FIRST_JS_RECEIVER_TYPE));
 
   __ Branch(&result_in_receiver);
   __ bind(&global_object);
@@ -5430,9 +5430,9 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     __ JumpIfSmi(input, false_label);
     __ LoadRoot(at, Heap::kNullValueRootIndex);
     __ Branch(USE_DELAY_SLOT, true_label, eq, at, Operand(input));
-    STATIC_ASSERT(LAST_SPEC_OBJECT_TYPE == LAST_TYPE);
+    STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
     __ GetObjectType(input, scratch, scratch1());
-    __ Branch(false_label, lt, scratch1(), Operand(FIRST_SPEC_OBJECT_TYPE));
+    __ Branch(false_label, lt, scratch1(), Operand(FIRST_JS_RECEIVER_TYPE));
     // Check for callable or undetectable objects => false.
     __ lbu(scratch, FieldMemOperand(scratch, Map::kBitFieldOffset));
     __ And(at, scratch,
@@ -5622,7 +5622,7 @@ void LCodeGen::DoForInPrepareMap(LForInPrepareMap* instr) {
   __ And(at, object, kSmiTagMask);
   DeoptimizeIf(eq, instr, Deoptimizer::kSmi, at, Operand(zero_reg));
 
-  STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_SPEC_OBJECT_TYPE);
+  STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_JS_RECEIVER_TYPE);
   __ GetObjectType(object, a1, a1);
   DeoptimizeIf(le, instr, Deoptimizer::kNotAJavaScriptObject, a1,
                Operand(LAST_JS_PROXY_TYPE));

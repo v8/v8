@@ -119,7 +119,7 @@ void FullCodeGenerator::Generate() {
     int receiver_offset = info->scope()->num_parameters() * kXRegSize;
     __ Peek(x10, receiver_offset);
     __ AssertNotSmi(x10);
-    __ CompareObjectType(x10, x10, x11, FIRST_SPEC_OBJECT_TYPE);
+    __ CompareObjectType(x10, x10, x11, FIRST_JS_RECEIVER_TYPE);
     __ Assert(ge, kSloppyFunctionExpectsJSReceiverReceiver);
   }
 
@@ -1047,7 +1047,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // Convert the object to a JS object.
   Label convert, done_convert;
   __ JumpIfSmi(x0, &convert);
-  __ JumpIfObjectType(x0, x10, x11, FIRST_SPEC_OBJECT_TYPE, &done_convert, ge);
+  __ JumpIfObjectType(x0, x10, x11, FIRST_JS_RECEIVER_TYPE, &done_convert, ge);
   __ Bind(&convert);
   ToObjectStub stub(isolate());
   __ CallStub(&stub);
@@ -1057,7 +1057,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // Check for proxies.
   Label call_runtime;
-  STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_SPEC_OBJECT_TYPE);
+  STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_JS_RECEIVER_TYPE);
   __ JumpIfObjectType(x0, x10, x11, LAST_JS_PROXY_TYPE, &call_runtime, le);
 
   // Check cache validity in generated code. This is a fast case for
@@ -1116,7 +1116,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   __ Mov(x1, Smi::FromInt(1));  // Smi indicates slow check.
   __ Peek(x10, 0);  // Get enumerated object.
-  STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_SPEC_OBJECT_TYPE);
+  STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_JS_RECEIVER_TYPE);
   // TODO(all): similar check was done already. Can we avoid it here?
   __ CompareObjectType(x10, x11, x12, LAST_JS_PROXY_TYPE);
   DCHECK(Smi::FromInt(0) == 0);
@@ -2817,7 +2817,7 @@ void FullCodeGenerator::EmitIsSpecObject(CallRuntime* expr) {
                          &if_true, &if_false, &fall_through);
 
   __ JumpIfSmi(x0, if_false);
-  __ CompareObjectType(x0, x10, x11, FIRST_SPEC_OBJECT_TYPE);
+  __ CompareObjectType(x0, x10, x11, FIRST_JS_RECEIVER_TYPE);
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
   Split(ge, if_true, if_false, fall_through);
 
@@ -3095,17 +3095,17 @@ void FullCodeGenerator::EmitClassOf(CallRuntime* expr) {
   // Assume that there are only two callable types, and one of them is at
   // either end of the type range for JS object types. Saves extra comparisons.
   STATIC_ASSERT(NUM_OF_CALLABLE_SPEC_OBJECT_TYPES == 2);
-  __ CompareObjectType(x0, x10, x11, FIRST_SPEC_OBJECT_TYPE);
+  __ CompareObjectType(x0, x10, x11, FIRST_JS_RECEIVER_TYPE);
   // x10: object's map.
   // x11: object's type.
   __ B(lt, &null);
   STATIC_ASSERT(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE ==
-                FIRST_SPEC_OBJECT_TYPE + 1);
+                FIRST_JS_RECEIVER_TYPE + 1);
   __ B(eq, &function);
 
-  __ Cmp(x11, LAST_SPEC_OBJECT_TYPE);
+  __ Cmp(x11, LAST_JS_RECEIVER_TYPE);
   STATIC_ASSERT(LAST_NONCALLABLE_SPEC_OBJECT_TYPE ==
-                LAST_SPEC_OBJECT_TYPE - 1);
+                LAST_JS_RECEIVER_TYPE - 1);
   __ B(eq, &function);
   // Assume that there is no larger type.
   STATIC_ASSERT(LAST_NONCALLABLE_SPEC_OBJECT_TYPE == LAST_TYPE - 1);
@@ -4341,8 +4341,8 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     ASM_LOCATION("FullCodeGenerator::EmitLiteralCompareTypeof object_string");
     __ JumpIfSmi(x0, if_false);
     __ JumpIfRoot(x0, Heap::kNullValueRootIndex, if_true);
-    STATIC_ASSERT(LAST_SPEC_OBJECT_TYPE == LAST_TYPE);
-    __ JumpIfObjectType(x0, x10, x11, FIRST_SPEC_OBJECT_TYPE, if_false, lt);
+    STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
+    __ JumpIfObjectType(x0, x10, x11, FIRST_JS_RECEIVER_TYPE, if_false, lt);
     // Check for callable or undetectable objects => false.
     __ Ldrb(x10, FieldMemOperand(x10, Map::kBitFieldOffset));
     __ TestAndSplit(x10, (1 << Map::kIsCallable) | (1 << Map::kIsUndetectable),

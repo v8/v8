@@ -260,7 +260,7 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm, Label* slow,
   // Smis.  If it's not a heap number, then return equal.
   if (cond == lt || cond == gt) {
     // Call runtime on identical JSObjects.
-    __ CompareObjectType(r3, r7, r7, FIRST_SPEC_OBJECT_TYPE);
+    __ CompareObjectType(r3, r7, r7, FIRST_JS_RECEIVER_TYPE);
     __ bge(slow);
     // Call runtime on identical symbols since we need to throw a TypeError.
     __ cmpi(r7, Operand(SYMBOL_TYPE));
@@ -281,7 +281,7 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm, Label* slow,
     __ beq(&heap_number);
     // Comparing JS objects with <=, >= is complicated.
     if (cond != eq) {
-      __ cmpi(r7, Operand(FIRST_SPEC_OBJECT_TYPE));
+      __ cmpi(r7, Operand(FIRST_JS_RECEIVER_TYPE));
       __ bge(slow);
       // Call runtime on identical symbols since we need to throw a TypeError.
       __ cmpi(r7, Operand(SYMBOL_TYPE));
@@ -456,11 +456,11 @@ static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm, Register lhs,
   // If either operand is a JS object or an oddball value, then they are
   // not equal since their pointers are different.
   // There is no test for undetectability in strict equality.
-  STATIC_ASSERT(LAST_TYPE == LAST_SPEC_OBJECT_TYPE);
+  STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
   Label first_non_object;
   // Get the type of the first operand into r5 and compare it with
-  // FIRST_SPEC_OBJECT_TYPE.
-  __ CompareObjectType(rhs, r5, r5, FIRST_SPEC_OBJECT_TYPE);
+  // FIRST_JS_RECEIVER_TYPE.
+  __ CompareObjectType(rhs, r5, r5, FIRST_JS_RECEIVER_TYPE);
   __ blt(&first_non_object);
 
   // Return non-zero (r3 is not zero)
@@ -473,7 +473,7 @@ static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm, Register lhs,
   __ cmpi(r5, Operand(ODDBALL_TYPE));
   __ beq(&return_not_equal);
 
-  __ CompareObjectType(lhs, r6, r6, FIRST_SPEC_OBJECT_TYPE);
+  __ CompareObjectType(lhs, r6, r6, FIRST_JS_RECEIVER_TYPE);
   __ bge(&return_not_equal);
 
   // Check for oddballs: true, false, null, undefined.
@@ -536,9 +536,9 @@ static void EmitCheckForInternalizedStringsOrObjects(MacroAssembler* masm,
   __ Ret();
 
   __ bind(&object_test);
-  __ cmpi(r5, Operand(FIRST_SPEC_OBJECT_TYPE));
+  __ cmpi(r5, Operand(FIRST_JS_RECEIVER_TYPE));
   __ blt(not_both_strings);
-  __ CompareObjectType(lhs, r5, r6, FIRST_SPEC_OBJECT_TYPE);
+  __ CompareObjectType(lhs, r5, r6, FIRST_JS_RECEIVER_TYPE);
   __ blt(not_both_strings);
   // If both objects are undetectable, they are equal. Otherwise, they
   // are not equal, since they are different objects and an object is not

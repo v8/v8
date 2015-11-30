@@ -2240,7 +2240,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
 
       if (expected.Contains(ToBooleanStub::SPEC_OBJECT)) {
         // spec object -> true.
-        __ CompareInstanceType(map, ip, FIRST_SPEC_OBJECT_TYPE);
+        __ CompareInstanceType(map, ip, FIRST_JS_RECEIVER_TYPE);
         __ b(ge, instr->TrueLabel(chunk_));
       }
 
@@ -2597,14 +2597,14 @@ void LCodeGen::EmitClassOfTest(Label* is_true,
     // for both being a function type and being in the object type range.
     STATIC_ASSERT(NUM_OF_CALLABLE_SPEC_OBJECT_TYPES == 2);
     STATIC_ASSERT(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE ==
-                  FIRST_SPEC_OBJECT_TYPE + 1);
+                  FIRST_JS_RECEIVER_TYPE + 1);
     STATIC_ASSERT(LAST_NONCALLABLE_SPEC_OBJECT_TYPE ==
-                  LAST_SPEC_OBJECT_TYPE - 1);
-    STATIC_ASSERT(LAST_SPEC_OBJECT_TYPE == LAST_TYPE);
-    __ CompareObjectType(input, temp, temp2, FIRST_SPEC_OBJECT_TYPE);
+                  LAST_JS_RECEIVER_TYPE - 1);
+    STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
+    __ CompareObjectType(input, temp, temp2, FIRST_JS_RECEIVER_TYPE);
     __ b(lt, is_false);
     __ b(eq, is_true);
-    __ cmp(temp2, Operand(LAST_SPEC_OBJECT_TYPE));
+    __ cmp(temp2, Operand(LAST_JS_RECEIVER_TYPE));
     __ b(eq, is_true);
   } else {
     // Faster code path to avoid two compares: subtract lower bound from the
@@ -3286,7 +3286,7 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   // Deoptimize if the receiver is not a JS object.
   __ SmiTst(receiver);
   DeoptimizeIf(eq, instr, Deoptimizer::kSmi);
-  __ CompareObjectType(receiver, scratch, scratch, FIRST_SPEC_OBJECT_TYPE);
+  __ CompareObjectType(receiver, scratch, scratch, FIRST_JS_RECEIVER_TYPE);
   DeoptimizeIf(lt, instr, Deoptimizer::kNotAJavaScriptObject);
 
   __ b(&result_in_receiver);
@@ -5389,8 +5389,8 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     __ JumpIfSmi(input, false_label);
     __ CompareRoot(input, Heap::kNullValueRootIndex);
     __ b(eq, true_label);
-    STATIC_ASSERT(LAST_SPEC_OBJECT_TYPE == LAST_TYPE);
-    __ CompareObjectType(input, scratch, ip, FIRST_SPEC_OBJECT_TYPE);
+    STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
+    __ CompareObjectType(input, scratch, ip, FIRST_JS_RECEIVER_TYPE);
     __ b(lt, false_label);
     // Check for callable or undetectable objects => false.
     __ ldrb(scratch, FieldMemOperand(scratch, Map::kBitFieldOffset));
@@ -5573,7 +5573,7 @@ void LCodeGen::DoForInPrepareMap(LForInPrepareMap* instr) {
   __ SmiTst(r0);
   DeoptimizeIf(eq, instr, Deoptimizer::kSmi);
 
-  STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_SPEC_OBJECT_TYPE);
+  STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_JS_RECEIVER_TYPE);
   __ CompareObjectType(r0, r1, r1, LAST_JS_PROXY_TYPE);
   DeoptimizeIf(le, instr, Deoptimizer::kWrongInstanceType);
 

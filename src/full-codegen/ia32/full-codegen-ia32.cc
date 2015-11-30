@@ -109,7 +109,7 @@ void FullCodeGenerator::Generate() {
     int receiver_offset = (info->scope()->num_parameters() + 1) * kPointerSize;
     __ mov(ecx, Operand(esp, receiver_offset));
     __ AssertNotSmi(ecx);
-    __ CmpObjectType(ecx, FIRST_SPEC_OBJECT_TYPE, ecx);
+    __ CmpObjectType(ecx, FIRST_JS_RECEIVER_TYPE, ecx);
     __ Assert(above_equal, kSloppyFunctionExpectsJSReceiverReceiver);
   }
 
@@ -981,7 +981,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // Convert the object to a JS object.
   Label convert, done_convert;
   __ JumpIfSmi(eax, &convert, Label::kNear);
-  __ CmpObjectType(eax, FIRST_SPEC_OBJECT_TYPE, ecx);
+  __ CmpObjectType(eax, FIRST_JS_RECEIVER_TYPE, ecx);
   __ j(above_equal, &done_convert, Label::kNear);
   __ bind(&convert);
   ToObjectStub stub(isolate());
@@ -992,7 +992,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // Check for proxies.
   Label call_runtime, use_cache, fixed_array;
-  STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_SPEC_OBJECT_TYPE);
+  STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_JS_RECEIVER_TYPE);
   __ CmpObjectType(eax, LAST_JS_PROXY_TYPE, ecx);
   __ j(below_equal, &call_runtime);
 
@@ -1050,7 +1050,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   __ mov(ebx, Immediate(Smi::FromInt(1)));  // Smi indicates slow check
   __ mov(ecx, Operand(esp, 0 * kPointerSize));  // Get enumerated object
-  STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_SPEC_OBJECT_TYPE);
+  STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_JS_RECEIVER_TYPE);
   __ CmpObjectType(ecx, LAST_JS_PROXY_TYPE, ecx);
   __ j(above, &non_proxy);
   __ Move(ebx, Immediate(Smi::FromInt(0)));  // Zero indicates proxy
@@ -2992,7 +2992,7 @@ void FullCodeGenerator::EmitIsSpecObject(CallRuntime* expr) {
                          &if_true, &if_false, &fall_through);
 
   __ JumpIfSmi(eax, if_false);
-  __ CmpObjectType(eax, FIRST_SPEC_OBJECT_TYPE, ebx);
+  __ CmpObjectType(eax, FIRST_JS_RECEIVER_TYPE, ebx);
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
   Split(above_equal, if_true, if_false, fall_through);
 
@@ -3271,16 +3271,16 @@ void FullCodeGenerator::EmitClassOf(CallRuntime* expr) {
   // Assume that there are only two callable types, and one of them is at
   // either end of the type range for JS object types. Saves extra comparisons.
   STATIC_ASSERT(NUM_OF_CALLABLE_SPEC_OBJECT_TYPES == 2);
-  __ CmpObjectType(eax, FIRST_SPEC_OBJECT_TYPE, eax);
+  __ CmpObjectType(eax, FIRST_JS_RECEIVER_TYPE, eax);
   // Map is now in eax.
   __ j(below, &null);
   STATIC_ASSERT(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE ==
-                FIRST_SPEC_OBJECT_TYPE + 1);
+                FIRST_JS_RECEIVER_TYPE + 1);
   __ j(equal, &function);
 
-  __ CmpInstanceType(eax, LAST_SPEC_OBJECT_TYPE);
+  __ CmpInstanceType(eax, LAST_JS_RECEIVER_TYPE);
   STATIC_ASSERT(LAST_NONCALLABLE_SPEC_OBJECT_TYPE ==
-                LAST_SPEC_OBJECT_TYPE - 1);
+                LAST_JS_RECEIVER_TYPE - 1);
   __ j(equal, &function);
   // Assume that there is no larger type.
   STATIC_ASSERT(LAST_NONCALLABLE_SPEC_OBJECT_TYPE == LAST_TYPE - 1);
@@ -4562,8 +4562,8 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     __ JumpIfSmi(eax, if_false);
     __ cmp(eax, isolate()->factory()->null_value());
     __ j(equal, if_true);
-    STATIC_ASSERT(LAST_SPEC_OBJECT_TYPE == LAST_TYPE);
-    __ CmpObjectType(eax, FIRST_SPEC_OBJECT_TYPE, edx);
+    STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
+    __ CmpObjectType(eax, FIRST_JS_RECEIVER_TYPE, edx);
     __ j(below, if_false);
     // Check for callable or undetectable objects => false.
     __ test_b(FieldOperand(edx, Map::kBitFieldOffset),

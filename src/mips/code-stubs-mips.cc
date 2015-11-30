@@ -291,7 +291,7 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm, Label* slow,
   __ GetObjectType(a0, t4, t4);
   if (cc == less || cc == greater) {
     // Call runtime on identical JSObjects.
-    __ Branch(slow, greater, t4, Operand(FIRST_SPEC_OBJECT_TYPE));
+    __ Branch(slow, greater, t4, Operand(FIRST_JS_RECEIVER_TYPE));
     // Call runtime on identical symbols since we need to throw a TypeError.
     __ Branch(slow, eq, t4, Operand(SYMBOL_TYPE));
     // Call runtime on identical SIMD values since we must throw a TypeError.
@@ -307,7 +307,7 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm, Label* slow,
     __ Branch(&heap_number, eq, t4, Operand(HEAP_NUMBER_TYPE));
     // Comparing JS objects with <=, >= is complicated.
     if (cc != eq) {
-    __ Branch(slow, greater, t4, Operand(FIRST_SPEC_OBJECT_TYPE));
+    __ Branch(slow, greater, t4, Operand(FIRST_JS_RECEIVER_TYPE));
     // Call runtime on identical symbols since we need to throw a TypeError.
     __ Branch(slow, eq, t4, Operand(SYMBOL_TYPE));
     // Call runtime on identical SIMD values since we must throw a TypeError.
@@ -459,12 +459,12 @@ static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm,
     // If either operand is a JS object or an oddball value, then they are
     // not equal since their pointers are different.
     // There is no test for undetectability in strict equality.
-    STATIC_ASSERT(LAST_TYPE == LAST_SPEC_OBJECT_TYPE);
+    STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
     Label first_non_object;
     // Get the type of the first operand into a2 and compare it with
-    // FIRST_SPEC_OBJECT_TYPE.
+    // FIRST_JS_RECEIVER_TYPE.
     __ GetObjectType(lhs, a2, a2);
-    __ Branch(&first_non_object, less, a2, Operand(FIRST_SPEC_OBJECT_TYPE));
+    __ Branch(&first_non_object, less, a2, Operand(FIRST_JS_RECEIVER_TYPE));
 
     // Return non-zero.
     Label return_not_equal;
@@ -477,7 +477,7 @@ static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm,
     __ Branch(&return_not_equal, eq, a2, Operand(ODDBALL_TYPE));
 
     __ GetObjectType(rhs, a3, a3);
-    __ Branch(&return_not_equal, greater, a3, Operand(FIRST_SPEC_OBJECT_TYPE));
+    __ Branch(&return_not_equal, greater, a3, Operand(FIRST_JS_RECEIVER_TYPE));
 
     // Check for oddballs: true, false, null, undefined.
     __ Branch(&return_not_equal, eq, a3, Operand(ODDBALL_TYPE));
@@ -539,9 +539,9 @@ static void EmitCheckForInternalizedStringsOrObjects(MacroAssembler* masm,
   __ li(v0, Operand(1));   // Non-zero indicates not equal.
 
   __ bind(&object_test);
-  __ Branch(not_both_strings, lt, a2, Operand(FIRST_SPEC_OBJECT_TYPE));
+  __ Branch(not_both_strings, lt, a2, Operand(FIRST_JS_RECEIVER_TYPE));
   __ GetObjectType(rhs, a2, a3);
-  __ Branch(not_both_strings, lt, a3, Operand(FIRST_SPEC_OBJECT_TYPE));
+  __ Branch(not_both_strings, lt, a3, Operand(FIRST_JS_RECEIVER_TYPE));
 
   // If both objects are undetectable, they are equal.  Otherwise, they
   // are not equal, since they are different objects and an object is not

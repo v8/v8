@@ -223,7 +223,7 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm, Register left,
   Register right_type = scratch;
   if ((cond == lt) || (cond == gt)) {
     // Call runtime on identical JSObjects.  Otherwise return equal.
-    __ JumpIfObjectType(right, right_type, right_type, FIRST_SPEC_OBJECT_TYPE,
+    __ JumpIfObjectType(right, right_type, right_type, FIRST_JS_RECEIVER_TYPE,
                         slow, ge);
     // Call runtime on identical symbols since we need to throw a TypeError.
     __ Cmp(right_type, SYMBOL_TYPE);
@@ -245,7 +245,7 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm, Register left,
     __ JumpIfObjectType(right, right_type, right_type, HEAP_NUMBER_TYPE,
                         &heap_number);
     // Comparing JS objects with <=, >= is complicated.
-    __ Cmp(right_type, FIRST_SPEC_OBJECT_TYPE);
+    __ Cmp(right_type, FIRST_JS_RECEIVER_TYPE);
     __ B(ge, slow);
     // Call runtime on identical symbols since we need to throw a TypeError.
     __ Cmp(right_type, SYMBOL_TYPE);
@@ -336,10 +336,10 @@ static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm,
   // If either operand is a JS object or an oddball value, then they are not
   // equal since their pointers are different.
   // There is no test for undetectability in strict equality.
-  STATIC_ASSERT(LAST_TYPE == LAST_SPEC_OBJECT_TYPE);
+  STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
   Label right_non_object;
 
-  __ Cmp(right_type, FIRST_SPEC_OBJECT_TYPE);
+  __ Cmp(right_type, FIRST_JS_RECEIVER_TYPE);
   __ B(lt, &right_non_object);
 
   // Return non-zero - x0 already contains a non-zero pointer.
@@ -356,9 +356,9 @@ static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm,
   // If right is not ODDBALL, test left. Otherwise, set eq condition.
   __ Ccmp(left_type, ODDBALL_TYPE, ZFlag, ne);
 
-  // If right or left is not ODDBALL, test left >= FIRST_SPEC_OBJECT_TYPE.
+  // If right or left is not ODDBALL, test left >= FIRST_JS_RECEIVER_TYPE.
   // Otherwise, right or left is ODDBALL, so set a ge condition.
-  __ Ccmp(left_type, FIRST_SPEC_OBJECT_TYPE, NVFlag, ne);
+  __ Ccmp(left_type, FIRST_JS_RECEIVER_TYPE, NVFlag, ne);
 
   __ B(ge, &return_not_equal);
 
@@ -471,11 +471,11 @@ static void EmitCheckForInternalizedStringsOrObjects(MacroAssembler* masm,
 
   __ Bind(&object_test);
 
-  __ Cmp(right_type, FIRST_SPEC_OBJECT_TYPE);
+  __ Cmp(right_type, FIRST_JS_RECEIVER_TYPE);
 
-  // If right >= FIRST_SPEC_OBJECT_TYPE, test left.
-  // Otherwise, right < FIRST_SPEC_OBJECT_TYPE, so set lt condition.
-  __ Ccmp(left_type, FIRST_SPEC_OBJECT_TYPE, NFlag, ge);
+  // If right >= FIRST_JS_RECEIVER_TYPE, test left.
+  // Otherwise, right < FIRST_JS_RECEIVER_TYPE, so set lt condition.
+  __ Ccmp(left_type, FIRST_JS_RECEIVER_TYPE, NFlag, ge);
 
   __ B(lt, not_both_strings);
 

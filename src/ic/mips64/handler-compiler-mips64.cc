@@ -143,7 +143,7 @@ void PropertyHandlerCompiler::GenerateDictionaryNegativeLookup(
 
   // Check that receiver is a JSObject.
   __ lbu(scratch0, FieldMemOperand(map, Map::kInstanceTypeOffset));
-  __ Branch(miss_label, lt, scratch0, Operand(FIRST_SPEC_OBJECT_TYPE));
+  __ Branch(miss_label, lt, scratch0, Operand(FIRST_JS_RECEIVER_TYPE));
 
   // Load properties array.
   Register properties = scratch0;

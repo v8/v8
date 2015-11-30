@@ -192,7 +192,7 @@ bool Object::IsConstructor() const {
 
 bool Object::IsSpecObject() const {
   return Object::IsHeapObject()
-    && HeapObject::cast(this)->map()->instance_type() >= FIRST_SPEC_OBJECT_TYPE;
+    && HeapObject::cast(this)->map()->instance_type() >= FIRST_JS_RECEIVER_TYPE;
 }
 
 

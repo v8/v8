@@ -2416,7 +2416,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
 
       if (expected.Contains(ToBooleanStub::SPEC_OBJECT)) {
         // spec object -> true.
-        __ CmpInstanceType(map, FIRST_SPEC_OBJECT_TYPE);
+        __ CmpInstanceType(map, FIRST_JS_RECEIVER_TYPE);
         __ j(above_equal, instr->TrueLabel(chunk_));
       }
 
@@ -2783,14 +2783,14 @@ void LCodeGen::EmitClassOfTest(Label* is_true,
     // for both being a function type and being in the object type range.
     STATIC_ASSERT(NUM_OF_CALLABLE_SPEC_OBJECT_TYPES == 2);
     STATIC_ASSERT(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE ==
-                  FIRST_SPEC_OBJECT_TYPE + 1);
+                  FIRST_JS_RECEIVER_TYPE + 1);
     STATIC_ASSERT(LAST_NONCALLABLE_SPEC_OBJECT_TYPE ==
-                  LAST_SPEC_OBJECT_TYPE - 1);
-    STATIC_ASSERT(LAST_SPEC_OBJECT_TYPE == LAST_TYPE);
-    __ CmpObjectType(input, FIRST_SPEC_OBJECT_TYPE, temp);
+                  LAST_JS_RECEIVER_TYPE - 1);
+    STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
+    __ CmpObjectType(input, FIRST_JS_RECEIVER_TYPE, temp);
     __ j(below, is_false);
     __ j(equal, is_true);
-    __ CmpInstanceType(temp, LAST_SPEC_OBJECT_TYPE);
+    __ CmpInstanceType(temp, LAST_JS_RECEIVER_TYPE);
     __ j(equal, is_true);
   } else {
     // Faster code path to avoid two compares: subtract lower bound from the
@@ -3453,7 +3453,7 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   // The receiver should be a JS object.
   __ test(receiver, Immediate(kSmiTagMask));
   DeoptimizeIf(equal, instr, Deoptimizer::kSmi);
-  __ CmpObjectType(receiver, FIRST_SPEC_OBJECT_TYPE, scratch);
+  __ CmpObjectType(receiver, FIRST_JS_RECEIVER_TYPE, scratch);
   DeoptimizeIf(below, instr, Deoptimizer::kNotAJavaScriptObject);
 
   __ jmp(&receiver_ok, Label::kNear);
@@ -5829,8 +5829,8 @@ Condition LCodeGen::EmitTypeofIs(LTypeofIsAndBranch* instr, Register input) {
     __ JumpIfSmi(input, false_label, false_distance);
     __ cmp(input, factory()->null_value());
     __ j(equal, true_label, true_distance);
-    STATIC_ASSERT(LAST_SPEC_OBJECT_TYPE == LAST_TYPE);
-    __ CmpObjectType(input, FIRST_SPEC_OBJECT_TYPE, input);
+    STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
+    __ CmpObjectType(input, FIRST_JS_RECEIVER_TYPE, input);
     __ j(below, false_label, false_distance);
     // Check for callable or undetectable objects => false.
     __ test_b(FieldOperand(input, Map::kBitFieldOffset),
@@ -6011,7 +6011,7 @@ void LCodeGen::DoForInPrepareMap(LForInPrepareMap* instr) {
   __ test(eax, Immediate(kSmiTagMask));
   DeoptimizeIf(zero, instr, Deoptimizer::kSmi);
 
-  STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_SPEC_OBJECT_TYPE);
+  STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_JS_RECEIVER_TYPE);
   __ CmpObjectType(eax, LAST_JS_PROXY_TYPE, ecx);
   DeoptimizeIf(below_equal, instr, Deoptimizer::kWrongInstanceType);
 
