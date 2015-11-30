@@ -20,10 +20,9 @@ static inline bool IsDebugContext(Isolate* isolate, Context* context) {
 }
 
 
-MaybeHandle<Object> DebugEvaluate::Global(Isolate* isolate,
-                                          Handle<String> source,
-                                          bool disable_break,
-                                          Handle<Object> context_extension) {
+MaybeHandle<Object> DebugEvaluate::Global(
+    Isolate* isolate, Handle<String> source, bool disable_break,
+    Handle<HeapObject> context_extension) {
   // Handle the processing of break.
   DisableBreak disable_break_scope(isolate->debug(), disable_break);
 
@@ -50,7 +49,7 @@ MaybeHandle<Object> DebugEvaluate::Local(Isolate* isolate,
                                          int inlined_jsframe_index,
                                          Handle<String> source,
                                          bool disable_break,
-                                         Handle<Object> context_extension) {
+                                         Handle<HeapObject> context_extension) {
   // Handle the processing of break.
   DisableBreak disable_break_scope(isolate->debug(), disable_break);
 
@@ -81,7 +80,7 @@ MaybeHandle<Object> DebugEvaluate::Local(Isolate* isolate,
 // Compile and evaluate source for the given context.
 MaybeHandle<Object> DebugEvaluate::Evaluate(
     Isolate* isolate, Handle<SharedFunctionInfo> outer_info,
-    Handle<Context> context, Handle<Object> context_extension,
+    Handle<Context> context, Handle<HeapObject> context_extension,
     Handle<Object> receiver, Handle<String> source) {
   if (context_extension->IsJSObject()) {
     Handle<JSObject> extension = Handle<JSObject>::cast(context_extension);

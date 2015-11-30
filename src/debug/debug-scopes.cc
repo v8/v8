@@ -337,7 +337,7 @@ void ScopeIterator::DebugPrint() {
       if (!CurrentContext().is_null()) {
         CurrentContext()->Print(os);
         if (CurrentContext()->has_extension()) {
-          Handle<Object> extension(CurrentContext()->extension(), isolate_);
+          Handle<HeapObject> extension(CurrentContext()->extension(), isolate_);
           if (extension->IsJSContextExtensionObject()) {
             extension->Print(os);
           }
@@ -361,7 +361,7 @@ void ScopeIterator::DebugPrint() {
       os << "Closure:\n";
       CurrentContext()->Print(os);
       if (CurrentContext()->has_extension()) {
-        Handle<Object> extension(CurrentContext()->extension(), isolate_);
+        Handle<HeapObject> extension(CurrentContext()->extension(), isolate_);
         if (extension->IsJSContextExtensionObject()) {
           extension->Print(os);
         }

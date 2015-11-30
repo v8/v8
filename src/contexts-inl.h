@@ -56,9 +56,13 @@ Context* Context::previous() {
 void Context::set_previous(Context* context) { set(PREVIOUS_INDEX, context); }
 
 
-bool Context::has_extension() { return extension() != nullptr; }
-Object* Context::extension() { return get(EXTENSION_INDEX); }
-void Context::set_extension(Object* object) { set(EXTENSION_INDEX, object); }
+bool Context::has_extension() { return !extension()->IsTheHole(); }
+HeapObject* Context::extension() {
+  return HeapObject::cast(get(EXTENSION_INDEX));
+}
+void Context::set_extension(HeapObject* object) {
+  set(EXTENSION_INDEX, object);
+}
 
 
 JSModule* Context::module() { return JSModule::cast(get(EXTENSION_INDEX)); }

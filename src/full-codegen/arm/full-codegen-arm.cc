@@ -1269,10 +1269,9 @@ void FullCodeGenerator::EmitLoadGlobalCheckExtensions(VariableProxy* proxy,
   while (s != NULL) {
     if (s->num_heap_slots() > 0) {
       if (s->calls_sloppy_eval()) {
-        // Check that extension is NULL.
+        // Check that extension is "the hole".
         __ ldr(temp, ContextMemOperand(current, Context::EXTENSION_INDEX));
-        __ tst(temp, temp);
-        __ b(ne, slow);
+        __ JumpIfNotRoot(temp, Heap::kTheHoleValueRootIndex, slow);
       }
       // Load next context in chain.
       __ ldr(next, ContextMemOperand(current, Context::PREVIOUS_INDEX));
@@ -1296,10 +1295,9 @@ void FullCodeGenerator::EmitLoadGlobalCheckExtensions(VariableProxy* proxy,
     __ LoadRoot(ip, Heap::kNativeContextMapRootIndex);
     __ cmp(temp, ip);
     __ b(eq, &fast);
-    // Check that extension is NULL.
+    // Check that extension is "the hole".
     __ ldr(temp, ContextMemOperand(next, Context::EXTENSION_INDEX));
-    __ tst(temp, temp);
-    __ b(ne, slow);
+    __ JumpIfNotRoot(temp, Heap::kTheHoleValueRootIndex, slow);
     // Load next context in chain.
     __ ldr(next, ContextMemOperand(next, Context::PREVIOUS_INDEX));
     __ b(&loop);
@@ -1322,20 +1320,18 @@ MemOperand FullCodeGenerator::ContextSlotOperandCheckExtensions(Variable* var,
   for (Scope* s = scope(); s != var->scope(); s = s->outer_scope()) {
     if (s->num_heap_slots() > 0) {
       if (s->calls_sloppy_eval()) {
-        // Check that extension is NULL.
+        // Check that extension is "the hole".
         __ ldr(temp, ContextMemOperand(context, Context::EXTENSION_INDEX));
-        __ tst(temp, temp);
-        __ b(ne, slow);
+        __ JumpIfNotRoot(temp, Heap::kTheHoleValueRootIndex, slow);
       }
       __ ldr(next, ContextMemOperand(context, Context::PREVIOUS_INDEX));
       // Walk the rest of the chain without clobbering cp.
       context = next;
     }
   }
-  // Check that last extension is NULL.
+  // Check that last extension is "the hole".
   __ ldr(temp, ContextMemOperand(context, Context::EXTENSION_INDEX));
-  __ tst(temp, temp);
-  __ b(ne, slow);
+  __ JumpIfNotRoot(temp, Heap::kTheHoleValueRootIndex, slow);
 
   // This function is used only for loads, not stores, so it's safe to
   // return an cp-based operand (the write barrier cannot be allowed to

@@ -2135,7 +2135,7 @@ HValue* CodeStubGraphBuilder<FastNewContextStub>::BuildCodeStub() {
                         context());
   Add<HStoreNamedField>(function_context,
                         HObjectAccess::ForContextSlot(Context::EXTENSION_INDEX),
-                        graph()->GetConstant0());
+                        graph()->GetConstantHole());
 
   // Copy the native context from the previous context.
   HValue* native_context = Add<HLoadNamedField>(

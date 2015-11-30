@@ -3858,8 +3858,8 @@ Node* AstGraphBuilder::TryLoadDynamicVariable(
       Node* load = NewNode(
           javascript()->LoadContext(depth, Context::EXTENSION_INDEX, false),
           current_context());
-      Node* check =
-          NewNode(javascript()->CallRuntime(Runtime::kInlineIsSmi, 1), load);
+      Node* check = NewNode(javascript()->StrictEqual(), load,
+                            jsgraph()->TheHoleConstant());
       fast_block.BreakUnless(check, BranchHint::kTrue);
     }
 
@@ -3900,8 +3900,8 @@ Node* AstGraphBuilder::TryLoadDynamicVariable(
       Node* load = NewNode(
           javascript()->LoadContext(depth, Context::EXTENSION_INDEX, false),
           current_context());
-      Node* check =
-          NewNode(javascript()->CallRuntime(Runtime::kInlineIsSmi, 1), load);
+      Node* check = NewNode(javascript()->StrictEqual(), load,
+                            jsgraph()->TheHoleConstant());
       fast_block.BreakUnless(check, BranchHint::kTrue);
     }
 

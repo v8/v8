@@ -82,8 +82,8 @@ Context* Context::declaration_context() {
 
 JSObject* Context::extension_object() {
   DCHECK(IsNativeContext() || IsFunctionContext() || IsBlockContext());
-  Object* object = extension();
-  if (object == nullptr) return nullptr;
+  HeapObject* object = extension();
+  if (object->IsTheHole()) return nullptr;
   if (IsBlockContext()) {
     if (!object->IsSloppyBlockWithEvalContextExtension()) return nullptr;
     object = SloppyBlockWithEvalContextExtension::cast(object)->extension();
@@ -103,7 +103,7 @@ JSReceiver* Context::extension_receiver() {
 
 ScopeInfo* Context::scope_info() {
   DCHECK(IsModuleContext() || IsScriptContext() || IsBlockContext());
-  Object* object = extension();
+  HeapObject* object = extension();
   if (object->IsSloppyBlockWithEvalContextExtension()) {
     DCHECK(IsBlockContext());
     object = SloppyBlockWithEvalContextExtension::cast(object)->scope_info();

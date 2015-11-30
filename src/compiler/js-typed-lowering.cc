@@ -1837,7 +1837,7 @@ Reduction JSTypedLowering::ReduceJSCreateFunctionContext(Node* node) {
     Node* effect = NodeProperties::GetEffectInput(node);
     Node* control = NodeProperties::GetControlInput(node);
     Node* context = NodeProperties::GetContextInput(node);
-    Node* extension = jsgraph()->ZeroConstant();
+    Node* extension = jsgraph()->TheHoleConstant();
     Node* native_context = effect = graph()->NewNode(
         javascript()->LoadContext(0, Context::NATIVE_CONTEXT_INDEX, true),
         context, context, effect);

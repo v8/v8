@@ -1416,6 +1416,10 @@ Type* Typer::Visitor::TypeJSInstanceOf(Node* node) {
 
 
 Type* Typer::Visitor::TypeJSLoadContext(Node* node) {
+  ContextAccess const& access = ContextAccessOf(node->op());
+  if (access.index() == Context::EXTENSION_INDEX) {
+    return Type::TaggedPointer();
+  }
   // Since contexts are mutable, we just return the top.
   return Type::Any();
 }

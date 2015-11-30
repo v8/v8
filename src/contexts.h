@@ -327,7 +327,7 @@ class ScriptContextTable : public FixedArray {
 //                function contexts, and non-NULL for 'with' contexts.
 //                Used to implement the 'with' statement.
 //
-// [ extension ]  A pointer to an extension JSObject, or NULL. Used to
+// [ extension ]  A pointer to an extension JSObject, or "the hole". Used to
 //                implement 'with' statements and dynamic declarations
 //                (through 'eval'). The object in a 'with' statement is
 //                stored in the extension slot of a 'with' context.
@@ -405,8 +405,8 @@ class Context: public FixedArray {
   inline void set_previous(Context* context);
 
   inline bool has_extension();
-  inline Object* extension();
-  inline void set_extension(Object* object);
+  inline HeapObject* extension();
+  inline void set_extension(HeapObject* object);
   JSObject* extension_object();
   JSReceiver* extension_receiver();
   ScopeInfo* scope_info();

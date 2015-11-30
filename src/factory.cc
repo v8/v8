@@ -764,7 +764,7 @@ Handle<Context> Factory::NewModuleContext(Handle<ScopeInfo> scope_info) {
   array->set_map_no_write_barrier(*module_context_map());
   // Instance link will be set later.
   Handle<Context> context = Handle<Context>::cast(array);
-  context->set_extension(Smi::FromInt(0));
+  context->set_extension(*the_hole_value());
   return context;
 }
 
@@ -777,7 +777,7 @@ Handle<Context> Factory::NewFunctionContext(int length,
   Handle<Context> context = Handle<Context>::cast(array);
   context->set_closure(*function);
   context->set_previous(function->context());
-  context->set_extension(Smi::FromInt(0));
+  context->set_extension(*the_hole_value());
   context->set_native_context(function->native_context());
   return context;
 }

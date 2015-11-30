@@ -294,7 +294,7 @@ Object* DeclareLookupSlot(Isolate* isolate, Handle<String> name,
       DCHECK(context->IsBlockContext());
       object = isolate->factory()->NewJSObject(
           isolate->context_extension_function());
-      Handle<Object> extension =
+      Handle<HeapObject> extension =
           isolate->factory()->NewSloppyBlockWithEvalContextExtension(
               handle(context->scope_info()), object);
       context->set_extension(*extension);
