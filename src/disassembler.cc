@@ -192,9 +192,6 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
         out.AddFormatted("    ;; external reference (%s)", reference_name);
       } else if (RelocInfo::IsCodeTarget(rmode)) {
         out.AddFormatted("    ;; code:");
-        if (rmode == RelocInfo::CONSTRUCT_CALL) {
-          out.AddFormatted(" constructor,");
-        }
         Code* code = Code::GetCodeFromTargetAddress(relocinfo.target_address());
         Code::Kind kind = code->kind();
         if (code->is_inline_cache_stub()) {

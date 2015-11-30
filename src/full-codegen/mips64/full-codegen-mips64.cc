@@ -3023,7 +3023,7 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   __ li(a3, Operand(SmiFromSlot(expr->CallNewFeedbackSlot())));
 
   CallConstructStub stub(isolate());
-  __ Call(stub.GetCode(), RelocInfo::CONSTRUCT_CALL);
+  __ Call(stub.GetCode(), RelocInfo::CODE_TARGET);
   PrepareForBailoutForId(expr->ReturnId(), TOS_REG);
   // Restore context register.
   __ ld(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
@@ -3058,7 +3058,7 @@ void FullCodeGenerator::EmitSuperConstructorCall(Call* expr) {
   __ li(a0, Operand(arg_count));
   __ ld(a1, MemOperand(sp, arg_count * kPointerSize));
 
-  __ Call(isolate()->builtins()->Construct(), RelocInfo::CONSTRUCT_CALL);
+  __ Call(isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
 
   RecordJSReturnSite(expr);
 
@@ -3841,7 +3841,7 @@ void FullCodeGenerator::EmitDefaultConstructorCallSuper(CallRuntime* expr) {
   __ dsll(at, a0, kPointerSizeLog2);
   __ Daddu(at, at, Operand(sp));
   __ ld(a1, MemOperand(at, 0));
-  __ Call(isolate()->builtins()->Construct(), RelocInfo::CONSTRUCT_CALL);
+  __ Call(isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
 
   // Restore context register.
   __ ld(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));

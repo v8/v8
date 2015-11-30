@@ -51,7 +51,7 @@ void MacroAssembler::Jump(intptr_t target, RelocInfo::Mode rmode,
   if (cond != al) b(NegateCondition(cond), &skip, cr);
 
   DCHECK(rmode == RelocInfo::CODE_TARGET || rmode == RelocInfo::RUNTIME_ENTRY ||
-         rmode == RelocInfo::CONSTRUCT_CALL);
+         rmode == RelocInfo::CODE_TARGET);
 
   mov(ip, Operand(target, rmode));
   mtctr(ip);
