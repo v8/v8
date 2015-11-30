@@ -1009,7 +1009,7 @@ Summary of changes available at:
 https://chromium.googlesource.com/v8/v8/+log/last_rol..roll_hsh
 
 Please follow these instructions for assigning/CC'ing issues:
-https://code.google.com/p/v8-wiki/wiki/TriagingIssues
+https://github.com/v8/v8/wiki/Triaging%20issues
 
 Please close rolling in case of a roll revert:
 https://v8-roll.appspot.com/
