@@ -1265,50 +1265,39 @@ void MacroAssembler::Ins(Register rt,
 }
 
 
-void MacroAssembler::Cvt_d_uw(FPURegister fd,
-                              FPURegister fs,
+void MacroAssembler::Cvt_d_uw(FPURegister fd, Register rs,
                               FPURegister scratch) {
-  // Move the data from fs to t8.
-  mfc1(t8, fs);
-  Cvt_d_uw(fd, t8, scratch);
-}
+  // In FP64Mode we do convertion from long.
+  if (IsFp64Mode()) {
+    mtc1(rs, scratch);
+    cvt_d_l(fd, scratch);
+  } else {
+    // Convert rs to a FP value in fd.
+    DCHECK(!fd.is(scratch));
+    DCHECK(!rs.is(at));
 
+    Label msb_clear, conversion_done;
+    // For a value which is < 2^31, regard it as a signed positve word.
+    Branch(&msb_clear, ge, rs, Operand(zero_reg), USE_DELAY_SLOT);
+    mtc1(rs, fd);
 
-void MacroAssembler::Cvt_d_uw(FPURegister fd,
-                              Register rs,
-                              FPURegister scratch) {
-  // Convert rs to a FP value in fd (and fd + 1).
-  // We do this by converting rs minus the MSB to avoid sign conversion,
-  // then adding 2^31 to the result (if needed).
+    li(at, 0x41F00000);  // FP value: 2^32.
 
-  DCHECK(!fd.is(scratch));
-  DCHECK(!rs.is(t9));
-  DCHECK(!rs.is(at));
+    // For unsigned inputs > 2^31, we convert to double as a signed int32,
+    // then add 2^32 to move it back to unsigned value in range 2^31..2^31-1.
+    mtc1(zero_reg, scratch);
+    Mthc1(at, scratch);
 
-  // Save rs's MSB to t9.
-  Ext(t9, rs, 31, 1);
-  // Remove rs's MSB.
-  Ext(at, rs, 0, 31);
-  // Move the result to fd.
-  mtc1(at, fd);
+    cvt_d_w(fd, fd);
 
-  // Convert fd to a real FP value.
-  cvt_d_w(fd, fd);
+    Branch(USE_DELAY_SLOT, &conversion_done);
+    add_d(fd, fd, scratch);
 
-  Label conversion_done;
+    bind(&msb_clear);
+    cvt_d_w(fd, fd);
 
-  // If rs's MSB was 0, it's done.
-  // Otherwise we need to add that to the FP register.
-  Branch(&conversion_done, eq, t9, Operand(zero_reg));
-
-  // Load 2^31 into f20 as its float representation.
-  li(at, 0x41E00000);
-  mtc1(zero_reg, scratch);
-  Mthc1(at, scratch);
-  // Add it to fd.
-  add_d(fd, fd, scratch);
-
-  bind(&conversion_done);
+    bind(&conversion_done);
+  }
 }
 
 

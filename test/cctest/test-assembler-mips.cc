@@ -1812,6 +1812,53 @@ TEST(rint_s)  {
 }
 
 
+TEST(Cvt_d_uw) {
+  if (IsMipsArchVariant(kMips32r2)) {
+    CcTest::InitializeVM();
+    Isolate* isolate = CcTest::i_isolate();
+    HandleScope scope(isolate);
+    MacroAssembler assm(isolate, NULL, 0,
+                        v8::internal::CodeObjectRequired::kYes);
+
+    typedef struct test_struct {
+      unsigned input;
+      uint64_t output;
+    } TestStruct;
+
+    unsigned inputs[] = {
+      0x0, 0xffffffff, 0x80000000, 0x7fffffff
+    };
+
+    uint64_t outputs[] = {
+      0x0, 0x41efffffffe00000,
+      0x41e0000000000000, 0x41dfffffffc00000
+    };
+
+    int kTableLength = sizeof(inputs)/sizeof(inputs[0]);
+
+    TestStruct test;
+
+    __ lw(t1, MemOperand(a0, offsetof(TestStruct, input)));
+    __ Cvt_d_uw(f4, t1, f6);
+    __ sdc1(f4, MemOperand(a0, offsetof(TestStruct, output)));
+    __ jr(ra);
+    __ nop();
+
+    CodeDesc desc;
+    assm.GetCode(&desc);
+    Handle<Code> code = isolate->factory()->NewCode(
+        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+    F3 f = FUNCTION_CAST<F3>(code->entry());
+    for (int i = 0; i < kTableLength; i++) {
+      test.input = inputs[i];
+      (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
+      // Check outputs
+      CHECK_EQ(test.output, outputs[i]);
+    }
+  }
+}
+
+
 TEST(mina_maxa) {
   if (IsMipsArchVariant(kMips32r6)) {
     const int kTableLength = 15;

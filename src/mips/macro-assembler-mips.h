@@ -775,7 +775,6 @@ class MacroAssembler: public Assembler {
   // FPU macros. These do not handle special cases like NaN or +- inf.
 
   // Convert unsigned word to double.
-  void Cvt_d_uw(FPURegister fd, FPURegister fs, FPURegister scratch);
   void Cvt_d_uw(FPURegister fd, Register rs, FPURegister scratch);
 
   // Convert double to unsigned word.
