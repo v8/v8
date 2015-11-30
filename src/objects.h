@@ -1060,7 +1060,6 @@ class Object {
   // ES6, section 7.2.4 IsConstructor.
   INLINE(bool IsConstructor() const);
 
-  INLINE(bool IsSpecObject()) const;
   INLINE(bool IsTemplateInfo()) const;
   INLINE(bool IsNameDictionary() const);
   INLINE(bool IsGlobalDictionary() const);

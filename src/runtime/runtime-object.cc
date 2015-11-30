@@ -1263,7 +1263,7 @@ RUNTIME_FUNCTION(Runtime_IsSpecObject) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_CHECKED(Object, obj, 0);
-  return isolate->heap()->ToBoolean(obj->IsSpecObject());
+  return isolate->heap()->ToBoolean(obj->IsJSReceiver());
 }
 
 

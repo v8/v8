@@ -1189,7 +1189,7 @@ bool HasConcatSpreadableModifier(Isolate* isolate, Handle<JSArray> obj) {
 
 bool IsConcatSpreadable(Isolate* isolate, Handle<Object> obj) {
   HandleScope handle_scope(isolate);
-  if (!obj->IsSpecObject()) return false;
+  if (!obj->IsJSReceiver()) return false;
   if (FLAG_harmony_concat_spreadable) {
     Handle<Symbol> key(isolate->factory()->is_concat_spreadable_symbol());
     Handle<Object> value;

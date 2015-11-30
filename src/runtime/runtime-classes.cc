@@ -108,7 +108,7 @@ static MaybeHandle<Object> DefineClass(Isolate* isolate, Handle<Object> name,
                                      isolate->factory()->prototype_string(),
                                      SLOPPY),
           Object);
-      if (!prototype_parent->IsNull() && !prototype_parent->IsSpecObject()) {
+      if (!prototype_parent->IsNull() && !prototype_parent->IsJSReceiver()) {
         THROW_NEW_ERROR(
             isolate, NewTypeError(MessageTemplate::kPrototypeParentNotAnObject,
                                   prototype_parent),

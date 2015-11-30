@@ -858,7 +858,7 @@ MaybeHandle<Object> JSProxy::GetPrototype(Handle<JSProxy> proxy) {
   Handle<Object> raw_handler(proxy->handler(), isolate);
   // 2. If handler is null, throw a TypeError exception.
   // 3. Assert: Type(handler) is Object.
-  if (!raw_handler->IsSpecObject()) {
+  if (!raw_handler->IsJSReceiver()) {
     // TODO(cbruni): Throw correct error message.
     THROW_NEW_ERROR(
         isolate, NewTypeError(MessageTemplate::kProxyHandlerNonObject), Object);
@@ -883,7 +883,7 @@ MaybeHandle<Object> JSProxy::GetPrototype(Handle<JSProxy> proxy) {
       isolate, handler_proto,
       Execution::Call(isolate, trap, handler, arraysize(argv), argv), Object);
   // 8. If Type(handlerProto) is neither Object nor Null, throw a TypeError.
-  if (!(handler_proto->IsSpecObject() || handler_proto->IsNull())) {
+  if (!(handler_proto->IsJSReceiver() || handler_proto->IsNull())) {
     THROW_NEW_ERROR(isolate,
                     NewTypeError(MessageTemplate::kProxyHandlerTrapMissing,
                                  handler, trap_name),
@@ -6090,7 +6090,7 @@ Object* JSReceiver::DefineProperty(Isolate* isolate, Handle<Object> object,
                                    Handle<Object> key,
                                    Handle<Object> attributes) {
   // 1. If Type(O) is not Object, throw a TypeError exception.
-  if (!object->IsSpecObject()) {
+  if (!object->IsJSReceiver()) {
     Handle<String> fun_name =
         isolate->factory()->InternalizeUtf8String("Object.defineProperty");
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -6121,7 +6121,7 @@ Object* JSReceiver::DefineProperty(Isolate* isolate, Handle<Object> object,
 Object* JSReceiver::DefineProperties(Isolate* isolate, Handle<Object> object,
                                      Handle<Object> properties) {
   // 1. If Type(O) is not Object, throw a TypeError exception.
-  if (!object->IsSpecObject()) {
+  if (!object->IsJSReceiver()) {
     Handle<String> fun_name =
         isolate->factory()->InternalizeUtf8String("Object.defineProperties");
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -6802,7 +6802,7 @@ bool JSProxy::DefineOwnProperty(Isolate* isolate, Handle<JSProxy> proxy,
   // 4. Assert: Type(handler) is Object.
   DCHECK(handler->IsJSReceiver());
   // If the handler is not null, the target can't be null either.
-  DCHECK(proxy->target()->IsSpecObject());
+  DCHECK(proxy->target()->IsJSReceiver());
   // 5. Let target be the value of the [[ProxyTarget]] internal slot of O.
   Handle<JSReceiver> target(JSReceiver::cast(proxy->target()), isolate);
   // 6. Let trap be ? GetMethod(handler, "defineProperty").
@@ -6985,9 +6985,9 @@ bool JSProxy::GetOwnPropertyDescriptor(LookupIterator* it,
     return false;
   }
   // 4. Assert: Type(handler) is Object.
-  DCHECK(handler->IsSpecObject());
+  DCHECK(handler->IsJSReceiver());
   // If the handler is not null, the target can't be null either.
-  DCHECK(it->GetHolder<JSProxy>()->target()->IsSpecObject());
+  DCHECK(it->GetHolder<JSProxy>()->target()->IsJSReceiver());
   // 5. Let target be the value of the [[ProxyTarget]] internal slot of O.
   Handle<JSReceiver> target(
       JSReceiver::cast(it->GetHolder<JSProxy>()->target()), isolate);
@@ -7010,7 +7010,7 @@ bool JSProxy::GetOwnPropertyDescriptor(LookupIterator* it,
       Execution::Call(isolate, trap, handler, arraysize(args), args), false);
   // 9. If Type(trapResultObj) is neither Object nor Undefined, throw a
   //    TypeError exception.
-  if (!trap_result_obj->IsSpecObject() && !trap_result_obj->IsUndefined()) {
+  if (!trap_result_obj->IsJSReceiver() && !trap_result_obj->IsUndefined()) {
     isolate->Throw(*isolate->factory()->NewTypeError(
         MessageTemplate::kProxyHandlerReturned, handler, trap_result_obj,
         property_name));

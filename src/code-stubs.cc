@@ -969,7 +969,7 @@ bool ToBooleanStub::Types::UpdateStatus(Handle<Object> object) {
   } else if (object->IsSmi()) {
     Add(SMI);
     return Smi::cast(*object)->value() != 0;
-  } else if (object->IsSpecObject()) {
+  } else if (object->IsJSReceiver()) {
     Add(SPEC_OBJECT);
     return !object->IsUndetectableObject();
   } else if (object->IsString()) {

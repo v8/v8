@@ -161,7 +161,7 @@ static Maybe<PropertyAttributes> UnscopableLookup(LookupIterator* it) {
   if (!maybe_unscopables.ToHandle(&unscopables)) {
     return Nothing<PropertyAttributes>();
   }
-  if (!unscopables->IsSpecObject()) return attrs;
+  if (!unscopables->IsJSReceiver()) return attrs;
   Handle<Object> blacklist;
   MaybeHandle<Object> maybe_blacklist =
       Object::GetProperty(unscopables, it->name());

@@ -198,12 +198,6 @@ bool Object::IsConstructor() const {
 }
 
 
-bool Object::IsSpecObject() const {
-  return Object::IsHeapObject()
-    && HeapObject::cast(this)->map()->instance_type() >= FIRST_JS_RECEIVER_TYPE;
-}
-
-
 bool Object::IsTemplateInfo() const {
   return IsObjectTemplateInfo() || IsFunctionTemplateInfo();
 }
@@ -2373,7 +2367,7 @@ bool Object::IsStringObjectWithCharacterAt(uint32_t index) {
 
 void Object::VerifyApiCallResultType() {
 #if DEBUG
-  if (!(IsSmi() || IsString() || IsSymbol() || IsSpecObject() ||
+  if (!(IsSmi() || IsString() || IsSymbol() || IsJSReceiver() ||
         IsHeapNumber() || IsSimd128Value() || IsUndefined() || IsTrue() ||
         IsFalse() || IsNull())) {
     FATAL("API call returned invalid object");

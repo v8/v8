@@ -148,7 +148,7 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
                                               PropertyDescriptor* desc) {
   // 1. ReturnIfAbrupt(Obj).
   // 2. If Type(Obj) is not Object, throw a TypeError exception.
-  if (!obj->IsSpecObject()) {
+  if (!obj->IsJSReceiver()) {
     isolate->Throw(*isolate->factory()->NewTypeError(
         MessageTemplate::kPropertyDescObject, obj));
     return false;

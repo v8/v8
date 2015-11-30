@@ -16,11 +16,11 @@ RUNTIME_FUNCTION(Runtime_CreateJSProxy) {
   DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(Object, target, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, handler, 1);
-  if (!target->IsSpecObject()) {
+  if (!target->IsJSReceiver()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kProxyTargetNonObject));
   }
-  if (!handler->IsSpecObject()) {
+  if (!handler->IsJSReceiver()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kProxyHandlerNonObject));
   }
