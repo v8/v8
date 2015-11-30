@@ -1102,7 +1102,7 @@ class Parser : public ParserBase<ParserTraits> {
   TryStatement* ParseTryStatement(bool* ok);
   DebuggerStatement* ParseDebuggerStatement(bool* ok);
 
-  // !%_IsSpecObject(result = iterator.next()) &&
+  // !%_IsJSReceiver(result = iterator.next()) &&
   //     %ThrowIteratorResultNotAnObject(result)
   Expression* BuildIteratorNextResult(Expression* iterator, Variable* result,
                                       int pos);

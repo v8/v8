@@ -145,7 +145,7 @@ TEST(RuntimeCallCPP2) {
 
 TEST(RuntimeCallInline) {
   FLAG_allow_natives_syntax = true;
-  FunctionTester T("(function(a) { return %_IsSpecObject(a); })");
+  FunctionTester T("(function(a) { return %_IsJSReceiver(a); })");
 
   T.CheckCall(T.false_value(), T.Val(23), T.undefined());
   T.CheckCall(T.false_value(), T.Val(4.2), T.undefined());

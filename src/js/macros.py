@@ -125,7 +125,7 @@ macro IS_STRONG(arg)            = (%IsStrong(arg));
 # This is the same as being either a function or an object in V8 terminology
 # (including proxies).
 # In addition, an undetectable object is also included by this.
-macro IS_SPEC_OBJECT(arg)   = (%_IsSpecObject(arg));
+macro IS_SPEC_OBJECT(arg)   = (%_IsJSReceiver(arg));
 
 # Macro for ECMAScript 5 queries of the type:
 # "IsCallable(O)"

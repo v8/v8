@@ -46,7 +46,7 @@ class JSIntrinsicLowering final : public AdvancedReducer {
   Reduction ReduceIncrementStatsCounter(Node* node);
   Reduction ReduceIsMinusZero(Node* node);
   Reduction ReduceIsInstanceType(Node* node, InstanceType instance_type);
-  Reduction ReduceIsSpecObject(Node* node);
+  Reduction ReduceIsJSReceiver(Node* node);
   Reduction ReduceIsSmi(Node* node);
   Reduction ReduceJSValueGetValue(Node* node);
   Reduction ReduceMapGetInstanceType(Node* node);

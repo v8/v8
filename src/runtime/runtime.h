@@ -481,7 +481,7 @@ namespace internal {
   F(HeapObjectGetMap, 1, 1)                          \
   F(MapGetInstanceType, 1, 1)                        \
   F(ObjectEquals, 2, 1)                              \
-  F(IsSpecObject, 1, 1)                              \
+  F(IsJSReceiver, 1, 1)                              \
   F(IsStrong, 1, 1)                                  \
   F(ClassOf, 1, 1)                                   \
   F(DefineGetterPropertyUnchecked, 4, 1)             \

@@ -452,7 +452,7 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
     // Insert a check of the return value to determine whether the return value
     // or the implicit receiver should be selected as a result of the call.
     Node* check = jsgraph_->graph()->NewNode(
-        jsgraph_->javascript()->CallRuntime(Runtime::kInlineIsSpecObject, 1),
+        jsgraph_->javascript()->CallRuntime(Runtime::kInlineIsJSReceiver, 1),
         node, context, node, start);
     Node* select = jsgraph_->graph()->NewNode(
         jsgraph_->common()->Select(kMachAnyTagged), check, node, create);

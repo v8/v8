@@ -59,9 +59,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceIsInstanceType(node, JS_FUNCTION_TYPE);
     case Runtime::kInlineIsRegExp:
       return ReduceIsInstanceType(node, JS_REGEXP_TYPE);
-    case Runtime::kInlineIsSpecObject:
-      // TODO(bmeurer): Rename %_IsSpecObject to %_IsReceiver.
-      return ReduceIsSpecObject(node);
+    case Runtime::kInlineIsJSReceiver:
+      return ReduceIsJSReceiver(node);
     case Runtime::kInlineIsSmi:
       return ReduceIsSmi(node);
     case Runtime::kInlineJSValueGetValue:
@@ -247,7 +246,7 @@ Reduction JSIntrinsicLowering::ReduceIsInstanceType(
 }
 
 
-Reduction JSIntrinsicLowering::ReduceIsSpecObject(Node* node) {
+Reduction JSIntrinsicLowering::ReduceIsJSReceiver(Node* node) {
   // if (%_IsSmi(value)) {
   //   return false;
   // } else {

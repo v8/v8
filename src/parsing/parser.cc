@@ -2854,7 +2854,7 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
       // Is rewritten as:
       //
       //   return (temp = expr) === undefined ? this :
-      //       %_IsSpecObject(temp) ? temp : throw new TypeError(...);
+      //       %_IsJSReceiver(temp) ? temp : throw new TypeError(...);
       Variable* temp = scope_->NewTemporary(
           ast_value_factory()->empty_string());
       Assignment* assign = factory()->NewAssignment(
@@ -2864,14 +2864,14 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
           NewThrowTypeError(MessageTemplate::kDerivedConstructorReturn,
                             ast_value_factory()->empty_string(), pos);
 
-      // %_IsSpecObject(temp)
+      // %_IsJSReceiver(temp)
       ZoneList<Expression*>* is_spec_object_args =
           new (zone()) ZoneList<Expression*>(1, zone());
       is_spec_object_args->Add(factory()->NewVariableProxy(temp), zone());
       Expression* is_spec_object_call = factory()->NewCallRuntime(
-          Runtime::kInlineIsSpecObject, is_spec_object_args, pos);
+          Runtime::kInlineIsJSReceiver, is_spec_object_args, pos);
 
-      // %_IsSpecObject(temp) ? temp : throw_expression
+      // %_IsJSReceiver(temp) ? temp : throw_expression
       Expression* is_object_conditional = factory()->NewConditional(
           is_spec_object_call, factory()->NewVariableProxy(temp),
           throw_expression, pos);
@@ -3281,7 +3281,7 @@ WhileStatement* Parser::ParseWhileStatement(
 }
 
 
-// !%_IsSpecObject(result = iterator.next()) &&
+// !%_IsJSReceiver(result = iterator.next()) &&
 //     %ThrowIteratorResultNotAnObject(result)
 Expression* Parser::BuildIteratorNextResult(Expression* iterator,
                                             Variable* result, int pos) {
@@ -3297,12 +3297,12 @@ Expression* Parser::BuildIteratorNextResult(Expression* iterator,
   Expression* left =
       factory()->NewAssignment(Token::ASSIGN, result_proxy, next_call, pos);
 
-  // %_IsSpecObject(...)
+  // %_IsJSReceiver(...)
   ZoneList<Expression*>* is_spec_object_args =
       new (zone()) ZoneList<Expression*>(1, zone());
   is_spec_object_args->Add(left, zone());
   Expression* is_spec_object_call = factory()->NewCallRuntime(
-      Runtime::kInlineIsSpecObject, is_spec_object_args, pos);
+      Runtime::kInlineIsJSReceiver, is_spec_object_args, pos);
 
   // %ThrowIteratorResultNotAnObject(result)
   Expression* result_proxy_again = factory()->NewVariableProxy(result);
@@ -3341,7 +3341,7 @@ void Parser::InitializeForEachStatement(ForEachStatement* stmt,
         Token::ASSIGN, factory()->NewVariableProxy(iterator),
         GetIterator(subject, factory()), subject->position());
 
-    // !%_IsSpecObject(result = iterator.next()) &&
+    // !%_IsJSReceiver(result = iterator.next()) &&
     //     %ThrowIteratorResultNotAnObject(result)
     {
       // result = iterator.next()

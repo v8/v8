@@ -284,16 +284,16 @@ TEST_F(JSIntrinsicLoweringTest, InlineIsRegExp) {
 
 
 // -----------------------------------------------------------------------------
-// %_IsSpecObject
+// %_IsJSReceiver
 
 
-TEST_F(JSIntrinsicLoweringTest, InlineIsSpecObject) {
+TEST_F(JSIntrinsicLoweringTest, InlineIsJSReceiver) {
   Node* const input = Parameter(0);
   Node* const context = Parameter(1);
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
   Reduction const r = Reduce(graph()->NewNode(
-      javascript()->CallRuntime(Runtime::kInlineIsSpecObject, 1), input,
+      javascript()->CallRuntime(Runtime::kInlineIsJSReceiver, 1), input,
       context, effect, control));
   ASSERT_TRUE(r.Changed());
 
