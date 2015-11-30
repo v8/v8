@@ -937,7 +937,7 @@ function DefineError(global, f) {
   %AddNamedProperty(f.prototype, 'constructor', f, DONT_ENUM);
   %AddNamedProperty(f.prototype, 'name', name, DONT_ENUM);
   %SetCode(f, function(m) {
-    if (%_IsConstructCall()) {
+    if (!IS_UNDEFINED(new.target)) {
       try { captureStackTrace(this, f); } catch (e) { }
       // Define all the expected properties directly on the error
       // object. This avoids going through getters and setters defined

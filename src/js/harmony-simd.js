@@ -433,34 +433,44 @@ SIMD_X16_TYPES(DECLARE_X16_FUNCTIONS)
 //-------------------------------------------------------------------
 
 function Float32x4Constructor(c0, c1, c2, c3) {
-  if (%_IsConstructCall()) throw MakeTypeError(kNotConstructor, "Float32x4");
+  if (!IS_UNDEFINED(new.target)) {
+    throw MakeTypeError(kNotConstructor, "Float32x4");
+  }
   return %CreateFloat32x4(TO_NUMBER(c0), TO_NUMBER(c1),
                           TO_NUMBER(c2), TO_NUMBER(c3));
 }
 
 
 function Int32x4Constructor(c0, c1, c2, c3) {
-  if (%_IsConstructCall()) throw MakeTypeError(kNotConstructor, "Int32x4");
+  if (!IS_UNDEFINED(new.target)) {
+    throw MakeTypeError(kNotConstructor, "Int32x4");
+  }
   return %CreateInt32x4(TO_NUMBER(c0), TO_NUMBER(c1),
                         TO_NUMBER(c2), TO_NUMBER(c3));
 }
 
 
 function Uint32x4Constructor(c0, c1, c2, c3) {
-  if (%_IsConstructCall()) throw MakeTypeError(kNotConstructor, "Uint32x4");
+  if (!IS_UNDEFINED(new.target)) {
+    throw MakeTypeError(kNotConstructor, "Uint32x4");
+  }
   return %CreateUint32x4(TO_NUMBER(c0), TO_NUMBER(c1),
                          TO_NUMBER(c2), TO_NUMBER(c3));
 }
 
 
 function Bool32x4Constructor(c0, c1, c2, c3) {
-  if (%_IsConstructCall()) throw MakeTypeError(kNotConstructor, "Bool32x4");
+  if (!IS_UNDEFINED(new.target)) {
+    throw MakeTypeError(kNotConstructor, "Bool32x4");
+  }
   return %CreateBool32x4(c0, c1, c2, c3);
 }
 
 
 function Int16x8Constructor(c0, c1, c2, c3, c4, c5, c6, c7) {
-  if (%_IsConstructCall()) throw MakeTypeError(kNotConstructor, "Int16x8");
+  if (!IS_UNDEFINED(new.target)) {
+    throw MakeTypeError(kNotConstructor, "Int16x8");
+  }
   return %CreateInt16x8(TO_NUMBER(c0), TO_NUMBER(c1),
                         TO_NUMBER(c2), TO_NUMBER(c3),
                         TO_NUMBER(c4), TO_NUMBER(c5),
@@ -469,7 +479,9 @@ function Int16x8Constructor(c0, c1, c2, c3, c4, c5, c6, c7) {
 
 
 function Uint16x8Constructor(c0, c1, c2, c3, c4, c5, c6, c7) {
-  if (%_IsConstructCall()) throw MakeTypeError(kNotConstructor, "Uint16x8");
+  if (!IS_UNDEFINED(new.target)) {
+    throw MakeTypeError(kNotConstructor, "Uint16x8");
+  }
   return %CreateUint16x8(TO_NUMBER(c0), TO_NUMBER(c1),
                          TO_NUMBER(c2), TO_NUMBER(c3),
                          TO_NUMBER(c4), TO_NUMBER(c5),
@@ -478,14 +490,18 @@ function Uint16x8Constructor(c0, c1, c2, c3, c4, c5, c6, c7) {
 
 
 function Bool16x8Constructor(c0, c1, c2, c3, c4, c5, c6, c7) {
-  if (%_IsConstructCall()) throw MakeTypeError(kNotConstructor, "Bool16x8");
+  if (!IS_UNDEFINED(new.target)) {
+    throw MakeTypeError(kNotConstructor, "Bool16x8");
+  }
   return %CreateBool16x8(c0, c1, c2, c3, c4, c5, c6, c7);
 }
 
 
 function Int8x16Constructor(c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11,
                             c12, c13, c14, c15) {
-  if (%_IsConstructCall()) throw MakeTypeError(kNotConstructor, "Int8x16");
+  if (!IS_UNDEFINED(new.target)) {
+    throw MakeTypeError(kNotConstructor, "Int8x16");
+  }
   return %CreateInt8x16(TO_NUMBER(c0), TO_NUMBER(c1),
                         TO_NUMBER(c2), TO_NUMBER(c3),
                         TO_NUMBER(c4), TO_NUMBER(c5),
@@ -499,7 +515,9 @@ function Int8x16Constructor(c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11,
 
 function Uint8x16Constructor(c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11,
                              c12, c13, c14, c15) {
-  if (%_IsConstructCall()) throw MakeTypeError(kNotConstructor, "Uint8x16");
+  if (!IS_UNDEFINED(new.target)) {
+    throw MakeTypeError(kNotConstructor, "Uint8x16");
+  }
   return %CreateUint8x16(TO_NUMBER(c0), TO_NUMBER(c1),
                          TO_NUMBER(c2), TO_NUMBER(c3),
                          TO_NUMBER(c4), TO_NUMBER(c5),
@@ -513,7 +531,9 @@ function Uint8x16Constructor(c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11,
 
 function Bool8x16Constructor(c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11,
                              c12, c13, c14, c15) {
-  if (%_IsConstructCall()) throw MakeTypeError(kNotConstructor, "Bool8x16");
+  if (!IS_UNDEFINED(new.target)) {
+    throw MakeTypeError(kNotConstructor, "Bool8x16");
+  }
   return %CreateBool8x16(c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12,
                          c13, c14, c15);
 }

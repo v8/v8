@@ -25,7 +25,7 @@ utils.Import(function(from) {
 //----------------------------------------------------------------------------
 
 function ProxyCreate(target, handler) {
-  if (!%_IsConstructCall()) {
+  if (IS_UNDEFINED(new.target)) {
     throw MakeTypeError(kConstructorNotFunction, "Proxy");
   }
   return %CreateJSProxy(target, handler);
@@ -66,7 +66,7 @@ function DerivedConstructTrap(callTrap) {
 
 function DelegateCallAndConstruct(callTrap, constructTrap) {
   return function() {
-    return %Apply(%_IsConstructCall() ? constructTrap : callTrap,
+    return %Apply(IS_UNDEFINED(new.target) ? callTrap : constructTrap,
                   this, arguments, 0, %_ArgumentsLength())
   }
 }

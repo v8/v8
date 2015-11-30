@@ -125,7 +125,7 @@ function GetHash(key) {
 // Harmony Set
 
 function SetConstructor(iterable) {
-  if (!%_IsConstructCall()) {
+  if (IS_UNDEFINED(new.target)) {
     throw MakeTypeError(kConstructorNotFunction, "Set");
   }
 
@@ -281,7 +281,7 @@ utils.InstallFunctions(GlobalSet.prototype, DONT_ENUM, [
 // Harmony Map
 
 function MapConstructor(iterable) {
-  if (!%_IsConstructCall()) {
+  if (IS_UNDEFINED(new.target)) {
     throw MakeTypeError(kConstructorNotFunction, "Map");
   }
 

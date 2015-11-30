@@ -29,7 +29,7 @@ utils.Import(function(from) {
 // Harmony WeakMap
 
 function WeakMapConstructor(iterable) {
-  if (!%_IsConstructCall()) {
+  if (IS_UNDEFINED(new.target)) {
     throw MakeTypeError(kConstructorNotFunction, "WeakMap");
   }
 
@@ -118,7 +118,7 @@ utils.InstallFunctions(GlobalWeakMap.prototype, DONT_ENUM, [
 // Harmony WeakSet
 
 function WeakSetConstructor(iterable) {
-  if (!%_IsConstructCall()) {
+  if (IS_UNDEFINED(new.target)) {
     throw MakeTypeError(kConstructorNotFunction, "WeakSet");
   }
 
