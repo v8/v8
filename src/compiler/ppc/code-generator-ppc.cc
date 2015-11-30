@@ -101,8 +101,8 @@ class PPCOperandConverter final : public InstructionOperandConverter {
   MemOperand ToMemOperand(InstructionOperand* op) const {
     DCHECK(op != NULL);
     DCHECK(op->IsStackSlot() || op->IsDoubleStackSlot());
-    FrameOffset offset =
-        linkage()->GetFrameOffset(AllocatedOperand::cast(op)->index(), frame());
+    FrameOffset offset = frame_access_state()->GetFrameOffset(
+        AllocatedOperand::cast(op)->index());
     return MemOperand(offset.from_stack_pointer() ? sp : fp, offset.offset());
   }
 };
@@ -610,10 +610,7 @@ void CodeGenerator::AssembleDeconstructActivationRecord(int stack_param_delta) {
   if (sp_slot_delta > 0) {
     __ Add(sp, sp, sp_slot_delta * kPointerSize, r0);
   }
-  CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
-  int spill_slots = frame()->GetSpillSlotCount();
-  bool has_frame = descriptor->IsJSFunctionCall() || spill_slots > 0;
-  if (has_frame) {
+  if (frame()->needs_frame()) {
     if (FLAG_enable_embedded_constant_pool) {
       __ Pop(r0, fp, kConstantPoolRegister);
     } else {
@@ -621,6 +618,7 @@ void CodeGenerator::AssembleDeconstructActivationRecord(int stack_param_delta) {
     }
     __ mtlr(r0);
   }
+  frame_access_state()->SetFrameAccessToDefault();
 }
 
 
@@ -628,7 +626,9 @@ void CodeGenerator::AssemblePrepareTailCall(int stack_param_delta) {
   int sp_slot_delta = TailCallFrameStackSlotDelta(stack_param_delta);
   if (sp_slot_delta < 0) {
     __ Add(sp, sp, sp_slot_delta * kPointerSize, r0);
+    frame_access_state()->IncreaseSPDelta(-sp_slot_delta);
   }
+  frame_access_state()->SetFrameAccessToSP();
 }
 
 
@@ -652,6 +652,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       }
       RecordCallPosition(instr);
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
+      frame_access_state()->ClearSPDelta();
       break;
     }
     case kArchTailCallCodeObject: {
@@ -669,6 +670,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
                 RelocInfo::CODE_TARGET);
       }
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
+      frame_access_state()->ClearSPDelta();
       break;
     }
     case kArchCallJSFunction: {
@@ -687,6 +689,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ Call(ip);
       RecordCallPosition(instr);
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
+      frame_access_state()->ClearSPDelta();
       break;
     }
     case kArchTailCallJSFunction: {
@@ -703,6 +706,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ LoadP(ip, FieldMemOperand(func, JSFunction::kCodeEntryOffset));
       __ Jump(ip);
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
+      frame_access_state()->ClearSPDelta();
       break;
     }
     case kArchLazyBailout: {
@@ -715,6 +719,8 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArchPrepareCallCFunction: {
       int const num_parameters = MiscField::decode(instr->opcode());
       __ PrepareCallCFunction(num_parameters, kScratchReg);
+      // Frame alignment requires using FP-relative frame addressing.
+      frame_access_state()->SetFrameAccessToFP();
       break;
     }
     case kArchPrepareTailCall:
@@ -729,6 +735,8 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         Register func = i.InputRegister(0);
         __ CallCFunction(func, num_parameters);
       }
+      frame_access_state()->SetFrameAccessToDefault();
+      frame_access_state()->ClearSPDelta();
       break;
     }
     case kArchJmp:
@@ -1068,8 +1076,10 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kPPC_Push:
       if (instr->InputAt(0)->IsDoubleRegister()) {
         __ stfdu(i.InputDoubleRegister(0), MemOperand(sp, -kDoubleSize));
+        frame_access_state()->IncreaseSPDelta(kDoubleSize / kPointerSize);
       } else {
         __ Push(i.InputRegister(0));
+        frame_access_state()->IncreaseSPDelta(1);
       }
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
@@ -1449,8 +1459,7 @@ void CodeGenerator::AssembleDeoptimizerCall(
 
 void CodeGenerator::AssemblePrologue() {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
-
-  if (descriptor->kind() == CallDescriptor::kCallAddress) {
+  if (descriptor->IsCFunctionCall()) {
     __ function_descriptor();
     __ mflr(r0);
     if (FLAG_enable_embedded_constant_pool) {
@@ -1464,11 +1473,12 @@ void CodeGenerator::AssemblePrologue() {
   } else if (descriptor->IsJSFunctionCall()) {
     CompilationInfo* info = this->info();
     __ Prologue(info->IsCodePreAgingActive());
-  } else if (needs_frame_) {
+  } else if (frame()->needs_frame()) {
     __ StubPrologue();
   } else {
     frame()->SetElidedFrameSizeInSlots(0);
   }
+  frame_access_state()->SetFrameAccessToDefault();
 
   int stack_shrink_slots = frame()->GetSpillSlotCount();
   if (info()->is_osr()) {
@@ -1538,9 +1548,9 @@ void CodeGenerator::AssembleReturn() {
     __ MultiPopDoubles(double_saves);
   }
 
-  if (descriptor->kind() == CallDescriptor::kCallAddress) {
+  if (descriptor->IsCFunctionCall()) {
     __ LeaveFrame(StackFrame::MANUAL, pop_count * kPointerSize);
-  } else if (descriptor->IsJSFunctionCall() || needs_frame_) {
+  } else if (frame()->needs_frame()) {
     // Canonicalize JSFunction return sites for now.
     if (return_label_.is_bound()) {
       __ b(&return_label_);
