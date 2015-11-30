@@ -593,8 +593,7 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   // esp[8] = parameter count (tagged)
   // Get the arguments map from the current native context into edi.
   Label has_mapped_parameters, instantiate;
-  __ mov(edi, Operand(esi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-  __ mov(edi, FieldOperand(edi, JSGlobalObject::kNativeContextOffset));
+  __ mov(edi, NativeContextOperand());
   __ mov(ebx, Operand(esp, 0 * kPointerSize));
   __ test(ebx, ebx);
   __ j(not_zero, &has_mapped_parameters, Label::kNear);
@@ -797,10 +796,8 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   __ Allocate(eax, eax, ebx, no_reg, &runtime, TAG_OBJECT);
 
   // Get the arguments map from the current native context.
-  __ mov(edi, Operand(esi, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-  __ mov(edi, FieldOperand(edi, JSGlobalObject::kNativeContextOffset));
-  const int offset = Context::SlotOffset(Context::STRICT_ARGUMENTS_MAP_INDEX);
-  __ mov(edi, Operand(edi, offset));
+  __ mov(edi, NativeContextOperand());
+  __ mov(edi, ContextOperand(edi, Context::STRICT_ARGUMENTS_MAP_INDEX));
 
   __ mov(FieldOperand(eax, JSObject::kMapOffset), edi);
   __ mov(FieldOperand(eax, JSObject::kPropertiesOffset),
@@ -1895,11 +1892,10 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ cmp(edi, ecx);
   __ j(equal, &miss);
 
-  // Make sure the function belongs to the same native context (which implies
-  // the same global object).
+  // Make sure the function belongs to the same native context.
   __ mov(ecx, FieldOperand(edi, JSFunction::kContextOffset));
-  __ mov(ecx, ContextOperand(ecx, Context::GLOBAL_OBJECT_INDEX));
-  __ cmp(ecx, GlobalObjectOperand());
+  __ mov(ecx, ContextOperand(ecx, Context::NATIVE_CONTEXT_INDEX));
+  __ cmp(ecx, NativeContextOperand());
   __ j(not_equal, &miss);
 
   // Update stats.
