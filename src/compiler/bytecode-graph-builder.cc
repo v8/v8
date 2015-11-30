@@ -809,7 +809,13 @@ void BytecodeGraphBuilder::VisitNew(
 
 void BytecodeGraphBuilder::VisitThrow(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  Node* value = environment()->LookupAccumulator();
+  // TODO(mythria): Change to Runtime::kThrow when we have deoptimization
+  // information support in the interpreter.
+  NewNode(javascript()->CallRuntime(Runtime::kReThrow, 1), value);
+  Node* control = NewNode(common()->Throw(), value);
+  UpdateControlDependencyToLeaveFunction(control);
+  environment()->BindAccumulator(value);
 }
 
 
