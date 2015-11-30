@@ -1608,10 +1608,9 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
 void Builtins::Generate_ConstructFunction(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax : the number of arguments (not including the receiver)
-  //  -- edx : the new target (checked to be a JSFunction)
+  //  -- edx : the new target (checked to be a constructor)
   //  -- edi : the constructor to call (checked to be a JSFunction)
   // -----------------------------------
-  __ AssertFunction(edx);
   __ AssertFunction(edi);
 
   // Calling convention for function specific ConstructStubs require
