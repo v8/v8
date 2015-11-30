@@ -610,14 +610,6 @@ void CodeGenerator::AssembleDeconstructActivationRecord(int stack_param_delta) {
   if (sp_slot_delta > 0) {
     __ Add(sp, sp, sp_slot_delta * kPointerSize, r0);
   }
-  if (frame()->needs_frame()) {
-    if (FLAG_enable_embedded_constant_pool) {
-      __ Pop(r0, fp, kConstantPoolRegister);
-    } else {
-      __ Pop(r0, fp);
-    }
-    __ mtlr(r0);
-  }
   frame_access_state()->SetFrameAccessToDefault();
 }
 
@@ -627,6 +619,15 @@ void CodeGenerator::AssemblePrepareTailCall(int stack_param_delta) {
   if (sp_slot_delta < 0) {
     __ Add(sp, sp, sp_slot_delta * kPointerSize, r0);
     frame_access_state()->IncreaseSPDelta(-sp_slot_delta);
+  }
+  if (frame()->needs_frame()) {
+    if (FLAG_enable_embedded_constant_pool) {
+      __ LoadP(kConstantPoolRegister,
+               MemOperand(fp, StandardFrameConstants::kConstantPoolOffset));
+    }
+    __ LoadP(r0, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
+    __ LoadP(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+    __ mtlr(r0);
   }
   frame_access_state()->SetFrameAccessToSP();
 }
