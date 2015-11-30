@@ -462,7 +462,7 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
 void CodeGenerator::AssembleDeconstructActivationRecord(int stack_param_delta) {
   int sp_slot_delta = TailCallFrameStackSlotDelta(stack_param_delta);
   if (sp_slot_delta > 0) {
-    __ Add(jssp, jssp, Operand(sp_slot_delta * kPointerSize));
+    __ Drop(sp_slot_delta);
   }
   frame_access_state()->SetFrameAccessToDefault();
 }
@@ -471,7 +471,7 @@ void CodeGenerator::AssembleDeconstructActivationRecord(int stack_param_delta) {
 void CodeGenerator::AssemblePrepareTailCall(int stack_param_delta) {
   int sp_slot_delta = TailCallFrameStackSlotDelta(stack_param_delta);
   if (sp_slot_delta < 0) {
-    __ Sub(jssp, jssp, Operand(-sp_slot_delta * kPointerSize));
+    __ Claim(-sp_slot_delta);
     frame_access_state()->IncreaseSPDelta(-sp_slot_delta);
   }
   if (frame()->needs_frame()) {
