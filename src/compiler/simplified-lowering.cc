@@ -154,6 +154,102 @@ UseInfo UseInfoForBasePointer(const ElementAccess& access) {
   return access.tag() != 0 ? UseInfo::AnyTagged() : UseInfo::PointerInt();
 }
 
+
+#ifdef DEBUG
+// Helpers for monotonicity checking.
+
+bool MachineTypeIsSubtype(MachineType t1, MachineType t2) {
+  switch (t1) {
+    case kMachNone:
+      return true;
+    case kTypeBool:
+      return t2 == kTypeBool || t2 == kTypeNumber || t2 == kTypeAny;
+    case kTypeInt32:
+      return t2 == kTypeInt32 || t2 == kTypeNumber || t2 == kTypeAny;
+    case kTypeUint32:
+      return t2 == kTypeUint32 || t2 == kTypeNumber || t2 == kTypeAny;
+    case kTypeInt64:
+      return t2 == kTypeInt64;
+    case kTypeUint64:
+      return t2 == kTypeUint64;
+    case kTypeNumber:
+      return t2 == kTypeNumber || t2 == kTypeAny;
+    case kTypeAny:
+      return t2 == kTypeAny;
+    default:
+      break;
+  }
+  UNREACHABLE();
+  return false;
+}
+
+
+bool MachineRepresentationIsSubtype(MachineType r1, MachineType r2) {
+  switch (r1) {
+    case kMachNone:
+      return true;
+    case kRepBit:
+      return r2 == kRepBit || r2 == kRepTagged;
+    case kRepWord8:
+      return r2 == kRepWord8 || r2 == kRepWord16 || r2 == kRepWord32 ||
+             r2 == kRepWord64 || r2 == kRepFloat32 || r2 == kRepFloat64 ||
+             r2 == kRepTagged;
+    case kRepWord16:
+      return r2 == kRepWord16 || r2 == kRepWord32 || r2 == kRepWord64 ||
+             r2 == kRepFloat32 || r2 == kRepFloat64 || r2 == kRepTagged;
+    case kRepWord32:
+      return r2 == kRepWord32 || r2 == kRepWord64 || r2 == kRepFloat64 ||
+             r2 == kRepTagged;
+    case kRepWord64:
+      return r2 == kRepWord64;
+    case kRepFloat32:
+      return r2 == kRepFloat32 || r2 == kRepFloat64 || r2 == kRepTagged;
+    case kRepFloat64:
+      return r2 == kRepFloat64 || r2 == kRepTagged;
+    case kRepTagged:
+      return r2 == kRepTagged;
+    default:
+      break;
+  }
+  UNREACHABLE();
+  return false;
+}
+
+
+bool MachineTypeRepIsSubtype(MachineTypeUnion m1, MachineTypeUnion m2) {
+  return MachineTypeIsSubtype(static_cast<MachineType>(m1 & kTypeMask),
+                              static_cast<MachineType>(m2 & kTypeMask)) &&
+         MachineRepresentationIsSubtype(
+             static_cast<MachineType>(m1 & kRepMask),
+             static_cast<MachineType>(m2 & kRepMask));
+}
+
+
+class InputUseInfos {
+ public:
+  explicit InputUseInfos(Zone* zone) : input_use_infos_(zone) {}
+
+  void SetAndCheckInput(Node* node, int index, UseInfo use_info) {
+    if (input_use_infos_.empty()) {
+      input_use_infos_.resize(node->InputCount(), UseInfo::None());
+    }
+    // Check that the new use informatin is a super-type of the old
+    // one.
+    CHECK(IsUseLessGeneral(input_use_infos_[index], use_info));
+    input_use_infos_[index] = use_info;
+  }
+
+ private:
+  ZoneVector<UseInfo> input_use_infos_;
+
+  static bool IsUseLessGeneral(UseInfo use1, UseInfo use2) {
+    return MachineRepresentationIsSubtype(use1.preferred(), use2.preferred()) &&
+           use1.truncation().IsLessGeneralThan(use2.truncation());
+  }
+};
+
+#endif  // DEBUG
+
 }  // namespace
 
 
@@ -191,19 +287,23 @@ class RepresentationSelector {
       : jsgraph_(jsgraph),
         count_(jsgraph->graph()->NodeCount()),
         info_(count_, zone),
+#ifdef DEBUG
+        node_input_use_infos_(count_, InputUseInfos(zone), zone),
+#endif
         nodes_(zone),
         replacements_(zone),
         phase_(PROPAGATE),
         changer_(changer),
         queue_(zone),
         source_positions_(source_positions),
-        type_cache_(TypeCache::Get()) {}
+        type_cache_(TypeCache::Get()) {
+  }
 
   void Run(SimplifiedLowering* lowering) {
     // Run propagation phase to a fixpoint.
     TRACE("--{Propagation phase}--\n");
     phase_ = PROPAGATE;
-    Enqueue(jsgraph_->graph()->end());
+    EnqueueInitial(jsgraph_->graph()->end());
     // Process nodes from the queue until it is empty.
     while (!queue_.empty()) {
       Node* node = queue_.front();
@@ -245,11 +345,27 @@ class RepresentationSelector {
     }
   }
 
-  // Enqueue {node} if the {use} contains new information for that node.
-  // Add {node} to {nodes_} if this is the first time it's been visited.
-  void Enqueue(Node* node, UseInfo use_info = UseInfo::None()) {
+  void EnqueueInitial(Node* node) {
+    NodeInfo* info = GetInfo(node);
+    info->set_visited();
+    info->set_queued(true);
+    nodes_.push_back(node);
+    queue_.push(node);
+  }
+
+  // Enqueue {use_node}'s {index} input if the {use} contains new information
+  // for that input node. Add the input to {nodes_} if this is the first time
+  // it's been visited.
+  void EnqueueInput(Node* use_node, int index,
+                    UseInfo use_info = UseInfo::None()) {
+    Node* node = use_node->InputAt(index);
     if (phase_ != PROPAGATE) return;
     NodeInfo* info = GetInfo(node);
+#ifdef DEBUG
+    // Check monotonicity of input requirements.
+    node_input_use_infos_[use_node->id()].SetAndCheckInput(use_node, index,
+                                                           use_info);
+#endif  // DEBUG
     if (!info->visited()) {
       // First visit of this node.
       info->set_visited();
@@ -284,17 +400,15 @@ class RepresentationSelector {
     // instruction.
     DCHECK((output & kRepMask) == 0 ||
            base::bits::IsPowerOfTwo32(output & kRepMask));
-    GetInfo(node)->set_output_type(output);
+    NodeInfo* info = GetInfo(node);
+    DCHECK(MachineTypeRepIsSubtype(info->output_type(), output));
+    info->set_output_type(output);
   }
 
   bool BothInputsAre(Node* node, Type* type) {
     DCHECK_EQ(2, node->InputCount());
     return NodeProperties::GetType(node->InputAt(0))->Is(type) &&
            NodeProperties::GetType(node->InputAt(1))->Is(type);
-  }
-
-  void EnqueueInputUse(Node* node, int index, UseInfo use) {
-    Enqueue(node->InputAt(index), use);
   }
 
   void ConvertInput(Node* node, int index, UseInfo use) {
@@ -320,7 +434,7 @@ class RepresentationSelector {
 
   void ProcessInput(Node* node, int index, UseInfo use) {
     if (phase_ == PROPAGATE) {
-      EnqueueInputUse(node, index, use);
+      EnqueueInput(node, index, use);
     } else {
       ConvertInput(node, index, use);
     }
@@ -331,11 +445,11 @@ class RepresentationSelector {
     DCHECK_GE(index, NodeProperties::PastContextIndex(node));
     for (int i = std::max(index, NodeProperties::FirstEffectIndex(node));
          i < NodeProperties::PastEffectIndex(node); ++i) {
-      Enqueue(node->InputAt(i));  // Effect inputs: just visit
+      EnqueueInput(node, i);  // Effect inputs: just visit
     }
     for (int i = std::max(index, NodeProperties::FirstControlIndex(node));
          i < NodeProperties::PastControlIndex(node); ++i) {
-      Enqueue(node->InputAt(i));  // Control inputs: just visit
+      EnqueueInput(node, i);  // Control inputs: just visit
     }
   }
 
@@ -352,10 +466,8 @@ class RepresentationSelector {
     }
     // Only enqueue other inputs (framestates, effects, control).
     for (int i = tagged_count; i < node->InputCount(); i++) {
-      Enqueue(node->InputAt(i));
+      EnqueueInput(node, i);
     }
-    // Assume the output is tagged.
-    SetOutput(node, kMachAnyTagged);
   }
 
   // Helper for binops of the R x L -> O variety.
@@ -365,7 +477,7 @@ class RepresentationSelector {
     ProcessInput(node, 0, left_use);
     ProcessInput(node, 1, right_use);
     for (int i = 2; i < node->InputCount(); i++) {
-      Enqueue(node->InputAt(i));
+      EnqueueInput(node, i);
     }
     SetOutput(node, output);
   }
@@ -523,7 +635,7 @@ class RepresentationSelector {
   void VisitStateValues(Node* node) {
     if (phase_ == PROPAGATE) {
       for (int i = 0; i < node->InputCount(); i++) {
-        Enqueue(node->InputAt(i), UseInfo::Any());
+        EnqueueInput(node, i, UseInfo::Any());
       }
     } else {
       Zone* zone = jsgraph_->zone();
@@ -613,11 +725,11 @@ class RepresentationSelector {
 
       case IrOpcode::kBranch:
         ProcessInput(node, 0, UseInfo::Bool());
-        Enqueue(NodeProperties::GetControlInput(node, 0));
+        EnqueueInput(node, NodeProperties::FirstControlIndex(node));
         break;
       case IrOpcode::kSwitch:
         ProcessInput(node, 0, UseInfo::TruncatingWord32());
-        Enqueue(NodeProperties::GetControlInput(node, 0));
+        EnqueueInput(node, NodeProperties::FirstControlIndex(node));
         break;
       case IrOpcode::kSelect:
         return VisitSelect(node, truncation, lowering);
@@ -1104,6 +1216,8 @@ class RepresentationSelector {
         break;
       default:
         VisitInputs(node);
+        // Assume the output is tagged.
+        SetOutput(node, kMachAnyTagged);
         break;
     }
   }
@@ -1154,6 +1268,10 @@ class RepresentationSelector {
   JSGraph* jsgraph_;
   size_t const count_;              // number of nodes in the graph
   ZoneVector<NodeInfo> info_;       // node id -> usage information
+#ifdef DEBUG
+  ZoneVector<InputUseInfos> node_input_use_infos_;  // Debug information about
+                                                    // requirements on inputs.
+#endif                                              // DEBUG
   NodeVector nodes_;                // collected nodes
   NodeVector replacements_;         // replacements to be done after lowering
   Phase phase_;                     // current phase of algorithm

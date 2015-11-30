@@ -46,6 +46,9 @@ class Truncation final {
 
   // Debug utilities.
   const char* description() const;
+  bool IsLessGeneralThan(Truncation other) {
+    return LessGeneral(kind(), other.kind());
+  }
 
  private:
   enum class TruncationKind : uint8_t {
