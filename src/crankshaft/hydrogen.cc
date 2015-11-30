@@ -11534,7 +11534,7 @@ HControlInstruction* HOptimizedGraphBuilder::BuildCompareInstruction(
       } else {
         BuildCheckHeapObject(operand_to_check);
         Add<HCheckInstanceType>(operand_to_check,
-                                HCheckInstanceType::IS_SPEC_OBJECT);
+                                HCheckInstanceType::IS_JS_RECEIVER);
         HCompareObjectEqAndBranch* result =
             New<HCompareObjectEqAndBranch>(left, right);
         return result;
