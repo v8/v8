@@ -10,8 +10,6 @@ namespace compiler {
 
 namespace {
 
-typedef RawMachineAssembler::Label MLabel;
-
 template <typename T>
 struct MachInst {
   T constructor;
@@ -877,7 +875,7 @@ TEST_P(InstructionSelectorDPFlagSetTest, BranchWithParameters) {
   const MachInst2 dpi = GetParam();
   const MachineType type = dpi.machine_type;
   StreamBuilder m(this, type, type, type);
-  MLabel a, b;
+  RawMachineLabel a, b;
   m.Branch((m.*dpi.constructor)(m.Parameter(0), m.Parameter(1)), &a, &b);
   m.Bind(&a);
   m.Return(m.Int32Constant(1));
@@ -902,7 +900,7 @@ TEST_F(InstructionSelectorTest, Word32AndBranchWithImmediateOnRight) {
     if (base::bits::CountPopulation32(imm) == 1) continue;
 
     StreamBuilder m(this, kMachInt32, kMachInt32);
-    MLabel a, b;
+    RawMachineLabel a, b;
     m.Branch(m.Word32And(m.Parameter(0), m.Int32Constant(imm)), &a, &b);
     m.Bind(&a);
     m.Return(m.Int32Constant(1));
@@ -925,7 +923,7 @@ TEST_F(InstructionSelectorTest, Word64AndBranchWithImmediateOnRight) {
     if (base::bits::CountPopulation64(imm) == 1) continue;
 
     StreamBuilder m(this, kMachInt64, kMachInt64);
-    MLabel a, b;
+    RawMachineLabel a, b;
     m.Branch(m.Word64And(m.Parameter(0), m.Int64Constant(imm)), &a, &b);
     m.Bind(&a);
     m.Return(m.Int32Constant(1));
@@ -945,7 +943,7 @@ TEST_F(InstructionSelectorTest, Word64AndBranchWithImmediateOnRight) {
 TEST_F(InstructionSelectorTest, AddBranchWithImmediateOnRight) {
   TRACED_FOREACH(int32_t, imm, kAddSubImmediates) {
     StreamBuilder m(this, kMachInt32, kMachInt32);
-    MLabel a, b;
+    RawMachineLabel a, b;
     m.Branch(m.Int32Add(m.Parameter(0), m.Int32Constant(imm)), &a, &b);
     m.Bind(&a);
     m.Return(m.Int32Constant(1));
@@ -963,7 +961,7 @@ TEST_F(InstructionSelectorTest, AddBranchWithImmediateOnRight) {
 TEST_F(InstructionSelectorTest, SubBranchWithImmediateOnRight) {
   TRACED_FOREACH(int32_t, imm, kAddSubImmediates) {
     StreamBuilder m(this, kMachInt32, kMachInt32);
-    MLabel a, b;
+    RawMachineLabel a, b;
     m.Branch(m.Int32Sub(m.Parameter(0), m.Int32Constant(imm)), &a, &b);
     m.Bind(&a);
     m.Return(m.Int32Constant(1));
@@ -984,7 +982,7 @@ TEST_F(InstructionSelectorTest, Word32AndBranchWithImmediateOnLeft) {
     if (base::bits::CountPopulation32(imm) == 1) continue;
 
     StreamBuilder m(this, kMachInt32, kMachInt32);
-    MLabel a, b;
+    RawMachineLabel a, b;
     m.Branch(m.Word32And(m.Int32Constant(imm), m.Parameter(0)), &a, &b);
     m.Bind(&a);
     m.Return(m.Int32Constant(1));
@@ -1008,7 +1006,7 @@ TEST_F(InstructionSelectorTest, Word64AndBranchWithImmediateOnLeft) {
     if (base::bits::CountPopulation64(imm) == 1) continue;
 
     StreamBuilder m(this, kMachInt64, kMachInt64);
-    MLabel a, b;
+    RawMachineLabel a, b;
     m.Branch(m.Word64And(m.Int64Constant(imm), m.Parameter(0)), &a, &b);
     m.Bind(&a);
     m.Return(m.Int32Constant(1));
@@ -1029,7 +1027,7 @@ TEST_F(InstructionSelectorTest, Word64AndBranchWithImmediateOnLeft) {
 TEST_F(InstructionSelectorTest, AddBranchWithImmediateOnLeft) {
   TRACED_FOREACH(int32_t, imm, kAddSubImmediates) {
     StreamBuilder m(this, kMachInt32, kMachInt32);
-    MLabel a, b;
+    RawMachineLabel a, b;
     m.Branch(m.Int32Add(m.Int32Constant(imm), m.Parameter(0)), &a, &b);
     m.Bind(&a);
     m.Return(m.Int32Constant(1));
@@ -1049,7 +1047,7 @@ TEST_F(InstructionSelectorTest, Word32AndBranchWithOneBitMaskOnRight) {
   TRACED_FORRANGE(int, bit, 0, 31) {
     uint32_t mask = 1 << bit;
     StreamBuilder m(this, kMachInt32, kMachInt32);
-    MLabel a, b;
+    RawMachineLabel a, b;
     m.Branch(m.Word32And(m.Parameter(0), m.Int32Constant(mask)), &a, &b);
     m.Bind(&a);
     m.Return(m.Int32Constant(1));
@@ -1067,7 +1065,7 @@ TEST_F(InstructionSelectorTest, Word32AndBranchWithOneBitMaskOnRight) {
   TRACED_FORRANGE(int, bit, 0, 31) {
     uint32_t mask = 1 << bit;
     StreamBuilder m(this, kMachInt32, kMachInt32);
-    MLabel a, b;
+    RawMachineLabel a, b;
     m.Branch(
         m.Word32BinaryNot(m.Word32And(m.Parameter(0), m.Int32Constant(mask))),
         &a, &b);
@@ -1090,7 +1088,7 @@ TEST_F(InstructionSelectorTest, Word32AndBranchWithOneBitMaskOnLeft) {
   TRACED_FORRANGE(int, bit, 0, 31) {
     uint32_t mask = 1 << bit;
     StreamBuilder m(this, kMachInt32, kMachInt32);
-    MLabel a, b;
+    RawMachineLabel a, b;
     m.Branch(m.Word32And(m.Int32Constant(mask), m.Parameter(0)), &a, &b);
     m.Bind(&a);
     m.Return(m.Int32Constant(1));
@@ -1108,7 +1106,7 @@ TEST_F(InstructionSelectorTest, Word32AndBranchWithOneBitMaskOnLeft) {
   TRACED_FORRANGE(int, bit, 0, 31) {
     uint32_t mask = 1 << bit;
     StreamBuilder m(this, kMachInt32, kMachInt32);
-    MLabel a, b;
+    RawMachineLabel a, b;
     m.Branch(
         m.Word32BinaryNot(m.Word32And(m.Int32Constant(mask), m.Parameter(0))),
         &a, &b);
@@ -1131,7 +1129,7 @@ TEST_F(InstructionSelectorTest, Word64AndBranchWithOneBitMaskOnRight) {
   TRACED_FORRANGE(int, bit, 0, 63) {
     uint64_t mask = 1L << bit;
     StreamBuilder m(this, kMachInt64, kMachInt64);
-    MLabel a, b;
+    RawMachineLabel a, b;
     m.Branch(m.Word64And(m.Parameter(0), m.Int64Constant(mask)), &a, &b);
     m.Bind(&a);
     m.Return(m.Int32Constant(1));
@@ -1152,7 +1150,7 @@ TEST_F(InstructionSelectorTest, Word64AndBranchWithOneBitMaskOnLeft) {
   TRACED_FORRANGE(int, bit, 0, 63) {
     uint64_t mask = 1L << bit;
     StreamBuilder m(this, kMachInt64, kMachInt64);
-    MLabel a, b;
+    RawMachineLabel a, b;
     m.Branch(m.Word64And(m.Int64Constant(mask), m.Parameter(0)), &a, &b);
     m.Bind(&a);
     m.Return(m.Int32Constant(1));
@@ -1172,7 +1170,7 @@ TEST_F(InstructionSelectorTest, Word64AndBranchWithOneBitMaskOnLeft) {
 TEST_F(InstructionSelectorTest, CompareAgainstZeroAndBranch) {
   {
     StreamBuilder m(this, kMachInt32, kMachInt32);
-    MLabel a, b;
+    RawMachineLabel a, b;
     Node* p0 = m.Parameter(0);
     m.Branch(p0, &a, &b);
     m.Bind(&a);
@@ -1189,7 +1187,7 @@ TEST_F(InstructionSelectorTest, CompareAgainstZeroAndBranch) {
 
   {
     StreamBuilder m(this, kMachInt32, kMachInt32);
-    MLabel a, b;
+    RawMachineLabel a, b;
     Node* p0 = m.Parameter(0);
     m.Branch(m.Word32BinaryNot(p0), &a, &b);
     m.Bind(&a);
@@ -1321,7 +1319,7 @@ TEST_P(InstructionSelectorOvfAddSubTest, BranchWithParameters) {
   const MachInst2 dpi = GetParam();
   const MachineType type = dpi.machine_type;
   StreamBuilder m(this, type, type, type);
-  MLabel a, b;
+  RawMachineLabel a, b;
   Node* n = (m.*dpi.constructor)(m.Parameter(0), m.Parameter(1));
   m.Branch(m.Projection(1, n), &a, &b);
   m.Bind(&a);
@@ -1343,7 +1341,7 @@ TEST_P(InstructionSelectorOvfAddSubTest, BranchWithImmediateOnRight) {
   const MachineType type = dpi.machine_type;
   TRACED_FOREACH(int32_t, imm, kAddSubImmediates) {
     StreamBuilder m(this, type, type);
-    MLabel a, b;
+    RawMachineLabel a, b;
     Node* n = (m.*dpi.constructor)(m.Parameter(0), m.Int32Constant(imm));
     m.Branch(m.Projection(1, n), &a, &b);
     m.Bind(&a);
@@ -1422,7 +1420,7 @@ TEST_F(InstructionSelectorTest, OvfBothAddImmediateOnLeft) {
 TEST_F(InstructionSelectorTest, OvfBranchWithImmediateOnLeft) {
   TRACED_FOREACH(int32_t, imm, kAddSubImmediates) {
     StreamBuilder m(this, kMachInt32, kMachInt32);
-    MLabel a, b;
+    RawMachineLabel a, b;
     Node* n = m.Int32AddWithOverflow(m.Int32Constant(imm), m.Parameter(0));
     m.Branch(m.Projection(1, n), &a, &b);
     m.Bind(&a);

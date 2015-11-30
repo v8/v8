@@ -51,15 +51,15 @@ Node* RawMachineAssembler::Parameter(size_t index) {
 }
 
 
-void RawMachineAssembler::Goto(Label* label) {
+void RawMachineAssembler::Goto(RawMachineLabel* label) {
   DCHECK(current_block_ != schedule()->end());
   schedule()->AddGoto(CurrentBlock(), Use(label));
   current_block_ = nullptr;
 }
 
 
-void RawMachineAssembler::Branch(Node* condition, Label* true_val,
-                                 Label* false_val) {
+void RawMachineAssembler::Branch(Node* condition, RawMachineLabel* true_val,
+                                 RawMachineLabel* false_val) {
   DCHECK(current_block_ != schedule()->end());
   Node* branch = AddNode(common()->Branch(), condition);
   schedule()->AddBranch(CurrentBlock(), branch, Use(true_val), Use(false_val));
@@ -67,8 +67,9 @@ void RawMachineAssembler::Branch(Node* condition, Label* true_val,
 }
 
 
-void RawMachineAssembler::Switch(Node* index, Label* default_label,
-                                 int32_t* case_values, Label** case_labels,
+void RawMachineAssembler::Switch(Node* index, RawMachineLabel* default_label,
+                                 int32_t* case_values,
+                                 RawMachineLabel** case_labels,
                                  size_t case_count) {
   DCHECK_NE(schedule()->end(), current_block_);
   size_t succ_count = case_count + 1;
@@ -292,7 +293,7 @@ Node* RawMachineAssembler::CallCFunction8(
 }
 
 
-void RawMachineAssembler::Bind(Label* label) {
+void RawMachineAssembler::Bind(RawMachineLabel* label) {
   DCHECK(current_block_ == nullptr);
   DCHECK(!label->bound_);
   label->bound_ = true;
@@ -300,13 +301,13 @@ void RawMachineAssembler::Bind(Label* label) {
 }
 
 
-BasicBlock* RawMachineAssembler::Use(Label* label) {
+BasicBlock* RawMachineAssembler::Use(RawMachineLabel* label) {
   label->used_ = true;
   return EnsureBlock(label);
 }
 
 
-BasicBlock* RawMachineAssembler::EnsureBlock(Label* label) {
+BasicBlock* RawMachineAssembler::EnsureBlock(RawMachineLabel* label) {
   if (label->block_ == nullptr) label->block_ = schedule()->NewBasicBlock();
   return label->block_;
 }
@@ -334,6 +335,13 @@ Node* RawMachineAssembler::MakeNode(const Operator* op, int input_count,
   // so we disable checking input counts here.
   return graph()->NewNodeUnchecked(op, input_count, inputs);
 }
+
+
+RawMachineLabel::RawMachineLabel()
+    : block_(NULL), used_(false), bound_(false) {}
+
+
+RawMachineLabel::~RawMachineLabel() { DCHECK(bound_ || !used_); }
 
 }  // namespace compiler
 }  // namespace internal

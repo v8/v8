@@ -548,7 +548,7 @@ void InterpreterAssembler::Jump(Node* delta) { DispatchTo(Advance(delta)); }
 
 
 void InterpreterAssembler::JumpIfWordEqual(Node* lhs, Node* rhs, Node* delta) {
-  RawMachineAssembler::Label match, no_match;
+  RawMachineLabel match, no_match;
   Node* condition = raw_assembler_->WordEqual(lhs, rhs);
   raw_assembler_->Branch(condition, &match, &no_match);
   raw_assembler_->Bind(&match);
@@ -603,7 +603,7 @@ void InterpreterAssembler::Abort(BailoutReason bailout_reason) {
 
 void InterpreterAssembler::AbortIfWordNotEqual(Node* lhs, Node* rhs,
                                                BailoutReason bailout_reason) {
-  RawMachineAssembler::Label match, no_match;
+  RawMachineLabel match, no_match;
   Node* condition = raw_assembler_->WordEqual(lhs, rhs);
   raw_assembler_->Branch(condition, &match, &no_match);
   raw_assembler_->Bind(&no_match);

@@ -13,8 +13,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-typedef RawMachineAssembler::Label MLabel;
-
 static IrOpcode::Value int32cmp_opcodes[] = {
     IrOpcode::kWord32Equal, IrOpcode::kInt32LessThan,
     IrOpcode::kInt32LessThanOrEqual, IrOpcode::kUint32LessThan,
@@ -28,7 +26,7 @@ TEST(BranchCombineWord32EqualZero_1) {
   int32_t ne_constant = 825118;
   Node* p0 = m.Parameter(0);
 
-  MLabel blocka, blockb;
+  RawMachineLabel blocka, blockb;
   m.Branch(m.Word32Equal(p0, m.Int32Constant(0)), &blocka, &blockb);
   m.Bind(&blocka);
   m.Return(m.Int32Constant(eq_constant));
@@ -51,7 +49,7 @@ TEST(BranchCombineWord32EqualZero_chain) {
   for (int k = 0; k < 6; k++) {
     RawMachineAssemblerTester<int32_t> m(kMachInt32);
     Node* p0 = m.Parameter(0);
-    MLabel blocka, blockb;
+    RawMachineLabel blocka, blockb;
     Node* cond = p0;
     for (int j = 0; j < k; j++) {
       cond = m.Word32Equal(cond, m.Int32Constant(0));
@@ -79,7 +77,7 @@ TEST(BranchCombineInt32LessThanZero_1) {
   int32_t ne_constant = 845118;
   Node* p0 = m.Parameter(0);
 
-  MLabel blocka, blockb;
+  RawMachineLabel blocka, blockb;
   m.Branch(m.Int32LessThan(p0, m.Int32Constant(0)), &blocka, &blockb);
   m.Bind(&blocka);
   m.Return(m.Int32Constant(eq_constant));
@@ -101,7 +99,7 @@ TEST(BranchCombineUint32LessThan100_1) {
   int32_t ne_constant = 88845718;
   Node* p0 = m.Parameter(0);
 
-  MLabel blocka, blockb;
+  RawMachineLabel blocka, blockb;
   m.Branch(m.Uint32LessThan(p0, m.Int32Constant(100)), &blocka, &blockb);
   m.Bind(&blocka);
   m.Return(m.Int32Constant(eq_constant));
@@ -123,7 +121,7 @@ TEST(BranchCombineUint32LessThanOrEqual100_1) {
   int32_t ne_constant = 77845719;
   Node* p0 = m.Parameter(0);
 
-  MLabel blocka, blockb;
+  RawMachineLabel blocka, blockb;
   m.Branch(m.Uint32LessThanOrEqual(p0, m.Int32Constant(100)), &blocka, &blockb);
   m.Bind(&blocka);
   m.Return(m.Int32Constant(eq_constant));
@@ -145,7 +143,7 @@ TEST(BranchCombineZeroLessThanInt32_1) {
   int32_t ne_constant = 225118;
   Node* p0 = m.Parameter(0);
 
-  MLabel blocka, blockb;
+  RawMachineLabel blocka, blockb;
   m.Branch(m.Int32LessThan(m.Int32Constant(0), p0), &blocka, &blockb);
   m.Bind(&blocka);
   m.Return(m.Int32Constant(eq_constant));
@@ -167,7 +165,7 @@ TEST(BranchCombineInt32GreaterThanZero_1) {
   int32_t ne_constant = 825178;
   Node* p0 = m.Parameter(0);
 
-  MLabel blocka, blockb;
+  RawMachineLabel blocka, blockb;
   m.Branch(m.Int32GreaterThan(p0, m.Int32Constant(0)), &blocka, &blockb);
   m.Bind(&blocka);
   m.Return(m.Int32Constant(eq_constant));
@@ -190,7 +188,7 @@ TEST(BranchCombineWord32EqualP) {
   Node* p0 = m.Parameter(0);
   Node* p1 = m.Parameter(1);
 
-  MLabel blocka, blockb;
+  RawMachineLabel blocka, blockb;
   m.Branch(m.Word32Equal(p0, p1), &blocka, &blockb);
   m.Bind(&blocka);
   m.Return(m.Int32Constant(eq_constant));
@@ -220,7 +218,7 @@ TEST(BranchCombineWord32EqualI) {
       Node* p0 = m.Int32Constant(a);
       Node* p1 = m.Parameter(0);
 
-      MLabel blocka, blockb;
+      RawMachineLabel blocka, blockb;
       if (left == 1) m.Branch(m.Word32Equal(p0, p1), &blocka, &blockb);
       if (left == 0) m.Branch(m.Word32Equal(p1, p0), &blocka, &blockb);
       m.Bind(&blocka);
@@ -247,7 +245,7 @@ TEST(BranchCombineInt32CmpP) {
     Node* p0 = m.Parameter(0);
     Node* p1 = m.Parameter(1);
 
-    MLabel blocka, blockb;
+    RawMachineLabel blocka, blockb;
     if (op == 0) m.Branch(m.Int32LessThan(p0, p1), &blocka, &blockb);
     if (op == 1) m.Branch(m.Int32LessThanOrEqual(p0, p1), &blocka, &blockb);
     m.Bind(&blocka);
@@ -280,7 +278,7 @@ TEST(BranchCombineInt32CmpI) {
       Node* p0 = m.Int32Constant(a);
       Node* p1 = m.Parameter(0);
 
-      MLabel blocka, blockb;
+      RawMachineLabel blocka, blockb;
       if (op == 0) m.Branch(m.Int32LessThan(p0, p1), &blocka, &blockb);
       if (op == 1) m.Branch(m.Int32LessThanOrEqual(p0, p1), &blocka, &blockb);
       m.Bind(&blocka);
@@ -336,7 +334,7 @@ class CmpBranchGen : public BinopGen<int32_t> {
       : w(opcode), invert(i), true_first(t), eq_constant(eq), ne_constant(ne) {}
 
   virtual void gen(RawMachineAssemblerTester<int32_t>* m, Node* a, Node* b) {
-    MLabel blocka, blockb;
+    RawMachineLabel blocka, blockb;
     Node* cond = w.MakeNode(m, a, b);
     if (invert) cond = m->Word32Equal(cond, m->Int32Constant(0));
     m->Branch(cond, &blocka, &blockb);
@@ -435,7 +433,7 @@ TEST(BranchCombineFloat64Compares) {
       Node* a = m.LoadFromPointer(&input_a, kMachFloat64);
       Node* b = m.LoadFromPointer(&input_b, kMachFloat64);
 
-      MLabel blocka, blockb;
+      RawMachineLabel blocka, blockb;
       Node* cond = cmp.MakeNode(&m, a, b);
       if (invert) cond = m.Word32Equal(cond, m.Int32Constant(0));
       m.Branch(cond, &blocka, &blockb);

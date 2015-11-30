@@ -13,8 +13,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-typedef RawMachineAssembler::Label MLabel;
-
 class BasicBlockProfilerTest : public RawMachineAssemblerTester<int32_t> {
  public:
   BasicBlockProfilerTest() : RawMachineAssemblerTester<int32_t>(kMachInt32) {
@@ -41,7 +39,7 @@ class BasicBlockProfilerTest : public RawMachineAssemblerTester<int32_t> {
 TEST(ProfileDiamond) {
   BasicBlockProfilerTest m;
 
-  MLabel blocka, blockb, end;
+  RawMachineLabel blocka, blockb, end;
   m.Branch(m.Parameter(0), &blocka, &blockb);
   m.Bind(&blocka);
   m.Goto(&end);
@@ -81,7 +79,7 @@ TEST(ProfileDiamond) {
 TEST(ProfileLoop) {
   BasicBlockProfilerTest m;
 
-  MLabel header, body, end;
+  RawMachineLabel header, body, end;
   Node* one = m.Int32Constant(1);
   m.Goto(&header);
 

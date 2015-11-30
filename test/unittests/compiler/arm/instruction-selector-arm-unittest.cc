@@ -12,7 +12,6 @@ namespace compiler {
 
 namespace {
 
-typedef RawMachineAssembler::Label MLabel;
 typedef Node* (RawMachineAssembler::*Constructor)(Node*, Node*);
 
 
@@ -247,7 +246,7 @@ TEST_P(InstructionSelectorDPITest, ShiftByImmediate) {
 TEST_P(InstructionSelectorDPITest, BranchWithParameters) {
   const DPI dpi = GetParam();
   StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
-  MLabel a, b;
+  RawMachineLabel a, b;
   m.Branch((m.*dpi.constructor)(m.Parameter(0), m.Parameter(1)), &a, &b);
   m.Bind(&a);
   m.Return(m.Int32Constant(1));
@@ -266,7 +265,7 @@ TEST_P(InstructionSelectorDPITest, BranchWithImmediate) {
   const DPI dpi = GetParam();
   TRACED_FOREACH(int32_t, imm, kImmediates) {
     StreamBuilder m(this, kMachInt32, kMachInt32);
-    MLabel a, b;
+    RawMachineLabel a, b;
     m.Branch((m.*dpi.constructor)(m.Parameter(0), m.Int32Constant(imm)), &a,
              &b);
     m.Bind(&a);
@@ -282,7 +281,7 @@ TEST_P(InstructionSelectorDPITest, BranchWithImmediate) {
   }
   TRACED_FOREACH(int32_t, imm, kImmediates) {
     StreamBuilder m(this, kMachInt32, kMachInt32);
-    MLabel a, b;
+    RawMachineLabel a, b;
     m.Branch((m.*dpi.constructor)(m.Int32Constant(imm), m.Parameter(0)), &a,
              &b);
     m.Bind(&a);
@@ -303,7 +302,7 @@ TEST_P(InstructionSelectorDPITest, BranchWithShiftByParameter) {
   const DPI dpi = GetParam();
   TRACED_FOREACH(Shift, shift, kShifts) {
     StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32, kMachInt32);
-    MLabel a, b;
+    RawMachineLabel a, b;
     m.Branch((m.*dpi.constructor)(
                  m.Parameter(0),
                  (m.*shift.constructor)(m.Parameter(1), m.Parameter(2))),
@@ -321,7 +320,7 @@ TEST_P(InstructionSelectorDPITest, BranchWithShiftByParameter) {
   }
   TRACED_FOREACH(Shift, shift, kShifts) {
     StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32, kMachInt32);
-    MLabel a, b;
+    RawMachineLabel a, b;
     m.Branch((m.*dpi.constructor)(
                  (m.*shift.constructor)(m.Parameter(0), m.Parameter(1)),
                  m.Parameter(2)),
@@ -345,7 +344,7 @@ TEST_P(InstructionSelectorDPITest, BranchWithShiftByImmediate) {
   TRACED_FOREACH(Shift, shift, kShifts) {
     TRACED_FORRANGE(int32_t, imm, shift.i_low, shift.i_high) {
       StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
-      MLabel a, b;
+      RawMachineLabel a, b;
       m.Branch((m.*dpi.constructor)(m.Parameter(0),
                                     (m.*shift.constructor)(
                                         m.Parameter(1), m.Int32Constant(imm))),
@@ -367,7 +366,7 @@ TEST_P(InstructionSelectorDPITest, BranchWithShiftByImmediate) {
   TRACED_FOREACH(Shift, shift, kShifts) {
     TRACED_FORRANGE(int32_t, imm, shift.i_low, shift.i_high) {
       StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
-      MLabel a, b;
+      RawMachineLabel a, b;
       m.Branch((m.*dpi.constructor)(
                    (m.*shift.constructor)(m.Parameter(0), m.Int32Constant(imm)),
                    m.Parameter(1)),
@@ -392,7 +391,7 @@ TEST_P(InstructionSelectorDPITest, BranchWithShiftByImmediate) {
 TEST_P(InstructionSelectorDPITest, BranchIfZeroWithParameters) {
   const DPI dpi = GetParam();
   StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
-  MLabel a, b;
+  RawMachineLabel a, b;
   m.Branch(m.Word32Equal((m.*dpi.constructor)(m.Parameter(0), m.Parameter(1)),
                          m.Int32Constant(0)),
            &a, &b);
@@ -412,7 +411,7 @@ TEST_P(InstructionSelectorDPITest, BranchIfZeroWithParameters) {
 TEST_P(InstructionSelectorDPITest, BranchIfNotZeroWithParameters) {
   const DPI dpi = GetParam();
   StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
-  MLabel a, b;
+  RawMachineLabel a, b;
   m.Branch(
       m.Word32NotEqual((m.*dpi.constructor)(m.Parameter(0), m.Parameter(1)),
                        m.Int32Constant(0)),
@@ -434,7 +433,7 @@ TEST_P(InstructionSelectorDPITest, BranchIfZeroWithImmediate) {
   const DPI dpi = GetParam();
   TRACED_FOREACH(int32_t, imm, kImmediates) {
     StreamBuilder m(this, kMachInt32, kMachInt32);
-    MLabel a, b;
+    RawMachineLabel a, b;
     m.Branch(m.Word32Equal(
                  (m.*dpi.constructor)(m.Parameter(0), m.Int32Constant(imm)),
                  m.Int32Constant(0)),
@@ -452,7 +451,7 @@ TEST_P(InstructionSelectorDPITest, BranchIfZeroWithImmediate) {
   }
   TRACED_FOREACH(int32_t, imm, kImmediates) {
     StreamBuilder m(this, kMachInt32, kMachInt32);
-    MLabel a, b;
+    RawMachineLabel a, b;
     m.Branch(m.Word32Equal(
                  (m.*dpi.constructor)(m.Int32Constant(imm), m.Parameter(0)),
                  m.Int32Constant(0)),
@@ -475,7 +474,7 @@ TEST_P(InstructionSelectorDPITest, BranchIfNotZeroWithImmediate) {
   const DPI dpi = GetParam();
   TRACED_FOREACH(int32_t, imm, kImmediates) {
     StreamBuilder m(this, kMachInt32, kMachInt32);
-    MLabel a, b;
+    RawMachineLabel a, b;
     m.Branch(m.Word32NotEqual(
                  (m.*dpi.constructor)(m.Parameter(0), m.Int32Constant(imm)),
                  m.Int32Constant(0)),
@@ -493,7 +492,7 @@ TEST_P(InstructionSelectorDPITest, BranchIfNotZeroWithImmediate) {
   }
   TRACED_FOREACH(int32_t, imm, kImmediates) {
     StreamBuilder m(this, kMachInt32, kMachInt32);
-    MLabel a, b;
+    RawMachineLabel a, b;
     m.Branch(m.Word32NotEqual(
                  (m.*dpi.constructor)(m.Int32Constant(imm), m.Parameter(0)),
                  m.Int32Constant(0)),
@@ -892,7 +891,7 @@ TEST_P(InstructionSelectorODPITest, BothWithShiftByImmediate) {
 TEST_P(InstructionSelectorODPITest, BranchWithParameters) {
   const ODPI odpi = GetParam();
   StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
-  MLabel a, b;
+  RawMachineLabel a, b;
   Node* n = (m.*odpi.constructor)(m.Parameter(0), m.Parameter(1));
   m.Branch(m.Projection(1, n), &a, &b);
   m.Bind(&a);
@@ -914,7 +913,7 @@ TEST_P(InstructionSelectorODPITest, BranchWithImmediate) {
   const ODPI odpi = GetParam();
   TRACED_FOREACH(int32_t, imm, kImmediates) {
     StreamBuilder m(this, kMachInt32, kMachInt32);
-    MLabel a, b;
+    RawMachineLabel a, b;
     Node* n = (m.*odpi.constructor)(m.Parameter(0), m.Int32Constant(imm));
     m.Branch(m.Projection(1, n), &a, &b);
     m.Bind(&a);
@@ -933,7 +932,7 @@ TEST_P(InstructionSelectorODPITest, BranchWithImmediate) {
   }
   TRACED_FOREACH(int32_t, imm, kImmediates) {
     StreamBuilder m(this, kMachInt32, kMachInt32);
-    MLabel a, b;
+    RawMachineLabel a, b;
     Node* n = (m.*odpi.constructor)(m.Int32Constant(imm), m.Parameter(0));
     m.Branch(m.Projection(1, n), &a, &b);
     m.Bind(&a);
@@ -956,7 +955,7 @@ TEST_P(InstructionSelectorODPITest, BranchWithImmediate) {
 TEST_P(InstructionSelectorODPITest, BranchIfZeroWithParameters) {
   const ODPI odpi = GetParam();
   StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
-  MLabel a, b;
+  RawMachineLabel a, b;
   Node* n = (m.*odpi.constructor)(m.Parameter(0), m.Parameter(1));
   m.Branch(m.Word32Equal(m.Projection(1, n), m.Int32Constant(0)), &a, &b);
   m.Bind(&a);
@@ -977,7 +976,7 @@ TEST_P(InstructionSelectorODPITest, BranchIfZeroWithParameters) {
 TEST_P(InstructionSelectorODPITest, BranchIfNotZeroWithParameters) {
   const ODPI odpi = GetParam();
   StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
-  MLabel a, b;
+  RawMachineLabel a, b;
   Node* n = (m.*odpi.constructor)(m.Parameter(0), m.Parameter(1));
   m.Branch(m.Word32NotEqual(m.Projection(1, n), m.Int32Constant(0)), &a, &b);
   m.Bind(&a);

@@ -14,12 +14,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-namespace {
-
-typedef RawMachineAssembler::Label MLabel;
-
-}  // namespace
-
 
 InstructionSelectorTest::InstructionSelectorTest() : rng_(FLAG_random_seed) {}
 
@@ -283,7 +277,7 @@ TARGET_TEST_P(InstructionSelectorPhiTest, Doubleness) {
   StreamBuilder m(this, type, type, type);
   Node* param0 = m.Parameter(0);
   Node* param1 = m.Parameter(1);
-  MLabel a, b, c;
+  RawMachineLabel a, b, c;
   m.Branch(m.Int32Constant(0), &a, &b);
   m.Bind(&a);
   m.Goto(&c);
@@ -303,7 +297,7 @@ TARGET_TEST_P(InstructionSelectorPhiTest, Referenceness) {
   StreamBuilder m(this, type, type, type);
   Node* param0 = m.Parameter(0);
   Node* param1 = m.Parameter(1);
-  MLabel a, b, c;
+  RawMachineLabel a, b, c;
   m.Branch(m.Int32Constant(1), &a, &b);
   m.Bind(&a);
   m.Goto(&c);

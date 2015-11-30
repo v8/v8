@@ -21,8 +21,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-typedef RawMachineAssembler::Label MLabel;
-
 #if V8_TARGET_ARCH_ARM64
 // TODO(titzer): fix native stack parameters on arm64
 #define DISABLE_NATIVE_STACK_PARAMS true
