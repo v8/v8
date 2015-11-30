@@ -627,11 +627,6 @@ bool StaticMarkingVisitor<StaticVisitor>::IsFlushable(Heap* heap,
     return false;
   }
 
-  // Check age of optimized code.
-  if (FLAG_age_code && !function->code()->IsOld()) {
-    return false;
-  }
-
   return IsFlushable(heap, shared_info);
 }
 
@@ -688,6 +683,16 @@ bool StaticMarkingVisitor<StaticVisitor>::IsFlushable(
   // relation between SharedFunctionInfo and Code is broken.
   if (shared_info->dont_flush()) {
     return false;
+  }
+
+  // ----------------------------------------------------------------
+  // The above predicates up to this line are hard invariants, below
+  // this line are heuristics that should not affect correctness.
+  // ----------------------------------------------------------------
+
+  // In stress mode we are aggressive.
+  if (FLAG_stress_compaction) {
+    return true;
   }
 
   // Check age of code. If code aging is disabled we never flush.
