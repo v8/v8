@@ -1724,8 +1724,10 @@ THREADED_TEST(BooleanObject) {
   CHECK(!as_boxed.IsEmpty());
   bool the_boolean = as_boxed->ValueOf();
   CHECK_EQ(true, the_boolean);
-  v8::Local<v8::Value> boxed_true = v8::BooleanObject::New(true);
-  v8::Local<v8::Value> boxed_false = v8::BooleanObject::New(false);
+  v8::Local<v8::Value> boxed_true =
+      v8::BooleanObject::New(env->GetIsolate(), true);
+  v8::Local<v8::Value> boxed_false =
+      v8::BooleanObject::New(env->GetIsolate(), false);
   CHECK(boxed_true->IsBooleanObject());
   CHECK(boxed_false->IsBooleanObject());
   as_boxed = boxed_true.As<v8::BooleanObject>();
@@ -1746,7 +1748,7 @@ THREADED_TEST(PrimitiveAndWrappedBooleans) {
   CHECK(!primitive_false->IsTrue());
   CHECK(primitive_false->IsFalse());
 
-  Local<Value> false_value = BooleanObject::New(false);
+  Local<Value> false_value = BooleanObject::New(env->GetIsolate(), false);
   CHECK(!false_value->IsBoolean());
   CHECK(false_value->IsBooleanObject());
   CHECK(false_value->BooleanValue(env.local()).FromJust());
@@ -1768,7 +1770,7 @@ THREADED_TEST(PrimitiveAndWrappedBooleans) {
   CHECK(primitive_true->IsTrue());
   CHECK(!primitive_true->IsFalse());
 
-  Local<Value> true_value = BooleanObject::New(true);
+  Local<Value> true_value = BooleanObject::New(env->GetIsolate(), true);
   CHECK(!true_value->IsBoolean());
   CHECK(true_value->IsBooleanObject());
   CHECK(true_value->BooleanValue(env.local()).FromJust());
@@ -8702,41 +8704,6 @@ THREADED_TEST(DeleteAccessor) {
 }
 
 
-THREADED_TEST(TypeSwitch) {
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope scope(isolate);
-  v8::Local<v8::FunctionTemplate> templ1 = v8::FunctionTemplate::New(isolate);
-  v8::Local<v8::FunctionTemplate> templ2 = v8::FunctionTemplate::New(isolate);
-  v8::Local<v8::FunctionTemplate> templ3 = v8::FunctionTemplate::New(isolate);
-  v8::Local<v8::FunctionTemplate> templs[3] = {templ1, templ2, templ3};
-  v8::Local<v8::TypeSwitch> type_switch = v8::TypeSwitch::New(3, templs);
-  LocalContext context;
-  v8::Local<v8::Object> obj0 = v8::Object::New(isolate);
-  v8::Local<v8::Object> obj1 = templ1->GetFunction(context.local())
-                                   .ToLocalChecked()
-                                   ->NewInstance(context.local())
-                                   .ToLocalChecked();
-  v8::Local<v8::Object> obj2 = templ2->GetFunction(context.local())
-                                   .ToLocalChecked()
-                                   ->NewInstance(context.local())
-                                   .ToLocalChecked();
-  v8::Local<v8::Object> obj3 = templ3->GetFunction(context.local())
-                                   .ToLocalChecked()
-                                   ->NewInstance(context.local())
-                                   .ToLocalChecked();
-  for (int i = 0; i < 10; i++) {
-    CHECK_EQ(0, type_switch->match(obj0));
-    CHECK_EQ(1, type_switch->match(obj1));
-    CHECK_EQ(2, type_switch->match(obj2));
-    CHECK_EQ(3, type_switch->match(obj3));
-    CHECK_EQ(3, type_switch->match(obj3));
-    CHECK_EQ(2, type_switch->match(obj2));
-    CHECK_EQ(1, type_switch->match(obj1));
-    CHECK_EQ(0, type_switch->match(obj0));
-  }
-}
-
-
 static int trouble_nesting = 0;
 static void TroubleCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
   ApiTestFuzzer::Fuzz();
@@ -14741,11 +14708,12 @@ class RegExpInterruptionThread : public v8::base::Thread {
 };
 
 
-void RunBeforeGC(v8::GCType type, v8::GCCallbackFlags flags) {
+void RunBeforeGC(v8::Isolate* isolate, v8::GCType type,
+                 v8::GCCallbackFlags flags) {
   if (v8::base::NoBarrier_Load(&regexp_interruption_data.loop_count) != 2) {
     return;
   }
-  v8::HandleScope scope(CcTest::isolate());
+  v8::HandleScope scope(isolate);
   v8::Local<v8::String> string = v8::Local<v8::String>::New(
       CcTest::isolate(), regexp_interruption_data.string);
   string->MakeExternal(regexp_interruption_data.string_resource);
@@ -14762,7 +14730,7 @@ TEST(RegExpInterruption) {
 
   RegExpInterruptionThread timeout_thread(CcTest::isolate());
 
-  v8::V8::AddGCPrologueCallback(RunBeforeGC);
+  env->GetIsolate()->AddGCPrologueCallback(RunBeforeGC);
   static const char* one_byte_content = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
   i::uc16* uc16_content = AsciiToTwoByteString(one_byte_content);
   v8::Local<v8::String> string = v8_str(one_byte_content);
@@ -18091,12 +18059,6 @@ int epilogue_call_count_second = 0;
 int prologue_call_count_alloc = 0;
 int epilogue_call_count_alloc = 0;
 
-void PrologueCallback(v8::GCType, v8::GCCallbackFlags flags) {
-  CHECK_EQ(flags, v8::kNoGCCallbackFlags);
-  ++prologue_call_count;
-}
-
-
 void PrologueCallback(v8::Isolate* isolate,
                       v8::GCType,
                       v8::GCCallbackFlags flags) {
@@ -18104,13 +18066,6 @@ void PrologueCallback(v8::Isolate* isolate,
   CHECK_EQ(gc_callbacks_isolate, isolate);
   ++prologue_call_count;
 }
-
-
-void EpilogueCallback(v8::GCType, v8::GCCallbackFlags flags) {
-  CHECK_EQ(flags, v8::kNoGCCallbackFlags);
-  ++epilogue_call_count;
-}
-
 
 void EpilogueCallback(v8::Isolate* isolate,
                       v8::GCType,
@@ -18121,24 +18076,12 @@ void EpilogueCallback(v8::Isolate* isolate,
 }
 
 
-void PrologueCallbackSecond(v8::GCType, v8::GCCallbackFlags flags) {
-  CHECK_EQ(flags, v8::kNoGCCallbackFlags);
-  ++prologue_call_count_second;
-}
-
-
 void PrologueCallbackSecond(v8::Isolate* isolate,
                             v8::GCType,
                             v8::GCCallbackFlags flags) {
   CHECK_EQ(flags, v8::kNoGCCallbackFlags);
   CHECK_EQ(gc_callbacks_isolate, isolate);
   ++prologue_call_count_second;
-}
-
-
-void EpilogueCallbackSecond(v8::GCType, v8::GCCallbackFlags flags) {
-  CHECK_EQ(flags, v8::kNoGCCallbackFlags);
-  ++epilogue_call_count_second;
 }
 
 
@@ -18194,29 +18137,31 @@ void EpilogueCallbackAlloc(v8::Isolate* isolate,
 TEST(GCCallbacksOld) {
   LocalContext context;
 
-  v8::V8::AddGCPrologueCallback(PrologueCallback);
-  v8::V8::AddGCEpilogueCallback(EpilogueCallback);
+  gc_callbacks_isolate = context->GetIsolate();
+
+  context->GetIsolate()->AddGCPrologueCallback(PrologueCallback);
+  context->GetIsolate()->AddGCEpilogueCallback(EpilogueCallback);
   CHECK_EQ(0, prologue_call_count);
   CHECK_EQ(0, epilogue_call_count);
   CcTest::heap()->CollectAllGarbage();
   CHECK_EQ(1, prologue_call_count);
   CHECK_EQ(1, epilogue_call_count);
-  v8::V8::AddGCPrologueCallback(PrologueCallbackSecond);
-  v8::V8::AddGCEpilogueCallback(EpilogueCallbackSecond);
+  context->GetIsolate()->AddGCPrologueCallback(PrologueCallbackSecond);
+  context->GetIsolate()->AddGCEpilogueCallback(EpilogueCallbackSecond);
   CcTest::heap()->CollectAllGarbage();
   CHECK_EQ(2, prologue_call_count);
   CHECK_EQ(2, epilogue_call_count);
   CHECK_EQ(1, prologue_call_count_second);
   CHECK_EQ(1, epilogue_call_count_second);
-  v8::V8::RemoveGCPrologueCallback(PrologueCallback);
-  v8::V8::RemoveGCEpilogueCallback(EpilogueCallback);
+  context->GetIsolate()->RemoveGCPrologueCallback(PrologueCallback);
+  context->GetIsolate()->RemoveGCEpilogueCallback(EpilogueCallback);
   CcTest::heap()->CollectAllGarbage();
   CHECK_EQ(2, prologue_call_count);
   CHECK_EQ(2, epilogue_call_count);
   CHECK_EQ(2, prologue_call_count_second);
   CHECK_EQ(2, epilogue_call_count_second);
-  v8::V8::RemoveGCPrologueCallback(PrologueCallbackSecond);
-  v8::V8::RemoveGCEpilogueCallback(EpilogueCallbackSecond);
+  context->GetIsolate()->RemoveGCPrologueCallback(PrologueCallbackSecond);
+  context->GetIsolate()->RemoveGCEpilogueCallback(EpilogueCallbackSecond);
   CcTest::heap()->CollectAllGarbage();
   CHECK_EQ(2, prologue_call_count);
   CHECK_EQ(2, epilogue_call_count);

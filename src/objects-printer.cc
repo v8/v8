@@ -1081,13 +1081,6 @@ void ObjectTemplateInfo::ObjectTemplateInfoPrint(std::ostream& os) {  // NOLINT
 }
 
 
-void TypeSwitchInfo::TypeSwitchInfoPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "TypeSwitchInfo");
-  os << "\n - types: " << Brief(types());
-  os << "\n";
-}
-
-
 void AllocationSite::AllocationSitePrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "AllocationSite");
   os << " - weak_next: " << Brief(weak_next());

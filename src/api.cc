@@ -1069,41 +1069,6 @@ Local<AccessorSignature> AccessorSignature::New(
 }
 
 
-Local<TypeSwitch> TypeSwitch::New(Local<FunctionTemplate> type) {
-  Local<FunctionTemplate> types[1] = {type};
-  return TypeSwitch::New(1, types);
-}
-
-
-Local<TypeSwitch> TypeSwitch::New(int argc, Local<FunctionTemplate> types[]) {
-  i::Isolate* isolate = i::Isolate::Current();
-  LOG_API(isolate, "TypeSwitch::New");
-  ENTER_V8(isolate);
-  i::Handle<i::FixedArray> vector = isolate->factory()->NewFixedArray(argc);
-  for (int i = 0; i < argc; i++)
-    vector->set(i, *Utils::OpenHandle(*types[i]));
-  i::Handle<i::Struct> struct_obj =
-      isolate->factory()->NewStruct(i::TYPE_SWITCH_INFO_TYPE);
-  i::Handle<i::TypeSwitchInfo> obj =
-      i::Handle<i::TypeSwitchInfo>::cast(struct_obj);
-  obj->set_types(*vector);
-  return Utils::ToLocal(obj);
-}
-
-
-int TypeSwitch::match(v8::Local<Value> value) {
-  i::Handle<i::TypeSwitchInfo> info = Utils::OpenHandle(this);
-  LOG_API(info->GetIsolate(), "TypeSwitch::match");
-  i::Handle<i::Object> obj = Utils::OpenHandle(*value);
-  i::FixedArray* types = i::FixedArray::cast(info->types());
-  for (int i = 0; i < types->length(); i++) {
-    if (i::FunctionTemplateInfo::cast(types->get(i))->IsTemplateFor(*obj))
-      return i + 1;
-  }
-  return 0;
-}
-
-
 #define SET_FIELD_WRAPPED(obj, setter, cdata) do {                      \
     i::Handle<i::Object> foreign = FromCData(obj->GetIsolate(), cdata); \
     (obj)->setter(*foreign);                                            \
@@ -6027,17 +5992,21 @@ double v8::NumberObject::ValueOf() const {
 }
 
 
-Local<v8::Value> v8::BooleanObject::New(bool value) {
-  i::Isolate* isolate = i::Isolate::Current();
-  LOG_API(isolate, "BooleanObject::New");
-  ENTER_V8(isolate);
-  i::Handle<i::Object> boolean(value
-                               ? isolate->heap()->true_value()
-                               : isolate->heap()->false_value(),
-                               isolate);
+Local<v8::Value> v8::BooleanObject::New(Isolate* isolate, bool value) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  LOG_API(i_isolate, "BooleanObject::New");
+  ENTER_V8(i_isolate);
+  i::Handle<i::Object> boolean(value ? i_isolate->heap()->true_value()
+                                     : i_isolate->heap()->false_value(),
+                               i_isolate);
   i::Handle<i::Object> obj =
-      i::Object::ToObject(isolate, boolean).ToHandleChecked();
+      i::Object::ToObject(i_isolate, boolean).ToHandleChecked();
   return Utils::ToLocal(obj);
+}
+
+
+Local<v8::Value> v8::BooleanObject::New(bool value) {
+  return New(Isolate::GetCurrent(), value);
 }
 
 
@@ -7887,8 +7856,8 @@ MaybeLocal<Array> Debug::GetInternalProperties(Isolate* v8_isolate,
 
 
 Local<String> CpuProfileNode::GetFunctionName() const {
-  i::Isolate* isolate = i::Isolate::Current();
   const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
+  i::Isolate* isolate = node->isolate();
   const i::CodeEntry* entry = node->entry();
   i::Handle<i::String> name =
       isolate->factory()->InternalizeUtf8String(entry->name());
@@ -7912,8 +7881,8 @@ int CpuProfileNode::GetScriptId() const {
 
 
 Local<String> CpuProfileNode::GetScriptResourceName() const {
-  i::Isolate* isolate = i::Isolate::Current();
   const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
+  i::Isolate* isolate = node->isolate();
   return ToApiHandle<String>(isolate->factory()->InternalizeUtf8String(
       node->entry()->resource_name()));
 }
@@ -7983,16 +7952,17 @@ const std::vector<CpuProfileDeoptInfo>& CpuProfileNode::GetDeoptInfos() const {
 
 
 void CpuProfile::Delete() {
-  i::Isolate* isolate = i::Isolate::Current();
+  i::CpuProfile* profile = reinterpret_cast<i::CpuProfile*>(this);
+  i::Isolate* isolate = profile->top_down()->isolate();
   i::CpuProfiler* profiler = isolate->cpu_profiler();
   DCHECK(profiler != NULL);
-  profiler->DeleteProfile(reinterpret_cast<i::CpuProfile*>(this));
+  profiler->DeleteProfile(profile);
 }
 
 
 Local<String> CpuProfile::GetTitle() const {
-  i::Isolate* isolate = i::Isolate::Current();
   const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
+  i::Isolate* isolate = profile->top_down()->isolate();
   return ToApiHandle<String>(isolate->factory()->InternalizeUtf8String(
       profile->title()));
 }
@@ -8079,8 +8049,8 @@ HeapGraphEdge::Type HeapGraphEdge::GetType() const {
 
 
 Local<Value> HeapGraphEdge::GetName() const {
-  i::Isolate* isolate = i::Isolate::Current();
   i::HeapGraphEdge* edge = ToInternal(this);
+  i::Isolate* isolate = edge->isolate();
   switch (edge->type()) {
     case i::HeapGraphEdge::kContextVariable:
     case i::HeapGraphEdge::kInternal:
@@ -8123,7 +8093,7 @@ HeapGraphNode::Type HeapGraphNode::GetType() const {
 
 
 Local<String> HeapGraphNode::GetName() const {
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Isolate* isolate = ToInternal(this)->isolate();
   return ToApiHandle<String>(
       isolate->factory()->InternalizeUtf8String(ToInternal(this)->name()));
 }
@@ -8157,7 +8127,7 @@ static i::HeapSnapshot* ToInternal(const HeapSnapshot* snapshot) {
 
 
 void HeapSnapshot::Delete() {
-  i::Isolate* isolate = i::Isolate::Current();
+  i::Isolate* isolate = ToInternal(this)->profiler()->isolate();
   if (isolate->heap_profiler()->GetSnapshotsCount() > 1) {
     ToInternal(this)->Delete();
   } else {
@@ -8353,11 +8323,10 @@ void Testing::PrepareStressRun(int run) {
 }
 
 
-// TODO(svenpanne) Deprecate this.
-void Testing::DeoptimizeAll() {
-  i::Isolate* isolate = i::Isolate::Current();
-  i::HandleScope scope(isolate);
-  internal::Deoptimizer::DeoptimizeAll(isolate);
+void Testing::DeoptimizeAll(Isolate* isolate) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::HandleScope scope(i_isolate);
+  internal::Deoptimizer::DeoptimizeAll(i_isolate);
 }
 
 

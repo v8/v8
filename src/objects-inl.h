@@ -5623,8 +5623,6 @@ ACCESSORS(ObjectTemplateInfo, constructor, Object, kConstructorOffset)
 ACCESSORS(ObjectTemplateInfo, internal_field_count, Object,
           kInternalFieldCountOffset)
 
-ACCESSORS(TypeSwitchInfo, types, Object, kTypesOffset)
-
 ACCESSORS(AllocationSite, transition_info, Object, kTransitionInfoOffset)
 ACCESSORS(AllocationSite, nested_site, Object, kNestedSiteOffset)
 SMI_ACCESSORS(AllocationSite, pretenure_data, kPretenureDataOffset)

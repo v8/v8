@@ -3932,7 +3932,8 @@ class V8_EXPORT NumberObject : public Object {
  */
 class V8_EXPORT BooleanObject : public Object {
  public:
-  static Local<Value> New(bool value);
+  static Local<Value> New(Isolate* isolate, bool value);
+  V8_DEPRECATE_SOON("Pass an isolate", static Local<Value> New(bool value));
 
   bool ValueOf() const;
 
@@ -4583,7 +4584,7 @@ class V8_EXPORT ObjectTemplate : public Template {
   static Local<ObjectTemplate> New(
       Isolate* isolate,
       Local<FunctionTemplate> constructor = Local<FunctionTemplate>());
-  static V8_DEPRECATE_SOON("Use isolate version", Local<ObjectTemplate> New());
+  static V8_DEPRECATED("Use isolate version", Local<ObjectTemplate> New());
 
   /** Creates a new instance of this template.*/
   V8_DEPRECATE_SOON("Use maybe version", Local<Object> NewInstance());
@@ -4768,21 +4769,6 @@ class V8_EXPORT AccessorSignature : public Data {
 
  private:
   AccessorSignature();
-};
-
-
-/**
- * A utility for determining the type of objects based on the template
- * they were constructed from.
- */
-class V8_EXPORT TypeSwitch : public Data {
- public:
-  static Local<TypeSwitch> New(Local<FunctionTemplate> type);
-  static Local<TypeSwitch> New(int argc, Local<FunctionTemplate> types[]);
-  int match(Local<Value> value);
-
- private:
-  TypeSwitch();
 };
 
 
@@ -6179,7 +6165,7 @@ class V8_EXPORT V8 {
    * register the same callback function two times with different
    * GCType filters.
    */
-  static V8_DEPRECATE_SOON(
+  static V8_DEPRECATED(
       "Use isolate version",
       void AddGCPrologueCallback(GCCallback callback,
                                  GCType gc_type_filter = kGCTypeAll));
@@ -6188,7 +6174,7 @@ class V8_EXPORT V8 {
    * This function removes callback which was installed by
    * AddGCPrologueCallback function.
    */
-  V8_INLINE static V8_DEPRECATE_SOON(
+  V8_INLINE static V8_DEPRECATED(
       "Use isolate version",
       void RemoveGCPrologueCallback(GCCallback callback));
 
@@ -6202,7 +6188,7 @@ class V8_EXPORT V8 {
    * register the same callback function two times with different
    * GCType filters.
    */
-  static V8_DEPRECATE_SOON(
+  static V8_DEPRECATED(
       "Use isolate version",
       void AddGCEpilogueCallback(GCCallback callback,
                                  GCType gc_type_filter = kGCTypeAll));
@@ -6211,7 +6197,7 @@ class V8_EXPORT V8 {
    * This function removes callback which was installed by
    * AddGCEpilogueCallback function.
    */
-  V8_INLINE static V8_DEPRECATE_SOON(
+  V8_INLINE static V8_DEPRECATED(
       "Use isolate version",
       void RemoveGCEpilogueCallback(GCCallback callback));
 

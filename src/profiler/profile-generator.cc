@@ -249,10 +249,11 @@ class DeleteNodesCallback {
 };
 
 
-ProfileTree::ProfileTree()
+ProfileTree::ProfileTree(Isolate* isolate)
     : root_entry_(Logger::FUNCTION_TAG, "(root)"),
       next_node_id_(1),
       root_(new ProfileNode(this, &root_entry_)),
+      isolate_(isolate),
       next_function_id_(1),
       function_ids_(ProfileNode::CodeEntriesMatch) {}
 
@@ -347,11 +348,11 @@ void ProfileTree::TraverseDepthFirst(Callback* callback) {
 }
 
 
-CpuProfile::CpuProfile(const char* title, bool record_samples)
+CpuProfile::CpuProfile(Isolate* isolate, const char* title, bool record_samples)
     : title_(title),
       record_samples_(record_samples),
-      start_time_(base::TimeTicks::HighResolutionNow()) {
-}
+      start_time_(base::TimeTicks::HighResolutionNow()),
+      top_down_(isolate) {}
 
 
 void CpuProfile::AddPath(base::TimeTicks timestamp,
@@ -440,8 +441,8 @@ void CodeMap::Print() {
 
 CpuProfilesCollection::CpuProfilesCollection(Heap* heap)
     : function_and_resource_names_(heap),
-      current_profiles_semaphore_(1) {
-}
+      isolate_(heap->isolate()),
+      current_profiles_semaphore_(1) {}
 
 
 static void DeleteCodeEntry(CodeEntry** entry_ptr) {
@@ -476,7 +477,7 @@ bool CpuProfilesCollection::StartProfiling(const char* title,
       return true;
     }
   }
-  current_profiles_.Add(new CpuProfile(title, record_samples));
+  current_profiles_.Add(new CpuProfile(isolate_, title, record_samples));
   current_profiles_semaphore_.Signal();
   return true;
 }

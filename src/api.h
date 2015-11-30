@@ -142,7 +142,6 @@ class RegisteredExtension {
   V(ObjectTemplate, ObjectTemplateInfo)      \
   V(Signature, FunctionTemplateInfo)         \
   V(AccessorSignature, FunctionTemplateInfo) \
-  V(TypeSwitch, TypeSwitchInfo)              \
   V(Data, Object)                            \
   V(RegExp, JSRegExp)                        \
   V(Object, JSReceiver)                      \
@@ -265,8 +264,6 @@ class Utils {
       v8::internal::Handle<v8::internal::FunctionTemplateInfo> obj);
   static inline Local<AccessorSignature> AccessorSignatureToLocal(
       v8::internal::Handle<v8::internal::FunctionTemplateInfo> obj);
-  static inline Local<TypeSwitch> ToLocal(
-      v8::internal::Handle<v8::internal::TypeSwitchInfo> obj);
   static inline Local<External> ExternalToLocal(
       v8::internal::Handle<v8::internal::JSObject> obj);
   static inline Local<NativeWeakMap> NativeWeakMapToLocal(
@@ -375,7 +372,6 @@ MAKE_TO_LOCAL(ToLocal, FunctionTemplateInfo, FunctionTemplate)
 MAKE_TO_LOCAL(ToLocal, ObjectTemplateInfo, ObjectTemplate)
 MAKE_TO_LOCAL(SignatureToLocal, FunctionTemplateInfo, Signature)
 MAKE_TO_LOCAL(AccessorSignatureToLocal, FunctionTemplateInfo, AccessorSignature)
-MAKE_TO_LOCAL(ToLocal, TypeSwitchInfo, TypeSwitch)
 MAKE_TO_LOCAL(MessageToLocal, Object, Message)
 MAKE_TO_LOCAL(PromiseToLocal, JSObject, Promise)
 MAKE_TO_LOCAL(StackTraceToLocal, JSArray, StackTrace)

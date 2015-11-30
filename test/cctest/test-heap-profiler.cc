@@ -1539,7 +1539,8 @@ class GraphWithImplicitRefs {
     instance_ = NULL;
   }
 
-  static void gcPrologue(v8::GCType type, v8::GCCallbackFlags flags) {
+  static void gcPrologue(v8::Isolate* isolate, v8::GCType type,
+                         v8::GCCallbackFlags flags) {
     instance_->AddImplicitReferences();
   }
 
@@ -1571,7 +1572,7 @@ TEST(HeapSnapshotImplicitReferences) {
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
 
   GraphWithImplicitRefs graph(&env);
-  v8::V8::AddGCPrologueCallback(&GraphWithImplicitRefs::gcPrologue);
+  env->GetIsolate()->AddGCPrologueCallback(&GraphWithImplicitRefs::gcPrologue);
 
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
@@ -1594,7 +1595,8 @@ TEST(HeapSnapshotImplicitReferences) {
     }
   }
   CHECK_EQ(2, implicit_targets_count);
-  v8::V8::RemoveGCPrologueCallback(&GraphWithImplicitRefs::gcPrologue);
+  env->GetIsolate()->RemoveGCPrologueCallback(
+      &GraphWithImplicitRefs::gcPrologue);
 }
 
 

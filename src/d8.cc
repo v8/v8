@@ -2479,7 +2479,7 @@ int Shell::Main(int argc, char* argv[]) {
         result = RunMain(isolate, argc, argv, last_run);
       }
       printf("======== Full Deoptimization =======\n");
-      Testing::DeoptimizeAll();
+      Testing::DeoptimizeAll(isolate);
 #if !defined(V8_SHARED)
     } else if (i::FLAG_stress_runs > 0) {
       options.stress_runs = i::FLAG_stress_runs;

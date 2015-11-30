@@ -50,6 +50,8 @@ class HeapGraphEdge BASE_EMBEDDED {
   INLINE(HeapEntry* from() const);
   HeapEntry* to() const { return to_entry_; }
 
+  INLINE(Isolate* isolate() const);
+
  private:
   INLINE(HeapSnapshot* snapshot() const);
   int from_index() const { return FromIndexField::decode(bit_field_); }
@@ -115,6 +117,7 @@ class HeapEntry BASE_EMBEDDED {
   }
   Vector<HeapGraphEdge*> children() {
     return Vector<HeapGraphEdge*>(children_arr(), children_count_); }
+  INLINE(Isolate* isolate() const);
 
   void SetIndexedReference(
       HeapGraphEdge::Type type, int index, HeapEntry* entry);

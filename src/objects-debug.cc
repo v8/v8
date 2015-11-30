@@ -968,12 +968,6 @@ void ObjectTemplateInfo::ObjectTemplateInfoVerify() {
 }
 
 
-void TypeSwitchInfo::TypeSwitchInfoVerify() {
-  CHECK(IsTypeSwitchInfo());
-  VerifyPointer(types());
-}
-
-
 void AllocationSite::AllocationSiteVerify() {
   CHECK(IsAllocationSite());
 }

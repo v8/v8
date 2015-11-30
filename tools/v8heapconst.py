@@ -231,7 +231,6 @@ KNOWN_MAPS = {
   0x098e9: (165, "CallHandlerInfoMap"),
   0x09915: (166, "FunctionTemplateInfoMap"),
   0x09941: (167, "ObjectTemplateInfoMap"),
-  0x0996d: (169, "TypeSwitchInfoMap"),
   0x09999: (173, "CodeCacheMap"),
   0x099c5: (175, "TypeFeedbackInfoMap"),
   0x099f1: (176, "AliasedArgumentsEntryMap"),
