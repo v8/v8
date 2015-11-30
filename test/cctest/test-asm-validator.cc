@@ -841,6 +841,69 @@ TEST_INT_BIN_OP(OrOperator, "|")
 TEST_INT_BIN_OP(XorOperator, "^")
 
 
+TEST(SignedCompare) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { var x = 1; var y = 1; return ((x|0) < (y|0))|0; }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_I_TYPE) {
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(x, Bounds(cache.kAsmInt));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+      }
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(y, Bounds(cache.kAsmInt));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+      }
+      CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+        CHECK_EXPR(CompareOperation, Bounds(cache.kAsmSigned)) {
+          CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+            CHECK_VAR(x, Bounds(cache.kAsmInt));
+            CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+          }
+          CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+            CHECK_VAR(y, Bounds(cache.kAsmInt));
+            CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+          }
+        }
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+      }
+    }
+    CHECK_SKIP();
+  }
+  CHECK_FUNC_TYPES_END
+}
+
+
+TEST(SignedCompareConst) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { var x = 1; var y = 1; return ((x|0) < (1<<31))|0; }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_I_TYPE) {
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(x, Bounds(cache.kAsmInt));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+      }
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(y, Bounds(cache.kAsmInt));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+      }
+      CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+        CHECK_EXPR(CompareOperation, Bounds(cache.kAsmSigned)) {
+          CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+            CHECK_VAR(x, Bounds(cache.kAsmInt));
+            CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+          }
+          CHECK_EXPR(Literal, Bounds(cache.kAsmSigned));
+        }
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+      }
+    }
+    CHECK_SKIP();
+  }
+  CHECK_FUNC_TYPES_END
+}
+
+
 TEST(UnsignedCompare) {
   CHECK_FUNC_TYPES_BEGIN(
       "function bar() { var x = 1; var y = 1; return ((x>>>0) < (y>>>0))|0; }\n"
@@ -864,6 +927,67 @@ TEST(UnsignedCompare) {
             CHECK_VAR(y, Bounds(cache.kAsmInt));
             CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
           }
+        }
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+      }
+    }
+    CHECK_SKIP();
+  }
+  CHECK_FUNC_TYPES_END
+}
+
+
+TEST(UnsignedCompareConst0) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { var x = 1; var y = 1; return ((x>>>0) < (0>>>0))|0; }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_I_TYPE) {
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(x, Bounds(cache.kAsmInt));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+      }
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(y, Bounds(cache.kAsmInt));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+      }
+      CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+        CHECK_EXPR(CompareOperation, Bounds(cache.kAsmSigned)) {
+          CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmUnsigned)) {
+            CHECK_VAR(x, Bounds(cache.kAsmInt));
+            CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+          }
+          CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+        }
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+      }
+    }
+    CHECK_SKIP();
+  }
+  CHECK_FUNC_TYPES_END
+}
+
+
+TEST(UnsignedCompareConst1) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { var x = 1; var y = 1; return ((x>>>0) < "
+      "(0xffffffff>>>0))|0; }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_I_TYPE) {
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(x, Bounds(cache.kAsmInt));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+      }
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(y, Bounds(cache.kAsmInt));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+      }
+      CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+        CHECK_EXPR(CompareOperation, Bounds(cache.kAsmSigned)) {
+          CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmUnsigned)) {
+            CHECK_VAR(x, Bounds(cache.kAsmInt));
+            CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+          }
+          CHECK_EXPR(Literal, Bounds(cache.kAsmUnsigned));
         }
         CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
       }
@@ -1146,7 +1270,7 @@ TEST(Load1) {
       CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
         CHECK_VAR(y, Bounds(cache.kAsmInt));
         CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
-          CHECK_EXPR(Property, Bounds(cache.kInt8)) {
+          CHECK_EXPR(Property, Bounds(cache.kAsmInt)) {
             CHECK_VAR(i8, Bounds(cache.kInt8Array));
             CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
               CHECK_VAR(x, Bounds(cache.kAsmSigned));
@@ -1154,6 +1278,101 @@ TEST(Load1) {
             }
           }
           CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+        }
+      }
+    }
+    CHECK_SKIP();
+  }
+  CHECK_FUNC_TYPES_END
+}
+
+
+TEST(LoadDouble) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { var x = 1; var y = 0.0; y = +f64[x>>3]; }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_V_TYPE) {
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(x, Bounds(cache.kAsmInt));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+      }
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmDouble)) {
+        CHECK_VAR(y, Bounds(cache.kAsmDouble));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmDouble));
+      }
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmDouble)) {
+        CHECK_VAR(y, Bounds(cache.kAsmDouble));
+        CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmDouble)) {
+          CHECK_EXPR(Property, Bounds(cache.kAsmDouble)) {
+            CHECK_VAR(f64, Bounds(cache.kFloat64Array));
+            CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+              CHECK_VAR(x, Bounds(cache.kAsmSigned));
+              CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+            }
+          }
+          CHECK_EXPR(Literal, Bounds(cache.kAsmDouble));
+        }
+      }
+    }
+    CHECK_SKIP();
+  }
+  CHECK_FUNC_TYPES_END
+}
+
+
+TEST(Store1) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { var x = 1; i8[x>>0] = 0; }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_V_TYPE) {
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(x, Bounds(cache.kAsmInt));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+      }
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_EXPR(Property, Bounds::Unbounded()) {
+          CHECK_VAR(i8, Bounds(cache.kInt8Array));
+          CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+            CHECK_VAR(x, Bounds(cache.kAsmSigned));
+            CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+          }
+        }
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+      }
+    }
+    CHECK_SKIP();
+  }
+  CHECK_FUNC_TYPES_END
+}
+
+
+TEST(StoreFloat) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { var x = fround(1.0); "
+      "f32[0] = fround(x + fround(1.0)); }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_V_TYPE) {
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmFloat)) {
+        CHECK_VAR(x, Bounds(cache.kAsmFloat));
+        CHECK_EXPR(Call, Bounds(cache.kAsmFloat)) {
+          CHECK_VAR(fround, FUNC_N2F_TYPE);
+          CHECK_EXPR(Literal, Bounds(cache.kAsmDouble));
+        }
+      }
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmFloat)) {
+        CHECK_EXPR(Property, Bounds::Unbounded()) {
+          CHECK_VAR(f32, Bounds(cache.kFloat32Array));
+          CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+        }
+        CHECK_EXPR(Call, Bounds(cache.kAsmFloat)) {
+          CHECK_VAR(fround, FUNC_N2F_TYPE);
+          CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmFloat)) {
+            CHECK_VAR(x, Bounds(cache.kAsmFloat));
+            CHECK_EXPR(Call, Bounds(cache.kAsmFloat)) {
+              CHECK_VAR(fround, FUNC_N2F_TYPE);
+              CHECK_EXPR(Literal, Bounds(cache.kAsmDouble));
+            }
+          }
         }
       }
     }
@@ -1175,7 +1394,7 @@ TEST(Load1Constant) {
       CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
         CHECK_VAR(y, Bounds(cache.kAsmInt));
         CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
-          CHECK_EXPR(Property, Bounds(cache.kInt8)) {
+          CHECK_EXPR(Property, Bounds(cache.kAsmInt)) {
             CHECK_VAR(i8, Bounds(cache.kInt8Array));
             CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
           }
@@ -1436,6 +1655,14 @@ TEST(MismatchedReturnTypeExpression) {
 }
 
 
+TEST(AssignToFloatishToF64) {
+  CHECK_FUNC_ERROR(
+      "function bar() { var v = fround(1.0); f32[0] = v + fround(1.0); }\n"
+      "function foo() { bar(); }",
+      "asm: line 39: intish or floatish assignment\n");
+}
+
+
 TEST(ForeignFunction) {
   CHECK_FUNC_TYPES_BEGIN(
       "var baz = foreign.baz;\n"
@@ -1481,6 +1708,74 @@ TEST(BadExports) {
   ZoneVector<ExpressionTypeEntry> types(zone);
   CHECK_EQ("asm: line 40: non-function in function table\n",
            Validate(zone, test_function, &types));
+}
+
+
+TEST(NestedHeapAssignment) {
+  CHECK_FUNC_ERROR(
+      "function bar() { var x = 0; i8[x = 1] = 2; }\n"
+      "function foo() { bar(); }",
+      "asm: line 39: expected >> in heap access\n");
+}
+
+
+TEST(BadArrayAssignment) {
+  CHECK_FUNC_ERROR(
+      "function bar() { i8[0] = 0.0; }\n"
+      "function foo() { bar(); }",
+      "asm: line 39: illegal type in assignment\n");
+}
+
+
+TEST(NestedVariableAssignment) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { var x = 0; x = x = 4; }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_V_TYPE) {
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(x, Bounds(cache.kAsmInt));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+      }
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(x, Bounds(cache.kAsmInt));
+        CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+          CHECK_VAR(x, Bounds(cache.kAsmInt));
+          CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+        }
+      }
+    }
+    CHECK_SKIP();
+  }
+  CHECK_FUNC_TYPES_END
+}
+
+
+TEST(NestedAssignmentInHeap) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { var x = 0; i8[(x = 1) >> 0] = 2; }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_V_TYPE) {
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(x, Bounds(cache.kAsmInt));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+      }
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_EXPR(Property, Bounds::Unbounded()) {
+          CHECK_VAR(i8, Bounds(cache.kInt8Array));
+          CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+            CHECK_EXPR(Assignment, Bounds(cache.kAsmSigned)) {
+              CHECK_VAR(x, Bounds(cache.kAsmInt));
+              CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+            }
+            CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+          }
+        }
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+      }
+    }
+    CHECK_SKIP();
+  }
+  CHECK_FUNC_TYPES_END
 }
 
 

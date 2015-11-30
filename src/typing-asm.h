@@ -65,11 +65,11 @@ class AsmTyper : public AstVisitor {
   void VisitDeclarations(ZoneList<Declaration*>* d) override;
   void VisitStatements(ZoneList<Statement*>* s) override;
 
-  void VisitExpressionAnnotation(Expression* e, bool is_return);
+  void VisitExpressionAnnotation(Expression* e, Variable* var, bool is_return);
   void VisitFunctionAnnotation(FunctionLiteral* f);
   void VisitAsmModule(FunctionLiteral* f);
 
-  void VisitHeapAccess(Property* expr);
+  void VisitHeapAccess(Property* expr, bool assigning, Type* assignment_type);
 
   int ElementShiftSize(Type* type);
   Type* StorageType(Type* type);
