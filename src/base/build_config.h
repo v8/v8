@@ -183,6 +183,13 @@
 #error Unknown target architecture endianness
 #endif
 
+#if defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_X64) || \
+    defined(V8_TARGET_ARCH_X87)
+#define V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK 1
+#else
+#define V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK 0
+#endif
+
 // Number of bits to represent the page size for paged spaces. The value of 20
 // gives 1Mb bytes per page.
 #if V8_HOST_ARCH_PPC && V8_TARGET_ARCH_PPC && V8_OS_LINUX

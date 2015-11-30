@@ -466,9 +466,6 @@ void CodeGenerator::AssembleDeconstructActivationRecord(int stack_param_delta) {
   if (sp_slot_delta > 0) {
     __ daddiu(sp, sp, sp_slot_delta * kPointerSize);
   }
-  if (frame()->needs_frame()) {
-    __ Pop(ra, fp);
-  }
   frame_access_state()->SetFrameAccessToDefault();
 }
 
@@ -478,6 +475,10 @@ void CodeGenerator::AssemblePrepareTailCall(int stack_param_delta) {
   if (sp_slot_delta < 0) {
     __ Dsubu(sp, sp, Operand(-sp_slot_delta * kPointerSize));
     frame_access_state()->IncreaseSPDelta(-sp_slot_delta);
+  }
+  if (frame()->needs_frame()) {
+    __ ld(ra, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
+    __ ld(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   }
   frame_access_state()->SetFrameAccessToSP();
 }

@@ -675,12 +675,10 @@ int CodeGenerator::TailCallFrameStackSlotDelta(int stack_param_delta) {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
   int spill_slots = frame()->GetSpillSlotCount();
   bool has_frame = descriptor->IsJSFunctionCall() || spill_slots > 0;
-  // Leave the PC and saved frame pointer on the stack.
+  // Leave the PC on the stack on platforms that have that as part of their ABI
+  int pc_slots = V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK ? 1 : 0;
   int sp_slot_delta =
-      has_frame
-          ? (frame()->GetTotalFrameSlotCount() -
-             (StandardFrameConstants::kFixedFrameSizeFromFp / kPointerSize))
-          : 0;
+      has_frame ? (frame()->GetTotalFrameSlotCount() - pc_slots) : 0;
   // Discard only slots that won't be used by new parameters.
   sp_slot_delta += stack_param_delta;
   return sp_slot_delta;
