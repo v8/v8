@@ -319,7 +319,7 @@ def load_objects():
                         in_insttype = False;
                         continue;
 
-                line = re.sub('//.*', '', line.rstrip().lstrip());
+                line = re.sub('//.*', '', line.strip());
 
                 if (in_insttype):
                         typestr += line;
@@ -329,10 +329,10 @@ def load_objects():
                     line);
 
                 if (match):
-                        klass = match.group(1).rstrip().lstrip();
+                        klass = match.group(1).strip();
                         pklass = match.group(3);
                         if (pklass):
-                                pklass = pklass.rstrip().lstrip();
+                                pklass = pklass.strip();
                         klasses[klass] = { 'parent': pklass };
 
         #
