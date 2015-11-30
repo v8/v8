@@ -200,6 +200,8 @@ class CallSite {
     "Proxy handler % returned non-configurable descriptor for property '%' "   \
     "from '%' trap")                                                           \
   T(ProxyRepeatedPropName, "Trap '%' returned repeated property name '%'")     \
+  T(ProxyHandlerOrTargetRevoked,                                               \
+    "Cannot create proxy with a revoked proxy as handler or target")           \
   T(ProxyRevoked, "Cannot perform '%' on a proxy that has been revoked")       \
   T(ProxyTargetNotExtensible, "Proxy target is not extensible")                \
   T(ProxyTargetNonObject, "Proxy target is non-object")                        \

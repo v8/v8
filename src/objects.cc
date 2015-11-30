@@ -910,11 +910,11 @@ MaybeHandle<Object> JSProxy::GetPrototype(Handle<JSProxy> proxy) {
 }
 
 
-bool JSProxy::IsRevoked(Handle<JSProxy> proxy) {
+bool JSProxy::IsRevoked() {
   // TODO(neis): Decide on how to represent revocation.  For now, revocation is
   // unsupported.
-  DCHECK(proxy->target()->IsJSReceiver());
-  DCHECK(proxy->handler()->IsJSReceiver());
+  DCHECK(target()->IsJSReceiver());
+  DCHECK(handler()->IsJSReceiver());
   return false;
 }
 
@@ -4529,7 +4529,7 @@ Maybe<bool> JSProxy::HasProperty(Isolate* isolate, Handle<JSProxy> proxy,
   // 2. Let handler be the value of the [[ProxyHandler]] internal slot of O.
   Handle<Object> handler(proxy->handler(), isolate);
   // 3. If handler is null, throw a TypeError exception.
-  if (JSProxy::IsRevoked(proxy)) {
+  if (proxy->IsRevoked()) {
     isolate->Throw(*isolate->factory()->NewTypeError(
         MessageTemplate::kProxyRevoked, isolate->factory()->has_string()));
     return Nothing<bool>();
@@ -4705,7 +4705,7 @@ Maybe<bool> JSProxy::DeletePropertyOrElement(Handle<JSProxy> proxy,
   Factory* factory = isolate->factory();
   Handle<String> trap_name = factory->deleteProperty_string();
 
-  if (IsRevoked(proxy)) {
+  if (proxy->IsRevoked()) {
     isolate->Throw(
         *factory->NewTypeError(MessageTemplate::kProxyRevoked, trap_name));
     return Nothing<bool>();
@@ -4750,7 +4750,7 @@ Maybe<bool> JSProxy::DeletePropertyOrElement(Handle<JSProxy> proxy,
 // static
 MaybeHandle<Context> JSProxy::GetFunctionRealm(Handle<JSProxy> proxy) {
   DCHECK(proxy->map()->is_constructor());
-  if (JSProxy::IsRevoked(proxy)) {
+  if (proxy->IsRevoked()) {
     THROW_NEW_ERROR(proxy->GetIsolate(),
                     NewTypeError(MessageTemplate::kProxyRevoked), Context);
   }
@@ -4805,7 +4805,7 @@ Maybe<PropertyAttributes> JSProxy::GetPropertyAttributes(LookupIterator* it) {
 
 MaybeHandle<Object> JSProxy::GetTrap(Handle<JSProxy> proxy,
                                      Handle<String> trap) {
-  DCHECK(!IsRevoked(proxy));
+  DCHECK(!proxy->IsRevoked());
   Isolate* isolate = proxy->GetIsolate();
   Handle<JSReceiver> handler(JSReceiver::cast(proxy->handler()), isolate);
   return Object::GetMethod(handler, trap);
@@ -6781,33 +6781,31 @@ bool JSArray::ArraySetLength(Isolate* isolate, Handle<JSArray> a,
 
 // ES6 9.5.6
 // static
-bool JSProxy::DefineOwnProperty(Isolate* isolate, Handle<JSProxy> object,
+bool JSProxy::DefineOwnProperty(Isolate* isolate, Handle<JSProxy> proxy,
                                 Handle<Object> key, PropertyDescriptor* desc,
                                 ShouldThrow should_throw) {
+  Handle<String> trap_name = isolate->factory()->defineProperty_string();
   // 1. Assert: IsPropertyKey(P) is true.
   DCHECK(key->IsName() || key->IsNumber());
   // 2. Let handler be the value of the [[ProxyHandler]] internal slot of O.
-  Handle<Object> handler(object->handler(), isolate);
+  Handle<Object> handler(proxy->handler(), isolate);
   // 3. If handler is null, throw a TypeError exception.
-  // TODO(jkummerow): Use "IsRevoked()" instead once we have it.
-  if (handler->IsNull()) {
+  if (proxy->IsRevoked()) {
     isolate->Throw(*isolate->factory()->NewTypeError(
-        MessageTemplate::kProxyHandlerNonObject));
+        MessageTemplate::kProxyRevoked, trap_name));
     return false;
   }
   // 4. Assert: Type(handler) is Object.
   DCHECK(handler->IsJSReceiver());
   // If the handler is not null, the target can't be null either.
-  DCHECK(object->target()->IsSpecObject());
+  DCHECK(proxy->target()->IsSpecObject());
   // 5. Let target be the value of the [[ProxyTarget]] internal slot of O.
-  Handle<JSReceiver> target(JSReceiver::cast(object->target()), isolate);
+  Handle<JSReceiver> target(JSReceiver::cast(proxy->target()), isolate);
   // 6. Let trap be ? GetMethod(handler, "defineProperty").
   Handle<Object> trap;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, trap,
-      Object::GetMethod(Handle<JSReceiver>::cast(handler),
-                        isolate->factory()->defineProperty_string()),
-      false);
+      Object::GetMethod(Handle<JSReceiver>::cast(handler), trap_name), false);
   // 7. If trap is undefined, then:
   if (trap->IsUndefined()) {
     // 7a. Return target.[[DefineOwnProperty]](P, Desc).
@@ -6968,16 +6966,18 @@ bool JSReceiver::GetOwnPropertyDescriptor(LookupIterator* it,
 // static
 bool JSProxy::GetOwnPropertyDescriptor(LookupIterator* it,
                                        PropertyDescriptor* desc) {
-  DCHECK(it->GetHolder<Object>()->IsJSProxy());
+  Handle<JSProxy> proxy = it->GetHolder<JSProxy>();
   Isolate* isolate = it->isolate();
+  Handle<String> trap_name =
+      isolate->factory()->getOwnPropertyDescriptor_string();
   Handle<Name> property_name = it->GetName();
   // 1. (Assert)
   // 2. Let handler be the value of the [[ProxyHandler]] internal slot of O.
-  Handle<Object> handler(it->GetHolder<JSProxy>()->handler(), isolate);
+  Handle<Object> handler(proxy->handler(), isolate);
   // 3. If handler is null, throw a TypeError exception.
-  if (handler->IsNull()) {
+  if (proxy->IsRevoked()) {
     isolate->Throw(*isolate->factory()->NewTypeError(
-        MessageTemplate::kProxyHandlerNonObject));
+        MessageTemplate::kProxyRevoked, trap_name));
     return false;
   }
   // 4. Assert: Type(handler) is Object.
@@ -6991,9 +6991,7 @@ bool JSProxy::GetOwnPropertyDescriptor(LookupIterator* it,
   Handle<Object> trap;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, trap,
-      Object::GetMethod(Handle<JSReceiver>::cast(handler),
-                        isolate->factory()->getOwnPropertyDescriptor_string()),
-      false);
+      Object::GetMethod(Handle<JSReceiver>::cast(handler), trap_name), false);
   // 7. If trap is undefined, then
   if (trap->IsUndefined()) {
     // 7a. Return target.[[GetOwnProperty]](P).
@@ -7233,7 +7231,7 @@ Maybe<bool> JSProxy::PreventExtensions(Handle<JSProxy> proxy,
   Factory* factory = isolate->factory();
   Handle<String> trap_name = factory->preventExtensions_string();
 
-  if (IsRevoked(proxy)) {
+  if (proxy->IsRevoked()) {
     isolate->Throw(
         *factory->NewTypeError(MessageTemplate::kProxyRevoked, trap_name));
     return Nothing<bool>();
@@ -7343,7 +7341,7 @@ Maybe<bool> JSProxy::IsExtensible(Handle<JSProxy> proxy) {
   Factory* factory = isolate->factory();
   Handle<String> trap_name = factory->isExtensible_string();
 
-  if (IsRevoked(proxy)) {
+  if (proxy->IsRevoked()) {
     isolate->Throw(
         *factory->NewTypeError(MessageTemplate::kProxyRevoked, trap_name));
     return Nothing<bool>();
@@ -8208,7 +8206,7 @@ bool JSProxy::Enumerate(Isolate* isolate, Handle<JSReceiver> receiver,
   // 1. Let handler be the value of the [[ProxyHandler]] internal slot of O.
   Handle<Object> handler(proxy->handler(), isolate);
   // 2. If handler is null, throw a TypeError exception.
-  if (IsRevoked(proxy)) {
+  if (proxy->IsRevoked()) {
     isolate->Throw(*isolate->factory()->NewTypeError(
         MessageTemplate::kProxyRevoked,
         isolate->factory()->enumerate_string()));
@@ -8316,7 +8314,7 @@ bool JSProxy::OwnPropertyKeys(Isolate* isolate, Handle<JSReceiver> receiver,
   // 1. Let handler be the value of the [[ProxyHandler]] internal slot of O.
   Handle<Object> handler(proxy->handler(), isolate);
   // 2. If handler is null, throw a TypeError exception.
-  if (IsRevoked(proxy)) {
+  if (proxy->IsRevoked()) {
     isolate->Throw(*isolate->factory()->NewTypeError(
         MessageTemplate::kProxyRevoked, isolate->factory()->ownKeys_string()));
     return false;

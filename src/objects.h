@@ -9493,11 +9493,9 @@ class JSProxy: public JSReceiver {
 
   static MaybeHandle<Context> GetFunctionRealm(Handle<JSProxy> proxy);
 
-  inline bool has_handler();
-
   DECLARE_CAST(JSProxy)
 
-  static bool IsRevoked(Handle<JSProxy> proxy);
+  bool IsRevoked();
 
   // ES6 9.5.1
   static MaybeHandle<Object> GetPrototype(Handle<JSProxy> receiver);
