@@ -1524,7 +1524,7 @@ HValue* HChange::Canonicalize() {
 
 HValue* HWrapReceiver::Canonicalize() {
   if (HasNoUses()) return NULL;
-  if (receiver()->type().IsJSObject()) {
+  if (receiver()->type().IsJSReceiver()) {
     return receiver();
   }
   return this;
@@ -1620,7 +1620,7 @@ HValue* HUnaryMathOperation::Canonicalize() {
 
 
 HValue* HCheckInstanceType::Canonicalize() {
-  if ((check_ == IS_JS_RECEIVER && value()->type().IsJSObject()) ||
+  if ((check_ == IS_JS_RECEIVER && value()->type().IsJSReceiver()) ||
       (check_ == IS_JS_ARRAY && value()->type().IsJSArray()) ||
       (check_ == IS_STRING && value()->type().IsString())) {
     return value();
@@ -3276,7 +3276,7 @@ bool HIsStringAndBranch::KnownSuccessorBlock(HBasicBlock** block) {
       value()->type().IsNull() ||
       value()->type().IsBoolean() ||
       value()->type().IsUndefined() ||
-      value()->type().IsJSObject()) {
+      value()->type().IsJSReceiver()) {
     *block = SecondSuccessor();
     return true;
   }

@@ -776,7 +776,7 @@ class HValue : public ZoneObject {
 
   bool ToStringOrToNumberCanBeObserved() const {
     if (type().IsTaggedPrimitive()) return false;
-    if (type().IsJSObject()) return true;
+    if (type().IsJSReceiver()) return true;
     return !representation().IsSmiOrInteger32() && !representation().IsDouble();
   }
 
@@ -2880,7 +2880,7 @@ class HCheckInstanceType final : public HUnaryOperation {
 
   HType CalculateInferredType() override {
     switch (check_) {
-      case IS_JS_RECEIVER: return HType::JSObject();
+      case IS_JS_RECEIVER: return HType::JSReceiver();
       case IS_JS_ARRAY: return HType::JSArray();
       case IS_JS_DATE: return HType::JSObject();
       case IS_STRING: return HType::String();
