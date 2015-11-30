@@ -966,6 +966,13 @@ Handle<WeakCell> Factory::NewWeakCell(Handle<HeapObject> value) {
 }
 
 
+Handle<TransitionArray> Factory::NewTransitionArray(int capacity) {
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->AllocateTransitionArray(capacity),
+                     TransitionArray);
+}
+
+
 Handle<AllocationSite> Factory::NewAllocationSite() {
   Handle<Map> map = allocation_site_map();
   Handle<AllocationSite> site = New<AllocationSite>(map, OLD_SPACE);

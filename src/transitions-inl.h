@@ -17,6 +17,14 @@ TransitionArray* TransitionArray::cast(Object* object) {
 }
 
 
+Object* TransitionArray::next_link() { return get(kNextLinkIndex); }
+
+
+void TransitionArray::set_next_link(Object* next, WriteBarrierMode mode) {
+  return set(kNextLinkIndex, next, mode);
+}
+
+
 bool TransitionArray::HasPrototypeTransitions() {
   return get(kPrototypeTransitionsIndex) != Smi::FromInt(0);
 }
