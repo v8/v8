@@ -603,11 +603,6 @@ void StaticMarkingVisitor<StaticVisitor>::MarkInlinedFunctionsCode(Heap* heap,
 }
 
 
-inline static bool HasValidNonBuiltinContext(JSFunction* function) {
-  return function->context()->IsContext() && !function->shared()->IsBuiltin();
-}
-
-
 inline static bool HasSourceCode(Heap* heap, SharedFunctionInfo* info) {
   Object* undefined = heap->undefined_value();
   return (info->script() != undefined) &&
@@ -624,11 +619,6 @@ bool StaticMarkingVisitor<StaticVisitor>::IsFlushable(Heap* heap,
   // by optimized version of function.
   MarkBit code_mark = Marking::MarkBitFrom(function->code());
   if (Marking::IsBlackOrGrey(code_mark)) {
-    return false;
-  }
-
-  // The function must have a valid context and not be a builtin.
-  if (!HasValidNonBuiltinContext(function)) {
     return false;
   }
 
@@ -686,6 +676,11 @@ bool StaticMarkingVisitor<StaticVisitor>::IsFlushable(
 
   // If this is a full script wrapped in a function we do not flush the code.
   if (shared_info->is_toplevel()) {
+    return false;
+  }
+
+  // The function must not be a builtin.
+  if (shared_info->IsBuiltin()) {
     return false;
   }
 
