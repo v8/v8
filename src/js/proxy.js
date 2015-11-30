@@ -130,10 +130,6 @@ function DerivedSetTrap(receiver, name, val) {
   return true;
 }
 
-function DerivedHasTrap(name) {
-  return !!this.getPropertyDescriptor(name)
-}
-
 function DerivedHasOwnTrap(name) {
   return !!this.getOwnPropertyDescriptor(name)
 }
@@ -197,7 +193,6 @@ utils.Export(function(to) {
 
 %InstallToContext([
   "derived_get_trap", DerivedGetTrap,
-  "derived_has_trap", DerivedHasTrap,
   "derived_set_trap", DerivedSetTrap,
   "proxy_enumerate", ProxyEnumerate,
 ]);

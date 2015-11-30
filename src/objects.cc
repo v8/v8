@@ -654,8 +654,8 @@ Maybe<bool> JSReceiver::HasProperty(LookupIterator* it) {
         UNREACHABLE();
       case LookupIterator::JSPROXY:
         // Call the "has" trap on proxies.
-        return JSProxy::HasPropertyWithHandler(it->GetHolder<JSProxy>(),
-                                               it->GetName());
+        return JSProxy::HasProperty(it->isolate(), it->GetHolder<JSProxy>(),
+                                    it->GetName());
       case LookupIterator::INTERCEPTOR: {
         Maybe<PropertyAttributes> result =
             JSObject::GetPropertyAttributesWithInterceptor(it);
@@ -4523,21 +4523,69 @@ Handle<Map> JSObject::GetElementsTransitionMap(Handle<JSObject> object,
 }
 
 
-Maybe<bool> JSProxy::HasPropertyWithHandler(Handle<JSProxy> proxy,
-                                            Handle<Name> name) {
-  Isolate* isolate = proxy->GetIsolate();
-
-  // TODO(rossberg): adjust once there is a story for symbols vs proxies.
-  if (name->IsSymbol()) return Just(false);
-
-  Handle<Object> args[] = { name };
-  Handle<Object> result;
+Maybe<bool> JSProxy::HasProperty(Isolate* isolate, Handle<JSProxy> proxy,
+                                 Handle<Name> name) {
+  // 1. (Assert)
+  // 2. Let handler be the value of the [[ProxyHandler]] internal slot of O.
+  Handle<Object> handler(proxy->handler(), isolate);
+  // 3. If handler is null, throw a TypeError exception.
+  if (JSProxy::IsRevoked(proxy)) {
+    isolate->Throw(*isolate->factory()->NewTypeError(
+        MessageTemplate::kProxyRevoked, isolate->factory()->has_string()));
+    return Nothing<bool>();
+  }
+  // 4. Assert: Type(handler) is Object.
+  DCHECK(handler->IsJSReceiver());
+  DCHECK(proxy->target()->IsJSReceiver());
+  // 5. Let target be the value of the [[ProxyTarget]] internal slot of O.
+  Handle<JSReceiver> target(JSReceiver::cast(proxy->target()), isolate);
+  // 6. Let trap be ? GetMethod(handler, "has").
+  Handle<Object> trap;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, result, CallTrap(proxy, "has", isolate->derived_has_trap(),
-                                arraysize(args), args),
+      isolate, trap, Object::GetMethod(Handle<JSReceiver>::cast(handler),
+                                       isolate->factory()->has_string()),
       Nothing<bool>());
-
-  return Just(result->BooleanValue());
+  // 7. If trap is undefined, then
+  if (trap->IsUndefined()) {
+    // 7a. Return target.[[HasProperty]](P).
+    return JSReceiver::HasProperty(target, name);
+  }
+  // 8. Let booleanTrapResult be ToBoolean(? Call(trap, handler, «target, P»)).
+  Handle<Object> trap_result_obj;
+  Handle<Object> args[] = {target, name};
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, trap_result_obj,
+      Execution::Call(isolate, trap, handler, arraysize(args), args),
+      Nothing<bool>());
+  bool boolean_trap_result = trap_result_obj->BooleanValue();
+  // 9. If booleanTrapResult is false, then:
+  if (!boolean_trap_result) {
+    // 9a. Let targetDesc be ? target.[[GetOwnProperty]](P).
+    PropertyDescriptor target_desc;
+    bool target_found = JSReceiver::GetOwnPropertyDescriptor(
+        isolate, target, name, &target_desc);
+    // 9b. If targetDesc is not undefined, then:
+    if (target_found) {
+      // 9b i. If targetDesc.[[Configurable]] is false, throw a TypeError
+      //       exception.
+      if (!target_desc.configurable()) {
+        isolate->Throw(*isolate->factory()->NewTypeError(
+            MessageTemplate::kProxyTargetPropNotConfigurable, name));
+        return Nothing<bool>();
+      }
+      // 9b ii. Let extensibleTarget be ? IsExtensible(target).
+      Maybe<bool> maybe_extensible = JSReceiver::IsExtensible(target);
+      if (maybe_extensible.IsNothing()) return maybe_extensible;
+      bool extensible_target = maybe_extensible.FromJust();
+      // 9b iii. If extensibleTarget is false, throw a TypeError exception.
+      if (!extensible_target) {
+        isolate->Throw(*isolate->factory()->NewTypeError(
+            MessageTemplate::kProxyTargetNotExtensible));
+      }
+    }
+  }
+  // 10. Return booleanTrapResult.
+  return Just(boolean_trap_result);
 }
 
 

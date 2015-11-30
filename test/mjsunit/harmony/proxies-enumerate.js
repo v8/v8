@@ -17,6 +17,11 @@ var handler = {
       yield "bar";
     }
     return keys();
+  },
+  // For-in calls "has" on every iteration, so for TestForIn() below to
+  // detect all results of the "enumerate" trap, "has" must return true.
+  has: function(target, name) {
+    return true;
   }
 }
 
@@ -37,8 +42,7 @@ var receiver = {
   "receiver_one": 1
 };
 receiver.__proto__ = proxy;
-// TODO(jkummerow): Needs proper 'has' trap; implement that and enable this!
-// TestForIn(receiver, ["receiver_one", "foo", "bar"]);
+TestForIn(receiver, ["receiver_one", "foo", "bar"]);
 
 // Fall through to default behavior when trap is undefined.
 handler.enumerate = undefined;

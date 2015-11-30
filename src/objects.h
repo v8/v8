@@ -9522,6 +9522,11 @@ class JSProxy: public JSReceiver {
                                 Handle<Object> key, PropertyDescriptor* desc,
                                 ShouldThrow should_throw);
 
+  // ES6 9.5.7
+  MUST_USE_RESULT static Maybe<bool> HasProperty(Isolate* isolate,
+                                                 Handle<JSProxy> proxy,
+                                                 Handle<Name> name);
+
   // ES6 9.5.10 (when passed SLOPPY)
   MUST_USE_RESULT static Maybe<bool> DeletePropertyOrElement(
       Handle<JSProxy> proxy, Handle<Name> name, LanguageMode language_mode);
@@ -9587,9 +9592,6 @@ class JSProxy: public JSReceiver {
   MUST_USE_RESULT static MaybeHandle<Object> CallTrap(
       Handle<JSProxy> proxy, const char* name, Handle<Object> derived_trap,
       int argc, Handle<Object> args[]);
-
-  MUST_USE_RESULT static Maybe<bool> HasPropertyWithHandler(
-      Handle<JSProxy> proxy, Handle<Name> name);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSProxy);
 };
