@@ -1021,27 +1021,35 @@ void BytecodeGraphBuilder::VisitTestInstanceOf(
 }
 
 
+void BytecodeGraphBuilder::BuildCastOperator(
+    const Operator* js_op, const interpreter::BytecodeArrayIterator& iterator) {
+  Node* node = NewNode(js_op, environment()->LookupAccumulator());
+  AddEmptyFrameStateInputs(node);
+  environment()->BindAccumulator(node);
+}
+
+
 void BytecodeGraphBuilder::VisitToBoolean(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  BuildCastOperator(javascript()->ToBoolean(), iterator);
 }
 
 
 void BytecodeGraphBuilder::VisitToName(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  BuildCastOperator(javascript()->ToName(), iterator);
 }
 
 
 void BytecodeGraphBuilder::VisitToNumber(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  BuildCastOperator(javascript()->ToNumber(), iterator);
 }
 
 
 void BytecodeGraphBuilder::VisitToObject(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  BuildCastOperator(javascript()->ToObject(), iterator);
 }
 
 

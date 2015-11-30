@@ -706,6 +706,16 @@ TEST(BytecodeGraphBuilderGlobals) {
 }
 
 
+TEST(BytecodeGraphBuilderCast) {
+  // TODO(mythria): tests for ToBoolean, ToObject, ToName, ToNumber.
+  // They need other unimplemented features to test.
+  // ToBoolean -> If
+  // ToObject -> ForIn
+  // ToNumber -> Inc/Dec
+  // ToName -> CreateObjectLiteral
+}
+
+
 TEST(BytecodeGraphBuilderLogicalNot) {
   HandleAndZoneScope scope;
   Isolate* isolate = scope.main_isolate();

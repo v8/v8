@@ -79,6 +79,7 @@ class BytecodeArrayBuilder {
   BytecodeArrayBuilder& LoadTheHole();
   BytecodeArrayBuilder& LoadTrue();
   BytecodeArrayBuilder& LoadFalse();
+  BytecodeArrayBuilder& LoadBooleanConstant(bool value);
 
   // Global loads to the accumulator and stores from the accumulator.
   BytecodeArrayBuilder& LoadGlobal(size_t name_index, int feedback_slot,
@@ -286,6 +287,7 @@ class BytecodeArrayBuilder {
 
   ZoneSet<int> free_temporaries_;
 
+  class PreviousBytecodeHelper;
   friend class TemporaryRegisterScope;
   DISALLOW_COPY_AND_ASSIGN(BytecodeArrayBuilder);
 };

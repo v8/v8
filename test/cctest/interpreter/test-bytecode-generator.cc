@@ -3321,7 +3321,7 @@ TEST(ObjectLiterals) {
       {"var n = 'name'; return { [n]: 'val', get a() { }, set a(b) {} };",
        5 * kPointerSize,
        1,
-       67,
+       65,
        {
            B(LdaConstant), U8(0),                                             //
            B(Star), R(0),                                                     //
@@ -3338,7 +3338,6 @@ TEST(ObjectLiterals) {
            B(CallRuntime), U16(Runtime::kDefineDataPropertyUnchecked), R(1),  //
                            U8(4),                                             //
            B(LdaConstant), U8(3),                                             //
-           B(ToName),                                                         //
            B(Star), R(2),                                                     //
            B(CreateClosure), U8(4), U8(0),                                    //
            B(Star), R(3),                                                     //
@@ -3347,7 +3346,6 @@ TEST(ObjectLiterals) {
            B(CallRuntime), U16(Runtime::kDefineGetterPropertyUnchecked),      //
                            R(1), U8(4),                                       //
            B(LdaConstant), U8(3),                                             //
-           B(ToName),                                                         //
            B(Star), R(2),                                                     //
            B(CreateClosure), U8(5), U8(0),                                    //
            B(Star), R(3),                                                     //
