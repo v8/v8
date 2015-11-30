@@ -5691,6 +5691,15 @@ inline bool ReceiverObjectNeedsWriteBarrier(HValue* object,
     if (value->IsConstant() && HConstant::cast(value)->NotInNewSpace()) {
       return false;
     }
+    // Stores to old space allocations require no write barriers if the value is
+    // an old space allocation.
+    while (value->IsInnerAllocatedObject()) {
+      value = HInnerAllocatedObject::cast(value)->base_object();
+    }
+    if (value->IsAllocate() &&
+        !HAllocate::cast(value)->IsNewSpaceAllocation()) {
+      return false;
+    }
   }
   return true;
 }
