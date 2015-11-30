@@ -1148,7 +1148,9 @@ void InstructionSelector::VisitFloat64RoundDown(Node* node) {
 }
 
 
-void InstructionSelector::VisitFloat32RoundUp(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitFloat32RoundUp(Node* node) {
+  VisitRR(this, kPPC_CeilDouble, node);
+}
 
 
 void InstructionSelector::VisitFloat64RoundUp(Node* node) {
@@ -1687,6 +1689,7 @@ MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
   return MachineOperatorBuilder::kFloat32RoundDown |
          MachineOperatorBuilder::kFloat64RoundDown |
+         MachineOperatorBuilder::kFloat32RoundUp |
          MachineOperatorBuilder::kFloat64RoundUp |
          MachineOperatorBuilder::kFloat64RoundTruncate |
          MachineOperatorBuilder::kFloat64RoundTiesAway |
