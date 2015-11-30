@@ -295,8 +295,6 @@ class Factory final {
 
   Handle<WeakCell> NewWeakCell(Handle<HeapObject> value);
 
-  Handle<TransitionArray> NewTransitionArray(int capacity);
-
   // Allocate a tenured AllocationSite. It's payload is null.
   Handle<AllocationSite> NewAllocationSite();
 

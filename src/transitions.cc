@@ -391,23 +391,18 @@ int TransitionArray::Capacity(Object* raw_transitions) {
 Handle<TransitionArray> TransitionArray::Allocate(Isolate* isolate,
                                                   int number_of_transitions,
                                                   int slack) {
-  Handle<FixedArray> array = isolate->factory()->NewTransitionArray(
-      LengthFor(number_of_transitions + slack));
-  array->set(kNextLinkIndex, isolate->heap()->undefined_value());
+  Handle<FixedArray> array = isolate->factory()->NewFixedArray(
+      LengthFor(number_of_transitions + slack), TENURED);
   array->set(kPrototypeTransitionsIndex, Smi::FromInt(0));
   array->set(kTransitionLengthIndex, Smi::FromInt(number_of_transitions));
   return Handle<TransitionArray>::cast(array);
 }
 
 
-// static
-void TransitionArray::ZapTransitionArray(TransitionArray* transitions) {
-  // Do not zap the next link that is used by GC.
-  STATIC_ASSERT(kNextLinkIndex + 1 == kPrototypeTransitionsIndex);
-  MemsetPointer(transitions->data_start() + kPrototypeTransitionsIndex,
+static void ZapTransitionArray(TransitionArray* transitions) {
+  MemsetPointer(transitions->data_start(),
                 transitions->GetHeap()->the_hole_value(),
-                transitions->length() - kPrototypeTransitionsIndex);
-  transitions->SetNumberOfTransitions(0);
+                transitions->length());
 }
 
 

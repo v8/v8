@@ -76,7 +76,6 @@ class StaticVisitorBase : public AllStatic {
   V(Cell)                  \
   V(PropertyCell)          \
   V(WeakCell)              \
-  V(TransitionArray)       \
   V(SharedFunctionInfo)    \
   V(JSFunction)            \
   V(JSWeakCollection)      \
@@ -348,7 +347,6 @@ class StaticMarkingVisitor : public StaticVisitorBase {
 
   INLINE(static void VisitPropertyCell(Map* map, HeapObject* object));
   INLINE(static void VisitWeakCell(Map* map, HeapObject* object));
-  INLINE(static void VisitTransitionArray(Map* map, HeapObject* object));
   INLINE(static void VisitCodeEntry(Heap* heap, HeapObject* object,
                                     Address entry_address));
   INLINE(static void VisitEmbeddedPointer(Heap* heap, RelocInfo* rinfo));

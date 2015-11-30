@@ -134,14 +134,6 @@ bool Object::IsFixedArrayBase() const {
 }
 
 
-bool Object::IsFixedArray() const {
-  if (!IsHeapObject()) return false;
-  InstanceType instance_type = HeapObject::cast(this)->map()->instance_type();
-  return instance_type == FIXED_ARRAY_TYPE ||
-         instance_type == TRANSITION_ARRAY_TYPE;
-}
-
-
 // External objects are not extensible, so the map check is enough.
 bool Object::IsExternal() const {
   return Object::IsHeapObject() &&
@@ -719,9 +711,9 @@ TYPE_CHECKER(JSWeakMap, JS_WEAK_MAP_TYPE)
 TYPE_CHECKER(JSWeakSet, JS_WEAK_SET_TYPE)
 TYPE_CHECKER(JSContextExtensionObject, JS_CONTEXT_EXTENSION_OBJECT_TYPE)
 TYPE_CHECKER(Map, MAP_TYPE)
+TYPE_CHECKER(FixedArray, FIXED_ARRAY_TYPE)
 TYPE_CHECKER(FixedDoubleArray, FIXED_DOUBLE_ARRAY_TYPE)
 TYPE_CHECKER(WeakFixedArray, FIXED_ARRAY_TYPE)
-TYPE_CHECKER(TransitionArray, TRANSITION_ARRAY_TYPE)
 
 
 bool Object::IsJSWeakCollection() const {
@@ -739,6 +731,11 @@ bool Object::IsArrayList() const { return IsFixedArray(); }
 
 bool Object::IsLayoutDescriptor() const {
   return IsSmi() || IsFixedTypedArrayBase();
+}
+
+
+bool Object::IsTransitionArray() const {
+  return IsFixedArray();
 }
 
 
@@ -2403,7 +2400,7 @@ void FixedArray::set(int index, Smi* value) {
 
 void FixedArray::set(int index, Object* value) {
   DCHECK_NE(GetHeap()->fixed_cow_array_map(), map());
-  DCHECK(IsFixedArray());
+  DCHECK_EQ(FIXED_ARRAY_TYPE, map()->instance_type());
   DCHECK(index >= 0 && index < this->length());
   int offset = kHeaderSize + index * kPointerSize;
   WRITE_FIELD(this, offset, value);
@@ -4453,8 +4450,7 @@ int HeapObject::SizeFromMap(Map* map) {
   if (instance_size != kVariableSizeSentinel) return instance_size;
   // Only inline the most frequent cases.
   InstanceType instance_type = map->instance_type();
-  if (instance_type == FIXED_ARRAY_TYPE ||
-      instance_type == TRANSITION_ARRAY_TYPE) {
+  if (instance_type == FIXED_ARRAY_TYPE) {
     return FixedArray::SizeFor(
         reinterpret_cast<FixedArray*>(this)->synchronized_length());
   }

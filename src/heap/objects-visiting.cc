@@ -79,9 +79,6 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
     case WEAK_CELL_TYPE:
       return kVisitWeakCell;
 
-    case TRANSITION_ARRAY_TYPE:
-      return kVisitTransitionArray;
-
     case JS_WEAK_MAP_TYPE:
     case JS_WEAK_SET_TYPE:
       return kVisitJSWeakCollection;

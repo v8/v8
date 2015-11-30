@@ -180,7 +180,6 @@ Heap::Heap()
   set_allocation_sites_list(Smi::FromInt(0));
   set_encountered_weak_collections(Smi::FromInt(0));
   set_encountered_weak_cells(Smi::FromInt(0));
-  set_encountered_transition_arrays(Smi::FromInt(0));
   // Put a dummy entry in the remembered pages so we can find the list the
   // minidump even if there are no real unmapped pages.
   RememberUnmappedPage(NULL, false);
@@ -2334,7 +2333,6 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_MAP(FILLER_TYPE, kPointerSize, one_pointer_filler)
     ALLOCATE_MAP(FILLER_TYPE, 2 * kPointerSize, two_pointer_filler)
 
-    ALLOCATE_VARSIZE_MAP(TRANSITION_ARRAY_TYPE, transition_array)
 
     for (unsigned i = 0; i < arraysize(struct_table); i++) {
       const StructTable& entry = struct_table[i];
@@ -2493,21 +2491,6 @@ AllocationResult Heap::AllocateWeakCell(HeapObject* value) {
   WeakCell::cast(result)->initialize(value);
   WeakCell::cast(result)->clear_next(this);
   return result;
-}
-
-
-AllocationResult Heap::AllocateTransitionArray(int capacity) {
-  DCHECK(capacity > 0);
-  HeapObject* raw_array = nullptr;
-  {
-    AllocationResult allocation = AllocateRawFixedArray(capacity, TENURED);
-    if (!allocation.To(&raw_array)) return allocation;
-  }
-  raw_array->set_map_no_write_barrier(transition_array_map());
-  TransitionArray* array = TransitionArray::cast(raw_array);
-  array->set_length(capacity);
-  MemsetPointer(array->data_start(), undefined_value(), capacity);
-  return array;
 }
 
 

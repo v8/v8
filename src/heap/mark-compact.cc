@@ -831,7 +831,6 @@ void MarkCompactCollector::Prepare() {
     ClearMarkbits();
     AbortWeakCollections();
     AbortWeakCells();
-    AbortTransitionArrays();
     AbortCompaction();
     was_marked_incrementally_ = false;
   }
@@ -2330,15 +2329,14 @@ void MarkCompactCollector::ProcessWeakReferences() {
   ClearNonLiveReferences();
 
   ClearWeakCollections();
+
+  heap_->set_encountered_weak_cells(Smi::FromInt(0));
 }
 
 
 void MarkCompactCollector::ClearNonLiveReferences() {
   GCTracer::Scope gc_scope(heap()->tracer(),
                            GCTracer::Scope::MC_NONLIVEREFERENCES);
-
-  ProcessAndClearTransitionArrays();
-
   // Iterate over the map space, setting map transitions that go from
   // a marked map to an unmarked map to null transitions.  This action
   // is carried out only on maps of JSObjects and related subtypes.
@@ -2654,31 +2652,6 @@ void MarkCompactCollector::AbortWeakCells() {
     weak_cell->clear_next(heap());
   }
   heap()->set_encountered_weak_cells(Smi::FromInt(0));
-}
-
-
-void MarkCompactCollector::ProcessAndClearTransitionArrays() {
-  HeapObject* undefined = heap()->undefined_value();
-  Object* obj = heap()->encountered_transition_arrays();
-  while (obj != Smi::FromInt(0)) {
-    TransitionArray* array = TransitionArray::cast(obj);
-    // TODO(ulan): move logic from ClearMapTransitions here.
-    obj = array->next_link();
-    array->set_next_link(undefined, SKIP_WRITE_BARRIER);
-  }
-  heap()->set_encountered_transition_arrays(Smi::FromInt(0));
-}
-
-
-void MarkCompactCollector::AbortTransitionArrays() {
-  HeapObject* undefined = heap()->undefined_value();
-  Object* obj = heap()->encountered_transition_arrays();
-  while (obj != Smi::FromInt(0)) {
-    TransitionArray* array = TransitionArray::cast(obj);
-    obj = array->next_link();
-    array->set_next_link(undefined, SKIP_WRITE_BARRIER);
-  }
-  heap()->set_encountered_transition_arrays(Smi::FromInt(0));
 }
 
 

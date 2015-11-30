@@ -411,7 +411,6 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(FIXED_DOUBLE_ARRAY_TYPE)                                    \
   V(SHARED_FUNCTION_INFO_TYPE)                                  \
   V(WEAK_CELL_TYPE)                                             \
-  V(TRANSITION_ARRAY_TYPE)                                      \
                                                                 \
   V(JS_MESSAGE_OBJECT_TYPE)                                     \
                                                                 \
@@ -702,7 +701,6 @@ enum InstanceType {
   SHARED_FUNCTION_INFO_TYPE,
   CELL_TYPE,
   WEAK_CELL_TYPE,
-  TRANSITION_ARRAY_TYPE,
   PROPERTY_CELL_TYPE,
   PROTOTYPE_INFO_TYPE,
   SLOPPY_BLOCK_WITH_EVAL_CONTEXT_EXTENSION_TYPE,
@@ -787,13 +785,14 @@ STATIC_ASSERT(FOREIGN_TYPE == Internals::kForeignType);
   V(MAP_CODE_CACHE_SUB_TYPE)                  \
   V(SCOPE_INFO_SUB_TYPE)                      \
   V(STRING_TABLE_SUB_TYPE)                    \
-  V(DESCRIPTOR_ARRAY_SUB_TYPE)
+  V(DESCRIPTOR_ARRAY_SUB_TYPE)                \
+  V(TRANSITION_ARRAY_SUB_TYPE)
 
 enum FixedArraySubInstanceType {
 #define DEFINE_FIXED_ARRAY_SUB_INSTANCE_TYPE(name) name,
   FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(DEFINE_FIXED_ARRAY_SUB_INSTANCE_TYPE)
 #undef DEFINE_FIXED_ARRAY_SUB_INSTANCE_TYPE
-      LAST_FIXED_ARRAY_SUB_TYPE = DESCRIPTOR_ARRAY_SUB_TYPE
+  LAST_FIXED_ARRAY_SUB_TYPE = TRANSITION_ARRAY_SUB_TYPE
 };
 
 
@@ -861,7 +860,6 @@ class StringStream;
 class TypeFeedbackInfo;
 class TypeFeedbackVector;
 class WeakCell;
-class TransitionArray;
 
 // We cannot just say "class HeapType;" if it is created from a template... =8-?
 template<class> class TypeImpl;

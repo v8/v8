@@ -76,9 +76,6 @@ void HeapObject::HeapObjectVerify() {
     case BYTECODE_ARRAY_TYPE:
       BytecodeArray::cast(this)->BytecodeArrayVerify();
       break;
-    case TRANSITION_ARRAY_TYPE:
-      TransitionArray::cast(this)->TransitionArrayVerify();
-      break;
     case FREE_SPACE_TYPE:
       FreeSpace::cast(this)->FreeSpaceVerify();
       break;
@@ -407,17 +404,6 @@ void FixedDoubleArray::FixedDoubleArrayVerify() {
             (value & V8_UINT64_C(0x0007FFFFFFFFFFFF)) == V8_UINT64_C(0));
     }
   }
-}
-
-
-void TransitionArray::TransitionArrayVerify() {
-  for (int i = 0; i < length(); i++) {
-    Object* e = get(i);
-    VerifyPointer(e);
-  }
-  CHECK_LE(LengthFor(number_of_transitions()), length());
-  CHECK(next_link()->IsUndefined() || next_link()->IsSmi() ||
-        next_link()->IsTransitionArray());
 }
 
 

@@ -179,8 +179,6 @@ void StaticMarkingVisitor<StaticVisitor>::Initialize() {
 
   table_.Register(kVisitWeakCell, &VisitWeakCell);
 
-  table_.Register(kVisitTransitionArray, &VisitTransitionArray);
-
   table_.template RegisterSpecializations<DataObjectVisitor, kVisitDataObject,
                                           kVisitDataObjectGeneric>();
 
@@ -340,25 +338,6 @@ void StaticMarkingVisitor<StaticVisitor>::VisitWeakCell(Map* map,
       heap->set_encountered_weak_cells(weak_cell);
     }
   }
-}
-
-
-template <typename StaticVisitor>
-void StaticMarkingVisitor<StaticVisitor>::VisitTransitionArray(
-    Map* map, HeapObject* object) {
-  typedef FlexibleBodyVisitor<StaticVisitor, TransitionArray::BodyDescriptor,
-                              int> TransitionArrayBodyVisitor;
-  TransitionArray* array = TransitionArray::cast(object);
-  // Enqueue the array in linked list of encountered transition arrays if it is
-  // not already in the list.
-  if (array->next_link()->IsUndefined()) {
-    Heap* heap = map->GetHeap();
-    array->set_next_link(heap->encountered_transition_arrays(),
-                         UPDATE_WEAK_WRITE_BARRIER);
-    heap->set_encountered_transition_arrays(array);
-  }
-  // TODO(ulan): Move MarkTransitionArray logic here.
-  TransitionArrayBodyVisitor::Visit(map, object);
 }
 
 
