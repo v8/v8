@@ -279,18 +279,11 @@ class CodeFlusher {
     ProcessJSFunctionCandidates();
   }
 
-  void EvictAllCandidates() {
-    EvictJSFunctionCandidates();
-    EvictSharedFunctionInfoCandidates();
-  }
-
   void IteratePointersToFromSpace(ObjectVisitor* v);
 
  private:
   void ProcessJSFunctionCandidates();
   void ProcessSharedFunctionInfoCandidates();
-  void EvictJSFunctionCandidates();
-  void EvictSharedFunctionInfoCandidates();
 
   static inline JSFunction** GetNextCandidateSlot(JSFunction* candidate);
   static inline JSFunction* GetNextCandidate(JSFunction* candidate);
@@ -371,7 +364,6 @@ class MarkCompactCollector {
 
   CodeFlusher* code_flusher() { return code_flusher_; }
   inline bool is_code_flushing_enabled() const { return code_flusher_ != NULL; }
-  void EnableCodeFlushing(bool enable);
 
   enum SweeperType {
     CONCURRENT_SWEEPING,
@@ -517,7 +509,6 @@ class MarkCompactCollector {
   class SweeperTask;
 
   explicit MarkCompactCollector(Heap* heap);
-  ~MarkCompactCollector();
 
   bool WillBeDeoptimized(Code* code);
   void EvictPopularEvacuationCandidate(Page* page);

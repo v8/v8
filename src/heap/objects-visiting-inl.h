@@ -684,6 +684,11 @@ bool StaticMarkingVisitor<StaticVisitor>::IsFlushable(
     return false;
   }
 
+  // Maintain debug break slots in the code.
+  if (shared_info->HasDebugCode()) {
+    return false;
+  }
+
   // If this is a function initialized with %SetCode then the one-to-one
   // relation between SharedFunctionInfo and Code is broken.
   if (shared_info->dont_flush()) {

@@ -426,10 +426,6 @@ void Heap::GarbageCollectionPrologue() {
     AllowHeapAllocation for_the_first_part_of_prologue;
     gc_count_++;
 
-    if (FLAG_flush_code) {
-      mark_compact_collector()->EnableCodeFlushing(true);
-    }
-
 #ifdef VERIFY_HEAP
     if (FLAG_verify_heap) {
       Verify();

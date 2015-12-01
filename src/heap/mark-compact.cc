@@ -59,7 +59,7 @@ MarkCompactCollector::MarkCompactCollector(Heap* heap)
       heap_(heap),
       marking_deque_memory_(NULL),
       marking_deque_memory_committed_(0),
-      code_flusher_(NULL),
+      code_flusher_(nullptr),
       have_code_to_deoptimize_(false),
       compacting_(false),
       sweeping_in_progress_(false),
@@ -247,6 +247,13 @@ void MarkCompactCollector::SetUp() {
   EnsureMarkingDequeIsReserved();
   EnsureMarkingDequeIsCommitted(kMinMarkingDequeSize);
   slots_buffer_allocator_ = new SlotsBufferAllocator();
+
+  if (FLAG_flush_code) {
+    code_flusher_ = new CodeFlusher(isolate());
+    if (FLAG_trace_code_flushing) {
+      PrintF("[code-flushing is now on]\n");
+    }
+  }
 }
 
 
@@ -254,6 +261,7 @@ void MarkCompactCollector::TearDown() {
   AbortCompaction();
   delete marking_deque_memory_;
   delete slots_buffer_allocator_;
+  delete code_flusher_;
 }
 
 
@@ -1060,30 +1068,6 @@ void CodeFlusher::EvictCandidate(JSFunction* function) {
 }
 
 
-void CodeFlusher::EvictJSFunctionCandidates() {
-  JSFunction* candidate = jsfunction_candidates_head_;
-  JSFunction* next_candidate;
-  while (candidate != NULL) {
-    next_candidate = GetNextCandidate(candidate);
-    EvictCandidate(candidate);
-    candidate = next_candidate;
-  }
-  DCHECK(jsfunction_candidates_head_ == NULL);
-}
-
-
-void CodeFlusher::EvictSharedFunctionInfoCandidates() {
-  SharedFunctionInfo* candidate = shared_function_info_candidates_head_;
-  SharedFunctionInfo* next_candidate;
-  while (candidate != NULL) {
-    next_candidate = GetNextCandidate(candidate);
-    EvictCandidate(candidate);
-    candidate = next_candidate;
-  }
-  DCHECK(shared_function_info_candidates_head_ == NULL);
-}
-
-
 void CodeFlusher::IteratePointersToFromSpace(ObjectVisitor* v) {
   Heap* heap = isolate_->heap();
 
@@ -1095,14 +1079,6 @@ void CodeFlusher::IteratePointersToFromSpace(ObjectVisitor* v) {
     }
     candidate = GetNextCandidate(*slot);
     slot = GetNextCandidateSlot(*slot);
-  }
-}
-
-
-MarkCompactCollector::~MarkCompactCollector() {
-  if (code_flusher_ != NULL) {
-    delete code_flusher_;
-    code_flusher_ = NULL;
   }
 }
 
@@ -4079,25 +4055,6 @@ void MarkCompactCollector::ParallelSweepSpacesComplete() {
   ParallelSweepSpaceComplete(heap()->old_space());
   ParallelSweepSpaceComplete(heap()->code_space());
   ParallelSweepSpaceComplete(heap()->map_space());
-}
-
-
-void MarkCompactCollector::EnableCodeFlushing(bool enable) {
-  if (isolate()->debug()->is_active()) enable = false;
-
-  if (enable) {
-    if (code_flusher_ != NULL) return;
-    code_flusher_ = new CodeFlusher(isolate());
-  } else {
-    if (code_flusher_ == NULL) return;
-    code_flusher_->EvictAllCandidates();
-    delete code_flusher_;
-    code_flusher_ = NULL;
-  }
-
-  if (FLAG_trace_code_flushing) {
-    PrintF("[code-flushing is now %s]\n", enable ? "on" : "off");
-  }
 }
 
 
