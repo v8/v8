@@ -373,9 +373,8 @@ class Deserializer: public SerializerDeserializer {
   void Deserialize(Isolate* isolate);
 
   // Deserialize a single object and the objects reachable from it.
-  MaybeHandle<Object> DeserializePartial(
-      Isolate* isolate, Handle<JSGlobalProxy> global_proxy,
-      Handle<FixedArray>* outdated_contexts_out);
+  MaybeHandle<Object> DeserializePartial(Isolate* isolate,
+                                         Handle<JSGlobalProxy> global_proxy);
 
   // Deserialize a shared function info. Fail gracefully.
   MaybeHandle<SharedFunctionInfo> DeserializeCode(Isolate* isolate);
@@ -618,7 +617,6 @@ class PartialSerializer : public Serializer {
                     SnapshotByteSink* sink)
       : Serializer(isolate, sink),
         startup_serializer_(startup_snapshot_serializer),
-        outdated_contexts_(0),
         global_object_(NULL) {
     InitializeCodeAddressMap();
   }
@@ -634,10 +632,7 @@ class PartialSerializer : public Serializer {
   int PartialSnapshotCacheIndex(HeapObject* o);
   bool ShouldBeInThePartialSnapshotCache(HeapObject* o);
 
-  void SerializeOutdatedContextsAsFixedArray();
-
   Serializer* startup_serializer_;
-  List<Context*> outdated_contexts_;
   Object* global_object_;
   PartialCacheIndexMap partial_cache_index_map_;
   DISALLOW_COPY_AND_ASSIGN(PartialSerializer);

@@ -185,13 +185,11 @@ class Genesis BASE_EMBEDDED {
   // Similarly, we want to use the global that has been created by the templates
   // passed through the API.  The global from the snapshot is detached from the
   // other objects in the snapshot.
-  void HookUpGlobalObject(Handle<JSGlobalObject> global_object,
-                          Handle<FixedArray> outdated_contexts);
+  void HookUpGlobalObject(Handle<JSGlobalObject> global_object);
   // The native context has a ScriptContextTable that store declarative bindings
   // made in script scopes.  Add a "this" binding to that table pointing to the
   // global proxy.
   void InstallGlobalThisBinding();
-  void HookUpGlobalThisBinding(Handle<FixedArray> outdated_contexts);
   // New context initialization.  Used for creating a context from scratch.
   void InitializeGlobal(Handle<JSGlobalObject> global_object,
                         Handle<JSFunction> empty_function,
@@ -923,23 +921,6 @@ void Genesis::InstallGlobalThisBinding() {
 }
 
 
-void Genesis::HookUpGlobalThisBinding(Handle<FixedArray> outdated_contexts) {
-  // One of these contexts should be the one that declares the global "this"
-  // binding.
-  for (int i = 0; i < outdated_contexts->length(); ++i) {
-    Context* context = Context::cast(outdated_contexts->get(i));
-    if (context->IsScriptContext()) {
-      ScopeInfo* scope_info = context->scope_info();
-      int slot = scope_info->ReceiverContextSlotIndex();
-      if (slot >= 0) {
-        DCHECK_EQ(slot, Context::MIN_CONTEXT_SLOTS);
-        context->set(slot, native_context()->global_proxy());
-      }
-    }
-  }
-}
-
-
 Handle<JSGlobalObject> Genesis::CreateNewGlobals(
     v8::Local<v8::ObjectTemplate> global_proxy_template,
     Handle<JSGlobalProxy> global_proxy) {
@@ -1045,8 +1026,7 @@ void Genesis::HookUpGlobalProxy(Handle<JSGlobalObject> global_object,
 }
 
 
-void Genesis::HookUpGlobalObject(Handle<JSGlobalObject> global_object,
-                                 Handle<FixedArray> outdated_contexts) {
+void Genesis::HookUpGlobalObject(Handle<JSGlobalObject> global_object) {
   Handle<JSGlobalObject> global_object_from_snapshot(
       JSGlobalObject::cast(native_context()->extension()));
   native_context()->set_extension(*global_object);
@@ -3107,10 +3087,8 @@ Genesis::Genesis(Isolate* isolate,
   // We can only de-serialize a context if the isolate was initialized from
   // a snapshot. Otherwise we have to build the context from scratch.
   // Also create a context from scratch to expose natives, if required by flag.
-  Handle<FixedArray> outdated_contexts;
   if (!isolate->initialized_from_snapshot() ||
-      !Snapshot::NewContextFromSnapshot(isolate, global_proxy,
-                                        &outdated_contexts)
+      !Snapshot::NewContextFromSnapshot(isolate, global_proxy)
            .ToHandle(&native_context_)) {
     native_context_ = Handle<Context>();
   }
@@ -3132,8 +3110,7 @@ Genesis::Genesis(Isolate* isolate,
         CreateNewGlobals(global_proxy_template, global_proxy);
 
     HookUpGlobalProxy(global_object, global_proxy);
-    HookUpGlobalObject(global_object, outdated_contexts);
-    HookUpGlobalThisBinding(outdated_contexts);
+    HookUpGlobalObject(global_object);
 
     if (!ConfigureGlobalObjects(global_proxy_template)) return;
   } else {
