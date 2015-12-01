@@ -12354,22 +12354,6 @@ void HOptimizedGraphBuilder::GenerateHasFastPackedElements(CallRuntime* call) {
 }
 
 
-// Support for construct call checks.
-void HOptimizedGraphBuilder::GenerateIsConstructCall(CallRuntime* call) {
-  DCHECK(call->arguments()->length() == 0);
-  if (function_state()->outer() != NULL) {
-    // We are generating graph for inlined function.
-    HValue* value = function_state()->inlining_kind() == CONSTRUCT_CALL_RETURN
-        ? graph()->GetConstantTrue()
-        : graph()->GetConstantFalse();
-    return ast_context()->ReturnValue(value);
-  } else {
-    return ast_context()->ReturnControl(New<HIsConstructCallAndBranch>(),
-                                        call->id());
-  }
-}
-
-
 // Support for arguments.length and arguments[?].
 void HOptimizedGraphBuilder::GenerateArgumentsLength(CallRuntime* call) {
   DCHECK(call->arguments()->length() == 0);

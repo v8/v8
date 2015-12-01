@@ -1571,12 +1571,6 @@ LInstruction* LChunkBuilder::DoInvokeFunction(HInvokeFunction* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoIsConstructCallAndBranch(
-    HIsConstructCallAndBranch* instr) {
-  return new(zone()) LIsConstructCallAndBranch(TempRegister(), TempRegister());
-}
-
-
 LInstruction* LChunkBuilder::DoCompareMinusZeroAndBranch(
     HCompareMinusZeroAndBranch* instr) {
   LOperand* value = UseRegister(instr->value());

@@ -21,7 +21,7 @@ function checkPrototypeChain(object, constructors) {
 (function() {
   class A extends Object {
     constructor(...args) {
-      assertTrue(%IsConstructCall());
+      assertFalse(new.target === undefined);
       super(...args);
       this.a = 42;
       this.d = 4.2;
@@ -76,7 +76,7 @@ function checkPrototypeChain(object, constructors) {
 (function() {
   class A extends Function {
     constructor(...args) {
-      assertTrue(%IsConstructCall());
+      assertFalse(new.target === undefined);
       super(...args);
       this.a = 42;
       this.d = 4.2;
@@ -106,7 +106,7 @@ function checkPrototypeChain(object, constructors) {
 (function() {
   class A extends Boolean {
     constructor(...args) {
-      assertTrue(%IsConstructCall());
+      assertFalse(new.target === undefined);
       super(...args);
       this.a = 42;
       this.d = 4.2;
@@ -135,7 +135,7 @@ function checkPrototypeChain(object, constructors) {
 function TestErrorSubclassing(error) {
   class A extends error {
     constructor(...args) {
-      assertTrue(%IsConstructCall());
+      assertFalse(new.target === undefined);
       super(...args);
       this.a = 42;
       this.d = 4.2;
@@ -181,7 +181,7 @@ function TestErrorSubclassing(error) {
 (function() {
   class A extends Number {
     constructor(...args) {
-      assertTrue(%IsConstructCall());
+      assertFalse(new.target === undefined);
       super(...args);
       this.a = 42;
       this.d = 4.2;
@@ -210,7 +210,7 @@ function TestErrorSubclassing(error) {
 (function() {
   class A extends Date {
     constructor(...args) {
-      assertTrue(%IsConstructCall());
+      assertFalse(new.target === undefined);
       super(...args);
       this.a = 42;
       this.d = 4.2;
@@ -242,7 +242,7 @@ function TestErrorSubclassing(error) {
 (function() {
   class A extends String {
     constructor(...args) {
-      assertTrue(%IsConstructCall());
+      assertFalse(new.target === undefined);
       super(...args);
       this.a = 42;
       this.d = 4.2;
@@ -272,7 +272,7 @@ function TestErrorSubclassing(error) {
 (function() {
   class A extends RegExp {
     constructor(...args) {
-      assertTrue(%IsConstructCall());
+      assertFalse(new.target === undefined);
       super(...args);
       this.a = 42;
       this.d = 4.2;
@@ -307,7 +307,7 @@ function TestErrorSubclassing(error) {
 function TestArraySubclassing(array) {
   class A extends array {
     constructor(...args) {
-      assertTrue(%IsConstructCall());
+      assertFalse(new.target === undefined);
       super(...args);
       this.a = 42;
       this.d = 4.2;
@@ -357,7 +357,7 @@ function TestMapSetSubclassing(container, is_map) {
 
   class A extends container {
     constructor(...args) {
-      assertTrue(%IsConstructCall());
+      assertFalse(new.target === undefined);
       super(...args);
       this.a = 42;
       this.d = 4.2;
@@ -416,7 +416,7 @@ function TestMapSetSubclassing(container, is_map) {
 (function() {
   class A extends ArrayBuffer {
     constructor(...args) {
-      assertTrue(%IsConstructCall());
+      assertFalse(new.target === undefined);
       super(...args);
       this.a = 42;
       this.d = 4.2;
@@ -474,7 +474,7 @@ function TestMapSetSubclassing(container, is_map) {
 (function() {
   class A extends DataView {
     constructor(...args) {
-      assertTrue(%IsConstructCall());
+      assertFalse(new.target === undefined);
       super(...args);
       this.a = 42;
       this.d = 4.2;
@@ -509,7 +509,7 @@ function TestMapSetSubclassing(container, is_map) {
   var GeneratorFunction = (function*() {}).__proto__.constructor;
   class A extends GeneratorFunction {
     constructor(...args) {
-      assertTrue(%IsConstructCall());
+      assertFalse(new.target === undefined);
       super(...args);
       this.a = 42;
       this.d = 4.2;
@@ -549,7 +549,7 @@ function TestMapSetSubclassing(container, is_map) {
 (function() {
   class A extends Promise {
     constructor(...args) {
-      assertTrue(%IsConstructCall());
+      assertFalse(new.target === undefined);
       super(...args);
       this.a = 42;
       this.d = 4.2;
@@ -589,7 +589,7 @@ function TestMapSetSubclassing(container, is_map) {
 (function() {
   class A extends Boolean {
     constructor() {
-      assertTrue(%IsConstructCall());
+      assertFalse(new.target === undefined);
       super(true);
       this.a00 = 0
       this.a01 = 0
@@ -616,7 +616,7 @@ function TestMapSetSubclassing(container, is_map) {
 
   class B extends A {
     constructor() {
-      assertTrue(%IsConstructCall());
+      assertFalse(new.target === undefined);
       super();
       this.b00 = 0
       this.b01 = 0
@@ -643,7 +643,7 @@ function TestMapSetSubclassing(container, is_map) {
 
   class C extends B {
     constructor() {
-      assertTrue(%IsConstructCall());
+      assertFalse(new.target === undefined);
       super();
       this.c00 = 0
       this.c01 = 0

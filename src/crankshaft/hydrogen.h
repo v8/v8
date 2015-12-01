@@ -2202,7 +2202,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   F(IsTypedArray)                      \
   F(IsRegExp)                          \
   F(IsJSProxy)                         \
-  F(IsConstructCall)                   \
   F(Call)                              \
   F(ArgumentsLength)                   \
   F(Arguments)                         \

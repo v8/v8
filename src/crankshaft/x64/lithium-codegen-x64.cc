@@ -5499,32 +5499,6 @@ Condition LCodeGen::EmitTypeofIs(LTypeofIsAndBranch* instr, Register input) {
 }
 
 
-void LCodeGen::DoIsConstructCallAndBranch(LIsConstructCallAndBranch* instr) {
-  Register temp = ToRegister(instr->temp());
-
-  EmitIsConstructCall(temp);
-  EmitBranch(instr, equal);
-}
-
-
-void LCodeGen::EmitIsConstructCall(Register temp) {
-  // Get the frame pointer for the calling frame.
-  __ movp(temp, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
-
-  // Skip the arguments adaptor frame if it exists.
-  Label check_frame_marker;
-  __ Cmp(Operand(temp, StandardFrameConstants::kContextOffset),
-         Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
-  __ j(not_equal, &check_frame_marker, Label::kNear);
-  __ movp(temp, Operand(temp, StandardFrameConstants::kCallerFPOffset));
-
-  // Check the marker in the calling frame.
-  __ bind(&check_frame_marker);
-  __ Cmp(Operand(temp, StandardFrameConstants::kMarkerOffset),
-         Smi::FromInt(StackFrame::CONSTRUCT));
-}
-
-
 void LCodeGen::EnsureSpaceForLazyDeopt(int space_needed) {
   if (info()->ShouldEnsureSpaceForLazyDeopt()) {
     // Ensure that we have enough space after the previous lazy-bailout

@@ -602,17 +602,6 @@ RUNTIME_FUNCTION(Runtime_ConvertReceiver) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_IsConstructCall) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 0);
-  JavaScriptFrameIterator it(isolate);
-  List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
-  it.frame()->Summarize(&frames);
-  FrameSummary& summary = frames.last();
-  return isolate->heap()->ToBoolean(summary.is_constructor());
-}
-
-
 RUNTIME_FUNCTION(Runtime_IsFunction) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);

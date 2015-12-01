@@ -104,7 +104,6 @@ class LChunkBuilder;
   V(InnerAllocatedObject)                     \
   V(InstanceOf)                               \
   V(InvokeFunction)                           \
-  V(IsConstructCallAndBranch)                 \
   V(HasInPrototypeChainAndBranch)             \
   V(IsStringAndBranch)                        \
   V(IsSmiAndBranch)                           \
@@ -4538,20 +4537,6 @@ class HStringCompareAndBranch final : public HTemplateControlInstruction<2, 3> {
   }
 
   Token::Value const token_;
-};
-
-
-class HIsConstructCallAndBranch : public HTemplateControlInstruction<2, 0> {
- public:
-  DECLARE_INSTRUCTION_FACTORY_P0(HIsConstructCallAndBranch);
-
-  Representation RequiredInputRepresentation(int index) override {
-    return Representation::None();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(IsConstructCallAndBranch)
- private:
-  HIsConstructCallAndBranch() {}
 };
 
 

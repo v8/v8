@@ -3280,38 +3280,6 @@ void FullCodeGenerator::EmitIsJSProxy(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitIsConstructCall(CallRuntime* expr) {
-  DCHECK(expr->arguments()->length() == 0);
-
-  Label materialize_true, materialize_false;
-  Label* if_true = NULL;
-  Label* if_false = NULL;
-  Label* fall_through = NULL;
-  context()->PrepareTest(&materialize_true, &materialize_false, &if_true,
-                         &if_false, &fall_through);
-
-  // Get the frame pointer for the calling frame.
-  __ LoadP(r5, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-
-  // Skip the arguments adaptor frame if it exists.
-  Label check_frame_marker;
-  __ LoadP(r4, MemOperand(r5, StandardFrameConstants::kContextOffset));
-  __ CmpSmiLiteral(r4, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR), r0);
-  __ bne(&check_frame_marker);
-  __ LoadP(r5, MemOperand(r5, StandardFrameConstants::kCallerFPOffset));
-
-  // Check the marker in the calling frame.
-  __ bind(&check_frame_marker);
-  __ LoadP(r4, MemOperand(r5, StandardFrameConstants::kMarkerOffset));
-  STATIC_ASSERT(StackFrame::CONSTRUCT < 0x4000);
-  __ CmpSmiLiteral(r4, Smi::FromInt(StackFrame::CONSTRUCT), r0);
-  PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
-  Split(eq, if_true, if_false, fall_through);
-
-  context()->Plug(if_true, if_false);
-}
-
-
 void FullCodeGenerator::EmitObjectEquals(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   DCHECK(args->length() == 2);

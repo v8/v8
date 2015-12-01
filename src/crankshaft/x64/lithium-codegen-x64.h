@@ -273,10 +273,6 @@ class LCodeGen: public LCodeGenBase {
                          Label* is_not_string,
                          SmiCheck check_needed);
 
-  // Emits optimized code for %_IsConstructCall().
-  // Caller should branch on equal condition.
-  void EmitIsConstructCall(Register temp);
-
   // Emits code for pushing either a tagged constant, a (non-double)
   // register, or a stack slot operand.
   void EmitPushTaggedOperand(LOperand* operand);

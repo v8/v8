@@ -91,7 +91,6 @@ class LCodeGen;
   V(InstructionGap)                          \
   V(Integer32ToDouble)                       \
   V(InvokeFunction)                          \
-  V(IsConstructCallAndBranch)                \
   V(IsSmiAndBranch)                          \
   V(IsStringAndBranch)                       \
   V(IsUndetectableAndBranch)                 \
@@ -1559,21 +1558,6 @@ class LInvokeFunction final : public LTemplateInstruction<1, 2, 0> {
   void PrintDataTo(StringStream* stream) override;
 
   int arity() const { return hydrogen()->argument_count() - 1; }
-};
-
-
-class LIsConstructCallAndBranch final : public LControlInstruction<0, 2> {
- public:
-  LIsConstructCallAndBranch(LOperand* temp1, LOperand* temp2) {
-    temps_[0] = temp1;
-    temps_[1] = temp2;
-  }
-
-  LOperand* temp1() { return temps_[0]; }
-  LOperand* temp2() { return temps_[1]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(IsConstructCallAndBranch,
-                               "is-construct-call-and-branch")
 };
 
 

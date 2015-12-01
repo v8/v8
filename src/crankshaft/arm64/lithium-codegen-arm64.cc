@@ -3017,29 +3017,6 @@ void LCodeGen::DoInvokeFunction(LInvokeFunction* instr) {
 }
 
 
-void LCodeGen::DoIsConstructCallAndBranch(LIsConstructCallAndBranch* instr) {
-  Register temp1 = ToRegister(instr->temp1());
-  Register temp2 = ToRegister(instr->temp2());
-
-  // Get the frame pointer for the calling frame.
-  __ Ldr(temp1, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-
-  // Skip the arguments adaptor frame if it exists.
-  Label check_frame_marker;
-  __ Ldr(temp2, MemOperand(temp1, StandardFrameConstants::kContextOffset));
-  __ Cmp(temp2, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
-  __ B(ne, &check_frame_marker);
-  __ Ldr(temp1, MemOperand(temp1, StandardFrameConstants::kCallerFPOffset));
-
-  // Check the marker in the calling frame.
-  __ Bind(&check_frame_marker);
-  __ Ldr(temp1, MemOperand(temp1, StandardFrameConstants::kMarkerOffset));
-
-  EmitCompareAndBranch(
-      instr, eq, temp1, Operand(Smi::FromInt(StackFrame::CONSTRUCT)));
-}
-
-
 Condition LCodeGen::EmitIsString(Register input,
                                  Register temp1,
                                  Label* is_not_string,

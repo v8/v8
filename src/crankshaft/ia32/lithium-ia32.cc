@@ -2587,12 +2587,6 @@ LInstruction* LChunkBuilder::DoTypeofIsAndBranch(HTypeofIsAndBranch* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoIsConstructCallAndBranch(
-    HIsConstructCallAndBranch* instr) {
-  return new(zone()) LIsConstructCallAndBranch(TempRegister());
-}
-
-
 LInstruction* LChunkBuilder::DoSimulate(HSimulate* instr) {
   instr->ReplayEnvironment(current_block_->last_environment());
   return NULL;

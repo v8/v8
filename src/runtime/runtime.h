@@ -261,7 +261,6 @@ namespace internal {
   F(TailCall, -1 /* >= 2 */, 1)               \
   F(Apply, 5, 1)                              \
   F(ConvertReceiver, 1, 1)                    \
-  F(IsConstructCall, 0, 1)                    \
   F(IsFunction, 1, 1)
 
 

@@ -90,7 +90,6 @@ class LCodeGen;
   V(InstructionGap)                          \
   V(Integer32ToDouble)                       \
   V(InvokeFunction)                          \
-  V(IsConstructCallAndBranch)                \
   V(IsStringAndBranch)                       \
   V(IsSmiAndBranch)                          \
   V(IsUndetectableAndBranch)                 \
@@ -2537,19 +2536,6 @@ class LTypeofIsAndBranch final : public LControlInstruction<1, 0> {
   Handle<String> type_literal() { return hydrogen()->type_literal(); }
 
   void PrintDataTo(StringStream* stream) override;
-};
-
-
-class LIsConstructCallAndBranch final : public LControlInstruction<0, 1> {
- public:
-  explicit LIsConstructCallAndBranch(LOperand* temp) {
-    temps_[0] = temp;
-  }
-
-  LOperand* temp() { return temps_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(IsConstructCallAndBranch,
-                               "is-construct-call-and-branch")
 };
 
 

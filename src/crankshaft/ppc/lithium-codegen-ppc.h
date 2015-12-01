@@ -259,10 +259,6 @@ class LCodeGen : public LCodeGenBase {
   Condition EmitIsString(Register input, Register temp1, Label* is_not_string,
                          SmiCheck check_needed);
 
-  // Emits optimized code for %_IsConstructCall().
-  // Caller should branch on equal condition.
-  void EmitIsConstructCall(Register temp1, Register temp2);
-
   // Emits optimized code to deep-copy the contents of statically known
   // object graphs (e.g. object literal boilerplate).
   void EmitDeepCopy(Handle<JSObject> object, Register result, Register source,

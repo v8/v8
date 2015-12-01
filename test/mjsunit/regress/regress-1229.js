@@ -123,11 +123,11 @@ invoke(h1, [6, 4]);
 invoke(h2, [6, 4, 8]);
 invoke(h3, [8, 6, 4]);
 
-// Check that %_IsConstructCall returns correct value when inlined
+// Check that new.target returns correct value when inlined
 var NON_CONSTRUCT_MARKER = {};
 var CONSTRUCT_MARKER = {};
 function baz(x) {
-  return (!%_IsConstructCall()) ? NON_CONSTRUCT_MARKER : CONSTRUCT_MARKER;
+  return (new.target === undefined) ? NON_CONSTRUCT_MARKER : CONSTRUCT_MARKER;
 }
 
 function bar(x, y, z) {

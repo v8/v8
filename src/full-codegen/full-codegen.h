@@ -477,7 +477,6 @@ class FullCodeGenerator: public AstVisitor {
   F(IsTypedArray)                       \
   F(IsRegExp)                           \
   F(IsJSProxy)                          \
-  F(IsConstructCall)                    \
   F(Call)                               \
   F(DefaultConstructorCallSuper)        \
   F(ArgumentsLength)                    \

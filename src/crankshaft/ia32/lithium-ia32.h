@@ -92,7 +92,6 @@ class LCodeGen;
   V(InstructionGap)                          \
   V(Integer32ToDouble)                       \
   V(InvokeFunction)                          \
-  V(IsConstructCallAndBranch)                \
   V(IsStringAndBranch)                       \
   V(IsSmiAndBranch)                          \
   V(IsUndetectableAndBranch)                 \
@@ -1108,19 +1107,6 @@ class LHasCachedArrayIndexAndBranch final : public LControlInstruction<1, 0> {
                                "has-cached-array-index-and-branch")
 
   void PrintDataTo(StringStream* stream) override;
-};
-
-
-class LIsConstructCallAndBranch final : public LControlInstruction<0, 1> {
- public:
-  explicit LIsConstructCallAndBranch(LOperand* temp) {
-    temps_[0] = temp;
-  }
-
-  LOperand* temp() { return temps_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(IsConstructCallAndBranch,
-                               "is-construct-call-and-branch")
 };
 
 
