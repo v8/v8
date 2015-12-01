@@ -1716,7 +1716,7 @@ void Assembler::sll(Register rd,
   // nop(int/NopMarkerTypes) or MarkCode(int/NopMarkerTypes) pseudo
   // instructions.
   DCHECK(coming_from_nop || !(rd.is(zero_reg) && rt.is(zero_reg)));
-  GenInstrRegister(SPECIAL, zero_reg, rt, rd, sa, SLL);
+  GenInstrRegister(SPECIAL, zero_reg, rt, rd, sa & 0x1F, SLL);
 }
 
 
@@ -1726,7 +1726,7 @@ void Assembler::sllv(Register rd, Register rt, Register rs) {
 
 
 void Assembler::srl(Register rd, Register rt, uint16_t sa) {
-  GenInstrRegister(SPECIAL, zero_reg, rt, rd, sa, SRL);
+  GenInstrRegister(SPECIAL, zero_reg, rt, rd, sa & 0x1F, SRL);
 }
 
 
@@ -1736,7 +1736,7 @@ void Assembler::srlv(Register rd, Register rt, Register rs) {
 
 
 void Assembler::sra(Register rd, Register rt, uint16_t sa) {
-  GenInstrRegister(SPECIAL, zero_reg, rt, rd, sa, SRA);
+  GenInstrRegister(SPECIAL, zero_reg, rt, rd, sa & 0x1F, SRA);
 }
 
 
@@ -1766,7 +1766,7 @@ void Assembler::rotrv(Register rd, Register rt, Register rs) {
 
 
 void Assembler::dsll(Register rd, Register rt, uint16_t sa) {
-  GenInstrRegister(SPECIAL, zero_reg, rt, rd, sa, DSLL);
+  GenInstrRegister(SPECIAL, zero_reg, rt, rd, sa & 0x1F, DSLL);
 }
 
 
@@ -1776,7 +1776,7 @@ void Assembler::dsllv(Register rd, Register rt, Register rs) {
 
 
 void Assembler::dsrl(Register rd, Register rt, uint16_t sa) {
-  GenInstrRegister(SPECIAL, zero_reg, rt, rd, sa, DSRL);
+  GenInstrRegister(SPECIAL, zero_reg, rt, rd, sa & 0x1F, DSRL);
 }
 
 
@@ -1802,7 +1802,7 @@ void Assembler::drotrv(Register rd, Register rt, Register rs) {
 
 
 void Assembler::dsra(Register rd, Register rt, uint16_t sa) {
-  GenInstrRegister(SPECIAL, zero_reg, rt, rd, sa, DSRA);
+  GenInstrRegister(SPECIAL, zero_reg, rt, rd, sa & 0x1F, DSRA);
 }
 
 
@@ -1812,17 +1812,17 @@ void Assembler::dsrav(Register rd, Register rt, Register rs) {
 
 
 void Assembler::dsll32(Register rd, Register rt, uint16_t sa) {
-  GenInstrRegister(SPECIAL, zero_reg, rt, rd, sa, DSLL32);
+  GenInstrRegister(SPECIAL, zero_reg, rt, rd, sa & 0x1F, DSLL32);
 }
 
 
 void Assembler::dsrl32(Register rd, Register rt, uint16_t sa) {
-  GenInstrRegister(SPECIAL, zero_reg, rt, rd, sa, DSRL32);
+  GenInstrRegister(SPECIAL, zero_reg, rt, rd, sa & 0x1F, DSRL32);
 }
 
 
 void Assembler::dsra32(Register rd, Register rt, uint16_t sa) {
-  GenInstrRegister(SPECIAL, zero_reg, rt, rd, sa, DSRA32);
+  GenInstrRegister(SPECIAL, zero_reg, rt, rd, sa & 0x1F, DSRA32);
 }
 
 
