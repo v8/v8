@@ -29,7 +29,7 @@ utils.Import(function(from) {
 // -------------------------------------------------------------------
 
 function ArrayBufferConstructor(length) { // length = 1
-  if (%_IsConstructCall()) {
+  if (!IS_UNDEFINED(new.target)) {
     var byteLength = ToPositiveInteger(length, kInvalidArrayBufferLength);
     %ArrayBufferInitialize(this, byteLength, kNotShared);
   } else {

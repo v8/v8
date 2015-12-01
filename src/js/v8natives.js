@@ -1290,7 +1290,7 @@ utils.InstallFunctions(GlobalObject, DONT_ENUM, [
 function BooleanConstructor(x) {
   // TODO(bmeurer): Move this to toplevel.
   "use strict";
-  if (%_IsConstructCall()) {
+  if (!IS_UNDEFINED(new.target)) {
     %_SetValueOf(this, TO_BOOLEAN(x));
   } else {
     return TO_BOOLEAN(x);
@@ -1616,7 +1616,7 @@ function FunctionBind(this_arg) { // Length is 1.
     "use strict";
     // This function must not use any object literals (Object, Array, RegExp),
     // since the literals-array is being used to store the bound data.
-    if (%_IsConstructCall()) {
+    if (!IS_UNDEFINED(new.target)) {
       return %NewObjectFromBound(boundFunction);
     }
     var bindings = %BoundFunctionGetBindings(boundFunction);

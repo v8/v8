@@ -203,7 +203,7 @@ function NAMEConstructByIterable(obj, iterable, iteratorFn) {
 }
 
 function NAMEConstructor(arg1, arg2, arg3) {
-  if (%_IsConstructCall()) {
+  if (!IS_UNDEFINED(new.target)) {
     if (IS_ARRAYBUFFER(arg1) || IS_SHAREDARRAYBUFFER(arg1)) {
       NAMEConstructByArrayBuffer(this, arg1, arg2, arg3);
     } else if (IS_NUMBER(arg1) || IS_STRING(arg1) ||
