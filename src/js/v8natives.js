@@ -183,18 +183,10 @@ function ObjectValueOf() {
 }
 
 
-// ECMA-262 - 15.2.4.5
+// ES6 7.3.11
 function ObjectHasOwnProperty(value) {
   var name = TO_NAME(value);
   var object = TO_OBJECT(this);
-
-  if (%_IsJSProxy(object)) {
-    // TODO(rossberg): adjust once there is a story for symbols vs proxies.
-    if (IS_SYMBOL(value)) return false;
-
-    var handler = %GetHandler(object);
-    return CallTrap1(handler, "hasOwn", ProxyDerivedHasOwnTrap, name);
-  }
   return %HasOwnProperty(object, name);
 }
 

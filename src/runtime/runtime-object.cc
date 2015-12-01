@@ -719,6 +719,11 @@ RUNTIME_FUNCTION(Runtime_HasOwnProperty) {
     if (index < static_cast<uint32_t>(string->length())) {
       return isolate->heap()->true_value();
     }
+  } else if (object->IsJSProxy()) {
+    Maybe<bool> result =
+        JSReceiver::HasOwnProperty(Handle<JSProxy>::cast(object), key);
+    if (!result.IsJust()) return isolate->heap()->exception();
+    return isolate->heap()->ToBoolean(result.FromJust());
   }
   return isolate->heap()->false_value();
 }
