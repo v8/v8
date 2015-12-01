@@ -14835,10 +14835,75 @@ Handle<Map> Map::TransitionToPrototype(Handle<Map> map,
 Maybe<bool> JSReceiver::SetPrototype(Handle<JSReceiver> object,
                                      Handle<Object> value, bool from_javascript,
                                      ShouldThrow should_throw) {
-  if (!object->IsJSObject()) return Just(false);
-  // TODO(neis): Deal with proxies.
+  if (object->IsJSProxy()) {
+    return JSProxy::SetPrototype(Handle<JSProxy>::cast(object), value,
+                                 from_javascript, should_throw);
+  }
   return JSObject::SetPrototype(Handle<JSObject>::cast(object), value,
                                 from_javascript, should_throw);
+}
+
+
+// ES6: 9.5.2 [[SetPrototypeOf]] (V)
+// static
+Maybe<bool> JSProxy::SetPrototype(Handle<JSProxy> proxy, Handle<Object> value,
+                                  bool from_javascript,
+                                  ShouldThrow should_throw) {
+  Isolate* isolate = proxy->GetIsolate();
+  Handle<JSReceiver> handle;
+  Handle<Name> trap_name = isolate->factory()->setPrototypeOf_string();
+  // 1. Assert: Either Type(V) is Object or Type(V) is Null.
+  DCHECK(value->IsJSReceiver() || value->IsNull());
+  // 2. Let handler be the value of the [[ProxyHandler]] internal slot of O.
+  Handle<Object> raw_handler(proxy->handler(), isolate);
+  // 3. If handler is null, throw a TypeError exception.
+  // 4. Assert: Type(handler) is Object.
+  if (proxy->IsRevoked()) {
+    DCHECK(raw_handler->IsNull());
+    DCHECK(proxy->target()->IsNull());
+    isolate->Throw(
+        *isolate->factory()->NewTypeError(MessageTemplate::kProxyRevoked));
+    return Nothing<bool>();
+  }
+  Handle<JSReceiver> handler = Handle<JSReceiver>::cast(raw_handler);
+  // 5. Let target be the value of the [[ProxyTarget]] internal slot.
+  Handle<JSReceiver> target(JSReceiver::cast(proxy->target()), isolate);
+  // 6. Let trap be ? GetMethod(handler, "getPrototypeOf").
+  Handle<Object> trap;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, trap, Object::GetMethod(handler, trap_name), Nothing<bool>());
+  // 7. If trap is undefined, then return target.[[SetPrototypeOf]]().
+  if (trap->IsUndefined()) {
+    return JSReceiver::SetPrototype(target, value, from_javascript,
+                                    should_throw);
+  }
+  // 8. Let booleanTrapResult be ToBoolean(? Call(trap, handler, «target, V»)).
+  Handle<Object> argv[] = {target, value};
+  Handle<Object> trap_result;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, trap_result,
+      Execution::Call(isolate, trap, handler, arraysize(argv), argv),
+      Nothing<bool>());
+  bool bool_trap_result = trap_result->BooleanValue();
+  // 9. Let extensibleTarget be ? IsExtensible(target).
+  Maybe<bool> is_extensible = JSReceiver::IsExtensible(target);
+  if (is_extensible.IsNothing()) return Nothing<bool>();
+  // 10. If extensibleTarget is true, return booleanTrapResult.
+  if (is_extensible.FromJust()) return Just(bool_trap_result);
+  // 11. Let targetProto be ? target.[[GetPrototypeOf]]().
+  Handle<Object> target_proto;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, target_proto,
+                                   Object::GetPrototype(isolate, target),
+                                   Nothing<bool>());
+  // 12. If booleanTrapResult is true and SameValue(V, targetProto) is false,
+  // throw a TypeError exception.
+  if (bool_trap_result && !value->SameValue(*target_proto)) {
+    isolate->Throw(*isolate->factory()->NewTypeError(
+        MessageTemplate::kProxyTrapViolatesInvariant, target));
+    return Nothing<bool>();
+  }
+  // 13. Return booleanTrapResult.
+  return Just(bool_trap_result);
 }
 
 

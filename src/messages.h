@@ -189,7 +189,9 @@ class CallSite {
   T(ProxyHandlerReturned, "Proxy handler % returned % from '%' trap")          \
   T(ProxyHandlerTrapMissing, "Proxy handler % has no '%' trap")                \
   T(ProxyHandlerTrapMustBeCallable,                                            \
-    "Proxy handler %0 has non-callable '%' trap")                              \
+    "Proxy handler % has non-callable '%' trap")                               \
+  T(ProxySetPrototypeFailed,                                                   \
+    "Proxy handler returned false when setting prototype '%'")                 \
   T(ProxyNonObjectPropNames, "Trap '%' returned non-object %")                 \
   T(ProxyPreventExtensionsViolatesInvariant,                                   \
     "Trap 'preventExtensions' returned true but the proxy's target is "        \

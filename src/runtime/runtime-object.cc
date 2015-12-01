@@ -183,9 +183,14 @@ RUNTIME_FUNCTION(Runtime_SetPrototype) {
   DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, obj, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, prototype, 1);
-  MAYBE_RETURN(
-      JSReceiver::SetPrototype(obj, prototype, true, Object::THROW_ON_ERROR),
-      isolate->heap()->exception());
+  Maybe<bool> status =
+      JSReceiver::SetPrototype(obj, prototype, true, Object::THROW_ON_ERROR);
+  if (status.IsNothing()) return isolate->heap()->exception();
+  if (!status.FromJust()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate,
+        NewTypeError(MessageTemplate::kProxySetPrototypeFailed, prototype));
+  }
   return *obj;
 }
 
