@@ -1481,6 +1481,15 @@ void MacroAssembler::Dext(Register rt, Register rs, uint16_t pos,
 }
 
 
+void MacroAssembler::Dins(Register rt, Register rs, uint16_t pos,
+                          uint16_t size) {
+  DCHECK(pos < 32);
+  DCHECK(pos + size <= 32);
+  DCHECK(size != 0);
+  dins_(rt, rs, pos, size);
+}
+
+
 void MacroAssembler::Ins(Register rt,
                          Register rs,
                          uint16_t pos,

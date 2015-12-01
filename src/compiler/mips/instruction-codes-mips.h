@@ -32,6 +32,7 @@ namespace compiler {
   V(MipsShr)                       \
   V(MipsSar)                       \
   V(MipsExt)                       \
+  V(MipsIns)                       \
   V(MipsRor)                       \
   V(MipsMov)                       \
   V(MipsTst)                       \

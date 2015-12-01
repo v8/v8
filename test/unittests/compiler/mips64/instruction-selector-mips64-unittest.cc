@@ -377,6 +377,58 @@ TEST_F(InstructionSelectorTest, Word64ShrWithWord64AndWithImmediate) {
 }
 
 
+TEST_F(InstructionSelectorTest, Word32AndToClearBits) {
+  TRACED_FORRANGE(int32_t, shift, 1, 31) {
+    int32_t mask = ~((1 << shift) - 1);
+    StreamBuilder m(this, kMachInt32, kMachInt32);
+    m.Return(m.Word32And(m.Parameter(0), m.Int32Constant(mask)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kMips64Ins, s[0]->arch_opcode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(0, s.ToInt32(s[0]->InputAt(1)));
+    EXPECT_EQ(shift, s.ToInt32(s[0]->InputAt(2)));
+  }
+  TRACED_FORRANGE(int32_t, shift, 1, 31) {
+    int32_t mask = ~((1 << shift) - 1);
+    StreamBuilder m(this, kMachInt32, kMachInt32);
+    m.Return(m.Word32And(m.Int32Constant(mask), m.Parameter(0)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kMips64Ins, s[0]->arch_opcode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(0, s.ToInt32(s[0]->InputAt(1)));
+    EXPECT_EQ(shift, s.ToInt32(s[0]->InputAt(2)));
+  }
+}
+
+
+TEST_F(InstructionSelectorTest, Word64AndToClearBits) {
+  TRACED_FORRANGE(int32_t, shift, 1, 31) {
+    int64_t mask = ~((1 << shift) - 1);
+    StreamBuilder m(this, kMachInt64, kMachInt64);
+    m.Return(m.Word64And(m.Parameter(0), m.Int64Constant(mask)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kMips64Dins, s[0]->arch_opcode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(0, s.ToInt32(s[0]->InputAt(1)));
+    EXPECT_EQ(shift, s.ToInt32(s[0]->InputAt(2)));
+  }
+  TRACED_FORRANGE(int32_t, shift, 1, 31) {
+    int64_t mask = ~((1 << shift) - 1);
+    StreamBuilder m(this, kMachInt64, kMachInt64);
+    m.Return(m.Word64And(m.Int64Constant(mask), m.Parameter(0)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kMips64Dins, s[0]->arch_opcode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    EXPECT_EQ(0, s.ToInt32(s[0]->InputAt(1)));
+    EXPECT_EQ(shift, s.ToInt32(s[0]->InputAt(2)));
+  }
+}
+
+
 // ----------------------------------------------------------------------------
 // Logical instructions.
 // ----------------------------------------------------------------------------

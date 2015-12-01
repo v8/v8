@@ -295,6 +295,19 @@ void InstructionSelector::VisitWord32And(Node* node) {
       // Other cases fall through to the normal And operation.
     }
   }
+  if (m.right().HasValue()) {
+    uint32_t mask = m.right().Value();
+    uint32_t shift = base::bits::CountPopulation32(~mask);
+    uint32_t msb = base::bits::CountLeadingZeros32(~mask);
+    if (shift != 0 && shift != 32 && msb + shift == 32) {
+      // Insert zeros for (x >> K) << K => x & ~(2^K - 1) expression reduction
+      // and remove constant loading of inverted mask.
+      Emit(kMips64Ins, g.DefineSameAsFirst(node),
+           g.UseRegister(m.left().node()), g.TempImmediate(0),
+           g.TempImmediate(shift));
+      return;
+    }
+  }
   VisitBinop(this, node, kMips64And);
 }
 
@@ -330,6 +343,20 @@ void InstructionSelector::VisitWord64And(Node* node) {
         return;
       }
       // Other cases fall through to the normal And operation.
+    }
+  }
+  if (m.right().HasValue()) {
+    uint64_t mask = m.right().Value();
+    uint32_t shift = base::bits::CountPopulation64(~mask);
+    uint32_t msb = base::bits::CountLeadingZeros64(~mask);
+    if (shift != 0 && shift < 32 && msb + shift == 64) {
+      // Insert zeros for (x >> K) << K => x & ~(2^K - 1) expression reduction
+      // and remove constant loading of inverted mask. Dins cannot insert bits
+      // past word size, so shifts smaller than 32 are covered.
+      Emit(kMips64Dins, g.DefineSameAsFirst(node),
+           g.UseRegister(m.left().node()), g.TempImmediate(0),
+           g.TempImmediate(shift));
+      return;
     }
   }
   VisitBinop(this, node, kMips64And);

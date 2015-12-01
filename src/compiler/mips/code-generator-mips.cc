@@ -706,6 +706,14 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ Ext(i.OutputRegister(), i.InputRegister(0), i.InputInt8(1),
              i.InputInt8(2));
       break;
+    case kMipsIns:
+      if (instr->InputAt(1)->IsImmediate() && i.InputInt8(1) == 0) {
+        __ Ins(i.OutputRegister(), zero_reg, i.InputInt8(1), i.InputInt8(2));
+      } else {
+        __ Ins(i.OutputRegister(), i.InputRegister(0), i.InputInt8(1),
+               i.InputInt8(2));
+      }
+      break;
     case kMipsRor:
       __ Ror(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;

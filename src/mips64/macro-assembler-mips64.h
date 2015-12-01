@@ -805,6 +805,7 @@ class MacroAssembler: public Assembler {
 
   // MIPS64 R2 instruction macro.
   void Ins(Register rt, Register rs, uint16_t pos, uint16_t size);
+  void Dins(Register rt, Register rs, uint16_t pos, uint16_t size);
   void Ext(Register rt, Register rs, uint16_t pos, uint16_t size);
   void Dext(Register rt, Register rs, uint16_t pos, uint16_t size);
 

@@ -3696,7 +3696,19 @@ void Simulator::DecodeTypeRegisterSPECIAL2() {
 void Simulator::DecodeTypeRegisterSPECIAL3() {
   int64_t alu_out;
   switch (get_instr()->FunctionFieldRaw()) {
-    case INS: {  // Mips32r2 instruction.
+    case INS: {  // Mips64r2 instruction.
+      // Interpret rd field as 5-bit msb of insert.
+      uint16_t msb = rd_reg();
+      // Interpret sa field as 5-bit lsb of insert.
+      uint16_t lsb = sa();
+      uint16_t size = msb - lsb + 1;
+      uint64_t mask = (1ULL << size) - 1;
+      alu_out = static_cast<int32_t>((rt_u() & ~(mask << lsb)) |
+                                     ((rs_u() & mask) << lsb));
+      SetResult(rt_reg(), alu_out);
+      break;
+    }
+    case DINS: {  // Mips64r2 instruction.
       // Interpret rd field as 5-bit msb of insert.
       uint16_t msb = rd_reg();
       // Interpret sa field as 5-bit lsb of insert.
@@ -3707,7 +3719,7 @@ void Simulator::DecodeTypeRegisterSPECIAL3() {
       SetResult(rt_reg(), alu_out);
       break;
     }
-    case EXT: {  // Mips32r2 instruction.
+    case EXT: {  // Mips64r2 instruction.
       // Interpret rd field as 5-bit msb of extract.
       uint16_t msb = rd_reg();
       // Interpret sa field as 5-bit lsb of extract.
@@ -3718,7 +3730,7 @@ void Simulator::DecodeTypeRegisterSPECIAL3() {
       SetResult(rt_reg(), alu_out);
       break;
     }
-    case DEXT: {  // Mips32r2 instruction.
+    case DEXT: {  // Mips64r2 instruction.
       // Interpret rd field as 5-bit msb of extract.
       uint16_t msb = rd_reg();
       // Interpret sa field as 5-bit lsb of extract.
