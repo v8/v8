@@ -5045,6 +5045,9 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ AssertUndefinedOrAllocationSite(a2, a4);
   }
 
+  // Enter the context of the Array function.
+  __ ld(cp, FieldMemOperand(a1, JSFunction::kContextOffset));
+
   Label subclassing;
   __ Branch(&subclassing, ne, a1, Operand(a3));
 

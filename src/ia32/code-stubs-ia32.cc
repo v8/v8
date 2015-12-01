@@ -4984,6 +4984,9 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
 
   Label subclassing;
 
+  // Enter the context of the Array function.
+  __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
+
   __ cmp(edx, edi);
   __ j(not_equal, &subclassing);
 
