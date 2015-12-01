@@ -2093,7 +2093,9 @@ Variable* Parser::Declare(Declaration* declaration,
       // because the var declaration is hoisted to the function scope where 'x'
       // is already bound.
       DCHECK(IsDeclaredVariableMode(var->mode()));
-      if (is_strict(language_mode()) || allow_harmony_sloppy()) {
+      if (is_strict(language_mode()) ||
+          (allow_harmony_sloppy() && mode != CONST_LEGACY &&
+           var->mode() != CONST_LEGACY)) {
         // In harmony we treat re-declarations as early errors. See
         // ES5 16 for a definition of early errors.
         if (declaration_kind == DeclarationDescriptor::NORMAL) {
