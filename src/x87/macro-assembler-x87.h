@@ -85,9 +85,21 @@ class MacroAssembler: public Assembler {
     CompareRoot(with, index);
     j(equal, if_equal, if_equal_distance);
   }
+  void JumpIfRoot(const Operand& with, Heap::RootListIndex index,
+                  Label* if_equal,
+                  Label::Distance if_equal_distance = Label::kNear) {
+    CompareRoot(with, index);
+    j(equal, if_equal, if_equal_distance);
+  }
 
   // Compare the object in a register to a value and jump if they are not equal.
   void JumpIfNotRoot(Register with, Heap::RootListIndex index,
+                     Label* if_not_equal,
+                     Label::Distance if_not_equal_distance = Label::kNear) {
+    CompareRoot(with, index);
+    j(not_equal, if_not_equal, if_not_equal_distance);
+  }
+  void JumpIfNotRoot(const Operand& with, Heap::RootListIndex index,
                      Label* if_not_equal,
                      Label::Distance if_not_equal_distance = Label::kNear) {
     CompareRoot(with, index);
