@@ -1091,11 +1091,8 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kX87Float64Round: {
       RoundingMode mode =
           static_cast<RoundingMode>(MiscField::decode(instr->opcode()));
-      if (mode == MiscField::encode(kRoundDown)) {
-        __ X87SetRC(0x0400);
-      } else {
-        __ X87SetRC(0x0c00);
-      }
+      // Set the correct round mode in x87 control register
+      __ X87SetRC((mode << 10));
 
       if (!instr->InputAt(0)->IsDoubleRegister()) {
         InstructionOperand* input = instr->InputAt(0);

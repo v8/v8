@@ -1300,6 +1300,9 @@ InstructionSelector::SupportedMachineOperatorFlags() {
   if (CpuFeatures::IsSupported(POPCNT)) {
     flags |= MachineOperatorBuilder::kWord32Popcnt;
   }
+
+  flags |= MachineOperatorBuilder::kFloat64RoundDown |
+           MachineOperatorBuilder::kFloat64RoundTruncate;
   return flags;
 }
 
