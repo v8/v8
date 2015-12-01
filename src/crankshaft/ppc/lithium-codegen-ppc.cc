@@ -203,7 +203,7 @@ void LCodeGen::DoPrologue(LPrologue* instr) {
         // Load parameter from stack.
         __ LoadP(r3, MemOperand(fp, parameter_offset));
         // Store it in the context.
-        MemOperand target = ContextOperand(cp, var->index());
+        MemOperand target = ContextMemOperand(cp, var->index());
         __ StoreP(r3, target, r0);
         // Update the write barrier. This clobbers r6 and r3.
         if (need_write_barrier) {
@@ -2899,7 +2899,7 @@ void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
 void LCodeGen::DoLoadContextSlot(LLoadContextSlot* instr) {
   Register context = ToRegister(instr->context());
   Register result = ToRegister(instr->result());
-  __ LoadP(result, ContextOperand(context, instr->slot_index()));
+  __ LoadP(result, ContextMemOperand(context, instr->slot_index()));
   if (instr->hydrogen()->RequiresHoleCheck()) {
     __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
     if (instr->hydrogen()->DeoptimizesOnHole()) {
@@ -2927,7 +2927,7 @@ void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
   Register context = ToRegister(instr->context());
   Register value = ToRegister(instr->value());
   Register scratch = scratch0();
-  MemOperand target = ContextOperand(context, instr->slot_index());
+  MemOperand target = ContextMemOperand(context, instr->slot_index());
 
   Label skip_assignment;
 
@@ -3469,8 +3469,9 @@ void LCodeGen::DoWrapReceiver(LWrapReceiver* instr) {
   __ b(&result_in_receiver);
   __ bind(&global_object);
   __ LoadP(result, FieldMemOperand(function, JSFunction::kContextOffset));
-  __ LoadP(result, ContextOperand(result, Context::GLOBAL_OBJECT_INDEX));
-  __ LoadP(result, FieldMemOperand(result, JSGlobalObject::kGlobalProxyOffset));
+  __ LoadP(result, ContextMemOperand(result, Context::NATIVE_CONTEXT_INDEX));
+  __ LoadP(result, ContextMemOperand(result, Context::GLOBAL_PROXY_INDEX));
+
   if (result.is(receiver)) {
     __ bind(&result_in_receiver);
   } else {

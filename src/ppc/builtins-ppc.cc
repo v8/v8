@@ -75,31 +75,15 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm, CFunctionId id,
 // Load the built-in InternalArray function from the current context.
 static void GenerateLoadInternalArrayFunction(MacroAssembler* masm,
                                               Register result) {
-  // Load the native context.
-
-  __ LoadP(result,
-           MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-  __ LoadP(result,
-           FieldMemOperand(result, JSGlobalObject::kNativeContextOffset));
-  // Load the InternalArray function from the native context.
-  __ LoadP(result,
-           MemOperand(result, Context::SlotOffset(
-                                  Context::INTERNAL_ARRAY_FUNCTION_INDEX)));
+  // Load the InternalArray function from the current native context.
+  __ LoadNativeContextSlot(Context::INTERNAL_ARRAY_FUNCTION_INDEX, result);
 }
 
 
 // Load the built-in Array function from the current context.
 static void GenerateLoadArrayFunction(MacroAssembler* masm, Register result) {
-  // Load the native context.
-
-  __ LoadP(result,
-           MemOperand(cp, Context::SlotOffset(Context::GLOBAL_OBJECT_INDEX)));
-  __ LoadP(result,
-           FieldMemOperand(result, JSGlobalObject::kNativeContextOffset));
-  // Load the Array function from the native context.
-  __ LoadP(
-      result,
-      MemOperand(result, Context::SlotOffset(Context::ARRAY_FUNCTION_INDEX)));
+  // Load the Array function from the current native context.
+  __ LoadNativeContextSlot(Context::ARRAY_FUNCTION_INDEX, result);
 }
 
 
@@ -1756,7 +1740,7 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   __ ShiftLeftImm(r8, r3, Operand(kPointerSizeLog2));
   __ StorePX(r4, MemOperand(sp, r8));
   // Let the "call_as_function_delegate" take care of the rest.
-  __ LoadGlobalFunction(Context::CALL_AS_FUNCTION_DELEGATE_INDEX, r4);
+  __ LoadNativeContextSlot(Context::CALL_AS_FUNCTION_DELEGATE_INDEX, r4);
   __ Jump(masm->isolate()->builtins()->CallFunction(
               ConvertReceiverMode::kNotNullOrUndefined),
           RelocInfo::CODE_TARGET);
@@ -1840,7 +1824,7 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
     __ ShiftLeftImm(r8, r3, Operand(kPointerSizeLog2));
     __ StorePX(r4, MemOperand(sp, r8));
     // Let the "call_as_constructor_delegate" take care of the rest.
-    __ LoadGlobalFunction(Context::CALL_AS_CONSTRUCTOR_DELEGATE_INDEX, r4);
+    __ LoadNativeContextSlot(Context::CALL_AS_CONSTRUCTOR_DELEGATE_INDEX, r4);
     __ Jump(masm->isolate()->builtins()->CallFunction(),
             RelocInfo::CODE_TARGET);
   }

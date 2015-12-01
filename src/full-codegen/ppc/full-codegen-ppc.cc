@@ -212,7 +212,7 @@ void FullCodeGenerator::Generate() {
         // Load parameter from stack.
         __ LoadP(r3, MemOperand(fp, parameter_offset), r0);
         // Store it in the context.
-        MemOperand target = ContextOperand(cp, var->index());
+        MemOperand target = ContextMemOperand(cp, var->index());
         __ StoreP(r3, target, r0);
 
         // Update the write barrier.
@@ -685,7 +685,7 @@ MemOperand FullCodeGenerator::VarOperand(Variable* var, Register scratch) {
   if (var->IsContextSlot()) {
     int context_chain_length = scope()->ContextChainLength(var->scope());
     __ LoadContext(scratch, context_chain_length);
-    return ContextOperand(scratch, var->index());
+    return ContextMemOperand(scratch, var->index());
   } else {
     return StackOperand(var);
   }
@@ -785,7 +785,7 @@ void FullCodeGenerator::VisitVariableDeclaration(
         Comment cmnt(masm_, "[ VariableDeclaration");
         EmitDebugCheckDeclarationContext(variable);
         __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
-        __ StoreP(ip, ContextOperand(cp, variable->index()), r0);
+        __ StoreP(ip, ContextMemOperand(cp, variable->index()), r0);
         // No write barrier since the_hole_value is in old space.
         PrepareForBailoutForId(proxy->id(), NO_REGISTERS);
       }
@@ -842,7 +842,8 @@ void FullCodeGenerator::VisitFunctionDeclaration(
       Comment cmnt(masm_, "[ FunctionDeclaration");
       EmitDebugCheckDeclarationContext(variable);
       VisitForAccumulatorValue(declaration->fun());
-      __ StoreP(result_register(), ContextOperand(cp, variable->index()), r0);
+      __ StoreP(result_register(), ContextMemOperand(cp, variable->index()),
+                r0);
       int offset = Context::SlotOffset(variable->index());
       // We know that we have written a function, which is not a smi.
       __ RecordWriteContextSlot(cp, offset, result_register(), r5,
@@ -1235,12 +1236,12 @@ void FullCodeGenerator::EmitLoadGlobalCheckExtensions(VariableProxy* proxy,
     if (s->num_heap_slots() > 0) {
       if (s->calls_sloppy_eval()) {
         // Check that extension is NULL.
-        __ LoadP(temp, ContextOperand(current, Context::EXTENSION_INDEX));
+        __ LoadP(temp, ContextMemOperand(current, Context::EXTENSION_INDEX));
         __ cmpi(temp, Operand::Zero());
         __ bne(slow);
       }
       // Load next context in chain.
-      __ LoadP(next, ContextOperand(current, Context::PREVIOUS_INDEX));
+      __ LoadP(next, ContextMemOperand(current, Context::PREVIOUS_INDEX));
       // Walk the rest of the chain without clobbering cp.
       current = next;
     }
@@ -1262,11 +1263,11 @@ void FullCodeGenerator::EmitLoadGlobalCheckExtensions(VariableProxy* proxy,
     __ cmp(temp, ip);
     __ beq(&fast);
     // Check that extension is NULL.
-    __ LoadP(temp, ContextOperand(next, Context::EXTENSION_INDEX));
+    __ LoadP(temp, ContextMemOperand(next, Context::EXTENSION_INDEX));
     __ cmpi(temp, Operand::Zero());
     __ bne(slow);
     // Load next context in chain.
-    __ LoadP(next, ContextOperand(next, Context::PREVIOUS_INDEX));
+    __ LoadP(next, ContextMemOperand(next, Context::PREVIOUS_INDEX));
     __ b(&loop);
     __ bind(&fast);
   }
@@ -1288,24 +1289,24 @@ MemOperand FullCodeGenerator::ContextSlotOperandCheckExtensions(Variable* var,
     if (s->num_heap_slots() > 0) {
       if (s->calls_sloppy_eval()) {
         // Check that extension is NULL.
-        __ LoadP(temp, ContextOperand(context, Context::EXTENSION_INDEX));
+        __ LoadP(temp, ContextMemOperand(context, Context::EXTENSION_INDEX));
         __ cmpi(temp, Operand::Zero());
         __ bne(slow);
       }
-      __ LoadP(next, ContextOperand(context, Context::PREVIOUS_INDEX));
+      __ LoadP(next, ContextMemOperand(context, Context::PREVIOUS_INDEX));
       // Walk the rest of the chain without clobbering cp.
       context = next;
     }
   }
   // Check that last extension is NULL.
-  __ LoadP(temp, ContextOperand(context, Context::EXTENSION_INDEX));
+  __ LoadP(temp, ContextMemOperand(context, Context::EXTENSION_INDEX));
   __ cmpi(temp, Operand::Zero());
   __ bne(slow);
 
   // This function is used only for loads, not stores, so it's safe to
   // return an cp-based operand (the write barrier cannot be allowed to
   // destroy the cp register).
-  return ContextOperand(context, var->index());
+  return ContextMemOperand(context, var->index());
 }
 
 
@@ -1346,7 +1347,7 @@ void FullCodeGenerator::EmitGlobalVariableLoad(VariableProxy* proxy,
   Variable* var = proxy->var();
   DCHECK(var->IsUnallocatedOrGlobalSlot() ||
          (var->IsLookupSlot() && var->mode() == DYNAMIC_GLOBAL));
-  __ LoadP(LoadDescriptor::ReceiverRegister(), GlobalObjectOperand());
+  __ LoadGlobalObject(LoadDescriptor::ReceiverRegister());
   __ mov(LoadDescriptor::NameRegister(), Operand(var->name()));
   __ mov(LoadDescriptor::SlotRegister(),
          Operand(SmiFromSlot(proxy->VariableFeedbackSlot())));
@@ -2164,9 +2165,7 @@ void FullCodeGenerator::EmitCreateIteratorResult(bool done) {
   __ CallRuntime(Runtime::kAllocateInNewSpace, 1);
 
   __ bind(&done_allocate);
-  __ LoadP(r4, ContextOperand(cp, Context::GLOBAL_OBJECT_INDEX));
-  __ LoadP(r4, FieldMemOperand(r4, JSGlobalObject::kNativeContextOffset));
-  __ LoadP(r4, ContextOperand(r4, Context::ITERATOR_RESULT_MAP_INDEX));
+  __ LoadNativeContextSlot(Context::ITERATOR_RESULT_MAP_INDEX, r4);
   __ pop(r5);
   __ LoadRoot(r6,
               done ? Heap::kTrueValueRootIndex : Heap::kFalseValueRootIndex);
@@ -2526,7 +2525,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op,
   if (var->IsUnallocated()) {
     // Global var, const, or let.
     __ mov(StoreDescriptor::NameRegister(), Operand(var->name()));
-    __ LoadP(StoreDescriptor::ReceiverRegister(), GlobalObjectOperand());
+    __ LoadGlobalObject(StoreDescriptor::ReceiverRegister());
     EmitLoadStoreICSlot(slot);
     CallStoreIC();
 
@@ -4140,9 +4139,7 @@ void FullCodeGenerator::EmitCreateIterResultObject(CallRuntime* expr) {
   Label runtime, done;
 
   __ Allocate(JSIteratorResult::kSize, r3, r5, r6, &runtime, TAG_OBJECT);
-  __ LoadP(r4, ContextOperand(cp, Context::GLOBAL_OBJECT_INDEX));
-  __ LoadP(r4, FieldMemOperand(r4, JSGlobalObject::kNativeContextOffset));
-  __ LoadP(r4, ContextOperand(r4, Context::ITERATOR_RESULT_MAP_INDEX));
+  __ LoadNativeContextSlot(Context::ITERATOR_RESULT_MAP_INDEX, r4);
   __ Pop(r5, r6);
   __ LoadRoot(r7, Heap::kEmptyFixedArrayRootIndex);
   __ StoreP(r4, FieldMemOperand(r3, HeapObject::kMapOffset), r0);
@@ -4166,9 +4163,7 @@ void FullCodeGenerator::EmitLoadJSRuntimeFunction(CallRuntime* expr) {
   __ LoadRoot(r3, Heap::kUndefinedValueRootIndex);
   __ push(r3);
 
-  __ LoadP(r3, GlobalObjectOperand());
-  __ LoadP(r3, FieldMemOperand(r3, JSGlobalObject::kNativeContextOffset));
-  __ LoadP(r3, ContextOperand(r3, expr->context_index()));
+  __ LoadNativeContextSlot(expr->context_index(), r3);
 }
 
 
@@ -4259,7 +4254,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
         bool is_this = var->HasThisName(isolate());
         DCHECK(is_sloppy(language_mode()) || is_this);
         if (var->IsUnallocatedOrGlobalSlot()) {
-          __ LoadP(r5, GlobalObjectOperand());
+          __ LoadGlobalObject(r5);
           __ mov(r4, Operand(var->name()));
           __ Push(r5, r4);
           __ CallRuntime(Runtime::kDeleteProperty_Sloppy, 2);
@@ -4801,7 +4796,7 @@ void FullCodeGenerator::StoreToFrameField(int frame_offset, Register value) {
 
 
 void FullCodeGenerator::LoadContextField(Register dst, int context_index) {
-  __ LoadP(dst, ContextOperand(cp, context_index), r0);
+  __ LoadP(dst, ContextMemOperand(cp, context_index), r0);
 }
 
 
@@ -4812,14 +4807,12 @@ void FullCodeGenerator::PushFunctionArgumentForContextAllocation() {
     // Contexts nested in the native context have a canonical empty function
     // as their closure, not the anonymous closure containing the global
     // code.
-    __ LoadP(ip, GlobalObjectOperand());
-    __ LoadP(ip, FieldMemOperand(ip, JSGlobalObject::kNativeContextOffset));
-    __ LoadP(ip, ContextOperand(ip, Context::CLOSURE_INDEX));
+    __ LoadNativeContextSlot(Context::CLOSURE_INDEX, ip);
   } else if (closure_scope->is_eval_scope()) {
     // Contexts created by a call to eval have the same closure as the
     // context calling eval, not the anonymous closure containing the eval
     // code.  Fetch it from the context.
-    __ LoadP(ip, ContextOperand(cp, Context::CLOSURE_INDEX));
+    __ LoadP(ip, ContextMemOperand(cp, Context::CLOSURE_INDEX));
   } else {
     DCHECK(closure_scope->is_function_scope());
     __ LoadP(ip, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
