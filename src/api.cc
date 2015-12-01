@@ -3473,7 +3473,8 @@ Maybe<bool> v8::Object::CreateDataProperty(v8::Local<v8::Context> context,
 
   i::LookupIterator it = i::LookupIterator::PropertyOrElement(
       isolate, self, key_obj, i::LookupIterator::OWN);
-  Maybe<bool> result = i::JSReceiver::CreateDataProperty(&it, value_obj);
+  Maybe<bool> result =
+      i::JSReceiver::CreateDataProperty(&it, value_obj, i::Object::DONT_THROW);
   has_pending_exception = result.IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return result;
@@ -3489,7 +3490,8 @@ Maybe<bool> v8::Object::CreateDataProperty(v8::Local<v8::Context> context,
   i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
 
   i::LookupIterator it(isolate, self, index, i::LookupIterator::OWN);
-  Maybe<bool> result = i::JSReceiver::CreateDataProperty(&it, value_obj);
+  Maybe<bool> result =
+      i::JSReceiver::CreateDataProperty(&it, value_obj, i::Object::DONT_THROW);
   has_pending_exception = result.IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return result;

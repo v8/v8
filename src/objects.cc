@@ -3723,6 +3723,8 @@ Maybe<bool> JSObject::SetPropertyWithInterceptor(LookupIterator* it,
   result_internal->VerifyApiCallResultType();
 #endif
   return Just(true);
+  // TODO(neis): In the future, we may want to actually return the interceptor's
+  // result, which then should be a boolean.
 }
 
 
@@ -3764,21 +3766,8 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
                                                           should_throw);
 
       case LookupIterator::JSPROXY:
-        if (it->HolderIsReceiverOrHiddenPrototype()) {
-          return JSProxy::SetPropertyWithHandler(
-              it->GetHolder<JSProxy>(), it->GetReceiver(), it->GetName(), value,
-              should_throw);
-        } else {
-          // TODO(verwaest): Use the MaybeHandle to indicate result.
-          bool has_result = false;
-          Maybe<bool> maybe_result =
-              JSProxy::SetPropertyViaPrototypesWithHandler(
-                  it->GetHolder<JSProxy>(), it->GetReceiver(), it->GetName(),
-                  value, should_throw, &has_result);
-          if (has_result) return maybe_result;
-          done = true;
-        }
-        break;
+        return JSProxy::SetProperty(it->GetHolder<JSProxy>(), it->GetName(),
+                                    value, it->GetReceiver(), language_mode);
 
       case LookupIterator::INTERCEPTOR:
         if (it->HolderIsReceiverOrHiddenPrototype()) {
@@ -3862,6 +3851,7 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it, Handle<Object> value,
                                      StoreFromKeyed store_mode) {
   ShouldThrow should_throw =
       is_sloppy(language_mode) ? DONT_THROW : THROW_ON_ERROR;
+  Isolate* isolate = it->isolate();
 
   bool found = false;
   Maybe<bool> result =
@@ -3874,12 +3864,12 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it, Handle<Object> value,
   if (!it->GetReceiver()->IsJSReceiver()) {
     return WriteToReadOnlyProperty(it, value, should_throw);
   }
+  Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(it->GetReceiver());
 
   LookupIterator::Configuration c = LookupIterator::OWN;
   LookupIterator own_lookup =
-      it->IsElement()
-          ? LookupIterator(it->isolate(), it->GetReceiver(), it->index(), c)
-          : LookupIterator(it->GetReceiver(), it->name(), c);
+      it->IsElement() ? LookupIterator(isolate, receiver, it->index(), c)
+                      : LookupIterator(receiver, it->name(), c);
 
   for (; own_lookup.IsFound(); own_lookup.Next()) {
     switch (own_lookup.state()) {
@@ -3891,7 +3881,8 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it, Handle<Object> value,
         break;
 
       case LookupIterator::INTEGER_INDEXED_EXOTIC:
-        return RedefineIncompatibleProperty(it->isolate(), it->GetName(), value,
+      case LookupIterator::ACCESSOR:
+        return RedefineIncompatibleProperty(isolate, it->GetName(), value,
                                             should_throw);
 
       case LookupIterator::DATA: {
@@ -3902,18 +3893,27 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it, Handle<Object> value,
         return SetDataProperty(&own_lookup, value);
       }
 
-      case LookupIterator::ACCESSOR: {
-        return RedefineIncompatibleProperty(it->isolate(), it->GetName(), value,
-                                            should_throw);
-      }
-
       case LookupIterator::INTERCEPTOR:
       case LookupIterator::JSPROXY: {
-        bool found = false;
-        Maybe<bool> result = SetPropertyInternal(
-            &own_lookup, value, language_mode, store_mode, &found);
-        if (found) return result;
-        break;
+        PropertyDescriptor desc;
+        bool owned = JSReceiver::GetOwnPropertyDescriptor(&own_lookup, &desc);
+        if (isolate->has_pending_exception()) return Nothing<bool>();
+        if (!owned) {
+          return JSReceiver::CreateDataProperty(&own_lookup, value,
+                                                should_throw);
+        }
+        if (PropertyDescriptor::IsAccessorDescriptor(&desc) ||
+            !desc.writable()) {
+          return RedefineIncompatibleProperty(isolate, it->GetName(), value,
+                                              should_throw);
+        }
+
+        PropertyDescriptor value_desc;
+        value_desc.set_value(value);
+        bool result = JSReceiver::DefineOwnProperty(
+            isolate, receiver, it->GetName(), &value_desc, should_throw);
+        if (isolate->has_pending_exception()) return Nothing<bool>();
+        return Just(result);
       }
 
       case LookupIterator::NOT_FOUND:
@@ -4579,110 +4579,65 @@ Maybe<bool> JSProxy::HasProperty(Isolate* isolate, Handle<JSProxy> proxy,
 }
 
 
-Maybe<bool> JSProxy::SetPropertyWithHandler(Handle<JSProxy> proxy,
-                                            Handle<Object> receiver,
-                                            Handle<Name> name,
-                                            Handle<Object> value,
-                                            ShouldThrow should_throw) {
+Maybe<bool> JSProxy::SetProperty(Handle<JSProxy> proxy, Handle<Name> name,
+                                 Handle<Object> value, Handle<Object> receiver,
+                                 LanguageMode language_mode) {
   Isolate* isolate = proxy->GetIsolate();
+  Factory* factory = isolate->factory();
+  Handle<String> trap_name = factory->set_string();
+  ShouldThrow should_throw =
+      is_sloppy(language_mode) ? DONT_THROW : THROW_ON_ERROR;
 
-  // TODO(rossberg): adjust once there is a story for symbols vs proxies.
-  if (name->IsSymbol()) return Just(true);
+  if (proxy->IsRevoked()) {
+    isolate->Throw(
+        *factory->NewTypeError(MessageTemplate::kProxyRevoked, trap_name));
+    return Nothing<bool>();
+  }
 
-  Handle<Object> args[] = { receiver, name, value };
-  RETURN_ON_EXCEPTION_VALUE(isolate,
-                            CallTrap(proxy, "set", isolate->derived_set_trap(),
-                                     arraysize(args), args),
-                            Nothing<bool>());
+  Handle<JSReceiver> target(JSReceiver::cast(proxy->target()), isolate);
+  Handle<JSReceiver> handler(JSReceiver::cast(proxy->handler()), isolate);
 
+  Handle<Object> trap;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, trap, GetTrap(proxy, trap_name),
+                                   Nothing<bool>());
+  if (trap->IsUndefined()) {
+    LookupIterator it =
+        LookupIterator::PropertyOrElement(isolate, receiver, name, target);
+    return Object::SetSuperProperty(&it, value, language_mode,
+                                    Object::MAY_BE_STORE_FROM_KEYED);
+  }
+
+  Handle<Object> trap_result;
+  Handle<Object> args[] = {target, name, value, receiver};
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, trap_result,
+      Execution::Call(isolate, trap, handler, arraysize(args), args),
+      Nothing<bool>());
+  if (!trap_result->BooleanValue()) {
+    RETURN_FAILURE(isolate, should_throw,
+                   NewTypeError(MessageTemplate::kProxyHandlerReturned, handler,
+                                factory->false_string(), trap_name));
+  }
+
+  // Enforce the invariant.
+  PropertyDescriptor target_desc;
+  bool owned =
+      JSReceiver::GetOwnPropertyDescriptor(isolate, target, name, &target_desc);
+  if (isolate->has_pending_exception()) return Nothing<bool>();
+  if (owned) {
+    bool inconsistent =
+        (PropertyDescriptor::IsDataDescriptor(&target_desc) &&
+         !target_desc.configurable() && !target_desc.writable() &&
+         !value->SameValue(*target_desc.value())) ||
+        (PropertyDescriptor::IsAccessorDescriptor(&target_desc) &&
+         !target_desc.configurable() && target_desc.set()->IsUndefined());
+    if (inconsistent) {
+      isolate->Throw(*isolate->factory()->NewTypeError(
+          MessageTemplate::kProxyTrapViolatesInvariant, trap_name));
+      return Nothing<bool>();
+    }
+  }
   return Just(true);
-  // TODO(neis): This needs to be made spec-conformant by looking at the
-  // trap's result.
-}
-
-
-Maybe<bool> JSProxy::SetPropertyViaPrototypesWithHandler(
-    Handle<JSProxy> proxy, Handle<Object> receiver, Handle<Name> name,
-    Handle<Object> value, ShouldThrow should_throw, bool* done) {
-  Isolate* isolate = proxy->GetIsolate();
-  Handle<Object> handler(proxy->handler(), isolate);  // Trap might morph proxy.
-
-  // TODO(rossberg): adjust once there is a story for symbols vs proxies.
-  if (name->IsSymbol()) {
-    *done = false;  // Return value will be ignored.
-    return Nothing<bool>();
-  }
-
-  *done = true;  // except where redefined...
-  Handle<Object> args[] = { name };
-  Handle<Object> result;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, result, CallTrap(proxy, "getPropertyDescriptor",
-                                Handle<Object>(), arraysize(args), args),
-      Nothing<bool>());
-
-  if (result->IsUndefined()) {
-    *done = false;  // Return value will be ignored.
-    return Nothing<bool>();
-  }
-
-  // Emulate [[GetProperty]] semantics for proxies.
-  Handle<Object> argv[] = { result };
-  Handle<Object> desc;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, desc,
-      Execution::Call(isolate, isolate->to_complete_property_descriptor(),
-                      result, arraysize(argv), argv),
-      Nothing<bool>());
-
-  // [[GetProperty]] requires to check that all properties are configurable.
-  Handle<String> configurable_name =
-      isolate->factory()->InternalizeOneByteString(
-          STATIC_CHAR_VECTOR("configurable_"));
-  Handle<Object> configurable =
-      Object::GetProperty(desc, configurable_name).ToHandleChecked();
-  DCHECK(configurable->IsBoolean());
-  if (configurable->IsFalse()) {
-    isolate->Throw(*isolate->factory()->NewTypeError(
-        MessageTemplate::kProxyPropNotConfigurable, handler, name,
-        isolate->factory()->NewStringFromAsciiChecked(
-            "getPropertyDescriptor")));
-    return Nothing<bool>();
-  }
-  DCHECK(configurable->IsTrue());
-
-  // Check for DataDescriptor.
-  Handle<String> hasWritable_name =
-      isolate->factory()->InternalizeOneByteString(
-          STATIC_CHAR_VECTOR("hasWritable_"));
-  Handle<Object> hasWritable =
-      Object::GetProperty(desc, hasWritable_name).ToHandleChecked();
-  DCHECK(hasWritable->IsBoolean());
-  if (hasWritable->IsTrue()) {
-    Handle<String> writable_name = isolate->factory()->InternalizeOneByteString(
-        STATIC_CHAR_VECTOR("writable_"));
-    Handle<Object> writable =
-        Object::GetProperty(desc, writable_name).ToHandleChecked();
-    DCHECK(writable->IsBoolean());
-    *done = writable->IsFalse();
-    if (!*done) return Nothing<bool>();  // Return value will be ignored.
-    return WriteToReadOnlyProperty(isolate, receiver, name, value,
-                                   should_throw);
-  }
-
-  // We have an AccessorDescriptor.
-  Handle<String> set_name =
-      isolate->factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("set_"));
-  Handle<Object> setter = Object::GetProperty(desc, set_name).ToHandleChecked();
-  if (!setter->IsUndefined()) {
-    // TODO(rossberg): nicer would be to cast to some JSCallable here...
-    return SetPropertyWithDefinedSetter(
-        receiver, Handle<JSReceiver>::cast(setter), value, should_throw);
-  }
-
-  RETURN_FAILURE(
-      isolate, should_throw,
-      NewTypeError(MessageTemplate::kNoSetterInCallback, name, proxy));
 }
 
 
@@ -5076,28 +5031,6 @@ MaybeHandle<Object> JSObject::DefinePropertyOrElementIgnoreAttributes(
   LookupIterator it = LookupIterator::PropertyOrElement(isolate, object, name,
                                                         LookupIterator::OWN);
   return DefineOwnPropertyIgnoreAttributes(&it, value, attributes, handling);
-}
-
-
-Maybe<bool> JSObject::CreateDataProperty(LookupIterator* it,
-                                         Handle<Object> value) {
-  DCHECK(it->GetReceiver()->IsJSObject());
-  Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(it);
-  if (maybe.IsNothing()) return Nothing<bool>();
-
-  if (it->IsFound()) {
-    if (!it->IsConfigurable()) return Just(false);
-  } else {
-    if (!JSObject::IsExtensible(Handle<JSObject>::cast(it->GetReceiver())))
-      return Just(false);
-  }
-
-  RETURN_ON_EXCEPTION_VALUE(
-      it->isolate(),
-      DefineOwnPropertyIgnoreAttributes(it, value, NONE, DONT_FORCE_FIELD),
-      Nothing<bool>());
-
-  return Just(true);
 }
 
 
@@ -6557,10 +6490,48 @@ bool JSReceiver::ValidateAndApplyPropertyDescriptor(
 
 // static
 Maybe<bool> JSReceiver::CreateDataProperty(LookupIterator* it,
-                                           Handle<Object> value) {
-  // TODO(rossberg): Support proxies.
-  if (!it->GetReceiver()->IsJSObject()) return Nothing<bool>();
-  return JSObject::CreateDataProperty(it, value);
+                                           Handle<Object> value,
+                                           ShouldThrow should_throw) {
+  DCHECK(!it->check_prototype_chain());
+  Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(it->GetReceiver());
+  Isolate* isolate = receiver->GetIsolate();
+
+  if (receiver->IsJSObject()) {
+    return JSObject::CreateDataProperty(it, value);  // Shortcut.
+  }
+
+  PropertyDescriptor new_desc;
+  new_desc.set_value(value);
+  new_desc.set_writable(true);
+  new_desc.set_enumerable(true);
+  new_desc.set_configurable(true);
+
+  bool result = JSReceiver::DefineOwnProperty(isolate, receiver, it->GetName(),
+                                              &new_desc, should_throw);
+  if (isolate->has_pending_exception()) return Nothing<bool>();
+  return Just(result);
+}
+
+
+Maybe<bool> JSObject::CreateDataProperty(LookupIterator* it,
+                                         Handle<Object> value) {
+  DCHECK(it->GetReceiver()->IsJSObject());
+  Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(it);
+  if (maybe.IsNothing()) return Nothing<bool>();
+
+  if (it->IsFound()) {
+    if (!it->IsConfigurable()) return Just(false);
+  } else {
+    if (!JSObject::IsExtensible(Handle<JSObject>::cast(it->GetReceiver())))
+      return Just(false);
+  }
+
+  RETURN_ON_EXCEPTION_VALUE(
+      it->isolate(),
+      DefineOwnPropertyIgnoreAttributes(it, value, NONE, DONT_FORCE_FIELD),
+      Nothing<bool>());
+
+  return Just(true);
 }
 
 
@@ -7359,7 +7330,7 @@ Maybe<bool> JSProxy::IsExtensible(Handle<JSProxy> proxy) {
   MAYBE_RETURN(target_result, Nothing<bool>());
   if (target_result.FromJust() != trap_result->BooleanValue()) {
     isolate->Throw(*factory->NewTypeError(
-        MessageTemplate::kProxyIsExtensibleViolatesInvariant));
+        MessageTemplate::kProxyTrapViolatesInvariant, trap_name));
     return Nothing<bool>();
   }
   return target_result;

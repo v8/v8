@@ -109,7 +109,6 @@ enum BindingFlags {
   V(ARRAY_VALUES_ITERATOR_INDEX, JSFunction, array_values_iterator)           \
   V(CREATE_DATE_FUN_INDEX, JSFunction, create_date_fun)                       \
   V(DERIVED_GET_TRAP_INDEX, JSFunction, derived_get_trap)                     \
-  V(DERIVED_SET_TRAP_INDEX, JSFunction, derived_set_trap)                     \
   V(ERROR_FUNCTION_INDEX, JSFunction, error_function)                         \
   V(EVAL_ERROR_FUNCTION_INDEX, JSFunction, eval_error_function)               \
   V(GET_STACK_TRACE_LINE_INDEX, JSFunction, get_stack_trace_line_fun)         \

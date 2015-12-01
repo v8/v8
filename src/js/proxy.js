@@ -193,7 +193,6 @@ utils.Export(function(to) {
 
 %InstallToContext([
   "derived_get_trap", DerivedGetTrap,
-  "derived_set_trap", DerivedSetTrap,
   "proxy_enumerate", ProxyEnumerate,
 ]);
 

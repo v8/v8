@@ -206,6 +206,10 @@ class LookupIterator final BASE_EMBEDDED {
 
   bool HolderIsReceiverOrHiddenPrototype() const;
 
+  bool check_prototype_chain() const {
+    return (configuration_ & kPrototypeChain) != 0;
+  }
+
   /* ACCESS_CHECK */
   bool HasAccess() const;
 
@@ -282,9 +286,6 @@ class LookupIterator final BASE_EMBEDDED {
   bool check_hidden() const { return (configuration_ & kHidden) != 0; }
   bool check_interceptor() const {
     return (configuration_ & kInterceptor) != 0;
-  }
-  bool check_prototype_chain() const {
-    return (configuration_ & kPrototypeChain) != 0;
   }
   int descriptor_number() const {
     DCHECK(has_property_);

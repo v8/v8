@@ -1832,9 +1832,9 @@ class JSReceiver: public HeapObject {
                                 Handle<Object> key, PropertyDescriptor* desc,
                                 ShouldThrow should_throw);
 
-  // "virtual" dispatcher to the correct [[CreateDataProperty]] implementation.
-  MUST_USE_RESULT static Maybe<bool> CreateDataProperty(LookupIterator* it,
-                                                        Handle<Object> value);
+  // ES6 7.3.4 (when passed DONT_THROW)
+  MUST_USE_RESULT static Maybe<bool> CreateDataProperty(
+      LookupIterator* it, Handle<Object> value, ShouldThrow should_throw);
 
   // ES6 9.1.6.1
   static bool OrdinaryDefineOwnProperty(Isolate* isolate,
@@ -9540,22 +9540,14 @@ class JSProxy: public JSReceiver {
       Handle<Object> receiver,
       Handle<Name> name);
 
-  // If the handler defines an accessor property with a setter, invoke it.
-  // If it defines an accessor property without a setter, or a data property
-  // that is read-only, fail.  In all these cases set '*done' to true.
-  // Otherwise set it to false, in which case the return value is not
-  // meaningful.
-  MUST_USE_RESULT
-  static Maybe<bool> SetPropertyViaPrototypesWithHandler(
-      Handle<JSProxy> proxy, Handle<Object> receiver, Handle<Name> name,
-      Handle<Object> value, ShouldThrow should_throw, bool* done);
-
   MUST_USE_RESULT static Maybe<PropertyAttributes> GetPropertyAttributes(
       LookupIterator* it);
 
-  MUST_USE_RESULT static Maybe<bool> SetPropertyWithHandler(
-      Handle<JSProxy> proxy, Handle<Object> receiver, Handle<Name> name,
-      Handle<Object> value, ShouldThrow should_throw);
+  MUST_USE_RESULT static Maybe<bool> SetProperty(Handle<JSProxy> proxy,
+                                                 Handle<Name> name,
+                                                 Handle<Object> value,
+                                                 Handle<Object> receiver,
+                                                 LanguageMode language_mode);
 
   // Dispatched behavior.
   DECLARE_PRINTER(JSProxy)
