@@ -2737,6 +2737,8 @@ ParserBase<Traits>::ParsePropertyDefinition(
     return this->EmptyObjectLiteralProperty();
   }
 
+  BindingPatternUnexpectedToken(classifier);
+
   if (is_generator || peek() == Token::LPAREN) {
     // MethodDefinition
     //    PropertyName '(' StrictFormalParameters ')' '{' FunctionBody '}'

@@ -6715,6 +6715,10 @@ TEST(DestructuringNegativeTests) {
         "{ x : 'foo' }",
         "{ x : /foo/ }",
         "{ x : `foo` }",
+        "{ get a() {} }",
+        "{ set a() {} }",
+        "{ method() {} }",
+        "{ *method() {} }",
         NULL};
     // clang-format on
     RunParserSyncTest(context_data, data, kError, NULL, 0, always_flags,
