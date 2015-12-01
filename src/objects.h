@@ -9521,6 +9521,18 @@ class JSProxy: public JSReceiver {
                                                  Handle<JSProxy> proxy,
                                                  Handle<Name> name);
 
+  // ES6 9.5.8
+  MUST_USE_RESULT static MaybeHandle<Object> GetProperty(
+      Isolate* isolate, Handle<JSProxy> proxy, Handle<Name> name,
+      Handle<Object> receiver, LanguageMode language_mode);
+
+  // ES6 9.5.9
+  MUST_USE_RESULT static Maybe<bool> SetProperty(Handle<JSProxy> proxy,
+                                                 Handle<Name> name,
+                                                 Handle<Object> value,
+                                                 Handle<Object> receiver,
+                                                 LanguageMode language_mode);
+
   // ES6 9.5.10 (when passed SLOPPY)
   MUST_USE_RESULT static Maybe<bool> DeletePropertyOrElement(
       Handle<JSProxy> proxy, Handle<Name> name, LanguageMode language_mode);
@@ -9542,12 +9554,6 @@ class JSProxy: public JSReceiver {
 
   MUST_USE_RESULT static Maybe<PropertyAttributes> GetPropertyAttributes(
       LookupIterator* it);
-
-  MUST_USE_RESULT static Maybe<bool> SetProperty(Handle<JSProxy> proxy,
-                                                 Handle<Name> name,
-                                                 Handle<Object> value,
-                                                 Handle<Object> receiver,
-                                                 LanguageMode language_mode);
 
   // Dispatched behavior.
   DECLARE_PRINTER(JSProxy)

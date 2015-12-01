@@ -691,8 +691,9 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it,
       case LookupIterator::TRANSITION:
         UNREACHABLE();
       case LookupIterator::JSPROXY:
-        return JSProxy::GetPropertyWithHandler(
-            it->GetHolder<JSProxy>(), it->GetReceiver(), it->GetName());
+        return JSProxy::GetProperty(it->isolate(), it->GetHolder<JSProxy>(),
+                                    it->GetName(), it->GetReceiver(),
+                                    language_mode);
       case LookupIterator::INTERCEPTOR: {
         bool done;
         Handle<Object> result;
@@ -714,6 +715,79 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it,
     }
   }
   return ReadAbsentProperty(it, language_mode);
+}
+
+
+// static
+MaybeHandle<Object> JSProxy::GetProperty(Isolate* isolate,
+                                         Handle<JSProxy> proxy,
+                                         Handle<Name> name,
+                                         Handle<Object> receiver,
+                                         LanguageMode language_mode) {
+  Handle<Name> trap_name = isolate->factory()->get_string();
+  // 1. Assert: IsPropertyKey(P) is true.
+  // 2. Let handler be the value of the [[ProxyHandler]] internal slot of O.
+  Handle<Object> handler(proxy->handler(), isolate);
+  // 3. If handler is null, throw a TypeError exception.
+  if (proxy->IsRevoked()) {
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError(MessageTemplate::kProxyRevoked, trap_name),
+                    Object);
+  }
+  // 4. Assert: Type(handler) is Object.
+  DCHECK(handler->IsJSReceiver());
+  DCHECK(proxy->target()->IsJSReceiver());
+  // 5. Let target be the value of the [[ProxyTarget]] internal slot of O.
+  Handle<JSReceiver> target(JSReceiver::cast(proxy->target()), isolate);
+  // 6. Let trap be ? GetMethod(handler, "get").
+  Handle<Object> trap;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, trap,
+      Object::GetMethod(Handle<JSReceiver>::cast(handler), trap_name), Object);
+  // 7. If trap is undefined, then
+  if (trap->IsUndefined()) {
+    // 7.a Return target.[[Get]](P, Receiver).
+    LookupIterator it =
+        LookupIterator::PropertyOrElement(isolate, receiver, name, target);
+    return Object::GetProperty(&it, language_mode);
+  }
+  // 8. Let trapResult be ? Call(trap, handler, «target, P, Receiver»).
+  Handle<Object> trap_result;
+  Handle<Object> args[] = {target, name, receiver};
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, trap_result,
+      Execution::Call(isolate, trap, handler, arraysize(args), args), Object);
+  // 9. Let targetDesc be ? target.[[GetOwnProperty]](P).
+  PropertyDescriptor target_desc;
+  bool target_found =
+      JSReceiver::GetOwnPropertyDescriptor(isolate, target, name, &target_desc);
+  if (isolate->has_pending_exception()) return MaybeHandle<Object>();
+  // 10. If targetDesc is not undefined, then
+  if (target_found) {
+    // 10.a. If IsDataDescriptor(targetDesc) and targetDesc.[[Configurable]] is
+    //       false and targetDesc.[[Writable]] is false, then
+    // 10.a.i. If SameValue(trapResult, targetDesc.[[Value]]) is false,
+    //        throw a TypeError exception.
+    bool inconsistent = PropertyDescriptor::IsDataDescriptor(&target_desc) &&
+                        !target_desc.configurable() &&
+                        !target_desc.writable() &&
+                        !trap_result->SameValue(*target_desc.value());
+    // 10.b. If IsAccessorDescriptor(targetDesc) and targetDesc.[[Configurable]]
+    //       is false and targetDesc.[[Get]] is undefined, then
+    // 10.b.i. If trapResult is not undefined, throw a TypeError exception.
+    inconsistent =
+        inconsistent ||
+        (PropertyDescriptor::IsAccessorDescriptor(&target_desc) &&
+         !target_desc.configurable() && target_desc.get()->IsUndefined());
+    if (inconsistent) {
+      THROW_NEW_ERROR(
+          isolate,
+          NewTypeError(MessageTemplate::kProxyTrapViolatesInvariant, trap_name),
+          Object);
+    }
+  }
+  // 11. Return trap_result
+  return trap_result;
 }
 
 
@@ -916,20 +990,6 @@ bool JSProxy::IsRevoked() {
   DCHECK(target()->IsJSReceiver());
   DCHECK(handler()->IsJSReceiver());
   return false;
-}
-
-
-MaybeHandle<Object> JSProxy::GetPropertyWithHandler(Handle<JSProxy> proxy,
-                                                    Handle<Object> receiver,
-                                                    Handle<Name> name) {
-  Isolate* isolate = proxy->GetIsolate();
-
-  // TODO(rossberg): adjust once there is a story for symbols vs proxies.
-  if (name->IsSymbol()) return isolate->factory()->undefined_value();
-
-  Handle<Object> args[] = { receiver, name };
-  return CallTrap(
-      proxy, "get",  isolate->derived_get_trap(), arraysize(args), args);
 }
 
 

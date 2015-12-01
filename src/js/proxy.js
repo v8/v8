@@ -71,18 +71,6 @@ function DelegateCallAndConstruct(callTrap, constructTrap) {
   }
 }
 
-function DerivedGetTrap(receiver, name) {
-  var desc = this.getPropertyDescriptor(name)
-  if (IS_UNDEFINED(desc)) { return desc }
-  if ('value' in desc) {
-    return desc.value
-  } else {
-    if (IS_UNDEFINED(desc.get)) { return desc.get }
-    // The proposal says: desc.get.call(receiver)
-    return %_Call(desc.get, receiver)
-  }
-}
-
 function DerivedSetTrap(receiver, name, val) {
   var desc = this.getOwnPropertyDescriptor(name)
   if (desc) {
@@ -192,7 +180,6 @@ utils.Export(function(to) {
 });
 
 %InstallToContext([
-  "derived_get_trap", DerivedGetTrap,
   "proxy_enumerate", ProxyEnumerate,
 ]);
 

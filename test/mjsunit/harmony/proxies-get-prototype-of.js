@@ -26,14 +26,13 @@ handler.getPrototypeOf = function() {
 assertSame(Object.getPrototypeOf(proxy), target_prototype);
 
 // Test with proxy target:
-var proxy2 = new Proxy(proxy, {});
+var proxy2 = new Proxy(proxy, {'handler':1});
 assertSame(Object.getPrototypeOf(proxy2), target_prototype);
 
 // Test with Proxy handler:
-// TODO(neis,cbruni): Uncomment once the get trap works again.
-// var proxy3_prototype = {};
-// var handler_proxy = new Proxy({
-//   getPrototypeOf: function() { return proxy3_prototype }
-// }, {});
-// var proxy3 = new Proxy(target, handler_proxy);
-// assertSame(Object.getPrototypeOf(proxy3), target_prototype);
+var proxy3_prototype = {'proto3':true};
+var handler_proxy = new Proxy({
+  getPrototypeOf: function() { return proxy3_prototype }
+}, {});
+var proxy3 = new Proxy(target, handler_proxy);
+assertSame(Object.getPrototypeOf(proxy3), proxy3_prototype);
