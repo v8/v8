@@ -3149,8 +3149,6 @@ Genesis::Genesis(Isolate* isolate,
     InitializeGlobal(global_object, empty_function, context_type);
     InitializeNormalizedMapCaches();
 
-    // TODO(yangguo): Find a way to prevent accidentially installing properties
-    // on the global object.
     if (!InstallNatives(context_type)) return;
 
     MakeFunctionInstancePrototypeWritable();

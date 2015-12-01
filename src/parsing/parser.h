@@ -151,6 +151,10 @@ class ParseInfo {
     context_ = Handle<Context>(*context_);
   }
 
+#ifdef DEBUG
+  bool script_is_native() { return script_->type() == Script::TYPE_NATIVE; }
+#endif  // DEBUG
+
  private:
   // Various configuration flags for parsing.
   enum Flag {

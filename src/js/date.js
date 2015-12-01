@@ -70,12 +70,6 @@ function MakeTime(hour, min, sec, ms) {
 }
 
 
-// ECMA 262 - 15.9.1.12
-function TimeInYear(year) {
-  return DaysInYear(year) * msPerDay;
-}
-
-
 // Compute number of days given a year, month, date.
 // Note that month and date can lie outside the normal range.
 //   For example:

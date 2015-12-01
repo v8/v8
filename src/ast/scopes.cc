@@ -308,14 +308,10 @@ bool Scope::Analyze(ParseInfo* info) {
   }
 
 #ifdef DEBUG
-  bool native = info->isolate()->bootstrapper()->IsActive();
-  if (!info->shared_info().is_null()) {
-    Object* script = info->shared_info()->script();
-    native = script->IsScript() &&
-             Script::cast(script)->type() == Script::TYPE_NATIVE;
+  if (info->script_is_native() ? FLAG_print_builtin_scopes
+                               : FLAG_print_scopes) {
+    scope->Print();
   }
-
-  if (native ? FLAG_print_builtin_scopes : FLAG_print_scopes) scope->Print();
 #endif
 
   info->set_scope(scope);
@@ -1161,6 +1157,22 @@ bool Scope::ResolveVariable(ParseInfo* info, VariableProxy* proxy,
   // Otherwise, try to resolve the variable.
   BindingKind binding_kind;
   Variable* var = LookupRecursive(proxy, &binding_kind, factory);
+
+#ifdef DEBUG
+  if (info->script_is_native()) {
+    // To avoid polluting the global object in native scripts
+    //  - Variables must not be allocated to the global scope.
+    CHECK_NOT_NULL(outer_scope());
+    //  - Variables must be bound locally or unallocated.
+    CHECK_EQ(BOUND, binding_kind);
+    VariableLocation location = var->location();
+    CHECK(location == VariableLocation::LOCAL ||
+          location == VariableLocation::CONTEXT ||
+          location == VariableLocation::PARAMETER ||
+          location == VariableLocation::UNALLOCATED);
+  }
+#endif
+
   switch (binding_kind) {
     case BOUND:
       // We found a variable binding.
