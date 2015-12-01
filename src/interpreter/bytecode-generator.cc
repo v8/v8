@@ -1328,6 +1328,8 @@ void BytecodeGenerator::VisitVariableLoad(Variable* variable,
         // Walk the context chain to find the context at the given depth.
         // TODO(rmcilroy): Perform this work in a bytecode handler once we have
         // a generic mechanism for performing jumps in interpreter.cc.
+        // TODO(mythria): Also update bytecode graph builder with correct depth
+        // when this changes.
         builder()
             ->LoadAccumulatorWithRegister(execution_context()->reg())
             .StoreAccumulatorInRegister(context_reg);
@@ -1404,6 +1406,8 @@ void BytecodeGenerator::VisitVariableAssignment(Variable* variable,
         // Walk the context chain to find the context at the given depth.
         // TODO(rmcilroy): Perform this work in a bytecode handler once we have
         // a generic mechanism for performing jumps in interpreter.cc.
+        // TODO(mythria): Also update bytecode graph builder with correct depth
+        // when this changes.
         builder()
             ->StoreAccumulatorInRegister(value_temp)
             .LoadAccumulatorWithRegister(execution_context()->reg())

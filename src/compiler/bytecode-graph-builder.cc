@@ -7,6 +7,7 @@
 #include "src/compiler/linkage.h"
 #include "src/compiler/operator-properties.h"
 #include "src/interpreter/bytecode-array-iterator.h"
+#include "src/interpreter/bytecodes.h"
 
 namespace v8 {
 namespace internal {
@@ -73,8 +74,16 @@ void BytecodeGraphBuilder::Environment::BindRegister(
 
 Node* BytecodeGraphBuilder::Environment::LookupRegister(
     interpreter::Register the_register) const {
-  int values_index = RegisterToValuesIndex(the_register);
-  return values()->at(values_index);
+  if (the_register.is_function_context()) {
+    return builder()->GetFunctionContext();
+  } else if (the_register.is_function_closure()) {
+    return builder()->GetFunctionClosure();
+  } else if (the_register.is_new_target()) {
+    return builder()->GetNewTarget();
+  } else {
+    int values_index = RegisterToValuesIndex(the_register);
+    return values()->at(values_index);
+  }
 }
 
 
@@ -108,6 +117,18 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(Zone* local_zone,
       input_buffer_(nullptr),
       exit_controls_(local_zone) {
   bytecode_array_ = handle(info()->shared_info()->bytecode_array());
+}
+
+
+Node* BytecodeGraphBuilder::GetNewTarget() {
+  if (!new_target_.is_set()) {
+    int params = bytecode_array()->parameter_count();
+    int index = Linkage::GetJSCallNewTargetParamIndex(params);
+    const Operator* op = common()->Parameter(index, "%new.target");
+    Node* node = NewNode(op, graph()->start());
+    new_target_.set(node);
+  }
+  return new_target_.get();
 }
 
 
@@ -204,13 +225,7 @@ bool BytecodeGraphBuilder::CreateGraph(bool stack_check) {
                   GetFunctionContext());
   set_environment(&env);
 
-  // Build function context only if there are context allocated variables.
-  if (info()->num_heap_slots() > 0) {
-    UNIMPLEMENTED();  // TODO(oth): Write ast-graph-builder equivalent.
-  } else {
-    // Simply use the outer function context in building the graph.
-    CreateGraphBody(stack_check);
-  }
+  CreateGraphBody(stack_check);
 
   // Finish the basic structure of the graph.
   DCHECK_NE(0u, exit_controls_.size());
@@ -443,13 +458,32 @@ void BytecodeGraphBuilder::VisitStaGlobalStrictWide(
 
 void BytecodeGraphBuilder::VisitLdaContextSlot(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  // TODO(mythria): LoadContextSlots are unrolled by the required depth when
+  // generating bytecode. Hence the value of depth is always 0. Update this
+  // code, when the implementation changes.
+  // TODO(mythria): immutable flag is also set to false. This information is not
+  // available in bytecode array. update this code when the implementation
+  // changes.
+  const Operator* op =
+      javascript()->LoadContext(0, iterator.GetIndexOperand(1), false);
+  Node* context = environment()->LookupRegister(iterator.GetRegisterOperand(0));
+  Node* node = NewNode(op, context);
+  environment()->BindAccumulator(node);
 }
 
 
 void BytecodeGraphBuilder::VisitStaContextSlot(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  // TODO(mythria): LoadContextSlots are unrolled by the required depth when
+  // generating bytecode. Hence the value of depth is always 0. Update this
+  // code, when the implementation changes.
+  const Operator* op =
+      javascript()->StoreContext(0, iterator.GetIndexOperand(1));
+  Node* context = environment()->LookupRegister(iterator.GetRegisterOperand(0));
+  Node* value = environment()->LookupAccumulator();
+  Node* node = NewNode(op, context, value);
+  CHECK(node != nullptr);
+  environment()->BindAccumulator(value);
 }
 
 
@@ -624,13 +658,16 @@ void BytecodeGraphBuilder::VisitKeyedStoreICStrictWide(
 
 void BytecodeGraphBuilder::VisitPushContext(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  Node* context = environment()->LookupAccumulator();
+  environment()->BindRegister(iterator.GetRegisterOperand(0), context);
+  environment()->SetContext(context);
 }
 
 
 void BytecodeGraphBuilder::VisitPopContext(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  Node* context = environment()->LookupRegister(iterator.GetRegisterOperand(0));
+  environment()->SetContext(context);
 }
 
 

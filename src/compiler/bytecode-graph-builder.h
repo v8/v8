@@ -40,6 +40,9 @@ class BytecodeGraphBuilder {
   // Get or create the node that represents the outer function context.
   Node* GetFunctionContext();
 
+  // Get or create the node that represents the incoming new target value.
+  Node* GetNewTarget();
+
   // Builder for accessing a (potentially immutable) object field.
   Node* BuildLoadObjectField(Node* object, int offset);
   Node* BuildLoadImmutableObjectField(Node* object, int offset);
@@ -158,6 +161,7 @@ class BytecodeGraphBuilder {
   // Nodes representing values in the activation record.
   SetOncePointer<Node> function_context_;
   SetOncePointer<Node> function_closure_;
+  SetOncePointer<Node> new_target_;
 
   // Optimization to cache loaded feedback vector.
   SetOncePointer<Node> feedback_vector_;
@@ -199,6 +203,7 @@ class BytecodeGraphBuilder::Environment : public ZoneObject {
   }
 
   Node* Context() const { return context_; }
+  void SetContext(Node* new_context) { context_ = new_context; }
 
  private:
   int RegisterToValuesIndex(interpreter::Register the_register) const;

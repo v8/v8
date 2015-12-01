@@ -67,7 +67,8 @@ class BytecodeGraphCallable {
 
 class BytecodeGraphTester {
  public:
-  BytecodeGraphTester(Isolate* isolate, Zone* zone, const char* script)
+  BytecodeGraphTester(Isolate* isolate, Zone* zone, const char* script,
+                      const char* filter = kFunctionName)
       : isolate_(isolate), zone_(zone), script_(script) {
     i::FLAG_ignition = true;
     i::FLAG_always_opt = false;
@@ -75,7 +76,7 @@ class BytecodeGraphTester {
     // Set ignition filter flag via SetFlagsFromString to avoid double-free
     // (or potential leak with StrDup() based on ownership confusion).
     ScopedVector<char> ignition_filter(64);
-    SNPrintF(ignition_filter, "--ignition-filter=%s", kFunctionName);
+    SNPrintF(ignition_filter, "--ignition-filter=%s", filter);
     FlagList::SetFlagsFromString(ignition_filter.start(),
                                  ignition_filter.length());
     // Ensure handler table is generated.
@@ -84,8 +85,9 @@ class BytecodeGraphTester {
   virtual ~BytecodeGraphTester() {}
 
   template <class... A>
-  BytecodeGraphCallable<A...> GetCallable() {
-    return BytecodeGraphCallable<A...>(isolate_, GetFunction());
+  BytecodeGraphCallable<A...> GetCallable(
+      const char* functionName = kFunctionName) {
+    return BytecodeGraphCallable<A...>(isolate_, GetFunction(functionName));
   }
 
   Local<Message> CheckThrowsReturnMessage() {
@@ -109,11 +111,11 @@ class BytecodeGraphTester {
   Zone* zone_;
   const char* script_;
 
-  Handle<JSFunction> GetFunction() {
+  Handle<JSFunction> GetFunction(const char* functionName) {
     CompileRun(script_);
     Local<Function> api_function = Local<Function>::Cast(
         CcTest::global()
-            ->Get(CcTest::isolate()->GetCurrentContext(), v8_str(kFunctionName))
+            ->Get(CcTest::isolate()->GetCurrentContext(), v8_str(functionName))
             .ToLocalChecked());
     Handle<JSFunction> function =
         Handle<JSFunction>::cast(v8::Utils::OpenHandle(*api_function));
@@ -999,6 +1001,133 @@ TEST(BytecodeGraphBuilderThrow) {
     CHECK(
         message->Equals(CcTest::isolate()->GetCurrentContext(), expected_string)
             .FromJust());
+  }
+}
+
+
+TEST(BytecodeGraphBuilderContext) {
+  HandleAndZoneScope scope;
+  Isolate* isolate = scope.main_isolate();
+  Zone* zone = scope.main_zone();
+  Factory* factory = isolate->factory();
+
+  ExpectedSnippet<0> snippets[] = {
+      {"var x = 'outer';"
+       "function f() {"
+       " 'use strict';"
+       " {"
+       "   let x = 'inner';"
+       "   (function() {x});"
+       " }"
+       "return(x);"
+       "}"
+       "f();",
+       {factory->NewStringFromStaticChars("outer")}},
+      {"var x = 'outer';"
+       "function f() {"
+       " 'use strict';"
+       " {"
+       "   let x = 'inner ';"
+       "   var innerFunc = function() {return x};"
+       " }"
+       "return(innerFunc() + x);"
+       "}"
+       "f();",
+       {factory->NewStringFromStaticChars("inner outer")}},
+      {"var x = 'outer';"
+       "function f() {"
+       " 'use strict';"
+       " {"
+       "   let x = 'inner ';"
+       "   var innerFunc = function() {return x;};"
+       "   {"
+       "     let x = 'innermost ';"
+       "     var innerMostFunc = function() {return x + innerFunc();};"
+       "   }"
+       "   x = 'inner_changed ';"
+       " }"
+       " return(innerMostFunc() + x);"
+       "}"
+       "f();",
+       {factory->NewStringFromStaticChars("innermost inner_changed outer")}},
+  };
+
+  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
+  for (size_t i = 0; i < num_snippets; i++) {
+    ScopedVector<char> script(1024);
+    SNPrintF(script, "%s", snippets[i].code_snippet);
+
+    BytecodeGraphTester tester(isolate, zone, script.start(), "f");
+    auto callable = tester.GetCallable<>("f");
+    Handle<Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*snippets[i].return_value()));
+  }
+}
+
+
+TEST(BytecodeGraphBuilderLoadContext) {
+  HandleAndZoneScope scope;
+  Isolate* isolate = scope.main_isolate();
+  Zone* zone = scope.main_zone();
+  Factory* factory = isolate->factory();
+
+  ExpectedSnippet<1> snippets[] = {
+      {"function Outer() {"
+       "  var outerVar = 2;"
+       "  function Inner(innerArg) {"
+       "    this.innerFunc = function () {"
+       "     return outerVar * innerArg;"
+       "    };"
+       "  };"
+       "  this.getInnerFunc = function GetInner() {"
+       "     return new Inner(3).innerFunc;"
+       "   }"
+       "}"
+       "var f = new Outer().getInnerFunc();"
+       "f();",
+       {factory->NewNumberFromInt(6), factory->undefined_value()}},
+      {"function Outer() {"
+       "  var outerVar = 2;"
+       "  function Inner(innerArg) {"
+       "    this.innerFunc = function () {"
+       "     outerVar = innerArg; return outerVar;"
+       "    };"
+       "  };"
+       "  this.getInnerFunc = function GetInner() {"
+       "     return new Inner(10).innerFunc;"
+       "   }"
+       "}"
+       "var f = new Outer().getInnerFunc();"
+       "f();",
+       {factory->NewNumberFromInt(10), factory->undefined_value()}},
+      {"function testOuter(outerArg) {"
+       " this.testinnerFunc = function testInner(innerArg) {"
+       "   return innerArg + outerArg;"
+       " }"
+       "}"
+       "var f = new testOuter(10).testinnerFunc;"
+       "f(0);",
+       {factory->NewNumberFromInt(14), factory->NewNumberFromInt(4)}},
+      {"function testOuter(outerArg) {"
+       " var outerVar = outerArg * 2;"
+       " this.testinnerFunc = function testInner(innerArg) {"
+       "   outerVar = outerVar + innerArg; return outerVar;"
+       " }"
+       "}"
+       "var f = new testOuter(10).testinnerFunc;"
+       "f(0);",
+       {factory->NewNumberFromInt(24), factory->NewNumberFromInt(4)}}};
+
+  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
+  for (size_t i = 0; i < num_snippets; i++) {
+    ScopedVector<char> script(1024);
+    SNPrintF(script, "%s", snippets[i].code_snippet);
+
+    BytecodeGraphTester tester(isolate, zone, script.start(), "*");
+    auto callable = tester.GetCallable<Handle<Object>>("f");
+    Handle<Object> return_value =
+        callable(snippets[i].parameter(0)).ToHandleChecked();
+    CHECK(return_value->SameValue(*snippets[i].return_value()));
   }
 }
 
