@@ -5044,7 +5044,8 @@ void HOptimizedGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
     }
 
     // Generate a compare and branch.
-    CHECK_ALIVE(VisitForValue(clause->label()));
+    CHECK_BAILOUT(VisitForValue(clause->label()));
+    if (current_block() == NULL) return Bailout(kUnsupportedSwitchStatement);
     HValue* label_value = Pop();
 
     Type* label_type = clause->label()->bounds().lower;

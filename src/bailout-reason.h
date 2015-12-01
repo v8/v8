@@ -250,6 +250,7 @@ namespace internal {
   V(kUnsupportedPhiUseOfConstVariable,                                         \
     "Unsupported phi use of const variable")                                   \
   V(kUnexpectedReturnFromThrow, "Unexpectedly returned from a throw")          \
+  V(kUnsupportedSwitchStatement, "Unsupported switch statement")               \
   V(kUnsupportedTaggedImmediate, "Unsupported tagged immediate")               \
   V(kVariableResolvedToWithContext, "Variable resolved to with context")       \
   V(kWeShouldNotHaveAnEmptyLexicalContext,                                     \
