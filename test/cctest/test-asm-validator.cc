@@ -1530,7 +1530,7 @@ TEST(InvalidArgumentCount) {
   CHECK_FUNC_ERROR(
       "function bar(x) { return fround(4, 5); }\n"
       "function foo() { bar(); }",
-      "asm: line 39: invalid argument count calling fround\n");
+      "asm: line 39: invalid argument count calling function\n");
 }
 
 

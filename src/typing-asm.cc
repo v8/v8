@@ -38,16 +38,22 @@ namespace internal {
 AsmTyper::AsmTyper(Isolate* isolate, Zone* zone, Script* script,
                    FunctionLiteral* root)
     : zone_(zone),
+      isolate_(isolate),
       script_(script),
       root_(root),
       valid_(true),
+      allow_simd_(false),
       intish_(0),
       stdlib_types_(zone),
       stdlib_heap_types_(zone),
       stdlib_math_types_(zone),
-      global_variable_type_(HashMap::PointersMatch,
-                            ZoneHashMap::kDefaultHashMapCapacity,
-                            ZoneAllocationPolicy(zone)),
+#define V(NAME, Name, name, lane_count, lane_type) \
+  stdlib_simd_##name##_types_(zone),
+      SIMD128_TYPES(V)
+#undef V
+          global_variable_type_(HashMap::PointersMatch,
+                                ZoneHashMap::kDefaultHashMapCapacity,
+                                ZoneAllocationPolicy(zone)),
       local_variable_type_(HashMap::PointersMatch,
                            ZoneHashMap::kDefaultHashMapCapacity,
                            ZoneAllocationPolicy(zone)),
@@ -93,6 +99,10 @@ void AsmTyper::VisitAsmModule(FunctionLiteral* fun) {
       RECURSE(VisitFunctionAnnotation(decl->fun()));
       Variable* var = decl->proxy()->var();
       DCHECK(GetType(var) == NULL);
+      if (property_info_ != NULL) {
+        SetVariableInfo(var, property_info_);
+        property_info_ = NULL;
+      }
       SetType(var, computed_type_);
       DCHECK(GetType(var) != NULL);
     }
@@ -181,6 +191,10 @@ void AsmTyper::VisitFunctionAnnotation(FunctionLiteral* fun) {
     if (var->location() != VariableLocation::PARAMETER || var->index() != i)
       break;
     RECURSE(VisitExpressionAnnotation(expr->value(), var, false));
+    if (property_info_ != NULL) {
+      SetVariableInfo(var, property_info_);
+      property_info_ = NULL;
+    }
     SetType(var, computed_type_);
     type->InitParameter(i, computed_type_);
     good = true;
@@ -197,12 +211,12 @@ void AsmTyper::VisitExpressionAnnotation(Expression* expr, Variable* var,
   BinaryOperation* bin = expr->AsBinaryOperation();
   if (bin != NULL) {
     if (var != NULL) {
-      VariableProxy* left = bin->left()->AsVariableProxy();
-      if (!left) {
-        FAIL(expr, "variable name expected in type annotation");
+      VariableProxy* proxy = bin->left()->AsVariableProxy();
+      if (proxy == NULL) {
+        FAIL(bin->left(), "expected variable for type annotation");
       }
-      if (left->var() != var) {
-        FAIL(left, "variable type annotation references other variable");
+      if (proxy->var() != var) {
+        FAIL(proxy, "annotation source doesn't match destination");
       }
     }
     Literal* right = bin->right()->AsLiteral();
@@ -241,19 +255,28 @@ void AsmTyper::VisitExpressionAnnotation(Expression* expr, Variable* var,
 
   Call* call = expr->AsCall();
   if (call != NULL) {
-    if (call->expression()->IsVariableProxy()) {
-      RECURSE(VisitWithExpectation(
-          call->expression(), Type::Any(zone()),
-          "only fround allowed on expression annotations"));
-      if (!computed_type_->Is(
-              Type::Function(cache_.kAsmFloat, Type::Number(zone()), zone()))) {
-        FAIL(call->expression(),
-             "only fround allowed on expression annotations");
+    VariableProxy* proxy = call->expression()->AsVariableProxy();
+    if (proxy != NULL) {
+      VariableInfo* info = GetVariableInfo(proxy->var(), false);
+      if (!info ||
+          (!info->is_check_function && !info->is_constructor_function)) {
+        if (allow_simd_) {
+          FAIL(call->expression(),
+               "only fround/SIMD.checks allowed on expression annotations");
+        } else {
+          FAIL(call->expression(),
+               "only fround allowed on expression annotations");
+        }
       }
-      if (call->arguments()->length() != 1) {
-        FAIL(call, "invalid argument count calling fround");
+      Type* type = info->type;
+      DCHECK(type->IsFunction());
+      if (info->is_check_function) {
+        DCHECK(type->AsFunction()->Arity() == 1);
       }
-      SetResult(expr, cache_.kAsmFloat);
+      if (call->arguments()->length() != type->AsFunction()->Arity()) {
+        FAIL(call, "invalid argument count calling function");
+      }
+      SetResult(expr, type->AsFunction()->Result());
       return;
     }
   }
@@ -499,10 +522,15 @@ void AsmTyper::VisitConditional(Conditional* expr) {
 
 void AsmTyper::VisitVariableProxy(VariableProxy* expr) {
   Variable* var = expr->var();
-  if (GetType(var) == NULL) {
+  VariableInfo* info = GetVariableInfo(var, false);
+  if (info == NULL || info->type == NULL) {
     FAIL(expr, "unbound variable");
   }
-  Type* type = Type::Intersect(GetType(var), expected_type_, zone());
+  if (property_info_ != NULL) {
+    SetVariableInfo(var, property_info_);
+    property_info_ = NULL;
+  }
+  Type* type = Type::Intersect(info->type, expected_type_, zone());
   if (type->Is(cache_.kAsmInt)) {
     type = cache_.kAsmInt;
   }
@@ -739,35 +767,83 @@ void AsmTyper::VisitHeapAccess(Property* expr, bool assigning,
 }
 
 
+bool AsmTyper::IsStdlibObject(Expression* expr) {
+  VariableProxy* proxy = expr->AsVariableProxy();
+  if (proxy == NULL) {
+    return false;
+  }
+  Variable* var = proxy->var();
+  VariableInfo* info = GetVariableInfo(var, false);
+  if (info) {
+    if (info->is_stdlib_object) return info->is_stdlib_object;
+  }
+  if (var->location() != VariableLocation::PARAMETER || var->index() != 0) {
+    return false;
+  }
+  info = GetVariableInfo(var, true);
+  info->type = Type::Object();
+  info->is_stdlib_object = true;
+  return true;
+}
+
+
+Expression* AsmTyper::GetReceiverOfPropertyAccess(Expression* expr,
+                                                  const char* name) {
+  Property* property = expr->AsProperty();
+  if (property == NULL) {
+    return NULL;
+  }
+  Literal* key = property->key()->AsLiteral();
+  if (key == NULL || !key->IsPropertyName() ||
+      !key->AsPropertyName()->IsUtf8EqualTo(CStrVector(name))) {
+    return NULL;
+  }
+  return property->obj();
+}
+
+
+bool AsmTyper::IsMathObject(Expression* expr) {
+  Expression* obj = GetReceiverOfPropertyAccess(expr, "Math");
+  return obj && IsStdlibObject(obj);
+}
+
+
+bool AsmTyper::IsSIMDObject(Expression* expr) {
+  Expression* obj = GetReceiverOfPropertyAccess(expr, "SIMD");
+  return obj && IsStdlibObject(obj);
+}
+
+
+bool AsmTyper::IsSIMDTypeObject(Expression* expr, const char* name) {
+  Expression* obj = GetReceiverOfPropertyAccess(expr, name);
+  return obj && IsSIMDObject(obj);
+}
+
+
 void AsmTyper::VisitProperty(Property* expr) {
-  // stdlib.Math.x
-  Property* inner_prop = expr->obj()->AsProperty();
-  if (inner_prop != NULL) {
-    // Get property name.
-    Literal* key = expr->key()->AsLiteral();
-    if (key == NULL || !key->IsPropertyName())
-      FAIL(expr, "invalid type annotation on property 2");
-    Handle<String> name = key->AsPropertyName();
-
-    // Check that inner property name is "Math".
-    Literal* math_key = inner_prop->key()->AsLiteral();
-    if (math_key == NULL || !math_key->IsPropertyName() ||
-        !math_key->AsPropertyName()->IsUtf8EqualTo(CStrVector("Math")))
-      FAIL(expr, "invalid type annotation on stdlib (a1)");
-
-    // Check that object is stdlib.
-    VariableProxy* proxy = inner_prop->obj()->AsVariableProxy();
-    if (proxy == NULL) FAIL(expr, "invalid type annotation on stdlib (a2)");
-    Variable* var = proxy->var();
-    if (var->location() != VariableLocation::PARAMETER || var->index() != 0)
-      FAIL(expr, "invalid type annotation on stdlib (a3)");
-
-    // Look up library type.
-    Type* type = LibType(stdlib_math_types_, name);
-    if (type == NULL) FAIL(expr, "unknown standard function 3 ");
-    SetResult(expr, type);
+  if (IsMathObject(expr->obj())) {
+    VisitLibraryAccess(&stdlib_math_types_, expr);
     return;
   }
+#define V(NAME, Name, name, lane_count, lane_type)               \
+  if (IsSIMDTypeObject(expr->obj(), #Name)) {                    \
+    VisitLibraryAccess(&stdlib_simd_##name##_types_, expr);      \
+    return;                                                      \
+  }                                                              \
+  if (IsSIMDTypeObject(expr, #Name)) {                           \
+    VariableInfo* info = stdlib_simd_##name##_constructor_type_; \
+    SetResult(expr, info->type);                                 \
+    property_info_ = info;                                       \
+    return;                                                      \
+  }
+  SIMD128_TYPES(V)
+#undef V
+  if (IsStdlibObject(expr->obj())) {
+    VisitLibraryAccess(&stdlib_types_, expr);
+    return;
+  }
+
+  property_info_ = NULL;
 
   // Only recurse at this point so that we avoid needing
   // stdlib.Math to have a real type.
@@ -779,35 +855,14 @@ void AsmTyper::VisitProperty(Property* expr) {
     return;
   }
 
-  // Get property name.
-  Literal* key = expr->key()->AsLiteral();
-  if (key == NULL || !key->IsPropertyName())
-    FAIL(expr, "invalid type annotation on property 3");
-  Handle<String> name = key->AsPropertyName();
-
   // stdlib.x or foreign.x
   VariableProxy* proxy = expr->obj()->AsVariableProxy();
   if (proxy != NULL) {
     Variable* var = proxy->var();
-    if (var->location() != VariableLocation::PARAMETER) {
-      FAIL(expr, "invalid type annotation on variable");
-    }
-    switch (var->index()) {
-      case 0: {
-        // Object is stdlib, look up library type.
-        Type* type = LibType(stdlib_types_, name);
-        if (type == NULL) {
-          FAIL(expr, "unknown standard function 4");
-        }
-        SetResult(expr, type);
-        return;
-      }
-      case 1:
-        // Object is foreign lib.
-        SetResult(expr, expected_type_);
-        return;
-      default:
-        FAIL(expr, "invalid type annotation on parameter");
+    if (var->location() == VariableLocation::PARAMETER && var->index() == 1) {
+      // foreign.x is ok.
+      SetResult(expr, expected_type_);
+      return;
     }
   }
 
@@ -1143,7 +1198,26 @@ void AsmTyper::VisitSuperCallReference(SuperCallReference* expr) {
 }
 
 
+void AsmTyper::InitializeStdlibSIMD() {
+#define V(NAME, Name, name, lane_count, lane_type)                            \
+  {                                                                           \
+    Type* type = Type::Function(Type::Name(isolate_, zone()), Type::Any(),    \
+                                lane_count, zone());                          \
+    for (int i = 0; i < lane_count; ++i) {                                    \
+      type->AsFunction()->InitParameter(i, Type::Number());                   \
+    }                                                                         \
+    stdlib_simd_##name##_constructor_type_ = new (zone()) VariableInfo(type); \
+    stdlib_simd_##name##_constructor_type_->is_constructor_function = true;   \
+  }
+  SIMD128_TYPES(V)
+#undef V
+}
+
+
 void AsmTyper::InitializeStdlib() {
+  if (allow_simd_) {
+    InitializeStdlibSIMD();
+  }
   Type* number_type = Type::Number(zone());
   Type* double_type = cache_.kAsmDouble;
   Type* double_fn1_type = Type::Function(double_type, double_type, zone());
@@ -1177,30 +1251,44 @@ void AsmTyper::InitializeStdlib() {
       {"acos", double_fn1_type}, {"asin", double_fn1_type},
       {"atan", double_fn1_type}, {"atan2", double_fn2_type}};
   for (unsigned i = 0; i < arraysize(math); ++i) {
-    stdlib_math_types_[math[i].name] = math[i].type;
+    stdlib_math_types_[math[i].name] = new (zone()) VariableInfo(math[i].type);
   }
+  stdlib_math_types_["fround"]->is_check_function = true;
 
-  stdlib_types_["Infinity"] = double_type;
-  stdlib_types_["NaN"] = double_type;
+  stdlib_types_["Infinity"] = new (zone()) VariableInfo(double_type);
+  stdlib_types_["NaN"] = new (zone()) VariableInfo(double_type);
   Type* buffer_type = Type::Any(zone());
 #define TYPED_ARRAY(TypeName, type_name, TYPE_NAME, ctype, size) \
-  stdlib_types_[#TypeName "Array"] =                             \
-      Type::Function(cache_.k##TypeName##Array, buffer_type, zone());
+  stdlib_types_[#TypeName "Array"] = new (zone()) VariableInfo(  \
+      Type::Function(cache_.k##TypeName##Array, buffer_type, zone()));
   TYPED_ARRAYS(TYPED_ARRAY)
 #undef TYPED_ARRAY
 
-#define TYPED_ARRAY(TypeName, type_name, TYPE_NAME, ctype, size) \
-  stdlib_heap_types_[#TypeName "Array"] =                        \
-      Type::Function(cache_.k##TypeName##Array, buffer_type, zone());
+#define TYPED_ARRAY(TypeName, type_name, TYPE_NAME, ctype, size)     \
+  stdlib_heap_types_[#TypeName "Array"] = new (zone()) VariableInfo( \
+      Type::Function(cache_.k##TypeName##Array, buffer_type, zone()));
   TYPED_ARRAYS(TYPED_ARRAY)
 #undef TYPED_ARRAY
 }
 
 
-Type* AsmTyper::LibType(ObjectTypeMap map, Handle<String> name) {
+void AsmTyper::VisitLibraryAccess(ObjectTypeMap* map, Property* expr) {
+  Literal* key = expr->key()->AsLiteral();
+  if (key == NULL || !key->IsPropertyName())
+    FAIL(expr, "invalid key used on stdlib member");
+  Handle<String> name = key->AsPropertyName();
+  VariableInfo* info = LibType(map, name);
+  if (info == NULL || info->type == NULL) FAIL(expr, "unknown stdlib function");
+  SetResult(expr, info->type);
+  property_info_ = info;
+}
+
+
+AsmTyper::VariableInfo* AsmTyper::LibType(ObjectTypeMap* map,
+                                          Handle<String> name) {
   base::SmartArrayPointer<char> aname = name->ToCString();
-  ObjectTypeMap::iterator i = map.find(std::string(aname.get()));
-  if (i == map.end()) {
+  ObjectTypeMap::iterator i = map->find(std::string(aname.get()));
+  if (i == map->end()) {
     return NULL;
   }
   return i->second;
@@ -1208,32 +1296,52 @@ Type* AsmTyper::LibType(ObjectTypeMap map, Handle<String> name) {
 
 
 void AsmTyper::SetType(Variable* variable, Type* type) {
-  ZoneHashMap::Entry* entry;
-  if (in_function_) {
-    entry = local_variable_type_.LookupOrInsert(
-        variable, ComputePointerHash(variable), ZoneAllocationPolicy(zone()));
-  } else {
-    entry = global_variable_type_.LookupOrInsert(
-        variable, ComputePointerHash(variable), ZoneAllocationPolicy(zone()));
-  }
-  entry->value = reinterpret_cast<void*>(type);
+  VariableInfo* info = GetVariableInfo(variable, true);
+  info->type = type;
 }
 
 
 Type* AsmTyper::GetType(Variable* variable) {
-  i::ZoneHashMap::Entry* entry = NULL;
+  VariableInfo* info = GetVariableInfo(variable, false);
+  if (!info) return NULL;
+  return info->type;
+}
+
+
+AsmTyper::VariableInfo* AsmTyper::GetVariableInfo(Variable* variable,
+                                                  bool setting) {
+  ZoneHashMap::Entry* entry;
+  ZoneHashMap* map;
   if (in_function_) {
-    entry = local_variable_type_.Lookup(variable, ComputePointerHash(variable));
-  }
-  if (entry == NULL) {
-    entry =
-        global_variable_type_.Lookup(variable, ComputePointerHash(variable));
-  }
-  if (entry == NULL) {
-    return NULL;
+    map = &local_variable_type_;
   } else {
-    return reinterpret_cast<Type*>(entry->value);
+    map = &global_variable_type_;
   }
+  if (setting) {
+    entry = map->LookupOrInsert(variable, ComputePointerHash(variable),
+                                ZoneAllocationPolicy(zone()));
+  } else {
+    entry = map->Lookup(variable, ComputePointerHash(variable));
+    if (!entry && in_function_) {
+      entry =
+          global_variable_type_.Lookup(variable, ComputePointerHash(variable));
+    }
+  }
+  if (!entry) return NULL;
+  if (!entry->value) {
+    if (!setting) return NULL;
+    entry->value = new (zone()) VariableInfo;
+  }
+  return reinterpret_cast<VariableInfo*>(entry->value);
+}
+
+
+void AsmTyper::SetVariableInfo(Variable* variable, const VariableInfo* info) {
+  VariableInfo* dest = GetVariableInfo(variable, true);
+  dest->type = info->type;
+  dest->is_stdlib_object = info->is_stdlib_object;
+  dest->is_check_function = info->is_check_function;
+  dest->is_constructor_function = info->is_constructor_function;
 }
 
 
