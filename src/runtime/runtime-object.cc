@@ -755,13 +755,13 @@ RUNTIME_FUNCTION(Runtime_IsPropertyEnumerable) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
 
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
   CONVERT_ARG_HANDLE_CHECKED(Name, key, 1);
 
   Maybe<PropertyAttributes> maybe =
       JSReceiver::GetOwnPropertyAttributes(object, key);
   if (!maybe.IsJust()) return isolate->heap()->exception();
-  if (maybe.FromJust() == ABSENT) maybe = Just(DONT_ENUM);
+  if (maybe.FromJust() == ABSENT) return isolate->heap()->false_value();
   return isolate->heap()->ToBoolean((maybe.FromJust() & DONT_ENUM) == 0);
 }
 

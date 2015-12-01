@@ -207,16 +207,9 @@ function ObjectIsPrototypeOf(V) {
 }
 
 
-// ECMA-262 - 15.2.4.6
+// ES6 19.1.3.4
 function ObjectPropertyIsEnumerable(V) {
   var P = TO_NAME(V);
-  if (%_IsJSProxy(this)) {
-    // TODO(rossberg): adjust once there is a story for symbols vs proxies.
-    if (IS_SYMBOL(V)) return false;
-
-    var desc = GetOwnPropertyJS(this, P);
-    return IS_UNDEFINED(desc) ? false : desc.isEnumerable();
-  }
   return %IsPropertyEnumerable(TO_OBJECT(this), P);
 }
 
