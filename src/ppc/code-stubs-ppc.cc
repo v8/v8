@@ -2428,6 +2428,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // r5 : feedback vector
   // r6 : slot in feedback vector (Smi)
   Label initialize, done, miss, megamorphic, not_array_function;
+  Label done_increment_count;
 
   DCHECK_EQ(*TypeFeedbackVector::MegamorphicSentinel(masm->isolate()),
             masm->isolate()->heap()->megamorphic_symbol());
@@ -2448,7 +2449,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   Register weak_value = r10;
   __ LoadP(weak_value, FieldMemOperand(r8, WeakCell::kValueOffset));
   __ cmp(r4, weak_value);
-  __ beq(&done);
+  __ beq(&done_increment_count);
   __ CompareRoot(r8, Heap::kmegamorphic_symbolRootIndex);
   __ beq(&done);
   __ LoadP(feedback_map, FieldMemOperand(r8, HeapObject::kMapOffset));
@@ -2471,7 +2472,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   __ LoadNativeContextSlot(Context::ARRAY_FUNCTION_INDEX, r8);
   __ cmp(r4, r8);
   __ bne(&megamorphic);
-  __ b(&done);
+  __ b(&done_increment_count);
 
   __ bind(&miss);
 
@@ -2491,6 +2492,13 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // An uninitialized cache is patched with the function
   __ bind(&initialize);
 
+  // Initialize the call counter.
+  __ LoadSmiLiteral(r8, Smi::FromInt(CallICNexus::kCallCountIncrement));
+  __ SmiToPtrArrayOffset(r7, r6);
+  __ add(r7, r5, r7);
+  __ StoreP(r8, FieldMemOperand(r7, FixedArray::kHeaderSize + kPointerSize),
+            r0);
+
   // Make sure the function is the Array() function.
   __ LoadNativeContextSlot(Context::ARRAY_FUNCTION_INDEX, r8);
   __ cmp(r4, r8);
@@ -2504,14 +2512,23 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   __ b(&done);
 
   __ bind(&not_array_function);
-
   CreateWeakCellStub weak_cell_stub(masm->isolate());
   CallStubInRecordCallTarget(masm, &weak_cell_stub);
+  __ b(&done);
+
+  __ bind(&done_increment_count);
+  __ SmiToPtrArrayOffset(r7, r6);
+  __ add(r7, r5, r7);
+  __ LoadP(r8, FieldMemOperand(r7, FixedArray::kHeaderSize + kPointerSize));
+  __ AddSmiLiteral(r8, r8, Smi::FromInt(CallICNexus::kCallCountIncrement), r0);
+  __ StoreP(r8, FieldMemOperand(r7, FixedArray::kHeaderSize + kPointerSize),
+            r0);
+
   __ bind(&done);
 }
 
 
-void CallConstructStub::Generate(MacroAssembler* masm) {
+void ConstructICStub::Generate(MacroAssembler* masm) {
   // r3 : number of arguments
   // r4 : the function to call
   // r5 : feedback vector

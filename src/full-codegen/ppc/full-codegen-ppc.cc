@@ -3017,8 +3017,8 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   __ EmitLoadTypeFeedbackVector(r5);
   __ LoadSmiLiteral(r6, SmiFromSlot(expr->CallNewFeedbackSlot()));
 
-  CallConstructStub stub(isolate());
-  __ Call(stub.GetCode(), RelocInfo::CODE_TARGET);
+  Handle<Code> code = CodeFactory::ConstructIC(isolate()).code();
+  __ Call(code, RelocInfo::CODE_TARGET);
   PrepareForBailoutForId(expr->ReturnId(), TOS_REG);
   // Restore context register.
   __ LoadP(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
