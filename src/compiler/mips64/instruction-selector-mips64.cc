@@ -359,6 +359,13 @@ void InstructionSelector::VisitWord32Xor(Node* node) {
       return;
     }
   }
+  if (m.right().Is(-1)) {
+    // Use Nor for bit negation and eliminate constant loading for xori.
+    Mips64OperandGenerator g(this);
+    Emit(kMips64Nor, g.DefineAsRegister(node), g.UseRegister(m.left().node()),
+         g.TempImmediate(0));
+    return;
+  }
   VisitBinop(this, node, kMips64Xor);
 }
 
@@ -375,6 +382,13 @@ void InstructionSelector::VisitWord64Xor(Node* node) {
            g.UseRegister(mleft.right().node()));
       return;
     }
+  }
+  if (m.right().Is(-1)) {
+    // Use Nor for bit negation and eliminate constant loading for xori.
+    Mips64OperandGenerator g(this);
+    Emit(kMips64Nor, g.DefineAsRegister(node), g.UseRegister(m.left().node()),
+         g.TempImmediate(0));
+    return;
   }
   VisitBinop(this, node, kMips64Xor);
 }

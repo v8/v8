@@ -678,7 +678,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ Or(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
     case kMips64Nor:
-      __ Nor(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      if (instr->InputAt(1)->IsRegister()) {
+        __ Nor(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      } else {
+        DCHECK(i.InputOperand(1).immediate() == 0);
+        __ Nor(i.OutputRegister(), i.InputRegister(0), zero_reg);
+      }
       break;
     case kMips64Xor:
       __ Xor(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));

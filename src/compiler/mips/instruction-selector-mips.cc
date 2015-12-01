@@ -306,6 +306,13 @@ void InstructionSelector::VisitWord32Xor(Node* node) {
       return;
     }
   }
+  if (m.right().Is(-1)) {
+    // Use Nor for bit negation and eliminate constant loading for xori.
+    MipsOperandGenerator g(this);
+    Emit(kMipsNor, g.DefineAsRegister(node), g.UseRegister(m.left().node()),
+         g.TempImmediate(0));
+    return;
+  }
   VisitBinop(this, node, kMipsXor);
 }
 
