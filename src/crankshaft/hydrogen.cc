@@ -8381,6 +8381,13 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
     }
   }
 
+  // Unsupported variable references present.
+  if (function->scope()->this_function_var() != nullptr ||
+      function->scope()->new_target_var() != nullptr) {
+    TraceInline(target, caller, "target uses new target or this function");
+    return false;
+  }
+
   // All declarations must be inlineable.
   ZoneList<Declaration*>* decls = target_info.scope()->declarations();
   int decl_count = decls->length();
