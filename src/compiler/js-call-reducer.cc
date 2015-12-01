@@ -252,7 +252,7 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
   // Extract feedback from the {node} using the CallICNexus.
   if (!p.feedback().IsValid()) return NoChange();
   CallICNexus nexus(p.feedback().vector(), p.feedback().slot());
-  Handle<Object> feedback(nexus.GetFeedback(), isolate());
+  Handle<Object> feedback = nexus.GetCallFeedback();
   if (feedback->IsAllocationSite()) {
     // Retrieve the Array function from the {node}.
     Node* array_function;
@@ -287,34 +287,30 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
     NodeProperties::ReplaceEffectInput(node, effect);
     NodeProperties::ReplaceControlInput(node, control);
     return ReduceArrayConstructor(node);
-  } else if (feedback->IsWeakCell()) {
-    Handle<WeakCell> cell = Handle<WeakCell>::cast(feedback);
-    if (cell->value()->IsJSFunction()) {
-      Node* target_function =
-          jsgraph()->Constant(handle(cell->value(), isolate()));
+  } else if (feedback->IsJSFunction()) {
+    Node* target_function = jsgraph()->Constant(feedback);
 
-      // Check that the {target} is still the {target_function}.
-      Node* check = effect =
-          graph()->NewNode(javascript()->StrictEqual(), target, target_function,
-                           context, effect, control);
-      Node* branch =
-          graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
-      Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-      Node* deoptimize = graph()->NewNode(common()->Deoptimize(), frame_state,
-                                          effect, if_false);
-      // TODO(bmeurer): This should be on the AdvancedReducer somehow.
-      NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
-      control = graph()->NewNode(common()->IfTrue(), branch);
+    // Check that the {target} is still the {target_function}.
+    Node* check = effect =
+        graph()->NewNode(javascript()->StrictEqual(), target, target_function,
+                         context, effect, control);
+    Node* branch =
+        graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
+    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+    Node* deoptimize =
+        graph()->NewNode(common()->Deoptimize(), frame_state, effect, if_false);
+    // TODO(bmeurer): This should be on the AdvancedReducer somehow.
+    NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
+    control = graph()->NewNode(common()->IfTrue(), branch);
 
-      // Specialize the JSCallFunction node to the {target_function}.
-      NodeProperties::ReplaceValueInput(node, target_function, 0);
-      NodeProperties::ReplaceEffectInput(node, effect);
-      NodeProperties::ReplaceControlInput(node, control);
+    // Specialize the JSCallFunction node to the {target_function}.
+    NodeProperties::ReplaceValueInput(node, target_function, 0);
+    NodeProperties::ReplaceEffectInput(node, effect);
+    NodeProperties::ReplaceControlInput(node, control);
 
-      // Try to further reduce the JSCallFunction {node}.
-      Reduction const reduction = ReduceJSCallFunction(node);
-      return reduction.Changed() ? reduction : Changed(node);
-    }
+    // Try to further reduce the JSCallFunction {node}.
+    Reduction const reduction = ReduceJSCallFunction(node);
+    return reduction.Changed() ? reduction : Changed(node);
   }
   return NoChange();
 }
@@ -385,9 +381,9 @@ Reduction JSCallReducer::ReduceJSCallConstruct(Node* node) {
   if (!(flags() & kDeoptimizationEnabled)) return NoChange();
 
   // TODO(mvstanton): Use ConstructICNexus here, once available.
-  Handle<Object> feedback;
   if (!p.feedback().IsValid()) return NoChange();
-  feedback = handle(p.feedback().vector()->Get(p.feedback().slot()), isolate());
+  ConstructICNexus nexus(p.feedback().vector(), p.feedback().slot());
+  Handle<Object> feedback = nexus.GetCallFeedback();
   if (feedback->IsAllocationSite()) {
     // The feedback is an AllocationSite, which means we have called the
     // Array function and collected transition (and pretenuring) feedback
@@ -434,37 +430,33 @@ Reduction JSCallReducer::ReduceJSCallConstruct(Node* node) {
     NodeProperties::ReplaceValueInput(node, new_target, 1);
     NodeProperties::ChangeOp(node, javascript()->CreateArray(arity, site));
     return Changed(node);
-  } else if (feedback->IsWeakCell()) {
-    Handle<WeakCell> cell = Handle<WeakCell>::cast(feedback);
-    if (cell->value()->IsJSFunction()) {
-      Node* target_function =
-          jsgraph()->Constant(handle(cell->value(), isolate()));
+  } else if (feedback->IsJSFunction()) {
+    Node* target_function = jsgraph()->Constant(feedback);
 
-      // Check that the {target} is still the {target_function}.
-      Node* check = effect =
-          graph()->NewNode(javascript()->StrictEqual(), target, target_function,
-                           context, effect, control);
-      Node* branch =
-          graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
-      Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-      Node* deoptimize = graph()->NewNode(common()->Deoptimize(), frame_state,
-                                          effect, if_false);
-      // TODO(bmeurer): This should be on the AdvancedReducer somehow.
-      NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
-      control = graph()->NewNode(common()->IfTrue(), branch);
+    // Check that the {target} is still the {target_function}.
+    Node* check = effect =
+        graph()->NewNode(javascript()->StrictEqual(), target, target_function,
+                         context, effect, control);
+    Node* branch =
+        graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
+    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+    Node* deoptimize =
+        graph()->NewNode(common()->Deoptimize(), frame_state, effect, if_false);
+    // TODO(bmeurer): This should be on the AdvancedReducer somehow.
+    NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
+    control = graph()->NewNode(common()->IfTrue(), branch);
 
-      // Specialize the JSCallConstruct node to the {target_function}.
-      NodeProperties::ReplaceValueInput(node, target_function, 0);
-      NodeProperties::ReplaceEffectInput(node, effect);
-      NodeProperties::ReplaceControlInput(node, control);
-      if (target == new_target) {
-        NodeProperties::ReplaceValueInput(node, target_function, arity + 1);
-      }
-
-      // Try to further reduce the JSCallConstruct {node}.
-      Reduction const reduction = ReduceJSCallConstruct(node);
-      return reduction.Changed() ? reduction : Changed(node);
+    // Specialize the JSCallConstruct node to the {target_function}.
+    NodeProperties::ReplaceValueInput(node, target_function, 0);
+    NodeProperties::ReplaceEffectInput(node, effect);
+    NodeProperties::ReplaceControlInput(node, control);
+    if (target == new_target) {
+      NodeProperties::ReplaceValueInput(node, target_function, arity + 1);
     }
+
+    // Try to further reduce the JSCallConstruct {node}.
+    Reduction const reduction = ReduceJSCallConstruct(node);
+    return reduction.Changed() ? reduction : Changed(node);
   }
 
   return NoChange();

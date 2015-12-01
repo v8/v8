@@ -4913,7 +4913,7 @@ bool Code::IsCodeStubOrIC() {
          kind() == KEYED_LOAD_IC || kind() == CALL_IC || kind() == STORE_IC ||
          kind() == KEYED_STORE_IC || kind() == BINARY_OP_IC ||
          kind() == COMPARE_IC || kind() == COMPARE_NIL_IC ||
-         kind() == TO_BOOLEAN_IC;
+         kind() == CONSTRUCT_IC || kind() == TO_BOOLEAN_IC;
 }
 
 

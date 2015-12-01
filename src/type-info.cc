@@ -152,7 +152,8 @@ void TypeFeedbackOracle::GetStoreModeAndKeyType(
 
 
 Handle<JSFunction> TypeFeedbackOracle::GetCallTarget(FeedbackVectorSlot slot) {
-  Handle<Object> info = GetInfo(slot);
+  CallICNexus nexus(feedback_vector_, slot);
+  Handle<Object> info = nexus.GetCallFeedback();
   if (info->IsAllocationSite()) {
     return Handle<JSFunction>(isolate()->native_context()->array_function());
   }
@@ -163,7 +164,8 @@ Handle<JSFunction> TypeFeedbackOracle::GetCallTarget(FeedbackVectorSlot slot) {
 
 Handle<JSFunction> TypeFeedbackOracle::GetCallNewTarget(
     FeedbackVectorSlot slot) {
-  Handle<Object> info = GetInfo(slot);
+  ConstructICNexus nexus(feedback_vector_, slot);
+  Handle<Object> info = nexus.GetCallFeedback();
   if (info->IsJSFunction()) {
     return Handle<JSFunction>::cast(info);
   }

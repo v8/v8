@@ -475,6 +475,7 @@ void IC::Clear(Isolate* isolate, Address address, Address constant_pool) {
     case Code::COMPARE_NIL_IC:
       return CompareNilIC::Clear(address, target, constant_pool);
     case Code::CALL_IC:  // CallICs are vector-based and cleared differently.
+    case Code::CONSTRUCT_IC:
     case Code::BINARY_OP_IC:
     case Code::TO_BOOLEAN_IC:
       // Clearing these is tricky and does not
@@ -498,6 +499,19 @@ void KeyedLoadIC::Clear(Isolate* isolate, Code* host, KeyedLoadICNexus* nexus) {
 
 
 void CallIC::Clear(Isolate* isolate, Code* host, CallICNexus* nexus) {
+  // Determine our state.
+  Object* feedback = nexus->vector()->Get(nexus->slot());
+  State state = nexus->StateFromFeedback();
+
+  if (state != UNINITIALIZED && !feedback->IsAllocationSite()) {
+    nexus->ConfigureUninitialized();
+    // The change in state must be processed.
+    OnTypeFeedbackChanged(isolate, host, nexus->vector(), state, UNINITIALIZED);
+  }
+}
+
+
+void ConstructIC::Clear(Isolate* isolate, Code* host, ConstructICNexus* nexus) {
   // Determine our state.
   Object* feedback = nexus->vector()->Get(nexus->slot());
   State state = nexus->StateFromFeedback();

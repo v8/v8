@@ -2451,6 +2451,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // a2 : feedback vector
   // a3 : slot in feedback vector (Smi)
   Label initialize, done, miss, megamorphic, not_array_function;
+  Label done_increment_count;
 
   DCHECK_EQ(*TypeFeedbackVector::MegamorphicSentinel(masm->isolate()),
             masm->isolate()->heap()->megamorphic_symbol());
@@ -2470,7 +2471,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   Register feedback_map = a6;
   Register weak_value = t0;
   __ ld(weak_value, FieldMemOperand(a5, WeakCell::kValueOffset));
-  __ Branch(&done, eq, a1, Operand(weak_value));
+  __ Branch(&done_increment_count, eq, a1, Operand(weak_value));
   __ LoadRoot(at, Heap::kmegamorphic_symbolRootIndex);
   __ Branch(&done, eq, a5, Operand(at));
   __ ld(feedback_map, FieldMemOperand(a5, HeapObject::kMapOffset));
@@ -2492,7 +2493,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // Make sure the function is the Array() function
   __ LoadNativeContextSlot(Context::ARRAY_FUNCTION_INDEX, a5);
   __ Branch(&megamorphic, ne, a1, Operand(a5));
-  __ jmp(&done);
+  __ jmp(&done_increment_count);
 
   __ bind(&miss);
 
@@ -2511,6 +2512,13 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
 
   // An uninitialized cache is patched with the function.
   __ bind(&initialize);
+
+  // Initialize the call counter.
+  __ dsrl(at, a3, 32 - kPointerSizeLog2);
+  __ Daddu(at, a2, Operand(at));
+  __ li(t0, Operand(Smi::FromInt(CallICNexus::kCallCountIncrement)));
+  __ sd(t0, FieldMemOperand(at, FixedArray::kHeaderSize + kPointerSize));
+
   // Make sure the function is the Array() function.
   __ LoadNativeContextSlot(Context::ARRAY_FUNCTION_INDEX, a5);
   __ Branch(&not_array_function, ne, a1, Operand(a5));
@@ -2526,11 +2534,21 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
 
   CreateWeakCellStub weak_cell_stub(masm->isolate());
   CallStubInRecordCallTarget(masm, &weak_cell_stub);
+  __ Branch(&done);
+
+  __ bind(&done_increment_count);
+  __ dsrl(a5, a3, 32 - kPointerSizeLog2);
+  __ Daddu(a5, a2, Operand(a5));
+  __ ld(t0, FieldMemOperand(a5, FixedArray::kHeaderSize + kPointerSize));
+  __ Daddu(t0, t0,
+           Operand(Smi::FromInt(ConstructICNexus::kCallCountIncrement)));
+  __ sd(t0, FieldMemOperand(a5, FixedArray::kHeaderSize + kPointerSize));
+
   __ bind(&done);
 }
 
 
-void CallConstructStub::Generate(MacroAssembler* masm) {
+void ConstructICStub::Generate(MacroAssembler* masm) {
   // a0 : number of arguments
   // a1 : the function to call
   // a2 : feedback vector

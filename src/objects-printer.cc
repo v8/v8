@@ -619,6 +619,11 @@ void TypeFeedbackVector::TypeFeedbackVectorPrint(std::ostream& os) {  // NOLINT
         os << Code::ICState2String(nexus.StateFromFeedback());
         break;
       }
+      case FeedbackVectorSlotKind::CONSTRUCT_IC: {
+        ConstructICNexus nexus(this, slot);
+        os << Code::ICState2String(nexus.StateFromFeedback());
+        break;
+      }
       case FeedbackVectorSlotKind::STORE_IC: {
         StoreICNexus nexus(this, slot);
         os << Code::ICState2String(nexus.StateFromFeedback());

@@ -109,6 +109,8 @@ const char* TypeFeedbackMetadata::Kind2String(FeedbackVectorSlotKind kind) {
       return "INVALID";
     case FeedbackVectorSlotKind::CALL_IC:
       return "CALL_IC";
+    case FeedbackVectorSlotKind::CONSTRUCT_IC:
+      return "CONSTRUCT_IC";
     case FeedbackVectorSlotKind::LOAD_IC:
       return "LOAD_IC";
     case FeedbackVectorSlotKind::KEYED_LOAD_IC:
@@ -219,6 +221,11 @@ void TypeFeedbackVector::ClearSlotsImpl(SharedFunctionInfo* shared,
       switch (kind) {
         case FeedbackVectorSlotKind::CALL_IC: {
           CallICNexus nexus(this, slot);
+          nexus.Clear(shared->code());
+          break;
+        }
+        case FeedbackVectorSlotKind::CONSTRUCT_IC: {
+          ConstructICNexus nexus(this, slot);
           nexus.Clear(shared->code());
           break;
         }
@@ -485,6 +492,18 @@ InlineCacheState CallICNexus::StateFromFeedback() const {
 }
 
 
+Handle<Object> CallICNexus::GetCallFeedback() {
+  Object* feedback = GetFeedback();
+  if (feedback->IsWeakCell()) {
+    feedback = WeakCell::cast(feedback)->value();
+  }
+  if (!feedback->IsJSFunction() && !feedback->IsAllocationSite()) {
+    feedback = GetIsolate()->heap()->undefined_value();
+  }
+  return handle(feedback, GetIsolate());
+}
+
+
 int CallICNexus::ExtractCallCount() {
   Object* call_count = GetFeedbackExtra();
   if (call_count->IsSmi()) {
@@ -496,6 +515,11 @@ int CallICNexus::ExtractCallCount() {
 
 
 void CallICNexus::Clear(Code* host) { CallIC::Clear(GetIsolate(), host, this); }
+
+
+void ConstructICNexus::Clear(Code* host) {
+  ConstructIC::Clear(GetIsolate(), host, this);
+}
 
 
 void CallICNexus::ConfigureMonomorphicArray() {

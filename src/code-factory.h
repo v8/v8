@@ -47,6 +47,7 @@ class CodeFactory final {
   static Callable CallICInOptimizedCode(
       Isolate* isolate, int argc,
       ConvertReceiverMode mode = ConvertReceiverMode::kAny);
+  static Callable ConstructIC(Isolate* isolate);
   static Callable StoreIC(Isolate* isolate, LanguageMode mode);
   static Callable StoreICInOptimizedCode(Isolate* isolate, LanguageMode mode,
                                          InlineCacheState initialization_state);

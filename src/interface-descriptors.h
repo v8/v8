@@ -38,7 +38,7 @@ class PlatformInterfaceDescriptor;
   V(CallFunction)                             \
   V(CallFunctionWithFeedback)                 \
   V(CallFunctionWithFeedbackAndVector)        \
-  V(CallConstruct)                            \
+  V(Construct)                                \
   V(CallTrampoline)                           \
   V(ConstructTrampoline)                      \
   V(RegExpConstructResult)                    \
@@ -495,9 +495,9 @@ class CallFunctionWithFeedbackAndVectorDescriptor
 };
 
 
-class CallConstructDescriptor : public CallInterfaceDescriptor {
+class ConstructDescriptor : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR(CallConstructDescriptor, CallInterfaceDescriptor)
+  DECLARE_DESCRIPTOR(ConstructDescriptor, CallInterfaceDescriptor)
 };
 
 

@@ -75,11 +75,16 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
 
   // Gather feedback on how often this call site has been hit before.
   int calls = -1;  // Same default as CallICNexus::ExtractCallCount.
-  // TODO(turbofan): We also want call counts for constructor calls.
   if (node->opcode() == IrOpcode::kJSCallFunction) {
     CallFunctionParameters p = CallFunctionParametersOf(node->op());
     if (p.feedback().IsValid()) {
       CallICNexus nexus(p.feedback().vector(), p.feedback().slot());
+      calls = nexus.ExtractCallCount();
+    }
+  } else if (node->opcode() == IrOpcode::kJSCallConstruct) {
+    CallConstructParameters p = CallConstructParametersOf(node->op());
+    if (p.feedback().IsValid()) {
+      ConstructICNexus nexus(p.feedback().vector(), p.feedback().slot());
       calls = nexus.ExtractCallCount();
     }
   }

@@ -3550,7 +3550,7 @@ TEST(CallNew) {
   Zone zone;
 
   FeedbackVectorSpec feedback_spec(&zone);
-  FeedbackVectorSlot slot1 = feedback_spec.AddGeneralSlot();
+  FeedbackVectorSlot slot1 = feedback_spec.AddConstructICSlot();
   FeedbackVectorSlot slot2 = feedback_spec.AddLoadICSlot();
   USE(slot1);
 

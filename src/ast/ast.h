@@ -1968,7 +1968,7 @@ class CallNew final : public Expression {
   // Type feedback information.
   void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
                                  FeedbackVectorSlotCache* cache) override {
-    callnew_feedback_slot_ = spec->AddGeneralSlot();
+    callnew_feedback_slot_ = spec->AddConstructICSlot();
   }
 
   FeedbackVectorSlot CallNewFeedbackSlot() {
@@ -1983,7 +1983,6 @@ class CallNew final : public Expression {
   }
 
   static int num_ids() { return parent_num_ids() + 1; }
-  static int feedback_slots() { return 1; }
   BailoutId ReturnId() const { return BailoutId(local_id(0)); }
 
   void set_allocation_site(Handle<AllocationSite> site) {
