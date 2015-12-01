@@ -23392,7 +23392,7 @@ TEST(StrongObjectDelete) {
   v8::HandleScope scope(isolate);
   Local<Object> obj;
   {
-    v8::TryCatch try_catch;
+    v8::TryCatch try_catch(isolate);
     obj = Local<Object>::Cast(CompileRun(
         "'use strong';"
         "({});"));
