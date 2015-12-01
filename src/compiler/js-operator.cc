@@ -63,6 +63,46 @@ std::ostream& operator<<(std::ostream& os, TailCallMode mode) {
 }
 
 
+bool operator==(BinaryOperationParameters const& lhs,
+                BinaryOperationParameters const& rhs) {
+  return lhs.language_mode() == rhs.language_mode() &&
+         lhs.hints() == rhs.hints();
+}
+
+
+bool operator!=(BinaryOperationParameters const& lhs,
+                BinaryOperationParameters const& rhs) {
+  return !(lhs == rhs);
+}
+
+
+size_t hash_value(BinaryOperationParameters const& p) {
+  return base::hash_combine(p.language_mode(), p.hints());
+}
+
+
+std::ostream& operator<<(std::ostream& os, BinaryOperationParameters const& p) {
+  return os << p.language_mode() << ", " << p.hints();
+}
+
+
+BinaryOperationParameters const& BinaryOperationParametersOf(
+    Operator const* op) {
+  DCHECK(op->opcode() == IrOpcode::kJSBitwiseOr ||
+         op->opcode() == IrOpcode::kJSBitwiseXor ||
+         op->opcode() == IrOpcode::kJSBitwiseAnd ||
+         op->opcode() == IrOpcode::kJSShiftLeft ||
+         op->opcode() == IrOpcode::kJSShiftRight ||
+         op->opcode() == IrOpcode::kJSShiftRightLogical ||
+         op->opcode() == IrOpcode::kJSAdd ||
+         op->opcode() == IrOpcode::kJSSubtract ||
+         op->opcode() == IrOpcode::kJSMultiply ||
+         op->opcode() == IrOpcode::kJSDivide ||
+         op->opcode() == IrOpcode::kJSModulus);
+  return OpParameter<BinaryOperationParameters>(op);
+}
+
+
 bool operator==(CallConstructParameters const& lhs,
                 CallConstructParameters const& rhs) {
   return lhs.arity() == rhs.arity() && lhs.feedback() == rhs.feedback();
@@ -468,22 +508,11 @@ const CreateLiteralParameters& CreateLiteralParametersOf(const Operator* op) {
   V(CreateModuleContext, Operator::kNoProperties, 2, 1)
 
 
-#define CACHED_OP_LIST_WITH_LANGUAGE_MODE(V)           \
-  V(LessThan, Operator::kNoProperties, 2, 1)           \
-  V(GreaterThan, Operator::kNoProperties, 2, 1)        \
-  V(LessThanOrEqual, Operator::kNoProperties, 2, 1)    \
-  V(GreaterThanOrEqual, Operator::kNoProperties, 2, 1) \
-  V(BitwiseOr, Operator::kNoProperties, 2, 1)          \
-  V(BitwiseXor, Operator::kNoProperties, 2, 1)         \
-  V(BitwiseAnd, Operator::kNoProperties, 2, 1)         \
-  V(ShiftLeft, Operator::kNoProperties, 2, 1)          \
-  V(ShiftRight, Operator::kNoProperties, 2, 1)         \
-  V(ShiftRightLogical, Operator::kNoProperties, 2, 1)  \
-  V(Add, Operator::kNoProperties, 2, 1)                \
-  V(Subtract, Operator::kNoProperties, 2, 1)           \
-  V(Multiply, Operator::kNoProperties, 2, 1)           \
-  V(Divide, Operator::kNoProperties, 2, 1)             \
-  V(Modulus, Operator::kNoProperties, 2, 1)
+#define CACHED_OP_LIST_WITH_LANGUAGE_MODE(V)        \
+  V(LessThan, Operator::kNoProperties, 2, 1)        \
+  V(GreaterThan, Operator::kNoProperties, 2, 1)     \
+  V(LessThanOrEqual, Operator::kNoProperties, 2, 1) \
+  V(GreaterThanOrEqual, Operator::kNoProperties, 2, 1)
 
 
 struct JSOperatorGlobalCache final {
@@ -555,6 +584,138 @@ CACHED_OP_LIST(CACHED)
   }
 CACHED_OP_LIST_WITH_LANGUAGE_MODE(CACHED_WITH_LANGUAGE_MODE)
 #undef CACHED_WITH_LANGUAGE_MODE
+
+
+const Operator* JSOperatorBuilder::BitwiseOr(LanguageMode language_mode,
+                                             BinaryOperationHints hints) {
+  // TODO(turbofan): Cache most important versions of this operator.
+  BinaryOperationParameters parameters(language_mode, hints);
+  return new (zone()) Operator1<BinaryOperationParameters>(  //--
+      IrOpcode::kJSBitwiseOr, Operator::kNoProperties,       // opcode
+      "JSBitwiseOr",                                         // name
+      2, 1, 1, 1, 1, 2,                                      // inputs/outputs
+      parameters);                                           // parameter
+}
+
+
+const Operator* JSOperatorBuilder::BitwiseXor(LanguageMode language_mode,
+                                              BinaryOperationHints hints) {
+  // TODO(turbofan): Cache most important versions of this operator.
+  BinaryOperationParameters parameters(language_mode, hints);
+  return new (zone()) Operator1<BinaryOperationParameters>(  //--
+      IrOpcode::kJSBitwiseXor, Operator::kNoProperties,      // opcode
+      "JSBitwiseXor",                                        // name
+      2, 1, 1, 1, 1, 2,                                      // inputs/outputs
+      parameters);                                           // parameter
+}
+
+
+const Operator* JSOperatorBuilder::BitwiseAnd(LanguageMode language_mode,
+                                              BinaryOperationHints hints) {
+  // TODO(turbofan): Cache most important versions of this operator.
+  BinaryOperationParameters parameters(language_mode, hints);
+  return new (zone()) Operator1<BinaryOperationParameters>(  //--
+      IrOpcode::kJSBitwiseAnd, Operator::kNoProperties,      // opcode
+      "JSBitwiseAnd",                                        // name
+      2, 1, 1, 1, 1, 2,                                      // inputs/outputs
+      parameters);                                           // parameter
+}
+
+
+const Operator* JSOperatorBuilder::ShiftLeft(LanguageMode language_mode,
+                                             BinaryOperationHints hints) {
+  // TODO(turbofan): Cache most important versions of this operator.
+  BinaryOperationParameters parameters(language_mode, hints);
+  return new (zone()) Operator1<BinaryOperationParameters>(  //--
+      IrOpcode::kJSShiftLeft, Operator::kNoProperties,       // opcode
+      "JSShiftLeft",                                         // name
+      2, 1, 1, 1, 1, 2,                                      // inputs/outputs
+      parameters);                                           // parameter
+}
+
+
+const Operator* JSOperatorBuilder::ShiftRight(LanguageMode language_mode,
+                                              BinaryOperationHints hints) {
+  // TODO(turbofan): Cache most important versions of this operator.
+  BinaryOperationParameters parameters(language_mode, hints);
+  return new (zone()) Operator1<BinaryOperationParameters>(  //--
+      IrOpcode::kJSShiftRight, Operator::kNoProperties,      // opcode
+      "JSShiftRight",                                        // name
+      2, 1, 1, 1, 1, 2,                                      // inputs/outputs
+      parameters);                                           // parameter
+}
+
+
+const Operator* JSOperatorBuilder::ShiftRightLogical(
+    LanguageMode language_mode, BinaryOperationHints hints) {
+  // TODO(turbofan): Cache most important versions of this operator.
+  BinaryOperationParameters parameters(language_mode, hints);
+  return new (zone()) Operator1<BinaryOperationParameters>(     //--
+      IrOpcode::kJSShiftRightLogical, Operator::kNoProperties,  // opcode
+      "JSShiftRightLogical",                                    // name
+      2, 1, 1, 1, 1, 2,  // inputs/outputs
+      parameters);       // parameter
+}
+
+
+const Operator* JSOperatorBuilder::Add(LanguageMode language_mode,
+                                       BinaryOperationHints hints) {
+  // TODO(turbofan): Cache most important versions of this operator.
+  BinaryOperationParameters parameters(language_mode, hints);
+  return new (zone()) Operator1<BinaryOperationParameters>(  //--
+      IrOpcode::kJSAdd, Operator::kNoProperties,             // opcode
+      "JSAdd",                                               // name
+      2, 1, 1, 1, 1, 2,                                      // inputs/outputs
+      parameters);                                           // parameter
+}
+
+
+const Operator* JSOperatorBuilder::Subtract(LanguageMode language_mode,
+                                            BinaryOperationHints hints) {
+  // TODO(turbofan): Cache most important versions of this operator.
+  BinaryOperationParameters parameters(language_mode, hints);
+  return new (zone()) Operator1<BinaryOperationParameters>(  //--
+      IrOpcode::kJSSubtract, Operator::kNoProperties,        // opcode
+      "JSSubtract",                                          // name
+      2, 1, 1, 1, 1, 2,                                      // inputs/outputs
+      parameters);                                           // parameter
+}
+
+
+const Operator* JSOperatorBuilder::Multiply(LanguageMode language_mode,
+                                            BinaryOperationHints hints) {
+  // TODO(turbofan): Cache most important versions of this operator.
+  BinaryOperationParameters parameters(language_mode, hints);
+  return new (zone()) Operator1<BinaryOperationParameters>(  //--
+      IrOpcode::kJSMultiply, Operator::kNoProperties,        // opcode
+      "JSMultiply",                                          // name
+      2, 1, 1, 1, 1, 2,                                      // inputs/outputs
+      parameters);                                           // parameter
+}
+
+
+const Operator* JSOperatorBuilder::Divide(LanguageMode language_mode,
+                                          BinaryOperationHints hints) {
+  // TODO(turbofan): Cache most important versions of this operator.
+  BinaryOperationParameters parameters(language_mode, hints);
+  return new (zone()) Operator1<BinaryOperationParameters>(  //--
+      IrOpcode::kJSDivide, Operator::kNoProperties,          // opcode
+      "JSDivide",                                            // name
+      2, 1, 1, 1, 1, 2,                                      // inputs/outputs
+      parameters);                                           // parameter
+}
+
+
+const Operator* JSOperatorBuilder::Modulus(LanguageMode language_mode,
+                                           BinaryOperationHints hints) {
+  // TODO(turbofan): Cache most important versions of this operator.
+  BinaryOperationParameters parameters(language_mode, hints);
+  return new (zone()) Operator1<BinaryOperationParameters>(  //--
+      IrOpcode::kJSModulus, Operator::kNoProperties,         // opcode
+      "JSModulus",                                           // name
+      2, 1, 1, 1, 1, 2,                                      // inputs/outputs
+      parameters);                                           // parameter
+}
 
 
 const Operator* JSOperatorBuilder::CallFunction(

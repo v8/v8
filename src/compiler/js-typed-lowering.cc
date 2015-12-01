@@ -218,7 +218,16 @@ class JSBinopReduction final {
     return ChangeToPureOperator(op, false, type);
   }
 
-  bool IsStrong() { return is_strong(OpParameter<LanguageMode>(node_)); }
+  // TODO(turbofan): Strong mode should be killed soonish!
+  bool IsStrong() const {
+    if (node_->opcode() == IrOpcode::kJSLessThan ||
+        node_->opcode() == IrOpcode::kJSLessThanOrEqual ||
+        node_->opcode() == IrOpcode::kJSGreaterThan ||
+        node_->opcode() == IrOpcode::kJSGreaterThanOrEqual) {
+      return is_strong(OpParameter<LanguageMode>(node_));
+    }
+    return is_strong(BinaryOperationParametersOf(node_->op()).language_mode());
+  }
 
   bool LeftInputIs(Type* t) { return left_type()->Is(t); }
 

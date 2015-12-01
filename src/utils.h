@@ -1041,6 +1041,13 @@ class TypeFeedbackId {
   int id_;
 };
 
+inline bool operator<(TypeFeedbackId lhs, TypeFeedbackId rhs) {
+  return lhs.ToInt() < rhs.ToInt();
+}
+inline bool operator>(TypeFeedbackId lhs, TypeFeedbackId rhs) {
+  return lhs.ToInt() > rhs.ToInt();
+}
+
 
 class FeedbackVectorSlot {
  public:

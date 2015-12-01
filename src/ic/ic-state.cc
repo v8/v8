@@ -191,17 +191,17 @@ void BinaryOpICState::GenerateAheadOfTime(
 }
 
 
-Type* BinaryOpICState::GetResultType(Zone* zone) const {
+Type* BinaryOpICState::GetResultType() const {
   Kind result_kind = result_kind_;
   if (HasSideEffects()) {
     result_kind = NONE;
   } else if (result_kind == GENERIC && op_ == Token::ADD) {
-    return Type::Union(Type::Number(zone), Type::String(zone), zone);
+    return Type::NumberOrString();
   } else if (result_kind == NUMBER && op_ == Token::SHR) {
-    return Type::Unsigned32(zone);
+    return Type::Unsigned32();
   }
   DCHECK_NE(GENERIC, result_kind);
-  return KindToType(result_kind, zone);
+  return KindToType(result_kind);
 }
 
 
@@ -320,20 +320,20 @@ const char* BinaryOpICState::KindToString(Kind kind) {
 
 
 // static
-Type* BinaryOpICState::KindToType(Kind kind, Zone* zone) {
+Type* BinaryOpICState::KindToType(Kind kind) {
   switch (kind) {
     case NONE:
-      return Type::None(zone);
+      return Type::None();
     case SMI:
-      return Type::SignedSmall(zone);
+      return Type::SignedSmall();
     case INT32:
-      return Type::Signed32(zone);
+      return Type::Signed32();
     case NUMBER:
-      return Type::Number(zone);
+      return Type::Number();
     case STRING:
-      return Type::String(zone);
+      return Type::String();
     case GENERIC:
-      return Type::Any(zone);
+      return Type::Any();
   }
   UNREACHABLE();
   return NULL;

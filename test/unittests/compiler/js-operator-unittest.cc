@@ -187,17 +187,6 @@ const SharedOperatorWithLanguageMode kSharedOperatorsWithLanguageMode[] = {
     SHARED(GreaterThan, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
     SHARED(LessThanOrEqual, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
     SHARED(GreaterThanOrEqual, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
-    SHARED(BitwiseOr, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
-    SHARED(BitwiseXor, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
-    SHARED(BitwiseAnd, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
-    SHARED(ShiftLeft, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
-    SHARED(ShiftRight, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
-    SHARED(ShiftRightLogical, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
-    SHARED(Add, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
-    SHARED(Subtract, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
-    SHARED(Multiply, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
-    SHARED(Divide, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
-    SHARED(Modulus, Operator::kNoProperties, 2, 2, 1, 1, 1, 1, 2),
 #undef SHARED
 };
 

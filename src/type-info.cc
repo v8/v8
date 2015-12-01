@@ -245,9 +245,9 @@ void TypeFeedbackOracle::BinaryType(TypeFeedbackId id,
   BinaryOpICState state(isolate(), code->extra_ic_state());
   DCHECK_EQ(op, state.op());
 
-  *left = state.GetLeftType(zone());
-  *right = state.GetRightType(zone());
-  *result = state.GetResultType(zone());
+  *left = state.GetLeftType();
+  *right = state.GetRightType();
+  *result = state.GetResultType();
   *fixed_right_arg = state.fixed_right_arg();
 
   AllocationSite* first_allocation_site = code->FindFirstAllocationSite();
@@ -265,7 +265,7 @@ Type* TypeFeedbackOracle::CountType(TypeFeedbackId id) {
   Handle<Code> code = Handle<Code>::cast(object);
   DCHECK_EQ(Code::BINARY_OP_IC, code->kind());
   BinaryOpICState state(isolate(), code->extra_ic_state());
-  return state.GetLeftType(zone());
+  return state.GetLeftType();
 }
 
 

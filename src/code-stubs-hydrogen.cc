@@ -1457,9 +1457,9 @@ HValue* CodeStubGraphBuilder<BinaryOpICStub>::BuildCodeInitializedStub() {
   HValue* left = GetParameter(BinaryOpICStub::kLeft);
   HValue* right = GetParameter(BinaryOpICStub::kRight);
 
-  Type* left_type = state.GetLeftType(zone());
-  Type* right_type = state.GetRightType(zone());
-  Type* result_type = state.GetResultType(zone());
+  Type* left_type = state.GetLeftType();
+  Type* right_type = state.GetRightType();
+  Type* result_type = state.GetResultType();
 
   DCHECK(!left_type->Is(Type::None()) && !right_type->Is(Type::None()) &&
          (state.HasSideEffects() || !result_type->Is(Type::None())));
@@ -1538,9 +1538,9 @@ HValue* CodeStubGraphBuilder<BinaryOpWithAllocationSiteStub>::BuildCodeStub() {
   HValue* left = GetParameter(BinaryOpWithAllocationSiteStub::kLeft);
   HValue* right = GetParameter(BinaryOpWithAllocationSiteStub::kRight);
 
-  Type* left_type = state.GetLeftType(zone());
-  Type* right_type = state.GetRightType(zone());
-  Type* result_type = state.GetResultType(zone());
+  Type* left_type = state.GetLeftType();
+  Type* right_type = state.GetRightType();
+  Type* result_type = state.GetResultType();
   HAllocationMode allocation_mode(allocation_site);
 
   return BuildBinaryOperation(state.op(), left, right, left_type, right_type,

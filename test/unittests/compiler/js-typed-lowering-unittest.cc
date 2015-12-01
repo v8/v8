@@ -522,15 +522,17 @@ TEST_F(JSTypedLoweringTest, JSStrictEqualWithUnique) {
 
 
 TEST_F(JSTypedLoweringTest, JSShiftLeftWithSigned32AndConstant) {
+  BinaryOperationHints const hints = BinaryOperationHints::Any();
   Node* const lhs = Parameter(Type::Signed32());
   Node* const context = UndefinedConstant();
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
   TRACED_FORRANGE(double, rhs, 0, 31) {
     TRACED_FOREACH(LanguageMode, language_mode, kLanguageModes) {
-      Reduction r = Reduce(graph()->NewNode(
-          javascript()->ShiftLeft(language_mode), lhs, NumberConstant(rhs),
-          context, EmptyFrameState(), EmptyFrameState(), effect, control));
+      Reduction r = Reduce(
+          graph()->NewNode(javascript()->ShiftLeft(language_mode, hints), lhs,
+                           NumberConstant(rhs), context, EmptyFrameState(),
+                           EmptyFrameState(), effect, control));
       ASSERT_TRUE(r.Changed());
       EXPECT_THAT(r.replacement(),
                   IsNumberShiftLeft(lhs, IsNumberConstant(BitEq(rhs))));
@@ -540,6 +542,7 @@ TEST_F(JSTypedLoweringTest, JSShiftLeftWithSigned32AndConstant) {
 
 
 TEST_F(JSTypedLoweringTest, JSShiftLeftWithSigned32AndUnsigned32) {
+  BinaryOperationHints const hints = BinaryOperationHints::Any();
   Node* const lhs = Parameter(Type::Signed32());
   Node* const rhs = Parameter(Type::Unsigned32());
   Node* const context = UndefinedConstant();
@@ -547,7 +550,7 @@ TEST_F(JSTypedLoweringTest, JSShiftLeftWithSigned32AndUnsigned32) {
   Node* const control = graph()->start();
   TRACED_FOREACH(LanguageMode, language_mode, kLanguageModes) {
     Reduction r = Reduce(graph()->NewNode(
-        javascript()->ShiftLeft(language_mode), lhs, rhs, context,
+        javascript()->ShiftLeft(language_mode, hints), lhs, rhs, context,
         EmptyFrameState(), EmptyFrameState(), effect, control));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsNumberShiftLeft(lhs, rhs));
@@ -560,15 +563,17 @@ TEST_F(JSTypedLoweringTest, JSShiftLeftWithSigned32AndUnsigned32) {
 
 
 TEST_F(JSTypedLoweringTest, JSShiftRightWithSigned32AndConstant) {
+  BinaryOperationHints const hints = BinaryOperationHints::Any();
   Node* const lhs = Parameter(Type::Signed32());
   Node* const context = UndefinedConstant();
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
   TRACED_FORRANGE(double, rhs, 0, 31) {
     TRACED_FOREACH(LanguageMode, language_mode, kLanguageModes) {
-      Reduction r = Reduce(graph()->NewNode(
-          javascript()->ShiftRight(language_mode), lhs, NumberConstant(rhs),
-          context, EmptyFrameState(), EmptyFrameState(), effect, control));
+      Reduction r = Reduce(
+          graph()->NewNode(javascript()->ShiftRight(language_mode, hints), lhs,
+                           NumberConstant(rhs), context, EmptyFrameState(),
+                           EmptyFrameState(), effect, control));
       ASSERT_TRUE(r.Changed());
       EXPECT_THAT(r.replacement(),
                   IsNumberShiftRight(lhs, IsNumberConstant(BitEq(rhs))));
@@ -578,6 +583,7 @@ TEST_F(JSTypedLoweringTest, JSShiftRightWithSigned32AndConstant) {
 
 
 TEST_F(JSTypedLoweringTest, JSShiftRightWithSigned32AndUnsigned32) {
+  BinaryOperationHints const hints = BinaryOperationHints::Any();
   Node* const lhs = Parameter(Type::Signed32());
   Node* const rhs = Parameter(Type::Unsigned32());
   Node* const context = UndefinedConstant();
@@ -585,7 +591,7 @@ TEST_F(JSTypedLoweringTest, JSShiftRightWithSigned32AndUnsigned32) {
   Node* const control = graph()->start();
   TRACED_FOREACH(LanguageMode, language_mode, kLanguageModes) {
     Reduction r = Reduce(graph()->NewNode(
-        javascript()->ShiftRight(language_mode), lhs, rhs, context,
+        javascript()->ShiftRight(language_mode, hints), lhs, rhs, context,
         EmptyFrameState(), EmptyFrameState(), effect, control));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsNumberShiftRight(lhs, rhs));
@@ -599,16 +605,17 @@ TEST_F(JSTypedLoweringTest, JSShiftRightWithSigned32AndUnsigned32) {
 
 TEST_F(JSTypedLoweringTest,
                    JSShiftRightLogicalWithUnsigned32AndConstant) {
+  BinaryOperationHints const hints = BinaryOperationHints::Any();
   Node* const lhs = Parameter(Type::Unsigned32());
   Node* const context = UndefinedConstant();
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
   TRACED_FORRANGE(double, rhs, 0, 31) {
     TRACED_FOREACH(LanguageMode, language_mode, kLanguageModes) {
-      Reduction r = Reduce(
-          graph()->NewNode(javascript()->ShiftRightLogical(language_mode), lhs,
-                           NumberConstant(rhs), context, EmptyFrameState(),
-                           EmptyFrameState(), effect, control));
+      Reduction r = Reduce(graph()->NewNode(
+          javascript()->ShiftRightLogical(language_mode, hints), lhs,
+          NumberConstant(rhs), context, EmptyFrameState(), EmptyFrameState(),
+          effect, control));
       ASSERT_TRUE(r.Changed());
       EXPECT_THAT(r.replacement(),
                   IsNumberShiftRightLogical(lhs, IsNumberConstant(BitEq(rhs))));
@@ -617,8 +624,8 @@ TEST_F(JSTypedLoweringTest,
 }
 
 
-TEST_F(JSTypedLoweringTest,
-                   JSShiftRightLogicalWithUnsigned32AndUnsigned32) {
+TEST_F(JSTypedLoweringTest, JSShiftRightLogicalWithUnsigned32AndUnsigned32) {
+  BinaryOperationHints const hints = BinaryOperationHints::Any();
   Node* const lhs = Parameter(Type::Unsigned32());
   Node* const rhs = Parameter(Type::Unsigned32());
   Node* const context = UndefinedConstant();
@@ -626,8 +633,8 @@ TEST_F(JSTypedLoweringTest,
   Node* const control = graph()->start();
   TRACED_FOREACH(LanguageMode, language_mode, kLanguageModes) {
     Reduction r = Reduce(graph()->NewNode(
-        javascript()->ShiftRightLogical(language_mode), lhs, rhs, context,
-        EmptyFrameState(), EmptyFrameState(), effect, control));
+        javascript()->ShiftRightLogical(language_mode, hints), lhs, rhs,
+        context, EmptyFrameState(), EmptyFrameState(), effect, control));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsNumberShiftRightLogical(lhs, rhs));
   }
@@ -978,6 +985,7 @@ TEST_F(JSTypedLoweringTest, JSLoadNamedFunctionPrototype) {
 
 
 TEST_F(JSTypedLoweringTest, JSAddWithString) {
+  BinaryOperationHints const hints = BinaryOperationHints::Any();
   TRACED_FOREACH(LanguageMode, language_mode, kLanguageModes) {
     Node* lhs = Parameter(Type::String(), 0);
     Node* rhs = Parameter(Type::String(), 1);
@@ -986,9 +994,9 @@ TEST_F(JSTypedLoweringTest, JSAddWithString) {
     Node* frame_state1 = EmptyFrameState();
     Node* effect = graph()->start();
     Node* control = graph()->start();
-    Reduction r = Reduce(graph()->NewNode(javascript()->Add(language_mode), lhs,
-                                          rhs, context, frame_state0,
-                                          frame_state1, effect, control));
+    Reduction r = Reduce(
+        graph()->NewNode(javascript()->Add(language_mode, hints), lhs, rhs,
+                         context, frame_state0, frame_state1, effect, control));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(),
                 IsCall(_, IsHeapConstant(CodeFactory::StringAdd(

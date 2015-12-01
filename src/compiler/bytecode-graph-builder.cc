@@ -832,67 +832,79 @@ void BytecodeGraphBuilder::BuildBinaryOp(
 
 void BytecodeGraphBuilder::VisitAdd(
     const interpreter::BytecodeArrayIterator& iterator) {
-  BuildBinaryOp(javascript()->Add(language_mode()), iterator);
+  BinaryOperationHints hints = BinaryOperationHints::Any();
+  BuildBinaryOp(javascript()->Add(language_mode(), hints), iterator);
 }
 
 
 void BytecodeGraphBuilder::VisitSub(
     const interpreter::BytecodeArrayIterator& iterator) {
-  BuildBinaryOp(javascript()->Subtract(language_mode()), iterator);
+  BinaryOperationHints hints = BinaryOperationHints::Any();
+  BuildBinaryOp(javascript()->Subtract(language_mode(), hints), iterator);
 }
 
 
 void BytecodeGraphBuilder::VisitMul(
     const interpreter::BytecodeArrayIterator& iterator) {
-  BuildBinaryOp(javascript()->Multiply(language_mode()), iterator);
+  BinaryOperationHints hints = BinaryOperationHints::Any();
+  BuildBinaryOp(javascript()->Multiply(language_mode(), hints), iterator);
 }
 
 
 void BytecodeGraphBuilder::VisitDiv(
     const interpreter::BytecodeArrayIterator& iterator) {
-  BuildBinaryOp(javascript()->Divide(language_mode()), iterator);
+  BinaryOperationHints hints = BinaryOperationHints::Any();
+  BuildBinaryOp(javascript()->Divide(language_mode(), hints), iterator);
 }
 
 
 void BytecodeGraphBuilder::VisitMod(
     const interpreter::BytecodeArrayIterator& iterator) {
-  BuildBinaryOp(javascript()->Modulus(language_mode()), iterator);
+  BinaryOperationHints hints = BinaryOperationHints::Any();
+  BuildBinaryOp(javascript()->Modulus(language_mode(), hints), iterator);
 }
 
 
 void BytecodeGraphBuilder::VisitBitwiseOr(
     const interpreter::BytecodeArrayIterator& iterator) {
-  BuildBinaryOp(javascript()->BitwiseOr(language_mode()), iterator);
+  BinaryOperationHints hints = BinaryOperationHints::Any();
+  BuildBinaryOp(javascript()->BitwiseOr(language_mode(), hints), iterator);
 }
 
 
 void BytecodeGraphBuilder::VisitBitwiseXor(
     const interpreter::BytecodeArrayIterator& iterator) {
-  BuildBinaryOp(javascript()->BitwiseXor(language_mode()), iterator);
+  BinaryOperationHints hints = BinaryOperationHints::Any();
+  BuildBinaryOp(javascript()->BitwiseXor(language_mode(), hints), iterator);
 }
 
 
 void BytecodeGraphBuilder::VisitBitwiseAnd(
     const interpreter::BytecodeArrayIterator& iterator) {
-  BuildBinaryOp(javascript()->BitwiseAnd(language_mode()), iterator);
+  BinaryOperationHints hints = BinaryOperationHints::Any();
+  BuildBinaryOp(javascript()->BitwiseAnd(language_mode(), hints), iterator);
 }
 
 
 void BytecodeGraphBuilder::VisitShiftLeft(
     const interpreter::BytecodeArrayIterator& iterator) {
-  BuildBinaryOp(javascript()->ShiftLeft(language_mode()), iterator);
+  BinaryOperationHints hints = BinaryOperationHints::Any();
+  BuildBinaryOp(javascript()->ShiftLeft(language_mode(), hints), iterator);
 }
 
 
 void BytecodeGraphBuilder::VisitShiftRight(
     const interpreter::BytecodeArrayIterator& iterator) {
-  BuildBinaryOp(javascript()->ShiftRight(language_mode()), iterator);
+  BinaryOperationHints hints = BinaryOperationHints::Any();
+  BuildBinaryOp(javascript()->ShiftRight(language_mode(), hints), iterator);
 }
 
 
 void BytecodeGraphBuilder::VisitShiftRightLogical(
     const interpreter::BytecodeArrayIterator& iterator) {
-  BuildBinaryOp(javascript()->ShiftRightLogical(language_mode()), iterator);
+  BinaryOperationHints hints = BinaryOperationHints::Any();
+  BuildBinaryOp(javascript()->ShiftRightLogical(language_mode(), hints),
+                iterator);
 }
 
 

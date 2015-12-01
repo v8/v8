@@ -63,12 +63,14 @@ Reduction JSGenericLowering::Reduce(Node* node) {
 }
 
 
-#define REPLACE_BINARY_OP_IC_CALL(op, token)                                  \
-  void JSGenericLowering::Lower##op(Node* node) {                             \
+#define REPLACE_BINARY_OP_IC_CALL(Op, token)                                  \
+  void JSGenericLowering::Lower##Op(Node* node) {                             \
+    BinaryOperationParameters const& p =                                      \
+        BinaryOperationParametersOf(node->op());                              \
     CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);             \
-    ReplaceWithStubCall(node, CodeFactory::BinaryOpIC(                        \
-                                  isolate(), token,                           \
-                                  strength(OpParameter<LanguageMode>(node))), \
+    ReplaceWithStubCall(node,                                                 \
+                        CodeFactory::BinaryOpIC(isolate(), token,             \
+                                                strength(p.language_mode())), \
                         CallDescriptor::kPatchableCallSiteWithNop | flags);   \
   }
 REPLACE_BINARY_OP_IC_CALL(JSBitwiseOr, Token::BIT_OR)

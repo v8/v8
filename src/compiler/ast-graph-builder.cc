@@ -15,6 +15,7 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/state-values-utils.h"
+#include "src/compiler/type-hint-analyzer.h"
 #include "src/parsing/parser.h"
 
 namespace v8 {
@@ -428,7 +429,8 @@ class AstGraphBuilder::FrameStateBeforeAndAfter {
 
 
 AstGraphBuilder::AstGraphBuilder(Zone* local_zone, CompilationInfo* info,
-                                 JSGraph* jsgraph, LoopAssignmentAnalysis* loop)
+                                 JSGraph* jsgraph, LoopAssignmentAnalysis* loop,
+                                 TypeHintAnalysis* type_hint_analysis)
     : isolate_(info->isolate()),
       local_zone_(local_zone),
       info_(info),
@@ -444,6 +446,7 @@ AstGraphBuilder::AstGraphBuilder(Zone* local_zone, CompilationInfo* info,
       input_buffer_(nullptr),
       exit_controls_(local_zone),
       loop_assignment_analysis_(loop),
+      type_hint_analysis_(type_hint_analysis),
       state_values_cache_(jsgraph),
       liveness_analyzer_(static_cast<size_t>(info->scope()->num_stack_slots()),
                          local_zone),
@@ -2166,7 +2169,9 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
       FrameStateBeforeAndAfter states(this, expr->value()->id());
       Node* right = environment()->Pop();
       Node* left = environment()->Pop();
-      value = BuildBinaryOp(left, right, expr->binary_op());
+      value =
+          BuildBinaryOp(left, right, expr->binary_op(),
+                        expr->binary_operation()->BinaryOperationFeedbackId());
       states.AddToNode(value, expr->binary_operation()->id(),
                        OutputFrameStateCombine::Push());
     }
@@ -2725,9 +2730,10 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
   // Create node to perform +1/-1 operation.
   Node* value;
   {
+    // TODO(bmeurer): Cleanup this feedback/bailout mess!
     FrameStateBeforeAndAfter states(this, BailoutId::None());
-    value =
-        BuildBinaryOp(old_value, jsgraph()->OneConstant(), expr->binary_op());
+    value = BuildBinaryOp(old_value, jsgraph()->OneConstant(),
+                          expr->binary_op(), TypeFeedbackId::None());
     // This should never deoptimize outside strong mode because otherwise we
     // have converted to number before.
     states.AddToNode(value, is_strong(language_mode()) ? expr->ToNumberId()
@@ -2810,7 +2816,8 @@ void AstGraphBuilder::VisitBinaryOperation(BinaryOperation* expr) {
       FrameStateBeforeAndAfter states(this, expr->right()->id());
       Node* right = environment()->Pop();
       Node* left = environment()->Pop();
-      Node* value = BuildBinaryOp(left, right, expr->op());
+      Node* value = BuildBinaryOp(left, right, expr->op(),
+                                  expr->BinaryOperationFeedbackId());
       states.AddToNode(value, expr->id(), ast_context()->GetStateCombine());
       ast_context()->ProduceValue(value);
     }
@@ -3781,41 +3788,47 @@ Node* AstGraphBuilder::BuildThrow(Node* exception_value) {
 }
 
 
-Node* AstGraphBuilder::BuildBinaryOp(Node* left, Node* right, Token::Value op) {
+Node* AstGraphBuilder::BuildBinaryOp(Node* left, Node* right, Token::Value op,
+                                     TypeFeedbackId feedback_id) {
   const Operator* js_op;
+  BinaryOperationHints hints;
+  if (!type_hint_analysis_ ||
+      !type_hint_analysis_->GetBinaryOperationHints(feedback_id, &hints)) {
+    hints = BinaryOperationHints::Any();
+  }
   switch (op) {
     case Token::BIT_OR:
-      js_op = javascript()->BitwiseOr(language_mode());
+      js_op = javascript()->BitwiseOr(language_mode(), hints);
       break;
     case Token::BIT_AND:
-      js_op = javascript()->BitwiseAnd(language_mode());
+      js_op = javascript()->BitwiseAnd(language_mode(), hints);
       break;
     case Token::BIT_XOR:
-      js_op = javascript()->BitwiseXor(language_mode());
+      js_op = javascript()->BitwiseXor(language_mode(), hints);
       break;
     case Token::SHL:
-      js_op = javascript()->ShiftLeft(language_mode());
+      js_op = javascript()->ShiftLeft(language_mode(), hints);
       break;
     case Token::SAR:
-      js_op = javascript()->ShiftRight(language_mode());
+      js_op = javascript()->ShiftRight(language_mode(), hints);
       break;
     case Token::SHR:
-      js_op = javascript()->ShiftRightLogical(language_mode());
+      js_op = javascript()->ShiftRightLogical(language_mode(), hints);
       break;
     case Token::ADD:
-      js_op = javascript()->Add(language_mode());
+      js_op = javascript()->Add(language_mode(), hints);
       break;
     case Token::SUB:
-      js_op = javascript()->Subtract(language_mode());
+      js_op = javascript()->Subtract(language_mode(), hints);
       break;
     case Token::MUL:
-      js_op = javascript()->Multiply(language_mode());
+      js_op = javascript()->Multiply(language_mode(), hints);
       break;
     case Token::DIV:
-      js_op = javascript()->Divide(language_mode());
+      js_op = javascript()->Divide(language_mode(), hints);
       break;
     case Token::MOD:
-      js_op = javascript()->Modulus(language_mode());
+      js_op = javascript()->Modulus(language_mode(), hints);
       break;
     default:
       UNREACHABLE();

@@ -13,15 +13,20 @@
 namespace v8 {
 namespace internal {
 
+// Forward declarations.
 class BitVector;
+
 
 namespace compiler {
 
+// Forward declarations.
 class ControlBuilder;
 class Graph;
 class LoopAssignmentAnalysis;
 class LoopBuilder;
 class Node;
+class TypeHintAnalysis;
+
 
 // The AstGraphBuilder produces a high-level IR graph, based on an
 // underlying AST. The produced graph can either be compiled into a
@@ -30,7 +35,8 @@ class Node;
 class AstGraphBuilder : public AstVisitor {
  public:
   AstGraphBuilder(Zone* local_zone, CompilationInfo* info, JSGraph* jsgraph,
-                  LoopAssignmentAnalysis* loop_assignment = NULL);
+                  LoopAssignmentAnalysis* loop_assignment = nullptr,
+                  TypeHintAnalysis* type_hint_analysis = nullptr);
 
   // Creates a graph by visiting the entire AST.
   bool CreateGraph(bool stack_check = true);
@@ -105,6 +111,9 @@ class AstGraphBuilder : public AstVisitor {
 
   // Result of loop assignment analysis performed before graph creation.
   LoopAssignmentAnalysis* loop_assignment_analysis_;
+
+  // Result of type hint analysis performed before graph creation.
+  TypeHintAnalysis* type_hint_analysis_;
 
   // Cache for StateValues nodes for frame states.
   StateValuesCache state_values_cache_;
@@ -344,7 +353,8 @@ class AstGraphBuilder : public AstVisitor {
   Node* BuildThrow(Node* exception_value);
 
   // Builders for binary operations.
-  Node* BuildBinaryOp(Node* left, Node* right, Token::Value op);
+  Node* BuildBinaryOp(Node* left, Node* right, Token::Value op,
+                      TypeFeedbackId feedback_id);
 
   // Process arguments to a call by popping {arity} elements off the operand
   // stack and build a call node using the given call operator.
