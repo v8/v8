@@ -1235,10 +1235,9 @@ void FullCodeGenerator::EmitLoadGlobalCheckExtensions(VariableProxy* proxy,
   while (s != NULL) {
     if (s->num_heap_slots() > 0) {
       if (s->calls_sloppy_eval()) {
-        // Check that extension is NULL.
+        // Check that extension is "the hole".
         __ LoadP(temp, ContextMemOperand(current, Context::EXTENSION_INDEX));
-        __ cmpi(temp, Operand::Zero());
-        __ bne(slow);
+        __ JumpIfNotRoot(temp, Heap::kTheHoleValueRootIndex, slow);
       }
       // Load next context in chain.
       __ LoadP(next, ContextMemOperand(current, Context::PREVIOUS_INDEX));
@@ -1262,10 +1261,9 @@ void FullCodeGenerator::EmitLoadGlobalCheckExtensions(VariableProxy* proxy,
     __ LoadRoot(ip, Heap::kNativeContextMapRootIndex);
     __ cmp(temp, ip);
     __ beq(&fast);
-    // Check that extension is NULL.
+    // Check that extension is "the hole".
     __ LoadP(temp, ContextMemOperand(next, Context::EXTENSION_INDEX));
-    __ cmpi(temp, Operand::Zero());
-    __ bne(slow);
+    __ JumpIfNotRoot(temp, Heap::kTheHoleValueRootIndex, slow);
     // Load next context in chain.
     __ LoadP(next, ContextMemOperand(next, Context::PREVIOUS_INDEX));
     __ b(&loop);
@@ -1288,20 +1286,18 @@ MemOperand FullCodeGenerator::ContextSlotOperandCheckExtensions(Variable* var,
   for (Scope* s = scope(); s != var->scope(); s = s->outer_scope()) {
     if (s->num_heap_slots() > 0) {
       if (s->calls_sloppy_eval()) {
-        // Check that extension is NULL.
+        // Check that extension is "the hole".
         __ LoadP(temp, ContextMemOperand(context, Context::EXTENSION_INDEX));
-        __ cmpi(temp, Operand::Zero());
-        __ bne(slow);
+        __ JumpIfNotRoot(temp, Heap::kTheHoleValueRootIndex, slow);
       }
       __ LoadP(next, ContextMemOperand(context, Context::PREVIOUS_INDEX));
       // Walk the rest of the chain without clobbering cp.
       context = next;
     }
   }
-  // Check that last extension is NULL.
+  // Check that last extension is "the hole".
   __ LoadP(temp, ContextMemOperand(context, Context::EXTENSION_INDEX));
-  __ cmpi(temp, Operand::Zero());
-  __ bne(slow);
+  __ JumpIfNotRoot(temp, Heap::kTheHoleValueRootIndex, slow);
 
   // This function is used only for loads, not stores, so it's safe to
   // return an cp-based operand (the write barrier cannot be allowed to
