@@ -271,6 +271,12 @@ bool Node::OwnedBy(Node const* owner1, Node const* owner2) const {
 }
 
 
+void Node::Print() const {
+  OFStream os(stdout);
+  os << *this << std::endl;
+}
+
+
 Node::Node(NodeId id, const Operator* op, int inline_count, int inline_capacity)
     : op_(op),
       type_(nullptr),
