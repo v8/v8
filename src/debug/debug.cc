@@ -337,8 +337,8 @@ void Debug::ThreadInit() {
   thread_local_.step_count_ = 0;
   thread_local_.last_fp_ = 0;
   thread_local_.queued_step_count_ = 0;
-  thread_local_.step_into_fp_ = 0;
   thread_local_.step_out_fp_ = 0;
+  thread_local_.step_in_enabled_ = false;
   // TODO(isolates): frames_are_dropped_?
   base::NoBarrier_Store(&thread_local_.current_debug_scope_,
                         static_cast<base::AtomicWord>(0));
@@ -749,6 +749,9 @@ void Debug::ClearAllBreakPoints() {
 
 void Debug::FloodWithOneShot(Handle<JSFunction> function,
                              BreakLocatorType type) {
+  // Debug utility functions are not subject to debugging.
+  if (function->native_context() == *debug_context()) return;
+
   if (!function->shared()->IsSubjectToDebugging()) {
     // Builtin functions are not subject to stepping, but need to be
     // deoptimized, because optimized code does not check for debug
@@ -771,66 +774,11 @@ void Debug::FloodWithOneShot(Handle<JSFunction> function,
 }
 
 
-void Debug::FloodBoundFunctionWithOneShot(Handle<JSFunction> function) {
-  Handle<BindingsArray> new_bindings(function->function_bindings());
-  Handle<Object> bindee(new_bindings->bound_function(), isolate_);
-
-  if (!bindee.is_null() && bindee->IsJSFunction()) {
-    Handle<JSFunction> bindee_function(JSFunction::cast(*bindee));
-    FloodWithOneShotGeneric(bindee_function);
-  }
-}
-
-
-void Debug::FloodDefaultConstructorWithOneShot(Handle<JSFunction> function) {
-  DCHECK(function->shared()->is_default_constructor());
-  // Instead of stepping into the function we directly step into the super class
-  // constructor.
-  Isolate* isolate = function->GetIsolate();
-  PrototypeIterator iter(isolate, function);
-  Handle<Object> proto = PrototypeIterator::GetCurrent(iter);
-  if (!proto->IsJSFunction()) return;  // Object.prototype
-  Handle<JSFunction> function_proto = Handle<JSFunction>::cast(proto);
-  FloodWithOneShotGeneric(function_proto);
-}
-
-
-void Debug::FloodWithOneShotGeneric(Handle<JSFunction> function,
-                                    Handle<Object> holder) {
-  if (function->shared()->bound()) {
-    FloodBoundFunctionWithOneShot(function);
-  } else if (function->shared()->is_default_constructor()) {
-    FloodDefaultConstructorWithOneShot(function);
-  } else {
-    Isolate* isolate = function->GetIsolate();
-    // Don't allow step into functions in the native context.
-    if (function->shared()->code() ==
-            isolate->builtins()->builtin(Builtins::kFunctionApply) ||
-        function->shared()->code() ==
-            isolate->builtins()->builtin(Builtins::kFunctionCall)) {
-      // Handle function.apply and function.call separately to flood the
-      // function to be called and not the code for Builtins::FunctionApply or
-      // Builtins::FunctionCall. The receiver of call/apply is the target
-      // function.
-      if (!holder.is_null() && holder->IsJSFunction()) {
-        Handle<JSFunction> js_function = Handle<JSFunction>::cast(holder);
-        FloodWithOneShotGeneric(js_function);
-      }
-    } else {
-      FloodWithOneShot(function);
-    }
-  }
-}
-
-
 void Debug::FloodHandlerWithOneShot() {
   // Iterate through the JavaScript stack looking for handlers.
-  StackFrame::Id id = break_frame_id();
-  if (id == StackFrame::NO_ID) {
-    // If there is no JavaScript stack don't do anything.
-    return;
-  }
-  for (JavaScriptFrameIterator it(isolate_, id); !it.done(); it.Advance()) {
+  DCHECK_NE(StackFrame::NO_ID, break_frame_id());
+  for (JavaScriptFrameIterator it(isolate_, break_frame_id()); !it.done();
+       it.Advance()) {
     JavaScriptFrame* frame = it.frame();
     int stack_slots = 0;  // The computed stack slot count is not used.
     if (frame->LookupExceptionHandlerInTable(&stack_slots, NULL) > 0) {
@@ -867,6 +815,18 @@ FrameSummary GetFirstFrameSummary(JavaScriptFrame* frame) {
 }
 
 
+void Debug::PrepareStepIn(Handle<JSFunction> function) {
+  if (!is_active()) return;
+  if (!IsStepping()) return;
+  if (last_step_action() < StepIn) return;
+  if (in_debug_scope()) return;
+  if (thread_local_.step_in_enabled_) {
+    ClearStepOut();
+    FloodWithOneShot(function);
+  }
+}
+
+
 void Debug::PrepareStep(StepAction step_action,
                         int step_count,
                         StackFrame::Id frame_id) {
@@ -876,6 +836,8 @@ void Debug::PrepareStep(StepAction step_action,
 
   // Remember this step action and count.
   thread_local_.last_step_action_ = step_action;
+  STATIC_ASSERT(StepFrame > StepIn);
+  thread_local_.step_in_enabled_ = (step_action >= StepIn);
   if (step_action == StepOut) {
     // For step out target frame will be found on the stack so there is no need
     // to set step counter for it. It's expected to always be 0 for StepOut.
@@ -951,6 +913,12 @@ void Debug::PrepareStep(StepAction step_action,
     // Skip native and extension functions on the stack.
     while (!frames_it.done() &&
            !frames_it.frame()->function()->shared()->IsSubjectToDebugging()) {
+      if (step_action >= StepIn) {
+        // Builtin functions are not subject to stepping, but need to be
+        // deoptimized, because optimized code does not check for debug
+        // step in at call sites.
+        Deoptimizer::DeoptimizeFunction(frames_it.frame()->function());
+      }
       frames_it.Advance();
     }
     // Step out: If there is a JavaScript caller frame, we need to
@@ -961,55 +929,23 @@ void Debug::PrepareStep(StepAction step_action,
       FloodWithOneShot(Handle<JSFunction>(function));
       // Set target frame pointer.
       ActivateStepOut(frames_it.frame());
+    } else {
+      // Stepping out to the embedder. Disable step-in to avoid stepping into
+      // the next (unrelated) call that the embedder makes.
+      thread_local_.step_in_enabled_ = false;
     }
     return;
   }
 
-  if (step_action != StepNext) {
+  STATIC_ASSERT(StepFrame > StepIn);
+  if (step_action >= StepIn) {
     // If there's restarter frame on top of the stack, just get the pointer
     // to function which is going to be restarted.
     if (thread_local_.restarter_frame_function_pointer_ != NULL) {
       Handle<JSFunction> restarted_function(
           JSFunction::cast(*thread_local_.restarter_frame_function_pointer_));
       FloodWithOneShot(restarted_function);
-    } else if (location.IsStepInLocation()) {
-      // Find target function on the expression stack.
-      // Expression stack looks like this (top to bottom):
-      // argN
-      // ...
-      // arg0
-      // Receiver (only present for calls, not for construct).
-      // Function to call
-      int base = location.IsCall() ? 2 : 1;
-      int num_expressions_without_args =
-          frame->ComputeExpressionsCount() - location.CallArgumentsCount();
-      DCHECK(num_expressions_without_args >= base);
-      Object* fun = frame->GetExpression(num_expressions_without_args - base);
-
-      // Flood the actual target of call/apply.
-      if (location.IsCall() && fun->IsJSFunction()) {
-        Isolate* isolate = JSFunction::cast(fun)->GetIsolate();
-        Code* apply = isolate->builtins()->builtin(Builtins::kFunctionApply);
-        Code* call = isolate->builtins()->builtin(Builtins::kFunctionCall);
-        // Find target function on the expression stack for expression like
-        // Function.call.call...apply(...)
-        int i = 1;
-        while (fun->IsJSFunction()) {
-          Code* code = JSFunction::cast(fun)->shared()->code();
-          if (code != apply && code != call) break;
-          DCHECK(num_expressions_without_args >= i);
-          fun = frame->GetExpression(num_expressions_without_args - i);
-          i--;
-        }
-      }
-
-      if (fun->IsJSFunction()) {
-        Handle<JSFunction> js_function(JSFunction::cast(fun));
-        FloodWithOneShotGeneric(js_function);
-      }
     }
-
-    ActivateStepIn(frame);
   }
 
   // Fill the current function with one-shot break points even for step in on
@@ -1112,36 +1048,15 @@ Handle<Object> Debug::GetSourceBreakLocations(
 }
 
 
-// Handle stepping into a function.
-void Debug::HandleStepIn(Handle<Object> function_obj) {
-  // Flood getter/setter if we either step in or step to another frame.
-  bool step_frame = thread_local_.last_step_action_ == StepFrame;
-  if (!StepInActive() && !step_frame) return;
-  if (!function_obj->IsJSFunction()) return;
-  Handle<JSFunction> function = Handle<JSFunction>::cast(function_obj);
-  Isolate* isolate = function->GetIsolate();
-
-  StackFrameIterator it(isolate);
-  it.Advance();
-  Address fp = it.frame()->fp();
-
-  // Flood the function with one-shot break points if it is called from where
-  // step into was requested, or when stepping into a new frame.
-  if (fp == thread_local_.step_into_fp_ || step_frame) {
-    FloodWithOneShotGeneric(function, Handle<Object>());
-  }
-}
-
-
 void Debug::ClearStepping() {
   // Clear the various stepping setup.
   ClearOneShot();
-  ClearStepIn();
   ClearStepOut();
-  ClearStepNext();
 
-  // Clear multiple step counter.
   thread_local_.step_count_ = 0;
+  thread_local_.last_step_action_ = StepNone;
+  thread_local_.last_statement_position_ = RelocInfo::kNoPosition;
+  thread_local_.last_fp_ = 0;
 }
 
 
@@ -1162,33 +1077,18 @@ void Debug::ClearOneShot() {
 }
 
 
-void Debug::ActivateStepIn(StackFrame* frame) {
-  DCHECK(!StepOutActive());
-  thread_local_.step_into_fp_ = frame->UnpaddedFP();
-}
-
-
-void Debug::ClearStepIn() {
-  thread_local_.step_into_fp_ = 0;
-}
-
-
 void Debug::ActivateStepOut(StackFrame* frame) {
-  DCHECK(!StepInActive());
   thread_local_.step_out_fp_ = frame->UnpaddedFP();
 }
 
 
-void Debug::ClearStepOut() {
-  thread_local_.step_out_fp_ = 0;
+void Debug::EnableStepIn() {
+  STATIC_ASSERT(StepFrame > StepIn);
+  thread_local_.step_in_enabled_ = (last_step_action() >= StepIn);
 }
 
 
-void Debug::ClearStepNext() {
-  thread_local_.last_step_action_ = StepNone;
-  thread_local_.last_statement_position_ = RelocInfo::kNoPosition;
-  thread_local_.last_fp_ = 0;
-}
+void Debug::ClearStepOut() { thread_local_.step_out_fp_ = 0; }
 
 
 bool MatchingCodeTargets(Code* target1, Code* target2) {
@@ -1542,11 +1442,6 @@ bool Debug::EnsureDebugInfo(Handle<SharedFunctionInfo> shared,
   }
 
   if (!PrepareFunctionForBreakPoints(shared)) return false;
-
-  // Make sure IC state is clean. This is so that we correctly flood
-  // accessor pairs when stepping in.
-  shared->code()->ClearInlineCaches();
-  shared->ClearTypeFeedbackInfo();
 
   CreateDebugInfo(shared);
 
@@ -2357,7 +2252,6 @@ DebugScope::DebugScope(Debug* debug)
   failed_ = !debug_->is_loaded();
   if (!failed_) isolate()->set_context(*debug->debug_context());
 }
-
 
 
 DebugScope::~DebugScope() {

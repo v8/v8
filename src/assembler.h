@@ -999,7 +999,7 @@ class ExternalReference BASE_EMBEDDED {
   Address address() const { return reinterpret_cast<Address>(address_); }
 
   // Used to check if single stepping is enabled in generated code.
-  static ExternalReference debug_last_step_action_address(Isolate* isolate);
+  static ExternalReference debug_step_in_enabled_address(Isolate* isolate);
 
 #ifndef V8_INTERPRETED_REGEXP
   // C functions called from RegExp generated code.

@@ -1567,9 +1567,9 @@ ExternalReference ExternalReference::mod_two_doubles_operation(
 }
 
 
-ExternalReference ExternalReference::debug_last_step_action_address(
+ExternalReference ExternalReference::debug_step_in_enabled_address(
     Isolate* isolate) {
-  return ExternalReference(isolate->debug()->last_step_action_addr());
+  return ExternalReference(isolate->debug()->step_in_enabled_address());
 }
 
 

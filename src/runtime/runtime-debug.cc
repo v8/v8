@@ -1626,22 +1626,11 @@ RUNTIME_FUNCTION(Runtime_GetScript) {
 }
 
 
-bool DebugStepInIsActive(Debug* debug) {
-  return debug->is_active() && debug->IsStepping() &&
-         debug->last_step_action() == StepIn;
-}
-
-
 // Set one shot breakpoints for the callback function that is passed to a
 // built-in function such as Array.forEach to enable stepping into the callback,
 // if we are indeed stepping and the callback is subject to debugging.
 RUNTIME_FUNCTION(Runtime_DebugPrepareStepInIfStepping) {
   DCHECK(args.length() == 1);
-  Debug* debug = isolate->debug();
-  if (debug->in_debug_scope() || !DebugStepInIsActive(debug)) {
-    return isolate->heap()->undefined_value();
-  }
-
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
   RUNTIME_ASSERT(object->IsJSFunction() || object->IsJSGeneratorObject());
@@ -1653,8 +1642,7 @@ RUNTIME_FUNCTION(Runtime_DebugPrepareStepInIfStepping) {
         Handle<JSGeneratorObject>::cast(object)->function(), isolate);
   }
 
-  debug->ClearStepOut();
-  debug->FloodWithOneShotGeneric(fun);
+  isolate->debug()->PrepareStepIn(fun);
   return isolate->heap()->undefined_value();
 }
 
@@ -1665,6 +1653,8 @@ RUNTIME_FUNCTION(Runtime_DebugPushPromise) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 1);
   isolate->PushPromise(promise, function);
+  // If we are in step-in mode, flood the handler.
+  isolate->debug()->EnableStepIn();
   return isolate->heap()->undefined_value();
 }
 
@@ -1698,17 +1688,6 @@ RUNTIME_FUNCTION(Runtime_DebugAsyncTaskEvent) {
 RUNTIME_FUNCTION(Runtime_DebugIsActive) {
   SealHandleScope shs(isolate);
   return Smi::FromInt(isolate->debug()->is_active());
-}
-
-
-RUNTIME_FUNCTION(Runtime_DebugHandleStepIntoAccessor) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  Debug* debug = isolate->debug();
-  // Handle stepping into constructors if step into is active.
-  if (debug->StepInActive()) debug->HandleStepIn(function);
-  return *isolate->factory()->undefined_value();
 }
 
 

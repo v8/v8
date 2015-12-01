@@ -1956,7 +1956,8 @@ void MacroAssembler::FloodFunctionIfStepping(Register fun, Register new_target,
   ExternalReference debug_step_action =
       ExternalReference::debug_last_step_action_address(isolate());
   cmpb(Operand::StaticVariable(debug_step_action), StepIn);
-  j(not_equal, &skip_flooding);
+  STATIC_ASSERT(StepFrame > StepIn);
+  j(less, &skip_flooding);
   {
     FrameScope frame(this,
                      has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
