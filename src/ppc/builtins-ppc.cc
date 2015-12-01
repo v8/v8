@@ -1776,10 +1776,9 @@ void Builtins::Generate_ConstructFunction(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r3 : the number of arguments (not including the receiver)
   //  -- r4 : the constructor to call (checked to be a JSFunction)
-  //  -- r6 : the new target (checked to be a JSFunction)
+  //  -- r6 : the new target (checked to be a constructor)
   // -----------------------------------
   __ AssertFunction(r4);
-  __ AssertFunction(r6);
 
   // Calling convention for function specific ConstructStubs require
   // r5 to contain either an AllocationSite or undefined.
