@@ -280,19 +280,12 @@ bool Object::KeyEquals(Object* second) {
 }
 
 
-bool Object::FilterKey(PropertyAttributes filter) {
-  if ((filter & SYMBOLIC) && IsSymbol()) {
-    return true;
+bool Object::FilterKey(PropertyFilter filter) {
+  if (IsSymbol()) {
+    if (filter & SKIP_SYMBOLS) return true;
+    if (Symbol::cast(this)->is_private()) return true;
   }
-
-  if ((filter & PRIVATE_SYMBOL) && IsSymbol() &&
-      Symbol::cast(this)->is_private()) {
-    return true;
-  }
-
-  if ((filter & STRING) && !IsSymbol()) {
-    return true;
-  }
+  if ((filter & SKIP_STRINGS) && !IsSymbol()) return true;
 
   return false;
 }

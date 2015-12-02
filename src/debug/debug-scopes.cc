@@ -760,7 +760,7 @@ void ScopeIterator::CopyContextLocalsToScopeObject(
     // TODO(verwaest): Use AddDataProperty instead.
     JSObject::SetOwnPropertyIgnoreAttributes(
         scope_object, handle(String::cast(scope_info->get(i + start))), value,
-        ::NONE)
+        NONE)
         .Check();
   }
 }
@@ -771,7 +771,8 @@ bool ScopeIterator::CopyContextExtensionToScopeObject(
     JSReceiver::KeyCollectionType type) {
   Handle<FixedArray> keys;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate_, keys, JSReceiver::GetKeys(extension, type), false);
+      isolate_, keys, JSReceiver::GetKeys(extension, type, ENUMERABLE_STRINGS),
+      false);
 
   for (int i = 0; i < keys->length(); i++) {
     // Names of variables introduced by eval are strings.

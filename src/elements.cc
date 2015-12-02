@@ -506,7 +506,7 @@ class ElementsAccessorBase : public ElementsAccessor {
     if (IsFastPackedElementsKind(kind())) return true;
     for (uint32_t i = start; i < end; i++) {
       if (!ElementsAccessorSubclass::HasElementImpl(holder, i, backing_store,
-                                                    NONE)) {
+                                                    ALL_PROPERTIES)) {
         return false;
       }
     }
@@ -533,14 +533,14 @@ class ElementsAccessorBase : public ElementsAccessor {
 
   bool HasElement(Handle<JSObject> holder, uint32_t index,
                   Handle<FixedArrayBase> backing_store,
-                  PropertyAttributes filter) final {
+                  PropertyFilter filter) final {
     return ElementsAccessorSubclass::HasElementImpl(holder, index,
                                                     backing_store, filter);
   }
 
   static bool HasElementImpl(Handle<JSObject> holder, uint32_t index,
                              Handle<FixedArrayBase> backing_store,
-                             PropertyAttributes filter) {
+                             PropertyFilter filter) {
     return ElementsAccessorSubclass::GetEntryForIndexImpl(
                *holder, *backing_store, index, filter) != kMaxUInt32;
   }
@@ -857,7 +857,7 @@ class ElementsAccessorBase : public ElementsAccessor {
   static void CollectElementIndicesImpl(Handle<JSObject> object,
                                         Handle<FixedArrayBase> backing_store,
                                         KeyAccumulator* keys, uint32_t range,
-                                        PropertyAttributes filter,
+                                        PropertyFilter filter,
                                         uint32_t offset) {
     uint32_t length = 0;
     if (object->IsJSArray()) {
@@ -878,7 +878,7 @@ class ElementsAccessorBase : public ElementsAccessor {
   void CollectElementIndices(Handle<JSObject> object,
                              Handle<FixedArrayBase> backing_store,
                              KeyAccumulator* keys, uint32_t range,
-                             PropertyAttributes filter, uint32_t offset) final {
+                             PropertyFilter filter, uint32_t offset) final {
     ElementsAccessorSubclass::CollectElementIndicesImpl(
         object, backing_store, keys, range, filter, offset);
   };
@@ -921,8 +921,7 @@ class ElementsAccessorBase : public ElementsAccessor {
 
   static uint32_t GetEntryForIndexImpl(JSObject* holder,
                                        FixedArrayBase* backing_store,
-                                       uint32_t index,
-                                       PropertyAttributes filter) {
+                                       uint32_t index, PropertyFilter filter) {
     if (IsHoleyElementsKind(kind())) {
       return index < ElementsAccessorSubclass::GetCapacityImpl(holder,
                                                                backing_store) &&
@@ -942,8 +941,8 @@ class ElementsAccessorBase : public ElementsAccessor {
 
   uint32_t GetEntryForIndex(JSObject* holder, FixedArrayBase* backing_store,
                             uint32_t index) final {
-    return ElementsAccessorSubclass::GetEntryForIndexImpl(holder, backing_store,
-                                                          index, NONE);
+    return ElementsAccessorSubclass::GetEntryForIndexImpl(
+        holder, backing_store, index, ALL_PROPERTIES);
   }
 
   static PropertyDetails GetDetailsImpl(FixedArrayBase* backing_store,
@@ -1105,13 +1104,12 @@ class DictionaryElementsAccessor
   }
 
   static uint32_t GetEntryForIndexImpl(JSObject* holder, FixedArrayBase* store,
-                                       uint32_t index,
-                                       PropertyAttributes filter) {
+                                       uint32_t index, PropertyFilter filter) {
     DisallowHeapAllocation no_gc;
     SeededNumberDictionary* dictionary = SeededNumberDictionary::cast(store);
     int entry = dictionary->FindEntry(index);
     if (entry == SeededNumberDictionary::kNotFound) return kMaxUInt32;
-    if (filter != NONE) {
+    if (filter != ALL_PROPERTIES) {
       PropertyDetails details = dictionary->DetailsAt(entry);
       PropertyAttributes attr = details.attributes();
       if ((attr & filter) != 0) return kMaxUInt32;
@@ -1127,7 +1125,7 @@ class DictionaryElementsAccessor
   static void CollectElementIndicesImpl(Handle<JSObject> object,
                                         Handle<FixedArrayBase> backing_store,
                                         KeyAccumulator* keys, uint32_t range,
-                                        PropertyAttributes filter,
+                                        PropertyFilter filter,
                                         uint32_t offset) {
     Handle<SeededNumberDictionary> dictionary =
         Handle<SeededNumberDictionary>::cast(backing_store);
@@ -1810,8 +1808,7 @@ class TypedElementsAccessor
 
   static uint32_t GetEntryForIndexImpl(JSObject* holder,
                                        FixedArrayBase* backing_store,
-                                       uint32_t index,
-                                       PropertyAttributes filter) {
+                                       uint32_t index, PropertyFilter filter) {
     return index < AccessorClass::GetCapacityImpl(holder, backing_store)
                ? index
                : kMaxUInt32;
@@ -1945,8 +1942,7 @@ class SloppyArgumentsElementsAccessor
 
   static uint32_t GetEntryForIndexImpl(JSObject* holder,
                                        FixedArrayBase* parameters,
-                                       uint32_t index,
-                                       PropertyAttributes filter) {
+                                       uint32_t index, PropertyFilter filter) {
     FixedArray* parameter_map = FixedArray::cast(parameters);
     Object* probe = GetParameterMapArg(parameter_map, index);
     if (!probe->IsTheHole()) return index;

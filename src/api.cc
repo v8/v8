@@ -932,7 +932,7 @@ void Template::Set(v8::Local<Name> name, v8::Local<Data> value,
   // TODO(dcarney): split api to allow values of v8::Value or v8::TemplateInfo.
   i::ApiNatives::AddDataProperty(isolate, templ, Utils::OpenHandle(*name),
                                  Utils::OpenHandle(*value),
-                                 static_cast<PropertyAttributes>(attribute));
+                                 static_cast<i::PropertyAttributes>(attribute));
 }
 
 
@@ -953,7 +953,7 @@ void Template::SetAccessorProperty(
   i::ApiNatives::AddAccessorProperty(
       isolate, templ, Utils::OpenHandle(*name),
       Utils::OpenHandle(*getter, true), Utils::OpenHandle(*setter, true),
-      static_cast<PropertyAttributes>(attribute));
+      static_cast<i::PropertyAttributes>(attribute));
 }
 
 
@@ -1108,7 +1108,7 @@ static i::Handle<i::AccessorInfo> SetAccessorInfoProperties(
   obj->set_name(*Utils::OpenHandle(*name));
   if (settings & ALL_CAN_READ) obj->set_all_can_read(true);
   if (settings & ALL_CAN_WRITE) obj->set_all_can_write(true);
-  obj->set_property_attributes(static_cast<PropertyAttributes>(attributes));
+  obj->set_property_attributes(static_cast<i::PropertyAttributes>(attributes));
   if (!signature.IsEmpty()) {
     obj->set_expected_receiver_type(*Utils::OpenHandle(*signature));
   }
@@ -1330,7 +1330,7 @@ void Template::SetIntrinsicDataProperty(Local<Name> name, Intrinsic intrinsic,
   i::HandleScope scope(isolate);
   i::ApiNatives::AddDataProperty(isolate, templ, Utils::OpenHandle(*name),
                                  intrinsic,
-                                 static_cast<PropertyAttributes>(attribute));
+                                 static_cast<i::PropertyAttributes>(attribute));
 }
 
 
@@ -3531,7 +3531,7 @@ Maybe<bool> v8::Object::DefineOwnProperty(v8::Local<v8::Context> context,
 MUST_USE_RESULT
 static i::MaybeHandle<i::Object> DefineObjectProperty(
     i::Handle<i::JSObject> js_object, i::Handle<i::Object> key,
-    i::Handle<i::Object> value, PropertyAttributes attrs) {
+    i::Handle<i::Object> value, i::PropertyAttributes attrs) {
   i::Isolate* isolate = js_object->GetIsolate();
   bool success = false;
   i::LookupIterator it = i::LookupIterator::PropertyOrElement(
@@ -3551,7 +3551,8 @@ Maybe<bool> v8::Object::ForceSet(v8::Local<v8::Context> context,
   auto value_obj = Utils::OpenHandle(*value);
   has_pending_exception =
       DefineObjectProperty(self, key_obj, value_obj,
-                           static_cast<PropertyAttributes>(attribs)).is_null();
+                           static_cast<i::PropertyAttributes>(attribs))
+          .is_null();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(true);
 }
@@ -3569,7 +3570,8 @@ bool v8::Object::ForceSet(v8::Local<Value> key, v8::Local<Value> value,
   i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
   has_pending_exception =
       DefineObjectProperty(self, key_obj, value_obj,
-                           static_cast<PropertyAttributes>(attribs)).is_null();
+                           static_cast<i::PropertyAttributes>(attribs))
+          .is_null();
   EXCEPTION_BAILOUT_CHECK_SCOPED(isolate, false);
   return true;
 }
@@ -3639,8 +3641,8 @@ Maybe<PropertyAttribute> v8::Object::GetPropertyAttributes(
   auto result = i::JSReceiver::GetPropertyAttributes(self, key_name);
   has_pending_exception = result.IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(PropertyAttribute);
-  if (result.FromJust() == ABSENT) {
-    return Just(static_cast<PropertyAttribute>(NONE));
+  if (result.FromJust() == i::ABSENT) {
+    return Just(static_cast<PropertyAttribute>(i::NONE));
   }
   return Just(static_cast<PropertyAttribute>(result.FromJust()));
 }
@@ -3649,7 +3651,7 @@ Maybe<PropertyAttribute> v8::Object::GetPropertyAttributes(
 PropertyAttribute v8::Object::GetPropertyAttributes(v8::Local<Value> key) {
   auto context = ContextFromHeapObject(Utils::OpenHandle(this));
   return GetPropertyAttributes(context, key)
-      .FromMaybe(static_cast<PropertyAttribute>(NONE));
+      .FromMaybe(static_cast<PropertyAttribute>(i::NONE));
 }
 
 
@@ -3728,8 +3730,10 @@ MaybeLocal<Array> v8::Object::GetPropertyNames(Local<Context> context) {
   PREPARE_FOR_EXECUTION(context, "v8::Object::GetPropertyNames()", Array);
   auto self = Utils::OpenHandle(this);
   i::Handle<i::FixedArray> value;
-  has_pending_exception = !i::JSReceiver::GetKeys(
-      self, i::JSReceiver::INCLUDE_PROTOS).ToHandle(&value);
+  has_pending_exception =
+      !i::JSReceiver::GetKeys(self, i::JSReceiver::INCLUDE_PROTOS,
+                              i::ENUMERABLE_STRINGS)
+           .ToHandle(&value);
   RETURN_ON_FAILED_EXECUTION(Array);
   // Because we use caching to speed up enumeration it is important
   // to never change the result of the basic enumeration function so
@@ -3750,8 +3754,9 @@ MaybeLocal<Array> v8::Object::GetOwnPropertyNames(Local<Context> context) {
   PREPARE_FOR_EXECUTION(context, "v8::Object::GetOwnPropertyNames()", Array);
   auto self = Utils::OpenHandle(this);
   i::Handle<i::FixedArray> value;
-  has_pending_exception = !i::JSReceiver::GetKeys(
-      self, i::JSReceiver::OWN_ONLY).ToHandle(&value);
+  has_pending_exception = !i::JSReceiver::GetKeys(self, i::JSReceiver::OWN_ONLY,
+                                                  i::ENUMERABLE_STRINGS)
+                               .ToHandle(&value);
   RETURN_ON_FAILED_EXECUTION(Array);
   // Because we use caching to speed up enumeration it is important
   // to never change the result of the basic enumeration function so
@@ -4004,7 +4009,7 @@ void Object::SetAccessorProperty(Local<Name> name, Local<Function> getter,
   if (setter_i.is_null()) setter_i = isolate->factory()->null_value();
   i::JSObject::DefineAccessor(i::Handle<i::JSObject>::cast(self),
                               v8::Utils::OpenHandle(*name), getter_i, setter_i,
-                              static_cast<PropertyAttributes>(attribute));
+                              static_cast<i::PropertyAttributes>(attribute));
 }
 
 
@@ -4149,10 +4154,11 @@ v8::Object::GetRealNamedPropertyAttributesInPrototypeChain(
   i::LookupIterator it = i::LookupIterator::PropertyOrElement(
       isolate, self, key_obj, proto,
       i::LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
-  Maybe<PropertyAttributes> result = i::JSReceiver::GetPropertyAttributes(&it);
+  Maybe<i::PropertyAttributes> result =
+      i::JSReceiver::GetPropertyAttributes(&it);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(PropertyAttribute);
   if (!it.IsFound()) return Nothing<PropertyAttribute>();
-  if (result.FromJust() == ABSENT) return Just(None);
+  if (result.FromJust() == i::ABSENT) return Just(None);
   return Just(static_cast<PropertyAttribute>(result.FromJust()));
 }
 
@@ -4199,8 +4205,8 @@ Maybe<PropertyAttribute> v8::Object::GetRealNamedPropertyAttributes(
   auto result = i::JSReceiver::GetPropertyAttributes(&it);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(PropertyAttribute);
   if (!it.IsFound()) return Nothing<PropertyAttribute>();
-  if (result.FromJust() == ABSENT) {
-    return Just(static_cast<PropertyAttribute>(NONE));
+  if (result.FromJust() == i::ABSENT) {
+    return Just(static_cast<PropertyAttribute>(i::NONE));
   }
   return Just<PropertyAttribute>(
       static_cast<PropertyAttribute>(result.FromJust()));

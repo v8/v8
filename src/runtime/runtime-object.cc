@@ -214,14 +214,13 @@ MUST_USE_RESULT static MaybeHandle<Object> GetOwnProperty(Isolate* isolate,
   Heap* heap = isolate->heap();
   Factory* factory = isolate->factory();
 
-  PropertyAttributes attrs;
   // Get attributes.
   LookupIterator it = LookupIterator::PropertyOrElement(isolate, obj, name,
                                                         LookupIterator::HIDDEN);
   Maybe<PropertyAttributes> maybe = JSObject::GetPropertyAttributes(&it);
 
   if (!maybe.IsJust()) return MaybeHandle<Object>();
-  attrs = maybe.FromJust();
+  PropertyAttributes attrs = maybe.FromJust();
   if (attrs == ABSENT) return factory->undefined_value();
 
   DCHECK(!isolate->has_pending_exception());
@@ -787,8 +786,8 @@ RUNTIME_FUNCTION(Runtime_GetPropertyNamesFast) {
   Handle<JSReceiver> object(raw_object);
   Handle<FixedArray> content;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, content,
-      JSReceiver::GetKeys(object, JSReceiver::INCLUDE_PROTOS));
+      isolate, content, JSReceiver::GetKeys(object, JSReceiver::INCLUDE_PROTOS,
+                                            ENUMERABLE_STRINGS));
 
   // Test again, since cache may have been built by preceding call.
   if (object->IsSimpleEnum()) return object->map();
@@ -810,7 +809,20 @@ RUNTIME_FUNCTION(Runtime_GetOwnPropertyNames) {
   }
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
   CONVERT_SMI_ARG_CHECKED(filter_value, 1);
-  PropertyAttributes filter = static_cast<PropertyAttributes>(filter_value);
+
+  // TODO(jkummerow): Temporary compatibility measure. Refactor callers.
+  // Values of filter_value are defined in macros.py.
+  PropertyFilter filter = ALL_PROPERTIES;
+  if (filter_value & 2) {
+    filter = static_cast<PropertyFilter>(filter | ONLY_ENUMERABLE);
+  }
+  if (filter_value & 8) {
+    filter = static_cast<PropertyFilter>(filter | SKIP_STRINGS);
+  }
+  if (filter_value & 16) {
+    filter = static_cast<PropertyFilter>(filter | SKIP_SYMBOLS);
+  }
+  DCHECK(filter_value & 32);
 
   // Find the number of own properties for each of the objects.
   int total_property_count = 0;
@@ -925,9 +937,9 @@ RUNTIME_FUNCTION(Runtime_GetOwnElementNames) {
     object = PrototypeIterator::GetCurrent<JSObject>(iter);
   }
 
-  int n = object->NumberOfOwnElements(NONE);
+  int n = object->NumberOfOwnElements(ALL_PROPERTIES);
   Handle<FixedArray> names = isolate->factory()->NewFixedArray(n);
-  object->GetOwnElementKeys(*names, NONE);
+  object->GetOwnElementKeys(*names, ALL_PROPERTIES);
   return *isolate->factory()->NewJSArrayWithElements(names);
 }
 
@@ -991,8 +1003,9 @@ RUNTIME_FUNCTION(Runtime_OwnKeys) {
 
   Handle<FixedArray> contents;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, contents, JSReceiver::GetKeys(object, JSReceiver::OWN_ONLY,
-                                             SKIP_SYMBOLS, CONVERT_TO_STRING));
+      isolate, contents,
+      JSReceiver::GetKeys(object, JSReceiver::OWN_ONLY, ENUMERABLE_STRINGS,
+                          CONVERT_TO_STRING));
   return *isolate->factory()->NewJSArrayWithElements(contents);
 }
 

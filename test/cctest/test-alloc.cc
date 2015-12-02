@@ -154,7 +154,7 @@ TEST(StressJS) {
   Handle<DescriptorArray> instance_descriptors(map->instance_descriptors());
   DCHECK(instance_descriptors->IsEmpty());
 
-  PropertyAttributes attrs = static_cast<PropertyAttributes>(0);
+  PropertyAttributes attrs = NONE;
   Handle<AccessorInfo> foreign = TestAccessorInfo(isolate, attrs);
   Map::EnsureDescriptorSlack(map, 1);
 

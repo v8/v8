@@ -1615,10 +1615,9 @@ BUILTIN(ReflectOwnKeys) {
 
   Handle<FixedArray> keys;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, keys,
-      JSReceiver::GetKeys(Handle<JSReceiver>::cast(target),
-                          JSReceiver::OWN_ONLY, INCLUDE_SYMBOLS,
-                          CONVERT_TO_STRING, IGNORE_ENUMERABILITY));
+      isolate, keys, JSReceiver::GetKeys(Handle<JSReceiver>::cast(target),
+                                         JSReceiver::OWN_ONLY, ALL_PROPERTIES,
+                                         CONVERT_TO_STRING));
   return *isolate->factory()->NewJSArrayWithElements(keys);
 }
 

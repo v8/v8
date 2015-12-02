@@ -6118,10 +6118,11 @@ Object* JSReceiver::DefineProperties(Isolate* isolate, Handle<Object> object,
   Handle<FixedArray> keys;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, keys,
-      JSReceiver::GetKeys(props, JSReceiver::OWN_ONLY, INCLUDE_SYMBOLS));
+      JSReceiver::GetKeys(props, JSReceiver::OWN_ONLY, ALL_PROPERTIES));
   // 6. Let descriptors be an empty List.
   int capacity = keys->length();
   std::vector<PropertyDescriptor> descriptors(capacity);
+  size_t descriptors_index = 0;
   // 7. Repeat for each element nextKey of keys in List order,
   for (int i = 0; i < keys->length(); ++i) {
     Handle<Object> next_key(keys->get(i), isolate);
@@ -6136,24 +6137,24 @@ Object* JSReceiver::DefineProperties(Isolate* isolate, Handle<Object> object,
     PropertyAttributes attrs = maybe.FromJust();
     // 7c. If propDesc is not undefined and propDesc.[[Enumerable]] is true:
     if (attrs == ABSENT) continue;
-    // GetKeys() only returns enumerable keys.
-    DCHECK((attrs & DONT_ENUM) == 0);
+    if (attrs & DONT_ENUM) continue;
     // 7c i. Let descObj be Get(props, nextKey).
     // 7c ii. ReturnIfAbrupt(descObj).
     Handle<Object> desc_obj;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, desc_obj,
                                        Object::GetProperty(&it));
     // 7c iii. Let desc be ToPropertyDescriptor(descObj).
-    success = PropertyDescriptor::ToPropertyDescriptor(isolate, desc_obj,
-                                                       &descriptors[i]);
+    success = PropertyDescriptor::ToPropertyDescriptor(
+        isolate, desc_obj, &descriptors[descriptors_index]);
     // 7c iv. ReturnIfAbrupt(desc).
     if (!success) return isolate->heap()->exception();
     // 7c v. Append the pair (a two element List) consisting of nextKey and
     //       desc to the end of descriptors.
-    descriptors[i].set_name(next_key);
+    descriptors[descriptors_index].set_name(next_key);
+    descriptors_index++;
   }
   // 8. For each pair from descriptors in list order,
-  for (size_t i = 0; i < descriptors.size(); ++i) {
+  for (size_t i = 0; i < descriptors_index; ++i) {
     PropertyDescriptor* desc = &descriptors[i];
     // 8a. Let P be the first element of pair.
     // 8b. Let desc be the second element of pair.
@@ -7717,10 +7718,10 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
           isolate->factory()->NewFixedArray(copy->NumberOfOwnProperties());
       copy->GetOwnPropertyNames(*names, 0);
       for (int i = 0; i < names->length(); i++) {
-        DCHECK(names->get(i)->IsString());
-        Handle<String> key_string(String::cast(names->get(i)));
+        DCHECK(names->get(i)->IsName());
+        Handle<Name> name(Name::cast(names->get(i)));
         Maybe<PropertyAttributes> maybe =
-            JSReceiver::GetOwnPropertyAttributes(copy, key_string);
+            JSReceiver::GetOwnPropertyAttributes(copy, name);
         DCHECK(maybe.IsJust());
         PropertyAttributes attributes = maybe.FromJust();
         // Only deep copy fields from the object literal expression.
@@ -7728,7 +7729,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
         // an array.
         if (attributes != NONE) continue;
         Handle<Object> value =
-            Object::GetProperty(copy, key_string).ToHandleChecked();
+            Object::GetProperty(copy, name).ToHandleChecked();
         if (value->IsJSObject()) {
           Handle<JSObject> result;
           ASSIGN_RETURN_ON_EXCEPTION(
@@ -7737,7 +7738,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
               JSObject);
           if (copying) {
             // Creating object copy for literals. No strict mode needed.
-            JSObject::SetProperty(copy, key_string, result, SLOPPY).Assert();
+            JSObject::SetProperty(copy, name, result, SLOPPY).Assert();
           }
         }
       }
@@ -7941,7 +7942,7 @@ bool JSReceiver::IsSimpleEnum() {
 
 
 int Map::NumberOfDescribedProperties(DescriptorFlag which,
-                                     PropertyAttributes filter) {
+                                     PropertyFilter filter) {
   int result = 0;
   DescriptorArray* descs = instance_descriptors();
   int limit = which == ALL_DESCRIPTORS
@@ -8006,14 +8007,14 @@ Handle<FixedArray> GetFastEnumPropertyKeys(Isolate* isolate,
   // If the enum length of the given map is set to kInvalidEnumCache, this
   // means that the map itself has never used the present enum cache. The
   // first step to using the cache is to set the enum length of the map by
-  // counting the number of own descriptors that are not DONT_ENUM or
-  // SYMBOLIC.
+  // counting the number of own descriptors that are ENUMERABLE_STRINGS.
   if (own_property_count == kInvalidEnumCacheSentinel) {
     own_property_count =
-        map->NumberOfDescribedProperties(OWN_DESCRIPTORS, DONT_SHOW);
+        map->NumberOfDescribedProperties(OWN_DESCRIPTORS, ENUMERABLE_STRINGS);
   } else {
-    DCHECK(own_property_count ==
-           map->NumberOfDescribedProperties(OWN_DESCRIPTORS, DONT_SHOW));
+    DCHECK(
+        own_property_count ==
+        map->NumberOfDescribedProperties(OWN_DESCRIPTORS, ENUMERABLE_STRINGS));
   }
 
   if (descs->HasEnumCache()) {
@@ -8101,8 +8102,7 @@ Handle<FixedArray> JSObject::GetEnumPropertyKeys(Handle<JSObject> object,
 
 
 static bool GetKeysFromJSObject(Isolate* isolate, Handle<JSReceiver> receiver,
-                                Handle<JSObject> object, KeyFilter filter,
-                                Enumerability enum_policy,
+                                Handle<JSObject> object, PropertyFilter filter,
                                 KeyAccumulator* accumulator) {
   accumulator->NextPrototype();
   // Check access rights if required.
@@ -8114,11 +8114,7 @@ static bool GetKeysFromJSObject(Isolate* isolate, Handle<JSReceiver> receiver,
     return false;
   }
 
-  PropertyAttributes attr_filter = static_cast<PropertyAttributes>(
-      (enum_policy == RESPECT_ENUMERABILITY ? DONT_ENUM : NONE) |
-      PRIVATE_SYMBOL);
-
-  JSObject::CollectOwnElementKeys(object, accumulator, attr_filter);
+  JSObject::CollectOwnElementKeys(object, accumulator, filter);
 
   // Add the element keys from the interceptor.
   if (object->HasIndexedInterceptor()) {
@@ -8130,9 +8126,7 @@ static bool GetKeysFromJSObject(Isolate* isolate, Handle<JSReceiver> receiver,
     RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, false);
   }
 
-  if (filter == SKIP_SYMBOLS) {
-    if (enum_policy == IGNORE_ENUMERABILITY) UNIMPLEMENTED();
-
+  if (filter == ENUMERABLE_STRINGS) {
     // We can cache the computed property keys if access checks are
     // not needed and no interceptors are involved.
     //
@@ -8154,8 +8148,7 @@ static bool GetKeysFromJSObject(Isolate* isolate, Handle<JSReceiver> receiver,
         JSObject::GetEnumPropertyKeys(object, cache_enum_length);
     accumulator->AddKeys(enum_keys);
   } else {
-    DCHECK(filter == INCLUDE_SYMBOLS);
-    object->CollectOwnPropertyNames(accumulator, attr_filter);
+    object->CollectOwnPropertyNames(accumulator, filter);
   }
 
   // Add the property keys from the interceptor.
@@ -8176,7 +8169,7 @@ static bool GetKeysFromJSObject(Isolate* isolate, Handle<JSReceiver> receiver,
 static bool GetKeys_Internal(Isolate* isolate, Handle<JSReceiver> receiver,
                              Handle<JSReceiver> object,
                              JSReceiver::KeyCollectionType type,
-                             KeyFilter filter, Enumerability enum_policy,
+                             PropertyFilter filter,
                              KeyAccumulator* accumulator) {
   PrototypeIterator::WhereToEnd end = type == JSReceiver::OWN_ONLY
                                           ? PrototypeIterator::END_AT_NON_HIDDEN
@@ -8191,7 +8184,7 @@ static bool GetKeys_Internal(Isolate* isolate, Handle<JSReceiver> receiver,
       if (type == JSReceiver::OWN_ONLY) {
         result = JSProxy::OwnPropertyKeys(isolate, receiver,
                                           Handle<JSProxy>::cast(current),
-                                          filter, enum_policy, accumulator);
+                                          filter, accumulator);
       } else {
         DCHECK(type == JSReceiver::INCLUDE_PROTOS);
         result = JSProxy::Enumerate(
@@ -8201,7 +8194,7 @@ static bool GetKeys_Internal(Isolate* isolate, Handle<JSReceiver> receiver,
       DCHECK(current->IsJSObject());
       result = GetKeysFromJSObject(isolate, receiver,
                                    Handle<JSObject>::cast(current), filter,
-                                   enum_policy, accumulator);
+                                   accumulator);
     }
     if (!result) {
       if (isolate->has_pending_exception()) {
@@ -8243,7 +8236,7 @@ bool JSProxy::Enumerate(Isolate* isolate, Handle<JSReceiver> receiver,
   if (trap->IsUndefined()) {
     // 6a. Return target.[[Enumerate]]().
     return GetKeys_Internal(isolate, receiver, target, INCLUDE_PROTOS,
-                            SKIP_SYMBOLS, RESPECT_ENUMERABILITY, accumulator);
+                            ENUMERABLE_STRINGS, accumulator);
   }
   // The "proxy_enumerate" helper calls the trap (steps 7 - 9), which returns
   // a generator; it then iterates over that generator until it's exhausted
@@ -8324,8 +8317,7 @@ static MaybeHandle<FixedArray> CreateListFromArrayLike_StringSymbol(
 // Returns "false" in case of exception.
 // static
 bool JSProxy::OwnPropertyKeys(Isolate* isolate, Handle<JSReceiver> receiver,
-                              Handle<JSProxy> proxy, KeyFilter filter,
-                              Enumerability enum_policy,
+                              Handle<JSProxy> proxy, PropertyFilter filter,
                               KeyAccumulator* accumulator) {
   // 1. Let handler be the value of the [[ProxyHandler]] internal slot of O.
   Handle<Object> handler(proxy->handler(), isolate);
@@ -8349,7 +8341,7 @@ bool JSProxy::OwnPropertyKeys(Isolate* isolate, Handle<JSReceiver> receiver,
   if (trap->IsUndefined()) {
     // 6a. Return target.[[OwnPropertyKeys]]().
     return GetKeys_Internal(isolate, receiver, target, OWN_ONLY, filter,
-                            enum_policy, accumulator);
+                            accumulator);
   }
   // 7. Let trapResultArray be Call(trap, handler, «target»).
   Handle<Object> trap_result_array;
@@ -8371,8 +8363,8 @@ bool JSProxy::OwnPropertyKeys(Isolate* isolate, Handle<JSReceiver> receiver,
   Handle<FixedArray> target_keys;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, target_keys,
-      JSReceiver::GetKeys(target, JSReceiver::OWN_ONLY, INCLUDE_SYMBOLS,
-                          CONVERT_TO_STRING, IGNORE_ENUMERABILITY),
+      JSReceiver::GetKeys(target, JSReceiver::OWN_ONLY, ALL_PROPERTIES,
+                          CONVERT_TO_STRING),
       false);
   // 11. (Assert)
   // 12. Let targetConfigurableKeys be an empty List.
@@ -8408,8 +8400,7 @@ bool JSProxy::OwnPropertyKeys(Isolate* isolate, Handle<JSReceiver> receiver,
   //     then:
   if (extensible_target && nonconfigurable_keys_length == 0) {
     // 15a. Return trapResult.
-    return accumulator->AddKeysFromProxy(proxy, trap_result, filter,
-                                         enum_policy);
+    return accumulator->AddKeysFromProxy(proxy, trap_result);
   }
   // 16. Let uncheckedResultKeys be a new List which is a copy of trapResult.
   Zone set_zone;
@@ -8438,8 +8429,7 @@ bool JSProxy::OwnPropertyKeys(Isolate* isolate, Handle<JSReceiver> receiver,
   }
   // 18. If extensibleTarget is true, return trapResult.
   if (extensible_target) {
-    return accumulator->AddKeysFromProxy(proxy, trap_result, filter,
-                                         enum_policy);
+    return accumulator->AddKeysFromProxy(proxy, trap_result);
   }
   // 19. Repeat, for each key that is an element of targetConfigurableKeys:
   for (int i = 0; i < target_configurable_keys->length(); ++i) {
@@ -8465,20 +8455,18 @@ bool JSProxy::OwnPropertyKeys(Isolate* isolate, Handle<JSReceiver> receiver,
     return false;
   }
   // 21. Return trapResult.
-  return accumulator->AddKeysFromProxy(proxy, trap_result, filter, enum_policy);
+  return accumulator->AddKeysFromProxy(proxy, trap_result);
 }
 
 
 MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
                                             KeyCollectionType type,
-                                            KeyFilter filter,
-                                            GetKeysConversion keys_conversion,
-                                            Enumerability enum_policy) {
+                                            PropertyFilter filter,
+                                            GetKeysConversion keys_conversion) {
   USE(ContainsOnlyValidKeys);
   Isolate* isolate = object->GetIsolate();
   KeyAccumulator accumulator(isolate, filter);
-  if (!GetKeys_Internal(isolate, object, object, type, filter, enum_policy,
-                        &accumulator)) {
+  if (!GetKeys_Internal(isolate, object, object, type, filter, &accumulator)) {
     DCHECK(isolate->has_pending_exception());
     return MaybeHandle<FixedArray>();
   }
@@ -14446,8 +14434,7 @@ MaybeHandle<Object> JSArray::ObservableSetLength(Handle<JSArray> array,
   uint32_t old_length = 0;
   CHECK(old_length_handle->ToArrayLength(&old_length));
 
-  static const PropertyAttributes kNoAttrFilter = NONE;
-  int num_elements = array->NumberOfOwnElements(kNoAttrFilter);
+  int num_elements = array->NumberOfOwnElements(ALL_PROPERTIES);
   if (num_elements > 0) {
     if (old_length == static_cast<uint32_t>(num_elements)) {
       // Simple case for arrays without holes.
@@ -14459,7 +14446,7 @@ MaybeHandle<Object> JSArray::ObservableSetLength(Handle<JSArray> array,
       // TODO(rafaelw): For fast, sparse arrays, we can avoid iterating over
       // the to-be-removed indices twice.
       Handle<FixedArray> keys = isolate->factory()->NewFixedArray(num_elements);
-      array->GetOwnElementKeys(*keys, kNoAttrFilter);
+      array->GetOwnElementKeys(*keys, ALL_PROPERTIES);
       while (num_elements-- > 0) {
         uint32_t index = NumberToUint32(keys->get(num_elements));
         if (index < new_length) break;
@@ -15685,13 +15672,13 @@ Maybe<bool> JSObject::HasRealNamedCallbackProperty(Handle<JSObject> object,
 }
 
 
-int JSObject::NumberOfOwnProperties(PropertyAttributes filter) {
+// Private symbols are always filtered out.
+int JSObject::NumberOfOwnProperties(PropertyFilter filter) {
   if (HasFastProperties()) {
     Map* map = this->map();
-    if (filter == NONE) return map->NumberOfOwnDescriptors();
-    if (filter == DONT_SHOW) {
-      // The cached enum length was computed with filter == DONT_SHOW, so
-      // that's the only filter for which it's valid to retrieve it.
+    if (filter == ENUMERABLE_STRINGS) {
+      // The cached enum length was computed with filter == ENUMERABLE_STRING,
+      // so that's the only filter for which it's valid to retrieve it.
       int result = map->EnumLength();
       if (result != kInvalidEnumCacheSentinel) return result;
     }
@@ -15821,7 +15808,7 @@ void FixedArray::SortPairs(FixedArray* numbers, uint32_t len) {
 // purpose of this function is to provide reflection information for the object
 // mirrors.
 int JSObject::GetOwnPropertyNames(FixedArray* storage, int index,
-                                  PropertyAttributes filter) {
+                                  PropertyFilter filter) {
   DCHECK(storage->length() >= (NumberOfOwnProperties(filter) - index));
   if (HasFastProperties()) {
     int start_index = index;
@@ -15845,7 +15832,7 @@ int JSObject::GetOwnPropertyNames(FixedArray* storage, int index,
 
 
 void JSObject::CollectOwnPropertyNames(KeyAccumulator* keys,
-                                       PropertyAttributes filter) {
+                                       PropertyFilter filter) {
   if (HasFastProperties()) {
     int real_size = map()->NumberOfOwnDescriptors();
     Handle<DescriptorArray> descs(map()->instance_descriptors());
@@ -15863,7 +15850,7 @@ void JSObject::CollectOwnPropertyNames(KeyAccumulator* keys,
 }
 
 
-int JSObject::NumberOfOwnElements(PropertyAttributes filter) {
+int JSObject::NumberOfOwnElements(PropertyFilter filter) {
   // Fast case for objects with no elements.
   if (!IsJSValue() && HasFastElements()) {
     uint32_t length =
@@ -15879,13 +15866,13 @@ int JSObject::NumberOfOwnElements(PropertyAttributes filter) {
 
 
 int JSObject::NumberOfEnumElements() {
-  return NumberOfOwnElements(static_cast<PropertyAttributes>(DONT_ENUM));
+  return NumberOfOwnElements(ONLY_ENUMERABLE);
 }
 
 
 void JSObject::CollectOwnElementKeys(Handle<JSObject> object,
                                      KeyAccumulator* keys,
-                                     PropertyAttributes filter) {
+                                     PropertyFilter filter) {
   uint32_t string_keys = 0;
 
   // If this is a String wrapper, add the string indices first,
@@ -15906,8 +15893,7 @@ void JSObject::CollectOwnElementKeys(Handle<JSObject> object,
 }
 
 
-int JSObject::GetOwnElementKeys(FixedArray* storage,
-                                PropertyAttributes filter) {
+int JSObject::GetOwnElementKeys(FixedArray* storage, PropertyFilter filter) {
   int counter = 0;
 
   // If this is a String wrapper, add the string indices first,
@@ -17738,7 +17724,7 @@ Handle<UnseededNumberDictionary> UnseededNumberDictionary::Set(
 
 template <typename Derived, typename Shape, typename Key>
 int Dictionary<Derived, Shape, Key>::NumberOfElementsFilterAttributes(
-    PropertyAttributes filter) {
+    PropertyFilter filter) {
   int capacity = this->Capacity();
   int result = 0;
   for (int i = 0; i < capacity; i++) {
@@ -17759,12 +17745,12 @@ bool Dictionary<Derived, Shape, Key>::HasComplexElements() {
   int capacity = this->Capacity();
   for (int i = 0; i < capacity; i++) {
     Object* k = this->KeyAt(i);
-    if (this->IsKey(k) && !k->FilterKey(NONE)) {
+    if (this->IsKey(k) && !k->FilterKey(ALL_PROPERTIES)) {
       if (this->IsDeleted(i)) continue;
       PropertyDetails details = this->DetailsAt(i);
       if (details.type() == ACCESSOR_CONSTANT) return true;
       PropertyAttributes attr = details.attributes();
-      if (attr & (READ_ONLY | DONT_DELETE | DONT_ENUM)) return true;
+      if (attr & ALL_ATTRIBUTES_MASK) return true;
     }
   }
   return false;
@@ -17811,7 +17797,7 @@ void Dictionary<Derived, Shape, Key>::CopyEnumKeysTo(FixedArray* storage) {
 
 template <typename Derived, typename Shape, typename Key>
 int Dictionary<Derived, Shape, Key>::CopyKeysTo(
-    FixedArray* storage, int index, PropertyAttributes filter,
+    FixedArray* storage, int index, PropertyFilter filter,
     typename Dictionary<Derived, Shape, Key>::SortMode sort_mode) {
   DCHECK(storage->length() >= NumberOfElementsFilterAttributes(filter));
   int start_index = index;
@@ -17836,7 +17822,7 @@ int Dictionary<Derived, Shape, Key>::CopyKeysTo(
 template <typename Derived, typename Shape, typename Key>
 void Dictionary<Derived, Shape, Key>::CollectKeysTo(
     Handle<Dictionary<Derived, Shape, Key> > dictionary, KeyAccumulator* keys,
-    PropertyAttributes filter) {
+    PropertyFilter filter) {
   int capacity = dictionary->Capacity();
   Handle<FixedArray> array =
       keys->isolate()->factory()->NewFixedArray(dictionary->NumberOfElements());

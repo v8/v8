@@ -10733,8 +10733,8 @@ THREADED_TEST(Regress91517) {
   // Call the runtime version of GetOwnPropertyNames() on the natively
   // created object through JavaScript.
   CHECK(context->Global()->Set(context.local(), v8_str("obj"), o4).FromJust());
-  // PROPERTY_ATTRIBUTES_NONE = 0
-  CompileRun("var names = %GetOwnPropertyNames(obj, 0);");
+  // PROPERTY_ATTRIBUTES_PRIVATE_SYMBOL = 32
+  CompileRun("var names = %GetOwnPropertyNames(obj, 32);");
 
   ExpectInt32("names.length", 1006);
   ExpectTrue("names.indexOf(\"baz\") >= 0");
@@ -10797,8 +10797,8 @@ THREADED_TEST(Regress269562) {
   // the natively created object through JavaScript.
   CHECK(context->Global()->Set(context.local(), v8_str("obj"), o2).FromJust());
   CHECK(context->Global()->Set(context.local(), v8_str("sym"), sym).FromJust());
-  // PROPERTY_ATTRIBUTES_NONE = 0
-  CompileRun("var names = %GetOwnPropertyNames(obj, 0);");
+  // PROPERTY_ATTRIBUTES_PRIVATE_SYMBOL = 32
+  CompileRun("var names = %GetOwnPropertyNames(obj, 32);");
 
   ExpectInt32("names.length", 7);
   ExpectTrue("names.indexOf(\"foo\") >= 0");

@@ -1098,7 +1098,7 @@ class Object {
   // 1 all refer to the same property, so this helper will return true.
   inline bool KeyEquals(Object* other);
 
-  inline bool FilterKey(PropertyAttributes filter);
+  inline bool FilterKey(PropertyFilter filter);
 
   Handle<HeapType> OptimalType(Isolate* isolate, Representation representation);
 
@@ -1773,10 +1773,6 @@ enum AccessorComponent {
 };
 
 
-enum KeyFilter { SKIP_SYMBOLS, INCLUDE_SYMBOLS };
-
-enum Enumerability { RESPECT_ENUMERABILITY, IGNORE_ENUMERABILITY };
-
 enum GetKeysConversion { KEEP_NUMBERS, CONVERT_TO_STRING };
 
 
@@ -1923,10 +1919,8 @@ class JSReceiver: public HeapObject {
   // Computes the enumerable keys for a JSObject. Used for implementing
   // "for (n in object) { }".
   MUST_USE_RESULT static MaybeHandle<FixedArray> GetKeys(
-      Handle<JSReceiver> object, KeyCollectionType type,
-      KeyFilter filter = SKIP_SYMBOLS,
-      GetKeysConversion keys_conversion = KEEP_NUMBERS,
-      Enumerability enum_policy = RESPECT_ENUMERABILITY);
+      Handle<JSReceiver> object, KeyCollectionType type, PropertyFilter filter,
+      GetKeysConversion keys_conversion = KEEP_NUMBERS);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSReceiver);
@@ -2254,25 +2248,25 @@ class JSObject: public JSReceiver {
 
   // Returns the number of properties on this object filtering out properties
   // with the specified attributes (ignoring interceptors).
-  int NumberOfOwnProperties(PropertyAttributes filter = NONE);
+  int NumberOfOwnProperties(PropertyFilter filter = ALL_PROPERTIES);
   // Fill in details for properties into storage starting at the specified
   // index. Returns the number of properties added.
   int GetOwnPropertyNames(FixedArray* storage, int index,
-                          PropertyAttributes filter = NONE);
+                          PropertyFilter filter = ALL_PROPERTIES);
   void CollectOwnPropertyNames(KeyAccumulator* keys,
-                               PropertyAttributes filter = NONE);
+                               PropertyFilter filter = ALL_PROPERTIES);
 
   // Returns the number of properties on this object filtering out properties
   // with the specified attributes (ignoring interceptors).
-  int NumberOfOwnElements(PropertyAttributes filter);
+  int NumberOfOwnElements(PropertyFilter filter);
   // Returns the number of enumerable elements (ignoring interceptors).
   int NumberOfEnumElements();
   // Returns the number of elements on this object filtering out elements
   // with the specified attributes (ignoring interceptors).
-  int GetOwnElementKeys(FixedArray* storage, PropertyAttributes filter);
+  int GetOwnElementKeys(FixedArray* storage, PropertyFilter filter);
   static void CollectOwnElementKeys(Handle<JSObject> object,
                                     KeyAccumulator* keys,
-                                    PropertyAttributes filter);
+                                    PropertyFilter filter);
   // Count and fill in the enumerable elements into storage.
   // (storage->length() == NumberOfEnumElements()).
   // If storage is NULL, will count the elements without adding
@@ -3357,12 +3351,11 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
 
   // Returns the number of elements in the dictionary filtering out properties
   // with the specified attributes.
-  int NumberOfElementsFilterAttributes(PropertyAttributes filter);
+  int NumberOfElementsFilterAttributes(PropertyFilter filter);
 
   // Returns the number of enumerable elements in the dictionary.
   int NumberOfEnumElements() {
-    return NumberOfElementsFilterAttributes(
-        static_cast<PropertyAttributes>(DONT_ENUM | SYMBOLIC));
+    return NumberOfElementsFilterAttributes(ENUMERABLE_STRINGS);
   }
 
   // Returns true if the dictionary contains any elements that are non-writable,
@@ -3373,12 +3366,12 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
 
   // Fill in details for properties into storage.
   // Returns the number of properties added.
-  int CopyKeysTo(FixedArray* storage, int index, PropertyAttributes filter,
+  int CopyKeysTo(FixedArray* storage, int index, PropertyFilter filter,
                  SortMode sort_mode);
   // Collect the keys into the given KeyAccumulator, in ascending chronological
   // order of property creation.
   static void CollectKeysTo(Handle<Dictionary<Derived, Shape, Key> > dictionary,
-                            KeyAccumulator* keys, PropertyAttributes filter);
+                            KeyAccumulator* keys, PropertyFilter filter);
 
   // Copies enumerable keys to preallocated fixed array.
   void CopyEnumKeysTo(FixedArray* storage);
@@ -5824,7 +5817,7 @@ class Map: public HeapObject {
   // Returns the number of properties described in instance_descriptors
   // filtering out properties with the specified attributes.
   int NumberOfDescribedProperties(DescriptorFlag which = OWN_DESCRIPTORS,
-                                  PropertyAttributes filter = NONE);
+                                  PropertyFilter filter = ALL_PROPERTIES);
 
   DECLARE_CAST(Map)
 
@@ -9549,8 +9542,7 @@ class JSProxy: public JSReceiver {
 
   // ES6 9.5.12
   static bool OwnPropertyKeys(Isolate* isolate, Handle<JSReceiver> receiver,
-                              Handle<JSProxy> proxy, KeyFilter filter,
-                              Enumerability enum_policy,
+                              Handle<JSProxy> proxy, PropertyFilter filter,
                               KeyAccumulator* accumulator);
 
   MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithHandler(
