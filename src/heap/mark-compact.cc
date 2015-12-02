@@ -678,6 +678,8 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   PageIterator it(space);
   while (it.has_next()) {
     Page* p = it.next();
+    // Invariant: No page should be marked as aborted after a GC.
+    DCHECK(!p->IsFlagSet(Page::COMPACTION_WAS_ABORTED));
     if (p->NeverEvacuate()) continue;
     if (p->IsFlagSet(Page::POPULAR_PAGE)) {
       // This page had slots buffer overflow on previous GC, skip it.
@@ -3262,8 +3264,13 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
         //   happens upon moving (which we potentially didn't do).
         // - Leave the page in the list of pages of a space since we could not
         //   fully evacuate it.
+        // - Mark them for rescanning for store buffer entries as we otherwise
+        //   might have stale store buffer entries that become "valid" again
+        //   after reusing the memory. Note that all existing store buffer
+        //   entries of such pages are filtered before rescanning.
         DCHECK(p->IsEvacuationCandidate());
         p->SetFlag(Page::COMPACTION_WAS_ABORTED);
+        p->set_scan_on_scavenge(true);
         abandoned_pages++;
         break;
       case MemoryChunk::kCompactingFinalize:
