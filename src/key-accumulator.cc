@@ -6,7 +6,9 @@
 
 #include "src/elements.h"
 #include "src/factory.h"
+#include "src/isolate-inl.h"
 #include "src/objects-inl.h"
+#include "src/property-descriptor.h"
 
 
 namespace v8 {
@@ -217,7 +219,44 @@ void KeyAccumulator::AddKeysFromProxy(Handle<JSObject> array_like) {
 }
 
 
-void KeyAccumulator::AddKeysFromProxy(Handle<FixedArray> keys) {
+MaybeHandle<FixedArray> FilterProxyKeys(Isolate* isolate, Handle<JSProxy> owner,
+                                        Handle<FixedArray> keys,
+                                        KeyFilter filter,
+                                        Enumerability enum_policy) {
+  if (filter == INCLUDE_SYMBOLS && enum_policy == IGNORE_ENUMERABILITY) {
+    // Nothing to do.
+    return keys;
+  }
+  int store_position = 0;
+  for (int i = 0; i < keys->length(); ++i) {
+    Handle<Name> key(Name::cast(keys->get(i)), isolate);
+    if (filter == SKIP_SYMBOLS && key->IsSymbol()) continue;  // Skip this key.
+    if (enum_policy == RESPECT_ENUMERABILITY) {
+      PropertyDescriptor desc;
+      bool found =
+          JSProxy::GetOwnPropertyDescriptor(isolate, owner, key, &desc);
+      if (isolate->has_pending_exception()) return MaybeHandle<FixedArray>();
+      if (!found || !desc.enumerable()) continue;  // Skip this key.
+    }
+    // Keep this key.
+    if (store_position != i) {
+      keys->set(store_position, *key);
+    }
+    store_position++;
+  }
+  if (store_position == 0) return isolate->factory()->empty_fixed_array();
+  keys->Shrink(store_position);
+  return keys;
+}
+
+
+// Returns "false" in case of exception, "true" on success.
+bool KeyAccumulator::AddKeysFromProxy(Handle<JSProxy> proxy,
+                                      Handle<FixedArray> keys, KeyFilter filter,
+                                      Enumerability enum_policy) {
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate_, keys,
+      FilterProxyKeys(isolate_, proxy, keys, filter, enum_policy), false);
   // Proxies define a complete list of keys with no distinction of
   // elements and properties, which breaks the normal assumption for the
   // KeyAccumulator.
@@ -226,6 +265,7 @@ void KeyAccumulator::AddKeysFromProxy(Handle<FixedArray> keys) {
   // element keys for this level. Otherwise we would not fully respect the order
   // given by the proxy.
   level_string_length_ = -level_string_length_;
+  return true;
 }
 
 

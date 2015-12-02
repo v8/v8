@@ -9513,7 +9513,8 @@ class JSProxy: public JSReceiver {
       Handle<JSProxy> proxy, ShouldThrow should_throw);
 
   // ES6 9.5.5
-  static bool GetOwnPropertyDescriptor(LookupIterator* it,
+  static bool GetOwnPropertyDescriptor(Isolate* isolate, Handle<JSProxy> proxy,
+                                       Handle<Name> name,
                                        PropertyDescriptor* desc);
 
   // ES6 9.5.6

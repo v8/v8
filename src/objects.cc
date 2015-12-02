@@ -4801,7 +4801,8 @@ Maybe<PropertyAttributes> JSProxy::GetPropertyAttributes(LookupIterator* it) {
   Isolate* isolate = it->isolate();
   HandleScope scope(isolate);
   PropertyDescriptor desc;
-  bool found = JSProxy::GetOwnPropertyDescriptor(it, &desc);
+  bool found = JSProxy::GetOwnPropertyDescriptor(
+      isolate, it->GetHolder<JSProxy>(), it->GetName(), &desc);
   if (isolate->has_pending_exception()) return Nothing<PropertyAttributes>();
   if (!found) return Just(ABSENT);
   return Just(desc.ToAttributes());
@@ -6931,12 +6932,13 @@ bool JSReceiver::GetOwnPropertyDescriptor(Isolate* isolate,
 // static
 bool JSReceiver::GetOwnPropertyDescriptor(LookupIterator* it,
                                           PropertyDescriptor* desc) {
+  Isolate* isolate = it->isolate();
   // "Virtual" dispatch.
   if (it->IsFound() && it->GetHolder<JSReceiver>()->IsJSProxy()) {
-    return JSProxy::GetOwnPropertyDescriptor(it, desc);
+    return JSProxy::GetOwnPropertyDescriptor(isolate, it->GetHolder<JSProxy>(),
+                                             it->GetName(), desc);
   }
 
-  Isolate* isolate = it->isolate();
   // 1. (Assert)
   // 2. If O does not have an own property with key P, return undefined.
   Maybe<PropertyAttributes> maybe = JSObject::GetPropertyAttributes(it);
@@ -6985,13 +6987,11 @@ bool JSReceiver::GetOwnPropertyDescriptor(LookupIterator* it,
 
 // ES6 9.5.5
 // static
-bool JSProxy::GetOwnPropertyDescriptor(LookupIterator* it,
+bool JSProxy::GetOwnPropertyDescriptor(Isolate* isolate, Handle<JSProxy> proxy,
+                                       Handle<Name> name,
                                        PropertyDescriptor* desc) {
-  Handle<JSProxy> proxy = it->GetHolder<JSProxy>();
-  Isolate* isolate = it->isolate();
   Handle<String> trap_name =
       isolate->factory()->getOwnPropertyDescriptor_string();
-  Handle<Name> property_name = it->GetName();
   // 1. (Assert)
   // 2. Let handler be the value of the [[ProxyHandler]] internal slot of O.
   Handle<Object> handler(proxy->handler(), isolate);
@@ -7004,10 +7004,9 @@ bool JSProxy::GetOwnPropertyDescriptor(LookupIterator* it,
   // 4. Assert: Type(handler) is Object.
   DCHECK(handler->IsJSReceiver());
   // If the handler is not null, the target can't be null either.
-  DCHECK(it->GetHolder<JSProxy>()->target()->IsJSReceiver());
+  DCHECK(proxy->target()->IsJSReceiver());
   // 5. Let target be the value of the [[ProxyTarget]] internal slot of O.
-  Handle<JSReceiver> target(
-      JSReceiver::cast(it->GetHolder<JSProxy>()->target()), isolate);
+  Handle<JSReceiver> target(JSReceiver::cast(proxy->target()), isolate);
   // 6. Let trap be ? GetMethod(handler, "getOwnPropertyDescriptor").
   Handle<Object> trap;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -7016,12 +7015,11 @@ bool JSProxy::GetOwnPropertyDescriptor(LookupIterator* it,
   // 7. If trap is undefined, then
   if (trap->IsUndefined()) {
     // 7a. Return target.[[GetOwnProperty]](P).
-    return JSReceiver::GetOwnPropertyDescriptor(isolate, target, property_name,
-                                                desc);
+    return JSReceiver::GetOwnPropertyDescriptor(isolate, target, name, desc);
   }
   // 8. Let trapResultObj be ? Call(trap, handler, «target, P»).
   Handle<Object> trap_result_obj;
-  Handle<Object> args[] = {target, property_name};
+  Handle<Object> args[] = {target, name};
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, trap_result_obj,
       Execution::Call(isolate, trap, handler, arraysize(args), args), false);
@@ -7030,13 +7028,12 @@ bool JSProxy::GetOwnPropertyDescriptor(LookupIterator* it,
   if (!trap_result_obj->IsJSReceiver() && !trap_result_obj->IsUndefined()) {
     isolate->Throw(*isolate->factory()->NewTypeError(
         MessageTemplate::kProxyHandlerReturned, handler, trap_result_obj,
-        property_name));
+        name));
     return false;
   }
   // 10. Let targetDesc be ? target.[[GetOwnProperty]](P).
   PropertyDescriptor target_desc;
-  JSReceiver::GetOwnPropertyDescriptor(isolate, target, property_name,
-                                       &target_desc);
+  JSReceiver::GetOwnPropertyDescriptor(isolate, target, name, &target_desc);
   if (isolate->has_pending_exception()) return false;
   // 11. If trapResultObj is undefined, then
   if (trap_result_obj->IsUndefined()) {
@@ -7046,7 +7043,7 @@ bool JSProxy::GetOwnPropertyDescriptor(LookupIterator* it,
     //      exception.
     if (!target_desc.configurable()) {
       isolate->Throw(*isolate->factory()->NewTypeError(
-          MessageTemplate::kProxyTargetPropNotConfigurable, property_name));
+          MessageTemplate::kProxyTargetPropNotConfigurable, name));
       return false;
     }
     // 11c. Let extensibleTarget be ? IsExtensible(target).
@@ -7078,7 +7075,7 @@ bool JSProxy::GetOwnPropertyDescriptor(LookupIterator* it,
   // 15. Let valid be IsCompatiblePropertyDescriptor (extensibleTarget,
   //     resultDesc, targetDesc).
   bool valid = IsCompatiblePropertyDescriptor(isolate, extensible_target, desc,
-                                              &target_desc, property_name);
+                                              &target_desc, name);
   // 16. If valid is false, throw a TypeError exception.
   if (!valid) {
     DCHECK(isolate->has_pending_exception());
@@ -7090,7 +7087,7 @@ bool JSProxy::GetOwnPropertyDescriptor(LookupIterator* it,
     if (target_desc.is_empty() || target_desc.configurable()) {
       // 17a i. Throw a TypeError exception.
       isolate->Throw(*isolate->factory()->NewTypeError(
-          MessageTemplate::kRedefineDisallowed, property_name));
+          MessageTemplate::kRedefineDisallowed, name));
       return false;
     }
   }
@@ -8326,7 +8323,6 @@ static MaybeHandle<FixedArray> CreateListFromArrayLike_StringSymbol(
 
 // ES6 9.5.12
 // Returns "false" in case of exception.
-// TODO(jkummerow): |filter| and |enum_policy| are currently ignored.
 // static
 bool JSProxy::OwnPropertyKeys(Isolate* isolate, Handle<JSReceiver> receiver,
                               Handle<JSProxy> proxy, KeyFilter filter,
@@ -8413,8 +8409,8 @@ bool JSProxy::OwnPropertyKeys(Isolate* isolate, Handle<JSReceiver> receiver,
   //     then:
   if (extensible_target && nonconfigurable_keys_length == 0) {
     // 15a. Return trapResult.
-    accumulator->AddKeysFromProxy(trap_result);
-    return true;
+    return accumulator->AddKeysFromProxy(proxy, trap_result, filter,
+                                         enum_policy);
   }
   // 16. Let uncheckedResultKeys be a new List which is a copy of trapResult.
   Zone set_zone;
@@ -8443,8 +8439,8 @@ bool JSProxy::OwnPropertyKeys(Isolate* isolate, Handle<JSReceiver> receiver,
   }
   // 18. If extensibleTarget is true, return trapResult.
   if (extensible_target) {
-    accumulator->AddKeysFromProxy(trap_result);
-    return true;
+    return accumulator->AddKeysFromProxy(proxy, trap_result, filter,
+                                         enum_policy);
   }
   // 19. Repeat, for each key that is an element of targetConfigurableKeys:
   for (int i = 0; i < target_configurable_keys->length(); ++i) {
@@ -8470,8 +8466,7 @@ bool JSProxy::OwnPropertyKeys(Isolate* isolate, Handle<JSReceiver> receiver,
     return false;
   }
   // 21. Return trapResult.
-  accumulator->AddKeysFromProxy(trap_result);
-  return true;
+  return accumulator->AddKeysFromProxy(proxy, trap_result, filter, enum_policy);
 }
 
 

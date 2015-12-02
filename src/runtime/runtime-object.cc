@@ -987,8 +987,7 @@ RUNTIME_FUNCTION(Runtime_GetIndexedInterceptorElementNames) {
 RUNTIME_FUNCTION(Runtime_OwnKeys) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
-  CONVERT_ARG_CHECKED(JSObject, raw_object, 0);
-  Handle<JSObject> object(raw_object);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
 
   Handle<FixedArray> contents;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(

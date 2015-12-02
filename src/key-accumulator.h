@@ -44,7 +44,8 @@ class KeyAccumulator final BASE_EMBEDDED {
   void AddKeys(Handle<JSObject> array,
                AddKeyConversion convert = DO_NOT_CONVERT);
   void AddKeysFromProxy(Handle<JSObject> array);
-  void AddKeysFromProxy(Handle<FixedArray> keys);
+  bool AddKeysFromProxy(Handle<JSProxy> proxy, Handle<FixedArray> keys,
+                        KeyFilter filter, Enumerability enum_policy);
   void AddElementKeysFromInterceptor(Handle<JSObject> array);
   // Jump to the next level, pushing the current |levelLength_| to
   // |levelLengths_| and adding a new list to |elements_|.

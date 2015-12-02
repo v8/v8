@@ -122,19 +122,6 @@ function DerivedHasOwnTrap(name) {
   return !!this.getOwnPropertyDescriptor(name)
 }
 
-function DerivedKeysTrap() {
-  var names = this.getOwnPropertyNames()
-  var enumerableNames = []
-  for (var i = 0, count = 0; i < names.length; ++i) {
-    var name = names[i]
-    if (IS_SYMBOL(name)) continue
-    var desc = this.getOwnPropertyDescriptor(TO_STRING(name))
-    if (!IS_UNDEFINED(desc) && desc.enumerable) {
-      enumerableNames[count++] = names[i]
-    }
-  }
-  return enumerableNames
-}
 
 // Implements part of ES6 9.5.11 Proxy.[[Enumerate]]:
 // Call the trap, which should return an iterator, exhaust the iterator,
@@ -176,7 +163,6 @@ utils.InstallFunctions(GlobalProxy, DONT_ENUM, [
 utils.Export(function(to) {
   to.ProxyDelegateCallAndConstruct = DelegateCallAndConstruct;
   to.ProxyDerivedHasOwnTrap = DerivedHasOwnTrap;
-  to.ProxyDerivedKeysTrap = DerivedKeysTrap;
 });
 
 %InstallToContext([

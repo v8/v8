@@ -27,7 +27,6 @@ var ObserveEndPerformSplice;
 var ObserveEnqueueSpliceRecord;
 var ProxyDelegateCallAndConstruct;
 var ProxyDerivedHasOwnTrap;
-var ProxyDerivedKeysTrap;
 var SameValue = utils.ImportNow("SameValue");
 var StringIndexOf;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
@@ -47,7 +46,6 @@ utils.ImportFromExperimental(function(from) {
   FLAG_harmony_tostring = from.FLAG_harmony_tostring;
   ProxyDelegateCallAndConstruct = from.ProxyDelegateCallAndConstruct;
   ProxyDerivedHasOwnTrap = from.ProxyDerivedHasOwnTrap;
-  ProxyDerivedKeysTrap = from.ProxyDerivedKeysTrap;
 });
 
 // ----------------------------------------------------------------------------
@@ -259,11 +257,6 @@ function ObjectLookupSetter(name) {
 
 function ObjectKeys(obj) {
   obj = TO_OBJECT(obj);
-  if (%_IsJSProxy(obj)) {
-    var handler = %GetHandler(obj);
-    var names = CallTrap0(handler, "keys", ProxyDerivedKeysTrap);
-    return ToNameArray(names, "keys", false);
-  }
   return %OwnKeys(obj);
 }
 
