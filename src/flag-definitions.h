@@ -463,6 +463,8 @@ DEFINE_BOOL(turbo_cf_optimization, true, "optimize control flow in TurboFan")
 DEFINE_BOOL(turbo_frame_elision, true, "elide frames in TurboFan")
 DEFINE_BOOL(turbo_cache_shared_code, true, "cache context-independent code")
 DEFINE_BOOL(turbo_preserve_shared_code, false, "keep context-independent code")
+DEFINE_BOOL(turbo_escape, false, "enable escape analysis")
+DEFINE_BOOL(trace_turbo_escape, false, "enable tracing in escape analysis")
 
 #if defined(V8_WASM)
 // Flags for native WebAssembly.

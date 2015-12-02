@@ -167,6 +167,18 @@
   # TODO(titzer): too slow in --turbo mode due to O(n^2) graph verification.
   'regress/regress-1122': [PASS, NO_VARIANTS],
 
+  # TODO(sigurds): Tests that may fail because of missing deopt support.
+  'compiler/escape-analysis-1': [PASS, NO_VARIANTS],
+  'compiler/escape-analysis-2': [PASS, NO_VARIANTS],
+  'compiler/escape-analysis-3': [PASS, NO_VARIANTS],
+  'compiler/escape-analysis-4': [PASS, NO_VARIANTS],
+  'compiler/escape-analysis-5': [PASS, NO_VARIANTS],
+  'compiler/escape-analysis-7': [PASS, NO_VARIANTS],
+  # TODO(sigurds): Tests that fail because of incomplete phi handling.
+  'compiler/escape-analysis-6': [PASS, NO_VARIANTS],
+  # TODO(sigurds): Tests that fail because of incomplete use handling (i.e. select).
+  'compiler/escape-analysis-8': [PASS, NO_VARIANTS],
+
   # Assumptions about optimization need investigation in TurboFan.
   'regress-sync-optimized-lists': [PASS, NO_VARIANTS],
 

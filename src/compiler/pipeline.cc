@@ -19,6 +19,8 @@
 #include "src/compiler/common-operator-reducer.h"
 #include "src/compiler/control-flow-optimizer.h"
 #include "src/compiler/dead-code-elimination.h"
+#include "src/compiler/escape-analysis.h"
+#include "src/compiler/escape-analysis-reducer.h"
 #include "src/compiler/frame-elider.h"
 #include "src/compiler/graph-replay.h"
 #include "src/compiler/graph-trimmer.h"
@@ -646,6 +648,26 @@ struct BranchEliminationPhase {
 };
 
 
+struct EscapeAnalysisPhase {
+  static const char* phase_name() { return "escape analysis"; }
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    EscapeObjectAnalysis escape_analysis(data->graph(),
+                                         data->jsgraph()->common(), temp_zone);
+    escape_analysis.Run();
+    EscapeStatusAnalysis escape_status(&escape_analysis, data->graph(),
+                                       temp_zone);
+    escape_status.Run();
+    JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
+    EscapeAnalysisReducer escape_reducer(&graph_reducer, data->jsgraph(),
+                                         &escape_status, &escape_analysis,
+                                         temp_zone);
+    AddReducer(data, &graph_reducer, &escape_reducer);
+    graph_reducer.ReduceGraph();
+  }
+};
+
+
 struct SimplifiedLoweringPhase {
   static const char* phase_name() { return "simplified lowering"; }
 
@@ -1146,6 +1168,11 @@ Handle<Code> Pipeline::GenerateCode() {
     if (FLAG_turbo_stress_loop_peeling) {
       Run<StressLoopPeelingPhase>();
       RunPrintAndVerify("Loop peeled");
+    }
+
+    if (FLAG_turbo_escape) {
+      Run<EscapeAnalysisPhase>();
+      RunPrintAndVerify("Escape Analysed");
     }
 
     // Lower simplified operators and insert changes.
