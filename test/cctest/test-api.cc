@@ -20145,7 +20145,7 @@ TEST(Regress385349) {
   HandleScope handle_scope(isolate);
   isolate->SetAutorunMicrotasks(false);
   Local<Context> context = Context::New(isolate);
-  v8::Debug::SetDebugEventListener(DebugEventInObserver);
+  v8::Debug::SetDebugEventListener(isolate, DebugEventInObserver);
   {
     Context::Scope context_scope(context);
     CompileRun("var obj = {};"
@@ -20154,7 +20154,7 @@ TEST(Regress385349) {
   }
   isolate->RunMicrotasks();
   isolate->SetAutorunMicrotasks(true);
-  v8::Debug::SetDebugEventListener(NULL);
+  v8::Debug::SetDebugEventListener(isolate, nullptr);
 }
 
 
@@ -22690,7 +22690,7 @@ TEST(StreamingWithDebuggingEnabledLate) {
   v8::ScriptOrigin origin(v8_str("http://foo.com"));
   char* full_source = TestSourceStream::FullSourceString(chunks);
 
-  EnableDebugger();
+  EnableDebugger(isolate);
 
   v8::Local<Script> script = v8::ScriptCompiler::Compile(
       isolate, &source, v8_str(full_source), origin);
@@ -22701,7 +22701,7 @@ TEST(StreamingWithDebuggingEnabledLate) {
 
   delete[] full_source;
 
-  DisableDebugger();
+  DisableDebugger(isolate);
 }
 
 

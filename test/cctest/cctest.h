@@ -679,12 +679,14 @@ static void DummyDebugEventListener(
     const v8::Debug::EventDetails& event_details) {}
 
 
-static inline void EnableDebugger() {
-  v8::Debug::SetDebugEventListener(&DummyDebugEventListener);
+static inline void EnableDebugger(v8::Isolate* isolate) {
+  v8::Debug::SetDebugEventListener(isolate, &DummyDebugEventListener);
 }
 
 
-static inline void DisableDebugger() { v8::Debug::SetDebugEventListener(NULL); }
+static inline void DisableDebugger(v8::Isolate* isolate) {
+  v8::Debug::SetDebugEventListener(isolate, nullptr);
+}
 
 
 static inline void EmptyMessageQueues(v8::Isolate* isolate) {

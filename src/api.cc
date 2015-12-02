@@ -7727,17 +7727,23 @@ Local<StackTrace> Exception::GetStackTrace(Local<Value> exception) {
 
 // --- D e b u g   S u p p o r t ---
 
-bool Debug::SetDebugEventListener(EventCallback that, Local<Value> data) {
-  i::Isolate* isolate = i::Isolate::Current();
-  ENTER_V8(isolate);
-  i::HandleScope scope(isolate);
-  i::Handle<i::Object> foreign = isolate->factory()->undefined_value();
+bool Debug::SetDebugEventListener(Isolate* isolate, EventCallback that,
+                                  Local<Value> data) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  ENTER_V8(i_isolate);
+  i::HandleScope scope(i_isolate);
+  i::Handle<i::Object> foreign = i_isolate->factory()->undefined_value();
   if (that != NULL) {
-    foreign = isolate->factory()->NewForeign(FUNCTION_ADDR(that));
+    foreign = i_isolate->factory()->NewForeign(FUNCTION_ADDR(that));
   }
-  isolate->debug()->SetEventListener(foreign,
-                                     Utils::OpenHandle(*data, true));
+  i_isolate->debug()->SetEventListener(foreign, Utils::OpenHandle(*data, true));
   return true;
+}
+
+
+bool Debug::SetDebugEventListener(EventCallback that, Local<Value> data) {
+  return SetDebugEventListener(
+      reinterpret_cast<Isolate*>(i::Isolate::Current()), that, data);
 }
 
 
@@ -7758,10 +7764,16 @@ bool Debug::CheckDebugBreak(Isolate* isolate) {
 }
 
 
+void Debug::SetMessageHandler(Isolate* isolate,
+                              v8::Debug::MessageHandler handler) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  ENTER_V8(i_isolate);
+  i_isolate->debug()->SetMessageHandler(handler);
+}
+
+
 void Debug::SetMessageHandler(v8::Debug::MessageHandler handler) {
-  i::Isolate* isolate = i::Isolate::Current();
-  ENTER_V8(isolate);
-  isolate->debug()->SetMessageHandler(handler);
+  SetMessageHandler(reinterpret_cast<Isolate*>(i::Isolate::Current()), handler);
 }
 
 
@@ -7827,15 +7839,25 @@ Local<Value> Debug::GetMirror(v8::Local<v8::Value> obj) {
 }
 
 
+void Debug::ProcessDebugMessages(Isolate* isolate) {
+  reinterpret_cast<i::Isolate*>(isolate)->debug()->ProcessDebugMessages(true);
+}
+
+
 void Debug::ProcessDebugMessages() {
-  i::Isolate::Current()->debug()->ProcessDebugMessages(true);
+  ProcessDebugMessages(reinterpret_cast<Isolate*>(i::Isolate::Current()));
+}
+
+
+Local<Context> Debug::GetDebugContext(Isolate* isolate) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  ENTER_V8(i_isolate);
+  return Utils::ToLocal(i_isolate->debug()->GetDebugContext());
 }
 
 
 Local<Context> Debug::GetDebugContext() {
-  i::Isolate* isolate = i::Isolate::Current();
-  ENTER_V8(isolate);
-  return Utils::ToLocal(isolate->debug()->GetDebugContext());
+  return GetDebugContext(reinterpret_cast<Isolate*>(i::Isolate::Current()));
 }
 
 

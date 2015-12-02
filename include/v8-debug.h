@@ -155,8 +155,12 @@ class V8_EXPORT Debug {
    */
   typedef void (*DebugMessageDispatchHandler)();
 
-  static bool SetDebugEventListener(EventCallback that,
+  static bool SetDebugEventListener(Isolate* isolate, EventCallback that,
                                     Local<Value> data = Local<Value>());
+  V8_DEPRECATE_SOON(
+      "Use version with an Isolate",
+      static bool SetDebugEventListener(EventCallback that,
+                                        Local<Value> data = Local<Value>()));
 
   // Schedule a debugger break to happen when JavaScript code is run
   // in the given isolate.
@@ -170,7 +174,9 @@ class V8_EXPORT Debug {
   static bool CheckDebugBreak(Isolate* isolate);
 
   // Message based interface. The message protocol is JSON.
-  static void SetMessageHandler(MessageHandler handler);
+  static void SetMessageHandler(Isolate* isolate, MessageHandler handler);
+  V8_DEPRECATE_SOON("Use version with an Isolate",
+                    static void SetMessageHandler(MessageHandler handler));
 
   static void SendCommand(Isolate* isolate,
                           const uint16_t* command, int length,
@@ -242,7 +248,9 @@ class V8_EXPORT Debug {
    * "Evaluate" debug command behavior currently is not specified in scope
    * of this method.
    */
-  static void ProcessDebugMessages();
+  static void ProcessDebugMessages(Isolate* isolate);
+  V8_DEPRECATE_SOON("Use version with an Isolate",
+                    static void ProcessDebugMessages());
 
   /**
    * Debugger is running in its own context which is entered while debugger
@@ -251,7 +259,9 @@ class V8_EXPORT Debug {
    * to change. The Context exists only when the debugger is active, i.e. at
    * least one DebugEventListener or MessageHandler is set.
    */
-  static Local<Context> GetDebugContext();
+  static Local<Context> GetDebugContext(Isolate* isolate);
+  V8_DEPRECATE_SOON("Use version with an Isolate",
+                    static Local<Context> GetDebugContext());
 
 
   /**
