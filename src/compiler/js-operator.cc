@@ -486,7 +486,6 @@ const CreateLiteralParameters& CreateLiteralParametersOf(const Operator* op) {
   V(NotEqual, Operator::kNoProperties, 2, 1)          \
   V(StrictEqual, Operator::kNoThrow, 2, 1)            \
   V(StrictNotEqual, Operator::kNoThrow, 2, 1)         \
-  V(UnaryNot, Operator::kEliminatable, 1, 1)          \
   V(ToBoolean, Operator::kEliminatable, 1, 1)         \
   V(ToNumber, Operator::kNoProperties, 1, 1)          \
   V(ToString, Operator::kNoProperties, 1, 1)          \

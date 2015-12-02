@@ -255,7 +255,6 @@ class Typer::Visitor : public Reducer {
   JS_SIMPLE_BINOP_LIST(DECLARE_METHOD)
 #undef DECLARE_METHOD
 
-  static Type* JSUnaryNotTyper(Type*, Typer*);
   static Type* JSTypeOfTyper(Type*, Typer*);
   static Type* JSLoadPropertyTyper(Type*, Type*, Typer*);
   static Type* JSCallFunctionTyper(Type*, Typer*);
@@ -1141,16 +1140,6 @@ Type* Typer::Visitor::JSModulusTyper(Type* lhs, Type* rhs, Typer* t) {
 
 
 // JS unary operators.
-
-
-Type* Typer::Visitor::JSUnaryNotTyper(Type* type, Typer* t) {
-  return Invert(ToBoolean(type, t), t);
-}
-
-
-Type* Typer::Visitor::TypeJSUnaryNot(Node* node) {
-  return TypeUnaryOp(node, JSUnaryNotTyper);
-}
 
 
 Type* Typer::Visitor::JSTypeOfTyper(Type* type, Typer* t) {

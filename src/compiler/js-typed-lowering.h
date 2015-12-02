@@ -60,7 +60,6 @@ class JSTypedLowering final : public AdvancedReducer {
   Reduction ReduceJSStoreContext(Node* node);
   Reduction ReduceJSEqual(Node* node, bool invert);
   Reduction ReduceJSStrictEqual(Node* node, bool invert);
-  Reduction ReduceJSUnaryNot(Node* node);
   Reduction ReduceJSToBoolean(Node* node);
   Reduction ReduceJSToNumberInput(Node* input);
   Reduction ReduceJSToNumber(Node* node);
@@ -82,6 +81,7 @@ class JSTypedLowering final : public AdvancedReducer {
   Reduction ReduceJSForInNext(Node* node);
   Reduction ReduceJSForInPrepare(Node* node);
   Reduction ReduceJSForInStep(Node* node);
+  Reduction ReduceSelect(Node* node);
   Reduction ReduceNumberBinop(Node* node, const Operator* numberOp);
   Reduction ReduceInt32Binop(Node* node, const Operator* intOp);
   Reduction ReduceUI32Shift(Node* node, Signedness left_signedness,
@@ -117,6 +117,8 @@ class JSTypedLowering final : public AdvancedReducer {
   Flags flags_;
   JSGraph* jsgraph_;
   Type* shifted_int32_ranges_[4];
+  Type* const true_type_;
+  Type* const false_type_;
   Type* const the_hole_type_;
   TypeCache const& type_cache_;
 };

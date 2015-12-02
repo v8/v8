@@ -2813,7 +2813,7 @@ Handle<Object> ToBooleanIC::ToBoolean(Handle<Object> object) {
   bool to_boolean_value = stub.UpdateStatus(object);
   Handle<Code> code = stub.GetCode();
   set_target(*code);
-  return handle(Smi::FromInt(to_boolean_value ? 1 : 0), isolate());
+  return isolate()->factory()->ToBoolean(to_boolean_value);
 }
 
 

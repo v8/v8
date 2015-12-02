@@ -67,9 +67,7 @@ class CodeFactory final {
   // code-stubs.h.
   static Callable InstanceOf(Isolate* isolate);
 
-  static Callable ToBoolean(
-      Isolate* isolate, ToBooleanStub::ResultMode mode,
-      ToBooleanStub::Types types = ToBooleanStub::Types());
+  static Callable ToBoolean(Isolate* isolate);
 
   static Callable ToNumber(Isolate* isolate);
   static Callable ToString(Isolate* isolate);

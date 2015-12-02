@@ -2747,12 +2747,6 @@ class ToBooleanStub: public HydrogenCodeStub {
     NUMBER_OF_TYPES
   };
 
-  enum ResultMode {
-    RESULT_AS_SMI,             // For Smi(1) on truthy value, Smi(0) otherwise.
-    RESULT_AS_ODDBALL,         // For {true} on truthy value, {false} otherwise.
-    RESULT_AS_INVERSE_ODDBALL  // For {false} on truthy value, {true} otherwise.
-  };
-
   // At most 16 different types can be distinguished, because the Code object
   // only has room for two bytes to hold a set of these types. :-P
   STATIC_ASSERT(NUMBER_OF_TYPES <= 16);
@@ -2772,21 +2766,13 @@ class ToBooleanStub: public HydrogenCodeStub {
     static Types Generic() { return Types((1 << NUMBER_OF_TYPES) - 1); }
   };
 
-  ToBooleanStub(Isolate* isolate, ResultMode mode, Types types = Types())
-      : HydrogenCodeStub(isolate) {
-    set_sub_minor_key(TypesBits::encode(types.ToIntegral()) |
-                      ResultModeBits::encode(mode));
-  }
-
   ToBooleanStub(Isolate* isolate, ExtraICState state)
       : HydrogenCodeStub(isolate) {
-    set_sub_minor_key(TypesBits::encode(static_cast<uint16_t>(state)) |
-                      ResultModeBits::encode(RESULT_AS_SMI));
+    set_sub_minor_key(TypesBits::encode(static_cast<uint16_t>(state)));
   }
 
   bool UpdateStatus(Handle<Object> object);
   Types types() const { return Types(TypesBits::decode(sub_minor_key())); }
-  ResultMode mode() const { return ResultModeBits::decode(sub_minor_key()); }
 
   Code::Kind GetCodeKind() const override { return Code::TO_BOOLEAN_IC; }
   void PrintState(std::ostream& os) const override;  // NOLINT
@@ -2810,11 +2796,9 @@ class ToBooleanStub: public HydrogenCodeStub {
  private:
   ToBooleanStub(Isolate* isolate, InitializationState init_state)
       : HydrogenCodeStub(isolate, init_state) {
-    set_sub_minor_key(ResultModeBits::encode(RESULT_AS_SMI));
   }
 
   class TypesBits : public BitField<uint16_t, 0, NUMBER_OF_TYPES> {};
-  class ResultModeBits : public BitField<ResultMode, NUMBER_OF_TYPES, 2> {};
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(ToBoolean);
   DEFINE_HYDROGEN_CODE_STUB(ToBoolean, HydrogenCodeStub);

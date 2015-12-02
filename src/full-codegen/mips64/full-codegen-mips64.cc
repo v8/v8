@@ -673,8 +673,8 @@ void FullCodeGenerator::DoTest(Expression* condition,
   __ mov(a0, result_register());
   Handle<Code> ic = ToBooleanStub::GetUninitialized(isolate());
   CallIC(ic, condition->test_id());
-  __ mov(at, zero_reg);
-  Split(ne, v0, Operand(at), if_true, if_false, fall_through);
+  __ LoadRoot(at, Heap::kTrueValueRootIndex);
+  Split(eq, result_register(), Operand(at), if_true, if_false, fall_through);
 }
 
 
@@ -2069,7 +2069,8 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ mov(a0, v0);
       Handle<Code> bool_ic = ToBooleanStub::GetUninitialized(isolate());
       CallIC(bool_ic);
-      __ Branch(&l_try, eq, v0, Operand(zero_reg));
+      __ LoadRoot(at, Heap::kTrueValueRootIndex);
+      __ Branch(&l_try, ne, result_register(), Operand(at));
 
       // result.value
       __ pop(load_receiver);                                 // result

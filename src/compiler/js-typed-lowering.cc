@@ -436,6 +436,8 @@ JSTypedLowering::JSTypedLowering(Editor* editor,
       dependencies_(dependencies),
       flags_(flags),
       jsgraph_(jsgraph),
+      true_type_(Type::Constant(factory()->true_value(), graph()->zone())),
+      false_type_(Type::Constant(factory()->false_value(), graph()->zone())),
       the_hole_type_(
           Type::Constant(factory()->the_hole_value(), graph()->zone())),
       type_cache_(TypeCache::Get()) {
@@ -704,40 +706,6 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node, bool invert) {
     return r.ChangeToPureOperator(simplified()->NumberEqual(), invert);
   }
   // TODO(turbofan): js-typed-lowering of StrictEqual(mixed types)
-  return NoChange();
-}
-
-
-Reduction JSTypedLowering::ReduceJSUnaryNot(Node* node) {
-  Node* const input = node->InputAt(0);
-  Type* const input_type = NodeProperties::GetType(input);
-  if (input_type->Is(Type::Boolean())) {
-    // JSUnaryNot(x:boolean) => BooleanNot(x)
-    RelaxEffectsAndControls(node);
-    node->TrimInputCount(1);
-    NodeProperties::ChangeOp(node, simplified()->BooleanNot());
-    return Changed(node);
-  } else if (input_type->Is(Type::OrderedNumber())) {
-    // JSUnaryNot(x:number) => NumberEqual(x,#0)
-    RelaxEffectsAndControls(node);
-    node->ReplaceInput(1, jsgraph()->ZeroConstant());
-    node->TrimInputCount(2);
-    NodeProperties::ChangeOp(node, simplified()->NumberEqual());
-    return Changed(node);
-  } else if (input_type->Is(Type::String())) {
-    // JSUnaryNot(x:string) => NumberEqual(x.length,#0)
-    FieldAccess const access = AccessBuilder::ForStringLength();
-    // It is safe for the load to be effect-free (i.e. not linked into effect
-    // chain) because we assume String::length to be immutable.
-    Node* length = graph()->NewNode(simplified()->LoadField(access), input,
-                                    graph()->start(), graph()->start());
-    ReplaceWithValue(node, node, length);
-    node->ReplaceInput(0, length);
-    node->ReplaceInput(1, jsgraph()->ZeroConstant());
-    node->TrimInputCount(2);
-    NodeProperties::ChangeOp(node, simplified()->NumberEqual());
-    return Changed(node);
-  }
   return NoChange();
 }
 
@@ -2332,6 +2300,36 @@ Reduction JSTypedLowering::ReduceJSForInStep(Node* node) {
 }
 
 
+Reduction JSTypedLowering::ReduceSelect(Node* node) {
+  DCHECK_EQ(IrOpcode::kSelect, node->opcode());
+  Node* const condition = NodeProperties::GetValueInput(node, 0);
+  Type* const condition_type = NodeProperties::GetType(condition);
+  Node* const vtrue = NodeProperties::GetValueInput(node, 1);
+  Type* const vtrue_type = NodeProperties::GetType(vtrue);
+  Node* const vfalse = NodeProperties::GetValueInput(node, 2);
+  Type* const vfalse_type = NodeProperties::GetType(vfalse);
+  if (condition_type->Is(true_type_)) {
+    // Select(condition:true, vtrue, vfalse) => vtrue
+    return Replace(vtrue);
+  }
+  if (condition_type->Is(false_type_)) {
+    // Select(condition:false, vtrue, vfalse) => vfalse
+    return Replace(vfalse);
+  }
+  if (vtrue_type->Is(true_type_) && vfalse_type->Is(false_type_)) {
+    // Select(condition, vtrue:true, vfalse:false) => condition
+    return Replace(condition);
+  }
+  if (vtrue_type->Is(false_type_) && vfalse_type->Is(true_type_)) {
+    // Select(condition, vtrue:false, vfalse:true) => BooleanNot(condition)
+    node->TrimInputCount(1);
+    NodeProperties::ChangeOp(node, simplified()->BooleanNot());
+    return Changed(node);
+  }
+  return NoChange();
+}
+
+
 Reduction JSTypedLowering::Reduce(Node* node) {
   // Check if the output type is a singleton.  In that case we already know the
   // result value and can simply replace the node if it's eliminable.
@@ -2401,8 +2399,6 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceNumberBinop(node, simplified()->NumberDivide());
     case IrOpcode::kJSModulus:
       return ReduceJSModulus(node);
-    case IrOpcode::kJSUnaryNot:
-      return ReduceJSUnaryNot(node);
     case IrOpcode::kJSToBoolean:
       return ReduceJSToBoolean(node);
     case IrOpcode::kJSToNumber:
@@ -2453,6 +2449,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSForInPrepare(node);
     case IrOpcode::kJSForInStep:
       return ReduceJSForInStep(node);
+    case IrOpcode::kSelect:
+      return ReduceSelect(node);
     default:
       break;
   }

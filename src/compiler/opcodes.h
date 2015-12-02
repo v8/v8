@@ -91,8 +91,6 @@
   JS_BITWISE_BINOP_LIST(V)      \
   JS_ARITH_BINOP_LIST(V)
 
-#define JS_LOGIC_UNOP_LIST(V) V(JSUnaryNot)
-
 #define JS_CONVERSION_UNOP_LIST(V) \
   V(JSToBoolean)                   \
   V(JSToNumber)                    \
@@ -104,7 +102,6 @@
   V(JSTypeOf)
 
 #define JS_SIMPLE_UNOP_LIST(V) \
-  JS_LOGIC_UNOP_LIST(V)        \
   JS_CONVERSION_UNOP_LIST(V)   \
   JS_OTHER_UNOP_LIST(V)
 

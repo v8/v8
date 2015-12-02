@@ -674,7 +674,8 @@ void FullCodeGenerator::DoTest(Expression* condition,
                                Label* fall_through) {
   Handle<Code> ic = ToBooleanStub::GetUninitialized(isolate());
   CallIC(ic, condition->test_id());
-  __ CompareAndSplit(result_register(), 0, ne, if_true, if_false, fall_through);
+  __ CompareRoot(result_register(), Heap::kTrueValueRootIndex);
+  Split(eq, if_true, if_false, fall_through);
 }
 
 
@@ -4609,7 +4610,8 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       // The ToBooleanStub argument (result.done) is in x0.
       Handle<Code> bool_ic = ToBooleanStub::GetUninitialized(isolate());
       CallIC(bool_ic);
-      __ Cbz(x0, &l_try);
+      __ CompareRoot(result_register(), Heap::kTrueValueRootIndex);
+      __ B(ne, &l_try);
 
       // result.value
       __ Pop(load_receiver);                                 // result

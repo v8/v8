@@ -236,15 +236,6 @@ void JSGenericLowering::ReplaceWithRuntimeCall(Node* node,
 }
 
 
-void JSGenericLowering::LowerJSUnaryNot(Node* node) {
-  CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
-  Callable callable = CodeFactory::ToBoolean(
-      isolate(), ToBooleanStub::RESULT_AS_INVERSE_ODDBALL);
-  ReplaceWithStubCall(node, callable,
-                      CallDescriptor::kPatchableCallSite | flags);
-}
-
-
 void JSGenericLowering::LowerJSTypeOf(Node* node) {
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
   Callable callable = CodeFactory::Typeof(isolate());
@@ -254,8 +245,7 @@ void JSGenericLowering::LowerJSTypeOf(Node* node) {
 
 void JSGenericLowering::LowerJSToBoolean(Node* node) {
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
-  Callable callable =
-      CodeFactory::ToBoolean(isolate(), ToBooleanStub::RESULT_AS_ODDBALL);
+  Callable callable = CodeFactory::ToBoolean(isolate());
   ReplaceWithStubCall(node, callable,
                       CallDescriptor::kPatchableCallSite | flags);
 }

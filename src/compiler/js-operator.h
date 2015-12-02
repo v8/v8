@@ -497,7 +497,6 @@ class JSOperatorBuilder final : public ZoneObject {
   const Operator* Modulus(LanguageMode language_mode,
                           BinaryOperationHints hints);
 
-  const Operator* UnaryNot();
   const Operator* ToBoolean();
   const Operator* ToNumber();
   const Operator* ToString();

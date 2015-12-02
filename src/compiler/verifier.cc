@@ -456,7 +456,6 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kJSGreaterThan:
     case IrOpcode::kJSLessThanOrEqual:
     case IrOpcode::kJSGreaterThanOrEqual:
-    case IrOpcode::kJSUnaryNot:
       // Type is Boolean.
       CheckUpperIs(node, Type::Boolean());
       break;

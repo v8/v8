@@ -624,9 +624,8 @@ void FullCodeGenerator::DoTest(Expression* condition,
                                Label* fall_through) {
   Handle<Code> ic = ToBooleanStub::GetUninitialized(isolate());
   CallIC(ic, condition->test_id());
-  __ test(result_register(), result_register());
-  // The stub returns nonzero for true.
-  Split(not_zero, if_true, if_false, fall_through);
+  __ CompareRoot(result_register(), Heap::kTrueValueRootIndex);
+  Split(equal, if_true, if_false, fall_through);
 }
 
 
@@ -1985,8 +1984,8 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       CallLoadIC(NOT_INSIDE_TYPEOF);  // result.done in eax
       Handle<Code> bool_ic = ToBooleanStub::GetUninitialized(isolate());
       CallIC(bool_ic);
-      __ test(eax, eax);
-      __ j(zero, &l_try);
+      __ CompareRoot(result_register(), Heap::kTrueValueRootIndex);
+      __ j(not_equal, &l_try);
 
       // result.value
       __ pop(load_receiver);                              // result

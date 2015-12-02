@@ -3011,8 +3011,9 @@ void AstGraphBuilder::VisitTypeof(UnaryOperation* expr) {
 void AstGraphBuilder::VisitNot(UnaryOperation* expr) {
   VisitForValue(expr->expression());
   Node* operand = environment()->Pop();
-  // TODO(mstarzinger): Possible optimization when we are in effect context.
-  Node* value = NewNode(javascript()->UnaryNot(), operand);
+  Node* input = BuildToBoolean(operand);
+  Node* value = NewNode(common()->Select(kMachAnyTagged), input,
+                        jsgraph()->FalseConstant(), jsgraph()->TrueConstant());
   ast_context()->ProduceValue(value);
 }
 
@@ -3960,7 +3961,6 @@ Node* AstGraphBuilder::TryFastToBoolean(Node* input) {
     case IrOpcode::kJSLessThanOrEqual:
     case IrOpcode::kJSGreaterThan:
     case IrOpcode::kJSGreaterThanOrEqual:
-    case IrOpcode::kJSUnaryNot:
     case IrOpcode::kJSToBoolean:
     case IrOpcode::kJSDeleteProperty:
     case IrOpcode::kJSHasProperty:
