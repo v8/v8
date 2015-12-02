@@ -19,8 +19,7 @@ class JSGraph;
 class EscapeAnalysisReducer final : public AdvancedReducer {
  public:
   EscapeAnalysisReducer(Editor* editor, JSGraph* jsgraph,
-                        EscapeStatusAnalysis* escape_status,
-                        EscapeObjectAnalysis* escape_analysis, Zone* zone);
+                        EscapeAnalysis* escape_analysis, Zone* zone);
 
   Reduction Reduce(Node* node) final;
 
@@ -34,13 +33,11 @@ class EscapeAnalysisReducer final : public AdvancedReducer {
   Reduction ReplaceWithDeoptDummy(Node* node);
 
   JSGraph* jsgraph() const { return jsgraph_; }
-  EscapeObjectAnalysis* escape_analysis() const { return escape_analysis_; }
-  EscapeStatusAnalysis* escape_status() const { return escape_status_; }
+  EscapeAnalysis* escape_analysis() const { return escape_analysis_; }
   Zone* zone() const { return zone_; }
 
   JSGraph* const jsgraph_;
-  EscapeStatusAnalysis* escape_status_;
-  EscapeObjectAnalysis* escape_analysis_;
+  EscapeAnalysis* escape_analysis_;
   Zone* const zone_;
 
   DISALLOW_COPY_AND_ASSIGN(EscapeAnalysisReducer);

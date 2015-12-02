@@ -22,26 +22,21 @@ class EscapeAnalysisTest : public GraphTest {
   EscapeAnalysisTest()
       : simplified_(zone()),
         jsgraph_(isolate(), graph(), common(), nullptr, nullptr, nullptr),
-        escape_objects_(graph(), common(), zone()),
-        escape_status_(&escape_objects_, graph(), zone()),
+        escape_analysis_(graph(), common(), zone()),
         effect_(graph()->start()),
         control_(graph()->start()) {}
 
   ~EscapeAnalysisTest() {}
 
-  EscapeStatusAnalysis* escape_status() { return &escape_status_; }
-  EscapeObjectAnalysis* escape_objects() { return &escape_objects_; }
+  EscapeAnalysis* escape_analysis() { return &escape_analysis_; }
 
  protected:
-  void Analysis() {
-    escape_objects_.Run();
-    escape_status_.Run();
-  }
+  void Analysis() { escape_analysis_.Run(); }
 
   void Transformation() {
     GraphReducer graph_reducer(zone(), graph());
-    EscapeAnalysisReducer escape_reducer(
-        &graph_reducer, &jsgraph_, &escape_status_, &escape_objects_, zone());
+    EscapeAnalysisReducer escape_reducer(&graph_reducer, &jsgraph_,
+                                         &escape_analysis_, zone());
     graph_reducer.AddReducer(&escape_reducer);
     graph_reducer.ReduceGraph();
   }
@@ -145,11 +140,11 @@ class EscapeAnalysisTest : public GraphTest {
   // ---------------------------------Assertion Helper--------------------------
 
   void ExpectReplacement(Node* node, Node* rep) {
-    EXPECT_EQ(rep, escape_objects()->GetReplacement(node, node->id()));
+    EXPECT_EQ(rep, escape_analysis()->GetReplacement(node, node->id()));
   }
 
   void ExpectReplacementPhi(Node* node, Node* left, Node* right) {
-    Node* rep = escape_objects()->GetReplacement(node, node->id());
+    Node* rep = escape_analysis()->GetReplacement(node, node->id());
     ASSERT_NE(nullptr, rep);
     ASSERT_EQ(IrOpcode::kPhi, rep->opcode());
     EXPECT_EQ(left, NodeProperties::GetValueInput(rep, 0));
@@ -159,13 +154,13 @@ class EscapeAnalysisTest : public GraphTest {
   void ExpectVirtual(Node* node) {
     EXPECT_TRUE(node->opcode() == IrOpcode::kAllocate ||
                 node->opcode() == IrOpcode::kFinishRegion);
-    EXPECT_TRUE(escape_status()->IsVirtual(node));
+    EXPECT_TRUE(escape_analysis()->IsVirtual(node));
   }
 
   void ExpectEscaped(Node* node) {
     EXPECT_TRUE(node->opcode() == IrOpcode::kAllocate ||
                 node->opcode() == IrOpcode::kFinishRegion);
-    EXPECT_TRUE(escape_status()->IsEscaped(node));
+    EXPECT_TRUE(escape_analysis()->IsEscaped(node));
   }
 
   SimplifiedOperatorBuilder* simplified() { return &simplified_; }
@@ -175,8 +170,7 @@ class EscapeAnalysisTest : public GraphTest {
  private:
   SimplifiedOperatorBuilder simplified_;
   JSGraph jsgraph_;
-  EscapeObjectAnalysis escape_objects_;
-  EscapeStatusAnalysis escape_status_;
+  EscapeAnalysis escape_analysis_;
 
   Node* effect_;
   Node* control_;
@@ -276,7 +270,7 @@ TEST_F(EscapeAnalysisTest, BranchNonEscape) {
 
   ExpectVirtual(allocation);
   ExpectReplacementPhi(load, object1, object2);
-  Node* replacement_phi = escape_objects()->GetReplacement(load, load->id());
+  Node* replacement_phi = escape_analysis()->GetReplacement(load, load->id());
 
   Transformation();
 

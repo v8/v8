@@ -652,16 +652,12 @@ struct EscapeAnalysisPhase {
   static const char* phase_name() { return "escape analysis"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    EscapeObjectAnalysis escape_analysis(data->graph(),
-                                         data->jsgraph()->common(), temp_zone);
+    EscapeAnalysis escape_analysis(data->graph(), data->jsgraph()->common(),
+                                   temp_zone);
     escape_analysis.Run();
-    EscapeStatusAnalysis escape_status(&escape_analysis, data->graph(),
-                                       temp_zone);
-    escape_status.Run();
     JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
     EscapeAnalysisReducer escape_reducer(&graph_reducer, data->jsgraph(),
-                                         &escape_status, &escape_analysis,
-                                         temp_zone);
+                                         &escape_analysis, temp_zone);
     AddReducer(data, &graph_reducer, &escape_reducer);
     graph_reducer.ReduceGraph();
   }

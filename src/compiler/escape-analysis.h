@@ -14,15 +14,13 @@ namespace compiler {
 
 // Forward declarations.
 class CommonOperatorBuilder;
-class EscapeObjectAnalysis;
+class EscapeAnalysis;
 class VirtualState;
 
 
 // EscapeStatusAnalysis determines for each allocation whether it escapes.
 class EscapeStatusAnalysis {
  public:
-  EscapeStatusAnalysis(EscapeObjectAnalysis* object_analysis, Graph* graph,
-                       Zone* zone);
   ~EscapeStatusAnalysis();
 
   enum EscapeStatusFlag {
@@ -34,13 +32,16 @@ class EscapeStatusAnalysis {
 
   void Run();
 
-  bool HasEntry(Node* node);
   bool IsVirtual(Node* node);
   bool IsEscaped(Node* node);
 
   void DebugPrint();
 
+  friend class EscapeAnalysis;
+
  private:
+  EscapeStatusAnalysis(EscapeAnalysis* object_analysis, Graph* graph,
+                       Zone* zone);
   void Process(Node* node);
   void ProcessAllocate(Node* node);
   void ProcessFinishRegion(Node* node);
@@ -50,11 +51,12 @@ class EscapeStatusAnalysis {
   void RevisitUses(Node* node);
   void RevisitInputs(Node* node);
   bool SetEscaped(Node* node);
+  bool HasEntry(Node* node);
 
   Graph* graph() const { return graph_; }
   Zone* zone() const { return zone_; }
 
-  EscapeObjectAnalysis* object_analysis_;
+  EscapeAnalysis* object_analysis_;
   Graph* const graph_;
   Zone* const zone_;
   ZoneVector<EscapeStatusFlags> info_;
@@ -69,16 +71,19 @@ DEFINE_OPERATORS_FOR_FLAGS(EscapeStatusAnalysis::EscapeStatusFlags)
 
 // EscapeObjectAnalysis simulates stores to determine values of loads if
 // an object is virtual and eliminated.
-class EscapeObjectAnalysis {
+class EscapeAnalysis {
  public:
-  EscapeObjectAnalysis(Graph* graph, CommonOperatorBuilder* common, Zone* zone);
-  ~EscapeObjectAnalysis();
+  EscapeAnalysis(Graph* graph, CommonOperatorBuilder* common, Zone* zone);
+  ~EscapeAnalysis();
 
   void Run();
 
   Node* GetReplacement(Node* at, NodeId id);
+  bool IsVirtual(Node* node);
+  bool IsEscaped(Node* node);
 
  private:
+  void RunObjectAnalysis();
   bool Process(Node* node);
   void ProcessLoadField(Node* node);
   void ProcessStoreField(Node* node);
@@ -102,8 +107,9 @@ class EscapeObjectAnalysis {
   CommonOperatorBuilder* const common_;
   Zone* const zone_;
   ZoneVector<VirtualState*> virtual_states_;
+  EscapeStatusAnalysis escape_status_;
 
-  DISALLOW_COPY_AND_ASSIGN(EscapeObjectAnalysis);
+  DISALLOW_COPY_AND_ASSIGN(EscapeAnalysis);
 };
 
 }  // namespace compiler

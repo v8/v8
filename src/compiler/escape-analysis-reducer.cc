@@ -11,12 +11,11 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-EscapeAnalysisReducer::EscapeAnalysisReducer(
-    Editor* editor, JSGraph* jsgraph, EscapeStatusAnalysis* escape_status,
-    EscapeObjectAnalysis* escape_analysis, Zone* zone)
+EscapeAnalysisReducer::EscapeAnalysisReducer(Editor* editor, JSGraph* jsgraph,
+                                             EscapeAnalysis* escape_analysis,
+                                             Zone* zone)
     : AdvancedReducer(editor),
       jsgraph_(jsgraph),
-      escape_status_(escape_status),
       escape_analysis_(escape_analysis),
       zone_(zone) {}
 
@@ -58,7 +57,7 @@ Reduction EscapeAnalysisReducer::ReduceLoadField(Node* node) {
 
 Reduction EscapeAnalysisReducer::ReduceStoreField(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kStoreField);
-  if (escape_status()->IsVirtual(NodeProperties::GetValueInput(node, 0))) {
+  if (escape_analysis()->IsVirtual(NodeProperties::GetValueInput(node, 0))) {
     if (FLAG_trace_turbo_escape) {
       PrintF("Removed store field #%d from effect chain\n", node->id());
     }
@@ -71,7 +70,7 @@ Reduction EscapeAnalysisReducer::ReduceStoreField(Node* node) {
 
 Reduction EscapeAnalysisReducer::ReduceAllocate(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kAllocate);
-  if (escape_status()->IsVirtual(node)) {
+  if (escape_analysis()->IsVirtual(node)) {
     RelaxEffectsAndControls(node);
     if (FLAG_trace_turbo_escape) {
       PrintF("Removed allocate #%d from effect chain\n", node->id());
@@ -107,8 +106,8 @@ Reduction EscapeAnalysisReducer::ReduceReferenceEqual(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kReferenceEqual);
   Node* left = NodeProperties::GetValueInput(node, 0);
   Node* right = NodeProperties::GetValueInput(node, 1);
-  if (escape_status()->IsVirtual(left)) {
-    if (escape_status()->IsVirtual(right)) {
+  if (escape_analysis()->IsVirtual(left)) {
+    if (escape_analysis()->IsVirtual(right)) {
       if (Node* rep = escape_analysis()->GetReplacement(node, left->id())) {
         left = rep;
       }
@@ -130,7 +129,7 @@ Reduction EscapeAnalysisReducer::ReduceReferenceEqual(Node* node) {
       PrintF("Replaced ref eq #%d with false\n", node->id());
     }
     return Replace(node);
-  } else if (escape_status()->IsVirtual(right)) {
+  } else if (escape_analysis()->IsVirtual(right)) {
     // Left-hand side is not a virtual object.
     ReplaceWithValue(node, jsgraph()->FalseConstant());
     if (FLAG_trace_turbo_escape) {
@@ -152,7 +151,7 @@ Reduction EscapeAnalysisReducer::ReplaceWithDeoptDummy(Node* node) {
     if (input->opcode() == IrOpcode::kFinishRegion ||
         input->opcode() == IrOpcode::kAllocate ||
         input->opcode() == IrOpcode::kPhi) {
-      if (escape_status()->IsVirtual(input)) {
+      if (escape_analysis()->IsVirtual(input)) {
         NodeProperties::ReplaceValueInput(node, jsgraph()->UndefinedConstant(),
                                           i);
         if (FLAG_trace_turbo_escape) {
