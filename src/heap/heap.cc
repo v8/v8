@@ -2717,9 +2717,6 @@ void Heap::CreateInitialObjects() {
   set_experimental_extra_natives_source_cache(
       *factory->NewFixedArray(ExperimentalExtraNatives::GetBuiltinsCount()));
 
-  set_code_stub_natives_source_cache(
-      *factory->NewFixedArray(CodeStubNatives::GetBuiltinsCount()));
-
   set_undefined_cell(*factory->NewCell(factory->undefined_value()));
 
   // The symbol registry is initialized lazily.
@@ -5081,6 +5078,7 @@ bool Heap::CreateHeapObjects() {
 
   set_native_contexts_list(undefined_value());
   set_allocation_sites_list(undefined_value());
+
   return true;
 }
 

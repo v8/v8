@@ -83,10 +83,6 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceFixedArrayGet(node);
     case Runtime::kInlineFixedArraySet:
       return ReduceFixedArraySet(node);
-    case Runtime::kInlineGetTypeFeedbackVector:
-      return ReduceGetTypeFeedbackVector(node);
-    case Runtime::kInlineGetCallerJSFunction:
-      return ReduceGetCallerJSFunction(node);
     case Runtime::kInlineToInteger:
       return ReduceToInteger(node);
     case Runtime::kInlineToLength:
@@ -456,43 +452,6 @@ Reduction JSIntrinsicLowering::ReduceFixedArraySet(Node* node) {
       index, value, effect, control));
   ReplaceWithValue(node, value, store);
   return Changed(store);
-}
-
-
-Reduction JSIntrinsicLowering::ReduceGetTypeFeedbackVector(Node* node) {
-  Node* func = node->InputAt(0);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-  FieldAccess access = AccessBuilder::ForJSFunctionSharedFunctionInfo();
-  Node* load =
-      graph()->NewNode(simplified()->LoadField(access), func, effect, control);
-  access = AccessBuilder::ForSharedFunctionInfoTypeFeedbackVector();
-  return Change(node, simplified()->LoadField(access), load, load, control);
-}
-
-
-Reduction JSIntrinsicLowering::ReduceGetCallerJSFunction(Node* node) {
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-
-  Node* const frame_state = NodeProperties::GetFrameStateInput(node, 0);
-  Node* outer_frame = frame_state->InputAt(kFrameStateOuterStateInput);
-  if (outer_frame->opcode() == IrOpcode::kFrameState) {
-    // Use the runtime implementation to throw the appropriate error if the
-    // containing function is inlined.
-    return NoChange();
-  }
-
-  // TODO(danno): This implementation forces intrinsic lowering to happen after
-  // inlining, which is fine for now, but eventually the frame-querying logic
-  // probably should go later, e.g. in instruction selection, so that there is
-  // no phase-ordering dependency.
-  FieldAccess access = AccessBuilder::ForFrameCallerFramePtr();
-  Node* fp = graph()->NewNode(machine()->LoadFramePointer());
-  Node* next_fp =
-      graph()->NewNode(simplified()->LoadField(access), fp, effect, control);
-  return Change(node, simplified()->LoadField(AccessBuilder::ForFrameMarker()),
-                next_fp, effect, control);
 }
 
 

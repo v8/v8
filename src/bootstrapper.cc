@@ -59,7 +59,6 @@ template Handle<String> Bootstrapper::SourceLookup<ExperimentalNatives>(
 template Handle<String> Bootstrapper::SourceLookup<ExperimentalExtraNatives>(
     int index);
 template Handle<String> Bootstrapper::SourceLookup<ExtraNatives>(int index);
-template Handle<String> Bootstrapper::SourceLookup<CodeStubNatives>(int index);
 
 
 void Bootstrapper::Initialize(bool create_heap_objects) {
@@ -130,7 +129,6 @@ void Bootstrapper::TearDown() {
   DeleteNativeSources(ExtraNatives::GetSourceCache(isolate_->heap()));
   DeleteNativeSources(
       ExperimentalExtraNatives::GetSourceCache(isolate_->heap()));
-  DeleteNativeSources(CodeStubNatives::GetSourceCache(isolate_->heap()));
 
   extensions_cache_.Initialize(isolate_, false);  // Yes, symmetrical
 }
@@ -336,26 +334,6 @@ Handle<Context> Bootstrapper::CreateEnvironment(
     return Handle<Context>();
   }
   return scope.CloseAndEscape(env);
-}
-
-
-bool Bootstrapper::CreateCodeStubContext(Isolate* isolate) {
-  HandleScope scope(isolate);
-  SaveContext save_context(isolate);
-  BootstrapperActive active(this);
-
-  v8::ExtensionConfiguration no_extensions;
-  Handle<Context> native_context = CreateEnvironment(
-      MaybeHandle<JSGlobalProxy>(), v8::Local<v8::ObjectTemplate>(),
-      &no_extensions, THIN_CONTEXT);
-  isolate->heap()->SetRootCodeStubContext(*native_context);
-  isolate->set_context(*native_context);
-  Handle<JSObject> code_stub_exports =
-      isolate->factory()->NewJSObject(isolate->object_function());
-  JSObject::NormalizeProperties(code_stub_exports, CLEAR_INOBJECT_PROPERTIES, 2,
-                                "container to export to extra natives");
-  isolate->heap()->SetRootCodeStubExportsObject(*code_stub_exports);
-  return InstallCodeStubNatives(isolate);
 }
 
 
@@ -1554,20 +1532,6 @@ bool Bootstrapper::CompileExperimentalExtraBuiltin(Isolate* isolate,
 }
 
 
-bool Bootstrapper::CompileCodeStubBuiltin(Isolate* isolate, int index) {
-  HandleScope scope(isolate);
-  Vector<const char> name = CodeStubNatives::GetScriptName(index);
-  Handle<String> source_code =
-      isolate->bootstrapper()->SourceLookup<CodeStubNatives>(index);
-  Handle<JSObject> global(isolate->global_object());
-  Handle<JSObject> exports(isolate->heap()->code_stub_exports_object());
-  Handle<Object> args[] = {global, exports};
-  bool result =
-      CompileNative(isolate, name, source_code, arraysize(args), args);
-  return result;
-}
-
-
 bool Bootstrapper::CompileNative(Isolate* isolate, Vector<const char> name,
                                  Handle<String> source, int argc,
                                  Handle<Object> argv[]) {
@@ -2579,16 +2543,6 @@ bool Genesis::InstallDebuggerNatives() {
     if (!Bootstrapper::CompileBuiltin(isolate(), i)) return false;
   }
   return CallUtilsFunction(isolate(), "PostDebug");
-}
-
-
-bool Bootstrapper::InstallCodeStubNatives(Isolate* isolate) {
-  for (int i = CodeStubNatives::GetDebuggerCount();
-       i < CodeStubNatives::GetBuiltinsCount(); i++) {
-    if (!CompileCodeStubBuiltin(isolate, i)) return false;
-  }
-
-  return true;
 }
 
 

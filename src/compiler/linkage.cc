@@ -176,7 +176,6 @@ int Linkage::FrameStateInputCount(Runtime::FunctionId function) {
     case Runtime::kInlineArguments:
     case Runtime::kInlineArgumentsLength:
     case Runtime::kInlineDefaultConstructorCallSuper:
-    case Runtime::kInlineGetCallerJSFunction:
     case Runtime::kInlineGetPrototype:
     case Runtime::kInlineRegExpExec:
     case Runtime::kInlineSubString:
@@ -221,7 +220,7 @@ bool CallDescriptor::UsesOnlyRegisters() const {
 
 CallDescriptor* Linkage::GetRuntimeCallDescriptor(
     Zone* zone, Runtime::FunctionId function_id, int js_parameter_count,
-    Operator::Properties properties, bool needs_frame_state) {
+    Operator::Properties properties, CallDescriptor::Flags flags) {
   const size_t function_count = 1;
   const size_t num_args_count = 1;
   const size_t context_count = 1;
@@ -264,10 +263,10 @@ CallDescriptor* Linkage::GetRuntimeCallDescriptor(
   locations.AddParam(regloc(kContextRegister));
   types.AddParam(kMachAnyTagged);
 
-  CallDescriptor::Flags flags =
-      needs_frame_state && (Linkage::FrameStateInputCount(function_id) > 0)
-          ? CallDescriptor::kNeedsFrameState
-          : CallDescriptor::kNoFlags;
+  if (Linkage::FrameStateInputCount(function_id) == 0) {
+    flags = static_cast<CallDescriptor::Flags>(
+        flags & ~CallDescriptor::kNeedsFrameState);
+  }
 
   // The target for runtime calls is a code object.
   MachineType target_type = kMachAnyTagged;

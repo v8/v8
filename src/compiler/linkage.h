@@ -307,7 +307,7 @@ class Linkage : public ZoneObject {
 
   static CallDescriptor* GetRuntimeCallDescriptor(
       Zone* zone, Runtime::FunctionId function, int parameter_count,
-      Operator::Properties properties, bool needs_frame_state = true);
+      Operator::Properties properties, CallDescriptor::Flags flags);
 
   static CallDescriptor* GetLazyBailoutDescriptor(Zone* zone);
 

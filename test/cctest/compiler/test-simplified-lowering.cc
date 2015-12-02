@@ -83,7 +83,7 @@ class SimplifiedLoweringTester : public GraphBuilderTester<ReturnType> {
   T* CallWithPotentialGC() {
     // TODO(titzer): we wrap the code in a JSFunction here to reuse the
     // JSEntryStub; that could be done with a special prologue or other stub.
-    Handle<JSFunction> fun = FunctionTester::ForMachineGraph(this->graph());
+    Handle<JSFunction> fun = FunctionTester::ForMachineGraph(this->graph(), 0);
     Handle<Object>* args = NULL;
     MaybeHandle<Object> result = Execution::Call(
         this->isolate(), fun, factory()->undefined_value(), 0, args);

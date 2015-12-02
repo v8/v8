@@ -14,6 +14,7 @@ namespace internal {
 class PlatformInterfaceDescriptor;
 
 #define INTERFACE_DESCRIPTOR_LIST(V)          \
+  V(Void)                                     \
   V(Load)                                     \
   V(Store)                                    \
   V(StoreTransition)                          \
@@ -73,8 +74,6 @@ class PlatformInterfaceDescriptor;
   V(MathPowInteger)                           \
   V(ContextOnly)                              \
   V(GrowArrayElements)                        \
-  V(MathRoundVariantCallFromUnoptimizedCode)  \
-  V(MathRoundVariantCallFromOptimizedCode)    \
   V(InterpreterPushArgsAndCall)               \
   V(InterpreterPushArgsAndConstruct)          \
   V(InterpreterCEntry)
@@ -233,6 +232,14 @@ class CallInterfaceDescriptor {
       Isolate* isolate, int register_param_count) override;      \
                                                                  \
  public:
+
+
+class VoidDescriptor : public CallInterfaceDescriptor {
+ public:
+  DECLARE_DESCRIPTOR(VoidDescriptor, CallInterfaceDescriptor)
+};
+
+
 // LoadDescriptor is used by all stubs that implement Load/KeyedLoad ICs.
 class LoadDescriptor : public CallInterfaceDescriptor {
  public:
@@ -716,23 +723,6 @@ class MathPowIntegerDescriptor : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(MathPowIntegerDescriptor, CallInterfaceDescriptor)
 
   static const Register exponent();
-};
-
-
-class MathRoundVariantCallFromOptimizedCodeDescriptor
-    : public CallInterfaceDescriptor {
- public:
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(
-      MathRoundVariantCallFromOptimizedCodeDescriptor, CallInterfaceDescriptor)
-};
-
-
-class MathRoundVariantCallFromUnoptimizedCodeDescriptor
-    : public CallInterfaceDescriptor {
- public:
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(
-      MathRoundVariantCallFromUnoptimizedCodeDescriptor,
-      CallInterfaceDescriptor)
 };
 
 

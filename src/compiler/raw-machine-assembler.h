@@ -543,8 +543,6 @@ class RawMachineAssembler {
   // Call a given call descriptor and the given arguments and frame-state.
   Node* CallNWithFrameState(CallDescriptor* desc, Node* function, Node** args,
                             Node* frame_state);
-  // Tail call the given call descriptor and the given arguments.
-  Node* TailCallN(CallDescriptor* call_descriptor, Node* function, Node** args);
   // Call to a runtime function with one arguments.
   Node* CallRuntime1(Runtime::FunctionId function, Node* arg0, Node* context);
   // Call to a runtime function with two arguments.
@@ -570,6 +568,16 @@ class RawMachineAssembler {
                        MachineType arg7_type, Node* function, Node* arg0,
                        Node* arg1, Node* arg2, Node* arg3, Node* arg4,
                        Node* arg5, Node* arg6, Node* arg7);
+
+  // Tail call the given call descriptor and the given arguments.
+  Node* TailCallN(CallDescriptor* call_descriptor, Node* function, Node** args);
+  // Tail call to a runtime function with one argument.
+  Node* TailCallRuntime1(Runtime::FunctionId function, Node* arg0,
+                         Node* context);
+  // Tail call to a runtime function with two arguments.
+  Node* TailCallRuntime2(Runtime::FunctionId function, Node* arg1, Node* arg2,
+                         Node* context);
+
 
   // ===========================================================================
   // The following utility methods deal with control flow, hence might switch

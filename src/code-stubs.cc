@@ -7,6 +7,7 @@
 #include <sstream>
 
 #include "src/bootstrapper.h"
+#include "src/compiler/code-stub-assembler.h"
 #include "src/factory.h"
 #include "src/gdb-jit.h"
 #include "src/ic/handler-compiler.h"
@@ -341,11 +342,6 @@ void StringAddStub::PrintBaseName(std::ostream& os) const {  // NOLINT
 }
 
 
-void StringAddTFStub::PrintBaseName(std::ostream& os) const {  // NOLINT
-  os << "StringAddTFStub_" << flags() << "_" << pretenure_flag();
-}
-
-
 InlineCacheState CompareICStub::GetICState() const {
   CompareICState::State state = Max(left(), right());
   switch (state) {
@@ -473,38 +469,25 @@ void CompareNilICStub::UpdateStatus(Handle<Object> object) {
 }
 
 
-namespace {
-
-Handle<JSFunction> GetFunction(Isolate* isolate, const char* name) {
-  v8::ExtensionConfiguration no_extensions;
-  MaybeHandle<Object> fun = Object::GetProperty(
-      isolate, isolate->factory()->code_stub_exports_object(), name);
-  Handle<JSFunction> function = Handle<JSFunction>::cast(fun.ToHandleChecked());
-  DCHECK(!function->IsUndefined() &&
-         "JavaScript implementation of stub not found");
-  return function;
-}
-}  // namespace
-
-
 Handle<Code> TurboFanCodeStub::GenerateCode() {
-  // Get the outer ("stub generator") function.
   const char* name = CodeStub::MajorName(MajorKey());
-  Handle<JSFunction> outer = GetFunction(isolate(), name);
-  DCHECK_EQ(2, outer->shared()->length());
+  Zone zone;
+  CallInterfaceDescriptor descriptor(GetCallInterfaceDescriptor());
+  compiler::CodeStubAssembler assembler(isolate(), &zone, descriptor,
+                                        GetCodeKind(), name);
+  GenerateAssembly(&assembler);
+  return assembler.GenerateCode();
+}
 
-  // Invoke the outer function to get the stub itself.
-  Factory* factory = isolate()->factory();
-  Handle<Object> call_conv = factory->InternalizeUtf8String(name);
-  Handle<Object> minor_key = factory->NewNumber(MinorKey());
-  Handle<Object> args[] = {call_conv, minor_key};
-  MaybeHandle<Object> result =
-      Execution::Call(isolate(), outer, factory->undefined_value(), 2, args);
-  Handle<JSFunction> inner = Handle<JSFunction>::cast(result.ToHandleChecked());
-  // Just to make sure nobody calls this...
-  inner->set_code(isolate()->builtins()->builtin(Builtins::kIllegal));
 
-  return Compiler::GetStubCode(inner, this).ToHandleChecked();
+void StringLengthStub::GenerateAssembly(
+    compiler::CodeStubAssembler* assembler) const {
+  compiler::Node* value = assembler->Parameter(0);
+  compiler::Node* string =
+      assembler->LoadObjectField(value, JSValue::kValueOffset);
+  compiler::Node* result =
+      assembler->LoadObjectField(string, String::kLengthOffset);
+  assembler->Return(result);
 }
 
 

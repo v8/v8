@@ -81,6 +81,12 @@ void AllocateMutableHeapNumberDescriptor::InitializePlatformSpecific(
 }
 
 
+void VoidDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  data->InitializePlatformSpecific(0, nullptr);
+}
+
+
 Type::FunctionType* LoadDescriptor::BuildCallInterfaceDescriptorFunctionType(
     Isolate* isolate, int paramater_count) {
   Zone* zone = isolate->interface_descriptor_zone();
@@ -91,6 +97,7 @@ Type::FunctionType* LoadDescriptor::BuildCallInterfaceDescriptorFunctionType(
   function->InitParameter(2, SmiType(zone));
   return function;
 }
+
 
 void LoadDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
@@ -546,32 +553,5 @@ ApiAccessorDescriptor::BuildCallInterfaceDescriptorFunctionType(
 }
 
 
-Type::FunctionType* MathRoundVariantCallFromUnoptimizedCodeDescriptor::
-    BuildCallInterfaceDescriptorFunctionType(Isolate* isolate,
-                                             int paramater_count) {
-  Zone* zone = isolate->interface_descriptor_zone();
-  Type::FunctionType* function =
-      Type::FunctionType::New(AnyTagged(zone), Type::Undefined(), 4, zone);
-  function->InitParameter(0, Type::Receiver());
-  function->InitParameter(1, SmiType(zone));
-  function->InitParameter(2, AnyTagged(zone));
-  function->InitParameter(3, AnyTagged(zone));
-  return function;
-}
-
-
-Type::FunctionType* MathRoundVariantCallFromOptimizedCodeDescriptor::
-    BuildCallInterfaceDescriptorFunctionType(Isolate* isolate,
-                                             int paramater_count) {
-  Zone* zone = isolate->interface_descriptor_zone();
-  Type::FunctionType* function =
-      Type::FunctionType::New(AnyTagged(zone), Type::Undefined(), 5, zone);
-  function->InitParameter(0, Type::Receiver());
-  function->InitParameter(1, SmiType(zone));
-  function->InitParameter(2, AnyTagged(zone));
-  function->InitParameter(3, AnyTagged(zone));
-  function->InitParameter(4, AnyTagged(zone));
-  return function;
-}
 }  // namespace internal
 }  // namespace v8

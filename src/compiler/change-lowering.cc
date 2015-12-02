@@ -551,8 +551,8 @@ Reduction ChangeLowering::Allocate(Node* node) {
     AllocationSpace space = OLD_SPACE;
     Runtime::FunctionId f = Runtime::kAllocateInTargetSpace;
     Operator::Properties props = node->op()->properties();
-    CallDescriptor* desc =
-        Linkage::GetRuntimeCallDescriptor(jsgraph()->zone(), f, 2, props);
+    CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
+        jsgraph()->zone(), f, 2, props, CallDescriptor::kNeedsFrameState);
     ExternalReference ref(f, jsgraph()->isolate());
     int32_t flags = AllocateTargetSpace::encode(space);
     node->InsertInput(graph()->zone(), 0, jsgraph()->CEntryStubConstant(1));

@@ -57,8 +57,6 @@ class JSIntrinsicLowering final : public AdvancedReducer {
   Reduction ReduceValueOf(Node* node);
   Reduction ReduceFixedArrayGet(Node* node);
   Reduction ReduceFixedArraySet(Node* node);
-  Reduction ReduceGetTypeFeedbackVector(Node* node);
-  Reduction ReduceGetCallerJSFunction(Node* node);
   Reduction ReduceThrowNotDateError(Node* node);
   Reduction ReduceToInteger(Node* node);
   Reduction ReduceToLength(Node* node);

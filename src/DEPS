@@ -2,6 +2,7 @@ include_rules = [
   "+src",
   "-src/compiler",
   "+src/compiler/pipeline.h",
+  "+src/compiler/code-stub-assembler.h",
   "-src/heap",
   "+src/heap/heap.h",
   "+src/heap/heap-inl.h",

@@ -540,8 +540,7 @@ void Deserializer::Deserialize(Isolate* isolate) {
   }
 
   isolate_->heap()->set_native_contexts_list(
-      isolate_->heap()->code_stub_context());
-
+      isolate_->heap()->undefined_value());
   // The allocation site list is build during root iteration, but if no sites
   // were encountered then it needs to be initialized to undefined.
   if (isolate_->heap()->allocation_sites_list() == Smi::FromInt(0)) {
@@ -552,7 +551,6 @@ void Deserializer::Deserialize(Isolate* isolate) {
   // Update data pointers to the external strings containing natives sources.
   Natives::UpdateSourceCache(isolate_->heap());
   ExtraNatives::UpdateSourceCache(isolate_->heap());
-  CodeStubNatives::UpdateSourceCache(isolate_->heap());
 
   // Issue code events for newly deserialized code objects.
   LOG_CODE_EVENT(isolate_, LogCodeObjects());
@@ -1168,11 +1166,6 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
             ExtraNatives::GetScriptSource(source_.Get()), current);
         break;
 
-      case kCodeStubNativesStringResource:
-        current = CopyInNativesSource(
-            CodeStubNatives::GetScriptSource(source_.Get()), current);
-        break;
-
       // Deserialize raw data of variable length.
       case kVariableRawData: {
         int size_in_bytes = source_.GetInt();
@@ -1679,10 +1672,7 @@ StartupSerializer::StartupSerializer(Isolate* isolate, SnapshotByteSink* sink)
 
 void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
                                         WhereToPoint where_to_point, int skip) {
-  // Make sure that all functions are derived from the code-stub context
-  DCHECK(!obj->IsJSFunction() ||
-         JSFunction::cast(obj)->GetCreationContext() ==
-             isolate()->heap()->code_stub_context());
+  DCHECK(!obj->IsJSFunction());
 
   int root_index = root_index_map_.Lookup(obj);
   // We can only encode roots as such if it has already been serialized.
@@ -2205,12 +2195,6 @@ void Serializer::ObjectSerializer::VisitExternalOneByteString(
           ExtraNatives::GetBuiltinsCount(), resource_pointer,
           ExtraNatives::GetSourceCache(serializer_->isolate()->heap()),
           kExtraNativesStringResource)) {
-    return;
-  }
-  if (SerializeExternalNativeSourceString(
-          CodeStubNatives::GetBuiltinsCount(), resource_pointer,
-          CodeStubNatives::GetSourceCache(serializer_->isolate()->heap()),
-          kCodeStubNativesStringResource)) {
     return;
   }
   // One of the strings in the natives cache should match the resource.  We

@@ -8,6 +8,7 @@
 #include "src/allocation.h"
 #include "src/assembler.h"
 #include "src/codegen.h"
+#include "src/compiler/code-stub-assembler.h"
 #include "src/globals.h"
 #include "src/ic/ic-state.h"
 #include "src/interface-descriptors.h"
@@ -96,10 +97,7 @@ namespace internal {
   V(KeyedLoadIC)                            \
   V(LoadIC)                                 \
   /* TurboFanCodeStubs */                   \
-  V(StringLengthTF)                         \
-  V(StringAddTF)                            \
-  /* TurboFanICs */                         \
-  V(MathFloor)                              \
+  V(StringLength)                           \
   /* IC Handler stubs */                    \
   V(ArrayBufferViewLoadField)               \
   V(LoadConstant)                           \
@@ -109,8 +107,7 @@ namespace internal {
   V(KeyedStoreSloppyArguments)              \
   V(StoreField)                             \
   V(StoreGlobal)                            \
-  V(StoreTransition)                        \
-  V(StringLength)
+  V(StoreTransition)
 
 // List of code stubs only used on ARM 32 bits platforms.
 #if V8_TARGET_ARCH_ARM
@@ -349,19 +346,6 @@ class CodeStub BASE_EMBEDDED {
   };                                                                    \
   DEFINE_CODE_STUB(NAME, SUPER)
 
-#define DEFINE_TURBOFAN_IC(NAME, SUPER, DESC)                           \
- public:                                                                \
-  CallInterfaceDescriptor GetCallInterfaceDescriptor() const override { \
-    if (GetCallMode() == CALL_FROM_OPTIMIZED_CODE) {                    \
-      return DESC##CallFromOptimizedCodeDescriptor(isolate());          \
-    } else {                                                            \
-      return DESC##CallFromUnoptimizedCodeDescriptor(isolate());        \
-    }                                                                   \
-  };                                                                    \
-                                                                        \
- protected:                                                             \
-  DEFINE_CODE_STUB(NAME, SUPER)
-
 #define DEFINE_HANDLER_CODE_STUB(NAME, SUPER) \
  public:                                      \
   Handle<Code> GenerateCode() override;       \
@@ -550,35 +534,11 @@ class TurboFanCodeStub : public CodeStub {
  protected:
   explicit TurboFanCodeStub(Isolate* isolate) : CodeStub(isolate) {}
 
+  virtual void GenerateAssembly(
+      compiler::CodeStubAssembler* assembler) const = 0;
+
  private:
   DEFINE_CODE_STUB_BASE(TurboFanCodeStub, CodeStub);
-};
-
-
-class TurboFanIC : public TurboFanCodeStub {
- public:
-  enum CallMode { CALL_FROM_UNOPTIMIZED_CODE, CALL_FROM_OPTIMIZED_CODE };
-
- protected:
-  explicit TurboFanIC(Isolate* isolate, CallMode mode)
-      : TurboFanCodeStub(isolate) {
-    minor_key_ = CallModeBits::encode(mode);
-  }
-
-  CallMode GetCallMode() const { return CallModeBits::decode(minor_key_); }
-
-  void set_sub_minor_key(uint32_t key) {
-    minor_key_ = SubMinorKeyBits::update(minor_key_, key);
-  }
-
-  uint32_t sub_minor_key() const { return SubMinorKeyBits::decode(minor_key_); }
-
-  static const int kSubMinorKeyBits = kStubMinorKeyBits - 1;
-
- private:
-  class CallModeBits : public BitField<CallMode, 0, 1> {};
-  class SubMinorKeyBits : public BitField<int, 1, kSubMinorKeyBits> {};
-  DEFINE_CODE_STUB_BASE(TurboFanIC, TurboFanCodeStub);
 };
 
 
@@ -649,25 +609,18 @@ class NopRuntimeCallHelper : public RuntimeCallHelper {
 };
 
 
-class MathFloorStub : public TurboFanIC {
+class StringLengthStub : public TurboFanCodeStub {
  public:
-  explicit MathFloorStub(Isolate* isolate, TurboFanIC::CallMode mode)
-      : TurboFanIC(isolate, mode) {}
-  Code::Kind GetCodeKind() const override { return Code::CALL_IC; }
-  DEFINE_TURBOFAN_IC(MathFloor, TurboFanIC, MathRoundVariant);
-};
-
-
-class StringLengthTFStub : public TurboFanCodeStub {
- public:
-  explicit StringLengthTFStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
+  explicit StringLengthStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
   Code::Kind GetCodeKind() const override { return Code::HANDLER; }
   InlineCacheState GetICState() const override { return MONOMORPHIC; }
   ExtraICState GetExtraICState() const override { return Code::LOAD_IC; }
 
+  void GenerateAssembly(compiler::CodeStubAssembler* assembler) const override;
+
   DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
-  DEFINE_CODE_STUB(StringLengthTF, TurboFanCodeStub);
+  DEFINE_CODE_STUB(StringLength, TurboFanCodeStub);
 };
 
 
@@ -688,34 +641,6 @@ enum StringAddFlags {
 
 
 std::ostream& operator<<(std::ostream& os, const StringAddFlags& flags);
-
-
-class StringAddTFStub : public TurboFanCodeStub {
- public:
-  StringAddTFStub(Isolate* isolate, StringAddFlags flags,
-                  PretenureFlag pretenure_flag)
-      : TurboFanCodeStub(isolate) {
-    minor_key_ = StringAddFlagsBits::encode(flags) |
-                 PretenureFlagBits::encode(pretenure_flag);
-  }
-
-  StringAddFlags flags() const {
-    return StringAddFlagsBits::decode(MinorKey());
-  }
-
-  PretenureFlag pretenure_flag() const {
-    return PretenureFlagBits::decode(MinorKey());
-  }
-
- private:
-  class StringAddFlagsBits : public BitField<StringAddFlags, 0, 3> {};
-  class PretenureFlagBits : public BitField<PretenureFlag, 3, 1> {};
-
-  void PrintBaseName(std::ostream& os) const override;  // NOLINT
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(StringAdd);
-  DEFINE_CODE_STUB(StringAddTF, TurboFanCodeStub);
-};
 
 
 class NumberToStringStub final : public HydrogenCodeStub {
@@ -1177,18 +1102,6 @@ class LoadConstantStub : public HandlerStub {
   class ConstantIndexBits : public BitField<int, 0, kSubMinorKeyBits> {};
 
   DEFINE_HANDLER_CODE_STUB(LoadConstant, HandlerStub);
-};
-
-
-class StringLengthStub: public HandlerStub {
- public:
-  explicit StringLengthStub(Isolate* isolate) : HandlerStub(isolate) {}
-
- protected:
-  Code::Kind kind() const override { return Code::LOAD_IC; }
-  Code::StubType GetStubType() const override { return Code::FAST; }
-
-  DEFINE_HANDLER_CODE_STUB(StringLength, HandlerStub);
 };
 
 

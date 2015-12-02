@@ -1215,10 +1215,13 @@ Handle<Code> Pipeline::GenerateCode() {
 }
 
 
-Handle<Code> Pipeline::GenerateCodeForInterpreter(
-    Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
-    Schedule* schedule, const char* bytecode_name) {
-  CompilationInfo info(bytecode_name, isolate, graph->zone());
+Handle<Code> Pipeline::GenerateCodeForCodeStub(Isolate* isolate,
+                                               CallDescriptor* call_descriptor,
+                                               Graph* graph, Schedule* schedule,
+                                               Code::Kind kind,
+                                               const char* code_stub_name) {
+  CompilationInfo info(code_stub_name, isolate, graph->zone());
+  info.set_output_code_kind(kind);
 
   // Construct a pipeline for scheduling and code generation.
   ZonePool zone_pool;

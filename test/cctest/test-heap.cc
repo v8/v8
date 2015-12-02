@@ -1643,8 +1643,7 @@ int CountNativeContexts() {
     count++;
     object = Context::cast(object)->get(Context::NEXT_CONTEXT_LINK);
   }
-  // Subtract one to compensate for the code stub context that is always present
-  return count - 1;
+  return count;
 }
 
 
@@ -1783,8 +1782,7 @@ static int CountNativeContextsWithGC(Isolate* isolate, int n) {
         Handle<Object>(Context::cast(*object)->get(Context::NEXT_CONTEXT_LINK),
                        isolate);
   }
-  // Subtract one to compensate for the code stub context that is always present
-  return count - 1;
+  return count;
 }
 
 
@@ -2361,10 +2359,7 @@ static int NumberOfGlobalObjects() {
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
     if (obj->IsJSGlobalObject()) count++;
   }
-  // Subtract two to compensate for the two global objects (not global
-  // JSObjects, of which there would only be one) that are part of the code stub
-  // context, which is always present.
-  return count - 1;
+  return count;
 }
 
 

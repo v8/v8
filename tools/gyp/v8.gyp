@@ -181,7 +181,6 @@
       ],
       'sources': [
         '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
-        '<(SHARED_INTERMEDIATE_DIR)/code-stub-libraries.cc',
         '<(SHARED_INTERMEDIATE_DIR)/experimental-libraries.cc',
         '<(SHARED_INTERMEDIATE_DIR)/extras-libraries.cc',
         '<(SHARED_INTERMEDIATE_DIR)/experimental-extras-libraries.cc',
@@ -231,7 +230,6 @@
       ],
       'sources': [
         '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
-        '<(SHARED_INTERMEDIATE_DIR)/code-stub-libraries.cc',
         '<(SHARED_INTERMEDIATE_DIR)/experimental-libraries.cc',
         '<(SHARED_INTERMEDIATE_DIR)/extras-libraries.cc',
         '<(SHARED_INTERMEDIATE_DIR)/experimental-extras-libraries.cc',
@@ -483,6 +481,8 @@
         '../../src/compiler/code-generator-impl.h',
         '../../src/compiler/code-generator.cc',
         '../../src/compiler/code-generator.h',
+        '../../src/compiler/code-stub-assembler.cc',
+        '../../src/compiler/code-stub-assembler.h',
         '../../src/compiler/common-node-cache.cc',
         '../../src/compiler/common-node-cache.h',
         '../../src/compiler/common-operator-reducer.cc',
@@ -1777,7 +1777,6 @@
             'inputs': [
               '../../tools/concatenate-files.py',
               '<(SHARED_INTERMEDIATE_DIR)/libraries.bin',
-              '<(SHARED_INTERMEDIATE_DIR)/libraries-code-stub.bin',
               '<(SHARED_INTERMEDIATE_DIR)/libraries-experimental.bin',
               '<(SHARED_INTERMEDIATE_DIR)/libraries-extras.bin',
               '<(SHARED_INTERMEDIATE_DIR)/libraries-experimental-extras.bin',
@@ -1888,13 +1887,7 @@
           '../../src/js/harmony-simd.js',
           '../../src/js/promise-extra.js',
         ],
-        'code_stub_library_files': [
-          '../../src/js/macros.py',
-          '../../src/messages.h',
-          '../../src/js/code-stubs.js',
-        ],
         'libraries_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries.bin',
-        'libraries_code_stub_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries-code-stub.bin',
         'libraries_experimental_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries-experimental.bin',
         'libraries_extras_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries-extras.bin',
         'libraries_experimental_extras_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries-experimental-extras.bin',
@@ -1965,38 +1958,6 @@
             'EXPERIMENTAL',
             '<@(experimental_library_files)',
             '--startup_blob', '<@(libraries_experimental_bin_file)',
-            '--nojs',
-          ],
-        },
-        {
-          'action_name': 'js2c_code_stubs',
-          'inputs': [
-            '../../tools/js2c.py',
-            '<@(code_stub_library_files)',
-          ],
-          'outputs': ['<(SHARED_INTERMEDIATE_DIR)/code-stub-libraries.cc'],
-          'action': [
-            'python',
-            '../../tools/js2c.py',
-            '<(SHARED_INTERMEDIATE_DIR)/code-stub-libraries.cc',
-            'CODE_STUB',
-            '<@(code_stub_library_files)'
-          ],
-        },
-        {
-          'action_name': 'js2c_code_stubs_bin',
-          'inputs': [
-            '../../tools/js2c.py',
-            '<@(code_stub_library_files)',
-          ],
-          'outputs': ['<@(libraries_code_stub_bin_file)'],
-          'action': [
-            'python',
-            '../../tools/js2c.py',
-            '<(SHARED_INTERMEDIATE_DIR)/code-stub-libraries.cc',
-            'CODE_STUB',
-            '<@(code_stub_library_files)',
-            '--startup_blob', '<@(libraries_code_stub_bin_file)',
             '--nojs',
           ],
         },

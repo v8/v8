@@ -350,9 +350,6 @@ namespace internal {
   F(IS_VAR, 1, 1)                             \
   F(IncrementStatsCounter, 1, 1)              \
   F(HarmonyToString, 0, 1)                    \
-  F(GetTypeFeedbackVector, 1, 1)              \
-  F(GetCallerJSFunction, 0, 1)                \
-  F(GetCodeStubExportsObject, 0, 1)           \
   F(ThrowConstructedNonConstructable, 1, 1)   \
   F(ThrowCalledNonCallable, 1, 1)
 

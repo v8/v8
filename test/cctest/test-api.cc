@@ -13218,8 +13218,7 @@ static int GetGlobalObjectsCount() {
         count++;
       }
     }
-  // Subtract one to compensate for the code stub context that is always present
-  return count - 1;
+  return count;
 }
 
 

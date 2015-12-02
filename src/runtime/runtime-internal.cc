@@ -386,30 +386,6 @@ RUNTIME_FUNCTION(Runtime_HarmonyToString) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_GetTypeFeedbackVector) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_CHECKED(JSFunction, function, 0);
-  return function->shared()->feedback_vector();
-}
-
-
-RUNTIME_FUNCTION(Runtime_GetCallerJSFunction) {
-  SealHandleScope shs(isolate);
-  StackFrameIterator it(isolate);
-  RUNTIME_ASSERT(it.frame()->type() == StackFrame::STUB);
-  it.Advance();
-  RUNTIME_ASSERT(it.frame()->type() == StackFrame::JAVA_SCRIPT);
-  return JavaScriptFrame::cast(it.frame())->function();
-}
-
-
-RUNTIME_FUNCTION(Runtime_GetCodeStubExportsObject) {
-  HandleScope shs(isolate);
-  return isolate->heap()->code_stub_exports_object();
-}
-
-
 namespace {
 
 Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object) {
