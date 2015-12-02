@@ -200,7 +200,7 @@ function ObjectIsPrototypeOf(V) {
 // ES6 19.1.3.4
 function ObjectPropertyIsEnumerable(V) {
   var P = TO_NAME(V);
-  return %IsPropertyEnumerable(TO_OBJECT(this), P);
+  return %PropertyIsEnumerable(TO_OBJECT(this), P);
 }
 
 
@@ -1177,7 +1177,7 @@ function ObjectAssign(target, sources) {
 
     for (var j = 0; j < len; ++j) {
       var key = keys[j];
-      if (%IsPropertyEnumerable(from, key)) {
+      if (%PropertyIsEnumerable(from, key)) {
         var propValue = from[key];
         to[key] = propValue;
       }

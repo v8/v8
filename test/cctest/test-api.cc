@@ -9179,7 +9179,7 @@ THREADED_TEST(CrossDomainDelete) {
 }
 
 
-THREADED_TEST(CrossDomainIsPropertyEnumerable) {
+THREADED_TEST(CrossDomainPropertyIsEnumerable) {
   LocalContext env1;
   v8::HandleScope handle_scope(env1->GetIsolate());
   v8::Local<Context> env2 = Context::New(env1->GetIsolate());
@@ -21008,7 +21008,7 @@ TEST(AccessCheckThrows) {
   CheckCorrectThrow("%DeleteProperty_Strict(other, '1')");
   CheckCorrectThrow("%HasOwnProperty(other, 'x')");
   CheckCorrectThrow("%HasProperty('x', other)");
-  CheckCorrectThrow("%IsPropertyEnumerable(other, 'x')");
+  CheckCorrectThrow("%PropertyIsEnumerable(other, 'x')");
   // PROPERTY_ATTRIBUTES_NONE = 0
   CheckCorrectThrow("%DefineAccessorPropertyUnchecked("
                         "other, 'x', null, null, 1)");

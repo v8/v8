@@ -756,7 +756,7 @@ RUNTIME_FUNCTION(Runtime_HasProperty) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_IsPropertyEnumerable) {
+RUNTIME_FUNCTION(Runtime_PropertyIsEnumerable) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
 
