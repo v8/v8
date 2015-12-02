@@ -415,7 +415,7 @@
         # (defines are passed via the command line, and build systems rebuild
         # things when their commandline changes). Nothing should ever read this
         # define.
-        'defines': ['CR_CLANG_REVISION=<!(<(DEPTH)/tools/clang/scripts/update.sh --print-revision)'],
+        'defines': ['CR_CLANG_REVISION=<!(python <(DEPTH)/tools/clang/scripts/update.py --print-revision)'],
         'conditions': [
           ['host_clang==1', {
             'target_conditions': [
