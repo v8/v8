@@ -1762,6 +1762,9 @@ BUILTIN(SymbolConstructor) {
 // ES6 section 19.4.1.1 Symbol ( [ description ] ) for the [[Construct]] case.
 BUILTIN(SymbolConstructor_ConstructStub) {
   HandleScope scope(isolate);
+  // The ConstructStub is executed in the context of the caller, so we need
+  // to enter the callee context first before raising an exception.
+  isolate->set_context(args.called_function()->context());
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewTypeError(MessageTemplate::kNotConstructor,
                             isolate->factory()->Symbol_string()));

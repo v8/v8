@@ -526,3 +526,26 @@ function TestComparison() {
   }
 }
 TestComparison();
+
+
+// Make sure that throws occur in the context of the Symbol function.
+function TestContext() {
+  var r = Realm.create();
+  var rSymbol = Realm.eval(r, "Symbol");
+  var rError = Realm.eval(r, "TypeError");
+
+  function verifier(symbol, error) {
+    try {
+      new symbol();
+    } catch(e) {
+      return e.__proto__ === error.__proto__;
+    }
+    assertTrue(false);  // should never get here.
+  }
+
+  assertTrue(verifier(Symbol, TypeError()));
+  assertTrue(verifier(rSymbol, rError()));
+  assertFalse(verifier(Symbol, rError()));
+  assertFalse(verifier(rSymbol, TypeError()));
+}
+TestContext();

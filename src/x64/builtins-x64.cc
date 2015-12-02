@@ -21,8 +21,6 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
                                 BuiltinExtraArguments extra_args) {
   // ----------- S t a t e -------------
   //  -- rax                 : number of arguments excluding receiver
-  //                           (only guaranteed when the called function
-  //                            is not marked as DontAdaptArguments)
   //  -- rdi                 : called function
   //  -- rsp[0]              : return address
   //  -- rsp[8]              : last argument
@@ -31,13 +29,6 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
   //  -- rsp[8 * (argc + 1)] : receiver
   // -----------------------------------
   __ AssertFunction(rdi);
-
-  // Make sure we operate in the context of the called function (for example
-  // ConstructStubs implemented in C++ will be run in the context of the caller
-  // instead of the callee, due to the way that [[Construct]] is defined for
-  // ordinary functions).
-  // TODO(bmeurer): Can we make this more robust?
-  __ movp(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
 
   // Insert extra arguments.
   int num_extra_args = 0;
@@ -51,20 +42,8 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
   }
 
   // JumpToExternalReference expects rax to contain the number of arguments
-  // including the receiver and the extra arguments.  But rax is only valid
-  // if the called function is marked as DontAdaptArguments, otherwise we
-  // need to load the argument count from the SharedFunctionInfo.
-  Label argc, done_argc;
-  __ movp(rdx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-  __ LoadSharedFunctionInfoSpecialField(
-      rbx, rdx, SharedFunctionInfo::kFormalParameterCountOffset);
-  __ cmpp(rbx, Immediate(SharedFunctionInfo::kDontAdaptArgumentsSentinel));
-  __ j(equal, &argc, Label::kNear);
-  __ leap(rax, Operand(rbx, num_extra_args + 1));
-  __ jmp(&done_argc, Label::kNear);
-  __ bind(&argc);
+  // including the receiver and the extra arguments.
   __ addp(rax, Immediate(num_extra_args + 1));
-  __ bind(&done_argc);
 
   __ JumpToExternalReference(ExternalReference(id, masm->isolate()), 1);
 }

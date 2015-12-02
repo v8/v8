@@ -38,8 +38,6 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
                                 BuiltinExtraArguments extra_args) {
   // ----------- S t a t e -------------
   //  -- x0                 : number of arguments excluding receiver
-  //                          (only guaranteed when the called function
-  //                           is not marked as DontAdaptArguments)
   //  -- x1                 : called function
   //  -- sp[0]              : last argument
   //  -- ...
@@ -47,13 +45,6 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
   //  -- sp[4 * argc]       : receiver
   // -----------------------------------
   __ AssertFunction(x1);
-
-  // Make sure we operate in the context of the called function (for example
-  // ConstructStubs implemented in C++ will be run in the context of the caller
-  // instead of the callee, due to the way that [[Construct]] is defined for
-  // ordinary functions).
-  // TODO(bmeurer): Can we make this more robust?
-  __ Ldr(cp, FieldMemOperand(x1, JSFunction::kContextOffset));
 
   // Insert extra arguments.
   int num_extra_args = 0;
@@ -65,14 +56,7 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
   }
 
   // JumpToExternalReference expects x0 to contain the number of arguments
-  // including the receiver and the extra arguments.  But x0 is only valid
-  // if the called function is marked as DontAdaptArguments, otherwise we
-  // need to load the argument count from the SharedFunctionInfo.
-  __ Ldr(x2, FieldMemOperand(x1, JSFunction::kSharedFunctionInfoOffset));
-  __ Ldrsw(
-      x2, FieldMemOperand(x2, SharedFunctionInfo::kFormalParameterCountOffset));
-  __ Cmp(x2, SharedFunctionInfo::kDontAdaptArgumentsSentinel);
-  __ Csel(x0, x0, x2, eq);
+  // including the receiver and the extra arguments.
   __ Add(x0, x0, num_extra_args + 1);
 
   __ JumpToExternalReference(ExternalReference(id, masm->isolate()));

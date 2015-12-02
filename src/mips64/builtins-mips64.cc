@@ -22,8 +22,6 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
                                 BuiltinExtraArguments extra_args) {
   // ----------- S t a t e -------------
   //  -- a0                 : number of arguments excluding receiver
-  //                          (only guaranteed when the called function
-  //                           is not marked as DontAdaptArguments)
   //  -- a1                 : called function
   //  -- sp[0]              : last argument
   //  -- ...
@@ -31,13 +29,6 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
   //  -- sp[8 * agrc]       : receiver
   // -----------------------------------
   __ AssertFunction(a1);
-
-  // Make sure we operate in the context of the called function (for example
-  // ConstructStubs implemented in C++ will be run in the context of the caller
-  // instead of the callee, due to the way that [[Construct]] is defined for
-  // ordinary functions).
-  // TODO(bmeurer): Can we make this more robust?
-  __ ld(cp, FieldMemOperand(a1, JSFunction::kContextOffset));
 
   // Insert extra arguments.
   int num_extra_args = 0;
@@ -49,20 +40,8 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
   }
 
   // JumpToExternalReference expects a0 to contain the number of arguments
-  // including the receiver and the extra arguments.  But a0 is only valid
-  // if the called function is marked as DontAdaptArguments, otherwise we
-  // need to load the argument count from the SharedFunctionInfo.
-  Label argc, done_argc;
-  __ ld(a2, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
-  __ lw(a2,
-        FieldMemOperand(a2, SharedFunctionInfo::kFormalParameterCountOffset));
-  __ Branch(&argc, eq, a2,
-            Operand(SharedFunctionInfo::kDontAdaptArgumentsSentinel));
-  __ Daddu(a0, a2, num_extra_args + 1);
-  __ jmp(&done_argc);
-  __ bind(&argc);
+  // including the receiver and the extra arguments.
   __ Daddu(a0, a0, num_extra_args + 1);
-  __ bind(&done_argc);
 
   __ JumpToExternalReference(ExternalReference(id, masm->isolate()));
 }

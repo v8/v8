@@ -72,7 +72,7 @@ enum BuiltinExtraArguments {
   V(ReflectSetPrototypeOf, NO_EXTRA_ARGUMENTS)               \
                                                              \
   V(SymbolConstructor, NO_EXTRA_ARGUMENTS)                   \
-  V(SymbolConstructor_ConstructStub, NO_EXTRA_ARGUMENTS)     \
+  V(SymbolConstructor_ConstructStub, NEEDS_CALLED_FUNCTION)  \
                                                              \
   V(HandleApiCall, NEEDS_CALLED_FUNCTION)                    \
   V(HandleApiCallConstruct, NEEDS_CALLED_FUNCTION)           \
