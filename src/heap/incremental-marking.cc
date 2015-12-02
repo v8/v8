@@ -647,6 +647,44 @@ void IncrementalMarking::MarkObjectGroups() {
 }
 
 
+void IncrementalMarking::ProcessWeakCells() {
+  DCHECK(FLAG_finalize_marking_incrementally);
+  DCHECK(!finalize_marking_completed_);
+  DCHECK(IsMarking());
+
+  Object* weak_cell_obj = heap()->encountered_weak_cells();
+  Object* weak_cell_head = Smi::FromInt(0);
+  WeakCell* prev_weak_cell_obj = NULL;
+  while (weak_cell_obj != Smi::FromInt(0)) {
+    WeakCell* weak_cell = reinterpret_cast<WeakCell*>(weak_cell_obj);
+    // We do not insert cleared weak cells into the list, so the value
+    // cannot be a Smi here.
+    HeapObject* value = HeapObject::cast(weak_cell->value());
+    // Remove weak cells with live objects from the list, they do not need
+    // clearing.
+    if (MarkCompactCollector::IsMarked(value)) {
+      // Record slot, if value is pointing to an evacuation candidate.
+      Object** slot = HeapObject::RawField(weak_cell, WeakCell::kValueOffset);
+      heap_->mark_compact_collector()->RecordSlot(weak_cell, slot, *slot);
+      // Remove entry somewhere after top.
+      if (prev_weak_cell_obj != NULL) {
+        prev_weak_cell_obj->set_next(weak_cell->next());
+      }
+      weak_cell_obj = weak_cell->next();
+      weak_cell->clear_next(heap());
+    } else {
+      if (weak_cell_head == Smi::FromInt(0)) {
+        weak_cell_head = weak_cell;
+      }
+      prev_weak_cell_obj = weak_cell;
+      weak_cell_obj = weak_cell->next();
+    }
+  }
+  // Top may have changed.
+  heap()->set_encountered_weak_cells(weak_cell_head);
+}
+
+
 void IncrementalMarking::FinalizeIncrementally() {
   DCHECK(FLAG_finalize_marking_incrementally);
   DCHECK(!finalize_marking_completed_);
@@ -659,8 +697,11 @@ void IncrementalMarking::FinalizeIncrementally() {
   // objects to reduce the marking load in the final pause.
   // 1) We scan and mark the roots again to find all changes to the root set.
   // 2) We mark the object groups.
+  // 3) Remove weak cell with live values from the list of weak cells, they
+  // do not need processing during GC.
   MarkRoots();
   MarkObjectGroups();
+  ProcessWeakCells();
 
   int marking_progress =
       abs(old_marking_deque_top -
