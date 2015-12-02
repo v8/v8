@@ -252,7 +252,6 @@ class AstValue : public ZoneObject {
   F(dot_generator, ".generator")                \
   F(dot_generator_object, ".generator_object")  \
   F(dot_iterator, ".iterator")                  \
-  F(dot_module, ".module")                      \
   F(dot_result, ".result")                      \
   F(dot_switch_tag, ".switch_tag")              \
   F(dot_catch, ".catch")                        \

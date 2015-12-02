@@ -202,8 +202,6 @@ void Scope::SetDefaults(ScopeType scope_type, Scope* outer_scope,
   num_stack_slots_ = 0;
   num_heap_slots_ = 0;
   num_global_slots_ = 0;
-  num_modules_ = 0;
-  module_var_ = NULL;
   arity_ = 0;
   has_simple_parameters_ = true;
   rest_parameter_ = NULL;
@@ -714,16 +712,10 @@ bool Scope::AllocateVariables(ParseInfo* info, AstNodeFactory* factory) {
   }
   PropagateScopeInfo(outer_scope_calls_sloppy_eval);
 
-  // 2) Allocate module instances.
-  if (FLAG_harmony_modules && is_script_scope()) {
-    DCHECK(num_modules_ == 0);
-    AllocateModules();
-  }
-
-  // 3) Resolve variables.
+  // 2) Resolve variables.
   if (!ResolveVariablesRecursively(info, factory)) return false;
 
-  // 4) Allocate variables.
+  // 3) Allocate variables.
   AllocateVariablesRecursively(info->isolate());
 
   return true;
@@ -1645,23 +1637,6 @@ void Scope::AllocateVariablesRecursively(Isolate* isolate) {
 
   // Allocation done.
   DCHECK(num_heap_slots_ == 0 || num_heap_slots_ >= Context::MIN_CONTEXT_SLOTS);
-}
-
-
-void Scope::AllocateModules() {
-  DCHECK(is_script_scope());
-  DCHECK(!already_resolved());
-  for (int i = 0; i < inner_scopes_.length(); i++) {
-    Scope* scope = inner_scopes_.at(i);
-    if (scope->is_module_scope()) {
-      DCHECK(!scope->already_resolved());
-      DCHECK(scope->module_descriptor_->IsFrozen());
-      DCHECK_NULL(scope->module_var_);
-      scope->module_var_ =
-          NewTemporary(ast_value_factory_->dot_module_string());
-      ++num_modules_;
-    }
-  }
 }
 
 

@@ -5751,10 +5751,7 @@ TEST(ModuleParsingInternals) {
   i::Scope* outer_scope = module_scope->outer_scope();
   CHECK(outer_scope->is_script_scope());
   CHECK_NULL(outer_scope->outer_scope());
-  CHECK_EQ(1, outer_scope->num_modules());
   CHECK(module_scope->is_module_scope());
-  CHECK_NOT_NULL(module_scope->module_var());
-  CHECK_EQ(i::TEMPORARY, module_scope->module_var()->mode());
   i::ModuleDescriptor* descriptor = module_scope->module();
   CHECK_NOT_NULL(descriptor);
   CHECK_EQ(1, descriptor->Length());
