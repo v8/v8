@@ -1150,7 +1150,8 @@ Reduction JSTypedLowering::ReduceJSInstanceOf(Node* node) {
     Handle<JSFunction> function =
         Handle<JSFunction>::cast(r.right_type()->AsConstant()->Value());
     Handle<SharedFunctionInfo> shared(function->shared(), isolate());
-    if (!function->map()->has_non_instance_prototype()) {
+    if (function->IsConstructor() &&
+        !function->map()->has_non_instance_prototype()) {
       JSFunction::EnsureHasInitialMap(function);
       DCHECK(function->has_initial_map());
       Handle<Map> initial_map(function->initial_map(), isolate());

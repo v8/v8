@@ -11459,7 +11459,8 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
         HConstant::cast(right)->handle(isolate())->IsJSFunction()) {
       Handle<JSFunction> constructor =
           Handle<JSFunction>::cast(HConstant::cast(right)->handle(isolate()));
-      if (!constructor->map()->has_non_instance_prototype()) {
+      if (constructor->IsConstructor() &&
+          !constructor->map()->has_non_instance_prototype()) {
         JSFunction::EnsureHasInitialMap(constructor);
         DCHECK(constructor->has_initial_map());
         Handle<Map> initial_map(constructor->initial_map(), isolate());

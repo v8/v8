@@ -12524,6 +12524,7 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
 
 
 void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
+  DCHECK(function->IsConstructor() || function->shared()->is_generator());
   if (function->has_initial_map()) return;
   Isolate* isolate = function->GetIsolate();
 
