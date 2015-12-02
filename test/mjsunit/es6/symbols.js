@@ -549,3 +549,16 @@ function TestContext() {
   assertFalse(verifier(rSymbol, TypeError()));
 }
 TestContext();
+
+
+function TestStringify(expected, input) {
+  assertEquals(expected, JSON.stringify(input));
+  assertEquals(expected, JSON.stringify(input, null, 0));
+}
+
+TestStringify(undefined, Symbol("a"));
+TestStringify('[{}]', [Object(Symbol())]);
+var symbol_wrapper = Object(Symbol("a"))
+TestStringify('{}', symbol_wrapper);
+symbol_wrapper.a = 1;
+TestStringify('{"a":1}', symbol_wrapper);
