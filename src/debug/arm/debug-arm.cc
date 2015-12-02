@@ -24,12 +24,11 @@ void EmitDebugBreakSlot(MacroAssembler* masm) {
 }
 
 
-void DebugCodegen::GenerateSlot(MacroAssembler* masm, RelocInfo::Mode mode,
-                                int call_argc) {
+void DebugCodegen::GenerateSlot(MacroAssembler* masm, RelocInfo::Mode mode) {
   // Generate enough nop's to make space for a call instruction. Avoid emitting
   // the constant pool in the debug break slot code.
   Assembler::BlockConstPoolScope block_const_pool(masm);
-  masm->RecordDebugBreakSlot(mode, call_argc);
+  masm->RecordDebugBreakSlot(mode);
   EmitDebugBreakSlot(masm);
 }
 

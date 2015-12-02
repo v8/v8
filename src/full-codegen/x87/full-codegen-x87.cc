@@ -1957,7 +1957,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       CallIC(ic, TypeFeedbackId::None());
       __ mov(edi, eax);
       __ mov(Operand(esp, 2 * kPointerSize), edi);
-      SetCallPosition(expr, 1);
+      SetCallPosition(expr);
       __ Set(eax, 1);
       __ Call(
           isolate()->builtins()->Call(ConvertReceiverMode::kNotNullOrUndefined),
@@ -2755,7 +2755,7 @@ void FullCodeGenerator::EmitCall(Call* expr, ConvertReceiverMode mode) {
   }
 
   PrepareForBailoutForId(expr->CallId(), NO_REGISTERS);
-  SetCallPosition(expr, arg_count);
+  SetCallPosition(expr);
   Handle<Code> ic = CodeFactory::CallIC(isolate(), arg_count, mode).code();
   __ Move(edx, Immediate(SmiFromSlot(expr->CallFeedbackICSlot())));
   __ mov(edi, Operand(esp, (arg_count + 1) * kPointerSize));
@@ -2859,7 +2859,7 @@ void FullCodeGenerator::EmitPossiblyEvalCall(Call* expr) {
 
   PrepareForBailoutForId(expr->EvalId(), NO_REGISTERS);
 
-  SetCallPosition(expr, arg_count);
+  SetCallPosition(expr);
   __ mov(edi, Operand(esp, (arg_count + 1) * kPointerSize));
   __ Set(eax, arg_count);
   __ Call(isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
@@ -4034,7 +4034,7 @@ void FullCodeGenerator::EmitCallJSRuntimeFunction(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   int arg_count = args->length();
 
-  SetCallPosition(expr, arg_count);
+  SetCallPosition(expr);
   __ mov(edi, Operand(esp, (arg_count + 1) * kPointerSize));
   __ Set(eax, arg_count);
   __ Call(isolate()->builtins()->Call(ConvertReceiverMode::kNullOrUndefined),

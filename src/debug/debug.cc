@@ -86,7 +86,6 @@ int BreakLocation::Iterator::GetModeMask(BreakLocatorType type) {
   mask |= RelocInfo::ModeMask(RelocInfo::STATEMENT_POSITION);
   mask |= RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT_AT_RETURN);
   mask |= RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT_AT_CALL);
-  mask |= RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT_AT_CONSTRUCT_CALL);
   if (type == ALL_BREAK_LOCATIONS) {
     mask |= RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT_AT_POSITION);
     mask |= RelocInfo::ModeMask(RelocInfo::DEBUGGER_STATEMENT);
@@ -297,11 +296,6 @@ void BreakLocation::ClearDebugBreak() {
   DCHECK(IsDebugBreakSlot());
   DebugCodegen::ClearDebugBreakSlot(debug_info_->GetIsolate(), pc());
   DCHECK(!IsDebugBreak());
-}
-
-
-bool BreakLocation::IsStepInLocation() const {
-  return IsConstructCall() || IsCall();
 }
 
 
@@ -1606,7 +1600,7 @@ void Debug::GetStepinPositions(JavaScriptFrame* frame, StackFrame::Id frame_id,
         if (frame_it.frame()->id() != frame_id) continue;
       }
     }
-    if (location.IsStepInLocation()) results_out->Add(location.position());
+    if (location.IsCall()) results_out->Add(location.position());
   }
 }
 

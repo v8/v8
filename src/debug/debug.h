@@ -83,15 +83,6 @@ class BreakLocation {
   inline bool IsCall() const {
     return RelocInfo::IsDebugBreakSlotAtCall(rmode_);
   }
-  inline bool IsConstructCall() const {
-    return RelocInfo::IsDebugBreakSlotAtConstructCall(rmode_);
-  }
-  inline int CallArgumentsCount() const {
-    DCHECK(IsStepInLocation());
-    return RelocInfo::DebugBreakCallArgumentsCount(data_);
-  }
-
-  bool IsStepInLocation() const;
   inline bool HasBreakPoint() const {
     return debug_info_->HasBreakPoint(pc_offset_);
   }
@@ -775,8 +766,7 @@ class DebugCodegen : public AllStatic {
   static void GenerateFrameDropperLiveEdit(MacroAssembler* masm);
 
 
-  static void GenerateSlot(MacroAssembler* masm, RelocInfo::Mode mode,
-                           int call_argc = -1);
+  static void GenerateSlot(MacroAssembler* masm, RelocInfo::Mode mode);
 
   static void PatchDebugBreakSlot(Isolate* isolate, Address pc,
                                   Handle<Code> code);

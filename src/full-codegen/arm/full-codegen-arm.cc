@@ -2046,7 +2046,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       CallIC(ic, TypeFeedbackId::None());
       __ mov(r1, r0);
       __ str(r1, MemOperand(sp, 2 * kPointerSize));
-      SetCallPosition(expr, 1);
+      SetCallPosition(expr);
       __ mov(r0, Operand(1));
       __ Call(
           isolate()->builtins()->Call(ConvertReceiverMode::kNotNullOrUndefined),
@@ -2873,7 +2873,7 @@ void FullCodeGenerator::EmitCall(Call* expr, ConvertReceiverMode mode) {
   }
 
   PrepareForBailoutForId(expr->CallId(), NO_REGISTERS);
-  SetCallPosition(expr, arg_count);
+  SetCallPosition(expr);
   Handle<Code> ic = CodeFactory::CallIC(isolate(), arg_count, mode).code();
   __ mov(r3, Operand(SmiFromSlot(expr->CallFeedbackICSlot())));
   __ ldr(r1, MemOperand(sp, (arg_count + 1) * kPointerSize));
@@ -2981,7 +2981,7 @@ void FullCodeGenerator::EmitPossiblyEvalCall(Call* expr) {
   PrepareForBailoutForId(expr->EvalId(), NO_REGISTERS);
 
   // Record source position for debugger.
-  SetCallPosition(expr, arg_count);
+  SetCallPosition(expr);
   __ ldr(r1, MemOperand(sp, (arg_count + 1) * kPointerSize));
   __ mov(r0, Operand(arg_count));
   __ Call(isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
@@ -3013,7 +3013,7 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
 
   // Call the construct call builtin that handles allocation and
   // constructor invocation.
-  SetConstructCallPosition(expr, arg_count);
+  SetConstructCallPosition(expr);
 
   // Load function and argument count into r1 and r0.
   __ mov(r0, Operand(arg_count));
@@ -3049,7 +3049,7 @@ void FullCodeGenerator::EmitSuperConstructorCall(Call* expr) {
 
   // Call the construct call builtin that handles allocation and
   // constructor invocation.
-  SetConstructCallPosition(expr, arg_count);
+  SetConstructCallPosition(expr);
 
   // Load new target into r3.
   VisitForAccumulatorValue(super_call_ref->new_target_var());
@@ -3746,7 +3746,7 @@ void FullCodeGenerator::EmitDefaultConstructorCallSuper(CallRuntime* expr) {
 
   // Call the construct call builtin that handles allocation and
   // constructor invocation.
-  SetConstructCallPosition(expr, 0);
+  SetConstructCallPosition(expr);
 
   // Load new target into r3.
   __ ldr(r3, MemOperand(sp, 1 * kPointerSize));
@@ -4117,7 +4117,7 @@ void FullCodeGenerator::EmitCallJSRuntimeFunction(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   int arg_count = args->length();
 
-  SetCallPosition(expr, arg_count);
+  SetCallPosition(expr);
   __ ldr(r1, MemOperand(sp, (arg_count + 1) * kPointerSize));
   __ mov(r0, Operand(arg_count));
   __ Call(isolate()->builtins()->Call(ConvertReceiverMode::kNullOrUndefined),
