@@ -2149,13 +2149,15 @@ void Genesis::InitializeGlobal_harmony_proxies() {
   Handle<JSGlobalObject> global(
       JSGlobalObject::cast(native_context()->global_object()));
   Isolate* isolate = global->GetIsolate();
-  Handle<JSFunction> proxy_fun =
-      InstallFunction(global, "Proxy", JS_PROXY_TYPE, JSProxy::kSize,
-                      isolate->initial_object_prototype(), Builtins::kIllegal);
+  Handle<JSFunction> proxy_fun = InstallFunction(
+      global, "Proxy", JS_PROXY_TYPE, JSProxy::kSize,
+      isolate->initial_object_prototype(), Builtins::kProxyConstructor);
   // TODO(verwaest): Set to null in InstallFunction.
   proxy_fun->initial_map()->set_prototype(isolate->heap()->null_value());
   proxy_fun->shared()->set_construct_stub(
-      *isolate->builtins()->JSBuiltinsConstructStub());
+      *isolate->builtins()->ProxyConstructor_ConstructStub());
+  proxy_fun->shared()->set_internal_formal_parameter_count(2);
+  proxy_fun->shared()->set_length(2);
   native_context()->set_proxy_function(*proxy_fun);
 }
 

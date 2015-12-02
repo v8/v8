@@ -1745,6 +1745,63 @@ BUILTIN(SymbolConstructor_ConstructStub) {
 }
 
 
+namespace {
+
+// ES6 section 9.5.15 ProxyCreate (target, handler)
+MaybeHandle<JSProxy> ProxyCreate(Isolate* isolate, Handle<Object> target,
+                                 Handle<Object> handler) {
+  if (!target->IsJSReceiver()) {
+    THROW_NEW_ERROR(
+        isolate, NewTypeError(MessageTemplate::kProxyTargetNonObject), JSProxy);
+  }
+  if (target->IsJSProxy() && JSProxy::cast(*target)->IsRevoked()) {
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError(MessageTemplate::kProxyHandlerOrTargetRevoked),
+                    JSProxy);
+  }
+  if (!handler->IsJSReceiver()) {
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError(MessageTemplate::kProxyHandlerNonObject),
+                    JSProxy);
+  }
+  if (handler->IsJSProxy() && JSProxy::cast(*handler)->IsRevoked()) {
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError(MessageTemplate::kProxyHandlerOrTargetRevoked),
+                    JSProxy);
+  }
+  return isolate->factory()->NewJSProxy(Handle<JSReceiver>::cast(target),
+                                        Handle<JSReceiver>::cast(handler));
+}
+
+}  // namespace
+
+
+// ES6 section 26.2.1.1 Proxy ( target, handler ) for the [[Call]] case.
+BUILTIN(ProxyConstructor) {
+  HandleScope scope(isolate);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate,
+      NewTypeError(MessageTemplate::kConstructorNotFunction,
+                   isolate->factory()->NewStringFromAsciiChecked("Proxy")));
+}
+
+
+// ES6 section 26.2.1.1 Proxy ( target, handler ) for the [[Construct]] case.
+BUILTIN(ProxyConstructor_ConstructStub) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  Handle<Object> target = args.at<Object>(1);
+  Handle<Object> handler = args.at<Object>(2);
+  // The ConstructStub is executed in the context of the caller, so we need
+  // to enter the callee context first before raising an exception.
+  isolate->set_context(args.target()->context());
+  Handle<JSProxy> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
+                                     ProxyCreate(isolate, target, handler));
+  return *result;
+}
+
+
 // -----------------------------------------------------------------------------
 // Throwers for restricted function properties and strict arguments object
 // properties

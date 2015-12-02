@@ -15,21 +15,12 @@ var GlobalProxy = global.Proxy;
 var GlobalFunction = global.Function;
 var GlobalObject = global.Object;
 var MakeTypeError;
-var ToNameArray;
 
 utils.Import(function(from) {
   MakeTypeError = from.MakeTypeError;
-  ToNameArray = from.ToNameArray;
 });
 
 //----------------------------------------------------------------------------
-
-function ProxyCreate(target, handler) {
-  if (IS_UNDEFINED(new.target)) {
-    throw MakeTypeError(kConstructorNotFunction, "Proxy");
-  }
-  return %CreateJSProxy(target, handler);
-}
 
 function ProxyCreateFunction(handler, callTrap, constructTrap) {
   if (!IS_SPEC_OBJECT(handler))
@@ -150,7 +141,6 @@ function ProxyEnumerate(trap, handler, target) {
 }
 
 //-------------------------------------------------------------------
-%SetCode(GlobalProxy, ProxyCreate);
 
 //Set up non-enumerable properties of the Proxy object.
 utils.InstallFunctions(GlobalProxy, DONT_ENUM, [

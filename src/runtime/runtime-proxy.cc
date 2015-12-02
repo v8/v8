@@ -11,29 +11,6 @@
 namespace v8 {
 namespace internal {
 
-RUNTIME_FUNCTION(Runtime_CreateJSProxy) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(Object, target, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, handler, 1);
-  if (!target->IsJSReceiver()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kProxyTargetNonObject));
-  }
-  if (!handler->IsJSReceiver()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kProxyHandlerNonObject));
-  }
-  if ((target->IsJSProxy() && JSProxy::cast(*target)->IsRevoked()) ||
-      (handler->IsJSProxy() && JSProxy::cast(*handler)->IsRevoked())) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kProxyHandlerOrTargetRevoked));
-  }
-  return *isolate->factory()->NewJSProxy(Handle<JSReceiver>::cast(target),
-                                         Handle<JSReceiver>::cast(handler));
-}
-
-
 RUNTIME_FUNCTION(Runtime_CreateJSFunctionProxy) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 5);
