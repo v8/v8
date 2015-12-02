@@ -5,16 +5,23 @@
 #ifndef V8_BUILTINS_H_
 #define V8_BUILTINS_H_
 
+#include "src/base/flags.h"
 #include "src/handles.h"
 
 namespace v8 {
 namespace internal {
 
 // Specifies extra arguments required by a C++ builtin.
-enum BuiltinExtraArguments {
-  NO_EXTRA_ARGUMENTS = 0,
-  NEEDS_CALLED_FUNCTION = 1
+enum class BuiltinExtraArguments : uint8_t {
+  kNone = 0u,
+  kTarget = 1u << 0,
+  kNewTarget = 1u << 1,
+  kTargetAndNewTarget = kTarget | kNewTarget
 };
+
+inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
+  return static_cast<uint8_t>(lhs) & static_cast<uint8_t>(rhs);
+}
 
 
 #define CODE_AGE_LIST_WITH_ARG(V, A)     \
@@ -44,43 +51,43 @@ enum BuiltinExtraArguments {
 
 
 // Define list of builtins implemented in C++.
-#define BUILTIN_LIST_C(V)                                    \
-  V(Illegal, NO_EXTRA_ARGUMENTS)                             \
-                                                             \
-  V(EmptyFunction, NO_EXTRA_ARGUMENTS)                       \
-                                                             \
-  V(ArrayPush, NO_EXTRA_ARGUMENTS)                           \
-  V(ArrayPop, NO_EXTRA_ARGUMENTS)                            \
-  V(ArrayShift, NO_EXTRA_ARGUMENTS)                          \
-  V(ArrayUnshift, NO_EXTRA_ARGUMENTS)                        \
-  V(ArraySlice, NO_EXTRA_ARGUMENTS)                          \
-  V(ArraySplice, NO_EXTRA_ARGUMENTS)                         \
-  V(ArrayConcat, NO_EXTRA_ARGUMENTS)                         \
-                                                             \
-  V(DateToPrimitive, NO_EXTRA_ARGUMENTS)                     \
-                                                             \
-  V(ReflectDefineProperty, NO_EXTRA_ARGUMENTS)               \
-  V(ReflectDeleteProperty, NO_EXTRA_ARGUMENTS)               \
-  V(ReflectGet, NO_EXTRA_ARGUMENTS)                          \
-  V(ReflectGetOwnPropertyDescriptor, NO_EXTRA_ARGUMENTS)     \
-  V(ReflectGetPrototypeOf, NO_EXTRA_ARGUMENTS)               \
-  V(ReflectHas, NO_EXTRA_ARGUMENTS)                          \
-  V(ReflectIsExtensible, NO_EXTRA_ARGUMENTS)                 \
-  V(ReflectOwnKeys, NO_EXTRA_ARGUMENTS)                      \
-  V(ReflectPreventExtensions, NO_EXTRA_ARGUMENTS)            \
-  V(ReflectSet, NO_EXTRA_ARGUMENTS)                          \
-  V(ReflectSetPrototypeOf, NO_EXTRA_ARGUMENTS)               \
-                                                             \
-  V(SymbolConstructor, NO_EXTRA_ARGUMENTS)                   \
-  V(SymbolConstructor_ConstructStub, NEEDS_CALLED_FUNCTION)  \
-                                                             \
-  V(HandleApiCall, NEEDS_CALLED_FUNCTION)                    \
-  V(HandleApiCallConstruct, NEEDS_CALLED_FUNCTION)           \
-  V(HandleApiCallAsFunction, NO_EXTRA_ARGUMENTS)             \
-  V(HandleApiCallAsConstructor, NO_EXTRA_ARGUMENTS)          \
-                                                             \
-  V(RestrictedFunctionPropertiesThrower, NO_EXTRA_ARGUMENTS) \
-  V(RestrictedStrictArgumentsPropertiesThrower, NO_EXTRA_ARGUMENTS)
+#define BUILTIN_LIST_C(V)                       \
+  V(Illegal, kNone)                             \
+                                                \
+  V(EmptyFunction, kNone)                       \
+                                                \
+  V(ArrayPush, kNone)                           \
+  V(ArrayPop, kNone)                            \
+  V(ArrayShift, kNone)                          \
+  V(ArrayUnshift, kNone)                        \
+  V(ArraySlice, kNone)                          \
+  V(ArraySplice, kNone)                         \
+  V(ArrayConcat, kNone)                         \
+                                                \
+  V(DateToPrimitive, kNone)                     \
+                                                \
+  V(ReflectDefineProperty, kNone)               \
+  V(ReflectDeleteProperty, kNone)               \
+  V(ReflectGet, kNone)                          \
+  V(ReflectGetOwnPropertyDescriptor, kNone)     \
+  V(ReflectGetPrototypeOf, kNone)               \
+  V(ReflectHas, kNone)                          \
+  V(ReflectIsExtensible, kNone)                 \
+  V(ReflectOwnKeys, kNone)                      \
+  V(ReflectPreventExtensions, kNone)            \
+  V(ReflectSet, kNone)                          \
+  V(ReflectSetPrototypeOf, kNone)               \
+                                                \
+  V(SymbolConstructor, kNone)                   \
+  V(SymbolConstructor_ConstructStub, kTarget)   \
+                                                \
+  V(HandleApiCall, kTarget)                     \
+  V(HandleApiCallConstruct, kTarget)            \
+  V(HandleApiCallAsFunction, kNone)             \
+  V(HandleApiCallAsConstructor, kNone)          \
+                                                \
+  V(RestrictedFunctionPropertiesThrower, kNone) \
+  V(RestrictedStrictArgumentsPropertiesThrower, kNone)
 
 // Define list of builtins implemented in assembly.
 #define BUILTIN_LIST_A(V)                                                     \

@@ -31,7 +31,10 @@ template <BuiltinExtraArguments extra_args>
 class BuiltinArguments : public Arguments {
  public:
   BuiltinArguments(int length, Object** arguments)
-      : Arguments(length, arguments) { }
+      : Arguments(length, arguments) {
+    // Check we have at least the receiver.
+    DCHECK_LE(1, this->length());
+  }
 
   Object*& operator[] (int index) {
     DCHECK(index < length());
@@ -47,47 +50,64 @@ class BuiltinArguments : public Arguments {
     return Arguments::at<Object>(0);
   }
 
-  Handle<JSFunction> called_function() {
-    STATIC_ASSERT(extra_args == NEEDS_CALLED_FUNCTION);
-    return Arguments::at<JSFunction>(Arguments::length() - 1);
-  }
+  Handle<JSFunction> target();
+  Handle<HeapObject> new_target();
 
   // Gets the total number of arguments including the receiver (but
   // excluding extra arguments).
-  int length() const {
-    STATIC_ASSERT(extra_args == NO_EXTRA_ARGUMENTS);
-    return Arguments::length();
-  }
-
-#ifdef DEBUG
-  void Verify() {
-    // Check we have at least the receiver.
-    DCHECK(Arguments::length() >= 1);
-  }
-#endif
+  int length() const;
 };
 
 
-// Specialize BuiltinArguments for the called function extra argument.
+// Specialize BuiltinArguments for the extra arguments.
 
 template <>
-int BuiltinArguments<NEEDS_CALLED_FUNCTION>::length() const {
+int BuiltinArguments<BuiltinExtraArguments::kNone>::length() const {
+  return Arguments::length();
+}
+
+template <>
+int BuiltinArguments<BuiltinExtraArguments::kTarget>::length() const {
   return Arguments::length() - 1;
 }
 
-#ifdef DEBUG
 template <>
-void BuiltinArguments<NEEDS_CALLED_FUNCTION>::Verify() {
-  // Check we have at least the receiver and the called function.
-  DCHECK(Arguments::length() >= 2);
-  // Make sure cast to JSFunction succeeds.
-  called_function();
+Handle<JSFunction> BuiltinArguments<BuiltinExtraArguments::kTarget>::target() {
+  return Arguments::at<JSFunction>(Arguments::length() - 1);
 }
-#endif
+
+template <>
+int BuiltinArguments<BuiltinExtraArguments::kNewTarget>::length() const {
+  return Arguments::length() - 1;
+}
+
+template <>
+Handle<HeapObject>
+BuiltinArguments<BuiltinExtraArguments::kNewTarget>::new_target() {
+  return Arguments::at<HeapObject>(Arguments::length() - 1);
+}
+
+template <>
+int BuiltinArguments<BuiltinExtraArguments::kTargetAndNewTarget>::length()
+    const {
+  return Arguments::length() - 2;
+}
+
+template <>
+Handle<JSFunction>
+BuiltinArguments<BuiltinExtraArguments::kTargetAndNewTarget>::target() {
+  return Arguments::at<JSFunction>(Arguments::length() - 2);
+}
+
+template <>
+Handle<HeapObject>
+BuiltinArguments<BuiltinExtraArguments::kTargetAndNewTarget>::new_target() {
+  return Arguments::at<HeapObject>(Arguments::length() - 1);
+}
 
 
-#define DEF_ARG_TYPE(name, spec)                      \
-  typedef BuiltinArguments<spec> name##ArgumentsType;
+#define DEF_ARG_TYPE(name, spec) \
+  typedef BuiltinArguments<BuiltinExtraArguments::spec> name##ArgumentsType;
 BUILTIN_LIST_C(DEF_ARG_TYPE)
 #undef DEF_ARG_TYPE
 
@@ -105,62 +125,16 @@ BUILTIN_LIST_C(DEF_ARG_TYPE)
 // In the body of the builtin function the arguments can be accessed
 // through the BuiltinArguments object args.
 
-#ifdef DEBUG
-
 #define BUILTIN(name)                                            \
   MUST_USE_RESULT static Object* Builtin_Impl_##name(            \
       name##ArgumentsType args, Isolate* isolate);               \
   MUST_USE_RESULT static Object* Builtin_##name(                 \
       int args_length, Object** args_object, Isolate* isolate) { \
     name##ArgumentsType args(args_length, args_object);          \
-    args.Verify();                                               \
     return Builtin_Impl_##name(args, isolate);                   \
   }                                                              \
   MUST_USE_RESULT static Object* Builtin_Impl_##name(            \
       name##ArgumentsType args, Isolate* isolate)
-
-#else  // For release mode.
-
-#define BUILTIN(name)                                            \
-  static Object* Builtin_impl##name(                             \
-      name##ArgumentsType args, Isolate* isolate);               \
-  static Object* Builtin_##name(                                 \
-      int args_length, Object** args_object, Isolate* isolate) { \
-    name##ArgumentsType args(args_length, args_object);          \
-    return Builtin_impl##name(args, isolate);                    \
-  }                                                              \
-  static Object* Builtin_impl##name(                             \
-      name##ArgumentsType args, Isolate* isolate)
-#endif
-
-
-#ifdef DEBUG
-inline bool CalledAsConstructor(Isolate* isolate) {
-  // Calculate the result using a full stack frame iterator and check
-  // that the state of the stack is as we assume it to be in the
-  // code below.
-  StackFrameIterator it(isolate);
-  DCHECK(it.frame()->is_exit());
-  it.Advance();
-  StackFrame* frame = it.frame();
-  bool reference_result = frame->is_construct();
-  Address fp = Isolate::c_entry_fp(isolate->thread_local_top());
-  // Because we know fp points to an exit frame we can use the relevant
-  // part of ExitFrame::ComputeCallerState directly.
-  const int kCallerOffset = ExitFrameConstants::kCallerFPOffset;
-  Address caller_fp = Memory::Address_at(fp + kCallerOffset);
-  // This inlines the part of StackFrame::ComputeType that grabs the
-  // type of the current frame.  Note that StackFrame::ComputeType
-  // has been specialized for each architecture so if any one of them
-  // changes this code has to be changed as well.
-  const int kMarkerOffset = StandardFrameConstants::kMarkerOffset;
-  const Smi* kConstructMarker = Smi::FromInt(StackFrame::CONSTRUCT);
-  Object* marker = Memory::Object_at(caller_fp + kMarkerOffset);
-  bool result = (marker == kConstructMarker);
-  DCHECK_EQ(result, reference_result);
-  return result;
-}
-#endif
 
 
 // ----------------------------------------------------------------------------
@@ -306,7 +280,7 @@ inline MaybeHandle<FixedArrayBase> EnsureJSArrayWithWritableFastElements(
 
 MUST_USE_RESULT static Object* CallJsIntrinsic(
     Isolate* isolate, Handle<JSFunction> function,
-    BuiltinArguments<NO_EXTRA_ARGUMENTS> args) {
+    BuiltinArguments<BuiltinExtraArguments::kNone> args) {
   HandleScope handleScope(isolate);
   int argc = args.length() - 1;
   ScopedVector<Handle<Object> > argv(argc);
@@ -1764,7 +1738,7 @@ BUILTIN(SymbolConstructor_ConstructStub) {
   HandleScope scope(isolate);
   // The ConstructStub is executed in the context of the caller, so we need
   // to enter the callee context first before raising an exception.
-  isolate->set_context(args.called_function()->context());
+  isolate->set_context(args.target()->context());
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewTypeError(MessageTemplate::kNotConstructor,
                             isolate->factory()->Symbol_string()));
@@ -1794,11 +1768,13 @@ BUILTIN(RestrictedStrictArgumentsPropertiesThrower) {
 //
 
 
+namespace {
+
 template <bool is_construct>
-MUST_USE_RESULT static MaybeHandle<Object> HandleApiCallHelper(
-    Isolate* isolate, BuiltinArguments<NEEDS_CALLED_FUNCTION>& args) {
+MUST_USE_RESULT MaybeHandle<Object> HandleApiCallHelper(
+    Isolate* isolate, BuiltinArguments<BuiltinExtraArguments::kTarget> args) {
   HandleScope scope(isolate);
-  Handle<JSFunction> function = args.called_function();
+  Handle<JSFunction> function = args.target();
   // TODO(ishell): turn this back to a DCHECK.
   CHECK(function->shared()->IsApiFunction());
 
@@ -1873,10 +1849,11 @@ MUST_USE_RESULT static MaybeHandle<Object> HandleApiCallHelper(
   return scope.CloseAndEscape(args.receiver());
 }
 
+}  // namespace
+
 
 BUILTIN(HandleApiCall) {
   HandleScope scope(isolate);
-  DCHECK(!CalledAsConstructor(isolate));
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
                                      HandleApiCallHelper<false>(isolate, args));
@@ -1886,7 +1863,6 @@ BUILTIN(HandleApiCall) {
 
 BUILTIN(HandleApiCallConstruct) {
   HandleScope scope(isolate);
-  DCHECK(CalledAsConstructor(isolate));
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
                                      HandleApiCallHelper<true>(isolate, args));
@@ -1924,11 +1900,12 @@ Handle<Code> Builtins::Call(ConvertReceiverMode mode) {
 
 namespace {
 
-class RelocatableArguments : public BuiltinArguments<NEEDS_CALLED_FUNCTION>,
-                             public Relocatable {
+class RelocatableArguments
+    : public BuiltinArguments<BuiltinExtraArguments::kTarget>,
+      public Relocatable {
  public:
   RelocatableArguments(Isolate* isolate, int length, Object** arguments)
-      : BuiltinArguments<NEEDS_CALLED_FUNCTION>(length, arguments),
+      : BuiltinArguments<BuiltinExtraArguments::kTarget>(length, arguments),
         Relocatable(isolate) {}
 
   virtual inline void IterateInstance(ObjectVisitor* v) {
@@ -1978,12 +1955,8 @@ MaybeHandle<Object> Builtins::InvokeApiFunction(Handle<JSFunction> function,
 // API. The object can be called as either a constructor (using new) or just as
 // a function (without new).
 MUST_USE_RESULT static Object* HandleApiCallAsFunctionOrConstructor(
-    Isolate* isolate,
-    bool is_construct_call,
-    BuiltinArguments<NO_EXTRA_ARGUMENTS> args) {
-  // Non-functions are never called as constructors. Even if this is an object
-  // called as a constructor the delegate call is not a construct call.
-  DCHECK(!CalledAsConstructor(isolate));
+    Isolate* isolate, bool is_construct_call,
+    BuiltinArguments<BuiltinExtraArguments::kNone> args) {
   Heap* heap = isolate->heap();
 
   Handle<Object> receiver = args.receiver();
@@ -2240,36 +2213,34 @@ void Builtins::InitBuiltinFunctionTable() {
   functions[builtin_count].s_name = NULL;
   functions[builtin_count].name = builtin_count;
   functions[builtin_count].flags = static_cast<Code::Flags>(0);
-  functions[builtin_count].extra_args = NO_EXTRA_ARGUMENTS;
+  functions[builtin_count].extra_args = BuiltinExtraArguments::kNone;
 
-#define DEF_FUNCTION_PTR_C(aname, aextra_args)                         \
-    functions->generator = FUNCTION_ADDR(Generate_Adaptor);            \
-    functions->c_code = FUNCTION_ADDR(Builtin_##aname);                \
-    functions->s_name = #aname;                                        \
-    functions->name = c_##aname;                                       \
-    functions->flags = Code::ComputeFlags(Code::BUILTIN);              \
-    functions->extra_args = aextra_args;                               \
-    ++functions;
+#define DEF_FUNCTION_PTR_C(aname, aextra_args)                \
+  functions->generator = FUNCTION_ADDR(Generate_Adaptor);     \
+  functions->c_code = FUNCTION_ADDR(Builtin_##aname);         \
+  functions->s_name = #aname;                                 \
+  functions->name = c_##aname;                                \
+  functions->flags = Code::ComputeFlags(Code::BUILTIN);       \
+  functions->extra_args = BuiltinExtraArguments::aextra_args; \
+  ++functions;
 
-#define DEF_FUNCTION_PTR_A(aname, kind, state, extra)                       \
-    functions->generator = FUNCTION_ADDR(Generate_##aname);                 \
-    functions->c_code = NULL;                                               \
-    functions->s_name = #aname;                                             \
-    functions->name = k##aname;                                             \
-    functions->flags = Code::ComputeFlags(Code::kind,                       \
-                                          state,                            \
-                                          extra);                           \
-    functions->extra_args = NO_EXTRA_ARGUMENTS;                             \
-    ++functions;
+#define DEF_FUNCTION_PTR_A(aname, kind, state, extra)              \
+  functions->generator = FUNCTION_ADDR(Generate_##aname);          \
+  functions->c_code = NULL;                                        \
+  functions->s_name = #aname;                                      \
+  functions->name = k##aname;                                      \
+  functions->flags = Code::ComputeFlags(Code::kind, state, extra); \
+  functions->extra_args = BuiltinExtraArguments::kNone;            \
+  ++functions;
 
-#define DEF_FUNCTION_PTR_H(aname, kind)                                     \
-    functions->generator = FUNCTION_ADDR(Generate_##aname);                 \
-    functions->c_code = NULL;                                               \
-    functions->s_name = #aname;                                             \
-    functions->name = k##aname;                                             \
-    functions->flags = Code::ComputeHandlerFlags(Code::kind);               \
-    functions->extra_args = NO_EXTRA_ARGUMENTS;                             \
-    ++functions;
+#define DEF_FUNCTION_PTR_H(aname, kind)                     \
+  functions->generator = FUNCTION_ADDR(Generate_##aname);   \
+  functions->c_code = NULL;                                 \
+  functions->s_name = #aname;                               \
+  functions->name = k##aname;                               \
+  functions->flags = Code::ComputeHandlerFlags(Code::kind); \
+  functions->extra_args = BuiltinExtraArguments::kNone;     \
+  ++functions;
 
   BUILTIN_LIST_C(DEF_FUNCTION_PTR_C)
   BUILTIN_LIST_A(DEF_FUNCTION_PTR_A)

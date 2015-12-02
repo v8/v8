@@ -21,7 +21,8 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm, CFunctionId id,
                                 BuiltinExtraArguments extra_args) {
   // ----------- S t a t e -------------
   //  -- r3                 : number of arguments excluding receiver
-  //  -- r4                 : called function
+  //  -- r4                 : target
+  //  -- r6                 : new.target
   //  -- sp[0]              : last argument
   //  -- ...
   //  -- sp[4 * (argc - 1)] : first argument
@@ -31,11 +32,21 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm, CFunctionId id,
 
   // Insert extra arguments.
   int num_extra_args = 0;
-  if (extra_args == NEEDS_CALLED_FUNCTION) {
-    num_extra_args = 1;
-    __ push(r4);
-  } else {
-    DCHECK(extra_args == NO_EXTRA_ARGUMENTS);
+  switch (extra_args) {
+    case BuiltinExtraArguments::kTarget:
+      __ Push(r4);
+      ++num_extra_args;
+      break;
+    case BuiltinExtraArguments::kNewTarget:
+      __ Push(r6);
+      ++num_extra_args;
+      break;
+    case BuiltinExtraArguments::kTargetAndNewTarget:
+      __ Push(r4, r6);
+      num_extra_args += 2;
+      break;
+    case BuiltinExtraArguments::kNone:
+      break;
   }
 
   // JumpToExternalReference expects r3 to contain the number of arguments

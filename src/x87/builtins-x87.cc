@@ -22,7 +22,8 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
                                 BuiltinExtraArguments extra_args) {
   // ----------- S t a t e -------------
   //  -- eax                : number of arguments excluding receiver
-  //  -- edi                : called function
+  //  -- edi                : target
+  //  -- edx                : new.target
   //  -- esp[0]             : return address
   //  -- esp[4]             : last argument
   //  -- ...
@@ -33,14 +34,17 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
 
   // Insert extra arguments.
   int num_extra_args = 0;
-  if (extra_args == NEEDS_CALLED_FUNCTION) {
-    num_extra_args = 1;
-    Register scratch = ebx;
-    __ pop(scratch);  // Save return address.
-    __ push(edi);
-    __ push(scratch);  // Restore return address.
-  } else {
-    DCHECK(extra_args == NO_EXTRA_ARGUMENTS);
+  if (extra_args != BuiltinExtraArguments::kNone) {
+    __ PopReturnAddressTo(ecx);
+    if (extra_args & BuiltinExtraArguments::kTarget) {
+      ++num_extra_args;
+      __ Push(edi);
+    }
+    if (extra_args & BuiltinExtraArguments::kNewTarget) {
+      ++num_extra_args;
+      __ Push(edx);
+    }
+    __ PushReturnAddressFrom(ecx);
   }
 
   // JumpToExternalReference expects eax to contain the number of arguments

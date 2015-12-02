@@ -21,7 +21,8 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
                                 BuiltinExtraArguments extra_args) {
   // ----------- S t a t e -------------
   //  -- rax                 : number of arguments excluding receiver
-  //  -- rdi                 : called function
+  //  -- rdi                 : target
+  //  -- rdx                 : new.target
   //  -- rsp[0]              : return address
   //  -- rsp[8]              : last argument
   //  -- ...
@@ -32,13 +33,17 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
 
   // Insert extra arguments.
   int num_extra_args = 0;
-  if (extra_args == NEEDS_CALLED_FUNCTION) {
-    num_extra_args = 1;
+  if (extra_args != BuiltinExtraArguments::kNone) {
     __ PopReturnAddressTo(kScratchRegister);
-    __ Push(rdi);
+    if (extra_args & BuiltinExtraArguments::kTarget) {
+      ++num_extra_args;
+      __ Push(rdi);
+    }
+    if (extra_args & BuiltinExtraArguments::kNewTarget) {
+      ++num_extra_args;
+      __ Push(rdx);
+    }
     __ PushReturnAddressFrom(kScratchRegister);
-  } else {
-    DCHECK(extra_args == NO_EXTRA_ARGUMENTS);
   }
 
   // JumpToExternalReference expects rax to contain the number of arguments
