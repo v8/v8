@@ -41,7 +41,7 @@ function Stringify(x, depth) {
       var props = [];
       var names = Object.getOwnPropertyNames(x);
       names = names.concat(Object.getOwnPropertySymbols(x));
-      for (var i in names) {
+      for (var i = 0; i < names.length; ++i) {
         var name = names[i];
         var desc = Object.getOwnPropertyDescriptor(x, name);
         if (IS_UNDEFINED(desc)) continue;
