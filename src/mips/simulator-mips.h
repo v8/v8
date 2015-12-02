@@ -171,6 +171,12 @@ class Simulator {
   void set_fpu_register_hi_word(int fpureg, int32_t value);
   void set_fpu_register_float(int fpureg, float value);
   void set_fpu_register_double(int fpureg, double value);
+  void set_fpu_register_invalid_result64(float original, float rounded);
+  void set_fpu_register_invalid_result(float original, float rounded);
+  void set_fpu_register_word_invalid_result(float original, float rounded);
+  void set_fpu_register_invalid_result64(double original, double rounded);
+  void set_fpu_register_invalid_result(double original, double rounded);
+  void set_fpu_register_word_invalid_result(double original, double rounded);
   int64_t get_fpu_register(int fpureg) const;
   int32_t get_fpu_register_word(int fpureg) const;
   int32_t get_fpu_register_signed_word(int fpureg) const;

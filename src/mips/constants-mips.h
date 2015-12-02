@@ -143,8 +143,11 @@ const int kInvalidFPURegister = -1;
 const int kFCSRRegister = 31;
 const int kInvalidFPUControlRegister = -1;
 const uint32_t kFPUInvalidResult = static_cast<uint32_t>(1 << 31) - 1;
+const int32_t kFPUInvalidResultNegative = static_cast<int32_t>(1 << 31);
 const uint64_t kFPU64InvalidResult =
     static_cast<uint64_t>(static_cast<uint64_t>(1) << 63) - 1;
+const int64_t kFPU64InvalidResultNegative =
+    static_cast<int64_t>(static_cast<uint64_t>(1) << 63);
 
 // FCSR constants.
 const uint32_t kFCSRInexactFlagBit = 2;
@@ -152,12 +155,14 @@ const uint32_t kFCSRUnderflowFlagBit = 3;
 const uint32_t kFCSROverflowFlagBit = 4;
 const uint32_t kFCSRDivideByZeroFlagBit = 5;
 const uint32_t kFCSRInvalidOpFlagBit = 6;
+const uint32_t kFCSRNaN2008FlagBit = 18;
 
 const uint32_t kFCSRInexactFlagMask = 1 << kFCSRInexactFlagBit;
 const uint32_t kFCSRUnderflowFlagMask = 1 << kFCSRUnderflowFlagBit;
 const uint32_t kFCSROverflowFlagMask = 1 << kFCSROverflowFlagBit;
 const uint32_t kFCSRDivideByZeroFlagMask = 1 << kFCSRDivideByZeroFlagBit;
 const uint32_t kFCSRInvalidOpFlagMask = 1 << kFCSRInvalidOpFlagBit;
+const uint32_t kFCSRNaN2008FlagMask = 1 << kFCSRNaN2008FlagBit;
 
 const uint32_t kFCSRFlagMask =
     kFCSRInexactFlagMask |

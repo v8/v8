@@ -968,7 +968,12 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   for (int i = 0; i < kNumFPURegisters; i++) {
     FPUregisters_[i] = 0;
   }
-  FCSR_ = 0;
+  if (IsMipsArchVariant(kMips32r6)) {
+    FCSR_ = kFCSRNaN2008FlagMask;
+  } else {
+    DCHECK(IsMipsArchVariant(kMips32r1) || IsMipsArchVariant(kMips32r2));
+    FCSR_ = 0;
+  }
 
   // The sp is initialized to point to the bottom (high address) of the
   // allocated stack area. To be safe in potential stack underflows we leave
@@ -1293,6 +1298,125 @@ void Simulator::set_fcsr_rounding_mode(FPURoundingMode mode) {
 
 unsigned int Simulator::get_fcsr_rounding_mode() {
   return FCSR_ & kFPURoundingModeMask;
+}
+
+
+void Simulator::set_fpu_register_word_invalid_result(float original,
+                                                     float rounded) {
+  if (FCSR_ & kFCSRNaN2008FlagMask) {
+    double max_int32 = std::numeric_limits<int32_t>::max();
+    double min_int32 = std::numeric_limits<int32_t>::min();
+    if (std::isnan(original)) {
+      set_fpu_register_word(fd_reg(), 0);
+    } else if (rounded > max_int32) {
+      set_fpu_register_word(fd_reg(), kFPUInvalidResult);
+    } else if (rounded < min_int32) {
+      set_fpu_register_word(fd_reg(), kFPUInvalidResultNegative);
+    } else {
+      UNREACHABLE();
+    }
+  } else {
+    set_fpu_register_word(fd_reg(), kFPUInvalidResult);
+  }
+}
+
+
+void Simulator::set_fpu_register_invalid_result(float original, float rounded) {
+  if (FCSR_ & kFCSRNaN2008FlagMask) {
+    double max_int32 = std::numeric_limits<int32_t>::max();
+    double min_int32 = std::numeric_limits<int32_t>::min();
+    if (std::isnan(original)) {
+      set_fpu_register(fd_reg(), 0);
+    } else if (rounded > max_int32) {
+      set_fpu_register(fd_reg(), kFPUInvalidResult);
+    } else if (rounded < min_int32) {
+      set_fpu_register(fd_reg(), kFPUInvalidResultNegative);
+    } else {
+      UNREACHABLE();
+    }
+  } else {
+    set_fpu_register(fd_reg(), kFPUInvalidResult);
+  }
+}
+
+
+void Simulator::set_fpu_register_invalid_result64(float original,
+                                                  float rounded) {
+  if (FCSR_ & kFCSRNaN2008FlagMask) {
+    double max_int64 = std::numeric_limits<int64_t>::max();
+    double min_int64 = std::numeric_limits<int64_t>::min();
+    if (std::isnan(original)) {
+      set_fpu_register(fd_reg(), 0);
+    } else if (rounded > max_int64) {
+      set_fpu_register(fd_reg(), kFPU64InvalidResult);
+    } else if (rounded < min_int64) {
+      set_fpu_register(fd_reg(), kFPU64InvalidResultNegative);
+    } else {
+      UNREACHABLE();
+    }
+  } else {
+    set_fpu_register(fd_reg(), kFPU64InvalidResult);
+  }
+}
+
+
+void Simulator::set_fpu_register_word_invalid_result(double original,
+                                                     double rounded) {
+  if (FCSR_ & kFCSRNaN2008FlagMask) {
+    double max_int32 = std::numeric_limits<int32_t>::max();
+    double min_int32 = std::numeric_limits<int32_t>::min();
+    if (std::isnan(original)) {
+      set_fpu_register_word(fd_reg(), 0);
+    } else if (rounded > max_int32) {
+      set_fpu_register_word(fd_reg(), kFPUInvalidResult);
+    } else if (rounded < min_int32) {
+      set_fpu_register_word(fd_reg(), kFPUInvalidResultNegative);
+    } else {
+      UNREACHABLE();
+    }
+  } else {
+    set_fpu_register_word(fd_reg(), kFPUInvalidResult);
+  }
+}
+
+
+void Simulator::set_fpu_register_invalid_result(double original,
+                                                double rounded) {
+  if (FCSR_ & kFCSRNaN2008FlagMask) {
+    double max_int32 = std::numeric_limits<int32_t>::max();
+    double min_int32 = std::numeric_limits<int32_t>::min();
+    if (std::isnan(original)) {
+      set_fpu_register(fd_reg(), 0);
+    } else if (rounded > max_int32) {
+      set_fpu_register(fd_reg(), kFPUInvalidResult);
+    } else if (rounded < min_int32) {
+      set_fpu_register(fd_reg(), kFPUInvalidResultNegative);
+    } else {
+      UNREACHABLE();
+    }
+  } else {
+    set_fpu_register(fd_reg(), kFPUInvalidResult);
+  }
+}
+
+
+void Simulator::set_fpu_register_invalid_result64(double original,
+                                                  double rounded) {
+  if (FCSR_ & kFCSRNaN2008FlagMask) {
+    double max_int64 = std::numeric_limits<int64_t>::max();
+    double min_int64 = std::numeric_limits<int64_t>::min();
+    if (std::isnan(original)) {
+      set_fpu_register(fd_reg(), 0);
+    } else if (rounded > max_int64) {
+      set_fpu_register(fd_reg(), kFPU64InvalidResult);
+    } else if (rounded < min_int64) {
+      set_fpu_register(fd_reg(), kFPU64InvalidResultNegative);
+    } else {
+      UNREACHABLE();
+    }
+  } else {
+    set_fpu_register(fd_reg(), kFPU64InvalidResult);
+  }
 }
 
 
@@ -2415,7 +2539,7 @@ void Simulator::DecodeTypeRegisterDRsType() {
       round_according_to_fcsr(fs, rounded, result, fs);
       set_fpu_register_word(fd_reg(), result);
       if (set_fcsr_round_error(fs, rounded)) {
-        set_fpu_register_word(fd_reg(), kFPUInvalidResult);
+        set_fpu_register_word_invalid_result(fs, rounded);
       }
     } break;
     case ROUND_W_D:  // Round double to word (round half to even).
@@ -2429,7 +2553,7 @@ void Simulator::DecodeTypeRegisterDRsType() {
       }
       set_fpu_register_word(fd_reg(), result);
       if (set_fcsr_round_error(fs, rounded)) {
-        set_fpu_register_word(fd_reg(), kFPUInvalidResult);
+        set_fpu_register_word_invalid_result(fs, rounded);
       }
     } break;
     case TRUNC_W_D:  // Truncate double to word (round towards 0).
@@ -2438,7 +2562,7 @@ void Simulator::DecodeTypeRegisterDRsType() {
       int32_t result = static_cast<int32_t>(rounded);
       set_fpu_register_word(fd_reg(), result);
       if (set_fcsr_round_error(fs, rounded)) {
-        set_fpu_register_word(fd_reg(), kFPUInvalidResult);
+        set_fpu_register_word_invalid_result(fs, rounded);
       }
     } break;
     case FLOOR_W_D:  // Round double to word towards negative infinity.
@@ -2447,7 +2571,7 @@ void Simulator::DecodeTypeRegisterDRsType() {
       int32_t result = static_cast<int32_t>(rounded);
       set_fpu_register_word(fd_reg(), result);
       if (set_fcsr_round_error(fs, rounded)) {
-        set_fpu_register_word(fd_reg(), kFPUInvalidResult);
+        set_fpu_register_word_invalid_result(fs, rounded);
       }
     } break;
     case CEIL_W_D:  // Round double to word towards positive infinity.
@@ -2456,7 +2580,7 @@ void Simulator::DecodeTypeRegisterDRsType() {
       int32_t result = static_cast<int32_t>(rounded);
       set_fpu_register_word(fd_reg(), result);
       if (set_fcsr_round_error(fs, rounded)) {
-        set_fpu_register_word(fd_reg(), kFPUInvalidResult);
+        set_fpu_register_word_invalid_result(fs, rounded);
       }
     } break;
     case CVT_S_D:  // Convert double to float (single).
@@ -2469,7 +2593,7 @@ void Simulator::DecodeTypeRegisterDRsType() {
         round64_according_to_fcsr(fs, rounded, result, fs);
         set_fpu_register(fd_reg(), result);
         if (set_fcsr_round64_error(fs, rounded)) {
-          set_fpu_register(fd_reg(), kFPU64InvalidResult);
+          set_fpu_register_invalid_result64(fs, rounded);
         }
       } else {
         UNSUPPORTED();
@@ -2484,7 +2608,7 @@ void Simulator::DecodeTypeRegisterDRsType() {
       if (IsFp64Mode()) {
         set_fpu_register(fd_reg(), i64);
         if (set_fcsr_round64_error(fs, rounded)) {
-          set_fpu_register(fd_reg(), kFPU64InvalidResult);
+          set_fpu_register_invalid_result64(fs, rounded);
         }
       } else {
         UNSUPPORTED();
@@ -2504,7 +2628,7 @@ void Simulator::DecodeTypeRegisterDRsType() {
       if (IsFp64Mode()) {
         set_fpu_register(fd_reg(), i64);
         if (set_fcsr_round64_error(fs, rounded)) {
-          set_fpu_register(fd_reg(), kFPU64InvalidResult);
+          set_fpu_register_invalid_result64(fs, rounded);
         }
       } else {
         UNSUPPORTED();
@@ -2518,7 +2642,7 @@ void Simulator::DecodeTypeRegisterDRsType() {
       if (IsFp64Mode()) {
         set_fpu_register(fd_reg(), i64);
         if (set_fcsr_round64_error(fs, rounded)) {
-          set_fpu_register(fd_reg(), kFPU64InvalidResult);
+          set_fpu_register_invalid_result64(fs, rounded);
         }
       } else {
         UNSUPPORTED();
@@ -2532,7 +2656,7 @@ void Simulator::DecodeTypeRegisterDRsType() {
       if (IsFp64Mode()) {
         set_fpu_register(fd_reg(), i64);
         if (set_fcsr_round64_error(fs, rounded)) {
-          set_fpu_register(fd_reg(), kFPU64InvalidResult);
+          set_fpu_register_invalid_result64(fs, rounded);
         }
       } else {
         UNSUPPORTED();
@@ -2935,7 +3059,7 @@ void Simulator::DecodeTypeRegisterSRsType() {
       int32_t result = static_cast<int32_t>(rounded);
       set_fpu_register_word(fd_reg(), result);
       if (set_fcsr_round_error(fs, rounded)) {
-        set_fpu_register_word(fd_reg(), kFPUInvalidResult);
+        set_fpu_register_word_invalid_result(fs, rounded);
       }
     } break;
     case TRUNC_L_S: {  // Mips32r2 instruction.
@@ -2945,7 +3069,7 @@ void Simulator::DecodeTypeRegisterSRsType() {
       if (IsFp64Mode()) {
         set_fpu_register(fd_reg(), i64);
         if (set_fcsr_round64_error(fs, rounded)) {
-          set_fpu_register(fd_reg(), kFPU64InvalidResult);
+          set_fpu_register_invalid_result64(fs, rounded);
         }
       } else {
         UNSUPPORTED();
@@ -2958,7 +3082,7 @@ void Simulator::DecodeTypeRegisterSRsType() {
       int32_t result = static_cast<int32_t>(rounded);
       set_fpu_register_word(fd_reg(), result);
       if (set_fcsr_round_error(fs, rounded)) {
-        set_fpu_register_word(fd_reg(), kFPUInvalidResult);
+        set_fpu_register_word_invalid_result(fs, rounded);
       }
     } break;
     case FLOOR_L_S: {  // Mips32r2 instruction.
@@ -2968,7 +3092,7 @@ void Simulator::DecodeTypeRegisterSRsType() {
       if (IsFp64Mode()) {
         set_fpu_register(fd_reg(), i64);
         if (set_fcsr_round64_error(fs, rounded)) {
-          set_fpu_register(fd_reg(), kFPU64InvalidResult);
+          set_fpu_register_invalid_result64(fs, rounded);
         }
       } else {
         UNSUPPORTED();
@@ -2985,7 +3109,7 @@ void Simulator::DecodeTypeRegisterSRsType() {
       }
       set_fpu_register_word(fd_reg(), result);
       if (set_fcsr_round_error(fs, rounded)) {
-        set_fpu_register_word(fd_reg(), kFPUInvalidResult);
+        set_fpu_register_word_invalid_result(fs, rounded);
       }
       break;
     }
@@ -3002,7 +3126,7 @@ void Simulator::DecodeTypeRegisterSRsType() {
       if (IsFp64Mode()) {
         set_fpu_register(fd_reg(), i64);
         if (set_fcsr_round64_error(fs, rounded)) {
-          set_fpu_register(fd_reg(), kFPU64InvalidResult);
+          set_fpu_register_invalid_result64(fs, rounded);
         }
       } else {
         UNSUPPORTED();
@@ -3015,7 +3139,7 @@ void Simulator::DecodeTypeRegisterSRsType() {
       int32_t result = static_cast<int32_t>(rounded);
       set_fpu_register_word(fd_reg(), result);
       if (set_fcsr_round_error(fs, rounded)) {
-        set_fpu_register_word(fd_reg(), kFPUInvalidResult);
+        set_fpu_register_word_invalid_result(fs, rounded);
       }
     } break;
     case CEIL_L_S: {  // Mips32r2 instruction.
@@ -3025,7 +3149,7 @@ void Simulator::DecodeTypeRegisterSRsType() {
       if (IsFp64Mode()) {
         set_fpu_register(fd_reg(), i64);
         if (set_fcsr_round64_error(fs, rounded)) {
-          set_fpu_register(fd_reg(), kFPU64InvalidResult);
+          set_fpu_register_invalid_result64(fs, rounded);
         }
       } else {
         UNSUPPORTED();
@@ -3107,7 +3231,7 @@ void Simulator::DecodeTypeRegisterSRsType() {
         round64_according_to_fcsr(fs, rounded, result, fs);
         set_fpu_register(fd_reg(), result);
         if (set_fcsr_round64_error(fs, rounded)) {
-          set_fpu_register(fd_reg(), kFPU64InvalidResult);
+          set_fpu_register_invalid_result64(fs, rounded);
         }
       } else {
         UNSUPPORTED();
@@ -3120,7 +3244,7 @@ void Simulator::DecodeTypeRegisterSRsType() {
       round_according_to_fcsr(fs, rounded, result, fs);
       set_fpu_register_word(fd_reg(), result);
       if (set_fcsr_round_error(fs, rounded)) {
-        set_fpu_register_word(fd_reg(), kFPUInvalidResult);
+        set_fpu_register_word_invalid_result(fs, rounded);
       }
       break;
     }
@@ -3249,11 +3373,18 @@ void Simulator::DecodeTypeRegisterCOP1() {
     case MFHC1:
       set_register(rt_reg(), get_fpu_register_hi_word(fs_reg()));
       break;
-    case CTC1:
+    case CTC1: {
       // At the moment only FCSR is supported.
       DCHECK(fs_reg() == kFCSRRegister);
-      FCSR_ = registers_[rt_reg()];
+      int32_t reg = registers_[rt_reg()];
+      if (IsMipsArchVariant(kMips32r6)) {
+        FCSR_ = reg | kFCSRNaN2008FlagMask;
+      } else {
+        DCHECK(IsMipsArchVariant(kMips32r1) || IsMipsArchVariant(kMips32r2));
+        FCSR_ = reg & ~kFCSRNaN2008FlagMask;
+      }
       break;
+    }
     case MTC1:
       // Hardware writes upper 32-bits to zero on mtc1.
       set_fpu_register_hi_word(fs_reg(), 0);
