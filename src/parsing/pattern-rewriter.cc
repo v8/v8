@@ -64,8 +64,10 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
 
   DCHECK(initializer_position_ != RelocInfo::kNoPosition);
 
-  if (descriptor_->declaration_scope->num_var_or_const() >
-      kMaxNumFunctionLocals) {
+  Scope* declaration_scope = IsLexicalVariableMode(descriptor_->mode)
+                                 ? descriptor_->scope
+                                 : descriptor_->scope->DeclarationScope();
+  if (declaration_scope->num_var_or_const() > kMaxNumFunctionLocals) {
     parser->ReportMessage(MessageTemplate::kTooManyVariables);
     *ok_ = false;
     return;
@@ -100,8 +102,8 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   // The "variable" c initialized to x is the same as the declared
   // one - there is no re-lookup (see the last parameter of the
   // Declare() call above).
-  Scope* initialization_scope = descriptor_->is_const
-                                    ? descriptor_->declaration_scope
+  Scope* initialization_scope = IsImmutableVariableMode(descriptor_->mode)
+                                    ? declaration_scope
                                     : descriptor_->scope;
 
 
@@ -135,7 +137,7 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
         zone());
     CallRuntime* initialize;
 
-    if (descriptor_->is_const) {
+    if (IsImmutableVariableMode(descriptor_->mode)) {
       arguments->Add(value, zone());
       value = NULL;  // zap the value to avoid the unnecessary assignment
 

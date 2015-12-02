@@ -960,10 +960,6 @@ class Parser : public ParserBase<ParserTraits> {
   bool produce_cached_parse_data() const {
     return compile_options_ == ScriptCompiler::kProduceParserCache;
   }
-  Scope* DeclarationScope(VariableMode mode) {
-    return IsLexicalVariableMode(mode)
-        ? scope_ : scope_->DeclarationScope();
-  }
 
   // All ParseXXX functions take as the last argument an *ok parameter
   // which is set to false if parsing failed; it is unchanged otherwise.
@@ -1000,11 +996,9 @@ class Parser : public ParserBase<ParserTraits> {
   struct DeclarationDescriptor {
     enum Kind { NORMAL, PARAMETER };
     Parser* parser;
-    Scope* declaration_scope;
     Scope* scope;
     Scope* hoist_scope;
     VariableMode mode;
-    bool is_const;
     bool needs_init;
     int declaration_pos;
     int initialization_pos;

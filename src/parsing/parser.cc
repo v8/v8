@@ -2024,9 +2024,11 @@ VariableProxy* Parser::NewUnresolved(const AstRawString* name,
   // scope.
   // Let/const variables in harmony mode are always added to the immediately
   // enclosing scope.
-  return DeclarationScope(mode)->NewUnresolved(
-      factory(), name, Variable::NORMAL, scanner()->location().beg_pos,
-      scanner()->location().end_pos);
+  Scope* scope =
+      IsLexicalVariableMode(mode) ? scope_ : scope_->DeclarationScope();
+  return scope->NewUnresolved(factory(), name, Variable::NORMAL,
+                              scanner()->location().beg_pos,
+                              scanner()->location().end_pos);
 }
 
 
@@ -2211,7 +2213,8 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
   // isn't lazily compiled. The extension structures are only
   // accessible while parsing the first time not when reparsing
   // because of lazy compilation.
-  DeclarationScope(VAR)->ForceEagerCompilation();
+  // TODO(adamk): Should this be ClosureScope()?
+  scope_->DeclarationScope()->ForceEagerCompilation();
 
   // TODO(1240846): It's weird that native function declarations are
   // introduced dynamically when we meet their declarations, whereas
@@ -2448,7 +2451,6 @@ void Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
   // need initialization. 'var' declared bindings are always initialized
   // immediately by their declaration nodes.
   parsing_result->descriptor.needs_init = false;
-  parsing_result->descriptor.is_const = false;
   if (peek() == Token::VAR) {
     if (is_strong(language_mode())) {
       Scanner::Location location = scanner()->peek_location();
@@ -2467,7 +2469,6 @@ void Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
       DCHECK(var_context != kStatement);
       parsing_result->descriptor.mode = CONST;
     }
-    parsing_result->descriptor.is_const = true;
     parsing_result->descriptor.needs_init = true;
   } else if (peek() == Token::LET && allow_let()) {
     Consume(Token::LET);
@@ -2478,8 +2479,6 @@ void Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
     UNREACHABLE();  // by current callers
   }
 
-  parsing_result->descriptor.declaration_scope =
-      DeclarationScope(parsing_result->descriptor.mode);
   parsing_result->descriptor.scope = scope_;
   parsing_result->descriptor.hoist_scope = nullptr;
 
@@ -3162,11 +3161,9 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
           DeclarationDescriptor descriptor;
           descriptor.declaration_kind = DeclarationDescriptor::NORMAL;
           descriptor.parser = this;
-          descriptor.declaration_scope = scope_;
           descriptor.scope = scope_;
           descriptor.hoist_scope = nullptr;
           descriptor.mode = LET;
-          descriptor.is_const = false;
           descriptor.needs_init = true;
           descriptor.declaration_pos = pattern->position();
           descriptor.initialization_pos = pattern->position();
@@ -4542,11 +4539,9 @@ Block* Parser::BuildParameterInitializationBlock(
     DeclarationDescriptor descriptor;
     descriptor.declaration_kind = DeclarationDescriptor::PARAMETER;
     descriptor.parser = this;
-    descriptor.declaration_scope = scope_;
     descriptor.scope = scope_;
     descriptor.hoist_scope = nullptr;
     descriptor.mode = LET;
-    descriptor.is_const = false;
     descriptor.needs_init = true;
     descriptor.declaration_pos = parameter.pattern->position();
     // The position that will be used by the AssignmentExpression
