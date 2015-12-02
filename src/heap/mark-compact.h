@@ -325,10 +325,6 @@ class MarkCompactCollector {
     kClearMarkbits,
   };
 
-  class EvacuateNewSpaceVisitor;
-  class EvacuateOldSpaceVisitor;
-  class HeapObjectVisitor;
-
   static void Initialize();
 
   void SetUp();
@@ -414,8 +410,6 @@ class MarkCompactCollector {
   void MigrateObject(HeapObject* dst, HeapObject* src, int size,
                      AllocationSpace to_old_space,
                      SlotsBuffer** evacuation_slots_buffer);
-
-  bool TryPromoteObject(HeapObject* object, int object_size);
 
   void InvalidateCode(Code* code);
 
@@ -514,6 +508,10 @@ class MarkCompactCollector {
 
  private:
   class CompactionTask;
+  class EvacuateNewSpaceVisitor;
+  class EvacuateOldSpaceVisitor;
+  class EvacuateVisitorBase;
+  class HeapObjectVisitor;
   class SweeperTask;
 
   explicit MarkCompactCollector(Heap* heap);
