@@ -852,10 +852,9 @@ Expression* ParserTraits::ExpressionFromString(int pos, Scanner* scanner,
 
 
 Expression* ParserTraits::GetIterator(Expression* iterable,
-                                      AstNodeFactory* factory) {
+                                      AstNodeFactory* factory, int pos) {
   Expression* iterator_symbol_literal =
       factory->NewSymbolLiteral("iterator_symbol", RelocInfo::kNoPosition);
-  int pos = iterable->position();
   Expression* prop =
       factory->NewProperty(iterable, iterator_symbol_literal, pos);
   Zone* zone = parser_->zone();
@@ -3339,17 +3338,22 @@ void Parser::InitializeForEachStatement(ForEachStatement* stmt,
     Expression* assign_each;
 
     // iterator = subject[Symbol.iterator]()
+    // Hackily disambiguate o from o.next and o [Symbol.iterator]().
+    // TODO(verwaest): Come up with a better solution.
     assign_iterator = factory()->NewAssignment(
         Token::ASSIGN, factory()->NewVariableProxy(iterator),
-        GetIterator(subject, factory()), subject->position());
+        GetIterator(subject, factory(), subject->position() - 2),
+        subject->position());
 
     // !%_IsJSReceiver(result = iterator.next()) &&
     //     %ThrowIteratorResultNotAnObject(result)
     {
       // result = iterator.next()
       Expression* iterator_proxy = factory()->NewVariableProxy(iterator);
-      next_result =
-          BuildIteratorNextResult(iterator_proxy, result, subject->position());
+      // Hackily disambiguate o from o.next and o [Symbol.iterator]().
+      // TODO(verwaest): Come up with a better solution.
+      next_result = BuildIteratorNextResult(iterator_proxy, result,
+                                            subject->position() - 1);
     }
 
     // result.done

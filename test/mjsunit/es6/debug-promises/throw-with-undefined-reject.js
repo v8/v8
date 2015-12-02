@@ -48,7 +48,7 @@ function listener(event, exec_state, event_data, data) {
       } else if (expected_events == 0) {
         // All of the frames on the stack are from native Javascript.
         assertEquals(0, exec_state.frameCount());
-        assertEquals("undefined is not a function",
+        assertEquals("(var).reject is not a function",
                      event_data.exception().message);
       } else {
         assertUnreachable();

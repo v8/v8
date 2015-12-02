@@ -251,7 +251,7 @@ void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node) {
                             zone());
 
   auto iterator = CreateTempVar(descriptor_->parser->GetIterator(
-      factory()->NewVariableProxy(temp), factory()));
+      factory()->NewVariableProxy(temp), factory(), RelocInfo::kNoPosition));
   auto done = CreateTempVar(
       factory()->NewBooleanLiteral(false, RelocInfo::kNoPosition));
   auto result = CreateTempVar();

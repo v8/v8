@@ -388,18 +388,44 @@ RUNTIME_FUNCTION(Runtime_HarmonyToString) {
 
 namespace {
 
+bool ComputeLocation(Isolate* isolate, MessageLocation* target) {
+  JavaScriptFrameIterator it(isolate);
+  if (!it.done()) {
+    JavaScriptFrame* frame = it.frame();
+    JSFunction* fun = frame->function();
+    Object* script = fun->shared()->script();
+    if (script->IsScript() &&
+        !(Script::cast(script)->source()->IsUndefined())) {
+      Handle<Script> casted_script(Script::cast(script));
+      // Compute the location from the function and the relocation info of the
+      // baseline code. For optimized code this will use the deoptimization
+      // information to get canonical location information.
+      List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
+      it.frame()->Summarize(&frames);
+      FrameSummary& summary = frames.last();
+      int pos = summary.code()->SourcePosition(summary.pc());
+      *target = MessageLocation(casted_script, pos, pos + 1, handle(fun));
+      return true;
+    }
+  }
+  return false;
+}
+
+
 Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object) {
   MessageLocation location;
-  if (isolate->ComputeLocation(&location)) {
+  if (ComputeLocation(isolate, &location)) {
     Zone zone;
     base::SmartPointer<ParseInfo> info(
         location.function()->shared()->is_function()
             ? new ParseInfo(&zone, location.function())
             : new ParseInfo(&zone, location.script()));
     if (Parser::ParseStatic(info.get())) {
-      CallPrinter printer(isolate);
+      CallPrinter printer(isolate, location.function()->shared()->IsBuiltin());
       const char* string = printer.Print(info->literal(), location.start_pos());
-      return isolate->factory()->NewStringFromAsciiChecked(string);
+      if (strlen(string) > 0) {
+        return isolate->factory()->NewStringFromAsciiChecked(string);
+      }
     } else {
       isolate->clear_pending_exception();
     }

@@ -784,7 +784,8 @@ class ParserTraits {
                                        Scope* scope, AstNodeFactory* factory);
   Expression* ExpressionFromString(int pos, Scanner* scanner,
                                    AstNodeFactory* factory);
-  Expression* GetIterator(Expression* iterable, AstNodeFactory* factory);
+  Expression* GetIterator(Expression* iterable, AstNodeFactory* factory,
+                          int pos);
   ZoneList<v8::internal::Expression*>* NewExpressionList(int size, Zone* zone) {
     return new(zone) ZoneList<v8::internal::Expression*>(size, zone);
   }

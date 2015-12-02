@@ -1645,7 +1645,7 @@ class PreParserTraits {
                                            PreParserFactory* factory = NULL);
 
   PreParserExpression GetIterator(PreParserExpression iterable,
-                                  PreParserFactory* factory) {
+                                  PreParserFactory* factory, int pos) {
     return PreParserExpression::Default();
   }
 
@@ -3120,8 +3120,12 @@ ParserBase<Traits>::ParseYieldExpression(ExpressionClassifier* classifier,
   }
   if (kind == Yield::kDelegating) {
     // var iterator = subject[Symbol.iterator]();
-    expression = this->GetIterator(expression, factory());
+    // Hackily disambiguate o from o.next and o [Symbol.iterator]().
+    // TODO(verwaest): Come up with a better solution.
+    expression = this->GetIterator(expression, factory(), pos + 1);
   }
+  // Hackily disambiguate o from o.next and o [Symbol.iterator]().
+  // TODO(verwaest): Come up with a better solution.
   typename Traits::Type::YieldExpression yield =
       factory()->NewYield(generator_object, expression, kind, pos);
   return yield;

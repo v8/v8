@@ -13,7 +13,7 @@ namespace internal {
 
 class CallPrinter : public AstVisitor {
  public:
-  explicit CallPrinter(Isolate* isolate);
+  explicit CallPrinter(Isolate* isolate, bool is_builtin);
   virtual ~CallPrinter();
 
   // The following routine prints the node with position |position| into a
@@ -37,11 +37,12 @@ class CallPrinter : public AstVisitor {
   int position_;  // position of ast node to print
   bool found_;
   bool done_;
+  bool is_builtin_;
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
 
  protected:
-  void PrintLiteral(Handle<Object> value, bool quote);
+  void PrintLiteral(Object* value, bool quote);
   void PrintLiteral(const AstRawString* value, bool quote);
   void FindStatements(ZoneList<Statement*>* statements);
   void FindArguments(ZoneList<Expression*>* arguments);

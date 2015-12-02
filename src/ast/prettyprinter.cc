@@ -13,13 +13,14 @@
 namespace v8 {
 namespace internal {
 
-CallPrinter::CallPrinter(Isolate* isolate) {
+CallPrinter::CallPrinter(Isolate* isolate, bool is_builtin) {
   output_ = NULL;
   size_ = 0;
   pos_ = 0;
   position_ = 0;
   found_ = false;
   done_ = false;
+  is_builtin_ = is_builtin;
   InitializeAstVisitor(isolate);
 }
 
@@ -192,8 +193,9 @@ void CallPrinter::VisitForInStatement(ForInStatement* node) {
 
 void CallPrinter::VisitForOfStatement(ForOfStatement* node) {
   Find(node->each());
-  Find(node->iterable());
+  Find(node->assign_iterator());
   Find(node->body());
+  Find(node->next_result());
 }
 
 
@@ -239,13 +241,13 @@ void CallPrinter::VisitConditional(Conditional* node) {
 
 
 void CallPrinter::VisitLiteral(Literal* node) {
-  PrintLiteral(node->value(), true);
+  PrintLiteral(*node->value(), true);
 }
 
 
 void CallPrinter::VisitRegExpLiteral(RegExpLiteral* node) {
   Print("/");
-  PrintLiteral(node->pattern(), false);
+  PrintLiteral(*node->pattern(), false);
   Print("/");
   if (node->flags() & RegExp::kGlobal) Print("g");
   if (node->flags() & RegExp::kIgnoreCase) Print("i");
@@ -273,7 +275,12 @@ void CallPrinter::VisitArrayLiteral(ArrayLiteral* node) {
 
 
 void CallPrinter::VisitVariableProxy(VariableProxy* node) {
-  PrintLiteral(node->name(), false);
+  if (is_builtin_) {
+    // Variable names of builtins are meaningless due to minification.
+    Print("(var)");
+  } else {
+    PrintLiteral(*node->name(), false);
+  }
 }
 
 
@@ -295,7 +302,7 @@ void CallPrinter::VisitProperty(Property* node) {
   if (literal != NULL && literal->value()->IsInternalizedString()) {
     Find(node->obj(), true);
     Print(".");
-    PrintLiteral(literal->value(), false);
+    PrintLiteral(*literal->value(), false);
   } else {
     Find(node->obj(), true);
     Print("[");
@@ -307,7 +314,15 @@ void CallPrinter::VisitProperty(Property* node) {
 
 void CallPrinter::VisitCall(Call* node) {
   bool was_found = !found_ && node->position() == position_;
-  if (was_found) found_ = true;
+  if (was_found) {
+    // Bail out if the error is caused by a direct call to a variable in builtin
+    // code. The variable name is meaningless due to minification.
+    if (is_builtin_ && node->expression()->IsVariableProxy()) {
+      done_ = true;
+      return;
+    }
+    found_ = true;
+  }
   Find(node->expression(), true);
   if (!was_found) Print("(...)");
   FindArguments(node->arguments());
@@ -317,7 +332,15 @@ void CallPrinter::VisitCall(Call* node) {
 
 void CallPrinter::VisitCallNew(CallNew* node) {
   bool was_found = !found_ && node->position() == position_;
-  if (was_found) found_ = true;
+  if (was_found) {
+    // Bail out if the error is caused by a direct call to a variable in builtin
+    // code. The variable name is meaningless due to minification.
+    if (is_builtin_ && node->expression()->IsVariableProxy()) {
+      done_ = true;
+      return;
+    }
+    found_ = true;
+  }
   Find(node->expression(), was_found);
   FindArguments(node->arguments());
   if (was_found) done_ = true;
@@ -413,14 +436,11 @@ void CallPrinter::FindArguments(ZoneList<Expression*>* arguments) {
 }
 
 
-void CallPrinter::PrintLiteral(Handle<Object> value, bool quote) {
-  Object* object = *value;
+void CallPrinter::PrintLiteral(Object* value, bool quote) {
+  Object* object = value;
   if (object->IsString()) {
-    String* string = String::cast(object);
     if (quote) Print("\"");
-    for (int i = 0; i < string->length(); i++) {
-      Print("%c", string->Get(i));
-    }
+    Print("%s", String::cast(object)->ToCString().get());
     if (quote) Print("\"");
   } else if (object->IsNull()) {
     Print("null");
@@ -432,12 +452,15 @@ void CallPrinter::PrintLiteral(Handle<Object> value, bool quote) {
     Print("undefined");
   } else if (object->IsNumber()) {
     Print("%g", object->Number());
+  } else if (object->IsSymbol()) {
+    // Symbols can only occur as literals if they were inserted by the parser.
+    PrintLiteral(Symbol::cast(object)->name(), false);
   }
 }
 
 
 void CallPrinter::PrintLiteral(const AstRawString* value, bool quote) {
-  PrintLiteral(value->string(), quote);
+  PrintLiteral(*value->string(), quote);
 }
 
 
