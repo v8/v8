@@ -178,7 +178,8 @@ class CallSite {
     "Function object that's not a constructor was created with new")           \
   T(PromiseCyclic, "Chaining cycle detected for promise %")                    \
   T(PropertyDescObject, "Property description must be an object: %")           \
-  T(PropertyNotFunction, "Property '%' of object % is not a function")         \
+  T(PropertyNotFunction,                                                       \
+    "'%' returned for property '%' of object '%' is not a function")           \
   T(ProtoObjectOrNull, "Object prototype may only be an Object or null: %")    \
   T(PrototypeParentNotAnObject,                                                \
     "Class extends value does not have valid prototype property %")            \

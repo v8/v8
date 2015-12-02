@@ -256,7 +256,7 @@ test(function() {
 test(function() {
   Set.prototype.add = 0;
   new Set(1);
-}, "Property 'add' of object #<Set> is not a function", TypeError);
+}, "'0' returned for property 'add' of object '#<Set>' is not a function", TypeError);
 
 // kProtoObjectOrNull
 test(function() {

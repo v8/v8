@@ -636,9 +636,8 @@ MaybeHandle<Object> Object::GetMethod(Handle<JSReceiver> receiver,
     return isolate->factory()->undefined_value();
   }
   if (!func->IsCallable()) {
-    // TODO(bmeurer): Better error message here?
-    THROW_NEW_ERROR(isolate,
-                    NewTypeError(MessageTemplate::kCalledNonCallable, func),
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kPropertyNotFunction,
+                                          func, name, receiver),
                     Object);
   }
   return func;
