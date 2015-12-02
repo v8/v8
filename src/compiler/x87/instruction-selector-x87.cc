@@ -842,7 +842,11 @@ void InstructionSelector::VisitFloat64Sqrt(Node* node) {
 }
 
 
-void InstructionSelector::VisitFloat32RoundDown(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitFloat32RoundDown(Node* node) {
+  X87OperandGenerator g(this);
+  Emit(kX87Float32Round | MiscField::encode(kRoundDown),
+       g.UseFixed(node, stX_0), g.Use(node->InputAt(0)));
+}
 
 
 void InstructionSelector::VisitFloat64RoundDown(Node* node) {
@@ -1310,7 +1314,8 @@ InstructionSelector::SupportedMachineOperatorFlags() {
   flags |= MachineOperatorBuilder::kFloat64RoundDown |
            MachineOperatorBuilder::kFloat64RoundUp |
            MachineOperatorBuilder::kFloat64RoundTruncate |
-           MachineOperatorBuilder::kFloat64RoundTiesEven;
+           MachineOperatorBuilder::kFloat64RoundTiesEven |
+           MachineOperatorBuilder::kFloat32RoundDown;
   return flags;
 }
 
