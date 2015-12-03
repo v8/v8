@@ -9566,11 +9566,6 @@ class JSProxy: public JSReceiver {
                               Handle<JSProxy> proxy, PropertyFilter filter,
                               KeyAccumulator* accumulator);
 
-  MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithHandler(
-      Handle<JSProxy> proxy,
-      Handle<Object> receiver,
-      Handle<Name> name);
-
   MUST_USE_RESULT static Maybe<PropertyAttributes> GetPropertyAttributes(
       LookupIterator* it);
 

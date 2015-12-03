@@ -4100,8 +4100,8 @@ Maybe<bool> Object::RedefineIncompatibleProperty(Isolate* isolate,
 
 
 Maybe<bool> Object::SetDataProperty(LookupIterator* it, Handle<Object> value) {
-  // Proxies are handled on the WithHandler path. Other non-JSObjects cannot
-  // have own properties.
+  // Proxies are handled elsewhere. Other non-JSObjects cannot have own
+  // properties.
   Handle<JSObject> receiver = Handle<JSObject>::cast(it->GetReceiver());
 
   // Store on the holder which may be hidden behind the receiver.
