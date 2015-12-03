@@ -1313,13 +1313,12 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object,
 }
 
 
-Maybe<bool> Object::HasInPrototypeChain(Isolate* isolate, Handle<Object> object,
-                                        Handle<Object> proto) {
-  PrototypeIterator iter(isolate, object, PrototypeIterator::START_AT_RECEIVER);
+bool Object::HasInPrototypeChain(Isolate* isolate, Object* target) {
+  PrototypeIterator iter(isolate, this, PrototypeIterator::START_AT_RECEIVER);
   while (true) {
-    if (!iter.AdvanceFollowingProxies()) return Nothing<bool>();
-    if (iter.IsAtEnd()) return Just(false);
-    if (iter.IsAtEnd(proto)) return Just(true);
+    iter.AdvanceIgnoringProxies();
+    if (iter.IsAtEnd()) return false;
+    if (iter.IsAtEnd(target)) return true;
   }
 }
 

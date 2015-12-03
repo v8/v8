@@ -1193,10 +1193,16 @@ MaybeHandle<Object> Object::GetPrototype(Isolate* isolate,
       !isolate->MayAccess(context, Handle<JSObject>::cast(receiver))) {
     return isolate->factory()->null_value();
   }
+  if (receiver->IsJSProxy()) {
+    return JSProxy::GetPrototype(Handle<JSProxy>::cast(receiver));
+  }
   PrototypeIterator iter(isolate, receiver,
                          PrototypeIterator::START_AT_RECEIVER);
   do {
-    if (!iter.AdvanceFollowingProxies()) return MaybeHandle<Object>();
+    iter.AdvanceIgnoringProxies();
+    if (PrototypeIterator::GetCurrent(iter)->IsJSProxy()) {
+      return PrototypeIterator::GetCurrent(iter);
+    }
   } while (!iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN));
   return PrototypeIterator::GetCurrent(iter);
 }
