@@ -32,7 +32,6 @@ CodeStubAssembler::CodeStubAssembler(Isolate* isolate, Zone* zone,
           isolate, new (zone) Graph(zone),
           Linkage::GetStubCallDescriptor(isolate, zone, descriptor, 0,
                                          CallDescriptor::kNoFlags))),
-      end_nodes_(zone),
       kind_(kind),
       name_(name),
       code_generated_(false) {}
@@ -43,8 +42,6 @@ CodeStubAssembler::~CodeStubAssembler() {}
 
 Handle<Code> CodeStubAssembler::GenerateCode() {
   DCHECK(!code_generated_);
-
-  End();
 
   Schedule* schedule = raw_assembler_->Export();
   Handle<Code> code = Pipeline::GenerateCodeForCodeStub(
@@ -161,23 +158,6 @@ Node* CodeStubAssembler::TailCallRuntime(Runtime::FunctionId function_id,
                                          Node* context, Node* arg1,
                                          Node* arg2) {
   return raw_assembler_->TailCallRuntime2(function_id, arg1, arg2, context);
-}
-
-
-void CodeStubAssembler::AddEndInput(Node* input) {
-  DCHECK_NOT_NULL(input);
-  end_nodes_.push_back(input);
-}
-
-
-void CodeStubAssembler::End() {
-  if (end_nodes_.size() == 0) {
-    end_nodes_.push_back(graph()->start());
-  }
-  int end_count = static_cast<int>(end_nodes_.size());
-  Node* end = graph()->NewNode(raw_assembler_->common()->End(end_count),
-                               end_count, &end_nodes_[0]);
-  graph()->SetEnd(end);
 }
 
 

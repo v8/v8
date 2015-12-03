@@ -10,7 +10,6 @@
 #include "src/allocation.h"
 #include "src/builtins.h"
 #include "src/runtime/runtime.h"
-#include "src/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -71,16 +70,11 @@ class CodeStubAssembler {
 
  private:
   friend class CodeStubAssemblerTester;
-  // Close the graph.
-  void End();
 
   Node* CallN(CallDescriptor* descriptor, Node* code_target, Node** args);
   Node* TailCallN(CallDescriptor* descriptor, Node* code_target, Node** args);
 
   Node* SmiShiftBitsConstant();
-
-  // Adds an end node of the graph.
-  void AddEndInput(Node* input);
 
   // Private helpers which delegate to RawMachineAssembler.
   Graph* graph();
@@ -88,7 +82,6 @@ class CodeStubAssembler {
   Zone* zone();
 
   base::SmartPointer<RawMachineAssembler> raw_assembler_;
-  ZoneVector<Node*> end_nodes_;
   Code::Kind kind_;
   const char* name_;
   bool code_generated_;

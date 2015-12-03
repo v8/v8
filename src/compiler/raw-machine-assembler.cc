@@ -5,6 +5,7 @@
 #include "src/compiler/raw-machine-assembler.h"
 
 #include "src/code-factory.h"
+#include "src/compiler/node-properties.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/scheduler.h"
 
@@ -31,6 +32,7 @@ RawMachineAssembler::RawMachineAssembler(Isolate* isolate, Graph* graph,
     parameters_[i] =
         AddNode(common()->Parameter(static_cast<int>(i)), graph->start());
   }
+  graph->SetEnd(graph->NewNode(common_.End(0)));
 }
 
 
@@ -212,6 +214,7 @@ Node* RawMachineAssembler::TailCallN(CallDescriptor* desc, Node* function,
   buffer[index++] = graph()->start();
   buffer[index++] = graph()->start();
   Node* tail_call = MakeNode(common()->TailCall(desc), input_count, buffer);
+  NodeProperties::MergeControlToEnd(graph(), common(), tail_call);
   schedule()->AddTailCall(CurrentBlock(), tail_call);
   current_block_ = nullptr;
   return tail_call;
@@ -234,6 +237,7 @@ Node* RawMachineAssembler::TailCallRuntime1(Runtime::FunctionId function,
                    graph()->start()};
   Node* tail_call = MakeNode(common()->TailCall(desc), arraysize(nodes), nodes);
 
+  NodeProperties::MergeControlToEnd(graph(), common(), tail_call);
   schedule()->AddTailCall(CurrentBlock(), tail_call);
   current_block_ = nullptr;
   return tail_call;
@@ -258,6 +262,7 @@ Node* RawMachineAssembler::TailCallRuntime2(Runtime::FunctionId function,
       graph()->start()};
   Node* tail_call = MakeNode(common()->TailCall(desc), arraysize(nodes), nodes);
 
+  NodeProperties::MergeControlToEnd(graph(), common(), tail_call);
   schedule()->AddTailCall(CurrentBlock(), tail_call);
   current_block_ = nullptr;
   return tail_call;

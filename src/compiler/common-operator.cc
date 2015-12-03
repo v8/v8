@@ -399,7 +399,6 @@ CACHED_OP_LIST(CACHED)
 
 
 const Operator* CommonOperatorBuilder::End(size_t control_input_count) {
-  DCHECK_NE(0u, control_input_count);  // Disallow empty ends.
   switch (control_input_count) {
 #define CACHED_END(input_count) \
   case input_count:             \

@@ -145,18 +145,11 @@ InterpreterAssemblerTest::InterpreterAssemblerForTest::IsBytecodeOperandShort(
 }
 
 
-Graph*
-InterpreterAssemblerTest::InterpreterAssemblerForTest::GetCompletedGraph() {
-  End();
-  return graph();
-}
-
-
 TARGET_TEST_F(InterpreterAssemblerTest, Dispatch) {
   TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
     InterpreterAssemblerForTest m(this, bytecode);
     m.Dispatch();
-    Graph* graph = m.GetCompletedGraph();
+    Graph* graph = m.graph();
 
     Node* end = graph->end();
     EXPECT_EQ(1, end->InputCount());
@@ -195,7 +188,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, Jump) {
     TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
       InterpreterAssemblerForTest m(this, bytecode);
       m.Jump(m.Int32Constant(jump_offset));
-      Graph* graph = m.GetCompletedGraph();
+      Graph* graph = m.graph();
       Node* end = graph->end();
       EXPECT_EQ(1, end->InputCount());
       Node* tail_call_node = end->InputAt(0);
@@ -238,7 +231,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, JumpIfWordEqual) {
     Node* lhs = m.IntPtrConstant(0);
     Node* rhs = m.IntPtrConstant(1);
     m.JumpIfWordEqual(lhs, rhs, m.Int32Constant(kJumpIfTrueOffset));
-    Graph* graph = m.GetCompletedGraph();
+    Graph* graph = m.graph();
     Node* end = graph->end();
     EXPECT_EQ(2, end->InputCount());
 
@@ -276,7 +269,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, Return) {
   TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
     InterpreterAssemblerForTest m(this, bytecode);
     m.Return();
-    Graph* graph = m.GetCompletedGraph();
+    Graph* graph = m.graph();
 
     Node* end = graph->end();
     EXPECT_EQ(1, end->InputCount());
@@ -356,7 +349,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, GetSetAccumulator) {
 
     // Should be passed to next bytecode handler on dispatch.
     m.Dispatch();
-    Graph* graph = m.GetCompletedGraph();
+    Graph* graph = m.graph();
 
     Node* end = graph->end();
     EXPECT_EQ(1, end->InputCount());

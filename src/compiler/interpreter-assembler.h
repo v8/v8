@@ -13,7 +13,6 @@
 #include "src/frames.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/runtime/runtime.h"
-#include "src/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -148,9 +147,6 @@ class InterpreterAssembler {
   void Abort(BailoutReason bailout_reason);
 
  protected:
-  // Close the graph.
-  void End();
-
   static bool TargetSupportsUnalignedAccess();
 
   // Protected helpers (for testing) which delegate to RawMachineAssembler.
@@ -191,16 +187,12 @@ class InterpreterAssembler {
   // Abort operations for debug code.
   void AbortIfWordNotEqual(Node* lhs, Node* rhs, BailoutReason bailout_reason);
 
-  // Adds an end node of the graph.
-  void AddEndInput(Node* input);
-
   // Private helpers which delegate to RawMachineAssembler.
   Isolate* isolate();
   Zone* zone();
 
   interpreter::Bytecode bytecode_;
   base::SmartPointer<RawMachineAssembler> raw_assembler_;
-  ZoneVector<Node*> end_nodes_;
   Node* accumulator_;
   Node* context_;
   bool code_generated_;

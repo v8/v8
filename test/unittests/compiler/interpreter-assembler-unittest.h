@@ -29,8 +29,6 @@ class InterpreterAssemblerTest : public TestWithIsolateAndZone {
         : InterpreterAssembler(test->isolate(), test->zone(), bytecode) {}
     ~InterpreterAssemblerForTest() override {}
 
-    Graph* GetCompletedGraph();
-
     Matcher<Node*> IsLoad(const Matcher<LoadRepresentation>& rep_matcher,
                           const Matcher<Node*>& base_matcher,
                           const Matcher<Node*>& index_matcher);

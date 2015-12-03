@@ -32,7 +32,6 @@ InterpreterAssembler::InterpreterAssembler(Isolate* isolate, Zone* zone,
           isolate, new (zone) Graph(zone),
           Linkage::GetInterpreterDispatchDescriptor(zone), kMachPtr,
           InstructionSelector::SupportedMachineOperatorFlags())),
-      end_nodes_(zone),
       accumulator_(
           raw_assembler_->Parameter(Linkage::kInterpreterAccumulatorParameter)),
       context_(
@@ -46,7 +45,8 @@ InterpreterAssembler::~InterpreterAssembler() {}
 Handle<Code> InterpreterAssembler::GenerateCode() {
   DCHECK(!code_generated_);
 
-  End();
+  // Disallow empty handlers that never return.
+  DCHECK_NE(0, graph()->end()->InputCount());
 
   const char* bytecode_name = interpreter::Bytecodes::ToString(bytecode_);
   Schedule* schedule = raw_assembler_->Export();
@@ -527,10 +527,8 @@ void InterpreterAssembler::Return() {
                    BytecodeArrayTaggedPointer(),
                    DispatchTableRawPointer(),
                    GetContext() };
-  Node* tail_call = raw_assembler_->TailCallN(
-      call_descriptor(), exit_trampoline_code_object, args);
-  // This should always be the end node.
-  AddEndInput(tail_call);
+  raw_assembler_->TailCallN(call_descriptor(), exit_trampoline_code_object,
+                            args);
 }
 
 
@@ -587,10 +585,7 @@ void InterpreterAssembler::DispatchTo(Node* new_bytecode_offset) {
                    BytecodeArrayTaggedPointer(),
                    DispatchTableRawPointer(),
                    GetContext() };
-  Node* tail_call =
-      raw_assembler_->TailCallN(call_descriptor(), target_code_object, args);
-  // This should always be the end node.
-  AddEndInput(tail_call);
+  raw_assembler_->TailCallN(call_descriptor(), target_code_object, args);
 }
 
 
@@ -609,21 +604,6 @@ void InterpreterAssembler::AbortIfWordNotEqual(Node* lhs, Node* rhs,
   raw_assembler_->Bind(&no_match);
   Abort(bailout_reason);
   raw_assembler_->Bind(&match);
-}
-
-
-void InterpreterAssembler::AddEndInput(Node* input) {
-  DCHECK_NOT_NULL(input);
-  end_nodes_.push_back(input);
-}
-
-
-void InterpreterAssembler::End() {
-  DCHECK(!end_nodes_.empty());
-  int end_count = static_cast<int>(end_nodes_.size());
-  Node* end = graph()->NewNode(raw_assembler_->common()->End(end_count),
-                               end_count, &end_nodes_[0]);
-  graph()->SetEnd(end);
 }
 
 
