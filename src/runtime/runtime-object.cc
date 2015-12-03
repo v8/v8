@@ -1551,18 +1551,20 @@ RUNTIME_FUNCTION(Runtime_InstanceOf) {
         NewTypeError(MessageTemplate::kInstanceofNonobjectProto, prototype));
   }
   // Return whether or not {prototype} is in the prototype chain of {object}.
-  return isolate->heap()->ToBoolean(
-      object->HasInPrototypeChain(isolate, *prototype));
+  Maybe<bool> result = Object::HasInPrototypeChain(isolate, object, prototype);
+  MAYBE_RETURN(result, isolate->heap()->exception());
+  return isolate->heap()->ToBoolean(result.FromJust());
 }
 
 
 RUNTIME_FUNCTION(Runtime_HasInPrototypeChain) {
-  SealHandleScope scope(isolate);
+  HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_CHECKED(Object, object, 0);
-  CONVERT_ARG_CHECKED(Object, prototype, 1);
-  return isolate->heap()->ToBoolean(
-      object->HasInPrototypeChain(isolate, prototype));
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, prototype, 1);
+  Maybe<bool> result = Object::HasInPrototypeChain(isolate, object, prototype);
+  MAYBE_RETURN(result, isolate->heap()->exception());
+  return isolate->heap()->ToBoolean(result.FromJust());
 }
 
 
