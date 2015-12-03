@@ -76,6 +76,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case BYTECODE_ARRAY_TYPE:
       BytecodeArray::cast(this)->BytecodeArrayPrint(os);
       break;
+    case TRANSITION_ARRAY_TYPE:
+      TransitionArray::cast(this)->TransitionArrayPrint(os);
+      break;
     case FREE_SPACE_TYPE:
       FreeSpace::cast(this)->FreeSpacePrint(os);
       break;
@@ -538,6 +541,19 @@ void FixedDoubleArray::FixedDoubleArrayPrint(std::ostream& os) {  // NOLINT
     } else {
       os << get_scalar(i);
     }
+  }
+  os << "\n";
+}
+
+
+void TransitionArray::TransitionArrayPrint(std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "TransitionArray");
+  os << " - capacity: " << length();
+  for (int i = 0; i < length(); i++) {
+    os << "\n  [" << i << "]: " << Brief(get(i));
+    if (i == kNextLinkIndex) os << " (next link)";
+    if (i == kPrototypeTransitionsIndex) os << " (prototype transitions)";
+    if (i == kTransitionLengthIndex) os << " (number of transitions)";
   }
   os << "\n";
 }
