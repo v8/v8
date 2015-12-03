@@ -12631,86 +12631,75 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(Isolate* isolate,
   Handle<Map> constructor_initial_map(constructor->initial_map(), isolate);
   if (*new_target == *constructor) return constructor_initial_map;
 
+  // Fast case, new.target is a subclass of constructor. The map is cacheable
+  // (and may already have been cached). new.target.prototype is guaranteed to
+  // be a JSReceiver.
+  if (new_target->IsJSFunction()) {
+    Handle<JSFunction> function = Handle<JSFunction>::cast(new_target);
+
+    // Check that |function|'s initial map still in sync with the |constructor|,
+    // otherwise we must create a new initial map for |function|.
+    if (function->has_initial_map() &&
+        function->initial_map()->GetConstructor() == *constructor) {
+      return handle(function->initial_map(), isolate);
+    }
+
+    // Create a new map with the size and number of in-object properties
+    // suggested by |function|.
+
+    // Link initial map and constructor function if the new.target is actually a
+    // subclass constructor.
+    if (IsSubclassConstructor(function->shared()->kind())) {
+      Handle<Object> prototype(function->instance_prototype(), isolate);
+      InstanceType instance_type = constructor_initial_map->instance_type();
+      DCHECK(CanSubclassHaveInobjectProperties(instance_type));
+      int internal_fields =
+          JSObject::GetInternalFieldCount(*constructor_initial_map);
+      int pre_allocated = constructor_initial_map->GetInObjectProperties() -
+                          constructor_initial_map->unused_property_fields();
+      int instance_size;
+      int in_object_properties;
+      function->CalculateInstanceSizeForDerivedClass(
+          instance_type, internal_fields, &instance_size,
+          &in_object_properties);
+
+      int unused_property_fields = in_object_properties - pre_allocated;
+      Handle<Map> map =
+          Map::CopyInitialMap(constructor_initial_map, instance_size,
+                              in_object_properties, unused_property_fields);
+      map->set_new_target_is_base(false);
+
+      JSFunction::SetInitialMap(function, map, prototype);
+      map->SetConstructor(*constructor);
+      map->StartInobjectSlackTracking();
+      return map;
+    }
+  }
+
+  // Slow path, new.target is either a proxy or can't cache the map.
+  // new.target.prototype is not guaranteed to be a JSReceiver, and may need to
+  // fall back to the intrinsicDefaultProto.
+  Handle<Object> prototype;
   if (new_target->IsJSProxy()) {
     Handle<JSProxy> new_target_proxy = Handle<JSProxy>::cast(new_target);
-    Handle<Object> prototype;
     Handle<String> prototype_string = isolate->factory()->prototype_string();
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, prototype,
         JSReceiver::GetProperty(new_target_proxy, prototype_string), Map);
-    Handle<Map> map = Map::CopyInitialMap(constructor_initial_map);
-    map->set_new_target_is_base(false);
-
-    if (!prototype->IsJSReceiver()) {
-      Handle<Context> context;
-      ASSIGN_RETURN_ON_EXCEPTION(
-          isolate, context, JSProxy::GetFunctionRealm(new_target_proxy), Map);
-      DCHECK(context->IsNativeContext());
-      // TODO(verwaest): Use the intrinsicDefaultProto instead.
-      prototype = handle(context->initial_object_prototype(), isolate);
-    }
-
-    if (map->prototype() != *prototype) {
-      Map::SetPrototype(map, prototype, FAST_PROTOTYPE);
-    }
-
-    map->SetConstructor(*constructor);
-    return map;
-  }
-
-  Handle<JSFunction> new_target_function = Handle<JSFunction>::cast(new_target);
-
-  // Check that |new_target_function|'s initial map still in sync with
-  // the |constructor|, otherwise we must create a new initial map for
-  // |new_target_function|.
-  if (new_target_function->has_initial_map() &&
-      new_target_function->initial_map()->GetConstructor() == *constructor) {
-    return handle(new_target_function->initial_map(), isolate);
-  }
-
-  // Create a new map with the size and number of in-object properties suggested
-  // by the function.
-
-  // Link initial map and constructor function if the original constructor is
-  // actually a subclass constructor.
-  if (IsSubclassConstructor(new_target_function->shared()->kind())) {
-    Handle<Object> prototype(new_target_function->instance_prototype(),
-                             isolate);
-    InstanceType instance_type = constructor_initial_map->instance_type();
-    DCHECK(CanSubclassHaveInobjectProperties(instance_type));
-    int internal_fields =
-        JSObject::GetInternalFieldCount(*constructor_initial_map);
-    int pre_allocated = constructor_initial_map->GetInObjectProperties() -
-                        constructor_initial_map->unused_property_fields();
-    int instance_size;
-    int in_object_properties;
-    new_target_function->CalculateInstanceSizeForDerivedClass(
-        instance_type, internal_fields, &instance_size, &in_object_properties);
-
-    int unused_property_fields = in_object_properties - pre_allocated;
-    Handle<Map> map =
-        Map::CopyInitialMap(constructor_initial_map, instance_size,
-                            in_object_properties, unused_property_fields);
-    map->set_new_target_is_base(false);
-
-    JSFunction::SetInitialMap(new_target_function, map, prototype);
-    map->SetConstructor(*constructor);
-    map->StartInobjectSlackTracking();
-    return map;
-  }
-
-  // Fetch the prototype.
-  Handle<Object> prototype;
-  if (new_target_function->map()->has_non_instance_prototype()) {
-    // TODO(verwaest): In case of non-instance prototype, use the
-    // intrinsicDefaultProto instead.
-    prototype = handle(new_target_function->context()
-                           ->native_context()
-                           ->initial_object_prototype());
   } else {
-    // Make sure the prototype is cached on new_target_function.
-    EnsureHasInitialMap(new_target_function);
-    prototype = handle(new_target_function->instance_prototype(), isolate);
+    Handle<JSFunction> function = Handle<JSFunction>::cast(new_target);
+    // Make sure the new.target.prototype is cached.
+    EnsureHasInitialMap(function);
+    prototype = handle(function->prototype(), isolate);
+  }
+
+  if (!prototype->IsJSReceiver()) {
+    Handle<Context> context;
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, context,
+                               JSReceiver::GetFunctionRealm(new_target), Map);
+    DCHECK(context->IsNativeContext());
+    // TODO(verwaest): Use the intrinsicDefaultProto instead.
+    prototype = handle(context->initial_object_prototype(), isolate);
   }
 
   Handle<Map> map = Map::CopyInitialMap(constructor_initial_map);
