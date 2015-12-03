@@ -8191,6 +8191,11 @@ static bool GetKeysFromJSObject(Isolate* isolate, Handle<JSReceiver> receiver,
     DCHECK(type == JSReceiver::OWN_ONLY);
     filter = static_cast<PropertyFilter>(filter | ONLY_ALL_CAN_READ);
     keep_going = false;
+
+    // TODO(jkummerow): LayoutTests need adaptation before we can be spec
+    // compliant.
+    // Let [[OwnPropertyKeys]] also return an empty list for now.
+    return false;
   }
 
   JSObject::CollectOwnElementKeys(object, accumulator, filter);
