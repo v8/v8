@@ -124,20 +124,26 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
 }
 
 
+void DebugCodegen::GeneratePlainReturnLiveEdit(MacroAssembler* masm) {
+  __ Ret();
+}
+
+
 void DebugCodegen::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
+  ExternalReference restarter_frame_function_slot =
+      ExternalReference::debug_restarter_frame_function_pointer_address(
+          masm->isolate());
+  UseScratchRegisterScope temps(masm);
+  Register scratch = temps.AcquireX();
+
+  __ Mov(scratch, restarter_frame_function_slot);
+  __ Str(xzr, MemOperand(scratch));
+
   // We do not know our frame height, but set sp based on fp.
   __ Sub(masm->StackPointer(), fp, kPointerSize);
   __ AssertStackConsistency();
 
-  __ Pop(x1);  // Function.
-
-  ParameterCount dummy(0);
-  __ FloodFunctionIfStepping(x1, no_reg, dummy, dummy);
-
-  __ Pop(fp, lr);  // Frame, Return address.
-
-  UseScratchRegisterScope temps(masm);
-  Register scratch = temps.AcquireX();
+  __ Pop(x1, fp, lr);  // Function, Frame, Return address.
 
   // Load context from the function.
   __ Ldr(cp, FieldMemOperand(x1, JSFunction::kContextOffset));

@@ -811,6 +811,10 @@ bool LiveEdit::SetAfterBreakTarget(Debug* debug) {
   switch (debug->thread_local_.frame_drop_mode_) {
     case FRAMES_UNTOUCHED:
       return false;
+    case FRAME_DROPPED_IN_IC_CALL:
+      // We must have been calling IC stub. Do not go there anymore.
+      code = isolate->builtins()->builtin(Builtins::kPlainReturn_LiveEdit);
+      break;
     case FRAME_DROPPED_IN_DEBUG_SLOT_CALL:
       // Debug break slot stub does not return normally, instead it manually
       // cleans the stack and jumps. We should patch the jump address.
@@ -1487,13 +1491,17 @@ static bool FixTryCatchHandler(StackFrame* top_frame,
 //  a. successful work of frame dropper code which eventually gets control,
 //  b. being compatible with regular stack structure for various stack
 //     iterators.
+// Returns address of stack allocated pointer to restarted function,
+// the value that is called 'restarter_frame_function_pointer'. The value
+// at this address (possibly updated by GC) may be used later when preparing
+// 'step in' operation.
 // Frame structure (conforms InternalFrame structure):
 //   -- code
 //   -- SMI maker
 //   -- function (slot is called "context")
 //   -- frame base
-static void SetUpFrameDropperFrame(StackFrame* bottom_js_frame,
-                                   Handle<Code> code) {
+static Object** SetUpFrameDropperFrame(StackFrame* bottom_js_frame,
+                                       Handle<Code> code) {
   DCHECK(bottom_js_frame->is_java_script());
 
   Address fp = bottom_js_frame->fp();
@@ -1505,6 +1513,9 @@ static void SetUpFrameDropperFrame(StackFrame* bottom_js_frame,
   Memory::Object_at(fp + InternalFrameConstants::kCodeOffset) = *code;
   Memory::Object_at(fp + StandardFrameConstants::kMarkerOffset) =
       Smi::FromInt(StackFrame::INTERNAL);
+
+  return reinterpret_cast<Object**>(&Memory::Object_at(
+      fp + StandardFrameConstants::kContextOffset));
 }
 
 
@@ -1512,9 +1523,11 @@ static void SetUpFrameDropperFrame(StackFrame* bottom_js_frame,
 // frames in range. Anyway the bottom frame is restarted rather than dropped,
 // and therefore has to be a JavaScript frame.
 // Returns error message or NULL.
-static const char* DropFrames(Vector<StackFrame*> frames, int top_frame_index,
+static const char* DropFrames(Vector<StackFrame*> frames,
+                              int top_frame_index,
                               int bottom_js_frame_index,
-                              LiveEdit::FrameDropMode* mode) {
+                              LiveEdit::FrameDropMode* mode,
+                              Object*** restarter_frame_function_pointer) {
   if (!LiveEdit::kFrameDropperSupported) {
     return "Stack manipulations are not supported in this architecture.";
   }
@@ -1529,8 +1542,12 @@ static const char* DropFrames(Vector<StackFrame*> frames, int top_frame_index,
   Isolate* isolate = bottom_js_frame->isolate();
   Code* pre_top_frame_code = pre_top_frame->LookupCode();
   bool frame_has_padding = true;
-  if (pre_top_frame_code ==
-      isolate->builtins()->builtin(Builtins::kSlot_DebugBreak)) {
+  if (pre_top_frame_code->is_inline_cache_stub() &&
+      pre_top_frame_code->is_debug_stub()) {
+    // OK, we can drop inline cache calls.
+    *mode = LiveEdit::FRAME_DROPPED_IN_IC_CALL;
+  } else if (pre_top_frame_code ==
+             isolate->builtins()->builtin(Builtins::kSlot_DebugBreak)) {
     // OK, we can drop debug break slot.
     *mode = LiveEdit::FRAME_DROPPED_IN_DEBUG_SLOT_CALL;
   } else if (pre_top_frame_code ==
@@ -1624,7 +1641,10 @@ static const char* DropFrames(Vector<StackFrame*> frames, int top_frame_index,
   *top_frame_pc_address = code->entry();
   pre_top_frame->SetCallerFp(bottom_js_frame->fp());
 
-  SetUpFrameDropperFrame(bottom_js_frame, code);
+  *restarter_frame_function_pointer =
+      SetUpFrameDropperFrame(bottom_js_frame, code);
+
+  DCHECK((**restarter_frame_function_pointer)->IsJSFunction());
 
   for (Address a = unused_stack_top;
       a < unused_stack_bottom;
@@ -1739,8 +1759,10 @@ static const char* DropActivationsInActiveThreadImpl(Isolate* isolate,
   }
 
   LiveEdit::FrameDropMode drop_mode = LiveEdit::FRAMES_UNTOUCHED;
-  const char* error_message =
-      DropFrames(frames, top_frame_index, bottom_js_frame_index, &drop_mode);
+  Object** restarter_frame_function_pointer = NULL;
+  const char* error_message = DropFrames(frames, top_frame_index,
+                                         bottom_js_frame_index, &drop_mode,
+                                         &restarter_frame_function_pointer);
 
   if (error_message != NULL) {
     return error_message;
@@ -1754,7 +1776,8 @@ static const char* DropActivationsInActiveThreadImpl(Isolate* isolate,
       break;
     }
   }
-  debug->FramesHaveBeenDropped(new_id, drop_mode);
+  debug->FramesHaveBeenDropped(
+      new_id, drop_mode, restarter_frame_function_pointer);
   return NULL;
 }
 

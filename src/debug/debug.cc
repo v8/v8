@@ -336,6 +336,7 @@ void Debug::ThreadInit() {
   // TODO(isolates): frames_are_dropped_?
   base::NoBarrier_Store(&thread_local_.current_debug_scope_,
                         static_cast<base::AtomicWord>(0));
+  thread_local_.restarter_frame_function_pointer_ = NULL;
 }
 
 
@@ -930,6 +931,17 @@ void Debug::PrepareStep(StepAction step_action,
     return;
   }
 
+  STATIC_ASSERT(StepFrame > StepIn);
+  if (step_action >= StepIn) {
+    // If there's restarter frame on top of the stack, just get the pointer
+    // to function which is going to be restarted.
+    if (thread_local_.restarter_frame_function_pointer_ != NULL) {
+      Handle<JSFunction> restarted_function(
+          JSFunction::cast(*thread_local_.restarter_frame_function_pointer_));
+      FloodWithOneShot(restarted_function);
+    }
+  }
+
   // Fill the current function with one-shot break points even for step in on
   // a call target as the function called might be a native function for
   // which step in will not stop. It also prepares for stepping in
@@ -1510,11 +1522,14 @@ bool Debug::IsBreakAtReturn(JavaScriptFrame* frame) {
 
 
 void Debug::FramesHaveBeenDropped(StackFrame::Id new_break_frame_id,
-                                  LiveEdit::FrameDropMode mode) {
+                                  LiveEdit::FrameDropMode mode,
+                                  Object** restarter_frame_function_pointer) {
   if (mode != LiveEdit::CURRENTLY_SET_MODE) {
     thread_local_.frame_drop_mode_ = mode;
   }
   thread_local_.break_frame_id_ = new_break_frame_id;
+  thread_local_.restarter_frame_function_pointer_ =
+      restarter_frame_function_pointer;
 }
 
 
