@@ -2293,6 +2293,25 @@ String* JSReceiver::class_name() {
 // static
 Handle<String> JSReceiver::GetConstructorName(Handle<JSReceiver> receiver) {
   Isolate* isolate = receiver->GetIsolate();
+
+  // If the object was instantiated simply with base == new.target, the
+  // constructor on the map provides the most accurate name.
+  // Don't provide the info for prototypes, since their constructors are
+  // reclaimed and replaced by Object in OptimizeAsPrototype.
+  if (!receiver->IsJSProxy() && receiver->map()->new_target_is_base() &&
+      !receiver->map()->is_prototype_map()) {
+    Object* maybe_constructor = receiver->map()->GetConstructor();
+    if (maybe_constructor->IsJSFunction()) {
+      JSFunction* constructor = JSFunction::cast(maybe_constructor);
+      String* name = String::cast(constructor->shared()->name());
+      if (name->length() == 0) name = constructor->shared()->inferred_name();
+      if (name->length() != 0 &&
+          !name->Equals(isolate->heap()->Object_string())) {
+        return handle(name, isolate);
+      }
+    }
+  }
+
   if (FLAG_harmony_tostring) {
     Handle<Object> maybe_tag = JSReceiver::GetDataProperty(
         receiver, isolate->factory()->to_string_tag_symbol());
@@ -2309,14 +2328,8 @@ Handle<String> JSReceiver::GetConstructorName(Handle<JSReceiver> receiver) {
   if (maybe_constructor->IsJSFunction()) {
     JSFunction* constructor = JSFunction::cast(*maybe_constructor);
     String* name = String::cast(constructor->shared()->name());
-    if (name->length() > 0) {
-      result = handle(name, isolate);
-    } else {
-      String* inferred_name = constructor->shared()->inferred_name();
-      if (inferred_name->length() > 0) {
-        result = handle(inferred_name, isolate);
-      }
-    }
+    if (name->length() == 0) name = constructor->shared()->inferred_name();
+    if (name->length() > 0) result = handle(name, isolate);
   }
 
   return result.is_identical_to(isolate->factory()->Object_string())
@@ -12577,6 +12590,7 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(Isolate* isolate,
         isolate, prototype,
         JSReceiver::GetProperty(new_target_proxy, prototype_string), Map);
     Handle<Map> map = Map::CopyInitialMap(constructor_initial_map);
+    map->set_new_target_is_base(false);
 
     if (!prototype->IsJSReceiver()) {
       Handle<Context> context;
@@ -12628,6 +12642,7 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(Isolate* isolate,
     Handle<Map> map =
         Map::CopyInitialMap(constructor_initial_map, instance_size,
                             in_object_properties, unused_property_fields);
+    map->set_new_target_is_base(false);
 
     JSFunction::SetInitialMap(new_target_function, map, prototype);
     map->SetConstructor(*constructor);
@@ -12650,6 +12665,7 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(Isolate* isolate,
   }
 
   Handle<Map> map = Map::CopyInitialMap(constructor_initial_map);
+  map->set_new_target_is_base(false);
   DCHECK(prototype->IsJSReceiver());
   if (map->prototype() != *prototype) {
     Map::SetPrototype(map, prototype, FAST_PROTOTYPE);

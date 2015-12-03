@@ -2084,6 +2084,7 @@ AllocationResult Heap::AllocateMap(InstanceType instance_type,
                    Map::Counter::encode(Map::kRetainingCounterStart);
   map->set_bit_field3(bit_field3);
   map->set_elements_kind(elements_kind);
+  map->set_new_target_is_base(true);
 
   return map;
 }

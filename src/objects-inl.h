@@ -4750,6 +4750,14 @@ bool Map::is_strong() {
 }
 
 
+void Map::set_new_target_is_base(bool value) {
+  set_bit_field3(NewTargetIsBase::update(bit_field3(), value));
+}
+
+
+bool Map::new_target_is_base() { return NewTargetIsBase::decode(bit_field3()); }
+
+
 void Map::set_counter(int value) {
   set_bit_field3(Counter::update(bit_field3(), value));
 }
