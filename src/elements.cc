@@ -859,6 +859,10 @@ class ElementsAccessorBase : public ElementsAccessor {
                                         KeyAccumulator* keys, uint32_t range,
                                         PropertyFilter filter,
                                         uint32_t offset) {
+    if (filter & ONLY_ALL_CAN_READ) {
+      // Non-dictionary elements can't have all-can-read accessors.
+      return;
+    }
     uint32_t length = 0;
     if (object->IsJSArray()) {
       length = Smi::cast(JSArray::cast(*object)->length())->value();
@@ -1140,6 +1144,12 @@ class DictionaryElementsAccessor
       uint32_t index = static_cast<uint32_t>(k->Number());
       if (index < offset) continue;
       PropertyDetails details = dictionary->DetailsAt(i);
+      if (filter & ONLY_ALL_CAN_READ) {
+        if (details.kind() != kAccessor) continue;
+        Object* accessors = dictionary->ValueAt(i);
+        if (!accessors->IsAccessorInfo()) continue;
+        if (!AccessorInfo::cast(accessors)->all_can_read()) continue;
+      }
       PropertyAttributes attr = details.attributes();
       if ((attr & filter) != 0) continue;
       keys->AddKey(index);

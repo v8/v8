@@ -8124,29 +8124,83 @@ Handle<FixedArray> JSObject::GetEnumPropertyKeys(Handle<JSObject> object,
 }
 
 
+enum IndexedOrNamed { kIndexed, kNamed };
+
+
+// Returns false iff there was an exception.
+template <class Callback, IndexedOrNamed type>
+static bool GetKeysFromInterceptor(Isolate* isolate,
+                                   Handle<JSReceiver> receiver,
+                                   Handle<JSObject> object,
+                                   PropertyFilter filter,
+                                   KeyAccumulator* accumulator) {
+  if (type == kIndexed) {
+    if (!object->HasIndexedInterceptor()) return true;
+  } else {
+    if (!object->HasNamedInterceptor()) return true;
+  }
+  Handle<InterceptorInfo> interceptor(type == kIndexed
+                                          ? object->GetIndexedInterceptor()
+                                          : object->GetNamedInterceptor(),
+                                      isolate);
+  if ((filter & ONLY_ALL_CAN_READ) && !interceptor->all_can_read()) {
+    return true;
+  }
+  PropertyCallbackArguments args(isolate, interceptor->data(), *receiver,
+                                 *object);
+  v8::Local<v8::Object> result;
+  if (!interceptor->enumerator()->IsUndefined()) {
+    Callback enum_fun = v8::ToCData<Callback>(interceptor->enumerator());
+    const char* log_tag = type == kIndexed ? "interceptor-indexed-enum"
+                                           : "interceptor-named-enum";
+    LOG(isolate, ApiObjectAccess(log_tag, *object));
+    result = args.Call(enum_fun);
+  }
+  RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, false);
+  if (result.IsEmpty()) return true;
+  DCHECK(v8::Utils::OpenHandle(*result)->IsJSArray() ||
+         (v8::Utils::OpenHandle(*result)->IsJSObject() &&
+          Handle<JSObject>::cast(v8::Utils::OpenHandle(*result))
+              ->HasSloppyArgumentsElements()));
+  // The accumulator takes care of string/symbol filtering.
+  if (type == kIndexed) {
+    accumulator->AddElementKeysFromInterceptor(
+        Handle<JSObject>::cast(v8::Utils::OpenHandle(*result)));
+  } else {
+    accumulator->AddKeys(
+        Handle<JSObject>::cast(v8::Utils::OpenHandle(*result)));
+  }
+  return true;
+}
+
+
 static bool GetKeysFromJSObject(Isolate* isolate, Handle<JSReceiver> receiver,
                                 Handle<JSObject> object, PropertyFilter filter,
+                                JSReceiver::KeyCollectionType type,
                                 KeyAccumulator* accumulator) {
   accumulator->NextPrototype();
+  bool keep_going = true;
   // Check access rights if required.
   if (object->IsAccessCheckNeeded() &&
       !isolate->MayAccess(handle(isolate->context()), object)) {
-    // TODO(jkummerow): Get whitelisted (all-can-read) keys.
-    // It's probably best to implement a "GetKeysWithFailedAccessCheck"
-    // helper, which will need to look at both interceptors and accessors.
-    return false;
+    // The cross-origin spec says that [[Enumerate]] shall return an empty
+    // iterator when it doesn't have access...
+    if (type == JSReceiver::INCLUDE_PROTOS) {
+      return false;
+    }
+    // ...whereas [[OwnPropertyKeys]] shall return whitelisted properties.
+    DCHECK(type == JSReceiver::OWN_ONLY);
+    filter = static_cast<PropertyFilter>(filter | ONLY_ALL_CAN_READ);
+    keep_going = false;
   }
 
   JSObject::CollectOwnElementKeys(object, accumulator, filter);
 
   // Add the element keys from the interceptor.
-  if (object->HasIndexedInterceptor()) {
-    Handle<JSObject> result;
-    if (JSObject::GetKeysForIndexedInterceptor(object, receiver)
-            .ToHandle(&result)) {
-      accumulator->AddElementKeysFromInterceptor(result);
-    }
-    RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, false);
+  if (!GetKeysFromInterceptor<v8::IndexedPropertyEnumeratorCallback, kIndexed>(
+          isolate, receiver, object, filter, accumulator)) {
+    DCHECK(isolate->has_pending_exception());
+    return false;
   }
 
   if (filter == ENUMERABLE_STRINGS) {
@@ -8175,15 +8229,13 @@ static bool GetKeysFromJSObject(Isolate* isolate, Handle<JSReceiver> receiver,
   }
 
   // Add the property keys from the interceptor.
-  if (object->HasNamedInterceptor()) {
-    Handle<JSObject> result;
-    if (JSObject::GetKeysForNamedInterceptor(object, receiver)
-            .ToHandle(&result)) {
-      accumulator->AddKeys(result);
-    }
-    RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, false);
+  if (!GetKeysFromInterceptor<v8::GenericNamedPropertyEnumeratorCallback,
+                              kNamed>(isolate, receiver, object, filter,
+                                      accumulator)) {
+    DCHECK(isolate->has_pending_exception());
+    return false;
   }
-  return true;
+  return keep_going;
 }
 
 
@@ -8217,7 +8269,7 @@ static bool GetKeys_Internal(Isolate* isolate, Handle<JSReceiver> receiver,
       DCHECK(current->IsJSObject());
       result = GetKeysFromJSObject(isolate, receiver,
                                    Handle<JSObject>::cast(current), filter,
-                                   accumulator);
+                                   type, accumulator);
     }
     if (!result) {
       if (isolate->has_pending_exception()) {
@@ -15655,6 +15707,7 @@ MaybeHandle<Object> JSObject::GetPropertyWithInterceptor(LookupIterator* it,
 
 
 // Compute the property keys from the interceptor.
+// TODO(jkummerow): Deprecated.
 MaybeHandle<JSObject> JSObject::GetKeysForNamedInterceptor(
     Handle<JSObject> object, Handle<JSReceiver> receiver) {
   Isolate* isolate = receiver->GetIsolate();
@@ -15680,6 +15733,7 @@ MaybeHandle<JSObject> JSObject::GetKeysForNamedInterceptor(
 
 
 // Compute the element keys from the interceptor.
+// TODO(jkummerow): Deprecated.
 MaybeHandle<JSObject> JSObject::GetKeysForIndexedInterceptor(
     Handle<JSObject> object, Handle<JSReceiver> receiver) {
   Isolate* isolate = receiver->GetIsolate();
@@ -15896,7 +15950,14 @@ void JSObject::CollectOwnPropertyNames(KeyAccumulator* keys,
     int real_size = map()->NumberOfOwnDescriptors();
     Handle<DescriptorArray> descs(map()->instance_descriptors());
     for (int i = 0; i < real_size; i++) {
-      if ((descs->GetDetails(i).attributes() & filter) != 0) continue;
+      PropertyDetails details = descs->GetDetails(i);
+      if ((details.attributes() & filter) != 0) continue;
+      if (filter & ONLY_ALL_CAN_READ) {
+        if (details.kind() != kAccessor) continue;
+        Object* accessors = descs->GetValue(i);
+        if (!accessors->IsAccessorInfo()) continue;
+        if (!AccessorInfo::cast(accessors)->all_can_read()) continue;
+      }
       Name* key = descs->GetKey(i);
       if (key->FilterKey(filter)) continue;
       keys->AddKey(key);
@@ -15932,6 +15993,7 @@ int JSObject::NumberOfEnumElements() {
 void JSObject::CollectOwnElementKeys(Handle<JSObject> object,
                                      KeyAccumulator* keys,
                                      PropertyFilter filter) {
+  if (filter & SKIP_STRINGS) return;
   uint32_t string_keys = 0;
 
   // If this is a String wrapper, add the string indices first,
@@ -15939,7 +16001,7 @@ void JSObject::CollectOwnElementKeys(Handle<JSObject> object,
   // and ascending order is required by ECMA-262, 6th, 9.1.12.
   if (object->IsJSValue()) {
     Object* val = JSValue::cast(*object)->value();
-    if (val->IsString()) {
+    if (val->IsString() && (filter & ONLY_ALL_CAN_READ) == 0) {
       String* str = String::cast(val);
       string_keys = str->length();
       for (uint32_t i = 0; i < string_keys; i++) {
@@ -17895,8 +17957,13 @@ void Dictionary<Derived, Shape, Key>::CollectKeysTo(
       if (!raw_dict->IsKey(k) || k->FilterKey(filter)) continue;
       if (raw_dict->IsDeleted(i)) continue;
       PropertyDetails details = raw_dict->DetailsAt(i);
-      PropertyAttributes attr = details.attributes();
-      if ((attr & filter) != 0) continue;
+      if ((details.attributes() & filter) != 0) continue;
+      if (filter & ONLY_ALL_CAN_READ) {
+        if (details.kind() != kAccessor) continue;
+        Object* accessors = raw_dict->ValueAt(i);
+        if (!accessors->IsAccessorInfo()) continue;
+        if (!AccessorInfo::cast(accessors)->all_can_read()) continue;
+      }
       array->set(array_size++, Smi::FromInt(i));
     }
 

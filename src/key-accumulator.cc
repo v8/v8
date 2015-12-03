@@ -103,6 +103,7 @@ bool KeyAccumulator::AddKey(Handle<Object> key, AddKeyConversion convert) {
     if (Handle<Symbol>::cast(key)->is_private()) return false;
     return AddSymbolKey(key);
   }
+  if (filter_ & SKIP_STRINGS) return false;
   // Make sure we do not add keys to a proxy-level (see AddKeysFromProxy).
   DCHECK_LE(0, level_string_length_);
   // In some cases (e.g. proxies) we might get in String-converted ints which
@@ -235,6 +236,7 @@ MaybeHandle<FixedArray> FilterProxyKeys(Isolate* isolate, Handle<JSProxy> owner,
         continue;  // Skip this key.
       }
     }
+    if (filter & SKIP_STRINGS) continue;  // Skip this key.
     if (filter & ONLY_ENUMERABLE) {
       PropertyDescriptor desc;
       bool found =
