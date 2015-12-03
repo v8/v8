@@ -777,6 +777,9 @@ STATIC_ASSERT(ODDBALL_TYPE == Internals::kOddballType);
 STATIC_ASSERT(FOREIGN_TYPE == Internals::kForeignType);
 
 
+std::ostream& operator<<(std::ostream& os, InstanceType instance_type);
+
+
 #define FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(V) \
   V(FAST_ELEMENTS_SUB_TYPE)                   \
   V(DICTIONARY_ELEMENTS_SUB_TYPE)             \
@@ -5498,6 +5501,49 @@ class Map: public HeapObject {
   static const int kRetainingCounterStart = kSlackTrackingCounterEnd - 1;
   static const int kRetainingCounterEnd = 0;
 
+
+  // Inobject slack tracking is the way to reclaim unused inobject space.
+  //
+  // The instance size is initially determined by adding some slack to
+  // expected_nof_properties (to allow for a few extra properties added
+  // after the constructor). There is no guarantee that the extra space
+  // will not be wasted.
+  //
+  // Here is the algorithm to reclaim the unused inobject space:
+  // - Detect the first constructor call for this JSFunction.
+  //   When it happens enter the "in progress" state: initialize construction
+  //   counter in the initial_map.
+  // - While the tracking is in progress initialize unused properties of a new
+  //   object with one_pointer_filler_map instead of undefined_value (the "used"
+  //   part is initialized with undefined_value as usual). This way they can
+  //   be resized quickly and safely.
+  // - Once enough objects have been created  compute the 'slack'
+  //   (traverse the map transition tree starting from the
+  //   initial_map and find the lowest value of unused_property_fields).
+  // - Traverse the transition tree again and decrease the instance size
+  //   of every map. Existing objects will resize automatically (they are
+  //   filled with one_pointer_filler_map). All further allocations will
+  //   use the adjusted instance size.
+  // - SharedFunctionInfo's expected_nof_properties left unmodified since
+  //   allocations made using different closures could actually create different
+  //   kind of objects (see prototype inheritance pattern).
+  //
+  //  Important: inobject slack tracking is not attempted during the snapshot
+  //  creation.
+
+  static const int kGenerousAllocationCount =
+      kSlackTrackingCounterStart - kSlackTrackingCounterEnd + 1;
+
+  // Starts the tracking by initializing object constructions countdown counter.
+  void StartInobjectSlackTracking();
+
+  // True if the object constructions countdown counter is a range
+  // [kSlackTrackingCounterEnd, kSlackTrackingCounterStart].
+  inline bool IsInobjectSlackTrackingInProgress();
+
+  // Does the tracking step.
+  inline void InobjectSlackTrackingStep();
+
   // Completes inobject slack tracking for the transition tree starting at this
   // initial map.
   void CompleteInobjectSlackTracking();
@@ -7216,46 +7262,8 @@ class JSFunction: public JSObject {
   // Tells whether or not the function is on the concurrent recompilation queue.
   inline bool IsInOptimizationQueue();
 
-  // Inobject slack tracking is the way to reclaim unused inobject space.
-  //
-  // The instance size is initially determined by adding some slack to
-  // expected_nof_properties (to allow for a few extra properties added
-  // after the constructor). There is no guarantee that the extra space
-  // will not be wasted.
-  //
-  // Here is the algorithm to reclaim the unused inobject space:
-  // - Detect the first constructor call for this JSFunction.
-  //   When it happens enter the "in progress" state: initialize construction
-  //   counter in the initial_map.
-  // - While the tracking is in progress create objects filled with
-  //   one_pointer_filler_map instead of undefined_value. This way they can be
-  //   resized quickly and safely.
-  // - Once enough objects have been created  compute the 'slack'
-  //   (traverse the map transition tree starting from the
-  //   initial_map and find the lowest value of unused_property_fields).
-  // - Traverse the transition tree again and decrease the instance size
-  //   of every map. Existing objects will resize automatically (they are
-  //   filled with one_pointer_filler_map). All further allocations will
-  //   use the adjusted instance size.
-  // - SharedFunctionInfo's expected_nof_properties left unmodified since
-  //   allocations made using different closures could actually create different
-  //   kind of objects (see prototype inheritance pattern).
-  //
-  //  Important: inobject slack tracking is not attempted during the snapshot
-  //  creation.
-
-  // True if the initial_map is set and the object constructions countdown
-  // counter is not zero.
-  static const int kGenerousAllocationCount =
-      Map::kSlackTrackingCounterStart - Map::kSlackTrackingCounterEnd + 1;
-  inline bool IsInobjectSlackTrackingInProgress();
-
-  // Starts the tracking.
-  // Initializes object constructions countdown counter in the initial map.
-  void StartInobjectSlackTracking();
-
-  // Completes the tracking.
-  void CompleteInobjectSlackTracking();
+  // Completes inobject slack tracking on initial map if it is active.
+  inline void CompleteInobjectSlackTrackingIfActive();
 
   // [literals_or_bindings]: Fixed array holding either
   // the materialized literals or the bindings of a bound function.

@@ -1386,9 +1386,7 @@ Reduction JSTypedLowering::ReduceJSCreate(Node* node) {
     DCHECK(constructor->IsConstructor());
     // Force completion of inobject slack tracking before
     // generating code to finalize the instance size.
-    if (constructor->IsInobjectSlackTrackingInProgress()) {
-      constructor->CompleteInobjectSlackTracking();
-    }
+    constructor->CompleteInobjectSlackTrackingIfActive();
 
     // TODO(bmeurer): We fall back to the runtime in case we cannot inline
     // the allocation here, which is sort of expensive. We should think about

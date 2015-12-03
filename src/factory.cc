@@ -1653,7 +1653,7 @@ Handle<JSGeneratorObject> Factory::NewJSGeneratorObject(
   DCHECK(function->shared()->is_generator());
   JSFunction::EnsureHasInitialMap(function);
   Handle<Map> map(function->initial_map());
-  DCHECK(map->instance_type() == JS_GENERATOR_OBJECT_TYPE);
+  DCHECK_EQ(JS_GENERATOR_OBJECT_TYPE, map->instance_type());
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateJSObjectFromMap(*map),

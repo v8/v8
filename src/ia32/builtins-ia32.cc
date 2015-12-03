@@ -166,37 +166,6 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         __ CmpInstanceType(eax, JS_FUNCTION_TYPE);
         __ j(equal, &rt_call);
 
-        if (!is_api_function) {
-          Label allocate;
-          // The code below relies on these assumptions.
-          STATIC_ASSERT(Map::Counter::kShift + Map::Counter::kSize == 32);
-          // Check if slack tracking is enabled.
-          __ mov(esi, FieldOperand(eax, Map::kBitField3Offset));
-          __ shr(esi, Map::Counter::kShift);
-          __ cmp(esi, Map::kSlackTrackingCounterEnd);
-          __ j(less, &allocate);
-          // Decrease generous allocation count.
-          __ sub(FieldOperand(eax, Map::kBitField3Offset),
-                 Immediate(1 << Map::Counter::kShift));
-
-          __ cmp(esi, Map::kSlackTrackingCounterEnd);
-          __ j(not_equal, &allocate);
-
-          __ push(eax);
-          __ push(edx);
-          __ push(edi);
-
-          __ push(eax);  // initial map
-          __ CallRuntime(Runtime::kFinalizeInstanceSize, 1);
-
-          __ pop(edi);
-          __ pop(edx);
-          __ pop(eax);
-          __ mov(esi, Map::kSlackTrackingCounterEnd - 1);
-
-          __ bind(&allocate);
-        }
-
         // Now allocate the JSObject on the heap.
         // edi: constructor
         // eax: initial map
@@ -209,25 +178,37 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
         // Allocated the JSObject, now initialize the fields.
         // eax: initial map
-        // ebx: JSObject
+        // ebx: JSObject (not HeapObject tagged - the actual address).
         // edi: start of next object
         __ mov(Operand(ebx, JSObject::kMapOffset), eax);
         __ mov(ecx, factory->empty_fixed_array());
         __ mov(Operand(ebx, JSObject::kPropertiesOffset), ecx);
         __ mov(Operand(ebx, JSObject::kElementsOffset), ecx);
-        // Set extra fields in the newly allocated object.
-        // eax: initial map
-        // ebx: JSObject
-        // edi: start of next object
-        // esi: slack tracking counter (non-API function case)
-        __ mov(edx, factory->undefined_value());
         __ lea(ecx, Operand(ebx, JSObject::kHeaderSize));
+
+        // Add the object tag to make the JSObject real, so that we can continue
+        // and jump into the continuation code at any time from now on.
+        __ or_(ebx, Immediate(kHeapObjectTag));
+
+        // Fill all the in-object properties with the appropriate filler.
+        // ebx: JSObject (tagged)
+        // ecx: First in-object property of JSObject (not tagged)
+        __ mov(edx, factory->undefined_value());
+
         if (!is_api_function) {
           Label no_inobject_slack_tracking;
 
+          // The code below relies on these assumptions.
+          STATIC_ASSERT(Map::Counter::kShift + Map::Counter::kSize == 32);
           // Check if slack tracking is enabled.
+          __ mov(esi, FieldOperand(eax, Map::kBitField3Offset));
+          __ shr(esi, Map::Counter::kShift);
           __ cmp(esi, Map::kSlackTrackingCounterEnd);
           __ j(less, &no_inobject_slack_tracking);
+          __ push(esi);  // Save allocation count value.
+          // Decrease generous allocation count.
+          __ sub(FieldOperand(eax, Map::kBitField3Offset),
+                 Immediate(1 << Map::Counter::kShift));
 
           // Allocate object with a slack.
           __ movzx_b(esi, FieldOperand(eax, Map::kUnusedPropertyFieldsOffset));
@@ -244,16 +225,27 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
           // To allow truncation fill the remaining fields with one pointer
           // filler map.
           __ mov(edx, factory->one_pointer_filler_map());
+          __ InitializeFieldsWithFiller(ecx, edi, edx);
+
+          __ pop(esi);  // Restore allocation count value before decreasing.
+          __ cmp(esi, Map::kSlackTrackingCounterEnd);
+          __ j(not_equal, &allocated);
+
+          // Push the object to the stack, and then the initial map as
+          // an argument to the runtime call.
+          __ push(ebx);
+          __ push(eax);  // initial map
+          __ CallRuntime(Runtime::kFinalizeInstanceSize, 1);
+          __ pop(ebx);
+
+          // Continue with JSObject being successfully allocated
+          // ebx: JSObject (tagged)
+          __ jmp(&allocated);
 
           __ bind(&no_inobject_slack_tracking);
         }
 
         __ InitializeFieldsWithFiller(ecx, edi, edx);
-
-        // Add the object tag to make the JSObject real, so that we can continue
-        // and jump into the continuation code at any time from now on.
-        // ebx: JSObject (untagged)
-        __ or_(ebx, Immediate(kHeapObjectTag));
 
         // Continue with JSObject being successfully allocated
         // ebx: JSObject (tagged)

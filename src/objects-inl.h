@@ -6154,9 +6154,25 @@ bool JSFunction::IsInOptimizationQueue() {
 }
 
 
-bool JSFunction::IsInobjectSlackTrackingInProgress() {
-  return has_initial_map() &&
-         initial_map()->counter() >= Map::kSlackTrackingCounterEnd;
+void JSFunction::CompleteInobjectSlackTrackingIfActive() {
+  if (has_initial_map() && initial_map()->IsInobjectSlackTrackingInProgress()) {
+    initial_map()->CompleteInobjectSlackTracking();
+  }
+}
+
+
+bool Map::IsInobjectSlackTrackingInProgress() {
+  return counter() >= Map::kSlackTrackingCounterEnd;
+}
+
+
+void Map::InobjectSlackTrackingStep() {
+  if (!IsInobjectSlackTrackingInProgress()) return;
+  int counter = this->counter();
+  set_counter(counter - 1);
+  if (counter == kSlackTrackingCounterEnd) {
+    CompleteInobjectSlackTracking();
+  }
 }
 
 

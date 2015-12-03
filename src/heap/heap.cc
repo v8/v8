@@ -3373,16 +3373,18 @@ void Heap::InitializeJSObjectBody(JSObject* obj, Map* map, int start_offset) {
   // Pre-allocated fields need to be initialized with undefined_value as well
   // so that object accesses before the constructor completes (e.g. in the
   // debugger) will not cause a crash.
-  Object* constructor = map->GetConstructor();
-  if (constructor->IsJSFunction() &&
-      JSFunction::cast(constructor)->IsInobjectSlackTrackingInProgress()) {
+
+  // In case of Array subclassing the |map| could already be transitioned
+  // to different elements kind from the initial map on which we track slack.
+  Map* initial_map = map->FindRootMap();
+  if (initial_map->IsInobjectSlackTrackingInProgress()) {
     // We might want to shrink the object later.
-    DCHECK_EQ(0, obj->GetInternalFieldCount());
     filler = Heap::one_pointer_filler_map();
   } else {
     filler = Heap::undefined_value();
   }
   obj->InitializeBody(map, start_offset, Heap::undefined_value(), filler);
+  initial_map->InobjectSlackTrackingStep();
 }
 
 

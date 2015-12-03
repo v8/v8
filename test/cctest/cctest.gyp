@@ -143,6 +143,7 @@
         'test-hydrogen-types.cc',
         'test-identity-map.cc',
         'test-incremental-marking.cc',
+        'test-inobject-slack-tracking.cc',
         'test-list.cc',
         'test-liveedit.cc',
         'test-lockers.cc',

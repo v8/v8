@@ -2356,6 +2356,7 @@ class ScriptContextFieldStub : public HandlerStub {
                          const ScriptContextTable::LookupResult* lookup_result)
       : HandlerStub(isolate) {
     DCHECK(Accepted(lookup_result));
+    STATIC_ASSERT(kContextIndexBits + kSlotIndexBits <= kSubMinorKeyBits);
     set_sub_minor_key(ContextIndexBits::encode(lookup_result->context_index) |
                       SlotIndexBits::encode(lookup_result->slot_index));
   }
@@ -2372,7 +2373,7 @@ class ScriptContextFieldStub : public HandlerStub {
   }
 
  private:
-  static const int kContextIndexBits = 13;
+  static const int kContextIndexBits = 9;
   static const int kSlotIndexBits = 13;
   class ContextIndexBits : public BitField<int, 0, kContextIndexBits> {};
   class SlotIndexBits

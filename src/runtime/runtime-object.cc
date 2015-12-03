@@ -1033,6 +1033,16 @@ static Object* Runtime_NewObjectHelper(Isolate* isolate,
                                        Handle<JSFunction> constructor,
                                        Handle<JSReceiver> new_target,
                                        Handle<AllocationSite> site) {
+  DCHECK(constructor->IsConstructor());
+
+  // If called through new, new.target can be:
+  // - a subclass of constructor,
+  // - a proxy wrapper around constructor, or
+  // - the constructor itself.
+  // If called through Reflect.construct, it's guaranteed to be a constructor by
+  // REFLECT_CONSTRUCT_PREPARE.
+  DCHECK(new_target->IsConstructor());
+
   DCHECK(!constructor->has_initial_map() ||
          constructor->initial_map()->instance_type() != JS_FUNCTION_TYPE);
 
@@ -1056,16 +1066,6 @@ RUNTIME_FUNCTION(Runtime_NewObject) {
   DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, new_target, 1);
-
-  DCHECK(constructor->IsConstructor());
-
-  // If called through new, new.target can be:
-  // - a subclass of constructor,
-  // - a proxy wrapper around constructor, or
-  // - the constructor itself.
-  // If called through Reflect.construct, it's guaranteed to be a constructor by
-  // REFLECT_CONSTRUCT_PREPARE.
-  DCHECK(new_target->IsConstructor());
 
   return Runtime_NewObjectHelper(isolate, constructor, new_target,
                                  Handle<AllocationSite>::null());

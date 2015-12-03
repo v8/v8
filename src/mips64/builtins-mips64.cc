@@ -380,36 +380,9 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         __ lbu(t1, FieldMemOperand(a2, Map::kInstanceTypeOffset));
         __ Branch(&rt_call, eq, t1, Operand(JS_FUNCTION_TYPE));
 
-        if (!is_api_function) {
-          Label allocate;
-          MemOperand bit_field3 = FieldMemOperand(a2, Map::kBitField3Offset);
-          // Check if slack tracking is enabled.
-          __ lwu(a4, bit_field3);
-          __ DecodeField<Map::Counter>(a6, a4);
-          __ Branch(
-              &allocate, lt, a6,
-              Operand(static_cast<int64_t>(Map::kSlackTrackingCounterEnd)));
-          // Decrease generous allocation count.
-          __ Dsubu(a4, a4, Operand(1 << Map::Counter::kShift));
-          __ Branch(USE_DELAY_SLOT, &allocate, ne, a6,
-                    Operand(Map::kSlackTrackingCounterEnd));
-          __ sw(a4, bit_field3);  // In delay slot.
-
-          // Push the constructor, new_target and map to the stack, and
-          // the map again as an argument to the runtime call.
-          __ Push(a1, a3, a2, a2);
-          __ CallRuntime(Runtime::kFinalizeInstanceSize, 1);
-
-          __ Pop(a1, a3, a2);
-          __ li(a6, Operand(Map::kSlackTrackingCounterEnd - 1));
-
-          __ bind(&allocate);
-        }
-
         // Now allocate the JSObject on the heap.
         // a1: constructor function
         // a2: initial map
-        // a6: slack tracking counter (non-API function case)
         __ lbu(a4, FieldMemOperand(a2, Map::kInstanceSizeOffset));
         __ Allocate(a4, t0, a4, t2, &rt_call, SIZE_IN_WORDS);
 
@@ -418,9 +391,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         // a1: constructor function
         // a2: initial map
         // a3: object size
-        // t0: JSObject (not tagged)
+        // t0: JSObject (not HeapObject tagged - the actual address).
         // a4: start of next object
-        // a6: slack tracking counter (non-API function case)
         __ LoadRoot(t2, Heap::kEmptyFixedArrayRootIndex);
         __ mov(t1, t0);
         STATIC_ASSERT(0 * kPointerSize == JSObject::kMapOffset);
@@ -432,19 +404,28 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         STATIC_ASSERT(3 * kPointerSize == JSObject::kHeaderSize);
         __ Daddu(t1, t1, Operand(3 * kPointerSize));
 
-        // Fill all the in-object properties with appropriate filler.
-        // t1: First in-object property of JSObject (not tagged)
+        // Add the object tag to make the JSObject real, so that we can continue
+        // and jump into the continuation code at any time from now on.
+        __ Daddu(t0, t0, Operand(kHeapObjectTag));
 
-        // Use t3 to hold undefined, which is used in several places below.
+        // Fill all the in-object properties with appropriate filler.
+        // t0: JSObject (tagged)
+        // t1: First in-object property of JSObject (not tagged)
         __ LoadRoot(t3, Heap::kUndefinedValueRootIndex);
 
         if (!is_api_function) {
           Label no_inobject_slack_tracking;
 
+          MemOperand bit_field3 = FieldMemOperand(a2, Map::kBitField3Offset);
           // Check if slack tracking is enabled.
-          __ Branch(
-              &no_inobject_slack_tracking, lt, a6,
-              Operand(static_cast<int64_t>(Map::kSlackTrackingCounterEnd)));
+          __ lwu(t2, bit_field3);
+          __ DecodeField<Map::Counter>(a6, t2);
+          // a6: slack tracking counter
+          __ Branch(&no_inobject_slack_tracking, lt, a6,
+                    Operand(Map::kSlackTrackingCounterEnd));
+          // Decrease generous allocation count.
+          __ Dsubu(t2, t2, Operand(1 << Map::Counter::kShift));
+          __ sw(t2, bit_field3);
 
           // Allocate object with a slack.
           __ lbu(a0, FieldMemOperand(a2, Map::kUnusedPropertyFieldsOffset));
@@ -460,20 +441,32 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
           // To allow truncation fill the remaining fields with one pointer
           // filler map.
           __ LoadRoot(t3, Heap::kOnePointerFillerMapRootIndex);
+          __ InitializeFieldsWithFiller(t1, a4, t3);
+
+          // a6: slack tracking counter value before decreasing.
+          __ Branch(&allocated, ne, a6, Operand(Map::kSlackTrackingCounterEnd));
+
+          // Push the constructor, new_target and the object to the stack,
+          // and then the initial map as an argument to the runtime call.
+          __ Push(a1, a3, t0, a2);
+          __ CallRuntime(Runtime::kFinalizeInstanceSize, 1);
+          __ Pop(a1, a3, t0);
+
+          // Continue with JSObject being successfully allocated.
+          // a1: constructor function
+          // a3: new target
+          // t0: JSObject
+          __ jmp(&allocated);
 
           __ bind(&no_inobject_slack_tracking);
         }
 
         __ InitializeFieldsWithFiller(t1, a4, t3);
 
-        // Add the object tag to make the JSObject real, so that we can continue
-        // and jump into the continuation code at any time from now on.
-        __ Daddu(t0, t0, Operand(kHeapObjectTag));
-
         // Continue with JSObject being successfully allocated.
         // a1: constructor function
         // a3: new target
-        // a4: JSObject
+        // t0: JSObject
         __ jmp(&allocated);
       }
 

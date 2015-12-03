@@ -57,6 +57,19 @@
 namespace v8 {
 namespace internal {
 
+std::ostream& operator<<(std::ostream& os, InstanceType instance_type) {
+  switch (instance_type) {
+#define WRITE_TYPE(TYPE) \
+  case TYPE:             \
+    return os << #TYPE;
+    INSTANCE_TYPE_LIST(WRITE_TYPE)
+#undef WRITE_TYPE
+  }
+  UNREACHABLE();
+  return os << "UNKNOWN";  // Keep the compiler happy.
+}
+
+
 Handle<HeapType> Object::OptimalType(Isolate* isolate,
                                      Representation representation) {
   if (representation.IsNone()) return HeapType::None(isolate);
@@ -11994,12 +12007,6 @@ static void ShrinkInstanceSize(Map* map, void* data) {
 }
 
 
-void JSFunction::CompleteInobjectSlackTracking() {
-  DCHECK(has_initial_map());
-  initial_map()->CompleteInobjectSlackTracking();
-}
-
-
 void Map::CompleteInobjectSlackTracking() {
   // Has to be an initial map.
   DCHECK(GetBackPointer()->IsUndefined());
@@ -12318,9 +12325,7 @@ void JSFunction::SetInstancePrototype(Handle<JSFunction> function,
     // copy containing the new prototype.  Also complete any in-object
     // slack tracking that is in progress at this point because it is
     // still tracking the old copy.
-    if (function->IsInobjectSlackTrackingInProgress()) {
-      function->CompleteInobjectSlackTracking();
-    }
+    function->CompleteInobjectSlackTrackingIfActive();
 
     Handle<Map> initial_map(function->initial_map(), isolate);
 
@@ -12551,10 +12556,7 @@ void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
   // Finally link initial map and constructor function.
   DCHECK(prototype->IsJSReceiver());
   JSFunction::SetInitialMap(function, map, prototype);
-
-  if (!function->shared()->is_generator()) {
-    function->StartInobjectSlackTracking();
-  }
+  map->StartInobjectSlackTracking();
 }
 
 
@@ -12629,7 +12631,7 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(Isolate* isolate,
 
     JSFunction::SetInitialMap(new_target_function, map, prototype);
     map->SetConstructor(*constructor);
-    new_target_function->StartInobjectSlackTracking();
+    map->StartInobjectSlackTracking();
     return map;
   }
 
@@ -13181,18 +13183,16 @@ bool SharedFunctionInfo::VerifyBailoutId(BailoutId id) {
 }
 
 
-void JSFunction::StartInobjectSlackTracking() {
-  DCHECK(has_initial_map() && !IsInobjectSlackTrackingInProgress());
-
-  Map* map = initial_map();
+void Map::StartInobjectSlackTracking() {
+  DCHECK(!IsInobjectSlackTrackingInProgress());
 
   // No tracking during the snapshot construction phase.
   Isolate* isolate = GetIsolate();
   if (isolate->serializer_enabled()) return;
 
-  if (map->unused_property_fields() == 0) return;
+  if (unused_property_fields() == 0) return;
 
-  map->set_counter(Map::kSlackTrackingCounterStart);
+  set_counter(Map::kSlackTrackingCounterStart);
 }
 
 

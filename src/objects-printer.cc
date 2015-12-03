@@ -428,17 +428,6 @@ void JSModule::JSModulePrint(std::ostream& os) {  // NOLINT
 }
 
 
-static const char* TypeToString(InstanceType type) {
-  switch (type) {
-#define TYPE_TO_STRING(TYPE) case TYPE: return #TYPE;
-  INSTANCE_TYPE_LIST(TYPE_TO_STRING)
-#undef TYPE_TO_STRING
-  }
-  UNREACHABLE();
-  return "UNKNOWN";  // Keep the compiler happy.
-}
-
-
 void Symbol::SymbolPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "Symbol");
   os << " - hash: " << Hash();
@@ -453,7 +442,7 @@ void Symbol::SymbolPrint(std::ostream& os) {  // NOLINT
 
 void Map::MapPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "Map");
-  os << " - type: " << TypeToString(instance_type()) << "\n";
+  os << " - type: " << instance_type() << "\n";
   os << " - instance size: " << instance_size() << "\n";
   if (IsJSObjectMap()) {
     os << " - inobject properties: " << GetInObjectProperties() << "\n";
@@ -495,6 +484,7 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
   os << "\n - constructor: " << Brief(GetConstructor());
   os << "\n - code cache: " << Brief(code_cache());
   os << "\n - dependent code: " << Brief(dependent_code());
+  os << "\n - counter: " << counter();
   os << "\n";
 }
 
