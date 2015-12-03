@@ -1380,6 +1380,8 @@ void Heap::CallGCEpilogueCallbacks(GCType gc_type,
 
 
 void Heap::MarkCompact() {
+  PauseInlineAllocationObserversScope pause_observers(new_space());
+
   gc_state_ = MARK_COMPACT;
   LOG(isolate_, ResourceEvent("markcompact", "begin"));
 
@@ -1584,7 +1586,7 @@ void Heap::Scavenge() {
 
   // Bump-pointer allocations done during scavenge are not real allocations.
   // Pause the inline allocation steps.
-  new_space()->PauseInlineAllocationObservers();
+  PauseInlineAllocationObserversScope pause_observers(new_space());
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) VerifyNonPointerSpacePointers(this);
@@ -1714,8 +1716,6 @@ void Heap::Scavenge() {
 
   // Set age mark.
   new_space_.set_age_mark(new_space_.top());
-
-  new_space()->ResumeInlineAllocationObservers();
 
   array_buffer_tracker()->FreeDead(true);
 

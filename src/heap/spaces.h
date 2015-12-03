@@ -2755,9 +2755,6 @@ class NewSpace : public Space {
   // Removes a previously installed observer.
   void RemoveInlineAllocationObserver(InlineAllocationObserver* observer);
 
-  void PauseInlineAllocationObservers();
-  void ResumeInlineAllocationObservers();
-
   void DisableInlineAllocationSteps() {
     top_on_previous_step_ = 0;
     UpdateInlineAllocationLimit(0);
@@ -2879,8 +2876,26 @@ class NewSpace : public Space {
                             size_t size);
   intptr_t GetNextInlineAllocationStepSize();
   void StartNextInlineAllocationStep();
+  void PauseInlineAllocationObservers();
+  void ResumeInlineAllocationObservers();
 
+  friend class PauseInlineAllocationObserversScope;
   friend class SemiSpaceIterator;
+};
+
+class PauseInlineAllocationObserversScope {
+ public:
+  explicit PauseInlineAllocationObserversScope(NewSpace* new_space)
+      : new_space_(new_space) {
+    new_space_->PauseInlineAllocationObservers();
+  }
+  ~PauseInlineAllocationObserversScope() {
+    new_space_->ResumeInlineAllocationObservers();
+  }
+
+ private:
+  NewSpace* new_space_;
+  DISALLOW_COPY_AND_ASSIGN(PauseInlineAllocationObserversScope);
 };
 
 // -----------------------------------------------------------------------------

@@ -872,14 +872,15 @@ UNINITIALIZED_TEST(InlineAllocationObserver) {
     CHECK_EQ(observer1.count(), 20);  // no more notifications.
     CHECK_EQ(observer2.count(), 3);   // this one is still active.
 
-    // Ensure that Pause/ResumeInlineAllocationObservers work correctly.
+    // Ensure that PauseInlineAllocationObserversScope work correctly.
     AllocateUnaligned(new_space, 48);
     CHECK_EQ(observer2.count(), 3);
-    new_space->PauseInlineAllocationObservers();
-    CHECK_EQ(observer2.count(), 3);
-    AllocateUnaligned(new_space, 384);
-    CHECK_EQ(observer2.count(), 3);
-    new_space->ResumeInlineAllocationObservers();
+    {
+      PauseInlineAllocationObserversScope pause_observers(new_space);
+      CHECK_EQ(observer2.count(), 3);
+      AllocateUnaligned(new_space, 384);
+      CHECK_EQ(observer2.count(), 3);
+    }
     CHECK_EQ(observer2.count(), 3);
     // Coupled with the 48 bytes allocated before the pause, another 48 bytes
     // allocated here should trigger a notification.

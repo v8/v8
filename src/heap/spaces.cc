@@ -1604,10 +1604,11 @@ bool NewSpace::EnsureAllocation(int size_in_bytes,
 
 
 void NewSpace::StartNextInlineAllocationStep() {
-  DCHECK(!inline_allocation_observers_paused_);
-  top_on_previous_step_ =
-      inline_allocation_observers_.length() ? allocation_info_.top() : 0;
-  UpdateInlineAllocationLimit(0);
+  if (!inline_allocation_observers_paused_) {
+    top_on_previous_step_ =
+        inline_allocation_observers_.length() ? allocation_info_.top() : 0;
+    UpdateInlineAllocationLimit(0);
+  }
 }
 
 
