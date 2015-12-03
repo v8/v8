@@ -1785,6 +1785,38 @@ TEST(NestedAssignmentInHeap) {
 }
 
 
+TEST(NegativeDouble) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { var x = -123.2; }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_V_TYPE) {
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmDouble)) {
+        CHECK_VAR(x, Bounds(cache.kAsmDouble));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmDouble));
+      }
+    }
+    CHECK_SKIP();
+  }
+  CHECK_FUNC_TYPES_END
+}
+
+
+TEST(NegativeInteger) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { var x = -123; }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_V_TYPE) {
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(x, Bounds(cache.kAsmInt));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmSigned));
+      }
+    }
+    CHECK_SKIP();
+  }
+  CHECK_FUNC_TYPES_END
+}
+
+
 TEST(TypeConsistency) {
   v8::V8::Initialize();
   TypeCache cache;

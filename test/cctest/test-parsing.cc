@@ -1151,12 +1151,23 @@ static void CheckParsesToNumber(const char* source, bool with_dot) {
 
 
 TEST(ParseNumbers) {
+  CheckParsesToNumber("1.", true);
   CheckParsesToNumber("1.34", true);
   CheckParsesToNumber("134", false);
   CheckParsesToNumber("134e44", false);
   CheckParsesToNumber("134.e44", true);
   CheckParsesToNumber("134.44e44", true);
   CheckParsesToNumber(".44", true);
+
+  CheckParsesToNumber("-1.", true);
+  CheckParsesToNumber("-1.0", true);
+  CheckParsesToNumber("-1.34", true);
+  CheckParsesToNumber("-134", false);
+  CheckParsesToNumber("-134e44", false);
+  CheckParsesToNumber("-134.e44", true);
+  CheckParsesToNumber("-134.44e44", true);
+  CheckParsesToNumber("-.44", true);
+
   CheckParsesToNumber("+x", true);
 }
 
