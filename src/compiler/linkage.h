@@ -153,6 +153,9 @@ class CallDescriptor final : public ZoneObject {
     kHasLocalCatchHandler = 1u << 4,
     kSupportsTailCalls = 1u << 5,
     kCanUseRoots = 1u << 6,
+    // Indicates that the native stack should be used for a code object. This
+    // information is important for native calls on arm64.
+    kUseNativeStack = 1u << 7,
     kPatchableCallSiteWithNop = kPatchableCallSite | kNeedsNopAfterCall
   };
   typedef base::Flags<Flag> Flags;
@@ -218,6 +221,7 @@ class CallDescriptor final : public ZoneObject {
 
   bool NeedsFrameState() const { return flags() & kNeedsFrameState; }
   bool SupportsTailCalls() const { return flags() & kSupportsTailCalls; }
+  bool UseNativeStack() const { return flags() & kUseNativeStack; }
 
   LinkageLocation GetReturnLocation(size_t index) const {
     return location_sig_->GetReturn(index);

@@ -877,12 +877,22 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     }
     case kArm64Poke: {
       Operand operand(i.InputInt32(1) * kPointerSize);
-      __ Poke(i.InputRegister(0), operand);
+      if (instr->InputAt(0)->IsDoubleRegister()) {
+        __ Poke(i.InputFloat64Register(0), operand);
+      } else {
+        __ Poke(i.InputRegister(0), operand);
+      }
       break;
     }
     case kArm64PokePair: {
       int slot = i.InputInt32(2) - 1;
-      __ PokePair(i.InputRegister(1), i.InputRegister(0), slot * kPointerSize);
+      if (instr->InputAt(0)->IsDoubleRegister()) {
+        __ PokePair(i.InputFloat64Register(1), i.InputFloat64Register(0),
+                    slot * kPointerSize);
+      } else {
+        __ PokePair(i.InputRegister(1), i.InputRegister(0),
+                    slot * kPointerSize);
+      }
       break;
     }
     case kArm64Clz:
@@ -1292,9 +1302,18 @@ void CodeGenerator::AssemblePrologue() {
     __ SetStackPointer(jssp);
     __ Prologue(info->IsCodePreAgingActive());
   } else if (frame()->needs_frame()) {
-    __ SetStackPointer(jssp);
+    if (descriptor->UseNativeStack()) {
+      __ SetStackPointer(csp);
+    } else {
+      __ SetStackPointer(jssp);
+    }
     __ StubPrologue();
   } else {
+    if (descriptor->UseNativeStack()) {
+      __ SetStackPointer(csp);
+    } else {
+      __ SetStackPointer(jssp);
+    }
     frame()->SetElidedFrameSizeInSlots(0);
   }
   frame_access_state()->SetFrameAccessToDefault();
@@ -1315,9 +1334,12 @@ void CodeGenerator::AssemblePrologue() {
     stack_shrink_slots -= OsrHelper(info()).UnoptimizedFrameSlots();
   }
 
-  if (csp.Is(masm()->StackPointer())) {
+  // If frame()->needs_frame() is false, then
+  // frame()->AlignSavedCalleeRegisterSlots() is guaranteed to return 0.
+  if (csp.Is(masm()->StackPointer()) && frame()->needs_frame()) {
     // The system stack pointer requires 16-byte alignment at function call
     // boundaries.
+
     stack_shrink_slots += frame()->AlignSavedCalleeRegisterSlots();
   }
   __ Claim(stack_shrink_slots);
@@ -1374,9 +1396,15 @@ void CodeGenerator::AssembleReturn() {
       return;
     } else {
       __ Bind(&return_label_);
-      __ Mov(jssp, fp);
+      if (descriptor->UseNativeStack()) {
+        __ Mov(csp, fp);
+      } else {
+        __ Mov(jssp, fp);
+      }
       __ Pop(fp, lr);
     }
+  } else if (descriptor->UseNativeStack()) {
+    pop_count += (pop_count & 1);
   }
   __ Drop(pop_count);
   __ Ret();

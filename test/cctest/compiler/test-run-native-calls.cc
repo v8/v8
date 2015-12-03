@@ -21,13 +21,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-#if V8_TARGET_ARCH_ARM64
-// TODO(titzer): fix native stack parameters on arm64
-#define DISABLE_NATIVE_STACK_PARAMS true
-#else
-#define DISABLE_NATIVE_STACK_PARAMS false
-#endif
-
 namespace {
 typedef float float32;
 typedef double float64;
@@ -221,7 +214,7 @@ class RegisterConfig {
         compiler::Operator::kNoProperties,  // properties
         kCalleeSaveRegisters,               // callee-saved registers
         kCalleeSaveFPRegisters,             // callee-saved fp regs
-        CallDescriptor::kNoFlags,           // flags
+        CallDescriptor::kUseNativeStack,    // flags
         "c-call");
   }
 
@@ -559,8 +552,6 @@ static void TestInt32Sub(CallDescriptor* desc) {
 
 
 static void CopyTwentyInt32(CallDescriptor* desc) {
-  if (DISABLE_NATIVE_STACK_PARAMS) return;
-
   const int kNumParams = 20;
   int32_t input[kNumParams];
   int32_t output[kNumParams];
@@ -672,7 +663,6 @@ TEST_INT32_SUB_WITH_RET(19)
 
 
 TEST(Run_Int32Sub_all_allocatable_single) {
-  if (DISABLE_NATIVE_STACK_PARAMS) return;
   Int32Signature sig(2);
   RegisterPairs pairs;
   while (pairs.More()) {
@@ -690,7 +680,6 @@ TEST(Run_Int32Sub_all_allocatable_single) {
 
 
 TEST(Run_CopyTwentyInt32_all_allocatable_pairs) {
-  if (DISABLE_NATIVE_STACK_PARAMS) return;
   Int32Signature sig(20);
   RegisterPairs pairs;
   while (pairs.More()) {
@@ -743,7 +732,6 @@ static int32_t Compute_Int32_WeightedSum(CallDescriptor* desc, int32_t* input) {
 
 
 static void Test_Int32_WeightedSum_of_size(int count) {
-  if (DISABLE_NATIVE_STACK_PARAMS) return;
   Int32Signature sig(count);
   for (int p0 = 0; p0 < Register::kNumRegisters; p0++) {
     if (Register::from_code(p0).IsAllocatable()) {
@@ -805,8 +793,6 @@ static void RunSelect(CallDescriptor* desc) {
 
 template <int which>
 void Test_Int32_Select() {
-  if (DISABLE_NATIVE_STACK_PARAMS) return;
-
   int parray[] = {
       RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
           ->GetAllocatableGeneralCode(0)};
@@ -930,7 +916,6 @@ TEST(Float64Select_registers) {
 
 
 TEST(Float32Select_stack_params_return_reg) {
-  if (DISABLE_NATIVE_STACK_PARAMS) return;
   int rarray[] = {
       RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
           ->GetAllocatableDoubleCode(0)};
@@ -953,7 +938,6 @@ TEST(Float32Select_stack_params_return_reg) {
 
 
 TEST(Float64Select_stack_params_return_reg) {
-  if (DISABLE_NATIVE_STACK_PARAMS) return;
   int rarray[] = {
       RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
           ->GetAllocatableDoubleCode(0)};
@@ -1008,8 +992,6 @@ static void Build_Select_With_Call(CallDescriptor* desc,
 
 
 TEST(Float64StackParamsToStackParams) {
-  if (DISABLE_NATIVE_STACK_PARAMS) return;
-
   int rarray[] = {
       RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
           ->GetAllocatableDoubleCode(0)};
@@ -1030,7 +1012,6 @@ TEST(Float64StackParamsToStackParams) {
 
 
 void MixedParamTest(int start) {
-  if (DISABLE_NATIVE_STACK_PARAMS) return;
   if (RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
           ->num_double_registers() < 2)
     return;
@@ -1045,7 +1026,7 @@ void MixedParamTest(int start) {
 #else
   static MachineType types[] = {
       kMachInt32,   kMachInt64,   kMachFloat32, kMachFloat64, kMachInt32,
-      kMachFloat64, kMachFloat32, kMachInt64,   kMachFloat64, kMachInt32,
+      kMachFloat64, kMachFloat32, kMachInt64,   kMachInt64,   kMachFloat32,
       kMachFloat32, kMachInt32,   kMachFloat64, kMachFloat64, kMachInt64,
       kMachInt32,   kMachFloat64, kMachInt32,   kMachFloat32};
 #endif

@@ -1535,7 +1535,14 @@ void InstructionSelector::EmitPrepareArguments(NodeVector* arguments,
 
   // Push the arguments to the stack.
   int aligned_push_count = static_cast<int>(arguments->size());
+
   bool pushed_count_uneven = aligned_push_count & 1;
+  int claim_count = aligned_push_count;
+  if (pushed_count_uneven && descriptor->UseNativeStack()) {
+    // We can only claim for an even number of call arguments when we use the
+    // native stack.
+    claim_count++;
+  }
   // TODO(dcarney): claim and poke probably take small immediates,
   //                loop here or whatever.
   // Bump the stack pointer(s).
@@ -1543,23 +1550,20 @@ void InstructionSelector::EmitPrepareArguments(NodeVector* arguments,
     // TODO(dcarney): it would be better to bump the csp here only
     //                and emit paired stores with increment for non c frames.
     Emit(kArm64ClaimForCallArguments, g.NoOutput(),
-         g.TempImmediate(aligned_push_count));
+         g.TempImmediate(claim_count));
   }
+
   // Move arguments to the stack.
-  {
-    int slot = aligned_push_count - 1;
-    // Emit the uneven pushes.
-    if (pushed_count_uneven) {
-      Node* input = (*arguments)[slot];
-      Emit(kArm64Poke, g.NoOutput(), g.UseRegister(input),
-           g.TempImmediate(slot));
-      slot--;
-    }
-    // Now all pushes can be done in pairs.
-    for (; slot >= 0; slot -= 2) {
-      Emit(kArm64PokePair, g.NoOutput(), g.UseRegister((*arguments)[slot]),
-           g.UseRegister((*arguments)[slot - 1]), g.TempImmediate(slot));
-    }
+  int slot = aligned_push_count - 1;
+  while (slot >= 0) {
+    Emit(kArm64Poke, g.NoOutput(), g.UseRegister((*arguments)[slot]),
+         g.TempImmediate(slot));
+    slot--;
+    // TODO(ahaas): Poke arguments in pairs if two subsequent arguments have the
+    //              same type.
+    // Emit(kArm64PokePair, g.NoOutput(), g.UseRegister((*arguments)[slot]),
+    //      g.UseRegister((*arguments)[slot - 1]), g.TempImmediate(slot));
+    // slot -= 2;
   }
 }
 

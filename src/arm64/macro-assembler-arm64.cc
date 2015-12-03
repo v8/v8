@@ -2634,14 +2634,13 @@ void MacroAssembler::TruncateHeapNumberToI(Register result,
 
 
 void MacroAssembler::StubPrologue() {
-  DCHECK(StackPointer().Is(jssp));
   UseScratchRegisterScope temps(this);
   Register temp = temps.AcquireX();
   __ Mov(temp, Smi::FromInt(StackFrame::STUB));
   // Compiled stubs don't age, and so they don't need the predictable code
   // ageing sequence.
   __ Push(lr, fp, cp, temp);
-  __ Add(fp, jssp, StandardFrameConstants::kFixedFrameSizeFromFp);
+  __ Add(fp, StackPointer(), StandardFrameConstants::kFixedFrameSizeFromFp);
 }
 
 
