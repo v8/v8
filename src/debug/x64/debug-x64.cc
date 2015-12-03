@@ -127,16 +127,13 @@ void DebugCodegen::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
   // Load context from the function.
   __ movp(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
 
-  // Clear new.target as a safety measure.
-  __ LoadRoot(rdx, Heap::kUndefinedValueRootIndex);
-
   // Get function code.
-  __ movp(rbx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-  __ movp(rbx, FieldOperand(rbx, SharedFunctionInfo::kCodeOffset));
-  __ leap(rbx, FieldOperand(rbx, Code::kHeaderSize));
+  __ movp(rdx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+  __ movp(rdx, FieldOperand(rdx, SharedFunctionInfo::kCodeOffset));
+  __ leap(rdx, FieldOperand(rdx, Code::kHeaderSize));
 
   // Re-run JSFunction, rdi is function, rsi is context.
-  __ jmp(rbx);
+  __ jmp(rdx);
 }
 
 const bool LiveEdit::kFrameDropperSupported = true;
