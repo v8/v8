@@ -345,10 +345,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ AssertUndefinedOrAllocationSite(r5, r7);
 
     if (!create_implicit_receiver) {
-      // Push new.target onto the construct frame. This is stored just below the
-      // receiver on the stack.
       __ SmiTag(r7, r3, SetRC);
-      __ Push(r5, r7, r6);
+      __ Push(r5, r7);
       __ PushRoot(Heap::kTheHoleValueRootIndex);
     } else {
       __ SmiTag(r3);
@@ -498,12 +496,10 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ LoadP(r3, MemOperand(sp));
       __ SmiUntag(r3, SetRC);
 
-      // Push new.target onto the construct frame. This is stored just below the
-      // receiver on the stack.
       // Push the allocated receiver to the stack. We need two copies
       // because we may have to return the original one and the calling
       // conventions dictate that the called function pops the receiver.
-      __ Push(r6, r7, r7);
+      __ Push(r7, r7);
     }
 
     // Set up pointer to last argument.
@@ -517,8 +513,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // cr0: condition indicating whether r3 is zero
     // sp[0]: receiver
     // sp[1]: receiver
-    // sp[2]: new.target
-    // sp[3]: number of arguments (smi-tagged)
+    // sp[2]: number of arguments (smi-tagged)
     Label loop, no_args;
     __ beq(&no_args, cr0);
     __ ShiftLeftImm(ip, r3, Operand(kPointerSizeLog2));
@@ -553,8 +548,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // Restore context from the frame.
     // r3: result
     // sp[0]: receiver
-    // sp[1]: new.target
-    // sp[2]: number of arguments (smi-tagged)
+    // sp[1]: number of arguments (smi-tagged)
     __ LoadP(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
 
     if (create_implicit_receiver) {
@@ -566,8 +560,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // If the result is a smi, it is *not* an object in the ECMA sense.
       // r3: result
       // sp[0]: receiver
-      // sp[1]: new.target
-      // sp[2]: number of arguments (smi-tagged)
+      // sp[1]: number of arguments (smi-tagged)
       __ JumpIfSmi(r3, &use_receiver);
 
       // If the type of the result (stored in its map) is less than
@@ -585,11 +578,10 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ bind(&exit);
       // r3: result
       // sp[0]: receiver (newly allocated object)
-      // sp[1]: new.target (new target)
-      // sp[2]: number of arguments (smi-tagged)
-      __ LoadP(r4, MemOperand(sp, 2 * kPointerSize));
+      // sp[1]: number of arguments (smi-tagged)
+      __ LoadP(r4, MemOperand(sp, 1 * kPointerSize));
     } else {
-      __ LoadP(r4, MemOperand(sp, kPointerSize));
+      __ LoadP(r4, MemOperand(sp));
     }
 
     // Leave construct frame.
