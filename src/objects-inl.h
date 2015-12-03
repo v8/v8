@@ -2030,10 +2030,7 @@ Object* WeakCell::value() const { return READ_FIELD(this, kValueOffset); }
 
 
 void WeakCell::clear() {
-  // Either the garbage collector is clearing the cell or we are simply
-  // initializing the root empty weak cell.
-  DCHECK(GetHeap()->gc_state() == Heap::MARK_COMPACT ||
-         this == GetHeap()->empty_weak_cell());
+  DCHECK(GetHeap()->gc_state() == Heap::MARK_COMPACT);
   WRITE_FIELD(this, kValueOffset, Smi::FromInt(0));
 }
 
