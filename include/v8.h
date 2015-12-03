@@ -1736,7 +1736,8 @@ class V8_EXPORT Value : public Data {
   bool IsFunction() const;
 
   /**
-   * Returns true if this value is an array.
+   * Returns true if this value is an array. Note that it will return false for
+   * an Proxy for an array.
    */
   bool IsArray() const;
 
@@ -2995,10 +2996,11 @@ class V8_EXPORT Array : public Object {
    * Clones an element at index |index|.  Returns an empty
    * handle if cloning fails (for any reason).
    */
-  V8_DEPRECATE_SOON("Use maybe version",
-                    Local<Object> CloneElementAt(uint32_t index));
-  V8_WARN_UNUSED_RESULT MaybeLocal<Object> CloneElementAt(
-      Local<Context> context, uint32_t index);
+  V8_DEPRECATED("Cloning is not supported.",
+                Local<Object> CloneElementAt(uint32_t index));
+  V8_DEPRECATED("Cloning is not supported.",
+                MaybeLocal<Object> CloneElementAt(Local<Context> context,
+                                                  uint32_t index));
 
   /**
    * Creates a JavaScript array with the given length. If the length

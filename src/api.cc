@@ -6204,10 +6204,7 @@ MaybeLocal<Object> Array::CloneElementAt(Local<Context> context,
 }
 
 
-Local<Object> Array::CloneElementAt(uint32_t index) {
-  auto context = ContextFromHeapObject(Utils::OpenHandle(this));
-  RETURN_TO_LOCAL_UNCHECKED(CloneElementAt(context, index), Object);
-}
+Local<Object> Array::CloneElementAt(uint32_t index) { return Local<Object>(); }
 
 
 Local<v8::Map> v8::Map::New(Isolate* isolate) {
