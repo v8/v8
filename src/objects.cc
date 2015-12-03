@@ -624,6 +624,23 @@ MaybeHandle<Object> Object::BitwiseXor(Isolate* isolate, Handle<Object> lhs,
 }
 
 
+Maybe<bool> Object::IsArray(Handle<Object> object) {
+  if (object->IsJSArray()) return Just(true);
+  if (object->IsJSProxy()) {
+    Handle<JSProxy> proxy = Handle<JSProxy>::cast(object);
+    Isolate* isolate = proxy->GetIsolate();
+    if (proxy->IsRevoked()) {
+      isolate->Throw(*isolate->factory()->NewTypeError(
+          MessageTemplate::kProxyRevoked,
+          isolate->factory()->NewStringFromAsciiChecked("IsArray")));
+      return Nothing<bool>();
+    }
+    return Object::IsArray(handle(proxy->target(), isolate));
+  }
+  return Just(false);
+}
+
+
 bool Object::IsPromise(Handle<Object> object) {
   if (!object->IsJSObject()) return false;
   auto js_object = Handle<JSObject>::cast(object);
@@ -996,7 +1013,7 @@ MaybeHandle<Object> JSProxy::GetPrototype(Handle<JSProxy> proxy) {
 }
 
 
-bool JSProxy::IsRevoked() {
+bool JSProxy::IsRevoked() const {
   // TODO(neis): Decide on how to represent revocation.  For now, revocation is
   // unsupported.
   DCHECK(target()->IsJSReceiver());

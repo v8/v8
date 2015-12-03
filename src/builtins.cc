@@ -1423,6 +1423,17 @@ BUILTIN(ArrayConcat) {
 }
 
 
+// ES6 section 22.1.2.2 Array.isArray
+BUILTIN(ArrayIsArray) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  Handle<Object> object = args.at<Object>(1);
+  Maybe<bool> result = Object::IsArray(object);
+  MAYBE_RETURN(result, isolate->heap()->exception());
+  return *isolate->factory()->ToBoolean(result.FromJust());
+}
+
+
 // ES6 section 26.1.3 Reflect.defineProperty
 BUILTIN(ReflectDefineProperty) {
   HandleScope scope(isolate);

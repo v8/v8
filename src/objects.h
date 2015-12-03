@@ -1055,6 +1055,9 @@ class Object {
   STRUCT_LIST(DECLARE_STRUCT_PREDICATE)
 #undef DECLARE_STRUCT_PREDICATE
 
+  // ES6, section 7.2.2 IsArray.  NOT to be confused with %_IsArray.
+  MUST_USE_RESULT static Maybe<bool> IsArray(Handle<Object> object);
+
   // ES6, section 7.2.3 IsCallable.
   INLINE(bool IsCallable() const);
 
@@ -9498,7 +9501,7 @@ class JSProxy: public JSReceiver {
 
   DECLARE_CAST(JSProxy)
 
-  bool IsRevoked();
+  bool IsRevoked() const;
 
   // ES6 9.5.1
   static MaybeHandle<Object> GetPrototype(Handle<JSProxy> receiver);

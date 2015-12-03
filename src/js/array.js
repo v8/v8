@@ -1697,12 +1697,6 @@ function ArrayFill(value, start, end) {
 }
 
 
-// ES5, 15.4.3.2
-function ArrayIsArray(obj) {
-  return IS_ARRAY(obj);
-}
-
-
 function AddArrayElement(constructor, array, i, value) {
   if (constructor === GlobalArray) {
     AddIndexedProperty(array, i, value);
@@ -1816,7 +1810,6 @@ var unscopables = {
 
 // Set up non-enumerable functions on the Array object.
 utils.InstallFunctions(GlobalArray, DONT_ENUM, [
-  "isArray", ArrayIsArray,
   "from", ArrayFrom,
   "of", ArrayOf
 ]);

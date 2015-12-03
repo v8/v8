@@ -1014,6 +1014,20 @@ void Genesis::HookUpGlobalObject(Handle<JSGlobalObject> global_object) {
 }
 
 
+static void SimpleInstallFunction(Handle<JSObject> base, Handle<Name> name,
+                                  Builtins::Name call, int len, bool adapt) {
+  Handle<JSFunction> fun =
+      InstallFunction(base, name, JS_OBJECT_TYPE, JSObject::kHeaderSize,
+                      MaybeHandle<JSObject>(), call, DONT_ENUM);
+  if (adapt) {
+    fun->shared()->set_internal_formal_parameter_count(len);
+  } else {
+    fun->shared()->DontAdaptArguments();
+  }
+  fun->shared()->set_length(len);
+}
+
+
 // This is only called if we are not using snapshots.  The equivalent
 // work in the snapshot case is done in HookUpGlobalObject.
 void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
@@ -1100,6 +1114,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         Map::Copy(initial_map, "SetInstancePrototype");
     initial_strong_map->set_is_strong();
     CacheInitialJSArrayMaps(native_context(), initial_strong_map);
+
+    SimpleInstallFunction(array_function,
+        factory->NewStringFromAsciiChecked("isArray"),
+        Builtins::kArrayIsArray, 1, true);
   }
 
   {  // --- N u m b e r ---
@@ -1967,20 +1985,6 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_completion)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_tolength)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_do_expressions)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexp_lookbehind)
-
-
-static void SimpleInstallFunction(Handle<JSObject> base, Handle<Name> name,
-                                  Builtins::Name call, int len, bool adapt) {
-  Handle<JSFunction> fun =
-      InstallFunction(base, name, JS_OBJECT_TYPE, JSObject::kHeaderSize,
-                      MaybeHandle<JSObject>(), call, DONT_ENUM);
-  if (adapt) {
-    fun->shared()->set_internal_formal_parameter_count(len);
-  } else {
-    fun->shared()->DontAdaptArguments();
-  }
-  fun->shared()->set_length(len);
-}
 
 
 void InstallPublicSymbol(Factory* factory, Handle<Context> native_context,

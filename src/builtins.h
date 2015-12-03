@@ -56,13 +56,14 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
                                                 \
   V(EmptyFunction, kNone)                       \
                                                 \
-  V(ArrayPush, kNone)                           \
+  V(ArrayConcat, kNone)                         \
+  V(ArrayIsArray, kNone)                        \
   V(ArrayPop, kNone)                            \
+  V(ArrayPush, kNone)                           \
   V(ArrayShift, kNone)                          \
-  V(ArrayUnshift, kNone)                        \
   V(ArraySlice, kNone)                          \
   V(ArraySplice, kNone)                         \
-  V(ArrayConcat, kNone)                         \
+  V(ArrayUnshift, kNone)                        \
                                                 \
   V(DateToPrimitive, kNone)                     \
                                                 \
