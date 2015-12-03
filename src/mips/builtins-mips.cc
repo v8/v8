@@ -498,15 +498,12 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
     __ SmiUntag(a0);
 
-    // Push new.target onto the construct frame. This is stored just below the
-    // receiver on the stack.
     if (create_implicit_receiver) {
       // Push the allocated receiver to the stack. We need two copies
       // because we may have to return the original one and the calling
       // conventions dictate that the called function pops the receiver.
-      __ Push(a3, t4, t4);
+      __ Push(t4, t4);
     } else {
-      __ push(a3);
       __ PushRoot(Heap::kTheHoleValueRootIndex);
     }
 
@@ -521,8 +518,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // t4: number of arguments (smi-tagged)
     // sp[0]: receiver
     // sp[1]: receiver
-    // sp[2]: new.target
-    // sp[3]: number of arguments (smi-tagged)
+    // sp[2]: number of arguments (smi-tagged)
     Label loop, entry;
     __ SmiTag(t4, a0);
     __ jmp(&entry);
@@ -567,8 +563,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // If the result is a smi, it is *not* an object in the ECMA sense.
       // v0: result
       // sp[0]: receiver (newly allocated object)
-      // sp[1]: new.target
-      // sp[2]: number of arguments (smi-tagged)
+      // sp[1]: number of arguments (smi-tagged)
       __ JumpIfSmi(v0, &use_receiver);
 
       // If the type of the result (stored in its map) is less than
@@ -586,11 +581,10 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ bind(&exit);
       // v0: result
       // sp[0]: receiver (newly allocated object)
-      // sp[1]: new target
-      // sp[2]: number of arguments (smi-tagged)
-      __ lw(a1, MemOperand(sp, 2 * kPointerSize));
+      // sp[1]: number of arguments (smi-tagged)
+      __ lw(a1, MemOperand(sp, 1 * kPointerSize));
     } else {
-      __ lw(a1, MemOperand(sp, kPointerSize));
+      __ lw(a1, MemOperand(sp));
     }
 
     // Leave construct frame.

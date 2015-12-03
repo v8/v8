@@ -280,10 +280,6 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
     __ SmiUntag(eax);
 
-    // Push new.target onto the construct frame. This is stored just below the
-    // receiver on the stack.
-    __ push(edx);
-
     if (create_implicit_receiver) {
       // Push the allocated receiver to the stack. We need two copies
       // because we may have to return the original one and the calling
@@ -347,12 +343,11 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ mov(eax, Operand(esp, 0));
 
       // Restore the arguments count and leave the construct frame. The
-      // arguments
-      // count is stored below the reciever and the new.target.
+      // arguments count is stored below the receiver.
       __ bind(&exit);
-      __ mov(ebx, Operand(esp, 2 * kPointerSize));
+      __ mov(ebx, Operand(esp, 1 * kPointerSize));
     } else {
-      __ mov(ebx, Operand(esp, kPointerSize));
+      __ mov(ebx, Operand(esp, 0));
     }
 
     // Leave construct frame.

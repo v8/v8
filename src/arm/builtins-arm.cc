@@ -499,10 +499,6 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
     __ SmiUntag(r0);
 
-    // Push new.target onto the construct frame. This is stored just below the
-    // receiver on the stack.
-    __ push(r3);
-
     if (create_implicit_receiver) {
       // Push the allocated receiver to the stack. We need two copies
       // because we may have to return the original one and the calling
@@ -524,8 +520,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // r4: number of arguments (smi-tagged)
     // sp[0]: receiver
     // sp[1]: receiver
-    // sp[2]: new.target
-    // sp[3]: number of arguments (smi-tagged)
+    // sp[2]: number of arguments (smi-tagged)
     Label loop, entry;
     __ SmiTag(r4, r0);
     __ b(&entry);
@@ -559,8 +554,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // Restore context from the frame.
     // r0: result
     // sp[0]: receiver
-    // sp[1]: new.target
-    // sp[2]: number of arguments (smi-tagged)
+    // sp[1]: number of arguments (smi-tagged)
     __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
 
     if (create_implicit_receiver) {
@@ -572,8 +566,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // If the result is a smi, it is *not* an object in the ECMA sense.
       // r0: result
       // sp[0]: receiver
-      // sp[1]: new.target
-      // sp[2]: number of arguments (smi-tagged)
+      // sp[1]: number of arguments (smi-tagged)
       __ JumpIfSmi(r0, &use_receiver);
 
       // If the type of the result (stored in its map) is less than
@@ -591,11 +584,10 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ bind(&exit);
       // r0: result
       // sp[0]: receiver (newly allocated object)
-      // sp[1]: new target
-      // sp[2]: number of arguments (smi-tagged)
-      __ ldr(r1, MemOperand(sp, 2 * kPointerSize));
+      // sp[1]: number of arguments (smi-tagged)
+      __ ldr(r1, MemOperand(sp, 1 * kPointerSize));
     } else {
-      __ ldr(r1, MemOperand(sp, kPointerSize));
+      __ ldr(r1, MemOperand(sp));
     }
 
     // Leave construct frame.

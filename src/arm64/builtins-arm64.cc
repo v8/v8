@@ -506,15 +506,12 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
     __ SmiUntag(argc);
 
-    // Push new.target onto the construct frame. This is stored just below the
-    // receiver on the stack.
     if (create_implicit_receiver) {
       // Push the allocated receiver to the stack. We need two copies
       // because we may have to return the original one and the calling
       // conventions dictate that the called function pops the receiver.
-      __ Push(new_target, x4, x4);
+      __ Push(x4, x4);
     } else {
-      __ push(new_target);
       __ PushRoot(Heap::kTheHoleValueRootIndex);
     }
 
@@ -529,8 +526,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // x3: new target
     // jssp[0]: receiver
     // jssp[1]: receiver
-    // jssp[2]: new.target
-    // jssp[3]: number of arguments (smi-tagged)
+    // jssp[2]: number of arguments (smi-tagged)
     // Compute the start address of the copy in x3.
     __ Add(x4, x2, Operand(argc, LSL, kPointerSizeLog2));
     Label loop, entry, done_copying_arguments;
@@ -570,8 +566,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // Restore the context from the frame.
     // x0: result
     // jssp[0]: receiver
-    // jssp[1]: new.target
-    // jssp[2]: number of arguments (smi-tagged)
+    // jssp[1]: number of arguments (smi-tagged)
     __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
 
     if (create_implicit_receiver) {
@@ -600,11 +595,10 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       __ Bind(&exit);
       // x0: result
       // jssp[0]: receiver (newly allocated object)
-      // jssp[1]: new target
-      // jssp[2]: number of arguments (smi-tagged)
-      __ Peek(x1, 2 * kXRegSize);
+      // jssp[1]: number of arguments (smi-tagged)
+      __ Peek(x1, 1 * kXRegSize);
     } else {
-      __ Peek(x1, kXRegSize);
+      __ Peek(x1, 0);
     }
 
     // Leave construct frame.
