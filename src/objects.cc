@@ -4835,36 +4835,11 @@ Maybe<PropertyAttributes> JSProxy::GetPropertyAttributes(LookupIterator* it) {
 
 
 MaybeHandle<Object> JSProxy::GetTrap(Handle<JSProxy> proxy,
-                                     Handle<String> trap) {
+                                     Handle<String> trap_name) {
   DCHECK(!proxy->IsRevoked());
   Isolate* isolate = proxy->GetIsolate();
   Handle<JSReceiver> handler(JSReceiver::cast(proxy->handler()), isolate);
-  return Object::GetMethod(handler, trap);
-}
-
-
-MaybeHandle<Object> JSProxy::CallTrap(Handle<JSProxy> proxy,
-                                      const char* name,
-                                      Handle<Object> derived,
-                                      int argc,
-                                      Handle<Object> argv[]) {
-  Isolate* isolate = proxy->GetIsolate();
-  Handle<Object> handler(proxy->handler(), isolate);
-  Handle<String> trap_name = isolate->factory()->InternalizeUtf8String(name);
-  Handle<Object> trap;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, trap, GetTrap(proxy, trap_name), Object);
-
-  if (trap->IsUndefined()) {
-    if (derived.is_null()) {
-      THROW_NEW_ERROR(isolate,
-                      NewTypeError(MessageTemplate::kProxyHandlerTrapMissing,
-                                   handler, trap_name),
-                      Object);
-    }
-    trap = Handle<Object>(derived);
-  }
-
-  return Execution::Call(isolate, trap, handler, argc, argv);
+  return Object::GetMethod(handler, trap_name);
 }
 
 

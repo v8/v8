@@ -9587,12 +9587,6 @@ class JSProxy: public JSReceiver {
   MUST_USE_RESULT static MaybeHandle<Object> GetTrap(Handle<JSProxy> proxy,
                                                      Handle<String> trap);
 
-  // Invoke a trap by name. If the trap does not exist on this's handler,
-  // but derived_trap is non-NULL, invoke that instead.  May cause GC.
-  MUST_USE_RESULT static MaybeHandle<Object> CallTrap(
-      Handle<JSProxy> proxy, const char* name, Handle<Object> derived_trap,
-      int argc, Handle<Object> args[]);
-
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSProxy);
 };
 
