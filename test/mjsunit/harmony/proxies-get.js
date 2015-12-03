@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-proxies
+// Flags: --harmony-proxies --harmony-reflect --allow-natives-syntax
 
 (function testBasicFunctionality() {
    var target = {
@@ -92,4 +92,28 @@
   assertThrows(function(){ proxy.key }, TypeError);
   assertEquals("value", proxy.key2);
   assertThrows(function(){ proxy.key3 }, TypeError);
+})();
+
+(function testGetInternalIterators() {
+  var log = [];
+  var array = [1,2,3,4,5]
+  var origIt = array[Symbol.iterator]();
+  var it = new Proxy(origIt, {
+    get(t, name) {
+      log.push(`[[Get]](iterator, ${String(name)})`);
+      return Reflect.get(t, name);
+    },
+    set(t, name, val) {
+      log.push(`[[Set]](iterator, ${String(name)}, ${String(val)})`);
+      return Reflect.set(t, name, val);
+    }
+  });
+
+  assertThrows(function() {
+    for (var v of it) log.push(v);
+  }, TypeError);
+  assertEquals([
+    "[[Get]](iterator, Symbol(Symbol.iterator))",
+    "[[Get]](iterator, next)"
+  ], log);
 })();

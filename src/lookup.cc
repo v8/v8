@@ -609,7 +609,10 @@ LookupIterator::State LookupIterator::LookupInHolder(Map* const map,
   }
   switch (state_) {
     case NOT_FOUND:
-      if (map->IsJSProxyMap()) return JSPROXY;
+      if (map->IsJSProxyMap()) {
+        if (!name_.is_null() && name_->IsPrivate()) return NOT_FOUND;
+        return JSPROXY;
+      }
       if (map->is_access_check_needed() &&
           (IsElement() || !isolate_->IsInternallyUsedPropertyName(name_))) {
         return ACCESS_CHECK;
