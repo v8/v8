@@ -7,9 +7,9 @@
 
 #include "src/base/flags.h"
 #include "src/compiler/frame.h"
-#include "src/compiler/machine-type.h"
 #include "src/compiler/operator.h"
 #include "src/frames.h"
+#include "src/machine-type.h"
 #include "src/runtime/runtime.h"
 #include "src/zone.h"
 

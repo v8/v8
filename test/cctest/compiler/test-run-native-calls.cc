@@ -8,8 +8,8 @@
 #include "src/assembler.h"
 #include "src/codegen.h"
 #include "src/compiler/linkage.h"
-#include "src/compiler/machine-type.h"
 #include "src/compiler/raw-machine-assembler.h"
+#include "src/machine-type.h"
 #include "src/register-configuration.h"
 
 #include "test/cctest/cctest.h"
@@ -208,7 +208,7 @@ class RegisterConfig {
     const RegList kCalleeSaveRegisters = 0;
     const RegList kCalleeSaveFPRegisters = 0;
 
-    MachineType target_type = compiler::kMachAnyTagged;
+    MachineType target_type = kMachAnyTagged;
     LinkageLocation target_loc = LinkageLocation::ForAnyRegister();
     int stack_param_count = params.stack_offset;
     return new (zone) CallDescriptor(       // --

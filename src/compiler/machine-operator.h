@@ -6,7 +6,7 @@
 #define V8_COMPILER_MACHINE_OPERATOR_H_
 
 #include "src/base/flags.h"
-#include "src/compiler/machine-type.h"
+#include "src/machine-type.h"
 
 namespace v8 {
 namespace internal {

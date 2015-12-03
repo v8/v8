@@ -36,7 +36,7 @@ CallDescriptor* GetCallDescriptor(Zone* zone, int return_count,
   // Add return location(s).
   DCHECK(return_count <= config->num_allocatable_general_registers());
   for (int i = 0; i < return_count; i++) {
-    msig.AddReturn(compiler::kMachInt32);
+    msig.AddReturn(kMachInt32);
     locations.AddReturn(
         LinkageLocation::ForRegister(config->allocatable_general_codes()[i]));
   }
@@ -44,7 +44,7 @@ CallDescriptor* GetCallDescriptor(Zone* zone, int return_count,
   // Add register and/or stack parameter(s).
   DCHECK(param_count <= config->num_allocatable_general_registers());
   for (int i = 0; i < param_count; i++) {
-    msig.AddParam(compiler::kMachInt32);
+    msig.AddParam(kMachInt32);
     locations.AddParam(
         LinkageLocation::ForRegister(config->allocatable_general_codes()[i]));
   }
@@ -53,7 +53,7 @@ CallDescriptor* GetCallDescriptor(Zone* zone, int return_count,
   const RegList kCalleeSaveFPRegisters = 0;
 
   // The target for WASM calls is always a code object.
-  MachineType target_type = compiler::kMachAnyTagged;
+  MachineType target_type = kMachAnyTagged;
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister();
   return new (zone) CallDescriptor(       // --
       CallDescriptor::kCallCodeObject,    // kind

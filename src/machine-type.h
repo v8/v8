@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COMPILER_MACHINE_TYPE_H_
-#define V8_COMPILER_MACHINE_TYPE_H_
+#ifndef V8_MACHINE_TYPE_H_
+#define V8_MACHINE_TYPE_H_
 
 #include <iosfwd>
 
@@ -14,7 +14,6 @@
 
 namespace v8 {
 namespace internal {
-namespace compiler {
 
 // Machine-level types and representations.
 // TODO(titzer): Use the real type system instead of MachineType.
@@ -123,8 +122,7 @@ inline bool IsFloatingPoint(MachineType type) {
 
 typedef Signature<MachineType> MachineSignature;
 
-}  // namespace compiler
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_COMPILER_MACHINE_TYPE_H_
+#endif  // V8_MACHINE_TYPE_H_

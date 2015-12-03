@@ -6,7 +6,7 @@
 #define V8_COMPILER_COMMON_OPERATOR_H_
 
 #include "src/compiler/frame-states.h"
-#include "src/compiler/machine-type.h"
+#include "src/machine-type.h"
 #include "src/zone-containers.h"
 
 namespace v8 {

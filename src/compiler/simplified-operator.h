@@ -7,8 +7,8 @@
 
 #include <iosfwd>
 
-#include "src/compiler/machine-type.h"
 #include "src/handles.h"
+#include "src/machine-type.h"
 #include "src/objects.h"
 
 namespace v8 {

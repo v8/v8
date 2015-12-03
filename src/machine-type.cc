@@ -2,12 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/machine-type.h"
+#include "src/machine-type.h"
 #include "src/ostreams.h"
 
 namespace v8 {
 namespace internal {
-namespace compiler {
 
 #define PRINT(bit)         \
   if (type & bit) {        \
@@ -41,6 +40,5 @@ std::ostream& operator<<(std::ostream& os, const MachineType& type) {
 
 #undef PRINT
 
-}  // namespace compiler
 }  // namespace internal
 }  // namespace v8

@@ -6,7 +6,7 @@
 #define V8_UNITTESTS_COMPILER_NODE_TEST_UTILS_H_
 
 #include "src/compiler/machine-operator.h"
-#include "src/compiler/machine-type.h"
+#include "src/machine-type.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace v8 {
