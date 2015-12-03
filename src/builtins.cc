@@ -2204,11 +2204,6 @@ static void Generate_Slot_DebugBreak(MacroAssembler* masm) {
 }
 
 
-static void Generate_PlainReturn_LiveEdit(MacroAssembler* masm) {
-  DebugCodegen::GeneratePlainReturnLiveEdit(masm);
-}
-
-
 static void Generate_FrameDropper_LiveEdit(MacroAssembler* masm) {
   DebugCodegen::GenerateFrameDropperLiveEdit(masm);
 }

@@ -113,22 +113,13 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
 }
 
 
-void DebugCodegen::GeneratePlainReturnLiveEdit(MacroAssembler* masm) {
-  __ Ret();
-}
-
-
 void DebugCodegen::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
-  ExternalReference restarter_frame_function_slot =
-      ExternalReference::debug_restarter_frame_function_pointer_address(
-          masm->isolate());
-  __ mov(ip, Operand(restarter_frame_function_slot));
-  __ mov(r1, Operand::Zero());
-  __ str(r1, MemOperand(ip, 0));
-
   // Load the function pointer off of our current stack frame.
   __ ldr(r1, MemOperand(fp,
          StandardFrameConstants::kConstantPoolOffset - kPointerSize));
+
+  ParameterCount dummy(0);
+  __ FloodFunctionIfStepping(r1, no_reg, dummy, dummy);
 
   // Pop return address, frame and constant pool pointer (if
   // FLAG_enable_embedded_constant_pool).

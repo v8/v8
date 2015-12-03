@@ -196,7 +196,6 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
 #define BUILTIN_LIST_DEBUG_A(V)                                 \
   V(Return_DebugBreak, BUILTIN, DEBUG_STUB, kNoExtraICState)    \
   V(Slot_DebugBreak, BUILTIN, DEBUG_STUB, kNoExtraICState)      \
-  V(PlainReturn_LiveEdit, BUILTIN, DEBUG_STUB, kNoExtraICState) \
   V(FrameDropper_LiveEdit, BUILTIN, DEBUG_STUB, kNoExtraICState)
 
 

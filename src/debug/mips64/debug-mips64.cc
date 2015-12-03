@@ -110,22 +110,16 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
 }
 
 
-void DebugCodegen::GeneratePlainReturnLiveEdit(MacroAssembler* masm) {
-  __ Ret();
-}
-
-
 void DebugCodegen::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
-  ExternalReference restarter_frame_function_slot =
-      ExternalReference::debug_restarter_frame_function_pointer_address(
-          masm->isolate());
-  __ li(at, Operand(restarter_frame_function_slot));
-  __ sw(zero_reg, MemOperand(at, 0));
-
   // We do not know our frame height, but set sp based on fp.
   __ Dsubu(sp, fp, Operand(kPointerSize));
 
-  __ Pop(ra, fp, a1);  // Return address, Frame, Function.
+  __ Pop(a1);  // Function.
+
+  ParameterCount dummy(0);
+  __ FloodFunctionIfStepping(a1, no_reg, dummy, dummy);
+
+  __ Pop(ra, fp);  // Return address, Frame.
 
   // Load context from the function.
   __ ld(cp, FieldMemOperand(a1, JSFunction::kContextOffset));

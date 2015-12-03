@@ -106,22 +106,15 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
 }
 
 
-void DebugCodegen::GeneratePlainReturnLiveEdit(MacroAssembler* masm) {
-  masm->ret(0);
-}
-
-
 void DebugCodegen::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
-  ExternalReference restarter_frame_function_slot =
-      ExternalReference::debug_restarter_frame_function_pointer_address(
-          masm->isolate());
-  __ Move(rax, restarter_frame_function_slot);
-  __ movp(Operand(rax, 0), Immediate(0));
-
   // We do not know our frame height, but set rsp based on rbp.
   __ leap(rsp, Operand(rbp, -1 * kPointerSize));
 
   __ Pop(rdi);  // Function.
+
+  ParameterCount dummy(0);
+  __ FloodFunctionIfStepping(rdi, no_reg, dummy, dummy);
+
   __ popq(rbp);
 
   // Load context from the function.
