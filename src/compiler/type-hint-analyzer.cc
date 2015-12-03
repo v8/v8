@@ -5,6 +5,7 @@
 #include "src/compiler/type-hint-analyzer.h"
 
 #include "src/assembler.h"
+#include "src/code-stubs.h"
 #include "src/compiler/type-hints.h"
 #include "src/ic/ic-state.h"
 
@@ -41,6 +42,32 @@ bool TypeHintAnalysis::GetBinaryOperationHints(
 }
 
 
+bool TypeHintAnalysis::GetToBooleanHints(TypeFeedbackId id,
+                                         ToBooleanHints* hints) const {
+  auto i = infos_.find(id);
+  if (i == infos_.end()) return false;
+  Handle<Code> code = i->second;
+  DCHECK_EQ(Code::TO_BOOLEAN_IC, code->kind());
+  ToBooleanStub stub(code->GetIsolate(), code->extra_ic_state());
+// TODO(bmeurer): Replace ToBooleanStub::Types with ToBooleanHints.
+#define ASSERT_COMPATIBLE(NAME, Name)       \
+  STATIC_ASSERT(1 << ToBooleanStub::NAME == \
+                static_cast<int>(ToBooleanHint::k##Name))
+  ASSERT_COMPATIBLE(UNDEFINED, Undefined);
+  ASSERT_COMPATIBLE(BOOLEAN, Boolean);
+  ASSERT_COMPATIBLE(NULL_TYPE, Null);
+  ASSERT_COMPATIBLE(SMI, SmallInteger);
+  ASSERT_COMPATIBLE(SPEC_OBJECT, Receiver);
+  ASSERT_COMPATIBLE(STRING, String);
+  ASSERT_COMPATIBLE(SYMBOL, Symbol);
+  ASSERT_COMPATIBLE(HEAP_NUMBER, HeapNumber);
+  ASSERT_COMPATIBLE(SIMD_VALUE, SimdValue);
+#undef ASSERT_COMPATIBLE
+  *hints = ToBooleanHints(stub.types().ToIntegral());
+  return true;
+}
+
+
 TypeHintAnalysis* TypeHintAnalyzer::Analyze(Handle<Code> code) {
   DisallowHeapAllocation no_gc;
   TypeHintAnalysis::Infos infos(zone());
@@ -51,13 +78,13 @@ TypeHintAnalysis* TypeHintAnalyzer::Analyze(Handle<Code> code) {
     Address target_address = rinfo->target_address();
     Code* target = Code::GetCodeFromTargetAddress(target_address);
     switch (target->kind()) {
-      case Code::BINARY_OP_IC: {
+      case Code::BINARY_OP_IC:
+      case Code::TO_BOOLEAN_IC: {
         // Add this feedback to the {infos}.
         TypeFeedbackId id(static_cast<unsigned>(rinfo->data()));
         infos.insert(std::make_pair(id, handle(target, isolate)));
         break;
       }
-
       default:
         // Ignore the remaining code objects.
         break;

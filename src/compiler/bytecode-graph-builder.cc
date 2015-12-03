@@ -971,8 +971,8 @@ void BytecodeGraphBuilder::VisitDec(
 
 void BytecodeGraphBuilder::VisitLogicalNot(
     const interpreter::BytecodeArrayIterator& iterator) {
-  Node* value =
-      NewNode(javascript()->ToBoolean(), environment()->LookupAccumulator());
+  Node* value = NewNode(javascript()->ToBoolean(ToBooleanHint::kAny),
+                        environment()->LookupAccumulator());
   Node* node = NewNode(common()->Select(kMachAnyTagged), value,
                        jsgraph()->FalseConstant(), jsgraph()->TrueConstant());
   environment()->BindAccumulator(node);
@@ -1094,7 +1094,7 @@ void BytecodeGraphBuilder::BuildCastOperator(
 
 void BytecodeGraphBuilder::VisitToBoolean(
     const interpreter::BytecodeArrayIterator& iterator) {
-  BuildCastOperator(javascript()->ToBoolean(), iterator);
+  BuildCastOperator(javascript()->ToBoolean(ToBooleanHint::kAny), iterator);
 }
 
 

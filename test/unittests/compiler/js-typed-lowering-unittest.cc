@@ -224,8 +224,9 @@ TEST_F(JSTypedLoweringTest, ParameterWithUndefined) {
 TEST_F(JSTypedLoweringTest, JSToBooleanWithBoolean) {
   Node* input = Parameter(Type::Boolean(), 0);
   Node* context = Parameter(Type::Any(), 1);
-  Reduction r = Reduce(graph()->NewNode(javascript()->ToBoolean(), input,
-                                        context, graph()->start()));
+  Reduction r =
+      Reduce(graph()->NewNode(javascript()->ToBoolean(ToBooleanHint::kAny),
+                              input, context, graph()->start()));
   ASSERT_TRUE(r.Changed());
   EXPECT_EQ(input, r.replacement());
 }
@@ -253,8 +254,9 @@ TEST_F(JSTypedLoweringTest, JSToBooleanWithFalsish) {
           zone()),
       0);
   Node* context = Parameter(Type::Any(), 1);
-  Reduction r = Reduce(graph()->NewNode(javascript()->ToBoolean(), input,
-                                        context, graph()->start()));
+  Reduction r =
+      Reduce(graph()->NewNode(javascript()->ToBoolean(ToBooleanHint::kAny),
+                              input, context, graph()->start()));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsFalseConstant());
 }
@@ -268,8 +270,9 @@ TEST_F(JSTypedLoweringTest, JSToBooleanWithTruish) {
           zone()),
       0);
   Node* context = Parameter(Type::Any(), 1);
-  Reduction r = Reduce(graph()->NewNode(javascript()->ToBoolean(), input,
-                                        context, graph()->start()));
+  Reduction r =
+      Reduce(graph()->NewNode(javascript()->ToBoolean(ToBooleanHint::kAny),
+                              input, context, graph()->start()));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsTrueConstant());
 }
@@ -278,8 +281,9 @@ TEST_F(JSTypedLoweringTest, JSToBooleanWithTruish) {
 TEST_F(JSTypedLoweringTest, JSToBooleanWithNonZeroPlainNumber) {
   Node* input = Parameter(Type::Range(1, V8_INFINITY, zone()), 0);
   Node* context = Parameter(Type::Any(), 1);
-  Reduction r = Reduce(graph()->NewNode(javascript()->ToBoolean(), input,
-                                        context, graph()->start()));
+  Reduction r =
+      Reduce(graph()->NewNode(javascript()->ToBoolean(ToBooleanHint::kAny),
+                              input, context, graph()->start()));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsTrueConstant());
 }
@@ -288,8 +292,9 @@ TEST_F(JSTypedLoweringTest, JSToBooleanWithNonZeroPlainNumber) {
 TEST_F(JSTypedLoweringTest, JSToBooleanWithOrderedNumber) {
   Node* input = Parameter(Type::OrderedNumber(), 0);
   Node* context = Parameter(Type::Any(), 1);
-  Reduction r = Reduce(graph()->NewNode(javascript()->ToBoolean(), input,
-                                        context, graph()->start()));
+  Reduction r =
+      Reduce(graph()->NewNode(javascript()->ToBoolean(ToBooleanHint::kAny),
+                              input, context, graph()->start()));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(),
               IsBooleanNot(IsNumberEqual(input, IsNumberConstant(0.0))));
@@ -299,8 +304,9 @@ TEST_F(JSTypedLoweringTest, JSToBooleanWithOrderedNumber) {
 TEST_F(JSTypedLoweringTest, JSToBooleanWithString) {
   Node* input = Parameter(Type::String(), 0);
   Node* context = Parameter(Type::Any(), 1);
-  Reduction r = Reduce(graph()->NewNode(javascript()->ToBoolean(), input,
-                                        context, graph()->start()));
+  Reduction r =
+      Reduce(graph()->NewNode(javascript()->ToBoolean(ToBooleanHint::kAny),
+                              input, context, graph()->start()));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(
       r.replacement(),
@@ -313,8 +319,9 @@ TEST_F(JSTypedLoweringTest, JSToBooleanWithString) {
 TEST_F(JSTypedLoweringTest, JSToBooleanWithAny) {
   Node* input = Parameter(Type::Any(), 0);
   Node* context = Parameter(Type::Any(), 1);
-  Reduction r = Reduce(graph()->NewNode(javascript()->ToBoolean(), input,
-                                        context, graph()->start()));
+  Reduction r =
+      Reduce(graph()->NewNode(javascript()->ToBoolean(ToBooleanHint::kAny),
+                              input, context, graph()->start()));
   ASSERT_FALSE(r.Changed());
 }
 

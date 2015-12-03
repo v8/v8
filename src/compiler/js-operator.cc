@@ -46,6 +46,12 @@ ConvertReceiverMode ConvertReceiverModeOf(Operator const* op) {
 }
 
 
+ToBooleanHints ToBooleanHintsOf(Operator const* op) {
+  DCHECK_EQ(IrOpcode::kJSToBoolean, op->opcode());
+  return OpParameter<ToBooleanHints>(op);
+}
+
+
 size_t hash_value(TailCallMode mode) {
   return base::hash_value(static_cast<unsigned>(mode));
 }
@@ -486,7 +492,6 @@ const CreateLiteralParameters& CreateLiteralParametersOf(const Operator* op) {
   V(NotEqual, Operator::kNoProperties, 2, 1)          \
   V(StrictEqual, Operator::kNoThrow, 2, 1)            \
   V(StrictNotEqual, Operator::kNoThrow, 2, 1)         \
-  V(ToBoolean, Operator::kEliminatable, 1, 1)         \
   V(ToNumber, Operator::kNoProperties, 1, 1)          \
   V(ToString, Operator::kNoProperties, 1, 1)          \
   V(ToName, Operator::kNoProperties, 1, 1)            \
@@ -714,6 +719,16 @@ const Operator* JSOperatorBuilder::Modulus(LanguageMode language_mode,
       "JSModulus",                                           // name
       2, 1, 1, 1, 1, 2,                                      // inputs/outputs
       parameters);                                           // parameter
+}
+
+
+const Operator* JSOperatorBuilder::ToBoolean(ToBooleanHints hints) {
+  // TODO(turbofan): Cache most important versions of this operator.
+  return new (zone()) Operator1<ToBooleanHints>(        //--
+      IrOpcode::kJSToBoolean, Operator::kEliminatable,  // opcode
+      "JSToBoolean",                                    // name
+      1, 1, 0, 1, 1, 0,                                 // inputs/outputs
+      hints);                                           // parameter
 }
 
 

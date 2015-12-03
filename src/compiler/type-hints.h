@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_TYPE_HINTS_H_
 #define V8_COMPILER_TYPE_HINTS_H_
 
+#include "src/base/flags.h"
 #include "src/utils.h"
 
 namespace v8 {
@@ -50,6 +51,31 @@ class BinaryOperationHints final {
 
 std::ostream& operator<<(std::ostream&, BinaryOperationHints::Hint);
 std::ostream& operator<<(std::ostream&, BinaryOperationHints);
+
+
+// Type hints for the ToBoolean type conversion.
+enum class ToBooleanHint : uint16_t {
+  kNone = 0u,
+  kUndefined = 1u << 0,
+  kBoolean = 1u << 1,
+  kNull = 1u << 2,
+  kSmallInteger = 1u << 3,
+  kReceiver = 1u << 4,
+  kString = 1u << 5,
+  kSymbol = 1u << 6,
+  kHeapNumber = 1u << 7,
+  kSimdValue = 1u << 8,
+  kAny = kUndefined | kBoolean | kNull | kSmallInteger | kReceiver | kString |
+         kSymbol | kHeapNumber | kSimdValue
+};
+
+std::ostream& operator<<(std::ostream&, ToBooleanHint);
+
+typedef base::Flags<ToBooleanHint, uint16_t> ToBooleanHints;
+
+std::ostream& operator<<(std::ostream&, ToBooleanHints);
+
+DEFINE_OPERATORS_FOR_FLAGS(ToBooleanHints)
 
 }  // namespace compiler
 }  // namespace internal

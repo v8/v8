@@ -5,17 +5,13 @@
 #ifndef V8_COMPILER_TYPE_HINT_ANALYZER_H_
 #define V8_COMPILER_TYPE_HINT_ANALYZER_H_
 
+#include "src/compiler/type-hints.h"
 #include "src/handles.h"
-#include "src/utils.h"
 #include "src/zone-containers.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
-
-// Forward declarations.
-class BinaryOperationHints;
-
 
 // The result of analyzing type hints.
 class TypeHintAnalysis final : public ZoneObject {
@@ -26,6 +22,7 @@ class TypeHintAnalysis final : public ZoneObject {
 
   bool GetBinaryOperationHints(TypeFeedbackId id,
                                BinaryOperationHints* hints) const;
+  bool GetToBooleanHints(TypeFeedbackId id, ToBooleanHints* hints) const;
 
  private:
   Infos const infos_;

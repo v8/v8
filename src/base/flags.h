@@ -5,6 +5,8 @@
 #ifndef V8_BASE_FLAGS_H_
 #define V8_BASE_FLAGS_H_
 
+#include <cstddef>
+
 #include "src/base/compiler-specific.h"
 
 namespace v8 {
@@ -29,6 +31,13 @@ class Flags final {
   Flags(flag_type flag)  // NOLINT(runtime/explicit)
       : mask_(static_cast<S>(flag)) {}
   explicit Flags(mask_type mask) : mask_(static_cast<S>(mask)) {}
+
+  bool operator==(flag_type flag) const {
+    return mask_ == static_cast<S>(flag);
+  }
+  bool operator!=(flag_type flag) const {
+    return mask_ != static_cast<S>(flag);
+  }
 
   Flags& operator&=(const Flags& flags) {
     mask_ &= flags.mask_;
@@ -59,6 +68,8 @@ class Flags final {
 
   operator mask_type() const { return mask_; }
   bool operator!() const { return !mask_; }
+
+  friend size_t hash_value(const Flags& flags) { return flags.mask_; }
 
  private:
   mask_type mask_;

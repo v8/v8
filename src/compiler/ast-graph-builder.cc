@@ -94,11 +94,14 @@ class AstGraphBuilder::AstValueContext final : public AstContext {
 // Context to evaluate expression for a condition value (and side effects).
 class AstGraphBuilder::AstTestContext final : public AstContext {
  public:
-  explicit AstTestContext(AstGraphBuilder* owner)
-      : AstContext(owner, Expression::kTest) {}
+  AstTestContext(AstGraphBuilder* owner, TypeFeedbackId feedback_id)
+      : AstContext(owner, Expression::kTest), feedback_id_(feedback_id) {}
   ~AstTestContext() final;
   void ProduceValue(Node* value) final;
   Node* ConsumeValue() final;
+
+ private:
+  TypeFeedbackId const feedback_id_;
 };
 
 
@@ -927,7 +930,7 @@ void AstGraphBuilder::AstValueContext::ProduceValue(Node* value) {
 
 
 void AstGraphBuilder::AstTestContext::ProduceValue(Node* value) {
-  environment()->Push(owner()->BuildToBoolean(value));
+  environment()->Push(owner()->BuildToBoolean(value, feedback_id_));
 }
 
 
@@ -1034,7 +1037,7 @@ void AstGraphBuilder::VisitForEffect(Expression* expr) {
 
 
 void AstGraphBuilder::VisitForTest(Expression* expr) {
-  AstTestContext for_condition(this);
+  AstTestContext for_condition(this, expr->test_id());
   if (!CheckStackOverflow()) {
     expr->Accept(this);
   } else {
@@ -3011,7 +3014,7 @@ void AstGraphBuilder::VisitTypeof(UnaryOperation* expr) {
 void AstGraphBuilder::VisitNot(UnaryOperation* expr) {
   VisitForValue(expr->expression());
   Node* operand = environment()->Pop();
-  Node* input = BuildToBoolean(operand);
+  Node* input = BuildToBoolean(operand, expr->expression()->test_id());
   Node* value = NewNode(common()->Select(kMachAnyTagged), input,
                         jsgraph()->FalseConstant(), jsgraph()->TrueConstant());
   ast_context()->ProduceValue(value);
@@ -3030,7 +3033,7 @@ void AstGraphBuilder::VisitLogicalExpression(BinaryOperation* expr) {
   IfBuilder compare_if(this);
   VisitForValue(expr->left());
   Node* condition = environment()->Top();
-  compare_if.If(BuildToBoolean(condition));
+  compare_if.If(BuildToBoolean(condition, expr->left()->test_id()));
   compare_if.Then();
   if (is_logical_and) {
     environment()->Pop();
@@ -3682,9 +3685,14 @@ Node* AstGraphBuilder::BuildLoadFeedbackVector() {
 }
 
 
-Node* AstGraphBuilder::BuildToBoolean(Node* input) {
+Node* AstGraphBuilder::BuildToBoolean(Node* input, TypeFeedbackId feedback_id) {
   if (Node* node = TryFastToBoolean(input)) return node;
-  return NewNode(javascript()->ToBoolean(), input);
+  ToBooleanHints hints;
+  if (!type_hint_analysis_ ||
+      !type_hint_analysis_->GetToBooleanHints(feedback_id, &hints)) {
+    hints = ToBooleanHint::kAny;
+  }
+  return NewNode(javascript()->ToBoolean(hints), input);
 }
 
 

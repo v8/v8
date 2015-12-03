@@ -321,7 +321,7 @@ class AstGraphBuilder : public AstVisitor {
   Node* BuildLoadImmutableObjectField(Node* object, int offset);
 
   // Builders for automatic type conversion.
-  Node* BuildToBoolean(Node* input);
+  Node* BuildToBoolean(Node* input, TypeFeedbackId feedback_id);
   Node* BuildToName(Node* input, BailoutId bailout_id);
   Node* BuildToObject(Node* input, BailoutId bailout_id);
 

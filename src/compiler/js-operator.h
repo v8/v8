@@ -44,7 +44,11 @@ size_t hash_value(VectorSlotPair const&);
 
 
 // The ConvertReceiverMode is used as parameter by JSConvertReceiver operators.
-ConvertReceiverMode ConvertReceiverModeOf(const Operator* op);
+ConvertReceiverMode ConvertReceiverModeOf(Operator const* op);
+
+
+// The ToBooleanHints are used as parameter by JSToBoolean operators.
+ToBooleanHints ToBooleanHintsOf(Operator const* op);
 
 
 // Defines whether tail call optimization is allowed.
@@ -497,7 +501,7 @@ class JSOperatorBuilder final : public ZoneObject {
   const Operator* Modulus(LanguageMode language_mode,
                           BinaryOperationHints hints);
 
-  const Operator* ToBoolean();
+  const Operator* ToBoolean(ToBooleanHints hints);
   const Operator* ToNumber();
   const Operator* ToString();
   const Operator* ToName();
