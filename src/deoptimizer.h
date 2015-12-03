@@ -355,6 +355,7 @@ class OptimizedFunctionVisitor BASE_EMBEDDED {
   V(kOutOfBounds, "out of bounds")                                             \
   V(kOutsideOfRange, "Outside of range")                                       \
   V(kOverflow, "overflow")                                                     \
+  V(kProxy, "proxy")                                                           \
   V(kReceiverWasAGlobalObject, "receiver was a global object")                 \
   V(kSmi, "Smi")                                                               \
   V(kTooManyArguments, "too many arguments")                                   \

@@ -2609,6 +2609,7 @@ void LCodeGen::DoHasInPrototypeChainAndBranch(
     LHasInPrototypeChainAndBranch* instr) {
   Register const object = ToRegister(instr->object());
   Register const object_map = scratch0();
+  Register const object_instance_type = scratch1();
   Register const object_prototype = object_map;
   Register const prototype = ToRegister(instr->prototype());
 
@@ -2623,6 +2624,10 @@ void LCodeGen::DoHasInPrototypeChainAndBranch(
   __ lw(object_map, FieldMemOperand(object, HeapObject::kMapOffset));
   Label loop;
   __ bind(&loop);
+  __ lbu(object_instance_type,
+         FieldMemOperand(object_map, Map::kInstanceTypeOffset));
+  DeoptimizeIf(eq, instr, Deoptimizer::kProxy, object_instance_type,
+               Operand(JS_PROXY_TYPE));
   __ lw(object_prototype, FieldMemOperand(object_map, Map::kPrototypeOffset));
   EmitTrueBranch(instr, eq, object_prototype, Operand(prototype));
   __ LoadRoot(at, Heap::kNullValueRootIndex);

@@ -802,7 +802,6 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kHasInstanceTypeAndBranch:
     case HValue::kInnerAllocatedObject:
     case HValue::kInstanceOf:
-    case HValue::kHasInPrototypeChainAndBranch:
     case HValue::kIsSmiAndBranch:
     case HValue::kIsStringAndBranch:
     case HValue::kIsUndetectableAndBranch:
@@ -855,6 +854,7 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kDiv:
     case HValue::kForInCacheArray:
     case HValue::kForInPrepareMap:
+    case HValue::kHasInPrototypeChainAndBranch:
     case HValue::kInvokeFunction:
     case HValue::kLoadContextSlot:
     case HValue::kLoadFunctionPrototype:

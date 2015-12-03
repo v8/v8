@@ -2656,6 +2656,8 @@ void LCodeGen::DoHasInPrototypeChainAndBranch(
   __ movp(object_map, FieldOperand(object, HeapObject::kMapOffset));
   Label loop;
   __ bind(&loop);
+  __ CmpInstanceType(object_map, JS_PROXY_TYPE);
+  DeoptimizeIf(equal, instr, Deoptimizer::kProxy);
   __ movp(object_prototype, FieldOperand(object_map, Map::kPrototypeOffset));
   __ cmpp(object_prototype, prototype);
   EmitTrueBranch(instr, equal);

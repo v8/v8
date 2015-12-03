@@ -1020,7 +1020,9 @@ LInstruction* LChunkBuilder::DoHasInPrototypeChainAndBranch(
   LOperand* object = UseRegister(instr->object());
   LOperand* prototype = UseRegister(instr->prototype());
   LOperand* temp = TempRegister();
-  return new (zone()) LHasInPrototypeChainAndBranch(object, prototype, temp);
+  LHasInPrototypeChainAndBranch* result =
+      new (zone()) LHasInPrototypeChainAndBranch(object, prototype, temp);
+  return AssignEnvironment(result);
 }
 
 

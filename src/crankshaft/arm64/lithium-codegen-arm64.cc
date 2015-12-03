@@ -2959,7 +2959,8 @@ void LCodeGen::DoInstanceOf(LInstanceOf* instr) {
 void LCodeGen::DoHasInPrototypeChainAndBranch(
     LHasInPrototypeChainAndBranch* instr) {
   Register const object = ToRegister(instr->object());
-  Register const object_map = ToRegister(instr->scratch());
+  Register const object_map = ToRegister(instr->scratch1());
+  Register const object_instance_type = ToRegister(instr->scratch2());
   Register const object_prototype = object_map;
   Register const prototype = ToRegister(instr->prototype());
 
@@ -2974,6 +2975,8 @@ void LCodeGen::DoHasInPrototypeChainAndBranch(
   __ Ldr(object_map, FieldMemOperand(object, HeapObject::kMapOffset));
   Label loop;
   __ Bind(&loop);
+  __ CompareInstanceType(object_map, object_instance_type, JS_PROXY_TYPE);
+  DeoptimizeIf(eq, instr, Deoptimizer::kProxy);
   __ Ldr(object_prototype, FieldMemOperand(object_map, Map::kPrototypeOffset));
   __ Cmp(object_prototype, prototype);
   __ B(eq, instr->TrueLabel(chunk_));
