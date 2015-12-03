@@ -764,7 +764,8 @@ void Heap::HandleGCRequest() {
     return;
   }
   DCHECK(FLAG_finalize_marking_incrementally);
-  if (!incremental_marking()->finalize_marking_completed()) {
+  if (incremental_marking()->IsMarking() &&
+      !incremental_marking()->finalize_marking_completed()) {
     FinalizeIncrementalMarking("GC interrupt: finalize incremental marking");
   }
 }
