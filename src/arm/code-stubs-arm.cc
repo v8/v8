@@ -1380,24 +1380,35 @@ void InstanceOfStub::Generate(MacroAssembler* masm) {
 
   // Loop through the prototype chain looking for the {function} prototype.
   // Assume true, and change to false if not found.
-  Register const object_prototype = object_map;
+  Register const object_instance_type = function_map;
   Register const null = scratch;
-  Label done, loop;
-  __ LoadRoot(r0, Heap::kTrueValueRootIndex);
+  Register const result = r0;
+  Label done, loop, proxy_case;
+  __ LoadRoot(result, Heap::kTrueValueRootIndex);
   __ LoadRoot(null, Heap::kNullValueRootIndex);
   __ bind(&loop);
-  __ ldr(object_prototype, FieldMemOperand(object_map, Map::kPrototypeOffset));
-  __ cmp(object_prototype, function_prototype);
+  __ CompareInstanceType(object_map, object_instance_type, JS_PROXY_TYPE);
+  __ b(eq, &proxy_case);
+  __ ldr(object, FieldMemOperand(object_map, Map::kPrototypeOffset));
+  __ cmp(object, function_prototype);
   __ b(eq, &done);
-  __ cmp(object_prototype, null);
-  __ ldr(object_map, FieldMemOperand(object_prototype, HeapObject::kMapOffset));
+  __ cmp(object, null);
+  __ ldr(object_map, FieldMemOperand(object, HeapObject::kMapOffset));
   __ b(ne, &loop);
-  __ LoadRoot(r0, Heap::kFalseValueRootIndex);
+  __ LoadRoot(result, Heap::kFalseValueRootIndex);
   __ bind(&done);
-  __ StoreRoot(r0, Heap::kInstanceofCacheAnswerRootIndex);
+  __ StoreRoot(result, Heap::kInstanceofCacheAnswerRootIndex);
   __ Ret();
 
-  // Slow-case: Call the runtime function.
+  // Proxy-case: Call the %HasInPrototypeChain runtime function.
+  __ bind(&proxy_case);
+  __ Push(object, function_prototype);
+  // Invalidate the instanceof cache.
+  __ Move(scratch, Smi::FromInt(0));
+  __ StoreRoot(scratch, Heap::kInstanceofCacheFunctionRootIndex);
+  __ TailCallRuntime(Runtime::kHasInPrototypeChain, 2, 1);
+
+  // Slow-case: Call the %InstanceOf runtime function.
   __ bind(&slow_case);
   __ Push(object, function);
   __ TailCallRuntime(Runtime::kInstanceOf, 2, 1);

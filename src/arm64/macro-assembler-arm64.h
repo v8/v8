@@ -895,6 +895,7 @@ class MacroAssembler : public Assembler {
   // This is required for compatibility with architecture independant code.
   // Remove if not needed.
   inline void Move(Register dst, Register src) { Mov(dst, src); }
+  inline void Move(Register dst, Smi* src) { Mov(dst, src); }
 
   void LoadInstanceDescriptors(Register map,
                                Register descriptors);

@@ -1505,22 +1505,33 @@ void InstanceOfStub::Generate(MacroAssembler* masm) {
 
   // Loop through the prototype chain looking for the {function} prototype.
   // Assume true, and change to false if not found.
-  Register const object_prototype = object_map;
+  Register const object_instance_type = function_map;
   Register const null = scratch;
-  Label done, loop;
-  __ LoadRoot(v0, Heap::kTrueValueRootIndex);
+  Register const result = v0;
+  Label done, loop, proxy_case;
+  __ LoadRoot(result, Heap::kTrueValueRootIndex);
   __ LoadRoot(null, Heap::kNullValueRootIndex);
   __ bind(&loop);
-  __ lw(object_prototype, FieldMemOperand(object_map, Map::kPrototypeOffset));
-  __ Branch(&done, eq, object_prototype, Operand(function_prototype));
-  __ Branch(USE_DELAY_SLOT, &loop, ne, object_prototype, Operand(null));
-  __ lw(object_map, FieldMemOperand(object_prototype, HeapObject::kMapOffset));
-  __ LoadRoot(v0, Heap::kFalseValueRootIndex);
+  __ lbu(object_instance_type,
+         FieldMemOperand(object_map, Map::kInstanceTypeOffset));
+  __ Branch(&proxy_case, eq, object_instance_type, Operand(JS_PROXY_TYPE));
+  __ lw(object, FieldMemOperand(object_map, Map::kPrototypeOffset));
+  __ Branch(&done, eq, object, Operand(function_prototype));
+  __ Branch(USE_DELAY_SLOT, &loop, ne, object, Operand(null));
+  __ lw(object_map,
+        FieldMemOperand(object, HeapObject::kMapOffset));  // In delay slot.
+  __ LoadRoot(result, Heap::kFalseValueRootIndex);
   __ bind(&done);
   __ Ret(USE_DELAY_SLOT);
-  __ StoreRoot(v0, Heap::kInstanceofCacheAnswerRootIndex);  // In delay slot.
+  __ StoreRoot(result,
+               Heap::kInstanceofCacheAnswerRootIndex);  // In delay slot.
 
-  // Slow-case: Call the runtime function.
+  // Proxy-case: Call the %HasInPrototypeChain runtime function.
+  __ bind(&proxy_case);
+  __ Push(object, function_prototype);
+  __ TailCallRuntime(Runtime::kHasInPrototypeChain, 2, 1);
+
+  // Slow-case: Call the %InstanceOf runtime function.
   __ bind(&slow_case);
   __ Push(object, function);
   __ TailCallRuntime(Runtime::kInstanceOf, 2, 1);

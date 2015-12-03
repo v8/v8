@@ -2588,27 +2588,39 @@ void InstanceOfStub::Generate(MacroAssembler* masm) {
 
   // Loop through the prototype chain looking for the {function} prototype.
   // Assume true, and change to false if not found.
-  Register const object_prototype = object_map;
-  Label done, loop;
+  Label done, loop, proxy_case;
   __ mov(eax, isolate()->factory()->true_value());
   __ bind(&loop);
-  __ mov(object_prototype, FieldOperand(object_map, Map::kPrototypeOffset));
-  __ cmp(object_prototype, function_prototype);
+  __ CmpInstanceType(object_map, JS_PROXY_TYPE);
+  __ j(equal, &proxy_case, Label::kNear);
+  __ mov(object, FieldOperand(object_map, Map::kPrototypeOffset));
+  __ cmp(object, function_prototype);
   __ j(equal, &done, Label::kNear);
-  __ cmp(object_prototype, isolate()->factory()->null_value());
-  __ mov(object_map, FieldOperand(object_prototype, HeapObject::kMapOffset));
+  __ cmp(object, isolate()->factory()->null_value());
+  __ mov(object_map, FieldOperand(object, HeapObject::kMapOffset));
   __ j(not_equal, &loop);
   __ mov(eax, isolate()->factory()->false_value());
   __ bind(&done);
   __ StoreRoot(eax, scratch, Heap::kInstanceofCacheAnswerRootIndex);
   __ ret(0);
 
-  // Slow-case: Call the runtime function.
+  // Proxy-case: Call the %HasInPrototypeChain runtime function.
+  __ bind(&proxy_case);
+  __ PopReturnAddressTo(scratch);
+  __ Push(object);
+  __ Push(function_prototype);
+  __ PushReturnAddressFrom(scratch);
+  // Invalidate the instanceof cache.
+  __ Move(eax, Immediate(Smi::FromInt(0)));
+  __ StoreRoot(eax, scratch, Heap::kInstanceofCacheFunctionRootIndex);
+  __ TailCallRuntime(Runtime::kHasInPrototypeChain, 2, 1);
+
+  // Slow-case: Call the %InstanceOf runtime function.
   __ bind(&slow_case);
-  __ pop(scratch);    // Pop return address.
-  __ push(object);    // Push {object}.
-  __ push(function);  // Push {function}.
-  __ push(scratch);   // Push return address.
+  __ PopReturnAddressTo(scratch);
+  __ Push(object);
+  __ Push(function);
+  __ PushReturnAddressFrom(scratch);
   __ TailCallRuntime(Runtime::kInstanceOf, 2, 1);
 }
 

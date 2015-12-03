@@ -2538,22 +2538,34 @@ void InstanceOfStub::Generate(MacroAssembler* masm) {
 
   // Loop through the prototype chain looking for the {function} prototype.
   // Assume true, and change to false if not found.
-  Register const object_prototype = object_map;
-  Label done, loop;
+  Label done, loop, proxy_case;
   __ LoadRoot(rax, Heap::kTrueValueRootIndex);
   __ bind(&loop);
-  __ movp(object_prototype, FieldOperand(object_map, Map::kPrototypeOffset));
-  __ cmpp(object_prototype, function_prototype);
+  __ CmpInstanceType(object_map, JS_PROXY_TYPE);
+  __ j(equal, &proxy_case, Label::kNear);
+  __ movp(object, FieldOperand(object_map, Map::kPrototypeOffset));
+  __ cmpp(object, function_prototype);
   __ j(equal, &done, Label::kNear);
-  __ CompareRoot(object_prototype, Heap::kNullValueRootIndex);
-  __ movp(object_map, FieldOperand(object_prototype, HeapObject::kMapOffset));
+  __ CompareRoot(object, Heap::kNullValueRootIndex);
+  __ movp(object_map, FieldOperand(object, HeapObject::kMapOffset));
   __ j(not_equal, &loop);
   __ LoadRoot(rax, Heap::kFalseValueRootIndex);
   __ bind(&done);
   __ StoreRoot(rax, Heap::kInstanceofCacheAnswerRootIndex);
   __ ret(0);
 
-  // Slow-case: Call the runtime function.
+  // Proxy-case: Call the %HasInPrototypeChain runtime function.
+  __ bind(&proxy_case);
+  __ PopReturnAddressTo(kScratchRegister);
+  __ Push(object);
+  __ Push(function_prototype);
+  __ PushReturnAddressFrom(kScratchRegister);
+  // Invalidate the instanceof cache.
+  __ Move(rax, Smi::FromInt(0));
+  __ StoreRoot(rax, Heap::kInstanceofCacheFunctionRootIndex);
+  __ TailCallRuntime(Runtime::kHasInPrototypeChain, 2, 1);
+
+  // Slow-case: Call the %InstanceOf runtime function.
   __ bind(&slow_case);
   __ PopReturnAddressTo(kScratchRegister);
   __ Push(object);
