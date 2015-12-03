@@ -947,13 +947,25 @@ void BytecodeGraphBuilder::VisitShiftRightLogical(
 
 void BytecodeGraphBuilder::VisitInc(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  const Operator* js_op =
+      javascript()->Add(language_mode(), BinaryOperationHints::Any());
+  Node* node = NewNode(js_op, environment()->LookupAccumulator(),
+                       jsgraph()->OneConstant());
+
+  AddEmptyFrameStateInputs(node);
+  environment()->BindAccumulator(node);
 }
 
 
 void BytecodeGraphBuilder::VisitDec(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  const Operator* js_op =
+      javascript()->Subtract(language_mode(), BinaryOperationHints::Any());
+  Node* node = NewNode(js_op, environment()->LookupAccumulator(),
+                       jsgraph()->OneConstant());
+
+  AddEmptyFrameStateInputs(node);
+  environment()->BindAccumulator(node);
 }
 
 

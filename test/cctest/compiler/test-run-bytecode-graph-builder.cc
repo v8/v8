@@ -789,6 +789,61 @@ TEST(BytecodeGraphBuilderTypeOf) {
 }
 
 
+TEST(BytecodeGraphBuilderCountOperation) {
+  HandleAndZoneScope scope;
+  Isolate* isolate = scope.main_isolate();
+  Zone* zone = scope.main_zone();
+  Factory* factory = isolate->factory();
+
+  ExpectedSnippet<1> snippets[] = {
+      {"return ++p1;",
+       {factory->NewNumberFromInt(11), factory->NewNumberFromInt(10)}},
+      {"return p1++;",
+       {factory->NewNumberFromInt(10), factory->NewNumberFromInt(10)}},
+      {"return p1++ + 10;",
+       {factory->NewHeapNumber(15.23), factory->NewHeapNumber(5.23)}},
+      {"return 20 + ++p1;",
+       {factory->NewHeapNumber(27.23), factory->NewHeapNumber(6.23)}},
+      {"return --p1;",
+       {factory->NewHeapNumber(9.8), factory->NewHeapNumber(10.8)}},
+      {"return p1--;",
+       {factory->NewHeapNumber(10.8), factory->NewHeapNumber(10.8)}},
+      {"return p1-- + 10;",
+       {factory->NewNumberFromInt(20), factory->NewNumberFromInt(10)}},
+      {"return 20 + --p1;",
+       {factory->NewNumberFromInt(29), factory->NewNumberFromInt(10)}},
+      {"return p1.val--;",
+       {factory->NewNumberFromInt(10),
+        BytecodeGraphTester::NewObject("({val : 10})")}},
+      {"return ++p1['val'];",
+       {factory->NewNumberFromInt(11),
+        BytecodeGraphTester::NewObject("({val : 10})")}},
+      {"return ++p1[1];",
+       {factory->NewNumberFromInt(11),
+        BytecodeGraphTester::NewObject("({1 : 10})")}},
+      {" function inner() { return p1 } return --p1;",
+       {factory->NewNumberFromInt(9), factory->NewNumberFromInt(10)}},
+      {" function inner() { return p1 } return p1--;",
+       {factory->NewNumberFromInt(10), factory->NewNumberFromInt(10)}},
+      {"return ++p1;",
+       {factory->nan_value(), factory->NewStringFromStaticChars("String")}},
+  };
+
+  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
+  for (size_t i = 0; i < num_snippets; i++) {
+    ScopedVector<char> script(1024);
+    SNPrintF(script, "function %s(p1) { %s }\n%s({});", kFunctionName,
+             snippets[i].code_snippet, kFunctionName);
+
+    BytecodeGraphTester tester(isolate, zone, script.start());
+    auto callable = tester.GetCallable<Handle<Object>>();
+    Handle<Object> return_value =
+        callable(snippets[i].parameter(0)).ToHandleChecked();
+    CHECK(return_value->SameValue(*snippets[i].return_value()));
+  }
+}
+
+
 TEST(BytecodeGraphBuilderDelete) {
   HandleAndZoneScope scope;
   Isolate* isolate = scope.main_isolate();
