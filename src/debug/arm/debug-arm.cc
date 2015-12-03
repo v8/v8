@@ -138,6 +138,9 @@ void DebugCodegen::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
     // Load context from the function.
     __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
 
+    // Clear new.target as a safety measure.
+    __ LoadRoot(r3, Heap::kUndefinedValueRootIndex);
+
     // Get function code.
     __ ldr(ip, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
     __ ldr(ip, FieldMemOperand(ip, SharedFunctionInfo::kCodeOffset));

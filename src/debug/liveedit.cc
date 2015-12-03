@@ -1660,20 +1660,60 @@ static const char* DropFrames(Vector<StackFrame*> frames,
 // Finding no such frames does not mean error.
 class MultipleFunctionTarget {
  public:
-  MultipleFunctionTarget(Handle<JSArray> shared_info_array,
-      Handle<JSArray> result)
-      : m_shared_info_array(shared_info_array),
-        m_result(result) {}
+  MultipleFunctionTarget(Handle<JSArray> old_shared_array,
+                         Handle<JSArray> new_shared_array,
+                         Handle<JSArray> result)
+      : old_shared_array_(old_shared_array),
+        new_shared_array_(new_shared_array),
+        result_(result) {}
   bool MatchActivation(StackFrame* frame,
       LiveEdit::FunctionPatchabilityStatus status) {
-    return CheckActivation(m_shared_info_array, m_result, frame, status);
+    return CheckActivation(old_shared_array_, result_, frame, status);
   }
   const char* GetNotFoundMessage() const {
     return NULL;
   }
+  bool FrameUsesNewTarget(StackFrame* frame) {
+    if (!frame->is_java_script()) return false;
+    JavaScriptFrame* jsframe = JavaScriptFrame::cast(frame);
+    Handle<SharedFunctionInfo> old_shared(jsframe->function()->shared());
+    Isolate* isolate = old_shared->GetIsolate();
+    int len = GetArrayLength(old_shared_array_);
+    // Find corresponding new shared function info and return whether it
+    // references new.target.
+    for (int i = 0; i < len; i++) {
+      HandleScope scope(isolate);
+      Handle<Object> old_element =
+          Object::GetElement(isolate, old_shared_array_, i).ToHandleChecked();
+      if (!old_shared.is_identical_to(UnwrapSharedFunctionInfoFromJSValue(
+              Handle<JSValue>::cast(old_element)))) {
+        continue;
+      }
+
+      Handle<Object> new_element =
+          Object::GetElement(isolate, new_shared_array_, i).ToHandleChecked();
+      if (new_element->IsUndefined()) return false;
+      Handle<SharedFunctionInfo> new_shared =
+          UnwrapSharedFunctionInfoFromJSValue(
+              Handle<JSValue>::cast(new_element));
+      if (new_shared->scope_info()->HasNewTarget()) {
+        SetElementSloppy(
+            result_, i,
+            Handle<Smi>(
+                Smi::FromInt(
+                    LiveEdit::FUNCTION_BLOCKED_NO_NEW_TARGET_ON_RESTART),
+                isolate));
+        return true;
+      }
+      return false;
+    }
+    return false;
+  }
+
  private:
-  Handle<JSArray> m_shared_info_array;
-  Handle<JSArray> m_result;
+  Handle<JSArray> old_shared_array_;
+  Handle<JSArray> new_shared_array_;
+  Handle<JSArray> result_;
 };
 
 
@@ -1720,11 +1760,14 @@ static const char* DropActivationsInActiveThreadImpl(Isolate* isolate,
       non_droppable_reason = LiveEdit::FUNCTION_BLOCKED_UNDER_NATIVE_CODE;
       break;
     }
-    if (frame->is_java_script() &&
-        JavaScriptFrame::cast(frame)->function()->shared()->is_generator()) {
-      non_droppable_frame_found = true;
-      non_droppable_reason = LiveEdit::FUNCTION_BLOCKED_UNDER_GENERATOR;
-      break;
+    if (frame->is_java_script()) {
+      SharedFunctionInfo* shared =
+          JavaScriptFrame::cast(frame)->function()->shared();
+      if (shared->is_generator()) {
+        non_droppable_frame_found = true;
+        non_droppable_reason = LiveEdit::FUNCTION_BLOCKED_UNDER_GENERATOR;
+        break;
+      }
     }
     if (target.MatchActivation(
             frame, LiveEdit::FUNCTION_BLOCKED_ON_ACTIVE_STACK)) {
@@ -1747,6 +1790,9 @@ static const char* DropActivationsInActiveThreadImpl(Isolate* isolate,
       }
     }
   }
+
+  // We cannot restart a frame that uses new.target.
+  if (target.FrameUsesNewTarget(frames[bottom_js_frame_index])) return NULL;
 
   if (!do_drop) {
     // We are in check-only mode.
@@ -1785,9 +1831,10 @@ static const char* DropActivationsInActiveThreadImpl(Isolate* isolate,
 // Fills result array with statuses of functions. Modifies the stack
 // removing all listed function if possible and if do_drop is true.
 static const char* DropActivationsInActiveThread(
-    Handle<JSArray> shared_info_array, Handle<JSArray> result, bool do_drop) {
-  MultipleFunctionTarget target(shared_info_array, result);
-  Isolate* isolate = shared_info_array->GetIsolate();
+    Handle<JSArray> old_shared_array, Handle<JSArray> new_shared_array,
+    Handle<JSArray> result, bool do_drop) {
+  MultipleFunctionTarget target(old_shared_array, new_shared_array, result);
+  Isolate* isolate = old_shared_array->GetIsolate();
 
   const char* message =
       DropActivationsInActiveThreadImpl(isolate, target, do_drop);
@@ -1795,7 +1842,7 @@ static const char* DropActivationsInActiveThread(
     return message;
   }
 
-  int array_len = GetArrayLength(shared_info_array);
+  int array_len = GetArrayLength(old_shared_array);
 
   // Replace "blocked on active" with "replaced on active" status.
   for (int i = 0; i < array_len; i++) {
@@ -1851,16 +1898,16 @@ bool LiveEdit::FindActiveGenerators(Handle<FixedArray> shared_info_array,
 
 class InactiveThreadActivationsChecker : public ThreadVisitor {
  public:
-  InactiveThreadActivationsChecker(Handle<JSArray> shared_info_array,
+  InactiveThreadActivationsChecker(Handle<JSArray> old_shared_array,
                                    Handle<JSArray> result)
-      : shared_info_array_(shared_info_array), result_(result),
-        has_blocked_functions_(false) {
-  }
+      : old_shared_array_(old_shared_array),
+        result_(result),
+        has_blocked_functions_(false) {}
   void VisitThread(Isolate* isolate, ThreadLocalTop* top) {
     for (StackFrameIterator it(isolate, top); !it.done(); it.Advance()) {
-      has_blocked_functions_ |= CheckActivation(
-          shared_info_array_, result_, it.frame(),
-          LiveEdit::FUNCTION_BLOCKED_ON_OTHER_STACK);
+      has_blocked_functions_ |=
+          CheckActivation(old_shared_array_, result_, it.frame(),
+                          LiveEdit::FUNCTION_BLOCKED_ON_OTHER_STACK);
     }
   }
   bool HasBlockedFunctions() {
@@ -1868,20 +1915,21 @@ class InactiveThreadActivationsChecker : public ThreadVisitor {
   }
 
  private:
-  Handle<JSArray> shared_info_array_;
+  Handle<JSArray> old_shared_array_;
   Handle<JSArray> result_;
   bool has_blocked_functions_;
 };
 
 
 Handle<JSArray> LiveEdit::CheckAndDropActivations(
-    Handle<JSArray> shared_info_array, bool do_drop) {
-  Isolate* isolate = shared_info_array->GetIsolate();
-  int len = GetArrayLength(shared_info_array);
+    Handle<JSArray> old_shared_array, Handle<JSArray> new_shared_array,
+    bool do_drop) {
+  Isolate* isolate = old_shared_array->GetIsolate();
+  int len = GetArrayLength(old_shared_array);
 
-  DCHECK(shared_info_array->HasFastElements());
-  Handle<FixedArray> shared_info_array_elements(
-      FixedArray::cast(shared_info_array->elements()));
+  DCHECK(old_shared_array->HasFastElements());
+  Handle<FixedArray> old_shared_array_elements(
+      FixedArray::cast(old_shared_array->elements()));
 
   Handle<JSArray> result = isolate->factory()->NewJSArray(len);
   Handle<FixedArray> result_elements =
@@ -1897,12 +1945,12 @@ Handle<JSArray> LiveEdit::CheckAndDropActivations(
   // running (as we wouldn't want to restart them, because we don't know where
   // to restart them from) or suspended.  Fail if any one corresponds to the set
   // of functions being edited.
-  if (FindActiveGenerators(shared_info_array_elements, result_elements, len)) {
+  if (FindActiveGenerators(old_shared_array_elements, result_elements, len)) {
     return result;
   }
 
   // Check inactive threads. Fail if some functions are blocked there.
-  InactiveThreadActivationsChecker inactive_threads_checker(shared_info_array,
+  InactiveThreadActivationsChecker inactive_threads_checker(old_shared_array,
                                                             result);
   isolate->thread_manager()->IterateArchivedThreads(
       &inactive_threads_checker);
@@ -1911,8 +1959,8 @@ Handle<JSArray> LiveEdit::CheckAndDropActivations(
   }
 
   // Try to drop activations from the current stack.
-  const char* error_message =
-      DropActivationsInActiveThread(shared_info_array, result, do_drop);
+  const char* error_message = DropActivationsInActiveThread(
+      old_shared_array, new_shared_array, result, do_drop);
   if (error_message != NULL) {
     // Add error message as an array extra element.
     Handle<String> str =
@@ -1945,6 +1993,17 @@ class SingleFrameTarget {
   LiveEdit::FunctionPatchabilityStatus saved_status() {
     return m_saved_status;
   }
+  void set_status(LiveEdit::FunctionPatchabilityStatus status) {
+    m_saved_status = status;
+  }
+
+  bool FrameUsesNewTarget(StackFrame* frame) {
+    if (!frame->is_java_script()) return false;
+    JavaScriptFrame* jsframe = JavaScriptFrame::cast(frame);
+    Handle<SharedFunctionInfo> shared(jsframe->function()->shared());
+    return shared->scope_info()->HasNewTarget();
+  }
+
  private:
   JavaScriptFrame* m_frame;
   LiveEdit::FunctionPatchabilityStatus m_saved_status;

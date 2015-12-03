@@ -4011,6 +4011,9 @@ class ScopeInfo : public FixedArray {
   // or context-allocated?
   bool HasAllocatedReceiver();
 
+  // Does this scope declare a "new.target" binding?
+  bool HasNewTarget();
+
   // Is this scope the scope of a named function expression?
   bool HasFunctionName();
 
@@ -4219,9 +4222,10 @@ class ScopeInfo : public FixedArray {
   class ReceiverVariableField
       : public BitField<VariableAllocationInfo, DeclarationScopeField::kNext,
                         2> {};
+  class HasNewTargetField
+      : public BitField<bool, ReceiverVariableField::kNext, 1> {};
   class FunctionVariableField
-      : public BitField<VariableAllocationInfo, ReceiverVariableField::kNext,
-                        2> {};
+      : public BitField<VariableAllocationInfo, HasNewTargetField::kNext, 2> {};
   class FunctionVariableMode
       : public BitField<VariableMode, FunctionVariableField::kNext, 3> {};
   class AsmModuleField : public BitField<bool, FunctionVariableMode::kNext, 1> {
