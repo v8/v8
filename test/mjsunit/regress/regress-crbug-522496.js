@@ -4,6 +4,6 @@
 
 if (this.Worker) {
   var worker = new Worker("onmessage = function(){}");
-  var buf = new ArrayBuffer();
+  var buf = new ArrayBuffer(0);
   worker.postMessage(buf, [buf]);
 }

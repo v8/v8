@@ -1755,6 +1755,66 @@ BUILTIN(SymbolConstructor_ConstructStub) {
 }
 
 
+// ES6 section 24.1.2.1 ArrayBuffer( length ) for the [[Call]] case.
+BUILTIN(ArrayBufferConstructor) {
+  HandleScope scope(isolate);
+  Handle<JSFunction> target = args.target();
+  DCHECK(*target == target->native_context()->array_buffer_fun() ||
+         *target == target->native_context()->shared_array_buffer_fun());
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kConstructorNotFunction,
+                            handle(target->shared()->name(), isolate)));
+}
+
+
+// ES6 section 24.1.2.1 ArrayBuffer( length ) for the [[Construct]] case.
+BUILTIN(ArrayBufferConstructor_ConstructStub) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  Handle<JSFunction> target = args.target();
+  Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
+  Handle<Object> length = args.at<Object>(1);
+  DCHECK(*target == target->native_context()->array_buffer_fun() ||
+         *target == target->native_context()->shared_array_buffer_fun());
+  // The ConstructStub is executed in the context of the caller, so we need
+  // to enter the callee context first before raising an exception.
+  isolate->set_context(args.target()->context());
+  Handle<Object> number_length;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, number_length,
+                                     Object::ToNumber(length));
+  size_t byte_length;
+  if (!TryNumberToSize(isolate, *number_length, &byte_length)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferLength));
+  }
+  Handle<Map> initial_map;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, initial_map,
+      JSFunction::GetDerivedMap(isolate, target, new_target));
+  Handle<JSArrayBuffer> result = Handle<JSArrayBuffer>::cast(
+      isolate->factory()->NewJSObjectFromMap(initial_map));
+  SharedFlag shared_flag =
+      (*target == target->native_context()->array_buffer_fun())
+          ? SharedFlag::kNotShared
+          : SharedFlag::kShared;
+  if (!JSArrayBuffer::SetupAllocatingData(result, isolate, byte_length, true,
+                                          shared_flag)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewRangeError(MessageTemplate::kArrayBufferAllocationFailed));
+  }
+  return *result;
+}
+
+
+// ES6 section 24.1.3.1 ArrayBuffer.isView ( arg )
+BUILTIN(ArrayBufferIsView) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(2, args.length());
+  Object* arg = args[1];
+  return isolate->heap()->ToBoolean(arg->IsJSArrayBufferView());
+}
+
+
 namespace {
 
 // ES6 section 9.5.15 ProxyCreate (target, handler)

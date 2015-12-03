@@ -204,6 +204,8 @@ class Genesis BASE_EMBEDDED {
   HARMONY_SHIPPING(DECLARE_FEATURE_INITIALIZATION)
 #undef DECLARE_FEATURE_INITIALIZATION
 
+  Handle<JSFunction> InstallArrayBuffer(Handle<JSObject> target,
+                                        const char* name);
   Handle<JSFunction> InstallInternalArray(Handle<JSObject> target,
                                           const char* name,
                                           ElementsKind elements_kind);
@@ -1248,11 +1250,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
   {  // -- A r r a y B u f f e r
     Handle<JSFunction> array_buffer_fun =
-        InstallFunction(
-            global, "ArrayBuffer", JS_ARRAY_BUFFER_TYPE,
-            JSArrayBuffer::kSizeWithInternalFields,
-            isolate->initial_object_prototype(),
-            Builtins::kIllegal);
+        InstallArrayBuffer(global, "ArrayBuffer");
     native_context()->set_array_buffer_fun(*array_buffer_fun);
   }
 
@@ -2067,13 +2065,9 @@ void Genesis::InitializeGlobal_harmony_reflect() {
 void Genesis::InitializeGlobal_harmony_sharedarraybuffer() {
   if (!FLAG_harmony_sharedarraybuffer) return;
 
-  Handle<JSGlobalObject> global(
-      JSGlobalObject::cast(native_context()->global_object()));
-
-  Handle<JSFunction> shared_array_buffer_fun = InstallFunction(
-      global, "SharedArrayBuffer", JS_ARRAY_BUFFER_TYPE,
-      JSArrayBuffer::kSizeWithInternalFields,
-      isolate()->initial_object_prototype(), Builtins::kIllegal);
+  Handle<JSGlobalObject> global(native_context()->global_object());
+  Handle<JSFunction> shared_array_buffer_fun =
+      InstallArrayBuffer(global, "SharedArrayBuffer");
   native_context()->set_shared_array_buffer_fun(*shared_array_buffer_fun);
 }
 
@@ -2124,6 +2118,39 @@ void Genesis::InitializeGlobal_harmony_proxies() {
   proxy_fun->shared()->set_internal_formal_parameter_count(2);
   proxy_fun->shared()->set_length(2);
   native_context()->set_proxy_function(*proxy_fun);
+}
+
+
+Handle<JSFunction> Genesis::InstallArrayBuffer(Handle<JSObject> target,
+                                               const char* name) {
+  // Setup the {prototype} with the given {name} for @@toStringTag.
+  Handle<JSObject> prototype =
+      factory()->NewJSObject(isolate()->object_function(), TENURED);
+  JSObject::AddProperty(prototype, factory()->to_string_tag_symbol(),
+                        factory()->NewStringFromAsciiChecked(name),
+                        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+
+  // Allocate the constructor with the given {prototype}.
+  Handle<JSFunction> array_buffer_fun =
+      InstallFunction(target, name, JS_ARRAY_BUFFER_TYPE,
+                      JSArrayBuffer::kSizeWithInternalFields, prototype,
+                      Builtins::kArrayBufferConstructor);
+  array_buffer_fun->shared()->set_construct_stub(
+      *isolate()->builtins()->ArrayBufferConstructor_ConstructStub());
+  array_buffer_fun->shared()->set_internal_formal_parameter_count(1);
+  array_buffer_fun->shared()->set_length(1);
+
+  // Install the "constructor" property on the {prototype}.
+  JSObject::AddProperty(prototype, factory()->constructor_string(),
+                        array_buffer_fun, DONT_ENUM);
+
+  Handle<JSFunction> array_buffer_is_view_fun = InstallFunction(
+      array_buffer_fun, "isView", JS_OBJECT_TYPE, JSObject::kHeaderSize,
+      MaybeHandle<JSObject>(), Builtins::kArrayBufferIsView);
+  array_buffer_is_view_fun->shared()->set_internal_formal_parameter_count(1);
+  array_buffer_is_view_fun->shared()->set_length(1);
+
+  return array_buffer_fun;
 }
 
 

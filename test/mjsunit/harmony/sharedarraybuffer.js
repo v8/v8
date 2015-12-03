@@ -40,7 +40,7 @@ function TestArrayBufferCreation() {
   TestByteLength(256, 256);
   TestByteLength(2.567, 2);
 
-  TestByteLength("abc", 0);
+  TestByteLength("0", 0);
 
   TestByteLength(0, 0);
 
@@ -53,7 +53,7 @@ function TestArrayBufferCreation() {
   }, RangeError);
 */
 
-  var sab = new SharedArrayBuffer();
+  var sab = new SharedArrayBuffer(0);
   assertSame(0, sab.byteLength);
   assertEquals("[object SharedArrayBuffer]",
       Object.prototype.toString.call(sab));
@@ -548,7 +548,7 @@ function TestEnumerable(func, obj) {
   if (obj)
     assertArrayEquals([], props(obj));
 }
-TestEnumerable(ArrayBuffer, new SharedArrayBuffer());
+TestEnumerable(ArrayBuffer, new SharedArrayBuffer(0));
 for(i = 0; i < typedArrayConstructors.length; i++) {
   TestEnumerable(typedArrayConstructors[i]);
 }
