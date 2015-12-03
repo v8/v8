@@ -49,6 +49,8 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
     receiver_info = NONE;
   }
 
+  bool has_new_target = scope->new_target_var() != nullptr;
+
   // Determine use and location of the function variable if it is present.
   VariableAllocationInfo function_name_info;
   VariableMode function_variable_mode;
@@ -90,6 +92,7 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
               LanguageModeField::encode(scope->language_mode()) |
               DeclarationScopeField::encode(scope->is_declaration_scope()) |
               ReceiverVariableField::encode(receiver_info) |
+              HasNewTargetField::encode(has_new_target) |
               FunctionVariableField::encode(function_name_info) |
               FunctionVariableMode::encode(function_variable_mode) |
               AsmModuleField::encode(scope->asm_module()) |
@@ -372,6 +375,9 @@ bool ScopeInfo::HasAllocatedReceiver() {
     return false;
   }
 }
+
+
+bool ScopeInfo::HasNewTarget() { return HasNewTargetField::decode(Flags()); }
 
 
 bool ScopeInfo::HasFunctionName() {
