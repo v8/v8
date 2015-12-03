@@ -82,6 +82,7 @@ class JumpPatchSite BASE_EMBEDDED {
 //
 // The live registers are:
 //   o rdi: the JS function object being called (i.e. ourselves)
+//   o rdx: the new target value
 //   o rsi: our context
 //   o rbp: our caller's frame pointer
 //   o rsp: stack pointer (pointing to return address)
@@ -136,7 +137,7 @@ void FullCodeGenerator::Generate() {
         __ CallRuntime(Runtime::kThrowStackOverflow, 0);
         __ bind(&ok);
       }
-      __ LoadRoot(rdx, Heap::kUndefinedValueRootIndex);
+      __ LoadRoot(rax, Heap::kUndefinedValueRootIndex);
       const int kMaxPushes = 32;
       if (locals_count >= kMaxPushes) {
         int loop_iterations = locals_count / kMaxPushes;
@@ -145,7 +146,7 @@ void FullCodeGenerator::Generate() {
         __ bind(&loop_header);
         // Do pushes.
         for (int i = 0; i < kMaxPushes; i++) {
-          __ Push(rdx);
+          __ Push(rax);
         }
         // Continue loop if not done.
         __ decp(rcx);
@@ -154,7 +155,7 @@ void FullCodeGenerator::Generate() {
       int remaining = locals_count % kMaxPushes;
       // Emit the remaining pushes.
       for (int i  = 0; i < remaining; i++) {
-        __ Push(rdx);
+        __ Push(rax);
       }
     }
   }
@@ -172,14 +173,24 @@ void FullCodeGenerator::Generate() {
       __ Push(info->scope()->GetScopeInfo(info->isolate()));
       __ CallRuntime(Runtime::kNewScriptContext, 2);
       PrepareForBailoutForId(BailoutId::ScriptContext(), TOS_REG);
-    } else if (slots <= FastNewContextStub::kMaximumSlots) {
-      FastNewContextStub stub(isolate(), slots);
-      __ CallStub(&stub);
-      // Result of FastNewContextStub is always in new space.
-      need_write_barrier = false;
+      // The new target value is not used, clobbering is safe.
+      DCHECK_NULL(info->scope()->new_target_var());
     } else {
-      __ Push(rdi);
-      __ CallRuntime(Runtime::kNewFunctionContext, 1);
+      if (info->scope()->new_target_var() != nullptr) {
+        __ Push(rdx);  // Preserve new target.
+      }
+      if (slots <= FastNewContextStub::kMaximumSlots) {
+        FastNewContextStub stub(isolate(), slots);
+        __ CallStub(&stub);
+        // Result of FastNewContextStub is always in new space.
+        need_write_barrier = false;
+      } else {
+        __ Push(rdi);
+        __ CallRuntime(Runtime::kNewFunctionContext, 1);
+      }
+      if (info->scope()->new_target_var() != nullptr) {
+        __ Pop(rdx);  // Restore new target.
+      }
     }
     function_in_register = false;
     // Context is returned in rax.  It replaces the context passed to us.
@@ -213,11 +224,11 @@ void FullCodeGenerator::Generate() {
       }
     }
   }
-  PrepareForBailoutForId(BailoutId::FunctionContext(), NO_REGISTERS);
 
-  // Function register is trashed in case we bailout here. But since that
-  // could happen only when we allocate a context the value of
-  // |function_in_register| is correct.
+  // Register holding this function and new target are both trashed in case we
+  // bailout here. But since that can happen only when new target is not used
+  // and we allocate a context, the value of |function_in_register| is correct.
+  PrepareForBailoutForId(BailoutId::FunctionContext(), NO_REGISTERS);
 
   // Possibly set up a local binding to the this function which is used in
   // derived constructors with super calls.
@@ -228,37 +239,14 @@ void FullCodeGenerator::Generate() {
       __ movp(rdi, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
       // The write barrier clobbers register again, keep it marked as such.
     }
-    SetVar(this_function_var, rdi, rbx, rdx);
+    SetVar(this_function_var, rdi, rbx, rcx);
   }
 
+  // Possibly set up a local binding to the new target value.
   Variable* new_target_var = scope()->new_target_var();
   if (new_target_var != nullptr) {
     Comment cmnt(masm_, "[ new.target");
-
-    __ movp(rax, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
-    Label non_adaptor_frame;
-    __ Cmp(Operand(rax, StandardFrameConstants::kContextOffset),
-           Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
-    __ j(not_equal, &non_adaptor_frame);
-    __ movp(rax, Operand(rax, StandardFrameConstants::kCallerFPOffset));
-
-    __ bind(&non_adaptor_frame);
-    __ Cmp(Operand(rax, StandardFrameConstants::kMarkerOffset),
-           Smi::FromInt(StackFrame::CONSTRUCT));
-
-    Label non_construct_frame, done;
-    __ j(not_equal, &non_construct_frame);
-
-    // Construct frame
-    __ movp(rax, Operand(rax, ConstructFrameConstants::kNewTargetOffset));
-    __ jmp(&done);
-
-    // Non-construct frame
-    __ bind(&non_construct_frame);
-    __ LoadRoot(rax, Heap::kUndefinedValueRootIndex);
-
-    __ bind(&done);
-    SetVar(new_target_var, rax, rbx, rdx);
+    SetVar(new_target_var, rdx, rbx, rcx);
   }
 
   // Possibly allocate an arguments object.

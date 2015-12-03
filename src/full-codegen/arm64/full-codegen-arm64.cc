@@ -92,6 +92,7 @@ class JumpPatchSite BASE_EMBEDDED {
 //
 // The live registers are:
 //   - x1: the JS function object being called (i.e. ourselves).
+//   - x3: the new target value
 //   - cp: our context.
 //   - fp: our caller's frame pointer.
 //   - jssp: stack pointer.
@@ -158,12 +159,12 @@ void FullCodeGenerator::Generate() {
         const int kMaxPushes = 32;
         if (locals_count >= kMaxPushes) {
           int loop_iterations = locals_count / kMaxPushes;
-          __ Mov(x3, loop_iterations);
+          __ Mov(x2, loop_iterations);
           Label loop_header;
           __ Bind(&loop_header);
           // Do pushes.
           __ PushMultipleTimes(x10 , kMaxPushes);
-          __ Subs(x3, x3, 1);
+          __ Subs(x2, x2, 1);
           __ B(ne, &loop_header);
         }
         int remaining = locals_count % kMaxPushes;
@@ -185,14 +186,24 @@ void FullCodeGenerator::Generate() {
       __ Push(x1, x10);
       __ CallRuntime(Runtime::kNewScriptContext, 2);
       PrepareForBailoutForId(BailoutId::ScriptContext(), TOS_REG);
-    } else if (slots <= FastNewContextStub::kMaximumSlots) {
-      FastNewContextStub stub(isolate(), slots);
-      __ CallStub(&stub);
-      // Result of FastNewContextStub is always in new space.
-      need_write_barrier = false;
+      // The new target value is not used, clobbering is safe.
+      DCHECK_NULL(info->scope()->new_target_var());
     } else {
-      __ Push(x1);
-      __ CallRuntime(Runtime::kNewFunctionContext, 1);
+      if (info->scope()->new_target_var() != nullptr) {
+        __ Push(x3);  // Preserve new target.
+      }
+      if (slots <= FastNewContextStub::kMaximumSlots) {
+        FastNewContextStub stub(isolate(), slots);
+        __ CallStub(&stub);
+        // Result of FastNewContextStub is always in new space.
+        need_write_barrier = false;
+      } else {
+        __ Push(x1);
+        __ CallRuntime(Runtime::kNewFunctionContext, 1);
+      }
+      if (info->scope()->new_target_var() != nullptr) {
+        __ Pop(x3);  // Restore new target.
+      }
     }
     function_in_register_x1 = false;
     // Context is returned in x0.  It replaces the context passed to us.
@@ -226,11 +237,11 @@ void FullCodeGenerator::Generate() {
       }
     }
   }
-  PrepareForBailoutForId(BailoutId::FunctionContext(), NO_REGISTERS);
 
-  // Function register is trashed in case we bailout here. But since that
-  // could happen only when we allocate a context the value of
-  // |function_in_register_x1| is correct.
+  // Register holding this function and new target are both trashed in case we
+  // bailout here. But since that can happen only when new target is not used
+  // and we allocate a context, the value of |function_in_register| is correct.
+  PrepareForBailoutForId(BailoutId::FunctionContext(), NO_REGISTERS);
 
   // Possibly set up a local binding to the this function which is used in
   // derived constructors with super calls.
@@ -244,34 +255,11 @@ void FullCodeGenerator::Generate() {
     SetVar(this_function_var, x1, x0, x2);
   }
 
+  // Possibly set up a local binding to the new target value.
   Variable* new_target_var = scope()->new_target_var();
   if (new_target_var != nullptr) {
     Comment cmnt(masm_, "[ new.target");
-    // Get the frame pointer for the calling frame.
-    __ Ldr(x2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-
-    Label check_frame_marker;
-    __ Ldr(x1, MemOperand(x2, StandardFrameConstants::kContextOffset));
-    __ Cmp(x1, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
-    __ B(ne, &check_frame_marker);
-    __ Ldr(x2, MemOperand(x2, StandardFrameConstants::kCallerFPOffset));
-    __ Bind(&check_frame_marker);
-    __ Ldr(x1, MemOperand(x2, StandardFrameConstants::kMarkerOffset));
-    __ Cmp(x1, Smi::FromInt(StackFrame::CONSTRUCT));
-    function_in_register_x1 = false;
-
-    Label non_construct_frame, done;
-
-    __ B(ne, &non_construct_frame);
-    __ Ldr(x0, MemOperand(x2, ConstructFrameConstants::kNewTargetOffset));
-    __ B(&done);
-
-    __ Bind(&non_construct_frame);
-    __ LoadRoot(x0, Heap::kUndefinedValueRootIndex);
-
-    __ Bind(&done);
-
-    SetVar(new_target_var, x0, x2, x3);
+    SetVar(new_target_var, x3, x0, x2);
   }
 
   Variable* arguments = scope()->arguments();

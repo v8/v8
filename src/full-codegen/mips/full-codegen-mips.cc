@@ -101,6 +101,7 @@ class JumpPatchSite BASE_EMBEDDED {
 //
 // The live registers are:
 //   o a1: the JS function object being called (i.e. ourselves)
+//   o a3: the new target value
 //   o cp: our context
 //   o fp: our caller's frame pointer
 //   o sp: stack pointer
@@ -192,14 +193,24 @@ void FullCodeGenerator::Generate() {
       __ Push(info->scope()->GetScopeInfo(info->isolate()));
       __ CallRuntime(Runtime::kNewScriptContext, 2);
       PrepareForBailoutForId(BailoutId::ScriptContext(), TOS_REG);
-    } else if (slots <= FastNewContextStub::kMaximumSlots) {
-      FastNewContextStub stub(isolate(), slots);
-      __ CallStub(&stub);
-      // Result of FastNewContextStub is always in new space.
-      need_write_barrier = false;
+      // The new target value is not used, clobbering is safe.
+      DCHECK_NULL(info->scope()->new_target_var());
     } else {
-      __ push(a1);
-      __ CallRuntime(Runtime::kNewFunctionContext, 1);
+      if (info->scope()->new_target_var() != nullptr) {
+        __ push(a3);  // Preserve new target.
+      }
+      if (slots <= FastNewContextStub::kMaximumSlots) {
+        FastNewContextStub stub(isolate(), slots);
+        __ CallStub(&stub);
+        // Result of FastNewContextStub is always in new space.
+        need_write_barrier = false;
+      } else {
+        __ push(a1);
+        __ CallRuntime(Runtime::kNewFunctionContext, 1);
+      }
+      if (info->scope()->new_target_var() != nullptr) {
+        __ pop(a3);  // Restore new target.
+      }
     }
     function_in_register_a1 = false;
     // Context is returned in v0. It replaces the context passed to us.
@@ -222,8 +233,8 @@ void FullCodeGenerator::Generate() {
 
         // Update the write barrier.
         if (need_write_barrier) {
-          __ RecordWriteContextSlot(
-              cp, target.offset(), a0, a3, kRAHasBeenSaved, kDontSaveFPRegs);
+          __ RecordWriteContextSlot(cp, target.offset(), a0, a2,
+                                    kRAHasBeenSaved, kDontSaveFPRegs);
         } else if (FLAG_debug_code) {
           Label done;
           __ JumpIfInNewSpace(cp, a0, &done);
@@ -233,11 +244,11 @@ void FullCodeGenerator::Generate() {
       }
     }
   }
-  PrepareForBailoutForId(BailoutId::FunctionContext(), NO_REGISTERS);
 
-  // Function register is trashed in case we bailout here. But since that
-  // could happen only when we allocate a context the value of
-  // |function_in_register_a1| is correct.
+  // Register holding this function and new target are both trashed in case we
+  // bailout here. But since that can happen only when new target is not used
+  // and we allocate a context, the value of |function_in_register| is correct.
+  PrepareForBailoutForId(BailoutId::FunctionContext(), NO_REGISTERS);
 
   // Possibly set up a local binding to the this function which is used in
   // derived constructors with super calls.
@@ -248,40 +259,14 @@ void FullCodeGenerator::Generate() {
       __ lw(a1, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
       // The write barrier clobbers register again, keep it marked as such.
     }
-    SetVar(this_function_var, a1, a2, a3);
+    SetVar(this_function_var, a1, a0, a2);
   }
 
+  // Possibly set up a local binding to the new target value.
   Variable* new_target_var = scope()->new_target_var();
   if (new_target_var != nullptr) {
     Comment cmnt(masm_, "[ new.target");
-
-    // Get the frame pointer for the calling frame.
-    __ lw(a2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-
-    // Skip the arguments adaptor frame if it exists.
-    Label check_frame_marker;
-    __ lw(a1, MemOperand(a2, StandardFrameConstants::kContextOffset));
-    __ Branch(&check_frame_marker, ne, a1,
-              Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
-    __ lw(a2, MemOperand(a2, StandardFrameConstants::kCallerFPOffset));
-
-    // Check the marker in the calling frame.
-    __ bind(&check_frame_marker);
-    __ lw(a1, MemOperand(a2, StandardFrameConstants::kMarkerOffset));
-    function_in_register_a1 = false;
-
-    Label non_construct_frame, done;
-    __ Branch(&non_construct_frame, ne, a1,
-              Operand(Smi::FromInt(StackFrame::CONSTRUCT)));
-
-    __ lw(v0, MemOperand(a2, ConstructFrameConstants::kNewTargetOffset));
-    __ Branch(&done);
-
-    __ bind(&non_construct_frame);
-    __ LoadRoot(v0, Heap::kUndefinedValueRootIndex);
-    __ bind(&done);
-
-    SetVar(new_target_var, v0, a2, a3);
+    SetVar(new_target_var, a3, a0, a2);
   }
 
   Variable* arguments = scope()->arguments();
