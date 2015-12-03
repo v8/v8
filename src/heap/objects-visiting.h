@@ -379,10 +379,6 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   static void MarkMapContents(Heap* heap, Map* map);
   static void MarkTransitionArray(Heap* heap, TransitionArray* transitions);
 
-  // Mark pointers in the optimized code map that should act as strong
-  // references, possibly treating some entries weak.
-  static void MarkOptimizedCodeMap(Heap* heap, FixedArray* code_map);
-
   // Mark non-optimized code for functions inlined into the given optimized
   // code. This will prevent it from being flushed.
   static void MarkInlinedFunctionsCode(Heap* heap, Code* code);
