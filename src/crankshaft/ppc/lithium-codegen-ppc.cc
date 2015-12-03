@@ -2756,6 +2756,7 @@ void LCodeGen::DoHasInPrototypeChainAndBranch(
     LHasInPrototypeChainAndBranch* instr) {
   Register const object = ToRegister(instr->object());
   Register const object_map = scratch0();
+  Register const object_instance_type = ip;
   Register const object_prototype = object_map;
   Register const prototype = ToRegister(instr->prototype());
 
@@ -2771,6 +2772,8 @@ void LCodeGen::DoHasInPrototypeChainAndBranch(
   __ LoadP(object_map, FieldMemOperand(object, HeapObject::kMapOffset));
   Label loop;
   __ bind(&loop);
+  __ CompareInstanceType(object_map, object_instance_type, JS_PROXY_TYPE);
+  DeoptimizeIf(eq, instr, Deoptimizer::kProxy);
   __ LoadP(object_prototype,
            FieldMemOperand(object_map, Map::kPrototypeOffset));
   __ cmp(object_prototype, prototype);
