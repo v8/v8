@@ -44,8 +44,15 @@ void StaticNewSpaceVisitor<StaticVisitor>::Initialize() {
                                        FixedArray::BodyDescriptor, int>::Visit);
 
   table_.Register(kVisitFixedDoubleArray, &VisitFixedDoubleArray);
-  table_.Register(kVisitFixedTypedArray, &VisitFixedTypedArray);
-  table_.Register(kVisitFixedFloat64Array, &VisitFixedTypedArray);
+  table_.Register(
+      kVisitFixedTypedArray,
+      &FlexibleBodyVisitor<StaticVisitor, FixedTypedArrayBase::BodyDescriptor,
+                           int>::Visit);
+
+  table_.Register(
+      kVisitFixedFloat64Array,
+      &FlexibleBodyVisitor<StaticVisitor, FixedTypedArrayBase::BodyDescriptor,
+                           int>::Visit);
 
   table_.Register(
       kVisitNativeContext,
@@ -135,9 +142,15 @@ void StaticMarkingVisitor<StaticVisitor>::Initialize() {
 
   table_.Register(kVisitFixedDoubleArray, &DataObjectVisitor::Visit);
 
-  table_.Register(kVisitFixedTypedArray, &DataObjectVisitor::Visit);
+  table_.Register(
+      kVisitFixedTypedArray,
+      &FlexibleBodyVisitor<StaticVisitor, FixedTypedArrayBase::BodyDescriptor,
+                           void>::Visit);
 
-  table_.Register(kVisitFixedFloat64Array, &DataObjectVisitor::Visit);
+  table_.Register(
+      kVisitFixedFloat64Array,
+      &FlexibleBodyVisitor<StaticVisitor, FixedTypedArrayBase::BodyDescriptor,
+                           void>::Visit);
 
   table_.Register(kVisitNativeContext, &VisitNativeContext);
 

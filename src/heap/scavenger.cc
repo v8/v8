@@ -267,28 +267,16 @@ class ScavengingVisitor : public StaticVisitorBase {
   static inline void EvacuateFixedTypedArray(Map* map, HeapObject** slot,
                                              HeapObject* object) {
     int object_size = reinterpret_cast<FixedTypedArrayBase*>(object)->size();
-    EvacuateObject<DATA_OBJECT, kWordAligned>(map, slot, object, object_size);
-
-    MapWord map_word = object->map_word();
-    DCHECK(map_word.IsForwardingAddress());
-    FixedTypedArrayBase* target =
-        reinterpret_cast<FixedTypedArrayBase*>(map_word.ToForwardingAddress());
-    if (target->base_pointer() != Smi::FromInt(0))
-      target->set_base_pointer(target, SKIP_WRITE_BARRIER);
+    EvacuateObject<POINTER_OBJECT, kWordAligned>(map, slot, object,
+                                                 object_size);
   }
 
 
   static inline void EvacuateFixedFloat64Array(Map* map, HeapObject** slot,
                                                HeapObject* object) {
     int object_size = reinterpret_cast<FixedFloat64Array*>(object)->size();
-    EvacuateObject<DATA_OBJECT, kDoubleAligned>(map, slot, object, object_size);
-
-    MapWord map_word = object->map_word();
-    DCHECK(map_word.IsForwardingAddress());
-    FixedTypedArrayBase* target =
-        reinterpret_cast<FixedTypedArrayBase*>(map_word.ToForwardingAddress());
-    if (target->base_pointer() != Smi::FromInt(0))
-      target->set_base_pointer(target, SKIP_WRITE_BARRIER);
+    EvacuateObject<POINTER_OBJECT, kDoubleAligned>(map, slot, object,
+                                                   object_size);
   }
 
 

@@ -38,7 +38,8 @@ void Scavenger::ScavengeObject(HeapObject** p, HeapObject* object) {
 
 
 // static
-void StaticScavengeVisitor::VisitPointer(Heap* heap, Object** p) {
+void StaticScavengeVisitor::VisitPointer(Heap* heap, HeapObject* obj,
+                                         Object** p) {
   Object* object = *p;
   if (!heap->InNewSpace(object)) return;
   Scavenger::ScavengeObject(reinterpret_cast<HeapObject**>(p),
