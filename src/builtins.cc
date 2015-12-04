@@ -1781,7 +1781,7 @@ BUILTIN(ArrayBufferConstructor_ConstructStub) {
   isolate->set_context(args.target()->context());
   Handle<Object> number_length;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, number_length,
-                                     Object::ToNumber(length));
+                                     Object::ToInteger(isolate, length));
   size_t byte_length;
   if (!TryNumberToSize(isolate, *number_length, &byte_length)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
