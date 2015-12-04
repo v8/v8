@@ -113,6 +113,9 @@ GCTracer::GCTracer(Heap* heap)
       cumulative_incremental_marking_duration_(0.0),
       cumulative_pure_incremental_marking_duration_(0.0),
       longest_incremental_marking_step_(0.0),
+      cumulative_incremental_marking_finalization_steps_(0),
+      cumulative_incremental_marking_finalization_duration_(0.0),
+      longest_incremental_marking_finalization_step_(0.0),
       cumulative_marking_duration_(0.0),
       cumulative_sweeping_duration_(0.0),
       allocation_time_ms_(0.0),
@@ -274,6 +277,10 @@ void GCTracer::Stop(GarbageCollector collector) {
   if (FLAG_trace_gc) {
     heap_->PrintShortHeapStatistics();
   }
+
+  longest_incremental_marking_finalization_step_ = 0.0;
+  cumulative_incremental_marking_finalization_steps_ = 0;
+  cumulative_incremental_marking_finalization_duration_ = 0.0;
 }
 
 
@@ -344,6 +351,14 @@ void GCTracer::AddIncrementalMarkingStep(double duration, intptr_t bytes) {
   if (bytes > 0) {
     cumulative_pure_incremental_marking_duration_ += duration;
   }
+}
+
+
+void GCTracer::AddIncrementalMarkingFinalizationStep(double duration) {
+  cumulative_incremental_marking_finalization_steps_++;
+  cumulative_incremental_marking_finalization_duration_ += duration;
+  longest_incremental_marking_finalization_step_ =
+      Max(longest_incremental_marking_finalization_step_, duration);
 }
 
 
@@ -533,6 +548,9 @@ void GCTracer::PrintNVP() const {
                    "steps_count=%d "
                    "steps_took=%.1f "
                    "longest_step=%.1f "
+                   "finalization_steps_count=%d "
+                   "finalization_steps_took=%.1f "
+                   "finalization_longest_step=%.1f "
                    "incremental_marking_throughput=%" V8_PTR_PREFIX
                    "d "
                    "total_size_before=%" V8_PTR_PREFIX
@@ -602,6 +620,9 @@ void GCTracer::PrintNVP() const {
                    current_.incremental_marking_steps,
                    current_.incremental_marking_duration,
                    current_.longest_incremental_marking_step,
+                   cumulative_incremental_marking_finalization_steps_,
+                   cumulative_incremental_marking_finalization_duration_,
+                   longest_incremental_marking_finalization_step_,
                    IncrementalMarkingSpeedInBytesPerMillisecond(),
                    current_.start_object_size, current_.end_object_size,
                    current_.start_holes_size, current_.end_holes_size,

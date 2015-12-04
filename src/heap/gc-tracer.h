@@ -353,6 +353,8 @@ class GCTracer {
   // Log an incremental marking step.
   void AddIncrementalMarkingStep(double duration, intptr_t bytes);
 
+  void AddIncrementalMarkingFinalizationStep(double duration);
+
   // Log time spent in marking.
   void AddMarkingTime(double duration) {
     cumulative_marking_duration_ += duration;
@@ -503,6 +505,9 @@ class GCTracer {
     cumulative_incremental_marking_duration_ = 0;
     cumulative_pure_incremental_marking_duration_ = 0;
     longest_incremental_marking_step_ = 0;
+    cumulative_incremental_marking_finalization_steps_ = 0;
+    cumulative_incremental_marking_finalization_duration_ = 0;
+    longest_incremental_marking_finalization_step_ = 0;
     cumulative_marking_duration_ = 0;
     cumulative_sweeping_duration_ = 0;
   }
@@ -558,6 +563,17 @@ class GCTracer {
 
   // Longest incremental marking step since start of marking.
   double longest_incremental_marking_step_;
+
+  // Cumulative number of incremental marking finalization steps since creation
+  // of tracer.
+  int cumulative_incremental_marking_finalization_steps_;
+
+  // Cumulative duration of incremental marking finalization steps since
+  // creation of tracer.
+  double cumulative_incremental_marking_finalization_duration_;
+
+  // Longest incremental marking finalization step since start of marking.
+  double longest_incremental_marking_finalization_step_;
 
   // Total marking time.
   // This timer is precise when run with --print-cumulative-gc-stat

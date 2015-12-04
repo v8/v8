@@ -690,6 +690,8 @@ void IncrementalMarking::FinalizeIncrementally() {
   DCHECK(!finalize_marking_completed_);
   DCHECK(IsMarking());
 
+  double start = heap_->MonotonicallyIncreasingTimeInMs();
+
   int old_marking_deque_top =
       heap_->mark_compact_collector()->marking_deque()->top();
 
@@ -706,6 +708,18 @@ void IncrementalMarking::FinalizeIncrementally() {
   int marking_progress =
       abs(old_marking_deque_top -
           heap_->mark_compact_collector()->marking_deque()->top());
+
+  double end = heap_->MonotonicallyIncreasingTimeInMs();
+  double delta = end - start;
+  heap_->tracer()->AddMarkingTime(delta);
+  heap_->tracer()->AddIncrementalMarkingFinalizationStep(delta);
+  if (FLAG_trace_incremental_marking) {
+    PrintF(
+        "[IncrementalMarking] Finalize incrementally round %d, "
+        "spent %d ms, marking progress %d.\n",
+        static_cast<int>(delta), incremental_marking_finalization_rounds_,
+        marking_progress);
+  }
 
   ++incremental_marking_finalization_rounds_;
   if ((incremental_marking_finalization_rounds_ >=
