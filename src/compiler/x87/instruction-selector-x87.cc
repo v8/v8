@@ -890,7 +890,9 @@ void InstructionSelector::VisitFloat64RoundTiesAway(Node* node) {
 
 
 void InstructionSelector::VisitFloat32RoundTiesEven(Node* node) {
-  UNREACHABLE();
+  X87OperandGenerator g(this);
+  Emit(kX87Float32Round | MiscField::encode(kRoundToNearest),
+       g.UseFixed(node, stX_0), g.Use(node->InputAt(0)));
 }
 
 
@@ -1323,6 +1325,7 @@ InstructionSelector::SupportedMachineOperatorFlags() {
            MachineOperatorBuilder::kFloat64RoundUp |
            MachineOperatorBuilder::kFloat32RoundTruncate |
            MachineOperatorBuilder::kFloat64RoundTruncate |
+           MachineOperatorBuilder::kFloat32RoundTiesEven |
            MachineOperatorBuilder::kFloat64RoundTiesEven;
   return flags;
 }
