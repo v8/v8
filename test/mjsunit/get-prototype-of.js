@@ -77,6 +77,7 @@ for (var f of errorFunctions) {
 // Builtin constructors.
 var functions = [
   Array,
+  ArrayBuffer,
   Boolean,
   // DataView,
   Date,
@@ -111,8 +112,5 @@ for (var f of functions) {
 var p = new Promise(function() {});
 assertPrototypeOf(p, Promise.prototype);
 
-var ab = new ArrayBuffer(0);
-assertPrototypeOf(ab, ArrayBuffer.prototype);
-
-var dv = new DataView(ab);
+var dv = new DataView(new ArrayBuffer());
 assertPrototypeOf(dv, DataView.prototype);
