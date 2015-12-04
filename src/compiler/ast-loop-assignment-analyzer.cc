@@ -288,6 +288,12 @@ void ALAA::VisitCountOperation(CountOperation* e) {
 }
 
 
+void ALAA::VisitRewritableAssignmentExpression(
+    RewritableAssignmentExpression* expr) {
+  Visit(expr->expression());
+}
+
+
 void ALAA::AnalyzeAssignment(Variable* var) {
   if (!loop_stack_.empty() && var->IsStackAllocated()) {
     loop_stack_.back()->Add(GetVariableIndex(info()->scope(), var));

@@ -348,6 +348,7 @@ void AstNumberingVisitor::VisitProperty(Property* node) {
 void AstNumberingVisitor::VisitAssignment(Assignment* node) {
   IncrementNodeCount();
   node->set_base_id(ReserveIdRange(Assignment::num_ids()));
+
   if (node->is_compound()) VisitBinaryOperation(node->binary_operation());
   VisitReference(node->target());
   Visit(node->value());
@@ -553,6 +554,14 @@ void AstNumberingVisitor::VisitFunctionLiteral(FunctionLiteral* node) {
   node->set_base_id(ReserveIdRange(FunctionLiteral::num_ids()));
   // We don't recurse into the declarations or body of the function literal:
   // you have to separately Renumber() each FunctionLiteral that you compile.
+}
+
+
+void AstNumberingVisitor::VisitRewritableAssignmentExpression(
+    RewritableAssignmentExpression* node) {
+  IncrementNodeCount();
+  node->set_base_id(ReserveIdRange(RewritableAssignmentExpression::num_ids()));
+  Visit(node->expression());
 }
 
 

@@ -1376,5 +1376,13 @@ void AsmTyper::VisitWithExpectation(Expression* expr, Type* expected_type,
   }
   expected_type_ = save;
 }
+
+
+void AsmTyper::VisitRewritableAssignmentExpression(
+    RewritableAssignmentExpression* expr) {
+  RECURSE(Visit(expr->expression()));
+}
+
+
 }  // namespace internal
 }  // namespace v8

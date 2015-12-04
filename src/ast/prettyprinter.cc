@@ -420,6 +420,12 @@ void CallPrinter::VisitSuperCallReference(SuperCallReference* node) {
 }
 
 
+void CallPrinter::VisitRewritableAssignmentExpression(
+    RewritableAssignmentExpression* node) {
+  Find(node->expression());
+}
+
+
 void CallPrinter::FindStatements(ZoneList<Statement*>* statements) {
   if (statements == NULL) return;
   for (int i = 0; i < statements->length(); i++) {
@@ -928,6 +934,12 @@ void PrettyPrinter::VisitSuperPropertyReference(SuperPropertyReference* node) {
 
 void PrettyPrinter::VisitSuperCallReference(SuperCallReference* node) {
   Print("<super-call-reference>");
+}
+
+
+void PrettyPrinter::VisitRewritableAssignmentExpression(
+    RewritableAssignmentExpression* node) {
+  Visit(node->expression());
 }
 
 
@@ -1679,6 +1691,12 @@ void AstPrinter::VisitSuperPropertyReference(SuperPropertyReference* node) {
 
 void AstPrinter::VisitSuperCallReference(SuperCallReference* node) {
   IndentedScope indent(this, "SUPER-CALL-REFERENCE", node->position());
+}
+
+
+void AstPrinter::VisitRewritableAssignmentExpression(
+    RewritableAssignmentExpression* node) {
+  Visit(node->expression());
 }
 
 

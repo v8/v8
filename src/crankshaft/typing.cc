@@ -770,6 +770,12 @@ void AstTyper::VisitSuperPropertyReference(SuperPropertyReference* expr) {}
 void AstTyper::VisitSuperCallReference(SuperCallReference* expr) {}
 
 
+void AstTyper::VisitRewritableAssignmentExpression(
+    RewritableAssignmentExpression* expr) {
+  Visit(expr->expression());
+}
+
+
 void AstTyper::VisitDeclarations(ZoneList<Declaration*>* decls) {
   for (int i = 0; i < decls->length(); ++i) {
     Declaration* decl = decls->at(i);

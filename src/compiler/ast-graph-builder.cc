@@ -3068,6 +3068,12 @@ VectorSlotPair AstGraphBuilder::CreateVectorSlotPair(
 }
 
 
+void AstGraphBuilder::VisitRewritableAssignmentExpression(
+    RewritableAssignmentExpression* node) {
+  Visit(node->expression());
+}
+
+
 namespace {
 
 // Limit of context chain length to which inline check is possible.

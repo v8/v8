@@ -21,6 +21,7 @@ namespace internal {
     "Arguments object value in a test context")                                \
   V(kArrayBoilerplateCreationFailed, "Array boilerplate creation failed")      \
   V(kArrayIndexConstantValueTooBig, "Array index constant value too big")      \
+  V(kAssignmentPattern, "Destructuring assignment")                            \
   V(kAssignmentToArguments, "Assignment to arguments")                         \
   V(kAssignmentToLetVariableBeforeInitialization,                              \
     "Assignment to let variable before initialization")                        \

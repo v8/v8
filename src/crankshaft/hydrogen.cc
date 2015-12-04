@@ -7039,6 +7039,7 @@ void HOptimizedGraphBuilder::VisitAssignment(Assignment* expr) {
   DCHECK(!HasStackOverflow());
   DCHECK(current_block() != NULL);
   DCHECK(current_block()->HasPredecessor());
+
   VariableProxy* proxy = expr->target()->AsVariableProxy();
   Property* prop = expr->target()->AsProperty();
   DCHECK(proxy == NULL || prop == NULL);
@@ -12130,6 +12131,12 @@ void HOptimizedGraphBuilder::VisitImportDeclaration(
 void HOptimizedGraphBuilder::VisitExportDeclaration(
     ExportDeclaration* declaration) {
   UNREACHABLE();
+}
+
+
+void HOptimizedGraphBuilder::VisitRewritableAssignmentExpression(
+    RewritableAssignmentExpression* node) {
+  CHECK_ALIVE(Visit(node->expression()));
 }
 
 

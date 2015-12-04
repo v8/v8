@@ -328,6 +328,8 @@ class CallSite {
   T(IllegalReturn, "Illegal return statement")                                 \
   T(InvalidEscapedReservedWord, "Keyword must not contain escaped characters") \
   T(InvalidLhsInAssignment, "Invalid left-hand side in assignment")            \
+  T(InvalidCoverInitializedName, "Invalid shorthand property initializer")     \
+  T(InvalidDestructuringTarget, "Invalid destructuring assignment target")     \
   T(InvalidLhsInFor, "Invalid left-hand side in for-loop")                     \
   T(InvalidLhsInPostfixOp,                                                     \
     "Invalid left-hand side expression in postfix operation")                  \
@@ -348,6 +350,7 @@ class CallSite {
   T(PushPastSafeLength,                                                        \
     "Pushing % elements on an array-like of length % "                         \
     "is disallowed, as the total surpasses 2**53-1")                           \
+  T(ElementAfterRest, "Rest element must be last element in array")            \
   T(BadSetterRestParameter,                                                    \
     "Setter function argument must not be a rest parameter")                   \
   T(ParamDupe, "Duplicate parameter name not allowed in this context")         \

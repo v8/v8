@@ -11,13 +11,15 @@ namespace v8 {
 
 namespace internal {
 
-
 void Parser::PatternRewriter::DeclareAndInitializeVariables(
     Block* block, const DeclarationDescriptor* declaration_descriptor,
     const DeclarationParsingResult::Declaration* declaration,
     ZoneList<const AstRawString*>* names, bool* ok) {
   PatternRewriter rewriter;
 
+  rewriter.scope_ = declaration_descriptor->scope;
+  rewriter.parser_ = declaration_descriptor->parser;
+  rewriter.context_ = BINDING;
   rewriter.pattern_ = declaration->pattern;
   rewriter.initializer_position_ = declaration->initializer_position;
   rewriter.block_ = block;
@@ -29,8 +31,85 @@ void Parser::PatternRewriter::DeclareAndInitializeVariables(
 }
 
 
+void Parser::PatternRewriter::RewriteDestructuringAssignment(
+    Parser* parser, RewritableAssignmentExpression* to_rewrite, Scope* scope,
+    bool* ok) {
+  PatternRewriter rewriter;
+
+  DCHECK(!to_rewrite->is_rewritten());
+
+  rewriter.scope_ = scope;
+  rewriter.parser_ = parser;
+  rewriter.context_ = ASSIGNMENT;
+  rewriter.pattern_ = to_rewrite;
+  rewriter.block_ = nullptr;
+  rewriter.descriptor_ = nullptr;
+  rewriter.names_ = nullptr;
+  rewriter.ok_ = ok;
+
+  rewriter.RecurseIntoSubpattern(rewriter.pattern_, nullptr);
+}
+
+
+bool Parser::PatternRewriter::IsAssignmentContext(PatternContext c) const {
+  return c == ASSIGNMENT || c == ASSIGNMENT_INITIALIZER;
+}
+
+
+bool Parser::PatternRewriter::IsBindingContext(PatternContext c) const {
+  return c == BINDING || c == INITIALIZER;
+}
+
+
+Parser::PatternRewriter::PatternContext
+Parser::PatternRewriter::SetAssignmentContextIfNeeded(Expression* node) {
+  PatternContext old_context = context();
+  if (node->IsAssignment() && node->AsAssignment()->op() == Token::ASSIGN) {
+    set_context(ASSIGNMENT);
+  }
+  return old_context;
+}
+
+
+Parser::PatternRewriter::PatternContext
+Parser::PatternRewriter::SetInitializerContextIfNeeded(Expression* node) {
+  // Set appropriate initializer context for BindingElement and
+  // AssignmentElement nodes
+  PatternContext old_context = context();
+  bool is_destructuring_assignment =
+      node->IsRewritableAssignmentExpression() &&
+      !node->AsRewritableAssignmentExpression()->is_rewritten();
+  bool is_assignment =
+      node->IsAssignment() && node->AsAssignment()->op() == Token::ASSIGN;
+  if (is_destructuring_assignment || is_assignment) {
+    switch (old_context) {
+      case BINDING:
+        set_context(INITIALIZER);
+        break;
+      case ASSIGNMENT:
+        set_context(ASSIGNMENT_INITIALIZER);
+        break;
+      default:
+        break;
+    }
+  }
+  return old_context;
+}
+
+
 void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   Expression* value = current_value_;
+
+  if (IsAssignmentContext()) {
+    // In an assignment context, simply perform the assignment
+    Assignment* assignment = factory()->NewAssignment(
+        Token::ASSIGN, pattern, value, pattern->position());
+    block_->statements()->Add(
+        factory()->NewExpressionStatement(assignment, RelocInfo::kNoPosition),
+        zone());
+    return;
+  }
+
   descriptor_->scope->RemoveUnresolved(pattern);
 
   // Declare variable.
@@ -48,15 +127,14 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   // For let/const declarations in harmony mode, we can also immediately
   // pre-resolve the proxy because it resides in the same scope as the
   // declaration.
-  Parser* parser = descriptor_->parser;
   const AstRawString* name = pattern->raw_name();
-  VariableProxy* proxy = parser->NewUnresolved(name, descriptor_->mode);
+  VariableProxy* proxy = parser_->NewUnresolved(name, descriptor_->mode);
   Declaration* declaration = factory()->NewVariableDeclaration(
       proxy, descriptor_->mode, descriptor_->scope,
       descriptor_->declaration_pos);
-  Variable* var = parser->Declare(declaration, descriptor_->declaration_kind,
-                                  descriptor_->mode != VAR, ok_,
-                                  descriptor_->hoist_scope);
+  Variable* var =
+      parser_->Declare(declaration, descriptor_->declaration_kind,
+                       descriptor_->mode != VAR, ok_, descriptor_->hoist_scope);
   if (!*ok_) return;
   DCHECK_NOT_NULL(var);
   DCHECK(!proxy->is_resolved() || proxy->var() == var);
@@ -68,7 +146,7 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
                                  ? descriptor_->scope
                                  : descriptor_->scope->DeclarationScope();
   if (declaration_scope->num_var_or_const() > kMaxNumFunctionLocals) {
-    parser->ReportMessage(MessageTemplate::kTooManyVariables);
+    parser_->ReportMessage(MessageTemplate::kTooManyVariables);
     *ok_ = false;
     return;
   }
@@ -216,8 +294,7 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
 
 
 Variable* Parser::PatternRewriter::CreateTempVar(Expression* value) {
-  auto temp = descriptor_->parser->scope_->NewTemporary(
-      ast_value_factory()->empty_string());
+  auto temp = scope()->NewTemporary(ast_value_factory()->empty_string());
   if (value != nullptr) {
     auto assignment = factory()->NewAssignment(
         Token::ASSIGN, factory()->NewVariableProxy(temp), value,
@@ -231,28 +308,97 @@ Variable* Parser::PatternRewriter::CreateTempVar(Expression* value) {
 }
 
 
-void Parser::PatternRewriter::VisitObjectLiteral(ObjectLiteral* pattern) {
-  auto temp = CreateTempVar(current_value_);
+void Parser::PatternRewriter::VisitRewritableAssignmentExpression(
+    RewritableAssignmentExpression* node) {
+  if (!IsAssignmentContext()) {
+    // Mark the assignment as rewritten to prevent redundant rewriting, and
+    // perform BindingPattern rewriting
+    DCHECK(!node->is_rewritten());
+    node->Rewrite(node->expression());
+    return node->expression()->Accept(this);
+  }
 
-  block_->statements()->Add(descriptor_->parser->BuildAssertIsCoercible(temp),
-                            zone());
+  if (node->is_rewritten()) return;
+  DCHECK(IsAssignmentContext());
+  Assignment* assign = node->expression()->AsAssignment();
+  DCHECK_NOT_NULL(assign);
+  DCHECK_EQ(Token::ASSIGN, assign->op());
+
+  auto initializer = assign->value();
+  auto value = initializer;
+
+  if (IsInitializerContext()) {
+    // let {<pattern> = <init>} = <value>
+    //   becomes
+    // temp = <value>;
+    // <pattern> = temp === undefined ? <init> : temp;
+    auto temp_var = CreateTempVar(current_value_);
+    Expression* is_undefined = factory()->NewCompareOperation(
+        Token::EQ_STRICT, factory()->NewVariableProxy(temp_var),
+        factory()->NewUndefinedLiteral(RelocInfo::kNoPosition),
+        RelocInfo::kNoPosition);
+    value = factory()->NewConditional(is_undefined, initializer,
+                                      factory()->NewVariableProxy(temp_var),
+                                      RelocInfo::kNoPosition);
+  }
+
+  PatternContext old_context = SetAssignmentContextIfNeeded(initializer);
+  int pos = assign->position();
+  Block* old_block = block_;
+  block_ = factory()->NewBlock(nullptr, 8, false, pos);
+  Variable* temp = nullptr;
+  Expression* pattern = assign->target();
+  Expression* old_value = current_value_;
+  current_value_ = value;
+  if (pattern->IsObjectLiteral()) {
+    VisitObjectLiteral(pattern->AsObjectLiteral(), &temp);
+  } else {
+    DCHECK(pattern->IsArrayLiteral());
+    VisitArrayLiteral(pattern->AsArrayLiteral(), &temp);
+  }
+  DCHECK_NOT_NULL(temp);
+  current_value_ = old_value;
+  Expression* expr = factory()->NewDoExpression(block_, temp, pos);
+  node->Rewrite(expr);
+  block_ = old_block;
+  if (block_) {
+    block_->statements()->Add(factory()->NewExpressionStatement(expr, pos),
+                              zone());
+  }
+  return set_context(old_context);
+}
+
+
+void Parser::PatternRewriter::VisitObjectLiteral(ObjectLiteral* pattern,
+                                                 Variable** temp_var) {
+  auto temp = *temp_var = CreateTempVar(current_value_);
+
+  block_->statements()->Add(parser_->BuildAssertIsCoercible(temp), zone());
 
   for (ObjectLiteralProperty* property : *pattern->properties()) {
+    PatternContext context = SetInitializerContextIfNeeded(property->value());
     RecurseIntoSubpattern(
         property->value(),
         factory()->NewProperty(factory()->NewVariableProxy(temp),
                                property->key(), RelocInfo::kNoPosition));
+    set_context(context);
   }
 }
 
 
-void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node) {
-  auto temp = CreateTempVar(current_value_);
+void Parser::PatternRewriter::VisitObjectLiteral(ObjectLiteral* node) {
+  Variable* temp_var = nullptr;
+  VisitObjectLiteral(node, &temp_var);
+}
 
-  block_->statements()->Add(descriptor_->parser->BuildAssertIsCoercible(temp),
-                            zone());
 
-  auto iterator = CreateTempVar(descriptor_->parser->GetIterator(
+void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
+                                                Variable** temp_var) {
+  auto temp = *temp_var = CreateTempVar(current_value_);
+
+  block_->statements()->Add(parser_->BuildAssertIsCoercible(temp), zone());
+
+  auto iterator = CreateTempVar(parser_->GetIterator(
       factory()->NewVariableProxy(temp), factory(), RelocInfo::kNoPosition));
   auto done = CreateTempVar(
       factory()->NewBooleanLiteral(false, RelocInfo::kNoPosition));
@@ -266,19 +412,19 @@ void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node) {
       break;
     }
 
+    PatternContext context = SetInitializerContextIfNeeded(value);
     // if (!done) {
     //   result = IteratorNext(iterator);
     //   v = (done = result.done) ? undefined : result.value;
     // }
     auto next_block =
         factory()->NewBlock(nullptr, 2, true, RelocInfo::kNoPosition);
-    next_block->statements()->Add(
-        factory()->NewExpressionStatement(
-            descriptor_->parser->BuildIteratorNextResult(
-                factory()->NewVariableProxy(iterator), result,
-                RelocInfo::kNoPosition),
-            RelocInfo::kNoPosition),
-        zone());
+    next_block->statements()->Add(factory()->NewExpressionStatement(
+                                      parser_->BuildIteratorNextResult(
+                                          factory()->NewVariableProxy(iterator),
+                                          result, RelocInfo::kNoPosition),
+                                      RelocInfo::kNoPosition),
+                                  zone());
 
     auto assign_to_done = factory()->NewAssignment(
         Token::ASSIGN, factory()->NewVariableProxy(done),
@@ -315,6 +461,7 @@ void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node) {
     if (!(value->IsLiteral() && value->AsLiteral()->raw_value()->IsTheHole())) {
       RecurseIntoSubpattern(value, factory()->NewVariableProxy(v));
     }
+    set_context(context);
   }
 
   if (spread != nullptr) {
@@ -325,7 +472,7 @@ void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node) {
         empty_exprs,
         // Reuse pattern's literal index - it is unused since there is no
         // actual literal allocated.
-        node->literal_index(), is_strong(descriptor_->parser->language_mode()),
+        node->literal_index(), is_strong(scope()->language_mode()),
         RelocInfo::kNoPosition));
 
     auto arguments = new (zone()) ZoneList<Expression*>(2, zone());
@@ -351,29 +498,58 @@ void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node) {
 }
 
 
+void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node) {
+  Variable* temp_var = nullptr;
+  VisitArrayLiteral(node, &temp_var);
+}
+
+
 void Parser::PatternRewriter::VisitAssignment(Assignment* node) {
   // let {<pattern> = <init>} = <value>
   //   becomes
   // temp = <value>;
   // <pattern> = temp === undefined ? <init> : temp;
-  DCHECK(node->op() == Token::ASSIGN);
+  DCHECK_EQ(Token::ASSIGN, node->op());
+
+  auto initializer = node->value();
+  auto value = initializer;
   auto temp = CreateTempVar(current_value_);
-  Expression* is_undefined = factory()->NewCompareOperation(
-      Token::EQ_STRICT, factory()->NewVariableProxy(temp),
-      factory()->NewUndefinedLiteral(RelocInfo::kNoPosition),
-      RelocInfo::kNoPosition);
-  Expression* initializer = node->value();
-  if (descriptor_->declaration_kind == DeclarationDescriptor::PARAMETER &&
-      descriptor_->scope->is_arrow_scope()) {
-    // TODO(adamk): Only call this if necessary.
-    RewriteParameterInitializerScope(
-        descriptor_->parser->stack_limit(), initializer,
-        descriptor_->scope->outer_scope(), descriptor_->scope);
+
+  if (IsInitializerContext()) {
+    Expression* is_undefined = factory()->NewCompareOperation(
+        Token::EQ_STRICT, factory()->NewVariableProxy(temp),
+        factory()->NewUndefinedLiteral(RelocInfo::kNoPosition),
+        RelocInfo::kNoPosition);
+    value = factory()->NewConditional(is_undefined, initializer,
+                                      factory()->NewVariableProxy(temp),
+                                      RelocInfo::kNoPosition);
   }
-  Expression* value = factory()->NewConditional(
-      is_undefined, initializer, factory()->NewVariableProxy(temp),
-      RelocInfo::kNoPosition);
+
+  if (IsBindingContext() &&
+      descriptor_->declaration_kind == DeclarationDescriptor::PARAMETER &&
+      scope()->is_arrow_scope()) {
+    RewriteParameterInitializerScope(parser_->stack_limit(), initializer,
+                                     scope()->outer_scope(), scope());
+  }
+
+  PatternContext old_context = SetAssignmentContextIfNeeded(initializer);
   RecurseIntoSubpattern(node->target(), value);
+  set_context(old_context);
+}
+
+
+// =============== AssignmentPattern only ==================
+
+void Parser::PatternRewriter::VisitProperty(v8::internal::Property* node) {
+  DCHECK(IsAssignmentContext());
+  auto value = current_value_;
+
+  Assignment* assignment =
+      factory()->NewAssignment(Token::ASSIGN, node, value, node->position());
+
+  block_->statements()->Add(
+      factory()->NewExpressionStatement(assignment, RelocInfo::kNoPosition),
+      zone());
 }
 
 
@@ -414,7 +590,6 @@ NOT_A_PATTERN(IfStatement)
 NOT_A_PATTERN(ImportDeclaration)
 NOT_A_PATTERN(Literal)
 NOT_A_PATTERN(NativeFunctionLiteral)
-NOT_A_PATTERN(Property)
 NOT_A_PATTERN(RegExpLiteral)
 NOT_A_PATTERN(ReturnStatement)
 NOT_A_PATTERN(SloppyBlockFunctionStatement)

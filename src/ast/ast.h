@@ -91,7 +91,8 @@ namespace internal {
   V(SuperCallReference)         \
   V(CaseClause)                 \
   V(EmptyParentheses)           \
-  V(DoExpression)
+  V(DoExpression)               \
+  V(RewritableAssignmentExpression)
 
 #define AST_NODE_LIST(V)                        \
   DECLARATION_NODE_LIST(V)                      \
@@ -2334,6 +2335,7 @@ class Assignment final : public Expression {
   Token::Value op() const { return TokenField::decode(bit_field_); }
   Expression* target() const { return target_; }
   Expression* value() const { return value_; }
+
   BinaryOperation* binary_operation() const { return binary_operation_; }
 
   // This check relies on the definition order of token in token.h.
@@ -2381,9 +2383,12 @@ class Assignment final : public Expression {
   int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
   class IsUninitializedField : public BitField16<bool, 0, 1> {};
-  class KeyTypeField : public BitField16<IcCheckType, 1, 1> {};
-  class StoreModeField : public BitField16<KeyedAccessStoreMode, 2, 3> {};
-  class TokenField : public BitField16<Token::Value, 5, 8> {};
+  class KeyTypeField
+      : public BitField16<IcCheckType, IsUninitializedField::kNext, 1> {};
+  class StoreModeField
+      : public BitField16<KeyedAccessStoreMode, KeyTypeField::kNext, 3> {};
+  class TokenField : public BitField16<Token::Value, StoreModeField::kNext, 8> {
+  };
 
   // Starts with 16-bit field, which should get packed together with
   // Expression's trailing 16-bit field.
@@ -2393,6 +2398,36 @@ class Assignment final : public Expression {
   BinaryOperation* binary_operation_;
   SmallMapList receiver_types_;
   FeedbackVectorSlot slot_;
+};
+
+
+class RewritableAssignmentExpression : public Expression {
+ public:
+  DECLARE_NODE_TYPE(RewritableAssignmentExpression)
+
+  Expression* expression() { return expr_; }
+  bool is_rewritten() const { return is_rewritten_; }
+
+  void Rewrite(Expression* new_expression) {
+    DCHECK(!is_rewritten());
+    DCHECK_NOT_NULL(new_expression);
+    expr_ = new_expression;
+    is_rewritten_ = true;
+  }
+
+  static int num_ids() { return parent_num_ids(); }
+
+ protected:
+  RewritableAssignmentExpression(Zone* zone, Expression* expression)
+      : Expression(zone, expression->position()),
+        is_rewritten_(false),
+        expr_(expression) {}
+
+ private:
+  int local_id(int n) const { return base_id() + parent_num_ids() + n; }
+
+  bool is_rewritten_;
+  Expression* expr_;
 };
 
 
@@ -3196,7 +3231,6 @@ class AstVisitor BASE_EMBEDDED {
 #undef DEF_VISIT
 };
 
-
 #define DEFINE_AST_VISITOR_SUBCLASS_MEMBERS()               \
  public:                                                    \
   void Visit(AstNode* node) final {                         \
@@ -3547,6 +3581,14 @@ class AstNodeFactory final BASE_EMBEDDED {
                               int position) {
     return new (local_zone_) Conditional(
         local_zone_, condition, then_expression, else_expression, position);
+  }
+
+  RewritableAssignmentExpression* NewRewritableAssignmentExpression(
+      Expression* expression) {
+    DCHECK_NOT_NULL(expression);
+    DCHECK(expression->IsAssignment());
+    return new (local_zone_)
+        RewritableAssignmentExpression(local_zone_, expression);
   }
 
   Assignment* NewAssignment(Token::Value op,

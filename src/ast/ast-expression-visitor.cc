@@ -394,5 +394,12 @@ void AstExpressionVisitor::VisitSuperCallReference(SuperCallReference* expr) {
 }
 
 
+void AstExpressionVisitor::VisitRewritableAssignmentExpression(
+    RewritableAssignmentExpression* expr) {
+  VisitExpression(expr);
+  RECURSE(Visit(expr->expression()));
+}
+
+
 }  // namespace internal
 }  // namespace v8

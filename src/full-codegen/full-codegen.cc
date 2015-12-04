@@ -1487,6 +1487,12 @@ void FullCodeGenerator::VisitEmptyParentheses(EmptyParentheses* expr) {
 }
 
 
+void FullCodeGenerator::VisitRewritableAssignmentExpression(
+    RewritableAssignmentExpression* expr) {
+  Visit(expr->expression());
+}
+
+
 FullCodeGenerator::NestedStatement* FullCodeGenerator::TryFinally::Exit(
     int* stack_depth, int* context_length) {
   // The macros used here must preserve the result register.

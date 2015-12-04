@@ -19,10 +19,12 @@ class ExpressionClassifier {
     Error()
         : location(Scanner::Location::invalid()),
           message(MessageTemplate::kNone),
+          type(kSyntaxError),
           arg(nullptr) {}
 
     Scanner::Location location;
-    MessageTemplate::Template message;
+    MessageTemplate::Template message : 30;
+    ParseErrorType type : 2;
     const char* arg;
   };
 
@@ -36,6 +38,7 @@ class ExpressionClassifier {
     StrongModeFormalParametersProduction = 1 << 6,
     ArrowFormalParametersProduction = 1 << 7,
     LetPatternProduction = 1 << 8,
+    CoverInitializedNameProduction = 1 << 9,
 
     ExpressionProductions =
         (ExpressionProduction | FormalParameterInitializerProduction),
@@ -45,8 +48,9 @@ class ExpressionClassifier {
                                    StrictModeFormalParametersProduction |
                                    StrongModeFormalParametersProduction),
     StandardProductions = ExpressionProductions | PatternProductions,
-    AllProductions = (StandardProductions | FormalParametersProductions |
-                      ArrowFormalParametersProduction)
+    AllProductions =
+        (StandardProductions | FormalParametersProductions |
+         ArrowFormalParametersProduction | CoverInitializedNameProduction)
   };
 
   enum FunctionProperties { NonSimpleParameter = 1 << 0 };
@@ -133,6 +137,13 @@ class ExpressionClassifier {
 
   const Error& let_pattern_error() const { return let_pattern_error_; }
 
+  bool has_cover_initialized_name() const {
+    return !is_valid(CoverInitializedNameProduction);
+  }
+  const Error& cover_initialized_name_error() const {
+    return cover_initialized_name_error_;
+  }
+
   bool is_simple_parameter_list() const {
     return !(function_properties_ & NonSimpleParameter);
   }
@@ -149,6 +160,17 @@ class ExpressionClassifier {
     expression_error_.location = loc;
     expression_error_.message = message;
     expression_error_.arg = arg;
+  }
+
+  void RecordExpressionError(const Scanner::Location& loc,
+                             MessageTemplate::Template message,
+                             ParseErrorType type, const char* arg = nullptr) {
+    if (!is_valid_expression()) return;
+    invalid_productions_ |= ExpressionProduction;
+    expression_error_.location = loc;
+    expression_error_.message = message;
+    expression_error_.arg = arg;
+    expression_error_.type = type;
   }
 
   void RecordFormalParameterInitializerError(const Scanner::Location& loc,
@@ -179,6 +201,13 @@ class ExpressionClassifier {
     assignment_pattern_error_.location = loc;
     assignment_pattern_error_.message = message;
     assignment_pattern_error_.arg = arg;
+  }
+
+  void RecordPatternError(const Scanner::Location& loc,
+                          MessageTemplate::Template message,
+                          const char* arg = nullptr) {
+    RecordBindingPatternError(loc, message, arg);
+    RecordAssignmentPatternError(loc, message, arg);
   }
 
   void RecordArrowFormalParametersError(const Scanner::Location& loc,
@@ -232,6 +261,26 @@ class ExpressionClassifier {
     let_pattern_error_.arg = arg;
   }
 
+  void RecordCoverInitializedNameError(const Scanner::Location& loc,
+                                       MessageTemplate::Template message,
+                                       const char* arg = nullptr) {
+    if (has_cover_initialized_name()) return;
+    invalid_productions_ |= CoverInitializedNameProduction;
+    cover_initialized_name_error_.location = loc;
+    cover_initialized_name_error_.message = message;
+    cover_initialized_name_error_.arg = arg;
+  }
+
+  void ForgiveCoverInitializedNameError() {
+    invalid_productions_ &= ~CoverInitializedNameProduction;
+    cover_initialized_name_error_ = Error();
+  }
+
+  void ForgiveAssignmentPatternError() {
+    invalid_productions_ &= ~AssignmentPatternProduction;
+    assignment_pattern_error_ = Error();
+  }
+
   void Accumulate(const ExpressionClassifier& inner,
                   unsigned productions = StandardProductions) {
     // Propagate errors from inner, but don't overwrite already recorded
@@ -266,6 +315,8 @@ class ExpressionClassifier {
             inner.strong_mode_formal_parameter_error_;
       if (errors & LetPatternProduction)
         let_pattern_error_ = inner.let_pattern_error_;
+      if (errors & CoverInitializedNameProduction)
+        cover_initialized_name_error_ = inner.cover_initialized_name_error_;
     }
 
     // As an exception to the above, the result continues to be a valid arrow
@@ -295,6 +346,7 @@ class ExpressionClassifier {
   Error strict_mode_formal_parameter_error_;
   Error strong_mode_formal_parameter_error_;
   Error let_pattern_error_;
+  Error cover_initialized_name_error_;
   DuplicateFinder* duplicate_finder_;
 };
 

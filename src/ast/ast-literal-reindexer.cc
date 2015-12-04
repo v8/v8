@@ -76,6 +76,12 @@ void AstLiteralReindexer::VisitSuperCallReference(SuperCallReference* node) {
 }
 
 
+void AstLiteralReindexer::VisitRewritableAssignmentExpression(
+    RewritableAssignmentExpression* node) {
+  Visit(node->expression());
+}
+
+
 void AstLiteralReindexer::VisitImportDeclaration(ImportDeclaration* node) {
   VisitVariableProxy(node->proxy());
 }
