@@ -1350,6 +1350,17 @@ RUNTIME_FUNCTION(Runtime_DebugGetLoadedScripts) {
 }
 
 
+static bool HasInPrototypeChainIgnoringProxies(Isolate* isolate, Object* object,
+                                               Object* proto) {
+  PrototypeIterator iter(isolate, object, PrototypeIterator::START_AT_RECEIVER);
+  while (true) {
+    iter.AdvanceIgnoringProxies();
+    if (iter.IsAtEnd()) return false;
+    if (iter.IsAtEnd(proto)) return true;
+  }
+}
+
+
 // Scan the heap for objects with direct references to an object
 // args[0]: the object to find references to
 // args[1]: constructor function for instances to exclude (Mirror)
@@ -1379,7 +1390,7 @@ RUNTIME_FUNCTION(Runtime_DebugReferencedBy) {
       // Check filter if supplied. This is normally used to avoid
       // references from mirror objects.
       if (!filter->IsUndefined() &&
-          obj->HasInPrototypeChain(isolate, *filter)) {
+          HasInPrototypeChainIgnoringProxies(isolate, obj, *filter)) {
         continue;
       }
       if (obj->IsJSGlobalObject()) {

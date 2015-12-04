@@ -1313,7 +1313,9 @@ class Object {
   static inline MaybeHandle<Object> GetPrototype(Isolate* isolate,
                                                  Handle<Object> receiver);
 
-  bool HasInPrototypeChain(Isolate* isolate, Object* object);
+  MUST_USE_RESULT static Maybe<bool> HasInPrototypeChain(Isolate* isolate,
+                                                         Handle<Object> object,
+                                                         Handle<Object> proto);
 
   // Returns the permanent hash code associated with this object. May return
   // undefined if not yet created.

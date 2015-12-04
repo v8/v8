@@ -106,6 +106,20 @@ class PrototypeIterator {
     }
   }
 
+  // Returns false iff a call to JSProxy::GetPrototype throws.
+  // TODO(neis): This should probably replace Advance().
+  bool AdvanceFollowingProxies() {
+    DCHECK(!(handle_.is_null() && object_->IsJSProxy()));
+    if (!handle_.is_null() && handle_->IsJSProxy()) {
+      did_jump_to_prototype_chain_ = true;
+      MaybeHandle<Object> proto =
+          JSProxy::GetPrototype(Handle<JSProxy>::cast(handle_));
+      return proto.ToHandle(&handle_);
+    }
+    AdvanceIgnoringProxies();
+    return true;
+  }
+
   bool IsAtEnd(WhereToEnd where_to_end = END_AT_NULL) const {
     if (handle_.is_null()) {
       return object_->IsNull() ||

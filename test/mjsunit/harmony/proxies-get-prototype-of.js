@@ -36,3 +36,58 @@ var handler_proxy = new Proxy({
 }, {});
 var proxy3 = new Proxy(target, handler_proxy);
 assertSame(Object.getPrototypeOf(proxy3), proxy3_prototype);
+
+
+// Some tests with Object.prototype.isPrototypeOf
+
+(function () {
+  var object = {};
+  var handler = {};
+  var proto = new Proxy({}, handler);
+  object.__proto__ = proto;
+
+  assertTrue(proto.isPrototypeOf(object));
+  assertTrue(Object.prototype.isPrototypeOf.call(proto, object));
+
+  handler.getPrototypeOf = function () { return Object.prototype };
+  assertTrue(proto.isPrototypeOf(object));
+  assertTrue(Object.prototype.isPrototypeOf.call(proto, object));
+  assertTrue(Object.prototype.isPrototypeOf(object));
+  assertFalse(Object.prototype.isPrototypeOf.call(Array.prototype, object));
+  assertFalse(Array.prototype.isPrototypeOf(object));
+
+  handler.getPrototypeOf = function () { return object };
+  assertTrue(Object.prototype.isPrototypeOf.call(proto, object));
+  assertTrue(proto.isPrototypeOf(object));
+  assertTrue(Object.prototype.isPrototypeOf.call(object, object));
+  assertTrue(object.isPrototypeOf(object));
+
+  handler.getPrototypeOf = function () { throw "foo" };
+  assertTrue(proto.isPrototypeOf(object));
+  assertTrue(Object.prototype.isPrototypeOf.call(proto, object));
+  assertThrows(()=> Object.prototype.isPrototypeOf(object));
+  assertThrows(()=> Object.prototype.isPrototypeOf.call(Array.prototype, object));
+  assertThrows(()=> Array.prototype.isPrototypeOf(object));
+})();
+
+(function () {
+  var handler = {};
+  var object = new Proxy({}, handler);
+  var proto = {};
+
+  assertFalse(Object.prototype.isPrototypeOf.call(object, object));
+  assertFalse(Object.prototype.isPrototypeOf.call(proto, object));
+  assertTrue(Object.prototype.isPrototypeOf.call(Object.prototype, object));
+
+  handler.getPrototypeOf = function () { return proto };
+  assertTrue(Object.prototype.isPrototypeOf.call(proto, object));
+  assertFalse(Object.prototype.isPrototypeOf.call({}, object));
+  assertTrue(Object.prototype.isPrototypeOf.call(Object.prototype, object));
+
+  handler.getPrototypeOf = function () { return object };
+  assertTrue(Object.prototype.isPrototypeOf.call(object, object));
+
+  handler.getPrototypeOf = function () { throw "foo" };
+  assertThrows(()=> Object.prototype.isPrototypeOf.call(object, object));
+  assertThrows(()=> Object.prototype.isPrototypeOf(object));
+})();
