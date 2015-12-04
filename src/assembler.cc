@@ -1417,14 +1417,6 @@ ExternalReference ExternalReference::debug_after_break_target_address(
 }
 
 
-ExternalReference
-    ExternalReference::debug_restarter_frame_function_pointer_address(
-        Isolate* isolate) {
-  return ExternalReference(
-      isolate->debug()->restarter_frame_function_pointer_address());
-}
-
-
 ExternalReference ExternalReference::virtual_handler_register(
     Isolate* isolate) {
   return ExternalReference(isolate->virtual_handler_register_address());
