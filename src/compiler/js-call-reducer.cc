@@ -52,8 +52,8 @@ Reduction JSCallReducer::Reduce(Node* node) {
 
 // ES6 section 22.1.1 The Array Constructor
 Reduction JSCallReducer::ReduceArrayConstructor(Node* node) {
-  Node* target = NodeProperties::GetValueInput(node, 0);
   DCHECK_EQ(IrOpcode::kJSCallFunction, node->opcode());
+  Node* target = NodeProperties::GetValueInput(node, 0);
   CallFunctionParameters const& p = CallFunctionParametersOf(node->op());
 
   // Check if we have an allocation site from the CallIC.
@@ -76,6 +76,22 @@ Reduction JSCallReducer::ReduceArrayConstructor(Node* node) {
   // the JSCreateArray operator, because an Array call in tail call
   // position must always properly consume the parent stack frame.
   NodeProperties::ChangeOp(node, javascript()->CreateArray(arity, site));
+  return Changed(node);
+}
+
+
+// ES6 section 20.1.1 The Number Constructor
+Reduction JSCallReducer::ReduceNumberConstructor(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCallFunction, node->opcode());
+  CallFunctionParameters const& p = CallFunctionParametersOf(node->op());
+
+  // Turn the {node} into a {JSToNumber} call.
+  DCHECK_LE(2u, p.arity());
+  Node* value = (p.arity() == 2) ? jsgraph()->ZeroConstant()
+                                 : NodeProperties::GetValueInput(node, 2);
+  NodeProperties::RemoveFrameStateInput(node, 1);
+  NodeProperties::ReplaceValueInputs(node, value);
+  NodeProperties::ChangeOp(node, javascript()->ToNumber());
   return Changed(node);
 }
 
@@ -235,9 +251,14 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
         }
       }
 
-      // Check for the ArrayConstructor.
+      // Check for the Array constructor.
       if (*function == function->native_context()->array_function()) {
         return ReduceArrayConstructor(node);
+      }
+
+      // Check for the Number constructor.
+      if (*function == function->native_context()->number_function()) {
+        return ReduceNumberConstructor(node);
       }
     }
 

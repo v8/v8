@@ -37,6 +37,7 @@ class JSCallReducer final : public Reducer {
 
  private:
   Reduction ReduceArrayConstructor(Node* node);
+  Reduction ReduceNumberConstructor(Node* node);
   Reduction ReduceFunctionPrototypeApply(Node* node);
   Reduction ReduceFunctionPrototypeCall(Node* node);
   Reduction ReduceJSCallConstruct(Node* node);
