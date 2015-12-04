@@ -5498,8 +5498,8 @@ void LCodeGen::DoForInPrepareMap(LForInPrepareMap* instr) {
   __ SmiTst(r0);
   DeoptimizeIf(eq, instr, Deoptimizer::kSmi);
 
-  STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_JS_RECEIVER_TYPE);
-  __ CompareObjectType(r0, r1, r1, LAST_JS_PROXY_TYPE);
+  STATIC_ASSERT(JS_PROXY_TYPE == FIRST_JS_RECEIVER_TYPE);
+  __ CompareObjectType(r0, r1, r1, JS_PROXY_TYPE);
   DeoptimizeIf(le, instr, Deoptimizer::kWrongInstanceType);
 
   Label use_cache, call_runtime;

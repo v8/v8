@@ -481,13 +481,6 @@ class Factory final {
   Handle<JSProxy> NewJSProxy(Handle<JSReceiver> target,
                              Handle<JSReceiver> handler);
 
-  // Allocates a Harmony function proxy.
-  Handle<JSProxy> NewJSFunctionProxy(Handle<JSReceiver> target,
-                                     Handle<JSReceiver> handler,
-                                     Handle<JSReceiver> call_trap,
-                                     Handle<Object> construct_trap,
-                                     Handle<Object> prototype);
-
   // Reinitialize an JSGlobalProxy based on a constructor.  The object
   // must have the same size as objects allocated using the
   // constructor.  The object is reinitialized and behaves as an

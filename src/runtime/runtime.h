@@ -542,14 +542,9 @@ namespace internal {
   F(BitwiseXor_Strong, 2, 1)
 
 #define FOR_EACH_INTRINSIC_PROXY(F) \
-  F(CreateJSFunctionProxy, 5, 1)    \
   F(IsJSProxy, 1, 1)                \
-  F(IsJSFunctionProxy, 1, 1)        \
   F(GetHandler, 1, 1)               \
-  F(GetCallTrap, 1, 1)              \
-  F(GetConstructTrap, 1, 1)         \
   F(RevokeProxy, 1, 1)
-
 
 #define FOR_EACH_INTRINSIC_REGEXP(F)           \
   F(StringReplaceGlobalRegExpWithString, 4, 1) \

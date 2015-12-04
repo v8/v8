@@ -1951,30 +1951,6 @@ Handle<JSProxy> Factory::NewJSProxy(Handle<JSReceiver> target,
 }
 
 
-Handle<JSProxy> Factory::NewJSFunctionProxy(Handle<JSReceiver> target,
-                                            Handle<JSReceiver> handler,
-                                            Handle<JSReceiver> call_trap,
-                                            Handle<Object> construct_trap,
-                                            Handle<Object> prototype) {
-  // Allocate map.
-  // TODO(rossberg): Once we optimize proxies, think about a scheme to share
-  // maps. Will probably depend on the identity of the handler object, too.
-  Handle<Map> map = NewMap(JS_FUNCTION_PROXY_TYPE, JSFunctionProxy::kSize);
-  Map::SetPrototype(map, prototype);
-  map->set_is_callable();
-  map->set_is_constructor(construct_trap->IsCallable());
-
-  // Allocate the proxy object.
-  Handle<JSFunctionProxy> result = New<JSFunctionProxy>(map, NEW_SPACE);
-  result->set_target(*target);
-  result->set_handler(*handler);
-  result->set_hash(*undefined_value(), SKIP_WRITE_BARRIER);
-  result->set_call_trap(*call_trap);
-  result->set_construct_trap(*construct_trap);
-  return result;
-}
-
-
 Handle<JSGlobalProxy> Factory::NewUninitializedJSGlobalProxy() {
   // Create an empty shell of a JSGlobalProxy that needs to be reinitialized
   // via ReinitializeJSGlobalProxy later.

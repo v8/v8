@@ -22,26 +22,6 @@ utils.Import(function(from) {
 
 //----------------------------------------------------------------------------
 
-function ProxyCreateFunction(handler, callTrap, constructTrap) {
-  if (!IS_SPEC_OBJECT(handler))
-    throw MakeTypeError(kProxyHandlerNonObject, "createFunction")
-  if (!IS_CALLABLE(callTrap))
-    throw MakeTypeError(kProxyTrapFunctionExpected, "call")
-  if (IS_UNDEFINED(constructTrap)) {
-    constructTrap = DerivedConstructTrap(callTrap)
-  } else if (IS_CALLABLE(constructTrap)) {
-    // Make sure the trap receives 'undefined' as this.
-    var construct = constructTrap
-    constructTrap = function() {
-      return %Apply(construct, UNDEFINED, arguments, 0, %_ArgumentsLength());
-    }
-  } else {
-    throw MakeTypeError(kProxyTrapFunctionExpected, "construct")
-  }
-  return %CreateJSFunctionProxy(
-    {}, handler, callTrap, constructTrap, GlobalFunction.prototype)
-}
-
 function ProxyCreateRevocable(target, handler) {
   var p = new GlobalProxy(target, handler);
   return {proxy: p, revoke: () => %RevokeProxy(p)};
@@ -149,8 +129,7 @@ function ProxyEnumerate(trap, handler, target) {
 
 //Set up non-enumerable properties of the Proxy object.
 utils.InstallFunctions(GlobalProxy, DONT_ENUM, [
-  "revocable", ProxyCreateRevocable,
-  "createFunction", ProxyCreateFunction
+  "revocable", ProxyCreateRevocable
 ]);
 
 // -------------------------------------------------------------------

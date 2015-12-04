@@ -481,8 +481,6 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3) {
       return Op::template apply<Oddball::BodyDescriptor>(p1, p2, p3);
     case JS_PROXY_TYPE:
       return Op::template apply<JSProxy::BodyDescriptor>(p1, p2, p3);
-    case JS_FUNCTION_PROXY_TYPE:
-      return Op::template apply<JSFunctionProxy::BodyDescriptor>(p1, p2, p3);
     case FOREIGN_TYPE:
       return Op::template apply<Foreign::BodyDescriptor>(p1, p2, p3);
     case MAP_TYPE:

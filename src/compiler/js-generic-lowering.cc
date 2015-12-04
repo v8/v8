@@ -724,10 +724,9 @@ void JSGenericLowering::LowerJSForInPrepare(Node* node) {
         jsgraph()->IntPtrConstant(Map::kInstanceTypeOffset - kHeapObjectTag),
         effect, if_false0);
 
-    STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_JS_RECEIVER_TYPE);
-    Node* check1 = graph()->NewNode(
-        machine()->Uint32LessThanOrEqual(), object_instance_type,
-        jsgraph()->Uint32Constant(LAST_JS_PROXY_TYPE));
+    Node* check1 =
+        graph()->NewNode(machine()->Word32Equal(), object_instance_type,
+                         jsgraph()->Uint32Constant(JS_PROXY_TYPE));
     Node* branch1 = graph()->NewNode(common()->Branch(BranchHint::kFalse),
                                      check1, if_false0);
 

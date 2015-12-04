@@ -1542,10 +1542,6 @@ function NativeCodeFunctionSourceString(func) {
 }
 
 function FunctionSourceString(func) {
-  while (%IsJSFunctionProxy(func)) {
-    func = %GetCallTrap(func);
-  }
-
   if (!IS_FUNCTION(func)) {
     throw MakeTypeError(kNotGeneric, 'Function.prototype.toString');
   }

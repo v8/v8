@@ -702,7 +702,6 @@ bool Object::IsJSProxy() const {
 }
 
 
-TYPE_CHECKER(JSFunctionProxy, JS_FUNCTION_PROXY_TYPE)
 TYPE_CHECKER(JSSet, JS_SET_TYPE)
 TYPE_CHECKER(JSMap, JS_MAP_TYPE)
 TYPE_CHECKER(JSSetIterator, JS_SET_ITERATOR_TYPE)
@@ -3222,7 +3221,6 @@ CAST_ACCESSOR(JSArrayBufferView)
 CAST_ACCESSOR(JSDataView)
 CAST_ACCESSOR(JSDate)
 CAST_ACCESSOR(JSFunction)
-CAST_ACCESSOR(JSFunctionProxy)
 CAST_ACCESSOR(JSGeneratorObject)
 CAST_ACCESSOR(JSGlobalObject)
 CAST_ACCESSOR(JSGlobalProxy)
@@ -4822,10 +4820,7 @@ bool Map::IsJSObjectMap() {
 bool Map::IsJSArrayMap() { return instance_type() == JS_ARRAY_TYPE; }
 bool Map::IsJSFunctionMap() { return instance_type() == JS_FUNCTION_TYPE; }
 bool Map::IsStringMap() { return instance_type() < FIRST_NONSTRING_TYPE; }
-bool Map::IsJSProxyMap() {
-  InstanceType type = instance_type();
-  return FIRST_JS_PROXY_TYPE <= type && type <= LAST_JS_PROXY_TYPE;
-}
+bool Map::IsJSProxyMap() { return instance_type() == JS_PROXY_TYPE; }
 bool Map::IsJSGlobalProxyMap() {
   return instance_type() == JS_GLOBAL_PROXY_TYPE;
 }
@@ -6341,10 +6336,6 @@ ACCESSORS(JSProxy, target, JSReceiver, kTargetOffset)
 ACCESSORS(JSProxy, hash, Object, kHashOffset)
 
 bool JSProxy::IsRevoked() const { return !handler()->IsJSReceiver(); }
-
-ACCESSORS(JSFunctionProxy, call_trap, JSReceiver, kCallTrapOffset)
-ACCESSORS(JSFunctionProxy, construct_trap, Object, kConstructTrapOffset)
-
 
 ACCESSORS(JSCollection, table, Object, kTableOffset)
 

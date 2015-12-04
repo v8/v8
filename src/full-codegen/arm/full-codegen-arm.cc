@@ -1046,9 +1046,8 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // Check for proxies.
   Label call_runtime;
-  STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_JS_RECEIVER_TYPE);
-  __ CompareObjectType(r0, r1, r1, LAST_JS_PROXY_TYPE);
-  __ b(le, &call_runtime);
+  __ CompareObjectType(r0, r1, r1, JS_PROXY_TYPE);
+  __ b(eq, &call_runtime);
 
   // Check cache validity in generated code. This is a fast case for
   // the JSObject::IsSimpleEnum cache validity checks. If we cannot
@@ -1111,8 +1110,8 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   __ mov(r1, Operand(Smi::FromInt(1)));  // Smi indicates slow check
   __ ldr(r2, MemOperand(sp, 0 * kPointerSize));  // Get enumerated object
-  STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_JS_RECEIVER_TYPE);
-  __ CompareObjectType(r2, r3, r3, LAST_JS_PROXY_TYPE);
+  STATIC_ASSERT(JS_PROXY_TYPE == FIRST_JS_RECEIVER_TYPE);
+  __ CompareObjectType(r2, r3, r3, JS_PROXY_TYPE);
   __ b(gt, &non_proxy);
   __ mov(r1, Operand(Smi::FromInt(0)));  // Zero indicates proxy
   __ bind(&non_proxy);
@@ -3256,14 +3255,9 @@ void FullCodeGenerator::EmitIsJSProxy(CallRuntime* expr) {
                          &if_false, &fall_through);
 
   __ JumpIfSmi(r0, if_false);
-  Register map = r1;
-  Register type_reg = r2;
-  __ ldr(map, FieldMemOperand(r0, HeapObject::kMapOffset));
-  __ ldrb(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
-  __ sub(type_reg, type_reg, Operand(FIRST_JS_PROXY_TYPE));
-  __ cmp(type_reg, Operand(LAST_JS_PROXY_TYPE - FIRST_JS_PROXY_TYPE));
+  __ CompareObjectType(r0, r1, r1, JS_PROXY_TYPE);
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
-  Split(ls, if_true, if_false, fall_through);
+  Split(eq, if_true, if_false, fall_through);
 
   context()->Plug(if_true, if_false);
 }

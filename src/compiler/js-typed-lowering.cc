@@ -2137,12 +2137,10 @@ Reduction JSTypedLowering::ReduceJSForInPrepare(Node* node) {
         simplified()->LoadField(AccessBuilder::ForMapInstanceType()),
         receiver_map, effect, if_false0);
 
-    STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_JS_RECEIVER_TYPE);
     cache_type_false0 = graph()->NewNode(
         common()->Select(kMachAnyTagged, BranchHint::kFalse),
-        graph()->NewNode(machine()->Uint32LessThanOrEqual(),
-                         receiver_instance_type,
-                         jsgraph()->Uint32Constant(LAST_JS_PROXY_TYPE)),
+        graph()->NewNode(machine()->Word32Equal(), receiver_instance_type,
+                         jsgraph()->Uint32Constant(JS_PROXY_TYPE)),
         jsgraph()->ZeroConstant(),  // Zero indicagtes proxy.
         jsgraph()->OneConstant());  // One means slow check.
 

@@ -2770,8 +2770,8 @@ void LCodeGen::DoForInPrepareMap(LForInPrepareMap* instr) {
 
   DeoptimizeIfSmi(object, instr, Deoptimizer::kSmi);
 
-  STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_JS_RECEIVER_TYPE);
-  __ CompareObjectType(object, x1, x1, LAST_JS_PROXY_TYPE);
+  STATIC_ASSERT(JS_PROXY_TYPE == FIRST_JS_RECEIVER_TYPE);
+  __ CompareObjectType(object, x1, x1, JS_PROXY_TYPE);
   DeoptimizeIf(le, instr, Deoptimizer::kNotAJavaScriptObject);
 
   Label use_cache, call_runtime;

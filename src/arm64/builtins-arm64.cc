@@ -1674,14 +1674,11 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   __ CompareObjectType(x1, x4, x5, JS_FUNCTION_TYPE);
   __ Jump(masm->isolate()->builtins()->CallFunction(mode),
           RelocInfo::CODE_TARGET, eq);
-  __ Cmp(x5, JS_FUNCTION_PROXY_TYPE);
+  __ Cmp(x5, JS_PROXY_TYPE);
   __ B(ne, &non_function);
 
-  // 1. Call to function proxy.
+  // 1. Call to proxy.
   // TODO(neis): This doesn't match the ES6 spec for [[Call]] on proxies.
-  __ Ldr(x1, FieldMemOperand(x1, JSFunctionProxy::kCallTrapOffset));
-  __ AssertNotSmi(x1);
-  __ B(&non_smi);
 
   // 2. Call to something else, which might have a [[Call]] internal method (if
   // not we raise an exception).
@@ -1733,13 +1730,12 @@ void Builtins::Generate_ConstructFunction(MacroAssembler* masm) {
 void Builtins::Generate_ConstructProxy(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- x0 : the number of arguments (not including the receiver)
-  //  -- x1 : the constructor to call (checked to be a JSFunctionProxy)
+  //  -- x1 : the constructor to call (checked to be a JSProxy)
   //  -- x3 : the new target (either the same as the constructor or
   //          the JSFunction on which new was invoked initially)
   // -----------------------------------
 
   // TODO(neis): This doesn't match the ES6 spec for [[Construct]] on proxies.
-  __ Ldr(x1, FieldMemOperand(x1, JSFunctionProxy::kConstructTrapOffset));
   __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
 }
 
@@ -1761,7 +1757,7 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   __ CompareObjectType(x1, x4, x5, JS_FUNCTION_TYPE);
   __ Jump(masm->isolate()->builtins()->ConstructFunction(),
           RelocInfo::CODE_TARGET, eq);
-  __ Cmp(x5, JS_FUNCTION_PROXY_TYPE);
+  __ Cmp(x5, JS_PROXY_TYPE);
   __ Jump(masm->isolate()->builtins()->ConstructProxy(), RelocInfo::CODE_TARGET,
           eq);
 

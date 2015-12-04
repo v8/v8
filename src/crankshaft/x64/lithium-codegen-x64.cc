@@ -5571,8 +5571,8 @@ void LCodeGen::DoForInPrepareMap(LForInPrepareMap* instr) {
   Condition cc = masm()->CheckSmi(rax);
   DeoptimizeIf(cc, instr, Deoptimizer::kSmi);
 
-  STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_JS_RECEIVER_TYPE);
-  __ CmpObjectType(rax, LAST_JS_PROXY_TYPE, rcx);
+  STATIC_ASSERT(JS_PROXY_TYPE == FIRST_JS_RECEIVER_TYPE);
+  __ CmpObjectType(rax, JS_PROXY_TYPE, rcx);
   DeoptimizeIf(below_equal, instr, Deoptimizer::kWrongInstanceType);
 
   Label use_cache, call_runtime;

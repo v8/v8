@@ -175,9 +175,8 @@ RUNTIME_FUNCTION(Runtime_InterpreterForInPrepare) {
     cache_array = Handle<FixedArray>::cast(cache_type);
     cache_length = cache_array->length();
 
-    STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_JS_RECEIVER_TYPE);
-    if (receiver_map->instance_type() <= LAST_JS_PROXY_TYPE) {
-      DCHECK_GE(receiver_map->instance_type(), LAST_JS_PROXY_TYPE);
+    STATIC_ASSERT(JS_PROXY_TYPE == FIRST_JS_RECEIVER_TYPE);
+    if (receiver_map->instance_type() == JS_PROXY_TYPE) {
       // Zero indicates proxy
       cache_type = Handle<Object>(Smi::FromInt(0), isolate);
     } else {

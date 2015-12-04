@@ -253,7 +253,6 @@ TypeImpl<Config>::BitsetType::Lub(i::Map* map) {
     case JS_REGEXP_TYPE:
       return kOtherObject;  // TODO(rossberg): there should be a RegExp type.
     case JS_PROXY_TYPE:
-    case JS_FUNCTION_PROXY_TYPE:
       return kProxy;
     case MAP_TYPE:
       // When compiling stub templates, the meta map is used as a place holder

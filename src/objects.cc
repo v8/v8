@@ -2102,9 +2102,6 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
     case JS_PROXY_TYPE:
       os << "<JSProxy>";
       break;
-    case JS_FUNCTION_PROXY_TYPE:
-      os << "<JSFunctionProxy>";
-      break;
     case FOREIGN_TYPE:
       os << "<Foreign>";
       break;
@@ -2288,7 +2285,7 @@ void Simd128Value::CopyBits(void* destination) const {
 
 
 String* JSReceiver::class_name() {
-  if (IsJSFunction() || IsJSFunctionProxy()) {
+  if (IsJSFunction()) {
     return GetHeap()->Function_string();
   }
   Object* maybe_constructor = map()->GetConstructor();
@@ -4798,12 +4795,8 @@ MaybeHandle<Context> JSProxy::GetFunctionRealm(Handle<JSProxy> proxy) {
     THROW_NEW_ERROR(proxy->GetIsolate(),
                     NewTypeError(MessageTemplate::kProxyRevoked), Context);
   }
-
-  // TODO(verwaest): Get rid of JSFunctionProxies.
-  Object* target = proxy->IsJSFunctionProxy()
-                       ? JSFunctionProxy::cast(*proxy)->construct_trap()
-                       : proxy->target();
-  return JSReceiver::GetFunctionRealm(handle(JSReceiver::cast(target)));
+  Handle<JSReceiver> target(JSReceiver::cast(proxy->target()));
+  return JSReceiver::GetFunctionRealm(target);
 }
 
 
@@ -12522,7 +12515,6 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_FUNCTION_TYPE:
       return true;
 
-    case JS_FUNCTION_PROXY_TYPE:
     case JS_PROXY_TYPE:
     case JS_GLOBAL_PROXY_TYPE:
     case JS_GLOBAL_OBJECT_TYPE:

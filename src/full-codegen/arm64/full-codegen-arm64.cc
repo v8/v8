@@ -1046,8 +1046,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // Check for proxies.
   Label call_runtime;
-  STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_JS_RECEIVER_TYPE);
-  __ JumpIfObjectType(x0, x10, x11, LAST_JS_PROXY_TYPE, &call_runtime, le);
+  __ JumpIfObjectType(x0, x10, x11, JS_PROXY_TYPE, &call_runtime, eq);
 
   // Check cache validity in generated code. This is a fast case for
   // the JSObject::IsSimpleEnum cache validity checks. If we cannot
@@ -1105,11 +1104,10 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   __ Mov(x1, Smi::FromInt(1));  // Smi indicates slow check.
   __ Peek(x10, 0);  // Get enumerated object.
-  STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_JS_RECEIVER_TYPE);
-  // TODO(all): similar check was done already. Can we avoid it here?
-  __ CompareObjectType(x10, x11, x12, LAST_JS_PROXY_TYPE);
+  STATIC_ASSERT(JS_PROXY_TYPE == FIRST_JS_RECEIVER_TYPE);
+  __ CompareObjectType(x10, x11, x12, JS_PROXY_TYPE);
   DCHECK(Smi::FromInt(0) == 0);
-  __ CzeroX(x1, le);  // Zero indicates proxy.
+  __ CzeroX(x1, eq);  // Zero indicates proxy.
   __ Ldr(x2, FieldMemOperand(x0, FixedArray::kLengthOffset));
   // Smi and array, fixed array length (as smi) and initial index.
   __ Push(x1, x0, x2, xzr);
@@ -2965,14 +2963,9 @@ void FullCodeGenerator::EmitIsJSProxy(CallRuntime* expr) {
                          &if_false, &fall_through);
 
   __ JumpIfSmi(x0, if_false);
-  Register map = x10;
-  Register type_reg = x11;
-  __ Ldr(map, FieldMemOperand(x0, HeapObject::kMapOffset));
-  __ Ldrb(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
-  __ Sub(type_reg, type_reg, Operand(FIRST_JS_PROXY_TYPE));
-  __ Cmp(type_reg, Operand(LAST_JS_PROXY_TYPE - FIRST_JS_PROXY_TYPE));
+  __ CompareObjectType(x0, x10, x11, JS_PROXY_TYPE);
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
-  Split(ls, if_true, if_false, fall_through);
+  Split(eq, if_true, if_false, fall_through);
 
   context()->Plug(if_true, if_false);
 }

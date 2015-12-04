@@ -1692,13 +1692,10 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   __ GetObjectType(a1, t1, t2);
   __ Jump(masm->isolate()->builtins()->CallFunction(mode),
           RelocInfo::CODE_TARGET, eq, t2, Operand(JS_FUNCTION_TYPE));
-  __ Branch(&non_function, ne, t2, Operand(JS_FUNCTION_PROXY_TYPE));
+  __ Branch(&non_function, ne, t2, Operand(JS_PROXY_TYPE));
 
-  // 1. Call to function proxy.
-  // TODO(neis): This doesn't match the ES6 spec for [[Call]] on proxies.
-  __ lw(a1, FieldMemOperand(a1, JSFunctionProxy::kCallTrapOffset));
-  __ AssertNotSmi(a1);
-  __ Branch(&non_smi);
+  // 1. Call Proxy.
+  // TODO(neis): implement call on Proxy
 
   // 2. Call to something else, which might have a [[Call]] internal method (if
   // not we raise an exception).
@@ -1753,13 +1750,12 @@ void Builtins::Generate_ConstructFunction(MacroAssembler* masm) {
 void Builtins::Generate_ConstructProxy(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- a0 : the number of arguments (not including the receiver)
-  //  -- a1 : the constructor to call (checked to be a JSFunctionProxy)
+  //  -- a1 : the constructor to call (checked to be a JSProxy)
   //  -- a3 : the new target (either the same as the constructor or
   //          the JSFunction on which new was invoked initially)
   // -----------------------------------
 
   // TODO(neis): This doesn't match the ES6 spec for [[Construct]] on proxies.
-  __ lw(a1, FieldMemOperand(a1, JSFunctionProxy::kConstructTrapOffset));
   __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
 }
 
@@ -1783,7 +1779,7 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   __ Jump(masm->isolate()->builtins()->ConstructFunction(),
           RelocInfo::CODE_TARGET, eq, t2, Operand(JS_FUNCTION_TYPE));
   __ Jump(masm->isolate()->builtins()->ConstructProxy(), RelocInfo::CODE_TARGET,
-          eq, t2, Operand(JS_FUNCTION_PROXY_TYPE));
+          eq, t2, Operand(JS_PROXY_TYPE));
 
   // Check if target has a [[Construct]] internal method.
   __ lbu(t2, FieldMemOperand(t1, Map::kBitFieldOffset));
