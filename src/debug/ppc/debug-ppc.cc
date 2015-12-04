@@ -115,25 +115,16 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
 }
 
 
-void DebugCodegen::GeneratePlainReturnLiveEdit(MacroAssembler* masm) {
-  __ Ret();
-}
-
-
 void DebugCodegen::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
-  ExternalReference restarter_frame_function_slot =
-      ExternalReference::debug_restarter_frame_function_pointer_address(
-          masm->isolate());
-  __ mov(ip, Operand(restarter_frame_function_slot));
-  __ li(r4, Operand::Zero());
-  __ StoreP(r4, MemOperand(ip, 0));
-
   // Load the function pointer off of our current stack frame.
   __ LoadP(r4, MemOperand(fp, StandardFrameConstants::kConstantPoolOffset -
                                   kPointerSize));
 
   // Pop return address and frame
   __ LeaveFrame(StackFrame::INTERNAL);
+
+  ParameterCount dummy(0);
+  __ FloodFunctionIfStepping(r4, no_reg, dummy, dummy);
 
   // Load context from the function.
   __ LoadP(cp, FieldMemOperand(r4, JSFunction::kContextOffset));
