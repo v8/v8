@@ -330,6 +330,32 @@ void InstructionSelector::VisitWord32Xor(Node* node) {
 
 
 void InstructionSelector::VisitWord32Shl(Node* node) {
+  Int32BinopMatcher m(node);
+  if (m.left().IsWord32And() && CanCover(node, m.left().node()) &&
+      m.right().IsInRange(1, 31)) {
+    MipsOperandGenerator g(this);
+    Int32BinopMatcher mleft(m.left().node());
+    // Match Word32Shl(Word32And(x, mask), imm) to Shl where the mask is
+    // contiguous, and the shift immediate non-zero.
+    if (mleft.right().HasValue()) {
+      uint32_t mask = mleft.right().Value();
+      uint32_t mask_width = base::bits::CountPopulation32(mask);
+      uint32_t mask_msb = base::bits::CountLeadingZeros32(mask);
+      if ((mask_width != 0) && (mask_msb + mask_width == 32)) {
+        uint32_t shift = m.right().Value();
+        DCHECK_EQ(0u, base::bits::CountTrailingZeros32(mask));
+        DCHECK_NE(0u, shift);
+        if ((shift + mask_width) >= 32) {
+          // If the mask is contiguous and reaches or extends beyond the top
+          // bit, only the shift is needed.
+          Emit(kMipsShl, g.DefineAsRegister(node),
+               g.UseRegister(mleft.left().node()),
+               g.UseImmediate(m.right().node()));
+          return;
+        }
+      }
+    }
+  }
   VisitRRO(this, kMipsShl, node);
 }
 

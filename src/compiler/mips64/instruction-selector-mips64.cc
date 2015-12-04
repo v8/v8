@@ -422,6 +422,32 @@ void InstructionSelector::VisitWord64Xor(Node* node) {
 
 
 void InstructionSelector::VisitWord32Shl(Node* node) {
+  Int32BinopMatcher m(node);
+  if (m.left().IsWord32And() && CanCover(node, m.left().node()) &&
+      m.right().IsInRange(1, 31)) {
+    Mips64OperandGenerator g(this);
+    Int32BinopMatcher mleft(m.left().node());
+    // Match Word32Shl(Word32And(x, mask), imm) to Shl where the mask is
+    // contiguous, and the shift immediate non-zero.
+    if (mleft.right().HasValue()) {
+      uint32_t mask = mleft.right().Value();
+      uint32_t mask_width = base::bits::CountPopulation32(mask);
+      uint32_t mask_msb = base::bits::CountLeadingZeros32(mask);
+      if ((mask_width != 0) && (mask_msb + mask_width == 32)) {
+        uint32_t shift = m.right().Value();
+        DCHECK_EQ(0u, base::bits::CountTrailingZeros32(mask));
+        DCHECK_NE(0u, shift);
+        if ((shift + mask_width) >= 32) {
+          // If the mask is contiguous and reaches or extends beyond the top
+          // bit, only the shift is needed.
+          Emit(kMips64Shl, g.DefineAsRegister(node),
+               g.UseRegister(mleft.left().node()),
+               g.UseImmediate(m.right().node()));
+          return;
+        }
+      }
+    }
+  }
   VisitRRO(this, kMips64Shl, node);
 }
 
@@ -467,6 +493,31 @@ void InstructionSelector::VisitWord64Shl(Node* node) {
          g.UseRegister(m.left().node()->InputAt(0)),
          g.UseImmediate(m.right().node()));
     return;
+  }
+  if (m.left().IsWord64And() && CanCover(node, m.left().node()) &&
+      m.right().IsInRange(1, 63)) {
+    // Match Word64Shl(Word64And(x, mask), imm) to Dshl where the mask is
+    // contiguous, and the shift immediate non-zero.
+    Int64BinopMatcher mleft(m.left().node());
+    if (mleft.right().HasValue()) {
+      uint64_t mask = mleft.right().Value();
+      uint32_t mask_width = base::bits::CountPopulation64(mask);
+      uint32_t mask_msb = base::bits::CountLeadingZeros64(mask);
+      if ((mask_width != 0) && (mask_msb + mask_width == 64)) {
+        uint64_t shift = m.right().Value();
+        DCHECK_EQ(0u, base::bits::CountTrailingZeros64(mask));
+        DCHECK_NE(0u, shift);
+
+        if ((shift + mask_width) >= 64) {
+          // If the mask is contiguous and reaches or extends beyond the top
+          // bit, only the shift is needed.
+          Emit(kMips64Dshl, g.DefineAsRegister(node),
+               g.UseRegister(mleft.left().node()),
+               g.UseImmediate(m.right().node()));
+          return;
+        }
+      }
+    }
   }
   VisitRRO(this, kMips64Dshl, node);
 }
