@@ -4626,7 +4626,7 @@ uint64_t run_align(uint64_t rs_value, uint64_t rt_value, uint8_t bp) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
-  F2 f = FUNCTION_CAST<F2>(code->entry());
+  F4 f = FUNCTION_CAST<F4>(code->entry());
 
   uint64_t res = reinterpret_cast<uint64_t>(
       CALL_GENERATED_CODE(isolate, f, rs_value, rt_value, 0, 0, 0));
@@ -5717,7 +5717,7 @@ uint64_t run_dsll(uint64_t rt_value, uint16_t sa_value) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
-  F2 f = FUNCTION_CAST<F2>(code->entry());
+  F4 f = FUNCTION_CAST<F4>(code->entry());
 
   uint64_t res = reinterpret_cast<uint64_t>(
       CALL_GENERATED_CODE(isolate, f, rt_value, 0, 0, 0, 0));
