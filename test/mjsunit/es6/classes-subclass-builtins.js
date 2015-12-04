@@ -436,7 +436,7 @@ function TestMapSetSubclassing(container, is_map) {
   assertEquals(4.2, o.d);
   assertEquals(153, o.o.foo);
 
-  var o1 = new A(8);
+  var o1 = new A("bar");
   assertTrue(%HaveSameMap(o, o1));
 
 

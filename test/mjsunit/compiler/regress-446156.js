@@ -8,4 +8,4 @@
   var MEM = new Uint8ClampedArray(heap);
   function foo(  )  { MEM[0] ^=  1; }
   return {foo: foo};
-})(this, {}, new ArrayBuffer(0) ).foo();
+})(this, {}, new ArrayBuffer(  ) ).foo();

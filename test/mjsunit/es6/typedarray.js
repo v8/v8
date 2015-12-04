@@ -39,7 +39,7 @@ function TestArrayBufferCreation() {
   TestByteLength(256, 256);
   TestByteLength(2.567, 2);
 
-  TestByteLength("0", 0);
+  TestByteLength("abc", 0);
 
   TestByteLength(0, 0);
 
@@ -52,7 +52,7 @@ function TestArrayBufferCreation() {
   }, RangeError);
 */
 
-  var ab = new ArrayBuffer(0);
+  var ab = new ArrayBuffer();
   assertSame(0, ab.byteLength);
   assertEquals("[object ArrayBuffer]",
       Object.prototype.toString.call(ab));
@@ -729,11 +729,11 @@ function TestEnumerable(func, obj) {
   if (obj)
     assertArrayEquals([], props(obj));
 }
-TestEnumerable(ArrayBuffer, new ArrayBuffer(0));
+TestEnumerable(ArrayBuffer, new ArrayBuffer());
 for(i = 0; i < typedArrayConstructors.length; i++) {
   TestEnumerable(typedArrayConstructors[i]);
 }
-TestEnumerable(DataView, new DataView(new ArrayBuffer(0)));
+TestEnumerable(DataView, new DataView(new ArrayBuffer()));
 
 // Test arbitrary properties on ArrayBuffer
 function TestArbitrary(m) {
@@ -754,8 +754,8 @@ TestArbitrary(new DataView(new ArrayBuffer(256)));
 
 
 // Test direct constructor call
-assertThrows(function() { ArrayBuffer(0); }, TypeError);
-assertThrows(function() { DataView(new ArrayBuffer(0)); }, TypeError);
+assertThrows(function() { ArrayBuffer(); }, TypeError);
+assertThrows(function() { DataView(new ArrayBuffer()); }, TypeError);
 
 function TestNonConfigurableProperties(constructor) {
   var arr = new constructor([100])
