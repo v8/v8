@@ -273,10 +273,11 @@ define COMPILATION_TYPE_JSON = 2;
 # Matches Messages::kNoLineNumberInfo from v8.h
 define kNoLineNumberInfo = 0;
 
-# Deprecated, do not use. Will be replaced by PropertyFilter.
-define PROPERTY_ATTRIBUTES_STRING = 8;
-define PROPERTY_ATTRIBUTES_SYMBOLIC = 16;
-define PROPERTY_ATTRIBUTES_PRIVATE_SYMBOL = 32;
+# Must match PropertyFilter in property-details.h
+define PROPERTY_FILTER_NONE = 0;
+define PROPERTY_FILTER_ONLY_ENUMERABLE = 2;
+define PROPERTY_FILTER_SKIP_STRINGS = 8;
+define PROPERTY_FILTER_SKIP_SYMBOLS = 16;
 
 # Use for keys, values and entries iterators.
 define ITERATOR_KIND_KEYS = 1;

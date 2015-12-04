@@ -2220,15 +2220,6 @@ class JSObject: public JSReceiver {
   inline bool HasNamedInterceptor();
   inline bool HasIndexedInterceptor();
 
-  // Computes the enumerable keys from interceptors. Used for debug mirrors and
-  // by JSReceiver::GetKeys.
-  MUST_USE_RESULT static MaybeHandle<JSObject> GetKeysForNamedInterceptor(
-      Handle<JSObject> object,
-      Handle<JSReceiver> receiver);
-  MUST_USE_RESULT static MaybeHandle<JSObject> GetKeysForIndexedInterceptor(
-      Handle<JSObject> object,
-      Handle<JSReceiver> receiver);
-
   // Support functions for v8 api (needed for correct interceptor behavior).
   MUST_USE_RESULT static Maybe<bool> HasRealNamedProperty(
       Handle<JSObject> object, Handle<Name> name);
@@ -2270,12 +2261,6 @@ class JSObject: public JSReceiver {
   static void CollectOwnElementKeys(Handle<JSObject> object,
                                     KeyAccumulator* keys,
                                     PropertyFilter filter);
-  // Count and fill in the enumerable elements into storage.
-  // (storage->length() == NumberOfEnumElements()).
-  // If storage is NULL, will count the elements without adding
-  // them to any storage.
-  // Returns the number of enumerable elements.
-  int GetEnumElementKeys(FixedArray* storage);
 
   static Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
                                                 bool cache_result);

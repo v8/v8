@@ -796,151 +796,19 @@ RUNTIME_FUNCTION(Runtime_GetPropertyNamesFast) {
 }
 
 
-// Return the names of the own named properties.
-// args[0]: object
-// args[1]: PropertyAttributes as int
-// TODO(cbruni/jkummerow): Use JSReceiver::GetKeys() internally, merge with
-// Runtime_GetOwnElementNames.
-RUNTIME_FUNCTION(Runtime_GetOwnPropertyNames) {
+RUNTIME_FUNCTION(Runtime_GetOwnPropertyKeys) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
-  if (!args[0]->IsJSObject()) {
-    return isolate->heap()->undefined_value();
-  }
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
   CONVERT_SMI_ARG_CHECKED(filter_value, 1);
+  PropertyFilter filter = static_cast<PropertyFilter>(filter_value);
 
-  // TODO(jkummerow): Temporary compatibility measure. Refactor callers.
-  // Values of filter_value are defined in macros.py.
-  PropertyFilter filter = ALL_PROPERTIES;
-  if (filter_value & 2) {
-    filter = static_cast<PropertyFilter>(filter | ONLY_ENUMERABLE);
-  }
-  if (filter_value & 8) {
-    filter = static_cast<PropertyFilter>(filter | SKIP_STRINGS);
-  }
-  if (filter_value & 16) {
-    filter = static_cast<PropertyFilter>(filter | SKIP_SYMBOLS);
-  }
-  DCHECK(filter_value & 32);
+  Handle<FixedArray> keys;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, keys, JSReceiver::GetKeys(object, JSReceiver::OWN_ONLY, filter,
+                                         CONVERT_TO_STRING));
 
-  // Find the number of own properties for each of the objects.
-  int total_property_count = 0;
-  for (PrototypeIterator iter(isolate, object,
-                              PrototypeIterator::START_AT_RECEIVER);
-       !iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN); iter.Advance()) {
-    // Casting to JSObject is fine because |object| is guaranteed to be one,
-    // and we'll only look at hidden prototypes which are never JSProxies.
-    Handle<JSObject> jsproto = PrototypeIterator::GetCurrent<JSObject>(iter);
-    total_property_count += jsproto->NumberOfOwnProperties(filter);
-  }
-
-  // Allocate an array with storage for all the property names.
-  Handle<FixedArray> names =
-      isolate->factory()->NewFixedArray(total_property_count);
-
-  // Get the property names.
-  int next_copy_index = 0;
-  int hidden_strings = 0;
-  Handle<Object> hidden_string = isolate->factory()->hidden_string();
-  for (PrototypeIterator iter(isolate, object,
-                              PrototypeIterator::START_AT_RECEIVER);
-       !iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN); iter.Advance()) {
-    // Casting to JSObject is fine because |object| is guaranteed to be one,
-    // and we'll only look at hidden prototypes which are never JSProxies.
-    Handle<JSObject> jsproto = PrototypeIterator::GetCurrent<JSObject>(iter);
-    int own = jsproto->GetOwnPropertyNames(*names, next_copy_index, filter);
-    // Names from hidden prototypes may already have been added
-    // for inherited function template instances. Count the duplicates
-    // and stub them out; the final copy pass at the end ignores holes.
-    for (int j = next_copy_index; j < next_copy_index + own; j++) {
-      Object* name_from_hidden_proto = names->get(j);
-      if (isolate->IsInternallyUsedPropertyName(name_from_hidden_proto)) {
-        hidden_strings++;
-      } else {
-        for (int k = 0; k < next_copy_index; k++) {
-          Object* name = names->get(k);
-          if (name_from_hidden_proto == name) {
-            names->set(j, *hidden_string);
-            hidden_strings++;
-            break;
-          }
-        }
-      }
-    }
-    next_copy_index += own;
-  }
-
-  CHECK_EQ(total_property_count, next_copy_index);
-
-  if (object->IsAccessCheckNeeded() &&
-      !isolate->MayAccess(handle(isolate->context()), object)) {
-    for (int i = 0; i < total_property_count; i++) {
-      Handle<Name> name(Name::cast(names->get(i)));
-      if (name.is_identical_to(hidden_string)) continue;
-      LookupIterator it(object, name, LookupIterator::HIDDEN_SKIP_INTERCEPTOR);
-      if (!JSObject::AllCanRead(&it)) {
-        names->set(i, *hidden_string);
-        hidden_strings++;
-      }
-    }
-  }
-
-  // Filter out name of hidden properties object and
-  // hidden prototype duplicates.
-  if (hidden_strings > 0) {
-    if (hidden_strings == total_property_count) {
-      names = isolate->factory()->empty_fixed_array();
-    } else {
-      int i;
-      for (i = 0; i < total_property_count; i++) {
-        Object* name = names->get(i);
-        if (name == *hidden_string) break;
-      }
-      int dest_pos = i;
-      for (; i < total_property_count; i++) {
-        Object* name = names->get(i);
-        if (name == *hidden_string) continue;
-        names->set(dest_pos++, name);
-      }
-
-      isolate->heap()->RightTrimFixedArray<Heap::CONCURRENT_TO_SWEEPER>(
-          *names, hidden_strings);
-    }
-  }
-
-  return *isolate->factory()->NewJSArrayWithElements(names);
-}
-
-
-// Return the names of the own indexed properties.
-// args[0]: object
-RUNTIME_FUNCTION(Runtime_GetOwnElementNames) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  if (!args[0]->IsJSObject()) {
-    return isolate->heap()->undefined_value();
-  }
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
-
-  // TODO(cbruni): implement proper prototype lookup like in GetOwnPropertyNames
-  if (object->IsJSGlobalProxy()) {
-    // All the elements are stored on the globa_object and not directly on the
-    // global object proxy.
-    PrototypeIterator iter(isolate, object,
-                           PrototypeIterator::START_AT_PROTOTYPE);
-    if (iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN)) {
-      return *isolate->factory()->NewJSArray(0);
-    }
-    // Casting to JSObject is fine because |object| is guaranteed to be one,
-    // and we'll only look at hidden prototypes which are never JSProxies.
-    object = PrototypeIterator::GetCurrent<JSObject>(iter);
-  }
-
-  int n = object->NumberOfOwnElements(ALL_PROPERTIES);
-  Handle<FixedArray> names = isolate->factory()->NewFixedArray(n);
-  object->GetOwnElementKeys(*names, ALL_PROPERTIES);
-  return *isolate->factory()->NewJSArrayWithElements(names);
+  return *isolate->factory()->NewJSArrayWithElements(keys);
 }
 
 
@@ -959,54 +827,6 @@ RUNTIME_FUNCTION(Runtime_GetInterceptorInfo) {
   if (obj->HasIndexedInterceptor()) result |= 1;
 
   return Smi::FromInt(result);
-}
-
-
-// Return property names from named interceptor.
-// args[0]: object
-RUNTIME_FUNCTION(Runtime_GetNamedInterceptorPropertyNames) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
-
-  if (obj->HasNamedInterceptor()) {
-    Handle<JSObject> result;
-    if (JSObject::GetKeysForNamedInterceptor(obj, obj).ToHandle(&result)) {
-      return *result;
-    }
-  }
-  return isolate->heap()->undefined_value();
-}
-
-
-// Return element names from indexed interceptor.
-// args[0]: object
-RUNTIME_FUNCTION(Runtime_GetIndexedInterceptorElementNames) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
-
-  if (obj->HasIndexedInterceptor()) {
-    Handle<JSObject> result;
-    if (JSObject::GetKeysForIndexedInterceptor(obj, obj).ToHandle(&result)) {
-      return *result;
-    }
-  }
-  return isolate->heap()->undefined_value();
-}
-
-
-RUNTIME_FUNCTION(Runtime_OwnKeys) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
-
-  Handle<FixedArray> contents;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, contents,
-      JSReceiver::GetKeys(object, JSReceiver::OWN_ONLY, ENUMERABLE_STRINGS,
-                          CONVERT_TO_STRING));
-  return *isolate->factory()->NewJSArrayWithElements(contents);
 }
 
 

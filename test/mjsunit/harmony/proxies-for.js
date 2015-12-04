@@ -143,7 +143,6 @@ TestForInThrow(new Proxy({}, {
 })();
 
 (function () {
-  var p = new Proxy({}, {getOwnPropertyNames:
-    function() { return [1, Symbol(), 2] }});
+  var p = new Proxy({}, {ownKeys: function() { return ["1", Symbol(), "2"] }});
   assertEquals(["1","2"], Object.getOwnPropertyNames(p));
 })();

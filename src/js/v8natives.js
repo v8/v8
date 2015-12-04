@@ -257,7 +257,8 @@ function ObjectLookupSetter(name) {
 
 function ObjectKeys(obj) {
   obj = TO_OBJECT(obj);
-  return %OwnKeys(obj);
+  var filter = PROPERTY_FILTER_ONLY_ENUMERABLE | PROPERTY_FILTER_SKIP_SYMBOLS;
+  return %GetOwnPropertyKeys(obj, filter);
 }
 
 
@@ -855,122 +856,16 @@ function ObjectGetOwnPropertyDescriptor(obj, p) {
 }
 
 
-// For Harmony proxies
-function ToNameArray(obj, trap, includeSymbols) {
-  if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError(kProxyNonObjectPropNames, trap, obj);
-  }
-  var n = TO_UINT32(obj.length);
-  var array = new GlobalArray(n);
-  var realLength = 0;
-  var names = { __proto__: null };  // TODO(rossberg): use sets once ready.
-  for (var index = 0; index < n; index++) {
-    var s = TO_NAME(obj[index]);
-    // TODO(rossberg): adjust once there is a story for symbols vs proxies.
-    if (IS_SYMBOL(s) && !includeSymbols) continue;
-    if (%HasOwnProperty(names, s)) {
-      throw MakeTypeError(kProxyRepeatedPropName, trap, s);
-    }
-    array[realLength] = s;
-    ++realLength;
-    names[s] = 0;
-  }
-  array.length = realLength;
-  return array;
-}
-
-
-function ObjectGetOwnPropertyKeys(obj, filter) {
-  var nameArrays = new InternalArray();
-  filter |= PROPERTY_ATTRIBUTES_PRIVATE_SYMBOL;
-  var interceptorInfo = %GetInterceptorInfo(obj);
-
-  // Find all the indexed properties.
-
-  // Only get own element names if we want to include string keys.
-  if ((filter & PROPERTY_ATTRIBUTES_STRING) === 0) {
-    var ownElementNames = %GetOwnElementNames(obj);
-    for (var i = 0; i < ownElementNames.length; ++i) {
-      ownElementNames[i] = %_NumberToString(ownElementNames[i]);
-    }
-    nameArrays.push(ownElementNames);
-    // Get names for indexed interceptor properties.
-    if ((interceptorInfo & 1) != 0) {
-      var indexedInterceptorNames = %GetIndexedInterceptorElementNames(obj);
-      if (!IS_UNDEFINED(indexedInterceptorNames)) {
-        nameArrays.push(indexedInterceptorNames);
-      }
-    }
-  }
-
-  // Find all the named properties.
-
-  // Get own property names.
-  nameArrays.push(%GetOwnPropertyNames(obj, filter));
-
-  // Get names for named interceptor properties if any.
-  if ((interceptorInfo & 2) != 0) {
-    var namedInterceptorNames =
-        %GetNamedInterceptorPropertyNames(obj);
-    if (!IS_UNDEFINED(namedInterceptorNames)) {
-      nameArrays.push(namedInterceptorNames);
-    }
-  }
-
-  var propertyNames =
-      %Apply(InternalArray.prototype.concat,
-             nameArrays[0], nameArrays, 1, nameArrays.length - 1);
-
-  // Property names are expected to be unique strings,
-  // but interceptors can interfere with that assumption.
-  if (interceptorInfo != 0) {
-    var seenKeys = { __proto__: null };
-    var j = 0;
-    for (var i = 0; i < propertyNames.length; ++i) {
-      var name = propertyNames[i];
-      if (IS_SYMBOL(name)) {
-        if ((filter & PROPERTY_ATTRIBUTES_SYMBOLIC) || IS_PRIVATE(name)) {
-          continue;
-        }
-      } else {
-        if (filter & PROPERTY_ATTRIBUTES_STRING) continue;
-        name = TO_STRING(name);
-      }
-      if (seenKeys[name]) continue;
-      seenKeys[name] = true;
-      propertyNames[j++] = name;
-    }
-    propertyNames.length = j;
-  }
-
-  return propertyNames;
-}
-
-
 // ES6 section 9.1.12 / 9.5.12
 function OwnPropertyKeys(obj) {
-  if (%_IsJSProxy(obj)) {
-    var handler = %GetHandler(obj);
-    // TODO(caitp): Proxy.[[OwnPropertyKeys]] can not be implemented to spec
-    // without an implementation of Direct Proxies.
-    var names = CallTrap0(handler, "ownKeys", UNDEFINED);
-    return ToNameArray(names, "getOwnPropertyNames", false);
-  }
-  return ObjectGetOwnPropertyKeys(obj, PROPERTY_ATTRIBUTES_PRIVATE_SYMBOL);
+  return %GetOwnPropertyKeys(obj, PROPERTY_FILTER_NONE);
 }
 
 
 // ES5 section 15.2.3.4.
 function ObjectGetOwnPropertyNames(obj) {
   obj = TO_OBJECT(obj);
-  // Special handling for proxies.
-  if (%_IsJSProxy(obj)) {
-    var handler = %GetHandler(obj);
-    var names = CallTrap0(handler, "getOwnPropertyNames", UNDEFINED);
-    return ToNameArray(names, "getOwnPropertyNames", false);
-  }
-
-  return ObjectGetOwnPropertyKeys(obj, PROPERTY_ATTRIBUTES_SYMBOLIC);
+  return %GetOwnPropertyKeys(obj, PROPERTY_FILTER_SKIP_SYMBOLS);
 }
 
 
@@ -1004,24 +899,7 @@ function ObjectDefineProperty(obj, p, attributes) {
 
 
 function GetOwnEnumerablePropertyNames(object) {
-  var names = new InternalArray();
-  for (var key in object) {
-    if (%HasOwnProperty(object, key)) {
-      names.push(key);
-    }
-  }
-
-  var filter = PROPERTY_ATTRIBUTES_STRING | PROPERTY_ATTRIBUTES_PRIVATE_SYMBOL;
-  var symbols = %GetOwnPropertyNames(object, filter);
-  for (var i = 0; i < symbols.length; ++i) {
-    var symbol = symbols[i];
-    if (IS_SYMBOL(symbol)) {
-      var desc = ObjectGetOwnPropertyDescriptor(object, symbol);
-      if (desc.enumerable) names.push(symbol);
-    }
-  }
-
-  return names;
+  return %GetOwnPropertyKeys(object, PROPERTY_FILTER_ONLY_ENUMERABLE);
 }
 
 
@@ -1726,12 +1604,10 @@ utils.Export(function(to) {
   to.ObjectDefineProperties = ObjectDefineProperties;
   to.ObjectDefineProperty = ObjectDefineProperty;
   to.ObjectFreeze = ObjectFreezeJS;
-  to.ObjectGetOwnPropertyKeys = ObjectGetOwnPropertyKeys;
   to.ObjectHasOwnProperty = ObjectHasOwnProperty;
   to.ObjectIsFrozen = ObjectIsFrozen;
   to.ObjectIsSealed = ObjectIsSealed;
   to.ObjectToString = ObjectToString;
-  to.ToNameArray = ToNameArray;
 });
 
 %InstallToContext([

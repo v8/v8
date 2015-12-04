@@ -207,7 +207,6 @@ function PostNatives(utils) {
     "SetIteratorNext",
     "SetValues",
     "SymbolToString",
-    "ToNameArray",
     "ToPositiveInteger",
     // From runtime:
     "is_concat_spreadable_symbol",

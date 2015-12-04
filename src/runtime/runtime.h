@@ -452,12 +452,8 @@ namespace internal {
   F(HasProperty, 2, 1)                               \
   F(PropertyIsEnumerable, 2, 1)                      \
   F(GetPropertyNamesFast, 1, 1)                      \
-  F(GetOwnPropertyNames, 2, 1)                       \
-  F(GetOwnElementNames, 1, 1)                        \
+  F(GetOwnPropertyKeys, 2, 1)                        \
   F(GetInterceptorInfo, 1, 1)                        \
-  F(GetNamedInterceptorPropertyNames, 1, 1)          \
-  F(GetIndexedInterceptorElementNames, 1, 1)         \
-  F(OwnKeys, 1, 1)                                   \
   F(ToFastProperties, 1, 1)                          \
   F(AllocateHeapNumber, 0, 1)                        \
   F(NewObject, 2, 1)                                 \

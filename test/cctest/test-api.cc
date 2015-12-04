@@ -9850,7 +9850,10 @@ TEST(AccessControlES5) {
   CHECK(global1->Set(context1, v8_str("other"), global0).FromJust());
 
   // Regression test for issue 1154.
-  CHECK(CompileRun("Object.keys(other).length == 0")
+  CHECK(CompileRun("Object.keys(other).length == 1")
+            ->BooleanValue(context1)
+            .FromJust());
+  CHECK(CompileRun("Object.keys(other)[0] == 'accessible_prop'")
             ->BooleanValue(context1)
             .FromJust());
   CHECK(CompileRun("other.blocked_prop").IsEmpty());
@@ -10733,8 +10736,8 @@ THREADED_TEST(Regress91517) {
   // Call the runtime version of GetOwnPropertyNames() on the natively
   // created object through JavaScript.
   CHECK(context->Global()->Set(context.local(), v8_str("obj"), o4).FromJust());
-  // PROPERTY_ATTRIBUTES_PRIVATE_SYMBOL = 32
-  CompileRun("var names = %GetOwnPropertyNames(obj, 32);");
+  // PROPERTY_FILTER_NONE = 0
+  CompileRun("var names = %GetOwnPropertyKeys(obj, 0);");
 
   ExpectInt32("names.length", 1006);
   ExpectTrue("names.indexOf(\"baz\") >= 0");
@@ -10797,8 +10800,8 @@ THREADED_TEST(Regress269562) {
   // the natively created object through JavaScript.
   CHECK(context->Global()->Set(context.local(), v8_str("obj"), o2).FromJust());
   CHECK(context->Global()->Set(context.local(), v8_str("sym"), sym).FromJust());
-  // PROPERTY_ATTRIBUTES_PRIVATE_SYMBOL = 32
-  CompileRun("var names = %GetOwnPropertyNames(obj, 32);");
+  // PROPERTY_FILTER_NONE = 0
+  CompileRun("var names = %GetOwnPropertyKeys(obj, 0);");
 
   ExpectInt32("names.length", 7);
   ExpectTrue("names.indexOf(\"foo\") >= 0");

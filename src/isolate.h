@@ -680,7 +680,6 @@ class Isolate {
   bool MayAccess(Handle<Context> accessing_context, Handle<JSObject> receiver);
 
   bool IsInternallyUsedPropertyName(Handle<Object> name);
-  bool IsInternallyUsedPropertyName(Object* name);
 
   void SetFailedAccessCheckCallback(v8::FailedAccessCheckCallback callback);
   void ReportFailedAccessCheck(Handle<JSObject> receiver);

@@ -4574,18 +4574,6 @@ TEST(InterceptorPropertyMirror) {
   source = "both_mirror.properties().length";
   CHECK_EQ(5, CompileRun(source)->Int32Value(context).FromJust());
 
-  // 1 is PropertyKind.Named;
-  source = "both_mirror.properties(1).length";
-  CHECK_EQ(3, CompileRun(source)->Int32Value(context).FromJust());
-
-  // 2 is PropertyKind.Indexed;
-  source = "both_mirror.properties(2).length";
-  CHECK_EQ(2, CompileRun(source)->Int32Value(context).FromJust());
-
-  // 3 is PropertyKind.Named  | PropertyKind.Indexed;
-  source = "both_mirror.properties(3).length";
-  CHECK_EQ(5, CompileRun(source)->Int32Value(context).FromJust());
-
   // Get the interceptor properties for the object with only named interceptor.
   CompileRun("var named_values = named_mirror.properties()");
 
@@ -4624,19 +4612,19 @@ TEST(InterceptorPropertyMirror) {
   }
 
   // Check the property names.
-  source = "both_values[0].name() == 'a'";
+  source = "both_values[0].name() == '1'";
   CHECK(CompileRun(source)->BooleanValue(context).FromJust());
 
-  source = "both_values[1].name() == 'b'";
+  source = "both_values[1].name() == '10'";
   CHECK(CompileRun(source)->BooleanValue(context).FromJust());
 
-  source = "both_values[2].name() == 'c'";
+  source = "both_values[2].name() == 'a'";
   CHECK(CompileRun(source)->BooleanValue(context).FromJust());
 
-  source = "both_values[3].name() == 1";
+  source = "both_values[3].name() == 'b'";
   CHECK(CompileRun(source)->BooleanValue(context).FromJust());
 
-  source = "both_values[4].name() == 10";
+  source = "both_values[4].name() == 'c'";
   CHECK(CompileRun(source)->BooleanValue(context).FromJust());
 }
 
