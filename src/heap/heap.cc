@@ -762,11 +762,8 @@ void Heap::HandleGCRequest() {
       IncrementalMarking::COMPLETE_MARKING) {
     CollectAllGarbage(current_gc_flags_, "GC interrupt",
                       current_gc_callback_flags_);
-    return;
-  }
-  DCHECK(FLAG_finalize_marking_incrementally);
-  if (incremental_marking()->IsMarking() &&
-      !incremental_marking()->finalize_marking_completed()) {
+  } else if (incremental_marking()->IsMarking() &&
+             !incremental_marking()->finalize_marking_completed()) {
     FinalizeIncrementalMarking("GC interrupt: finalize incremental marking");
   }
 }
@@ -4032,8 +4029,7 @@ void Heap::ReduceNewSpaceSize() {
 
 
 void Heap::FinalizeIncrementalMarkingIfComplete(const char* comment) {
-  if (FLAG_finalize_marking_incrementally &&
-      incremental_marking()->IsMarking() &&
+  if (incremental_marking()->IsMarking() &&
       (incremental_marking()->IsReadyToOverApproximateWeakClosure() ||
        (!incremental_marking()->finalize_marking_completed() &&
         mark_compact_collector()->marking_deque()->IsEmpty()))) {
@@ -4050,12 +4046,11 @@ bool Heap::TryFinalizeIdleIncrementalMarking(double idle_time_in_ms) {
   size_t final_incremental_mark_compact_speed_in_bytes_per_ms =
       static_cast<size_t>(
           tracer()->FinalIncrementalMarkCompactSpeedInBytesPerMillisecond());
-  if (FLAG_finalize_marking_incrementally &&
-      (incremental_marking()->IsReadyToOverApproximateWeakClosure() ||
-       (!incremental_marking()->finalize_marking_completed() &&
-        mark_compact_collector()->marking_deque()->IsEmpty() &&
-        gc_idle_time_handler_->ShouldDoOverApproximateWeakClosure(
-            static_cast<size_t>(idle_time_in_ms))))) {
+  if (incremental_marking()->IsReadyToOverApproximateWeakClosure() ||
+      (!incremental_marking()->finalize_marking_completed() &&
+       mark_compact_collector()->marking_deque()->IsEmpty() &&
+       gc_idle_time_handler_->ShouldDoOverApproximateWeakClosure(
+           static_cast<size_t>(idle_time_in_ms)))) {
     FinalizeIncrementalMarking(
         "Idle notification: finalize incremental marking");
     return true;
