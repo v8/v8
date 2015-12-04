@@ -26,13 +26,9 @@ class LCodeGen: public LCodeGenBase {
  public:
   LCodeGen(LChunk* chunk, MacroAssembler* assembler, CompilationInfo* info)
       : LCodeGenBase(chunk, assembler, info),
-        deoptimizations_(4, info->zone()),
         jump_table_(4, info->zone()),
-        inlined_function_count_(0),
         scope_(info->scope()),
-        translations_(info->zone()),
         deferred_(8, info->zone()),
-        osr_pc_offset_(-1),
         frame_is_built_(false),
         safepoints_(info->zone()),
         resolver_(this),
@@ -201,9 +197,6 @@ class LCodeGen: public LCodeGenBase {
   Condition EmitIsString(Register input, Register temp1, Label* is_not_string,
                          SmiCheck check_needed);
 
-  void PopulateDeoptimizationData(Handle<Code> code);
-  void PopulateDeoptimizationLiteralsWithInlinedFunctions();
-
   MemOperand BuildSeqStringOperand(Register string,
                                    Register temp,
                                    LOperand* index,
@@ -342,13 +335,9 @@ class LCodeGen: public LCodeGenBase {
 
   void EnsureSpaceForLazyDeopt(int space_needed) override;
 
-  ZoneList<LEnvironment*> deoptimizations_;
   ZoneList<Deoptimizer::JumpTableEntry*> jump_table_;
-  int inlined_function_count_;
   Scope* const scope_;
-  TranslationBuffer translations_;
   ZoneList<LDeferredCode*> deferred_;
-  int osr_pc_offset_;
   bool frame_is_built_;
 
   // Builder that keeps track of safepoints in the code. The table itself is
