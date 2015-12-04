@@ -455,7 +455,8 @@ class Debug {
 
   // Support for LiveEdit
   void FramesHaveBeenDropped(StackFrame::Id new_break_frame_id,
-                             LiveEdit::FrameDropMode mode);
+                             LiveEdit::FrameDropMode mode,
+                             Object** restarter_frame_function_pointer);
 
   // Threading support.
   char* ArchiveDebug(char* to);
@@ -500,6 +501,11 @@ class Debug {
 
   Address after_break_target_address() {
     return reinterpret_cast<Address>(&after_break_target_);
+  }
+
+  Address restarter_frame_function_pointer_address() {
+    Object*** address = &thread_local_.restarter_frame_function_pointer_;
+    return reinterpret_cast<Address>(address);
   }
 
   Address step_in_enabled_address() {
@@ -650,6 +656,11 @@ class Debug {
     // Stores the way how LiveEdit has patched the stack. It is used when
     // debugger returns control back to user script.
     LiveEdit::FrameDropMode frame_drop_mode_;
+
+    // When restarter frame is on stack, stores the address
+    // of the pointer to function being restarted. Otherwise (most of the time)
+    // stores NULL. This pointer is used with 'step in' implementation.
+    Object** restarter_frame_function_pointer_;
   };
 
   // Storage location for registers when handling debug break calls
@@ -745,6 +756,8 @@ class DebugCodegen : public AllStatic {
 
   static void GenerateDebugBreakStub(MacroAssembler* masm,
                                      DebugBreakCallHelperMode mode);
+
+  static void GeneratePlainReturnLiveEdit(MacroAssembler* masm);
 
   // FrameDropper is a code replacement for a JavaScript frame with possibly
   // several frames above.

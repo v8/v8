@@ -61,6 +61,8 @@ class LiveEdit : AllStatic {
   enum FrameDropMode {
     // No frame has been dropped.
     FRAMES_UNTOUCHED,
+    // The top JS frame had been calling IC stub. IC stub mustn't be called now.
+    FRAME_DROPPED_IN_IC_CALL,
     // The top JS frame had been calling debug break slot stub. Patch the
     // address this stub jumps to in the end.
     FRAME_DROPPED_IN_DEBUG_SLOT_CALL,

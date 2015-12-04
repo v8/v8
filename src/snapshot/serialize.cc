@@ -60,6 +60,8 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
       "Heap::NewSpaceAllocationLimitAddress()");
   Add(ExternalReference::new_space_allocation_top_address(isolate).address(),
       "Heap::NewSpaceAllocationTopAddress()");
+  Add(ExternalReference::debug_step_in_enabled_address(isolate).address(),
+      "Debug::step_in_enabled_address()");
   Add(ExternalReference::mod_two_doubles_operation(isolate).address(),
       "mod_two_doubles");
   // Keyed lookup cache.
@@ -137,10 +139,11 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
   // Debug addresses
   Add(ExternalReference::debug_after_break_target_address(isolate).address(),
       "Debug::after_break_target_address()");
+  Add(ExternalReference::debug_restarter_frame_function_pointer_address(isolate)
+          .address(),
+      "Debug::restarter_frame_function_pointer_address()");
   Add(ExternalReference::debug_is_active_address(isolate).address(),
       "Debug::is_active_address()");
-  Add(ExternalReference::debug_step_in_enabled_address(isolate).address(),
-      "Debug::step_in_enabled_address()");
 
 #ifndef V8_INTERPRETED_REGEXP
   Add(ExternalReference::re_case_insensitive_compare_uc16(isolate).address(),
