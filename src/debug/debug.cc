@@ -336,7 +336,6 @@ void Debug::ThreadInit() {
   // TODO(isolates): frames_are_dropped_?
   base::NoBarrier_Store(&thread_local_.current_debug_scope_,
                         static_cast<base::AtomicWord>(0));
-  thread_local_.restarter_frame_function_pointer_ = NULL;
 }
 
 
@@ -828,18 +827,6 @@ void Debug::PrepareStep(StepAction step_action,
 
   DCHECK(in_debug_scope());
 
-  // Remember this step action and count.
-  thread_local_.last_step_action_ = step_action;
-  STATIC_ASSERT(StepFrame > StepIn);
-  thread_local_.step_in_enabled_ = (step_action >= StepIn);
-  if (step_action == StepOut) {
-    // For step out target frame will be found on the stack so there is no need
-    // to set step counter for it. It's expected to always be 0 for StepOut.
-    thread_local_.step_count_ = 0;
-  } else {
-    thread_local_.step_count_ = step_count;
-  }
-
   // Get the frame where the execution has stopped and skip the debug frame if
   // any. The debug frame will only be present if execution was stopped due to
   // hitting a break point. In other situations (e.g. unhandled exception) the
@@ -856,6 +843,18 @@ void Debug::PrepareStep(StepAction step_action,
   JavaScriptFrame* frame = frames_it.frame();
 
   feature_tracker()->Track(DebugFeatureTracker::kStepping);
+
+  // Remember this step action and count.
+  thread_local_.last_step_action_ = step_action;
+  STATIC_ASSERT(StepFrame > StepIn);
+  thread_local_.step_in_enabled_ = (step_action >= StepIn);
+  if (step_action == StepOut) {
+    // For step out target frame will be found on the stack so there is no need
+    // to set step counter for it. It's expected to always be 0 for StepOut.
+    thread_local_.step_count_ = 0;
+  } else {
+    thread_local_.step_count_ = step_count;
+  }
 
   // First of all ensure there is one-shot break points in the top handler
   // if any.
@@ -929,17 +928,6 @@ void Debug::PrepareStep(StepAction step_action,
       thread_local_.step_in_enabled_ = false;
     }
     return;
-  }
-
-  STATIC_ASSERT(StepFrame > StepIn);
-  if (step_action >= StepIn) {
-    // If there's restarter frame on top of the stack, just get the pointer
-    // to function which is going to be restarted.
-    if (thread_local_.restarter_frame_function_pointer_ != NULL) {
-      Handle<JSFunction> restarted_function(
-          JSFunction::cast(*thread_local_.restarter_frame_function_pointer_));
-      FloodWithOneShot(restarted_function);
-    }
   }
 
   // Fill the current function with one-shot break points even for step in on
@@ -1049,6 +1037,7 @@ void Debug::ClearStepping() {
 
   thread_local_.step_count_ = 0;
   thread_local_.last_step_action_ = StepNone;
+  thread_local_.step_in_enabled_ = false;
   thread_local_.last_statement_position_ = RelocInfo::kNoPosition;
   thread_local_.last_fp_ = 0;
 }
@@ -1522,14 +1511,11 @@ bool Debug::IsBreakAtReturn(JavaScriptFrame* frame) {
 
 
 void Debug::FramesHaveBeenDropped(StackFrame::Id new_break_frame_id,
-                                  LiveEdit::FrameDropMode mode,
-                                  Object** restarter_frame_function_pointer) {
+                                  LiveEdit::FrameDropMode mode) {
   if (mode != LiveEdit::CURRENTLY_SET_MODE) {
     thread_local_.frame_drop_mode_ = mode;
   }
   thread_local_.break_frame_id_ = new_break_frame_id;
-  thread_local_.restarter_frame_function_pointer_ =
-      restarter_frame_function_pointer;
 }
 
 
