@@ -1698,7 +1698,7 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   __ cmpi(r8, Operand(JS_PROXY_TYPE));
   __ bne(&non_function);
 
-  // 1. Call to function proxy.
+  // 1. Call to proxy.
   // TODO(neis): Implement [[Call]] on proxies.
 
   // 2. Call to something else, which might have a [[Call]] internal method (if
