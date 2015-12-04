@@ -695,6 +695,8 @@ DEFINE_BOOL(verify_heap, false, "verify heap pointers before and after GC")
 DEFINE_BOOL(memory_reducer, true, "use memory reducer")
 DEFINE_BOOL(scavenge_reclaim_unmodified_objects, false,
             "remove unmodified and unreferenced objects")
+DEFINE_INT(heap_growing_percent, 0,
+           "specifies heap growing factor as (1 + heap_growing_percent/100)")
 
 // counters.cc
 DEFINE_INT(histogram_interval, 600000,

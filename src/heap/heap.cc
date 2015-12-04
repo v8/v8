@@ -4911,6 +4911,10 @@ void Heap::SetOldGenerationAllocationLimit(intptr_t old_gen_size,
     factor = kMinHeapGrowingFactor;
   }
 
+  if (FLAG_heap_growing_percent > 0) {
+    factor = 1.0 + FLAG_heap_growing_percent / 100.0;
+  }
+
   old_generation_allocation_limit_ =
       CalculateOldGenerationAllocationLimit(factor, old_gen_size);
 
