@@ -3292,8 +3292,13 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
         //   happens upon moving (which we potentially didn't do).
         // - Leave the page in the list of pages of a space since we could not
         //   fully evacuate it.
+        // - Mark them for rescanning for store buffer entries as we otherwise
+        //   might have stale store buffer entries that become "valid" again
+        //   after reusing the memory. Note that all existing store buffer
+        //   entries of such pages are filtered before rescanning.
         DCHECK(p->IsEvacuationCandidate());
         p->SetFlag(Page::COMPACTION_WAS_ABORTED);
+        p->set_scan_on_scavenge(true);
         abandoned_pages++;
         break;
       case MemoryChunk::kCompactingFinalize:
@@ -3705,9 +3710,6 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
 
         // First pass on aborted pages, fixing up all live objects.
         if (p->IsFlagSet(Page::COMPACTION_WAS_ABORTED)) {
-          // Clearing the evacuation candidate flag here has the effect of
-          // stopping recording of slots for it in the following pointer
-          // update phases.
           p->ClearEvacuationCandidate();
           VisitLiveObjects(p, &updating_visitor);
         }

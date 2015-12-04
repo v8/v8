@@ -797,6 +797,7 @@ class MarkCompactCollector {
   base::Semaphore pending_compaction_tasks_semaphore_;
 
   friend class Heap;
+  friend class StoreBuffer;
 };
 
 

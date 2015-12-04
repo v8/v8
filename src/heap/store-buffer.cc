@@ -490,13 +490,22 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback) {
               }
             }
           } else {
-            heap_->mark_compact_collector()->SweepOrWaitUntilSweepingCompleted(
-                page);
-            HeapObjectIterator iterator(page);
-            for (HeapObject* heap_object = iterator.Next(); heap_object != NULL;
-                 heap_object = iterator.Next()) {
-              // We iterate over objects that contain new space pointers only.
-              heap_object->IterateBody(&visitor);
+            if (page->IsFlagSet(Page::COMPACTION_WAS_ABORTED)) {
+              // Aborted pages require iterating using mark bits because they
+              // don't have an iterable object layout before sweeping (which can
+              // only happen later). Note that we can never reach an
+              // aborted page through the scavenger.
+              DCHECK_EQ(heap_->gc_state(), Heap::MARK_COMPACT);
+              heap_->mark_compact_collector()->VisitLiveObjects(page, &visitor);
+            } else {
+              heap_->mark_compact_collector()
+                  ->SweepOrWaitUntilSweepingCompleted(page);
+              HeapObjectIterator iterator(page);
+              for (HeapObject* heap_object = iterator.Next();
+                   heap_object != nullptr; heap_object = iterator.Next()) {
+                // We iterate over objects that contain new space pointers only.
+                heap_object->IterateBody(&visitor);
+              }
             }
           }
         }
