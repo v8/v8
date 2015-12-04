@@ -2044,7 +2044,7 @@ void Genesis::InitializeGlobal_harmony_reflect() {
   SimpleInstallFunction(reflect, factory->deleteProperty_string(),
                         Builtins::kReflectDeleteProperty, 2, true);
   SimpleInstallFunction(reflect, factory->get_string(),
-                        Builtins::kReflectGet, 3, false);
+                        Builtins::kReflectGet, 2, false);
   SimpleInstallFunction(reflect, factory->getOwnPropertyDescriptor_string(),
                         Builtins::kReflectGetOwnPropertyDescriptor, 2, true);
   SimpleInstallFunction(reflect, factory->getPrototypeOf_string(),

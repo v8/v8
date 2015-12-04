@@ -71,7 +71,7 @@ function prepare(target) {
 
 
 (function testReflectGetArity() {
-  assertEquals(3, Reflect.get.length);
+  assertEquals(2, Reflect.get.length);
 })();
 
 
