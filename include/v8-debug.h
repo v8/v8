@@ -157,10 +157,9 @@ class V8_EXPORT Debug {
 
   static bool SetDebugEventListener(Isolate* isolate, EventCallback that,
                                     Local<Value> data = Local<Value>());
-  V8_DEPRECATE_SOON(
-      "Use version with an Isolate",
-      static bool SetDebugEventListener(EventCallback that,
-                                        Local<Value> data = Local<Value>()));
+  V8_DEPRECATED("Use version with an Isolate",
+                static bool SetDebugEventListener(
+                    EventCallback that, Local<Value> data = Local<Value>()));
 
   // Schedule a debugger break to happen when JavaScript code is run
   // in the given isolate.
@@ -175,8 +174,8 @@ class V8_EXPORT Debug {
 
   // Message based interface. The message protocol is JSON.
   static void SetMessageHandler(Isolate* isolate, MessageHandler handler);
-  V8_DEPRECATE_SOON("Use version with an Isolate",
-                    static void SetMessageHandler(MessageHandler handler));
+  V8_DEPRECATED("Use version with an Isolate",
+                static void SetMessageHandler(MessageHandler handler));
 
   static void SendCommand(Isolate* isolate,
                           const uint16_t* command, int length,
@@ -200,10 +199,9 @@ class V8_EXPORT Debug {
   *   }
   * \endcode
   */
-  static V8_DEPRECATE_SOON(
-      "Use maybe version",
-      Local<Value> Call(v8::Local<v8::Function> fun,
-                        Local<Value> data = Local<Value>()));
+  static V8_DEPRECATED("Use maybe version",
+                       Local<Value> Call(v8::Local<v8::Function> fun,
+                                         Local<Value> data = Local<Value>()));
   // TODO(dcarney): data arg should be a MaybeLocal
   static MaybeLocal<Value> Call(Local<Context> context,
                                 v8::Local<v8::Function> fun,
@@ -212,8 +210,8 @@ class V8_EXPORT Debug {
   /**
    * Returns a mirror object for the given object.
    */
-  static V8_DEPRECATE_SOON("Use maybe version",
-                           Local<Value> GetMirror(v8::Local<v8::Value> obj));
+  static V8_DEPRECATED("Use maybe version",
+                       Local<Value> GetMirror(v8::Local<v8::Value> obj));
   static MaybeLocal<Value> GetMirror(Local<Context> context,
                                      v8::Local<v8::Value> obj);
 
@@ -249,8 +247,8 @@ class V8_EXPORT Debug {
    * of this method.
    */
   static void ProcessDebugMessages(Isolate* isolate);
-  V8_DEPRECATE_SOON("Use version with an Isolate",
-                    static void ProcessDebugMessages());
+  V8_DEPRECATED("Use version with an Isolate",
+                static void ProcessDebugMessages());
 
   /**
    * Debugger is running in its own context which is entered while debugger
@@ -260,8 +258,8 @@ class V8_EXPORT Debug {
    * least one DebugEventListener or MessageHandler is set.
    */
   static Local<Context> GetDebugContext(Isolate* isolate);
-  V8_DEPRECATE_SOON("Use version with an Isolate",
-                    static Local<Context> GetDebugContext());
+  V8_DEPRECATED("Use version with an Isolate",
+                static Local<Context> GetDebugContext());
 
 
   /**
