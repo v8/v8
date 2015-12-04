@@ -42,6 +42,11 @@ function ProxyCreateFunction(handler, callTrap, constructTrap) {
     {}, handler, callTrap, constructTrap, GlobalFunction.prototype)
 }
 
+function ProxyCreateRevocable(target, handler) {
+  var p = new GlobalProxy(target, handler);
+  return {proxy: p, revoke: () => %RevokeProxy(p)};
+}
+
 // -------------------------------------------------------------------
 // Proxy Builtins
 
@@ -144,6 +149,7 @@ function ProxyEnumerate(trap, handler, target) {
 
 //Set up non-enumerable properties of the Proxy object.
 utils.InstallFunctions(GlobalProxy, DONT_ENUM, [
+  "revocable", ProxyCreateRevocable,
   "createFunction", ProxyCreateFunction
 ]);
 

@@ -547,7 +547,8 @@ namespace internal {
   F(IsJSFunctionProxy, 1, 1)        \
   F(GetHandler, 1, 1)               \
   F(GetCallTrap, 1, 1)              \
-  F(GetConstructTrap, 1, 1)
+  F(GetConstructTrap, 1, 1)         \
+  F(RevokeProxy, 1, 1)
 
 
 #define FOR_EACH_INTRINSIC_REGEXP(F)           \

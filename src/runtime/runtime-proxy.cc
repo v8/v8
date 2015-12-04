@@ -65,5 +65,15 @@ RUNTIME_FUNCTION(Runtime_GetConstructTrap) {
   return proxy->construct_trap();
 }
 
+
+RUNTIME_FUNCTION(Runtime_RevokeProxy) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSProxy, proxy, 0);
+  JSProxy::Revoke(proxy);
+  return isolate->heap()->undefined_value();
+}
+
+
 }  // namespace internal
 }  // namespace v8

@@ -9500,7 +9500,7 @@ class JSProxy: public JSReceiver {
   // [handler]: The handler property.
   DECL_ACCESSORS(handler, Object)
   // [target]: The target property.
-  DECL_ACCESSORS(target, Object)
+  DECL_ACCESSORS(target, JSReceiver)
   // [hash]: The hash code property (undefined if not initialized yet).
   DECL_ACCESSORS(hash, Object)
 
@@ -9508,7 +9508,8 @@ class JSProxy: public JSReceiver {
 
   DECLARE_CAST(JSProxy)
 
-  bool IsRevoked() const;
+  INLINE(bool IsRevoked() const);
+  static void Revoke(Handle<JSProxy> proxy);
 
   // ES6 9.5.1
   static MaybeHandle<Object> GetPrototype(Handle<JSProxy> receiver);
