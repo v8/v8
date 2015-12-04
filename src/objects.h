@@ -4793,7 +4793,6 @@ class Code: public HeapObject {
   V(LOAD_IC)            \
   V(KEYED_LOAD_IC)      \
   V(CALL_IC)            \
-  V(CONSTRUCT_IC)       \
   V(STORE_IC)           \
   V(KEYED_STORE_IC)     \
   V(BINARY_OP_IC)       \

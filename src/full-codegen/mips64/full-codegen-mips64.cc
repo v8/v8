@@ -3008,8 +3008,8 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   __ EmitLoadTypeFeedbackVector(a2);
   __ li(a3, Operand(SmiFromSlot(expr->CallNewFeedbackSlot())));
 
-  Handle<Code> code = CodeFactory::ConstructIC(isolate()).code();
-  __ Call(code, RelocInfo::CODE_TARGET);
+  CallConstructStub stub(isolate());
+  __ Call(stub.GetCode(), RelocInfo::CODE_TARGET);
   PrepareForBailoutForId(expr->ReturnId(), TOS_REG);
   // Restore context register.
   __ ld(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));

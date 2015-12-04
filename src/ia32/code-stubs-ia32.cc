@@ -1937,7 +1937,6 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // edi : the function to call
   Isolate* isolate = masm->isolate();
   Label initialize, done, miss, megamorphic, not_array_function;
-  Label done_increment_count;
 
   // Load the cache state into ecx.
   __ mov(ecx, FieldOperand(ebx, edx, times_half_pointer_size,
@@ -1950,7 +1949,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // type-feedback-vector.h).
   Label check_allocation_site;
   __ cmp(edi, FieldOperand(ecx, WeakCell::kValueOffset));
-  __ j(equal, &done_increment_count, Label::kFar);
+  __ j(equal, &done, Label::kFar);
   __ CompareRoot(ecx, Heap::kmegamorphic_symbolRootIndex);
   __ j(equal, &done, Label::kFar);
   __ CompareRoot(FieldOperand(ecx, HeapObject::kMapOffset),
@@ -1973,7 +1972,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, ecx);
   __ cmp(edi, ecx);
   __ j(not_equal, &megamorphic);
-  __ jmp(&done_increment_count, Label::kFar);
+  __ jmp(&done, Label::kFar);
 
   __ bind(&miss);
 
@@ -1992,12 +1991,6 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // An uninitialized cache is patched with the function or sentinel to
   // indicate the ElementsKind if function is the Array constructor.
   __ bind(&initialize);
-
-  // Initialize the call counter.
-  __ mov(FieldOperand(ebx, edx, times_half_pointer_size,
-                      FixedArray::kHeaderSize + kPointerSize),
-         Immediate(Smi::FromInt(ConstructICNexus::kCallCountIncrement)));
-
   // Make sure the function is the Array() function
   __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, ecx);
   __ cmp(edi, ecx);
@@ -2013,18 +2006,11 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   __ bind(&not_array_function);
   CreateWeakCellStub weak_cell_stub(isolate);
   CallStubInRecordCallTarget(masm, &weak_cell_stub);
-  __ jmp(&done);
-
-  __ bind(&done_increment_count);
-  __ add(FieldOperand(ebx, edx, times_half_pointer_size,
-                      FixedArray::kHeaderSize + kPointerSize),
-         Immediate(Smi::FromInt(ConstructICNexus::kCallCountIncrement)));
-
   __ bind(&done);
 }
 
 
-void ConstructICStub::Generate(MacroAssembler* masm) {
+void CallConstructStub::Generate(MacroAssembler* masm) {
   // eax : number of arguments
   // ebx : feedback vector
   // edx : slot in feedback vector (Smi, for RecordCallTarget)

@@ -75,13 +75,6 @@ Callable CodeFactory::CallICInOptimizedCode(Isolate* isolate, int argc,
 
 
 // static
-Callable CodeFactory::ConstructIC(Isolate* isolate) {
-  ConstructICStub stub(isolate);
-  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
-}
-
-
-// static
 Callable CodeFactory::StoreIC(Isolate* isolate, LanguageMode language_mode) {
   return Callable(
       StoreIC::initialize_stub(isolate, language_mode, UNINITIALIZED),

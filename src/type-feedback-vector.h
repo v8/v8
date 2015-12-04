@@ -23,7 +23,6 @@ enum class FeedbackVectorSlotKind {
   INVALID,
 
   CALL_IC,
-  CONSTRUCT_IC,
   LOAD_IC,
   KEYED_LOAD_IC,
   STORE_IC,
@@ -46,10 +45,6 @@ class FeedbackVectorSpecBase {
 
   FeedbackVectorSlot AddCallICSlot() {
     return AddSlot(FeedbackVectorSlotKind::CALL_IC);
-  }
-
-  FeedbackVectorSlot AddConstructICSlot() {
-    return AddSlot(FeedbackVectorSlotKind::CONSTRUCT_IC);
   }
 
   FeedbackVectorSlot AddLoadICSlot() {
@@ -160,7 +155,7 @@ class TypeFeedbackMetadata : public FixedArray {
   static const char* Kind2String(FeedbackVectorSlotKind kind);
 
  private:
-  static const int kFeedbackVectorSlotKindBits = 4;
+  static const int kFeedbackVectorSlotKindBits = 3;
   STATIC_ASSERT(static_cast<int>(FeedbackVectorSlotKind::KINDS_NUMBER) <
                 (1 << kFeedbackVectorSlotKindBits));
 
@@ -404,7 +399,7 @@ class FeedbackNexus {
 };
 
 
-class CallICNexus : public FeedbackNexus {
+class CallICNexus final : public FeedbackNexus {
  public:
   // Monomorphic call ics store call counts. Platform code needs to increment
   // the count appropriately (ie, by 2).
@@ -412,13 +407,11 @@ class CallICNexus : public FeedbackNexus {
 
   CallICNexus(Handle<TypeFeedbackVector> vector, FeedbackVectorSlot slot)
       : FeedbackNexus(vector, slot) {
-    DCHECK(vector->GetKind(slot) == FeedbackVectorSlotKind::CALL_IC ||
-           vector->GetKind(slot) == FeedbackVectorSlotKind::CONSTRUCT_IC);
+    DCHECK_EQ(FeedbackVectorSlotKind::CALL_IC, vector->GetKind(slot));
   }
   CallICNexus(TypeFeedbackVector* vector, FeedbackVectorSlot slot)
       : FeedbackNexus(vector, slot) {
-    DCHECK(vector->GetKind(slot) == FeedbackVectorSlotKind::CALL_IC ||
-           vector->GetKind(slot) == FeedbackVectorSlotKind::CONSTRUCT_IC);
+    DCHECK_EQ(FeedbackVectorSlotKind::CALL_IC, vector->GetKind(slot));
   }
 
   void Clear(Code* host);
@@ -441,19 +434,7 @@ class CallICNexus : public FeedbackNexus {
     return length == 0;
   }
 
-  Handle<Object> GetCallFeedback();
   int ExtractCallCount();
-};
-
-
-class ConstructICNexus final : public CallICNexus {
- public:
-  ConstructICNexus(Handle<TypeFeedbackVector> vector, FeedbackVectorSlot slot)
-      : CallICNexus(vector, slot) {}
-  ConstructICNexus(TypeFeedbackVector* vector, FeedbackVectorSlot slot)
-      : CallICNexus(vector, slot) {}
-
-  void Clear(Code* host);
 };
 
 

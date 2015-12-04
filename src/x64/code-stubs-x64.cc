@@ -1786,7 +1786,6 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   Isolate* isolate = masm->isolate();
   Label initialize, done, miss, megamorphic, not_array_function,
       done_no_smi_convert;
-  Label done_increment_count;
 
   // Load the cache state into r11.
   __ SmiToInteger32(rdx, rdx);
@@ -1800,7 +1799,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // type-feedback-vector.h).
   Label check_allocation_site;
   __ cmpp(rdi, FieldOperand(r11, WeakCell::kValueOffset));
-  __ j(equal, &done_increment_count, Label::kFar);
+  __ j(equal, &done, Label::kFar);
   __ CompareRoot(r11, Heap::kmegamorphic_symbolRootIndex);
   __ j(equal, &done, Label::kFar);
   __ CompareRoot(FieldOperand(r11, HeapObject::kMapOffset),
@@ -1824,7 +1823,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   __ LoadNativeContextSlot(Context::ARRAY_FUNCTION_INDEX, r11);
   __ cmpp(rdi, r11);
   __ j(not_equal, &megamorphic);
-  __ jmp(&done_increment_count);
+  __ jmp(&done);
 
   __ bind(&miss);
 
@@ -1843,11 +1842,6 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // indicate the ElementsKind if function is the Array constructor.
   __ bind(&initialize);
 
-  // Initialize the call counter.
-  __ Move(FieldOperand(rbx, rdx, times_pointer_size,
-                       FixedArray::kHeaderSize + kPointerSize),
-          Smi::FromInt(ConstructICNexus::kCallCountIncrement));
-
   // Make sure the function is the Array() function
   __ LoadNativeContextSlot(Context::ARRAY_FUNCTION_INDEX, r11);
   __ cmpp(rdi, r11);
@@ -1862,11 +1856,6 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   CallStubInRecordCallTarget(masm, &weak_cell_stub);
   __ jmp(&done_no_smi_convert);
 
-  __ bind(&done_increment_count);
-  __ SmiAddConstant(FieldOperand(rbx, rdx, times_pointer_size,
-                                 FixedArray::kHeaderSize + kPointerSize),
-                    Smi::FromInt(ConstructICNexus::kCallCountIncrement));
-
   __ bind(&done);
   __ Integer32ToSmi(rdx, rdx);
 
@@ -1874,7 +1863,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
 }
 
 
-void ConstructICStub::Generate(MacroAssembler* masm) {
+void CallConstructStub::Generate(MacroAssembler* masm) {
   // rax : number of arguments
   // rbx : feedback vector
   // rdx : slot in feedback vector (Smi)

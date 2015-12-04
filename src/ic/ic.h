@@ -77,8 +77,8 @@ class IC {
 
   static bool ICUseVector(Code::Kind kind) {
     return kind == Code::LOAD_IC || kind == Code::KEYED_LOAD_IC ||
-           kind == Code::CALL_IC || kind == Code::CONSTRUCT_IC ||
-           kind == Code::STORE_IC || kind == Code::KEYED_STORE_IC;
+           kind == Code::CALL_IC || kind == Code::STORE_IC ||
+           kind == Code::KEYED_STORE_IC;
   }
 
  protected:
@@ -291,17 +291,6 @@ class CallIC : public IC {
       Isolate* isolate, int argc, ConvertReceiverMode mode);
 
   static void Clear(Isolate* isolate, Code* host, CallICNexus* nexus);
-};
-
-
-class ConstructIC : public IC {
- public:
-  ConstructIC(Isolate* isolate, ConstructICNexus* nexus)
-      : IC(EXTRA_CALL_FRAME, isolate, nexus) {
-    DCHECK(nexus != NULL);
-  }
-
-  static void Clear(Isolate* isolate, Code* host, ConstructICNexus* nexus);
 };
 
 

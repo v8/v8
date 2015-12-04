@@ -27,8 +27,8 @@ namespace internal {
   V(CallApiFunction)                        \
   V(CallApiAccessor)                        \
   V(CallApiGetter)                          \
+  V(CallConstruct)                          \
   V(CallIC)                                 \
-  V(ConstructIC)                            \
   V(CEntry)                                 \
   V(CompareIC)                              \
   V(DoubleToI)                              \
@@ -1875,16 +1875,13 @@ class RegExpConstructResultStub final : public HydrogenCodeStub {
 };
 
 
-class ConstructICStub final : public PlatformCodeStub {
+// TODO(bmeurer/mvstanton): Turn CallConstructStub into ConstructICStub.
+class CallConstructStub final : public PlatformCodeStub {
  public:
-  explicit ConstructICStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
+  explicit CallConstructStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
 
-  Code::Kind GetCodeKind() const override { return Code::CONSTRUCT_IC; }
-
-  InlineCacheState GetICState() const final { return GENERIC; }
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(Construct);
-  DEFINE_PLATFORM_CODE_STUB(ConstructIC, PlatformCodeStub);
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(CallConstruct);
+  DEFINE_PLATFORM_CODE_STUB(CallConstruct, PlatformCodeStub);
 };
 
 
