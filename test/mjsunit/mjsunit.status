@@ -54,6 +54,12 @@
   # Issue 3784: setters-on-elements is flaky
   'setters-on-elements': [PASS, FAIL],
 
+  # Issue 3641: The new 'then' semantics suppress some exceptions.
+  # These tests may be changed or removed when 'chain' is deprecated.
+  'es6/debug-promises/reject-with-throw-in-reject': [FAIL],
+  'es6/debug-promises/reject-with-undefined-reject': [FAIL],
+  'es6/debug-promises/reject-with-invalid-reject': [FAIL],
+
   ##############################################################################
   # TurboFan compiler failures.
 
