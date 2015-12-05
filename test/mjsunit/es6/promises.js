@@ -193,9 +193,8 @@ function assertAsyncDone(iteration) {
   var p1 = Promise.accept(5)
   var p2 = Promise.accept(p1)
   var p3 = Promise.accept(p2)
-  // Note: Chain now has then-style semantics, here and in future tests.
   p3.chain(
-    function(x) { assertAsync(x === 5, "resolved/chain") },
+    function(x) { assertAsync(x === p2, "resolved/chain") },
     assertUnreachable
   )
   assertAsyncRan()
@@ -217,8 +216,8 @@ function assertAsyncDone(iteration) {
   var p2 = Promise.accept(p1)
   var p3 = Promise.accept(p2)
   p3.chain(
-    assertUnreachable,
-    function(x) { assertAsync(x === 5, "rejected/chain") }
+    function(x) { assertAsync(x === p2, "rejected/chain") },
+    assertUnreachable
   )
   assertAsyncRan()
 })();
@@ -234,16 +233,17 @@ function assertAsyncDone(iteration) {
   assertAsyncRan()
 })();
 
+/* TODO(caitp): remove tests once PromiseChain is removed, per bug 3237
 (function() {
   var p1 = Promise.accept(5)
   var p2 = Promise.accept(p1)
   var p3 = Promise.accept(p2)
   p3.chain(function(x) { return x }, assertUnreachable).chain(
-    function(x) { assertAsync(x === 5, "resolved/chain/chain") },
+    function(x) { assertAsync(x === p1, "resolved/chain/chain") },
     assertUnreachable
   )
   assertAsyncRan()
-})();
+})();*/
 
 (function() {
   var p1 = Promise.accept(5)
@@ -371,7 +371,7 @@ function assertAsyncDone(iteration) {
   var p2 = {then: function(onResolve, onReject) { onResolve(p1) }}
   var p3 = Promise.accept(p2)
   p3.chain(
-    function(x) { assertAsync(x === 5, "resolved/thenable/chain") },
+    function(x) { assertAsync(x === p2, "resolved/thenable/chain") },
     assertUnreachable
   )
   assertAsyncRan()
@@ -393,8 +393,8 @@ function assertAsyncDone(iteration) {
   var p2 = {then: function(onResolve, onReject) { onResolve(p1) }}
   var p3 = Promise.accept(p2)
   p3.chain(
-    assertUnreachable,
-    function(x) { assertAsync(x === 5, "rejected/thenable/chain") }
+    function(x) { assertAsync(x === p2, "rejected/thenable/chain") },
+    assertUnreachable
   )
   assertAsyncRan()
 })();
@@ -416,7 +416,7 @@ function assertAsyncDone(iteration) {
   var p2 = Promise.accept(p1)
   var p3 = Promise.accept(p2)
   p3.chain(
-    function(x) { assertAsync(x === 5, "chain/resolve") },
+    function(x) { assertAsync(x === p2, "chain/resolve") },
     assertUnreachable
   )
   deferred.resolve(5)
@@ -426,8 +426,8 @@ function assertAsyncDone(iteration) {
 (function() {
   var deferred = Promise.defer()
   var p1 = deferred.promise
-  var p2 = Promise.resolve(p1)
-  var p3 = Promise.resolve(p2)
+  var p2 = Promise.accept(p1)
+  var p3 = Promise.accept(p2)
   p3.then(
     function(x) { assertAsync(x === 5, "then/resolve") },
     assertUnreachable
@@ -442,8 +442,8 @@ function assertAsyncDone(iteration) {
   var p2 = Promise.accept(p1)
   var p3 = Promise.accept(p2)
   p3.chain(
-    assertUnreachable,
-    function(x) { assertAsync(x === 5, "chain/reject") }
+    function(x) { assertAsync(x === p2, "chain/reject") },
+    assertUnreachable
   )
   deferred.reject(5)
   assertAsyncRan()
@@ -492,7 +492,7 @@ function assertAsyncDone(iteration) {
   var p2 = {then: function(onResolve, onReject) { onResolve(p1) }}
   var p3 = Promise.accept(p2)
   p3.chain(
-    function(x) { assertAsync(x === 5, "chain/resolve/thenable") },
+    function(x) { assertAsync(x === p2, "chain/resolve/thenable") },
     assertUnreachable
   )
   deferred.resolve(5)
@@ -518,8 +518,8 @@ function assertAsyncDone(iteration) {
   var p2 = {then: function(onResolve, onReject) { onResolve(p1) }}
   var p3 = Promise.accept(p2)
   p3.chain(
-    assertUnreachable,
-    function(x) { assertAsync(x === 5, "chain/reject/thenable") }
+    function(x) { assertAsync(x === p2, "chain/reject/thenable") },
+    assertUnreachable
   )
   deferred.reject(5)
   assertAsyncRan()
@@ -538,18 +538,19 @@ function assertAsyncDone(iteration) {
   assertAsyncRan()
 })();
 
+/* TODO(caitp): remove tests once PromiseChain is removed, per bug v8:3237
 (function() {
   var p1 = Promise.accept(5)
   var p2 = Promise.accept(p1)
   var deferred = Promise.defer()
   var p3 = deferred.promise
   p3.chain(
-    function(x) { assertAsync(x === 5, "chain/resolve2") },
+    function(x) { assertAsync(x === p2, "chain/resolve2") },
     assertUnreachable
   )
   deferred.resolve(p2)
   assertAsyncRan()
-})();
+})(); */
 
 (function() {
   var p1 = Promise.accept(5)
@@ -590,18 +591,19 @@ function assertAsyncDone(iteration) {
   assertAsyncRan()
 })();
 
+/* TODO(caitp): remove tests once PromiseChain is removed, per bug v8:3237
 (function() {
   var p1 = Promise.accept(5)
   var p2 = {then: function(onResolve, onReject) { onResolve(p1) }}
   var deferred = Promise.defer()
   var p3 = deferred.promise
   p3.chain(
-    function(x) { assertAsync(x === 5, "chain/resolve/thenable2") },
+    function(x) { assertAsync(x === p2, "chain/resolve/thenable2") },
     assertUnreachable
   )
   deferred.resolve(p2)
   assertAsyncRan()
-})();
+})(); */
 
 (function() {
   var p1 = Promise.accept(5)
@@ -636,17 +638,19 @@ function assertAsyncDone(iteration) {
   assertAsyncRan()
 })();
 
+/* TODO(caitp): remove tests once PromiseChain is removed, per bug v8:3237
 (function() {
   var deferred = Promise.defer()
   var p = deferred.promise
   deferred.resolve(p)
   p.chain(
-    assertUnreachable,
-    function(r) { assertAsync(r instanceof TypeError, "cyclic/deferred/then") }
+    function(x) { assertAsync(x === p, "cyclic/deferred/chain") },
+    assertUnreachable
   )
   assertAsyncRan()
-})();
+})();*/
 
+/* TODO(caitp): remove tests once PromiseChain is removed, per bug v8:3237
 (function() {
   var deferred = Promise.defer()
   var p = deferred.promise
@@ -656,7 +660,7 @@ function assertAsyncDone(iteration) {
     function(r) { assertAsync(r instanceof TypeError, "cyclic/deferred/then") }
   )
   assertAsyncRan()
-})();
+})();*/
 
 (function() {
   Promise.all([]).chain(
@@ -758,6 +762,7 @@ function assertAsyncDone(iteration) {
   deferred2.reject(2)
   assertAsyncRan()
 })();
+
 
 (function() {
   'use strict';
