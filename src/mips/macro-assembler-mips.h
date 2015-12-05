@@ -1188,45 +1188,42 @@ class MacroAssembler: public Assembler {
   // Usage: first call the appropriate arithmetic function, then call one of the
   // jump functions with the overflow_dst register as the second parameter.
 
-  void AdduAndCheckForOverflow(Register dst,
-                               Register left,
-                               Register right,
-                               Register overflow_dst,
-                               Register scratch = at);
-
-  void AdduAndCheckForOverflow(Register dst, Register left,
-                               const Operand& right, Register overflow_dst,
-                               Register scratch = at);
-
-  void SubuAndCheckForOverflow(Register dst,
-                               Register left,
-                               Register right,
-                               Register overflow_dst,
-                               Register scratch = at);
-
-  void SubuAndCheckForOverflow(Register dst, Register left,
-                               const Operand& right, Register overflow_dst,
-                               Register scratch = at);
-
-  void BranchOnOverflow(Label* label,
-                        Register overflow_check,
-                        BranchDelaySlot bd = PROTECT) {
-    Branch(label, lt, overflow_check, Operand(zero_reg), bd);
+  inline void AddBranchOvf(Register dst, Register left, const Operand& right,
+                           Label* overflow_label, Register scratch = at) {
+    AddBranchOvf(dst, left, right, overflow_label, nullptr, scratch);
   }
 
-  void BranchOnNoOverflow(Label* label,
-                          Register overflow_check,
-                          BranchDelaySlot bd = PROTECT) {
-    Branch(label, ge, overflow_check, Operand(zero_reg), bd);
+  inline void AddBranchNoOvf(Register dst, Register left, const Operand& right,
+                             Label* no_overflow_label, Register scratch = at) {
+    AddBranchOvf(dst, left, right, nullptr, no_overflow_label, scratch);
   }
 
-  void RetOnOverflow(Register overflow_check, BranchDelaySlot bd = PROTECT) {
-    Ret(lt, overflow_check, Operand(zero_reg), bd);
+  void AddBranchOvf(Register dst, Register left, const Operand& right,
+                    Label* overflow_label, Label* no_overflow_label,
+                    Register scratch = at);
+
+  void AddBranchOvf(Register dst, Register left, Register right,
+                    Label* overflow_label, Label* no_overflow_label,
+                    Register scratch = at);
+
+
+  inline void SubBranchOvf(Register dst, Register left, const Operand& right,
+                           Label* overflow_label, Register scratch = at) {
+    SubBranchOvf(dst, left, right, overflow_label, nullptr, scratch);
   }
 
-  void RetOnNoOverflow(Register overflow_check, BranchDelaySlot bd = PROTECT) {
-    Ret(ge, overflow_check, Operand(zero_reg), bd);
+  inline void SubBranchNoOvf(Register dst, Register left, const Operand& right,
+                             Label* no_overflow_label, Register scratch = at) {
+    SubBranchOvf(dst, left, right, nullptr, no_overflow_label, scratch);
   }
+
+  void SubBranchOvf(Register dst, Register left, const Operand& right,
+                    Label* overflow_label, Label* no_overflow_label,
+                    Register scratch = at);
+
+  void SubBranchOvf(Register dst, Register left, Register right,
+                    Label* overflow_label, Label* no_overflow_label,
+                    Register scratch = at);
 
   // -------------------------------------------------------------------------
   // Runtime calls.
@@ -1405,13 +1402,22 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
     Addu(reg, reg, reg);
   }
 
+  void SmiTag(Register dst, Register src) { Addu(dst, src, src); }
+
   // Test for overflow < 0: use BranchOnOverflow() or BranchOnNoOverflow().
   void SmiTagCheckOverflow(Register reg, Register overflow);
   void SmiTagCheckOverflow(Register dst, Register src, Register overflow);
 
-  void SmiTag(Register dst, Register src) {
-    Addu(dst, src, src);
+  void BranchOnOverflow(Label* label, Register overflow_check,
+                        BranchDelaySlot bd = PROTECT) {
+    Branch(label, lt, overflow_check, Operand(zero_reg), bd);
   }
+
+  void BranchOnNoOverflow(Label* label, Register overflow_check,
+                          BranchDelaySlot bd = PROTECT) {
+    Branch(label, ge, overflow_check, Operand(zero_reg), bd);
+  }
+
 
   // Try to convert int32 to smi. If the value is to large, preserve
   // the original value and jump to not_a_smi. Destroys scratch and

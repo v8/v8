@@ -2282,12 +2282,10 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
       break;
     }
     case Token::ADD:
-      __ AdduAndCheckForOverflow(v0, left, right, scratch1);
-      __ BranchOnOverflow(&stub_call, scratch1);
+      __ AddBranchOvf(v0, left, Operand(right), &stub_call);
       break;
     case Token::SUB:
-      __ SubuAndCheckForOverflow(v0, left, right, scratch1);
-      __ BranchOnOverflow(&stub_call, scratch1);
+      __ SubBranchOvf(v0, left, Operand(right), &stub_call);
       break;
     case Token::MUL: {
       __ SmiUntag(scratch1, right);
@@ -3907,8 +3905,7 @@ void FullCodeGenerator::EmitFastOneByteArrayJoin(CallRuntime* expr) {
   __ lbu(scratch1, FieldMemOperand(scratch1, Map::kInstanceTypeOffset));
   __ JumpIfInstanceTypeIsNotSequentialOneByte(scratch1, scratch2, &bailout);
   __ lw(scratch1, FieldMemOperand(string, SeqOneByteString::kLengthOffset));
-  __ AdduAndCheckForOverflow(string_length, string_length, scratch1, scratch3);
-  __ BranchOnOverflow(&bailout, scratch3);
+  __ AddBranchOvf(string_length, string_length, Operand(scratch1), &bailout);
   __ Branch(&loop, lt, element, Operand(elements_end));
 
   // If array_length is 1, return elements[0], a string.
@@ -3941,8 +3938,7 @@ void FullCodeGenerator::EmitFastOneByteArrayJoin(CallRuntime* expr) {
   __ Branch(&bailout, ne, scratch3, Operand(zero_reg));
   __ And(scratch3, scratch2, Operand(0x80000000));
   __ Branch(&bailout, ne, scratch3, Operand(zero_reg));
-  __ AdduAndCheckForOverflow(string_length, string_length, scratch2, scratch3);
-  __ BranchOnOverflow(&bailout, scratch3);
+  __ AddBranchOvf(string_length, string_length, Operand(scratch2), &bailout);
   __ SmiUntag(string_length);
 
   // Bailout for large object allocations.
@@ -4408,10 +4404,8 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     }
 
     Register scratch1 = a1;
-    Register scratch2 = t0;
     __ li(scratch1, Operand(Smi::FromInt(count_value)));
-    __ AdduAndCheckForOverflow(v0, v0, scratch1, scratch2);
-    __ BranchOnNoOverflow(&done, scratch2);
+    __ AddBranchNoOvf(v0, v0, Operand(scratch1), &done);
     // Call stub. Undo operation first.
     __ Move(v0, a0);
     __ jmp(&stub_call);

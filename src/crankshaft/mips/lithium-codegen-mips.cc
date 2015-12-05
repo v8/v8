@@ -1376,9 +1376,10 @@ void LCodeGen::DoMulI(LMulI* instr) {
     switch (constant) {
       case -1:
         if (overflow) {
-          __ SubuAndCheckForOverflow(result, zero_reg, left, scratch);
-          DeoptimizeIf(lt, instr, Deoptimizer::kOverflow, scratch,
-                       Operand(zero_reg));
+          Label no_overflow;
+          __ SubBranchNoOvf(result, zero_reg, Operand(left), &no_overflow);
+          DeoptimizeIf(al, instr);
+          __ bind(&no_overflow);
         } else {
           __ Subu(result, zero_reg, left);
         }
@@ -1604,21 +1605,19 @@ void LCodeGen::DoSubI(LSubI* instr) {
       __ Subu(ToRegister(result), ToRegister(left), ToOperand(right));
     }
   } else {  // can_overflow.
-    Register overflow = scratch0();
-    Register scratch = scratch1();
+    Register scratch = scratch0();
+    Label no_overflow_label;
     if (right->IsStackSlot()) {
       Register right_reg = EmitLoadRegister(right, scratch);
-      __ SubuAndCheckForOverflow(ToRegister(result),
-                                 ToRegister(left),
-                                 right_reg,
-                                 overflow);  // Reg at also used as scratch.
+      __ SubBranchNoOvf(ToRegister(result), ToRegister(left),
+                        Operand(right_reg), &no_overflow_label);
     } else {
       DCHECK(right->IsRegister() || right->IsConstantOperand());
-      __ SubuAndCheckForOverflow(ToRegister(result), ToRegister(left),
-                                 ToOperand(right), overflow, scratch);
+      __ SubBranchNoOvf(ToRegister(result), ToRegister(left), ToOperand(right),
+                        &no_overflow_label, scratch);
     }
-    DeoptimizeIf(lt, instr, Deoptimizer::kOverflow, overflow,
-                 Operand(zero_reg));
+    DeoptimizeIf(al, instr);
+    __ bind(&no_overflow_label);
   }
 }
 
@@ -1800,21 +1799,19 @@ void LCodeGen::DoAddI(LAddI* instr) {
       __ Addu(ToRegister(result), ToRegister(left), ToOperand(right));
     }
   } else {  // can_overflow.
-    Register overflow = scratch0();
     Register scratch = scratch1();
+    Label no_overflow_label;
     if (right->IsStackSlot()) {
       Register right_reg = EmitLoadRegister(right, scratch);
-      __ AdduAndCheckForOverflow(ToRegister(result),
-                                 ToRegister(left),
-                                 right_reg,
-                                 overflow);  // Reg at also used as scratch.
+      __ AddBranchNoOvf(ToRegister(result), ToRegister(left),
+                        Operand(right_reg), &no_overflow_label);
     } else {
       DCHECK(right->IsRegister() || right->IsConstantOperand());
-      __ AdduAndCheckForOverflow(ToRegister(result), ToRegister(left),
-                                 ToOperand(right), overflow, scratch);
+      __ AddBranchNoOvf(ToRegister(result), ToRegister(left), ToOperand(right),
+                        &no_overflow_label, scratch);
     }
-    DeoptimizeIf(lt, instr, Deoptimizer::kOverflow, overflow,
-                 Operand(zero_reg));
+    DeoptimizeIf(al, instr);
+    __ bind(&no_overflow_label);
   }
 }
 
