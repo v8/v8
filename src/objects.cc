@@ -14111,8 +14111,10 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(
         }
 
         case Translation::LITERAL: {
-          unsigned literal_index = iterator.Next();
-          os << "{literal_id=" << literal_index << "}";
+          int literal_index = iterator.Next();
+          Object* literal_value = LiteralArray()->get(literal_index);
+          os << "{literal_id=" << literal_index << " (" << Brief(literal_value)
+             << ")}";
           break;
         }
 
