@@ -1871,6 +1871,11 @@ class JSReceiver: public HeapObject {
   MUST_USE_RESULT static Maybe<bool> SetIntegrityLevel(
       Handle<JSReceiver> object, IntegrityLevel lvl, ShouldThrow should_throw);
 
+  // ES6 7.3.15
+  // 'level' must be SEALED or FROZEN.
+  MUST_USE_RESULT static Maybe<bool> TestIntegrityLevel(
+      Handle<JSReceiver> object, IntegrityLevel lvl);
+
   // ES6 [[PreventExtensions]] (when passed DONT_THROW)
   MUST_USE_RESULT static Maybe<bool> PreventExtensions(
       Handle<JSReceiver> object, ShouldThrow should_throw);

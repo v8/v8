@@ -7297,6 +7297,38 @@ Maybe<bool> JSReceiver::SetIntegrityLevel(Handle<JSReceiver> receiver,
 }
 
 
+Maybe<bool> JSReceiver::TestIntegrityLevel(Handle<JSReceiver> object,
+                                           IntegrityLevel level) {
+  DCHECK(level == SEALED || level == FROZEN);
+  Isolate* isolate = object->GetIsolate();
+
+  Maybe<bool> extensible = JSReceiver::IsExtensible(object);
+  MAYBE_RETURN(extensible, Nothing<bool>());
+  if (extensible.FromJust()) return Just(false);
+
+  Handle<FixedArray> keys;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, keys, JSReceiver::OwnPropertyKeys(object), Nothing<bool>());
+
+  for (int i = 0; i < keys->length(); ++i) {
+    Handle<Object> key(keys->get(i), isolate);
+    PropertyDescriptor current_desc;
+    bool owned = JSReceiver::GetOwnPropertyDescriptor(isolate, object, key,
+                                                      &current_desc);
+    if (isolate->has_pending_exception()) return Nothing<bool>();
+    if (owned) {
+      if (current_desc.configurable()) return Just(false);
+      if (level == FROZEN &&
+          PropertyDescriptor::IsDataDescriptor(&current_desc) &&
+          current_desc.writable()) {
+        return Just(false);
+      }
+    }
+  }
+  return Just(true);
+}
+
+
 Maybe<bool> JSReceiver::PreventExtensions(Handle<JSReceiver> object,
                                           ShouldThrow should_throw) {
   if (object->IsJSProxy()) {

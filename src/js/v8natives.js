@@ -917,69 +917,42 @@ function ObjectDefineProperties(obj, properties) {
 }
 
 
-// ES5 section 15.2.3.8.
+// ES6 19.1.2.17
 function ObjectSealJS(obj) {
   if (!IS_SPEC_OBJECT(obj)) return obj;
   return %ObjectSeal(obj);
 }
 
 
-// ES5 section 15.2.3.9.
+// ES6 19.1.2.5
 function ObjectFreezeJS(obj) {
   if (!IS_SPEC_OBJECT(obj)) return obj;
   return %ObjectFreeze(obj);
 }
 
 
-// ES5 section 15.2.3.10
+// ES6 19.1.2.15
 function ObjectPreventExtension(obj) {
   if (!IS_SPEC_OBJECT(obj)) return obj;
   return %PreventExtensions(obj);
 }
 
 
-// ES5 section 15.2.3.11
+// ES6 19.1.2.13
 function ObjectIsSealed(obj) {
   if (!IS_SPEC_OBJECT(obj)) return true;
-  if (%_IsJSProxy(obj)) {
-    return false;  // TODO(neis): Must call isExtensible trap and ownKeys trap.
-  }
-  if (%IsExtensible(obj)) {
-    return false;
-  }
-  var names = OwnPropertyKeys(obj);
-  for (var i = 0; i < names.length; i++) {
-    var name = names[i];
-    var desc = GetOwnPropertyJS(obj, name);
-    if (desc.isConfigurable()) {
-      return false;
-    }
-  }
-  return true;
+  return %ObjectIsSealed(obj);
 }
 
 
-// ES5 section 15.2.3.12
+// ES6 19.1.2.12
 function ObjectIsFrozen(obj) {
   if (!IS_SPEC_OBJECT(obj)) return true;
-  if (%_IsJSProxy(obj)) {
-    return false;  // TODO(neis): Must call isExtensible trap and ownKeys trap.
-  }
-  if (%IsExtensible(obj)) {
-    return false;
-  }
-  var names = OwnPropertyKeys(obj);
-  for (var i = 0; i < names.length; i++) {
-    var name = names[i];
-    var desc = GetOwnPropertyJS(obj, name);
-    if (IsDataDescriptor(desc) && desc.isWritable()) return false;
-    if (desc.isConfigurable()) return false;
-  }
-  return true;
+  return %ObjectIsFrozen(obj);
 }
 
 
-// ES5 section 15.2.3.13
+// ES6 19.1.2.11
 function ObjectIsExtensible(obj) {
   if (!IS_SPEC_OBJECT(obj)) return false;
   return %IsExtensible(obj);

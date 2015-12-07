@@ -343,6 +343,17 @@ RUNTIME_FUNCTION(Runtime_ObjectFreeze) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_ObjectIsFrozen) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
+
+  Maybe<bool> result = JSReceiver::TestIntegrityLevel(object, FROZEN);
+  MAYBE_RETURN(result, isolate->heap()->exception());
+  return isolate->heap()->ToBoolean(result.FromJust());
+}
+
+
 RUNTIME_FUNCTION(Runtime_ObjectSeal) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
@@ -352,6 +363,17 @@ RUNTIME_FUNCTION(Runtime_ObjectSeal) {
       JSReceiver::SetIntegrityLevel(object, SEALED, Object::THROW_ON_ERROR),
       isolate->heap()->exception());
   return *object;
+}
+
+
+RUNTIME_FUNCTION(Runtime_ObjectIsSealed) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
+
+  Maybe<bool> result = JSReceiver::TestIntegrityLevel(object, SEALED);
+  MAYBE_RETURN(result, isolate->heap()->exception());
+  return isolate->heap()->ToBoolean(result.FromJust());
 }
 
 

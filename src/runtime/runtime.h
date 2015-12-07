@@ -434,7 +434,9 @@ namespace internal {
   F(IsExtensible, 1, 1)                              \
   F(OptimizeObjectForAddingMultipleProperties, 2, 1) \
   F(ObjectFreeze, 1, 1)                              \
+  F(ObjectIsFrozen, 1, 1)                            \
   F(ObjectSeal, 1, 1)                                \
+  F(ObjectIsSealed, 1, 1)                            \
   F(GetProperty, 2, 1)                               \
   F(GetPropertyStrong, 2, 1)                         \
   F(KeyedGetProperty, 2, 1)                          \
