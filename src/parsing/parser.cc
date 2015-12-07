@@ -17,7 +17,7 @@
 #include "src/compiler.h"
 #include "src/messages.h"
 #include "src/parsing/parameter-initializer-rewriter.h"
-#include "src/parsing/preparser.h"
+#include "src/parsing/parser-base.h"
 #include "src/parsing/rewriter.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/runtime/runtime.h"
