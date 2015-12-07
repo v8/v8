@@ -1052,9 +1052,13 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     case kSSEFloat64ToInt64:
       if (instr->InputAt(0)->IsDoubleRegister()) {
-        __ Cvttsd2siq(i.OutputRegister(), i.InputDoubleRegister(0));
+        __ Cvttsd2siq(i.OutputRegister(0), i.InputDoubleRegister(0));
       } else {
-        __ Cvttsd2siq(i.OutputRegister(), i.InputOperand(0));
+        __ Cvttsd2siq(i.OutputRegister(0), i.InputOperand(0));
+      }
+      if (instr->OutputCount() > 1) {
+        __ Set(i.OutputRegister(1), 0x8000000000000000);
+        __ subq(i.OutputRegister(1), i.OutputRegister(0));
       }
       break;
     case kSSEFloat32ToUint64: {
@@ -1087,8 +1091,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       // The input value is within uint64 range and the second conversion worked
       // successfully, but we still have to undo the subtraction we did
       // earlier.
-      __ movq(kScratchRegister, Immediate(1));
-      __ shlq(kScratchRegister, Immediate(63));
+      __ Set(kScratchRegister, 0x8000000000000000);
       __ orq(i.OutputRegister(), kScratchRegister);
       __ bind(&done);
       break;

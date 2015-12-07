@@ -932,7 +932,11 @@ void InstructionSelector::VisitTruncateFloat32ToInt64(Node* node) {
 }
 
 
-void InstructionSelector::VisitTruncateFloat64ToInt64(Node* node) {
+void InstructionSelector::VisitTryTruncateFloat64ToInt64(Node* node) {
+  if (NodeProperties::FindProjection(node, 1)) {
+    // TODO(ppc): implement the second return value.
+    UNIMPLEMENTED();
+  }
   VisitRR(this, kPPC_DoubleToInt64, node);
 }
 

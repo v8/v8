@@ -828,7 +828,11 @@ void InstructionSelector::VisitTruncateFloat32ToInt64(Node* node) {
 }
 
 
-void InstructionSelector::VisitTruncateFloat64ToInt64(Node* node) {
+void InstructionSelector::VisitTryTruncateFloat64ToInt64(Node* node) {
+  if (NodeProperties::FindProjection(node, 1)) {
+    // TODO(mips): implement the second return value.
+    UNIMPLEMENTED();
+  }
   VisitRR(this, kMips64TruncLD, node);
 }
 

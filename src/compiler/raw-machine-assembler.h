@@ -431,7 +431,12 @@ class RawMachineAssembler {
     return AddNode(machine()->TruncateFloat32ToInt64(), a);
   }
   Node* TruncateFloat64ToInt64(Node* a) {
-    return AddNode(machine()->TruncateFloat64ToInt64(), a);
+    // TODO(ahaas): Remove this function as soon as it is not used anymore in
+    // WebAssembly.
+    return AddNode(machine()->TryTruncateFloat64ToInt64(), a);
+  }
+  Node* TryTruncateFloat64ToInt64(Node* a) {
+    return AddNode(machine()->TryTruncateFloat64ToInt64(), a);
   }
   Node* TruncateFloat32ToUint64(Node* a) {
     return AddNode(machine()->TruncateFloat32ToUint64(), a);

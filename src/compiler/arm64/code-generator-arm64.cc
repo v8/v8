@@ -33,6 +33,8 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
     return InputDoubleRegister(index);
   }
 
+  size_t OutputCount() { return instr_->OutputCount(); }
+
   DoubleRegister OutputFloat32Register() { return OutputDoubleRegister().S(); }
 
   DoubleRegister OutputFloat64Register() { return OutputDoubleRegister(); }
@@ -1037,7 +1039,13 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ Fcvtzs(i.OutputRegister64(), i.InputFloat32Register(0));
       break;
     case kArm64Float64ToInt64:
-      __ Fcvtzs(i.OutputRegister64(), i.InputDoubleRegister(0));
+      __ Fcvtzs(i.OutputRegister(0), i.InputDoubleRegister(0));
+      if (i.OutputCount() > 1) {
+        __ Cmp(i.OutputRegister(0), 1);
+        __ Ccmp(i.OutputRegister(0), -1, VFlag, vc);
+        __ Fccmp(i.InputDoubleRegister(0), i.InputDoubleRegister(0), VFlag, vc);
+        __ Cset(i.OutputRegister(1), vc);
+      }
       break;
     case kArm64Float32ToUint64:
       __ Fcvtzu(i.OutputRegister64(), i.InputFloat32Register(0));

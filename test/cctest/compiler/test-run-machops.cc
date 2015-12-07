@@ -5408,13 +5408,35 @@ TEST(RunTruncateFloat32ToInt64) {
 }
 
 
-TEST(RunTruncateFloat64ToInt64) {
+TEST(RunTryTruncateFloat64ToInt64WithoutCheck) {
   BufferedRawMachineAssemblerTester<int64_t> m(kMachFloat64);
-  m.Return(m.TruncateFloat64ToInt64(m.Parameter(0)));
+  m.Return(m.TryTruncateFloat64ToInt64(m.Parameter(0)));
 
   FOR_INT64_INPUTS(i) {
     double input = static_cast<double>(*i);
     CHECK_EQ(static_cast<int64_t>(input), m.Call(input));
+  }
+}
+
+
+TEST(RunTryTruncateFloat64ToInt64WithCheck) {
+  int64_t success = 0;
+  BufferedRawMachineAssemblerTester<int64_t> m(kMachFloat64);
+  Node* trunc = m.TryTruncateFloat64ToInt64(m.Parameter(0));
+  Node* val = m.Projection(0, trunc);
+  Node* check = m.Projection(1, trunc);
+  m.StoreToPointer(&success, kMachInt64, check);
+  m.Return(val);
+
+  FOR_FLOAT64_INPUTS(i) {
+    if (*i < 9223372036854775808.0 && *i > -9223372036854775809.0) {
+      // Conversions within this range
+      CHECK_EQ(static_cast<int64_t>(*i), m.Call(*i));
+      CHECK_NE(0, success);
+    } else {
+      m.Call(*i);
+      CHECK_EQ(0, success);
+    }
   }
 }
 
