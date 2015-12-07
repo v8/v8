@@ -30,6 +30,9 @@
 // of ConsStrings.  These operations may not be very fast, but they
 // should be possible without getting errors due to too deep recursion.
 
+// TODO(jochen): Remove this after the setting is turned on globally.
+#define V8_IMMINENT_DEPRECATION_WARNINGS
+
 #include <stdlib.h>
 
 #include "src/v8.h"
@@ -191,9 +194,9 @@ static void InitializeBuildingBlocks(Handle<String>* building_blocks,
           buf[j] = rng->next(0x10000);
         }
         Resource* resource = new Resource(buf, len);
-        building_blocks[i] =
-            v8::Utils::OpenHandle(
-                *v8::String::NewExternal(CcTest::isolate(), resource));
+        building_blocks[i] = v8::Utils::OpenHandle(
+            *v8::String::NewExternalTwoByte(CcTest::isolate(), resource)
+                 .ToLocalChecked());
         for (int j = 0; j < len; j++) {
           CHECK_EQ(buf[j], building_blocks[i]->Get(j));
         }
@@ -205,9 +208,9 @@ static void InitializeBuildingBlocks(Handle<String>* building_blocks,
           buf[j] = rng->next(0x80);
         }
         OneByteResource* resource = new OneByteResource(buf, len);
-        building_blocks[i] =
-            v8::Utils::OpenHandle(
-                *v8::String::NewExternal(CcTest::isolate(), resource));
+        building_blocks[i] = v8::Utils::OpenHandle(
+            *v8::String::NewExternalOneByte(CcTest::isolate(), resource)
+                 .ToLocalChecked());
         for (int j = 0; j < len; j++) {
           CHECK_EQ(buf[j], building_blocks[i]->Get(j));
         }
@@ -880,8 +883,10 @@ TEST(Utf8Conversion) {
   // A simple one-byte string
   const char* one_byte_string = "abcdef12345";
   int len = v8::String::NewFromUtf8(CcTest::isolate(), one_byte_string,
-                                    v8::String::kNormalString,
-                                    StrLength(one_byte_string))->Utf8Length();
+                                    v8::NewStringType::kNormal,
+                                    StrLength(one_byte_string))
+                .ToLocalChecked()
+                ->Utf8Length();
   CHECK_EQ(StrLength(one_byte_string), len);
   // A mixed one-byte and two-byte string
   // U+02E4 -> CB A4
@@ -896,8 +901,10 @@ TEST(Utf8Conversion) {
   // The number of bytes expected to be written for each length
   const int lengths[12] = {0, 0, 2, 3, 3, 3, 6, 7, 7, 7, 10, 11};
   const int char_lengths[12] = {0, 0, 1, 2, 2, 2, 3, 4, 4, 4, 5, 5};
-  v8::Handle<v8::String> mixed = v8::String::NewFromTwoByte(
-      CcTest::isolate(), mixed_string, v8::String::kNormalString, 5);
+  v8::Local<v8::String> mixed =
+      v8::String::NewFromTwoByte(CcTest::isolate(), mixed_string,
+                                 v8::NewStringType::kNormal, 5)
+          .ToLocalChecked();
   CHECK_EQ(10, mixed->Utf8Length());
   // Try encoding the string with all capacities
   char buffer[11];
@@ -929,9 +936,9 @@ TEST(ExternalShortStringAdd) {
   CHECK_GT(kMaxLength, i::ConsString::kMinLength);
 
   // Allocate two JavaScript arrays for holding short strings.
-  v8::Handle<v8::Array> one_byte_external_strings =
+  v8::Local<v8::Array> one_byte_external_strings =
       v8::Array::New(CcTest::isolate(), kMaxLength + 1);
-  v8::Handle<v8::Array> non_one_byte_external_strings =
+  v8::Local<v8::Array> non_one_byte_external_strings =
       v8::Array::New(CcTest::isolate(), kMaxLength + 1);
 
   // Generate short one-byte and two-byte external strings.
@@ -944,10 +951,13 @@ TEST(ExternalShortStringAdd) {
     // string data.
     OneByteResource* one_byte_resource = new OneByteResource(one_byte, i);
     v8::Local<v8::String> one_byte_external_string =
-        v8::String::NewExternal(CcTest::isolate(), one_byte_resource);
+        v8::String::NewExternalOneByte(CcTest::isolate(), one_byte_resource)
+            .ToLocalChecked();
 
-    one_byte_external_strings->Set(v8::Integer::New(CcTest::isolate(), i),
-                                   one_byte_external_string);
+    one_byte_external_strings->Set(context.local(),
+                                   v8::Integer::New(CcTest::isolate(), i),
+                                   one_byte_external_string)
+        .FromJust();
     uc16* non_one_byte = NewArray<uc16>(i + 1);
     for (int j = 0; j < i; j++) {
       non_one_byte[j] = 0x1234;
@@ -956,17 +966,25 @@ TEST(ExternalShortStringAdd) {
     // string data.
     Resource* resource = new Resource(non_one_byte, i);
     v8::Local<v8::String> non_one_byte_external_string =
-        v8::String::NewExternal(CcTest::isolate(), resource);
-    non_one_byte_external_strings->Set(v8::Integer::New(CcTest::isolate(), i),
-                                       non_one_byte_external_string);
+        v8::String::NewExternalTwoByte(CcTest::isolate(), resource)
+            .ToLocalChecked();
+    non_one_byte_external_strings->Set(context.local(),
+                                       v8::Integer::New(CcTest::isolate(), i),
+                                       non_one_byte_external_string)
+        .FromJust();
   }
 
   // Add the arrays with the short external strings in the global object.
-  v8::Handle<v8::Object> global = context->Global();
-  global->Set(v8_str("external_one_byte"), one_byte_external_strings);
-  global->Set(v8_str("external_non_one_byte"), non_one_byte_external_strings);
-  global->Set(v8_str("max_length"),
-              v8::Integer::New(CcTest::isolate(), kMaxLength));
+  v8::Local<v8::Object> global = context->Global();
+  global->Set(context.local(), v8_str("external_one_byte"),
+              one_byte_external_strings)
+      .FromJust();
+  global->Set(context.local(), v8_str("external_non_one_byte"),
+              non_one_byte_external_strings)
+      .FromJust();
+  global->Set(context.local(), v8_str("max_length"),
+              v8::Integer::New(CcTest::isolate(), kMaxLength))
+      .FromJust();
 
   // Add short external one-byte and two-byte strings checking the result.
   static const char* source =
@@ -1012,7 +1030,7 @@ TEST(ExternalShortStringAdd) {
       "  return 0;"
       "};"
       "test()";
-  CHECK_EQ(0, CompileRun(source)->Int32Value());
+  CHECK_EQ(0, CompileRun(source)->Int32Value(context.local()).FromJust());
 }
 
 
@@ -1021,14 +1039,19 @@ TEST(JSONStringifySliceMadeExternal) {
   // Create a sliced string from a one-byte string.  The latter is turned
   // into a two-byte external string.  Check that JSON.stringify works.
   v8::HandleScope handle_scope(CcTest::isolate());
-  v8::Handle<v8::String> underlying =
+  v8::Local<v8::String> underlying =
       CompileRun(
           "var underlying = 'abcdefghijklmnopqrstuvwxyz';"
-          "underlying")->ToString(CcTest::isolate());
-  v8::Handle<v8::String> slice = CompileRun(
-                                     "var slice = '';"
-                                     "slice = underlying.slice(1);"
-                                     "slice")->ToString(CcTest::isolate());
+          "underlying")
+          ->ToString(CcTest::isolate()->GetCurrentContext())
+          .ToLocalChecked();
+  v8::Local<v8::String> slice =
+      CompileRun(
+          "var slice = '';"
+          "slice = underlying.slice(1);"
+          "slice")
+          ->ToString(CcTest::isolate()->GetCurrentContext())
+          .ToLocalChecked();
   CHECK(v8::Utils::OpenHandle(*slice)->IsSlicedString());
   CHECK(v8::Utils::OpenHandle(*underlying)->IsSeqOneByteString());
 
@@ -1079,16 +1102,23 @@ TEST(CachedHashOverflow) {
   };
 
   const char* line;
+  v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
   for (int i = 0; (line = lines[i]); i++) {
     printf("%s\n", line);
-    v8::Local<v8::Value> result = v8::Script::Compile(
-        v8::String::NewFromUtf8(CcTest::isolate(), line))->Run();
+    v8::Local<v8::Value> result =
+        v8::Script::Compile(context,
+                            v8::String::NewFromUtf8(CcTest::isolate(), line,
+                                                    v8::NewStringType::kNormal)
+                                .ToLocalChecked())
+            .ToLocalChecked()
+            ->Run(context)
+            .ToLocalChecked();
     CHECK_EQ(results[i]->IsUndefined(), result->IsUndefined());
     CHECK_EQ(results[i]->IsNumber(), result->IsNumber());
     if (result->IsNumber()) {
       int32_t value = 0;
       CHECK(results[i]->ToInt32(&value));
-      CHECK_EQ(value, result->ToInt32(CcTest::isolate())->Value());
+      CHECK_EQ(value, result->ToInt32(context).ToLocalChecked()->Value());
     }
   }
 }
@@ -1320,7 +1350,8 @@ TEST(CountBreakIterator) {
       "  return iterator.next();"
       "})();");
   CHECK(result->IsNumber());
-  int uses = result->ToInt32(CcTest::isolate())->Value() == 0 ? 0 : 1;
+  int uses =
+      result->ToInt32(context.local()).ToLocalChecked()->Value() == 0 ? 0 : 1;
   CHECK_EQ(uses, use_counts[v8::Isolate::kBreakIterator]);
   // Make sure GC cleans up the break iterator, so we don't get a memory leak
   // reported by ASAN.
@@ -1341,7 +1372,7 @@ TEST(StringReplaceAtomTwoByteResult) {
   CHECK(string->IsSeqTwoByteString());
 
   v8::Local<v8::String> expected = v8_str("one_byte\x80only\x80string\x80");
-  CHECK(expected->Equals(result));
+  CHECK(expected->Equals(context.local(), result).FromJust());
 }
 
 
