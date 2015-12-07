@@ -29,23 +29,23 @@
 //
 
 function f() {
-  this.x=0;
+  return arguments;
 }
 
 function g(a) {
   "use strict";
-  var o = new f();
+  var o = f(1,2);
   if (a) {
-    o.x = 5;
+    o[0] = 5;
   } else {
-    o.x = 7;
+    o[0] = 7;
   }
 
-  return o.x;
+  return o[0];
 }
 
-assertEquals(5, g(true));
-assertEquals(7, g(false));
+assertEquals(7, g());
+assertEquals(7, g());
 %OptimizeFunctionOnNextCall(g);
 assertEquals(5, g(true));
 assertEquals(7, g(false));

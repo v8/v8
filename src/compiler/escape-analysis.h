@@ -16,6 +16,7 @@ namespace compiler {
 class CommonOperatorBuilder;
 class EscapeAnalysis;
 class VirtualState;
+class VirtualObject;
 
 
 // EscapeStatusAnalysis determines for each allocation whether it escapes.
@@ -46,8 +47,11 @@ class EscapeStatusAnalysis {
   void ProcessAllocate(Node* node);
   void ProcessFinishRegion(Node* node);
   void ProcessStoreField(Node* node);
-  bool CheckUsesForEscape(Node* node) { return CheckUsesForEscape(node, node); }
-  bool CheckUsesForEscape(Node* node, Node* rep);
+  void ProcessStoreElement(Node* node);
+  bool CheckUsesForEscape(Node* node, bool phi_escaping = false) {
+    return CheckUsesForEscape(node, node, phi_escaping);
+  }
+  bool CheckUsesForEscape(Node* node, Node* rep, bool phi_escaping = false);
   void RevisitUses(Node* node);
   void RevisitInputs(Node* node);
   bool SetEscaped(Node* node);
@@ -87,17 +91,28 @@ class EscapeAnalysis {
   bool Process(Node* node);
   void ProcessLoadField(Node* node);
   void ProcessStoreField(Node* node);
+  void ProcessLoadElement(Node* node);
+  void ProcessStoreElement(Node* node);
+  void ProcessAllocationUsers(Node* node);
   void ProcessAllocation(Node* node);
   void ProcessFinishRegion(Node* node);
   void ProcessCall(Node* node);
   void ProcessStart(Node* node);
   bool ProcessEffectPhi(Node* node);
+  void ProcessLoadFromPhi(int offset, Node* from, Node* node,
+                          VirtualState* states);
+
   void ForwardVirtualState(Node* node);
+
   bool IsEffectBranchPoint(Node* node);
   bool IsDanglingEffectNode(Node* node);
   int OffsetFromAccess(Node* node);
 
+  VirtualObject* GetVirtualObject(Node* at, NodeId id);
+
   void DebugPrint();
+  void DebugPrintState(VirtualState* state);
+  void DebugPrintObject(VirtualObject* state, NodeId id);
 
   Graph* graph() const { return graph_; }
   CommonOperatorBuilder* common() const { return common_; }
