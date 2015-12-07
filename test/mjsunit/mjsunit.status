@@ -91,7 +91,6 @@
   'es6/regress/regress-cr493566': [SKIP],
   'for-in-opt': [SKIP],
   'harmony/proxies-example-membrane': [SKIP],
-  'harmony/proxies-hash': [SKIP],
   'harmony/proxies-json': [SKIP],
   'harmony/proxies': [SKIP],
   'harmony/proxies-symbols': [SKIP],

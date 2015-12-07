@@ -32,9 +32,10 @@
 
 function TestWithProxies(test, construct, handler) {
   test(construct, handler, function(h) { return new Proxy({}, h) })
-  test(construct, handler, function(h) {
-    return Proxy.createFunction(h, function() {})
-  })
+  // TODO(cbruni): Adapt and enable once we have [[Call]] working.
+  // test(construct, handler, function(h) {
+  //  return Proxy.createFunction(h, function() {})
+  // })
 }
 
 
@@ -70,10 +71,9 @@ function TestSet2(construct, fix, create) {
   assertFalse(s.has(p3));
 }
 
-// TODO(neis): Reenable once proxies properly support these operations.
-// TestSet(Set, Object.seal)
-// TestSet(Set, Object.freeze)
-// TestSet(Set, Object.preventExtensions)
+TestSet(Set, Object.seal)
+TestSet(Set, Object.freeze)
+TestSet(Set, Object.preventExtensions)
 
 
 // Maps and weak maps.
@@ -114,12 +114,10 @@ function TestMap2(construct, fix, create) {
   assertSame(undefined, m.get(p2));
 }
 
-// TODO(neis): Reenable once proxies properly support these operations.
-// TestMap(Map, Object.seal)
-// TestMap(Map, Object.freeze)
-// TestMap(Map, Object.preventExtensions)
+TestMap(Map, Object.seal)
+TestMap(Map, Object.freeze)
+TestMap(Map, Object.preventExtensions)
 
-// TODO(neis): Reenable once proxies properly support these operations.
-// TestMap(WeakMap, Object.seal)
-// TestMap(WeakMap, Object.freeze)
-// TestMap(WeakMap, Object.preventExtensions)
+TestMap(WeakMap, Object.seal)
+TestMap(WeakMap, Object.freeze)
+TestMap(WeakMap, Object.preventExtensions)

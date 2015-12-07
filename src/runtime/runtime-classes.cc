@@ -234,11 +234,12 @@ RUNTIME_FUNCTION(Runtime_FinalizeClassDefinition) {
 
   if (constructor->map()->is_strong()) {
     DCHECK(prototype->map()->is_strong());
-    RETURN_FAILURE_ON_EXCEPTION(isolate, JSObject::Freeze(prototype));
-    Handle<Object> result;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                       JSObject::Freeze(constructor));
-    return *result;
+    MAYBE_RETURN(JSReceiver::SetIntegrityLevel(prototype, FROZEN,
+                                               Object::THROW_ON_ERROR),
+                 isolate->heap()->exception());
+    MAYBE_RETURN(JSReceiver::SetIntegrityLevel(constructor, FROZEN,
+                                               Object::THROW_ON_ERROR),
+                 isolate->heap()->exception());
   }
   return *constructor;
 }

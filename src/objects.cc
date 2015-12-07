@@ -7233,6 +7233,70 @@ bool JSObject::ReferencesObject(Object* obj) {
 }
 
 
+Maybe<bool> JSReceiver::SetIntegrityLevel(Handle<JSReceiver> receiver,
+                                          IntegrityLevel level,
+                                          ShouldThrow should_throw) {
+  DCHECK(level == SEALED || level == FROZEN);
+
+  if (receiver->IsJSObject()) {
+    Handle<JSObject> object = Handle<JSObject>::cast(receiver);
+    if (!object->HasSloppyArgumentsElements() &&
+        !object->map()->is_observed() &&
+        (!object->map()->is_strong() || level == SEALED)) {  // Fast path.
+      if (level == SEALED) {
+        return JSObject::PreventExtensionsWithTransition<SEALED>(object,
+                                                                 should_throw);
+      } else {
+        return JSObject::PreventExtensionsWithTransition<FROZEN>(object,
+                                                                 should_throw);
+      }
+    }
+  }
+
+  Isolate* isolate = receiver->GetIsolate();
+
+  MAYBE_RETURN(JSReceiver::PreventExtensions(receiver, should_throw),
+               Nothing<bool>());
+
+  Handle<FixedArray> keys;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, keys, JSReceiver::OwnPropertyKeys(receiver), Nothing<bool>());
+
+  PropertyDescriptor no_conf;
+  no_conf.set_configurable(false);
+
+  PropertyDescriptor no_conf_no_write;
+  no_conf_no_write.set_configurable(false);
+  no_conf_no_write.set_writable(false);
+
+  if (level == SEALED) {
+    for (int i = 0; i < keys->length(); ++i) {
+      Handle<Object> key(keys->get(i), isolate);
+      DefineOwnProperty(isolate, receiver, key, &no_conf, THROW_ON_ERROR);
+      if (isolate->has_pending_exception()) return Nothing<bool>();
+    }
+    return Just(true);
+  }
+
+  for (int i = 0; i < keys->length(); ++i) {
+    Handle<Object> key(keys->get(i), isolate);
+    PropertyDescriptor current_desc;
+    bool owned = JSReceiver::GetOwnPropertyDescriptor(isolate, receiver, key,
+                                                      &current_desc);
+    if (isolate->has_pending_exception()) return Nothing<bool>();
+    if (owned) {
+      PropertyDescriptor desc =
+          PropertyDescriptor::IsAccessorDescriptor(&current_desc)
+              ? no_conf
+              : no_conf_no_write;
+      DefineOwnProperty(isolate, receiver, key, &desc, THROW_ON_ERROR);
+      if (isolate->has_pending_exception()) return Nothing<bool>();
+    }
+  }
+  return Just(true);
+}
+
+
 Maybe<bool> JSReceiver::PreventExtensions(Handle<JSReceiver> object,
                                           ShouldThrow should_throw) {
   if (object->IsJSProxy()) {
@@ -7552,20 +7616,6 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
   }
 
   return Just(true);
-}
-
-
-MaybeHandle<Object> JSObject::Freeze(Handle<JSObject> object) {
-  MAYBE_RETURN_NULL(
-      PreventExtensionsWithTransition<FROZEN>(object, THROW_ON_ERROR));
-  return object;
-}
-
-
-MaybeHandle<Object> JSObject::Seal(Handle<JSObject> object) {
-  MAYBE_RETURN_NULL(
-      PreventExtensionsWithTransition<SEALED>(object, THROW_ON_ERROR));
-  return object;
 }
 
 
@@ -8409,11 +8459,8 @@ bool JSProxy::OwnPropertyKeys(Isolate* isolate, Handle<JSReceiver> receiver,
   bool extensible_target = maybe_extensible.FromJust();
   // 10. Let targetKeys be ? target.[[OwnPropertyKeys]]().
   Handle<FixedArray> target_keys;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, target_keys,
-      JSReceiver::GetKeys(target, JSReceiver::OWN_ONLY, ALL_PROPERTIES,
-                          CONVERT_TO_STRING),
-      false);
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, target_keys,
+                                   JSReceiver::OwnPropertyKeys(target), false);
   // 11. (Assert)
   // 12. Let targetConfigurableKeys be an empty List.
   // To save memory, we're re-using target_keys and will modify it in-place.

@@ -334,30 +334,24 @@ RUNTIME_FUNCTION(Runtime_OptimizeObjectForAddingMultipleProperties) {
 RUNTIME_FUNCTION(Runtime_ObjectFreeze) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
 
-  // %ObjectFreeze is a fast path and these cases are handled elsewhere.
-  RUNTIME_ASSERT(!object->HasSloppyArgumentsElements() &&
-                 !object->map()->is_observed() && !object->IsJSProxy());
-
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, JSObject::Freeze(object));
-  return *result;
+  MAYBE_RETURN(
+      JSReceiver::SetIntegrityLevel(object, FROZEN, Object::THROW_ON_ERROR),
+      isolate->heap()->exception());
+  return *object;
 }
 
 
 RUNTIME_FUNCTION(Runtime_ObjectSeal) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
 
-  // %ObjectSeal is a fast path and these cases are handled elsewhere.
-  RUNTIME_ASSERT(!object->HasSloppyArgumentsElements() &&
-                 !object->map()->is_observed() && !object->IsJSProxy());
-
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, JSObject::Seal(object));
-  return *result;
+  MAYBE_RETURN(
+      JSReceiver::SetIntegrityLevel(object, SEALED, Object::THROW_ON_ERROR),
+      isolate->heap()->exception());
+  return *object;
 }
 
 

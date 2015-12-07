@@ -1864,8 +1864,14 @@ class JSReceiver: public HeapObject {
   static bool GetOwnPropertyDescriptor(LookupIterator* it,
                                        PropertyDescriptor* desc);
 
-  // Disallow further properties to be added to the object.  This is
-  // ES6's [[PreventExtensions]] when passed DONT_THROW.
+  typedef PropertyAttributes IntegrityLevel;
+
+  // ES6 7.3.14 (when passed DONT_THROW)
+  // 'level' must be SEALED or FROZEN.
+  MUST_USE_RESULT static Maybe<bool> SetIntegrityLevel(
+      Handle<JSReceiver> object, IntegrityLevel lvl, ShouldThrow should_throw);
+
+  // ES6 [[PreventExtensions]] (when passed DONT_THROW)
   MUST_USE_RESULT static Maybe<bool> PreventExtensions(
       Handle<JSReceiver> object, ShouldThrow should_throw);
 
@@ -1918,6 +1924,13 @@ class JSReceiver: public HeapObject {
       Handle<JSReceiver> object);
 
   enum KeyCollectionType { OWN_ONLY, INCLUDE_PROTOS };
+
+  // ES6 [[OwnPropertyKeys]] (modulo return type)
+  MUST_USE_RESULT static MaybeHandle<FixedArray> OwnPropertyKeys(
+      Handle<JSReceiver> object) {
+    return GetKeys(object, JSReceiver::OWN_ONLY, ALL_PROPERTIES,
+                   CONVERT_TO_STRING);
+  }
 
   // Computes the enumerable keys for a JSObject. Used for implementing
   // "for (n in object) { }".
@@ -2341,12 +2354,6 @@ class JSObject: public JSReceiver {
       Handle<JSObject> object, ShouldThrow should_throw);
 
   static bool IsExtensible(Handle<JSObject> object);
-
-  // ES5 Object.seal
-  MUST_USE_RESULT static MaybeHandle<Object> Seal(Handle<JSObject> object);
-
-  // ES5 Object.freeze
-  MUST_USE_RESULT static MaybeHandle<Object> Freeze(Handle<JSObject> object);
 
   // Called the first time an object is observed with ES7 Object.observe.
   static void SetObserved(Handle<JSObject> object);

@@ -920,54 +920,14 @@ function ObjectDefineProperties(obj, properties) {
 // ES5 section 15.2.3.8.
 function ObjectSealJS(obj) {
   if (!IS_SPEC_OBJECT(obj)) return obj;
-  var isProxy = %_IsJSProxy(obj);
-  if (isProxy || %HasSloppyArgumentsElements(obj) || %IsObserved(obj)) {
-    // TODO(neis): For proxies, must call preventExtensions trap first.
-    var names = OwnPropertyKeys(obj);
-    for (var i = 0; i < names.length; i++) {
-      var name = names[i];
-      var desc = GetOwnPropertyJS(obj, name);
-      if (desc.isConfigurable()) {
-        desc.setConfigurable(false);
-        DefineOwnProperty(obj, name, desc, true);
-      }
-    }
-    %PreventExtensions(obj);
-  } else {
-    // TODO(adamk): Is it worth going to this fast path if the
-    // object's properties are already in dictionary mode?
-    %ObjectSeal(obj);
-  }
-  return obj;
+  return %ObjectSeal(obj);
 }
 
 
 // ES5 section 15.2.3.9.
 function ObjectFreezeJS(obj) {
   if (!IS_SPEC_OBJECT(obj)) return obj;
-  var isProxy = %_IsJSProxy(obj);
-  // TODO(conradw): Investigate modifying the fast path to accommodate strong
-  // objects.
-  if (isProxy || %HasSloppyArgumentsElements(obj) || %IsObserved(obj) ||
-      IS_STRONG(obj)) {
-    // TODO(neis): For proxies, must call preventExtensions trap first.
-    var names = OwnPropertyKeys(obj);
-    for (var i = 0; i < names.length; i++) {
-      var name = names[i];
-      var desc = GetOwnPropertyJS(obj, name);
-      if (desc.isWritable() || desc.isConfigurable()) {
-        if (IsDataDescriptor(desc)) desc.setWritable(false);
-        desc.setConfigurable(false);
-        DefineOwnProperty(obj, name, desc, true);
-      }
-    }
-    %PreventExtensions(obj);
-  } else {
-    // TODO(adamk): Is it worth going to this fast path if the
-    // object's properties are already in dictionary mode?
-    %ObjectFreeze(obj);
-  }
-  return obj;
+  return %ObjectFreeze(obj);
 }
 
 
