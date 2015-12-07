@@ -2657,7 +2657,9 @@ bool Genesis::InstallSpecialObjects(Handle<Context> native_context) {
   }
 
 #if defined(V8_WASM)
-  WasmJs::Install(isolate, global);
+  if (FLAG_expose_wasm) {
+    WasmJs::Install(isolate, global);
+  }
 #endif
 
   return true;

@@ -465,6 +465,7 @@ DEFINE_BOOL(trace_turbo_escape, false, "enable tracing in escape analysis")
 
 #if defined(V8_WASM)
 // Flags for native WebAssembly.
+DEFINE_BOOL(expose_wasm, true, "expose WASM interface to JavaScript")
 DEFINE_BOOL(trace_wasm_decoder, false, "trace decoding of wasm code")
 DEFINE_BOOL(trace_wasm_decode_time, false, "trace decoding time of wasm code")
 DEFINE_BOOL(trace_wasm_compiler, false, "trace compiling of wasm code")
