@@ -381,10 +381,6 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   // references, possibly treating some entries weak.
   static void MarkOptimizedCodeMap(Heap* heap, FixedArray* code_map);
 
-  // Mark non-optimized code for functions inlined into the given optimized
-  // code. This will prevent it from being flushed.
-  static void MarkInlinedFunctionsCode(Heap* heap, Code* code);
-
   // Code flushing support.
   INLINE(static bool IsFlushable(Heap* heap, JSFunction* function));
   INLINE(static bool IsFlushable(Heap* heap, SharedFunctionInfo* shared_info));

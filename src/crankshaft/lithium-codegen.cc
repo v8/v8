@@ -332,10 +332,17 @@ void LCodeGenBase::PopulateDeoptimizationData(Handle<Code> code) {
 
 void LCodeGenBase::PopulateDeoptimizationLiteralsWithInlinedFunctions() {
   DCHECK_EQ(0, deoptimization_literals_.length());
-  for (auto function : chunk()->inlined_functions()) {
+  for (Handle<SharedFunctionInfo> function : chunk()->inlined_functions()) {
     DefineDeoptimizationLiteral(function);
   }
   inlined_function_count_ = deoptimization_literals_.length();
+
+  // Define deoptimization literals for all unoptimized code objects of inlined
+  // functions. This ensures unoptimized code is kept alive by optimized code.
+  AllowDeferredHandleDereference allow_shared_function_info_dereference;
+  for (Handle<SharedFunctionInfo> function : chunk()->inlined_functions()) {
+    DefineDeoptimizationLiteral(handle(function->code()));
+  }
 }
 
 

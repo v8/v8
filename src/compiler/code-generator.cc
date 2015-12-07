@@ -92,6 +92,14 @@ Handle<Code> CodeGenerator::GenerateCode() {
   }
   inlined_function_count_ = deoptimization_literals_.size();
 
+  // Define deoptimization literals for all unoptimized code objects of inlined
+  // functions. This ensures unoptimized code is kept alive by optimized code.
+  for (auto& inlined : info->inlined_functions()) {
+    if (!inlined.shared_info.is_identical_to(info->shared_info())) {
+      DefineDeoptimizationLiteral(inlined.inlined_code_object_root);
+    }
+  }
+
   // Assemble all non-deferred blocks, followed by deferred ones.
   for (int deferred = 0; deferred < 2; ++deferred) {
     for (auto const block : code()->instruction_blocks()) {
