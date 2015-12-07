@@ -307,7 +307,8 @@ void AddFrameStateInputs(Node* state, OperandGenerator* g,
   types.reserve(descriptor->GetSize());
 
   size_t value_index = 0;
-  inputs->push_back(OperandForDeopt(g, function, kind));
+  inputs->push_back(
+      OperandForDeopt(g, function, FrameStateInputKind::kStackSlot));
   descriptor->SetType(value_index++, kMachAnyTagged);
   for (StateValuesAccess::TypedNode input_node :
        StateValuesAccess(parameters)) {
@@ -315,7 +316,8 @@ void AddFrameStateInputs(Node* state, OperandGenerator* g,
     descriptor->SetType(value_index++, input_node.type);
   }
   if (descriptor->HasContext()) {
-    inputs->push_back(OperandForDeopt(g, context, kind));
+    inputs->push_back(
+        OperandForDeopt(g, context, FrameStateInputKind::kStackSlot));
     descriptor->SetType(value_index++, kMachAnyTagged);
   }
   for (StateValuesAccess::TypedNode input_node : StateValuesAccess(locals)) {
