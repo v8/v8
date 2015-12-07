@@ -68,6 +68,9 @@ namespace compiler {
   V(MipsCvtSD)                     \
   V(MipsCvtDS)                     \
   V(MipsTruncWD)                   \
+  V(MipsRoundWD)                   \
+  V(MipsFloorWD)                   \
+  V(MipsCeilWD)                    \
   V(MipsTruncUwD)                  \
   V(MipsCvtDW)                     \
   V(MipsCvtDUw)                    \

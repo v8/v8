@@ -513,6 +513,33 @@ void InstructionSelector::VisitChangeUint32ToFloat64(Node* node) {
 
 
 void InstructionSelector::VisitChangeFloat64ToInt32(Node* node) {
+  MipsOperandGenerator g(this);
+  Node* value = node->InputAt(0);
+  // Match ChangeFloat64ToInt32(Float64Round##OP) to corresponding instruction
+  // which does rounding and conversion to integer format.
+  if (CanCover(node, value)) {
+    switch (value->opcode()) {
+      case IrOpcode::kFloat64RoundDown:
+        Emit(kMipsFloorWD, g.DefineAsRegister(node),
+             g.UseRegister(value->InputAt(0)));
+        return;
+      case IrOpcode::kFloat64RoundUp:
+        Emit(kMipsCeilWD, g.DefineAsRegister(node),
+             g.UseRegister(value->InputAt(0)));
+        return;
+      case IrOpcode::kFloat64RoundTiesEven:
+        Emit(kMipsRoundWD, g.DefineAsRegister(node),
+             g.UseRegister(value->InputAt(0)));
+        return;
+      case IrOpcode::kFloat64RoundTruncate:
+        Emit(kMipsTruncWD, g.DefineAsRegister(node),
+             g.UseRegister(value->InputAt(0)));
+        return;
+      default:
+        VisitRR(this, kMipsTruncWD, node);
+        return;
+    }
+  }
   VisitRR(this, kMipsTruncWD, node);
 }
 

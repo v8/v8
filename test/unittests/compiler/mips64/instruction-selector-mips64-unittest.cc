@@ -228,6 +228,20 @@ const Conversion kConversionInstructions[] = {
       kMips64TruncUwD, kMachFloat64},
      kMachInt32}};
 
+const Conversion kFloat64RoundInstructions[] = {
+    {{&RawMachineAssembler::Float64RoundUp, "Float64RoundUp", kMips64CeilWD,
+      kMachFloat64},
+     kMachInt32},
+    {{&RawMachineAssembler::Float64RoundDown, "Float64RoundDown",
+      kMips64FloorWD, kMachFloat64},
+     kMachInt32},
+    {{&RawMachineAssembler::Float64RoundTiesEven, "Float64RoundTiesEven",
+      kMips64RoundWD, kMachFloat64},
+     kMachInt32},
+    {{&RawMachineAssembler::Float64RoundTruncate, "Float64RoundTruncate",
+      kMips64TruncWD, kMachFloat64},
+     kMachInt32}};
+
 }  // namespace
 
 
@@ -810,6 +824,28 @@ TEST_F(InstructionSelectorTest, ChangesFromToSmi) {
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
 }
+
+
+typedef InstructionSelectorTestWithParam<Conversion>
+    CombineChangeFloat64ToInt32WithRoundFloat64;
+
+TEST_P(CombineChangeFloat64ToInt32WithRoundFloat64, Parameter) {
+  {
+    const Conversion conv = GetParam();
+    StreamBuilder m(this, conv.mi.machine_type, conv.src_machine_type);
+    m.Return(m.ChangeFloat64ToInt32((m.*conv.mi.constructor)(m.Parameter(0))));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(conv.mi.arch_opcode, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_None, s[0]->addressing_mode());
+    ASSERT_EQ(1U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+}
+
+INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
+                        CombineChangeFloat64ToInt32WithRoundFloat64,
+                        ::testing::ValuesIn(kFloat64RoundInstructions));
 
 
 TEST_F(InstructionSelectorTest, CombineShiftsWithMul) {

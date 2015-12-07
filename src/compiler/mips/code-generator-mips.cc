@@ -924,6 +924,24 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ Cvt_d_uw(i.OutputDoubleRegister(), i.InputRegister(0), scratch);
       break;
     }
+    case kMipsFloorWD: {
+      FPURegister scratch = kScratchDoubleReg;
+      __ floor_w_d(scratch, i.InputDoubleRegister(0));
+      __ mfc1(i.OutputRegister(), scratch);
+      break;
+    }
+    case kMipsCeilWD: {
+      FPURegister scratch = kScratchDoubleReg;
+      __ ceil_w_d(scratch, i.InputDoubleRegister(0));
+      __ mfc1(i.OutputRegister(), scratch);
+      break;
+    }
+    case kMipsRoundWD: {
+      FPURegister scratch = kScratchDoubleReg;
+      __ round_w_d(scratch, i.InputDoubleRegister(0));
+      __ mfc1(i.OutputRegister(), scratch);
+      break;
+    }
     case kMipsTruncWD: {
       FPURegister scratch = kScratchDoubleReg;
       // Other arches use round to zero here, so we follow.
