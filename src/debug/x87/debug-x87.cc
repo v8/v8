@@ -125,13 +125,16 @@ void DebugCodegen::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
   // Load context from the function.
   __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
 
+  // Clear new.target register as a safety measure.
+  __ mov(edx, masm->isolate()->factory()->undefined_value());
+
   // Get function code.
-  __ mov(edx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
-  __ mov(edx, FieldOperand(edx, SharedFunctionInfo::kCodeOffset));
-  __ lea(edx, FieldOperand(edx, Code::kHeaderSize));
+  __ mov(ebx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+  __ mov(ebx, FieldOperand(ebx, SharedFunctionInfo::kCodeOffset));
+  __ lea(ebx, FieldOperand(ebx, Code::kHeaderSize));
 
   // Re-run JSFunction, edi is function, esi is context.
-  __ jmp(edx);
+  __ jmp(ebx);
 }
 
 
