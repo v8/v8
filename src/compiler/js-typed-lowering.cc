@@ -1943,8 +1943,10 @@ Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
     // See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList ).
     if (IsClassConstructor(shared->kind())) return NoChange();
 
-    // Grab the context from the {function}.
-    Node* context = jsgraph()->Constant(handle(function->context(), isolate()));
+    // Load the context from the {target}.
+    Node* context = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForJSFunctionContext()), target,
+        effect, control);
     NodeProperties::ReplaceContextInput(node, context);
 
     // Check if we need to convert the {receiver}.
@@ -1953,9 +1955,11 @@ Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
       receiver = effect =
           graph()->NewNode(javascript()->ConvertReceiver(convert_mode),
                            receiver, context, frame_state, effect, control);
-      NodeProperties::ReplaceEffectInput(node, effect);
       NodeProperties::ReplaceValueInput(node, receiver, 1);
     }
+
+    // Update the effect dependency for the {node}.
+    NodeProperties::ReplaceEffectInput(node, effect);
 
     // Remove the eager bailout frame state.
     NodeProperties::RemoveFrameStateInput(node, 1);
