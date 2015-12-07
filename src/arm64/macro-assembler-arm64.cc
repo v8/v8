@@ -1707,20 +1707,10 @@ void MacroAssembler::InvokeBuiltin(int native_context_index, InvokeFlag flag,
   // You can't call a builtin without a valid frame.
   DCHECK(flag == JUMP_FUNCTION || has_frame());
 
-  // Always initialize new target.
-  LoadRoot(x3, Heap::kUndefinedValueRootIndex);
-
-  // Get the builtin entry in x2 and setup the function object in x1.
+  // Fake a parameter count to avoid emitting code to do the check.
+  ParameterCount expected(0);
   LoadNativeContextSlot(native_context_index, x1);
-  Ldr(x2, FieldMemOperand(x1, JSFunction::kCodeEntryOffset));
-  if (flag == CALL_FUNCTION) {
-    call_wrapper.BeforeCall(CallSize(x2));
-    Call(x2);
-    call_wrapper.AfterCall();
-  } else {
-    DCHECK(flag == JUMP_FUNCTION);
-    Jump(x2);
-  }
+  InvokeFunctionCode(x1, no_reg, expected, expected, flag, call_wrapper);
 }
 
 

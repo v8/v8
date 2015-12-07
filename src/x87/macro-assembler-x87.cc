@@ -2080,9 +2080,7 @@ void MacroAssembler::InvokeBuiltin(int native_context_index, InvokeFlag flag,
   // You can't call a builtin without a valid frame.
   DCHECK(flag == JUMP_FUNCTION || has_frame());
 
-  // Rely on the assertion to check that the number of provided
-  // arguments match the expected number of arguments. Fake a
-  // parameter count to avoid emitting code to do the check.
+  // Fake a parameter count to avoid emitting code to do the check.
   ParameterCount expected(0);
   GetBuiltinFunction(edi, native_context_index);
   InvokeFunctionCode(edi, no_reg, expected, expected, flag, call_wrapper);
