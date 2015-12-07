@@ -176,8 +176,8 @@ struct ExpectedSnippet {
   inline T return_value() const { return return_value_and_parameters[0]; }
 
   inline T parameter(int i) const {
-    DCHECK_GE(i, 0);
-    DCHECK_LT(i, N);
+    CHECK_GE(i, 0);
+    CHECK_LT(i, N);
     return return_value_and_parameters[1 + i];
   }
 };

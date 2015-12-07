@@ -362,7 +362,7 @@ TEST(ReduceWord32Sar) {
 
 
 static void CheckJsShift(ReducerTester* R) {
-  DCHECK(R->machine.Word32ShiftIsSafe());
+  CHECK(R->machine.Word32ShiftIsSafe());
 
   Node* x = R->Parameter(0);
   Node* y = R->Parameter(1);

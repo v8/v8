@@ -104,7 +104,7 @@ class Expectations {
 
   void Init(int index, PropertyType type, PropertyAttributes attributes,
             Representation representation, Handle<Object> value) {
-    DCHECK(index < MAX_PROPERTIES);
+    CHECK(index < MAX_PROPERTIES);
     types_[index] = type;
     attributes_[index] = attributes;
     representations_[index] = representation;

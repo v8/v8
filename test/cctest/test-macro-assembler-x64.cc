@@ -199,7 +199,7 @@ void TestSmiCompare(MacroAssembler* masm, Label* exit, int id, int x, int y) {
     __ movl(rax, Immediate(id + 2));
     __ j(less_equal, exit);
   } else {
-    DCHECK_EQ(x, y);
+    CHECK_EQ(x, y);
     __ movl(rax, Immediate(id + 3));
     __ j(not_equal, exit);
   }
@@ -216,7 +216,7 @@ void TestSmiCompare(MacroAssembler* masm, Label* exit, int id, int x, int y) {
       __ movl(rax, Immediate(id + 9));
       __ j(greater_equal, exit);
     } else {
-      DCHECK(y > x);
+      CHECK(y > x);
       __ movl(rax, Immediate(id + 10));
       __ j(less_equal, exit);
     }
@@ -388,7 +388,7 @@ void TestI64PlusConstantToSmi(MacroAssembler* masm,
                               int64_t x,
                               int y) {
   int64_t result = x + y;
-  DCHECK(Smi::IsValid(result));
+  CHECK(Smi::IsValid(result));
   __ movl(rax, Immediate(id));
   __ Move(r8, Smi::FromInt(static_cast<int>(result)));
   __ movq(rcx, x);
@@ -778,7 +778,7 @@ static void SmiAddOverflowTest(MacroAssembler* masm,
                                int id,
                                int x) {
   // Adds a Smi to x so that the addition overflows.
-  DCHECK(x != 0);  // Can't overflow by adding a Smi.
+  CHECK(x != 0);  // Can't overflow by adding a Smi.
   int y_max = (x > 0) ? (Smi::kMaxValue + 0) : (Smi::kMinValue - x - 1);
   int y_min = (x > 0) ? (Smi::kMaxValue - x + 1) : (Smi::kMinValue + 0);
 
@@ -993,7 +993,7 @@ static void SmiSubOverflowTest(MacroAssembler* masm,
                                int id,
                                int x) {
   // Subtracts a Smi from x so that the subtraction overflows.
-  DCHECK(x != -1);  // Can't overflow by subtracting a Smi.
+  CHECK(x != -1);  // Can't overflow by subtracting a Smi.
   int y_max = (x < 0) ? (Smi::kMaxValue + 0) : (Smi::kMinValue + 0);
   int y_min = (x < 0) ? (Smi::kMaxValue + x + 2) : (Smi::kMinValue + x);
 
@@ -1461,7 +1461,7 @@ void TestSmiIndex(MacroAssembler* masm, Label* exit, int id, int x) {
   for (int i = 0; i < 8; i++) {
     __ Move(rcx, Smi::FromInt(x));
     SmiIndex index = masm->SmiToIndex(rdx, rcx, i);
-    DCHECK(index.reg.is(rcx) || index.reg.is(rdx));
+    CHECK(index.reg.is(rcx) || index.reg.is(rdx));
     __ shlq(index.reg, Immediate(index.scale));
     __ Set(r8, static_cast<intptr_t>(x) << i);
     __ cmpq(index.reg, r8);
@@ -1469,7 +1469,7 @@ void TestSmiIndex(MacroAssembler* masm, Label* exit, int id, int x) {
     __ incq(rax);
     __ Move(rcx, Smi::FromInt(x));
     index = masm->SmiToIndex(rcx, rcx, i);
-    DCHECK(index.reg.is(rcx));
+    CHECK(index.reg.is(rcx));
     __ shlq(rcx, Immediate(index.scale));
     __ Set(r8, static_cast<intptr_t>(x) << i);
     __ cmpq(rcx, r8);
@@ -1478,7 +1478,7 @@ void TestSmiIndex(MacroAssembler* masm, Label* exit, int id, int x) {
 
     __ Move(rcx, Smi::FromInt(x));
     index = masm->SmiToNegativeIndex(rdx, rcx, i);
-    DCHECK(index.reg.is(rcx) || index.reg.is(rdx));
+    CHECK(index.reg.is(rcx) || index.reg.is(rdx));
     __ shlq(index.reg, Immediate(index.scale));
     __ Set(r8, static_cast<intptr_t>(-x) << i);
     __ cmpq(index.reg, r8);
@@ -1486,7 +1486,7 @@ void TestSmiIndex(MacroAssembler* masm, Label* exit, int id, int x) {
     __ incq(rax);
     __ Move(rcx, Smi::FromInt(x));
     index = masm->SmiToNegativeIndex(rcx, rcx, i);
-    DCHECK(index.reg.is(rcx));
+    CHECK(index.reg.is(rcx));
     __ shlq(rcx, Immediate(index.scale));
     __ Set(r8, static_cast<intptr_t>(-x) << i);
     __ cmpq(rcx, r8);
@@ -2167,7 +2167,7 @@ TEST(SmiShiftArithmeticRight) {
 
 
 void TestPositiveSmiPowerUp(MacroAssembler* masm, Label* exit, int id, int x) {
-  DCHECK(x >= 0);
+  CHECK(x >= 0);
   int powers[] = { 0, 1, 2, 3, 8, 16, 24, 31 };
   int power_count = 8;
   __ movl(rax, Immediate(id));

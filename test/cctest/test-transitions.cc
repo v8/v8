@@ -87,7 +87,9 @@ TEST(TransitionArray_SimpleFieldTransitions) {
           (key == *name2 && target == *map2));
   }
 
-  DCHECK(TransitionArray::IsSortedNoDuplicates(*map0));
+#ifdef DEBUG
+  CHECK(TransitionArray::IsSortedNoDuplicates(*map0));
+#endif
 }
 
 
@@ -136,7 +138,9 @@ TEST(TransitionArray_FullFieldTransitions) {
           (key == *name2 && target == *map2));
   }
 
-  DCHECK(TransitionArray::IsSortedNoDuplicates(*map0));
+#ifdef DEBUG
+  CHECK(TransitionArray::IsSortedNoDuplicates(*map0));
+#endif
 }
 
 
@@ -183,7 +187,9 @@ TEST(TransitionArray_DifferentFieldNames) {
     }
   }
 
-  DCHECK(TransitionArray::IsSortedNoDuplicates(*map0));
+#ifdef DEBUG
+  CHECK(TransitionArray::IsSortedNoDuplicates(*map0));
+#endif
 }
 
 
@@ -224,7 +230,9 @@ TEST(TransitionArray_SameFieldNamesDifferentAttributesSimple) {
     CHECK_EQ(*name, TransitionArray::GetKey(map0->raw_transitions(), i));
   }
 
-  DCHECK(TransitionArray::IsSortedNoDuplicates(*map0));
+#ifdef DEBUG
+  CHECK(TransitionArray::IsSortedNoDuplicates(*map0));
+#endif
 }
 
 
@@ -302,5 +310,7 @@ TEST(TransitionArray_SameFieldNamesDifferentAttributes) {
     }
   }
 
-  DCHECK(TransitionArray::IsSortedNoDuplicates(*map0));
+#ifdef DEBUG
+  CHECK(TransitionArray::IsSortedNoDuplicates(*map0));
+#endif
 }

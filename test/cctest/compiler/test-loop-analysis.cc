@@ -716,7 +716,7 @@ TEST(LaEdgeMatrix1) {
 
 
 void RunEdgeMatrix2(int i) {
-  DCHECK(i >= 0 && i < 5);
+  CHECK(i >= 0 && i < 5);
   for (int j = 0; j < 5; j++) {
     for (int k = 0; k < 5; k++) {
       LoopFinderTester t;

@@ -68,7 +68,7 @@ static double GetDoubleFieldValue(JSObject* obj, FieldIndex field_index) {
     return obj->RawFastDoublePropertyAt(field_index);
   } else {
     Object* value = obj->RawFastPropertyAt(field_index);
-    DCHECK(value->IsMutableHeapNumber());
+    CHECK(value->IsMutableHeapNumber());
     return HeapNumber::cast(value)->value();
   }
 }

@@ -115,7 +115,8 @@ class CSignatureOf : public CSignature {
     if (return_count_ == 1) storage_[0] = MachineTypeForC<Ret>();
   }
   void Set(int index, MachineType type) {
-    DCHECK(index >= 0 && index < kParamCount);
+    CHECK_LE(0, index);
+    CHECK_LT(index, kParamCount);
     reps_[return_count_ + index] = type;
   }
 };

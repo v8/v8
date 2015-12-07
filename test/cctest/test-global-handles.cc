@@ -59,7 +59,7 @@ class TestRetainedObjectInfo : public v8::RetainedObjectInfo {
   bool has_been_disposed() { return has_been_disposed_; }
 
   virtual void Dispose() {
-    DCHECK(!has_been_disposed_);
+    CHECK(!has_been_disposed_);
     has_been_disposed_ = true;
   }
 
@@ -124,16 +124,16 @@ TEST(IterateObjectGroupsOldApi) {
     global_handles->IterateObjectGroups(&visitor, &CanSkipCallback);
 
     // CanSkipCallback was called for all objects.
-    DCHECK(can_skip_called_objects.length() == 4);
-    DCHECK(can_skip_called_objects.Contains(*g1s1.location()));
-    DCHECK(can_skip_called_objects.Contains(*g1s2.location()));
-    DCHECK(can_skip_called_objects.Contains(*g2s1.location()));
-    DCHECK(can_skip_called_objects.Contains(*g2s2.location()));
+    CHECK(can_skip_called_objects.length() == 4);
+    CHECK(can_skip_called_objects.Contains(*g1s1.location()));
+    CHECK(can_skip_called_objects.Contains(*g1s2.location()));
+    CHECK(can_skip_called_objects.Contains(*g2s1.location()));
+    CHECK(can_skip_called_objects.Contains(*g2s2.location()));
 
     // Nothing was visited.
-    DCHECK(visitor.visited.length() == 0);
-    DCHECK(!info1.has_been_disposed());
-    DCHECK(!info2.has_been_disposed());
+    CHECK(visitor.visited.length() == 0);
+    CHECK(!info1.has_been_disposed());
+    CHECK(!info2.has_been_disposed());
   }
 
   // Iterate again, now only skip the second object group.
@@ -148,18 +148,18 @@ TEST(IterateObjectGroupsOldApi) {
     global_handles->IterateObjectGroups(&visitor, &CanSkipCallback);
 
     // CanSkipCallback was called for all objects.
-    DCHECK(can_skip_called_objects.length() == 3 ||
-           can_skip_called_objects.length() == 4);
-    DCHECK(can_skip_called_objects.Contains(*g1s2.location()));
-    DCHECK(can_skip_called_objects.Contains(*g2s1.location()));
-    DCHECK(can_skip_called_objects.Contains(*g2s2.location()));
+    CHECK(can_skip_called_objects.length() == 3 ||
+          can_skip_called_objects.length() == 4);
+    CHECK(can_skip_called_objects.Contains(*g1s2.location()));
+    CHECK(can_skip_called_objects.Contains(*g2s1.location()));
+    CHECK(can_skip_called_objects.Contains(*g2s2.location()));
 
     // The first group was visited.
-    DCHECK(visitor.visited.length() == 2);
-    DCHECK(visitor.visited.Contains(*g1s1.location()));
-    DCHECK(visitor.visited.Contains(*g1s2.location()));
-    DCHECK(info1.has_been_disposed());
-    DCHECK(!info2.has_been_disposed());
+    CHECK(visitor.visited.length() == 2);
+    CHECK(visitor.visited.Contains(*g1s1.location()));
+    CHECK(visitor.visited.Contains(*g1s2.location()));
+    CHECK(info1.has_been_disposed());
+    CHECK(!info2.has_been_disposed());
   }
 
   // Iterate again, don't skip anything.
@@ -169,15 +169,15 @@ TEST(IterateObjectGroupsOldApi) {
     global_handles->IterateObjectGroups(&visitor, &CanSkipCallback);
 
     // CanSkipCallback was called for all objects.
-    DCHECK(can_skip_called_objects.length() == 1);
-    DCHECK(can_skip_called_objects.Contains(*g2s1.location()) ||
-           can_skip_called_objects.Contains(*g2s2.location()));
+    CHECK(can_skip_called_objects.length() == 1);
+    CHECK(can_skip_called_objects.Contains(*g2s1.location()) ||
+          can_skip_called_objects.Contains(*g2s2.location()));
 
     // The second group was visited.
-    DCHECK(visitor.visited.length() == 2);
-    DCHECK(visitor.visited.Contains(*g2s1.location()));
-    DCHECK(visitor.visited.Contains(*g2s2.location()));
-    DCHECK(info2.has_been_disposed());
+    CHECK(visitor.visited.length() == 2);
+    CHECK(visitor.visited.Contains(*g2s1.location()));
+    CHECK(visitor.visited.Contains(*g2s2.location()));
+    CHECK(info2.has_been_disposed());
   }
 }
 
@@ -219,16 +219,16 @@ TEST(IterateObjectGroups) {
     global_handles->IterateObjectGroups(&visitor, &CanSkipCallback);
 
     // CanSkipCallback was called for all objects.
-    DCHECK(can_skip_called_objects.length() == 4);
-    DCHECK(can_skip_called_objects.Contains(*g1s1.location()));
-    DCHECK(can_skip_called_objects.Contains(*g1s2.location()));
-    DCHECK(can_skip_called_objects.Contains(*g2s1.location()));
-    DCHECK(can_skip_called_objects.Contains(*g2s2.location()));
+    CHECK(can_skip_called_objects.length() == 4);
+    CHECK(can_skip_called_objects.Contains(*g1s1.location()));
+    CHECK(can_skip_called_objects.Contains(*g1s2.location()));
+    CHECK(can_skip_called_objects.Contains(*g2s1.location()));
+    CHECK(can_skip_called_objects.Contains(*g2s2.location()));
 
     // Nothing was visited.
-    DCHECK(visitor.visited.length() == 0);
-    DCHECK(!info1.has_been_disposed());
-    DCHECK(!info2.has_been_disposed());
+    CHECK(visitor.visited.length() == 0);
+    CHECK(!info1.has_been_disposed());
+    CHECK(!info2.has_been_disposed());
   }
 
   // Iterate again, now only skip the second object group.
@@ -243,18 +243,18 @@ TEST(IterateObjectGroups) {
     global_handles->IterateObjectGroups(&visitor, &CanSkipCallback);
 
     // CanSkipCallback was called for all objects.
-    DCHECK(can_skip_called_objects.length() == 3 ||
-           can_skip_called_objects.length() == 4);
-    DCHECK(can_skip_called_objects.Contains(*g1s2.location()));
-    DCHECK(can_skip_called_objects.Contains(*g2s1.location()));
-    DCHECK(can_skip_called_objects.Contains(*g2s2.location()));
+    CHECK(can_skip_called_objects.length() == 3 ||
+          can_skip_called_objects.length() == 4);
+    CHECK(can_skip_called_objects.Contains(*g1s2.location()));
+    CHECK(can_skip_called_objects.Contains(*g2s1.location()));
+    CHECK(can_skip_called_objects.Contains(*g2s2.location()));
 
     // The first group was visited.
-    DCHECK(visitor.visited.length() == 2);
-    DCHECK(visitor.visited.Contains(*g1s1.location()));
-    DCHECK(visitor.visited.Contains(*g1s2.location()));
-    DCHECK(info1.has_been_disposed());
-    DCHECK(!info2.has_been_disposed());
+    CHECK(visitor.visited.length() == 2);
+    CHECK(visitor.visited.Contains(*g1s1.location()));
+    CHECK(visitor.visited.Contains(*g1s2.location()));
+    CHECK(info1.has_been_disposed());
+    CHECK(!info2.has_been_disposed());
   }
 
   // Iterate again, don't skip anything.
@@ -264,15 +264,15 @@ TEST(IterateObjectGroups) {
     global_handles->IterateObjectGroups(&visitor, &CanSkipCallback);
 
     // CanSkipCallback was called for all objects.
-    DCHECK(can_skip_called_objects.length() == 1);
-    DCHECK(can_skip_called_objects.Contains(*g2s1.location()) ||
-           can_skip_called_objects.Contains(*g2s2.location()));
+    CHECK(can_skip_called_objects.length() == 1);
+    CHECK(can_skip_called_objects.Contains(*g2s1.location()) ||
+          can_skip_called_objects.Contains(*g2s2.location()));
 
     // The second group was visited.
-    DCHECK(visitor.visited.length() == 2);
-    DCHECK(visitor.visited.Contains(*g2s1.location()));
-    DCHECK(visitor.visited.Contains(*g2s2.location()));
-    DCHECK(info2.has_been_disposed());
+    CHECK(visitor.visited.length() == 2);
+    CHECK(visitor.visited.Contains(*g2s1.location()));
+    CHECK(visitor.visited.Contains(*g2s2.location()));
+    CHECK(info2.has_been_disposed());
   }
 }
 
@@ -309,16 +309,16 @@ TEST(ImplicitReferences) {
   List<ImplicitRefGroup*>* implicit_refs =
       global_handles->implicit_ref_groups();
   USE(implicit_refs);
-  DCHECK(implicit_refs->length() == 2);
-  DCHECK(implicit_refs->at(0)->parent ==
-         reinterpret_cast<HeapObject**>(g1s1.location()));
-  DCHECK(implicit_refs->at(0)->length == 2);
-  DCHECK(implicit_refs->at(0)->children[0] == g1c1.location());
-  DCHECK(implicit_refs->at(0)->children[1] == g1c2.location());
-  DCHECK(implicit_refs->at(1)->parent ==
-         reinterpret_cast<HeapObject**>(g2s1.location()));
-  DCHECK(implicit_refs->at(1)->length == 1);
-  DCHECK(implicit_refs->at(1)->children[0] == g2c1.location());
+  CHECK(implicit_refs->length() == 2);
+  CHECK(implicit_refs->at(0)->parent ==
+        reinterpret_cast<HeapObject**>(g1s1.location()));
+  CHECK(implicit_refs->at(0)->length == 2);
+  CHECK(implicit_refs->at(0)->children[0] == g1c1.location());
+  CHECK(implicit_refs->at(0)->children[1] == g1c2.location());
+  CHECK(implicit_refs->at(1)->parent ==
+        reinterpret_cast<HeapObject**>(g2s1.location()));
+  CHECK(implicit_refs->at(1)->length == 1);
+  CHECK(implicit_refs->at(1)->children[0] == g2c1.location());
   global_handles->RemoveObjectGroups();
   global_handles->RemoveImplicitRefGroups();
 }

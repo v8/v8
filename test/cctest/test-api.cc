@@ -2958,7 +2958,7 @@ THREADED_TEST(ArrayBuffer_ApiInternalToExternal) {
 
   CHECK_EQ(1024, static_cast<int>(ab_contents.ByteLength()));
   uint8_t* data = static_cast<uint8_t*>(ab_contents.Data());
-  DCHECK(data != NULL);
+  CHECK(data != NULL);
   CHECK(env->Global()->Set(env.local(), v8_str("ab"), ab).FromJust());
 
   v8::Local<v8::Value> result = CompileRun("ab.byteLength");
@@ -3234,7 +3234,7 @@ THREADED_TEST(SharedArrayBuffer_ApiInternalToExternal) {
 
   CHECK_EQ(1024, static_cast<int>(ab_contents.ByteLength()));
   uint8_t* data = static_cast<uint8_t*>(ab_contents.Data());
-  DCHECK(data != NULL);
+  CHECK(data != NULL);
   CHECK(env->Global()->Set(env.local(), v8_str("ab"), ab).FromJust());
 
   v8::Local<v8::Value> result = CompileRun("ab.byteLength");
@@ -10576,7 +10576,7 @@ THREADED_TEST(HiddenPrototypeIdentityHash) {
   int hash = o->GetIdentityHash();
   USE(hash);
   CHECK(o->Set(context.local(), v8_str("foo"), v8_num(42)).FromJust());
-  DCHECK_EQ(hash, o->GetIdentityHash());
+  CHECK_EQ(hash, o->GetIdentityHash());
 }
 
 
@@ -10885,7 +10885,7 @@ THREADED_TEST(SetPrototypeThrows) {
   v8::TryCatch try_catch(isolate);
   CHECK(o1->SetPrototype(context.local(), o0).IsNothing());
   CHECK(!try_catch.HasCaught());
-  DCHECK(!CcTest::i_isolate()->has_pending_exception());
+  CHECK(!CcTest::i_isolate()->has_pending_exception());
 
   CHECK_EQ(42, CompileRun("function f() { return 42; }; f()")
                    ->Int32Value(context.local())
@@ -13753,12 +13753,12 @@ void SetFunctionEntryHookTest::RunLoopInNewEnv(v8::Isolate* isolate) {
   CompileRun(script);
   bar_func_ = i::Handle<i::JSFunction>::cast(
           v8::Utils::OpenHandle(*env->Global()->Get(v8_str("bar"))));
-  DCHECK(!bar_func_.is_null());
+  CHECK(!bar_func_.is_null());
 
   foo_func_ =
       i::Handle<i::JSFunction>::cast(
            v8::Utils::OpenHandle(*env->Global()->Get(v8_str("foo"))));
-  DCHECK(!foo_func_.is_null());
+  CHECK(!foo_func_.is_null());
 
   v8::Local<v8::Value> value = CompileRun("bar();");
   CHECK(value->IsNumber());
@@ -15958,7 +15958,7 @@ void AnalyzeStackInNativeCode(const v8::FunctionCallbackInfo<v8::Value>& args) {
   const int kDisplayNameIsNotString = 6;
   const int kFunctionNameIsNotString = 7;
 
-  DCHECK(args.Length() == 1);
+  CHECK(args.Length() == 1);
 
   v8::Local<v8::Context> context = args.GetIsolate()->GetCurrentContext();
   int testGroup = args[0]->Int32Value(context).FromJust();
@@ -21627,7 +21627,7 @@ class ApiCallOptimizationChecker {
         wrap_function.start(), key, key, key, key, key, key);
     v8::TryCatch try_catch(isolate);
     CompileRun(source.start());
-    DCHECK(!try_catch.HasCaught());
+    CHECK(!try_catch.HasCaught());
     CHECK_EQ(9, count);
   }
 };
@@ -22865,7 +22865,7 @@ void TestInvalidCacheData(v8::ScriptCompiler::CompileOptions option) {
   int length = 16;
   v8::ScriptCompiler::CachedData* cached_data =
       new v8::ScriptCompiler::CachedData(data, length);
-  DCHECK(!cached_data->rejected);
+  CHECK(!cached_data->rejected);
   v8::ScriptOrigin origin(v8_str("origin"));
   v8::ScriptCompiler::Source source(v8_str("42"), origin, cached_data);
   v8::Local<v8::Script> script =

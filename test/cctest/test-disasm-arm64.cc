@@ -1602,7 +1602,7 @@ TEST_(system_nop) {
 TEST_(debug) {
   SET_UP_ASM();
 
-  DCHECK(kImmExceptionIsDebug == 0xdeb0);
+  CHECK(kImmExceptionIsDebug == 0xdeb0);
 
   // All debug codes should produce the same instruction, and the debug code
   // can be any uint32_t.

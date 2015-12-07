@@ -294,7 +294,7 @@ UNINITIALIZED_TEST(PartialSerialization) {
       HandleScope scope(isolate);
       env.Reset(v8_isolate, v8::Context::New(v8_isolate));
     }
-    DCHECK(!env.IsEmpty());
+    CHECK(!env.IsEmpty());
     {
       v8::HandleScope handle_scope(v8_isolate);
       v8::Local<v8::Context>::New(v8_isolate, env)->Enter();
@@ -313,7 +313,7 @@ UNINITIALIZED_TEST(PartialSerialization) {
     {
       v8::HandleScope handle_scope(v8_isolate);
       v8::Local<v8::String> foo = v8_str("foo");
-      DCHECK(!foo.IsEmpty());
+      CHECK(!foo.IsEmpty());
       raw_foo = *(v8::Utils::OpenHandle(*foo));
     }
 
@@ -413,7 +413,7 @@ UNINITIALIZED_TEST(ContextSerialization) {
       HandleScope scope(isolate);
       env.Reset(v8_isolate, v8::Context::New(v8_isolate));
     }
-    DCHECK(!env.IsEmpty());
+    CHECK(!env.IsEmpty());
     {
       v8::HandleScope handle_scope(v8_isolate);
       v8::Local<v8::Context>::New(v8_isolate, env)->Enter();
@@ -524,7 +524,7 @@ UNINITIALIZED_TEST(CustomContextSerialization) {
       HandleScope scope(isolate);
       env.Reset(v8_isolate, v8::Context::New(v8_isolate));
     }
-    DCHECK(!env.IsEmpty());
+    CHECK(!env.IsEmpty());
     {
       v8::HandleScope handle_scope(v8_isolate);
       v8::Local<v8::Context>::New(v8_isolate, env)->Enter();
@@ -1513,7 +1513,7 @@ TEST(SerializeToplevelIsolates) {
               ->Equals(isolate2->GetCurrentContext(), v8_str("abcdef"))
               .FromJust());
   }
-  DCHECK(toplevel_test_code_event_found);
+  CHECK(toplevel_test_code_event_found);
   isolate2->Dispose();
 }
 

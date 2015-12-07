@@ -1653,10 +1653,10 @@ TEST(min_max) {
         CHECK_EQ(test.g, outputsfmin[i]);
         CHECK_EQ(test.h, outputsfmax[i]);
       } else {
-        DCHECK(std::isnan(test.c));
-        DCHECK(std::isnan(test.d));
-        DCHECK(std::isnan(test.g));
-        DCHECK(std::isnan(test.h));
+        CHECK(std::isnan(test.c));
+        CHECK(std::isnan(test.d));
+        CHECK(std::isnan(test.g));
+        CHECK(std::isnan(test.h));
       }
     }
   }
@@ -2038,10 +2038,10 @@ TEST(mina_maxa) {
         CHECK_EQ(test.resd1, resd1[i]);
         CHECK_EQ(test.resf1, resf1[i]);
       } else {
-        DCHECK(std::isnan(test.resd));
-        DCHECK(std::isnan(test.resf));
-        DCHECK(std::isnan(test.resd1));
-        DCHECK(std::isnan(test.resf1));
+        CHECK(std::isnan(test.resd));
+        CHECK(std::isnan(test.resf));
+        CHECK(std::isnan(test.resd1));
+        CHECK(std::isnan(test.resf1));
       }
     }
   }

@@ -157,7 +157,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
   Node* Unop(const Operator* op, Node* input) {
     // JS unops also require context, effect, and control
     if (OperatorProperties::GetFrameStateInputCount(op) > 0) {
-      DCHECK(OperatorProperties::GetFrameStateInputCount(op) == 1);
+      CHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(op));
       return graph.NewNode(op, input, context(), EmptyFrameState(context()),
                            start(), control());
     } else {
@@ -169,8 +169,8 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
     // TODO(titzer): use EffectPhi after fixing EffectCount
     if (OperatorProperties::GetFrameStateInputCount(javascript.ToNumber()) >
         0) {
-      DCHECK(OperatorProperties::GetFrameStateInputCount(
-                 javascript.ToNumber()) == 1);
+      CHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(
+                      javascript.ToNumber()));
       return graph.NewNode(javascript.ToNumber(), node, context(),
                            EmptyFrameState(context()), node, control());
     } else {
@@ -733,14 +733,14 @@ TEST_WITH_STRONG(RemoveToNumberEffects) {
 
     switch (i) {
       case 0:
-        DCHECK(OperatorProperties::GetFrameStateInputCount(
-                   R.javascript.ToNumber()) == 1);
+        CHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(
+                        R.javascript.ToNumber()));
         effect_use = R.graph.NewNode(R.javascript.ToNumber(), p0, R.context(),
                                      frame_state, ton, R.start());
         break;
       case 1:
-        DCHECK(OperatorProperties::GetFrameStateInputCount(
-                   R.javascript.ToNumber()) == 1);
+        CHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(
+                        R.javascript.ToNumber()));
         effect_use = R.graph.NewNode(R.javascript.ToNumber(), ton, R.context(),
                                      frame_state, ton, R.start());
         break;

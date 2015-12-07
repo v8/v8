@@ -46,7 +46,7 @@ class InstructionTester : public HandleAndZoneScope {
     if (schedule.rpo_order()->size() == 0) {
       // Compute the RPO order.
       Scheduler::ComputeSpecialRPO(main_zone(), &schedule);
-      DCHECK(schedule.rpo_order()->size() > 0);
+      CHECK_NE(0u, schedule.rpo_order()->size());
     }
     InstructionBlocks* instruction_blocks =
         TestInstrSeq::InstructionBlocksFor(main_zone(), &schedule);

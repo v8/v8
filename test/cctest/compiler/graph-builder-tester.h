@@ -68,7 +68,7 @@ class GraphBuilderTester : public HandleAndZoneScope,
 
   void GenerateCode() { Generate(); }
   Node* Parameter(size_t index) {
-    DCHECK(index < parameter_count());
+    CHECK_LT(index, parameter_count());
     return parameters_[index];
   }
 
@@ -77,7 +77,7 @@ class GraphBuilderTester : public HandleAndZoneScope,
 
   // Initialize graph and builder.
   void Begin(int num_parameters) {
-    DCHECK(graph()->start() == NULL);
+    CHECK_NULL(graph()->start());
     Node* start = graph()->NewNode(common()->Start(num_parameters + 3));
     graph()->SetStart(start);
     effect_ = start;
@@ -235,15 +235,15 @@ class GraphBuilderTester : public HandleAndZoneScope,
  protected:
   Node* MakeNode(const Operator* op, int value_input_count,
                  Node** value_inputs) {
-    DCHECK(op->ValueInputCount() == value_input_count);
+    CHECK_EQ(op->ValueInputCount(), value_input_count);
 
-    DCHECK(!OperatorProperties::HasContextInput(op));
-    DCHECK_EQ(0, OperatorProperties::GetFrameStateInputCount(op));
+    CHECK(!OperatorProperties::HasContextInput(op));
+    CHECK_EQ(0, OperatorProperties::GetFrameStateInputCount(op));
     bool has_control = op->ControlInputCount() == 1;
     bool has_effect = op->EffectInputCount() == 1;
 
-    DCHECK(op->ControlInputCount() < 2);
-    DCHECK(op->EffectInputCount() < 2);
+    CHECK_LT(op->ControlInputCount(), 2);
+    CHECK_LT(op->EffectInputCount(), 2);
 
     Node* result = NULL;
     if (!has_control && !has_effect) {

@@ -34,7 +34,7 @@ CallDescriptor* GetCallDescriptor(Zone* zone, int return_count,
       RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN);
 
   // Add return location(s).
-  DCHECK(return_count <= config->num_allocatable_general_registers());
+  CHECK(return_count <= config->num_allocatable_general_registers());
   for (int i = 0; i < return_count; i++) {
     msig.AddReturn(kMachInt32);
     locations.AddReturn(
@@ -42,7 +42,7 @@ CallDescriptor* GetCallDescriptor(Zone* zone, int return_count,
   }
 
   // Add register and/or stack parameter(s).
-  DCHECK(param_count <= config->num_allocatable_general_registers());
+  CHECK(param_count <= config->num_allocatable_general_registers());
   for (int i = 0; i < param_count; i++) {
     msig.AddParam(kMachInt32);
     locations.AddParam(
