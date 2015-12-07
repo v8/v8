@@ -43,6 +43,7 @@ Debug::Debug(Isolate* isolate)
       break_on_exception_(false),
       break_on_uncaught_exception_(false),
       debug_info_list_(NULL),
+      feature_tracker_(isolate),
       isolate_(isolate) {
   ThreadInit();
 }
@@ -316,6 +317,15 @@ Handle<Object> BreakLocation::BreakPointObjects() const {
 }
 
 
+void DebugFeatureTracker::Track(DebugFeatureTracker::Feature feature) {
+  uint32_t mask = 1 << feature;
+  // Only count one sample per feature and isolate.
+  if (bitfield_ & mask) return;
+  isolate_->counters()->debug_feature_usage()->AddSample(feature);
+  bitfield_ |= mask;
+}
+
+
 // Threading support.
 void Debug::ThreadInit() {
   thread_local_.break_count_ = 0;
@@ -396,6 +406,9 @@ bool Debug::Load() {
 
   debug_context_ = Handle<Context>::cast(
       isolate_->global_handles()->Create(*context));
+
+  feature_tracker()->Track(DebugFeatureTracker::kActive);
+
   return true;
 }
 
@@ -625,6 +638,8 @@ bool Debug::SetBreakPoint(Handle<JSFunction> function,
   *source_position = location.statement_position();
   location.SetBreakPoint(break_point_object);
 
+  feature_tracker()->Track(DebugFeatureTracker::kBreakPoint);
+
   // At least one active break point now.
   return debug_info->GetBreakPointCount() > 0;
 }
@@ -665,6 +680,8 @@ bool Debug::SetBreakPointForScript(Handle<Script> script,
   BreakLocation location = BreakLocation::FromPosition(
       debug_info, ALL_BREAK_LOCATIONS, position, alignment);
   location.SetBreakPoint(break_point_object);
+
+  feature_tracker()->Track(DebugFeatureTracker::kBreakPoint);
 
   position = (alignment == STATEMENT_ALIGNED) ? location.statement_position()
                                               : location.position();
@@ -873,6 +890,8 @@ void Debug::PrepareStep(StepAction step_action,
   }
   JavaScriptFrameIterator frames_it(isolate_, id);
   JavaScriptFrame* frame = frames_it.frame();
+
+  feature_tracker()->Track(DebugFeatureTracker::kStepping);
 
   // First of all ensure there is one-shot break points in the top handler
   // if any.

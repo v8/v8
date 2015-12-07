@@ -4,6 +4,7 @@
 
 #include "src/profiler/cpu-profiler.h"
 
+#include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/log-inl.h"
@@ -437,6 +438,7 @@ void CpuProfiler::StartProfiling(const char* title, bool record_samples) {
 
 void CpuProfiler::StartProfiling(String* title, bool record_samples) {
   StartProfiling(profiles_->GetName(title), record_samples);
+  isolate_->debug()->feature_tracker()->Track(DebugFeatureTracker::kProfiler);
 }
 
 
