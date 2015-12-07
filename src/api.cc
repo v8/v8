@@ -9,6 +9,8 @@
 #include <sanitizer/asan_interface.h>
 #endif  // V8_USE_ADDRESS_SANITIZER
 #include <cmath>  // For isnan.
+#include <limits>
+#include <vector>
 #include "include/v8-debug.h"
 #include "include/v8-profiler.h"
 #include "include/v8-testing.h"
@@ -882,8 +884,8 @@ int NeanderArray::length() {
 
 
 i::Object* NeanderArray::get(int offset) {
-  DCHECK(0 <= offset);
-  DCHECK(offset < length());
+  DCHECK_LE(0, offset);
+  DCHECK_LT(offset, length());
   return obj_.get(offset + 1);
 }
 
@@ -4834,7 +4836,7 @@ class Utf8LengthHelper : public i::AllStatic {
   }
 
   static int Calculate(i::ConsString* current, uint8_t* state_out) {
-    using namespace internal;
+    using internal::ConsString;
     int total_length = 0;
     uint8_t state = kInitialState;
     while (true) {
@@ -4934,26 +4936,22 @@ class Utf8WriterVisitor {
                                int remaining,
                                char* const buffer,
                                bool replace_invalid_utf8) {
-    using namespace unibrow;
-    DCHECK(remaining > 0);
+    DCHECK_GT(remaining, 0);
     // We can't use a local buffer here because Encode needs to modify
     // previous characters in the stream.  We know, however, that
     // exactly one character will be advanced.
-    if (Utf16::IsSurrogatePair(last_character, character)) {
-      int written = Utf8::Encode(buffer,
-                                 character,
-                                 last_character,
-                                 replace_invalid_utf8);
-      DCHECK(written == 1);
+    if (unibrow::Utf16::IsSurrogatePair(last_character, character)) {
+      int written = unibrow::Utf8::Encode(buffer, character, last_character,
+                                          replace_invalid_utf8);
+      DCHECK_EQ(written, 1);
       return written;
     }
     // Use a scratch buffer to check the required characters.
-    char temp_buffer[Utf8::kMaxEncodedSize];
+    char temp_buffer[unibrow::Utf8::kMaxEncodedSize];
     // Can't encode using last_character as gcc has array bounds issues.
-    int written = Utf8::Encode(temp_buffer,
-                               character,
-                               Utf16::kNoPreviousCharacter,
-                               replace_invalid_utf8);
+    int written = unibrow::Utf8::Encode(temp_buffer, character,
+                                        unibrow::Utf16::kNoPreviousCharacter,
+                                        replace_invalid_utf8);
     // Won't fit.
     if (written > remaining) return 0;
     // Copy over the character from temp_buffer.
@@ -4975,13 +4973,13 @@ class Utf8WriterVisitor {
   // unit, or all units have been written out.
   template<typename Char>
   void Visit(const Char* chars, const int length) {
-    using namespace unibrow;
     DCHECK(!early_termination_);
     if (length == 0) return;
     // Copy state to stack.
     char* buffer = buffer_;
-    int last_character =
-        sizeof(Char) == 1 ? Utf16::kNoPreviousCharacter : last_character_;
+    int last_character = sizeof(Char) == 1
+                             ? unibrow::Utf16::kNoPreviousCharacter
+                             : last_character_;
     int i = 0;
     // Do a fast loop where there is no exit capacity check.
     while (true) {
@@ -4991,7 +4989,8 @@ class Utf8WriterVisitor {
       } else {
         int remaining_capacity = capacity_ - static_cast<int>(buffer - start_);
         // Need enough space to write everything but one character.
-        STATIC_ASSERT(Utf16::kMaxExtraUtf8BytesForOneUtf16CodeUnit == 3);
+        STATIC_ASSERT(unibrow::Utf16::kMaxExtraUtf8BytesForOneUtf16CodeUnit ==
+                      3);
         int max_size_per_char =  sizeof(Char) == 1 ? 2 : 3;
         int writable_length =
             (remaining_capacity - max_size_per_char)/max_size_per_char;
@@ -5003,17 +5002,15 @@ class Utf8WriterVisitor {
       // Write the characters to the stream.
       if (sizeof(Char) == 1) {
         for (; i < fast_length; i++) {
-          buffer +=
-              Utf8::EncodeOneByte(buffer, static_cast<uint8_t>(*chars++));
+          buffer += unibrow::Utf8::EncodeOneByte(
+              buffer, static_cast<uint8_t>(*chars++));
           DCHECK(capacity_ == -1 || (buffer - start_) <= capacity_);
         }
       } else {
         for (; i < fast_length; i++) {
           uint16_t character = *chars++;
-          buffer += Utf8::Encode(buffer,
-                                 character,
-                                 last_character,
-                                 replace_invalid_utf8_);
+          buffer += unibrow::Utf8::Encode(buffer, character, last_character,
+                                          replace_invalid_utf8_);
           last_character = character;
           DCHECK(capacity_ == -1 || (buffer - start_) <= capacity_);
         }
@@ -5030,12 +5027,12 @@ class Utf8WriterVisitor {
     DCHECK(!skip_capacity_check_);
     // Slow loop. Must check capacity on each iteration.
     int remaining_capacity = capacity_ - static_cast<int>(buffer - start_);
-    DCHECK(remaining_capacity >= 0);
+    DCHECK_GE(remaining_capacity, 0);
     for (; i < length && remaining_capacity > 0; i++) {
       uint16_t character = *chars++;
       // remaining_capacity is <= 3 bytes at this point, so we do not write out
       // an umatched lead surrogate.
-      if (replace_invalid_utf8_ && Utf16::IsLeadSurrogate(character)) {
+      if (replace_invalid_utf8_ && unibrow::Utf16::IsLeadSurrogate(character)) {
         early_termination_ = true;
         break;
       }
@@ -8033,7 +8030,7 @@ int CpuProfile::GetSamplesCount() const {
 
 
 void CpuProfiler::SetSamplingInterval(int us) {
-  DCHECK(us >= 0);
+  DCHECK_GE(us, 0);
   return reinterpret_cast<i::CpuProfiler*>(this)->set_sampling_interval(
       base::TimeDelta::FromMicroseconds(us));
 }
