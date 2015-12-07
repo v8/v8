@@ -353,8 +353,8 @@ InlineCacheState CompareICStub::GetICState() const {
     case CompareICState::INTERNALIZED_STRING:
     case CompareICState::STRING:
     case CompareICState::UNIQUE_NAME:
-    case CompareICState::OBJECT:
-    case CompareICState::KNOWN_OBJECT:
+    case CompareICState::RECEIVER:
+    case CompareICState::KNOWN_RECEIVER:
       return MONOMORPHIC;
     case CompareICState::GENERIC:
       return ::v8::internal::GENERIC;
@@ -431,12 +431,12 @@ void CompareICStub::Generate(MacroAssembler* masm) {
     case CompareICState::UNIQUE_NAME:
       GenerateUniqueNames(masm);
       break;
-    case CompareICState::OBJECT:
-      GenerateObjects(masm);
+    case CompareICState::RECEIVER:
+      GenerateReceivers(masm);
       break;
-    case CompareICState::KNOWN_OBJECT:
+    case CompareICState::KNOWN_RECEIVER:
       DCHECK(*known_map_ != NULL);
-      GenerateKnownObjects(masm);
+      GenerateKnownReceivers(masm);
       break;
     case CompareICState::GENERIC:
       GenerateGeneric(masm);

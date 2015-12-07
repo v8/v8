@@ -174,7 +174,7 @@ class CompareICState {
   //   SMI < NUMBER
   //   INTERNALIZED_STRING < STRING
   //   INTERNALIZED_STRING < UNIQUE_NAME
-  //   KNOWN_OBJECT < OBJECT
+  //   KNOWN_RECEIVER < RECEIVER
   enum State {
     UNINITIALIZED,
     BOOLEAN,
@@ -182,9 +182,9 @@ class CompareICState {
     NUMBER,
     STRING,
     INTERNALIZED_STRING,
-    UNIQUE_NAME,   // Symbol or InternalizedString
-    OBJECT,        // JSObject
-    KNOWN_OBJECT,  // JSObject with specific map (faster check)
+    UNIQUE_NAME,     // Symbol or InternalizedString
+    RECEIVER,        // JSReceiver
+    KNOWN_RECEIVER,  // JSReceiver with specific map (faster check)
     GENERIC
   };
 

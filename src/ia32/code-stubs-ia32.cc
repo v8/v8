@@ -3624,19 +3624,20 @@ void CompareICStub::GenerateStrings(MacroAssembler* masm) {
 }
 
 
-void CompareICStub::GenerateObjects(MacroAssembler* masm) {
-  DCHECK(state() == CompareICState::OBJECT);
+void CompareICStub::GenerateReceivers(MacroAssembler* masm) {
+  DCHECK_EQ(CompareICState::RECEIVER, state());
   Label miss;
   __ mov(ecx, edx);
   __ and_(ecx, eax);
   __ JumpIfSmi(ecx, &miss, Label::kNear);
 
-  __ CmpObjectType(eax, JS_OBJECT_TYPE, ecx);
-  __ j(not_equal, &miss, Label::kNear);
-  __ CmpObjectType(edx, JS_OBJECT_TYPE, ecx);
-  __ j(not_equal, &miss, Label::kNear);
+  STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+  __ CmpObjectType(eax, FIRST_JS_RECEIVER_TYPE, ecx);
+  __ j(below, &miss, Label::kNear);
+  __ CmpObjectType(edx, FIRST_JS_RECEIVER_TYPE, ecx);
+  __ j(below, &miss, Label::kNear);
 
-  DCHECK(GetCondition() == equal);
+  DCHECK_EQ(equal, GetCondition());
   __ sub(eax, edx);
   __ ret(0);
 
@@ -3645,7 +3646,7 @@ void CompareICStub::GenerateObjects(MacroAssembler* masm) {
 }
 
 
-void CompareICStub::GenerateKnownObjects(MacroAssembler* masm) {
+void CompareICStub::GenerateKnownReceivers(MacroAssembler* masm) {
   Label miss;
   Handle<WeakCell> cell = Map::WeakCellForMap(known_map_);
   __ mov(ecx, edx);

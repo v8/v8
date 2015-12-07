@@ -558,7 +558,7 @@ void CompareIC::Clear(Isolate* isolate, Address address, Code* target,
   DCHECK(CodeStub::GetMajorKey(target) == CodeStub::CompareIC);
   CompareICStub stub(target->stub_key(), isolate);
   // Only clear CompareICs that can retain objects.
-  if (stub.state() != CompareICState::KNOWN_OBJECT) return;
+  if (stub.state() != CompareICState::KNOWN_RECEIVER) return;
   SetTargetAtAddress(address,
                      GetRawUninitialized(isolate, stub.op(), stub.strength()),
                      constant_pool);
@@ -2687,9 +2687,9 @@ Code* CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
       HasInlinedSmiCode(address()), x, y);
   CompareICStub stub(isolate(), op_, old_stub.strength(), new_left, new_right,
                      state);
-  if (state == CompareICState::KNOWN_OBJECT) {
+  if (state == CompareICState::KNOWN_RECEIVER) {
     stub.set_known_map(
-        Handle<Map>(Handle<JSObject>::cast(x)->map(), isolate()));
+        Handle<Map>(Handle<JSReceiver>::cast(x)->map(), isolate()));
   }
   Handle<Code> new_target = stub.GetCode();
   set_target(*new_target);

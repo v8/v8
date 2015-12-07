@@ -1620,9 +1620,9 @@ class CompareICStub : public PlatformCodeStub {
   void GenerateInternalizedStrings(MacroAssembler* masm);
   void GenerateStrings(MacroAssembler* masm);
   void GenerateUniqueNames(MacroAssembler* masm);
-  void GenerateObjects(MacroAssembler* masm);
+  void GenerateReceivers(MacroAssembler* masm);
   void GenerateMiss(MacroAssembler* masm);
-  void GenerateKnownObjects(MacroAssembler* masm);
+  void GenerateKnownReceivers(MacroAssembler* masm);
   void GenerateGeneric(MacroAssembler* masm);
 
   bool strict() const { return op() == Token::EQ_STRICT; }
@@ -1631,7 +1631,7 @@ class CompareICStub : public PlatformCodeStub {
   void AddToSpecialCache(Handle<Code> new_object) override;
   bool FindCodeInSpecialCache(Code** code_out) override;
   bool UseSpecialCache() override {
-    return state() == CompareICState::KNOWN_OBJECT;
+    return state() == CompareICState::KNOWN_RECEIVER;
   }
 
   class OpBits : public BitField<int, 0, 3> {};
