@@ -107,10 +107,13 @@ void JSInliningHeuristic::Finalize() {
     auto i = candidates_.begin();
     Candidate candidate = *i;
     candidates_.erase(i);
-    Reduction r = inliner_.ReduceJSCall(candidate.node, candidate.function);
-    if (r.Changed()) {
-      cumulative_count_ += candidate.function->shared()->ast_node_count();
-      return;
+    // Make sure we don't try to inline dead candidate nodes.
+    if (!candidate.node->IsDead()) {
+      Reduction r = inliner_.ReduceJSCall(candidate.node, candidate.function);
+      if (r.Changed()) {
+        cumulative_count_ += candidate.function->shared()->ast_node_count();
+        return;
+      }
     }
   }
 }
