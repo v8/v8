@@ -83,6 +83,7 @@ class JumpPatchSite BASE_EMBEDDED {
 //
 // The live registers are:
 //   o edi: the JS function object being called (i.e. ourselves)
+//   o edx: the new target value
 //   o esi: our context
 //   o ebp: our caller's frame pointer
 //   o esp: stack pointer (pointing to return address)
@@ -174,14 +175,24 @@ void FullCodeGenerator::Generate() {
       __ Push(info->scope()->GetScopeInfo(info->isolate()));
       __ CallRuntime(Runtime::kNewScriptContext, 2);
       PrepareForBailoutForId(BailoutId::ScriptContext(), TOS_REG);
-    } else if (slots <= FastNewContextStub::kMaximumSlots) {
-      FastNewContextStub stub(isolate(), slots);
-      __ CallStub(&stub);
-      // Result of FastNewContextStub is always in new space.
-      need_write_barrier = false;
+      // The new target value is not used, clobbering is safe.
+      DCHECK_NULL(info->scope()->new_target_var());
     } else {
-      __ push(edi);
-      __ CallRuntime(Runtime::kNewFunctionContext, 1);
+      if (info->scope()->new_target_var() != nullptr) {
+        __ push(edx);  // Preserve new target.
+      }
+      if (slots <= FastNewContextStub::kMaximumSlots) {
+        FastNewContextStub stub(isolate(), slots);
+        __ CallStub(&stub);
+        // Result of FastNewContextStub is always in new space.
+        need_write_barrier = false;
+      } else {
+        __ push(edi);
+        __ CallRuntime(Runtime::kNewFunctionContext, 1);
+      }
+      if (info->scope()->new_target_var() != nullptr) {
+        __ pop(edx);  // Restore new target.
+      }
     }
     function_in_register = false;
     // Context is returned in eax.  It replaces the context passed to us.
@@ -215,11 +226,11 @@ void FullCodeGenerator::Generate() {
       }
     }
   }
-  PrepareForBailoutForId(BailoutId::FunctionContext(), NO_REGISTERS);
 
-  // Function register is trashed in case we bailout here. But since that
-  // could happen only when we allocate a context the value of
-  // |function_in_register| is correct.
+  // Register holding this function and new target are both trashed in case we
+  // bailout here. But since that can happen only when new target is not used
+  // and we allocate a context, the value of |function_in_register| is correct.
+  PrepareForBailoutForId(BailoutId::FunctionContext(), NO_REGISTERS);
 
   // Possibly set up a local binding to the this function which is used in
   // derived constructors with super calls.
@@ -228,38 +239,16 @@ void FullCodeGenerator::Generate() {
     Comment cmnt(masm_, "[ This function");
     if (!function_in_register) {
       __ mov(edi, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
-      // The write barrier clobbers register again, keep is marked as such.
+      // The write barrier clobbers register again, keep it marked as such.
     }
-    SetVar(this_function_var, edi, ebx, edx);
+    SetVar(this_function_var, edi, ebx, ecx);
   }
 
+  // Possibly set up a local binding to the new target value.
   Variable* new_target_var = scope()->new_target_var();
   if (new_target_var != nullptr) {
     Comment cmnt(masm_, "[ new.target");
-    __ mov(eax, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
-    Label non_adaptor_frame;
-    __ cmp(Operand(eax, StandardFrameConstants::kContextOffset),
-           Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
-    __ j(not_equal, &non_adaptor_frame);
-    __ mov(eax, Operand(eax, StandardFrameConstants::kCallerFPOffset));
-
-    __ bind(&non_adaptor_frame);
-    __ cmp(Operand(eax, StandardFrameConstants::kMarkerOffset),
-           Immediate(Smi::FromInt(StackFrame::CONSTRUCT)));
-
-    Label non_construct_frame, done;
-    __ j(not_equal, &non_construct_frame);
-
-    // Construct frame
-    __ mov(eax, Operand(eax, ConstructFrameConstants::kNewTargetOffset));
-    __ jmp(&done);
-
-    // Non-construct frame
-    __ bind(&non_construct_frame);
-    __ mov(eax, Immediate(isolate()->factory()->undefined_value()));
-
-    __ bind(&done);
-    SetVar(new_target_var, eax, ebx, edx);
+    SetVar(new_target_var, edx, ebx, ecx);
   }
 
   Variable* arguments = scope()->arguments();
