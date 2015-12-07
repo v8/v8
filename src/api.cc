@@ -3659,17 +3659,18 @@ MaybeLocal<Value> v8::Object::GetOwnPropertyDescriptor(Local<Context> context,
                                                        Local<String> key) {
   PREPARE_FOR_EXECUTION(context, "v8::Object::GetOwnPropertyDescriptor()",
                         Value);
-  auto obj = Utils::OpenHandle(this);
-  auto key_name = Utils::OpenHandle(*key);
-  i::Handle<i::Object> args[] = { obj, key_name };
-  i::Handle<i::JSFunction> fun = isolate->object_get_own_property_descriptor();
-  i::Handle<i::Object> undefined = isolate->factory()->undefined_value();
-  i::Handle<i::Object> result;
-  has_pending_exception =
-      !i::Execution::Call(isolate, fun, undefined, arraysize(args), args)
-           .ToHandle(&result);
+  i::Handle<i::JSReceiver> obj = Utils::OpenHandle(this);
+  i::Handle<i::String> key_name = Utils::OpenHandle(*key);
+
+  i::PropertyDescriptor desc;
+  bool found =
+      i::JSReceiver::GetOwnPropertyDescriptor(isolate, obj, key_name, &desc);
+  has_pending_exception = isolate->has_pending_exception();
   RETURN_ON_FAILED_EXECUTION(Value);
-  RETURN_ESCAPED(Utils::ToLocal(result));
+  if (!found) {
+    return v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
+  }
+  RETURN_ESCAPED(Utils::ToLocal(desc.ToObject(isolate)));
 }
 
 

@@ -25,8 +25,6 @@ var NaN = %GetRootNaN();
 var ObserveBeginPerformSplice;
 var ObserveEndPerformSplice;
 var ObserveEnqueueSpliceRecord;
-var ProxyDelegateCallAndConstruct;
-var ProxyDerivedHasOwnTrap;
 var SameValue = utils.ImportNow("SameValue");
 var StringIndexOf;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
@@ -44,8 +42,6 @@ utils.Import(function(from) {
 
 utils.ImportFromExperimental(function(from) {
   FLAG_harmony_tostring = from.FLAG_harmony_tostring;
-  ProxyDelegateCallAndConstruct = from.ProxyDelegateCallAndConstruct;
-  ProxyDerivedHasOwnTrap = from.ProxyDerivedHasOwnTrap;
 });
 
 // ----------------------------------------------------------------------------
@@ -511,11 +507,6 @@ function GetTrap(handler, name, defaultTrap) {
     throw MakeTypeError(kProxyHandlerTrapMustBeCallable, handler, name);
   }
   return trap;
-}
-
-
-function CallTrap0(handler, name, defaultTrap) {
-  return %_Call(GetTrap(handler, name, defaultTrap), handler);
 }
 
 
@@ -1614,8 +1605,6 @@ utils.Export(function(to) {
   "global_eval_fun", GlobalEval,
   "object_value_of", ObjectValueOf,
   "object_to_string", ObjectToString,
-  "object_get_own_property_descriptor", ObjectGetOwnPropertyDescriptor,
-  "to_complete_property_descriptor", ToCompletePropertyDescriptor,
 ]);
 
 })

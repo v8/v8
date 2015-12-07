@@ -490,6 +490,7 @@ function ArrayPop() {
 
   n--;
   var value = array[n];
+  // TODO(jkummerow): Use %DeleteProperty_Strict instead, delete "Delete".
   Delete(array, n, true);
   array.length = n;
   return value;

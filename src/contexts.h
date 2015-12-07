@@ -130,8 +130,6 @@ enum BindingFlags {
     no_side_effect_to_string_fun)                                             \
   V(OBJECT_VALUE_OF, JSFunction, object_value_of)                             \
   V(OBJECT_TO_STRING, JSFunction, object_to_string)                           \
-  V(OBJECT_GET_OWN_PROPERTY_DESCROPTOR_INDEX, JSFunction,                     \
-    object_get_own_property_descriptor)                                       \
   V(OBSERVERS_BEGIN_SPLICE_INDEX, JSFunction, observers_begin_perform_splice) \
   V(OBSERVERS_END_SPLICE_INDEX, JSFunction, observers_end_perform_splice)     \
   V(OBSERVERS_ENQUEUE_SPLICE_INDEX, JSFunction, observers_enqueue_splice)     \
@@ -152,8 +150,6 @@ enum BindingFlags {
   V(SET_HAS_METHOD_INDEX, JSFunction, set_has)                                \
   V(STACK_OVERFLOW_BOILERPLATE_INDEX, JSObject, stack_overflow_boilerplate)   \
   V(SYNTAX_ERROR_FUNCTION_INDEX, JSFunction, syntax_error_function)           \
-  V(TO_COMPLETE_PROPERTY_DESCRIPTOR_INDEX, JSFunction,                        \
-    to_complete_property_descriptor)                                          \
   V(TO_DETAIL_STRING_FUN_INDEX, JSFunction, to_detail_string_fun)             \
   V(TYPE_ERROR_FUNCTION_INDEX, JSFunction, type_error_function)               \
   V(URI_ERROR_FUNCTION_INDEX, JSFunction, uri_error_function)                 \
