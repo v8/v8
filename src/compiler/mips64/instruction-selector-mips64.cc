@@ -829,11 +829,18 @@ void InstructionSelector::VisitTruncateFloat32ToInt64(Node* node) {
 
 
 void InstructionSelector::VisitTryTruncateFloat64ToInt64(Node* node) {
-  if (NodeProperties::FindProjection(node, 1)) {
-    // TODO(mips): implement the second return value.
-    UNIMPLEMENTED();
+  Mips64OperandGenerator g(this);
+  InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};
+  InstructionOperand outputs[2];
+  size_t output_count = 0;
+  outputs[output_count++] = g.DefineAsRegister(node);
+
+  Node* success_output = NodeProperties::FindProjection(node, 1);
+  if (success_output) {
+    outputs[output_count++] = g.DefineAsRegister(success_output);
   }
-  VisitRR(this, kMips64TruncLD, node);
+
+  Emit(kMips64TruncLD, output_count, outputs, 1, inputs);
 }
 
 

@@ -1046,9 +1046,30 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     }
     case kMips64TruncLD: {
       FPURegister scratch = kScratchDoubleReg;
+      Register tmp_fcsr = kScratchReg;
+      Register result = kScratchReg2;
+
+      bool load_status = instr->OutputCount() > 1;
+      if (load_status) {
+        // Save FCSR.
+        __ cfc1(tmp_fcsr, FCSR);
+        // Clear FPU flags.
+        __ ctc1(zero_reg, FCSR);
+      }
       // Other arches use round to zero here, so we follow.
       __ trunc_l_d(scratch, i.InputDoubleRegister(0));
-      __ dmfc1(i.OutputRegister(), scratch);
+      __ dmfc1(i.OutputRegister(0), scratch);
+      if (load_status) {
+        __ cfc1(result, FCSR);
+        // Check for overflow and NaNs.
+        __ andi(result, result,
+                (kFCSROverflowFlagMask | kFCSRInvalidOpFlagMask));
+        __ Slt(result, zero_reg, result);
+        __ xori(result, result, 1);
+        __ mov(i.OutputRegister(1), result);
+        // Restore FCSR
+        __ ctc1(tmp_fcsr, FCSR);
+      }
       break;
     }
     case kMips64TruncUwD: {
