@@ -2155,7 +2155,7 @@ class LStoreKeyed final : public LTemplateInstruction<0, 4, 0> {
     inputs_[0] = obj;
     inputs_[1] = key;
     inputs_[2] = val;
-    inputs_[3] = backing_store_owner
+    inputs_[3] = backing_store_owner;
   }
 
   bool is_fixed_typed_array() const {
