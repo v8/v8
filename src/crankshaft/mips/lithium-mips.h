@@ -1565,15 +1565,17 @@ class LLoadRoot final : public LTemplateInstruction<1, 0, 0> {
 };
 
 
-class LLoadKeyed final : public LTemplateInstruction<1, 2, 0> {
+class LLoadKeyed final : public LTemplateInstruction<1, 3, 0> {
  public:
-  LLoadKeyed(LOperand* elements, LOperand* key) {
+  LLoadKeyed(LOperand* elements, LOperand* key, LOperand* backing_store_owner) {
     inputs_[0] = elements;
     inputs_[1] = key;
+    inputs_[2] = backing_store_owner;
   }
 
   LOperand* elements() { return inputs_[0]; }
   LOperand* key() { return inputs_[1]; }
+  LOperand* backing_store_owner() { return inputs_[2]; }
   ElementsKind elements_kind() const {
     return hydrogen()->elements_kind();
   }
@@ -2112,12 +2114,14 @@ class LStoreNamedGeneric final : public LTemplateInstruction<0, 3, 2> {
 };
 
 
-class LStoreKeyed final : public LTemplateInstruction<0, 3, 0> {
+class LStoreKeyed final : public LTemplateInstruction<0, 4, 0> {
  public:
-  LStoreKeyed(LOperand* object, LOperand* key, LOperand* value) {
+  LStoreKeyed(LOperand* object, LOperand* key, LOperand* value,
+              LOperand* backing_store_owner) {
     inputs_[0] = object;
     inputs_[1] = key;
     inputs_[2] = value;
+    inputs_[3] = backing_store_owner;
   }
 
   bool is_fixed_typed_array() const {
@@ -2126,6 +2130,7 @@ class LStoreKeyed final : public LTemplateInstruction<0, 3, 0> {
   LOperand* elements() { return inputs_[0]; }
   LOperand* key() { return inputs_[1]; }
   LOperand* value() { return inputs_[2]; }
+  LOperand* backing_store_owner() { return inputs_[3]; }
   ElementsKind elements_kind() const {
     return hydrogen()->elements_kind();
   }

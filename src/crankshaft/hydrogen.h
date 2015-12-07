@@ -1403,11 +1403,8 @@ class HGraphBuilder {
       KeyedAccessStoreMode store_mode);
 
   HInstruction* AddElementAccess(
-      HValue* elements,
-      HValue* checked_key,
-      HValue* val,
-      HValue* dependency,
-      ElementsKind elements_kind,
+      HValue* elements, HValue* checked_key, HValue* val, HValue* dependency,
+      HValue* backing_store_owner, ElementsKind elements_kind,
       PropertyAccessType access_type,
       LoadKeyedHoleMode load_mode = NEVER_RETURN_HOLE);
 

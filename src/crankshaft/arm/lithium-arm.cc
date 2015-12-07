@@ -2192,7 +2192,7 @@ LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
       DCHECK(instr->representation().IsSmiOrTagged());
       obj = UseRegisterAtStart(instr->elements());
     }
-    result = DefineAsRegister(new(zone()) LLoadKeyed(obj, key));
+    result = DefineAsRegister(new (zone()) LLoadKeyed(obj, key, nullptr));
   } else {
     DCHECK(
         (instr->representation().IsInteger32() &&
@@ -2200,7 +2200,9 @@ LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
         (instr->representation().IsDouble() &&
          IsDoubleOrFloatElementsKind(elements_kind)));
     LOperand* backing_store = UseRegister(instr->elements());
-    result = DefineAsRegister(new(zone()) LLoadKeyed(backing_store, key));
+    LOperand* backing_store_owner = UseAny(instr->backing_store_owner());
+    result = DefineAsRegister(
+        new (zone()) LLoadKeyed(backing_store, key, backing_store_owner));
   }
 
   bool needs_environment;
@@ -2265,7 +2267,7 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
       }
     }
 
-    return new(zone()) LStoreKeyed(object, key, val);
+    return new (zone()) LStoreKeyed(object, key, val, nullptr);
   }
 
   DCHECK(
@@ -2277,7 +2279,8 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
   LOperand* val = UseRegister(instr->value());
   LOperand* key = UseRegisterOrConstantAtStart(instr->key());
   LOperand* backing_store = UseRegister(instr->elements());
-  return new(zone()) LStoreKeyed(backing_store, key, val);
+  LOperand* backing_store_owner = UseAny(instr->backing_store_owner());
+  return new (zone()) LStoreKeyed(backing_store, key, val, backing_store_owner);
 }
 
 

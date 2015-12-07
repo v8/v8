@@ -926,6 +926,12 @@ std::ostream& operator<<(std::ostream& os, const ChangesOf& v);
     return new (zone) I(p1, p2, p3, p4, p5, p6);                             \
   }
 
+#define DECLARE_INSTRUCTION_FACTORY_P7(I, P1, P2, P3, P4, P5, P6, P7)        \
+  static I* New(Isolate* isolate, Zone* zone, HValue* context, P1 p1, P2 p2, \
+                P3 p3, P4 p4, P5 p5, P6 p6, P7 p7) {                         \
+    return new (zone) I(p1, p2, p3, p4, p5, p6, p7);                         \
+  }
+
 #define DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P0(I)           \
   static I* New(Isolate* isolate, Zone* zone, HValue* context) { \
     return new (zone) I(context);                                \
@@ -6498,14 +6504,14 @@ enum LoadKeyedHoleMode {
 };
 
 
-class HLoadKeyed final : public HTemplateInstruction<3>,
+class HLoadKeyed final : public HTemplateInstruction<4>,
                          public ArrayInstructionInterface {
  public:
-  DECLARE_INSTRUCTION_FACTORY_P4(HLoadKeyed, HValue*, HValue*, HValue*,
+  DECLARE_INSTRUCTION_FACTORY_P5(HLoadKeyed, HValue*, HValue*, HValue*, HValue*,
                                  ElementsKind);
-  DECLARE_INSTRUCTION_FACTORY_P5(HLoadKeyed, HValue*, HValue*, HValue*,
+  DECLARE_INSTRUCTION_FACTORY_P6(HLoadKeyed, HValue*, HValue*, HValue*, HValue*,
                                  ElementsKind, LoadKeyedHoleMode);
-  DECLARE_INSTRUCTION_FACTORY_P6(HLoadKeyed, HValue*, HValue*, HValue*,
+  DECLARE_INSTRUCTION_FACTORY_P7(HLoadKeyed, HValue*, HValue*, HValue*, HValue*,
                                  ElementsKind, LoadKeyedHoleMode, int);
 
   bool is_fixed_typed_array() const {
@@ -6518,6 +6524,11 @@ class HLoadKeyed final : public HTemplateInstruction<3>,
     return OperandAt(2);
   }
   bool HasDependency() const { return OperandAt(0) != OperandAt(2); }
+  HValue* backing_store_owner() const {
+    DCHECK(HasBackingStoreOwner());
+    return OperandAt(3);
+  }
+  bool HasBackingStoreOwner() const { return OperandAt(0) != OperandAt(3); }
   uint32_t base_offset() const { return BaseOffsetField::decode(bit_field_); }
   bool TryIncreaseBaseOffset(uint32_t increase_by_value) override;
   HValue* GetKey() override { return key(); }
@@ -6548,7 +6559,12 @@ class HLoadKeyed final : public HTemplateInstruction<3>,
       return ArrayInstructionInterface::KeyedAccessIndexRequirement(
           OperandAt(1)->representation());
     }
-    return Representation::None();
+    if (index == 2) {
+      return Representation::None();
+    }
+    DCHECK_EQ(3, index);
+    return HasBackingStoreOwner() ? Representation::Tagged()
+                                  : Representation::None();
   }
 
   Representation observed_input_representation(int index) override {
@@ -6576,7 +6592,7 @@ class HLoadKeyed final : public HTemplateInstruction<3>,
 
  private:
   HLoadKeyed(HValue* obj, HValue* key, HValue* dependency,
-             ElementsKind elements_kind,
+             HValue* backing_store_owner, ElementsKind elements_kind,
              LoadKeyedHoleMode mode = NEVER_RETURN_HOLE,
              int offset = kDefaultKeyedHeaderOffsetSentinel)
       : bit_field_(0) {
@@ -6589,7 +6605,9 @@ class HLoadKeyed final : public HTemplateInstruction<3>,
 
     SetOperandAt(0, obj);
     SetOperandAt(1, key);
-    SetOperandAt(2, dependency != NULL ? dependency : obj);
+    SetOperandAt(2, dependency != nullptr ? dependency : obj);
+    SetOperandAt(3, backing_store_owner != nullptr ? backing_store_owner : obj);
+    DCHECK_EQ(HasBackingStoreOwner(), is_fixed_typed_array());
 
     if (!is_fixed_typed_array()) {
       // I can detect the case between storing double (holey and fast) and
@@ -6942,15 +6960,16 @@ class HStoreNamedGeneric final : public HTemplateInstruction<3> {
 };
 
 
-class HStoreKeyed final : public HTemplateInstruction<3>,
+class HStoreKeyed final : public HTemplateInstruction<4>,
                           public ArrayInstructionInterface {
  public:
-  DECLARE_INSTRUCTION_FACTORY_P4(HStoreKeyed, HValue*, HValue*, HValue*,
-                                 ElementsKind);
   DECLARE_INSTRUCTION_FACTORY_P5(HStoreKeyed, HValue*, HValue*, HValue*,
-                                 ElementsKind, StoreFieldOrKeyedMode);
+                                 HValue*, ElementsKind);
   DECLARE_INSTRUCTION_FACTORY_P6(HStoreKeyed, HValue*, HValue*, HValue*,
-                                 ElementsKind, StoreFieldOrKeyedMode, int);
+                                 HValue*, ElementsKind, StoreFieldOrKeyedMode);
+  DECLARE_INSTRUCTION_FACTORY_P7(HStoreKeyed, HValue*, HValue*, HValue*,
+                                 HValue*, ElementsKind, StoreFieldOrKeyedMode,
+                                 int);
 
   Representation RequiredInputRepresentation(int index) override {
     // kind_fast:               tagged[int32] = tagged
@@ -6964,10 +6983,13 @@ class HStoreKeyed final : public HTemplateInstruction<3>,
     } else if (index == 1) {
       return ArrayInstructionInterface::KeyedAccessIndexRequirement(
           OperandAt(1)->representation());
+    } else if (index == 2) {
+      return RequiredValueRepresentation(elements_kind(), store_mode());
     }
 
-    DCHECK_EQ(index, 2);
-    return RequiredValueRepresentation(elements_kind(), store_mode());
+    DCHECK_EQ(3, index);
+    return HasBackingStoreOwner() ? Representation::Tagged()
+                                  : Representation::None();
   }
 
   static Representation RequiredValueRepresentation(
@@ -6996,7 +7018,7 @@ class HStoreKeyed final : public HTemplateInstruction<3>,
   }
 
   Representation observed_input_representation(int index) override {
-    if (index < 2) return RequiredInputRepresentation(index);
+    if (index != 2) return RequiredInputRepresentation(index);
     if (IsUninitialized()) {
       return Representation::None();
     }
@@ -7010,6 +7032,11 @@ class HStoreKeyed final : public HTemplateInstruction<3>,
   HValue* elements() const { return OperandAt(0); }
   HValue* key() const { return OperandAt(1); }
   HValue* value() const { return OperandAt(2); }
+  HValue* backing_store_owner() const {
+    DCHECK(HasBackingStoreOwner());
+    return OperandAt(3);
+  }
+  bool HasBackingStoreOwner() const { return OperandAt(0) != OperandAt(3); }
   bool value_is_smi() const { return IsFastSmiElementsKind(elements_kind()); }
   StoreFieldOrKeyedMode store_mode() const {
     return StoreModeField::decode(bit_field_);
@@ -7065,7 +7092,8 @@ class HStoreKeyed final : public HTemplateInstruction<3>,
   DECLARE_CONCRETE_INSTRUCTION(StoreKeyed)
 
  private:
-  HStoreKeyed(HValue* obj, HValue* key, HValue* val, ElementsKind elements_kind,
+  HStoreKeyed(HValue* obj, HValue* key, HValue* val,
+              HValue* backing_store_owner, ElementsKind elements_kind,
               StoreFieldOrKeyedMode store_mode = INITIALIZING_STORE,
               int offset = kDefaultKeyedHeaderOffsetSentinel)
       : base_offset_(offset == kDefaultKeyedHeaderOffsetSentinel
@@ -7079,6 +7107,8 @@ class HStoreKeyed final : public HTemplateInstruction<3>,
     SetOperandAt(0, obj);
     SetOperandAt(1, key);
     SetOperandAt(2, val);
+    SetOperandAt(3, backing_store_owner != nullptr ? backing_store_owner : obj);
+    DCHECK_EQ(HasBackingStoreOwner(), is_fixed_typed_array());
 
     if (IsFastObjectElementsKind(elements_kind)) {
       SetFlag(kTrackSideEffectDominators);

@@ -1050,6 +1050,7 @@
   'regress/regress-crbug-506956': [SKIP],
   'regress/regress-crbug-505907': [SKIP],
 
+  'regress/typed-array-lifetime': [SKIP],
 }],  # ignition == True
 
 ['ignition == True and (arch == arm or arch == arm64)', {

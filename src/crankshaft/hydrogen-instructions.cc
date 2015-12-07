@@ -3543,7 +3543,7 @@ HValue* HLoadKeyedGeneric::Canonicalize() {
         HInstruction* index = HLoadKeyed::New(
             block()->graph()->isolate(), block()->graph()->zone(),
             block()->graph()->GetInvalidContext(), index_cache, key_load->key(),
-            key_load->key(), key_load->elements_kind());
+            key_load->key(), nullptr, key_load->elements_kind());
         map_check->InsertBefore(this);
         index->InsertBefore(this);
         return Prepend(new(block()->zone()) HLoadFieldByIndex(
