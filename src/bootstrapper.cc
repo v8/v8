@@ -1028,6 +1028,16 @@ static void SimpleInstallFunction(Handle<JSObject> base, Handle<Name> name,
 }
 
 
+static void InstallWithIntrinsicDefaultProto(Isolate* isolate,
+                                             Handle<JSFunction> function,
+                                             int context_index) {
+  Handle<Smi> index(Smi::FromInt(context_index), isolate);
+  JSObject::AddProperty(
+      function, isolate->factory()->native_context_index_symbol(), index, NONE);
+  isolate->native_context()->set(context_index, *function);
+}
+
+
 // This is only called if we are not using snapshots.  The equivalent
 // work in the snapshot case is done in HookUpGlobalObject.
 void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
@@ -1058,14 +1068,18 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
   Handle<JSObject> global(native_context()->global_object());
 
-  // Install global Function object
-  Handle<JSFunction> function_function =
-      InstallFunction(global, "Function", JS_FUNCTION_TYPE, JSFunction::kSize,
-                      empty_function, Builtins::kIllegal);
-  function_function->initial_map()->set_is_callable();
-  function_function->initial_map()->set_is_constructor(true);
-  function_function->shared()->set_construct_stub(
-      *isolate->builtins()->JSBuiltinsConstructStub());
+
+  {  // Install global Function object
+    Handle<JSFunction> function_function =
+        InstallFunction(global, "Function", JS_FUNCTION_TYPE, JSFunction::kSize,
+                        empty_function, Builtins::kIllegal);
+    function_function->initial_map()->set_is_callable();
+    function_function->initial_map()->set_is_constructor(true);
+    function_function->shared()->set_construct_stub(
+        *isolate->builtins()->JSBuiltinsConstructStub());
+    InstallWithIntrinsicDefaultProto(isolate, function_function,
+                                     Context::FUNCTION_FUNCTION_INDEX);
+  }
 
   {  // --- A r r a y ---
     Handle<JSFunction> array_function =
@@ -1098,11 +1112,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       initial_map->AppendDescriptor(&d);
     }
 
-    // array_function is used internally. JS code creating array object should
-    // search for the 'Array' property on the global object and use that one
-    // as the constructor. 'Array' property on a global object can be
-    // overwritten by JS code.
-    native_context()->set_array_function(*array_function);
+    InstallWithIntrinsicDefaultProto(isolate, array_function,
+                                     Context::ARRAY_FUNCTION_INDEX);
 
     // Cache the array maps, needed by ArrayConstructorStub
     CacheInitialJSArrayMaps(native_context(), initial_map);
@@ -1125,7 +1136,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         InstallFunction(global, "Number", JS_VALUE_TYPE, JSValue::kSize,
                         isolate->initial_object_prototype(),
                         Builtins::kIllegal);
-    native_context()->set_number_function(*number_fun);
+    InstallWithIntrinsicDefaultProto(isolate, number_fun,
+                                     Context::NUMBER_FUNCTION_INDEX);
     number_fun->shared()->set_construct_stub(
         *isolate->builtins()->JSBuiltinsConstructStub());
   }
@@ -1135,7 +1147,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         InstallFunction(global, "Boolean", JS_VALUE_TYPE, JSValue::kSize,
                         isolate->initial_object_prototype(),
                         Builtins::kIllegal);
-    native_context()->set_boolean_function(*boolean_fun);
+    InstallWithIntrinsicDefaultProto(isolate, boolean_fun,
+                                     Context::BOOLEAN_FUNCTION_INDEX);
   }
 
   {  // --- S t r i n g ---
@@ -1146,7 +1159,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         *isolate->builtins()->StringConstructor_ConstructStub());
     string_fun->shared()->DontAdaptArguments();
     string_fun->shared()->set_length(1);
-    native_context()->set_string_function(*string_fun);
+    InstallWithIntrinsicDefaultProto(isolate, string_fun,
+                                     Context::STRING_FUNCTION_INDEX);
 
     Handle<Map> string_map =
         Handle<Map>(native_context()->string_function()->initial_map());
@@ -1181,6 +1195,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<JSFunction> date_fun = InstallFunction(
         global, "Date", JS_DATE_TYPE, JSDate::kSize,
         isolate->initial_object_prototype(), Builtins::kIllegal);
+    InstallWithIntrinsicDefaultProto(isolate, date_fun,
+                                     Context::DATE_FUNCTION_INDEX);
     date_fun->shared()->set_construct_stub(
         *isolate->builtins()->JSBuiltinsConstructStub());
   }
@@ -1191,7 +1207,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         InstallFunction(global, "RegExp", JS_REGEXP_TYPE, JSRegExp::kSize,
                         isolate->initial_object_prototype(),
                         Builtins::kIllegal);
-    native_context()->set_regexp_function(*regexp_fun);
+    InstallWithIntrinsicDefaultProto(isolate, regexp_fun,
+                                     Context::REGEXP_FUNCTION_INDEX);
     regexp_fun->shared()->set_construct_stub(
         *isolate->builtins()->JSBuiltinsConstructStub());
 
@@ -1253,15 +1270,17 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
             JSArrayBuffer::kSizeWithInternalFields,
             isolate->initial_object_prototype(),
             Builtins::kIllegal);
-    native_context()->set_array_buffer_fun(*array_buffer_fun);
+    InstallWithIntrinsicDefaultProto(isolate, array_buffer_fun,
+                                     Context::ARRAY_BUFFER_FUN_INDEX);
   }
 
   {  // -- T y p e d A r r a y s
-#define INSTALL_TYPED_ARRAY(Type, type, TYPE, ctype, size)   \
-  {                                                          \
-    Handle<JSFunction> fun;                                  \
-    InstallTypedArray(#Type "Array", TYPE##_ELEMENTS, &fun); \
-    native_context()->set_##type##_array_fun(*fun);          \
+#define INSTALL_TYPED_ARRAY(Type, type, TYPE, ctype, size)             \
+  {                                                                    \
+    Handle<JSFunction> fun;                                            \
+    InstallTypedArray(#Type "Array", TYPE##_ELEMENTS, &fun);           \
+    InstallWithIntrinsicDefaultProto(isolate, fun,                     \
+                                     Context::TYPE##_ARRAY_FUN_INDEX); \
   }
     TYPED_ARRAYS(INSTALL_TYPED_ARRAY)
 #undef INSTALL_TYPED_ARRAY
@@ -1272,7 +1291,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
             JSDataView::kSizeWithInternalFields,
             isolate->initial_object_prototype(),
             Builtins::kIllegal);
-    native_context()->set_data_view_fun(*data_view_fun);
+    InstallWithIntrinsicDefaultProto(isolate, data_view_fun,
+                                     Context::DATA_VIEW_FUN_INDEX);
     data_view_fun->shared()->set_construct_stub(
         *isolate->builtins()->JSBuiltinsConstructStub());
   }
@@ -1281,14 +1301,16 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<JSFunction> js_map_fun = InstallFunction(
         global, "Map", JS_MAP_TYPE, JSMap::kSize,
         isolate->initial_object_prototype(), Builtins::kIllegal);
-    native_context()->set_js_map_fun(*js_map_fun);
+    InstallWithIntrinsicDefaultProto(isolate, js_map_fun,
+                                     Context::JS_MAP_FUN_INDEX);
   }
 
   {  // -- S e t
     Handle<JSFunction> js_set_fun = InstallFunction(
         global, "Set", JS_SET_TYPE, JSSet::kSize,
         isolate->initial_object_prototype(), Builtins::kIllegal);
-    native_context()->set_js_set_fun(*js_set_fun);
+    InstallWithIntrinsicDefaultProto(isolate, js_set_fun,
+                                     Context::JS_SET_FUN_INDEX);
   }
 
   {  // -- I t e r a t o r R e s u l t
@@ -1313,12 +1335,21 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     native_context()->set_iterator_result_map(*map);
   }
 
-  // -- W e a k M a p
-  InstallFunction(global, "WeakMap", JS_WEAK_MAP_TYPE, JSWeakMap::kSize,
-                  isolate->initial_object_prototype(), Builtins::kIllegal);
-  // -- W e a k S e t
-  InstallFunction(global, "WeakSet", JS_WEAK_SET_TYPE, JSWeakSet::kSize,
-                  isolate->initial_object_prototype(), Builtins::kIllegal);
+  {  // -- W e a k M a p
+    Handle<JSFunction> js_weak_map_fun = InstallFunction(
+        global, "WeakMap", JS_WEAK_MAP_TYPE, JSWeakMap::kSize,
+        isolate->initial_object_prototype(), Builtins::kIllegal);
+    InstallWithIntrinsicDefaultProto(isolate, js_weak_map_fun,
+                                     Context::JS_WEAK_MAP_FUN_INDEX);
+  }
+
+  {  // -- W e a k S e t
+    Handle<JSFunction> js_weak_set_fun = InstallFunction(
+        global, "WeakSet", JS_WEAK_SET_TYPE, JSWeakSet::kSize,
+        isolate->initial_object_prototype(), Builtins::kIllegal);
+    InstallWithIntrinsicDefaultProto(isolate, js_weak_set_fun,
+                                     Context::JS_WEAK_SET_FUN_INDEX);
+  }
 
   {  // --- sloppy arguments map
     // Make sure we can recognize argument objects at runtime.
@@ -1776,6 +1807,9 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
     generator_function_function->initial_map()->set_is_constructor(true);
     generator_function_function->shared()->set_construct_stub(
         *isolate->builtins()->JSBuiltinsConstructStub());
+    InstallWithIntrinsicDefaultProto(
+        isolate, generator_function_function,
+        Context::GENERATOR_FUNCTION_FUNCTION_INDEX);
   }
 
   {  // -- S e t I t e r a t o r

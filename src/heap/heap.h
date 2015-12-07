@@ -364,7 +364,8 @@ namespace internal {
   V(stack_trace_symbol)                     \
   V(string_iterator_iterated_string_symbol) \
   V(string_iterator_next_index_symbol)      \
-  V(uninitialized_symbol)
+  V(uninitialized_symbol)                   \
+  V(native_context_index_symbol)
 
 #define PUBLIC_SYMBOL_LIST(V)                 \
   V(has_instance_symbol, Symbol.hasInstance)  \

@@ -4801,7 +4801,7 @@ MaybeHandle<Context> JSProxy::GetFunctionRealm(Handle<JSProxy> proxy) {
 
 
 // static
-MaybeHandle<Context> JSFunction::GetFunctionRealm(Handle<JSFunction> function) {
+Handle<Context> JSFunction::GetFunctionRealm(Handle<JSFunction> function) {
   DCHECK(function->map()->is_constructor());
   return handle(function->context()->native_context());
 }
@@ -12744,13 +12744,21 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(Isolate* isolate,
     prototype = handle(function->prototype(), isolate);
   }
 
+  // If prototype is not a JSReceiver, fetch the intrinsicDefaultProto from the
+  // correct realm. Rather than directly fetching the .prototype, we fetch the
+  // constructor that points to the .prototype. This relies on
+  // constructor.prototype being FROZEN for those constructors.
   if (!prototype->IsJSReceiver()) {
     Handle<Context> context;
     ASSIGN_RETURN_ON_EXCEPTION(isolate, context,
                                JSReceiver::GetFunctionRealm(new_target), Map);
     DCHECK(context->IsNativeContext());
-    // TODO(verwaest): Use the intrinsicDefaultProto instead.
-    prototype = handle(context->initial_object_prototype(), isolate);
+    Handle<Object> maybe_index = JSReceiver::GetDataProperty(
+        constructor, isolate->factory()->native_context_index_symbol());
+    int index = maybe_index->IsSmi() ? Smi::cast(*maybe_index)->value()
+                                     : Context::OBJECT_FUNCTION_INDEX;
+    Handle<JSFunction> realm_constructor(JSFunction::cast(context->get(index)));
+    prototype = handle(realm_constructor->prototype(), isolate);
   }
 
   Handle<Map> map = Map::CopyInitialMap(constructor_initial_map);
