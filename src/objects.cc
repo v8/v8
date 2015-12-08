@@ -6858,7 +6858,7 @@ bool JSProxy::DefineOwnProperty(Isolate* isolate, Handle<JSProxy> proxy,
       // TODO(jkummerow): Better error message?
       isolate->Throw(*isolate->factory()->NewTypeError(
           MessageTemplate::kProxyHandlerReturned, handler, trap_result_obj,
-          key));
+          trap_name));
     }
     return false;
   }
