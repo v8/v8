@@ -362,7 +362,9 @@ void MarkCompactCollector::CollectGarbage() {
 
   DCHECK(heap_->incremental_marking()->IsStopped());
 
-  ProcessWeakReferences();
+  ClearNonLiveReferences();
+
+  ClearWeakCollections();
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
@@ -1937,33 +1939,6 @@ void MarkCompactCollector::RetainMaps() {
 }
 
 
-DependentCode* MarkCompactCollector::DependentCodeListFromNonLiveMaps() {
-  GCTracer::Scope gc_scope(heap()->tracer(),
-                           GCTracer::Scope::MC_EXTRACT_DEPENDENT_CODE);
-  ArrayList* retained_maps = heap()->retained_maps();
-  int length = retained_maps->Length();
-  DependentCode* head = DependentCode::cast(heap()->empty_fixed_array());
-  for (int i = 0; i < length; i += 2) {
-    DCHECK(retained_maps->Get(i)->IsWeakCell());
-    WeakCell* cell = WeakCell::cast(retained_maps->Get(i));
-    DCHECK(!cell->cleared());
-    Map* map = Map::cast(cell->value());
-    MarkBit map_mark = Marking::MarkBitFrom(map);
-    if (Marking::IsWhite(map_mark)) {
-      DependentCode* candidate = map->dependent_code();
-      // We rely on the fact that the weak code group comes first.
-      STATIC_ASSERT(DependentCode::kWeakCodeGroup == 0);
-      if (candidate->length() > 0 &&
-          candidate->group() == DependentCode::kWeakCodeGroup) {
-        candidate->set_next_link(head);
-        head = candidate;
-      }
-    }
-  }
-  return head;
-}
-
-
 void MarkCompactCollector::EnsureMarkingDequeIsReserved() {
   DCHECK(!marking_deque_.in_use());
   if (marking_deque_memory_ == NULL) {
@@ -2270,42 +2245,34 @@ void MarkCompactCollector::ProcessAndClearOptimizedCodeMaps() {
 }
 
 
-void MarkCompactCollector::ProcessWeakReferences() {
-  // This should be done before processing weak cells because it checks
-  // mark bits of maps in weak cells.
-  DependentCode* dependent_code_list = DependentCodeListFromNonLiveMaps();
+void MarkCompactCollector::ClearNonLiveReferences() {
+  GCTracer::Scope gc_scope(heap()->tracer(), GCTracer::Scope::MC_CLEAR);
 
-  // Process weak cells before MarkCodeForDeoptimization and
-  // ClearNonLiveReferences  so that weak cells in dependent code arrays are
-  // cleared or contain only live code objects.
-  ProcessAndClearWeakCells();
+  DependentCode* dependent_code_list;
+  Object* non_live_map_list;
+  ClearWeakCells(&non_live_map_list, &dependent_code_list);
 
-  MarkDependentCodeListForDeoptimization(dependent_code_list);
+  {
+    GCTracer::Scope gc_scope(heap()->tracer(), GCTracer::Scope::MC_CLEAR_MAP);
+    ClearSimpleMapTransitions(non_live_map_list);
+    ClearFullMapTransitions();
+  }
 
-  ClearNonLiveReferences();
-
-  ClearWeakCollections();
+  MarkDependentCodeForDeoptimization(dependent_code_list);
 }
 
 
-void MarkCompactCollector::ClearNonLiveReferences() {
+void MarkCompactCollector::MarkDependentCodeForDeoptimization(
+    DependentCode* list_head) {
   GCTracer::Scope gc_scope(heap()->tracer(),
-                           GCTracer::Scope::MC_NONLIVEREFERENCES);
+                           GCTracer::Scope::MC_CLEAR_DEPENDENT_CODE);
 
-  ProcessAndClearTransitionArrays();
-
-  // Iterate over the map space, setting map transitions that go from
-  // a marked map to an unmarked map to null transitions.  This action
-  // is carried out only on maps of JSObjects and related subtypes.
-  HeapObjectIterator map_iterator(heap()->map_space());
-  for (HeapObject* obj = map_iterator.Next(); obj != NULL;
-       obj = map_iterator.Next()) {
-    Map* map = Map::cast(obj);
-    if (!map->CanTransition()) continue;
-    MarkBit map_mark = Marking::MarkBitFrom(map);
-    if (Marking::IsWhite(map_mark)) {
-      ClearNonLiveMapTransitions(map);
-    }
+  Isolate* isolate = this->isolate();
+  DependentCode* current = list_head;
+  while (current->length() > 0) {
+    have_code_to_deoptimize_ |= current->MarkCodeForDeoptimization(
+        isolate, DependentCode::kWeakCodeGroup);
+    current = current->next_link();
   }
 
   WeakHashTable* table = heap_->weak_object_to_code_table();
@@ -2320,7 +2287,7 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     if (WeakCell::cast(key)->cleared()) {
       have_code_to_deoptimize_ |=
           DependentCode::cast(value)->MarkCodeForDeoptimization(
-              isolate(), DependentCode::kWeakCodeGroup);
+              isolate, DependentCode::kWeakCodeGroup);
       table->set(key_index, heap_->the_hole_value());
       table->set(value_index, heap_->the_hole_value());
       table->ElementRemoved();
@@ -2329,146 +2296,145 @@ void MarkCompactCollector::ClearNonLiveReferences() {
 }
 
 
-void MarkCompactCollector::MarkDependentCodeListForDeoptimization(
-    DependentCode* list_head) {
-  GCTracer::Scope gc_scope(heap()->tracer(),
-                           GCTracer::Scope::MC_DEOPT_DEPENDENT_CODE);
-  Isolate* isolate = this->isolate();
-  DependentCode* current = list_head;
-  while (current->length() > 0) {
-    have_code_to_deoptimize_ |= current->MarkCodeForDeoptimization(
-        isolate, DependentCode::kWeakCodeGroup);
-    current = current->next_link();
+void MarkCompactCollector::ClearSimpleMapTransitions(
+    Object* non_live_map_list) {
+  Object* the_hole_value = heap()->the_hole_value();
+  Object* weak_cell_obj = non_live_map_list;
+  while (weak_cell_obj != Smi::FromInt(0)) {
+    WeakCell* weak_cell = WeakCell::cast(weak_cell_obj);
+    Map* map = Map::cast(weak_cell->value());
+    DCHECK(Marking::IsWhite(Marking::MarkBitFrom(map)));
+    Object* potential_parent = map->constructor_or_backpointer();
+    if (potential_parent->IsMap()) {
+      Map* parent = Map::cast(potential_parent);
+      if (Marking::IsBlackOrGrey(Marking::MarkBitFrom(parent)) &&
+          parent->raw_transitions() == weak_cell) {
+        ClearSimpleMapTransition(parent, map);
+      }
+    }
+    weak_cell->clear();
+    weak_cell_obj = weak_cell->next();
+    weak_cell->clear_next(the_hole_value);
   }
 }
 
 
-void MarkCompactCollector::ClearNonLiveMapTransitions(Map* map) {
-  Object* potential_parent = map->GetBackPointer();
-  if (!potential_parent->IsMap()) return;
-  Map* parent = Map::cast(potential_parent);
-
-  // Follow back pointer, check whether we are dealing with a map transition
-  // from a live map to a dead path and in case clear transitions of parent.
-  DCHECK(!Marking::IsGrey(Marking::MarkBitFrom(map)));
-  bool parent_is_alive = Marking::IsBlack(Marking::MarkBitFrom(parent));
-  if (parent_is_alive) {
-    ClearMapTransitions(parent, map);
-  }
-}
-
-
-// Clear a possible back pointer in case the transition leads to a dead map.
-// Return true in case a back pointer has been cleared and false otherwise.
-bool MarkCompactCollector::ClearMapBackPointer(Map* target) {
-  DCHECK(!Marking::IsGrey(Marking::MarkBitFrom(target)));
-  if (Marking::IsBlack(Marking::MarkBitFrom(target))) return false;
-  target->SetBackPointer(heap_->undefined_value(), SKIP_WRITE_BARRIER);
-  return true;
-}
-
-
-void MarkCompactCollector::ClearMapTransitions(Map* map, Map* dead_transition) {
-  Object* transitions = map->raw_transitions();
-  int num_transitions = TransitionArray::NumberOfTransitions(transitions);
-
+void MarkCompactCollector::ClearSimpleMapTransition(Map* map,
+                                                    Map* dead_transition) {
+  // A previously existing simple transition (stored in a WeakCell) is going
+  // to be cleared. Clear the useless cell pointer, and take ownership
+  // of the descriptor array.
+  map->set_raw_transitions(Smi::FromInt(0));
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   DescriptorArray* descriptors = map->instance_descriptors();
-
-  // A previously existing simple transition (stored in a WeakCell) may have
-  // been cleared. Clear the useless cell pointer, and take ownership
-  // of the descriptor array.
-  if (transitions->IsWeakCell() && WeakCell::cast(transitions)->cleared()) {
-    map->set_raw_transitions(Smi::FromInt(0));
-  }
-  if (num_transitions == 0 &&
-      descriptors == dead_transition->instance_descriptors() &&
+  if (descriptors == dead_transition->instance_descriptors() &&
       number_of_own_descriptors > 0) {
-    TrimDescriptorArray(map, descriptors, number_of_own_descriptors);
+    TrimDescriptorArray(map, descriptors);
     DCHECK(descriptors->number_of_descriptors() == number_of_own_descriptors);
     map->set_owns_descriptors(true);
-    return;
   }
+}
 
-  int transition_index = 0;
 
+void MarkCompactCollector::ClearFullMapTransitions() {
+  HeapObject* undefined = heap()->undefined_value();
+  Object* obj = heap()->encountered_transition_arrays();
+  while (obj != Smi::FromInt(0)) {
+    TransitionArray* array = TransitionArray::cast(obj);
+    int num_transitions = array->number_of_entries();
+    DCHECK_EQ(TransitionArray::NumberOfTransitions(array), num_transitions);
+    if (num_transitions > 0) {
+      Map* map = array->GetTarget(0);
+      Map* parent = Map::cast(map->constructor_or_backpointer());
+      bool parent_is_alive =
+          Marking::IsBlackOrGrey(Marking::MarkBitFrom(parent));
+      DescriptorArray* descriptors =
+          parent_is_alive ? parent->instance_descriptors() : nullptr;
+      bool descriptors_owner_died =
+          CompactTransitionArray(parent, array, descriptors);
+      if (descriptors_owner_died) {
+        TrimDescriptorArray(parent, descriptors);
+      }
+    }
+    obj = array->next_link();
+    array->set_next_link(undefined, SKIP_WRITE_BARRIER);
+  }
+  heap()->set_encountered_transition_arrays(Smi::FromInt(0));
+}
+
+
+bool MarkCompactCollector::CompactTransitionArray(
+    Map* map, TransitionArray* transitions, DescriptorArray* descriptors) {
+  int num_transitions = transitions->number_of_entries();
   bool descriptors_owner_died = false;
-
-  // Compact all live descriptors to the left.
+  int transition_index = 0;
+  // Compact all live transitions to the left.
   for (int i = 0; i < num_transitions; ++i) {
-    Map* target = TransitionArray::GetTarget(transitions, i);
-    if (ClearMapBackPointer(target)) {
-      if (target->instance_descriptors() == descriptors) {
+    Map* target = transitions->GetTarget(i);
+    DCHECK_EQ(target->constructor_or_backpointer(), map);
+    if (Marking::IsWhite(Marking::MarkBitFrom(target))) {
+      if (descriptors != nullptr &&
+          target->instance_descriptors() == descriptors) {
         descriptors_owner_died = true;
       }
     } else {
       if (i != transition_index) {
-        DCHECK(TransitionArray::IsFullTransitionArray(transitions));
-        TransitionArray* t = TransitionArray::cast(transitions);
-        Name* key = t->GetKey(i);
-        t->SetKey(transition_index, key);
-        Object** key_slot = t->GetKeySlot(transition_index);
-        RecordSlot(t, key_slot, key);
+        Name* key = transitions->GetKey(i);
+        transitions->SetKey(transition_index, key);
+        Object** key_slot = transitions->GetKeySlot(transition_index);
+        RecordSlot(transitions, key_slot, key);
         // Target slots do not need to be recorded since maps are not compacted.
-        t->SetTarget(transition_index, t->GetTarget(i));
+        transitions->SetTarget(transition_index, transitions->GetTarget(i));
       }
       transition_index++;
     }
   }
-
   // If there are no transitions to be cleared, return.
-  // TODO(verwaest) Should be an assert, otherwise back pointers are not
-  // properly cleared.
-  if (transition_index == num_transitions) return;
-
-  if (descriptors_owner_died) {
-    if (number_of_own_descriptors > 0) {
-      TrimDescriptorArray(map, descriptors, number_of_own_descriptors);
-      DCHECK(descriptors->number_of_descriptors() == number_of_own_descriptors);
-      map->set_owns_descriptors(true);
-    } else {
-      DCHECK(descriptors == heap_->empty_descriptor_array());
-    }
+  if (transition_index == num_transitions) {
+    DCHECK(!descriptors_owner_died);
+    return false;
   }
-
   // Note that we never eliminate a transition array, though we might right-trim
   // such that number_of_transitions() == 0. If this assumption changes,
   // TransitionArray::Insert() will need to deal with the case that a transition
   // array disappeared during GC.
   int trim = TransitionArray::Capacity(transitions) - transition_index;
   if (trim > 0) {
-    // Non-full-TransitionArray cases can never reach this point.
-    DCHECK(TransitionArray::IsFullTransitionArray(transitions));
-    TransitionArray* t = TransitionArray::cast(transitions);
     heap_->RightTrimFixedArray<Heap::SEQUENTIAL_TO_SWEEPER>(
-        t, trim * TransitionArray::kTransitionSize);
-    t->SetNumberOfTransitions(transition_index);
-    // The map still has a full transition array.
-    DCHECK(TransitionArray::IsFullTransitionArray(map->raw_transitions()));
+        transitions, trim * TransitionArray::kTransitionSize);
+    transitions->SetNumberOfTransitions(transition_index);
   }
+  return descriptors_owner_died;
 }
 
 
 void MarkCompactCollector::TrimDescriptorArray(Map* map,
-                                               DescriptorArray* descriptors,
-                                               int number_of_own_descriptors) {
+                                               DescriptorArray* descriptors) {
+  int number_of_own_descriptors = map->NumberOfOwnDescriptors();
+  if (number_of_own_descriptors == 0) {
+    DCHECK(descriptors == heap_->empty_descriptor_array());
+    return;
+  }
+
   int number_of_descriptors = descriptors->number_of_descriptors_storage();
   int to_trim = number_of_descriptors - number_of_own_descriptors;
-  if (to_trim == 0) return;
+  if (to_trim > 0) {
+    heap_->RightTrimFixedArray<Heap::SEQUENTIAL_TO_SWEEPER>(
+        descriptors, to_trim * DescriptorArray::kDescriptorSize);
+    descriptors->SetNumberOfDescriptors(number_of_own_descriptors);
 
-  heap_->RightTrimFixedArray<Heap::SEQUENTIAL_TO_SWEEPER>(
-      descriptors, to_trim * DescriptorArray::kDescriptorSize);
-  descriptors->SetNumberOfDescriptors(number_of_own_descriptors);
+    if (descriptors->HasEnumCache()) TrimEnumCache(map, descriptors);
+    descriptors->Sort();
 
-  if (descriptors->HasEnumCache()) TrimEnumCache(map, descriptors);
-  descriptors->Sort();
-
-  if (FLAG_unbox_double_fields) {
-    LayoutDescriptor* layout_descriptor = map->layout_descriptor();
-    layout_descriptor = layout_descriptor->Trim(heap_, map, descriptors,
-                                                number_of_own_descriptors);
-    SLOW_DCHECK(layout_descriptor->IsConsistentWithMap(map, true));
+    if (FLAG_unbox_double_fields) {
+      LayoutDescriptor* layout_descriptor = map->layout_descriptor();
+      layout_descriptor = layout_descriptor->Trim(heap_, map, descriptors,
+                                                  number_of_own_descriptors);
+      SLOW_DCHECK(layout_descriptor->IsConsistentWithMap(map, true));
+    }
   }
+  DCHECK(descriptors->number_of_descriptors() == number_of_own_descriptors);
+  map->set_owns_descriptors(true);
 }
 
 
@@ -2560,11 +2526,20 @@ void MarkCompactCollector::AbortWeakCollections() {
 }
 
 
-void MarkCompactCollector::ProcessAndClearWeakCells() {
-  GCTracer::Scope gc_scope(heap()->tracer(), GCTracer::Scope::MC_WEAKCELL);
-  Object* weak_cell_obj = heap()->encountered_weak_cells();
+void MarkCompactCollector::ClearWeakCells(Object** non_live_map_list,
+                                          DependentCode** dependent_code_list) {
+  Heap* heap = this->heap();
+  GCTracer::Scope gc_scope(heap->tracer(), GCTracer::Scope::MC_CLEAR_WEAKCELL);
+  Object* weak_cell_obj = heap->encountered_weak_cells();
+  Object* the_hole_value = heap->the_hole_value();
+  DependentCode* dependent_code_head =
+      DependentCode::cast(heap->empty_fixed_array());
+  Object* non_live_map_head = Smi::FromInt(0);
   while (weak_cell_obj != Smi::FromInt(0)) {
     WeakCell* weak_cell = reinterpret_cast<WeakCell*>(weak_cell_obj);
+    Object* next_weak_cell = weak_cell->next();
+    bool clear_value = true;
+    bool clear_next = true;
     // We do not insert cleared weak cells into the list, so the value
     // cannot be a Smi here.
     HeapObject* value = HeapObject::cast(weak_cell->value());
@@ -2585,44 +2560,56 @@ void MarkCompactCollector::ProcessAndClearWeakCells() {
           RecordSlot(value, slot, *slot);
           slot = HeapObject::RawField(weak_cell, WeakCell::kValueOffset);
           RecordSlot(weak_cell, slot, *slot);
-        } else {
-          weak_cell->clear();
+          clear_value = false;
         }
-      } else {
-        weak_cell->clear();
+      }
+      if (value->IsMap()) {
+        // The map is non-live.
+        Map* map = Map::cast(value);
+        // Add dependent code to the dependent_code_list.
+        DependentCode* candidate = map->dependent_code();
+        // We rely on the fact that the weak code group comes first.
+        STATIC_ASSERT(DependentCode::kWeakCodeGroup == 0);
+        if (candidate->length() > 0 &&
+            candidate->group() == DependentCode::kWeakCodeGroup) {
+          candidate->set_next_link(dependent_code_head);
+          dependent_code_head = candidate;
+        }
+        // Add the weak cell to the non_live_map list.
+        weak_cell->set_next(non_live_map_head);
+        non_live_map_head = weak_cell;
+        clear_value = false;
+        clear_next = false;
       }
     } else {
+      // The value of the weak cell is alive.
       Object** slot = HeapObject::RawField(weak_cell, WeakCell::kValueOffset);
       RecordSlot(weak_cell, slot, *slot);
+      clear_value = false;
     }
-    weak_cell_obj = weak_cell->next();
-    weak_cell->clear_next(heap());
+    if (clear_value) {
+      weak_cell->clear();
+    }
+    if (clear_next) {
+      weak_cell->clear_next(the_hole_value);
+    }
+    weak_cell_obj = next_weak_cell;
   }
-  heap()->set_encountered_weak_cells(Smi::FromInt(0));
+  heap->set_encountered_weak_cells(Smi::FromInt(0));
+  *non_live_map_list = non_live_map_head;
+  *dependent_code_list = dependent_code_head;
 }
 
 
 void MarkCompactCollector::AbortWeakCells() {
+  Object* the_hole_value = heap()->the_hole_value();
   Object* weak_cell_obj = heap()->encountered_weak_cells();
   while (weak_cell_obj != Smi::FromInt(0)) {
     WeakCell* weak_cell = reinterpret_cast<WeakCell*>(weak_cell_obj);
     weak_cell_obj = weak_cell->next();
-    weak_cell->clear_next(heap());
+    weak_cell->clear_next(the_hole_value);
   }
   heap()->set_encountered_weak_cells(Smi::FromInt(0));
-}
-
-
-void MarkCompactCollector::ProcessAndClearTransitionArrays() {
-  HeapObject* undefined = heap()->undefined_value();
-  Object* obj = heap()->encountered_transition_arrays();
-  while (obj != Smi::FromInt(0)) {
-    TransitionArray* array = TransitionArray::cast(obj);
-    // TODO(ulan): move logic from ClearMapTransitions here.
-    obj = array->next_link();
-    array->set_next_link(undefined, SKIP_WRITE_BARRIER);
-  }
-  heap()->set_encountered_transition_arrays(Smi::FromInt(0));
 }
 
 

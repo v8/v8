@@ -649,6 +649,7 @@ void IncrementalMarking::ProcessWeakCells() {
   DCHECK(!finalize_marking_completed_);
   DCHECK(IsMarking());
 
+  Object* the_hole_value = heap()->the_hole_value();
   Object* weak_cell_obj = heap()->encountered_weak_cells();
   Object* weak_cell_head = Smi::FromInt(0);
   WeakCell* prev_weak_cell_obj = NULL;
@@ -668,7 +669,7 @@ void IncrementalMarking::ProcessWeakCells() {
         prev_weak_cell_obj->set_next(weak_cell->next());
       }
       weak_cell_obj = weak_cell->next();
-      weak_cell->clear_next(heap());
+      weak_cell->clear_next(the_hole_value);
     } else {
       if (weak_cell_head == Smi::FromInt(0)) {
         weak_cell_head = weak_cell;

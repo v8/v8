@@ -649,15 +649,20 @@ class MarkCompactCollector {
   // heap object.
   static bool IsUnmarkedHeapObject(Object** p);
 
-  // Map transitions from a live map to a dead map must be killed.
-  // We replace them with a null descriptor, with the same key.
+  // Clear non-live references in weak cells, transition and descriptor arrays,
+  // and deoptimize dependent code of non-live maps.
   void ClearNonLiveReferences();
-  void ClearNonLiveMapTransitions(Map* map);
-  void ClearMapTransitions(Map* map, Map* dead_transition);
-  bool ClearMapBackPointer(Map* map);
-  void MarkDependentCodeListForDeoptimization(DependentCode* list_head);
-  void TrimDescriptorArray(Map* map, DescriptorArray* descriptors,
-                           int number_of_own_descriptors);
+  void MarkDependentCodeForDeoptimization(DependentCode* list);
+  // Find non-live targets of simple transitions in the given list. Clear
+  // transitions to non-live targets and if needed trim descriptors arrays.
+  void ClearSimpleMapTransitions(Object* non_live_map_list);
+  void ClearSimpleMapTransition(Map* map, Map* dead_transition);
+  // Compact every array in the global list of transition arrays and
+  // trim the corresponding descriptor array if a transition target is non-live.
+  void ClearFullMapTransitions();
+  bool CompactTransitionArray(Map* map, TransitionArray* transitions,
+                              DescriptorArray* descriptors);
+  void TrimDescriptorArray(Map* map, DescriptorArray* descriptors);
   void TrimEnumCache(Map* map, DescriptorArray* descriptors);
 
   // Mark all values associated with reachable keys in weak collections
@@ -674,19 +679,16 @@ class MarkCompactCollector {
   // collections when incremental marking is aborted.
   void AbortWeakCollections();
 
-  void ProcessAndClearWeakCells();
+  void ClearWeakCells(Object** non_live_map_list,
+                      DependentCode** dependent_code_list);
   void AbortWeakCells();
 
-  void ProcessAndClearTransitionArrays();
   void AbortTransitionArrays();
 
   // After all reachable objects have been marked, those entries within
   // optimized code maps that became unreachable are removed, potentially
   // trimming or clearing out the entire optimized code map.
   void ProcessAndClearOptimizedCodeMaps();
-
-  // Process non-live references in maps and optimized code.
-  void ProcessWeakReferences();
 
   // -----------------------------------------------------------------------
   // Phase 2: Sweeping to clear mark bits and free non-live objects for

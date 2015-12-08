@@ -9463,7 +9463,7 @@ class WeakCell : public HeapObject {
 
   DECL_ACCESSORS(next, Object)
 
-  inline void clear_next(Heap* heap);
+  inline void clear_next(Object* the_hole_value);
 
   inline bool next_cleared();
 

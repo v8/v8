@@ -2060,8 +2060,9 @@ void WeakCell::set_next(Object* val, WriteBarrierMode mode) {
 }
 
 
-void WeakCell::clear_next(Heap* heap) {
-  set_next(heap->the_hole_value(), SKIP_WRITE_BARRIER);
+void WeakCell::clear_next(Object* the_hole_value) {
+  DCHECK_EQ(GetHeap()->the_hole_value(), the_hole_value);
+  set_next(the_hole_value, SKIP_WRITE_BARRIER);
 }
 
 
@@ -5489,8 +5490,7 @@ void Map::set_prototype_info(Object* value, WriteBarrierMode mode) {
 
 void Map::SetBackPointer(Object* value, WriteBarrierMode mode) {
   DCHECK(instance_type() >= FIRST_JS_RECEIVER_TYPE);
-  DCHECK((value->IsUndefined() && GetBackPointer()->IsMap()) ||
-         (value->IsMap() && GetBackPointer()->IsUndefined()));
+  DCHECK((value->IsMap() && GetBackPointer()->IsUndefined()));
   DCHECK(!value->IsMap() ||
          Map::cast(value)->GetConstructor() == constructor_or_backpointer());
   set_constructor_or_backpointer(value, mode);

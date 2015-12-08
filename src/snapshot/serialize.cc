@@ -1919,7 +1919,7 @@ class UnlinkWeakCellScope {
     if (object->IsWeakCell()) {
       weak_cell_ = WeakCell::cast(object);
       next_ = weak_cell_->next();
-      weak_cell_->clear_next(object->GetHeap());
+      weak_cell_->clear_next(object->GetHeap()->the_hole_value());
     }
   }
 
