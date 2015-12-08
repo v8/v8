@@ -633,9 +633,19 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     case kMipsDiv:
       __ Div(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      if (IsMipsArchVariant(kMips32r6)) {
+        __ seleqz(i.OutputRegister(), i.InputRegister(0), i.InputRegister(0));
+      } else {
+        __ Movz(i.OutputRegister(), i.InputRegister(1), i.InputRegister(1));
+      }
       break;
     case kMipsDivU:
       __ Divu(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      if (IsMipsArchVariant(kMips32r6)) {
+        __ seleqz(i.OutputRegister(), i.InputRegister(0), i.InputRegister(0));
+      } else {
+        __ Movz(i.OutputRegister(), i.InputRegister(1), i.InputRegister(1));
+      }
       break;
     case kMipsMod:
       __ Mod(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));

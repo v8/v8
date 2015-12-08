@@ -468,7 +468,7 @@ void InstructionSelector::VisitUint32MulHigh(Node* node) {
 void InstructionSelector::VisitInt32Div(Node* node) {
   MipsOperandGenerator g(this);
   Int32BinopMatcher m(node);
-  Emit(kMipsDiv, g.DefineAsRegister(node), g.UseRegister(m.left().node()),
+  Emit(kMipsDiv, g.DefineSameAsFirst(node), g.UseRegister(m.left().node()),
        g.UseRegister(m.right().node()));
 }
 
@@ -476,7 +476,7 @@ void InstructionSelector::VisitInt32Div(Node* node) {
 void InstructionSelector::VisitUint32Div(Node* node) {
   MipsOperandGenerator g(this);
   Int32BinopMatcher m(node);
-  Emit(kMipsDivU, g.DefineAsRegister(node), g.UseRegister(m.left().node()),
+  Emit(kMipsDivU, g.DefineSameAsFirst(node), g.UseRegister(m.left().node()),
        g.UseRegister(m.right().node()));
 }
 
@@ -1272,7 +1272,9 @@ InstructionSelector::SupportedMachineOperatorFlags() {
              MachineOperatorBuilder::kFloat64RoundTruncate |
              MachineOperatorBuilder::kFloat64RoundTiesEven;
   }
-  return flags | MachineOperatorBuilder::kWord32ShiftIsSafe |
+  return flags | MachineOperatorBuilder::kInt32DivIsSafe |
+         MachineOperatorBuilder::kUint32DivIsSafe |
+         MachineOperatorBuilder::kWord32ShiftIsSafe |
          MachineOperatorBuilder::kFloat64Min |
          MachineOperatorBuilder::kFloat64Max |
          MachineOperatorBuilder::kFloat32Min |

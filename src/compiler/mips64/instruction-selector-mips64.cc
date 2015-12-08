@@ -722,7 +722,7 @@ void InstructionSelector::VisitInt32Div(Node* node) {
       }
     }
   }
-  Emit(kMips64Div, g.DefineAsRegister(node), g.UseRegister(m.left().node()),
+  Emit(kMips64Div, g.DefineSameAsFirst(node), g.UseRegister(m.left().node()),
        g.UseRegister(m.right().node()));
 }
 
@@ -730,7 +730,7 @@ void InstructionSelector::VisitInt32Div(Node* node) {
 void InstructionSelector::VisitUint32Div(Node* node) {
   Mips64OperandGenerator g(this);
   Int32BinopMatcher m(node);
-  Emit(kMips64DivU, g.DefineAsRegister(node), g.UseRegister(m.left().node()),
+  Emit(kMips64DivU, g.DefineSameAsFirst(node), g.UseRegister(m.left().node()),
        g.UseRegister(m.right().node()));
 }
 
@@ -769,7 +769,7 @@ void InstructionSelector::VisitUint32Mod(Node* node) {
 void InstructionSelector::VisitInt64Div(Node* node) {
   Mips64OperandGenerator g(this);
   Int64BinopMatcher m(node);
-  Emit(kMips64Ddiv, g.DefineAsRegister(node), g.UseRegister(m.left().node()),
+  Emit(kMips64Ddiv, g.DefineSameAsFirst(node), g.UseRegister(m.left().node()),
        g.UseRegister(m.right().node()));
 }
 
@@ -777,7 +777,7 @@ void InstructionSelector::VisitInt64Div(Node* node) {
 void InstructionSelector::VisitUint64Div(Node* node) {
   Mips64OperandGenerator g(this);
   Int64BinopMatcher m(node);
-  Emit(kMips64DdivU, g.DefineAsRegister(node), g.UseRegister(m.left().node()),
+  Emit(kMips64DdivU, g.DefineSameAsFirst(node), g.UseRegister(m.left().node()),
        g.UseRegister(m.right().node()));
 }
 
@@ -1742,6 +1742,8 @@ void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
   return MachineOperatorBuilder::kWord32ShiftIsSafe |
+         MachineOperatorBuilder::kInt32DivIsSafe |
+         MachineOperatorBuilder::kUint32DivIsSafe |
          MachineOperatorBuilder::kFloat64Min |
          MachineOperatorBuilder::kFloat64Max |
          MachineOperatorBuilder::kFloat32Min |
