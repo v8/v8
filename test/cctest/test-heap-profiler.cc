@@ -27,6 +27,9 @@
 //
 // Tests for heap profiler
 
+// TODO(jochen): Remove this after the setting is turned on globally.
+#define V8_IMMINENT_DEPRECATION_WARNINGS
+
 #include <ctype.h>
 
 #include "src/v8.h"
@@ -246,8 +249,7 @@ TEST(BoundFunctionInSnapshot) {
   const v8::HeapGraphNode* f =
       GetProperty(global, v8::HeapGraphEdge::kProperty, "boundFunction");
   CHECK(f);
-  CHECK(v8::String::NewFromUtf8(env->GetIsolate(), "native_bind")
-            ->Equals(f->GetName()));
+  CHECK(v8_str("native_bind")->Equals(env.local(), f->GetName()).FromJust());
   const v8::HeapGraphNode* bindings =
       GetProperty(f, v8::HeapGraphEdge::kInternal, "bindings");
   CHECK(bindings);
@@ -427,8 +429,8 @@ TEST(HeapSnapshotConsString) {
       v8::ObjectTemplate::New(isolate);
   global_template->SetInternalFieldCount(1);
   LocalContext env(NULL, global_template);
-  v8::Handle<v8::Object> global_proxy = env->Global();
-  v8::Handle<v8::Object> global = global_proxy->GetPrototype().As<v8::Object>();
+  v8::Local<v8::Object> global_proxy = env->Global();
+  v8::Local<v8::Object> global = global_proxy->GetPrototype().As<v8::Object>();
   CHECK_EQ(1, global->InternalFieldCount());
 
   i::Factory* factory = CcTest::i_isolate()->factory();
@@ -474,11 +476,11 @@ TEST(HeapSnapshotSymbol) {
       GetProperty(global, v8::HeapGraphEdge::kProperty, "a");
   CHECK(a);
   CHECK_EQ(a->GetType(), v8::HeapGraphNode::kSymbol);
-  CHECK(v8_str("symbol")->Equals(a->GetName()));
+  CHECK(v8_str("symbol")->Equals(env.local(), a->GetName()).FromJust());
   const v8::HeapGraphNode* name =
       GetProperty(a, v8::HeapGraphEdge::kInternal, "name");
   CHECK(name);
-  CHECK(v8_str("mySymbol")->Equals(name->GetName()));
+  CHECK(v8_str("mySymbol")->Equals(env.local(), name->GetName()).FromJust());
 }
 
 
@@ -539,7 +541,7 @@ TEST(HeapSnapshotWeakCollection) {
       GetProperty(global, v8::HeapGraphEdge::kProperty, "ws");
   CHECK(ws);
   CHECK_EQ(v8::HeapGraphNode::kObject, ws->GetType());
-  CHECK(v8_str("WeakSet")->Equals(ws->GetName()));
+  CHECK(v8_str("WeakSet")->Equals(env.local(), ws->GetName()).FromJust());
 
   const v8::HeapGraphNode* ws_table =
       GetProperty(ws, v8::HeapGraphEdge::kInternal, "table");
@@ -563,7 +565,7 @@ TEST(HeapSnapshotWeakCollection) {
       GetProperty(global, v8::HeapGraphEdge::kProperty, "wm");
   CHECK(wm);
   CHECK_EQ(v8::HeapGraphNode::kObject, wm->GetType());
-  CHECK(v8_str("WeakMap")->Equals(wm->GetName()));
+  CHECK(v8_str("WeakMap")->Equals(env.local(), wm->GetName()).FromJust());
 
   const v8::HeapGraphNode* wm_table =
       GetProperty(wm, v8::HeapGraphEdge::kInternal, "table");
@@ -612,7 +614,7 @@ TEST(HeapSnapshotCollection) {
       GetProperty(global, v8::HeapGraphEdge::kProperty, "set");
   CHECK(set);
   CHECK_EQ(v8::HeapGraphNode::kObject, set->GetType());
-  CHECK(v8_str("Set")->Equals(set->GetName()));
+  CHECK(v8_str("Set")->Equals(env.local(), set->GetName()).FromJust());
 
   const v8::HeapGraphNode* set_table =
       GetProperty(set, v8::HeapGraphEdge::kInternal, "table");
@@ -636,7 +638,7 @@ TEST(HeapSnapshotCollection) {
       GetProperty(global, v8::HeapGraphEdge::kProperty, "map");
   CHECK(map);
   CHECK_EQ(v8::HeapGraphNode::kObject, map->GetType());
-  CHECK(v8_str("Map")->Equals(map->GetName()));
+  CHECK(v8_str("Map")->Equals(env.local(), map->GetName()).FromJust());
 
   const v8::HeapGraphNode* map_table =
       GetProperty(map, v8::HeapGraphEdge::kInternal, "table");
@@ -665,8 +667,8 @@ TEST(HeapSnapshotInternalReferences) {
       v8::ObjectTemplate::New(isolate);
   global_template->SetInternalFieldCount(2);
   LocalContext env(NULL, global_template);
-  v8::Handle<v8::Object> global_proxy = env->Global();
-  v8::Handle<v8::Object> global = global_proxy->GetPrototype().As<v8::Object>();
+  v8::Local<v8::Object> global_proxy = env->Global();
+  v8::Local<v8::Object> global = global_proxy->GetPrototype().As<v8::Object>();
   CHECK_EQ(2, global->InternalFieldCount());
   v8::Local<v8::Object> obj = v8::Object::New(isolate);
   global->SetInternalField(0, v8_num(17));
@@ -915,19 +917,26 @@ TEST(HeapSnapshotJSONSerialization) {
   // Verify that snapshot string is valid JSON.
   OneByteResource* json_res = new OneByteResource(json);
   v8::Local<v8::String> json_string =
-      v8::String::NewExternal(env->GetIsolate(), json_res);
-  env->Global()->Set(v8_str("json_snapshot"), json_string);
+      v8::String::NewExternalOneByte(env->GetIsolate(), json_res)
+          .ToLocalChecked();
+  env->Global()
+      ->Set(env.local(), v8_str("json_snapshot"), json_string)
+      .FromJust();
   v8::Local<v8::Value> snapshot_parse_result = CompileRun(
       "var parsed = JSON.parse(json_snapshot); true;");
   CHECK(!snapshot_parse_result.IsEmpty());
 
   // Verify that snapshot object has required fields.
   v8::Local<v8::Object> parsed_snapshot =
-      env->Global()->Get(v8_str("parsed"))->ToObject(isolate);
-  CHECK(parsed_snapshot->Has(v8_str("snapshot")));
-  CHECK(parsed_snapshot->Has(v8_str("nodes")));
-  CHECK(parsed_snapshot->Has(v8_str("edges")));
-  CHECK(parsed_snapshot->Has(v8_str("strings")));
+      env->Global()
+          ->Get(env.local(), v8_str("parsed"))
+          .ToLocalChecked()
+          ->ToObject(env.local())
+          .ToLocalChecked();
+  CHECK(parsed_snapshot->Has(env.local(), v8_str("snapshot")).FromJust());
+  CHECK(parsed_snapshot->Has(env.local(), v8_str("nodes")).FromJust());
+  CHECK(parsed_snapshot->Has(env.local(), v8_str("edges")).FromJust());
+  CHECK(parsed_snapshot->Has(env.local(), v8_str("strings")).FromJust());
 
   // Get node and edge "member" offsets.
   v8::Local<v8::Value> meta_analysis_result = CompileRun(
@@ -978,19 +987,32 @@ TEST(HeapSnapshotJSONSerialization) {
       "    \"x\", property_type),"
       "  \"s\", property_type)");
   CHECK(!string_obj_pos_val.IsEmpty());
-  int string_obj_pos =
-      static_cast<int>(string_obj_pos_val->ToNumber(isolate)->Value());
+  int string_obj_pos = static_cast<int>(
+      string_obj_pos_val->ToNumber(env.local()).ToLocalChecked()->Value());
   v8::Local<v8::Object> nodes_array =
-      parsed_snapshot->Get(v8_str("nodes"))->ToObject(isolate);
-  int string_index = static_cast<int>(
-      nodes_array->Get(string_obj_pos + 1)->ToNumber(isolate)->Value());
+      parsed_snapshot->Get(env.local(), v8_str("nodes"))
+          .ToLocalChecked()
+          ->ToObject(env.local())
+          .ToLocalChecked();
+  int string_index =
+      static_cast<int>(nodes_array->Get(env.local(), string_obj_pos + 1)
+                           .ToLocalChecked()
+                           ->ToNumber(env.local())
+                           .ToLocalChecked()
+                           ->Value());
   CHECK_GT(string_index, 0);
   v8::Local<v8::Object> strings_array =
-      parsed_snapshot->Get(v8_str("strings"))->ToObject(isolate);
-  v8::Local<v8::String> string =
-      strings_array->Get(string_index)->ToString(isolate);
-  v8::Local<v8::String> ref_string =
-      CompileRun(STRING_LITERAL_FOR_TEST)->ToString(isolate);
+      parsed_snapshot->Get(env.local(), v8_str("strings"))
+          .ToLocalChecked()
+          ->ToObject(env.local())
+          .ToLocalChecked();
+  v8::Local<v8::String> string = strings_array->Get(env.local(), string_index)
+                                     .ToLocalChecked()
+                                     ->ToString(env.local())
+                                     .ToLocalChecked();
+  v8::Local<v8::String> ref_string = CompileRun(STRING_LITERAL_FOR_TEST)
+                                         ->ToString(env.local())
+                                         .ToLocalChecked();
 #undef STRING_LITERAL_FOR_TEST
   CHECK_EQ(0, strcmp(*v8::String::Utf8Value(ref_string),
                      *v8::String::Utf8Value(string)));
@@ -1189,7 +1211,7 @@ TEST(HeapSnapshotObjectsStats) {
   v8::Local<v8::Array> array = v8::Array::New(env->GetIsolate());
   CHECK_EQ(0u, array->Length());
   // Force array's buffer allocation.
-  array->Set(2, v8_num(7));
+  array->Set(env.local(), 2, v8_num(7)).FromJust();
 
   uint32_t entries_size;
   {
@@ -1204,7 +1226,7 @@ TEST(HeapSnapshotObjectsStats) {
   }
 
   for (int i = 0; i < 100; ++i)
-    array->Set(i, v8_num(i));
+    array->Set(env.local(), i, v8_num(i)).FromJust();
 
   {
     // Single chunk of data with 1 entry expected in update.
@@ -1229,7 +1251,7 @@ TEST(HeapObjectIds) {
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
 
   const int kLength = 10;
-  v8::Handle<v8::Object> objects[kLength];
+  v8::Local<v8::Object> objects[kLength];
   v8::SnapshotObjectId ids[kLength];
 
   heap_profiler->StartTrackingHeapObjects(false);
@@ -1251,15 +1273,15 @@ TEST(HeapObjectIds) {
   for (int i = 0; i < kLength; i++) {
     v8::SnapshotObjectId id = heap_profiler->GetObjectId(objects[i]);
     CHECK_EQ(ids[i], id);
-    v8::Handle<v8::Value> obj = heap_profiler->FindObjectById(ids[i]);
-    CHECK(objects[i]->Equals(obj));
+    v8::Local<v8::Value> obj = heap_profiler->FindObjectById(ids[i]);
+    CHECK(objects[i]->Equals(env.local(), obj).FromJust());
   }
 
   heap_profiler->ClearObjectIds();
   for (int i = 0; i < kLength; i++) {
     v8::SnapshotObjectId id = heap_profiler->GetObjectId(objects[i]);
     CHECK_EQ(v8::HeapProfiler::kUnknownObjectId, id);
-    v8::Handle<v8::Value> obj = heap_profiler->FindObjectById(ids[i]);
+    v8::Local<v8::Value> obj = heap_profiler->FindObjectById(ids[i]);
     CHECK(obj.IsEmpty());
   }
 }
@@ -1307,8 +1329,8 @@ TEST(HeapSnapshotGetSnapshotObjectId) {
       GetProperty(global, v8::HeapGraphEdge::kProperty, "globalObject");
   CHECK(global_object);
 
-  v8::Local<v8::Value> globalObjectHandle = env->Global()->Get(
-      v8::String::NewFromUtf8(env->GetIsolate(), "globalObject"));
+  v8::Local<v8::Value> globalObjectHandle =
+      env->Global()->Get(env.local(), v8_str("globalObject")).ToLocalChecked();
   CHECK(!globalObjectHandle.IsEmpty());
   CHECK(globalObjectHandle->IsObject());
 
@@ -1411,7 +1433,7 @@ class TestRetainedObjectInfo : public v8::RetainedObjectInfo {
   bool disposed() { return disposed_; }
 
   static v8::RetainedObjectInfo* WrapperInfoCallback(
-      uint16_t class_id, v8::Handle<v8::Value> wrapper) {
+      uint16_t class_id, v8::Local<v8::Value> wrapper) {
     if (class_id == 1) {
       if (wrapper->IsString()) {
         v8::String::Utf8Value utf8(wrapper);
@@ -1531,8 +1553,11 @@ class GraphWithImplicitRefs {
     for (int i = 0; i < kObjectsCount; i++) {
       objects_[i].Reset(isolate_, v8::Object::New(isolate_));
     }
-    (*env)->Global()->Set(v8_str("root_object"),
-                          v8::Local<v8::Value>::New(isolate_, objects_[0]));
+    (*env)
+        ->Global()
+        ->Set(isolate_->GetCurrentContext(), v8_str("root_object"),
+              v8::Local<v8::Value>::New(isolate_, objects_[0]))
+        .FromJust();
   }
   ~GraphWithImplicitRefs() {
     instance_ = NULL;
@@ -1665,7 +1690,7 @@ TEST(DeleteHeapSnapshot) {
 
 class NameResolver : public v8::HeapProfiler::ObjectNameResolver {
  public:
-  virtual const char* GetName(v8::Handle<v8::Object> object) {
+  virtual const char* GetName(v8::Local<v8::Object> object) {
     return "Global object name";
   }
 };
@@ -1758,17 +1783,21 @@ TEST(GetHeapValueForNode) {
   const v8::HeapGraphNode* obj = GetProperty(
       global, v8::HeapGraphEdge::kProperty, "a");
   CHECK(heap_profiler->FindObjectById(obj->GetId())->IsObject());
-  v8::Local<v8::Object> js_obj = js_global->Get(v8_str("a")).As<v8::Object>();
+  v8::Local<v8::Object> js_obj = js_global->Get(env.local(), v8_str("a"))
+                                     .ToLocalChecked()
+                                     .As<v8::Object>();
   CHECK(js_obj == heap_profiler->FindObjectById(obj->GetId()));
   const v8::HeapGraphNode* s_prop =
       GetProperty(obj, v8::HeapGraphEdge::kProperty, "s_prop");
-  v8::Local<v8::String> js_s_prop =
-      js_obj->Get(v8_str("s_prop")).As<v8::String>();
+  v8::Local<v8::String> js_s_prop = js_obj->Get(env.local(), v8_str("s_prop"))
+                                        .ToLocalChecked()
+                                        .As<v8::String>();
   CHECK(js_s_prop == heap_profiler->FindObjectById(s_prop->GetId()));
   const v8::HeapGraphNode* n_prop =
       GetProperty(obj, v8::HeapGraphEdge::kProperty, "n_prop");
-  v8::Local<v8::String> js_n_prop =
-      js_obj->Get(v8_str("n_prop")).As<v8::String>();
+  v8::Local<v8::String> js_n_prop = js_obj->Get(env.local(), v8_str("n_prop"))
+                                        .ToLocalChecked()
+                                        .As<v8::String>();
   CHECK(js_n_prop == heap_profiler->FindObjectById(n_prop->GetId()));
 }
 
@@ -1829,32 +1858,44 @@ TEST(GetConstructorName) {
       "obj6.constructor = 6;");
   v8::Local<v8::Object> js_global =
       env->Global()->GetPrototype().As<v8::Object>();
-  v8::Local<v8::Object> obj1 = js_global->Get(v8_str("obj1")).As<v8::Object>();
+  v8::Local<v8::Object> obj1 = js_global->Get(env.local(), v8_str("obj1"))
+                                   .ToLocalChecked()
+                                   .As<v8::Object>();
   i::Handle<i::JSObject> js_obj1 =
       i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj1));
   CHECK_EQ(0, StringCmp(
       "Constructor1", i::V8HeapExplorer::GetConstructorName(*js_obj1)));
-  v8::Local<v8::Object> obj2 = js_global->Get(v8_str("obj2")).As<v8::Object>();
+  v8::Local<v8::Object> obj2 = js_global->Get(env.local(), v8_str("obj2"))
+                                   .ToLocalChecked()
+                                   .As<v8::Object>();
   i::Handle<i::JSObject> js_obj2 =
       i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj2));
   CHECK_EQ(0, StringCmp(
       "Constructor2", i::V8HeapExplorer::GetConstructorName(*js_obj2)));
-  v8::Local<v8::Object> obj3 = js_global->Get(v8_str("obj3")).As<v8::Object>();
+  v8::Local<v8::Object> obj3 = js_global->Get(env.local(), v8_str("obj3"))
+                                   .ToLocalChecked()
+                                   .As<v8::Object>();
   i::Handle<i::JSObject> js_obj3 =
       i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj3));
   CHECK_EQ(0, StringCmp("Constructor3",
                         i::V8HeapExplorer::GetConstructorName(*js_obj3)));
-  v8::Local<v8::Object> obj4 = js_global->Get(v8_str("obj4")).As<v8::Object>();
+  v8::Local<v8::Object> obj4 = js_global->Get(env.local(), v8_str("obj4"))
+                                   .ToLocalChecked()
+                                   .As<v8::Object>();
   i::Handle<i::JSObject> js_obj4 =
       i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj4));
   CHECK_EQ(0, StringCmp("Constructor4",
                         i::V8HeapExplorer::GetConstructorName(*js_obj4)));
-  v8::Local<v8::Object> obj5 = js_global->Get(v8_str("obj5")).As<v8::Object>();
+  v8::Local<v8::Object> obj5 = js_global->Get(env.local(), v8_str("obj5"))
+                                   .ToLocalChecked()
+                                   .As<v8::Object>();
   i::Handle<i::JSObject> js_obj5 =
       i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj5));
   CHECK_EQ(0, StringCmp(
       "Object", i::V8HeapExplorer::GetConstructorName(*js_obj5)));
-  v8::Local<v8::Object> obj6 = js_global->Get(v8_str("obj6")).As<v8::Object>();
+  v8::Local<v8::Object> obj6 = js_global->Get(env.local(), v8_str("obj6"))
+                                   .ToLocalChecked()
+                                   .As<v8::Object>();
   i::Handle<i::JSObject> js_obj6 =
       i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj6));
   CHECK_EQ(0, StringCmp(
@@ -1916,7 +1957,9 @@ TEST(FastCaseRedefinedAccessors) {
   v8::Local<v8::Object> js_global =
       env->Global()->GetPrototype().As<v8::Object>();
   i::Handle<i::JSReceiver> js_obj1 =
-      v8::Utils::OpenHandle(*js_global->Get(v8_str("obj1")).As<v8::Object>());
+      v8::Utils::OpenHandle(*js_global->Get(env.local(), v8_str("obj1"))
+                                 .ToLocalChecked()
+                                 .As<v8::Object>());
   USE(js_obj1);
 
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
@@ -1986,10 +2029,11 @@ TEST(HiddenPropertiesFastCase) {
       GetProperty(c, v8::HeapGraphEdge::kProperty, "<symbol>");
   CHECK(!hidden_props);
 
-  v8::Handle<v8::Value> cHandle =
-      env->Global()->Get(v8::String::NewFromUtf8(env->GetIsolate(), "c"));
+  v8::Local<v8::Value> cHandle =
+      env->Global()->Get(env.local(), v8_str("c")).ToLocalChecked();
   CHECK(!cHandle.IsEmpty() && cHandle->IsObject());
-  cHandle->ToObject(isolate)
+  cHandle->ToObject(env.local())
+      .ToLocalChecked()
       ->SetPrivate(env.local(),
                    v8::Private::ForApi(env->GetIsolate(), v8_str("key")),
                    v8_str("val"))
@@ -2287,18 +2331,27 @@ TEST(AllocationSitesAreVisible) {
   CHECK_EQ(v8::internal::FixedArray::SizeFor(3),
            static_cast<int>(elements->GetShallowSize()));
 
-  v8::Handle<v8::Value> array_val =
+  v8::Local<v8::Value> array_val =
       heap_profiler->FindObjectById(transition_info->GetId());
   CHECK(array_val->IsArray());
-  v8::Handle<v8::Array> array = v8::Handle<v8::Array>::Cast(array_val);
+  v8::Local<v8::Array> array = v8::Local<v8::Array>::Cast(array_val);
   // Verify the array is "a" in the code above.
   CHECK_EQ(3u, array->Length());
   CHECK(v8::Integer::New(isolate, 3)
-            ->Equals(array->Get(v8::Integer::New(isolate, 0))));
+            ->Equals(env.local(),
+                     array->Get(env.local(), v8::Integer::New(isolate, 0))
+                         .ToLocalChecked())
+            .FromJust());
   CHECK(v8::Integer::New(isolate, 2)
-            ->Equals(array->Get(v8::Integer::New(isolate, 1))));
+            ->Equals(env.local(),
+                     array->Get(env.local(), v8::Integer::New(isolate, 1))
+                         .ToLocalChecked())
+            .FromJust());
   CHECK(v8::Integer::New(isolate, 1)
-            ->Equals(array->Get(v8::Integer::New(isolate, 2))));
+            ->Equals(env.local(),
+                     array->Get(env.local(), v8::Integer::New(isolate, 2))
+                         .ToLocalChecked())
+            .FromJust());
 }
 
 
@@ -2582,7 +2635,7 @@ TEST(TrackV8ApiAllocation) {
   const char* names[] = { "(V8 API)" };
   heap_profiler->StartTrackingHeapObjects(true);
 
-  v8::Handle<v8::Object> o1 = v8::Object::New(env->GetIsolate());
+  v8::Local<v8::Object> o1 = v8::Object::New(env->GetIsolate());
   o1->Clone();
 
   AllocationTracker* tracker =
@@ -2656,11 +2709,11 @@ TEST(ArrayBufferSharedBackingStore) {
   v8::Local<v8::ArrayBuffer> ab2 =
       v8::ArrayBuffer::New(isolate, data, ab_contents.ByteLength());
   CHECK(ab2->IsExternal());
-  env->Global()->Set(v8_str("ab1"), ab);
-  env->Global()->Set(v8_str("ab2"), ab2);
+  env->Global()->Set(env.local(), v8_str("ab1"), ab).FromJust();
+  env->Global()->Set(env.local(), v8_str("ab2"), ab2).FromJust();
 
-  v8::Handle<v8::Value> result = CompileRun("ab2.byteLength");
-  CHECK_EQ(1024, result->Int32Value());
+  v8::Local<v8::Value> result = CompileRun("ab2.byteLength");
+  CHECK_EQ(1024, result->Int32Value(env.local()).FromJust());
 
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
@@ -2687,13 +2740,13 @@ TEST(BoxObject) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   LocalContext env;
-  v8::Handle<v8::Object> global_proxy = env->Global();
-  v8::Handle<v8::Object> global = global_proxy->GetPrototype().As<v8::Object>();
+  v8::Local<v8::Object> global_proxy = env->Global();
+  v8::Local<v8::Object> global = global_proxy->GetPrototype().As<v8::Object>();
 
   i::Factory* factory = CcTest::i_isolate()->factory();
   i::Handle<i::String> string = factory->NewStringFromStaticChars("string");
   i::Handle<i::Object> box = factory->NewBox(string);
-  global->Set(0, v8::ToApiHandle<v8::Object>(box));
+  global->Set(env.local(), 0, v8::ToApiHandle<v8::Object>(box)).FromJust();
 
   v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
