@@ -550,21 +550,6 @@ function GetOwnPropertyJS(obj, v) {
 }
 
 
-// ES5 section 8.12.7.
-function Delete(obj, p, should_throw) {
-  var desc = GetOwnPropertyJS(obj, p);
-  if (IS_UNDEFINED(desc)) return true;
-  if (desc.isConfigurable()) {
-    %DeleteProperty_Sloppy(obj, p);
-    return true;
-  } else if (should_throw) {
-    throw MakeTypeError(kDefineDisallowed, p);
-  } else {
-    return;
-  }
-}
-
-
 // ES6, draft 12-24-14, section 7.3.8
 function GetMethod(obj, p) {
   var func = obj[p];
@@ -1517,7 +1502,6 @@ function GetIterator(obj, method) {
 // Exports
 
 utils.Export(function(to) {
-  to.Delete = Delete;
   to.FunctionSourceString = FunctionSourceString;
   to.GetIterator = GetIterator;
   to.GetMethod = GetMethod;
