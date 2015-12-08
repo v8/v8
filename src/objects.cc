@@ -997,7 +997,7 @@ MaybeHandle<Object> JSProxy::GetPrototype(Handle<JSProxy> proxy) {
   if (is_extensible.FromJust()) return handler_proto;
   // 11. Let targetProto be ? target.[[GetPrototypeOf]]().
   Handle<Object> target_proto;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, handler_proto,
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, target_proto,
                              Object::GetPrototype(isolate, target), Object);
   // 12. If SameValue(handlerProto, targetProto) is false, throw a TypeError.
   if (!handler_proto->SameValue(*target_proto)) {

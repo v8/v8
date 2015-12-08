@@ -541,6 +541,7 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_PROXY(F) \
   F(IsJSProxy, 1, 1)                \
+  F(JSProxyCall, -1 /* >= 2 */, 1)   \
   F(GetHandler, 1, 1)               \
   F(RevokeProxy, 1, 1)
 

@@ -1799,6 +1799,7 @@ BUILTIN(ProxyConstructor) {
 // ES6 section 26.2.1.1 Proxy ( target, handler ) for the [[Construct]] case.
 BUILTIN(ProxyConstructor_ConstructStub) {
   HandleScope scope(isolate);
+  DCHECK(isolate->proxy_function()->IsConstructor());
   DCHECK_EQ(3, args.length());
   Handle<Object> target = args.at<Object>(1);
   Handle<Object> handler = args.at<Object>(2);

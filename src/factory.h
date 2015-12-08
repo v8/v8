@@ -517,6 +517,8 @@ class Factory final {
                                  Handle<Code> code,
                                  InstanceType type,
                                  int instance_size);
+  Handle<JSFunction> NewFunction(Handle<Map> map, Handle<String> name,
+                                 MaybeHandle<Code> maybe_code);
 
   // Create a serialized scope info.
   Handle<ScopeInfo> NewScopeInfo(int length);
@@ -695,10 +697,6 @@ class Factory final {
                                  Handle<SharedFunctionInfo> info,
                                  Handle<Context> context,
                                  PretenureFlag pretenure = TENURED);
-
-  Handle<JSFunction> NewFunction(Handle<Map> map,
-                                 Handle<String> name,
-                                 MaybeHandle<Code> maybe_code);
 };
 
 }  // namespace internal

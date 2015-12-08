@@ -291,6 +291,7 @@ namespace internal {
   V(Promise_string, "Promise")                                   \
   V(proto_string, "__proto__")                                   \
   V(prototype_string, "prototype")                               \
+  V(Proxy_string, "Proxy")                                       \
   V(query_colon_string, "(?:)")                                  \
   V(RegExp_string, "RegExp")                                     \
   V(setPrototypeOf_string, "setPrototypeOf")                     \

@@ -1677,8 +1677,14 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   __ Cmp(x5, JS_PROXY_TYPE);
   __ B(ne, &non_function);
 
-  // 1. Call to proxy.
-  // TODO(neis): This doesn't match the ES6 spec for [[Call]] on proxies.
+  // 1. Runtime fallback for Proxy [[Call]].
+  __ Push(x1);
+  // Increase the arguments size to include the pushed function and the
+  // existing receiver on the stack.
+  __ Add(x0, x0, Operand(2));
+  // Tail-call to the runtime.
+  __ JumpToExternalReference(
+      ExternalReference(Runtime::kJSProxyCall, masm->isolate()));
 
   // 2. Call to something else, which might have a [[Call]] internal method (if
   // not we raise an exception).

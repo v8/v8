@@ -1542,8 +1542,16 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   __ CmpInstanceType(ecx, JS_PROXY_TYPE);
   __ j(not_equal, &non_function);
 
-  // 1. Call to Proxy.
-  // TODO(neis): Implement [[Call]] on proxies.
+  // 1. Runtime fallback for Proxy [[Call]].
+  __ PopReturnAddressTo(ecx);
+  __ Push(edi);
+  __ PushReturnAddressFrom(ecx);
+  // Increase the arguments size to include the pushed function and the
+  // existing receiver on the stack.
+  __ add(eax, Immediate(2));
+  // Tail-call to the runtime.
+  __ JumpToExternalReference(
+      ExternalReference(Runtime::kJSProxyCall, masm->isolate()));
 
   // 2. Call to something else, which might have a [[Call]] internal method (if
   // not we raise an exception).
