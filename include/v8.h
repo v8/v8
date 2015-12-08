@@ -3349,10 +3349,11 @@ class V8_EXPORT Promise : public Object {
    * an argument. If the promise is already resolved/rejected, the handler is
    * invoked at the end of turn.
    */
-  V8_DEPRECATE_SOON("Use maybe version",
+  V8_DEPRECATE_SOON("Use maybe version of Then",
                     Local<Promise> Chain(Local<Function> handler));
-  V8_WARN_UNUSED_RESULT MaybeLocal<Promise> Chain(Local<Context> context,
-                                                  Local<Function> handler);
+  V8_DEPRECATE_SOON("Use Then",
+                    V8_WARN_UNUSED_RESULT MaybeLocal<Promise> Chain(
+                        Local<Context> context, Local<Function> handler));
 
   V8_DEPRECATE_SOON("Use maybe version",
                     Local<Promise> Catch(Local<Function> handler));
