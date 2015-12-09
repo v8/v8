@@ -319,10 +319,6 @@ class MarkCompactCollector {
     kClearMarkbits,
   };
 
-  class EvacuateNewSpaceVisitor;
-  class EvacuateOldSpaceVisitor;
-  class HeapObjectVisitor;
-
   static void Initialize();
 
   void SetUp();
@@ -408,8 +404,6 @@ class MarkCompactCollector {
   void MigrateObject(HeapObject* dst, HeapObject* src, int size,
                      AllocationSpace to_old_space,
                      SlotsBuffer** evacuation_slots_buffer);
-
-  bool TryPromoteObject(HeapObject* object, int object_size);
 
   void InvalidateCode(Code* code);
 
@@ -508,6 +502,10 @@ class MarkCompactCollector {
 
  private:
   class CompactionTask;
+  class EvacuateNewSpaceVisitor;
+  class EvacuateOldSpaceVisitor;
+  class EvacuateVisitorBase;
+  class HeapObjectVisitor;
   class SweeperTask;
 
   explicit MarkCompactCollector(Heap* heap);
@@ -701,10 +699,6 @@ class MarkCompactCollector {
   // regions to each space's free list.
   void SweepSpaces();
 
-  // Iterates through all live objects on a page using marking information.
-  // Returns whether all objects have successfully been visited.
-  bool IterateLiveObjectsOnPage(MemoryChunk* page, HeapObjectVisitor* visitor,
-                                IterationMode mode);
 
   void EvacuateNewSpace();
 
@@ -726,7 +720,12 @@ class MarkCompactCollector {
 
   void EvacuateNewSpaceAndCandidates();
 
-  void VisitLiveObjects(Page* page, ObjectVisitor* visitor);
+  // Iterates through all live objects on a page using marking information.
+  // Returns whether all objects have successfully been visited.
+  bool VisitLiveObjects(MemoryChunk* page, HeapObjectVisitor* visitor,
+                        IterationMode mode);
+
+  void VisitLiveObjectsBody(Page* page, ObjectVisitor* visitor);
 
   void SweepAbortedPages();
 

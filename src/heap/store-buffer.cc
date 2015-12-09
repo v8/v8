@@ -496,7 +496,8 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback) {
               // only happen later). Note that we can never reach an
               // aborted page through the scavenger.
               DCHECK_EQ(heap_->gc_state(), Heap::MARK_COMPACT);
-              heap_->mark_compact_collector()->VisitLiveObjects(page, &visitor);
+              heap_->mark_compact_collector()->VisitLiveObjectsBody(page,
+                                                                    &visitor);
             } else {
               heap_->mark_compact_collector()
                   ->SweepOrWaitUntilSweepingCompleted(page);
