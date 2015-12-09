@@ -1876,6 +1876,34 @@ Reduction JSTypedLowering::ReduceJSCreateWithContext(Node* node) {
 }
 
 
+Reduction JSTypedLowering::ReduceJSCreateCatchContext(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCreateCatchContext, node->opcode());
+  Handle<String> name = OpParameter<Handle<String>>(node);
+  Node* exception = NodeProperties::GetValueInput(node, 0);
+  Node* closure = NodeProperties::GetValueInput(node, 1);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* native_context = effect = graph()->NewNode(
+      javascript()->LoadContext(0, Context::NATIVE_CONTEXT_INDEX, true),
+      context, context, effect);
+  AllocationBuilder a(jsgraph(), effect, control);
+  STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 4);  // Ensure fully covered.
+  a.AllocateArray(Context::MIN_CONTEXT_SLOTS + 1,
+                  factory()->catch_context_map());
+  a.Store(AccessBuilder::ForContextSlot(Context::CLOSURE_INDEX), closure);
+  a.Store(AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX), context);
+  a.Store(AccessBuilder::ForContextSlot(Context::EXTENSION_INDEX), name);
+  a.Store(AccessBuilder::ForContextSlot(Context::NATIVE_CONTEXT_INDEX),
+          native_context);
+  a.Store(AccessBuilder::ForContextSlot(Context::THROWN_OBJECT_INDEX),
+          exception);
+  RelaxControls(node);
+  a.FinishAndChange(node);
+  return Changed(node);
+}
+
+
 Reduction JSTypedLowering::ReduceJSCreateBlockContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateBlockContext, node->opcode());
   Handle<ScopeInfo> scope_info = OpParameter<Handle<ScopeInfo>>(node);
@@ -2437,6 +2465,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSCreateFunctionContext(node);
     case IrOpcode::kJSCreateWithContext:
       return ReduceJSCreateWithContext(node);
+    case IrOpcode::kJSCreateCatchContext:
+      return ReduceJSCreateCatchContext(node);
     case IrOpcode::kJSCreateBlockContext:
       return ReduceJSCreateBlockContext(node);
     case IrOpcode::kJSCallFunction:
