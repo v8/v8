@@ -566,10 +566,18 @@ function GetStackTraceLine(recv, fun, pos, isGlobal) {
 // Error implementation
 
 function CallSite(receiver, fun, pos, strict_mode) {
+  if (!IS_FUNCTION(fun)) {
+    throw MakeTypeError(kCallSiteExpectsFunction, typeof fun);
+  }
+
+  if (IS_UNDEFINED(new.target)) {
+    return new CallSite(receiver, fun, pos, strict_mode);
+  }
+
   SET_PRIVATE(this, callSiteReceiverSymbol, receiver);
   SET_PRIVATE(this, callSiteFunctionSymbol, fun);
-  SET_PRIVATE(this, callSitePositionSymbol, pos);
-  SET_PRIVATE(this, callSiteStrictSymbol, strict_mode);
+  SET_PRIVATE(this, callSitePositionSymbol, TO_INT32(pos));
+  SET_PRIVATE(this, callSiteStrictSymbol, TO_BOOLEAN(strict_mode));
 }
 
 function CallSiteGetThis() {

@@ -68,7 +68,7 @@ class CallSite {
   Isolate* isolate_;
   Handle<Object> receiver_;
   Handle<JSFunction> fun_;
-  int pos_;
+  int32_t pos_;
 };
 
 
@@ -93,6 +93,8 @@ class CallSite {
   T(CalledNonCallable, "% is not a function")                                  \
   T(CalledOnNonObject, "% called on non-object")                               \
   T(CalledOnNullOrUndefined, "% called on null or undefined")                  \
+  T(CallSiteExpectsFunction,                                                   \
+    "CallSite expects function as second argument, got %")                     \
   T(CannotConvertToPrimitive, "Cannot convert object to primitive value")      \
   T(CannotPreventExt, "Cannot prevent extensions")                             \
   T(CannotFreezeArrayBufferView,                                               \

@@ -163,10 +163,9 @@ CallSite::CallSite(Isolate* isolate, Handle<JSObject> call_site_obj)
   fun_ = Handle<JSFunction>::cast(maybe_function);
   receiver_ = JSObject::GetDataProperty(
       call_site_obj, isolate->factory()->call_site_receiver_symbol());
-  pos_ = Handle<Smi>::cast(JSObject::GetDataProperty(
-                               call_site_obj,
-                               isolate->factory()->call_site_position_symbol()))
-             ->value();
+  CHECK(JSObject::GetDataProperty(
+            call_site_obj, isolate->factory()->call_site_position_symbol())
+            ->ToInt32(&pos_));
 }
 
 
