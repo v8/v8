@@ -31,7 +31,8 @@
 #include "src/snapshot/snapshot.h"
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/heap-tester.h"
+#include "test/cctest/heap/heap-tester.h"
+#include "test/cctest/heap/utils-inl.h"
 
 namespace v8 {
 namespace internal {

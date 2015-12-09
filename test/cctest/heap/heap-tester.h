@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef HEAP_TESTER_H_
-#define HEAP_TESTER_H_
+#ifndef HEAP_HEAP_TESTER_H_
+#define HEAP_HEAP_TESTER_H_
 
 #include "src/handles.h"
 #include "src/heap/spaces.h"
@@ -79,4 +79,4 @@ class HeapTester {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // HEAP_TESTER_H_
+#endif  // HEAP_HEAP_TESTER_H_

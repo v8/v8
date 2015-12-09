@@ -19,6 +19,8 @@
 #include "src/full-codegen/full-codegen.h"
 #include "src/global-handles.h"
 #include "test/cctest/cctest.h"
+#include "test/cctest/heap/utils-inl.h"
+
 
 using v8::IdleTask;
 using v8::Task;

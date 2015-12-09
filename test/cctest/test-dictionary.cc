@@ -35,6 +35,7 @@
 #include "src/global-handles.h"
 #include "src/macro-assembler.h"
 #include "src/objects.h"
+#include "test/cctest/heap/utils-inl.h"
 
 using namespace v8::internal;
 

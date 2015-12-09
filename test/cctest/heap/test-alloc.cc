@@ -30,8 +30,8 @@
 
 #include "src/accessors.h"
 #include "src/api.h"
-#include "test/cctest/heap-tester.h"
-
+#include "test/cctest/heap/heap-tester.h"
+#include "test/cctest/heap/utils-inl.h"
 
 using namespace v8::internal;
 

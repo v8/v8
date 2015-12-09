@@ -40,7 +40,8 @@
 #include "src/macro-assembler.h"
 #include "src/snapshot/snapshot.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/heap-tester.h"
+#include "test/cctest/heap/heap-tester.h"
+#include "test/cctest/heap/utils-inl.h"
 #include "test/cctest/test-feedback-vector.h"
 
 

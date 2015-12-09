@@ -31,6 +31,7 @@
 
 #include "src/global-handles.h"
 #include "test/cctest/cctest.h"
+#include "test/cctest/heap/utils-inl.h"
 
 using namespace v8::internal;
 

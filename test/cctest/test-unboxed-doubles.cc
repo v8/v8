@@ -15,7 +15,7 @@
 #include "src/ic/ic.h"
 #include "src/macro-assembler.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/heap-tester.h"
+#include "test/cctest/heap/utils-inl.h"
 
 using namespace v8::base;
 using namespace v8::internal;
