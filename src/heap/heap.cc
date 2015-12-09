@@ -1494,12 +1494,13 @@ static bool IsUnscavengedHeapObject(Heap* heap, Object** p) {
 
 static bool IsUnmodifiedHeapObject(Object** p) {
   Object* object = *p;
-  DCHECK(object->IsHeapObject());
+  if (object->IsSmi()) return false;
   HeapObject* heap_object = HeapObject::cast(object);
   if (!object->IsJSObject()) return false;
   Object* obj_constructor = (JSObject::cast(object))->map()->GetConstructor();
   if (!obj_constructor->IsJSFunction()) return false;
   JSFunction* constructor = JSFunction::cast(obj_constructor);
+  if (!constructor->shared()->IsApiFunction()) return false;
   if (constructor != nullptr &&
       constructor->initial_map() == heap_object->map()) {
     return true;
