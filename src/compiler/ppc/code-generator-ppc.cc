@@ -1188,11 +1188,24 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     }
 #if V8_TARGET_ARCH_PPC64
-    case kPPC_DoubleToUint64:
+    case kPPC_DoubleToUint64: {
+      bool check_conversion = (i.OutputCount() > 1);
+      if (check_conversion) {
+        __ mtfsb0(VXCVI);  // clear FPSCR:VXCVI bit
+      }
       __ ConvertDoubleToUnsignedInt64(i.InputDoubleRegister(0),
-                                      i.OutputRegister(), kScratchDoubleReg);
+                                      i.OutputRegister(0), kScratchDoubleReg);
+      if (check_conversion) {
+        // Set 2nd output to zero if conversion fails.
+        CRBit crbit = static_cast<CRBit>(VXCVI % CRWIDTH);
+        __ mcrfs(cr7, VXCVI);  // extract FPSCR field containing VXCVI into cr7
+        __ li(i.OutputRegister(1), Operand(1));
+        __ isel(i.OutputRegister(1), r0, i.OutputRegister(1),
+                v8::internal::Assembler::encode_crbit(cr7, crbit));
+      }
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
+    }
 #endif
     case kPPC_DoubleToFloat32:
       ASSEMBLE_FLOAT_UNOP_RC(frsp);
