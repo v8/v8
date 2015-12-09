@@ -4669,6 +4669,7 @@ Maybe<bool> JSProxy::HasProperty(Isolate* isolate, Handle<JSProxy> proxy,
       if (!extensible_target) {
         isolate->Throw(*isolate->factory()->NewTypeError(
             MessageTemplate::kProxyTargetNotExtensible));
+        return Nothing<bool>();
       }
     }
   }

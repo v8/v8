@@ -74,7 +74,7 @@ keys = ["nonconf"];
 assertEquals(keys, Reflect.ownKeys(proxy));
 
 // Step 19a: The trap result must all keys of a non-extensible target.
-Object.freeze(target);
+Object.preventExtensions(target);
 assertThrows("Reflect.ownKeys(proxy)", TypeError);
 keys = ["nonconf", "target_one"];
 assertEquals(keys, Reflect.ownKeys(proxy));

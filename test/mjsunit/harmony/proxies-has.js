@@ -49,7 +49,7 @@ assertThrows("'nonconf' in proxy", TypeError);
 
 // Step 9b iii. Trap result must confirm presence of all own properties of
 // non-extensible targets.
-Object.freeze(target);
+Object.preventExtensions(target);
 assertThrows("'nonconf' in proxy", TypeError);
 assertThrows("'target_one' in proxy", TypeError);
 assertFalse("target_two" in proxy);

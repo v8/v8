@@ -292,9 +292,9 @@ bool Object::FilterKey(PropertyFilter filter) {
   if (IsSymbol()) {
     if (filter & SKIP_SYMBOLS) return true;
     if (Symbol::cast(this)->is_private()) return true;
+  } else {
+    if (filter & SKIP_STRINGS) return true;
   }
-  if ((filter & SKIP_STRINGS) && !IsSymbol()) return true;
-
   return false;
 }
 

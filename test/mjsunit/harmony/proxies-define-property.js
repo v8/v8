@@ -50,7 +50,7 @@ assertThrows("Object.defineProperty(proxy, 'foo', desc)", TypeError);
 
 // Step 15a: Trap returns true for adding a property to a non-extensible target.
 handler.defineProperty = function(t, n, d) { return true; }
-Object.freeze(target);
+Object.preventExtensions(target);
 assertThrows("Object.defineProperty(proxy, 'foo', desc)", TypeError);
 
 // Step 15b: Trap returns true for adding a non-configurable property.

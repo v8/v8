@@ -231,12 +231,7 @@ MaybeHandle<FixedArray> FilterProxyKeys(Isolate* isolate, Handle<JSProxy> owner,
   int store_position = 0;
   for (int i = 0; i < keys->length(); ++i) {
     Handle<Name> key(Name::cast(keys->get(i)), isolate);
-    if (key->IsSymbol()) {
-      if ((filter & SKIP_SYMBOLS) || Handle<Symbol>::cast(key)->is_private()) {
-        continue;  // Skip this key.
-      }
-    }
-    if (filter & SKIP_STRINGS) continue;  // Skip this key.
+    if (key->FilterKey(filter)) continue;  // Skip this key.
     if (filter & ONLY_ENUMERABLE) {
       PropertyDescriptor desc;
       bool found =
