@@ -2258,13 +2258,6 @@ class JSObject: public JSReceiver {
   inline void SetInternalField(int index, Object* value);
   inline void SetInternalField(int index, Smi* value);
 
-  // Returns the number of properties on this object filtering out properties
-  // with the specified attributes (ignoring interceptors).
-  int NumberOfOwnProperties(PropertyFilter filter = ALL_PROPERTIES);
-  // Fill in details for properties into storage starting at the specified
-  // index. Returns the number of properties added.
-  int GetOwnPropertyNames(FixedArray* storage, int index,
-                          PropertyFilter filter = ALL_PROPERTIES);
   void CollectOwnPropertyNames(KeyAccumulator* keys,
                                PropertyFilter filter = ALL_PROPERTIES);
 
@@ -3353,9 +3346,11 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
 
   // Returns the number of elements in the dictionary filtering out properties
   // with the specified attributes.
+  // TODO(jkummerow): Deprecated, only used by Object.observe.
   int NumberOfElementsFilterAttributes(PropertyFilter filter);
 
   // Returns the number of enumerable elements in the dictionary.
+  // TODO(jkummerow): Deprecated, only used by Object.observe.
   int NumberOfEnumElements() {
     return NumberOfElementsFilterAttributes(ENUMERABLE_STRINGS);
   }
@@ -3368,6 +3363,7 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
 
   // Fill in details for properties into storage.
   // Returns the number of properties added.
+  // TODO(jkummerow): Deprecated, only used by Object.observe.
   int CopyKeysTo(FixedArray* storage, int index, PropertyFilter filter,
                  SortMode sort_mode);
   // Collect the keys into the given KeyAccumulator, in ascending chronological

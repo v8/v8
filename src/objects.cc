@@ -7797,20 +7797,18 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
         }
       }
     } else {
-      Handle<FixedArray> names =
-          isolate->factory()->NewFixedArray(copy->NumberOfOwnProperties());
-      copy->GetOwnPropertyNames(*names, 0);
+      // Only deep copy fields from the object literal expression.
+      // In particular, don't try to copy the length attribute of
+      // an array.
+      PropertyFilter filter = static_cast<PropertyFilter>(
+          ONLY_WRITABLE | ONLY_ENUMERABLE | ONLY_CONFIGURABLE);
+      KeyAccumulator accumulator(isolate, filter);
+      accumulator.NextPrototype();
+      copy->CollectOwnPropertyNames(&accumulator, filter);
+      Handle<FixedArray> names = accumulator.GetKeys();
       for (int i = 0; i < names->length(); i++) {
         DCHECK(names->get(i)->IsName());
         Handle<Name> name(Name::cast(names->get(i)));
-        Maybe<PropertyAttributes> maybe =
-            JSReceiver::GetOwnPropertyAttributes(copy, name);
-        DCHECK(maybe.IsJust());
-        PropertyAttributes attributes = maybe.FromJust();
-        // Only deep copy fields from the object literal expression.
-        // In particular, don't try to copy the length attribute of
-        // an array.
-        if (attributes != NONE) continue;
         Handle<Object> value =
             Object::GetProperty(copy, name).ToHandleChecked();
         if (value->IsJSObject()) {
@@ -15841,25 +15839,6 @@ Maybe<bool> JSObject::HasRealNamedCallbackProperty(Handle<JSObject> object,
 }
 
 
-// Private symbols are always filtered out.
-int JSObject::NumberOfOwnProperties(PropertyFilter filter) {
-  if (HasFastProperties()) {
-    Map* map = this->map();
-    if (filter == ENUMERABLE_STRINGS) {
-      // The cached enum length was computed with filter == ENUMERABLE_STRING,
-      // so that's the only filter for which it's valid to retrieve it.
-      int result = map->EnumLength();
-      if (result != kInvalidEnumCacheSentinel) return result;
-    }
-    return map->NumberOfDescribedProperties(OWN_DESCRIPTORS, filter);
-  } else if (IsJSGlobalObject()) {
-    return global_dictionary()->NumberOfElementsFilterAttributes(filter);
-  } else {
-    return property_dictionary()->NumberOfElementsFilterAttributes(filter);
-  }
-}
-
-
 void FixedArray::SwapPairs(FixedArray* numbers, int i, int j) {
   Object* temp = get(i);
   set(i, get(j));
@@ -15969,33 +15948,6 @@ void FixedArray::SortPairs(FixedArray* numbers, uint32_t len) {
   } else {
     HeapSortPairs(this, numbers, len);
     return;
-  }
-}
-
-
-// Fill in the names of own properties into the supplied storage. The main
-// purpose of this function is to provide reflection information for the object
-// mirrors.
-int JSObject::GetOwnPropertyNames(FixedArray* storage, int index,
-                                  PropertyFilter filter) {
-  DCHECK(storage->length() >= (NumberOfOwnProperties(filter) - index));
-  if (HasFastProperties()) {
-    int start_index = index;
-    int real_size = map()->NumberOfOwnDescriptors();
-    DescriptorArray* descs = map()->instance_descriptors();
-    for (int i = 0; i < real_size; i++) {
-      if ((descs->GetDetails(i).attributes() & filter) == 0 &&
-          !descs->GetKey(i)->FilterKey(filter)) {
-        storage->set(index++, descs->GetKey(i));
-      }
-    }
-    return index - start_index;
-  } else if (IsJSGlobalObject()) {
-    return global_dictionary()->CopyKeysTo(storage, index, filter,
-                                           GlobalDictionary::UNSORTED);
-  } else {
-    return property_dictionary()->CopyKeysTo(storage, index, filter,
-                                             NameDictionary::UNSORTED);
   }
 }
 

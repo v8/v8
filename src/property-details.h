@@ -38,7 +38,9 @@ enum PropertyAttributes {
 
 enum PropertyFilter {
   ALL_PROPERTIES = 0,
+  ONLY_WRITABLE = 1,
   ONLY_ENUMERABLE = 2,
+  ONLY_CONFIGURABLE = 4,
   SKIP_STRINGS = 8,
   SKIP_SYMBOLS = 16,
   ONLY_ALL_CAN_READ = 32,
@@ -46,7 +48,9 @@ enum PropertyFilter {
 };
 // Enable fast comparisons of PropertyAttributes against PropertyFilters.
 STATIC_ASSERT(ALL_PROPERTIES == static_cast<PropertyFilter>(NONE));
+STATIC_ASSERT(ONLY_WRITABLE == static_cast<PropertyFilter>(READ_ONLY));
 STATIC_ASSERT(ONLY_ENUMERABLE == static_cast<PropertyFilter>(DONT_ENUM));
+STATIC_ASSERT(ONLY_CONFIGURABLE == static_cast<PropertyFilter>(DONT_DELETE));
 STATIC_ASSERT(((SKIP_STRINGS | SKIP_SYMBOLS | ONLY_ALL_CAN_READ) &
                ALL_ATTRIBUTES_MASK) == 0);
 
