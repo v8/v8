@@ -304,13 +304,12 @@
   'language/literals/regexp/u-surrogate-pairs': [FAIL],
   'language/literals/regexp/u-case-mapping': [FAIL],
   'language/literals/regexp/u-astral': [FAIL],
+  'built-ins/RegExp/valid-flags-y': [FAIL],
 
-  # https://code.google.com/p/v8/issues/detail?id=4342
+   # https://code.google.com/p/v8/issues/detail?id=4602
   'built-ins/RegExp/prototype/exec/get-sticky-coerce': [FAIL],
   'built-ins/RegExp/prototype/exec/get-sticky-err': [FAIL],
-  'built-ins/RegExp/prototype/test/get-sticky-coerce': [FAIL],
   'built-ins/RegExp/prototype/test/get-sticky-err': [FAIL],
-  'built-ins/RegExp/valid-flags-y': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=4504
   'built-ins/RegExp/prototype/exec/y-fail-lastindex-no-write': [PASS, FAIL],
