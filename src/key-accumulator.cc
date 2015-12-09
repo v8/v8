@@ -234,10 +234,10 @@ MaybeHandle<FixedArray> FilterProxyKeys(Isolate* isolate, Handle<JSProxy> owner,
     if (key->FilterKey(filter)) continue;  // Skip this key.
     if (filter & ONLY_ENUMERABLE) {
       PropertyDescriptor desc;
-      bool found =
+      Maybe<bool> found =
           JSProxy::GetOwnPropertyDescriptor(isolate, owner, key, &desc);
-      if (isolate->has_pending_exception()) return MaybeHandle<FixedArray>();
-      if (!found || !desc.enumerable()) continue;  // Skip this key.
+      MAYBE_RETURN(found, MaybeHandle<FixedArray>());
+      if (!found.FromJust() || !desc.enumerable()) continue;  // Skip this key.
     }
     // Keep this key.
     if (store_position != i) {
@@ -251,11 +251,12 @@ MaybeHandle<FixedArray> FilterProxyKeys(Isolate* isolate, Handle<JSProxy> owner,
 }
 
 
-// Returns "false" in case of exception, "true" on success.
-bool KeyAccumulator::AddKeysFromProxy(Handle<JSProxy> proxy,
-                                      Handle<FixedArray> keys) {
+// Returns "nothing" in case of exception, "true" on success.
+Maybe<bool> KeyAccumulator::AddKeysFromProxy(Handle<JSProxy> proxy,
+                                             Handle<FixedArray> keys) {
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate_, keys, FilterProxyKeys(isolate_, proxy, keys, filter_), false);
+      isolate_, keys, FilterProxyKeys(isolate_, proxy, keys, filter_),
+      Nothing<bool>());
   // Proxies define a complete list of keys with no distinction of
   // elements and properties, which breaks the normal assumption for the
   // KeyAccumulator.
@@ -264,7 +265,7 @@ bool KeyAccumulator::AddKeysFromProxy(Handle<JSProxy> proxy,
   // element keys for this level. Otherwise we would not fully respect the order
   // given by the proxy.
   level_string_length_ = -level_string_length_;
-  return true;
+  return Just(true);
 }
 
 

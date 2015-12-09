@@ -1458,12 +1458,11 @@ BUILTIN(ReflectDefineProperty) {
     return isolate->heap()->exception();
   }
 
-  bool result =
+  Maybe<bool> result =
       JSReceiver::DefineOwnProperty(isolate, Handle<JSReceiver>::cast(target),
                                     name, &desc, Object::DONT_THROW);
-  if (isolate->has_pending_exception()) return isolate->heap()->exception();
-  // TODO(neis): Make DefineOwnProperty return Maybe<bool>.
-  return *isolate->factory()->ToBoolean(result);
+  MAYBE_RETURN(result, isolate->heap()->exception());
+  return *isolate->factory()->ToBoolean(result.FromJust());
 }
 
 
@@ -1539,10 +1538,10 @@ BUILTIN(ReflectGetOwnPropertyDescriptor) {
                                      Object::ToName(isolate, key));
 
   PropertyDescriptor desc;
-  bool found = JSReceiver::GetOwnPropertyDescriptor(
+  Maybe<bool> found = JSReceiver::GetOwnPropertyDescriptor(
       isolate, Handle<JSReceiver>::cast(target), name, &desc);
-  if (isolate->has_pending_exception()) return isolate->heap()->exception();
-  if (!found) return isolate->heap()->undefined_value();
+  MAYBE_RETURN(found, isolate->heap()->exception());
+  if (!found.FromJust()) return isolate->heap()->undefined_value();
   return *desc.ToObject(isolate);
 }
 

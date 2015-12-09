@@ -826,8 +826,10 @@ RUNTIME_FUNCTION(Runtime_DeclareModules) {
       }
     }
 
-    if (JSObject::PreventExtensions(module, Object::THROW_ON_ERROR).IsNothing())
+    if (JSObject::PreventExtensions(module, Object::THROW_ON_ERROR)
+            .IsNothing()) {
       DCHECK(false);
+    }
   }
 
   DCHECK(!isolate->has_pending_exception());

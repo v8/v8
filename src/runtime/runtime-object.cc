@@ -287,11 +287,11 @@ RUNTIME_FUNCTION(Runtime_GetOwnProperty) {
 
   // 3. Let desc be ? obj.[[GetOwnProperty]](key).
   PropertyDescriptor desc;
-  bool found = JSReceiver::GetOwnPropertyDescriptor(
+  Maybe<bool> found = JSReceiver::GetOwnPropertyDescriptor(
       isolate, Handle<JSReceiver>::cast(object), key, &desc);
-  if (isolate->has_pending_exception()) return isolate->heap()->exception();
+  MAYBE_RETURN(found, isolate->heap()->exception());
   // 4. Return FromPropertyDescriptor(desc).
-  if (!found) return isolate->heap()->undefined_value();
+  if (!found.FromJust()) return isolate->heap()->undefined_value();
   return *desc.ToObject(isolate);
 }
 

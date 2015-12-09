@@ -673,8 +673,9 @@ Handle<JSFunction> Genesis::GetThrowTypeErrorIntrinsic(
 
   // %ThrowTypeError% must not have a name property.
   if (JSReceiver::DeleteProperty(function, factory()->name_string())
-          .IsNothing())
+          .IsNothing()) {
     DCHECK(false);
+  }
 
   // length needs to be non configurable.
   Handle<Object> value(Smi::FromInt(function->shared()->length()), isolate());
@@ -683,8 +684,10 @@ Handle<JSFunction> Genesis::GetThrowTypeErrorIntrinsic(
       static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY))
       .Assert();
 
-  if (JSObject::PreventExtensions(function, Object::THROW_ON_ERROR).IsNothing())
+  if (JSObject::PreventExtensions(function, Object::THROW_ON_ERROR)
+          .IsNothing()) {
     DCHECK(false);
+  }
 
   return function;
 }

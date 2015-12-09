@@ -1830,42 +1830,37 @@ class JSReceiver: public HeapObject {
                                                   Handle<Object> properties);
 
   // "virtual" dispatcher to the correct [[DefineOwnProperty]] implementation.
-  static bool DefineOwnProperty(Isolate* isolate, Handle<JSReceiver> object,
-                                Handle<Object> key, PropertyDescriptor* desc,
-                                ShouldThrow should_throw);
+  MUST_USE_RESULT static Maybe<bool> DefineOwnProperty(
+      Isolate* isolate, Handle<JSReceiver> object, Handle<Object> key,
+      PropertyDescriptor* desc, ShouldThrow should_throw);
 
   // ES6 7.3.4 (when passed DONT_THROW)
   MUST_USE_RESULT static Maybe<bool> CreateDataProperty(
       LookupIterator* it, Handle<Object> value, ShouldThrow should_throw);
 
   // ES6 9.1.6.1
-  static bool OrdinaryDefineOwnProperty(Isolate* isolate,
-                                        Handle<JSObject> object,
-                                        Handle<Object> key,
-                                        PropertyDescriptor* desc,
-                                        ShouldThrow should_throw);
-  static bool OrdinaryDefineOwnProperty(LookupIterator* it,
-                                        PropertyDescriptor* desc,
-                                        ShouldThrow should_throw);
+  MUST_USE_RESULT static Maybe<bool> OrdinaryDefineOwnProperty(
+      Isolate* isolate, Handle<JSObject> object, Handle<Object> key,
+      PropertyDescriptor* desc, ShouldThrow should_throw);
+  MUST_USE_RESULT static Maybe<bool> OrdinaryDefineOwnProperty(
+      LookupIterator* it, PropertyDescriptor* desc, ShouldThrow should_throw);
   // ES6 9.1.6.2
-  static bool IsCompatiblePropertyDescriptor(Isolate* isolate, bool extensible,
-                                             PropertyDescriptor* desc,
-                                             PropertyDescriptor* current,
-                                             Handle<Name> property_name);
+  MUST_USE_RESULT static Maybe<bool> IsCompatiblePropertyDescriptor(
+      Isolate* isolate, bool extensible, PropertyDescriptor* desc,
+      PropertyDescriptor* current, Handle<Name> property_name);
   // ES6 9.1.6.3
   // |it| can be NULL in cases where the ES spec passes |undefined| as the
   // receiver. Exactly one of |it| and |property_name| must be provided.
-  static bool ValidateAndApplyPropertyDescriptor(
+  MUST_USE_RESULT static Maybe<bool> ValidateAndApplyPropertyDescriptor(
       Isolate* isolate, LookupIterator* it, bool extensible,
       PropertyDescriptor* desc, PropertyDescriptor* current,
       ShouldThrow should_throw, Handle<Name> property_name = Handle<Name>());
 
-  static bool GetOwnPropertyDescriptor(Isolate* isolate,
-                                       Handle<JSReceiver> object,
-                                       Handle<Object> key,
-                                       PropertyDescriptor* desc);
-  static bool GetOwnPropertyDescriptor(LookupIterator* it,
-                                       PropertyDescriptor* desc);
+  MUST_USE_RESULT static Maybe<bool> GetOwnPropertyDescriptor(
+      Isolate* isolate, Handle<JSReceiver> object, Handle<Object> key,
+      PropertyDescriptor* desc);
+  MUST_USE_RESULT static Maybe<bool> GetOwnPropertyDescriptor(
+      LookupIterator* it, PropertyDescriptor* desc);
 
   typedef PropertyAttributes IntegrityLevel;
 
@@ -9519,14 +9514,14 @@ class JSProxy: public JSReceiver {
       Handle<JSProxy> proxy, ShouldThrow should_throw);
 
   // ES6 9.5.5
-  static bool GetOwnPropertyDescriptor(Isolate* isolate, Handle<JSProxy> proxy,
-                                       Handle<Name> name,
-                                       PropertyDescriptor* desc);
+  MUST_USE_RESULT static Maybe<bool> GetOwnPropertyDescriptor(
+      Isolate* isolate, Handle<JSProxy> proxy, Handle<Name> name,
+      PropertyDescriptor* desc);
 
   // ES6 9.5.6
-  static bool DefineOwnProperty(Isolate* isolate, Handle<JSProxy> object,
-                                Handle<Object> key, PropertyDescriptor* desc,
-                                ShouldThrow should_throw);
+  MUST_USE_RESULT static Maybe<bool> DefineOwnProperty(
+      Isolate* isolate, Handle<JSProxy> object, Handle<Object> key,
+      PropertyDescriptor* desc, ShouldThrow should_throw);
 
   // ES6 9.5.7
   MUST_USE_RESULT static Maybe<bool> HasProperty(Isolate* isolate,
@@ -9550,13 +9545,15 @@ class JSProxy: public JSReceiver {
       Handle<JSProxy> proxy, Handle<Name> name, LanguageMode language_mode);
 
   // ES6 9.5.11
-  static bool Enumerate(Isolate* isolate, Handle<JSReceiver> receiver,
-                        Handle<JSProxy> proxy, KeyAccumulator* accumulator);
+  MUST_USE_RESULT static Maybe<bool> Enumerate(Isolate* isolate,
+                                               Handle<JSReceiver> receiver,
+                                               Handle<JSProxy> proxy,
+                                               KeyAccumulator* accumulator);
 
   // ES6 9.5.12
-  static bool OwnPropertyKeys(Isolate* isolate, Handle<JSReceiver> receiver,
-                              Handle<JSProxy> proxy, PropertyFilter filter,
-                              KeyAccumulator* accumulator);
+  MUST_USE_RESULT static Maybe<bool> OwnPropertyKeys(
+      Isolate* isolate, Handle<JSReceiver> receiver, Handle<JSProxy> proxy,
+      PropertyFilter filter, KeyAccumulator* accumulator);
 
   MUST_USE_RESULT static Maybe<PropertyAttributes> GetPropertyAttributes(
       LookupIterator* it);
@@ -9580,11 +9577,6 @@ class JSProxy: public JSReceiver {
   static Handle<Smi> GetOrCreateIdentityHash(Handle<JSProxy> proxy);
 
  private:
-  friend class JSReceiver;
-
-  MUST_USE_RESULT static MaybeHandle<Object> GetTrap(Handle<JSProxy> proxy,
-                                                     Handle<String> trap);
-
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSProxy);
 };
 
@@ -10063,16 +10055,18 @@ class JSArray: public JSObject {
   static inline void SetContent(Handle<JSArray> array,
                                 Handle<FixedArrayBase> storage);
 
-  static bool DefineOwnProperty(Isolate* isolate, Handle<JSArray> o,
-                                Handle<Object> name, PropertyDescriptor* desc,
-                                ShouldThrow should_throw);
+  // ES6 9.4.2.1
+  MUST_USE_RESULT static Maybe<bool> DefineOwnProperty(
+      Isolate* isolate, Handle<JSArray> o, Handle<Object> name,
+      PropertyDescriptor* desc, ShouldThrow should_throw);
 
   static bool AnythingToArrayLength(Isolate* isolate,
                                     Handle<Object> length_object,
                                     uint32_t* output);
-  static bool ArraySetLength(Isolate* isolate, Handle<JSArray> a,
-                             PropertyDescriptor* desc,
-                             ShouldThrow should_throw);
+  MUST_USE_RESULT static Maybe<bool> ArraySetLength(Isolate* isolate,
+                                                    Handle<JSArray> a,
+                                                    PropertyDescriptor* desc,
+                                                    ShouldThrow should_throw);
 
   DECLARE_CAST(JSArray)
 

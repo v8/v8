@@ -3526,11 +3526,11 @@ Maybe<bool> v8::Object::DefineOwnProperty(v8::Local<v8::Context> context,
   desc.set_enumerable(!(attributes & v8::DontEnum));
   desc.set_configurable(!(attributes & v8::DontDelete));
   desc.set_value(value_obj);
-  bool success = i::JSReceiver::DefineOwnProperty(isolate, self, key_obj, &desc,
-                                                  i::Object::DONT_THROW);
+  Maybe<bool> success = i::JSReceiver::DefineOwnProperty(
+      isolate, self, key_obj, &desc, i::Object::DONT_THROW);
   // Even though we said DONT_THROW, there might be accessors that do throw.
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
-  return Just(success);
+  return success;
 }
 
 
@@ -3669,11 +3669,11 @@ MaybeLocal<Value> v8::Object::GetOwnPropertyDescriptor(Local<Context> context,
   i::Handle<i::String> key_name = Utils::OpenHandle(*key);
 
   i::PropertyDescriptor desc;
-  bool found =
+  Maybe<bool> found =
       i::JSReceiver::GetOwnPropertyDescriptor(isolate, obj, key_name, &desc);
-  has_pending_exception = isolate->has_pending_exception();
+  has_pending_exception = found.IsNothing();
   RETURN_ON_FAILED_EXECUTION(Value);
-  if (!found) {
+  if (!found.FromJust()) {
     return v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
   }
   RETURN_ESCAPED(Utils::ToLocal(desc.ToObject(isolate)));
