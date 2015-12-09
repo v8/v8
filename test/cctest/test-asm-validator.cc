@@ -36,6 +36,9 @@
 #define FUNC_DD2D_TYPE                                                        \
   Bounds(Type::Function(cache.kAsmDouble, cache.kAsmDouble, cache.kAsmDouble, \
                         zone))
+#define FUNC_NN2N_TYPE                                          \
+  Bounds(Type::Function(Type::Number(zone), Type::Number(zone), \
+                        Type::Number(zone), zone))
 #define FUNC_N2N_TYPE \
   Bounds(Type::Function(Type::Number(zone), Type::Number(zone), zone))
 
@@ -402,10 +405,10 @@ namespace {
 
 void CheckStdlibShortcuts1(Zone* zone, ZoneVector<ExpressionTypeEntry>& types,
                            size_t& index, int& depth, TypeCache& cache) {
-  // var exp = stdlib.*; (D * 12)
+  // var exp = stdlib.*;
   CHECK_VAR_SHORTCUT(Infinity, Bounds(cache.kAsmDouble));
   CHECK_VAR_SHORTCUT(NaN, Bounds(cache.kAsmDouble));
-  // var x = stdlib.Math.x;  D2D
+  // var x = stdlib.Math.x;
   CHECK_VAR_MATH_SHORTCUT(acos, FUNC_D2D_TYPE);
   CHECK_VAR_MATH_SHORTCUT(asin, FUNC_D2D_TYPE);
   CHECK_VAR_MATH_SHORTCUT(atan, FUNC_D2D_TYPE);
@@ -414,15 +417,17 @@ void CheckStdlibShortcuts1(Zone* zone, ZoneVector<ExpressionTypeEntry>& types,
   CHECK_VAR_MATH_SHORTCUT(tan, FUNC_D2D_TYPE);
   CHECK_VAR_MATH_SHORTCUT(exp, FUNC_D2D_TYPE);
   CHECK_VAR_MATH_SHORTCUT(log, FUNC_D2D_TYPE);
-  CHECK_VAR_MATH_SHORTCUT(ceil, FUNC_D2D_TYPE);
-  CHECK_VAR_MATH_SHORTCUT(floor, FUNC_D2D_TYPE);
-  CHECK_VAR_MATH_SHORTCUT(sqrt, FUNC_D2D_TYPE);
-  // var exp = stdlib.Math.*; (DD2D * 12)
-  CHECK_VAR_MATH_SHORTCUT(min, FUNC_DD2D_TYPE);
-  CHECK_VAR_MATH_SHORTCUT(max, FUNC_DD2D_TYPE);
+
+  CHECK_VAR_MATH_SHORTCUT(ceil, FUNC_N2N_TYPE);
+  CHECK_VAR_MATH_SHORTCUT(floor, FUNC_N2N_TYPE);
+  CHECK_VAR_MATH_SHORTCUT(sqrt, FUNC_N2N_TYPE);
+
+  CHECK_VAR_MATH_SHORTCUT(min, FUNC_NN2N_TYPE);
+  CHECK_VAR_MATH_SHORTCUT(max, FUNC_NN2N_TYPE);
+
   CHECK_VAR_MATH_SHORTCUT(atan2, FUNC_DD2D_TYPE);
   CHECK_VAR_MATH_SHORTCUT(pow, FUNC_DD2D_TYPE);
-  // Special ones.
+
   CHECK_VAR_MATH_SHORTCUT(abs, FUNC_N2N_TYPE);
   CHECK_VAR_MATH_SHORTCUT(imul, FUNC_II2I_TYPE);
   CHECK_VAR_MATH_SHORTCUT(fround, FUNC_N2F_TYPE);
@@ -1733,6 +1738,24 @@ TEST(BadArrayAssignment) {
 }
 
 
+TEST(BadStandardFunctionCallOutside) {
+  CHECK_FUNC_ERROR(
+      "var s0 = sin(0);\n"
+      "function bar() { }\n"
+      "function foo() { bar(); }",
+      "asm: line 39: calls forbidden outside function bodies\n");
+}
+
+
+TEST(BadFunctionCallOutside) {
+  CHECK_FUNC_ERROR(
+      "function bar() { return 0.0; }\n"
+      "var s0 = bar(0);\n"
+      "function foo() { bar(); }",
+      "asm: line 40: calls forbidden outside function bodies\n");
+}
+
+
 TEST(NestedVariableAssignment) {
   CHECK_FUNC_TYPES_BEGIN(
       "function bar() { var x = 0; x = x = 4; }\n"
@@ -1809,6 +1832,55 @@ TEST(NegativeInteger) {
       CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
         CHECK_VAR(x, Bounds(cache.kAsmInt));
         CHECK_EXPR(Literal, Bounds(cache.kAsmSigned));
+      }
+    }
+    CHECK_SKIP();
+  }
+  CHECK_FUNC_TYPES_END
+}
+
+
+TEST(AbsFunction) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { var x = -123.0; x = abs(x); }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_V_TYPE) {
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmDouble)) {
+        CHECK_VAR(x, Bounds(cache.kAsmDouble));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmDouble));
+      }
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmDouble)) {
+        CHECK_VAR(x, Bounds(cache.kAsmDouble));
+        CHECK_EXPR(Call, Bounds(cache.kAsmDouble)) {
+          CHECK_VAR(abs, FUNC_N2N_TYPE);
+          CHECK_VAR(x, Bounds(cache.kAsmDouble));
+        }
+      }
+    }
+    CHECK_SKIP();
+  }
+  CHECK_FUNC_TYPES_END
+}
+
+
+TEST(CeilFloat) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { var x = fround(3.1); x = ceil(x); }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_V_TYPE) {
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmFloat)) {
+        CHECK_VAR(x, Bounds(cache.kAsmFloat));
+        CHECK_EXPR(Call, Bounds(cache.kAsmFloat)) {
+          CHECK_VAR(fround, FUNC_N2F_TYPE);
+          CHECK_EXPR(Literal, Bounds(cache.kAsmDouble));
+        }
+      }
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmFloat)) {
+        CHECK_VAR(x, Bounds(cache.kAsmFloat));
+        CHECK_EXPR(Call, Bounds(cache.kAsmFloat)) {
+          CHECK_VAR(ceil, FUNC_N2N_TYPE);
+          CHECK_VAR(x, Bounds(cache.kAsmFloat));
+        }
       }
     }
     CHECK_SKIP();

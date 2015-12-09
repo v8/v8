@@ -99,7 +99,6 @@ void AsmTyper::VisitAsmModule(FunctionLiteral* fun) {
     if (decl != NULL) {
       RECURSE(VisitFunctionAnnotation(decl->fun()));
       Variable* var = decl->proxy()->var();
-      DCHECK(GetType(var) == NULL);
       if (property_info_ != NULL) {
         SetVariableInfo(var, property_info_);
         property_info_ = NULL;
@@ -151,6 +150,10 @@ void AsmTyper::VisitFunctionDeclaration(FunctionDeclaration* decl) {
   if (in_function_) {
     FAIL(decl, "function declared inside another");
   }
+  // Set function type so global references to functions have some type
+  // (so they can give a more useful error).
+  Variable* var = decl->proxy()->var();
+  SetType(var, Type::Function(zone()));
 }
 
 
@@ -535,7 +538,7 @@ void AsmTyper::VisitVariableProxy(VariableProxy* expr) {
   if (type->Is(cache_.kAsmInt)) {
     type = cache_.kAsmInt;
   }
-  SetType(var, type);
+  info->type = type;
   intish_ = 0;
   IntersectResult(expr, type);
 }
@@ -776,14 +779,14 @@ bool AsmTyper::IsStdlibObject(Expression* expr) {
   Variable* var = proxy->var();
   VariableInfo* info = GetVariableInfo(var, false);
   if (info) {
-    if (info->is_stdlib_object) return info->is_stdlib_object;
+    if (info->standard_member == kStdlib) return true;
   }
   if (var->location() != VariableLocation::PARAMETER || var->index() != 0) {
     return false;
   }
   info = GetVariableInfo(var, true);
   info->type = Type::Object();
-  info->is_stdlib_object = true;
+  info->standard_member = kStdlib;
   return true;
 }
 
@@ -874,8 +877,20 @@ void AsmTyper::VisitProperty(Property* expr) {
 void AsmTyper::VisitCall(Call* expr) {
   RECURSE(VisitWithExpectation(expr->expression(), Type::Any(),
                                "callee expected to be any"));
+  StandardMember standard_member = kNone;
+  VariableProxy* proxy = expr->expression()->AsVariableProxy();
+  if (proxy) {
+    standard_member = VariableAsStandardMember(proxy->var());
+  }
+  if (!in_function_ && (proxy == NULL || standard_member != kMathFround)) {
+    FAIL(expr, "calls forbidden outside function bodies");
+  }
+  if (proxy == NULL && !expr->expression()->IsProperty()) {
+    FAIL(expr, "calls must be to bound variables or function tables");
+  }
   if (computed_type_->IsFunction()) {
     Type::FunctionType* fun_type = computed_type_->AsFunction();
+    Type* result_type = fun_type->Result();
     ZoneList<Expression*>* args = expr->arguments();
     if (fun_type->Arity() != args->length()) {
       FAIL(expr, "call with wrong arity");
@@ -885,9 +900,36 @@ void AsmTyper::VisitCall(Call* expr) {
       RECURSE(VisitWithExpectation(
           arg, fun_type->Parameter(i),
           "call argument expected to match callee parameter"));
+      if (standard_member != kNone && standard_member != kMathFround &&
+          i == 0) {
+        result_type = computed_type_;
+      }
+    }
+    // Handle polymorphic stdlib functions specially.
+    if (standard_member == kMathCeil || standard_member == kMathFloor ||
+        standard_member == kMathSqrt) {
+      if (!args->at(0)->bounds().upper->Is(cache_.kAsmFloat) &&
+          !args->at(0)->bounds().upper->Is(cache_.kAsmDouble)) {
+        FAIL(expr, "illegal function argument type");
+      }
+    } else if (standard_member == kMathAbs || standard_member == kMathMin ||
+               standard_member == kMathMax) {
+      if (!args->at(0)->bounds().upper->Is(cache_.kAsmFloat) &&
+          !args->at(0)->bounds().upper->Is(cache_.kAsmDouble) &&
+          !args->at(0)->bounds().upper->Is(cache_.kAsmSigned)) {
+        FAIL(expr, "illegal function argument type");
+      }
+      if (args->length() > 1) {
+        Type* other = Type::Intersect(args->at(0)->bounds().upper,
+                                      args->at(1)->bounds().upper, zone());
+        if (!other->Is(cache_.kAsmFloat) && !other->Is(cache_.kAsmDouble) &&
+            !other->Is(cache_.kAsmSigned)) {
+          FAIL(expr, "function arguments types don't match");
+        }
+      }
     }
     intish_ = 0;
-    IntersectResult(expr, fun_type->Result());
+    IntersectResult(expr, result_type);
   } else if (computed_type_->Is(Type::Any())) {
     // For foreign calls.
     ZoneList<Expression*>* args = expr->arguments();
@@ -1230,34 +1272,52 @@ void AsmTyper::InitializeStdlib() {
       Type::Function(cache_.kAsmSigned, cache_.kAsmInt, cache_.kAsmInt, zone());
   // TODO(bradnelson): currently only approximating the proper intersection type
   // (which we cannot currently represent).
-  Type* abs_type = Type::Function(number_type, number_type, zone());
+  Type* number_fn1_type = Type::Function(number_type, number_type, zone());
+  Type* number_fn2_type =
+      Type::Function(number_type, number_type, number_type, zone());
 
   struct Assignment {
     const char* name;
+    StandardMember standard_member;
     Type* type;
   };
 
-  const Assignment math[] = {
-      {"PI", double_type},       {"E", double_type},
-      {"LN2", double_type},      {"LN10", double_type},
-      {"LOG2E", double_type},    {"LOG10E", double_type},
-      {"SQRT2", double_type},    {"SQRT1_2", double_type},
-      {"imul", imul_type},       {"abs", abs_type},
-      {"ceil", double_fn1_type}, {"floor", double_fn1_type},
-      {"fround", fround_type},   {"pow", double_fn2_type},
-      {"exp", double_fn1_type},  {"log", double_fn1_type},
-      {"min", double_fn2_type},  {"max", double_fn2_type},
-      {"sqrt", double_fn1_type}, {"cos", double_fn1_type},
-      {"sin", double_fn1_type},  {"tan", double_fn1_type},
-      {"acos", double_fn1_type}, {"asin", double_fn1_type},
-      {"atan", double_fn1_type}, {"atan2", double_fn2_type}};
+  const Assignment math[] = {{"PI", kMathPI, double_type},
+                             {"E", kMathE, double_type},
+                             {"LN2", kMathLN2, double_type},
+                             {"LN10", kMathLN10, double_type},
+                             {"LOG2E", kMathLOG2E, double_type},
+                             {"LOG10E", kMathLOG10E, double_type},
+                             {"SQRT2", kMathSQRT2, double_type},
+                             {"SQRT1_2", kMathSQRT1_2, double_type},
+                             {"imul", kMathImul, imul_type},
+                             {"abs", kMathAbs, number_fn1_type},
+                             {"ceil", kMathCeil, number_fn1_type},
+                             {"floor", kMathFloor, number_fn1_type},
+                             {"fround", kMathFround, fround_type},
+                             {"pow", kMathPow, double_fn2_type},
+                             {"exp", kMathExp, double_fn1_type},
+                             {"log", kMathLog, double_fn1_type},
+                             {"min", kMathMin, number_fn2_type},
+                             {"max", kMathMax, number_fn2_type},
+                             {"sqrt", kMathSqrt, number_fn1_type},
+                             {"cos", kMathCos, double_fn1_type},
+                             {"sin", kMathSin, double_fn1_type},
+                             {"tan", kMathTan, double_fn1_type},
+                             {"acos", kMathAcos, double_fn1_type},
+                             {"asin", kMathAsin, double_fn1_type},
+                             {"atan", kMathAtan, double_fn1_type},
+                             {"atan2", kMathAtan2, double_fn2_type}};
   for (unsigned i = 0; i < arraysize(math); ++i) {
     stdlib_math_types_[math[i].name] = new (zone()) VariableInfo(math[i].type);
+    stdlib_math_types_[math[i].name]->standard_member = math[i].standard_member;
   }
   stdlib_math_types_["fround"]->is_check_function = true;
 
   stdlib_types_["Infinity"] = new (zone()) VariableInfo(double_type);
+  stdlib_types_["Infinity"]->standard_member = kInfinity;
   stdlib_types_["NaN"] = new (zone()) VariableInfo(double_type);
+  stdlib_types_["NaN"]->standard_member = kNaN;
   Type* buffer_type = Type::Any(zone());
 #define TYPED_ARRAY(TypeName, type_name, TYPE_NAME, ctype, size) \
   stdlib_types_[#TypeName "Array"] = new (zone()) VariableInfo(  \
@@ -1326,6 +1386,8 @@ AsmTyper::VariableInfo* AsmTyper::GetVariableInfo(Variable* variable,
     if (!entry && in_function_) {
       entry =
           global_variable_type_.Lookup(variable, ComputePointerHash(variable));
+      if (entry && entry->value) {
+      }
     }
   }
   if (!entry) return NULL;
@@ -1340,9 +1402,17 @@ AsmTyper::VariableInfo* AsmTyper::GetVariableInfo(Variable* variable,
 void AsmTyper::SetVariableInfo(Variable* variable, const VariableInfo* info) {
   VariableInfo* dest = GetVariableInfo(variable, true);
   dest->type = info->type;
-  dest->is_stdlib_object = info->is_stdlib_object;
   dest->is_check_function = info->is_check_function;
   dest->is_constructor_function = info->is_constructor_function;
+  dest->standard_member = info->standard_member;
+}
+
+
+AsmTyper::StandardMember AsmTyper::VariableAsStandardMember(
+    Variable* variable) {
+  VariableInfo* info = GetVariableInfo(variable, false);
+  if (!info) return kNone;
+  return info->standard_member;
 }
 
 
