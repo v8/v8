@@ -2040,7 +2040,7 @@ AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
   reinterpret_cast<Map*>(result)->set_bit_field2(0);
   int bit_field3 = Map::EnumLengthBits::encode(kInvalidEnumCacheSentinel) |
                    Map::OwnsDescriptors::encode(true) |
-                   Map::Counter::encode(Map::kRetainingCounterStart);
+                   Map::ConstructionCounter::encode(Map::kNoSlackTracking);
   reinterpret_cast<Map*>(result)->set_bit_field3(bit_field3);
   reinterpret_cast<Map*>(result)->set_weak_cell_cache(Smi::FromInt(0));
   return result;
@@ -2079,7 +2079,7 @@ AllocationResult Heap::AllocateMap(InstanceType instance_type,
   map->set_bit_field2(1 << Map::kIsExtensible);
   int bit_field3 = Map::EnumLengthBits::encode(kInvalidEnumCacheSentinel) |
                    Map::OwnsDescriptors::encode(true) |
-                   Map::Counter::encode(Map::kRetainingCounterStart);
+                   Map::ConstructionCounter::encode(Map::kNoSlackTracking);
   map->set_bit_field3(bit_field3);
   map->set_elements_kind(elements_kind);
   map->set_new_target_is_base(true);

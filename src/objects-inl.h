@@ -4758,12 +4758,14 @@ void Map::set_new_target_is_base(bool value) {
 bool Map::new_target_is_base() { return NewTargetIsBase::decode(bit_field3()); }
 
 
-void Map::set_counter(int value) {
-  set_bit_field3(Counter::update(bit_field3(), value));
+void Map::set_construction_counter(int value) {
+  set_bit_field3(ConstructionCounter::update(bit_field3(), value));
 }
 
 
-int Map::counter() { return Counter::decode(bit_field3()); }
+int Map::construction_counter() {
+  return ConstructionCounter::decode(bit_field3());
+}
 
 
 void Map::mark_unstable() {
@@ -6165,14 +6167,14 @@ void JSFunction::CompleteInobjectSlackTrackingIfActive() {
 
 
 bool Map::IsInobjectSlackTrackingInProgress() {
-  return counter() >= Map::kSlackTrackingCounterEnd;
+  return construction_counter() != Map::kNoSlackTracking;
 }
 
 
 void Map::InobjectSlackTrackingStep() {
   if (!IsInobjectSlackTrackingInProgress()) return;
-  int counter = this->counter();
-  set_counter(counter - 1);
+  int counter = construction_counter();
+  set_construction_counter(counter - 1);
   if (counter == kSlackTrackingCounterEnd) {
     CompleteInobjectSlackTracking();
   }

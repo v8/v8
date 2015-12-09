@@ -423,12 +423,12 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
           MemOperand bit_field3 = FieldMemOperand(a2, Map::kBitField3Offset);
           // Check if slack tracking is enabled.
           __ lw(t0, bit_field3);
-          __ DecodeField<Map::Counter>(t2, t0);
+          __ DecodeField<Map::ConstructionCounter>(t2, t0);
           // t2: slack tracking counter
           __ Branch(&no_inobject_slack_tracking, lt, t2,
                     Operand(Map::kSlackTrackingCounterEnd));
           // Decrease generous allocation count.
-          __ Subu(t0, t0, Operand(1 << Map::Counter::kShift));
+          __ Subu(t0, t0, Operand(1 << Map::ConstructionCounter::kShift));
           __ sw(t0, bit_field3);
 
           // Allocate object with a slack.

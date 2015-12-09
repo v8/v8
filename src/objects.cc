@@ -8851,7 +8851,8 @@ Handle<Map> Map::RawCopy(Handle<Map> map, int instance_size) {
   if (!map->is_dictionary_map()) {
     new_bit_field3 = IsUnstable::update(new_bit_field3, false);
   }
-  new_bit_field3 = Counter::update(new_bit_field3, kRetainingCounterStart);
+  new_bit_field3 =
+      ConstructionCounter::update(new_bit_field3, kNoSlackTracking);
   result->set_bit_field3(new_bit_field3);
   return result;
 }
@@ -12152,8 +12153,7 @@ void Map::CompleteInobjectSlackTracking() {
   // Has to be an initial map.
   DCHECK(GetBackPointer()->IsUndefined());
 
-  DCHECK_GE(counter(), kSlackTrackingCounterEnd - 1);
-  set_counter(kRetainingCounterStart);
+  set_construction_counter(kNoSlackTracking);
 
   int slack = unused_property_fields();
   TransitionArray::TraverseTransitionTree(this, &GetMinInobjectSlack, &slack);
@@ -13332,7 +13332,7 @@ void Map::StartInobjectSlackTracking() {
 
   if (unused_property_fields() == 0) return;
 
-  set_counter(Map::kSlackTrackingCounterStart);
+  set_construction_counter(Map::kSlackTrackingCounterStart);
 }
 
 

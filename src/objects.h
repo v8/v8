@@ -5489,17 +5489,18 @@ class Map: public HeapObject {
   class IsMigrationTarget : public BitField<bool, 25, 1> {};
   class IsStrong : public BitField<bool, 26, 1> {};
   class NewTargetIsBase : public BitField<bool, 27, 1> {};
+  // Bit 28 is free.
 
   // Keep this bit field at the very end for better code in
   // Builtins::kJSConstructStubGeneric stub.
-  // This counter is used for in-object slack tracking and for map aging.
+  // This counter is used for in-object slack tracking.
   // The in-object slack tracking is considered enabled when the counter is
-  // in the range [kSlackTrackingCounterStart, kSlackTrackingCounterEnd].
-  class Counter : public BitField<int, 28, 4> {};
-  static const int kSlackTrackingCounterStart = 14;
-  static const int kSlackTrackingCounterEnd = 8;
-  static const int kRetainingCounterStart = kSlackTrackingCounterEnd - 1;
-  static const int kRetainingCounterEnd = 0;
+  // non zero.
+  class ConstructionCounter : public BitField<int, 29, 3> {};
+  static const int kSlackTrackingCounterStart = 7;
+  static const int kSlackTrackingCounterEnd = 1;
+  static const int kNoSlackTracking = 0;
+  STATIC_ASSERT(kSlackTrackingCounterStart <= ConstructionCounter::kMax);
 
 
   // Inobject slack tracking is the way to reclaim unused inobject space.
@@ -5768,8 +5769,8 @@ class Map: public HeapObject {
   inline bool is_stable();
   inline void set_migration_target(bool value);
   inline bool is_migration_target();
-  inline void set_counter(int value);
-  inline int counter();
+  inline void set_construction_counter(int value);
+  inline int construction_counter();
   inline void deprecate();
   inline bool is_deprecated();
   inline bool CanBeDeprecated();

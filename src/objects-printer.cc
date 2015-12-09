@@ -484,7 +484,7 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
   os << "\n - constructor: " << Brief(GetConstructor());
   os << "\n - code cache: " << Brief(code_cache());
   os << "\n - dependent code: " << Brief(dependent_code());
-  os << "\n - counter: " << counter();
+  os << "\n - construction counter: " << construction_counter();
   os << "\n";
 }
 

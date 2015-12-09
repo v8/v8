@@ -185,16 +185,16 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
           Label no_inobject_slack_tracking;
 
           // The code below relies on these assumptions.
-          STATIC_ASSERT(Map::Counter::kShift + Map::Counter::kSize == 32);
+          STATIC_ASSERT(Map::kNoSlackTracking == 0);
+          STATIC_ASSERT(Map::ConstructionCounter::kNext == 32);
           // Check if slack tracking is enabled.
           __ movl(rsi, FieldOperand(rax, Map::kBitField3Offset));
-          __ shrl(rsi, Immediate(Map::Counter::kShift));
-          __ cmpl(rsi, Immediate(Map::kSlackTrackingCounterEnd));
-          __ j(less, &no_inobject_slack_tracking);
+          __ shrl(rsi, Immediate(Map::ConstructionCounter::kShift));
+          __ j(zero, &no_inobject_slack_tracking);  // Map::kNoSlackTracking
           __ Push(rsi);  // Save allocation count value.
           // Decrease generous allocation count.
           __ subl(FieldOperand(rax, Map::kBitField3Offset),
-                  Immediate(1 << Map::Counter::kShift));
+                  Immediate(1 << Map::ConstructionCounter::kShift));
 
           // Allocate object with a slack.
           __ movzxbp(rsi, FieldOperand(rax, Map::kUnusedPropertyFieldsOffset));
