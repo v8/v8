@@ -36,7 +36,7 @@ function CreateConstructableProxy(handler) {
 
   var o = Reflect.construct(Number, [100], proxy);
   assertEquals(["get trap"], log);
-  assertTrue(Object.getPrototypeOf(o) === Object.prototype);
+  assertTrue(Object.getPrototypeOf(o) === Number.prototype);
   assertEquals(100, Number.prototype.valueOf.call(o));
 })();
 

@@ -1137,8 +1137,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     CacheInitialJSArrayMaps(native_context(), initial_strong_map);
 
     SimpleInstallFunction(array_function,
-        factory->NewStringFromAsciiChecked("isArray"),
-        Builtins::kArrayIsArray, 1, true);
+                          isolate->factory()->InternalizeUtf8String("isArray"),
+                          Builtins::kArrayIsArray, 1, true);
   }
 
   {  // --- N u m b e r ---
@@ -1242,6 +1242,62 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     initial_map->set_unused_property_fields(0);
     initial_map->set_instance_size(initial_map->instance_size() +
                                    num_fields * kPointerSize);
+  }
+
+  {  // -- E r r o r
+    Handle<JSFunction> error_fun = InstallFunction(
+        global, "Error", JS_OBJECT_TYPE, JSObject::kHeaderSize,
+        isolate->initial_object_prototype(), Builtins::kIllegal);
+    InstallWithIntrinsicDefaultProto(isolate, error_fun,
+                                     Context::ERROR_FUNCTION_INDEX);
+  }
+
+  {  // -- E v a l E r r o r
+    Handle<JSFunction> eval_error_fun = InstallFunction(
+        global, "EvalError", JS_OBJECT_TYPE, JSObject::kHeaderSize,
+        isolate->initial_object_prototype(), Builtins::kIllegal);
+    InstallWithIntrinsicDefaultProto(isolate, eval_error_fun,
+                                     Context::EVAL_ERROR_FUNCTION_INDEX);
+  }
+
+  {  // -- R a n g e E r r o r
+    Handle<JSFunction> range_error_fun = InstallFunction(
+        global, "RangeError", JS_OBJECT_TYPE, JSObject::kHeaderSize,
+        isolate->initial_object_prototype(), Builtins::kIllegal);
+    InstallWithIntrinsicDefaultProto(isolate, range_error_fun,
+                                     Context::RANGE_ERROR_FUNCTION_INDEX);
+  }
+
+  {  // -- R e f e r e n c e E r r o r
+    Handle<JSFunction> reference_error_fun = InstallFunction(
+        global, "ReferenceError", JS_OBJECT_TYPE, JSObject::kHeaderSize,
+        isolate->initial_object_prototype(), Builtins::kIllegal);
+    InstallWithIntrinsicDefaultProto(isolate, reference_error_fun,
+                                     Context::REFERENCE_ERROR_FUNCTION_INDEX);
+  }
+
+  {  // -- S y n t a x E r r o r
+    Handle<JSFunction> syntax_error_fun = InstallFunction(
+        global, "SyntaxError", JS_OBJECT_TYPE, JSObject::kHeaderSize,
+        isolate->initial_object_prototype(), Builtins::kIllegal);
+    InstallWithIntrinsicDefaultProto(isolate, syntax_error_fun,
+                                     Context::SYNTAX_ERROR_FUNCTION_INDEX);
+  }
+
+  {  // -- T y p e E r r o r
+    Handle<JSFunction> type_error_fun = InstallFunction(
+        global, "TypeError", JS_OBJECT_TYPE, JSObject::kHeaderSize,
+        isolate->initial_object_prototype(), Builtins::kIllegal);
+    InstallWithIntrinsicDefaultProto(isolate, type_error_fun,
+                                     Context::TYPE_ERROR_FUNCTION_INDEX);
+  }
+
+  {  // -- U R I E r r o r
+    Handle<JSFunction> uri_error_fun = InstallFunction(
+        global, "URIError", JS_OBJECT_TYPE, JSObject::kHeaderSize,
+        isolate->initial_object_prototype(), Builtins::kIllegal);
+    InstallWithIntrinsicDefaultProto(isolate, uri_error_fun,
+                                     Context::URI_ERROR_FUNCTION_INDEX);
   }
 
   // Initialize the embedder data slot.
@@ -2711,8 +2767,7 @@ bool Genesis::InstallSpecialObjects(Handle<Context> native_context) {
   Handle<JSGlobalObject> global(JSGlobalObject::cast(
       native_context->global_object()));
 
-  Handle<JSObject> Error = Handle<JSObject>::cast(
-      Object::GetProperty(isolate, global, "Error").ToHandleChecked());
+  Handle<JSObject> Error = isolate->error_function();
   Handle<String> name =
       factory->InternalizeOneByteString(STATIC_CHAR_VECTOR("stackTraceLimit"));
   Handle<Smi> stack_trace_limit(Smi::FromInt(FLAG_stack_trace_limit), isolate);

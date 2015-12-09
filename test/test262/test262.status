@@ -103,9 +103,6 @@
   'built-ins/Symbol/species/builtin-getter-name': [FAIL],
   'built-ins/Symbol/species/subclassing': [FAIL],
 
-  # https://code.google.com/p/v8/issues/detail?id=4002
-  'built-ins/Error/prototype/S15.11.4_A2': [FAIL],
-
   # https://code.google.com/p/v8/issues/detail?id=4163
   'built-ins/GeneratorPrototype/next/context-constructor-invocation': [FAIL],
 

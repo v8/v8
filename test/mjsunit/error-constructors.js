@@ -128,7 +128,7 @@ for (var i in errors) {
 
 
 Error.prototype.toString = Object.prototype.toString;
-assertEquals("[object Error]", Error.prototype.toString());
+assertEquals("[object Object]", Error.prototype.toString());
 assertEquals(Object.prototype, Error.prototype.__proto__);
 var e = new Error("foo");
 assertEquals("[object Error]", e.toString());

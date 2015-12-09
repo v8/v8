@@ -908,59 +908,45 @@ var StackTraceSetter = function(v) {
 var captureStackTrace = function() {};
 
 
-// Define special error type constructors.
-function DefineError(global, f) {
-  // Store the error function in both the global object
-  // and the runtime object. The function is fetched
-  // from the runtime object when throwing errors from
-  // within the runtime system to avoid strange side
-  // effects when overwriting the error functions from
-  // user code.
-  var name = f.name;
-  %AddNamedProperty(global, name, f, DONT_ENUM);
-  // Configure the error function.
-  if (name == 'Error') {
-    // The prototype of the Error object must itself be an error.
-    // However, it can't be an instance of the Error object because
-    // it hasn't been properly configured yet.  Instead we create a
-    // special not-a-true-error-but-close-enough object.
-    var ErrorPrototype = function() {};
-    %FunctionSetPrototype(ErrorPrototype, GlobalObject.prototype);
-    %FunctionSetInstanceClassName(ErrorPrototype, 'Error');
-    %FunctionSetPrototype(f, new ErrorPrototype());
-  } else {
-    %FunctionSetPrototype(f, new GlobalError());
-    %InternalSetPrototype(f, GlobalError);
+// Set up special error type constructors.
+function SetUpError(error_function) {
+  %FunctionSetInstanceClassName(error_function, 'Error');
+  var name = error_function.name;
+  var prototype = new GlobalObject();
+  if (name !== 'Error') {
+    %InternalSetPrototype(error_function, GlobalError);
+    %InternalSetPrototype(prototype, GlobalError.prototype);
   }
-  %FunctionSetInstanceClassName(f, 'Error');
-  %AddNamedProperty(f.prototype, 'constructor', f, DONT_ENUM);
-  %AddNamedProperty(f.prototype, 'name', name, DONT_ENUM);
-  %SetCode(f, function(m) {
-    if (!IS_UNDEFINED(new.target)) {
-      try { captureStackTrace(this, f); } catch (e) { }
-      // Define all the expected properties directly on the error
-      // object. This avoids going through getters and setters defined
-      // on prototype objects.
-      if (!IS_UNDEFINED(m)) {
-        %AddNamedProperty(this, 'message', TO_STRING(m), DONT_ENUM);
-      }
-    } else {
-      return new f(m);
+  %FunctionSetPrototype(error_function, prototype);
+
+  %AddNamedProperty(error_function.prototype, 'name', name, DONT_ENUM);
+  %AddNamedProperty(error_function.prototype, 'message', '', DONT_ENUM);
+  %AddNamedProperty(
+      error_function.prototype, 'constructor', error_function, DONT_ENUM);
+
+  %SetCode(error_function, function(m) {
+    if (IS_UNDEFINED(new.target)) return new error_function(m);
+
+    try { captureStackTrace(this, error_function); } catch (e) { }
+    // Define all the expected properties directly on the error
+    // object. This avoids going through getters and setters defined
+    // on prototype objects.
+    if (!IS_UNDEFINED(m)) {
+      %AddNamedProperty(this, 'message', TO_STRING(m), DONT_ENUM);
     }
   });
-  %SetNativeFlag(f);
-  return f;
+
+  %SetNativeFlag(error_function);
+  return error_function;
 };
 
-GlobalError = DefineError(global, function Error() { });
-GlobalEvalError = DefineError(global, function EvalError() { });
-GlobalRangeError = DefineError(global, function RangeError() { });
-GlobalReferenceError = DefineError(global, function ReferenceError() { });
-GlobalSyntaxError = DefineError(global, function SyntaxError() { });
-GlobalTypeError = DefineError(global, function TypeError() { });
-GlobalURIError = DefineError(global, function URIError() { });
-
-%AddNamedProperty(GlobalError.prototype, 'message', '', DONT_ENUM);
+GlobalError = SetUpError(global.Error);
+GlobalEvalError = SetUpError(global.EvalError);
+GlobalRangeError = SetUpError(global.RangeError);
+GlobalReferenceError = SetUpError(global.ReferenceError);
+GlobalSyntaxError = SetUpError(global.SyntaxError);
+GlobalTypeError = SetUpError(global.TypeError);
+GlobalURIError = SetUpError(global.URIError);
 
 utils.InstallFunctions(GlobalError.prototype, DONT_ENUM,
                        ['toString', ErrorToString]);
@@ -1011,8 +997,6 @@ captureStackTrace = function captureStackTrace(obj, cons_opt) {
 GlobalError.captureStackTrace = captureStackTrace;
 
 %InstallToContext([
-  "error_function", GlobalError,
-  "eval_error_function", GlobalEvalError,
   "get_stack_trace_line_fun", GetStackTraceLine,
   "make_error_function", MakeGenericError,
   "make_range_error", MakeRangeError,
@@ -1021,13 +1005,8 @@ GlobalError.captureStackTrace = captureStackTrace;
   "message_get_line_number", GetLineNumber,
   "message_get_source_line", GetSourceLine,
   "no_side_effect_to_string_fun", NoSideEffectToString,
-  "range_error_function", GlobalRangeError,
-  "reference_error_function", GlobalReferenceError,
   "stack_overflow_boilerplate", StackOverflowBoilerplate,
-  "syntax_error_function", GlobalSyntaxError,
   "to_detail_string_fun", ToDetailString,
-  "type_error_function", GlobalTypeError,
-  "uri_error_function", GlobalURIError,
 ]);
 
 utils.Export(function(to) {

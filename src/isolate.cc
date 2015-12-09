@@ -1348,21 +1348,14 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
 }
 
 
-// Traverse prototype chain to find out whether the object is derived from
-// the Error object.
-bool Isolate::IsErrorObject(Handle<Object> obj) {
-  if (!obj->IsJSObject()) return false;
-  Handle<Object> error_constructor = error_function();
-  DisallowHeapAllocation no_gc;
-  for (PrototypeIterator iter(this, *obj, PrototypeIterator::START_AT_RECEIVER);
-       !iter.IsAtEnd(); iter.Advance()) {
-    if (iter.GetCurrent()->IsJSProxy()) return false;
-    if (iter.GetCurrent<JSObject>()->map()->GetConstructor() ==
-        *error_constructor) {
-      return true;
-    }
-  }
-  return false;
+// Use stack_trace_symbol as proxy for [[ErrorData]].
+bool Isolate::IsErrorObject(Handle<Object> object) {
+  Handle<Name> symbol = factory()->stack_trace_symbol();
+  if (!object->IsJSObject()) return false;
+  Maybe<bool> has_stack_trace =
+      JSReceiver::HasOwnProperty(Handle<JSReceiver>::cast(object), symbol);
+  DCHECK(!has_stack_trace.IsNothing());
+  return has_stack_trace.FromJust();
 }
 
 
