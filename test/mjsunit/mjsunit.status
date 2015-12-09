@@ -426,9 +426,6 @@
   # BUG(v8:4016)
   'regress/regress-crbug-467047': [SKIP],
 
-  # BUG(v8:4588).
-  'random-bit-correlations': [SKIP],
-
   # Slow tests.
   'array-concat': [PASS, SLOW],
   'array-constructor': [PASS, SLOW],
