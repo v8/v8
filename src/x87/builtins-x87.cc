@@ -1548,7 +1548,7 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   __ PushReturnAddressFrom(ecx);
   // Increase the arguments size to include the pushed function and the
   // existing receiver on the stack.
-  __ addp(eax, Immediate(2));
+  __ add(eax, Immediate(2));
   // Tail-call to the runtime.
   __ JumpToExternalReference(
       ExternalReference(Runtime::kJSProxyCall, masm->isolate()));
