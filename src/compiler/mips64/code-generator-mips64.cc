@@ -649,7 +649,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kMips64Div:
       __ Div(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       if (kArchVariant == kMips64r6) {
-        __ seleqz(i.OutputRegister(), i.InputRegister(0), i.InputRegister(0));
+        __ selnez(i.OutputRegister(), i.InputRegister(1), i.InputRegister(0));
       } else {
         __ Movz(i.OutputRegister(), i.InputRegister(1), i.InputRegister(1));
       }
@@ -657,7 +657,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kMips64DivU:
       __ Divu(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       if (kArchVariant == kMips64r6) {
-        __ seleqz(i.OutputRegister(), i.InputRegister(0), i.InputRegister(0));
+        __ selnez(i.OutputRegister(), i.InputRegister(1), i.InputRegister(0));
       } else {
         __ Movz(i.OutputRegister(), i.InputRegister(1), i.InputRegister(1));
       }
@@ -674,7 +674,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kMips64Ddiv:
       __ Ddiv(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       if (kArchVariant == kMips64r6) {
-        __ seleqz(i.OutputRegister(), i.InputRegister(0), i.InputRegister(0));
+        __ selnez(i.OutputRegister(), i.InputRegister(1), i.InputRegister(0));
       } else {
         __ Movz(i.OutputRegister(), i.InputRegister(1), i.InputRegister(1));
       }
@@ -682,7 +682,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kMips64DdivU:
       __ Ddivu(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       if (kArchVariant == kMips64r6) {
-        __ seleqz(i.OutputRegister(), i.InputRegister(0), i.InputRegister(0));
+        __ selnez(i.OutputRegister(), i.InputRegister(1), i.InputRegister(0));
       } else {
         __ Movz(i.OutputRegister(), i.InputRegister(1), i.InputRegister(1));
       }
