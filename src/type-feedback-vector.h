@@ -182,14 +182,9 @@ class TypeFeedbackVector : public FixedArray {
   static inline TypeFeedbackVector* cast(Object* obj);
 
   static const int kMetadataIndex = 0;
-  static const int kWithTypesIndex = 1;
-  static const int kGenericCountIndex = 2;
-  static const int kReservedIndexCount = 3;
+  static const int kReservedIndexCount = 1;
 
-  inline int ic_with_type_info_count();
-  inline void change_ic_with_type_info_count(int delta);
-  inline int ic_generic_count();
-  inline void change_ic_generic_count(int delta);
+  inline void ComputeCounts(int* with_type_info, int* generic);
 
   inline bool is_empty() const;
 

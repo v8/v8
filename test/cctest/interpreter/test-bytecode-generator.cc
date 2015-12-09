@@ -912,91 +912,87 @@ TEST(PropertyLoads) {
        },
        1,
        {"name"}},
-      {
-          "function f(a, b) { \"use strict\"; return a[b]; }\n"
-          "f({arg : \"test\"}, \"arg\")",
-          0,
-          3,
-          6,
-          {
-              B(Ldar), A(2, 3),                                            //
-              B(KeyedLoadICStrict), A(1, 3), U8(vector->GetIndex(slot1)),  //
-              B(Return),                                                   //
-          },
-          0},
-      {
-          "function f(a) {\n"
-          " var b;\n"
-          REPEAT_127(SPACE, " b = a.name; ")
-          " return a.name; }\n"
-          "f({name : \"test\"})\n",
-          1 * kPointerSize,
-          2,
-          769,
-          {
-              REPEAT_127(COMMA,                                            //
-                B(LoadICSloppy), A(1, 2), U8(0), U8((wide_idx_1 += 2)),    //
-                B(Star), R(0)),                                            //
-              B(LoadICSloppyWide), A(1, 2), U16(0), U16(wide_idx_1 + 2),   //
-              B(Return),                                                   //
-          },
-          1,
-          {"name"}},
-      {
-          "function f(a) {\n"
-          " 'use strict'; var b;\n"
-          REPEAT_127(SPACE, " b = a.name; ")
-          " return a.name; }\n"
-          "f({name : \"test\"})\n",
-          1 * kPointerSize,
-          2,
-          769,
-          {
-              REPEAT_127(COMMA,                                            //
-                B(LoadICStrict), A(1, 2), U8(0), U8((wide_idx_2 += 2)),    //
-                B(Star), R(0)),                                            //
-              B(LoadICStrictWide), A(1, 2), U16(0), U16(wide_idx_2 + 2),   //
-              B(Return),                                                   //
-          },
-          1,
-          {"name"}},
-      {
-          "function f(a, b) {\n"
-          " var c;\n"
-          REPEAT_127(SPACE, " c = a[b]; ")
-          " return a[b]; }\n"
-          "f({name : \"test\"}, \"name\")\n",
-          1 * kPointerSize,
-          3,
-          896,
-          {
-              REPEAT_127(COMMA,                                         //
-                B(Ldar), A(2, 3),                                       //
-                B(KeyedLoadICSloppy), A(1, 3), U8((wide_idx_3 += 2)),   //
-                B(Star), R(0)),                                         //
-              B(Ldar), A(2, 3),                                         //
-              B(KeyedLoadICSloppyWide), A(1, 3), U16(wide_idx_3 + 2),   //
-              B(Return),                                                //
-          }},
-      {
-          "function f(a, b) {\n"
-          " 'use strict'; var c;\n"
-          REPEAT_127(SPACE, " c = a[b]; ")
-          " return a[b]; }\n"
-          "f({name : \"test\"}, \"name\")\n",
-          1 * kPointerSize,
-          3,
-          896,
-          {
-              REPEAT_127(COMMA,                                         //
-                B(Ldar), A(2, 3),                                       //
-                B(KeyedLoadICStrict), A(1, 3), U8((wide_idx_4 += 2)),   //
-                B(Star), R(0)),                                         //
-              B(Ldar), A(2, 3),                                         //
-              B(KeyedLoadICStrictWide), A(1, 3), U16(wide_idx_4 + 2),   //
-              B(Return),                                                //
-          }},
-      };
+      {"function f(a, b) { \"use strict\"; return a[b]; }\n"
+       "f({arg : \"test\"}, \"arg\")",
+       0,
+       3,
+       6,
+       {
+           B(Ldar), A(2, 3),                                            //
+           B(KeyedLoadICStrict), A(1, 3), U8(vector->GetIndex(slot1)),  //
+           B(Return),                                                   //
+       },
+       0},
+      {"function f(a) {\n"
+       " var b;\n" REPEAT_127(SPACE, " b = a.name; ") " return a.name; }\n"
+                                                      "f({name : \"test\"})\n",
+       1 * kPointerSize,
+       2,
+       767,
+       {
+           REPEAT_127(COMMA,  //
+                      B(LoadICSloppy), A(1, 2), U8(0),
+                      U8((wide_idx_1 += 2)),  //
+                      B(Star), R(0)),         //
+           B(LoadICSloppy),
+           A(1, 2), U8(0), U8(wide_idx_1 + 2),  //
+           B(Return),                           //
+       },
+       1,
+       {"name"}},
+      {"function f(a) {\n"
+       " 'use strict'; var b;\n" REPEAT_127(
+           SPACE, " b = a.name; ") " return a.name; }\n"
+                                   "f({name : \"test\"})\n",
+       1 * kPointerSize,
+       2,
+       767,
+       {
+           REPEAT_127(COMMA,  //
+                      B(LoadICStrict), A(1, 2), U8(0),
+                      U8((wide_idx_2 += 2)),  //
+                      B(Star), R(0)),         //
+           B(LoadICStrict),
+           A(1, 2), U8(0), U8(wide_idx_2 + 2),  //
+           B(Return),                           //
+       },
+       1,
+       {"name"}},
+      {"function f(a, b) {\n"
+       " var c;\n" REPEAT_127(SPACE,
+                              " c = a[b]; ") " return a[b]; }\n"
+                                             "f({name : \"test\"}, \"name\")\n",
+       1 * kPointerSize,
+       3,
+       895,
+       {
+           REPEAT_127(COMMA,                                                 //
+                      B(Ldar), A(2, 3),                                      //
+                      B(KeyedLoadICSloppy), A(1, 3), U8((wide_idx_3 += 2)),  //
+                      B(Star), R(0)),                                        //
+           B(Ldar),
+           A(2, 3),                                            //
+           B(KeyedLoadICSloppy), A(1, 3), U8(wide_idx_3 + 2),  //
+           B(Return),                                          //
+       }},
+      {"function f(a, b) {\n"
+       " 'use strict'; var c;\n" REPEAT_127(
+           SPACE, " c = a[b]; ") " return a[b]; }\n"
+                                 "f({name : \"test\"}, \"name\")\n",
+       1 * kPointerSize,
+       3,
+       895,
+       {
+           REPEAT_127(COMMA,                                                 //
+                      B(Ldar), A(2, 3),                                      //
+                      B(KeyedLoadICStrict), A(1, 3), U8((wide_idx_4 += 2)),  //
+                      B(Star), R(0)),                                        //
+           B(Ldar),
+           A(2, 3),                                            //
+           B(KeyedLoadICStrict), A(1, 3), U8(wide_idx_4 + 2),  //
+           B(Return),                                          //
+       }},
+  };
   for (size_t i = 0; i < arraysize(snippets); i++) {
     Handle<BytecodeArray> bytecode_array =
         helper.MakeBytecode(snippets[i].code_snippet, helper.kFunctionName);
@@ -1053,13 +1049,13 @@ TEST(PropertyStores) {
        2,
        12,
        {
-           B(LdaSmi8), U8(100),                                 //
-           B(Star), R(0),                                       //
-           B(LdaConstant), U8(0),                               //
-           B(KeyedStoreICSloppy), A(1, 2), R(0),                //
-                                  U8(vector->GetIndex(slot1)),  //
-           B(LdaUndefined),                                     //
-           B(Return),                                           //
+           B(LdaSmi8), U8(100),                   //
+           B(Star), R(0),                         //
+           B(LdaConstant), U8(0),                 //
+           B(KeyedStoreICSloppy), A(1, 2), R(0),  //
+           U8(vector->GetIndex(slot1)),           //
+           B(LdaUndefined),                       //
+           B(Return),                             //
        },
        1,
        {"val"}},
@@ -1068,11 +1064,11 @@ TEST(PropertyStores) {
        3,
        8,
        {
-           B(LdaConstant), U8(0),                               //
-           B(KeyedStoreICSloppy), A(1, 3), A(2, 3),             //
-                                  U8(vector->GetIndex(slot1)),  //
-           B(LdaUndefined),                                     //
-           B(Return),                                           //
+           B(LdaConstant), U8(0),                    //
+           B(KeyedStoreICSloppy), A(1, 3), A(2, 3),  //
+           U8(vector->GetIndex(slot1)),              //
+           B(LdaUndefined),                          //
+           B(Return),                                //
        },
        1,
        {"val"}},
@@ -1109,87 +1105,89 @@ TEST(PropertyStores) {
        3,
        8,
        {
-           B(LdaConstant), U8(0),                               //
-           B(KeyedStoreICStrict), A(1, 3), A(2, 3),             //
-                                  U8(vector->GetIndex(slot1)),  //
-           B(LdaUndefined),                                     //
-           B(Return),                                           //
+           B(LdaConstant), U8(0),                    //
+           B(KeyedStoreICStrict), A(1, 3), A(2, 3),  //
+           U8(vector->GetIndex(slot1)),              //
+           B(LdaUndefined),                          //
+           B(Return),                                //
        },
        1,
        {"val"}},
-      {"function f(a) {\n"
-       REPEAT_127(SPACE, " a.name = 1; ")
-       " a.name = 2; }\n"
-       "f({name : \"test\"})\n",
+      {"function f(a) {\n" REPEAT_127(SPACE,
+                                      " a.name = 1; ") " a.name = 2; }\n"
+                                                       "f({name : \"test\"})\n",
        0,
        2,
-       772,
+       770,
        {
-           REPEAT_127(COMMA,                                             //
-             B(LdaSmi8), U8(1),                                          //
-             B(StoreICSloppy), A(1, 2), U8(0), U8((wide_idx_1 += 2))),   //
-           B(LdaSmi8), U8(2),                                            //
-           B(StoreICSloppyWide), A(1, 2), U16(0), U16(wide_idx_1 + 2),   //
-           B(LdaUndefined),                                              //
-           B(Return),                                                    //
+           REPEAT_127(COMMA,              //
+                      B(LdaSmi8), U8(1),  //
+                      B(StoreICSloppy), A(1, 2), U8(0),
+                      U8((wide_idx_1 += 2))),  //
+           B(LdaSmi8),
+           U8(2),                                                 //
+           B(StoreICSloppy), A(1, 2), U8(0), U8(wide_idx_1 + 2),  //
+           B(LdaUndefined),                                       //
+           B(Return),                                             //
        },
        1,
        {"name"}},
       {"function f(a) {\n"
-       "'use strict';\n"
-       REPEAT_127(SPACE, " a.name = 1; ")
-       " a.name = 2; }\n"
-       "f({name : \"test\"})\n",
+       "'use strict';\n" REPEAT_127(SPACE,
+                                    " a.name = 1; ") " a.name = 2; }\n"
+                                                     "f({name : \"test\"})\n",
        0,
        2,
-       772,
+       770,
        {
-           REPEAT_127(COMMA,                                             //
-             B(LdaSmi8), U8(1),                                          //
-             B(StoreICStrict), A(1, 2), U8(0), U8((wide_idx_2 += 2))),   //
-           B(LdaSmi8), U8(2),                                            //
-           B(StoreICStrictWide), A(1, 2), U16(0), U16(wide_idx_2 + 2),   //
-           B(LdaUndefined),                                              //
-           B(Return),                                                    //
+           REPEAT_127(COMMA,              //
+                      B(LdaSmi8), U8(1),  //
+                      B(StoreICStrict), A(1, 2), U8(0),
+                      U8((wide_idx_2 += 2))),  //
+           B(LdaSmi8),
+           U8(2),                                                 //
+           B(StoreICStrict), A(1, 2), U8(0), U8(wide_idx_2 + 2),  //
+           B(LdaUndefined),                                       //
+           B(Return),                                             //
        },
        1,
        {"name"}},
-      {"function f(a, b) {\n"
-       REPEAT_127(SPACE, " a[b] = 1; ")
-       " a[b] = 2; }\n"
-       "f({name : \"test\"})\n",
+      {"function f(a, b) {\n" REPEAT_127(
+           SPACE, " a[b] = 1; ") " a[b] = 2; }\n"
+                                 "f({name : \"test\"})\n",
        0,
        3,
-       771,
+       770,
        {
-           REPEAT_127(COMMA,                                                  //
-             B(LdaSmi8), U8(1),                                               //
-             B(KeyedStoreICSloppy), A(1, 3), A(2, 3),                         //
-                                    U8((wide_idx_3 += 2))),                   //
-           B(LdaSmi8), U8(2),                                                 //
-           B(KeyedStoreICSloppyWide), A(1, 3), A(2, 3),                       //
-                                      U16(wide_idx_3 + 2),                    //
-           B(LdaUndefined),                                                   //
-           B(Return),                                                         //
+           REPEAT_127(COMMA,                                    //
+                      B(LdaSmi8), U8(1),                        //
+                      B(KeyedStoreICSloppy), A(1, 3), A(2, 3),  //
+                      U8((wide_idx_3 += 2))),                   //
+           B(LdaSmi8),
+           U8(2),                                    //
+           B(KeyedStoreICSloppy), A(1, 3), A(2, 3),  //
+           U8(wide_idx_3 + 2),                       //
+           B(LdaUndefined),                          //
+           B(Return),                                //
        }},
       {"function f(a, b) {\n"
-       "'use strict';\n"
-       REPEAT_127(SPACE, " a[b] = 1; ")
-       " a[b] = 2; }\n"
-       "f({name : \"test\"})\n",
+       "'use strict';\n" REPEAT_127(SPACE,
+                                    " a[b] = 1; ") " a[b] = 2; }\n"
+                                                   "f({name : \"test\"})\n",
        0,
        3,
-       771,
+       770,
        {
-           REPEAT_127(COMMA,                                                  //
-             B(LdaSmi8), U8(1),                                               //
-             B(KeyedStoreICStrict), A(1, 3), A(2, 3),                         //
-                                    U8((wide_idx_4 += 2))),                   //
-           B(LdaSmi8), U8(2),                                                 //
-           B(KeyedStoreICStrictWide), A(1, 3), A(2, 3),                       //
-                                      U16(wide_idx_4 + 2),                    //
-           B(LdaUndefined),                                                   //
-           B(Return),                                                         //
+           REPEAT_127(COMMA,                                    //
+                      B(LdaSmi8), U8(1),                        //
+                      B(KeyedStoreICStrict), A(1, 3), A(2, 3),  //
+                      U8((wide_idx_4 += 2))),                   //
+           B(LdaSmi8),
+           U8(2),                                    //
+           B(KeyedStoreICStrict), A(1, 3), A(2, 3),  //
+           U8(wide_idx_4 + 2),                       //
+           B(LdaUndefined),                          //
+           B(Return),                                //
        }}};
   for (size_t i = 0; i < arraysize(snippets); i++) {
     Handle<BytecodeArray> bytecode_array =
@@ -1270,21 +1268,21 @@ TEST(PropertyCall) {
        },
        1,
        {"func"}},
-      {"function f(a) {\n"
-       REPEAT_127(SPACE, " a.func;\n")
-       " return a.func(); }\nf(" FUNC_ARG ")",
+      {"function f(a) {\n" REPEAT_127(
+           SPACE, " a.func;\n") " return a.func(); }\nf(" FUNC_ARG ")",
        2 * kPointerSize,
        2,
-       528,
+       526,
        {
-           REPEAT_127(COMMA,                                         //
-             B(LoadICSloppy), A(1, 2), U8(0), U8((wide_idx += 2))),  //
-           B(Ldar), A(1, 2),                                         //
-           B(Star), R(1),                                            //
-           B(LoadICSloppyWide), R(1), U16(0), U16(wide_idx + 4),     //
-           B(Star), R(0),                                            //
-           B(CallWide), R(0), R(1), U16(0), U16(wide_idx + 2),       //
-           B(Return),                                                //
+           REPEAT_127(COMMA,                                                  //
+                      B(LoadICSloppy), A(1, 2), U8(0), U8((wide_idx += 2))),  //
+           B(Ldar),
+           A(1, 2),                                               //
+           B(Star), R(1),                                         //
+           B(LoadICSloppyWide), R(1), U16(0), U16(wide_idx + 4),  //
+           B(Star), R(0),                                         //
+           B(Call), R(0), R(1), U8(0), U8(wide_idx + 2),          //
+           B(Return),                                             //
        },
        1,
        {"func"}},
@@ -1353,32 +1351,32 @@ TEST(LoadGlobal) {
        },
        1,
        {"a"}},
-      {"a = 1; function f(b) {\n"
-       REPEAT_127(SPACE, "b.name; ")
-       " return a; }\nf({name: 1});",
+      {"a = 1; function f(b) {\n" REPEAT_127(
+           SPACE, "b.name; ") " return a; }\nf({name: 1});",
        0,
        2,
-       514,
+       512,
        {
-           REPEAT_127(COMMA,                                         //
-             B(LoadICSloppy), A(1, 2), U8(0), U8(wide_idx_1 += 2)),  //
-           B(LdaGlobalSloppyWide), U16(1), U16(wide_idx_1 + 2),      //
-           B(Return),                                                //
+           REPEAT_127(COMMA,                                                  //
+                      B(LoadICSloppy), A(1, 2), U8(0), U8(wide_idx_1 += 2)),  //
+           B(LdaGlobalSloppy),
+           U8(1), U8(wide_idx_1 + 2),  //
+           B(Return),                  //
        },
        2,
        {"name", "a"}},
       {"a = 1; function f(b) {\n"
-       " 'use strict';\n"
-       REPEAT_127(SPACE, "b.name; ")
-       " return a; }\nf({name: 1});",
+       " 'use strict';\n" REPEAT_127(SPACE,
+                                     "b.name; ") " return a; }\nf({name: 1});",
        0,
        2,
-       514,
+       512,
        {
-           REPEAT_127(COMMA,                                         //
-             B(LoadICStrict), A(1, 2), U8(0), U8(wide_idx_2 += 2)),  //
-           B(LdaGlobalStrictWide), U16(1), U16(wide_idx_2 + 2),      //
-           B(Return),                                                //
+           REPEAT_127(COMMA,                                                  //
+                      B(LoadICStrict), A(1, 2), U8(0), U8(wide_idx_2 += 2)),  //
+           B(LdaGlobalStrict),
+           U8(1), U8(wide_idx_2 + 2),  //
+           B(Return),                  //
        },
        2,
        {"name", "a"}},
@@ -1456,36 +1454,36 @@ TEST(StoreGlobal) {
        },
        1,
        {"a"}},
-      {"a = 1; function f(b) {\n"
-       REPEAT_127(SPACE, "b.name; ")
-       " a = 2; }\nf({name: 1});",
+      {"a = 1; function f(b) {\n" REPEAT_127(
+           SPACE, "b.name; ") " a = 2; }\nf({name: 1});",
        0,
        2,
-       517,
+       515,
        {
-           REPEAT_127(COMMA,                                         //
-             B(LoadICSloppy), A(1, 2), U8(0), U8(wide_idx_1 += 2)),  //
-           B(LdaSmi8), U8(2),                                        //
-           B(StaGlobalSloppyWide), U16(1), U16(wide_idx_1 + 2),      //
-           B(LdaUndefined),                                          //
-           B(Return),                                                //
+           REPEAT_127(COMMA,                                                  //
+                      B(LoadICSloppy), A(1, 2), U8(0), U8(wide_idx_1 += 2)),  //
+           B(LdaSmi8),
+           U8(2),                                          //
+           B(StaGlobalSloppy), U8(1), U8(wide_idx_1 + 2),  //
+           B(LdaUndefined),                                //
+           B(Return),                                      //
        },
        2,
        {"name", "a"}},
       {"a = 1; function f(b) {\n"
-       " 'use strict';\n"
-       REPEAT_127(SPACE, "b.name; ")
-       " a = 2; }\nf({name: 1});",
+       " 'use strict';\n" REPEAT_127(SPACE,
+                                     "b.name; ") " a = 2; }\nf({name: 1});",
        0,
        2,
-       517,
+       515,
        {
-           REPEAT_127(COMMA,                                         //
-             B(LoadICStrict), A(1, 2), U8(0), U8(wide_idx_2 += 2)),  //
-           B(LdaSmi8), U8(2),                                        //
-           B(StaGlobalStrictWide), U16(1), U16(wide_idx_2 + 2),      //
-           B(LdaUndefined),                                          //
-           B(Return),                                                //
+           REPEAT_127(COMMA,                                                  //
+                      B(LoadICStrict), A(1, 2), U8(0), U8(wide_idx_2 += 2)),  //
+           B(LdaSmi8),
+           U8(2),                                          //
+           B(StaGlobalStrict), U8(1), U8(wide_idx_2 + 2),  //
+           B(LdaUndefined),                                //
+           B(Return),                                      //
        },
        2,
        {"name", "a"}},
@@ -3399,7 +3397,7 @@ TEST(TopLevelObjectLiterals) {
            B(CreateObjectLiteral), U8(0), U8(has_function_flags),            //
            B(Star), R(4),                                                    //
            B(CreateClosure), U8(4), U8(1),                                   //
-           B(StoreICSloppy), R(4), U8(3), U8(5),                             //
+           B(StoreICSloppy), R(4), U8(3), U8(3),                             //
            B(CallRuntime), U16(Runtime::kToFastProperties), R(4), U8(1),     //
            B(Ldar), R(4),                                                    //
            B(Star), R(3),                                                    //

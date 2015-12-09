@@ -47,8 +47,6 @@ TEST(VectorStructure) {
   CHECK(Handle<FixedArray>::cast(vector)
             .is_identical_to(factory->empty_fixed_array()));
   // Which can nonetheless be queried.
-  CHECK_EQ(0, vector->ic_with_type_info_count());
-  CHECK_EQ(0, vector->ic_generic_count());
   CHECK(vector->is_empty());
 
   {
@@ -135,8 +133,6 @@ TEST(VectorICMetadata) {
 
   // Meanwhile set some feedback values and type feedback values to
   // verify the data structure remains intact.
-  vector->change_ic_with_type_info_count(100);
-  vector->change_ic_generic_count(3333);
   vector->Set(FeedbackVectorSlot(0), *vector);
 
   // Verify the metadata is correctly set up from the spec.
@@ -197,60 +193,6 @@ TEST(VectorSlotClearing) {
   CHECK_EQ(*TypeFeedbackVector::UninitializedSentinel(isolate),
            vector->Get(helper.slot(1)));
   CHECK(vector->Get(helper.slot(2))->IsAllocationSite());
-}
-
-
-TEST(VectorICProfilerStatistics) {
-  if (i::FLAG_always_opt) return;
-  CcTest::InitializeVM();
-  LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  Isolate* isolate = CcTest::i_isolate();
-  Heap* heap = isolate->heap();
-
-  // Make sure function f has a call that uses a type feedback slot.
-  CompileRun(
-      "function fun() {};"
-      "function f(a) { a(); } f(fun);");
-  Handle<JSFunction> f = GetFunction("f");
-  // There should be one IC.
-  Handle<Code> code = handle(f->shared()->code(), isolate);
-  TypeFeedbackInfo* feedback_info =
-      TypeFeedbackInfo::cast(code->type_feedback_info());
-  CHECK_EQ(1, feedback_info->ic_total_count());
-  CHECK_EQ(0, feedback_info->ic_with_type_info_count());
-  CHECK_EQ(0, feedback_info->ic_generic_count());
-  Handle<TypeFeedbackVector> feedback_vector =
-      handle(f->shared()->feedback_vector(), isolate);
-  FeedbackVectorHelper helper(feedback_vector);
-  CallICNexus nexus(feedback_vector, helper.slot(0));
-  CHECK_EQ(1, feedback_vector->ic_with_type_info_count());
-  CHECK_EQ(0, feedback_vector->ic_generic_count());
-
-  // Now send the information generic.
-  CompileRun("f(Object);");
-  CHECK_EQ(0, feedback_vector->ic_with_type_info_count());
-  CHECK_EQ(1, feedback_vector->ic_generic_count());
-
-  // A collection will not affect the site.
-  heap->CollectAllGarbage();
-  CHECK_EQ(0, feedback_vector->ic_with_type_info_count());
-  CHECK_EQ(1, feedback_vector->ic_generic_count());
-
-  // The Array function is special. A call to array remains monomorphic
-  // and isn't cleared by gc because an AllocationSite is being held.
-  // Clear the IC manually in order to test this case.
-  nexus.Clear(*code);
-  CompileRun("f(Array);");
-  CHECK_EQ(1, feedback_vector->ic_with_type_info_count());
-  CHECK_EQ(0, feedback_vector->ic_generic_count());
-
-
-  CHECK(nexus.GetFeedback()->IsAllocationSite());
-  heap->CollectAllGarbage();
-  CHECK_EQ(1, feedback_vector->ic_with_type_info_count());
-  CHECK_EQ(0, feedback_vector->ic_generic_count());
-  CHECK(nexus.GetFeedback()->IsAllocationSite());
 }
 
 

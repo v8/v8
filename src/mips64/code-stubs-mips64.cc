@@ -2653,10 +2653,6 @@ void CallICStub::Generate(MacroAssembler* masm) {
   // a1 - function
   // a3 - slot id (Smi)
   // a2 - vector
-  const int with_types_offset =
-      FixedArray::OffsetOfElementAt(TypeFeedbackVector::kWithTypesIndex);
-  const int generic_offset =
-      FixedArray::OffsetOfElementAt(TypeFeedbackVector::kGenericCountIndex);
   Label extra_checks_or_miss, call, call_function;
   int argc = arg_count();
   ParameterCount actual(argc);
@@ -2733,13 +2729,6 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ Daddu(a4, a2, Operand(a4));
   __ LoadRoot(at, Heap::kmegamorphic_symbolRootIndex);
   __ sd(at, FieldMemOperand(a4, FixedArray::kHeaderSize));
-  // We have to update statistics for runtime profiling.
-  __ ld(a4, FieldMemOperand(a2, with_types_offset));
-  __ Dsubu(a4, a4, Operand(Smi::FromInt(1)));
-  __ sd(a4, FieldMemOperand(a2, with_types_offset));
-  __ ld(a4, FieldMemOperand(a2, generic_offset));
-  __ Daddu(a4, a4, Operand(Smi::FromInt(1)));
-  __ sd(a4, FieldMemOperand(a2, generic_offset));
 
   __ bind(&call);
   __ Jump(masm->isolate()->builtins()->Call(convert_mode()),
@@ -2766,11 +2755,6 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ ld(t0, ContextMemOperand(t0, Context::NATIVE_CONTEXT_INDEX));
   __ ld(t1, NativeContextMemOperand());
   __ Branch(&miss, ne, t0, Operand(t1));
-
-  // Update stats.
-  __ ld(a4, FieldMemOperand(a2, with_types_offset));
-  __ Daddu(a4, a4, Operand(Smi::FromInt(1)));
-  __ sd(a4, FieldMemOperand(a2, with_types_offset));
 
   // Initialize the call counter.
   __ dsrl(at, a3, 32 - kPointerSizeLog2);

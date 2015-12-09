@@ -1936,10 +1936,6 @@ void CallICStub::Generate(MacroAssembler* masm) {
   // -- rbx - vector
   // -----------------------------------
   Isolate* isolate = masm->isolate();
-  const int with_types_offset =
-      FixedArray::OffsetOfElementAt(TypeFeedbackVector::kWithTypesIndex);
-  const int generic_offset =
-      FixedArray::OffsetOfElementAt(TypeFeedbackVector::kGenericCountIndex);
   Label extra_checks_or_miss, call, call_function;
   int argc = arg_count();
   StackArgumentsAccessor args(rsp, argc);
@@ -2013,9 +2009,6 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ j(not_equal, &miss);
   __ Move(FieldOperand(rbx, rdx, times_pointer_size, FixedArray::kHeaderSize),
           TypeFeedbackVector::MegamorphicSentinel(isolate));
-  // We have to update statistics for runtime profiling.
-  __ SmiAddConstant(FieldOperand(rbx, with_types_offset), Smi::FromInt(-1));
-  __ SmiAddConstant(FieldOperand(rbx, generic_offset), Smi::FromInt(1));
 
   __ bind(&call);
   __ Set(rax, argc);
@@ -2042,9 +2035,6 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ movp(rcx, ContextOperand(rcx, Context::NATIVE_CONTEXT_INDEX));
   __ cmpp(rcx, NativeContextOperand());
   __ j(not_equal, &miss);
-
-  // Update stats.
-  __ SmiAddConstant(FieldOperand(rbx, with_types_offset), Smi::FromInt(1));
 
   // Initialize the call counter.
   __ Move(FieldOperand(rbx, rdx, times_pointer_size,

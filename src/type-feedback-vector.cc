@@ -140,8 +140,6 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::New(
 
   Handle<FixedArray> array = factory->NewFixedArray(length, TENURED);
   array->set(kMetadataIndex, *metadata);
-  array->set(kWithTypesIndex, Smi::FromInt(0));
-  array->set(kGenericCountIndex, Smi::FromInt(0));
 
   // Ensure we can skip the write barrier
   Handle<Object> uninitialized_sentinel = UninitializedSentinel(isolate);

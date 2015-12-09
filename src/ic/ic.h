@@ -143,9 +143,7 @@ class IC {
                                     State old_state, State new_state,
                                     bool target_remains_ic_stub);
   // As a vector-based IC, type feedback must be updated differently.
-  static void OnTypeFeedbackChanged(Isolate* isolate, Code* host,
-                                    TypeFeedbackVector* vector, State old_state,
-                                    State new_state);
+  static void OnTypeFeedbackChanged(Isolate* isolate, Code* host);
   static void PostPatching(Address address, Code* target, Code* old_target);
 
   // Compute the handler either by compiling or by retrieving a cached version.

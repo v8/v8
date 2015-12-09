@@ -597,9 +597,6 @@ void TypeFeedbackVector::TypeFeedbackVectorPrint(std::ostream& os) {  // NOLINT
     return;
   }
 
-  os << "\n - ics with type info: " << ic_with_type_info_count();
-  os << "\n - generic ics: " << ic_generic_count();
-
   TypeFeedbackMetadataIterator iter(metadata());
   while (iter.HasNext()) {
     FeedbackVectorSlot slot = iter.Next();

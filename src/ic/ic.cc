@@ -415,19 +415,9 @@ void IC::OnTypeFeedbackChanged(Isolate* isolate, Address address,
 
 
 // static
-void IC::OnTypeFeedbackChanged(Isolate* isolate, Code* host,
-                               TypeFeedbackVector* vector, State old_state,
-                               State new_state) {
+void IC::OnTypeFeedbackChanged(Isolate* isolate, Code* host) {
   if (host->kind() != Code::FUNCTION) return;
 
-  if (FLAG_type_info_threshold > 0) {
-    int polymorphic_delta = 0;  // "Polymorphic" here includes monomorphic.
-    int generic_delta = 0;      // "Generic" here includes megamorphic.
-    ComputeTypeInfoCountDelta(old_state, new_state, &polymorphic_delta,
-                              &generic_delta);
-    vector->change_ic_with_type_info_count(polymorphic_delta);
-    vector->change_ic_generic_count(generic_delta);
-  }
   TypeFeedbackInfo* info = TypeFeedbackInfo::cast(host->type_feedback_info());
   info->change_own_type_change_checksum();
   host->set_profiler_ticks(0);
@@ -491,9 +481,8 @@ void KeyedLoadIC::Clear(Isolate* isolate, Code* host, KeyedLoadICNexus* nexus) {
   // Make sure to also clear the map used in inline fast cases.  If we
   // do not clear these maps, cached code can keep objects alive
   // through the embedded maps.
-  State state = nexus->StateFromFeedback();
   nexus->ConfigurePremonomorphic();
-  OnTypeFeedbackChanged(isolate, host, nexus->vector(), state, PREMONOMORPHIC);
+  OnTypeFeedbackChanged(isolate, host);
 }
 
 
@@ -505,16 +494,15 @@ void CallIC::Clear(Isolate* isolate, Code* host, CallICNexus* nexus) {
   if (state != UNINITIALIZED && !feedback->IsAllocationSite()) {
     nexus->ConfigureUninitialized();
     // The change in state must be processed.
-    OnTypeFeedbackChanged(isolate, host, nexus->vector(), state, UNINITIALIZED);
+    OnTypeFeedbackChanged(isolate, host);
   }
 }
 
 
 void LoadIC::Clear(Isolate* isolate, Code* host, LoadICNexus* nexus) {
   if (IsCleared(nexus)) return;
-  State state = nexus->StateFromFeedback();
   nexus->ConfigurePremonomorphic();
-  OnTypeFeedbackChanged(isolate, host, nexus->vector(), state, PREMONOMORPHIC);
+  OnTypeFeedbackChanged(isolate, host);
 }
 
 
@@ -529,9 +517,8 @@ void StoreIC::Clear(Isolate* isolate, Address address, Code* target,
 
 void StoreIC::Clear(Isolate* isolate, Code* host, StoreICNexus* nexus) {
   if (IsCleared(nexus)) return;
-  State state = nexus->StateFromFeedback();
   nexus->ConfigurePremonomorphic();
-  OnTypeFeedbackChanged(isolate, host, nexus->vector(), state, PREMONOMORPHIC);
+  OnTypeFeedbackChanged(isolate, host);
 }
 
 
@@ -547,9 +534,8 @@ void KeyedStoreIC::Clear(Isolate* isolate, Address address, Code* target,
 void KeyedStoreIC::Clear(Isolate* isolate, Code* host,
                          KeyedStoreICNexus* nexus) {
   if (IsCleared(nexus)) return;
-  State state = nexus->StateFromFeedback();
   nexus->ConfigurePremonomorphic();
-  OnTypeFeedbackChanged(isolate, host, nexus->vector(), state, PREMONOMORPHIC);
+  OnTypeFeedbackChanged(isolate, host);
 }
 
 
@@ -599,8 +585,7 @@ void IC::ConfigureVectorState(IC::State new_state) {
   }
 
   vector_set_ = true;
-  OnTypeFeedbackChanged(isolate(), get_host(), *vector(), saved_state(),
-                        new_state);
+  OnTypeFeedbackChanged(isolate(), get_host());
 }
 
 
@@ -623,8 +608,7 @@ void IC::ConfigureVectorState(Handle<Name> name, Handle<Map> map,
   }
 
   vector_set_ = true;
-  OnTypeFeedbackChanged(isolate(), get_host(), *vector(), saved_state(),
-                        MONOMORPHIC);
+  OnTypeFeedbackChanged(isolate(), get_host());
 }
 
 
@@ -647,8 +631,7 @@ void IC::ConfigureVectorState(Handle<Name> name, MapHandleList* maps,
   }
 
   vector_set_ = true;
-  OnTypeFeedbackChanged(isolate(), get_host(), *vector(), saved_state(),
-                        POLYMORPHIC);
+  OnTypeFeedbackChanged(isolate(), get_host());
 }
 
 
@@ -661,8 +644,7 @@ void IC::ConfigureVectorState(MapHandleList* maps,
   nexus->ConfigurePolymorphic(maps, transitioned_maps, handlers);
 
   vector_set_ = true;
-  OnTypeFeedbackChanged(isolate(), get_host(), *vector(), saved_state(),
-                        POLYMORPHIC);
+  OnTypeFeedbackChanged(isolate(), get_host());
 }
 
 
@@ -2205,8 +2187,7 @@ void CallIC::HandleMiss(Handle<Object> function) {
     name = handle(js_function->shared()->name(), isolate());
   }
 
-  IC::State new_state = nexus->StateFromFeedback();
-  OnTypeFeedbackChanged(isolate(), get_host(), *vector(), state(), new_state);
+  OnTypeFeedbackChanged(isolate(), get_host());
   TRACE_IC("CallIC", name);
 }
 

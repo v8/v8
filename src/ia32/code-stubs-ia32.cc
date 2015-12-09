@@ -2085,10 +2085,6 @@ void CallICStub::Generate(MacroAssembler* masm) {
   // edx - slot id
   // ebx - vector
   Isolate* isolate = masm->isolate();
-  const int with_types_offset =
-      FixedArray::OffsetOfElementAt(TypeFeedbackVector::kWithTypesIndex);
-  const int generic_offset =
-      FixedArray::OffsetOfElementAt(TypeFeedbackVector::kGenericCountIndex);
   Label extra_checks_or_miss, call, call_function;
   int argc = arg_count();
   ParameterCount actual(argc);
@@ -2161,9 +2157,6 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ mov(
       FieldOperand(ebx, edx, times_half_pointer_size, FixedArray::kHeaderSize),
       Immediate(TypeFeedbackVector::MegamorphicSentinel(isolate)));
-  // We have to update statistics for runtime profiling.
-  __ sub(FieldOperand(ebx, with_types_offset), Immediate(Smi::FromInt(1)));
-  __ add(FieldOperand(ebx, generic_offset), Immediate(Smi::FromInt(1)));
 
   __ bind(&call);
   __ Set(eax, argc);
@@ -2190,9 +2183,6 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ mov(ecx, ContextOperand(ecx, Context::NATIVE_CONTEXT_INDEX));
   __ cmp(ecx, NativeContextOperand());
   __ j(not_equal, &miss);
-
-  // Update stats.
-  __ add(FieldOperand(ebx, with_types_offset), Immediate(Smi::FromInt(1)));
 
   // Initialize the call counter.
   __ mov(FieldOperand(ebx, edx, times_half_pointer_size,
