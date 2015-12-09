@@ -27,9 +27,6 @@
 
 // Adapted from test/mjsunit/compiler/variables.js
 
-// TODO(jochen): Remove this after the setting is turned on globally.
-#define V8_IMMINENT_DEPRECATION_WARNINGS
-
 #include <limits.h>
 
 #include "src/v8.h"

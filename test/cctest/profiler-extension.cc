@@ -27,9 +27,6 @@
 //
 // Tests of profiles generator and utilities.
 
-// TODO(jochen): Remove this after the setting is turned on globally.
-#define V8_IMMINENT_DEPRECATION_WARNINGS
-
 #include "src/base/logging.h"
 #include "test/cctest/profiler-extension.h"
 

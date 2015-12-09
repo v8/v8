@@ -27,9 +27,6 @@
 //
 // Tests for heap profiler
 
-// TODO(jochen): Remove this after the setting is turned on globally.
-#define V8_IMMINENT_DEPRECATION_WARNINGS
-
 #include <ctype.h>
 
 #include "src/v8.h"

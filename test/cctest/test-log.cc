@@ -27,9 +27,6 @@
 //
 // Tests of logging functions from log.h
 
-// TODO(jochen): Remove this after the setting is turned on globally.
-#define V8_IMMINENT_DEPRECATION_WARNINGS
-
 #ifdef __linux__
 #include <pthread.h>
 #include <signal.h>

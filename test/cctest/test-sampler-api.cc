@@ -4,9 +4,6 @@
 //
 // Tests the sampling API in include/v8.h
 
-// TODO(mythria): Remove this define after this flag is turned on globally
-#define V8_IMMINENT_DEPRECATION_WARNINGS
-
 #include <map>
 #include <string>
 #include "include/v8.h"

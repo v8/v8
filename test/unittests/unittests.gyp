@@ -22,10 +22,6 @@
       'include_dirs': [
         '../..',
       ],
-      'defines': [
-        # TODO(jochen): Remove again after this is globally turned on.
-        'V8_IMMINENT_DEPRECATION_WARNINGS',
-      ],
       'sources': [  ### gcmole(all) ###
         'atomic-utils-unittest.cc',
         'base/bits-unittest.cc',

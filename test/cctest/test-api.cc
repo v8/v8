@@ -25,6 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// TODO(jochen/vogelheim): Remove this.
+#undef V8_IMMINENT_DEPRECATION_WARNINGS
+
 #include <climits>
 #include <csignal>
 #include <map>

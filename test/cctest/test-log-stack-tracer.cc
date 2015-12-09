@@ -27,9 +27,6 @@
 //
 // Tests of profiler-related functions from log.h
 
-// TODO(jochen): Remove this after the setting is turned on globally.
-#define V8_IMMINENT_DEPRECATION_WARNINGS
-
 #include <stdlib.h>
 
 #include "src/v8.h"
