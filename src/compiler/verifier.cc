@@ -920,7 +920,7 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kTruncateFloat32ToInt64:
     case IrOpcode::kTryTruncateFloat64ToInt64:
     case IrOpcode::kTruncateFloat32ToUint64:
-    case IrOpcode::kTruncateFloat64ToUint64:
+    case IrOpcode::kTryTruncateFloat64ToUint64:
     case IrOpcode::kFloat64ExtractLowWord32:
     case IrOpcode::kFloat64ExtractHighWord32:
     case IrOpcode::kFloat64InsertLowWord32:

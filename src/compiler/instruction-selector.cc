@@ -832,8 +832,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsWord64(node), VisitTryTruncateFloat64ToInt64(node);
     case IrOpcode::kTruncateFloat32ToUint64:
       return MarkAsWord64(node), VisitTruncateFloat32ToUint64(node);
-    case IrOpcode::kTruncateFloat64ToUint64:
-      return MarkAsWord64(node), VisitTruncateFloat64ToUint64(node);
+    case IrOpcode::kTryTruncateFloat64ToUint64:
+      return MarkAsWord64(node), VisitTryTruncateFloat64ToUint64(node);
     case IrOpcode::kChangeInt32ToInt64:
       return MarkAsWord64(node), VisitChangeInt32ToInt64(node);
     case IrOpcode::kChangeUint32ToUint64:
@@ -1097,7 +1097,7 @@ void InstructionSelector::VisitTruncateFloat32ToUint64(Node* node) {
 }
 
 
-void InstructionSelector::VisitTruncateFloat64ToUint64(Node* node) {
+void InstructionSelector::VisitTryTruncateFloat64ToUint64(Node* node) {
   UNIMPLEMENTED();
 }
 
@@ -1209,6 +1209,7 @@ void InstructionSelector::VisitProjection(Node* node) {
     case IrOpcode::kInt32AddWithOverflow:
     case IrOpcode::kInt32SubWithOverflow:
     case IrOpcode::kTryTruncateFloat64ToInt64:
+    case IrOpcode::kTryTruncateFloat64ToUint64:
       if (ProjectionIndexOf(node->op()) == 0u) {
         Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
       } else {

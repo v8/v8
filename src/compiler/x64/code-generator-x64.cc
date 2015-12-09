@@ -1106,11 +1106,15 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       } else {
         __ Cvttsd2siq(i.OutputRegister(), i.InputOperand(0));
       }
+      if (instr->OutputCount() > 1) {
+        __ Set(i.OutputRegister(1), 0);
+      }
       // Check if the result of the Float64ToInt64 conversion is positive, we
       // are already done.
       __ testq(i.OutputRegister(), i.OutputRegister());
       Label done;
-      __ j(positive, &done);
+      Label success;
+      __ j(positive, &success);
       // The result of the first conversion was negative, which means that the
       // input value was not within the positive int64 range. We subtract 2^64
       // and convert it again to see if it is within the uint64 range.
@@ -1128,9 +1132,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       // The input value is within uint64 range and the second conversion worked
       // successfully, but we still have to undo the subtraction we did
       // earlier.
-      __ movq(kScratchRegister, Immediate(1));
-      __ shlq(kScratchRegister, Immediate(63));
+      __ Set(kScratchRegister, 0x8000000000000000);
       __ orq(i.OutputRegister(), kScratchRegister);
+      __ bind(&success);
+      if (instr->OutputCount() > 1) {
+        __ Set(i.OutputRegister(1), 1);
+      }
       __ bind(&done);
       break;
     }
