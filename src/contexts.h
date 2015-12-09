@@ -126,8 +126,8 @@ enum BindingFlags {
   V(NATIVE_OBJECT_NOTIFIER_PERFORM_CHANGE, JSFunction,                        \
     native_object_notifier_perform_change)                                    \
   V(NATIVE_OBJECT_OBSERVE_INDEX, JSFunction, native_object_observe)           \
-  V(NO_SIDE_EFFECT_TO_STRING_FUN_INDEX, JSFunction,                           \
-    no_side_effect_to_string_fun)                                             \
+  V(NO_SIDE_EFFECTS_TO_STRING_FUN_INDEX, JSFunction,                          \
+    no_side_effects_to_string_fun)                                            \
   V(OBJECT_VALUE_OF, JSFunction, object_value_of)                             \
   V(OBJECT_TO_STRING, JSFunction, object_to_string)                           \
   V(OBSERVERS_BEGIN_SPLICE_INDEX, JSFunction, observers_begin_perform_splice) \
@@ -150,7 +150,6 @@ enum BindingFlags {
   V(SET_HAS_METHOD_INDEX, JSFunction, set_has)                                \
   V(STACK_OVERFLOW_BOILERPLATE_INDEX, JSObject, stack_overflow_boilerplate)   \
   V(SYNTAX_ERROR_FUNCTION_INDEX, JSFunction, syntax_error_function)           \
-  V(TO_DETAIL_STRING_FUN_INDEX, JSFunction, to_detail_string_fun)             \
   V(TYPE_ERROR_FUNCTION_INDEX, JSFunction, type_error_function)               \
   V(URI_ERROR_FUNCTION_INDEX, JSFunction, uri_error_function)                 \
   NATIVE_CONTEXT_JS_BUILTINS(V)

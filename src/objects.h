@@ -1171,6 +1171,9 @@ class Object {
   MUST_USE_RESULT static MaybeHandle<Object> GetMethod(
       Handle<JSReceiver> receiver, Handle<Name> name);
 
+  // Check whether |object| is an instance of Error or NativeError.
+  static bool IsErrorObject(Isolate* isolate, Handle<Object> object);
+
   // ES6 section 12.5.6 The typeof Operator
   static Handle<String> TypeOf(Isolate* isolate, Handle<Object> object);
 

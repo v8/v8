@@ -52,10 +52,6 @@ class Execution final : public AllStatic {
                                      Handle<Object> argv[],
                                      MaybeHandle<Object>* exception_out = NULL);
 
-  // ECMA-262 9.8
-  MUST_USE_RESULT static MaybeHandle<Object> ToDetailString(
-      Isolate* isolate, Handle<Object> obj);
-
   // ECMA-262 9.9
   MUST_USE_RESULT static MaybeHandle<Object> ToObject(
       Isolate* isolate, Handle<Object> obj);

@@ -5540,67 +5540,6 @@ TEST(TryCatchInTryFinally) {
 }
 
 
-static void check_reference_error_message(v8::Local<v8::Message> message,
-                                          v8::Local<v8::Value> data) {
-  const char* reference_error = "Uncaught ReferenceError: asdf is not defined";
-  Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
-  const char* reference_error2 = "Uncaught Error: asdf is not defined";
-  CHECK(message->Get()->Equals(context, v8_str(reference_error)).FromJust() ||
-        message->Get()->Equals(context, v8_str(reference_error2)).FromJust());
-}
-
-
-static void Fail(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  ApiTestFuzzer::Fuzz();
-  CHECK(false);
-}
-
-
-// Test that overwritten methods are not invoked on uncaught exception
-// formatting. However, they are invoked when performing normal error
-// string conversions.
-TEST(APIThrowMessageOverwrittenToString) {
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope scope(isolate);
-  isolate->AddMessageListener(check_reference_error_message);
-  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
-  templ->Set(v8_str("fail"), v8::FunctionTemplate::New(isolate, Fail));
-  LocalContext context(NULL, templ);
-  CompileRun("asdf;");
-  CompileRun(
-      "var limit = {};"
-      "limit.valueOf = fail;"
-      "Error.stackTraceLimit = limit;");
-  CompileRun("asdf");
-  CompileRun("Array.prototype.pop = fail;");
-  CompileRun("Object.prototype.hasOwnProperty = fail;");
-  CompileRun("Object.prototype.toString = function f() { return 'Yikes'; }");
-  CompileRun("Number.prototype.toString = function f() { return 'Yikes'; }");
-  CompileRun("String.prototype.toString = function f() { return 'Yikes'; }");
-  CompileRun(
-      "ReferenceError.prototype.toString ="
-      "  function() { return 'Whoops' }");
-  CompileRun("asdf;");
-  CompileRun("ReferenceError.prototype.constructor.name = void 0;");
-  CompileRun("asdf;");
-  CompileRun("ReferenceError.prototype.constructor = void 0;");
-  CompileRun("asdf;");
-  CompileRun("ReferenceError.prototype.__proto__ = new Object();");
-  CompileRun("asdf;");
-  CompileRun("ReferenceError.prototype = new Object();");
-  CompileRun("asdf;");
-  v8::Local<Value> string = CompileRun("try { asdf; } catch(e) { e + ''; }");
-  CHECK(string->Equals(context.local(), v8_str("Whoops")).FromJust());
-  CompileRun(
-      "ReferenceError.prototype.constructor = new Object();"
-      "ReferenceError.prototype.constructor.name = 1;"
-      "Number.prototype.toString = function() { return 'Whoops'; };"
-      "ReferenceError.prototype.toString = Object.prototype.toString;");
-  CompileRun("asdf;");
-  isolate->RemoveMessageListeners(check_reference_error_message);
-}
-
-
 static void check_custom_error_tostring(v8::Local<v8::Message> message,
                                         v8::Local<v8::Value> data) {
   const char* uncaught_error = "Uncaught MyError toString";

@@ -2898,12 +2898,16 @@ Local<String> Value::ToString(Isolate* isolate) const {
 
 
 MaybeLocal<String> Value::ToDetailString(Local<Context> context) const {
-  auto obj = Utils::OpenHandle(this);
+  i::Handle<i::Object> obj = Utils::OpenHandle(this);
   if (obj->IsString()) return ToApiHandle<String>(obj);
   PREPARE_FOR_EXECUTION(context, "ToDetailString", String);
   Local<String> result;
-  has_pending_exception =
-      !ToLocal<String>(i::Execution::ToDetailString(isolate, obj), &result);
+  i::Handle<i::Object> args[] = {obj};
+  has_pending_exception = !ToLocal<String>(
+      i::Execution::TryCall(isolate, isolate->no_side_effects_to_string_fun(),
+                            isolate->factory()->undefined_value(),
+                            arraysize(args), args),
+      &result);
   RETURN_ON_FAILED_EXECUTION(String);
   RETURN_ESCAPED(result);
 }

@@ -1348,22 +1348,11 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
 }
 
 
-// Use stack_trace_symbol as proxy for [[ErrorData]].
-bool Isolate::IsErrorObject(Handle<Object> object) {
-  Handle<Name> symbol = factory()->stack_trace_symbol();
-  if (!object->IsJSObject()) return false;
-  Maybe<bool> has_stack_trace =
-      JSReceiver::HasOwnProperty(Handle<JSReceiver>::cast(object), symbol);
-  DCHECK(!has_stack_trace.IsNothing());
-  return has_stack_trace.FromJust();
-}
-
-
 Handle<JSMessageObject> Isolate::CreateMessage(Handle<Object> exception,
                                                MessageLocation* location) {
   Handle<JSArray> stack_trace_object;
   if (capture_stack_trace_for_uncaught_exceptions_) {
-    if (IsErrorObject(exception)) {
+    if (Object::IsErrorObject(this, exception)) {
       // We fetch the stack trace that corresponds to this error object.
       // If the lookup fails, the exception is probably not a valid Error
       // object. In that case, we fall through and capture the stack trace
