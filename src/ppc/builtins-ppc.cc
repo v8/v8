@@ -1765,8 +1765,7 @@ void Builtins::Generate_ConstructProxy(MacroAssembler* masm) {
   // -----------------------------------
 
   // Call into the Runtime for Proxy [[Construct]].
-  __ Push(r4);
-  __ Push(r6);
+  __ Push(r4, r6);
   // Include the pushed new_target, constructor and the receiver.
   __ addi(r3, r3, Operand(3));
   // Tail-call to the runtime.
@@ -1792,14 +1791,16 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   __ CompareObjectType(r4, r7, r8, JS_FUNCTION_TYPE);
   __ Jump(masm->isolate()->builtins()->ConstructFunction(),
           RelocInfo::CODE_TARGET, eq);
-  __ cmpi(r8, Operand(JS_PROXY_TYPE));
-  __ Jump(masm->isolate()->builtins()->ConstructProxy(), RelocInfo::CODE_TARGET,
-          eq);
 
   // Check if target has a [[Construct]] internal method.
   __ lbz(r5, FieldMemOperand(r7, Map::kBitFieldOffset));
   __ TestBit(r5, Map::kIsConstructor, r0);
   __ beq(&non_constructor, cr0);
+
+  // Only dispatch to proxies after checking whether they are constructors.
+  __ cmpi(r8, Operand(JS_PROXY_TYPE));
+  __ Jump(masm->isolate()->builtins()->ConstructProxy(), RelocInfo::CODE_TARGET,
+          eq);
 
   // Called Construct on an exotic Object with a [[Construct]] internal method.
   {
