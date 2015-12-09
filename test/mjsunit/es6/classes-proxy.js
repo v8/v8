@@ -5,7 +5,7 @@
 // Flags: --allow-natives-syntax --harmony-proxies --harmony-reflect
 
 function CreateConstructableProxy(handler) {
-  return Proxy.createFunction(handler, function() {}, function() {});
+  return new Proxy(function(){}, handler);
 }
 
 (function() {

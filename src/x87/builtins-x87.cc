@@ -1603,13 +1603,21 @@ void Builtins::Generate_ConstructFunction(MacroAssembler* masm) {
 void Builtins::Generate_ConstructProxy(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax : the number of arguments (not including the receiver)
+  //  -- edi : the constructor to call (checked to be a JSProxy)
   //  -- edx : the new target (either the same as the constructor or
   //           the JSFunction on which new was invoked initially)
-  //  -- edi : the constructor to call (checked to be a JSProxy)
   // -----------------------------------
 
-  // TODO(neis): This doesn't match the ES6 spec for [[Construct]] on proxies.
-  __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
+  // Call into the Runtime for Proxy [[Construct]].
+  __ PopReturnAddressTo(ecx);
+  __ Push(edi);
+  __ Push(edx);
+  __ PushReturnAddressFrom(ecx);
+  // Include the pushed new_target, constructor and the receiver.
+  __ add(eax, Immediate(3));
+  // Tail-call to the runtime.
+  __ JumpToExternalReference(
+      ExternalReference(Runtime::kJSProxyConstruct, masm->isolate()));
 }
 
 
@@ -1617,9 +1625,9 @@ void Builtins::Generate_ConstructProxy(MacroAssembler* masm) {
 void Builtins::Generate_Construct(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax : the number of arguments (not including the receiver)
+  //  -- edi : the constructor to call (can be any Object)
   //  -- edx : the new target (either the same as the constructor or
   //           the JSFunction on which new was invoked initially)
-  //  -- edi : the constructor to call (can be any Object)
   // -----------------------------------
 
   // Check if target is a Smi.
@@ -1630,13 +1638,15 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
   __ j(equal, masm->isolate()->builtins()->ConstructFunction(),
        RelocInfo::CODE_TARGET);
-  __ CmpInstanceType(ecx, JS_PROXY_TYPE);
-  __ j(equal, masm->isolate()->builtins()->ConstructProxy(),
-       RelocInfo::CODE_TARGET);
 
   // Check if target has a [[Construct]] internal method.
   __ test_b(FieldOperand(ecx, Map::kBitFieldOffset), 1 << Map::kIsConstructor);
   __ j(zero, &non_constructor, Label::kNear);
+
+  // Only dispatch to proxies after checking whether they are constructors.
+  __ CmpInstanceType(ecx, JS_PROXY_TYPE);
+  __ j(equal, masm->isolate()->builtins()->ConstructProxy(),
+       RelocInfo::CODE_TARGET);
 
   // Called Construct on an exotic Object with a [[Construct]] internal method.
   {

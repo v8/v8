@@ -1741,8 +1741,14 @@ void Builtins::Generate_ConstructProxy(MacroAssembler* masm) {
   //          the JSFunction on which new was invoked initially)
   // -----------------------------------
 
-  // TODO(neis): This doesn't match the ES6 spec for [[Construct]] on proxies.
-  __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
+  // Call into the Runtime for Proxy [[Construct]].
+  __ Push(x1);
+  __ Push(x3);
+  // Include the pushed new_target, constructor and the receiver.
+  __ Add(x0, x0, 3);
+  // Tail-call to the runtime.
+  __ JumpToExternalReference(
+      ExternalReference(Runtime::kJSProxyConstruct, masm->isolate()));
 }
 
 
@@ -1763,13 +1769,15 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   __ CompareObjectType(x1, x4, x5, JS_FUNCTION_TYPE);
   __ Jump(masm->isolate()->builtins()->ConstructFunction(),
           RelocInfo::CODE_TARGET, eq);
-  __ Cmp(x5, JS_PROXY_TYPE);
-  __ Jump(masm->isolate()->builtins()->ConstructProxy(), RelocInfo::CODE_TARGET,
-          eq);
 
   // Check if target has a [[Construct]] internal method.
   __ Ldrb(x2, FieldMemOperand(x4, Map::kBitFieldOffset));
   __ TestAndBranchIfAllClear(x2, 1 << Map::kIsConstructor, &non_constructor);
+
+  // Only dispatch to proxies after checking whether they are constructors.
+  __ Cmp(x5, JS_PROXY_TYPE);
+  __ Jump(masm->isolate()->builtins()->ConstructProxy(), RelocInfo::CODE_TARGET,
+          eq);
 
   // Called Construct on an exotic Object with a [[Construct]] internal method.
   {

@@ -208,6 +208,8 @@ class CallSite {
   T(ProxyTargetNonObject, "Proxy target is non-object")                        \
   T(ProxyTargetPropNotConfigurable,                                            \
     "Proxy target property '%' is not configurable")                           \
+  T(ProxyTrapConstructMustReturnObject,                                        \
+    "Construct trap must return Object, but got ''%s'.")                       \
   T(ProxyTrapFunctionExpected,                                                 \
     "Proxy.createFunction called with non-function for '%' trap")              \
   T(ProxyTrapResultMustInclude, "Trap result must include %.")                 \
