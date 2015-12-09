@@ -505,7 +505,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ fild_s(MemOperand(esp, 0));
       __ lea(esp, Operand(esp, kPointerSize));
 
-      AssembleDeoptimizerCall(deopt_state_id, Deoptimizer::EAGER);
+      Deoptimizer::BailoutType bailout_type =
+          Deoptimizer::BailoutType(MiscField::decode(instr->opcode()));
+      AssembleDeoptimizerCall(deopt_state_id, bailout_type);
       break;
     }
     case kArchRet:
