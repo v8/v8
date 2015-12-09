@@ -335,7 +335,6 @@ namespace internal {
   F(CollectStackTrace, 2, 1)                  \
   F(MessageGetStartPosition, 1, 1)            \
   F(MessageGetScript, 1, 1)                   \
-  F(ErrorToStringRT, 1, 1)                    \
   F(FormatMessageString, 4, 1)                \
   F(CallSiteGetFileNameRT, 1, 1)              \
   F(CallSiteGetFunctionNameRT, 1, 1)          \
