@@ -2270,12 +2270,13 @@ class JSObject: public JSReceiver {
 
   // Returns the number of properties on this object filtering out properties
   // with the specified attributes (ignoring interceptors).
+  // TODO(jkummerow): Deprecated, only used by Object.observe.
   int NumberOfOwnElements(PropertyFilter filter);
-  // Returns the number of enumerable elements (ignoring interceptors).
-  int NumberOfEnumElements();
   // Returns the number of elements on this object filtering out elements
   // with the specified attributes (ignoring interceptors).
+  // TODO(jkummerow): Deprecated, only used by Object.observe.
   int GetOwnElementKeys(FixedArray* storage, PropertyFilter filter);
+
   static void CollectOwnElementKeys(Handle<JSObject> object,
                                     KeyAccumulator* keys,
                                     PropertyFilter filter);

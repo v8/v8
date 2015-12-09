@@ -8001,6 +8001,67 @@ MaybeHandle<Object> JSReceiver::OrdinaryToPrimitive(
 }
 
 
+// TODO(cbruni/jkummerow): Consider moving this into elements.cc.
+bool HasEnumerableElements(JSObject* object) {
+  if (object->IsJSValue()) {
+    Object* value = JSValue::cast(object)->value();
+    if (value->IsString()) {
+      if (String::cast(value)->length() > 0) return true;
+    }
+  }
+  switch (object->GetElementsKind()) {
+    case FAST_SMI_ELEMENTS:
+    case FAST_ELEMENTS:
+    case FAST_DOUBLE_ELEMENTS: {
+      int length = object->IsJSArray()
+                       ? Smi::cast(JSArray::cast(object)->length())->value()
+                       : object->elements()->length();
+      return length > 0;
+    }
+    case FAST_HOLEY_SMI_ELEMENTS:
+    case FAST_HOLEY_ELEMENTS: {
+      FixedArray* elements = FixedArray::cast(object->elements());
+      int length = object->IsJSArray()
+                       ? Smi::cast(JSArray::cast(object)->length())->value()
+                       : elements->length();
+      for (int i = 0; i < length; i++) {
+        if (!elements->is_the_hole(i)) return true;
+      }
+      return false;
+    }
+    case FAST_HOLEY_DOUBLE_ELEMENTS: {
+      FixedDoubleArray* elements = FixedDoubleArray::cast(object->elements());
+      DCHECK(object->IsJSArray());
+      int length = Smi::cast(JSArray::cast(object)->length())->value();
+      for (int i = 0; i < length; i++) {
+        if (!elements->is_the_hole(i)) return true;
+      }
+      return false;
+    }
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
+    case TYPE##_ELEMENTS:
+
+      TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+      {
+        int length = object->elements()->length();
+        return length > 0;
+      }
+    case DICTIONARY_ELEMENTS: {
+      SeededNumberDictionary* elements =
+          SeededNumberDictionary::cast(object->elements());
+      return elements->NumberOfElementsFilterAttributes(ONLY_ENUMERABLE) > 0;
+    }
+    case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
+    case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
+      // We're approximating non-empty arguments objects here.
+      return true;
+  }
+  UNREACHABLE();
+  return true;
+}
+
+
 // Tests for the fast common case for property enumeration:
 // - This object and all prototypes has an enum cache (which means that
 //   it is no proxy, has no interceptors and needs no access checks).
@@ -8017,7 +8078,7 @@ bool JSReceiver::IsSimpleEnum() {
     if (current->IsAccessCheckNeeded()) return false;
     DCHECK(!current->HasNamedInterceptor());
     DCHECK(!current->HasIndexedInterceptor());
-    if (current->NumberOfEnumElements() > 0) return false;
+    if (HasEnumerableElements(current)) return false;
     if (current != this && enum_length != 0) return false;
   }
   return true;
@@ -15971,11 +16032,6 @@ int JSObject::NumberOfOwnElements(PropertyFilter filter) {
   }
   // Compute the number of enumerable elements.
   return GetOwnElementKeys(NULL, filter);
-}
-
-
-int JSObject::NumberOfEnumElements() {
-  return NumberOfOwnElements(ONLY_ENUMERABLE);
 }
 
 
