@@ -279,8 +279,10 @@ enum OpcodeExt4 {
   FRSP = 12 << 1,      // Floating-Point Rounding
   FCTIW = 14 << 1,     // Floating Convert to Integer Word X-form
   FCTIWZ = 15 << 1,    // Floating Convert to Integer Word with Round to Zero
+  MTFSB1 = 38 << 1,    // Move to FPSCR Bit 1
   FNEG = 40 << 1,      // Floating Negate
   MCRFS = 64 << 1,     // Move to Condition Register from FPSCR
+  MTFSB0 = 70 << 1,    // Move to FPSCR Bit 0
   FMR = 72 << 1,       // Floating Move Register
   MTFSFI = 134 << 1,   // Move to FPSCR Field Immediate
   FABS = 264 << 1,     // Floating Absolute Value
@@ -401,6 +403,13 @@ enum BOfield {        // Bits 25-21
 enum CRBit { CR_LT = 0, CR_GT = 1, CR_EQ = 2, CR_SO = 3, CR_FU = 3 };
 
 #define CRWIDTH 4
+
+// These are the documented bit positions biased down by 32
+enum FPSCRBit {
+  VXSOFT = 21,  // 53: Software-Defined Condition
+  VXSQRT = 22,  // 54: Invalid Square Root
+  VXCVI = 23    // 55: Invalid Integer Convert
+};
 
 // -----------------------------------------------------------------------------
 // Supervisor Call (svc) specific support.

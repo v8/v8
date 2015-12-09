@@ -1017,6 +1017,18 @@ void Decoder::DecodeExt4(Instruction* instr) {
       Format(instr, "fneg'.   'Dt, 'Db");
       break;
     }
+    case MCRFS: {
+      Format(instr, "mcrfs   ?,?");
+      break;
+    }
+    case MTFSB0: {
+      Format(instr, "mtfsb0'. ?");
+      break;
+    }
+    case MTFSB1: {
+      Format(instr, "mtfsb1'. ?");
+      break;
+    }
     default: {
       Unknown(instr);  // not used by V8
     }

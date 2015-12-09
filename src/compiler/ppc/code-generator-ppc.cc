@@ -27,6 +27,8 @@ class PPCOperandConverter final : public InstructionOperandConverter {
   PPCOperandConverter(CodeGenerator* gen, Instruction* instr)
       : InstructionOperandConverter(gen, instr) {}
 
+  size_t OutputCount() { return instr_->OutputCount(); }
+
   RCBit OutputRCBit() const {
     switch (instr_->flags_mode()) {
       case kFlags_branch:
@@ -1157,14 +1159,32 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     case kPPC_DoubleToInt32:
     case kPPC_DoubleToUint32:
-    case kPPC_DoubleToInt64:
+    case kPPC_DoubleToInt64: {
+#if V8_TARGET_ARCH_PPC64
+      bool check_conversion =
+          (opcode == kPPC_DoubleToInt64 && i.OutputCount() > 1);
+      if (check_conversion) {
+        __ mtfsb0(VXCVI);  // clear FPSCR:VXCVI bit
+      }
+#endif
       __ ConvertDoubleToInt64(i.InputDoubleRegister(0),
 #if !V8_TARGET_ARCH_PPC64
                               kScratchReg,
 #endif
-                              i.OutputRegister(), kScratchDoubleReg);
+                              i.OutputRegister(0), kScratchDoubleReg);
+#if V8_TARGET_ARCH_PPC64
+      if (check_conversion) {
+        // Set 2nd output to zero if conversion fails.
+        CRBit crbit = static_cast<CRBit>(VXCVI % CRWIDTH);
+        __ mcrfs(cr7, VXCVI);  // extract FPSCR field containing VXCVI into cr7
+        __ li(i.OutputRegister(1), Operand(1));
+        __ isel(i.OutputRegister(1), r0, i.OutputRegister(1),
+                v8::internal::Assembler::encode_crbit(cr7, crbit));
+      }
+#endif
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
+    }
 #if V8_TARGET_ARCH_PPC64
     case kPPC_DoubleToUint64:
       __ ConvertDoubleToUnsignedInt64(i.InputDoubleRegister(0),

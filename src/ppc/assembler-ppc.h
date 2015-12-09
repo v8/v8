@@ -984,7 +984,7 @@ class Assembler : public AssemblerBase {
   void mtlr(Register src);
   void mtctr(Register src);
   void mtxer(Register src);
-  void mcrfs(int bf, int bfa);
+  void mcrfs(CRegister cr, FPSCRBit bit);
   void mfcr(Register dst);
 #if V8_TARGET_ARCH_PPC64
   void mffprd(Register dst, DoubleRegister src);
@@ -1071,6 +1071,8 @@ class Assembler : public AssemblerBase {
             RCBit rc = LeaveRC);
   void fneg(const DoubleRegister frt, const DoubleRegister frb,
             RCBit rc = LeaveRC);
+  void mtfsb0(FPSCRBit bit, RCBit rc = LeaveRC);
+  void mtfsb1(FPSCRBit bit, RCBit rc = LeaveRC);
   void mtfsfi(int bf, int immediate, RCBit rc = LeaveRC);
   void mffs(const DoubleRegister frt, RCBit rc = LeaveRC);
   void mtfsf(const DoubleRegister frb, bool L = 1, int FLM = 0, bool W = 0,

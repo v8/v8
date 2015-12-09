@@ -323,6 +323,9 @@ class Simulator {
 #endif
   void ExecuteGeneric(Instruction* instr);
 
+  void SetFPSCR(int bit) { fp_condition_reg_ |= (1 << (31 - bit)); }
+  void ClearFPSCR(int bit) { fp_condition_reg_ &= ~(1 << (31 - bit)); }
+
   // Executes one instruction.
   void ExecuteInstruction(Instruction* instr);
 

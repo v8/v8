@@ -2916,11 +2916,14 @@ void Simulator::ExecuteExt4(Instruction* instr) {
       int64_t one = 1;  // work-around gcc
       int64_t kMinLongLong = (one << 63);
       int64_t kMaxLongLong = kMinLongLong - 1;
+      bool invalid_convert = false;
 
-      if (frb_val > kMaxLongLong) {
-        frt_val = kMaxLongLong;
-      } else if (frb_val < kMinLongLong) {
+      if (std::isnan(frb_val) || frb_val < kMinLongLong) {
         frt_val = kMinLongLong;
+        invalid_convert = true;
+      } else if (frb_val > kMaxLongLong) {
+        frt_val = kMaxLongLong;
+        invalid_convert = true;
       } else {
         switch (fp_condition_reg_ & kFPRoundingModeMask) {
           case kRoundToZero:
@@ -2939,6 +2942,7 @@ void Simulator::ExecuteExt4(Instruction* instr) {
         }
       }
       set_d_register(frt, frt_val);
+      if (invalid_convert) SetFPSCR(VXCVI);
       return;
     }
     case FCTIDZ: {
@@ -2949,15 +2953,19 @@ void Simulator::ExecuteExt4(Instruction* instr) {
       int64_t one = 1;  // work-around gcc
       int64_t kMinLongLong = (one << 63);
       int64_t kMaxLongLong = kMinLongLong - 1;
+      bool invalid_convert = false;
 
-      if (frb_val > kMaxLongLong) {
-        frt_val = kMaxLongLong;
-      } else if (frb_val < kMinLongLong) {
+      if (std::isnan(frb_val) || frb_val < kMinLongLong) {
         frt_val = kMinLongLong;
+        invalid_convert = true;
+      } else if (frb_val > kMaxLongLong) {
+        frt_val = kMaxLongLong;
+        invalid_convert = true;
       } else {
         frt_val = (int64_t)frb_val;
       }
       set_d_register(frt, frt_val);
+      if (invalid_convert) SetFPSCR(VXCVI);
       return;
     }
     case FCTIDU: {
@@ -2967,11 +2975,14 @@ void Simulator::ExecuteExt4(Instruction* instr) {
       uint64_t frt_val;
       uint64_t kMinLongLong = 0;
       uint64_t kMaxLongLong = kMinLongLong - 1;
+      bool invalid_convert = false;
 
-      if (frb_val > kMaxLongLong) {
-        frt_val = kMaxLongLong;
-      } else if (frb_val < kMinLongLong) {
+      if (std::isnan(frb_val) || frb_val < kMinLongLong) {
         frt_val = kMinLongLong;
+        invalid_convert = true;
+      } else if (frb_val > kMaxLongLong) {
+        frt_val = kMaxLongLong;
+        invalid_convert = true;
       } else {
         switch (fp_condition_reg_ & kFPRoundingModeMask) {
           case kRoundToZero:
@@ -2990,6 +3001,7 @@ void Simulator::ExecuteExt4(Instruction* instr) {
         }
       }
       set_d_register(frt, frt_val);
+      if (invalid_convert) SetFPSCR(VXCVI);
       return;
     }
     case FCTIDUZ: {
@@ -2999,15 +3011,19 @@ void Simulator::ExecuteExt4(Instruction* instr) {
       uint64_t frt_val;
       uint64_t kMinLongLong = 0;
       uint64_t kMaxLongLong = kMinLongLong - 1;
+      bool invalid_convert = false;
 
-      if (frb_val > kMaxLongLong) {
-        frt_val = kMaxLongLong;
-      } else if (frb_val < kMinLongLong) {
+      if (std::isnan(frb_val) || frb_val < kMinLongLong) {
         frt_val = kMinLongLong;
+        invalid_convert = true;
+      } else if (frb_val > kMaxLongLong) {
+        frt_val = kMaxLongLong;
+        invalid_convert = true;
       } else {
         frt_val = (uint64_t)frb_val;
       }
       set_d_register(frt, frt_val);
+      if (invalid_convert) SetFPSCR(VXCVI);
       return;
     }
     case FCTIW:
@@ -3102,6 +3118,43 @@ void Simulator::ExecuteExt4(Instruction* instr) {
       int frt = instr->RTValue();
       int64_t lval = static_cast<int64_t>(fp_condition_reg_);
       set_d_register(frt, lval);
+      return;
+    }
+    case MCRFS: {
+      int bf = instr->Bits(25, 23);
+      int bfa = instr->Bits(20, 18);
+      int cr_shift = (7 - bf) * CRWIDTH;
+      int fp_shift = (7 - bfa) * CRWIDTH;
+      int field_val = (fp_condition_reg_ >> fp_shift) & 0xf;
+      condition_reg_ &= ~(0x0f << cr_shift);
+      condition_reg_ |= (field_val << cr_shift);
+      // Clear copied exception bits
+      switch (bfa) {
+        case 5:
+          ClearFPSCR(VXSOFT);
+          ClearFPSCR(VXSQRT);
+          ClearFPSCR(VXCVI);
+          break;
+        default:
+          UNIMPLEMENTED();
+          break;
+      }
+      return;
+    }
+    case MTFSB0: {
+      int bt = instr->Bits(25, 21);
+      ClearFPSCR(bt);
+      if (instr->Bit(0)) {  // RC bit set
+        UNIMPLEMENTED();
+      }
+      return;
+    }
+    case MTFSB1: {
+      int bt = instr->Bits(25, 21);
+      SetFPSCR(bt);
+      if (instr->Bit(0)) {  // RC bit set
+        UNIMPLEMENTED();
+      }
       return;
     }
     case FABS: {

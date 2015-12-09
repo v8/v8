@@ -1844,7 +1844,10 @@ void Assembler::mtxer(Register src) {
 }
 
 
-void Assembler::mcrfs(int bf, int bfa) {
+void Assembler::mcrfs(CRegister cr, FPSCRBit bit) {
+  DCHECK(static_cast<int>(bit) < 32);
+  int bf = cr.code();
+  int bfa = bit / CRWIDTH;
   emit(EXT4 | MCRFS | bf * B23 | bfa * B18);
 }
 
@@ -2216,6 +2219,20 @@ void Assembler::fsel(const DoubleRegister frt, const DoubleRegister fra,
 void Assembler::fneg(const DoubleRegister frt, const DoubleRegister frb,
                      RCBit rc) {
   emit(EXT4 | FNEG | frt.code() * B21 | frb.code() * B11 | rc);
+}
+
+
+void Assembler::mtfsb0(FPSCRBit bit, RCBit rc) {
+  DCHECK(static_cast<int>(bit) < 32);
+  int bt = bit;
+  emit(EXT4 | MTFSB0 | bt * B21 | rc);
+}
+
+
+void Assembler::mtfsb1(FPSCRBit bit, RCBit rc) {
+  DCHECK(static_cast<int>(bit) < 32);
+  int bt = bit;
+  emit(EXT4 | MTFSB1 | bt * B21 | rc);
 }
 
 
