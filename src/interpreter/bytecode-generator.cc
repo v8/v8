@@ -1040,18 +1040,17 @@ void BytecodeGenerator::VisitLiteral(Literal* expr) {
 void BytecodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   // Materialize a regular expression literal.
   TemporaryRegisterScope temporary_register_scope(builder());
-  builder()
-      ->LoadLiteral(expr->pattern())
-      .CreateRegExpLiteral(expr->literal_index(), expr->flags());
+  builder()->CreateRegExpLiteral(expr->pattern(), expr->literal_index(),
+                                 expr->flags());
   execution_result()->SetResultInAccumulator();
 }
 
 
 void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   // Deep-copy the literal boilerplate.
-  builder()
-      ->LoadLiteral(expr->constant_properties())
-      .CreateObjectLiteral(expr->literal_index(), expr->ComputeFlags(true));
+  builder()->CreateObjectLiteral(expr->constant_properties(),
+                                 expr->literal_index(),
+                                 expr->ComputeFlags(true));
 
   TemporaryRegisterScope temporary_register_scope(builder());
   Register literal;
@@ -1243,9 +1242,9 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
 
 void BytecodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   // Deep-copy the literal boilerplate.
-  builder()
-      ->LoadLiteral(expr->constant_elements())
-      .CreateArrayLiteral(expr->literal_index(), expr->ComputeFlags(true));
+  builder()->CreateArrayLiteral(expr->constant_elements(),
+                                expr->literal_index(),
+                                expr->ComputeFlags(true));
 
   TemporaryRegisterScope temporary_register_scope(builder());
   Register index, literal;

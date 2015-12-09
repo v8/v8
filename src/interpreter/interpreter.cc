@@ -1305,10 +1305,11 @@ void Interpreter::DoJumpIfUndefinedConstant(
 
 void Interpreter::DoCreateLiteral(Runtime::FunctionId function_id,
                                   compiler::InterpreterAssembler* assembler) {
-  Node* constant_elements = __ GetAccumulator();
-  Node* literal_index_raw = __ BytecodeOperandIdx(0);
+  Node* index = __ BytecodeOperandIdx(0);
+  Node* constant_elements = __ LoadConstantPoolEntry(index);
+  Node* literal_index_raw = __ BytecodeOperandIdx(1);
   Node* literal_index = __ SmiTag(literal_index_raw);
-  Node* flags_raw = __ BytecodeOperandImm(1);
+  Node* flags_raw = __ BytecodeOperandImm(2);
   Node* flags = __ SmiTag(flags_raw);
   Node* closure = __ LoadRegister(Register::function_closure());
   Node* result = __ CallRuntime(function_id, closure, literal_index,
@@ -1318,31 +1319,61 @@ void Interpreter::DoCreateLiteral(Runtime::FunctionId function_id,
 }
 
 
-// CreateRegExpLiteral <idx> <flags>
+// CreateRegExpLiteral <pattern_idx> <literal_idx> <flags>
 //
-// Creates a regular expression literal for literal index <idx> with <flags> and
-// the pattern in the accumulator.
+// Creates a regular expression literal for literal index <literal_idx> with
+// <flags> and the pattern in <pattern_idx>.
 void Interpreter::DoCreateRegExpLiteral(
     compiler::InterpreterAssembler* assembler) {
   DoCreateLiteral(Runtime::kCreateRegExpLiteral, assembler);
 }
 
 
-// CreateArrayLiteral <idx> <flags>
+// CreateRegExpLiteralWide <pattern_idx> <literal_idx> <flags>
 //
-// Creates an array literal for literal index <idx> with flags <flags> and
-// constant elements in the accumulator.
+// Creates a regular expression literal for literal index <literal_idx> with
+// <flags> and the pattern in <pattern_idx>.
+void Interpreter::DoCreateRegExpLiteralWide(
+    compiler::InterpreterAssembler* assembler) {
+  DoCreateLiteral(Runtime::kCreateRegExpLiteral, assembler);
+}
+
+
+// CreateArrayLiteral <element_idx> <literal_idx> <flags>
+//
+// Creates an array literal for literal index <literal_idx> with flags <flags>
+// and constant elements in <element_idx>.
 void Interpreter::DoCreateArrayLiteral(
     compiler::InterpreterAssembler* assembler) {
   DoCreateLiteral(Runtime::kCreateArrayLiteral, assembler);
 }
 
 
-// CreateObjectLiteral <idx> <flags>
+// CreateArrayLiteralWide <element_idx> <literal_idx> <flags>
 //
-// Creates an object literal for literal index <idx> with flags <flags> and
-// constant elements in the accumulator.
+// Creates an array literal for literal index <literal_idx> with flags <flags>
+// and constant elements in <element_idx>.
+void Interpreter::DoCreateArrayLiteralWide(
+    compiler::InterpreterAssembler* assembler) {
+  DoCreateLiteral(Runtime::kCreateArrayLiteral, assembler);
+}
+
+
+// CreateObjectLiteral <element_idx> <literal_idx> <flags>
+//
+// Creates an object literal for literal index <literal_idx> with flags <flags>
+// and constant elements in <element_idx>.
 void Interpreter::DoCreateObjectLiteral(
+    compiler::InterpreterAssembler* assembler) {
+  DoCreateLiteral(Runtime::kCreateObjectLiteral, assembler);
+}
+
+
+// CreateObjectLiteralWide <element_idx> <literal_idx> <flags>
+//
+// Creates an object literal for literal index <literal_idx> with flags <flags>
+// and constant elements in <element_idx>.
+void Interpreter::DoCreateObjectLiteralWide(
     compiler::InterpreterAssembler* assembler) {
   DoCreateLiteral(Runtime::kCreateObjectLiteral, assembler);
 }

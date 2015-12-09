@@ -125,9 +125,12 @@ class BytecodeArrayBuilder {
   BytecodeArrayBuilder& CreateArguments(CreateArgumentsType type);
 
   // Literals creation.  Constant elements should be in the accumulator.
-  BytecodeArrayBuilder& CreateRegExpLiteral(int literal_index, int flags);
-  BytecodeArrayBuilder& CreateArrayLiteral(int literal_index, int flags);
-  BytecodeArrayBuilder& CreateObjectLiteral(int literal_index, int flags);
+  BytecodeArrayBuilder& CreateRegExpLiteral(Handle<String> pattern,
+                                            int literal_index, int flags);
+  BytecodeArrayBuilder& CreateArrayLiteral(Handle<FixedArray> constant_elements,
+                                           int literal_index, int flags);
+  BytecodeArrayBuilder& CreateObjectLiteral(
+      Handle<FixedArray> constant_properties, int literal_index, int flags);
 
   // Push the context in accumulator as the new context, and store in register
   // |context|.

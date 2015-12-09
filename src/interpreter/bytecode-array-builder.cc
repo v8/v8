@@ -537,11 +537,17 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateArguments(
 
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateRegExpLiteral(
-    int literal_index, int flags) {
+    Handle<String> pattern, int literal_index, int flags) {
   DCHECK(FitsInImm8Operand(flags));  // Flags should fit in 8 bits.
-  if (FitsInIdx8Operand(literal_index)) {
-    Output(Bytecode::kCreateRegExpLiteral, static_cast<uint8_t>(literal_index),
-           static_cast<uint8_t>(flags));
+  size_t pattern_entry = GetConstantPoolEntry(pattern);
+  if (FitsInIdx8Operand(literal_index) && FitsInIdx8Operand(pattern_entry)) {
+    Output(Bytecode::kCreateRegExpLiteral, static_cast<uint8_t>(pattern_entry),
+           static_cast<uint8_t>(literal_index), static_cast<uint8_t>(flags));
+  } else if (FitsInIdx16Operand(literal_index) &&
+             FitsInIdx16Operand(pattern_entry)) {
+    Output(Bytecode::kCreateRegExpLiteralWide,
+           static_cast<uint16_t>(pattern_entry),
+           static_cast<uint16_t>(literal_index), static_cast<uint8_t>(flags));
   } else {
     UNIMPLEMENTED();
   }
@@ -550,11 +556,19 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateRegExpLiteral(
 
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateArrayLiteral(
-    int literal_index, int flags) {
+    Handle<FixedArray> constant_elements, int literal_index, int flags) {
   DCHECK(FitsInImm8Operand(flags));  // Flags should fit in 8 bits.
-  if (FitsInIdx8Operand(literal_index)) {
-    Output(Bytecode::kCreateArrayLiteral, static_cast<uint8_t>(literal_index),
-           static_cast<uint8_t>(flags));
+  size_t constant_elements_entry = GetConstantPoolEntry(constant_elements);
+  if (FitsInIdx8Operand(literal_index) &&
+      FitsInIdx8Operand(constant_elements_entry)) {
+    Output(Bytecode::kCreateArrayLiteral,
+           static_cast<uint8_t>(constant_elements_entry),
+           static_cast<uint8_t>(literal_index), static_cast<uint8_t>(flags));
+  } else if (FitsInIdx16Operand(literal_index) &&
+             FitsInIdx16Operand(constant_elements_entry)) {
+    Output(Bytecode::kCreateArrayLiteralWide,
+           static_cast<uint16_t>(constant_elements_entry),
+           static_cast<uint16_t>(literal_index), static_cast<uint8_t>(flags));
   } else {
     UNIMPLEMENTED();
   }
@@ -563,11 +577,19 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateArrayLiteral(
 
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateObjectLiteral(
-    int literal_index, int flags) {
+    Handle<FixedArray> constant_properties, int literal_index, int flags) {
   DCHECK(FitsInImm8Operand(flags));  // Flags should fit in 8 bits.
-  if (FitsInIdx8Operand(literal_index)) {
-    Output(Bytecode::kCreateObjectLiteral, static_cast<uint8_t>(literal_index),
-           static_cast<uint8_t>(flags));
+  size_t constant_properties_entry = GetConstantPoolEntry(constant_properties);
+  if (FitsInIdx8Operand(literal_index) &&
+      FitsInIdx8Operand(constant_properties_entry)) {
+    Output(Bytecode::kCreateObjectLiteral,
+           static_cast<uint8_t>(constant_properties_entry),
+           static_cast<uint8_t>(literal_index), static_cast<uint8_t>(flags));
+  } else if (FitsInIdx16Operand(literal_index) &&
+             FitsInIdx16Operand(constant_properties_entry)) {
+    Output(Bytecode::kCreateObjectLiteralWide,
+           static_cast<uint16_t>(constant_properties_entry),
+           static_cast<uint16_t>(literal_index), static_cast<uint8_t>(flags));
   } else {
     UNIMPLEMENTED();
   }

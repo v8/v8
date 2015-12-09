@@ -1599,12 +1599,11 @@ TEST(CallRuntime) {
           "function f() { return %spread_iterable([1]) }\nf()",
           2 * kPointerSize,
           1,
-          16,
+          15,
           {
               B(LdaUndefined),                                              //
               B(Star), R(0),                                                //
-              B(LdaConstant), U8(0),                                        //
-              B(CreateArrayLiteral), U8(0), U8(3),                          //
+              B(CreateArrayLiteral), U8(0), U8(0), U8(3),                   //
               B(Star), R(1),                                                //
               B(CallJSRuntime), U16(Context::SPREAD_ITERABLE_INDEX), R(0),  //
               U8(1),                                                        //
@@ -2602,13 +2601,12 @@ TEST(Delete) {
       {"var a = {x:13, y:14}; return delete a.x;",
        1 * kPointerSize,
        1,
-       12,
+       11,
        {
-           B(LdaConstant), U8(0),                                   //
-           B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),  //
-           B(Star), R(0),                                           //
-           B(LdaConstant), U8(1),                                   //
-           B(DeletePropertySloppy), R(0),                           //
+           B(CreateObjectLiteral), U8(0), U8(0), U8(deep_elements_flags),  //
+           B(Star), R(0),                                                  //
+           B(LdaConstant), U8(1),                                          //
+           B(DeletePropertySloppy), R(0),                                  //
            B(Return)
        },
        2,
@@ -2617,13 +2615,12 @@ TEST(Delete) {
       {"'use strict'; var a = {x:13, y:14}; return delete a.x;",
        1 * kPointerSize,
        1,
-       12,
+       11,
        {
-           B(LdaConstant), U8(0),                                   //
-           B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),  //
-           B(Star), R(0),                                           //
-           B(LdaConstant), U8(1),                                   //
-           B(DeletePropertyStrict), R(0),                           //
+           B(CreateObjectLiteral), U8(0), U8(0), U8(deep_elements_flags),  //
+           B(Star), R(0),                                                  //
+           B(LdaConstant), U8(1),                                          //
+           B(DeletePropertyStrict), R(0),                                  //
            B(Return)
        },
        2,
@@ -2632,13 +2629,12 @@ TEST(Delete) {
       {"var a = {1:13, 2:14}; return delete a[2];",
        1 * kPointerSize,
        1,
-       12,
+       11,
        {
-           B(LdaConstant), U8(0),                                   //
-           B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),  //
-           B(Star), R(0),                                           //
-           B(LdaSmi8), U8(2),                                       //
-           B(DeletePropertySloppy), R(0),                           //
+           B(CreateObjectLiteral), U8(0), U8(0), U8(deep_elements_flags),  //
+           B(Star), R(0),                                                  //
+           B(LdaSmi8), U8(2),                                              //
+           B(DeletePropertySloppy), R(0),                                  //
            B(Return)
        },
        1,
@@ -2660,19 +2656,18 @@ TEST(Delete) {
        "return delete a[1];",
        2 * kPointerSize,
        1,
-       28,
+       27,
        {
-           B(CallRuntime), U16(Runtime::kNewFunctionContext),       //
-                            R(closure), U8(1),                      //
-           B(PushContext), R(0),                                    //
-           B(LdaConstant), U8(0),                                   //
-           B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),  //
-           B(StaContextSlot), R(0), U8(first_context_slot),         //
-           B(CreateClosure), U8(1), U8(0),                          //
-           B(LdaContextSlot), R(0), U8(first_context_slot),         //
-           B(Star), R(1),                                           //
-           B(LdaSmi8), U8(1),                                       //
-           B(DeletePropertyStrict), R(1),                           //
+           B(CallRuntime), U16(Runtime::kNewFunctionContext),              //
+                            R(closure), U8(1),                             //
+           B(PushContext), R(0),                                           //
+           B(CreateObjectLiteral), U8(0), U8(0), U8(deep_elements_flags),  //
+           B(StaContextSlot), R(0), U8(first_context_slot),                //
+           B(CreateClosure), U8(1), U8(0),                                 //
+           B(LdaContextSlot), R(0), U8(first_context_slot),                //
+           B(Star), R(1),                                                  //
+           B(LdaSmi8), U8(1),                                              //
+           B(DeletePropertyStrict), R(1),                                  //
            B(Return)
        },
        2,
@@ -2850,32 +2845,29 @@ TEST(RegExpLiterals) {
       {"return /ab+d/;",
        0 * kPointerSize,
        1,
-       6,
+       5,
        {
-           B(LdaConstant), U8(0),                 //
-           B(CreateRegExpLiteral), U8(0), U8(0),  //
-           B(Return),                             //
+           B(CreateRegExpLiteral), U8(0), U8(0), U8(0),  //
+           B(Return),                                    //
        },
        1,
        {"ab+d"}},
       {"return /(\\w+)\\s(\\w+)/i;",
        0 * kPointerSize,
        1,
-       6,
+       5,
        {
-           B(LdaConstant), U8(0),                       //
-           B(CreateRegExpLiteral), U8(0), U8(i_flags),  //
-           B(Return),                                   //
+           B(CreateRegExpLiteral), U8(0), U8(0), U8(i_flags),  //
+           B(Return),                                          //
        },
        1,
        {"(\\w+)\\s(\\w+)"}},
       {"return /ab+d/.exec('abdd');",
        3 * kPointerSize,
        1,
-       23,
+       22,
        {
-           B(LdaConstant), U8(0),                                      //
-           B(CreateRegExpLiteral), U8(0), U8(0),                       //
+           B(CreateRegExpLiteral), U8(0), U8(0), U8(0),                //
            B(Star), R(1),                                              //
            B(LoadICSloppy), R(1), U8(1), U8(vector->GetIndex(slot2)),  //
            B(Star), R(0),                                              //
@@ -2886,6 +2878,38 @@ TEST(RegExpLiterals) {
        },
        3,
        {"ab+d", "exec", "abdd"}},
+  };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+}
+
+
+TEST(RegExpLiteralsWide) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+  Zone zone;
+
+  int wide_idx = 0;
+
+  ExpectedSnippet<InstanceType, 257> snippets[] = {
+      {"var a;" REPEAT_256(SPACE, "a = 1.23;") "return /ab+d/;",
+       1 * kPointerSize,
+       1,
+       1031,
+       {
+           REPEAT_256(COMMA,                                     //
+             B(LdaConstant), U8(wide_idx++),                     //
+             B(Star), R(0)),                                     //
+           B(CreateRegExpLiteralWide), U16(256), U16(0), U8(0),  //
+           B(Return)                                             //
+       },
+       257,
+       {REPEAT_256(COMMA, InstanceType::HEAP_NUMBER_TYPE),
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
   };
 
   for (size_t i = 0; i < arraysize(snippets); i++) {
@@ -2916,23 +2940,21 @@ TEST(ArrayLiterals) {
       {"return [ 1, 2 ];",
        0,
        1,
-       6,
+       5,
        {
-           B(LdaConstant), U8(0),                           //
-           B(CreateArrayLiteral), U8(0), U8(simple_flags),  //
-           B(Return)                                        //
+           B(CreateArrayLiteral), U8(0), U8(0), U8(simple_flags),  //
+           B(Return)                                               //
        },
        1,
        {InstanceType::FIXED_ARRAY_TYPE}},
       {"var a = 1; return [ a, a + 1 ];",
        3 * kPointerSize,
        1,
-       35,
+       34,
        {
            B(LdaSmi8), U8(1),                                               //
            B(Star), R(0),                                                   //
-           B(LdaConstant), U8(0),                                           //
-           B(CreateArrayLiteral), U8(0), U8(3),                             //
+           B(CreateArrayLiteral), U8(0), U8(0), U8(3),                      //
            B(Star), R(2),                                                   //
            B(LdaZero),                                                      //
            B(Star), R(1),                                                   //
@@ -2951,28 +2973,25 @@ TEST(ArrayLiterals) {
       {"return [ [ 1, 2 ], [ 3 ] ];",
        0,
        1,
-       6,
+       5,
        {
-           B(LdaConstant), U8(0),                                  //
-           B(CreateArrayLiteral), U8(2), U8(deep_elements_flags),  //
-           B(Return)                                               //
+           B(CreateArrayLiteral), U8(0), U8(2), U8(deep_elements_flags),  //
+           B(Return)                                                      //
        },
        1,
        {InstanceType::FIXED_ARRAY_TYPE}},
       {"var a = 1; return [ [ a, 2 ], [ a + 2 ] ];",
        5 * kPointerSize,
        1,
-       67,
+       64,
        {
            B(LdaSmi8), U8(1),                                               //
            B(Star), R(0),                                                   //
-           B(LdaConstant), U8(0),                                           //
-           B(CreateArrayLiteral), U8(2), U8(deep_elements_flags),           //
+           B(CreateArrayLiteral), U8(0), U8(2), U8(deep_elements_flags),    //
            B(Star), R(2),                                                   //
            B(LdaZero),                                                      //
            B(Star), R(1),                                                   //
-           B(LdaConstant), U8(1),                                           //
-           B(CreateArrayLiteral), U8(0), U8(simple_flags),                  //
+           B(CreateArrayLiteral), U8(1), U8(0), U8(simple_flags),           //
            B(Star), R(4),                                                   //
            B(LdaZero),                                                      //
            B(Star), R(3),                                                   //
@@ -2982,8 +3001,7 @@ TEST(ArrayLiterals) {
            B(KeyedStoreICSloppy), R(2), R(1), U8(vector->GetIndex(slot3)),  //
            B(LdaSmi8), U8(1),                                               //
            B(Star), R(1),                                                   //
-           B(LdaConstant), U8(2),                                           //
-           B(CreateArrayLiteral), U8(1), U8(simple_flags),                  //
+           B(CreateArrayLiteral), U8(2), U8(1), U8(simple_flags),           //
            B(Star), R(4),                                                   //
            B(LdaZero),                                                      //
            B(Star), R(3),                                                   //
@@ -2997,6 +3015,40 @@ TEST(ArrayLiterals) {
        },
        3,
        {InstanceType::FIXED_ARRAY_TYPE, InstanceType::FIXED_ARRAY_TYPE,
+        InstanceType::FIXED_ARRAY_TYPE}},
+  };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+}
+
+
+TEST(ArrayLiteralsWide) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+  Zone zone;
+
+  int wide_idx = 0;
+  int simple_flags =
+      ArrayLiteral::kDisableMementos | ArrayLiteral::kShallowElements;
+
+  ExpectedSnippet<InstanceType, 257> snippets[] = {
+      {"var a;" REPEAT_256(SPACE, "a = 1.23;") "return [ 1 , 2 ];",
+       1 * kPointerSize,
+       1,
+       1031,
+       {
+           REPEAT_256(COMMA,                                               //
+             B(LdaConstant), U8(wide_idx++),                               //
+             B(Star), R(0)),                                               //
+           B(CreateArrayLiteralWide), U16(256), U16(0), U8(simple_flags),  //
+           B(Return)                                                       //
+       },
+       257,
+       {REPEAT_256(COMMA, InstanceType::HEAP_NUMBER_TYPE),
         InstanceType::FIXED_ARRAY_TYPE}},
   };
 
@@ -3028,39 +3080,36 @@ TEST(ObjectLiterals) {
       {"return { };",
        0,
        1,
-       6,
+       5,
        {
-           B(LdaConstant), U8(0),                            //
-           B(CreateObjectLiteral), U8(0), U8(simple_flags),  //
-           B(Return)                                         //
+           B(CreateObjectLiteral), U8(0), U8(0), U8(simple_flags),  //
+           B(Return)                                                //
        },
        1,
        {InstanceType::FIXED_ARRAY_TYPE}},
       {"return { name: 'string', val: 9.2 };",
        0,
        1,
-       6,
+       5,
        {
-           B(LdaConstant), U8(0),                                   //
-           B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),  //
-           B(Return)                                                //
+           B(CreateObjectLiteral), U8(0), U8(0), U8(deep_elements_flags),  //
+           B(Return)                                                       //
        },
        1,
        {InstanceType::FIXED_ARRAY_TYPE}},
       {"var a = 1; return { name: 'string', val: a };",
        2 * kPointerSize,
        1,
-       20,
+       19,
        {
-           B(LdaSmi8), U8(1),                                           //
-           B(Star), R(0),                                               //
-           B(LdaConstant), U8(0),                                       //
-           B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),      //
-           B(Star), R(1),                                               //
-           B(Ldar), R(0),                                               //
-           B(StoreICSloppy), R(1), U8(1), U8(vector->GetIndex(slot1)),  //
-           B(Ldar), R(1),                                               //
-           B(Return),                                                   //
+           B(LdaSmi8), U8(1),                                              //
+           B(Star), R(0),                                                  //
+           B(CreateObjectLiteral), U8(0), U8(0), U8(deep_elements_flags),  //
+           B(Star), R(1),                                                  //
+           B(Ldar), R(0),                                                  //
+           B(StoreICSloppy), R(1), U8(1), U8(vector->GetIndex(slot1)),     //
+           B(Ldar), R(1),                                                  //
+           B(Return),                                                      //
        },
        2,
        {InstanceType::FIXED_ARRAY_TYPE,
@@ -3068,18 +3117,17 @@ TEST(ObjectLiterals) {
       {"var a = 1; return { val: a, val: a + 1 };",
        2 * kPointerSize,
        1,
-       22,
+       21,
        {
-           B(LdaSmi8), U8(1),                                           //
-           B(Star), R(0),                                               //
-           B(LdaConstant), U8(0),                                       //
-           B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),      //
-           B(Star), R(1),                                               //
-           B(LdaSmi8), U8(1),                                           //
-           B(Add), R(0),                                                //
-           B(StoreICSloppy), R(1), U8(1), U8(vector->GetIndex(slot1)),  //
-           B(Ldar), R(1),                                               //
-           B(Return),                                                   //
+           B(LdaSmi8), U8(1),                                              //
+           B(Star), R(0),                                                  //
+           B(CreateObjectLiteral), U8(0), U8(0), U8(deep_elements_flags),  //
+           B(Star), R(1),                                                  //
+           B(LdaSmi8), U8(1),                                              //
+           B(Add), R(0),                                                   //
+           B(StoreICSloppy), R(1), U8(1), U8(vector->GetIndex(slot1)),     //
+           B(Ldar), R(1),                                                  //
+           B(Return),                                                      //
        },
        2,
        {InstanceType::FIXED_ARRAY_TYPE,
@@ -3087,15 +3135,14 @@ TEST(ObjectLiterals) {
       {"return { func: function() { } };",
        1 * kPointerSize,
        1,
-       17,
+       16,
        {
-           B(LdaConstant), U8(0),                                       //
-           B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),      //
-           B(Star), R(0),                                               //
-           B(CreateClosure), U8(2), U8(0),                              //
-           B(StoreICSloppy), R(0), U8(1), U8(vector->GetIndex(slot1)),  //
-           B(Ldar), R(0),                                               //
-           B(Return),                                                   //
+           B(CreateObjectLiteral), U8(0), U8(0), U8(deep_elements_flags),  //
+           B(Star), R(0),                                                  //
+           B(CreateClosure), U8(2), U8(0),                                 //
+           B(StoreICSloppy), R(0), U8(1), U8(vector->GetIndex(slot1)),     //
+           B(Ldar), R(0),                                                  //
+           B(Return),                                                      //
        },
        3,
        {InstanceType::FIXED_ARRAY_TYPE,
@@ -3104,15 +3151,14 @@ TEST(ObjectLiterals) {
       {"return { func(a) { return a; } };",
        1 * kPointerSize,
        1,
-       17,
+       16,
        {
-           B(LdaConstant), U8(0),                                       //
-           B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),      //
-           B(Star), R(0),                                               //
-           B(CreateClosure), U8(2), U8(0),                              //
-           B(StoreICSloppy), R(0), U8(1), U8(vector->GetIndex(slot1)),  //
-           B(Ldar), R(0),                                               //
-           B(Return),                                                   //
+           B(CreateObjectLiteral), U8(0), U8(0), U8(deep_elements_flags),  //
+           B(Star), R(0),                                                  //
+           B(CreateClosure), U8(2), U8(0),                                 //
+           B(StoreICSloppy), R(0), U8(1), U8(vector->GetIndex(slot1)),     //
+           B(Ldar), R(0),                                                  //
+           B(Return),                                                      //
        },
        3,
        {InstanceType::FIXED_ARRAY_TYPE,
@@ -3121,10 +3167,9 @@ TEST(ObjectLiterals) {
       {"return { get a() { return 2; } };",
        5 * kPointerSize,
        1,
-       30,
+       29,
        {
-           B(LdaConstant), U8(0),                                           //
-           B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),          //
+           B(CreateObjectLiteral), U8(0), U8(0), U8(deep_elements_flags),   //
            B(Star), R(0),                                                   //
            B(LdaConstant), U8(1),                                           //
            B(Star), R(1),                                                   //
@@ -3146,10 +3191,9 @@ TEST(ObjectLiterals) {
       {"return { get a() { return this.x; }, set a(val) { this.x = val } };",
        5 * kPointerSize,
        1,
-       32,
+       31,
        {
-           B(LdaConstant), U8(0),                                           //
-           B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),          //
+           B(CreateObjectLiteral), U8(0), U8(0), U8(deep_elements_flags),   //
            B(Star), R(0),                                                   //
            B(LdaConstant), U8(1),                                           //
            B(Star), R(1),                                                   //
@@ -3172,10 +3216,9 @@ TEST(ObjectLiterals) {
       {"return { set b(val) { this.y = val } };",
        5 * kPointerSize,
        1,
-       30,
+       29,
        {
-           B(LdaConstant), U8(0),                                           //
-           B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),          //
+           B(CreateObjectLiteral), U8(0), U8(0), U8(deep_elements_flags),   //
            B(Star), R(0),                                                   //
            B(LdaConstant), U8(1),                                           //
            B(Star), R(1),                                                   //
@@ -3197,32 +3240,30 @@ TEST(ObjectLiterals) {
       {"var a = 1; return { 1: a };",
        5 * kPointerSize,
        1,
-       30,
+       29,
        {
-           B(LdaSmi8), U8(1),                                        //
-           B(Star), R(0),                                            //
-           B(LdaConstant), U8(0),                                    //
-           B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),   //
-           B(Star), R(1),                                            //
-           B(LdaSmi8), U8(1),                                        //
-           B(Star), R(2),                                            //
-           B(Ldar), R(0),                                            //
-           B(Star), R(3),                                            //
-           B(LdaZero),                                               //
-           B(Star), R(4),                                            //
-           B(CallRuntime), U16(Runtime::kSetProperty), R(1), U8(4),  //
-           B(Ldar), R(1),                                            //
-           B(Return),                                                //
+           B(LdaSmi8), U8(1),                                              //
+           B(Star), R(0),                                                  //
+           B(CreateObjectLiteral), U8(0), U8(0), U8(deep_elements_flags),  //
+           B(Star), R(1),                                                  //
+           B(LdaSmi8), U8(1),                                              //
+           B(Star), R(2),                                                  //
+           B(Ldar), R(0),                                                  //
+           B(Star), R(3),                                                  //
+           B(LdaZero),                                                     //
+           B(Star), R(4),                                                  //
+           B(CallRuntime), U16(Runtime::kSetProperty), R(1), U8(4),        //
+           B(Ldar), R(1),                                                  //
+           B(Return),                                                      //
        },
        1,
        {InstanceType::FIXED_ARRAY_TYPE}},
       {"return { __proto__: null }",
        2 * kPointerSize,
        1,
-       18,
+       17,
        {
-           B(LdaConstant), U8(0),                                             //
-           B(CreateObjectLiteral), U8(0), U8(simple_flags),                   //
+           B(CreateObjectLiteral), U8(0), U8(0), U8(simple_flags),            //
            B(Star), R(0),                                                     //
            B(LdaNull), B(Star), R(1),                                         //
            B(CallRuntime), U16(Runtime::kInternalSetPrototype), R(0), U8(2),  //
@@ -3234,12 +3275,11 @@ TEST(ObjectLiterals) {
       {"var a = 'test'; return { [a]: 1 }",
        5 * kPointerSize,
        1,
-       31,
+       30,
        {
            B(LdaConstant), U8(0),                                             //
            B(Star), R(0),                                                     //
-           B(LdaConstant), U8(1),                                             //
-           B(CreateObjectLiteral), U8(0), U8(simple_flags),                   //
+           B(CreateObjectLiteral), U8(1), U8(0), U8(simple_flags),            //
            B(Star), R(1),                                                     //
            B(Ldar), R(0),                                                     //
            B(ToName),                                                         //
@@ -3259,12 +3299,11 @@ TEST(ObjectLiterals) {
       {"var a = 'test'; return { val: a, [a]: 1 }",
        5 * kPointerSize,
        1,
-       37,
+       36,
        {
            B(LdaConstant), U8(0),                                             //
            B(Star), R(0),                                                     //
-           B(LdaConstant), U8(1),                                             //
-           B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),            //
+           B(CreateObjectLiteral), U8(1), U8(0), U8(deep_elements_flags),     //
            B(Star), R(1),                                                     //
            B(Ldar), R(0),                                                     //
            B(StoreICSloppy), R(1), U8(2), U8(vector->GetIndex(slot1)),        //
@@ -3287,12 +3326,11 @@ TEST(ObjectLiterals) {
       {"var a = 'test'; return { [a]: 1, __proto__: {} }",
        5 * kPointerSize,
        1,
-       43,
+       41,
        {
            B(LdaConstant), U8(0),                                             //
            B(Star), R(0),                                                     //
-           B(LdaConstant), U8(1),                                             //
-           B(CreateObjectLiteral), U8(1), U8(simple_flags),                   //
+           B(CreateObjectLiteral), U8(1), U8(1), U8(simple_flags),            //
            B(Star), R(1),                                                     //
            B(Ldar), R(0),                                                     //
            B(ToName),                                                         //
@@ -3303,8 +3341,7 @@ TEST(ObjectLiterals) {
            B(Star), R(4),                                                     //
            B(CallRuntime), U16(Runtime::kDefineDataPropertyUnchecked), R(1),  //
                            U8(4),                                             //
-           B(LdaConstant), U8(1),                                             //
-           B(CreateObjectLiteral), U8(0), U8(13),                             //
+           B(CreateObjectLiteral), U8(1), U8(0), U8(13),                      //
            B(Star), R(2),                                                     //
            B(CallRuntime), U16(Runtime::kInternalSetPrototype), R(1), U8(2),  //
            B(Ldar), R(1),                                                     //
@@ -3316,12 +3353,11 @@ TEST(ObjectLiterals) {
       {"var n = 'name'; return { [n]: 'val', get a() { }, set a(b) {} };",
        5 * kPointerSize,
        1,
-       65,
+       64,
        {
            B(LdaConstant), U8(0),                                             //
            B(Star), R(0),                                                     //
-           B(LdaConstant), U8(1),                                             //
-           B(CreateObjectLiteral), U8(0), U8(simple_flags),                   //
+           B(CreateObjectLiteral), U8(1), U8(0), U8(simple_flags),            //
            B(Star), R(1),                                                     //
            B(Ldar), R(0),                                                     //
            B(ToName),                                                         //
@@ -3368,6 +3404,42 @@ TEST(ObjectLiterals) {
 }
 
 
+TEST(ObjectLiteralsWide) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+  Zone zone;
+
+  int deep_elements_flags =
+      ObjectLiteral::kFastElements | ObjectLiteral::kDisableMementos;
+  int wide_idx = 0;
+
+  ExpectedSnippet<InstanceType, 257> snippets[] = {
+      {"var a;" REPEAT_256(SPACE,
+                           "a = 1.23;") "return { name: 'string', val: 9.2 };",
+       1 * kPointerSize,
+       1,
+       1031,
+       {
+           REPEAT_256(COMMA,                                     //
+             B(LdaConstant), U8(wide_idx++),                     //
+             B(Star), R(0)),                                     //
+           B(CreateObjectLiteralWide), U16(256), U16(0),         //
+                                       U8(deep_elements_flags),  //
+           B(Return)                                             //
+       },
+       257,
+       {REPEAT_256(COMMA, InstanceType::HEAP_NUMBER_TYPE),
+        InstanceType::FIXED_ARRAY_TYPE}},
+  };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+}
+
+
 TEST(TopLevelObjectLiterals) {
   InitializedHandleScope handle_scope;
   BytecodeGeneratorHelper helper;
@@ -3379,7 +3451,7 @@ TEST(TopLevelObjectLiterals) {
       {"var a = { func: function() { } };",
        5 * kPointerSize,
        1,
-       49,
+       48,
        {
            B(LdaConstant), U8(0),                                            //
            B(Star), R(1),                                                    //
@@ -3390,8 +3462,7 @@ TEST(TopLevelObjectLiterals) {
            B(Star), R(1),                                                    //
            B(LdaZero),                                                       //
            B(Star), R(2),                                                    //
-           B(LdaConstant), U8(2),                                            //
-           B(CreateObjectLiteral), U8(0), U8(has_function_flags),            //
+           B(CreateObjectLiteral), U8(2), U8(0), U8(has_function_flags),     //
            B(Star), R(4),                                                    //
            B(CreateClosure), U8(4), U8(1),                                   //
            B(StoreICSloppy), R(4), U8(3), U8(3),                             //
@@ -3958,18 +4029,17 @@ TEST(CountOperators) {
       {"var a = { val: 1 }; return a.val++;",
        2 * kPointerSize,
        1,
-       22,
+       21,
        {
-           B(LdaConstant), U8(0),                                       //
-           B(CreateObjectLiteral), U8(0), U8(object_literal_flags),     //
-           B(Star), R(0),                                               //
-           B(LoadICSloppy), R(0), U8(1), U8(vector->GetIndex(slot1)),   //
-           B(ToNumber),                                                 //
-           B(Star), R(1),                                               //
-           B(Inc),                                                      //
-           B(StoreICSloppy), R(0), U8(1), U8(vector->GetIndex(slot2)),  //
-           B(Ldar), R(1),                                               //
-           B(Return),                                                   //
+           B(CreateObjectLiteral), U8(0), U8(0), U8(object_literal_flags),  //
+           B(Star), R(0),                                                   //
+           B(LoadICSloppy), R(0), U8(1), U8(vector->GetIndex(slot1)),       //
+           B(ToNumber),                                                     //
+           B(Star), R(1),                                                   //
+           B(Inc),                                                          //
+           B(StoreICSloppy), R(0), U8(1), U8(vector->GetIndex(slot2)),      //
+           B(Ldar), R(1),                                                   //
+           B(Return),                                                       //
        },
        2,
        {InstanceType::FIXED_ARRAY_TYPE,
@@ -3977,16 +4047,15 @@ TEST(CountOperators) {
       {"var a = { val: 1 }; return --a.val;",
        1 * kPointerSize,
        1,
-       18,
+       17,
        {
-           B(LdaConstant), U8(0),                                       //
-           B(CreateObjectLiteral), U8(0), U8(object_literal_flags),     //
-           B(Star), R(0),                                               //
-           B(LoadICSloppy), R(0), U8(1), U8(vector->GetIndex(slot1)),   //
-           B(ToNumber),                                                 //
-           B(Dec),                                                      //
-           B(StoreICSloppy), R(0), U8(1), U8(vector->GetIndex(slot2)),  //
-           B(Return),                                                   //
+           B(CreateObjectLiteral), U8(0), U8(0), U8(object_literal_flags),  //
+           B(Star), R(0),                                                   //
+           B(LoadICSloppy), R(0), U8(1), U8(vector->GetIndex(slot1)),       //
+           B(ToNumber),                                                     //
+           B(Dec),                                                          //
+           B(StoreICSloppy), R(0), U8(1), U8(vector->GetIndex(slot2)),      //
+           B(Return),                                                       //
        },
        2,
        {InstanceType::FIXED_ARRAY_TYPE,
@@ -3994,12 +4063,11 @@ TEST(CountOperators) {
       {"var name = 'var'; var a = { val: 1 }; return a[name]--;",
        4 * kPointerSize,
        1,
-       29,
+       28,
        {
            B(LdaConstant), U8(0),                                           //
            B(Star), R(0),                                                   //
-           B(LdaConstant), U8(1),                                           //
-           B(CreateObjectLiteral), U8(0), U8(object_literal_flags),         //
+           B(CreateObjectLiteral), U8(1), U8(0), U8(object_literal_flags),  //
            B(Star), R(1),                                                   //
            B(Ldar), R(0),                                                   //
            B(Star), R(2),                                                   //
@@ -4017,12 +4085,11 @@ TEST(CountOperators) {
       {"var name = 'var'; var a = { val: 1 }; return ++a[name];",
        3 * kPointerSize,
        1,
-       25,
+       24,
        {
            B(LdaConstant), U8(0),                                           //
            B(Star), R(0),                                                   //
-           B(LdaConstant), U8(1),                                           //
-           B(CreateObjectLiteral), U8(0), U8(object_literal_flags),         //
+           B(CreateObjectLiteral), U8(1), U8(0), U8(object_literal_flags),  //
            B(Star), R(1),                                                   //
            B(Ldar), R(0),                                                   //
            B(Star), R(2),                                                   //
@@ -4080,12 +4147,11 @@ TEST(CountOperators) {
       {"var idx = 1; var a = [1, 2]; return a[idx++] = 2;",
        3 * kPointerSize,
        1,
-       26,
+       25,
        {
            B(LdaSmi8), U8(1),                                              //
            B(Star), R(0),                                                  //
-           B(LdaConstant), U8(0),                                          //
-           B(CreateArrayLiteral), U8(0), U8(array_literal_flags),          //
+           B(CreateArrayLiteral), U8(0), U8(0), U8(array_literal_flags),   //
            B(Star), R(1),                                                  //
            B(Ldar), R(0),                                                  //
            B(ToNumber),                                                    //
@@ -4236,18 +4302,17 @@ TEST(CompoundExpressions) {
       {"var a = { val: 2 }; a.name *= 2;",
        2 * kPointerSize,
        1,
-       23,
+       22,
        {
-           B(LdaConstant), U8(0),                                       //
-           B(CreateObjectLiteral), U8(0), U8(object_literal_flags),     //
-           B(Star), R(0),                                               //
-           B(LoadICSloppy), R(0), U8(1), U8(vector->GetIndex(slot1)),   //
-           B(Star), R(1),                                               //
-           B(LdaSmi8), U8(2),                                           //
-           B(Mul), R(1),                                                //
-           B(StoreICSloppy), R(0), U8(1), U8(vector->GetIndex(slot2)),  //
-           B(LdaUndefined),                                             //
-           B(Return),                                                   //
+           B(CreateObjectLiteral), U8(0), U8(0), U8(object_literal_flags),  //
+           B(Star), R(0),                                                   //
+           B(LoadICSloppy), R(0), U8(1), U8(vector->GetIndex(slot1)),       //
+           B(Star), R(1),                                                   //
+           B(LdaSmi8), U8(2),                                               //
+           B(Mul), R(1),                                                    //
+           B(StoreICSloppy), R(0), U8(1), U8(vector->GetIndex(slot2)),      //
+           B(LdaUndefined),                                                 //
+           B(Return),                                                       //
        },
        2,
        {InstanceType::FIXED_ARRAY_TYPE,
@@ -4255,10 +4320,9 @@ TEST(CompoundExpressions) {
       {"var a = { 1: 2 }; a[1] ^= 2;",
        3 * kPointerSize,
        1,
-       26,
+       25,
        {
-           B(LdaConstant), U8(0),                                           //
-           B(CreateObjectLiteral), U8(0), U8(object_literal_flags),         //
+           B(CreateObjectLiteral), U8(0), U8(0), U8(object_literal_flags),  //
            B(Star), R(0),                                                   //
            B(LdaSmi8), U8(1),                                               //
            B(Star), R(1),                                                   //
@@ -4552,12 +4616,11 @@ TEST(ForIn) {
        "for (var p in [1,2,3]) { x += p; }",
        5 * kPointerSize,
        1,
-       53,
+       52,
        {
            B(LdaZero),                                                        //
            B(Star), R(1),                                                     //
-           B(LdaConstant), U8(0),                                             //
-           B(CreateArrayLiteral), U8(0), U8(simple_flags),                    //
+           B(CreateArrayLiteral), U8(0), U8(0), U8(simple_flags),             //
            B(JumpIfUndefined), U8(43),                                        //
            B(JumpIfNull), U8(41),                                             //
            B(ToObject),                                                       //
@@ -4591,13 +4654,11 @@ TEST(ForIn) {
        "}",
        4 * kPointerSize,
        1,
-       83,
+       81,
        {
-           B(LdaConstant), U8(0),                                             //
-           B(CreateObjectLiteral), U8(0), U8(deep_elements_flags),            //
+           B(CreateObjectLiteral), U8(0), U8(0), U8(deep_elements_flags),     //
            B(Star), R(0),                                                     //
-           B(LdaConstant), U8(1),                                             //
-           B(CreateArrayLiteral), U8(1), U8(simple_flags),                    //
+           B(CreateArrayLiteral), U8(1), U8(1), U8(simple_flags),             //
            B(JumpIfUndefined), U8(69),                                        //
            B(JumpIfNull), U8(67),                                             //
            B(ToObject),                                                       //
@@ -4639,13 +4700,11 @@ TEST(ForIn) {
        "for (x[0] in [1,2,3]) { return x[3]; }",
        5 * kPointerSize,
        1,
-       66,
+       64,
        {
-           B(LdaConstant), U8(0),                                             //
-           B(CreateArrayLiteral), U8(0), U8(simple_flags),                    //
+           B(CreateArrayLiteral), U8(0), U8(0), U8(simple_flags),             //
            B(Star), R(0),                                                     //
-           B(LdaConstant), U8(1),                                             //
-           B(CreateArrayLiteral), U8(1), U8(simple_flags),                    //
+           B(CreateArrayLiteral), U8(1), U8(1), U8(simple_flags),             //
            B(JumpIfUndefined), U8(52),                                        //
            B(JumpIfNull), U8(50),                                             //
            B(ToObject),                                                       //

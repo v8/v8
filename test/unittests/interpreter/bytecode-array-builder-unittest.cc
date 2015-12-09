@@ -104,10 +104,10 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.CreateArguments(CreateArgumentsType::kMappedArguments)
       .CreateArguments(CreateArgumentsType::kUnmappedArguments);
 
-  // Emit literal creation operations
-  builder.CreateRegExpLiteral(0, 0)
-      .CreateArrayLiteral(0, 0)
-      .CreateObjectLiteral(0, 0);
+  // Emit literal creation operations.
+  builder.CreateRegExpLiteral(factory->NewStringFromStaticChars("a"), 0, 0)
+      .CreateArrayLiteral(factory->NewFixedArray(1), 0, 0)
+      .CreateObjectLiteral(factory->NewFixedArray(1), 0, 0);
 
   // Call operations.
   builder.Call(reg, reg, 0, 0)
@@ -223,6 +223,12 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       factory->NewStringFromStaticChars("function_b"), MaybeHandle<Code>(),
       false);
   builder.CreateClosure(shared_info2, NOT_TENURED);
+
+  // Emit wide variant of literal creation operations.
+  builder.CreateRegExpLiteral(factory->NewStringFromStaticChars("wide_literal"),
+                              0, 0)
+      .CreateArrayLiteral(factory->NewFixedArray(2), 0, 0)
+      .CreateObjectLiteral(factory->NewFixedArray(2), 0, 0);
 
   builder.Return();
 

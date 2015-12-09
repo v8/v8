@@ -702,21 +702,82 @@ void BytecodeGraphBuilder::VisitCreateUnmappedArguments(
 }
 
 
+void BytecodeGraphBuilder::BuildCreateLiteral(const Operator* op) {
+  Node* literal = NewNode(op, GetFunctionClosure());
+  AddEmptyFrameStateInputs(literal);
+  environment()->BindAccumulator(literal);
+}
+
+
+void BytecodeGraphBuilder::BuildCreateRegExpLiteral(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  Handle<String> constant_pattern =
+      Handle<String>::cast(iterator.GetConstantForIndexOperand(0));
+  int literal_index = iterator.GetIndexOperand(1);
+  int literal_flags = iterator.GetImmediateOperand(2);
+  const Operator* op = javascript()->CreateLiteralRegExp(
+      constant_pattern, literal_flags, literal_index);
+  BuildCreateLiteral(op);
+}
+
+
 void BytecodeGraphBuilder::VisitCreateRegExpLiteral(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  BuildCreateRegExpLiteral(iterator);
+}
+
+
+void BytecodeGraphBuilder::VisitCreateRegExpLiteralWide(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  BuildCreateRegExpLiteral(iterator);
+}
+
+
+void BytecodeGraphBuilder::BuildCreateArrayLiteral(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  Handle<FixedArray> constant_elements =
+      Handle<FixedArray>::cast(iterator.GetConstantForIndexOperand(0));
+  int literal_index = iterator.GetIndexOperand(1);
+  int literal_flags = iterator.GetImmediateOperand(2);
+  const Operator* op = javascript()->CreateLiteralArray(
+      constant_elements, literal_flags, literal_index);
+  BuildCreateLiteral(op);
 }
 
 
 void BytecodeGraphBuilder::VisitCreateArrayLiteral(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  BuildCreateArrayLiteral(iterator);
+}
+
+
+void BytecodeGraphBuilder::VisitCreateArrayLiteralWide(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  BuildCreateArrayLiteral(iterator);
+}
+
+
+void BytecodeGraphBuilder::BuildCreateObjectLiteral(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  Handle<FixedArray> constant_properties =
+      Handle<FixedArray>::cast(iterator.GetConstantForIndexOperand(0));
+  int literal_index = iterator.GetIndexOperand(1);
+  int literal_flags = iterator.GetImmediateOperand(2);
+  const Operator* op = javascript()->CreateLiteralObject(
+      constant_properties, literal_flags, literal_index);
+  BuildCreateLiteral(op);
 }
 
 
 void BytecodeGraphBuilder::VisitCreateObjectLiteral(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  BuildCreateObjectLiteral(iterator);
+}
+
+
+void BytecodeGraphBuilder::VisitCreateObjectLiteralWide(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  BuildCreateObjectLiteral(iterator);
 }
 
 

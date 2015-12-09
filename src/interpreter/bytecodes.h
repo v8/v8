@@ -155,9 +155,18 @@ namespace interpreter {
   V(ToObject, OperandType::kNone)                                              \
                                                                                \
   /* Literals */                                                               \
-  V(CreateRegExpLiteral, OperandType::kIdx8, OperandType::kImm8)               \
-  V(CreateArrayLiteral, OperandType::kIdx8, OperandType::kImm8)                \
-  V(CreateObjectLiteral, OperandType::kIdx8, OperandType::kImm8)               \
+  V(CreateRegExpLiteral, OperandType::kIdx8, OperandType::kIdx8,               \
+    OperandType::kImm8)                                                        \
+  V(CreateArrayLiteral, OperandType::kIdx8, OperandType::kIdx8,                \
+    OperandType::kImm8)                                                        \
+  V(CreateObjectLiteral, OperandType::kIdx8, OperandType::kIdx8,               \
+    OperandType::kImm8)                                                        \
+  V(CreateRegExpLiteralWide, OperandType::kIdx16, OperandType::kIdx16,         \
+    OperandType::kImm8)                                                        \
+  V(CreateArrayLiteralWide, OperandType::kIdx16, OperandType::kIdx16,          \
+    OperandType::kImm8)                                                        \
+  V(CreateObjectLiteralWide, OperandType::kIdx16, OperandType::kIdx16,         \
+    OperandType::kImm8)                                                        \
                                                                                \
   /* Closure allocation */                                                     \
   V(CreateClosure, OperandType::kIdx8, OperandType::kImm8)                     \
