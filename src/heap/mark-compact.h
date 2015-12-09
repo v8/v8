@@ -617,10 +617,6 @@ class MarkCompactCollector {
   // otherwise a map can die and deoptimize the code.
   void ProcessTopOptimizedFrame(ObjectVisitor* visitor);
 
-  // Retain dying maps for <FLAG_retain_maps_for_n_gc> garbage collections to
-  // increase chances of reusing of map transition tree in future.
-  void RetainMaps();
-
   // Collects a list of dependent code from maps embedded in optimize code.
   DependentCode* DependentCodeListFromNonLiveMaps();
 

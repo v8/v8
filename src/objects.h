@@ -2787,6 +2787,7 @@ class ArrayList : public FixedArray {
   inline Object** Slot(int index);
   inline void Set(int index, Object* obj);
   inline void Clear(int index, Object* undefined);
+  bool IsFull();
   DECLARE_CAST(ArrayList)
 
  private:

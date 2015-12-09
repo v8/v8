@@ -5923,9 +5923,11 @@ void CheckMapRetainingFor(int n) {
   Handle<WeakCell> weak_cell = AddRetainedMap(isolate, heap);
   CHECK(!weak_cell->cleared());
   for (int i = 0; i < n; i++) {
+    SimulateIncrementalMarking(heap);
     heap->CollectGarbage(OLD_SPACE);
   }
   CHECK(!weak_cell->cleared());
+  SimulateIncrementalMarking(heap);
   heap->CollectGarbage(OLD_SPACE);
   CHECK(weak_cell->cleared());
 }

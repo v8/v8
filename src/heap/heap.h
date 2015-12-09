@@ -1814,6 +1814,8 @@ class Heap {
   void AddToRingBuffer(const char* string);
   void GetFromRingBuffer(char* buffer);
 
+  void CompactRetainedMaps(ArrayList* retained_maps);
+
   // Attempt to over-approximate the weak closure by marking object groups and
   // implicit references from global handles, but don't atomically complete
   // marking. If we continue to mark incrementally, we might have marked

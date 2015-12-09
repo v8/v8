@@ -5332,12 +5332,44 @@ DependentCode* Heap::LookupWeakObjectToCodeDependency(Handle<HeapObject> obj) {
 void Heap::AddRetainedMap(Handle<Map> map) {
   Handle<WeakCell> cell = Map::WeakCellForMap(map);
   Handle<ArrayList> array(retained_maps(), isolate());
+  if (array->IsFull()) {
+    CompactRetainedMaps(*array);
+  }
   array = ArrayList::Add(
       array, cell, handle(Smi::FromInt(FLAG_retain_maps_for_n_gc), isolate()),
       ArrayList::kReloadLengthAfterAllocation);
   if (*array != retained_maps()) {
     set_retained_maps(*array);
   }
+}
+
+
+void Heap::CompactRetainedMaps(ArrayList* retained_maps) {
+  DCHECK_EQ(retained_maps, this->retained_maps());
+  int length = retained_maps->Length();
+  int new_length = 0;
+  int new_number_of_disposed_maps = 0;
+  // This loop compacts the array by removing cleared weak cells.
+  for (int i = 0; i < length; i += 2) {
+    DCHECK(retained_maps->Get(i)->IsWeakCell());
+    WeakCell* cell = WeakCell::cast(retained_maps->Get(i));
+    Object* age = retained_maps->Get(i + 1);
+    if (cell->cleared()) continue;
+    if (i != new_length) {
+      retained_maps->Set(new_length, cell);
+      retained_maps->Set(new_length + 1, age);
+    }
+    if (i < number_of_disposed_maps_) {
+      new_number_of_disposed_maps += 2;
+    }
+    new_length += 2;
+  }
+  number_of_disposed_maps_ = new_number_of_disposed_maps;
+  Object* undefined = undefined_value();
+  for (int i = new_length; i < length; i++) {
+    retained_maps->Clear(i, undefined);
+  }
+  if (new_length != length) retained_maps->SetLength(new_length);
 }
 
 

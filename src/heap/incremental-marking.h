@@ -241,6 +241,9 @@ class IncrementalMarking {
   void MarkRoots();
   void MarkObjectGroups();
   void ProcessWeakCells();
+  // Retain dying maps for <FLAG_retain_maps_for_n_gc> garbage collections to
+  // increase chances of reusing of map transition tree in future.
+  void RetainMaps();
 
   void ActivateIncrementalWriteBarrier(PagedSpace* space);
   static void ActivateIncrementalWriteBarrier(NewSpace* space);

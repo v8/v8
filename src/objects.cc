@@ -10393,6 +10393,12 @@ Handle<ArrayList> ArrayList::Add(Handle<ArrayList> array, Handle<Object> obj1,
 }
 
 
+bool ArrayList::IsFull() {
+  int capacity = length();
+  return kFirstIndex + Length() == capacity;
+}
+
+
 Handle<ArrayList> ArrayList::EnsureSpace(Handle<ArrayList> array, int length) {
   int capacity = array->length();
   bool empty = (capacity == 0);

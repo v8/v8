@@ -683,6 +683,69 @@ void IncrementalMarking::ProcessWeakCells() {
 }
 
 
+bool ShouldRetainMap(Map* map, int age) {
+  if (age == 0) {
+    // The map has aged. Do not retain this map.
+    return false;
+  }
+  Object* constructor = map->GetConstructor();
+  if (!constructor->IsHeapObject() ||
+      Marking::IsWhite(Marking::MarkBitFrom(HeapObject::cast(constructor)))) {
+    // The constructor is dead, no new objects with this map can
+    // be created. Do not retain this map.
+    return false;
+  }
+  return true;
+}
+
+
+void IncrementalMarking::RetainMaps() {
+  // Do not retain dead maps if flag disables it or there is
+  // - memory pressure (reduce_memory_footprint_),
+  // - GC is requested by tests or dev-tools (abort_incremental_marking_).
+  bool map_retaining_is_disabled = heap()->ShouldReduceMemory() ||
+                                   heap()->ShouldAbortIncrementalMarking() ||
+                                   FLAG_retain_maps_for_n_gc == 0;
+  ArrayList* retained_maps = heap()->retained_maps();
+  int length = retained_maps->Length();
+  // The number_of_disposed_maps separates maps in the retained_maps
+  // array that were created before and after context disposal.
+  // We do not age and retain disposed maps to avoid memory leaks.
+  int number_of_disposed_maps = heap()->number_of_disposed_maps_;
+  for (int i = 0; i < length; i += 2) {
+    DCHECK(retained_maps->Get(i)->IsWeakCell());
+    WeakCell* cell = WeakCell::cast(retained_maps->Get(i));
+    if (cell->cleared()) continue;
+    int age = Smi::cast(retained_maps->Get(i + 1))->value();
+    int new_age;
+    Map* map = Map::cast(cell->value());
+    MarkBit map_mark = Marking::MarkBitFrom(map);
+    if (i >= number_of_disposed_maps && !map_retaining_is_disabled &&
+        Marking::IsWhite(map_mark)) {
+      if (ShouldRetainMap(map, age)) {
+        MarkObject(heap(), map);
+      }
+      Object* prototype = map->prototype();
+      if (age > 0 && prototype->IsHeapObject() &&
+          Marking::IsWhite(Marking::MarkBitFrom(HeapObject::cast(prototype)))) {
+        // The prototype is not marked, age the map.
+        new_age = age - 1;
+      } else {
+        // The prototype and the constructor are marked, this map keeps only
+        // transition tree alive, not JSObjects. Do not age the map.
+        new_age = age;
+      }
+    } else {
+      new_age = FLAG_retain_maps_for_n_gc;
+    }
+    // Compact the array and update the age.
+    if (new_age != age) {
+      retained_maps->Set(i + 1, Smi::FromInt(new_age));
+    }
+  }
+}
+
+
 void IncrementalMarking::FinalizeIncrementally() {
   DCHECK(!finalize_marking_completed_);
   DCHECK(IsMarking());
@@ -696,10 +759,16 @@ void IncrementalMarking::FinalizeIncrementally() {
   // objects to reduce the marking load in the final pause.
   // 1) We scan and mark the roots again to find all changes to the root set.
   // 2) We mark the object groups.
-  // 3) Remove weak cell with live values from the list of weak cells, they
+  // 3) Age and retain maps embedded in optimized code.
+  // 4) Remove weak cell with live values from the list of weak cells, they
   // do not need processing during GC.
   MarkRoots();
   MarkObjectGroups();
+  if (incremental_marking_finalization_rounds_ == 0) {
+    // Map retaining is needed for perfromance, not correctness,
+    // so we can do it only once at the beginning of the finalization.
+    RetainMaps();
+  }
   ProcessWeakCells();
 
   int marking_progress =

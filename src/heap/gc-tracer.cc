@@ -514,7 +514,6 @@ void GCTracer::PrintNVP() const {
                    "mark_prepcodeflush=%.1f "
                    "mark_root=%.1f "
                    "mark_topopt=%.1f "
-                   "mark_retainmaps=%.1f "
                    "mark_weakclosure=%.1f "
                    "mark_stringtable=%.1f "
                    "mark_weakrefs=%.1f "
@@ -585,7 +584,6 @@ void GCTracer::PrintNVP() const {
                    current_.scopes[Scope::MC_MARK_PREPARE_CODE_FLUSH],
                    current_.scopes[Scope::MC_MARK_ROOT],
                    current_.scopes[Scope::MC_MARK_TOPOPT],
-                   current_.scopes[Scope::MC_MARK_RETAIN_MAPS],
                    current_.scopes[Scope::MC_MARK_WEAK_CLOSURE],
                    current_.scopes[Scope::MC_MARK_STRING_TABLE],
                    current_.scopes[Scope::MC_MARK_WEAK_REFERENCES],

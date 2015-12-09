@@ -1845,90 +1845,6 @@ void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor) {
 }
 
 
-bool ShouldRetainMap(Map* map, int age) {
-  if (age == 0) {
-    // The map has aged. Do not retain this map.
-    return false;
-  }
-  Object* constructor = map->GetConstructor();
-  if (!constructor->IsHeapObject() ||
-      Marking::IsWhite(Marking::MarkBitFrom(HeapObject::cast(constructor)))) {
-    // The constructor is dead, no new objects with this map can
-    // be created. Do not retain this map.
-    return false;
-  }
-  return true;
-}
-
-
-void MarkCompactCollector::RetainMaps() {
-  // Do not retain dead maps if flag disables it or there is
-  // - memory pressure (reduce_memory_footprint_),
-  // - GC is requested by tests or dev-tools (abort_incremental_marking_).
-  bool map_retaining_is_disabled = heap()->ShouldReduceMemory() ||
-                                   heap()->ShouldAbortIncrementalMarking() ||
-                                   FLAG_retain_maps_for_n_gc == 0;
-
-  ArrayList* retained_maps = heap()->retained_maps();
-  int length = retained_maps->Length();
-  int new_length = 0;
-  // The number_of_disposed_maps separates maps in the retained_maps
-  // array that were created before and after context disposal.
-  // We do not age and retain disposed maps to avoid memory leaks.
-  int number_of_disposed_maps = heap()->number_of_disposed_maps_;
-  int new_number_of_disposed_maps = 0;
-  // This loop compacts the array by removing cleared weak cells,
-  // ages and retains dead maps.
-  for (int i = 0; i < length; i += 2) {
-    DCHECK(retained_maps->Get(i)->IsWeakCell());
-    WeakCell* cell = WeakCell::cast(retained_maps->Get(i));
-    if (cell->cleared()) continue;
-    int age = Smi::cast(retained_maps->Get(i + 1))->value();
-    int new_age;
-    Map* map = Map::cast(cell->value());
-    MarkBit map_mark = Marking::MarkBitFrom(map);
-    if (i >= number_of_disposed_maps && !map_retaining_is_disabled &&
-        Marking::IsWhite(map_mark)) {
-      if (ShouldRetainMap(map, age)) {
-        MarkObject(map, map_mark);
-      }
-      Object* prototype = map->prototype();
-      if (age > 0 && prototype->IsHeapObject() &&
-          Marking::IsWhite(Marking::MarkBitFrom(HeapObject::cast(prototype)))) {
-        // The prototype is not marked, age the map.
-        new_age = age - 1;
-      } else {
-        // The prototype and the constructor are marked, this map keeps only
-        // transition tree alive, not JSObjects. Do not age the map.
-        new_age = age;
-      }
-    } else {
-      new_age = FLAG_retain_maps_for_n_gc;
-    }
-    // Compact the array and update the age.
-    if (i != new_length) {
-      retained_maps->Set(new_length, cell);
-      Object** slot = retained_maps->Slot(new_length);
-      RecordSlot(retained_maps, slot, cell);
-      retained_maps->Set(new_length + 1, Smi::FromInt(new_age));
-    } else if (new_age != age) {
-      retained_maps->Set(new_length + 1, Smi::FromInt(new_age));
-    }
-    if (i < number_of_disposed_maps) {
-      new_number_of_disposed_maps++;
-    }
-    new_length += 2;
-  }
-  heap()->number_of_disposed_maps_ = new_number_of_disposed_maps;
-  Object* undefined = heap()->undefined_value();
-  for (int i = new_length; i < length; i++) {
-    retained_maps->Clear(i, undefined);
-  }
-  if (new_length != length) retained_maps->SetLength(new_length);
-  ProcessMarkingDeque();
-}
-
-
 void MarkCompactCollector::EnsureMarkingDequeIsReserved() {
   DCHECK(!marking_deque_.in_use());
   if (marking_deque_memory_ == NULL) {
@@ -2060,15 +1976,6 @@ void MarkCompactCollector::MarkLiveObjects() {
   {
     GCTracer::Scope gc_scope(heap()->tracer(), GCTracer::Scope::MC_MARK_TOPOPT);
     ProcessTopOptimizedFrame(&root_visitor);
-  }
-
-  // Retaining dying maps should happen before or during ephemeral marking
-  // because a map could keep the key of an ephemeron alive. Note that map
-  // aging is imprecise: maps that are kept alive only by ephemerons will age.
-  {
-    GCTracer::Scope gc_scope(heap()->tracer(),
-                             GCTracer::Scope::MC_MARK_RETAIN_MAPS);
-    RetainMaps();
   }
 
   {
