@@ -947,6 +947,10 @@ class Isolate {
     date_cache_ = date_cache;
   }
 
+  ErrorToStringHelper* error_tostring_helper() {
+    return &error_tostring_helper_;
+  }
+
   Map* get_initial_js_array_map(ElementsKind kind,
                                 Strength strength = Strength::WEAK);
 
@@ -1245,6 +1249,7 @@ class Isolate {
       regexp_macro_assembler_canonicalize_;
   RegExpStack* regexp_stack_;
   DateCache* date_cache_;
+  ErrorToStringHelper error_tostring_helper_;
   unibrow::Mapping<unibrow::Ecma262Canonicalize> interp_canonicalize_mapping_;
   CallInterfaceDescriptorData* call_descriptor_data_;
   base::RandomNumberGenerator* random_number_generator_;

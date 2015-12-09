@@ -5612,7 +5612,7 @@ TEST(APIThrowMessageOverwrittenToString) {
 
 static void check_custom_error_tostring(v8::Local<v8::Message> message,
                                         v8::Local<v8::Value> data) {
-  const char* uncaught_error = "Uncaught my name: my message";
+  const char* uncaught_error = "Uncaught MyError toString";
   CHECK(message->Get()
             ->Equals(CcTest::isolate()->GetCurrentContext(),
                      v8_str(uncaught_error))
@@ -5630,6 +5630,9 @@ TEST(CustomErrorToString) {
       "  this.message = message;                           "
       "}                                                   "
       "MyError.prototype = Object.create(Error.prototype); "
+      "MyError.prototype.toString = function() {           "
+      "  return 'MyError toString';                        "
+      "};                                                  "
       "throw new MyError('my name', 'my message');         ");
   context->GetIsolate()->RemoveMessageListeners(check_custom_error_tostring);
 }
@@ -5691,7 +5694,7 @@ TEST(CustomErrorMessage) {
 
 static void check_custom_rethrowing_message(v8::Local<v8::Message> message,
                                             v8::Local<v8::Value> data) {
-  const char* uncaught_error = "Uncaught [object Object]";
+  const char* uncaught_error = "Uncaught exception";
   CHECK(message->Get()
             ->Equals(CcTest::isolate()->GetCurrentContext(),
                      v8_str(uncaught_error))

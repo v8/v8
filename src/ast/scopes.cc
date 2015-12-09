@@ -1154,13 +1154,7 @@ bool Scope::ResolveVariable(ParseInfo* info, VariableProxy* proxy,
     //  - Variables must not be allocated to the global scope.
     CHECK_NOT_NULL(outer_scope());
     //  - Variables must be bound locally or unallocated.
-    if (BOUND != binding_kind) {
-      // The following variable name may be minified. If so, disable
-      // minification in js2c.py for better output.
-      Handle<String> name = proxy->raw_name()->string();
-      V8_Fatal(__FILE__, __LINE__, "Unbound variable: '%s' in native script.",
-               name->ToCString().get());
-    }
+    CHECK_EQ(BOUND, binding_kind);
     VariableLocation location = var->location();
     CHECK(location == VariableLocation::LOCAL ||
           location == VariableLocation::CONTEXT ||

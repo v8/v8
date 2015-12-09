@@ -213,11 +213,27 @@ function testErrorsDuringFormatting() {
   Nasty.prototype.foo = function () { throw new RangeError(); };
   var n = new Nasty();
   n.__defineGetter__('constructor', function () { CONS_FAIL; });
-  assertThrows(()=>n.foo(), RangeError);
+  var threw = false;
+  try {
+    n.foo();
+  } catch (e) {
+    threw = true;
+    assertTrue(e.stack.indexOf('<error: ReferenceError') != -1,
+               "ErrorsDuringFormatting didn't contain error: ReferenceError");
+  }
+  assertTrue(threw, "ErrorsDuringFormatting didn't throw");
+  threw = false;
   // Now we can't even format the message saying that we couldn't format
   // the stack frame.  Put that in your pipe and smoke it!
   ReferenceError.prototype.toString = function () { NESTED_FAIL; };
-  assertThrows(()=>n.foo(), RangeError);
+  try {
+    n.foo();
+  } catch (e) {
+    threw = true;
+    assertTrue(e.stack.indexOf('<error>') != -1,
+               "ErrorsDuringFormatting didn't contain <error>");
+  }
+  assertTrue(threw, "ErrorsDuringFormatting didnt' throw (2)");
 }
 
 

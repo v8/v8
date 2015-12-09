@@ -433,6 +433,12 @@ void StackGuard::InitThread(const ExecutionAccess& lock) {
   } while (false)
 
 
+MaybeHandle<Object> Execution::ToDetailString(
+    Isolate* isolate, Handle<Object> obj) {
+  RETURN_NATIVE_CALL(to_detail_string, { obj });
+}
+
+
 MaybeHandle<Object> Execution::NewDate(Isolate* isolate, double time) {
   Handle<Object> time_obj = isolate->factory()->NewNumber(time);
   RETURN_NATIVE_CALL(create_date, { time_obj });

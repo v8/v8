@@ -484,6 +484,44 @@ class MessageHandler {
 };
 
 
+class ErrorToStringHelper {
+ public:
+  ErrorToStringHelper() : visited_(0) {}
+
+  MUST_USE_RESULT MaybeHandle<String> Stringify(Isolate* isolate,
+                                                Handle<JSObject> error);
+
+ private:
+  class VisitedScope {
+   public:
+    VisitedScope(ErrorToStringHelper* helper, Handle<JSObject> error)
+        : helper_(helper), has_visited_(false) {
+      for (const Handle<JSObject>& visited : helper->visited_) {
+        if (visited.is_identical_to(error)) {
+          has_visited_ = true;
+          break;
+        }
+      }
+      helper->visited_.Add(error);
+    }
+    ~VisitedScope() { helper_->visited_.RemoveLast(); }
+    bool has_visited() { return has_visited_; }
+
+   private:
+    ErrorToStringHelper* helper_;
+    bool has_visited_;
+  };
+
+  static bool ShadowsInternalError(Isolate* isolate,
+                                   LookupIterator* property_lookup,
+                                   LookupIterator* internal_error_lookup);
+
+  static MUST_USE_RESULT MaybeHandle<String> GetStringifiedProperty(
+      Isolate* isolate, LookupIterator* property_lookup,
+      Handle<String> default_value);
+
+  List<Handle<JSObject> > visited_;
+};
 }  // namespace internal
 }  // namespace v8
 
