@@ -11941,7 +11941,8 @@ void SharedFunctionInfo::AddSharedCodeToOptimizedCodeMap(
   DCHECK(code->kind() == Code::OPTIMIZED_FUNCTION);
   // Empty code maps are unsupported.
   if (shared->OptimizedCodeMapIsCleared()) return;
-  shared->optimized_code_map()->set(kSharedCodeIndex, *code);
+  Handle<WeakCell> cell = isolate->factory()->NewWeakCell(code);
+  shared->optimized_code_map()->set(kSharedCodeIndex, *cell);
 }
 
 
@@ -11959,66 +11960,87 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
   STATIC_ASSERT(kEntryLength == 4);
   Handle<FixedArray> new_code_map;
   int entry;
+
   if (shared->OptimizedCodeMapIsCleared()) {
     new_code_map = isolate->factory()->NewFixedArray(kInitialLength, TENURED);
+    new_code_map->set(kSharedCodeIndex, *isolate->factory()->empty_weak_cell(),
+                      SKIP_WRITE_BARRIER);
     entry = kEntriesStart;
   } else {
     Handle<FixedArray> old_code_map(shared->optimized_code_map(), isolate);
     entry = shared->SearchOptimizedCodeMapEntry(*native_context, osr_ast_id);
     if (entry > kSharedCodeIndex) {
       // Found an existing context-specific entry, it must not contain any code.
-      DCHECK_EQ(isolate->heap()->undefined_value(),
-                old_code_map->get(entry + kCachedCodeOffset));
+      DCHECK(WeakCell::cast(old_code_map->get(entry + kCachedCodeOffset))
+                 ->cleared());
       // Just set the code and literals to the entry.
-      old_code_map->set(entry + kCachedCodeOffset, *code);
-      old_code_map->set(entry + kLiteralsOffset, *literals);
+      Handle<WeakCell> code_cell = code->IsUndefined()
+                                       ? isolate->factory()->empty_weak_cell()
+                                       : isolate->factory()->NewWeakCell(code);
+      Handle<WeakCell> literals_cell =
+          isolate->factory()->NewWeakCell(literals);
+      old_code_map->set(entry + kCachedCodeOffset, *code_cell);
+      old_code_map->set(entry + kLiteralsOffset, *literals_cell);
       return;
     }
 
-    // Copy old optimized code map and append one new entry.
-    new_code_map = isolate->factory()->CopyFixedArrayAndGrow(
-        old_code_map, kEntryLength, TENURED);
-    // TODO(mstarzinger): Temporary workaround. The allocation above might have
-    // flushed the optimized code map and the copy we created is full of holes.
-    // For now we just give up on adding the entry and pretend it got flushed.
-    if (shared->OptimizedCodeMapIsCleared()) return;
-    entry = old_code_map->length();
+    // Can we reuse an entry?
+    DCHECK(entry < kEntriesStart);
+    int length = old_code_map->length();
+    for (int i = kEntriesStart; i < length; i += kEntryLength) {
+      if (WeakCell::cast(old_code_map->get(i + kContextOffset))->cleared()) {
+        new_code_map = old_code_map;
+        entry = i;
+        break;
+      }
+    }
+
+    if (entry < kEntriesStart) {
+      // Copy old optimized code map and append one new entry.
+      new_code_map = isolate->factory()->CopyFixedArrayAndGrow(
+          old_code_map, kEntryLength, TENURED);
+      // TODO(mstarzinger): Temporary workaround. The allocation above might
+      // have flushed the optimized code map and the copy we created is full of
+      // holes. For now we just give up on adding the entry and pretend it got
+      // flushed.
+      if (shared->OptimizedCodeMapIsCleared()) return;
+      entry = old_code_map->length();
+    }
   }
-  new_code_map->set(entry + kContextOffset, *native_context);
-  new_code_map->set(entry + kCachedCodeOffset, *code);
-  new_code_map->set(entry + kLiteralsOffset, *literals);
+
+  Handle<WeakCell> code_cell = code->IsUndefined()
+                                   ? isolate->factory()->empty_weak_cell()
+                                   : isolate->factory()->NewWeakCell(code);
+  Handle<WeakCell> literals_cell = isolate->factory()->NewWeakCell(literals);
+  WeakCell* context_cell = native_context->self_weak_cell();
+
+  new_code_map->set(entry + kContextOffset, context_cell);
+  new_code_map->set(entry + kCachedCodeOffset, *code_cell);
+  new_code_map->set(entry + kLiteralsOffset, *literals_cell);
   new_code_map->set(entry + kOsrAstIdOffset, Smi::FromInt(osr_ast_id.ToInt()));
 
 #ifdef DEBUG
   for (int i = kEntriesStart; i < new_code_map->length(); i += kEntryLength) {
-    DCHECK(new_code_map->get(i + kContextOffset)->IsNativeContext());
-    Object* code = new_code_map->get(i + kCachedCodeOffset);
-    if (code != isolate->heap()->undefined_value()) {
-      DCHECK(code->IsCode());
-      DCHECK(Code::cast(code)->kind() == Code::OPTIMIZED_FUNCTION);
-    }
-    DCHECK(new_code_map->get(i + kLiteralsOffset)->IsFixedArray());
+    WeakCell* cell = WeakCell::cast(new_code_map->get(i + kContextOffset));
+    DCHECK(cell->cleared() || cell->value()->IsNativeContext());
+    cell = WeakCell::cast(new_code_map->get(i + kCachedCodeOffset));
+    DCHECK(cell->cleared() ||
+           (cell->value()->IsCode() &&
+            Code::cast(cell->value())->kind() == Code::OPTIMIZED_FUNCTION));
+    cell = WeakCell::cast(new_code_map->get(i + kLiteralsOffset));
+    DCHECK(cell->cleared() || cell->value()->IsFixedArray());
     DCHECK(new_code_map->get(i + kOsrAstIdOffset)->IsSmi());
   }
 #endif
 
-  // Zap any old optimized code map.
-  if (!shared->OptimizedCodeMapIsCleared()) {
-    FixedArray* old_code_map = shared->optimized_code_map();
-    old_code_map->FillWithHoles(0, old_code_map->length());
+  FixedArray* old_code_map = shared->optimized_code_map();
+  if (old_code_map != *new_code_map) {
+    shared->set_optimized_code_map(*new_code_map);
   }
-
-  shared->set_optimized_code_map(*new_code_map);
 }
 
 
 void SharedFunctionInfo::ClearOptimizedCodeMap() {
-  // Zap any old optimized code map.
-  if (!OptimizedCodeMapIsCleared()) {
-    FixedArray* old_code_map = optimized_code_map();
-    old_code_map->FillWithHoles(0, old_code_map->length());
-  }
-
   FixedArray* cleared_map = GetHeap()->cleared_optimized_code_map();
   set_optimized_code_map(cleared_map, SKIP_WRITE_BARRIER);
 }
@@ -12034,8 +12056,10 @@ void SharedFunctionInfo::EvictFromOptimizedCodeMap(Code* optimized_code,
   int dst = kEntriesStart;
   int length = code_map->length();
   for (int src = kEntriesStart; src < length; src += kEntryLength) {
-    DCHECK(code_map->get(src)->IsNativeContext());
-    if (code_map->get(src + kCachedCodeOffset) == optimized_code) {
+    DCHECK(WeakCell::cast(code_map->get(src))->cleared() ||
+           WeakCell::cast(code_map->get(src))->value()->IsNativeContext());
+    if (WeakCell::cast(code_map->get(src + kCachedCodeOffset))->value() ==
+        optimized_code) {
       BailoutId osr(Smi::cast(code_map->get(src + kOsrAstIdOffset))->value());
       if (FLAG_trace_opt) {
         PrintF("[evicting entry from optimizing code map (%s) for ", reason);
@@ -12052,7 +12076,8 @@ void SharedFunctionInfo::EvictFromOptimizedCodeMap(Code* optimized_code,
       }
       // In case of non-OSR entry just clear the code in order to proceed
       // sharing literals.
-      code_map->set_undefined(src + kCachedCodeOffset);
+      code_map->set(src + kCachedCodeOffset, heap->empty_weak_cell(),
+                    SKIP_WRITE_BARRIER);
     }
 
     // Keep the src entry by copying it to the dst entry.
@@ -12067,9 +12092,11 @@ void SharedFunctionInfo::EvictFromOptimizedCodeMap(Code* optimized_code,
     }
     dst += kEntryLength;
   }
-  if (code_map->get(kSharedCodeIndex) == optimized_code) {
+  if (WeakCell::cast(code_map->get(kSharedCodeIndex))->value() ==
+      optimized_code) {
     // Evict context-independent code as well.
-    code_map->set_undefined(kSharedCodeIndex);
+    code_map->set(kSharedCodeIndex, heap->empty_weak_cell(),
+                  SKIP_WRITE_BARRIER);
     if (FLAG_trace_opt) {
       PrintF("[evicting entry from optimizing code map (%s) for ", reason);
       ShortPrint();
@@ -12081,7 +12108,7 @@ void SharedFunctionInfo::EvictFromOptimizedCodeMap(Code* optimized_code,
     heap->RightTrimFixedArray<Heap::CONCURRENT_TO_SWEEPER>(code_map,
                                                            length - dst);
     if (code_map->length() == kEntriesStart &&
-        code_map->get(kSharedCodeIndex)->IsUndefined()) {
+        WeakCell::cast(code_map->get(kSharedCodeIndex))->cleared()) {
       ClearOptimizedCodeMap();
     }
   }
@@ -12096,7 +12123,7 @@ void SharedFunctionInfo::TrimOptimizedCodeMap(int shrink_by) {
   GetHeap()->RightTrimFixedArray<Heap::SEQUENTIAL_TO_SWEEPER>(code_map,
                                                               shrink_by);
   if (code_map->length() == kEntriesStart &&
-      code_map->get(kSharedCodeIndex)->IsUndefined()) {
+      WeakCell::cast(code_map->get(kSharedCodeIndex))->cleared()) {
     ClearOptimizedCodeMap();
   }
 }
@@ -13337,12 +13364,14 @@ int SharedFunctionInfo::SearchOptimizedCodeMapEntry(Context* native_context,
     int length = optimized_code_map->length();
     Smi* osr_ast_id_smi = Smi::FromInt(osr_ast_id.ToInt());
     for (int i = kEntriesStart; i < length; i += kEntryLength) {
-      if (optimized_code_map->get(i + kContextOffset) == native_context &&
+      if (WeakCell::cast(optimized_code_map->get(i + kContextOffset))
+                  ->value() == native_context &&
           optimized_code_map->get(i + kOsrAstIdOffset) == osr_ast_id_smi) {
         return i;
       }
     }
-    Object* shared_code = optimized_code_map->get(kSharedCodeIndex);
+    Object* shared_code =
+        WeakCell::cast(optimized_code_map->get(kSharedCodeIndex))->value();
     if (shared_code->IsCode() && osr_ast_id.IsNone()) {
       return kSharedCodeIndex;
     }
@@ -13358,13 +13387,22 @@ CodeAndLiterals SharedFunctionInfo::SearchOptimizedCodeMap(
   if (entry != kNotFound) {
     FixedArray* code_map = optimized_code_map();
     if (entry == kSharedCodeIndex) {
-      result = {Code::cast(code_map->get(kSharedCodeIndex)), nullptr};
-
+      // We know the weak cell isn't cleared because we made sure of it in
+      // SearchOptimizedCodeMapEntry and performed no allocations since that
+      // call.
+      result = {
+          Code::cast(WeakCell::cast(code_map->get(kSharedCodeIndex))->value()),
+          nullptr};
     } else {
       DCHECK_LE(entry + kEntryLength, code_map->length());
-      Object* code = code_map->get(entry + kCachedCodeOffset);
-      result = {code->IsUndefined() ? nullptr : Code::cast(code),
-                LiteralsArray::cast(code_map->get(entry + kLiteralsOffset))};
+      WeakCell* cell = WeakCell::cast(code_map->get(entry + kCachedCodeOffset));
+      WeakCell* literals_cell =
+          WeakCell::cast(code_map->get(entry + kLiteralsOffset));
+
+      result = {cell->cleared() ? nullptr : Code::cast(cell->value()),
+                literals_cell->cleared()
+                    ? nullptr
+                    : LiteralsArray::cast(literals_cell->value())};
     }
   }
   if (FLAG_trace_opt && !OptimizedCodeMapIsCleared() &&

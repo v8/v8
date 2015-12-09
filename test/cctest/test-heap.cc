@@ -4492,6 +4492,115 @@ TEST(Regress514122) {
 }
 
 
+TEST(OptimizedCodeMapReuseEntries) {
+  i::FLAG_flush_optimized_code_cache = false;
+  i::FLAG_allow_natives_syntax = true;
+  // BUG(v8:4598): Since TurboFan doesn't treat maps in code weakly, we can't
+  // run this test.
+  if (i::FLAG_turbo) return;
+  CcTest::InitializeVM();
+  v8::Isolate* v8_isolate = CcTest::isolate();
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  HandleScope scope(isolate);
+
+  // Create 3 contexts, allow the 2nd one to be disposed, and verify that
+  // a 4th context will re-use the weak slots in the optimized code map
+  // to hold data, rather than expanding the map.
+  v8::Local<v8::Context> c1 = v8::Context::New(v8_isolate);
+  const char* source = "function foo(x) { var l = [1]; return x+l[0]; }";
+  v8::ScriptCompiler::Source script_source(
+      v8::String::NewFromUtf8(v8_isolate, source, v8::NewStringType::kNormal)
+          .ToLocalChecked());
+  v8::Local<v8::UnboundScript> indep =
+      v8::ScriptCompiler::CompileUnboundScript(v8_isolate, &script_source)
+          .ToLocalChecked();
+  const char* toplevel = "foo(3); %OptimizeFunctionOnNextCall(foo); foo(3);";
+  // Perfrom one initial GC to enable code flushing.
+  heap->CollectAllGarbage();
+
+  c1->Enter();
+  indep->BindToCurrentContext()->Run(c1).ToLocalChecked();
+  CompileRun(toplevel);
+
+  Handle<SharedFunctionInfo> shared;
+  Handle<JSFunction> foo = Handle<JSFunction>::cast(
+      v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
+          CcTest::global()->Get(c1, v8_str("foo")).ToLocalChecked())));
+  CHECK(foo->shared()->is_compiled());
+  shared = handle(foo->shared());
+  c1->Exit();
+
+  {
+    HandleScope scope(isolate);
+    v8::Local<v8::Context> c2 = v8::Context::New(v8_isolate);
+    c2->Enter();
+    indep->BindToCurrentContext()->Run(c2).ToLocalChecked();
+    CompileRun(toplevel);
+    c2->Exit();
+  }
+
+  {
+    HandleScope scope(isolate);
+    v8::Local<v8::Context> c3 = v8::Context::New(v8_isolate);
+    c3->Enter();
+    indep->BindToCurrentContext()->Run(c3).ToLocalChecked();
+    CompileRun(toplevel);
+    c3->Exit();
+
+    // Now, collect garbage. Context c2 should have no roots to it, and it's
+    // entry in the optimized code map should be free for a new context.
+    for (int i = 0; i < 4; i++) {
+      heap->CollectAllGarbage();
+    }
+
+    Handle<FixedArray> optimized_code_map =
+        handle(shared->optimized_code_map());
+    // There should be 3 entries in the map.
+    CHECK_EQ(
+        3, ((optimized_code_map->length() - SharedFunctionInfo::kEntriesStart) /
+            SharedFunctionInfo::kEntryLength));
+    // But one of them (formerly for c2) should be cleared.
+    int cleared_count = 0;
+    for (int i = SharedFunctionInfo::kEntriesStart;
+         i < optimized_code_map->length();
+         i += SharedFunctionInfo::kEntryLength) {
+      cleared_count +=
+          WeakCell::cast(
+              optimized_code_map->get(i + SharedFunctionInfo::kContextOffset))
+                  ->cleared()
+              ? 1
+              : 0;
+    }
+    CHECK_EQ(1, cleared_count);
+
+    // Verify that a new context uses the cleared entry rather than creating a
+    // new
+    // optimized code map array.
+    v8::Local<v8::Context> c4 = v8::Context::New(v8_isolate);
+    c4->Enter();
+    indep->BindToCurrentContext()->Run(c4).ToLocalChecked();
+    CompileRun(toplevel);
+    c4->Exit();
+    CHECK_EQ(*optimized_code_map, shared->optimized_code_map());
+
+    // Now each entry is in use.
+    cleared_count = 0;
+    for (int i = SharedFunctionInfo::kEntriesStart;
+         i < optimized_code_map->length();
+         i += SharedFunctionInfo::kEntryLength) {
+      cleared_count +=
+          WeakCell::cast(
+              optimized_code_map->get(i + SharedFunctionInfo::kContextOffset))
+                  ->cleared()
+              ? 1
+              : 0;
+    }
+    CHECK_EQ(0, cleared_count);
+  }
+}
+
+
 TEST(Regress513496) {
   i::FLAG_flush_optimized_code_cache = false;
   i::FLAG_allow_natives_syntax = true;

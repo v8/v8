@@ -375,10 +375,6 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   // Mark pointers in a Map treating some elements of the descriptor array weak.
   static void MarkMapContents(Heap* heap, Map* map);
 
-  // Mark pointers in the optimized code map that should act as strong
-  // references, possibly treating some entries weak.
-  static void MarkOptimizedCodeMap(Heap* heap, FixedArray* code_map);
-
   // Code flushing support.
   INLINE(static bool IsFlushable(Heap* heap, JSFunction* function));
   INLINE(static bool IsFlushable(Heap* heap, SharedFunctionInfo* shared_info));

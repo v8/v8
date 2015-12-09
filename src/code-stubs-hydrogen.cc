@@ -1870,19 +1870,29 @@ void CodeStubGraphBuilderBase::BuildCheckAndInstallOptimizedCode(
   HValue* osr_ast_id_none = Add<HConstant>(BailoutId::None().ToInt());
   HValue* context_slot = LoadFromOptimizedCodeMap(
       optimized_map, map_index, SharedFunctionInfo::kContextOffset);
+  context_slot = Add<HLoadNamedField>(context_slot, nullptr,
+                                      HObjectAccess::ForWeakCellValue());
   HValue* osr_ast_slot = LoadFromOptimizedCodeMap(
       optimized_map, map_index, SharedFunctionInfo::kOsrAstIdOffset);
   HValue* code_object = LoadFromOptimizedCodeMap(
       optimized_map, map_index, SharedFunctionInfo::kCachedCodeOffset);
+  code_object = Add<HLoadNamedField>(code_object, nullptr,
+                                     HObjectAccess::ForWeakCellValue());
   builder->If<HCompareObjectEqAndBranch>(native_context,
                                          context_slot);
   builder->AndIf<HCompareObjectEqAndBranch>(osr_ast_slot, osr_ast_id_none);
   builder->And();
   builder->IfNot<HCompareObjectEqAndBranch>(code_object,
-                                            graph()->GetConstantUndefined());
+                                            graph()->GetConstant0());
   builder->Then();
   HValue* literals = LoadFromOptimizedCodeMap(optimized_map,
       map_index, SharedFunctionInfo::kLiteralsOffset);
+  literals = Add<HLoadNamedField>(literals, nullptr,
+                                  HObjectAccess::ForWeakCellValue());
+  IfBuilder maybe_deopt(this);
+  maybe_deopt.If<HCompareObjectEqAndBranch>(literals, graph()->GetConstant0());
+  maybe_deopt.ThenDeopt(Deoptimizer::kLiteralsWereDisposed);
+  maybe_deopt.End();
 
   BuildInstallOptimizedCode(js_function, native_context, code_object, literals);
 
@@ -2006,8 +2016,10 @@ void CodeStubGraphBuilderBase::BuildInstallFromOptimizedCodeMap(
       HValue* shared_code =
           Add<HLoadNamedField>(optimized_map, nullptr,
                                HObjectAccess::ForOptimizedCodeMapSharedCode());
+      shared_code = Add<HLoadNamedField>(shared_code, nullptr,
+                                         HObjectAccess::ForWeakCellValue());
       shared_code_check.IfNot<HCompareObjectEqAndBranch>(
-          shared_code, graph()->GetConstantUndefined());
+          shared_code, graph()->GetConstant0());
       shared_code_check.Then();
       {
         // Store the context-independent optimized code.

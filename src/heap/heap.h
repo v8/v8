@@ -189,6 +189,7 @@ namespace internal {
   V(Object, noscript_shared_function_infos, NoScriptSharedFunctionInfos)       \
   V(FixedArray, interpreter_table, InterpreterTable)                           \
   V(Map, bytecode_array_map, BytecodeArrayMap)                                 \
+  V(WeakCell, empty_weak_cell, EmptyWeakCell)                                  \
   V(BytecodeArray, empty_bytecode_array, EmptyBytecodeArray)
 
 
@@ -449,6 +450,7 @@ namespace internal {
   V(JSMessageObjectMap)                 \
   V(ForeignMap)                         \
   V(NeanderMap)                         \
+  V(EmptyWeakCell)                      \
   V(empty_string)                       \
   PRIVATE_SYMBOL_LIST(V)
 

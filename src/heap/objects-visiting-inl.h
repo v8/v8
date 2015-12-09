@@ -454,14 +454,6 @@ void StaticMarkingVisitor<StaticVisitor>::VisitSharedFunctionInfo(
       // Always flush the optimized code map if requested by flag.
       shared->ClearOptimizedCodeMap();
     }
-  } else {
-    if (!shared->OptimizedCodeMapIsCleared()) {
-      // Treat some references within the code map weakly by marking the
-      // code map itself but not pushing it onto the marking deque. The
-      // map will be processed after marking.
-      FixedArray* code_map = shared->optimized_code_map();
-      MarkOptimizedCodeMap(heap, code_map);
-    }
   }
   MarkCompactCollector* collector = heap->mark_compact_collector();
   if (collector->is_code_flushing_enabled()) {
@@ -575,23 +567,6 @@ void StaticMarkingVisitor<StaticVisitor>::MarkMapContents(Heap* heap,
   StaticVisitor::VisitPointers(
       heap, map, HeapObject::RawField(map, Map::kPointerFieldsBeginOffset),
       HeapObject::RawField(map, Map::kPointerFieldsEndOffset));
-}
-
-
-template <typename StaticVisitor>
-void StaticMarkingVisitor<StaticVisitor>::MarkOptimizedCodeMap(
-    Heap* heap, FixedArray* code_map) {
-  if (!StaticVisitor::MarkObjectWithoutPush(heap, code_map)) return;
-
-  // Mark the context-independent entry in the optimized code map. Depending on
-  // the age of the code object, we treat it as a strong or a weak reference.
-  Object* shared_object = code_map->get(SharedFunctionInfo::kSharedCodeIndex);
-  if (FLAG_turbo_preserve_shared_code && shared_object->IsCode() &&
-      FLAG_age_code && !Code::cast(shared_object)->IsOld()) {
-    StaticVisitor::VisitPointer(
-        heap, code_map,
-        code_map->RawFieldOfElementAt(SharedFunctionInfo::kSharedCodeIndex));
-  }
 }
 
 
