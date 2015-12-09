@@ -51,6 +51,16 @@ std::ostream& operator<<(std::ostream&, BranchHint);
 BranchHint BranchHintOf(const Operator* const);
 
 
+// Deoptimize bailout kind.
+enum class DeoptimizeKind : uint8_t { kEager, kSoft };
+
+size_t hash_value(DeoptimizeKind kind);
+
+std::ostream& operator<<(std::ostream&, DeoptimizeKind);
+
+DeoptimizeKind DeoptimizeKindOf(const Operator* const);
+
+
 // Prediction whether throw-site is surrounded by any local catch-scope.
 enum class IfExceptionHint { kLocallyUncaught, kLocallyCaught };
 
@@ -124,7 +134,7 @@ class CommonOperatorBuilder final : public ZoneObject {
   const Operator* IfValue(int32_t value);
   const Operator* IfDefault();
   const Operator* Throw();
-  const Operator* Deoptimize();
+  const Operator* Deoptimize(DeoptimizeKind kind);
   const Operator* Return(int value_input_count = 1);
   const Operator* Terminate();
 

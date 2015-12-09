@@ -36,6 +36,27 @@ BranchHint BranchHintOf(const Operator* const op) {
 }
 
 
+size_t hash_value(DeoptimizeKind kind) { return static_cast<size_t>(kind); }
+
+
+std::ostream& operator<<(std::ostream& os, DeoptimizeKind kind) {
+  switch (kind) {
+    case DeoptimizeKind::kEager:
+      return os << "Eager";
+    case DeoptimizeKind::kSoft:
+      return os << "Soft";
+  }
+  UNREACHABLE();
+  return os;
+}
+
+
+DeoptimizeKind DeoptimizeKindOf(const Operator* const op) {
+  DCHECK_EQ(IrOpcode::kDeoptimize, op->opcode());
+  return OpParameter<DeoptimizeKind>(op);
+}
+
+
 size_t hash_value(IfExceptionHint hint) { return static_cast<size_t>(hint); }
 
 
@@ -122,7 +143,6 @@ std::ostream& operator<<(std::ostream& os, ParameterInfo const& i) {
   V(IfSuccess, Operator::kKontrol, 0, 0, 1, 0, 0, 1)       \
   V(IfDefault, Operator::kKontrol, 0, 0, 1, 0, 0, 1)       \
   V(Throw, Operator::kKontrol, 1, 1, 1, 0, 0, 1)           \
-  V(Deoptimize, Operator::kNoThrow, 1, 1, 1, 0, 0, 1)      \
   V(Terminate, Operator::kKontrol, 0, 1, 1, 0, 0, 1)       \
   V(OsrNormalEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1) \
   V(OsrLoopEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1)   \
@@ -230,6 +250,18 @@ struct CommonOperatorGlobalCache final {
   Name##Operator k##Name##Operator;
   CACHED_OP_LIST(CACHED)
 #undef CACHED
+
+  template <DeoptimizeKind kKind>
+  struct DeoptimizeOperator final : public Operator1<DeoptimizeKind> {
+    DeoptimizeOperator()
+        : Operator1<DeoptimizeKind>(                      // --
+              IrOpcode::kDeoptimize, Operator::kNoThrow,  // opcode
+              "Deoptimize",                               // name
+              1, 1, 1, 0, 0, 1,                           // counts
+              kKind) {}                                   // parameter
+  };
+  DeoptimizeOperator<DeoptimizeKind::kEager> kDeoptimizeEagerOperator;
+  DeoptimizeOperator<DeoptimizeKind::kSoft> kDeoptimizeSoftOperator;
 
   template <IfExceptionHint kCaughtLocally>
   struct IfExceptionOperator final : public Operator1<IfExceptionHint> {
@@ -442,6 +474,18 @@ const Operator* CommonOperatorBuilder::Branch(BranchHint hint) {
       return &cache_.kBranchTrueOperator;
     case BranchHint::kFalse:
       return &cache_.kBranchFalseOperator;
+  }
+  UNREACHABLE();
+  return nullptr;
+}
+
+
+const Operator* CommonOperatorBuilder::Deoptimize(DeoptimizeKind kind) {
+  switch (kind) {
+    case DeoptimizeKind::kEager:
+      return &cache_.kDeoptimizeEagerOperator;
+    case DeoptimizeKind::kSoft:
+      return &cache_.kDeoptimizeSoftOperator;
   }
   UNREACHABLE();
   return nullptr;

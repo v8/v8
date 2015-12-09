@@ -213,7 +213,7 @@ class InstructionSelector final {
   void VisitGoto(BasicBlock* target);
   void VisitBranch(Node* input, BasicBlock* tbranch, BasicBlock* fbranch);
   void VisitSwitch(Node* node, const SwitchInfo& sw);
-  void VisitDeoptimize(Node* value);
+  void VisitDeoptimize(DeoptimizeKind kind, Node* value);
   void VisitReturn(Node* ret);
   void VisitThrow(Node* value);
 

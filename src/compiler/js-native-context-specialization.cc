@@ -411,8 +411,9 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
           ? exit_controls.front()
           : graph()->NewNode(common()->Merge(exit_control_count),
                              exit_control_count, &exit_controls.front());
-  Node* deoptimize = graph()->NewNode(common()->Deoptimize(), frame_state,
-                                      exit_effect, exit_control);
+  Node* deoptimize =
+      graph()->NewNode(common()->Deoptimize(DeoptimizeKind::kEager),
+                       frame_state, exit_effect, exit_control);
   // TODO(bmeurer): This should be on the AdvancedReducer somehow.
   NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
 
@@ -838,8 +839,9 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
           ? exit_controls.front()
           : graph()->NewNode(common()->Merge(exit_control_count),
                              exit_control_count, &exit_controls.front());
-  Node* deoptimize = graph()->NewNode(common()->Deoptimize(), frame_state,
-                                      exit_effect, exit_control);
+  Node* deoptimize =
+      graph()->NewNode(common()->Deoptimize(DeoptimizeKind::kEager),
+                       frame_state, exit_effect, exit_control);
   // TODO(bmeurer): This should be on the AdvancedReducer somehow.
   NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
 

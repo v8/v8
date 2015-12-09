@@ -149,7 +149,8 @@ Reduction JSIntrinsicLowering::ReduceDeoptimizeNow(Node* node) {
 
   // TODO(bmeurer): Move MergeControlToEnd() to the AdvancedReducer.
   Node* deoptimize =
-      graph()->NewNode(common()->Deoptimize(), frame_state, effect, control);
+      graph()->NewNode(common()->Deoptimize(DeoptimizeKind::kEager),
+                       frame_state, effect, control);
   NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
 
   node->TrimInputCount(0);
@@ -466,7 +467,8 @@ Reduction JSIntrinsicLowering::ReduceThrowNotDateError(Node* node) {
 
   // TODO(bmeurer): Move MergeControlToEnd() to the AdvancedReducer.
   Node* deoptimize =
-      graph()->NewNode(common()->Deoptimize(), frame_state, effect, control);
+      graph()->NewNode(common()->Deoptimize(DeoptimizeKind::kEager),
+                       frame_state, effect, control);
   NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
 
   node->TrimInputCount(0);

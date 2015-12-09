@@ -188,8 +188,9 @@ Reduction JSGlobalObjectSpecialization::ReduceJSStoreGlobal(Node* node) {
       Node* branch =
           graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
       Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-      Node* deoptimize = graph()->NewNode(common()->Deoptimize(), frame_state,
-                                          effect, if_false);
+      Node* deoptimize =
+          graph()->NewNode(common()->Deoptimize(DeoptimizeKind::kEager),
+                           frame_state, effect, if_false);
       // TODO(bmeurer): This should be on the AdvancedReducer somehow.
       NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
       control = graph()->NewNode(common()->IfTrue(), branch);
@@ -207,8 +208,9 @@ Reduction JSGlobalObjectSpecialization::ReduceJSStoreGlobal(Node* node) {
         Node* branch = graph()->NewNode(common()->Branch(BranchHint::kFalse),
                                         check, control);
         Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-        Node* deoptimize = graph()->NewNode(common()->Deoptimize(), frame_state,
-                                            effect, if_true);
+        Node* deoptimize =
+            graph()->NewNode(common()->Deoptimize(DeoptimizeKind::kEager),
+                             frame_state, effect, if_true);
         // TODO(bmeurer): This should be on the AdvancedReducer somehow.
         NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
         control = graph()->NewNode(common()->IfFalse(), branch);
@@ -227,8 +229,9 @@ Reduction JSGlobalObjectSpecialization::ReduceJSStoreGlobal(Node* node) {
       Node* branch =
           graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
       Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-      Node* deoptimize = graph()->NewNode(common()->Deoptimize(), frame_state,
-                                          effect, if_false);
+      Node* deoptimize =
+          graph()->NewNode(common()->Deoptimize(DeoptimizeKind::kEager),
+                           frame_state, effect, if_false);
       // TODO(bmeurer): This should be on the AdvancedReducer somehow.
       NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
       control = graph()->NewNode(common()->IfTrue(), branch);

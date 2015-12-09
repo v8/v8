@@ -298,7 +298,8 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
         graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
     Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
     Node* deoptimize =
-        graph()->NewNode(common()->Deoptimize(), frame_state, effect, if_false);
+        graph()->NewNode(common()->Deoptimize(DeoptimizeKind::kEager),
+                         frame_state, effect, if_false);
     // TODO(bmeurer): This should be on the AdvancedReducer somehow.
     NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
     control = graph()->NewNode(common()->IfTrue(), branch);
@@ -321,8 +322,9 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
       Node* branch =
           graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
       Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-      Node* deoptimize = graph()->NewNode(common()->Deoptimize(), frame_state,
-                                          effect, if_false);
+      Node* deoptimize =
+          graph()->NewNode(common()->Deoptimize(DeoptimizeKind::kEager),
+                           frame_state, effect, if_false);
       // TODO(bmeurer): This should be on the AdvancedReducer somehow.
       NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
       control = graph()->NewNode(common()->IfTrue(), branch);
@@ -439,7 +441,8 @@ Reduction JSCallReducer::ReduceJSCallConstruct(Node* node) {
         graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
     Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
     Node* deoptimize =
-        graph()->NewNode(common()->Deoptimize(), frame_state, effect, if_false);
+        graph()->NewNode(common()->Deoptimize(DeoptimizeKind::kEager),
+                         frame_state, effect, if_false);
     // TODO(bmeurer): This should be on the AdvancedReducer somehow.
     NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
     control = graph()->NewNode(common()->IfTrue(), branch);
@@ -468,8 +471,9 @@ Reduction JSCallReducer::ReduceJSCallConstruct(Node* node) {
       Node* branch =
           graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
       Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-      Node* deoptimize = graph()->NewNode(common()->Deoptimize(), frame_state,
-                                          effect, if_false);
+      Node* deoptimize =
+          graph()->NewNode(common()->Deoptimize(DeoptimizeKind::kEager),
+                           frame_state, effect, if_false);
       // TODO(bmeurer): This should be on the AdvancedReducer somehow.
       NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
       control = graph()->NewNode(common()->IfTrue(), branch);
