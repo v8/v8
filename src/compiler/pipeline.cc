@@ -1227,6 +1227,11 @@ Handle<Code> Pipeline::GenerateCodeForCodeStub(Isolate* isolate,
     pipeline_statistics.Reset(new PipelineStatistics(&info, &zone_pool));
     pipeline_statistics->BeginPhaseKind("interpreter handler codegen");
   }
+
+  Pipeline pipeline(&info);
+  pipeline.data_ = &data;
+  DCHECK_NOT_NULL(data.schedule());
+
   if (FLAG_trace_turbo) {
     FILE* json_file = OpenVisualizerLogFile(&info, NULL, "json", "w+");
     if (json_file != nullptr) {
@@ -1235,11 +1240,9 @@ Handle<Code> Pipeline::GenerateCodeForCodeStub(Isolate* isolate,
               << "\", \"source\":\"\",\n\"phases\":[";
       fclose(json_file);
     }
+    pipeline.Run<PrintGraphPhase>("Machine");
   }
 
-  Pipeline pipeline(&info);
-  pipeline.data_ = &data;
-  pipeline.RunPrintAndVerify("Machine", true);
   return pipeline.ScheduleAndGenerateCode(call_descriptor);
 }
 

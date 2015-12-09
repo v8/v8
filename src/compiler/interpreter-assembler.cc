@@ -50,7 +50,6 @@ Handle<Code> InterpreterAssembler::GenerateCode() {
 
   const char* bytecode_name = interpreter::Bytecodes::ToString(bytecode_);
   Schedule* schedule = raw_assembler_->Export();
-  // TODO(rmcilroy): use a non-testing code generator.
   Handle<Code> code = Pipeline::GenerateCodeForCodeStub(
       isolate(), raw_assembler_->call_descriptor(), graph(), schedule,
       Code::STUB, bytecode_name);
