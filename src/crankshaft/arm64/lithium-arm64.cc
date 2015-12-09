@@ -1714,8 +1714,9 @@ LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
             IsDoubleOrFloatElementsKind(instr->elements_kind())));
 
     LOperand* temp = instr->key()->IsConstant() ? NULL : TempRegister();
-    LInstruction* result = DefineAsRegister(
-        new(zone()) LLoadKeyedExternal(elements, key, temp));
+    LOperand* backing_store_owner = UseAny(instr->backing_store_owner());
+    LInstruction* result = DefineAsRegister(new (zone()) LLoadKeyedExternal(
+        elements, key, backing_store_owner, temp));
     if (elements_kind == UINT32_ELEMENTS &&
         !instr->CheckFlag(HInstruction::kUint32)) {
       result = AssignEnvironment(result);
@@ -2341,7 +2342,9 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
            (instr->value()->representation().IsDouble() &&
             IsDoubleOrFloatElementsKind(instr->elements_kind())));
     DCHECK(instr->elements()->representation().IsExternal());
-    return new(zone()) LStoreKeyedExternal(elements, key, val, temp);
+    LOperand* backing_store_owner = UseAny(instr->backing_store_owner());
+    return new (zone())
+        LStoreKeyedExternal(elements, key, val, backing_store_owner, temp);
 
   } else if (instr->value()->representation().IsDouble()) {
     DCHECK(instr->elements()->representation().IsTagged());

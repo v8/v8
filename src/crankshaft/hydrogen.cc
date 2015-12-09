@@ -1372,7 +1372,8 @@ HValue* HGraphBuilder::BuildCheckForCapacityGrow(
     HValue* checked_elements = environment()->Top();
 
     // Write zero to ensure that the new element is initialized with some smi.
-    Add<HStoreKeyed>(checked_elements, key, graph()->GetConstant0(), kind);
+    Add<HStoreKeyed>(checked_elements, key, graph()->GetConstant0(), nullptr,
+                     kind);
   }
 
   length_checker.Else();
@@ -1676,7 +1677,7 @@ HValue* HGraphBuilder::BuildUncheckedDictionaryElementLoad(
     LanguageMode language_mode) {
   HValue* capacity =
       Add<HLoadKeyed>(elements, Add<HConstant>(NameDictionary::kCapacityIndex),
-                      nullptr, FAST_ELEMENTS);
+                      nullptr, nullptr, FAST_ELEMENTS);
 
   HValue* mask = AddUncasted<HSub>(capacity, graph()->GetConstant1());
   mask->ChangeRepresentation(Representation::Integer32());
@@ -1707,7 +1708,7 @@ HValue* HGraphBuilder::BuildUncheckedDictionaryElementLoad(
   key_index->ClearFlag(HValue::kCanOverflow);
 
   HValue* candidate_key =
-      Add<HLoadKeyed>(elements, key_index, nullptr, FAST_ELEMENTS);
+      Add<HLoadKeyed>(elements, key_index, nullptr, nullptr, FAST_ELEMENTS);
   IfBuilder if_undefined(this);
   if_undefined.If<HCompareObjectEqAndBranch>(candidate_key,
                                              graph()->GetConstantUndefined());
@@ -1750,7 +1751,7 @@ HValue* HGraphBuilder::BuildUncheckedDictionaryElementLoad(
     if_update_with_internalized.Then();
     // Replace a key that is a non-internalized string by the equivalent
     // internalized string for faster further lookups.
-    Add<HStoreKeyed>(elements, key_index, key, FAST_ELEMENTS);
+    Add<HStoreKeyed>(elements, key_index, key, nullptr, FAST_ELEMENTS);
     if_update_with_internalized.Else();
 
     if_update_with_internalized.JoinContinuation(&found_key_match_continuation);
@@ -1763,8 +1764,8 @@ HValue* HGraphBuilder::BuildUncheckedDictionaryElementLoad(
     HValue* details_index =
         AddUncasted<HAdd>(base_index, Add<HConstant>(start_offset + 2));
     details_index->ClearFlag(HValue::kCanOverflow);
-    HValue* details =
-        Add<HLoadKeyed>(elements, details_index, nullptr, FAST_ELEMENTS);
+    HValue* details = Add<HLoadKeyed>(elements, details_index, nullptr, nullptr,
+                                      FAST_ELEMENTS);
     int details_mask = PropertyDetails::TypeField::kMask;
     details = AddUncasted<HBitwise>(Token::BIT_AND, details,
                                     Add<HConstant>(details_mask));
@@ -1775,7 +1776,8 @@ HValue* HGraphBuilder::BuildUncheckedDictionaryElementLoad(
     HValue* result_index =
         AddUncasted<HAdd>(base_index, Add<HConstant>(start_offset + 1));
     result_index->ClearFlag(HValue::kCanOverflow);
-    Push(Add<HLoadKeyed>(elements, result_index, nullptr, FAST_ELEMENTS));
+    Push(Add<HLoadKeyed>(elements, result_index, nullptr, nullptr,
+                         FAST_ELEMENTS));
     details_compare.Else();
     Add<HPushArguments>(receiver, key);
     Push(Add<HCallRuntime>(
@@ -1947,7 +1949,7 @@ HValue* HGraphBuilder::BuildNumberToString(HValue* object, Type* type) {
     // Load the key.
     HValue* key_index = AddUncasted<HShl>(hash, graph()->GetConstant1());
     HValue* key = Add<HLoadKeyed>(number_string_cache, key_index, nullptr,
-                                  FAST_ELEMENTS, ALLOW_RETURN_HOLE);
+                                  nullptr, FAST_ELEMENTS, ALLOW_RETURN_HOLE);
 
     // Check if object == key.
     IfBuilder if_objectiskey(this);
@@ -1982,8 +1984,9 @@ HValue* HGraphBuilder::BuildNumberToString(HValue* object, Type* type) {
 
         // Load the key.
         HValue* key_index = AddUncasted<HShl>(hash, graph()->GetConstant1());
-        HValue* key = Add<HLoadKeyed>(number_string_cache, key_index, nullptr,
-                                      FAST_ELEMENTS, ALLOW_RETURN_HOLE);
+        HValue* key =
+            Add<HLoadKeyed>(number_string_cache, key_index, nullptr, nullptr,
+                            FAST_ELEMENTS, ALLOW_RETURN_HOLE);
 
         // Check if the key is a heap number and compare it with the object.
         IfBuilder if_keyisnotsmi(this);
@@ -2035,7 +2038,7 @@ HValue* HGraphBuilder::BuildNumberToString(HValue* object, Type* type) {
     // Load the value in case of cache hit.
     HValue* key_index = Pop();
     HValue* value_index = AddUncasted<HAdd>(key_index, graph()->GetConstant1());
-    Push(Add<HLoadKeyed>(number_string_cache, value_index, nullptr,
+    Push(Add<HLoadKeyed>(number_string_cache, value_index, nullptr, nullptr,
                          FAST_ELEMENTS, ALLOW_RETURN_HOLE));
   }
   if_found.Else();
@@ -2119,7 +2122,7 @@ HValue* HGraphBuilder::BuildToObject(HValue* receiver) {
 
     // Determine the initial map for the global constructor.
     HValue* constructor = Add<HLoadKeyed>(native_context, constructor_index,
-                                          nullptr, FAST_ELEMENTS);
+                                          nullptr, nullptr, FAST_ELEMENTS);
     HValue* constructor_initial_map = Add<HLoadNamedField>(
         constructor, nullptr, HObjectAccess::ForPrototypeOrInitialMap());
     // Allocate and initialize a JSValue wrapper.
@@ -2590,7 +2593,8 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
           key, graph()->GetConstant0(), Token::GTE);
       negative_checker.Then();
       HInstruction* result = AddElementAccess(
-          backing_store, key, val, bounds_check, elements_kind, access_type);
+          backing_store, key, val, bounds_check, checked_object->ActualValue(),
+          elements_kind, access_type);
       negative_checker.ElseDeopt(Deoptimizer::kNegativeKeyEncountered);
       negative_checker.End();
       length_checker.End();
@@ -2598,9 +2602,9 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
     } else {
       DCHECK(store_mode == STANDARD_STORE);
       checked_key = Add<HBoundsCheck>(key, length);
-      return AddElementAccess(
-          backing_store, checked_key, val,
-          checked_object, elements_kind, access_type);
+      return AddElementAccess(backing_store, checked_key, val, checked_object,
+                              checked_object->ActualValue(), elements_kind,
+                              access_type);
     }
   }
   DCHECK(fast_smi_only_elements ||
@@ -2639,7 +2643,7 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
       }
     }
   }
-  return AddElementAccess(elements, checked_key, val, checked_object,
+  return AddElementAccess(elements, checked_key, val, checked_object, nullptr,
                           elements_kind, access_type, load_mode);
 }
 
@@ -2802,26 +2806,23 @@ void HGraphBuilder::BuildJSArrayHeader(HValue* array,
 
 
 HInstruction* HGraphBuilder::AddElementAccess(
-    HValue* elements,
-    HValue* checked_key,
-    HValue* val,
-    HValue* dependency,
-    ElementsKind elements_kind,
-    PropertyAccessType access_type,
-    LoadKeyedHoleMode load_mode) {
+    HValue* elements, HValue* checked_key, HValue* val, HValue* dependency,
+    HValue* backing_store_owner, ElementsKind elements_kind,
+    PropertyAccessType access_type, LoadKeyedHoleMode load_mode) {
   if (access_type == STORE) {
     DCHECK(val != NULL);
     if (elements_kind == UINT8_CLAMPED_ELEMENTS) {
       val = Add<HClampToUint8>(val);
     }
-    return Add<HStoreKeyed>(elements, checked_key, val, elements_kind,
-                            STORE_TO_INITIALIZED_ENTRY);
+    return Add<HStoreKeyed>(elements, checked_key, val, backing_store_owner,
+                            elements_kind, STORE_TO_INITIALIZED_ENTRY);
   }
 
   DCHECK(access_type == LOAD);
   DCHECK(val == NULL);
-  HLoadKeyed* load = Add<HLoadKeyed>(
-      elements, checked_key, dependency, elements_kind, load_mode);
+  HLoadKeyed* load =
+      Add<HLoadKeyed>(elements, checked_key, dependency, backing_store_owner,
+                      elements_kind, load_mode);
   if (elements_kind == UINT32_ELEMENTS) {
     graph()->RecordUint32Instruction(load);
   }
@@ -2922,7 +2923,7 @@ void HGraphBuilder::BuildFillElementsWithValue(HValue* elements,
   if (initial_capacity >= 0) {
     for (int i = 0; i < initial_capacity; i++) {
       HInstruction* key = Add<HConstant>(i);
-      Add<HStoreKeyed>(elements, key, value, elements_kind);
+      Add<HStoreKeyed>(elements, key, value, nullptr, elements_kind);
     }
   } else {
     // Carefully loop backwards so that the "from" remains live through the loop
@@ -2936,7 +2937,7 @@ void HGraphBuilder::BuildFillElementsWithValue(HValue* elements,
     HValue* adjusted_key = AddUncasted<HSub>(key, graph()->GetConstant1());
     adjusted_key->ClearFlag(HValue::kCanOverflow);
 
-    Add<HStoreKeyed>(elements, adjusted_key, value, elements_kind);
+    Add<HStoreKeyed>(elements, adjusted_key, value, nullptr, elements_kind);
 
     builder.EndBody();
   }
@@ -2979,9 +2980,10 @@ void HGraphBuilder::BuildCopyProperties(HValue* from_properties,
   key = AddUncasted<HSub>(key, graph()->GetConstant1());
   key->ClearFlag(HValue::kCanOverflow);
 
-  HValue* element = Add<HLoadKeyed>(from_properties, key, nullptr, kind);
+  HValue* element =
+      Add<HLoadKeyed>(from_properties, key, nullptr, nullptr, kind);
 
-  Add<HStoreKeyed>(to_properties, key, element, kind);
+  Add<HStoreKeyed>(to_properties, key, element, nullptr, kind);
 
   builder.EndBody();
 }
@@ -3018,9 +3020,10 @@ void HGraphBuilder::BuildCopyElements(HValue* from_elements,
     // Unroll the loop for small elements kinds.
     for (int i = 0; i < constant_capacity; i++) {
       HValue* key_constant = Add<HConstant>(i);
-      HInstruction* value = Add<HLoadKeyed>(from_elements, key_constant,
-                                            nullptr, from_elements_kind);
-      Add<HStoreKeyed>(to_elements, key_constant, value, to_elements_kind);
+      HInstruction* value = Add<HLoadKeyed>(
+          from_elements, key_constant, nullptr, nullptr, from_elements_kind);
+      Add<HStoreKeyed>(to_elements, key_constant, value, nullptr,
+                       to_elements_kind);
     }
   } else {
     if (!pre_fill_with_holes &&
@@ -3037,7 +3040,7 @@ void HGraphBuilder::BuildCopyElements(HValue* from_elements,
     key = AddUncasted<HSub>(key, graph()->GetConstant1());
     key->ClearFlag(HValue::kCanOverflow);
 
-    HValue* element = Add<HLoadKeyed>(from_elements, key, nullptr,
+    HValue* element = Add<HLoadKeyed>(from_elements, key, nullptr, nullptr,
                                       from_elements_kind, ALLOW_RETURN_HOLE);
 
     ElementsKind kind = (IsHoleyElementsKind(from_elements_kind) &&
@@ -3052,13 +3055,15 @@ void HGraphBuilder::BuildCopyElements(HValue* from_elements,
       HConstant* hole_constant = IsFastDoubleElementsKind(to_elements_kind)
                                      ? Add<HConstant>(HConstant::kHoleNaN)
                                      : graph()->GetConstantHole();
-      Add<HStoreKeyed>(to_elements, key, hole_constant, kind);
+      Add<HStoreKeyed>(to_elements, key, hole_constant, nullptr, kind);
       if_hole.Else();
-      HStoreKeyed* store = Add<HStoreKeyed>(to_elements, key, element, kind);
+      HStoreKeyed* store =
+          Add<HStoreKeyed>(to_elements, key, element, nullptr, kind);
       store->SetFlag(HValue::kAllowUndefinedAsNaN);
       if_hole.End();
     } else {
-      HStoreKeyed* store = Add<HStoreKeyed>(to_elements, key, element, kind);
+      HStoreKeyed* store =
+          Add<HStoreKeyed>(to_elements, key, element, nullptr, kind);
       store->SetFlag(HValue::kAllowUndefinedAsNaN);
     }
 
@@ -3345,7 +3350,8 @@ HInstruction* HGraphBuilder::BuildGetArrayFunction() {
   HInstruction* native_context = BuildGetNativeContext();
   HInstruction* index =
       Add<HConstant>(static_cast<int32_t>(Context::ARRAY_FUNCTION_INDEX));
-  return Add<HLoadKeyed>(native_context, index, nullptr, FAST_ELEMENTS);
+  return Add<HLoadKeyed>(native_context, index, nullptr, nullptr,
+                         FAST_ELEMENTS);
 }
 
 
@@ -3433,12 +3439,12 @@ HValue* HGraphBuilder::JSArrayBuilder::EmitMapCode() {
   HInstruction* index = builder()->Add<HConstant>(
       static_cast<int32_t>(Context::JS_ARRAY_MAPS_INDEX));
 
-  HInstruction* map_array =
-      builder()->Add<HLoadKeyed>(native_context, index, nullptr, FAST_ELEMENTS);
+  HInstruction* map_array = builder()->Add<HLoadKeyed>(
+      native_context, index, nullptr, nullptr, FAST_ELEMENTS);
 
   HInstruction* kind_index = builder()->Add<HConstant>(kind_);
 
-  return builder()->Add<HLoadKeyed>(map_array, kind_index, nullptr,
+  return builder()->Add<HLoadKeyed>(map_array, kind_index, nullptr, nullptr,
                                     FAST_ELEMENTS);
 }
 
@@ -5392,7 +5398,7 @@ void HOptimizedGraphBuilder::BuildForInBody(ForInStatement* stmt,
 
   HValue* key =
       Add<HLoadKeyed>(environment()->ExpressionStackAt(2),  // Enum cache.
-                      index, index, FAST_ELEMENTS);
+                      index, index, nullptr, FAST_ELEMENTS);
 
   if (fast) {
     // Check if the expected map still matches that of the enumerable.
@@ -6104,7 +6110,7 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
       case FAST_HOLEY_ELEMENTS:
       case FAST_DOUBLE_ELEMENTS:
       case FAST_HOLEY_DOUBLE_ELEMENTS: {
-        HStoreKeyed* instr = Add<HStoreKeyed>(elements, key, value,
+        HStoreKeyed* instr = Add<HStoreKeyed>(elements, key, value, nullptr,
                                               boilerplate_elements_kind);
         instr->SetUninitialized(uninitialized);
         break;
@@ -8870,16 +8876,16 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
                                               elements_kind, length);
         }
         reduced_length = AddUncasted<HSub>(length, graph()->GetConstant1());
-        result = AddElementAccess(elements, reduced_length, NULL,
-                                  bounds_check, elements_kind, LOAD);
+        result = AddElementAccess(elements, reduced_length, nullptr,
+                                  bounds_check, nullptr, elements_kind, LOAD);
         HValue* hole = IsFastSmiOrObjectElementsKind(elements_kind)
                            ? graph()->GetConstantHole()
                            : Add<HConstant>(HConstant::kHoleNaN);
         if (IsFastSmiOrObjectElementsKind(elements_kind)) {
           elements_kind = FAST_HOLEY_ELEMENTS;
         }
-        AddElementAccess(
-            elements, reduced_length, hole, bounds_check, elements_kind, STORE);
+        AddElementAccess(elements, reduced_length, hole, bounds_check, nullptr,
+                         elements_kind, STORE);
         Add<HStoreNamedField>(
             checked_object, HObjectAccess::ForArrayLength(elements_kind),
             reduced_length, STORE_TO_INITIALIZED_ENTRY);
@@ -9004,8 +9010,8 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
           {
             // Remember the result.
             if (!ast_context()->IsEffect()) {
-              Push(AddElementAccess(elements, graph()->GetConstant0(), NULL,
-                                    lengthiszero, kind, LOAD));
+              Push(AddElementAccess(elements, graph()->GetConstant0(), nullptr,
+                                    lengthiszero, nullptr, kind, LOAD));
             }
 
             // Compute the new length.
@@ -9022,10 +9028,11 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
               key->ClearFlag(HValue::kCanOverflow);
               ElementsKind copy_kind =
                   kind == FAST_HOLEY_SMI_ELEMENTS ? FAST_HOLEY_ELEMENTS : kind;
-              HValue* element = AddUncasted<HLoadKeyed>(
-                  elements, key, lengthiszero, copy_kind, ALLOW_RETURN_HOLE);
-              HStoreKeyed* store =
-                  Add<HStoreKeyed>(elements, new_key, element, copy_kind);
+              HValue* element =
+                  AddUncasted<HLoadKeyed>(elements, key, lengthiszero, nullptr,
+                                          copy_kind, ALLOW_RETURN_HOLE);
+              HStoreKeyed* store = Add<HStoreKeyed>(elements, new_key, element,
+                                                    nullptr, copy_kind);
               store->SetFlag(HValue::kAllowUndefinedAsNaN);
             }
             loop.EndBody();
@@ -9035,8 +9042,8 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
                                ? graph()->GetConstantHole()
                                : Add<HConstant>(HConstant::kHoleNaN);
             if (IsFastSmiOrObjectElementsKind(kind)) kind = FAST_HOLEY_ELEMENTS;
-            Add<HStoreKeyed>(
-                elements, new_length, hole, kind, INITIALIZING_STORE);
+            Add<HStoreKeyed>(elements, new_length, hole, nullptr, kind,
+                             INITIALIZING_STORE);
 
             // Remember new length.
             Add<HStoreNamedField>(
@@ -9498,8 +9505,8 @@ HValue* HOptimizedGraphBuilder::BuildArrayIndexOf(HValue* receiver,
     LoopBuilder loop(this, context(), direction);
     {
       HValue* index = loop.BeginBody(initial, terminating, token);
-      HValue* element = AddUncasted<HLoadKeyed>(elements, index, nullptr, kind,
-                                                ALLOW_RETURN_HOLE);
+      HValue* element = AddUncasted<HLoadKeyed>(
+          elements, index, nullptr, nullptr, kind, ALLOW_RETURN_HOLE);
       IfBuilder if_issame(this);
       if_issame.If<HCompareNumericAndBranch>(element, search_element,
                                              Token::EQ_STRICT);
@@ -9520,8 +9527,8 @@ HValue* HOptimizedGraphBuilder::BuildArrayIndexOf(HValue* receiver,
       LoopBuilder loop(this, context(), direction);
       {
         HValue* index = loop.BeginBody(initial, terminating, token);
-        HValue* element = AddUncasted<HLoadKeyed>(elements, index, nullptr,
-                                                  kind, ALLOW_RETURN_HOLE);
+        HValue* element = AddUncasted<HLoadKeyed>(
+            elements, index, nullptr, nullptr, kind, ALLOW_RETURN_HOLE);
         IfBuilder if_issame(this);
         if_issame.If<HIsStringAndBranch>(element);
         if_issame.AndIf<HStringCompareAndBranch>(
@@ -9550,8 +9557,8 @@ HValue* HOptimizedGraphBuilder::BuildArrayIndexOf(HValue* receiver,
         LoopBuilder loop(this, context(), direction);
         {
           HValue* index = loop.BeginBody(initial, terminating, token);
-          HValue* element = AddUncasted<HLoadKeyed>(elements, index, nullptr,
-                                                    kind, ALLOW_RETURN_HOLE);
+          HValue* element = AddUncasted<HLoadKeyed>(
+              elements, index, nullptr, nullptr, kind, ALLOW_RETURN_HOLE);
 
           IfBuilder if_element_isnumber(this);
           if_element_isnumber.If<HIsSmiAndBranch>(element);
@@ -9582,8 +9589,8 @@ HValue* HOptimizedGraphBuilder::BuildArrayIndexOf(HValue* receiver,
         LoopBuilder loop(this, context(), direction);
         {
           HValue* index = loop.BeginBody(initial, terminating, token);
-          HValue* element = AddUncasted<HLoadKeyed>(elements, index, nullptr,
-                                                    kind, ALLOW_RETURN_HOLE);
+          HValue* element = AddUncasted<HLoadKeyed>(
+              elements, index, nullptr, nullptr, kind, ALLOW_RETURN_HOLE);
           IfBuilder if_issame(this);
           if_issame.If<HCompareObjectEqAndBranch>(
               element, search_element);
@@ -10235,7 +10242,7 @@ HValue* HOptimizedGraphBuilder::BuildAllocateFixedTypedArray(
     HValue* key = builder.BeginBody(
         Add<HConstant>(static_cast<int32_t>(0)),
         length, Token::LT);
-    Add<HStoreKeyed>(backing_store, key, filler, fixed_elements_kind);
+    Add<HStoreKeyed>(backing_store, key, filler, elements, fixed_elements_kind);
 
     builder.EndBody();
   }
@@ -11972,10 +11979,11 @@ void HOptimizedGraphBuilder::BuildEmitFixedDoubleArray(
   int elements_length = elements->length();
   for (int i = 0; i < elements_length; i++) {
     HValue* key_constant = Add<HConstant>(i);
-    HInstruction* value_instruction = Add<HLoadKeyed>(
-        boilerplate_elements, key_constant, nullptr, kind, ALLOW_RETURN_HOLE);
+    HInstruction* value_instruction =
+        Add<HLoadKeyed>(boilerplate_elements, key_constant, nullptr, nullptr,
+                        kind, ALLOW_RETURN_HOLE);
     HInstruction* store = Add<HStoreKeyed>(object_elements, key_constant,
-                                           value_instruction, kind);
+                                           value_instruction, nullptr, kind);
     store->SetFlag(HValue::kAllowUndefinedAsNaN);
   }
 }
@@ -11998,15 +12006,15 @@ void HOptimizedGraphBuilder::BuildEmitFixedArray(
       HInstruction* result =
           BuildFastLiteral(value_object, site_context);
       site_context->ExitScope(current_site, value_object);
-      Add<HStoreKeyed>(object_elements, key_constant, result, kind);
+      Add<HStoreKeyed>(object_elements, key_constant, result, nullptr, kind);
     } else {
       ElementsKind copy_kind =
           kind == FAST_HOLEY_SMI_ELEMENTS ? FAST_HOLEY_ELEMENTS : kind;
       HInstruction* value_instruction =
-          Add<HLoadKeyed>(boilerplate_elements, key_constant, nullptr,
+          Add<HLoadKeyed>(boilerplate_elements, key_constant, nullptr, nullptr,
                           copy_kind, ALLOW_RETURN_HOLE);
       Add<HStoreKeyed>(object_elements, key_constant, value_instruction,
-                       copy_kind);
+                       nullptr, copy_kind);
     }
   }
 }
@@ -12795,7 +12803,7 @@ void HOptimizedGraphBuilder::GenerateFixedArrayGet(CallRuntime* call) {
   HValue* index = Pop();
   HValue* object = Pop();
   HInstruction* result = New<HLoadKeyed>(
-      object, index, nullptr, FAST_HOLEY_ELEMENTS, ALLOW_RETURN_HOLE);
+      object, index, nullptr, nullptr, FAST_HOLEY_ELEMENTS, ALLOW_RETURN_HOLE);
   return ast_context()->ReturnInstruction(result, call->id());
 }
 
@@ -12809,7 +12817,7 @@ void HOptimizedGraphBuilder::GenerateFixedArraySet(CallRuntime* call) {
   HValue* index = Pop();
   HValue* object = Pop();
   NoObservableSideEffectsScope no_effects(this);
-  Add<HStoreKeyed>(object, index, value, FAST_HOLEY_ELEMENTS);
+  Add<HStoreKeyed>(object, index, value, nullptr, FAST_HOLEY_ELEMENTS);
   return ast_context()->ReturnValue(graph()->GetConstantUndefined());
 }
 

@@ -1714,16 +1714,18 @@ class LLoadGlobalGeneric final : public LTemplateInstruction<1, 2, 1> {
 };
 
 
-template<int T>
-class LLoadKeyed : public LTemplateInstruction<1, 2, T> {
+template <int T>
+class LLoadKeyed : public LTemplateInstruction<1, 3, T> {
  public:
-  LLoadKeyed(LOperand* elements, LOperand* key) {
+  LLoadKeyed(LOperand* elements, LOperand* key, LOperand* backing_store_owner) {
     this->inputs_[0] = elements;
     this->inputs_[1] = key;
+    this->inputs_[2] = backing_store_owner;
   }
 
   LOperand* elements() { return this->inputs_[0]; }
   LOperand* key() { return this->inputs_[1]; }
+  LOperand* backing_store_owner() { return this->inputs_[2]; }
   ElementsKind elements_kind() const {
     return this->hydrogen()->elements_kind();
   }
@@ -1756,8 +1758,9 @@ class LLoadKeyed : public LTemplateInstruction<1, 2, T> {
 
 class LLoadKeyedExternal: public LLoadKeyed<1> {
  public:
-  LLoadKeyedExternal(LOperand* elements, LOperand* key, LOperand* temp) :
-      LLoadKeyed<1>(elements, key) {
+  LLoadKeyedExternal(LOperand* elements, LOperand* key,
+                     LOperand* backing_store_owner, LOperand* temp)
+      : LLoadKeyed<1>(elements, key, backing_store_owner) {
     temps_[0] = temp;
   }
 
@@ -1769,8 +1772,8 @@ class LLoadKeyedExternal: public LLoadKeyed<1> {
 
 class LLoadKeyedFixed: public LLoadKeyed<1> {
  public:
-  LLoadKeyedFixed(LOperand* elements, LOperand* key, LOperand* temp) :
-      LLoadKeyed<1>(elements, key) {
+  LLoadKeyedFixed(LOperand* elements, LOperand* key, LOperand* temp)
+      : LLoadKeyed<1>(elements, key, nullptr) {
     temps_[0] = temp;
   }
 
@@ -1782,8 +1785,8 @@ class LLoadKeyedFixed: public LLoadKeyed<1> {
 
 class LLoadKeyedFixedDouble: public LLoadKeyed<1> {
  public:
-  LLoadKeyedFixedDouble(LOperand* elements, LOperand* key, LOperand* temp) :
-      LLoadKeyed<1>(elements, key) {
+  LLoadKeyedFixedDouble(LOperand* elements, LOperand* key, LOperand* temp)
+      : LLoadKeyed<1>(elements, key, nullptr) {
     temps_[0] = temp;
   }
 
@@ -2417,13 +2420,15 @@ class LStackCheck final : public LTemplateInstruction<0, 1, 0> {
 };
 
 
-template<int T>
-class LStoreKeyed : public LTemplateInstruction<0, 3, T> {
+template <int T>
+class LStoreKeyed : public LTemplateInstruction<0, 4, T> {
  public:
-  LStoreKeyed(LOperand* elements, LOperand* key, LOperand* value) {
+  LStoreKeyed(LOperand* elements, LOperand* key, LOperand* value,
+              LOperand* backing_store_owner) {
     this->inputs_[0] = elements;
     this->inputs_[1] = key;
     this->inputs_[2] = value;
+    this->inputs_[3] = backing_store_owner;
   }
 
   bool is_external() const { return this->hydrogen()->is_external(); }
@@ -2436,6 +2441,7 @@ class LStoreKeyed : public LTemplateInstruction<0, 3, T> {
   LOperand* elements() { return this->inputs_[0]; }
   LOperand* key() { return this->inputs_[1]; }
   LOperand* value() { return this->inputs_[2]; }
+  LOperand* backing_store_owner() { return this->inputs_[3]; }
   ElementsKind elements_kind() const {
     return this->hydrogen()->elements_kind();
   }
@@ -2475,8 +2481,8 @@ class LStoreKeyed : public LTemplateInstruction<0, 3, T> {
 class LStoreKeyedExternal final : public LStoreKeyed<1> {
  public:
   LStoreKeyedExternal(LOperand* elements, LOperand* key, LOperand* value,
-                      LOperand* temp) :
-      LStoreKeyed<1>(elements, key, value) {
+                      LOperand* backing_store_owner, LOperand* temp)
+      : LStoreKeyed<1>(elements, key, value, backing_store_owner) {
     temps_[0] = temp;
   }
 
@@ -2489,8 +2495,8 @@ class LStoreKeyedExternal final : public LStoreKeyed<1> {
 class LStoreKeyedFixed final : public LStoreKeyed<1> {
  public:
   LStoreKeyedFixed(LOperand* elements, LOperand* key, LOperand* value,
-                   LOperand* temp) :
-      LStoreKeyed<1>(elements, key, value) {
+                   LOperand* temp)
+      : LStoreKeyed<1>(elements, key, value, nullptr) {
     temps_[0] = temp;
   }
 
@@ -2503,8 +2509,8 @@ class LStoreKeyedFixed final : public LStoreKeyed<1> {
 class LStoreKeyedFixedDouble final : public LStoreKeyed<1> {
  public:
   LStoreKeyedFixedDouble(LOperand* elements, LOperand* key, LOperand* value,
-                         LOperand* temp) :
-      LStoreKeyed<1>(elements, key, value) {
+                         LOperand* temp)
+      : LStoreKeyed<1>(elements, key, value, nullptr) {
     temps_[0] = temp;
   }
 
