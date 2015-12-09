@@ -173,13 +173,10 @@ TEST_F(JSContextRelaxationTest,
   Node* const context = Parameter(2);
   Node* const outer_context = Parameter(3);
   const Operator* op = javascript()->CreateWithContext();
-  Node* const frame_state_1 =
-      ShallowFrameStateChain(outer_context, CALL_MAINTAINS_NATIVE_CONTEXT);
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
-  Node* nested_context =
-      graph()->NewNode(op, graph()->start(), graph()->start(), outer_context,
-                       frame_state_1, effect, control);
+  Node* nested_context = graph()->NewNode(
+      op, graph()->start(), graph()->start(), outer_context, effect, control);
   Node* const frame_state_2 =
       ShallowFrameStateChain(nested_context, CALL_MAINTAINS_NATIVE_CONTEXT);
   Node* node = graph()->NewNode(

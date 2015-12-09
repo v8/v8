@@ -1124,12 +1124,11 @@ TEST_F(JSTypedLoweringTest, JSCreateWithContext) {
   Node* const object = Parameter(Type::Receiver());
   Node* const closure = Parameter(Type::Function());
   Node* const context = Parameter(Type::Any());
-  Node* const frame_state = EmptyFrameState();
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
   Reduction r =
       Reduce(graph()->NewNode(javascript()->CreateWithContext(), object,
-                              closure, context, frame_state, effect, control));
+                              closure, context, effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(),
               IsFinishRegion(IsAllocate(IsNumberConstant(Context::SizeFor(
