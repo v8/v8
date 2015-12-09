@@ -55,6 +55,7 @@ class HarmonyIsolate {
 
 
 TEST(MicrotaskDeliverySimple) {
+  i::FLAG_harmony_object_observe = true;
   HarmonyIsolate isolate;
   v8::HandleScope scope(isolate.GetIsolate());
   LocalContext context(isolate.GetIsolate());
@@ -100,6 +101,7 @@ TEST(MicrotaskDeliverySimple) {
 
 
 TEST(MicrotaskPerIsolateState) {
+  i::FLAG_harmony_object_observe = true;
   HarmonyIsolate isolate;
   v8::HandleScope scope(isolate.GetIsolate());
   LocalContext context1(isolate.GetIsolate());

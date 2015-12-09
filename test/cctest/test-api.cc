@@ -8702,6 +8702,7 @@ TEST(ApiUncaughtException) {
 
 
 TEST(ApiUncaughtExceptionInObjectObserve) {
+  v8::internal::FLAG_harmony_object_observe = true;
   v8::internal::FLAG_stack_size = 150;
   report_count = 0;
   LocalContext env;
@@ -20424,6 +20425,7 @@ static void DebugEventInObserver(const v8::Debug::EventDetails& event_details) {
 
 
 TEST(Regress385349) {
+  i::FLAG_harmony_object_observe = true;
   i::FLAG_allow_natives_syntax = true;
   v8::Isolate* isolate = CcTest::isolate();
   HandleScope handle_scope(isolate);

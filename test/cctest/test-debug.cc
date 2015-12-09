@@ -7950,6 +7950,7 @@ TEST(DebugPromiseRejectedByCallback) {
 
 
 TEST(DebugBreakOnExceptionInObserveCallback) {
+  i::FLAG_harmony_object_observe = true;
   DebugLocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
