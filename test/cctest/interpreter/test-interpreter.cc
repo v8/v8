@@ -1562,43 +1562,6 @@ static void LoadAny(BytecodeArrayBuilder* builder,
 }
 
 
-TEST(InterpreterToBoolean) {
-  HandleAndZoneScope handles;
-  i::Factory* factory = handles.main_isolate()->factory();
-
-  std::pair<Handle<Object>, bool> object_type_tuples[] = {
-      std::make_pair(factory->undefined_value(), false),
-      std::make_pair(factory->null_value(), false),
-      std::make_pair(factory->false_value(), false),
-      std::make_pair(factory->true_value(), true),
-      std::make_pair(factory->NewNumber(9.1), true),
-      std::make_pair(factory->NewNumberFromInt(0), false),
-      std::make_pair(
-          Handle<Object>::cast(factory->NewStringFromStaticChars("hello")),
-          true),
-      std::make_pair(
-          Handle<Object>::cast(factory->NewStringFromStaticChars("")), false),
-  };
-
-  for (size_t i = 0; i < arraysize(object_type_tuples); i++) {
-    BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
-    Register r0(0);
-    builder.set_locals_count(0);
-    builder.set_context_count(0);
-    builder.set_parameter_count(0);
-    LoadAny(&builder, factory, object_type_tuples[i].first);
-    builder.CastAccumulatorToBoolean();
-    builder.Return();
-    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
-    InterpreterTester tester(handles.main_isolate(), bytecode_array);
-    auto callable = tester.GetCallable<>();
-    Handle<Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->IsBoolean());
-    CHECK_EQ(return_value->BooleanValue(), object_type_tuples[i].second);
-  }
-}
-
-
 TEST(InterpreterUnaryNotNonBoolean) {
   HandleAndZoneScope handles;
   i::Factory* factory = handles.main_isolate()->factory();

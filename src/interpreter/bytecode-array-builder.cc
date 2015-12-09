@@ -593,8 +593,6 @@ bool BytecodeArrayBuilder::NeedToBooleanCast() {
   }
   PreviousBytecodeHelper previous_bytecode(*this);
   switch (previous_bytecode.GetBytecode()) {
-    case Bytecode::kToBoolean:
-      UNREACHABLE();
     // If the previous bytecode puts a boolean in the accumulator return true.
     case Bytecode::kLdaTrue:
     case Bytecode::kLdaFalse:
@@ -614,38 +612,6 @@ bool BytecodeArrayBuilder::NeedToBooleanCast() {
     default:
       return true;
   }
-}
-
-
-BytecodeArrayBuilder& BytecodeArrayBuilder::CastAccumulatorToBoolean() {
-  if (!LastBytecodeInSameBlock()) {
-    Output(Bytecode::kToBoolean);
-    return *this;
-  }
-  // If the previous bytecode puts a boolean in the accumulator
-  // there is no need to emit an instruction.
-  if (NeedToBooleanCast()) {
-    PreviousBytecodeHelper previous_bytecode(*this);
-    switch (previous_bytecode.GetBytecode()) {
-      // If the previous bytecode is a constant evaluate it and return false.
-      case Bytecode::kLdaZero: {
-        LoadFalse();
-        break;
-      }
-      case Bytecode::kLdaSmi8: {
-        LoadBooleanConstant(previous_bytecode.GetOperand(0) != 0);
-        break;
-      }
-      case Bytecode::kLdaConstant: {
-        Handle<Object> object = previous_bytecode.GetConstantForIndexOperand(0);
-        LoadBooleanConstant(object->BooleanValue());
-        break;
-      }
-      default:
-        Output(Bytecode::kToBoolean);
-    }
-  }
-  return *this;
 }
 
 

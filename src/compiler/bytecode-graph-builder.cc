@@ -1092,12 +1092,6 @@ void BytecodeGraphBuilder::BuildCastOperator(
 }
 
 
-void BytecodeGraphBuilder::VisitToBoolean(
-    const interpreter::BytecodeArrayIterator& iterator) {
-  BuildCastOperator(javascript()->ToBoolean(ToBooleanHint::kAny), iterator);
-}
-
-
 void BytecodeGraphBuilder::VisitToName(
     const interpreter::BytecodeArrayIterator& iterator) {
   BuildCastOperator(javascript()->ToName(), iterator);

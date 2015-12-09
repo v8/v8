@@ -150,7 +150,6 @@ namespace interpreter {
   V(TestIn, OperandType::kReg8)                                                \
                                                                                \
   /* Cast operators */                                                         \
-  V(ToBoolean, OperandType::kNone)                                             \
   V(ToName, OperandType::kNone)                                                \
   V(ToNumber, OperandType::kNone)                                              \
   V(ToObject, OperandType::kNone)                                              \

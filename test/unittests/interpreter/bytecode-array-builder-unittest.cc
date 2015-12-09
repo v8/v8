@@ -159,7 +159,6 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   // Emit cast operator invocations.
   builder.CastAccumulatorToNumber()
-      .CastAccumulatorToBoolean()
       .CastAccumulatorToJSObject()
       .CastAccumulatorToName();
 
@@ -657,68 +656,6 @@ TEST_F(BytecodeArrayBuilderTest, LabelAddressReuse) {
   iterator.Advance();
   CHECK(iterator.done());
 }
-
-
-TEST_F(BytecodeArrayBuilderTest, ToBoolean) {
-  BytecodeArrayBuilder builder(isolate(), zone());
-  builder.set_parameter_count(0);
-  builder.set_locals_count(0);
-  builder.set_context_count(0);
-
-  // Check ToBoolean emitted at start of a basic block.
-  builder.CastAccumulatorToBoolean();
-
-  // Check ToBoolean emitted preceding bytecode is non-boolean.
-  builder.LoadNull().CastAccumulatorToBoolean();
-
-  // Check ToBoolean omitted if preceding bytecode is boolean.
-  builder.LoadFalse().CastAccumulatorToBoolean();
-
-  // Check ToBoolean emitted if it is at the start of a basic block caused by a
-  // bound label.
-  BytecodeLabel label;
-  builder.LoadFalse()
-      .Bind(&label)
-      .CastAccumulatorToBoolean();
-
-  // Check ToBoolean emitted if it is at the start of a basic block caused by a
-  // jump.
-  builder.LoadFalse()
-      .JumpIfTrue(&label)
-      .CastAccumulatorToBoolean();
-
-  builder.Return();
-
-  Handle<BytecodeArray> array = builder.ToBytecodeArray();
-  BytecodeArrayIterator iterator(array);
-  CHECK_EQ(iterator.current_bytecode(), Bytecode::kToBoolean);
-  iterator.Advance();
-
-  CHECK_EQ(iterator.current_bytecode(), Bytecode::kLdaNull);
-  iterator.Advance();
-  CHECK_EQ(iterator.current_bytecode(), Bytecode::kToBoolean);
-  iterator.Advance();
-
-  CHECK_EQ(iterator.current_bytecode(), Bytecode::kLdaFalse);
-  iterator.Advance();
-
-  CHECK_EQ(iterator.current_bytecode(), Bytecode::kLdaFalse);
-  iterator.Advance();
-  CHECK_EQ(iterator.current_bytecode(), Bytecode::kToBoolean);
-  iterator.Advance();
-
-  CHECK_EQ(iterator.current_bytecode(), Bytecode::kLdaFalse);
-  iterator.Advance();
-  CHECK_EQ(iterator.current_bytecode(), Bytecode::kJumpIfTrue);
-  iterator.Advance();
-  CHECK_EQ(iterator.current_bytecode(), Bytecode::kToBoolean);
-  iterator.Advance();
-
-  CHECK_EQ(iterator.current_bytecode(), Bytecode::kReturn);
-  iterator.Advance();
-  CHECK(iterator.done());
-}
-
 
 }  // namespace interpreter
 }  // namespace internal

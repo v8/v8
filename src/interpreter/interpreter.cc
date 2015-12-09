@@ -1074,17 +1074,6 @@ void Interpreter::DoTestInstanceOf(compiler::InterpreterAssembler* assembler) {
 }
 
 
-// ToBoolean
-//
-// Cast the object referenced by the accumulator to a boolean.
-void Interpreter::DoToBoolean(compiler::InterpreterAssembler* assembler) {
-  Node* accumulator = __ GetAccumulator();
-  Node* result = __ CallRuntime(Runtime::kInterpreterToBoolean, accumulator);
-  __ SetAccumulator(result);
-  __ Dispatch();
-}
-
-
 // ToName
 //
 // Cast the object referenced by the accumulator to a name.
