@@ -11,24 +11,29 @@ namespace interpreter {
 class BytecodeArrayBuilder::PreviousBytecodeHelper {
  public:
   explicit PreviousBytecodeHelper(const BytecodeArrayBuilder& array_builder)
-      : array_builder_(array_builder) {}
-
-  Bytecode GetBytecode() const {
-    // Returns the previous bytecode in the same basicblock. If there is none it
-    // returns Bytecode::kLast.
-    if (!array_builder_.LastBytecodeInSameBlock()) {
-      return Bytecode::kLast;
-    }
-    return Bytecodes::FromByte(
-        array_builder_.bytecodes()->at(array_builder_.last_bytecode_start_));
+      : array_builder_(array_builder),
+        previous_bytecode_start_(array_builder_.last_bytecode_start_) {
+    // This helper is expected to be instantiated only when the last bytecode is
+    // in the same basic block.
+    DCHECK(array_builder_.LastBytecodeInSameBlock());
   }
 
-  uint32_t GetOperand(int operand_index) const {
+  // Returns the previous bytecode in the same basic block.
+  MUST_USE_RESULT Bytecode GetBytecode() const {
+    DCHECK_EQ(array_builder_.last_bytecode_start_, previous_bytecode_start_);
+    return Bytecodes::FromByte(
+        array_builder_.bytecodes()->at(previous_bytecode_start_));
+  }
+
+  // Returns the operand at operand_index for the previous bytecode in the
+  // same basic block.
+  MUST_USE_RESULT uint32_t GetOperand(int operand_index) const {
+    DCHECK_EQ(array_builder_.last_bytecode_start_, previous_bytecode_start_);
     Bytecode bytecode = GetBytecode();
     DCHECK_GE(operand_index, 0);
     DCHECK_LT(operand_index, Bytecodes::NumberOfOperands(bytecode));
     size_t operand_offset =
-        array_builder_.last_bytecode_start_ +
+        previous_bytecode_start_ +
         Bytecodes::GetOperandOffset(bytecode, operand_index);
     OperandSize size = Bytecodes::GetOperandSize(bytecode, operand_index);
     switch (size) {
@@ -52,6 +57,9 @@ class BytecodeArrayBuilder::PreviousBytecodeHelper {
 
  private:
   const BytecodeArrayBuilder& array_builder_;
+  size_t previous_bytecode_start_;
+
+  DISALLOW_COPY_AND_ASSIGN(PreviousBytecodeHelper);
 };
 
 
@@ -580,6 +588,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::PopContext(Register context) {
 
 
 bool BytecodeArrayBuilder::NeedToBooleanCast() {
+  if (!LastBytecodeInSameBlock()) {
+    return true;
+  }
   PreviousBytecodeHelper previous_bytecode(*this);
   switch (previous_bytecode.GetBytecode()) {
     case Bytecode::kToBoolean:
@@ -600,8 +611,6 @@ bool BytecodeArrayBuilder::NeedToBooleanCast() {
     case Bytecode::kTestIn:
     case Bytecode::kForInDone:
       return false;
-    // Also handles the case where the previous bytecode was in a different
-    // block.
     default:
       return true;
   }
@@ -609,10 +618,14 @@ bool BytecodeArrayBuilder::NeedToBooleanCast() {
 
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CastAccumulatorToBoolean() {
-  PreviousBytecodeHelper previous_bytecode(*this);
+  if (!LastBytecodeInSameBlock()) {
+    Output(Bytecode::kToBoolean);
+    return *this;
+  }
   // If the previous bytecode puts a boolean in the accumulator
   // there is no need to emit an instruction.
   if (NeedToBooleanCast()) {
+    PreviousBytecodeHelper previous_bytecode(*this);
     switch (previous_bytecode.GetBytecode()) {
       // If the previous bytecode is a constant evaluate it and return false.
       case Bytecode::kLdaZero: {
@@ -643,19 +656,21 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CastAccumulatorToJSObject() {
 
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CastAccumulatorToName() {
-  PreviousBytecodeHelper previous_bytecode(*this);
-  switch (previous_bytecode.GetBytecode()) {
-    case Bytecode::kLdaConstantWide:
-    case Bytecode::kLdaConstant: {
-      Handle<Object> object = previous_bytecode.GetConstantForIndexOperand(0);
-      if (object->IsName()) return *this;
-      break;
+  if (LastBytecodeInSameBlock()) {
+    PreviousBytecodeHelper previous_bytecode(*this);
+    switch (previous_bytecode.GetBytecode()) {
+      case Bytecode::kToName:
+      case Bytecode::kTypeOf:
+        return *this;
+      case Bytecode::kLdaConstantWide:
+      case Bytecode::kLdaConstant: {
+        Handle<Object> object = previous_bytecode.GetConstantForIndexOperand(0);
+        if (object->IsName()) return *this;
+        break;
+      }
+      default:
+        break;
     }
-    case Bytecode::kToName:
-    case Bytecode::kTypeOf:
-      return *this;
-    default:
-      break;
   }
   Output(Bytecode::kToName);
   return *this;
@@ -1089,10 +1104,11 @@ bool BytecodeArrayBuilder::LastBytecodeInSameBlock() const {
 
 
 bool BytecodeArrayBuilder::IsRegisterInAccumulator(Register reg) {
-  PreviousBytecodeHelper previous_bytecode(*this);
-  if (previous_bytecode.GetBytecode() == Bytecode::kLdar ||
-      previous_bytecode.GetBytecode() == Bytecode::kStar) {
-    if (reg == Register::FromOperand(previous_bytecode.GetOperand(0))) {
+  if (LastBytecodeInSameBlock()) {
+    PreviousBytecodeHelper previous_bytecode(*this);
+    Bytecode bytecode = previous_bytecode.GetBytecode();
+    if ((bytecode == Bytecode::kLdar || bytecode == Bytecode::kStar) &&
+        (reg == Register::FromOperand(previous_bytecode.GetOperand(0)))) {
       return true;
     }
   }
