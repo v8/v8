@@ -1425,13 +1425,13 @@ void MacroAssembler::BranchFCommon(SecondaryField sizeField, Label* target,
       if (!IsMipsArchVariant(kMips32r6)) {
         if (long_branch) {
           Label skip;
-          c(UN, D, cmp1, cmp2);
+          c(UN, sizeField, cmp1, cmp2);
           bc1f(&skip);
           nop();
           BranchLong(nan, bd);
           bind(&skip);
         } else {
-          c(UN, D, cmp1, cmp2);
+          c(UN, sizeField, cmp1, cmp2);
           bc1t(nan);
           if (bd == PROTECT) {
             nop();
@@ -1443,13 +1443,13 @@ void MacroAssembler::BranchFCommon(SecondaryField sizeField, Label* target,
         DCHECK(!cmp1.is(kDoubleCompareReg) && !cmp2.is(kDoubleCompareReg));
         if (long_branch) {
           Label skip;
-          cmp(UN, L, kDoubleCompareReg, cmp1, cmp2);
+          cmp(UN, sizeField, kDoubleCompareReg, cmp1, cmp2);
           bc1eqz(&skip, kDoubleCompareReg);
           nop();
           BranchLong(nan, bd);
           bind(&skip);
         } else {
-          cmp(UN, L, kDoubleCompareReg, cmp1, cmp2);
+          cmp(UN, sizeField, kDoubleCompareReg, cmp1, cmp2);
           bc1nez(nan, kDoubleCompareReg);
           if (bd == PROTECT) {
             nop();
