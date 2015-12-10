@@ -323,6 +323,8 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
           exit_controls.push_back(
               graph()->NewNode(common()->IfFalse(), branch));
           this_control = graph()->NewNode(common()->IfTrue(), branch);
+          this_value = graph()->NewNode(common()->Guard(type_cache_.kSmi),
+                                        this_value, this_control);
         } else if (field_type->Is(Type::TaggedPointer())) {
           Node* check =
               graph()->NewNode(simplified()->ObjectIsSmi(), this_value);
@@ -802,6 +804,8 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
                                         check, this_control);
         exit_controls.push_back(graph()->NewNode(common()->IfFalse(), branch));
         this_control = graph()->NewNode(common()->IfTrue(), branch);
+        this_value = graph()->NewNode(common()->Guard(type_cache_.kSmi),
+                                      this_value, this_control);
       } else if (IsFastDoubleElementsKind(elements_kind)) {
         Node* check =
             graph()->NewNode(simplified()->ObjectIsNumber(), this_value);
