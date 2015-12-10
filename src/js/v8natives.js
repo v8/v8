@@ -1514,6 +1514,7 @@ utils.Export(function(to) {
   to.ObjectHasOwnProperty = ObjectHasOwnProperty;
   to.ObjectIsFrozen = ObjectIsFrozen;
   to.ObjectIsSealed = ObjectIsSealed;
+  to.ObjectKeys = ObjectKeys;
   to.ObjectToString = ObjectToString;
 });
 

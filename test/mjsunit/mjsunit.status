@@ -802,6 +802,7 @@
   'global-load-from-eval-in-with': [SKIP],
   'global-vars-with': [SKIP],
   'instanceof-2': [SKIP],
+  'json': [SKIP],
   'math-floor-of-div-minus-zero': [SKIP],
   'math-min-max': [SKIP],
   'messages': [SKIP],

@@ -17,6 +17,7 @@ var MakeTypeError;
 var MaxSimple;
 var MinSimple;
 var ObjectHasOwnProperty;
+var ObjectKeys;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
@@ -24,28 +25,32 @@ utils.Import(function(from) {
   MaxSimple = from.MaxSimple;
   MinSimple = from.MinSimple;
   ObjectHasOwnProperty = from.ObjectHasOwnProperty;
+  ObjectKeys = from.ObjectKeys;
 });
 
 // -------------------------------------------------------------------
 
-function Revive(holder, name, reviver) {
+function InternalizeJSONProperty(holder, name, reviver) {
   var val = holder[name];
-  if (IS_OBJECT(val)) {
+  if (IS_OBJECT(val) && val !== null) {
     if (IS_ARRAY(val)) {
       var length = val.length;
       for (var i = 0; i < length; i++) {
-        var newElement = Revive(val, %_NumberToString(i), reviver);
-        val[i] = newElement;
+        var newElement =
+            InternalizeJSONProperty(val, %_NumberToString(i), reviver);
+        if (IS_UNDEFINED(newElement)) {
+          delete val[i];
+        } else {
+          val[i] = newElement;
+        }
       }
     } else {
-      for (var p in val) {
-        if (HAS_OWN_PROPERTY(val, p)) {
-          var newElement = Revive(val, p, reviver);
-          if (IS_UNDEFINED(newElement)) {
-            delete val[p];
-          } else {
-            val[p] = newElement;
-          }
+      for (var p of ObjectKeys(val)) {
+        var newElement = InternalizeJSONProperty(val, p, reviver);
+        if (IS_UNDEFINED(newElement)) {
+          delete val[p];
+        } else {
+          val[p] = newElement;
         }
       }
     }
@@ -57,7 +62,7 @@ function Revive(holder, name, reviver) {
 function JSONParse(text, reviver) {
   var unfiltered = %ParseJson(text);
   if (IS_CALLABLE(reviver)) {
-    return Revive({'': unfiltered}, '', reviver);
+    return InternalizeJSONProperty({'': unfiltered}, '', reviver);
   } else {
     return unfiltered;
   }
