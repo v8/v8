@@ -47,39 +47,22 @@ IncrementalMarking::IncrementalMarking(Heap* heap)
       request_type_(COMPLETE_MARKING) {}
 
 
-bool IncrementalMarking::BaseRecordWrite(HeapObject* obj, Object** slot,
-                                         Object* value) {
+bool IncrementalMarking::BaseRecordWrite(HeapObject* obj, Object* value) {
   HeapObject* value_heap_obj = HeapObject::cast(value);
   MarkBit value_bit = Marking::MarkBitFrom(value_heap_obj);
-  if (Marking::IsWhite(value_bit)) {
-    MarkBit obj_bit = Marking::MarkBitFrom(obj);
-    if (Marking::IsBlack(obj_bit)) {
-      MemoryChunk* chunk = MemoryChunk::FromAddress(obj->address());
-      if (chunk->IsFlagSet(MemoryChunk::HAS_PROGRESS_BAR)) {
-        if (chunk->IsLeftOfProgressBar(slot)) {
-          WhiteToGreyAndPush(value_heap_obj, value_bit);
-          RestartIfNotMarking();
-        } else {
-          return false;
-        }
-      } else {
-        BlackToGreyAndUnshift(obj, obj_bit);
-        RestartIfNotMarking();
-        return false;
-      }
-    } else {
-      return false;
-    }
-  }
-  if (!is_compacting_) return false;
   MarkBit obj_bit = Marking::MarkBitFrom(obj);
-  return Marking::IsBlack(obj_bit);
+  bool is_black = Marking::IsBlack(obj_bit);
+  if (is_black && Marking::IsWhite(value_bit)) {
+    WhiteToGreyAndPush(value_heap_obj, value_bit);
+    RestartIfNotMarking();
+  }
+  return is_compacting_ && is_black;
 }
 
 
 void IncrementalMarking::RecordWriteSlow(HeapObject* obj, Object** slot,
                                          Object* value) {
-  if (BaseRecordWrite(obj, slot, value) && slot != NULL) {
+  if (BaseRecordWrite(obj, value) && slot != NULL) {
     // Object is not going to be rescanned we need to record the slot.
     heap_->mark_compact_collector()->RecordSlot(obj, slot, value);
   }
@@ -128,7 +111,7 @@ void IncrementalMarking::RecordCodeTargetPatch(Address pc, HeapObject* value) {
 void IncrementalMarking::RecordWriteOfCodeEntrySlow(JSFunction* host,
                                                     Object** slot,
                                                     Code* value) {
-  if (BaseRecordWrite(host, slot, value)) {
+  if (BaseRecordWrite(host, value)) {
     DCHECK(slot != NULL);
     heap_->mark_compact_collector()->RecordCodeEntrySlot(
         host, reinterpret_cast<Address>(slot), value);
@@ -139,24 +122,10 @@ void IncrementalMarking::RecordWriteOfCodeEntrySlow(JSFunction* host,
 void IncrementalMarking::RecordWriteIntoCodeSlow(HeapObject* obj,
                                                  RelocInfo* rinfo,
                                                  Object* value) {
-  MarkBit value_bit = Marking::MarkBitFrom(HeapObject::cast(value));
-  if (Marking::IsWhite(value_bit)) {
-    MarkBit obj_bit = Marking::MarkBitFrom(obj);
-    if (Marking::IsBlack(obj_bit)) {
-      BlackToGreyAndUnshift(obj, obj_bit);
-      RestartIfNotMarking();
-    }
-    // Object is either grey or white.  It will be scanned if survives.
-    return;
-  }
-
-  if (is_compacting_) {
-    MarkBit obj_bit = Marking::MarkBitFrom(obj);
-    if (Marking::IsBlack(obj_bit)) {
+  if (BaseRecordWrite(obj, value)) {
       // Object is not going to be rescanned.  We need to record the slot.
       heap_->mark_compact_collector()->RecordRelocSlot(rinfo,
                                                        Code::cast(value));
-    }
   }
 }
 

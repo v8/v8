@@ -631,13 +631,6 @@ class MemoryChunk {
     }
   }
 
-  bool IsLeftOfProgressBar(Object** slot) {
-    Address slot_address = reinterpret_cast<Address>(slot);
-    DCHECK(slot_address > this->address());
-    return (slot_address - (this->address() + kObjectStartOffset)) <
-           progress_bar();
-  }
-
   size_t size() const { return size_; }
 
   void set_size(size_t size) { size_ = size; }

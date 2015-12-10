@@ -159,7 +159,7 @@ class IncrementalMarking {
   // No slots in white objects should be recorded, as some slots are typed and
   // cannot be interpreted correctly if the underlying object does not survive
   // the incremental cycle (stays white).
-  INLINE(bool BaseRecordWrite(HeapObject* obj, Object** slot, Object* value));
+  INLINE(bool BaseRecordWrite(HeapObject* obj, Object* value));
   INLINE(void RecordWrite(HeapObject* obj, Object** slot, Object* value));
   INLINE(void RecordWriteIntoCode(HeapObject* obj, RelocInfo* rinfo,
                                   Object* value));
