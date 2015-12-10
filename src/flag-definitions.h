@@ -189,6 +189,10 @@ DEFINE_BOOL(legacy_const, true, "legacy semantics for const in sloppy mode")
 // ES2015 const semantics are staged
 DEFINE_NEG_IMPLICATION(harmony, legacy_const)
 
+DEFINE_BOOL(promise_extra, true, "additional V8 Promise functions")
+// Removing extra Promise functions is staged
+DEFINE_NEG_IMPLICATION(harmony, promise_extra)
+
 // Activate on ClusterFuzz.
 DEFINE_IMPLICATION(es_staging, harmony_destructuring_assignment)
 

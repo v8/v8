@@ -444,8 +444,6 @@ function PromiseHasUserDefinedRejectHandler() {
                   DONT_ENUM | READ_ONLY);
 
 utils.InstallFunctions(GlobalPromise, DONT_ENUM, [
-  "defer", PromiseDeferred,
-  "accept", PromiseResolved,
   "reject", PromiseRejected,
   "all", PromiseAll,
   "race", PromiseRace,
@@ -453,7 +451,6 @@ utils.InstallFunctions(GlobalPromise, DONT_ENUM, [
 ]);
 
 utils.InstallFunctions(GlobalPromise.prototype, DONT_ENUM, [
-  "chain", PromiseChain,
   "then", PromiseThen,
   "catch", PromiseCatch
 ]);
@@ -476,5 +473,15 @@ utils.InstallFunctions(extrasUtils, 0, [
   "resolvePromise", PromiseResolve,
   "rejectPromise", PromiseReject
 ]);
+
+// TODO(v8:4567): Allow experimental natives to remove function prototype
+[PromiseChain, PromiseDeferred, PromiseResolved].forEach(
+    fn => %FunctionRemovePrototype(fn));
+
+utils.Export(function(to) {
+  to.PromiseChain = PromiseChain;
+  to.PromiseDeferred = PromiseDeferred;
+  to.PromiseResolved = PromiseResolved;
+});
 
 })

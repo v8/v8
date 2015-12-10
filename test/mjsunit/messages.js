@@ -170,11 +170,6 @@ test(function() {
   new Map([1]);
 }, "Iterator value 1 is not an entry object", TypeError);
 
-// kNotAPromise
-test(function() {
-  Promise.prototype.chain.call(1);
-}, "1 is not a promise", TypeError);
-
 // kNotConstructor
 test(function() {
   new Symbol();
