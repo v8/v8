@@ -782,13 +782,6 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithConversion) {
       Matcher<Node*> value_matcher =
           IsToNumber(value, context, effect, control);
       Matcher<Node*> effect_matcher = value_matcher;
-      if (AccessBuilder::ForTypedArrayElement(type, true)
-              .type->Is(Type::Signed32())) {
-        value_matcher = IsNumberToInt32(value_matcher);
-      } else if (AccessBuilder::ForTypedArrayElement(type, true)
-                     .type->Is(Type::Unsigned32())) {
-        value_matcher = IsNumberToUint32(value_matcher);
-      }
 
       ASSERT_TRUE(r.Changed());
       EXPECT_THAT(

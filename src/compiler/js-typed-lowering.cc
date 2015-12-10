@@ -1063,15 +1063,6 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
                                  frame_state_for_to_number, effect, control);
           }
         }
-        // For integer-typed arrays, convert to the integer type.
-        if (access.machine_type().semantic() == MachineSemantic::kInt32 &&
-            !value_type->Is(Type::Signed32())) {
-          value = graph()->NewNode(simplified()->NumberToInt32(), value);
-        } else if (access.machine_type().semantic() ==
-                       MachineSemantic::kUint32 &&
-                   !value_type->Is(Type::Unsigned32())) {
-          value = graph()->NewNode(simplified()->NumberToUint32(), value);
-        }
         // Check if we can avoid the bounds check.
         if (key_type->Min() >= 0 && key_type->Max() < array->length_value()) {
           RelaxControls(node);
