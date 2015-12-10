@@ -299,8 +299,12 @@
       "EvalError",
       "Float32Array",
       "Float64Array",
-      "Function",
-      "((function*(){}).constructor)",  // GeneratorFunction
+      ["Function", ["return 153;"]],
+      ["Function", ["'use strict'; return 153;"]],
+      ["Function", ["'use strong'; return 153;"]],
+      ["((function*(){}).constructor)", ["yield 153;"]],  // GeneratorFunction
+      ["((function*(){}).constructor)", ["'use strict'; yield 153;"]],
+      ["((function*(){}).constructor)", ["'use strong'; yield 153;"]],
       "Int8Array",
       "Int16Array",
       "Int32Array",

@@ -77,10 +77,13 @@ RUNTIME_FUNCTION(Runtime_CompleteFunctionConstruction) {
       JSFunction::GetDerivedMap(isolate, constructor, new_target));
 
   Handle<SharedFunctionInfo> shared_info(func->shared(), isolate);
+  Handle<Map> map = Map::AsLanguageMode(
+      initial_map, shared_info->language_mode(), shared_info->kind());
+
   Handle<Context> context(func->context(), isolate);
   Handle<JSFunction> result =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(
-          initial_map, shared_info, context, NOT_TENURED);
+          map, shared_info, context, NOT_TENURED);
   DCHECK_EQ(func->IsConstructor(), result->IsConstructor());
   return *result;
 }

@@ -5817,6 +5817,11 @@ class Map: public HeapObject {
                                         ElementsKind kind,
                                         TransitionFlag flag);
 
+  static Handle<Map> AsLanguageMode(Handle<Map> initial_map,
+                                    LanguageMode language_mode,
+                                    FunctionKind kind);
+
+
   static Handle<Map> CopyForObserved(Handle<Map> map);
 
   static Handle<Map> CopyForPreventExtensions(Handle<Map> map,

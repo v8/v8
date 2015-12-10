@@ -348,6 +348,7 @@ namespace internal {
   V(intl_impl_object_symbol)                \
   V(intl_initialized_marker_symbol)         \
   V(megamorphic_symbol)                     \
+  V(native_context_index_symbol)            \
   V(nonexistent_symbol)                     \
   V(nonextensible_symbol)                   \
   V(normal_ic_symbol)                       \
@@ -364,10 +365,11 @@ namespace internal {
   V(promise_value_symbol)                   \
   V(sealed_symbol)                          \
   V(stack_trace_symbol)                     \
+  V(strict_function_transition_symbol)      \
   V(string_iterator_iterated_string_symbol) \
   V(string_iterator_next_index_symbol)      \
-  V(uninitialized_symbol)                   \
-  V(native_context_index_symbol)
+  V(strong_function_transition_symbol)      \
+  V(uninitialized_symbol)
 
 #define PUBLIC_SYMBOL_LIST(V)                 \
   V(has_instance_symbol, Symbol.hasInstance)  \

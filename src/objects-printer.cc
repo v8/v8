@@ -1286,6 +1286,10 @@ void TransitionArray::PrintTransitions(std::ostream& os, Object* transitions,
     } else if (key == heap->elements_transition_symbol()) {
       os << "(transition to " << ElementsKindToString(target->elements_kind())
          << ")";
+    } else if (key == heap->strict_function_transition_symbol()) {
+      os << " (transition to strict function)";
+    } else if (key == heap->strong_function_transition_symbol()) {
+      os << " (transition to strong function)";
     } else if (key == heap->observed_symbol()) {
       os << " (transition to Object.observe)";
     } else {

@@ -8988,9 +8988,17 @@ Handle<Map> Map::CopyInitialMap(Handle<Map> map, int instance_size,
                                 int in_object_properties,
                                 int unused_property_fields) {
 #ifdef DEBUG
+  Isolate* isolate = map->GetIsolate();
+  // Strict and strong function maps have Function as a constructor but the
+  // Function's initial map is a sloppy function map. Same holds for
+  // GeneratorFunction and its initial map.
   Object* constructor = map->GetConstructor();
   DCHECK(constructor->IsJSFunction());
-  DCHECK_EQ(*map, JSFunction::cast(constructor)->initial_map());
+  DCHECK(*map == JSFunction::cast(constructor)->initial_map() ||
+         *map == *isolate->strict_function_map() ||
+         *map == *isolate->strong_function_map() ||
+         *map == *isolate->strict_generator_function_map() ||
+         *map == *isolate->strong_generator_function_map());
 #endif
   // Initial maps must always own their descriptors and it's descriptor array
   // does not contain descriptors that do not belong to the map.
@@ -9252,6 +9260,57 @@ Handle<Map> Map::CopyAsElementsKind(Handle<Map> map, ElementsKind kind,
   Handle<Map> new_map = Copy(map, "CopyAsElementsKind");
   new_map->set_elements_kind(kind);
   return new_map;
+}
+
+
+Handle<Map> Map::AsLanguageMode(Handle<Map> initial_map,
+                                LanguageMode language_mode, FunctionKind kind) {
+  DCHECK_EQ(JS_FUNCTION_TYPE, initial_map->instance_type());
+  // Initial map for sloppy mode function is stored in the function
+  // constructor. Initial maps for strict and strong modes are cached as
+  // special transitions using |strict_function_transition_symbol| and
+  // |strong_function_transition_symbol| respectively as a key.
+  if (language_mode == SLOPPY) return initial_map;
+  Isolate* isolate = initial_map->GetIsolate();
+  Factory* factory = isolate->factory();
+  Handle<Symbol> transition_symbol;
+
+  int map_index = Context::FunctionMapIndex(language_mode, kind);
+  Handle<Map> function_map(
+      Map::cast(isolate->native_context()->get(map_index)));
+
+  STATIC_ASSERT(LANGUAGE_END == 3);
+  switch (language_mode) {
+    case STRICT:
+      transition_symbol = factory->strict_function_transition_symbol();
+      break;
+    case STRONG:
+      transition_symbol = factory->strong_function_transition_symbol();
+      break;
+    default:
+      UNREACHABLE();
+      break;
+  }
+  Map* maybe_transition =
+      TransitionArray::SearchSpecial(*initial_map, *transition_symbol);
+  if (maybe_transition != NULL) {
+    return handle(maybe_transition, isolate);
+  }
+
+  // Create new map taking descriptors from the |function_map| and all
+  // the other details from the |initial_map|.
+  Handle<Map> map =
+      Map::CopyInitialMap(function_map, initial_map->instance_size(),
+                          initial_map->GetInObjectProperties(),
+                          initial_map->unused_property_fields());
+  map->SetConstructor(initial_map->GetConstructor());
+  map->set_prototype(initial_map->prototype());
+
+  if (TransitionArray::CanHaveMoreTransitions(initial_map)) {
+    Map::ConnectTransition(initial_map, map, transition_symbol,
+                           SPECIAL_TRANSITION);
+  }
+  return map;
 }
 
 

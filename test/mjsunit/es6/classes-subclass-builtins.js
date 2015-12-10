@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --harmony-reflect --harmony-regexp-subclass
-// Flags: --expose-gc
+// Flags: --expose-gc --strong-mode
 
 "use strict";
 
@@ -78,26 +78,71 @@ function checkPrototypeChain(object, constructors) {
     constructor(...args) {
       assertFalse(new.target === undefined);
       super(...args);
+      // Strong functions are not extensible, so don't add fields.
+      if (args[args.length - 1].indexOf("use strong") >= 0) {
+        assertThrows(()=>{ this.a = 10; }, TypeError);
+        return;
+      }
       this.a = 42;
       this.d = 4.2;
       this.o = {foo:153};
     }
   }
+  var sloppy_func = new A("");
+  var strict_func = new A("'use strict';");
+  assertNull(sloppy_func.caller);
+  assertThrows("strict_f.caller");
+  assertNull(Object.getOwnPropertyDescriptor(sloppy_func, "caller").value);
+  assertEquals(undefined, Object.getOwnPropertyDescriptor(strict_func, "caller"));
 
-  var o = new A("this.foo = 113;");
-  assertTrue(o instanceof Object);
-  assertTrue(o instanceof Function);
-  assertTrue(o instanceof A);
-  assertEquals("function", typeof o);
-  checkPrototypeChain(o, [A, Function, Object]);
-  assertEquals(42, o.a);
-  assertEquals(4.2, o.d);
-  assertEquals(153, o.o.foo);
-  var oo = new o();
-  assertEquals(113, oo.foo);
+  function CheckFunction(func, is_strong) {
+    assertEquals("function", typeof func);
+    assertTrue(func instanceof Object);
+    assertTrue(func instanceof Function);
+    assertTrue(func instanceof A);
+    checkPrototypeChain(func, [A, Function, Object]);
+    if (!is_strong) {
+      assertEquals(42, func.a);
+      assertEquals(4.2, func.d);
+      assertEquals(153, func.o.foo);
+      assertTrue(undefined !== func.prototype);
+      func.prototype.bar = "func.bar";
+      var obj = new func();
+      assertTrue(obj instanceof Object);
+      assertTrue(obj instanceof func);
+      assertEquals("object", typeof obj);
+      assertEquals(113, obj.foo);
+      assertEquals("func.bar", obj.bar);
+      delete func.prototype.bar;
+    }
+  }
 
-  var o1 = new A("return 312;");
-  assertTrue(%HaveSameMap(o, o1));
+  var source = "this.foo = 113;";
+
+  // Sloppy function
+  var sloppy_func = new A(source);
+  assertTrue(undefined !== sloppy_func.prototype);
+  CheckFunction(sloppy_func, false);
+
+  var sloppy_func1 = new A("return 312;");
+  assertTrue(%HaveSameMap(sloppy_func, sloppy_func1));
+
+  // Strict function
+  var strict_func = new A("'use strict'; " + source);
+  assertFalse(%HaveSameMap(strict_func, sloppy_func));
+  CheckFunction(strict_func, false);
+
+  var strict_func1 = new A("'use strict'; return 312;");
+  assertTrue(%HaveSameMap(strict_func, strict_func1));
+
+  // Strong function
+  var strong_func = new A("'use strong'; " + source);
+  assertFalse(%HaveSameMap(strong_func, sloppy_func));
+  assertFalse(%HaveSameMap(strong_func, strict_func));
+  CheckFunction(strong_func, true);
+
+  var strong_func1 = new A("'use strong'; return 312;");
+  assertTrue(%HaveSameMap(strong_func, strong_func1));
 
   gc();
 })();
@@ -505,42 +550,86 @@ function TestMapSetSubclassing(container, is_map) {
 
 
 (function() {
-  // TODO(ishell): remove once GeneratorFunction is available.
-  var GeneratorFunction = (function*() {}).__proto__.constructor;
+  var GeneratorFunction = (function*() {}).constructor;
   class A extends GeneratorFunction {
     constructor(...args) {
       assertFalse(new.target === undefined);
       super(...args);
+      // Strong functions are not extensible, so don't add fields.
+      if (args[args.length - 1].indexOf("use strong") >= 0) {
+        assertThrows(()=>{ this.a = 10; }, TypeError);
+        return;
+      }
       this.a = 42;
       this.d = 4.2;
       this.o = {foo:153};
     }
   }
-  var generator_func = new A("var index = 0; while (index < 5) { yield ++index; }");
-  assertTrue(generator_func instanceof Object);
-  assertTrue(generator_func instanceof Function);
-  assertTrue(generator_func instanceof GeneratorFunction);
-  assertTrue(generator_func instanceof A);
-  assertEquals("function", typeof generator_func);
-  checkPrototypeChain(generator_func, [A, GeneratorFunction, Function, Object]);
-  assertEquals(42, generator_func.a);
-  assertEquals(4.2, generator_func.d);
-  assertEquals(153, generator_func.o.foo);
+  var sloppy_func = new A("yield 153;");
+  var strict_func = new A("'use strict'; yield 153;");
+  // Unfortunately the difference is not observable from outside.
+  assertThrows("sloppy_func.caller");
+  assertThrows("strict_f.caller");
+  assertEquals(undefined, Object.getOwnPropertyDescriptor(sloppy_func, "caller"));
+  assertEquals(undefined, Object.getOwnPropertyDescriptor(strict_func, "caller"));
 
-  var o = new generator_func();
-  assertTrue(o instanceof Object);
-  assertTrue(o instanceof generator_func);
-  assertEquals("object", typeof o);
+  function CheckFunction(func, is_strong) {
+    assertEquals("function", typeof func);
+    assertTrue(func instanceof Object);
+    assertTrue(func instanceof Function);
+    assertTrue(func instanceof GeneratorFunction);
+    assertTrue(func instanceof A);
+    checkPrototypeChain(func, [A, GeneratorFunction, Function, Object]);
+    if (!is_strong) {
+      assertEquals(42, func.a);
+      assertEquals(4.2, func.d);
+      assertEquals(153, func.o.foo);
 
-  assertPropertiesEqual({done: false, value: 1}, o.next());
-  assertPropertiesEqual({done: false, value: 2}, o.next());
-  assertPropertiesEqual({done: false, value: 3}, o.next());
-  assertPropertiesEqual({done: false, value: 4}, o.next());
-  assertPropertiesEqual({done: false, value: 5}, o.next());
-  assertPropertiesEqual({done: true, value: undefined}, o.next());
+      assertTrue(undefined !== func.prototype);
+      func.prototype.bar = "func.bar";
+      var obj = func();  // Generator object.
+      assertTrue(obj instanceof Object);
+      assertTrue(obj instanceof func);
+      assertEquals("object", typeof obj);
+      assertEquals("func.bar", obj.bar);
+      delete func.prototype.bar;
 
-  var generator_func1 = new A("return 0;");
-  assertTrue(%HaveSameMap(generator_func, generator_func1));
+      assertPropertiesEqual({done: false, value: 1}, obj.next());
+      assertPropertiesEqual({done: false, value: 1}, obj.next());
+      assertPropertiesEqual({done: false, value: 2}, obj.next());
+      assertPropertiesEqual({done: false, value: 3}, obj.next());
+      assertPropertiesEqual({done: false, value: 5}, obj.next());
+      assertPropertiesEqual({done: false, value: 8}, obj.next());
+      assertPropertiesEqual({done: true, value: undefined}, obj.next());
+    }
+  }
+
+  var source = "yield 1; yield 1; yield 2; yield 3; yield 5; yield 8;";
+
+  // Sloppy generator function
+  var sloppy_func = new A(source);
+  assertTrue(undefined !== sloppy_func.prototype);
+  CheckFunction(sloppy_func, false);
+
+  var sloppy_func1 = new A("yield 312;");
+  assertTrue(%HaveSameMap(sloppy_func, sloppy_func1));
+
+  // Strict generator function
+  var strict_func = new A("'use strict'; " + source);
+  assertFalse(%HaveSameMap(strict_func, sloppy_func));
+  CheckFunction(strict_func, false);
+
+  var strict_func1 = new A("'use strict'; yield 312;");
+  assertTrue(%HaveSameMap(strict_func, strict_func1));
+
+  // Strong generator function
+  var strong_func = new A("'use strong'; " + source);
+  assertFalse(%HaveSameMap(strong_func, sloppy_func));
+  assertFalse(%HaveSameMap(strong_func, strict_func));
+  CheckFunction(strong_func, true);
+
+  var strong_func1 = new A("'use strong'; yield 312;");
+  assertTrue(%HaveSameMap(strong_func, strong_func1));
 
   gc();
 })();

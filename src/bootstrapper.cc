@@ -1081,17 +1081,20 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
   Handle<JSObject> global(native_context()->global_object());
 
-
-  {  // Install global Function object
+  {  // --- F u n c t i o n ---
     Handle<JSFunction> function_function =
         InstallFunction(global, "Function", JS_FUNCTION_TYPE, JSFunction::kSize,
                         empty_function, Builtins::kIllegal);
-    function_function->initial_map()->set_is_callable();
-    function_function->initial_map()->set_is_constructor(true);
+    function_function->set_prototype_or_initial_map(
+        *sloppy_function_map_writable_prototype_);
     function_function->shared()->set_construct_stub(
         *isolate->builtins()->JSBuiltinsConstructStub());
     InstallWithIntrinsicDefaultProto(isolate, function_function,
                                      Context::FUNCTION_FUNCTION_INDEX);
+
+    sloppy_function_map_writable_prototype_->SetConstructor(*function_function);
+    strict_function_map_writable_prototype_->SetConstructor(*function_function);
+    native_context()->strong_function_map()->SetConstructor(*function_function);
   }
 
   {  // --- A r r a y ---
@@ -1872,13 +1875,20 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
         InstallFunction(container, "GeneratorFunction", JS_FUNCTION_TYPE,
                         JSFunction::kSize, generator_function_prototype,
                         Builtins::kIllegal, kUseStrictFunctionMap);
-    generator_function_function->initial_map()->set_is_callable();
-    generator_function_function->initial_map()->set_is_constructor(true);
+    generator_function_function->set_prototype_or_initial_map(
+        native_context->sloppy_generator_function_map());
     generator_function_function->shared()->set_construct_stub(
         *isolate->builtins()->JSBuiltinsConstructStub());
     InstallWithIntrinsicDefaultProto(
         isolate, generator_function_function,
         Context::GENERATOR_FUNCTION_FUNCTION_INDEX);
+
+    native_context->sloppy_generator_function_map()->SetConstructor(
+        *generator_function_function);
+    native_context->strict_generator_function_map()->SetConstructor(
+        *generator_function_function);
+    native_context->strong_generator_function_map()->SetConstructor(
+        *generator_function_function);
   }
 
   {  // -- S e t I t e r a t o r
