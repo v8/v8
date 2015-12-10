@@ -110,6 +110,7 @@
         # checked in.
         # 'test-api-accessors.cc',
         'test-api-interceptors.cc',
+        'test-api-fast-accessor-builder.cc',
         'test-array-list.cc',
         'test-ast.cc',
         'test-ast-expression-visitor.cc',
