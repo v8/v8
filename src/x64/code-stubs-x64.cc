@@ -5210,14 +5210,13 @@ static void CallApiFunctionStubHelper(MacroAssembler* masm,
 
   typedef FunctionCallbackArguments FCA;
 
-  STATIC_ASSERT(FCA::kContextSaveIndex == 6);
-  STATIC_ASSERT(FCA::kCalleeIndex == 5);
+  STATIC_ASSERT(FCA::kContextSaveIndex == 5);
   STATIC_ASSERT(FCA::kDataIndex == 4);
   STATIC_ASSERT(FCA::kReturnValueOffset == 3);
   STATIC_ASSERT(FCA::kReturnValueDefaultValueIndex == 2);
   STATIC_ASSERT(FCA::kIsolateIndex == 1);
   STATIC_ASSERT(FCA::kHolderIndex == 0);
-  STATIC_ASSERT(FCA::kArgsLength == 7);
+  STATIC_ASSERT(FCA::kArgsLength == 6);
 
   DCHECK(argc.is_immediate() || rax.is(argc.reg()));
 
@@ -5225,9 +5224,6 @@ static void CallApiFunctionStubHelper(MacroAssembler* masm,
 
   // context save
   __ Push(context);
-
-  // callee
-  __ Push(callee);
 
   // call data
   __ Push(call_data);
