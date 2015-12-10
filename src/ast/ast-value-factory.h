@@ -62,7 +62,7 @@ class AstString : public ZoneObject {
 };
 
 
-class AstRawString : public AstString {
+class AstRawString final : public AstString {
  public:
   int length() const override {
     if (is_one_byte_)
@@ -115,19 +115,17 @@ class AstRawString : public AstString {
 };
 
 
-class AstConsString : public AstString {
+class AstConsString final : public AstString {
  public:
   AstConsString(const AstString* left, const AstString* right)
-      : left_(left),
-        right_(right) {}
+      : length_(left->length() + right->length()), left_(left), right_(right) {}
 
-  int length() const override { return left_->length() + right_->length(); }
+  int length() const override { return length_; }
 
   void Internalize(Isolate* isolate) override;
 
  private:
-  friend class AstValueFactory;
-
+  const int length_;
   const AstString* left_;
   const AstString* right_;
 };
