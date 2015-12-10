@@ -826,8 +826,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsWord32(node), VisitChangeFloat64ToInt32(node);
     case IrOpcode::kChangeFloat64ToUint32:
       return MarkAsWord32(node), VisitChangeFloat64ToUint32(node);
-    case IrOpcode::kTruncateFloat32ToInt64:
-      return MarkAsWord64(node), VisitTruncateFloat32ToInt64(node);
+    case IrOpcode::kTryTruncateFloat32ToInt64:
+      return MarkAsWord64(node), VisitTryTruncateFloat32ToInt64(node);
     case IrOpcode::kTryTruncateFloat64ToInt64:
       return MarkAsWord64(node), VisitTryTruncateFloat64ToInt64(node);
     case IrOpcode::kTruncateFloat32ToUint64:
@@ -1082,7 +1082,7 @@ void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
 }
 
 
-void InstructionSelector::VisitTruncateFloat32ToInt64(Node* node) {
+void InstructionSelector::VisitTryTruncateFloat32ToInt64(Node* node) {
   UNIMPLEMENTED();
 }
 
@@ -1208,6 +1208,7 @@ void InstructionSelector::VisitProjection(Node* node) {
   switch (value->opcode()) {
     case IrOpcode::kInt32AddWithOverflow:
     case IrOpcode::kInt32SubWithOverflow:
+    case IrOpcode::kTryTruncateFloat32ToInt64:
     case IrOpcode::kTryTruncateFloat64ToInt64:
     case IrOpcode::kTryTruncateFloat64ToUint64:
       if (ProjectionIndexOf(node->op()) == 0u) {

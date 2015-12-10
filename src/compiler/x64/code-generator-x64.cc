@@ -1051,6 +1051,10 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       } else {
         __ Cvttss2siq(i.OutputRegister(), i.InputOperand(0));
       }
+      if (instr->OutputCount() > 1) {
+        __ Set(i.OutputRegister(1), 0x8000000000000000);
+        __ subq(i.OutputRegister(1), i.OutputRegister(0));
+      }
       break;
     case kSSEFloat64ToInt64:
       if (instr->InputAt(0)->IsDoubleRegister()) {

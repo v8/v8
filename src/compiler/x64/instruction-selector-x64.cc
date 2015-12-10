@@ -834,9 +834,19 @@ void InstructionSelector::VisitChangeFloat64ToUint32(Node* node) {
 }
 
 
-void InstructionSelector::VisitTruncateFloat32ToInt64(Node* node) {
+void InstructionSelector::VisitTryTruncateFloat32ToInt64(Node* node) {
   X64OperandGenerator g(this);
-  Emit(kSSEFloat32ToInt64, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+  InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};
+  InstructionOperand outputs[2];
+  size_t output_count = 0;
+  outputs[output_count++] = g.DefineAsRegister(node);
+
+  Node* success_output = NodeProperties::FindProjection(node, 1);
+  if (success_output) {
+    outputs[output_count++] = g.DefineAsRegister(success_output);
+  }
+
+  Emit(kSSEFloat32ToInt64, output_count, outputs, 1, inputs);
 }
 
 

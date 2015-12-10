@@ -2121,7 +2121,7 @@ Type* Typer::Visitor::TypeChangeFloat64ToUint32(Node* node) {
 }
 
 
-Type* Typer::Visitor::TypeTruncateFloat32ToInt64(Node* node) {
+Type* Typer::Visitor::TypeTryTruncateFloat32ToInt64(Node* node) {
   return Type::Internal();
 }
 
