@@ -3051,6 +3051,48 @@ TEST(InterpreterAssignmentInExpressions) {
 }
 
 
+TEST(InterpreterToName) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  i::Factory* factory = isolate->factory();
+
+  std::pair<const char*, Handle<Object>> to_name_tests[] = {
+      {"var a = 'val'; var obj = {[a] : 10}; return obj.val;",
+       factory->NewNumberFromInt(10)},
+      {"var a = 20; var obj = {[a] : 10}; return obj['20'];",
+       factory->NewNumberFromInt(10)},
+      {"var a = 20; var obj = {[a] : 10}; return obj[20];",
+       factory->NewNumberFromInt(10)},
+      {"var a = {val:23}; var obj = {[a] : 10}; return obj[a];",
+       factory->NewNumberFromInt(10)},
+      {"var a = {val:23}; var obj = {[a] : 10};\n"
+       "return obj['[object Object]'];",
+       factory->NewNumberFromInt(10)},
+      {"var a = {toString : function() { return 'x'}};\n"
+       "var obj = {[a] : 10};\n"
+       "return obj.x;",
+       factory->NewNumberFromInt(10)},
+      {"var a = {valueOf : function() { return 'x'}};\n"
+       "var obj = {[a] : 10};\n"
+       "return obj.x;",
+       factory->undefined_value()},
+      {"var a = {[Symbol.toPrimitive] : function() { return 'x'}};\n"
+       "var obj = {[a] : 10};\n"
+       "return obj.x;",
+       factory->NewNumberFromInt(10)},
+  };
+
+  for (size_t i = 0; i < arraysize(to_name_tests); i++) {
+    std::string source(
+        InterpreterTester::SourceForBody(to_name_tests[i].first));
+    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*to_name_tests[i].second));
+  }
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8
