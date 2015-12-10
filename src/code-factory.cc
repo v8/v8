@@ -317,6 +317,13 @@ Callable CodeFactory::Construct(Isolate* isolate) {
 
 
 // static
+Callable CodeFactory::ConstructFunction(Isolate* isolate) {
+  return Callable(isolate->builtins()->ConstructFunction(),
+                  ConstructTrampolineDescriptor(isolate));
+}
+
+
+// static
 Callable CodeFactory::InterpreterPushArgsAndCall(Isolate* isolate) {
   return Callable(isolate->builtins()->InterpreterPushArgsAndCall(),
                   InterpreterPushArgsAndCallDescriptor(isolate));

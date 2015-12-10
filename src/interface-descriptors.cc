@@ -448,6 +448,20 @@ CallTrampolineDescriptor::BuildCallInterfaceDescriptorFunctionType(
 
 
 Type::FunctionType*
+ConstructStubDescriptor::BuildCallInterfaceDescriptorFunctionType(
+    Isolate* isolate, int paramater_count) {
+  Zone* zone = isolate->interface_descriptor_zone();
+  Type::FunctionType* function =
+      Type::FunctionType::New(AnyTagged(zone), Type::Undefined(), 4, zone);
+  function->InitParameter(0, AnyTagged(zone));           // target
+  function->InitParameter(1, AnyTagged(zone));           // new.target
+  function->InitParameter(2, UntaggedIntegral32(zone));  // actual #arguments
+  function->InitParameter(3, AnyTagged(zone));           // opt. allocation site
+  return function;
+}
+
+
+Type::FunctionType*
 ConstructTrampolineDescriptor::BuildCallInterfaceDescriptorFunctionType(
     Isolate* isolate, int paramater_count) {
   Zone* zone = isolate->interface_descriptor_zone();

@@ -211,6 +211,17 @@ void CallTrampolineDescriptor::InitializePlatformSpecific(
 }
 
 
+void ConstructStubDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  // r3 : number of arguments
+  // r4 : the target to call
+  // r6 : the new target
+  // r5 : allocation site or undefined
+  Register registers[] = {r4, r6, r3, r5};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+
 void ConstructTrampolineDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   // r3 : number of arguments
