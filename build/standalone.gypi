@@ -67,11 +67,15 @@
         'host_arch%': '<(host_arch)',
         'target_arch%': '<(host_arch)',
         'base_dir%': '<!(cd <(DEPTH) && python -c "import os; print os.getcwd()")',
+
+        # Instrument for code coverage with gcov.
+        'coverage%': 0,
       },
       'base_dir%': '<(base_dir)',
       'host_arch%': '<(host_arch)',
       'target_arch%': '<(target_arch)',
       'v8_target_arch%': '<(target_arch)',
+      'coverage%': '<(coverage)',
       'asan%': 0,
       'lsan%': 0,
       'msan%': 0,
@@ -105,6 +109,7 @@
       # If no gomadir is set, it uses the default gomadir.
       'use_goma%': 0,
       'gomadir%': '',
+
       'conditions': [
         # Set default gomadir.
         ['OS=="win"', {
@@ -112,10 +117,11 @@
         }, {
           'gomadir': '<!(/bin/echo -n ${HOME}/goma)',
         }],
-        ['host_arch!="ppc" and host_arch!="ppc64" and host_arch!="ppc64le"', {
-          'host_clang%': '1',
+        ['host_arch!="ppc" and host_arch!="ppc64" and host_arch!="ppc64le" and \
+          coverage==0', {
+          'host_clang%': 1,
         }, {
-          'host_clang%': '0',
+          'host_clang%': 0,
         }],
         # linux_use_bundled_gold: whether to use the gold linker binary checked
         # into third_party/binutils.  Force this off via GYP_DEFINES when you
@@ -159,6 +165,7 @@
     'cfi_blacklist%': '<(cfi_blacklist)',
     'test_isolation_mode%': '<(test_isolation_mode)',
     'fastbuild%': '<(fastbuild)',
+    'coverage%': '<(coverage)',
 
     # Add a simple extras solely for the purpose of the cctests
     'v8_extra_library_files': ['../test/cctest/test-extra.js'],
@@ -220,7 +227,7 @@
         'v8_enable_gdbjit%': 0,
       }],
       ['(OS=="linux" or OS=="mac") and (target_arch=="ia32" or target_arch=="x64") and \
-        (v8_target_arch!="x87" and v8_target_arch!="x32")', {
+        (v8_target_arch!="x87" and v8_target_arch!="x32") and coverage==0', {
         'clang%': 1,
       }, {
         'clang%': 0,
@@ -700,6 +707,11 @@
           }],
           [ 'component=="shared_library"', {
             'cflags': [ '-fPIC', ],
+          }],
+          [ 'coverage==1', {
+            'cflags!': [ '-O3', '-O2', '-O1', ],
+            'cflags': [ '-fprofile-arcs', '-ftest-coverage', '-O0'],
+            'ldflags': [ '-fprofile-arcs'],
           }],
         ],
       },
