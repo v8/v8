@@ -111,8 +111,7 @@ class RawMachineAssembler {
     return Load(rep, base, IntPtrConstant(0));
   }
   Node* Load(MachineType rep, Node* base, Node* index) {
-    return AddNode(machine()->Load(rep), base, index, graph()->start(),
-                   graph()->start());
+    return AddNode(machine()->Load(rep), base, index);
   }
   Node* Store(MachineType rep, Node* base, Node* value,
               WriteBarrierKind write_barrier) {
@@ -121,7 +120,7 @@ class RawMachineAssembler {
   Node* Store(MachineType rep, Node* base, Node* index, Node* value,
               WriteBarrierKind write_barrier) {
     return AddNode(machine()->Store(StoreRepresentation(rep, write_barrier)),
-                   base, index, value, graph()->start(), graph()->start());
+                   base, index, value);
   }
 
   // Arithmetic Operations.
@@ -246,10 +245,10 @@ class RawMachineAssembler {
     return AddNode(machine()->Int32MulHigh(), a, b);
   }
   Node* Int32Div(Node* a, Node* b) {
-    return AddNode(machine()->Int32Div(), a, b, graph()->start());
+    return AddNode(machine()->Int32Div(), a, b);
   }
   Node* Int32Mod(Node* a, Node* b) {
-    return AddNode(machine()->Int32Mod(), a, b, graph()->start());
+    return AddNode(machine()->Int32Mod(), a, b);
   }
   Node* Int32LessThan(Node* a, Node* b) {
     return AddNode(machine()->Int32LessThan(), a, b);
@@ -258,7 +257,7 @@ class RawMachineAssembler {
     return AddNode(machine()->Int32LessThanOrEqual(), a, b);
   }
   Node* Uint32Div(Node* a, Node* b) {
-    return AddNode(machine()->Uint32Div(), a, b, graph()->start());
+    return AddNode(machine()->Uint32Div(), a, b);
   }
   Node* Uint32LessThan(Node* a, Node* b) {
     return AddNode(machine()->Uint32LessThan(), a, b);
@@ -267,7 +266,7 @@ class RawMachineAssembler {
     return AddNode(machine()->Uint32LessThanOrEqual(), a, b);
   }
   Node* Uint32Mod(Node* a, Node* b) {
-    return AddNode(machine()->Uint32Mod(), a, b, graph()->start());
+    return AddNode(machine()->Uint32Mod(), a, b);
   }
   Node* Uint32MulHigh(Node* a, Node* b) {
     return AddNode(machine()->Uint32MulHigh(), a, b);

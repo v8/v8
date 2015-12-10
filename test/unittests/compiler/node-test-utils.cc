@@ -1212,6 +1212,14 @@ class IsLoadMatcher final : public NodeMatcher {
   }
 
   bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
+    Node* effect_node = nullptr;
+    Node* control_node = nullptr;
+    if (NodeProperties::FirstEffectIndex(node) < node->InputCount()) {
+      effect_node = NodeProperties::GetEffectInput(node);
+    }
+    if (NodeProperties::FirstControlIndex(node) < node->InputCount()) {
+      control_node = NodeProperties::GetControlInput(node);
+    }
     return (NodeMatcher::MatchAndExplain(node, listener) &&
             PrintMatchAndExplain(OpParameter<LoadRepresentation>(node), "rep",
                                  rep_matcher_, listener) &&
@@ -1219,10 +1227,10 @@ class IsLoadMatcher final : public NodeMatcher {
                                  base_matcher_, listener) &&
             PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1),
                                  "index", index_matcher_, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetEffectInput(node), "effect",
-                                 effect_matcher_, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetControlInput(node),
-                                 "control", control_matcher_, listener));
+            PrintMatchAndExplain(effect_node, "effect", effect_matcher_,
+                                 listener) &&
+            PrintMatchAndExplain(control_node, "control", control_matcher_,
+                                 listener));
   }
 
  private:
@@ -1268,6 +1276,14 @@ class IsStoreMatcher final : public NodeMatcher {
   }
 
   bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
+    Node* effect_node = nullptr;
+    Node* control_node = nullptr;
+    if (NodeProperties::FirstEffectIndex(node) < node->InputCount()) {
+      effect_node = NodeProperties::GetEffectInput(node);
+    }
+    if (NodeProperties::FirstControlIndex(node) < node->InputCount()) {
+      control_node = NodeProperties::GetControlInput(node);
+    }
     return (NodeMatcher::MatchAndExplain(node, listener) &&
             PrintMatchAndExplain(OpParameter<StoreRepresentation>(node), "rep",
                                  rep_matcher_, listener) &&
@@ -1277,10 +1293,10 @@ class IsStoreMatcher final : public NodeMatcher {
                                  "index", index_matcher_, listener) &&
             PrintMatchAndExplain(NodeProperties::GetValueInput(node, 2),
                                  "value", value_matcher_, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetEffectInput(node), "effect",
-                                 effect_matcher_, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetControlInput(node),
-                                 "control", control_matcher_, listener));
+            PrintMatchAndExplain(effect_node, "effect", effect_matcher_,
+                                 listener) &&
+            PrintMatchAndExplain(control_node, "control", control_matcher_,
+                                 listener));
   }
 
  private:

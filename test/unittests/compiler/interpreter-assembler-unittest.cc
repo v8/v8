@@ -69,8 +69,7 @@ Matcher<Node*> IsWordOr(const Matcher<Node*>& lhs_matcher,
 Matcher<Node*> InterpreterAssemblerTest::InterpreterAssemblerForTest::IsLoad(
     const Matcher<LoadRepresentation>& rep_matcher,
     const Matcher<Node*>& base_matcher, const Matcher<Node*>& index_matcher) {
-  return ::i::compiler::IsLoad(rep_matcher, base_matcher, index_matcher,
-                               graph()->start(), graph()->start());
+  return ::i::compiler::IsLoad(rep_matcher, base_matcher, index_matcher, _, _);
 }
 
 
@@ -79,8 +78,7 @@ Matcher<Node*> InterpreterAssemblerTest::InterpreterAssemblerForTest::IsStore(
     const Matcher<Node*>& base_matcher, const Matcher<Node*>& index_matcher,
     const Matcher<Node*>& value_matcher) {
   return ::i::compiler::IsStore(rep_matcher, base_matcher, index_matcher,
-                                value_matcher, graph()->start(),
-                                graph()->start());
+                                value_matcher, _, _);
 }
 
 
