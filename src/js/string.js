@@ -162,9 +162,6 @@ function StringMatchJS(pattern) {
   if (!IS_NULL_OR_UNDEFINED(pattern)) {
     var matcher = pattern[matchSymbol];
     if (!IS_UNDEFINED(matcher)) {
-      if (!IS_CALLABLE(matcher)) {
-        throw MakeTypeError(kCalledNonCallable, matcher);
-      }
       return %_Call(matcher, pattern, this);
     }
   }
@@ -572,9 +569,6 @@ function StringSplitJS(separator, limit) {
   if (!IS_NULL_OR_UNDEFINED(separator)) {
     var splitter = separator[splitSymbol];
     if (!IS_UNDEFINED(splitter)) {
-      if (!IS_CALLABLE(splitter)) {
-        throw MakeTypeError(kCalledNonCallable, splitter);
-      }
       return %_Call(splitter, separator, this, limit);
     }
   }
