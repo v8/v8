@@ -361,24 +361,6 @@ FieldAccess AccessBuilder::ForStatsCounter() {
   return access;
 }
 
-
-// static
-FieldAccess AccessBuilder::ForFrameCallerFramePtr() {
-  FieldAccess access = {kUntaggedBase, StandardFrameConstants::kCallerFPOffset,
-                        MaybeHandle<Name>(), Type::Internal(),
-                        MachineType::Pointer()};
-  return access;
-}
-
-
-// static
-FieldAccess AccessBuilder::ForFrameMarker() {
-  FieldAccess access = {kUntaggedBase, StandardFrameConstants::kMarkerOffset,
-                        MaybeHandle<Name>(), Type::Tagged(),
-                        MachineType::AnyTagged()};
-  return access;
-}
-
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
