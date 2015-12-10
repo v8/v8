@@ -15074,7 +15074,7 @@ Maybe<bool> JSProxy::SetPrototype(Handle<JSProxy> proxy, Handle<Object> value,
   // throw a TypeError exception.
   if (bool_trap_result && !value->SameValue(*target_proto)) {
     isolate->Throw(*isolate->factory()->NewTypeError(
-        MessageTemplate::kProxyTrapViolatesInvariant, target));
+        MessageTemplate::kProxyTrapViolatesInvariant, trap_name));
     return Nothing<bool>();
   }
   // 13. Return booleanTrapResult.

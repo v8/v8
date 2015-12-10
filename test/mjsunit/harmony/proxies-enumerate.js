@@ -37,6 +37,12 @@ function TestForIn(receiver, expected) {
 
 TestForIn(proxy, ["foo", "bar"]);
 
+// Test revoked proxy.
+var pair = Proxy.revocable(target, handler);
+TestForIn(pair.proxy, ["foo", "bar"]);
+pair.revoke();
+assertThrows(()=>{ TestForIn(pair.proxy, ["foo", "bar"]) }, TypeError);
+
 // Properly call traps on proxies on the prototype chain.
 var receiver = {
   "receiver_one": 1
