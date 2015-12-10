@@ -316,5 +316,20 @@ RUNTIME_FUNCTION(Runtime_GetRootNaN) {
   return isolate->heap()->nan_value();
 }
 
+
+RUNTIME_FUNCTION(Runtime_GetHoleNaNUpper) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 0);
+  return *isolate->factory()->NewNumberFromUint(kHoleNanUpper32);
+}
+
+
+RUNTIME_FUNCTION(Runtime_GetHoleNaNLower) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 0);
+  return *isolate->factory()->NewNumberFromUint(kHoleNanLower32);
+}
+
+
 }  // namespace internal
 }  // namespace v8
