@@ -136,10 +136,6 @@ class CallHandlerHelper;
 class EscapableHandleScope;
 template<typename T> class ReturnValue;
 
-namespace experimental {
-class FastAccessorBuilder;
-}  // namespace experimental
-
 namespace internal {
 class Arguments;
 class Heap;
@@ -4423,8 +4419,7 @@ class V8_EXPORT FunctionTemplate : public Template {
    * the callback cannot be null.
    */
   static Local<FunctionTemplate> NewWithFastHandler(
-      Isolate* isolate, FunctionCallback callback,
-      experimental::FastAccessorBuilder* fast_handler = nullptr,
+      Isolate* isolate, FunctionCallback callback, Local<Value> fast_handler,
       Local<Value> data = Local<Value>(),
       Local<Signature> signature = Local<Signature>(), int length = 0);
 
@@ -4438,9 +4433,9 @@ class V8_EXPORT FunctionTemplate : public Template {
    * callback is called whenever the function created from this
    * FunctionTemplate is called.
    */
-  void SetCallHandler(
-      FunctionCallback callback, Local<Value> data = Local<Value>(),
-      experimental::FastAccessorBuilder* fast_handler = nullptr);
+  void SetCallHandler(FunctionCallback callback,
+                      Local<Value> data = Local<Value>(),
+                      Local<Value> fast_handler = Local<Value>());
 
   /** Set the predefined length property for the FunctionTemplate. */
   void SetLength(int length);
