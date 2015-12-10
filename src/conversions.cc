@@ -484,6 +484,7 @@ char* DoubleToRadixCString(double value, int radix) {
 }
 
 
+// ES6 18.2.4 parseFloat(string)
 double StringToDouble(UnicodeCache* unicode_cache, Handle<String> string,
                       int flags, double empty_string_val) {
   Handle<String> flattened = String::Flatten(string);
@@ -491,7 +492,6 @@ double StringToDouble(UnicodeCache* unicode_cache, Handle<String> string,
     DisallowHeapAllocation no_gc;
     String::FlatContent flat = flattened->GetFlatContent();
     DCHECK(flat.IsFlat());
-    // ECMA-262 section 15.1.2.3, empty string is NaN
     if (flat.IsOneByte()) {
       return StringToDouble(unicode_cache, flat.ToOneByteVector(), flags,
                             empty_string_val);

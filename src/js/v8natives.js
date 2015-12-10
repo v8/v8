@@ -47,21 +47,21 @@ utils.ImportFromExperimental(function(from) {
 // ----------------------------------------------------------------------------
 
 
-// ECMA 262 - 15.1.4
+// ES6 18.2.3 isNaN(number)
 function GlobalIsNaN(number) {
   number = TO_NUMBER(number);
   return NUMBER_IS_NAN(number);
 }
 
 
-// ECMA 262 - 15.1.5
+// ES6 18.2.2 isFinite(number)
 function GlobalIsFinite(number) {
   number = TO_NUMBER(number);
   return NUMBER_IS_FINITE(number);
 }
 
 
-// ECMA-262 - 15.1.2.2
+// ES6 18.2.5 parseInt(string, radix)
 function GlobalParseInt(string, radix) {
   if (IS_UNDEFINED(radix) || radix === 10 || radix === 0) {
     // Some people use parseInt instead of Math.floor.  This
@@ -95,14 +95,16 @@ function GlobalParseInt(string, radix) {
 }
 
 
-// ECMA-262 - 15.1.2.3
+// ES6 18.2.4 parseFloat(string)
 function GlobalParseFloat(string) {
+  // 1. Let inputString be ? ToString(string).
   string = TO_STRING(string);
   if (%_HasCachedArrayIndex(string)) return %_GetCachedArrayIndex(string);
   return %StringParseFloat(string);
 }
 
 
+// ES6 18.2.1 eval(x)
 function GlobalEval(x) {
   if (!IS_STRING(x)) return x;
 
@@ -121,11 +123,11 @@ function GlobalEval(x) {
 var attributes = DONT_ENUM | DONT_DELETE | READ_ONLY;
 
 utils.InstallConstants(global, [
-  // ECMA 262 - 15.1.1.1.
-  "NaN", NaN,
-  // ECMA-262 - 15.1.1.2.
+  // ES6 18.1.1
   "Infinity", INFINITY,
-  // ECMA-262 - 15.1.1.2.
+  // ES6 18.1.2
+  "NaN", NaN,
+  // ES6 18.1.3
   "undefined", UNDEFINED,
 ]);
 
@@ -142,7 +144,7 @@ utils.InstallFunctions(global, DONT_ENUM, [
 // ----------------------------------------------------------------------------
 // Object
 
-// ECMA-262 - 15.2.4.2
+// ES6 19.1.3.6 Object.prototype.toString()
 function ObjectToString() {
   if (IS_UNDEFINED(this)) return "[object Undefined]";
   if (IS_NULL(this)) return "[object Null]";
@@ -164,14 +166,14 @@ function ObjectToString() {
 }
 
 
-// ECMA-262 - 15.2.4.3
+// ES6 19.1.3.5 Object.prototype.toLocaleString([reserved1 [,reserved2]])
 function ObjectToLocaleString() {
   CHECK_OBJECT_COERCIBLE(this, "Object.prototype.toLocaleString");
   return this.toString();
 }
 
 
-// ECMA-262 - 15.2.4.4
+// ES6 19.1.3.7 Object.prototype.valueOf()
 function ObjectValueOf() {
   return TO_OBJECT(this);
 }
@@ -185,7 +187,7 @@ function ObjectHasOwnProperty(value) {
 }
 
 
-// ECMA-262 - 15.2.4.6
+// ES6 19.1.3.3 Object.prototype.isPrototypeOf(V)
 function ObjectIsPrototypeOf(V) {
   if (!IS_SPEC_OBJECT(V)) return false;
   var O = TO_OBJECT(this);
@@ -258,21 +260,21 @@ function ObjectKeys(obj) {
 }
 
 
-// ES5 8.10.1.
+// ES6 6.2.4.1
 function IsAccessorDescriptor(desc) {
   if (IS_UNDEFINED(desc)) return false;
   return desc.hasGetter() || desc.hasSetter();
 }
 
 
-// ES5 8.10.2.
+// ES6 6.2.4.2
 function IsDataDescriptor(desc) {
   if (IS_UNDEFINED(desc)) return false;
   return desc.hasValue() || desc.hasWritable();
 }
 
 
-// ES5 8.10.3.
+// ES6 6.2.4.3
 function IsGenericDescriptor(desc) {
   if (IS_UNDEFINED(desc)) return false;
   return !(IsAccessorDescriptor(desc) || IsDataDescriptor(desc));
@@ -311,7 +313,7 @@ function FromGenericPropertyDescriptor(desc) {
 }
 
 
-// ES5 8.10.5.
+// ES6 6.2.4.5
 function ToPropertyDescriptor(obj) {
   if (!IS_SPEC_OBJECT(obj)) throw MakeTypeError(kPropertyDescObject, obj);
 
@@ -355,8 +357,7 @@ function ToPropertyDescriptor(obj) {
   return desc;
 }
 
-
-// For Harmony proxies.
+// TODO(cbruni): remove once callers have been removed
 function ToCompletePropertyDescriptor(obj) {
   var desc = ToPropertyDescriptor(obj);
   if (IsGenericDescriptor(desc) || IsDataDescriptor(desc)) {
@@ -550,7 +551,7 @@ function GetOwnPropertyJS(obj, v) {
 }
 
 
-// ES6, draft 12-24-14, section 7.3.8
+// ES6 7.3.9
 function GetMethod(obj, p) {
   var func = obj[p];
   if (IS_NULL_OR_UNDEFINED(func)) return UNDEFINED;
@@ -578,14 +579,12 @@ function DefineProxyProperty(obj, p, attributes, should_throw) {
 }
 
 
-// ES5 8.12.9.
+// ES6 9.1.6 [[DefineOwnProperty]](P, Desc)
 function DefineObjectProperty(obj, p, desc, should_throw) {
   var current_array = %GetOwnProperty_Legacy(obj, TO_NAME(p));
   var current = ConvertDescriptorArrayToDescriptor(current_array);
   var extensible = %IsExtensible(obj);
 
-  // Error handling according to spec.
-  // Step 3
   if (IS_UNDEFINED(current) && !extensible) {
     if (should_throw) {
       throw MakeTypeError(kDefineDisallowed, p);
@@ -595,7 +594,6 @@ function DefineObjectProperty(obj, p, desc, should_throw) {
   }
 
   if (!IS_UNDEFINED(current)) {
-    // Step 5 and 6
     if ((IsGenericDescriptor(desc) ||
          IsDataDescriptor(desc) == IsDataDescriptor(current)) &&
         (!desc.hasEnumerable() ||
@@ -944,7 +942,7 @@ function ObjectIsExtensible(obj) {
 }
 
 
-// ECMA-262, Edition 6, section 19.1.2.1
+// ES6 19.1.2.1
 function ObjectAssign(target, sources) {
   // TODO(bmeurer): Move this to toplevel.
   "use strict";
@@ -974,13 +972,13 @@ function ObjectAssign(target, sources) {
 }
 
 
-// ECMA-262, Edition 6, section B.2.2.1.1
+// ES6 B.2.2.1.1
 function ObjectGetProto() {
   return %_GetPrototype(TO_OBJECT(this));
 }
 
 
-// ECMA-262, Edition 6, section B.2.2.1.2
+// ES6 B.2.2.1.2
 function ObjectSetProto(proto) {
   CHECK_OBJECT_COERCIBLE(this, "Object.prototype.__proto__");
 
@@ -990,7 +988,7 @@ function ObjectSetProto(proto) {
 }
 
 
-// ECMA-262, Edition 6, section 19.1.1.1
+// ES6 19.1.1.1
 function ObjectConstructor(x) {
   if (GlobalObject != new.target && !IS_UNDEFINED(new.target)) {
     return this;
@@ -1115,7 +1113,7 @@ function NumberConstructor(x) {
 }
 
 
-// ECMA-262 section 15.7.4.2.
+// ES6 Number.prototype.toString([ radix ])
 function NumberToStringJS(radix) {
   // NOTE: Both Number objects and values can enter here as
   // 'this'. This is not as dictated by ECMA-262.
@@ -1140,13 +1138,13 @@ function NumberToStringJS(radix) {
 }
 
 
-// ECMA-262 section 15.7.4.3
+// ES6 20.1.3.4 Number.prototype.toLocaleString([reserved1 [, reserved2]])
 function NumberToLocaleString() {
   return %_Call(NumberToStringJS, this);
 }
 
 
-// ECMA-262 section 15.7.4.4
+// ES6 20.1.3.7 Number.prototype.valueOf()
 function NumberValueOf() {
   // NOTE: Both Number objects and values can enter here as
   // 'this'. This is not as dictated by ECMA-262.
@@ -1157,7 +1155,7 @@ function NumberValueOf() {
 }
 
 
-// ECMA-262 section 15.7.4.5
+// ES6 20.1.3.3 Number.prototype.toFixed(fractionDigits)
 function NumberToFixedJS(fractionDigits) {
   var x = this;
   if (!IS_NUMBER(this)) {
@@ -1182,7 +1180,7 @@ function NumberToFixedJS(fractionDigits) {
 }
 
 
-// ECMA-262 section 15.7.4.6
+// ES6 20.1.3.2 Number.prototype.toExponential(fractionDigits)
 function NumberToExponentialJS(fractionDigits) {
   var x = this;
   if (!IS_NUMBER(this)) {
@@ -1208,7 +1206,7 @@ function NumberToExponentialJS(fractionDigits) {
 }
 
 
-// ECMA-262 section 15.7.4.7
+// ES6 20.1.3.5 Number.prototype.toPrecision(precision)
 function NumberToPrecisionJS(precision) {
   var x = this;
   if (!IS_NUMBER(this)) {
@@ -1369,6 +1367,8 @@ function FunctionToString() {
 
 
 // ES5 15.3.4.5
+// ES6 9.2.3.2 Function.prototype.bind(thisArg , ...args)
+// TODO(cbruni): check again and remove FunctionProxies section further down
 function FunctionBind(this_arg) { // Length is 1.
   if (!IS_CALLABLE(this)) throw MakeTypeError(kFunctionBind);
 
@@ -1482,8 +1482,7 @@ utils.InstallFunctions(GlobalFunction.prototype, DONT_ENUM, [
 // ----------------------------------------------------------------------------
 // Iterator related spec functions.
 
-// ES6 rev 33, 2015-02-12
-// 7.4.1 GetIterator ( obj, method )
+// ES6 7.4.1 GetIterator(obj, method)
 function GetIterator(obj, method) {
   if (IS_UNDEFINED(method)) {
     method = obj[iteratorSymbol];

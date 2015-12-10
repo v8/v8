@@ -294,7 +294,7 @@ double InternalStringToIntDouble(UnicodeCache* unicode_cache,
   return std::ldexp(static_cast<double>(negative ? -number : number), exponent);
 }
 
-
+// ES6 18.2.5 parseInt(string, radix)
 template <class Iterator, class EndMark>
 double InternalStringToInt(UnicodeCache* unicode_cache,
                            Iterator current,
