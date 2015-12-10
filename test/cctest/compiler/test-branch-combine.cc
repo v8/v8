@@ -18,7 +18,7 @@ static IrOpcode::Value int32cmp_opcodes[] = {
 
 TEST(BranchCombineWord32EqualZero_1) {
   // Test combining a branch with x == 0
-  RawMachineAssemblerTester<int32_t> m(kMachInt32);
+  RawMachineAssemblerTester<int32_t> m(MachineType::Int32());
   int32_t eq_constant = -1033;
   int32_t ne_constant = 825118;
   Node* p0 = m.Parameter(0);
@@ -44,7 +44,7 @@ TEST(BranchCombineWord32EqualZero_chain) {
   int32_t ne_constant = 815118;
 
   for (int k = 0; k < 6; k++) {
-    RawMachineAssemblerTester<int32_t> m(kMachInt32);
+    RawMachineAssemblerTester<int32_t> m(MachineType::Int32());
     Node* p0 = m.Parameter(0);
     RawMachineLabel blocka, blockb;
     Node* cond = p0;
@@ -69,7 +69,7 @@ TEST(BranchCombineWord32EqualZero_chain) {
 
 TEST(BranchCombineInt32LessThanZero_1) {
   // Test combining a branch with x < 0
-  RawMachineAssemblerTester<int32_t> m(kMachInt32);
+  RawMachineAssemblerTester<int32_t> m(MachineType::Int32());
   int32_t eq_constant = -1433;
   int32_t ne_constant = 845118;
   Node* p0 = m.Parameter(0);
@@ -91,7 +91,7 @@ TEST(BranchCombineInt32LessThanZero_1) {
 
 TEST(BranchCombineUint32LessThan100_1) {
   // Test combining a branch with x < 100
-  RawMachineAssemblerTester<int32_t> m(kMachUint32);
+  RawMachineAssemblerTester<int32_t> m(MachineType::Uint32());
   int32_t eq_constant = 1471;
   int32_t ne_constant = 88845718;
   Node* p0 = m.Parameter(0);
@@ -113,7 +113,7 @@ TEST(BranchCombineUint32LessThan100_1) {
 
 TEST(BranchCombineUint32LessThanOrEqual100_1) {
   // Test combining a branch with x <= 100
-  RawMachineAssemblerTester<int32_t> m(kMachUint32);
+  RawMachineAssemblerTester<int32_t> m(MachineType::Uint32());
   int32_t eq_constant = 1479;
   int32_t ne_constant = 77845719;
   Node* p0 = m.Parameter(0);
@@ -135,7 +135,7 @@ TEST(BranchCombineUint32LessThanOrEqual100_1) {
 
 TEST(BranchCombineZeroLessThanInt32_1) {
   // Test combining a branch with 0 < x
-  RawMachineAssemblerTester<int32_t> m(kMachInt32);
+  RawMachineAssemblerTester<int32_t> m(MachineType::Int32());
   int32_t eq_constant = -2033;
   int32_t ne_constant = 225118;
   Node* p0 = m.Parameter(0);
@@ -157,7 +157,7 @@ TEST(BranchCombineZeroLessThanInt32_1) {
 
 TEST(BranchCombineInt32GreaterThanZero_1) {
   // Test combining a branch with x > 0
-  RawMachineAssemblerTester<int32_t> m(kMachInt32);
+  RawMachineAssemblerTester<int32_t> m(MachineType::Int32());
   int32_t eq_constant = -1073;
   int32_t ne_constant = 825178;
   Node* p0 = m.Parameter(0);
@@ -179,7 +179,8 @@ TEST(BranchCombineInt32GreaterThanZero_1) {
 
 TEST(BranchCombineWord32EqualP) {
   // Test combining a branch with an Word32Equal.
-  RawMachineAssemblerTester<int32_t> m(kMachInt32, kMachInt32);
+  RawMachineAssemblerTester<int32_t> m(MachineType::Int32(),
+                                       MachineType::Int32());
   int32_t eq_constant = -1035;
   int32_t ne_constant = 825018;
   Node* p0 = m.Parameter(0);
@@ -209,7 +210,7 @@ TEST(BranchCombineWord32EqualI) {
 
   for (int left = 0; left < 2; left++) {
     FOR_INT32_INPUTS(i) {
-      RawMachineAssemblerTester<int32_t> m(kMachInt32);
+      RawMachineAssemblerTester<int32_t> m(MachineType::Int32());
       int32_t a = *i;
 
       Node* p0 = m.Int32Constant(a);
@@ -238,7 +239,8 @@ TEST(BranchCombineInt32CmpP) {
   int32_t ne_constant = 725018;
 
   for (int op = 0; op < 2; op++) {
-    RawMachineAssemblerTester<int32_t> m(kMachInt32, kMachInt32);
+    RawMachineAssemblerTester<int32_t> m(MachineType::Int32(),
+                                         MachineType::Int32());
     Node* p0 = m.Parameter(0);
     Node* p1 = m.Parameter(1);
 
@@ -270,7 +272,7 @@ TEST(BranchCombineInt32CmpI) {
 
   for (int op = 0; op < 2; op++) {
     FOR_INT32_INPUTS(i) {
-      RawMachineAssemblerTester<int32_t> m(kMachInt32);
+      RawMachineAssemblerTester<int32_t> m(MachineType::Int32());
       int32_t a = *i;
       Node* p0 = m.Int32Constant(a);
       Node* p1 = m.Parameter(0);
@@ -427,8 +429,8 @@ TEST(BranchCombineFloat64Compares) {
     CompareWrapper cmp = cmps[c];
     for (int invert = 0; invert < 2; invert++) {
       RawMachineAssemblerTester<int32_t> m;
-      Node* a = m.LoadFromPointer(&input_a, kMachFloat64);
-      Node* b = m.LoadFromPointer(&input_b, kMachFloat64);
+      Node* a = m.LoadFromPointer(&input_a, MachineType::Float64());
+      Node* b = m.LoadFromPointer(&input_b, MachineType::Float64());
 
       RawMachineLabel blocka, blockb;
       Node* cond = cmp.MakeNode(&m, a, b);

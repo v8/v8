@@ -223,7 +223,7 @@ Reduction JSInliner::InlineCall(Node* call, Node* new_target, Node* context,
     values.push_back(control_output);
     effects.push_back(control_output);
     Node* value_output = jsgraph_->graph()->NewNode(
-        jsgraph_->common()->Phi(kMachAnyTagged, input_count),
+        jsgraph_->common()->Phi(MachineRepresentation::kTagged, input_count),
         static_cast<int>(values.size()), &values.front());
     Node* effect_output = jsgraph_->graph()->NewNode(
         jsgraph_->common()->EffectPhi(input_count),
@@ -455,7 +455,8 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
         jsgraph_->javascript()->CallRuntime(Runtime::kInlineIsJSReceiver, 1),
         node, context, node, start);
     Node* select = jsgraph_->graph()->NewNode(
-        jsgraph_->common()->Select(kMachAnyTagged), check, node, create);
+        jsgraph_->common()->Select(MachineRepresentation::kTagged), check, node,
+        create);
     NodeProperties::ReplaceUses(node, select, check, node, node);
     NodeProperties::ReplaceValueInput(select, node, 1);
     NodeProperties::ReplaceValueInput(check, node, 0);

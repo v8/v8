@@ -62,6 +62,7 @@ std::ostream& operator<<(std::ostream& os, WriteBarrierKind);
 // A Load needs a MachineType.
 typedef MachineType LoadRepresentation;
 
+LoadRepresentation LoadRepresentationOf(Operator const*);
 
 // A Store needs a MachineType and a WriteBarrierKind in order to emit the
 // correct write barrier.
@@ -141,8 +142,10 @@ class MachineOperatorBuilder final : public ZoneObject {
   };
   typedef base::Flags<Flag, unsigned> Flags;
 
-  explicit MachineOperatorBuilder(Zone* zone, MachineType word = kMachPtr,
-                                  Flags supportedOperators = kNoFlags);
+  explicit MachineOperatorBuilder(
+      Zone* zone,
+      MachineRepresentation word = MachineType::PointerRepresentation(),
+      Flags supportedOperators = kNoFlags);
 
   const Operator* Word32And();
   const Operator* Word32Or();
@@ -307,9 +310,9 @@ class MachineOperatorBuilder final : public ZoneObject {
   const Operator* CheckedStore(CheckedStoreRepresentation);
 
   // Target machine word-size assumed by this builder.
-  bool Is32() const { return word() == kRepWord32; }
-  bool Is64() const { return word() == kRepWord64; }
-  MachineType word() const { return word_; }
+  bool Is32() const { return word() == MachineRepresentation::kWord32; }
+  bool Is64() const { return word() == MachineRepresentation::kWord64; }
+  MachineRepresentation word() const { return word_; }
 
 // Pseudo operators that translate to 32/64-bit operators depending on the
 // word-size of the target machine assumed by this builder.
@@ -342,7 +345,7 @@ class MachineOperatorBuilder final : public ZoneObject {
 
  private:
   MachineOperatorGlobalCache const& cache_;
-  MachineType const word_;
+  MachineRepresentation const word_;
   Flags const flags_;
 
   DISALLOW_COPY_AND_ASSIGN(MachineOperatorBuilder);

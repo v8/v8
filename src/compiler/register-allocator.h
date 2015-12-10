@@ -315,7 +315,9 @@ class LiveRange : public ZoneObject {
 
   InstructionOperand GetAssignedOperand() const;
 
-  MachineType machine_type() const { return MachineTypeField::decode(bits_); }
+  MachineRepresentation representation() const {
+    return RepresentationField::decode(bits_);
+  }
 
   int assigned_register() const { return AssignedRegisterField::decode(bits_); }
   bool HasRegisterAssigned() const {
@@ -414,7 +416,7 @@ class LiveRange : public ZoneObject {
 
  private:
   friend class TopLevelLiveRange;
-  explicit LiveRange(int relative_id, MachineType machine_type,
+  explicit LiveRange(int relative_id, MachineRepresentation rep,
                      TopLevelLiveRange* top_level);
 
   void AppendAsChild(TopLevelLiveRange* other);
@@ -428,7 +430,7 @@ class LiveRange : public ZoneObject {
 
   typedef BitField<bool, 0, 1> SpilledField;
   typedef BitField<int32_t, 6, 6> AssignedRegisterField;
-  typedef BitField<MachineType, 12, 15> MachineTypeField;
+  typedef BitField<MachineRepresentation, 12, 15> RepresentationField;
 
   // Unique among children and splinters of the same virtual register.
   int relative_id_;
@@ -481,7 +483,7 @@ class LiveRangeGroup final : public ZoneObject {
 
 class TopLevelLiveRange final : public LiveRange {
  public:
-  explicit TopLevelLiveRange(int vreg, MachineType machine_type);
+  explicit TopLevelLiveRange(int vreg, MachineRepresentation rep);
   int spill_start_index() const { return spill_start_index_; }
 
   bool IsFixed() const { return vreg_ < 0; }
@@ -773,12 +775,12 @@ class RegisterAllocationData final : public ZoneObject {
   const char* debug_name() const { return debug_name_; }
   const RegisterConfiguration* config() const { return config_; }
 
-  MachineType MachineTypeFor(int virtual_register);
+  MachineRepresentation RepresentationFor(int virtual_register);
 
   TopLevelLiveRange* GetOrCreateLiveRangeFor(int index);
   // Creates a new live range.
-  TopLevelLiveRange* NewLiveRange(int index, MachineType machine_type);
-  TopLevelLiveRange* NextLiveRange(MachineType machine_type);
+  TopLevelLiveRange* NewLiveRange(int index, MachineRepresentation rep);
+  TopLevelLiveRange* NextLiveRange(MachineRepresentation rep);
 
   SpillRange* AssignSpillRangeToLiveRange(TopLevelLiveRange* range);
   SpillRange* CreateSpillRangeForLiveRange(TopLevelLiveRange* range);

@@ -36,11 +36,11 @@ class Schedule;
 // non-schedulable due to missing control and effect dependencies.
 class RawMachineAssembler {
  public:
-  RawMachineAssembler(Isolate* isolate, Graph* graph,
-                      CallDescriptor* call_descriptor,
-                      MachineType word = kMachPtr,
-                      MachineOperatorBuilder::Flags flags =
-                          MachineOperatorBuilder::Flag::kNoFlags);
+  RawMachineAssembler(
+      Isolate* isolate, Graph* graph, CallDescriptor* call_descriptor,
+      MachineRepresentation word = MachineType::PointerRepresentation(),
+      MachineOperatorBuilder::Flags flags =
+          MachineOperatorBuilder::Flag::kNoFlags);
   ~RawMachineAssembler() {}
 
   Isolate* isolate() const { return isolate_; }
@@ -611,14 +611,14 @@ class RawMachineAssembler {
   void Deoptimize(Node* state);
 
   // Variables.
-  Node* Phi(MachineType type, Node* n1, Node* n2) {
-    return AddNode(common()->Phi(type, 2), n1, n2);
+  Node* Phi(MachineRepresentation rep, Node* n1, Node* n2) {
+    return AddNode(common()->Phi(rep, 2), n1, n2);
   }
-  Node* Phi(MachineType type, Node* n1, Node* n2, Node* n3) {
-    return AddNode(common()->Phi(type, 3), n1, n2, n3);
+  Node* Phi(MachineRepresentation rep, Node* n1, Node* n2, Node* n3) {
+    return AddNode(common()->Phi(rep, 3), n1, n2, n3);
   }
-  Node* Phi(MachineType type, Node* n1, Node* n2, Node* n3, Node* n4) {
-    return AddNode(common()->Phi(type, 4), n1, n2, n3, n4);
+  Node* Phi(MachineRepresentation rep, Node* n1, Node* n2, Node* n3, Node* n4) {
+    return AddNode(common()->Phi(rep, 4), n1, n2, n3, n4);
   }
 
   // ===========================================================================

@@ -56,7 +56,7 @@ class ReducerTester : public HandleAndZoneScope {
       : isolate(main_isolate()),
         binop(NULL),
         unop(NULL),
-        machine(main_zone(), kMachPtr, flags),
+        machine(main_zone(), MachineType::PointerRepresentation(), flags),
         common(main_zone()),
         graph(main_zone()),
         javascript(main_zone()),
@@ -703,8 +703,8 @@ TEST(ReduceLoadStore) {
 
   Node* base = R.Constant<int32_t>(11);
   Node* index = R.Constant<int32_t>(4);
-  Node* load = R.graph.NewNode(R.machine.Load(kMachInt32), base, index,
-                               R.graph.start(), R.graph.start());
+  Node* load = R.graph.NewNode(R.machine.Load(MachineType::Int32()), base,
+                               index, R.graph.start(), R.graph.start());
 
   {
     MachineOperatorReducer reducer(&R.jsgraph);
@@ -713,9 +713,9 @@ TEST(ReduceLoadStore) {
   }
 
   {
-    Node* store = R.graph.NewNode(
-        R.machine.Store(StoreRepresentation(kMachInt32, kNoWriteBarrier)), base,
-        index, load, load, R.graph.start());
+    Node* store = R.graph.NewNode(R.machine.Store(StoreRepresentation(
+                                      MachineType::Int32(), kNoWriteBarrier)),
+                                  base, index, load, load, R.graph.start());
     MachineOperatorReducer reducer(&R.jsgraph);
     Reduction reduction = reducer.Reduce(store);
     CHECK(!reduction.Changed());  // stores should not be reduced.

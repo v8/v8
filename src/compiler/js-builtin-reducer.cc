@@ -107,7 +107,7 @@ Reduction JSBuiltinReducer::ReduceMathMax(Node* node) {
     for (int i = 1; i < r.GetJSCallArity(); i++) {
       Node* const input = r.GetJSCallInput(i);
       value = graph()->NewNode(
-          common()->Select(kMachNone),
+          common()->Select(MachineRepresentation::kNone),
           graph()->NewNode(simplified()->NumberLessThan(), input, value), value,
           input);
     }

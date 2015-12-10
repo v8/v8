@@ -122,20 +122,20 @@ std::ostream& operator<<(std::ostream& os,
       if (allocated.IsExplicit()) {
         os << "|E";
       }
-      switch (allocated.machine_type()) {
-        case kRepWord32:
+      switch (allocated.representation()) {
+        case MachineRepresentation::kWord32:
           os << "|w32";
           break;
-        case kRepWord64:
+        case MachineRepresentation::kWord64:
           os << "|w64";
           break;
-        case kRepFloat32:
+        case MachineRepresentation::kFloat32:
           os << "|f32";
           break;
-        case kRepFloat64:
+        case MachineRepresentation::kFloat64:
           os << "|f64";
           break;
-        case kRepTagged:
+        case MachineRepresentation::kTagged:
           os << "|t";
           break;
         default:
@@ -195,12 +195,12 @@ MoveOperands* ParallelMove::PrepareInsertAfter(MoveOperands* move) const {
 }
 
 
-ExplicitOperand::ExplicitOperand(LocationKind kind, MachineType machine_type,
+ExplicitOperand::ExplicitOperand(LocationKind kind, MachineRepresentation rep,
                                  int index)
-    : LocationOperand(EXPLICIT, kind, machine_type, index) {
-  DCHECK_IMPLIES(kind == REGISTER && !IsFloatingPoint(machine_type),
+    : LocationOperand(EXPLICIT, kind, rep, index) {
+  DCHECK_IMPLIES(kind == REGISTER && !IsFloatingPoint(rep),
                  Register::from_code(index).IsAllocatable());
-  DCHECK_IMPLIES(kind == REGISTER && IsFloatingPoint(machine_type),
+  DCHECK_IMPLIES(kind == REGISTER && IsFloatingPoint(rep),
                  DoubleRegister::from_code(index).IsAllocatable());
 }
 
@@ -656,28 +656,28 @@ InstructionBlock* InstructionSequence::GetInstructionBlock(
 }
 
 
-static MachineType FilterRepresentation(MachineType rep) {
-  DCHECK_EQ(rep, RepresentationOf(rep));
+static MachineRepresentation FilterRepresentation(MachineRepresentation rep) {
   switch (rep) {
-    case kRepBit:
-    case kRepWord8:
-    case kRepWord16:
+    case MachineRepresentation::kBit:
+    case MachineRepresentation::kWord8:
+    case MachineRepresentation::kWord16:
       return InstructionSequence::DefaultRepresentation();
-    case kRepWord32:
-    case kRepWord64:
-    case kRepFloat32:
-    case kRepFloat64:
-    case kRepTagged:
+    case MachineRepresentation::kWord32:
+    case MachineRepresentation::kWord64:
+    case MachineRepresentation::kFloat32:
+    case MachineRepresentation::kFloat64:
+    case MachineRepresentation::kTagged:
       return rep;
     default:
       break;
   }
   UNREACHABLE();
-  return kMachNone;
+  return MachineRepresentation::kNone;
 }
 
 
-MachineType InstructionSequence::GetRepresentation(int virtual_register) const {
+MachineRepresentation InstructionSequence::GetRepresentation(
+    int virtual_register) const {
   DCHECK_LE(0, virtual_register);
   DCHECK_LT(virtual_register, VirtualRegisterCount());
   if (virtual_register >= static_cast<int>(representations_.size())) {
@@ -687,17 +687,17 @@ MachineType InstructionSequence::GetRepresentation(int virtual_register) const {
 }
 
 
-void InstructionSequence::MarkAsRepresentation(MachineType machine_type,
+void InstructionSequence::MarkAsRepresentation(MachineRepresentation rep,
                                                int virtual_register) {
   DCHECK_LE(0, virtual_register);
   DCHECK_LT(virtual_register, VirtualRegisterCount());
   if (virtual_register >= static_cast<int>(representations_.size())) {
     representations_.resize(VirtualRegisterCount(), DefaultRepresentation());
   }
-  machine_type = FilterRepresentation(machine_type);
-  DCHECK_IMPLIES(representations_[virtual_register] != machine_type,
+  rep = FilterRepresentation(rep);
+  DCHECK_IMPLIES(representations_[virtual_register] != rep,
                  representations_[virtual_register] == DefaultRepresentation());
-  representations_[virtual_register] = machine_type;
+  representations_[virtual_register] = rep;
 }
 
 
@@ -759,7 +759,7 @@ FrameStateDescriptor::FrameStateDescriptor(
       types_(zone),
       shared_info_(shared_info),
       outer_state_(outer_state) {
-  types_.resize(GetSize(), kMachNone);
+  types_.resize(GetSize(), MachineType::None());
 }
 
 

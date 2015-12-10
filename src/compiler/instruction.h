@@ -392,12 +392,12 @@ class LocationOperand : public InstructionOperand {
 
   LocationOperand(InstructionOperand::Kind operand_kind,
                   LocationOperand::LocationKind location_kind,
-                  MachineType machine_type, int index)
+                  MachineRepresentation rep, int index)
       : InstructionOperand(operand_kind) {
     DCHECK_IMPLIES(location_kind == REGISTER, index >= 0);
-    DCHECK(IsSupportedMachineType(machine_type));
+    DCHECK(IsSupportedRepresentation(rep));
     value_ |= LocationKindField::encode(location_kind);
-    value_ |= MachineTypeField::encode(machine_type);
+    value_ |= RepresentationField::encode(rep);
     value_ |= static_cast<int64_t>(index) << IndexField::kShift;
   }
 
@@ -422,16 +422,17 @@ class LocationOperand : public InstructionOperand {
     return LocationKindField::decode(value_);
   }
 
-  MachineType machine_type() const { return MachineTypeField::decode(value_); }
+  MachineRepresentation representation() const {
+    return RepresentationField::decode(value_);
+  }
 
-  static bool IsSupportedMachineType(MachineType machine_type) {
-    if (RepresentationOf(machine_type) != machine_type) return false;
-    switch (machine_type) {
-      case kRepWord32:
-      case kRepWord64:
-      case kRepFloat32:
-      case kRepFloat64:
-      case kRepTagged:
+  static bool IsSupportedRepresentation(MachineRepresentation rep) {
+    switch (rep) {
+      case MachineRepresentation::kWord32:
+      case MachineRepresentation::kWord64:
+      case MachineRepresentation::kFloat32:
+      case MachineRepresentation::kFloat64:
+      case MachineRepresentation::kTagged:
         return true;
       default:
         return false;
@@ -455,19 +456,18 @@ class LocationOperand : public InstructionOperand {
 
   STATIC_ASSERT(KindField::kSize == 3);
   class LocationKindField : public BitField64<LocationKind, 3, 2> {};
-  class MachineTypeField : public BitField64<MachineType, 5, 16> {};
+  class RepresentationField : public BitField64<MachineRepresentation, 5, 8> {};
   class IndexField : public BitField64<int32_t, 35, 29> {};
 };
 
 
 class ExplicitOperand : public LocationOperand {
  public:
-  ExplicitOperand(LocationKind kind, MachineType machine_type, int index);
+  ExplicitOperand(LocationKind kind, MachineRepresentation rep, int index);
 
   static ExplicitOperand* New(Zone* zone, LocationKind kind,
-                              MachineType machine_type, int index) {
-    return InstructionOperand::New(zone,
-                                   ExplicitOperand(kind, machine_type, index));
+                              MachineRepresentation rep, int index) {
+    return InstructionOperand::New(zone, ExplicitOperand(kind, rep, index));
   }
 
   INSTRUCTION_OPERAND_CASTS(ExplicitOperand, EXPLICIT);
@@ -476,13 +476,12 @@ class ExplicitOperand : public LocationOperand {
 
 class AllocatedOperand : public LocationOperand {
  public:
-  AllocatedOperand(LocationKind kind, MachineType machine_type, int index)
-      : LocationOperand(ALLOCATED, kind, machine_type, index) {}
+  AllocatedOperand(LocationKind kind, MachineRepresentation rep, int index)
+      : LocationOperand(ALLOCATED, kind, rep, index) {}
 
   static AllocatedOperand* New(Zone* zone, LocationKind kind,
-                               MachineType machine_type, int index) {
-    return InstructionOperand::New(zone,
-                                   AllocatedOperand(kind, machine_type, index));
+                               MachineRepresentation rep, int index) {
+    return InstructionOperand::New(zone, AllocatedOperand(kind, rep, index));
   }
 
   INSTRUCTION_OPERAND_CASTS(AllocatedOperand, ALLOCATED);
@@ -496,40 +495,40 @@ bool InstructionOperand::IsRegister() const {
   return (IsAllocated() || IsExplicit()) &&
          LocationOperand::cast(this)->location_kind() ==
              LocationOperand::REGISTER &&
-         !IsFloatingPoint(LocationOperand::cast(this)->machine_type());
+         !IsFloatingPoint(LocationOperand::cast(this)->representation());
 }
 
 bool InstructionOperand::IsDoubleRegister() const {
   return (IsAllocated() || IsExplicit()) &&
          LocationOperand::cast(this)->location_kind() ==
              LocationOperand::REGISTER &&
-         IsFloatingPoint(LocationOperand::cast(this)->machine_type());
+         IsFloatingPoint(LocationOperand::cast(this)->representation());
 }
 
 bool InstructionOperand::IsStackSlot() const {
   return (IsAllocated() || IsExplicit()) &&
          LocationOperand::cast(this)->location_kind() ==
              LocationOperand::STACK_SLOT &&
-         !IsFloatingPoint(LocationOperand::cast(this)->machine_type());
+         !IsFloatingPoint(LocationOperand::cast(this)->representation());
 }
 
 bool InstructionOperand::IsDoubleStackSlot() const {
   return (IsAllocated() || IsExplicit()) &&
          LocationOperand::cast(this)->location_kind() ==
              LocationOperand::STACK_SLOT &&
-         IsFloatingPoint(LocationOperand::cast(this)->machine_type());
+         IsFloatingPoint(LocationOperand::cast(this)->representation());
 }
 
 uint64_t InstructionOperand::GetCanonicalizedValue() const {
   if (IsAllocated() || IsExplicit()) {
     // TODO(dcarney): put machine type last and mask.
-    MachineType canonicalized_machine_type =
-        IsFloatingPoint(LocationOperand::cast(this)->machine_type())
-            ? kMachFloat64
-            : kMachNone;
+    MachineRepresentation canonicalized_representation =
+        IsFloatingPoint(LocationOperand::cast(this)->representation())
+            ? MachineRepresentation::kFloat64
+            : MachineRepresentation::kNone;
     return InstructionOperand::KindField::update(
-        LocationOperand::MachineTypeField::update(this->value_,
-                                                  canonicalized_machine_type),
+        LocationOperand::RepresentationField::update(
+            this->value_, canonicalized_representation),
         LocationOperand::EXPLICIT);
   }
   return this->value_;
@@ -1131,19 +1130,20 @@ class InstructionSequence final : public ZoneObject {
 
   InstructionBlock* GetInstructionBlock(int instruction_index) const;
 
-  static MachineType DefaultRepresentation() {
-    return kPointerSize == 8 ? kRepWord64 : kRepWord32;
+  static MachineRepresentation DefaultRepresentation() {
+    return MachineType::PointerRepresentation();
   }
-  MachineType GetRepresentation(int virtual_register) const;
-  void MarkAsRepresentation(MachineType machine_type, int virtual_register);
+  MachineRepresentation GetRepresentation(int virtual_register) const;
+  void MarkAsRepresentation(MachineRepresentation rep, int virtual_register);
 
   bool IsReference(int virtual_register) const {
-    return GetRepresentation(virtual_register) == kRepTagged;
+    return GetRepresentation(virtual_register) ==
+           MachineRepresentation::kTagged;
   }
   bool IsFloat(int virtual_register) const {
     switch (GetRepresentation(virtual_register)) {
-      case kRepFloat32:
-      case kRepFloat64:
+      case MachineRepresentation::kFloat32:
+      case MachineRepresentation::kFloat64:
         return true;
       default:
         return false;
@@ -1263,7 +1263,7 @@ class InstructionSequence final : public ZoneObject {
   InstructionDeque instructions_;
   int next_virtual_register_;
   ReferenceMapDeque reference_maps_;
-  ZoneVector<MachineType> representations_;
+  ZoneVector<MachineRepresentation> representations_;
   DeoptimizationVector deoptimization_entries_;
 
   DISALLOW_COPY_AND_ASSIGN(InstructionSequence);

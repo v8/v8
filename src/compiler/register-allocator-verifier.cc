@@ -717,9 +717,9 @@ void RegisterAllocatorVerifier::VerifyGapMoves(BlockMaps* block_maps,
         if (op_constraints[count].type_ == kRegisterAndSlot) {
           const AllocatedOperand* reg_op =
               AllocatedOperand::cast(instr->OutputAt(i));
-          MachineType mt = reg_op->machine_type();
+          MachineRepresentation rep = reg_op->representation();
           const AllocatedOperand* stack_op = AllocatedOperand::New(
-              zone(), LocationOperand::LocationKind::STACK_SLOT, mt,
+              zone(), LocationOperand::LocationKind::STACK_SLOT, rep,
               op_constraints[i].spilled_slot_);
           auto insert_result =
               current->map().insert(std::make_pair(stack_op, value));

@@ -19,7 +19,8 @@ class JSContextRelaxationTest : public GraphTest {
  protected:
   Reduction Reduce(Node* node, MachineOperatorBuilder::Flags flags =
                                    MachineOperatorBuilder::kNoFlags) {
-    MachineOperatorBuilder machine(zone(), kMachPtr, flags);
+    MachineOperatorBuilder machine(zone(), MachineType::PointerRepresentation(),
+                                   flags);
     JSGraph jsgraph(isolate(), graph(), common(), javascript(), nullptr,
                     &machine);
     // TODO(titzer): mock the GraphReducer here for better unit testing.

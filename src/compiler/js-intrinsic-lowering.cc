@@ -210,8 +210,6 @@ Reduction JSIntrinsicLowering::ReduceIsInstanceType(
   // } else {
   //   return %_GetInstanceType(%_GetMap(value)) == instance_type;
   // }
-  MachineType const type = static_cast<MachineType>(kTypeBool | kRepTagged);
-
   Node* value = NodeProperties::GetValueInput(node, 0);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
@@ -239,7 +237,8 @@ Reduction JSIntrinsicLowering::ReduceIsInstanceType(
   ReplaceWithValue(node, node, ephi);
 
   // Turn the {node} into a Phi.
-  return Change(node, common()->Phi(type, 2), vtrue, vfalse, merge);
+  return Change(node, common()->Phi(MachineRepresentation::kTagged, 2), vtrue,
+                vfalse, merge);
 }
 
 
@@ -279,8 +278,8 @@ Reduction JSIntrinsicLowering::ReduceIsJSReceiver(Node* node) {
 
     control = graph()->NewNode(common()->Merge(2), if_true, if_false);
     effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
-    value = graph()->NewNode(common()->Phi(kMachAnyTagged, 2), vtrue, vfalse,
-                             control);
+    value = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                             vtrue, vfalse, control);
   }
   ReplaceWithValue(node, node, effect, control);
   return Replace(value);
@@ -346,7 +345,8 @@ Reduction JSIntrinsicLowering::ReduceValueOf(Node* node) {
   // }
   const Operator* const merge_op = common()->Merge(2);
   const Operator* const ephi_op = common()->EffectPhi(2);
-  const Operator* const phi_op = common()->Phi(kMachAnyTagged, 2);
+  const Operator* const phi_op =
+      common()->Phi(MachineRepresentation::kTagged, 2);
 
   Node* value = NodeProperties::GetValueInput(node, 0);
   Node* effect = NodeProperties::GetEffectInput(node);
@@ -511,7 +511,7 @@ Reduction JSIntrinsicLowering::ReduceToLength(Node* node) {
     } else {
       if (value_type->Min() <= 0.0) {
         value = graph()->NewNode(
-            common()->Select(kMachAnyTagged),
+            common()->Select(MachineRepresentation::kTagged),
             graph()->NewNode(simplified()->NumberLessThanOrEqual(), value,
                              jsgraph()->ZeroConstant()),
             jsgraph()->ZeroConstant(), value);
@@ -520,7 +520,7 @@ Reduction JSIntrinsicLowering::ReduceToLength(Node* node) {
       }
       if (value_type->Max() > kMaxSafeInteger) {
         value = graph()->NewNode(
-            common()->Select(kMachAnyTagged),
+            common()->Select(MachineRepresentation::kTagged),
             graph()->NewNode(simplified()->NumberLessThanOrEqual(),
                              jsgraph()->Constant(kMaxSafeInteger), value),
             jsgraph()->Constant(kMaxSafeInteger), value);

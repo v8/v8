@@ -33,7 +33,8 @@ TEST(NodeWithNullInputReachableFromEnd) {
   Node* start = graph.NewNode(common.Start(0));
   graph.SetStart(start);
   Node* k = graph.NewNode(common.Int32Constant(0));
-  Node* phi = graph.NewNode(common.Phi(kMachAnyTagged, 1), k, start);
+  Node* phi =
+      graph.NewNode(common.Phi(MachineRepresentation::kTagged, 1), k, start);
   phi->ReplaceInput(0, NULL);
   graph.SetEnd(phi);
 
@@ -52,7 +53,8 @@ TEST(NodeWithNullControlReachableFromEnd) {
   Node* start = graph.NewNode(common.Start(0));
   graph.SetStart(start);
   Node* k = graph.NewNode(common.Int32Constant(0));
-  Node* phi = graph.NewNode(common.Phi(kMachAnyTagged, 1), k, start);
+  Node* phi =
+      graph.NewNode(common.Phi(MachineRepresentation::kTagged, 1), k, start);
   phi->ReplaceInput(1, NULL);
   graph.SetEnd(phi);
 
@@ -71,7 +73,8 @@ TEST(NodeWithNullInputReachableFromStart) {
   Node* start = graph.NewNode(common.Start(0));
   graph.SetStart(start);
   Node* k = graph.NewNode(common.Int32Constant(0));
-  Node* phi = graph.NewNode(common.Phi(kMachAnyTagged, 1), k, start);
+  Node* phi =
+      graph.NewNode(common.Phi(MachineRepresentation::kTagged, 1), k, start);
   phi->ReplaceInput(0, NULL);
   graph.SetEnd(start);
 

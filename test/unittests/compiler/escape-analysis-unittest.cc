@@ -133,7 +133,7 @@ class EscapeAnalysisTest : public GraphTest {
 
   FieldAccess AccessAtIndex(int offset) {
     FieldAccess access = {kTaggedBase, offset, MaybeHandle<Name>(), Type::Any(),
-                          kMachAnyTagged};
+                          MachineType::AnyTagged()};
     return access;
   }
 

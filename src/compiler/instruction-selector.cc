@@ -241,16 +241,15 @@ void InstructionSelector::MarkAsUsed(Node* node) {
 }
 
 
-void InstructionSelector::MarkAsRepresentation(MachineType rep,
+void InstructionSelector::MarkAsRepresentation(MachineRepresentation rep,
                                                const InstructionOperand& op) {
   UnallocatedOperand unalloc = UnallocatedOperand::cast(op);
-  rep = RepresentationOf(rep);
   sequence()->MarkAsRepresentation(rep, unalloc.virtual_register());
 }
 
 
-void InstructionSelector::MarkAsRepresentation(MachineType rep, Node* node) {
-  rep = RepresentationOf(rep);
+void InstructionSelector::MarkAsRepresentation(MachineRepresentation rep,
+                                               Node* node) {
   sequence()->MarkAsRepresentation(rep, GetVirtualRegister(node));
 }
 
@@ -310,7 +309,7 @@ void AddFrameStateInputs(Node* state, OperandGenerator* g,
   size_t value_index = 0;
   inputs->push_back(
       OperandForDeopt(g, function, FrameStateInputKind::kStackSlot));
-  descriptor->SetType(value_index++, kMachAnyTagged);
+  descriptor->SetType(value_index++, MachineType::AnyTagged());
   for (StateValuesAccess::TypedNode input_node :
        StateValuesAccess(parameters)) {
     inputs->push_back(OperandForDeopt(g, input_node.node, kind));
@@ -319,7 +318,7 @@ void AddFrameStateInputs(Node* state, OperandGenerator* g,
   if (descriptor->HasContext()) {
     inputs->push_back(
         OperandForDeopt(g, context, FrameStateInputKind::kStackSlot));
-    descriptor->SetType(value_index++, kMachAnyTagged);
+    descriptor->SetType(value_index++, MachineType::AnyTagged());
   }
   for (StateValuesAccess::TypedNode input_node : StateValuesAccess(locals)) {
     inputs->push_back(OperandForDeopt(g, input_node.node, kind));
@@ -418,9 +417,10 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
 
         Node* output = buffer->output_nodes[i];
         InstructionOperand op =
-            output == NULL ? g.TempLocation(location, type)
-                           : g.DefineAsLocation(output, location, type);
-        MarkAsRepresentation(type, op);
+            output == NULL
+                ? g.TempLocation(location, type.representation())
+                : g.DefineAsLocation(output, location, type.representation());
+        MarkAsRepresentation(type.representation(), op);
 
         buffer->outputs.push_back(op);
       }
@@ -448,7 +448,7 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
     case CallDescriptor::kCallJSFunction:
       buffer->instruction_args.push_back(
           g.UseLocation(callee, buffer->descriptor->GetInputLocation(0),
-                        buffer->descriptor->GetInputType(0)));
+                        buffer->descriptor->GetInputType(0).representation()));
       break;
     case CallDescriptor::kLazyBailout:
       // The target is ignored, but we still need to pass a value here.
@@ -495,7 +495,8 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
           location, stack_param_delta);
     }
     InstructionOperand op =
-        g.UseLocation(*iter, location, buffer->descriptor->GetInputType(index));
+        g.UseLocation(*iter, location,
+                      buffer->descriptor->GetInputType(index).representation());
     if (UnallocatedOperand::cast(op).HasFixedSlotPolicy() && !call_tail) {
       int stack_index = -UnallocatedOperand::cast(op).fixed_slot_index() - 1;
       if (static_cast<size_t>(stack_index) >= buffer->pushed_nodes.size()) {
@@ -681,14 +682,14 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kParameter: {
       MachineType type =
           linkage()->GetParameterType(ParameterIndexOf(node->op()));
-      MarkAsRepresentation(type, node);
+      MarkAsRepresentation(type.representation(), node);
       return VisitParameter(node);
     }
     case IrOpcode::kOsrValue:
       return MarkAsReference(node), VisitOsrValue(node);
     case IrOpcode::kPhi: {
-      MachineType type = OpParameter<MachineType>(node);
-      MarkAsRepresentation(type, node);
+      MachineRepresentation rep = PhiRepresentationOf(node->op());
+      MarkAsRepresentation(rep, node);
       return VisitPhi(node);
     }
     case IrOpcode::kProjection:
@@ -714,8 +715,8 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kStateValues:
       return;
     case IrOpcode::kLoad: {
-      LoadRepresentation rep = OpParameter<LoadRepresentation>(node);
-      MarkAsRepresentation(rep, node);
+      LoadRepresentation type = LoadRepresentationOf(node->op());
+      MarkAsRepresentation(type.representation(), node);
       return VisitLoad(node);
     }
     case IrOpcode::kStore:
@@ -937,7 +938,8 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kLoadFramePointer:
       return VisitLoadFramePointer(node);
     case IrOpcode::kCheckedLoad: {
-      MachineType rep = OpParameter<MachineType>(node);
+      MachineRepresentation rep =
+          CheckedLoadRepresentationOf(node->op()).representation();
       MarkAsRepresentation(rep, node);
       return VisitCheckedLoad(node);
     }
@@ -1161,8 +1163,9 @@ void InstructionSelector::VisitParameter(Node* node) {
           ? g.DefineAsDualLocation(
                 node, linkage()->GetParameterLocation(index),
                 linkage()->GetParameterSecondaryLocation(index))
-          : g.DefineAsLocation(node, linkage()->GetParameterLocation(index),
-                               linkage()->GetParameterType(index));
+          : g.DefineAsLocation(
+                node, linkage()->GetParameterLocation(index),
+                linkage()->GetParameterType(index).representation());
 
   Emit(kArchNop, op);
 }
@@ -1173,8 +1176,9 @@ void InstructionSelector::VisitIfException(Node* node) {
   Node* call = node->InputAt(1);
   DCHECK_EQ(IrOpcode::kCall, call->opcode());
   const CallDescriptor* descriptor = OpParameter<const CallDescriptor*>(call);
-  Emit(kArchNop, g.DefineAsLocation(node, descriptor->GetReturnLocation(0),
-                                    descriptor->GetReturnType(0)));
+  Emit(kArchNop,
+       g.DefineAsLocation(node, descriptor->GetReturnLocation(0),
+                          descriptor->GetReturnType(0).representation()));
 }
 
 
@@ -1182,7 +1186,7 @@ void InstructionSelector::VisitOsrValue(Node* node) {
   OperandGenerator g(this);
   int index = OpParameter<int>(node);
   Emit(kArchNop, g.DefineAsLocation(node, linkage()->GetOsrValueLocation(index),
-                                    kMachAnyTagged));
+                                    MachineRepresentation::kTagged));
 }
 
 
@@ -1399,7 +1403,7 @@ void InstructionSelector::VisitReturn(Node* ret) {
     for (int i = 0; i < ret_count; ++i) {
       value_locations[i] =
           g.UseLocation(ret->InputAt(i), linkage()->GetReturnLocation(i),
-                        linkage()->GetReturnType(i));
+                        linkage()->GetReturnType(i).representation());
     }
     Emit(kArchRet, 0, nullptr, ret_count, value_locations);
   }

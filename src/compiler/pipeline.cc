@@ -105,7 +105,7 @@ class PipelineData {
     source_positions_.Reset(new SourcePositionTable(graph_));
     simplified_ = new (graph_zone_) SimplifiedOperatorBuilder(graph_zone_);
     machine_ = new (graph_zone_) MachineOperatorBuilder(
-        graph_zone_, kMachPtr,
+        graph_zone_, MachineType::PointerRepresentation(),
         InstructionSelector::SupportedMachineOperatorFlags());
     common_ = new (graph_zone_) CommonOperatorBuilder(graph_zone_);
     javascript_ = new (graph_zone_) JSOperatorBuilder(graph_zone_);

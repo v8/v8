@@ -319,7 +319,7 @@ class Linkage : public ZoneObject {
       Isolate* isolate, Zone* zone, const CallInterfaceDescriptor& descriptor,
       int stack_parameter_count, CallDescriptor::Flags flags,
       Operator::Properties properties = Operator::kNoProperties,
-      MachineType return_type = kMachAnyTagged);
+      MachineType return_type = MachineType::AnyTagged());
 
   // Creates a call descriptor for simplified C calls that is appropriate
   // for the host platform. This simplified calling convention only supports

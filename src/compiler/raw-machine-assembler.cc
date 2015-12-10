@@ -15,7 +15,7 @@ namespace compiler {
 
 RawMachineAssembler::RawMachineAssembler(Isolate* isolate, Graph* graph,
                                          CallDescriptor* call_descriptor,
-                                         MachineType word,
+                                         MachineRepresentation word,
                                          MachineOperatorBuilder::Flags flags)
     : isolate_(isolate),
       graph_(graph),

@@ -45,7 +45,8 @@ void CreateSplinter(TopLevelLiveRange *range, RegisterAllocationData *data,
       data->CreateSpillRangeForLiveRange(range);
     }
     if (range->splinter() == nullptr) {
-      TopLevelLiveRange *splinter = data->NextLiveRange(range->machine_type());
+      TopLevelLiveRange *splinter =
+          data->NextLiveRange(range->representation());
       DCHECK_NULL(data->live_ranges()[splinter->vreg()]);
       data->live_ranges()[splinter->vreg()] = splinter;
       range->SetSplinter(splinter);

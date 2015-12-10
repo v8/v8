@@ -156,14 +156,15 @@ Node* BytecodeGraphBuilder::GetFunctionClosure() {
 
 
 Node* BytecodeGraphBuilder::BuildLoadObjectField(Node* object, int offset) {
-  return NewNode(jsgraph()->machine()->Load(kMachAnyTagged), object,
+  return NewNode(jsgraph()->machine()->Load(MachineType::AnyTagged()), object,
                  jsgraph()->IntPtrConstant(offset - kHeapObjectTag));
 }
 
 
 Node* BytecodeGraphBuilder::BuildLoadImmutableObjectField(Node* object,
                                                           int offset) {
-  return graph()->NewNode(jsgraph()->machine()->Load(kMachAnyTagged), object,
+  return graph()->NewNode(jsgraph()->machine()->Load(MachineType::AnyTagged()),
+                          object,
                           jsgraph()->IntPtrConstant(offset - kHeapObjectTag),
                           graph()->start(), graph()->start());
 }
@@ -1034,7 +1035,7 @@ void BytecodeGraphBuilder::VisitLogicalNot(
     const interpreter::BytecodeArrayIterator& iterator) {
   Node* value = NewNode(javascript()->ToBoolean(ToBooleanHint::kAny),
                         environment()->LookupAccumulator());
-  Node* node = NewNode(common()->Select(kMachAnyTagged), value,
+  Node* node = NewNode(common()->Select(MachineRepresentation::kTagged), value,
                        jsgraph()->FalseConstant(), jsgraph()->TrueConstant());
   environment()->BindAccumulator(node);
 }

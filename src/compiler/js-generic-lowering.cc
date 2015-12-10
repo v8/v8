@@ -159,7 +159,7 @@ void JSGenericLowering::ReplaceWithCompareIC(Node* node, Token::Value token,
   CallDescriptor* desc_compare = Linkage::GetStubCallDescriptor(
       isolate(), zone(), callable.descriptor(), 0,
       CallDescriptor::kPatchableCallSiteWithNop | FlagsForNode(node),
-      Operator::kNoProperties, kMachIntPtr);
+      Operator::kNoProperties, MachineType::IntPtr());
   Node* compare =
       graph()->NewNode(common()->Call(desc_compare),
                        static_cast<int>(inputs.size()), &inputs.front());
@@ -204,7 +204,8 @@ void JSGenericLowering::ReplaceWithCompareIC(Node* node, Token::Value token,
   node->ReplaceInput(0, booleanize);
   node->ReplaceInput(1, true_value);
   node->ReplaceInput(2, false_value);
-  NodeProperties::ChangeOp(node, common()->Select(kMachAnyTagged));
+  NodeProperties::ChangeOp(node,
+                           common()->Select(MachineRepresentation::kTagged));
 }
 
 
@@ -307,12 +308,12 @@ void JSGenericLowering::LowerJSLoadGlobal(Node* node) {
       isolate(), p.typeof_mode(), SLOPPY, UNINITIALIZED);
   // Load global object from the context.
   Node* native_context =
-      graph()->NewNode(machine()->Load(kMachAnyTagged), context,
+      graph()->NewNode(machine()->Load(MachineType::AnyTagged()), context,
                        jsgraph()->IntPtrConstant(
                            Context::SlotOffset(Context::NATIVE_CONTEXT_INDEX)),
                        effect, graph()->start());
   Node* global = graph()->NewNode(
-      machine()->Load(kMachAnyTagged), native_context,
+      machine()->Load(MachineType::AnyTagged()), native_context,
       jsgraph()->IntPtrConstant(Context::SlotOffset(Context::EXTENSION_INDEX)),
       effect, graph()->start());
   node->InsertInput(zone(), 0, global);
@@ -357,12 +358,12 @@ void JSGenericLowering::LowerJSStoreGlobal(Node* node) {
       isolate(), p.language_mode(), UNINITIALIZED);
   // Load global object from the context.
   Node* native_context =
-      graph()->NewNode(machine()->Load(kMachAnyTagged), context,
+      graph()->NewNode(machine()->Load(MachineType::AnyTagged()), context,
                        jsgraph()->IntPtrConstant(
                            Context::SlotOffset(Context::NATIVE_CONTEXT_INDEX)),
                        effect, graph()->start());
   Node* global = graph()->NewNode(
-      machine()->Load(kMachAnyTagged), native_context,
+      machine()->Load(MachineType::AnyTagged()), native_context,
       jsgraph()->IntPtrConstant(Context::SlotOffset(Context::EXTENSION_INDEX)),
       effect, graph()->start());
   node->InsertInput(zone(), 0, global);
@@ -398,7 +399,7 @@ void JSGenericLowering::LowerJSLoadContext(Node* node) {
   const ContextAccess& access = ContextAccessOf(node->op());
   for (size_t i = 0; i < access.depth(); ++i) {
     node->ReplaceInput(
-        0, graph()->NewNode(machine()->Load(kMachAnyTagged),
+        0, graph()->NewNode(machine()->Load(MachineType::AnyTagged()),
                             NodeProperties::GetValueInput(node, 0),
                             jsgraph()->Int32Constant(
                                 Context::SlotOffset(Context::PREVIOUS_INDEX)),
@@ -408,7 +409,7 @@ void JSGenericLowering::LowerJSLoadContext(Node* node) {
   node->ReplaceInput(1, jsgraph()->Int32Constant(Context::SlotOffset(
                             static_cast<int>(access.index()))));
   node->AppendInput(zone(), graph()->start());
-  NodeProperties::ChangeOp(node, machine()->Load(kMachAnyTagged));
+  NodeProperties::ChangeOp(node, machine()->Load(MachineType::AnyTagged()));
 }
 
 
@@ -416,7 +417,7 @@ void JSGenericLowering::LowerJSStoreContext(Node* node) {
   const ContextAccess& access = ContextAccessOf(node->op());
   for (size_t i = 0; i < access.depth(); ++i) {
     node->ReplaceInput(
-        0, graph()->NewNode(machine()->Load(kMachAnyTagged),
+        0, graph()->NewNode(machine()->Load(MachineType::AnyTagged()),
                             NodeProperties::GetValueInput(node, 0),
                             jsgraph()->Int32Constant(
                                 Context::SlotOffset(Context::PREVIOUS_INDEX)),
@@ -426,8 +427,9 @@ void JSGenericLowering::LowerJSStoreContext(Node* node) {
   node->ReplaceInput(2, NodeProperties::GetValueInput(node, 1));
   node->ReplaceInput(1, jsgraph()->Int32Constant(Context::SlotOffset(
                             static_cast<int>(access.index()))));
-  NodeProperties::ChangeOp(node, machine()->Store(StoreRepresentation(
-                                     kMachAnyTagged, kFullWriteBarrier)));
+  NodeProperties::ChangeOp(
+      node, machine()->Store(StoreRepresentation(MachineType::AnyTagged(),
+                                                 kFullWriteBarrier)));
 }
 
 
@@ -626,11 +628,11 @@ void JSGenericLowering::LowerJSForInPrepare(Node* node) {
   control = graph()->NewNode(common()->IfSuccess(), cache_type);
 
   Node* object_map = effect = graph()->NewNode(
-      machine()->Load(kMachAnyTagged), object,
+      machine()->Load(MachineType::AnyTagged()), object,
       jsgraph()->IntPtrConstant(HeapObject::kMapOffset - kHeapObjectTag),
       effect, control);
   Node* cache_type_map = effect = graph()->NewNode(
-      machine()->Load(kMachAnyTagged), cache_type,
+      machine()->Load(MachineType::AnyTagged()), cache_type,
       jsgraph()->IntPtrConstant(HeapObject::kMapOffset - kHeapObjectTag),
       effect, control);
   Node* meta_map = jsgraph()->HeapConstant(isolate()->factory()->meta_map());
@@ -651,7 +653,7 @@ void JSGenericLowering::LowerJSForInPrepare(Node* node) {
   {
     // Enum cache case.
     Node* cache_type_enum_length = etrue0 = graph()->NewNode(
-        machine()->Load(kMachUint32), cache_type,
+        machine()->Load(MachineType::Uint32()), cache_type,
         jsgraph()->IntPtrConstant(Map::kBitField3Offset - kHeapObjectTag),
         effect, if_true0);
     cache_type_enum_length =
@@ -680,16 +682,16 @@ void JSGenericLowering::LowerJSForInPrepare(Node* node) {
     {
       // Load the enumeration cache from the instance descriptors of {object}.
       Node* object_map_descriptors = efalse1 = graph()->NewNode(
-          machine()->Load(kMachAnyTagged), object_map,
+          machine()->Load(MachineType::AnyTagged()), object_map,
           jsgraph()->IntPtrConstant(Map::kDescriptorsOffset - kHeapObjectTag),
           etrue0, if_false1);
       Node* object_map_enum_cache = efalse1 = graph()->NewNode(
-          machine()->Load(kMachAnyTagged), object_map_descriptors,
+          machine()->Load(MachineType::AnyTagged()), object_map_descriptors,
           jsgraph()->IntPtrConstant(DescriptorArray::kEnumCacheOffset -
                                     kHeapObjectTag),
           efalse1, if_false1);
       cache_array_false1 = efalse1 = graph()->NewNode(
-          machine()->Load(kMachAnyTagged), object_map_enum_cache,
+          machine()->Load(MachineType::AnyTagged()), object_map_enum_cache,
           jsgraph()->IntPtrConstant(
               DescriptorArray::kEnumCacheBridgeCacheOffset - kHeapObjectTag),
           efalse1, if_false1);
@@ -699,8 +701,8 @@ void JSGenericLowering::LowerJSForInPrepare(Node* node) {
     etrue0 =
         graph()->NewNode(common()->EffectPhi(2), etrue1, efalse1, if_true0);
     cache_array_true0 =
-        graph()->NewNode(common()->Phi(kMachAnyTagged, 2), cache_array_true1,
-                         cache_array_false1, if_true0);
+        graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                         cache_array_true1, cache_array_false1, if_true0);
 
     cache_length_true0 = graph()->NewNode(
         machine()->WordShl(),
@@ -720,7 +722,7 @@ void JSGenericLowering::LowerJSForInPrepare(Node* node) {
   {
     // FixedArray case.
     Node* object_instance_type = efalse0 = graph()->NewNode(
-        machine()->Load(kMachUint8), object_map,
+        machine()->Load(MachineType::Uint8()), object_map,
         jsgraph()->IntPtrConstant(Map::kInstanceTypeOffset - kHeapObjectTag),
         effect, if_false0);
 
@@ -738,12 +740,12 @@ void JSGenericLowering::LowerJSForInPrepare(Node* node) {
 
     if_false0 = graph()->NewNode(common()->Merge(2), if_true1, if_false1);
     cache_type_false0 =
-        graph()->NewNode(common()->Phi(kMachAnyTagged, 2), cache_type_true1,
-                         cache_type_false1, if_false0);
+        graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                         cache_type_true1, cache_type_false1, if_false0);
 
     cache_array_false0 = cache_type;
     cache_length_false0 = efalse0 = graph()->NewNode(
-        machine()->Load(kMachAnyTagged), cache_array_false0,
+        machine()->Load(MachineType::AnyTagged()), cache_array_false0,
         jsgraph()->IntPtrConstant(FixedArray::kLengthOffset - kHeapObjectTag),
         efalse0, if_false0);
   }
@@ -751,13 +753,14 @@ void JSGenericLowering::LowerJSForInPrepare(Node* node) {
   control = graph()->NewNode(common()->Merge(2), if_true0, if_false0);
   effect = graph()->NewNode(common()->EffectPhi(2), etrue0, efalse0, control);
   Node* cache_array =
-      graph()->NewNode(common()->Phi(kMachAnyTagged, 2), cache_array_true0,
-                       cache_array_false0, control);
+      graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                       cache_array_true0, cache_array_false0, control);
   Node* cache_length =
-      graph()->NewNode(common()->Phi(kMachAnyTagged, 2), cache_length_true0,
-                       cache_length_false0, control);
-  cache_type = graph()->NewNode(common()->Phi(kMachAnyTagged, 2),
-                                cache_type_true0, cache_type_false0, control);
+      graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                       cache_length_true0, cache_length_false0, control);
+  cache_type =
+      graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                       cache_type_true0, cache_type_false0, control);
 
   for (auto edge : node->use_edges()) {
     if (NodeProperties::IsEffectEdge(edge)) {
@@ -807,7 +810,7 @@ void JSGenericLowering::LowerJSLoadMessage(Node* node) {
   node->RemoveInput(NodeProperties::FirstContextIndex(node));
   node->InsertInput(zone(), 0, jsgraph()->ExternalConstant(message_address));
   node->InsertInput(zone(), 1, jsgraph()->IntPtrConstant(0));
-  NodeProperties::ChangeOp(node, machine()->Load(kMachAnyTagged));
+  NodeProperties::ChangeOp(node, machine()->Load(MachineType::AnyTagged()));
 }
 
 
@@ -817,7 +820,7 @@ void JSGenericLowering::LowerJSStoreMessage(Node* node) {
   node->RemoveInput(NodeProperties::FirstContextIndex(node));
   node->InsertInput(zone(), 0, jsgraph()->ExternalConstant(message_address));
   node->InsertInput(zone(), 1, jsgraph()->IntPtrConstant(0));
-  StoreRepresentation representation(kMachAnyTagged, kNoWriteBarrier);
+  StoreRepresentation representation(MachineType::AnyTagged(), kNoWriteBarrier);
   NodeProperties::ChangeOp(node, machine()->Store(representation));
 }
 
@@ -830,7 +833,7 @@ void JSGenericLowering::LowerJSStackCheck(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
 
   Node* limit = graph()->NewNode(
-      machine()->Load(kMachPtr),
+      machine()->Load(MachineType::Pointer()),
       jsgraph()->ExternalConstant(
           ExternalReference::address_of_stack_limit(isolate())),
       jsgraph()->IntPtrConstant(0), effect, control);

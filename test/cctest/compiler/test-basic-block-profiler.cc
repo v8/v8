@@ -12,7 +12,8 @@ namespace compiler {
 
 class BasicBlockProfilerTest : public RawMachineAssemblerTester<int32_t> {
  public:
-  BasicBlockProfilerTest() : RawMachineAssemblerTester<int32_t>(kMachInt32) {
+  BasicBlockProfilerTest()
+      : RawMachineAssemblerTester<int32_t>(MachineType::Int32()) {
     FLAG_turbo_profiling = true;
   }
 
@@ -81,7 +82,7 @@ TEST(ProfileLoop) {
   m.Goto(&header);
 
   m.Bind(&header);
-  Node* count = m.Phi(kMachInt32, m.Parameter(0), one);
+  Node* count = m.Phi(MachineRepresentation::kWord32, m.Parameter(0), one);
   m.Branch(count, &body, &end);
 
   m.Bind(&body);

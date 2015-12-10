@@ -24,7 +24,7 @@ class GraphAndBuilders {
   explicit GraphAndBuilders(Zone* zone)
       : main_graph_(new (zone) Graph(zone)),
         main_common_(zone),
-        main_machine_(zone, kMachPtr,
+        main_machine_(zone, MachineType::PointerRepresentation(),
                       InstructionSelector::SupportedMachineOperatorFlags()),
         main_simplified_(zone) {}
 
@@ -48,11 +48,11 @@ class GraphBuilderTester : public HandleAndZoneScope,
                            public GraphAndBuilders,
                            public CallHelper<ReturnType> {
  public:
-  explicit GraphBuilderTester(MachineType p0 = kMachNone,
-                              MachineType p1 = kMachNone,
-                              MachineType p2 = kMachNone,
-                              MachineType p3 = kMachNone,
-                              MachineType p4 = kMachNone)
+  explicit GraphBuilderTester(MachineType p0 = MachineType::None(),
+                              MachineType p1 = MachineType::None(),
+                              MachineType p2 = MachineType::None(),
+                              MachineType p3 = MachineType::None(),
+                              MachineType p4 = MachineType::None())
       : GraphAndBuilders(main_zone()),
         CallHelper<ReturnType>(
             main_isolate(),

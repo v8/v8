@@ -510,7 +510,8 @@ OperandAndType TypedOperandForFrameState(FrameStateDescriptor* descriptor,
           descriptor->GetSize(OutputFrameStateCombine::Ignore());
       // If the index is past the existing stack items, return the output.
       if (index >= size_without_output) {
-        return {instr->OutputAt(index - size_without_output), kMachAnyTagged};
+        return {instr->OutputAt(index - size_without_output),
+                MachineType::AnyTagged()};
       }
       break;
     }
@@ -519,7 +520,8 @@ OperandAndType TypedOperandForFrameState(FrameStateDescriptor* descriptor,
           descriptor->GetSize(combine) - 1 - combine.GetOffsetToPokeAt();
       if (index >= index_from_top &&
           index < index_from_top + instr->OutputCount()) {
-        return {instr->OutputAt(index - index_from_top), kMachAnyTagged};
+        return {instr->OutputAt(index - index_from_top),
+                MachineType::AnyTagged()};
       }
       break;
   }
@@ -603,37 +605,39 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
                                              InstructionOperand* op,
                                              MachineType type) {
   if (op->IsStackSlot()) {
-    if (type == kMachBool || type == kRepBit) {
+    if (type.representation() == MachineRepresentation::kBit) {
       translation->StoreBoolStackSlot(LocationOperand::cast(op)->index());
-    } else if (type == kMachInt32 || type == kMachInt8 || type == kMachInt16) {
+    } else if (type == MachineType::Int8() || type == MachineType::Int16() ||
+               type == MachineType::Int32()) {
       translation->StoreInt32StackSlot(LocationOperand::cast(op)->index());
-    } else if (type == kMachUint32 || type == kMachUint16 ||
-               type == kMachUint8) {
+    } else if (type == MachineType::Uint8() || type == MachineType::Uint16() ||
+               type == MachineType::Uint32()) {
       translation->StoreUint32StackSlot(LocationOperand::cast(op)->index());
-    } else if ((type & kRepMask) == kRepTagged) {
+    } else if (type.representation() == MachineRepresentation::kTagged) {
       translation->StoreStackSlot(LocationOperand::cast(op)->index());
     } else {
       CHECK(false);
     }
   } else if (op->IsDoubleStackSlot()) {
-    DCHECK((type & (kRepFloat32 | kRepFloat64)) != 0);
+    DCHECK(IsFloatingPoint(type.representation()));
     translation->StoreDoubleStackSlot(LocationOperand::cast(op)->index());
   } else if (op->IsRegister()) {
     InstructionOperandConverter converter(this, instr);
-    if (type == kMachBool || type == kRepBit) {
+    if (type.representation() == MachineRepresentation::kBit) {
       translation->StoreBoolRegister(converter.ToRegister(op));
-    } else if (type == kMachInt32 || type == kMachInt8 || type == kMachInt16) {
+    } else if (type == MachineType::Int8() || type == MachineType::Int16() ||
+               type == MachineType::Int32()) {
       translation->StoreInt32Register(converter.ToRegister(op));
-    } else if (type == kMachUint32 || type == kMachUint16 ||
-               type == kMachUint8) {
+    } else if (type == MachineType::Uint8() || type == MachineType::Uint16() ||
+               type == MachineType::Uint32()) {
       translation->StoreUint32Register(converter.ToRegister(op));
-    } else if ((type & kRepMask) == kRepTagged) {
+    } else if (type.representation() == MachineRepresentation::kTagged) {
       translation->StoreRegister(converter.ToRegister(op));
     } else {
       CHECK(false);
     }
   } else if (op->IsDoubleRegister()) {
-    DCHECK((type & (kRepFloat32 | kRepFloat64)) != 0);
+    DCHECK(IsFloatingPoint(type.representation()));
     InstructionOperandConverter converter(this, instr);
     translation->StoreDoubleRegister(converter.ToDoubleRegister(op));
   } else if (op->IsImmediate()) {
@@ -642,21 +646,23 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
     Handle<Object> constant_object;
     switch (constant.type()) {
       case Constant::kInt32:
-        DCHECK(type == kMachInt32 || type == kMachUint32 || type == kMachBool ||
-               type == kRepBit);
+        DCHECK(type == MachineType::Int32() || type == MachineType::Uint32() ||
+               type.representation() == MachineRepresentation::kBit);
         constant_object =
             isolate()->factory()->NewNumberFromInt(constant.ToInt32());
         break;
       case Constant::kFloat32:
-        DCHECK((type & (kRepFloat32 | kRepTagged)) != 0);
+        DCHECK(type.representation() == MachineRepresentation::kFloat32 ||
+               type.representation() == MachineRepresentation::kTagged);
         constant_object = isolate()->factory()->NewNumber(constant.ToFloat32());
         break;
       case Constant::kFloat64:
-        DCHECK((type & (kRepFloat64 | kRepTagged)) != 0);
+        DCHECK(type.representation() == MachineRepresentation::kFloat64 ||
+               type.representation() == MachineRepresentation::kTagged);
         constant_object = isolate()->factory()->NewNumber(constant.ToFloat64());
         break;
       case Constant::kHeapObject:
-        DCHECK((type & kRepMask) == kRepTagged);
+        DCHECK(type.representation() == MachineRepresentation::kTagged);
         constant_object = constant.ToHeapObject();
         break;
       default:

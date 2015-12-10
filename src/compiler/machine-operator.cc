@@ -68,6 +68,12 @@ std::ostream& operator<<(std::ostream& os, StoreRepresentation rep) {
 }
 
 
+LoadRepresentation LoadRepresentationOf(Operator const* op) {
+  DCHECK_EQ(IrOpcode::kLoad, op->opcode());
+  return OpParameter<LoadRepresentation>(op);
+}
+
+
 StoreRepresentation const& StoreRepresentationOf(Operator const* op) {
   DCHECK_EQ(IrOpcode::kStore, op->opcode());
   return OpParameter<StoreRepresentation>(op);
@@ -200,18 +206,18 @@ CheckedStoreRepresentation CheckedStoreRepresentationOf(Operator const* op) {
 
 
 #define MACHINE_TYPE_LIST(V) \
-  V(MachFloat32)             \
-  V(MachFloat64)             \
-  V(MachInt8)                \
-  V(MachUint8)               \
-  V(MachInt16)               \
-  V(MachUint16)              \
-  V(MachInt32)               \
-  V(MachUint32)              \
-  V(MachInt64)               \
-  V(MachUint64)              \
-  V(MachPtr)                 \
-  V(MachAnyTagged)
+  V(Float32)                 \
+  V(Float64)                 \
+  V(Int8)                    \
+  V(Uint8)                   \
+  V(Int16)                   \
+  V(Uint16)                  \
+  V(Int32)                   \
+  V(Uint32)                  \
+  V(Int64)                   \
+  V(Uint64)                  \
+  V(Pointer)                 \
+  V(AnyTagged)
 
 
 struct MachineOperatorGlobalCache {
@@ -246,14 +252,14 @@ struct MachineOperatorGlobalCache {
     Load##Type##Operator()                                                     \
         : Operator1<LoadRepresentation>(                                       \
               IrOpcode::kLoad, Operator::kNoThrow | Operator::kNoWrite,        \
-              "Load", 2, 1, 1, 1, 1, 0, k##Type) {}                            \
+              "Load", 2, 1, 1, 1, 1, 0, MachineType::Type()) {}                \
   };                                                                           \
   struct CheckedLoad##Type##Operator final                                     \
       : public Operator1<CheckedLoadRepresentation> {                          \
     CheckedLoad##Type##Operator()                                              \
         : Operator1<CheckedLoadRepresentation>(                                \
               IrOpcode::kCheckedLoad, Operator::kNoThrow | Operator::kNoWrite, \
-              "CheckedLoad", 3, 1, 1, 1, 1, 0, k##Type) {}                     \
+              "CheckedLoad", 3, 1, 1, 1, 1, 0, MachineType::Type()) {}         \
   };                                                                           \
   Load##Type##Operator kLoad##Type;                                            \
   CheckedLoad##Type##Operator kCheckedLoad##Type;
@@ -266,7 +272,7 @@ struct MachineOperatorGlobalCache {
         : Operator1<StoreRepresentation>(                                      \
               IrOpcode::kStore, Operator::kNoRead | Operator::kNoThrow,        \
               "Store", 3, 1, 1, 0, 1, 0,                                       \
-              StoreRepresentation(k##Type, write_barrier_kind)) {}             \
+              StoreRepresentation(MachineType::Type(), write_barrier_kind)) {} \
   };                                                                           \
   struct Store##Type##NoWriteBarrier##Operator final                           \
       : public Store##Type##Operator {                                         \
@@ -293,7 +299,7 @@ struct MachineOperatorGlobalCache {
     CheckedStore##Type##Operator()                                             \
         : Operator1<CheckedStoreRepresentation>(                               \
               IrOpcode::kCheckedStore, Operator::kNoRead | Operator::kNoThrow, \
-              "CheckedStore", 4, 1, 1, 0, 1, 0, k##Type) {}                    \
+              "CheckedStore", 4, 1, 1, 0, 1, 0, MachineType::Type()) {}        \
   };                                                                           \
   Store##Type##NoWriteBarrier##Operator kStore##Type##NoWriteBarrier;          \
   Store##Type##MapWriteBarrier##Operator kStore##Type##MapWriteBarrier;        \
@@ -310,10 +316,12 @@ static base::LazyInstance<MachineOperatorGlobalCache>::type kCache =
     LAZY_INSTANCE_INITIALIZER;
 
 
-MachineOperatorBuilder::MachineOperatorBuilder(Zone* zone, MachineType word,
+MachineOperatorBuilder::MachineOperatorBuilder(Zone* zone,
+                                               MachineRepresentation word,
                                                Flags flags)
     : cache_(kCache.Get()), word_(word), flags_(flags) {
-  DCHECK(word == kRepWord32 || word == kRepWord64);
+  DCHECK(word == MachineRepresentation::kWord32 ||
+         word == MachineRepresentation::kWord64);
 }
 
 
@@ -346,25 +354,22 @@ const Operator* MachineOperatorBuilder::TruncateFloat64ToInt32(
 
 
 const Operator* MachineOperatorBuilder::Load(LoadRepresentation rep) {
-  switch (rep) {
-#define LOAD(Type) \
-  case k##Type:    \
-    return &cache_.kLoad##Type;
+#define LOAD(Type)                  \
+  if (rep == MachineType::Type()) { \
+    return &cache_.kLoad##Type;     \
+  }
     MACHINE_TYPE_LIST(LOAD)
 #undef LOAD
-    default:
-      break;
-  }
   UNREACHABLE();
   return nullptr;
 }
 
 
-const Operator* MachineOperatorBuilder::Store(StoreRepresentation rep) {
-  switch (rep.machine_type()) {
+const Operator* MachineOperatorBuilder::Store(StoreRepresentation store_rep) {
+  MachineType type = store_rep.machine_type();
 #define STORE(Type)                                         \
-  case k##Type:                                             \
-    switch (rep.write_barrier_kind()) {                     \
+  if (type == MachineType::Type()) {                        \
+    switch (store_rep.write_barrier_kind()) {               \
       case kNoWriteBarrier:                                 \
         return &cache_.k##Store##Type##NoWriteBarrier;      \
       case kMapWriteBarrier:                                \
@@ -374,13 +379,9 @@ const Operator* MachineOperatorBuilder::Store(StoreRepresentation rep) {
       case kFullWriteBarrier:                               \
         return &cache_.k##Store##Type##FullWriteBarrier;    \
     }                                                       \
-    break;
+  }
     MACHINE_TYPE_LIST(STORE)
 #undef STORE
-
-    default:
-      break;
-  }
   UNREACHABLE();
   return nullptr;
 }
@@ -388,15 +389,12 @@ const Operator* MachineOperatorBuilder::Store(StoreRepresentation rep) {
 
 const Operator* MachineOperatorBuilder::CheckedLoad(
     CheckedLoadRepresentation rep) {
-  switch (rep) {
-#define LOAD(Type) \
-  case k##Type:    \
-    return &cache_.kCheckedLoad##Type;
+#define LOAD(Type)                     \
+  if (rep == MachineType::Type()) {    \
+    return &cache_.kCheckedLoad##Type; \
+  }
     MACHINE_TYPE_LIST(LOAD)
 #undef LOAD
-    default:
-      break;
-  }
   UNREACHABLE();
   return nullptr;
 }
@@ -404,15 +402,12 @@ const Operator* MachineOperatorBuilder::CheckedLoad(
 
 const Operator* MachineOperatorBuilder::CheckedStore(
     CheckedStoreRepresentation rep) {
-  switch (rep) {
-#define STORE(Type) \
-  case k##Type:     \
-    return &cache_.kCheckedStore##Type;
+#define STORE(Type)                     \
+  if (rep == MachineType::Type()) {     \
+    return &cache_.kCheckedStore##Type; \
+  }
     MACHINE_TYPE_LIST(STORE)
 #undef STORE
-    default:
-      break;
-  }
   UNREACHABLE();
   return nullptr;
 }

@@ -68,8 +68,8 @@ class OperandGenerator {
   }
 
   InstructionOperand DefineAsLocation(Node* node, LinkageLocation location,
-                                      MachineType type) {
-    return Define(node, ToUnallocatedOperand(location, type, GetVReg(node)));
+                                      MachineRepresentation rep) {
+    return Define(node, ToUnallocatedOperand(location, rep, GetVReg(node)));
   }
 
   InstructionOperand DefineAsDualLocation(Node* node,
@@ -129,12 +129,12 @@ class OperandGenerator {
   }
 
   InstructionOperand UseExplicit(LinkageLocation location) {
-    MachineType machine_type = InstructionSequence::DefaultRepresentation();
+    MachineRepresentation rep = InstructionSequence::DefaultRepresentation();
     if (location.IsRegister()) {
-      return ExplicitOperand(LocationOperand::REGISTER, machine_type,
+      return ExplicitOperand(LocationOperand::REGISTER, rep,
                              location.AsRegister());
     } else {
-      return ExplicitOperand(LocationOperand::STACK_SLOT, machine_type,
+      return ExplicitOperand(LocationOperand::STACK_SLOT, rep,
                              location.GetLocation());
     }
   }
@@ -144,19 +144,19 @@ class OperandGenerator {
   }
 
   InstructionOperand UseLocation(Node* node, LinkageLocation location,
-                                 MachineType type) {
-    return Use(node, ToUnallocatedOperand(location, type, GetVReg(node)));
+                                 MachineRepresentation rep) {
+    return Use(node, ToUnallocatedOperand(location, rep, GetVReg(node)));
   }
 
   // Used to force gap moves from the from_location to the to_location
   // immediately before an instruction.
   InstructionOperand UsePointerLocation(LinkageLocation to_location,
                                         LinkageLocation from_location) {
-    MachineType type = static_cast<MachineType>(kTypeAny | kMachPtr);
+    MachineRepresentation rep = MachineType::PointerRepresentation();
     UnallocatedOperand casted_from_operand =
-        UnallocatedOperand::cast(TempLocation(from_location, type));
+        UnallocatedOperand::cast(TempLocation(from_location, rep));
     selector_->Emit(kArchNop, casted_from_operand);
-    return ToUnallocatedOperand(to_location, type,
+    return ToUnallocatedOperand(to_location, rep,
                                 casted_from_operand.virtual_register());
   }
 
@@ -170,7 +170,8 @@ class OperandGenerator {
     UnallocatedOperand op = UnallocatedOperand(
         UnallocatedOperand::MUST_HAVE_REGISTER,
         UnallocatedOperand::USED_AT_START, sequence()->NextVirtualRegister());
-    sequence()->MarkAsRepresentation(kRepFloat64, op.virtual_register());
+    sequence()->MarkAsRepresentation(MachineRepresentation::kFloat64,
+                                     op.virtual_register());
     return op;
   }
 
@@ -183,8 +184,9 @@ class OperandGenerator {
     return sequence()->AddImmediate(Constant(imm));
   }
 
-  InstructionOperand TempLocation(LinkageLocation location, MachineType type) {
-    return ToUnallocatedOperand(location, type,
+  InstructionOperand TempLocation(LinkageLocation location,
+                                  MachineRepresentation rep) {
+    return ToUnallocatedOperand(location, rep,
                                 sequence()->NextVirtualRegister());
   }
 
@@ -250,7 +252,7 @@ class OperandGenerator {
   }
 
   UnallocatedOperand ToUnallocatedOperand(LinkageLocation location,
-                                          MachineType type,
+                                          MachineRepresentation rep,
                                           int virtual_register) {
     if (location.IsAnyRegister()) {
       // any machine register.
@@ -268,8 +270,7 @@ class OperandGenerator {
                                 location.AsCalleeFrameSlot(), virtual_register);
     }
     // a fixed register.
-    MachineType rep = RepresentationOf(type);
-    if (rep == kRepFloat64 || rep == kRepFloat32) {
+    if (IsFloatingPoint(rep)) {
       return UnallocatedOperand(UnallocatedOperand::FIXED_DOUBLE_REGISTER,
                                 location.AsRegister(), virtual_register);
     }

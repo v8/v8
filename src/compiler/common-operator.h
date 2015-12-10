@@ -71,15 +71,15 @@ std::ostream& operator<<(std::ostream&, IfExceptionHint);
 
 class SelectParameters final {
  public:
-  explicit SelectParameters(MachineType type,
+  explicit SelectParameters(MachineRepresentation representation,
                             BranchHint hint = BranchHint::kNone)
-      : type_(type), hint_(hint) {}
+      : representation_(representation), hint_(hint) {}
 
-  MachineType type() const { return type_; }
+  MachineRepresentation representation() const { return representation_; }
   BranchHint hint() const { return hint_; }
 
  private:
-  const MachineType type_;
+  const MachineRepresentation representation_;
   const BranchHint hint_;
 };
 
@@ -94,6 +94,8 @@ SelectParameters const& SelectParametersOf(const Operator* const);
 
 
 size_t ProjectionIndexOf(const Operator* const);
+
+MachineRepresentation PhiRepresentationOf(const Operator* const);
 
 
 // The {IrOpcode::kParameter} opcode represents an incoming parameter to the
@@ -155,8 +157,9 @@ class CommonOperatorBuilder final : public ZoneObject {
   const Operator* NumberConstant(volatile double);
   const Operator* HeapConstant(const Handle<HeapObject>&);
 
-  const Operator* Select(MachineType, BranchHint = BranchHint::kNone);
-  const Operator* Phi(MachineType type, int value_input_count);
+  const Operator* Select(MachineRepresentation, BranchHint = BranchHint::kNone);
+  const Operator* Phi(MachineRepresentation representation,
+                      int value_input_count);
   const Operator* EffectPhi(int effect_input_count);
   const Operator* EffectSet(int arguments);
   const Operator* Guard(Type* type);

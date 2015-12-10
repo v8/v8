@@ -87,9 +87,10 @@ Node* ChangeLowering::AllocateHeapNumberWithValue(Node* value, Node* control) {
   }
   Node* heap_number = graph()->NewNode(allocate_heap_number_operator_.get(),
                                        target, context, effect, control);
-  Node* store = graph()->NewNode(
-      machine()->Store(StoreRepresentation(kMachFloat64, kNoWriteBarrier)),
-      heap_number, HeapNumberValueIndexConstant(), value, heap_number, control);
+  Node* store = graph()->NewNode(machine()->Store(StoreRepresentation(
+                                     MachineType::Float64(), kNoWriteBarrier)),
+                                 heap_number, HeapNumberValueIndexConstant(),
+                                 value, heap_number, control);
   return graph()->NewNode(common()->FinishRegion(), heap_number, store);
 }
 
@@ -135,7 +136,7 @@ Node* ChangeLowering::ChangeUint32ToSmi(Node* value) {
 
 
 Node* ChangeLowering::LoadHeapNumberValue(Node* value, Node* control) {
-  return graph()->NewNode(machine()->Load(kMachFloat64), value,
+  return graph()->NewNode(machine()->Load(MachineType::Float64()), value,
                           HeapNumberValueIndexConstant(), graph()->start(),
                           control);
 }
@@ -150,9 +151,9 @@ Node* ChangeLowering::TestNotSmi(Node* value) {
 
 
 Reduction ChangeLowering::ChangeBitToBool(Node* value, Node* control) {
-  return Replace(graph()->NewNode(common()->Select(kMachAnyTagged), value,
-                                  jsgraph()->TrueConstant(),
-                                  jsgraph()->FalseConstant()));
+  return Replace(
+      graph()->NewNode(common()->Select(MachineRepresentation::kTagged), value,
+                       jsgraph()->TrueConstant(), jsgraph()->FalseConstant()));
 }
 
 
@@ -232,8 +233,8 @@ Reduction ChangeLowering::ChangeFloat64ToTagged(Node* value, Node* control) {
   vbox = AllocateHeapNumberWithValue(value, if_box);
 
   control = graph()->NewNode(common()->Merge(2), if_smi, if_box);
-  value =
-      graph()->NewNode(common()->Phi(kMachAnyTagged, 2), vsmi, vbox, control);
+  value = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                           vsmi, vbox, control);
   return Replace(value);
 }
 
@@ -258,8 +259,8 @@ Reduction ChangeLowering::ChangeInt32ToTagged(Node* value, Node* control) {
   Node* vfalse = graph()->NewNode(common()->Projection(0), add);
 
   Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
-  Node* phi =
-      graph()->NewNode(common()->Phi(kMachAnyTagged, 2), vtrue, vfalse, merge);
+  Node* phi = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                               vtrue, vfalse, merge);
 
   return Replace(phi);
 }
@@ -271,7 +272,6 @@ Reduction ChangeLowering::ChangeTaggedToUI32(Node* value, Node* control,
     return Replace(ChangeSmiToInt32(value));
   }
 
-  const MachineType type = (signedness == kSigned) ? kMachInt32 : kMachUint32;
   const Operator* op = (signedness == kSigned)
                            ? machine()->ChangeFloat64ToInt32()
                            : machine()->ChangeFloat64ToUint32();
@@ -291,7 +291,8 @@ Reduction ChangeLowering::ChangeTaggedToUI32(Node* value, Node* control,
   Node* vfalse = ChangeSmiToInt32(value);
 
   Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
-  Node* phi = graph()->NewNode(common()->Phi(type, 2), vtrue, vfalse, merge);
+  Node* phi = graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2),
+                               vtrue, vfalse, merge);
 
   return Replace(phi);
 }
@@ -330,7 +331,7 @@ Reduction ChangeLowering::ChangeTaggedToFloat64(Node* value, Node* control) {
 
     const Operator* merge_op = common()->Merge(2);
     const Operator* ephi_op = common()->EffectPhi(2);
-    const Operator* phi_op = common()->Phi(kMachFloat64, 2);
+    const Operator* phi_op = common()->Phi(MachineRepresentation::kFloat64, 2);
 
     Node* check1 = TestNotSmi(object);
     Node* branch1 =
@@ -387,8 +388,8 @@ Reduction ChangeLowering::ChangeTaggedToFloat64(Node* value, Node* control) {
   Node* vfalse = ChangeSmiToFloat64(value);
 
   Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
-  Node* phi =
-      graph()->NewNode(common()->Phi(kMachFloat64, 2), vtrue, vfalse, merge);
+  Node* phi = graph()->NewNode(
+      common()->Phi(MachineRepresentation::kFloat64, 2), vtrue, vfalse, merge);
 
   return Replace(phi);
 }
@@ -412,8 +413,8 @@ Reduction ChangeLowering::ChangeUint32ToTagged(Node* value, Node* control) {
       AllocateHeapNumberWithValue(ChangeUint32ToFloat64(value), if_false);
 
   Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
-  Node* phi =
-      graph()->NewNode(common()->Phi(kMachAnyTagged, 2), vtrue, vfalse, merge);
+  Node* phi = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                               vtrue, vfalse, merge);
 
   return Replace(phi);
 }
@@ -422,7 +423,7 @@ Reduction ChangeLowering::ChangeUint32ToTagged(Node* value, Node* control) {
 namespace {
 
 WriteBarrierKind ComputeWriteBarrierKind(BaseTaggedness base_is_tagged,
-                                         MachineType representation,
+                                         MachineRepresentation representation,
                                          Type* field_type, Type* input_type) {
   if (field_type->Is(Type::TaggedSigned()) ||
       input_type->Is(Type::TaggedSigned())) {
@@ -435,7 +436,7 @@ WriteBarrierKind ComputeWriteBarrierKind(BaseTaggedness base_is_tagged,
     return kNoWriteBarrier;
   }
   if (base_is_tagged == kTaggedBase &&
-      RepresentationOf(representation) == kRepTagged) {
+      representation == MachineRepresentation::kTagged) {
     if (input_type->IsConstant() &&
         input_type->AsConstant()->Value()->IsHeapObject()) {
       Handle<HeapObject> input =
@@ -480,7 +481,8 @@ Reduction ChangeLowering::StoreField(Node* node) {
   const FieldAccess& access = FieldAccessOf(node->op());
   Type* type = NodeProperties::GetType(node->InputAt(1));
   WriteBarrierKind kind = ComputeWriteBarrierKind(
-      access.base_is_tagged, access.machine_type, access.type, type);
+      access.base_is_tagged, access.machine_type.representation(), access.type,
+      type);
   Node* offset = jsgraph()->IntPtrConstant(access.offset - access.tag());
   node->InsertInput(graph()->zone(), 1, offset);
   NodeProperties::ChangeOp(
@@ -492,7 +494,8 @@ Reduction ChangeLowering::StoreField(Node* node) {
 Node* ChangeLowering::ComputeIndex(const ElementAccess& access,
                                    Node* const key) {
   Node* index = key;
-  const int element_size_shift = ElementSizeLog2Of(access.machine_type);
+  const int element_size_shift =
+      ElementSizeLog2Of(access.machine_type.representation());
   if (element_size_shift) {
     index = graph()->NewNode(machine()->Word32Shl(), index,
                              jsgraph()->Int32Constant(element_size_shift));
@@ -525,11 +528,11 @@ Reduction ChangeLowering::StoreElement(Node* node) {
   Type* type = NodeProperties::GetType(node->InputAt(2));
   node->ReplaceInput(1, ComputeIndex(access, node->InputAt(1)));
   NodeProperties::ChangeOp(
-      node,
-      machine()->Store(StoreRepresentation(
-          access.machine_type,
-          ComputeWriteBarrierKind(access.base_is_tagged, access.machine_type,
-                                  access.type, type))));
+      node, machine()->Store(StoreRepresentation(
+                access.machine_type,
+                ComputeWriteBarrierKind(access.base_is_tagged,
+                                        access.machine_type.representation(),
+                                        access.type, type))));
   return Changed(node);
 }
 

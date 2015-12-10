@@ -153,16 +153,27 @@ class InstructionSelector final {
 
   // Inform the register allocation of the representation of the value produced
   // by {node}.
-  void MarkAsRepresentation(MachineType rep, Node* node);
-  void MarkAsWord32(Node* node) { MarkAsRepresentation(kRepWord32, node); }
-  void MarkAsWord64(Node* node) { MarkAsRepresentation(kRepWord64, node); }
-  void MarkAsFloat32(Node* node) { MarkAsRepresentation(kRepFloat32, node); }
-  void MarkAsFloat64(Node* node) { MarkAsRepresentation(kRepFloat64, node); }
-  void MarkAsReference(Node* node) { MarkAsRepresentation(kRepTagged, node); }
+  void MarkAsRepresentation(MachineRepresentation rep, Node* node);
+  void MarkAsWord32(Node* node) {
+    MarkAsRepresentation(MachineRepresentation::kWord32, node);
+  }
+  void MarkAsWord64(Node* node) {
+    MarkAsRepresentation(MachineRepresentation::kWord64, node);
+  }
+  void MarkAsFloat32(Node* node) {
+    MarkAsRepresentation(MachineRepresentation::kFloat32, node);
+  }
+  void MarkAsFloat64(Node* node) {
+    MarkAsRepresentation(MachineRepresentation::kFloat64, node);
+  }
+  void MarkAsReference(Node* node) {
+    MarkAsRepresentation(MachineRepresentation::kTagged, node);
+  }
 
   // Inform the register allocation of the representation of the unallocated
   // operand {op}.
-  void MarkAsRepresentation(MachineType rep, const InstructionOperand& op);
+  void MarkAsRepresentation(MachineRepresentation rep,
+                            const InstructionOperand& op);
 
   enum CallBufferFlag {
     kCallCodeImmediate = 1u << 0,

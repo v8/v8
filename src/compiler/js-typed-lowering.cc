@@ -384,8 +384,8 @@ class JSBinopReduction final {
     // Wire conversions to existing {IfException} continuation.
     Node* exception_merge = if_exception;
     Node* exception_value =
-        graph()->NewNode(common()->Phi(kMachAnyTagged, 2), left_exception,
-                         right_exception, exception_merge);
+        graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                         left_exception, right_exception, exception_merge);
     Node* exception_effect =
         graph()->NewNode(common()->EffectPhi(2), left_exception,
                          right_exception, exception_merge);
@@ -829,10 +829,10 @@ Reduction JSTypedLowering::ReduceJSToStringInput(Node* input) {
     return Changed(input);  // JSToString(x:string) => x
   }
   if (input_type->Is(Type::Boolean())) {
-    return Replace(
-        graph()->NewNode(common()->Select(kMachAnyTagged), input,
-                         jsgraph()->HeapConstant(factory()->true_string()),
-                         jsgraph()->HeapConstant(factory()->false_string())));
+    return Replace(graph()->NewNode(
+        common()->Select(MachineRepresentation::kTagged), input,
+        jsgraph()->HeapConstant(factory()->true_string()),
+        jsgraph()->HeapConstant(factory()->false_string())));
   }
   if (input_type->Is(Type::Undefined())) {
     return Replace(jsgraph()->HeapConstant(factory()->undefined_string()));
@@ -928,8 +928,9 @@ Reduction JSTypedLowering::ReduceJSToObject(Node* node) {
 
     control = graph()->NewNode(common()->Merge(2), if_convert, if_done);
     effect = graph()->NewNode(common()->EffectPhi(2), econvert, edone, control);
-    receiver = graph()->NewNode(common()->Phi(kMachAnyTagged, 2), rconvert,
-                                rdone, control);
+    receiver =
+        graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                         rconvert, rdone, control);
   }
   ReplaceWithValue(node, receiver, effect, control);
   return Changed(receiver);
@@ -988,7 +989,8 @@ Reduction JSTypedLowering::ReduceJSLoadProperty(Node* node) {
     if (!array->GetBuffer()->was_neutered()) {
       array->GetBuffer()->set_is_neuterable(false);
       BufferAccess const access(array->type());
-      size_t const k = ElementSizeLog2Of(access.machine_type());
+      size_t const k =
+          ElementSizeLog2Of(access.machine_type().representation());
       double const byte_length = array->byte_length()->Number();
       CHECK_LT(k, arraysize(shifted_int32_ranges_));
       if (key_type->Is(shifted_int32_ranges_[k]) && byte_length <= kMaxInt) {
@@ -1034,7 +1036,8 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
     if (!array->GetBuffer()->was_neutered()) {
       array->GetBuffer()->set_is_neuterable(false);
       BufferAccess const access(array->type());
-      size_t const k = ElementSizeLog2Of(access.machine_type());
+      size_t const k =
+          ElementSizeLog2Of(access.machine_type().representation());
       double const byte_length = array->byte_length()->Number();
       CHECK_LT(k, arraysize(shifted_int32_ranges_));
       if (access.external_array_type() != kExternalUint8ClampedArray &&
@@ -1061,10 +1064,11 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
           }
         }
         // For integer-typed arrays, convert to the integer type.
-        if (TypeOf(access.machine_type()) == kTypeInt32 &&
+        if (access.machine_type().semantic() == MachineSemantic::kInt32 &&
             !value_type->Is(Type::Signed32())) {
           value = graph()->NewNode(simplified()->NumberToInt32(), value);
-        } else if (TypeOf(access.machine_type()) == kTypeUint32 &&
+        } else if (access.machine_type().semantic() ==
+                       MachineSemantic::kUint32 &&
                    !value_type->Is(Type::Unsigned32())) {
           value = graph()->NewNode(simplified()->NumberToUint32(), value);
         }
@@ -1150,8 +1154,9 @@ Reduction JSTypedLowering::ReduceJSInstanceOf(Node* node) {
       Node* loop_effect = effect =
           graph()->NewNode(common()->EffectPhi(2), effect, effect, loop);
 
-      Node* loop_object_map = graph()->NewNode(common()->Phi(kMachAnyTagged, 2),
-                                               object_map, r.left(), loop);
+      Node* loop_object_map =
+          graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                           object_map, r.left(), loop);
 
 
       Node* object_prototype = effect = graph()->NewNode(
@@ -1194,17 +1199,18 @@ Reduction JSTypedLowering::ReduceJSInstanceOf(Node* node) {
                                 e_null_proto, control);
 
 
-      Node* result = graph()->NewNode(common()->Phi(kTypeBool, 2),
-                                      jsgraph()->TrueConstant(),
-                                      jsgraph()->FalseConstant(), control);
+      Node* result = graph()->NewNode(
+          common()->Phi(MachineRepresentation::kTagged, 2),
+          jsgraph()->TrueConstant(), jsgraph()->FalseConstant(), control);
 
       if (if_is_smi != nullptr) {
         DCHECK(e_is_smi != nullptr);
         control = graph()->NewNode(common()->Merge(2), if_is_smi, control);
         effect =
             graph()->NewNode(common()->EffectPhi(2), e_is_smi, effect, control);
-        result = graph()->NewNode(common()->Phi(kTypeBool, 2),
-                                  jsgraph()->FalseConstant(), result, control);
+        result =
+            graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                             jsgraph()->FalseConstant(), result, control);
       }
       ReplaceWithValue(node, result, effect, control);
       return Changed(result);
@@ -1343,8 +1349,9 @@ Reduction JSTypedLowering::ReduceJSConvertReceiver(Node* node) {
       control = graph()->NewNode(common()->Merge(2), if_convert, if_global);
       effect =
           graph()->NewNode(common()->EffectPhi(2), econvert, eglobal, control);
-      receiver = graph()->NewNode(common()->Phi(kMachAnyTagged, 2), rconvert,
-                                  rglobal, control);
+      receiver =
+          graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                           rconvert, rglobal, control);
     }
   }
   ReplaceWithValue(node, receiver, effect, control);
@@ -2212,8 +2219,8 @@ Reduction JSTypedLowering::ReduceJSForInPrepare(Node* node) {
     etrue0 =
         graph()->NewNode(common()->EffectPhi(2), etrue1, efalse1, if_true0);
     cache_array_true0 =
-        graph()->NewNode(common()->Phi(kMachAnyTagged, 2), cache_array_true1,
-                         cache_array_false1, if_true0);
+        graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                         cache_array_true1, cache_array_false1, if_true0);
 
     cache_type_true0 = cache_type;
   }
@@ -2230,7 +2237,7 @@ Reduction JSTypedLowering::ReduceJSForInPrepare(Node* node) {
         receiver_map, effect, if_false0);
 
     cache_type_false0 = graph()->NewNode(
-        common()->Select(kMachAnyTagged, BranchHint::kFalse),
+        common()->Select(MachineRepresentation::kTagged, BranchHint::kFalse),
         graph()->NewNode(machine()->Word32Equal(), receiver_instance_type,
                          jsgraph()->Uint32Constant(JS_PROXY_TYPE)),
         jsgraph()->ZeroConstant(),  // Zero indicagtes proxy.
@@ -2245,13 +2252,14 @@ Reduction JSTypedLowering::ReduceJSForInPrepare(Node* node) {
   control = graph()->NewNode(common()->Merge(2), if_true0, if_false0);
   effect = graph()->NewNode(common()->EffectPhi(2), etrue0, efalse0, control);
   Node* cache_array =
-      graph()->NewNode(common()->Phi(kMachAnyTagged, 2), cache_array_true0,
-                       cache_array_false0, control);
+      graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                       cache_array_true0, cache_array_false0, control);
   Node* cache_length =
-      graph()->NewNode(common()->Phi(kMachAnyTagged, 2), cache_length_true0,
-                       cache_length_false0, control);
-  cache_type = graph()->NewNode(common()->Phi(kMachAnyTagged, 2),
-                                cache_type_true0, cache_type_false0, control);
+      graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                       cache_length_true0, cache_length_false0, control);
+  cache_type =
+      graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                       cache_type_true0, cache_type_false0, control);
 
   for (auto edge : node->use_edges()) {
     Node* const use = edge.from();
@@ -2364,8 +2372,8 @@ Reduction JSTypedLowering::ReduceJSForInNext(Node* node) {
     if_false0 = graph()->NewNode(common()->Merge(2), if_true1, if_false1);
     efalse0 =
         graph()->NewNode(common()->EffectPhi(2), etrue1, efalse1, if_false0);
-    vfalse0 = graph()->NewNode(common()->Phi(kMachAnyTagged, 2), vtrue1,
-                               vfalse1, if_false0);
+    vfalse0 = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                               vtrue1, vfalse1, if_false0);
   }
 
   control = graph()->NewNode(common()->Merge(2), if_true0, if_false0);
@@ -2375,7 +2383,8 @@ Reduction JSTypedLowering::ReduceJSForInNext(Node* node) {
   node->ReplaceInput(1, vfalse0);
   node->ReplaceInput(2, control);
   node->TrimInputCount(3);
-  NodeProperties::ChangeOp(node, common()->Phi(kMachAnyTagged, 2));
+  NodeProperties::ChangeOp(node,
+                           common()->Phi(MachineRepresentation::kTagged, 2));
   return Changed(node);
 }
 

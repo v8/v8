@@ -119,7 +119,7 @@ Node* CodeStubAssembler::WordShl(Node* value, int shift) {
 
 
 Node* CodeStubAssembler::LoadObjectField(Node* object, int offset) {
-  return raw_assembler_->Load(kMachAnyTagged, object,
+  return raw_assembler_->Load(MachineType::AnyTagged(), object,
                               IntPtrConstant(offset - kHeapObjectTag));
 }
 

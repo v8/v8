@@ -285,8 +285,8 @@ bool VirtualState::MergeFrom(VirtualState* left, VirtualState* right,
               NodeProperties::GetValueInput(rep, 0) != ls->GetField(i) ||
               NodeProperties::GetValueInput(rep, 1) != rs->GetField(i)) {
             Node* phi =
-                graph->NewNode(common->Phi(kMachAnyTagged, 2), ls->GetField(i),
-                               rs->GetField(i), control);
+                graph->NewNode(common->Phi(MachineRepresentation::kTagged, 2),
+                               ls->GetField(i), rs->GetField(i), control);
             if (mergeObject->SetField(i, phi)) {
               if (FLAG_trace_turbo_escape) {
                 PrintF("    Creating Phi #%d as merge of #%d and #%d\n",
@@ -952,8 +952,9 @@ void EscapeAnalysis::ProcessLoadFromPhi(int offset, Node* from, Node* node,
       if (!rep || rep->opcode() != IrOpcode::kPhi ||
           NodeProperties::GetValueInput(rep, 0) != lv ||
           NodeProperties::GetValueInput(rep, 1) != rv) {
-        Node* phi = graph()->NewNode(common()->Phi(kMachAnyTagged, 2), lv, rv,
-                                     NodeProperties::GetControlInput(from));
+        Node* phi =
+            graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                             lv, rv, NodeProperties::GetControlInput(from));
         state->GetVirtualObject(node)->SetReplacement(phi);
         state->LastChangedAt(node);
         if (FLAG_trace_turbo_escape) {
@@ -1008,7 +1009,8 @@ void EscapeAnalysis::ProcessLoadElement(Node* node) {
     NumberMatcher index(node->InputAt(1));
     ElementAccess access = OpParameter<ElementAccess>(node);
     if (index.HasValue()) {
-      CHECK_EQ(ElementSizeLog2Of(access.machine_type), kPointerSizeLog2);
+      CHECK_EQ(ElementSizeLog2Of(access.machine_type.representation()),
+               kPointerSizeLog2);
       CHECK_EQ(access.header_size % kPointerSize, 0);
       int offset = index.Value() + access.header_size / kPointerSize;
       if (!object->IsTracked()) return;
@@ -1058,7 +1060,8 @@ void EscapeAnalysis::ProcessStoreElement(Node* node) {
   ElementAccess access = OpParameter<ElementAccess>(node);
   Node* val = NodeProperties::GetValueInput(node, 2);
   if (index.HasValue()) {
-    CHECK_EQ(ElementSizeLog2Of(access.machine_type), kPointerSizeLog2);
+    CHECK_EQ(ElementSizeLog2Of(access.machine_type.representation()),
+             kPointerSizeLog2);
     CHECK_EQ(access.header_size % kPointerSize, 0);
     int offset = index.Value() + access.header_size / kPointerSize;
     VirtualState* states = virtual_states_[node->id()];

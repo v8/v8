@@ -33,7 +33,7 @@ CallDescriptor* GetCallDescriptor(Zone* zone, int return_count,
   // Add return location(s).
   CHECK(return_count <= config->num_allocatable_general_registers());
   for (int i = 0; i < return_count; i++) {
-    msig.AddReturn(kMachInt32);
+    msig.AddReturn(MachineType::Int32());
     locations.AddReturn(
         LinkageLocation::ForRegister(config->allocatable_general_codes()[i]));
   }
@@ -41,7 +41,7 @@ CallDescriptor* GetCallDescriptor(Zone* zone, int return_count,
   // Add register and/or stack parameter(s).
   CHECK(param_count <= config->num_allocatable_general_registers());
   for (int i = 0; i < param_count; i++) {
-    msig.AddParam(kMachInt32);
+    msig.AddParam(MachineType::Int32());
     locations.AddParam(
         LinkageLocation::ForRegister(config->allocatable_general_codes()[i]));
   }
@@ -50,7 +50,7 @@ CallDescriptor* GetCallDescriptor(Zone* zone, int return_count,
   const RegList kCalleeSaveFPRegisters = 0;
 
   // The target for WASM calls is always a code object.
-  MachineType target_type = kMachAnyTagged;
+  MachineType target_type = MachineType::AnyTagged();
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister();
   return new (zone) CallDescriptor(       // --
       CallDescriptor::kCallCodeObject,    // kind
@@ -74,7 +74,7 @@ TEST(ReturnThreeValues) {
   HandleAndZoneScope handles;
   RawMachineAssembler m(handles.main_isolate(),
                         new (handles.main_zone()) Graph(handles.main_zone()),
-                        desc, kMachPtr,
+                        desc, MachineType::PointerRepresentation(),
                         InstructionSelector::SupportedMachineOperatorFlags());
 
   Node* p0 = m.Parameter(0);
