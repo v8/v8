@@ -543,8 +543,8 @@ void KeyedLoadICNexus::ConfigureMonomorphic(Handle<Name> name,
     SetFeedback(*cell);
     SetFeedbackExtra(*handler);
   } else {
-    SetFeedback(*name);
     Handle<FixedArray> array = EnsureExtraArrayOfSize(2);
+    SetFeedback(*name);
     array->set(0, *cell);
     array->set(1, *handler);
   }
@@ -567,8 +567,8 @@ void KeyedStoreICNexus::ConfigureMonomorphic(Handle<Name> name,
     SetFeedback(*cell);
     SetFeedbackExtra(*handler);
   } else {
-    SetFeedback(*name);
     Handle<FixedArray> array = EnsureExtraArrayOfSize(2);
+    SetFeedback(*name);
     array->set(0, *cell);
     array->set(1, *handler);
   }
@@ -597,8 +597,8 @@ void KeyedLoadICNexus::ConfigurePolymorphic(Handle<Name> name,
     SetFeedbackExtra(*TypeFeedbackVector::UninitializedSentinel(GetIsolate()),
                      SKIP_WRITE_BARRIER);
   } else {
-    SetFeedback(*name);
     array = EnsureExtraArrayOfSize(receiver_count * 2);
+    SetFeedback(*name);
   }
 
   InstallHandlers(array, maps, handlers);
@@ -627,8 +627,8 @@ void KeyedStoreICNexus::ConfigurePolymorphic(Handle<Name> name,
     SetFeedbackExtra(*TypeFeedbackVector::UninitializedSentinel(GetIsolate()),
                      SKIP_WRITE_BARRIER);
   } else {
-    SetFeedback(*name);
     array = EnsureExtraArrayOfSize(receiver_count * 2);
+    SetFeedback(*name);
   }
 
   InstallHandlers(array, maps, handlers);
