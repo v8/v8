@@ -84,14 +84,6 @@ Matcher<Node*> InterpreterAssemblerTest::InterpreterAssemblerForTest::IsStore(
 }
 
 
-template <class... A>
-Matcher<Node*> InterpreterAssemblerTest::InterpreterAssemblerForTest::IsCall(
-    const Matcher<const CallDescriptor*>& descriptor_matcher, A... args) {
-  return ::i::compiler::IsCall(descriptor_matcher, args..., graph()->start(),
-                               graph()->start());
-}
-
-
 Matcher<Node*>
 InterpreterAssemblerTest::InterpreterAssemblerForTest::IsBytecodeOperand(
     int offset) {
@@ -183,8 +175,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, Dispatch) {
                    next_bytecode_offset_matcher,
                    IsParameter(Linkage::kInterpreterBytecodeArrayParameter),
                    IsParameter(Linkage::kInterpreterDispatchTableParameter),
-                   IsParameter(Linkage::kInterpreterContextParameter),
-                   graph->start(), graph->start()));
+                   IsParameter(Linkage::kInterpreterContextParameter), _, _));
   }
 }
 
@@ -223,8 +214,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, Jump) {
                      next_bytecode_offset_matcher,
                      IsParameter(Linkage::kInterpreterBytecodeArrayParameter),
                      IsParameter(Linkage::kInterpreterDispatchTableParameter),
-                     IsParameter(Linkage::kInterpreterContextParameter),
-                     graph->start(), graph->start()));
+                     IsParameter(Linkage::kInterpreterContextParameter), _, _));
     }
   }
 }
@@ -267,8 +257,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, JumpIfWordEqual) {
                      next_bytecode_offset_matcher,
                      IsParameter(Linkage::kInterpreterBytecodeArrayParameter),
                      IsParameter(Linkage::kInterpreterDispatchTableParameter),
-                     IsParameter(Linkage::kInterpreterContextParameter),
-                     graph->start(), graph->start()));
+                     IsParameter(Linkage::kInterpreterContextParameter), _, _));
     }
 
     // TODO(oth): test control flow paths.
@@ -298,8 +287,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, Return) {
                    IsParameter(Linkage::kInterpreterBytecodeOffsetParameter),
                    IsParameter(Linkage::kInterpreterBytecodeArrayParameter),
                    IsParameter(Linkage::kInterpreterDispatchTableParameter),
-                   IsParameter(Linkage::kInterpreterContextParameter),
-                   graph->start(), graph->start()));
+                   IsParameter(Linkage::kInterpreterContextParameter), _, _));
   }
 }
 
@@ -368,7 +356,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, GetSetAccumulator) {
 
     EXPECT_THAT(tail_call_node,
                 IsTailCall(m.call_descriptor(), _, accumulator_value_2, _, _, _,
-                           _, graph->start(), graph->start()));
+                           _, _, _));
   }
 }
 
@@ -552,9 +540,10 @@ TARGET_TEST_F(InterpreterAssemblerTest, CallRuntime2) {
     Node* arg1 = m.Int32Constant(2);
     Node* arg2 = m.Int32Constant(3);
     Node* call_runtime = m.CallRuntime(Runtime::kAdd, arg1, arg2);
-    EXPECT_THAT(call_runtime,
-                m.IsCall(_, _, arg1, arg2, _, IsInt32Constant(2),
-                         IsParameter(Linkage::kInterpreterContextParameter)));
+    EXPECT_THAT(
+        call_runtime,
+        IsCall(_, _, arg1, arg2, _, IsInt32Constant(2),
+               IsParameter(Linkage::kInterpreterContextParameter), _, _));
   }
 }
 
@@ -578,10 +567,11 @@ TARGET_TEST_F(InterpreterAssemblerTest, CallRuntime) {
                  IsInt32Constant(offsetof(Runtime::Function, entry)));
 
     Node* call_runtime = m.CallRuntime(function_id, first_arg, arg_count);
-    EXPECT_THAT(call_runtime,
-                m.IsCall(_, IsHeapConstant(builtin.code()), arg_count,
-                         first_arg, function_entry,
-                         IsParameter(Linkage::kInterpreterContextParameter)));
+    EXPECT_THAT(
+        call_runtime,
+        IsCall(_, IsHeapConstant(builtin.code()), arg_count, first_arg,
+               function_entry,
+               IsParameter(Linkage::kInterpreterContextParameter), _, _));
   }
 }
 
@@ -596,9 +586,10 @@ TARGET_TEST_F(InterpreterAssemblerTest, CallIC) {
     Node* arg3 = m.Int32Constant(4);
     Node* arg4 = m.Int32Constant(5);
     Node* call_ic = m.CallIC(descriptor, target, arg1, arg2, arg3, arg4);
-    EXPECT_THAT(call_ic,
-                m.IsCall(_, target, arg1, arg2, arg3, arg4,
-                         IsParameter(Linkage::kInterpreterContextParameter)));
+    EXPECT_THAT(
+        call_ic,
+        IsCall(_, target, arg1, arg2, arg3, arg4,
+               IsParameter(Linkage::kInterpreterContextParameter), _, _));
   }
 }
 
@@ -613,8 +604,9 @@ TARGET_TEST_F(InterpreterAssemblerTest, CallJS) {
     Node* call_js = m.CallJS(function, first_arg, arg_count);
     EXPECT_THAT(
         call_js,
-        m.IsCall(_, IsHeapConstant(builtin.code()), arg_count, first_arg,
-                 function, IsParameter(Linkage::kInterpreterContextParameter)));
+        IsCall(_, IsHeapConstant(builtin.code()), arg_count, first_arg,
+               function, IsParameter(Linkage::kInterpreterContextParameter), _,
+               _));
   }
 }
 

@@ -36,10 +36,6 @@ class InterpreterAssemblerTest : public TestWithIsolateAndZone {
                            const Matcher<Node*>& base_matcher,
                            const Matcher<Node*>& index_matcher,
                            const Matcher<Node*>& value_matcher);
-    template <class... A>
-    Matcher<Node*> IsCall(
-        const Matcher<const CallDescriptor*>& descriptor_matcher,
-        A... args);
 
     Matcher<Node*> IsBytecodeOperand(int offset);
     Matcher<Node*> IsBytecodeOperandSignExtended(int offset);

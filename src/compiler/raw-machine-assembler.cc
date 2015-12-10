@@ -121,15 +121,13 @@ Node* RawMachineAssembler::CallN(CallDescriptor* desc, Node* function,
                                  Node** args) {
   int param_count =
       static_cast<int>(desc->GetMachineSignature()->parameter_count());
-  int input_count = param_count + 3;
+  int input_count = param_count + 1;
   Node** buffer = zone()->NewArray<Node*>(input_count);
   int index = 0;
   buffer[index++] = function;
   for (int i = 0; i < param_count; i++) {
     buffer[index++] = args[i];
   }
-  buffer[index++] = graph()->start();
-  buffer[index++] = graph()->start();
   return AddNode(common()->Call(desc), input_count, buffer);
 }
 
@@ -140,7 +138,7 @@ Node* RawMachineAssembler::CallNWithFrameState(CallDescriptor* desc,
   DCHECK(desc->NeedsFrameState());
   int param_count =
       static_cast<int>(desc->GetMachineSignature()->parameter_count());
-  int input_count = param_count + 4;
+  int input_count = param_count + 2;
   Node** buffer = zone()->NewArray<Node*>(input_count);
   int index = 0;
   buffer[index++] = function;
@@ -148,8 +146,6 @@ Node* RawMachineAssembler::CallNWithFrameState(CallDescriptor* desc,
     buffer[index++] = args[i];
   }
   buffer[index++] = frame_state;
-  buffer[index++] = graph()->start();
-  buffer[index++] = graph()->start();
   return AddNode(common()->Call(desc), input_count, buffer);
 }
 
@@ -164,8 +160,7 @@ Node* RawMachineAssembler::CallRuntime1(Runtime::FunctionId function,
       common()->ExternalConstant(ExternalReference(function, isolate())));
   Node* arity = Int32Constant(1);
 
-  return AddNode(common()->Call(descriptor), centry, arg1, ref, arity, context,
-                 graph()->start(), graph()->start());
+  return AddNode(common()->Call(descriptor), centry, arg1, ref, arity, context);
 }
 
 
@@ -180,7 +175,7 @@ Node* RawMachineAssembler::CallRuntime2(Runtime::FunctionId function,
   Node* arity = Int32Constant(2);
 
   return AddNode(common()->Call(descriptor), centry, arg1, arg2, ref, arity,
-                 context, graph()->start(), graph()->start());
+                 context);
 }
 
 
@@ -196,7 +191,7 @@ Node* RawMachineAssembler::CallRuntime4(Runtime::FunctionId function,
   Node* arity = Int32Constant(4);
 
   return AddNode(common()->Call(descriptor), centry, arg1, arg2, arg3, arg4,
-                 ref, arity, context, graph()->start(), graph()->start());
+                 ref, arity, context);
 }
 
 
@@ -204,15 +199,13 @@ Node* RawMachineAssembler::TailCallN(CallDescriptor* desc, Node* function,
                                      Node** args) {
   int param_count =
       static_cast<int>(desc->GetMachineSignature()->parameter_count());
-  int input_count = param_count + 3;
+  int input_count = param_count + 1;
   Node** buffer = zone()->NewArray<Node*>(input_count);
   int index = 0;
   buffer[index++] = function;
   for (int i = 0; i < param_count; i++) {
     buffer[index++] = args[i];
   }
-  buffer[index++] = graph()->start();
-  buffer[index++] = graph()->start();
   Node* tail_call = MakeNode(common()->TailCall(desc), input_count, buffer);
   NodeProperties::MergeControlToEnd(graph(), common(), tail_call);
   schedule()->AddTailCall(CurrentBlock(), tail_call);
@@ -233,8 +226,7 @@ Node* RawMachineAssembler::TailCallRuntime1(Runtime::FunctionId function,
       common()->ExternalConstant(ExternalReference(function, isolate())));
   Node* arity = Int32Constant(kArity);
 
-  Node* nodes[] = {centry,          arg1, ref, arity, context, graph()->start(),
-                   graph()->start()};
+  Node* nodes[] = {centry, arg1, ref, arity, context};
   Node* tail_call = MakeNode(common()->TailCall(desc), arraysize(nodes), nodes);
 
   NodeProperties::MergeControlToEnd(graph(), common(), tail_call);
@@ -257,9 +249,7 @@ Node* RawMachineAssembler::TailCallRuntime2(Runtime::FunctionId function,
       common()->ExternalConstant(ExternalReference(function, isolate())));
   Node* arity = Int32Constant(kArity);
 
-  Node* nodes[] = {
-      centry,          arg1, arg2, ref, arity, context, graph()->start(),
-      graph()->start()};
+  Node* nodes[] = {centry, arg1, arg2, ref, arity, context};
   Node* tail_call = MakeNode(common()->TailCall(desc), arraysize(nodes), nodes);
 
   NodeProperties::MergeControlToEnd(graph(), common(), tail_call);
@@ -276,8 +266,7 @@ Node* RawMachineAssembler::CallCFunction0(MachineType return_type,
   const CallDescriptor* descriptor =
       Linkage::GetSimplifiedCDescriptor(zone(), builder.Build());
 
-  return AddNode(common()->Call(descriptor), function, graph()->start(),
-                 graph()->start());
+  return AddNode(common()->Call(descriptor), function);
 }
 
 
@@ -290,8 +279,7 @@ Node* RawMachineAssembler::CallCFunction1(MachineType return_type,
   const CallDescriptor* descriptor =
       Linkage::GetSimplifiedCDescriptor(zone(), builder.Build());
 
-  return AddNode(common()->Call(descriptor), function, arg0, graph()->start(),
-                 graph()->start());
+  return AddNode(common()->Call(descriptor), function, arg0);
 }
 
 
@@ -306,8 +294,7 @@ Node* RawMachineAssembler::CallCFunction2(MachineType return_type,
   const CallDescriptor* descriptor =
       Linkage::GetSimplifiedCDescriptor(zone(), builder.Build());
 
-  return AddNode(common()->Call(descriptor), function, arg0, arg1,
-                 graph()->start(), graph()->start());
+  return AddNode(common()->Call(descriptor), function, arg0, arg1);
 }
 
 
@@ -327,17 +314,7 @@ Node* RawMachineAssembler::CallCFunction8(
   builder.AddParam(arg5_type);
   builder.AddParam(arg6_type);
   builder.AddParam(arg7_type);
-  Node* args[] = {function,
-                  arg0,
-                  arg1,
-                  arg2,
-                  arg3,
-                  arg4,
-                  arg5,
-                  arg6,
-                  arg7,
-                  graph()->start(),
-                  graph()->start()};
+  Node* args[] = {function, arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7};
   const CallDescriptor* descriptor =
       Linkage::GetSimplifiedCDescriptor(zone(), builder.Build());
   return AddNode(common()->Call(descriptor), arraysize(args), args);

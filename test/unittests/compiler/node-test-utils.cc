@@ -708,10 +708,18 @@ class IsCallMatcher final : public NodeMatcher {
         return false;
       }
     }
-    return (PrintMatchAndExplain(NodeProperties::GetEffectInput(node), "effect",
-                                 effect_matcher_, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetControlInput(node),
-                                 "control", control_matcher_, listener));
+    Node* effect_node = nullptr;
+    Node* control_node = nullptr;
+    if (NodeProperties::FirstEffectIndex(node) < node->InputCount()) {
+      effect_node = NodeProperties::GetEffectInput(node);
+    }
+    if (NodeProperties::FirstControlIndex(node) < node->InputCount()) {
+      control_node = NodeProperties::GetControlInput(node);
+    }
+    return (PrintMatchAndExplain(effect_node, "effect", effect_matcher_,
+                                 listener) &&
+            PrintMatchAndExplain(control_node, "control", control_matcher_,
+                                 listener));
   }
 
  private:
@@ -766,10 +774,18 @@ class IsTailCallMatcher final : public NodeMatcher {
         return false;
       }
     }
-    return (PrintMatchAndExplain(NodeProperties::GetEffectInput(node), "effect",
-                                 effect_matcher_, listener) &&
-            PrintMatchAndExplain(NodeProperties::GetControlInput(node),
-                                 "control", control_matcher_, listener));
+    Node* effect_node = nullptr;
+    Node* control_node = nullptr;
+    if (NodeProperties::FirstEffectIndex(node) < node->InputCount()) {
+      effect_node = NodeProperties::GetEffectInput(node);
+    }
+    if (NodeProperties::FirstControlIndex(node) < node->InputCount()) {
+      control_node = NodeProperties::GetControlInput(node);
+    }
+    return (PrintMatchAndExplain(effect_node, "effect", effect_matcher_,
+                                 listener) &&
+            PrintMatchAndExplain(control_node, "control", control_matcher_,
+                                 listener));
   }
 
  private:
