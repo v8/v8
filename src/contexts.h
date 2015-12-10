@@ -137,6 +137,7 @@ enum BindingFlags {
   V(PROMISE_CATCH_INDEX, JSFunction, promise_catch)                           \
   V(PROMISE_CHAIN_INDEX, JSFunction, promise_chain)                           \
   V(PROMISE_CREATE_INDEX, JSFunction, promise_create)                         \
+  V(PROMISE_FUNCTION_INDEX, JSFunction, promise_function)                     \
   V(PROMISE_HAS_USER_DEFINED_REJECT_HANDLER_INDEX, JSFunction,                \
     promise_has_user_defined_reject_handler)                                  \
   V(PROMISE_REJECT_INDEX, JSFunction, promise_reject)                         \

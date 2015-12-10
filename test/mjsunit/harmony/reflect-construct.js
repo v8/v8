@@ -307,7 +307,7 @@
       "Map",
       "Number",
       "Object",
-      // "Promise",
+      ["Promise", [(resolve, reject)=>{}]],
       "RangeError",
       "ReferenceError",
       "RegExp",

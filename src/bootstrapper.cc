@@ -2495,6 +2495,8 @@ bool Genesis::InstallNatives(ContextType context_type) {
     function->initial_map()->set_instance_type(JS_PROMISE_TYPE);
     function->shared()->set_construct_stub(
         *isolate()->builtins()->JSBuiltinsConstructStub());
+    InstallWithIntrinsicDefaultProto(isolate(), function,
+                                     Context::PROMISE_FUNCTION_INDEX);
   }
 
   InstallBuiltinFunctionIds();
