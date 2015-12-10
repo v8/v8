@@ -7985,9 +7985,8 @@ bool HasEnumerableElements(JSObject* object) {
     case FAST_SMI_ELEMENTS:
     case FAST_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS: {
-      int length = object->IsJSArray()
-                       ? Smi::cast(JSArray::cast(object)->length())->value()
-                       : object->elements()->length();
+      DCHECK(object->IsJSArray());
+      int length = Smi::cast(JSArray::cast(object)->length())->value();
       return length > 0;
     }
     case FAST_HOLEY_SMI_ELEMENTS:
@@ -8003,8 +8002,9 @@ bool HasEnumerableElements(JSObject* object) {
     }
     case FAST_HOLEY_DOUBLE_ELEMENTS: {
       FixedDoubleArray* elements = FixedDoubleArray::cast(object->elements());
-      DCHECK(object->IsJSArray());
-      int length = Smi::cast(JSArray::cast(object)->length())->value();
+      int length = object->IsJSArray()
+                       ? Smi::cast(JSArray::cast(object)->length())->value()
+                       : elements->length();
       for (int i = 0; i < length; i++) {
         if (!elements->is_the_hole(i)) return true;
       }
