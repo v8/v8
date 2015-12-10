@@ -190,7 +190,7 @@ DEFINE_BOOL(legacy_const, true, "legacy semantics for const in sloppy mode")
 DEFINE_NEG_IMPLICATION(harmony, legacy_const)
 
 // Activate on ClusterFuzz.
-DEFINE_IMPLICATION(es_staging, harmony_destructuring_bind)
+DEFINE_IMPLICATION(es_staging, harmony_destructuring_assignment)
 
 // Features that are still work in progress (behind individual flags).
 #define HARMONY_INPROGRESS(V)                                         \
