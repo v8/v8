@@ -6509,14 +6509,19 @@ class SharedFunctionInfo: public HeapObject {
                                               Handle<Code> code);
 
   // Add a new entry to the optimized code map for context-dependent code.
-  // |code| is either a code object or an undefined value. In the latter case
-  // the entry just maps |native_context, osr_ast_id| pair to |literals| array.
-  static void AddToOptimizedCodeMap(Handle<SharedFunctionInfo> shared,
-                                    Handle<Context> native_context,
-                                    Handle<HeapObject> code,
-                                    Handle<LiteralsArray> literals,
-                                    BailoutId osr_ast_id);
+  inline static void AddToOptimizedCodeMap(Handle<SharedFunctionInfo> shared,
+                                           Handle<Context> native_context,
+                                           Handle<Code> code,
+                                           Handle<LiteralsArray> literals,
+                                           BailoutId osr_ast_id);
 
+  // We may already have cached the code, but want to store literals in the
+  // cache.
+  inline static void AddLiteralsToOptimizedCodeMap(
+      Handle<SharedFunctionInfo> shared, Handle<Context> native_context,
+      Handle<LiteralsArray> literals);
+
+ public:
   // Set up the link between shared function info and the script. The shared
   // function info is added to the list on the script.
   static void SetScript(Handle<SharedFunctionInfo> shared,
@@ -7122,6 +7127,13 @@ class SharedFunctionInfo: public HeapObject {
   // entry or a start index of the context-dependent entry.
   int SearchOptimizedCodeMapEntry(Context* native_context,
                                   BailoutId osr_ast_id);
+
+  // If code is undefined, then existing code won't be overwritten.
+  static void AddToOptimizedCodeMapInternal(Handle<SharedFunctionInfo> shared,
+                                            Handle<Context> native_context,
+                                            Handle<HeapObject> code,
+                                            Handle<LiteralsArray> literals,
+                                            BailoutId osr_ast_id);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(SharedFunctionInfo);
 };

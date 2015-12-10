@@ -1368,8 +1368,8 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
 
     // Cache context-specific literals.
     Handle<Context> native_context(context->native_context());
-    SharedFunctionInfo::AddToOptimizedCodeMap(
-        info, native_context, undefined_value(), literals, BailoutId::None());
+    SharedFunctionInfo::AddLiteralsToOptimizedCodeMap(info, native_context,
+                                                      literals);
   }
 
   return result;

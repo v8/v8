@@ -11989,7 +11989,7 @@ void SharedFunctionInfo::AddSharedCodeToOptimizedCodeMap(
 }
 
 
-void SharedFunctionInfo::AddToOptimizedCodeMap(
+void SharedFunctionInfo::AddToOptimizedCodeMapInternal(
     Handle<SharedFunctionInfo> shared, Handle<Context> native_context,
     Handle<HeapObject> code, Handle<LiteralsArray> literals,
     BailoutId osr_ast_id) {
@@ -12013,16 +12013,19 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
     Handle<FixedArray> old_code_map(shared->optimized_code_map(), isolate);
     entry = shared->SearchOptimizedCodeMapEntry(*native_context, osr_ast_id);
     if (entry > kSharedCodeIndex) {
-      // Found an existing context-specific entry, it must not contain any code.
-      DCHECK(WeakCell::cast(old_code_map->get(entry + kCachedCodeOffset))
+      // Found an existing context-specific entry. If the user provided valid
+      // code, it must not contain any code.
+      DCHECK(code->IsUndefined() ||
+             WeakCell::cast(old_code_map->get(entry + kCachedCodeOffset))
                  ->cleared());
+
       // Just set the code and literals to the entry.
-      Handle<WeakCell> code_cell = code->IsUndefined()
-                                       ? isolate->factory()->empty_weak_cell()
-                                       : isolate->factory()->NewWeakCell(code);
+      if (!code->IsUndefined()) {
+        Handle<WeakCell> code_cell = isolate->factory()->NewWeakCell(code);
+        old_code_map->set(entry + kCachedCodeOffset, *code_cell);
+      }
       Handle<WeakCell> literals_cell =
           isolate->factory()->NewWeakCell(literals);
-      old_code_map->set(entry + kCachedCodeOffset, *code_cell);
       old_code_map->set(entry + kLiteralsOffset, *literals_cell);
       return;
     }
