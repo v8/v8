@@ -430,7 +430,7 @@ class LiveRange : public ZoneObject {
 
   typedef BitField<bool, 0, 1> SpilledField;
   typedef BitField<int32_t, 6, 6> AssignedRegisterField;
-  typedef BitField<MachineRepresentation, 12, 15> RepresentationField;
+  typedef BitField<MachineRepresentation, 12, 8> RepresentationField;
 
   // Unique among children and splinters of the same virtual register.
   int relative_id_;
