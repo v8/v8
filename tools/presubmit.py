@@ -62,7 +62,6 @@ LINT_RULES = """
 -build/include_what_you_use
 -build/namespaces
 -readability/check
--readability/nolint
 +readability/streams
 -runtime/references
 """.split()
