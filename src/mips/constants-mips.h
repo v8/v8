@@ -777,7 +777,12 @@ enum FPURoundingMode {
   kRoundToNearest = RN,
   kRoundToZero = RZ,
   kRoundToPlusInf = RP,
-  kRoundToMinusInf = RM
+  kRoundToMinusInf = RM,
+
+  mode_round = RN,
+  mode_ceil = RP,
+  mode_floor = RM,
+  mode_trunc = RZ
 };
 
 const uint32_t kFPURoundingModeMask = 3 << 0;
