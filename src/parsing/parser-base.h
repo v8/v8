@@ -1847,7 +1847,7 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseObjectLiteral(
   Expect(Token::LBRACE, CHECK_OK);
 
   while (peek() != Token::RBRACE) {
-    if (fni_ != nullptr) fni_->Enter();
+    FuncNameInferrer::State fni_state(fni_);
 
     const bool in_class = false;
     const bool is_static = false;
@@ -1878,10 +1878,7 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseObjectLiteral(
       Expect(Token::COMMA, CHECK_OK);
     }
 
-    if (fni_ != nullptr) {
-      fni_->Infer();
-      fni_->Leave();
-    }
+    if (fni_ != nullptr) fni_->Infer();
   }
   Expect(Token::RBRACE, CHECK_OK);
 
@@ -1984,7 +1981,7 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN, int flags,
     return this->ParseYieldExpression(classifier, ok);
   }
 
-  if (fni_ != NULL) fni_->Enter();
+  FuncNameInferrer::State fni_state(fni_);
   ParserBase<Traits>::Checkpoint checkpoint(this);
   ExpressionClassifier arrow_formals_classifier(classifier->duplicate_finder());
   bool parenthesized_formals = peek() == Token::LPAREN;
@@ -2028,6 +2025,9 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN, int flags,
           Scanner::Location(lhs_beg_pos, scanner()->location().end_pos),
           MessageTemplate::kInvalidDestructuringTarget);
     }
+
+    if (fni_ != nullptr) fni_->Infer();
+
     return expression;
   }
 
@@ -2049,7 +2049,6 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN, int flags,
   //    allow_harmony_destructuring_bind() && maybe_pattern && !is_rhs;
 
   if (!Token::IsAssignmentOp(peek())) {
-    if (fni_ != NULL) fni_->Leave();
     // Parsed conditional expression only (no assignment).
     if (is_pattern_element && !this->IsValidReferenceExpression(expression) &&
         !maybe_pattern) {
@@ -2125,7 +2124,6 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN, int flags,
     } else {
       fni_->RemoveLastFunction();
     }
-    fni_->Leave();
   }
 
   ExpressionT result = factory()->NewAssignment(op, expression, right, pos);
@@ -2604,7 +2602,7 @@ ParserBase<Traits>::ParseStrongInitializationExpression(
   //  'this' '.' IdentifierName '=' AssignmentExpression
   //  'this' '[' Expression ']' '=' AssignmentExpression
 
-  if (fni_ != NULL) fni_->Enter();
+  FuncNameInferrer::State fni_state(fni_);
 
   Consume(Token::THIS);
   int pos = position();
@@ -2663,7 +2661,6 @@ ParserBase<Traits>::ParseStrongInitializationExpression(
     } else {
       fni_->RemoveLastFunction();
     }
-    fni_->Leave();
   }
 
   if (function_state_->return_location().IsValid()) {
