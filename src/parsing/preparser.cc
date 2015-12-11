@@ -956,15 +956,24 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
       }
     } else {
       int lhs_beg_pos = peek_position();
-      Expression lhs = ParseExpression(false, CHECK_OK);
+      ExpressionClassifier classifier;
+      Expression lhs = ParseExpression(false, &classifier, CHECK_OK);
       int lhs_end_pos = scanner()->location().end_pos;
       is_let_identifier_expression =
           lhs.IsIdentifier() && lhs.AsIdentifier().IsLet();
       if (CheckInOrOf(&mode, ok)) {
         if (!*ok) return Statement::Default();
-        lhs = CheckAndRewriteReferenceExpression(
-            lhs, lhs_beg_pos, lhs_end_pos, MessageTemplate::kInvalidLhsInFor,
-            kSyntaxError, CHECK_OK);
+        bool is_destructuring =
+            allow_harmony_destructuring_assignment() &&
+            (lhs->IsArrayLiteral() || lhs->IsObjectLiteral());
+        if (is_destructuring) {
+          ValidateAssignmentPattern(&classifier, CHECK_OK);
+        } else {
+          ValidateExpression(&classifier, CHECK_OK);
+          lhs = CheckAndRewriteReferenceExpression(
+              lhs, lhs_beg_pos, lhs_end_pos, MessageTemplate::kInvalidLhsInFor,
+              kSyntaxError, CHECK_OK);
+        }
         ParseExpression(true, CHECK_OK);
         Expect(Token::RPAREN, CHECK_OK);
         ParseSubStatement(CHECK_OK);

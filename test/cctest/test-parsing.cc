@@ -6828,6 +6828,25 @@ TEST(DestructuringAssignmentPositiveTests) {
       {"'use strict'; let x, y, z; for (x of ", " = {});"},
       {"var x, y, z; for (x in ", " = {});"},
       {"var x, y, z; for (x of ", " = {});"},
+      {"var x, y, z; for (", " in {});"},
+      {"var x, y, z; for (", " of {});"},
+      {"'use strict'; var x, y, z; for (", " in {});"},
+      {"'use strict'; var x, y, z; for (", " of {});"},
+      {NULL, NULL}};
+
+  const char* mixed_assignments_context_data[][2] = {
+      {"'use strict'; let x, y, z; (", " = z = {});"},
+      {"var x, y, z; (", " = z = {});"},
+      {"'use strict'; let x, y, z; (x = ", " = z = {});"},
+      {"var x, y, z; (x = ", " = z = {});"},
+      {"'use strict'; let x, y, z; for (x in ", " = z = {});"},
+      {"'use strict'; let x, y, z; for (x in x = ", " = z = {});"},
+      {"'use strict'; let x, y, z; for (x of ", " = z = {});"},
+      {"'use strict'; let x, y, z; for (x of x = ", " = z = {});"},
+      {"var x, y, z; for (x in ", " = z = {});"},
+      {"var x, y, z; for (x in x = ", " = z = {});"},
+      {"var x, y, z; for (x of ", " = z = {});"},
+      {"var x, y, z; for (x of x = ", " = z = {});"},
       {NULL, NULL}};
 
   // clang-format off
@@ -6901,8 +6920,6 @@ TEST(DestructuringAssignmentPositiveTests) {
     "[ [ foo()[x] = 10 ] = {} ]",
     "[ [ x.y = 10 ] = {} ]",
     "[ [ x[y] = 10 ] = {} ]",
-
-    "{ x : y }",
     "{ x : y = 1 }",
     "{ x }",
     "{ x, y, z }",
@@ -6945,12 +6962,8 @@ TEST(DestructuringAssignmentPositiveTests) {
     "[...x]",
     "[x,y,...z]",
     "[x,,...z]",
-    "{ x: y } = z",
-    "[x, y] = z",
-    "{ x: y } = { z }",
-    "[x, y] = { z }",
-    "{ x: y } = [ z ]",
-    "[x, y] = [ z ]",
+    "{ x: y }",
+    "[x, y]",
     "[((x, y) => z).x]",
     "{x: ((y, z) => z).x}",
     "[((x, y) => z)['x']]",
@@ -6965,6 +6978,9 @@ TEST(DestructuringAssignmentPositiveTests) {
       kAllowHarmonyDefaultParameters};
   RunParserSyncTest(context_data, data, kSuccess, NULL, 0, always_flags,
                     arraysize(always_flags));
+
+  RunParserSyncTest(mixed_assignments_context_data, data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
 
   const char* empty_context_data[][2] = {
       {"'use strict';", ""}, {"", ""}, {NULL, NULL}};

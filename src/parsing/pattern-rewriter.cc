@@ -32,12 +32,12 @@ void Parser::PatternRewriter::DeclareAndInitializeVariables(
 
 
 void Parser::PatternRewriter::RewriteDestructuringAssignment(
-    Parser* parser, RewritableAssignmentExpression* to_rewrite, Scope* scope,
-    bool* ok) {
+    Parser* parser, RewritableAssignmentExpression* to_rewrite, Scope* scope) {
   PatternRewriter rewriter;
 
   DCHECK(!to_rewrite->is_rewritten());
 
+  bool ok = true;
   rewriter.scope_ = scope;
   rewriter.parser_ = parser;
   rewriter.context_ = ASSIGNMENT;
@@ -45,9 +45,21 @@ void Parser::PatternRewriter::RewriteDestructuringAssignment(
   rewriter.block_ = nullptr;
   rewriter.descriptor_ = nullptr;
   rewriter.names_ = nullptr;
-  rewriter.ok_ = ok;
+  rewriter.ok_ = &ok;
 
   rewriter.RecurseIntoSubpattern(rewriter.pattern_, nullptr);
+  DCHECK(ok);
+}
+
+
+Expression* Parser::PatternRewriter::RewriteDestructuringAssignment(
+    Parser* parser, Assignment* assignment, Scope* scope) {
+  DCHECK_NOT_NULL(assignment);
+  DCHECK_EQ(Token::ASSIGN, assignment->op());
+  auto to_rewrite =
+      parser->factory()->NewRewritableAssignmentExpression(assignment);
+  RewriteDestructuringAssignment(parser, to_rewrite, scope);
+  return to_rewrite->expression();
 }
 
 
