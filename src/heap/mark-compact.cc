@@ -3722,7 +3722,7 @@ int MarkCompactCollector::SweepInParallel(Page* page, PagedSpace* space) {
 }
 
 
-void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
+void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
   space->ClearStats();
 
   // We defensively initialize end_of_unswept_pages_ here with the first page
@@ -3753,8 +3753,7 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
     if (p->LiveBytes() == 0) {
       if (unused_page_present) {
         if (FLAG_gc_verbose) {
-          PrintF("Sweeping 0x%" V8PRIxPTR " released page.\n",
-                 reinterpret_cast<intptr_t>(p));
+          PrintIsolate(isolate(), "sweeping: released page: %p", p);
         }
         space->ReleasePage(p);
         continue;
@@ -3762,64 +3761,38 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
       unused_page_present = true;
     }
 
-    switch (sweeper) {
-      case CONCURRENT_SWEEPING:
-        if (!parallel_sweeping_active) {
-          if (FLAG_gc_verbose) {
-            PrintF("Sweeping 0x%" V8PRIxPTR ".\n",
-                   reinterpret_cast<intptr_t>(p));
-          }
-          if (space->identity() == CODE_SPACE) {
-            if (FLAG_zap_code_space) {
-              Sweep<SWEEP_ONLY, SWEEP_ON_MAIN_THREAD, REBUILD_SKIP_LIST,
-                    ZAP_FREE_SPACE>(space, NULL, p, NULL);
-            } else {
-              Sweep<SWEEP_ONLY, SWEEP_ON_MAIN_THREAD, REBUILD_SKIP_LIST,
-                    IGNORE_FREE_SPACE>(space, NULL, p, NULL);
-            }
-          } else {
-            Sweep<SWEEP_ONLY, SWEEP_ON_MAIN_THREAD, IGNORE_SKIP_LIST,
-                  IGNORE_FREE_SPACE>(space, NULL, p, NULL);
-          }
-          pages_swept++;
-          parallel_sweeping_active = true;
+    if (!parallel_sweeping_active) {
+      if (FLAG_gc_verbose) {
+        PrintIsolate(isolate(), "sweeping: %p", p);
+      }
+      if (space->identity() == CODE_SPACE) {
+        if (FLAG_zap_code_space) {
+          Sweep<SWEEP_ONLY, SWEEP_ON_MAIN_THREAD, REBUILD_SKIP_LIST,
+                ZAP_FREE_SPACE>(space, NULL, p, NULL);
         } else {
-          if (FLAG_gc_verbose) {
-            PrintF("Sweeping 0x%" V8PRIxPTR " in parallel.\n",
-                   reinterpret_cast<intptr_t>(p));
-          }
-          p->parallel_sweeping_state().SetValue(MemoryChunk::kSweepingPending);
-          int to_sweep = p->area_size() - p->LiveBytes();
-          space->accounting_stats_.ShrinkSpace(to_sweep);
-        }
-        space->set_end_of_unswept_pages(p);
-        break;
-      case SEQUENTIAL_SWEEPING: {
-        if (FLAG_gc_verbose) {
-          PrintF("Sweeping 0x%" V8PRIxPTR ".\n", reinterpret_cast<intptr_t>(p));
-        }
-        if (space->identity() == CODE_SPACE) {
-          if (FLAG_zap_code_space) {
-            Sweep<SWEEP_ONLY, SWEEP_ON_MAIN_THREAD, REBUILD_SKIP_LIST,
-                  ZAP_FREE_SPACE>(space, NULL, p, NULL);
-          } else {
-            Sweep<SWEEP_ONLY, SWEEP_ON_MAIN_THREAD, REBUILD_SKIP_LIST,
-                  IGNORE_FREE_SPACE>(space, NULL, p, NULL);
-          }
-        } else {
-          Sweep<SWEEP_ONLY, SWEEP_ON_MAIN_THREAD, IGNORE_SKIP_LIST,
+          Sweep<SWEEP_ONLY, SWEEP_ON_MAIN_THREAD, REBUILD_SKIP_LIST,
                 IGNORE_FREE_SPACE>(space, NULL, p, NULL);
         }
-        pages_swept++;
-        break;
+      } else {
+        Sweep<SWEEP_ONLY, SWEEP_ON_MAIN_THREAD, IGNORE_SKIP_LIST,
+              IGNORE_FREE_SPACE>(space, NULL, p, NULL);
       }
-      default: { UNREACHABLE(); }
+      pages_swept++;
+      parallel_sweeping_active = true;
+    } else {
+      if (FLAG_gc_verbose) {
+        PrintIsolate(isolate(), "sweeping: initialized for parallel: %p", p);
+      }
+      p->parallel_sweeping_state().SetValue(MemoryChunk::kSweepingPending);
+      int to_sweep = p->area_size() - p->LiveBytes();
+      space->accounting_stats_.ShrinkSpace(to_sweep);
     }
+    space->set_end_of_unswept_pages(p);
   }
 
   if (FLAG_gc_verbose) {
-    PrintF("SweepSpace: %s (%d pages swept)\n",
-           AllocationSpaceName(space->identity()), pages_swept);
+    PrintIsolate(isolate(), "sweeping: space=%s pages_swept=%d",
+                 AllocationSpaceName(space->identity()), pages_swept);
   }
 }
 
@@ -3841,17 +3814,17 @@ void MarkCompactCollector::SweepSpaces() {
     {
       GCTracer::Scope sweep_scope(heap()->tracer(),
                                   GCTracer::Scope::MC_SWEEP_OLD);
-      SweepSpace(heap()->old_space(), CONCURRENT_SWEEPING);
+      StartSweepSpace(heap()->old_space());
     }
     {
       GCTracer::Scope sweep_scope(heap()->tracer(),
                                   GCTracer::Scope::MC_SWEEP_CODE);
-      SweepSpace(heap()->code_space(), CONCURRENT_SWEEPING);
+      StartSweepSpace(heap()->code_space());
     }
     {
       GCTracer::Scope sweep_scope(heap()->tracer(),
                                   GCTracer::Scope::MC_SWEEP_MAP);
-      SweepSpace(heap()->map_space(), CONCURRENT_SWEEPING);
+      StartSweepSpace(heap()->map_space());
     }
     sweeping_in_progress_ = true;
     if (FLAG_concurrent_sweeping) {

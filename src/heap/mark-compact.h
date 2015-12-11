@@ -365,11 +365,6 @@ class MarkCompactCollector {
   CodeFlusher* code_flusher() { return code_flusher_; }
   inline bool is_code_flushing_enabled() const { return code_flusher_ != NULL; }
 
-  enum SweeperType {
-    CONCURRENT_SWEEPING,
-    SEQUENTIAL_SWEEPING
-  };
-
   enum SweepingParallelism { SWEEP_ON_MAIN_THREAD, SWEEP_IN_PARALLEL };
 
 #ifdef VERIFY_HEAP
@@ -693,7 +688,6 @@ class MarkCompactCollector {
   // regions to each space's free list.
   void SweepSpaces();
 
-
   void EvacuateNewSpace();
 
   void AddEvacuationSlotsBufferSynchronized(
@@ -731,7 +725,9 @@ class MarkCompactCollector {
   // corresponding space pages list.
   void MoveEvacuationCandidatesToEndOfPagesList();
 
-  void SweepSpace(PagedSpace* space, SweeperType sweeper);
+  // Starts sweeping of a space by contributing on the main thread and setting
+  // up other pages for sweeping.
+  void StartSweepSpace(PagedSpace* space);
 
   // Finalizes the parallel sweeping phase. Marks all the pages that were
   // swept in parallel.
