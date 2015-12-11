@@ -162,7 +162,6 @@ Heap::Heap()
       pending_unmapping_tasks_semaphore_(0),
       gc_callbacks_depth_(0),
       deserialization_complete_(false),
-      concurrent_sweeping_enabled_(false),
       strong_roots_list_(NULL),
       array_buffer_tracker_(NULL) {
 // Allow build-time customization of the max semispace size. Building
@@ -5003,8 +5002,6 @@ bool Heap::SetUp() {
   if (!configured_) {
     if (!ConfigureHeapDefault()) return false;
   }
-
-  concurrent_sweeping_enabled_ = FLAG_concurrent_sweeping;
 
   base::CallOnce(&initialize_gc_once, &InitializeGCOnce);
 

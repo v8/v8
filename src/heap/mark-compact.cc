@@ -561,7 +561,7 @@ void MarkCompactCollector::SweepOrWaitUntilSweepingCompleted(Page* page) {
 
 
 void MarkCompactCollector::SweepAndRefill(CompactionSpace* space) {
-  if (heap()->concurrent_sweeping_enabled() && !IsSweepingCompleted()) {
+  if (FLAG_concurrent_sweeping && !IsSweepingCompleted()) {
     SweepInParallel(heap()->paged_space(space->identity()), 0);
     space->RefillFreeList();
   }
@@ -573,13 +573,13 @@ void MarkCompactCollector::EnsureSweepingCompleted() {
 
   // If sweeping is not completed or not running at all, we try to complete it
   // here.
-  if (!heap()->concurrent_sweeping_enabled() || !IsSweepingCompleted()) {
+  if (!FLAG_concurrent_sweeping || !IsSweepingCompleted()) {
     SweepInParallel(heap()->paged_space(OLD_SPACE), 0);
     SweepInParallel(heap()->paged_space(CODE_SPACE), 0);
     SweepInParallel(heap()->paged_space(MAP_SPACE), 0);
   }
 
-  if (heap()->concurrent_sweeping_enabled()) {
+  if (FLAG_concurrent_sweeping) {
     pending_sweeper_tasks_semaphore_.Wait();
     pending_sweeper_tasks_semaphore_.Wait();
     pending_sweeper_tasks_semaphore_.Wait();
@@ -3848,7 +3848,7 @@ void MarkCompactCollector::SweepSpaces() {
       SweepSpace(heap()->map_space(), CONCURRENT_SWEEPING);
     }
     sweeping_in_progress_ = true;
-    if (heap()->concurrent_sweeping_enabled()) {
+    if (FLAG_concurrent_sweeping) {
       StartSweeperThreads();
     }
   }

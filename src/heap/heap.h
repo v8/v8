@@ -959,8 +959,6 @@ class Heap {
 
   void IncrementDeferredCount(v8::Isolate::UseCounterFeature feature);
 
-  bool concurrent_sweeping_enabled() { return concurrent_sweeping_enabled_; }
-
   inline bool OldGenerationAllocationLimitReached();
 
   void QueueMemoryChunkForFree(MemoryChunk* chunk);
@@ -2362,8 +2360,6 @@ class Heap {
   int gc_callbacks_depth_;
 
   bool deserialization_complete_;
-
-  bool concurrent_sweeping_enabled_;
 
   StrongRootsList* strong_roots_list_;
 
