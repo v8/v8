@@ -119,9 +119,7 @@ class TransitionArray: public FixedArray {
                                               int value);
 
   inline FixedArray* GetPrototypeTransitions();
-  inline void SetPrototypeTransitions(
-      FixedArray* prototype_transitions,
-      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void SetPrototypeTransitions(FixedArray* prototype_transitions);
   inline Object** GetPrototypeTransitionsSlot();
   inline bool HasPrototypeTransitions();
 

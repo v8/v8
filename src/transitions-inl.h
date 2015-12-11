@@ -37,10 +37,9 @@ FixedArray* TransitionArray::GetPrototypeTransitions() {
 }
 
 
-void TransitionArray::SetPrototypeTransitions(FixedArray* transitions,
-                                              WriteBarrierMode mode) {
+void TransitionArray::SetPrototypeTransitions(FixedArray* transitions) {
   DCHECK(transitions->IsFixedArray());
-  set(kPrototypeTransitionsIndex, transitions, mode);
+  set(kPrototypeTransitionsIndex, transitions);
 }
 
 
