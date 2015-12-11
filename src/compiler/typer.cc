@@ -1583,6 +1583,8 @@ Type* Typer::Visitor::TypeJSCallRuntime(Node* node) {
       return TypeUnaryOp(node, ToPrimitive);
     case Runtime::kInlineToString:
       return TypeUnaryOp(node, ToString);
+    case Runtime::kHasInPrototypeChain:
+      return Type::Boolean();
     default:
       break;
   }

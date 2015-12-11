@@ -1100,9 +1100,15 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
 
 Reduction JSTypedLowering::ReduceJSInstanceOf(Node* node) {
   DCHECK_EQ(IrOpcode::kJSInstanceOf, node->opcode());
+  Node* const context = NodeProperties::GetContextInput(node);
+  Node* const frame_state = NodeProperties::GetFrameStateInput(node, 0);
 
   // If deoptimization is disabled, we cannot optimize.
   if (!(flags() & kDeoptimizationEnabled)) return NoChange();
+
+  // If we are in a try block, don't optimize since the runtime call
+  // in the proxy case can throw.
+  if (NodeProperties::IsExceptionalCall(node)) return NoChange();
 
   JSBinopReduction r(this, node);
   Node* effect = r.effect();
@@ -1149,6 +1155,24 @@ Reduction JSTypedLowering::ReduceJSInstanceOf(Node* node) {
           graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
                            object_map, r.left(), loop);
 
+      // Check if the lhs is a proxy.
+      Node* map_instance_type = effect = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForMapInstanceType()),
+          loop_object_map, loop_effect, control);
+      Node* is_proxy =
+          graph()->NewNode(machine()->Word32Equal(), map_instance_type,
+                           jsgraph()->Uint32Constant(JS_PROXY_TYPE));
+      Node* branch_is_proxy = graph()->NewNode(
+          common()->Branch(BranchHint::kFalse), is_proxy, control);
+      Node* if_is_proxy = graph()->NewNode(common()->IfTrue(), branch_is_proxy);
+      Node* e_is_proxy = effect;
+
+      // If it is, make a runtime call to finish the lowering.
+      Node* bool_result = e_is_proxy = graph()->NewNode(
+          javascript()->CallRuntime(Runtime::kHasInPrototypeChain, 2), r.left(),
+          prototype, context, frame_state, e_is_proxy, if_is_proxy);
+
+      control = graph()->NewNode(common()->IfFalse(), branch_is_proxy);
 
       Node* object_prototype = effect = graph()->NewNode(
           simplified()->LoadField(AccessBuilder::ForMapPrototype()),
@@ -1184,14 +1208,14 @@ Reduction JSTypedLowering::ReduceJSInstanceOf(Node* node) {
       loop_object_map->ReplaceInput(1, load_object_map);
       loop->ReplaceInput(1, control);
 
-      control =
-          graph()->NewNode(common()->Merge(2), if_eq_proto, if_null_proto);
-      effect = graph()->NewNode(common()->EffectPhi(2), e_eq_proto,
+      control = graph()->NewNode(common()->Merge(3), if_is_proxy, if_eq_proto,
+                                 if_null_proto);
+      effect = graph()->NewNode(common()->EffectPhi(3), e_is_proxy, e_eq_proto,
                                 e_null_proto, control);
 
 
       Node* result = graph()->NewNode(
-          common()->Phi(MachineRepresentation::kTagged, 2),
+          common()->Phi(MachineRepresentation::kTagged, 3), bool_result,
           jsgraph()->TrueConstant(), jsgraph()->FalseConstant(), control);
 
       if (if_is_smi != nullptr) {
