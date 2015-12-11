@@ -550,6 +550,12 @@ static inline void ExpectUndefined(const char* code) {
 }
 
 
+static inline void ExpectNull(const char* code) {
+  v8::Local<v8::Value> result = CompileRun(code);
+  CHECK(result->IsNull());
+}
+
+
 static inline void CheckDoubleEquals(double expected, double actual) {
   const double kEpsilon = 1e-10;
   CHECK_LE(expected, actual + kEpsilon);

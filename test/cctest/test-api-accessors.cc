@@ -5,35 +5,31 @@
 #include "test/cctest/cctest.h"
 
 #include "include/v8.h"
-#include "src/compiler/pipeline.h"
-#include "src/compiler/raw-machine-assembler.h"
+#include "include/v8-experimental.h"
 
 
 namespace i = v8::internal;
 
-static void CppAccessor(const v8::FunctionCallbackInfo<v8::Value>& info) {
+static void CppAccessor42(const v8::FunctionCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(42);
 }
 
 
-v8::Local<v8::Value> RawAccessor(v8::Isolate* isolate) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::Zone zone;
-  i::compiler::RawMachineAssembler raw_machine_assembler(
-      i_isolate, new (&zone) i::compiler::Graph(&zone),
-      i::compiler::Linkage::GetJSCallDescriptor(
-          &zone, false, 1, i::compiler::CallDescriptor::kNoFlags));
-  raw_machine_assembler.Return(raw_machine_assembler.NumberConstant(41));
-  i::CompilationInfo info("firstChildRaw", i_isolate, &zone);
-  i::compiler::Schedule* schedule = raw_machine_assembler.Export();
-  i::Handle<i::Code> code = i::compiler::Pipeline::GenerateCodeForTesting(
-      &info, raw_machine_assembler.call_descriptor(),
-      raw_machine_assembler.graph(), schedule);
-  return v8::Utils::ToLocal(i::Handle<i::Object>::cast(code));
+static void CppAccessor41(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  info.GetReturnValue().Set(41);
 }
 
 
-TEST(JavascriptAccessors) {
+v8::experimental::FastAccessorBuilder* FastAccessor(v8::Isolate* isolate) {
+  auto builder = v8::experimental::FastAccessorBuilder::New(isolate);
+  builder->ReturnValue(builder->IntegerConstant(41));
+  return builder;
+}
+
+
+TEST(FastAccessors) {
+  if (i::FLAG_always_opt || i::FLAG_optimize_for_size) return;
+
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   LocalContext env;
@@ -53,15 +49,15 @@ TEST(JavascriptAccessors) {
     // cpp accessor as "firstChild":
     parent->PrototypeTemplate()->SetAccessorProperty(
         v8_str("firstChild"),
-        v8::FunctionTemplate::New(isolate, CppAccessor, v8::Local<v8::Value>(),
-                                  signature));
+        v8::FunctionTemplate::New(isolate, CppAccessor42,
+                                  v8::Local<v8::Value>(), signature));
 
     // JS accessor as "firstChildRaw":
-    auto raw_accessor = RawAccessor(isolate);
     parent->PrototypeTemplate()->SetAccessorProperty(
-        v8_str("firstChildRaw"), v8::FunctionTemplate::NewWithFastHandler(
-                                     isolate, CppAccessor, raw_accessor,
-                                     v8::Local<v8::Value>(), signature));
+        v8_str("firstChildRaw"),
+        v8::FunctionTemplate::NewWithFastHandler(
+            isolate, CppAccessor41, FastAccessor(isolate),
+            v8::Local<v8::Value>(), signature));
   }
 
   // Setup child object ( =~ a specific DOM Node, e.g. a <div> ).
