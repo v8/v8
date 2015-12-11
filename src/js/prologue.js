@@ -201,7 +201,6 @@ function PostNatives(utils) {
     "ObjectDefineProperty",
     "ObserveArrayMethods",
     "ObserveObjectMethods",
-    "OwnPropertyKeys",
     "PromiseChain",
     "PromiseDeferred",
     "PromiseResolved",

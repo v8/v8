@@ -804,12 +804,6 @@ function ObjectGetOwnPropertyDescriptor(obj, p) {
 }
 
 
-// ES6 section 9.1.12 / 9.5.12
-function OwnPropertyKeys(obj) {
-  return %GetOwnPropertyKeys(obj, PROPERTY_FILTER_NONE);
-}
-
-
 // ES5 section 15.2.3.4.
 function ObjectGetOwnPropertyNames(obj) {
   obj = TO_OBJECT(obj);
@@ -916,36 +910,6 @@ function ObjectIsExtensible(obj) {
 }
 
 
-// ES6 19.1.2.1
-function ObjectAssign(target, sources) {
-  // TODO(bmeurer): Move this to toplevel.
-  "use strict";
-  var to = TO_OBJECT(target);
-  var argsLen = %_ArgumentsLength();
-  if (argsLen < 2) return to;
-
-  for (var i = 1; i < argsLen; ++i) {
-    var nextSource = %_Arguments(i);
-    if (IS_NULL_OR_UNDEFINED(nextSource)) {
-      continue;
-    }
-
-    var from = TO_OBJECT(nextSource);
-    var keys = OwnPropertyKeys(from);
-    var len = keys.length;
-
-    for (var j = 0; j < len; ++j) {
-      var key = keys[j];
-      if (%PropertyIsEnumerable(from, key)) {
-        var propValue = from[key];
-        to[key] = propValue;
-      }
-    }
-  }
-  return to;
-}
-
-
 // ES6 B.2.2.1.1
 function ObjectGetProto() {
   return %_GetPrototype(TO_OBJECT(this));
@@ -999,7 +963,7 @@ utils.InstallGetterSetter(GlobalObject.prototype, "__proto__", ObjectGetProto,
 
 // Set up non-enumerable functions in the Object object.
 utils.InstallFunctions(GlobalObject, DONT_ENUM, [
-  "assign", ObjectAssign,
+  // assign is added in bootstrapper.cc.
   "keys", ObjectKeys,
   "create", ObjectCreate,
   "defineProperty", ObjectDefineProperty,

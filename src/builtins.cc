@@ -1434,6 +1434,64 @@ BUILTIN(ArrayIsArray) {
 }
 
 
+// ES6 19.1.2.1 Object.assign
+BUILTIN(ObjectAssign) {
+  HandleScope scope(isolate);
+  Handle<Object> target =
+      args.length() > 1
+          ? args.at<Object>(1)
+          : Handle<Object>::cast(isolate->factory()->undefined_value());
+
+  // 1. Let to be ? ToObject(target).
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, target,
+                                     Execution::ToObject(isolate, target));
+  Handle<JSReceiver> to = Handle<JSReceiver>::cast(target);
+  // 2. If only one argument was passed, return to.
+  if (args.length() == 2) return *to;
+  // 3. Let sources be the List of argument values starting with the
+  //    second argument.
+  // 4. For each element nextSource of sources, in ascending index order,
+  for (int i = 2; i < args.length(); ++i) {
+    Handle<Object> next_source = args.at<Object>(i);
+    // 4a. If nextSource is undefined or null, let keys be an empty List.
+    if (next_source->IsUndefined() || next_source->IsNull()) continue;
+    // 4b. Else,
+    // 4b i. Let from be ToObject(nextSource).
+    Handle<JSReceiver> from =
+        Object::ToObject(isolate, next_source).ToHandleChecked();
+    // 4b ii. Let keys be ? from.[[OwnPropertyKeys]]().
+    Handle<FixedArray> keys;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, keys, JSReceiver::GetKeys(from, JSReceiver::OWN_ONLY,
+                                           ALL_PROPERTIES, KEEP_NUMBERS));
+    // 4c. Repeat for each element nextKey of keys in List order,
+    for (int j = 0; j < keys->length(); ++j) {
+      Handle<Object> next_key(keys->get(j), isolate);
+      // 4c i. Let desc be ? from.[[GetOwnProperty]](nextKey).
+      PropertyDescriptor desc;
+      Maybe<bool> found =
+          JSReceiver::GetOwnPropertyDescriptor(isolate, from, next_key, &desc);
+      if (found.IsNothing()) return isolate->heap()->exception();
+      // 4c ii. If desc is not undefined and desc.[[Enumerable]] is true, then
+      if (found.FromJust() && desc.enumerable()) {
+        // 4c ii 1. Let propValue be ? Get(from, nextKey).
+        Handle<Object> prop_value;
+        ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+            isolate, prop_value,
+            Runtime::GetObjectProperty(isolate, from, next_key, STRICT));
+        // 4c ii 2. Let status be ? Set(to, nextKey, propValue, true).
+        Handle<Object> status;
+        ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+            isolate, status, Runtime::SetObjectProperty(isolate, to, next_key,
+                                                        prop_value, STRICT));
+      }
+    }
+  }
+  // 5. Return to.
+  return *to;
+}
+
+
 // ES6 section 26.1.3 Reflect.defineProperty
 BUILTIN(ReflectDefineProperty) {
   HandleScope scope(isolate);
