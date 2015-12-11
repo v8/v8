@@ -692,8 +692,8 @@ Node* WasmGraphBuilder::Unop(wasm::WasmOpcode opcode, Node* input) {
       op = m->Float32Abs();
       break;
     case wasm::kExprF32Neg:
-      op = m->Float32Sub();
-      return graph()->NewNode(op, jsgraph()->Float32Constant(0), input);
+      op = m->Float32Mul();
+      return graph()->NewNode(op, jsgraph()->Float32Constant(-1), input);
     case wasm::kExprF32Sqrt:
       op = m->Float32Sqrt();
       break;
@@ -701,8 +701,8 @@ Node* WasmGraphBuilder::Unop(wasm::WasmOpcode opcode, Node* input) {
       op = m->Float64Abs();
       break;
     case wasm::kExprF64Neg:
-      op = m->Float64Sub();
-      return graph()->NewNode(op, jsgraph()->Float64Constant(0), input);
+      op = m->Float64Mul();
+      return graph()->NewNode(op, jsgraph()->Float64Constant(-1), input);
     case wasm::kExprF64Sqrt:
       op = m->Float64Sqrt();
       break;
