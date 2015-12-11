@@ -1188,6 +1188,9 @@ bool JSObject::AllCanRead(LookupIterator* it) {
       }
     } else if (it->state() == LookupIterator::INTERCEPTOR) {
       if (it->GetInterceptor()->all_can_read()) return true;
+    } else if (it->state() == LookupIterator::JSPROXY) {
+      // Stop lookupiterating. And no, AllCanNotRead.
+      return false;
     }
   }
   return false;
