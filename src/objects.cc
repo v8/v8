@@ -7982,8 +7982,9 @@ bool HasEnumerableElements(JSObject* object) {
     case FAST_SMI_ELEMENTS:
     case FAST_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS: {
-      DCHECK(object->IsJSArray());
-      int length = Smi::cast(JSArray::cast(object)->length())->value();
+      int length = object->IsJSArray()
+                       ? Smi::cast(JSArray::cast(object)->length())->value()
+                       : object->elements()->length();
       return length > 0;
     }
     case FAST_HOLEY_SMI_ELEMENTS:
