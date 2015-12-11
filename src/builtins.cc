@@ -1903,6 +1903,7 @@ MUST_USE_RESULT MaybeHandle<Object> HandleApiCallHelper(
 
     FunctionCallbackArguments custom(isolate,
                                      data_obj,
+                                     *function,
                                      raw_holder,
                                      &args[0] - 1,
                                      args.length() - 1,
@@ -2065,6 +2066,7 @@ MUST_USE_RESULT static Object* HandleApiCallAsFunctionOrConstructor(
 
     FunctionCallbackArguments custom(isolate,
                                      call_data->data(),
+                                     constructor,
                                      obj,
                                      &args[0] - 1,
                                      args.length() - 1,

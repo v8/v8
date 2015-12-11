@@ -215,10 +215,12 @@ class FunctionCallbackArguments
   static const int kReturnValueDefaultValueIndex =
       T::kReturnValueDefaultValueIndex;
   static const int kIsolateIndex = T::kIsolateIndex;
+  static const int kCalleeIndex = T::kCalleeIndex;
   static const int kContextSaveIndex = T::kContextSaveIndex;
 
   FunctionCallbackArguments(internal::Isolate* isolate,
       internal::Object* data,
+      internal::JSFunction* callee,
       internal::Object* holder,
       internal::Object** argv,
       int argc,
@@ -229,6 +231,7 @@ class FunctionCallbackArguments
           is_construct_call_(is_construct_call) {
     Object** values = begin();
     values[T::kDataIndex] = data;
+    values[T::kCalleeIndex] = callee;
     values[T::kHolderIndex] = holder;
     values[T::kContextSaveIndex] = isolate->heap()->the_hole_value();
     values[T::kIsolateIndex] = reinterpret_cast<internal::Object*>(isolate);
@@ -237,6 +240,7 @@ class FunctionCallbackArguments
     values[T::kReturnValueDefaultValueIndex] =
         isolate->heap()->the_hole_value();
     values[T::kReturnValueIndex] = isolate->heap()->the_hole_value();
+    DCHECK(values[T::kCalleeIndex]->IsJSFunction());
     DCHECK(values[T::kHolderIndex]->IsHeapObject());
     DCHECK(values[T::kIsolateIndex]->IsSmi());
   }

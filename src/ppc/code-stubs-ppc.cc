@@ -5454,13 +5454,14 @@ static void CallApiFunctionStubHelper(MacroAssembler* masm,
 
   typedef FunctionCallbackArguments FCA;
 
-  STATIC_ASSERT(FCA::kContextSaveIndex == 5);
+  STATIC_ASSERT(FCA::kContextSaveIndex == 6);
+  STATIC_ASSERT(FCA::kCalleeIndex == 5);
   STATIC_ASSERT(FCA::kDataIndex == 4);
   STATIC_ASSERT(FCA::kReturnValueOffset == 3);
   STATIC_ASSERT(FCA::kReturnValueDefaultValueIndex == 2);
   STATIC_ASSERT(FCA::kIsolateIndex == 1);
   STATIC_ASSERT(FCA::kHolderIndex == 0);
-  STATIC_ASSERT(FCA::kArgsLength == 6);
+  STATIC_ASSERT(FCA::kArgsLength == 7);
 
   DCHECK(argc.is_immediate() || r3.is(argc.reg()));
 
@@ -5468,6 +5469,9 @@ static void CallApiFunctionStubHelper(MacroAssembler* masm,
   __ push(context);
   // load context from callee
   __ LoadP(context, FieldMemOperand(callee, JSFunction::kContextOffset));
+
+  // callee
+  __ push(callee);
 
   // call data
   __ push(call_data);
