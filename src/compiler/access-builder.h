@@ -55,6 +55,12 @@ class AccessBuilder final : public AllStatic {
   // Provides access to JSDate fields.
   static FieldAccess ForJSDateField(JSDate::FieldIndex index);
 
+  // Provides access to JSRegExp::flags() field.
+  static FieldAccess ForJSRegExpFlags();
+
+  // Provides access to JSRegExp::source() field.
+  static FieldAccess ForJSRegExpSource();
+
   // Provides access to FixedArray::length() field.
   static FieldAccess ForFixedArrayLength();
 

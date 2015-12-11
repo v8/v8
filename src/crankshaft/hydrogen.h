@@ -2266,8 +2266,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   F(CreateIterResultObject)            \
   /* Arrays */                         \
   F(HasFastPackedElements)             \
-  /* Strings */                        \
-  F(StringGetLength)                   \
   /* JSValue */                        \
   F(JSValueGetValue)
 

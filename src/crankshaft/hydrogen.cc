@@ -12596,15 +12596,6 @@ void HOptimizedGraphBuilder::GenerateSubString(CallRuntime* call) {
 }
 
 
-void HOptimizedGraphBuilder::GenerateStringGetLength(CallRuntime* call) {
-  DCHECK(call->arguments()->length() == 1);
-  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
-  HValue* string = Pop();
-  HInstruction* result = BuildLoadStringLength(string);
-  return ast_context()->ReturnInstruction(result, call->id());
-}
-
-
 // Support for direct calls from JavaScript to native RegExp code.
 void HOptimizedGraphBuilder::GenerateRegExpExec(CallRuntime* call) {
   DCHECK_EQ(4, call->arguments()->length());

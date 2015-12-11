@@ -73,8 +73,6 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceMathFloor(node);
     case Runtime::kInlineMathSqrt:
       return ReduceMathSqrt(node);
-    case Runtime::kInlineStringGetLength:
-      return ReduceStringGetLength(node);
     case Runtime::kInlineValueOf:
       return ReduceValueOf(node);
     case Runtime::kInlineIsMinusZero:
@@ -83,6 +81,16 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceFixedArrayGet(node);
     case Runtime::kInlineFixedArraySet:
       return ReduceFixedArraySet(node);
+    case Runtime::kInlineRegExpConstructResult:
+      return ReduceRegExpConstructResult(node);
+    case Runtime::kInlineRegExpExec:
+      return ReduceRegExpExec(node);
+    case Runtime::kInlineRegExpFlags:
+      return ReduceRegExpFlags(node);
+    case Runtime::kInlineRegExpSource:
+      return ReduceRegExpSource(node);
+    case Runtime::kInlineSubString:
+      return ReduceSubString(node);
     case Runtime::kInlineToInteger:
       return ReduceToInteger(node);
     case Runtime::kInlineToLength:
@@ -326,15 +334,6 @@ Reduction JSIntrinsicLowering::ReduceMathSqrt(Node* node) {
 }
 
 
-Reduction JSIntrinsicLowering::ReduceStringGetLength(Node* node) {
-  Node* value = NodeProperties::GetValueInput(node, 0);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-  return Change(node, simplified()->LoadField(AccessBuilder::ForStringLength()),
-                value, effect, control);
-}
-
-
 Reduction JSIntrinsicLowering::ReduceValueOf(Node* node) {
   // if (%_IsSmi(value)) {
   //   return value;
@@ -459,6 +458,42 @@ Reduction JSIntrinsicLowering::ReduceFixedArraySet(Node* node) {
 }
 
 
+Reduction JSIntrinsicLowering::ReduceRegExpConstructResult(Node* node) {
+  // TODO(bmeurer): Introduce JSCreateRegExpResult?
+  return Change(node, CodeFactory::RegExpConstructResult(isolate()), 0);
+}
+
+
+Reduction JSIntrinsicLowering::ReduceRegExpExec(Node* node) {
+  return Change(node, CodeFactory::RegExpExec(isolate()), 4);
+}
+
+
+Reduction JSIntrinsicLowering::ReduceRegExpFlags(Node* node) {
+  Node* const receiver = NodeProperties::GetValueInput(node, 0);
+  Node* const effect = NodeProperties::GetEffectInput(node);
+  Node* const control = NodeProperties::GetControlInput(node);
+  Operator const* const op =
+      simplified()->LoadField(AccessBuilder::ForJSRegExpFlags());
+  return Change(node, op, receiver, effect, control);
+}
+
+
+Reduction JSIntrinsicLowering::ReduceRegExpSource(Node* node) {
+  Node* const receiver = NodeProperties::GetValueInput(node, 0);
+  Node* const effect = NodeProperties::GetEffectInput(node);
+  Node* const control = NodeProperties::GetControlInput(node);
+  Operator const* const op =
+      simplified()->LoadField(AccessBuilder::ForJSRegExpSource());
+  return Change(node, op, receiver, effect, control);
+}
+
+
+Reduction JSIntrinsicLowering::ReduceSubString(Node* node) {
+  return Change(node, CodeFactory::SubString(isolate()), 3);
+}
+
+
 Reduction JSIntrinsicLowering::ReduceThrowNotDateError(Node* node) {
   if (mode() != kDeoptimizationEnabled) return NoChange();
   Node* const frame_state = NodeProperties::GetFrameStateInput(node, 1);
@@ -532,14 +567,7 @@ Reduction JSIntrinsicLowering::ReduceToLength(Node* node) {
     ReplaceWithValue(node, value);
     return Replace(value);
   }
-  Callable callable = CodeFactory::ToLength(isolate());
-  CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
-      isolate(), graph()->zone(), callable.descriptor(), 0,
-      CallDescriptor::kNeedsFrameState, node->op()->properties());
-  node->InsertInput(graph()->zone(), 0,
-                    jsgraph()->HeapConstant(callable.code()));
-  NodeProperties::ChangeOp(node, common()->Call(desc));
-  return Changed(node);
+  return Change(node, CodeFactory::ToLength(isolate()), 0);
 }
 
 
@@ -624,6 +652,18 @@ Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op, Node* a,
 
 Reduction JSIntrinsicLowering::ChangeToUndefined(Node* node, Node* effect) {
   ReplaceWithValue(node, jsgraph()->UndefinedConstant(), effect);
+  return Changed(node);
+}
+
+
+Reduction JSIntrinsicLowering::Change(Node* node, Callable const& callable,
+                                      int stack_parameter_count) {
+  CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
+      isolate(), graph()->zone(), callable.descriptor(), stack_parameter_count,
+      CallDescriptor::kNeedsFrameState, node->op()->properties());
+  node->InsertInput(graph()->zone(), 0,
+                    jsgraph()->HeapConstant(callable.code()));
+  NodeProperties::ChangeOp(node, common()->Call(desc));
   return Changed(node);
 }
 

@@ -397,24 +397,6 @@ TEST_F(JSIntrinsicLoweringTest, InlineMathSqrt) {
 
 
 // -----------------------------------------------------------------------------
-// %_StringGetLength
-
-
-TEST_F(JSIntrinsicLoweringTest, InlineStringGetLength) {
-  Node* const input = Parameter(0);
-  Node* const context = Parameter(1);
-  Node* const effect = graph()->start();
-  Node* const control = graph()->start();
-  Reduction const r = Reduce(graph()->NewNode(
-      javascript()->CallRuntime(Runtime::kInlineStringGetLength, 1), input,
-      context, effect, control));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsLoadField(AccessBuilder::ForStringLength(),
-                                           input, effect, control));
-}
-
-
-// -----------------------------------------------------------------------------
 // %_MathClz32
 
 

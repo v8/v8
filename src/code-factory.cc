@@ -197,6 +197,13 @@ Callable CodeFactory::RegExpConstructResult(Isolate* isolate) {
 
 
 // static
+Callable CodeFactory::RegExpExec(Isolate* isolate) {
+  RegExpExecStub stub(isolate);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
+
+
+// static
 Callable CodeFactory::StringAdd(Isolate* isolate, StringAddFlags flags,
                                 PretenureFlag pretenure_flag) {
   StringAddStub stub(isolate, flags, pretenure_flag);
@@ -207,6 +214,13 @@ Callable CodeFactory::StringAdd(Isolate* isolate, StringAddFlags flags,
 // static
 Callable CodeFactory::StringCompare(Isolate* isolate) {
   StringCompareStub stub(isolate);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
+
+
+// static
+Callable CodeFactory::SubString(Isolate* isolate) {
+  SubStringStub stub(isolate);
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
 }
 

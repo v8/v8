@@ -893,36 +893,35 @@ namespace internal {
   F(Bool8x16Shuffle, 18, 1)
 
 
-#define FOR_EACH_INTRINSIC_STRINGS(F)           \
-  F(StringReplaceOneCharWithString, 3, 1)       \
-  F(StringIndexOf, 3, 1)                        \
-  F(StringLastIndexOf, 3, 1)                    \
-  F(StringLocaleCompare, 2, 1)                  \
-  F(SubString, 3, 1)                            \
-  F(StringAdd, 2, 1)                            \
-  F(InternalizeString, 1, 1)                    \
-  F(StringMatch, 3, 1)                          \
-  F(StringCharCodeAtRT, 2, 1)                   \
-  F(StringCompare, 2, 1)                        \
-  F(StringBuilderConcat, 3, 1)                  \
-  F(StringBuilderJoin, 3, 1)                    \
-  F(SparseJoinWithSeparator, 3, 1)              \
-  F(StringToArray, 2, 1)                        \
-  F(StringToLowerCase, 1, 1)                    \
-  F(StringToUpperCase, 1, 1)                    \
-  F(StringTrim, 3, 1)                           \
-  F(TruncateString, 2, 1)                       \
-  F(NewString, 2, 1)                            \
-  F(StringEquals, 2, 1)                         \
-  F(FlattenString, 1, 1)                        \
-  F(StringCharFromCode, 1, 1)                   \
-  F(StringCharAt, 2, 1)                         \
-  F(OneByteSeqStringGetChar, 2, 1)              \
-  F(OneByteSeqStringSetChar, 3, 1)              \
-  F(TwoByteSeqStringGetChar, 2, 1)              \
-  F(TwoByteSeqStringSetChar, 3, 1)              \
-  F(StringCharCodeAt, 2, 1)                     \
-  F(StringGetLength, 1, 1)
+#define FOR_EACH_INTRINSIC_STRINGS(F)     \
+  F(StringReplaceOneCharWithString, 3, 1) \
+  F(StringIndexOf, 3, 1)                  \
+  F(StringLastIndexOf, 3, 1)              \
+  F(StringLocaleCompare, 2, 1)            \
+  F(SubString, 3, 1)                      \
+  F(StringAdd, 2, 1)                      \
+  F(InternalizeString, 1, 1)              \
+  F(StringMatch, 3, 1)                    \
+  F(StringCharCodeAtRT, 2, 1)             \
+  F(StringCompare, 2, 1)                  \
+  F(StringBuilderConcat, 3, 1)            \
+  F(StringBuilderJoin, 3, 1)              \
+  F(SparseJoinWithSeparator, 3, 1)        \
+  F(StringToArray, 2, 1)                  \
+  F(StringToLowerCase, 1, 1)              \
+  F(StringToUpperCase, 1, 1)              \
+  F(StringTrim, 3, 1)                     \
+  F(TruncateString, 2, 1)                 \
+  F(NewString, 2, 1)                      \
+  F(StringEquals, 2, 1)                   \
+  F(FlattenString, 1, 1)                  \
+  F(StringCharFromCode, 1, 1)             \
+  F(StringCharAt, 2, 1)                   \
+  F(OneByteSeqStringGetChar, 2, 1)        \
+  F(OneByteSeqStringSetChar, 3, 1)        \
+  F(TwoByteSeqStringGetChar, 2, 1)        \
+  F(TwoByteSeqStringSetChar, 3, 1)        \
+  F(StringCharCodeAt, 2, 1)
 
 
 #define FOR_EACH_INTRINSIC_SYMBOL(F) \
