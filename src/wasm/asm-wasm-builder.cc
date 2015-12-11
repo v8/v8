@@ -46,7 +46,9 @@ class AsmWasmBuilderImpl : public AstVisitor {
         zone_(zone),
         cache_(TypeCache::Get()),
         breakable_blocks_(zone),
-        block_size_(0) {
+        block_size_(0),
+        init_function_initialized(false),
+        init_function_index(0) {
     InitializeAstVisitor(isolate);
   }
 
@@ -79,21 +81,28 @@ class AsmWasmBuilderImpl : public AstVisitor {
   }
 
   void VisitBlock(Block* stmt) {
-    if (in_function_) {
-      breakable_blocks_.push_back(
-          std::make_pair(stmt->AsBreakableStatement(), false));
-      current_function_builder_->Emit(kExprBlock);
-      uint32_t index = current_function_builder_->EmitEditableImmediate(0);
-      int prev_block_size = block_size_;
-      block_size_ = static_cast<byte>(stmt->statements()->length());
-      RECURSE(VisitStatements(stmt->statements()));
-      DCHECK(block_size_ >= 0);
-      current_function_builder_->EditImmediate(index, block_size_);
-      block_size_ = prev_block_size;
-      breakable_blocks_.pop_back();
-    } else {
-      RECURSE(VisitStatements(stmt->statements()));
+    if (stmt->statements()->length() == 1) {
+      ExpressionStatement* expr =
+          stmt->statements()->at(0)->AsExpressionStatement();
+      if (expr != NULL) {
+        if (expr->expression()->IsAssignment()) {
+          RECURSE(VisitExpressionStatement(expr));
+          return;
+        }
+      }
     }
+    DCHECK(in_function_);
+    breakable_blocks_.push_back(
+        std::make_pair(stmt->AsBreakableStatement(), false));
+    current_function_builder_->Emit(kExprBlock);
+    uint32_t index = current_function_builder_->EmitEditableImmediate(0);
+    int prev_block_size = block_size_;
+    block_size_ = static_cast<byte>(stmt->statements()->length());
+    RECURSE(VisitStatements(stmt->statements()));
+    DCHECK(block_size_ >= 0);
+    current_function_builder_->EditImmediate(index, block_size_);
+    block_size_ = prev_block_size;
+    breakable_blocks_.pop_back();
   }
 
   void VisitExpressionStatement(ExpressionStatement* stmt) {
@@ -368,24 +377,53 @@ class AsmWasmBuilderImpl : public AstVisitor {
     }
   }
 
+  void LoadInitFunction() {
+    if (!init_function_initialized) {
+      init_function_initialized = true;
+      unsigned char init[] = "__init__";
+      init_function_index = builder_->AddFunction(init, 8);
+      current_function_builder_ = builder_->FunctionAt(init_function_index);
+      current_function_builder_->ReturnType(kAstStmt);
+      current_function_builder_->Exported(1);
+      in_function_ = true;
+    } else {
+      current_function_builder_ = builder_->FunctionAt(init_function_index);
+      in_function_ = true;
+    }
+  }
+
+  void UnLoadInitFunction() {
+    in_function_ = false;
+    current_function_builder_ = NULL;
+  }
+
   void VisitAssignment(Assignment* expr) {
-    if (in_function_) {
-      BinaryOperation* value_op = expr->value()->AsBinaryOperation();
-      if (value_op != NULL && MatchBinaryOperation(value_op) == kAsIs) {
-        VariableProxy* target_var = expr->target()->AsVariableProxy();
-        VariableProxy* effective_value_var =
-            GetLeft(value_op)->AsVariableProxy();
-        // TODO(aseemgarg): simplify block_size_ or replace with a kNop
-        if (target_var != NULL && effective_value_var != NULL &&
-            target_var->var() == effective_value_var->var()) {
-          block_size_--;
-          return;
-        }
+    bool in_init = false;
+    if (!in_function_) {
+      // TODO(bradnelson): Get rid of this.
+      if (TypeOf(expr->value()) == kAstStmt) {
+        return;
       }
-      is_set_op_ = true;
-      RECURSE(Visit(expr->target()));
-      DCHECK(!is_set_op_);
-      RECURSE(Visit(expr->value()));
+      in_init = true;
+      LoadInitFunction();
+    }
+    BinaryOperation* value_op = expr->value()->AsBinaryOperation();
+    if (value_op != NULL && MatchBinaryOperation(value_op) == kAsIs) {
+      VariableProxy* target_var = expr->target()->AsVariableProxy();
+      VariableProxy* effective_value_var = GetLeft(value_op)->AsVariableProxy();
+      // TODO(aseemgarg): simplify block_size_ or replace with a kNop
+      if (target_var != NULL && effective_value_var != NULL &&
+          target_var->var() == effective_value_var->var()) {
+        block_size_--;
+        return;
+      }
+    }
+    is_set_op_ = true;
+    RECURSE(Visit(expr->target()));
+    DCHECK(!is_set_op_);
+    RECURSE(Visit(expr->value()));
+    if (in_init) {
+      UnLoadInitFunction();
     }
   }
 
@@ -914,6 +952,8 @@ class AsmWasmBuilderImpl : public AstVisitor {
   TypeCache const& cache_;
   ZoneVector<std::pair<BreakableStatement*, bool>> breakable_blocks_;
   int block_size_;
+  bool init_function_initialized;
+  uint16_t init_function_index;
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
 

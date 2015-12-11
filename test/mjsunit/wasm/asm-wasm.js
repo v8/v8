@@ -512,30 +512,7 @@ function TestModDoubleNegative() {
 assertEquals(28, WASM.asmCompileRun(TestModDoubleNegative.toString()));
 */
 
-function TestGlobals() {
-  "use asm";
-
-  var a = 0.0;
-  var b = 0.0;
-  var c = 0.0;
-
-  function add() {
-    c = a + b;
-  }
-
-  function caller() {
-    a = 23.75;
-    b = 7.75;
-    add();
-    return (~~c)|0;
-  }
-
-  return {caller:caller};
-}
-
-assertEquals(31, WASM.asmCompileRun(TestGlobals.toString()));
-
-function TestGlobalsWithInit() {
+function TestNamedFunctions() {
   "use asm";
 
   var a = 0.0;
@@ -554,6 +531,23 @@ function TestGlobalsWithInit() {
           add:add};
 }
 
-var module = WASM.instantiateModuleFromAsm(TestGlobalsWithInit.toString());
+var module = WASM.instantiateModuleFromAsm(TestNamedFunctions.toString());
 module.init();
+assertEquals(77.5, module.add());
+
+function TestGlobalsWithInit() {
+  "use asm";
+
+  var a = 43.25;
+  var b = 34.25;
+
+  function add() {
+    return +(a + b);
+  }
+
+  return {add:add};
+}
+
+var module = WASM.instantiateModuleFromAsm(TestGlobalsWithInit.toString());
+module.__init__();
 assertEquals(77.5, module.add());
