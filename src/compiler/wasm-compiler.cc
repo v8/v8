@@ -638,42 +638,14 @@ Node* WasmGraphBuilder::Binop(wasm::WasmOpcode opcode, Node* left,
       op = m->Float64LessThanOrEqual();
       std::swap(left, right);
       break;
-    case wasm::kExprF32Min: {
-      if (m->Float32Min().IsSupported()) {
-        op = m->Float32Min().op();
-        break;
-      } else {
-        op = UnsupportedOpcode(opcode);
-        break;
-      }
-    }
-    case wasm::kExprF64Min: {
-      if (m->Float64Min().IsSupported()) {
-        op = m->Float64Min().op();
-        break;
-      } else {
-        op = UnsupportedOpcode(opcode);
-        break;
-      }
-    }
-    case wasm::kExprF32Max: {
-      if (m->Float32Max().IsSupported()) {
-        op = m->Float32Max().op();
-        break;
-      } else {
-        op = UnsupportedOpcode(opcode);
-        break;
-      }
-    }
-    case wasm::kExprF64Max: {
-      if (m->Float64Max().IsSupported()) {
-        op = m->Float64Max().op();
-        break;
-      } else {
-        op = UnsupportedOpcode(opcode);
-        break;
-      }
-    }
+    case wasm::kExprF32Min:
+      return BuildF32Min(left, right);
+    case wasm::kExprF64Min:
+      return BuildF64Min(left, right);
+    case wasm::kExprF32Max:
+      return BuildF32Max(left, right);
+    case wasm::kExprF64Max:
+      return BuildF64Max(left, right);
     default:
       op = UnsupportedOpcode(opcode);
   }
@@ -1047,6 +1019,74 @@ Node* WasmGraphBuilder::BuildF64CopySign(Node* left, Node* right) {
 
   return graph()->NewNode(m->Float64InsertHighWord32(), left, new_high_word);
 #endif
+}
+
+
+Node* WasmGraphBuilder::BuildF32Min(Node* left, Node* right) {
+  Diamond left_le_right(graph(), jsgraph()->common(),
+                        Binop(wasm::kExprF32Le, left, right));
+
+  Diamond right_lt_left(graph(), jsgraph()->common(),
+                        Binop(wasm::kExprF32Lt, right, left));
+
+  Diamond left_is_not_nan(graph(), jsgraph()->common(),
+                          Binop(wasm::kExprF32Eq, left, left));
+
+  return left_le_right.Phi(
+      wasm::kAstF32, left,
+      right_lt_left.Phi(wasm::kAstF32, right,
+                        left_is_not_nan.Phi(wasm::kAstF32, right, left)));
+}
+
+
+Node* WasmGraphBuilder::BuildF32Max(Node* left, Node* right) {
+  Diamond left_ge_right(graph(), jsgraph()->common(),
+                        Binop(wasm::kExprF32Ge, left, right));
+
+  Diamond right_gt_left(graph(), jsgraph()->common(),
+                        Binop(wasm::kExprF32Gt, right, left));
+
+  Diamond left_is_not_nan(graph(), jsgraph()->common(),
+                          Binop(wasm::kExprF32Eq, left, left));
+
+  return left_ge_right.Phi(
+      wasm::kAstF32, left,
+      right_gt_left.Phi(wasm::kAstF32, right,
+                        left_is_not_nan.Phi(wasm::kAstF32, right, left)));
+}
+
+
+Node* WasmGraphBuilder::BuildF64Min(Node* left, Node* right) {
+  Diamond left_le_right(graph(), jsgraph()->common(),
+                        Binop(wasm::kExprF64Le, left, right));
+
+  Diamond right_lt_left(graph(), jsgraph()->common(),
+                        Binop(wasm::kExprF64Lt, right, left));
+
+  Diamond left_is_not_nan(graph(), jsgraph()->common(),
+                          Binop(wasm::kExprF64Eq, left, left));
+
+  return left_le_right.Phi(
+      wasm::kAstF64, left,
+      right_lt_left.Phi(wasm::kAstF64, right,
+                        left_is_not_nan.Phi(wasm::kAstF64, right, left)));
+}
+
+
+Node* WasmGraphBuilder::BuildF64Max(Node* left, Node* right) {
+  Diamond left_ge_right(graph(), jsgraph()->common(),
+                        Binop(wasm::kExprF64Ge, left, right));
+
+  Diamond right_gt_left(graph(), jsgraph()->common(),
+                        Binop(wasm::kExprF64Lt, right, left));
+
+  Diamond left_is_not_nan(graph(), jsgraph()->common(),
+                          Binop(wasm::kExprF64Eq, left, left));
+
+  return left_ge_right.Phi(
+      wasm::kAstF64, left,
+      right_gt_left.Phi(wasm::kAstF64, right,
+                        left_is_not_nan.Phi(wasm::kAstF64, right, left)));
 }
 
 

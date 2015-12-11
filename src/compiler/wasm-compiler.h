@@ -164,6 +164,10 @@ class WasmGraphBuilder {
   Node* BuildWasmCall(wasm::FunctionSig* sig, Node** args);
   Node* BuildF32CopySign(Node* left, Node* right);
   Node* BuildF64CopySign(Node* left, Node* right);
+  Node* BuildF32Min(Node* left, Node* right);
+  Node* BuildF32Max(Node* left, Node* right);
+  Node* BuildF64Min(Node* left, Node* right);
+  Node* BuildF64Max(Node* left, Node* right);
   Node* BuildI32Ctz(Node* input);
   Node* BuildI32Popcnt(Node* input);
   Node* BuildI64Ctz(Node* input);

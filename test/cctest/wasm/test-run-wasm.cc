@@ -3197,7 +3197,18 @@ TEST(Run_Wasm_F32Min) {
 
   FOR_FLOAT32_INPUTS(i) {
     FOR_FLOAT32_INPUTS(j) {
-      float expected = *i < *j ? *i : *j;
+      float expected;
+      if (*i < *j) {
+        expected = *i;
+      } else if (*j < *i) {
+        expected = *j;
+      } else if (*i != *i) {
+        // If *i or *j is NaN, then the result is NaN.
+        expected = *i;
+      } else {
+        expected = *j;
+      }
+
       CheckFloatEq(expected, r.Call(*i, *j));
     }
   }
@@ -3210,7 +3221,18 @@ TEST(Run_Wasm_F64Min) {
 
   FOR_FLOAT64_INPUTS(i) {
     FOR_FLOAT64_INPUTS(j) {
-      double expected = *i < *j ? *i : *j;
+      double expected;
+      if (*i < *j) {
+        expected = *i;
+      } else if (*j < *i) {
+        expected = *j;
+      } else if (*i != *i) {
+        // If *i or *j is NaN, then the result is NaN.
+        expected = *i;
+      } else {
+        expected = *j;
+      }
+
       CheckDoubleEq(expected, r.Call(*i, *j));
     }
   }
@@ -3223,7 +3245,18 @@ TEST(Run_Wasm_F32Max) {
 
   FOR_FLOAT32_INPUTS(i) {
     FOR_FLOAT32_INPUTS(j) {
-      float expected = *i > *j ? *i : *j;
+      float expected;
+      if (*i > *j) {
+        expected = *i;
+      } else if (*j > *i) {
+        expected = *j;
+      } else if (*i != *i) {
+        // If *i or *j is NaN, then the result is NaN.
+        expected = *i;
+      } else {
+        expected = *j;
+      }
+
       CheckFloatEq(expected, r.Call(*i, *j));
     }
   }
@@ -3236,7 +3269,18 @@ TEST(Run_Wasm_F64Max) {
 
   FOR_FLOAT64_INPUTS(i) {
     FOR_FLOAT64_INPUTS(j) {
-      double expected = *i > *j ? *i : *j;
+      double expected;
+      if (*i > *j) {
+        expected = *i;
+      } else if (*j > *i) {
+        expected = *j;
+      } else if (*i != *i) {
+        // If *i or *j is NaN, then the result is NaN.
+        expected = *i;
+      } else {
+        expected = *j;
+      }
+
       CheckDoubleEq(expected, r.Call(*i, *j));
     }
   }
