@@ -3698,64 +3698,6 @@ void FullCodeGenerator::EmitCall(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitDefaultConstructorCallSuper(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK(args->length() == 2);
-
-  // Evaluate new.target and super constructor.
-  VisitForStackValue(args->at(0));
-  VisitForStackValue(args->at(1));
-
-  // Call the construct call builtin that handles allocation and
-  // constructor invocation.
-  SetConstructCallPosition(expr);
-
-  // Check if the calling frame is an arguments adaptor frame.
-  Label adaptor_frame, args_set_up, runtime;
-  __ LoadP(r5, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-  __ LoadP(r7, MemOperand(r5, StandardFrameConstants::kContextOffset));
-
-  // Load super constructor, new target into r4, r6.
-  __ LoadP(r4, MemOperand(sp));
-  __ LoadP(r6, MemOperand(sp, 1 * kPointerSize));
-
-  __ CmpSmiLiteral(r7, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR), r0);
-  __ beq(&adaptor_frame);
-
-  // default constructor has no arguments, so no adaptor frame means no args.
-  __ li(r3, Operand::Zero());
-  __ b(&args_set_up);
-
-  // Copy arguments from adaptor frame.
-  {
-    __ bind(&adaptor_frame);
-    __ LoadP(r3, MemOperand(r5, ArgumentsAdaptorFrameConstants::kLengthOffset));
-    __ SmiUntag(r3);
-
-    // Get arguments pointer in r5.
-    __ ShiftLeftImm(r0, r3, Operand(kPointerSizeLog2));
-    __ add(r5, r5, r0);
-    __ addi(r5, r5, Operand(StandardFrameConstants::kCallerSPOffset));
-
-    Label loop;
-    __ mtctr(r3);
-    __ bind(&loop);
-    // Pre-decrement in order to skip receiver.
-    __ LoadPU(r7, MemOperand(r5, -kPointerSize));
-    __ Push(r7);
-    __ bdnz(&loop);
-  }
-
-  __ bind(&args_set_up);
-  __ Call(isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
-
-  // Restore context register.
-  __ LoadP(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-
-  context()->DropAndPlug(1, r3);
-}
-
-
 void FullCodeGenerator::EmitHasCachedArrayIndex(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   VisitForAccumulatorValue(args->at(0));

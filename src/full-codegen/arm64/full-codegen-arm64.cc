@@ -3420,63 +3420,6 @@ void FullCodeGenerator::EmitCall(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitDefaultConstructorCallSuper(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK(args->length() == 2);
-
-  // Evaluate new.target and super constructor.
-  VisitForStackValue(args->at(0));
-  VisitForStackValue(args->at(1));
-
-  // Call the construct call builtin that handles allocation and
-  // constructor invocation.
-  SetConstructCallPosition(expr);
-
-  // Load new target into x3.
-  __ Peek(x3, 1 * kPointerSize);
-
-  // Check if the calling frame is an arguments adaptor frame.
-  Label adaptor_frame, args_set_up, runtime;
-  __ Ldr(x11, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-  __ Ldr(x12, MemOperand(x11, StandardFrameConstants::kContextOffset));
-  __ Cmp(x12, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
-  __ B(eq, &adaptor_frame);
-  // default constructor has no arguments, so no adaptor frame means no args.
-  __ Mov(x0, Operand(0));
-  __ B(&args_set_up);
-
-  // Copy arguments from adaptor frame.
-  {
-    __ bind(&adaptor_frame);
-    __ Ldr(x1, MemOperand(x11, ArgumentsAdaptorFrameConstants::kLengthOffset));
-    __ SmiUntag(x1, x1);
-
-    __ Mov(x0, x1);
-
-    // Get arguments pointer in x11.
-    __ Add(x11, x11, Operand(x1, LSL, kPointerSizeLog2));
-    __ Add(x11, x11, StandardFrameConstants::kCallerSPOffset);
-    Label loop;
-    __ bind(&loop);
-    // Pre-decrement x11 with kPointerSize on each iteration.
-    // Pre-decrement in order to skip receiver.
-    __ Ldr(x10, MemOperand(x11, -kPointerSize, PreIndex));
-    __ Push(x10);
-    __ Sub(x1, x1, Operand(1));
-    __ Cbnz(x1, &loop);
-  }
-
-  __ bind(&args_set_up);
-  __ Peek(x1, Operand(x0, LSL, kPointerSizeLog2));
-  __ Call(isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
-
-  // Restore context register.
-  __ Ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-
-  context()->DropAndPlug(1, x0);
-}
-
-
 void FullCodeGenerator::EmitHasCachedArrayIndex(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   VisitForAccumulatorValue(args->at(0));

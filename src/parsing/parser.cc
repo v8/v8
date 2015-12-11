@@ -361,14 +361,10 @@ FunctionLiteral* Parser::DefaultConstructor(bool call_super, Scope* scope,
 
     body = new (zone()) ZoneList<Statement*>(call_super ? 2 : 1, zone());
     if (call_super) {
-      // let super_constructor = %_GetSuperConstructor(<this-function>)
-      // %_DefaultConstructorCallSuper(new.target, super_constructor)
+      // $super_constructor = %_GetSuperConstructor(<this-function>)
+      // %reflect_construct($super_constructor, arguments, new.target)
       ZoneList<Expression*>* args =
           new (zone()) ZoneList<Expression*>(2, zone());
-      VariableProxy* new_target_proxy = scope_->NewUnresolved(
-          factory(), ast_value_factory()->new_target_string(), Variable::NORMAL,
-          pos);
-      args->Add(new_target_proxy, zone());
       VariableProxy* this_function_proxy = scope_->NewUnresolved(
           factory(), ast_value_factory()->this_function_string(),
           Variable::NORMAL, pos);
@@ -378,8 +374,16 @@ FunctionLiteral* Parser::DefaultConstructor(bool call_super, Scope* scope,
       Expression* super_constructor = factory()->NewCallRuntime(
           Runtime::kInlineGetSuperConstructor, tmp, pos);
       args->Add(super_constructor, zone());
+      VariableProxy* arguments_proxy = scope_->NewUnresolved(
+          factory(), ast_value_factory()->arguments_string(), Variable::NORMAL,
+          pos);
+      args->Add(arguments_proxy, zone());
+      VariableProxy* new_target_proxy = scope_->NewUnresolved(
+          factory(), ast_value_factory()->new_target_string(), Variable::NORMAL,
+          pos);
+      args->Add(new_target_proxy, zone());
       CallRuntime* call = factory()->NewCallRuntime(
-          Runtime::kInlineDefaultConstructorCallSuper, args, pos);
+          Context::REFLECT_CONSTRUCT_INDEX, args, pos);
       body->Add(factory()->NewReturnStatement(call, pos), zone());
     }
 
@@ -6434,8 +6438,8 @@ Expression* Parser::SpreadCall(Expression* function,
                                int pos) {
   if (function->IsSuperCallReference()) {
     // Super calls
-    // let super_constructor = %_GetSuperConstructor(<this-function>)
-    // %reflect_construct(super_constructor, args, new.target)
+    // $super_constructor = %_GetSuperConstructor(<this-function>)
+    // %reflect_construct($super_constructor, args, new.target)
     ZoneList<Expression*>* tmp = new (zone()) ZoneList<Expression*>(1, zone());
     tmp->Add(function->AsSuperCallReference()->this_function_var(), zone());
     Expression* super_constructor = factory()->NewCallRuntime(
