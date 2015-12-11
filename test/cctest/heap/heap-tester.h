@@ -10,20 +10,24 @@
 
 // Tests that should have access to private methods of {v8::internal::Heap}.
 // Those tests need to be defined using HEAP_TEST(Name) { ... }.
-#define HEAP_TEST_METHODS(V)            \
-  V(CompactionSpaceDivideMultiplePages) \
-  V(CompactionSpaceDivideSinglePage)    \
-  V(GCFlags)                            \
-  V(MarkCompactCollector)               \
-  V(NoPromotion)                        \
-  V(NumberStringCacheSize)              \
-  V(ObjectGroups)                       \
-  V(Promotion)                          \
-  V(Regression39128)                    \
-  V(ResetWeakHandle)                    \
-  V(StressHandles)                      \
-  V(TestMemoryReducerSampleJsCalls)     \
-  V(TestSizeOfObjects)                  \
+#define HEAP_TEST_METHODS(V)                              \
+  V(CompactionFullAbortedPage)                            \
+  V(CompactionPartiallyAbortedPage)                       \
+  V(CompactionPartiallyAbortedPageIntraAbortedPointers)   \
+  V(CompactionPartiallyAbortedPageWithStoreBufferEntries) \
+  V(CompactionSpaceDivideMultiplePages)                   \
+  V(CompactionSpaceDivideSinglePage)                      \
+  V(GCFlags)                                              \
+  V(MarkCompactCollector)                                 \
+  V(NoPromotion)                                          \
+  V(NumberStringCacheSize)                                \
+  V(ObjectGroups)                                         \
+  V(Promotion)                                            \
+  V(Regression39128)                                      \
+  V(ResetWeakHandle)                                      \
+  V(StressHandles)                                        \
+  V(TestMemoryReducerSampleJsCalls)                       \
+  V(TestSizeOfObjects)                                    \
   V(WriteBarriersInCopyJSObject)
 
 
