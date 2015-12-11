@@ -3327,9 +3327,10 @@ Expression* Parser::BuildIteratorNextResult(Expression* iterator,
 
 
 void Parser::InitializeForEachStatement(ForEachStatement* stmt,
-                                        Expression* each,
-                                        Expression* subject,
-                                        Statement* body) {
+                                        Expression* each, Expression* subject,
+                                        Statement* body,
+                                        bool is_destructuring) {
+  DCHECK(!is_destructuring || allow_harmony_destructuring_assignment());
   ForOfStatement* for_of = stmt->AsForOfStatement();
 
   if (for_of != NULL) {
@@ -3380,6 +3381,10 @@ void Parser::InitializeForEachStatement(ForEachStatement* stmt,
           result_proxy, value_literal, RelocInfo::kNoPosition);
       assign_each = factory()->NewAssignment(Token::ASSIGN, each, result_value,
                                              RelocInfo::kNoPosition);
+      if (is_destructuring) {
+        assign_each = PatternRewriter::RewriteDestructuringAssignment(
+            this, assign_each->AsAssignment(), scope_);
+      }
     }
 
     for_of->Initialize(each, subject, body,
@@ -3388,6 +3393,23 @@ void Parser::InitializeForEachStatement(ForEachStatement* stmt,
                        result_done,
                        assign_each);
   } else {
+    if (is_destructuring) {
+      Variable* temp =
+          scope_->NewTemporary(ast_value_factory()->empty_string());
+      VariableProxy* temp_proxy = factory()->NewVariableProxy(temp);
+      Expression* assign_each = PatternRewriter::RewriteDestructuringAssignment(
+          this, factory()->NewAssignment(Token::ASSIGN, each, temp_proxy,
+                                         RelocInfo::kNoPosition),
+          scope_);
+      auto block =
+          factory()->NewBlock(nullptr, 2, false, RelocInfo::kNoPosition);
+      block->statements()->Add(factory()->NewExpressionStatement(
+                                   assign_each, RelocInfo::kNoPosition),
+                               zone());
+      block->statements()->Add(body, zone());
+      body = block;
+      each = factory()->NewVariableProxy(temp);
+    }
     stmt->Initialize(each, subject, body);
   }
 }
@@ -3772,7 +3794,8 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
         body_block->statements()->Add(body, zone());
         VariableProxy* temp_proxy =
             factory()->NewVariableProxy(temp, each_beg_pos, each_end_pos);
-        InitializeForEachStatement(loop, temp_proxy, enumerable, body_block);
+        InitializeForEachStatement(loop, temp_proxy, enumerable, body_block,
+                                   false);
         scope_ = for_scope;
         body_scope->set_end_position(scanner()->location().end_pos);
         body_scope = body_scope->FinalizeBlockScope();
@@ -3823,7 +3846,8 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
       }
     } else {
       int lhs_beg_pos = peek_position();
-      Expression* expression = ParseExpression(false, CHECK_OK);
+      ExpressionClassifier classifier;
+      Expression* expression = ParseExpression(false, &classifier, CHECK_OK);
       int lhs_end_pos = scanner()->location().end_pos;
       ForEachStatement::VisitMode mode;
       is_let_identifier_expression =
@@ -3831,11 +3855,24 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
           expression->AsVariableProxy()->raw_name() ==
               ast_value_factory()->let_string();
 
-      if (CheckInOrOf(&mode, ok)) {
-        if (!*ok) return nullptr;
-        expression = this->CheckAndRewriteReferenceExpression(
-            expression, lhs_beg_pos, lhs_end_pos,
-            MessageTemplate::kInvalidLhsInFor, kSyntaxError, CHECK_OK);
+      bool is_for_each = CheckInOrOf(&mode, ok);
+      if (!*ok) return nullptr;
+      bool is_destructuring =
+          is_for_each && allow_harmony_destructuring_assignment() &&
+          (expression->IsArrayLiteral() || expression->IsObjectLiteral());
+
+      if (is_destructuring) {
+        ValidateAssignmentPattern(&classifier, CHECK_OK);
+      } else {
+        ValidateExpression(&classifier, CHECK_OK);
+      }
+
+      if (is_for_each) {
+        if (!is_destructuring) {
+          expression = this->CheckAndRewriteReferenceExpression(
+              expression, lhs_beg_pos, lhs_end_pos,
+              MessageTemplate::kInvalidLhsInFor, kSyntaxError, CHECK_OK);
+        }
 
         ForEachStatement* loop =
             factory()->NewForEachStatement(mode, labels, stmt_pos);
@@ -3856,7 +3893,8 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
             factory()->NewBlock(NULL, 1, false, RelocInfo::kNoPosition);
         Statement* body = ParseSubStatement(NULL, CHECK_OK);
         block->statements()->Add(body, zone());
-        InitializeForEachStatement(loop, expression, enumerable, block);
+        InitializeForEachStatement(loop, expression, enumerable, block,
+                                   is_destructuring);
         scope_ = saved_scope;
         body_scope->set_end_position(scanner()->location().end_pos);
         body_scope = body_scope->FinalizeBlockScope();
@@ -4556,10 +4594,8 @@ class InitializerRewriter : public AstExpressionVisitor {
         expr->AsRewritableAssignmentExpression();
     if (to_rewrite == nullptr || to_rewrite->is_rewritten()) return;
 
-    bool ok = true;
     Parser::PatternRewriter::RewriteDestructuringAssignment(parser_, to_rewrite,
-                                                            scope_, &ok);
-    DCHECK(ok);
+                                                            scope_);
   }
 
  private:
@@ -6529,10 +6565,7 @@ void Parser::RewriteDestructuringAssignments() {
     Scope* scope = pair.scope;
     DCHECK_NOT_NULL(to_rewrite);
     if (!to_rewrite->is_rewritten()) {
-      bool ok = true;
-      PatternRewriter::RewriteDestructuringAssignment(this, to_rewrite, scope,
-                                                      &ok);
-      DCHECK(ok);
+      PatternRewriter::RewriteDestructuringAssignment(this, to_rewrite, scope);
     }
   }
 }

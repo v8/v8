@@ -428,3 +428,55 @@ assertEquals(oz, [1, 2, 3, 4, 5]);
   assertThrows(() => { ({ a: [ c ] } = { a: [ "nope!" ] }); }, TypeError);
   assertEquals("untouchable", c);
 })();
+
+(function testForIn() {
+  var log = [];
+  var x = {};
+  var object = {
+    "Apenguin": 1,
+    "\u{1F382}cake": 2,
+    "Bpuppy": 3,
+    "Cspork": 4
+  };
+  for ([x.firstLetter, ...x.rest] in object) {
+    if (x.firstLetter === "A") {
+      assertEquals(["p", "e", "n", "g", "u", "i", "n"], x.rest);
+      continue;
+    }
+    if (x.firstLetter === "C") {
+      assertEquals(["s", "p", "o", "r", "k"], x.rest);
+      break;
+    }
+    log.push({ firstLetter: x.firstLetter, rest: x.rest });
+  }
+  assertEquals([
+    { firstLetter: "\u{1F382}", rest: ["c", "a", "k", "e"] },
+    { firstLetter: "B", rest: ["p", "u", "p", "p", "y"] },
+  ], log);
+})();
+
+(function testForOf() {
+  var log = [];
+  var x = {};
+  var names = [
+    "Apenguin",
+    "\u{1F382}cake",
+    "Bpuppy",
+    "Cspork"
+  ];
+  for ([x.firstLetter, ...x.rest] of names) {
+    if (x.firstLetter === "A") {
+      assertEquals(["p", "e", "n", "g", "u", "i", "n"], x.rest);
+      continue;
+    }
+    if (x.firstLetter === "C") {
+      assertEquals(["s", "p", "o", "r", "k"], x.rest);
+      break;
+    }
+    log.push({ firstLetter: x.firstLetter, rest: x.rest });
+  }
+  assertEquals([
+    { firstLetter: "\u{1F382}", rest: ["c", "a", "k", "e"] },
+    { firstLetter: "B", rest: ["p", "u", "p", "p", "y"] },
+  ], log);
+})();

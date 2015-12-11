@@ -1047,8 +1047,11 @@ class Parser : public ParserBase<ParserTraits> {
         ZoneList<const AstRawString*>* names, bool* ok);
 
     static void RewriteDestructuringAssignment(
-        Parser* parser, RewritableAssignmentExpression* expr, Scope* Scope,
-        bool* ok);
+        Parser* parser, RewritableAssignmentExpression* expr, Scope* Scope);
+
+    static Expression* RewriteDestructuringAssignment(Parser* parser,
+                                                      Assignment* assignment,
+                                                      Scope* scope);
 
     void set_initializer_position(int pos) { initializer_position_ = pos; }
 
@@ -1144,10 +1147,9 @@ class Parser : public ParserBase<ParserTraits> {
 
 
   // Initialize the components of a for-in / for-of statement.
-  void InitializeForEachStatement(ForEachStatement* stmt,
-                                  Expression* each,
-                                  Expression* subject,
-                                  Statement* body);
+  void InitializeForEachStatement(ForEachStatement* stmt, Expression* each,
+                                  Expression* subject, Statement* body,
+                                  bool is_destructuring);
   Statement* DesugarLexicalBindingsInForStatement(
       Scope* inner_scope, bool is_const, ZoneList<const AstRawString*>* names,
       ForStatement* loop, Statement* init, Expression* cond, Statement* next,
