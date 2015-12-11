@@ -159,11 +159,9 @@ MaybeHandle<Object> Runtime::CreateArrayLiteralBoilerplate(
     DisallowHeapAllocation no_gc;
     DCHECK(IsFastElementsKind(constant_elements_kind));
     Context* native_context = isolate->context()->native_context();
-    Object* maps_array = is_strong
-        ? native_context->js_array_strong_maps()
-        : native_context->js_array_maps();
-    DCHECK(!maps_array->IsUndefined());
-    Object* map = FixedArray::cast(maps_array)->get(constant_elements_kind);
+    Strength strength = is_strong ? Strength::STRONG : Strength::WEAK;
+    Object* map = native_context->get(
+        Context::ArrayMapIndex(constant_elements_kind, strength));
     object->set_map(Map::cast(map));
   }
 

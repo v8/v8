@@ -201,8 +201,29 @@ enum BindingFlags {
   V(INT8X16_FUNCTION_INDEX, JSFunction, int8x16_function)                      \
   V(INTERNAL_ARRAY_FUNCTION_INDEX, JSFunction, internal_array_function)        \
   V(ITERATOR_RESULT_MAP_INDEX, Map, iterator_result_map)                       \
-  V(JS_ARRAY_MAPS_INDEX, Object, js_array_maps)                                \
-  V(JS_ARRAY_STRONG_MAPS_INDEX, Object, js_array_strong_maps)                  \
+  V(JS_ARRAY_FAST_SMI_ELEMENTS_MAP_INDEX, Map,                                 \
+    js_array_fast_smi_elements_map_index)                                      \
+  V(JS_ARRAY_FAST_HOLEY_SMI_ELEMENTS_MAP_INDEX, Map,                           \
+    js_array_fast_holey_smi_elements_map_index)                                \
+  V(JS_ARRAY_FAST_ELEMENTS_MAP_INDEX, Map, js_array_fast_elements_map_index)   \
+  V(JS_ARRAY_FAST_HOLEY_ELEMENTS_MAP_INDEX, Map,                               \
+    js_array_fast_holey_elements_map_index)                                    \
+  V(JS_ARRAY_FAST_DOUBLE_ELEMENTS_MAP_INDEX, Map,                              \
+    js_array_fast_double_elements_map_index)                                   \
+  V(JS_ARRAY_FAST_HOLEY_DOUBLE_ELEMENTS_MAP_INDEX, Map,                        \
+    js_array_fast_holey_double_elements_map_index)                             \
+  V(JS_ARRAY_FAST_SMI_ELEMENTS_STRONG_MAP_INDEX, Map,                          \
+    js_array_fast_smi_elements_strong_map_index)                               \
+  V(JS_ARRAY_FAST_HOLEY_SMI_ELEMENTS_STRONG_MAP_INDEX, Map,                    \
+    js_array_fast_holey_smi_elements_strong_map_index)                         \
+  V(JS_ARRAY_FAST_ELEMENTS_STRONG_MAP_INDEX, Map,                              \
+    js_array_fast_elements_strong_map_index)                                   \
+  V(JS_ARRAY_FAST_HOLEY_ELEMENTS_STRONG_MAP_INDEX, Map,                        \
+    js_array_fast_holey_elements_strong_map_index)                             \
+  V(JS_ARRAY_FAST_DOUBLE_ELEMENTS_STRONG_MAP_INDEX, Map,                       \
+    js_array_fast_double_elements_strong_map_index)                            \
+  V(JS_ARRAY_FAST_HOLEY_DOUBLE_ELEMENTS_STRONG_MAP_INDEX, Map,                 \
+    js_array_fast_holey_double_elements_strong_map_index)                      \
   V(JS_MAP_FUN_INDEX, JSFunction, js_map_fun)                                  \
   V(JS_MAP_MAP_INDEX, Map, js_map_map)                                         \
   V(JS_OBJECT_STRONG_MAP_INDEX, Map, js_object_strong_map)                     \
@@ -394,6 +415,9 @@ class Context: public FixedArray {
     // Total number of slots.
     NATIVE_CONTEXT_SLOTS,
     FIRST_WEAK_SLOT = OPTIMIZED_FUNCTIONS_LIST,
+    FIRST_JS_ARRAY_MAP_SLOT = JS_ARRAY_FAST_SMI_ELEMENTS_MAP_INDEX,
+    FIRST_JS_ARRAY_STRONG_MAP_SLOT =
+        JS_ARRAY_FAST_SMI_ELEMENTS_STRONG_MAP_INDEX,
 
     MIN_CONTEXT_SLOTS = GLOBAL_PROXY_INDEX,
     // This slot holds the thrown value in catch contexts.
@@ -536,6 +560,13 @@ class Context: public FixedArray {
     return is_strong(language_mode) ? STRONG_FUNCTION_MAP_INDEX :
            is_strict(language_mode) ? STRICT_FUNCTION_MAP_INDEX
                                     : SLOPPY_FUNCTION_MAP_INDEX;
+  }
+
+  static int ArrayMapIndex(ElementsKind elements_kind,
+                           Strength strength = Strength::WEAK) {
+    DCHECK(IsFastElementsKind(elements_kind));
+    return elements_kind + (is_strong(strength) ? FIRST_JS_ARRAY_STRONG_MAP_SLOT
+                                                : FIRST_JS_ARRAY_MAP_SLOT);
   }
 
   static const int kSize = kHeaderSize + NATIVE_CONTEXT_SLOTS * kPointerSize;

@@ -4556,19 +4556,16 @@ Handle<Map> Map::TransitionElementsTo(Handle<Map> map,
       DCHECK_EQ(FAST_SLOPPY_ARGUMENTS_ELEMENTS, to_kind);
       return handle(native_context->fast_aliased_arguments_map());
     }
-  } else {
-    Object* maybe_array_maps = map->is_strong()
-                                   ? native_context->js_array_strong_maps()
-                                   : native_context->js_array_maps();
+  } else if (IsFastElementsKind(from_kind) && IsFastElementsKind(to_kind)) {
     // Reuse map transitions for JSArrays.
-    if (maybe_array_maps->IsFixedArray()) {
-      DisallowHeapAllocation no_gc;
-      FixedArray* array_maps = FixedArray::cast(maybe_array_maps);
-      if (array_maps->get(from_kind) == *map) {
-        Object* maybe_transitioned_map = array_maps->get(to_kind);
-        if (maybe_transitioned_map->IsMap()) {
-          return handle(Map::cast(maybe_transitioned_map));
-        }
+    DisallowHeapAllocation no_gc;
+    Strength strength = map->is_strong() ? Strength::STRONG : Strength::WEAK;
+    if (native_context->get(Context::ArrayMapIndex(from_kind, strength)) ==
+        *map) {
+      Object* maybe_transitioned_map =
+          native_context->get(Context::ArrayMapIndex(to_kind, strength));
+      if (maybe_transitioned_map->IsMap()) {
+        return handle(Map::cast(maybe_transitioned_map), isolate);
       }
     }
   }
@@ -12526,33 +12523,26 @@ Handle<Object> CacheInitialJSArrayMaps(
     Handle<Context> native_context, Handle<Map> initial_map) {
   // Replace all of the cached initial array maps in the native context with
   // the appropriate transitioned elements kind maps.
-  Factory* factory = native_context->GetIsolate()->factory();
-  Handle<FixedArray> maps = factory->NewFixedArrayWithHoles(
-      kElementsKindCount, TENURED);
-
+  Strength strength =
+      initial_map->is_strong() ? Strength::STRONG : Strength::WEAK;
   Handle<Map> current_map = initial_map;
   ElementsKind kind = current_map->elements_kind();
-  DCHECK(kind == GetInitialFastElementsKind());
-  maps->set(kind, *current_map);
+  DCHECK_EQ(GetInitialFastElementsKind(), kind);
+  native_context->set(Context::ArrayMapIndex(kind, strength), *current_map);
   for (int i = GetSequenceIndexFromFastElementsKind(kind) + 1;
        i < kFastElementsKindCount; ++i) {
     Handle<Map> new_map;
     ElementsKind next_kind = GetFastElementsKindFromSequenceIndex(i);
-    Map* maybe_elements_transition = current_map->ElementsTransitionMap();
-    if (maybe_elements_transition != NULL) {
+    if (Map* maybe_elements_transition = current_map->ElementsTransitionMap()) {
       new_map = handle(maybe_elements_transition);
-      DCHECK(new_map->elements_kind() == next_kind);
     } else {
       new_map = Map::CopyAsElementsKind(
           current_map, next_kind, INSERT_TRANSITION);
     }
-    maps->set(next_kind, *new_map);
+    DCHECK_EQ(next_kind, new_map->elements_kind());
+    native_context->set(Context::ArrayMapIndex(next_kind, strength), *new_map);
     current_map = new_map;
   }
-  if (initial_map->is_strong())
-    native_context->set_js_array_strong_maps(*maps);
-  else
-    native_context->set_js_array_maps(*maps);
   return initial_map;
 }
 

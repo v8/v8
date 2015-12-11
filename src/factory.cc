@@ -726,7 +726,6 @@ Handle<Context> Factory::NewNativeContext() {
   array->set_map_no_write_barrier(*native_context_map());
   Handle<Context> context = Handle<Context>::cast(array);
   context->set_native_context(*context);
-  context->set_js_array_maps(*undefined_value());
   context->set_errors_thrown(Smi::FromInt(0));
   Handle<WeakCell> weak_cell = NewWeakCell(context);
   context->set_self_weak_cell(*weak_cell);

@@ -2385,18 +2385,15 @@ CodeTracer* Isolate::GetCodeTracer() {
 
 
 Map* Isolate::get_initial_js_array_map(ElementsKind kind, Strength strength) {
-  Context* native_context = context()->native_context();
-  Object* maybe_map_array = is_strong(strength)
-                                ? native_context->js_array_strong_maps()
-                                : native_context->js_array_maps();
-  if (!maybe_map_array->IsUndefined()) {
-    Object* maybe_transitioned_map =
-        FixedArray::cast(maybe_map_array)->get(kind);
-    if (!maybe_transitioned_map->IsUndefined()) {
-      return Map::cast(maybe_transitioned_map);
+  if (IsFastElementsKind(kind)) {
+    DisallowHeapAllocation no_gc;
+    Object* const initial_js_array_map = context()->native_context()->get(
+        Context::ArrayMapIndex(kind, strength));
+    if (!initial_js_array_map->IsUndefined()) {
+      return Map::cast(initial_js_array_map);
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 

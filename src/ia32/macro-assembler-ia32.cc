@@ -2169,22 +2169,18 @@ void MacroAssembler::LoadTransitionedArrayMapConditional(
     Register map_in_out,
     Register scratch,
     Label* no_map_match) {
-  // Load the global or builtins object from the current context.
-  mov(scratch, NativeContextOperand());
+  DCHECK(IsFastElementsKind(expected_kind));
+  DCHECK(IsFastElementsKind(transitioned_kind));
 
   // Check that the function's map is the same as the expected cached map.
-  mov(scratch, Operand(scratch,
-                       Context::SlotOffset(Context::JS_ARRAY_MAPS_INDEX)));
-
-  size_t offset = expected_kind * kPointerSize +
-      FixedArrayBase::kHeaderSize;
-  cmp(map_in_out, FieldOperand(scratch, offset));
+  mov(scratch, NativeContextOperand());
+  cmp(map_in_out,
+      ContextOperand(scratch, Context::ArrayMapIndex(expected_kind)));
   j(not_equal, no_map_match);
 
   // Use the transitioned cached map.
-  offset = transitioned_kind * kPointerSize +
-      FixedArrayBase::kHeaderSize;
-  mov(map_in_out, FieldOperand(scratch, offset));
+  mov(map_in_out,
+      ContextOperand(scratch, Context::ArrayMapIndex(transitioned_kind)));
 }
 
 

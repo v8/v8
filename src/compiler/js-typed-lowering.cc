@@ -1560,8 +1560,6 @@ Reduction JSTypedLowering::ReduceNewArray(Node* node, Node* length,
                                           int capacity,
                                           Handle<AllocationSite> site) {
   DCHECK_EQ(IrOpcode::kJSCreateArray, node->opcode());
-  Node* target = NodeProperties::GetValueInput(node, 0);
-  Type* target_type = NodeProperties::GetType(target);
   Node* context = NodeProperties::GetContextInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
@@ -1571,33 +1569,19 @@ Reduction JSTypedLowering::ReduceNewArray(Node* node, Node* length,
   // enabled.
   PretenureFlag pretenure = site->GetPretenureMode();
   ElementsKind elements_kind = site->GetElementsKind();
+  DCHECK(IsFastElementsKind(elements_kind));
   if (flags() & kDeoptimizationEnabled) {
     dependencies()->AssumeTenuringDecision(site);
     dependencies()->AssumeTransitionStable(site);
   }
 
   // Retrieve the initial map for the array from the appropriate native context.
-  Node* js_array_map;
-  if (target_type->IsConstant()) {
-    Handle<JSFunction> target_function =
-        Handle<JSFunction>::cast(target_type->AsConstant()->Value());
-    Handle<FixedArray> js_array_maps(
-        FixedArray::cast(target_function->native_context()->js_array_maps()),
-        isolate());
-    js_array_map = jsgraph()->Constant(
-        handle(js_array_maps->get(elements_kind), isolate()));
-  } else {
-    Node* native_context = effect = graph()->NewNode(
-        javascript()->LoadContext(0, Context::NATIVE_CONTEXT_INDEX, true),
-        context, context, effect);
-    Node* js_array_maps = effect = graph()->NewNode(
-        javascript()->LoadContext(0, Context::JS_ARRAY_MAPS_INDEX, true),
-        native_context, native_context, effect);
-    js_array_map = effect =
-        graph()->NewNode(simplified()->LoadField(
-                             AccessBuilder::ForFixedArraySlot(elements_kind)),
-                         js_array_maps, effect, control);
-  }
+  Node* native_context = effect = graph()->NewNode(
+      javascript()->LoadContext(0, Context::NATIVE_CONTEXT_INDEX, true),
+      context, context, effect);
+  Node* js_array_map = effect = graph()->NewNode(
+      javascript()->LoadContext(0, Context::ArrayMapIndex(elements_kind), true),
+      native_context, native_context, effect);
 
   // Setup elements and properties.
   Node* elements;

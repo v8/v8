@@ -3427,16 +3427,9 @@ HValue* HGraphBuilder::JSArrayBuilder::EmitMapCode() {
       ? builder()->BuildGetNativeContext(constructor_function_)
       : builder()->BuildGetNativeContext();
 
-  HInstruction* index = builder()->Add<HConstant>(
-      static_cast<int32_t>(Context::JS_ARRAY_MAPS_INDEX));
-
-  HInstruction* map_array = builder()->Add<HLoadKeyed>(
-      native_context, index, nullptr, nullptr, FAST_ELEMENTS);
-
-  HInstruction* kind_index = builder()->Add<HConstant>(kind_);
-
-  return builder()->Add<HLoadKeyed>(map_array, kind_index, nullptr, nullptr,
-                                    FAST_ELEMENTS);
+  HObjectAccess access =
+      HObjectAccess::ForContextSlot(Context::ArrayMapIndex(kind_));
+  return builder()->Add<HLoadNamedField>(native_context, nullptr, access);
 }
 
 
