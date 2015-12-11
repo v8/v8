@@ -574,8 +574,6 @@ class MarkCompactCollector {
   // Marking operations for objects reachable from roots.
   void MarkLiveObjects();
 
-  void AfterMarking();
-
   // Pushes a black object onto the marking stack and accounts for live bytes.
   // Note that this assumes live bytes have not yet been counted.
   INLINE(void PushBlack(HeapObject* obj));
@@ -715,6 +713,8 @@ class MarkCompactCollector {
   void WaitUntilCompactionCompleted(uint32_t* task_ids, int len);
 
   void EvacuateNewSpaceAndCandidates();
+
+  void UpdatePointersAfterEvacuation();
 
   // Iterates through all live objects on a page using marking information.
   // Returns whether all objects have successfully been visited.

@@ -51,40 +51,37 @@ INTERESTING_NEW_GEN_KEYS="\
 INTERESTING_OLD_GEN_KEYS="\
   ${GENERAL_INTERESTING_KEYS} \
   external \
-  mark \
-  mark_inc \
-  mark_prepcodeflush \
-  mark_root \
-  mark_topopt \
-  mark_retainmaps \
-  mark_weakclosure \
-  mark_stringtable \
-  mark_weakrefs \
-  mark_globalhandles \
-  mark_codeflush \
-  mark_optimizedcodemaps \
-  store_buffer_clear \
-  slots_buffer_clear \
-  sweep \
-  sweepns \
-  sweepos \
-  sweepcode \
-  sweepcell \
-  sweepmap \
-  sweepaborted \
+  clear \
+  clear.code_flush \
+  clear.dependent_code \
+  clear.global_handles \
+  clear.maps \
+  clear.slots_buffer \
+  clear.store_buffer \
+  clear.string_table \
+  clear.weak_cells \
+  clear.weak_collections \
+  clear.weak_lists \
+  finish \
   evacuate \
-  new_new \
-  old_new \
-  root_new \
-  compaction_ptrs \
-  intracompaction_ptrs \
-  misc_compaction \
-  inc_weak_closure \
-  weakcollection_process \
-  weakcollection_clear \
-  weakcollection_abort \
-  weakcells \
-  nonlive_refs \
+  evacuate.candidates \
+  evacuate.clean_up \
+  evacuate.new_space \
+  evacuate.update_pointers \
+  evacuate.update_pointers.between_evacuated \
+  evacuate.update_pointers.to_evacuated \
+  evacuate.update_pointers.to_new \
+  evacuate.update_pointers.weak \
+  mark \
+  mark.finish_incremental \
+  mark.prepare_code_flush \
+  mark.roots \
+  mark.weak_closure \
+  sweep \
+  sweep.code \
+  sweep.map \
+  sweep.old \
+  incremental_finalize \
 "
 
 BASE_DIR=$(dirname $0)
