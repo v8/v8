@@ -817,7 +817,6 @@ class Heap {
   // TODO(hpayer): There is still a missmatch between capacity and actual
   // committed memory size.
   bool CanExpandOldGeneration(int size) {
-    if (force_oom_) return false;
     return (CommittedOldGenerationMemory() + size) < MaxOldGenerationSize();
   }
 
@@ -2120,8 +2119,6 @@ class Heap {
 
   MUST_USE_RESULT AllocationResult InternalizeString(String* str);
 
-  void set_force_oom(bool value) { force_oom_ = value; }
-
   // The amount of external memory registered through the API kept alive
   // by global handles
   int64_t amount_of_external_allocated_memory_;
@@ -2371,9 +2368,6 @@ class Heap {
   StrongRootsList* strong_roots_list_;
 
   ArrayBufferTracker* array_buffer_tracker_;
-
-  // Used for testing purposes.
-  bool force_oom_;
 
   // Classes in "heap" can be friends.
   friend class AlwaysAllocateScope;
