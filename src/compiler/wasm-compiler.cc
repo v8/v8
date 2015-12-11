@@ -223,10 +223,31 @@ class WasmTrapHelper : public ZoneObject {
       end = thrw;
     } else {
       // End the control flow with returning 0xdeadbeef
-      Node* ret_dead = graph()->NewNode(common()->Return(),
-                                        jsgraph()->Int32Constant(0xdeadbeef),
-                                        *effect_ptr, *control_ptr);
-      end = ret_dead;
+      Node* ret_value;
+      if (builder_->GetFunctionSignature()->return_count() > 0) {
+        switch (builder_->GetFunctionSignature()->GetReturn()) {
+          case wasm::kAstI32:
+            ret_value = jsgraph()->Int32Constant(0xdeadbeef);
+            break;
+          case wasm::kAstI64:
+            ret_value = jsgraph()->Int64Constant(0xdeadbeefdeadbeef);
+            break;
+          case wasm::kAstF32:
+            ret_value = jsgraph()->Float32Constant(bit_cast<float>(0xdeadbeef));
+            break;
+          case wasm::kAstF64:
+            ret_value = jsgraph()->Float64Constant(
+                bit_cast<double>(0xdeadbeefdeadbeef));
+            break;
+          default:
+            UNREACHABLE();
+            ret_value = nullptr;
+        }
+      } else {
+        ret_value = jsgraph()->Int32Constant(0xdeadbeef);
+      }
+      end = graph()->NewNode(jsgraph()->common()->Return(), ret_value,
+                             *effect_ptr, *control_ptr);
     }
 
     MergeControlToEnd(jsgraph(), end);
@@ -234,7 +255,8 @@ class WasmTrapHelper : public ZoneObject {
 };
 
 
-WasmGraphBuilder::WasmGraphBuilder(Zone* zone, JSGraph* jsgraph)
+WasmGraphBuilder::WasmGraphBuilder(Zone* zone, JSGraph* jsgraph,
+                                   wasm::FunctionSig* function_signature)
     : zone_(zone),
       jsgraph_(jsgraph),
       module_(nullptr),
@@ -245,7 +267,8 @@ WasmGraphBuilder::WasmGraphBuilder(Zone* zone, JSGraph* jsgraph)
       effect_(nullptr),
       cur_buffer_(def_buffer_),
       cur_bufsize_(kDefaultBufferSize),
-      trap_(new (zone) WasmTrapHelper(this)) {
+      trap_(new (zone) WasmTrapHelper(this)),
+      function_signature_(function_signature) {
   DCHECK_NOT_NULL(jsgraph_);
 }
 
@@ -843,6 +866,42 @@ Node* WasmGraphBuilder::Unop(wasm::WasmOpcode opcode, Node* input) {
     case wasm::kExprF64UConvertI64:
       op = m->RoundUint64ToFloat64();
       break;
+    case wasm::kExprI64SConvertF32: {
+      Node* trunc = graph()->NewNode(m->TryTruncateFloat32ToInt64(), input);
+      Node* result =
+          graph()->NewNode(jsgraph()->common()->Projection(0), trunc);
+      Node* overflow =
+          graph()->NewNode(jsgraph()->common()->Projection(1), trunc);
+      trap_->ZeroCheck64(kTrapFloatUnrepresentable, overflow);
+      return result;
+    }
+    case wasm::kExprI64SConvertF64: {
+      Node* trunc = graph()->NewNode(m->TryTruncateFloat64ToInt64(), input);
+      Node* result =
+          graph()->NewNode(jsgraph()->common()->Projection(0), trunc);
+      Node* overflow =
+          graph()->NewNode(jsgraph()->common()->Projection(1), trunc);
+      trap_->ZeroCheck64(kTrapFloatUnrepresentable, overflow);
+      return result;
+    }
+    case wasm::kExprI64UConvertF32: {
+      Node* trunc = graph()->NewNode(m->TryTruncateFloat32ToUint64(), input);
+      Node* result =
+          graph()->NewNode(jsgraph()->common()->Projection(0), trunc);
+      Node* overflow =
+          graph()->NewNode(jsgraph()->common()->Projection(1), trunc);
+      trap_->ZeroCheck64(kTrapFloatUnrepresentable, overflow);
+      return result;
+    }
+    case wasm::kExprI64UConvertF64: {
+      Node* trunc = graph()->NewNode(m->TryTruncateFloat64ToUint64(), input);
+      Node* result =
+          graph()->NewNode(jsgraph()->common()->Projection(0), trunc);
+      Node* overflow =
+          graph()->NewNode(jsgraph()->common()->Projection(1), trunc);
+      trap_->ZeroCheck64(kTrapFloatUnrepresentable, overflow);
+      return result;
+    }
     case wasm::kExprF64ReinterpretI64:
       op = m->BitcastInt64ToFloat64();
       break;
@@ -1616,7 +1675,7 @@ Handle<JSFunction> CompileJSToWasmWrapper(Isolate* isolate,
   Node* control = nullptr;
   Node* effect = nullptr;
 
-  WasmGraphBuilder builder(&zone, &jsgraph);
+  WasmGraphBuilder builder(&zone, &jsgraph, func->sig);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
   builder.set_module(module);
@@ -1698,7 +1757,7 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, wasm::ModuleEnv* module,
   Node* control = nullptr;
   Node* effect = nullptr;
 
-  WasmGraphBuilder builder(&zone, &jsgraph);
+  WasmGraphBuilder builder(&zone, &jsgraph, func->sig);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
   builder.set_module(module);
@@ -1786,7 +1845,7 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
       &zone, MachineType::PointerRepresentation(),
       InstructionSelector::SupportedMachineOperatorFlags());
   JSGraph jsgraph(isolate, &graph, &common, nullptr, nullptr, &machine);
-  WasmGraphBuilder builder(&zone, &jsgraph);
+  WasmGraphBuilder builder(&zone, &jsgraph, function.sig);
   wasm::TreeResult result = wasm::BuildTFGraph(
       &builder, &env,                                                 // --
       module_env->module->module_start,                               // --

@@ -55,7 +55,7 @@ Handle<JSFunction> CompileJSToWasmWrapper(Isolate* isolate,
 class WasmTrapHelper;
 class WasmGraphBuilder {
  public:
-  WasmGraphBuilder(Zone* z, JSGraph* g);
+  WasmGraphBuilder(Zone* z, JSGraph* g, wasm::FunctionSig* function_signature);
 
   Node** Buffer(size_t count) {
     if (count > cur_bufsize_) {
@@ -132,6 +132,8 @@ class WasmGraphBuilder {
 
   void set_effect_ptr(Node** effect) { this->effect_ = effect; }
 
+  wasm::FunctionSig* GetFunctionSignature() { return function_signature_; }
+
  private:
   static const int kDefaultBufferSize = 16;
   friend class WasmTrapHelper;
@@ -149,6 +151,7 @@ class WasmGraphBuilder {
   Node* def_buffer_[kDefaultBufferSize];
 
   WasmTrapHelper* trap_;
+  wasm::FunctionSig* function_signature_;
 
   // Internal helper methods.
   JSGraph* jsgraph() { return jsgraph_; }

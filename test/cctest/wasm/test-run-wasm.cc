@@ -32,7 +32,12 @@
 // Currently, in tests, we just return 0xdeadbeef from the function in which
 // the trap occurs if the runtime context is not available to throw a JavaScript
 // exception.
-#define CHECK_TRAP(x) CHECK_EQ(0xdeadbeef, (x)&0xFFFFFFFF)
+#define CHECK_TRAP32(x) \
+  CHECK_EQ(0xdeadbeef, (bit_cast<uint32_t>(x)) & 0xFFFFFFFF)
+#define CHECK_TRAP64(x) \
+  CHECK_EQ(0xdeadbeefdeadbeef, (bit_cast<uint64_t>(x)) & 0xFFFFFFFFFFFFFFFF)
+#define CHECK_TRAP(x) CHECK_TRAP32(x)
+
 
 using namespace v8::base;
 using namespace v8::internal;
@@ -214,7 +219,7 @@ class WasmFunctionCompiler : public HandleAndZoneScope,
   CallDescriptor* descriptor() { return descriptor_; }
 
   void Build(const byte* start, const byte* end) {
-    compiler::WasmGraphBuilder builder(main_zone(), &jsgraph);
+    compiler::WasmGraphBuilder builder(main_zone(), &jsgraph, env.sig);
     TreeResult result = BuildTFGraph(&builder, &env, start, end);
     if (result.failed()) {
       ptrdiff_t pc = result.error_pc - result.start;
@@ -973,10 +978,10 @@ TEST(Run_WASM_Int64DivS_trap) {
   WasmRunner<int64_t> r(MachineType::Int64(), MachineType::Int64());
   BUILD(r, WASM_I64_DIVS(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
   CHECK_EQ(0, r.Call(as64(0), as64(100)));
-  CHECK_TRAP(r.Call(as64(100), as64(0)));
-  CHECK_TRAP(r.Call(as64(-1001), as64(0)));
-  CHECK_TRAP(r.Call(std::numeric_limits<int64_t>::min(), as64(-1)));
-  CHECK_TRAP(r.Call(std::numeric_limits<int64_t>::min(), as64(0)));
+  CHECK_TRAP64(r.Call(as64(100), as64(0)));
+  CHECK_TRAP64(r.Call(as64(-1001), as64(0)));
+  CHECK_TRAP64(r.Call(std::numeric_limits<int64_t>::min(), as64(-1)));
+  CHECK_TRAP64(r.Call(std::numeric_limits<int64_t>::min(), as64(0)));
 }
 
 
@@ -985,9 +990,9 @@ TEST(Run_WASM_Int64RemS_trap) {
   BUILD(r, WASM_I64_REMS(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
   CHECK_EQ(33, r.Call(as64(133), as64(100)));
   CHECK_EQ(0, r.Call(std::numeric_limits<int64_t>::min(), as64(-1)));
-  CHECK_TRAP(r.Call(as64(100), as64(0)));
-  CHECK_TRAP(r.Call(as64(-1001), as64(0)));
-  CHECK_TRAP(r.Call(std::numeric_limits<int64_t>::min(), as64(0)));
+  CHECK_TRAP64(r.Call(as64(100), as64(0)));
+  CHECK_TRAP64(r.Call(as64(-1001), as64(0)));
+  CHECK_TRAP64(r.Call(std::numeric_limits<int64_t>::min(), as64(0)));
 }
 
 
@@ -996,9 +1001,9 @@ TEST(Run_WASM_Int64DivU_trap) {
   BUILD(r, WASM_I64_DIVU(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
   CHECK_EQ(0, r.Call(as64(0), as64(100)));
   CHECK_EQ(0, r.Call(std::numeric_limits<int64_t>::min(), as64(-1)));
-  CHECK_TRAP(r.Call(as64(100), as64(0)));
-  CHECK_TRAP(r.Call(as64(-1001), as64(0)));
-  CHECK_TRAP(r.Call(std::numeric_limits<int64_t>::min(), as64(0)));
+  CHECK_TRAP64(r.Call(as64(100), as64(0)));
+  CHECK_TRAP64(r.Call(as64(-1001), as64(0)));
+  CHECK_TRAP64(r.Call(std::numeric_limits<int64_t>::min(), as64(0)));
 }
 
 
@@ -1006,9 +1011,9 @@ TEST(Run_WASM_Int64RemU_trap) {
   WasmRunner<int64_t> r(MachineType::Int64(), MachineType::Int64());
   BUILD(r, WASM_I64_REMU(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
   CHECK_EQ(17, r.Call(as64(217), as64(100)));
-  CHECK_TRAP(r.Call(as64(100), as64(0)));
-  CHECK_TRAP(r.Call(as64(-1001), as64(0)));
-  CHECK_TRAP(r.Call(std::numeric_limits<int64_t>::min(), as64(0)));
+  CHECK_TRAP64(r.Call(as64(100), as64(0)));
+  CHECK_TRAP64(r.Call(as64(-1001), as64(0)));
+  CHECK_TRAP64(r.Call(std::numeric_limits<int64_t>::min(), as64(0)));
   CHECK_EQ(std::numeric_limits<int64_t>::min(),
            r.Call(std::numeric_limits<int64_t>::min(), as64(-1)));
 }
@@ -1020,7 +1025,7 @@ TEST(Run_WASM_Int64DivS_byzero_const) {
     BUILD(r, WASM_I64_DIVS(WASM_GET_LOCAL(0), WASM_I64(denom)));
     for (int64_t val = -7; val < 8; val++) {
       if (denom == 0) {
-        CHECK_TRAP(r.Call(val));
+        CHECK_TRAP64(r.Call(val));
       } else {
         CHECK_EQ(val / denom, r.Call(val));
       }
@@ -1036,7 +1041,7 @@ TEST(Run_WASM_Int64DivU_byzero_const) {
 
     for (uint64_t val = 0xfffffffffffffff0; val < 8; val++) {
       if (denom == 0) {
-        CHECK_TRAP(r.Call(val));
+        CHECK_TRAP64(r.Call(val));
       } else {
         CHECK_EQ(val / denom, r.Call(val));
       }
@@ -3243,6 +3248,60 @@ TEST(Run_Wasm_F64UConvertI64) {
 }
 
 
+TEST(Run_Wasm_I64SConvertF32) {
+  WasmRunner<int64_t> r(MachineType::Float32());
+  BUILD(r, WASM_I64_SCONVERT_F32(WASM_GET_LOCAL(0)));
+
+  FOR_FLOAT32_INPUTS(i) {
+    if (*i < 9223372036854775808.0 && *i > -9223372036854775809.0) {
+      CHECK_EQ(static_cast<int64_t>(*i), r.Call(*i));
+    } else {
+      CHECK_TRAP64(r.Call(*i));
+    }
+  }
+}
+
+
+TEST(Run_Wasm_I64SConvertF64) {
+  WasmRunner<int64_t> r(MachineType::Float64());
+  BUILD(r, WASM_I64_SCONVERT_F64(WASM_GET_LOCAL(0)));
+
+  FOR_FLOAT64_INPUTS(i) {
+    if (*i < 9223372036854775808.0 && *i > -9223372036854775809.0) {
+      CHECK_EQ(static_cast<int64_t>(*i), r.Call(*i));
+    } else {
+      CHECK_TRAP64(r.Call(*i));
+    }
+  }
+}
+
+
+TEST(Run_Wasm_I64UConvertF32) {
+  WasmRunner<uint64_t> r(MachineType::Float32());
+  BUILD(r, WASM_I64_UCONVERT_F32(WASM_GET_LOCAL(0)));
+
+  FOR_FLOAT32_INPUTS(i) {
+    if (*i < 18446744073709551616.0 && *i >= 0) {
+      CHECK_EQ(static_cast<uint64_t>(*i), r.Call(*i));
+    } else {
+      CHECK_TRAP64(r.Call(*i));
+    }
+  }
+}
+
+
+TEST(Run_Wasm_I64UConvertF64) {
+  WasmRunner<uint64_t> r(MachineType::Float64());
+  BUILD(r, WASM_I64_UCONVERT_F64(WASM_GET_LOCAL(0)));
+
+  FOR_FLOAT64_INPUTS(i) {
+    if (*i < 18446744073709551616.0 && *i >= 0) {
+      CHECK_EQ(static_cast<uint64_t>(*i), r.Call(*i));
+    } else {
+      CHECK_TRAP64(r.Call(*i));
+    }
+  }
+}
 #endif
 
 
