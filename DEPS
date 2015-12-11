@@ -12,7 +12,7 @@ deps = {
   "v8/third_party/icu":
     Var("git_url") + "/chromium/deps/icu.git" + "@" + "42c58d4e49f2250039f0e98d43e0b76e8f5ca024",
   "v8/buildtools":
-    Var("git_url") + "/chromium/buildtools.git" + "@" + "b747a9e091cb8212a62343258406eaf53a6c032e",
+    Var("git_url") + "/chromium/buildtools.git" + "@" + "68e3c238a5ab347436762cb929316aa55ca72563",
   # TODO(fmeawad): this dependency is not currently used. Added to allow for developement of the V8 Tracing system.
   "v8/src/tracing/common":
     Var("git_url") + "/chromium/src/base/trace_event/common.git" + "@" + "d83d44b13d07c2fd0a40101a7deef9b93b841732",
@@ -30,7 +30,7 @@ deps = {
   "v8/test/test262/data":
     Var("git_url") + "/external/github.com/tc39/test262.git" + "@" + "fd44cd73dfbce0b515a2474b7cd505d6176a9eb5",
   "v8/tools/clang":
-    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "668876fb488c6e3c5860a367b7d9a7fb8821df76",
+    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "3a1510ccbc295798602abbbffcf61065704e8acb",
 }
 
 deps_os = {
