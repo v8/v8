@@ -170,8 +170,11 @@
           },
         }],
         ['v8_wasm!=0', {
-          'dependencies': [
-            '../../third_party/wasm/test/unittests/wasm/wasm.gyp:wasm_unittests',
+          'sources': [
+            'wasm/ast-decoder-unittest.cc',
+            'wasm/encoder-unittest.cc',
+            'wasm/module-decoder-unittest.cc',
+            'wasm/wasm-macro-gen-unittest.cc',
           ],
         }],
       ],

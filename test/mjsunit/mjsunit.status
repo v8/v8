@@ -183,6 +183,9 @@
   # issue 4078:
   'allocation-site-info': [PASS, NO_VARIANTS],
 
+  # Native WASM is not yet enabled by default.
+  'wasm/*': [SKIP],
+
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.
   'compiler/regress-stacktrace-methods': [PASS, ['mode == debug', SKIP]],
