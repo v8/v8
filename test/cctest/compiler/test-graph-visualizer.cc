@@ -39,7 +39,6 @@ TEST(NodeWithNullInputReachableFromEnd) {
   graph.SetEnd(phi);
 
   OFStream os(stdout);
-  os << AsDOT(graph);
   SourcePositionTable table(&graph);
   os << AsJSON(graph, &table);
 }
@@ -59,7 +58,6 @@ TEST(NodeWithNullControlReachableFromEnd) {
   graph.SetEnd(phi);
 
   OFStream os(stdout);
-  os << AsDOT(graph);
   SourcePositionTable table(&graph);
   os << AsJSON(graph, &table);
 }
@@ -79,7 +77,6 @@ TEST(NodeWithNullInputReachableFromStart) {
   graph.SetEnd(start);
 
   OFStream os(stdout);
-  os << AsDOT(graph);
   SourcePositionTable table(&graph);
   os << AsJSON(graph, &table);
 }
@@ -97,7 +94,6 @@ TEST(NodeWithNullControlReachableFromStart) {
   graph.SetEnd(merge);
 
   OFStream os(stdout);
-  os << AsDOT(graph);
   SourcePositionTable table(&graph);
   os << AsJSON(graph, &table);
 }
@@ -125,7 +121,6 @@ TEST(NodeNetworkOfDummiesReachableFromEnd) {
   graph.SetEnd(end);
 
   OFStream os(stdout);
-  os << AsDOT(graph);
   SourcePositionTable table(&graph);
   os << AsJSON(graph, &table);
 }

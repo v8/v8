@@ -1000,14 +1000,6 @@ struct PrintGraphPhase {
     CompilationInfo* info = data->info();
     Graph* graph = data->graph();
 
-    {  // Print dot.
-      FILE* dot_file = OpenVisualizerLogFile(info, phase, "dot", "w+");
-      if (dot_file == nullptr) return;
-      OFStream dot_of(dot_file);
-      dot_of << AsDOT(*graph);
-      fclose(dot_file);
-    }
-
     {  // Print JSON.
       FILE* json_file = OpenVisualizerLogFile(info, NULL, "json", "a+");
       if (json_file == nullptr) return;

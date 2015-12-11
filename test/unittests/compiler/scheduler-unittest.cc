@@ -13,6 +13,7 @@
 #include "src/compiler/schedule.h"
 #include "src/compiler/scheduler.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/compiler/source-position.h"
 #include "src/compiler/verifier.h"
 #include "test/unittests/compiler/compiler-test-utils.h"
 #include "test/unittests/test-utils.h"
@@ -32,7 +33,8 @@ class SchedulerTest : public TestWithIsolateAndZone {
   Schedule* ComputeAndVerifySchedule(size_t expected) {
     if (FLAG_trace_turbo) {
       OFStream os(stdout);
-      os << AsDOT(*graph());
+      SourcePositionTable table(graph());
+      os << AsJSON(*graph(), &table);
     }
 
     Schedule* schedule =
