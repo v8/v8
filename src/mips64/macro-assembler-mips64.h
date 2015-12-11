@@ -843,8 +843,10 @@ class MacroAssembler: public Assembler {
                   Register result = no_reg);
 
   // Convert single to unsigned long.
-  void Trunc_ul_s(FPURegister fd, FPURegister fs, FPURegister scratch);
-  void Trunc_ul_s(FPURegister fd, Register rs, FPURegister scratch);
+  void Trunc_ul_s(FPURegister fd, FPURegister fs, FPURegister scratch,
+                  Register result = no_reg);
+  void Trunc_ul_s(FPURegister fd, Register rs, FPURegister scratch,
+                  Register result = no_reg);
 
   void Trunc_w_d(FPURegister fd, FPURegister fs);
   void Round_w_d(FPURegister fd, FPURegister fs);

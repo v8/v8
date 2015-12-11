@@ -1270,8 +1270,20 @@ void InstructionSelector::VisitTryTruncateFloat64ToInt64(Node* node) {
 }
 
 
-void InstructionSelector::VisitTruncateFloat32ToUint64(Node* node) {
-  VisitRR(this, kArm64Float32ToUint64, node);
+void InstructionSelector::VisitTryTruncateFloat32ToUint64(Node* node) {
+  Arm64OperandGenerator g(this);
+
+  InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};
+  InstructionOperand outputs[2];
+  size_t output_count = 0;
+  outputs[output_count++] = g.DefineAsRegister(node);
+
+  Node* success_output = NodeProperties::FindProjection(node, 1);
+  if (success_output) {
+    outputs[output_count++] = g.DefineAsRegister(success_output);
+  }
+
+  Emit(kArm64Float32ToUint64, output_count, outputs, 1, inputs);
 }
 
 

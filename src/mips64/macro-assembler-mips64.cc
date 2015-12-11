@@ -1638,8 +1638,8 @@ void MacroAssembler::Trunc_ul_d(FPURegister fd, FPURegister fs,
 
 
 void MacroAssembler::Trunc_ul_s(FPURegister fd, FPURegister fs,
-                                FPURegister scratch) {
-  Trunc_ul_s(fs, t8, scratch);
+                                FPURegister scratch, Register result) {
+  Trunc_ul_s(fs, t8, scratch, result);
   dmtc1(t8, fd);
 }
 
@@ -1702,9 +1702,12 @@ void MacroAssembler::Trunc_ul_d(FPURegister fd, Register rs,
   DCHECK(!fd.is(scratch));
   DCHECK(!AreAliased(rs, result, at));
 
+  Label simple_convert, done, fail;
   if (result.is_valid()) {
     mov(result, zero_reg);
     Move(kDoubleRegZero, 0.0);
+    // If fd < 0 or unordered, then the conversion fails.
+    BranchF(&fail, &fail, lt, fd, kDoubleRegZero);
   }
 
   // Load 2^63 into scratch as its double representation.
@@ -1713,9 +1716,7 @@ void MacroAssembler::Trunc_ul_d(FPURegister fd, Register rs,
 
   // Test if scratch > fd.
   // If fd < 2^63 we can convert it normally.
-  // If fd is unordered the conversion fails.
-  Label simple_convert, done, fail;
-  BranchF(&simple_convert, &fail, lt, fd, scratch);
+  BranchF(&simple_convert, nullptr, lt, fd, scratch);
 
   // First we subtract 2^63 from fd, then trunc it to rs
   // and add 2^63 to rs.
@@ -1732,9 +1733,12 @@ void MacroAssembler::Trunc_ul_d(FPURegister fd, Register rs,
 
   bind(&done);
   if (result.is_valid()) {
-    // Conversion is failed if the result is negative or unordered.
-    BranchF(&fail, &fail, lt, scratch, kDoubleRegZero);
-    li(result, Operand(1));
+    // Conversion is failed if the result is negative.
+    addiu(at, zero_reg, -1);
+    dsrl(at, at, 1);  // Load 2^62.
+    dmfc1(result, scratch);
+    xor_(result, result, at);
+    Slt(result, zero_reg, result);
   }
 
   bind(&fail);
@@ -1742,18 +1746,25 @@ void MacroAssembler::Trunc_ul_d(FPURegister fd, Register rs,
 
 
 void MacroAssembler::Trunc_ul_s(FPURegister fd, Register rs,
-                                FPURegister scratch) {
+                                FPURegister scratch, Register result) {
   DCHECK(!fd.is(scratch));
-  DCHECK(!rs.is(at));
+  DCHECK(!AreAliased(rs, result, at));
+
+  Label simple_convert, done, fail;
+  if (result.is_valid()) {
+    mov(result, zero_reg);
+    Move(kDoubleRegZero, 0.0);
+    // If fd < 0 or unordered, then the conversion fails.
+    BranchF32(&fail, &fail, lt, fd, kDoubleRegZero);
+  }
 
   // Load 2^63 into scratch as its float representation.
   li(at, 0x5f000000);
-  dmtc1(at, scratch);
+  mtc1(at, scratch);
 
   // Test if scratch > fd.
   // If fd < 2^63 we can convert it normally.
-  Label simple_convert, done;
-  BranchF32(&simple_convert, NULL, lt, fd, scratch);
+  BranchF32(&simple_convert, nullptr, lt, fd, scratch);
 
   // First we subtract 2^63 from fd, then trunc it to rs
   // and add 2^63 to rs.
@@ -1769,6 +1780,16 @@ void MacroAssembler::Trunc_ul_s(FPURegister fd, Register rs,
   dmfc1(rs, scratch);
 
   bind(&done);
+  if (result.is_valid()) {
+    // Conversion is failed if the result is negative or unordered.
+    addiu(at, zero_reg, -1);
+    dsrl(at, at, 1);  // Load 2^62.
+    dmfc1(result, scratch);
+    xor_(result, result, at);
+    Slt(result, zero_reg, result);
+  }
+
+  bind(&fail);
 }
 
 

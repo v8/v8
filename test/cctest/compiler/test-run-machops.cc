@@ -5527,7 +5527,7 @@ TEST(RunTryTruncateFloat64ToInt64WithCheck) {
 
 TEST(RunTruncateFloat32ToUint64) {
   BufferedRawMachineAssemblerTester<uint64_t> m(MachineType::Float32());
-  m.Return(m.TruncateFloat32ToUint64(m.Parameter(0)));
+  m.Return(m.TryTruncateFloat32ToUint64(m.Parameter(0)));
 
   FOR_UINT64_INPUTS(i) {
     float input = static_cast<float>(*i);
@@ -5538,6 +5538,28 @@ TEST(RunTruncateFloat32ToUint64) {
   FOR_FLOAT32_INPUTS(j) {
     if (*j < 18446744073709551616.0 && *j >= 0) {
       CHECK_EQ(static_cast<uint64_t>(*j), m.Call(*j));
+    }
+  }
+}
+
+
+TEST(RunTryTruncateFloat32ToUint64WithCheck) {
+  int64_t success = 0;
+  BufferedRawMachineAssemblerTester<uint64_t> m(MachineType::Float32());
+  Node* trunc = m.TryTruncateFloat32ToUint64(m.Parameter(0));
+  Node* val = m.Projection(0, trunc);
+  Node* check = m.Projection(1, trunc);
+  m.StoreToPointer(&success, MachineType::Int64(), check);
+  m.Return(val);
+
+  FOR_FLOAT32_INPUTS(i) {
+    if (*i < 18446744073709551616.0 && *i >= 0.0) {
+      // Conversions within this range should succeed.
+      CHECK_EQ(static_cast<uint64_t>(*i), m.Call(*i));
+      CHECK_NE(0, success);
+    } else {
+      m.Call(*i);
+      CHECK_EQ(0, success);
     }
   }
 }

@@ -61,7 +61,7 @@ class RepresentationChangerTester : public HandleAndZoneScope,
   void CheckFloat32Constant(Node* n, float expected) {
     CHECK_EQ(IrOpcode::kFloat32Constant, n->opcode());
     float fval = OpParameter<float>(n->op());
-    CHECK_EQ(expected, fval);
+    CheckDoubleEq(expected, fval);
   }
 
   void CheckHeapConstant(Node* n, HeapObject* expected) {

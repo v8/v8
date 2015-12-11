@@ -831,8 +831,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsWord64(node), VisitTryTruncateFloat32ToInt64(node);
     case IrOpcode::kTryTruncateFloat64ToInt64:
       return MarkAsWord64(node), VisitTryTruncateFloat64ToInt64(node);
-    case IrOpcode::kTruncateFloat32ToUint64:
-      return MarkAsWord64(node), VisitTruncateFloat32ToUint64(node);
+    case IrOpcode::kTryTruncateFloat32ToUint64:
+      return MarkAsWord64(node), VisitTryTruncateFloat32ToUint64(node);
     case IrOpcode::kTryTruncateFloat64ToUint64:
       return MarkAsWord64(node), VisitTryTruncateFloat64ToUint64(node);
     case IrOpcode::kChangeInt32ToInt64:
@@ -1094,7 +1094,7 @@ void InstructionSelector::VisitTryTruncateFloat64ToInt64(Node* node) {
 }
 
 
-void InstructionSelector::VisitTruncateFloat32ToUint64(Node* node) {
+void InstructionSelector::VisitTryTruncateFloat32ToUint64(Node* node) {
   UNIMPLEMENTED();
 }
 
@@ -1214,6 +1214,7 @@ void InstructionSelector::VisitProjection(Node* node) {
     case IrOpcode::kInt32SubWithOverflow:
     case IrOpcode::kTryTruncateFloat32ToInt64:
     case IrOpcode::kTryTruncateFloat64ToInt64:
+    case IrOpcode::kTryTruncateFloat32ToUint64:
     case IrOpcode::kTryTruncateFloat64ToUint64:
       if (ProjectionIndexOf(node->op()) == 0u) {
         Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
