@@ -767,7 +767,9 @@ void TopLevelLiveRange::CommitSpillMoves(InstructionSequence* sequence,
       }
       if (found) continue;
     }
-    move->AddMove(*to_spill->operand, op);
+    if (!has_preassigned_slot()) {
+      move->AddMove(*to_spill->operand, op);
+    }
   }
 }
 
@@ -1126,6 +1128,7 @@ bool SpillRange::IsIntersectingWith(SpillRange* other) const {
 
 
 bool SpillRange::TryMerge(SpillRange* other) {
+  if (HasSlot() || other->HasSlot()) return false;
   // TODO(dcarney): byte widths should be compared here not kinds.
   if (live_ranges_[0]->kind() != other->live_ranges_[0]->kind() ||
       IsIntersectingWith(other)) {
@@ -1227,7 +1230,8 @@ RegisterAllocationData::RegisterAllocationData(
       delayed_references_(allocation_zone()),
       assigned_registers_(nullptr),
       assigned_double_registers_(nullptr),
-      virtual_register_count_(code->VirtualRegisterCount()) {
+      virtual_register_count_(code->VirtualRegisterCount()),
+      preassigned_slot_ranges_(zone) {
   DCHECK(this->config()->num_general_registers() <=
          RegisterConfiguration::kMaxGeneralRegisters);
   DCHECK(this->config()->num_double_registers() <=
@@ -1620,14 +1624,8 @@ void ConstraintBuilder::MeetConstraintsAfter(int instr_index) {
       bool is_tagged = code()->IsReference(output_vreg);
       if (first_output->HasSecondaryStorage()) {
         range->MarkHasPreassignedSlot();
-        InstructionOperand* spill_op = AllocatedOperand::New(
-            data()->code_zone(), LocationOperand::LocationKind::STACK_SLOT,
-            range->representation(), first_output->GetSecondaryStorage());
-        range->RecordSpillLocation(allocation_zone(), instr_index + 1,
-                                   first_output);
-        range->SetSpillOperand(spill_op);
-        range->SetSpillStartIndex(instr_index + 1);
-        assigned = true;
+        data()->preassigned_slot_ranges().push_back(
+            std::make_pair(range, first_output->GetSecondaryStorage()));
       }
       AllocateFixed(first_output, instr_index, is_tagged);
 
@@ -2158,6 +2156,14 @@ void LiveRangeBuilder::BuildLiveRanges() {
         pos->set_type(new_type, true);
       }
     }
+  }
+  for (auto preassigned : data()->preassigned_slot_ranges()) {
+    TopLevelLiveRange* range = preassigned.first;
+    int slot_id = preassigned.second;
+    SpillRange* spill = range->HasSpillRange()
+                            ? range->GetSpillRange()
+                            : data()->AssignSpillRangeToLiveRange(range);
+    spill->set_assigned_slot(slot_id);
   }
 #ifdef DEBUG
   Verify();
@@ -2978,9 +2984,11 @@ void OperandAssigner::AssignSpillSlots() {
   for (SpillRange* range : spill_ranges) {
     if (range == nullptr || range->IsEmpty()) continue;
     // Allocate a new operand referring to the spill slot.
-    int byte_width = range->ByteWidth();
-    int index = data()->frame()->AllocateSpillSlot(byte_width);
-    range->set_assigned_slot(index);
+    if (!range->HasSlot()) {
+      int byte_width = range->ByteWidth();
+      int index = data()->frame()->AllocateSpillSlot(byte_width);
+      range->set_assigned_slot(index);
+    }
   }
 }
 

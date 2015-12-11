@@ -672,6 +672,7 @@ class SpillRange final : public ZoneObject {
   int ByteWidth() const;
   bool IsEmpty() const { return live_ranges_.empty(); }
   bool TryMerge(SpillRange* other);
+  bool HasSlot() const { return assigned_slot_ != kUnassignedSlot; }
 
   void set_assigned_slot(int index) {
     DCHECK_EQ(kUnassignedSlot, assigned_slot_);
@@ -738,6 +739,8 @@ class RegisterAllocationData final : public ZoneObject {
     InstructionOperand* operand;
   };
   typedef ZoneVector<DelayedReference> DelayedReferences;
+  typedef ZoneVector<std::pair<TopLevelLiveRange*, int>>
+      RangesWithPreassignedSlots;
 
   RegisterAllocationData(const RegisterConfiguration* config,
                          Zone* allocation_zone, Frame* frame,
@@ -804,6 +807,10 @@ class RegisterAllocationData final : public ZoneObject {
   PhiMapValue* GetPhiMapValueFor(int virtual_register);
   bool IsBlockBoundary(LifetimePosition pos) const;
 
+  RangesWithPreassignedSlots& preassigned_slot_ranges() {
+    return preassigned_slot_ranges_;
+  }
+
   void Print(const InstructionSequence* instructionSequence);
   void Print(const Instruction* instruction);
   void Print(const LiveRange* range, bool with_children = false);
@@ -832,6 +839,7 @@ class RegisterAllocationData final : public ZoneObject {
   BitVector* assigned_registers_;
   BitVector* assigned_double_registers_;
   int virtual_register_count_;
+  RangesWithPreassignedSlots preassigned_slot_ranges_;
 
   DISALLOW_COPY_AND_ASSIGN(RegisterAllocationData);
 };
