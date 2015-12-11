@@ -2574,23 +2574,20 @@ void LCodeGen::EmitClassOfTest(Label* is_true,
     // Assuming the following assertions, we can use the same compares to test
     // for both being a function type and being in the object type range.
     STATIC_ASSERT(NUM_OF_CALLABLE_SPEC_OBJECT_TYPES == 2);
-    STATIC_ASSERT(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE ==
-                  FIRST_JS_RECEIVER_TYPE + 1);
     STATIC_ASSERT(LAST_NONCALLABLE_SPEC_OBJECT_TYPE ==
                   LAST_JS_RECEIVER_TYPE - 1);
     STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
 
     __ GetObjectType(input, temp, temp2);
     __ Branch(is_false, lt, temp2, Operand(FIRST_JS_RECEIVER_TYPE));
-    __ Branch(is_true, eq, temp2, Operand(FIRST_JS_RECEIVER_TYPE));
     __ Branch(is_true, eq, temp2, Operand(LAST_JS_RECEIVER_TYPE));
   } else {
     // Faster code path to avoid two compares: subtract lower bound from the
     // actual type and do a signed compare with the width of the type range.
     __ GetObjectType(input, temp, temp2);
-    __ Dsubu(temp2, temp2, Operand(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
+    __ Dsubu(temp2, temp2, Operand(FIRST_JS_RECEIVER_TYPE));
     __ Branch(is_false, gt, temp2, Operand(LAST_NONCALLABLE_SPEC_OBJECT_TYPE -
-                                           FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
+                                           FIRST_JS_RECEIVER_TYPE));
   }
 
   // Now we are in the FIRST-LAST_NONCALLABLE_SPEC_OBJECT_TYPE range.

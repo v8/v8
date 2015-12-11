@@ -2255,6 +2255,7 @@ void Genesis::InstallJSProxyMaps() {
   Handle<Map> proxy_callable_map = Map::Copy(proxy_map, "callable Proxy");
   proxy_callable_map->set_is_callable();
   native_context()->set_proxy_callable_map(*proxy_callable_map);
+  proxy_callable_map->SetConstructor(native_context()->function_function());
 
   Handle<Map> proxy_constructor_map =
       Map::Copy(proxy_callable_map, "constructor Proxy");
@@ -2276,8 +2277,8 @@ void Genesis::InitializeGlobal_harmony_proxies() {
   Handle<String> name = factory->Proxy_string();
   Handle<Code> code(isolate->builtins()->ProxyConstructor());
 
-  Handle<JSFunction> proxy_function =
-      factory->NewFunction(isolate->proxy_function_map(), name, code);
+  Handle<JSFunction> proxy_function = factory->NewFunction(
+      isolate->proxy_function_map(), factory->Object_string(), code);
 
   JSFunction::SetInitialMap(proxy_function,
                             Handle<Map>(native_context()->proxy_map(), isolate),
@@ -2289,7 +2290,7 @@ void Genesis::InitializeGlobal_harmony_proxies() {
   proxy_function->shared()->set_length(2);
 
   native_context()->set_proxy_function(*proxy_function);
-  InstallFunction(global, name, proxy_function, name);
+  InstallFunction(global, name, proxy_function, factory->Object_string());
 }
 
 

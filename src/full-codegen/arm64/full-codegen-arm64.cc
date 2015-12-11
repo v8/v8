@@ -3039,9 +3039,6 @@ void FullCodeGenerator::EmitClassOf(CallRuntime* expr) {
   // x10: object's map.
   // x11: object's type.
   __ B(lt, &null);
-  STATIC_ASSERT(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE ==
-                FIRST_JS_RECEIVER_TYPE + 1);
-  __ B(eq, &function);
 
   __ Cmp(x11, LAST_JS_RECEIVER_TYPE);
   STATIC_ASSERT(LAST_NONCALLABLE_SPEC_OBJECT_TYPE ==

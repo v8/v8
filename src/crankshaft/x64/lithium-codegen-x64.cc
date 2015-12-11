@@ -2502,14 +2502,11 @@ void LCodeGen::EmitClassOfTest(Label* is_true,
     // Assuming the following assertions, we can use the same compares to test
     // for both being a function type and being in the object type range.
     STATIC_ASSERT(NUM_OF_CALLABLE_SPEC_OBJECT_TYPES == 2);
-    STATIC_ASSERT(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE ==
-                  FIRST_JS_RECEIVER_TYPE + 1);
     STATIC_ASSERT(LAST_NONCALLABLE_SPEC_OBJECT_TYPE ==
                   LAST_JS_RECEIVER_TYPE - 1);
     STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
     __ CmpObjectType(input, FIRST_JS_RECEIVER_TYPE, temp);
     __ j(below, is_false);
-    __ j(equal, is_true);
     __ CmpInstanceType(temp, LAST_JS_RECEIVER_TYPE);
     __ j(equal, is_true);
   } else {
@@ -2517,9 +2514,9 @@ void LCodeGen::EmitClassOfTest(Label* is_true,
     // actual type and do a signed compare with the width of the type range.
     __ movp(temp, FieldOperand(input, HeapObject::kMapOffset));
     __ movzxbl(temp2, FieldOperand(temp, Map::kInstanceTypeOffset));
-    __ subp(temp2, Immediate(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
+    __ subp(temp2, Immediate(FIRST_JS_RECEIVER_TYPE));
     __ cmpp(temp2, Immediate(LAST_NONCALLABLE_SPEC_OBJECT_TYPE -
-                             FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
+                             FIRST_JS_RECEIVER_TYPE));
     __ j(above, is_false);
   }
 

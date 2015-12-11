@@ -2263,8 +2263,6 @@ void LCodeGen::DoClassOfTestAndBranch(LClassOfTestAndBranch* instr) {
     // Assuming the following assertions, we can use the same compares to test
     // for both being a function type and being in the object type range.
     STATIC_ASSERT(NUM_OF_CALLABLE_SPEC_OBJECT_TYPES == 2);
-    STATIC_ASSERT(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE ==
-                  FIRST_JS_RECEIVER_TYPE + 1);
     STATIC_ASSERT(LAST_NONCALLABLE_SPEC_OBJECT_TYPE ==
                   LAST_JS_RECEIVER_TYPE - 1);
     STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
@@ -2272,7 +2270,6 @@ void LCodeGen::DoClassOfTestAndBranch(LClassOfTestAndBranch* instr) {
     // We expect CompareObjectType to load the object instance type in scratch1.
     __ CompareObjectType(input, map, scratch1, FIRST_JS_RECEIVER_TYPE);
     __ B(lt, false_label);
-    __ B(eq, true_label);
     __ Cmp(scratch1, LAST_JS_RECEIVER_TYPE);
     __ B(eq, true_label);
   } else {

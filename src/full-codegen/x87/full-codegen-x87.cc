@@ -3202,9 +3202,6 @@ void FullCodeGenerator::EmitClassOf(CallRuntime* expr) {
   __ CmpObjectType(eax, FIRST_JS_RECEIVER_TYPE, eax);
   // Map is now in eax.
   __ j(below, &null);
-  STATIC_ASSERT(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE ==
-                FIRST_JS_RECEIVER_TYPE + 1);
-  __ j(equal, &function);
 
   __ CmpInstanceType(eax, LAST_JS_RECEIVER_TYPE);
   STATIC_ASSERT(LAST_NONCALLABLE_SPEC_OBJECT_TYPE ==

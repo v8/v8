@@ -3320,10 +3320,6 @@ void FullCodeGenerator::EmitClassOf(CallRuntime* expr) {
   __ GetObjectType(v0, v0, a1);  // Map is now in v0.
   __ Branch(&null, lt, a1, Operand(FIRST_JS_RECEIVER_TYPE));
 
-  STATIC_ASSERT(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE ==
-                FIRST_JS_RECEIVER_TYPE + 1);
-  __ Branch(&function, eq, a1, Operand(FIRST_JS_RECEIVER_TYPE));
-
   STATIC_ASSERT(LAST_NONCALLABLE_SPEC_OBJECT_TYPE ==
                 LAST_JS_RECEIVER_TYPE - 1);
   __ Branch(&function, eq, a1, Operand(LAST_JS_RECEIVER_TYPE));

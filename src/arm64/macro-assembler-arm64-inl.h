@@ -1449,7 +1449,7 @@ void MacroAssembler::IsInstanceJSObjectType(Register map,
   Ldrb(scratch, FieldMemOperand(map, Map::kInstanceTypeOffset));
   // If cmp result is lt, the following ccmp will clear all flags.
   // Z == 0, N == V implies gt condition.
-  Cmp(scratch, FIRST_NONCALLABLE_SPEC_OBJECT_TYPE);
+  Cmp(scratch, FIRST_JS_RECEIVER_TYPE);
   Ccmp(scratch, LAST_NONCALLABLE_SPEC_OBJECT_TYPE, NoFlag, ge);
 
   // If we didn't get a valid label object just fall through and leave the
