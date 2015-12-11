@@ -68,15 +68,16 @@ LoadRepresentation LoadRepresentationOf(Operator const*);
 // correct write barrier.
 class StoreRepresentation final {
  public:
-  StoreRepresentation(MachineType machine_type,
+  StoreRepresentation(MachineRepresentation representation,
                       WriteBarrierKind write_barrier_kind)
-      : machine_type_(machine_type), write_barrier_kind_(write_barrier_kind) {}
+      : representation_(representation),
+        write_barrier_kind_(write_barrier_kind) {}
 
-  MachineType machine_type() const { return machine_type_; }
+  MachineRepresentation representation() const { return representation_; }
   WriteBarrierKind write_barrier_kind() const { return write_barrier_kind_; }
 
  private:
-  MachineType machine_type_;
+  MachineRepresentation representation_;
   WriteBarrierKind write_barrier_kind_;
 };
 
@@ -97,7 +98,7 @@ CheckedLoadRepresentation CheckedLoadRepresentationOf(Operator const*);
 
 
 // A CheckedStore needs a MachineType.
-typedef MachineType CheckedStoreRepresentation;
+typedef MachineRepresentation CheckedStoreRepresentation;
 
 CheckedStoreRepresentation CheckedStoreRepresentationOf(Operator const*);
 

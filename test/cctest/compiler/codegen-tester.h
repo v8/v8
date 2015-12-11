@@ -102,7 +102,7 @@ class BufferedRawMachineAssemblerTester
   // Store node is provided as a parameter. By storing the return value in
   // memory it is possible to return 64 bit values.
   void Return(Node* input) {
-    Store(MachineTypeForC<ReturnType>(),
+    Store(MachineTypeForC<ReturnType>().representation(),
           RawMachineAssembler::Parameter(return_parameter_index_), input,
           kNoWriteBarrier);
     RawMachineAssembler::Return(Int32Constant(1234));
@@ -332,8 +332,8 @@ class BinopTester {
 
   void AddReturn(Node* val) {
     if (use_result_buffer) {
-      T->Store(rep, T->PointerConstant(&result), T->Int32Constant(0), val,
-               kNoWriteBarrier);
+      T->Store(rep.representation(), T->PointerConstant(&result),
+               T->Int32Constant(0), val, kNoWriteBarrier);
       T->Return(T->Int32Constant(CHECK_VALUE));
     } else {
       T->Return(val);

@@ -47,7 +47,7 @@ std::ostream& operator<<(std::ostream& os, WriteBarrierKind kind) {
 
 
 bool operator==(StoreRepresentation lhs, StoreRepresentation rhs) {
-  return lhs.machine_type() == rhs.machine_type() &&
+  return lhs.representation() == rhs.representation() &&
          lhs.write_barrier_kind() == rhs.write_barrier_kind();
 }
 
@@ -58,12 +58,12 @@ bool operator!=(StoreRepresentation lhs, StoreRepresentation rhs) {
 
 
 size_t hash_value(StoreRepresentation rep) {
-  return base::hash_combine(rep.machine_type(), rep.write_barrier_kind());
+  return base::hash_combine(rep.representation(), rep.write_barrier_kind());
 }
 
 
 std::ostream& operator<<(std::ostream& os, StoreRepresentation rep) {
-  return os << "(" << rep.machine_type() << " : " << rep.write_barrier_kind()
+  return os << "(" << rep.representation() << " : " << rep.write_barrier_kind()
             << ")";
 }
 
@@ -220,6 +220,16 @@ CheckedStoreRepresentation CheckedStoreRepresentationOf(Operator const* op) {
   V(AnyTagged)
 
 
+#define MACHINE_REPRESENTATION_LIST(V) \
+  V(kFloat32)                          \
+  V(kFloat64)                          \
+  V(kWord8)                            \
+  V(kWord16)                           \
+  V(kWord32)                           \
+  V(kWord64)                           \
+  V(kTagged)
+
+
 struct MachineOperatorGlobalCache {
 #define PURE(Name, properties, value_input_count, control_input_count,         \
              output_count)                                                     \
@@ -272,7 +282,8 @@ struct MachineOperatorGlobalCache {
         : Operator1<StoreRepresentation>(                                      \
               IrOpcode::kStore, Operator::kNoRead | Operator::kNoThrow,        \
               "Store", 3, 1, 1, 0, 1, 0,                                       \
-              StoreRepresentation(MachineType::Type(), write_barrier_kind)) {} \
+              StoreRepresentation(MachineRepresentation::Type,                 \
+                                  write_barrier_kind)) {}                      \
   };                                                                           \
   struct Store##Type##NoWriteBarrier##Operator final                           \
       : public Store##Type##Operator {                                         \
@@ -299,7 +310,8 @@ struct MachineOperatorGlobalCache {
     CheckedStore##Type##Operator()                                             \
         : Operator1<CheckedStoreRepresentation>(                               \
               IrOpcode::kCheckedStore, Operator::kNoRead | Operator::kNoThrow, \
-              "CheckedStore", 4, 1, 1, 0, 1, 0, MachineType::Type()) {}        \
+              "CheckedStore", 4, 1, 1, 0, 1, 0, MachineRepresentation::Type) { \
+    }                                                                          \
   };                                                                           \
   Store##Type##NoWriteBarrier##Operator kStore##Type##NoWriteBarrier;          \
   Store##Type##MapWriteBarrier##Operator kStore##Type##MapWriteBarrier;        \
@@ -307,7 +319,7 @@ struct MachineOperatorGlobalCache {
       kStore##Type##PointerWriteBarrier;                                       \
   Store##Type##FullWriteBarrier##Operator kStore##Type##FullWriteBarrier;      \
   CheckedStore##Type##Operator kCheckedStore##Type;
-  MACHINE_TYPE_LIST(STORE)
+  MACHINE_REPRESENTATION_LIST(STORE)
 #undef STORE
 };
 
@@ -366,22 +378,25 @@ const Operator* MachineOperatorBuilder::Load(LoadRepresentation rep) {
 
 
 const Operator* MachineOperatorBuilder::Store(StoreRepresentation store_rep) {
-  MachineType type = store_rep.machine_type();
-#define STORE(Type)                                         \
-  if (type == MachineType::Type()) {                        \
+  switch (store_rep.representation()) {
+#define STORE(kRep)                                         \
+  case MachineRepresentation::kRep:                         \
     switch (store_rep.write_barrier_kind()) {               \
       case kNoWriteBarrier:                                 \
-        return &cache_.k##Store##Type##NoWriteBarrier;      \
+        return &cache_.k##Store##kRep##NoWriteBarrier;      \
       case kMapWriteBarrier:                                \
-        return &cache_.k##Store##Type##MapWriteBarrier;     \
+        return &cache_.k##Store##kRep##MapWriteBarrier;     \
       case kPointerWriteBarrier:                            \
-        return &cache_.k##Store##Type##PointerWriteBarrier; \
+        return &cache_.k##Store##kRep##PointerWriteBarrier; \
       case kFullWriteBarrier:                               \
-        return &cache_.k##Store##Type##FullWriteBarrier;    \
+        return &cache_.k##Store##kRep##FullWriteBarrier;    \
     }                                                       \
-  }
-    MACHINE_TYPE_LIST(STORE)
+    break;
+    MACHINE_REPRESENTATION_LIST(STORE)
 #undef STORE
+    default:
+      break;
+  }
   UNREACHABLE();
   return nullptr;
 }
@@ -402,12 +417,15 @@ const Operator* MachineOperatorBuilder::CheckedLoad(
 
 const Operator* MachineOperatorBuilder::CheckedStore(
     CheckedStoreRepresentation rep) {
-#define STORE(Type)                     \
-  if (rep == MachineType::Type()) {     \
-    return &cache_.kCheckedStore##Type; \
-  }
-    MACHINE_TYPE_LIST(STORE)
+  switch (rep) {
+#define STORE(kRep)                 \
+  case MachineRepresentation::kRep: \
+    return &cache_.kCheckedStore##kRep;
+    MACHINE_REPRESENTATION_LIST(STORE)
 #undef STORE
+    default:
+      break;
+  }
   UNREACHABLE();
   return nullptr;
 }

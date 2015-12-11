@@ -192,11 +192,11 @@ TARGET_TEST_P(ChangeLoweringCommonTest, StoreFieldSmi) {
   Reduction r = Reduce(store);
 
   ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(
-      r.replacement(),
-      IsStore(StoreRepresentation(MachineType::AnyTagged(), kNoWriteBarrier),
-              p0, IsIntPtrConstant(access.offset - access.tag()), p1,
-              graph()->start(), graph()->start()));
+  EXPECT_THAT(r.replacement(),
+              IsStore(StoreRepresentation(MachineRepresentation::kTagged,
+                                          kNoWriteBarrier),
+                      p0, IsIntPtrConstant(access.offset - access.tag()), p1,
+                      graph()->start(), graph()->start()));
 }
 
 
@@ -211,11 +211,11 @@ TARGET_TEST_P(ChangeLoweringCommonTest, StoreFieldTagged) {
   Reduction r = Reduce(store);
 
   ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(
-      r.replacement(),
-      IsStore(StoreRepresentation(MachineType::AnyTagged(), kFullWriteBarrier),
-              p0, IsIntPtrConstant(access.offset - access.tag()), p1,
-              graph()->start(), graph()->start()));
+  EXPECT_THAT(r.replacement(),
+              IsStore(StoreRepresentation(MachineRepresentation::kTagged,
+                                          kFullWriteBarrier),
+                      p0, IsIntPtrConstant(access.offset - access.tag()), p1,
+                      graph()->start(), graph()->start()));
 }
 
 
@@ -257,10 +257,10 @@ TARGET_TEST_P(ChangeLoweringCommonTest, StoreElementTagged) {
     index_match = IsChangeUint32ToUint64(index_match);
   }
 
-  EXPECT_THAT(
-      r.replacement(),
-      IsStore(StoreRepresentation(MachineType::AnyTagged(), kFullWriteBarrier),
-              p0, index_match, p2, graph()->start(), graph()->start()));
+  EXPECT_THAT(r.replacement(),
+              IsStore(StoreRepresentation(MachineRepresentation::kTagged,
+                                          kFullWriteBarrier),
+                      p0, index_match, p2, graph()->start(), graph()->start()));
 }
 
 
@@ -281,10 +281,10 @@ TARGET_TEST_P(ChangeLoweringCommonTest, StoreElementUint8) {
     index_match = IsChangeUint32ToUint64(index_match);
   }
 
-  EXPECT_THAT(
-      r.replacement(),
-      IsStore(StoreRepresentation(MachineType::Uint8(), kNoWriteBarrier), p0,
-              index_match, p2, graph()->start(), graph()->start()));
+  EXPECT_THAT(r.replacement(),
+              IsStore(StoreRepresentation(MachineRepresentation::kWord8,
+                                          kNoWriteBarrier),
+                      p0, index_match, p2, graph()->start(), graph()->start()));
 }
 
 
@@ -371,23 +371,23 @@ TARGET_TEST_F(ChangeLowering32Test, ChangeInt32ToTagged) {
   Capture<Node*> add, branch, heap_number, if_true;
   EXPECT_THAT(
       r.replacement(),
-      IsPhi(
-          MachineRepresentation::kTagged,
-          IsFinishRegion(
-              AllOf(CaptureEq(&heap_number),
-                    IsAllocateHeapNumber(_, CaptureEq(&if_true))),
-              IsStore(
-                  StoreRepresentation(MachineType::Float64(), kNoWriteBarrier),
-                  CaptureEq(&heap_number),
-                  IsIntPtrConstant(HeapNumber::kValueOffset - kHeapObjectTag),
-                  IsChangeInt32ToFloat64(value), CaptureEq(&heap_number),
-                  CaptureEq(&if_true))),
-          IsProjection(
-              0, AllOf(CaptureEq(&add), IsInt32AddWithOverflow(value, value))),
-          IsMerge(AllOf(CaptureEq(&if_true), IsIfTrue(CaptureEq(&branch))),
-                  IsIfFalse(AllOf(CaptureEq(&branch),
-                                  IsBranch(IsProjection(1, CaptureEq(&add)),
-                                           graph()->start()))))));
+      IsPhi(MachineRepresentation::kTagged,
+            IsFinishRegion(
+                AllOf(CaptureEq(&heap_number),
+                      IsAllocateHeapNumber(_, CaptureEq(&if_true))),
+                IsStore(
+                    StoreRepresentation(MachineRepresentation::kFloat64,
+                                        kNoWriteBarrier),
+                    CaptureEq(&heap_number),
+                    IsIntPtrConstant(HeapNumber::kValueOffset - kHeapObjectTag),
+                    IsChangeInt32ToFloat64(value), CaptureEq(&heap_number),
+                    CaptureEq(&if_true))),
+            IsProjection(0, AllOf(CaptureEq(&add),
+                                  IsInt32AddWithOverflow(value, value))),
+            IsMerge(AllOf(CaptureEq(&if_true), IsIfTrue(CaptureEq(&branch))),
+                    IsIfFalse(AllOf(CaptureEq(&branch),
+                                    IsBranch(IsProjection(1, CaptureEq(&add)),
+                                             graph()->start()))))));
 }
 
 
@@ -480,7 +480,8 @@ TARGET_TEST_F(ChangeLowering32Test, ChangeUint32ToTagged) {
               AllOf(CaptureEq(&heap_number),
                     IsAllocateHeapNumber(_, CaptureEq(&if_false))),
               IsStore(
-                  StoreRepresentation(MachineType::Float64(), kNoWriteBarrier),
+                  StoreRepresentation(MachineRepresentation::kFloat64,
+                                      kNoWriteBarrier),
                   CaptureEq(&heap_number),
                   IsInt32Constant(HeapNumber::kValueOffset - kHeapObjectTag),
                   IsChangeUint32ToFloat64(value), CaptureEq(&heap_number),
@@ -608,7 +609,8 @@ TARGET_TEST_F(ChangeLowering64Test, ChangeUint32ToTagged) {
               AllOf(CaptureEq(&heap_number),
                     IsAllocateHeapNumber(_, CaptureEq(&if_false))),
               IsStore(
-                  StoreRepresentation(MachineType::Float64(), kNoWriteBarrier),
+                  StoreRepresentation(MachineRepresentation::kFloat64,
+                                      kNoWriteBarrier),
                   CaptureEq(&heap_number),
                   IsInt64Constant(HeapNumber::kValueOffset - kHeapObjectTag),
                   IsChangeUint32ToFloat64(value), CaptureEq(&heap_number),

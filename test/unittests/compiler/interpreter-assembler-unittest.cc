@@ -395,11 +395,11 @@ TARGET_TEST_F(InterpreterAssemblerTest, StoreRegister) {
     Node* store_reg_node = m.StoreRegister(store_value, reg_index_node);
     EXPECT_THAT(
         store_reg_node,
-        m.IsStore(
-            StoreRepresentation(MachineType::AnyTagged(), kNoWriteBarrier),
-            IsParameter(Linkage::kInterpreterRegisterFileParameter),
-            IsWordShl(reg_index_node, IsInt32Constant(kPointerSizeLog2)),
-            store_value));
+        m.IsStore(StoreRepresentation(MachineRepresentation::kTagged,
+                                      kNoWriteBarrier),
+                  IsParameter(Linkage::kInterpreterRegisterFileParameter),
+                  IsWordShl(reg_index_node, IsInt32Constant(kPointerSizeLog2)),
+                  store_value));
   }
 }
 
@@ -525,7 +525,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, StoreContextSlot) {
         IsIntPtrAdd(IsWordShl(slot_index, IsInt32Constant(kPointerSizeLog2)),
                     IsInt32Constant(Context::kHeaderSize - kHeapObjectTag));
     EXPECT_THAT(store_context_slot,
-                m.IsStore(StoreRepresentation(MachineType::AnyTagged(),
+                m.IsStore(StoreRepresentation(MachineRepresentation::kTagged,
                                               kFullWriteBarrier),
                           context, offset, value));
   }

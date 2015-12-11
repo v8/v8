@@ -85,8 +85,8 @@ BasicBlockProfiler::Data* BasicBlockInstrumentor::Instrument(
                                 graph->start(), graph->start());
     Node* inc = graph->NewNode(machine.Int32Add(), load, one);
     Node* store =
-        graph->NewNode(machine.Store(StoreRepresentation(MachineType::Uint32(),
-                                                         kNoWriteBarrier)),
+        graph->NewNode(machine.Store(StoreRepresentation(
+                           MachineRepresentation::kWord32, kNoWriteBarrier)),
                        base, zero, inc, graph->start(), graph->start());
     // Insert the new nodes.
     static const int kArraySize = 6;

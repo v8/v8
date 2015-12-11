@@ -358,8 +358,8 @@ class ArgsBuffer {
   Node* StoreOutput(RawMachineAssembler& raw, Node* value) {
     Node* base = raw.PointerConstant(&output);
     Node* offset = raw.Int32Constant(0);
-    return raw.Store(MachineTypeForC<CType>(), base, offset, value,
-                     kNoWriteBarrier);
+    return raw.Store(MachineTypeForC<CType>().representation(), base, offset,
+                     value, kNoWriteBarrier);
   }
 
   // Computes the next set of inputs by updating the {input} array.
@@ -569,7 +569,7 @@ static void CopyTwentyInt32(CallDescriptor* desc) {
     Node* base = raw.PointerConstant(output);
     for (int i = 0; i < kNumParams; i++) {
       Node* offset = raw.Int32Constant(i * sizeof(int32_t));
-      raw.Store(MachineType::Int32(), base, offset, raw.Parameter(i),
+      raw.Store(MachineRepresentation::kWord32, base, offset, raw.Parameter(i),
                 kNoWriteBarrier);
     }
     raw.Return(raw.Int32Constant(42));
@@ -1133,7 +1133,8 @@ void MixedParamTest(int start) {
         }
 
         Node* call = raw.CallN(desc, target, args);
-        Node* store = raw.StoreToPointer(output, sig->GetReturn(), call);
+        Node* store =
+            raw.StoreToPointer(output, sig->GetReturn().representation(), call);
         USE(store);
         expected_ret = static_cast<int32_t>(constant);
         raw.Return(raw.Int32Constant(expected_ret));

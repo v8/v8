@@ -205,7 +205,7 @@ TEST(RunChangeTaggedToFloat64) {
 
   t.BuildStoreAndLower(t.simplified()->ChangeTaggedToFloat64(),
                        t.machine()->Store(StoreRepresentation(
-                           MachineType::Float64(), kNoWriteBarrier)),
+                           MachineRepresentation::kFloat64, kNoWriteBarrier)),
                        &result);
 
   {

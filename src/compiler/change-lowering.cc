@@ -87,10 +87,10 @@ Node* ChangeLowering::AllocateHeapNumberWithValue(Node* value, Node* control) {
   }
   Node* heap_number = graph()->NewNode(allocate_heap_number_operator_.get(),
                                        target, context, effect, control);
-  Node* store = graph()->NewNode(machine()->Store(StoreRepresentation(
-                                     MachineType::Float64(), kNoWriteBarrier)),
-                                 heap_number, HeapNumberValueIndexConstant(),
-                                 value, heap_number, control);
+  Node* store = graph()->NewNode(
+      machine()->Store(StoreRepresentation(MachineRepresentation::kFloat64,
+                                           kNoWriteBarrier)),
+      heap_number, HeapNumberValueIndexConstant(), value, heap_number, control);
   return graph()->NewNode(common()->FinishRegion(), heap_number, store);
 }
 
@@ -485,8 +485,9 @@ Reduction ChangeLowering::StoreField(Node* node) {
       type);
   Node* offset = jsgraph()->IntPtrConstant(access.offset - access.tag());
   node->InsertInput(graph()->zone(), 1, offset);
-  NodeProperties::ChangeOp(
-      node, machine()->Store(StoreRepresentation(access.machine_type, kind)));
+  NodeProperties::ChangeOp(node,
+                           machine()->Store(StoreRepresentation(
+                               access.machine_type.representation(), kind)));
   return Changed(node);
 }
 
@@ -529,7 +530,7 @@ Reduction ChangeLowering::StoreElement(Node* node) {
   node->ReplaceInput(1, ComputeIndex(access, node->InputAt(1)));
   NodeProperties::ChangeOp(
       node, machine()->Store(StoreRepresentation(
-                access.machine_type,
+                access.machine_type.representation(),
                 ComputeWriteBarrierKind(access.base_is_tagged,
                                         access.machine_type.representation(),
                                         access.type, type))));

@@ -968,7 +968,7 @@ TEST(RunLoadStoreFloat32Offset) {
     // generate load [#base + #index]
     Node* load = m.Load(MachineType::Float32(), m.PointerConstant(from),
                         m.IntPtrConstant(offset));
-    m.Store(MachineType::Float32(), m.PointerConstant(to),
+    m.Store(MachineRepresentation::kFloat32, m.PointerConstant(to),
             m.IntPtrConstant(offset), load, kNoWriteBarrier);
     m.Return(m.Int32Constant(magic));
 
@@ -995,7 +995,7 @@ TEST(RunLoadStoreFloat64Offset) {
     // generate load [#base + #index]
     Node* load = m.Load(MachineType::Float64(), m.PointerConstant(from),
                         m.IntPtrConstant(offset));
-    m.Store(MachineType::Float64(), m.PointerConstant(to),
+    m.Store(MachineRepresentation::kFloat64, m.PointerConstant(to),
             m.IntPtrConstant(offset), load, kNoWriteBarrier);
     m.Return(m.Int32Constant(magic));
 
@@ -3406,7 +3406,7 @@ static void RunLoadStore(MachineType rep) {
     Node* index0 = m.IntPtrConstant(x * sizeof(buffer[0]));
     Node* load = m.Load(rep, base, index0);
     Node* index1 = m.IntPtrConstant(y * sizeof(buffer[0]));
-    m.Store(rep, base, index1, load, kNoWriteBarrier);
+    m.Store(rep.representation(), base, index1, load, kNoWriteBarrier);
     m.Return(m.Int32Constant(OK));
 
     CHECK(buffer[x] != buffer[y]);
@@ -4046,7 +4046,7 @@ TEST(RunFloatDiamond) {
   m.Goto(&end);
   m.Bind(&end);
   Node* phi = m.Phi(MachineRepresentation::kFloat32, k2, k1);
-  m.Store(MachineType::Float32(), m.PointerConstant(&buffer),
+  m.Store(MachineRepresentation::kFloat32, m.PointerConstant(&buffer),
           m.IntPtrConstant(0), phi, kNoWriteBarrier);
   m.Return(m.Int32Constant(magic));
 
@@ -4072,7 +4072,7 @@ TEST(RunDoubleDiamond) {
   m.Goto(&end);
   m.Bind(&end);
   Node* phi = m.Phi(MachineRepresentation::kFloat64, k2, k1);
-  m.Store(MachineType::Float64(), m.PointerConstant(&buffer),
+  m.Store(MachineRepresentation::kFloat64, m.PointerConstant(&buffer),
           m.Int32Constant(0), phi, kNoWriteBarrier);
   m.Return(m.Int32Constant(magic));
 
@@ -4099,7 +4099,7 @@ TEST(RunRefDiamond) {
   m.Goto(&end);
   m.Bind(&end);
   Node* phi = m.Phi(MachineRepresentation::kTagged, k2, k1);
-  m.Store(MachineType::AnyTagged(), m.PointerConstant(&buffer),
+  m.Store(MachineRepresentation::kTagged, m.PointerConstant(&buffer),
           m.Int32Constant(0), phi, kNoWriteBarrier);
   m.Return(m.Int32Constant(magic));
 
@@ -4131,9 +4131,9 @@ TEST(RunDoubleRefDiamond) {
   m.Bind(&end);
   Node* dphi = m.Phi(MachineRepresentation::kFloat64, d2, d1);
   Node* rphi = m.Phi(MachineRepresentation::kTagged, r2, r1);
-  m.Store(MachineType::Float64(), m.PointerConstant(&dbuffer),
+  m.Store(MachineRepresentation::kFloat64, m.PointerConstant(&dbuffer),
           m.Int32Constant(0), dphi, kNoWriteBarrier);
-  m.Store(MachineType::AnyTagged(), m.PointerConstant(&rbuffer),
+  m.Store(MachineRepresentation::kTagged, m.PointerConstant(&rbuffer),
           m.Int32Constant(0), rphi, kNoWriteBarrier);
   m.Return(m.Int32Constant(magic));
 
@@ -4176,9 +4176,9 @@ TEST(RunDoubleRefDoubleDiamond) {
   Node* dphi2 = m.Phi(MachineRepresentation::kFloat64, d1, dphi1);
   Node* rphi2 = m.Phi(MachineRepresentation::kTagged, r1, rphi1);
 
-  m.Store(MachineType::Float64(), m.PointerConstant(&dbuffer),
+  m.Store(MachineRepresentation::kFloat64, m.PointerConstant(&dbuffer),
           m.Int32Constant(0), dphi2, kNoWriteBarrier);
-  m.Store(MachineType::AnyTagged(), m.PointerConstant(&rbuffer),
+  m.Store(MachineRepresentation::kTagged, m.PointerConstant(&rbuffer),
           m.Int32Constant(0), rphi2, kNoWriteBarrier);
   m.Return(m.Int32Constant(magic));
 
@@ -4207,7 +4207,7 @@ TEST(RunDoubleLoopPhi) {
   m.Bind(&body);
   m.Goto(&header);
   m.Bind(&end);
-  m.Store(MachineType::Float64(), m.PointerConstant(&buffer),
+  m.Store(MachineRepresentation::kFloat64, m.PointerConstant(&buffer),
           m.Int32Constant(0), phi, kNoWriteBarrier);
   m.Return(m.Int32Constant(magic));
 
@@ -4512,7 +4512,7 @@ static void LoadStoreTruncation(MachineType kRepresentation) {
   RawMachineAssemblerTester<int32_t> m;
   Node* a = m.LoadFromPointer(&input, kRepresentation);
   Node* ap1 = m.Int32Add(a, m.Int32Constant(1));
-  m.StoreToPointer(&input, kRepresentation, ap1);
+  m.StoreToPointer(&input, kRepresentation.representation(), ap1);
   m.Return(ap1);
 
   const IntType max = std::numeric_limits<IntType>::max();
@@ -4616,8 +4616,8 @@ TEST(RunTestIntPtrArithmetic) {
   Node* output = m.PointerConstant(&outputs[kInputSize - 1]);
   Node* elem_size = m.IntPtrConstant(sizeof(inputs[0]));
   for (int i = 0; i < kInputSize; i++) {
-    m.Store(MachineType::Int32(), output, m.Load(MachineType::Int32(), input),
-            kNoWriteBarrier);
+    m.Store(MachineRepresentation::kWord32, output,
+            m.Load(MachineType::Int32(), input), kNoWriteBarrier);
     input = m.IntPtrAdd(input, elem_size);
     output = m.IntPtrSub(output, elem_size);
   }
@@ -4642,7 +4642,7 @@ TEST(RunSpillLotsOfThings) {
     accs[i] = acc;
   }
   for (int i = 0; i < kInputSize; i++) {
-    m.StoreToPointer(&outputs[i], MachineType::Int32(), accs[i]);
+    m.StoreToPointer(&outputs[i], MachineRepresentation::kWord32, accs[i]);
   }
   m.Return(one);
   m.Call();
@@ -4669,7 +4669,7 @@ TEST(RunSpillConstantsAndParameters) {
     accs[i] = acc;
   }
   for (int i = 0; i < kInputSize; i++) {
-    m.StoreToPointer(&outputs[i], MachineType::Int32(), accs[i]);
+    m.StoreToPointer(&outputs[i], MachineRepresentation::kWord32, accs[i]);
   }
   m.Return(m.Int32Add(acc, m.Int32Add(m.Parameter(0), m.Parameter(1))));
   FOR_INT32_INPUTS(i) {
@@ -4721,7 +4721,7 @@ TEST(RunInt32AddWithOverflowP) {
   Node* add = m.Int32AddWithOverflow(bt.param0, bt.param1);
   Node* val = m.Projection(0, add);
   Node* ovf = m.Projection(1, add);
-  m.StoreToPointer(&actual_val, MachineType::Int32(), val);
+  m.StoreToPointer(&actual_val, MachineRepresentation::kWord32, val);
   bt.AddReturn(ovf);
   FOR_INT32_INPUTS(i) {
     FOR_INT32_INPUTS(j) {
@@ -4742,7 +4742,7 @@ TEST(RunInt32AddWithOverflowImm) {
       Node* add = m.Int32AddWithOverflow(m.Int32Constant(*i), m.Parameter(0));
       Node* val = m.Projection(0, add);
       Node* ovf = m.Projection(1, add);
-      m.StoreToPointer(&actual_val, MachineType::Int32(), val);
+      m.StoreToPointer(&actual_val, MachineRepresentation::kWord32, val);
       m.Return(ovf);
       FOR_INT32_INPUTS(j) {
         int expected_ovf = bits::SignedAddOverflow32(*i, *j, &expected_val);
@@ -4755,7 +4755,7 @@ TEST(RunInt32AddWithOverflowImm) {
       Node* add = m.Int32AddWithOverflow(m.Parameter(0), m.Int32Constant(*i));
       Node* val = m.Projection(0, add);
       Node* ovf = m.Projection(1, add);
-      m.StoreToPointer(&actual_val, MachineType::Int32(), val);
+      m.StoreToPointer(&actual_val, MachineRepresentation::kWord32, val);
       m.Return(ovf);
       FOR_INT32_INPUTS(j) {
         int expected_ovf = bits::SignedAddOverflow32(*i, *j, &expected_val);
@@ -4769,7 +4769,7 @@ TEST(RunInt32AddWithOverflowImm) {
           m.Int32AddWithOverflow(m.Int32Constant(*i), m.Int32Constant(*j));
       Node* val = m.Projection(0, add);
       Node* ovf = m.Projection(1, add);
-      m.StoreToPointer(&actual_val, MachineType::Int32(), val);
+      m.StoreToPointer(&actual_val, MachineRepresentation::kWord32, val);
       m.Return(ovf);
       int expected_ovf = bits::SignedAddOverflow32(*i, *j, &expected_val);
       CHECK_EQ(expected_ovf, m.Call());
@@ -4809,7 +4809,7 @@ TEST(RunInt32SubWithOverflowP) {
   Node* add = m.Int32SubWithOverflow(bt.param0, bt.param1);
   Node* val = m.Projection(0, add);
   Node* ovf = m.Projection(1, add);
-  m.StoreToPointer(&actual_val, MachineType::Int32(), val);
+  m.StoreToPointer(&actual_val, MachineRepresentation::kWord32, val);
   bt.AddReturn(ovf);
   FOR_INT32_INPUTS(i) {
     FOR_INT32_INPUTS(j) {
@@ -4830,7 +4830,7 @@ TEST(RunInt32SubWithOverflowImm) {
       Node* add = m.Int32SubWithOverflow(m.Int32Constant(*i), m.Parameter(0));
       Node* val = m.Projection(0, add);
       Node* ovf = m.Projection(1, add);
-      m.StoreToPointer(&actual_val, MachineType::Int32(), val);
+      m.StoreToPointer(&actual_val, MachineRepresentation::kWord32, val);
       m.Return(ovf);
       FOR_INT32_INPUTS(j) {
         int expected_ovf = bits::SignedSubOverflow32(*i, *j, &expected_val);
@@ -4843,7 +4843,7 @@ TEST(RunInt32SubWithOverflowImm) {
       Node* add = m.Int32SubWithOverflow(m.Parameter(0), m.Int32Constant(*i));
       Node* val = m.Projection(0, add);
       Node* ovf = m.Projection(1, add);
-      m.StoreToPointer(&actual_val, MachineType::Int32(), val);
+      m.StoreToPointer(&actual_val, MachineRepresentation::kWord32, val);
       m.Return(ovf);
       FOR_INT32_INPUTS(j) {
         int expected_ovf = bits::SignedSubOverflow32(*j, *i, &expected_val);
@@ -4857,7 +4857,7 @@ TEST(RunInt32SubWithOverflowImm) {
           m.Int32SubWithOverflow(m.Int32Constant(*i), m.Int32Constant(*j));
       Node* val = m.Projection(0, add);
       Node* ovf = m.Projection(1, add);
-      m.StoreToPointer(&actual_val, MachineType::Int32(), val);
+      m.StoreToPointer(&actual_val, MachineRepresentation::kWord32, val);
       m.Return(ovf);
       int expected_ovf = bits::SignedSubOverflow32(*i, *j, &expected_val);
       CHECK_EQ(expected_ovf, m.Call());
@@ -4914,7 +4914,7 @@ TEST(RunChangeInt32ToInt64P) {
   if (kPointerSize < 8) return;
   int64_t actual = -1;
   RawMachineAssemblerTester<int32_t> m(MachineType::Int32());
-  m.StoreToPointer(&actual, MachineType::Int64(),
+  m.StoreToPointer(&actual, MachineRepresentation::kWord64,
                    m.ChangeInt32ToInt64(m.Parameter(0)));
   m.Return(m.Int32Constant(0));
   FOR_INT32_INPUTS(i) {
@@ -4929,7 +4929,7 @@ TEST(RunChangeUint32ToUint64P) {
   if (kPointerSize < 8) return;
   int64_t actual = -1;
   RawMachineAssemblerTester<int32_t> m(MachineType::Uint32());
-  m.StoreToPointer(&actual, MachineType::Uint64(),
+  m.StoreToPointer(&actual, MachineRepresentation::kWord64,
                    m.ChangeUint32ToUint64(m.Parameter(0)));
   m.Return(m.Int32Constant(0));
   FOR_UINT32_INPUTS(i) {
@@ -5414,8 +5414,9 @@ TEST(RunCheckedStoreInt64) {
   Node* index = m.Parameter(0);
   Node* length = m.Int32Constant(16);
   Node* value = m.Int64Constant(write);
-  Node* store = m.AddNode(m.machine()->CheckedStore(MachineType::Int64()), base,
-                          index, length, value);
+  Node* store =
+      m.AddNode(m.machine()->CheckedStore(MachineRepresentation::kWord64), base,
+                index, length, value);
   USE(store);
   m.Return(m.Int32Constant(11));
 
@@ -5438,7 +5439,7 @@ TEST(RunBitcastInt64ToFloat64) {
   double output = 0.0;
   RawMachineAssemblerTester<int32_t> m;
   m.StoreToPointer(
-      &output, MachineType::Float64(),
+      &output, MachineRepresentation::kFloat64,
       m.BitcastInt64ToFloat64(m.LoadFromPointer(&input, MachineType::Int64())));
   m.Return(m.Int32Constant(11));
   FOR_INT64_INPUTS(i) {
@@ -5477,7 +5478,7 @@ TEST(RunTryTruncateFloat32ToInt64WithCheck) {
   Node* trunc = m.TryTruncateFloat32ToInt64(m.Parameter(0));
   Node* val = m.Projection(0, trunc);
   Node* check = m.Projection(1, trunc);
-  m.StoreToPointer(&success, MachineType::Int64(), check);
+  m.StoreToPointer(&success, MachineRepresentation::kWord64, check);
   m.Return(val);
 
   FOR_FLOAT32_INPUTS(i) {
@@ -5509,7 +5510,7 @@ TEST(RunTryTruncateFloat64ToInt64WithCheck) {
   Node* trunc = m.TryTruncateFloat64ToInt64(m.Parameter(0));
   Node* val = m.Projection(0, trunc);
   Node* check = m.Projection(1, trunc);
-  m.StoreToPointer(&success, MachineType::Int64(), check);
+  m.StoreToPointer(&success, MachineRepresentation::kWord64, check);
   m.Return(val);
 
   FOR_FLOAT64_INPUTS(i) {
@@ -5549,7 +5550,7 @@ TEST(RunTryTruncateFloat32ToUint64WithCheck) {
   Node* trunc = m.TryTruncateFloat32ToUint64(m.Parameter(0));
   Node* val = m.Projection(0, trunc);
   Node* check = m.Projection(1, trunc);
-  m.StoreToPointer(&success, MachineType::Int64(), check);
+  m.StoreToPointer(&success, MachineRepresentation::kWord64, check);
   m.Return(val);
 
   FOR_FLOAT32_INPUTS(i) {
@@ -5585,7 +5586,7 @@ TEST(RunTryTruncateFloat64ToUint64WithCheck) {
   Node* trunc = m.TryTruncateFloat64ToUint64(m.Parameter(0));
   Node* val = m.Projection(0, trunc);
   Node* check = m.Projection(1, trunc);
-  m.StoreToPointer(&success, MachineType::Int64(), check);
+  m.StoreToPointer(&success, MachineRepresentation::kWord64, check);
   m.Return(val);
 
   FOR_FLOAT64_INPUTS(i) {
@@ -5815,7 +5816,7 @@ TEST(RunBitcastInt32ToFloat32) {
   float output = 0.0;
   RawMachineAssemblerTester<int32_t> m;
   m.StoreToPointer(
-      &output, MachineType::Float32(),
+      &output, MachineRepresentation::kFloat32,
       m.BitcastInt32ToFloat32(m.LoadFromPointer(&input, MachineType::Int32())));
   m.Return(m.Int32Constant(11));
   FOR_INT32_INPUTS(i) {

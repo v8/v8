@@ -1541,7 +1541,7 @@ Node* WasmGraphBuilder::StoreGlobal(uint32_t index, Node* val) {
   Node* addr = jsgraph()->IntPtrConstant(
       module_->globals_area + module_->module->globals->at(index).offset);
   const Operator* op = jsgraph()->machine()->Store(
-      StoreRepresentation(mem_type, kNoWriteBarrier));
+      StoreRepresentation(mem_type.representation(), kNoWriteBarrier));
   Node* node = graph()->NewNode(op, addr, jsgraph()->Int32Constant(0), val,
                                 *effect_, *control_);
   *effect_ = node;
@@ -1614,13 +1614,14 @@ Node* WasmGraphBuilder::StoreMem(MachineType memtype, Node* index,
   if (module_ && module_->asm_js) {
     // asm.js semantics use CheckedStore (i.e. ignore OOB writes).
     DCHECK_EQ(0, offset);
-    const Operator* op = jsgraph()->machine()->CheckedStore(memtype);
+    const Operator* op =
+        jsgraph()->machine()->CheckedStore(memtype.representation());
     store = graph()->NewNode(op, MemBuffer(0), index, MemSize(0), val, *effect_,
                              *control_);
   } else {
     // WASM semantics throw on OOB. Introduce explicit bounds check.
     BoundsCheckMem(memtype, index, offset);
-    StoreRepresentation rep(memtype, kNoWriteBarrier);
+    StoreRepresentation rep(memtype.representation(), kNoWriteBarrier);
     store =
         graph()->NewNode(jsgraph()->machine()->Store(rep), MemBuffer(offset),
                          index, val, *effect_, *control_);

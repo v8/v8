@@ -113,11 +113,11 @@ class RawMachineAssembler {
   Node* Load(MachineType rep, Node* base, Node* index) {
     return AddNode(machine()->Load(rep), base, index);
   }
-  Node* Store(MachineType rep, Node* base, Node* value,
+  Node* Store(MachineRepresentation rep, Node* base, Node* value,
               WriteBarrierKind write_barrier) {
     return Store(rep, base, IntPtrConstant(0), value, write_barrier);
   }
-  Node* Store(MachineType rep, Node* base, Node* index, Node* value,
+  Node* Store(MachineRepresentation rep, Node* base, Node* index, Node* value,
               WriteBarrierKind write_barrier) {
     return AddNode(machine()->Store(StoreRepresentation(rep, write_barrier)),
                    base, index, value);
@@ -550,7 +550,7 @@ class RawMachineAssembler {
   Node* LoadFromPointer(void* address, MachineType rep, int32_t offset = 0) {
     return Load(rep, PointerConstant(address), Int32Constant(offset));
   }
-  Node* StoreToPointer(void* address, MachineType rep, Node* node) {
+  Node* StoreToPointer(void* address, MachineRepresentation rep, Node* node) {
     return Store(rep, PointerConstant(address), node, kNoWriteBarrier);
   }
   Node* StringConstant(const char* string) {

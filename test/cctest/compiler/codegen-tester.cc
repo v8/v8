@@ -632,8 +632,9 @@ TEST(RunBufferedRawMachineAssemblerTesterTester) {
   {
     BufferedRawMachineAssemblerTester<void> m;
     int64_t result;
-    m.Store(MachineTypeForC<int64_t>(), m.PointerConstant(&result),
-            m.Int64Constant(0x12500000000), kNoWriteBarrier);
+    m.Store(MachineTypeForC<int64_t>().representation(),
+            m.PointerConstant(&result), m.Int64Constant(0x12500000000),
+            kNoWriteBarrier);
     m.Return(m.Int32Constant(0));
     m.Call();
     CHECK_EQ(0x12500000000, result);
@@ -641,8 +642,8 @@ TEST(RunBufferedRawMachineAssemblerTesterTester) {
   {
     BufferedRawMachineAssemblerTester<void> m(MachineType::Float64());
     double result;
-    m.Store(MachineTypeForC<double>(), m.PointerConstant(&result),
-            m.Parameter(0), kNoWriteBarrier);
+    m.Store(MachineTypeForC<double>().representation(),
+            m.PointerConstant(&result), m.Parameter(0), kNoWriteBarrier);
     m.Return(m.Int32Constant(0));
     FOR_FLOAT64_INPUTS(i) {
       m.Call(*i);
@@ -653,7 +654,8 @@ TEST(RunBufferedRawMachineAssemblerTesterTester) {
     BufferedRawMachineAssemblerTester<void> m(MachineType::Int64(),
                                               MachineType::Int64());
     int64_t result;
-    m.Store(MachineTypeForC<int64_t>(), m.PointerConstant(&result),
+    m.Store(MachineTypeForC<int64_t>().representation(),
+            m.PointerConstant(&result),
             m.Int64Add(m.Parameter(0), m.Parameter(1)), kNoWriteBarrier);
     m.Return(m.Int32Constant(0));
     FOR_INT64_INPUTS(i) {
@@ -671,7 +673,7 @@ TEST(RunBufferedRawMachineAssemblerTesterTester) {
         MachineType::Int64(), MachineType::Int64(), MachineType::Int64());
     int64_t result;
     m.Store(
-        MachineTypeForC<int64_t>(), m.PointerConstant(&result),
+        MachineTypeForC<int64_t>().representation(), m.PointerConstant(&result),
         m.Int64Add(m.Int64Add(m.Parameter(0), m.Parameter(1)), m.Parameter(2)),
         kNoWriteBarrier);
     m.Return(m.Int32Constant(0));
@@ -693,7 +695,8 @@ TEST(RunBufferedRawMachineAssemblerTesterTester) {
         MachineType::Int64(), MachineType::Int64(), MachineType::Int64(),
         MachineType::Int64());
     int64_t result;
-    m.Store(MachineTypeForC<int64_t>(), m.PointerConstant(&result),
+    m.Store(MachineTypeForC<int64_t>().representation(),
+            m.PointerConstant(&result),
             m.Int64Add(m.Int64Add(m.Int64Add(m.Parameter(0), m.Parameter(1)),
                                   m.Parameter(2)),
                        m.Parameter(3)),

@@ -1110,8 +1110,8 @@ class RepresentationSelector {
         StoreRepresentation rep = StoreRepresentationOf(node->op());
         ProcessInput(node, 0, UseInfo::AnyTagged());   // tagged pointer
         ProcessInput(node, 1, UseInfo::PointerInt());  // index
-        ProcessInput(node, 2, TruncatingUseInfoFromRepresentation(
-                                  rep.machine_type().representation()));
+        ProcessInput(node, 2,
+                     TruncatingUseInfoFromRepresentation(rep.representation()));
         ProcessRemainingInputs(node, 3);
         SetOutput(node, MachineType::None());
         break;
@@ -1410,8 +1410,9 @@ void SimplifiedLowering::DoLoadBuffer(Node* node, MachineType output_type,
 
 void SimplifiedLowering::DoStoreBuffer(Node* node) {
   DCHECK_EQ(IrOpcode::kStoreBuffer, node->opcode());
-  MachineType const type = BufferAccessOf(node->op()).machine_type();
-  NodeProperties::ChangeOp(node, machine()->CheckedStore(type));
+  MachineRepresentation const rep =
+      BufferAccessOf(node->op()).machine_type().representation();
+  NodeProperties::ChangeOp(node, machine()->CheckedStore(rep));
 }
 
 

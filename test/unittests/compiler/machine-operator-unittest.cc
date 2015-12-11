@@ -43,6 +43,13 @@ const MachineType kMachineTypesForAccess[] = {
     MachineType::Int32(),   MachineType::Uint32(),   MachineType::Int64(),
     MachineType::Uint64(),  MachineType::AnyTagged()};
 
+
+const MachineRepresentation kRepresentationsForStore[] = {
+    MachineRepresentation::kFloat32, MachineRepresentation::kFloat64,
+    MachineRepresentation::kWord8,   MachineRepresentation::kWord16,
+    MachineRepresentation::kWord32,  MachineRepresentation::kWord64,
+    MachineRepresentation::kTagged};
+
 }  // namespace
 
 
@@ -101,14 +108,16 @@ INSTANTIATE_TEST_CASE_P(
 
 class MachineStoreOperatorTest
     : public MachineOperatorTestWithParam<
-          ::testing::tuple<MachineType, WriteBarrierKind> > {
+          ::testing::tuple<MachineRepresentation, WriteBarrierKind> > {
  protected:
   StoreRepresentation GetParam() const {
     return StoreRepresentation(
-        ::testing::get<0>(MachineOperatorTestWithParam<
-            ::testing::tuple<MachineType, WriteBarrierKind> >::GetParam()),
-        ::testing::get<1>(MachineOperatorTestWithParam<
-            ::testing::tuple<MachineType, WriteBarrierKind> >::GetParam()));
+        ::testing::get<0>(
+            MachineOperatorTestWithParam< ::testing::tuple<
+                MachineRepresentation, WriteBarrierKind> >::GetParam()),
+        ::testing::get<1>(
+            MachineOperatorTestWithParam< ::testing::tuple<
+                MachineRepresentation, WriteBarrierKind> >::GetParam()));
   }
 };
 
@@ -152,7 +161,7 @@ INSTANTIATE_TEST_CASE_P(
     MachineOperatorTest, MachineStoreOperatorTest,
     ::testing::Combine(
         ::testing::ValuesIn(kMachineReps),
-        ::testing::Combine(::testing::ValuesIn(kMachineTypesForAccess),
+        ::testing::Combine(::testing::ValuesIn(kRepresentationsForStore),
                            ::testing::Values(kNoWriteBarrier,
                                              kFullWriteBarrier))));
 #endif

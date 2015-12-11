@@ -678,7 +678,7 @@ Reduction MachineOperatorReducer::ReduceTruncateFloat64ToInt32(Node* node) {
 
 Reduction MachineOperatorReducer::ReduceStore(Node* node) {
   MachineRepresentation const rep =
-      StoreRepresentationOf(node->op()).machine_type().representation();
+      StoreRepresentationOf(node->op()).representation();
   Node* const value = node->InputAt(2);
   switch (value->opcode()) {
     case IrOpcode::kWord32And: {

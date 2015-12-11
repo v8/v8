@@ -880,7 +880,8 @@ TEST_P(InstructionSelectorMemoryAccessTest, StoreWithParameters) {
   const MemoryAccess memacc = GetParam();
   StreamBuilder m(this, MachineType::Int32(), MachineType::Pointer(),
                   MachineType::Int32(), memacc.type);
-  m.Store(memacc.type, m.Parameter(0), m.Parameter(1), kNoWriteBarrier);
+  m.Store(memacc.type.representation(), m.Parameter(0), m.Parameter(1),
+          kNoWriteBarrier);
   m.Return(m.Int32Constant(0));
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
@@ -931,8 +932,8 @@ TEST_P(InstructionSelectorMemoryAccessImmTest, StoreWithImmediateIndex) {
   TRACED_FOREACH(int32_t, index, memacc.immediates) {
     StreamBuilder m(this, MachineType::Int32(), MachineType::Pointer(),
                     memacc.type);
-    m.Store(memacc.type, m.Parameter(0), m.Int32Constant(index), m.Parameter(1),
-            kNoWriteBarrier);
+    m.Store(memacc.type.representation(), m.Parameter(0),
+            m.Int32Constant(index), m.Parameter(1), kNoWriteBarrier);
     m.Return(m.Int32Constant(0));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
@@ -984,8 +985,8 @@ TEST_P(InstructionSelectorMemoryAccessImmMoreThan16bitTest,
   TRACED_FOREACH(int32_t, index, memacc.immediates) {
     StreamBuilder m(this, MachineType::Int32(), MachineType::Pointer(),
                     memacc.type);
-    m.Store(memacc.type, m.Parameter(0), m.Int32Constant(index), m.Parameter(1),
-            kNoWriteBarrier);
+    m.Store(memacc.type.representation(), m.Parameter(0),
+            m.Int32Constant(index), m.Parameter(1), kNoWriteBarrier);
     m.Return(m.Int32Constant(0));
     Stream s = m.Build();
     ASSERT_EQ(2U, s.size());

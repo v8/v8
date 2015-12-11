@@ -428,7 +428,7 @@ void JSGenericLowering::LowerJSStoreContext(Node* node) {
   node->ReplaceInput(1, jsgraph()->Int32Constant(Context::SlotOffset(
                             static_cast<int>(access.index()))));
   NodeProperties::ChangeOp(
-      node, machine()->Store(StoreRepresentation(MachineType::AnyTagged(),
+      node, machine()->Store(StoreRepresentation(MachineRepresentation::kTagged,
                                                  kFullWriteBarrier)));
 }
 
@@ -799,7 +799,8 @@ void JSGenericLowering::LowerJSStoreMessage(Node* node) {
   node->RemoveInput(NodeProperties::FirstContextIndex(node));
   node->InsertInput(zone(), 0, jsgraph()->ExternalConstant(message_address));
   node->InsertInput(zone(), 1, jsgraph()->IntPtrConstant(0));
-  StoreRepresentation representation(MachineType::AnyTagged(), kNoWriteBarrier);
+  StoreRepresentation representation(MachineRepresentation::kTagged,
+                                     kNoWriteBarrier);
   NodeProperties::ChangeOp(node, machine()->Store(representation));
 }
 
