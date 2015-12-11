@@ -101,7 +101,6 @@
 
   # BUG(2340). Preprocessing stack traces is disabled at the moment.
   'test-heap/PreprocessStackTrace': [FAIL],
-  'test-heap/PrototypeTransitionClearing': [FAIL],
 
   # BUG(4333). Function name inferrer does not work for ES6 clases.
   'test-func-name-inference/UpperCaseClass': [FAIL],
