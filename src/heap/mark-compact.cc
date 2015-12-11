@@ -1488,7 +1488,8 @@ void MarkCompactCollector::DiscoverGreyObjectsWithIterator(T* it) {
 }
 
 
-static inline int MarkWordToObjectStarts(uint32_t mark_bits, Address base,
+static inline int MarkWordToObjectStarts(uint32_t mark_bits,
+                                         uint32_t next_mark_bits, Address base,
                                          Address* starts);
 
 
@@ -3273,7 +3274,8 @@ static int Sweep(PagedSpace* space, FreeList* free_list, Page* p,
   for (MarkBitCellIterator it(p); !it.Done(); it.Advance()) {
     Address cell_base = it.CurrentCellBase();
     MarkBit::CellType* cell = it.CurrentCell();
-    int live_objects = MarkWordToObjectStarts(*cell, cell_base, starts);
+    int live_objects =
+        MarkWordToObjectStarts(*cell, it.PeekNext(), cell_base, starts);
     int live_index = 0;
     for (; live_objects != 0; live_objects--) {
       Address free_end = starts[live_index++];
@@ -3376,7 +3378,8 @@ bool MarkCompactCollector::VisitLiveObjects(MemoryChunk* page,
     Address cell_base = it.CurrentCellBase();
     MarkBit::CellType* cell = it.CurrentCell();
     if (*cell == 0) continue;
-    int live_objects = MarkWordToObjectStarts(*cell, cell_base, offsets);
+    int live_objects =
+        MarkWordToObjectStarts(*cell, it.PeekNext(), cell_base, offsets);
     for (int i = 0; i < live_objects; i++) {
       HeapObject* object = HeapObject::FromAddress(offsets[i]);
       DCHECK(Marking::IsBlack(Marking::MarkBitFrom(object)));
@@ -3404,7 +3407,8 @@ void MarkCompactCollector::VisitLiveObjectsBody(Page* page,
     Address cell_base = it.CurrentCellBase();
     MarkBit::CellType* cell = it.CurrentCell();
     if (*cell == 0) continue;
-    int live_objects = MarkWordToObjectStarts(*cell, cell_base, starts);
+    int live_objects =
+        MarkWordToObjectStarts(*cell, it.PeekNext(), cell_base, starts);
     for (int i = 0; i < live_objects; i++) {
       HeapObject* live_object = HeapObject::FromAddress(starts[i]);
       DCHECK(Marking::IsBlack(Marking::MarkBitFrom(live_object)));
@@ -3648,16 +3652,37 @@ void MarkCompactCollector::ReleaseEvacuationCandidates() {
 }
 
 
+#ifdef VERIFY_HEAP
+static bool VerifyAllBlackObjects(uint32_t mark_bits, uint32_t next_mark_bits) {
+  // Check for overlapping mark bits.
+  if ((mark_bits & 0x80000000) && (next_mark_bits & 0x1)) return false;
+
+  unsigned index = 0;
+  while ((index = base::bits::CountTrailingZeros32(mark_bits)) != 32) {
+    if (index > 0) mark_bits >>= index;
+    if ((mark_bits & 0x3) == 0x3) {
+      // There should not be any grey (11) objects.
+      return false;
+    }
+    mark_bits &= 0xFFFFFFFE;
+  }
+  return true;
+}
+#endif  // VERIFY_HEAP
+
+
 // Takes a word of mark bits and a base address. Returns the number of objects
 // that start in the range.  Puts the object starts in the supplied array.
-static inline int MarkWordToObjectStarts(uint32_t mark_bits, Address base,
+static inline int MarkWordToObjectStarts(uint32_t mark_bits,
+                                         uint32_t next_mark_bits, Address base,
                                          Address* starts) {
   int objects = 0;
 
-  // No consecutive 1 bits.
-  DCHECK((mark_bits & 0x180) != 0x180);
-  DCHECK((mark_bits & 0x18000) != 0x18000);
-  DCHECK((mark_bits & 0x1800000) != 0x1800000);
+#ifdef VERIFY_HEAP
+  if (FLAG_verify_heap) {
+    CHECK(VerifyAllBlackObjects(mark_bits, next_mark_bits));
+  }
+#endif  // VERIFY_HEAP
 
   unsigned index = 0;
   while ((index = base::bits::CountTrailingZeros32(mark_bits)) != 32) {

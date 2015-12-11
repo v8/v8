@@ -829,6 +829,14 @@ class MarkBitCellIterator BASE_EMBEDDED {
     cell_base_ += 32 * kPointerSize;
   }
 
+  // Return the next mark bit cell. If there is no next it returns 0;
+  inline MarkBit::CellType PeekNext() {
+    if (HasNext()) {
+      return cells_[cell_index_ + 1];
+    }
+    return 0;
+  }
+
  private:
   MemoryChunk* chunk_;
   MarkBit::CellType* cells_;
