@@ -6070,9 +6070,9 @@ class Map: public HeapObject {
   static void TraceAllTransitions(Map* map);
 #endif
 
-  static inline Handle<Map> CopyInstallDescriptorsForTesting(
-      Handle<Map> map, int new_descriptor, Handle<DescriptorArray> descriptors,
-      Handle<LayoutDescriptor> layout_descriptor);
+  static inline Handle<Map> AddMissingTransitionsForTesting(
+      Handle<Map> split_map, Handle<DescriptorArray> descriptors,
+      Handle<LayoutDescriptor> full_layout_descriptor);
 
  private:
   static void ConnectTransition(Handle<Map> parent, Handle<Map> child,
@@ -6083,9 +6083,13 @@ class Map: public HeapObject {
   static Handle<Map> ShareDescriptor(Handle<Map> map,
                                      Handle<DescriptorArray> descriptors,
                                      Descriptor* descriptor);
-  static Handle<Map> CopyInstallDescriptors(
-      Handle<Map> map, int new_descriptor, Handle<DescriptorArray> descriptors,
-      Handle<LayoutDescriptor> layout_descriptor);
+  static Handle<Map> AddMissingTransitions(
+      Handle<Map> map, Handle<DescriptorArray> descriptors,
+      Handle<LayoutDescriptor> full_layout_descriptor);
+  static void InstallDescriptors(
+      Handle<Map> parent_map, Handle<Map> child_map, int new_descriptor,
+      Handle<DescriptorArray> descriptors,
+      Handle<LayoutDescriptor> full_layout_descriptor);
   static Handle<Map> CopyAddDescriptor(Handle<Map> map,
                                        Descriptor* descriptor,
                                        TransitionFlag flag);
@@ -6113,10 +6117,10 @@ class Map: public HeapObject {
   inline void NotifyLeafMapLayoutChange();
 
   void DeprecateTransitionTree();
-  bool DeprecateTarget(PropertyKind kind, Name* key,
-                       PropertyAttributes attributes,
-                       DescriptorArray* new_descriptors,
-                       LayoutDescriptor* new_layout_descriptor);
+
+  void ReplaceDescriptors(DescriptorArray* new_descriptors,
+                          LayoutDescriptor* new_layout_descriptor);
+
 
   Map* FindLastMatchMap(int verbatim, int length, DescriptorArray* descriptors);
 

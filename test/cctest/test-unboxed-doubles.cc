@@ -741,22 +741,39 @@ TEST(LayoutDescriptorAppendAllDoubles) {
 static Handle<LayoutDescriptor> TestLayoutDescriptorAppendIfFastOrUseFull(
     Isolate* isolate, int inobject_properties,
     Handle<DescriptorArray> descriptors, int number_of_descriptors) {
-  Handle<Map> map = Map::Create(isolate, inobject_properties);
+  Handle<Map> initial_map = Map::Create(isolate, inobject_properties);
 
   Handle<LayoutDescriptor> full_layout_descriptor = LayoutDescriptor::New(
-      map, descriptors, descriptors->number_of_descriptors());
+      initial_map, descriptors, descriptors->number_of_descriptors());
 
   int nof = 0;
   bool switched_to_slow_mode = false;
 
+  // This method calls LayoutDescriptor::AppendIfFastOrUseFull() internally
+  // and does all the required map-descriptors related book keeping.
+  Handle<Map> last_map = Map::AddMissingTransitionsForTesting(
+      initial_map, descriptors, full_layout_descriptor);
+
+  // Follow back pointers to construct a sequence of maps from |map|
+  // to |last_map|.
+  int descriptors_length = descriptors->number_of_descriptors();
+  std::vector<Handle<Map>> maps(descriptors_length);
+  {
+    Map* map = *last_map;
+    for (int i = 0; i < descriptors_length; i++) {
+      maps[descriptors_length - 1 - i] = handle(map, isolate);
+      Object* maybe_map = map->GetBackPointer();
+      CHECK(maybe_map->IsMap());
+      map = Map::cast(maybe_map);
+    }
+    CHECK_EQ(1, maps[0]->NumberOfOwnDescriptors());
+  }
+
+  Handle<Map> map;
+  // Now check layout descriptors of all intermediate maps.
   for (int i = 0; i < number_of_descriptors; i++) {
     PropertyDetails details = descriptors->GetDetails(i);
-
-    // This method calls LayoutDescriptor::AppendIfFastOrUseFull() internally
-    // and does all the required map-descriptors related book keeping.
-    map = Map::CopyInstallDescriptorsForTesting(map, i, descriptors,
-                                                full_layout_descriptor);
-
+    map = maps[i];
     LayoutDescriptor* layout_desc = map->layout_descriptor();
 
     if (layout_desc->IsSlowLayout()) {

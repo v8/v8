@@ -2918,25 +2918,13 @@ static inline bool EqualImmutableValues(Object* obj1, Object* obj2) {
 }
 
 
-// Invalidates a transition target at |key|, and installs |new_descriptors| over
-// the current instance_descriptors to ensure proper sharing of descriptor
-// arrays.
-// Returns true if the transition target at given key was deprecated.
-bool Map::DeprecateTarget(PropertyKind kind, Name* key,
-                          PropertyAttributes attributes,
-                          DescriptorArray* new_descriptors,
-                          LayoutDescriptor* new_layout_descriptor) {
-  bool transition_target_deprecated = false;
-  Map* maybe_transition =
-      TransitionArray::SearchTransition(this, kind, key, attributes);
-  if (maybe_transition != NULL) {
-    maybe_transition->DeprecateTransitionTree();
-    transition_target_deprecated = true;
-  }
-
+// Installs |new_descriptors| over the current instance_descriptors to ensure
+// proper sharing of descriptor arrays.
+void Map::ReplaceDescriptors(DescriptorArray* new_descriptors,
+                             LayoutDescriptor* new_layout_descriptor) {
   // Don't overwrite the empty descriptor array or initial map's descriptors.
   if (NumberOfOwnDescriptors() == 0 || GetBackPointer()->IsUndefined()) {
-    return transition_target_deprecated;
+    return;
   }
 
   DescriptorArray* to_replace = instance_descriptors();
@@ -2950,7 +2938,6 @@ bool Map::DeprecateTarget(PropertyKind kind, Name* key,
     current = Map::cast(next);
   }
   set_owns_descriptors(false);
-  return transition_target_deprecated;
 }
 
 
@@ -3616,9 +3603,6 @@ Handle<Map> Map::ReconfigureProperty(Handle<Map> old_map, int modify_index,
   int split_nof = split_map->NumberOfOwnDescriptors();
   DCHECK_NE(old_nof, split_nof);
 
-  Handle<LayoutDescriptor> new_layout_descriptor =
-      LayoutDescriptor::New(split_map, new_descriptors, old_nof);
-
   PropertyKind split_kind;
   PropertyAttributes split_attributes;
   if (modify_index == split_nof) {
@@ -3629,14 +3613,19 @@ Handle<Map> Map::ReconfigureProperty(Handle<Map> old_map, int modify_index,
     split_kind = split_prop_details.kind();
     split_attributes = split_prop_details.attributes();
   }
-  bool transition_target_deprecated = split_map->DeprecateTarget(
-      split_kind, old_descriptors->GetKey(split_nof), split_attributes,
-      *new_descriptors, *new_layout_descriptor);
 
-  // If |transition_target_deprecated| is true then the transition array
-  // already contains entry for given descriptor. This means that the transition
+  // Invalidate a transition target at |key|.
+  Map* maybe_transition = TransitionArray::SearchTransition(
+      *split_map, split_kind, old_descriptors->GetKey(split_nof),
+      split_attributes);
+  if (maybe_transition != NULL) {
+    maybe_transition->DeprecateTransitionTree();
+  }
+
+  // If |maybe_transition| is not NULL then the transition array already
+  // contains entry for given descriptor. This means that the transition
   // could be inserted regardless of whether transitions array is full or not.
-  if (!transition_target_deprecated &&
+  if (maybe_transition == NULL &&
       !TransitionArray::CanHaveMoreTransitions(split_map)) {
     return CopyGeneralizeAllRepresentations(old_map, modify_index, store_mode,
                                             new_kind, new_attributes,
@@ -3667,13 +3656,16 @@ Handle<Map> Map::ReconfigureProperty(Handle<Map> old_map, int modify_index,
         *old_field_type, *new_field_type);
   }
 
-  // Add missing transitions.
-  Handle<Map> new_map = split_map;
-  for (int i = split_nof; i < old_nof; ++i) {
-    new_map = CopyInstallDescriptors(new_map, i, new_descriptors,
-                                     new_layout_descriptor);
-  }
-  new_map->set_owns_descriptors(true);
+  Handle<LayoutDescriptor> new_layout_descriptor =
+      LayoutDescriptor::New(split_map, new_descriptors, old_nof);
+
+  Handle<Map> new_map =
+      AddMissingTransitions(split_map, new_descriptors, new_layout_descriptor);
+
+  // Deprecated part of the transition tree is no longer reachable, so replace
+  // current instance descriptors in the "survived" part of the tree with
+  // the new descriptors to maintain descriptors sharing invariant.
+  split_map->ReplaceDescriptors(*new_descriptors, *new_layout_descriptor);
   return new_map;
 }
 
@@ -9186,48 +9178,84 @@ Handle<Map> Map::CopyReplaceDescriptors(
 }
 
 
-// Since this method is used to rewrite an existing transition tree, it can
-// always insert transitions without checking.
-Handle<Map> Map::CopyInstallDescriptors(
-    Handle<Map> map, int new_descriptor, Handle<DescriptorArray> descriptors,
+// Creates transition tree starting from |split_map| and adding all descriptors
+// starting from descriptor with index |split_map|.NumberOfOwnDescriptors().
+// The way how it is done is tricky because of GC and special descriptors
+// marking logic.
+Handle<Map> Map::AddMissingTransitions(
+    Handle<Map> split_map, Handle<DescriptorArray> descriptors,
     Handle<LayoutDescriptor> full_layout_descriptor) {
   DCHECK(descriptors->IsSortedNoDuplicates());
+  int split_nof = split_map->NumberOfOwnDescriptors();
+  int nof_descriptors = descriptors->number_of_descriptors();
+  DCHECK_LT(split_nof, nof_descriptors);
 
-  Handle<Map> result = CopyDropDescriptors(map);
+  // Start with creating last map which will own full descriptors array.
+  // This is necessary to guarantee that GC will mark the whole descriptor
+  // array if any of the allocations happening below fail.
+  // Number of unused properties is temporarily incorrect and the layout
+  // descriptor could unnecessarily be in slow mode but we will fix after
+  // all the other intermediate maps are created.
+  Handle<Map> last_map = CopyDropDescriptors(split_map);
+  last_map->InitializeDescriptors(*descriptors, *full_layout_descriptor);
+  last_map->set_unused_property_fields(0);
 
-  result->set_instance_descriptors(*descriptors);
-  result->SetNumberOfOwnDescriptors(new_descriptor + 1);
+  // During creation of intermediate maps we violate descriptors sharing
+  // invariant since the last map is not yet connected to the transition tree
+  // we create here. But it is safe because GC never trims map's descriptors
+  // if there are no dead transitions from that map and this is exactly the
+  // case for all the intermediate maps we create here.
+  Handle<Map> map = split_map;
+  for (int i = split_nof; i < nof_descriptors - 1; ++i) {
+    Handle<Map> new_map = CopyDropDescriptors(map);
+    InstallDescriptors(map, new_map, i, descriptors, full_layout_descriptor);
+    map = new_map;
+  }
+  InstallDescriptors(map, last_map, nof_descriptors - 1, descriptors,
+                     full_layout_descriptor);
+  return last_map;
+}
 
-  int unused_property_fields = map->unused_property_fields();
+
+// Since this method is used to rewrite an existing transition tree, it can
+// always insert transitions without checking.
+void Map::InstallDescriptors(Handle<Map> parent, Handle<Map> child,
+                             int new_descriptor,
+                             Handle<DescriptorArray> descriptors,
+                             Handle<LayoutDescriptor> full_layout_descriptor) {
+  DCHECK(descriptors->IsSortedNoDuplicates());
+
+  child->set_instance_descriptors(*descriptors);
+  child->SetNumberOfOwnDescriptors(new_descriptor + 1);
+
+  int unused_property_fields = parent->unused_property_fields();
   PropertyDetails details = descriptors->GetDetails(new_descriptor);
   if (details.location() == kField) {
-    unused_property_fields = map->unused_property_fields() - 1;
+    unused_property_fields = parent->unused_property_fields() - 1;
     if (unused_property_fields < 0) {
       unused_property_fields += JSObject::kFieldsAdded;
     }
   }
-  result->set_unused_property_fields(unused_property_fields);
+  child->set_unused_property_fields(unused_property_fields);
 
   if (FLAG_unbox_double_fields) {
     Handle<LayoutDescriptor> layout_descriptor =
-        LayoutDescriptor::AppendIfFastOrUseFull(map, details,
+        LayoutDescriptor::AppendIfFastOrUseFull(parent, details,
                                                 full_layout_descriptor);
-    result->set_layout_descriptor(*layout_descriptor);
+    child->set_layout_descriptor(*layout_descriptor);
 #ifdef VERIFY_HEAP
     // TODO(ishell): remove these checks from VERIFY_HEAP mode.
     if (FLAG_verify_heap) {
-      CHECK(result->layout_descriptor()->IsConsistentWithMap(*result));
+      CHECK(child->layout_descriptor()->IsConsistentWithMap(*child));
     }
 #else
-    SLOW_DCHECK(result->layout_descriptor()->IsConsistentWithMap(*result));
+    SLOW_DCHECK(child->layout_descriptor()->IsConsistentWithMap(*child));
 #endif
-    result->set_visitor_id(Heap::GetStaticVisitorIdForMap(*result));
+    child->set_visitor_id(Heap::GetStaticVisitorIdForMap(*child));
   }
 
   Handle<Name> name = handle(descriptors->GetKey(new_descriptor));
-  ConnectTransition(map, result, name, SIMPLE_PROPERTY_TRANSITION);
-
-  return result;
+  ConnectTransition(parent, child, name, SIMPLE_PROPERTY_TRANSITION);
 }
 
 

@@ -4429,11 +4429,10 @@ int Map::GetInObjectPropertyOffset(int index) {
 }
 
 
-Handle<Map> Map::CopyInstallDescriptorsForTesting(
-    Handle<Map> map, int new_descriptor, Handle<DescriptorArray> descriptors,
-    Handle<LayoutDescriptor> layout_descriptor) {
-  return CopyInstallDescriptors(map, new_descriptor, descriptors,
-                                layout_descriptor);
+Handle<Map> Map::AddMissingTransitionsForTesting(
+    Handle<Map> split_map, Handle<DescriptorArray> descriptors,
+    Handle<LayoutDescriptor> full_layout_descriptor) {
+  return AddMissingTransitions(split_map, descriptors, full_layout_descriptor);
 }
 
 
