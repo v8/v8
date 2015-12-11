@@ -2231,21 +2231,11 @@ Reduction JSTypedLowering::ReduceJSForInPrepare(Node* node) {
   Node* efalse0;
   {
     // FixedArray case.
-    Node* receiver_instance_type = efalse0 = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForMapInstanceType()),
-        receiver_map, effect, if_false0);
-
-    cache_type_false0 = graph()->NewNode(
-        common()->Select(MachineRepresentation::kTagged, BranchHint::kFalse),
-        graph()->NewNode(machine()->Word32Equal(), receiver_instance_type,
-                         jsgraph()->Uint32Constant(JS_PROXY_TYPE)),
-        jsgraph()->ZeroConstant(),  // Zero indicagtes proxy.
-        jsgraph()->OneConstant());  // One means slow check.
-
+    cache_type_false0 = jsgraph()->OneConstant();  // Smi means slow check
     cache_array_false0 = cache_type;
     cache_length_false0 = efalse0 = graph()->NewNode(
         simplified()->LoadField(AccessBuilder::ForFixedArrayLength()),
-        cache_array_false0, efalse0, if_false0);
+        cache_array_false0, effect, if_false0);
   }
 
   control = graph()->NewNode(common()->Merge(2), if_true0, if_false0);

@@ -87,20 +87,10 @@
 
   # Proxy tests rely on non ES6 version of Proxies
   # TODO(neis,cbruni): figure out which Proxy tests can be reused
-  'es6/regress/regress-cr493566': [SKIP],
-  'for-in-opt': [SKIP],
   'harmony/proxies-example-membrane': [SKIP],
   'harmony/proxies-json': [SKIP],
-  'harmony/proxies': [SKIP],
   'harmony/proxies-symbols': [SKIP],
-  'harmony/proxies-with': [SKIP],
   'harmony/proxies-with-unscopables': [SKIP],
-  'harmony/regress/regress-2219': [SKIP],
-  'harmony/regress/regress-2225': [SKIP],
-  'harmony/regress/regress-405844': [SKIP],
-  'harmony/regress/regress-crbug-461520': [SKIP],
-  'harmony/regress/regress-lookup-transition': [SKIP],
-  'regress/regress-crbug-493568': [SKIP],
   'strong/load-proxy': [SKIP],
 
   # Issue 3660: Replacing activated TurboFan frames by unoptimized code does
@@ -1046,12 +1036,6 @@
   'with-parameter-access': [SKIP],
   'with-prototype': [SKIP],
   'with-readonly': [SKIP],
-
-  # TODO(cbruni,neis): Activate Proxy test once we have a more complete
-  # implementation.
-  'regress/regress-crbug-506956': [SKIP],
-  'regress/regress-crbug-505907': [SKIP],
-
   'regress/typed-array-lifetime': [SKIP],
 }],  # ignition == True
 

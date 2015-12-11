@@ -36,7 +36,7 @@ function ProxyEnumerate(trap, handler, target) {
   var trap_result = %_Call(trap, handler, target);
   // 8. If Type(trapResult) is not Object, throw a TypeError exception.
   if (!IS_SPEC_OBJECT(trap_result)) {
-    throw MakeTypeError(kProxyHandlerReturned, handler, "non-Object",
+    throw MakeTypeError(kProxyTrapReturnedNonObject, handler, trap_result,
                         "enumerate");
   }
   // 9. Return trapResult.
@@ -46,8 +46,8 @@ function ProxyEnumerate(trap, handler, target) {
     // Not yet spec'ed as of 2015-11-25, but will be spec'ed soon:
     // If the iterator returns a non-string value, throw a TypeError.
     if (!IS_STRING(key)) {
-      throw MakeTypeError(kProxyHandlerReturned, handler, "non-String",
-                          "enumerate-iterator");
+      throw MakeTypeError(kProxyTrapReturned, handler, "non-String",
+                          "enumerate");
     }
     result.push(key);
   }

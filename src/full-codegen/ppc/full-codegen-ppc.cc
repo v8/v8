@@ -1058,7 +1058,6 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ b(&exit);
 
   // We got a fixed array in register r3. Iterate through that.
-  Label non_proxy;
   __ bind(&fixed_array);
 
   __ EmitLoadTypeFeedbackVector(r4);
@@ -1066,14 +1065,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   int vector_index = SmiFromSlot(slot)->value();
   __ StoreP(
       r5, FieldMemOperand(r4, FixedArray::OffsetOfElementAt(vector_index)), r0);
-
-  __ LoadSmiLiteral(r4, Smi::FromInt(1));          // Smi indicates slow check
-  __ LoadP(r5, MemOperand(sp, 0 * kPointerSize));  // Get enumerated object
-  STATIC_ASSERT(JS_PROXY_TYPE == FIRST_JS_RECEIVER_TYPE);
-  __ CompareObjectType(r5, r6, r6, JS_PROXY_TYPE);
-  __ bgt(&non_proxy);
-  __ LoadSmiLiteral(r4, Smi::FromInt(0));  // Zero indicates proxy
-  __ bind(&non_proxy);
+  __ LoadSmiLiteral(r4, Smi::FromInt(1));  // Smi(1) indicates slow check
   __ Push(r4, r3);  // Smi and array
   __ LoadP(r4, FieldMemOperand(r3, FixedArray::kLengthOffset));
   __ LoadSmiLiteral(r3, Smi::FromInt(0));
@@ -1105,11 +1097,6 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ LoadP(r4, MemOperand(sp, 4 * kPointerSize));
   __ LoadP(r7, FieldMemOperand(r4, HeapObject::kMapOffset));
   __ cmp(r7, r5);
-  __ beq(&update_each);
-
-  // For proxies, no filtering is done.
-  // TODO(rossberg): What if only a prototype is a proxy? Not specified yet.
-  __ CmpSmiLiteral(r5, Smi::FromInt(0), r0);
   __ beq(&update_each);
 
   // Convert the entry to a string or (smi) 0 if it isn't a property

@@ -27,6 +27,6 @@
 
 // Flags: --harmony-proxies --expose-gc
 
-var p = new Proxy({}, {getPropertyDescriptor: function() { gc() }});
+var p = new Proxy({}, {getOwnPropertyDescriptor: function() { gc() }});
 var o = Object.create(p);
 assertSame(23, o.x = 23);

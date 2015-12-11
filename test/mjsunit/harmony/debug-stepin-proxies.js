@@ -69,6 +69,10 @@ assertEquals([
   "d0", "l4d11", "m2d11",                           // [[Set]]
   "e14", "r4e14", "q4r11e14", "s2e14",              // for-in [[Enumerate]]
       "o6e14", "q4e14", "p6e14", "q4e14", "q4e14",  // exhaust iterator
-  "e9","f2","foo","e9","f2", "bar","e9",            // for-in body
+  "e9",                                             // for-in-body
+      "h4e9","i2e9",                                // [[Has]] property
+  "f2","foo", "e9",                                 // for-in-body
+    "h4e9","i2e9",                                  // [[Has]]property
+  "f2","bar", "e9",                                 // for-in-body
   "g0"
 ], log);

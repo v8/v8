@@ -543,7 +543,7 @@ function DefineProxyProperty(obj, p, attributes, should_throw) {
   var result = CallTrap2(handler, "defineProperty", UNDEFINED, p, attributes);
   if (!result) {
     if (should_throw) {
-      throw MakeTypeError(kProxyHandlerReturned,
+      throw MakeTypeError(kProxyTrapReturned,
                           handler, "false", "defineProperty");
     } else {
       return false;

@@ -4721,8 +4721,8 @@ Maybe<bool> JSProxy::SetProperty(Handle<JSProxy> proxy, Handle<Name> name,
       Nothing<bool>());
   if (!trap_result->BooleanValue()) {
     RETURN_FAILURE(isolate, should_throw,
-                   NewTypeError(MessageTemplate::kProxyHandlerReturned, handler,
-                                factory->false_string(), trap_name));
+                   NewTypeError(MessageTemplate::kProxyTrapReturnedFalseish,
+                                handler, trap_result, trap_name));
   }
 
   // Enforce the invariant.
@@ -4779,8 +4779,8 @@ Maybe<bool> JSProxy::DeletePropertyOrElement(Handle<JSProxy> proxy,
       Nothing<bool>());
   if (!trap_result->BooleanValue()) {
     RETURN_FAILURE(isolate, should_throw,
-                   NewTypeError(MessageTemplate::kProxyHandlerReturned, handler,
-                                factory->false_string(), trap_name));
+                   NewTypeError(MessageTemplate::kProxyTrapReturnedFalseish,
+                                handler, trap_result, trap_name));
   }
 
   // Enforce the invariant.
@@ -6832,10 +6832,9 @@ Maybe<bool> JSProxy::DefineOwnProperty(Isolate* isolate, Handle<JSProxy> proxy,
       Nothing<bool>());
   // 10. If booleanTrapResult is false, return false.
   if (!trap_result_obj->BooleanValue()) {
-    // TODO(jkummerow): Better error message?
     RETURN_FAILURE(isolate, should_throw,
-                   NewTypeError(MessageTemplate::kProxyHandlerReturned, handler,
-                                trap_result_obj, trap_name));
+                   NewTypeError(MessageTemplate::kProxyTrapReturnedFalseish,
+                                handler, trap_result_obj, trap_name));
   }
   // 11. Let targetDesc be ? target.[[GetOwnProperty]](P).
   PropertyDescriptor target_desc;
@@ -7002,8 +7001,8 @@ Maybe<bool> JSProxy::GetOwnPropertyDescriptor(Isolate* isolate,
   //    TypeError exception.
   if (!trap_result_obj->IsJSReceiver() && !trap_result_obj->IsUndefined()) {
     isolate->Throw(*isolate->factory()->NewTypeError(
-        MessageTemplate::kProxyHandlerReturned, handler, trap_result_obj,
-        name));
+        MessageTemplate::kProxyTrapReturnedFalseish, handler, trap_result_obj,
+        trap_name));
     return Nothing<bool>();
   }
   // 10. Let targetDesc be ? target.[[GetOwnProperty]](P).
@@ -7059,7 +7058,8 @@ Maybe<bool> JSProxy::GetOwnPropertyDescriptor(Isolate* isolate,
     if (target_desc.is_empty() || target_desc.configurable()) {
       // 17a i. Throw a TypeError exception.
       isolate->Throw(*isolate->factory()->NewTypeError(
-          MessageTemplate::kRedefineDisallowed, name));
+          MessageTemplate::kProxyTrapDescriptorNonConfigurable, trap_name,
+          name));
       return Nothing<bool>();
     }
   }
@@ -7342,8 +7342,8 @@ Maybe<bool> JSProxy::PreventExtensions(Handle<JSProxy> proxy,
       Nothing<bool>());
   if (!trap_result->BooleanValue()) {
     RETURN_FAILURE(isolate, should_throw,
-                   NewTypeError(MessageTemplate::kProxyHandlerReturned, handler,
-                                factory->false_string(), trap_name));
+                   NewTypeError(MessageTemplate::kProxyTrapReturned, handler,
+                                trap_result, trap_name));
   }
 
   // Enforce the invariant.
@@ -8582,7 +8582,8 @@ Maybe<bool> JSProxy::OwnPropertyKeys(Isolate* isolate,
     int* found = unchecked_result_keys.Find(key);
     if (found == nullptr || *found == kGone) {
       isolate->Throw(*isolate->factory()->NewTypeError(
-          MessageTemplate::kProxyTrapResultMustInclude, handle(key, isolate)));
+          MessageTemplate::kProxyTrapOwnKeysResultMustInclude,
+          handle(key, isolate)));
       return Nothing<bool>();
     }
     // 17b. Remove key from uncheckedResultKeys.
@@ -8602,7 +8603,8 @@ Maybe<bool> JSProxy::OwnPropertyKeys(Isolate* isolate,
     int* found = unchecked_result_keys.Find(key);
     if (found == nullptr || *found == kGone) {
       isolate->Throw(*isolate->factory()->NewTypeError(
-          MessageTemplate::kProxyTrapResultMustInclude, handle(key, isolate)));
+          MessageTemplate::kProxyTrapOwnKeysResultMustInclude,
+          handle(key, isolate)));
       return Nothing<bool>();
     }
     // 19b. Remove key from uncheckedResultKeys.

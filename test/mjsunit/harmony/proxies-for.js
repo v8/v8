@@ -32,10 +32,9 @@
 
 function TestWithProxies(test, x, y, z) {
   test(function(h){ return new Proxy({}, h) }, x, y, z)
-  // TODO(cbruni): enable once we have [[Call]] working.
-  // test(function(h) {
-    // return Proxy.createFunction(h, function() {})
-  // }, x, y, z)
+  test(function(h) {
+    return new Proxy(function() {}, h)
+  }, x, y, z)
 }
 
 
@@ -55,12 +54,14 @@ function TestForIn2(create, properties, handler) {
 }
 
 TestForIn(["0", "a"], {
-  enumerate: function() { return ["0", "a"].values() }
+  enumerate() { return ["0", "a"].values() },
+  has(target, property) { return true }
 })
 
 TestForIn(["null", "a"], {
-  enumerate: function() { return this.enumerate2() },
-  enumerate2: function() { return ["null", "a"].values() }
+  enumerate() { return this.enumerate2() },
+  enumerate2() { return ["null", "a"].values() },
+  has(target, property) { return true }
 })
 
 TestForIn(["b", "a", "0", "c"], new Proxy({}, {

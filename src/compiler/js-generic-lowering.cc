@@ -721,33 +721,12 @@ void JSGenericLowering::LowerJSForInPrepare(Node* node) {
   Node* efalse0;
   {
     // FixedArray case.
-    Node* object_instance_type = efalse0 = graph()->NewNode(
-        machine()->Load(MachineType::Uint8()), object_map,
-        jsgraph()->IntPtrConstant(Map::kInstanceTypeOffset - kHeapObjectTag),
-        effect, if_false0);
-
-    Node* check1 =
-        graph()->NewNode(machine()->Word32Equal(), object_instance_type,
-                         jsgraph()->Uint32Constant(JS_PROXY_TYPE));
-    Node* branch1 = graph()->NewNode(common()->Branch(BranchHint::kFalse),
-                                     check1, if_false0);
-
-    Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
-    Node* cache_type_true1 = jsgraph()->ZeroConstant();  // Zero indicates proxy
-
-    Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
-    Node* cache_type_false1 = jsgraph()->OneConstant();  // One means slow check
-
-    if_false0 = graph()->NewNode(common()->Merge(2), if_true1, if_false1);
-    cache_type_false0 =
-        graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
-                         cache_type_true1, cache_type_false1, if_false0);
-
+    cache_type_false0 = jsgraph()->OneConstant();  // Smi means slow check
     cache_array_false0 = cache_type;
     cache_length_false0 = efalse0 = graph()->NewNode(
         machine()->Load(MachineType::AnyTagged()), cache_array_false0,
         jsgraph()->IntPtrConstant(FixedArray::kLengthOffset - kHeapObjectTag),
-        efalse0, if_false0);
+        effect, if_false0);
   }
 
   control = graph()->NewNode(common()->Merge(2), if_true0, if_false0);

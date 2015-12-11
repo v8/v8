@@ -72,3 +72,38 @@ TestNonStringKey({bad: "value"});
 TestNonStringKey(null);
 TestNonStringKey(undefined);
 TestNonStringKey(true);
+
+(function testProtoProxyEnumerate() {
+  var keys = ['a', 'b', 'c', 'd'];
+  var handler = {
+   enumerate() { return keys[Symbol.iterator]() },
+   has(target, key) { return false }
+  };
+  var proxy = new Proxy({}, handler);
+  var seen_keys = [];
+  for (var i in proxy) {
+    seen_keys.push(i);
+  }
+  assertEquals([], seen_keys);
+
+  handler.has = function(target, key) { return true };
+  for (var i in proxy) {
+    seen_keys.push(i);
+  }
+  assertEquals(keys, seen_keys);
+
+  o = {__proto__:proxy};
+  handler.has = function(target, key) { return false };
+  seen_keys = [];
+  for (var i in o) {
+    seen_keys.push(i);
+  }
+  assertEquals([], seen_keys);
+
+  handler.has = function(target, key) { return true };
+  seen_keys = [];
+  for (var i in o) {
+    seen_keys.push(i);
+  }
+  assertEquals(keys, seen_keys);
+})();

@@ -1101,13 +1101,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ Mov(x10, Operand(TypeFeedbackVector::MegamorphicSentinel(isolate())));
   int vector_index = SmiFromSlot(slot)->value();
   __ Str(x10, FieldMemOperand(x1, FixedArray::OffsetOfElementAt(vector_index)));
-
-  __ Mov(x1, Smi::FromInt(1));  // Smi indicates slow check.
-  __ Peek(x10, 0);  // Get enumerated object.
-  STATIC_ASSERT(JS_PROXY_TYPE == FIRST_JS_RECEIVER_TYPE);
-  __ CompareObjectType(x10, x11, x12, JS_PROXY_TYPE);
-  DCHECK(Smi::FromInt(0) == 0);
-  __ CzeroX(x1, eq);  // Zero indicates proxy.
+  __ Mov(x1, Smi::FromInt(1));  // Smi(1) indicates slow check.
   __ Ldr(x2, FieldMemOperand(x0, FixedArray::kLengthOffset));
   // Smi and array, fixed array length (as smi) and initial index.
   __ Push(x1, x0, x2, xzr);
@@ -1137,11 +1131,6 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ Ldr(x11, FieldMemOperand(x1, HeapObject::kMapOffset));
   __ Cmp(x11, x2);
   __ B(eq, &update_each);
-
-  // For proxies, no filtering is done.
-  // TODO(rossberg): What if only a prototype is a proxy? Not specified yet.
-  STATIC_ASSERT(kSmiTag == 0);
-  __ Cbz(x2, &update_each);
 
   // Convert the entry to a string or (smi) 0 if it isn't a property
   // any more. If the property has been removed while iterating, we

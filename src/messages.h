@@ -189,7 +189,6 @@ class CallSite {
     "Trap 'deleteProperty' returned true but property '%' is not configurable" \
     " in the proxy target")                                                    \
   T(ProxyHandlerNonObject, "Cannot create proxy with non-object as handler")   \
-  T(ProxyHandlerReturned, "Proxy handler % returned % from '%' trap")          \
   T(ProxyHandlerTrapMissing, "Proxy handler % has no '%' trap")                \
   T(ProxyHandlerTrapMustBeCallable,                                            \
     "Proxy handler % has non-callable '%' trap")                               \
@@ -214,7 +213,16 @@ class CallSite {
     "Construct trap must return Object, but got ''%s'.")                       \
   T(ProxyTrapFunctionExpected,                                                 \
     "Proxy.createFunction called with non-function for '%' trap")              \
-  T(ProxyTrapResultMustInclude, "Trap result must include %.")                 \
+  T(ProxyTrapOwnKeysResultMustInclude,                                         \
+    "Result of trap 'ownKeys' must include '%'.")                              \
+  T(ProxyTrapReturned, "Proxy handler % returned % from '%' trap")             \
+  T(ProxyTrapReturnedFalseish,                                                 \
+    "Proxy handler % returned false value '%' from '%' trap")                  \
+  T(ProxyTrapReturnedNonObject,                                                \
+    "Proxy handler % returned % from '%' trap instead of an Object")           \
+  T(ProxyTrapDescriptorNonConfigurable,                                        \
+    "Proxy %s trap returned non-configurable PropertyDescriptor for property " \
+    "'%' even though the property on the Proxy target is configurable")        \
   T(ProxyTrapViolatesInvariant,                                                \
     "Result of trap '%' is inconsistent with proxy's target")                  \
   T(RedefineDisallowed, "Cannot redefine property: %")                         \

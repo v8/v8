@@ -1868,9 +1868,18 @@ BUILTIN(ProxyConstructor) {
 BUILTIN(ProxyConstructor_ConstructStub) {
   HandleScope scope(isolate);
   DCHECK(isolate->proxy_function()->IsConstructor());
-  DCHECK_EQ(3, args.length());
-  Handle<Object> target = args.at<Object>(1);
-  Handle<Object> handler = args.at<Object>(2);
+  Handle<Object> target;
+  if (args.length() < 2) {
+    target = isolate->factory()->undefined_value();
+  } else {
+    target = args.at<Object>(1);
+  }
+  Handle<Object> handler;
+  if (args.length() < 3) {
+    handler = isolate->factory()->undefined_value();
+  } else {
+    handler = args.at<Object>(2);
+  }
   // The ConstructStub is executed in the context of the caller, so we need
   // to enter the callee context first before raising an exception.
   isolate->set_context(args.target()->context());

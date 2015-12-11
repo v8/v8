@@ -4,7 +4,7 @@
 
 // Flags: --harmony-proxies --expose-gc
 
-var proxy = new Proxy({}, { getPropertyDescriptor:function(key) {
+var proxy = new Proxy({}, { getOwnPropertyDescriptor:function() {
   gc();
 }});
 
