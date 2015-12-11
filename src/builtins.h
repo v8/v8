@@ -67,6 +67,8 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
                                                 \
   V(DateToPrimitive, kNone)                     \
                                                 \
+  V(ObjectProtoToString, kNone)                 \
+                                                \
   V(ProxyConstructor, kNone)                    \
   V(ProxyConstructor_ConstructStub, kTarget)    \
                                                 \

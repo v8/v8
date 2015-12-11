@@ -1852,6 +1852,15 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
     native_context->set_reflect_construct(*construct);
   }
 
+  {
+    Handle<JSFunction> to_string = InstallFunction(
+        container, "object_to_string", JS_OBJECT_TYPE, JSObject::kHeaderSize,
+        MaybeHandle<JSObject>(), Builtins::kObjectProtoToString);
+    to_string->shared()->DontAdaptArguments();
+    to_string->shared()->set_length(0);
+    native_context->set_object_to_string(*to_string);
+  }
+
   Handle<JSObject> iterator_prototype;
 
   {

@@ -368,12 +368,6 @@ RUNTIME_FUNCTION(Runtime_IncrementStatsCounter) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_HarmonyToString) {
-  // TODO(caitp): Delete this runtime method when removing --harmony-tostring
-  return isolate->heap()->ToBoolean(FLAG_harmony_tostring);
-}
-
-
 namespace {
 
 bool ComputeLocation(Isolate* isolate, MessageLocation* target) {

@@ -3781,63 +3781,13 @@ Local<Array> v8::Object::GetOwnPropertyNames() {
 
 
 MaybeLocal<String> v8::Object::ObjectProtoToString(Local<Context> context) {
-  auto self = Utils::OpenHandle(this);
-  auto isolate = self->GetIsolate();
-  auto v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
-  i::Handle<i::Object> name(self->class_name(), isolate);
-  i::Handle<i::Object> tag;
-
-  // Native implementation of Object.prototype.toString (v8natives.js):
-  //   var c = %_ClassOf(this);
-  //   if (c === 'Arguments') c  = 'Object';
-  //   return "[object " + c + "]";
-
-  if (!name->IsString()) {
-    return v8::String::NewFromUtf8(v8_isolate, "[object ]",
-                                   NewStringType::kNormal);
-  }
-  auto class_name = i::Handle<i::String>::cast(name);
-  if (i::String::Equals(class_name, isolate->factory()->Arguments_string())) {
-    return v8::String::NewFromUtf8(v8_isolate, "[object Object]",
-                                   NewStringType::kNormal);
-  }
-  if (internal::FLAG_harmony_tostring) {
-    PREPARE_FOR_EXECUTION(context, "v8::Object::ObjectProtoToString()", String);
-    auto toStringTag = isolate->factory()->to_string_tag_symbol();
-    has_pending_exception = !i::Runtime::GetObjectProperty(
-                                 isolate, self, toStringTag).ToHandle(&tag);
-    RETURN_ON_FAILED_EXECUTION(String);
-    if (tag->IsString()) {
-      class_name = Utils::OpenHandle(*handle_scope.Escape(
-          Utils::ToLocal(i::Handle<i::String>::cast(tag))));
-    }
-  }
-  const char* prefix = "[object ";
-  Local<String> str = Utils::ToLocal(class_name);
-  const char* postfix = "]";
-
-  int prefix_len = i::StrLength(prefix);
-  int str_len = str->Utf8Length();
-  int postfix_len = i::StrLength(postfix);
-
-  int buf_len = prefix_len + str_len + postfix_len;
-  i::ScopedVector<char> buf(buf_len);
-
-  // Write prefix.
-  char* ptr = buf.start();
-  i::MemCopy(ptr, prefix, prefix_len * v8::internal::kCharSize);
-  ptr += prefix_len;
-
-  // Write real content.
-  str->WriteUtf8(ptr, str_len);
-  ptr += str_len;
-
-  // Write postfix.
-  i::MemCopy(ptr, postfix, postfix_len * v8::internal::kCharSize);
-
-  // Copy the buffer into a heap-allocated string and return it.
-  return v8::String::NewFromUtf8(v8_isolate, buf.start(),
-                                 NewStringType::kNormal, buf_len);
+  PREPARE_FOR_EXECUTION(context, "v8::Object::ObjectProtoToString", String);
+  auto obj = Utils::OpenHandle(this);
+  Local<String> result;
+  has_pending_exception =
+      !ToLocal<String>(i::JSObject::ObjectProtoToString(isolate, obj), &result);
+  RETURN_ON_FAILED_EXECUTION(String);
+  RETURN_ESCAPED(result);
 }
 
 

@@ -1754,6 +1754,17 @@ BUILTIN(SymbolConstructor_ConstructStub) {
 }
 
 
+// ES6 19.1.3.6 Object.prototype.toString
+BUILTIN(ObjectProtoToString) {
+  HandleScope scope(isolate);
+  Handle<Object> object = args.at<Object>(0);
+  Handle<String> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result, JSObject::ObjectProtoToString(isolate, object));
+  return *result;
+}
+
+
 namespace {
 
 // ES6 section 9.5.15 ProxyCreate (target, handler)

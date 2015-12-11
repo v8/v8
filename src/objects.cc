@@ -16184,6 +16184,40 @@ int JSObject::GetOwnElementKeys(FixedArray* storage, PropertyFilter filter) {
 }
 
 
+MaybeHandle<String> JSObject::ObjectProtoToString(Isolate* isolate,
+                                                  Handle<Object> object) {
+  if (object->IsUndefined()) return isolate->factory()->undefined_to_string();
+  if (object->IsNull()) return isolate->factory()->null_to_string();
+
+  Handle<JSReceiver> receiver;
+  CHECK(Object::ToObject(isolate, object).ToHandle(&receiver));
+
+  Handle<String> tag;
+  if (FLAG_harmony_tostring) {
+    Handle<Object> to_string_tag;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, to_string_tag,
+        GetProperty(receiver, isolate->factory()->to_string_tag_symbol()),
+        String);
+    if (to_string_tag->IsString()) {
+      tag = Handle<String>::cast(to_string_tag);
+    }
+  }
+
+  if (tag.is_null()) {
+    // TODO(adamk): class_name() is expensive, replace with instance type
+    // checks where possible.
+    tag = handle(receiver->class_name(), isolate);
+  }
+
+  IncrementalStringBuilder builder(isolate);
+  builder.AppendCString("[object ");
+  builder.AppendString(tag);
+  builder.AppendCharacter(']');
+  return builder.Finish();
+}
+
+
 const char* Symbol::PrivateSymbolToName() const {
   Heap* heap = GetIsolate()->heap();
 #define SYMBOL_CHECK_AND_PRINT(name) \

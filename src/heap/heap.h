@@ -282,6 +282,7 @@ namespace internal {
   V(nan_string, "NaN")                                           \
   V(next_string, "next")                                         \
   V(null_string, "null")                                         \
+  V(null_to_string, "[object Null]")                             \
   V(number_string, "number")                                     \
   V(Number_string, "Number")                                     \
   V(object_string, "object")                                     \
@@ -319,6 +320,7 @@ namespace internal {
   V(uint8x16_string, "uint8x16")                                 \
   V(Uint8x16_string, "Uint8x16")                                 \
   V(undefined_string, "undefined")                               \
+  V(undefined_to_string, "[object Undefined]")                   \
   V(valueOf_string, "valueOf")                                   \
   V(value_string, "value")                                       \
   V(WeakMap_string, "WeakMap")                                   \

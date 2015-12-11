@@ -9,7 +9,6 @@
 // ----------------------------------------------------------------------------
 // Imports
 
-var FLAG_harmony_tostring;
 var GlobalArray = global.Array;
 var GlobalBoolean = global.Boolean;
 var GlobalFunction = global.Function;
@@ -22,6 +21,7 @@ var MakeSyntaxError;
 var MakeTypeError;
 var MathAbs;
 var NaN = %GetRootNaN();
+var ObjectToString = utils.ImportNow("object_to_string");
 var ObserveBeginPerformSplice;
 var ObserveEndPerformSplice;
 var ObserveEnqueueSpliceRecord;
@@ -38,10 +38,6 @@ utils.Import(function(from) {
   ObserveEndPerformSplice = from.ObserveEndPerformSplice;
   ObserveEnqueueSpliceRecord = from.ObserveEnqueueSpliceRecord;
   StringIndexOf = from.StringIndexOf;
-});
-
-utils.ImportFromExperimental(function(from) {
-  FLAG_harmony_tostring = from.FLAG_harmony_tostring;
 });
 
 // ----------------------------------------------------------------------------
@@ -143,28 +139,6 @@ utils.InstallFunctions(global, DONT_ENUM, [
 
 // ----------------------------------------------------------------------------
 // Object
-
-// ES6 19.1.3.6 Object.prototype.toString()
-function ObjectToString() {
-  if (IS_UNDEFINED(this)) return "[object Undefined]";
-  if (IS_NULL(this)) return "[object Null]";
-  var O = TO_OBJECT(this);
-  var builtinTag = %_ClassOf(O);
-  var tag;
-
-  // TODO(caitp): cannot wait to get rid of this flag :>
-  if (FLAG_harmony_tostring) {
-    tag = O[toStringTagSymbol];
-    if (!IS_STRING(tag)) {
-      tag = builtinTag;
-    }
-  } else {
-    tag = builtinTag;
-  }
-
-  return `[object ${tag}]`;
-}
-
 
 // ES6 19.1.3.5 Object.prototype.toLocaleString([reserved1 [,reserved2]])
 function ObjectToLocaleString() {
@@ -1515,13 +1489,11 @@ utils.Export(function(to) {
   to.ObjectIsFrozen = ObjectIsFrozen;
   to.ObjectIsSealed = ObjectIsSealed;
   to.ObjectKeys = ObjectKeys;
-  to.ObjectToString = ObjectToString;
 });
 
 %InstallToContext([
   "global_eval_fun", GlobalEval,
   "object_value_of", ObjectValueOf,
-  "object_to_string", ObjectToString,
 ]);
 
 })
