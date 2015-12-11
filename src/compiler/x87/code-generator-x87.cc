@@ -1264,22 +1264,22 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kX87Push:
       if (instr->InputAt(0)->IsDoubleRegister()) {
         auto allocated = AllocatedOperand::cast(*instr->InputAt(0));
-        if (allocated.machine_type() == kRepFloat32) {
+        if (allocated.representation() == MachineRepresentation::kFloat32) {
           __ sub(esp, Immediate(kDoubleSize));
           __ fst_s(Operand(esp, 0));
         } else {
-          DCHECK(allocated.machine_type() == kRepFloat64);
+          DCHECK(allocated.representation() == MachineRepresentation::kFloat64);
           __ sub(esp, Immediate(kDoubleSize));
           __ fst_d(Operand(esp, 0));
         }
       } else if (instr->InputAt(0)->IsDoubleStackSlot()) {
         auto allocated = AllocatedOperand::cast(*instr->InputAt(0));
-        if (allocated.machine_type() == kRepFloat32) {
+        if (allocated.representation() == MachineRepresentation::kFloat32) {
           __ sub(esp, Immediate(kDoubleSize));
           __ fld_s(i.InputOperand(0));
           __ fstp_s(MemOperand(esp, 0));
         } else {
-          DCHECK(allocated.machine_type() == kRepFloat64);
+          DCHECK(allocated.representation() == MachineRepresentation::kFloat64);
           __ sub(esp, Immediate(kDoubleSize));
           __ fld_d(i.InputOperand(0));
           __ fstp_d(MemOperand(esp, 0));
@@ -1868,11 +1868,11 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     DCHECK(destination->IsDoubleStackSlot());
     Operand dst = g.ToOperand(destination);
     auto allocated = AllocatedOperand::cast(*source);
-    switch (allocated.machine_type()) {
-      case kRepFloat32:
+    switch (allocated.representation()) {
+      case MachineRepresentation::kFloat32:
         __ fst_s(dst);
         break;
-      case kRepFloat64:
+      case MachineRepresentation::kFloat64:
         __ fst_d(dst);
         break;
       default:
@@ -1885,11 +1885,11 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     if (destination->IsDoubleRegister()) {
       // always only push one value into the x87 stack.
       __ fstp(0);
-      switch (allocated.machine_type()) {
-        case kRepFloat32:
+      switch (allocated.representation()) {
+        case MachineRepresentation::kFloat32:
           __ fld_s(src);
           break;
-        case kRepFloat64:
+        case MachineRepresentation::kFloat64:
           __ fld_d(src);
           break;
         default:
@@ -1897,12 +1897,12 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       }
     } else {
       Operand dst = g.ToOperand(destination);
-      switch (allocated.machine_type()) {
-        case kRepFloat32:
+      switch (allocated.representation()) {
+        case MachineRepresentation::kFloat32:
           __ fld_s(src);
           __ fstp_s(dst);
           break;
-        case kRepFloat64:
+        case MachineRepresentation::kFloat64:
           __ fld_d(src);
           __ fstp_d(dst);
           break;
@@ -1945,13 +1945,13 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     UNREACHABLE();
   } else if (source->IsDoubleRegister() && destination->IsDoubleStackSlot()) {
     auto allocated = AllocatedOperand::cast(*source);
-    switch (allocated.machine_type()) {
-      case kRepFloat32:
+    switch (allocated.representation()) {
+      case MachineRepresentation::kFloat32:
         __ fld_s(g.ToOperand(destination));
         __ fxch();
         __ fstp_s(g.ToOperand(destination));
         break;
-      case kRepFloat64:
+      case MachineRepresentation::kFloat64:
         __ fld_d(g.ToOperand(destination));
         __ fxch();
         __ fstp_d(g.ToOperand(destination));
@@ -1961,14 +1961,14 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     }
   } else if (source->IsDoubleStackSlot() && destination->IsDoubleStackSlot()) {
     auto allocated = AllocatedOperand::cast(*source);
-    switch (allocated.machine_type()) {
-      case kRepFloat32:
+    switch (allocated.representation()) {
+      case MachineRepresentation::kFloat32:
         __ fld_s(g.ToOperand(source));
         __ fld_s(g.ToOperand(destination));
         __ fstp_s(g.ToOperand(source));
         __ fstp_s(g.ToOperand(destination));
         break;
-      case kRepFloat64:
+      case MachineRepresentation::kFloat64:
         __ fld_d(g.ToOperand(source));
         __ fld_d(g.ToOperand(destination));
         __ fstp_d(g.ToOperand(source));
