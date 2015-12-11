@@ -137,10 +137,6 @@ static void AssignVectorSlots(Expression* expr, FeedbackVectorSpec* spec,
 void ForEachStatement::AssignFeedbackVectorSlots(
     Isolate* isolate, FeedbackVectorSpec* spec,
     FeedbackVectorSlotCache* cache) {
-  // TODO(caitp): for-of statements do not make use of this feedback slot.
-  // The each_slot_ should be specific to ForInStatement, and this work moved
-  // there.
-  if (IsForOfStatement()) return;
   AssignVectorSlots(each(), spec, &each_slot_);
 }
 
