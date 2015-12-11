@@ -509,5 +509,13 @@ RUNTIME_FUNCTION(Runtime_DefaultConstructorCallSuper) {
   return *result;
 }
 
+
+RUNTIME_FUNCTION(Runtime_GetSuperConstructor) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_CHECKED(JSFunction, active_function, 0);
+  return active_function->map()->prototype();
+}
+
 }  // namespace internal
 }  // namespace v8

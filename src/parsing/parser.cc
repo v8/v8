@@ -361,7 +361,8 @@ FunctionLiteral* Parser::DefaultConstructor(bool call_super, Scope* scope,
 
     body = new (zone()) ZoneList<Statement*>(call_super ? 2 : 1, zone());
     if (call_super) {
-      // %_DefaultConstructorCallSuper(new.target, %GetPrototype(<this-fun>))
+      // let super_constructor = %_GetSuperConstructor(<this-function>)
+      // %_DefaultConstructorCallSuper(new.target, super_constructor)
       ZoneList<Expression*>* args =
           new (zone()) ZoneList<Expression*>(2, zone());
       VariableProxy* new_target_proxy = scope_->NewUnresolved(
@@ -374,9 +375,9 @@ FunctionLiteral* Parser::DefaultConstructor(bool call_super, Scope* scope,
       ZoneList<Expression*>* tmp =
           new (zone()) ZoneList<Expression*>(1, zone());
       tmp->Add(this_function_proxy, zone());
-      Expression* get_prototype =
-          factory()->NewCallRuntime(Runtime::kGetPrototype, tmp, pos);
-      args->Add(get_prototype, zone());
+      Expression* super_constructor = factory()->NewCallRuntime(
+          Runtime::kInlineGetSuperConstructor, tmp, pos);
+      args->Add(super_constructor, zone());
       CallRuntime* call = factory()->NewCallRuntime(
           Runtime::kInlineDefaultConstructorCallSuper, args, pos);
       body->Add(factory()->NewReturnStatement(call, pos), zone());
@@ -6433,12 +6434,13 @@ Expression* Parser::SpreadCall(Expression* function,
                                int pos) {
   if (function->IsSuperCallReference()) {
     // Super calls
-    // %reflect_construct(%GetPrototype(<this-function>), args, new.target))
+    // let super_constructor = %_GetSuperConstructor(<this-function>)
+    // %reflect_construct(super_constructor, args, new.target)
     ZoneList<Expression*>* tmp = new (zone()) ZoneList<Expression*>(1, zone());
     tmp->Add(function->AsSuperCallReference()->this_function_var(), zone());
-    Expression* get_prototype =
-        factory()->NewCallRuntime(Runtime::kGetPrototype, tmp, pos);
-    args->InsertAt(0, get_prototype, zone());
+    Expression* super_constructor = factory()->NewCallRuntime(
+        Runtime::kInlineGetSuperConstructor, tmp, pos);
+    args->InsertAt(0, super_constructor, zone());
     args->Add(function->AsSuperCallReference()->new_target_var(), zone());
     return factory()->NewCallRuntime(Context::REFLECT_CONSTRUCT_INDEX, args,
                                      pos);

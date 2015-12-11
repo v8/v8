@@ -111,6 +111,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceCall(node);
     case Runtime::kInlineTailCall:
       return ReduceTailCall(node);
+    case Runtime::kInlineGetSuperConstructor:
+      return ReduceGetSuperConstructor(node);
     default:
       break;
   }
@@ -611,6 +613,18 @@ Reduction JSIntrinsicLowering::ReduceTailCall(Node* node) {
                                        ConvertReceiverMode::kAny,
                                        TailCallMode::kAllow));
   return Changed(node);
+}
+
+
+Reduction JSIntrinsicLowering::ReduceGetSuperConstructor(Node* node) {
+  Node* active_function = NodeProperties::GetValueInput(node, 0);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* active_function_map = effect =
+      graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                       active_function, effect, control);
+  return Change(node, simplified()->LoadField(AccessBuilder::ForMapPrototype()),
+                active_function_map, effect, control);
 }
 
 
