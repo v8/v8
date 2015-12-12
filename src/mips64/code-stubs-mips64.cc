@@ -1531,6 +1531,9 @@ void InstanceOfStub::Generate(MacroAssembler* masm) {
   // Proxy-case: Call the %HasInPrototypeChain runtime function.
   __ bind(&proxy_case);
   __ Push(object, function_prototype);
+  // Invalidate the instanceof cache.
+  DCHECK(Smi::FromInt(0) == 0);
+  __ StoreRoot(zero_reg, Heap::kInstanceofCacheFunctionRootIndex);
   __ TailCallRuntime(Runtime::kHasInPrototypeChain, 2, 1);
 
   // Slow-case: Call the %InstanceOf runtime function.
