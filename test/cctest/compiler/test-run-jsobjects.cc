@@ -35,7 +35,6 @@ TEST(ArgumentsUnmapped) {
 
 
 TEST(ArgumentsRest) {
-  FLAG_harmony_rest_parameters = true;
   FunctionTester T("(function(a, ...args) { return args; })");
 
   Handle<Object> arguments;

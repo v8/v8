@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 //
 // Flags: --harmony-destructuring-bind
-// Flags: --harmony-default-parameters --harmony-rest-parameters
+// Flags: --harmony-default-parameters
 
 (function TestObjectLiteralPattern() {
   var { x : x, y : y, get, set } = { x : 1, y : 2, get: 3, set: 4 };

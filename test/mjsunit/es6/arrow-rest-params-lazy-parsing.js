@@ -1,8 +1,8 @@
-// Copyright 2014 the V8 project authors. All rights reserved.
+// Copyright 2015 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-rest-parameters
+// Flags: --min-preparse-length=0
 
 (function testRestIndex() {
   assertEquals(5, ((...args) => args.length)(1,2,3,4,5));
@@ -18,7 +18,7 @@
 //
 //   strictTest(6,5,4,3,2,1)
 //
-var strictTest = (() => {
+var strictTest = (function() {
   "use strict";
   return (a, b, ...c) => {
     assertEquals(Array, c.constructor);
@@ -43,7 +43,7 @@ var sloppyTest = (a, b, ...c) => {
   for (var i = 2; i < a; ++i) {
     assertEquals(c[i - 2], a - i);
   }
-}
+};
 
 
 var O = {
@@ -99,7 +99,7 @@ var O = {
 })();
 
 
-(function testRestParamssloppyMode() {
+(function testRestParamsSloppyMode() {
   sloppyTest();
   sloppyTest(2, 1);
   sloppyTest(6, 5, 4, 3, 2, 1);

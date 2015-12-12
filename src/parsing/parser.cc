@@ -926,7 +926,6 @@ Parser::Parser(ParseInfo* info)
   set_allow_harmony_sloppy(FLAG_harmony_sloppy);
   set_allow_harmony_sloppy_function(FLAG_harmony_sloppy_function);
   set_allow_harmony_sloppy_let(FLAG_harmony_sloppy_let);
-  set_allow_harmony_rest_parameters(FLAG_harmony_rest_parameters);
   set_allow_harmony_default_parameters(FLAG_harmony_default_parameters);
   set_allow_harmony_destructuring_bind(FLAG_harmony_destructuring_bind);
   set_allow_harmony_destructuring_assignment(
@@ -4905,7 +4904,6 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
     SET_ALLOW(natives);
     SET_ALLOW(harmony_sloppy);
     SET_ALLOW(harmony_sloppy_let);
-    SET_ALLOW(harmony_rest_parameters);
     SET_ALLOW(harmony_default_parameters);
     SET_ALLOW(harmony_destructuring_bind);
     SET_ALLOW(strong_mode);

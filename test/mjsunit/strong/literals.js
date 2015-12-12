@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --strong-mode --allow-natives-syntax
-// Flags: --harmony-rest-parameters
 // Flags: --harmony-destructuring-bind
 
 'use strict';

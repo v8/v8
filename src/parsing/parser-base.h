@@ -111,7 +111,6 @@ class ParserBase : public Traits {
         allow_harmony_sloppy_(false),
         allow_harmony_sloppy_function_(false),
         allow_harmony_sloppy_let_(false),
-        allow_harmony_rest_parameters_(false),
         allow_harmony_default_parameters_(false),
         allow_harmony_destructuring_bind_(false),
         allow_harmony_destructuring_assignment_(false),
@@ -128,7 +127,6 @@ class ParserBase : public Traits {
   ALLOW_ACCESSORS(harmony_sloppy);
   ALLOW_ACCESSORS(harmony_sloppy_function);
   ALLOW_ACCESSORS(harmony_sloppy_let);
-  ALLOW_ACCESSORS(harmony_rest_parameters);
   ALLOW_ACCESSORS(harmony_default_parameters);
   ALLOW_ACCESSORS(harmony_destructuring_bind);
   ALLOW_ACCESSORS(harmony_destructuring_assignment);
@@ -916,7 +914,6 @@ class ParserBase : public Traits {
   bool allow_harmony_sloppy_;
   bool allow_harmony_sloppy_function_;
   bool allow_harmony_sloppy_let_;
-  bool allow_harmony_rest_parameters_;
   bool allow_harmony_default_parameters_;
   bool allow_harmony_destructuring_bind_;
   bool allow_harmony_destructuring_assignment_;
@@ -1329,7 +1326,7 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
                                               MessageTemplate::kUnexpectedToken,
                                               Token::String(Token::RPAREN));
         return factory()->NewEmptyParentheses(beg_pos);
-      } else if (allow_harmony_rest_parameters() && Check(Token::ELLIPSIS)) {
+      } else if (Check(Token::ELLIPSIS)) {
         // (...x)=>x.  The continuation that looks for the => is in
         // ParseAssignmentExpression.
         int ellipsis_pos = position();
@@ -1464,7 +1461,7 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseExpression(
     }
     Consume(Token::COMMA);
     bool is_rest = false;
-    if (allow_harmony_rest_parameters() && peek() == Token::ELLIPSIS) {
+    if (peek() == Token::ELLIPSIS) {
       // 'x, y, ...z' in CoverParenthesizedExpressionAndArrowParameterList only
       // as the formal parameters of'(x, y, ...z) => foo', and is not itself a
       // valid expression or binding pattern.
@@ -2930,8 +2927,7 @@ void ParserBase<Traits>::ParseFormalParameterList(
         *ok = false;
         return;
       }
-      parameters->has_rest =
-          allow_harmony_rest_parameters() && Check(Token::ELLIPSIS);
+      parameters->has_rest = Check(Token::ELLIPSIS);
       ParseFormalParameter(parameters, classifier, ok);
       if (!*ok) return;
     } while (!parameters->has_rest && Check(Token::COMMA));

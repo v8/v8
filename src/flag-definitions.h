@@ -222,7 +222,6 @@ DEFINE_IMPLICATION(es_staging, harmony_destructuring_assignment)
   V(harmony_array_includes, "harmony Array.prototype.includes") \
   V(harmony_default_parameters, "harmony default parameters")   \
   V(harmony_destructuring_bind, "harmony destructuring bind")   \
-  V(harmony_rest_parameters, "harmony rest parameters")         \
   V(harmony_concat_spreadable, "harmony isConcatSpreadable")    \
   V(harmony_tolength, "harmony ToLength")                       \
   V(harmony_tostring, "harmony toString")                       \
