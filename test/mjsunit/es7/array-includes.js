@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-array-includes
-
 // Largely ported from
 // https://github.com/tc39/Array.prototype.includes/tree/master/test
 // using https://www.npmjs.org/package/test262-to-mjsunit with further edits

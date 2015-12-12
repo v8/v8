@@ -25,6 +25,7 @@ var InnerArrayFilter;
 var InnerArrayFind;
 var InnerArrayFindIndex;
 var InnerArrayForEach;
+var InnerArrayIncludes;
 var InnerArrayIndexOf;
 var InnerArrayJoin;
 var InnerArrayLastIndexOf;
@@ -75,6 +76,7 @@ utils.Import(function(from) {
   InnerArrayFind = from.InnerArrayFind;
   InnerArrayFindIndex = from.InnerArrayFindIndex;
   InnerArrayForEach = from.InnerArrayForEach;
+  InnerArrayIncludes = from.InnerArrayIncludes;
   InnerArrayIndexOf = from.InnerArrayIndexOf;
   InnerArrayJoin = from.InnerArrayJoin;
   InnerArrayLastIndexOf = from.InnerArrayLastIndexOf;
@@ -687,6 +689,17 @@ function TypedArraySlice(start, end) {
 }
 
 
+// ES2016 draft, section 22.2.3.14
+function TypedArrayIncludes(searchElement, fromIndex) {
+  if (!%_IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+
+  var length = %_TypedArrayGetLength(this);
+
+  return InnerArrayIncludes(searchElement, fromIndex, this, length);
+}
+%FunctionSetLength(TypedArrayIncludes, 1);
+
+
 // ES6 draft 08-24-14, section 22.2.2.2
 function TypedArrayOf() {
   var length = %_ArgumentsLength();
@@ -744,6 +757,7 @@ macro SETUP_TYPED_ARRAY(ARRAY_ID, NAME, ELEMENT_SIZE)
     "filter", TypedArrayFilter,
     "find", TypedArrayFind,
     "findIndex", TypedArrayFindIndex,
+    "includes", TypedArrayIncludes,
     "indexOf", TypedArrayIndexOf,
     "join", TypedArrayJoin,
     "lastIndexOf", TypedArrayLastIndexOf,

@@ -1906,7 +1906,6 @@
           '../../src/js/proxy.js',
           '../../src/js/generator.js',
           '../../src/js/harmony-atomics.js',
-          '../../src/js/harmony-array-includes.js',
           '../../src/js/harmony-regexp.js',
           '../../src/js/harmony-reflect.js',
           '../../src/js/harmony-object-observe.js',

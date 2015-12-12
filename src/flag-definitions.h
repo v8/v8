@@ -220,7 +220,6 @@ DEFINE_IMPLICATION(es_staging, harmony_destructuring_assignment)
 
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING(V)                                     \
-  V(harmony_array_includes, "harmony Array.prototype.includes") \
   V(harmony_default_parameters, "harmony default parameters")   \
   V(harmony_destructuring_bind, "harmony destructuring bind")   \
   V(harmony_concat_spreadable, "harmony isConcatSpreadable")    \

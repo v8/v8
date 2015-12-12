@@ -2098,7 +2098,6 @@ void Bootstrapper::ExportExperimentalFromRuntime(Isolate* isolate,
   void Genesis::InitializeGlobal_##id() {}
 
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_modules)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_array_includes)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_sloppy)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_sloppy_function)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_sloppy_let)
@@ -2622,8 +2621,6 @@ bool Genesis::InstallNatives(ContextType context_type) {
 
 
 bool Genesis::InstallExperimentalNatives() {
-  static const char* harmony_array_includes_natives[] = {
-      "native harmony-array-includes.js", nullptr};
   static const char* harmony_proxies_natives[] = {"native proxy.js", nullptr};
   static const char* harmony_modules_natives[] = {nullptr};
   static const char* harmony_regexps_natives[] = {"native harmony-regexp.js",

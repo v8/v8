@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-array-includes
-
 // Ported from
 // https://github.com/tc39/Array.prototype.includes/blob/master/test/number-this.js
 // using https://www.npmjs.org/package/test262-to-mjsunit

@@ -29,6 +29,7 @@ var ObjectToString = utils.ImportNow("object_to_string");
 var ObserveBeginPerformSplice;
 var ObserveEndPerformSplice;
 var ObserveEnqueueSpliceRecord;
+var SameValueZero;
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
 var unscopablesSymbol = utils.ImportNow("unscopables_symbol");
 
@@ -46,6 +47,7 @@ utils.Import(function(from) {
   ObserveBeginPerformSplice = from.ObserveBeginPerformSplice;
   ObserveEndPerformSplice = from.ObserveEndPerformSplice;
   ObserveEnqueueSpliceRecord = from.ObserveEnqueueSpliceRecord;
+  SameValueZero = from.SameValueZero;
 });
 
 utils.ImportFromExperimental(function(from) {
@@ -1694,6 +1696,47 @@ function ArrayFill(value, start, end) {
 }
 
 
+function InnerArrayIncludes(searchElement, fromIndex, array, length) {
+  if (length === 0) {
+    return false;
+  }
+
+  var n = TO_INTEGER(fromIndex);
+
+  var k;
+  if (n >= 0) {
+    k = n;
+  } else {
+    k = length + n;
+    if (k < 0) {
+      k = 0;
+    }
+  }
+
+  while (k < length) {
+    var elementK = array[k];
+    if (SameValueZero(searchElement, elementK)) {
+      return true;
+    }
+
+    ++k;
+  }
+
+  return false;
+}
+
+
+// ES2016 draft, section 22.1.3.11
+function ArrayIncludes(searchElement, fromIndex) {
+  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.includes");
+
+  var array = TO_OBJECT(this);
+  var length = TO_LENGTH(array.length);
+
+  return InnerArrayIncludes(searchElement, fromIndex, array, length);
+}
+
+
 function AddArrayElement(constructor, array, i, value) {
   if (constructor === GlobalArray) {
     AddIndexedProperty(array, i, value);
@@ -1852,7 +1895,8 @@ utils.InstallFunctions(GlobalArray.prototype, DONT_ENUM, [
   "copyWithin", getFunction("copyWithin", ArrayCopyWithin, 2),
   "find", getFunction("find", ArrayFind, 1),
   "findIndex", getFunction("findIndex", ArrayFindIndex, 1),
-  "fill", getFunction("fill", ArrayFill, 1)
+  "fill", getFunction("fill", ArrayFill, 1),
+  "includes", getFunction("includes", ArrayIncludes, 1),
 ]);
 
 %FinishArrayPrototypeSetup(GlobalArray.prototype);
@@ -1904,6 +1948,7 @@ utils.Export(function(to) {
   to.InnerArrayFind = InnerArrayFind;
   to.InnerArrayFindIndex = InnerArrayFindIndex;
   to.InnerArrayForEach = InnerArrayForEach;
+  to.InnerArrayIncludes = InnerArrayIncludes;
   to.InnerArrayIndexOf = InnerArrayIndexOf;
   to.InnerArrayJoin = InnerArrayJoin;
   to.InnerArrayLastIndexOf = InnerArrayLastIndexOf;
