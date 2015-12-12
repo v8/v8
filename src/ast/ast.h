@@ -2531,6 +2531,7 @@ class FunctionLiteral final : public Expression {
 
   Handle<String> name() const { return raw_name_->string(); }
   const AstRawString* raw_name() const { return raw_name_; }
+  void set_raw_name(const AstRawString* name) { raw_name_ = name; }
   Scope* scope() const { return scope_; }
   ZoneList<Statement*>* body() const { return body_; }
   void set_function_token_position(int pos) { function_token_position_ = pos; }
@@ -2699,6 +2700,11 @@ class ClassLiteral final : public Expression {
 
   Handle<String> name() const { return raw_name_->string(); }
   const AstRawString* raw_name() const { return raw_name_; }
+  void set_raw_name(const AstRawString* name) {
+    DCHECK_NULL(raw_name_);
+    raw_name_ = name;
+  }
+
   Scope* scope() const { return scope_; }
   VariableProxy* class_variable_proxy() const { return class_variable_proxy_; }
   Expression* extends() const { return extends_; }

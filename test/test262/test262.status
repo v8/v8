@@ -143,9 +143,6 @@
   'language/computed-property-names/class/static/method-symbol': [FAIL, FAIL_SLOPPY],
   'language/computed-property-names/class/static/method-string': [FAIL, FAIL_SLOPPY],
 
-  # https://code.google.com/p/v8/issues/detail?id=3673
-  'language/statements/class/definition/basics': [FAIL],
-
   # https://code.google.com/p/v8/issues/detail?id=3566
   'language/statements/for-of/body-dstr-assign-error': [FAIL],
   'language/statements/for-of/body-put-error': [FAIL],
@@ -251,6 +248,7 @@
   'language/expressions/object/method-definition/fn-name-cover': [FAIL],
   'language/expressions/object/method-definition/fn-name-fn': [FAIL],
   'language/expressions/object/method-definition/fn-name-gen': [FAIL],
+  'language/statements/class/definition/basics': [FAIL],
   'language/statements/class/definition/fn-name-accessor-get': [FAIL],
   'language/statements/class/definition/fn-name-accessor-set': [FAIL],
   'language/statements/class/definition/fn-name-gen-method': [FAIL],

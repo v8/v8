@@ -933,6 +933,7 @@ Parser::Parser(ParseInfo* info)
   set_allow_strong_mode(FLAG_strong_mode);
   set_allow_legacy_const(FLAG_legacy_const);
   set_allow_harmony_do_expressions(FLAG_harmony_do_expressions);
+  set_allow_harmony_function_name(FLAG_harmony_function_name);
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
     use_counts_[feature] = 0;
@@ -2565,6 +2566,21 @@ void Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
           fni_->RemoveLastFunction();
         }
       }
+
+      if (allow_harmony_function_name() && single_name) {
+        if (value->IsFunctionLiteral()) {
+          auto function_literal = value->AsFunctionLiteral();
+          if (function_literal->is_anonymous()) {
+            function_literal->set_raw_name(single_name);
+          }
+        } else if (value->IsClassLiteral()) {
+          auto class_literal = value->AsClassLiteral();
+          if (class_literal->raw_name() == nullptr) {
+            class_literal->set_raw_name(single_name);
+          }
+        }
+      }
+
       // End position of the initializer is after the assignment expression.
       initializer_position = scanner()->location().end_pos;
     } else {
@@ -4908,6 +4924,7 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
     SET_ALLOW(harmony_destructuring_bind);
     SET_ALLOW(strong_mode);
     SET_ALLOW(harmony_do_expressions);
+    SET_ALLOW(harmony_function_name);
 #undef SET_ALLOW
   }
   PreParser::PreParseResult result = reusable_preparser_->PreParseLazyFunction(

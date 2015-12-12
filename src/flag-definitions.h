@@ -202,6 +202,7 @@ DEFINE_IMPLICATION(es_staging, harmony_destructuring_assignment)
   V(harmony_modules, "harmony modules")                               \
   V(harmony_proxies, "harmony proxies")                               \
   V(harmony_unicode_regexps, "harmony unicode regexps")               \
+  V(harmony_function_name, "harmony Function name inference")         \
   V(harmony_reflect, "harmony Reflect API")                           \
   V(harmony_sloppy_function, "harmony sloppy function block scoping") \
   V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")           \
