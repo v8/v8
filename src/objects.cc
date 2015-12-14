@@ -799,18 +799,24 @@ MaybeHandle<Object> JSProxy::GetProperty(Isolate* isolate,
                         !target_desc.configurable() &&
                         !target_desc.writable() &&
                         !trap_result->SameValue(*target_desc.value());
+    if (inconsistent) {
+      THROW_NEW_ERROR(
+          isolate, NewTypeError(MessageTemplate::kProxyGetNonConfigurableData,
+                                name, target_desc.value(), trap_result),
+          Object);
+    }
     // 10.b. If IsAccessorDescriptor(targetDesc) and targetDesc.[[Configurable]]
     //       is false and targetDesc.[[Get]] is undefined, then
     // 10.b.i. If trapResult is not undefined, throw a TypeError exception.
-    inconsistent =
-        inconsistent ||
-        (PropertyDescriptor::IsAccessorDescriptor(&target_desc) &&
-         !target_desc.configurable() && target_desc.get()->IsUndefined() &&
-         !trap_result->IsUndefined());
+    inconsistent = PropertyDescriptor::IsAccessorDescriptor(&target_desc) &&
+                   !target_desc.configurable() &&
+                   target_desc.get()->IsUndefined() &&
+                   !trap_result->IsUndefined();
     if (inconsistent) {
       THROW_NEW_ERROR(
           isolate,
-          NewTypeError(MessageTemplate::kProxyTrapViolatesInvariant, trap_name),
+          NewTypeError(MessageTemplate::kProxyGetNonConfigurableAccessor, name,
+                       trap_result),
           Object);
     }
   }
@@ -987,8 +993,7 @@ MaybeHandle<Object> JSProxy::GetPrototype(Handle<JSProxy> proxy) {
   // 8. If Type(handlerProto) is neither Object nor Null, throw a TypeError.
   if (!(handler_proto->IsJSReceiver() || handler_proto->IsNull())) {
     THROW_NEW_ERROR(isolate,
-                    NewTypeError(MessageTemplate::kProxyHandlerTrapMissing,
-                                 handler, trap_name),
+                    NewTypeError(MessageTemplate::kProxyGetPrototypeOfInvalid),
                     Object);
   }
   // 9. Let extensibleTarget be ? IsExtensible(target).
@@ -1002,10 +1007,10 @@ MaybeHandle<Object> JSProxy::GetPrototype(Handle<JSProxy> proxy) {
                              Object::GetPrototype(isolate, target), Object);
   // 12. If SameValue(handlerProto, targetProto) is false, throw a TypeError.
   if (!handler_proto->SameValue(*target_proto)) {
-    THROW_NEW_ERROR(isolate,
-                    NewTypeError(MessageTemplate::kProxyHandlerTrapMissing,
-                                 handler, trap_name),
-                    Object);
+    THROW_NEW_ERROR(
+        isolate,
+        NewTypeError(MessageTemplate::kProxyGetPrototypeOfNonExtensible),
+        Object);
   }
   // 13. Return handlerProto.
   return handler_proto;
@@ -4663,7 +4668,7 @@ Maybe<bool> JSProxy::HasProperty(Isolate* isolate, Handle<JSProxy> proxy,
       //       exception.
       if (!target_desc.configurable()) {
         isolate->Throw(*isolate->factory()->NewTypeError(
-            MessageTemplate::kProxyTargetPropNotConfigurable, name));
+            MessageTemplate::kProxyHasNonConfigurable, name));
         return Nothing<bool>();
       }
       // 9b ii. Let extensibleTarget be ? IsExtensible(target).
@@ -4672,7 +4677,7 @@ Maybe<bool> JSProxy::HasProperty(Isolate* isolate, Handle<JSProxy> proxy,
       // 9b iii. If extensibleTarget is false, throw a TypeError exception.
       if (!extensible_target.FromJust()) {
         isolate->Throw(*isolate->factory()->NewTypeError(
-            MessageTemplate::kProxyTargetNotExtensible));
+            MessageTemplate::kProxyHasNonExtensible, name));
         return Nothing<bool>();
       }
     }
@@ -4717,8 +4722,8 @@ Maybe<bool> JSProxy::SetProperty(Handle<JSProxy> proxy, Handle<Name> name,
       Nothing<bool>());
   if (!trap_result->BooleanValue()) {
     RETURN_FAILURE(isolate, should_throw,
-                   NewTypeError(MessageTemplate::kProxyTrapReturnedFalseish,
-                                handler, trap_result, trap_name));
+                   NewTypeError(MessageTemplate::kProxyTrapReturnedFalsishFor,
+                                trap_name, name));
   }
 
   // Enforce the invariant.
@@ -4727,15 +4732,21 @@ Maybe<bool> JSProxy::SetProperty(Handle<JSProxy> proxy, Handle<Name> name,
       JSReceiver::GetOwnPropertyDescriptor(isolate, target, name, &target_desc);
   MAYBE_RETURN(owned, Nothing<bool>());
   if (owned.FromJust()) {
-    bool inconsistent =
-        (PropertyDescriptor::IsDataDescriptor(&target_desc) &&
-         !target_desc.configurable() && !target_desc.writable() &&
-         !value->SameValue(*target_desc.value())) ||
-        (PropertyDescriptor::IsAccessorDescriptor(&target_desc) &&
-         !target_desc.configurable() && target_desc.set()->IsUndefined());
+    bool inconsistent = PropertyDescriptor::IsDataDescriptor(&target_desc) &&
+                        !target_desc.configurable() &&
+                        !target_desc.writable() &&
+                        !value->SameValue(*target_desc.value());
     if (inconsistent) {
       isolate->Throw(*isolate->factory()->NewTypeError(
-          MessageTemplate::kProxyTrapViolatesInvariant, trap_name));
+          MessageTemplate::kProxySetFrozenData, name));
+      return Nothing<bool>();
+    }
+    inconsistent = PropertyDescriptor::IsAccessorDescriptor(&target_desc) &&
+                   !target_desc.configurable() &&
+                   target_desc.set()->IsUndefined();
+    if (inconsistent) {
+      isolate->Throw(*isolate->factory()->NewTypeError(
+          MessageTemplate::kProxySetFrozenAccessor, name));
       return Nothing<bool>();
     }
   }
@@ -4775,8 +4786,8 @@ Maybe<bool> JSProxy::DeletePropertyOrElement(Handle<JSProxy> proxy,
       Nothing<bool>());
   if (!trap_result->BooleanValue()) {
     RETURN_FAILURE(isolate, should_throw,
-                   NewTypeError(MessageTemplate::kProxyTrapReturnedFalseish,
-                                handler, trap_result, trap_name));
+                   NewTypeError(MessageTemplate::kProxyTrapReturnedFalsishFor,
+                                trap_name, name));
   }
 
   // Enforce the invariant.
@@ -4786,7 +4797,7 @@ Maybe<bool> JSProxy::DeletePropertyOrElement(Handle<JSProxy> proxy,
   MAYBE_RETURN(owned, Nothing<bool>());
   if (owned.FromJust() && !target_desc.configurable()) {
     isolate->Throw(*factory->NewTypeError(
-        MessageTemplate::kProxyDeletePropertyViolatesInvariant, name));
+        MessageTemplate::kProxyDeletePropertyNonConfigurable, name));
     return Nothing<bool>();
   }
   return Just(true);
@@ -6255,11 +6266,12 @@ Maybe<bool> JSReceiver::OrdinaryDefineOwnProperty(LookupIterator* it,
 // static
 Maybe<bool> JSReceiver::IsCompatiblePropertyDescriptor(
     Isolate* isolate, bool extensible, PropertyDescriptor* desc,
-    PropertyDescriptor* current, Handle<Name> property_name) {
+    PropertyDescriptor* current, Handle<Name> property_name,
+    ShouldThrow should_throw) {
   // 1. Return ValidateAndApplyPropertyDescriptor(undefined, undefined,
   //    Extensible, Desc, Current).
   return ValidateAndApplyPropertyDescriptor(
-      isolate, NULL, extensible, desc, current, THROW_ON_ERROR, property_name);
+      isolate, NULL, extensible, desc, current, should_throw, property_name);
 }
 
 
@@ -6829,8 +6841,8 @@ Maybe<bool> JSProxy::DefineOwnProperty(Isolate* isolate, Handle<JSProxy> proxy,
   // 10. If booleanTrapResult is false, return false.
   if (!trap_result_obj->BooleanValue()) {
     RETURN_FAILURE(isolate, should_throw,
-                   NewTypeError(MessageTemplate::kProxyTrapReturnedFalseish,
-                                handler, trap_result_obj, trap_name));
+                   NewTypeError(MessageTemplate::kProxyTrapReturnedFalsishFor,
+                                trap_name, property_name));
   }
   // 11. Let targetDesc be ? target.[[GetOwnProperty]](P).
   PropertyDescriptor target_desc;
@@ -6851,30 +6863,33 @@ Maybe<bool> JSProxy::DefineOwnProperty(Isolate* isolate, Handle<JSProxy> proxy,
     // 15a. If extensibleTarget is false, throw a TypeError exception.
     if (!extensible_target) {
       isolate->Throw(*isolate->factory()->NewTypeError(
-          MessageTemplate::kProxyTargetNotExtensible));
+          MessageTemplate::kProxyDefinePropertyNonExtensible, property_name));
       return Nothing<bool>();
     }
     // 15b. If settingConfigFalse is true, throw a TypeError exception.
     if (setting_config_false) {
-      // TODO(jkummerow): Better error message?
       isolate->Throw(*isolate->factory()->NewTypeError(
-          MessageTemplate::kRedefineDisallowed, key));
+          MessageTemplate::kProxyDefinePropertyNonConfigurable, property_name));
       return Nothing<bool>();
     }
   } else {
     // 16. Else targetDesc is not undefined,
     // 16a. If IsCompatiblePropertyDescriptor(extensibleTarget, Desc,
     //      targetDesc) is false, throw a TypeError exception.
-    Maybe<bool> valid = IsCompatiblePropertyDescriptor(
-        isolate, extensible_target, desc, &target_desc, property_name);
+    Maybe<bool> valid =
+        IsCompatiblePropertyDescriptor(isolate, extensible_target, desc,
+                                       &target_desc, property_name, DONT_THROW);
     MAYBE_RETURN(valid, Nothing<bool>());
-    DCHECK(valid.FromJust());
+    if (!valid.FromJust()) {
+      isolate->Throw(*isolate->factory()->NewTypeError(
+          MessageTemplate::kProxyDefinePropertyIncompatible, property_name));
+      return Nothing<bool>();
+    }
     // 16b. If settingConfigFalse is true and targetDesc.[[Configurable]] is
     //      true, throw a TypeError exception.
     if (setting_config_false && target_desc.configurable()) {
-      // TODO(jkummerow): Better error message?
       isolate->Throw(*isolate->factory()->NewTypeError(
-          MessageTemplate::kRedefineDisallowed, key));
+          MessageTemplate::kProxyDefinePropertyNonConfigurable, property_name));
       return Nothing<bool>();
     }
   }
@@ -6997,8 +7012,7 @@ Maybe<bool> JSProxy::GetOwnPropertyDescriptor(Isolate* isolate,
   //    TypeError exception.
   if (!trap_result_obj->IsJSReceiver() && !trap_result_obj->IsUndefined()) {
     isolate->Throw(*isolate->factory()->NewTypeError(
-        MessageTemplate::kProxyTrapReturnedFalseish, handler, trap_result_obj,
-        trap_name));
+        MessageTemplate::kProxyGetOwnPropertyDescriptorInvalid, name));
     return Nothing<bool>();
   }
   // 10. Let targetDesc be ? target.[[GetOwnProperty]](P).
@@ -7014,7 +7028,7 @@ Maybe<bool> JSProxy::GetOwnPropertyDescriptor(Isolate* isolate,
     //      exception.
     if (!target_desc.configurable()) {
       isolate->Throw(*isolate->factory()->NewTypeError(
-          MessageTemplate::kProxyTargetPropNotConfigurable, name));
+          MessageTemplate::kProxyGetOwnPropertyDescriptorUndefined, name));
       return Nothing<bool>();
     }
     // 11c. Let extensibleTarget be ? IsExtensible(target).
@@ -7024,7 +7038,7 @@ Maybe<bool> JSProxy::GetOwnPropertyDescriptor(Isolate* isolate,
     // 11e. If extensibleTarget is false, throw a TypeError exception.
     if (!extensible_target.FromJust()) {
       isolate->Throw(*isolate->factory()->NewTypeError(
-          MessageTemplate::kProxyTargetNotExtensible));
+          MessageTemplate::kProxyGetOwnPropertyDescriptorNonExtensible, name));
       return Nothing<bool>();
     }
     // 11f. Return undefined.
@@ -7043,18 +7057,23 @@ Maybe<bool> JSProxy::GetOwnPropertyDescriptor(Isolate* isolate,
   PropertyDescriptor::CompletePropertyDescriptor(isolate, desc);
   // 15. Let valid be IsCompatiblePropertyDescriptor (extensibleTarget,
   //     resultDesc, targetDesc).
-  Maybe<bool> valid = IsCompatiblePropertyDescriptor(
-      isolate, extensible_target.FromJust(), desc, &target_desc, name);
-  // 16. If valid is false, throw a TypeError exception.
+  Maybe<bool> valid =
+      IsCompatiblePropertyDescriptor(isolate, extensible_target.FromJust(),
+                                     desc, &target_desc, name, DONT_THROW);
   MAYBE_RETURN(valid, Nothing<bool>());
-  DCHECK(valid.FromJust());
+  // 16. If valid is false, throw a TypeError exception.
+  if (!valid.FromJust()) {
+    isolate->Throw(*isolate->factory()->NewTypeError(
+        MessageTemplate::kProxyGetOwnPropertyDescriptorIncompatible, name));
+    return Nothing<bool>();
+  }
   // 17. If resultDesc.[[Configurable]] is false, then
   if (!desc->configurable()) {
     // 17a. If targetDesc is undefined or targetDesc.[[Configurable]] is true:
     if (target_desc.is_empty() || target_desc.configurable()) {
       // 17a i. Throw a TypeError exception.
       isolate->Throw(*isolate->factory()->NewTypeError(
-          MessageTemplate::kProxyTrapDescriptorNonConfigurable, trap_name,
+          MessageTemplate::kProxyGetOwnPropertyDescriptorNonConfigurable,
           name));
       return Nothing<bool>();
     }
@@ -7337,9 +7356,9 @@ Maybe<bool> JSProxy::PreventExtensions(Handle<JSProxy> proxy,
       Execution::Call(isolate, trap, handler, arraysize(args), args),
       Nothing<bool>());
   if (!trap_result->BooleanValue()) {
-    RETURN_FAILURE(isolate, should_throw,
-                   NewTypeError(MessageTemplate::kProxyTrapReturned, handler,
-                                trap_result, trap_name));
+    RETURN_FAILURE(
+        isolate, should_throw,
+        NewTypeError(MessageTemplate::kProxyTrapReturnedFalsish, trap_name));
   }
 
   // Enforce the invariant.
@@ -7347,7 +7366,7 @@ Maybe<bool> JSProxy::PreventExtensions(Handle<JSProxy> proxy,
   MAYBE_RETURN(target_result, Nothing<bool>());
   if (target_result.FromJust()) {
     isolate->Throw(*factory->NewTypeError(
-        MessageTemplate::kProxyPreventExtensionsViolatesInvariant));
+        MessageTemplate::kProxyPreventExtensionsExtensible));
     return Nothing<bool>();
   }
   return Just(true);
@@ -7450,8 +7469,9 @@ Maybe<bool> JSProxy::IsExtensible(Handle<JSProxy> proxy) {
   Maybe<bool> target_result = JSReceiver::IsExtensible(target);
   MAYBE_RETURN(target_result, Nothing<bool>());
   if (target_result.FromJust() != trap_result->BooleanValue()) {
-    isolate->Throw(*factory->NewTypeError(
-        MessageTemplate::kProxyTrapViolatesInvariant, trap_name));
+    isolate->Throw(
+        *factory->NewTypeError(MessageTemplate::kProxyIsExtensibleInconsistent,
+                               factory->ToBoolean(target_result.FromJust())));
     return Nothing<bool>();
   }
   return target_result;
@@ -8578,8 +8598,7 @@ Maybe<bool> JSProxy::OwnPropertyKeys(Isolate* isolate,
     int* found = unchecked_result_keys.Find(key);
     if (found == nullptr || *found == kGone) {
       isolate->Throw(*isolate->factory()->NewTypeError(
-          MessageTemplate::kProxyTrapOwnKeysResultMustInclude,
-          handle(key, isolate)));
+          MessageTemplate::kProxyOwnKeysMissing, handle(key, isolate)));
       return Nothing<bool>();
     }
     // 17b. Remove key from uncheckedResultKeys.
@@ -8599,8 +8618,7 @@ Maybe<bool> JSProxy::OwnPropertyKeys(Isolate* isolate,
     int* found = unchecked_result_keys.Find(key);
     if (found == nullptr || *found == kGone) {
       isolate->Throw(*isolate->factory()->NewTypeError(
-          MessageTemplate::kProxyTrapOwnKeysResultMustInclude,
-          handle(key, isolate)));
+          MessageTemplate::kProxyOwnKeysMissing, handle(key, isolate)));
       return Nothing<bool>();
     }
     // 19b. Remove key from uncheckedResultKeys.
@@ -8611,7 +8629,7 @@ Maybe<bool> JSProxy::OwnPropertyKeys(Isolate* isolate,
   if (unchecked_result_keys_size != 0) {
     DCHECK_GT(unchecked_result_keys_size, 0);
     isolate->Throw(*isolate->factory()->NewTypeError(
-        MessageTemplate::kProxyTargetNotExtensible));
+        MessageTemplate::kProxyOwnKeysNonExtensible));
     return Nothing<bool>();
   }
   // 21. Return trapResult.
@@ -15153,7 +15171,12 @@ Maybe<bool> JSProxy::SetPrototype(Handle<JSProxy> proxy, Handle<Object> value,
   Maybe<bool> is_extensible = JSReceiver::IsExtensible(target);
   if (is_extensible.IsNothing()) return Nothing<bool>();
   // 10. If extensibleTarget is true, return booleanTrapResult.
-  if (is_extensible.FromJust()) return Just(bool_trap_result);
+  if (is_extensible.FromJust()) {
+    if (bool_trap_result) return Just(true);
+    RETURN_FAILURE(
+        isolate, should_throw,
+        NewTypeError(MessageTemplate::kProxyTrapReturnedFalsish, trap_name));
+  }
   // 11. Let targetProto be ? target.[[GetPrototypeOf]]().
   Handle<Object> target_proto;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, target_proto,
@@ -15163,11 +15186,14 @@ Maybe<bool> JSProxy::SetPrototype(Handle<JSProxy> proxy, Handle<Object> value,
   // throw a TypeError exception.
   if (bool_trap_result && !value->SameValue(*target_proto)) {
     isolate->Throw(*isolate->factory()->NewTypeError(
-        MessageTemplate::kProxyTrapViolatesInvariant, trap_name));
+        MessageTemplate::kProxySetPrototypeOfNonExtensible));
     return Nothing<bool>();
   }
   // 13. Return booleanTrapResult.
-  return Just(bool_trap_result);
+  if (bool_trap_result) return Just(true);
+  RETURN_FAILURE(
+      isolate, should_throw,
+      NewTypeError(MessageTemplate::kProxyTrapReturnedFalsish, trap_name));
 }
 
 

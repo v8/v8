@@ -1829,8 +1829,8 @@ namespace {
 MaybeHandle<JSProxy> ProxyCreate(Isolate* isolate, Handle<Object> target,
                                  Handle<Object> handler) {
   if (!target->IsJSReceiver()) {
-    THROW_NEW_ERROR(
-        isolate, NewTypeError(MessageTemplate::kProxyTargetNonObject), JSProxy);
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kProxyNonObject),
+                    JSProxy);
   }
   if (target->IsJSProxy() && JSProxy::cast(*target)->IsRevoked()) {
     THROW_NEW_ERROR(isolate,
@@ -1838,8 +1838,7 @@ MaybeHandle<JSProxy> ProxyCreate(Isolate* isolate, Handle<Object> target,
                     JSProxy);
   }
   if (!handler->IsJSReceiver()) {
-    THROW_NEW_ERROR(isolate,
-                    NewTypeError(MessageTemplate::kProxyHandlerNonObject),
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kProxyNonObject),
                     JSProxy);
   }
   if (handler->IsJSProxy() && JSProxy::cast(*handler)->IsRevoked()) {

@@ -1847,7 +1847,8 @@ class JSReceiver: public HeapObject {
   // ES6 9.1.6.2
   MUST_USE_RESULT static Maybe<bool> IsCompatiblePropertyDescriptor(
       Isolate* isolate, bool extensible, PropertyDescriptor* desc,
-      PropertyDescriptor* current, Handle<Name> property_name);
+      PropertyDescriptor* current, Handle<Name> property_name,
+      ShouldThrow should_throw);
   // ES6 9.1.6.3
   // |it| can be NULL in cases where the ES spec passes |undefined| as the
   // receiver. Exactly one of |it| and |property_name| must be provided.

@@ -134,8 +134,7 @@ RUNTIME_FUNCTION(Runtime_JSProxyConstruct) {
   if (!new_object->IsJSReceiver()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate,
-        NewTypeError(MessageTemplate::kProxyTrapConstructMustReturnObject,
-                     new_object));
+        NewTypeError(MessageTemplate::kProxyConstructNonObject, new_object));
   }
   // 10. Return newObj.
   return *new_object;

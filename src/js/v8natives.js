@@ -475,11 +475,11 @@ function GetTrap(handler, name, defaultTrap) {
   var trap = handler[name];
   if (IS_UNDEFINED(trap)) {
     if (IS_UNDEFINED(defaultTrap)) {
-      throw MakeTypeError(kProxyHandlerTrapMissing, handler, name);
+      throw MakeTypeError(kIllegalInvocation);
     }
     trap = defaultTrap;
   } else if (!IS_CALLABLE(trap)) {
-    throw MakeTypeError(kProxyHandlerTrapMustBeCallable, handler, name);
+    throw MakeTypeError(kIllegalInvocation);
   }
   return trap;
 }
@@ -510,8 +510,7 @@ function GetOwnPropertyJS(obj, v) {
     if (IS_UNDEFINED(descriptor)) return descriptor;
     var desc = ToCompletePropertyDescriptor(descriptor);
     if (!desc.isConfigurable()) {
-      throw MakeTypeError(kProxyPropNotConfigurable,
-                          handler, p, "getOwnPropertyDescriptor");
+      throw MakeTypeError(kIllegalInvocation);
     }
     return desc;
   }
@@ -543,8 +542,7 @@ function DefineProxyProperty(obj, p, attributes, should_throw) {
   var result = CallTrap2(handler, "defineProperty", UNDEFINED, p, attributes);
   if (!result) {
     if (should_throw) {
-      throw MakeTypeError(kProxyTrapReturned,
-                          handler, "false", "defineProperty");
+      throw MakeTypeError(kIllegalInvocation);
     } else {
       return false;
     }
@@ -782,7 +780,7 @@ function ObjectGetPrototypeOf(obj) {
   return %_GetPrototype(TO_OBJECT(obj));
 }
 
-// ES6 section 19.1.2.19.
+// ES6 section 19.1.2.18.
 function ObjectSetPrototypeOf(obj, proto) {
   CHECK_OBJECT_COERCIBLE(obj, "Object.setPrototypeOf");
 
