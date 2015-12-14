@@ -178,7 +178,6 @@ CompilationInfo::CompilationInfo(ParseInfo* parse_info, CodeStub* code_stub,
       parameter_count_(0),
       optimization_id_(-1),
       osr_expr_stack_height_(0),
-      function_type_(nullptr),
       debug_name_(debug_name) {
   // Parameter count is number of stack parameters.
   if (code_stub_ != NULL) {
@@ -202,14 +201,6 @@ CompilationInfo::~CompilationInfo() {
   // been rolled back or committed.
   DCHECK(dependencies()->IsEmpty());
 #endif  // DEBUG
-}
-
-
-void CompilationInfo::SetStub(CodeStub* code_stub) {
-  SetMode(STUB);
-  code_stub_ = code_stub;
-  debug_name_ = CodeStub::MajorName(code_stub->MajorKey());
-  set_output_code_kind(code_stub->GetCodeKind());
 }
 
 
@@ -995,23 +986,6 @@ MaybeHandle<Code> Compiler::GetLazyCode(Handle<JSFunction> function) {
   }
 
   return result;
-}
-
-
-MaybeHandle<Code> Compiler::GetStubCode(Handle<JSFunction> function,
-                                        CodeStub* stub) {
-  // Build a "hybrid" CompilationInfo for a JSFunction/CodeStub pair.
-  Zone zone;
-  ParseInfo parse_info(&zone, function);
-  CompilationInfo info(&parse_info);
-  info.SetFunctionType(stub->GetCallInterfaceDescriptor().GetFunctionType());
-  info.MarkAsFunctionContextSpecializing();
-  info.MarkAsDeoptimizationEnabled();
-  info.SetStub(stub);
-
-  // Run a "mini pipeline", extracted from compiler.cc.
-  if (!ParseAndAnalyze(&parse_info)) return MaybeHandle<Code>();
-  return compiler::Pipeline(&info).GenerateCode();
 }
 
 

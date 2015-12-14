@@ -1141,7 +1141,7 @@ Handle<Code> Pipeline::GenerateCode() {
                           info()->is_deoptimization_enabled()
                               ? Typer::kDeoptimizationEnabled
                               : Typer::kNoFlags,
-                          info()->dependencies(), info()->function_type()));
+                          info()->dependencies()));
     Run<TyperPhase>(typer.get());
     RunPrintAndVerify("Typed");
   }

@@ -314,13 +314,6 @@ class CompilationInfo {
     set_output_code_kind(Code::OPTIMIZED_FUNCTION);
   }
 
-  void SetFunctionType(Type::FunctionType* function_type) {
-    function_type_ = function_type;
-  }
-  Type::FunctionType* function_type() const { return function_type_; }
-
-  void SetStub(CodeStub* code_stub);
-
   // Deoptimization support.
   bool HasDeoptimizationSupport() const {
     return GetFlag(kDeoptimizationSupport);
@@ -525,8 +518,6 @@ class CompilationInfo {
   // The current OSR frame for specialization or {nullptr}.
   JavaScriptFrame* osr_frame_ = nullptr;
 
-  Type::FunctionType* function_type_;
-
   const char* debug_name_;
 
   DISALLOW_COPY_AND_ASSIGN(CompilationInfo);
@@ -651,8 +642,6 @@ class Compiler : public AllStatic {
       Handle<JSFunction> function);
   MUST_USE_RESULT static MaybeHandle<Code> GetLazyCode(
       Handle<JSFunction> function);
-  MUST_USE_RESULT static MaybeHandle<Code> GetStubCode(
-      Handle<JSFunction> function, CodeStub* stub);
 
   static bool Compile(Handle<JSFunction> function, ClearExceptionFlag flag);
   static bool CompileDebugCode(Handle<JSFunction> function);
