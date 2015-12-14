@@ -10507,7 +10507,7 @@ Handle<DescriptorArray> DescriptorArray::Allocate(Isolate* isolate,
   int size = number_of_descriptors + slack;
   if (size == 0) return factory->empty_descriptor_array();
   // Allocate the array of keys.
-  Handle<FixedArray> result = factory->NewFixedArray(LengthFor(size));
+  Handle<FixedArray> result = factory->NewFixedArray(LengthFor(size), TENURED);
 
   result->set(kDescriptorLengthIndex, Smi::FromInt(number_of_descriptors));
   result->set(kEnumCacheIndex, Smi::FromInt(0));
