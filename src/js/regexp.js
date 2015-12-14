@@ -16,6 +16,7 @@ var InternalArray = utils.InternalArray;
 var InternalPackedArray = utils.InternalPackedArray;
 var MakeTypeError;
 var matchSymbol = utils.ImportNow("match_symbol");
+var searchSymbol = utils.ImportNow("search_symbol");
 var splitSymbol = utils.ImportNow("split_symbol");
 
 utils.ImportFromExperimental(function(from) {
@@ -117,8 +118,7 @@ function RegExpCompileJS(pattern, flags) {
 
 
 function DoRegExpExec(regexp, string, index) {
-  var result = %_RegExpExec(regexp, string, index, RegExpLastMatchInfo);
-  return result;
+  return %_RegExpExec(regexp, string, index, RegExpLastMatchInfo);
 }
 
 
@@ -357,6 +357,7 @@ function RegExpSplit(string, limit) {
 
 // ES6 21.2.5.6.
 function RegExpMatch(string) {
+  // TODO(yangguo): allow non-regexp receivers.
   if (!IS_REGEXP(this)) {
     throw MakeTypeError(kIncompatibleMethodReceiver,
                         "RegExp.prototype.@@match", this);
@@ -367,6 +368,19 @@ function RegExpMatch(string) {
   this.lastIndex = 0;
   var result = %StringMatch(subject, this, RegExpLastMatchInfo);
   return result;
+}
+
+
+// ES6 21.2.5.9.
+function RegExpSearch(string) {
+  // TODO(yangguo): allow non-regexp receivers.
+  if (!IS_REGEXP(this)) {
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        "RegExp.prototype.@@search", this);
+  }
+  var match = DoRegExpExec(this, TO_STRING(string), 0);
+  if (match) return match[CAPTURE0];
+  return -1;
 }
 
 
@@ -488,6 +502,7 @@ utils.InstallFunctions(GlobalRegExp.prototype, DONT_ENUM, [
   "toString", RegExpToString,
   "compile", RegExpCompileJS,
   matchSymbol, RegExpMatch,
+  searchSymbol, RegExpSearch,
   splitSymbol, RegExpSplit,
 ]);
 
