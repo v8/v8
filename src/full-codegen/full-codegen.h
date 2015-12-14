@@ -495,6 +495,7 @@ class FullCodeGenerator: public AstVisitor {
   F(IsMinusZero)                        \
   F(HasCachedArrayIndex)                \
   F(GetCachedArrayIndex)                \
+  F(GetSuperConstructor)                \
   F(FastOneByteArrayJoin)               \
   F(GeneratorNext)                      \
   F(GeneratorThrow)                     \

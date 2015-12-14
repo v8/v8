@@ -3454,6 +3454,17 @@ void FullCodeGenerator::EmitGetCachedArrayIndex(CallRuntime* expr) {
 }
 
 
+void FullCodeGenerator::EmitGetSuperConstructor(CallRuntime* expr) {
+  ZoneList<Expression*>* args = expr->arguments();
+  DCHECK_EQ(1, args->length());
+  VisitForAccumulatorValue(args->at(0));
+  __ AssertFunction(x0);
+  __ Ldr(x0, FieldMemOperand(x0, HeapObject::kMapOffset));
+  __ Ldr(x0, FieldMemOperand(x0, Map::kPrototypeOffset));
+  context()->Plug(x0);
+}
+
+
 void FullCodeGenerator::EmitFastOneByteArrayJoin(CallRuntime* expr) {
   ASM_LOCATION("FullCodeGenerator::EmitFastOneByteArrayJoin");
 

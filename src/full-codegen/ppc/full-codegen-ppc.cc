@@ -3734,6 +3734,17 @@ void FullCodeGenerator::EmitGetCachedArrayIndex(CallRuntime* expr) {
 }
 
 
+void FullCodeGenerator::EmitGetSuperConstructor(CallRuntime* expr) {
+  ZoneList<Expression*>* args = expr->arguments();
+  DCHECK_EQ(1, args->length());
+  VisitForAccumulatorValue(args->at(0));
+  __ AssertFunction(r3);
+  __ ld(r3, FieldMemOperand(r3, HeapObject::kMapOffset));
+  __ ld(r3, FieldMemOperand(r3, Map::kPrototypeOffset));
+  context()->Plug(r3);
+}
+
+
 void FullCodeGenerator::EmitFastOneByteArrayJoin(CallRuntime* expr) {
   Label bailout, done, one_char_separator, long_separator, non_trivial_array,
       not_size_one_array, loop, empty_separator_loop, one_char_separator_loop,
