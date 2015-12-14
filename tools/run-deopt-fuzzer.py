@@ -390,6 +390,7 @@ def Execute(arch, mode, args, options, suites, workspace):
     "asan": options.asan,
     "deopt_fuzzer": True,
     "gc_stress": False,
+    "gcov_coverage": False,
     "ignition": False,
     "isolates": options.isolates,
     "mode": mode,

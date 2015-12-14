@@ -95,4 +95,11 @@
 }],  # 'gc_stress == True and mode == debug'
 
 ##############################################################################
+['gcov_coverage', {
+  # Tests taking too long or getting too large call stacks.
+  'fast/js/excessive-comma-usage': [SKIP],
+  'run-json-stringify': [SKIP],
+}],  # 'gcov_coverage'
+
+##############################################################################
 ]

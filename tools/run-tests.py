@@ -224,6 +224,9 @@ def BuildOptions():
   result.add_option("--gc-stress",
                     help="Switch on GC stress mode",
                     default=False, action="store_true")
+  result.add_option("--gcov-coverage",
+                    help="Uses executables instrumented for gcov coverage",
+                    default=False, action="store_true")
   result.add_option("--command-prefix",
                     help="Prepended to each shell command used to run a test",
                     default="")
@@ -688,6 +691,7 @@ def Execute(arch, mode, args, options, suites):
     "asan": options.asan,
     "deopt_fuzzer": False,
     "gc_stress": options.gc_stress,
+    "gcov_coverage": options.gcov_coverage,
     "ignition": options.ignition,
     "isolates": options.isolates,
     "mode": MODES[mode]["status_mode"],
