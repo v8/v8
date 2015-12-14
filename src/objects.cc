@@ -805,7 +805,8 @@ MaybeHandle<Object> JSProxy::GetProperty(Isolate* isolate,
     inconsistent =
         inconsistent ||
         (PropertyDescriptor::IsAccessorDescriptor(&target_desc) &&
-         !target_desc.configurable() && target_desc.get()->IsUndefined());
+         !target_desc.configurable() && target_desc.get()->IsUndefined() &&
+         !trap_result->IsUndefined());
     if (inconsistent) {
       THROW_NEW_ERROR(
           isolate,

@@ -52,7 +52,7 @@
 
 (function testFailingInvariant() {
   var target = {};
-  var handler = { get: function(){ return "value" }}
+  var handler = { get: function(r, p){ if (p != "key4") return "value" }}
   var proxy = new Proxy(target, handler);
   assertEquals("value", proxy.property);
   assertEquals("value", proxy.key);
@@ -92,6 +92,14 @@
   assertThrows(function(){ proxy.key }, TypeError);
   assertEquals("value", proxy.key2);
   assertThrows(function(){ proxy.key3 }, TypeError);
+
+  // Define a non-configurable setter without a corresponding getter on the
+  // target for which the handler will return undefined.
+  Object.defineProperty(target, "key4", {
+    configurable: false,
+    set: function() { }
+  });
+  assertSame(undefined, proxy.key4);
 })();
 
 (function testGetInternalIterators() {
