@@ -107,7 +107,7 @@ class EscapeAnalysis {
 
   void Run();
 
-  Node* GetReplacement(Node* at, NodeId id);
+  Node* GetReplacement(Node* node);
   bool IsVirtual(Node* node);
   bool IsEscaped(Node* node);
 
@@ -134,8 +134,16 @@ class EscapeAnalysis {
   int OffsetFromAccess(Node* node);
 
   VirtualObject* GetVirtualObject(Node* at, NodeId id);
+  VirtualObject* ResolveVirtualObject(VirtualState* state, Node* node);
+  Node* GetReplacementIfSame(ZoneVector<VirtualObject*>& objs);
 
   bool SetEscaped(Node* node);
+  Node* replacement(NodeId id);
+  Node* replacement(Node* node);
+  Node* ResolveReplacement(Node* node);
+  Node* GetReplacement(NodeId id);
+  bool SetReplacement(Node* node, Node* rep);
+  bool UpdateReplacement(VirtualState* state, Node* node, Node* rep);
 
   void DebugPrint();
   void DebugPrintState(VirtualState* state);
@@ -149,6 +157,7 @@ class EscapeAnalysis {
   CommonOperatorBuilder* const common_;
   Zone* const zone_;
   ZoneVector<VirtualState*> virtual_states_;
+  ZoneVector<Node*> replacements_;
   EscapeStatusAnalysis escape_status_;
   MergeCache cache_;
 
