@@ -364,17 +364,41 @@ void Bootstrapper::DetachGlobal(Handle<Context> env) {
 
 namespace {
 
-Handle<JSFunction> InstallFunction(Handle<JSObject> target,
-                                   Handle<Name> property_name,
-                                   Handle<JSFunction> function,
-                                   Handle<String> function_name,
-                                   PropertyAttributes attributes = DONT_ENUM) {
+void InstallFunction(Handle<JSObject> target, Handle<Name> property_name,
+                     Handle<JSFunction> function, Handle<String> function_name,
+                     PropertyAttributes attributes = DONT_ENUM) {
   JSObject::AddProperty(target, property_name, function, attributes);
   if (target->IsJSGlobalObject()) {
     function->shared()->set_instance_class_name(*function_name);
   }
   function->shared()->set_native(true);
-  return function;
+}
+
+
+static void InstallFunction(Handle<JSObject> target,
+                            Handle<JSFunction> function, Handle<Name> name,
+                            PropertyAttributes attributes = DONT_ENUM) {
+  Handle<String> name_string = Name::ToFunctionName(name).ToHandleChecked();
+  InstallFunction(target, name, function, name_string, attributes);
+}
+
+
+static Handle<JSFunction> CreateFunction(Isolate* isolate, Handle<String> name,
+                                         InstanceType type, int instance_size,
+                                         MaybeHandle<JSObject> maybe_prototype,
+                                         Builtins::Name call,
+                                         bool strict_function_map = false) {
+  Factory* factory = isolate->factory();
+  Handle<Code> call_code(isolate->builtins()->builtin(call));
+  Handle<JSObject> prototype;
+  static const bool kReadOnlyPrototype = false;
+  static const bool kInstallConstructor = false;
+  return maybe_prototype.ToHandle(&prototype)
+             ? factory->NewFunction(name, call_code, prototype, type,
+                                    instance_size, kReadOnlyPrototype,
+                                    kInstallConstructor, strict_function_map)
+             : factory->NewFunctionWithoutPrototype(name, call_code,
+                                                    strict_function_map);
 }
 
 
@@ -384,21 +408,12 @@ Handle<JSFunction> InstallFunction(Handle<JSObject> target, Handle<Name> name,
                                    Builtins::Name call,
                                    PropertyAttributes attributes,
                                    bool strict_function_map = false) {
-  Isolate* isolate = target->GetIsolate();
-  Factory* factory = isolate->factory();
   Handle<String> name_string = Name::ToFunctionName(name).ToHandleChecked();
-  Handle<Code> call_code(isolate->builtins()->builtin(call));
-  Handle<JSObject> prototype;
-  static const bool kReadOnlyPrototype = false;
-  static const bool kInstallConstructor = false;
   Handle<JSFunction> function =
-      maybe_prototype.ToHandle(&prototype)
-          ? factory->NewFunction(name_string, call_code, prototype, type,
-                                 instance_size, kReadOnlyPrototype,
-                                 kInstallConstructor, strict_function_map)
-          : factory->NewFunctionWithoutPrototype(name_string, call_code,
-                                                 strict_function_map);
-  return InstallFunction(target, name, function, name_string, attributes);
+      CreateFunction(target->GetIsolate(), name_string, type, instance_size,
+                     maybe_prototype, call, strict_function_map);
+  InstallFunction(target, name, function, name_string, attributes);
+  return function;
 }
 
 
@@ -1028,17 +1043,31 @@ void Genesis::HookUpGlobalObject(Handle<JSGlobalObject> global_object) {
 }
 
 
-static void SimpleInstallFunction(Handle<JSObject> base, Handle<Name> name,
-                                  Builtins::Name call, int len, bool adapt) {
+static Handle<JSFunction> SimpleCreateFunction(Isolate* isolate,
+                                               Handle<String> name,
+                                               Builtins::Name call, int len,
+                                               bool adapt) {
   Handle<JSFunction> fun =
-      InstallFunction(base, name, JS_OBJECT_TYPE, JSObject::kHeaderSize,
-                      MaybeHandle<JSObject>(), call, DONT_ENUM);
+      CreateFunction(isolate, name, JS_OBJECT_TYPE, JSObject::kHeaderSize,
+                     MaybeHandle<JSObject>(), call);
   if (adapt) {
     fun->shared()->set_internal_formal_parameter_count(len);
   } else {
     fun->shared()->DontAdaptArguments();
   }
   fun->shared()->set_length(len);
+  return fun;
+}
+
+
+static Handle<JSFunction> SimpleInstallFunction(Handle<JSObject> base,
+                                                Handle<String> name,
+                                                Builtins::Name call, int len,
+                                                bool adapt) {
+  Handle<JSFunction> fun =
+      SimpleCreateFunction(base->GetIsolate(), name, call, len, adapt);
+  InstallFunction(base, fun, name, DONT_ENUM);
+  return fun;
 }
 
 
@@ -1146,9 +1175,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     initial_strong_map->set_is_strong();
     CacheInitialJSArrayMaps(native_context(), initial_strong_map);
 
-    SimpleInstallFunction(array_function,
-                          isolate->factory()->InternalizeUtf8String("isArray"),
-                          Builtins::kArrayIsArray, 1, true);
+    Handle<JSFunction> is_arraylike = SimpleInstallFunction(
+        array_function, isolate->factory()->InternalizeUtf8String("isArray"),
+        Builtins::kArrayIsArray, 1, true);
+    native_context()->set_is_arraylike(*is_arraylike);
   }
 
   {  // --- N u m b e r ---
@@ -2157,9 +2187,23 @@ void Genesis::InitializeGlobal_harmony_regexp_subclass() {
 
 
 void Genesis::InitializeGlobal_harmony_reflect() {
+  Factory* factory = isolate()->factory();
+
+  // We currently use some of the Reflect functions internally, even when
+  // the --harmony-reflect flag is not given.
+
+  Handle<JSFunction> define_property =
+      SimpleCreateFunction(isolate(), factory->defineProperty_string(),
+                           Builtins::kReflectDefineProperty, 3, true);
+  native_context()->set_reflect_define_property(*define_property);
+
+  Handle<JSFunction> delete_property =
+      SimpleCreateFunction(isolate(), factory->deleteProperty_string(),
+                           Builtins::kReflectDeleteProperty, 2, true);
+  native_context()->set_reflect_delete_property(*delete_property);
+
   if (!FLAG_harmony_reflect) return;
 
-  Factory* factory = isolate()->factory();
   Handle<JSGlobalObject> global(JSGlobalObject::cast(
       native_context()->global_object()));
   Handle<String> reflect_string = factory->NewStringFromStaticChars("Reflect");
@@ -2167,10 +2211,9 @@ void Genesis::InitializeGlobal_harmony_reflect() {
       factory->NewJSObject(isolate()->object_function(), TENURED);
   JSObject::AddProperty(global, reflect_string, reflect, DONT_ENUM);
 
-  SimpleInstallFunction(reflect, factory->defineProperty_string(),
-                        Builtins::kReflectDefineProperty, 3, true);
-  SimpleInstallFunction(reflect, factory->deleteProperty_string(),
-                        Builtins::kReflectDeleteProperty, 2, true);
+  InstallFunction(reflect, define_property, factory->defineProperty_string());
+  InstallFunction(reflect, delete_property, factory->deleteProperty_string());
+
   SimpleInstallFunction(reflect, factory->get_string(),
                         Builtins::kReflectGet, 2, false);
   SimpleInstallFunction(reflect, factory->getOwnPropertyDescriptor_string(),

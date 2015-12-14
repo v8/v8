@@ -489,3 +489,32 @@ assertTrue(Object.prototype.isPrototypeOf(o2));
 
 var json = '{"stuff before slash\\\\stuff after slash":"whatever"}';
 TestStringify(json, JSON.parse(json));
+
+
+// https://bugs.chromium.org/p/v8/issues/detail?id=3139
+
+reviver = function(p, v) {
+  if (p == "a") {
+    this.b = { get x() {return null}, set x(_){throw 666} }
+  }
+  return v;
+}
+assertEquals({a: 0, b: {x: null}}, JSON.parse('{"a":0,"b":1}', reviver));
+
+
+// Make sure a failed [[Delete]] doesn't throw
+
+reviver = function(p, v) {
+  Object.freeze(this);
+  return p === "" ? v : undefined;
+}
+assertEquals({a: 0, b: 1}, JSON.parse('{"a":0,"b":1}', reviver));
+
+
+// Make sure a failed [[DefineProperty]] doesn't throw
+
+reviver = function(p, v) {
+  Object.freeze(this);
+  return p === "" ? v : 42;
+}
+assertEquals({a: 0, b: 1}, JSON.parse('{"a":0,"b":1}', reviver));

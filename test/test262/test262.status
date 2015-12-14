@@ -566,6 +566,7 @@
   'built-ins/Array/prototype/toString/S15.4.4.2_A1_T4': [SKIP],
   'built-ins/Date/15.9.1.15-1': [SKIP],
   'built-ins/Date/prototype/toISOString/15.9.5.43-0-13': [SKIP],
+  'built-ins/JSON/stringify/*': [SKIP],
   'built-ins/Object/defineProperty/15.2.3.6-4-625gs': [SKIP],
   'built-ins/Object/prototype/hasOwnProperty/S15.2.4.5_A12': [SKIP],
   'built-ins/Object/prototype/isPrototypeOf/S15.2.4.6_A12': [SKIP],

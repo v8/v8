@@ -78,12 +78,15 @@ enum BindingFlags {
 // Factory::NewContext.
 
 #define NATIVE_CONTEXT_INTRINSIC_FUNCTIONS(V)                             \
+  V(IS_ARRAYLIKE, JSFunction, is_arraylike)                               \
   V(CONCAT_ITERABLE_TO_ARRAY_INDEX, JSFunction, concat_iterable_to_array) \
   V(GET_TEMPLATE_CALL_SITE_INDEX, JSFunction, get_template_call_site)     \
   V(MAKE_RANGE_ERROR_INDEX, JSFunction, make_range_error)                 \
   V(MAKE_TYPE_ERROR_INDEX, JSFunction, make_type_error)                   \
   V(REFLECT_APPLY_INDEX, JSFunction, reflect_apply)                       \
   V(REFLECT_CONSTRUCT_INDEX, JSFunction, reflect_construct)               \
+  V(REFLECT_DEFINE_PROPERTY_INDEX, JSFunction, reflect_define_property)   \
+  V(REFLECT_DELETE_PROPERTY_INDEX, JSFunction, reflect_delete_property)   \
   V(SPREAD_ARGUMENTS_INDEX, JSFunction, spread_arguments)                 \
   V(SPREAD_ITERABLE_INDEX, JSFunction, spread_iterable)
 
