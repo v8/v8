@@ -5,22 +5,18 @@
 // Flags: --harmony-proxies
 
 
-// TODO(arv): Once proxies can intercept symbols, add more tests.
-
-
 function TestBasics() {
   var log = [];
 
   var proxy = new Proxy({}, {
-    getPropertyDescriptor: function(key) {
-      log.push(key);
-      if (key === 'x') {
-        return {
-          value: 1,
-          configurable: true
-        };
-      }
-      return undefined;
+    get: function(target, key) {
+      log.push("get " + String(key));
+      if (key === 'x') return 1;
+    },
+    has: function(target, key) {
+      log.push("has " + String(key));
+      if (key === 'x') return true;
+      return false;
     }
   });
 
@@ -30,27 +26,24 @@ function TestBasics() {
     assertEquals(1, x);
   }
 
-  // One 'x' for HasBinding and one for GetBindingValue
-  assertEquals(['assertEquals', 'x', 'x'], log);
+  assertEquals(['has assertEquals', 'has x', 'get Symbol(Symbol.unscopables)',
+                'get x'], log);
 }
 TestBasics();
 
 
 function TestInconsistent() {
   var log = [];
-  var calls = 0;
 
   var proxy = new Proxy({}, {
-    getPropertyDescriptor: function(key) {
-      log.push(key);
-      if (key === 'x' && calls < 1) {
-        calls++;
-        return {
-          value: 1,
-          configurable: true
-        };
-      }
+    get: function(target, key) {
+      log.push("get " + String(key));
       return undefined;
+    },
+    has: function(target, key) {
+      log.push("has " + String(key));
+      if (key === 'x') return true;
+      return false;
     }
   });
 
@@ -60,8 +53,8 @@ function TestInconsistent() {
     assertEquals(void 0, x);
   }
 
-  // One 'x' for HasBinding and one for GetBindingValue
-  assertEquals(['assertEquals', 'x', 'x'], log);
+  assertEquals(['has assertEquals', 'has x', 'get Symbol(Symbol.unscopables)',
+                'get x'], log);
 }
 TestInconsistent();
 
@@ -73,18 +66,13 @@ function TestUseProxyAsUnscopables() {
   };
   var calls = 0;
   var proxy = new Proxy({}, {
-    has: function(key) {
+    has: function() {
       assertUnreachable();
     },
-    getPropertyDescriptor: function(key) {
-      calls++;
+    get: function(target, key) {
       assertEquals('x', key);
-      return {
-        value: calls === 2 ? true : undefined,
-        configurable: true,
-        enumerable: true,
-        writable: true,
-      };
+      calls++;
+      return calls === 2 ? true : undefined;
     }
   });
 
@@ -111,10 +99,10 @@ function TestThrowInHasUnscopables() {
 
   var calls = 0;
   var proxy = new Proxy({}, {
-    has: function(key) {
+    has: function() {
       assertUnreachable();
     },
-    getPropertyDescriptor: function(key) {
+    get: function(target, key) {
       if (calls++ === 0) {
         throw new CustomError();
       }
@@ -137,7 +125,10 @@ var global = this;
 function TestGlobalShouldIgnoreUnscopables() {
   global.x = 1;
   var proxy = new Proxy({}, {
-    getPropertyDescriptor: function() {
+    get: function() {
+      assertUnreachable();
+    },
+    has: function() {
       assertUnreachable();
     }
   });

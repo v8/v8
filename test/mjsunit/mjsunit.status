@@ -88,8 +88,6 @@
   # Proxy tests rely on non ES6 version of Proxies
   # TODO(neis,cbruni): figure out which Proxy tests can be reused
   'harmony/proxies-example-membrane': [SKIP],
-  'harmony/proxies-symbols': [SKIP],
-  'harmony/proxies-with-unscopables': [SKIP],
   'strong/load-proxy': [SKIP],
 
   # Issue 3660: Replacing activated TurboFan frames by unoptimized code does
