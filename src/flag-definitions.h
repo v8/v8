@@ -209,13 +209,13 @@ DEFINE_IMPLICATION(es_staging, harmony_destructuring_assignment)
   V(harmony_simd, "harmony simd")                                     \
   V(harmony_do_expressions, "harmony do-expressions")                 \
   V(harmony_regexp_subclass, "harmony regexp subclassing")            \
-  V(harmony_regexp_lookbehind, "harmony regexp lookbehind")           \
   V(harmony_destructuring_assignment, "harmony destructuring assignment")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED(V)                                     \
   V(harmony_sloppy, "harmony features in sloppy mode")        \
-  V(harmony_sloppy_let, "harmony let in sloppy mode")
+  V(harmony_sloppy_let, "harmony let in sloppy mode")         \
+  V(harmony_regexp_lookbehind, "harmony regexp lookbehind")
 
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING(V)                                   \
