@@ -697,8 +697,6 @@ static bool CompileUnoptimizedCode(CompilationInfo* info) {
 // TODO(rmcilroy): Remove this temporary work-around when ignition supports
 // catch and eval.
 static bool IgnitionShouldFallbackToFullCodeGen(Scope* scope) {
-  if (!FLAG_ignition_fallback_on_eval_and_catch) return false;
-
   if (scope->is_eval_scope() || scope->is_catch_scope() ||
       scope->calls_eval()) {
     return true;
@@ -710,21 +708,46 @@ static bool IgnitionShouldFallbackToFullCodeGen(Scope* scope) {
 }
 
 
-static bool GenerateBytecode(CompilationInfo* info) {
-  DCHECK(AllowCompilation::IsAllowed(info->isolate()));
-  bool success = false;
-  if (Compiler::Analyze(info->parse_info())) {
-    if (IgnitionShouldFallbackToFullCodeGen(info->scope())) {
-      success = FullCodeGenerator::MakeCode(info);
-    } else {
-      success = interpreter::Interpreter::MakeBytecode(info);
-    }
+static bool UseIgnition(CompilationInfo* info) {
+  // Cannot use Ignition when the {function_data} is already used.
+  if (info->has_shared_info() && info->shared_info()->HasBuiltinFunctionId()) {
+    return false;
   }
-  if (!success) {
+
+  // Checks whether the scope chain is supported.
+  if (FLAG_ignition_fallback_on_eval_and_catch &&
+      IgnitionShouldFallbackToFullCodeGen(info->scope())) {
+    return false;
+  }
+
+  // Checks whether top level functions should be passed by the filter.
+  if (info->closure().is_null()) {
+    Vector<const char> filter = CStrVector(FLAG_ignition_filter);
+    return (filter.length() == 0) || (filter.length() == 1 && filter[0] == '*');
+  }
+
+  // Finally respect the filter.
+  return info->closure()->PassesFilter(FLAG_ignition_filter);
+}
+
+
+static bool GenerateBaselineCode(CompilationInfo* info) {
+  if (FLAG_ignition && UseIgnition(info)) {
+    return interpreter::Interpreter::MakeBytecode(info);
+  } else {
+    return FullCodeGenerator::MakeCode(info);
+  }
+}
+
+
+static bool CompileBaselineCode(CompilationInfo* info) {
+  DCHECK(AllowCompilation::IsAllowed(info->isolate()));
+  if (!Compiler::Analyze(info->parse_info()) || !GenerateBaselineCode(info)) {
     Isolate* isolate = info->isolate();
     if (!isolate->has_pending_exception()) isolate->StackOverflow();
+    return false;
   }
-  return success;
+  return true;
 }
 
 
@@ -741,15 +764,9 @@ MUST_USE_RESULT static MaybeHandle<Code> GetUnoptimizedCodeCommon(
   SetExpectedNofPropertiesFromEstimate(shared, lit->expected_property_count());
   MaybeDisableOptimization(shared, lit->dont_optimize_reason());
 
-  if (FLAG_ignition && !shared->HasBuiltinFunctionId() &&
-      info->closure()->PassesFilter(FLAG_ignition_filter)) {
-    // Compile bytecode for the interpreter.
-    if (!GenerateBytecode(info)) return MaybeHandle<Code>();
-  } else {
-    // Compile unoptimized code.
-    if (!CompileUnoptimizedCode(info)) return MaybeHandle<Code>();
-
-    CHECK_EQ(Code::FUNCTION, info->code()->kind());
+  // Compile either unoptimized code or bytecode for the interpreter.
+  if (!CompileBaselineCode(info)) return MaybeHandle<Code>();
+  if (info->code()->kind() == Code::FUNCTION) {  // Only for full code.
     RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info, shared);
   }
 
@@ -1151,13 +1168,6 @@ void Compiler::CompileForLiveEdit(Handle<Script> script) {
 }
 
 
-// Checks whether top level functions should be passed by {raw_filter}.
-static bool TopLevelFunctionPassesFilter(const char* raw_filter) {
-  Vector<const char> filter = CStrVector(raw_filter);
-  return (filter.length() == 0) || (filter.length() == 1 && filter[0] == '*');
-}
-
-
 static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
   Isolate* isolate = info->isolate();
   PostponeInterruptsScope postpone(isolate);
@@ -1221,14 +1231,8 @@ static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
     HistogramTimerScope timer(rate);
 
     // Compile the code.
-    if (FLAG_ignition && TopLevelFunctionPassesFilter(FLAG_ignition_filter)) {
-      if (!GenerateBytecode(info)) {
-        return Handle<SharedFunctionInfo>::null();
-      }
-    } else {
-      if (!CompileUnoptimizedCode(info)) {
-        return Handle<SharedFunctionInfo>::null();
-      }
+    if (!CompileBaselineCode(info)) {
+      return Handle<SharedFunctionInfo>::null();
     }
 
     // Allocate function.
@@ -1575,7 +1579,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
     scope_info = Handle<ScopeInfo>(ScopeInfo::Empty(isolate));
   } else if (Renumber(info.parse_info()) &&
              FullCodeGenerator::MakeCode(&info)) {
-    // MakeCode will ensure that the feedback vector is present and
+    // Code generation will ensure that the feedback vector is present and
     // appropriately sized.
     DCHECK(!info.code().is_null());
     scope_info = ScopeInfo::Create(info.isolate(), info.zone(), info.scope());
@@ -1593,6 +1597,10 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
         isolate->factory()->NewSharedFunctionInfo(
             literal->name(), literal->materialized_literal_count(),
             literal->kind(), info.code(), scope_info, info.feedback_vector());
+    if (info.has_bytecode_array()) {
+      DCHECK(result->function_data()->IsUndefined());
+      result->set_function_data(*info.bytecode_array());
+    }
 
     SharedFunctionInfo::InitFromFunctionLiteral(result, literal);
     SharedFunctionInfo::SetScript(result, script);
