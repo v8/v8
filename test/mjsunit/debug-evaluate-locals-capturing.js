@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-debug-as debug --debug-eval-readonly-locals
+// Flags: --expose-debug-as debug
 
 Debug = debug.Debug
 var exception = null;
@@ -15,8 +15,8 @@ function listener(event, exec_state, event_data, data) {
     if (event == Debug.DebugEvent.Break) {
       var frameMirror = exec_state.frame(0);
 
-      var i = frameMirror.evaluate('f = function() { i = 5; }, f(), i').value();
-      assertEquals(5, i);
+      f = frameMirror.evaluate('f = function() { i = 5; }, f(), f').value();
+      print(f);
     }
   } catch(e) {
     exception = e;
@@ -35,7 +35,7 @@ Debug.setListener(listener);
   } catch (e) {
     assertEquals(0, i);
     debugger;
-    assertEquals(0, i);
+    assertEquals(5, i);
   }
 }());
 

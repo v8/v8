@@ -26,7 +26,6 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --expose-debug-as debug --allow-natives-syntax
-// Flags: --debug-eval-readonly-locals
 // The functions used for testing backtraces. They are at the top to make the
 // testing of source line/column easier.
 
@@ -526,12 +525,15 @@ function shadowing_1() {
   {
     let i = 5;
     debugger;
+    assertEqualsUnlessOptimized(27, i, shadowing_1);
   }
   assertEquals(0, i);
+  debugger;
+  assertEqualsUnlessOptimized(27, i, shadowing_1);
 }
 
 listener_delegate = function (exec_state) {
-  assertEqualsUnlessOptimized(5, exec_state.frame(0).evaluate("i").value());
+  exec_state.frame(0).evaluate("i = 27");
 }
 shadowing_1();
 EndTest();
@@ -544,12 +546,13 @@ function shadowing_2() {
   {
     let j = 5;
     debugger;
+    assertEqualsUnlessOptimized(27, j, shadowing_2);
   }
+  assertEqualsUnlessOptimized(0, i, shadowing_2);
 }
 
 listener_delegate = function (exec_state) {
-  assertEqualsUnlessOptimized(0, exec_state.frame(0).evaluate("i").value());
-  assertEqualsUnlessOptimized(5, exec_state.frame(0).evaluate("j").value());
+  exec_state.frame(0).evaluate("j = 27");
 }
 shadowing_2();
 EndTest();

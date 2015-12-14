@@ -597,7 +597,8 @@ DEFINE_BOOL(cache_prototype_transitions, true, "cache prototype transitions")
 DEFINE_INT(cpu_profiler_sampling_interval, 1000,
            "CPU profiler sampling interval in microseconds")
 
-// Array abuse tracing
+// debug.cc
+DEFINE_BOOL(trace_debug_json, false, "trace debugging JSON request/response")
 DEFINE_BOOL(trace_js_array_abuse, false,
             "trace out-of-bounds accesses to JS arrays")
 DEFINE_BOOL(trace_external_array_abuse, false,
@@ -606,11 +607,6 @@ DEFINE_BOOL(trace_array_abuse, false,
             "trace out-of-bounds accesses to all arrays")
 DEFINE_IMPLICATION(trace_array_abuse, trace_js_array_abuse)
 DEFINE_IMPLICATION(trace_array_abuse, trace_external_array_abuse)
-
-// debugger
-DEFINE_BOOL(debug_eval_readonly_locals, true,
-            "do not update locals after debug-evaluate")
-DEFINE_BOOL(trace_debug_json, false, "trace debugging JSON request/response")
 DEFINE_BOOL(enable_liveedit, true, "enable liveedit experimental feature")
 DEFINE_BOOL(hard_abort, true, "abort by crashing")
 

@@ -68,19 +68,16 @@ MaybeHandle<Object> DebugEvaluate::Local(Isolate* isolate,
   // variables accessible by the function we are evaluating from are
   // materialized and included on top of the native context. Changes to
   // the materialized object are written back afterwards.
-  // Note that the native context is taken from the original context chain,
-  // which may not be the current native context of the isolate.
   ContextBuilder context_builder(isolate, frame, inlined_jsframe_index);
   if (isolate->has_pending_exception()) return MaybeHandle<Object>();
 
-  Handle<Context> context = context_builder.native_context();
+  Handle<Context> context = isolate->native_context();
   Handle<JSObject> receiver(context->global_proxy());
+  Handle<SharedFunctionInfo> outer_info(context->closure()->shared(), isolate);
   MaybeHandle<Object> maybe_result = Evaluate(
       isolate, context_builder.outer_info(),
       context_builder.innermost_context(), context_extension, receiver, source);
-  if (!maybe_result.is_null() && !FLAG_debug_eval_readonly_locals) {
-    context_builder.UpdateValues();
-  }
+  if (!maybe_result.is_null()) context_builder.UpdateValues();
   return maybe_result;
 }
 
@@ -130,8 +127,8 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
   Handle<JSFunction> local_function =
       handle(JSFunction::cast(frame_inspector.GetFunction()));
   Handle<Context> outer_context(local_function->context());
-  native_context_ = Handle<Context>(outer_context->native_context());
-  Handle<JSFunction> global_function(native_context_->closure());
+  Handle<Context> native_context = isolate->native_context();
+  Handle<JSFunction> global_function(native_context->closure());
   outer_info_ = handle(global_function->shared());
   Handle<Context> inner_context;
 
@@ -169,7 +166,7 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
       // The "this" binding, if any, can't be bound via "with".  If we need
       // to, add another node onto the outer context to bind "this".
       Handle<Context> receiver_context =
-          MaterializeReceiver(native_context_, local_context, local_function,
+          MaterializeReceiver(native_context, local_context, local_function,
                               global_function, it.ThisIsNonLocal());
 
       Handle<JSObject> materialized_function = NewJSObjectWithNullProto();
@@ -312,7 +309,7 @@ void DebugEvaluate::ContextBuilder::MaterializeArgumentsObject(
 
 
 MaybeHandle<Object> DebugEvaluate::ContextBuilder::LoadFromContext(
-    Handle<Context> context, Handle<String> name, bool* global) {
+    Handle<Context> context, Handle<String> name) {
   static const ContextLookupFlags flags = FOLLOW_CONTEXT_CHAIN;
   int index;
   PropertyAttributes attributes;
@@ -323,13 +320,9 @@ MaybeHandle<Object> DebugEvaluate::ContextBuilder::LoadFromContext(
   Handle<Object> value;
   if (index != Context::kNotFound) {  // Found on context.
     Handle<Context> context = Handle<Context>::cast(holder);
-    // Do not shadow variables on the script context.
-    *global = context->IsScriptContext();
     return Handle<Object>(context->get(index), isolate_);
   } else {  // Found on object.
     Handle<JSReceiver> object = Handle<JSReceiver>::cast(holder);
-    // Do not shadow properties on the global object.
-    *global = object->IsJSGlobalObject();
     return JSReceiver::GetDataProperty(object, name);
   }
 }
@@ -340,13 +333,7 @@ void DebugEvaluate::ContextBuilder::MaterializeContextChain(
   for (const Handle<String>& name : non_locals_) {
     HandleScope scope(isolate_);
     Handle<Object> value;
-    bool global;
-    if (!LoadFromContext(context, name, &global).ToHandle(&value) || global) {
-      // If resolving the variable fails, skip it. If it resolves to a global
-      // variable, skip it as well since it's not read-only and can be resolved
-      // within debug-evaluate.
-      continue;
-    }
+    if (!LoadFromContext(context, name).ToHandle(&value)) continue;
     JSObject::SetOwnPropertyIgnoreAttributes(target, name, value, NONE).Check();
   }
 }
@@ -394,8 +381,7 @@ Handle<Context> DebugEvaluate::ContextBuilder::MaterializeReceiver(
   Handle<Object> receiver = isolate_->factory()->undefined_value();
   Handle<String> this_string = isolate_->factory()->this_string();
   if (this_is_non_local) {
-    bool global;
-    LoadFromContext(lookup_context, this_string, &global).ToHandle(&receiver);
+    LoadFromContext(lookup_context, this_string).ToHandle(&receiver);
   } else if (local_function->shared()->scope_info()->HasReceiver()) {
     receiver = handle(frame_->receiver(), isolate_);
   }

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-debug-as debug --debug-eval-readonly-locals
+// Flags: --expose-debug-as debug
 
 Debug = debug.Debug;
 
@@ -14,11 +14,11 @@ function listener(event, exec_state, event_data, data) {
   try {
     if (step == 0) {
       assertEquals("error", exec_state.frame(0).evaluate("e").value());
-      exec_state.frame(0).evaluate("write_0('foo')");
-      exec_state.frame(0).evaluate("write_1('modified')");
+      exec_state.frame(0).evaluate("e = 'foo'");
+      exec_state.frame(0).evaluate("x = 'modified'");
     } else {
-      assertEquals("foo", exec_state.frame(0).evaluate("e").value());
-      exec_state.frame(0).evaluate("write_2('bar')");
+      assertEquals("argument", exec_state.frame(0).evaluate("e").value());
+      exec_state.frame(0).evaluate("e = 'bar'");
     }
     step++;
   } catch (e) {
@@ -33,13 +33,9 @@ function f(e, x) {
   try {
     throw "error";
   } catch(e) {
-    // 'e' and 'x' bind to the argument due to hoisting
-    function write_0(v) { e = v }
-    function write_1(v) { x = v }
     debugger;
-    assertEquals("error", e);
+    assertEquals("foo", e);
   }
-  function write_2(v) { e = v }
   debugger;
   assertEquals("bar", e);
   assertEquals("modified", x);

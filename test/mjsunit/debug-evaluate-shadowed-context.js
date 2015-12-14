@@ -29,8 +29,7 @@ function listener(event, exec_state, event_data, data) {
     }
     assertEquals("[object global]",
                  String(exec_state.frame(0).evaluate("this").value()));
-    assertEquals("y", exec_state.frame(0).evaluate("y").value());
-    assertEquals("a", exec_state.frame(0).evaluate("a").value());
+    exec_state.frame(0).evaluate("y = 'Y'");
     exec_state.frame(0).evaluate("a = 'A'");
     assertThrows(() => exec_state.frame(0).evaluate("z"), ReferenceError);
   } catch (e) {
@@ -42,7 +41,7 @@ function listener(event, exec_state, event_data, data) {
 Debug.setListener(listener);
 
 var a = "a";
-(function() {
+assertEquals("Y", (function() {
   var x = 1;     // context allocate x
   (() => x);
   var y = "y";
@@ -55,12 +54,12 @@ var a = "a";
     })();        // 2
   })();          // 1
   return y;
-})();
+})());
 
 assertEquals("A", a);
 a = "a";
 
-(function() {
+assertEquals("Y", (function() {
   var x = 1;     // context allocate x
   (() => x);
   var y = "y";
@@ -75,7 +74,7 @@ a = "a";
     })();        // 2
   })();          // 1
   return y;
-})();
+})());
 
 assertEquals("A", a);
 
