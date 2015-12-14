@@ -175,13 +175,10 @@ MaybeHandle<Code> FastAccessorAssembler::Build() {
   labels_.clear();
 
   // Export the schedule and call the compiler.
-  CompilationInfo info("FastAccessorAssembler", assembler_->isolate(), zone());
   Schedule* schedule = assembler_->Export();
-
-  // TODO(vogelheim): Pipeline should have a dedicated entry point for this
-  //                  assembler.
-  MaybeHandle<Code> code = Pipeline::GenerateCodeForTesting(
-      &info, assembler_->call_descriptor(), assembler_->graph(), schedule);
+  MaybeHandle<Code> code = Pipeline::GenerateCodeForCodeStub(
+      assembler_->isolate(), assembler_->call_descriptor(), assembler_->graph(),
+      schedule, Code::STUB, "FastAccessorAssembler");
 
   // Update state & return.
   state_ = !code.is_null() ? kBuilt : kError;

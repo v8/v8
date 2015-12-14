@@ -36,7 +36,7 @@ class Pipeline {
                                               CallDescriptor* call_descriptor,
                                               Graph* graph, Schedule* schedule,
                                               Code::Kind kind,
-                                              const char* bytecode_name);
+                                              const char* debug_name);
 
   // Run the pipeline on a machine graph and generate code. If {schedule} is
   // {nullptr}, then compute a new schedule for code generation.

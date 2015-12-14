@@ -1210,8 +1210,8 @@ Handle<Code> Pipeline::GenerateCodeForCodeStub(Isolate* isolate,
                                                CallDescriptor* call_descriptor,
                                                Graph* graph, Schedule* schedule,
                                                Code::Kind kind,
-                                               const char* code_stub_name) {
-  CompilationInfo info(code_stub_name, isolate, graph->zone());
+                                               const char* debug_name) {
+  CompilationInfo info(debug_name, isolate, graph->zone());
   info.set_output_code_kind(kind);
 
   // Construct a pipeline for scheduling and code generation.
@@ -1220,7 +1220,7 @@ Handle<Code> Pipeline::GenerateCodeForCodeStub(Isolate* isolate,
   base::SmartPointer<PipelineStatistics> pipeline_statistics;
   if (FLAG_turbo_stats) {
     pipeline_statistics.Reset(new PipelineStatistics(&info, &zone_pool));
-    pipeline_statistics->BeginPhaseKind("interpreter handler codegen");
+    pipeline_statistics->BeginPhaseKind("stub codegen");
   }
 
   Pipeline pipeline(&info);
