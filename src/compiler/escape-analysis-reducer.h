@@ -29,6 +29,7 @@ class EscapeAnalysisReducer final : public AdvancedReducer {
   Reduction ReduceAllocate(Node* node);
   Reduction ReduceFinishRegion(Node* node);
   Reduction ReduceReferenceEqual(Node* node);
+  Reduction ReduceObjectIsSmi(Node* node);
 
   Reduction ReplaceWithDeoptDummy(Node* node);
 

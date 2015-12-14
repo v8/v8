@@ -1159,6 +1159,9 @@ Handle<Code> Pipeline::GenerateCode() {
     }
 
     if (FLAG_turbo_escape) {
+      // TODO(sigurds): EscapeAnalysis needs a trimmed graph at the moment,
+      // because it does a forwards traversal of the effect edges.
+      Run<EarlyGraphTrimmingPhase>();
       Run<EscapeAnalysisPhase>();
       RunPrintAndVerify("Escape Analysed");
     }

@@ -164,6 +164,7 @@
   'compiler/escape-analysis-6': [PASS, NO_VARIANTS],
   'compiler/escape-analysis-7': [PASS, NO_VARIANTS],
   'compiler/escape-analysis-9': [PASS, NO_VARIANTS],
+  'compiler/escape-analysis-10': [PASS, NO_VARIANTS],
   # TODO(sigurds): Tests that fail because of incomplete use handling (i.e. select).
   'compiler/escape-analysis-8': [PASS, NO_VARIANTS],
 

@@ -34,6 +34,8 @@ Reduction EscapeAnalysisReducer::Reduce(Node* node) {
       return ReduceFinishRegion(node);
     case IrOpcode::kReferenceEqual:
       return ReduceReferenceEqual(node);
+    case IrOpcode::kObjectIsSmi:
+      return ReduceObjectIsSmi(node);
     case IrOpcode::kStateValues:
     case IrOpcode::kFrameState:
       return ReplaceWithDeoptDummy(node);
@@ -141,6 +143,20 @@ Reduction EscapeAnalysisReducer::ReduceReferenceEqual(Node* node) {
     if (FLAG_trace_turbo_escape) {
       PrintF("Replaced ref eq #%d with false\n", node->id());
     }
+  }
+  return NoChange();
+}
+
+
+Reduction EscapeAnalysisReducer::ReduceObjectIsSmi(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kObjectIsSmi);
+  Node* input = NodeProperties::GetValueInput(node, 0);
+  if (escape_analysis()->IsVirtual(input)) {
+    ReplaceWithValue(node, jsgraph()->FalseConstant());
+    if (FLAG_trace_turbo_escape) {
+      PrintF("Replaced ObjectIsSmi #%d with false\n", node->id());
+    }
+    return Replace(node);
   }
   return NoChange();
 }
