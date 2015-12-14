@@ -842,10 +842,10 @@ RUNTIME_FUNCTION(Runtime_GetAllScopesDetails) {
   CONVERT_SMI_ARG_CHECKED(wrapped_id, 1);
   CONVERT_NUMBER_CHECKED(int, inlined_jsframe_index, Int32, args[2]);
 
-  bool ignore_nested_scopes = false;
+  ScopeIterator::Option option = ScopeIterator::DEFAULT;
   if (args.length() == 4) {
     CONVERT_BOOLEAN_ARG_CHECKED(flag, 3);
-    ignore_nested_scopes = flag;
+    if (flag) option = ScopeIterator::IGNORE_NESTED_SCOPES;
   }
 
   // Get the frame where the debugging is performed.
@@ -855,7 +855,7 @@ RUNTIME_FUNCTION(Runtime_GetAllScopesDetails) {
   FrameInspector frame_inspector(frame, inlined_jsframe_index, isolate);
 
   List<Handle<JSObject> > result(4);
-  ScopeIterator it(isolate, &frame_inspector, ignore_nested_scopes);
+  ScopeIterator it(isolate, &frame_inspector, option);
   for (; !it.Done(); it.Next()) {
     Handle<JSObject> details;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, details,

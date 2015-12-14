@@ -15,10 +15,11 @@ namespace v8 {
 namespace internal {
 
 ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
-                             bool ignore_nested_scopes)
+                             ScopeIterator::Option option)
     : isolate_(isolate),
       frame_inspector_(frame_inspector),
       nested_scope_chain_(4),
+      non_locals_(nullptr),
       seen_script_scope_(false),
       failed_(false) {
   if (!frame_inspector->GetContext()->IsContext() ||
@@ -46,7 +47,8 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
   // addEventListener call), even if we drop some nested scopes.
   // Later we may optimize getting the nested scopes (cache the result?)
   // and include nested scopes into the "fast" iteration case as well.
-
+  bool ignore_nested_scopes = (option == IGNORE_NESTED_SCOPES);
+  bool collect_non_locals = (option == COLLECT_NON_LOCALS);
   if (!ignore_nested_scopes && shared_info->HasDebugInfo()) {
     // The source position at return is always the end of the function,
     // which is not consistent with the current scope chain. Therefore all
@@ -78,35 +80,37 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
     if (scope_info->scope_type() == FUNCTION_SCOPE) {
       nested_scope_chain_.Add(scope_info);
     }
-  } else {
-    // Reparse the code and analyze the scopes.
-    Handle<Script> script(Script::cast(shared_info->script()));
-    Scope* scope = NULL;
+    if (!collect_non_locals) return;
+  }
 
-    // Check whether we are in global, eval or function code.
-    Zone zone;
-    if (scope_info->scope_type() != FUNCTION_SCOPE) {
-      // Global or eval code.
-      ParseInfo info(&zone, script);
-      if (scope_info->scope_type() == SCRIPT_SCOPE) {
-        info.set_global();
-      } else {
-        DCHECK(scope_info->scope_type() == EVAL_SCOPE);
-        info.set_eval();
-        info.set_context(Handle<Context>(function->context()));
-      }
-      if (Parser::ParseStatic(&info) && Scope::Analyze(&info)) {
-        scope = info.literal()->scope();
-      }
-      RetrieveScopeChain(scope, shared_info);
+  // Reparse the code and analyze the scopes.
+  Scope* scope = NULL;
+  // Check whether we are in global, eval or function code.
+  Zone zone;
+  if (scope_info->scope_type() != FUNCTION_SCOPE) {
+    // Global or eval code.
+    Handle<Script> script(Script::cast(shared_info->script()));
+    ParseInfo info(&zone, script);
+    if (scope_info->scope_type() == SCRIPT_SCOPE) {
+      info.set_global();
     } else {
-      // Function code
-      ParseInfo info(&zone, function);
-      if (Parser::ParseStatic(&info) && Scope::Analyze(&info)) {
-        scope = info.literal()->scope();
-      }
-      RetrieveScopeChain(scope, shared_info);
+      DCHECK(scope_info->scope_type() == EVAL_SCOPE);
+      info.set_eval();
+      info.set_context(Handle<Context>(function->context()));
     }
+    if (Parser::ParseStatic(&info) && Scope::Analyze(&info)) {
+      scope = info.literal()->scope();
+    }
+    if (!ignore_nested_scopes) RetrieveScopeChain(scope);
+    if (collect_non_locals) CollectNonLocals(scope);
+  } else {
+    // Function code
+    ParseInfo info(&zone, function);
+    if (Parser::ParseStatic(&info) && Scope::Analyze(&info)) {
+      scope = info.literal()->scope();
+    }
+    if (!ignore_nested_scopes) RetrieveScopeChain(scope);
+    if (collect_non_locals) CollectNonLocals(scope);
   }
 }
 
@@ -115,6 +119,7 @@ ScopeIterator::ScopeIterator(Isolate* isolate, Handle<JSFunction> function)
     : isolate_(isolate),
       frame_inspector_(NULL),
       context_(function->context()),
+      non_locals_(nullptr),
       seen_script_scope_(false),
       failed_(false) {
   if (!function->shared()->IsSubjectToDebugging()) context_ = Handle<Context>();
@@ -320,6 +325,27 @@ Handle<Context> ScopeIterator::CurrentContext() {
   }
 }
 
+
+void ScopeIterator::GetNonLocals(List<Handle<String> >* list_out) {
+  Handle<String> this_string = isolate_->factory()->this_string();
+  for (HashMap::Entry* entry = non_locals_->Start(); entry != nullptr;
+       entry = non_locals_->Next(entry)) {
+    Handle<String> name(reinterpret_cast<String**>(entry->key));
+    // We need to treat "this" differently.
+    if (name.is_identical_to(this_string)) continue;
+    list_out->Add(Handle<String>(reinterpret_cast<String**>(entry->key)));
+  }
+}
+
+
+bool ScopeIterator::ThisIsNonLocal() {
+  Handle<String> this_string = isolate_->factory()->this_string();
+  void* key = reinterpret_cast<void*>(this_string.location());
+  HashMap::Entry* entry = non_locals_->Lookup(key, this_string->Hash());
+  return entry != nullptr;
+}
+
+
 #ifdef DEBUG
 // Debug print of the content of the current scope.
 void ScopeIterator::DebugPrint() {
@@ -385,8 +411,7 @@ void ScopeIterator::DebugPrint() {
 #endif
 
 
-void ScopeIterator::RetrieveScopeChain(Scope* scope,
-                                       Handle<SharedFunctionInfo> shared_info) {
+void ScopeIterator::RetrieveScopeChain(Scope* scope) {
   if (scope != NULL) {
     int source_position = frame_inspector_->GetSourcePosition();
     scope->GetNestedScopeChain(isolate_, &nested_scope_chain_, source_position);
@@ -399,6 +424,15 @@ void ScopeIterator::RetrieveScopeChain(Scope* scope,
     // Or it could be due to stack overflow.
     DCHECK(isolate_->has_pending_exception());
     failed_ = true;
+  }
+}
+
+
+void ScopeIterator::CollectNonLocals(Scope* scope) {
+  if (scope != NULL) {
+    DCHECK_NULL(non_locals_);
+    non_locals_ = new HashMap(InternalizedStringMatch);
+    scope->CollectNonLocals(non_locals_);
   }
 }
 

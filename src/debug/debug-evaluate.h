@@ -74,12 +74,28 @@ class DebugEvaluate : public AllStatic {
     void MaterializeArgumentsObject(Handle<JSObject> target,
                                     Handle<JSFunction> function);
 
-    Handle<Context> MaterializeReceiver(Handle<Context> target,
-                                        Handle<JSFunction> function);
+    void MaterializeContextChain(Handle<JSObject> target,
+                                 Handle<Context> context);
+
+    void UpdateContextChainFromMaterializedObject(Handle<JSObject> source,
+                                                  Handle<Context> context);
+
+    Handle<Context> MaterializeReceiver(Handle<Context> parent_context,
+                                        Handle<Context> lookup_context,
+                                        Handle<JSFunction> local_function,
+                                        Handle<JSFunction> global_function,
+                                        bool this_is_non_local);
+
+    MaybeHandle<Object> LoadFromContext(Handle<Context> context,
+                                        Handle<String> name);
+
+    void StoreToContext(Handle<Context> context, Handle<String> name,
+                        Handle<Object> value);
 
     Handle<SharedFunctionInfo> outer_info_;
     Handle<Context> innermost_context_;
     List<ContextChainElement> context_chain_;
+    List<Handle<String> > non_locals_;
     Isolate* isolate_;
     JavaScriptFrame* frame_;
     int inlined_jsframe_index_;

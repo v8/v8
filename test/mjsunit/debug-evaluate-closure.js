@@ -36,8 +36,11 @@ function listener(event, exec_state, event_data, data) {
     assertEquals("goo", exec_state.frame(0).evaluate("goo").value());
     exec_state.frame(0).evaluate("goo = 'goo foo'");
     assertEquals("bar return", exec_state.frame(0).evaluate("bar()").value());
-    assertEquals("inner bar", exec_state.frame(0).evaluate("inner").value());
-    assertEquals("outer bar", exec_state.frame(0).evaluate("outer").value());
+    // Check that calling bar() has no effect to context-allocated variables.
+    // TODO(yangguo): reevaluate this if we no longer update context from copy.
+    assertEquals("inner", exec_state.frame(0).evaluate("inner").value());
+    assertEquals("outer", exec_state.frame(0).evaluate("outer").value());
+
     assertEquals("baz inner", exec_state.frame(0).evaluate("baz").value());
     assertEquals("baz outer", exec_state.frame(1).evaluate("baz").value());
     exec_state.frame(0).evaluate("w = 'w foo'");
@@ -67,8 +70,8 @@ function foo() {
   with (withv) {
     var bar = function bar() {
       assertEquals("goo foo", goo);
-      inner = "inner bar";
-      outer = "outer bar";
+      inner = "inner bar";  // this has no effect, when called from debug-eval
+      outer = "outer bar";  // this has no effect, when called from debug-eval
       v = "v bar";
       return "bar return";
     };

@@ -119,7 +119,8 @@ function listener(event, exec_state, event_data, data) {
       assertEquals(2, exec_state.frame(0).evaluate('b').value());
       assertEquals(5, exec_state.frame(0).evaluate('eval').value());
       assertEquals(3, exec_state.frame(1).evaluate('a').value());
-      assertEquals(4, exec_state.frame(1).evaluate('b').value());
+      // Reference error because g does not reference b.
+      assertThrows(() => exec_state.frame(1).evaluate('b'), ReferenceError);
       assertEquals("function",
                    typeof exec_state.frame(1).evaluate('eval').value());
       assertEquals(5, exec_state.frame(2).evaluate('a').value());

@@ -5422,10 +5422,6 @@ static void ThreadedMessageHandler(const v8::Debug::Message& message) {
 void V8Thread::Run() {
   const char* source =
       "flag = true;\n"
-      "function bar( new_value ) {\n"
-      "  flag = new_value;\n"
-      "  return \"Return from bar(\" + new_value + \")\";\n"
-      "}\n"
       "\n"
       "function foo() {\n"
       "  var x = 1;\n"
@@ -5468,10 +5464,11 @@ void DebuggerThread::Run() {
   const int kBufSize = 1000;
   uint16_t buffer[kBufSize];
 
-  const char* command_1 = "{\"seq\":102,"
+  const char* command_1 =
+      "{\"seq\":102,"
       "\"type\":\"request\","
       "\"command\":\"evaluate\","
-      "\"arguments\":{\"expression\":\"bar(false)\"}}";
+      "\"arguments\":{\"expression\":\"flag = false\"}}";
   const char* command_2 = "{\"seq\":103,"
       "\"type\":\"request\","
       "\"command\":\"continue\"}";
