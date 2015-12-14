@@ -1899,11 +1899,18 @@ TEST(Run_Wasm_StoreMem_offset_oob) {
   TestingModule module;
   byte* memory = module.AddMemoryElems<byte>(32);
 
+#if WASM_64
   static const MachineType machineTypes[] = {
       MachineType::Int8(),   MachineType::Uint8(),  MachineType::Int16(),
       MachineType::Uint16(), MachineType::Int32(),  MachineType::Uint32(),
       MachineType::Int64(),  MachineType::Uint64(), MachineType::Float32(),
       MachineType::Float64()};
+#else
+  static const MachineType machineTypes[] = {
+      MachineType::Int8(),    MachineType::Uint8(),  MachineType::Int16(),
+      MachineType::Uint16(),  MachineType::Int32(),  MachineType::Uint32(),
+      MachineType::Float32(), MachineType::Float64()};
+#endif
 
   for (size_t m = 0; m < arraysize(machineTypes); m++) {
     module.RandomizeMemory(1119 + static_cast<int>(m));
