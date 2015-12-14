@@ -11352,13 +11352,11 @@ static void CalculateLineEndsImpl(Isolate* isolate,
     if (cache->IsLineTerminatorSequence(current, next)) line_ends->Add(i);
   }
 
-  if (include_ending_line) {
-    // Include one character beyond the end of script. The rewriter uses that
-    // position for the implicit return statement.
-    line_ends->Add(src_len);
-  } else if (src_len > 0 &&
-             cache->IsLineTerminatorSequence(src[src_len - 1], 0)) {
+  if (src_len > 0 && cache->IsLineTerminatorSequence(src[src_len - 1], 0)) {
     line_ends->Add(src_len - 1);
+  } else if (include_ending_line) {
+    // Even if the last line misses a line end, it is counted.
+    line_ends->Add(src_len);
   }
 }
 
