@@ -154,8 +154,9 @@ Node* RawMachineAssembler::CallRuntime1(Runtime::FunctionId function,
                                         Node* arg1, Node* context) {
   CallDescriptor* descriptor = Linkage::GetRuntimeCallDescriptor(
       zone(), function, 1, Operator::kNoProperties, CallDescriptor::kNoFlags);
+  int return_count = static_cast<int>(descriptor->ReturnCount());
 
-  Node* centry = HeapConstant(CEntryStub(isolate(), 1).GetCode());
+  Node* centry = HeapConstant(CEntryStub(isolate(), return_count).GetCode());
   Node* ref = AddNode(
       common()->ExternalConstant(ExternalReference(function, isolate())));
   Node* arity = Int32Constant(1);
@@ -168,8 +169,9 @@ Node* RawMachineAssembler::CallRuntime2(Runtime::FunctionId function,
                                         Node* arg1, Node* arg2, Node* context) {
   CallDescriptor* descriptor = Linkage::GetRuntimeCallDescriptor(
       zone(), function, 2, Operator::kNoProperties, CallDescriptor::kNoFlags);
+  int return_count = static_cast<int>(descriptor->ReturnCount());
 
-  Node* centry = HeapConstant(CEntryStub(isolate(), 1).GetCode());
+  Node* centry = HeapConstant(CEntryStub(isolate(), return_count).GetCode());
   Node* ref = AddNode(
       common()->ExternalConstant(ExternalReference(function, isolate())));
   Node* arity = Int32Constant(2);
@@ -184,8 +186,9 @@ Node* RawMachineAssembler::CallRuntime4(Runtime::FunctionId function,
                                         Node* arg4, Node* context) {
   CallDescriptor* descriptor = Linkage::GetRuntimeCallDescriptor(
       zone(), function, 4, Operator::kNoProperties, CallDescriptor::kNoFlags);
+  int return_count = static_cast<int>(descriptor->ReturnCount());
 
-  Node* centry = HeapConstant(CEntryStub(isolate(), 1).GetCode());
+  Node* centry = HeapConstant(CEntryStub(isolate(), return_count).GetCode());
   Node* ref = AddNode(
       common()->ExternalConstant(ExternalReference(function, isolate())));
   Node* arity = Int32Constant(4);
@@ -220,8 +223,9 @@ Node* RawMachineAssembler::TailCallRuntime1(Runtime::FunctionId function,
   CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
       zone(), function, kArity, Operator::kNoProperties,
       CallDescriptor::kSupportsTailCalls);
+  int return_count = static_cast<int>(desc->ReturnCount());
 
-  Node* centry = HeapConstant(CEntryStub(isolate(), 1).GetCode());
+  Node* centry = HeapConstant(CEntryStub(isolate(), return_count).GetCode());
   Node* ref = AddNode(
       common()->ExternalConstant(ExternalReference(function, isolate())));
   Node* arity = Int32Constant(kArity);
@@ -243,8 +247,9 @@ Node* RawMachineAssembler::TailCallRuntime2(Runtime::FunctionId function,
   CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
       zone(), function, kArity, Operator::kNoProperties,
       CallDescriptor::kSupportsTailCalls);
+  int return_count = static_cast<int>(desc->ReturnCount());
 
-  Node* centry = HeapConstant(CEntryStub(isolate(), 1).GetCode());
+  Node* centry = HeapConstant(CEntryStub(isolate(), return_count).GetCode());
   Node* ref = AddNode(
       common()->ExternalConstant(ExternalReference(function, isolate())));
   Node* arity = Int32Constant(kArity);
