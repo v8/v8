@@ -874,6 +874,7 @@
   'regress/regress-331444': [SKIP],
   'regress/regress-343609': [SKIP],
   'regress/regress-347530': [SKIP],
+  'regress/regress-347914': [SKIP],
   'regress/regress-352982': [SKIP],
   'regress/regress-354357': [SKIP],
   'regress/regress-356053': [SKIP],
