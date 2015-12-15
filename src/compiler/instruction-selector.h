@@ -9,6 +9,7 @@
 
 #include "src/compiler/common-operator.h"
 #include "src/compiler/instruction.h"
+#include "src/compiler/instruction-scheduler.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node.h"
 #include "src/zone-containers.h"
@@ -45,6 +46,10 @@ class InstructionSelector final {
 
   // Visit code for the entire graph with the included schedule.
   void SelectInstructions();
+
+  void StartBlock(RpoNumber rpo);
+  void EndBlock(RpoNumber rpo);
+  void AddInstruction(Instruction* instr);
 
   // ===========================================================================
   // ============= Architecture-independent code emission methods. =============
@@ -253,6 +258,7 @@ class InstructionSelector final {
   BoolVector defined_;
   BoolVector used_;
   IntVector virtual_registers_;
+  InstructionScheduler* scheduler_;
 };
 
 }  // namespace compiler
