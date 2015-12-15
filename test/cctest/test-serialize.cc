@@ -93,7 +93,8 @@ void WritePayload(const Vector<const byte>& payload, const char* file_name) {
 static bool WriteToFile(Isolate* isolate, const char* snapshot_file) {
   SnapshotByteSink sink;
   StartupSerializer ser(isolate, &sink);
-  ser.Serialize();
+  ser.SerializeStrongReferences();
+  ser.SerializeWeakReferencesAndDeferred();
   SnapshotData snapshot_data(ser);
   WritePayload(snapshot_data.RawData(), snapshot_file);
   return true;

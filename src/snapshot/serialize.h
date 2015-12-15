@@ -136,8 +136,6 @@ class SerializerDeserializer: public ObjectVisitor {
  public:
   static void Iterate(Isolate* isolate, ObjectVisitor* visitor);
 
-  static int nop() { return kNop; }
-
   // No reservation for large object space necessary.
   static const int kNumberOfPreallocatedSpaces = LAST_PAGED_SPACE + 1;
   static const int kNumberOfSpaces = LAST_SPACE + 1;
@@ -653,10 +651,6 @@ class StartupSerializer : public Serializer {
   void SerializeObject(HeapObject* o, HowToCode how_to_code,
                        WhereToPoint where_to_point, int skip) override;
   void SerializeWeakReferencesAndDeferred();
-  void Serialize() {
-    SerializeStrongReferences();
-    SerializeWeakReferencesAndDeferred();
-  }
 
  private:
   intptr_t root_index_wave_front_;

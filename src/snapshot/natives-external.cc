@@ -93,23 +93,17 @@ class NativesStore {
     return Vector<const char>::cast(name);
   }
 
-  bool ReadNameAndContentPair(SnapshotByteSource* bytes) {
+  void ReadNameAndContentPair(SnapshotByteSource* bytes) {
     const byte* id;
-    int id_length;
     const byte* source;
-    int source_length;
-    bool success = bytes->GetBlob(&id, &id_length) &&
-                   bytes->GetBlob(&source, &source_length);
-    if (success) {
-      Vector<const char> id_vector(reinterpret_cast<const char*>(id),
-                                   id_length);
-      Vector<const char> source_vector(
-          reinterpret_cast<const char*>(source), source_length);
-      native_ids_.Add(id_vector);
-      native_source_.Add(source_vector);
-      native_names_.Add(NameFromId(id, id_length));
-    }
-    return success;
+    int id_length = bytes->GetBlob(&id);
+    int source_length = bytes->GetBlob(&source);
+    Vector<const char> id_vector(reinterpret_cast<const char*>(id), id_length);
+    Vector<const char> source_vector(reinterpret_cast<const char*>(source),
+                                     source_length);
+    native_ids_.Add(id_vector);
+    native_source_.Add(source_vector);
+    native_names_.Add(NameFromId(id, id_length));
   }
 
   List<Vector<const char> > native_ids_;
