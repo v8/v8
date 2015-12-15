@@ -747,12 +747,24 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it,
 }
 
 
+#define STACK_CHECK(result_value)                        \
+  do {                                                   \
+    StackLimitCheck stack_check(isolate);                \
+    if (stack_check.HasOverflowed()) {                   \
+      isolate->Throw(*isolate->factory()->NewRangeError( \
+          MessageTemplate::kStackOverflow));             \
+      return result_value;                               \
+    }                                                    \
+  } while (false)
+
+
 // static
 MaybeHandle<Object> JSProxy::GetProperty(Isolate* isolate,
                                          Handle<JSProxy> proxy,
                                          Handle<Name> name,
                                          Handle<Object> receiver,
                                          LanguageMode language_mode) {
+  STACK_CHECK(MaybeHandle<Object>());
   Handle<Name> trap_name = isolate->factory()->get_string();
   // 1. Assert: IsPropertyKey(P) is true.
   // 2. Let handler be the value of the [[ProxyHandler]] internal slot of O.
@@ -963,6 +975,8 @@ Handle<FixedArray> JSObject::EnsureWritableFastElements(
 MaybeHandle<Object> JSProxy::GetPrototype(Handle<JSProxy> proxy) {
   Isolate* isolate = proxy->GetIsolate();
   Handle<String> trap_name = isolate->factory()->getPrototypeOf_string();
+
+  STACK_CHECK(MaybeHandle<Object>());
 
   // 1. Let handler be the value of the [[ProxyHandler]] internal slot.
   // 2. If handler is null, throw a TypeError exception.
@@ -4630,6 +4644,7 @@ void JSProxy::Revoke(Handle<JSProxy> proxy) {
 
 Maybe<bool> JSProxy::HasProperty(Isolate* isolate, Handle<JSProxy> proxy,
                                  Handle<Name> name) {
+  STACK_CHECK(Nothing<bool>());
   // 1. (Assert)
   // 2. Let handler be the value of the [[ProxyHandler]] internal slot of O.
   Handle<Object> handler(proxy->handler(), isolate);
@@ -4697,6 +4712,7 @@ Maybe<bool> JSProxy::SetProperty(Handle<JSProxy> proxy, Handle<Name> name,
                                  Handle<Object> value, Handle<Object> receiver,
                                  LanguageMode language_mode) {
   Isolate* isolate = proxy->GetIsolate();
+  STACK_CHECK(Nothing<bool>());
   Factory* factory = isolate->factory();
   Handle<String> trap_name = factory->set_string();
   ShouldThrow should_throw =
@@ -4766,6 +4782,7 @@ Maybe<bool> JSProxy::DeletePropertyOrElement(Handle<JSProxy> proxy,
   ShouldThrow should_throw =
       is_sloppy(language_mode) ? DONT_THROW : THROW_ON_ERROR;
   Isolate* isolate = proxy->GetIsolate();
+  STACK_CHECK(Nothing<bool>());
   Factory* factory = isolate->factory();
   Handle<String> trap_name = factory->deleteProperty_string();
 
@@ -6804,6 +6821,7 @@ Maybe<bool> JSProxy::DefineOwnProperty(Isolate* isolate, Handle<JSProxy> proxy,
                                        Handle<Object> key,
                                        PropertyDescriptor* desc,
                                        ShouldThrow should_throw) {
+  STACK_CHECK(Nothing<bool>());
   Handle<String> trap_name = isolate->factory()->defineProperty_string();
   // 1. Assert: IsPropertyKey(P) is true.
   DCHECK(key->IsName() || key->IsNumber());
@@ -6982,6 +7000,7 @@ Maybe<bool> JSProxy::GetOwnPropertyDescriptor(Isolate* isolate,
                                               Handle<JSProxy> proxy,
                                               Handle<Name> name,
                                               PropertyDescriptor* desc) {
+  STACK_CHECK(Nothing<bool>());
   Handle<String> trap_name =
       isolate->factory()->getOwnPropertyDescriptor_string();
   // 1. (Assert)
@@ -7337,6 +7356,7 @@ Maybe<bool> JSReceiver::PreventExtensions(Handle<JSReceiver> object,
 Maybe<bool> JSProxy::PreventExtensions(Handle<JSProxy> proxy,
                                        ShouldThrow should_throw) {
   Isolate* isolate = proxy->GetIsolate();
+  STACK_CHECK(Nothing<bool>());
   Factory* factory = isolate->factory();
   Handle<String> trap_name = factory->preventExtensions_string();
 
@@ -7446,6 +7466,7 @@ Maybe<bool> JSReceiver::IsExtensible(Handle<JSReceiver> object) {
 
 Maybe<bool> JSProxy::IsExtensible(Handle<JSProxy> proxy) {
   Isolate* isolate = proxy->GetIsolate();
+  STACK_CHECK(Nothing<bool>());
   Factory* factory = isolate->factory();
   Handle<String> trap_name = factory->isExtensible_string();
 
@@ -8397,6 +8418,7 @@ static Maybe<bool> GetKeys_Internal(Isolate* isolate,
 Maybe<bool> JSProxy::Enumerate(Isolate* isolate, Handle<JSReceiver> receiver,
                                Handle<JSProxy> proxy,
                                KeyAccumulator* accumulator) {
+  STACK_CHECK(Nothing<bool>());
   // 1. Let handler be the value of the [[ProxyHandler]] internal slot of O.
   Handle<Object> handler(proxy->handler(), isolate);
   // 2. If handler is null, throw a TypeError exception.
@@ -8504,6 +8526,7 @@ Maybe<bool> JSProxy::OwnPropertyKeys(Isolate* isolate,
                                      Handle<JSProxy> proxy,
                                      PropertyFilter filter,
                                      KeyAccumulator* accumulator) {
+  STACK_CHECK(Nothing<bool>());
   // 1. Let handler be the value of the [[ProxyHandler]] internal slot of O.
   Handle<Object> handler(proxy->handler(), isolate);
   // 2. If handler is null, throw a TypeError exception.
@@ -15140,6 +15163,7 @@ Maybe<bool> JSProxy::SetPrototype(Handle<JSProxy> proxy, Handle<Object> value,
                                   bool from_javascript,
                                   ShouldThrow should_throw) {
   Isolate* isolate = proxy->GetIsolate();
+  STACK_CHECK(Nothing<bool>());
   Handle<Name> trap_name = isolate->factory()->setPrototypeOf_string();
   // 1. Assert: Either Type(V) is Object or Type(V) is Null.
   DCHECK(value->IsJSReceiver() || value->IsNull());
