@@ -1577,8 +1577,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
     // called.
     info.EnsureFeedbackVector();
     scope_info = Handle<ScopeInfo>(ScopeInfo::Empty(isolate));
-  } else if (Renumber(info.parse_info()) &&
-             FullCodeGenerator::MakeCode(&info)) {
+  } else if (Renumber(info.parse_info()) && GenerateBaselineCode(&info)) {
     // Code generation will ensure that the feedback vector is present and
     // appropriately sized.
     DCHECK(!info.code().is_null());
