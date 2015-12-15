@@ -744,7 +744,10 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ fld(1);
       __ fld(1);
       __ FCmp();
-      __ j(parity_even, &check_nan_left, Label::kNear);  // At least one NaN.
+
+      // At least one NaN.
+      // Return the second operands if one of the two operands is NaN
+      __ j(parity_even, &return_right, Label::kNear);
       __ j(equal, &check_zero, Label::kNear);            // left == right.
       __ j(condition, &return_left, Label::kNear);
       __ jmp(&return_right, Label::kNear);
@@ -757,12 +760,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
 
       __ fadd(1);
       __ jmp(&return_left, Label::kNear);
-
-      __ bind(&check_nan_left);
-      __ fld(0);
-      __ fld(0);
-      __ FCmp();                                      // NaN check.
-      __ j(parity_even, &return_left, Label::kNear);  // left == NaN.
 
       __ bind(&return_right);
       __ fxch();
@@ -781,7 +778,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ fld(1);
       __ fld(1);
       __ FCmp();
-      __ j(parity_even, &check_nan_left, Label::kNear);  // At least one NaN.
+      // At least one NaN.
+      // Return the second operands if one of the two operands is NaN
+      __ j(parity_even, &return_right, Label::kNear);
       __ j(equal, &check_zero, Label::kNear);            // left == right.
       __ j(condition, &return_left, Label::kNear);
       __ jmp(&return_right, Label::kNear);
@@ -808,11 +807,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ pop(eax);  // restore esp
       __ jmp(&return_left, Label::kNear);
 
-      __ bind(&check_nan_left);
-      __ fld(0);
-      __ fld(0);
-      __ FCmp();                                      // NaN check.
-      __ j(parity_even, &return_left, Label::kNear);  // left == NaN.
 
       __ bind(&return_right);
       __ fxch();
