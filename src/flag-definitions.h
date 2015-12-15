@@ -200,7 +200,6 @@ DEFINE_IMPLICATION(es_staging, harmony_reflect)
 
 // Features that are still work in progress (behind individual flags).
 #define HARMONY_INPROGRESS(V)                                         \
-  V(harmony_object_observe, "harmony Object.observe")                 \
   V(harmony_modules, "harmony modules")                               \
   V(harmony_proxies, "harmony proxies")                               \
   V(harmony_unicode_regexps, "harmony unicode regexps")               \
@@ -224,6 +223,7 @@ DEFINE_IMPLICATION(es_staging, harmony_reflect)
   V(harmony_default_parameters, "harmony default parameters") \
   V(harmony_destructuring_bind, "harmony destructuring bind") \
   V(harmony_concat_spreadable, "harmony isConcatSpreadable")  \
+  V(harmony_object_observe, "harmony Object.observe")         \
   V(harmony_tolength, "harmony ToLength")                     \
   V(harmony_tostring, "harmony toString")                     \
   V(harmony_completion, "harmony completion value semantics") \
