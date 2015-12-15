@@ -369,6 +369,14 @@ void RegExpMacroAssemblerTracer::CheckNotBackReferenceIgnoreCase(
 }
 
 
+void RegExpMacroAssemblerTracer::CheckPosition(int cp_offset,
+                                               Label* on_outside_input) {
+  PrintF(" CheckPosition(cp_offset=%d, label[%08x]);\n", cp_offset,
+         LabelToInt(on_outside_input));
+  assembler_->CheckPosition(cp_offset, on_outside_input);
+}
+
+
 bool RegExpMacroAssemblerTracer::CheckSpecialCharacterClass(
     uc16 type,
     Label* on_no_match) {
