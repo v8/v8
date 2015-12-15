@@ -589,7 +589,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       AssembleArchLookupSwitch(instr);
       break;
     case kArchNop:
-    case kArchThrowTerminator:
       // don't emit code for nops.
       break;
     case kArchDeoptimize: {

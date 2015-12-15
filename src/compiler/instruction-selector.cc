@@ -30,13 +30,12 @@ InstructionSelector::InstructionSelector(
       source_position_mode_(source_position_mode),
       features_(features),
       schedule_(schedule),
-      current_block_(nullptr),
+      current_block_(NULL),
       instructions_(zone),
       defined_(node_count, false, zone),
       used_(node_count, false, zone),
       virtual_registers_(node_count,
-                         InstructionOperand::kInvalidVirtualRegister, zone),
-      scheduler_(nullptr) {
+                         InstructionOperand::kInvalidVirtualRegister, zone) {
   instructions_.reserve(node_count);
 }
 
@@ -63,55 +62,17 @@ void InstructionSelector::SelectInstructions() {
   }
 
   // Schedule the selected instructions.
-  if (FLAG_turbo_instruction_scheduling &&
-      InstructionScheduler::SchedulerSupported()) {
-    scheduler_ = new (zone()) InstructionScheduler(zone(), sequence());
-  }
-
   for (auto const block : *blocks) {
     InstructionBlock* instruction_block =
         sequence()->InstructionBlockAt(RpoNumber::FromInt(block->rpo_number()));
     size_t end = instruction_block->code_end();
     size_t start = instruction_block->code_start();
     DCHECK_LE(end, start);
-    StartBlock(RpoNumber::FromInt(block->rpo_number()));
+    sequence()->StartBlock(RpoNumber::FromInt(block->rpo_number()));
     while (start-- > end) {
-      AddInstruction(instructions_[start]);
+      sequence()->AddInstruction(instructions_[start]);
     }
-    EndBlock(RpoNumber::FromInt(block->rpo_number()));
-  }
-}
-
-
-void InstructionSelector::StartBlock(RpoNumber rpo) {
-  if (FLAG_turbo_instruction_scheduling &&
-      InstructionScheduler::SchedulerSupported()) {
-    DCHECK(scheduler_ != nullptr);
-    scheduler_->StartBlock(rpo);
-  } else {
-    sequence()->StartBlock(rpo);
-  }
-}
-
-
-void InstructionSelector::EndBlock(RpoNumber rpo) {
-  if (FLAG_turbo_instruction_scheduling &&
-      InstructionScheduler::SchedulerSupported()) {
-    DCHECK(scheduler_ != nullptr);
-    scheduler_->EndBlock(rpo);
-  } else {
-    sequence()->EndBlock(rpo);
-  }
-}
-
-
-void InstructionSelector::AddInstruction(Instruction* instr) {
-  if (FLAG_turbo_instruction_scheduling &&
-      InstructionScheduler::SchedulerSupported()) {
-    DCHECK(scheduler_ != nullptr);
-    scheduler_->AddInstruction(instr);
-  } else {
-    sequence()->AddInstruction(instr);
+    sequence()->EndBlock(RpoNumber::FromInt(block->rpo_number()));
   }
 }
 
@@ -1483,7 +1444,7 @@ void InstructionSelector::VisitDeoptimize(DeoptimizeKind kind, Node* value) {
 
 void InstructionSelector::VisitThrow(Node* value) {
   OperandGenerator g(this);
-  Emit(kArchThrowTerminator, g.NoOutput());  // TODO(titzer)
+  Emit(kArchNop, g.NoOutput());  // TODO(titzer)
 }
 
 
