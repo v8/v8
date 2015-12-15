@@ -2601,6 +2601,9 @@ function ValueToProtocolValue_(value, mirror_serializer) {
 utils.InstallConstants(global, [
   "Debug", Debug,
   "DebugCommandProcessor", DebugCommandProcessor,
+  "BreakEvent", BreakEvent,
+  "CompileEvent", CompileEvent,
+  "BreakPoint", BreakPoint,
 ]);
 
 // Functions needed by the debugger runtime.
