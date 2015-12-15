@@ -404,7 +404,6 @@ class Debug {
   void ClearAllBreakPoints();
   void FloodWithOneShot(Handle<JSFunction> function,
                         BreakLocatorType type = ALL_BREAK_LOCATIONS);
-  void FloodHandlerWithOneShot();
   void ChangeBreakOnException(ExceptionBreakType type, bool enable);
   bool IsBreakOnException(ExceptionBreakType type);
 
@@ -413,6 +412,7 @@ class Debug {
                    int step_count,
                    StackFrame::Id frame_id);
   void PrepareStepIn(Handle<JSFunction> function);
+  void PrepareStepOnThrow();
   void ClearStepping();
   void ClearStepOut();
   void EnableStepIn();
