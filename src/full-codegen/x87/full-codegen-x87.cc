@@ -1025,7 +1025,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   int vector_index = SmiFromSlot(slot)->value();
   __ mov(FieldOperand(ebx, FixedArray::OffsetOfElementAt(vector_index)),
          Immediate(TypeFeedbackVector::MegamorphicSentinel(isolate())));
-  __ push(Immeadiate(Smi::FromInt(1)));  // Smi(1) undicates slow check
+  __ push(Immediate(Smi::FromInt(1)));  // Smi(1) undicates slow check
   __ push(eax);  // Array
   __ mov(eax, FieldOperand(eax, FixedArray::kLengthOffset));
   __ push(eax);  // Fixed array length (as smi).
