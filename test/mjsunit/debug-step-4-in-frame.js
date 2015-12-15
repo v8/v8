@@ -113,20 +113,20 @@ TestCase(undefined, 0, "0,0,-1");
 TestCase(undefined, 1, "0,0,-1");
 TestCase(undefined, 2, "0,0,0");
 TestCase(undefined, 5, "0,0,1");
-TestCase(undefined, 8, "0,0,3");
+TestCase(undefined, 8, "0,0,2");
 
 // Stepping in the frame #0 (should be exactly the same as above).
 TestCase(0, 0, "0,0,-1");
 TestCase(0, 1, "0,0,-1");
 TestCase(0, 2, "0,0,0");
 TestCase(0, 5, "0,0,1");
-TestCase(0, 8, "0,0,3");
+TestCase(0, 8, "0,0,2");
 
 // Stepping in the frame #1.
 TestCase(1, 0, "0,0,3");
 TestCase(1, 3, "0,1,3");
-TestCase(1, 7, "0,3,3");
+TestCase(1, 7, "0,2,3");
 
 // Stepping in the frame #2.
 TestCase(2, 3, "1,3,3");
-TestCase(2, 7, "3,3,3");
+TestCase(2, 7, "2,3,3");
