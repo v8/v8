@@ -943,17 +943,11 @@ function ExecutionState(break_id) {
   this.selected_frame = 0;
 }
 
-ExecutionState.prototype.prepareStep = function(opt_action, opt_count,
-    opt_callframe) {
+ExecutionState.prototype.prepareStep = function(opt_action, opt_count) {
   var action = Debug.StepAction.StepIn;
   if (!IS_UNDEFINED(opt_action)) action = TO_NUMBER(opt_action);
   var count = opt_count ? TO_NUMBER(opt_count) : 1;
-  var callFrameId = 0;
-  if (!IS_UNDEFINED(opt_callframe)) {
-    callFrameId = opt_callframe.details_.frameId();
-  }
-
-  return %PrepareStep(this.break_id, action, count, callFrameId);
+  return %PrepareStep(this.break_id, action, count);
 };
 
 ExecutionState.prototype.evaluateGlobal = function(source, disable_break,

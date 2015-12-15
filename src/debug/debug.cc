@@ -493,7 +493,7 @@ void Debug::Break(Arguments args, JavaScriptFrame* frame) {
       // Clear queue
       thread_local_.queued_step_count_ = 0;
 
-      PrepareStep(StepNext, step_count, StackFrame::NO_ID);
+      PrepareStep(StepNext, step_count);
     } else {
       // Notify the debug event listeners.
       OnDebugBreak(break_points_hit, false);
@@ -531,7 +531,7 @@ void Debug::Break(Arguments args, JavaScriptFrame* frame) {
     ClearStepping();
 
     // Set up for the remaining steps.
-    PrepareStep(step_action, step_count, StackFrame::NO_ID);
+    PrepareStep(step_action, step_count);
   }
 }
 
@@ -833,9 +833,7 @@ void Debug::PrepareStepOnThrow() {
 }
 
 
-void Debug::PrepareStep(StepAction step_action,
-                        int step_count,
-                        StackFrame::Id frame_id) {
+void Debug::PrepareStep(StepAction step_action, int step_count) {
   HandleScope scope(isolate_);
 
   DCHECK(in_debug_scope());
@@ -844,15 +842,11 @@ void Debug::PrepareStep(StepAction step_action,
   // any. The debug frame will only be present if execution was stopped due to
   // hitting a break point. In other situations (e.g. unhandled exception) the
   // debug frame is not present.
-  StackFrame::Id id = break_frame_id();
-  if (id == StackFrame::NO_ID) {
-    // If there is no JavaScript stack don't do anything.
-    return;
-  }
-  if (frame_id != StackFrame::NO_ID) {
-    id = frame_id;
-  }
-  JavaScriptFrameIterator frames_it(isolate_, id);
+  StackFrame::Id frame_id = break_frame_id();
+  // If there is no JavaScript stack don't do anything.
+  if (frame_id == StackFrame::NO_ID) return;
+
+  JavaScriptFrameIterator frames_it(isolate_, frame_id);
   JavaScriptFrame* frame = frames_it.frame();
 
   feature_tracker()->Track(DebugFeatureTracker::kStepping);

@@ -408,9 +408,7 @@ class Debug {
   bool IsBreakOnException(ExceptionBreakType type);
 
   // Stepping handling.
-  void PrepareStep(StepAction step_action,
-                   int step_count,
-                   StackFrame::Id frame_id);
+  void PrepareStep(StepAction step_action, int step_count);
   void PrepareStepIn(Handle<JSFunction> function);
   void PrepareStepOnThrow();
   void ClearStepping();

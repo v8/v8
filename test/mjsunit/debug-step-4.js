@@ -53,8 +53,8 @@ function h() {
   }
 }
 
-function TestCase(frame_index, step_count, expected_final_state) {
-  print("Test case, parameters " + frame_index + "/" + step_count);
+function TestCase(step_count, expected_final_state) {
+  print("Test case, step count: " + step_count);
 
   var listener_exception = null;
   var state_snapshot;
@@ -68,12 +68,7 @@ function TestCase(frame_index, step_count, expected_final_state) {
       if (event == Debug.DebugEvent.Break) {
         if (listener_state == 0) {
           Debug.clearBreakPoint(bp);
-          var context_frame;
-          if (frame_index !== undefined) {
-            context_frame = exec_state.frame(frame_index);
-          }
-          exec_state.prepareStep(Debug.StepAction.StepNext,
-              step_count, context_frame);
+          exec_state.prepareStep(Debug.StepAction.StepNext, step_count);
           listener_state = 1;
         } else if (listener_state == 1) {
           state_snapshot = String(state);
@@ -107,26 +102,8 @@ function TestCase(frame_index, step_count, expected_final_state) {
 // Warm-up -- make sure all is compiled and ready for breakpoint.
 h();
 
-
-// Stepping in the default (top) frame.
-TestCase(undefined, 0, "0,0,-1");
-TestCase(undefined, 1, "0,0,-1");
-TestCase(undefined, 2, "0,0,0");
-TestCase(undefined, 5, "0,0,1");
-TestCase(undefined, 8, "0,0,3");
-
-// Stepping in the frame #0 (should be exactly the same as above).
-TestCase(0, 0, "0,0,-1");
-TestCase(0, 1, "0,0,-1");
-TestCase(0, 2, "0,0,0");
-TestCase(0, 5, "0,0,1");
-TestCase(0, 8, "0,0,3");
-
-// Stepping in the frame #1.
-TestCase(1, 0, "0,0,3");
-TestCase(1, 3, "0,1,3");
-TestCase(1, 7, "0,3,3");
-
-// Stepping in the frame #2.
-TestCase(2, 3, "1,3,3");
-TestCase(2, 7, "3,3,3");
+TestCase(0, "0,0,-1");
+TestCase(1, "0,0,-1");
+TestCase(2, "0,0,0");
+TestCase(5, "0,0,1");
+TestCase(8, "0,0,2");
