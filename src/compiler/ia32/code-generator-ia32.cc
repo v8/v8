@@ -451,6 +451,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       AssembleArchTableSwitch(instr);
       break;
     case kArchNop:
+    case kArchThrowTerminator:
       // don't emit code for nops.
       break;
     case kArchDeoptimize: {
