@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-debug-as debug
+// Flags: --expose-debug-as debug --debug-eval-readonly-locals
 
 Debug = debug.Debug
 
@@ -26,12 +26,12 @@ Debug.setListener(listener);
   } catch (e) {
     let a = 1;
     function bar() {
-      a = 2;  // this has no effect, when called from debug-eval
-      e = 2;  // this has no effect, when called from debug-eval.
+      a = 2;
+      e = 2;
     }
     debugger;
-    assertEquals(1, a);
-    assertEquals(1, e);
+    assertEquals(2, a);
+    assertEquals(2, e);
   }
 })();
 

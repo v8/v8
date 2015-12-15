@@ -54,6 +54,7 @@ class DebugEvaluate : public AllStatic {
     void UpdateValues();
 
     Handle<Context> innermost_context() const { return innermost_context_; }
+    Handle<Context> native_context() const { return native_context_; }
     Handle<SharedFunctionInfo> outer_info() const { return outer_info_; }
 
    private:
@@ -87,13 +88,14 @@ class DebugEvaluate : public AllStatic {
                                         bool this_is_non_local);
 
     MaybeHandle<Object> LoadFromContext(Handle<Context> context,
-                                        Handle<String> name);
+                                        Handle<String> name, bool* global);
 
     void StoreToContext(Handle<Context> context, Handle<String> name,
                         Handle<Object> value);
 
     Handle<SharedFunctionInfo> outer_info_;
     Handle<Context> innermost_context_;
+    Handle<Context> native_context_;
     List<ContextChainElement> context_chain_;
     List<Handle<String> > non_locals_;
     Isolate* isolate_;
