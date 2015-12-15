@@ -1082,6 +1082,7 @@
   'regress/regress-78270': [SKIP],
   'regress/regress-91008': [SKIP],
   'regress/regress-crbug-347903': [SKIP],
+  'regress/regress-crbug-500497': [SKIP],
   'regress/regress-crbug-505007-1': [SKIP],
   'regress/regress-crbug-505007-2': [SKIP],
   'regress/short-circuit': [SKIP],
