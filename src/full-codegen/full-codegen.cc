@@ -920,12 +920,6 @@ void FullCodeGenerator::EmitPropertyKey(ObjectLiteralProperty* property,
 }
 
 
-void FullCodeGenerator::EmitLoadSuperConstructor(SuperCallReference* ref) {
-  VisitForStackValue(ref->this_function_var());
-  __ CallRuntime(Runtime::kGetPrototype, 1);
-}
-
-
 void FullCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
   Comment cmnt(masm_, "[ ReturnStatement");
   SetStatementPosition(stmt);

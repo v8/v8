@@ -2501,14 +2501,12 @@ void AstGraphBuilder::VisitCallSuper(Call* expr) {
   SuperCallReference* super = expr->expression()->AsSuperCallReference();
   DCHECK_NOT_NULL(super);
 
-  // Prepare the callee to the super call. The super constructor is stored as
-  // the prototype of the constructor we are currently executing.
+  // Prepare the callee to the super call.
   VisitForValue(super->this_function_var());
   Node* this_function = environment()->Pop();
-  const Operator* op = javascript()->CallRuntime(Runtime::kGetPrototype, 1);
+  const Operator* op =
+      javascript()->CallRuntime(Runtime::kInlineGetSuperConstructor, 1);
   Node* super_function = NewNode(op, this_function);
-  // TODO(mstarzinger): This probably needs a proper bailout id.
-  PrepareFrameState(super_function, BailoutId::None());
   environment()->Push(super_function);
 
   // Evaluate all arguments to the super call.

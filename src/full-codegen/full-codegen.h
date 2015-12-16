@@ -630,8 +630,6 @@ class FullCodeGenerator: public AstVisitor {
   void EmitSetHomeObjectAccumulator(Expression* initializer, int offset,
                                     FeedbackVectorSlot slot);
 
-  void EmitLoadSuperConstructor(SuperCallReference* super_call_ref);
-
   void CallIC(Handle<Code> code,
               TypeFeedbackId id = TypeFeedbackId::None());
 
