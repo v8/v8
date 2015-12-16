@@ -12135,9 +12135,14 @@ void SharedFunctionInfo::AddSharedCodeToOptimizedCodeMap(
   if (isolate->serializer_enabled()) return;
   DCHECK(code->kind() == Code::OPTIMIZED_FUNCTION);
   // Empty code maps are unsupported.
-  if (shared->OptimizedCodeMapIsCleared()) return;
-  Handle<WeakCell> cell = isolate->factory()->NewWeakCell(code);
-  shared->optimized_code_map()->set(kSharedCodeIndex, *cell);
+  if (!shared->OptimizedCodeMapIsCleared()) {
+    Handle<WeakCell> cell = isolate->factory()->NewWeakCell(code);
+    // A collection may have occured and cleared the optimized code map in the
+    // allocation above.
+    if (!shared->OptimizedCodeMapIsCleared()) {
+      shared->optimized_code_map()->set(kSharedCodeIndex, *cell);
+    }
+  }
 }
 
 

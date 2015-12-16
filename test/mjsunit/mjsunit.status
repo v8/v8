@@ -1050,6 +1050,7 @@
   'regress/regress-crbug-405517': [SKIP],
   'regress/regress-799761': [SKIP],
   'regress/regress-503565': [SKIP],
+  'regress/regress-568765': [SKIP],
   'regress/regress-3138': [SKIP],
   'regress/regress-220': [SKIP],
   'regress/regress-1170187': [SKIP],
