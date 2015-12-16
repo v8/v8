@@ -9059,7 +9059,7 @@ Handle<Map> Map::CopyInitialMap(Handle<Map> map, int instance_size,
   if (number_of_own_descriptors > 0) {
     // The copy will use the same descriptors array.
     result->UpdateDescriptors(map->instance_descriptors(),
-                              map->layout_descriptor());
+                              map->GetLayoutDescriptor());
     result->SetNumberOfOwnDescriptors(number_of_own_descriptors);
 
     DCHECK_EQ(result->NumberOfFields(),
