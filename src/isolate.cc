@@ -779,10 +779,10 @@ bool Isolate::MayAccess(Handle<Context> accessing_context,
   // Check for compatibility between the security tokens in the
   // current lexical context and the accessed object.
 
+  // During bootstrapping, callback functions are not enabled yet.
+  if (bootstrapper()->IsActive()) return true;
   {
     DisallowHeapAllocation no_gc;
-    // During bootstrapping, callback functions are not enabled yet.
-    if (bootstrapper()->IsActive()) return true;
 
     if (receiver->IsJSGlobalProxy()) {
       Object* receiver_context =

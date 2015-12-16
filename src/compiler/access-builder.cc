@@ -192,6 +192,14 @@ FieldAccess AccessBuilder::ForDescriptorArrayEnumCacheBridgeCache() {
 
 
 // static
+FieldAccess AccessBuilder::ForMapBitField() {
+  FieldAccess access = {kTaggedBase, Map::kBitFieldOffset, Handle<Name>(),
+                        TypeCache::Get().kUint8, MachineType::Uint8()};
+  return access;
+}
+
+
+// static
 FieldAccess AccessBuilder::ForMapBitField3() {
   FieldAccess access = {kTaggedBase, Map::kBitField3Offset, Handle<Name>(),
                         TypeCache::Get().kInt32, MachineType::Int32()};

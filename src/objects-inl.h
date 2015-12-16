@@ -1187,11 +1187,6 @@ MaybeHandle<Object> Object::GetPrototype(Isolate* isolate,
                                          Handle<Object> receiver) {
   // We don't expect access checks to be needed on JSProxy objects.
   DCHECK(!receiver->IsAccessCheckNeeded() || receiver->IsJSObject());
-  Handle<Context> context(isolate->context());
-  if (receiver->IsAccessCheckNeeded() &&
-      !isolate->MayAccess(context, Handle<JSObject>::cast(receiver))) {
-    return isolate->factory()->null_value();
-  }
   PrototypeIterator iter(isolate, receiver,
                          PrototypeIterator::START_AT_RECEIVER);
   do {

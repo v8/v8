@@ -2517,11 +2517,16 @@ void InstanceOfStub::Generate(MacroAssembler* masm) {
 
   // Loop through the prototype chain looking for the {function} prototype.
   // Assume true, and change to false if not found.
-  Label done, loop, proxy_case;
+  Label done, loop, fast_runtime_fallback;
   __ LoadRoot(rax, Heap::kTrueValueRootIndex);
   __ bind(&loop);
+
+  __ testb(FieldOperand(object_map, Map::kBitFieldOffset),
+           Immediate(1 << Map::kIsAccessCheckNeeded));
+  __ j(not_zero, &fast_runtime_fallback, Label::kNear);
   __ CmpInstanceType(object_map, JS_PROXY_TYPE);
-  __ j(equal, &proxy_case, Label::kNear);
+  __ j(equal, &fast_runtime_fallback, Label::kNear);
+
   __ movp(object, FieldOperand(object_map, Map::kPrototypeOffset));
   __ cmpp(object, function_prototype);
   __ j(equal, &done, Label::kNear);
@@ -2533,8 +2538,8 @@ void InstanceOfStub::Generate(MacroAssembler* masm) {
   __ StoreRoot(rax, Heap::kInstanceofCacheAnswerRootIndex);
   __ ret(0);
 
-  // Proxy-case: Call the %HasInPrototypeChain runtime function.
-  __ bind(&proxy_case);
+  // Found Proxy or access check needed: Call the runtime.
+  __ bind(&fast_runtime_fallback);
   __ PopReturnAddressTo(kScratchRegister);
   __ Push(object);
   __ Push(function_prototype);

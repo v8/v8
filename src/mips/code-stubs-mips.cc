@@ -1506,15 +1506,25 @@ void InstanceOfStub::Generate(MacroAssembler* masm) {
   // Loop through the prototype chain looking for the {function} prototype.
   // Assume true, and change to false if not found.
   Register const object_instance_type = function_map;
+  Register const map_bit_field = function_map;
   Register const null = scratch;
   Register const result = v0;
-  Label done, loop, proxy_case;
+
+  Label done, loop, fast_runtime_fallback;
   __ LoadRoot(result, Heap::kTrueValueRootIndex);
   __ LoadRoot(null, Heap::kNullValueRootIndex);
   __ bind(&loop);
+
+  // Check if the object needs to be access checked.
+  __ lbu(map_bit_field, FieldMemOperand(object_map, Map::kBitFieldOffset));
+  __ And(map_bit_field, map_bit_field, Operand(1 << Map::kIsAccessCheckNeeded));
+  __ Branch(&fast_runtime_fallback, ne, map_bit_field, Operand(zero_reg));
+  // Check if the current object is a Proxy.
   __ lbu(object_instance_type,
          FieldMemOperand(object_map, Map::kInstanceTypeOffset));
-  __ Branch(&proxy_case, eq, object_instance_type, Operand(JS_PROXY_TYPE));
+  __ Branch(&fast_runtime_fallback, eq, object_instance_type,
+            Operand(JS_PROXY_TYPE));
+
   __ lw(object, FieldMemOperand(object_map, Map::kPrototypeOffset));
   __ Branch(&done, eq, object, Operand(function_prototype));
   __ Branch(USE_DELAY_SLOT, &loop, ne, object, Operand(null));
@@ -1526,8 +1536,8 @@ void InstanceOfStub::Generate(MacroAssembler* masm) {
   __ StoreRoot(result,
                Heap::kInstanceofCacheAnswerRootIndex);  // In delay slot.
 
-  // Proxy-case: Call the %HasInPrototypeChain runtime function.
-  __ bind(&proxy_case);
+  // Found Proxy or access check needed: Call the runtime
+  __ bind(&fast_runtime_fallback);
   __ Push(object, function_prototype);
   // Invalidate the instanceof cache.
   DCHECK(Smi::FromInt(0) == 0);

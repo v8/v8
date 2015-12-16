@@ -2564,24 +2564,32 @@ void InstanceOfStub::Generate(MacroAssembler* masm) {
 
   // Loop through the prototype chain looking for the {function} prototype.
   // Assume true, and change to false if not found.
-  Label done, loop, proxy_case;
+  Label done, loop, fast_runtime_fallback;
   __ mov(eax, isolate()->factory()->true_value());
   __ bind(&loop);
+
+  // Check if the object needs to be access checked.
+  __ test_b(FieldOperand(object_map, Map::kBitFieldOffset),
+            1 << Map::kIsAccessCheckNeeded);
+  __ j(not_zero, &fast_runtime_fallback, Label::kNear);
+  // Check if the current object is a Proxy.
   __ CmpInstanceType(object_map, JS_PROXY_TYPE);
-  __ j(equal, &proxy_case, Label::kNear);
+  __ j(equal, &fast_runtime_fallback, Label::kNear);
+
   __ mov(object, FieldOperand(object_map, Map::kPrototypeOffset));
   __ cmp(object, function_prototype);
   __ j(equal, &done, Label::kNear);
-  __ cmp(object, isolate()->factory()->null_value());
   __ mov(object_map, FieldOperand(object, HeapObject::kMapOffset));
+  __ cmp(object, isolate()->factory()->null_value());
   __ j(not_equal, &loop);
   __ mov(eax, isolate()->factory()->false_value());
+
   __ bind(&done);
   __ StoreRoot(eax, scratch, Heap::kInstanceofCacheAnswerRootIndex);
   __ ret(0);
 
-  // Proxy-case: Call the %HasInPrototypeChain runtime function.
-  __ bind(&proxy_case);
+  // Found Proxy or access check needed: Call the runtime.
+  __ bind(&fast_runtime_fallback);
   __ PopReturnAddressTo(scratch);
   __ Push(object);
   __ Push(function_prototype);

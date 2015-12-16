@@ -76,6 +76,9 @@ class AccessBuilder final : public AllStatic {
   // Provides access to DescriptorArray::enum_cache_bridge_cache() field.
   static FieldAccess ForDescriptorArrayEnumCacheBridgeCache();
 
+  // Provides access to Map::bit_field() byte.
+  static FieldAccess ForMapBitField();
+
   // Provides access to Map::bit_field3() field.
   static FieldAccess ForMapBitField3();
 

@@ -2916,8 +2916,16 @@ void LCodeGen::DoHasInPrototypeChainAndBranch(
   __ Ldr(object_map, FieldMemOperand(object, HeapObject::kMapOffset));
   Label loop;
   __ Bind(&loop);
+
+  // Deoptimize if the object needs to be access checked.
+  __ Ldrb(object_instance_type,
+          FieldMemOperand(object_map, Map::kBitFieldOffset));
+  __ Tst(object_instance_type, Operand(1 << Map::kIsAccessCheckNeeded));
+  DeoptimizeIf(ne, instr, Deoptimizer::kAccessCheck);
+  // Deoptimize for proxies.
   __ CompareInstanceType(object_map, object_instance_type, JS_PROXY_TYPE);
   DeoptimizeIf(eq, instr, Deoptimizer::kProxy);
+
   __ Ldr(object_prototype, FieldMemOperand(object_map, Map::kPrototypeOffset));
   __ Cmp(object_prototype, prototype);
   __ B(eq, instr->TrueLabel(chunk_));

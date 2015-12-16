@@ -63,6 +63,17 @@ class PrototypeIterator {
 
   ~PrototypeIterator() {}
 
+  const bool HasAccess() {
+    // We can only perform access check in the handlified version of the
+    // PrototypeIterator.
+    DCHECK(!handle_.is_null());
+    if (handle_->IsAccessCheckNeeded()) {
+      return isolate_->MayAccess(handle(isolate_->context()),
+                                 Handle<JSObject>::cast(handle_));
+    }
+    return true;
+  }
+
   template <typename T = Object>
   T* GetCurrent() const {
     DCHECK(handle_.is_null());
@@ -72,6 +83,7 @@ class PrototypeIterator {
   template <typename T = Object>
   static Handle<T> GetCurrent(const PrototypeIterator& iterator) {
     DCHECK(!iterator.handle_.is_null());
+    DCHECK(iterator.object_ == NULL);
     return Handle<T>::cast(iterator.handle_);
   }
 
@@ -110,6 +122,11 @@ class PrototypeIterator {
   // TODO(neis): This should probably replace Advance().
   bool AdvanceFollowingProxies() {
     DCHECK(!(handle_.is_null() && object_->IsJSProxy()));
+    if (!HasAccess()) {
+      // Abort the lookup if we do not have access to the current object.
+      handle_ = isolate_->factory()->null_value();
+      return true;
+    }
     if (!handle_.is_null() && handle_->IsJSProxy()) {
       did_jump_to_prototype_chain_ = true;
       MaybeHandle<Object> proto =

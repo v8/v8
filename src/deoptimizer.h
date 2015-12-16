@@ -307,6 +307,7 @@ class OptimizedFunctionVisitor BASE_EMBEDDED {
 
 
 #define DEOPT_MESSAGES_LIST(V)                                                 \
+  V(kAccessCheck, "Access check needed")                                       \
   V(kNoReason, "no reason")                                                    \
   V(kConstantGlobalVariableAssignment, "Constant global variable assignment")  \
   V(kConversionOverflow, "conversion overflow")                                \
