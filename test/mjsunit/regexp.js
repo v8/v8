@@ -722,3 +722,10 @@ assertThrows("RegExp.prototype.toString.call(true)", TypeError);
 assertThrows("RegExp.prototype.toString.call([])", TypeError);
 assertThrows("RegExp.prototype.toString.call({})", TypeError);
 assertThrows("RegExp.prototype.toString.call(function(){})", TypeError);
+
+// Test mutually recursive capture and backreferences.
+assertEquals(["b", "", ""], /(\2)b(\1)/.exec("aba"));
+assertEquals(["a", "", ""], /(\2).(\1)/.exec("aba"));
+assertEquals(["aba", "a", "a"], /(.\2).(\1)/.exec("aba"));
+assertEquals(["acbc", "c", "c"], /a(.\2)b(\1)$/.exec("acbc"));
+assertEquals(["acbc", "c", "c"], /a(.\2)b(\1)/.exec("aabcacbc"));

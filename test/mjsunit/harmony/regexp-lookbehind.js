@@ -157,3 +157,9 @@ assertEquals(["abc", "abc"], /(abc\1)/i.exec("abc\u1234"));
 var oob_subject = "abcdefghijklmnabcdefghijklmn".substr(14);
 assertNull(oob_subject.match(/(?=(abcdefghijklmn))(?<=\1)a/i));
 assertNull(oob_subject.match(/(?=(abcdefghijklmn))(?<=\1)a/));
+
+// Mutual recursive capture/back references
+assertEquals(["cacb", "a", ""], /(?<=a(.\2)b(\1)).{4}/.exec("aabcacbc"));
+assertEquals(["b", "ac", "ac"], /(?<=a(\2)b(..\1))b/.exec("aacbacb"));
+assertEquals(["x", "aa"], /(?<=(?:\1b)(aa))./.exec("aabaax"));
+assertEquals(["x", "aa"], /(?<=(?:\1|b)(aa))./.exec("aaaax"));

@@ -5565,8 +5565,11 @@ RegExpTree* RegExpParser::ParseDisjunction() {
         int index = 0;
         if (ParseBackReferenceIndex(&index)) {
           if (state->IsInsideCaptureGroup(index)) {
-            // The backreference is inside the capture group it refers to.
-            // Nothing can possibly have been captured yet.
+            // The back reference is inside the capture group it refers to.
+            // Nothing can possibly have been captured yet, so we use empty
+            // instead. This ensures that, when checking a back reference,
+            // the capture registers of the referenced capture are either
+            // both set or both cleared.
             builder->AddEmpty();
           } else {
             RegExpCapture* capture = GetCapture(index);
