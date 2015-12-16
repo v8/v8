@@ -671,7 +671,7 @@ static Object* HasOwnPropertyImplementation(Isolate* isolate,
   // look like they are on this object.
   PrototypeIterator iter(isolate, object);
   if (!iter.IsAtEnd() &&
-      Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter))
+      PrototypeIterator::GetCurrent<HeapObject>(iter)
           ->map()
           ->is_hidden_prototype()) {
     // TODO(verwaest): The recursion is not necessary for keys that are array
@@ -679,8 +679,7 @@ static Object* HasOwnPropertyImplementation(Isolate* isolate,
     // Casting to JSObject is fine because JSProxies are never used as
     // hidden prototypes.
     return HasOwnPropertyImplementation(
-        isolate, Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)),
-        key);
+        isolate, PrototypeIterator::GetCurrent<JSObject>(iter), key);
   }
   RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
   return isolate->heap()->false_value();

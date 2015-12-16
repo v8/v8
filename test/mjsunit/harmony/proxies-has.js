@@ -54,3 +54,10 @@ assertThrows("'nonconf' in proxy", TypeError);
 assertThrows("'target_one' in proxy", TypeError);
 assertFalse("target_two" in proxy);
 assertFalse("in_your_dreams" in proxy);
+
+// Regression test for crbug.com/570120 (stray JSObject::cast).
+(function TestHasPropertyFastPath() {
+  var proxy = new Proxy({}, {});
+  var object = Object.create(proxy);
+  object.hasOwnProperty(0);
+})();
