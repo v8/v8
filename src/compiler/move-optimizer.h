@@ -30,7 +30,7 @@ class MoveOptimizer final {
   void CompressBlock(InstructionBlock* blocke);
   void CompressMoves(MoveOpVector* eliminated, ParallelMove* left,
                      ParallelMove* right);
-  Instruction* LastInstruction(InstructionBlock* block);
+  const Instruction* LastInstruction(const InstructionBlock* block) const;
   void OptimizeMerge(InstructionBlock* block);
   void FinalizeMoves(Instruction* instr);
 
