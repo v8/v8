@@ -465,6 +465,19 @@ WriteBarrierKind ComputeWriteBarrierKind(BaseTaggedness base_is_tagged,
   return kNoWriteBarrier;
 }
 
+
+WriteBarrierKind ComputeWriteBarrierKind(BaseTaggedness base_is_tagged,
+                                         MachineRepresentation representation,
+                                         int field_offset, Type* field_type,
+                                         Type* input_type) {
+  if (base_is_tagged == kTaggedBase && field_offset == HeapObject::kMapOffset) {
+    // Write barriers for storing maps are cheaper.
+    return kMapWriteBarrier;
+  }
+  return ComputeWriteBarrierKind(base_is_tagged, representation, field_type,
+                                 input_type);
+}
+
 }  // namespace
 
 
@@ -481,8 +494,8 @@ Reduction ChangeLowering::StoreField(Node* node) {
   const FieldAccess& access = FieldAccessOf(node->op());
   Type* type = NodeProperties::GetType(node->InputAt(1));
   WriteBarrierKind kind = ComputeWriteBarrierKind(
-      access.base_is_tagged, access.machine_type.representation(), access.type,
-      type);
+      access.base_is_tagged, access.machine_type.representation(),
+      access.offset, access.type, type);
   Node* offset = jsgraph()->IntPtrConstant(access.offset - access.tag());
   node->InsertInput(graph()->zone(), 1, offset);
   NodeProperties::ChangeOp(node,
