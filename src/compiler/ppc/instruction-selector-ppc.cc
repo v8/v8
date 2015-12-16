@@ -95,6 +95,25 @@ void VisitRRO(InstructionSelector* selector, ArchOpcode opcode, Node* node,
 }
 
 
+#if V8_TARGET_ARCH_PPC64
+void VisitTryTruncateDouble(InstructionSelector* selector, ArchOpcode opcode,
+                            Node* node) {
+  PPCOperandGenerator g(selector);
+  InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};
+  InstructionOperand outputs[2];
+  size_t output_count = 0;
+  outputs[output_count++] = g.DefineAsRegister(node);
+
+  Node* success_output = NodeProperties::FindProjection(node, 1);
+  if (success_output) {
+    outputs[output_count++] = g.DefineAsRegister(success_output);
+  }
+
+  selector->Emit(opcode, output_count, outputs, 1, inputs);
+}
+#endif
+
+
 // Shared routine for multiple binary operations.
 template <typename Matcher>
 void VisitBinop(InstructionSelector* selector, Node* node,
@@ -925,62 +944,22 @@ void InstructionSelector::VisitChangeFloat64ToUint32(Node* node) {
 
 #if V8_TARGET_ARCH_PPC64
 void InstructionSelector::VisitTryTruncateFloat32ToInt64(Node* node) {
-  PPCOperandGenerator g(this);
-
-  InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};
-  InstructionOperand outputs[2];
-  size_t output_count = 0;
-  outputs[output_count++] = g.DefineAsRegister(node);
-
-  Node* success_output = NodeProperties::FindProjection(node, 1);
-  if (success_output) {
-    outputs[output_count++] = g.DefineAsRegister(success_output);
-  }
-
-  Emit(kPPC_DoubleToInt64, output_count, outputs, 1, inputs);
+  VisitTryTruncateDouble(this, kPPC_DoubleToInt64, node);
 }
 
 
 void InstructionSelector::VisitTryTruncateFloat64ToInt64(Node* node) {
-  PPCOperandGenerator g(this);
-
-  InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};
-  InstructionOperand outputs[2];
-  size_t output_count = 0;
-  outputs[output_count++] = g.DefineAsRegister(node);
-
-  Node* success_output = NodeProperties::FindProjection(node, 1);
-  if (success_output) {
-    outputs[output_count++] = g.DefineAsRegister(success_output);
-  }
-
-  Emit(kPPC_DoubleToInt64, output_count, outputs, 1, inputs);
+  VisitTryTruncateDouble(this, kPPC_DoubleToInt64, node);
 }
 
 
 void InstructionSelector::VisitTryTruncateFloat32ToUint64(Node* node) {
-  if (NodeProperties::FindProjection(node, 1)) {
-    // TODO(ppc): implement the second return value.
-    UNIMPLEMENTED();
-  }
-  VisitRR(this, kPPC_DoubleToUint64, node);
+  VisitTryTruncateDouble(this, kPPC_DoubleToUint64, node);
 }
 
 
 void InstructionSelector::VisitTryTruncateFloat64ToUint64(Node* node) {
-  PPCOperandGenerator g(this);
-
-  InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};
-  InstructionOperand outputs[2];
-  size_t output_count = 0;
-  outputs[output_count++] = g.DefineAsRegister(node);
-
-  Node* success_output = NodeProperties::FindProjection(node, 1);
-  if (success_output) {
-    outputs[output_count++] = g.DefineAsRegister(success_output);
-  }
-
-  Emit(kPPC_DoubleToUint64, output_count, outputs, 1, inputs);
+  VisitTryTruncateDouble(this, kPPC_DoubleToUint64, node);
 }
 
 
