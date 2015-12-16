@@ -1,4 +1,4 @@
-// Copyright 2013 the V8 project authors. All rights reserved.
+// Copyright 2015 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -2330,6 +2330,18 @@ String* JSReceiver::class_name() {
   }
   // If the constructor is not present, return "Object".
   return GetHeap()->Object_string();
+}
+
+
+MaybeHandle<String> JSReceiver::BuiltinStringTag(Handle<JSReceiver> object) {
+  Maybe<bool> is_array = Object::IsArray(object);
+  MAYBE_RETURN(is_array, MaybeHandle<String>());
+  if (is_array.FromJust()) {
+    return object->GetIsolate()->factory()->Array_string();
+  }
+  // TODO(adamk): class_name() is expensive, replace with instance type
+  // checks where possible.
+  return handle(object->class_name());
 }
 
 
@@ -16267,8 +16279,8 @@ int JSObject::GetOwnElementKeys(FixedArray* storage, PropertyFilter filter) {
 }
 
 
-MaybeHandle<String> JSObject::ObjectProtoToString(Isolate* isolate,
-                                                  Handle<Object> object) {
+MaybeHandle<String> Object::ObjectProtoToString(Isolate* isolate,
+                                                Handle<Object> object) {
   if (object->IsUndefined()) return isolate->factory()->undefined_to_string();
   if (object->IsNull()) return isolate->factory()->null_to_string();
 
@@ -16288,9 +16300,8 @@ MaybeHandle<String> JSObject::ObjectProtoToString(Isolate* isolate,
   }
 
   if (tag.is_null()) {
-    // TODO(adamk): class_name() is expensive, replace with instance type
-    // checks where possible.
-    tag = handle(receiver->class_name(), isolate);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, tag,
+                               JSReceiver::BuiltinStringTag(receiver), String);
   }
 
   IncrementalStringBuilder builder(isolate);

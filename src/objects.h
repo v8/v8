@@ -1,4 +1,4 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2015 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -1359,6 +1359,10 @@ class Object {
 
   inline void VerifyApiCallResultType();
 
+  // ES6 19.1.3.6 Object.prototype.toString
+  MUST_USE_RESULT static MaybeHandle<String> ObjectProtoToString(
+      Isolate* isolate, Handle<Object> object);
+
   // Prints this object without details.
   void ShortPrint(FILE* out = stdout);
 
@@ -1886,6 +1890,10 @@ class JSReceiver: public HeapObject {
 
   // Returns the class name ([[Class]] property in the specification).
   String* class_name();
+
+  // Returns the builtin string tag used in Object.prototype.toString.
+  MUST_USE_RESULT static MaybeHandle<String> BuiltinStringTag(
+      Handle<JSReceiver> object);
 
   // Returns the constructor name (the name (possibly, inferred name) of the
   // function that was used to instantiate the object).
@@ -2471,10 +2479,6 @@ class JSObject: public JSReceiver {
 
   static bool AllCanRead(LookupIterator* it);
   static bool AllCanWrite(LookupIterator* it);
-
-  // ES6 19.1.3.6 Object.prototype.toString
-  MUST_USE_RESULT static MaybeHandle<String> ObjectProtoToString(
-      Isolate* isolate, Handle<Object> object);
 
  private:
   friend class JSReceiver;
