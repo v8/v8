@@ -219,15 +219,6 @@ function AddIndexedProperty(obj, index, value) {
 %SetForceInlineFlag(AddIndexedProperty);
 
 
-// ES6, draft 10-14-14, section 22.1.3.1.1
-function IsConcatSpreadable(O) {
-  if (!IS_SPEC_OBJECT(O)) return false;
-  var spreadable = O[isConcatSpreadableSymbol];
-  if (IS_UNDEFINED(spreadable)) return IS_ARRAY(O);
-  return TO_BOOLEAN(spreadable);
-}
-
-
 function ToPositiveInteger(x, rangeErrorIndex) {
   var i = TO_INTEGER_MAP_MINUS_ZERO(x);
   if (i < 0) throw MakeRangeError(rangeErrorIndex);

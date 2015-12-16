@@ -929,7 +929,7 @@ void CollectElementIndices(Handle<JSObject> object, uint32_t range,
 }
 
 
-bool IterateElementsSlow(Isolate* isolate, Handle<JSObject> receiver,
+bool IterateElementsSlow(Isolate* isolate, Handle<JSReceiver> receiver,
                          uint32_t length, ArrayConcatVisitor* visitor) {
   for (uint32_t i = 0; i < length; ++i) {
     HandleScope loop_scope(isolate);
@@ -949,7 +949,7 @@ bool IterateElementsSlow(Isolate* isolate, Handle<JSObject> receiver,
 
 
 /**
- * A helper function that visits elements of a JSObject in numerical
+ * A helper function that visits "array" elements of a JSReceiver in numerical
  * order.
  *
  * The visitor argument called for each existing element in the array
@@ -958,7 +958,7 @@ bool IterateElementsSlow(Isolate* isolate, Handle<JSObject> receiver,
  * length.
  * Returns false if any access threw an exception, otherwise true.
  */
-bool IterateElements(Isolate* isolate, Handle<JSObject> receiver,
+bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
                      ArrayConcatVisitor* visitor) {
   uint32_t length = 0;
 
@@ -984,15 +984,16 @@ bool IterateElements(Isolate* isolate, Handle<JSObject> receiver,
     // use the slow case.
     return IterateElementsSlow(isolate, receiver, length, visitor);
   }
+  Handle<JSObject> array = Handle<JSObject>::cast(receiver);
 
-  switch (receiver->GetElementsKind()) {
+  switch (array->GetElementsKind()) {
     case FAST_SMI_ELEMENTS:
     case FAST_ELEMENTS:
     case FAST_HOLEY_SMI_ELEMENTS:
     case FAST_HOLEY_ELEMENTS: {
       // Run through the elements FixedArray and use HasElement and GetElement
       // to check the prototype for missing elements.
-      Handle<FixedArray> elements(FixedArray::cast(receiver->elements()));
+      Handle<FixedArray> elements(FixedArray::cast(array->elements()));
       int fast_length = static_cast<int>(length);
       DCHECK(fast_length <= elements->length());
       for (int j = 0; j < fast_length; j++) {
@@ -1001,14 +1002,14 @@ bool IterateElements(Isolate* isolate, Handle<JSObject> receiver,
         if (!element_value->IsTheHole()) {
           visitor->visit(j, element_value);
         } else {
-          Maybe<bool> maybe = JSReceiver::HasElement(receiver, j);
+          Maybe<bool> maybe = JSReceiver::HasElement(array, j);
           if (!maybe.IsJust()) return false;
           if (maybe.FromJust()) {
-            // Call GetElement on receiver, not its prototype, or getters won't
+            // Call GetElement on array, not its prototype, or getters won't
             // have the correct receiver.
             ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-                isolate, element_value,
-                Object::GetElement(isolate, receiver, j), false);
+                isolate, element_value, Object::GetElement(isolate, array, j),
+                false);
             visitor->visit(j, element_value);
           }
         }
@@ -1021,12 +1022,12 @@ bool IterateElements(Isolate* isolate, Handle<JSObject> receiver,
       if (length == 0) break;
       // Run through the elements FixedArray and use HasElement and GetElement
       // to check the prototype for missing elements.
-      if (receiver->elements()->IsFixedArray()) {
-        DCHECK(receiver->elements()->length() == 0);
+      if (array->elements()->IsFixedArray()) {
+        DCHECK(array->elements()->length() == 0);
         break;
       }
       Handle<FixedDoubleArray> elements(
-          FixedDoubleArray::cast(receiver->elements()));
+          FixedDoubleArray::cast(array->elements()));
       int fast_length = static_cast<int>(length);
       DCHECK(fast_length <= elements->length());
       for (int j = 0; j < fast_length; j++) {
@@ -1037,15 +1038,15 @@ bool IterateElements(Isolate* isolate, Handle<JSObject> receiver,
               isolate->factory()->NewNumber(double_value);
           visitor->visit(j, element_value);
         } else {
-          Maybe<bool> maybe = JSReceiver::HasElement(receiver, j);
+          Maybe<bool> maybe = JSReceiver::HasElement(array, j);
           if (!maybe.IsJust()) return false;
           if (maybe.FromJust()) {
-            // Call GetElement on receiver, not its prototype, or getters won't
+            // Call GetElement on array, not its prototype, or getters won't
             // have the correct receiver.
             Handle<Object> element_value;
             ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-                isolate, element_value,
-                Object::GetElement(isolate, receiver, j), false);
+                isolate, element_value, Object::GetElement(isolate, array, j),
+                false);
             visitor->visit(j, element_value);
           }
         }
@@ -1055,17 +1056,17 @@ bool IterateElements(Isolate* isolate, Handle<JSObject> receiver,
     case DICTIONARY_ELEMENTS: {
       // CollectElementIndices() can't be called when there's a JSProxy
       // on the prototype chain.
-      for (PrototypeIterator iter(isolate, receiver); !iter.IsAtEnd();
+      for (PrototypeIterator iter(isolate, array); !iter.IsAtEnd();
            iter.Advance()) {
         if (PrototypeIterator::GetCurrent(iter)->IsJSProxy()) {
-          return IterateElementsSlow(isolate, receiver, length, visitor);
+          return IterateElementsSlow(isolate, array, length, visitor);
         }
       }
-      Handle<SeededNumberDictionary> dict(receiver->element_dictionary());
+      Handle<SeededNumberDictionary> dict(array->element_dictionary());
       List<uint32_t> indices(dict->Capacity() / 2);
       // Collect all indices in the object and the prototypes less
       // than length. This might introduce duplicates in the indices list.
-      CollectElementIndices(receiver, length, &indices);
+      CollectElementIndices(array, length, &indices);
       indices.Sort(&compareUInt32);
       int j = 0;
       int n = indices.length();
@@ -1074,8 +1075,7 @@ bool IterateElements(Isolate* isolate, Handle<JSObject> receiver,
         uint32_t index = indices[j];
         Handle<Object> element;
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-            isolate, element, Object::GetElement(isolate, receiver, index),
-            false);
+            isolate, element, Object::GetElement(isolate, array, index), false);
         visitor->visit(index, element);
         // Skip to next different index (i.e., omit duplicates).
         do {
@@ -1086,7 +1086,7 @@ bool IterateElements(Isolate* isolate, Handle<JSObject> receiver,
     }
     case UINT8_CLAMPED_ELEMENTS: {
       Handle<FixedUint8ClampedArray> pixels(
-          FixedUint8ClampedArray::cast(receiver->elements()));
+          FixedUint8ClampedArray::cast(array->elements()));
       for (uint32_t j = 0; j < length; j++) {
         Handle<Smi> e(Smi::FromInt(pixels->get_scalar(j)), isolate);
         visitor->visit(j, e);
@@ -1094,43 +1094,43 @@ bool IterateElements(Isolate* isolate, Handle<JSObject> receiver,
       break;
     }
     case INT8_ELEMENTS: {
-      IterateTypedArrayElements<FixedInt8Array, int8_t>(isolate, receiver, true,
+      IterateTypedArrayElements<FixedInt8Array, int8_t>(isolate, array, true,
                                                         true, visitor);
       break;
     }
     case UINT8_ELEMENTS: {
-      IterateTypedArrayElements<FixedUint8Array, uint8_t>(isolate, receiver,
-                                                          true, true, visitor);
+      IterateTypedArrayElements<FixedUint8Array, uint8_t>(isolate, array, true,
+                                                          true, visitor);
       break;
     }
     case INT16_ELEMENTS: {
-      IterateTypedArrayElements<FixedInt16Array, int16_t>(isolate, receiver,
-                                                          true, true, visitor);
+      IterateTypedArrayElements<FixedInt16Array, int16_t>(isolate, array, true,
+                                                          true, visitor);
       break;
     }
     case UINT16_ELEMENTS: {
       IterateTypedArrayElements<FixedUint16Array, uint16_t>(
-          isolate, receiver, true, true, visitor);
+          isolate, array, true, true, visitor);
       break;
     }
     case INT32_ELEMENTS: {
-      IterateTypedArrayElements<FixedInt32Array, int32_t>(isolate, receiver,
-                                                          true, false, visitor);
+      IterateTypedArrayElements<FixedInt32Array, int32_t>(isolate, array, true,
+                                                          false, visitor);
       break;
     }
     case UINT32_ELEMENTS: {
       IterateTypedArrayElements<FixedUint32Array, uint32_t>(
-          isolate, receiver, true, false, visitor);
+          isolate, array, true, false, visitor);
       break;
     }
     case FLOAT32_ELEMENTS: {
-      IterateTypedArrayElements<FixedFloat32Array, float>(
-          isolate, receiver, false, false, visitor);
+      IterateTypedArrayElements<FixedFloat32Array, float>(isolate, array, false,
+                                                          false, visitor);
       break;
     }
     case FLOAT64_ELEMENTS: {
       IterateTypedArrayElements<FixedFloat64Array, double>(
-          isolate, receiver, false, false, visitor);
+          isolate, array, false, false, visitor);
       break;
     }
     case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
@@ -1139,8 +1139,7 @@ bool IterateElements(Isolate* isolate, Handle<JSObject> receiver,
         HandleScope loop_scope(isolate);
         Handle<Object> element;
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-            isolate, element, Object::GetElement(isolate, receiver, index),
-            false);
+            isolate, element, Object::GetElement(isolate, array, index), false);
         visitor->visit(index, element);
       }
       break;
@@ -1152,37 +1151,29 @@ bool IterateElements(Isolate* isolate, Handle<JSObject> receiver,
 
 
 bool HasConcatSpreadableModifier(Isolate* isolate, Handle<JSArray> obj) {
+  DCHECK(isolate->IsFastArrayConstructorPrototypeChainIntact());
   if (!FLAG_harmony_concat_spreadable) return false;
   Handle<Symbol> key(isolate->factory()->is_concat_spreadable_symbol());
-  Maybe<bool> maybe =
-      JSReceiver::HasProperty(Handle<JSReceiver>::cast(obj), key);
-  if (!maybe.IsJust()) return false;
-  return maybe.FromJust();
+  Maybe<bool> maybe = JSReceiver::HasProperty(obj, key);
+  return maybe.FromMaybe(false);
 }
 
 
-bool IsConcatSpreadable(Isolate* isolate, Handle<Object> obj) {
+static Maybe<bool> IsConcatSpreadable(Isolate* isolate, Handle<Object> obj) {
   HandleScope handle_scope(isolate);
-  if (!obj->IsJSReceiver()) return false;
+  if (!obj->IsJSReceiver()) return Just(false);
   if (FLAG_harmony_concat_spreadable) {
     Handle<Symbol> key(isolate->factory()->is_concat_spreadable_symbol());
     Handle<Object> value;
     MaybeHandle<Object> maybeValue =
         i::Runtime::GetObjectProperty(isolate, obj, key);
-    if (maybeValue.ToHandle(&value) && !value->IsUndefined()) {
-      return value->BooleanValue();
-    }
+    if (!maybeValue.ToHandle(&value)) return Nothing<bool>();
+    if (!value->IsUndefined()) return Just(value->BooleanValue());
   }
-  return obj->IsJSArray();
+  return Object::IsArray(obj);
 }
 
 
-/**
- * Array::concat implementation.
- * See ECMAScript 262, 15.4.4.4.
- * TODO(581): Fix non-compliance for very large concatenations and update to
- * following the ECMAScript 5 specification.
- */
 Object* Slow_ArrayConcat(Arguments* args, Isolate* isolate) {
   int argument_count = args->length();
 
@@ -1338,10 +1329,10 @@ Object* Slow_ArrayConcat(Arguments* args, Isolate* isolate) {
 
   for (int i = 0; i < argument_count; i++) {
     Handle<Object> obj((*args)[i], isolate);
-    bool spreadable = IsConcatSpreadable(isolate, obj);
-    if (isolate->has_pending_exception()) return isolate->heap()->exception();
-    if (spreadable) {
-      Handle<JSObject> object = Handle<JSObject>::cast(obj);
+    Maybe<bool> spreadable = IsConcatSpreadable(isolate, obj);
+    MAYBE_RETURN(spreadable, isolate->heap()->exception());
+    if (spreadable.FromJust()) {
+      Handle<JSReceiver> object = Handle<JSReceiver>::cast(obj);
       if (!IterateElements(isolate, object, &visitor)) {
         return isolate->heap()->exception();
       }
@@ -1401,6 +1392,7 @@ MaybeHandle<JSArray> Fast_ArrayConcat(Isolate* isolate, Arguments* args) {
 
 }  // namespace
 
+// ES6 22.1.3.1 Array.prototype.concat
 BUILTIN(ArrayConcat) {
   HandleScope scope(isolate);
 
@@ -1423,7 +1415,7 @@ BUILTIN(ArrayConcat) {
 }
 
 
-// ES6 section 22.1.2.2 Array.isArray
+// ES6 22.1.2.2 Array.isArray
 BUILTIN(ArrayIsArray) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());

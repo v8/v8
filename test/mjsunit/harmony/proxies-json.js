@@ -421,7 +421,7 @@ var target = [];
 var proxy = new Proxy(target, {get: getTrap});
 var replacer = (key, val) => key === "goo" ? proxy : val;
 var object = {foo: true, goo: false};
-assertThrows(() => JSON.stringify(object, replacer));
+assertThrows(() => JSON.stringify(object, replacer), TypeError);
 
 
 // Replacer returns a callable proxy
