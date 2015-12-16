@@ -9239,9 +9239,11 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(Handle<JSFunction> function,
                                             ExternalReference::DIRECT_API_CALL,
                                             isolate());
   HValue* api_function_address = Add<HConstant>(ExternalReference(ref));
+  HValue* callee = function->IsJSFunction() ? Add<HConstant>(function)
+                                            : graph()->GetConstantUndefined();
 
-  HValue* op_vals[] = {context(), Add<HConstant>(function), call_data, holder,
-                       api_function_address, nullptr};
+  HValue* op_vals[] = {
+      context(), callee, call_data, holder, api_function_address, nullptr};
 
   HInstruction* call = nullptr;
   if (!is_function) {

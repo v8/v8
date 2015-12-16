@@ -240,7 +240,8 @@ class FunctionCallbackArguments
     values[T::kReturnValueDefaultValueIndex] =
         isolate->heap()->the_hole_value();
     values[T::kReturnValueIndex] = isolate->heap()->the_hole_value();
-    DCHECK(values[T::kCalleeIndex]->IsJSFunction());
+    DCHECK(values[T::kCalleeIndex]->IsJSFunction() ||
+           values[T::kCalleeIndex]->IsUndefined());
     DCHECK(values[T::kHolderIndex]->IsHeapObject());
     DCHECK(values[T::kIsolateIndex]->IsSmi());
   }

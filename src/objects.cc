@@ -11,6 +11,7 @@
 #include "src/accessors.h"
 #include "src/allocation-site-scopes.h"
 #include "src/api.h"
+#include "src/api-natives.h"
 #include "src/arguments.h"
 #include "src/base/bits.h"
 #include "src/base/utils/random-number-generator.h"
@@ -1073,6 +1074,27 @@ MaybeHandle<Object> Object::GetPropertyWithAccessor(
 
   // Regular accessor.
   Handle<Object> getter(AccessorPair::cast(*structure)->getter(), isolate);
+  if (getter->IsFunctionTemplateInfo()) {
+    Handle<FunctionTemplateInfo> info =
+        Handle<FunctionTemplateInfo>::cast(getter);
+    Object* raw_call_data = info->call_code();
+    CHECK(raw_call_data->IsCallHandlerInfo());
+    CallHandlerInfo* call_data = CallHandlerInfo::cast(raw_call_data);
+    v8::FunctionCallback callback =
+        v8::ToCData<v8::FunctionCallback>(call_data->callback());
+    Object* raw_receiver = info->GetCompatibleReceiver(isolate, *receiver);
+    FunctionCallbackArguments custom(
+        isolate, call_data->data(),
+        JSFunction::cast(*isolate->factory()->undefined_value()), raw_receiver,
+        nullptr, 0, false);
+    v8::Local<v8::Value> result = custom.Call(callback);
+    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
+    if (!result.IsEmpty()) {
+      Handle<Object> return_value = v8::Utils::OpenHandle(*result);
+      return_value->VerifyApiCallResultType();
+      return handle(*return_value, isolate);
+    }
+  }
   if (getter->IsCallable()) {
     // TODO(rossberg): nicer would be to cast to some JSCallable here...
     return Object::GetPropertyWithDefinedGetter(
@@ -1133,6 +1155,27 @@ Maybe<bool> Object::SetPropertyWithAccessor(LookupIterator* it,
 
   // Regular accessor.
   Handle<Object> setter(AccessorPair::cast(*structure)->setter(), isolate);
+  if (setter->IsFunctionTemplateInfo()) {
+    Handle<FunctionTemplateInfo> info =
+        Handle<FunctionTemplateInfo>::cast(setter);
+    Object* raw_call_data = info->call_code();
+    CHECK(raw_call_data->IsCallHandlerInfo());
+    CallHandlerInfo* call_data = CallHandlerInfo::cast(raw_call_data);
+    v8::FunctionCallback callback =
+        v8::ToCData<v8::FunctionCallback>(call_data->callback());
+    Object* args[2] = {*receiver, *value};
+    FunctionCallbackArguments custom(
+        isolate, call_data->data(),
+        JSFunction::cast(*isolate->factory()->undefined_value()), *receiver,
+        &args[1], 1, false);
+    v8::Local<v8::Value> result = custom.Call(callback);
+    RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<bool>());
+    if (!result.IsEmpty()) {
+      Handle<Object> return_value = v8::Utils::OpenHandle(*result);
+      return_value->VerifyApiCallResultType();
+      return Just(true);
+    }
+  }
   if (setter->IsCallable()) {
     // TODO(rossberg): nicer would be to cast to some JSCallable here...
     return SetPropertyWithDefinedSetter(
@@ -8771,8 +8814,10 @@ MaybeHandle<Object> JSObject::DefineAccessor(LookupIterator* it,
     }
   }
 
-  DCHECK(getter->IsCallable() || getter->IsUndefined() || getter->IsNull());
-  DCHECK(setter->IsCallable() || setter->IsUndefined() || setter->IsNull());
+  DCHECK(getter->IsCallable() || getter->IsUndefined() || getter->IsNull() ||
+         getter->IsFunctionTemplateInfo());
+  DCHECK(setter->IsCallable() || setter->IsUndefined() || setter->IsNull() ||
+         setter->IsFunctionTemplateInfo());
   // At least one of the accessors needs to be a new value.
   DCHECK(!getter->IsNull() || !setter->IsNull());
   if (!getter->IsNull()) {
@@ -10666,6 +10711,12 @@ Handle<AccessorPair> AccessorPair::Copy(Handle<AccessorPair> pair) {
 
 Object* AccessorPair::GetComponent(AccessorComponent component) {
   Object* accessor = get(component);
+  if (accessor->IsFunctionTemplateInfo()) {
+    auto function = i::ApiNatives::InstantiateFunction(
+        handle(FunctionTemplateInfo::cast(accessor)));
+    set(component, *function.ToHandleChecked());
+    accessor = get(component);
+  }
   return accessor->IsTheHole() ? GetHeap()->undefined_value() : accessor;
 }
 

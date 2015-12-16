@@ -145,7 +145,8 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
   Register api_function_address = rdx;
   scratch = no_reg;
 
-  // Put callee in place.
+  // We load the accessor here because in some cases accessor_holder is the
+  // same register as holder.
   __ LoadAccessor(callee, accessor_holder, accessor_index,
                   is_store ? ACCESSOR_SETTER : ACCESSOR_GETTER);
 
@@ -179,8 +180,13 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
     call_data_undefined = true;
     __ LoadRoot(data, Heap::kUndefinedValueRootIndex);
   } else {
-    __ movp(data, FieldOperand(callee, JSFunction::kSharedFunctionInfoOffset));
+    __ CmpObjectType(callee, FUNCTION_TEMPLATE_INFO_TYPE, kScratchRegister);
+    Label lazy;
+    __ movp(data, callee);
+    __ j(equal, &lazy, Label::kNear);
+    __ movp(data, FieldOperand(data, JSFunction::kSharedFunctionInfoOffset));
     __ movp(data, FieldOperand(data, SharedFunctionInfo::kFunctionDataOffset));
+    __ bind(&lazy);
     __ movp(data, FieldOperand(data, FunctionTemplateInfo::kCallCodeOffset));
     __ movp(data, FieldOperand(data, CallHandlerInfo::kDataOffset));
   }
@@ -191,6 +197,13 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
             RelocInfo::CODE_TARGET);
     return;
   }
+
+  // If callee is not a JSFunction, pass the undefined value.
+  __ CmpObjectType(callee, JS_FUNCTION_TYPE, kScratchRegister);
+  Label is_js_function;
+  __ j(equal, &is_js_function, Label::kNear);
+  __ LoadRoot(callee, Heap::kUndefinedValueRootIndex);
+  __ bind(&is_js_function);
 
   // Put api_function_address in place.
   Address function_address = v8::ToCData<Address>(api_call_info->callback());

@@ -197,8 +197,15 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
     call_data_undefined = true;
     __ mov(data, Immediate(isolate->factory()->undefined_value()));
   } else {
-    __ mov(data, FieldOperand(callee, JSFunction::kSharedFunctionInfoOffset));
+    __ push(callee);
+    __ CmpObjectType(callee, FUNCTION_TEMPLATE_INFO_TYPE, callee);
+    __ pop(callee);
+    Label lazy;
+    __ mov(data, callee);
+    __ j(equal, &lazy, Label::kNear);
+    __ mov(data, FieldOperand(data, JSFunction::kSharedFunctionInfoOffset));
     __ mov(data, FieldOperand(data, SharedFunctionInfo::kFunctionDataOffset));
+    __ bind(&lazy);
     __ mov(data, FieldOperand(data, FunctionTemplateInfo::kCallCodeOffset));
     __ mov(data, FieldOperand(data, CallHandlerInfo::kDataOffset));
   }
@@ -209,6 +216,16 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
             RelocInfo::CODE_TARGET);
     return;
   }
+
+  // Put callee in place.
+  __ push(callee);
+  __ CmpObjectType(callee, FUNCTION_TEMPLATE_INFO_TYPE, callee);
+  __ pop(callee);
+  Label not_fti;
+  __ j(not_equal, &not_fti, Label::kNear);
+  __ LoadRoot(callee, Heap::kUndefinedValueRootIndex);
+  __ bind(&not_fti);
+
   // Put api_function_address in place.
   Address function_address = v8::ToCData<Address>(api_call_info->callback());
   __ mov(api_function_address, Immediate(function_address));

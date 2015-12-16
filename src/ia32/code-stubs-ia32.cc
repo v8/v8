@@ -5530,8 +5530,13 @@ static void CallApiFunctionStubHelper(MacroAssembler* masm,
   // push return address
   __ push(return_address);
 
-  // load context from callee
-  __ mov(context, FieldOperand(callee, JSFunction::kContextOffset));
+  // load the context for the callee, if any
+  __ CompareRoot(FieldOperand(callee, HeapObject::kMapOffset),
+                 Heap::kUndefinedValueRootIndex);
+  Label callee_undefined;
+  __ j(equal, &callee_undefined, Label::kNear);
+  __ mov(context, callee);
+  __ bind(&callee_undefined);
 
   // API function gets reference to the v8::Arguments. If CPU profiler
   // is enabled wrapper function will be called and we need to pass

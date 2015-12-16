@@ -387,7 +387,7 @@ void ArgumentAdaptorDescriptor::InitializePlatformSpecific(
 void ApiFunctionDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {
-      edi,  // callee
+      edi,  // callee_context
       ebx,  // call_data
       ecx,  // holder
       edx,  // api_function_address
@@ -400,7 +400,7 @@ void ApiFunctionDescriptor::InitializePlatformSpecific(
 void ApiAccessorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {
-      edi,  // callee
+      edi,  // callee_context
       ebx,  // call_data
       ecx,  // holder
       edx,  // api_function_address

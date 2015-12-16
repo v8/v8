@@ -5254,8 +5254,12 @@ static void CallApiFunctionStubHelper(MacroAssembler* masm,
   // Push return address back on stack.
   __ PushReturnAddressFrom(return_address);
 
-  // load context from callee
+  // load the context from the callee if it's a JSFunction.
+  Label is_undefined;
+  __ JumpIfRoot(callee, Heap::kUndefinedValueRootIndex, &is_undefined,
+                Label::kNear);
   __ movp(context, FieldOperand(callee, JSFunction::kContextOffset));
+  __ bind(&is_undefined);
 
   // Allocate the v8::Arguments structure in the arguments' space since
   // it's not controlled by GC.

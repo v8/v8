@@ -43,20 +43,20 @@ MaybeHandle<Object> DefineAccessorProperty(Isolate* isolate,
                                            Handle<Object> getter,
                                            Handle<Object> setter,
                                            PropertyAttributes attributes) {
-  if (!getter->IsUndefined()) {
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, getter,
-        InstantiateFunction(isolate,
-                            Handle<FunctionTemplateInfo>::cast(getter)),
-        Object);
-  }
-  if (!setter->IsUndefined()) {
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, setter,
-        InstantiateFunction(isolate,
-                            Handle<FunctionTemplateInfo>::cast(setter)),
-        Object);
-  }
+  /*  if (!getter->IsUndefined()) {
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate, getter,
+          InstantiateFunction(isolate,
+                              Handle<FunctionTemplateInfo>::cast(getter)),
+          Object);
+    }
+    if (!setter->IsUndefined()) {
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate, setter,
+          InstantiateFunction(isolate,
+                              Handle<FunctionTemplateInfo>::cast(setter)),
+          Object);
+    }*/
   RETURN_ON_EXCEPTION(isolate, JSObject::DefineAccessor(object, name, getter,
                                                         setter, attributes),
                       Object);

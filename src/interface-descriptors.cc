@@ -544,7 +544,7 @@ ApiFunctionDescriptor::BuildCallInterfaceDescriptorFunctionType(
   Zone* zone = isolate->interface_descriptor_zone();
   Type::FunctionType* function =
       Type::FunctionType::New(AnyTagged(zone), Type::Undefined(), 5, zone);
-  function->InitParameter(0, AnyTagged(zone));           // callee
+  function->InitParameter(0, AnyTagged(zone));           // callee_context
   function->InitParameter(1, AnyTagged(zone));           // call_data
   function->InitParameter(2, AnyTagged(zone));           // holder
   function->InitParameter(3, ExternalPointer(zone));     // api_function_address
@@ -559,7 +559,7 @@ ApiAccessorDescriptor::BuildCallInterfaceDescriptorFunctionType(
   Zone* zone = isolate->interface_descriptor_zone();
   Type::FunctionType* function =
       Type::FunctionType::New(AnyTagged(zone), Type::Undefined(), 4, zone);
-  function->InitParameter(0, AnyTagged(zone));        // callee
+  function->InitParameter(0, AnyTagged(zone));        // callee_context
   function->InitParameter(1, AnyTagged(zone));        // call_data
   function->InitParameter(2, AnyTagged(zone));        // holder
   function->InitParameter(3, ExternalPointer(zone));  // api_function_address
