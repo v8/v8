@@ -761,17 +761,8 @@ Handle<String> JsonParser<seq_one_byte>::ScanJsonString() {
                                                              position_);
       }
       if (c0 < 0x20) return Handle<String>::null();
-      if (static_cast<uint32_t>(c0) >
-          unibrow::Utf16::kMaxNonSurrogateCharCode) {
-        running_hash =
-            StringHasher::AddCharacterCore(running_hash,
-                                           unibrow::Utf16::LeadSurrogate(c0));
-        running_hash =
-            StringHasher::AddCharacterCore(running_hash,
-                                           unibrow::Utf16::TrailSurrogate(c0));
-      } else {
-        running_hash = StringHasher::AddCharacterCore(running_hash, c0);
-      }
+      running_hash = StringHasher::AddCharacterCore(running_hash,
+                                                    static_cast<uint16_t>(c0));
       position++;
       if (position >= source_length_) return Handle<String>::null();
       c0 = seq_source_->SeqOneByteStringGet(position);
