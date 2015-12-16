@@ -7071,6 +7071,27 @@ TEST(DestructuringAssignmentNegativeTests) {
   };
   RunParserSyncTest(empty_context_data, ambiguity_data, kError, NULL, 0,
                     always_flags, arraysize(always_flags));
+
+  // Strict mode errors
+  const char* strict_context_data[][2] = {{"'use strict'; ", " = {}"},
+                                          {"'use strict'; for (", " of {}) {}"},
+                                          {"'use strict'; for (", " in {}) {}"},
+                                          {NULL, NULL}};
+  const char* strict_data[] = {"{ eval }",
+                               "{ arguments }",
+                               "{ foo: eval }",
+                               "{ foo: arguments }",
+                               "{ eval = 0 }",
+                               "{ arguments = 0 }",
+                               "{ foo: eval = 0 }",
+                               "{ foo: arguments = 0 }",
+                               "[ eval ]",
+                               "[ arguments ]",
+                               "[ eval = 0 ]",
+                               "[ arguments = 0 ]",
+                               NULL};
+  RunParserSyncTest(strict_context_data, strict_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
 }
 
 

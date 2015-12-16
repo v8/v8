@@ -125,9 +125,9 @@ class PreParserExpression {
                              right->IsSpreadExpression()));
   }
 
-  static PreParserExpression AssignmentPattern() {
+  static PreParserExpression Assignment() {
     return PreParserExpression(TypeField::encode(kExpression) |
-                               ExpressionTypeField::encode(kAssignmentPattern));
+                               ExpressionTypeField::encode(kAssignment));
   }
 
   static PreParserExpression ObjectLiteral() {
@@ -195,9 +195,9 @@ class PreParserExpression {
     return PreParserIdentifier(IdentifierTypeField::decode(code_));
   }
 
-  bool IsAssignmentPattern() const {
+  bool IsAssignment() const {
     return TypeField::decode(code_) == kExpression &&
-           ExpressionTypeField::decode(code_) == kAssignmentPattern;
+           ExpressionTypeField::decode(code_) == kAssignment;
   }
 
   bool IsObjectLiteral() const {
@@ -308,7 +308,7 @@ class PreParserExpression {
     kCallExpression,
     kSuperCallReference,
     kNoTemplateTagExpression,
-    kAssignmentPattern
+    kAssignment
   };
 
   explicit PreParserExpression(uint32_t expression_code)
@@ -498,12 +498,7 @@ class PreParserFactory {
                                     PreParserExpression left,
                                     PreParserExpression right,
                                     int pos) {
-    return PreParserExpression::Default();
-  }
-  PreParserExpression NewAssignmentPattern(PreParserExpression pattern,
-                                           int pos) {
-    DCHECK(pattern->IsObjectLiteral() || pattern->IsArrayLiteral());
-    return PreParserExpression::AssignmentPattern();
+    return PreParserExpression::Assignment();
   }
   PreParserExpression NewYield(PreParserExpression generator_object,
                                PreParserExpression expression,

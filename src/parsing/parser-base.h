@@ -1523,8 +1523,14 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseArrayLiteral(
         first_spread_index = values->length();
       }
 
-      CheckDestructuringElement(argument, classifier, start_pos,
-                                scanner()->location().end_pos);
+      if (argument->IsAssignment()) {
+        classifier->RecordPatternError(
+            Scanner::Location(start_pos, scanner()->location().end_pos),
+            MessageTemplate::kInvalidDestructuringTarget);
+      } else {
+        CheckDestructuringElement(argument, classifier, start_pos,
+                                  scanner()->location().end_pos);
+      }
 
       if (peek() == Token::COMMA) {
         classifier->RecordPatternError(
@@ -1534,12 +1540,6 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseArrayLiteral(
     } else {
       elem = this->ParseAssignmentExpression(true, kIsPatternElement,
                                              classifier, CHECK_OK);
-      if (!this->IsValidReferenceExpression(elem) &&
-          !classifier->is_valid_assignment_pattern()) {
-        classifier->RecordPatternError(
-            Scanner::Location(pos, scanner()->location().end_pos),
-            MessageTemplate::kInvalidDestructuringTarget);
-      }
     }
     values->Add(elem, zone_);
     if (peek() != Token::RBRACK) {
@@ -1666,17 +1666,9 @@ ParserBase<Traits>::ParsePropertyDefinition(
                                CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
       }
       Consume(Token::COLON);
-      int pos = peek_position();
       value = this->ParseAssignmentExpression(
           true, kIsPatternElement, classifier,
           CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
-
-      if (!this->IsValidReferenceExpression(value) &&
-          !classifier->is_valid_assignment_pattern()) {
-        classifier->RecordPatternError(
-            Scanner::Location(pos, scanner()->location().end_pos),
-            MessageTemplate::kInvalidDestructuringTarget);
-      }
 
       return factory()->NewObjectLiteralProperty(name_expression, value, false,
                                                  *is_computed_name);
@@ -1710,6 +1702,7 @@ ParserBase<Traits>::ParsePropertyDefinition(
 
       ExpressionT lhs = this->ExpressionFromIdentifier(
           name, next_beg_pos, next_end_pos, scope_, factory());
+      CheckDestructuringElement(lhs, classifier, next_beg_pos, next_end_pos);
 
       if (peek() == Token::ASSIGN) {
         Consume(Token::ASSIGN);
@@ -2045,16 +2038,12 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN, int flags,
 
   bool maybe_pattern =
       expression->IsObjectLiteral() || expression->IsArrayLiteral();
-  // bool binding_pattern =
-  //    allow_harmony_destructuring_bind() && maybe_pattern && !is_rhs;
 
   if (!Token::IsAssignmentOp(peek())) {
     // Parsed conditional expression only (no assignment).
-    if (is_pattern_element && !this->IsValidReferenceExpression(expression) &&
-        !maybe_pattern) {
-      classifier->RecordPatternError(
-          Scanner::Location(lhs_beg_pos, scanner()->location().end_pos),
-          MessageTemplate::kInvalidDestructuringTarget);
+    if (is_pattern_element) {
+      CheckDestructuringElement(expression, classifier, lhs_beg_pos,
+                                scanner()->location().end_pos);
     } else if (is_rhs && maybe_pattern) {
       ValidateExpression(classifier, CHECK_OK);
     }
@@ -2077,6 +2066,10 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN, int flags,
         classifier, expression, lhs_beg_pos, scanner()->location().end_pos,
         MessageTemplate::kInvalidLhsInAssignment);
   } else {
+    if (is_pattern_element) {
+      CheckDestructuringElement(expression, classifier, lhs_beg_pos,
+                                scanner()->location().end_pos);
+    }
     expression = this->CheckAndRewriteReferenceExpression(
         expression, lhs_beg_pos, scanner()->location().end_pos,
         MessageTemplate::kInvalidLhsInAssignment, CHECK_OK);
@@ -3283,13 +3276,14 @@ void ParserBase<Traits>::CheckDestructuringElement(
     int end) {
   static const MessageTemplate::Template message =
       MessageTemplate::kInvalidDestructuringTarget;
-  if (!this->IsAssignableIdentifier(expression)) {
-    const Scanner::Location location(begin, end);
+  const Scanner::Location location(begin, end);
+  if (expression->IsArrayLiteral() || expression->IsObjectLiteral() ||
+      expression->IsAssignment())
+    return;
+  if (expression->IsProperty()) {
     classifier->RecordBindingPatternError(location, message);
-    if (!expression->IsProperty() &&
-        !(expression->IsObjectLiteral() || expression->IsArrayLiteral())) {
-      classifier->RecordAssignmentPatternError(location, message);
-    }
+  } else if (!this->IsAssignableIdentifier(expression)) {
+    classifier->RecordPatternError(location, message);
   }
 }
 
