@@ -300,10 +300,9 @@ void BreakLocation::ClearDebugBreak() {
 
 
 bool BreakLocation::IsDebugBreak() const {
-  if (IsDebugBreakSlot()) {
-    return rinfo().IsPatchedDebugBreakSlotSequence();
-  }
-  return false;
+  if (IsDebuggerStatement()) return false;
+  DCHECK(IsDebugBreakSlot());
+  return rinfo().IsPatchedDebugBreakSlotSequence();
 }
 
 
@@ -984,14 +983,6 @@ bool Debug::StepNextContinue(BreakLocation* break_location,
 
   // No step next action - don't continue.
   return false;
-}
-
-
-// Check whether the code object at the specified address is a debug break code
-// object.
-bool Debug::IsDebugBreak(Address addr) {
-  Code* code = Code::GetCodeFromTargetAddress(addr);
-  return code->is_debug_stub();
 }
 
 

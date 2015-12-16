@@ -438,9 +438,6 @@ class Debug {
   Handle<Object> FindSharedFunctionInfoInScript(Handle<Script> script,
                                                 int position);
 
-  // Returns true if the current stub call is patched to call the debugger.
-  static bool IsDebugBreak(Address addr);
-
   static Handle<Object> GetSourceBreakLocations(
       Handle<SharedFunctionInfo> shared,
       BreakPositionAlignment position_aligment);

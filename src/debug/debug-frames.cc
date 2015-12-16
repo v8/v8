@@ -45,11 +45,6 @@ int FrameInspector::GetParametersCount() {
 }
 
 
-int FrameInspector::expression_count() {
-  return deoptimized_frame_->expression_count();
-}
-
-
 Object* FrameInspector::GetFunction() {
   return is_optimized_ ? deoptimized_frame_->GetFunction() : frame_->function();
 }
