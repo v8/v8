@@ -383,6 +383,11 @@ Node* InterpreterAssembler::LoadTypeFeedbackVector() {
 }
 
 
+Node* InterpreterAssembler::Projection(int index, Node* node) {
+  return raw_assembler_->Projection(index, node);
+}
+
+
 Node* InterpreterAssembler::CallConstruct(Node* new_target, Node* constructor,
                                           Node* first_arg, Node* arg_count) {
   Callable callable = CodeFactory::InterpreterPushArgsAndConstruct(isolate());

@@ -93,8 +93,15 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .StoreNamedProperty(reg, 0, 2056, LanguageMode::STRICT)
       .StoreKeyedProperty(reg, reg, 2056, LanguageMode::STRICT);
 
-  // Emit closure operations.
+  // Emit load / store lookup slots.
   Factory* factory = isolate()->factory();
+  Handle<String> name = factory->NewStringFromStaticChars("var_name");
+  builder.LoadLookupSlot(name, TypeofMode::NOT_INSIDE_TYPEOF)
+      .LoadLookupSlot(name, TypeofMode::INSIDE_TYPEOF)
+      .StoreLookupSlot(name, LanguageMode::SLOPPY)
+      .StoreLookupSlot(name, LanguageMode::STRICT);
+
+  // Emit closure operations.
   Handle<SharedFunctionInfo> shared_info = factory->NewSharedFunctionInfo(
       factory->NewStringFromStaticChars("function_a"), MaybeHandle<Code>(),
       false);

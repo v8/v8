@@ -105,6 +105,9 @@ class InterpreterAssembler {
   // Load the TypeFeedbackVector for the current function.
   Node* LoadTypeFeedbackVector();
 
+  // Project the output value at index |index|
+  Node* Projection(int index, Node* node);
+
   // Call constructor |constructor| with |arg_count| arguments (not
   // including receiver) and the first argument located at
   // |first_arg|. The |new_target| is the same as the

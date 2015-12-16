@@ -3093,6 +3093,42 @@ TEST(InterpreterToName) {
   }
 }
 
+
+TEST(InterpreterLookupSlot) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  i::Factory* factory = isolate->factory();
+
+  // TODO(mythria): Add more tests when we have support for eval/with.
+  const char* function_prologue = "var f;"
+                                  "var x = 1;"
+                                  "function f1() {"
+                                  "  eval(\"function t() {";
+  const char* function_epilogue = "        }; f = t;\");"
+                                  "}"
+                                  "f1();";
+
+
+  std::pair<const char*, Handle<Object>> lookup_slot[] = {
+      {"return x;", handle(Smi::FromInt(1), isolate)},
+      {"return typeof x;", factory->NewStringFromStaticChars("number")},
+      {"x = 10; return x;", handle(Smi::FromInt(10), isolate)},
+      {"'use strict'; x = 20; return x;", handle(Smi::FromInt(20), isolate)},
+  };
+
+  for (size_t i = 0; i < arraysize(lookup_slot); i++) {
+    std::string script = std::string(function_prologue) +
+                         std::string(lookup_slot[i].first) +
+                         std::string(function_epilogue);
+
+    InterpreterTester tester(handles.main_isolate(), script.c_str(), "t");
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*lookup_slot[i].second));
+  }
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

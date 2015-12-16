@@ -117,6 +117,14 @@ class BytecodeArrayBuilder {
                                            int feedback_slot,
                                            LanguageMode language_mode);
 
+  // Lookup the variable with |name|.
+  BytecodeArrayBuilder& LoadLookupSlot(const Handle<String> name,
+                                       TypeofMode typeof_mode);
+
+  // Store value in the accumulator into the variable with |name|.
+  BytecodeArrayBuilder& StoreLookupSlot(const Handle<String> name,
+                                        LanguageMode language_mode);
+
   // Create a new closure for the SharedFunctionInfo.
   BytecodeArrayBuilder& CreateClosure(Handle<SharedFunctionInfo> shared_info,
                                       PretenureFlag tenured);
@@ -226,6 +234,7 @@ class BytecodeArrayBuilder {
   static Bytecode BytecodeForLoadGlobal(LanguageMode language_mode,
                                         TypeofMode typeof_mode);
   static Bytecode BytecodeForStoreGlobal(LanguageMode language_mode);
+  static Bytecode BytecodeForStoreLookupSlot(LanguageMode language_mode);
   static Bytecode BytecodeForCreateArguments(CreateArgumentsType type);
   static Bytecode BytecodeForDelete(LanguageMode language_mode);
 

@@ -95,6 +95,14 @@ class Interpreter {
   void DoDelete(Runtime::FunctionId function_id,
                 compiler::InterpreterAssembler* assembler);
 
+  // Generates code to perform a lookup slot load via |function_id|.
+  void DoLoadLookupSlot(Runtime::FunctionId function_id,
+                        compiler::InterpreterAssembler* assembler);
+
+  // Generates code to perform a lookup slot store depending on |language_mode|.
+  void DoStoreLookupSlot(LanguageMode language_mode,
+                         compiler::InterpreterAssembler* assembler);
+
   bool IsInterpreterTableInitialized(Handle<FixedArray> handler_table);
 
   Isolate* isolate_;

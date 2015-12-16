@@ -424,6 +424,71 @@ void Interpreter::DoStaContextSlot(compiler::InterpreterAssembler* assembler) {
 }
 
 
+void Interpreter::DoLoadLookupSlot(Runtime::FunctionId function_id,
+                                   compiler::InterpreterAssembler* assembler) {
+  Node* index = __ BytecodeOperandIdx(0);
+  Node* name = __ LoadConstantPoolEntry(index);
+  Node* context = __ GetContext();
+  Node* result_pair = __ CallRuntime(function_id, context, name);
+  Node* result = __ Projection(0, result_pair);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
+
+
+// LdaLookupSlot <name_index>
+//
+// Lookup the object with the name in constant pool entry |name_index|
+// dynamically.
+void Interpreter::DoLdaLookupSlot(compiler::InterpreterAssembler* assembler) {
+  DoLoadLookupSlot(Runtime::kLoadLookupSlot, assembler);
+}
+
+
+// LdaLookupSlotInsideTypeof <name_index>
+//
+// Lookup the object with the name in constant pool entry |name_index|
+// dynamically without causing a NoReferenceError.
+void Interpreter::DoLdaLookupSlotInsideTypeof(
+    compiler::InterpreterAssembler* assembler) {
+  DoLoadLookupSlot(Runtime::kLoadLookupSlotNoReferenceError, assembler);
+}
+
+
+void Interpreter::DoStoreLookupSlot(LanguageMode language_mode,
+                                    compiler::InterpreterAssembler* assembler) {
+  Node* value = __ GetAccumulator();
+  Node* index = __ BytecodeOperandIdx(0);
+  Node* name = __ LoadConstantPoolEntry(index);
+  Node* context = __ GetContext();
+  Node* language_mode_node = __ NumberConstant(language_mode);
+  Node* result = __ CallRuntime(Runtime::kStoreLookupSlot, value, context, name,
+                                language_mode_node);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
+
+
+// StaLookupSlotSloppy <name_index>
+//
+// Store the object in accumulator to the object with the name in constant
+// pool entry |name_index| in sloppy mode.
+void Interpreter::DoStaLookupSlotSloppy(
+    compiler::InterpreterAssembler* assembler) {
+  DoStoreLookupSlot(LanguageMode::SLOPPY, assembler);
+}
+
+
+// StaLookupSlotStrict <name_index>
+//
+// Store the object in accumulator to the object with the name in constant
+// pool entry |name_index| in strict mode.
+void Interpreter::DoStaLookupSlotStrict(
+    compiler::InterpreterAssembler* assembler) {
+  DoStoreLookupSlot(LanguageMode::STRICT, assembler);
+}
+
+
 void Interpreter::DoLoadIC(Callable ic,
                            compiler::InterpreterAssembler* assembler) {
   Node* code_target = __ HeapConstant(ic.code());

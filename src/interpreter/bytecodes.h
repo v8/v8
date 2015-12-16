@@ -66,6 +66,12 @@ namespace interpreter {
   V(LdaContextSlot, OperandType::kReg8, OperandType::kIdx8)                    \
   V(StaContextSlot, OperandType::kReg8, OperandType::kIdx8)                    \
                                                                                \
+  /* Load-Store lookup slots */                                                \
+  V(LdaLookupSlot, OperandType::kIdx8)                                         \
+  V(LdaLookupSlotInsideTypeof, OperandType::kIdx8)                             \
+  V(StaLookupSlotSloppy, OperandType::kIdx8)                                   \
+  V(StaLookupSlotStrict, OperandType::kIdx8)                                   \
+                                                                               \
   /* Register-accumulator transfers */                                         \
   V(Ldar, OperandType::kReg8)                                                  \
   V(Star, OperandType::kReg8)                                                  \

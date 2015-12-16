@@ -1309,8 +1309,11 @@ void BytecodeGenerator::VisitVariableLoad(Variable* variable,
       // let variables.
       break;
     }
-    case VariableLocation::LOOKUP:
-      UNIMPLEMENTED();
+    case VariableLocation::LOOKUP: {
+      builder()->LoadLookupSlot(variable->name(), typeof_mode);
+      execution_result()->SetResultInAccumulator();
+      break;
+    }
   }
 }
 
@@ -1386,8 +1389,10 @@ void BytecodeGenerator::VisitVariableAssignment(Variable* variable,
       builder()->StoreContextSlot(context_reg, variable->index());
       break;
     }
-    case VariableLocation::LOOKUP:
-      UNIMPLEMENTED();
+    case VariableLocation::LOOKUP: {
+      builder()->StoreLookupSlot(variable->name(), language_mode());
+      break;
+    }
   }
 }
 

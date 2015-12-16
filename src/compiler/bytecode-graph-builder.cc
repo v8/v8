@@ -583,6 +583,30 @@ void BytecodeGraphBuilder::VisitStaContextSlot(
 }
 
 
+void BytecodeGraphBuilder::VisitLdaLookupSlot(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
+void BytecodeGraphBuilder::VisitLdaLookupSlotInsideTypeof(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
+void BytecodeGraphBuilder::VisitStaLookupSlotSloppy(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
+void BytecodeGraphBuilder::VisitStaLookupSlotStrict(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
 void BytecodeGraphBuilder::BuildNamedLoad(
     const interpreter::BytecodeArrayIterator& iterator) {
   Node* object = environment()->LookupRegister(iterator.GetRegisterOperand(0));

@@ -438,6 +438,34 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreContextSlot(Register context,
 }
 
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLookupSlot(
+    const Handle<String> name, TypeofMode typeof_mode) {
+  Bytecode bytecode = (typeof_mode == INSIDE_TYPEOF)
+                          ? Bytecode::kLdaLookupSlotInsideTypeof
+                          : Bytecode::kLdaLookupSlot;
+  size_t name_index = GetConstantPoolEntry(name);
+  if (FitsInIdx8Operand(name_index)) {
+    Output(bytecode, static_cast<uint8_t>(name_index));
+  } else {
+    UNIMPLEMENTED();
+  }
+  return *this;
+}
+
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::StoreLookupSlot(
+    const Handle<String> name, LanguageMode language_mode) {
+  Bytecode bytecode = BytecodeForStoreLookupSlot(language_mode);
+  size_t name_index = GetConstantPoolEntry(name);
+  if (FitsInIdx8Operand(name_index)) {
+    Output(bytecode, static_cast<uint8_t>(name_index));
+  } else {
+    UNIMPLEMENTED();
+  }
+  return *this;
+}
+
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadNamedProperty(
     Register object, size_t name_index, int feedback_slot,
     LanguageMode language_mode) {
@@ -1313,6 +1341,23 @@ Bytecode BytecodeArrayBuilder::BytecodeForStoreGlobal(
       return Bytecode::kStaGlobalSloppy;
     case STRICT:
       return Bytecode::kStaGlobalStrict;
+    case STRONG:
+      UNIMPLEMENTED();
+    default:
+      UNREACHABLE();
+  }
+  return static_cast<Bytecode>(-1);
+}
+
+
+// static
+Bytecode BytecodeArrayBuilder::BytecodeForStoreLookupSlot(
+    LanguageMode language_mode) {
+  switch (language_mode) {
+    case SLOPPY:
+      return Bytecode::kStaLookupSlotSloppy;
+    case STRICT:
+      return Bytecode::kStaLookupSlotStrict;
     case STRONG:
       UNIMPLEMENTED();
     default:

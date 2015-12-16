@@ -55,6 +55,15 @@ class BytecodeGeneratorHelper {
     return handle(js_function->shared()->bytecode_array(), CcTest::i_isolate());
   }
 
+  Handle<BytecodeArray> MakeBytecode(const char* script, const char* filter,
+                                     const char* function_name) {
+    const char* old_ignition_filter = i::FLAG_ignition_filter;
+    i::FLAG_ignition_filter = filter;
+    Handle<BytecodeArray> return_val = MakeBytecode(script, function_name);
+    i::FLAG_ignition_filter = old_ignition_filter;
+    return return_val;
+  }
+
   Handle<BytecodeArray> MakeBytecodeForFunctionBody(const char* body) {
     ScopedVector<char> program(3072);
     SNPrintF(program, "function %s() { %s }\n%s();", kFunctionName, body,
@@ -69,14 +78,9 @@ class BytecodeGeneratorHelper {
   }
 
   Handle<BytecodeArray> MakeBytecodeForFunctionNoFilter(const char* function) {
-    const char* old_ignition_filter = i::FLAG_ignition_filter;
-    i::FLAG_ignition_filter = "*";
     ScopedVector<char> program(3072);
     SNPrintF(program, "%s\n%s();", function, kFunctionName);
-    Handle<BytecodeArray> return_val =
-        MakeBytecode(program.start(), kFunctionName);
-    i::FLAG_ignition_filter = old_ignition_filter;
-    return return_val;
+    return MakeBytecode(program.start(), "*", kFunctionName);
   }
 };
 
@@ -5715,6 +5719,79 @@ TEST(AssignmentsInBinaryExpression) {
   for (size_t i = 0; i < arraysize(snippets); i++) {
     Handle<BytecodeArray> bytecode_array =
         helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+}
+
+
+TEST(LookupSlotInEval) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+
+  const char* function_prologue = "var f;"
+                                  "var x = 1;"
+                                  "function f1() {"
+                                  "  eval(\"function t() {";
+  const char* function_epilogue = "        }; f = t; f();\");"
+                                  "}"
+                                  "f1();";
+
+  ExpectedSnippet<const char*> snippets[] = {
+      {"return x;",
+       0 * kPointerSize,
+       1,
+       3,
+       {
+           B(LdaLookupSlot), U8(0),  //
+           B(Return)                 //
+       },
+       1,
+       {"x"}},
+      {"x = 10;",
+       0 * kPointerSize,
+       1,
+       6,
+       {
+           B(LdaSmi8), U8(10),             //
+           B(StaLookupSlotSloppy), U8(0),  //
+           B(LdaUndefined),                //
+           B(Return),                      //
+       },
+       1,
+       {"x"}},
+      {"'use strict'; x = 10;",
+       0 * kPointerSize,
+       1,
+       6,
+       {
+           B(LdaSmi8), U8(10),             //
+           B(StaLookupSlotStrict), U8(0),  //
+           B(LdaUndefined),                //
+           B(Return),                      //
+       },
+       1,
+       {"x"}},
+      {"return typeof x;",
+       0 * kPointerSize,
+       1,
+       4,
+       {
+           B(LdaLookupSlotInsideTypeof), U8(0),  //
+           B(TypeOf),                            //
+           B(Return),                            //
+       },
+       1,
+       {"x"}},
+  };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    std::string script = std::string(function_prologue) +
+                         std::string(snippets[i].code_snippet) +
+                         std::string(function_epilogue);
+    // TODO(mythria): use * as filter when function declarations are supported
+    // inside eval.
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecode(script.c_str(), "t", "f");
     CheckBytecodeArrayEqual(snippets[i], bytecode_array);
   }
 }
