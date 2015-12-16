@@ -1217,7 +1217,7 @@ Type* Typer::Visitor::TypeJSCreateArray(Node* node) {
 
 
 Type* Typer::Visitor::TypeJSCreateClosure(Node* node) {
-  return Type::OtherObject();
+  return Type::Function();
 }
 
 

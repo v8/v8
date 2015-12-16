@@ -516,7 +516,7 @@ void Verifier::Visitor::Check(Node* node) {
       break;
     case IrOpcode::kJSCreateClosure:
       // Type is Function.
-      CheckUpperIs(node, Type::OtherObject());
+      CheckUpperIs(node, Type::Function());
       break;
     case IrOpcode::kJSCreateLiteralArray:
     case IrOpcode::kJSCreateLiteralObject:
