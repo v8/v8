@@ -1157,11 +1157,10 @@ TEST(Run_WasmFloat32Neg) {
   WasmRunner<float> r(MachineType::Float32());
   BUILD(r, WASM_F32_NEG(WASM_GET_LOCAL(0)));
 
-  FOR_FLOAT32_INPUTS(i) { CheckFloatEq(-(*i), r.Call(*i)); }
-
-  // The difference between +0 and -0 matters here.
-  CHECK_EQ(bit_cast<uint32_t>(-0.0f), bit_cast<uint32_t>(r.Call(0.0f)));
-  CHECK_EQ(bit_cast<uint32_t>(0.0f), bit_cast<uint32_t>(r.Call(-0.0f)));
+  FOR_FLOAT32_INPUTS(i) {
+    CHECK_EQ(0x80000000,
+             bit_cast<uint32_t>(*i) ^ bit_cast<uint32_t>(r.Call(*i)));
+  }
 }
 
 
@@ -1169,11 +1168,10 @@ TEST(Run_WasmFloat64Neg) {
   WasmRunner<double> r(MachineType::Float64());
   BUILD(r, WASM_F64_NEG(WASM_GET_LOCAL(0)));
 
-  FOR_FLOAT64_INPUTS(i) { CheckDoubleEq(-(*i), r.Call(*i)); }
-
-  // The difference between +0 and -0 matters here.
-  CHECK_EQ(bit_cast<uint64_t>(-0.0), bit_cast<uint64_t>(r.Call(0.0)));
-  CHECK_EQ(bit_cast<uint64_t>(0.0), bit_cast<uint64_t>(r.Call(-0.0)));
+  FOR_FLOAT64_INPUTS(i) {
+    CHECK_EQ(0x8000000000000000,
+             bit_cast<uint64_t>(*i) ^ bit_cast<uint64_t>(r.Call(*i)));
+  }
 }
 
 

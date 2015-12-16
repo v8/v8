@@ -162,6 +162,8 @@ class WasmGraphBuilder {
   void BoundsCheckMem(MachineType memtype, Node* index, uint32_t offset);
 
   Node* BuildWasmCall(wasm::FunctionSig* sig, Node** args);
+  Node* BuildF32Neg(Node* input);
+  Node* BuildF64Neg(Node* input);
   Node* BuildF32CopySign(Node* left, Node* right);
   Node* BuildF64CopySign(Node* left, Node* right);
   Node* BuildF32Min(Node* left, Node* right);
