@@ -13,8 +13,9 @@ function listener(event, exec_state, event_data, data) {
   if (event != Debug.DebugEvent.Break) return;
   try {
     print(event_data.sourceLineText());
-    assertTrue(event_data.sourceLineText().indexOf(`Break ${break_count++}.`) > 0);
-    exec_state.prepareStep(Debug.StepAction.StepIn, 1);
+    assertTrue(
+        event_data.sourceLineText().indexOf(`Break ${break_count++}.`) > 0);
+    exec_state.prepareStep(Debug.StepAction.StepIn);
   } catch (e) {
     exception = e;
   }

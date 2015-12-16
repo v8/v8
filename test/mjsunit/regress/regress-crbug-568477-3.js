@@ -12,7 +12,7 @@ function listener(event, exec_state, event_data, data) {
   if (event != Debug.DebugEvent.Break) return;
   try {
     log.push(exec_state.frame(0).sourceLineText().trimLeft());
-    exec_state.prepareStep(Debug.StepAction.StepNext, 1);
+    exec_state.prepareStep(Debug.StepAction.StepNext);
   } catch (e) {
     %AbortJS(e + "\n" + e.stack);
   }

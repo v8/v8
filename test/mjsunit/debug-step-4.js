@@ -53,9 +53,7 @@ function h() {
   }
 }
 
-function TestCase(step_count, expected_final_state) {
-  print("Test case, step count: " + step_count);
-
+function TestCase(expected_final_state) {
   var listener_exception = null;
   var state_snapshot;
   var listener_state;
@@ -68,7 +66,7 @@ function TestCase(step_count, expected_final_state) {
       if (event == Debug.DebugEvent.Break) {
         if (listener_state == 0) {
           Debug.clearBreakPoint(bp);
-          exec_state.prepareStep(Debug.StepAction.StepNext, step_count);
+          exec_state.prepareStep(Debug.StepAction.StepNext);
           listener_state = 1;
         } else if (listener_state == 1) {
           state_snapshot = String(state);
@@ -102,8 +100,4 @@ function TestCase(step_count, expected_final_state) {
 // Warm-up -- make sure all is compiled and ready for breakpoint.
 h();
 
-TestCase(0, "0,0,-1");
-TestCase(1, "0,0,-1");
-TestCase(2, "0,0,0");
-TestCase(5, "0,0,1");
-TestCase(8, "0,0,2");
+TestCase("0,0,-1");

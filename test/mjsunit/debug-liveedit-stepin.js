@@ -34,7 +34,7 @@ function listener(event, exec_state, event_data, data) {
           assertUnreachable();
       }
     }
-    exec_state.prepareStep(Debug.StepAction.StepIn, 1);
+    exec_state.prepareStep(Debug.StepAction.StepIn);
   } catch (e) {
     exception = e;
   }

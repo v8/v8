@@ -1212,11 +1212,11 @@ RUNTIME_FUNCTION(Runtime_IsBreakOnException) {
 //          of frames to step down.
 RUNTIME_FUNCTION(Runtime_PrepareStep) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
+  DCHECK(args.length() == 2);
   CONVERT_NUMBER_CHECKED(int, break_id, Int32, args[0]);
   RUNTIME_ASSERT(isolate->debug()->CheckExecutionState(break_id));
 
-  if (!args[1]->IsNumber() || !args[2]->IsNumber()) {
+  if (!args[1]->IsNumber()) {
     return isolate->Throw(isolate->heap()->illegal_argument_string());
   }
 
@@ -1227,18 +1227,11 @@ RUNTIME_FUNCTION(Runtime_PrepareStep) {
     return isolate->Throw(isolate->heap()->illegal_argument_string());
   }
 
-  // Get the number of steps.
-  int step_count = NumberToInt32(args[2]);
-  if (step_count < 1) {
-    return isolate->Throw(isolate->heap()->illegal_argument_string());
-  }
-
   // Clear all current stepping setup.
   isolate->debug()->ClearStepping();
 
   // Prepare step.
-  isolate->debug()->PrepareStep(static_cast<StepAction>(step_action),
-                                step_count);
+  isolate->debug()->PrepareStep(static_cast<StepAction>(step_action), 1);
   return isolate->heap()->undefined_value();
 }
 

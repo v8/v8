@@ -943,11 +943,14 @@ function ExecutionState(break_id) {
   this.selected_frame = 0;
 }
 
-ExecutionState.prototype.prepareStep = function(opt_action, opt_count) {
-  var action = Debug.StepAction.StepIn;
-  if (!IS_UNDEFINED(opt_action)) action = TO_NUMBER(opt_action);
-  var count = opt_count ? TO_NUMBER(opt_count) : 1;
-  return %PrepareStep(this.break_id, action, count);
+ExecutionState.prototype.prepareStep = function(action) {
+  if (action === Debug.StepAction.StepIn ||
+      action === Debug.StepAction.StepOut ||
+      action === Debug.StepAction.StepNext ||
+      action === Debug.StepAction.StepFrame) {
+    return %PrepareStep(this.break_id, action);
+  }
+  throw MakeTypeError(kDebuggerType);
 };
 
 ExecutionState.prototype.evaluateGlobal = function(source, disable_break,
@@ -1451,21 +1454,10 @@ DebugCommandProcessor.prototype.processDebugJSONRequest = function(
 DebugCommandProcessor.prototype.continueRequest_ = function(request, response) {
   // Check for arguments for continue.
   if (request.arguments) {
-    var count = 1;
     var action = Debug.StepAction.StepIn;
 
     // Pull out arguments.
     var stepaction = request.arguments.stepaction;
-    var stepcount = request.arguments.stepcount;
-
-    // Get the stepcount argument if any.
-    if (stepcount) {
-      count = TO_NUMBER(stepcount);
-      if (count < 0) {
-        throw MakeError(kDebugger,
-                        'Invalid stepcount argument "' + stepcount + '".');
-      }
-    }
 
     // Get the stepaction argument.
     if (stepaction) {
@@ -1482,7 +1474,7 @@ DebugCommandProcessor.prototype.continueRequest_ = function(request, response) {
     }
 
     // Set up the VM for stepping.
-    this.exec_state_.prepareStep(action, count);
+    this.exec_state_.prepareStep(action);
   }
 
   // VM should be running after executing this request.
