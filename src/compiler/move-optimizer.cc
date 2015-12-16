@@ -91,22 +91,25 @@ MoveOptimizer::MoveOptimizer(Zone* local_zone, InstructionSequence* code)
 
 
 void MoveOptimizer::Run() {
-  for (auto* block : code()->instruction_blocks()) {
+  for (InstructionBlock* block : code()->instruction_blocks()) {
     CompressBlock(block);
   }
-  for (auto block : code()->instruction_blocks()) {
+  for (InstructionBlock* block : code()->instruction_blocks()) {
     if (block->PredecessorCount() <= 1) continue;
-    bool has_only_deferred = true;
-    for (RpoNumber pred_id : block->predecessors()) {
-      if (!code()->InstructionBlockAt(pred_id)->IsDeferred()) {
-        has_only_deferred = false;
-        break;
+    if (!block->IsDeferred()) {
+      bool has_only_deferred = true;
+      for (RpoNumber pred_id : block->predecessors()) {
+        if (!code()->InstructionBlockAt(pred_id)->IsDeferred()) {
+          has_only_deferred = false;
+          break;
+        }
       }
+      // This would pull down common moves. If the moves occur in deferred
+      // blocks, and the closest common successor is not deferred, we lose the
+      // optimization of just spilling/filling in deferred blocks, when the
+      // current block is not deferred.
+      if (has_only_deferred) continue;
     }
-    // This would pull down common moves. If the moves occur in deferred blocks,
-    // and the closest common successor is not deferred, we lose the
-    // optimization of just spilling/filling in deferred blocks.
-    if (has_only_deferred) continue;
     OptimizeMerge(block);
   }
   for (auto gap : to_finalize_) {
