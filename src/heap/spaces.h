@@ -323,6 +323,9 @@ class MemoryChunk {
     // candidates selection cycle.
     FORCE_EVACUATION_CANDIDATE_FOR_TESTING,
 
+    // This flag is inteded to be used for testing.
+    NEVER_ALLOCATE_ON_PAGE,
+
     // The memory chunk is already logically freed, however the actual freeing
     // still has to be performed.
     PRE_FREED,
@@ -680,6 +683,10 @@ class MemoryChunk {
   bool IsEvacuationCandidate() {
     DCHECK(!(IsFlagSet(NEVER_EVACUATE) && IsFlagSet(EVACUATION_CANDIDATE)));
     return IsFlagSet(EVACUATION_CANDIDATE);
+  }
+
+  bool CanAllocate() {
+    return !IsEvacuationCandidate() && !IsFlagSet(NEVER_ALLOCATE_ON_PAGE);
   }
 
   bool ShouldSkipEvacuationSlotRecording() {

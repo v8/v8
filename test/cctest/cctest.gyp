@@ -96,6 +96,7 @@
         'gay-shortest.cc',
         'heap/heap-tester.h',
         'heap/test-alloc.cc',
+        'heap/test-compaction.cc',
         'heap/test-heap.cc',
         'heap/test-incremental-marking.cc',
         'heap/test-mark-compact.cc',

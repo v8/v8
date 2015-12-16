@@ -3774,6 +3774,16 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
       continue;
     }
 
+    if (p->IsFlagSet(Page::NEVER_ALLOCATE_ON_PAGE)) {
+      // We need to sweep the page to get it into an iterable state again. Note
+      // that this adds unusable memory into the free list that is later on
+      // (in the free list) dropped again. Since we only use the flag for
+      // testing this is fine.
+      Sweep<SWEEP_ONLY, SWEEP_ON_MAIN_THREAD, IGNORE_SKIP_LIST,
+            IGNORE_FREE_SPACE>(space, nullptr, p, nullptr);
+      continue;
+    }
+
     // One unused page is kept, all further are released before sweeping them.
     if (p->LiveBytes() == 0) {
       if (unused_page_present) {

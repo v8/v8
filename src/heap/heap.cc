@@ -163,7 +163,8 @@ Heap::Heap()
       gc_callbacks_depth_(0),
       deserialization_complete_(false),
       strong_roots_list_(NULL),
-      array_buffer_tracker_(NULL) {
+      array_buffer_tracker_(NULL),
+      force_oom_(false) {
 // Allow build-time customization of the max semispace size. Building
 // V8 with snapshots and a non-default max semispace size is much
 // easier if you can define it as part of the build environment.

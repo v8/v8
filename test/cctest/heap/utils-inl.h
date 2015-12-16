@@ -16,34 +16,32 @@ namespace v8 {
 namespace internal {
 
 static int LenFromSize(int size) {
-  return (size - i::FixedArray::kHeaderSize) / i::kPointerSize;
+  return (size - FixedArray::kHeaderSize) / kPointerSize;
 }
 
 
-static inline void CreatePadding(i::Heap* heap, int padding_size,
-                                 i::PretenureFlag tenure) {
-  const int max_number_of_objects = 20;
-  v8::internal::Handle<v8::internal::FixedArray>
-      big_objects[max_number_of_objects];
-  i::Isolate* isolate = heap->isolate();
+static inline std::vector<Handle<FixedArray>> CreatePadding(
+    Heap* heap, int padding_size, PretenureFlag tenure,
+    int object_size = Page::kMaxRegularHeapObjectSize) {
+  std::vector<Handle<FixedArray>> handles;
+  Isolate* isolate = heap->isolate();
   int allocate_memory;
   int length;
   int free_memory = padding_size;
   if (tenure == i::TENURED) {
-    int current_free_memory =
-        static_cast<int>(*heap->old_space()->allocation_limit_address() -
-                         *heap->old_space()->allocation_top_address());
-    CHECK(padding_size <= current_free_memory || current_free_memory == 0);
+    heap->old_space()->EmptyAllocationInfo();
+    int overall_free_memory = static_cast<int>(heap->old_space()->Available());
+    CHECK(padding_size <= overall_free_memory || overall_free_memory == 0);
   } else {
     heap->new_space()->DisableInlineAllocationSteps();
-    int current_free_memory =
+    int overall_free_memory =
         static_cast<int>(*heap->new_space()->allocation_limit_address() -
                          *heap->new_space()->allocation_top_address());
-    CHECK(padding_size <= current_free_memory || current_free_memory == 0);
+    CHECK(padding_size <= overall_free_memory || overall_free_memory == 0);
   }
-  for (int i = 0; i < max_number_of_objects && free_memory > 0; i++) {
-    if (free_memory > i::Page::kMaxRegularHeapObjectSize) {
-      allocate_memory = i::Page::kMaxRegularHeapObjectSize;
+  while (free_memory > 0) {
+    if (free_memory > object_size) {
+      allocate_memory = object_size;
       length = LenFromSize(allocate_memory);
     } else {
       allocate_memory = free_memory;
@@ -55,11 +53,12 @@ static inline void CreatePadding(i::Heap* heap, int padding_size,
         break;
       }
     }
-    big_objects[i] = isolate->factory()->NewFixedArray(length, tenure);
-    CHECK((tenure == i::NOT_TENURED && heap->InNewSpace(*big_objects[i])) ||
-          (tenure == i::TENURED && heap->InOldSpace(*big_objects[i])));
+    handles.push_back(isolate->factory()->NewFixedArray(length, tenure));
+    CHECK((tenure == NOT_TENURED && heap->InNewSpace(*handles.back())) ||
+          (tenure == TENURED && heap->InOldSpace(*handles.back())));
     free_memory -= allocate_memory;
   }
+  return handles;
 }
 
 

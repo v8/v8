@@ -2291,7 +2291,7 @@ FreeSpace* FreeListCategory::PickNodeFromList(int* node_size) {
   if (node == nullptr) return nullptr;
 
   Page* page = Page::FromAddress(node->address());
-  while ((node != nullptr) && page->IsEvacuationCandidate()) {
+  while ((node != nullptr) && !page->CanAllocate()) {
     available_ -= node->size();
     page->add_available_in_free_list(type_, -(node->Size()));
     node = node->next();
@@ -2333,7 +2333,7 @@ FreeSpace* FreeListCategory::SearchForNodeInList(int size_in_bytes,
     int size = cur_node->size();
     Page* page_for_node = Page::FromAddress(cur_node->address());
 
-    if ((size >= size_in_bytes) || page_for_node->IsEvacuationCandidate()) {
+    if ((size >= size_in_bytes) || !page_for_node->CanAllocate()) {
       // The node is either large enough or contained in an evacuation
       // candidate. In both cases we need to unlink it from the list.
       available_ -= size;
@@ -2347,7 +2347,7 @@ FreeSpace* FreeListCategory::SearchForNodeInList(int size_in_bytes,
         prev_non_evac_node->set_next(cur_node->next());
       }
       // For evacuation candidates we continue.
-      if (page_for_node->IsEvacuationCandidate()) {
+      if (!page_for_node->CanAllocate()) {
         page_for_node->add_available_in_free_list(type_, -size);
         continue;
       }
@@ -2758,8 +2758,7 @@ void PagedSpace::RepairFreeListsAfterDeserialization() {
 void PagedSpace::EvictEvacuationCandidatesFromLinearAllocationArea() {
   if (allocation_info_.top() >= allocation_info_.limit()) return;
 
-  if (Page::FromAllocationTop(allocation_info_.top())
-          ->IsEvacuationCandidate()) {
+  if (!Page::FromAllocationTop(allocation_info_.top())->CanAllocate()) {
     // Create filler object to keep page iterable if it was iterable.
     int remaining =
         static_cast<int>(allocation_info_.limit() - allocation_info_.top());
