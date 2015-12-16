@@ -2327,9 +2327,8 @@ int TextNode::EatsAtLeast(int still_to_find,
 }
 
 
-int NegativeLookaheadChoiceNode::EatsAtLeast(int still_to_find,
-                                             int budget,
-                                             bool not_at_start) {
+int NegativeLookaroundChoiceNode::EatsAtLeast(int still_to_find, int budget,
+                                              bool not_at_start) {
   if (budget <= 0) return 0;
   // Alternative 0 is the negative lookahead, alternative 1 is what comes
   // afterwards.
@@ -2338,10 +2337,8 @@ int NegativeLookaheadChoiceNode::EatsAtLeast(int still_to_find,
 }
 
 
-void NegativeLookaheadChoiceNode::GetQuickCheckDetails(
-    QuickCheckDetails* details,
-    RegExpCompiler* compiler,
-    int filled_in,
+void NegativeLookaroundChoiceNode::GetQuickCheckDetails(
+    QuickCheckDetails* details, RegExpCompiler* compiler, int filled_in,
     bool not_at_start) {
   // Alternative 0 is the negative lookahead, alternative 1 is what comes
   // afterwards.
@@ -2511,6 +2508,9 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
                                     int characters_filled_in,
                                     bool not_at_start) {
+  // Do not collect any quick check details if the text node reads backward,
+  // since it reads in the opposite direction than we use for quick checks.
+  if (read_backward()) return;
   Isolate* isolate = compiler->macro_assembler()->isolate();
   DCHECK(characters_filled_in < details->characters());
   int characters = details->characters();
@@ -2672,10 +2672,13 @@ void QuickCheckDetails::Clear() {
 
 
 void QuickCheckDetails::Advance(int by, bool one_byte) {
-  if (by >= characters_) {
+  if (by >= characters_ || by < 0) {
+    DCHECK_IMPLIES(by < 0, characters_ == 0);
     Clear();
     return;
   }
+  DCHECK_LE(characters_ - by, 4);
+  DCHECK_LE(characters_, 4);
   for (int i = 0; i < characters_ - by; i++) {
     positions_[i] = positions_[by + i];
   }
@@ -2891,8 +2894,8 @@ RegExpNode* ChoiceNode::FilterOneByte(int depth, bool ignore_case) {
 }
 
 
-RegExpNode* NegativeLookaheadChoiceNode::FilterOneByte(int depth,
-                                                       bool ignore_case) {
+RegExpNode* NegativeLookaroundChoiceNode::FilterOneByte(int depth,
+                                                        bool ignore_case) {
   if (info()->replacement_calculated) return replacement();
   if (depth < 0) return this;
   if (info()->visited) return this;
@@ -5373,10 +5376,8 @@ RegExpNode* RegExpLookaround::ToNode(RegExpCompiler* compiler,
         body()->ToNode(compiler, new (zone) NegativeSubmatchSuccess(
                                      stack_pointer_register, position_register,
                                      register_count, register_start, zone)));
-    ChoiceNode* choice_node =
-        new(zone) NegativeLookaheadChoiceNode(body_alt,
-                                              GuardedAlternative(on_success),
-                                              zone);
+    ChoiceNode* choice_node = new (zone) NegativeLookaroundChoiceNode(
+        body_alt, GuardedAlternative(on_success), zone);
     result = ActionNode::BeginSubmatch(stack_pointer_register,
                                        position_register, choice_node);
   }

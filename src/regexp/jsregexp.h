@@ -1114,11 +1114,11 @@ class ChoiceNode: public RegExpNode {
 };
 
 
-class NegativeLookaheadChoiceNode: public ChoiceNode {
+class NegativeLookaroundChoiceNode : public ChoiceNode {
  public:
-  explicit NegativeLookaheadChoiceNode(GuardedAlternative this_must_fail,
-                                       GuardedAlternative then_do_this,
-                                       Zone* zone)
+  explicit NegativeLookaroundChoiceNode(GuardedAlternative this_must_fail,
+                                        GuardedAlternative then_do_this,
+                                        Zone* zone)
       : ChoiceNode(2, zone) {
     AddAlternative(this_must_fail);
     AddAlternative(then_do_this);
