@@ -329,7 +329,6 @@ void Debug::ThreadInit() {
   thread_local_.last_statement_position_ = RelocInfo::kNoPosition;
   thread_local_.step_count_ = 0;
   thread_local_.last_fp_ = 0;
-  thread_local_.queued_step_count_ = 0;
   thread_local_.step_out_fp_ = 0;
   thread_local_.step_in_enabled_ = false;
   // TODO(isolates): frames_are_dropped_?
@@ -484,47 +483,17 @@ void Debug::Break(Arguments args, JavaScriptFrame* frame) {
 
     // Clear all current stepping setup.
     ClearStepping();
-
-    if (thread_local_.queued_step_count_ > 0) {
-      // Perform queued steps
-      int step_count = thread_local_.queued_step_count_;
-
-      // Clear queue
-      thread_local_.queued_step_count_ = 0;
-
-      PrepareStep(StepNext, step_count);
-    } else {
-      // Notify the debug event listeners.
-      OnDebugBreak(break_points_hit, false);
-    }
+    // Notify the debug event listeners.
+    OnDebugBreak(break_points_hit, false);
   } else if (thread_local_.last_step_action_ != StepNone) {
     // Hold on to last step action as it is cleared by the call to
     // ClearStepping.
     StepAction step_action = thread_local_.last_step_action_;
     int step_count = thread_local_.step_count_;
 
-    // If StepNext goes deeper in code, StepOut until original frame
-    // and keep step count queued up in the meantime.
-    if (step_action == StepNext && frame->fp() < thread_local_.last_fp_) {
-      // Count frames until target frame
-      int count = 0;
-      JavaScriptFrameIterator it(isolate_);
-      while (!it.done() && it.frame()->fp() < thread_local_.last_fp_) {
-        count++;
-        it.Advance();
-      }
-
-      // Check that we indeed found the frame we are looking for.
-      CHECK(!it.done() && (it.frame()->fp() == thread_local_.last_fp_));
-      if (step_count > 1) {
-        // Save old count and action to continue stepping after StepOut.
-        thread_local_.queued_step_count_ = step_count - 1;
-      }
-
-      // Set up for StepOut to reach target frame.
-      step_action = StepOut;
-      step_count = count;
-    }
+    // If StepNext goes deeper into code, just return. The functions we need
+    // to have flooded with one-shots are already flooded.
+    if (step_action == StepNext && frame->fp() < thread_local_.last_fp_) return;
 
     // Clear all current stepping setup.
     ClearStepping();
