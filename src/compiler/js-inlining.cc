@@ -445,9 +445,9 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
       NeedsImplicitReceiver(function, info_->isolate())) {
     Node* effect = NodeProperties::GetEffectInput(node);
     Node* context = NodeProperties::GetContextInput(node);
-    Node* create = jsgraph_->graph()->NewNode(jsgraph_->javascript()->Create(),
-                                              call.target(), call.new_target(),
-                                              context, frame_state, effect);
+    Node* create = jsgraph_->graph()->NewNode(
+        jsgraph_->javascript()->Create(), call.target(), call.new_target(),
+        context, call.frame_state_before(), effect);
     NodeProperties::ReplaceEffectInput(node, create);
     // Insert a check of the return value to determine whether the return value
     // or the implicit receiver should be selected as a result of the call.
