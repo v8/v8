@@ -1672,6 +1672,47 @@ TEST(BytecodeGraphBuilderNestedSwitch) {
 }
 
 
+TEST(BytecodeGraphBuilderBreakableBlocks) {
+  HandleAndZoneScope scope;
+  Isolate* isolate = scope.main_isolate();
+  Zone* zone = scope.main_zone();
+  Factory* factory = isolate->factory();
+
+  ExpectedSnippet<0> snippets[] = {
+      {"var x = 0;\n"
+       "my_heart: {\n"
+       "  x = x + 1;\n"
+       "  break my_heart;\n"
+       "  x = x + 2;\n"
+       "}\n"
+       "return x;\n",
+       {factory->NewNumberFromInt(1)}},
+      {"var sum = 0;\n"
+       "outta_here: {\n"
+       "  for (var x = 0; x < 10; ++x) {\n"
+       "    for (var y = 0; y < 3; ++y) {\n"
+       "      ++sum;\n"
+       "      if (x + y == 12) { break outta_here; }\n"
+       "    }\n"
+       "  }\n"
+       "}\n"
+       "return sum;",
+       {factory->NewNumber(30)}},
+  };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    ScopedVector<char> script(1024);
+    SNPrintF(script, "function %s() { %s }\n%s();", kFunctionName,
+             snippets[i].code_snippet, kFunctionName);
+
+    BytecodeGraphTester tester(isolate, zone, script.start());
+    auto callable = tester.GetCallable<>();
+    Handle<Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*snippets[i].return_value()));
+  }
+}
+
+
 TEST(BytecodeGraphBuilderWhile) {
   HandleAndZoneScope scope;
   Isolate* isolate = scope.main_isolate();

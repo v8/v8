@@ -1968,6 +1968,91 @@ TEST(DeclareGlobals) {
 }
 
 
+TEST(BreakableBlocks) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+
+  ExpectedSnippet<int> snippets[] = {
+      {"var x = 0;\n"
+       "label: {\n"
+       "  x = x + 1;\n"
+       "  break label;\n"
+       "  x = x + 1;\n"
+       "}\n"
+       "return x;",
+       1 * kPointerSize,
+       1,
+       14,
+       {
+           B(LdaZero),         //
+           B(Star), R(0),      //
+           B(LdaSmi8), U8(1),  //
+           B(Add), R(0),       //
+           B(Star), R(0),      //
+           B(Jump), U8(2),     //
+           B(Ldar), R(0),      //
+           B(Return)           //
+       }},
+      {"var sum = 0;\n"
+       "outer: {\n"
+       "  for (var x = 0; x < 10; ++x) {\n"
+       "    for (var y = 0; y < 3; ++y) {\n"
+       "      ++sum;\n"
+       "      if (x + y == 12) { break outer; }\n"
+       "    }\n"
+       "  }\n"
+       "}\n"
+       "return sum;",
+       4 * kPointerSize,
+       1,
+       60,
+       {
+           B(LdaZero),              //
+           B(Star), R(0),           //
+           B(LdaZero),              //
+           B(Star), R(1),           //
+           B(LdaSmi8), U8(10),      //
+           B(TestLessThan), R(1),   //
+           B(JumpIfFalse), U8(47),  //
+           B(LdaZero),              //
+           B(Star), R(2),           //
+           B(LdaSmi8), U8(3),       //
+           B(TestLessThan), R(2),   //
+           B(JumpIfFalse), U8(30),  //
+           B(Ldar), R(0),           //
+           B(ToNumber),             //
+           B(Inc),                  //
+           B(Star), R(0),           //
+           B(Ldar), R(2),           //
+           B(Add), R(1),            //
+           B(Star), R(3),           //
+           B(LdaSmi8), U8(12),      //
+           B(TestEqual), R(3),      //
+           B(JumpIfFalse), U8(4),   //
+           B(Jump), U8(18),         //
+           B(Ldar), R(2),           //
+           B(ToNumber),             //
+           B(Inc),                  //
+           B(Star), R(2),           //
+           B(Jump), U8(-32),        //
+           B(Ldar), R(1),           //
+           B(ToNumber),             //
+           B(Inc),                  //
+           B(Star), R(1),           //
+           B(Jump), U8(-49),        //
+           B(Ldar), R(0),           //
+           B(Return),               //
+       }},
+  };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+}
+
+
 TEST(BasicLoops) {
   InitializedHandleScope handle_scope;
   BytecodeGeneratorHelper helper;

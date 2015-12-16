@@ -104,9 +104,39 @@ class BytecodeGenerator::ControlScope BASE_EMBEDDED {
 };
 
 
+// Scoped class for enabling break inside blocks and switch blocks.
+class BytecodeGenerator::ControlScopeForBreakable final
+    : public BytecodeGenerator::ControlScope {
+ public:
+  ControlScopeForBreakable(BytecodeGenerator* generator,
+                           BreakableStatement* statement,
+                           BreakableControlFlowBuilder* control_builder)
+      : ControlScope(generator),
+        statement_(statement),
+        control_builder_(control_builder) {}
+
+ protected:
+  virtual bool Execute(Command command, Statement* statement) {
+    if (statement != statement_) return false;
+    switch (command) {
+      case CMD_BREAK:
+        control_builder_->Break();
+        return true;
+      case CMD_CONTINUE:
+        break;
+    }
+    return false;
+  }
+
+ private:
+  Statement* statement_;
+  BreakableControlFlowBuilder* control_builder_;
+};
+
+
 // Scoped class for enabling 'break' and 'continue' in iteration
 // constructs, e.g. do...while, while..., for...
-class BytecodeGenerator::ControlScopeForIteration
+class BytecodeGenerator::ControlScopeForIteration final
     : public BytecodeGenerator::ControlScope {
  public:
   ControlScopeForIteration(BytecodeGenerator* generator,
@@ -133,36 +163,6 @@ class BytecodeGenerator::ControlScopeForIteration
  private:
   Statement* statement_;
   LoopBuilder* loop_builder_;
-};
-
-
-// Scoped class for enabling 'break' in switch statements.
-class BytecodeGenerator::ControlScopeForSwitch
-    : public BytecodeGenerator::ControlScope {
- public:
-  ControlScopeForSwitch(BytecodeGenerator* generator,
-                        SwitchStatement* statement,
-                        SwitchBuilder* switch_builder)
-      : ControlScope(generator),
-        statement_(statement),
-        switch_builder_(switch_builder) {}
-
- protected:
-  virtual bool Execute(Command command, Statement* statement) {
-    if (statement != statement_) return false;
-    switch (command) {
-      case CMD_BREAK:
-        switch_builder_->Break();
-        return true;
-      case CMD_CONTINUE:
-        break;
-    }
-    return false;
-  }
-
- private:
-  Statement* statement_;
-  SwitchBuilder* switch_builder_;
 };
 
 
@@ -484,6 +484,9 @@ void BytecodeGenerator::MakeBytecodeBody() {
 
 
 void BytecodeGenerator::VisitBlock(Block* stmt) {
+  BlockBuilder block_builder(this->builder());
+  ControlScopeForBreakable execution_control(this, stmt, &block_builder);
+
   if (stmt->scope() == NULL) {
     // Visit statements in the same scope, no declarations.
     VisitStatements(stmt->statements());
@@ -499,6 +502,7 @@ void BytecodeGenerator::VisitBlock(Block* stmt) {
       VisitStatements(stmt->statements());
     }
   }
+  if (stmt->labels() != nullptr) block_builder.EndBlock();
 }
 
 
@@ -685,7 +689,7 @@ void BytecodeGenerator::VisitWithStatement(WithStatement* stmt) {
 void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
   ZoneList<CaseClause*>* clauses = stmt->cases();
   SwitchBuilder switch_builder(builder(), clauses->length());
-  ControlScopeForSwitch scope(this, stmt, &switch_builder);
+  ControlScopeForBreakable scope(this, stmt, &switch_builder);
   int default_index = -1;
 
   // Keep the switch value in a register until a case matches.
@@ -753,7 +757,7 @@ void BytecodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
     VisitForAccumulatorValue(stmt->cond());
     loop_builder.JumpToHeaderIfTrue();
   }
-  loop_builder.LoopEnd();
+  loop_builder.EndLoop();
 }
 
 
@@ -773,7 +777,7 @@ void BytecodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
   }
   Visit(stmt->body());
   loop_builder.JumpToHeader();
-  loop_builder.LoopEnd();
+  loop_builder.EndLoop();
 }
 
 
@@ -802,7 +806,7 @@ void BytecodeGenerator::VisitForStatement(ForStatement* stmt) {
     Visit(stmt->next());
   }
   loop_builder.JumpToHeader();
-  loop_builder.LoopEnd();
+  loop_builder.EndLoop();
 }
 
 
@@ -894,7 +898,7 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   builder()->LoadAccumulatorWithRegister(index).CountOperation(
       Token::Value::ADD, language_mode_strength());
   loop_builder.JumpToHeader();
-  loop_builder.LoopEnd();
+  loop_builder.EndLoop();
 }
 
 

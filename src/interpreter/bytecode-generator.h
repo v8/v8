@@ -29,8 +29,8 @@ class BytecodeGenerator final : public AstVisitor {
  private:
   class ContextScope;
   class ControlScope;
+  class ControlScopeForBreakable;
   class ControlScopeForIteration;
-  class ControlScopeForSwitch;
   class ExpressionResultScope;
   class EffectResultScope;
   class AccumulatorResultScope;

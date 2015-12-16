@@ -65,6 +65,20 @@ class BreakableControlFlowBuilder : public ControlFlowBuilder {
   ZoneVector<BytecodeLabel> break_sites_;
 };
 
+
+// Class to track control flow for block statements (which can break in JS).
+class BlockBuilder final : public BreakableControlFlowBuilder {
+ public:
+  explicit BlockBuilder(BytecodeArrayBuilder* builder)
+      : BreakableControlFlowBuilder(builder) {}
+
+  void EndBlock();
+
+ private:
+  BytecodeLabel block_end_;
+};
+
+
 // A class to help with co-ordinating break and continue statements with
 // their loop.
 class LoopBuilder final : public BreakableControlFlowBuilder {
@@ -79,7 +93,7 @@ class LoopBuilder final : public BreakableControlFlowBuilder {
   void Next() { builder()->Bind(&next_); }
   void JumpToHeader() { builder()->Jump(&loop_header_); }
   void JumpToHeaderIfTrue() { builder()->JumpIfTrue(&loop_header_); }
-  void LoopEnd();
+  void EndLoop();
 
   // This method is called when visiting continue statements in the AST.
   // Inserts a jump to a unbound label that is patched when the corresponding
@@ -101,8 +115,8 @@ class LoopBuilder final : public BreakableControlFlowBuilder {
   ZoneVector<BytecodeLabel> continue_sites_;
 };
 
+
 // A class to help with co-ordinating break statements with their switch.
-// TODO(oth): add support for TF branch/merge info.
 class SwitchBuilder final : public BreakableControlFlowBuilder {
  public:
   explicit SwitchBuilder(BytecodeArrayBuilder* builder, int number_of_cases)

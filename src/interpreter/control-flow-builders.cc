@@ -81,10 +81,16 @@ void BreakableControlFlowBuilder::BindLabels(const BytecodeLabel& target,
 }
 
 
+void BlockBuilder::EndBlock() {
+  builder()->Bind(&block_end_);
+  SetBreakTarget(block_end_);
+}
+
+
 LoopBuilder::~LoopBuilder() { DCHECK(continue_sites_.empty()); }
 
 
-void LoopBuilder::LoopEnd() {
+void LoopBuilder::EndLoop() {
   // Loop must have closed form, i.e. all loop elements are within the loop,
   // the loop header precedes the body and next elements in the loop.
   DCHECK(loop_header_.is_bound());
