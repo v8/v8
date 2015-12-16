@@ -34,17 +34,6 @@ TEST(ClassOf) {
 }
 
 
-TEST(HeapObjectGetMap) {
-  FunctionTester T("(function(a) { return %_HeapObjectGetMap(a); })", flags);
-
-  Factory* factory = T.main_isolate()->factory();
-  T.CheckCall(factory->null_map(), T.null());
-  T.CheckCall(factory->undefined_map(), T.undefined());
-  T.CheckCall(factory->heap_number_map(), T.Val(3.1415));
-  T.CheckCall(factory->symbol_map(), factory->NewSymbol());
-}
-
-
 #define COUNTER_NAME "hurz"
 
 static int* LookupCounter(const char* name) {
@@ -156,19 +145,6 @@ TEST(IsSmi) {
   T.CheckFalse(T.Val(-0.0));
   T.CheckTrue(T.Val(-2));
   T.CheckFalse(T.Val(-2.3));
-}
-
-
-TEST(MapGetInstanceType) {
-  FunctionTester T(
-      "(function(a) { return %_MapGetInstanceType(%_HeapObjectGetMap(a)); })",
-      flags);
-
-  Factory* factory = T.main_isolate()->factory();
-  T.CheckCall(T.Val(ODDBALL_TYPE), T.null());
-  T.CheckCall(T.Val(ODDBALL_TYPE), T.undefined());
-  T.CheckCall(T.Val(HEAP_NUMBER_TYPE), T.Val(3.1415));
-  T.CheckCall(T.Val(SYMBOL_TYPE), factory->NewSymbol());
 }
 
 

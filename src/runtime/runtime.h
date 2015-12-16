@@ -472,8 +472,6 @@ namespace internal {
   F(ValueOf, 1, 1)                                   \
   F(SetValueOf, 2, 1)                                \
   F(JSValueGetValue, 1, 1)                           \
-  F(HeapObjectGetMap, 1, 1)                          \
-  F(MapGetInstanceType, 1, 1)                        \
   F(ObjectEquals, 2, 1)                              \
   F(IsJSReceiver, 1, 1)                              \
   F(IsStrong, 1, 1)                                  \

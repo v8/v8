@@ -45,8 +45,6 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceDoubleHi(node);
     case Runtime::kInlineDoubleLo:
       return ReduceDoubleLo(node);
-    case Runtime::kInlineHeapObjectGetMap:
-      return ReduceHeapObjectGetMap(node);
     case Runtime::kInlineIncrementStatsCounter:
       return ReduceIncrementStatsCounter(node);
     case Runtime::kInlineIsArray:
@@ -65,8 +63,6 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceIsSmi(node);
     case Runtime::kInlineJSValueGetValue:
       return ReduceJSValueGetValue(node);
-    case Runtime::kInlineMapGetInstanceType:
-      return ReduceMapGetInstanceType(node);
     case Runtime::kInlineMathClz32:
       return ReduceMathClz32(node);
     case Runtime::kInlineMathFloor:
@@ -176,15 +172,6 @@ Reduction JSIntrinsicLowering::ReduceDoubleHi(Node* node) {
 
 Reduction JSIntrinsicLowering::ReduceDoubleLo(Node* node) {
   return Change(node, machine()->Float64ExtractLowWord32());
-}
-
-
-Reduction JSIntrinsicLowering::ReduceHeapObjectGetMap(Node* node) {
-  Node* value = NodeProperties::GetValueInput(node, 0);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-  return Change(node, simplified()->LoadField(AccessBuilder::ForMap()), value,
-                effect, control);
 }
 
 
@@ -307,16 +294,6 @@ Reduction JSIntrinsicLowering::ReduceJSValueGetValue(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
   return Change(node, simplified()->LoadField(AccessBuilder::ForValue()), value,
                 effect, control);
-}
-
-
-Reduction JSIntrinsicLowering::ReduceMapGetInstanceType(Node* node) {
-  Node* value = NodeProperties::GetValueInput(node, 0);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-  return Change(node,
-                simplified()->LoadField(AccessBuilder::ForMapInstanceType()),
-                value, effect, control);
 }
 
 
