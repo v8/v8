@@ -927,8 +927,20 @@ void InstructionSelector::VisitChangeFloat64ToUint32(Node* node) {
 
 
 #if V8_TARGET_ARCH_PPC64
-void InstructionSelector::VisitTruncateFloat32ToInt64(Node* node) {
-  VisitRR(this, kPPC_DoubleToInt64, node);
+void InstructionSelector::VisitTryTruncateFloat32ToInt64(Node* node) {
+  PPCOperandGenerator g(this);
+
+  InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};
+  InstructionOperand outputs[2];
+  size_t output_count = 0;
+  outputs[output_count++] = g.DefineAsRegister(node);
+
+  Node* success_output = NodeProperties::FindProjection(node, 1);
+  if (success_output) {
+    outputs[output_count++] = g.DefineAsRegister(success_output);
+  }
+
+  Emit(kPPC_DoubleToInt64, output_count, outputs, 1, inputs);
 }
 
 
