@@ -3746,8 +3746,8 @@ void FullCodeGenerator::EmitGetSuperConstructor(CallRuntime* expr) {
   DCHECK_EQ(1, args->length());
   VisitForAccumulatorValue(args->at(0));
   __ AssertFunction(r3);
-  __ ld(r3, FieldMemOperand(r3, HeapObject::kMapOffset));
-  __ ld(r3, FieldMemOperand(r3, Map::kPrototypeOffset));
+  __ LoadP(r3, FieldMemOperand(r3, HeapObject::kMapOffset));
+  __ LoadP(r3, FieldMemOperand(r3, Map::kPrototypeOffset));
   context()->Plug(r3);
 }
 
