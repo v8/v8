@@ -3378,7 +3378,8 @@ TEST(Run_Wasm_I64SConvertF32) {
   BUILD(r, WASM_I64_SCONVERT_F32(WASM_GET_LOCAL(0)));
 
   FOR_FLOAT32_INPUTS(i) {
-    if (*i < 9223372036854775808.0 && *i > -9223372036854775809.0) {
+    if (*i < static_cast<float>(INT64_MAX) &&
+        *i >= static_cast<float>(INT64_MIN)) {
       CHECK_EQ(static_cast<int64_t>(*i), r.Call(*i));
     } else {
       CHECK_TRAP64(r.Call(*i));
@@ -3392,7 +3393,8 @@ TEST(Run_Wasm_I64SConvertF64) {
   BUILD(r, WASM_I64_SCONVERT_F64(WASM_GET_LOCAL(0)));
 
   FOR_FLOAT64_INPUTS(i) {
-    if (*i < 9223372036854775808.0 && *i > -9223372036854775809.0) {
+    if (*i < static_cast<double>(INT64_MAX) &&
+        *i >= static_cast<double>(INT64_MIN)) {
       CHECK_EQ(static_cast<int64_t>(*i), r.Call(*i));
     } else {
       CHECK_TRAP64(r.Call(*i));

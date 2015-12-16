@@ -1041,20 +1041,30 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArm64Float32ToInt64:
       __ Fcvtzs(i.OutputRegister64(), i.InputFloat32Register(0));
       if (i.OutputCount() > 1) {
+        __ Mov(i.OutputRegister(1), 1);
+        Label done;
         __ Cmp(i.OutputRegister(0), 1);
         __ Ccmp(i.OutputRegister(0), -1, VFlag, vc);
         __ Fccmp(i.InputFloat32Register(0), i.InputFloat32Register(0), VFlag,
                  vc);
-        __ Cset(i.OutputRegister(1), vc);
+        __ B(vc, &done);
+        __ Fcmp(i.InputFloat32Register(0), static_cast<float>(INT64_MIN));
+        __ Cset(i.OutputRegister(1), eq);
+        __ Bind(&done);
       }
       break;
     case kArm64Float64ToInt64:
       __ Fcvtzs(i.OutputRegister(0), i.InputDoubleRegister(0));
       if (i.OutputCount() > 1) {
+        __ Mov(i.OutputRegister(1), 1);
+        Label done;
         __ Cmp(i.OutputRegister(0), 1);
         __ Ccmp(i.OutputRegister(0), -1, VFlag, vc);
         __ Fccmp(i.InputDoubleRegister(0), i.InputDoubleRegister(0), VFlag, vc);
-        __ Cset(i.OutputRegister(1), vc);
+        __ B(vc, &done);
+        __ Fcmp(i.InputDoubleRegister(0), static_cast<double>(INT64_MIN));
+        __ Cset(i.OutputRegister(1), eq);
+        __ Bind(&done);
       }
       break;
     case kArm64Float32ToUint64:

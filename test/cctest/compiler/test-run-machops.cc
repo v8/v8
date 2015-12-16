@@ -5465,7 +5465,8 @@ TEST(RunTryTruncateFloat32ToInt64WithoutCheck) {
 
   FOR_INT64_INPUTS(i) {
     float input = static_cast<float>(*i);
-    if (input < 9223372036854775808.0 && input > -9223372036854775809.0) {
+    if (input < static_cast<float>(INT64_MAX) &&
+        input >= static_cast<float>(INT64_MIN)) {
       CHECK_EQ(static_cast<int64_t>(input), m.Call(input));
     }
   }
@@ -5482,7 +5483,8 @@ TEST(RunTryTruncateFloat32ToInt64WithCheck) {
   m.Return(val);
 
   FOR_FLOAT32_INPUTS(i) {
-    if (*i < 9223372036854775808.0 && *i > -9223372036854775809.0) {
+    if (*i < static_cast<float>(INT64_MAX) &&
+        *i >= static_cast<float>(INT64_MIN)) {
       CHECK_EQ(static_cast<int64_t>(*i), m.Call(*i));
       CHECK_NE(0, success);
     } else {
@@ -5514,7 +5516,8 @@ TEST(RunTryTruncateFloat64ToInt64WithCheck) {
   m.Return(val);
 
   FOR_FLOAT64_INPUTS(i) {
-    if (*i < 9223372036854775808.0 && *i > -9223372036854775809.0) {
+    if (*i < static_cast<double>(INT64_MAX) &&
+        *i >= static_cast<double>(INT64_MIN)) {
       // Conversions within this range should succeed.
       CHECK_EQ(static_cast<int64_t>(*i), m.Call(*i));
       CHECK_NE(0, success);
