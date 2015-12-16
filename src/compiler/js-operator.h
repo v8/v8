@@ -514,6 +514,7 @@ class JSOperatorBuilder final : public ZoneObject {
   const Operator* CreateArray(size_t arity, Handle<AllocationSite> site);
   const Operator* CreateClosure(Handle<SharedFunctionInfo> shared_info,
                                 PretenureFlag pretenure);
+  const Operator* CreateIterResultObject();
   const Operator* CreateLiteralArray(Handle<FixedArray> constant_elements,
                                      int literal_flags, int literal_index);
   const Operator* CreateLiteralObject(Handle<FixedArray> constant_properties,

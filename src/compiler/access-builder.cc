@@ -129,6 +129,24 @@ FieldAccess AccessBuilder::ForJSDateField(JSDate::FieldIndex index) {
 
 
 // static
+FieldAccess AccessBuilder::ForJSIteratorResultDone() {
+  FieldAccess access = {kTaggedBase, JSIteratorResult::kDoneOffset,
+                        MaybeHandle<Name>(), Type::Any(),
+                        MachineType::AnyTagged()};
+  return access;
+}
+
+
+// static
+FieldAccess AccessBuilder::ForJSIteratorResultValue() {
+  FieldAccess access = {kTaggedBase, JSIteratorResult::kValueOffset,
+                        MaybeHandle<Name>(), Type::Any(),
+                        MachineType::AnyTagged()};
+  return access;
+}
+
+
+// static
 FieldAccess AccessBuilder::ForJSRegExpFlags() {
   FieldAccess access = {kTaggedBase, JSRegExp::kFlagsOffset,
                         MaybeHandle<Name>(), Type::Tagged(),

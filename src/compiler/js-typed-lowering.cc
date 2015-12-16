@@ -1737,6 +1737,37 @@ Reduction JSTypedLowering::ReduceJSCreateClosure(Node* node) {
 }
 
 
+Reduction JSTypedLowering::ReduceJSCreateIterResultObject(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCreateIterResultObject, node->opcode());
+  Node* value = NodeProperties::GetValueInput(node, 0);
+  Node* done = NodeProperties::GetValueInput(node, 1);
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* effect = NodeProperties::GetEffectInput(node);
+
+  // Load the JSIteratorResult map for the {context}.
+  Node* native_context = effect = graph()->NewNode(
+      javascript()->LoadContext(0, Context::NATIVE_CONTEXT_INDEX, true),
+      context, context, effect);
+  Node* iterator_result_map = effect = graph()->NewNode(
+      javascript()->LoadContext(0, Context::ITERATOR_RESULT_MAP_INDEX, true),
+      native_context, native_context, effect);
+
+  // Emit code to allocate the JSIteratorResult instance.
+  AllocationBuilder a(jsgraph(), effect, graph()->start());
+  a.Allocate(JSIteratorResult::kSize);
+  a.Store(AccessBuilder::ForMap(), iterator_result_map);
+  a.Store(AccessBuilder::ForJSObjectProperties(),
+          jsgraph()->EmptyFixedArrayConstant());
+  a.Store(AccessBuilder::ForJSObjectElements(),
+          jsgraph()->EmptyFixedArrayConstant());
+  a.Store(AccessBuilder::ForJSIteratorResultValue(), value);
+  a.Store(AccessBuilder::ForJSIteratorResultDone(), done);
+  STATIC_ASSERT(JSIteratorResult::kSize == 5 * kPointerSize);
+  a.FinishAndChange(node);
+  return Changed(node);
+}
+
+
 Reduction JSTypedLowering::ReduceJSCreateLiteralArray(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateLiteralArray, node->opcode());
   CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
@@ -2515,6 +2546,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSCreateArray(node);
     case IrOpcode::kJSCreateClosure:
       return ReduceJSCreateClosure(node);
+    case IrOpcode::kJSCreateIterResultObject:
+      return ReduceJSCreateIterResultObject(node);
     case IrOpcode::kJSCreateLiteralArray:
       return ReduceJSCreateLiteralArray(node);
     case IrOpcode::kJSCreateLiteralObject:

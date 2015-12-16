@@ -154,6 +154,7 @@ int Linkage::FrameStateInputCount(Runtime::FunctionId function) {
   // are blacklisted here and can be called without a FrameState.
   switch (function) {
     case Runtime::kAllocateInTargetSpace:
+    case Runtime::kCreateIterResultObject:
     case Runtime::kDateField:
     case Runtime::kDefineClassMethod:              // TODO(jarin): Is it safe?
     case Runtime::kDefineGetterPropertyUnchecked:  // TODO(jarin): Is it safe?

@@ -498,6 +498,11 @@ void JSGenericLowering::LowerJSCreateClosure(Node* node) {
 }
 
 
+void JSGenericLowering::LowerJSCreateIterResultObject(Node* node) {
+  ReplaceWithRuntimeCall(node, Runtime::kCreateIterResultObject);
+}
+
+
 void JSGenericLowering::LowerJSCreateLiteralArray(Node* node) {
   CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
   node->InsertInput(zone(), 1, jsgraph()->SmiConstant(p.index()));

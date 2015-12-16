@@ -37,6 +37,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
   switch (f->function_id) {
     case Runtime::kInlineConstructDouble:
       return ReduceConstructDouble(node);
+    case Runtime::kInlineCreateIterResultObject:
+      return ReduceCreateIterResultObject(node);
     case Runtime::kInlineDateField:
       return ReduceDateField(node);
     case Runtime::kInlineDeoptimizeNow:
@@ -113,6 +115,16 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       break;
   }
   return NoChange();
+}
+
+
+Reduction JSIntrinsicLowering::ReduceCreateIterResultObject(Node* node) {
+  Node* const value = NodeProperties::GetValueInput(node, 0);
+  Node* const done = NodeProperties::GetValueInput(node, 1);
+  Node* const context = NodeProperties::GetContextInput(node);
+  Node* const effect = NodeProperties::GetEffectInput(node);
+  return Change(node, javascript()->CreateIterResultObject(), value, done,
+                context, effect);
 }
 
 
