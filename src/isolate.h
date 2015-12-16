@@ -518,6 +518,10 @@ class Isolate {
   // If one does not yet exist, return null.
   PerIsolateThreadData* FindPerThreadDataForThread(ThreadId thread_id);
 
+  // Discard the PerThread for this particular (isolate, thread) combination
+  // If one does not yet exist, no-op.
+  void DiscardPerThreadDataForThisThread();
+
   // Returns the key used to store the pointer to the current isolate.
   // Used internally for V8 threads that do not execute JavaScript but still
   // are part of the domain of an isolate (like the context switcher).

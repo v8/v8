@@ -5490,6 +5490,15 @@ class V8_EXPORT Isolate {
   void Dispose();
 
   /**
+   * Discards all V8 thread-specific data for the Isolate. Should be used
+   * if a thread is terminating and it has used an Isolate that will outlive
+   * the thread -- all thread-specific data for an Isolate is discarded when
+   * an Isolate is disposed so this call is pointless if an Isolate is about
+   * to be Disposed.
+   */
+  void DiscardThreadSpecificMetadata();
+
+  /**
    * Associate embedder-specific data with the isolate. |slot| has to be
    * between 0 and GetNumberOfDataSlots() - 1.
    */

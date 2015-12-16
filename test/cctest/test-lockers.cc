@@ -347,26 +347,31 @@ class LockerUnlockerThread : public JoinableThread {
   }
 
   virtual void Run() {
-    v8::Locker lock(isolate_);
-    v8::Isolate::Scope isolate_scope(isolate_);
-    v8::HandleScope handle_scope(isolate_);
-    v8::Local<v8::Context> context = v8::Context::New(isolate_);
+    isolate_->DiscardThreadSpecificMetadata();  // No-op
     {
-      v8::Context::Scope context_scope(context);
-      CalcFibAndCheck(context);
+      v8::Locker lock(isolate_);
+      v8::Isolate::Scope isolate_scope(isolate_);
+      v8::HandleScope handle_scope(isolate_);
+      v8::Local<v8::Context> context = v8::Context::New(isolate_);
+      {
+        v8::Context::Scope context_scope(context);
+        CalcFibAndCheck(context);
+      }
+      {
+        LockIsolateAndCalculateFibSharedContextThread thread(isolate_, context);
+        isolate_->Exit();
+        v8::Unlocker unlocker(isolate_);
+        thread.Start();
+        thread.Join();
+      }
+      isolate_->Enter();
+      {
+        v8::Context::Scope context_scope(context);
+        CalcFibAndCheck(context);
+      }
     }
-    {
-      LockIsolateAndCalculateFibSharedContextThread thread(isolate_, context);
-      isolate_->Exit();
-      v8::Unlocker unlocker(isolate_);
-      thread.Start();
-      thread.Join();
-    }
-    isolate_->Enter();
-    {
-      v8::Context::Scope context_scope(context);
-      CalcFibAndCheck(context);
-    }
+    isolate_->DiscardThreadSpecificMetadata();
+    isolate_->DiscardThreadSpecificMetadata();  // No-op
   }
 
  private:

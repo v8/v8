@@ -7162,6 +7162,12 @@ void Isolate::Dispose() {
 }
 
 
+void Isolate::DiscardThreadSpecificMetadata() {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->DiscardPerThreadDataForThisThread();
+}
+
+
 void Isolate::Enter() {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   isolate->Enter();
