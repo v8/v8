@@ -40,6 +40,7 @@ gcsuspects
 shell
 shell_g
 /_*
+/base/trace_event/common
 /build/Debug
 /build/gyp
 /build/ipch/
@@ -51,7 +52,6 @@ shell_g
 /out
 /perf.data
 /perf.data.old
-/src/tracing/common
 /test/benchmarks/data
 /test/mozilla/data
 /test/promises-aplus/promises-tests
