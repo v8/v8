@@ -72,7 +72,9 @@ Node* JSGraph::NaNConstant() {
 
 
 Node* JSGraph::HeapConstant(Handle<HeapObject> value) {
-  // TODO(bmeurer): Flatten cons strings here before we canonicalize them?
+  if (value->IsConsString()) {
+    value = String::Flatten(Handle<String>::cast(value), TENURED);
+  }
   Node** loc = cache_.FindHeapConstant(value);
   if (*loc == nullptr) {
     *loc = graph()->NewNode(common()->HeapConstant(value));
