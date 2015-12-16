@@ -1469,7 +1469,7 @@ void InstanceOfStub::Generate(MacroAssembler* masm) {
 
   // Check if the object needs to be access checked.
   __ lbz(map_bit_field, FieldMemOperand(object_map, Map::kBitFieldOffset));
-  __ TestBit(map_bit_field, Map::kIsCallable, r0);
+  __ TestBit(map_bit_field, Map::kIsAccessCheckNeeded, r0);
   __ bne(&fast_runtime_fallback, cr0);
   // Check if the current object is a Proxy.
   __ CompareInstanceType(object_map, object_instance_type, JS_PROXY_TYPE);
