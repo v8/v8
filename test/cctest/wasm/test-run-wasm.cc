@@ -2609,6 +2609,58 @@ TEST(Run_WasmCallEmpty) {
 }
 
 
+TEST(Run_WasmCallF32StackParameter) {
+  // Build the target function.
+  LocalType param_types[20];
+  for (int i = 0; i < 20; i++) param_types[i] = kAstF32;
+  FunctionSig sig(1, 19, param_types);
+  TestingModule module;
+  WasmFunctionCompiler t(&sig);
+  BUILD(t, WASM_GET_LOCAL(17));
+  unsigned index = t.CompileAndAdd(&module);
+
+  // Build the calling function.
+  WasmRunner<float> r;
+  r.env()->module = &module;
+  BUILD(r, WASM_CALL_FUNCTION(
+               index, WASM_F32(1.0f), WASM_F32(2.0f), WASM_F32(4.0f),
+               WASM_F32(8.0f), WASM_F32(16.0f), WASM_F32(32.0f),
+               WASM_F32(64.0f), WASM_F32(128.0f), WASM_F32(256.0f),
+               WASM_F32(1.5f), WASM_F32(2.5f), WASM_F32(4.5f), WASM_F32(8.5f),
+               WASM_F32(16.5f), WASM_F32(32.5f), WASM_F32(64.5f),
+               WASM_F32(128.5f), WASM_F32(256.5f), WASM_F32(512.5f)));
+
+  float result = r.Call();
+  CHECK_EQ(256.5f, result);
+}
+
+
+TEST(Run_WasmCallF64StackParameter) {
+  // Build the target function.
+  LocalType param_types[20];
+  for (int i = 0; i < 20; i++) param_types[i] = kAstF64;
+  FunctionSig sig(1, 19, param_types);
+  TestingModule module;
+  WasmFunctionCompiler t(&sig);
+  BUILD(t, WASM_GET_LOCAL(17));
+  unsigned index = t.CompileAndAdd(&module);
+
+  // Build the calling function.
+  WasmRunner<double> r;
+  r.env()->module = &module;
+  BUILD(r, WASM_CALL_FUNCTION(index, WASM_F64(1.0), WASM_F64(2.0),
+                              WASM_F64(4.0), WASM_F64(8.0), WASM_F64(16.0),
+                              WASM_F64(32.0), WASM_F64(64.0), WASM_F64(128.0),
+                              WASM_F64(256.0), WASM_F64(1.5), WASM_F64(2.5),
+                              WASM_F64(4.5), WASM_F64(8.5), WASM_F64(16.5),
+                              WASM_F64(32.5), WASM_F64(64.5), WASM_F64(128.5),
+                              WASM_F64(256.5), WASM_F64(512.5)));
+
+  float result = r.Call();
+  CHECK_EQ(256.5, result);
+}
+
+
 TEST(Run_WasmCallVoid) {
   const byte kMemOffset = 8;
   const int32_t kElemNum = kMemOffset / sizeof(int32_t);

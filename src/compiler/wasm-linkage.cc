@@ -178,7 +178,11 @@ struct Allocator {
     return type == kAstF32 || type == kAstF64;
   }
   int Words(LocalType type) {
-    if (kPointerSize < 8 && (type == kAstI64 || type == kAstF64)) {
+    // The code generation for pushing parameters on the stack does not
+    // distinguish between float32 and float64. Therefore also float32 needs
+    // two words.
+    if (kPointerSize < 8 &&
+        (type == kAstI64 || type == kAstF64 || type == kAstF32)) {
       return 2;
     }
     return 1;
