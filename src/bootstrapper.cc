@@ -2320,7 +2320,7 @@ void Genesis::InitializeGlobal_harmony_proxies() {
   Handle<Code> code(isolate->builtins()->ProxyConstructor());
 
   Handle<JSFunction> proxy_function = factory->NewFunction(
-      isolate->proxy_function_map(), factory->Object_string(), code);
+      isolate->proxy_function_map(), factory->Proxy_string(), code);
 
   JSFunction::SetInitialMap(proxy_function,
                             Handle<Map>(native_context()->proxy_map(), isolate),
