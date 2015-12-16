@@ -628,14 +628,17 @@ void BytecodeGenerator::VisitEmptyStatement(EmptyStatement* stmt) {
 void BytecodeGenerator::VisitIfStatement(IfStatement* stmt) {
   BytecodeLabel else_label, end_label;
   if (stmt->condition()->ToBooleanIsTrue()) {
-    // Generate only then block.
+    // Generate then block unconditionally as always true.
     Visit(stmt->then_statement());
   } else if (stmt->condition()->ToBooleanIsFalse()) {
-    // Generate only else block if it exists.
+    // Generate else block unconditionally if it exists.
     if (stmt->HasElseStatement()) {
       Visit(stmt->else_statement());
     }
   } else {
+    // TODO(oth): If then statement is BreakStatement or
+    // ContinueStatement we can reduce number of generated
+    // jump/jump_ifs here. See BasicLoops test.
     VisitForAccumulatorValue(stmt->condition());
     builder()->JumpIfFalse(&else_label);
     Visit(stmt->then_statement());
@@ -736,95 +739,70 @@ void BytecodeGenerator::VisitCaseClause(CaseClause* clause) {
 void BytecodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
   LoopBuilder loop_builder(builder());
   ControlScopeForIteration execution_control(this, stmt, &loop_builder);
-  BytecodeLabel body_label, condition_label, done_label;
+  loop_builder.LoopHeader();
   if (stmt->cond()->ToBooleanIsFalse()) {
     Visit(stmt->body());
-    // Bind condition_label and done_label for processing continue and break.
-    builder()->Bind(&condition_label);
-    builder()->Bind(&done_label);
-  } else {
-    builder()->Bind(&body_label);
+    loop_builder.Condition();
+  } else if (stmt->cond()->ToBooleanIsTrue()) {
+    loop_builder.Condition();
     Visit(stmt->body());
-
-    builder()->Bind(&condition_label);
-    if (stmt->cond()->ToBooleanIsTrue()) {
-      builder()->Jump(&body_label);
-    } else {
-      VisitForAccumulatorValue(stmt->cond());
-      builder()->JumpIfTrue(&body_label);
-    }
-    builder()->Bind(&done_label);
+    loop_builder.JumpToHeader();
+  } else {
+    Visit(stmt->body());
+    loop_builder.Condition();
+    VisitForAccumulatorValue(stmt->cond());
+    loop_builder.JumpToHeaderIfTrue();
   }
-  loop_builder.SetBreakTarget(done_label);
-  loop_builder.SetContinueTarget(condition_label);
+  loop_builder.LoopEnd();
 }
 
 
 void BytecodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
-  LoopBuilder loop_builder(builder());
-  ControlScopeForIteration execution_control(this, stmt, &loop_builder);
-
-  BytecodeLabel body_label, condition_label, done_label;
   if (stmt->cond()->ToBooleanIsFalse()) {
     // If the condition is false there is no need to generate the loop.
     return;
   }
 
+  LoopBuilder loop_builder(builder());
+  ControlScopeForIteration execution_control(this, stmt, &loop_builder);
+  loop_builder.LoopHeader();
+  loop_builder.Condition();
   if (!stmt->cond()->ToBooleanIsTrue()) {
-    builder()->Jump(&condition_label);
-  }
-  builder()->Bind(&body_label);
-  Visit(stmt->body());
-
-  builder()->Bind(&condition_label);
-  if (stmt->cond()->ToBooleanIsTrue()) {
-    builder()->Jump(&body_label);
-  } else {
     VisitForAccumulatorValue(stmt->cond());
-    builder()->JumpIfTrue(&body_label);
+    loop_builder.BreakIfFalse();
   }
-  builder()->Bind(&done_label);
-
-  loop_builder.SetBreakTarget(done_label);
-  loop_builder.SetContinueTarget(condition_label);
+  Visit(stmt->body());
+  loop_builder.JumpToHeader();
+  loop_builder.LoopEnd();
 }
 
 
 void BytecodeGenerator::VisitForStatement(ForStatement* stmt) {
-  LoopBuilder loop_builder(builder());
-  ControlScopeForIteration execution_control(this, stmt, &loop_builder);
-
   if (stmt->init() != nullptr) {
     Visit(stmt->init());
   }
-
   if (stmt->cond() && stmt->cond()->ToBooleanIsFalse()) {
     // If the condition is known to be false there is no need to generate
     // body, next or condition blocks. Init block should be generated.
     return;
   }
 
-  BytecodeLabel body_label, condition_label, next_label, done_label;
+  LoopBuilder loop_builder(builder());
+  ControlScopeForIteration execution_control(this, stmt, &loop_builder);
+
+  loop_builder.LoopHeader();
+  loop_builder.Condition();
   if (stmt->cond() && !stmt->cond()->ToBooleanIsTrue()) {
-    builder()->Jump(&condition_label);
+    VisitForAccumulatorValue(stmt->cond());
+    loop_builder.BreakIfFalse();
   }
-  builder()->Bind(&body_label);
   Visit(stmt->body());
-  builder()->Bind(&next_label);
   if (stmt->next() != nullptr) {
+    loop_builder.Next();
     Visit(stmt->next());
   }
-  if (stmt->cond() && !stmt->cond()->ToBooleanIsTrue()) {
-    builder()->Bind(&condition_label);
-    VisitForAccumulatorValue(stmt->cond());
-    builder()->JumpIfTrue(&body_label);
-  } else {
-    builder()->Jump(&body_label);
-  }
-  builder()->Bind(&done_label);
-
-  loop_builder.SetBreakTarget(done_label);
-  loop_builder.SetContinueTarget(next_label);
+  loop_builder.JumpToHeader();
+  loop_builder.LoopEnd();
 }
 
 
@@ -898,42 +876,25 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   Register for_in_state = execution_result()->NewRegister();
   builder()->StoreAccumulatorInRegister(for_in_state);
 
-  // The loop.
-  BytecodeLabel condition_label, break_label, continue_label;
+  // Check loop termination (accumulator holds index).
   Register index = receiver;  // Re-using register as receiver no longer used.
   builder()->LoadLiteral(Smi::FromInt(0));
-
-  // Check loop termination (accumulator holds index).
-  builder()
-      ->Bind(&condition_label)
-      .StoreAccumulatorInRegister(index)
-      .ForInDone(for_in_state);
+  loop_builder.LoopHeader();
+  loop_builder.Condition();
+  builder()->StoreAccumulatorInRegister(index).ForInDone(for_in_state);
   loop_builder.BreakIfTrue();
-
-  // Get the next item.
   builder()->ForInNext(for_in_state, index);
-
-  // Start again if the item, currently in the accumulator, is undefined.
   loop_builder.ContinueIfUndefined();
 
-  // Store the value in the each variable.
   VisitForInAssignment(stmt->each(), stmt->EachFeedbackSlot());
-  // NB the user's loop variable will be assigned the value of each so
-  // even an empty body will have this assignment.
   Visit(stmt->body());
 
-  // Increment the index and start loop again.
-  builder()
-      ->Bind(&continue_label)
-      .LoadAccumulatorWithRegister(index)
-      .CountOperation(Token::Value::ADD, language_mode_strength())
-      .Jump(&condition_label);
-
-  // End of the loop.
-  builder()->Bind(&break_label);
-
-  loop_builder.SetBreakTarget(break_label);
-  loop_builder.SetContinueTarget(continue_label);
+  // TODO(oth): replace CountOperation here with ForInStep.
+  loop_builder.Next();
+  builder()->LoadAccumulatorWithRegister(index).CountOperation(
+      Token::Value::ADD, language_mode_strength());
+  loop_builder.JumpToHeader();
+  loop_builder.LoopEnd();
 }
 
 

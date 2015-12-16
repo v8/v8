@@ -6,6 +6,7 @@
 #define V8_COMPILER_BYTECODE_GRAPH_BUILDER_H_
 
 #include "src/compiler.h"
+#include "src/compiler/bytecode-branch-analysis.h"
 #include "src/compiler/js-graph.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecodes.h"
@@ -89,14 +90,33 @@ class BytecodeGraphBuilder {
     return MakeNode(op, arraysize(buffer), buffer, false);
   }
 
+  // Helpers to create new control nodes.
+  Node* NewIfTrue() { return NewNode(common()->IfTrue()); }
+  Node* NewIfFalse() { return NewNode(common()->IfFalse()); }
+  Node* NewMerge() { return NewNode(common()->Merge(1), true); }
+  Node* NewLoop() { return NewNode(common()->Loop(1), true); }
+  Node* NewBranch(Node* condition, BranchHint hint = BranchHint::kNone) {
+    return NewNode(common()->Branch(hint), condition);
+  }
+
+  // Creates a new Phi node having {count} input values.
+  Node* NewPhi(int count, Node* input, Node* control);
+  Node* NewEffectPhi(int count, Node* input, Node* control);
+
+  // Helpers for merging control, effect or value dependencies.
+  Node* MergeControl(Node* control, Node* other);
+  Node* MergeEffect(Node* effect, Node* other_effect, Node* control);
+  Node* MergeValue(Node* value, Node* other_value, Node* control);
+
+  // The main node creation chokepoint. Adds context, frame state, effect,
+  // and control dependencies depending on the operator.
   Node* MakeNode(const Operator* op, int value_input_count, Node** value_inputs,
                  bool incomplete);
 
-  Node* MergeControl(Node* control, Node* other);
+  // Helper to indicate a node exits the function body.
+  void UpdateControlDependencyToLeaveFunction(Node* exit);
 
   Node** EnsureInputBufferSize(int size);
-
-  void UpdateControlDependencyToLeaveFunction(Node* exit);
 
   Node* ProcessCallArguments(const Operator* call_op, Node* callee,
                              interpreter::Register receiver, size_t arity);
@@ -130,6 +150,21 @@ class BytecodeGraphBuilder {
   void BuildCastOperator(const Operator* js_op,
                          const interpreter::BytecodeArrayIterator& iterator);
 
+  // Control flow plumbing.
+  void BuildJump(int source_offset, int target_offset);
+  void BuildJump();
+  void BuildConditionalJump(Node* condition);
+
+  // Helpers for building conditions for conditional jumps.
+  Node* BuildCondition(Node* comperand);
+  Node* BuildToBooleanCondition(Node* comperand);
+
+  // Constructing merge and loop headers.
+  void MergeEnvironmentsOfBackwardBranches(int source_offset,
+                                           int target_offset);
+  void MergeEnvironmentsOfForwardBranches(int source_offset);
+  void BuildLoopHeaderForBackwardBranches(int source_offset);
+
   // Growth increment for the temporary buffer used to construct input lists to
   // new nodes.
   static const int kInputBufferSizeIncrement = 64;
@@ -150,6 +185,23 @@ class BytecodeGraphBuilder {
     return info()->language_mode();
   }
 
+  const interpreter::BytecodeArrayIterator* bytecode_iterator() const {
+    return bytecode_iterator_;
+  }
+
+  void set_bytecode_iterator(
+      const interpreter::BytecodeArrayIterator* bytecode_iterator) {
+    bytecode_iterator_ = bytecode_iterator;
+  }
+
+  const BytecodeBranchAnalysis* branch_analysis() const {
+    return branch_analysis_;
+  }
+
+  void set_branch_analysis(const BytecodeBranchAnalysis* branch_analysis) {
+    branch_analysis_ = branch_analysis;
+  }
+
 #define DECLARE_VISIT_BYTECODE(name, ...) \
   void Visit##name(const interpreter::BytecodeArrayIterator& iterator);
   BYTECODE_LIST(DECLARE_VISIT_BYTECODE)
@@ -159,7 +211,17 @@ class BytecodeGraphBuilder {
   CompilationInfo* info_;
   JSGraph* jsgraph_;
   Handle<BytecodeArray> bytecode_array_;
+  const interpreter::BytecodeArrayIterator* bytecode_iterator_;
+  const BytecodeBranchAnalysis* branch_analysis_;
   Environment* environment_;
+
+  // Merge environments are snapshots of the environment at a particular
+  // bytecode offset to be merged into a later environment.
+  ZoneMap<int, Environment*> merge_environments_;
+
+  // Loop header environments are environments created for bytecodes
+  // where it is known there are back branches, ie a loop header.
+  ZoneMap<int, Environment*> loop_header_environments_;
 
   // Temporary storage for building node input lists.
   int input_buffer_size_;
@@ -212,9 +274,15 @@ class BytecodeGraphBuilder::Environment : public ZoneObject {
   Node* Context() const { return context_; }
   void SetContext(Node* new_context) { context_ = new_context; }
 
- private:
-  int RegisterToValuesIndex(interpreter::Register the_register) const;
+  Environment* CopyForConditional() const;
+  Environment* CopyForLoop();
+  void Merge(Environment* other);
 
+ private:
+  explicit Environment(const Environment* copy);
+  void PrepareForLoop();
+
+  int RegisterToValuesIndex(interpreter::Register the_register) const;
   Zone* zone() const { return builder_->local_zone(); }
   Graph* graph() const { return builder_->graph(); }
   CommonOperatorBuilder* common() const { return builder_->common(); }
@@ -234,7 +302,6 @@ class BytecodeGraphBuilder::Environment : public ZoneObject {
   NodeVector values_;
   int register_base_;
 };
-
 
 }  // namespace compiler
 }  // namespace internal

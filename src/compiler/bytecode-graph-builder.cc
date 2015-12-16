@@ -4,9 +4,9 @@
 
 #include "src/compiler/bytecode-graph-builder.h"
 
+#include "src/compiler/bytecode-branch-analysis.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/operator-properties.h"
-#include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecodes.h"
 
 namespace v8 {
@@ -52,6 +52,21 @@ BytecodeGraphBuilder::Environment::Environment(BytecodeGraphBuilder* builder,
 
   // Accumulator
   accumulator_ = undefined_constant;
+}
+
+
+BytecodeGraphBuilder::Environment::Environment(
+    const BytecodeGraphBuilder::Environment* other)
+    : builder_(other->builder_),
+      register_count_(other->register_count_),
+      parameter_count_(other->parameter_count_),
+      accumulator_(other->accumulator_),
+      context_(other->context_),
+      control_dependency_(other->control_dependency_),
+      effect_dependency_(other->effect_dependency_),
+      values_(other->zone()),
+      register_base_(other->register_base_) {
+  values_ = other->values_;
 }
 
 
@@ -107,12 +122,80 @@ void BytecodeGraphBuilder::Environment::MarkAsUnreachable() {
 }
 
 
+BytecodeGraphBuilder::Environment*
+BytecodeGraphBuilder::Environment::CopyForLoop() {
+  PrepareForLoop();
+  return new (zone()) Environment(this);
+}
+
+
+BytecodeGraphBuilder::Environment*
+BytecodeGraphBuilder::Environment::CopyForConditional() const {
+  return new (zone()) Environment(this);
+}
+
+
+void BytecodeGraphBuilder::Environment::Merge(
+    BytecodeGraphBuilder::Environment* other) {
+  // Nothing to do if the other environment is dead.
+  if (other->IsMarkedAsUnreachable()) {
+    return;
+  }
+
+  // Create a merge of the control dependencies of both environments and update
+  // the current environment's control dependency accordingly.
+  Node* control = builder()->MergeControl(GetControlDependency(),
+                                          other->GetControlDependency());
+  UpdateControlDependency(control);
+
+  // Create a merge of the effect dependencies of both environments and update
+  // the current environment's effect dependency accordingly.
+  Node* effect = builder()->MergeEffect(GetEffectDependency(),
+                                        other->GetEffectDependency(), control);
+  UpdateEffectDependency(effect);
+
+  // Introduce Phi nodes for values that have differing input at merge points,
+  // potentially extending an existing Phi node if possible.
+  accumulator_ =
+      builder()->MergeValue(accumulator_, other->accumulator_, control);
+  context_ = builder()->MergeValue(context_, other->context_, control);
+  for (size_t i = 0; i < values_.size(); i++) {
+    values_[i] = builder()->MergeValue(values_[i], other->values_[i], control);
+  }
+}
+
+
+void BytecodeGraphBuilder::Environment::PrepareForLoop() {
+  // Create a control node for the loop header.
+  Node* control = builder()->NewLoop();
+
+  // Create a Phi for external effects.
+  Node* effect = builder()->NewEffectPhi(1, GetEffectDependency(), control);
+  UpdateEffectDependency(effect);
+
+  // Assume everything in the loop is updated.
+  accumulator_ = builder()->NewPhi(1, accumulator_, control);
+  context_ = builder()->NewPhi(1, context_, control);
+  int size = static_cast<int>(values()->size());
+  for (int i = 0; i < size; i++) {
+    values()->at(i) = builder()->NewPhi(1, values()->at(i), control);
+  }
+
+  // Connect to the loop end.
+  Node* terminate = builder()->graph()->NewNode(
+      builder()->common()->Terminate(), effect, control);
+  builder()->exit_controls_.push_back(terminate);
+}
+
+
 BytecodeGraphBuilder::BytecodeGraphBuilder(Zone* local_zone,
                                            CompilationInfo* compilation_info,
                                            JSGraph* jsgraph)
     : local_zone_(local_zone),
       info_(compilation_info),
       jsgraph_(jsgraph),
+      merge_environments_(local_zone),
+      loop_header_environments_(local_zone),
       input_buffer_size_(0),
       input_buffer_(nullptr),
       exit_controls_(local_zone) {
@@ -247,18 +330,30 @@ void BytecodeGraphBuilder::CreateGraphBody(bool stack_check) {
 
 
 void BytecodeGraphBuilder::VisitBytecodes() {
+  BytecodeBranchAnalysis analysis(bytecode_array(), local_zone());
+  analysis.Analyze();
+  set_branch_analysis(&analysis);
   interpreter::BytecodeArrayIterator iterator(bytecode_array());
+  set_bytecode_iterator(&iterator);
   while (!iterator.done()) {
-    switch (iterator.current_bytecode()) {
+    int current_offset = iterator.current_offset();
+    if (analysis.is_reachable(current_offset)) {
+      MergeEnvironmentsOfForwardBranches(current_offset);
+      BuildLoopHeaderForBackwardBranches(current_offset);
+
+      switch (iterator.current_bytecode()) {
 #define BYTECODE_CASE(name, ...)       \
   case interpreter::Bytecode::k##name: \
     Visit##name(iterator);             \
     break;
-      BYTECODE_LIST(BYTECODE_CASE)
+        BYTECODE_LIST(BYTECODE_CASE)
 #undef BYTECODE_CODE
+      }
     }
     iterator.Advance();
   }
+  set_branch_analysis(nullptr);
+  set_bytecode_iterator(nullptr);
 }
 
 
@@ -1174,85 +1269,97 @@ void BytecodeGraphBuilder::VisitToObject(
 
 void BytecodeGraphBuilder::VisitJump(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  BuildJump();
 }
 
 
 void BytecodeGraphBuilder::VisitJumpConstant(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  BuildJump();
 }
 
 
 void BytecodeGraphBuilder::VisitJumpIfTrue(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  Node* condition = BuildCondition(jsgraph()->TrueConstant());
+  BuildConditionalJump(condition);
 }
 
 
 void BytecodeGraphBuilder::VisitJumpIfTrueConstant(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  Node* condition = BuildCondition(jsgraph()->TrueConstant());
+  BuildConditionalJump(condition);
 }
 
 
 void BytecodeGraphBuilder::VisitJumpIfFalse(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  Node* condition = BuildCondition(jsgraph()->FalseConstant());
+  BuildConditionalJump(condition);
 }
 
 
 void BytecodeGraphBuilder::VisitJumpIfFalseConstant(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  Node* condition = BuildCondition(jsgraph()->FalseConstant());
+  BuildConditionalJump(condition);
 }
 
 
 void BytecodeGraphBuilder::VisitJumpIfToBooleanTrue(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  Node* condition = BuildToBooleanCondition(jsgraph()->TrueConstant());
+  BuildConditionalJump(condition);
 }
 
 
 void BytecodeGraphBuilder::VisitJumpIfToBooleanTrueConstant(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  Node* condition = BuildToBooleanCondition(jsgraph()->TrueConstant());
+  BuildConditionalJump(condition);
 }
 
 
 void BytecodeGraphBuilder::VisitJumpIfToBooleanFalse(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  Node* condition = BuildToBooleanCondition(jsgraph()->FalseConstant());
+  BuildConditionalJump(condition);
 }
 
 
 void BytecodeGraphBuilder::VisitJumpIfToBooleanFalseConstant(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  Node* condition = BuildToBooleanCondition(jsgraph()->FalseConstant());
+  BuildConditionalJump(condition);
 }
 
 
 void BytecodeGraphBuilder::VisitJumpIfNull(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  Node* condition = BuildCondition(jsgraph()->NullConstant());
+  BuildConditionalJump(condition);
 }
 
 
 void BytecodeGraphBuilder::VisitJumpIfNullConstant(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  Node* condition = BuildCondition(jsgraph()->NullConstant());
+  BuildConditionalJump(condition);
 }
 
 
 void BytecodeGraphBuilder::VisitJumpIfUndefined(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  Node* condition = BuildCondition(jsgraph()->UndefinedConstant());
+  BuildConditionalJump(condition);
 }
 
 
 void BytecodeGraphBuilder::VisitJumpIfUndefinedConstant(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  Node* condition = BuildCondition(jsgraph()->UndefinedConstant());
+  BuildConditionalJump(condition);
 }
 
 
@@ -1261,6 +1368,7 @@ void BytecodeGraphBuilder::VisitReturn(
   Node* control =
       NewNode(common()->Return(), environment()->LookupAccumulator());
   UpdateControlDependencyToLeaveFunction(control);
+  set_environment(nullptr);
 }
 
 
@@ -1279,6 +1387,98 @@ void BytecodeGraphBuilder::VisitForInNext(
 void BytecodeGraphBuilder::VisitForInDone(
     const interpreter::BytecodeArrayIterator& iterator) {
   UNIMPLEMENTED();
+}
+
+
+void BytecodeGraphBuilder::MergeEnvironmentsOfBackwardBranches(
+    int source_offset, int target_offset) {
+  DCHECK_GE(source_offset, target_offset);
+  const ZoneVector<int>* branch_sites =
+      branch_analysis()->BackwardBranchesTargetting(target_offset);
+  if (branch_sites->back() == source_offset) {
+    // The set of back branches is complete, merge them.
+    DCHECK_GE(branch_sites->at(0), target_offset);
+    Environment* merged = merge_environments_[branch_sites->at(0)];
+    for (size_t i = 1; i < branch_sites->size(); i++) {
+      DCHECK_GE(branch_sites->at(i), target_offset);
+      merged->Merge(merge_environments_[branch_sites->at(i)]);
+    }
+    // And now merge with loop header environment created when loop
+    // header was visited.
+    loop_header_environments_[target_offset]->Merge(merged);
+  }
+}
+
+
+void BytecodeGraphBuilder::MergeEnvironmentsOfForwardBranches(
+    int source_offset) {
+  if (branch_analysis()->forward_branches_target(source_offset)) {
+    // Merge environments of branches that reach this bytecode.
+    auto branch_sites =
+        branch_analysis()->ForwardBranchesTargetting(source_offset);
+    DCHECK_LT(branch_sites->at(0), source_offset);
+    Environment* merged = merge_environments_[branch_sites->at(0)];
+    for (size_t i = 1; i < branch_sites->size(); i++) {
+      DCHECK_LT(branch_sites->at(i), source_offset);
+      merged->Merge(merge_environments_[branch_sites->at(i)]);
+    }
+    if (environment()) {
+      merged->Merge(environment());
+    }
+    set_environment(merged);
+  }
+}
+
+
+void BytecodeGraphBuilder::BuildLoopHeaderForBackwardBranches(
+    int source_offset) {
+  if (branch_analysis()->backward_branches_target(source_offset)) {
+    // Add loop header and store a copy so we can connect merged back
+    // edge inputs to the loop header.
+    loop_header_environments_[source_offset] = environment()->CopyForLoop();
+  }
+}
+
+
+void BytecodeGraphBuilder::BuildJump(int source_offset, int target_offset) {
+  DCHECK_NULL(merge_environments_[source_offset]);
+  merge_environments_[source_offset] = environment();
+  if (source_offset >= target_offset) {
+    MergeEnvironmentsOfBackwardBranches(source_offset, target_offset);
+  }
+  set_environment(nullptr);
+}
+
+
+void BytecodeGraphBuilder::BuildJump() {
+  int source_offset = bytecode_iterator()->current_offset();
+  int target_offset = bytecode_iterator()->GetJumpTargetOffset();
+  BuildJump(source_offset, target_offset);
+}
+
+
+void BytecodeGraphBuilder::BuildConditionalJump(Node* condition) {
+  int source_offset = bytecode_iterator()->current_offset();
+  NewBranch(condition);
+  Environment* if_false_environment = environment()->CopyForConditional();
+  NewIfTrue();
+  BuildJump(source_offset, bytecode_iterator()->GetJumpTargetOffset());
+  set_environment(if_false_environment);
+  NewIfFalse();
+}
+
+
+Node* BytecodeGraphBuilder::BuildCondition(Node* comperand) {
+  Node* accumulator = environment()->LookupAccumulator();
+  return NewNode(javascript()->StrictEqual(), accumulator, comperand);
+}
+
+
+Node* BytecodeGraphBuilder::BuildToBooleanCondition(Node* comperand) {
+  Node* accumulator = environment()->LookupAccumulator();
+  Node* to_boolean =
+      NewNode(javascript()->ToBoolean(ToBooleanHint::kAny), accumulator);
+  return NewNode(javascript()->StrictEqual(), to_boolean, comperand);
 }
 
 
@@ -1354,6 +1554,25 @@ Node* BytecodeGraphBuilder::MakeNode(const Operator* op, int value_input_count,
 }
 
 
+Node* BytecodeGraphBuilder::NewPhi(int count, Node* input, Node* control) {
+  const Operator* phi_op = common()->Phi(MachineRepresentation::kTagged, count);
+  Node** buffer = EnsureInputBufferSize(count + 1);
+  MemsetPointer(buffer, input, count);
+  buffer[count] = control;
+  return graph()->NewNode(phi_op, count + 1, buffer, true);
+}
+
+
+Node* BytecodeGraphBuilder::NewEffectPhi(int count, Node* input,
+                                         Node* control) {
+  const Operator* phi_op = common()->EffectPhi(count);
+  Node** buffer = EnsureInputBufferSize(count + 1);
+  MemsetPointer(buffer, input, count);
+  buffer[count] = control;
+  return graph()->NewNode(phi_op, count + 1, buffer, true);
+}
+
+
 Node* BytecodeGraphBuilder::MergeControl(Node* control, Node* other) {
   int inputs = control->op()->ControlInputCount() + 1;
   if (control->opcode() == IrOpcode::kLoop) {
@@ -1373,6 +1592,41 @@ Node* BytecodeGraphBuilder::MergeControl(Node* control, Node* other) {
     control = graph()->NewNode(op, arraysize(merge_inputs), merge_inputs, true);
   }
   return control;
+}
+
+
+Node* BytecodeGraphBuilder::MergeEffect(Node* value, Node* other,
+                                        Node* control) {
+  int inputs = control->op()->ControlInputCount();
+  if (value->opcode() == IrOpcode::kEffectPhi &&
+      NodeProperties::GetControlInput(value) == control) {
+    // Phi already exists, add input.
+    value->InsertInput(graph_zone(), inputs - 1, other);
+    NodeProperties::ChangeOp(value, common()->EffectPhi(inputs));
+  } else if (value != other) {
+    // Phi does not exist yet, introduce one.
+    value = NewEffectPhi(inputs, value, control);
+    value->ReplaceInput(inputs - 1, other);
+  }
+  return value;
+}
+
+
+Node* BytecodeGraphBuilder::MergeValue(Node* value, Node* other,
+                                       Node* control) {
+  int inputs = control->op()->ControlInputCount();
+  if (value->opcode() == IrOpcode::kPhi &&
+      NodeProperties::GetControlInput(value) == control) {
+    // Phi already exists, add input.
+    value->InsertInput(graph_zone(), inputs - 1, other);
+    NodeProperties::ChangeOp(
+        value, common()->Phi(MachineRepresentation::kTagged, inputs));
+  } else if (value != other) {
+    // Phi does not exist yet, introduce one.
+    value = NewPhi(inputs, value, control);
+    value->ReplaceInput(inputs - 1, other);
+  }
+  return value;
 }
 
 

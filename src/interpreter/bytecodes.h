@@ -340,13 +340,32 @@ class Bytecodes {
   // Returns the size of |operand|.
   static OperandSize SizeOfOperand(OperandType operand);
 
+  // Return true if the bytecode is a conditional jump taking
+  // an immediate byte operand (OperandType::kImm8).
+  static bool IsConditionalJumpImmediate(Bytecode bytecode);
+
+  // Return true if the bytecode is a conditional jump taking
+  // a constant pool entry (OperandType::kIdx).
+  static bool IsConditionalJumpConstant(Bytecode bytecode);
+
+  // Return true if the bytecode is a conditional jump taking
+  // any kind of operand.
+  static bool IsConditionalJump(Bytecode bytecode);
+
   // Return true if the bytecode is a jump or a conditional jump taking
   // an immediate byte operand (OperandType::kImm8).
-  static bool IsJump(Bytecode bytecode);
+  static bool IsJumpImmediate(Bytecode bytecode);
 
   // Return true if the bytecode is a jump or conditional jump taking a
   // constant pool entry (OperandType::kIdx).
   static bool IsJumpConstant(Bytecode bytecode);
+
+  // Return true if the bytecode is a jump or conditional jump taking
+  // any kind of operand.
+  static bool IsJump(Bytecode bytecode);
+
+  // Return true if the bytecode is a conditional jump, a jump, or a return.
+  static bool IsJumpOrReturn(Bytecode bytecode);
 
   // Decode a single bytecode and operands to |os|.
   static std::ostream& Decode(std::ostream& os, const uint8_t* bytecode_start,

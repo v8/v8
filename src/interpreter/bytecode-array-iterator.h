@@ -35,6 +35,11 @@ class BytecodeArrayIterator {
   // typed versions above which cast the return to an appropriate type.
   uint32_t GetRawOperand(int operand_index, OperandType operand_type) const;
 
+  // Returns the absolute offset of the branch target at the current
+  // bytecode. It is an error to call this method if the bytecode is
+  // not for a jump or conditional jump.
+  int GetJumpTargetOffset() const;
+
  private:
   Handle<BytecodeArray> bytecode_array_;
   int bytecode_offset_;

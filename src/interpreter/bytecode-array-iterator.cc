@@ -95,6 +95,21 @@ Handle<Object> BytecodeArrayIterator::GetConstantForIndexOperand(
   return FixedArray::get(constants, GetIndexOperand(operand_index));
 }
 
+
+int BytecodeArrayIterator::GetJumpTargetOffset() const {
+  Bytecode bytecode = current_bytecode();
+  if (interpreter::Bytecodes::IsJumpImmediate(bytecode)) {
+    int relative_offset = GetImmediateOperand(0);
+    return current_offset() + relative_offset;
+  } else if (interpreter::Bytecodes::IsJumpConstant(bytecode)) {
+    Smi* smi = Smi::cast(*GetConstantForIndexOperand(0));
+    return current_offset() + smi->value();
+  } else {
+    UNREACHABLE();
+    return kMinInt;
+  }
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8
