@@ -185,12 +185,6 @@
   'built-ins/GeneratorPrototype/return/try-finally-within-finally': [FAIL],
   'built-ins/GeneratorPrototype/return/try-finally-within-try': [FAIL],
 
-  # Destructuring assignment
-  # https://code.google.com/p/v8/issues/detail?id=811
-  'language/expressions/assignment/destructuring/*': [SKIP],
-  'language/statements/for-of/body-dstr-assign': [FAIL],
-
-
   # https://code.google.com/p/v8/issues/detail?id=4248
   'language/expressions/compound-assignment/S11.13.2_A5.*': [FAIL],
   'language/expressions/compound-assignment/S11.13.2_A6.*': [FAIL],
@@ -220,6 +214,21 @@
   'language/expressions/assignment/S11.13.1_A6*': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=3699
+  'language/expressions/assignment/destructuring/array-elem-init-fn-name-arrow': [FAIL],
+  'language/expressions/assignment/destructuring/array-elem-init-fn-name-class': [FAIL],
+  'language/expressions/assignment/destructuring/array-elem-init-fn-name-cover': [FAIL],
+  'language/expressions/assignment/destructuring/array-elem-init-fn-name-fn': [FAIL],
+  'language/expressions/assignment/destructuring/array-elem-init-fn-name-gen': [FAIL],
+  'language/expressions/assignment/destructuring/obj-id-init-fn-name-arrow': [FAIL],
+  'language/expressions/assignment/destructuring/obj-id-init-fn-name-class': [FAIL],
+  'language/expressions/assignment/destructuring/obj-id-init-fn-name-cover': [FAIL],
+  'language/expressions/assignment/destructuring/obj-id-init-fn-name-fn': [FAIL],
+  'language/expressions/assignment/destructuring/obj-id-init-fn-name-gen': [FAIL],
+  'language/expressions/assignment/destructuring/obj-prop-elem-init-fn-name-arrow': [FAIL],
+  'language/expressions/assignment/destructuring/obj-prop-elem-init-fn-name-class': [FAIL],
+  'language/expressions/assignment/destructuring/obj-prop-elem-init-fn-name-cover': [FAIL],
+  'language/expressions/assignment/destructuring/obj-prop-elem-init-fn-name-fn': [FAIL],
+  'language/expressions/assignment/destructuring/obj-prop-elem-init-fn-name-gen': [FAIL],
   'language/expressions/assignment/fn-name-arrow': [FAIL],
   'language/expressions/assignment/fn-name-class': [FAIL],
   'language/expressions/assignment/fn-name-cover': [FAIL],
@@ -543,6 +552,7 @@
   'language/computed-property-names/to-name-side-effects/*': [SKIP],
   'language/directive-prologue/*': [SKIP],
   'language/expressions/arrow-function/*': [SKIP],
+  'language/expressions/assignment/destructuring/*': [SKIP],
   'language/expressions/class/*': [SKIP],
   'language/expressions/generators/*': [SKIP],
   'language/expressions/object/method-definition/yield*': [SKIP],
