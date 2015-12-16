@@ -10,7 +10,7 @@ deps = {
   "v8/build/gyp":
     Var("git_url") + "/external/gyp.git" + "@" + "b85ad3e578da830377dbc1843aa4fbc5af17a192",
   "v8/third_party/icu":
-    Var("git_url") + "/chromium/deps/icu.git" + "@" + "42c58d4e49f2250039f0e98d43e0b76e8f5ca024",
+    Var("git_url") + "/chromium/deps/icu.git" + "@" + "8d342a405be5ae8aacb1e16f0bc31c3a4fbf26a2",
   "v8/buildtools":
     Var("git_url") + "/chromium/buildtools.git" + "@" + "68e3c238a5ab347436762cb929316aa55ca72563",
   # TODO(fmeawad): this dependency is not currently used. Added to allow for developement of the V8 Tracing system.
@@ -30,7 +30,7 @@ deps = {
   "v8/test/test262/data":
     Var("git_url") + "/external/github.com/tc39/test262.git" + "@" + "fd44cd73dfbce0b515a2474b7cd505d6176a9eb5",
   "v8/tools/clang":
-    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "f8fd8b699f6c474577b455e55b22df23ceaa2da8",
+    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "6261565695263bd878edd055e81ecc5e989711d6",
 }
 
 deps_os = {
