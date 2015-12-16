@@ -35,6 +35,8 @@ InterpreterAssembler::InterpreterAssembler(Isolate* isolate, Zone* zone,
           InstructionSelector::SupportedMachineOperatorFlags())),
       accumulator_(
           raw_assembler_->Parameter(Linkage::kInterpreterAccumulatorParameter)),
+      bytecode_offset_(raw_assembler_->Parameter(
+          Linkage::kInterpreterBytecodeOffsetParameter)),
       context_(
           raw_assembler_->Parameter(Linkage::kInterpreterContextParameter)),
       code_generated_(false) {}
@@ -80,6 +82,9 @@ Node* InterpreterAssembler::GetContext() { return context_; }
 void InterpreterAssembler::SetContext(Node* value) { context_ = value; }
 
 
+Node* InterpreterAssembler::BytecodeOffset() { return bytecode_offset_; }
+
+
 Node* InterpreterAssembler::RegisterFileRawPointer() {
   return raw_assembler_->Parameter(Linkage::kInterpreterRegisterFileParameter);
 }
@@ -90,19 +95,8 @@ Node* InterpreterAssembler::BytecodeArrayTaggedPointer() {
 }
 
 
-Node* InterpreterAssembler::BytecodeOffset() {
-  return raw_assembler_->Parameter(
-      Linkage::kInterpreterBytecodeOffsetParameter);
-}
-
-
 Node* InterpreterAssembler::DispatchTableRawPointer() {
   return raw_assembler_->Parameter(Linkage::kInterpreterDispatchTableParameter);
-}
-
-
-Node* InterpreterAssembler::RegisterFrameOffset(Node* index) {
-  return WordShl(index, kPointerSizeLog2);
 }
 
 
@@ -111,10 +105,19 @@ Node* InterpreterAssembler::RegisterLocation(Node* reg_index) {
 }
 
 
+Node* InterpreterAssembler::LoadRegister(int offset) {
+  return raw_assembler_->Load(MachineType::AnyTagged(),
+                              RegisterFileRawPointer(), Int32Constant(offset));
+}
+
+
 Node* InterpreterAssembler::LoadRegister(interpreter::Register reg) {
-  return raw_assembler_->Load(
-      MachineType::AnyTagged(), RegisterFileRawPointer(),
-      RegisterFrameOffset(Int32Constant(reg.ToOperand())));
+  return LoadRegister(reg.ToOperand() << kPointerSizeLog2);
+}
+
+
+Node* InterpreterAssembler::RegisterFrameOffset(Node* index) {
+  return WordShl(index, kPointerSizeLog2);
 }
 
 
@@ -122,6 +125,19 @@ Node* InterpreterAssembler::LoadRegister(Node* reg_index) {
   return raw_assembler_->Load(MachineType::AnyTagged(),
                               RegisterFileRawPointer(),
                               RegisterFrameOffset(reg_index));
+}
+
+
+Node* InterpreterAssembler::StoreRegister(Node* value, int offset) {
+  return raw_assembler_->Store(MachineRepresentation::kTagged,
+                               RegisterFileRawPointer(), Int32Constant(offset),
+                               value, kNoWriteBarrier);
+}
+
+
+Node* InterpreterAssembler::StoreRegister(Node* value,
+                                          interpreter::Register reg) {
+  return StoreRegister(value, reg.ToOperand() << kPointerSizeLog2);
 }
 
 
@@ -386,8 +402,23 @@ Node* InterpreterAssembler::CallConstruct(Node* new_target, Node* constructor,
 }
 
 
+void InterpreterAssembler::CallPrologue() {
+  StoreRegister(SmiTag(bytecode_offset_),
+                InterpreterFrameConstants::kBytecodeOffsetFromRegisterPointer);
+}
+
+
+void InterpreterAssembler::CallEpilogue() {
+  // Restore the bytecode offset from the stack frame.
+  bytecode_offset_ = SmiUntag(LoadRegister(
+      InterpreterFrameConstants::kBytecodeOffsetFromRegisterPointer));
+}
+
+
 Node* InterpreterAssembler::CallN(CallDescriptor* descriptor, Node* code_target,
                                   Node** args) {
+  CallPrologue();
+
   Node* stack_pointer_before_call = nullptr;
   if (FLAG_debug_code) {
     stack_pointer_before_call = raw_assembler_->LoadStackPointer();
@@ -398,6 +429,8 @@ Node* InterpreterAssembler::CallN(CallDescriptor* descriptor, Node* code_target,
     AbortIfWordNotEqual(stack_pointer_before_call, stack_pointer_after_call,
                         kUnexpectedStackPointer);
   }
+
+  CallEpilogue();
   return return_val;
 }
 
@@ -497,21 +530,32 @@ Node* InterpreterAssembler::CallRuntime(Node* function_id, Node* first_arg,
 
 Node* InterpreterAssembler::CallRuntime(Runtime::FunctionId function_id,
                                         Node* arg1) {
-  return raw_assembler_->CallRuntime1(function_id, arg1, GetContext());
+  CallPrologue();
+  Node* return_val =
+      raw_assembler_->CallRuntime1(function_id, arg1, GetContext());
+  CallEpilogue();
+  return return_val;
 }
 
 
 Node* InterpreterAssembler::CallRuntime(Runtime::FunctionId function_id,
                                         Node* arg1, Node* arg2) {
-  return raw_assembler_->CallRuntime2(function_id, arg1, arg2, GetContext());
+  CallPrologue();
+  Node* return_val =
+      raw_assembler_->CallRuntime2(function_id, arg1, arg2, GetContext());
+  CallEpilogue();
+  return return_val;
 }
 
 
 Node* InterpreterAssembler::CallRuntime(Runtime::FunctionId function_id,
                                         Node* arg1, Node* arg2, Node* arg3,
                                         Node* arg4) {
-  return raw_assembler_->CallRuntime4(function_id, arg1, arg2, arg3, arg4,
-                                      GetContext());
+  CallPrologue();
+  Node* return_val = raw_assembler_->CallRuntime4(function_id, arg1, arg2, arg3,
+                                                  arg4, GetContext());
+  CallEpilogue();
+  return return_val;
 }
 
 
@@ -595,8 +639,9 @@ void InterpreterAssembler::DispatchTo(Node* new_bytecode_offset) {
 
 void InterpreterAssembler::Abort(BailoutReason bailout_reason) {
   Node* abort_id = SmiTag(Int32Constant(bailout_reason));
-  CallRuntime(Runtime::kAbort, abort_id);
-  Return();
+  Node* ret_value = CallRuntime(Runtime::kAbort, abort_id);
+  // Unreached, but keeps turbofan happy.
+  raw_assembler_->Return(ret_value);
 }
 
 

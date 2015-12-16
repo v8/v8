@@ -522,6 +522,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ push(edi);  // Callee's JS function.
   __ push(edx);  // Callee's new target.
 
+  // Push zero for bytecode array offset.
+  __ push(Immediate(0));
+
   // Get the bytecode array from the function object and load the pointer to the
   // first entry into edi (InterpreterBytecodeRegister).
   __ mov(eax, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
@@ -591,9 +594,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // registers.
   __ LoadRoot(kInterpreterAccumulatorRegister, Heap::kUndefinedValueRootIndex);
   __ mov(kInterpreterRegisterFileRegister, ebp);
-  __ sub(kInterpreterRegisterFileRegister,
-         Immediate(2 * kPointerSize +
-                   StandardFrameConstants::kFixedFrameSizeFromFp));
+  __ add(kInterpreterRegisterFileRegister,
+         Immediate(InterpreterFrameConstants::kRegisterFilePointerFromFp));
   __ mov(kInterpreterBytecodeOffsetRegister,
          Immediate(BytecodeArray::kHeaderSize - kHeapObjectTag));
   // Since the dispatch table root might be set after builtins are generated,
@@ -617,6 +619,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // and header removal.
   __ add(ebx, Immediate(Code::kHeaderSize - kHeapObjectTag));
   __ call(ebx);
+  __ nop();  // Ensure that return address still counts as interpreter entry
+             // trampoline.
 }
 
 

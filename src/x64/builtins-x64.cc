@@ -593,6 +593,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ Push(rdi);  // Callee's JS function.
   __ Push(rdx);  // Callee's new target.
 
+  // Push zero for bytecode array offset.
+  __ Push(Immediate(0));
+
   // Get the bytecode array from the function object and load the pointer to the
   // first entry into edi (InterpreterBytecodeRegister).
   __ movp(rax, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
@@ -658,9 +661,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // registers.
   __ LoadRoot(kInterpreterAccumulatorRegister, Heap::kUndefinedValueRootIndex);
   __ movp(kInterpreterRegisterFileRegister, rbp);
-  __ subp(kInterpreterRegisterFileRegister,
-          Immediate(2 * kPointerSize +
-                    StandardFrameConstants::kFixedFrameSizeFromFp));
+  __ addp(kInterpreterRegisterFileRegister,
+          Immediate(InterpreterFrameConstants::kRegisterFilePointerFromFp));
   __ movp(kInterpreterBytecodeOffsetRegister,
           Immediate(BytecodeArray::kHeaderSize - kHeapObjectTag));
   __ LoadRoot(kInterpreterDispatchTableRegister,

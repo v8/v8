@@ -176,12 +176,18 @@ class ConstructFrameConstants : public AllStatic {
 
 class InterpreterFrameConstants : public AllStatic {
  public:
+  // FP-relative.
+  static const int kRegisterFilePointerFromFp =
+      -StandardFrameConstants::kFixedFrameSizeFromFp - 3 * kPointerSize;
+
   // Register file pointer relative.
   static const int kLastParamFromRegisterPointer =
-      StandardFrameConstants::kFixedFrameSize + 2 * kPointerSize;
-  static const int kNewTargetFromRegisterPointer = kPointerSize;
-  static const int kFunctionFromRegisterPointer = 2 * kPointerSize;
-  static const int kContextFromRegisterPointer = 3 * kPointerSize;
+      StandardFrameConstants::kFixedFrameSize + 3 * kPointerSize;
+
+  static const int kBytecodeOffsetFromRegisterPointer = 1 * kPointerSize;
+  static const int kNewTargetFromRegisterPointer = 2 * kPointerSize;
+  static const int kFunctionFromRegisterPointer = 3 * kPointerSize;
+  static const int kContextFromRegisterPointer = 4 * kPointerSize;
 };
 
 

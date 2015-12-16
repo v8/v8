@@ -17,6 +17,7 @@ namespace internal {
 namespace interpreter {
 
 using compiler::Node;
+
 #define __ assembler->
 
 
@@ -1188,9 +1189,9 @@ void Interpreter::DoJumpIfFalseConstant(
 void Interpreter::DoJumpIfToBooleanTrue(
     compiler::InterpreterAssembler* assembler) {
   Node* accumulator = __ GetAccumulator();
-  Node* relative_jump = __ BytecodeOperandImm(0);
   Node* to_boolean_value =
       __ CallRuntime(Runtime::kInterpreterToBoolean, accumulator);
+  Node* relative_jump = __ BytecodeOperandImm(0);
   Node* true_value = __ BooleanConstant(true);
   __ JumpIfWordEqual(to_boolean_value, true_value, relative_jump);
 }
@@ -1221,9 +1222,9 @@ void Interpreter::DoJumpIfToBooleanTrueConstant(
 void Interpreter::DoJumpIfToBooleanFalse(
     compiler::InterpreterAssembler* assembler) {
   Node* accumulator = __ GetAccumulator();
-  Node* relative_jump = __ BytecodeOperandImm(0);
   Node* to_boolean_value =
       __ CallRuntime(Runtime::kInterpreterToBoolean, accumulator);
+  Node* relative_jump = __ BytecodeOperandImm(0);
   Node* false_value = __ BooleanConstant(false);
   __ JumpIfWordEqual(to_boolean_value, false_value, relative_jump);
 }
