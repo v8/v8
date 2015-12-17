@@ -143,7 +143,7 @@ function NoSideEffectsToString(obj) {
     }
   }
 
-  if (IS_SPEC_OBJECT(obj)) {
+  if (IS_RECEIVER(obj)) {
     // When internally formatting error objects, use a side-effects-free version
     // of Error.prototype.toString independent of the actually installed
     // toString method.
@@ -939,7 +939,7 @@ utils.InstallFunctions(GlobalError.prototype, DONT_ENUM,
                        ['toString', ErrorToString]);
 
 function ErrorToString() {
-  if (!IS_SPEC_OBJECT(this)) {
+  if (!IS_RECEIVER(this)) {
     throw MakeTypeError(kCalledOnNonObject, "Error.prototype.toString");
   }
 

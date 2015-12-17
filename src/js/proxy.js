@@ -35,7 +35,7 @@ function ProxyEnumerate(trap, handler, target) {
   // 7. Let trapResult be ? Call(trap, handler, «target»).
   var trap_result = %_Call(trap, handler, target);
   // 8. If Type(trapResult) is not Object, throw a TypeError exception.
-  if (!IS_SPEC_OBJECT(trap_result)) {
+  if (!IS_RECEIVER(trap_result)) {
     throw MakeTypeError(kProxyEnumerateNonObject);
   }
   // 9. Return trapResult.

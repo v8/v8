@@ -120,15 +120,10 @@ macro IS_SET_ITERATOR(arg)      = (%_ClassOf(arg) === 'Set Iterator');
 macro IS_MAP_ITERATOR(arg)      = (%_ClassOf(arg) === 'Map Iterator');
 macro IS_STRONG(arg)            = (%IsStrong(arg));
 
-# Macro for ECMAScript 5 queries of the type:
-# "Type(O) is object."
-# This is the same as being either a function or an object in V8 terminology
-# (including proxies).
-# In addition, an undetectable object is also included by this.
-macro IS_SPEC_OBJECT(arg)   = (%_IsJSReceiver(arg));
+# Macro for ES queries of the type: "Type(O) is Object."
+macro IS_RECEIVER(arg) = (%_IsJSReceiver(arg));
 
-# Macro for ECMAScript 5 queries of the type:
-# "IsCallable(O)"
+# Macro for ES queries of the type: "IsCallable(O)"
 macro IS_CALLABLE(arg) = (typeof(arg) === 'function');
 
 # Macro for ES6 CheckObjectCoercible

@@ -324,7 +324,7 @@ function ConvertAcceptListToTypeMap(arg) {
   if (IS_UNDEFINED(arg))
     return arg;
 
-  if (!IS_SPEC_OBJECT(arg)) throw MakeTypeError(kObserveInvalidAccept);
+  if (!IS_RECEIVER(arg)) throw MakeTypeError(kObserveInvalidAccept);
 
   var len = TO_INTEGER(arg.length);
   if (len < 0) len = 0;
@@ -380,7 +380,7 @@ function CallbackInfoNormalize(callback) {
 
 
 function ObjectObserve(object, callback, acceptList) {
-  if (!IS_SPEC_OBJECT(object))
+  if (!IS_RECEIVER(object))
     throw MakeTypeError(kObserveNonObject, "observe", "observe");
   if (%IsJSGlobalProxy(object))
     throw MakeTypeError(kObserveGlobalProxy, "observe");
@@ -405,7 +405,7 @@ function NativeObjectObserve(object, callback, acceptList) {
 
 
 function ObjectUnobserve(object, callback) {
-  if (!IS_SPEC_OBJECT(object))
+  if (!IS_RECEIVER(object))
     throw MakeTypeError(kObserveNonObject, "unobserve", "unobserve");
   if (%IsJSGlobalProxy(object))
     throw MakeTypeError(kObserveGlobalProxy, "unobserve");
@@ -564,7 +564,7 @@ function NotifyChange(type, object, name, oldValue) {
 
 
 function ObjectNotifierNotify(changeRecord) {
-  if (!IS_SPEC_OBJECT(this))
+  if (!IS_RECEIVER(this))
     throw MakeTypeError(kCalledOnNonObject, "notify");
 
   var objectInfo = ObjectInfoGetFromNotifier(this);
@@ -578,7 +578,7 @@ function ObjectNotifierNotify(changeRecord) {
 
 
 function ObjectNotifierPerformChange(changeType, changeFn) {
-  if (!IS_SPEC_OBJECT(this))
+  if (!IS_RECEIVER(this))
     throw MakeTypeError(kCalledOnNonObject, "performChange");
 
   var objectInfo = ObjectInfoGetFromNotifier(this);
@@ -604,13 +604,13 @@ function NativeObjectNotifierPerformChange(objectInfo, changeType, changeFn) {
     ObjectInfoRemovePerformingType(objectInfo, changeType);
   }
 
-  if (IS_SPEC_OBJECT(changeRecord))
+  if (IS_RECEIVER(changeRecord))
     ObjectInfoEnqueueExternalChangeRecord(objectInfo, changeRecord, changeType);
 }
 
 
 function ObjectGetNotifier(object) {
-  if (!IS_SPEC_OBJECT(object))
+  if (!IS_RECEIVER(object))
     throw MakeTypeError(kObserveNonObject, "getNotifier", "getNotifier");
   if (%IsJSGlobalProxy(object))
     throw MakeTypeError(kObserveGlobalProxy, "getNotifier");

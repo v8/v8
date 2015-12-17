@@ -116,7 +116,7 @@ function ClearMirrorCache(value) {
 
 
 function ObjectIsPromise(value) {
-  return IS_SPEC_OBJECT(value) &&
+  return IS_RECEIVER(value) &&
          !IS_UNDEFINED(%DebugGetProperty(value, promiseStatusSymbol));
 }
 

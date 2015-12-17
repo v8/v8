@@ -39,7 +39,7 @@ function CreateDataProperty(o, p, v) {
 
 function InternalizeJSONProperty(holder, name, reviver) {
   var val = holder[name];
-  if (IS_SPEC_OBJECT(val)) {
+  if (IS_RECEIVER(val)) {
     if (%is_arraylike(val)) {
       var length = TO_LENGTH(val.length);
       for (var i = 0; i < length; i++) {
@@ -150,7 +150,7 @@ function SerializeObject(value, replacer, stack, indent, gap) {
 
 function JSONSerialize(key, holder, replacer, stack, indent, gap) {
   var value = holder[key];
-  if (IS_SPEC_OBJECT(value)) {
+  if (IS_RECEIVER(value)) {
     var toJSON = value.toJSON;
     if (IS_CALLABLE(toJSON)) {
       value = %_Call(toJSON, value, key);
@@ -167,7 +167,7 @@ function JSONSerialize(key, holder, replacer, stack, indent, gap) {
     return value ? "true" : "false";
   } else if (IS_NULL(value)) {
     return "null";
-  } else if (IS_SPEC_OBJECT(value) && !IS_CALLABLE(value)) {
+  } else if (IS_RECEIVER(value) && !IS_CALLABLE(value)) {
     // Non-callable object. If it's a primitive wrapper, it must be unwrapped.
     if (%is_arraylike(value)) {
       return SerializeArray(value, replacer, stack, indent, gap);

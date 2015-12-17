@@ -100,7 +100,7 @@ function GetExistingHash(key) {
     if ((field & 1 /* Name::kHashNotComputedMask */) === 0) {
       return field >>> 2 /* Name::kHashShift */;
     }
-  } else if (IS_SPEC_OBJECT(key) && !%_IsJSProxy(key) && !IS_GLOBAL(key)) {
+  } else if (IS_RECEIVER(key) && !%_IsJSProxy(key) && !IS_GLOBAL(key)) {
     var hash = GET_PRIVATE(key, hashCodeSymbol);
     return hash;
   }
@@ -294,7 +294,7 @@ function MapConstructor(iterable) {
     }
 
     for (var nextItem of iterable) {
-      if (!IS_SPEC_OBJECT(nextItem)) {
+      if (!IS_RECEIVER(nextItem)) {
         throw MakeTypeError(kIteratorValueNotAnObject, nextItem);
       }
       %_Call(adder, this, nextItem[0], nextItem[1]);

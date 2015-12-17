@@ -46,7 +46,7 @@ var RegExpLastMatchInfo = new InternalPackedArray(
 // -------------------------------------------------------------------
 
 function IsRegExp(o) {
-  if (!IS_SPEC_OBJECT(o)) return false;
+  if (!IS_RECEIVER(o)) return false;
   var is_regexp = o[matchSymbol];
   if (!IS_UNDEFINED(is_regexp)) return TO_BOOLEAN(is_regexp);
   return IS_REGEXP(o);

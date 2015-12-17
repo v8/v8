@@ -163,7 +163,7 @@ function ObjectHasOwnProperty(value) {
 
 // ES6 19.1.3.3 Object.prototype.isPrototypeOf(V)
 function ObjectIsPrototypeOf(V) {
-  if (!IS_SPEC_OBJECT(V)) return false;
+  if (!IS_RECEIVER(V)) return false;
   var O = TO_OBJECT(this);
   return %_HasInPrototypeChain(V, O);
 }
@@ -289,7 +289,7 @@ function FromGenericPropertyDescriptor(desc) {
 
 // ES6 6.2.4.5
 function ToPropertyDescriptor(obj) {
-  if (!IS_SPEC_OBJECT(obj)) throw MakeTypeError(kPropertyDescObject, obj);
+  if (!IS_RECEIVER(obj)) throw MakeTypeError(kPropertyDescObject, obj);
 
   var desc = new PropertyDescriptor();
 
@@ -784,11 +784,11 @@ function ObjectGetPrototypeOf(obj) {
 function ObjectSetPrototypeOf(obj, proto) {
   CHECK_OBJECT_COERCIBLE(obj, "Object.setPrototypeOf");
 
-  if (proto !== null && !IS_SPEC_OBJECT(proto)) {
+  if (proto !== null && !IS_RECEIVER(proto)) {
     throw MakeTypeError(kProtoObjectOrNull, proto);
   }
 
-  if (IS_SPEC_OBJECT(obj)) {
+  if (IS_RECEIVER(obj)) {
     %SetPrototype(obj, proto);
   }
 
@@ -811,7 +811,7 @@ function ObjectGetOwnPropertyNames(obj) {
 
 // ES5 section 15.2.3.5.
 function ObjectCreate(proto, properties) {
-  if (!IS_SPEC_OBJECT(proto) && proto !== null) {
+  if (!IS_RECEIVER(proto) && proto !== null) {
     throw MakeTypeError(kProtoObjectOrNull, proto);
   }
   var obj = {};
@@ -826,7 +826,7 @@ function ObjectDefineProperty(obj, p, attributes) {
   // The new pure-C++ implementation doesn't support O.o.
   // TODO(jkummerow): Implement missing features and remove fallback path.
   if (%IsObserved(obj)) {
-    if (!IS_SPEC_OBJECT(obj)) {
+    if (!IS_RECEIVER(obj)) {
       throw MakeTypeError(kCalledOnNonObject, "Object.defineProperty");
     }
     var name = TO_NAME(p);
@@ -848,7 +848,7 @@ function ObjectDefineProperties(obj, properties) {
   // The new pure-C++ implementation doesn't support O.o.
   // TODO(jkummerow): Implement missing features and remove fallback path.
   if (%IsObserved(obj)) {
-    if (!IS_SPEC_OBJECT(obj)) {
+    if (!IS_RECEIVER(obj)) {
       throw MakeTypeError(kCalledOnNonObject, "Object.defineProperties");
     }
     var props = TO_OBJECT(properties);
@@ -868,42 +868,42 @@ function ObjectDefineProperties(obj, properties) {
 
 // ES6 19.1.2.17
 function ObjectSealJS(obj) {
-  if (!IS_SPEC_OBJECT(obj)) return obj;
+  if (!IS_RECEIVER(obj)) return obj;
   return %ObjectSeal(obj);
 }
 
 
 // ES6 19.1.2.5
 function ObjectFreezeJS(obj) {
-  if (!IS_SPEC_OBJECT(obj)) return obj;
+  if (!IS_RECEIVER(obj)) return obj;
   return %ObjectFreeze(obj);
 }
 
 
 // ES6 19.1.2.15
 function ObjectPreventExtension(obj) {
-  if (!IS_SPEC_OBJECT(obj)) return obj;
+  if (!IS_RECEIVER(obj)) return obj;
   return %PreventExtensions(obj);
 }
 
 
 // ES6 19.1.2.13
 function ObjectIsSealed(obj) {
-  if (!IS_SPEC_OBJECT(obj)) return true;
+  if (!IS_RECEIVER(obj)) return true;
   return %ObjectIsSealed(obj);
 }
 
 
 // ES6 19.1.2.12
 function ObjectIsFrozen(obj) {
-  if (!IS_SPEC_OBJECT(obj)) return true;
+  if (!IS_RECEIVER(obj)) return true;
   return %ObjectIsFrozen(obj);
 }
 
 
 // ES6 19.1.2.11
 function ObjectIsExtensible(obj) {
-  if (!IS_SPEC_OBJECT(obj)) return false;
+  if (!IS_RECEIVER(obj)) return false;
   return %IsExtensible(obj);
 }
 
@@ -918,7 +918,7 @@ function ObjectGetProto() {
 function ObjectSetProto(proto) {
   CHECK_OBJECT_COERCIBLE(this, "Object.prototype.__proto__");
 
-  if ((IS_SPEC_OBJECT(proto) || IS_NULL(proto)) && IS_SPEC_OBJECT(this)) {
+  if ((IS_RECEIVER(proto) || IS_NULL(proto)) && IS_RECEIVER(this)) {
     %SetPrototype(this, proto);
   }
 }
@@ -1428,7 +1428,7 @@ function GetIterator(obj, method) {
     throw MakeTypeError(kNotIterable, obj);
   }
   var iterator = %_Call(method, obj);
-  if (!IS_SPEC_OBJECT(iterator)) {
+  if (!IS_RECEIVER(iterator)) {
     throw MakeTypeError(kNotAnIterator, iterator);
   }
   return iterator;

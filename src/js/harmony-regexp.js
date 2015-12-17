@@ -24,7 +24,7 @@ utils.Import(function(from) {
 // ES6 draft 12-06-13, section 21.2.5.3
 // + https://bugs.ecmascript.org/show_bug.cgi?id=3423
 function RegExpGetFlags() {
-  if (!IS_SPEC_OBJECT(this)) {
+  if (!IS_RECEIVER(this)) {
     throw MakeTypeError(
         kRegExpNonObject, "RegExp.prototype.flags", TO_STRING(this));
   }

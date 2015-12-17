@@ -117,7 +117,7 @@ function PromiseDone(promise, status, value, promiseQueue) {
 }
 
 function PromiseCoerce(constructor, x) {
-  if (!IsPromise(x) && IS_SPEC_OBJECT(x)) {
+  if (!IsPromise(x) && IS_RECEIVER(x)) {
     var then;
     try {
       then = x.then;
@@ -185,7 +185,7 @@ function PromiseNopResolver() {}
 // For bootstrapper.
 
 function IsPromise(x) {
-  return IS_SPEC_OBJECT(x) && HAS_DEFINED_PRIVATE(x, promiseStatusSymbol);
+  return IS_RECEIVER(x) && HAS_DEFINED_PRIVATE(x, promiseStatusSymbol);
 }
 
 function PromiseCreate() {
@@ -194,7 +194,7 @@ function PromiseCreate() {
 
 function PromiseResolve(promise, x) {
   if (GET_PRIVATE(promise, promiseStatusSymbol) === 0) {
-    if (IS_SPEC_OBJECT(x)) {
+    if (IS_RECEIVER(x)) {
       // 25.4.1.3.2 steps 8-12
       try {
         var then = x.then;

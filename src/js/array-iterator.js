@@ -78,7 +78,7 @@ function ArrayIteratorNext() {
   var value = UNDEFINED;
   var done = true;
 
-  if (!IS_SPEC_OBJECT(iterator) ||
+  if (!IS_RECEIVER(iterator) ||
       !HAS_DEFINED_PRIVATE(iterator, arrayIteratorNextIndexSymbol)) {
     throw MakeTypeError(kIncompatibleMethodReceiver,
                         'Array Iterator.prototype.next', this);

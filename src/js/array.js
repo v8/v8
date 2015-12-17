@@ -1774,7 +1774,7 @@ function ArrayFrom(arrayLike, mapfn, receiver) {
     while (true) {
       var next = iterator.next();
 
-      if (!IS_SPEC_OBJECT(next)) {
+      if (!IS_RECEIVER(next)) {
         throw MakeTypeError(kIteratorResultNotAnObject, next);
       }
 
