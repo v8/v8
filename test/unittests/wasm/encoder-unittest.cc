@@ -24,8 +24,7 @@ class EncoderTest : public TestWithZone {
       code.push_back(out_index.at(i));
     }
     uint32_t local_indices[] = {1};
-    f->EmitCode(code.data(), static_cast<uint32_t>(code.size()), local_indices,
-                1);
+    f->EmitCode(&code[0], static_cast<uint32_t>(code.size()), local_indices, 1);
   }
 
   void CheckReadValue(uint8_t* leb_value, uint32_t expected_result,
@@ -45,7 +44,7 @@ class EncoderTest : public TestWithZone {
   void CheckWriteValue(uint32_t input, int length, uint8_t* vals) {
     const std::vector<uint8_t> result = UnsignedLEB128From(input);
     CHECK_EQ(result.size(), length);
-    for (size_t i = 0; i < length; i++) {
+    for (int i = 0; i < length; i++) {
       CHECK_EQ(result.at(i), vals[i]);
     }
   }
@@ -83,7 +82,7 @@ TEST_F(EncoderTest, Function_Builder_Variable_Indexing) {
 
   WasmFunctionEncoder* f = function->Build(&zone, builder);
   ZoneVector<uint8_t> buffer_vector(f->HeaderSize() + f->BodySize(), &zone);
-  byte* buffer = buffer_vector.data();
+  byte* buffer = &buffer_vector[0];
   byte* header = buffer;
   byte* body = buffer + f->HeaderSize();
   f->Serialize(buffer, &header, &body);
@@ -105,7 +104,7 @@ TEST_F(EncoderTest, Function_Builder_Indexing_Variable_Width) {
 
   WasmFunctionEncoder* f = function->Build(&zone, builder);
   ZoneVector<uint8_t> buffer_vector(f->HeaderSize() + f->BodySize(), &zone);
-  byte* buffer = buffer_vector.data();
+  byte* buffer = &buffer_vector[0];
   byte* header = buffer;
   byte* body = buffer + f->HeaderSize();
   f->Serialize(buffer, &header, &body);

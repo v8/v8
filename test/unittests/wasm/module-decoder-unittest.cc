@@ -24,6 +24,7 @@ class WasmModuleVerifyTest : public TestWithZone {
   do {                                                                \
     ModuleResult result = DecodeModule(data, data + arraysize(data)); \
     EXPECT_TRUE(result.ok());                                         \
+    if (result.val) delete result.val;                                \
   } while (false)
 
 
@@ -31,6 +32,7 @@ class WasmModuleVerifyTest : public TestWithZone {
   do {                                                                \
     ModuleResult result = DecodeModule(data, data + arraysize(data)); \
     EXPECT_FALSE(result.ok());                                        \
+    if (result.val) delete result.val;                                \
   } while (false)
 
 
@@ -48,10 +50,12 @@ TEST_F(WasmModuleVerifyTest, DecodeEmpty) {
   {
     ModuleResult result = DecodeModule(data, data);
     EXPECT_TRUE(result.ok());
+    if (result.val) delete result.val;
   }
   {
     ModuleResult result = DecodeModule(data, data + 1);
     EXPECT_TRUE(result.ok());
+    if (result.val) delete result.val;
   }
 }
 
@@ -81,13 +85,16 @@ TEST_F(WasmModuleVerifyTest, OneGlobal) {
     EXPECT_EQ(0, global->name_offset);
     EXPECT_EQ(MachineType::Int32(), global->type);
     EXPECT_EQ(0, global->offset);
-    EXPECT_EQ(false, global->exported);
+    EXPECT_FALSE(global->exported);
+
+    if (result.val) delete result.val;
   }
 
   for (size_t size = 1; size < arraysize(data); size++) {
     // Should fall off end of module bytes.
     ModuleResult result = DecodeModule(data, data + size);
     EXPECT_FALSE(result.ok());
+    if (result.val) delete result.val;
   }
 }
 
@@ -98,6 +105,7 @@ TEST_F(WasmModuleVerifyTest, ZeroGlobals) {
   };
   ModuleResult result = DecodeModule(data, data + arraysize(data));
   EXPECT_TRUE(result.ok());
+  if (result.val) delete result.val;
 }
 
 
@@ -126,12 +134,13 @@ TEST_F(WasmModuleVerifyTest, NGlobals) {
     std::vector<byte> buffer;
     buffer.push_back(kDeclGlobals);
     AppendUint32v(buffer, i);
-    for (int j = 0; j < i; j++) {
+    for (uint32_t j = 0; j < i; j++) {
       buffer.insert(buffer.end(), data, data + arraysize(data));
     }
 
     ModuleResult result = DecodeModule(&buffer[0], &buffer[0] + buffer.size());
     EXPECT_TRUE(result.ok());
+    if (result.val) delete result.val;
   }
 }
 
@@ -200,18 +209,21 @@ TEST_F(WasmModuleVerifyTest, TwoGlobals) {
     EXPECT_EQ(0, g0->name_offset);
     EXPECT_EQ(MachineType::Float32(), g0->type);
     EXPECT_EQ(0, g0->offset);
-    EXPECT_EQ(false, g0->exported);
+    EXPECT_FALSE(g0->exported);
 
     EXPECT_EQ(0, g1->name_offset);
     EXPECT_EQ(MachineType::Float64(), g1->type);
     EXPECT_EQ(0, g1->offset);
-    EXPECT_EQ(true, g1->exported);
+    EXPECT_TRUE(g1->exported);
+
+    if (result.val) delete result.val;
   }
 
   for (size_t size = 1; size < arraysize(data); size++) {
     // Should fall off end of module bytes.
     ModuleResult result = DecodeModule(data, data + size);
     EXPECT_FALSE(result.ok());
+    if (result.val) delete result.val;
   }
 }
 
@@ -251,11 +263,13 @@ TEST_F(WasmModuleVerifyTest, MultipleSignatures) {
     EXPECT_EQ(1, result.val->signatures->at(1)->parameter_count());
     EXPECT_EQ(2, result.val->signatures->at(2)->parameter_count());
   }
+  if (result.val) delete result.val;
 
   for (size_t size = 1; size < arraysize(data); size++) {
     ModuleResult result = DecodeModule(data, data + size);
     // Should fall off the end of module bytes.
     EXPECT_FALSE(result.ok());
+    if (result.val) delete result.val;
   }
 }
 
@@ -278,6 +292,7 @@ TEST_F(WasmModuleVerifyTest, FunctionWithoutSig) {
 
   ModuleResult result = DecodeModule(data, data + arraysize(data));
   EXPECT_FALSE(result.ok());
+  if (result.val) delete result.val;
 }
 
 
@@ -323,14 +338,17 @@ TEST_F(WasmModuleVerifyTest, OneEmptyVoidVoidFunction) {
     EXPECT_EQ(1551, function->local_float32_count);
     EXPECT_EQ(2065, function->local_float64_count);
 
-    EXPECT_EQ(true, function->exported);
-    EXPECT_EQ(false, function->external);
+    EXPECT_TRUE(function->exported);
+    EXPECT_FALSE(function->external);
+
+    if (result.val) delete result.val;
   }
 
   for (size_t size = 5; size < arraysize(data); size++) {
     // Should fall off end of module bytes.
     ModuleResult result = DecodeModule(data, data + size);
     EXPECT_FALSE(result.ok());
+    if (result.val) delete result.val;
   }
 }
 
@@ -360,8 +378,10 @@ TEST_F(WasmModuleVerifyTest, OneFunctionImported) {
   EXPECT_EQ(0, function->local_float32_count);
   EXPECT_EQ(0, function->local_float64_count);
 
-  EXPECT_EQ(false, function->exported);
-  EXPECT_EQ(true, function->external);
+  EXPECT_FALSE(function->exported);
+  EXPECT_TRUE(function->external);
+
+  if (result.val) delete result.val;
 }
 
 
@@ -395,8 +415,10 @@ TEST_F(WasmModuleVerifyTest, OneFunctionWithNopBody) {
   EXPECT_EQ(0, function->local_float32_count);
   EXPECT_EQ(0, function->local_float64_count);
 
-  EXPECT_EQ(false, function->exported);
-  EXPECT_EQ(false, function->external);
+  EXPECT_FALSE(function->exported);
+  EXPECT_FALSE(function->external);
+
+  if (result.val) delete result.val;
 }
 
 
@@ -433,8 +455,10 @@ TEST_F(WasmModuleVerifyTest, OneFunctionWithNopBody_WithLocals) {
   EXPECT_EQ(1541, function->local_float32_count);
   EXPECT_EQ(2055, function->local_float64_count);
 
-  EXPECT_EQ(false, function->exported);
-  EXPECT_EQ(false, function->external);
+  EXPECT_FALSE(function->exported);
+  EXPECT_FALSE(function->external);
+
+  if (result.val) delete result.val;
 }
 
 
@@ -482,7 +506,7 @@ TEST_F(WasmModuleVerifyTest, OneGlobalOneFunctionWithNopBodyOneDataSegment) {
     EXPECT_EQ(0, global->name_offset);
     EXPECT_EQ(MachineType::Uint8(), global->type);
     EXPECT_EQ(0, global->offset);
-    EXPECT_EQ(false, global->exported);
+    EXPECT_FALSE(global->exported);
 
     WasmFunction* function = &result.val->functions->back();
 
@@ -490,15 +514,17 @@ TEST_F(WasmModuleVerifyTest, OneGlobalOneFunctionWithNopBodyOneDataSegment) {
     EXPECT_EQ(kCodeStartOffset, function->code_start_offset);
     EXPECT_EQ(kCodeEndOffset, function->code_end_offset);
 
-    EXPECT_EQ(false, function->exported);
-    EXPECT_EQ(false, function->external);
+    EXPECT_FALSE(function->exported);
+    EXPECT_FALSE(function->external);
 
     WasmDataSegment* segment = &result.val->data_segments->back();
 
     EXPECT_EQ(0x8b3ae, segment->dest_addr);
     EXPECT_EQ(15, segment->source_offset);
     EXPECT_EQ(5, segment->source_size);
-    EXPECT_EQ(true, segment->init);
+    EXPECT_TRUE(segment->init);
+
+    if (result.val) delete result.val;
   }
 }
 
@@ -534,13 +560,16 @@ TEST_F(WasmModuleVerifyTest, OneDataSegment) {
     EXPECT_EQ(0x9bbaa, segment->dest_addr);
     EXPECT_EQ(11, segment->source_offset);
     EXPECT_EQ(3, segment->source_size);
-    EXPECT_EQ(true, segment->init);
+    EXPECT_TRUE(segment->init);
+
+    if (result.val) delete result.val;
   }
 
   for (size_t size = 1; size < arraysize(data); size++) {
     // Should fall off end of module bytes.
     ModuleResult result = DecodeModule(data, data + size);
     EXPECT_FALSE(result.ok());
+    if (result.val) delete result.val;
   }
 }
 
@@ -590,18 +619,21 @@ TEST_F(WasmModuleVerifyTest, TwoDataSegments) {
     EXPECT_EQ(0x7ffee, s0->dest_addr);
     EXPECT_EQ(9, s0->source_offset);
     EXPECT_EQ(4, s0->source_size);
-    EXPECT_EQ(false, s0->init);
+    EXPECT_FALSE(s0->init);
 
     EXPECT_EQ(0x6ddcc, s1->dest_addr);
     EXPECT_EQ(6, s1->source_offset);
     EXPECT_EQ(10, s1->source_size);
-    EXPECT_EQ(true, s1->init);
+    EXPECT_TRUE(s1->init);
+
+    if (result.val) delete result.val;
   }
 
   for (size_t size = 1; size < arraysize(data); size++) {
     // Should fall off end of module bytes.
     ModuleResult result = DecodeModule(data, data + size);
     EXPECT_FALSE(result.ok());
+    if (result.val) delete result.val;
   }
 }
 
@@ -629,6 +661,7 @@ TEST_F(WasmModuleVerifyTest, OneIndirectFunction) {
     EXPECT_EQ(1, result.val->function_table->size());
     EXPECT_EQ(0, result.val->function_table->at(0));
   }
+  if (result.val) delete result.val;
 }
 
 
@@ -654,6 +687,7 @@ TEST_F(WasmModuleVerifyTest, MultipleIndirectFunctions) {
       EXPECT_EQ(i & 3, result.val->function_table->at(i));
     }
   }
+  if (result.val) delete result.val;
 }
 
 
@@ -841,6 +875,8 @@ TEST_F(WasmFunctionVerifyTest, Ok_v_v_empty) {
     EXPECT_FALSE(function->external);
     EXPECT_FALSE(function->exported);
   }
+
+  if (result.val) delete result.val;
 }
 }  // namespace wasm
 }  // namespace internal
