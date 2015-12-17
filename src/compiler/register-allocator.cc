@@ -278,7 +278,7 @@ LiveRange::LiveRange(int relative_id, MachineRepresentation rep,
 }
 
 
-void LiveRange::Verify() const {
+void LiveRange::VerifyPositions() const {
   // Walk the positions, verifying that each is in an interval.
   auto interval = first_interval_;
   for (auto pos = first_pos_; pos != nullptr; pos = pos->next()) {
@@ -290,6 +290,18 @@ void LiveRange::Verify() const {
       CHECK(interval != nullptr);
     }
   }
+}
+
+
+void LiveRange::VerifyIntervals() const {
+  DCHECK(first_interval()->start() == Start());
+  LifetimePosition last_end = first_interval()->end();
+  for (UseInterval* interval = first_interval()->next(); interval != nullptr;
+       interval = interval->next()) {
+    DCHECK(last_end <= interval->start());
+    last_end = interval->end();
+  }
+  DCHECK(last_end == End());
 }
 
 
@@ -530,8 +542,8 @@ UsePosition* LiveRange::DetachAt(LifetimePosition position, LiveRange* result,
   size_ = kInvalidSize;
   weight_ = kInvalidWeight;
 #ifdef DEBUG
-  Verify();
-  result->Verify();
+  VerifyChildStructure();
+  result->VerifyChildStructure();
 #endif
   return use_before;
 }
@@ -956,6 +968,24 @@ void TopLevelLiveRange::Merge(TopLevelLiveRange* other, Zone* zone) {
 #if DEBUG
   Verify();
 #endif
+}
+
+
+void TopLevelLiveRange::VerifyChildrenInOrder() const {
+  LifetimePosition last_end = End();
+  for (const LiveRange* child = this->next(); child != nullptr;
+       child = child->next()) {
+    DCHECK(last_end <= child->Start());
+    last_end = child->End();
+  }
+}
+
+
+void TopLevelLiveRange::Verify() const {
+  VerifyChildrenInOrder();
+  for (const LiveRange* child = this; child != nullptr; child = child->next()) {
+    VerifyChildStructure();
+  }
 }
 
 
@@ -2153,8 +2183,8 @@ void LiveRangeBuilder::Verify() const {
   for (auto& hint : phi_hints_) {
     CHECK(hint.second->IsResolved());
   }
-  for (LiveRange* current : data()->live_ranges()) {
-    if (current != nullptr) current->Verify();
+  for (TopLevelLiveRange* current : data()->live_ranges()) {
+    if (current != nullptr && !current->IsEmpty()) current->Verify();
   }
 }
 

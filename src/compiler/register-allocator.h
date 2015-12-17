@@ -398,7 +398,10 @@ class LiveRange : public ZoneObject {
   bool Covers(LifetimePosition position) const;
   LifetimePosition FirstIntersection(LiveRange* other) const;
 
-  void Verify() const;
+  void VerifyChildStructure() const {
+    VerifyIntervals();
+    VerifyPositions();
+  }
 
   void ConvertUsesToOperand(const InstructionOperand& op,
                             const InstructionOperand& spill_op);
@@ -430,6 +433,9 @@ class LiveRange : public ZoneObject {
   UseInterval* FirstSearchIntervalForPosition(LifetimePosition position) const;
   void AdvanceLastProcessedMarker(UseInterval* to_start_of,
                                   LifetimePosition but_not_past) const;
+
+  void VerifyPositions() const;
+  void VerifyIntervals() const;
 
   typedef BitField<bool, 0, 1> SpilledField;
   typedef BitField<int32_t, 6, 6> AssignedRegisterField;
@@ -592,6 +598,9 @@ class TopLevelLiveRange final : public LiveRange {
 #if DEBUG
   int debug_virt_reg() const;
 #endif
+
+  void Verify() const;
+  void VerifyChildrenInOrder() const;
 
   int GetNextChildId() {
     return IsSplinter() ? splintered_from()->GetNextChildId()
