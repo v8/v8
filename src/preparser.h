@@ -2787,7 +2787,7 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseObjectLiteral(
   Expect(Token::LBRACE, CHECK_OK);
 
   while (peek() != Token::RBRACE) {
-    if (fni_ != nullptr) fni_->Enter();
+    FuncNameInferrer::State fni_state(fni_);
 
     const bool in_class = false;
     const bool is_static = false;
@@ -2818,10 +2818,7 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseObjectLiteral(
       Expect(Token::COMMA, CHECK_OK);
     }
 
-    if (fni_ != nullptr) {
-      fni_->Infer();
-      fni_->Leave();
-    }
+    if (fni_ != nullptr) fni_->Infer();
   }
   Expect(Token::RBRACE, CHECK_OK);
 
@@ -2921,7 +2918,7 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
     return this->ParseYieldExpression(classifier, ok);
   }
 
-  if (fni_ != NULL) fni_->Enter();
+  FuncNameInferrer::State fni_state(fni_);
   ParserBase<Traits>::Checkpoint checkpoint(this);
   ExpressionClassifier arrow_formals_classifier(classifier->duplicate_finder());
   bool parenthesized_formals = peek() == Token::LPAREN;
@@ -2960,6 +2957,9 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
     }
     expression = this->ParseArrowFunctionLiteral(
         accept_IN, parameters, arrow_formals_classifier, CHECK_OK);
+
+    if (fni_ != nullptr) fni_->Infer();
+
     return expression;
   }
 
@@ -2970,7 +2970,6 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
                              ExpressionClassifier::FormalParametersProductions);
 
   if (!Token::IsAssignmentOp(peek())) {
-    if (fni_ != NULL) fni_->Leave();
     // Parsed conditional expression only (no assignment).
     return expression;
   }
@@ -3021,7 +3020,6 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
     } else {
       fni_->RemoveLastFunction();
     }
-    fni_->Leave();
   }
 
   return factory()->NewAssignment(op, expression, right, pos);
@@ -3488,7 +3486,7 @@ ParserBase<Traits>::ParseStrongInitializationExpression(
   //  'this' '.' IdentifierName '=' AssignmentExpression
   //  'this' '[' Expression ']' '=' AssignmentExpression
 
-  if (fni_ != NULL) fni_->Enter();
+  FuncNameInferrer::State fni_state(fni_);
 
   Consume(Token::THIS);
   int pos = position();
@@ -3547,7 +3545,6 @@ ParserBase<Traits>::ParseStrongInitializationExpression(
     } else {
       fni_->RemoveLastFunction();
     }
-    fni_->Leave();
   }
 
   if (function_state_->return_location().IsValid()) {
