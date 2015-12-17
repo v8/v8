@@ -42,8 +42,7 @@ RawBuffer GetRawBufferArgument(
     return {nullptr, nullptr};
   }
   Local<ArrayBuffer> buffer = Local<ArrayBuffer>::Cast(args[0]);
-  ArrayBuffer::Contents contents =
-      buffer->IsExternal() ? buffer->GetContents() : buffer->Externalize();
+  ArrayBuffer::Contents contents = buffer->GetContents();
 
   // TODO(titzer): allow offsets into buffers, views, etc.
 
@@ -82,7 +81,6 @@ void VerifyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(args.GetIsolate());
   ErrorThrower thrower(isolate, "WASM.verifyFunction()");
 
-  // TODO(titzer): no need to externalize to get the bytes for verification.
   RawBuffer buffer = GetRawBufferArgument(thrower, args);
   if (thrower.error()) return;
 
@@ -245,9 +243,6 @@ void InstantiateModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
     Local<Object> obj = Local<Object>::Cast(args[2]);
     i::Handle<i::Object> mem_obj = v8::Utils::OpenHandle(*obj);
     memory = i::Handle<i::JSArrayBuffer>(i::JSArrayBuffer::cast(*mem_obj));
-    i::Isolate* isolate = memory->GetIsolate();
-    memory->set_is_external(true);
-    isolate->heap()->UnregisterArrayBuffer(*memory);
   }
 
   // Decode but avoid a redundant pass over function bodies for verification.
@@ -308,6 +303,12 @@ static void InstallFunc(Isolate* isolate, Handle<JSObject> object,
 
 
 void WasmJs::Install(Isolate* isolate, Handle<JSGlobalObject> global) {
+  // Setup wasm function map.
+  Handle<Map> wasm_function_map = isolate->factory()->NewMap(
+      JS_FUNCTION_TYPE, JSFunction::kSize + kPointerSize);
+  wasm_function_map->set_is_callable();
+  global->native_context()->set_wasm_function_map(*wasm_function_map);
+
   // Bind the WASM object.
   Factory* factory = isolate->factory();
   Handle<String> name = v8_str(isolate, "WASM");

@@ -269,8 +269,9 @@ class CompilationInfo {
   bool is_first_compile() const { return GetFlag(kFirstCompile); }
 
   bool IsCodePreAgingActive() const {
+    // TODO(bradnelson): Figure out why this breaks wasm.
     return FLAG_optimize_for_size && FLAG_age_code && !will_serialize() &&
-           !is_debug();
+           !is_debug() && !FLAG_expose_wasm;
   }
 
   void EnsureFeedbackVector();

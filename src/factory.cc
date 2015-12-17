@@ -1214,6 +1214,8 @@ Handle<JSFunction> Factory::NewFunction(Handle<Map> map,
       map.is_identical_to(
           isolate()->sloppy_function_with_readonly_prototype_map()) ||
       map.is_identical_to(isolate()->strict_function_map()) ||
+      (FLAG_expose_wasm &&
+       map.is_identical_to(isolate()->wasm_function_map())) ||
       map.is_identical_to(isolate()->proxy_function_map()));
   return NewFunction(map, info, context);
 }

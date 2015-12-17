@@ -258,6 +258,7 @@ enum BindingFlags {
     sloppy_function_without_prototype_map)                                     \
   V(SLOPPY_FUNCTION_WITH_READONLY_PROTOTYPE_MAP_INDEX, Map,                    \
     sloppy_function_with_readonly_prototype_map)                               \
+  V(WASM_FUNCTION_MAP_INDEX, Map, wasm_function_map)                           \
   V(SLOPPY_GENERATOR_FUNCTION_MAP_INDEX, Map, sloppy_generator_function_map)   \
   V(SLOW_ALIASED_ARGUMENTS_MAP_INDEX, Map, slow_aliased_arguments_map)         \
   V(STRICT_ARGUMENTS_MAP_INDEX, Map, strict_arguments_map)                     \
