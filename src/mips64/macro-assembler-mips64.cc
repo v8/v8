@@ -1705,9 +1705,9 @@ void MacroAssembler::Trunc_ul_d(FPURegister fd, Register rs,
   Label simple_convert, done, fail;
   if (result.is_valid()) {
     mov(result, zero_reg);
-    Move(kDoubleRegZero, 0.0);
-    // If fd < 0 or unordered, then the conversion fails.
-    BranchF(&fail, &fail, lt, fd, kDoubleRegZero);
+    Move(scratch, -1.0);
+    // If fd =< -1 or unordered, then the conversion fails.
+    BranchF(&fail, &fail, le, fd, scratch);
   }
 
   // Load 2^63 into scratch as its double representation.
@@ -1753,9 +1753,9 @@ void MacroAssembler::Trunc_ul_s(FPURegister fd, Register rs,
   Label simple_convert, done, fail;
   if (result.is_valid()) {
     mov(result, zero_reg);
-    Move(kDoubleRegZero, 0.0);
-    // If fd < 0 or unordered, then the conversion fails.
-    BranchF32(&fail, &fail, lt, fd, kDoubleRegZero);
+    Move(scratch, -1.0f);
+    // If fd =< -1 or unordered, then the conversion fails.
+    BranchF32(&fail, &fail, le, fd, scratch);
   }
 
   // Load 2^63 into scratch as its float representation.

@@ -5529,19 +5529,16 @@ TEST(RunTryTruncateFloat64ToInt64WithCheck) {
 }
 
 
-TEST(RunTruncateFloat32ToUint64) {
+TEST(RunTryTruncateFloat32ToUint64WithoutCheck) {
   BufferedRawMachineAssemblerTester<uint64_t> m(MachineType::Float32());
   m.Return(m.TryTruncateFloat32ToUint64(m.Parameter(0)));
 
   FOR_UINT64_INPUTS(i) {
     float input = static_cast<float>(*i);
-    if (input < 18446744073709551616.0) {
+    // This condition on 'input' is required because
+    // static_cast<float>(UINT64_MAX) results in a value outside uint64 range.
+    if (input < static_cast<float>(UINT64_MAX)) {
       CHECK_EQ(static_cast<uint64_t>(input), m.Call(input));
-    }
-  }
-  FOR_FLOAT32_INPUTS(j) {
-    if (*j < 18446744073709551616.0 && *j >= 0) {
-      CHECK_EQ(static_cast<uint64_t>(*j), m.Call(*j));
     }
   }
 }
@@ -5557,7 +5554,7 @@ TEST(RunTryTruncateFloat32ToUint64WithCheck) {
   m.Return(val);
 
   FOR_FLOAT32_INPUTS(i) {
-    if (*i < 18446744073709551616.0 && *i >= 0.0) {
+    if (*i < static_cast<float>(UINT64_MAX) && *i > -1.0) {
       // Conversions within this range should succeed.
       CHECK_EQ(static_cast<uint64_t>(*i), m.Call(*i));
       CHECK_NE(0, success);
@@ -5576,7 +5573,7 @@ TEST(RunTryTruncateFloat64ToUint64WithoutCheck) {
   FOR_UINT64_INPUTS(j) {
     double input = static_cast<double>(*j);
 
-    if (input < 18446744073709551616.0) {
+    if (input < static_cast<float>(UINT64_MAX)) {
       CHECK_EQ(static_cast<uint64_t>(input), m.Call(input));
     }
   }
@@ -5593,7 +5590,7 @@ TEST(RunTryTruncateFloat64ToUint64WithCheck) {
   m.Return(val);
 
   FOR_FLOAT64_INPUTS(i) {
-    if (*i < 18446744073709551616.0 && *i >= 0) {
+    if (*i < 18446744073709551616.0 && *i > -1) {
       // Conversions within this range should succeed.
       CHECK_EQ(static_cast<uint64_t>(*i), m.Call(*i));
       CHECK_NE(0, success);

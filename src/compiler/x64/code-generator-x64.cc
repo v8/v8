@@ -1109,14 +1109,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       Label success;
       if (instr->OutputCount() > 1) {
         __ Set(i.OutputRegister(1), 0);
-        __ xorps(kScratchDoubleReg, kScratchDoubleReg);
-
-        if (instr->InputAt(0)->IsDoubleRegister()) {
-          __ Ucomiss(kScratchDoubleReg, i.InputDoubleRegister(0));
-        } else {
-          __ Ucomiss(kScratchDoubleReg, i.InputOperand(0));
-        }
-        __ j(above, &done);
       }
       // There does not exist a Float32ToUint64 instruction, so we have to use
       // the Float32ToInt64 instruction.
@@ -1160,14 +1152,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       Label success;
       if (instr->OutputCount() > 1) {
         __ Set(i.OutputRegister(1), 0);
-        __ xorps(kScratchDoubleReg, kScratchDoubleReg);
-
-        if (instr->InputAt(0)->IsDoubleRegister()) {
-          __ Ucomisd(kScratchDoubleReg, i.InputDoubleRegister(0));
-        } else {
-          __ Ucomisd(kScratchDoubleReg, i.InputOperand(0));
-        }
-        __ j(above, &done);
       }
       // There does not exist a Float64ToUint64 instruction, so we have to use
       // the Float64ToInt64 instruction.

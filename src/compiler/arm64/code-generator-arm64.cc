@@ -1070,16 +1070,16 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArm64Float32ToUint64:
       __ Fcvtzu(i.OutputRegister64(), i.InputFloat32Register(0));
       if (i.OutputCount() > 1) {
-        __ Fcmp(i.InputFloat32Register(0), 0.0);
-        __ Ccmp(i.OutputRegister(0), -1, ZFlag, ge);
+        __ Fcmp(i.InputFloat32Register(0), -1.0);
+        __ Ccmp(i.OutputRegister(0), -1, ZFlag, gt);
         __ Cset(i.OutputRegister(1), ne);
       }
       break;
     case kArm64Float64ToUint64:
       __ Fcvtzu(i.OutputRegister64(), i.InputDoubleRegister(0));
       if (i.OutputCount() > 1) {
-        __ Fcmp(i.InputDoubleRegister(0), 0.0);
-        __ Ccmp(i.OutputRegister(0), -1, ZFlag, ge);
+        __ Fcmp(i.InputDoubleRegister(0), -1.0);
+        __ Ccmp(i.OutputRegister(0), -1, ZFlag, gt);
         __ Cset(i.OutputRegister(1), ne);
       }
       break;
