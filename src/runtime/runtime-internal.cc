@@ -335,8 +335,8 @@ static inline Object* ReturnDereferencedHandle(Handle<Object> obj,
 }
 
 
-static inline Object* ReturnPositiveSmiOrNull(int value, Isolate* isolate) {
-  if (value >= 0) return Smi::FromInt(value);
+static inline Object* ReturnPositiveNumberOrNull(int value, Isolate* isolate) {
+  if (value >= 0) return *isolate->factory()->NewNumberFromInt(value);
   return isolate->heap()->null_value();
 }
 
@@ -350,8 +350,8 @@ CALLSITE_GET(GetFileName, ReturnDereferencedHandle)
 CALLSITE_GET(GetFunctionName, ReturnDereferencedHandle)
 CALLSITE_GET(GetScriptNameOrSourceUrl, ReturnDereferencedHandle)
 CALLSITE_GET(GetMethodName, ReturnDereferencedHandle)
-CALLSITE_GET(GetLineNumber, ReturnPositiveSmiOrNull)
-CALLSITE_GET(GetColumnNumber, ReturnPositiveSmiOrNull)
+CALLSITE_GET(GetLineNumber, ReturnPositiveNumberOrNull)
+CALLSITE_GET(GetColumnNumber, ReturnPositiveNumberOrNull)
 CALLSITE_GET(IsNative, ReturnBoolean)
 CALLSITE_GET(IsToplevel, ReturnBoolean)
 CALLSITE_GET(IsEval, ReturnBoolean)
