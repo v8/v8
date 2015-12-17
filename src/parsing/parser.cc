@@ -2910,6 +2910,8 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
           is_undefined, ThisExpression(scope_, factory(), pos),
           is_object_conditional, pos);
     }
+
+    return_value->MarkTail();
   }
   ExpectSemicolon(CHECK_OK);
 

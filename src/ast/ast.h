@@ -251,6 +251,7 @@ class Statement : public AstNode {
 
   bool IsEmpty() { return AsEmptyStatement() != NULL; }
   virtual bool IsJump() const { return false; }
+  virtual void MarkTail() {}
 };
 
 
@@ -314,6 +315,9 @@ class Expression : public AstNode {
     // Evaluated for control flow (and side effects).
     kTest
   };
+
+  // Mark this expression as being in tail position.
+  virtual void MarkTail() {}
 
   // True iff the expression is a valid reference expression.
   virtual bool IsValidReferenceExpression() const { return false; }
@@ -471,6 +475,10 @@ class Block final : public BreakableStatement {
         && labels() == NULL;  // Good enough as an approximation...
   }
 
+  void MarkTail() override {
+    if (!statements_.is_empty()) statements_.last()->MarkTail();
+  }
+
   Scope* scope() const { return scope_; }
   void set_scope(Scope* scope) { scope_ = scope; }
 
@@ -498,6 +506,8 @@ class DoExpression final : public Expression {
 
   Block* block() { return block_; }
   VariableProxy* result() { return result_; }
+
+  void MarkTail() override { block_->MarkTail(); }
 
  protected:
   DoExpression(Zone* zone, Block* block, VariableProxy* result, int pos)
@@ -934,6 +944,7 @@ class ExpressionStatement final : public Statement {
   void set_expression(Expression* e) { expression_ = e; }
   Expression* expression() const { return expression_; }
   bool IsJump() const override { return expression_->IsThrow(); }
+  void MarkTail() override { expression_->MarkTail(); }
 
  protected:
   ExpressionStatement(Zone* zone, Expression* expression, int pos)
@@ -1012,6 +1023,8 @@ class WithStatement final : public Statement {
   BailoutId ToObjectId() const { return BailoutId(local_id(0)); }
   BailoutId EntryId() const { return BailoutId(local_id(1)); }
 
+  void MarkTail() override { statement_->MarkTail(); }
+
  protected:
   WithStatement(Zone* zone, Scope* scope, Expression* expression,
                 Statement* statement, int pos)
@@ -1053,6 +1066,10 @@ class CaseClause final : public Expression {
   BailoutId EntryId() const { return BailoutId(local_id(0)); }
   TypeFeedbackId CompareId() { return TypeFeedbackId(local_id(1)); }
 
+  void MarkTail() override {
+    if (!statements_->is_empty()) statements_->last()->MarkTail();
+  }
+
   Type* compare_type() { return compare_type_; }
   void set_compare_type(Type* type) { compare_type_ = type; }
 
@@ -1082,6 +1099,10 @@ class SwitchStatement final : public BreakableStatement {
 
   Expression* tag() const { return tag_; }
   ZoneList<CaseClause*>* cases() const { return cases_; }
+
+  void MarkTail() override {
+    if (!cases_->is_empty()) cases_->last()->MarkTail();
+  }
 
  protected:
   SwitchStatement(Zone* zone, ZoneList<const AstRawString*>* labels, int pos)
@@ -1117,6 +1138,11 @@ class IfStatement final : public Statement {
   bool IsJump() const override {
     return HasThenStatement() && then_statement()->IsJump()
         && HasElseStatement() && else_statement()->IsJump();
+  }
+
+  void MarkTail() override {
+    then_statement_->MarkTail();
+    else_statement_->MarkTail();
   }
 
   void set_base_id(int id) { base_id_ = id; }
@@ -1188,6 +1214,8 @@ class TryCatchStatement final : public TryStatement {
   Block* catch_block() const { return catch_block_; }
   void set_catch_block(Block* b) { catch_block_ = b; }
 
+  void MarkTail() override { catch_block_->MarkTail(); }
+
  protected:
   TryCatchStatement(Zone* zone, Block* try_block, Scope* scope,
                     Variable* variable, Block* catch_block, int pos)
@@ -1209,6 +1237,8 @@ class TryFinallyStatement final : public TryStatement {
 
   Block* finally_block() const { return finally_block_; }
   void set_finally_block(Block* b) { finally_block_ = b; }
+
+  void MarkTail() override { finally_block_->MarkTail(); }
 
  protected:
   TryFinallyStatement(Zone* zone, Block* try_block, Block* finally_block,
@@ -1910,6 +1940,11 @@ class Call final : public Expression {
     bit_field_ = IsUninitializedField::update(bit_field_, b);
   }
 
+  bool is_tail() const { return IsTailField::decode(bit_field_); }
+  void MarkTail() override {
+    bit_field_ = IsTailField::update(bit_field_, true);
+  }
+
   enum CallType {
     POSSIBLY_EVAL_CALL,
     GLOBAL_CALL,
@@ -1955,6 +1990,7 @@ class Call final : public Expression {
   Handle<JSFunction> target_;
   Handle<AllocationSite> allocation_site_;
   class IsUninitializedField : public BitField8<bool, 0, 1> {};
+  class IsTailField : public BitField8<bool, 1, 1> {};
   uint8_t bit_field_;
 };
 
@@ -2109,6 +2145,17 @@ class BinaryOperation final : public Expression {
   Handle<AllocationSite> allocation_site() const { return allocation_site_; }
   void set_allocation_site(Handle<AllocationSite> allocation_site) {
     allocation_site_ = allocation_site;
+  }
+
+  void MarkTail() override {
+    switch (op()) {
+      case Token::COMMA:
+      case Token::AND:
+      case Token::OR:
+        right_->MarkTail();
+      default:
+        break;
+    }
   }
 
   // The short-circuit logical operations need an AST ID for their
@@ -2301,6 +2348,11 @@ class Conditional final : public Expression {
   Expression* condition() const { return condition_; }
   Expression* then_expression() const { return then_expression_; }
   Expression* else_expression() const { return else_expression_; }
+
+  void MarkTail() override {
+    then_expression_->MarkTail();
+    else_expression_->MarkTail();
+  }
 
   static int num_ids() { return parent_num_ids() + 2; }
   BailoutId ThenId() const { return BailoutId(local_id(0)); }
