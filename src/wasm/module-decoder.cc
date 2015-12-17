@@ -371,7 +371,8 @@ class ModuleDecoder : public Decoder {
       str << "in function #" << func_num << ": ";
       // TODO(titzer): add function name for the user?
       str << result;
-      const char* raw = str.str().c_str();
+      std::string strval = str.str();
+      const char* raw = strval.c_str();
       size_t len = strlen(raw);
       char* buffer = new char[len];
       strncpy(buffer, raw, len);
@@ -387,7 +388,7 @@ class ModuleDecoder : public Decoder {
   // the offset is within bounds and advances.
   uint32_t offset(const char* name = nullptr) {
     uint32_t offset = u32(name ? name : "offset");
-    if (offset > (limit_ - start_)) {
+    if (offset > static_cast<uint32_t>(limit_ - start_)) {
       error(pc_ - sizeof(uint32_t), "offset out of bounds of module");
     }
     return offset;

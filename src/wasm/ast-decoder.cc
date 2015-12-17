@@ -48,7 +48,7 @@ struct Production {
 
   WasmOpcode opcode() const { return static_cast<WasmOpcode>(*pc()); }
   const byte* pc() const { return tree->pc; }
-  bool done() const { return index >= tree->count; }
+  bool done() const { return index >= static_cast<int>(tree->count); }
   Tree* last() const { return index > 0 ? tree->children[index - 1] : nullptr; }
 };
 
@@ -611,7 +611,7 @@ class LR_WasmDecoder : public Decoder {
       return;
     }
 
-    if (trees_.size() < retcount) {
+    if (static_cast<int>(trees_.size()) < retcount) {
       error(limit_, nullptr,
             "ImplicitReturn expects %d arguments, only %d remain", retcount,
             static_cast<int>(trees_.size()));
@@ -998,7 +998,7 @@ class LR_WasmDecoder : public Decoder {
           FunctionSig* sig = FunctionSigOperand(p->pc(), &index, &len);
           USE(sig);
           buffer[0] = nullptr;  // reserved for code object.
-          for (int i = 1; i < count; i++) {
+          for (uint32_t i = 1; i < count; i++) {
             buffer[i] = p->tree->children[i - 1]->node;
           }
           p->tree->node = builder_->CallDirect(index, buffer);
@@ -1017,7 +1017,7 @@ class LR_WasmDecoder : public Decoder {
         if (p->done() && build()) {
           uint32_t count = p->tree->count;
           TFNode** buffer = builder_->Buffer(count);
-          for (int i = 0; i < count; i++) {
+          for (uint32_t i = 0; i < count; i++) {
             buffer[i] = p->tree->children[i]->node;
           }
           p->tree->node = builder_->CallIndirect(index, buffer);
@@ -1169,7 +1169,9 @@ class LR_WasmDecoder : public Decoder {
         } else if (to->effect != from->effect) {
           uint32_t count = builder_->InputCount(merge);
           TFNode** effects = builder_->Buffer(count);
-          for (int j = 0; j < count - 1; j++) effects[j] = to->effect;
+          for (uint32_t j = 0; j < count - 1; j++) {
+            effects[j] = to->effect;
+          }
           effects[count - 1] = from->effect;
           to->effect = builder_->EffectPhi(count, effects, merge);
         }
@@ -1182,7 +1184,9 @@ class LR_WasmDecoder : public Decoder {
           } else if (tnode != fnode) {
             uint32_t count = builder_->InputCount(merge);
             TFNode** vals = builder_->Buffer(count);
-            for (int j = 0; j < count - 1; j++) vals[j] = tnode;
+            for (uint32_t j = 0; j < count - 1; j++) {
+              vals[j] = tnode;
+            }
             vals[count - 1] = fnode;
             to->locals[i] = builder_->Phi(function_env_->GetLocalType(i), count,
                                           vals, merge);
@@ -1203,7 +1207,7 @@ class LR_WasmDecoder : public Decoder {
     } else if (tnode != fnode) {
       uint32_t count = builder_->InputCount(merge);
       TFNode** vals = builder_->Buffer(count);
-      for (int j = 0; j < count - 1; j++) vals[j] = tnode;
+      for (uint32_t j = 0; j < count - 1; j++) vals[j] = tnode;
       vals[count - 1] = fnode;
       return builder_->Phi(type, count, vals, merge);
     }
@@ -1430,7 +1434,7 @@ std::ostream& operator<<(std::ostream& os, const Tree& tree) {
   }
   PrintF("%s", WasmOpcodes::OpcodeName(tree.opcode()));
   if (tree.count > 0) os << "(";
-  for (int i = 0; i < tree.count; i++) {
+  for (uint32_t i = 0; i < tree.count; i++) {
     if (i > 0) os << ", ";
     os << *tree.children[i];
   }
@@ -1571,6 +1575,8 @@ int OpcodeArity(FunctionEnv* env, const byte* pc) {
       FOREACH_SIMPLE_OPCODE(DECLARE_OPCODE_CASE)
 #undef DECLARE_OPCODE_CASE
   }
+  UNREACHABLE();
+  return 0;
 }
 }  // namespace wasm
 }  // namespace internal

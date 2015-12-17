@@ -159,7 +159,7 @@ WasmFunctionEncoder* WasmFunctionBuilder::Build(Zone* zone,
       new (zone) WasmFunctionEncoder(zone, return_type_, exported_, external_);
   auto var_index = new uint16_t[locals_.size()];
   IndexVars(e, var_index);
-  const byte* start = body_.data();
+  const byte* start = &body_[0];
   const byte* end = start + body_.size();
   size_t local_index = 0;
   for (size_t i = 0; i < body_.size();) {
@@ -282,7 +282,7 @@ void WasmFunctionEncoder::Serialize(byte* buffer, byte** header,
   if (HasName()) {
     uint32_t name_offset = static_cast<uint32_t>(*body - buffer);
     EmitUint32(header, name_offset);
-    std::memcpy(*body, name_.data(), name_.size());
+    std::memcpy(*body, &name_[0], name_.size());
     (*body) += name_.size();
   }
 
@@ -295,7 +295,7 @@ void WasmFunctionEncoder::Serialize(byte* buffer, byte** header,
 
   if (!external_) {
     EmitUint16(header, static_cast<uint16_t>(body_.size()));
-    std::memcpy(*header, body_.data(), body_.size());
+    std::memcpy(*header, &body_[0], body_.size());
     (*header) += body_.size();
   }
 }
@@ -329,7 +329,7 @@ void WasmDataSegmentEncoder::Serialize(byte* buffer, byte** header,
   EmitUint32(header, static_cast<uint32_t>(data_.size()));
   EmitUint8(header, 1);  // init
 
-  std::memcpy(*body, data_.data(), data_.size());
+  std::memcpy(*body, &data_[0], data_.size());
   (*body) += data_.size();
 }
 
@@ -367,7 +367,7 @@ void WasmModuleBuilder::AddDataSegment(WasmDataSegmentEncoder* data) {
 
 
 int WasmModuleBuilder::CompareFunctionSigs::operator()(FunctionSig* a,
-                                                       FunctionSig* b) {
+                                                       FunctionSig* b) const {
   if (a->return_count() < b->return_count()) return -1;
   if (a->return_count() > b->return_count()) return 1;
   if (a->parameter_count() < b->parameter_count()) return -1;
@@ -493,7 +493,7 @@ WasmModuleIndex* WasmModuleWriter::WriteTo(Zone* zone) const {
   if (sizes.body_size > 0) sizes.Add(1, 0);
 
   ZoneVector<uint8_t> buffer_vector(sizes.total(), zone);
-  byte* buffer = buffer_vector.data();
+  byte* buffer = &buffer_vector[0];
   byte* header = buffer;
   byte* body = buffer + sizes.header_size;
 

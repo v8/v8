@@ -35,8 +35,10 @@ struct FunctionEnv {
   bool IsValidLocal(uint32_t index) { return index < total_locals; }
   uint32_t GetLocalCount() { return total_locals; }
   LocalType GetLocalType(uint32_t index) {
-    if (index < sig->parameter_count()) return sig->GetParam(index);
-    index -= sig->parameter_count();
+    if (index < static_cast<uint32_t>(sig->parameter_count())) {
+      return sig->GetParam(index);
+    }
+    index -= static_cast<uint32_t>(sig->parameter_count());
     if (index < local_int32_count) return kAstI32;
     index -= local_int32_count;
     if (index < local_int64_count) return kAstI64;

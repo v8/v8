@@ -198,8 +198,8 @@ class Decoder {
       error_msg_.Reset(nullptr);
     } else {
       result.error_code = kSuccess;
-      result.val = val;
     }
+    result.val = val;
     return result;
   }
 

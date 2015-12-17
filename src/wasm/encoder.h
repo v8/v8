@@ -135,7 +135,7 @@ class WasmModuleBuilder : public ZoneObject {
 
  private:
   struct CompareFunctionSigs {
-    int operator()(FunctionSig* a, FunctionSig* b);
+    int operator()(FunctionSig* a, FunctionSig* b) const;
   };
   typedef ZoneMap<FunctionSig*, uint16_t, CompareFunctionSigs> SignatureMap;
 
