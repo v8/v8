@@ -2823,8 +2823,15 @@ void LCodeGen::DoHasInPrototypeChainAndBranch(
   __ mov(object_map, FieldOperand(object, HeapObject::kMapOffset));
   Label loop;
   __ bind(&loop);
+
+  // Deoptimize if the object needs to be access checked.
+  __ test_b(FieldOperand(object_map, Map::kBitFieldOffset),
+            1 << Map::kIsAccessCheckNeeded);
+  DeoptimizeIf(not_zero, instr, Deoptimizer::kAccessCheck);
+  // Deoptimize for proxies.
   __ CmpInstanceType(object_map, JS_PROXY_TYPE);
   DeoptimizeIf(equal, instr, Deoptimizer::kProxy);
+
   __ mov(object_prototype, FieldOperand(object_map, Map::kPrototypeOffset));
   __ cmp(object_prototype, prototype);
   EmitTrueBranch(instr, equal);

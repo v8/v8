@@ -2280,19 +2280,22 @@ void InstanceOfStub::Generate(MacroAssembler* masm) {
   __ mov(eax, isolate()->factory()->true_value());
   __ bind(&loop);
 
+  // Check if the object needs to be access checked.
   __ test_b(FieldOperand(object_map, Map::kBitFieldOffset),
             1 << Map::kIsAccessCheckNeeded);
   __ j(not_zero, &fast_runtime_fallback, Label::kNear);
+  // Check if the current object is a Proxy.
   __ CmpInstanceType(object_map, JS_PROXY_TYPE);
   __ j(equal, &fast_runtime_fallback, Label::kNear);
 
   __ mov(object, FieldOperand(object_map, Map::kPrototypeOffset));
   __ cmp(object, function_prototype);
   __ j(equal, &done, Label::kNear);
-  __ cmp(object, isolate()->factory()->null_value());
   __ mov(object_map, FieldOperand(object, HeapObject::kMapOffset));
+  __ cmp(object, isolate()->factory()->null_value());
   __ j(not_equal, &loop);
   __ mov(eax, isolate()->factory()->false_value());
+
   __ bind(&done);
   __ StoreRoot(eax, scratch, Heap::kInstanceofCacheAnswerRootIndex);
   __ ret(0);
