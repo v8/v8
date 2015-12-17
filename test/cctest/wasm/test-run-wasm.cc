@@ -264,7 +264,7 @@ class WasmFunctionCompiler : public HandleAndZoneScope,
   uint32_t CompileAndAdd(TestingModule* module) {
     uint32_t index = 0;
     if (module->module && module->module->functions) {
-      index = module->module->functions->size();
+      index = static_cast<uint32_t>(module->module->functions->size());
     }
     module->AddFunction(env.sig, Compile(module));
     return index;
@@ -2620,7 +2620,7 @@ TEST(Run_WasmCallF32StackParameter) {
   TestingModule module;
   WasmFunctionCompiler t(&sig);
   BUILD(t, WASM_GET_LOCAL(17));
-  unsigned index = t.CompileAndAdd(&module);
+  uint32_t index = t.CompileAndAdd(&module);
 
   // Build the calling function.
   WasmRunner<float> r;
@@ -2646,7 +2646,7 @@ TEST(Run_WasmCallF64StackParameter) {
   TestingModule module;
   WasmFunctionCompiler t(&sig);
   BUILD(t, WASM_GET_LOCAL(17));
-  unsigned index = t.CompileAndAdd(&module);
+  uint32_t index = t.CompileAndAdd(&module);
 
   // Build the calling function.
   WasmRunner<double> r;

@@ -319,7 +319,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
         std::vector<uint8_t> index =
             UnsignedLEB128From(LookupOrInsertFunction(var));
         current_function_builder_->EmitCode(
-            index.data(), static_cast<uint32_t>(index.size()));
+            &index[0], static_cast<uint32_t>(index.size()));
       } else {
         if (is_set_op_) {
           if (var->IsContextSlot()) {
@@ -786,11 +786,11 @@ class AsmWasmBuilderImpl : public AstVisitor {
     if (is_local) {
       uint32_t pos_of_index[1] = {0};
       current_function_builder_->EmitCode(
-          index_vec.data(), static_cast<uint32_t>(index_vec.size()),
-          pos_of_index, 1);
+          &index_vec[0], static_cast<uint32_t>(index_vec.size()), pos_of_index,
+          1);
     } else {
       current_function_builder_->EmitCode(
-          index_vec.data(), static_cast<uint32_t>(index_vec.size()));
+          &index_vec[0], static_cast<uint32_t>(index_vec.size()));
     }
   }
 
@@ -856,6 +856,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
       return kFloat64;
     } else {
       UNREACHABLE();
+      return kInt32;
     }
   }
 

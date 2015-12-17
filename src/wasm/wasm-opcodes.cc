@@ -73,8 +73,8 @@ FunctionSig* WasmOpcodes::Signature(WasmOpcode opcode) {
 
 
 bool WasmOpcodes::IsSupported(WasmOpcode opcode) {
-  switch (opcode) {
 #if !WASM_64
+  switch (opcode) {
     // Opcodes not supported on 32-bit platforms.
     case kExprI64Add:
     case kExprI64Sub:
@@ -120,11 +120,13 @@ bool WasmOpcodes::IsSupported(WasmOpcode opcode) {
     case kExprI64UConvertF32:
     case kExprI64UConvertF64:
 
-#endif
       return false;
     default:
       return true;
   }
+#else
+  return true;
+#endif
 }
 }  // namespace wasm
 }  // namespace internal
