@@ -3097,6 +3097,7 @@ void ReferenceMapPopulator::PopulateReferenceMaps() {
                 AllocatedOperand::cast(spill_operand).representation());
     }
 
+    LiveRange* cur = range;
     // Step through the safe points to see whether they are in the range.
     for (auto it = first_it; it != reference_maps->end(); ++it) {
       auto map = *it;
@@ -3109,11 +3110,31 @@ void ReferenceMapPopulator::PopulateReferenceMaps() {
       // safe point position.
       auto safe_point_pos =
           LifetimePosition::InstructionFromInstructionIndex(safe_point);
-      LiveRange* cur = range;
-      while (cur != nullptr && !cur->Covers(safe_point_pos)) {
-        cur = cur->next();
+
+      // Search for the child range (cur) that covers safe_point_pos. If we
+      // don't find it before the children pass safe_point_pos, keep cur at
+      // the last child, because the next safe_point_pos may be covered by cur.
+      // This may happen if cur has more than one interval, and the current
+      // safe_point_pos is in between intervals.
+      // For that reason, cur may be at most the last child.
+      DCHECK_NOT_NULL(cur);
+      DCHECK(safe_point_pos >= cur->Start() || range == cur);
+      bool found = false;
+      while (!found) {
+        if (cur->Covers(safe_point_pos)) {
+          found = true;
+        } else {
+          LiveRange* next = cur->next();
+          if (next == nullptr || next->Start() > safe_point_pos) {
+            break;
+          }
+          cur = next;
+        }
       }
-      if (cur == nullptr) continue;
+
+      if (!found) {
+        continue;
+      }
 
       // Check if the live range is spilled and the safe point is after
       // the spill position.
