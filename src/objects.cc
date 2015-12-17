@@ -77,9 +77,7 @@ Handle<HeapType> Object::OptimalType(Isolate* isolate,
     if (representation.IsHeapObject() && IsHeapObject()) {
       // We can track only JavaScript objects with stable maps.
       Handle<Map> map(HeapObject::cast(this)->map(), isolate);
-      if (map->is_stable() &&
-          map->instance_type() >= FIRST_NONCALLABLE_SPEC_OBJECT_TYPE &&
-          map->instance_type() <= LAST_NONCALLABLE_SPEC_OBJECT_TYPE) {
+      if (map->is_stable() && map->IsJSReceiverMap()) {
         return HeapType::Class(map, isolate);
       }
     }

@@ -4813,6 +4813,10 @@ bool Map::IsPrimitiveMap() {
   STATIC_ASSERT(FIRST_PRIMITIVE_TYPE == FIRST_TYPE);
   return instance_type() <= LAST_PRIMITIVE_TYPE;
 }
+bool Map::IsJSReceiverMap() {
+  STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
+  return instance_type() >= FIRST_JS_RECEIVER_TYPE;
+}
 bool Map::IsJSObjectMap() {
   STATIC_ASSERT(LAST_JS_OBJECT_TYPE == LAST_TYPE);
   return instance_type() >= FIRST_JS_OBJECT_TYPE;

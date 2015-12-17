@@ -759,12 +759,6 @@ enum InstanceType {
   // Boundaries for testing the types represented as JSObject
   FIRST_JS_OBJECT_TYPE = JS_VALUE_TYPE,
   LAST_JS_OBJECT_TYPE = LAST_TYPE,
-  //
-  FIRST_NONCALLABLE_SPEC_OBJECT_TYPE = JS_VALUE_TYPE,
-  LAST_NONCALLABLE_SPEC_OBJECT_TYPE = JS_REGEXP_TYPE,
-  // Note that the types for which typeof is "function" are not continuous.
-  // Define this so that we can put assertions on discrete checks.
-  NUM_OF_CALLABLE_SPEC_OBJECT_TYPES = 2
 };
 
 STATIC_ASSERT(JS_OBJECT_TYPE == Internals::kJSObjectType);
@@ -5928,6 +5922,7 @@ class Map: public HeapObject {
 
   inline bool IsBooleanMap();
   inline bool IsPrimitiveMap();
+  inline bool IsJSReceiverMap();
   inline bool IsJSObjectMap();
   inline bool IsJSArrayMap();
   inline bool IsJSFunctionMap();
