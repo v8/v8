@@ -705,7 +705,9 @@ RUNTIME_FUNCTION(Runtime_HasOwnProperty) {
     // handle all cases directly (without this custom fast path).
     Maybe<bool> maybe = Nothing<bool>();
     if (key_is_array_index) {
-      maybe = JSObject::HasOwnElement(js_obj, index);
+      LookupIterator it(js_obj->GetIsolate(), js_obj, index,
+                        LookupIterator::HIDDEN);
+      maybe = JSReceiver::HasProperty(&it);
     } else {
       maybe = JSObject::HasRealNamedProperty(js_obj, key);
     }

@@ -7183,9 +7183,16 @@ Maybe<bool> JSReceiver::HasProperty(Handle<JSReceiver> object,
 
 Maybe<bool> JSReceiver::HasOwnProperty(Handle<JSReceiver> object,
                                        Handle<Name> name) {
-  LookupIterator it = LookupIterator::PropertyOrElement(
-      object->GetIsolate(), object, name, LookupIterator::HIDDEN);
-  return HasProperty(&it);
+  if (object->IsJSObject()) {  // Shortcut
+    LookupIterator it = LookupIterator::PropertyOrElement(
+        object->GetIsolate(), object, name, LookupIterator::HIDDEN);
+    return HasProperty(&it);
+  }
+
+  Maybe<PropertyAttributes> attributes =
+      JSReceiver::GetOwnPropertyAttributes(object, name);
+  MAYBE_RETURN(attributes, Nothing<bool>());
+  return Just(attributes.FromJust() != ABSENT);
 }
 
 
@@ -7207,14 +7214,6 @@ Maybe<PropertyAttributes> JSReceiver::GetOwnPropertyAttributes(
 
 Maybe<bool> JSReceiver::HasElement(Handle<JSReceiver> object, uint32_t index) {
   LookupIterator it(object->GetIsolate(), object, index);
-  return HasProperty(&it);
-}
-
-
-Maybe<bool> JSReceiver::HasOwnElement(Handle<JSReceiver> object,
-                                      uint32_t index) {
-  LookupIterator it(object->GetIsolate(), object, index,
-                    LookupIterator::HIDDEN);
   return HasProperty(&it);
 }
 

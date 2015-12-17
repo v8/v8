@@ -14,25 +14,25 @@ assertFalse(target.hasOwnProperty('b'));
 assertFalse(proxy.hasOwnProperty('b'));
 
 
-handler.has = function() {
-  return false;
-}
+handler.has = function() { assertUnreachable() }
+handler.getOwnPropertyDescriptor = function () {}
+
 assertTrue(target.hasOwnProperty('a'));
 assertFalse(proxy.hasOwnProperty('a'));
 assertFalse(target.hasOwnProperty('b'));
 assertFalse(proxy.hasOwnProperty('b'));
 
-handler.has = function() {
-  return true;
-}
+
+handler.getOwnPropertyDescriptor = function() { return {configurable: true} }
+
 assertTrue(target.hasOwnProperty('a'));
 assertTrue(proxy.hasOwnProperty('a'));
 assertFalse(target.hasOwnProperty('b'));
 assertTrue(proxy.hasOwnProperty('b'));
 
-handler.has = function() {
-  throw Error();
-}
+
+handler.getOwnPropertyDescriptor = function() { throw Error(); }
+
 assertTrue(target.hasOwnProperty('a'));
 assertThrows(function(){ proxy.hasOwnProperty('a') }, Error);
 assertFalse(target.hasOwnProperty('b'));

@@ -971,19 +971,19 @@ function TestHasOwn2(create, handler) {
 }
 
 TestHasOwn({
-  has(t, k) { key = k; return k < "z" }
+  getOwnPropertyDescriptor(t, k) {
+    key = k; if (k < "z") return {configurable: true}
+  },
+  has() { assertUnreachable() }
 })
 
 TestHasOwn({
-  has(t, k) { return this.hasOwn2(k) },
-  hasOwn2(k) { key = k; return k < "z" }
+  getOwnPropertyDescriptor(t, k) { return this.getOwnPropertyDescriptor2(k) },
+  getOwnPropertyDescriptor2(k) {
+    key = k; if (k < "z") return {configurable: true}
+  }
 })
 
-TestHasOwn(new Proxy({}, {
-  get(pt, pk, pr) {
-    return (t, k) => { key = k; return k < "z" }
-  }
-}))
 
 
 // ---------------------------------------------------------------------------
@@ -1000,24 +1000,13 @@ function TestHasOwnThrow2(create, handler) {
 }
 
 TestHasOwnThrow({
-  has(t, k) { throw "myexn" }
+  getOwnPropertyDescriptor(t, k) { throw "myexn" }
 })
 
 TestHasOwnThrow({
-  has(t, k) { return this.hasOwn2(k) },
-  hasOwn2(k) { throw "myexn" }
-})
-
-TestHasOwnThrow(new Proxy({}, {
-  get(pt, pk, pr) { throw "myexn" }
-}))
-
-TestHasOwnThrow(new Proxy({}, {
-  get(pt, pk, pr) {
-    return (t, k) => { throw "myexn" }
-  }
-}));
-
+  getOwnPropertyDescriptor(t, k) { return this.getOwnPropertyDescriptor2(k) },
+  getOwnPropertyDescriptor2(k) { throw "myexn" }
+});
 
 
 // ---------------------------------------------------------------------------

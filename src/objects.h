@@ -1806,12 +1806,11 @@ class JSReceiver: public HeapObject {
   MUST_USE_RESULT static Maybe<bool> HasProperty(LookupIterator* it);
   MUST_USE_RESULT static inline Maybe<bool> HasProperty(
       Handle<JSReceiver> object, Handle<Name> name);
-  MUST_USE_RESULT static inline Maybe<bool> HasOwnProperty(Handle<JSReceiver>,
-                                                           Handle<Name> name);
   MUST_USE_RESULT static inline Maybe<bool> HasElement(
       Handle<JSReceiver> object, uint32_t index);
-  MUST_USE_RESULT static inline Maybe<bool> HasOwnElement(
-      Handle<JSReceiver> object, uint32_t index);
+
+  MUST_USE_RESULT static inline Maybe<bool> HasOwnProperty(
+      Handle<JSReceiver> object, Handle<Name> name);
 
   // Implementation of ES6 [[Delete]]
   MUST_USE_RESULT static Maybe<bool> DeletePropertyOrElement(
