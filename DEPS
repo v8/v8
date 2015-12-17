@@ -30,13 +30,13 @@ deps = {
   "v8/test/test262/data":
     Var("git_url") + "/external/github.com/tc39/test262.git" + "@" + "fd44cd73dfbce0b515a2474b7cd505d6176a9eb5",
   "v8/tools/clang":
-    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "6261565695263bd878edd055e81ecc5e989711d6",
+    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "67c5521f1878f7929f8f0afc74b31627b3bbffb3",
 }
 
 deps_os = {
   "android": {
     "v8/third_party/android_tools":
-      Var("git_url") + "/android_tools.git" + "@" + "54492f99c84cab0826a8e656efeb33a1b1bf5a04",
+      Var("git_url") + "/android_tools.git" + "@" + "f4c36ad89b2696b37d9cd7ca7d984b691888b188",
   },
   "win": {
     "v8/third_party/cygwin":
