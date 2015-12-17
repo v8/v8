@@ -170,6 +170,7 @@
         'test-strtod.cc',
         'test-thread-termination.cc',
         'test-threads.cc',
+        'test-trace-event.cc',
         'test-transitions.cc',
         'test-typedarrays.cc',
         'test-types.cc',

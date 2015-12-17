@@ -686,6 +686,7 @@
           '-pedantic',
           # Don't warn about the "struct foo f = {0};" initialization pattern.
           '-Wno-missing-field-initializers',
+          '-Wno-gnu-zero-variadic-macro-arguments',
         ],
         'cflags_cc': [
           '-Wnon-virtual-dtor',
@@ -695,6 +696,16 @@
         ],
         'ldflags': [ '-pthread', ],
         'conditions': [
+          # Don't warn about TRACE_EVENT_* macros with zero arguments passed to
+          # ##__VA_ARGS__. C99 strict mode prohibits having zero variadic macro
+          # arguments in gcc.
+          [ 'clang==0', {
+            'cflags!' : [
+              '-pedantic' ,
+              # Don't warn about unrecognized command line option.
+              '-Wno-gnu-zero-variadic-macro-arguments',
+            ],
+          }],
           [ 'clang==1 and (v8_target_arch=="x64" or v8_target_arch=="arm64" \
             or v8_target_arch=="mips64el")', {
             'cflags': [ '-Wshorten-64-to-32' ],
@@ -726,6 +737,7 @@
           '-Wno-unused-parameter',
           # Don't warn about the "struct foo f = {0};" initialization pattern.
           '-Wno-missing-field-initializers',
+          '-Wno-gnu-zero-variadic-macro-arguments',
         ],
         'cflags_cc': [
           '-Wnon-virtual-dtor',
@@ -950,6 +962,7 @@
             '-Wno-unused-parameter',
             # Don't warn about the "struct foo f = {0};" initialization pattern.
             '-Wno-missing-field-initializers',
+            '-Wno-gnu-zero-variadic-macro-arguments',
           ],
         },
         'conditions': [

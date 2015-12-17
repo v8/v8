@@ -1,4 +1,5 @@
 include_rules = [
+  "+base/trace_event/common/trace_event_common.h",
   "+src",
   "-src/compiler",
   "+src/compiler/pipeline.h",

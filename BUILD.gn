@@ -595,6 +595,8 @@ source_set("v8_base") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   sources = [
+    # TODO(fmeawad): This needs to be updated to support standalone V8 builds.
+    "../base/trace_event/common/trace_event_common.h",
     "include/v8-debug.h",
     "include/v8-experimental.h",
     "include/v8-platform.h",
@@ -1247,6 +1249,8 @@ source_set("v8_base") {
     "src/string-stream.h",
     "src/strtod.cc",
     "src/strtod.h",
+    "src/tracing/trace-event.cc",
+    "src/tracing/trace-event.h",
     "src/transitions-inl.h",
     "src/transitions.cc",
     "src/transitions.h",

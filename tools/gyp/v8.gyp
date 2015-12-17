@@ -367,6 +367,8 @@
       },
       'include_dirs+': [
         '../..',
+        # To be able to find base/trace_event/common/trace_event_common.h
+        '../../..',
       ],
       'defines': [
         # TODO(jochen): Remove again after this is globally turned on.
@@ -1030,6 +1032,8 @@
         '../../src/strtod.h',
         '../../src/ic/stub-cache.cc',
         '../../src/ic/stub-cache.h',
+        '../../src/tracing/trace-event.cc',
+        '../../src/tracing/trace-event.h',
         '../../src/transitions-inl.h',
         '../../src/transitions.cc',
         '../../src/transitions.h',
