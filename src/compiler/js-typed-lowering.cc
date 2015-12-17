@@ -1411,8 +1411,9 @@ const int kMaxInlineInstanceSize = 64 * kPointerSize;
 
 // Checks whether allocation using the given constructor can be inlined.
 bool IsAllocationInlineable(Handle<JSFunction> constructor) {
-  // TODO(bmeurer): Support inlining of class constructors.
-  if (IsClassConstructor(constructor->shared()->kind())) return false;
+  // TODO(bmeurer): Further relax restrictions on inlining, i.e.
+  // instance type and maybe instance size (inobject properties
+  // are limited anyways by the runtime).
   return constructor->has_initial_map() &&
          constructor->initial_map()->instance_type() == JS_OBJECT_TYPE &&
          constructor->initial_map()->instance_size() < kMaxInlineInstanceSize;
