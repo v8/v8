@@ -59,6 +59,22 @@ FlagsCondition CommuteFlagsCondition(FlagsCondition condition) {
 }
 
 
+void InstructionOperand::Print(const RegisterConfiguration* config) const {
+  OFStream os(stdout);
+  PrintableInstructionOperand wrapper;
+  wrapper.register_configuration_ = config;
+  wrapper.op_ = *this;
+  os << wrapper << std::endl;
+}
+
+
+void InstructionOperand::Print() const {
+  const RegisterConfiguration* config =
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN);
+  Print(config);
+}
+
+
 std::ostream& operator<<(std::ostream& os,
                          const PrintableInstructionOperand& printable) {
   const InstructionOperand& op = printable.op_;
@@ -149,6 +165,24 @@ std::ostream& operator<<(std::ostream& os,
   }
   UNREACHABLE();
   return os;
+}
+
+
+void MoveOperands::Print(const RegisterConfiguration* config) const {
+  OFStream os(stdout);
+  PrintableInstructionOperand wrapper;
+  wrapper.register_configuration_ = config;
+  wrapper.op_ = destination();
+  os << wrapper << " = ";
+  wrapper.op_ = source();
+  os << wrapper << std::endl;
+}
+
+
+void MoveOperands::Print() const {
+  const RegisterConfiguration* config =
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN);
+  Print(config);
 }
 
 
@@ -251,6 +285,22 @@ bool Instruction::AreMovesRedundant() const {
     }
   }
   return true;
+}
+
+
+void Instruction::Print(const RegisterConfiguration* config) const {
+  OFStream os(stdout);
+  PrintableInstruction wrapper;
+  wrapper.instr_ = this;
+  wrapper.register_configuration_ = config;
+  os << wrapper << std::endl;
+}
+
+
+void Instruction::Print() const {
+  const RegisterConfiguration* config =
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN);
+  Print(config);
 }
 
 
@@ -741,6 +791,22 @@ bool InstructionSequence::GetSourcePosition(const Instruction* instr,
 void InstructionSequence::SetSourcePosition(const Instruction* instr,
                                             SourcePosition value) {
   source_positions_.insert(std::make_pair(instr, value));
+}
+
+
+void InstructionSequence::Print(const RegisterConfiguration* config) const {
+  OFStream os(stdout);
+  PrintableInstructionSequence wrapper;
+  wrapper.register_configuration_ = config;
+  wrapper.sequence_ = this;
+  os << wrapper << std::endl;
+}
+
+
+void InstructionSequence::Print() const {
+  const RegisterConfiguration* config =
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN);
+  Print(config);
 }
 
 

@@ -94,6 +94,9 @@ class InstructionOperand {
     return this->GetCanonicalizedValue() < that.GetCanonicalizedValue();
   }
 
+  void Print(const RegisterConfiguration* config) const;
+  void Print() const;
+
  protected:
   explicit InstructionOperand(Kind kind) : value_(KindField::encode(kind)) {}
 
@@ -588,6 +591,9 @@ class MoveOperands final : public ZoneObject {
     return source_.IsInvalid();
   }
 
+  void Print(const RegisterConfiguration* config) const;
+  void Print() const;
+
  private:
   InstructionOperand source_;
   InstructionOperand destination_;
@@ -790,6 +796,9 @@ class Instruction final {
 
   ParallelMove* const* parallel_moves() const { return &parallel_moves_[0]; }
   ParallelMove** parallel_moves() { return &parallel_moves_[0]; }
+
+  void Print(const RegisterConfiguration* config) const;
+  void Print() const;
 
  private:
   explicit Instruction(InstructionCode opcode);
@@ -1246,6 +1255,8 @@ class InstructionSequence final : public ZoneObject {
     }
     return false;
   }
+  void Print(const RegisterConfiguration* config) const;
+  void Print() const;
 
  private:
   friend std::ostream& operator<<(std::ostream& os,

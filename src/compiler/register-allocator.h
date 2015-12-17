@@ -135,6 +135,8 @@ class LifetimePosition final {
     return this->value_ >= that.value_;
   }
 
+  void Print() const;
+
   static inline LifetimePosition Invalid() { return LifetimePosition(); }
 
   static inline LifetimePosition MaxPosition() {
@@ -409,6 +411,8 @@ class LiveRange : public ZoneObject {
   void set_weight(float weight) { weight_ = weight; }
   LiveRangeGroup* group() const { return group_; }
   void set_group(LiveRangeGroup* group) { group_ = group; }
+  void Print(const RegisterConfiguration* config, bool with_children) const;
+  void Print(bool with_children) const;
 
   static const int kInvalidSize = -1;
   static const float kInvalidWeight;
@@ -688,6 +692,7 @@ class SpillRange final : public ZoneObject {
   ZoneVector<TopLevelLiveRange*>& live_ranges() { return live_ranges_; }
   int byte_width() const { return byte_width_; }
   RegisterKind kind() const { return kind_; }
+  void Print() const;
 
  private:
   LifetimePosition End() const { return end_position_; }
@@ -810,13 +815,6 @@ class RegisterAllocationData final : public ZoneObject {
   RangesWithPreassignedSlots& preassigned_slot_ranges() {
     return preassigned_slot_ranges_;
   }
-
-  void Print(const InstructionSequence* instructionSequence);
-  void Print(const Instruction* instruction);
-  void Print(const LiveRange* range, bool with_children = false);
-  void Print(const InstructionOperand& op);
-  void Print(const MoveOperands* move);
-  void Print(const SpillRange* spill_range);
 
  private:
   int GetNextLiveRangeId();

@@ -230,6 +230,12 @@ UseInterval* UseInterval::SplitAt(LifetimePosition pos, Zone* zone) {
 }
 
 
+void LifetimePosition::Print() const {
+  OFStream os(stdout);
+  os << *this << std::endl;
+}
+
+
 std::ostream& operator<<(std::ostream& os, const LifetimePosition pos) {
   os << '@' << pos.ToInstructionIndex();
   if (pos.IsGapPosition()) {
@@ -661,6 +667,26 @@ unsigned LiveRange::GetSize() {
   }
 
   return static_cast<unsigned>(size_);
+}
+
+
+void LiveRange::Print(const RegisterConfiguration* config,
+                      bool with_children) const {
+  OFStream os(stdout);
+  PrintableLiveRange wrapper;
+  wrapper.register_configuration_ = config;
+  for (const LiveRange* i = this; i != nullptr; i = i->next()) {
+    wrapper.range_ = i;
+    os << wrapper << std::endl;
+    if (!with_children) break;
+  }
+}
+
+
+void LiveRange::Print(bool with_children) const {
+  const RegisterConfiguration* config =
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN);
+  Print(config, with_children);
 }
 
 
@@ -1180,6 +1206,21 @@ void SpillRange::MergeDisjointIntervals(UseInterval* other) {
 }
 
 
+void SpillRange::Print() const {
+  OFStream os(stdout);
+  os << "{" << std::endl;
+  for (TopLevelLiveRange* range : live_ranges()) {
+    os << range->vreg() << " ";
+  }
+  os << std::endl;
+
+  for (UseInterval* i = interval(); i != nullptr; i = i->next()) {
+    os << '[' << i->start() << ", " << i->end() << ')' << std::endl;
+  }
+  os << "}" << std::endl;
+}
+
+
 RegisterAllocationData::PhiMapValue::PhiMapValue(PhiInstruction* phi,
                                                  const InstructionBlock* block,
                                                  Zone* zone)
@@ -1419,74 +1460,6 @@ bool RegisterAllocationData::IsBlockBoundary(LifetimePosition pos) const {
   return pos.IsFullStart() &&
          code()->GetInstructionBlock(pos.ToInstructionIndex())->code_start() ==
              pos.ToInstructionIndex();
-}
-
-
-void RegisterAllocationData::Print(
-    const InstructionSequence* instructionSequence) {
-  OFStream os(stdout);
-  PrintableInstructionSequence wrapper;
-  wrapper.register_configuration_ = config();
-  wrapper.sequence_ = instructionSequence;
-  os << wrapper << std::endl;
-}
-
-
-void RegisterAllocationData::Print(const Instruction* instruction) {
-  OFStream os(stdout);
-  PrintableInstruction wrapper;
-  wrapper.instr_ = instruction;
-  wrapper.register_configuration_ = config();
-  os << wrapper << std::endl;
-}
-
-
-void RegisterAllocationData::Print(const LiveRange* range, bool with_children) {
-  OFStream os(stdout);
-  PrintableLiveRange wrapper;
-  wrapper.register_configuration_ = config();
-  for (const LiveRange* i = range; i != nullptr; i = i->next()) {
-    wrapper.range_ = i;
-    os << wrapper << std::endl;
-    if (!with_children) break;
-  }
-}
-
-
-void RegisterAllocationData::Print(const InstructionOperand& op) {
-  OFStream os(stdout);
-  PrintableInstructionOperand wrapper;
-  wrapper.register_configuration_ = config();
-  wrapper.op_ = op;
-  os << wrapper << std::endl;
-}
-
-
-void RegisterAllocationData::Print(const MoveOperands* move) {
-  OFStream os(stdout);
-  PrintableInstructionOperand wrapper;
-  wrapper.register_configuration_ = config();
-  wrapper.op_ = move->destination();
-  os << wrapper << " = ";
-  wrapper.op_ = move->source();
-  os << wrapper << std::endl;
-}
-
-
-void RegisterAllocationData::Print(const SpillRange* spill_range) {
-  OFStream os(stdout);
-  os << "{" << std::endl;
-  for (TopLevelLiveRange* range : spill_range->live_ranges()) {
-    os << range->vreg() << " ";
-  }
-  os << std::endl;
-
-  for (UseInterval* interval = spill_range->interval(); interval != nullptr;
-       interval = interval->next()) {
-    os << '[' << interval->start() << ", " << interval->end() << ')'
-       << std::endl;
-  }
-  os << "}" << std::endl;
 }
 
 
