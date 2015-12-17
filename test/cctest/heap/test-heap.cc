@@ -3678,39 +3678,6 @@ static void CheckVectorICCleared(Handle<JSFunction> f, int slot_index) {
 }
 
 
-TEST(ICInBuiltInIsClearedAppropriately) {
-  if (i::FLAG_always_opt) return;
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-
-  Handle<JSFunction> apply;
-  {
-    LocalContext env;
-    v8::Local<v8::Value> res = CompileRun("Function.apply");
-    i::Handle<JSReceiver> maybe_apply =
-        v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res));
-    apply = i::Handle<JSFunction>::cast(maybe_apply);
-    i::Handle<TypeFeedbackVector> vector(apply->shared()->feedback_vector());
-    FeedbackVectorHelper feedback_helper(vector);
-    CHECK_EQ(1, feedback_helper.slot_count());
-    CheckVectorIC(apply, 0, UNINITIALIZED);
-    CompileRun(
-        "function b(a1, a2, a3) { return a1 + a2 + a3; }"
-        "function fun(bar) { bar.apply({}, [1, 2, 3]); };"
-        "fun(b); fun(b)");
-    CheckVectorIC(apply, 0, MONOMORPHIC);
-  }
-
-  // Fire context dispose notification.
-  CcTest::isolate()->ContextDisposedNotification();
-  SimulateIncrementalMarking(CcTest::heap());
-  CcTest::heap()->CollectAllGarbage();
-
-  // The IC in apply has been cleared, ready to learn again.
-  CheckVectorIC(apply, 0, PREMONOMORPHIC);
-}
-
-
 TEST(IncrementalMarkingPreservesMonomorphicConstructor) {
   if (i::FLAG_always_opt) return;
   CcTest::InitializeVM();

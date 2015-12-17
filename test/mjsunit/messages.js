@@ -57,6 +57,18 @@ test(function() {
   Object.defineProperty(1, "x", {});
 }, "Object.defineProperty called on non-object", TypeError);
 
+test(function() {
+  (function() {}).apply({}, 1);
+}, "CreateListFromArrayLike called on non-object", TypeError);
+
+test(function() {
+  Reflect.apply(function() {}, {}, 1);
+}, "CreateListFromArrayLike called on non-object", TypeError);
+
+test(function() {
+  Reflect.construct(function() {}, 1);
+}, "CreateListFromArrayLike called on non-object", TypeError);
+
 // kCalledOnNullOrUndefined
 test(function() {
   Array.prototype.shift.call(null);
@@ -329,19 +341,6 @@ test(function() {
   Object.defineProperty({}, "x", { get: function(){}, value: 1});
 }, "Invalid property descriptor. Cannot both specify accessors " +
    "and a value or writable attribute, #<Object>", TypeError);
-
-// kWrongArgs
-test(function() {
-  (function() {}).apply({}, 1);
-}, "Function.prototype.apply: Arguments list has wrong type", TypeError);
-
-test(function() {
-  Reflect.apply(function() {}, {}, 1);
-}, "Reflect.apply: Arguments list has wrong type", TypeError);
-
-test(function() {
-  Reflect.construct(function() {}, 1);
-}, "Reflect.construct: Arguments list has wrong type", TypeError);
 
 
 // === SyntaxError ===
