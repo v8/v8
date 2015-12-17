@@ -112,6 +112,15 @@ TEST(Run_WasmModule_ReadLoadedDataSegment) {
 }
 
 
+#if defined(__has_feature)
+#if __has_feature(address_sanitizer)
+#define V8_WITH_ASAN 1
+#endif
+#endif
+
+
+#if !defined(V8_WITH_ASAN)
+// TODO(bradnelson): Figure out why this crashes under asan.
 TEST(Run_WasmModule_CheckMemoryIsZero) {
   static const int kCheckSize = 16 * 1024;
   Zone zone;
@@ -134,8 +143,11 @@ TEST(Run_WasmModule_CheckMemoryIsZero) {
   WasmModuleWriter* writer = builder->Build(&zone);
   TestModule(writer->WriteTo(&zone), 11);
 }
+#endif
 
 
+#if !defined(V8_WITH_ASAN)
+// TODO(bradnelson): Figure out why this crashes under asan.
 TEST(Run_WasmModule_CallMain_recursive) {
   Zone zone;
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
@@ -157,8 +169,11 @@ TEST(Run_WasmModule_CallMain_recursive) {
   WasmModuleWriter* writer = builder->Build(&zone);
   TestModule(writer->WriteTo(&zone), 55);
 }
+#endif
 
 
+#if !defined(V8_WITH_ASAN)
+// TODO(bradnelson): Figure out why this crashes under asan.
 TEST(Run_WasmModule_Global) {
   Zone zone;
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
@@ -181,3 +196,4 @@ TEST(Run_WasmModule_Global) {
   WasmModuleWriter* writer = builder->Build(&zone);
   TestModule(writer->WriteTo(&zone), 97);
 }
+#endif

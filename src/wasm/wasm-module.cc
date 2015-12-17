@@ -202,17 +202,34 @@ Handle<JSArrayBuffer> NewArrayBuffer(Isolate* isolate, int size,
 
 #if DEBUG
   // Double check the API allocator actually zero-initialized the memory.
-  for (uint32_t i = 0; i < size; i++) {
+  for (int i = 0; i < size; i++) {
     DCHECK_EQ(0, (*backing_store)[i]);
   }
 #endif
 
   Handle<JSArrayBuffer> buffer = isolate->factory()->NewJSArrayBuffer();
-  JSArrayBuffer::Setup(buffer, isolate, true, memory, size);
+  JSArrayBuffer::Setup(buffer, isolate, false, memory, size);
   buffer->set_is_neuterable(false);
   return buffer;
 }
 }  // namespace
+
+
+WasmModule::WasmModule()
+    : globals(nullptr),
+      signatures(nullptr),
+      functions(nullptr),
+      data_segments(nullptr),
+      function_table(nullptr) {}
+
+
+WasmModule::~WasmModule() {
+  if (globals) delete globals;
+  if (signatures) delete signatures;
+  if (functions) delete functions;
+  if (data_segments) delete data_segments;
+  if (function_table) delete function_table;
+}
 
 
 // Instantiates a wasm module as a JSObject.
@@ -352,7 +369,7 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
       }
       if (func.exported) {
         function = compiler::CompileJSToWasmWrapper(isolate, &module_env, name,
-                                                    code, index);
+                                                    code, module, index);
       }
     }
     if (!code.is_null()) {
@@ -478,7 +495,8 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, WasmModule* module) {
         simulator->Call(main_code->entry(), 4, 0, 0, 0, 0));
 #else
     // Run the main code as raw machine code.
-    int32_t (*raw_func)() = reinterpret_cast<int (*)()>(main_code->entry());
+    int32_t (*raw_func)() = reinterpret_cast<int32_t (*)()>(
+        reinterpret_cast<uintptr_t>(main_code->entry()));
     return raw_func();
 #endif
   } else {

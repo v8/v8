@@ -99,6 +99,9 @@ struct WasmModule {
   std::vector<WasmDataSegment>* data_segments;  // data segments in this module.
   std::vector<uint16_t>* function_table;        // function table.
 
+  WasmModule();
+  ~WasmModule();
+
   // Get a pointer to a string stored in the module bytes representing a name.
   const char* GetName(uint32_t offset) {
     CHECK(BoundsCheck(offset, offset + 1));

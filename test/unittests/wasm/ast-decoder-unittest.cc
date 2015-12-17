@@ -1189,31 +1189,28 @@ class TestModuleEnv : public ModuleEnv {
     module = &mod;
     linker = nullptr;
     function_code = nullptr;
-    mod.globals = &globals;
-    mod.signatures = &signatures;
-    mod.functions = &functions;
+    mod.globals = new std::vector<WasmGlobal>;
+    mod.signatures = new std::vector<FunctionSig*>;
+    mod.functions = new std::vector<WasmFunction>;
   }
   byte AddGlobal(MachineType mem_type) {
-    globals.push_back({0, mem_type, 0, false});
-    CHECK(globals.size() <= 127);
-    return static_cast<byte>(globals.size() - 1);
+    mod.globals->push_back({0, mem_type, 0, false});
+    CHECK(mod.globals->size() <= 127);
+    return static_cast<byte>(mod.globals->size() - 1);
   }
   byte AddSignature(FunctionSig* sig) {
-    signatures.push_back(sig);
-    CHECK(signatures.size() <= 127);
-    return static_cast<byte>(signatures.size() - 1);
+    mod.signatures->push_back(sig);
+    CHECK(mod.signatures->size() <= 127);
+    return static_cast<byte>(mod.signatures->size() - 1);
   }
   byte AddFunction(FunctionSig* sig) {
-    functions.push_back({sig, 0, 0, 0, 0, 0, 0, 0, false, false});
-    CHECK(functions.size() <= 127);
-    return static_cast<byte>(functions.size() - 1);
+    mod.functions->push_back({sig, 0, 0, 0, 0, 0, 0, 0, false, false});
+    CHECK(mod.functions->size() <= 127);
+    return static_cast<byte>(mod.functions->size() - 1);
   }
 
  private:
   WasmModule mod;
-  std::vector<WasmGlobal> globals;
-  std::vector<FunctionSig*> signatures;
-  std::vector<WasmFunction> functions;
 };
 }  // namespace
 
