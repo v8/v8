@@ -992,6 +992,9 @@ template <class C> inline bool Is(Object* obj);
   V(WeakHashTable)                 \
   V(OrderedHashTable)
 
+// The element types selection for CreateListFromArrayLike.
+enum class ElementTypes { kAll, kStringAndSymbol };
+
 // Object is the abstract superclass for all classes in the
 // object hierarchy.
 // Object does not use any virtual functions to avoid the
@@ -1164,6 +1167,10 @@ class Object {
   // ES6 section 7.3.9 GetMethod
   MUST_USE_RESULT static MaybeHandle<Object> GetMethod(
       Handle<JSReceiver> receiver, Handle<Name> name);
+
+  // ES6 section 7.3.17 CreateListFromArrayLike
+  MUST_USE_RESULT static MaybeHandle<FixedArray> CreateListFromArrayLike(
+      Isolate* isolate, Handle<Object> object, ElementTypes element_types);
 
   // Check whether |object| is an instance of Error or NativeError.
   static bool IsErrorObject(Isolate* isolate, Handle<Object> object);

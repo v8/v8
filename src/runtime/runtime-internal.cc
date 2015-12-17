@@ -92,7 +92,7 @@ RUNTIME_FUNCTION(Runtime_ReThrow) {
 
 RUNTIME_FUNCTION(Runtime_ThrowStackOverflow) {
   SealHandleScope shs(isolate);
-  DCHECK_EQ(0, args.length());
+  DCHECK_LE(0, args.length());
   return isolate->StackOverflow();
 }
 
@@ -176,6 +176,16 @@ RUNTIME_FUNCTION(Runtime_ThrowStrongModeImplicitConversion) {
   DCHECK(args.length() == 0);
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewTypeError(MessageTemplate::kStrongImplicitConversion));
+}
+
+
+RUNTIME_FUNCTION(Runtime_ThrowApplyNonFunction) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  Handle<String> type = Object::TypeOf(isolate, object);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kApplyNonFunction, object, type));
 }
 
 
@@ -435,6 +445,19 @@ RUNTIME_FUNCTION(Runtime_ThrowConstructedNonConstructable) {
   Handle<String> callsite = RenderCallSite(isolate, object);
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewTypeError(MessageTemplate::kNotConstructor, callsite));
+}
+
+
+// ES6 section 7.3.17 CreateListFromArrayLike (obj)
+RUNTIME_FUNCTION(Runtime_CreateListFromArrayLike) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  Handle<FixedArray> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      Object::CreateListFromArrayLike(isolate, object, ElementTypes::kAll));
+  return *result;
 }
 
 }  // namespace internal

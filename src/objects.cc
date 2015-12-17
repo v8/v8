@@ -673,6 +673,72 @@ MaybeHandle<Object> Object::GetMethod(Handle<JSReceiver> receiver,
 
 
 // static
+MaybeHandle<FixedArray> Object::CreateListFromArrayLike(
+    Isolate* isolate, Handle<Object> object, ElementTypes element_types) {
+  // 1. ReturnIfAbrupt(object).
+  // 2. (default elementTypes -- not applicable.)
+  // 3. If Type(obj) is not Object, throw a TypeError exception.
+  if (!object->IsJSReceiver()) {
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError(MessageTemplate::kCalledOnNonObject,
+                                 isolate->factory()->NewStringFromAsciiChecked(
+                                     "CreateListFromArrayLike")),
+                    FixedArray);
+  }
+  // 4. Let len be ? ToLength(? Get(obj, "length")).
+  Handle<Object> raw_length_obj;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, raw_length_obj,
+      JSReceiver::GetProperty(object, isolate->factory()->length_string()),
+      FixedArray);
+  Handle<Object> raw_length_number;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, raw_length_number,
+                             Object::ToLength(isolate, raw_length_obj),
+                             FixedArray);
+  uint32_t len;
+  if (!raw_length_number->ToUint32(&len) ||
+      len > static_cast<uint32_t>(FixedArray::kMaxLength)) {
+    THROW_NEW_ERROR(isolate,
+                    NewRangeError(MessageTemplate::kInvalidArrayLength),
+                    FixedArray);
+  }
+  // 5. Let list be an empty List.
+  Handle<FixedArray> list = isolate->factory()->NewFixedArray(len);
+  // 6. Let index be 0.
+  // 7. Repeat while index < len:
+  for (uint32_t index = 0; index < len; ++index) {
+    // 7a. Let indexName be ToString(index).
+    // 7b. Let next be ? Get(obj, indexName).
+    Handle<Object> next;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, next, Object::GetElement(isolate, object, index), FixedArray);
+    switch (element_types) {
+      case ElementTypes::kAll:
+        // Nothing to do.
+        break;
+      case ElementTypes::kStringAndSymbol: {
+        // 7c. If Type(next) is not an element of elementTypes, throw a
+        //     TypeError exception.
+        if (!next->IsName()) {
+          THROW_NEW_ERROR(isolate,
+                          NewTypeError(MessageTemplate::kNotPropertyName, next),
+                          FixedArray);
+        }
+        // 7d. Append next as the last element of list.
+        // Internalize on the fly so we can use pointer identity later.
+        next = isolate->factory()->InternalizeName(Handle<Name>::cast(next));
+        break;
+      }
+    }
+    list->set(index, *next);
+    // 7e. Set index to index + 1. (See loop header.)
+  }
+  // 8. Return list.
+  return list;
+}
+
+
+// static
 Maybe<bool> JSReceiver::HasProperty(LookupIterator* it) {
   for (; it->IsFound(); it->Next()) {
     switch (it->state()) {
@@ -8470,64 +8536,6 @@ Maybe<bool> JSProxy::Enumerate(Isolate* isolate, Handle<JSReceiver> receiver,
 }
 
 
-// ES6 7.3.17 for elementTypes = (String, Symbol)
-static MaybeHandle<FixedArray> CreateListFromArrayLike_StringSymbol(
-    Isolate* isolate, Handle<Object> object) {
-  // 1. ReturnIfAbrupt(object).
-  // 2. (default elementTypes -- not applicable.)
-  // 3. If Type(obj) is not Object, throw a TypeError exception.
-  if (!object->IsJSReceiver()) {
-    isolate->Throw(*isolate->factory()->NewTypeError(
-        MessageTemplate::kCalledOnNonObject,
-        isolate->factory()->NewStringFromAsciiChecked(
-            "CreateListFromArrayLike")));
-    return MaybeHandle<FixedArray>();
-  }
-  // 4. Let len be ? ToLength(? Get(obj, "length")).
-  Handle<Object> raw_length_obj;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, raw_length_obj,
-      JSReceiver::GetProperty(object, isolate->factory()->length_string()),
-      FixedArray);
-  Handle<Object> raw_length_number;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, raw_length_number,
-                             Object::ToLength(isolate, raw_length_obj),
-                             FixedArray);
-  uint32_t len;
-  if (!raw_length_number->ToUint32(&len) ||
-      len > static_cast<uint32_t>(FixedArray::kMaxLength)) {
-    isolate->Throw(*isolate->factory()->NewRangeError(
-        MessageTemplate::kInvalidArrayLength));
-    return MaybeHandle<FixedArray>();
-  }
-  // 5. Let list be an empty List.
-  Handle<FixedArray> list = isolate->factory()->NewFixedArray(len);
-  // 6. Let index be 0.
-  // 7. Repeat while index < len:
-  for (uint32_t index = 0; index < len; ++index) {
-    // 7a. Let indexName be ToString(index).
-    // 7b. Let next be ? Get(obj, indexName).
-    Handle<Object> next;
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, next, Object::GetElement(isolate, object, index), FixedArray);
-    // 7c. If Type(next) is not an element of elementTypes, throw a
-    //     TypeError exception.
-    if (!next->IsName()) {
-      isolate->Throw(*isolate->factory()->NewTypeError(
-          MessageTemplate::kNotPropertyName, next));
-      return MaybeHandle<FixedArray>();
-    }
-    // 7d. Append next as the last element of list.
-    // Internalize on the fly so we can use pointer identity later.
-    next = isolate->factory()->InternalizeName(Handle<Name>::cast(next));
-    list->set(index, *next);
-    // 7e. Set index to index + 1. (See loop header.)
-  }
-  // 8. Return list.
-  return list;
-}
-
-
 // ES6 9.5.12
 // Returns |true| on success, |nothing| in case of exception.
 // static
@@ -8572,7 +8580,8 @@ Maybe<bool> JSProxy::OwnPropertyKeys(Isolate* isolate,
   Handle<FixedArray> trap_result;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, trap_result,
-      CreateListFromArrayLike_StringSymbol(isolate, trap_result_array),
+      Object::CreateListFromArrayLike(isolate, trap_result_array,
+                                      ElementTypes::kStringAndSymbol),
       Nothing<bool>());
   // 9. Let extensibleTarget be ? IsExtensible(target).
   Maybe<bool> maybe_extensible = JSReceiver::IsExtensible(target);

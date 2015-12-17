@@ -34,127 +34,6 @@ utils.Import(function(from) {
    -----------------------------
 */
 
-function APPLY_PREPARE(args) {
-  var length;
-
-  // First check that the receiver is callable.
-  if (!IS_CALLABLE(this)) {
-    throw %make_type_error(kApplyNonFunction, TO_STRING(this), typeof this);
-  }
-
-  // First check whether length is a positive Smi and args is an
-  // array. This is the fast case. If this fails, we do the slow case
-  // that takes care of more eventualities.
-  if (IS_ARRAY(args)) {
-    length = args.length;
-    if (%_IsSmi(length) && length >= 0 && length < kSafeArgumentsLength) {
-      return length;
-    }
-  }
-
-  length = (args == null) ? 0 : TO_UINT32(args.length);
-
-  // We can handle any number of apply arguments if the stack is
-  // big enough, but sanity check the value to avoid overflow when
-  // multiplying with pointer size.
-  if (length > kSafeArgumentsLength) throw %make_range_error(kStackOverflow);
-
-  // Make sure the arguments list has the right type.
-  if (args != null && !IS_SPEC_OBJECT(args)) {
-    throw %make_type_error(kWrongArgs, "Function.prototype.apply");
-  }
-
-  // Return the length which is the number of arguments to copy to the
-  // stack. It is guaranteed to be a small integer at this point.
-  return length;
-}
-
-
-function REFLECT_APPLY_PREPARE(args) {
-  var length;
-
-  // First check that the receiver is callable.
-  if (!IS_CALLABLE(this)) {
-    throw %make_type_error(kApplyNonFunction, TO_STRING(this), typeof this);
-  }
-
-  // First check whether length is a positive Smi and args is an
-  // array. This is the fast case. If this fails, we do the slow case
-  // that takes care of more eventualities.
-  if (IS_ARRAY(args)) {
-    length = args.length;
-    if (%_IsSmi(length) && length >= 0 && length < kSafeArgumentsLength) {
-      return length;
-    }
-  }
-
-  if (!IS_SPEC_OBJECT(args)) {
-    throw %make_type_error(kWrongArgs, "Reflect.apply");
-  }
-
-  length = TO_LENGTH(args.length);
-
-  // We can handle any number of apply arguments if the stack is
-  // big enough, but sanity check the value to avoid overflow when
-  // multiplying with pointer size.
-  if (length > kSafeArgumentsLength) throw %make_range_error(kStackOverflow);
-
-  // Return the length which is the number of arguments to copy to the
-  // stack. It is guaranteed to be a small integer at this point.
-  return length;
-}
-
-
-function REFLECT_CONSTRUCT_PREPARE(
-    args, newTarget) {
-  var length;
-  var ctorOk = IS_CALLABLE(this) && %IsConstructor(this);
-  var newTargetOk = IS_CALLABLE(newTarget) && %IsConstructor(newTarget);
-
-  // First check whether length is a positive Smi and args is an
-  // array. This is the fast case. If this fails, we do the slow case
-  // that takes care of more eventualities.
-  if (IS_ARRAY(args)) {
-    length = args.length;
-    if (%_IsSmi(length) && length >= 0 && length < kSafeArgumentsLength &&
-        ctorOk && newTargetOk) {
-      return length;
-    }
-  }
-
-  if (!ctorOk) {
-    if (!IS_CALLABLE(this)) {
-      throw %make_type_error(kCalledNonCallable, TO_STRING(this));
-    } else {
-      throw %make_type_error(kNotConstructor, TO_STRING(this));
-    }
-  }
-
-  if (!newTargetOk) {
-    if (!IS_CALLABLE(newTarget)) {
-      throw %make_type_error(kCalledNonCallable, TO_STRING(newTarget));
-    } else {
-      throw %make_type_error(kNotConstructor, TO_STRING(newTarget));
-    }
-  }
-
-  if (!IS_SPEC_OBJECT(args)) {
-    throw %make_type_error(kWrongArgs, "Reflect.construct");
-  }
-
-  length = TO_LENGTH(args.length);
-
-  // We can handle any number of apply arguments if the stack is
-  // big enough, but sanity check the value to avoid overflow when
-  // multiplying with pointer size.
-  if (length > kSafeArgumentsLength) throw %make_range_error(kStackOverflow);
-
-  // Return the length which is the number of arguments to copy to the
-  // stack. It is guaranteed to be a small integer at this point.
-  return length;
-}
-
-
 function CONCAT_ITERABLE_TO_ARRAY(iterable) {
   return %concat_iterable_to_array(this, iterable);
 };
@@ -261,10 +140,7 @@ utils.Export(function(to) {
 });
 
 %InstallToContext([
-  "apply_prepare_builtin", APPLY_PREPARE,
   "concat_iterable_to_array_builtin", CONCAT_ITERABLE_TO_ARRAY,
-  "reflect_apply_prepare_builtin", REFLECT_APPLY_PREPARE,
-  "reflect_construct_prepare_builtin", REFLECT_CONSTRUCT_PREPARE,
 ]);
 
 %InstallToContext([

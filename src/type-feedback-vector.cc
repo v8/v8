@@ -160,28 +160,6 @@ int TypeFeedbackVector::GetIndexFromSpec(const FeedbackVectorSpec* spec,
 
 
 // static
-int TypeFeedbackVector::PushAppliedArgumentsIndex() {
-  return kReservedIndexCount;
-}
-
-
-// static
-Handle<TypeFeedbackVector> TypeFeedbackVector::CreatePushAppliedArgumentsVector(
-    Isolate* isolate) {
-  StaticFeedbackVectorSpec spec;
-  FeedbackVectorSlot slot = spec.AddKeyedLoadICSlot();
-  // TODO(ishell): allocate this metadata only once.
-  Handle<TypeFeedbackMetadata> feedback_metadata =
-      TypeFeedbackMetadata::New(isolate, &spec);
-  Handle<TypeFeedbackVector> feedback_vector =
-      TypeFeedbackVector::New(isolate, feedback_metadata);
-  DCHECK_EQ(PushAppliedArgumentsIndex(), feedback_vector->GetIndex(slot));
-  USE(slot);
-  return feedback_vector;
-}
-
-
-// static
 Handle<TypeFeedbackVector> TypeFeedbackVector::Copy(
     Isolate* isolate, Handle<TypeFeedbackVector> vector) {
   Handle<TypeFeedbackVector> result;
