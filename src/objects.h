@@ -6541,7 +6541,6 @@ class SharedFunctionInfo: public HeapObject {
       Handle<SharedFunctionInfo> shared, Handle<Context> native_context,
       Handle<LiteralsArray> literals);
 
- public:
   // Set up the link between shared function info and the script. The shared
   // function info is added to the list on the script.
   static void SetScript(Handle<SharedFunctionInfo> shared,
