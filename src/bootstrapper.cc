@@ -1865,8 +1865,11 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
     Handle<JSFunction> apply = InstallFunction(
         container, "reflect_apply", JS_OBJECT_TYPE, JSObject::kHeaderSize,
         MaybeHandle<JSObject>(), Builtins::kReflectApply);
-    apply->shared()->DontAdaptArguments();
+    apply->shared()->set_internal_formal_parameter_count(3);
     apply->shared()->set_length(3);
+    Handle<TypeFeedbackVector> feedback_vector =
+        TypeFeedbackVector::CreatePushAppliedArgumentsVector(isolate);
+    apply->shared()->set_feedback_vector(*feedback_vector);
     native_context->set_reflect_apply(*apply);
   }
 
@@ -1874,8 +1877,11 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
     Handle<JSFunction> construct = InstallFunction(
         container, "reflect_construct", JS_OBJECT_TYPE, JSObject::kHeaderSize,
         MaybeHandle<JSObject>(), Builtins::kReflectConstruct);
-    construct->shared()->DontAdaptArguments();
+    construct->shared()->set_internal_formal_parameter_count(3);
     construct->shared()->set_length(2);
+    Handle<TypeFeedbackVector> feedback_vector =
+        TypeFeedbackVector::CreatePushAppliedArgumentsVector(isolate);
+    construct->shared()->set_feedback_vector(*feedback_vector);
     native_context->set_reflect_construct(*construct);
   }
 
@@ -2529,17 +2535,22 @@ bool Genesis::InstallNatives(ContextType context_type) {
     Handle<JSFunction> apply =
         InstallFunction(proto, "apply", JS_OBJECT_TYPE, JSObject::kHeaderSize,
                         MaybeHandle<JSObject>(), Builtins::kFunctionApply);
+    Handle<TypeFeedbackVector> feedback_vector =
+        TypeFeedbackVector::CreatePushAppliedArgumentsVector(isolate());
+    apply->shared()->set_feedback_vector(*feedback_vector);
 
     // Make sure that Function.prototype.call appears to be compiled.
     // The code will never be called, but inline caching for call will
     // only work if it appears to be compiled.
-    apply->shared()->DontAdaptArguments();
     call->shared()->DontAdaptArguments();
     DCHECK(call->is_compiled());
 
+    // Set the expected parameters for apply to 2; required by builtin.
+    apply->shared()->set_internal_formal_parameter_count(2);
+
     // Set the lengths for the functions to satisfy ECMA-262.
-    apply->shared()->set_length(2);
     call->shared()->set_length(1);
+    apply->shared()->set_length(2);
   }
 
   // Set up the Promise constructor.

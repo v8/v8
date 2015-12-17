@@ -254,6 +254,10 @@ class TypeFeedbackVector : public FixedArray {
     return FeedbackVectorSlot(dummyIndex);
   }
 
+  static int PushAppliedArgumentsIndex();
+  static Handle<TypeFeedbackVector> CreatePushAppliedArgumentsVector(
+      Isolate* isolate);
+
  private:
   void ClearSlotsImpl(SharedFunctionInfo* shared, bool force_clear);
 

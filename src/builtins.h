@@ -116,8 +116,6 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(ConstructProxy, BUILTIN, UNINITIALIZED, kNoExtraICState)                  \
   V(Construct, BUILTIN, UNINITIALIZED, kNoExtraICState)                       \
                                                                               \
-  V(Apply, BUILTIN, UNINITIALIZED, kNoExtraICState)                           \
-                                                                              \
   V(HandleFastApiCall, BUILTIN, UNINITIALIZED, kNoExtraICState)               \
                                                                               \
   V(InOptimizationQueue, BUILTIN, UNINITIALIZED, kNoExtraICState)             \
@@ -316,8 +314,6 @@ class Builtins {
   static void Generate_NotifyStubFailure(MacroAssembler* masm);
   static void Generate_NotifyStubFailureSaveDoubles(MacroAssembler* masm);
   static void Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm);
-
-  static void Generate_Apply(MacroAssembler* masm);
 
   // ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList)
   static void Generate_CallFunction(MacroAssembler* masm,
