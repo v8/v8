@@ -57,6 +57,8 @@ class EscapeStatusAnalysis {
   void RevisitInputs(Node* node);
   bool SetEscaped(Node* node);
   bool HasEntry(Node* node);
+  void Resize();
+  size_t size();
 
   Graph* graph() const { return graph_; }
   Zone* zone() const { return zone_; }

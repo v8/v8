@@ -390,17 +390,16 @@ bool VirtualState::MergeFrom(MergeCache* cache, Zone* zone, Graph* graph,
                   graph->NewNode(common->Phi(MachineRepresentation::kTagged, 2),
                                  static_cast<int>(cache->fields().size()),
                                  &cache->fields().front());
-              if (mergeObject->SetField(i, phi, true)) {
-                if (FLAG_trace_turbo_escape) {
-                  PrintF("    Creating Phi #%d as merge of", phi->id());
-                  for (size_t i = 0; i + 1 < cache->fields().size(); i++) {
-                    PrintF(" #%d (%s)", cache->fields()[i]->id(),
-                           cache->fields()[i]->op()->mnemonic());
-                  }
-                  PrintF("\n");
+              mergeObject->SetField(i, phi, true);
+              if (FLAG_trace_turbo_escape) {
+                PrintF("    Creating Phi #%d as merge of", phi->id());
+                for (size_t i = 0; i + 1 < cache->fields().size(); i++) {
+                  PrintF(" #%d (%s)", cache->fields()[i]->id(),
+                         cache->fields()[i]->op()->mnemonic());
                 }
-                changed = true;
+                PrintF("\n");
               }
+              changed = true;
             } else {
               DCHECK(rep->opcode() == IrOpcode::kPhi);
               for (size_t n = 0; n < cache->fields().size(); ++n) {
@@ -444,10 +443,8 @@ EscapeStatusAnalysis::EscapeStatusAnalysis(EscapeAnalysis* object_analysis,
     : object_analysis_(object_analysis),
       graph_(graph),
       zone_(zone),
-      info_(zone),
-      queue_(zone) {
-  info_.resize(graph->NodeCount());
-}
+      info_(graph->NodeCount(), kUnknown, zone),
+      queue_(zone) {}
 
 
 EscapeStatusAnalysis::~EscapeStatusAnalysis() {}
@@ -459,9 +456,6 @@ bool EscapeStatusAnalysis::HasEntry(Node* node) {
 
 
 bool EscapeStatusAnalysis::IsVirtual(Node* node) {
-  if (node->id() >= info_.size()) {
-    return false;
-  }
   return info_[node->id()] == kVirtual;
 }
 
@@ -484,8 +478,16 @@ bool EscapeStatusAnalysis::SetEscaped(Node* node) {
 }
 
 
+void EscapeStatusAnalysis::Resize() {
+  info_.resize(graph()->NodeCount(), kUnknown);
+}
+
+
+size_t EscapeStatusAnalysis::size() { return info_.size(); }
+
+
 void EscapeStatusAnalysis::Run() {
-  info_.resize(graph()->NodeCount());
+  Resize();
   ZoneVector<bool> visited(zone());
   visited.resize(graph()->NodeCount());
   queue_.push_back(graph()->end());
@@ -967,6 +969,7 @@ bool EscapeAnalysis::ProcessEffectPhi(Node* node) {
 
   if (changed) {
     mergeState->LastChangedAt(node);
+    escape_status_.Resize();
   }
   return changed;
 }
@@ -1072,11 +1075,17 @@ Node* EscapeAnalysis::GetReplacement(NodeId id) {
 
 
 bool EscapeAnalysis::IsVirtual(Node* node) {
+  if (node->id() >= escape_status_.size()) {
+    return false;
+  }
   return escape_status_.IsVirtual(node);
 }
 
 
 bool EscapeAnalysis::IsEscaped(Node* node) {
+  if (node->id() >= escape_status_.size()) {
+    return false;
+  }
   return escape_status_.IsEscaped(node);
 }
 
@@ -1133,6 +1142,7 @@ void EscapeAnalysis::ProcessLoadFromPhi(int offset, Node* from, Node* node,
         Node* phi = graph()->NewNode(
             common()->Phi(MachineRepresentation::kTagged, 2),
             static_cast<int>(cache_.fields().size()), &cache_.fields().front());
+        escape_status_.Resize();
         SetReplacement(node, phi);
         state->LastChangedAt(node);
         if (FLAG_trace_turbo_escape) {
