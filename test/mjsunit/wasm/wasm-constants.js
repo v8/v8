@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --expose-wasm
+
 function bytes() {
   var buffer = new ArrayBuffer(arguments.length);
   var view = new Uint8Array(buffer);
