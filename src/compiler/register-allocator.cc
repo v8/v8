@@ -441,9 +441,6 @@ LiveRange* LiveRange::SplitAt(LifetimePosition position, Zone* zone) {
   child->top_level_ = TopLevel();
   child->next_ = next_;
   next_ = child;
-  if (child->next() == nullptr) {
-    TopLevel()->set_last_child(child);
-  }
   return child;
 }
 
@@ -537,15 +534,6 @@ UsePosition* LiveRange::DetachAt(LifetimePosition position, LiveRange* result,
   result->Verify();
 #endif
   return use_before;
-}
-
-
-void LiveRange::AppendAsChild(TopLevelLiveRange* other) {
-  next_ = other;
-
-  other->UpdateParentForAllChildren(TopLevel());
-  TopLevel()->UpdateSpillRangePostMerge(other);
-  TopLevel()->set_last_child(other->last_child());
 }
 
 
@@ -709,7 +697,6 @@ TopLevelLiveRange::TopLevelLiveRange(int vreg, MachineRepresentation rep)
       spill_move_insertion_locations_(nullptr),
       spilled_in_deferred_blocks_(false),
       spill_start_index_(kMaxInt),
-      last_child_(this),
       last_pos_(nullptr),
       splinter_(nullptr),
       has_preassigned_slot_(false) {

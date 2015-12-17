@@ -423,7 +423,6 @@ class LiveRange : public ZoneObject {
   explicit LiveRange(int relative_id, MachineRepresentation rep,
                      TopLevelLiveRange* top_level);
 
-  void AppendAsChild(TopLevelLiveRange* other);
   void UpdateParentForAllChildren(TopLevelLiveRange* new_top_level);
 
   void set_spilled(bool value) { bits_ = SpilledField::update(bits_, value); }
@@ -610,8 +609,6 @@ class TopLevelLiveRange final : public LiveRange {
   SpillMoveInsertionList* spill_move_insertion_locations() const {
     return spill_move_insertion_locations_;
   }
-  void set_last_child(LiveRange* range) { last_child_ = range; }
-  LiveRange* last_child() const { return last_child_; }
   TopLevelLiveRange* splinter() const { return splinter_; }
   void SetSplinter(TopLevelLiveRange* splinter) {
     DCHECK_NULL(splinter_);
@@ -647,7 +644,6 @@ class TopLevelLiveRange final : public LiveRange {
   // just for spill in a single deferred block.
   bool spilled_in_deferred_blocks_;
   int spill_start_index_;
-  LiveRange* last_child_;
   UsePosition* last_pos_;
   TopLevelLiveRange* splinter_;
   bool has_preassigned_slot_;
