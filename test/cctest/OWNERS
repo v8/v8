@@ -3,6 +3,7 @@ per-file *-mips*=gergely.kis@imgtec.com
 per-file *-mips*=akos.palfi@imgtec.com
 per-file *-mips*=balazs.kilvady@imgtec.com
 per-file *-mips*=dusan.milosavljevic@imgtec.com
+per-file *-mips*=ivica.bogosavljevic@imgtec.com
 per-file *-ppc*=dstence@us.ibm.com
 per-file *-ppc*=joransiu@ca.ibm.com
 per-file *-ppc*=jyan@ca.ibm.com
