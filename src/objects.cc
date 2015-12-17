@@ -828,6 +828,13 @@ MaybeHandle<Object> JSProxy::GetProperty(Isolate* isolate,
                                          Handle<Name> name,
                                          Handle<Object> receiver,
                                          LanguageMode language_mode) {
+  if (receiver->IsJSGlobalObject()) {
+    THROW_NEW_ERROR(
+        isolate,
+        NewTypeError(MessageTemplate::kReadGlobalReferenceThroughProxy, name),
+        Object);
+  }
+
   STACK_CHECK(MaybeHandle<Object>());
   Handle<Name> trap_name = isolate->factory()->get_string();
   // 1. Assert: IsPropertyKey(P) is true.
