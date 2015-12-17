@@ -390,11 +390,12 @@ base::SmartArrayPointer<Handle<Object>> Runtime::GetCallerArguments(
 
 RUNTIME_FUNCTION(Runtime_FunctionBindArguments) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 4);
+  DCHECK(args.length() == 5);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, bound_function, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, bindee, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, this_object, 2);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(new_length, 3);
+  CONVERT_ARG_HANDLE_CHECKED(Object, proto, 4);
 
   // TODO(lrn): Create bound function in C++ code from premade shared info.
   bound_function->shared()->set_bound(true);
@@ -446,13 +447,11 @@ RUNTIME_FUNCTION(Runtime_FunctionBindArguments) {
   // is happy about the number of fields.
   RUNTIME_ASSERT(bound_function->RemovePrototype());
 
-  // The new function should have the same [[Prototype]] as the bindee.
+  // The new function should have the given prototype.
   Handle<Map> bound_function_map =
       bindee->IsConstructor()
           ? isolate->bound_function_with_constructor_map()
           : isolate->bound_function_without_constructor_map();
-  PrototypeIterator iter(isolate, bindee);
-  Handle<Object> proto = PrototypeIterator::GetCurrent(iter);
   if (bound_function_map->prototype() != *proto) {
     bound_function_map = Map::TransitionToPrototype(bound_function_map, proto,
                                                     REGULAR_PROTOTYPE);

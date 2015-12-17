@@ -27,7 +27,8 @@
 
 // Flags: --allow-natives-syntax
 
-// Tests the Function.prototype.bind (ES 15.3.4.5) method.
+// Tests the Function.prototype.bind method.
+
 
 // Simple tests.
 function foo(x, y, z) {

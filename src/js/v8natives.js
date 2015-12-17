@@ -1302,9 +1302,7 @@ function FunctionToString() {
 }
 
 
-// ES5 15.3.4.5
 // ES6 9.2.3.2 Function.prototype.bind(thisArg , ...args)
-// TODO(cbruni): check again and remove FunctionProxies section further down
 function FunctionBind(this_arg) { // Length is 1.
   if (!IS_CALLABLE(this)) throw MakeTypeError(kFunctionBind);
 
@@ -1336,20 +1334,23 @@ function FunctionBind(this_arg) { // Length is 1.
     return %Apply(bindings[0], bindings[1], argv, 0, bound_argc + argc);
   };
 
+  var proto = %_GetPrototype(this);  // in ES6 9.4.1.3 BoundFunctionCreate
+
   var new_length = 0;
-  var old_length = this.length;
-  // FunctionProxies might provide a non-UInt32 value. If so, ignore it.
-  if ((typeof old_length === "number") &&
-      ((old_length >>> 0) === old_length)) {
-    var argc = %_ArgumentsLength();
-    if (argc > 0) argc--;  // Don't count the thisArg as parameter.
-    new_length = old_length - argc;
-    if (new_length < 0) new_length = 0;
+  if (ObjectGetOwnPropertyDescriptor(this, "length") !== UNDEFINED) {
+    var old_length = this.length;
+    if (IS_NUMBER(old_length)) {
+      var argc = %_ArgumentsLength();
+      if (argc > 0) argc--;  // Don't count the thisArg as parameter.
+      new_length = TO_INTEGER(old_length) - argc;
+      if (new_length < 0) new_length = 0;
+    }
   }
+
   // This runtime function finds any remaining arguments on the stack,
   // so we don't pass the arguments object.
-  var result = %FunctionBindArguments(boundFunction, this,
-                                      this_arg, new_length);
+  var result = %FunctionBindArguments(boundFunction, this, this_arg,
+                                      new_length, proto);
 
   var name = this.name;
   var bound_name = IS_STRING(name) ? name : "";
