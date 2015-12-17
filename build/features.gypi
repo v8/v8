@@ -67,6 +67,9 @@
     # Set to 1 to enable DCHECKs in release builds.
     'dcheck_always_on%': 0,
 
+    # Set to 1 to enable building with wasm prototype.
+    'v8_wasm%': 0,
+
     # Enable/disable JavaScript API accessors.
     'v8_js_accessors%': 0,
   },
@@ -107,6 +110,9 @@
       }],
       ['dcheck_always_on!=0', {
         'defines': ['DEBUG',],
+      }],
+      ['v8_wasm!=0', {
+        'defines': ['V8_WASM',],
       }],
     ],  # conditions
     'configurations': {

@@ -166,6 +166,9 @@
   # issue 4078:
   'allocation-site-info': [PASS, NO_VARIANTS],
 
+  # Native WASM is not yet enabled by default.
+  'wasm/*': [SKIP],
+
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.
   'compiler/regress-stacktrace-methods': [PASS, ['mode == debug', SKIP]],
@@ -736,28 +739,6 @@
   'regress/regress-1132': [SKIP],
 }],  # 'arch == ppc and simulator_run == True'
 
-
-# TODO(bradnelson): Figure out why this fails for arm.
-['arch == arm', {
-  'wasm/asm-wasm': [SKIP],
-}],
-
-# TODO(bradnelson): Figure out why this crashes under asan.
-['asan == True', {
-  'wasm/asm-wasm': [SKIP],
-}],
-
-# TODO(titzer): Figure out why parameter passing on 32-bit is broken.
-['arch != x64', {
-  'wasm/params': [SKIP],
-}],
-
-# TODO(titzer): Figure out why arm64 is broken for wasm.
-['arch == arm64', {
-  'wasm/*': [SKIP],
-}],
-
-
 ['ignition == True', {
   'asm/*': [SKIP],
   'compiler/*': [SKIP],
@@ -769,7 +750,6 @@
   'harmony/*': [SKIP],
   'regress/debug*': [SKIP],
   'regress/regress-debug*': [SKIP],
-  'wasm/*': [SKIP],
 
   'allocation-folding': [SKIP],
   'api-call-after-bypassed-exception': [SKIP],
