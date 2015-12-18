@@ -99,6 +99,7 @@
         'heap/test-compaction.cc',
         'heap/test-heap.cc',
         'heap/test-incremental-marking.cc',
+        'heap/test-lab.cc',
         'heap/test-mark-compact.cc',
         'heap/test-spaces.cc',
         'heap/utils-inl.h',

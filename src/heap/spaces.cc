@@ -958,8 +958,7 @@ PagedSpace::PagedSpace(Heap* heap, AllocationSpace space,
   area_size_ = MemoryAllocator::PageAreaSize(space);
   accounting_stats_.Clear();
 
-  allocation_info_.set_top(NULL);
-  allocation_info_.set_limit(NULL);
+  allocation_info_.Reset(nullptr, nullptr);
 
   anchor_.InitializeAsAnchor(this);
 }
@@ -1248,8 +1247,7 @@ void PagedSpace::ReleasePage(Page* page) {
   DCHECK(!free_list_.ContainsPageFreeListItems(page));
 
   if (Page::FromAllocationTop(allocation_info_.top()) == page) {
-    allocation_info_.set_top(NULL);
-    allocation_info_.set_limit(NULL);
+    allocation_info_.Reset(nullptr, nullptr);
   }
 
   // If page is still in a list, unlink it from that list.
@@ -1390,8 +1388,8 @@ void NewSpace::TearDown() {
   }
 
   start_ = NULL;
-  allocation_info_.set_top(NULL);
-  allocation_info_.set_limit(NULL);
+  allocation_info_.Reset(nullptr, nullptr);
+
 
   to_space_.TearDown();
   from_space_.TearDown();
@@ -1480,10 +1478,50 @@ void NewSpace::Shrink() {
 }
 
 
+void LocalAllocationBuffer::Close() {
+  if (IsValid()) {
+    heap_->CreateFillerObjectAt(
+        allocation_info_.top(),
+        static_cast<int>(allocation_info_.limit() - allocation_info_.top()));
+  }
+}
+
+
+LocalAllocationBuffer::LocalAllocationBuffer(Heap* heap,
+                                             AllocationInfo allocation_info)
+    : heap_(heap), allocation_info_(allocation_info) {
+  if (IsValid()) {
+    heap_->CreateFillerObjectAt(
+        allocation_info_.top(),
+        static_cast<int>(allocation_info_.limit() - allocation_info_.top()));
+  }
+}
+
+
+LocalAllocationBuffer::LocalAllocationBuffer(
+    const LocalAllocationBuffer& other) {
+  *this = other;
+}
+
+
+LocalAllocationBuffer& LocalAllocationBuffer::operator=(
+    const LocalAllocationBuffer& other) {
+  Close();
+  heap_ = other.heap_;
+  allocation_info_ = other.allocation_info_;
+
+  // This is needed since we (a) cannot yet use move-semantics, and (b) want
+  // to make the use of the class easy by it as value and (c) implicitly call
+  // {Close} upon copy.
+  const_cast<LocalAllocationBuffer&>(other)
+      .allocation_info_.Reset(nullptr, nullptr);
+  return *this;
+}
+
+
 void NewSpace::UpdateAllocationInfo() {
   MemoryChunk::UpdateHighWaterMark(allocation_info_.top());
-  allocation_info_.set_top(to_space_.page_low());
-  allocation_info_.set_limit(to_space_.page_high());
+  allocation_info_.Reset(to_space_.page_low(), to_space_.page_high());
   UpdateInlineAllocationLimit(0);
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 }
@@ -1563,6 +1601,12 @@ bool NewSpace::AddFreshPage() {
   UpdateAllocationInfo();
 
   return true;
+}
+
+
+bool NewSpace::AddFreshPageSynchronized() {
+  base::LockGuard<base::Mutex> guard(&mutex_);
+  return AddFreshPage();
 }
 
 
@@ -2763,9 +2807,7 @@ void PagedSpace::EvictEvacuationCandidatesFromLinearAllocationArea() {
     int remaining =
         static_cast<int>(allocation_info_.limit() - allocation_info_.top());
     heap()->CreateFillerObjectAt(allocation_info_.top(), remaining);
-
-    allocation_info_.set_top(nullptr);
-    allocation_info_.set_limit(nullptr);
+    allocation_info_.Reset(nullptr, nullptr);
   }
 }
 
