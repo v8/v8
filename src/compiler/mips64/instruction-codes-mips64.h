@@ -84,6 +84,10 @@ namespace compiler {
   V(Mips64RoundWD)                  \
   V(Mips64FloorWD)                  \
   V(Mips64CeilWD)                   \
+  V(Mips64TruncWS)                  \
+  V(Mips64RoundWS)                  \
+  V(Mips64FloorWS)                  \
+  V(Mips64CeilWS)                   \
   V(Mips64TruncLS)                  \
   V(Mips64TruncLD)                  \
   V(Mips64TruncUwD)                 \
@@ -91,6 +95,7 @@ namespace compiler {
   V(Mips64TruncUlD)                 \
   V(Mips64CvtDW)                    \
   V(Mips64CvtSL)                    \
+  V(Mips64CvtSW)                    \
   V(Mips64CvtSUl)                   \
   V(Mips64CvtDL)                    \
   V(Mips64CvtDUw)                   \

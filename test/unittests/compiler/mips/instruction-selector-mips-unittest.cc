@@ -244,17 +244,31 @@ const Conversion kConversionInstructions[] = {
 
 const Conversion kFloat64RoundInstructions[] = {
     {{&RawMachineAssembler::Float64RoundUp, "Float64RoundUp", kMipsCeilWD,
-      MachineType::Float64()},
-     MachineType::Int32()},
+      MachineType::Int32()},
+     MachineType::Float64()},
     {{&RawMachineAssembler::Float64RoundDown, "Float64RoundDown", kMipsFloorWD,
-      MachineType::Float64()},
-     MachineType::Int32()},
+      MachineType::Int32()},
+     MachineType::Float64()},
     {{&RawMachineAssembler::Float64RoundTiesEven, "Float64RoundTiesEven",
-      kMipsRoundWD, MachineType::Float64()},
-     MachineType::Int32()},
+      kMipsRoundWD, MachineType::Int32()},
+     MachineType::Float64()},
     {{&RawMachineAssembler::Float64RoundTruncate, "Float64RoundTruncate",
-      kMipsTruncWD, MachineType::Float64()},
-     MachineType::Int32()}};
+      kMipsTruncWD, MachineType::Int32()},
+     MachineType::Float64()}};
+
+const Conversion kFloat32RoundInstructions[] = {
+    {{&RawMachineAssembler::Float32RoundUp, "Float32RoundUp", kMipsCeilWS,
+      MachineType::Int32()},
+     MachineType::Float32()},
+    {{&RawMachineAssembler::Float32RoundDown, "Float32RoundDown", kMipsFloorWS,
+      MachineType::Int32()},
+     MachineType::Float32()},
+    {{&RawMachineAssembler::Float32RoundTiesEven, "Float32RoundTiesEven",
+      kMipsRoundWS, MachineType::Int32()},
+     MachineType::Float32()},
+    {{&RawMachineAssembler::Float32RoundTruncate, "Float32RoundTruncate",
+      kMipsTruncWS, MachineType::Int32()},
+     MachineType::Float32()}};
 
 }  // namespace
 
@@ -708,6 +722,59 @@ TEST_P(CombineChangeFloat64ToInt32WithRoundFloat64, Parameter) {
 INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
                         CombineChangeFloat64ToInt32WithRoundFloat64,
                         ::testing::ValuesIn(kFloat64RoundInstructions));
+
+
+typedef InstructionSelectorTestWithParam<Conversion>
+    CombineChangeFloat32ToInt32WithRoundFloat32;
+
+TEST_P(CombineChangeFloat32ToInt32WithRoundFloat32, Parameter) {
+  {
+    const Conversion conv = GetParam();
+    StreamBuilder m(this, conv.mi.machine_type, conv.src_machine_type);
+    m.Return(m.ChangeFloat64ToInt32(
+        m.ChangeFloat32ToFloat64((m.*conv.mi.constructor)(m.Parameter(0)))));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(conv.mi.arch_opcode, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_None, s[0]->addressing_mode());
+    ASSERT_EQ(1U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+}
+
+INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
+                        CombineChangeFloat32ToInt32WithRoundFloat32,
+                        ::testing::ValuesIn(kFloat32RoundInstructions));
+
+
+TEST_F(InstructionSelectorTest, ChangeFloat64ToInt32OfChangeFloat32ToFloat64) {
+  {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Float32());
+    m.Return(m.ChangeFloat64ToInt32(m.ChangeFloat32ToFloat64(m.Parameter(0))));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kMipsTruncWS, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_None, s[0]->addressing_mode());
+    ASSERT_EQ(1U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+}
+
+
+TEST_F(InstructionSelectorTest,
+       TruncateFloat64ToFloat32OfChangeInt32ToFloat64) {
+  {
+    StreamBuilder m(this, MachineType::Float32(), MachineType::Int32());
+    m.Return(
+        m.TruncateFloat64ToFloat32(m.ChangeInt32ToFloat64(m.Parameter(0))));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kMipsCvtSW, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_None, s[0]->addressing_mode());
+    ASSERT_EQ(1U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+}
 
 
 // ----------------------------------------------------------------------------

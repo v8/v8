@@ -944,6 +944,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ cvt_d_w(i.OutputDoubleRegister(), scratch);
       break;
     }
+    case kMipsCvtSW: {
+      FPURegister scratch = kScratchDoubleReg;
+      __ mtc1(i.InputRegister(0), scratch);
+      __ cvt_s_w(i.OutputDoubleRegister(), scratch);
+      break;
+    }
     case kMipsCvtDUw: {
       FPURegister scratch = kScratchDoubleReg;
       __ Cvt_d_uw(i.OutputDoubleRegister(), i.InputRegister(0), scratch);
@@ -971,6 +977,30 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       FPURegister scratch = kScratchDoubleReg;
       // Other arches use round to zero here, so we follow.
       __ trunc_w_d(scratch, i.InputDoubleRegister(0));
+      __ mfc1(i.OutputRegister(), scratch);
+      break;
+    }
+    case kMipsFloorWS: {
+      FPURegister scratch = kScratchDoubleReg;
+      __ floor_w_s(scratch, i.InputDoubleRegister(0));
+      __ mfc1(i.OutputRegister(), scratch);
+      break;
+    }
+    case kMipsCeilWS: {
+      FPURegister scratch = kScratchDoubleReg;
+      __ ceil_w_s(scratch, i.InputDoubleRegister(0));
+      __ mfc1(i.OutputRegister(), scratch);
+      break;
+    }
+    case kMipsRoundWS: {
+      FPURegister scratch = kScratchDoubleReg;
+      __ round_w_s(scratch, i.InputDoubleRegister(0));
+      __ mfc1(i.OutputRegister(), scratch);
+      break;
+    }
+    case kMipsTruncWS: {
+      FPURegister scratch = kScratchDoubleReg;
+      __ trunc_w_s(scratch, i.InputDoubleRegister(0));
       __ mfc1(i.OutputRegister(), scratch);
       break;
     }
