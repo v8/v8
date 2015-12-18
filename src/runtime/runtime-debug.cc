@@ -1231,7 +1231,7 @@ RUNTIME_FUNCTION(Runtime_PrepareStep) {
   isolate->debug()->ClearStepping();
 
   // Prepare step.
-  isolate->debug()->PrepareStep(static_cast<StepAction>(step_action), 1);
+  isolate->debug()->PrepareStep(static_cast<StepAction>(step_action));
   return isolate->heap()->undefined_value();
 }
 

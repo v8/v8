@@ -63,8 +63,7 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
     Address call_pc = GetFrame()->pc() - 1;
 
     // Find the break point where execution has stopped.
-    BreakLocation location =
-        BreakLocation::FromAddress(debug_info, ALL_BREAK_LOCATIONS, call_pc);
+    BreakLocation location = BreakLocation::FromAddress(debug_info, call_pc);
 
     ignore_nested_scopes = location.IsReturn();
   }

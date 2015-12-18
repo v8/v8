@@ -64,15 +64,12 @@ class BreakLocation {
  public:
   // Find the break point at the supplied address, or the closest one before
   // the address.
-  static BreakLocation FromAddress(Handle<DebugInfo> debug_info,
-                                   BreakLocatorType type, Address pc);
+  static BreakLocation FromAddress(Handle<DebugInfo> debug_info, Address pc);
 
-  static void FromAddressSameStatement(Handle<DebugInfo> debug_info,
-                                       BreakLocatorType type, Address pc,
+  static void FromAddressSameStatement(Handle<DebugInfo> debug_info, Address pc,
                                        List<BreakLocation>* result_out);
 
-  static BreakLocation FromPosition(Handle<DebugInfo> debug_info,
-                                    BreakLocatorType type, int position,
+  static BreakLocation FromPosition(Handle<DebugInfo> debug_info, int position,
                                     BreakPositionAlignment alignment);
 
   bool IsDebugBreak() const;
@@ -152,8 +149,7 @@ class BreakLocation {
 
   friend class Debug;
 
-  static int BreakIndexFromAddress(Handle<DebugInfo> debug_info,
-                                   BreakLocatorType type, Address pc);
+  static int BreakIndexFromAddress(Handle<DebugInfo> debug_info, Address pc);
 
   void SetDebugBreak();
   void ClearDebugBreak();
@@ -408,15 +404,12 @@ class Debug {
   bool IsBreakOnException(ExceptionBreakType type);
 
   // Stepping handling.
-  void PrepareStep(StepAction step_action, int step_count);
+  void PrepareStep(StepAction step_action);
   void PrepareStepIn(Handle<JSFunction> function);
   void PrepareStepOnThrow();
   void ClearStepping();
   void ClearStepOut();
   void EnableStepIn();
-  bool IsStepping() { return thread_local_.step_count_ > 0; }
-  bool StepNextContinue(BreakLocation* location, JavaScriptFrame* frame);
-  bool StepOutActive() { return thread_local_.step_out_fp_ != 0; }
 
   void GetStepinPositions(JavaScriptFrame* frame, StackFrame::Id frame_id,
                           List<int>* results_out);
@@ -624,15 +617,11 @@ class Debug {
     // Source statement position from last step next action.
     int last_statement_position_;
 
-    // Number of steps left to perform before debug event.
-    int step_count_;
-
     // Frame pointer from last step next or step frame action.
     Address last_fp_;
 
-    // Frame pointer for the frame where debugger should be called when current
-    // step out action is completed.
-    Address step_out_fp_;
+    // Frame pointer of the target frame we want to arrive at.
+    Address target_fp_;
 
     // Whether functions are flooded on entry for step-in and step-frame.
     // If we stepped out to the embedder, disable flooding to spill stepping

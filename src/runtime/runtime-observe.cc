@@ -65,16 +65,8 @@ RUNTIME_FUNCTION(Runtime_DeliverObservationChangeRecords) {
   catcher.SetVerbose(true);
   Handle<Object> argv[] = {argument};
 
-  // Allow stepping into the observer callback.
-  Debug* debug = isolate->debug();
-  if (debug->is_active() && debug->IsStepping() &&
-      debug->last_step_action() == StepIn) {
-    // Previous StepIn may have activated a StepOut if it was at the frame exit.
-    // In this case to be able to step into the callback again, we need to clear
-    // the step out first.
-    debug->ClearStepOut();
-    debug->FloodWithOneShot(callback);
-  }
+  // If we are in step-in mode, flood the handler.
+  isolate->debug()->EnableStepIn();
 
   USE(Execution::Call(isolate, callback, isolate->factory()->undefined_value(),
                       arraysize(argv), argv));

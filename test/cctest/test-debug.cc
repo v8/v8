@@ -341,7 +341,7 @@ static void ChangeBreakOnExceptionFromJS(v8::Isolate* isolate, bool caught,
 // Prepare to step to next break location.
 static void PrepareStep(StepAction step_action) {
   v8::internal::Debug* debug = CcTest::i_isolate()->debug();
-  debug->PrepareStep(step_action, 1);
+  debug->PrepareStep(step_action);
 }
 
 
