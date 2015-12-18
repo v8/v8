@@ -946,6 +946,93 @@ void Builtins::Generate_InterpreterPushArgsAndConstruct(MacroAssembler* masm) {
 }
 
 
+static void Generate_InterpreterNotifyDeoptimizedHelper(
+    MacroAssembler* masm, Deoptimizer::BailoutType type) {
+  // Enter an internal frame.
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ push(kInterpreterAccumulatorRegister);  // Save accumulator register.
+
+    // Pass the deoptimization type to the runtime system.
+    __ mov(r1, Operand(Smi::FromInt(static_cast<int>(type))));
+    __ push(r1);
+    __ CallRuntime(Runtime::kNotifyDeoptimized, 1);
+
+    __ pop(kInterpreterAccumulatorRegister);  // Restore accumulator register.
+    // Tear down internal frame.
+  }
+
+  // Drop state (we don't use these for interpreter deopts) and push PC at top
+  // of stack (to simulate initial call to bytecode handler in interpreter entry
+  // trampoline).
+  __ pop(r1);
+  __ Drop(1);
+  __ push(r1);
+
+  // Initialize register file register and dispatch table register.
+  __ add(kInterpreterRegisterFileRegister, fp,
+         Operand(InterpreterFrameConstants::kRegisterFilePointerFromFp));
+  __ LoadRoot(kInterpreterDispatchTableRegister,
+              Heap::kInterpreterTableRootIndex);
+  __ add(kInterpreterDispatchTableRegister, kInterpreterDispatchTableRegister,
+         Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+
+  // Get the context from the frame.
+  // TODO(rmcilroy): Update interpreter frame to expect current context at the
+  // context slot instead of the function context.
+  __ ldr(kContextRegister,
+         MemOperand(kInterpreterRegisterFileRegister,
+                    InterpreterFrameConstants::kContextFromRegisterPointer));
+
+  // Get the bytecode array pointer from the frame.
+  __ ldr(r1,
+         MemOperand(kInterpreterRegisterFileRegister,
+                    InterpreterFrameConstants::kFunctionFromRegisterPointer));
+  __ ldr(r1, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
+  __ ldr(kInterpreterBytecodeArrayRegister,
+         FieldMemOperand(r1, SharedFunctionInfo::kFunctionDataOffset));
+
+  if (FLAG_debug_code) {
+    // Check function data field is actually a BytecodeArray object.
+    __ SmiTst(kInterpreterBytecodeArrayRegister);
+    __ Assert(ne, kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry);
+    __ CompareObjectType(kInterpreterBytecodeArrayRegister, r1, no_reg,
+                         BYTECODE_ARRAY_TYPE);
+    __ Assert(eq, kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry);
+  }
+
+  // Get the target bytecode offset from the frame.
+  __ ldr(kInterpreterBytecodeOffsetRegister,
+         MemOperand(
+             kInterpreterRegisterFileRegister,
+             InterpreterFrameConstants::kBytecodeOffsetFromRegisterPointer));
+  __ SmiUntag(kInterpreterBytecodeOffsetRegister);
+
+  // Dispatch to the target bytecode.
+  __ ldrb(r1, MemOperand(kInterpreterBytecodeArrayRegister,
+                         kInterpreterBytecodeOffsetRegister));
+  __ ldr(ip, MemOperand(kInterpreterDispatchTableRegister, r1, LSL,
+                        kPointerSizeLog2));
+  __ add(ip, ip, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ mov(pc, ip);
+}
+
+
+void Builtins::Generate_InterpreterNotifyDeoptimized(MacroAssembler* masm) {
+  Generate_InterpreterNotifyDeoptimizedHelper(masm, Deoptimizer::EAGER);
+}
+
+
+void Builtins::Generate_InterpreterNotifySoftDeoptimized(MacroAssembler* masm) {
+  Generate_InterpreterNotifyDeoptimizedHelper(masm, Deoptimizer::SOFT);
+}
+
+
+void Builtins::Generate_InterpreterNotifyLazyDeoptimized(MacroAssembler* masm) {
+  Generate_InterpreterNotifyDeoptimizedHelper(masm, Deoptimizer::LAZY);
+}
+
+
 void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   CallRuntimePassFunction(masm, Runtime::kCompileLazy);
   GenerateTailCallToReturnedCode(masm);

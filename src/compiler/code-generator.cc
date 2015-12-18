@@ -559,7 +559,9 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
                                     (1 + descriptor->parameters_count())));
       break;
     case FrameStateType::kInterpretedFunction:
-      // TODO(rmcilroy): Implement interpreted function translation.
+      translation->BeginInterpretedFrame(
+          descriptor->bailout_id(), shared_info_id,
+          static_cast<unsigned int>(descriptor->locals_count()));
       break;
     case FrameStateType::kArgumentsAdaptor:
       translation->BeginArgumentsAdaptorFrame(

@@ -937,8 +937,9 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames) {
 
   TranslationIterator it(data->TranslationByteArray(),
                          data->TranslationIndex(deopt_index)->value());
-  Translation::Opcode opcode = static_cast<Translation::Opcode>(it.Next());
-  DCHECK_EQ(Translation::BEGIN, opcode);
+  Translation::Opcode frame_opcode =
+      static_cast<Translation::Opcode>(it.Next());
+  DCHECK_EQ(Translation::BEGIN, frame_opcode);
   it.Next();  // Drop frame count.
   int jsframe_count = it.Next();
 
@@ -946,8 +947,9 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames) {
   // in the deoptimization translation are ordered bottom-to-top.
   bool is_constructor = IsConstructor();
   while (jsframe_count != 0) {
-    opcode = static_cast<Translation::Opcode>(it.Next());
-    if (opcode == Translation::JS_FRAME) {
+    frame_opcode = static_cast<Translation::Opcode>(it.Next());
+    if (frame_opcode == Translation::JS_FRAME ||
+        frame_opcode == Translation::INTERPRETED_FRAME) {
       jsframe_count--;
       BailoutId const ast_id = BailoutId(it.Next());
       SharedFunctionInfo* const shared_info =
@@ -956,7 +958,7 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames) {
 
       // The translation commands are ordered and the function is always
       // at the first position, and the receiver is next.
-      opcode = static_cast<Translation::Opcode>(it.Next());
+      Translation::Opcode opcode = static_cast<Translation::Opcode>(it.Next());
 
       // Get the correct function in the optimized frame.
       JSFunction* function;
@@ -993,25 +995,33 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames) {
       }
 
       Code* const code = shared_info->code();
-      DeoptimizationOutputData* const output_data =
-          DeoptimizationOutputData::cast(code->deoptimization_data());
-      unsigned const entry =
-          Deoptimizer::GetOutputInfo(output_data, ast_id, shared_info);
-      unsigned const pc_offset =
-          FullCodeGenerator::PcField::decode(entry) + Code::kHeaderSize;
-      DCHECK_NE(0U, pc_offset);
 
+      unsigned pc_offset;
+      if (frame_opcode == Translation::JS_FRAME) {
+        DeoptimizationOutputData* const output_data =
+            DeoptimizationOutputData::cast(code->deoptimization_data());
+        unsigned const entry =
+            Deoptimizer::GetOutputInfo(output_data, ast_id, shared_info);
+        pc_offset =
+            FullCodeGenerator::PcField::decode(entry) + Code::kHeaderSize;
+        DCHECK_NE(0U, pc_offset);
+      } else {
+        // TODO(rmcilroy): Modify FrameSummary to enable us to summarize
+        // based on the BytecodeArray and bytecode offset.
+        DCHECK_EQ(frame_opcode, Translation::INTERPRETED_FRAME);
+        pc_offset = 0;
+      }
       FrameSummary summary(receiver, function, code, pc_offset, is_constructor);
       frames->Add(summary);
       is_constructor = false;
-    } else if (opcode == Translation::CONSTRUCT_STUB_FRAME) {
+    } else if (frame_opcode == Translation::CONSTRUCT_STUB_FRAME) {
       // The next encountered JS_FRAME will be marked as a constructor call.
-      it.Skip(Translation::NumberOfOperandsFor(opcode));
+      it.Skip(Translation::NumberOfOperandsFor(frame_opcode));
       DCHECK(!is_constructor);
       is_constructor = true;
     } else {
       // Skip over operands to advance to the next opcode.
-      it.Skip(Translation::NumberOfOperandsFor(opcode));
+      it.Skip(Translation::NumberOfOperandsFor(frame_opcode));
     }
   }
   DCHECK(!is_constructor);
@@ -1083,7 +1093,8 @@ void OptimizedFrame::GetFunctions(List<JSFunction*>* functions) const {
     opcode = static_cast<Translation::Opcode>(it.Next());
     // Skip over operands to advance to the next opcode.
     it.Skip(Translation::NumberOfOperandsFor(opcode));
-    if (opcode == Translation::JS_FRAME) {
+    if (opcode == Translation::JS_FRAME ||
+        opcode == Translation::INTERPRETED_FRAME) {
       jsframe_count--;
 
       // The translation commands are ordered and the function is always at the

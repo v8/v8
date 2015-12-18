@@ -176,6 +176,12 @@ class ConstructFrameConstants : public AllStatic {
 
 class InterpreterFrameConstants : public AllStatic {
  public:
+  // Fixed frame includes new.target and bytecode offset.
+  static const int kFixedFrameSize =
+      StandardFrameConstants::kFixedFrameSize + 2 * kPointerSize;
+  static const int kFixedFrameSizeFromFp =
+      StandardFrameConstants::kFixedFrameSizeFromFp + 2 * kPointerSize;
+
   // FP-relative.
   static const int kRegisterFilePointerFromFp =
       -StandardFrameConstants::kFixedFrameSizeFromFp - 3 * kPointerSize;

@@ -14350,6 +14350,17 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(
           break;
         }
 
+        case Translation::INTERPRETED_FRAME: {
+          int bytecode_offset = iterator.Next();
+          int shared_info_id = iterator.Next();
+          unsigned height = iterator.Next();
+          Object* shared_info = LiteralArray()->get(shared_info_id);
+          os << "{bytecode_offset=" << bytecode_offset << ", function="
+             << Brief(SharedFunctionInfo::cast(shared_info)->DebugName())
+             << ", height=" << height << "}";
+          break;
+        }
+
         case Translation::JS_FRAME_FUNCTION: {
           os << "{function}";
           break;
