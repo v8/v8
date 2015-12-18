@@ -66,20 +66,13 @@
   # This times out in sloppy mode because sloppy const assignment does not throw.
   'language/statements/const/syntax/const-invalid-assignment-next-expression-for': [SKIP],
 
-  # https://code.google.com/p/v8/issues/detail?id=1543
-  'built-ins/Proxy/*': [FAIL],
-  'built-ins/Array/prototype/find/Array.prototype.find_callable-Proxy-1': [FAIL],
-  'built-ins/Array/prototype/find/Array.prototype.find_callable-Proxy-2': [FAIL],
-  'built-ins/Object/assign/source-own-prop-desc-missing': [FAIL],
-  'built-ins/Object/assign/source-own-prop-error': [FAIL],
-  'built-ins/Object/assign/source-own-prop-keys-error': [FAIL],
-  'built-ins/Object/setPrototypeOf/set-error': [FAIL],
-  'language/expressions/object/prop-def-id-eval-error-2': [FAIL],
-  'language/statements/for-of/iterator-as-proxy': [FAIL],
-  'language/statements/for-of/iterator-next-result-type': [FAIL],
-  'built-ins/Array/of/return-abrupt-from-data-property-using-proxy': [FAIL],
-  'built-ins/Array/prototype/copyWithin/return-abrupt-from-delete-proxy-target': [FAIL],
-  'built-ins/Array/prototype/copyWithin/return-abrupt-from-has-start': [FAIL],
+  # It's unclear what the right behavior for [[Enumerate]] is; we're awaiting
+  # clarification in the spec. Currently, our for-in implementation for
+  # Proxies checks all trap result values for being strings...
+  'built-ins/Proxy/enumerate/return-trap-result': [FAIL],
+  # ...and our Reflect.enumerate implementation is built on for-in by wrapping
+  # the iteration's results in a new generator; this postpones exceptions.
+  'built-ins/Reflect/enumerate/return-abrupt-from-result': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=4093
   'built-ins/Array/symbol-species': [FAIL],
@@ -370,9 +363,6 @@
   'language/expressions/instanceof/symbol-hasinstance-invocation': [FAIL],
   'language/expressions/instanceof/symbol-hasinstance-to-boolean': [FAIL],
 
-  # https://code.google.com/p/v8/issues/detail?id=3931
-  'built-ins/Reflect/*': [FAIL],
-
   # https://code.google.com/p/v8/issues/detail?id=4476
   'built-ins/String/prototype/toLocaleLowerCase/special_casing_conditional': [FAIL],
   'built-ins/String/prototype/toLocaleLowerCase/supplementary_plane': [FAIL],
@@ -544,6 +534,8 @@
   'built-ins/GeneratorPrototype/*': [SKIP],
   'built-ins/Map/*': [SKIP],
   'built-ins/MapIteratorPrototype/*': [SKIP],
+  'built-ins/Proxy/has/*': [SKIP],
+  'built-ins/Reflect/enumerate/*': [SKIP],
   'built-ins/Set/*': [SKIP],
   'built-ins/SetIteratorPrototype/*': [SKIP],
   'built-ins/WeakMap/*': [SKIP],
@@ -557,6 +549,7 @@
   'language/expressions/generators/*': [SKIP],
   'language/expressions/object/method-definition/yield*': [SKIP],
   'language/expressions/object/method-definition/generator*': [SKIP],
+  'language/expressions/object/prop-def-id-eval-error-2': [SKIP],
   'language/expressions/yield/*': [SKIP],
   'language/function-code/*': [SKIP],
   'language/statements/class/*': [SKIP],
