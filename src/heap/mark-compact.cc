@@ -599,6 +599,43 @@ bool MarkCompactCollector::IsSweepingCompleted() {
 }
 
 
+void Marking::TransferMark(Heap* heap, Address old_start, Address new_start) {
+  // This is only used when resizing an object.
+  DCHECK(MemoryChunk::FromAddress(old_start) ==
+         MemoryChunk::FromAddress(new_start));
+
+  if (!heap->incremental_marking()->IsMarking()) return;
+
+  // If the mark doesn't move, we don't check the color of the object.
+  // It doesn't matter whether the object is black, since it hasn't changed
+  // size, so the adjustment to the live data count will be zero anyway.
+  if (old_start == new_start) return;
+
+  MarkBit new_mark_bit = MarkBitFrom(new_start);
+  MarkBit old_mark_bit = MarkBitFrom(old_start);
+
+#ifdef DEBUG
+  ObjectColor old_color = Color(old_mark_bit);
+#endif
+
+  if (Marking::IsBlack(old_mark_bit)) {
+    Marking::BlackToWhite(old_mark_bit);
+    Marking::MarkBlack(new_mark_bit);
+    return;
+  } else if (Marking::IsGrey(old_mark_bit)) {
+    Marking::GreyToWhite(old_mark_bit);
+    heap->incremental_marking()->WhiteToGreyAndPush(
+        HeapObject::FromAddress(new_start), new_mark_bit);
+    heap->incremental_marking()->RestartIfNotMarking();
+  }
+
+#ifdef DEBUG
+  ObjectColor new_color = Color(new_mark_bit);
+  DCHECK(new_color == old_color);
+#endif
+}
+
+
 const char* AllocationSpaceName(AllocationSpace space) {
   switch (space) {
     case NEW_SPACE:

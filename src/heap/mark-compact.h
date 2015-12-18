@@ -83,6 +83,12 @@ class Marking : public AllStatic {
     markbit.Clear();
   }
 
+  INLINE(static void GreyToWhite(MarkBit markbit)) {
+    DCHECK(IsGrey(markbit));
+    markbit.Clear();
+    markbit.Next().Clear();
+  }
+
   INLINE(static void BlackToGrey(MarkBit markbit)) {
     DCHECK(IsBlack(markbit));
     markbit.Next().Set();
@@ -112,6 +118,8 @@ class Marking : public AllStatic {
     markbit.Set();
     markbit.Next().Set();
   }
+
+  static void TransferMark(Heap* heap, Address old_start, Address new_start);
 
 #ifdef DEBUG
   enum ObjectColor {
