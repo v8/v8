@@ -51,6 +51,9 @@ std::ostream& operator<<(std::ostream& os, FrameStateType type) {
     case FrameStateType::kJavaScriptFunction:
       os << "JS_FRAME";
       break;
+    case FrameStateType::kInterpretedFunction:
+      os << "INTERPRETED_FRAME";
+      break;
     case FrameStateType::kArgumentsAdaptor:
       os << "ARGUMENTS_ADAPTOR";
       break;

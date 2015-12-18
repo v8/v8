@@ -28,7 +28,13 @@ class BytecodeGraphBuilder {
   Graph* graph() const { return jsgraph_->graph(); }
 
  private:
+  enum class AccumulatorUpdateMode {
+    kOutputIgnored,
+    kOutputInAccumulator,
+  };
+
   class Environment;
+  class FrameStateBeforeAndAfter;
 
   void CreateGraphBody(bool stack_check);
   void VisitBytecodes();
@@ -57,9 +63,6 @@ class BytecodeGraphBuilder {
   // Helper function for creating a pair containing type feedback vector and
   // a feedback slot.
   VectorSlotPair CreateVectorSlotPair(int slot_id);
-
-  // Replaces the frame state inputs with empty frame states.
-  void AddEmptyFrameStateInputs(Node* node);
 
   void set_environment(Environment* env) { environment_ = env; }
   const Environment* environment() const { return environment_; }
@@ -127,7 +130,8 @@ class BytecodeGraphBuilder {
                                     interpreter::Register first_arg,
                                     size_t arity);
 
-  void BuildCreateLiteral(const Operator* op);
+  void BuildCreateLiteral(const Operator* op,
+                          const interpreter::BytecodeArrayIterator& iterator);
   void BuildCreateRegExpLiteral(
       const interpreter::BytecodeArrayIterator& iterator);
   void BuildCreateArrayLiteral(
@@ -179,6 +183,9 @@ class BytecodeGraphBuilder {
   const Handle<BytecodeArray>& bytecode_array() const {
     return bytecode_array_;
   }
+  const FrameStateFunctionInfo* frame_state_function_info() const {
+    return frame_state_function_info_;
+  }
 
   LanguageMode language_mode() const {
     // TODO(mythria): Don't rely on parse information to get language mode.
@@ -211,9 +218,11 @@ class BytecodeGraphBuilder {
   CompilationInfo* info_;
   JSGraph* jsgraph_;
   Handle<BytecodeArray> bytecode_array_;
+  const FrameStateFunctionInfo* frame_state_function_info_;
   const interpreter::BytecodeArrayIterator* bytecode_iterator_;
   const BytecodeBranchAnalysis* branch_analysis_;
   Environment* environment_;
+
 
   // Merge environments are snapshots of the environment at a particular
   // bytecode offset to be merged into a later environment.
@@ -253,8 +262,10 @@ class BytecodeGraphBuilder::Environment : public ZoneObject {
   void BindRegister(interpreter::Register the_register, Node* node);
   Node* LookupRegister(interpreter::Register the_register) const;
 
-  void BindAccumulator(Node* node);
+  void BindAccumulator(Node* node, FrameStateBeforeAndAfter* states = nullptr);
   Node* LookupAccumulator() const;
+
+  void RecordAfterState(Node* node, FrameStateBeforeAndAfter* states);
 
   bool IsMarkedAsUnreachable() const;
   void MarkAsUnreachable();
@@ -264,6 +275,15 @@ class BytecodeGraphBuilder::Environment : public ZoneObject {
   void UpdateEffectDependency(Node* dependency) {
     effect_dependency_ = dependency;
   }
+
+  // Preserve a checkpoint of the environment for the IR graph. Any
+  // further mutation of the environment will not affect checkpoints.
+  Node* Checkpoint(BailoutId ast_id, AccumulatorUpdateMode update_mode);
+
+  // Returns true if the state values are up to date with the current
+  // environment. If update_mode is AccumulatorUpdateMode::kOutputInAccumulator
+  // then accumulator state can be different from the environment.
+  bool StateValuesAreUpToDate(AccumulatorUpdateMode update_mode);
 
   // Control dependency tracked by this environment.
   Node* GetControlDependency() const { return control_dependency_; }
@@ -281,26 +301,32 @@ class BytecodeGraphBuilder::Environment : public ZoneObject {
  private:
   explicit Environment(const Environment* copy);
   void PrepareForLoop();
+  bool StateValuesRequireUpdate(Node** state_values, int offset, int count);
+  void UpdateStateValues(Node** state_values, int offset, int count);
 
   int RegisterToValuesIndex(interpreter::Register the_register) const;
+
   Zone* zone() const { return builder_->local_zone(); }
   Graph* graph() const { return builder_->graph(); }
   CommonOperatorBuilder* common() const { return builder_->common(); }
   BytecodeGraphBuilder* builder() const { return builder_; }
   const NodeVector* values() const { return &values_; }
   NodeVector* values() { return &values_; }
-  Node* accumulator() { return accumulator_; }
   int register_base() const { return register_base_; }
+  int accumulator_base() const { return accumulator_base_; }
 
   BytecodeGraphBuilder* builder_;
   int register_count_;
   int parameter_count_;
-  Node* accumulator_;
   Node* context_;
   Node* control_dependency_;
   Node* effect_dependency_;
   NodeVector values_;
+  Node* parameters_state_values_;
+  Node* registers_state_values_;
+  Node* accumulator_state_values_;
   int register_base_;
+  int accumulator_base_;
 };
 
 }  // namespace compiler

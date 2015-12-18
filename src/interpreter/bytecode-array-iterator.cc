@@ -32,6 +32,11 @@ Bytecode BytecodeArrayIterator::current_bytecode() const {
 }
 
 
+int BytecodeArrayIterator::current_bytecode_size() const {
+  return Bytecodes::Size(current_bytecode());
+}
+
+
 uint32_t BytecodeArrayIterator::GetRawOperand(int operand_index,
                                               OperandType operand_type) const {
   DCHECK_GE(operand_index, 0);

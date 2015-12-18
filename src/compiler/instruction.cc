@@ -867,7 +867,7 @@ size_t FrameStateDescriptor::GetJSFrameCount() const {
   size_t count = 0;
   for (const FrameStateDescriptor* iter = this; iter != NULL;
        iter = iter->outer_state_) {
-    if (iter->type_ == FrameStateType::kJavaScriptFunction) {
+    if (FrameStateFunctionInfo::IsJSFunctionType(iter->type_)) {
       ++count;
     }
   }

@@ -122,6 +122,7 @@ class BytecodeGraphTester {
 
     CompilationInfo compilation_info(&parse_info);
     compilation_info.SetOptimizing(BailoutId::None(), Handle<Code>());
+    compilation_info.MarkAsDeoptimizationEnabled();
     // TODO(mythria): Remove this step once parse_info is not needed.
     CHECK(Compiler::ParseAndAnalyze(&parse_info));
     compiler::Pipeline pipeline(&compilation_info);

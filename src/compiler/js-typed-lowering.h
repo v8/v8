@@ -35,6 +35,7 @@ class JSTypedLowering final : public AdvancedReducer {
   enum Flag {
     kNoFlags = 0u,
     kDeoptimizationEnabled = 1u << 0,
+    kDisableBinaryOpReduction = 1u << 1,
   };
   typedef base::Flags<Flag> Flags;
 

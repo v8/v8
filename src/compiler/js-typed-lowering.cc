@@ -450,6 +450,8 @@ JSTypedLowering::JSTypedLowering(Editor* editor,
 
 
 Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
+  if (flags() & kDisableBinaryOpReduction) return NoChange();
+
   JSBinopReduction r(this, node);
   if (r.BothInputsAre(Type::Number())) {
     // JSAdd(x:number, y:number) => NumberAdd(x, y)
@@ -480,6 +482,8 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
 
 
 Reduction JSTypedLowering::ReduceJSModulus(Node* node) {
+  if (flags() & kDisableBinaryOpReduction) return NoChange();
+
   JSBinopReduction r(this, node);
   if (r.BothInputsAre(Type::Number())) {
     // JSModulus(x:number, x:number) => NumberModulus(x, y)
@@ -492,6 +496,8 @@ Reduction JSTypedLowering::ReduceJSModulus(Node* node) {
 
 Reduction JSTypedLowering::ReduceNumberBinop(Node* node,
                                              const Operator* numberOp) {
+  if (flags() & kDisableBinaryOpReduction) return NoChange();
+
   JSBinopReduction r(this, node);
   if (r.IsStrong() || numberOp == simplified()->NumberModulus()) {
     if (r.BothInputsAre(Type::Number())) {
@@ -506,6 +512,8 @@ Reduction JSTypedLowering::ReduceNumberBinop(Node* node,
 
 
 Reduction JSTypedLowering::ReduceInt32Binop(Node* node, const Operator* intOp) {
+  if (flags() & kDisableBinaryOpReduction) return NoChange();
+
   JSBinopReduction r(this, node);
   if (r.IsStrong()) {
     if (r.BothInputsAre(Type::Number())) {
@@ -524,6 +532,8 @@ Reduction JSTypedLowering::ReduceInt32Binop(Node* node, const Operator* intOp) {
 Reduction JSTypedLowering::ReduceUI32Shift(Node* node,
                                            Signedness left_signedness,
                                            const Operator* shift_op) {
+  if (flags() & kDisableBinaryOpReduction) return NoChange();
+
   JSBinopReduction r(this, node);
   if (r.IsStrong()) {
     if (r.BothInputsAre(Type::Number())) {
@@ -540,6 +550,8 @@ Reduction JSTypedLowering::ReduceUI32Shift(Node* node,
 
 
 Reduction JSTypedLowering::ReduceJSComparison(Node* node) {
+  if (flags() & kDisableBinaryOpReduction) return NoChange();
+
   JSBinopReduction r(this, node);
   if (r.BothInputsAre(Type::String())) {
     // If both inputs are definitely strings, perform a string comparison.
@@ -611,6 +623,8 @@ Reduction JSTypedLowering::ReduceJSComparison(Node* node) {
 
 
 Reduction JSTypedLowering::ReduceJSEqual(Node* node, bool invert) {
+  if (flags() & kDisableBinaryOpReduction) return NoChange();
+
   JSBinopReduction r(this, node);
 
   if (r.BothInputsAre(Type::Number())) {
@@ -652,6 +666,8 @@ Reduction JSTypedLowering::ReduceJSEqual(Node* node, bool invert) {
 
 
 Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node, bool invert) {
+  if (flags() & kDisableBinaryOpReduction) return NoChange();
+
   JSBinopReduction r(this, node);
   if (r.left() == r.right()) {
     // x === x is always true if x != NaN
@@ -1104,7 +1120,10 @@ Reduction JSTypedLowering::ReduceJSInstanceOf(Node* node) {
   Node* const frame_state = NodeProperties::GetFrameStateInput(node, 0);
 
   // If deoptimization is disabled, we cannot optimize.
-  if (!(flags() & kDeoptimizationEnabled)) return NoChange();
+  if (!(flags() & kDeoptimizationEnabled) ||
+      (flags() & kDisableBinaryOpReduction)) {
+    return NoChange();
+  }
 
   // If we are in a try block, don't optimize since the runtime call
   // in the proxy case can throw.
