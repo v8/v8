@@ -2908,119 +2908,91 @@ void Simulator::ExecuteExt4(Instruction* instr) {
       set_d_register_from_double(frt, frt_val);
       return;
     }
-    case FCTID: {
-      int frt = instr->RTValue();
-      int frb = instr->RBValue();
-      double frb_val = get_double_from_d_register(frb);
-      int64_t frt_val;
-      int64_t one = 1;  // work-around gcc
-      int64_t kMinLongLong = (one << 63);
-      int64_t kMaxLongLong = kMinLongLong - 1;
-      bool invalid_convert = false;
-
-      if (std::isnan(frb_val) || frb_val < kMinLongLong) {
-        frt_val = kMinLongLong;
-        invalid_convert = true;
-      } else if (frb_val > kMaxLongLong) {
-        frt_val = kMaxLongLong;
-        invalid_convert = true;
-      } else {
-        switch (fp_condition_reg_ & kFPRoundingModeMask) {
-          case kRoundToZero:
-            frt_val = (int64_t)frb_val;
-            break;
-          case kRoundToPlusInf:
-            frt_val = (int64_t)std::ceil(frb_val);
-            break;
-          case kRoundToMinusInf:
-            frt_val = (int64_t)std::floor(frb_val);
-            break;
-          default:
-            frt_val = (int64_t)frb_val;
-            UNIMPLEMENTED();  // Not used by V8.
-            break;
-        }
-      }
-      set_d_register(frt, frt_val);
-      if (invalid_convert) SetFPSCR(VXCVI);
-      return;
-    }
+    case FCTID:
     case FCTIDZ: {
       int frt = instr->RTValue();
       int frb = instr->RBValue();
       double frb_val = get_double_from_d_register(frb);
+      int mode = (opcode == FCTIDZ) ? kRoundToZero
+                                    : (fp_condition_reg_ & kFPRoundingModeMask);
       int64_t frt_val;
       int64_t one = 1;  // work-around gcc
-      int64_t kMinLongLong = (one << 63);
-      int64_t kMaxLongLong = kMinLongLong - 1;
+      int64_t kMinVal = (one << 63);
+      int64_t kMaxVal = kMinVal - 1;
       bool invalid_convert = false;
 
-      if (std::isnan(frb_val) || frb_val < kMinLongLong) {
-        frt_val = kMinLongLong;
-        invalid_convert = true;
-      } else if (frb_val > kMaxLongLong) {
-        frt_val = kMaxLongLong;
+      if (std::isnan(frb_val)) {
+        frt_val = kMinVal;
         invalid_convert = true;
       } else {
-        frt_val = (int64_t)frb_val;
-      }
-      set_d_register(frt, frt_val);
-      if (invalid_convert) SetFPSCR(VXCVI);
-      return;
-    }
-    case FCTIDU: {
-      int frt = instr->RTValue();
-      int frb = instr->RBValue();
-      double frb_val = get_double_from_d_register(frb);
-      uint64_t frt_val;
-      uint64_t kMinLongLong = 0;
-      uint64_t kMaxLongLong = kMinLongLong - 1;
-      bool invalid_convert = false;
-
-      if (std::isnan(frb_val) || frb_val < kMinLongLong) {
-        frt_val = kMinLongLong;
-        invalid_convert = true;
-      } else if (frb_val > kMaxLongLong) {
-        frt_val = kMaxLongLong;
-        invalid_convert = true;
-      } else {
-        switch (fp_condition_reg_ & kFPRoundingModeMask) {
+        switch (mode) {
           case kRoundToZero:
-            frt_val = (uint64_t)frb_val;
+            frb_val = std::trunc(frb_val);
             break;
           case kRoundToPlusInf:
-            frt_val = (uint64_t)std::ceil(frb_val);
+            frb_val = std::ceil(frb_val);
             break;
           case kRoundToMinusInf:
-            frt_val = (uint64_t)std::floor(frb_val);
+            frb_val = std::floor(frb_val);
             break;
           default:
-            frt_val = (uint64_t)frb_val;
             UNIMPLEMENTED();  // Not used by V8.
             break;
+        }
+        if (frb_val < static_cast<double>(kMinVal)) {
+          frt_val = kMinVal;
+          invalid_convert = true;
+        } else if (frb_val >= static_cast<double>(kMaxVal)) {
+          frt_val = kMaxVal;
+          invalid_convert = true;
+        } else {
+          frt_val = (int64_t)frb_val;
         }
       }
       set_d_register(frt, frt_val);
       if (invalid_convert) SetFPSCR(VXCVI);
       return;
     }
+    case FCTIDU:
     case FCTIDUZ: {
       int frt = instr->RTValue();
       int frb = instr->RBValue();
       double frb_val = get_double_from_d_register(frb);
+      int mode = (opcode == FCTIDUZ)
+                     ? kRoundToZero
+                     : (fp_condition_reg_ & kFPRoundingModeMask);
       uint64_t frt_val;
-      uint64_t kMinLongLong = 0;
-      uint64_t kMaxLongLong = kMinLongLong - 1;
+      uint64_t kMinVal = 0;
+      uint64_t kMaxVal = kMinVal - 1;
       bool invalid_convert = false;
 
-      if (std::isnan(frb_val) || frb_val < kMinLongLong) {
-        frt_val = kMinLongLong;
-        invalid_convert = true;
-      } else if (frb_val > kMaxLongLong) {
-        frt_val = kMaxLongLong;
+      if (std::isnan(frb_val)) {
+        frt_val = kMinVal;
         invalid_convert = true;
       } else {
-        frt_val = (uint64_t)frb_val;
+        switch (mode) {
+          case kRoundToZero:
+            frb_val = std::trunc(frb_val);
+            break;
+          case kRoundToPlusInf:
+            frb_val = std::ceil(frb_val);
+            break;
+          case kRoundToMinusInf:
+            frb_val = std::floor(frb_val);
+            break;
+          default:
+            UNIMPLEMENTED();  // Not used by V8.
+            break;
+        }
+        if (frb_val < static_cast<double>(kMinVal)) {
+          frt_val = kMinVal;
+          invalid_convert = true;
+        } else if (frb_val >= static_cast<double>(kMaxVal)) {
+          frt_val = kMaxVal;
+          invalid_convert = true;
+        } else {
+          frt_val = (uint64_t)frb_val;
+        }
       }
       set_d_register(frt, frt_val);
       if (invalid_convert) SetFPSCR(VXCVI);
@@ -3031,40 +3003,44 @@ void Simulator::ExecuteExt4(Instruction* instr) {
       int frt = instr->RTValue();
       int frb = instr->RBValue();
       double frb_val = get_double_from_d_register(frb);
+      int mode = (opcode == FCTIWZ) ? kRoundToZero
+                                    : (fp_condition_reg_ & kFPRoundingModeMask);
       int64_t frt_val;
-      if (frb_val > kMaxInt) {
-        frt_val = kMaxInt;
-      } else if (frb_val < kMinInt) {
-        frt_val = kMinInt;
+      int64_t kMinVal = kMinInt;
+      int64_t kMaxVal = kMaxInt;
+
+      if (std::isnan(frb_val)) {
+        frt_val = kMinVal;
       } else {
-        if (opcode == FCTIWZ) {
-          frt_val = (int64_t)frb_val;
-        } else {
-          switch (fp_condition_reg_ & kFPRoundingModeMask) {
-            case kRoundToZero:
-              frt_val = (int64_t)frb_val;
-              break;
-            case kRoundToPlusInf:
-              frt_val = (int64_t)std::ceil(frb_val);
-              break;
-            case kRoundToMinusInf:
-              frt_val = (int64_t)std::floor(frb_val);
-              break;
-            case kRoundToNearest:
-              frt_val = (int64_t)lround(frb_val);
-
-              // Round to even if exactly halfway.  (lround rounds up)
-              if (std::fabs(static_cast<double>(frt_val) - frb_val) == 0.5 &&
-                  (frt_val % 2)) {
-                frt_val += ((frt_val > 0) ? -1 : 1);
-              }
-
-              break;
-            default:
-              DCHECK(false);
-              frt_val = (int64_t)frb_val;
-              break;
+        switch (mode) {
+          case kRoundToZero:
+            frb_val = std::trunc(frb_val);
+            break;
+          case kRoundToPlusInf:
+            frb_val = std::ceil(frb_val);
+            break;
+          case kRoundToMinusInf:
+            frb_val = std::floor(frb_val);
+            break;
+          case kRoundToNearest: {
+            double orig = frb_val;
+            frb_val = lround(frb_val);
+            // Round to even if exactly halfway.  (lround rounds up)
+            if (std::fabs(frb_val - orig) == 0.5 && ((int64_t)frb_val % 2)) {
+              frb_val += ((frb_val > 0) ? -1.0 : 1.0);
+            }
+            break;
           }
+          default:
+            UNIMPLEMENTED();  // Not used by V8.
+            break;
+        }
+        if (frb_val < kMinVal) {
+          frt_val = kMinVal;
+        } else if (frb_val > kMaxVal) {
+          frt_val = kMaxVal;
+        } else {
+          frt_val = (int64_t)frb_val;
         }
       }
       set_d_register(frt, frt_val);
