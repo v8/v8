@@ -3491,7 +3491,10 @@ TEST(RunFloat64Add) {
   m.Return(m.Float64Add(m.Parameter(0), m.Parameter(1)));
 
   FOR_FLOAT64_INPUTS(i) {
-    FOR_FLOAT64_INPUTS(j) { CheckDoubleEq(*i + *j, m.Call(*i, *j)); }
+    FOR_FLOAT64_INPUTS(j) {
+      volatile double expected = *i + *j;
+      CheckDoubleEq(expected, m.Call(*i, *j));
+    }
   }
 }
 
@@ -3502,7 +3505,10 @@ TEST(RunFloat64Sub) {
   m.Return(m.Float64Sub(m.Parameter(0), m.Parameter(1)));
 
   FOR_FLOAT64_INPUTS(i) {
-    FOR_FLOAT64_INPUTS(j) { CheckDoubleEq(*i - *j, m.Call(*i, *j)); }
+    FOR_FLOAT64_INPUTS(j) {
+      volatile double expected = *i - *j;
+      CheckDoubleEq(expected, m.Call(*i, *j));
+    }
   }
 }
 
