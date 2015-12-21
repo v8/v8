@@ -4924,6 +4924,7 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
     SET_ALLOW(harmony_sloppy_let);
     SET_ALLOW(harmony_default_parameters);
     SET_ALLOW(harmony_destructuring_bind);
+    SET_ALLOW(harmony_destructuring_assignment);
     SET_ALLOW(strong_mode);
     SET_ALLOW(harmony_do_expressions);
     SET_ALLOW(harmony_function_name);
