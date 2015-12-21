@@ -28,6 +28,20 @@ struct SwitchInfo;
 
 typedef ZoneVector<InstructionOperand> InstructionOperandVector;
 
+// This struct connects nodes of parameters which are going to be pushed on the
+// call stack with their parameter index in the call descriptor of the callee.
+class PushParameter {
+ public:
+  PushParameter() : node_(nullptr), type_(MachineType::None()) {}
+  PushParameter(Node* node, MachineType type) : node_(node), type_(type) {}
+
+  Node* node() const { return node_; }
+  MachineType type() const { return type_; }
+
+ private:
+  Node* node_;
+  MachineType type_;
+};
 
 // Instruction selection generates an InstructionSequence for a given Schedule.
 class InstructionSelector final {
@@ -233,7 +247,7 @@ class InstructionSelector final {
   void VisitReturn(Node* ret);
   void VisitThrow(Node* value);
 
-  void EmitPrepareArguments(NodeVector* arguments,
+  void EmitPrepareArguments(ZoneVector<compiler::PushParameter>* arguments,
                             const CallDescriptor* descriptor, Node* node);
 
   // ===========================================================================

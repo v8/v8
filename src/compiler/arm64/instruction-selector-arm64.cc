@@ -1574,9 +1574,9 @@ void InstructionSelector::VisitFloat64RoundTiesEven(Node* node) {
 }
 
 
-void InstructionSelector::EmitPrepareArguments(NodeVector* arguments,
-                                               const CallDescriptor* descriptor,
-                                               Node* node) {
+void InstructionSelector::EmitPrepareArguments(
+    ZoneVector<PushParameter>* arguments, const CallDescriptor* descriptor,
+    Node* node) {
   Arm64OperandGenerator g(this);
 
   // Push the arguments to the stack.
@@ -1602,7 +1602,7 @@ void InstructionSelector::EmitPrepareArguments(NodeVector* arguments,
   // Move arguments to the stack.
   int slot = aligned_push_count - 1;
   while (slot >= 0) {
-    Emit(kArm64Poke, g.NoOutput(), g.UseRegister((*arguments)[slot]),
+    Emit(kArm64Poke, g.NoOutput(), g.UseRegister((*arguments)[slot].node()),
          g.TempImmediate(slot));
     slot--;
     // TODO(ahaas): Poke arguments in pairs if two subsequent arguments have the

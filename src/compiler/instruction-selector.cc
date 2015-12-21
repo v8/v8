@@ -397,7 +397,7 @@ struct CallBuffer {
   NodeVector output_nodes;
   InstructionOperandVector outputs;
   InstructionOperandVector instruction_args;
-  NodeVector pushed_nodes;
+  ZoneVector<PushParameter> pushed_nodes;
 
   size_t input_count() const { return descriptor->InputCount(); }
 
@@ -539,10 +539,10 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
     if (UnallocatedOperand::cast(op).HasFixedSlotPolicy() && !call_tail) {
       int stack_index = -UnallocatedOperand::cast(op).fixed_slot_index() - 1;
       if (static_cast<size_t>(stack_index) >= buffer->pushed_nodes.size()) {
-        buffer->pushed_nodes.resize(stack_index + 1, NULL);
+        buffer->pushed_nodes.resize(stack_index + 1);
       }
-      DCHECK(!buffer->pushed_nodes[stack_index]);
-      buffer->pushed_nodes[stack_index] = *iter;
+      PushParameter parameter(*iter, buffer->descriptor->GetInputType(index));
+      buffer->pushed_nodes[stack_index] = parameter;
       pushed_count++;
     } else {
       buffer->instruction_args.push_back(op);

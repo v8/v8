@@ -896,9 +896,9 @@ void InstructionSelector::VisitFloat64RoundTiesEven(Node* node) {
 }
 
 
-void InstructionSelector::EmitPrepareArguments(NodeVector* arguments,
-                                               const CallDescriptor* descriptor,
-                                               Node* node) {
+void InstructionSelector::EmitPrepareArguments(
+    ZoneVector<PushParameter>* arguments, const CallDescriptor* descriptor,
+    Node* node) {
   IA32OperandGenerator g(this);
 
   // Prepare for C function call.
@@ -911,29 +911,34 @@ void InstructionSelector::EmitPrepareArguments(NodeVector* arguments,
 
     // Poke any stack arguments.
     for (size_t n = 0; n < arguments->size(); ++n) {
-      if (Node* input = (*arguments)[n]) {
+      PushParameter input = (*arguments)[n];
+      if (input.node()) {
         int const slot = static_cast<int>(n);
         InstructionOperand value = g.CanBeImmediate(node)
-                                       ? g.UseImmediate(input)
-                                       : g.UseRegister(input);
+                                       ? g.UseImmediate(input.node())
+                                       : g.UseRegister(input.node());
         Emit(kIA32Poke | MiscField::encode(slot), g.NoOutput(), value);
       }
     }
   } else {
     // Push any stack arguments.
-    for (Node* input : base::Reversed(*arguments)) {
+    for (PushParameter input : base::Reversed(*arguments)) {
       // Skip any alignment holes in pushed nodes.
-      if (input == nullptr) continue;
-      // TODO(titzer): IA32Push cannot handle stack->stack double moves
-      // because there is no way to encode fixed double slots.
+      if (input.node() == nullptr) continue;
       InstructionOperand value =
-          g.CanBeImmediate(input)
-              ? g.UseImmediate(input)
+          g.CanBeImmediate(input.node())
+              ? g.UseImmediate(input.node())
               : IsSupported(ATOM) ||
-                        sequence()->IsFloat(GetVirtualRegister(input))
-                    ? g.UseRegister(input)
-                    : g.Use(input);
-      Emit(kIA32Push, g.NoOutput(), value);
+                        sequence()->IsFloat(GetVirtualRegister(input.node()))
+                    ? g.UseRegister(input.node())
+                    : g.Use(input.node());
+      if (input.type() == MachineType::Float32()) {
+        Emit(kIA32PushFloat32, g.NoOutput(), value);
+      } else if (input.type() == MachineType::Float64()) {
+        Emit(kIA32PushFloat64, g.NoOutput(), value);
+      } else {
+        Emit(kIA32Push, g.NoOutput(), value);
+      }
     }
   }
 }

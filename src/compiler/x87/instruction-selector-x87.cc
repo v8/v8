@@ -903,9 +903,9 @@ void InstructionSelector::VisitFloat64RoundTiesEven(Node* node) {
 }
 
 
-void InstructionSelector::EmitPrepareArguments(NodeVector* arguments,
-                                               const CallDescriptor* descriptor,
-                                               Node* node) {
+void InstructionSelector::EmitPrepareArguments(
+    ZoneVector<PushParameter>* arguments, const CallDescriptor* descriptor,
+    Node* node) {
   X87OperandGenerator g(this);
 
   // Prepare for C function call.
@@ -918,26 +918,27 @@ void InstructionSelector::EmitPrepareArguments(NodeVector* arguments,
 
     // Poke any stack arguments.
     for (size_t n = 0; n < arguments->size(); ++n) {
-      if (Node* input = (*arguments)[n]) {
+      PushParameter input = (*arguments)[n];
+      if (input.node()) {
         int const slot = static_cast<int>(n);
-        InstructionOperand value = g.CanBeImmediate(input)
-                                       ? g.UseImmediate(input)
-                                       : g.UseRegister(input);
+        InstructionOperand value = g.CanBeImmediate(input.node())
+                                       ? g.UseImmediate(input.node())
+                                       : g.UseRegister(input.node());
         Emit(kX87Poke | MiscField::encode(slot), g.NoOutput(), value);
       }
     }
   } else {
     // Push any stack arguments.
-    for (Node* input : base::Reversed(*arguments)) {
+    for (PushParameter input : base::Reversed(*arguments)) {
       // TODO(titzer): handle pushing double parameters.
-      if (input == nullptr) continue;
+      if (input.node() == nullptr) continue;
       InstructionOperand value =
-          g.CanBeImmediate(input)
-              ? g.UseImmediate(input)
+          g.CanBeImmediate(input.node())
+              ? g.UseImmediate(input.node())
               : IsSupported(ATOM) ||
-                        sequence()->IsFloat(GetVirtualRegister(input))
-                    ? g.UseRegister(input)
-                    : g.Use(input);
+                        sequence()->IsFloat(GetVirtualRegister(input.node()))
+                    ? g.UseRegister(input.node())
+                    : g.Use(input.node());
       Emit(kX87Push, g.NoOutput(), value);
     }
   }

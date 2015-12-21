@@ -96,6 +96,8 @@ namespace compiler {
   V(IA32BitcastIF)                 \
   V(IA32Lea)                       \
   V(IA32Push)                      \
+  V(IA32PushFloat32)               \
+  V(IA32PushFloat64)               \
   V(IA32Poke)                      \
   V(IA32StackCheck)
 

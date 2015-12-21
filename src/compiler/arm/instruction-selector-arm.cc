@@ -1158,9 +1158,9 @@ void InstructionSelector::VisitFloat64RoundTiesEven(Node* node) {
 }
 
 
-void InstructionSelector::EmitPrepareArguments(NodeVector* arguments,
-                                               const CallDescriptor* descriptor,
-                                               Node* node) {
+void InstructionSelector::EmitPrepareArguments(
+    ZoneVector<PushParameter>* arguments, const CallDescriptor* descriptor,
+    Node* node) {
   ArmOperandGenerator g(this);
 
   // Prepare for C function call.
@@ -1171,18 +1171,19 @@ void InstructionSelector::EmitPrepareArguments(NodeVector* arguments,
 
     // Poke any stack arguments.
     for (size_t n = 0; n < arguments->size(); ++n) {
-      if (Node* input = (*arguments)[n]) {
+      PushParameter input = (*arguments)[n];
+      if (input.node()) {
         int slot = static_cast<int>(n);
         Emit(kArmPoke | MiscField::encode(slot), g.NoOutput(),
-             g.UseRegister(input));
+             g.UseRegister(input.node()));
       }
     }
   } else {
     // Push any stack arguments.
-    for (Node* input : base::Reversed(*arguments)) {
+    for (PushParameter input : base::Reversed(*arguments)) {
       // Skip any alignment holes in pushed nodes.
-      if (input == nullptr) continue;
-      Emit(kArmPush, g.NoOutput(), g.UseRegister(input));
+      if (input.node() == nullptr) continue;
+      Emit(kArmPush, g.NoOutput(), g.UseRegister(input.node()));
     }
   }
 }

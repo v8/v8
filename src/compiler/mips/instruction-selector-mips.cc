@@ -805,9 +805,9 @@ void InstructionSelector::VisitFloat64RoundTiesEven(Node* node) {
 }
 
 
-void InstructionSelector::EmitPrepareArguments(NodeVector* arguments,
-                                               const CallDescriptor* descriptor,
-                                               Node* node) {
+void InstructionSelector::EmitPrepareArguments(
+    ZoneVector<PushParameter>* arguments, const CallDescriptor* descriptor,
+    Node* node) {
   MipsOperandGenerator g(this);
 
   // Prepare for C function call.
@@ -818,8 +818,8 @@ void InstructionSelector::EmitPrepareArguments(NodeVector* arguments,
 
     // Poke any stack arguments.
     int slot = kCArgSlotCount;
-    for (Node* input : (*arguments)) {
-      Emit(kMipsStoreToStackSlot, g.NoOutput(), g.UseRegister(input),
+    for (PushParameter input : (*arguments)) {
+      Emit(kMipsStoreToStackSlot, g.NoOutput(), g.UseRegister(input.node()),
            g.TempImmediate(slot << kPointerSizeLog2));
       ++slot;
     }
@@ -831,8 +831,9 @@ void InstructionSelector::EmitPrepareArguments(NodeVector* arguments,
            g.TempImmediate(push_count << kPointerSizeLog2));
     }
     for (size_t n = 0; n < arguments->size(); ++n) {
-      if (Node* input = (*arguments)[n]) {
-        Emit(kMipsStoreToStackSlot, g.NoOutput(), g.UseRegister(input),
+      PushParameter input = (*arguments)[n];
+      if (input.node()) {
+        Emit(kMipsStoreToStackSlot, g.NoOutput(), g.UseRegister(input.node()),
              g.TempImmediate(n << kPointerSizeLog2));
       }
     }

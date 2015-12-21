@@ -1000,6 +1000,40 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       }
       break;
     }
+    case kIA32PushFloat32:
+      if (instr->InputAt(0)->IsDoubleRegister()) {
+        __ sub(esp, Immediate(kDoubleSize));
+        __ movss(Operand(esp, 0), i.InputDoubleRegister(0));
+        frame_access_state()->IncreaseSPDelta(kDoubleSize / kPointerSize);
+      } else if (HasImmediateInput(instr, 0)) {
+        __ Move(kScratchDoubleReg, i.InputDouble(0));
+        __ sub(esp, Immediate(kDoubleSize));
+        __ movss(Operand(esp, 0), kScratchDoubleReg);
+        frame_access_state()->IncreaseSPDelta(kDoubleSize / kPointerSize);
+      } else {
+        __ movsd(kScratchDoubleReg, i.InputOperand(0));
+        __ sub(esp, Immediate(kDoubleSize));
+        __ movss(Operand(esp, 0), kScratchDoubleReg);
+        frame_access_state()->IncreaseSPDelta(kDoubleSize / kPointerSize);
+      }
+      break;
+    case kIA32PushFloat64:
+      if (instr->InputAt(0)->IsDoubleRegister()) {
+        __ sub(esp, Immediate(kDoubleSize));
+        __ movsd(Operand(esp, 0), i.InputDoubleRegister(0));
+        frame_access_state()->IncreaseSPDelta(kDoubleSize / kPointerSize);
+      } else if (HasImmediateInput(instr, 0)) {
+        __ Move(kScratchDoubleReg, i.InputDouble(0));
+        __ sub(esp, Immediate(kDoubleSize));
+        __ movsd(Operand(esp, 0), kScratchDoubleReg);
+        frame_access_state()->IncreaseSPDelta(kDoubleSize / kPointerSize);
+      } else {
+        __ movsd(kScratchDoubleReg, i.InputOperand(0));
+        __ sub(esp, Immediate(kDoubleSize));
+        __ movsd(Operand(esp, 0), kScratchDoubleReg);
+        frame_access_state()->IncreaseSPDelta(kDoubleSize / kPointerSize);
+      }
+      break;
     case kIA32Push:
       if (instr->InputAt(0)->IsDoubleRegister()) {
         __ sub(esp, Immediate(kDoubleSize));
