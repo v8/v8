@@ -1270,6 +1270,7 @@ void MacroAssembler::Cvt_d_uw(FPURegister fd, Register rs,
   // In FP64Mode we do convertion from long.
   if (IsFp64Mode()) {
     mtc1(rs, scratch);
+    Mthc1(zero_reg, scratch);
     cvt_d_l(fd, scratch);
   } else {
     // Convert rs to a FP value in fd.
