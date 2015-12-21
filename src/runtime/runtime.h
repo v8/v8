@@ -543,8 +543,9 @@ namespace internal {
   F(IsJSProxy, 1, 1)                    \
   F(JSProxyCall, -1 /* >= 2 */, 1)      \
   F(JSProxyConstruct, -1 /* >= 3 */, 1) \
-  F(GetHandler, 1, 1)                   \
-  F(RevokeProxy, 1, 1)
+  F(JSProxyGetTarget, 1, 1)             \
+  F(JSProxyGetHandler, 1, 1)            \
+  F(JSProxyRevoke, 1, 1)
 
 #define FOR_EACH_INTRINSIC_REGEXP(F)           \
   F(StringReplaceGlobalRegExpWithString, 4, 1) \

@@ -188,7 +188,7 @@ function JSONSerialize(key, holder, replacer, stack, indent, gap) {
 
 
 function JSONStringify(value, replacer, space) {
-  if (%_ArgumentsLength() == 1 && !%_IsJSProxy(value)) {
+  if (%_ArgumentsLength() == 1 && !IS_PROXY(value)) {
     return %BasicJSONStringify(value);
   }
   if (!IS_CALLABLE(replacer) && %is_arraylike(replacer)) {
