@@ -855,7 +855,6 @@ void BytecodeGenerator::VisitForInAssignment(Expression* expr,
 
 void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   EffectResultScope statement_result_scope(this);
-
   if (stmt->subject()->IsNullLiteral() ||
       stmt->subject()->IsUndefinedLiteral(isolate())) {
     // ForIn generates lots of code, skip if it wouldn't produce any effects.
@@ -864,41 +863,43 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   LoopBuilder loop_builder(builder());
   ControlScopeForIteration control_scope(this, stmt, &loop_builder);
+  BytecodeLabel subject_null_label, subject_undefined_label, not_object_label;
 
   // Prepare the state for executing ForIn.
   VisitForAccumulatorValue(stmt->subject());
-  loop_builder.BreakIfUndefined();
-  loop_builder.BreakIfNull();
-
+  builder()->JumpIfUndefined(&subject_undefined_label);
+  builder()->JumpIfNull(&subject_null_label);
   Register receiver = execution_result()->NewRegister();
   builder()->CastAccumulatorToJSObject();
+  builder()->JumpIfNull(&not_object_label);
   builder()->StoreAccumulatorInRegister(receiver);
-  builder()->CallRuntime(Runtime::kGetPropertyNamesFast, receiver, 1);
-  builder()->ForInPrepare(receiver);
-  loop_builder.BreakIfUndefined();
+  Register cache_type = execution_result()->NewRegister();
+  Register cache_array = execution_result()->NewRegister();
+  Register cache_length = execution_result()->NewRegister();
+  builder()->ForInPrepare(cache_type, cache_array, cache_length);
 
-  Register for_in_state = execution_result()->NewRegister();
-  builder()->StoreAccumulatorInRegister(for_in_state);
-
-  // Check loop termination (accumulator holds index).
-  Register index = receiver;  // Re-using register as receiver no longer used.
+  // Set up loop counter
+  Register index = execution_result()->NewRegister();
   builder()->LoadLiteral(Smi::FromInt(0));
+  builder()->StoreAccumulatorInRegister(index);
+
+  // The loop
   loop_builder.LoopHeader();
   loop_builder.Condition();
-  builder()->StoreAccumulatorInRegister(index).ForInDone(for_in_state);
+  builder()->ForInDone(index, cache_length);
   loop_builder.BreakIfTrue();
-  builder()->ForInNext(for_in_state, index);
+  builder()->ForInNext(receiver, cache_type, cache_array, index);
   loop_builder.ContinueIfUndefined();
-
   VisitForInAssignment(stmt->each(), stmt->EachFeedbackSlot());
   Visit(stmt->body());
-
-  // TODO(oth): replace CountOperation here with ForInStep.
   loop_builder.Next();
-  builder()->LoadAccumulatorWithRegister(index).CountOperation(
-      Token::Value::ADD, language_mode_strength());
+  builder()->ForInStep(index);
+  builder()->StoreAccumulatorInRegister(index);
   loop_builder.JumpToHeader();
   loop_builder.EndLoop();
+  builder()->Bind(&not_object_label);
+  builder()->Bind(&subject_null_label);
+  builder()->Bind(&subject_undefined_label);
 }
 
 

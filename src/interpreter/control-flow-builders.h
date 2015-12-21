@@ -60,7 +60,6 @@ class BreakableControlFlowBuilder : public ControlFlowBuilder {
 
   void BindLabels(const BytecodeLabel& target, ZoneVector<BytecodeLabel>* site);
 
- private:
   // Unbound labels that identify jumps for break statements in the code.
   ZoneVector<BytecodeLabel> break_sites_;
 };
@@ -88,7 +87,7 @@ class LoopBuilder final : public BreakableControlFlowBuilder {
         continue_sites_(builder->zone()) {}
   ~LoopBuilder();
 
-  void LoopHeader() { builder()->Bind(&loop_header_); }
+  void LoopHeader();
   void Condition() { builder()->Bind(&condition_); }
   void Next() { builder()->Bind(&next_); }
   void JumpToHeader() { builder()->Jump(&loop_header_); }

@@ -1394,15 +1394,15 @@ void BytecodeGraphBuilder::VisitToName(
 }
 
 
-void BytecodeGraphBuilder::VisitToNumber(
-    const interpreter::BytecodeArrayIterator& iterator) {
-  BuildCastOperator(javascript()->ToNumber(), iterator);
-}
-
-
 void BytecodeGraphBuilder::VisitToObject(
     const interpreter::BytecodeArrayIterator& iterator) {
   BuildCastOperator(javascript()->ToObject(), iterator);
+}
+
+
+void BytecodeGraphBuilder::VisitToNumber(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  BuildCastOperator(javascript()->ToNumber(), iterator);
 }
 
 
@@ -1513,19 +1513,55 @@ void BytecodeGraphBuilder::VisitReturn(
 
 void BytecodeGraphBuilder::VisitForInPrepare(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
-}
-
-
-void BytecodeGraphBuilder::VisitForInNext(
-    const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  Node* prepare = nullptr;
+  {
+    FrameStateBeforeAndAfter states(this, iterator);
+    Node* receiver = environment()->LookupAccumulator();
+    prepare = NewNode(javascript()->ForInPrepare(), receiver);
+    environment()->RecordAfterState(prepare, &states);
+  }
+  // Project cache_type, cache_array, cache_length into register
+  // operands 1, 2, 3.
+  for (int i = 0; i < 3; i++) {
+    environment()->BindRegister(iterator.GetRegisterOperand(i),
+                                NewNode(common()->Projection(i), prepare));
+  }
 }
 
 
 void BytecodeGraphBuilder::VisitForInDone(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  FrameStateBeforeAndAfter states(this, iterator);
+  Node* index = environment()->LookupRegister(iterator.GetRegisterOperand(0));
+  Node* cache_length =
+      environment()->LookupRegister(iterator.GetRegisterOperand(1));
+  Node* exit_cond = NewNode(javascript()->ForInDone(), index, cache_length);
+  environment()->BindAccumulator(exit_cond, &states);
+}
+
+
+void BytecodeGraphBuilder::VisitForInNext(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  FrameStateBeforeAndAfter states(this, iterator);
+  Node* receiver =
+      environment()->LookupRegister(iterator.GetRegisterOperand(0));
+  Node* cache_type =
+      environment()->LookupRegister(iterator.GetRegisterOperand(1));
+  Node* cache_array =
+      environment()->LookupRegister(iterator.GetRegisterOperand(2));
+  Node* index = environment()->LookupRegister(iterator.GetRegisterOperand(3));
+  Node* value = NewNode(javascript()->ForInNext(), receiver, cache_array,
+                        cache_type, index);
+  environment()->BindAccumulator(value, &states);
+}
+
+
+void BytecodeGraphBuilder::VisitForInStep(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  FrameStateBeforeAndAfter states(this, iterator);
+  Node* index = environment()->LookupRegister(iterator.GetRegisterOperand(0));
+  index = NewNode(javascript()->ForInStep(), index);
+  environment()->BindAccumulator(index, &states);
 }
 
 

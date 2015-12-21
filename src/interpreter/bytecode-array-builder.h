@@ -27,9 +27,11 @@ class Register;
 // when rest parameters implementation has settled down.
 enum class CreateArgumentsType { kMappedArguments, kUnmappedArguments };
 
-class BytecodeArrayBuilder {
+class BytecodeArrayBuilder final {
  public:
   BytecodeArrayBuilder(Isolate* isolate, Zone* zone);
+  ~BytecodeArrayBuilder();
+
   Handle<BytecodeArray> ToBytecodeArray();
 
   // Set the number of parameters expected by function.
@@ -211,9 +213,12 @@ class BytecodeArrayBuilder {
   BytecodeArrayBuilder& Return();
 
   // Complex flow control.
-  BytecodeArrayBuilder& ForInPrepare(Register receiver);
-  BytecodeArrayBuilder& ForInNext(Register for_in_state, Register index);
-  BytecodeArrayBuilder& ForInDone(Register for_in_state);
+  BytecodeArrayBuilder& ForInPrepare(Register cache_type, Register cache_array,
+                                     Register cache_length);
+  BytecodeArrayBuilder& ForInDone(Register index, Register cache_length);
+  BytecodeArrayBuilder& ForInNext(Register receiver, Register cache_type,
+                                  Register cache_array, Register index);
+  BytecodeArrayBuilder& ForInStep(Register index);
 
   // Accessors
   Zone* zone() const { return zone_; }
@@ -288,6 +293,7 @@ class BytecodeArrayBuilder {
   size_t last_block_end_;
   size_t last_bytecode_start_;
   bool exit_seen_in_block_;
+  int unbound_jumps_;
 
   IdentityMap<size_t> constants_map_;
   ZoneVector<Handle<Object>> constants_;

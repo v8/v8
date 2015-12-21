@@ -150,18 +150,24 @@ RUNTIME_FUNCTION(Runtime_InterpreterNewClosure) {
 
 RUNTIME_FUNCTION(Runtime_InterpreterForInPrepare) {
   HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
-  CONVERT_ARG_HANDLE_CHECKED(HeapObject, property_names, 1);
 
-  Handle<Object> cache_type = property_names;
-  Handle<Map> cache_type_map = handle(property_names->map(), isolate);
-  Handle<Map> receiver_map = handle(receiver->map(), isolate);
+  Object* property_names = Runtime_GetPropertyNamesFast(
+      1, Handle<Object>::cast(receiver).location(), isolate);
+  if (isolate->has_pending_exception()) {
+    return property_names;
+  }
 
+  Handle<Object> cache_type(property_names, isolate);
   Handle<FixedArray> cache_array;
   int cache_length;
 
-  if (cache_type_map.is_identical_to(isolate->factory()->meta_map())) {
+  Handle<Map> receiver_map = handle(receiver->map(), isolate);
+  if (cache_type->IsMap()) {
+    Handle<Map> cache_type_map =
+        handle(Handle<Map>::cast(cache_type)->map(), isolate);
+    DCHECK(cache_type_map.is_identical_to(isolate->factory()->meta_map()));
     int enum_length = cache_type_map->EnumLength();
     DescriptorArray* descriptors = receiver_map->instance_descriptors();
     if (enum_length > 0 && descriptors->HasEnumCache()) {
@@ -185,14 +191,12 @@ RUNTIME_FUNCTION(Runtime_InterpreterForInPrepare) {
     }
   }
 
-  Handle<FixedArray> result = isolate->factory()->NewFixedArray(4);
-  result->set(0, *receiver);
+  Handle<FixedArray> result = isolate->factory()->NewFixedArray(3);
+  result->set(0, *cache_type);
   result->set(1, *cache_array);
-  result->set(2, *cache_type);
-  result->set(3, Smi::FromInt(cache_length));
+  result->set(2, Smi::FromInt(cache_length));
   return *result;
 }
-
 
 }  // namespace internal
 }  // namespace v8

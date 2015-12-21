@@ -71,6 +71,7 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(Isolate* isolate, Zone* zone)
       last_block_end_(0),
       last_bytecode_start_(~0),
       exit_seen_in_block_(false),
+      unbound_jumps_(0),
       constants_map_(isolate->heap(), zone),
       constants_(zone),
       parameter_count_(-1),
@@ -78,6 +79,9 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(Isolate* isolate, Zone* zone)
       context_register_count_(-1),
       temporary_register_count_(0),
       free_temporaries_(zone) {}
+
+
+BytecodeArrayBuilder::~BytecodeArrayBuilder() { DCHECK_EQ(0, unbound_jumps_); }
 
 
 void BytecodeArrayBuilder::set_locals_count(int number_of_locals) {
@@ -782,6 +786,7 @@ void BytecodeArrayBuilder::PatchJump(
       UNIMPLEMENTED();
     }
   }
+  unbound_jumps_--;
 }
 
 
@@ -826,6 +831,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::OutputJump(Bytecode jump_bytecode,
     // that will be patched when the label is bound.
     label->set_referrer(bytecodes()->size());
     delta = 0;
+    unbound_jumps_++;
   }
 
   if (FitsInImm8Operand(delta)) {
@@ -884,21 +890,33 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Return() {
 }
 
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::ForInPrepare(Register receiver) {
-  Output(Bytecode::kForInPrepare, receiver.ToOperand());
+BytecodeArrayBuilder& BytecodeArrayBuilder::ForInPrepare(
+    Register cache_type, Register cache_array, Register cache_length) {
+  Output(Bytecode::kForInPrepare, cache_type.ToOperand(),
+         cache_array.ToOperand(), cache_length.ToOperand());
   return *this;
 }
 
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::ForInNext(Register for_in_state,
+BytecodeArrayBuilder& BytecodeArrayBuilder::ForInDone(Register index,
+                                                      Register cache_length) {
+  Output(Bytecode::kForInDone, index.ToOperand(), cache_length.ToOperand());
+  return *this;
+}
+
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::ForInNext(Register receiver,
+                                                      Register cache_type,
+                                                      Register cache_array,
                                                       Register index) {
-  Output(Bytecode::kForInNext, for_in_state.ToOperand(), index.ToOperand());
+  Output(Bytecode::kForInNext, receiver.ToOperand(), cache_type.ToOperand(),
+         cache_array.ToOperand(), index.ToOperand());
   return *this;
 }
 
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::ForInDone(Register for_in_state) {
-  Output(Bytecode::kForInDone, for_in_state.ToOperand());
+BytecodeArrayBuilder& BytecodeArrayBuilder::ForInStep(Register index) {
+  Output(Bytecode::kForInStep, index.ToOperand());
   return *this;
 }
 

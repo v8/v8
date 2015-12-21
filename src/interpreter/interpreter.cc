@@ -1516,33 +1516,36 @@ void Interpreter::DoReturn(compiler::InterpreterAssembler* assembler) {
 }
 
 
-// ForInPrepare <receiver>
+// ForInPrepare <cache_type> <cache_array> <cache_length>
 //
-// Returns state for for..in loop execution based on the |receiver| and
-// the property names in the accumulator.
+// Returns state for for..in loop execution based on the object in the
+// accumulator. The registers |cache_type|, |cache_array|, and
+// |cache_length| represent output parameters.
 void Interpreter::DoForInPrepare(compiler::InterpreterAssembler* assembler) {
-  Node* receiver_reg = __ BytecodeOperandReg(0);
-  Node* receiver = __ LoadRegister(receiver_reg);
-  Node* property_names = __ GetAccumulator();
-  Node* result = __ CallRuntime(Runtime::kInterpreterForInPrepare, receiver,
-                                property_names);
+  Node* object = __ GetAccumulator();
+  Node* result = __ CallRuntime(Runtime::kInterpreterForInPrepare, object);
+  for (int i = 0; i < 3; i++) {
+    // 0 == cache_type, 1 == cache_array, 2 == cache_length
+    Node* cache_info = __ LoadFixedArrayElement(result, i);
+    Node* cache_info_reg = __ BytecodeOperandReg(i);
+    __ StoreRegister(cache_info, cache_info_reg);
+  }
   __ SetAccumulator(result);
   __ Dispatch();
 }
 
 
-// ForInNext <for_in_state> <index>
+// ForInNext <receiver> <cache_type> <cache_array> <index>
 //
-// Returns the next key in a for..in loop. The state associated with the
-// iteration is contained in |for_in_state| and |index| is the current
-// zero-based iteration count.
+// Returns the next enumerable property in the the accumulator.
 void Interpreter::DoForInNext(compiler::InterpreterAssembler* assembler) {
-  Node* for_in_state_reg = __ BytecodeOperandReg(0);
-  Node* for_in_state = __ LoadRegister(for_in_state_reg);
-  Node* receiver = __ LoadFixedArrayElement(for_in_state, 0);
-  Node* cache_array = __ LoadFixedArrayElement(for_in_state, 1);
-  Node* cache_type = __ LoadFixedArrayElement(for_in_state, 2);
-  Node* index_reg = __ BytecodeOperandReg(1);
+  Node* receiver_reg = __ BytecodeOperandReg(0);
+  Node* receiver = __ LoadRegister(receiver_reg);
+  Node* cache_type_reg = __ BytecodeOperandReg(1);
+  Node* cache_type = __ LoadRegister(cache_type_reg);
+  Node* cache_array_reg = __ BytecodeOperandReg(2);
+  Node* cache_array = __ LoadRegister(cache_array_reg);
+  Node* index_reg = __ BytecodeOperandReg(3);
   Node* index = __ LoadRegister(index_reg);
   Node* result = __ CallRuntime(Runtime::kForInNext, receiver, cache_array,
                                 cache_type, index);
@@ -1551,21 +1554,33 @@ void Interpreter::DoForInNext(compiler::InterpreterAssembler* assembler) {
 }
 
 
-// ForInDone <for_in_state>
+// ForInDone <index> <cache_length>
 //
-// Returns the next key in a for..in loop. The accumulator contains the current
-// zero-based iteration count and |for_in_state| is the state returned by an
-// earlier invocation of ForInPrepare.
+// Returns true if the end of the enumerable properties has been reached.
 void Interpreter::DoForInDone(compiler::InterpreterAssembler* assembler) {
-  Node* index = __ GetAccumulator();
-  Node* for_in_state_reg = __ BytecodeOperandReg(0);
-  Node* for_in_state = __ LoadRegister(for_in_state_reg);
-  Node* cache_length = __ LoadFixedArrayElement(for_in_state, 3);
+  // TODO(oth): Implement directly rather than making a runtime call.
+  Node* index_reg = __ BytecodeOperandReg(0);
+  Node* index = __ LoadRegister(index_reg);
+  Node* cache_length_reg = __ BytecodeOperandReg(1);
+  Node* cache_length = __ LoadRegister(cache_length_reg);
   Node* result = __ CallRuntime(Runtime::kForInDone, index, cache_length);
   __ SetAccumulator(result);
   __ Dispatch();
 }
 
+
+// ForInStep <index>
+//
+// Increments the loop counter in register |index| and stores the result
+// in the accumulator.
+void Interpreter::DoForInStep(compiler::InterpreterAssembler* assembler) {
+  // TODO(oth): Implement directly rather than making a runtime call.
+  Node* index_reg = __ BytecodeOperandReg(0);
+  Node* index = __ LoadRegister(index_reg);
+  Node* result = __ CallRuntime(Runtime::kForInStep, index);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
 
 }  // namespace interpreter
 }  // namespace internal
