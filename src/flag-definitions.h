@@ -197,16 +197,15 @@ DEFINE_NEG_IMPLICATION(harmony, promise_extra)
 DEFINE_IMPLICATION(es_staging, harmony_regexp_lookbehind)
 
 // Features that are still work in progress (behind individual flags).
-#define HARMONY_INPROGRESS(V)                                             \
-  V(harmony_modules, "harmony modules")                                   \
-  V(harmony_unicode_regexps, "harmony unicode regexps")                   \
-  V(harmony_function_name, "harmony Function name inference")             \
-  V(harmony_sloppy_function, "harmony sloppy function block scoping")     \
-  V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")               \
-  V(harmony_simd, "harmony simd")                                         \
-  V(harmony_do_expressions, "harmony do-expressions")                     \
-  V(harmony_regexp_subclass, "harmony regexp subclassing")                \
-  V(harmony_regexp_lookbehind, "harmony regexp lookbehind")
+#define HARMONY_INPROGRESS(V)                                         \
+  V(harmony_modules, "harmony modules")                               \
+  V(harmony_unicode_regexps, "harmony unicode regexps")               \
+  V(harmony_function_name, "harmony Function name inference")         \
+  V(harmony_sloppy_function, "harmony sloppy function block scoping") \
+  V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")           \
+  V(harmony_simd, "harmony simd")                                     \
+  V(harmony_do_expressions, "harmony do-expressions")                 \
+  V(harmony_regexp_subclass, "harmony regexp subclassing")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED(V)                                                 \
@@ -215,7 +214,8 @@ DEFINE_IMPLICATION(es_staging, harmony_regexp_lookbehind)
   V(harmony_reflect, "harmony Reflect API")                               \
   V(harmony_sloppy, "harmony features in sloppy mode")                    \
   V(harmony_sloppy_let, "harmony let in sloppy mode")                     \
-  V(harmony_regexps, "harmony regular expression extensions")
+  V(harmony_regexps, "harmony regular expression extensions")             \
+  V(harmony_regexp_lookbehind, "harmony regexp lookbehind")
 
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING(V)                                   \
