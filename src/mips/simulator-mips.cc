@@ -1343,11 +1343,13 @@ void Simulator::set_fpu_register_invalid_result(float original, float rounded) {
 void Simulator::set_fpu_register_invalid_result64(float original,
                                                   float rounded) {
   if (FCSR_ & kFCSRNaN2008FlagMask) {
+    // The value of INT64_MAX (2^63-1) can't be represented as double exactly,
+    // loading the most accurate representation into max_int64, which is 2^63.
     double max_int64 = std::numeric_limits<int64_t>::max();
     double min_int64 = std::numeric_limits<int64_t>::min();
     if (std::isnan(original)) {
       set_fpu_register(fd_reg(), 0);
-    } else if (rounded > max_int64) {
+    } else if (rounded >= max_int64) {
       set_fpu_register(fd_reg(), kFPU64InvalidResult);
     } else if (rounded < min_int64) {
       set_fpu_register(fd_reg(), kFPU64InvalidResultNegative);
@@ -1403,11 +1405,13 @@ void Simulator::set_fpu_register_invalid_result(double original,
 void Simulator::set_fpu_register_invalid_result64(double original,
                                                   double rounded) {
   if (FCSR_ & kFCSRNaN2008FlagMask) {
+    // The value of INT64_MAX (2^63-1) can't be represented as double exactly,
+    // loading the most accurate representation into max_int64, which is 2^63.
     double max_int64 = std::numeric_limits<int64_t>::max();
     double min_int64 = std::numeric_limits<int64_t>::min();
     if (std::isnan(original)) {
       set_fpu_register(fd_reg(), 0);
-    } else if (rounded > max_int64) {
+    } else if (rounded >= max_int64) {
       set_fpu_register(fd_reg(), kFPU64InvalidResult);
     } else if (rounded < min_int64) {
       set_fpu_register(fd_reg(), kFPU64InvalidResultNegative);
@@ -1456,6 +1460,8 @@ bool Simulator::set_fcsr_round_error(double original, double rounded) {
 // Returns true if the operation was invalid.
 bool Simulator::set_fcsr_round64_error(double original, double rounded) {
   bool ret = false;
+  // The value of INT64_MAX (2^63-1) can't be represented as double exactly,
+  // loading the most accurate representation into max_int64, which is 2^63.
   double max_int64 = std::numeric_limits<int64_t>::max();
   double min_int64 = std::numeric_limits<int64_t>::min();
 
@@ -1473,7 +1479,7 @@ bool Simulator::set_fcsr_round64_error(double original, double rounded) {
     ret = true;
   }
 
-  if (rounded > max_int64 || rounded < min_int64) {
+  if (rounded >= max_int64 || rounded < min_int64) {
     set_fcsr_bit(kFCSROverflowFlagBit, true);
     // The reference is not really clear but it seems this is required:
     set_fcsr_bit(kFCSRInvalidOpFlagBit, true);
@@ -1520,6 +1526,8 @@ bool Simulator::set_fcsr_round_error(float original, float rounded) {
 // Returns true if the operation was invalid.
 bool Simulator::set_fcsr_round64_error(float original, float rounded) {
   bool ret = false;
+  // The value of INT64_MAX (2^63-1) can't be represented as double exactly,
+  // loading the most accurate representation into max_int64, which is 2^63.
   double max_int64 = std::numeric_limits<int64_t>::max();
   double min_int64 = std::numeric_limits<int64_t>::min();
 
@@ -1537,7 +1545,7 @@ bool Simulator::set_fcsr_round64_error(float original, float rounded) {
     ret = true;
   }
 
-  if (rounded > max_int64 || rounded < min_int64) {
+  if (rounded >= max_int64 || rounded < min_int64) {
     set_fcsr_bit(kFCSROverflowFlagBit, true);
     // The reference is not really clear but it seems this is required:
     set_fcsr_bit(kFCSRInvalidOpFlagBit, true);
