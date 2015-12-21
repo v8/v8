@@ -168,6 +168,10 @@ class WasmGraphBuilder {
   Node* BuildF32Max(Node* left, Node* right);
   Node* BuildF64Min(Node* left, Node* right);
   Node* BuildF64Max(Node* left, Node* right);
+  Node* BuildI32SConvertF32(Node* input);
+  Node* BuildI32SConvertF64(Node* input);
+  Node* BuildI32UConvertF32(Node* input);
+  Node* BuildI32UConvertF64(Node* input);
   Node* BuildI32Ctz(Node* input);
   Node* BuildI32Popcnt(Node* input);
   Node* BuildI64Ctz(Node* input);

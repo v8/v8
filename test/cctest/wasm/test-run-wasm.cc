@@ -3441,6 +3441,64 @@ TEST(Run_Wasm_I64UConvertF64) {
 #endif
 
 
+TEST(Run_Wasm_I32SConvertF32) {
+  WasmRunner<int32_t> r(MachineType::Float32());
+  BUILD(r, WASM_I32_SCONVERT_F32(WASM_GET_LOCAL(0)));
+
+  FOR_FLOAT32_INPUTS(i) {
+    if (*i < static_cast<float>(INT32_MAX) &&
+        *i >= static_cast<float>(INT32_MIN)) {
+      CHECK_EQ(static_cast<int32_t>(*i), r.Call(*i));
+    } else {
+      CHECK_TRAP32(r.Call(*i));
+    }
+  }
+}
+
+
+TEST(Run_Wasm_I32SConvertF64) {
+  WasmRunner<int32_t> r(MachineType::Float64());
+  BUILD(r, WASM_I32_SCONVERT_F64(WASM_GET_LOCAL(0)));
+
+  FOR_FLOAT64_INPUTS(i) {
+    if (*i < static_cast<double>(INT32_MAX) &&
+        *i >= static_cast<double>(INT32_MIN)) {
+      CHECK_EQ(static_cast<int64_t>(*i), r.Call(*i));
+    } else {
+      CHECK_TRAP32(r.Call(*i));
+    }
+  }
+}
+
+
+TEST(Run_Wasm_I32UConvertF32) {
+  WasmRunner<uint32_t> r(MachineType::Float32());
+  BUILD(r, WASM_I32_UCONVERT_F32(WASM_GET_LOCAL(0)));
+
+  FOR_FLOAT32_INPUTS(i) {
+    if (*i < static_cast<float>(UINT32_MAX) && *i > -1) {
+      CHECK_EQ(static_cast<uint32_t>(*i), r.Call(*i));
+    } else {
+      CHECK_TRAP32(r.Call(*i));
+    }
+  }
+}
+
+
+TEST(Run_Wasm_I32UConvertF64) {
+  WasmRunner<uint32_t> r(MachineType::Float64());
+  BUILD(r, WASM_I32_UCONVERT_F64(WASM_GET_LOCAL(0)));
+
+  FOR_FLOAT64_INPUTS(i) {
+    if (*i < static_cast<float>(UINT32_MAX) && *i > -1) {
+      CHECK_EQ(static_cast<uint32_t>(*i), r.Call(*i));
+    } else {
+      CHECK_TRAP32(r.Call(*i));
+    }
+  }
+}
+
+
 TEST(Run_Wasm_F64CopySign) {
   WasmRunner<double> r(MachineType::Float64(), MachineType::Float64());
   BUILD(r, WASM_F64_COPYSIGN(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
