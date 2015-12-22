@@ -86,8 +86,7 @@ MoveOptimizer::MoveOptimizer(Zone* local_zone, InstructionSequence* code)
     : local_zone_(local_zone),
       code_(code),
       to_finalize_(local_zone),
-      temp_vector_0_(local_zone),
-      temp_vector_1_(local_zone) {}
+      local_vector_(local_zone) {}
 
 
 void MoveOptimizer::Run() {
@@ -118,22 +117,23 @@ void MoveOptimizer::Run() {
 }
 
 
-void MoveOptimizer::CompressMoves(MoveOpVector* eliminated, ParallelMove* left,
-                                  ParallelMove* right) {
-  DCHECK(eliminated->empty());
+void MoveOptimizer::CompressMoves(ParallelMove* left, ParallelMove* right) {
+  MoveOpVector& eliminated = local_vector();
+  DCHECK(eliminated.empty());
+
   if (!left->empty()) {
     // Modify the right moves in place and collect moves that will be killed by
     // merging the two gaps.
     for (MoveOperands* move : *right) {
       if (move->IsRedundant()) continue;
       MoveOperands* to_eliminate = left->PrepareInsertAfter(move);
-      if (to_eliminate != nullptr) eliminated->push_back(to_eliminate);
+      if (to_eliminate != nullptr) eliminated.push_back(to_eliminate);
     }
     // Eliminate dead moves.
-    for (MoveOperands* to_eliminate : *eliminated) {
+    for (MoveOperands* to_eliminate : eliminated) {
       to_eliminate->Eliminate();
     }
-    eliminated->clear();
+    eliminated.clear();
   }
   // Add all possibly modified moves from right side.
   for (MoveOperands* move : *right) {
@@ -142,14 +142,13 @@ void MoveOptimizer::CompressMoves(MoveOpVector* eliminated, ParallelMove* left,
   }
   // Nuke right.
   right->clear();
+  DCHECK(eliminated.empty());
 }
 
 
 // Smash all consecutive moves into the left most move slot and accumulate them
 // as much as possible across instructions.
 void MoveOptimizer::CompressBlock(InstructionBlock* block) {
-  MoveOpVector& temp_vector = temp_vector_0();
-  DCHECK(temp_vector.empty());
   Instruction* prev_instr = nullptr;
   for (int index = block->code_start(); index < block->code_end(); ++index) {
     Instruction* instr = code()->instructions()[index];
@@ -162,12 +161,12 @@ void MoveOptimizer::CompressBlock(InstructionBlock* block) {
       for (++i; i <= Instruction::LAST_GAP_POSITION; ++i) {
         ParallelMove* move = instr->parallel_moves()[i];
         if (move == nullptr) continue;
-        CompressMoves(&temp_vector, left, move);
+        CompressMoves(left, move);
       }
       if (prev_instr != nullptr) {
         // Smash left into prev_instr, killing left.
         ParallelMove* pred_moves = prev_instr->parallel_moves()[0];
-        CompressMoves(&temp_vector, pred_moves, left);
+        CompressMoves(pred_moves, left);
       }
     }
     if (prev_instr != nullptr) {
@@ -274,8 +273,7 @@ void MoveOptimizer::OptimizeMerge(InstructionBlock* block) {
   }
   // Compress.
   if (!gap_initialized) {
-    CompressMoves(&temp_vector_0(), instr->parallel_moves()[0],
-                  instr->parallel_moves()[1]);
+    CompressMoves(instr->parallel_moves()[0], instr->parallel_moves()[1]);
   }
 }
 
@@ -302,8 +300,9 @@ bool LoadCompare(const MoveOperands* a, const MoveOperands* b) {
 // Split multiple loads of the same constant or stack slot off into the second
 // slot and keep remaining moves in the first slot.
 void MoveOptimizer::FinalizeMoves(Instruction* instr) {
-  MoveOpVector& loads = temp_vector_0();
+  MoveOpVector& loads = local_vector();
   DCHECK(loads.empty());
+
   // Find all the loads.
   for (MoveOperands* move : *instr->parallel_moves()[0]) {
     if (move->IsRedundant()) continue;
