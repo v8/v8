@@ -5670,16 +5670,16 @@ TEST(AssignmentsInBinaryExpression) {
            B(Add), R(4),        //
            B(Star), R(3),       //
            B(LdaSmi8), U8(4),   //
-           B(Star), R(4),       //
-           B(Add), R(3),        //
            B(Star), R(5),       //
+           B(Add), R(3),        //
+           B(Star), R(4),       //
            B(LdaSmi8), U8(5),   //
            B(Star), R(1),       //
-           B(Add), R(5),        //
+           B(Add), R(4),        //
            B(Star), R(3),       //
            B(Ldar), R(1),       //
            B(Add), R(3),        //
-           B(Mov), R(4), R(0),  //
+           B(Mov), R(5), R(0),  //
            B(Return),           //
        },
        0},

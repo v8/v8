@@ -278,6 +278,8 @@ class BytecodeArrayBuilder final {
   bool IsRegisterInAccumulator(Register reg);
 
   int BorrowTemporaryRegister();
+  int BorrowTemporaryRegisterNotInRange(int start_index, int end_index);
+  int AllocateAndBorrowTemporaryRegister();
   void ReturnTemporaryRegister(int reg_index);
   int PrepareForConsecutiveTemporaryRegisters(size_t count);
   void BorrowConsecutiveTemporaryRegister(int reg_index);
@@ -361,11 +363,14 @@ class TemporaryRegisterScope {
   explicit TemporaryRegisterScope(BytecodeArrayBuilder* builder);
   ~TemporaryRegisterScope();
   Register NewRegister();
+  Register AllocateNewRegister();
 
   void PrepareForConsecutiveAllocations(size_t count);
   Register NextConsecutiveRegister();
 
   bool RegisterIsAllocatedInThisScope(Register reg) const;
+
+  bool hasConsecutiveAllocations() const { return next_consecutive_count_ > 0; }
 
  private:
   void* operator new(size_t size);

@@ -205,7 +205,22 @@ class BytecodeGenerator::ExpressionResultScope {
   BytecodeArrayBuilder* builder() const { return generator()->builder(); }
   ExpressionResultScope* outer() const { return outer_; }
 
-  Register NewRegister() { return allocator_.NewRegister(); }
+  Register NewRegister() {
+    ExpressionResultScope* current_scope = generator()->execution_result();
+    if ((current_scope == this) ||
+        (current_scope->outer() == this &&
+         !current_scope->allocator_.hasConsecutiveAllocations())) {
+      // Regular case - Allocating registers in current or outer context.
+      // VisitForRegisterValue allocates register in outer context.
+      return allocator_.NewRegister();
+    } else {
+      // We need this when allocating registers due to an Assignment hazard.
+      // It might be expensive to walk the full context chain and compute the
+      // list of consecutive reservations in the innerscopes. So allocates a
+      // new unallocated temporary register.
+      return allocator_.AllocateNewRegister();
+    }
+  }
 
   void PrepareForConsecutiveAllocations(size_t count) {
     allocator_.PrepareForConsecutiveAllocations(count);

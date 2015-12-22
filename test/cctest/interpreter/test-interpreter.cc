@@ -3129,6 +3129,40 @@ TEST(InterpreterLookupSlot) {
   }
 }
 
+
+TEST(TemporaryRegisterAllocation) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  i::Factory* factory = isolate->factory();
+
+  std::pair<const char*, Handle<Object>> reg_tests[] = {
+      {"function add(a, b, c) {"
+       "   return a + b + c;"
+       "}"
+       "function f() {"
+       "  var a = 10, b = 10;"
+       "   return add(a, b++, b);"
+       "}",
+       factory->NewNumberFromInt(31)},
+      {"function add(a, b, c, d) {"
+       "  return a + b + c + d;"
+       "}"
+       "function f() {"
+       "  var x = 10, y = 20, z = 30;"
+       "  return x + add(x, (y= x++), x, z);"
+       "}",
+       factory->NewNumberFromInt(71)},
+  };
+
+  for (size_t i = 0; i < arraysize(reg_tests); i++) {
+    InterpreterTester tester(handles.main_isolate(), reg_tests[i].first);
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*reg_tests[i].second));
+  }
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

@@ -614,7 +614,6 @@
   'annexB/B.2.3.*': [SKIP],
   'built-ins/Array/prototype/reduce/*': [SKIP],
   'built-ins/Array/prototype/reduceRight/*': [SKIP],
-  'built-ins/decodeURI*': [SKIP],
   'built-ins/GeneratorFunction/*': [SKIP],
   'built-ins/GeneratorPrototype/*': [SKIP],
   'built-ins/Map/*': [SKIP],

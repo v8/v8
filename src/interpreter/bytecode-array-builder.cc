@@ -1034,6 +1034,34 @@ int BytecodeArrayBuilder::BorrowTemporaryRegister() {
 }
 
 
+int BytecodeArrayBuilder::BorrowTemporaryRegisterNotInRange(int start_index,
+                                                            int end_index) {
+  auto index = free_temporaries_.lower_bound(start_index);
+  if (index == free_temporaries_.begin()) {
+    // If start_index is the first free register, check for a register
+    // greater than end_index.
+    index = free_temporaries_.upper_bound(end_index);
+    if (index == free_temporaries_.end()) {
+      temporary_register_count_ += 1;
+      return last_temporary_register().index();
+    }
+  } else {
+    // If there is a free register < start_index
+    index--;
+  }
+
+  int retval = *index;
+  free_temporaries_.erase(index);
+  return retval;
+}
+
+
+int BytecodeArrayBuilder::AllocateAndBorrowTemporaryRegister() {
+  temporary_register_count_ += 1;
+  return last_temporary_register().index();
+}
+
+
 void BytecodeArrayBuilder::BorrowConsecutiveTemporaryRegister(int reg_index) {
   DCHECK(free_temporaries_.find(reg_index) != free_temporaries_.end());
   free_temporaries_.erase(reg_index);
@@ -1462,7 +1490,21 @@ TemporaryRegisterScope::~TemporaryRegisterScope() {
 
 
 Register TemporaryRegisterScope::NewRegister() {
-  int allocated = builder_->BorrowTemporaryRegister();
+  int allocated = -1;
+  if (next_consecutive_count_ <= 0) {
+    allocated = builder_->BorrowTemporaryRegister();
+  } else {
+    allocated = builder_->BorrowTemporaryRegisterNotInRange(
+        next_consecutive_register_,
+        next_consecutive_register_ + next_consecutive_count_ - 1);
+  }
+  allocated_.push_back(allocated);
+  return Register(allocated);
+}
+
+
+Register TemporaryRegisterScope::AllocateNewRegister() {
+  int allocated = builder_->AllocateAndBorrowTemporaryRegister();
   allocated_.push_back(allocated);
   return Register(allocated);
 }
