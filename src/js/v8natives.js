@@ -100,19 +100,6 @@ function GlobalParseFloat(string) {
 }
 
 
-// ES6 18.2.1 eval(x)
-function GlobalEval(x) {
-  if (!IS_STRING(x)) return x;
-
-  var global_proxy = %GlobalProxy(GlobalEval);
-
-  var f = %CompileString(x, false);
-  if (!IS_FUNCTION(f)) return f;
-
-  return %_Call(f, global_proxy);
-}
-
-
 // ----------------------------------------------------------------------------
 
 // Set up global object.
@@ -133,7 +120,6 @@ utils.InstallFunctions(global, DONT_ENUM, [
   "isFinite", GlobalIsFinite,
   "parseInt", GlobalParseInt,
   "parseFloat", GlobalParseFloat,
-  "eval", GlobalEval
 ]);
 
 
@@ -1403,7 +1389,6 @@ utils.Export(function(to) {
 });
 
 %InstallToContext([
-  "global_eval_fun", GlobalEval,
   "object_value_of", ObjectValueOf,
 ]);
 

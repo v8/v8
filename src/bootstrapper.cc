@@ -2456,6 +2456,14 @@ bool Genesis::InstallNatives(ContextType context_type) {
   native_context()->set_string_function_prototype_map(
       HeapObject::cast(string_function->initial_map()->prototype())->map());
 
+  // Install Global.eval.
+  {
+    Handle<JSFunction> eval = SimpleInstallFunction(
+        handle(native_context()->global_object()), factory()->eval_string(),
+        Builtins::kGlobalEval, 1, true);
+    native_context()->set_global_eval_fun(*eval);
+  }
+
   // Install Date.prototype[@@toPrimitive].
   {
     Handle<String> key = factory()->Date_string();

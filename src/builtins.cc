@@ -1484,6 +1484,75 @@ BUILTIN(ObjectAssign) {
 }
 
 
+namespace {
+
+bool CodeGenerationFromStringsAllowed(Isolate* isolate,
+                                      Handle<Context> context) {
+  DCHECK(context->allow_code_gen_from_strings()->IsFalse());
+  // Check with callback if set.
+  AllowCodeGenerationFromStringsCallback callback =
+      isolate->allow_code_gen_callback();
+  if (callback == NULL) {
+    // No callback set and code generation disallowed.
+    return false;
+  } else {
+    // Callback set. Let it decide if code generation is allowed.
+    VMState<EXTERNAL> state(isolate);
+    return callback(v8::Utils::ToLocal(context));
+  }
+}
+
+
+// TODO(bmeurer): Also migrate the Function constructor to C++ and share this.
+MaybeHandle<JSFunction> CompileString(Handle<Context> context,
+                                      Handle<String> source,
+                                      ParseRestriction restriction) {
+  Isolate* const isolate = context->GetIsolate();
+  Handle<Context> native_context(context->native_context(), isolate);
+
+  // Check if native context allows code generation from
+  // strings. Throw an exception if it doesn't.
+  if (native_context->allow_code_gen_from_strings()->IsFalse() &&
+      !CodeGenerationFromStringsAllowed(isolate, native_context)) {
+    Handle<Object> error_message =
+        native_context->ErrorMessageForCodeGenerationFromStrings();
+    THROW_NEW_ERROR(isolate, NewEvalError(MessageTemplate::kCodeGenFromStrings,
+                                          error_message),
+                    JSFunction);
+  }
+
+  // Compile source string in the native context.
+  Handle<SharedFunctionInfo> outer_info(native_context->closure()->shared(),
+                                        isolate);
+  return Compiler::GetFunctionFromEval(source, outer_info, native_context,
+                                       SLOPPY, restriction,
+                                       RelocInfo::kNoPosition);
+}
+
+}  // namespace
+
+
+// ES6 section 18.2.1 eval (x)
+BUILTIN(GlobalEval) {
+  HandleScope scope(isolate);
+  DCHECK_LE(1, args.length());
+  Handle<Object> x = args.at<Object>(1);
+  Handle<JSFunction> target = args.target();
+  Handle<JSObject> target_global_proxy(target->global_proxy(), isolate);
+  if (!x->IsString()) return *x;
+  Handle<JSFunction> function;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, function,
+      CompileString(handle(target->native_context(), isolate),
+                    Handle<String>::cast(x), NO_PARSE_RESTRICTION));
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      Execution::Call(isolate, function, target_global_proxy, 0, nullptr));
+  return *result;
+}
+
+
 // ES6 section 26.1.3 Reflect.defineProperty
 BUILTIN(ReflectDefineProperty) {
   HandleScope scope(isolate);

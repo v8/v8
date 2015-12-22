@@ -69,6 +69,8 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
                                                 \
   V(FunctionPrototypeToString, kNone)           \
                                                 \
+  V(GlobalEval, kTarget)                        \
+                                                \
   V(ObjectAssign, kNone)                        \
   V(ObjectProtoToString, kNone)                 \
                                                 \
