@@ -214,7 +214,6 @@ DEFINE_IMPLICATION(es_staging, harmony_regexp_lookbehind)
   V(harmony_sloppy, "harmony features in sloppy mode")                    \
   V(harmony_sloppy_let, "harmony let in sloppy mode")                     \
   V(harmony_sloppy_function, "harmony sloppy function block scoping")     \
-  V(harmony_regexps, "harmony regular expression extensions")             \
   V(harmony_regexp_lookbehind, "harmony regexp lookbehind")
 
 // Features that are shipping (turned on by default, but internal flag remains).
@@ -225,7 +224,8 @@ DEFINE_IMPLICATION(es_staging, harmony_regexp_lookbehind)
   V(harmony_object_observe, "harmony Object.observe")         \
   V(harmony_tolength, "harmony ToLength")                     \
   V(harmony_tostring, "harmony toString")                     \
-  V(harmony_completion, "harmony completion value semantics")
+  V(harmony_completion, "harmony completion value semantics") \
+  V(harmony_regexps, "harmony regular expression extensions")
 
 
 // Once a shipping feature has proved stable in the wild, it will be dropped
