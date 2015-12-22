@@ -7,7 +7,7 @@
 
 // Test instanceof with proxies.
 
-function TestInstanceOfWithProxies() {
+(function TestInstanceOfWithProxies() {
   function foo(x) {
     return x instanceof Array;
   }
@@ -47,6 +47,16 @@ function TestInstanceOfWithProxies() {
   assertTrue(foo_catch(o));
   handler.getPrototypeOf = function(target) { return Array.prototype; }
   assertFalse(foo_catch(o));
-}
+})();
 
-TestInstanceOfWithProxies();
+
+(function testInstanceOfWithRecursiveProxy() {
+  // Make sure we gracefully deal with recursive proxies.
+  var proxy = new Proxy({},{});
+  proxy.__proto__ = proxy;
+  // instanceof will cause an inifinite prototype walk.
+  assertThrows(() => { proxy instanceof Object }, RangeError);
+
+  var proxy2 = new Proxy({}, {getPrototypeOf() { return proxy2 }});
+  assertThrows(() => { proxy instanceof Object }, RangeError);
+})();
