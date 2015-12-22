@@ -6354,8 +6354,8 @@ int JSFunction::NumberOfLiterals() {
 }
 
 
-ACCESSORS(JSProxy, handler, Object, kHandlerOffset)
 ACCESSORS(JSProxy, target, JSReceiver, kTargetOffset)
+ACCESSORS(JSProxy, handler, Object, kHandlerOffset)
 ACCESSORS(JSProxy, hash, Object, kHashOffset)
 
 bool JSProxy::IsRevoked() const { return !handler()->IsJSReceiver(); }

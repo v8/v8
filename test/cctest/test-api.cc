@@ -24287,3 +24287,28 @@ TEST(ObjectTemplateIntrinsics) {
     CHECK_EQ(fn2->GetCreationContext(), *ctx2);
   }
 }
+
+
+TEST(Proxy) {
+  i::FLAG_harmony_proxies = true;
+  LocalContext context;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Object> target = CompileRun("({})").As<v8::Object>();
+  v8::Local<v8::Object> handler = CompileRun("({})").As<v8::Object>();
+
+  v8::Local<v8::Proxy> proxy =
+      v8::Proxy::New(context.local(), target, handler).ToLocalChecked();
+  CHECK(proxy->IsProxy());
+  CHECK(!target->IsProxy());
+  CHECK(!proxy->IsRevoked());
+  CHECK(proxy->GetTarget()->SameValue(target));
+  CHECK(proxy->GetHandler()->SameValue(handler));
+
+  proxy->Revoke();
+  CHECK(proxy->IsProxy());
+  CHECK(!target->IsProxy());
+  CHECK(proxy->IsRevoked());
+  CHECK(proxy->GetTarget()->SameValue(target));
+  CHECK(proxy->GetHandler()->IsNull());
+}

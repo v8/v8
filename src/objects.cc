@@ -4911,6 +4911,32 @@ Maybe<bool> JSProxy::DeletePropertyOrElement(Handle<JSProxy> proxy,
 
 
 // static
+MaybeHandle<JSProxy> JSProxy::New(Isolate* isolate, Handle<Object> target,
+                                  Handle<Object> handler) {
+  if (!target->IsJSReceiver()) {
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kProxyNonObject),
+                    JSProxy);
+  }
+  if (target->IsJSProxy() && JSProxy::cast(*target)->IsRevoked()) {
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError(MessageTemplate::kProxyHandlerOrTargetRevoked),
+                    JSProxy);
+  }
+  if (!handler->IsJSReceiver()) {
+    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kProxyNonObject),
+                    JSProxy);
+  }
+  if (handler->IsJSProxy() && JSProxy::cast(*handler)->IsRevoked()) {
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError(MessageTemplate::kProxyHandlerOrTargetRevoked),
+                    JSProxy);
+  }
+  return isolate->factory()->NewJSProxy(Handle<JSReceiver>::cast(target),
+                                        Handle<JSReceiver>::cast(handler));
+}
+
+
+// static
 MaybeHandle<Context> JSProxy::GetFunctionRealm(Handle<JSProxy> proxy) {
   DCHECK(proxy->map()->is_constructor());
   if (proxy->IsRevoked()) {

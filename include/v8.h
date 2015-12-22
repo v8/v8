@@ -92,6 +92,7 @@ class ObjectTemplate;
 class Platform;
 class Primitive;
 class Promise;
+class Proxy;
 class RawOperationDescriptor;
 class Script;
 class SharedArrayBuffer;
@@ -1954,6 +1955,11 @@ class V8_EXPORT Value : public Data {
    */
   bool IsSharedArrayBuffer() const;
 
+  /**
+   * Returns true if this value is a JavaScript Proxy.
+   */
+  bool IsProxy() const;
+
 
   V8_WARN_UNUSED_RESULT MaybeLocal<Boolean> ToBoolean(
       Local<Context> context) const;
@@ -3372,6 +3378,32 @@ class V8_EXPORT Promise : public Object {
 
  private:
   Promise();
+  static void CheckCast(Value* obj);
+};
+
+
+/**
+ * An instance of the built-in Proxy constructor (ECMA-262, 6th Edition,
+ * 26.2.1).
+ */
+class V8_EXPORT Proxy : public Object {
+ public:
+  Local<Object> GetTarget();
+  Local<Value> GetHandler();
+  bool IsRevoked();
+  void Revoke();
+
+  /**
+   * Creates a new empty Map.
+   */
+  static MaybeLocal<Proxy> New(Local<Context> context,
+                               Local<Object> local_target,
+                               Local<Object> local_handler);
+
+  V8_INLINE static Proxy* Cast(Value* obj);
+
+ private:
+  Proxy();
   static void CheckCast(Value* obj);
 };
 
@@ -8044,6 +8076,14 @@ Promise* Promise::Cast(v8::Value* value) {
   CheckCast(value);
 #endif
   return static_cast<Promise*>(value);
+}
+
+
+Proxy* Proxy::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<Proxy*>(value);
 }
 
 
