@@ -928,15 +928,25 @@ void BytecodeGraphBuilder::VisitCreateClosureWide(
 }
 
 
+void BytecodeGraphBuilder::BuildCreateArguments(
+    CreateArgumentsParameters::Type type,
+    const interpreter::BytecodeArrayIterator& iterator) {
+  FrameStateBeforeAndAfter states(this, iterator);
+  const Operator* op = javascript()->CreateArguments(type, 0);
+  Node* object = NewNode(op, GetFunctionClosure());
+  environment()->BindAccumulator(object, &states);
+}
+
+
 void BytecodeGraphBuilder::VisitCreateMappedArguments(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  BuildCreateArguments(CreateArgumentsParameters::kMappedArguments, iterator);
 }
 
 
 void BytecodeGraphBuilder::VisitCreateUnmappedArguments(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  BuildCreateArguments(CreateArgumentsParameters::kUnmappedArguments, iterator);
 }
 
 

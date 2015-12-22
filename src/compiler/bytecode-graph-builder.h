@@ -138,6 +138,8 @@ class BytecodeGraphBuilder {
       const interpreter::BytecodeArrayIterator& iterator);
   void BuildCreateObjectLiteral(
       const interpreter::BytecodeArrayIterator& iterator);
+  void BuildCreateArguments(CreateArgumentsParameters::Type type,
+                            const interpreter::BytecodeArrayIterator& iterator);
   void BuildLoadGlobal(const interpreter::BytecodeArrayIterator& iterator,
                        TypeofMode typeof_mode);
   void BuildStoreGlobal(const interpreter::BytecodeArrayIterator& iterator);
