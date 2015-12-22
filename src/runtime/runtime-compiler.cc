@@ -366,40 +366,6 @@ bool CodeGenerationFromStringsAllowed(Isolate* isolate,
 }
 
 
-RUNTIME_FUNCTION(Runtime_CompileString) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(String, source, 0);
-  CONVERT_BOOLEAN_ARG_CHECKED(function_literal_only, 1);
-
-  // Extract native context.
-  Handle<Context> context(isolate->native_context());
-
-  // Check if native context allows code generation from
-  // strings. Throw an exception if it doesn't.
-  if (context->allow_code_gen_from_strings()->IsFalse() &&
-      !CodeGenerationFromStringsAllowed(isolate, context)) {
-    Handle<Object> error_message =
-        context->ErrorMessageForCodeGenerationFromStrings();
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewEvalError(MessageTemplate::kCodeGenFromStrings, error_message));
-  }
-
-  // Compile source string in the native context.
-  ParseRestriction restriction = function_literal_only
-                                     ? ONLY_SINGLE_FUNCTION_LITERAL
-                                     : NO_PARSE_RESTRICTION;
-  Handle<SharedFunctionInfo> outer_info(context->closure()->shared(), isolate);
-  Handle<JSFunction> fun;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, fun,
-      Compiler::GetFunctionFromEval(source, outer_info, context, SLOPPY,
-                                    restriction, RelocInfo::kNoPosition));
-  return *fun;
-}
-
-
 static Object* CompileGlobalEval(Isolate* isolate, Handle<String> source,
                                  Handle<SharedFunctionInfo> outer_info,
                                  LanguageMode language_mode,

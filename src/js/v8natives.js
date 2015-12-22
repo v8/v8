@@ -26,7 +26,6 @@ var ObserveBeginPerformSplice;
 var ObserveEndPerformSplice;
 var ObserveEnqueueSpliceRecord;
 var SameValue = utils.ImportNow("SameValue");
-var StringIndexOf;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
@@ -37,7 +36,6 @@ utils.Import(function(from) {
   ObserveBeginPerformSplice = from.ObserveBeginPerformSplice;
   ObserveEndPerformSplice = from.ObserveEndPerformSplice;
   ObserveEnqueueSpliceRecord = from.ObserveEnqueueSpliceRecord;
-  StringIndexOf = from.StringIndexOf;
 });
 
 // ----------------------------------------------------------------------------
@@ -1304,46 +1302,8 @@ function FunctionBind(this_arg) { // Length is 1.
 }
 
 
-function NewFunctionString(args, function_token) {
-  var n = args.length;
-  var p = '';
-  if (n > 1) {
-    p = TO_STRING(args[0]);
-    for (var i = 1; i < n - 1; i++) {
-      p += ',' + TO_STRING(args[i]);
-    }
-    // If the formal parameters string include ) - an illegal
-    // character - it may make the combined function expression
-    // compile. We avoid this problem by checking for this early on.
-    if (%_Call(StringIndexOf, p, ')') != -1) {
-      throw MakeSyntaxError(kParenthesisInArgString);
-    }
-    // If the formal parameters include an unbalanced block comment, the
-    // function must be rejected. Since JavaScript does not allow nested
-    // comments we can include a trailing block comment to catch this.
-    p += '\n/' + '**/';
-  }
-  var body = (n > 0) ? TO_STRING(args[n - 1]) : '';
-  return '(' + function_token + '(' + p + ') {\n' + body + '\n})';
-}
-
-
-function FunctionConstructor(arg1) {  // length == 1
-  var source = NewFunctionString(arguments, 'function');
-  var global_proxy = %GlobalProxy(FunctionConstructor);
-  // Compile the string in the constructor and not a helper so that errors
-  // appear to come from here.
-  var func = %_Call(%CompileString(source, true), global_proxy);
-  // Set name-should-print-as-anonymous flag on the ShareFunctionInfo and
-  // ensure that |func| uses correct initial map from |new.target| if
-  // it's available.
-  return %CompleteFunctionConstruction(func, GlobalFunction, new.target);
-}
-
-
 // ----------------------------------------------------------------------------
 
-%SetCode(GlobalFunction, FunctionConstructor);
 %AddNamedProperty(GlobalFunction.prototype, "constructor", GlobalFunction,
                   DONT_ENUM);
 
@@ -1377,7 +1337,6 @@ utils.Export(function(to) {
   to.GetMethod = GetMethod;
   to.IsFinite = GlobalIsFinite;
   to.IsNaN = GlobalIsNaN;
-  to.NewFunctionString = NewFunctionString;
   to.NumberIsNaN = NumberIsNaN;
   to.ObjectDefineProperties = ObjectDefineProperties;
   to.ObjectDefineProperty = ObjectDefineProperty;

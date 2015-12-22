@@ -132,7 +132,6 @@ namespace internal {
   F(NotifyDeoptimized, 1, 1)              \
   F(CompileForOnStackReplacement, 1, 1)   \
   F(TryInstallOptimizedCode, 1, 1)        \
-  F(CompileString, 2, 1)                  \
   F(ResolvePossiblyDirectEval, 5, 1)
 
 
@@ -234,7 +233,6 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_FUNCTION(F)     \
   F(FunctionGetName, 1, 1)                 \
   F(FunctionSetName, 2, 1)                 \
-  F(CompleteFunctionConstruction, 3, 1)    \
   F(FunctionRemovePrototype, 1, 1)         \
   F(FunctionGetScript, 1, 1)               \
   F(FunctionGetSourceCode, 1, 1)           \

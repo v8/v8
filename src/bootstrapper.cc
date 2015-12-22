@@ -1117,11 +1117,13 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   {  // --- F u n c t i o n ---
     Handle<JSFunction> function_function =
         InstallFunction(global, "Function", JS_FUNCTION_TYPE, JSFunction::kSize,
-                        empty_function, Builtins::kIllegal);
+                        empty_function, Builtins::kFunctionConstructor);
     function_function->set_prototype_or_initial_map(
         *sloppy_function_map_writable_prototype_);
+    function_function->shared()->DontAdaptArguments();
     function_function->shared()->set_construct_stub(
-        *isolate->builtins()->JSBuiltinsConstructStub());
+        *isolate->builtins()->FunctionConstructor());
+    function_function->shared()->set_length(1);
     InstallWithIntrinsicDefaultProto(isolate, function_function,
                                      Context::FUNCTION_FUNCTION_INDEX);
 
@@ -1909,14 +1911,16 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
         generator_function_prototype, NONE);
 
     static const bool kUseStrictFunctionMap = true;
-    Handle<JSFunction> generator_function_function =
-        InstallFunction(container, "GeneratorFunction", JS_FUNCTION_TYPE,
-                        JSFunction::kSize, generator_function_prototype,
-                        Builtins::kIllegal, kUseStrictFunctionMap);
+    Handle<JSFunction> generator_function_function = InstallFunction(
+        container, "GeneratorFunction", JS_FUNCTION_TYPE, JSFunction::kSize,
+        generator_function_prototype, Builtins::kGeneratorFunctionConstructor,
+        kUseStrictFunctionMap);
     generator_function_function->set_prototype_or_initial_map(
         native_context->sloppy_generator_function_map());
+    generator_function_function->shared()->DontAdaptArguments();
     generator_function_function->shared()->set_construct_stub(
-        *isolate->builtins()->JSBuiltinsConstructStub());
+        *isolate->builtins()->GeneratorFunctionConstructor());
+    generator_function_function->shared()->set_length(1);
     InstallWithIntrinsicDefaultProto(
         isolate, generator_function_function,
         Context::GENERATOR_FUNCTION_FUNCTION_INDEX);
