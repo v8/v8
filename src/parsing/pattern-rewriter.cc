@@ -26,6 +26,7 @@ void Parser::PatternRewriter::DeclareAndInitializeVariables(
   rewriter.descriptor_ = declaration_descriptor;
   rewriter.names_ = names;
   rewriter.ok_ = ok;
+  rewriter.recursion_level_ = 0;
 
   rewriter.RecurseIntoSubpattern(rewriter.pattern_, declaration->initializer);
 }
@@ -46,6 +47,7 @@ void Parser::PatternRewriter::RewriteDestructuringAssignment(
   rewriter.descriptor_ = nullptr;
   rewriter.names_ = nullptr;
   rewriter.ok_ = &ok;
+  rewriter.recursion_level_ = 0;
 
   rewriter.RecurseIntoSubpattern(rewriter.pattern_, nullptr);
   DCHECK(ok);
@@ -280,11 +282,12 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
     DCHECK_NOT_NULL(proxy);
     DCHECK_NOT_NULL(proxy->var());
     DCHECK_NOT_NULL(value);
-    Assignment* assignment = factory()->NewAssignment(
-        Token::INIT, proxy, value, descriptor_->initialization_pos);
+    // Add break location for destructured sub-pattern.
+    int pos = IsSubPattern() ? pattern->position() : RelocInfo::kNoPosition;
+    Assignment* assignment =
+        factory()->NewAssignment(Token::INIT, proxy, value, pos);
     block_->statements()->Add(
-        factory()->NewExpressionStatement(assignment, RelocInfo::kNoPosition),
-        zone());
+        factory()->NewExpressionStatement(assignment, pos), zone());
     value = NULL;
   }
 
@@ -296,11 +299,12 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
     // if they are inside a 'with' statement - they may change a 'with' object
     // property).
     VariableProxy* proxy = initialization_scope->NewUnresolved(factory(), name);
-    Assignment* assignment = factory()->NewAssignment(
-        Token::INIT, proxy, value, descriptor_->initialization_pos);
+    // Add break location for destructured sub-pattern.
+    int pos = IsSubPattern() ? pattern->position() : RelocInfo::kNoPosition;
+    Assignment* assignment =
+        factory()->NewAssignment(Token::INIT, proxy, value, pos);
     block_->statements()->Add(
-        factory()->NewExpressionStatement(assignment, RelocInfo::kNoPosition),
-        zone());
+        factory()->NewExpressionStatement(assignment, pos), zone());
   }
 }
 
