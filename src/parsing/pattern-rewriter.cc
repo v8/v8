@@ -117,7 +117,7 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
     Assignment* assignment = factory()->NewAssignment(
         Token::ASSIGN, pattern, value, pattern->position());
     block_->statements()->Add(
-        factory()->NewExpressionStatement(assignment, RelocInfo::kNoPosition),
+        factory()->NewExpressionStatement(assignment, pattern->position()),
         zone());
     return;
   }
