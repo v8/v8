@@ -104,10 +104,11 @@ int GetByteWidth(MachineRepresentation rep) {
     case MachineRepresentation::kWord64:
     case MachineRepresentation::kFloat64:
       return 8;
-    default:
-      UNREACHABLE();
-      return 0;
+    case MachineRepresentation::kNone:
+      break;
   }
+  UNREACHABLE();
+  return 0;
 }
 
 }  // namespace

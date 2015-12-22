@@ -394,7 +394,8 @@ const Operator* MachineOperatorBuilder::Store(StoreRepresentation store_rep) {
     break;
     MACHINE_REPRESENTATION_LIST(STORE)
 #undef STORE
-    default:
+    case MachineRepresentation::kBit:
+    case MachineRepresentation::kNone:
       break;
   }
   UNREACHABLE();
@@ -423,7 +424,8 @@ const Operator* MachineOperatorBuilder::CheckedStore(
     return &cache_.kCheckedStore##kRep;
     MACHINE_REPRESENTATION_LIST(STORE)
 #undef STORE
-    default:
+    case MachineRepresentation::kBit:
+    case MachineRepresentation::kNone:
       break;
   }
   UNREACHABLE();

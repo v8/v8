@@ -139,6 +139,18 @@ std::ostream& operator<<(std::ostream& os,
         os << "|E";
       }
       switch (allocated.representation()) {
+        case MachineRepresentation::kNone:
+          os << "|-";
+          break;
+        case MachineRepresentation::kBit:
+          os << "|b";
+          break;
+        case MachineRepresentation::kWord8:
+          os << "|w8";
+          break;
+        case MachineRepresentation::kWord16:
+          os << "|w16";
+          break;
         case MachineRepresentation::kWord32:
           os << "|w32";
           break;
@@ -153,9 +165,6 @@ std::ostream& operator<<(std::ostream& os,
           break;
         case MachineRepresentation::kTagged:
           os << "|t";
-          break;
-        default:
-          os << "|?";
           break;
       }
       return os << "]";
@@ -718,7 +727,7 @@ static MachineRepresentation FilterRepresentation(MachineRepresentation rep) {
     case MachineRepresentation::kFloat64:
     case MachineRepresentation::kTagged:
       return rep;
-    default:
+    case MachineRepresentation::kNone:
       break;
   }
   UNREACHABLE();

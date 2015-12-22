@@ -198,7 +198,10 @@ void InstructionSelector::VisitLoad(Node* node) {
       mode = kInt16Imm_4ByteAligned;
       break;
 #endif
-    default:
+#if !V8_TARGET_ARCH_PPC64
+    case MachineRepresentation::kWord64:
+#endif
+    case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
   }

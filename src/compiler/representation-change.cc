@@ -145,7 +145,7 @@ Node* RepresentationChanger::GetRepresentationFor(Node* node,
       return GetWord32RepresentationFor(node, output_type);
     case MachineRepresentation::kWord64:
       return GetWord64RepresentationFor(node, output_type);
-    default:
+    case MachineRepresentation::kNone:
       return node;
   }
   UNREACHABLE();

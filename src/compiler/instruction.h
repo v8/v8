@@ -437,9 +437,14 @@ class LocationOperand : public InstructionOperand {
       case MachineRepresentation::kFloat64:
       case MachineRepresentation::kTagged:
         return true;
-      default:
+      case MachineRepresentation::kBit:
+      case MachineRepresentation::kWord8:
+      case MachineRepresentation::kWord16:
+      case MachineRepresentation::kNone:
         return false;
     }
+    UNREACHABLE();
+    return false;
   }
 
   static LocationOperand* cast(InstructionOperand* op) {
@@ -1150,13 +1155,7 @@ class InstructionSequence final : public ZoneObject {
            MachineRepresentation::kTagged;
   }
   bool IsFloat(int virtual_register) const {
-    switch (GetRepresentation(virtual_register)) {
-      case MachineRepresentation::kFloat32:
-      case MachineRepresentation::kFloat64:
-        return true;
-      default:
-        return false;
-    }
+    return IsFloatingPoint(GetRepresentation(virtual_register));
   }
 
   Instruction* GetBlockStart(RpoNumber rpo) const;

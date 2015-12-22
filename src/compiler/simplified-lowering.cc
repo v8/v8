@@ -184,8 +184,6 @@ bool MachineTypeIsSubtype(MachineSemantic t1, MachineSemantic t2) {
       return t2 == MachineSemantic::kNumber || t2 == MachineSemantic::kAny;
     case MachineSemantic::kAny:
       return t2 == MachineSemantic::kAny;
-    default:
-      break;
   }
   UNREACHABLE();
   return false;
@@ -231,8 +229,6 @@ bool MachineRepresentationIsSubtype(MachineRepresentation r1,
              r2 == MachineRepresentation::kTagged;
     case MachineRepresentation::kTagged:
       return r2 == MachineRepresentation::kTagged;
-    default:
-      break;
   }
   UNREACHABLE();
   return false;
