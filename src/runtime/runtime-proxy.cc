@@ -149,7 +149,7 @@ RUNTIME_FUNCTION(Runtime_IsJSProxy) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_JSProxyGetHandler) {
+RUNTIME_FUNCTION(Runtime_GetHandler) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_CHECKED(JSProxy, proxy, 0);
@@ -157,15 +157,7 @@ RUNTIME_FUNCTION(Runtime_JSProxyGetHandler) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_JSProxyGetTarget) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_CHECKED(JSProxy, proxy, 0);
-  return proxy->target();
-}
-
-
-RUNTIME_FUNCTION(Runtime_JSProxyRevoke) {
+RUNTIME_FUNCTION(Runtime_RevokeProxy) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSProxy, proxy, 0);

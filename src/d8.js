@@ -13,9 +13,6 @@ function Stringify(x, depth) {
     depth = stringifyDepthLimit;
   else if (depth === 0)
     return "*";
-  if (IS_PROXY(x)) {
-    return StringifyProxy(x, depth);
-  }
   switch (typeof x) {
     case "undefined":
       return "undefined";
@@ -29,56 +26,40 @@ function Stringify(x, depth) {
       return x.toString();
     case "object":
       if (IS_NULL(x)) return "null";
-      try {
-        return StringifyObject(x, depth);
-      } catch(RangeError) {
-        return "{*}"
+      if (x.constructor && x.constructor.name === "Array") {
+        var elems = [];
+        for (var i = 0; i < x.length; ++i) {
+          elems.push(
+            {}.hasOwnProperty.call(x, i) ? Stringify(x[i], depth - 1) : "");
+        }
+        return "[" + elems.join(", ") + "]";
       }
+      try {
+        var string = String(x);
+        if (string && string !== "[object Object]") return string;
+      } catch(e) {}
+      var props = [];
+      var names = Object.getOwnPropertyNames(x);
+      names = names.concat(Object.getOwnPropertySymbols(x));
+      for (var i in names) {
+        var name = names[i];
+        var desc = Object.getOwnPropertyDescriptor(x, name);
+        if (IS_UNDEFINED(desc)) continue;
+        if (IS_SYMBOL(name)) name = "[" + Stringify(name) + "]";
+        if ("value" in desc) {
+          props.push(name + ": " + Stringify(desc.value, depth - 1));
+        }
+        if (desc.get) {
+          var getter = Stringify(desc.get);
+          props.push("get " + name + getter.slice(getter.indexOf('(')));
+        }
+        if (desc.set) {
+          var setter = Stringify(desc.set);
+          props.push("set " + name + setter.slice(setter.indexOf('(')));
+        }
+      }
+      return "{" + props.join(", ") + "}";
     default:
       return "[crazy non-standard value]";
   }
-}
-
-function StringifyObject(x, depth) {
-  if (x.constructor && x.constructor.name === "Array") {
-    var elems = [];
-    for (var i = 0; i < x.length; ++i) {
-      elems.push(
-        {}.hasOwnProperty.call(x, i) ? Stringify(x[i], depth - 1) : "");
-    }
-    return "[" + elems.join(", ") + "]";
-  }
-  try {
-    var string = String(x);
-    if (string && string !== "[object Object]") return string;
-  } catch(e) {}
-  var props = [];
-  var names = Object.getOwnPropertyNames(x);
-  names = names.concat(Object.getOwnPropertySymbols(x));
-  for (var i in names) {
-    var name = names[i];
-    var desc = Object.getOwnPropertyDescriptor(x, name);
-    if (IS_UNDEFINED(desc)) continue;
-    if (IS_SYMBOL(name)) name = "[" + Stringify(name) + "]";
-    if ("value" in desc) {
-      props.push(name + ": " + Stringify(desc.value, depth - 1));
-    }
-    if (desc.get) {
-      var getter = Stringify(desc.get);
-      props.push("get " + name + getter.slice(getter.indexOf('(')));
-    }
-    if (desc.set) {
-      var setter = Stringify(desc.set);
-      props.push("set " + name + setter.slice(setter.indexOf('(')));
-    }
-  }
-  return "{" + props.join(", ") + "}";
-}
-
-function StringifyProxy(proxy, depth) {
-  var proxy_type = typeof proxy;
-  return '[' + proxy_type + ' Proxy ' + Stringify({
-    target: %JSProxyGetTarget(proxy),
-    handler: %JSProxyGetHandler(proxy)
-  }, depth-1) + ']';
 }

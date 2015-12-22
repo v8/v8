@@ -22,7 +22,7 @@ utils.Import(function(from) {
 
 function ProxyCreateRevocable(target, handler) {
   var p = new GlobalProxy(target, handler);
-  return {proxy: p, revoke: () => %JSProxyRevoke(p)};
+  return {proxy: p, revoke: () => %RevokeProxy(p)};
 }
 
 // -------------------------------------------------------------------
