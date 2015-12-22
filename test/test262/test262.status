@@ -79,13 +79,21 @@
   'built-ins/Array/symbol-species-name': [FAIL],
   'built-ins/ArrayBuffer/symbol-species': [FAIL],
   'built-ins/ArrayBuffer/symbol-species-name': [FAIL],
+  'built-ins/ArrayBuffer/prototype/slice/species-constructor-is-not-object': [FAIL],
+  'built-ins/ArrayBuffer/prototype/slice/species-returns-smaller-arraybuffer': [FAIL],
+  'built-ins/ArrayBuffer/prototype/slice/species-is-not-object': [FAIL],
+  'built-ins/ArrayBuffer/prototype/slice/species-is-not-constructor': [FAIL],
+  'built-ins/ArrayBuffer/prototype/slice/species-returns-larger-arraybuffer': [FAIL],
+  'built-ins/ArrayBuffer/prototype/slice/species-returns-not-arraybuffer': [FAIL],
+  'built-ins/ArrayBuffer/prototype/slice/species-returns-same-arraybuffer': [FAIL],
+  'built-ins/ArrayBuffer/prototype/slice/species': [FAIL],
   'built-ins/Map/symbol-species': [FAIL],
   'built-ins/Map/symbol-species-name': [FAIL],
   'built-ins/Promise/Symbol.species/prop-desc': [FAIL],
   'built-ins/Promise/Symbol.species/return-value': [FAIL],
-  'built-ins/Promise/all/species-get-error': [FAIL],
+  'built-ins/Promise/all/species-get-error': [PASS, FAIL],
   'built-ins/Promise/prototype/then/ctor-custom': [FAIL],
-  'built-ins/Promise/race/species-get-error': [FAIL],
+  'built-ins/Promise/race/species-get-error': [PASS, FAIL],
   'built-ins/Promise/symbol-species': [FAIL],
   'built-ins/Promise/symbol-species-name': [FAIL],
   'built-ins/RegExp/symbol-species': [FAIL],
@@ -117,6 +125,11 @@
   # https://code.google.com/p/v8/issues/detail?id=4243
   'built-ins/Promise/race/S25.4.4.3_A3.1_T2': [FAIL],
   'built-ins/Promise/reject/S25.4.4.4_A3.1_T1': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4631
+  'built-ins/Promise/resolve/capability-executor-called-twice': [FAIL],
+  'built-ins/Promise/reject/capability-executor-called-twice': [FAIL],
+  'built-ins/Promise/race/capability-executor-called-twice': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=4119
   'built-ins/RegExp/call_with_non_regexp_same_constructor': [FAIL],
@@ -207,6 +220,7 @@
   'language/expressions/assignment/S11.13.1_A6*': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=3699
+  'built-ins/Proxy/revocable/revocation-function-name': [FAIL],
   'language/expressions/assignment/destructuring/array-elem-init-fn-name-arrow': [FAIL],
   'language/expressions/assignment/destructuring/array-elem-init-fn-name-class': [FAIL],
   'language/expressions/assignment/destructuring/array-elem-init-fn-name-cover': [FAIL],
@@ -378,6 +392,77 @@
   'intl402/String/prototype/toLocaleUpperCase/special_casing_Azeri': [FAIL],
   'intl402/String/prototype/toLocaleUpperCase/special_casing_Lithuanian': [FAIL],
   'intl402/String/prototype/toLocaleUpperCase/special_casing_Turkish': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4627
+  'language/rest-parameters/object-pattern': [FAIL],
+  'language/rest-parameters/array-pattern': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4628
+  'language/eval-code/non-definable-function-with-variable': [FAIL],
+  'language/eval-code/non-definable-function-with-function': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4629
+  'built-ins/ArrayBuffer/data-allocation-after-object-creation': [FAIL],
+  'built-ins/ArrayBuffer/prototype-from-newtarget': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4592
+  'built-ins/ArrayBuffer/length-is-absent': [FAIL],
+  'built-ins/ArrayBuffer/length-is-not-number': [FAIL],
+  'built-ins/ArrayBuffer/positive-integer-length': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4630
+  'language/statements/generators/invoke-as-constructor': [FAIL],
+  'language/expressions/generators/invoke-as-constructor': [FAIL],
+  'language/expressions/object/method-definition/generator-invoke-ctor': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4632
+  'built-ins/Promise/race/same-resolve-function': [FAIL],
+  'built-ins/Promise/race/same-reject-function': [FAIL],
+  'built-ins/Promise/all/same-resolve-function': [FAIL],
+  'built-ins/Promise/all/same-reject-function': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4633
+  'built-ins/Promise/executor-function-length': [FAIL],
+  'built-ins/Promise/resolve/context-non-object-with-promise': [FAIL],
+  'built-ins/Promise/resolve/resolve-from-promise-capability': [FAIL],
+  'built-ins/Promise/resolve/capability-executor-not-callable': [FAIL],
+  'built-ins/Promise/reject/capability-executor-not-callable': [FAIL],
+  'built-ins/Promise/prototype/then/deferred-is-resolved-value': [SKIP],
+  'built-ins/Promise/race/capability-executor-not-callable': [FAIL],
+  'built-ins/Promise/prototype/then/context-check-on-entry': [FAIL],
+  'built-ins/Promise/exception-after-resolve-in-executor': [FAIL],
+  'built-ins/Promise/reject-function-name': [FAIL],
+  'built-ins/Promise/reject-function-nonconstructor': [FAIL],
+  'built-ins/Promise/resolve-function-name': [FAIL],
+  'built-ins/Promise/resolve-function-nonconstructor': [FAIL],
+  'built-ins/Promise/all/call-resolve-element-after-return': [FAIL],
+  'built-ins/Promise/all/call-resolve-element': [FAIL],
+  'built-ins/Promise/all/capability-executor-called-twice': [FAIL],
+  'built-ins/Promise/all/call-resolve-element-items': [FAIL],
+  'built-ins/Promise/all/resolve-before-loop-exit-from-same': [FAIL],
+  'built-ins/Promise/all/resolve-element-function-name': [FAIL],
+  'built-ins/Promise/all/resolve-element-function-nonconstructor': [FAIL],
+  'built-ins/Promise/prototype/then/capability-executor-called-twice': [FAIL],
+  'built-ins/Promise/prototype/then/capability-executor-not-callable': [FAIL],
+  'built-ins/Promise/exception-after-resolve-in-thenable-job': [FAIL],
+  'built-ins/Promise/all/capability-executor-not-callable': [FAIL],
+  'built-ins/Promise/all/resolve-before-loop-exit': [FAIL],
+  'built-ins/Promise/executor-function-name': [FAIL],
+  'built-ins/Promise/executor-function-nonconstructor': [FAIL],
+  'built-ins/Promise/all/resolve-from-same-thenable': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4634
+  'built-ins/DataView/prototype/setFloat64/index-check-before-value-conversion': [FAIL],
+  'built-ins/DataView/prototype/setFloat32/index-check-before-value-conversion': [FAIL],
+  'built-ins/DataView/prototype/setInt16/index-check-before-value-conversion': [FAIL],
+  'built-ins/DataView/prototype/setInt32/index-check-before-value-conversion': [FAIL],
+  'built-ins/DataView/prototype/setUint16/index-check-before-value-conversion': [FAIL],
+  'built-ins/DataView/prototype/setUint32/index-check-before-value-conversion': [FAIL],
+  'built-ins/DataView/prototype/setUint8/index-check-before-value-conversion': [FAIL],
+  'built-ins/DataView/prototype/setInt8/index-check-before-value-conversion': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4639
+  'built-ins/ArrayBuffer/allocation-limit': [SKIP],
 
   ######################## NEEDS INVESTIGATION ###########################
 
