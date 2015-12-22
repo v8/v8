@@ -486,11 +486,11 @@ function CallTrap2(handler, name, defaultTrap, x, y) {
 // ObjectGetOwnPropertyDescriptor and delete this.
 function GetOwnPropertyJS(obj, v) {
   var p = TO_NAME(v);
-  if (%_IsJSProxy(obj)) {
+  if (IS_PROXY(obj)) {
     // TODO(rossberg): adjust once there is a story for symbols vs proxies.
     if (IS_SYMBOL(v)) return UNDEFINED;
 
-    var handler = %GetHandler(obj);
+    var handler = %JSProxyGetHandler(obj);
     var descriptor = CallTrap1(
                          handler, "getOwnPropertyDescriptor", UNDEFINED, p);
     if (IS_UNDEFINED(descriptor)) return descriptor;
@@ -524,7 +524,7 @@ function DefineProxyProperty(obj, p, attributes, should_throw) {
   // TODO(rossberg): adjust once there is a story for symbols vs proxies.
   if (IS_SYMBOL(p)) return false;
 
-  var handler = %GetHandler(obj);
+  var handler = %JSProxyGetHandler(obj);
   var result = CallTrap2(handler, "defineProperty", UNDEFINED, p, attributes);
   if (!result) {
     if (should_throw) {
@@ -747,7 +747,7 @@ function DefineArrayProperty(obj, p, desc, should_throw) {
 
 // ES5 section 8.12.9, ES5 section 15.4.5.1 and Harmony proxies.
 function DefineOwnProperty(obj, p, desc, should_throw) {
-  if (%_IsJSProxy(obj)) {
+  if (IS_PROXY(obj)) {
     // TODO(rossberg): adjust once there is a story for symbols vs proxies.
     if (IS_SYMBOL(p)) return false;
 

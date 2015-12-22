@@ -100,7 +100,7 @@ function GetExistingHash(key) {
     if ((field & 1 /* Name::kHashNotComputedMask */) === 0) {
       return field >>> 2 /* Name::kHashShift */;
     }
-  } else if (IS_RECEIVER(key) && !%_IsJSProxy(key) && !IS_GLOBAL(key)) {
+  } else if (IS_RECEIVER(key) && !IS_PROXY(key) && !IS_GLOBAL(key)) {
     var hash = GET_PRIVATE(key, hashCodeSymbol);
     return hash;
   }
