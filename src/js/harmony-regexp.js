@@ -12,6 +12,7 @@
 // Imports
 
 var GlobalRegExp = global.RegExp;
+var GlobalRegExpPrototype = GlobalRegExp.prototype;
 var MakeTypeError;
 var regExpFlagsSymbol = utils.ImportNow("regexp_flags_symbol");
 
@@ -37,10 +38,17 @@ function RegExpGetFlags() {
   return result;
 }
 
+const kRegExpPrototypeStickyGetter = 11;
 
 // ES6 21.2.5.12.
 function RegExpGetSticky() {
   if (!IS_REGEXP(this)) {
+    // Compat fix: RegExp.prototype.sticky == undefined; UseCounter tracks it
+    // TODO(littledan): Remove this workaround or standardize it
+    if (this === GlobalRegExpPrototype) {
+      %IncrementUseCounter(kRegExpPrototypeStickyGetter);
+      return UNDEFINED;
+    }
     throw MakeTypeError(kRegExpNonRegExp, "RegExp.prototype.sticky");
   }
   return !!REGEXP_STICKY(this);

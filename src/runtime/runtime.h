@@ -346,7 +346,8 @@ namespace internal {
   F(IncrementStatsCounter, 1, 1)              \
   F(ThrowConstructedNonConstructable, 1, 1)   \
   F(ThrowCalledNonCallable, 1, 1)             \
-  F(CreateListFromArrayLike, 1, 1)
+  F(CreateListFromArrayLike, 1, 1)            \
+  F(IncrementUseCounter, 1, 1)
 
 
 #define FOR_EACH_INTRINSIC_JSON(F) \
