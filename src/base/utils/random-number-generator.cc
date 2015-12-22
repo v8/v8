@@ -124,6 +124,7 @@ int RandomNumberGenerator::Next(int bits) {
 
 
 void RandomNumberGenerator::SetSeed(int64_t seed) {
+  if (seed == 0) seed = 1;
   initial_seed_ = seed;
   state0_ = MurmurHash3(bit_cast<uint64_t>(seed));
   state1_ = MurmurHash3(state0_);
