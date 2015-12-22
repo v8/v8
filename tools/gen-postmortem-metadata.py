@@ -189,7 +189,7 @@ consts_misc = [
 extras_accessors = [
     'JSFunction, context, Context, kContextOffset',
     'Context, closure_index, int, CLOSURE_INDEX',
-    'Context, global_object_index, int, GLOBAL_OBJECT_INDEX',
+    'Context, native_context_index, int, NATIVE_CONTEXT_INDEX',
     'Context, previous_index, int, PREVIOUS_INDEX',
     'Context, min_context_slots, int, MIN_CONTEXT_SLOTS',
     'HeapObject, map, Map, kMapOffset',
