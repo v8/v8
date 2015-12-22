@@ -5411,8 +5411,6 @@ class V8_EXPORT Isolate {
     kSloppyMode = 8,
     kStrictMode = 9,
     kStrongMode = 10,
-    kRegExpPrototypeStickyGetter = 11,
-    kRegExpPrototypeToString = 12,
     kUseCounterFeatureCount  // This enum value must be last.
   };
 

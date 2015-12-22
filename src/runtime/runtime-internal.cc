@@ -460,14 +460,5 @@ RUNTIME_FUNCTION(Runtime_CreateListFromArrayLike) {
   return *result;
 }
 
-
-RUNTIME_FUNCTION(Runtime_IncrementUseCounter) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_SMI_ARG_CHECKED(counter, 0);
-  isolate->CountUsage(static_cast<v8::Isolate::UseCounterFeature>(counter));
-  return isolate->heap()->undefined_value();
-}
-
 }  // namespace internal
 }  // namespace v8

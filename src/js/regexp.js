@@ -270,17 +270,8 @@ function TrimRegExp(regexp) {
 }
 
 
-const kRegExpPrototypeToString = 12;
-
 function RegExpToString() {
   if (!IS_REGEXP(this)) {
-    // RegExp.prototype.toString() returns '/(?:)/' as a compatibility fix;
-    // a UseCounter is incremented to track it.
-    // TODO(littledan): Remove this workaround or standardize it
-    if (this === GlobalRegExpPrototype) {
-      %IncrementUseCounter(kRegExpPrototypeToString);
-      return '/(?:)/';
-    }
     throw MakeTypeError(kIncompatibleMethodReceiver,
                         'RegExp.prototype.toString', this);
   }
@@ -500,8 +491,7 @@ function RegExpGetSource() {
 // -------------------------------------------------------------------
 
 %FunctionSetInstanceClassName(GlobalRegExp, 'RegExp');
-const GlobalRegExpPrototype = new GlobalObject();
-%FunctionSetPrototype(GlobalRegExp, GlobalRegExpPrototype);
+%FunctionSetPrototype(GlobalRegExp, new GlobalObject());
 %AddNamedProperty(
     GlobalRegExp.prototype, 'constructor', GlobalRegExp, DONT_ENUM);
 %SetCode(GlobalRegExp, RegExpConstructor);
