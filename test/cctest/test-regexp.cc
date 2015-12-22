@@ -28,6 +28,7 @@
 #include <cstdlib>
 #include <sstream>
 
+#include "include/v8.h"
 #include "src/v8.h"
 
 #include "src/ast/ast.h"
@@ -1846,4 +1847,83 @@ TEST(CharacterRangeMerge) {
 
 TEST(Graph) {
   Execute("\\b\\w+\\b", false, true, true);
+}
+
+
+namespace {
+
+int* global_use_counts = NULL;
+
+void MockUseCounterCallback(v8::Isolate* isolate,
+                            v8::Isolate::UseCounterFeature feature) {
+  ++global_use_counts[feature];
+}
+}
+
+
+// Test that ES2015 RegExp compatibility fixes are in place, that they
+// are not overly broad, and the appropriate UseCounters are incremented
+TEST(UseCountRegExp) {
+  i::FLAG_harmony_regexps = true;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext env;
+  int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
+  global_use_counts = use_counts;
+  CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
+
+  // Compat fix: RegExp.prototype.sticky == undefined; UseCounter tracks it
+  v8::Local<v8::Value> resultSticky = CompileRun("RegExp.prototype.sticky");
+  CHECK_EQ(1, use_counts[v8::Isolate::kRegExpPrototypeStickyGetter]);
+  CHECK_EQ(0, use_counts[v8::Isolate::kRegExpPrototypeToString]);
+  CHECK(resultSticky->IsUndefined());
+
+  // re.sticky has approriate value and doesn't touch UseCounter
+  v8::Local<v8::Value> resultReSticky = CompileRun("/a/.sticky");
+  CHECK_EQ(1, use_counts[v8::Isolate::kRegExpPrototypeStickyGetter]);
+  CHECK_EQ(0, use_counts[v8::Isolate::kRegExpPrototypeToString]);
+  CHECK(resultReSticky->IsFalse());
+
+  // When the getter is caleld on another object, throw an exception
+  // and don't increment the UseCounter
+  v8::Local<v8::Value> resultStickyError = CompileRun(
+      "var exception;"
+      "try { "
+      "  Object.getOwnPropertyDescriptor(RegExp.prototype, 'sticky')"
+      "      .get.call(null);"
+      "} catch (e) {"
+      "  exception = e;"
+      "}"
+      "exception");
+  CHECK_EQ(1, use_counts[v8::Isolate::kRegExpPrototypeStickyGetter]);
+  CHECK_EQ(0, use_counts[v8::Isolate::kRegExpPrototypeToString]);
+  CHECK(resultStickyError->IsObject());
+
+  // RegExp.prototype.toString() returns '/(?:)/' as a compatibility fix;
+  // a UseCounter is incremented to track it.
+  v8::Local<v8::Value> resultToString =
+      CompileRun("RegExp.prototype.toString().length");
+  CHECK_EQ(1, use_counts[v8::Isolate::kRegExpPrototypeStickyGetter]);
+  CHECK_EQ(1, use_counts[v8::Isolate::kRegExpPrototypeToString]);
+  CHECK(resultToString->IsInt32());
+  CHECK_EQ(6,
+           resultToString->Int32Value(isolate->GetCurrentContext()).FromJust());
+
+  // .toString() works on normal RegExps
+  v8::Local<v8::Value> resultReToString = CompileRun("/a/.toString().length");
+  CHECK_EQ(1, use_counts[v8::Isolate::kRegExpPrototypeStickyGetter]);
+  CHECK_EQ(1, use_counts[v8::Isolate::kRegExpPrototypeToString]);
+  CHECK(resultReToString->IsInt32());
+  CHECK_EQ(
+      3, resultReToString->Int32Value(isolate->GetCurrentContext()).FromJust());
+
+  // .toString() throws on non-RegExps that aren't RegExp.prototype
+  v8::Local<v8::Value> resultToStringError = CompileRun(
+      "var exception;"
+      "try { RegExp.prototype.toString.call(null) }"
+      "catch (e) { exception = e; }"
+      "exception");
+  CHECK_EQ(1, use_counts[v8::Isolate::kRegExpPrototypeStickyGetter]);
+  CHECK_EQ(1, use_counts[v8::Isolate::kRegExpPrototypeToString]);
+  CHECK(resultToStringError->IsObject());
 }
