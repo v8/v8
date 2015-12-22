@@ -245,31 +245,6 @@ RUNTIME_FUNCTION(Runtime_FinalizeClassDefinition) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_ClassGetSourceCode) {
-  HandleScope shs(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
-
-  Handle<Symbol> start_position_symbol(
-      isolate->heap()->class_start_position_symbol());
-  Handle<Object> start_position =
-      JSReceiver::GetDataProperty(fun, start_position_symbol);
-  if (!start_position->IsSmi()) return isolate->heap()->undefined_value();
-
-  Handle<Symbol> end_position_symbol(
-      isolate->heap()->class_end_position_symbol());
-  Handle<Object> end_position =
-      JSReceiver::GetDataProperty(fun, end_position_symbol);
-  CHECK(end_position->IsSmi());
-
-  Handle<String> source(
-      String::cast(Script::cast(fun->shared()->script())->source()));
-  return *isolate->factory()->NewSubString(
-      source, Handle<Smi>::cast(start_position)->value(),
-      Handle<Smi>::cast(end_position)->value());
-}
-
-
 static MaybeHandle<Object> LoadFromSuper(Isolate* isolate,
                                          Handle<Object> receiver,
                                          Handle<JSObject> home_object,

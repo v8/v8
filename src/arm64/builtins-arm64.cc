@@ -1353,59 +1353,15 @@ void Builtins::Generate_OsrAfterStackCheck(MacroAssembler* masm) {
 }
 
 
-void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
-  Register argc = x0;
-  Register function = x1;
-  Register scratch1 = x10;
-  Register scratch2 = x11;
-
-  ASM_LOCATION("Builtins::Generate_FunctionCall");
-  // 1. Make sure we have at least one argument.
-  {
-    Label done;
-    __ Cbnz(argc, &done);
-    __ LoadRoot(scratch1, Heap::kUndefinedValueRootIndex);
-    __ Push(scratch1);
-    __ Mov(argc, 1);
-    __ Bind(&done);
-  }
-
-  // 2. Get the callable to call (passed as receiver) from the stack.
-  __ Peek(function, Operand(argc, LSL, kXRegSizeLog2));
-
-  // 3. Shift arguments and return address one slot down on the stack
-  //    (overwriting the original receiver).  Adjust argument count to make
-  //    the original first argument the new receiver.
-  {
-    Label loop;
-    // Calculate the copy start address (destination). Copy end address is jssp.
-    __ Add(scratch2, jssp, Operand(argc, LSL, kPointerSizeLog2));
-    __ Sub(scratch1, scratch2, kPointerSize);
-
-    __ Bind(&loop);
-    __ Ldr(x12, MemOperand(scratch1, -kPointerSize, PostIndex));
-    __ Str(x12, MemOperand(scratch2, -kPointerSize, PostIndex));
-    __ Cmp(scratch1, jssp);
-    __ B(ge, &loop);
-    // Adjust the actual number of arguments and remove the top element
-    // (which is a copy of the last argument).
-    __ Sub(argc, argc, 1);
-    __ Drop(1);
-  }
-
-  // 4. Call the callable.
-  __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
-}
-
-
-void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
+// static
+void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r0     : argc
   //  -- sp[0]  : argArray
   //  -- sp[8]  : thisArg
   //  -- sp[16] : receiver
   // -----------------------------------
-  ASM_LOCATION("Builtins::Generate_FunctionApply");
+  ASM_LOCATION("Builtins::Generate_FunctionPrototypeApply");
 
   // 1. Load receiver into x1, argArray into x0 (if present), remove all
   // arguments from the stack (including the receiver), and push thisArg (if
@@ -1464,6 +1420,53 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ Poke(x1, 0);
     __ TailCallRuntime(Runtime::kThrowApplyNonFunction, 1, 1);
   }
+}
+
+
+// static
+void Builtins::Generate_FunctionPrototypeCall(MacroAssembler* masm) {
+  Register argc = x0;
+  Register function = x1;
+  Register scratch1 = x10;
+  Register scratch2 = x11;
+
+  ASM_LOCATION("Builtins::Generate_FunctionPrototypeCall");
+
+  // 1. Make sure we have at least one argument.
+  {
+    Label done;
+    __ Cbnz(argc, &done);
+    __ LoadRoot(scratch1, Heap::kUndefinedValueRootIndex);
+    __ Push(scratch1);
+    __ Mov(argc, 1);
+    __ Bind(&done);
+  }
+
+  // 2. Get the callable to call (passed as receiver) from the stack.
+  __ Peek(function, Operand(argc, LSL, kXRegSizeLog2));
+
+  // 3. Shift arguments and return address one slot down on the stack
+  //    (overwriting the original receiver).  Adjust argument count to make
+  //    the original first argument the new receiver.
+  {
+    Label loop;
+    // Calculate the copy start address (destination). Copy end address is jssp.
+    __ Add(scratch2, jssp, Operand(argc, LSL, kPointerSizeLog2));
+    __ Sub(scratch1, scratch2, kPointerSize);
+
+    __ Bind(&loop);
+    __ Ldr(x12, MemOperand(scratch1, -kPointerSize, PostIndex));
+    __ Str(x12, MemOperand(scratch2, -kPointerSize, PostIndex));
+    __ Cmp(scratch1, jssp);
+    __ B(ge, &loop);
+    // Adjust the actual number of arguments and remove the top element
+    // (which is a copy of the last argument).
+    __ Sub(argc, argc, 1);
+    __ Drop(1);
+  }
+
+  // 4. Call the callable.
+  __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
 }
 
 

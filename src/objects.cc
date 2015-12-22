@@ -13069,6 +13069,78 @@ Handle<String> JSFunction::GetDebugName(Handle<JSFunction> function) {
 }
 
 
+namespace {
+
+char const kNativeCodeSource[] = "function () { [native code] }";
+
+
+Handle<String> NativeCodeFunctionSourceString(
+    Handle<SharedFunctionInfo> shared_info) {
+  Isolate* const isolate = shared_info->GetIsolate();
+  if (shared_info->name()->IsString()) {
+    IncrementalStringBuilder builder(isolate);
+    builder.AppendCString("function ");
+    builder.AppendString(handle(String::cast(shared_info->name()), isolate));
+    builder.AppendCString("() { [native code] }");
+    return builder.Finish().ToHandleChecked();
+  }
+  return isolate->factory()->NewStringFromAsciiChecked(kNativeCodeSource);
+}
+
+}  // namespace
+
+
+// static
+Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
+  Isolate* const isolate = function->GetIsolate();
+  Handle<SharedFunctionInfo> shared_info(function->shared(), isolate);
+
+  // Check if {function} should hide its source code.
+  if (!shared_info->script()->IsScript() ||
+      Script::cast(shared_info->script())->hide_source()) {
+    return NativeCodeFunctionSourceString(shared_info);
+  }
+
+  // Check if we should print {function} as a class.
+  Handle<Object> class_start_position = JSReceiver::GetDataProperty(
+      function, isolate->factory()->class_start_position_symbol());
+  if (class_start_position->IsSmi()) {
+    Handle<Object> class_end_position = JSReceiver::GetDataProperty(
+        function, isolate->factory()->class_end_position_symbol());
+    Handle<String> script_source(
+        String::cast(Script::cast(shared_info->script())->source()), isolate);
+    return isolate->factory()->NewSubString(
+        script_source, Handle<Smi>::cast(class_start_position)->value(),
+        Handle<Smi>::cast(class_end_position)->value());
+  }
+
+  // Check if we have source code for the {function}.
+  if (!shared_info->HasSourceCode()) {
+    return NativeCodeFunctionSourceString(shared_info);
+  }
+
+  IncrementalStringBuilder builder(isolate);
+  if (!shared_info->is_arrow()) {
+    if (shared_info->is_concise_method()) {
+      if (shared_info->is_generator()) builder.AppendCharacter('*');
+    } else {
+      if (shared_info->is_generator()) {
+        builder.AppendCString("function* ");
+      } else {
+        builder.AppendCString("function ");
+      }
+    }
+    if (shared_info->name_should_print_as_anonymous()) {
+      builder.AppendCString("anonymous");
+    } else {
+      builder.AppendString(handle(String::cast(shared_info->name()), isolate));
+    }
+  }
+  builder.AppendString(Handle<String>::cast(shared_info->GetSourceCode()));
+  return builder.Finish().ToHandleChecked();
+}
+
+
 void Oddball::Initialize(Isolate* isolate, Handle<Oddball> oddball,
                          const char* to_string, Handle<Object> to_number,
                          const char* type_of, byte kind) {

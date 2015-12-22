@@ -225,6 +225,7 @@ namespace internal {
   V(Boolean_string, "Boolean")                                   \
   V(byte_length_string, "byteLength")                            \
   V(byte_offset_string, "byteOffset")                            \
+  V(call_string, "call")                                         \
   V(callee_string, "callee")                                     \
   V(caller_string, "caller")                                     \
   V(cell_value_string, "%cell_value")                            \

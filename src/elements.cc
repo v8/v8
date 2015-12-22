@@ -428,8 +428,8 @@ static void TraceTopFrame(Isolate* isolate) {
   }
   StackFrame* raw_frame = it.frame();
   if (raw_frame->is_internal()) {
-    Code* apply_builtin = isolate->builtins()->builtin(
-        Builtins::kFunctionApply);
+    Code* apply_builtin =
+        isolate->builtins()->builtin(Builtins::kFunctionPrototypeApply);
     if (raw_frame->unchecked_code() == apply_builtin) {
       PrintF("apply from ");
       it.Advance();

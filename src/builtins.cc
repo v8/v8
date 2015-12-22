@@ -1777,6 +1777,21 @@ BUILTIN(DateToPrimitive) {
 }
 
 
+// ES6 section 19.2.3.5 Function.prototype.toString ( )
+BUILTIN(FunctionPrototypeToString) {
+  HandleScope scope(isolate);
+  Handle<Object> receiver = args.receiver();
+
+  if (receiver->IsJSFunction()) {
+    return *JSFunction::ToString(Handle<JSFunction>::cast(receiver));
+  }
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kNotGeneric,
+                            isolate->factory()->NewStringFromAsciiChecked(
+                                "Function.prototype.toString")));
+}
+
+
 // ES6 section 19.4.1.1 Symbol ( [ description ] ) for the [[Call]] case.
 BUILTIN(SymbolConstructor) {
   HandleScope scope(isolate);

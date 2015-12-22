@@ -7410,6 +7410,10 @@ class JSFunction: public JSObject {
   // debug name.
   static Handle<String> GetDebugName(Handle<JSFunction> function);
 
+  // The function's string representation implemented according to
+  // ES6 section 19.2.3.5 Function.prototype.toString ( ).
+  static Handle<String> ToString(Handle<JSFunction> function);
+
   // Layout descriptors. The last property (from kNonWeakFieldsEndOffset to
   // kSize) is weak and has special handling during garbage collection.
   static const int kPrototypeOrInitialMapOffset = JSObject::kHeaderSize;

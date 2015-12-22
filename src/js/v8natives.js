@@ -1252,56 +1252,6 @@ utils.InstallFunctions(GlobalNumber, DONT_ENUM, [
 // ----------------------------------------------------------------------------
 // Function
 
-function NativeCodeFunctionSourceString(func) {
-  var name = %FunctionGetName(func);
-  if (name) {
-    // Mimic what KJS does.
-    return 'function ' + name + '() { [native code] }';
-  }
-
-  return 'function () { [native code] }';
-}
-
-function FunctionSourceString(func) {
-  if (!IS_FUNCTION(func)) {
-    throw MakeTypeError(kNotGeneric, 'Function.prototype.toString');
-  }
-
-  if (%FunctionHidesSource(func)) {
-    return NativeCodeFunctionSourceString(func);
-  }
-
-  var classSource = %ClassGetSourceCode(func);
-  if (IS_STRING(classSource)) {
-    return classSource;
-  }
-
-  var source = %FunctionGetSourceCode(func);
-  if (!IS_STRING(source)) {
-    return NativeCodeFunctionSourceString(func);
-  }
-
-  if (%FunctionIsArrow(func)) {
-    return source;
-  }
-
-  var name = %FunctionNameShouldPrintAsAnonymous(func)
-      ? 'anonymous'
-      : %FunctionGetName(func);
-
-  var isGenerator = %FunctionIsGenerator(func);
-  var head = %FunctionIsConciseMethod(func)
-      ? (isGenerator ? '*' : '')
-      : (isGenerator ? 'function* ' : 'function ');
-  return head + name + source;
-}
-
-
-function FunctionToString() {
-  return FunctionSourceString(this);
-}
-
-
 // ES6 9.2.3.2 Function.prototype.bind(thisArg , ...args)
 function FunctionBind(this_arg) { // Length is 1.
   if (!IS_CALLABLE(this)) throw MakeTypeError(kFunctionBind);
@@ -1413,7 +1363,6 @@ function FunctionConstructor(arg1) {  // length == 1
 
 utils.InstallFunctions(GlobalFunction.prototype, DONT_ENUM, [
   "bind", FunctionBind,
-  "toString", FunctionToString
 ]);
 
 // ----------------------------------------------------------------------------
@@ -1438,7 +1387,6 @@ function GetIterator(obj, method) {
 // Exports
 
 utils.Export(function(to) {
-  to.FunctionSourceString = FunctionSourceString;
   to.GetIterator = GetIterator;
   to.GetMethod = GetMethod;
   to.IsFinite = GlobalIsFinite;

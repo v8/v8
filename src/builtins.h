@@ -67,6 +67,8 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
                                                 \
   V(DateToPrimitive, kNone)                     \
                                                 \
+  V(FunctionPrototypeToString, kNone)           \
+                                                \
   V(ObjectAssign, kNone)                        \
   V(ObjectProtoToString, kNone)                 \
                                                 \
@@ -168,8 +170,8 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(KeyedStoreIC_Megamorphic_Strict, KEYED_STORE_IC, MEGAMORPHIC,              \
     StoreICState::kStrictModeState)                                            \
                                                                                \
-  V(FunctionCall, BUILTIN, UNINITIALIZED, kNoExtraICState)                     \
-  V(FunctionApply, BUILTIN, UNINITIALIZED, kNoExtraICState)                    \
+  V(FunctionPrototypeApply, BUILTIN, UNINITIALIZED, kNoExtraICState)           \
+  V(FunctionPrototypeCall, BUILTIN, UNINITIALIZED, kNoExtraICState)            \
   V(ReflectApply, BUILTIN, UNINITIALIZED, kNoExtraICState)                     \
   V(ReflectConstruct, BUILTIN, UNINITIALIZED, kNoExtraICState)                 \
                                                                                \
@@ -357,8 +359,8 @@ class Builtins {
 
   static void Generate_HandleFastApiCall(MacroAssembler* masm);
 
-  static void Generate_FunctionCall(MacroAssembler* masm);
-  static void Generate_FunctionApply(MacroAssembler* masm);
+  static void Generate_FunctionPrototypeApply(MacroAssembler* masm);
+  static void Generate_FunctionPrototypeCall(MacroAssembler* masm);
   static void Generate_ReflectApply(MacroAssembler* masm);
   static void Generate_ReflectConstruct(MacroAssembler* masm);
 

@@ -1046,58 +1046,7 @@ void Builtins::Generate_NotifyLazyDeoptimized(MacroAssembler* masm) {
 }
 
 
-// static
-void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
-  // Stack Layout:
-  // rsp[0]           : Return address
-  // rsp[8]           : Argument n
-  // rsp[16]          : Argument n-1
-  //  ...
-  // rsp[8 * n]       : Argument 1
-  // rsp[8 * (n + 1)] : Receiver (callable to call)
-  //
-  // rax contains the number of arguments, n, not counting the receiver.
-  //
-  // 1. Make sure we have at least one argument.
-  {
-    Label done;
-    __ testp(rax, rax);
-    __ j(not_zero, &done, Label::kNear);
-    __ PopReturnAddressTo(rbx);
-    __ PushRoot(Heap::kUndefinedValueRootIndex);
-    __ PushReturnAddressFrom(rbx);
-    __ incp(rax);
-    __ bind(&done);
-  }
-
-  // 2. Get the callable to call (passed as receiver) from the stack.
-  {
-    StackArgumentsAccessor args(rsp, rax);
-    __ movp(rdi, args.GetReceiverOperand());
-  }
-
-  // 3. Shift arguments and return address one slot down on the stack
-  //    (overwriting the original receiver).  Adjust argument count to make
-  //    the original first argument the new receiver.
-  {
-    Label loop;
-    __ movp(rcx, rax);
-    StackArgumentsAccessor args(rsp, rcx);
-    __ bind(&loop);
-    __ movp(rbx, args.GetArgumentOperand(1));
-    __ movp(args.GetArgumentOperand(0), rbx);
-    __ decp(rcx);
-    __ j(not_zero, &loop);              // While non-zero.
-    __ DropUnderReturnAddress(1, rbx);  // Drop one slot under return address.
-    __ decp(rax);  // One fewer argument (first argument is new receiver).
-  }
-
-  // 4. Call the callable.
-  __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
-}
-
-
-void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
+void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax     : argc
   //  -- rsp[0]  : return address
@@ -1173,6 +1122,57 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ movp(args.GetReceiverOperand(), rdi);
     __ TailCallRuntime(Runtime::kThrowApplyNonFunction, 1, 1);
   }
+}
+
+
+// static
+void Builtins::Generate_FunctionPrototypeCall(MacroAssembler* masm) {
+  // Stack Layout:
+  // rsp[0]           : Return address
+  // rsp[8]           : Argument n
+  // rsp[16]          : Argument n-1
+  //  ...
+  // rsp[8 * n]       : Argument 1
+  // rsp[8 * (n + 1)] : Receiver (callable to call)
+  //
+  // rax contains the number of arguments, n, not counting the receiver.
+  //
+  // 1. Make sure we have at least one argument.
+  {
+    Label done;
+    __ testp(rax, rax);
+    __ j(not_zero, &done, Label::kNear);
+    __ PopReturnAddressTo(rbx);
+    __ PushRoot(Heap::kUndefinedValueRootIndex);
+    __ PushReturnAddressFrom(rbx);
+    __ incp(rax);
+    __ bind(&done);
+  }
+
+  // 2. Get the callable to call (passed as receiver) from the stack.
+  {
+    StackArgumentsAccessor args(rsp, rax);
+    __ movp(rdi, args.GetReceiverOperand());
+  }
+
+  // 3. Shift arguments and return address one slot down on the stack
+  //    (overwriting the original receiver).  Adjust argument count to make
+  //    the original first argument the new receiver.
+  {
+    Label loop;
+    __ movp(rcx, rax);
+    StackArgumentsAccessor args(rsp, rcx);
+    __ bind(&loop);
+    __ movp(rbx, args.GetArgumentOperand(1));
+    __ movp(args.GetArgumentOperand(0), rbx);
+    __ decp(rcx);
+    __ j(not_zero, &loop);              // While non-zero.
+    __ DropUnderReturnAddress(1, rbx);  // Drop one slot under return address.
+    __ decp(rax);  // One fewer argument (first argument is new receiver).
+  }
+
+  // 4. Call the callable.
+  __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
 }
 
 

@@ -171,7 +171,6 @@ function PostNatives(utils) {
   var expose_list = [
     "ArrayToString",
     "ErrorToString",
-    "FunctionSourceString",
     "GetIterator",
     "GetMethod",
     "InnerArrayEvery",

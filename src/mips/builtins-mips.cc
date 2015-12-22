@@ -1384,51 +1384,7 @@ void Builtins::Generate_OsrAfterStackCheck(MacroAssembler* masm) {
 
 
 // static
-void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
-  // 1. Make sure we have at least one argument.
-  // a0: actual number of arguments
-  {
-    Label done;
-    __ Branch(&done, ne, a0, Operand(zero_reg));
-    __ PushRoot(Heap::kUndefinedValueRootIndex);
-    __ Addu(a0, a0, Operand(1));
-    __ bind(&done);
-  }
-
-  // 2. Get the function to call (passed as receiver) from the stack.
-  // a0: actual number of arguments
-  __ sll(at, a0, kPointerSizeLog2);
-  __ addu(at, sp, at);
-  __ lw(a1, MemOperand(at));
-
-  // 3. Shift arguments and return address one slot down on the stack
-  //    (overwriting the original receiver).  Adjust argument count to make
-  //    the original first argument the new receiver.
-  // a0: actual number of arguments
-  // a1: function
-  {
-    Label loop;
-    // Calculate the copy start address (destination). Copy end address is sp.
-    __ sll(at, a0, kPointerSizeLog2);
-    __ addu(a2, sp, at);
-
-    __ bind(&loop);
-    __ lw(at, MemOperand(a2, -kPointerSize));
-    __ sw(at, MemOperand(a2));
-    __ Subu(a2, a2, Operand(kPointerSize));
-    __ Branch(&loop, ne, a2, Operand(sp));
-    // Adjust the actual number of arguments and remove the top element
-    // (which is a copy of the last argument).
-    __ Subu(a0, a0, Operand(1));
-    __ Pop();
-  }
-
-  // 4. Call the callable.
-  __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
-}
-
-
-void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
+void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- a0    : argc
   //  -- sp[0] : argArray
@@ -1497,6 +1453,51 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ sw(a1, MemOperand(sp));
     __ TailCallRuntime(Runtime::kThrowApplyNonFunction, 1, 1);
   }
+}
+
+
+// static
+void Builtins::Generate_FunctionPrototypeCall(MacroAssembler* masm) {
+  // 1. Make sure we have at least one argument.
+  // a0: actual number of arguments
+  {
+    Label done;
+    __ Branch(&done, ne, a0, Operand(zero_reg));
+    __ PushRoot(Heap::kUndefinedValueRootIndex);
+    __ Addu(a0, a0, Operand(1));
+    __ bind(&done);
+  }
+
+  // 2. Get the function to call (passed as receiver) from the stack.
+  // a0: actual number of arguments
+  __ sll(at, a0, kPointerSizeLog2);
+  __ addu(at, sp, at);
+  __ lw(a1, MemOperand(at));
+
+  // 3. Shift arguments and return address one slot down on the stack
+  //    (overwriting the original receiver).  Adjust argument count to make
+  //    the original first argument the new receiver.
+  // a0: actual number of arguments
+  // a1: function
+  {
+    Label loop;
+    // Calculate the copy start address (destination). Copy end address is sp.
+    __ sll(at, a0, kPointerSizeLog2);
+    __ addu(a2, sp, at);
+
+    __ bind(&loop);
+    __ lw(at, MemOperand(a2, -kPointerSize));
+    __ sw(at, MemOperand(a2));
+    __ Subu(a2, a2, Operand(kPointerSize));
+    __ Branch(&loop, ne, a2, Operand(sp));
+    // Adjust the actual number of arguments and remove the top element
+    // (which is a copy of the last argument).
+    __ Subu(a0, a0, Operand(1));
+    __ Pop();
+  }
+
+  // 4. Call the callable.
+  __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
 }
 
 

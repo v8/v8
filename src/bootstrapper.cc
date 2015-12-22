@@ -2513,7 +2513,7 @@ bool Genesis::InstallNatives(ContextType context_type) {
     // Set the lengths for the functions to satisfy ECMA-262.
     concat->shared()->set_length(1);
   }
-  // Install Function.prototype.call and apply.
+  // Install Function.prototype.apply, call, and toString.
   {
     Handle<String> key = factory()->Function_string();
     Handle<JSFunction> function =
@@ -2522,24 +2522,13 @@ bool Genesis::InstallNatives(ContextType context_type) {
     Handle<JSObject> proto =
         Handle<JSObject>(JSObject::cast(function->instance_prototype()));
 
-    // Install the call and the apply functions.
-    Handle<JSFunction> call =
-        InstallFunction(proto, "call", JS_OBJECT_TYPE, JSObject::kHeaderSize,
-                        MaybeHandle<JSObject>(), Builtins::kFunctionCall);
-    Handle<JSFunction> apply =
-        InstallFunction(proto, "apply", JS_OBJECT_TYPE, JSObject::kHeaderSize,
-                        MaybeHandle<JSObject>(), Builtins::kFunctionApply);
-
-    // Make sure that Function.prototype.call appears to be compiled.
-    // The code will never be called, but inline caching for call will
-    // only work if it appears to be compiled.
-    apply->shared()->DontAdaptArguments();
-    call->shared()->DontAdaptArguments();
-    DCHECK(call->is_compiled());
-
-    // Set the lengths for the functions to satisfy ECMA-262.
-    apply->shared()->set_length(2);
-    call->shared()->set_length(1);
+    // Install the apply, call and toString functions.
+    SimpleInstallFunction(proto, factory()->apply_string(),
+                          Builtins::kFunctionPrototypeApply, 2, false);
+    SimpleInstallFunction(proto, factory()->call_string(),
+                          Builtins::kFunctionPrototypeCall, 1, false);
+    SimpleInstallFunction(proto, factory()->toString_string(),
+                          Builtins::kFunctionPrototypeToString, 0, false);
   }
 
   // Set up the Promise constructor.

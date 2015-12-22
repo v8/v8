@@ -995,53 +995,7 @@ void Builtins::Generate_NotifyLazyDeoptimized(MacroAssembler* masm) {
 
 
 // static
-void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
-  // Stack Layout:
-  // esp[0]           : Return address
-  // esp[8]           : Argument n
-  // esp[16]          : Argument n-1
-  //  ...
-  // esp[8 * n]       : Argument 1
-  // esp[8 * (n + 1)] : Receiver (callable to call)
-  //
-  // eax contains the number of arguments, n, not counting the receiver.
-  //
-  // 1. Make sure we have at least one argument.
-  {
-    Label done;
-    __ test(eax, eax);
-    __ j(not_zero, &done, Label::kNear);
-    __ PopReturnAddressTo(ebx);
-    __ PushRoot(Heap::kUndefinedValueRootIndex);
-    __ PushReturnAddressFrom(ebx);
-    __ inc(eax);
-    __ bind(&done);
-  }
-
-  // 2. Get the callable to call (passed as receiver) from the stack.
-  __ mov(edi, Operand(esp, eax, times_pointer_size, kPointerSize));
-
-  // 3. Shift arguments and return address one slot down on the stack
-  //    (overwriting the original receiver).  Adjust argument count to make
-  //    the original first argument the new receiver.
-  {
-    Label loop;
-    __ mov(ecx, eax);
-    __ bind(&loop);
-    __ mov(ebx, Operand(esp, ecx, times_pointer_size, 0));
-    __ mov(Operand(esp, ecx, times_pointer_size, kPointerSize), ebx);
-    __ dec(ecx);
-    __ j(not_sign, &loop);  // While non-negative (to copy return address).
-    __ pop(ebx);            // Discard copy of return address.
-    __ dec(eax);  // One fewer argument (first argument is new receiver).
-  }
-
-  // 4. Call the callable.
-  __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
-}
-
-
-void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
+void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax     : argc
   //  -- esp[0]  : return address
@@ -1114,6 +1068,53 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ mov(Operand(esp, kPointerSize), edi);
     __ TailCallRuntime(Runtime::kThrowApplyNonFunction, 1, 1);
   }
+}
+
+
+// static
+void Builtins::Generate_FunctionPrototypeCall(MacroAssembler* masm) {
+  // Stack Layout:
+  // esp[0]           : Return address
+  // esp[8]           : Argument n
+  // esp[16]          : Argument n-1
+  //  ...
+  // esp[8 * n]       : Argument 1
+  // esp[8 * (n + 1)] : Receiver (callable to call)
+  //
+  // eax contains the number of arguments, n, not counting the receiver.
+  //
+  // 1. Make sure we have at least one argument.
+  {
+    Label done;
+    __ test(eax, eax);
+    __ j(not_zero, &done, Label::kNear);
+    __ PopReturnAddressTo(ebx);
+    __ PushRoot(Heap::kUndefinedValueRootIndex);
+    __ PushReturnAddressFrom(ebx);
+    __ inc(eax);
+    __ bind(&done);
+  }
+
+  // 2. Get the callable to call (passed as receiver) from the stack.
+  __ mov(edi, Operand(esp, eax, times_pointer_size, kPointerSize));
+
+  // 3. Shift arguments and return address one slot down on the stack
+  //    (overwriting the original receiver).  Adjust argument count to make
+  //    the original first argument the new receiver.
+  {
+    Label loop;
+    __ mov(ecx, eax);
+    __ bind(&loop);
+    __ mov(ebx, Operand(esp, ecx, times_pointer_size, 0));
+    __ mov(Operand(esp, ecx, times_pointer_size, kPointerSize), ebx);
+    __ dec(ecx);
+    __ j(not_sign, &loop);  // While non-negative (to copy return address).
+    __ pop(ebx);            // Discard copy of return address.
+    __ dec(eax);  // One fewer argument (first argument is new receiver).
+  }
+
+  // 4. Call the callable.
+  __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
 }
 
 
