@@ -4236,13 +4236,10 @@ void MacroAssembler::JumpIfDictionaryInPrototypeChain(
 }
 
 
-void MacroAssembler::EnsureNotWhite(
-    Register value,
-    Register bitmap_scratch,
-    Register shift_scratch,
-    Register load_scratch,
-    Register length_scratch,
-    Label* value_is_white_and_not_data) {
+void MacroAssembler::JumpIfWhite(Register value, Register bitmap_scratch,
+                                 Register shift_scratch, Register load_scratch,
+                                 Register length_scratch,
+                                 Label* value_is_white) {
   DCHECK(!AreAliased(
       value, bitmap_scratch, shift_scratch, load_scratch, length_scratch));
 
@@ -4261,71 +4258,7 @@ void MacroAssembler::EnsureNotWhite(
   // If the value is black or grey we don't need to do anything.
   // Since both black and grey have a 1 in the first position and white does
   // not have a 1 there we only need to check one bit.
-  Label done;
-  Tbnz(load_scratch, 0, &done);
-
-  // Value is white.  We check whether it is data that doesn't need scanning.
-  Register map = load_scratch;  // Holds map while checking type.
-  Label is_data_object;
-
-  // Check for heap-number.
-  Ldr(map, FieldMemOperand(value, HeapObject::kMapOffset));
-  Mov(length_scratch, HeapNumber::kSize);
-  JumpIfRoot(map, Heap::kHeapNumberMapRootIndex, &is_data_object);
-
-  // Check for strings.
-  DCHECK(kIsIndirectStringTag == 1 && kIsIndirectStringMask == 1);
-  DCHECK(kNotStringTag == 0x80 && kIsNotStringMask == 0x80);
-  // If it's a string and it's not a cons string then it's an object containing
-  // no GC pointers.
-  Register instance_type = load_scratch;
-  Ldrb(instance_type, FieldMemOperand(map, Map::kInstanceTypeOffset));
-  TestAndBranchIfAnySet(instance_type,
-                        kIsIndirectStringMask | kIsNotStringMask,
-                        value_is_white_and_not_data);
-
-  // It's a non-indirect (non-cons and non-slice) string.
-  // If it's external, the length is just ExternalString::kSize.
-  // Otherwise it's String::kHeaderSize + string->length() * (1 or 2).
-  // External strings are the only ones with the kExternalStringTag bit
-  // set.
-  DCHECK_EQ(0, kSeqStringTag & kExternalStringTag);
-  DCHECK_EQ(0, kConsStringTag & kExternalStringTag);
-  Mov(length_scratch, ExternalString::kSize);
-  TestAndBranchIfAnySet(instance_type, kExternalStringTag, &is_data_object);
-
-  // Sequential string, either Latin1 or UC16.
-  // For Latin1 (char-size of 1) we shift the smi tag away to get the length.
-  // For UC16 (char-size of 2) we just leave the smi tag in place, thereby
-  // getting the length multiplied by 2.
-  DCHECK(kOneByteStringTag == 4 && kStringEncodingMask == 4);
-  Ldrsw(length_scratch, UntagSmiFieldMemOperand(value,
-                                                String::kLengthOffset));
-  Tst(instance_type, kStringEncodingMask);
-  Cset(load_scratch, eq);
-  Lsl(length_scratch, length_scratch, load_scratch);
-  Add(length_scratch,
-      length_scratch,
-      SeqString::kHeaderSize + kObjectAlignmentMask);
-  Bic(length_scratch, length_scratch, kObjectAlignmentMask);
-
-  Bind(&is_data_object);
-  // Value is a data object, and it is white.  Mark it black.  Since we know
-  // that the object is white we can make it black by flipping one bit.
-  Register mask = shift_scratch;
-  Mov(load_scratch, 1);
-  Lsl(mask, load_scratch, shift_scratch);
-
-  Ldr(load_scratch, MemOperand(bitmap_scratch, MemoryChunk::kHeaderSize));
-  Orr(load_scratch, load_scratch, mask);
-  Str(load_scratch, MemOperand(bitmap_scratch, MemoryChunk::kHeaderSize));
-
-  Bic(bitmap_scratch, bitmap_scratch, Page::kPageAlignmentMask);
-  Ldr(load_scratch, MemOperand(bitmap_scratch, MemoryChunk::kLiveBytesOffset));
-  Add(load_scratch, load_scratch, length_scratch);
-  Str(load_scratch, MemOperand(bitmap_scratch, MemoryChunk::kLiveBytesOffset));
-
-  Bind(&done);
+  Tbz(load_scratch, 0, value_is_white);
 }
 
 

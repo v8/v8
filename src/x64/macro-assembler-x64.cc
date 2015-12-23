@@ -5299,29 +5299,6 @@ void MacroAssembler::JumpIfBlack(Register object,
 }
 
 
-// Detect some, but not all, common pointer-free objects.  This is used by the
-// incremental write barrier which doesn't care about oddballs (they are always
-// marked black immediately so this code is not hit).
-void MacroAssembler::JumpIfDataObject(
-    Register value,
-    Register scratch,
-    Label* not_data_object,
-    Label::Distance not_data_object_distance) {
-  Label is_data_object;
-  movp(scratch, FieldOperand(value, HeapObject::kMapOffset));
-  CompareRoot(scratch, Heap::kHeapNumberMapRootIndex);
-  j(equal, &is_data_object, Label::kNear);
-  DCHECK(kIsIndirectStringTag == 1 && kIsIndirectStringMask == 1);
-  DCHECK(kNotStringTag == 0x80 && kIsNotStringMask == 0x80);
-  // If it's a string and it's not a cons string then it's an object containing
-  // no GC pointers.
-  testb(FieldOperand(scratch, Map::kInstanceTypeOffset),
-        Immediate(kIsIndirectStringMask | kIsNotStringMask));
-  j(not_zero, not_data_object, not_data_object_distance);
-  bind(&is_data_object);
-}
-
-
 void MacroAssembler::GetMarkBits(Register addr_reg,
                                  Register bitmap_reg,
                                  Register mask_reg) {
@@ -5346,12 +5323,9 @@ void MacroAssembler::GetMarkBits(Register addr_reg,
 }
 
 
-void MacroAssembler::EnsureNotWhite(
-    Register value,
-    Register bitmap_scratch,
-    Register mask_scratch,
-    Label* value_is_white_and_not_data,
-    Label::Distance distance) {
+void MacroAssembler::JumpIfWhite(Register value, Register bitmap_scratch,
+                                 Register mask_scratch, Label* value_is_white,
+                                 Label::Distance distance) {
   DCHECK(!AreAliased(value, bitmap_scratch, mask_scratch, rcx));
   GetMarkBits(value, bitmap_scratch, mask_scratch);
 
@@ -5361,84 +5335,10 @@ void MacroAssembler::EnsureNotWhite(
   DCHECK(strcmp(Marking::kGreyBitPattern, "11") == 0);
   DCHECK(strcmp(Marking::kImpossibleBitPattern, "01") == 0);
 
-  Label done;
-
   // Since both black and grey have a 1 in the first position and white does
   // not have a 1 there we only need to check one bit.
   testp(Operand(bitmap_scratch, MemoryChunk::kHeaderSize), mask_scratch);
-  j(not_zero, &done, Label::kNear);
-
-  if (emit_debug_code()) {
-    // Check for impossible bit pattern.
-    Label ok;
-    Push(mask_scratch);
-    // shl.  May overflow making the check conservative.
-    addp(mask_scratch, mask_scratch);
-    testp(Operand(bitmap_scratch, MemoryChunk::kHeaderSize), mask_scratch);
-    j(zero, &ok, Label::kNear);
-    int3();
-    bind(&ok);
-    Pop(mask_scratch);
-  }
-
-  // Value is white.  We check whether it is data that doesn't need scanning.
-  // Currently only checks for HeapNumber and non-cons strings.
-  Register map = rcx;  // Holds map while checking type.
-  Register length = rcx;  // Holds length of object after checking type.
-  Label not_heap_number;
-  Label is_data_object;
-
-  // Check for heap-number
-  movp(map, FieldOperand(value, HeapObject::kMapOffset));
-  CompareRoot(map, Heap::kHeapNumberMapRootIndex);
-  j(not_equal, &not_heap_number, Label::kNear);
-  movp(length, Immediate(HeapNumber::kSize));
-  jmp(&is_data_object, Label::kNear);
-
-  bind(&not_heap_number);
-  // Check for strings.
-  DCHECK(kIsIndirectStringTag == 1 && kIsIndirectStringMask == 1);
-  DCHECK(kNotStringTag == 0x80 && kIsNotStringMask == 0x80);
-  // If it's a string and it's not a cons string then it's an object containing
-  // no GC pointers.
-  Register instance_type = rcx;
-  movzxbl(instance_type, FieldOperand(map, Map::kInstanceTypeOffset));
-  testb(instance_type, Immediate(kIsIndirectStringMask | kIsNotStringMask));
-  j(not_zero, value_is_white_and_not_data);
-  // It's a non-indirect (non-cons and non-slice) string.
-  // If it's external, the length is just ExternalString::kSize.
-  // Otherwise it's String::kHeaderSize + string->length() * (1 or 2).
-  Label not_external;
-  // External strings are the only ones with the kExternalStringTag bit
-  // set.
-  DCHECK_EQ(0, kSeqStringTag & kExternalStringTag);
-  DCHECK_EQ(0, kConsStringTag & kExternalStringTag);
-  testb(instance_type, Immediate(kExternalStringTag));
-  j(zero, &not_external, Label::kNear);
-  movp(length, Immediate(ExternalString::kSize));
-  jmp(&is_data_object, Label::kNear);
-
-  bind(&not_external);
-  // Sequential string, either Latin1 or UC16.
-  DCHECK(kOneByteStringTag == 0x04);
-  andp(length, Immediate(kStringEncodingMask));
-  xorp(length, Immediate(kStringEncodingMask));
-  addp(length, Immediate(0x04));
-  // Value now either 4 (if Latin1) or 8 (if UC16), i.e. char-size shifted by 2.
-  imulp(length, FieldOperand(value, String::kLengthOffset));
-  shrp(length, Immediate(2 + kSmiTagSize + kSmiShiftSize));
-  addp(length, Immediate(SeqString::kHeaderSize + kObjectAlignmentMask));
-  andp(length, Immediate(~kObjectAlignmentMask));
-
-  bind(&is_data_object);
-  // Value is a data object, and it is white.  Mark it black.  Since we know
-  // that the object is white we can make it black by flipping one bit.
-  orp(Operand(bitmap_scratch, MemoryChunk::kHeaderSize), mask_scratch);
-
-  andp(bitmap_scratch, Immediate(~Page::kPageAlignmentMask));
-  addl(Operand(bitmap_scratch, MemoryChunk::kLiveBytesOffset), length);
-
-  bind(&done);
+  j(zero, value_is_white, distance);
 }
 
 

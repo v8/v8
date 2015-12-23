@@ -2942,12 +2942,9 @@ void MacroAssembler::GetMarkBits(Register addr_reg,
 }
 
 
-void MacroAssembler::EnsureNotWhite(
-    Register value,
-    Register bitmap_scratch,
-    Register mask_scratch,
-    Label* value_is_white_and_not_data,
-    Label::Distance distance) {
+void MacroAssembler::JumpIfWhite(Register value, Register bitmap_scratch,
+                                 Register mask_scratch, Label* value_is_white,
+                                 Label::Distance distance) {
   DCHECK(!AreAliased(value, bitmap_scratch, mask_scratch, ecx));
   GetMarkBits(value, bitmap_scratch, mask_scratch);
 
@@ -2957,95 +2954,10 @@ void MacroAssembler::EnsureNotWhite(
   DCHECK(strcmp(Marking::kGreyBitPattern, "11") == 0);
   DCHECK(strcmp(Marking::kImpossibleBitPattern, "01") == 0);
 
-  Label done;
-
   // Since both black and grey have a 1 in the first position and white does
   // not have a 1 there we only need to check one bit.
   test(mask_scratch, Operand(bitmap_scratch, MemoryChunk::kHeaderSize));
-  j(not_zero, &done, Label::kNear);
-
-  if (emit_debug_code()) {
-    // Check for impossible bit pattern.
-    Label ok;
-    push(mask_scratch);
-    // shl.  May overflow making the check conservative.
-    add(mask_scratch, mask_scratch);
-    test(mask_scratch, Operand(bitmap_scratch, MemoryChunk::kHeaderSize));
-    j(zero, &ok, Label::kNear);
-    int3();
-    bind(&ok);
-    pop(mask_scratch);
-  }
-
-  // Value is white.  We check whether it is data that doesn't need scanning.
-  // Currently only checks for HeapNumber and non-cons strings.
-  Register map = ecx;  // Holds map while checking type.
-  Register length = ecx;  // Holds length of object after checking type.
-  Label not_heap_number;
-  Label is_data_object;
-
-  // Check for heap-number
-  mov(map, FieldOperand(value, HeapObject::kMapOffset));
-  cmp(map, isolate()->factory()->heap_number_map());
-  j(not_equal, &not_heap_number, Label::kNear);
-  mov(length, Immediate(HeapNumber::kSize));
-  jmp(&is_data_object, Label::kNear);
-
-  bind(&not_heap_number);
-  // Check for strings.
-  DCHECK(kIsIndirectStringTag == 1 && kIsIndirectStringMask == 1);
-  DCHECK(kNotStringTag == 0x80 && kIsNotStringMask == 0x80);
-  // If it's a string and it's not a cons string then it's an object containing
-  // no GC pointers.
-  Register instance_type = ecx;
-  movzx_b(instance_type, FieldOperand(map, Map::kInstanceTypeOffset));
-  test_b(instance_type, kIsIndirectStringMask | kIsNotStringMask);
-  j(not_zero, value_is_white_and_not_data);
-  // It's a non-indirect (non-cons and non-slice) string.
-  // If it's external, the length is just ExternalString::kSize.
-  // Otherwise it's String::kHeaderSize + string->length() * (1 or 2).
-  Label not_external;
-  // External strings are the only ones with the kExternalStringTag bit
-  // set.
-  DCHECK_EQ(0, kSeqStringTag & kExternalStringTag);
-  DCHECK_EQ(0, kConsStringTag & kExternalStringTag);
-  test_b(instance_type, kExternalStringTag);
-  j(zero, &not_external, Label::kNear);
-  mov(length, Immediate(ExternalString::kSize));
-  jmp(&is_data_object, Label::kNear);
-
-  bind(&not_external);
-  // Sequential string, either Latin1 or UC16.
-  DCHECK(kOneByteStringTag == 0x04);
-  and_(length, Immediate(kStringEncodingMask));
-  xor_(length, Immediate(kStringEncodingMask));
-  add(length, Immediate(0x04));
-  // Value now either 4 (if Latin1) or 8 (if UC16), i.e., char-size shifted
-  // by 2. If we multiply the string length as smi by this, it still
-  // won't overflow a 32-bit value.
-  DCHECK_EQ(SeqOneByteString::kMaxSize, SeqTwoByteString::kMaxSize);
-  DCHECK(SeqOneByteString::kMaxSize <=
-         static_cast<int>(0xffffffffu >> (2 + kSmiTagSize)));
-  imul(length, FieldOperand(value, String::kLengthOffset));
-  shr(length, 2 + kSmiTagSize + kSmiShiftSize);
-  add(length, Immediate(SeqString::kHeaderSize + kObjectAlignmentMask));
-  and_(length, Immediate(~kObjectAlignmentMask));
-
-  bind(&is_data_object);
-  // Value is a data object, and it is white.  Mark it black.  Since we know
-  // that the object is white we can make it black by flipping one bit.
-  or_(Operand(bitmap_scratch, MemoryChunk::kHeaderSize), mask_scratch);
-
-  and_(bitmap_scratch, Immediate(~Page::kPageAlignmentMask));
-  add(Operand(bitmap_scratch, MemoryChunk::kLiveBytesOffset),
-      length);
-  if (emit_debug_code()) {
-    mov(length, Operand(bitmap_scratch, MemoryChunk::kLiveBytesOffset));
-    cmp(length, Operand(bitmap_scratch, MemoryChunk::kSizeOffset));
-    Check(less_equal, kLiveBytesCountOverflowChunkSize);
-  }
-
-  bind(&done);
+  j(zero, value_is_white, Label::kNear);
 }
 
 

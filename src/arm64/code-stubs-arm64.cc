@@ -4155,12 +4155,12 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
   // We need extra registers for this, so we push the object and the address
   // register temporarily.
   __ Push(regs_.address(), regs_.object());
-  __ EnsureNotWhite(val,
-                    regs_.scratch1(),  // Scratch.
-                    regs_.object(),    // Scratch.
-                    regs_.address(),   // Scratch.
-                    regs_.scratch2(),  // Scratch.
-                    &need_incremental_pop_scratch);
+  __ JumpIfWhite(val,
+                 regs_.scratch1(),  // Scratch.
+                 regs_.object(),    // Scratch.
+                 regs_.address(),   // Scratch.
+                 regs_.scratch2(),  // Scratch.
+                 &need_incremental_pop_scratch);
   __ Pop(regs_.object(), regs_.address());
 
   regs_.Restore(masm);  // Restore the extra scratch registers we used.

@@ -50,8 +50,12 @@ IncrementalMarking::IncrementalMarking(Heap* heap)
 bool IncrementalMarking::BaseRecordWrite(HeapObject* obj, Object* value) {
   HeapObject* value_heap_obj = HeapObject::cast(value);
   MarkBit value_bit = Marking::MarkBitFrom(value_heap_obj);
+  DCHECK(!Marking::IsImpossible(value_bit));
+
   MarkBit obj_bit = Marking::MarkBitFrom(obj);
+  DCHECK(!Marking::IsImpossible(obj_bit));
   bool is_black = Marking::IsBlack(obj_bit);
+
   if (is_black && Marking::IsWhite(value_bit)) {
     WhiteToGreyAndPush(value_heap_obj, value_bit);
     RestartIfNotMarking();
