@@ -212,6 +212,9 @@ class MacroAssembler : public Assembler {
   void HasColor(Register object, Register scratch0, Register scratch1,
                 Label* has_color, int first_bit, int second_bit);
 
+  void JumpIfBlack(Register object, Register scratch0, Register scratch1,
+                   Label* on_black);
+
   // Checks the color of an object.  If the object is white we jump to the
   // incremental marker.
   void JumpIfWhite(Register value, Register scratch1, Register scratch2,
