@@ -9311,6 +9311,7 @@ Handle<Map> Map::AddMissingTransitions(
     InstallDescriptors(map, new_map, i, descriptors, full_layout_descriptor);
     map = new_map;
   }
+  map->NotifyLeafMapLayoutChange();
   InstallDescriptors(map, last_map, nof_descriptors - 1, descriptors,
                      full_layout_descriptor);
   return last_map;
@@ -9427,6 +9428,7 @@ Handle<Map> Map::AsLanguageMode(Handle<Map> initial_map,
   if (maybe_transition != NULL) {
     return handle(maybe_transition, isolate);
   }
+  initial_map->NotifyLeafMapLayoutChange();
 
   // Create new map taking descriptors from the |function_map| and all
   // the other details from the |initial_map|.

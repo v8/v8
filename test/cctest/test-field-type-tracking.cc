@@ -621,6 +621,17 @@ static void TestGeneralizeRepresentation(
     CHECK_EQ(expected_field_type_dependency, info.dependencies()->HasAborted());
   }
 
+  {
+    // Check that all previous maps are not stable.
+    Map* tmp = *new_map;
+    while (true) {
+      Object* back = tmp->GetBackPointer();
+      if (back->IsUndefined()) break;
+      tmp = Map::cast(back);
+      CHECK(!tmp->is_stable());
+    }
+  }
+
   info.dependencies()->Rollback();  // Properly cleanup compilation info.
 
   // Update all deprecated maps and check that they are now the same.

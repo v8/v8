@@ -330,6 +330,8 @@ void Map::MapVerify() {
   CHECK(instance_size() == kVariableSizeSentinel ||
          (kPointerSize <= instance_size() &&
           instance_size() < heap->Capacity()));
+  CHECK(GetBackPointer()->IsUndefined() ||
+        !Map::cast(GetBackPointer())->is_stable());
   VerifyHeapPointer(prototype());
   VerifyHeapPointer(instance_descriptors());
   SLOW_DCHECK(instance_descriptors()->IsSortedNoDuplicates());

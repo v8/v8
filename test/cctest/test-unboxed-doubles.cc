@@ -759,12 +759,14 @@ static Handle<LayoutDescriptor> TestLayoutDescriptorAppendIfFastOrUseFull(
   int descriptors_length = descriptors->number_of_descriptors();
   std::vector<Handle<Map>> maps(descriptors_length);
   {
+    CHECK(last_map->is_stable());
     Map* map = *last_map;
     for (int i = 0; i < descriptors_length; i++) {
       maps[descriptors_length - 1 - i] = handle(map, isolate);
       Object* maybe_map = map->GetBackPointer();
       CHECK(maybe_map->IsMap());
       map = Map::cast(maybe_map);
+      CHECK(!map->is_stable());
     }
     CHECK_EQ(1, maps[0]->NumberOfOwnDescriptors());
   }
