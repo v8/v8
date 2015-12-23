@@ -3163,6 +3163,47 @@ TEST(TemporaryRegisterAllocation) {
   }
 }
 
+
+TEST(InterpreterDeleteLookupSlot) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  i::Factory* factory = isolate->factory();
+
+  // TODO(mythria): Add more tests when we have support for eval/with.
+  const char* function_prologue = "var f;"
+                                  "var x = 1;"
+                                  "y = 10;"
+                                  "var obj = {val:10};"
+                                  "var z = 30;"
+                                  "function f1() {"
+                                  "  var z = 20;"
+                                  "  eval(\"function t() {";
+  const char* function_epilogue = "        }; f = t;\");"
+                                  "}"
+                                  "f1();";
+
+
+  std::pair<const char*, Handle<Object>> delete_lookup_slot[] = {
+      {"return delete x;", factory->false_value()},
+      {"return delete y;", factory->true_value()},
+      {"return delete z;", factory->false_value()},
+      {"return delete obj.val;", factory->true_value()},
+      {"'use strict'; return delete obj.val;", factory->true_value()},
+  };
+
+  for (size_t i = 0; i < arraysize(delete_lookup_slot); i++) {
+    std::string script = std::string(function_prologue) +
+                         std::string(delete_lookup_slot[i].first) +
+                         std::string(function_epilogue);
+
+    InterpreterTester tester(handles.main_isolate(), script.c_str(), "t");
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*delete_lookup_slot[i].second));
+  }
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

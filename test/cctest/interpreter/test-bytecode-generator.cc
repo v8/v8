@@ -5794,6 +5794,66 @@ TEST(LookupSlotInEval) {
   }
 }
 
+
+TEST(DeleteLookupSlot) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+
+  const char* function_prologue = "var f;"
+                                  "var x = 1;"
+                                  "z = 10;"
+                                  "function f1() {"
+                                  "  var y;"
+                                  "  eval(\"function t() {";
+  const char* function_epilogue = "        }; f = t; f();\");"
+                                  "}"
+                                  "f1();";
+
+  ExpectedSnippet<const char*> snippets[] = {
+      {"delete x;",
+       0 * kPointerSize,
+       1,
+       5,
+       {
+           B(LdaConstant), U8(0),  //
+           B(DeleteLookupSlot),    //
+           B(LdaUndefined),        //
+           B(Return)               //
+       },
+       1,
+       {"x"}},
+      {"return delete y;",
+       0 * kPointerSize,
+       1,
+       2,
+       {
+           B(LdaFalse),        //
+           B(Return)           //
+       },
+       0},
+      {"return delete z;",
+       0 * kPointerSize,
+       1,
+       4,
+       {
+           B(LdaConstant), U8(0),  //
+           B(DeleteLookupSlot),    //
+           B(Return)               //
+       },
+       1,
+       {"z"}},
+  };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    std::string script = std::string(function_prologue) +
+                         std::string(snippets[i].code_snippet) +
+                         std::string(function_epilogue);
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecode(script.c_str(), "t", "f");
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

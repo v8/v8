@@ -1320,6 +1320,16 @@ void BytecodeGraphBuilder::VisitDeletePropertySloppy(
 }
 
 
+void BytecodeGraphBuilder::VisitDeleteLookupSlot(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  FrameStateBeforeAndAfter states(this, iterator);
+  Node* name = environment()->LookupAccumulator();
+  const Operator* op = javascript()->CallRuntime(Runtime::kDeleteLookupSlot, 2);
+  Node* result = NewNode(op, environment()->Context(), name);
+  environment()->BindAccumulator(result, &states);
+}
+
+
 void BytecodeGraphBuilder::BuildCompareOp(
     const Operator* js_op, const interpreter::BytecodeArrayIterator& iterator) {
   FrameStateBeforeAndAfter states(this, iterator);

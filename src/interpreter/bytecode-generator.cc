@@ -1797,7 +1797,7 @@ void BytecodeGenerator::VisitDelete(UnaryOperation* expr) {
         break;
       }
       case VariableLocation::LOOKUP: {
-        UNIMPLEMENTED();
+        builder()->LoadLiteral(variable->name()).DeleteLookupSlot();
         break;
       }
       default:

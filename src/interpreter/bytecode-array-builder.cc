@@ -1001,6 +1001,12 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Delete(Register object,
 }
 
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::DeleteLookupSlot() {
+  Output(Bytecode::kDeleteLookupSlot);
+  return *this;
+}
+
+
 size_t BytecodeArrayBuilder::GetConstantPoolEntry(Handle<Object> object) {
   // These constants shouldn't be added to the constant pool, the should use
   // specialzed bytecodes instead.
