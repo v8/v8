@@ -774,9 +774,8 @@ TEST(InterpreterLoadNamedProperty) {
   builder.set_locals_count(0);
   builder.set_context_count(0);
   builder.set_parameter_count(1);
-  size_t name_index = builder.GetConstantPoolEntry(name);
-  builder.LoadNamedProperty(builder.Parameter(0), name_index,
-                            vector->GetIndex(slot), i::SLOPPY)
+  builder.LoadNamedProperty(builder.Parameter(0), name, vector->GetIndex(slot),
+                            i::SLOPPY)
       .Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
 
@@ -876,10 +875,9 @@ TEST(InterpreterStoreNamedProperty) {
   builder.set_locals_count(0);
   builder.set_context_count(0);
   builder.set_parameter_count(1);
-  size_t name_index = builder.GetConstantPoolEntry(name);
   builder.LoadLiteral(Smi::FromInt(999))
-      .StoreNamedProperty(builder.Parameter(0), name_index,
-                          vector->GetIndex(slot), i::STRICT)
+      .StoreNamedProperty(builder.Parameter(0), name, vector->GetIndex(slot),
+                          i::STRICT)
       .Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
 
@@ -991,9 +989,7 @@ TEST(InterpreterCall) {
     builder.set_locals_count(1);
     builder.set_context_count(0);
     builder.set_parameter_count(1);
-    size_t name_index = builder.GetConstantPoolEntry(name);
-    builder.LoadNamedProperty(builder.Parameter(0), name_index, slot_index,
-                              i::SLOPPY)
+    builder.LoadNamedProperty(builder.Parameter(0), name, slot_index, i::SLOPPY)
         .StoreAccumulatorInRegister(Register(0))
         .Call(Register(0), builder.Parameter(0), 0, 0)
         .Return();
@@ -1014,9 +1010,7 @@ TEST(InterpreterCall) {
     builder.set_locals_count(1);
     builder.set_context_count(0);
     builder.set_parameter_count(1);
-    size_t name_index = builder.GetConstantPoolEntry(name);
-    builder.LoadNamedProperty(builder.Parameter(0), name_index, slot_index,
-                              i::SLOPPY)
+    builder.LoadNamedProperty(builder.Parameter(0), name, slot_index, i::SLOPPY)
         .StoreAccumulatorInRegister(Register(0))
         .Call(Register(0), builder.Parameter(0), 0, 0)
         .Return();
@@ -1040,9 +1034,7 @@ TEST(InterpreterCall) {
     builder.set_locals_count(4);
     builder.set_context_count(0);
     builder.set_parameter_count(1);
-    size_t name_index = builder.GetConstantPoolEntry(name);
-    builder.LoadNamedProperty(builder.Parameter(0), name_index, slot_index,
-                              i::SLOPPY)
+    builder.LoadNamedProperty(builder.Parameter(0), name, slot_index, i::SLOPPY)
         .StoreAccumulatorInRegister(Register(0))
         .LoadAccumulatorWithRegister(builder.Parameter(0))
         .StoreAccumulatorInRegister(Register(1))
@@ -1071,9 +1063,7 @@ TEST(InterpreterCall) {
     builder.set_locals_count(12);
     builder.set_context_count(0);
     builder.set_parameter_count(1);
-    size_t name_index = builder.GetConstantPoolEntry(name);
-    builder.LoadNamedProperty(builder.Parameter(0), name_index, slot_index,
-                              i::SLOPPY)
+    builder.LoadNamedProperty(builder.Parameter(0), name, slot_index, i::SLOPPY)
         .StoreAccumulatorInRegister(Register(0))
         .LoadAccumulatorWithRegister(builder.Parameter(0))
         .StoreAccumulatorInRegister(Register(1))

@@ -70,9 +70,6 @@ class BytecodeArrayBuilder final {
   // Return true if the register |reg| represents a temporary register.
   bool RegisterIsTemporary(Register reg) const;
 
-  // Gets a constant pool entry for the |object|.
-  size_t GetConstantPoolEntry(Handle<Object> object);
-
   // Constant loads to accumulator.
   BytecodeArrayBuilder& LoadLiteral(v8::internal::Smi* value);
   BytecodeArrayBuilder& LoadLiteral(Handle<Object> object);
@@ -84,10 +81,11 @@ class BytecodeArrayBuilder final {
   BytecodeArrayBuilder& LoadBooleanConstant(bool value);
 
   // Global loads to the accumulator and stores from the accumulator.
-  BytecodeArrayBuilder& LoadGlobal(size_t name_index, int feedback_slot,
+  BytecodeArrayBuilder& LoadGlobal(const Handle<String> name, int feedback_slot,
                                    LanguageMode language_mode,
                                    TypeofMode typeof_mode);
-  BytecodeArrayBuilder& StoreGlobal(size_t name_index, int feedback_slot,
+  BytecodeArrayBuilder& StoreGlobal(const Handle<String> name,
+                                    int feedback_slot,
                                     LanguageMode language_mode);
 
   // Load the object at |slot_index| in |context| into the accumulator.
@@ -104,7 +102,8 @@ class BytecodeArrayBuilder final {
   BytecodeArrayBuilder& MoveRegister(Register from, Register to);
 
   // Named load property.
-  BytecodeArrayBuilder& LoadNamedProperty(Register object, size_t name_index,
+  BytecodeArrayBuilder& LoadNamedProperty(Register object,
+                                          const Handle<String> name,
                                           int feedback_slot,
                                           LanguageMode language_mode);
   // Keyed load property. The key should be in the accumulator.
@@ -112,7 +111,8 @@ class BytecodeArrayBuilder final {
                                           LanguageMode language_mode);
 
   // Store properties. The value to be stored should be in the accumulator.
-  BytecodeArrayBuilder& StoreNamedProperty(Register object, size_t name_index,
+  BytecodeArrayBuilder& StoreNamedProperty(Register object,
+                                           const Handle<String> name,
                                            int feedback_slot,
                                            LanguageMode language_mode);
   BytecodeArrayBuilder& StoreKeyedProperty(Register object, Register key,
@@ -288,6 +288,9 @@ class BytecodeArrayBuilder final {
 
   Register first_temporary_register() const;
   Register last_temporary_register() const;
+
+  // Gets a constant pool entry for the |object|.
+  size_t GetConstantPoolEntry(Handle<Object> object);
 
   Isolate* isolate_;
   Zone* zone_;

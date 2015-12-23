@@ -380,11 +380,12 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::MoveRegister(Register from,
 
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadGlobal(
-    size_t name_index, int feedback_slot, LanguageMode language_mode,
+    const Handle<String> name, int feedback_slot, LanguageMode language_mode,
     TypeofMode typeof_mode) {
   // TODO(rmcilroy): Potentially store language and typeof information in an
   // operand rather than having extra bytecodes.
   Bytecode bytecode = BytecodeForLoadGlobal(language_mode, typeof_mode);
+  size_t name_index = GetConstantPoolEntry(name);
   if (FitsInIdx8Operand(name_index) && FitsInIdx8Operand(feedback_slot)) {
     Output(bytecode, static_cast<uint8_t>(name_index),
            static_cast<uint8_t>(feedback_slot));
@@ -400,8 +401,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadGlobal(
 
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::StoreGlobal(
-    size_t name_index, int feedback_slot, LanguageMode language_mode) {
+    const Handle<String> name, int feedback_slot, LanguageMode language_mode) {
   Bytecode bytecode = BytecodeForStoreGlobal(language_mode);
+  size_t name_index = GetConstantPoolEntry(name);
   if (FitsInIdx8Operand(name_index) && FitsInIdx8Operand(feedback_slot)) {
     Output(bytecode, static_cast<uint8_t>(name_index),
            static_cast<uint8_t>(feedback_slot));
@@ -471,9 +473,10 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreLookupSlot(
 
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadNamedProperty(
-    Register object, size_t name_index, int feedback_slot,
+    Register object, const Handle<String> name, int feedback_slot,
     LanguageMode language_mode) {
   Bytecode bytecode = BytecodeForLoadIC(language_mode);
+  size_t name_index = GetConstantPoolEntry(name);
   if (FitsInIdx8Operand(name_index) && FitsInIdx8Operand(feedback_slot)) {
     Output(bytecode, object.ToOperand(), static_cast<uint8_t>(name_index),
            static_cast<uint8_t>(feedback_slot));
@@ -505,9 +508,10 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadKeyedProperty(
 
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::StoreNamedProperty(
-    Register object, size_t name_index, int feedback_slot,
+    Register object, const Handle<String> name, int feedback_slot,
     LanguageMode language_mode) {
   Bytecode bytecode = BytecodeForStoreIC(language_mode);
+  size_t name_index = GetConstantPoolEntry(name);
   if (FitsInIdx8Operand(name_index) && FitsInIdx8Operand(feedback_slot)) {
     Output(bytecode, object.ToOperand(), static_cast<uint8_t>(name_index),
            static_cast<uint8_t>(feedback_slot));
