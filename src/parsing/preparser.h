@@ -119,10 +119,7 @@ class PreParserExpression {
   static PreParserExpression BinaryOperation(PreParserExpression left,
                                              Token::Value op,
                                              PreParserExpression right) {
-    return PreParserExpression(
-        TypeField::encode(kBinaryOperationExpression) |
-        HasRestField::encode(op == Token::COMMA &&
-                             right->IsSpreadExpression()));
+    return PreParserExpression(TypeField::encode(kBinaryOperationExpression));
   }
 
   static PreParserExpression Assignment() {
@@ -265,14 +262,6 @@ class PreParserExpression {
     return TypeField::decode(code_) == kSpreadExpression;
   }
 
-  bool IsArrowFunctionFormalParametersWithRestParameter() const {
-    // Iff the expression classifier has determined that this expression is a
-    // valid arrow fformal parameter list, return true if the formal parameter
-    // list ends with a rest parameter.
-    return IsSpreadExpression() ||
-           (IsBinaryOperation() && HasRestField::decode(code_));
-  }
-
   PreParserExpression AsFunctionLiteral() { return *this; }
 
   bool IsBinaryOperation() const {
@@ -324,7 +313,6 @@ class PreParserExpression {
   typedef BitField<bool, IsUseStrictField::kNext, 1> IsUseStrongField;
   typedef BitField<PreParserIdentifier::Type, TypeField::kNext, 10>
       IdentifierTypeField;
-  typedef BitField<bool, TypeField::kNext, 1> HasRestField;
   typedef BitField<bool, TypeField::kNext, 1> HasCoverInitializedNameField;
 
   uint32_t code_;
@@ -1108,12 +1096,6 @@ void PreParserTraits::ParseArrowFunctionFormalParameterList(
     Scanner::Location* duplicate_loc, bool* ok) {
   // TODO(wingo): Detect duplicated identifiers in paramlists.  Detect parameter
   // lists that are too long.
-
-  // Accomodate array literal for rest parameter.
-  if (params.IsArrowFunctionFormalParametersWithRestParameter()) {
-    ++parameters->materialized_literals_count;
-    pre_parser_->function_state_->NextMaterializedLiteralIndex();
-  }
 }
 
 

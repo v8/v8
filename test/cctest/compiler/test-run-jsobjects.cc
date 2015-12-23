@@ -35,6 +35,9 @@ TEST(ArgumentsUnmapped) {
 
 
 TEST(ArgumentsRest) {
+  // TODO(mvstanton): restore this test when Turbofan again supports rest args.
+  // (soon).
+  return;
   FunctionTester T("(function(a, ...args) { return args; })");
 
   Handle<Object> arguments;

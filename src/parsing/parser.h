@@ -1394,8 +1394,7 @@ void ParserTraits::AddFormalParameter(ParserFormalParameters* parameters,
                                       Expression* initializer,
                                       int initializer_end_position,
                                       bool is_rest) {
-  bool is_simple =
-      !is_rest && pattern->IsVariableProxy() && initializer == nullptr;
+  bool is_simple = pattern->IsVariableProxy() && initializer == nullptr;
   const AstRawString* name = is_simple
                                  ? pattern->AsVariableProxy()->raw_name()
                                  : parser_->ast_value_factory()->empty_string();
@@ -1411,8 +1410,10 @@ void ParserTraits::DeclareFormalParameter(
     ExpressionClassifier* classifier) {
   bool is_duplicate = false;
   bool is_simple = classifier->is_simple_parameter_list();
-  auto name = parameter.name;
-  auto mode = is_simple ? VAR : TEMPORARY;
+  auto name = is_simple || parameter.is_rest
+                  ? parameter.name
+                  : parser_->ast_value_factory()->empty_string();
+  auto mode = is_simple || parameter.is_rest ? VAR : TEMPORARY;
   if (!is_simple) scope->SetHasNonSimpleParameters();
   bool is_optional = parameter.initializer != nullptr;
   Variable* var = scope->DeclareParameter(

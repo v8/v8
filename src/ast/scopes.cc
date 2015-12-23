@@ -205,6 +205,7 @@ void Scope::SetDefaults(ScopeType scope_type, Scope* outer_scope,
   arity_ = 0;
   has_simple_parameters_ = true;
   rest_parameter_ = NULL;
+  rest_index_ = -1;
   scope_info_ = scope_info;
   start_position_ = RelocInfo::kNoPosition;
   end_position_ = RelocInfo::kNoPosition;
@@ -521,6 +522,7 @@ Variable* Scope::DeclareParameter(
   if (is_rest) {
     DCHECK_NULL(rest_parameter_);
     rest_parameter_ = var;
+    rest_index_ = num_parameters();
   }
   params_.Add(var, zone());
   return var;

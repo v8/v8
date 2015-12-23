@@ -576,6 +576,11 @@ void AstGraphBuilder::CreateGraphBody(bool stack_check) {
   // Build the arguments object if it is used.
   BuildArgumentsObject(scope->arguments());
 
+  // Build rest arguments array if it is used.
+  int rest_index;
+  Variable* rest_parameter = scope->rest_parameter(&rest_index);
+  BuildRestArgumentsArray(rest_parameter, rest_index);
+
   // Build assignment to {.this_function} variable if it is used.
   BuildThisFunctionVariable(scope->this_function_var());
 
@@ -3218,6 +3223,15 @@ Node* AstGraphBuilder::BuildArgumentsObject(Variable* arguments) {
   BuildVariableAssignment(arguments, object, Token::ASSIGN, VectorSlotPair(),
                           BailoutId::None(), states);
   return object;
+}
+
+
+Node* AstGraphBuilder::BuildRestArgumentsArray(Variable* rest, int index) {
+  if (rest == NULL) return NULL;
+
+  // TODO(mvstanton): Handle rest arguments.
+  SetStackOverflow();
+  return jsgraph()->UndefinedConstant();
 }
 
 

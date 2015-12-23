@@ -261,6 +261,7 @@ class AstValue : public ZoneObject {
   F(next, "next")                               \
   F(proto, "__proto__")                         \
   F(prototype, "prototype")                     \
+  F(rest_parameter, ".rest_parameter")          \
   F(this, "this")                               \
   F(this_function, ".this_function")            \
   F(undefined, "undefined")                     \

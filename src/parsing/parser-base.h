@@ -31,7 +31,6 @@ struct FormalParametersBase {
   bool has_rest = false;
   bool is_simple = true;
   int materialized_literals_count = 0;
-  mutable int rest_array_literal_index = -1;
 };
 
 
@@ -2000,13 +1999,12 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN, int flags,
       parameters.is_simple = false;
     }
 
-    Scanner::Location duplicate_loc = Scanner::Location::invalid();
-    this->ParseArrowFunctionFormalParameterList(&parameters, expression, loc,
-                                                &duplicate_loc, CHECK_OK);
-
     checkpoint.Restore(&parameters.materialized_literals_count);
 
     scope->set_start_position(lhs_beg_pos);
+    Scanner::Location duplicate_loc = Scanner::Location::invalid();
+    this->ParseArrowFunctionFormalParameterList(&parameters, expression, loc,
+                                                &duplicate_loc, CHECK_OK);
     if (duplicate_loc.IsValid()) {
       arrow_formals_classifier.RecordDuplicateFormalParameterError(
           duplicate_loc);
@@ -2874,12 +2872,6 @@ void ParserBase<Traits>::ParseFormalParameter(
     classifier->RecordNonSimpleParameter();
   }
 
-  if (is_rest) {
-    parameters->rest_array_literal_index =
-        function_state_->NextMaterializedLiteralIndex();
-    ++parameters->materialized_literals_count;
-  }
-
   ExpressionT initializer = Traits::EmptyExpression();
   if (!is_rest && allow_harmony_default_parameters() && Check(Token::ASSIGN)) {
     ExpressionClassifier init_classifier;
@@ -3040,7 +3032,6 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(
         body = this->NewStatementList(0, zone());
         this->SkipLazyFunctionBody(&materialized_literal_count,
                                    &expected_property_count, CHECK_OK);
-
         if (formal_parameters.materialized_literals_count > 0) {
           materialized_literal_count +=
               formal_parameters.materialized_literals_count;

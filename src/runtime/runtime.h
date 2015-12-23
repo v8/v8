@@ -565,6 +565,8 @@ namespace internal {
   F(NewStrictArguments_Generic, 1, 1)      \
   F(NewSloppyArguments, 3, 1)              \
   F(NewStrictArguments, 3, 1)              \
+  F(NewRestParam, 4, 1)                    \
+  F(NewRestParamSlow, 2, 1)                \
   F(NewClosure, 1, 1)                      \
   F(NewClosure_Tenured, 1, 1)              \
   F(NewScriptContext, 2, 1)                \

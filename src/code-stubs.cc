@@ -838,6 +838,9 @@ void StoreFastElementStub::GenerateAheadOfTime(Isolate* isolate) {
 }
 
 
+void RestParamAccessStub::Generate(MacroAssembler* masm) { GenerateNew(masm); }
+
+
 void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
   switch (type()) {
     case READ_ELEMENT:
@@ -873,6 +876,11 @@ void ArgumentsAccessStub::PrintName(std::ostream& os) const {  // NOLINT
       break;
   }
   return;
+}
+
+
+void RestParamAccessStub::PrintName(std::ostream& os) const {  // NOLINT
+  os << "RestParamAccessStub_";
 }
 
 

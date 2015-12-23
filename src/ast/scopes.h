@@ -421,6 +421,15 @@ class Scope: public ZoneObject {
 
   int num_parameters() const { return params_.length(); }
 
+  // A function can have at most one rest parameter. Returns Variable* or NULL.
+  Variable* rest_parameter(int* index) const {
+    *index = rest_index_;
+    if (rest_index_ < 0) return NULL;
+    return rest_parameter_;
+  }
+
+  bool has_rest_parameter() const { return rest_index_ >= 0; }
+
   bool has_simple_parameters() const {
     return has_simple_parameters_;
   }
@@ -682,6 +691,7 @@ class Scope: public ZoneObject {
   int arity_;
   bool has_simple_parameters_;
   Variable* rest_parameter_;
+  int rest_index_;
 
   // Serialized scope info support.
   Handle<ScopeInfo> scope_info_;

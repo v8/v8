@@ -4116,9 +4116,6 @@ void ParserTraits::ParseArrowFunctionFormalParameters(
   if (is_rest) {
     expr = expr->AsSpread()->expression();
     parameters->has_rest = true;
-    parameters->rest_array_literal_index =
-        parser_->function_state_->NextMaterializedLiteralIndex();
-    ++parameters->materialized_literals_count;
   }
   if (parameters->is_simple) {
     parameters->is_simple = !is_rest && expr->IsVariableProxy();
@@ -4201,10 +4198,6 @@ void ParserTraits::ReindexLiterals(const ParserFormalParameters& parameters) {
     for (const auto p : parameters.params) {
       if (p.pattern != nullptr) reindexer.Reindex(p.pattern);
       if (p.initializer != nullptr) reindexer.Reindex(p.initializer);
-    }
-
-    if (parameters.has_rest) {
-      parameters.rest_array_literal_index = reindexer.NextIndex();
     }
 
     DCHECK(reindexer.count() <=
@@ -4486,6 +4479,10 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   if (should_be_used_once_hint)
     function_literal->set_should_be_used_once_hint();
 
+  if (scope->has_rest_parameter()) {
+    function_literal->set_dont_optimize_reason(kRestParameter);
+  }
+
   if (fni_ != NULL && should_infer_name) fni_->AddFunction(function_literal);
   return function_literal;
 }
@@ -4635,6 +4632,7 @@ Block* Parser::BuildParameterInitializationBlock(
       factory()->NewBlock(NULL, 1, true, RelocInfo::kNoPosition);
   for (int i = 0; i < parameters.params.length(); ++i) {
     auto parameter = parameters.params[i];
+    if (parameter.is_rest) break;
     DeclarationDescriptor descriptor;
     descriptor.declaration_kind = DeclarationDescriptor::PARAMETER;
     descriptor.parser = this;
@@ -4656,7 +4654,6 @@ Block* Parser::BuildParameterInitializationBlock(
         factory()->NewVariableProxy(parameters.scope->parameter(i));
     if (parameter.initializer != nullptr) {
       // IS_UNDEFINED($param) ? initializer : $param
-      DCHECK(!parameter.is_rest);
 
       // Ensure initializer is rewritten
       RewriteParameterInitializer(parameter.initializer, scope_);
@@ -4671,80 +4668,6 @@ Block* Parser::BuildParameterInitializationBlock(
           RelocInfo::kNoPosition);
       descriptor.initialization_pos = parameter.initializer->position();
       initializer_position = parameter.initializer_end_position;
-    } else if (parameter.is_rest) {
-      // $rest = [];
-      // for (var $argument_index = $rest_index;
-      //      $argument_index < %_ArgumentsLength();
-      //      ++$argument_index) {
-      //   %AppendElement($rest, %_Arguments($argument_index));
-      // }
-      // let <param> = $rest;
-      DCHECK(parameter.pattern->IsVariableProxy());
-      DCHECK_EQ(i, parameters.params.length() - 1);
-
-      Variable* temp_var = parameters.scope->parameter(i);
-      auto empty_values = new (zone()) ZoneList<Expression*>(0, zone());
-      auto empty_array = factory()->NewArrayLiteral(
-          empty_values, parameters.rest_array_literal_index,
-          is_strong(language_mode()), RelocInfo::kNoPosition);
-
-      auto init_array = factory()->NewAssignment(
-          Token::INIT, factory()->NewVariableProxy(temp_var), empty_array,
-          RelocInfo::kNoPosition);
-
-      auto loop = factory()->NewForStatement(NULL, RelocInfo::kNoPosition);
-
-      auto argument_index =
-          parameters.scope->NewTemporary(ast_value_factory()->empty_string());
-      auto init = factory()->NewExpressionStatement(
-          factory()->NewAssignment(
-              Token::INIT, factory()->NewVariableProxy(argument_index),
-              factory()->NewSmiLiteral(i, RelocInfo::kNoPosition),
-              RelocInfo::kNoPosition),
-          RelocInfo::kNoPosition);
-
-      auto empty_arguments = new (zone()) ZoneList<Expression*>(0, zone());
-
-      // $arguments_index < arguments.length
-      auto cond = factory()->NewCompareOperation(
-          Token::LT, factory()->NewVariableProxy(argument_index),
-          factory()->NewCallRuntime(Runtime::kInlineArgumentsLength,
-                                    empty_arguments, RelocInfo::kNoPosition),
-          RelocInfo::kNoPosition);
-
-      // ++argument_index
-      auto next = factory()->NewExpressionStatement(
-          factory()->NewCountOperation(
-              Token::INC, true, factory()->NewVariableProxy(argument_index),
-              RelocInfo::kNoPosition),
-          RelocInfo::kNoPosition);
-
-      // %_Arguments($arguments_index)
-      auto arguments_args = new (zone()) ZoneList<Expression*>(1, zone());
-      arguments_args->Add(factory()->NewVariableProxy(argument_index), zone());
-
-      // %AppendElement($rest, %_Arguments($arguments_index))
-      auto append_element_args = new (zone()) ZoneList<Expression*>(2, zone());
-
-      append_element_args->Add(factory()->NewVariableProxy(temp_var), zone());
-      append_element_args->Add(
-          factory()->NewCallRuntime(Runtime::kInlineArguments, arguments_args,
-                                    RelocInfo::kNoPosition),
-          zone());
-
-      auto body = factory()->NewExpressionStatement(
-          factory()->NewCallRuntime(Runtime::kAppendElement,
-                                    append_element_args,
-                                    RelocInfo::kNoPosition),
-          RelocInfo::kNoPosition);
-
-      loop->Initialize(init, cond, next, body);
-
-      init_block->statements()->Add(
-          factory()->NewExpressionStatement(init_array, RelocInfo::kNoPosition),
-          zone());
-
-      init_block->statements()->Add(loop, zone());
     }
 
     Scope* param_scope = scope_;
