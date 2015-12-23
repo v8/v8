@@ -118,6 +118,8 @@ void MoveOptimizer::Run() {
 
 
 void MoveOptimizer::CompressMoves(ParallelMove* left, ParallelMove* right) {
+  if (right == nullptr) return;
+
   MoveOpVector& eliminated = local_vector();
   DCHECK(eliminated.empty());
 
@@ -153,26 +155,37 @@ void MoveOptimizer::CompressBlock(InstructionBlock* block) {
   for (int index = block->code_start(); index < block->code_end(); ++index) {
     Instruction* instr = code()->instructions()[index];
     int i = FindFirstNonEmptySlot(instr);
-    if (i <= Instruction::LAST_GAP_POSITION) {
-      // Move the first non-empty gap to position 0.
-      std::swap(instr->parallel_moves()[0], instr->parallel_moves()[i]);
-      ParallelMove* left = instr->parallel_moves()[0];
-      // Compress everything into position 0.
-      for (++i; i <= Instruction::LAST_GAP_POSITION; ++i) {
-        ParallelMove* move = instr->parallel_moves()[i];
-        if (move == nullptr) continue;
-        CompressMoves(left, move);
-      }
-      if (prev_instr != nullptr) {
-        // Smash left into prev_instr, killing left.
-        ParallelMove* pred_moves = prev_instr->parallel_moves()[0];
-        CompressMoves(pred_moves, left);
-      }
+    bool has_moves = i <= Instruction::LAST_GAP_POSITION;
+
+    if (i == Instruction::LAST_GAP_POSITION) {
+      std::swap(instr->parallel_moves()[Instruction::FIRST_GAP_POSITION],
+                instr->parallel_moves()[Instruction::LAST_GAP_POSITION]);
+    } else if (i == Instruction::FIRST_GAP_POSITION) {
+      CompressMoves(instr->parallel_moves()[Instruction::FIRST_GAP_POSITION],
+                    instr->parallel_moves()[Instruction::LAST_GAP_POSITION]);
     }
+    // We either have no moves, or, after swapping or compressing, we have
+    // all the moves in the first gap position, and none in the second/end gap
+    // position.
+    ParallelMove* first =
+        instr->parallel_moves()[Instruction::FIRST_GAP_POSITION];
+    ParallelMove* last =
+        instr->parallel_moves()[Instruction::LAST_GAP_POSITION];
+    USE(last);
+
+    DCHECK(!has_moves ||
+           (first != nullptr && (last == nullptr || last->empty())));
+
     if (prev_instr != nullptr) {
+      if (has_moves) {
+        // Smash first into prev_instr, killing left.
+        ParallelMove* pred_moves = prev_instr->parallel_moves()[0];
+        CompressMoves(pred_moves, first);
+      }
       // Slide prev_instr down so we always know where to look for it.
       std::swap(prev_instr->parallel_moves()[0], instr->parallel_moves()[0]);
     }
+
     prev_instr = instr->parallel_moves()[0] == nullptr ? nullptr : instr;
     if (GapsCanMoveOver(instr, local_zone())) continue;
     if (prev_instr != nullptr) {
