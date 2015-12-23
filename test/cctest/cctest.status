@@ -242,6 +242,9 @@
 
   # BUG(v8:4573).
   'test-api/MultipleIsolatesOnIndividualThreads': [PASS, NO_VARIANTS],
+
+  # BUG(v8:4642).
+  'test-lockers/LockAndUnlockDifferentIsolates': [PASS, FLAKY],
 }],  # 'system == windows'
 
 ##############################################################################
