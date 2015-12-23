@@ -165,7 +165,7 @@ void InstructionSelector::VisitLoad(Node* node) {
   PPCOperandGenerator g(this);
   Node* base = node->InputAt(0);
   Node* offset = node->InputAt(1);
-  ArchOpcode opcode;
+  ArchOpcode opcode = kArchNop;
   ImmediateMode mode = kInt16Imm;
   switch (load_rep.representation()) {
     case MachineRepresentation::kFloat32:
@@ -197,9 +197,8 @@ void InstructionSelector::VisitLoad(Node* node) {
       opcode = kPPC_LoadWord64;
       mode = kInt16Imm_4ByteAligned;
       break;
-#endif
-#if !V8_TARGET_ARCH_PPC64
-    case MachineRepresentation::kWord64:
+#else
+    case MachineRepresentation::kWord64:  // Fall through.
 #endif
     case MachineRepresentation::kNone:
       UNREACHABLE();
@@ -259,7 +258,7 @@ void InstructionSelector::VisitStore(Node* node) {
     code |= MiscField::encode(static_cast<int>(record_write_mode));
     Emit(code, 0, nullptr, input_count, inputs, temp_count, temps);
   } else {
-    ArchOpcode opcode;
+    ArchOpcode opcode = kArchNop;
     ImmediateMode mode = kInt16Imm;
     switch (rep) {
       case MachineRepresentation::kFloat32:
@@ -287,8 +286,10 @@ void InstructionSelector::VisitStore(Node* node) {
         opcode = kPPC_StoreWord64;
         mode = kInt16Imm_4ByteAligned;
         break;
+#else
+      case MachineRepresentation::kWord64:  // Fall through.
 #endif
-      default:
+      case MachineRepresentation::kNone:
         UNREACHABLE();
         return;
     }
@@ -312,7 +313,7 @@ void InstructionSelector::VisitCheckedLoad(Node* node) {
   Node* const base = node->InputAt(0);
   Node* const offset = node->InputAt(1);
   Node* const length = node->InputAt(2);
-  ArchOpcode opcode;
+  ArchOpcode opcode = kArchNop;
   switch (load_rep.representation()) {
     case MachineRepresentation::kWord8:
       opcode = load_rep.IsSigned() ? kCheckedLoadInt8 : kCheckedLoadUint8;
@@ -323,16 +324,23 @@ void InstructionSelector::VisitCheckedLoad(Node* node) {
     case MachineRepresentation::kWord32:
       opcode = kCheckedLoadWord32;
       break;
+#if V8_TARGET_ARCH_PPC64
     case MachineRepresentation::kWord64:
       opcode = kCheckedLoadWord64;
       break;
+#endif
     case MachineRepresentation::kFloat32:
       opcode = kCheckedLoadFloat32;
       break;
     case MachineRepresentation::kFloat64:
       opcode = kCheckedLoadFloat64;
       break;
-    default:
+    case MachineRepresentation::kBit:     // Fall through.
+    case MachineRepresentation::kTagged:  // Fall through.
+#if !V8_TARGET_ARCH_PPC64
+    case MachineRepresentation::kWord64:  // Fall through.
+#endif
+    case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
   }
@@ -350,7 +358,7 @@ void InstructionSelector::VisitCheckedStore(Node* node) {
   Node* const offset = node->InputAt(1);
   Node* const length = node->InputAt(2);
   Node* const value = node->InputAt(3);
-  ArchOpcode opcode;
+  ArchOpcode opcode = kArchNop;
   switch (rep) {
     case MachineRepresentation::kWord8:
       opcode = kCheckedStoreWord8;
@@ -361,16 +369,23 @@ void InstructionSelector::VisitCheckedStore(Node* node) {
     case MachineRepresentation::kWord32:
       opcode = kCheckedStoreWord32;
       break;
+#if V8_TARGET_ARCH_PPC64
     case MachineRepresentation::kWord64:
       opcode = kCheckedStoreWord64;
       break;
+#endif
     case MachineRepresentation::kFloat32:
       opcode = kCheckedStoreFloat32;
       break;
     case MachineRepresentation::kFloat64:
       opcode = kCheckedStoreFloat64;
       break;
-    default:
+    case MachineRepresentation::kBit:     // Fall through.
+    case MachineRepresentation::kTagged:  // Fall through.
+#if !V8_TARGET_ARCH_PPC64
+    case MachineRepresentation::kWord64:  // Fall through.
+#endif
+    case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
   }
