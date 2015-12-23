@@ -47,6 +47,13 @@ class BuiltinArguments : public Arguments {
     return Arguments::at<S>(index);
   }
 
+  Handle<Object> atOrUndefined(Isolate* isolate, int index) {
+    if (index >= length()) {
+      return isolate->factory()->undefined_value();
+    }
+    return at<Object>(index);
+  }
+
   Handle<Object> receiver() {
     return Arguments::at<Object>(0);
   }
@@ -1430,10 +1437,7 @@ BUILTIN(ArrayIsArray) {
 // ES6 19.1.2.1 Object.assign
 BUILTIN(ObjectAssign) {
   HandleScope scope(isolate);
-  Handle<Object> target =
-      args.length() > 1
-          ? args.at<Object>(1)
-          : Handle<Object>::cast(isolate->factory()->undefined_value());
+  Handle<Object> target = args.atOrUndefined(isolate, 1);
 
   // 1. Let to be ? ToObject(target).
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, target,
@@ -1613,9 +1617,8 @@ BUILTIN(ReflectDeleteProperty) {
 // ES6 section 26.1.6 Reflect.get
 BUILTIN(ReflectGet) {
   HandleScope scope(isolate);
-  Handle<Object> undef = isolate->factory()->undefined_value();
-  Handle<Object> target = args.length() > 1 ? args.at<Object>(1) : undef;
-  Handle<Object> key = args.length() > 2 ? args.at<Object>(2) : undef;
+  Handle<Object> target = args.atOrUndefined(isolate, 1);
+  Handle<Object> key = args.atOrUndefined(isolate, 2);
   Handle<Object> receiver = args.length() > 3 ? args.at<Object>(3) : target;
 
   if (!target->IsJSReceiver()) {
@@ -1774,10 +1777,9 @@ BUILTIN(ReflectPreventExtensions) {
 // ES6 section 26.1.13 Reflect.set
 BUILTIN(ReflectSet) {
   HandleScope scope(isolate);
-  Handle<Object> undef = isolate->factory()->undefined_value();
-  Handle<Object> target = args.length() > 1 ? args.at<Object>(1) : undef;
-  Handle<Object> key = args.length() > 2 ? args.at<Object>(2) : undef;
-  Handle<Object> value = args.length() > 3 ? args.at<Object>(3) : undef;
+  Handle<Object> target = args.atOrUndefined(isolate, 1);
+  Handle<Object> key = args.atOrUndefined(isolate, 2);
+  Handle<Object> value = args.atOrUndefined(isolate, 3);
   Handle<Object> receiver = args.length() > 4 ? args.at<Object>(4) : target;
 
   if (!target->IsJSReceiver()) {
@@ -2053,18 +2055,8 @@ BUILTIN(ProxyConstructor) {
 BUILTIN(ProxyConstructor_ConstructStub) {
   HandleScope scope(isolate);
   DCHECK(isolate->proxy_function()->IsConstructor());
-  Handle<Object> target;
-  if (args.length() < 2) {
-    target = isolate->factory()->undefined_value();
-  } else {
-    target = args.at<Object>(1);
-  }
-  Handle<Object> handler;
-  if (args.length() < 3) {
-    handler = isolate->factory()->undefined_value();
-  } else {
-    handler = args.at<Object>(2);
-  }
+  Handle<Object> target = args.atOrUndefined(isolate, 1);
+  Handle<Object> handler = args.atOrUndefined(isolate, 2);
   // The ConstructStub is executed in the context of the caller, so we need
   // to enter the callee context first before raising an exception.
   isolate->set_context(args.target()->context());
