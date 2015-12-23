@@ -3833,8 +3833,8 @@ MaybeHandle<Map> Map::TryUpdate(Handle<Map> old_map) {
       case DATA: {
         HeapType* new_type = new_descriptors->GetFieldType(i);
         // Cleared field types need special treatment. They represent lost
-        // knowledge, so we must first generalize the old_type to "Any".
-        if (!FieldTypeIsCleared(new_details.representation(), new_type)) {
+        // knowledge, so we must first generalize the new_type to "Any".
+        if (FieldTypeIsCleared(new_details.representation(), new_type)) {
           return MaybeHandle<Map>();
         }
         PropertyType old_property_type = old_details.type();
