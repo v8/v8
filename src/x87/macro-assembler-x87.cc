@@ -2829,7 +2829,7 @@ void MacroAssembler::JumpIfWhite(Register value, Register bitmap_scratch,
   // Since both black and grey have a 1 in the first position and white does
   // not have a 1 there we only need to check one bit.
   test(mask_scratch, Operand(bitmap_scratch, MemoryChunk::kHeaderSize));
-  j(zero, &value_is_white, Label::kNear);
+  j(zero, value_is_white, Label::kNear);
 }
 
 
