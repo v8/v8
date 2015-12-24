@@ -416,6 +416,190 @@ TEST(CodeGenInt64Binop) {
 }
 
 
+TEST(RunInt64AddWithOverflowP) {
+  int64_t actual_val = -1;
+  RawMachineAssemblerTester<int32_t> m;
+  Int64BinopTester bt(&m);
+  Node* add = m.Int64AddWithOverflow(bt.param0, bt.param1);
+  Node* val = m.Projection(0, add);
+  Node* ovf = m.Projection(1, add);
+  m.StoreToPointer(&actual_val, MachineRepresentation::kWord64, val);
+  bt.AddReturn(ovf);
+  FOR_INT64_INPUTS(i) {
+    FOR_INT64_INPUTS(j) {
+      int64_t expected_val;
+      int expected_ovf = bits::SignedAddOverflow64(*i, *j, &expected_val);
+      CHECK_EQ(expected_ovf, bt.call(*i, *j));
+      CHECK_EQ(expected_val, actual_val);
+    }
+  }
+}
+
+
+TEST(RunInt64AddWithOverflowImm) {
+  int64_t actual_val = -1, expected_val = 0;
+  FOR_INT64_INPUTS(i) {
+    {
+      RawMachineAssemblerTester<int32_t> m(MachineType::Int64());
+      Node* add = m.Int64AddWithOverflow(m.Int64Constant(*i), m.Parameter(0));
+      Node* val = m.Projection(0, add);
+      Node* ovf = m.Projection(1, add);
+      m.StoreToPointer(&actual_val, MachineRepresentation::kWord64, val);
+      m.Return(ovf);
+      FOR_INT64_INPUTS(j) {
+        int expected_ovf = bits::SignedAddOverflow64(*i, *j, &expected_val);
+        CHECK_EQ(expected_ovf, m.Call(*j));
+        CHECK_EQ(expected_val, actual_val);
+      }
+    }
+    {
+      RawMachineAssemblerTester<int32_t> m(MachineType::Int64());
+      Node* add = m.Int64AddWithOverflow(m.Parameter(0), m.Int64Constant(*i));
+      Node* val = m.Projection(0, add);
+      Node* ovf = m.Projection(1, add);
+      m.StoreToPointer(&actual_val, MachineRepresentation::kWord64, val);
+      m.Return(ovf);
+      FOR_INT64_INPUTS(j) {
+        int expected_ovf = bits::SignedAddOverflow64(*i, *j, &expected_val);
+        CHECK_EQ(expected_ovf, m.Call(*j));
+        CHECK_EQ(expected_val, actual_val);
+      }
+    }
+    FOR_INT64_INPUTS(j) {
+      RawMachineAssemblerTester<int32_t> m;
+      Node* add =
+          m.Int64AddWithOverflow(m.Int64Constant(*i), m.Int64Constant(*j));
+      Node* val = m.Projection(0, add);
+      Node* ovf = m.Projection(1, add);
+      m.StoreToPointer(&actual_val, MachineRepresentation::kWord64, val);
+      m.Return(ovf);
+      int expected_ovf = bits::SignedAddOverflow64(*i, *j, &expected_val);
+      CHECK_EQ(expected_ovf, m.Call());
+      CHECK_EQ(expected_val, actual_val);
+    }
+  }
+}
+
+
+TEST(RunInt64AddWithOverflowInBranchP) {
+  int constant = 911777;
+  RawMachineLabel blocka, blockb;
+  RawMachineAssemblerTester<int32_t> m;
+  Int64BinopTester bt(&m);
+  Node* add = m.Int64AddWithOverflow(bt.param0, bt.param1);
+  Node* ovf = m.Projection(1, add);
+  m.Branch(ovf, &blocka, &blockb);
+  m.Bind(&blocka);
+  bt.AddReturn(m.Int64Constant(constant));
+  m.Bind(&blockb);
+  Node* val = m.Projection(0, add);
+  Node* truncated = m.TruncateInt64ToInt32(val);
+  bt.AddReturn(truncated);
+  FOR_INT64_INPUTS(i) {
+    FOR_INT64_INPUTS(j) {
+      int32_t expected = constant;
+      int64_t result;
+      if (!bits::SignedAddOverflow64(*i, *j, &result)) {
+        expected = static_cast<int32_t>(result);
+      }
+      CHECK_EQ(expected, bt.call(*i, *j));
+    }
+  }
+}
+
+
+TEST(RunInt64SubWithOverflowP) {
+  int64_t actual_val = -1;
+  RawMachineAssemblerTester<int32_t> m;
+  Int64BinopTester bt(&m);
+  Node* add = m.Int64SubWithOverflow(bt.param0, bt.param1);
+  Node* val = m.Projection(0, add);
+  Node* ovf = m.Projection(1, add);
+  m.StoreToPointer(&actual_val, MachineRepresentation::kWord64, val);
+  bt.AddReturn(ovf);
+  FOR_INT64_INPUTS(i) {
+    FOR_INT64_INPUTS(j) {
+      int64_t expected_val;
+      int expected_ovf = bits::SignedSubOverflow64(*i, *j, &expected_val);
+      CHECK_EQ(expected_ovf, bt.call(*i, *j));
+      CHECK_EQ(expected_val, actual_val);
+    }
+  }
+}
+
+
+TEST(RunInt64SubWithOverflowImm) {
+  int64_t actual_val = -1, expected_val = 0;
+  FOR_INT64_INPUTS(i) {
+    {
+      RawMachineAssemblerTester<int32_t> m(MachineType::Int64());
+      Node* add = m.Int64SubWithOverflow(m.Int64Constant(*i), m.Parameter(0));
+      Node* val = m.Projection(0, add);
+      Node* ovf = m.Projection(1, add);
+      m.StoreToPointer(&actual_val, MachineRepresentation::kWord64, val);
+      m.Return(ovf);
+      FOR_INT64_INPUTS(j) {
+        int expected_ovf = bits::SignedSubOverflow64(*i, *j, &expected_val);
+        CHECK_EQ(expected_ovf, m.Call(*j));
+        CHECK_EQ(expected_val, actual_val);
+      }
+    }
+    {
+      RawMachineAssemblerTester<int32_t> m(MachineType::Int64());
+      Node* add = m.Int64SubWithOverflow(m.Parameter(0), m.Int64Constant(*i));
+      Node* val = m.Projection(0, add);
+      Node* ovf = m.Projection(1, add);
+      m.StoreToPointer(&actual_val, MachineRepresentation::kWord64, val);
+      m.Return(ovf);
+      FOR_INT64_INPUTS(j) {
+        int expected_ovf = bits::SignedSubOverflow64(*j, *i, &expected_val);
+        CHECK_EQ(expected_ovf, m.Call(*j));
+        CHECK_EQ(expected_val, actual_val);
+      }
+    }
+    FOR_INT64_INPUTS(j) {
+      RawMachineAssemblerTester<int32_t> m;
+      Node* add =
+          m.Int64SubWithOverflow(m.Int64Constant(*i), m.Int64Constant(*j));
+      Node* val = m.Projection(0, add);
+      Node* ovf = m.Projection(1, add);
+      m.StoreToPointer(&actual_val, MachineRepresentation::kWord64, val);
+      m.Return(ovf);
+      int expected_ovf = bits::SignedSubOverflow64(*i, *j, &expected_val);
+      CHECK_EQ(expected_ovf, m.Call());
+      CHECK_EQ(expected_val, actual_val);
+    }
+  }
+}
+
+
+TEST(RunInt64SubWithOverflowInBranchP) {
+  int constant = 911999;
+  RawMachineLabel blocka, blockb;
+  RawMachineAssemblerTester<int32_t> m;
+  Int64BinopTester bt(&m);
+  Node* sub = m.Int64SubWithOverflow(bt.param0, bt.param1);
+  Node* ovf = m.Projection(1, sub);
+  m.Branch(ovf, &blocka, &blockb);
+  m.Bind(&blocka);
+  bt.AddReturn(m.Int64Constant(constant));
+  m.Bind(&blockb);
+  Node* val = m.Projection(0, sub);
+  Node* truncated = m.TruncateInt64ToInt32(val);
+  bt.AddReturn(truncated);
+  FOR_INT64_INPUTS(i) {
+    FOR_INT64_INPUTS(j) {
+      int32_t expected = constant;
+      int64_t result;
+      if (!bits::SignedSubOverflow64(*i, *j, &result)) {
+        expected = static_cast<int32_t>(result);
+      }
+      CHECK_EQ(expected, static_cast<int32_t>(bt.call(*i, *j)));
+    }
+  }
+}
+
+
 // TODO(titzer): add tests that run 64-bit integer operations.
 #endif  // V8_TARGET_ARCH_64_BIT
 

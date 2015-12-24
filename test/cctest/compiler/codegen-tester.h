@@ -369,6 +369,16 @@ class Int32BinopTester : public BinopTester<int32_t, USE_RETURN_REGISTER> {
 };
 
 
+// A helper class for testing code sequences that take two int parameters and
+// return an int value.
+class Int64BinopTester : public BinopTester<int64_t, USE_RETURN_REGISTER> {
+ public:
+  explicit Int64BinopTester(RawMachineAssemblerTester<int32_t>* tester)
+      : BinopTester<int64_t, USE_RETURN_REGISTER>(tester,
+                                                  MachineType::Int64()) {}
+};
+
+
 // A helper class for testing code sequences that take two uint parameters and
 // return an uint value.
 class Uint32BinopTester : public BinopTester<uint32_t, USE_RETURN_REGISTER> {

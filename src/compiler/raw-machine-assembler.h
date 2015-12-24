@@ -280,8 +280,14 @@ class RawMachineAssembler {
   Node* Int64Add(Node* a, Node* b) {
     return AddNode(machine()->Int64Add(), a, b);
   }
+  Node* Int64AddWithOverflow(Node* a, Node* b) {
+    return AddNode(machine()->Int64AddWithOverflow(), a, b);
+  }
   Node* Int64Sub(Node* a, Node* b) {
     return AddNode(machine()->Int64Sub(), a, b);
+  }
+  Node* Int64SubWithOverflow(Node* a, Node* b) {
+    return AddNode(machine()->Int64SubWithOverflow(), a, b);
   }
   Node* Int64Mul(Node* a, Node* b) {
     return AddNode(machine()->Int64Mul(), a, b);

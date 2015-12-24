@@ -655,6 +655,16 @@ void InstructionSelector::VisitInt64Add(Node* node) {
 }
 
 
+void InstructionSelector::VisitInt64AddWithOverflow(Node* node) {
+  if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
+    FlagsContinuation cont(kOverflow, ovf);
+    VisitBinop(this, node, kX64Add, &cont);
+  }
+  FlagsContinuation cont;
+  VisitBinop(this, node, kX64Add, &cont);
+}
+
+
 void InstructionSelector::VisitInt32Sub(Node* node) {
   X64OperandGenerator g(this);
   Int32BinopMatcher m(node);
@@ -682,6 +692,16 @@ void InstructionSelector::VisitInt64Sub(Node* node) {
   } else {
     VisitBinop(this, node, kX64Sub);
   }
+}
+
+
+void InstructionSelector::VisitInt64SubWithOverflow(Node* node) {
+  if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
+    FlagsContinuation cont(kOverflow, ovf);
+    return VisitBinop(this, node, kX64Sub, &cont);
+  }
+  FlagsContinuation cont;
+  VisitBinop(this, node, kX64Sub, &cont);
 }
 
 
@@ -1497,6 +1517,12 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
               case IrOpcode::kInt32SubWithOverflow:
                 cont.OverwriteAndNegateIfEqual(kOverflow);
                 return VisitBinop(this, node, kX64Sub32, &cont);
+              case IrOpcode::kInt64AddWithOverflow:
+                cont.OverwriteAndNegateIfEqual(kOverflow);
+                return VisitBinop(this, node, kX64Add, &cont);
+              case IrOpcode::kInt64SubWithOverflow:
+                cont.OverwriteAndNegateIfEqual(kOverflow);
+                return VisitBinop(this, node, kX64Sub, &cont);
               default:
                 break;
             }

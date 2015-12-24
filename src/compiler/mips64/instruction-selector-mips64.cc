@@ -1608,6 +1608,12 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
               case IrOpcode::kInt32SubWithOverflow:
                 cont->OverwriteAndNegateIfEqual(kOverflow);
                 return VisitBinop(selector, node, kMips64Dsub, cont);
+              case IrOpcode::kInt64AddWithOverflow:
+                cont->OverwriteAndNegateIfEqual(kOverflow);
+                return VisitBinop(selector, node, kMips64DaddOvf, cont);
+              case IrOpcode::kInt64SubWithOverflow:
+                cont->OverwriteAndNegateIfEqual(kOverflow);
+                return VisitBinop(selector, node, kMips64DsubOvf, cont);
               default:
                 break;
             }
@@ -1715,6 +1721,26 @@ void InstructionSelector::VisitInt32SubWithOverflow(Node* node) {
   }
   FlagsContinuation cont;
   VisitBinop(this, node, kMips64Dsub, &cont);
+}
+
+
+void InstructionSelector::VisitInt64AddWithOverflow(Node* node) {
+  if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
+    FlagsContinuation cont(kOverflow, ovf);
+    return VisitBinop(this, node, kMips64DaddOvf, &cont);
+  }
+  FlagsContinuation cont;
+  VisitBinop(this, node, kMips64DaddOvf, &cont);
+}
+
+
+void InstructionSelector::VisitInt64SubWithOverflow(Node* node) {
+  if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
+    FlagsContinuation cont(kOverflow, ovf);
+    return VisitBinop(this, node, kMips64DsubOvf, &cont);
+  }
+  FlagsContinuation cont;
+  VisitBinop(this, node, kMips64DsubOvf, &cont);
 }
 
 

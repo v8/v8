@@ -258,7 +258,9 @@
   V(Uint32Mod)                  \
   V(Uint32MulHigh)              \
   V(Int64Add)                   \
+  V(Int64AddWithOverflow)       \
   V(Int64Sub)                   \
+  V(Int64SubWithOverflow)       \
   V(Int64Mul)                   \
   V(Int64Div)                   \
   V(Int64Mod)                   \

@@ -2081,7 +2081,17 @@ Type* Typer::Visitor::TypeUint32MulHigh(Node* node) {
 Type* Typer::Visitor::TypeInt64Add(Node* node) { return Type::Internal(); }
 
 
+Type* Typer::Visitor::TypeInt64AddWithOverflow(Node* node) {
+  return Type::Internal();
+}
+
+
 Type* Typer::Visitor::TypeInt64Sub(Node* node) { return Type::Internal(); }
+
+
+Type* Typer::Visitor::TypeInt64SubWithOverflow(Node* node) {
+  return Type::Internal();
+}
 
 
 Type* Typer::Visitor::TypeInt64Mul(Node* node) { return Type::Internal(); }

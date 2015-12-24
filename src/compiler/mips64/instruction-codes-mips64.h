@@ -14,8 +14,10 @@ namespace compiler {
 #define TARGET_ARCH_OPCODE_LIST(V)  \
   V(Mips64Add)                      \
   V(Mips64Dadd)                     \
+  V(Mips64DaddOvf)                  \
   V(Mips64Sub)                      \
   V(Mips64Dsub)                     \
+  V(Mips64DsubOvf)                  \
   V(Mips64Mul)                      \
   V(Mips64MulHigh)                  \
   V(Mips64DMulHigh)                 \

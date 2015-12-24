@@ -192,7 +192,9 @@ class MachineOperatorBuilder final : public ZoneObject {
   bool Uint32DivIsSafe() const { return flags_ & kUint32DivIsSafe; }
 
   const Operator* Int64Add();
+  const Operator* Int64AddWithOverflow();
   const Operator* Int64Sub();
+  const Operator* Int64SubWithOverflow();
   const Operator* Int64Mul();
   const Operator* Int64Div();
   const Operator* Int64Mod();

@@ -657,8 +657,13 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ Frintn(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     case kArm64Add:
+      if (FlagsModeField::decode(opcode) != kFlags_none) {
+        __ Adds(i.OutputRegister(), i.InputOrZeroRegister64(0),
+                i.InputOperand2_64(1));
+      } else {
       __ Add(i.OutputRegister(), i.InputOrZeroRegister64(0),
              i.InputOperand2_64(1));
+      }
       break;
     case kArm64Add32:
       if (FlagsModeField::decode(opcode) != kFlags_none) {
@@ -800,8 +805,13 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
              i.InputOperand2_32(1));
       break;
     case kArm64Sub:
+      if (FlagsModeField::decode(opcode) != kFlags_none) {
+        __ Subs(i.OutputRegister(), i.InputOrZeroRegister64(0),
+                i.InputOperand2_64(1));
+      } else {
       __ Sub(i.OutputRegister(), i.InputOrZeroRegister64(0),
              i.InputOperand2_64(1));
+      }
       break;
     case kArm64Sub32:
       if (FlagsModeField::decode(opcode) != kFlags_none) {
