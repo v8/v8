@@ -2028,7 +2028,7 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
 
   // Check if target has a [[Construct]] internal method.
   __ lbu(t3, FieldMemOperand(t1, Map::kBitFieldOffset));
-  __ And(t3, t3, Operand(1 << Map::kIsCallable));
+  __ And(t3, t3, Operand(1 << Map::kIsConstructor));
   __ Branch(&non_constructor, eq, t3, Operand(zero_reg));
 
   // Only dispatch to proxies after checking whether they are constructors.
