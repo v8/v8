@@ -805,9 +805,10 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object) {
   if (object->IsJSFunction()) {
     JSFunction* func = JSFunction::cast(object);
     SharedFunctionInfo* shared = func->shared();
-    const char* name = shared->bound() ? "native_bind" :
-        names_->GetName(String::cast(shared->name()));
+    const char* name = names_->GetName(String::cast(shared->name()));
     return AddEntry(object, HeapEntry::kClosure, name);
+  } else if (object->IsJSBoundFunction()) {
+    return AddEntry(object, HeapEntry::kClosure, "native_bind");
   } else if (object->IsJSRegExp()) {
     JSRegExp* re = JSRegExp::cast(object);
     return AddEntry(object,
@@ -1098,13 +1099,29 @@ void V8HeapExplorer::ExtractJSGlobalProxyReferences(
 void V8HeapExplorer::ExtractJSObjectReferences(
     int entry, JSObject* js_obj) {
   HeapObject* obj = js_obj;
-  ExtractClosureReferences(js_obj, entry);
   ExtractPropertyReferences(js_obj, entry);
   ExtractElementReferences(js_obj, entry);
   ExtractInternalReferences(js_obj, entry);
   PrototypeIterator iter(heap_->isolate(), js_obj);
   SetPropertyReference(obj, entry, heap_->proto_string(), iter.GetCurrent());
-  if (obj->IsJSFunction()) {
+  if (obj->IsJSBoundFunction()) {
+    JSBoundFunction* js_fun = JSBoundFunction::cast(obj);
+    TagObject(js_fun->bound_arguments(), "(bound arguments)");
+    SetInternalReference(js_fun, entry, "bindings", js_fun->bound_arguments(),
+                         JSBoundFunction::kBoundArgumentsOffset);
+    TagObject(js_fun->creation_context(), "(creation context)");
+    SetInternalReference(js_fun, entry, "creation_context",
+                         js_fun->creation_context(),
+                         JSBoundFunction::kCreationContextOffset);
+    SetNativeBindReference(js_obj, entry, "bound_this", js_fun->bound_this());
+    SetNativeBindReference(js_obj, entry, "bound_function",
+                           js_fun->bound_target_function());
+    FixedArray* bindings = js_fun->bound_arguments();
+    for (int i = 0; i < bindings->length(); i++) {
+      const char* reference_name = names_->GetFormatted("bound_argument_%d", i);
+      SetNativeBindReference(js_obj, entry, reference_name, bindings->get(i));
+    }
+  } else if (obj->IsJSFunction()) {
     JSFunction* js_fun = JSFunction::cast(js_obj);
     Object* proto_or_map = js_fun->prototype_or_initial_map();
     if (!proto_or_map->IsTheHole()) {
@@ -1124,13 +1141,8 @@ void V8HeapExplorer::ExtractJSObjectReferences(
       }
     }
     SharedFunctionInfo* shared_info = js_fun->shared();
-    // JSFunction has either bindings or literals and never both.
-    bool bound = shared_info->bound();
-    TagObject(js_fun->literals_or_bindings(),
-              bound ? "(function bindings)" : "(function literals)");
-    SetInternalReference(js_fun, entry,
-                         bound ? "bindings" : "literals",
-                         js_fun->literals_or_bindings(),
+    TagObject(js_fun->literals(), "(function literals)");
+    SetInternalReference(js_fun, entry, "literals", js_fun->literals(),
                          JSFunction::kLiteralsOffset);
     TagObject(shared_info, "(shared function info)");
     SetInternalReference(js_fun, entry,
@@ -1570,24 +1582,6 @@ void V8HeapExplorer::ExtractFixedArrayReferences(int entry, FixedArray* array) {
     } else {
       SetInternalReference(array, entry,
                            i, array->get(i), array->OffsetOfElementAt(i));
-    }
-  }
-}
-
-
-void V8HeapExplorer::ExtractClosureReferences(JSObject* js_obj, int entry) {
-  if (!js_obj->IsJSFunction()) return;
-
-  JSFunction* func = JSFunction::cast(js_obj);
-  if (func->shared()->bound()) {
-    BindingsArray* bindings = func->function_bindings();
-    SetNativeBindReference(js_obj, entry, "bound_this", bindings->bound_this());
-    SetNativeBindReference(js_obj, entry, "bound_function",
-                           bindings->bound_function());
-    for (int i = 0; i < bindings->bindings_count(); i++) {
-      const char* reference_name = names_->GetFormatted("bound_argument_%d", i);
-      SetNativeBindReference(js_obj, entry, reference_name,
-                             bindings->binding(i));
     }
   }
 }

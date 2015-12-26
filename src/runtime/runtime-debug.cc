@@ -150,33 +150,29 @@ static MaybeHandle<JSArray> GetIteratorInternalProperties(
 MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
                                                     Handle<Object> object) {
   Factory* factory = isolate->factory();
-  if (object->IsJSFunction()) {
-    Handle<JSFunction> function = Handle<JSFunction>::cast(object);
-    if (function->shared()->bound()) {
-      RUNTIME_ASSERT_HANDLIFIED(function->function_bindings()->IsFixedArray(),
-                                JSArray);
+  if (object->IsJSBoundFunction()) {
+    Handle<JSBoundFunction> function = Handle<JSBoundFunction>::cast(object);
 
-      Handle<BindingsArray> bindings(function->function_bindings());
+    Handle<FixedArray> result = factory->NewFixedArray(2 * 3);
+    Handle<String> target =
+        factory->NewStringFromAsciiChecked("[[TargetFunction]]");
+    result->set(0, *target);
+    result->set(1, function->bound_target_function());
 
-      Handle<FixedArray> result = factory->NewFixedArray(2 * 3);
-      Handle<String> target =
-          factory->NewStringFromAsciiChecked("[[TargetFunction]]");
-      result->set(0, *target);
-      result->set(1, bindings->bound_function());
+    Handle<String> bound_this =
+        factory->NewStringFromAsciiChecked("[[BoundThis]]");
+    result->set(2, *bound_this);
+    result->set(3, function->bound_this());
 
-      Handle<String> bound_this =
-          factory->NewStringFromAsciiChecked("[[BoundThis]]");
-      result->set(2, *bound_this);
-      result->set(3, bindings->bound_this());
-
-      Handle<String> bound_args =
-          factory->NewStringFromAsciiChecked("[[BoundArgs]]");
-      result->set(4, *bound_args);
-      Handle<JSArray> arguments_array =
-          BindingsArray::CreateBoundArguments(bindings);
-      result->set(5, *arguments_array);
-      return factory->NewJSArrayWithElements(result);
-    }
+    Handle<String> bound_args =
+        factory->NewStringFromAsciiChecked("[[BoundArgs]]");
+    result->set(4, *bound_args);
+    Handle<FixedArray> bound_arguments =
+        factory->CopyFixedArray(handle(function->bound_arguments(), isolate));
+    Handle<JSArray> arguments_array =
+        factory->NewJSArrayWithElements(bound_arguments);
+    result->set(5, *arguments_array);
+    return factory->NewJSArrayWithElements(result);
   } else if (object->IsJSMapIterator()) {
     Handle<JSMapIterator> iterator = Handle<JSMapIterator>::cast(object);
     return GetIteratorInternalProperties(isolate, iterator);
@@ -873,15 +869,18 @@ RUNTIME_FUNCTION(Runtime_GetAllScopesDetails) {
 
 RUNTIME_FUNCTION(Runtime_GetFunctionScopeCount) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
 
   // Check arguments.
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, function, 0);
 
   // Count the visible scopes.
   int n = 0;
-  for (ScopeIterator it(isolate, fun); !it.Done(); it.Next()) {
-    n++;
+  if (function->IsJSFunction()) {
+    for (ScopeIterator it(isolate, Handle<JSFunction>::cast(function));
+         !it.Done(); it.Next()) {
+      n++;
+    }
   }
 
   return Smi::FromInt(n);
@@ -1468,19 +1467,27 @@ RUNTIME_FUNCTION(Runtime_DebugSetScriptSource) {
 
 RUNTIME_FUNCTION(Runtime_FunctionGetInferredName) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
 
-  CONVERT_ARG_CHECKED(JSFunction, f, 0);
-  return f->shared()->inferred_name();
+  CONVERT_ARG_CHECKED(Object, f, 0);
+  if (f->IsJSFunction()) {
+    return JSFunction::cast(f)->shared()->inferred_name();
+  }
+  return isolate->heap()->empty_string();
 }
 
 
 RUNTIME_FUNCTION(Runtime_FunctionGetDebugName) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
 
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, f, 0);
-  Handle<Object> name = JSFunction::GetDebugName(f);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, function, 0);
+
+  if (function->IsJSBoundFunction()) {
+    return Handle<JSBoundFunction>::cast(function)->name();
+  }
+  Handle<Object> name =
+      JSFunction::GetDebugName(Handle<JSFunction>::cast(function));
   return *name;
 }
 

@@ -245,6 +245,7 @@ TypeImpl<Config>::BitsetType::Lub(i::Map* map) {
     case JS_WEAK_MAP_TYPE:
     case JS_WEAK_SET_TYPE:
     case JS_PROMISE_TYPE:
+    case JS_BOUND_FUNCTION_TYPE:
       if (map->is_undetectable()) return kUndetectable;
       return kOtherObject;
     case JS_FUNCTION_TYPE:

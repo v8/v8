@@ -187,6 +187,13 @@ bool Object::IsUniqueName() const {
 }
 
 
+bool Object::IsFunction() const {
+  STATIC_ASSERT(LAST_FUNCTION_TYPE == LAST_TYPE);
+  return Object::IsHeapObject() &&
+         HeapObject::cast(this)->map()->instance_type() >= FIRST_FUNCTION_TYPE;
+}
+
+
 bool Object::IsCallable() const {
   return Object::IsHeapObject() && HeapObject::cast(this)->map()->is_callable();
 }
@@ -741,7 +748,6 @@ bool Object::IsTypeFeedbackMetadata() const { return IsFixedArray(); }
 
 
 bool Object::IsLiteralsArray() const { return IsFixedArray(); }
-bool Object::IsBindingsArray() const { return IsFixedArray(); }
 
 
 bool Object::IsDeoptimizationInputData() const {
@@ -822,6 +828,7 @@ bool Object::IsScopeInfo() const {
 }
 
 
+TYPE_CHECKER(JSBoundFunction, JS_BOUND_FUNCTION_TYPE)
 TYPE_CHECKER(JSFunction, JS_FUNCTION_TYPE)
 
 
@@ -2084,6 +2091,8 @@ int JSObject::GetHeaderSize(InstanceType type) {
       return JSGlobalProxy::kSize;
     case JS_GLOBAL_OBJECT_TYPE:
       return JSGlobalObject::kSize;
+    case JS_BOUND_FUNCTION_TYPE:
+      return JSBoundFunction::kSize;
     case JS_FUNCTION_TYPE:
       return JSFunction::kSize;
     case JS_VALUE_TYPE:
@@ -3217,6 +3226,7 @@ CAST_ACCESSOR(Int8x16)
 CAST_ACCESSOR(JSArray)
 CAST_ACCESSOR(JSArrayBuffer)
 CAST_ACCESSOR(JSArrayBufferView)
+CAST_ACCESSOR(JSBoundFunction)
 CAST_ACCESSOR(JSDataView)
 CAST_ACCESSOR(JSDate)
 CAST_ACCESSOR(JSFunction)
@@ -3417,75 +3427,6 @@ void LiteralsArray::set_literal(int literal_index, Object* literal) {
 
 int LiteralsArray::literals_count() const {
   return length() - kFirstLiteralIndex;
-}
-
-
-Object* BindingsArray::get(int index) const { return FixedArray::get(index); }
-
-
-void BindingsArray::set(int index, Object* value) {
-  FixedArray::set(index, value);
-}
-
-
-void BindingsArray::set(int index, Smi* value) {
-  FixedArray::set(index, value);
-}
-
-
-void BindingsArray::set(int index, Object* value, WriteBarrierMode mode) {
-  FixedArray::set(index, value, mode);
-}
-
-
-int BindingsArray::length() const { return FixedArray::length(); }
-
-
-BindingsArray* BindingsArray::cast(Object* object) {
-  SLOW_DCHECK(object->IsBindingsArray());
-  return reinterpret_cast<BindingsArray*>(object);
-}
-
-void BindingsArray::set_feedback_vector(TypeFeedbackVector* vector) {
-  set(kVectorIndex, vector);
-}
-
-
-TypeFeedbackVector* BindingsArray::feedback_vector() const {
-  return TypeFeedbackVector::cast(get(kVectorIndex));
-}
-
-
-JSReceiver* BindingsArray::bound_function() const {
-  return JSReceiver::cast(get(kBoundFunctionIndex));
-}
-
-
-void BindingsArray::set_bound_function(JSReceiver* function) {
-  set(kBoundFunctionIndex, function);
-}
-
-
-Object* BindingsArray::bound_this() const { return get(kBoundThisIndex); }
-
-
-void BindingsArray::set_bound_this(Object* bound_this) {
-  set(kBoundThisIndex, bound_this);
-}
-
-
-Object* BindingsArray::binding(int binding_index) const {
-  return get(kFirstBindingIndex + binding_index);
-}
-
-
-void BindingsArray::set_binding(int binding_index, Object* binding) {
-  set(kFirstBindingIndex + binding_index, binding);
-}
-
-
-int BindingsArray::bindings_count() const {
-  return length() - kFirstBindingIndex;
 }
 
 
@@ -4540,12 +4481,8 @@ bool Map::has_non_instance_prototype() {
 }
 
 
-void Map::set_is_constructor(bool value) {
-  if (value) {
-    set_bit_field(bit_field() | (1 << kIsConstructor));
-  } else {
-    set_bit_field(bit_field() & ~(1 << kIsConstructor));
-  }
+void Map::set_is_constructor() {
+  set_bit_field(bit_field() | (1 << kIsConstructor));
 }
 
 
@@ -5531,8 +5468,16 @@ Handle<Map> Map::CopyInitialMap(Handle<Map> map) {
 }
 
 
+ACCESSORS(JSBoundFunction, length, Object, kLengthOffset)
+ACCESSORS(JSBoundFunction, name, Object, kNameOffset)
+ACCESSORS(JSBoundFunction, bound_target_function, JSReceiver,
+          kBoundTargetFunctionOffset)
+ACCESSORS(JSBoundFunction, bound_this, Object, kBoundThisOffset)
+ACCESSORS(JSBoundFunction, bound_arguments, FixedArray, kBoundArgumentsOffset)
+ACCESSORS(JSBoundFunction, creation_context, Context, kCreationContextOffset)
+
 ACCESSORS(JSFunction, shared, SharedFunctionInfo, kSharedFunctionInfoOffset)
-ACCESSORS(JSFunction, literals_or_bindings, FixedArray, kLiteralsOffset)
+ACCESSORS(JSFunction, literals, LiteralsArray, kLiteralsOffset)
 ACCESSORS(JSFunction, next_function_link, Object, kNextFunctionLinkOffset)
 
 ACCESSORS(JSGlobalObject, native_context, Context, kNativeContextOffset)
@@ -5875,7 +5820,6 @@ BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, force_inline, kForceInline)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints,
                name_should_print_as_anonymous,
                kNameShouldPrintAsAnonymous)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, bound, kBoundFunction)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_anonymous, kIsAnonymous)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_function, kIsFunction)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, dont_crankshaft,
@@ -6320,36 +6264,7 @@ bool JSFunction::is_compiled() {
 }
 
 
-LiteralsArray* JSFunction::literals() {
-  DCHECK(!shared()->bound());
-  return LiteralsArray::cast(literals_or_bindings());
-}
-
-
-void JSFunction::set_literals(LiteralsArray* literals) {
-  DCHECK(!shared()->bound());
-  set_literals_or_bindings(literals);
-}
-
-
-BindingsArray* JSFunction::function_bindings() {
-  DCHECK(shared()->bound());
-  return BindingsArray::cast(literals_or_bindings());
-}
-
-
-void JSFunction::set_function_bindings(BindingsArray* bindings) {
-  DCHECK(shared()->bound());
-  // Bound function literal may be initialized to the empty fixed array
-  // before the bindings are set.
-  DCHECK(bindings == GetHeap()->empty_fixed_array() ||
-         bindings->map() == GetHeap()->fixed_array_map());
-  set_literals_or_bindings(bindings);
-}
-
-
 int JSFunction::NumberOfLiterals() {
-  DCHECK(!shared()->bound());
   return literals()->length();
 }
 

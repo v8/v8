@@ -228,8 +228,8 @@ TEST_F(JSIntrinsicLoweringTest, InlineIsTypedArray) {
 
 
 TEST_F(JSIntrinsicLoweringTest, InlineIsFunction) {
-  Node* const input = Parameter(0);
-  Node* const context = Parameter(1);
+  Node* const input = Parameter(Type::Any());
+  Node* const context = Parameter(Type::Any());
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
   Reduction const r = Reduce(
@@ -243,11 +243,12 @@ TEST_F(JSIntrinsicLoweringTest, InlineIsFunction) {
       phi,
       IsPhi(
           MachineRepresentation::kTagged, IsFalseConstant(),
-          IsWord32Equal(IsLoadField(AccessBuilder::ForMapInstanceType(),
-                                    IsLoadField(AccessBuilder::ForMap(), input,
-                                                effect, CaptureEq(&if_false)),
-                                    effect, _),
-                        IsInt32Constant(JS_FUNCTION_TYPE)),
+          IsUint32LessThanOrEqual(
+              IsInt32Constant(FIRST_FUNCTION_TYPE),
+              IsLoadField(AccessBuilder::ForMapInstanceType(),
+                          IsLoadField(AccessBuilder::ForMap(), input, effect,
+                                      CaptureEq(&if_false)),
+                          effect, _)),
           IsMerge(IsIfTrue(AllOf(CaptureEq(&branch),
                                  IsBranch(IsObjectIsSmi(input), control))),
                   AllOf(CaptureEq(&if_false), IsIfFalse(CaptureEq(&branch))))));

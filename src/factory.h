@@ -477,6 +477,11 @@ class Factory final {
   Handle<JSIteratorResult> NewJSIteratorResult(Handle<Object> value,
                                                Handle<Object> done);
 
+  // Allocates a bound function.
+  MaybeHandle<JSBoundFunction> NewJSBoundFunction(
+      Handle<JSReceiver> target_function, Handle<Object> bound_this,
+      Vector<Handle<Object>> bound_args);
+
   // Allocates a Harmony proxy.
   Handle<JSProxy> NewJSProxy(Handle<JSReceiver> target,
                              Handle<JSReceiver> handler);

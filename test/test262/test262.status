@@ -401,10 +401,6 @@
   'language/eval-code/non-definable-function-with-variable': [FAIL],
   'language/eval-code/non-definable-function-with-function': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4629
-  'built-ins/ArrayBuffer/data-allocation-after-object-creation': [FAIL],
-  'built-ins/ArrayBuffer/prototype-from-newtarget': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=4592
   'built-ins/ArrayBuffer/length-is-absent': [FAIL],
   'built-ins/ArrayBuffer/length-is-not-number': [FAIL],

@@ -548,7 +548,7 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
   // Mark instance as callable in the map.
   if (!obj->instance_call_handler()->IsUndefined()) {
     map->set_is_callable();
-    map->set_is_constructor(true);
+    map->set_is_constructor();
   }
 
   // Recursively copy parent instance templates' accessors,

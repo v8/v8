@@ -3152,7 +3152,7 @@ void FullCodeGenerator::EmitIsFunction(CallRuntime* expr) {
   __ JumpIfSmi(v0, if_false);
   __ GetObjectType(v0, a1, a2);
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
-  __ Branch(if_true, eq, a2, Operand(JS_FUNCTION_TYPE));
+  __ Branch(if_true, hs, a2, Operand(FIRST_FUNCTION_TYPE));
   __ Branch(if_false);
 
   context()->Plug(if_true, if_false);

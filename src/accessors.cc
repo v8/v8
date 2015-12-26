@@ -1329,12 +1329,6 @@ MaybeHandle<JSFunction> FindCaller(Isolate* isolate,
   if (!caller->shared()->native() && potential_caller != NULL) {
     caller = potential_caller;
   }
-  // If caller is bound, return null. This is compatible with JSC, and
-  // allows us to make bound functions use the strict function map
-  // and its associated throwing caller and arguments.
-  if (caller->shared()->bound()) {
-    return MaybeHandle<JSFunction>();
-  }
   // Censor if the caller is not a sloppy mode function.
   // Change from ES5, which used to throw, see:
   // https://bugs.ecmascript.org/show_bug.cgi?id=310
