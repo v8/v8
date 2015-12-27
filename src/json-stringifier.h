@@ -337,14 +337,13 @@ BasicJsonStringifier::Result BasicJsonStringifier::Serialize_(
     case JS_VALUE_TYPE:
       if (deferred_string_key) SerializeDeferredKey(comma, key);
       return SerializeJSValue(Handle<JSValue>::cast(object));
-    case JS_FUNCTION_TYPE:
-      return UNCHANGED;
     default:
       if (object->IsString()) {
         if (deferred_string_key) SerializeDeferredKey(comma, key);
         SerializeString(Handle<String>::cast(object));
         return SUCCESS;
       } else if (object->IsJSObject()) {
+        if (object->IsCallable()) return UNCHANGED;
         // Go to slow path for global proxy and objects requiring access checks.
         if (object->IsAccessCheckNeeded() || object->IsJSGlobalProxy()) break;
         if (deferred_string_key) SerializeDeferredKey(comma, key);

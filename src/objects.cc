@@ -1868,6 +1868,22 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
       accumulator->Add("<JS Array[%u]>", static_cast<uint32_t>(length));
       break;
     }
+    case JS_BOUND_FUNCTION_TYPE: {
+      JSBoundFunction* bound_function = JSBoundFunction::cast(this);
+      Object* name = bound_function->name();
+      accumulator->Add("<JS BoundFunction");
+      if (name->IsString()) {
+        String* str = String::cast(name);
+        if (str->length() > 0) {
+          accumulator->Add(" ");
+          accumulator->Put(str);
+        }
+      }
+      accumulator->Add(
+          " (BoundTargetFunction %p)>",
+          reinterpret_cast<void*>(bound_function->bound_target_function()));
+      break;
+    }
     case JS_WEAK_MAP_TYPE: {
       accumulator->Add("<JS WeakMap>");
       break;
@@ -2391,7 +2407,7 @@ void Simd128Value::CopyBits(void* destination) const {
 
 
 String* JSReceiver::class_name() {
-  if (IsJSFunction()) {
+  if (IsFunction()) {
     return GetHeap()->Function_string();
   }
   Object* maybe_constructor = map()->GetConstructor();
@@ -2407,12 +2423,19 @@ String* JSReceiver::class_name() {
 MaybeHandle<String> JSReceiver::BuiltinStringTag(Handle<JSReceiver> object) {
   Maybe<bool> is_array = Object::IsArray(object);
   MAYBE_RETURN(is_array, MaybeHandle<String>());
+  Isolate* const isolate = object->GetIsolate();
   if (is_array.FromJust()) {
-    return object->GetIsolate()->factory()->Array_string();
+    return isolate->factory()->Array_string();
   }
+  // TODO(adamk): According to ES2015, we should return "Function" when
+  // object has a [[Call]] internal method (corresponds to IsCallable).
+  // But this is well cemented in layout tests and might cause webbreakage.
+  // if (object->IsCallable()) {
+  //   return isolate->factory()->Function_string();
+  // }
   // TODO(adamk): class_name() is expensive, replace with instance type
   // checks where possible.
-  return handle(object->class_name());
+  return handle(object->class_name(), isolate);
 }
 
 
@@ -2465,14 +2488,18 @@ Handle<String> JSReceiver::GetConstructorName(Handle<JSReceiver> receiver) {
 
 
 Context* JSReceiver::GetCreationContext() {
+  if (IsJSBoundFunction()) {
+    return JSBoundFunction::cast(this)->creation_context();
+  }
   Object* constructor = map()->GetConstructor();
   JSFunction* function;
-  if (!constructor->IsJSFunction()) {
+  if (constructor->IsJSFunction()) {
+    function = JSFunction::cast(constructor);
+  } else {
     // Functions have null as a constructor,
     // but any JSFunction knows its context immediately.
+    CHECK(IsJSFunction());
     function = JSFunction::cast(this);
-  } else {
-    function = JSFunction::cast(constructor);
   }
 
   return function->context()->native_context();
@@ -4949,6 +4976,15 @@ MaybeHandle<Context> JSProxy::GetFunctionRealm(Handle<JSProxy> proxy) {
 
 
 // static
+MaybeHandle<Context> JSBoundFunction::GetFunctionRealm(
+    Handle<JSBoundFunction> function) {
+  DCHECK(function->map()->is_constructor());
+  return JSReceiver::GetFunctionRealm(
+      handle(function->bound_target_function()));
+}
+
+
+// static
 Handle<Context> JSFunction::GetFunctionRealm(Handle<JSFunction> function) {
   DCHECK(function->map()->is_constructor());
   return handle(function->context()->native_context());
@@ -4971,6 +5007,11 @@ MaybeHandle<Context> JSReceiver::GetFunctionRealm(Handle<JSReceiver> receiver) {
 
   if (receiver->IsJSFunction()) {
     return JSFunction::GetFunctionRealm(Handle<JSFunction>::cast(receiver));
+  }
+
+  if (receiver->IsJSBoundFunction()) {
+    return JSBoundFunction::GetFunctionRealm(
+        Handle<JSBoundFunction>::cast(receiver));
   }
 
   return JSObject::GetFunctionRealm(Handle<JSObject>::cast(receiver));
@@ -10748,47 +10789,6 @@ Handle<LiteralsArray> LiteralsArray::New(Isolate* isolate,
 }
 
 
-// static
-Handle<BindingsArray> BindingsArray::New(Isolate* isolate,
-                                         Handle<TypeFeedbackVector> vector,
-                                         Handle<JSReceiver> bound_function,
-                                         Handle<Object> bound_this,
-                                         int number_of_bindings) {
-  Handle<FixedArray> bindings = isolate->factory()->NewFixedArray(
-      number_of_bindings + kFirstBindingIndex);
-  Handle<BindingsArray> casted_bindings = Handle<BindingsArray>::cast(bindings);
-  casted_bindings->set_feedback_vector(*vector);
-  casted_bindings->set_bound_function(*bound_function);
-  casted_bindings->set_bound_this(*bound_this);
-  return casted_bindings;
-}
-
-
-// static
-Handle<JSArray> BindingsArray::CreateBoundArguments(
-    Handle<BindingsArray> bindings) {
-  int bound_argument_count = bindings->bindings_count();
-  Factory* factory = bindings->GetIsolate()->factory();
-  Handle<FixedArray> arguments = factory->NewFixedArray(bound_argument_count);
-  bindings->CopyTo(kFirstBindingIndex, *arguments, 0, bound_argument_count);
-  return factory->NewJSArrayWithElements(arguments);
-}
-
-
-// static
-Handle<JSArray> BindingsArray::CreateRuntimeBindings(
-    Handle<BindingsArray> bindings) {
-  Factory* factory = bindings->GetIsolate()->factory();
-  // A runtime bindings array consists of
-  // [bound function, bound this, [arg0, arg1, ...]].
-  Handle<FixedArray> runtime_bindings =
-      factory->NewFixedArray(2 + bindings->bindings_count());
-  bindings->CopyTo(kBoundFunctionIndex, *runtime_bindings, 0,
-                   2 + bindings->bindings_count());
-  return factory->NewJSArrayWithElements(runtime_bindings);
-}
-
-
 int HandlerTable::LookupRange(int pc_offset, int* stack_depth_out,
                               CatchPrediction* prediction_out) {
   int innermost_handler = -1, innermost_start = -1;
@@ -12851,6 +12851,7 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_FUNCTION_TYPE:
       return true;
 
+    case JS_BOUND_FUNCTION_TYPE:
     case JS_PROXY_TYPE:
     case JS_GLOBAL_PROXY_TYPE:
     case JS_GLOBAL_OBJECT_TYPE:
@@ -12995,17 +12996,16 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(Isolate* isolate,
   // new.target.prototype is not guaranteed to be a JSReceiver, and may need to
   // fall back to the intrinsicDefaultProto.
   Handle<Object> prototype;
-  if (new_target->IsJSProxy()) {
-    Handle<JSProxy> new_target_proxy = Handle<JSProxy>::cast(new_target);
-    Handle<String> prototype_string = isolate->factory()->prototype_string();
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, prototype,
-        JSReceiver::GetProperty(new_target_proxy, prototype_string), Map);
-  } else {
+  if (new_target->IsJSFunction()) {
     Handle<JSFunction> function = Handle<JSFunction>::cast(new_target);
     // Make sure the new.target.prototype is cached.
     EnsureHasInitialMap(function);
     prototype = handle(function->prototype(), isolate);
+  } else {
+    Handle<String> prototype_string = isolate->factory()->prototype_string();
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, prototype,
+        JSReceiver::GetProperty(new_target, prototype_string), Map);
   }
 
   // If prototype is not a JSReceiver, fetch the intrinsicDefaultProto from the
@@ -13116,6 +13116,13 @@ Handle<String> NativeCodeFunctionSourceString(
 }
 
 }  // namespace
+
+
+// static
+Handle<String> JSBoundFunction::ToString(Handle<JSBoundFunction> function) {
+  Isolate* const isolate = function->GetIsolate();
+  return isolate->factory()->NewStringFromAsciiChecked(kNativeCodeSource);
+}
 
 
 // static

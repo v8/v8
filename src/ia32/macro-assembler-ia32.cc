@@ -821,6 +821,18 @@ void MacroAssembler::AssertFunction(Register object) {
 }
 
 
+void MacroAssembler::AssertBoundFunction(Register object) {
+  if (emit_debug_code()) {
+    test(object, Immediate(kSmiTagMask));
+    Check(not_equal, kOperandIsASmiAndNotABoundFunction);
+    Push(object);
+    CmpObjectType(object, JS_BOUND_FUNCTION_TYPE, object);
+    Pop(object);
+    Check(equal, kOperandIsNotABoundFunction);
+  }
+}
+
+
 void MacroAssembler::AssertUndefinedOrAllocationSite(Register object) {
   if (emit_debug_code()) {
     Label done_checking;

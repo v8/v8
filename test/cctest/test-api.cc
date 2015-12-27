@@ -19646,6 +19646,39 @@ THREADED_TEST(CreationContextOfJsFunction) {
 }
 
 
+THREADED_TEST(CreationContextOfJsBoundFunction) {
+  HandleScope handle_scope(CcTest::isolate());
+  Local<Context> context1 = Context::New(CcTest::isolate());
+  InstallContextId(context1, 1);
+  Local<Context> context2 = Context::New(CcTest::isolate());
+  InstallContextId(context2, 2);
+
+  Local<Function> target_function;
+  {
+    Context::Scope scope(context1);
+    target_function = CompileRun("function foo() {}; foo").As<Function>();
+  }
+
+  Local<Function> bound_function1, bound_function2;
+  {
+    Context::Scope scope(context2);
+    CHECK(context2->Global()
+              ->Set(context2, v8_str("foo"), target_function)
+              .FromJust());
+    bound_function1 = CompileRun("foo.bind(1)").As<Function>();
+    bound_function2 =
+        CompileRun("Function.prototype.bind.call(foo, 2)").As<Function>();
+  }
+
+  Local<Context> other_context = Context::New(CcTest::isolate());
+  Context::Scope scope(other_context);
+  CHECK(bound_function1->CreationContext() == context1);
+  CheckContextId(bound_function1, 1);
+  CHECK(bound_function2->CreationContext() == context2);
+  CheckContextId(bound_function2, 1);
+}
+
+
 void HasOwnPropertyIndexedPropertyGetter(
     uint32_t index,
     const v8::PropertyCallbackInfo<v8::Value>& info) {

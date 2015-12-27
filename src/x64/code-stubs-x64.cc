@@ -2511,15 +2511,6 @@ void InstanceOfStub::Generate(MacroAssembler* masm) {
            Immediate(1 << Map::kHasNonInstancePrototype));
   __ j(not_zero, &slow_case);
 
-  // Ensure that {function} is not bound.
-  Register const shared_info = kScratchRegister;
-  __ movp(shared_info,
-          FieldOperand(function, JSFunction::kSharedFunctionInfoOffset));
-  __ TestBitSharedFunctionInfoSpecialField(
-      shared_info, SharedFunctionInfo::kCompilerHintsOffset,
-      SharedFunctionInfo::kBoundFunction);
-  __ j(not_zero, &slow_case);
-
   // Get the "prototype" (or initial map) of the {function}.
   __ movp(function_prototype,
           FieldOperand(function, JSFunction::kPrototypeOrInitialMapOffset));

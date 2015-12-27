@@ -114,6 +114,9 @@ void HeapObject::HeapObjectVerify() {
     case JS_DATE_TYPE:
       JSDate::cast(this)->JSDateVerify();
       break;
+    case JS_BOUND_FUNCTION_TYPE:
+      JSBoundFunction::cast(this)->JSBoundFunctionVerify();
+      break;
     case JS_FUNCTION_TYPE:
       JSFunction::cast(this)->JSFunctionVerify();
       break;
@@ -541,6 +544,21 @@ void SlicedString::SlicedStringVerify() {
   CHECK(!this->parent()->IsConsString());
   CHECK(!this->parent()->IsSlicedString());
   CHECK(this->length() >= SlicedString::kMinLength);
+}
+
+
+void JSBoundFunction::JSBoundFunctionVerify() {
+  CHECK(IsJSBoundFunction());
+  VerifyObjectField(kLengthOffset);
+  VerifyObjectField(kNameOffset);
+  VerifyObjectField(kBoundThisOffset);
+  VerifyObjectField(kBoundTargetFunctionOffset);
+  VerifyObjectField(kBoundArgumentsOffset);
+  VerifyObjectField(kCreationContextOffset);
+  CHECK(bound_target_function()->IsCallable());
+  CHECK(creation_context()->IsNativeContext());
+  CHECK(IsCallable());
+  CHECK_EQ(IsConstructor(), bound_target_function()->IsConstructor());
 }
 
 

@@ -247,9 +247,6 @@ namespace internal {
   F(ThrowStrongModeTooFewArguments, 0, 1)  \
   F(IsConstructor, 1, 1)                   \
   F(SetForceInlineFlag, 1, 1)              \
-  F(FunctionBindArguments, 5, 1)           \
-  F(BoundFunctionGetBindings, 1, 1)        \
-  F(NewObjectFromBound, 1, 1)              \
   F(Call, -1 /* >= 2 */, 1)                \
   F(TailCall, -1 /* >= 2 */, 1)            \
   F(Apply, 5, 1)                           \

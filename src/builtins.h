@@ -68,6 +68,7 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(DateToPrimitive, kNone)                            \
                                                        \
   V(FunctionConstructor, kTargetAndNewTarget)          \
+  V(FunctionPrototypeBind, kNone)                      \
   V(FunctionPrototypeToString, kNone)                  \
                                                        \
   V(GeneratorFunctionConstructor, kTargetAndNewTarget) \
@@ -114,12 +115,14 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(CallFunction_ReceiverIsNotNullOrUndefined, BUILTIN, UNINITIALIZED,         \
     kNoExtraICState)                                                           \
   V(CallFunction_ReceiverIsAny, BUILTIN, UNINITIALIZED, kNoExtraICState)       \
+  V(CallBoundFunction, BUILTIN, UNINITIALIZED, kNoExtraICState)                \
   V(Call_ReceiverIsNullOrUndefined, BUILTIN, UNINITIALIZED, kNoExtraICState)   \
   V(Call_ReceiverIsNotNullOrUndefined, BUILTIN, UNINITIALIZED,                 \
     kNoExtraICState)                                                           \
   V(Call_ReceiverIsAny, BUILTIN, UNINITIALIZED, kNoExtraICState)               \
                                                                                \
   V(ConstructFunction, BUILTIN, UNINITIALIZED, kNoExtraICState)                \
+  V(ConstructBoundFunction, BUILTIN, UNINITIALIZED, kNoExtraICState)           \
   V(ConstructProxy, BUILTIN, UNINITIALIZED, kNoExtraICState)                   \
   V(Construct, BUILTIN, UNINITIALIZED, kNoExtraICState)                        \
                                                                                \
@@ -343,6 +346,8 @@ class Builtins {
   static void Generate_CallFunction_ReceiverIsAny(MacroAssembler* masm) {
     Generate_CallFunction(masm, ConvertReceiverMode::kAny);
   }
+  // ES6 section 9.4.1.1 [[Call]] ( thisArgument, argumentsList)
+  static void Generate_CallBoundFunction(MacroAssembler* masm);
   // ES6 section 7.3.12 Call(F, V, [argumentsList])
   static void Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode);
   static void Generate_Call_ReceiverIsNullOrUndefined(MacroAssembler* masm) {
@@ -357,6 +362,8 @@ class Builtins {
 
   // ES6 section 9.2.2 [[Construct]] ( argumentsList, newTarget)
   static void Generate_ConstructFunction(MacroAssembler* masm);
+  // ES6 section 9.4.1.2 [[Construct]] (argumentsList, newTarget)
+  static void Generate_ConstructBoundFunction(MacroAssembler* masm);
   // ES6 section 9.5.14 [[Construct]] ( argumentsList, newTarget)
   static void Generate_ConstructProxy(MacroAssembler* masm);
   // ES6 section 7.3.13 Construct (F, [argumentsList], [newTarget])

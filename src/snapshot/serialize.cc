@@ -1796,7 +1796,7 @@ void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   FlushSkip(skip);
 
   // Clear literal boilerplates.
-  if (obj->IsJSFunction() && !JSFunction::cast(obj)->shared()->bound()) {
+  if (obj->IsJSFunction()) {
     FixedArray* literals = JSFunction::cast(obj)->literals();
     for (int i = 0; i < literals->length(); i++) literals->set_undefined(i);
   }

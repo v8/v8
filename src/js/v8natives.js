@@ -1236,80 +1236,10 @@ utils.InstallFunctions(GlobalNumber, DONT_ENUM, [
 // ----------------------------------------------------------------------------
 // Function
 
-// ES6 9.2.3.2 Function.prototype.bind(thisArg , ...args)
-function FunctionBind(this_arg) { // Length is 1.
-  if (!IS_CALLABLE(this)) throw MakeTypeError(kFunctionBind);
-
-  var boundFunction = function () {
-    // Poison .arguments and .caller, but is otherwise not detectable.
-    "use strict";
-    // This function must not use any object literals (Object, Array, RegExp),
-    // since the literals-array is being used to store the bound data.
-    if (!IS_UNDEFINED(new.target)) {
-      return %NewObjectFromBound(boundFunction);
-    }
-    var bindings = %BoundFunctionGetBindings(boundFunction);
-
-    var argc = %_ArgumentsLength();
-    if (argc == 0) {
-      return %Apply(bindings[0], bindings[1], bindings, 2, bindings.length - 2);
-    }
-    if (bindings.length === 2) {
-      return %Apply(bindings[0], bindings[1], arguments, 0, argc);
-    }
-    var bound_argc = bindings.length - 2;
-    var argv = new InternalArray(bound_argc + argc);
-    for (var i = 0; i < bound_argc; i++) {
-      argv[i] = bindings[i + 2];
-    }
-    for (var j = 0; j < argc; j++) {
-      argv[i++] = %_Arguments(j);
-    }
-    return %Apply(bindings[0], bindings[1], argv, 0, bound_argc + argc);
-  };
-
-  var proto = %_GetPrototype(this);  // in ES6 9.4.1.3 BoundFunctionCreate
-
-  var new_length = 0;
-  if (ObjectGetOwnPropertyDescriptor(this, "length") !== UNDEFINED) {
-    var old_length = this.length;
-    if (IS_NUMBER(old_length)) {
-      var argc = %_ArgumentsLength();
-      if (argc > 0) argc--;  // Don't count the thisArg as parameter.
-      new_length = TO_INTEGER(old_length) - argc;
-      if (new_length < 0) new_length = 0;
-    }
-  }
-
-  // This runtime function finds any remaining arguments on the stack,
-  // so we don't pass the arguments object.
-  var result = %FunctionBindArguments(boundFunction, this, this_arg,
-                                      new_length, proto);
-
-  var name = this.name;
-  var bound_name = IS_STRING(name) ? name : "";
-  %DefineDataPropertyUnchecked(result, "name", "bound " + bound_name,
-                               DONT_ENUM | READ_ONLY);
-
-  // We already have caller and arguments properties on functions,
-  // which are non-configurable. It therefore makes no sence to
-  // try to redefine these as defined by the spec. The spec says
-  // that bind should make these throw a TypeError if get or set
-  // is called and make them non-enumerable and non-configurable.
-  // To be consistent with our normal functions we leave this as it is.
-  // TODO(lrn): Do set these to be thrower.
-  return result;
-}
-
-
 // ----------------------------------------------------------------------------
 
 %AddNamedProperty(GlobalFunction.prototype, "constructor", GlobalFunction,
                   DONT_ENUM);
-
-utils.InstallFunctions(GlobalFunction.prototype, DONT_ENUM, [
-  "bind", FunctionBind,
-]);
 
 // ----------------------------------------------------------------------------
 // Iterator related spec functions.
