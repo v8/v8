@@ -56,7 +56,7 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
     case Runtime::kInlineIsTypedArray:
       return ReduceIsInstanceType(node, JS_TYPED_ARRAY_TYPE);
     case Runtime::kInlineIsFunction:
-      return ReduceIsFunction(node);
+      return ReduceIsInstanceType(node, JS_FUNCTION_TYPE);
     case Runtime::kInlineIsRegExp:
       return ReduceIsInstanceType(node, JS_REGEXP_TYPE);
     case Runtime::kInlineIsJSReceiver:
@@ -248,48 +248,6 @@ Reduction JSIntrinsicLowering::ReduceIsInstanceType(
   // Turn the {node} into a Phi.
   return Change(node, common()->Phi(MachineRepresentation::kTagged, 2), vtrue,
                 vfalse, merge);
-}
-
-
-Reduction JSIntrinsicLowering::ReduceIsFunction(Node* node) {
-  Node* value = NodeProperties::GetValueInput(node, 0);
-  Type* value_type = NodeProperties::GetType(value);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-  if (value_type->Is(Type::Function())) {
-    value = jsgraph()->TrueConstant();
-  } else {
-    // if (%_IsSmi(value)) {
-    //   return false;
-    // } else {
-    //   return FIRST_FUNCTION_TYPE <= %_GetInstanceType(%_GetMap(value))
-    // }
-    STATIC_ASSERT(LAST_TYPE == LAST_FUNCTION_TYPE);
-
-    Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), value);
-    Node* branch = graph()->NewNode(common()->Branch(), check, control);
-
-    Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-    Node* etrue = effect;
-    Node* vtrue = jsgraph()->FalseConstant();
-
-    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-    Node* efalse = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForMapInstanceType()),
-        graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
-                         value, effect, if_false),
-        effect, if_false);
-    Node* vfalse =
-        graph()->NewNode(machine()->Uint32LessThanOrEqual(),
-                         jsgraph()->Int32Constant(FIRST_FUNCTION_TYPE), efalse);
-
-    control = graph()->NewNode(common()->Merge(2), if_true, if_false);
-    effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
-    value = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
-                             vtrue, vfalse, control);
-  }
-  ReplaceWithValue(node, node, effect, control);
-  return Replace(value);
 }
 
 

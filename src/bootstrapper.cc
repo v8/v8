@@ -269,7 +269,8 @@ class Genesis BASE_EMBEDDED {
     FUNCTION_WITH_WRITEABLE_PROTOTYPE,
     FUNCTION_WITH_READONLY_PROTOTYPE,
     // Without prototype.
-    FUNCTION_WITHOUT_PROTOTYPE
+    FUNCTION_WITHOUT_PROTOTYPE,
+    BOUND_FUNCTION
   };
 
   static bool IsFunctionModeWithPrototype(FunctionMode function_mode) {
@@ -485,7 +486,7 @@ void Genesis::SetFunctionInstanceDescriptor(Handle<Map> map,
 Handle<Map> Genesis::CreateSloppyFunctionMap(FunctionMode function_mode) {
   Handle<Map> map = factory()->NewMap(JS_FUNCTION_TYPE, JSFunction::kSize);
   SetFunctionInstanceDescriptor(map, function_mode);
-  if (IsFunctionModeWithPrototype(function_mode)) map->set_is_constructor();
+  map->set_is_constructor(IsFunctionModeWithPrototype(function_mode));
   map->set_is_callable();
   return map;
 }
@@ -608,22 +609,35 @@ void Genesis::SetStrictFunctionInstanceDescriptor(Handle<Map> map,
   PropertyAttributes roc_attribs =
       static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
 
-  DCHECK(function_mode == FUNCTION_WITH_WRITEABLE_PROTOTYPE ||
-         function_mode == FUNCTION_WITH_READONLY_PROTOTYPE ||
-         function_mode == FUNCTION_WITHOUT_PROTOTYPE);
-  {  // Add length.
-    Handle<AccessorInfo> length =
-        Accessors::FunctionLengthInfo(isolate(), roc_attribs);
-    AccessorConstantDescriptor d(Handle<Name>(Name::cast(length->name())),
-                                 length, roc_attribs);
-    map->AppendDescriptor(&d);
-  }
-  {  // Add name.
-    Handle<AccessorInfo> name =
-        Accessors::FunctionNameInfo(isolate(), roc_attribs);
-    AccessorConstantDescriptor d(Handle<Name>(Name::cast(name->name())), name,
-                                 roc_attribs);
-    map->AppendDescriptor(&d);
+  if (function_mode == BOUND_FUNCTION) {
+    {  // Add length.
+      Handle<String> length_string = isolate()->factory()->length_string();
+      DataDescriptor d(length_string, 0, roc_attribs, Representation::Tagged());
+      map->AppendDescriptor(&d);
+    }
+    {  // Add name.
+      Handle<String> name_string = isolate()->factory()->name_string();
+      DataDescriptor d(name_string, 1, roc_attribs, Representation::Tagged());
+      map->AppendDescriptor(&d);
+    }
+  } else {
+    DCHECK(function_mode == FUNCTION_WITH_WRITEABLE_PROTOTYPE ||
+           function_mode == FUNCTION_WITH_READONLY_PROTOTYPE ||
+           function_mode == FUNCTION_WITHOUT_PROTOTYPE);
+    {  // Add length.
+      Handle<AccessorInfo> length =
+          Accessors::FunctionLengthInfo(isolate(), roc_attribs);
+      AccessorConstantDescriptor d(Handle<Name>(Name::cast(length->name())),
+                                   length, roc_attribs);
+      map->AppendDescriptor(&d);
+    }
+    {  // Add name.
+      Handle<AccessorInfo> name =
+          Accessors::FunctionNameInfo(isolate(), roc_attribs);
+      AccessorConstantDescriptor d(Handle<Name>(Name::cast(name->name())), name,
+                                   roc_attribs);
+      map->AppendDescriptor(&d);
+    }
   }
   if (IsFunctionModeWithPrototype(function_mode)) {
     // Add prototype.
@@ -718,7 +732,7 @@ Handle<Map> Genesis::CreateStrictFunctionMap(
     FunctionMode function_mode, Handle<JSFunction> empty_function) {
   Handle<Map> map = factory()->NewMap(JS_FUNCTION_TYPE, JSFunction::kSize);
   SetStrictFunctionInstanceDescriptor(map, function_mode);
-  if (IsFunctionModeWithPrototype(function_mode)) map->set_is_constructor();
+  map->set_is_constructor(IsFunctionModeWithPrototype(function_mode));
   map->set_is_callable();
   Map::SetPrototype(map, empty_function);
   return map;
@@ -729,7 +743,7 @@ Handle<Map> Genesis::CreateStrongFunctionMap(
     Handle<JSFunction> empty_function, bool is_constructor) {
   Handle<Map> map = factory()->NewMap(JS_FUNCTION_TYPE, JSFunction::kSize);
   SetStrongFunctionInstanceDescriptor(map);
-  if (is_constructor) map->set_is_constructor();
+  map->set_is_constructor(is_constructor);
   Map::SetPrototype(map, empty_function);
   map->set_is_callable();
   map->set_is_extensible(is_constructor);
@@ -756,6 +770,21 @@ void Genesis::CreateStrictModeFunctionMaps(Handle<JSFunction> empty) {
   // This map is installed in MakeFunctionInstancePrototypeWritable.
   strict_function_map_writable_prototype_ =
       CreateStrictFunctionMap(FUNCTION_WITH_WRITEABLE_PROTOTYPE, empty);
+
+  // Special map for non-constructor bound functions.
+  // TODO(bmeurer): Bound functions should not be represented as JSFunctions.
+  Handle<Map> bound_function_without_constructor_map =
+      CreateStrictFunctionMap(BOUND_FUNCTION, empty);
+  native_context()->set_bound_function_without_constructor_map(
+      *bound_function_without_constructor_map);
+
+  // Special map for constructor bound functions.
+  // TODO(bmeurer): Bound functions should not be represented as JSFunctions.
+  Handle<Map> bound_function_with_constructor_map =
+      Map::Copy(bound_function_without_constructor_map, "IsConstructor");
+  bound_function_with_constructor_map->set_is_constructor(true);
+  native_context()->set_bound_function_with_constructor_map(
+      *bound_function_with_constructor_map);
 }
 
 
@@ -1428,35 +1457,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         isolate->initial_object_prototype(), Builtins::kIllegal);
     InstallWithIntrinsicDefaultProto(isolate, js_weak_set_fun,
                                      Context::JS_WEAK_SET_FUN_INDEX);
-  }
-
-  {  // --- B o u n d F u n c t i o n
-    Handle<Map> map =
-        factory->NewMap(JS_BOUND_FUNCTION_TYPE, JSBoundFunction::kSize);
-    map->set_is_callable();
-    Map::SetPrototype(map, empty_function);
-
-    PropertyAttributes roc_attribs =
-        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
-    Map::EnsureDescriptorSlack(map, 2);
-
-    {  // length
-      DataDescriptor d(factory->length_string(), JSBoundFunction::kLengthIndex,
-                       roc_attribs, Representation::Tagged());
-      map->AppendDescriptor(&d);
-    }
-    {  // name
-      DataDescriptor d(factory->name_string(), JSBoundFunction::kNameIndex,
-                       roc_attribs, Representation::Tagged());
-      map->AppendDescriptor(&d);
-    }
-
-    map->SetInObjectProperties(2);
-    native_context()->set_bound_function_without_constructor_map(*map);
-
-    map = Map::Copy(map, "IsConstructor");
-    map->set_is_constructor();
-    native_context()->set_bound_function_with_constructor_map(*map);
   }
 
   {  // --- sloppy arguments map
@@ -2285,7 +2285,7 @@ void Genesis::InstallJSProxyMaps() {
 
   Handle<Map> proxy_function_map =
       Map::Copy(isolate()->sloppy_function_without_prototype_map(), "Proxy");
-  proxy_function_map->set_is_constructor();
+  proxy_function_map->set_is_constructor(true);
   native_context()->set_proxy_function_map(*proxy_function_map);
 
   Handle<Map> proxy_map =
@@ -2299,7 +2299,7 @@ void Genesis::InstallJSProxyMaps() {
 
   Handle<Map> proxy_constructor_map =
       Map::Copy(proxy_callable_map, "constructor Proxy");
-  proxy_constructor_map->set_is_constructor();
+  proxy_constructor_map->set_is_constructor(true);
   native_context()->set_proxy_constructor_map(*proxy_constructor_map);
 }
 
@@ -2525,8 +2525,7 @@ bool Genesis::InstallNatives(ContextType context_type) {
     // Set the lengths for the functions to satisfy ECMA-262.
     concat->shared()->set_length(1);
   }
-
-  // Install Function.prototype.apply, bind, call, and toString.
+  // Install Function.prototype.apply, call, and toString.
   {
     Handle<String> key = factory()->Function_string();
     Handle<JSFunction> function =
@@ -2535,11 +2534,9 @@ bool Genesis::InstallNatives(ContextType context_type) {
     Handle<JSObject> proto =
         Handle<JSObject>(JSObject::cast(function->instance_prototype()));
 
-    // Install the apply, bind, call and toString functions.
+    // Install the apply, call and toString functions.
     SimpleInstallFunction(proto, factory()->apply_string(),
                           Builtins::kFunctionPrototypeApply, 2, false);
-    SimpleInstallFunction(proto, factory()->bind_string(),
-                          Builtins::kFunctionPrototypeBind, 1, false);
     SimpleInstallFunction(proto, factory()->call_string(),
                           Builtins::kFunctionPrototypeCall, 1, false);
     SimpleInstallFunction(proto, factory()->toString_string(),

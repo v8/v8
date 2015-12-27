@@ -1550,6 +1550,17 @@ void InstanceOfStub::Generate(MacroAssembler* masm) {
   __ Ldrb(scratch, FieldMemOperand(function_map, Map::kBitFieldOffset));
   __ Tbnz(scratch, Map::kHasNonInstancePrototype, &slow_case);
 
+  // Ensure that {function} is not bound.
+  Register const shared_info = scratch;
+  Register const scratch_w = scratch.W();
+  __ Ldr(shared_info,
+         FieldMemOperand(function, JSFunction::kSharedFunctionInfoOffset));
+  // On 64-bit platforms, compiler hints field is not a smi. See definition of
+  // kCompilerHintsOffset in src/objects.h.
+  __ Ldr(scratch_w, FieldMemOperand(shared_info,
+                                    SharedFunctionInfo::kCompilerHintsOffset));
+  __ Tbnz(scratch_w, SharedFunctionInfo::kBoundFunction, &slow_case);
+
   // Get the "prototype" (or initial map) of the {function}.
   __ Ldr(function_prototype,
          FieldMemOperand(function, JSFunction::kPrototypeOrInitialMapOffset));

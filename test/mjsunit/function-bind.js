@@ -40,29 +40,24 @@ assertEquals(3, foo.length);
 var f = foo.bind(foo);
 assertEquals([foo, 3, 1], f(1, 2, 3));
 assertEquals(3, f.length);
-assertEquals("function () { [native code] }", f.toString());
 
 f = foo.bind(foo, 1);
 assertEquals([foo, 3, 1], f(2, 3));
 assertEquals(2, f.length);
-assertEquals("function () { [native code] }", f.toString());
 
 f = foo.bind(foo, 1, 2);
 assertEquals([foo, 3, 1], f(3));
 assertEquals(1, f.length);
-assertEquals("function () { [native code] }", f.toString());
 
 f = foo.bind(foo, 1, 2, 3);
 assertEquals([foo, 3, 1], f());
 assertEquals(0, f.length);
-assertEquals("function () { [native code] }", f.toString());
 
 // Test that length works correctly even if more than the actual number
 // of arguments are given when binding.
 f = foo.bind(foo, 1, 2, 3, 4, 5, 6, 7, 8, 9);
 assertEquals([foo, 9, 1], f());
 assertEquals(0, f.length);
-assertEquals("function () { [native code] }", f.toString());
 
 // Use a different bound object.
 var obj = {x: 42, y: 43};
@@ -82,7 +77,6 @@ assertEquals(1, f.length);
 f = f_bound_this.bind(obj, 2);
 assertEquals(3, f());
 assertEquals(0, f.length);
-assertEquals('[object Function]', Object.prototype.toString.call(f));
 
 // Test chained binds.
 

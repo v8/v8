@@ -146,14 +146,11 @@ namespace internal {
   V(kObjectFoundInSmiOnlyArray, "Object found in smi-only array")              \
   V(kObjectLiteralWithComplexProperty, "Object literal with complex property") \
   V(kOffsetOutOfRange, "Offset out of range")                                  \
-  V(kOperandIsASmiAndNotABoundFunction,                                        \
-    "Operand is a smi and not a bound function")                               \
   V(kOperandIsASmiAndNotAFunction, "Operand is a smi and not a function")      \
   V(kOperandIsASmiAndNotAName, "Operand is a smi and not a name")              \
   V(kOperandIsASmiAndNotAString, "Operand is a smi and not a string")          \
   V(kOperandIsASmi, "Operand is a smi")                                        \
   V(kOperandIsNotADate, "Operand is not a date")                               \
-  V(kOperandIsNotABoundFunction, "Operand is not a bound function")            \
   V(kOperandIsNotAFunction, "Operand is not a function")                       \
   V(kOperandIsNotAName, "Operand is not a name")                               \
   V(kOperandIsNotANumber, "Operand is not a number")                           \

@@ -1973,78 +1973,12 @@ BUILTIN(FunctionConstructor) {
 }
 
 
-// ES6 section 19.2.3.2 Function.prototype.bind ( thisArg, ...args )
-BUILTIN(FunctionPrototypeBind) {
-  HandleScope scope(isolate);
-  DCHECK_LE(1, args.length());
-  if (!args.receiver()->IsCallable()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kFunctionBind));
-  }
-
-  // Allocate the bound function with the given {this_arg} and {args}.
-  Handle<JSReceiver> target = args.at<JSReceiver>(0);
-  Handle<Object> this_arg = isolate->factory()->undefined_value();
-  ScopedVector<Handle<Object>> argv(std::max(0, args.length() - 2));
-  if (args.length() > 1) {
-    this_arg = args.at<Object>(1);
-    for (int i = 2; i < args.length(); ++i) {
-      argv[i - 2] = args.at<Object>(i);
-    }
-  }
-  Handle<JSBoundFunction> function;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, function,
-      isolate->factory()->NewJSBoundFunction(target, this_arg, argv));
-
-  // TODO(bmeurer): Optimize the rest for the common cases where {target} is
-  // a function with some initial map or even a bound function.
-  // Setup the "length" property based on the "length" of the {target}.
-  Handle<Object> length(Smi::FromInt(0), isolate);
-  Maybe<bool> target_has_length =
-      JSReceiver::HasOwnProperty(target, isolate->factory()->length_string());
-  if (!target_has_length.IsJust()) {
-    return isolate->heap()->exception();
-  } else if (target_has_length.FromJust()) {
-    Handle<Object> target_length;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, target_length,
-        JSReceiver::GetProperty(target, isolate->factory()->length_string()));
-    if (target_length->IsNumber()) {
-      length = isolate->factory()->NewNumber(std::max(
-          0.0, DoubleToInteger(target_length->Number()) - argv.length()));
-    }
-  }
-  function->set_length(*length);
-
-  // Setup the "name" property based on the "name" of the {target}.
-  Handle<Object> target_name;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, target_name,
-      JSReceiver::GetProperty(target, isolate->factory()->name_string()));
-  Handle<String> name;
-  if (!target_name->IsString()) {
-    name = isolate->factory()->bound__string();
-  } else {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, name, Name::ToFunctionName(Handle<String>::cast(target_name)));
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, name, isolate->factory()->NewConsString(
-                           isolate->factory()->bound__string(), name));
-  }
-  function->set_name(*name);
-  return *function;
-}
-
-
 // ES6 section 19.2.3.5 Function.prototype.toString ( )
 BUILTIN(FunctionPrototypeToString) {
   HandleScope scope(isolate);
   Handle<Object> receiver = args.receiver();
 
-  if (receiver->IsJSBoundFunction()) {
-    return *JSBoundFunction::ToString(Handle<JSBoundFunction>::cast(receiver));
-  } else if (receiver->IsJSFunction()) {
+  if (receiver->IsJSFunction()) {
     return *JSFunction::ToString(Handle<JSFunction>::cast(receiver));
   }
   THROW_NEW_ERROR_RETURN_FAILURE(

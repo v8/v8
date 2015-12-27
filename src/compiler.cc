@@ -815,8 +815,11 @@ static void InsertCodeIntoOptimizedCodeMap(CompilationInfo* info) {
   // Frame specialization implies function context specialization.
   DCHECK(!info->is_frame_specializing());
 
-  // Cache optimized context-specific code.
+  // Do not cache bound functions.
   Handle<JSFunction> function = info->closure();
+  if (function->shared()->bound()) return;
+
+  // Cache optimized context-specific code.
   Handle<SharedFunctionInfo> shared(function->shared());
   Handle<LiteralsArray> literals(function->literals());
   Handle<Context> native_context(function->context()->native_context());

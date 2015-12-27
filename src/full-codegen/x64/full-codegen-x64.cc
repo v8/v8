@@ -3020,9 +3020,9 @@ void FullCodeGenerator::EmitIsFunction(CallRuntime* expr) {
                          &if_true, &if_false, &fall_through);
 
   __ JumpIfSmi(rax, if_false);
-  __ CmpObjectType(rax, FIRST_FUNCTION_TYPE, rbx);
+  __ CmpObjectType(rax, JS_FUNCTION_TYPE, rbx);
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
-  Split(above_equal, if_true, if_false, fall_through);
+  Split(equal, if_true, if_false, fall_through);
 
   context()->Plug(if_true, if_false);
 }

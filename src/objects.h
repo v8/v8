@@ -51,7 +51,6 @@
 //         - JSArrayBufferView
 //           - JSTypedArray
 //           - JSDataView
-//         - JSBoundFunction
 //         - JSCollection
 //           - JSSet
 //           - JSMap
@@ -76,6 +75,7 @@
 //       - FixedArray
 //         - DescriptorArray
 //         - LiteralsArray
+//         - BindingsArray
 //         - HashTable
 //           - Dictionary
 //           - StringTable
@@ -437,7 +437,6 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(JS_PROMISE_TYPE)                                            \
   V(JS_REGEXP_TYPE)                                             \
                                                                 \
-  V(JS_BOUND_FUNCTION_TYPE)                                     \
   V(JS_FUNCTION_TYPE)                                           \
   V(DEBUG_INFO_TYPE)                                            \
   V(BREAK_POINT_INFO_TYPE)
@@ -733,7 +732,6 @@ enum InstanceType {
   JS_WEAK_SET_TYPE,
   JS_PROMISE_TYPE,
   JS_REGEXP_TYPE,
-  JS_BOUND_FUNCTION_TYPE,
   JS_FUNCTION_TYPE,  // LAST_JS_OBJECT_TYPE, LAST_JS_RECEIVER_TYPE
 
   // Pseudo-types
@@ -746,8 +744,6 @@ enum InstanceType {
   FIRST_NONSTRING_TYPE = SYMBOL_TYPE,
   FIRST_PRIMITIVE_TYPE = FIRST_NAME_TYPE,
   LAST_PRIMITIVE_TYPE = ODDBALL_TYPE,
-  FIRST_FUNCTION_TYPE = JS_BOUND_FUNCTION_TYPE,
-  LAST_FUNCTION_TYPE = JS_FUNCTION_TYPE,
   // Boundaries for testing for a fixed typed array.
   FIRST_FIXED_TYPED_ARRAY_TYPE = FIXED_INT8_ARRAY_TYPE,
   LAST_FIXED_TYPED_ARRAY_TYPE = FIXED_UINT8_CLAMPED_ARRAY_TYPE,
@@ -934,6 +930,7 @@ template <class C> inline bool Is(Object* obj);
   V(LayoutDescriptor)              \
   V(Map)                           \
   V(DescriptorArray)               \
+  V(BindingsArray)                 \
   V(TransitionArray)               \
   V(LiteralsArray)                 \
   V(TypeFeedbackMetadata)          \
@@ -950,7 +947,6 @@ template <class C> inline bool Is(Object* obj);
   V(ScriptContextTable)            \
   V(NativeContext)                 \
   V(ScopeInfo)                     \
-  V(JSBoundFunction)               \
   V(JSFunction)                    \
   V(Code)                          \
   V(Oddball)                       \
@@ -1053,9 +1049,6 @@ class Object {
 
   // ES6, section 7.2.2 IsArray.  NOT to be confused with %_IsArray.
   MUST_USE_RESULT static Maybe<bool> IsArray(Handle<Object> object);
-
-  // Test for JSBoundFunction or JSFunction.
-  INLINE(bool IsFunction() const);
 
   // ES6, section 7.2.3 IsCallable.
   INLINE(bool IsCallable() const);
@@ -4671,6 +4664,48 @@ class LiteralsArray : public FixedArray {
 };
 
 
+// A bindings array contains the bindings for a bound function. It also holds
+// the type feedback vector.
+class BindingsArray : public FixedArray {
+ public:
+  inline TypeFeedbackVector* feedback_vector() const;
+  inline void set_feedback_vector(TypeFeedbackVector* vector);
+
+  inline JSReceiver* bound_function() const;
+  inline void set_bound_function(JSReceiver* function);
+  inline Object* bound_this() const;
+  inline void set_bound_this(Object* bound_this);
+
+  inline Object* binding(int binding_index) const;
+  inline void set_binding(int binding_index, Object* binding);
+  inline int bindings_count() const;
+
+  static Handle<BindingsArray> New(Isolate* isolate,
+                                   Handle<TypeFeedbackVector> vector,
+                                   Handle<JSReceiver> bound_function,
+                                   Handle<Object> bound_this,
+                                   int number_of_bindings);
+
+  static Handle<JSArray> CreateBoundArguments(Handle<BindingsArray> bindings);
+  static Handle<JSArray> CreateRuntimeBindings(Handle<BindingsArray> bindings);
+
+  DECLARE_CAST(BindingsArray)
+
+ private:
+  static const int kVectorIndex = 0;
+  static const int kBoundFunctionIndex = 1;
+  static const int kBoundThisIndex = 2;
+  static const int kFirstBindingIndex = 3;
+
+  inline Object* get(int index) const;
+  inline void set(int index, Object* value);
+  inline void set(int index, Smi* value);
+  inline void set(int index, Object* value, WriteBarrierMode mode);
+
+  inline int length() const;
+};
+
+
 // HandlerTable is a fixed array containing entries for exception handlers in
 // the code object it is associated with. The tables comes in two flavors:
 // 1) Based on ranges: Used for unoptimized code. Contains one entry per
@@ -5529,7 +5564,7 @@ class Map: public HeapObject {
 
   // Tells whether the instance has a [[Construct]] internal method.
   // This property is implemented according to ES6, section 7.2.4.
-  inline void set_is_constructor();
+  inline void set_is_constructor(bool value);
   inline bool is_constructor() const;
 
   // Tells whether the instance with this map should be ignored by the
@@ -6704,6 +6739,10 @@ class SharedFunctionInfo: public HeapObject {
   // see a binding for it.
   DECL_BOOLEAN_ACCESSORS(name_should_print_as_anonymous)
 
+  // Indicates whether the function is a bound function created using
+  // the bind function.
+  DECL_BOOLEAN_ACCESSORS(bound)
+
   // Indicates that the function is anonymous (the name field can be set
   // through the API, which does not change this flag).
   DECL_BOOLEAN_ACCESSORS(is_anonymous)
@@ -6993,7 +7032,7 @@ class SharedFunctionInfo: public HeapObject {
     // byte 1
     kHasDuplicateParameters,
     kForceInline,
-    kIsAsmFunction,
+    kBoundFunction,
     kIsAnonymous,
     kNameShouldPrintAsAnonymous,
     kIsFunction,
@@ -7010,6 +7049,7 @@ class SharedFunctionInfo: public HeapObject {
     kIsBaseConstructor,
     kIsInObjectLiteral,
     // byte 3
+    kIsAsmFunction,
     kDeserialized,
     kNeverCompiled,
     kCompilerHintsCount,  // Pseudo entry
@@ -7063,6 +7103,7 @@ class SharedFunctionInfo: public HeapObject {
   static const int kStrongModeBit =
       kStrongModeFunction + kCompilerHintsSmiTagSize;
   static const int kNativeBit = kNative + kCompilerHintsSmiTagSize;
+  static const int kBoundBit = kBoundFunction + kCompilerHintsSmiTagSize;
 
   static const int kClassConstructorBits =
       FunctionKind::kClassConstructor
@@ -7074,6 +7115,7 @@ class SharedFunctionInfo: public HeapObject {
   static const int kStrictModeBitWithinByte = kStrictModeBit % kBitsPerByte;
   static const int kStrongModeBitWithinByte = kStrongModeBit % kBitsPerByte;
   static const int kNativeBitWithinByte = kNativeBit % kBitsPerByte;
+  static const int kBoundBitWithinByte = kBoundBit % kBitsPerByte;
 
   static const int kClassConstructorBitsWithinByte =
       FunctionKind::kClassConstructor << kCompilerHintsSmiTagSize;
@@ -7093,6 +7135,7 @@ class SharedFunctionInfo: public HeapObject {
   static const int kStrictModeByteOffset = BYTE_OFFSET(kStrictModeFunction);
   static const int kStrongModeByteOffset = BYTE_OFFSET(kStrongModeFunction);
   static const int kNativeByteOffset = BYTE_OFFSET(kNative);
+  static const int kBoundByteOffset = BYTE_OFFSET(kBoundFunction);
   static const int kFunctionKindByteOffset = BYTE_OFFSET(kFunctionKind);
 #undef BYTE_OFFSET
 
@@ -7202,64 +7245,6 @@ class JSModule: public JSObject {
 };
 
 
-// JSBoundFunction describes a bound function exotic object.
-class JSBoundFunction : public JSObject {
- public:
-  // [length]: The bound function "length" property.
-  DECL_ACCESSORS(length, Object)
-
-  // [name]: The bound function "name" property.
-  DECL_ACCESSORS(name, Object)
-
-  // [bound_target_function]: The wrapped function object.
-  DECL_ACCESSORS(bound_target_function, JSReceiver)
-
-  // [bound_this]: The value that is always passed as the this value when
-  // calling the wrapped function.
-  DECL_ACCESSORS(bound_this, Object)
-
-  // [bound_arguments]: A list of values whose elements are used as the first
-  // arguments to any call to the wrapped function.
-  DECL_ACCESSORS(bound_arguments, FixedArray)
-
-  // [creation_context]: The native context in which the function was bound.
-  // TODO(bmeurer, verwaest): Can we (mis)use (unused) constructor field in
-  // the Map instead of putting this into the object? Only required for
-  // JSReceiver::GetCreationContext() anyway.
-  DECL_ACCESSORS(creation_context, Context)
-
-  static MaybeHandle<Context> GetFunctionRealm(
-      Handle<JSBoundFunction> function);
-
-  DECLARE_CAST(JSBoundFunction)
-
-  // Dispatched behavior.
-  DECLARE_PRINTER(JSBoundFunction)
-  DECLARE_VERIFIER(JSBoundFunction)
-
-  // The bound function's string representation implemented according
-  // to ES6 section 19.2.3.5 Function.prototype.toString ( ).
-  static Handle<String> ToString(Handle<JSBoundFunction> function);
-
-  // Layout description.
-  static const int kBoundTargetFunctionOffset = JSObject::kHeaderSize;
-  static const int kBoundThisOffset = kBoundTargetFunctionOffset + kPointerSize;
-  static const int kBoundArgumentsOffset = kBoundThisOffset + kPointerSize;
-  static const int kCreationContextOffset =
-      kBoundArgumentsOffset + kPointerSize;
-  static const int kLengthOffset = kCreationContextOffset + kPointerSize;
-  static const int kNameOffset = kLengthOffset + kPointerSize;
-  static const int kSize = kNameOffset + kPointerSize;
-
-  // Indices of in-object properties.
-  static const int kLengthIndex = 0;
-  static const int kNameIndex = 1;
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSBoundFunction);
-};
-
-
 // JSFunction describes JavaScript functions.
 class JSFunction: public JSObject {
  public:
@@ -7309,7 +7294,8 @@ class JSFunction: public JSObject {
   // Completes inobject slack tracking on initial map if it is active.
   inline void CompleteInobjectSlackTrackingIfActive();
 
-  // [literals]: Fixed array holding the materialized literals.
+  // [literals_or_bindings]: Fixed array holding either
+  // the materialized literals or the bindings of a bound function.
   //
   // If the function contains object, regexp or array literals, the
   // literals array prefix contains the object, regexp, and array
@@ -7318,7 +7304,17 @@ class JSFunction: public JSObject {
   // or array functions.  Performing a dynamic lookup, we might end up
   // using the functions from a new context that we should not have
   // access to.
-  DECL_ACCESSORS(literals, LiteralsArray)
+  //
+  // On bound functions, the array is a (copy-on-write) fixed-array containing
+  // the function that was bound, bound this-value and any bound
+  // arguments. Bound functions never contain literals.
+  DECL_ACCESSORS(literals_or_bindings, FixedArray)
+
+  inline LiteralsArray* literals();
+  inline void set_literals(LiteralsArray* literals);
+
+  inline BindingsArray* function_bindings();
+  inline void set_function_bindings(BindingsArray* bindings);
 
   // The initial map for an object created by this constructor.
   inline Map* initial_map();

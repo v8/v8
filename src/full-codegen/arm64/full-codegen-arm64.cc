@@ -2866,9 +2866,9 @@ void FullCodeGenerator::EmitIsFunction(CallRuntime* expr) {
                          &if_true, &if_false, &fall_through);
 
   __ JumpIfSmi(x0, if_false);
-  __ CompareObjectType(x0, x10, x11, FIRST_FUNCTION_TYPE);
+  __ CompareObjectType(x0, x10, x11, JS_FUNCTION_TYPE);
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
-  Split(hs, if_true, if_false, fall_through);
+  Split(eq, if_true, if_false, fall_through);
 
   context()->Plug(if_true, if_false);
 }

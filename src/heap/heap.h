@@ -215,7 +215,6 @@ namespace internal {
   V(arguments_string, "arguments")                               \
   V(Arguments_string, "Arguments")                               \
   V(Array_string, "Array")                                       \
-  V(bind_string, "bind")                                         \
   V(bool16x8_string, "bool16x8")                                 \
   V(Bool16x8_string, "Bool16x8")                                 \
   V(bool32x4_string, "bool32x4")                                 \
@@ -224,7 +223,6 @@ namespace internal {
   V(Bool8x16_string, "Bool8x16")                                 \
   V(boolean_string, "boolean")                                   \
   V(Boolean_string, "Boolean")                                   \
-  V(bound__string, "bound ")                                     \
   V(byte_length_string, "byteLength")                            \
   V(byte_offset_string, "byteOffset")                            \
   V(call_string, "call")                                         \

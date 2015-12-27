@@ -1194,7 +1194,7 @@ Handle<JSFunction> Factory::NewFunction(Handle<Map> map,
   function->set_code(info->code());
   function->set_context(*context);
   function->set_prototype_or_initial_map(*the_hole_value());
-  function->set_literals(LiteralsArray::cast(*empty_fixed_array()));
+  function->set_literals_or_bindings(*empty_fixed_array());
   function->set_next_function_link(*undefined_value(), SKIP_WRITE_BARRIER);
   isolate()->heap()->InitializeJSObjectBody(*function, *map, JSFunction::kSize);
   return function;
@@ -1359,7 +1359,8 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
 
   if (cached.literals != nullptr) {
     result->set_literals(cached.literals);
-  } else {
+
+  } else if (!info->bound()) {
     int number_of_literals = info->num_literals();
     Handle<LiteralsArray> literals =
         LiteralsArray::New(isolate(), handle(info->feedback_vector()),
@@ -1938,60 +1939,6 @@ Handle<JSDataView> Factory::NewJSDataView(Handle<JSArrayBuffer> buffer,
   Handle<JSDataView> obj = NewJSDataView();
   SetupArrayBufferView(isolate(), obj, buffer, byte_offset, byte_length);
   return obj;
-}
-
-
-MaybeHandle<JSBoundFunction> Factory::NewJSBoundFunction(
-    Handle<JSReceiver> target_function, Handle<Object> bound_this,
-    Vector<Handle<Object>> bound_args) {
-  DCHECK(target_function->IsCallable());
-  STATIC_ASSERT(Code::kMaxArguments <= FixedArray::kMaxLength);
-  if (bound_args.length() >= Code::kMaxArguments) {
-    THROW_NEW_ERROR(isolate(),
-                    NewRangeError(MessageTemplate::kTooManyArguments),
-                    JSBoundFunction);
-  }
-
-  // Determine the prototype of the {target_function}.
-  Handle<Object> prototype;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate(), prototype,
-                             Object::GetPrototype(isolate(), target_function),
-                             JSBoundFunction);
-
-  // Create the [[BoundArguments]] for the result.
-  Handle<FixedArray> bound_arguments;
-  if (bound_args.length() == 0) {
-    bound_arguments = empty_fixed_array();
-  } else {
-    bound_arguments = NewFixedArray(bound_args.length());
-    for (int i = 0; i < bound_args.length(); ++i) {
-      bound_arguments->set(i, *bound_args[i]);
-    }
-  }
-
-  // Setup the map for the JSBoundFunction instance.
-  Handle<Map> map = handle(
-      target_function->IsConstructor()
-          ? isolate()->native_context()->bound_function_with_constructor_map()
-          : isolate()
-                ->native_context()
-                ->bound_function_without_constructor_map(),
-      isolate());
-  if (map->prototype() != *prototype) {
-    map = Map::TransitionToPrototype(map, prototype, REGULAR_PROTOTYPE);
-  }
-  DCHECK_EQ(target_function->IsConstructor(), map->is_constructor());
-
-  // Setup the JSBoundFunction instance.
-  Handle<JSBoundFunction> result =
-      Handle<JSBoundFunction>::cast(NewJSObjectFromMap(map));
-  result->set_bound_target_function(*target_function);
-  result->set_bound_this(*bound_this);
-  result->set_bound_arguments(*bound_arguments);
-  result->set_creation_context(*isolate()->native_context());
-  result->set_length(Smi::FromInt(0));
-  result->set_name(*undefined_value(), SKIP_WRITE_BARRIER);
-  return result;
 }
 
 
