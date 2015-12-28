@@ -2176,7 +2176,7 @@ void Builtins::Generate_ConstructBoundFunction(MacroAssembler* masm) {
   __ ld(a1, FieldMemOperand(a1, JSBoundFunction::kBoundTargetFunctionOffset));
   __ li(at, Operand(ExternalReference(Builtins::kConstruct, masm->isolate())));
   __ ld(at, MemOperand(at));
-  __ Addu(at, at, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ Daddu(at, at, Operand(Code::kHeaderSize - kHeapObjectTag));
   __ Jump(at);
 }
 
