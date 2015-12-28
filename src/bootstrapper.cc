@@ -1208,8 +1208,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         isolate->initial_object_prototype(), Builtins::kSymbolConstructor);
     symbol_fun->shared()->set_construct_stub(
         *isolate->builtins()->SymbolConstructor_ConstructStub());
-    symbol_fun->shared()->set_internal_formal_parameter_count(1);
     symbol_fun->shared()->set_length(1);
+    symbol_fun->shared()->DontAdaptArguments();
     native_context()->set_symbol_function(*symbol_fun);
   }
 
@@ -2464,7 +2464,7 @@ bool Genesis::InstallNatives(ContextType context_type) {
   {
     Handle<JSFunction> eval = SimpleInstallFunction(
         handle(native_context()->global_object()), factory()->eval_string(),
-        Builtins::kGlobalEval, 1, true);
+        Builtins::kGlobalEval, 1, false);
     native_context()->set_global_eval_fun(*eval);
   }
 

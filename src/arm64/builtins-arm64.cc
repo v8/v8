@@ -47,6 +47,12 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
   // -----------------------------------
   __ AssertFunction(x1);
 
+  // Make sure we operate in the context of the called function (for example
+  // ConstructStubs implemented in C++ will be run in the context of the caller
+  // instead of the callee, due to the way that [[Construct]] is defined for
+  // ordinary functions).
+  __ Ldr(cp, FieldMemOperand(x1, JSFunction::kContextOffset));
+
   // Insert extra arguments.
   int num_extra_args = 0;
   switch (extra_args) {
