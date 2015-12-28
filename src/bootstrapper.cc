@@ -2665,7 +2665,8 @@ bool Genesis::InstallExperimentalNatives() {
   static const char* harmony_sloppy_natives[] = {nullptr};
   static const char* harmony_sloppy_function_natives[] = {nullptr};
   static const char* harmony_sloppy_let_natives[] = {nullptr};
-  static const char* harmony_unicode_regexps_natives[] = {nullptr};
+  static const char* harmony_unicode_regexps_natives[] = {
+      "native harmony-unicode-regexps.js", nullptr};
   static const char* harmony_default_parameters_natives[] = {nullptr};
   static const char* harmony_reflect_natives[] = {"native harmony-reflect.js",
                                                   nullptr};

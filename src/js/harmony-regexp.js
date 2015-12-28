@@ -56,19 +56,7 @@ function RegExpGetSticky() {
 %FunctionSetName(RegExpGetSticky, "RegExp.prototype.sticky");
 %SetNativeFlag(RegExpGetSticky);
 
-
-// ES6 21.2.5.15.
-function RegExpGetUnicode() {
-  if (!IS_REGEXP(this)) {
-    throw MakeTypeError(kRegExpNonRegExp, "RegExp.prototype.unicode");
-  }
-  return !!REGEXP_UNICODE(this);
-}
-%FunctionSetName(RegExpGetUnicode, "RegExp.prototype.unicode");
-%SetNativeFlag(RegExpGetUnicode);
-
 utils.InstallGetter(GlobalRegExp.prototype, 'flags', RegExpGetFlags);
 utils.InstallGetter(GlobalRegExp.prototype, 'sticky', RegExpGetSticky);
-utils.InstallGetter(GlobalRegExp.prototype, 'unicode', RegExpGetUnicode);
 
 })

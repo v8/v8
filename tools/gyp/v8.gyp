@@ -1927,6 +1927,7 @@
           '../../src/js/harmony-object-observe.js',
           '../../src/js/harmony-sharedarraybuffer.js',
           '../../src/js/harmony-simd.js',
+          '../../src/js/harmony-unicode-regexps.js',
           '../../src/js/promise-extra.js',
         ],
         'libraries_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries.bin',
