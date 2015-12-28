@@ -109,7 +109,7 @@ function TestTypedArrayOf(constructor) {
   assertEquals("pass", status);
 
   // Check superficial features of %TypedArray%.of.
-  var desc = Object.getOwnPropertyDescriptor(constructor, "of");
+  var desc = Object.getOwnPropertyDescriptor(constructor.__proto__, "of");
 
   assertEquals(desc.configurable, false);
   assertEquals(desc.enumerable, false);
