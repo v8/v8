@@ -1267,6 +1267,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
           __ sub(esp, Immediate(kDoubleSize));
           __ fst_d(Operand(esp, 0));
         }
+        frame_access_state()->IncreaseSPDelta(kDoubleSize / kPointerSize);
       } else if (instr->InputAt(0)->IsDoubleStackSlot()) {
         auto allocated = AllocatedOperand::cast(*instr->InputAt(0));
         if (allocated.representation() == MachineRepresentation::kFloat32) {
