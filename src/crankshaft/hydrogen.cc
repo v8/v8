@@ -8703,7 +8703,7 @@ bool HOptimizedGraphBuilder::IsReadOnlyLengthDescriptor(
 // static
 bool HOptimizedGraphBuilder::CanInlineArrayResizeOperation(
     Handle<Map> receiver_map) {
-  return !receiver_map.is_null() &&
+  return !receiver_map.is_null() && receiver_map->prototype()->IsJSObject() &&
          receiver_map->instance_type() == JS_ARRAY_TYPE &&
          IsFastElementsKind(receiver_map->elements_kind()) &&
          !receiver_map->is_dictionary_map() && !receiver_map->is_observed() &&
