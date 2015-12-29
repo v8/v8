@@ -1835,6 +1835,7 @@ void MacroAssembler::StoreNumberToDoubleElements(
     Register value_reg, Register key_reg, Register elements_reg,
     Register scratch1, DoubleRegister double_scratch, Label* fail,
     int elements_offset) {
+  DCHECK(!AreAliased(value_reg, key_reg, elements_reg, scratch1));
   Label smi_value, store;
 
   // Handle smi values specially.
@@ -4206,10 +4207,12 @@ void MacroAssembler::JumpIfDictionaryInPrototypeChain(Register object,
 
 #ifdef DEBUG
 bool AreAliased(Register reg1, Register reg2, Register reg3, Register reg4,
-                Register reg5, Register reg6, Register reg7, Register reg8) {
+                Register reg5, Register reg6, Register reg7, Register reg8,
+                Register reg9, Register reg10) {
   int n_of_valid_regs = reg1.is_valid() + reg2.is_valid() + reg3.is_valid() +
                         reg4.is_valid() + reg5.is_valid() + reg6.is_valid() +
-                        reg7.is_valid() + reg8.is_valid();
+                        reg7.is_valid() + reg8.is_valid() + reg9.is_valid() +
+                        reg10.is_valid();
 
   RegList regs = 0;
   if (reg1.is_valid()) regs |= reg1.bit();
@@ -4220,6 +4223,8 @@ bool AreAliased(Register reg1, Register reg2, Register reg3, Register reg4,
   if (reg6.is_valid()) regs |= reg6.bit();
   if (reg7.is_valid()) regs |= reg7.bit();
   if (reg8.is_valid()) regs |= reg8.bit();
+  if (reg9.is_valid()) regs |= reg9.bit();
+  if (reg10.is_valid()) regs |= reg10.bit();
   int n_of_non_aliasing_regs = NumRegs(regs);
 
   return n_of_valid_regs != n_of_non_aliasing_regs;

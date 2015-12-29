@@ -4039,6 +4039,7 @@ void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
                                                  Register scratch2,
                                                  Label* fail,
                                                  int elements_offset) {
+  DCHECK(!AreAliased(value_reg, key_reg, elements_reg, scratch1, scratch2));
   Label smi_value, done;
 
   // Handle smi values specially.
@@ -4060,10 +4061,9 @@ void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
   FPUCanonicalizeNaN(double_result, double_result);
 
   bind(&smi_value);
-  // scratch1 is now effective address of the double element.
   // Untag and transfer.
-  dsrl32(at, value_reg, 0);
-  mtc1(at, double_scratch);
+  dsrl32(scratch1, value_reg, 0);
+  mtc1(scratch1, double_scratch);
   cvt_d_w(double_result, double_scratch);
 
   bind(&done);
@@ -4072,6 +4072,7 @@ void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
               elements_offset));
   dsra(scratch2, key_reg, 32 - kDoubleSizeLog2);
   Daddu(scratch1, scratch1, scratch2);
+  // scratch1 is now effective address of the double element.
   sdc1(double_result, MemOperand(scratch1, 0));
 }
 
@@ -6276,17 +6277,13 @@ void MacroAssembler::JumpIfDictionaryInPrototypeChain(
 }
 
 
-bool AreAliased(Register reg1,
-                Register reg2,
-                Register reg3,
-                Register reg4,
-                Register reg5,
-                Register reg6,
-                Register reg7,
-                Register reg8) {
-  int n_of_valid_regs = reg1.is_valid() + reg2.is_valid() +
-      reg3.is_valid() + reg4.is_valid() + reg5.is_valid() + reg6.is_valid() +
-      reg7.is_valid() + reg8.is_valid();
+bool AreAliased(Register reg1, Register reg2, Register reg3, Register reg4,
+                Register reg5, Register reg6, Register reg7, Register reg8,
+                Register reg9, Register reg10) {
+  int n_of_valid_regs = reg1.is_valid() + reg2.is_valid() + reg3.is_valid() +
+                        reg4.is_valid() + reg5.is_valid() + reg6.is_valid() +
+                        reg7.is_valid() + reg8.is_valid() + reg9.is_valid() +
+                        reg10.is_valid();
 
   RegList regs = 0;
   if (reg1.is_valid()) regs |= reg1.bit();
@@ -6297,6 +6294,8 @@ bool AreAliased(Register reg1,
   if (reg6.is_valid()) regs |= reg6.bit();
   if (reg7.is_valid()) regs |= reg7.bit();
   if (reg8.is_valid()) regs |= reg8.bit();
+  if (reg9.is_valid()) regs |= reg9.bit();
+  if (reg10.is_valid()) regs |= reg10.bit();
   int n_of_non_aliasing_regs = NumRegs(regs);
 
   return n_of_valid_regs != n_of_non_aliasing_regs;

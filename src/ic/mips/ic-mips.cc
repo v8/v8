@@ -477,8 +477,13 @@ static void KeyedStoreGenerateMegamorphicHelper(
 
   // Fast case: Do the store, could be either Object or double.
   __ bind(fast_object);
-  Register scratch_value = t0;
+  Register scratch = t0;
+  Register scratch2 = t4;
+  Register scratch3 = t5;
   Register address = t1;
+  DCHECK(!AreAliased(value, key, receiver, receiver_map, elements_map, elements,
+                     scratch, scratch2, scratch3, address));
+
   if (check_map == kCheckMap) {
     __ lw(elements_map, FieldMemOperand(elements, HeapObject::kMapOffset));
     __ Branch(fast_double, ne, elements_map,
@@ -492,11 +497,10 @@ static void KeyedStoreGenerateMegamorphicHelper(
   __ Addu(address, elements, FixedArray::kHeaderSize - kHeapObjectTag);
   __ sll(at, key, kPointerSizeLog2 - kSmiTagSize);
   __ addu(address, address, at);
-  __ lw(scratch_value, MemOperand(address));
-  __ Branch(&holecheck_passed1, ne, scratch_value,
+  __ lw(scratch, MemOperand(address));
+  __ Branch(&holecheck_passed1, ne, scratch,
             Operand(masm->isolate()->factory()->the_hole_value()));
-  __ JumpIfDictionaryInPrototypeChain(receiver, elements_map, scratch_value,
-                                      slow);
+  __ JumpIfDictionaryInPrototypeChain(receiver, elements_map, scratch, slow);
 
   __ bind(&holecheck_passed1);
 
@@ -506,35 +510,34 @@ static void KeyedStoreGenerateMegamorphicHelper(
 
   if (increment_length == kIncrementLength) {
     // Add 1 to receiver->length.
-    __ Addu(scratch_value, key, Operand(Smi::FromInt(1)));
-    __ sw(scratch_value, FieldMemOperand(receiver, JSArray::kLengthOffset));
+    __ Addu(scratch, key, Operand(Smi::FromInt(1)));
+    __ sw(scratch, FieldMemOperand(receiver, JSArray::kLengthOffset));
   }
   // It's irrelevant whether array is smi-only or not when writing a smi.
   __ Addu(address, elements, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ sll(scratch_value, key, kPointerSizeLog2 - kSmiTagSize);
-  __ Addu(address, address, scratch_value);
+  __ sll(scratch, key, kPointerSizeLog2 - kSmiTagSize);
+  __ Addu(address, address, scratch);
   __ sw(value, MemOperand(address));
   __ Ret();
 
   __ bind(&non_smi_value);
   // Escape to elements kind transition case.
-  __ CheckFastObjectElements(receiver_map, scratch_value,
-                             &transition_smi_elements);
+  __ CheckFastObjectElements(receiver_map, scratch, &transition_smi_elements);
 
   // Fast elements array, store the value to the elements backing store.
   __ bind(&finish_object_store);
   if (increment_length == kIncrementLength) {
     // Add 1 to receiver->length.
-    __ Addu(scratch_value, key, Operand(Smi::FromInt(1)));
-    __ sw(scratch_value, FieldMemOperand(receiver, JSArray::kLengthOffset));
+    __ Addu(scratch, key, Operand(Smi::FromInt(1)));
+    __ sw(scratch, FieldMemOperand(receiver, JSArray::kLengthOffset));
   }
   __ Addu(address, elements, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ sll(scratch_value, key, kPointerSizeLog2 - kSmiTagSize);
-  __ Addu(address, address, scratch_value);
+  __ sll(scratch, key, kPointerSizeLog2 - kSmiTagSize);
+  __ Addu(address, address, scratch);
   __ sw(value, MemOperand(address));
   // Update write barrier for the elements array address.
-  __ mov(scratch_value, value);  // Preserve the value which is returned.
-  __ RecordWrite(elements, address, scratch_value, kRAHasNotBeenSaved,
+  __ mov(scratch, value);  // Preserve the value which is returned.
+  __ RecordWrite(elements, address, scratch, kRAHasNotBeenSaved,
                  kDontSaveFPRegs, EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
   __ Ret();
 
@@ -553,34 +556,31 @@ static void KeyedStoreGenerateMegamorphicHelper(
                                      kHoleNanUpper32Offset - kHeapObjectTag));
   __ sll(at, key, kPointerSizeLog2);
   __ addu(address, address, at);
-  __ lw(scratch_value, MemOperand(address));
-  __ Branch(&fast_double_without_map_check, ne, scratch_value,
+  __ lw(scratch, MemOperand(address));
+  __ Branch(&fast_double_without_map_check, ne, scratch,
             Operand(kHoleNanUpper32));
-  __ JumpIfDictionaryInPrototypeChain(receiver, elements_map, scratch_value,
-                                      slow);
+  __ JumpIfDictionaryInPrototypeChain(receiver, elements_map, scratch, slow);
 
   __ bind(&fast_double_without_map_check);
-  __ StoreNumberToDoubleElements(value, key,
-                                 elements,  // Overwritten.
-                                 a3,        // Scratch regs...
-                                 t0, t1, &transition_double_elements);
+  __ StoreNumberToDoubleElements(value, key, elements, scratch, scratch2,
+                                 scratch3, &transition_double_elements);
   if (increment_length == kIncrementLength) {
     // Add 1 to receiver->length.
-    __ Addu(scratch_value, key, Operand(Smi::FromInt(1)));
-    __ sw(scratch_value, FieldMemOperand(receiver, JSArray::kLengthOffset));
+    __ Addu(scratch, key, Operand(Smi::FromInt(1)));
+    __ sw(scratch, FieldMemOperand(receiver, JSArray::kLengthOffset));
   }
   __ Ret();
 
   __ bind(&transition_smi_elements);
   // Transition the array appropriately depending on the value type.
-  __ lw(t0, FieldMemOperand(value, HeapObject::kMapOffset));
+  __ lw(scratch, FieldMemOperand(value, HeapObject::kMapOffset));
   __ LoadRoot(at, Heap::kHeapNumberMapRootIndex);
-  __ Branch(&non_double_value, ne, t0, Operand(at));
+  __ Branch(&non_double_value, ne, scratch, Operand(at));
 
   // Value is a double. Transition FAST_SMI_ELEMENTS ->
   // FAST_DOUBLE_ELEMENTS and complete the store.
   __ LoadTransitionedArrayMapConditional(
-      FAST_SMI_ELEMENTS, FAST_DOUBLE_ELEMENTS, receiver_map, t0, slow);
+      FAST_SMI_ELEMENTS, FAST_DOUBLE_ELEMENTS, receiver_map, scratch, slow);
   AllocationSiteMode mode =
       AllocationSite::GetMode(FAST_SMI_ELEMENTS, FAST_DOUBLE_ELEMENTS);
   ElementsTransitionGenerator::GenerateSmiToDouble(masm, receiver, key, value,
@@ -591,7 +591,7 @@ static void KeyedStoreGenerateMegamorphicHelper(
   __ bind(&non_double_value);
   // Value is not a double, FAST_SMI_ELEMENTS -> FAST_ELEMENTS
   __ LoadTransitionedArrayMapConditional(FAST_SMI_ELEMENTS, FAST_ELEMENTS,
-                                         receiver_map, t0, slow);
+                                         receiver_map, scratch, slow);
   mode = AllocationSite::GetMode(FAST_SMI_ELEMENTS, FAST_ELEMENTS);
   ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
       masm, receiver, key, value, receiver_map, mode, slow);
@@ -603,7 +603,7 @@ static void KeyedStoreGenerateMegamorphicHelper(
   // HeapNumber. Make sure that the receiver is a Array with FAST_ELEMENTS and
   // transition array from FAST_DOUBLE_ELEMENTS to FAST_ELEMENTS
   __ LoadTransitionedArrayMapConditional(FAST_DOUBLE_ELEMENTS, FAST_ELEMENTS,
-                                         receiver_map, t0, slow);
+                                         receiver_map, scratch, slow);
   mode = AllocationSite::GetMode(FAST_DOUBLE_ELEMENTS, FAST_ELEMENTS);
   ElementsTransitionGenerator::GenerateDoubleToObject(
       masm, receiver, key, value, receiver_map, mode, slow);

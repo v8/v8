@@ -2091,6 +2091,7 @@ void MacroAssembler::StoreNumberToDoubleElements(
                                       LowDwVfpRegister double_scratch,
                                       Label* fail,
                                       int elements_offset) {
+  DCHECK(!AreAliased(value_reg, key_reg, elements_reg, scratch1));
   Label smi_value, store;
 
   // Handle smi values specially.
