@@ -990,6 +990,7 @@
   'regress/regress-crbug-568477-2': [SKIP],
   'regress/regress-crbug-568477-3': [SKIP],
   'regress/regress-crbug-568477-4': [SKIP],
+  'regress/regress-crbug-572590': [SKIP],
   'regress/regress-deopt-gcb': [SKIP],
   'regress/regress-deopt-gc': [SKIP],
   'regress/regress-deopt-in-array-literal-spread': [SKIP],

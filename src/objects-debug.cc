@@ -549,8 +549,10 @@ void SlicedString::SlicedStringVerify() {
 
 void JSBoundFunction::JSBoundFunctionVerify() {
   CHECK(IsJSBoundFunction());
-  VerifyObjectField(kLengthOffset);
-  VerifyObjectField(kNameOffset);
+  if (HasFastProperties()) {
+    VerifyObjectField(kLengthOffset);
+    VerifyObjectField(kNameOffset);
+  }
   VerifyObjectField(kBoundThisOffset);
   VerifyObjectField(kBoundTargetFunctionOffset);
   VerifyObjectField(kBoundArgumentsOffset);
