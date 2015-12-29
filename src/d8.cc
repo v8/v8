@@ -656,9 +656,13 @@ void Shell::Write(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
     // Explicitly catch potential exceptions in toString().
     v8::TryCatch try_catch(args.GetIsolate());
+    Local<Value> arg = args[i];
     Local<String> str_obj;
-    if (!args[i]
-             ->ToString(args.GetIsolate()->GetCurrentContext())
+
+    if (arg->IsSymbol()) {
+      arg = Local<Symbol>::Cast(arg)->Name();
+    }
+    if (!arg->ToString(args.GetIsolate()->GetCurrentContext())
              .ToLocal(&str_obj)) {
       try_catch.ReThrow();
       return;
