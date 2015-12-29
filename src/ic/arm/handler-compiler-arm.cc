@@ -325,7 +325,7 @@ void NamedStoreHandlerCompiler::GenerateSlow(MacroAssembler* masm) {
 
   // The slow case calls into the runtime to complete the store without causing
   // an IC miss that would otherwise cause a transition to the generic stub.
-  __ TailCallRuntime(Runtime::kStoreIC_Slow, 5, 1);
+  __ TailCallRuntime(Runtime::kStoreIC_Slow, 5);
 }
 
 
@@ -334,7 +334,7 @@ void ElementHandlerCompiler::GenerateStoreSlow(MacroAssembler* masm) {
 
   // The slow case calls into the runtime to complete the store without causing
   // an IC miss that would otherwise cause a transition to the generic stub.
-  __ TailCallRuntime(Runtime::kKeyedStoreIC_Slow, 5, 1);
+  __ TailCallRuntime(Runtime::kKeyedStoreIC_Slow, 5);
 }
 
 
@@ -708,7 +708,7 @@ void NamedLoadHandlerCompiler::GenerateLoadInterceptor(Register holder_reg) {
                            holder());
 
   __ TailCallRuntime(Runtime::kLoadPropertyWithInterceptor,
-                     NamedLoadHandlerCompiler::kInterceptorArgsLength, 1);
+                     NamedLoadHandlerCompiler::kInterceptorArgsLength);
 }
 
 
@@ -733,7 +733,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
   __ Push(ip, value());
 
   // Do tail-call to the runtime system.
-  __ TailCallRuntime(Runtime::kStoreCallbackProperty, 5, 1);
+  __ TailCallRuntime(Runtime::kStoreCallbackProperty, 5);
 
   // Return the generated code.
   return GetCode(kind(), Code::FAST, name);
@@ -745,7 +745,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreInterceptor(
   __ Push(receiver(), this->name(), value());
 
   // Do tail-call to the runtime system.
-  __ TailCallRuntime(Runtime::kStorePropertyWithInterceptor, 3, 1);
+  __ TailCallRuntime(Runtime::kStorePropertyWithInterceptor, 3);
 
   // Return the generated code.
   return GetCode(kind(), Code::FAST, name);

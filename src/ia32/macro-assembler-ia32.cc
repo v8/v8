@@ -1901,8 +1901,7 @@ void MacroAssembler::CallExternalReference(ExternalReference ref,
 
 
 void MacroAssembler::TailCallExternalReference(const ExternalReference& ext,
-                                               int num_arguments,
-                                               int result_size) {
+                                               int num_arguments) {
   // TODO(1236192): Most runtime routines don't need the number of
   // arguments passed in because it is constant. At some point we
   // should remove this need and make the runtime routine entry code
@@ -1913,11 +1912,8 @@ void MacroAssembler::TailCallExternalReference(const ExternalReference& ext,
 
 
 void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid,
-                                     int num_arguments,
-                                     int result_size) {
-  TailCallExternalReference(ExternalReference(fid, isolate()),
-                            num_arguments,
-                            result_size);
+                                     int num_arguments) {
+  TailCallExternalReference(ExternalReference(fid, isolate()), num_arguments);
 }
 
 

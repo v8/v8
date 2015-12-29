@@ -189,7 +189,7 @@ void Builtins::Generate_StringConstructor(MacroAssembler* masm) {
   __ Bind(&symbol_descriptive_string);
   {
     __ Push(x0);
-    __ TailCallRuntime(Runtime::kSymbolDescriptiveString, 1, 1);
+    __ TailCallRuntime(Runtime::kSymbolDescriptiveString, 1);
   }
 }
 
@@ -1302,7 +1302,7 @@ void Builtins::Generate_HandleFastApiCall(MacroAssembler* masm) {
   // Drop the arguments (including the receiver)
   __ add(x0, x0, Operand(1));
   __ Drop(x0);
-  __ TailCallRuntime(Runtime::kThrowIllegalInvocation, 0, 1);
+  __ TailCallRuntime(Runtime::kThrowIllegalInvocation, 0);
 }
 
 
@@ -1424,7 +1424,7 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
   __ Bind(&receiver_not_callable);
   {
     __ Poke(x1, 0);
-    __ TailCallRuntime(Runtime::kThrowApplyNonFunction, 1, 1);
+    __ TailCallRuntime(Runtime::kThrowApplyNonFunction, 1);
   }
 }
 
@@ -1531,7 +1531,7 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
   __ Bind(&target_not_callable);
   {
     __ Poke(x1, 0);
-    __ TailCallRuntime(Runtime::kThrowApplyNonFunction, 1, 1);
+    __ TailCallRuntime(Runtime::kThrowApplyNonFunction, 1);
   }
 }
 
@@ -1600,14 +1600,14 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
   __ Bind(&target_not_constructor);
   {
     __ Poke(x1, 0);
-    __ TailCallRuntime(Runtime::kThrowCalledNonCallable, 1, 1);
+    __ TailCallRuntime(Runtime::kThrowCalledNonCallable, 1);
   }
 
   // 4c. The new.target is not a constructor, throw an appropriate TypeError.
   __ Bind(&new_target_not_constructor);
   {
     __ Poke(x3, 0);
-    __ TailCallRuntime(Runtime::kThrowCalledNonCallable, 1, 1);
+    __ TailCallRuntime(Runtime::kThrowCalledNonCallable, 1);
   }
 }
 
@@ -1744,7 +1744,7 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
     // Check if the arguments will overflow the stack.
     __ Cmp(x10, Operand(x2, LSL, kPointerSizeLog2));
     __ B(gt, &done);  // Signed comparison.
-    __ TailCallRuntime(Runtime::kThrowStackOverflow, 1, 1);
+    __ TailCallRuntime(Runtime::kThrowStackOverflow, 1);
     __ Bind(&done);
   }
 

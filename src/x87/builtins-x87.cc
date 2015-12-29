@@ -1072,7 +1072,7 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
   __ bind(&receiver_not_callable);
   {
     __ mov(Operand(esp, kPointerSize), edi);
-    __ TailCallRuntime(Runtime::kThrowApplyNonFunction, 1, 1);
+    __ TailCallRuntime(Runtime::kThrowApplyNonFunction, 1);
   }
 }
 
@@ -1181,7 +1181,7 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
   __ bind(&target_not_callable);
   {
     __ mov(Operand(esp, kPointerSize), edi);
-    __ TailCallRuntime(Runtime::kThrowApplyNonFunction, 1, 1);
+    __ TailCallRuntime(Runtime::kThrowApplyNonFunction, 1);
   }
 }
 
@@ -1251,14 +1251,14 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
   __ bind(&target_not_constructor);
   {
     __ mov(Operand(esp, kPointerSize), edi);
-    __ TailCallRuntime(Runtime::kThrowCalledNonCallable, 1, 1);
+    __ TailCallRuntime(Runtime::kThrowCalledNonCallable, 1);
   }
 
   // 4c. The new.target is not a constructor, throw an appropriate TypeError.
   __ bind(&new_target_not_constructor);
   {
     __ mov(Operand(esp, kPointerSize), edx);
-    __ TailCallRuntime(Runtime::kThrowCalledNonCallable, 1, 1);
+    __ TailCallRuntime(Runtime::kThrowCalledNonCallable, 1);
   }
 }
 
@@ -1377,7 +1377,7 @@ void Builtins::Generate_StringConstructor(MacroAssembler* masm) {
     __ PopReturnAddressTo(ecx);
     __ Push(eax);
     __ PushReturnAddressFrom(ecx);
-    __ TailCallRuntime(Runtime::kSymbolDescriptiveString, 1, 1);
+    __ TailCallRuntime(Runtime::kSymbolDescriptiveString, 1);
   }
 }
 
@@ -1623,7 +1623,7 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
     // Check if the arguments will overflow the stack.
     __ cmp(ecx, ebx);
     __ j(greater, &done, Label::kNear);  // Signed comparison.
-    __ TailCallRuntime(Runtime::kThrowStackOverflow, 1, 1);
+    __ TailCallRuntime(Runtime::kThrowStackOverflow, 1);
     __ bind(&done);
   }
 
@@ -2321,7 +2321,7 @@ void Builtins::Generate_HandleFastApiCall(MacroAssembler* masm) {
   __ PushReturnAddressFrom(ebx);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    __ TailCallRuntime(Runtime::kThrowIllegalInvocation, 0, 1);
+    __ TailCallRuntime(Runtime::kThrowIllegalInvocation, 0);
   }
 }
 

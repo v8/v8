@@ -20,7 +20,7 @@ void PropertyICCompiler::GenerateRuntimeSetProperty(
           StoreDescriptor::ValueRegister(), r0);
 
   // Do tail-call to runtime routine.
-  __ TailCallRuntime(Runtime::kSetProperty, 4, 1);
+  __ TailCallRuntime(Runtime::kSetProperty, 4);
 }
 
 

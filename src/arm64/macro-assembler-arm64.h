@@ -1101,9 +1101,7 @@ class MacroAssembler : public Assembler {
     CallRuntime(function, function->nargs, kSaveFPRegs);
   }
 
-  void TailCallRuntime(Runtime::FunctionId fid,
-                       int num_arguments,
-                       int result_size);
+  void TailCallRuntime(Runtime::FunctionId fid, int num_arguments);
 
   int ActivationFrameAlignment();
 
@@ -1127,8 +1125,7 @@ class MacroAssembler : public Assembler {
   // Like JumpToExternalReference, but also takes care of passing the number
   // of parameters.
   void TailCallExternalReference(const ExternalReference& ext,
-                                 int num_arguments,
-                                 int result_size);
+                                 int num_arguments);
   void CallExternalReference(const ExternalReference& ext,
                              int num_arguments);
 

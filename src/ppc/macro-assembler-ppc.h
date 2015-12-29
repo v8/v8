@@ -949,11 +949,10 @@ class MacroAssembler : public Assembler {
   // Like JumpToExternalReference, but also takes care of passing the number
   // of parameters.
   void TailCallExternalReference(const ExternalReference& ext,
-                                 int num_arguments, int result_size);
+                                 int num_arguments);
 
   // Convenience function: tail call a runtime routine (jump).
-  void TailCallRuntime(Runtime::FunctionId fid, int num_arguments,
-                       int result_size);
+  void TailCallRuntime(Runtime::FunctionId fid, int num_arguments);
 
   int CalculateStackPassedWords(int num_reg_arguments,
                                 int num_double_arguments);

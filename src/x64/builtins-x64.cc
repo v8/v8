@@ -56,7 +56,7 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
   // including the receiver and the extra arguments.
   __ addp(rax, Immediate(num_extra_args + 1));
 
-  __ JumpToExternalReference(ExternalReference(id, masm->isolate()), 1);
+  __ JumpToExternalReference(ExternalReference(id, masm->isolate()));
 }
 
 
@@ -1126,7 +1126,7 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
   {
     StackArgumentsAccessor args(rsp, 0);
     __ movp(args.GetReceiverOperand(), rdi);
-    __ TailCallRuntime(Runtime::kThrowApplyNonFunction, 1, 1);
+    __ TailCallRuntime(Runtime::kThrowApplyNonFunction, 1);
   }
 }
 
@@ -1242,7 +1242,7 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
   {
     StackArgumentsAccessor args(rsp, 0);
     __ movp(args.GetReceiverOperand(), rdi);
-    __ TailCallRuntime(Runtime::kThrowApplyNonFunction, 1, 1);
+    __ TailCallRuntime(Runtime::kThrowApplyNonFunction, 1);
   }
 }
 
@@ -1316,7 +1316,7 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
   {
     StackArgumentsAccessor args(rsp, 0);
     __ movp(args.GetReceiverOperand(), rdi);
-    __ TailCallRuntime(Runtime::kThrowCalledNonCallable, 1, 1);
+    __ TailCallRuntime(Runtime::kThrowCalledNonCallable, 1);
   }
 
   // 4c. The new.target is not a constructor, throw an appropriate TypeError.
@@ -1324,7 +1324,7 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
   {
     StackArgumentsAccessor args(rsp, 0);
     __ movp(args.GetReceiverOperand(), rdx);
-    __ TailCallRuntime(Runtime::kThrowCalledNonCallable, 1, 1);
+    __ TailCallRuntime(Runtime::kThrowCalledNonCallable, 1);
   }
 }
 
@@ -1446,7 +1446,7 @@ void Builtins::Generate_StringConstructor(MacroAssembler* masm) {
     __ PopReturnAddressTo(rcx);
     __ Push(rax);
     __ PushReturnAddressFrom(rcx);
-    __ TailCallRuntime(Runtime::kSymbolDescriptiveString, 1, 1);
+    __ TailCallRuntime(Runtime::kSymbolDescriptiveString, 1);
   }
 }
 
@@ -1824,7 +1824,7 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
     // Check if the arguments will overflow the stack.
     __ cmpp(rcx, rbx);
     __ j(greater, &done, Label::kNear);  // Signed comparison.
-    __ TailCallRuntime(Runtime::kThrowStackOverflow, 1, 1);
+    __ TailCallRuntime(Runtime::kThrowStackOverflow, 1);
     __ bind(&done);
   }
 
@@ -2118,7 +2118,7 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   __ addp(rax, Immediate(2));
   // Tail-call to the runtime.
   __ JumpToExternalReference(
-      ExternalReference(Runtime::kJSProxyCall, masm->isolate()), 1);
+      ExternalReference(Runtime::kJSProxyCall, masm->isolate()));
 
   // 2. Call to something else, which might have a [[Call]] internal method (if
   // not we raise an exception).
@@ -2214,7 +2214,7 @@ void Builtins::Generate_ConstructProxy(MacroAssembler* masm) {
   // Include the pushed new_target, constructor and the receiver.
   __ addp(rax, Immediate(3));
   __ JumpToExternalReference(
-      ExternalReference(Runtime::kJSProxyConstruct, masm->isolate()), 1);
+      ExternalReference(Runtime::kJSProxyConstruct, masm->isolate()));
 }
 
 
@@ -2394,7 +2394,7 @@ void Builtins::Generate_HandleFastApiCall(MacroAssembler* masm) {
   __ PushReturnAddressFrom(rbx);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    __ TailCallRuntime(Runtime::kThrowIllegalInvocation, 0, 1);
+    __ TailCallRuntime(Runtime::kThrowIllegalInvocation, 0);
   }
 }
 

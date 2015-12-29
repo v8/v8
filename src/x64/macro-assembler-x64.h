@@ -1424,16 +1424,13 @@ class MacroAssembler: public Assembler {
   // Like JumpToExternalReference, but also takes care of passing the number
   // of parameters.
   void TailCallExternalReference(const ExternalReference& ext,
-                                 int num_arguments,
-                                 int result_size);
+                                 int num_arguments);
 
   // Convenience function: tail call a runtime routine (jump).
-  void TailCallRuntime(Runtime::FunctionId fid,
-                       int num_arguments,
-                       int result_size);
+  void TailCallRuntime(Runtime::FunctionId fid, int num_arguments);
 
   // Jump to a runtime routine.
-  void JumpToExternalReference(const ExternalReference& ext, int result_size);
+  void JumpToExternalReference(const ExternalReference& ext);
 
   // Before calling a C-function from generated code, align arguments on stack.
   // After aligning the frame, arguments must be stored in rsp[0], rsp[8],
