@@ -349,43 +349,7 @@ function TestErrorSubclassing(error) {
 })();
 
 
-(function TestArraySubclassing() {
-  class A extends Array {
-    constructor(...args) {
-      assertFalse(new.target === undefined);
-      super(...args);
-      this.a = 42;
-      this.d = 4.2;
-      this.o = {foo:153};
-    }
-  }
-
-  var o = new Array(13);
-  assertTrue(o instanceof Object);
-  assertTrue(o instanceof Array);
-  assertEquals("object", typeof o);
-  checkPrototypeChain(o, [Array, Object]);
-  assertEquals(13, o.length);
-
-  var o = new A(10);
-  assertTrue(o instanceof Object);
-  assertTrue(o instanceof Array);
-  assertTrue(o instanceof A);
-  assertEquals("object", typeof o);
-  checkPrototypeChain(o, [A, Array, Object]);
-  assertEquals(10, o.length);
-  assertEquals(42, o.a);
-  assertEquals(4.2, o.d);
-  assertEquals(153, o.o.foo);
-
-  var o1 = new A(7);
-  assertTrue(%HaveSameMap(o, o1));
-})();
-
-
-var TypedArray = Uint8Array.__proto__;
-
-function TestTypedArraySubclassing(array) {
+function TestArraySubclassing(array) {
   class A extends array {
     constructor(...args) {
       assertFalse(new.target === undefined);
@@ -398,19 +362,17 @@ function TestTypedArraySubclassing(array) {
 
   var o = new array(13);
   assertTrue(o instanceof Object);
-  assertTrue(o instanceof TypedArray);
   assertTrue(o instanceof array);
   assertEquals("object", typeof o);
-  checkPrototypeChain(o, [array, TypedArray, Object]);
+  checkPrototypeChain(o, [array, Object]);
   assertEquals(13, o.length);
 
   var o = new A(10);
   assertTrue(o instanceof Object);
-  assertTrue(o instanceof TypedArray);
   assertTrue(o instanceof array);
   assertTrue(o instanceof A);
   assertEquals("object", typeof o);
-  checkPrototypeChain(o, [A, array, TypedArray, Object]);
+  checkPrototypeChain(o, [A, array, Object]);
   assertEquals(10, o.length);
   assertEquals(42, o.a);
   assertEquals(4.2, o.d);
@@ -422,15 +384,16 @@ function TestTypedArraySubclassing(array) {
 
 
 (function() {
-  TestTypedArraySubclassing(Int8Array);
-  TestTypedArraySubclassing(Uint8Array);
-  TestTypedArraySubclassing(Uint8ClampedArray);
-  TestTypedArraySubclassing(Int16Array);
-  TestTypedArraySubclassing(Uint16Array);
-  TestTypedArraySubclassing(Int32Array);
-  TestTypedArraySubclassing(Uint32Array);
-  TestTypedArraySubclassing(Float32Array);
-  TestTypedArraySubclassing(Float64Array);
+  TestArraySubclassing(Array);
+  TestArraySubclassing(Int8Array);
+  TestArraySubclassing(Uint8Array);
+  TestArraySubclassing(Uint8ClampedArray);
+  TestArraySubclassing(Int16Array);
+  TestArraySubclassing(Uint16Array);
+  TestArraySubclassing(Int32Array);
+  TestArraySubclassing(Uint32Array);
+  TestArraySubclassing(Float32Array);
+  TestArraySubclassing(Float64Array);
 })();
 
 
