@@ -224,38 +224,7 @@ function NAMEConstructor(arg1, arg2, arg3) {
   }
 }
 
-function NAME_GetBuffer() {
-  if (!(%_ClassOf(this) === 'NAME')) {
-    throw MakeTypeError(kIncompatibleMethodReceiver, "NAME.buffer", this);
-  }
-  return %TypedArrayGetBuffer(this);
-}
-
-function NAME_GetByteLength() {
-  if (!(%_ClassOf(this) === 'NAME')) {
-    throw MakeTypeError(kIncompatibleMethodReceiver, "NAME.byteLength", this);
-  }
-  return %_ArrayBufferViewGetByteLength(this);
-}
-
-function NAME_GetByteOffset() {
-  if (!(%_ClassOf(this) === 'NAME')) {
-    throw MakeTypeError(kIncompatibleMethodReceiver, "NAME.byteOffset", this);
-  }
-  return %_ArrayBufferViewGetByteOffset(this);
-}
-
-function NAME_GetLength() {
-  if (!(%_ClassOf(this) === 'NAME')) {
-    throw MakeTypeError(kIncompatibleMethodReceiver, "NAME.length", this);
-  }
-  return %_TypedArrayGetLength(this);
-}
-
 function NAMESubArray(begin, end) {
-  if (!(%_ClassOf(this) === 'NAME')) {
-    throw MakeTypeError(kIncompatibleMethodReceiver, "NAME.subarray", this);
-  }
   var beginInt = TO_INTEGER(begin);
   if (!IS_UNDEFINED(end)) {
     var endInt = TO_INTEGER(end);
@@ -290,6 +259,56 @@ function NAMESubArray(begin, end) {
 endmacro
 
 TYPED_ARRAYS(TYPED_ARRAY_CONSTRUCTOR)
+
+function TypedArraySubArray(begin, end) {
+  switch (%_ClassOf(this)) {
+macro TYPED_ARRAY_SUBARRAY_CASE(ARRAY_ID, NAME, ELEMENT_SIZE)
+    case "NAME":
+      return %_Call(NAMESubArray, this, begin, end);
+endmacro
+TYPED_ARRAYS(TYPED_ARRAY_SUBARRAY_CASE)
+  }
+  throw MakeTypeError(kIncompatibleMethodReceiver,
+                      "get TypedArray.prototype.subarray", this);
+}
+%SetForceInlineFlag(TypedArraySubArray);
+
+function TypedArrayGetBuffer() {
+  if (!%_IsTypedArray(this)) {
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        "get TypedArray.prototype.buffer", this);
+  }
+  return %TypedArrayGetBuffer(this);
+}
+%SetForceInlineFlag(TypedArrayGetBuffer);
+
+function TypedArrayGetByteLength() {
+  if (!%_IsTypedArray(this)) {
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        "get TypedArray.prototype.byteLength", this);
+  }
+  return %_ArrayBufferViewGetByteLength(this);
+}
+%SetForceInlineFlag(TypedArrayGetByteLength);
+
+function TypedArrayGetByteOffset() {
+  if (!%_IsTypedArray(this)) {
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        "get TypedArray.prototype.byteOffset", this);
+  }
+  return %_ArrayBufferViewGetByteOffset(this);
+}
+%SetForceInlineFlag(TypedArrayGetByteOffset);
+
+function TypedArrayGetLength() {
+  if (!%_IsTypedArray(this)) {
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        "get TypedArray.prototype.length", this);
+  }
+  return %_TypedArrayGetLength(this);
+}
+%SetForceInlineFlag(TypedArrayGetLength);
+
 
 
 function TypedArraySetFromArrayLike(target, source, sourceLength, offset) {
@@ -719,59 +738,73 @@ function TypedArrayFrom(source, mapfn, thisArg) {
 }
 %FunctionSetLength(TypedArrayFrom, 1);
 
+function TypedArray() {
+  if (IS_UNDEFINED(new.target)) {
+    throw MakeTypeError(kConstructorNonCallable, "TypedArray");
+  }
+  if (new.target === TypedArray) {
+    throw MakeTypeError(kConstructAbstractClass, "TypedArray");
+  }
+}
+
 // -------------------------------------------------------------------
 
-// TODO(littledan): Fix the TypedArray proto chain (bug v8:4085).
+%FunctionSetPrototype(TypedArray, new GlobalObject());
+%AddNamedProperty(TypedArray.prototype,
+                  "constructor", TypedArray, DONT_ENUM);
+utils.InstallFunctions(TypedArray, DONT_ENUM | DONT_DELETE | READ_ONLY, [
+  "from", TypedArrayFrom,
+  "of", TypedArrayOf
+]);
+utils.InstallGetter(TypedArray.prototype, "buffer", TypedArrayGetBuffer);
+utils.InstallGetter(TypedArray.prototype, "byteOffset", TypedArrayGetByteOffset,
+                    DONT_ENUM | DONT_DELETE);
+utils.InstallGetter(TypedArray.prototype, "byteLength",
+                    TypedArrayGetByteLength, DONT_ENUM | DONT_DELETE);
+utils.InstallGetter(TypedArray.prototype, "length", TypedArrayGetLength,
+                    DONT_ENUM | DONT_DELETE);
+utils.InstallGetter(TypedArray.prototype, toStringTagSymbol,
+                    TypedArrayGetToStringTag);
+utils.InstallFunctions(TypedArray.prototype, DONT_ENUM, [
+  "subarray", TypedArraySubArray,
+  "set", TypedArraySet,
+  "copyWithin", TypedArrayCopyWithin,
+  "every", TypedArrayEvery,
+  "fill", TypedArrayFill,
+  "filter", TypedArrayFilter,
+  "find", TypedArrayFind,
+  "findIndex", TypedArrayFindIndex,
+  "includes", TypedArrayIncludes,
+  "indexOf", TypedArrayIndexOf,
+  "join", TypedArrayJoin,
+  "lastIndexOf", TypedArrayLastIndexOf,
+  "forEach", TypedArrayForEach,
+  "map", TypedArrayMap,
+  "reduce", TypedArrayReduce,
+  "reduceRight", TypedArrayReduceRight,
+  "reverse", TypedArrayReverse,
+  "slice", TypedArraySlice,
+  "some", TypedArraySome,
+  "sort", TypedArraySort,
+  "toString", TypedArrayToString,
+  "toLocaleString", TypedArrayToLocaleString
+]);
+
+
 macro SETUP_TYPED_ARRAY(ARRAY_ID, NAME, ELEMENT_SIZE)
   %SetCode(GlobalNAME, NAMEConstructor);
   %FunctionSetPrototype(GlobalNAME, new GlobalObject());
+  %InternalSetPrototype(GlobalNAME, TypedArray);
+  %InternalSetPrototype(GlobalNAME.prototype, TypedArray.prototype);
 
   %AddNamedProperty(GlobalNAME, "BYTES_PER_ELEMENT", ELEMENT_SIZE,
                     READ_ONLY | DONT_ENUM | DONT_DELETE);
-
-  utils.InstallFunctions(GlobalNAME, DONT_ENUM | DONT_DELETE | READ_ONLY, [
-    "from", TypedArrayFrom,
-    "of", TypedArrayOf
-  ]);
 
   %AddNamedProperty(GlobalNAME.prototype,
                     "constructor", global.NAME, DONT_ENUM);
   %AddNamedProperty(GlobalNAME.prototype,
                     "BYTES_PER_ELEMENT", ELEMENT_SIZE,
                     READ_ONLY | DONT_ENUM | DONT_DELETE);
-  utils.InstallGetter(GlobalNAME.prototype, "buffer", NAME_GetBuffer);
-  utils.InstallGetter(GlobalNAME.prototype, "byteOffset", NAME_GetByteOffset,
-                      DONT_ENUM | DONT_DELETE);
-  utils.InstallGetter(GlobalNAME.prototype, "byteLength", NAME_GetByteLength,
-                      DONT_ENUM | DONT_DELETE);
-  utils.InstallGetter(GlobalNAME.prototype, "length", NAME_GetLength,
-                      DONT_ENUM | DONT_DELETE);
-  utils.InstallGetter(GlobalNAME.prototype, toStringTagSymbol,
-                      TypedArrayGetToStringTag);
-  utils.InstallFunctions(GlobalNAME.prototype, DONT_ENUM, [
-    "subarray", NAMESubArray,
-    "set", TypedArraySet,
-    "copyWithin", TypedArrayCopyWithin,
-    "every", TypedArrayEvery,
-    "fill", TypedArrayFill,
-    "filter", TypedArrayFilter,
-    "find", TypedArrayFind,
-    "findIndex", TypedArrayFindIndex,
-    "includes", TypedArrayIncludes,
-    "indexOf", TypedArrayIndexOf,
-    "join", TypedArrayJoin,
-    "lastIndexOf", TypedArrayLastIndexOf,
-    "forEach", TypedArrayForEach,
-    "map", TypedArrayMap,
-    "reduce", TypedArrayReduce,
-    "reduceRight", TypedArrayReduceRight,
-    "reverse", TypedArrayReverse,
-    "slice", TypedArraySlice,
-    "some", TypedArraySome,
-    "sort", TypedArraySort,
-    "toString", TypedArrayToString,
-    "toLocaleString", TypedArrayToLocaleString
-  ]);
 endmacro
 
 TYPED_ARRAYS(SETUP_TYPED_ARRAY)
