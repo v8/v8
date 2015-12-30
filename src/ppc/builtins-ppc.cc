@@ -1933,6 +1933,116 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
 }
 
 
+namespace {
+
+void Generate_PushBoundArguments(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- r3 : the number of arguments (not including the receiver)
+  //  -- r4 : target (checked to be a JSBoundFunction)
+  //  -- r6 : new.target (only in case of [[Construct]])
+  // -----------------------------------
+
+  // Load [[BoundArguments]] into r5 and length of that into r7.
+  Label no_bound_arguments;
+  __ LoadP(r5, FieldMemOperand(r4, JSBoundFunction::kBoundArgumentsOffset));
+  __ LoadP(r7, FieldMemOperand(r5, FixedArray::kLengthOffset));
+  __ SmiUntag(r7, SetRC);
+  __ beq(&no_bound_arguments, cr0);
+  {
+    // ----------- S t a t e -------------
+    //  -- r3 : the number of arguments (not including the receiver)
+    //  -- r4 : target (checked to be a JSBoundFunction)
+    //  -- r5 : the [[BoundArguments]] (implemented as FixedArray)
+    //  -- r6 : new.target (only in case of [[Construct]])
+    //  -- r7 : the number of [[BoundArguments]]
+    // -----------------------------------
+
+    // Reserve stack space for the [[BoundArguments]].
+    {
+      Label done;
+      __ mr(r9, sp);  // preserve previous stack pointer
+      __ ShiftLeftImm(r10, r7, Operand(kPointerSizeLog2));
+      __ sub(sp, sp, r10);
+      // Check the stack for overflow. We are not trying to catch interruptions
+      // (i.e. debug break and preemption) here, so check the "real stack
+      // limit".
+      __ CompareRoot(sp, Heap::kRealStackLimitRootIndex);
+      __ bgt(&done);  // Signed comparison.
+      // Restore the stack pointer.
+      __ mr(sp, r9);
+      {
+        FrameScope scope(masm, StackFrame::MANUAL);
+        __ EnterFrame(StackFrame::INTERNAL);
+        __ CallRuntime(Runtime::kThrowStackOverflow, 0);
+      }
+      __ bind(&done);
+    }
+
+    // Relocate arguments down the stack.
+    //  -- r3 : the number of arguments (not including the receiver)
+    //  -- r9 : the previous stack pointer
+    //  -- r10: the size of the [[BoundArguments]]
+    {
+      Label skip, loop;
+      __ li(r8, Operand::Zero());
+      __ cmpi(r3, Operand::Zero());
+      __ beq(&skip);
+      __ mtctr(r3);
+      __ bind(&loop);
+      __ LoadPX(r0, MemOperand(r9, r8));
+      __ StorePX(r0, MemOperand(sp, r8));
+      __ addi(r8, r8, Operand(kPointerSize));
+      __ bdnz(&loop);
+      __ bind(&skip);
+    }
+
+    // Copy [[BoundArguments]] to the stack (below the arguments).
+    {
+      Label loop;
+      __ addi(r5, r5, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+      __ add(r5, r5, r10);
+      __ mtctr(r7);
+      __ bind(&loop);
+      __ LoadPU(r0, MemOperand(r5, -kPointerSize));
+      __ StorePX(r0, MemOperand(sp, r8));
+      __ addi(r8, r8, Operand(kPointerSize));
+      __ bdnz(&loop);
+      __ add(r3, r3, r7);
+    }
+  }
+  __ bind(&no_bound_arguments);
+}
+
+}  // namespace
+
+
+// static
+void Builtins::Generate_CallBoundFunction(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- r3 : the number of arguments (not including the receiver)
+  //  -- r4 : the function to call (checked to be a JSBoundFunction)
+  // -----------------------------------
+  __ AssertBoundFunction(r4);
+
+  // Patch the receiver to [[BoundThis]].
+  __ LoadP(ip, FieldMemOperand(r4, JSBoundFunction::kBoundThisOffset));
+  __ ShiftLeftImm(r0, r3, Operand(kPointerSizeLog2));
+  __ StorePX(ip, MemOperand(sp, r0));
+
+  // Push the [[BoundArguments]] onto the stack.
+  Generate_PushBoundArguments(masm);
+
+  // Call the [[BoundTargetFunction]] via the Call builtin.
+  __ LoadP(r4,
+           FieldMemOperand(r4, JSBoundFunction::kBoundTargetFunctionOffset));
+  __ mov(ip, Operand(ExternalReference(Builtins::kCall_ReceiverIsAny,
+                                       masm->isolate())));
+  __ LoadP(ip, MemOperand(ip));
+  __ addi(ip, ip, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ JumpToJSEntry(ip);
+}
+
+
 // static
 void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   // ----------- S t a t e -------------
@@ -1945,6 +2055,9 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   __ bind(&non_smi);
   __ CompareObjectType(r4, r7, r8, JS_FUNCTION_TYPE);
   __ Jump(masm->isolate()->builtins()->CallFunction(mode),
+          RelocInfo::CODE_TARGET, eq);
+  __ cmpi(r8, Operand(JS_BOUND_FUNCTION_TYPE));
+  __ Jump(masm->isolate()->builtins()->CallBoundFunction(),
           RelocInfo::CODE_TARGET, eq);
   __ cmpi(r8, Operand(JS_PROXY_TYPE));
   __ bne(&non_function);
@@ -2007,6 +2120,36 @@ void Builtins::Generate_ConstructFunction(MacroAssembler* masm) {
 
 
 // static
+void Builtins::Generate_ConstructBoundFunction(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- r3 : the number of arguments (not including the receiver)
+  //  -- r4 : the function to call (checked to be a JSBoundFunction)
+  //  -- r6 : the new target (checked to be a constructor)
+  // -----------------------------------
+  __ AssertBoundFunction(r4);
+
+  // Push the [[BoundArguments]] onto the stack.
+  Generate_PushBoundArguments(masm);
+
+  // Patch new.target to [[BoundTargetFunction]] if new.target equals target.
+  Label skip;
+  __ cmp(r4, r6);
+  __ bne(&skip);
+  __ LoadP(r6,
+           FieldMemOperand(r4, JSBoundFunction::kBoundTargetFunctionOffset));
+  __ bind(&skip);
+
+  // Construct the [[BoundTargetFunction]] via the Construct builtin.
+  __ LoadP(r4,
+           FieldMemOperand(r4, JSBoundFunction::kBoundTargetFunctionOffset));
+  __ mov(ip, Operand(ExternalReference(Builtins::kConstruct, masm->isolate())));
+  __ LoadP(ip, MemOperand(ip));
+  __ addi(ip, ip, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ JumpToJSEntry(ip);
+}
+
+
+// static
 void Builtins::Generate_ConstructProxy(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r3 : the number of arguments (not including the receiver)
@@ -2047,6 +2190,12 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   __ lbz(r5, FieldMemOperand(r7, Map::kBitFieldOffset));
   __ TestBit(r5, Map::kIsConstructor, r0);
   __ beq(&non_constructor, cr0);
+
+  // Only dispatch to bound functions after checking whether they are
+  // constructors.
+  __ cmpi(r8, Operand(JS_BOUND_FUNCTION_TYPE));
+  __ Jump(masm->isolate()->builtins()->ConstructBoundFunction(),
+          RelocInfo::CODE_TARGET, eq);
 
   // Only dispatch to proxies after checking whether they are constructors.
   __ cmpi(r8, Operand(JS_PROXY_TYPE));

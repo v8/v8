@@ -2645,6 +2645,19 @@ void MacroAssembler::AssertFunction(Register object) {
 }
 
 
+void MacroAssembler::AssertBoundFunction(Register object) {
+  if (emit_debug_code()) {
+    STATIC_ASSERT(kSmiTag == 0);
+    TestIfSmi(object, r0);
+    Check(ne, kOperandIsASmiAndNotABoundFunction, cr0);
+    push(object);
+    CompareObjectType(object, object, object, JS_BOUND_FUNCTION_TYPE);
+    pop(object);
+    Check(eq, kOperandIsNotABoundFunction);
+  }
+}
+
+
 void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
                                                      Register scratch) {
   if (emit_debug_code()) {
