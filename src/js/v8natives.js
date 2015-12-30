@@ -793,18 +793,6 @@ function ObjectGetOwnPropertyNames(obj) {
 }
 
 
-// ES5 section 15.2.3.5.
-function ObjectCreate(proto, properties) {
-  if (!IS_RECEIVER(proto) && proto !== null) {
-    throw MakeTypeError(kProtoObjectOrNull, proto);
-  }
-  var obj = {};
-  %InternalSetPrototype(obj, proto);
-  if (!IS_UNDEFINED(properties)) ObjectDefineProperties(obj, properties);
-  return obj;
-}
-
-
 // ES5 section 15.2.3.6.
 function ObjectDefineProperty(obj, p, attributes) {
   // The new pure-C++ implementation doesn't support O.o.
@@ -947,7 +935,6 @@ utils.InstallGetterSetter(GlobalObject.prototype, "__proto__", ObjectGetProto,
 utils.InstallFunctions(GlobalObject, DONT_ENUM, [
   // assign is added in bootstrapper.cc.
   "keys", ObjectKeys,
-  "create", ObjectCreate,
   "defineProperty", ObjectDefineProperty,
   "defineProperties", ObjectDefineProperties,
   "freeze", ObjectFreezeJS,

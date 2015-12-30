@@ -1415,7 +1415,10 @@ RUNTIME_FUNCTION(Runtime_ObjectDefineProperties) {
   DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(Object, o, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, properties, 1);
-  return JSReceiver::DefineProperties(isolate, o, properties);
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, o, JSReceiver::DefineProperties(isolate, o, properties));
+  return *o;
 }
+
 }  // namespace internal
 }  // namespace v8

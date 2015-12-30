@@ -1489,6 +1489,39 @@ BUILTIN(ObjectAssign) {
 }
 
 
+// ES6 section 19.1.2.2 Object.create ( O [ , Properties ] )
+BUILTIN(ObjectCreate) {
+  HandleScope scope(isolate);
+  Handle<Object> prototype = args.atOrUndefined(isolate, 1);
+  if (!prototype->IsNull() && !prototype->IsJSReceiver()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kProtoObjectOrNull, prototype));
+  }
+
+  // Generate the map with the specified {prototype} based on the Object
+  // function's initial map from the current native context.
+  // TODO(bmeurer): Use a dedicated cache for Object.create; think about
+  // slack tracking for Object.create.
+  Handle<Map> map(isolate->native_context()->object_function()->initial_map(),
+                  isolate);
+  if (map->prototype() != *prototype) {
+    map = Map::TransitionToPrototype(map, prototype, FAST_PROTOTYPE);
+  }
+
+  // Actually allocate the object.
+  Handle<JSObject> object = isolate->factory()->NewJSObjectFromMap(map);
+
+  // Define the properties if properties was specified and is not undefined.
+  Handle<Object> properties = args.atOrUndefined(isolate, 2);
+  if (!properties->IsUndefined()) {
+    RETURN_FAILURE_ON_EXCEPTION(
+        isolate, JSReceiver::DefineProperties(isolate, object, properties));
+  }
+
+  return *object;
+}
+
+
 namespace {
 
 bool CodeGenerationFromStringsAllowed(Isolate* isolate,

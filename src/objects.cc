@@ -6285,28 +6285,31 @@ Object* JSReceiver::DefineProperty(Isolate* isolate, Handle<Object> object,
 
 // ES6 19.1.2.3.1
 // static
-Object* JSReceiver::DefineProperties(Isolate* isolate, Handle<Object> object,
-                                     Handle<Object> properties) {
+MaybeHandle<Object> JSReceiver::DefineProperties(Isolate* isolate,
+                                                 Handle<Object> object,
+                                                 Handle<Object> properties) {
   // 1. If Type(O) is not Object, throw a TypeError exception.
   if (!object->IsJSReceiver()) {
     Handle<String> fun_name =
         isolate->factory()->InternalizeUtf8String("Object.defineProperties");
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kCalledOnNonObject, fun_name));
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError(MessageTemplate::kCalledOnNonObject, fun_name),
+                    Object);
   }
   // 2. Let props be ToObject(Properties).
   // 3. ReturnIfAbrupt(props).
   Handle<JSReceiver> props;
   if (!Object::ToObject(isolate, properties).ToHandle(&props)) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kUndefinedOrNullToObject));
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError(MessageTemplate::kUndefinedOrNullToObject),
+                    Object);
   }
   // 4. Let keys be props.[[OwnPropertyKeys]]().
   // 5. ReturnIfAbrupt(keys).
   Handle<FixedArray> keys;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, keys,
-      JSReceiver::GetKeys(props, JSReceiver::OWN_ONLY, ALL_PROPERTIES));
+      JSReceiver::GetKeys(props, JSReceiver::OWN_ONLY, ALL_PROPERTIES), Object);
   // 6. Let descriptors be an empty List.
   int capacity = keys->length();
   std::vector<PropertyDescriptor> descriptors(capacity);
@@ -6321,7 +6324,7 @@ Object* JSReceiver::DefineProperties(Isolate* isolate, Handle<Object> object,
         isolate, props, next_key, &success, LookupIterator::HIDDEN);
     DCHECK(success);
     Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
-    if (!maybe.IsJust()) return isolate->heap()->exception();
+    if (!maybe.IsJust()) return MaybeHandle<Object>();
     PropertyAttributes attrs = maybe.FromJust();
     // 7c. If propDesc is not undefined and propDesc.[[Enumerable]] is true:
     if (attrs == ABSENT) continue;
@@ -6329,13 +6332,13 @@ Object* JSReceiver::DefineProperties(Isolate* isolate, Handle<Object> object,
     // 7c i. Let descObj be Get(props, nextKey).
     // 7c ii. ReturnIfAbrupt(descObj).
     Handle<Object> desc_obj;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, desc_obj,
-                                       Object::GetProperty(&it));
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, desc_obj, Object::GetProperty(&it),
+                               Object);
     // 7c iii. Let desc be ToPropertyDescriptor(descObj).
     success = PropertyDescriptor::ToPropertyDescriptor(
         isolate, desc_obj, &descriptors[descriptors_index]);
     // 7c iv. ReturnIfAbrupt(desc).
-    if (!success) return isolate->heap()->exception();
+    if (!success) return MaybeHandle<Object>();
     // 7c v. Append the pair (a two element List) consisting of nextKey and
     //       desc to the end of descriptors.
     descriptors[descriptors_index].set_name(next_key);
@@ -6351,11 +6354,11 @@ Object* JSReceiver::DefineProperties(Isolate* isolate, Handle<Object> object,
         DefineOwnProperty(isolate, Handle<JSReceiver>::cast(object),
                           desc->name(), desc, THROW_ON_ERROR);
     // 8d. ReturnIfAbrupt(status).
-    MAYBE_RETURN(status, isolate->heap()->exception());
+    if (!status.IsJust()) return MaybeHandle<Object>();
     CHECK(status.FromJust());
   }
   // 9. Return o.
-  return *object;
+  return object;
 }
 
 

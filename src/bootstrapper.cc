@@ -1079,9 +1079,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   Handle<String> object_name = factory->Object_string();
   JSObject::AddProperty(
       global_object, object_name, isolate->object_function(), DONT_ENUM);
-  SimpleInstallFunction(isolate->object_function(),
-                        isolate->factory()->InternalizeUtf8String("assign"),
+  SimpleInstallFunction(isolate->object_function(), factory->assign_string(),
                         Builtins::kObjectAssign, 2, false);
+  SimpleInstallFunction(isolate->object_function(), factory->create_string(),
+                        Builtins::kObjectCreate, 2, false);
 
   Handle<JSObject> global(native_context()->global_object());
 

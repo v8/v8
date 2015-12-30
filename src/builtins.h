@@ -76,6 +76,7 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(GlobalEval, kTarget)                               \
                                                        \
   V(ObjectAssign, kNone)                               \
+  V(ObjectCreate, kNone)                               \
   V(ObjectProtoToString, kNone)                        \
                                                        \
   V(ProxyConstructor, kNone)                           \
