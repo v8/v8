@@ -1241,6 +1241,30 @@ void InstructionSelector::VisitInt32SubWithOverflow(Node* node) {
 }
 
 
+#if V8_TARGET_ARCH_PPC64
+void InstructionSelector::VisitInt64AddWithOverflow(Node* node) {
+  if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
+    FlagsContinuation cont(kOverflow, ovf);
+    return VisitBinop<Int64BinopMatcher>(this, node, kPPC_Add, kInt16Imm,
+                                         &cont);
+  }
+  FlagsContinuation cont;
+  VisitBinop<Int64BinopMatcher>(this, node, kPPC_Add, kInt16Imm, &cont);
+}
+
+
+void InstructionSelector::VisitInt64SubWithOverflow(Node* node) {
+  if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
+    FlagsContinuation cont(kOverflow, ovf);
+    return VisitBinop<Int64BinopMatcher>(this, node, kPPC_Sub, kInt16Imm_Negate,
+                                         &cont);
+  }
+  FlagsContinuation cont;
+  VisitBinop<Int64BinopMatcher>(this, node, kPPC_Sub, kInt16Imm_Negate, &cont);
+}
+#endif
+
+
 static bool CompareLogical(FlagsContinuation* cont) {
   switch (cont->condition()) {
     case kUnsignedLessThan:
@@ -1423,6 +1447,16 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
                 return VisitBinop<Int32BinopMatcher>(selector, node,
                                                      kPPC_SubWithOverflow32,
                                                      kInt16Imm_Negate, cont);
+#if V8_TARGET_ARCH_PPC64
+              case IrOpcode::kInt64AddWithOverflow:
+                cont->OverwriteAndNegateIfEqual(kOverflow);
+                return VisitBinop<Int64BinopMatcher>(selector, node, kPPC_Add,
+                                                     kInt16Imm, cont);
+              case IrOpcode::kInt64SubWithOverflow:
+                cont->OverwriteAndNegateIfEqual(kOverflow);
+                return VisitBinop<Int64BinopMatcher>(selector, node, kPPC_Sub,
+                                                     kInt16Imm_Negate, cont);
+#endif
               default:
                 break;
             }
