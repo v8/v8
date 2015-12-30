@@ -498,10 +498,9 @@ static void KeyedStoreGenerateMegamorphicHelper(
   // Fast case: Do the store, could be either Object or double.
   __ bind(fast_object);
   Register scratch = r7;
-  Register scratch2 = r0;
   Register address = r8;
   DCHECK(!AreAliased(value, key, receiver, receiver_map, elements_map, elements,
-                     scratch, scratch2, address));
+                     scratch, address));
 
   if (check_map == kCheckMap) {
     __ LoadP(elements_map, FieldMemOperand(elements, HeapObject::kMapOffset));
@@ -517,8 +516,7 @@ static void KeyedStoreGenerateMegamorphicHelper(
   __ addi(address, elements, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   __ SmiToPtrArrayOffset(scratch, key);
   __ LoadPX(scratch, MemOperand(address, scratch));
-  __ Cmpi(scratch, Operand(masm->isolate()->factory()->the_hole_value()),
-          scratch2);
+  __ Cmpi(scratch, Operand(masm->isolate()->factory()->the_hole_value()), r0);
   __ bne(&holecheck_passed1);
   __ JumpIfDictionaryInPrototypeChain(receiver, elements_map, scratch, slow);
 
@@ -530,9 +528,8 @@ static void KeyedStoreGenerateMegamorphicHelper(
 
   if (increment_length == kIncrementLength) {
     // Add 1 to receiver->length.
-    __ AddSmiLiteral(scratch, key, Smi::FromInt(1), scratch2);
-    __ StoreP(scratch, FieldMemOperand(receiver, JSArray::kLengthOffset),
-              scratch2);
+    __ AddSmiLiteral(scratch, key, Smi::FromInt(1), r0);
+    __ StoreP(scratch, FieldMemOperand(receiver, JSArray::kLengthOffset), r0);
   }
   // It's irrelevant whether array is smi-only or not when writing a smi.
   __ addi(address, elements, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
@@ -548,9 +545,8 @@ static void KeyedStoreGenerateMegamorphicHelper(
   __ bind(&finish_object_store);
   if (increment_length == kIncrementLength) {
     // Add 1 to receiver->length.
-    __ AddSmiLiteral(scratch, key, Smi::FromInt(1), scratch2);
-    __ StoreP(scratch, FieldMemOperand(receiver, JSArray::kLengthOffset),
-              scratch2);
+    __ AddSmiLiteral(scratch, key, Smi::FromInt(1), r0);
+    __ StoreP(scratch, FieldMemOperand(receiver, JSArray::kLengthOffset), r0);
   }
   __ addi(address, elements, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   __ SmiToPtrArrayOffset(scratch, key);
@@ -577,7 +573,7 @@ static void KeyedStoreGenerateMegamorphicHelper(
                    kHeapObjectTag)));
   __ SmiToDoubleArrayOffset(scratch, key);
   __ lwzx(scratch, MemOperand(address, scratch));
-  __ Cmpi(scratch, Operand(kHoleNanUpper32), scratch2);
+  __ Cmpi(scratch, Operand(kHoleNanUpper32), r0);
   __ bne(&fast_double_without_map_check);
   __ JumpIfDictionaryInPrototypeChain(receiver, elements_map, scratch, slow);
 
@@ -586,16 +582,15 @@ static void KeyedStoreGenerateMegamorphicHelper(
                                  &transition_double_elements);
   if (increment_length == kIncrementLength) {
     // Add 1 to receiver->length.
-    __ AddSmiLiteral(scratch, key, Smi::FromInt(1), scratch2);
-    __ StoreP(scratch, FieldMemOperand(receiver, JSArray::kLengthOffset),
-              scratch2);
+    __ AddSmiLiteral(scratch, key, Smi::FromInt(1), r0);
+    __ StoreP(scratch, FieldMemOperand(receiver, JSArray::kLengthOffset), r0);
   }
   __ Ret();
 
   __ bind(&transition_smi_elements);
   // Transition the array appropriately depending on the value type.
-  __ LoadP(r7, FieldMemOperand(value, HeapObject::kMapOffset));
-  __ CompareRoot(r7, Heap::kHeapNumberMapRootIndex);
+  __ LoadP(scratch, FieldMemOperand(value, HeapObject::kMapOffset));
+  __ CompareRoot(scratch, Heap::kHeapNumberMapRootIndex);
   __ bne(&non_double_value);
 
   // Value is a double. Transition FAST_SMI_ELEMENTS ->
