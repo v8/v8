@@ -423,8 +423,6 @@
   'built-ins/Promise/all/same-reject-function': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4633
-  'built-ins/Promise/executor-function-length': [FAIL],
-  'built-ins/Promise/resolve/context-non-object-with-promise': [FAIL],
   'built-ins/Promise/resolve/resolve-from-promise-capability': [FAIL],
   'built-ins/Promise/resolve/capability-executor-not-callable': [FAIL],
   'built-ins/Promise/reject/capability-executor-not-callable': [FAIL],
