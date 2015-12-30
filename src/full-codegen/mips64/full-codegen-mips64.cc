@@ -151,7 +151,7 @@ void FullCodeGenerator::Generate() {
         __ Dsubu(t1, sp, Operand(locals_count * kPointerSize));
         __ LoadRoot(a2, Heap::kRealStackLimitRootIndex);
         __ Branch(&ok, hs, t1, Operand(a2));
-        __ CallRuntime(Runtime::kThrowStackOverflow, 0);
+        __ CallRuntime(Runtime::kThrowStackOverflow);
         __ bind(&ok);
       }
       __ LoadRoot(t1, Heap::kUndefinedValueRootIndex);
@@ -190,7 +190,7 @@ void FullCodeGenerator::Generate() {
     if (info->scope()->is_script_scope()) {
       __ push(a1);
       __ Push(info->scope()->GetScopeInfo(info->isolate()));
-      __ CallRuntime(Runtime::kNewScriptContext, 2);
+      __ CallRuntime(Runtime::kNewScriptContext);
       PrepareForBailoutForId(BailoutId::ScriptContext(), TOS_REG);
       // The new target value is not used, clobbering is safe.
       DCHECK_NULL(info->scope()->new_target_var());
@@ -205,7 +205,7 @@ void FullCodeGenerator::Generate() {
         need_write_barrier = false;
       } else {
         __ push(a1);
-        __ CallRuntime(Runtime::kNewFunctionContext, 1);
+        __ CallRuntime(Runtime::kNewFunctionContext);
       }
       if (info->scope()->new_target_var() != nullptr) {
         __ pop(a3);  // Restore new target.
@@ -320,7 +320,7 @@ void FullCodeGenerator::Generate() {
   }
 
   if (FLAG_trace) {
-    __ CallRuntime(Runtime::kTraceEnter, 0);
+    __ CallRuntime(Runtime::kTraceEnter);
   }
 
   // Visit the declarations and body unless there is an illegal
@@ -440,7 +440,7 @@ void FullCodeGenerator::EmitReturnSequence() {
       // Push the return value on the stack as the parameter.
       // Runtime::TraceExit returns its parameter in v0.
       __ push(v0);
-      __ CallRuntime(Runtime::kTraceExit, 1);
+      __ CallRuntime(Runtime::kTraceExit);
     }
     // Pretend that the exit is a backwards jump to the entry.
     int weight = 1;
@@ -850,7 +850,7 @@ void FullCodeGenerator::VisitVariableDeclaration(
       }
       __ Push(a2, a0);
       __ Push(Smi::FromInt(variable->DeclarationPropertyAttributes()));
-      __ CallRuntime(Runtime::kDeclareLookupSlot, 3);
+      __ CallRuntime(Runtime::kDeclareLookupSlot);
       break;
     }
   }
@@ -907,7 +907,7 @@ void FullCodeGenerator::VisitFunctionDeclaration(
       // Push initial value for function declaration.
       VisitForStackValue(declaration->fun());
       __ Push(Smi::FromInt(variable->DeclarationPropertyAttributes()));
-      __ CallRuntime(Runtime::kDeclareLookupSlot, 3);
+      __ CallRuntime(Runtime::kDeclareLookupSlot);
       break;
     }
   }
@@ -919,7 +919,7 @@ void FullCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
   __ li(a1, Operand(pairs));
   __ li(a0, Operand(Smi::FromInt(DeclareGlobalsFlags())));
   __ Push(a1, a0);
-  __ CallRuntime(Runtime::kDeclareGlobals, 2);
+  __ CallRuntime(Runtime::kDeclareGlobals);
   // Return value is ignored.
 }
 
@@ -927,7 +927,7 @@ void FullCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
 void FullCodeGenerator::DeclareModules(Handle<FixedArray> descriptions) {
   // Call the runtime to declare the modules.
   __ Push(descriptions);
-  __ CallRuntime(Runtime::kDeclareModules, 1);
+  __ CallRuntime(Runtime::kDeclareModules);
   // Return value is ignored.
 }
 
@@ -1080,7 +1080,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // Get the set of properties to enumerate.
   __ bind(&call_runtime);
   __ push(a0);  // Duplicate the enumerable object on the stack.
-  __ CallRuntime(Runtime::kGetPropertyNamesFast, 1);
+  __ CallRuntime(Runtime::kGetPropertyNamesFast);
   PrepareForBailoutForId(stmt->EnumId(), TOS_REG);
 
   // If we got a map from the runtime call, we can do a fast
@@ -1157,7 +1157,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // any more. If the property has been removed while iterating, we
   // just skip it.
   __ Push(a1, a3);  // Enumerable and current entry.
-  __ CallRuntime(Runtime::kForInFilter, 2);
+  __ CallRuntime(Runtime::kForInFilter);
   PrepareForBailoutForId(stmt->FilterId(), TOS_REG);
   __ mov(a3, result_register());
   __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
@@ -1217,8 +1217,8 @@ void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info,
     __ CallStub(&stub);
   } else {
     __ Push(info);
-    __ CallRuntime(
-        pretenure ? Runtime::kNewClosure_Tenured : Runtime::kNewClosure, 1);
+    __ CallRuntime(pretenure ? Runtime::kNewClosure_Tenured
+                             : Runtime::kNewClosure);
   }
   context()->Plug(v0);
 }
@@ -1358,7 +1358,7 @@ void FullCodeGenerator::EmitDynamicLookupFastCase(VariableProxy* proxy,
         __ Branch(done, ne, at, Operand(zero_reg));
         __ li(a0, Operand(var->name()));
         __ push(a0);
-        __ CallRuntime(Runtime::kThrowReferenceError, 1);
+        __ CallRuntime(Runtime::kThrowReferenceError);
       }
     }
     __ Branch(done);
@@ -1415,7 +1415,7 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy,
           __ Branch(&done, ne, at, Operand(zero_reg));
           __ li(a0, Operand(var->name()));
           __ push(a0);
-          __ CallRuntime(Runtime::kThrowReferenceError, 1);
+          __ CallRuntime(Runtime::kThrowReferenceError);
           __ bind(&done);
         } else {
           // Uninitialized legacy const bindings are unholed.
@@ -1443,7 +1443,7 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy,
           typeof_mode == NOT_INSIDE_TYPEOF
               ? Runtime::kLoadLookupSlot
               : Runtime::kLoadLookupSlotNoReferenceError;
-      __ CallRuntime(function_id, 2);
+      __ CallRuntime(function_id);
       __ bind(&done);
       context()->Plug(v0);
     }
@@ -1490,7 +1490,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   __ li(a0, Operand(Smi::FromInt(expr->ComputeFlags())));
   if (MustCreateObjectLiteralWithRuntime(expr)) {
     __ Push(a3, a2, a1, a0);
-    __ CallRuntime(Runtime::kCreateObjectLiteral, 4);
+    __ CallRuntime(Runtime::kCreateObjectLiteral);
   } else {
     FastCloneShallowObjectStub stub(isolate(), expr->properties_count());
     __ CallStub(&stub);
@@ -1553,7 +1553,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
           }
           __ li(a0, Operand(Smi::FromInt(SLOPPY)));  // PropertyAttributes.
           __ push(a0);
-          __ CallRuntime(Runtime::kSetProperty, 4);
+          __ CallRuntime(Runtime::kSetProperty);
         } else {
           __ Drop(3);
         }
@@ -1564,7 +1564,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         __ push(a0);
         VisitForStackValue(value);
         DCHECK(property->emit_store());
-        __ CallRuntime(Runtime::kInternalSetPrototype, 2);
+        __ CallRuntime(Runtime::kInternalSetPrototype);
         break;
       case ObjectLiteral::Property::GETTER:
         if (property->emit_store()) {
@@ -1591,7 +1591,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
     EmitAccessor(it->second->setter);
     __ li(a0, Operand(Smi::FromInt(NONE)));
     __ push(a0);
-    __ CallRuntime(Runtime::kDefineAccessorPropertyUnchecked, 5);
+    __ CallRuntime(Runtime::kDefineAccessorPropertyUnchecked);
   }
 
   // Object literals have two parts. The "static" part on the left contains no
@@ -1619,7 +1619,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
       DCHECK(!property->is_computed_name());
       VisitForStackValue(value);
       DCHECK(property->emit_store());
-      __ CallRuntime(Runtime::kInternalSetPrototype, 2);
+      __ CallRuntime(Runtime::kInternalSetPrototype);
     } else {
       EmitPropertyKey(property, expr->GetIdForProperty(property_index));
       VisitForStackValue(value);
@@ -1634,7 +1634,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
           if (property->emit_store()) {
             __ li(a0, Operand(Smi::FromInt(NONE)));
             __ push(a0);
-            __ CallRuntime(Runtime::kDefineDataPropertyUnchecked, 4);
+            __ CallRuntime(Runtime::kDefineDataPropertyUnchecked);
           } else {
             __ Drop(3);
           }
@@ -1647,13 +1647,13 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         case ObjectLiteral::Property::GETTER:
           __ li(a0, Operand(Smi::FromInt(NONE)));
           __ push(a0);
-          __ CallRuntime(Runtime::kDefineGetterPropertyUnchecked, 4);
+          __ CallRuntime(Runtime::kDefineGetterPropertyUnchecked);
           break;
 
         case ObjectLiteral::Property::SETTER:
           __ li(a0, Operand(Smi::FromInt(NONE)));
           __ push(a0);
-          __ CallRuntime(Runtime::kDefineSetterPropertyUnchecked, 4);
+          __ CallRuntime(Runtime::kDefineSetterPropertyUnchecked);
           break;
       }
     }
@@ -1663,7 +1663,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
     DCHECK(result_saved);
     __ ld(a0, MemOperand(sp));
     __ push(a0);
-    __ CallRuntime(Runtime::kToFastProperties, 1);
+    __ CallRuntime(Runtime::kToFastProperties);
   }
 
   if (result_saved) {
@@ -1695,7 +1695,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   if (MustCreateArrayLiteralWithRuntime(expr)) {
     __ li(a0, Operand(Smi::FromInt(expr->ComputeFlags())));
     __ Push(a3, a2, a1, a0);
-    __ CallRuntime(Runtime::kCreateArrayLiteral, 4);
+    __ CallRuntime(Runtime::kCreateArrayLiteral);
   } else {
     FastCloneShallowArrayStub stub(isolate(), allocation_site_mode);
     __ CallStub(&stub);
@@ -1754,7 +1754,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
                        CALL_FUNCTION);
     } else {
       VisitForStackValue(subexpr);
-      __ CallRuntime(Runtime::kAppendElement, 2);
+      __ CallRuntime(Runtime::kAppendElement);
     }
 
     PrepareForBailoutForId(expr->GetIdForElement(array_index), NO_REGISTERS);
@@ -2159,7 +2159,7 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   DCHECK(!result_register().is(a1));
   __ Push(a1, result_register());
   __ Push(Smi::FromInt(resume_mode));
-  __ CallRuntime(Runtime::kResumeJSGeneratorObject, 3);
+  __ CallRuntime(Runtime::kResumeJSGeneratorObject);
   // Not reached: the runtime call returns elsewhere.
   __ stop("not-reached");
 
@@ -2176,7 +2176,7 @@ void FullCodeGenerator::EmitCreateIteratorResult(bool done) {
 
   __ bind(&allocate);
   __ Push(Smi::FromInt(JSIteratorResult::kSize));
-  __ CallRuntime(Runtime::kAllocateInNewSpace, 1);
+  __ CallRuntime(Runtime::kAllocateInNewSpace);
 
   __ bind(&done_allocate);
   __ LoadNativeContextSlot(Context::ITERATOR_RESULT_MAP_INDEX, a1);
@@ -2215,7 +2215,7 @@ void FullCodeGenerator::EmitNamedSuperPropertyLoad(Property* prop) {
 
   __ Push(key->value());
   __ Push(Smi::FromInt(language_mode()));
-  __ CallRuntime(Runtime::kLoadFromSuper, 4);
+  __ CallRuntime(Runtime::kLoadFromSuper);
 }
 
 
@@ -2234,7 +2234,7 @@ void FullCodeGenerator::EmitKeyedSuperPropertyLoad(Property* prop) {
   // Stack: receiver, home_object, key.
   SetExpressionPosition(prop);
   __ Push(Smi::FromInt(language_mode()));
-  __ CallRuntime(Runtime::kLoadKeyedFromSuper, 4);
+  __ CallRuntime(Runtime::kLoadKeyedFromSuper);
 }
 
 
@@ -2359,7 +2359,7 @@ void FullCodeGenerator::EmitClassDefineProperties(ClassLiteral* lit) {
     // need to check for an own read only property we special case this so we do
     // not need to do this for every property.
     if (property->is_static() && property->is_computed_name()) {
-      __ CallRuntime(Runtime::kThrowIfStaticPrototype, 1);
+      __ CallRuntime(Runtime::kThrowIfStaticPrototype);
       __ push(v0);
     }
 
@@ -2374,19 +2374,19 @@ void FullCodeGenerator::EmitClassDefineProperties(ClassLiteral* lit) {
       case ObjectLiteral::Property::PROTOTYPE:
         UNREACHABLE();
       case ObjectLiteral::Property::COMPUTED:
-        __ CallRuntime(Runtime::kDefineClassMethod, 3);
+        __ CallRuntime(Runtime::kDefineClassMethod);
         break;
 
       case ObjectLiteral::Property::GETTER:
         __ li(a0, Operand(Smi::FromInt(DONT_ENUM)));
         __ push(a0);
-        __ CallRuntime(Runtime::kDefineGetterPropertyUnchecked, 4);
+        __ CallRuntime(Runtime::kDefineGetterPropertyUnchecked);
         break;
 
       case ObjectLiteral::Property::SETTER:
         __ li(a0, Operand(Smi::FromInt(DONT_ENUM)));
         __ push(a0);
-        __ CallRuntime(Runtime::kDefineSetterPropertyUnchecked, 4);
+        __ CallRuntime(Runtime::kDefineSetterPropertyUnchecked);
         break;
 
       default:
@@ -2396,7 +2396,7 @@ void FullCodeGenerator::EmitClassDefineProperties(ClassLiteral* lit) {
 
   // Set both the prototype and constructor to have fast properties, and also
   // freeze them in strong mode.
-  __ CallRuntime(Runtime::kFinalizeClassDefinition, 2);
+  __ CallRuntime(Runtime::kFinalizeClassDefinition);
 }
 
 
@@ -2526,7 +2526,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op,
     __ Branch(&assign, ne, a3, Operand(a4));
     __ li(a3, Operand(var->name()));
     __ push(a3);
-    __ CallRuntime(Runtime::kThrowReferenceError, 1);
+    __ CallRuntime(Runtime::kThrowReferenceError);
     // Perform the assignment.
     __ bind(&assign);
     EmitStoreToStackLocalOrContextSlot(var, location);
@@ -2542,9 +2542,9 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op,
     __ Branch(&const_error, ne, a3, Operand(at));
     __ li(a3, Operand(var->name()));
     __ push(a3);
-    __ CallRuntime(Runtime::kThrowReferenceError, 1);
+    __ CallRuntime(Runtime::kThrowReferenceError);
     __ bind(&const_error);
-    __ CallRuntime(Runtime::kThrowConstAssignError, 0);
+    __ CallRuntime(Runtime::kThrowConstAssignError);
 
   } else if (var->is_this() && var->mode() == CONST && op == Token::INIT) {
     // Initializing assignment to const {this} needs a write barrier.
@@ -2556,7 +2556,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op,
     __ Branch(&uninitialized_this, eq, a3, Operand(at));
     __ li(a0, Operand(var->name()));
     __ Push(a0);
-    __ CallRuntime(Runtime::kThrowReferenceError, 1);
+    __ CallRuntime(Runtime::kThrowReferenceError);
     __ bind(&uninitialized_this);
     EmitStoreToStackLocalOrContextSlot(var, location);
 
@@ -2571,7 +2571,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op,
       // jssp[16] : context.
       // jssp[24] : value.
       __ Push(v0, cp, a4, a3);
-      __ CallRuntime(Runtime::kStoreLookupSlot, 4);
+      __ CallRuntime(Runtime::kStoreLookupSlot);
     } else {
       // Assignment to var or initializing assignment to let/const in harmony
       // mode.
@@ -2592,7 +2592,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op,
     if (var->IsLookupSlot()) {
       __ li(a0, Operand(var->name()));
       __ Push(v0, cp, a0);  // Context and name.
-      __ CallRuntime(Runtime::kInitializeLegacyConstLookupSlot, 3);
+      __ CallRuntime(Runtime::kInitializeLegacyConstLookupSlot);
     } else {
       DCHECK(var->IsStackAllocated() || var->IsContextSlot());
       Label skip;
@@ -2607,7 +2607,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op,
   } else {
     DCHECK(var->mode() == CONST_LEGACY && op != Token::INIT);
     if (is_strict(language_mode())) {
-      __ CallRuntime(Runtime::kThrowConstAssignError, 0);
+      __ CallRuntime(Runtime::kThrowConstAssignError);
     }
     // Silently ignore store in sloppy mode.
   }
@@ -2643,8 +2643,7 @@ void FullCodeGenerator::EmitNamedSuperPropertyStore(Property* prop) {
   __ Push(key->value());
   __ Push(v0);
   __ CallRuntime((is_strict(language_mode()) ? Runtime::kStoreToSuper_Strict
-                                             : Runtime::kStoreToSuper_Sloppy),
-                 4);
+                                             : Runtime::kStoreToSuper_Sloppy));
 }
 
 
@@ -2655,10 +2654,9 @@ void FullCodeGenerator::EmitKeyedSuperPropertyStore(Property* prop) {
   DCHECK(prop != NULL);
 
   __ Push(v0);
-  __ CallRuntime(
-      (is_strict(language_mode()) ? Runtime::kStoreKeyedToSuper_Strict
-                                  : Runtime::kStoreKeyedToSuper_Sloppy),
-      4);
+  __ CallRuntime((is_strict(language_mode())
+                      ? Runtime::kStoreKeyedToSuper_Strict
+                      : Runtime::kStoreKeyedToSuper_Sloppy));
 }
 
 
@@ -2787,7 +2785,7 @@ void FullCodeGenerator::EmitSuperCallWithLoadIC(Call* expr) {
   //  - home_object
   //  - key
   //  - language_mode
-  __ CallRuntime(Runtime::kLoadFromSuper, 4);
+  __ CallRuntime(Runtime::kLoadFromSuper);
 
   // Replace home_object with target function.
   __ sd(v0, MemOperand(sp, kPointerSize));
@@ -2847,7 +2845,7 @@ void FullCodeGenerator::EmitKeyedSuperCallWithLoadIC(Call* expr) {
   //  - home_object
   //  - key
   //  - language_mode
-  __ CallRuntime(Runtime::kLoadKeyedFromSuper, 4);
+  __ CallRuntime(Runtime::kLoadKeyedFromSuper);
 
   // Replace home_object with target function.
   __ sd(v0, MemOperand(sp, kPointerSize));
@@ -2902,7 +2900,7 @@ void FullCodeGenerator::EmitResolvePossiblyDirectEval(int arg_count) {
 
   // Do the runtime call.
   __ Push(a6, a5, a4, a1);
-  __ CallRuntime(Runtime::kResolvePossiblyDirectEval, 5);
+  __ CallRuntime(Runtime::kResolvePossiblyDirectEval);
 }
 
 
@@ -2923,7 +2921,7 @@ void FullCodeGenerator::PushCalleeAndWithBaseObject(Call* expr) {
     DCHECK(!context_register().is(a2));
     __ li(a2, Operand(callee->name()));
     __ Push(context_register(), a2);
-    __ CallRuntime(Runtime::kLoadLookupSlot, 2);
+    __ CallRuntime(Runtime::kLoadLookupSlot);
     __ Push(v0, v1);  // Function, receiver.
     PrepareForBailoutForId(expr->LookupId(), NO_REGISTERS);
 
@@ -3582,7 +3580,7 @@ void FullCodeGenerator::EmitToInteger(CallRuntime* expr) {
   Label done_convert;
   __ JumpIfSmi(v0, &done_convert);
   __ Push(v0);
-  __ CallRuntime(Runtime::kToInteger, 1);
+  __ CallRuntime(Runtime::kToInteger);
   __ bind(&done_convert);
   context()->Plug(v0);
 }
@@ -3602,7 +3600,7 @@ void FullCodeGenerator::EmitToName(CallRuntime* expr) {
   __ Branch(&done_convert, le, a1, Operand(LAST_NAME_TYPE));
   __ bind(&convert);
   __ Push(v0);
-  __ CallRuntime(Runtime::kToName, 1);
+  __ CallRuntime(Runtime::kToName);
   __ bind(&done_convert);
   context()->Plug(v0);
 }
@@ -4058,7 +4056,7 @@ void FullCodeGenerator::EmitCreateIterResultObject(CallRuntime* expr) {
   __ jmp(&done);
 
   __ bind(&runtime);
-  __ CallRuntime(Runtime::kCreateIterResultObject, 2);
+  __ CallRuntime(Runtime::kCreateIterResultObject);
 
   __ bind(&done);
   context()->Plug(v0);
@@ -4150,8 +4148,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
         VisitForStackValue(property->key());
         __ CallRuntime(is_strict(language_mode())
                            ? Runtime::kDeleteProperty_Strict
-                           : Runtime::kDeleteProperty_Sloppy,
-                       2);
+                           : Runtime::kDeleteProperty_Sloppy);
         context()->Plug(v0);
       } else if (proxy != NULL) {
         Variable* var = proxy->var();
@@ -4163,7 +4160,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
           __ LoadGlobalObject(a2);
           __ li(a1, Operand(var->name()));
           __ Push(a2, a1);
-          __ CallRuntime(Runtime::kDeleteProperty_Sloppy, 2);
+          __ CallRuntime(Runtime::kDeleteProperty_Sloppy);
           context()->Plug(v0);
         } else if (var->IsStackAllocated() || var->IsContextSlot()) {
           // Result of deleting non-global, non-dynamic variables is false.
@@ -4175,7 +4172,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
           DCHECK(!context_register().is(a2));
           __ li(a2, Operand(var->name()));
           __ Push(context_register(), a2);
-          __ CallRuntime(Runtime::kDeleteLookupSlot, 2);
+          __ CallRuntime(Runtime::kDeleteLookupSlot);
           context()->Plug(v0);
         }
       } else {
@@ -4610,7 +4607,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
   switch (op) {
     case Token::IN:
       VisitForStackValue(expr->right());
-      __ CallRuntime(Runtime::kHasProperty, 2);
+      __ CallRuntime(Runtime::kHasProperty);
       PrepareForBailoutBeforeSplit(expr, false, NULL, NULL);
       __ LoadRoot(a4, Heap::kTrueValueRootIndex);
       Split(eq, v0, Operand(a4), if_true, if_false, fall_through);

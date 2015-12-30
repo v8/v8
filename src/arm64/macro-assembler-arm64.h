@@ -1090,18 +1090,25 @@ class MacroAssembler : public Assembler {
                    int num_arguments,
                    SaveFPRegsMode save_doubles = kDontSaveFPRegs);
 
-  void CallRuntime(Runtime::FunctionId id,
-                   int num_arguments,
+  // Convenience function: Same as above, but takes the fid instead.
+  void CallRuntime(Runtime::FunctionId fid, int num_arguments,
                    SaveFPRegsMode save_doubles = kDontSaveFPRegs) {
-    CallRuntime(Runtime::FunctionForId(id), num_arguments, save_doubles);
+    CallRuntime(Runtime::FunctionForId(fid), num_arguments, save_doubles);
   }
 
-  void CallRuntimeSaveDoubles(Runtime::FunctionId id) {
-    const Runtime::Function* function = Runtime::FunctionForId(id);
+  // Convenience function: Same as above, but takes the fid instead.
+  void CallRuntime(Runtime::FunctionId fid,
+                   SaveFPRegsMode save_doubles = kDontSaveFPRegs) {
+    const Runtime::Function* function = Runtime::FunctionForId(fid);
+    CallRuntime(function, function->nargs, save_doubles);
+  }
+
+  void CallRuntimeSaveDoubles(Runtime::FunctionId fid) {
+    const Runtime::Function* function = Runtime::FunctionForId(fid);
     CallRuntime(function, function->nargs, kSaveFPRegs);
   }
 
-  void TailCallRuntime(Runtime::FunctionId fid, int num_arguments);
+  void TailCallRuntime(Runtime::FunctionId fid);
 
   int ActivationFrameAlignment();
 
@@ -1121,11 +1128,8 @@ class MacroAssembler : public Assembler {
 
   // Jump to a runtime routine.
   void JumpToExternalReference(const ExternalReference& builtin);
-  // Tail call of a runtime routine (jump).
-  // Like JumpToExternalReference, but also takes care of passing the number
-  // of parameters.
-  void TailCallExternalReference(const ExternalReference& ext,
-                                 int num_arguments);
+
+  // Convenience function: call an external reference.
   void CallExternalReference(const ExternalReference& ext,
                              int num_arguments);
 

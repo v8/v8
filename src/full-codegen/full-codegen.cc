@@ -614,12 +614,12 @@ void FullCodeGenerator::SetCallPosition(Expression* expr) {
 
 void FullCodeGenerator::VisitSuperPropertyReference(
     SuperPropertyReference* super) {
-  __ CallRuntime(Runtime::kThrowUnsupportedSuperError, 0);
+  __ CallRuntime(Runtime::kThrowUnsupportedSuperError);
 }
 
 
 void FullCodeGenerator::VisitSuperCallReference(SuperCallReference* super) {
-  __ CallRuntime(Runtime::kThrowUnsupportedSuperError, 0);
+  __ CallRuntime(Runtime::kThrowUnsupportedSuperError);
 }
 
 
@@ -914,7 +914,7 @@ void FullCodeGenerator::EmitUnwindBeforeReturn() {
 void FullCodeGenerator::EmitPropertyKey(ObjectLiteralProperty* property,
                                         BailoutId bailout_id) {
   VisitForStackValue(property->key());
-  __ CallRuntime(Runtime::kToName, 1);
+  __ CallRuntime(Runtime::kToName);
   PrepareForBailoutForId(bailout_id, NO_REGISTERS);
   __ Push(result_register());
 }
@@ -941,7 +941,7 @@ void FullCodeGenerator::VisitWithStatement(WithStatement* stmt) {
   PrepareForBailoutForId(stmt->ToObjectId(), NO_REGISTERS);
   __ Push(result_register());
   PushFunctionArgumentForContextAllocation();
-  __ CallRuntime(Runtime::kPushWithContext, 2);
+  __ CallRuntime(Runtime::kPushWithContext);
   StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());
   PrepareForBailoutForId(stmt->EntryId(), NO_REGISTERS);
 
@@ -1138,7 +1138,7 @@ void FullCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
     __ Push(stmt->variable()->name());
     __ Push(result_register());
     PushFunctionArgumentForContextAllocation();
-    __ CallRuntime(Runtime::kPushCatchContext, 3);
+    __ CallRuntime(Runtime::kPushCatchContext);
     StoreToFrameField(StandardFrameConstants::kContextOffset,
                       context_register());
   }
@@ -1208,7 +1208,7 @@ void FullCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   // rethrow the exception if it returns.
   __ Call(&finally_entry);
   __ Push(result_register());
-  __ CallRuntime(Runtime::kReThrow, 1);
+  __ CallRuntime(Runtime::kReThrow);
 
   // Finally block implementation.
   __ bind(&finally_entry);
@@ -1325,7 +1325,7 @@ void FullCodeGenerator::VisitClassLiteral(ClassLiteral* lit) {
     __ Push(Smi::FromInt(lit->start_position()));
     __ Push(Smi::FromInt(lit->end_position()));
 
-    __ CallRuntime(Runtime::kDefineClass, 5);
+    __ CallRuntime(Runtime::kDefineClass);
     PrepareForBailoutForId(lit->CreateLiteralId(), TOS_REG);
 
     EmitClassDefineProperties(lit);
@@ -1380,7 +1380,7 @@ void FullCodeGenerator::VisitThrow(Throw* expr) {
   Comment cmnt(masm_, "[ Throw");
   VisitForStackValue(expr->exception());
   SetExpressionPosition(expr);
-  __ CallRuntime(Runtime::kThrow, 1);
+  __ CallRuntime(Runtime::kThrow);
   // Never returns here.
 }
 
@@ -1642,7 +1642,7 @@ FullCodeGenerator::EnterBlockScopeIfNeeded::EnterBlockScopeIfNeeded(
         Comment cmnt(masm(), "[ Extend block context");
         __ Push(scope->GetScopeInfo(codegen->isolate()));
         codegen_->PushFunctionArgumentForContextAllocation();
-        __ CallRuntime(Runtime::kPushBlockContext, 2);
+        __ CallRuntime(Runtime::kPushBlockContext);
 
         // Replace the context stored in the frame.
         codegen_->StoreToFrameField(StandardFrameConstants::kContextOffset,

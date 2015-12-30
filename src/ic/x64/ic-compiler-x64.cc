@@ -28,7 +28,7 @@ void PropertyICCompiler::GenerateRuntimeSetProperty(
   __ PushReturnAddressFrom(rbx);
 
   // Do tail-call to runtime routine.
-  __ TailCallRuntime(Runtime::kSetProperty, 4);
+  __ TailCallRuntime(Runtime::kSetProperty);
 }
 
 

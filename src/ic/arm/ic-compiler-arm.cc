@@ -22,7 +22,7 @@ void PropertyICCompiler::GenerateRuntimeSetProperty(
   __ Push(r0);
 
   // Do tail-call to runtime routine.
-  __ TailCallRuntime(Runtime::kSetProperty, 4);
+  __ TailCallRuntime(Runtime::kSetProperty);
 }
 
 

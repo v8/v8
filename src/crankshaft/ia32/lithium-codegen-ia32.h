@@ -177,6 +177,11 @@ class LCodeGen: public LCodeGenBase {
     CallRuntime(function, argc, instr);
   }
 
+  void CallRuntime(Runtime::FunctionId id, LInstruction* instr) {
+    const Runtime::Function* function = Runtime::FunctionForId(id);
+    CallRuntime(function, function->nargs, instr);
+  }
+
   void CallRuntimeFromDeferred(Runtime::FunctionId id,
                                int argc,
                                LInstruction* instr,
