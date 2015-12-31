@@ -1865,20 +1865,27 @@ void MacroAssembler::CallExternalReference(ExternalReference ref,
 }
 
 
-void MacroAssembler::TailCallExternalReference(const ExternalReference& ext,
-                                               int num_arguments) {
-  // TODO(1236192): Most runtime routines don't need the number of
-  // arguments passed in because it is constant. At some point we
-  // should remove this need and make the runtime routine entry code
-  // smarter.
-  Move(eax, Immediate(num_arguments));
-  JumpToExternalReference(ext);
-}
+void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid) {
+  // ----------- S t a t e -------------
+  //  -- esp[0]                 : return address
+  //  -- esp[8]                 : argument num_arguments - 1
+  //  ...
+  //  -- esp[8 * num_arguments] : argument 0 (receiver)
+  //
+  //  For runtime functions with variable arguments:
+  //  -- eax                    : number of  arguments
+  // -----------------------------------
 
-
-void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid,
-                                     int num_arguments) {
-  TailCallExternalReference(ExternalReference(fid, isolate()), num_arguments);
+  const Runtime::Function* function = Runtime::FunctionForId(fid);
+  DCHECK_EQ(1, function->result_size);
+  if (function->nargs >= 0) {
+    // TODO(1236192): Most runtime routines don't need the number of
+    // arguments passed in because it is constant. At some point we
+    // should remove this need and make the runtime routine entry code
+    // smarter.
+    mov(eax, Immediate(function->nargs));
+  }
+  JumpToExternalReference(ExternalReference(fid, isolate()));
 }
 
 
