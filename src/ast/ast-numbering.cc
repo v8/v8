@@ -585,6 +585,11 @@ bool AstNumberingVisitor::Renumber(FunctionLiteral* node) {
     DisableCrankshaft(kContextAllocatedArguments);
   }
 
+  int rest_index;
+  if (scope->rest_parameter(&rest_index)) {
+    DisableCrankshaft(kRestParameter);
+  }
+
   VisitDeclarations(scope->declarations());
   VisitStatements(node->body());
 

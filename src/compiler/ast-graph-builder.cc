@@ -3229,9 +3229,19 @@ Node* AstGraphBuilder::BuildArgumentsObject(Variable* arguments) {
 Node* AstGraphBuilder::BuildRestArgumentsArray(Variable* rest, int index) {
   if (rest == NULL) return NULL;
 
-  // TODO(mvstanton): Handle rest arguments.
-  SetStackOverflow();
-  return jsgraph()->UndefinedConstant();
+  // Allocate and initialize a new arguments object.
+  CreateArgumentsParameters::Type type = CreateArgumentsParameters::kRestArray;
+  const Operator* op = javascript()->CreateArguments(type, index);
+  Node* object = NewNode(op, GetFunctionClosure());
+  PrepareFrameState(object, BailoutId::None());
+
+  // Assign the object to the {rest} variable. This should never lazy
+  // deopt, so it is fine to send invalid bailout id.
+  DCHECK(rest->IsContextSlot() || rest->IsStackAllocated());
+  FrameStateBeforeAndAfter states(this, BailoutId::None());
+  BuildVariableAssignment(rest, object, Token::ASSIGN, VectorSlotPair(),
+                          BailoutId::None(), states);
+  return object;
 }
 
 

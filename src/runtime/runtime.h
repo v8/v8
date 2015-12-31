@@ -560,6 +560,7 @@ namespace internal {
   F(InitializeLegacyConstLookupSlot, 3, 1) \
   F(NewSloppyArguments_Generic, 1, 1)      \
   F(NewStrictArguments_Generic, 1, 1)      \
+  F(NewRestArguments_Generic, 2, 1)        \
   F(NewSloppyArguments, 3, 1)              \
   F(NewStrictArguments, 3, 1)              \
   F(NewRestParam, 4, 1)                    \

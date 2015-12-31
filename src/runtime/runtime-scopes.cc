@@ -521,6 +521,26 @@ Handle<JSObject> NewStrictArguments(Isolate* isolate, Handle<JSFunction> callee,
 }
 
 
+template <typename T>
+Handle<JSObject> NewRestArguments(Isolate* isolate, Handle<JSFunction> callee,
+                                  T parameters, int argument_count,
+                                  int start_index) {
+  int num_elements = std::max(0, argument_count - start_index);
+  Handle<JSObject> result = isolate->factory()->NewJSArray(
+      FAST_ELEMENTS, num_elements, num_elements, Strength::WEAK,
+      DONT_INITIALIZE_ARRAY_ELEMENTS);
+  {
+    DisallowHeapAllocation no_gc;
+    FixedArray* elements = FixedArray::cast(result->elements());
+    WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
+    for (int i = 0; i < num_elements; i++) {
+      elements->set(i, parameters[i + start_index], mode);
+    }
+  }
+  return result;
+}
+
+
 class HandleArguments BASE_EMBEDDED {
  public:
   explicit HandleArguments(Handle<Object>* array) : array_(array) {}
@@ -568,6 +588,22 @@ RUNTIME_FUNCTION(Runtime_NewStrictArguments_Generic) {
       Runtime::GetCallerArguments(isolate, 0, &argument_count);
   HandleArguments argument_getter(arguments.get());
   return *NewStrictArguments(isolate, callee, argument_getter, argument_count);
+}
+
+
+RUNTIME_FUNCTION(Runtime_NewRestArguments_Generic) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, callee, 0)
+  CONVERT_SMI_ARG_CHECKED(start_index, 1);
+  // This generic runtime function can also be used when the caller has been
+  // inlined, we use the slow but accurate {Runtime::GetCallerArguments}.
+  int argument_count = 0;
+  base::SmartArrayPointer<Handle<Object>> arguments =
+      Runtime::GetCallerArguments(isolate, 0, &argument_count);
+  HandleArguments argument_getter(arguments.get());
+  return *NewRestArguments(isolate, callee, argument_getter, argument_count,
+                           start_index);
 }
 
 

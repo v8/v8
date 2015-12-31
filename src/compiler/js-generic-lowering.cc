@@ -463,7 +463,8 @@ void JSGenericLowering::LowerJSCreateArguments(Node* node) {
       ReplaceWithRuntimeCall(node, Runtime::kNewStrictArguments_Generic);
       break;
     case CreateArgumentsParameters::kRestArray:
-      UNIMPLEMENTED();
+      node->InsertInput(zone(), 1, jsgraph()->Constant(p.start_index()));
+      ReplaceWithRuntimeCall(node, Runtime::kNewRestArguments_Generic);
       break;
   }
 }
