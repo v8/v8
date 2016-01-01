@@ -276,6 +276,7 @@ namespace internal {
   V(int8x16_string, "int8x16")                                   \
   V(Int8x16_string, "Int8x16")                                   \
   V(isExtensible_string, "isExtensible")                         \
+  V(isView_string, "isView")                                     \
   V(KeyedLoadMonomorphic_string, "KeyedLoadMonomorphic")         \
   V(KeyedStoreMonomorphic_string, "KeyedStoreMonomorphic")       \
   V(last_index_string, "lastIndex")                              \
