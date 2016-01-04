@@ -100,6 +100,7 @@ class BytecodeArrayBuilder final {
 
   // Register-register transfer.
   BytecodeArrayBuilder& MoveRegister(Register from, Register to);
+  BytecodeArrayBuilder& ExchangeRegisters(Register reg0, Register reg1);
 
   // Named load property.
   BytecodeArrayBuilder& LoadNamedProperty(Register object,
@@ -249,12 +250,17 @@ class BytecodeArrayBuilder final {
   static bool FitsInImm8Operand(int value);
   static bool FitsInIdx16Operand(int value);
   static bool FitsInIdx16Operand(size_t value);
+  static bool FitsInReg8Operand(Register value);
+  static bool FitsInReg16Operand(Register value);
 
   static Bytecode GetJumpWithConstantOperand(Bytecode jump_with_smi8_operand);
   static Bytecode GetJumpWithToBoolean(Bytecode jump);
 
+  Register MapRegister(Register reg);
+  Register MapRegisters(Register reg, Register args_base, int args_length = 1);
+
   template <size_t N>
-  INLINE(void Output(Bytecode bytecode, uint32_t(&oprands)[N]));
+  INLINE(void Output(Bytecode bytecode, uint32_t(&operands)[N]));
   void Output(Bytecode bytecode, uint32_t operand0, uint32_t operand1,
               uint32_t operand2, uint32_t operand3);
   void Output(Bytecode bytecode, uint32_t operand0, uint32_t operand1,

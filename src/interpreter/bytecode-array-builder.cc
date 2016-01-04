@@ -379,6 +379,20 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::MoveRegister(Register from,
 }
 
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::ExchangeRegisters(Register reg0,
+                                                              Register reg1) {
+  DCHECK(reg0 != reg1);
+  if (FitsInReg8Operand(reg0)) {
+    Output(Bytecode::kExchange, reg0.ToOperand(), reg1.ToWideOperand());
+  } else if (FitsInReg8Operand(reg1)) {
+    Output(Bytecode::kExchange, reg1.ToOperand(), reg0.ToWideOperand());
+  } else {
+    Output(Bytecode::kExchangeWide, reg0.ToWideOperand(), reg1.ToWideOperand());
+  }
+  return *this;
+}
+
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadGlobal(
     const Handle<String> name, int feedback_slot, LanguageMode language_mode,
     TypeofMode typeof_mode) {
@@ -1163,6 +1177,24 @@ bool BytecodeArrayBuilder::OperandIsValid(Bytecode bytecode, int operand_index,
         return TemporaryRegisterIsLive(reg);
       }
     }
+    case OperandType::kReg16: {
+      if (bytecode != Bytecode::kExchange &&
+          bytecode != Bytecode::kExchangeWide) {
+        return false;
+      }
+      Register reg =
+          Register::FromWideOperand(static_cast<uint16_t>(operand_value));
+      if (reg.is_function_context() || reg.is_function_closure() ||
+          reg.is_new_target()) {
+        return false;
+      } else if (reg.is_parameter()) {
+        return false;
+      } else if (reg.index() < fixed_register_count()) {
+        return true;
+      } else {
+        return TemporaryRegisterIsLive(reg);
+      }
+    }
   }
   UNREACHABLE();
   return false;
@@ -1468,7 +1500,7 @@ bool BytecodeArrayBuilder::FitsInIdx8Operand(size_t value) {
 
 // static
 bool BytecodeArrayBuilder::FitsInImm8Operand(int value) {
-  return kMinInt8 <= value && value < kMaxInt8;
+  return kMinInt8 <= value && value <= kMaxInt8;
 }
 
 
@@ -1481,6 +1513,18 @@ bool BytecodeArrayBuilder::FitsInIdx16Operand(int value) {
 // static
 bool BytecodeArrayBuilder::FitsInIdx16Operand(size_t value) {
   return value <= static_cast<size_t>(kMaxUInt16);
+}
+
+
+// static
+bool BytecodeArrayBuilder::FitsInReg8Operand(Register value) {
+  return kMinInt8 <= value.index() && value.index() <= kMaxInt8;
+}
+
+
+// static
+bool BytecodeArrayBuilder::FitsInReg16Operand(Register value) {
+  return kMinInt16 <= value.index() && value.index() <= kMaxInt16;
 }
 
 

@@ -40,6 +40,7 @@ class InterpreterAssemblerTest : public TestWithIsolateAndZone {
     Matcher<Node*> IsBytecodeOperand(int offset);
     Matcher<Node*> IsBytecodeOperandSignExtended(int offset);
     Matcher<Node*> IsBytecodeOperandShort(int offset);
+    Matcher<Node*> IsBytecodeOperandShortSignExtended(int offset);
 
     using InterpreterAssembler::call_descriptor;
     using InterpreterAssembler::graph;

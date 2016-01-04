@@ -201,6 +201,28 @@ void Interpreter::DoStar(compiler::InterpreterAssembler* assembler) {
 }
 
 
+// Exchange <reg8> <reg16>
+//
+// Exchange two registers.
+void Interpreter::DoExchange(compiler::InterpreterAssembler* assembler) {
+  Node* reg0_index = __ BytecodeOperandReg(0);
+  Node* reg1_index = __ BytecodeOperandReg(1);
+  Node* reg0_value = __ LoadRegister(reg0_index);
+  Node* reg1_value = __ LoadRegister(reg1_index);
+  __ StoreRegister(reg1_value, reg0_index);
+  __ StoreRegister(reg0_value, reg1_index);
+  __ Dispatch();
+}
+
+
+// ExchangeWide <reg16> <reg16>
+//
+// Exchange two registers.
+void Interpreter::DoExchangeWide(compiler::InterpreterAssembler* assembler) {
+  return DoExchange(assembler);
+}
+
+
 // Mov <src> <dst>
 //
 // Stores the value of register <src> to register <dst>.

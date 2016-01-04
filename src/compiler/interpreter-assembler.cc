@@ -209,6 +209,46 @@ Node* InterpreterAssembler::BytecodeOperandShort(int operand_index) {
 }
 
 
+Node* InterpreterAssembler::BytecodeOperandShortSignExtended(
+    int operand_index) {
+  DCHECK_LT(operand_index, interpreter::Bytecodes::NumberOfOperands(bytecode_));
+  DCHECK_EQ(interpreter::OperandSize::kShort,
+            interpreter::Bytecodes::GetOperandSize(bytecode_, operand_index));
+  int operand_offset =
+      interpreter::Bytecodes::GetOperandOffset(bytecode_, operand_index);
+  Node* load;
+  if (TargetSupportsUnalignedAccess()) {
+    load = raw_assembler_->Load(
+        MachineType::Int16(), BytecodeArrayTaggedPointer(),
+        IntPtrAdd(BytecodeOffset(), Int32Constant(operand_offset)));
+  } else {
+#if V8_TARGET_LITTLE_ENDIAN
+    Node* hi_byte_offset = Int32Constant(operand_offset + 1);
+    Node* lo_byte_offset = Int32Constant(operand_offset);
+#elif V8_TARGET_BIG_ENDIAN
+    Node* hi_byte_offset = Int32Constant(operand_offset);
+    Node* lo_byte_offset = Int32Constant(operand_offset + 1);
+#else
+#error "Unknown Architecture"
+#endif
+    Node* hi_byte =
+        raw_assembler_->Load(MachineType::Int8(), BytecodeArrayTaggedPointer(),
+                             IntPtrAdd(BytecodeOffset(), hi_byte_offset));
+    Node* lo_byte =
+        raw_assembler_->Load(MachineType::Uint8(), BytecodeArrayTaggedPointer(),
+                             IntPtrAdd(BytecodeOffset(), lo_byte_offset));
+    hi_byte = raw_assembler_->Word32Shl(hi_byte, Int32Constant(kBitsPerByte));
+    load = raw_assembler_->Word32Or(hi_byte, lo_byte);
+  }
+
+  // Ensure that we sign extend to full pointer size
+  if (kPointerSize == 8) {
+    load = raw_assembler_->ChangeInt32ToInt64(load);
+  }
+  return load;
+}
+
+
 Node* InterpreterAssembler::BytecodeOperandCount(int operand_index) {
   switch (interpreter::Bytecodes::GetOperandSize(bytecode_, operand_index)) {
     case interpreter::OperandSize::kByte:
@@ -255,13 +295,22 @@ Node* InterpreterAssembler::BytecodeOperandIdx(int operand_index) {
 
 
 Node* InterpreterAssembler::BytecodeOperandReg(int operand_index) {
-#ifdef DEBUG
-  interpreter::OperandType operand_type =
-      interpreter::Bytecodes::GetOperandType(bytecode_, operand_index);
-  DCHECK(operand_type == interpreter::OperandType::kReg8 ||
-         operand_type == interpreter::OperandType::kMaybeReg8);
-#endif
-  return BytecodeOperandSignExtended(operand_index);
+  switch (interpreter::Bytecodes::GetOperandType(bytecode_, operand_index)) {
+    case interpreter::OperandType::kReg8:
+    case interpreter::OperandType::kMaybeReg8:
+      DCHECK_EQ(
+          interpreter::OperandSize::kByte,
+          interpreter::Bytecodes::GetOperandSize(bytecode_, operand_index));
+      return BytecodeOperandSignExtended(operand_index);
+    case interpreter::OperandType::kReg16:
+      DCHECK_EQ(
+          interpreter::OperandSize::kShort,
+          interpreter::Bytecodes::GetOperandSize(bytecode_, operand_index));
+      return BytecodeOperandShortSignExtended(operand_index);
+    default:
+      UNREACHABLE();
+      return nullptr;
+  }
 }
 
 

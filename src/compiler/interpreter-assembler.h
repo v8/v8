@@ -181,6 +181,7 @@ class InterpreterAssembler {
   Node* BytecodeOperand(int operand_index);
   Node* BytecodeOperandSignExtended(int operand_index);
   Node* BytecodeOperandShort(int operand_index);
+  Node* BytecodeOperandShortSignExtended(int operand_index);
 
   Node* CallN(CallDescriptor* descriptor, Node* code_target, Node** args);
   Node* CallIC(CallInterfaceDescriptor descriptor, Node* target, Node** args);

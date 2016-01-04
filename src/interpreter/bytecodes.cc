@@ -273,6 +273,18 @@ std::ostream& Bytecodes::Decode(std::ostream& os, const uint8_t* bytecode_start,
         }
         break;
       }
+      case interpreter::OperandType::kReg16: {
+        Register reg =
+            Register::FromWideOperand(ReadUnalignedUInt16(operand_start));
+        if (reg.is_parameter()) {
+          int parameter_index = reg.ToParameterIndex(parameter_count);
+          DCHECK_NE(parameter_index, 0);
+          os << "a" << parameter_index - 1;
+        } else {
+          os << "r" << reg.index();
+        }
+        break;
+      }
       case interpreter::OperandType::kNone:
         UNREACHABLE();
         break;
@@ -322,7 +334,7 @@ Register Register::FromParameterIndex(int index, int parameter_count) {
   DCHECK_LE(parameter_count, kMaxParameterIndex + 1);
   int register_index = kLastParamRegisterIndex - parameter_count + index + 1;
   DCHECK_LT(register_index, 0);
-  DCHECK_GE(register_index, Register::kMinRegisterIndex);
+  DCHECK_GE(register_index, kMinInt8);
   return Register(register_index);
 }
 
@@ -364,11 +376,27 @@ bool Register::is_new_target() const {
 int Register::MaxParameterIndex() { return kMaxParameterIndex; }
 
 
-uint8_t Register::ToOperand() const { return static_cast<uint8_t>(-index_); }
+uint8_t Register::ToOperand() const {
+  DCHECK_GE(index_, kMinInt8);
+  DCHECK_LE(index_, kMaxInt8);
+  return static_cast<uint8_t>(-index_);
+}
 
 
 Register Register::FromOperand(uint8_t operand) {
   return Register(-static_cast<int8_t>(operand));
+}
+
+
+uint16_t Register::ToWideOperand() const {
+  DCHECK_GE(index_, kMinInt16);
+  DCHECK_LE(index_, kMaxInt16);
+  return static_cast<uint16_t>(-index_);
+}
+
+
+Register Register::FromWideOperand(uint16_t operand) {
+  return Register(-static_cast<int16_t>(operand));
 }
 
 

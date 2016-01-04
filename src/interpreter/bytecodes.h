@@ -25,12 +25,13 @@ namespace interpreter {
   V(Count8, OperandSize::kByte)    \
   V(Imm8, OperandSize::kByte)      \
   V(Idx8, OperandSize::kByte)      \
-  V(Reg8, OperandSize::kByte)      \
   V(MaybeReg8, OperandSize::kByte) \
+  V(Reg8, OperandSize::kByte)      \
                                    \
   /* Short operands. */            \
   V(Count16, OperandSize::kShort)  \
-  V(Idx16, OperandSize::kShort)
+  V(Idx16, OperandSize::kShort)    \
+  V(Reg16, OperandSize::kShort)
 
 // The list of bytecodes which are interpreted by the interpreter.
 #define BYTECODE_LIST(V)                                                       \
@@ -78,6 +79,8 @@ namespace interpreter {
                                                                                \
   /* Register-register transfers */                                            \
   V(Mov, OperandType::kReg8, OperandType::kReg8)                               \
+  V(Exchange, OperandType::kReg8, OperandType::kReg16)                         \
+  V(ExchangeWide, OperandType::kReg16, OperandType::kReg16)                    \
                                                                                \
   /* LoadIC operations */                                                      \
   V(LoadICSloppy, OperandType::kReg8, OperandType::kIdx8, OperandType::kIdx8)  \
@@ -249,15 +252,9 @@ enum class Bytecode : uint8_t {
 // in its stack-frame. Register hold parameters, this, and expression values.
 class Register {
  public:
-  static const int kMaxRegisterIndex = 127;
-  static const int kMinRegisterIndex = -128;
-
   Register() : index_(kIllegalIndex) {}
 
-  explicit Register(int index) : index_(index) {
-    DCHECK_LE(index_, kMaxRegisterIndex);
-    DCHECK_GE(index_, kMinRegisterIndex);
-  }
+  explicit Register(int index) : index_(index) {}
 
   int index() const {
     DCHECK(index_ != kIllegalIndex);
@@ -284,6 +281,9 @@ class Register {
 
   static Register FromOperand(uint8_t operand);
   uint8_t ToOperand() const;
+
+  static Register FromWideOperand(uint16_t operand);
+  uint16_t ToWideOperand() const;
 
   static bool AreContiguous(Register reg1, Register reg2,
                             Register reg3 = Register(),

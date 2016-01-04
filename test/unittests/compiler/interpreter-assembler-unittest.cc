@@ -140,6 +140,47 @@ InterpreterAssemblerTest::InterpreterAssemblerForTest::IsBytecodeOperandShort(
 }
 
 
+Matcher<Node*> InterpreterAssemblerTest::InterpreterAssemblerForTest::
+    IsBytecodeOperandShortSignExtended(int offset) {
+  Matcher<Node*> load_matcher;
+  if (TargetSupportsUnalignedAccess()) {
+    load_matcher = IsLoad(
+        MachineType::Int16(),
+        IsParameter(Linkage::kInterpreterBytecodeArrayParameter),
+        IsIntPtrAdd(IsParameter(Linkage::kInterpreterBytecodeOffsetParameter),
+                    IsInt32Constant(offset)));
+  } else {
+#if V8_TARGET_LITTLE_ENDIAN
+    int hi_byte_offset = offset + 1;
+    int lo_byte_offset = offset;
+
+#elif V8_TARGET_BIG_ENDIAN
+    int hi_byte_offset = offset;
+    int lo_byte_offset = offset + 1;
+#else
+#error "Unknown Architecture"
+#endif
+    Matcher<Node*> hi_byte = IsLoad(
+        MachineType::Int8(),
+        IsParameter(Linkage::kInterpreterBytecodeArrayParameter),
+        IsIntPtrAdd(IsParameter(Linkage::kInterpreterBytecodeOffsetParameter),
+                    IsInt32Constant(hi_byte_offset)));
+    hi_byte = IsWord32Shl(hi_byte, IsInt32Constant(kBitsPerByte));
+    Matcher<Node*> lo_byte = IsLoad(
+        MachineType::Uint8(),
+        IsParameter(Linkage::kInterpreterBytecodeArrayParameter),
+        IsIntPtrAdd(IsParameter(Linkage::kInterpreterBytecodeOffsetParameter),
+                    IsInt32Constant(lo_byte_offset)));
+    load_matcher = IsWord32Or(hi_byte, lo_byte);
+  }
+
+  if (kPointerSize == 8) {
+    load_matcher = IsChangeInt32ToInt64(load_matcher);
+  }
+  return load_matcher;
+}
+
+
 TARGET_TEST_F(InterpreterAssemblerTest, Dispatch) {
   TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
     InterpreterAssemblerForTest m(this, bytecode);
@@ -319,6 +360,10 @@ TARGET_TEST_F(InterpreterAssemblerTest, BytecodeOperand) {
         case interpreter::OperandType::kIdx16:
           EXPECT_THAT(m.BytecodeOperandIdx(i),
                       m.IsBytecodeOperandShort(offset));
+          break;
+        case interpreter::OperandType::kReg16:
+          EXPECT_THAT(m.BytecodeOperandReg(i),
+                      m.IsBytecodeOperandShortSignExtended(offset));
           break;
         case interpreter::OperandType::kNone:
           UNREACHABLE();

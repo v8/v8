@@ -267,6 +267,8 @@ class BytecodeGraphBuilder::Environment : public ZoneObject {
 
   void BindRegister(interpreter::Register the_register, Node* node);
   Node* LookupRegister(interpreter::Register the_register) const;
+  void ExchangeRegisters(interpreter::Register reg0,
+                         interpreter::Register reg1);
 
   void BindAccumulator(Node* node, FrameStateBeforeAndAfter* states = nullptr);
   Node* LookupAccumulator() const;
