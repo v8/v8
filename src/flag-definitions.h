@@ -295,7 +295,7 @@ DEFINE_BOOL(string_slices, true, "use string slices")
 
 // Flags for Ignition.
 DEFINE_BOOL(ignition, false, "use ignition interpreter")
-DEFINE_STRING(ignition_filter, "~~", "filter for ignition interpreter")
+DEFINE_STRING(ignition_filter, "*", "filter for ignition interpreter")
 DEFINE_BOOL(ignition_fake_try_catch, false,
             "enable fake try-catch-finally blocks in ignition for testing")
 DEFINE_BOOL(ignition_fallback_on_eval_and_catch, false,
