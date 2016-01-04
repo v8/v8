@@ -83,6 +83,10 @@ enum BindingFlags {
   V(GET_TEMPLATE_CALL_SITE_INDEX, JSFunction, get_template_call_site)     \
   V(MAKE_RANGE_ERROR_INDEX, JSFunction, make_range_error)                 \
   V(MAKE_TYPE_ERROR_INDEX, JSFunction, make_type_error)                   \
+  V(OBJECT_FREEZE, JSFunction, object_freeze)                             \
+  V(OBJECT_IS_EXTENSIBLE, JSFunction, object_is_extensible)               \
+  V(OBJECT_IS_FROZEN, JSFunction, object_is_frozen)                       \
+  V(OBJECT_IS_SEALED, JSFunction, object_is_sealed)                       \
   V(REFLECT_APPLY_INDEX, JSFunction, reflect_apply)                       \
   V(REFLECT_CONSTRUCT_INDEX, JSFunction, reflect_construct)               \
   V(REFLECT_DEFINE_PROPERTY_INDEX, JSFunction, reflect_define_property)   \

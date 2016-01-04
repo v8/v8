@@ -81,6 +81,12 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
                                                                \
   V(ObjectAssign, kNone)                                       \
   V(ObjectCreate, kNone)                                       \
+  V(ObjectFreeze, kNone)                                       \
+  V(ObjectIsExtensible, kNone)                                 \
+  V(ObjectIsFrozen, kNone)                                     \
+  V(ObjectIsSealed, kNone)                                     \
+  V(ObjectPreventExtensions, kNone)                            \
+  V(ObjectSeal, kNone)                                         \
   V(ObjectProtoToString, kNone)                                \
                                                                \
   V(ProxyConstructor, kNone)                                   \

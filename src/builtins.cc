@@ -1522,6 +1522,84 @@ BUILTIN(ObjectCreate) {
 }
 
 
+// ES6 section 19.1.2.5 Object.freeze ( O )
+BUILTIN(ObjectFreeze) {
+  HandleScope scope(isolate);
+  Handle<Object> object = args.atOrUndefined(isolate, 1);
+  if (object->IsJSReceiver()) {
+    MAYBE_RETURN(JSReceiver::SetIntegrityLevel(Handle<JSReceiver>::cast(object),
+                                               FROZEN, Object::THROW_ON_ERROR),
+                 isolate->heap()->exception());
+  }
+  return *object;
+}
+
+
+// ES6 section 19.1.2.11 Object.isExtensible ( O )
+BUILTIN(ObjectIsExtensible) {
+  HandleScope scope(isolate);
+  Handle<Object> object = args.atOrUndefined(isolate, 1);
+  Maybe<bool> result =
+      object->IsJSReceiver()
+          ? JSReceiver::IsExtensible(Handle<JSReceiver>::cast(object))
+          : Just(false);
+  MAYBE_RETURN(result, isolate->heap()->exception());
+  return isolate->heap()->ToBoolean(result.FromJust());
+}
+
+
+// ES6 section 19.1.2.12 Object.isFrozen ( O )
+BUILTIN(ObjectIsFrozen) {
+  HandleScope scope(isolate);
+  Handle<Object> object = args.atOrUndefined(isolate, 1);
+  Maybe<bool> result = object->IsJSReceiver()
+                           ? JSReceiver::TestIntegrityLevel(
+                                 Handle<JSReceiver>::cast(object), FROZEN)
+                           : Just(true);
+  MAYBE_RETURN(result, isolate->heap()->exception());
+  return isolate->heap()->ToBoolean(result.FromJust());
+}
+
+
+// ES6 section 19.1.2.13 Object.isSealed ( O )
+BUILTIN(ObjectIsSealed) {
+  HandleScope scope(isolate);
+  Handle<Object> object = args.atOrUndefined(isolate, 1);
+  Maybe<bool> result = object->IsJSReceiver()
+                           ? JSReceiver::TestIntegrityLevel(
+                                 Handle<JSReceiver>::cast(object), SEALED)
+                           : Just(true);
+  MAYBE_RETURN(result, isolate->heap()->exception());
+  return isolate->heap()->ToBoolean(result.FromJust());
+}
+
+
+// ES6 section 19.1.2.15 Object.preventExtensions ( O )
+BUILTIN(ObjectPreventExtensions) {
+  HandleScope scope(isolate);
+  Handle<Object> object = args.atOrUndefined(isolate, 1);
+  if (object->IsJSReceiver()) {
+    MAYBE_RETURN(JSReceiver::PreventExtensions(Handle<JSReceiver>::cast(object),
+                                               Object::THROW_ON_ERROR),
+                 isolate->heap()->exception());
+  }
+  return *object;
+}
+
+
+// ES6 section 19.1.2.17 Object.seal ( O )
+BUILTIN(ObjectSeal) {
+  HandleScope scope(isolate);
+  Handle<Object> object = args.atOrUndefined(isolate, 1);
+  if (object->IsJSReceiver()) {
+    MAYBE_RETURN(JSReceiver::SetIntegrityLevel(Handle<JSReceiver>::cast(object),
+                                               SEALED, Object::THROW_ON_ERROR),
+                 isolate->heap()->exception());
+  }
+  return *object;
+}
+
+
 namespace {
 
 bool CodeGenerationFromStringsAllowed(Isolate* isolate,

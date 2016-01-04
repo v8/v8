@@ -1044,6 +1044,16 @@ static Handle<JSFunction> SimpleInstallFunction(Handle<JSObject> base,
 }
 
 
+static Handle<JSFunction> SimpleInstallFunction(Handle<JSObject> base,
+                                                const char* name,
+                                                Builtins::Name call, int len,
+                                                bool adapt) {
+  Factory* const factory = base->GetIsolate()->factory();
+  return SimpleInstallFunction(base, factory->InternalizeUtf8String(name), call,
+                               len, adapt);
+}
+
+
 static void InstallWithIntrinsicDefaultProto(Isolate* isolate,
                                              Handle<JSFunction> function,
                                              int context_index) {
@@ -1078,13 +1088,33 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   native_context()->set_script_context_table(*script_context_table);
   InstallGlobalThisBinding();
 
-  Handle<String> object_name = factory->Object_string();
-  JSObject::AddProperty(
-      global_object, object_name, isolate->object_function(), DONT_ENUM);
-  SimpleInstallFunction(isolate->object_function(), factory->assign_string(),
-                        Builtins::kObjectAssign, 2, false);
-  SimpleInstallFunction(isolate->object_function(), factory->create_string(),
-                        Builtins::kObjectCreate, 2, false);
+  {  // --- O b j e c t ---
+    Handle<String> object_name = factory->Object_string();
+    Handle<JSFunction> object_function = isolate->object_function();
+    JSObject::AddProperty(global_object, object_name, object_function,
+                          DONT_ENUM);
+    SimpleInstallFunction(object_function, factory->assign_string(),
+                          Builtins::kObjectAssign, 2, false);
+    SimpleInstallFunction(object_function, factory->create_string(),
+                          Builtins::kObjectCreate, 2, false);
+    Handle<JSFunction> object_freeze = SimpleInstallFunction(
+        object_function, "freeze", Builtins::kObjectFreeze, 1, false);
+    native_context()->set_object_freeze(*object_freeze);
+    Handle<JSFunction> object_is_extensible =
+        SimpleInstallFunction(object_function, "isExtensible",
+                              Builtins::kObjectIsExtensible, 1, false);
+    native_context()->set_object_is_extensible(*object_is_extensible);
+    Handle<JSFunction> object_is_frozen = SimpleInstallFunction(
+        object_function, "isFrozen", Builtins::kObjectIsFrozen, 1, false);
+    native_context()->set_object_is_frozen(*object_is_frozen);
+    Handle<JSFunction> object_is_sealed = SimpleInstallFunction(
+        object_function, "isSealed", Builtins::kObjectIsSealed, 1, false);
+    native_context()->set_object_is_sealed(*object_is_sealed);
+    SimpleInstallFunction(object_function, "preventExtensions",
+                          Builtins::kObjectPreventExtensions, 1, false);
+    SimpleInstallFunction(object_function, "seal", Builtins::kObjectSeal, 1,
+                          false);
+  }
 
   Handle<JSObject> global(native_context()->global_object());
 

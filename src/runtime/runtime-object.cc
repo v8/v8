@@ -291,26 +291,6 @@ RUNTIME_FUNCTION(Runtime_GetOwnProperty) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_PreventExtensions) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, obj, 0);
-  MAYBE_RETURN(JSReceiver::PreventExtensions(obj, Object::THROW_ON_ERROR),
-               isolate->heap()->exception());
-  return *obj;
-}
-
-
-RUNTIME_FUNCTION(Runtime_IsExtensible) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, obj, 0);
-  Maybe<bool> result = JSReceiver::IsExtensible(obj);
-  MAYBE_RETURN(result, isolate->heap()->exception());
-  return isolate->heap()->ToBoolean(result.FromJust());
-}
-
-
 RUNTIME_FUNCTION(Runtime_OptimizeObjectForAddingMultipleProperties) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
@@ -323,52 +303,6 @@ RUNTIME_FUNCTION(Runtime_OptimizeObjectForAddingMultipleProperties) {
                                   "OptimizeForAdding");
   }
   return *object;
-}
-
-
-RUNTIME_FUNCTION(Runtime_ObjectFreeze) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
-
-  MAYBE_RETURN(
-      JSReceiver::SetIntegrityLevel(object, FROZEN, Object::THROW_ON_ERROR),
-      isolate->heap()->exception());
-  return *object;
-}
-
-
-RUNTIME_FUNCTION(Runtime_ObjectIsFrozen) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
-
-  Maybe<bool> result = JSReceiver::TestIntegrityLevel(object, FROZEN);
-  MAYBE_RETURN(result, isolate->heap()->exception());
-  return isolate->heap()->ToBoolean(result.FromJust());
-}
-
-
-RUNTIME_FUNCTION(Runtime_ObjectSeal) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
-
-  MAYBE_RETURN(
-      JSReceiver::SetIntegrityLevel(object, SEALED, Object::THROW_ON_ERROR),
-      isolate->heap()->exception());
-  return *object;
-}
-
-
-RUNTIME_FUNCTION(Runtime_ObjectIsSealed) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
-
-  Maybe<bool> result = JSReceiver::TestIntegrityLevel(object, SEALED);
-  MAYBE_RETURN(result, isolate->heap()->exception());
-  return isolate->heap()->ToBoolean(result.FromJust());
 }
 
 

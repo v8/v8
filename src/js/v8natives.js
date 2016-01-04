@@ -539,7 +539,7 @@ function DefineProxyProperty(obj, p, attributes, should_throw) {
 function DefineObjectProperty(obj, p, desc, should_throw) {
   var current_array = %GetOwnProperty_Legacy(obj, TO_NAME(p));
   var current = ConvertDescriptorArrayToDescriptor(current_array);
-  var extensible = %IsExtensible(obj);
+  var extensible = %object_is_extensible(obj);
 
   if (IS_UNDEFINED(current) && !extensible) {
     if (should_throw) {
@@ -838,48 +838,6 @@ function ObjectDefineProperties(obj, properties) {
 }
 
 
-// ES6 19.1.2.17
-function ObjectSealJS(obj) {
-  if (!IS_RECEIVER(obj)) return obj;
-  return %ObjectSeal(obj);
-}
-
-
-// ES6 19.1.2.5
-function ObjectFreezeJS(obj) {
-  if (!IS_RECEIVER(obj)) return obj;
-  return %ObjectFreeze(obj);
-}
-
-
-// ES6 19.1.2.15
-function ObjectPreventExtension(obj) {
-  if (!IS_RECEIVER(obj)) return obj;
-  return %PreventExtensions(obj);
-}
-
-
-// ES6 19.1.2.13
-function ObjectIsSealed(obj) {
-  if (!IS_RECEIVER(obj)) return true;
-  return %ObjectIsSealed(obj);
-}
-
-
-// ES6 19.1.2.12
-function ObjectIsFrozen(obj) {
-  if (!IS_RECEIVER(obj)) return true;
-  return %ObjectIsFrozen(obj);
-}
-
-
-// ES6 19.1.2.11
-function ObjectIsExtensible(obj) {
-  if (!IS_RECEIVER(obj)) return false;
-  return %IsExtensible(obj);
-}
-
-
 // ES6 B.2.2.1.1
 function ObjectGetProto() {
   return %_GetPrototype(TO_OBJECT(this));
@@ -937,18 +895,12 @@ utils.InstallFunctions(GlobalObject, DONT_ENUM, [
   "keys", ObjectKeys,
   "defineProperty", ObjectDefineProperty,
   "defineProperties", ObjectDefineProperties,
-  "freeze", ObjectFreezeJS,
   "getPrototypeOf", ObjectGetPrototypeOf,
   "setPrototypeOf", ObjectSetPrototypeOf,
   "getOwnPropertyDescriptor", ObjectGetOwnPropertyDescriptor,
   "getOwnPropertyNames", ObjectGetOwnPropertyNames,
   // getOwnPropertySymbols is added in symbol.js.
   "is", SameValue,  // ECMA-262, Edition 6, section 19.1.2.10
-  "isExtensible", ObjectIsExtensible,
-  "isFrozen", ObjectIsFrozen,
-  "isSealed", ObjectIsSealed,
-  "preventExtensions", ObjectPreventExtension,
-  "seal", ObjectSealJS
   // deliverChangeRecords, getNotifier, observe and unobserve are added
   // in object-observe.js.
 ]);
@@ -1257,10 +1209,7 @@ utils.Export(function(to) {
   to.NumberIsNaN = NumberIsNaN;
   to.ObjectDefineProperties = ObjectDefineProperties;
   to.ObjectDefineProperty = ObjectDefineProperty;
-  to.ObjectFreeze = ObjectFreezeJS;
   to.ObjectHasOwnProperty = ObjectHasOwnProperty;
-  to.ObjectIsFrozen = ObjectIsFrozen;
-  to.ObjectIsSealed = ObjectIsSealed;
   to.ObjectKeys = ObjectKeys;
 });
 

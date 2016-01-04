@@ -23,8 +23,6 @@ var MaxSimple;
 var MinSimple;
 var ObjectDefineProperty;
 var ObjectHasOwnProperty;
-var ObjectIsFrozen;
-var ObjectIsSealed;
 var ObjectToString = utils.ImportNow("object_to_string");
 var ObserveBeginPerformSplice;
 var ObserveEndPerformSplice;
@@ -42,8 +40,6 @@ utils.Import(function(from) {
   MinSimple = from.MinSimple;
   ObjectDefineProperty = from.ObjectDefineProperty;
   ObjectHasOwnProperty = from.ObjectHasOwnProperty;
-  ObjectIsFrozen = from.ObjectIsFrozen;
-  ObjectIsSealed = from.ObjectIsSealed;
   ObserveBeginPerformSplice = from.ObserveBeginPerformSplice;
   ObserveEndPerformSplice = from.ObserveEndPerformSplice;
   ObserveEnqueueSpliceRecord = from.ObserveEnqueueSpliceRecord;
@@ -672,7 +668,7 @@ function ArrayShift() {
     return;
   }
 
-  if (ObjectIsSealed(array)) throw MakeTypeError(kArrayFunctionsOnSealed);
+  if (%object_is_sealed(array)) throw MakeTypeError(kArrayFunctionsOnSealed);
 
   if (%IsObserved(array))
     return ObservedArrayShift.call(array, len);
@@ -723,7 +719,7 @@ function ArrayUnshift(arg1) {  // length == 1
   var num_arguments = %_ArgumentsLength();
 
   if (len > 0 && UseSparseVariant(array, len, IS_ARRAY(array), len) &&
-      !ObjectIsSealed(array)) {
+      !%object_is_sealed(array)) {
     SparseMove(array, 0, 0, len, num_arguments);
   } else {
     SimpleMove(array, 0, 0, len, num_arguments);
@@ -869,9 +865,9 @@ function ArraySplice(start, delete_count) {
   deleted_elements.length = del_count;
   var num_elements_to_add = num_arguments > 2 ? num_arguments - 2 : 0;
 
-  if (del_count != num_elements_to_add && ObjectIsSealed(array)) {
+  if (del_count != num_elements_to_add && %object_is_sealed(array)) {
     throw MakeTypeError(kArrayFunctionsOnSealed);
-  } else if (del_count > 0 && ObjectIsFrozen(array)) {
+  } else if (del_count > 0 && %object_is_frozen(array)) {
     throw MakeTypeError(kArrayFunctionsOnFrozen);
   }
 
@@ -1675,7 +1671,7 @@ function InnerArrayFill(value, start, end, array, length) {
     if (end > length) end = length;
   }
 
-  if ((end - i) > 0 && ObjectIsFrozen(array)) {
+  if ((end - i) > 0 && %object_is_frozen(array)) {
     throw MakeTypeError(kArrayFunctionsOnFrozen);
   }
 

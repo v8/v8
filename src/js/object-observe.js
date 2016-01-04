@@ -16,14 +16,10 @@ var GlobalArray = global.Array;
 var GlobalObject = global.Object;
 var InternalArray = utils.InternalArray;
 var MakeTypeError;
-var ObjectFreeze;
-var ObjectIsFrozen;
 
 utils.Import(function(from) {
   GetHash = from.GetHash;
   MakeTypeError = from.MakeTypeError;
-  ObjectFreeze = from.ObjectFreeze;
-  ObjectIsFrozen = from.ObjectIsFrozen;
 });
 
 // -------------------------------------------------------------------
@@ -388,7 +384,7 @@ function ObjectObserve(object, callback, acceptList) {
     throw MakeTypeError(kObserveAccessChecked, "observe");
   if (!IS_CALLABLE(callback))
     throw MakeTypeError(kObserveNonFunction, "observe");
-  if (ObjectIsFrozen(callback))
+  if (%object_is_frozen(callback))
     throw MakeTypeError(kObserveCallbackFrozen);
 
   var objectObserveFn = %GetObjectContextObjectObserve(object);
@@ -481,7 +477,7 @@ function ObjectInfoEnqueueExternalChangeRecord(objectInfo, changeRecord, type) {
     %DefineDataPropertyUnchecked(
         newRecord, prop, changeRecord[prop], READ_ONLY + DONT_DELETE);
   }
-  ObjectFreeze(newRecord);
+  %object_freeze(newRecord);
 
   ObjectInfoEnqueueInternalChangeRecord(objectInfo, newRecord);
 }
@@ -533,8 +529,8 @@ function EnqueueSpliceRecord(array, index, removed, addedCount) {
     addedCount: addedCount
   };
 
-  ObjectFreeze(changeRecord);
-  ObjectFreeze(changeRecord.removed);
+  %object_freeze(changeRecord);
+  %object_freeze(changeRecord.removed);
   ObjectInfoEnqueueInternalChangeRecord(objectInfo, changeRecord);
 }
 
@@ -558,7 +554,7 @@ function NotifyChange(type, object, name, oldValue) {
     };
   }
 
-  ObjectFreeze(changeRecord);
+  %object_freeze(changeRecord);
   ObjectInfoEnqueueInternalChangeRecord(objectInfo, changeRecord);
 }
 
@@ -617,7 +613,7 @@ function ObjectGetNotifier(object) {
   if (%IsAccessCheckNeeded(object))
     throw MakeTypeError(kObserveAccessChecked, "getNotifier");
 
-  if (ObjectIsFrozen(object)) return null;
+  if (%object_is_frozen(object)) return null;
 
   if (!%ObjectWasCreatedInCurrentOrigin(object)) return null;
 
