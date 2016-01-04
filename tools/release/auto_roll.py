@@ -186,7 +186,7 @@ class AutoRoll(ScriptsBase):
     parser.add_argument("--last-roll",
                         help="The git commit ID of the last rolled version. "
                              "Auto-detected if not specified.")
-    parser.add_argument("--max-age", default=3, type=int,
+    parser.add_argument("--max-age", default=7, type=int,
                         help="Maximum age in days of the latest release.")
     parser.add_argument("--revision",
                         help="Revision to roll. Auto-detected if not "
