@@ -170,6 +170,10 @@
   'regress-sync-optimized-lists': [PASS, NO_VARIANTS],
   'regress/regress-store-uncacheable': [PASS, NO_VARIANTS],
 
+  # TODO(jarin): compiler.cc seems to ignore DisableOptimization for
+  # TurboFan in various cases.
+  'regress/regress-417709a': [SKIP],
+
   # issue 4078:
   'allocation-site-info': [PASS, NO_VARIANTS],
 
