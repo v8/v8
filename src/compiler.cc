@@ -411,12 +411,29 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
   DCHECK(info()->shared_info()->has_deoptimization_support());
   DCHECK(!info()->is_first_compile());
 
-  // Check the enabling conditions for TurboFan.
+  bool optimization_disabled = info()->shared_info()->optimization_disabled();
   bool dont_crankshaft = info()->shared_info()->dont_crankshaft();
-  if (((FLAG_turbo_asm && info()->shared_info()->asm_function()) ||
-       (dont_crankshaft && strcmp(FLAG_turbo_filter, "~~") == 0) ||
-       info()->closure()->PassesFilter(FLAG_turbo_filter)) &&
-      (FLAG_turbo_osr || !info()->is_osr())) {
+
+  // Check the enabling conditions for Turbofan.
+  // 1. "use asm" code.
+  bool is_turbofanable_asm = FLAG_turbo_asm &&
+                             info()->shared_info()->asm_function() &&
+                             !optimization_disabled;
+
+  // 2. Fallback for features unsupported by Crankshaft.
+  bool is_unsupported_by_crankshaft_but_turbofanable =
+      dont_crankshaft && strcmp(FLAG_turbo_filter, "~~") == 0 &&
+      !optimization_disabled;
+
+  // 3. Explicitly enabled by the command-line filter.
+  bool passes_turbo_filter = info()->closure()->PassesFilter(FLAG_turbo_filter);
+
+  // If this is OSR request, OSR must be enabled by Turbofan.
+  bool passes_osr_test = FLAG_turbo_osr || !info()->is_osr();
+
+  if ((is_turbofanable_asm || is_unsupported_by_crankshaft_but_turbofanable ||
+       passes_turbo_filter) &&
+      passes_osr_test) {
     // Use TurboFan for the compilation.
     if (FLAG_trace_opt) {
       OFStream os(stdout);

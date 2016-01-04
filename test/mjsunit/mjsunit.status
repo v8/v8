@@ -118,6 +118,9 @@
   'debug-listbreakpoints': [PASS, NO_VARIANTS],  # arm64 nosnap with turbofan
   'debug-enable-disable-breakpoints': [PASS, NO_VARIANTS],  #arm64 nosnap with turbofan.
 
+  # TODO(rossberg)
+  'strong/literals': [SKIP], # Rest arguments do not respect strongness in Turbofan.
+
   # Issue 4035: unexpected frame->context() in debugger
   'regress/regress-crbug-107996': [PASS, NO_VARIANTS],
   'regress/regress-crbug-171715': [PASS, NO_VARIANTS],
@@ -169,10 +172,6 @@
   # Assumptions about optimization need investigation in TurboFan.
   'regress-sync-optimized-lists': [PASS, NO_VARIANTS],
   'regress/regress-store-uncacheable': [PASS, NO_VARIANTS],
-
-  # TODO(jarin): compiler.cc seems to ignore DisableOptimization for
-  # TurboFan in various cases.
-  'regress/regress-417709a': [SKIP],
 
   # issue 4078:
   'allocation-site-info': [PASS, NO_VARIANTS],
