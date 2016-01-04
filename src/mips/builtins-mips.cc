@@ -964,12 +964,8 @@ static void Generate_InterpreterNotifyDeoptimizedHelper(
     // Tear down internal frame.
   }
 
-  // Drop state (we don't use these for interpreter deopts) and push PC at top
-  // of stack (to simulate initial call to bytecode handler in interpreter entry
-  // trampoline).
-  __ lw(a1, MemOperand(sp));
+  // Drop state (we don't use this for interpreter deopts).
   __ Drop(1);
-  __ sw(a1, MemOperand(sp));
 
   // Initialize register file register and dispatch table register.
   __ Addu(kInterpreterRegisterFileRegister, fp,

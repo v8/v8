@@ -927,12 +927,8 @@ static void Generate_InterpreterNotifyDeoptimizedHelper(
     // Tear down internal frame.
   }
 
-  // Drop state (we don't use these for interpreter deopts) and push PC at top
-  // of stack (to simulate initial call to bytecode handler in interpreter entry
-  // trampoline).
-  __ Pop(x1);
+  // Drop state (we don't use this for interpreter deopts).
   __ Drop(1);
-  __ Push(x1);
 
   // Initialize register file register and dispatch table register.
   __ Add(kInterpreterRegisterFileRegister, fp,
@@ -941,7 +937,6 @@ static void Generate_InterpreterNotifyDeoptimizedHelper(
               Heap::kInterpreterTableRootIndex);
   __ Add(kInterpreterDispatchTableRegister, kInterpreterDispatchTableRegister,
          Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-
 
   // Get the context from the frame.
   // TODO(rmcilroy): Update interpreter frame to expect current context at the

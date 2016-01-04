@@ -787,7 +787,7 @@ static void Generate_InterpreterNotifyDeoptimizedHelper(
   __ LoadRoot(ebx, Heap::kInterpreterTableRootIndex);
   __ add(ebx, Immediate(FixedArray::kHeaderSize - kHeapObjectTag));
   DCHECK_EQ(-1, kInterpreterDispatchTableSpillSlot);
-  __ mov(ebx, Operand(esp, -2 * kPointerSize));
+  __ mov(Operand(esp, kPointerSize), ebx);
 
   // Dispatch to the target bytecode.
   __ movzx_b(esi, Operand(kInterpreterBytecodeArrayRegister,
