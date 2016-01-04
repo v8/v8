@@ -317,13 +317,13 @@ function PromiseCatch(onReject) {
 
 function PromiseCast(x) {
   if (!IS_RECEIVER(this)) {
-    throw MakeTypeError(kCalledOnNonObject, PromiseCast);
+    throw MakeTypeError(kCalledOnNonObject, "Promise.resolve");
   }
-  if (IsPromise(x) && x.constructor === this) {
-    return x;
-  } else {
-    return new this(function(resolve, reject) { resolve(x) });
-  }
+  if (IsPromise(x) && x.constructor === this) return x;
+
+  var promiseCapability = NewPromiseCapability(this);
+  var resolveResult = %_Call(promiseCapability.resolve, UNDEFINED, x);
+  return promiseCapability.promise;
 }
 
 function PromiseAll(iterable) {

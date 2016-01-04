@@ -47,6 +47,8 @@ function clear(o) {
   clear(o.__proto__)
   var properties = getOwnPropertyNames(o)
   for (var i in properties) {
+    // Do not clobber Object.prototype.toString, which is used by tests.
+    if (properties[i] === "toString") continue;
     clearProp(o, properties[i])
   }
 }
@@ -1050,7 +1052,8 @@ function assertAsyncDone(iteration) {
 
   log = ""
   MyPromise.all([21, Promise.accept(22), 23, MyPromise.accept(24), 25, 26])
-  assertTrue(log === "nx24nnx21nnnnx23nnnx25nnx26n", "subclass/all/self")
+  assertTrue(log === "nx24nnx21nnx[object Promise]nnx23nnnx25nnx26n",
+             "subclass/all/self")
 })();
 
 (function() {
