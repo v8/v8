@@ -67,7 +67,7 @@ class PrototypeIterator {
 
   ~PrototypeIterator() {}
 
-  const bool HasAccess() {
+  bool HasAccess() const {
     // We can only perform access check in the handlified version of the
     // PrototypeIterator.
     DCHECK(!handle_.is_null());
