@@ -544,6 +544,61 @@ OptimizedCompileJob::Status OptimizedCompileJob::OptimizeGraph() {
 }
 
 
+namespace {
+
+void AddWeakObjectToCodeDependency(Isolate* isolate, Handle<HeapObject> object,
+                                   Handle<Code> code) {
+  Handle<WeakCell> cell = Code::WeakCellFor(code);
+  Heap* heap = isolate->heap();
+  Handle<DependentCode> dep(heap->LookupWeakObjectToCodeDependency(object));
+  dep = DependentCode::InsertWeakCode(dep, DependentCode::kWeakCodeGroup, cell);
+  heap->AddWeakObjectToCodeDependency(object, dep);
+}
+
+
+void RegisterWeakObjectsInOptimizedCode(Handle<Code> code) {
+  // TODO(turbofan): Move this to pipeline.cc once Crankshaft dies.
+  Isolate* const isolate = code->GetIsolate();
+  DCHECK(code->is_optimized_code());
+  std::vector<Handle<Map>> maps;
+  std::vector<Handle<HeapObject>> objects;
+  {
+    DisallowHeapAllocation no_gc;
+    int const mode_mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
+                          RelocInfo::ModeMask(RelocInfo::CELL);
+    for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
+      RelocInfo::Mode mode = it.rinfo()->rmode();
+      if (mode == RelocInfo::CELL &&
+          code->IsWeakObjectInOptimizedCode(it.rinfo()->target_cell())) {
+        objects.push_back(handle(it.rinfo()->target_cell(), isolate));
+      } else if (mode == RelocInfo::EMBEDDED_OBJECT &&
+                 code->IsWeakObjectInOptimizedCode(
+                     it.rinfo()->target_object())) {
+        Handle<HeapObject> object(HeapObject::cast(it.rinfo()->target_object()),
+                                  isolate);
+        if (object->IsMap()) {
+          maps.push_back(Handle<Map>::cast(object));
+        } else {
+          objects.push_back(object);
+        }
+      }
+    }
+  }
+  for (Handle<Map> map : maps) {
+    if (map->dependent_code()->IsEmpty(DependentCode::kWeakCodeGroup)) {
+      isolate->heap()->AddRetainedMap(map);
+    }
+    Map::AddDependentCode(map, DependentCode::kWeakCodeGroup, code);
+  }
+  for (Handle<HeapObject> object : objects) {
+    AddWeakObjectToCodeDependency(isolate, object, code);
+  }
+  code->set_can_have_weak_objects(true);
+}
+
+}  // namespace
+
+
 OptimizedCompileJob::Status OptimizedCompileJob::GenerateCode() {
   DCHECK(last_status() == SUCCEEDED);
   // TODO(turbofan): Currently everything is done in the first phase.
@@ -552,6 +607,7 @@ OptimizedCompileJob::Status OptimizedCompileJob::GenerateCode() {
     if (info()->is_deoptimization_enabled()) {
       info()->parse_info()->context()->native_context()->AddOptimizedCode(
           *info()->code());
+      RegisterWeakObjectsInOptimizedCode(info()->code());
     }
     RecordOptimizationStats();
     return last_status();
@@ -576,6 +632,7 @@ OptimizedCompileJob::Status OptimizedCompileJob::GenerateCode() {
       }
       return SetLastStatus(BAILED_OUT);
     }
+    RegisterWeakObjectsInOptimizedCode(optimized_code);
     info()->SetCode(optimized_code);
   }
   RecordOptimizationStats();

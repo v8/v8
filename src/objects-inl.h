@@ -5238,8 +5238,6 @@ Object* Code::GetObjectFromEntryAddress(Address location_of_address) {
 
 
 bool Code::CanContainWeakObjects() {
-  // is_turbofanned() implies !can_have_weak_objects().
-  DCHECK(!is_optimized_code() || !is_turbofanned() || !can_have_weak_objects());
   return is_optimized_code() && can_have_weak_objects();
 }
 
