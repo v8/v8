@@ -2074,9 +2074,10 @@ void BytecodeGenerator::VisitNewLocalBlockContext(Scope* scope) {
 
   // Allocate a new local block context.
   TemporaryRegisterScope temporary_register_scope(builder());
-  Register scope_info = temporary_register_scope.NewRegister();
-  Register closure = temporary_register_scope.NewRegister();
-  DCHECK(Register::AreContiguous(scope_info, closure));
+  temporary_register_scope.PrepareForConsecutiveAllocations(2);
+  Register scope_info = temporary_register_scope.NextConsecutiveRegister();
+  Register closure = temporary_register_scope.NextConsecutiveRegister();
+
   builder()
       ->LoadLiteral(scope->GetScopeInfo(isolate()))
       .StoreAccumulatorInRegister(scope_info);
