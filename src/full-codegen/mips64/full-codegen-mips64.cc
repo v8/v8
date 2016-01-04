@@ -1565,6 +1565,8 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         VisitForStackValue(value);
         DCHECK(property->emit_store());
         __ CallRuntime(Runtime::kInternalSetPrototype);
+        PrepareForBailoutForId(expr->GetIdForPropertySet(property_index),
+                               NO_REGISTERS);
         break;
       case ObjectLiteral::Property::GETTER:
         if (property->emit_store()) {
@@ -1620,8 +1622,10 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
       VisitForStackValue(value);
       DCHECK(property->emit_store());
       __ CallRuntime(Runtime::kInternalSetPrototype);
+      PrepareForBailoutForId(expr->GetIdForPropertySet(property_index),
+                             NO_REGISTERS);
     } else {
-      EmitPropertyKey(property, expr->GetIdForProperty(property_index));
+      EmitPropertyKey(property, expr->GetIdForPropertyName(property_index));
       VisitForStackValue(value);
       if (NeedsHomeObject(value)) {
         EmitSetHomeObject(value, 2, property->GetSlot());

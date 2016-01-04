@@ -1533,11 +1533,18 @@ class ObjectLiteral final : public MaterializedLiteral {
   BailoutId CreateLiteralId() const { return BailoutId(local_id(0)); }
 
   // Return an AST id for a property that is used in simulate instructions.
-  BailoutId GetIdForProperty(int i) { return BailoutId(local_id(i + 1)); }
+  BailoutId GetIdForPropertyName(int i) {
+    return BailoutId(local_id(2 * i + 1));
+  }
+  BailoutId GetIdForPropertySet(int i) {
+    return BailoutId(local_id(2 * i + 2));
+  }
 
   // Unlike other AST nodes, this number of bailout IDs allocated for an
   // ObjectLiteral can vary, so num_ids() is not a static method.
-  int num_ids() const { return parent_num_ids() + 1 + properties()->length(); }
+  int num_ids() const {
+    return parent_num_ids() + 1 + 2 * properties()->length();
+  }
 
   // Object literals need one feedback slot for each non-trivial value, as well
   // as some slots for home objects.
