@@ -24,6 +24,7 @@
             '../test/bot_default.gyp:*',
             '../test/benchmarks/benchmarks.gyp:*',
             '../test/default.gyp:*',
+            '../test/ignition.gyp:*',
             '../test/intl/intl.gyp:*',
             '../test/message/message.gyp:*',
             '../test/mjsunit/mjsunit.gyp:*',

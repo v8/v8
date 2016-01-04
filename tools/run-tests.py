@@ -77,6 +77,11 @@ TEST_MAP = {
     "intl",
     "unittests",
   ],
+  "ignition": [
+    "mjsunit",
+    # TODO(rmcilroy): Enable cctest in a separate CL.
+    # "cctest",
+  ],
   "optimize_for_size": [
     "mjsunit",
     "cctest",
