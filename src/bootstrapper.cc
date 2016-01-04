@@ -672,7 +672,6 @@ Handle<JSFunction> Genesis::GetThrowTypeErrorIntrinsic(
   Handle<Code> code(isolate()->builtins()->builtin(builtin_name));
   Handle<JSFunction> function =
       factory()->NewFunctionWithoutPrototype(name, code);
-  function->set_map(native_context()->sloppy_function_map());
   function->shared()->DontAdaptArguments();
 
   // %ThrowTypeError% must not have a name property.
