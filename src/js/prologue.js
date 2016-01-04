@@ -221,6 +221,7 @@ function PostNatives(utils) {
     "regexp_flags_symbol",
     "to_string_tag_symbol",
     "object_to_string",
+    "species_symbol",
   ];
 
   var filtered_exports = {};

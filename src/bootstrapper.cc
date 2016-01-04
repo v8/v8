@@ -2145,6 +2145,7 @@ void Bootstrapper::ExportExperimentalFromRuntime(Isolate* isolate,
 
   INITIALIZE_FLAG(FLAG_harmony_tostring)
   INITIALIZE_FLAG(FLAG_harmony_tolength)
+  INITIALIZE_FLAG(FLAG_harmony_species)
 
 #undef INITIALIZE_FLAG
 }
@@ -2385,6 +2386,13 @@ Handle<JSFunction> Genesis::InstallArrayBuffer(Handle<JSObject> target,
                         Builtins::kArrayBufferIsView, 1, true);
 
   return array_buffer_fun;
+}
+
+
+void Genesis::InitializeGlobal_harmony_species() {
+  if (!FLAG_harmony_species) return;
+  InstallPublicSymbol(factory(), native_context(), "species",
+                      factory()->species_symbol());
 }
 
 
@@ -2719,6 +2727,8 @@ bool Genesis::InstallExperimentalNatives() {
   static const char* harmony_sloppy_natives[] = {nullptr};
   static const char* harmony_sloppy_function_natives[] = {nullptr};
   static const char* harmony_sloppy_let_natives[] = {nullptr};
+  static const char* harmony_species_natives[] = {"native harmony-species.js",
+                                                  nullptr};
   static const char* harmony_unicode_regexps_natives[] = {
       "native harmony-unicode-regexps.js", nullptr};
   static const char* harmony_default_parameters_natives[] = {nullptr};

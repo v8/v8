@@ -198,14 +198,15 @@ DEFINE_IMPLICATION(es_staging, harmony_regexp_lookbehind)
 DEFINE_IMPLICATION(es_staging, move_object_start)
 
 // Features that are still work in progress (behind individual flags).
-#define HARMONY_INPROGRESS(V)                                         \
-  V(harmony_modules, "harmony modules")                               \
-  V(harmony_unicode_regexps, "harmony unicode regexps")               \
-  V(harmony_function_name, "harmony Function name inference")         \
-  V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")           \
-  V(harmony_simd, "harmony simd")                                     \
-  V(harmony_do_expressions, "harmony do-expressions")                 \
-  V(harmony_regexp_subclass, "harmony regexp subclassing")
+#define HARMONY_INPROGRESS(V)                                 \
+  V(harmony_modules, "harmony modules")                       \
+  V(harmony_unicode_regexps, "harmony unicode regexps")       \
+  V(harmony_function_name, "harmony Function name inference") \
+  V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")   \
+  V(harmony_simd, "harmony simd")                             \
+  V(harmony_do_expressions, "harmony do-expressions")         \
+  V(harmony_regexp_subclass, "harmony regexp subclassing")    \
+  V(harmony_species, "harmony Symbol.species")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED(V)                                                 \

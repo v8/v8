@@ -379,14 +379,15 @@ namespace internal {
   V(strong_function_transition_symbol)      \
   V(uninitialized_symbol)
 
-#define PUBLIC_SYMBOL_LIST(V)                 \
-  V(has_instance_symbol, Symbol.hasInstance)  \
-  V(iterator_symbol, Symbol.iterator)         \
-  V(match_symbol, Symbol.match)               \
-  V(replace_symbol, Symbol.replace)           \
-  V(search_symbol, Symbol.search)             \
-  V(split_symbol, Symbol.split)               \
-  V(to_primitive_symbol, Symbol.toPrimitive)  \
+#define PUBLIC_SYMBOL_LIST(V)                \
+  V(has_instance_symbol, Symbol.hasInstance) \
+  V(iterator_symbol, Symbol.iterator)        \
+  V(match_symbol, Symbol.match)              \
+  V(replace_symbol, Symbol.replace)          \
+  V(search_symbol, Symbol.search)            \
+  V(species_symbol, Symbol.species)          \
+  V(split_symbol, Symbol.split)              \
+  V(to_primitive_symbol, Symbol.toPrimitive) \
   V(unscopables_symbol, Symbol.unscopables)
 
 // Well-Known Symbols are "Public" symbols, which have a bit set which causes
