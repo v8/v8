@@ -1977,27 +1977,25 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
 
 
 void RestParamAccessStub::GenerateNew(MacroAssembler* masm) {
-  // Stack layout on entry.
-  //  sp[0] : language mode
-  //  sp[4] : index of rest parameter
-  //  sp[8] : number of parameters
-  //  sp[12] : receiver displacement
+  // r5 : number of parameters (tagged)
+  // r6 : parameters pointer
+  // r7 : rest parameter index (tagged)
+  // r4 : language mode (tagged)
 
   Label runtime;
-  __ LoadP(r5, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-  __ LoadP(r6, MemOperand(r5, StandardFrameConstants::kContextOffset));
-  __ CmpSmiLiteral(r6, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR), r0);
+  __ LoadP(r8, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+  __ LoadP(r3, MemOperand(r8, StandardFrameConstants::kContextOffset));
+  __ CmpSmiLiteral(r3, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR), r0);
   __ bne(&runtime);
 
   // Patch the arguments.length and the parameters pointer.
-  __ LoadP(r4, MemOperand(r5, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ StoreP(r4, MemOperand(sp, 2 * kPointerSize));
-  __ SmiToPtrArrayOffset(r0, r4);
-  __ add(r6, r5, r0);
+  __ LoadP(r5, MemOperand(r8, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ SmiToPtrArrayOffset(r0, r5);
+  __ add(r6, r8, r0);
   __ addi(r6, r6, Operand(StandardFrameConstants::kCallerSPOffset));
-  __ StoreP(r6, MemOperand(sp, 3 * kPointerSize));
 
   __ bind(&runtime);
+  __ Push(r5, r6, r7, r4);
   __ TailCallRuntime(Runtime::kNewRestParam);
 }
 

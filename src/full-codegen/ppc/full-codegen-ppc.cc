@@ -273,11 +273,15 @@ void FullCodeGenerator::Generate() {
     int num_parameters = info->scope()->num_parameters();
     int offset = num_parameters * kPointerSize;
 
-    __ addi(r6, fp, Operand(StandardFrameConstants::kCallerSPOffset + offset));
-    __ LoadSmiLiteral(r5, Smi::FromInt(num_parameters));
-    __ LoadSmiLiteral(r4, Smi::FromInt(rest_index));
-    __ LoadSmiLiteral(r3, Smi::FromInt(language_mode()));
-    __ Push(r6, r5, r4, r3);
+    __ LoadSmiLiteral(RestParamAccessDescriptor::parameter_count(),
+                      Operand(Smi::FromInt(num_parameters)));
+    __ addi(RestParamAccessDescriptor::parameter_pointer(), fp,
+            Operand(StandardFrameConstants::kCallerSPOffset + offset));
+    __ LoadSmiLiteral(RestParamAccessDescriptor::rest_parameter_index(),
+                      Operand(Smi::FromInt(rest_index)));
+    __ LoadSmiLiteral(RestParamAccessDescriptor::language_mode(),
+                      Operand(Smi::FromInt(language_mode())));
+    DCHECK(r4.is(RestParamAccessDescriptor::language_mode()));
     function_in_register_r4 = false;
 
     RestParamAccessStub stub(isolate());
