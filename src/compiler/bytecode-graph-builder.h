@@ -147,6 +147,10 @@ class BytecodeGraphBuilder {
   void BuildKeyedLoad(const interpreter::BytecodeArrayIterator& iterator);
   void BuildNamedStore(const interpreter::BytecodeArrayIterator& iterator);
   void BuildKeyedStore(const interpreter::BytecodeArrayIterator& iterator);
+  void BuildLdaLookupSlot(TypeofMode typeof_mode,
+                          const interpreter::BytecodeArrayIterator& iterator);
+  void BuildStaLookupSlot(LanguageMode language_mode,
+                          const interpreter::BytecodeArrayIterator& iterator);
   void BuildCall(const interpreter::BytecodeArrayIterator& iterator);
   void BuildBinaryOp(const Operator* op,
                      const interpreter::BytecodeArrayIterator& iterator);

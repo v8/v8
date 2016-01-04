@@ -702,27 +702,53 @@ void BytecodeGraphBuilder::VisitStaContextSlot(
 }
 
 
+void BytecodeGraphBuilder::BuildLdaLookupSlot(
+    TypeofMode typeof_mode,
+    const interpreter::BytecodeArrayIterator& iterator) {
+  FrameStateBeforeAndAfter states(this, iterator);
+  Handle<String> name =
+      Handle<String>::cast(iterator.GetConstantForIndexOperand(0));
+  const Operator* op = javascript()->LoadDynamic(name, typeof_mode);
+  Node* value =
+      NewNode(op, BuildLoadFeedbackVector(), environment()->Context());
+  environment()->BindAccumulator(value, &states);
+}
+
+
 void BytecodeGraphBuilder::VisitLdaLookupSlot(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  BuildLdaLookupSlot(TypeofMode::NOT_INSIDE_TYPEOF, iterator);
 }
 
 
 void BytecodeGraphBuilder::VisitLdaLookupSlotInsideTypeof(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  BuildLdaLookupSlot(TypeofMode::INSIDE_TYPEOF, iterator);
+}
+
+
+void BytecodeGraphBuilder::BuildStaLookupSlot(
+    LanguageMode language_mode,
+    const interpreter::BytecodeArrayIterator& iterator) {
+  FrameStateBeforeAndAfter states(this, iterator);
+  Node* value = environment()->LookupAccumulator();
+  Node* name = jsgraph()->Constant(iterator.GetConstantForIndexOperand(0));
+  Node* language = jsgraph()->Constant(language_mode);
+  const Operator* op = javascript()->CallRuntime(Runtime::kStoreLookupSlot, 4);
+  Node* store = NewNode(op, value, environment()->Context(), name, language);
+  environment()->BindAccumulator(store, &states);
 }
 
 
 void BytecodeGraphBuilder::VisitStaLookupSlotSloppy(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  BuildStaLookupSlot(LanguageMode::SLOPPY, iterator);
 }
 
 
 void BytecodeGraphBuilder::VisitStaLookupSlotStrict(
     const interpreter::BytecodeArrayIterator& iterator) {
-  UNIMPLEMENTED();
+  BuildStaLookupSlot(LanguageMode::STRICT, iterator);
 }
 
 
