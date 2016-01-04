@@ -185,10 +185,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
     }
   }
 
-  void VisitWithStatement(WithStatement* stmt) {
-    RECURSE(stmt->expression());
-    RECURSE(stmt->statement());
-  }
+  void VisitWithStatement(WithStatement* stmt) { UNREACHABLE(); }
 
   void VisitSwitchStatement(SwitchStatement* stmt) {
     RECURSE(Visit(stmt->tag()));
@@ -209,8 +206,23 @@ class AsmWasmBuilderImpl : public AstVisitor {
   void VisitCaseClause(CaseClause* clause) { UNREACHABLE(); }
 
   void VisitDoWhileStatement(DoWhileStatement* stmt) {
+    DCHECK(in_function_);
+    current_function_builder_->Emit(kExprLoop);
+    uint32_t index = current_function_builder_->EmitEditableImmediate(0);
+    int prev_block_size = block_size_;
+    block_size_ = 0;
+    breakable_blocks_.push_back(
+        std::make_pair(stmt->AsBreakableStatement(), true));
+    block_size_++;
     RECURSE(Visit(stmt->body()));
+    block_size_++;
+    current_function_builder_->Emit(kExprIf);
     RECURSE(Visit(stmt->cond()));
+    current_function_builder_->EmitWithU8(kExprBr, 0);
+    current_function_builder_->Emit(kExprNop);
+    current_function_builder_->EditImmediate(index, block_size_);
+    block_size_ = prev_block_size;
+    breakable_blocks_.pop_back();
   }
 
   void VisitWhileStatement(WhileStatement* stmt) {
@@ -261,27 +273,15 @@ class AsmWasmBuilderImpl : public AstVisitor {
     breakable_blocks_.pop_back();
   }
 
-  void VisitForInStatement(ForInStatement* stmt) {
-    RECURSE(Visit(stmt->enumerable()));
-    RECURSE(Visit(stmt->body()));
-  }
+  void VisitForInStatement(ForInStatement* stmt) { UNREACHABLE(); }
 
-  void VisitForOfStatement(ForOfStatement* stmt) {
-    RECURSE(Visit(stmt->iterable()));
-    RECURSE(Visit(stmt->body()));
-  }
+  void VisitForOfStatement(ForOfStatement* stmt) { UNREACHABLE(); }
 
-  void VisitTryCatchStatement(TryCatchStatement* stmt) {
-    RECURSE(Visit(stmt->try_block()));
-    RECURSE(Visit(stmt->catch_block()));
-  }
+  void VisitTryCatchStatement(TryCatchStatement* stmt) { UNREACHABLE(); }
 
-  void VisitTryFinallyStatement(TryFinallyStatement* stmt) {
-    RECURSE(Visit(stmt->try_block()));
-    RECURSE(Visit(stmt->finally_block()));
-  }
+  void VisitTryFinallyStatement(TryFinallyStatement* stmt) { UNREACHABLE(); }
 
-  void VisitDebuggerStatement(DebuggerStatement* stmt) {}
+  void VisitDebuggerStatement(DebuggerStatement* stmt) { UNREACHABLE(); }
 
   void VisitFunctionLiteral(FunctionLiteral* expr) {
     Scope* scope = expr->scope();
@@ -303,9 +303,13 @@ class AsmWasmBuilderImpl : public AstVisitor {
     RECURSE(VisitStatements(expr->body()));
   }
 
-  void VisitNativeFunctionLiteral(NativeFunctionLiteral* expr) {}
+  void VisitNativeFunctionLiteral(NativeFunctionLiteral* expr) {
+    UNREACHABLE();
+  }
 
   void VisitConditional(Conditional* expr) {
+    DCHECK(in_function_);
+    current_function_builder_->Emit(kExprIfElse);
     RECURSE(Visit(expr->condition()));
     RECURSE(Visit(expr->then_expression()));
     RECURSE(Visit(expr->else_expression()));
@@ -382,7 +386,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
     }
   }
 
-  void VisitRegExpLiteral(RegExpLiteral* expr) {}
+  void VisitRegExpLiteral(RegExpLiteral* expr) { UNREACHABLE(); }
 
   void VisitObjectLiteral(ObjectLiteral* expr) {
     ZoneList<ObjectLiteralProperty*>* props = expr->properties();
@@ -392,13 +396,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
     }
   }
 
-  void VisitArrayLiteral(ArrayLiteral* expr) {
-    ZoneList<Expression*>* values = expr->values();
-    for (int i = 0; i < values->length(); ++i) {
-      Expression* value = values->at(i);
-      RECURSE(Visit(value));
-    }
-  }
+  void VisitArrayLiteral(ArrayLiteral* expr) { UNREACHABLE(); }
 
   void LoadInitFunction() {
     if (!init_function_initialized) {
@@ -450,12 +448,9 @@ class AsmWasmBuilderImpl : public AstVisitor {
     }
   }
 
-  void VisitYield(Yield* expr) {
-    RECURSE(Visit(expr->generator_object()));
-    RECURSE(Visit(expr->expression()));
-  }
+  void VisitYield(Yield* expr) { UNREACHABLE(); }
 
-  void VisitThrow(Throw* expr) { RECURSE(Visit(expr->exception())); }
+  void VisitThrow(Throw* expr) { UNREACHABLE(); }
 
   void VisitProperty(Property* expr) {
     Expression* obj = expr->obj();
@@ -560,9 +555,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
     RECURSE(Visit(expr->expression()));
   }
 
-  void VisitCountOperation(CountOperation* expr) {
-    RECURSE(Visit(expr->expression()));
-  }
+  void VisitCountOperation(CountOperation* expr) { UNREACHABLE(); }
 
   bool MatchIntBinaryOperation(BinaryOperation* expr, Token::Value op,
                                int32_t val) {
@@ -865,7 +858,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
 #undef SIGNED
 #undef NON_SIGNED
 
-  void VisitThisFunction(ThisFunction* expr) {}
+  void VisitThisFunction(ThisFunction* expr) { UNREACHABLE(); }
 
   void VisitDeclarations(ZoneList<Declaration*>* decls) {
     for (int i = 0; i < decls->length(); ++i) {
@@ -874,20 +867,26 @@ class AsmWasmBuilderImpl : public AstVisitor {
     }
   }
 
-  void VisitClassLiteral(ClassLiteral* expr) {}
+  void VisitClassLiteral(ClassLiteral* expr) { UNREACHABLE(); }
 
-  void VisitSpread(Spread* expr) {}
+  void VisitSpread(Spread* expr) { UNREACHABLE(); }
 
-  void VisitSuperPropertyReference(SuperPropertyReference* expr) {}
+  void VisitSuperPropertyReference(SuperPropertyReference* expr) {
+    UNREACHABLE();
+  }
 
-  void VisitSuperCallReference(SuperCallReference* expr) {}
+  void VisitSuperCallReference(SuperCallReference* expr) { UNREACHABLE(); }
 
-  void VisitSloppyBlockFunctionStatement(SloppyBlockFunctionStatement* expr) {}
+  void VisitSloppyBlockFunctionStatement(SloppyBlockFunctionStatement* expr) {
+    UNREACHABLE();
+  }
 
-  void VisitDoExpression(DoExpression* expr) {}
+  void VisitDoExpression(DoExpression* expr) { UNREACHABLE(); }
 
   void VisitRewritableAssignmentExpression(
-      RewritableAssignmentExpression* expr) {}
+      RewritableAssignmentExpression* expr) {
+    UNREACHABLE();
+  }
 
   struct IndexContainer : public ZoneObject {
     uint16_t index;

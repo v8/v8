@@ -638,3 +638,34 @@ function TestForLoopWithoutBody() {
 }
 
 assertEquals(45, WASM.asmCompileRun(TestForLoopWithoutBody.toString()));
+
+function TestDoWhile() {
+  "use asm"
+
+  function caller() {
+    var i = 0;
+    var ret = 21;
+    do {
+      ret = (ret + ret)|0;
+      i = (i + 1)|0;
+    } while (i < 2);
+    return ret|0;
+  }
+
+  return {caller:caller};
+}
+
+assertEquals(84, WASM.asmCompileRun(TestDoWhile.toString()));
+
+function TestConditional() {
+  "use asm"
+
+  function caller() {
+    var x = 1;
+    return ((x > 0) ? 41 : 71)|0;
+  }
+
+  return {caller:caller};
+}
+
+assertEquals(41, WASM.asmCompileRun(TestConditional.toString()));
