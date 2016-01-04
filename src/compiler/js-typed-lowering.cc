@@ -2733,7 +2733,7 @@ Node* JSTypedLowering::AllocateElements(Node* effect, Node* control,
   AllocationBuilder a(jsgraph(), effect, control);
   a.AllocateArray(capacity, elements_map, pretenure);
   for (int i = 0; i < capacity; ++i) {
-    Node* index = jsgraph()->Int32Constant(i);
+    Node* index = jsgraph()->Constant(i);
     a.Store(access, index, value);
   }
   return a.Finish();
