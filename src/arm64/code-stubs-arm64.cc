@@ -2122,22 +2122,25 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
 
 
 void RestParamAccessStub::GenerateNew(MacroAssembler* masm) {
-  // Stack layout on entry.
-  //  jssp[0]:  language mode (tagged)
-  //  jssp[8]:  index of rest parameter (tagged)
-  //  jssp[16]: number of parameters (tagged)
-  //  jssp[24]: address of receiver argument
+  // x2 : number of parameters (tagged)
+  // x3 : parameters pointer
+  // x4 : rest parameter index (tagged)
+  // x1 : language mode (tagged)
   //
   // Returns pointer to result object in x0.
+
+  DCHECK(x2.is(ArgumentsAccessNewDescriptor::parameter_count()));
+  DCHECK(x3.is(RestParamAccessDescriptor::parameter_pointer()));
+  DCHECK(x4.is(RestParamAccessDescriptor::rest_parameter_index()));
+  DCHECK(x1.is(RestParamAccessDescriptor::language_mode()));
 
   // Get the stub arguments from the frame, and make an untagged copy of the
   // parameter count.
   Register language_mode_smi = x1;
-  Register rest_index_smi = x2;
-  Register param_count_smi = x3;
-  Register params = x4;
+  Register rest_index_smi = x4;
+  Register param_count_smi = x2;
+  Register params = x3;
   Register param_count = x13;
-  __ Pop(language_mode_smi, rest_index_smi, param_count_smi, params);
   __ SmiUntag(param_count, param_count_smi);
 
   // Test if arguments adaptor needed.
@@ -2151,9 +2154,9 @@ void RestParamAccessStub::GenerateNew(MacroAssembler* masm) {
   __ B(ne, &runtime);
 
   //   x1   language_mode_smi  language mode
-  //   x2   rest_index_smi     index of rest parameter
-  //   x3   param_count_smi    number of parameters passed to function (smi)
-  //   x4   params             pointer to parameters
+  //   x4   rest_index_smi     index of rest parameter
+  //   x2   param_count_smi    number of parameters passed to function (smi)
+  //   x3   params             pointer to parameters
   //   x11  caller_fp          caller's frame pointer
   //   x13  param_count        number of parameters passed to function
 
@@ -2165,7 +2168,7 @@ void RestParamAccessStub::GenerateNew(MacroAssembler* masm) {
   __ Add(params, x10, StandardFrameConstants::kCallerSPOffset);
 
   __ Bind(&runtime);
-  __ Push(params, param_count_smi, rest_index_smi, language_mode_smi);
+  __ Push(param_count_smi, params, rest_index_smi, language_mode_smi);
   __ TailCallRuntime(Runtime::kNewRestParam);
 }
 

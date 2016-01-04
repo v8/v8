@@ -1967,29 +1967,27 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
 
 
 void RestParamAccessStub::GenerateNew(MacroAssembler* masm) {
-  // sp[0] : language mode
-  // sp[4] : index of rest parameter
-  // sp[8] : number of parameters
-  // sp[12] : receiver displacement
+  // a2 : number of parameters (tagged)
+  // a3 : parameters pointer
+  // a1 : rest parameter index (tagged)
+  // a0 : language mode (tagged)
   // Check if the calling frame is an arguments adaptor frame.
 
   Label runtime;
-  __ lw(a2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-  __ lw(a3, MemOperand(a2, StandardFrameConstants::kContextOffset));
-  __ Branch(&runtime, ne, a3,
+  __ lw(t0, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+  __ lw(t1, MemOperand(t0, StandardFrameConstants::kContextOffset));
+  __ Branch(&runtime, ne, t1,
             Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
 
   // Patch the arguments.length and the parameters pointer.
-  __ lw(a1, MemOperand(a2, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ sw(a1, MemOperand(sp, 2 * kPointerSize));
-  __ sll(at, a1, kPointerSizeLog2 - kSmiTagSize);
-  __ Addu(a3, a2, Operand(at));
-
+  __ lw(a2, MemOperand(t0, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ sll(t1, a2, kPointerSizeLog2 - kSmiTagSize);
+  __ Addu(a3, t0, Operand(t1));
   __ Addu(a3, a3, Operand(StandardFrameConstants::kCallerSPOffset));
-  __ sw(a3, MemOperand(sp, 3 * kPointerSize));
 
   // Do the runtime call to allocate the arguments object.
   __ bind(&runtime);
+  __ Push(a2, a3, a1, a0);
   __ TailCallRuntime(Runtime::kNewRestParam);
 }
 

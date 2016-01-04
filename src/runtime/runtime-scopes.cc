@@ -659,8 +659,8 @@ static Handle<JSArray> NewRestParam(Isolate* isolate, Object** parameters,
 RUNTIME_FUNCTION(Runtime_NewRestParam) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 4);
-  Object** parameters = reinterpret_cast<Object**>(args[0]);
-  CONVERT_SMI_ARG_CHECKED(num_params, 1);
+  CONVERT_SMI_ARG_CHECKED(num_params, 0);
+  Object** parameters = reinterpret_cast<Object**>(args[1]);
   CONVERT_SMI_ARG_CHECKED(rest_index, 2);
   CONVERT_SMI_ARG_CHECKED(language_mode, 3);
 

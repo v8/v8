@@ -842,29 +842,33 @@ void ArgumentsAccessStub::GenerateNewSloppySlow(MacroAssembler* masm) {
 
 
 void RestParamAccessStub::GenerateNew(MacroAssembler* masm) {
-  // rsp[0]  : return address
-  // rsp[8]  : language mode
-  // rsp[16] : index of rest parameter
-  // rsp[24] : number of parameters
-  // rsp[32] : receiver displacement
+  // rcx : number of parameters (tagged)
+  // rdx : parameters pointer
+  // rbx : rest parameter index (tagged)
+  // rdi : language mode (tagged)
+  // rsp[0] : return address
 
   // Check if the calling frame is an arguments adaptor frame.
   Label runtime;
-  __ movp(rdx, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
-  __ movp(rcx, Operand(rdx, StandardFrameConstants::kContextOffset));
-  __ Cmp(rcx, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
+  __ movp(r8, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
+  __ movp(rax, Operand(r8, StandardFrameConstants::kContextOffset));
+  __ Cmp(rax, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
   __ j(not_equal, &runtime);
 
   // Patch the arguments.length and the parameters pointer.
   StackArgumentsAccessor args(rsp, 4, ARGUMENTS_DONT_CONTAIN_RECEIVER);
-  __ movp(rcx, Operand(rdx, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ movp(args.GetArgumentOperand(1), rcx);
-  __ SmiToInteger64(rcx, rcx);
-  __ leap(rdx, Operand(rdx, rcx, times_pointer_size,
+  __ movp(rcx, Operand(r8, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ SmiToInteger64(rax, rcx);
+  __ leap(rdx, Operand(r8, rax, times_pointer_size,
                        StandardFrameConstants::kCallerSPOffset));
-  __ movp(args.GetArgumentOperand(0), rdx);
 
   __ bind(&runtime);
+  __ PopReturnAddressTo(rax);
+  __ Push(rcx);  // Push number of parameters.
+  __ Push(rdx);  // Push parameters pointer.
+  __ Push(rbx);  // Push rest parameter index.
+  __ Push(rdi);  // Push language mode.
+  __ PushReturnAddressFrom(rax);
   __ TailCallRuntime(Runtime::kNewRestParam);
 }
 
