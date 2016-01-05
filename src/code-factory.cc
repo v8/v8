@@ -282,6 +282,13 @@ Callable CodeFactory::ArgumentsAccess(Isolate* isolate,
 
 
 // static
+Callable CodeFactory::RestArgumentsAccess(Isolate* isolate) {
+  RestParamAccessStub stub(isolate);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
+
+
+// static
 Callable CodeFactory::AllocateHeapNumber(Isolate* isolate) {
   AllocateHeapNumberStub stub(isolate);
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());

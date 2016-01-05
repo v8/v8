@@ -94,6 +94,7 @@ class CodeFactory final {
 
   static Callable ArgumentsAccess(Isolate* isolate, bool is_unmapped_arguments,
                                   bool has_duplicate_parameters);
+  static Callable RestArgumentsAccess(Isolate* isolate);
 
   static Callable AllocateHeapNumber(Isolate* isolate);
   static Callable AllocateMutableHeapNumber(Isolate* isolate);

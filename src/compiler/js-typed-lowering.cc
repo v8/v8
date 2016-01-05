@@ -1514,115 +1514,171 @@ Reduction JSTypedLowering::ReduceJSCreateArguments(Node* node) {
 
   // Use the ArgumentsAccessStub for materializing both mapped and unmapped
   // arguments object, but only for non-inlined (i.e. outermost) frames.
-  if (p.type() != CreateArgumentsParameters::kRestArray &&
-      outer_state->opcode() != IrOpcode::kFrameState) {
+  if (outer_state->opcode() != IrOpcode::kFrameState) {
     Handle<SharedFunctionInfo> shared;
     Isolate* isolate = jsgraph()->isolate();
     if (!state_info.shared_info().ToHandle(&shared)) return NoChange();
-    bool unmapped = p.type() == CreateArgumentsParameters::kUnmappedArguments;
-    Callable callable = CodeFactory::ArgumentsAccess(
-        isolate, unmapped, shared->has_duplicate_parameters());
-    CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-        isolate, graph()->zone(), callable.descriptor(), 0,
-        CallDescriptor::kNeedsFrameState);
-    const Operator* new_op = common()->Call(desc);
+
     int parameter_count = state_info.parameter_count() - 1;
     int parameter_offset = parameter_count * kPointerSize;
     int offset = StandardFrameConstants::kCallerSPOffset + parameter_offset;
-    Node* stub_code = jsgraph()->HeapConstant(callable.code());
     Node* parameter_pointer = graph()->NewNode(
         machine()->IntAdd(), graph()->NewNode(machine()->LoadFramePointer()),
         jsgraph()->IntPtrConstant(offset));
-    node->InsertInput(graph()->zone(), 0, stub_code);
-    node->InsertInput(graph()->zone(), 2, jsgraph()->Constant(parameter_count));
-    node->InsertInput(graph()->zone(), 3, parameter_pointer);
-    NodeProperties::ChangeOp(node, new_op);
-    return Changed(node);
-  }
 
-  // Use inline allocation for all mapped arguments objects within inlined
-  // (i.e. non-outermost) frames, independent of the object size.
-  if (p.type() == CreateArgumentsParameters::kMappedArguments &&
-      outer_state->opcode() == IrOpcode::kFrameState) {
-    Handle<SharedFunctionInfo> shared;
-    if (!state_info.shared_info().ToHandle(&shared)) return NoChange();
-    Node* const callee = NodeProperties::GetValueInput(node, 0);
-    Node* const effect = NodeProperties::GetEffectInput(node);
-    Node* const control = NodeProperties::GetControlInput(node);
-    Node* const context = NodeProperties::GetContextInput(node);
-    // TODO(mstarzinger): Duplicate parameters are not handled yet.
-    if (shared->has_duplicate_parameters()) return NoChange();
-    // Choose the correct frame state and frame state info depending on whether
-    // there conceptually is an arguments adaptor frame in the call chain.
-    Node* const args_state = GetArgumentsFrameState(frame_state);
-    FrameStateInfo args_state_info = OpParameter<FrameStateInfo>(args_state);
-    // Prepare element backing store to be used by arguments object.
-    bool has_aliased_arguments = false;
-    Node* const elements = AllocateAliasedArguments(
-        effect, control, args_state, context, shared, &has_aliased_arguments);
-    Node* allocate_effect =
-        elements->op()->EffectOutputCount() > 0 ? elements : effect;
-    // Load the arguments object map from the current native context.
-    Node* const load_native_context = graph()->NewNode(
-        javascript()->LoadContext(0, Context::NATIVE_CONTEXT_INDEX, true),
-        context, context, effect);
-    Node* const load_arguments_map = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForContextSlot(
-            has_aliased_arguments ? Context::FAST_ALIASED_ARGUMENTS_MAP_INDEX
-                                  : Context::SLOPPY_ARGUMENTS_MAP_INDEX)),
-        load_native_context, effect, control);
-    // Actually allocate and initialize the arguments object.
-    AllocationBuilder a(jsgraph(), allocate_effect, control);
-    Node* properties = jsgraph()->EmptyFixedArrayConstant();
-    int length = args_state_info.parameter_count() - 1;  // Minus receiver.
-    STATIC_ASSERT(Heap::kSloppyArgumentsObjectSize == 5 * kPointerSize);
-    a.Allocate(Heap::kSloppyArgumentsObjectSize);
-    a.Store(AccessBuilder::ForMap(), load_arguments_map);
-    a.Store(AccessBuilder::ForJSObjectProperties(), properties);
-    a.Store(AccessBuilder::ForJSObjectElements(), elements);
-    a.Store(AccessBuilder::ForArgumentsLength(), jsgraph()->Constant(length));
-    a.Store(AccessBuilder::ForArgumentsCallee(), callee);
-    RelaxControls(node);
-    a.FinishAndChange(node);
-    return Changed(node);
-  }
+    if (p.type() != CreateArgumentsParameters::kRestArray) {
+      bool unmapped = p.type() == CreateArgumentsParameters::kUnmappedArguments;
+      Callable callable = CodeFactory::ArgumentsAccess(
+          isolate, unmapped, shared->has_duplicate_parameters());
+      CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+          isolate, graph()->zone(), callable.descriptor(), 0,
+          CallDescriptor::kNeedsFrameState);
+      const Operator* new_op = common()->Call(desc);
+      Node* stub_code = jsgraph()->HeapConstant(callable.code());
+      node->InsertInput(graph()->zone(), 0, stub_code);
+      node->InsertInput(graph()->zone(), 2,
+                        jsgraph()->Constant(parameter_count));
+      node->InsertInput(graph()->zone(), 3, parameter_pointer);
+      NodeProperties::ChangeOp(node, new_op);
+      return Changed(node);
+    } else {
+      Callable callable = CodeFactory::RestArgumentsAccess(isolate);
+      CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+          isolate, graph()->zone(), callable.descriptor(), 0,
+          CallDescriptor::kNeedsFrameState);
+      const Operator* new_op = common()->Call(desc);
+      Node* stub_code = jsgraph()->HeapConstant(callable.code());
+      node->InsertInput(graph()->zone(), 0, stub_code);
+      node->ReplaceInput(1, jsgraph()->Constant(parameter_count));
+      node->InsertInput(graph()->zone(), 2, parameter_pointer);
+      node->InsertInput(graph()->zone(), 3,
+                        jsgraph()->Constant(p.start_index()));
+      node->InsertInput(graph()->zone(), 4,
+                        jsgraph()->Constant(shared->language_mode()));
+      NodeProperties::ChangeOp(node, new_op);
+      return Changed(node);
+    }
+  } else if (outer_state->opcode() == IrOpcode::kFrameState) {
+    // Use inline allocation for all mapped arguments objects within inlined
+    // (i.e. non-outermost) frames, independent of the object size.
+    if (p.type() == CreateArgumentsParameters::kMappedArguments) {
+      Handle<SharedFunctionInfo> shared;
+      if (!state_info.shared_info().ToHandle(&shared)) return NoChange();
+      Node* const callee = NodeProperties::GetValueInput(node, 0);
+      Node* const control = NodeProperties::GetControlInput(node);
+      Node* const context = NodeProperties::GetContextInput(node);
+      Node* effect = NodeProperties::GetEffectInput(node);
+      // TODO(mstarzinger): Duplicate parameters are not handled yet.
+      if (shared->has_duplicate_parameters()) return NoChange();
+      // Choose the correct frame state and frame state info depending on
+      // whether there conceptually is an arguments adaptor frame in the call
+      // chain.
+      Node* const args_state = GetArgumentsFrameState(frame_state);
+      FrameStateInfo args_state_info = OpParameter<FrameStateInfo>(args_state);
+      // Prepare element backing store to be used by arguments object.
+      bool has_aliased_arguments = false;
+      Node* const elements = AllocateAliasedArguments(
+          effect, control, args_state, context, shared, &has_aliased_arguments);
+      effect = elements->op()->EffectOutputCount() > 0 ? elements : effect;
+      // Load the arguments object map from the current native context.
+      Node* const load_native_context = effect = graph()->NewNode(
+          javascript()->LoadContext(0, Context::NATIVE_CONTEXT_INDEX, true),
+          context, context, effect);
+      Node* const load_arguments_map = effect = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForContextSlot(
+              has_aliased_arguments ? Context::FAST_ALIASED_ARGUMENTS_MAP_INDEX
+                                    : Context::SLOPPY_ARGUMENTS_MAP_INDEX)),
+          load_native_context, effect, control);
+      // Actually allocate and initialize the arguments object.
+      AllocationBuilder a(jsgraph(), effect, control);
+      Node* properties = jsgraph()->EmptyFixedArrayConstant();
+      int length = args_state_info.parameter_count() - 1;  // Minus receiver.
+      STATIC_ASSERT(Heap::kSloppyArgumentsObjectSize == 5 * kPointerSize);
+      a.Allocate(Heap::kSloppyArgumentsObjectSize);
+      a.Store(AccessBuilder::ForMap(), load_arguments_map);
+      a.Store(AccessBuilder::ForJSObjectProperties(), properties);
+      a.Store(AccessBuilder::ForJSObjectElements(), elements);
+      a.Store(AccessBuilder::ForArgumentsLength(), jsgraph()->Constant(length));
+      a.Store(AccessBuilder::ForArgumentsCallee(), callee);
+      RelaxControls(node);
+      a.FinishAndChange(node);
+      return Changed(node);
+    } else if (p.type() == CreateArgumentsParameters::kUnmappedArguments) {
+      // Use inline allocation for all unmapped arguments objects within inlined
+      // (i.e. non-outermost) frames, independent of the object size.
+      Node* const control = NodeProperties::GetControlInput(node);
+      Node* const context = NodeProperties::GetContextInput(node);
+      Node* effect = NodeProperties::GetEffectInput(node);
+      // Choose the correct frame state and frame state info depending on
+      // whether there conceptually is an arguments adaptor frame in the call
+      // chain.
+      Node* const args_state = GetArgumentsFrameState(frame_state);
+      FrameStateInfo args_state_info = OpParameter<FrameStateInfo>(args_state);
+      // Prepare element backing store to be used by arguments object.
+      Node* const elements = AllocateArguments(effect, control, args_state);
+      effect = elements->op()->EffectOutputCount() > 0 ? elements : effect;
+      // Load the arguments object map from the current native context.
+      Node* const load_native_context = effect = graph()->NewNode(
+          javascript()->LoadContext(0, Context::NATIVE_CONTEXT_INDEX, true),
+          context, context, effect);
+      Node* const load_arguments_map = effect = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForContextSlot(
+              Context::STRICT_ARGUMENTS_MAP_INDEX)),
+          load_native_context, effect, control);
+      // Actually allocate and initialize the arguments object.
+      AllocationBuilder a(jsgraph(), effect, control);
+      Node* properties = jsgraph()->EmptyFixedArrayConstant();
+      int length = args_state_info.parameter_count() - 1;  // Minus receiver.
+      STATIC_ASSERT(Heap::kStrictArgumentsObjectSize == 4 * kPointerSize);
+      a.Allocate(Heap::kStrictArgumentsObjectSize);
+      a.Store(AccessBuilder::ForMap(), load_arguments_map);
+      a.Store(AccessBuilder::ForJSObjectProperties(), properties);
+      a.Store(AccessBuilder::ForJSObjectElements(), elements);
+      a.Store(AccessBuilder::ForArgumentsLength(), jsgraph()->Constant(length));
+      RelaxControls(node);
+      a.FinishAndChange(node);
+      return Changed(node);
+    } else if (p.type() == CreateArgumentsParameters::kRestArray) {
+      // Use inline allocation for all unmapped arguments objects within inlined
+      // (i.e. non-outermost) frames, independent of the object size.
+      Node* const control = NodeProperties::GetControlInput(node);
+      Node* const context = NodeProperties::GetContextInput(node);
+      Node* effect = NodeProperties::GetEffectInput(node);
+      // Choose the correct frame state and frame state info depending on
+      // whether there conceptually is an arguments adaptor frame in the call
+      // chain.
+      Node* const args_state = GetArgumentsFrameState(frame_state);
+      FrameStateInfo args_state_info = OpParameter<FrameStateInfo>(args_state);
+      // Prepare element backing store to be used by the rest array.
+      Node* const elements =
+          AllocateRestArguments(effect, control, args_state, p.start_index());
+      effect = elements->op()->EffectOutputCount() > 0 ? elements : effect;
+      // Load the JSArray object map from the current native context.
+      Node* const load_native_context = effect = graph()->NewNode(
+          javascript()->LoadContext(0, Context::NATIVE_CONTEXT_INDEX, true),
+          context, context, effect);
+      Node* const load_jsarray_map = effect = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForContextSlot(
+              Context::JS_ARRAY_FAST_ELEMENTS_MAP_INDEX)),
+          load_native_context, effect, control);
+      // Actually allocate and initialize the jsarray.
+      AllocationBuilder a(jsgraph(), effect, control);
+      Node* properties = jsgraph()->EmptyFixedArrayConstant();
 
-  // Use inline allocation for all unmapped arguments objects within inlined
-  // (i.e. non-outermost) frames, independent of the object size.
-  if (p.type() == CreateArgumentsParameters::kUnmappedArguments &&
-      outer_state->opcode() == IrOpcode::kFrameState) {
-    Node* const effect = NodeProperties::GetEffectInput(node);
-    Node* const control = NodeProperties::GetControlInput(node);
-    Node* const context = NodeProperties::GetContextInput(node);
-    // Choose the correct frame state and frame state info depending on whether
-    // there conceptually is an arguments adaptor frame in the call chain.
-    Node* const args_state = GetArgumentsFrameState(frame_state);
-    FrameStateInfo args_state_info = OpParameter<FrameStateInfo>(args_state);
-    // Prepare element backing store to be used by arguments object.
-    Node* const elements = AllocateArguments(effect, control, args_state);
-    Node* allocate_effect =
-        elements->op()->EffectOutputCount() > 0 ? elements : effect;
-    // Load the arguments object map from the current native context.
-    Node* const load_native_context = graph()->NewNode(
-        javascript()->LoadContext(0, Context::NATIVE_CONTEXT_INDEX, true),
-        context, context, effect);
-    Node* const load_arguments_map = graph()->NewNode(
-        simplified()->LoadField(
-            AccessBuilder::ForContextSlot(Context::STRICT_ARGUMENTS_MAP_INDEX)),
-        load_native_context, effect, control);
-    // Actually allocate and initialize the arguments object.
-    AllocationBuilder a(jsgraph(), allocate_effect, control);
-    Node* properties = jsgraph()->EmptyFixedArrayConstant();
-    int length = args_state_info.parameter_count() - 1;  // Minus receiver.
-    STATIC_ASSERT(Heap::kStrictArgumentsObjectSize == 4 * kPointerSize);
-    a.Allocate(Heap::kStrictArgumentsObjectSize);
-    a.Store(AccessBuilder::ForMap(), load_arguments_map);
-    a.Store(AccessBuilder::ForJSObjectProperties(), properties);
-    a.Store(AccessBuilder::ForJSObjectElements(), elements);
-    a.Store(AccessBuilder::ForArgumentsLength(), jsgraph()->Constant(length));
-    RelaxControls(node);
-    a.FinishAndChange(node);
-    return Changed(node);
+      // -1 to minus receiver
+      int argument_count = args_state_info.parameter_count() - 1;
+      int length = std::max(0, argument_count - p.start_index());
+      STATIC_ASSERT(JSArray::kSize == 4 * kPointerSize);
+      a.Allocate(JSArray::kSize);
+      a.Store(AccessBuilder::ForMap(), load_jsarray_map);
+      a.Store(AccessBuilder::ForJSObjectProperties(), properties);
+      a.Store(AccessBuilder::ForJSObjectElements(), elements);
+      a.Store(AccessBuilder::ForJSArrayLength(FAST_ELEMENTS),
+              jsgraph()->Constant(length));
+      RelaxControls(node);
+      a.FinishAndChange(node);
+      return Changed(node);
+    }
   }
 
   return NoChange();
@@ -2648,13 +2704,43 @@ Node* JSTypedLowering::AllocateArguments(Node* effect, Node* control,
   // Prepare an iterator over argument values recorded in the frame state.
   Node* const parameters = frame_state->InputAt(kFrameStateParametersInput);
   StateValuesAccess parameters_access(parameters);
-  auto paratemers_it = ++parameters_access.begin();
+  auto parameters_it = ++parameters_access.begin();
 
   // Actually allocate the backing store.
   AllocationBuilder a(jsgraph(), effect, control);
   a.AllocateArray(argument_count, factory()->fixed_array_map());
-  for (int i = 0; i < argument_count; ++i, ++paratemers_it) {
-    a.Store(AccessBuilder::ForFixedArraySlot(i), (*paratemers_it).node);
+  for (int i = 0; i < argument_count; ++i, ++parameters_it) {
+    a.Store(AccessBuilder::ForFixedArraySlot(i), (*parameters_it).node);
+  }
+  return a.Finish();
+}
+
+
+// Helper that allocates a FixedArray holding argument values recorded in the
+// given {frame_state}. Serves as backing store for JSCreateArguments nodes.
+Node* JSTypedLowering::AllocateRestArguments(Node* effect, Node* control,
+                                             Node* frame_state,
+                                             int start_index) {
+  FrameStateInfo state_info = OpParameter<FrameStateInfo>(frame_state);
+  int argument_count = state_info.parameter_count() - 1;  // Minus receiver.
+  int num_elements = std::max(0, argument_count - start_index);
+  if (num_elements == 0) return jsgraph()->EmptyFixedArrayConstant();
+
+  // Prepare an iterator over argument values recorded in the frame state.
+  Node* const parameters = frame_state->InputAt(kFrameStateParametersInput);
+  StateValuesAccess parameters_access(parameters);
+  auto parameters_it = ++parameters_access.begin();
+
+  // Skip unused arguments.
+  for (int i = 0; i < start_index; i++) {
+    ++parameters_it;
+  }
+
+  // Actually allocate the backing store.
+  AllocationBuilder a(jsgraph(), effect, control);
+  a.AllocateArray(num_elements, factory()->fixed_array_map());
+  for (int i = 0; i < num_elements; ++i, ++parameters_it) {
+    a.Store(AccessBuilder::ForFixedArraySlot(i), (*parameters_it).node);
   }
   return a.Finish();
 }

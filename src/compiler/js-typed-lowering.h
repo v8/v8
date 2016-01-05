@@ -95,6 +95,8 @@ class JSTypedLowering final : public AdvancedReducer {
 
   Node* Word32Shl(Node* const lhs, int32_t const rhs);
   Node* AllocateArguments(Node* effect, Node* control, Node* frame_state);
+  Node* AllocateRestArguments(Node* effect, Node* control, Node* frame_state,
+                              int start_index);
   Node* AllocateAliasedArguments(Node* effect, Node* control, Node* frame_state,
                                  Node* context, Handle<SharedFunctionInfo>,
                                  bool* has_aliased_arguments);

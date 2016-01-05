@@ -952,6 +952,25 @@ TEST_F(JSTypedLoweringTest, JSCreateArgumentsViaStub) {
 }
 
 
+TEST_F(JSTypedLoweringTest, JSCreateArgumentsRestArrayViaStub) {
+  Node* const closure = Parameter(Type::Any());
+  Node* const context = UndefinedConstant();
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Handle<SharedFunctionInfo> shared(isolate()->object_function()->shared());
+  Node* const frame_state = FrameState(shared, graph()->start());
+  Reduction r = Reduce(graph()->NewNode(
+      javascript()->CreateArguments(CreateArgumentsParameters::kRestArray, 0),
+      closure, context, frame_state, effect, control));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(
+      r.replacement(),
+      IsCall(_,
+             IsHeapConstant(CodeFactory::RestArgumentsAccess(isolate()).code()),
+             IsNumberConstant(0), _, IsNumberConstant(0), _, effect, control));
+}
+
+
 TEST_F(JSTypedLoweringTest, JSCreateArgumentsInlinedMapped) {
   Node* const closure = Parameter(Type::Any());
   Node* const context = UndefinedConstant();
@@ -968,7 +987,7 @@ TEST_F(JSTypedLoweringTest, JSCreateArgumentsInlinedMapped) {
   EXPECT_THAT(r.replacement(),
               IsFinishRegion(
                   IsAllocate(IsNumberConstant(Heap::kSloppyArgumentsObjectSize),
-                             IsBeginRegion(effect), control),
+                             _, control),
                   _));
 }
 
@@ -989,8 +1008,26 @@ TEST_F(JSTypedLoweringTest, JSCreateArgumentsInlinedUnmapped) {
   EXPECT_THAT(r.replacement(),
               IsFinishRegion(
                   IsAllocate(IsNumberConstant(Heap::kStrictArgumentsObjectSize),
-                             IsBeginRegion(effect), control),
+                             _, control),
                   _));
+}
+
+
+TEST_F(JSTypedLoweringTest, JSCreateArgumentsInlinedRestArray) {
+  Node* const closure = Parameter(Type::Any());
+  Node* const context = UndefinedConstant();
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Handle<SharedFunctionInfo> shared(isolate()->object_function()->shared());
+  Node* const frame_state_outer = FrameState(shared, graph()->start());
+  Node* const frame_state_inner = FrameState(shared, frame_state_outer);
+  Reduction r = Reduce(graph()->NewNode(
+      javascript()->CreateArguments(CreateArgumentsParameters::kRestArray, 0),
+      closure, context, frame_state_inner, effect, control));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(),
+              IsFinishRegion(
+                  IsAllocate(IsNumberConstant(JSArray::kSize), _, control), _));
 }
 
 
