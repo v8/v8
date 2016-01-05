@@ -1980,7 +1980,6 @@ void RestParamAccessStub::GenerateNew(MacroAssembler* masm) {
   // r5 : number of parameters (tagged)
   // r6 : parameters pointer
   // r7 : rest parameter index (tagged)
-  // r4 : language mode (tagged)
 
   Label runtime;
   __ LoadP(r8, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
@@ -1995,7 +1994,7 @@ void RestParamAccessStub::GenerateNew(MacroAssembler* masm) {
   __ addi(r6, r6, Operand(StandardFrameConstants::kCallerSPOffset));
 
   __ bind(&runtime);
-  __ Push(r5, r6, r7, r4);
+  __ Push(r5, r6, r7);
   __ TailCallRuntime(Runtime::kNewRestParam);
 }
 
