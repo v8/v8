@@ -14864,13 +14864,22 @@ void BytecodeArray::Disassemble(std::ostream& os) {
     SNPrintF(buf, "%p", bytecode_start);
     os << buf.start() << " : ";
     interpreter::Bytecodes::Decode(os, bytecode_start, parameter_count());
-    if (interpreter::Bytecodes::IsJump(bytecode)) {
-      int offset = static_cast<int8_t>(bytecode_start[1]);
+
+    if (interpreter::Bytecodes::IsJumpConstantWide(bytecode)) {
+      DCHECK_EQ(bytecode_size, 3);
+      int index = static_cast<int>(ReadUnalignedUInt16(bytecode_start + 1));
+      int offset = Smi::cast(constant_pool()->get(index))->value();
       SNPrintF(buf, " (%p)", bytecode_start + offset);
       os << buf.start();
     } else if (interpreter::Bytecodes::IsJumpConstant(bytecode)) {
+      DCHECK_EQ(bytecode_size, 2);
       int index = static_cast<int>(bytecode_start[1]);
       int offset = Smi::cast(constant_pool()->get(index))->value();
+      SNPrintF(buf, " (%p)", bytecode_start + offset);
+      os << buf.start();
+    } else if (interpreter::Bytecodes::IsJump(bytecode)) {
+      DCHECK_EQ(bytecode_size, 2);
+      int offset = static_cast<int8_t>(bytecode_start[1]);
       SNPrintF(buf, " (%p)", bytecode_start + offset);
       os << buf.start();
     }

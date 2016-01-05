@@ -164,10 +164,8 @@ class BytecodeGraphBuilder {
   void BuildJump(int source_offset, int target_offset);
   void BuildJump();
   void BuildConditionalJump(Node* condition);
-
-  // Helpers for building conditions for conditional jumps.
-  Node* BuildCondition(Node* comperand);
-  Node* BuildToBooleanCondition(Node* comperand);
+  void BuildJumpIfEqual(Node* comperand);
+  void BuildJumpIfToBooleanEqual(Node* boolean_comperand);
 
   // Constructing merge and loop headers.
   void MergeEnvironmentsOfBackwardBranches(int source_offset,

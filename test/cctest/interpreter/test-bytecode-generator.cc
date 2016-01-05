@@ -65,9 +65,12 @@ class BytecodeGeneratorHelper {
   }
 
   Handle<BytecodeArray> MakeBytecodeForFunctionBody(const char* body) {
-    ScopedVector<char> program(3072);
-    SNPrintF(program, "function %s() { %s }\n%s();", kFunctionName, body,
-             kFunctionName);
+    static const char kFormat[] = "function %s() { %s }\n%s();";
+    static const int kFormatLength = arraysize(kFormat);
+    int length = kFormatLength + 2 * StrLength(kFunctionName) + StrLength(body);
+    ScopedVector<char> program(length);
+    length = SNPrintF(program, kFormat, kFunctionName, body, kFunctionName);
+    CHECK_GT(length, 0);
     return MakeBytecode(program.start(), kFunctionName);
   }
 
@@ -94,9 +97,13 @@ class BytecodeGeneratorHelper {
 #if defined(V8_TARGET_LITTLE_ENDIAN)
 #define U16(x) static_cast<uint8_t>((x) & 0xff),                    \
                static_cast<uint8_t>(((x) >> kBitsPerByte) & 0xff)
+#define U16I(x) static_cast<uint8_t>((x) & 0xff),                   \
+                static_cast<uint8_t>(((x++) >> kBitsPerByte) & 0xff)
 #elif defined(V8_TARGET_BIG_ENDIAN)
 #define U16(x) static_cast<uint8_t>(((x) >> kBitsPerByte) & 0xff),   \
                static_cast<uint8_t>((x) & 0xff)
+#define U16I(x) static_cast<uint8_t>(((x) >> kBitsPerByte) & 0xff),  \
+                static_cast<uint8_t>((x++) & 0xff)
 #else
 #error Unknown byte ordering
 #endif
@@ -104,7 +111,7 @@ class BytecodeGeneratorHelper {
 #define COMMA() ,
 #define SPACE()
 
-#define REPEAT_2(SEP, ...)  \
+#define REPEAT_2(SEP, ...)                      \
   __VA_ARGS__ SEP() __VA_ARGS__
 #define REPEAT_4(SEP, ...)  \
   REPEAT_2(SEP, __VA_ARGS__) SEP() REPEAT_2(SEP, __VA_ARGS__)
@@ -2621,6 +2628,77 @@ TEST(BasicLoops) {
        },
        0},
   };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+}
+
+
+TEST(JumpsRequiringConstantWideOperands) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+
+  int constant_count = 0;
+  ExpectedSnippet<Handle<Object>, 315> snippets[] = {
+      {
+       REPEAT_256(SPACE, "var x = 0.1;")
+       REPEAT_32(SPACE, "var x = 0.2;")
+       REPEAT_16(SPACE, "var x = 0.3;")
+       REPEAT_8(SPACE, "var x = 0.4;")
+       "for (var i = 0; i < 3; i++) {\n"
+       "  if (i == 1) continue;\n"
+       "  if (i == 2) break;\n"
+       "}\n"
+       "return 3;",
+       kPointerSize * 3,
+       1,
+       1347,
+       {
+#define L(c) B(LdaConstant), U8(c), B(Star), R(0)
+         REPEAT_256(COMMA, L(constant_count++)),
+#undef L
+#define LW(c) B(LdaConstantWide), U16I(c), B(Star), R(0)
+         REPEAT_32(COMMA, LW(constant_count)),
+         REPEAT_16(COMMA, LW(constant_count)),
+         REPEAT_8(COMMA, LW(constant_count)),
+#undef LW
+           B(LdaZero),                            //
+           B(Star), R(1),                         //
+           B(LdaSmi8), U8(3),                     //
+           B(TestLessThan), R(1),                 //
+           B(JumpIfFalseConstantWide), U16(313),  //
+           B(LdaSmi8), U8(1),                     //
+           B(TestEqual), R(1),                    //
+           B(JumpIfFalseConstantWide), U16(312),  //
+           B(JumpConstantWide), U16(314),         //
+           B(LdaSmi8), U8(2),                     //
+           B(TestEqual), R(1),                    //
+           B(JumpIfFalseConstantWide), U16(312),  //
+           B(JumpConstantWide), U16(314),         //
+           B(Ldar), R(1),                         //
+           B(ToNumber),                           //
+           B(Star), R(2),                         //
+           B(Inc),                                //
+           B(Star), R(1),                         //
+           B(Jump), U8(-35),                      //
+           B(LdaSmi8), U8(3),                     //
+           B(Return)                              //
+       },
+       315,
+       {
+#define S(x) CcTest::i_isolate()->factory()->NewNumber(x)
+        REPEAT_256(COMMA, S(0.1)),
+        REPEAT_32(COMMA, S(0.2)),
+        REPEAT_16(COMMA, S(0.3)),
+        REPEAT_8(COMMA, S(0.4)),
+#undef S
+#define N(x) CcTest::i_isolate()->factory()->NewNumberFromInt(x)
+        N(6), N(33), N(13),
+#undef N
+       }}};
 
   for (size_t i = 0; i < arraysize(snippets); i++) {
     Handle<BytecodeArray> bytecode_array =

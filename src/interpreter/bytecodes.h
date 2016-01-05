@@ -193,18 +193,25 @@ namespace interpreter {
   /* Control Flow */                                                           \
   V(Jump, OperandType::kImm8)                                                  \
   V(JumpConstant, OperandType::kIdx8)                                          \
+  V(JumpConstantWide, OperandType::kIdx16)                                     \
   V(JumpIfTrue, OperandType::kImm8)                                            \
   V(JumpIfTrueConstant, OperandType::kIdx8)                                    \
+  V(JumpIfTrueConstantWide, OperandType::kIdx16)                               \
   V(JumpIfFalse, OperandType::kImm8)                                           \
   V(JumpIfFalseConstant, OperandType::kIdx8)                                   \
+  V(JumpIfFalseConstantWide, OperandType::kIdx16)                              \
   V(JumpIfToBooleanTrue, OperandType::kImm8)                                   \
   V(JumpIfToBooleanTrueConstant, OperandType::kIdx8)                           \
+  V(JumpIfToBooleanTrueConstantWide, OperandType::kIdx16)                      \
   V(JumpIfToBooleanFalse, OperandType::kImm8)                                  \
   V(JumpIfToBooleanFalseConstant, OperandType::kIdx8)                          \
+  V(JumpIfToBooleanFalseConstantWide, OperandType::kIdx16)                     \
   V(JumpIfNull, OperandType::kImm8)                                            \
   V(JumpIfNullConstant, OperandType::kIdx8)                                    \
+  V(JumpIfNullConstantWide, OperandType::kIdx16)                               \
   V(JumpIfUndefined, OperandType::kImm8)                                       \
   V(JumpIfUndefinedConstant, OperandType::kIdx8)                               \
+  V(JumpIfUndefinedConstantWide, OperandType::kIdx16)                          \
                                                                                \
   /* Complex flow control For..in */                                           \
   V(ForInPrepare, OperandType::kReg8, OperandType::kReg8, OperandType::kReg8)  \
@@ -358,8 +365,12 @@ class Bytecodes {
   static bool IsConditionalJumpImmediate(Bytecode bytecode);
 
   // Return true if the bytecode is a conditional jump taking
-  // a constant pool entry (OperandType::kIdx).
+  // a constant pool entry (OperandType::kIdx8).
   static bool IsConditionalJumpConstant(Bytecode bytecode);
+
+  // Return true if the bytecode is a conditional jump taking
+  // a constant pool entry (OperandType::kIdx16).
+  static bool IsConditionalJumpConstantWide(Bytecode bytecode);
 
   // Return true if the bytecode is a conditional jump taking
   // any kind of operand.
@@ -370,8 +381,12 @@ class Bytecodes {
   static bool IsJumpImmediate(Bytecode bytecode);
 
   // Return true if the bytecode is a jump or conditional jump taking a
-  // constant pool entry (OperandType::kIdx).
+  // constant pool entry (OperandType::kIdx8).
   static bool IsJumpConstant(Bytecode bytecode);
+
+  // Return true if the bytecode is a jump or conditional jump taking a
+  // constant pool entry (OperandType::kIdx16).
+  static bool IsJumpConstantWide(Bytecode bytecode);
 
   // Return true if the bytecode is a jump or conditional jump taking
   // any kind of operand.

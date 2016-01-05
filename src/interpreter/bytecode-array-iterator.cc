@@ -107,7 +107,8 @@ int BytecodeArrayIterator::GetJumpTargetOffset() const {
   if (interpreter::Bytecodes::IsJumpImmediate(bytecode)) {
     int relative_offset = GetImmediateOperand(0);
     return current_offset() + relative_offset;
-  } else if (interpreter::Bytecodes::IsJumpConstant(bytecode)) {
+  } else if (interpreter::Bytecodes::IsJumpConstant(bytecode) ||
+             interpreter::Bytecodes::IsJumpConstantWide(bytecode)) {
     Smi* smi = Smi::cast(*GetConstantForIndexOperand(0));
     return current_offset() + smi->value();
   } else {

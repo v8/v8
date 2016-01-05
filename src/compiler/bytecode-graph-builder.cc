@@ -1515,87 +1515,117 @@ void BytecodeGraphBuilder::VisitJumpConstant(
 }
 
 
+void BytecodeGraphBuilder::VisitJumpConstantWide(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  BuildJump();
+}
+
+
 void BytecodeGraphBuilder::VisitJumpIfTrue(
     const interpreter::BytecodeArrayIterator& iterator) {
-  Node* condition = BuildCondition(jsgraph()->TrueConstant());
-  BuildConditionalJump(condition);
+  BuildJumpIfEqual(jsgraph()->TrueConstant());
 }
 
 
 void BytecodeGraphBuilder::VisitJumpIfTrueConstant(
     const interpreter::BytecodeArrayIterator& iterator) {
-  Node* condition = BuildCondition(jsgraph()->TrueConstant());
-  BuildConditionalJump(condition);
+  BuildJumpIfEqual(jsgraph()->TrueConstant());
+}
+
+
+void BytecodeGraphBuilder::VisitJumpIfTrueConstantWide(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  BuildJumpIfEqual(jsgraph()->TrueConstant());
 }
 
 
 void BytecodeGraphBuilder::VisitJumpIfFalse(
     const interpreter::BytecodeArrayIterator& iterator) {
-  Node* condition = BuildCondition(jsgraph()->FalseConstant());
-  BuildConditionalJump(condition);
+  BuildJumpIfEqual(jsgraph()->FalseConstant());
 }
 
 
 void BytecodeGraphBuilder::VisitJumpIfFalseConstant(
     const interpreter::BytecodeArrayIterator& iterator) {
-  Node* condition = BuildCondition(jsgraph()->FalseConstant());
-  BuildConditionalJump(condition);
+  BuildJumpIfEqual(jsgraph()->FalseConstant());
+}
+
+
+void BytecodeGraphBuilder::VisitJumpIfFalseConstantWide(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  BuildJumpIfEqual(jsgraph()->FalseConstant());
 }
 
 
 void BytecodeGraphBuilder::VisitJumpIfToBooleanTrue(
     const interpreter::BytecodeArrayIterator& iterator) {
-  Node* condition = BuildToBooleanCondition(jsgraph()->TrueConstant());
-  BuildConditionalJump(condition);
+  BuildJumpIfToBooleanEqual(jsgraph()->TrueConstant());
 }
 
 
 void BytecodeGraphBuilder::VisitJumpIfToBooleanTrueConstant(
     const interpreter::BytecodeArrayIterator& iterator) {
-  Node* condition = BuildToBooleanCondition(jsgraph()->TrueConstant());
-  BuildConditionalJump(condition);
+  BuildJumpIfToBooleanEqual(jsgraph()->TrueConstant());
+}
+
+
+void BytecodeGraphBuilder::VisitJumpIfToBooleanTrueConstantWide(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  BuildJumpIfToBooleanEqual(jsgraph()->TrueConstant());
 }
 
 
 void BytecodeGraphBuilder::VisitJumpIfToBooleanFalse(
     const interpreter::BytecodeArrayIterator& iterator) {
-  Node* condition = BuildToBooleanCondition(jsgraph()->FalseConstant());
-  BuildConditionalJump(condition);
+  BuildJumpIfToBooleanEqual(jsgraph()->FalseConstant());
 }
 
 
 void BytecodeGraphBuilder::VisitJumpIfToBooleanFalseConstant(
     const interpreter::BytecodeArrayIterator& iterator) {
-  Node* condition = BuildToBooleanCondition(jsgraph()->FalseConstant());
-  BuildConditionalJump(condition);
+  BuildJumpIfToBooleanEqual(jsgraph()->FalseConstant());
+}
+
+
+void BytecodeGraphBuilder::VisitJumpIfToBooleanFalseConstantWide(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  BuildJumpIfToBooleanEqual(jsgraph()->FalseConstant());
 }
 
 
 void BytecodeGraphBuilder::VisitJumpIfNull(
     const interpreter::BytecodeArrayIterator& iterator) {
-  Node* condition = BuildCondition(jsgraph()->NullConstant());
-  BuildConditionalJump(condition);
+  BuildJumpIfEqual(jsgraph()->NullConstant());
 }
 
 
 void BytecodeGraphBuilder::VisitJumpIfNullConstant(
     const interpreter::BytecodeArrayIterator& iterator) {
-  Node* condition = BuildCondition(jsgraph()->NullConstant());
-  BuildConditionalJump(condition);
+  BuildJumpIfEqual(jsgraph()->NullConstant());
+}
+
+
+void BytecodeGraphBuilder::VisitJumpIfNullConstantWide(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  BuildJumpIfEqual(jsgraph()->NullConstant());
 }
 
 
 void BytecodeGraphBuilder::VisitJumpIfUndefined(
     const interpreter::BytecodeArrayIterator& iterator) {
-  Node* condition = BuildCondition(jsgraph()->UndefinedConstant());
-  BuildConditionalJump(condition);
+  BuildJumpIfEqual(jsgraph()->UndefinedConstant());
 }
 
 
 void BytecodeGraphBuilder::VisitJumpIfUndefinedConstant(
     const interpreter::BytecodeArrayIterator& iterator) {
-  Node* condition = BuildCondition(jsgraph()->UndefinedConstant());
-  BuildConditionalJump(condition);
+  BuildJumpIfEqual(jsgraph()->UndefinedConstant());
+}
+
+
+void BytecodeGraphBuilder::VisitJumpIfUndefinedConstantWide(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  BuildJumpIfEqual(jsgraph()->UndefinedConstant());
 }
 
 
@@ -1740,17 +1770,20 @@ void BytecodeGraphBuilder::BuildConditionalJump(Node* condition) {
 }
 
 
-Node* BytecodeGraphBuilder::BuildCondition(Node* comperand) {
+void BytecodeGraphBuilder::BuildJumpIfEqual(Node* comperand) {
   Node* accumulator = environment()->LookupAccumulator();
-  return NewNode(javascript()->StrictEqual(), accumulator, comperand);
+  Node* condition =
+      NewNode(javascript()->StrictEqual(), accumulator, comperand);
+  BuildConditionalJump(condition);
 }
 
 
-Node* BytecodeGraphBuilder::BuildToBooleanCondition(Node* comperand) {
+void BytecodeGraphBuilder::BuildJumpIfToBooleanEqual(Node* comperand) {
   Node* accumulator = environment()->LookupAccumulator();
   Node* to_boolean =
       NewNode(javascript()->ToBoolean(ToBooleanHint::kAny), accumulator);
-  return NewNode(javascript()->StrictEqual(), to_boolean, comperand);
+  Node* condition = NewNode(javascript()->StrictEqual(), to_boolean, comperand);
+  BuildConditionalJump(condition);
 }
 
 

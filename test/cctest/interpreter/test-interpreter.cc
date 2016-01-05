@@ -3350,6 +3350,43 @@ TEST(InterpreterDeleteLookupSlot) {
   }
 }
 
+
+TEST(JumpWithConstantsAndWideConstants) {
+  HandleAndZoneScope handles;
+  auto isolate = handles.main_isolate();
+  auto factory = isolate->factory();
+  const int kStep = 13;
+  for (int constants = 3; constants < 256 + 3 * kStep; constants += kStep) {
+    std::ostringstream filler_os;
+    // Generate a string that consumes constant pool entries and
+    // spread out branch distances in script below.
+    for (int i = 0; i < constants; i++) {
+      filler_os << "var x_ = 'x_" << i << "';\n";
+    }
+    std::string filler(filler_os.str());
+    std::ostringstream script_os;
+    script_os << "function " << InterpreterTester::function_name() << "(a) {\n";
+    script_os << "  " << filler;
+    script_os << "  for (var i = a; i < 2; i++) {\n";
+    script_os << "  " << filler;
+    script_os << "    if (i == 0) { " << filler << "i = 10; continue; }\n";
+    script_os << "    else if (i == a) { " << filler << "i = 12; break; }\n";
+    script_os << "    else { " << filler << " }\n";
+    script_os << "  }\n";
+    script_os << "  return i;\n";
+    script_os << "}\n";
+    std::string script(script_os.str());
+    for (int a = 0; a < 3; a++) {
+      InterpreterTester tester(handles.main_isolate(), script.c_str());
+      auto callable = tester.GetCallable<Handle<Object>>();
+      Handle<Object> return_val =
+          callable(factory->NewNumberFromInt(a)).ToHandleChecked();
+      static const int results[] = {11, 12, 2};
+      CHECK_EQ(Handle<Smi>::cast(return_val)->value(), results[a]);
+    }
+  }
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

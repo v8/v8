@@ -181,9 +181,21 @@ bool Bytecodes::IsConditionalJumpConstant(Bytecode bytecode) {
 
 
 // static
+bool Bytecodes::IsConditionalJumpConstantWide(Bytecode bytecode) {
+  return bytecode == Bytecode::kJumpIfTrueConstantWide ||
+         bytecode == Bytecode::kJumpIfFalseConstantWide ||
+         bytecode == Bytecode::kJumpIfToBooleanTrueConstantWide ||
+         bytecode == Bytecode::kJumpIfToBooleanFalseConstantWide ||
+         bytecode == Bytecode::kJumpIfNullConstantWide ||
+         bytecode == Bytecode::kJumpIfUndefinedConstantWide;
+}
+
+
+// static
 bool Bytecodes::IsConditionalJump(Bytecode bytecode) {
   return IsConditionalJumpImmediate(bytecode) ||
-         IsConditionalJumpConstant(bytecode);
+         IsConditionalJumpConstant(bytecode) ||
+         IsConditionalJumpConstantWide(bytecode);
 }
 
 
@@ -201,8 +213,16 @@ bool Bytecodes::IsJumpConstant(Bytecode bytecode) {
 
 
 // static
+bool Bytecodes::IsJumpConstantWide(Bytecode bytecode) {
+  return bytecode == Bytecode::kJumpConstantWide ||
+         IsConditionalJumpConstantWide(bytecode);
+}
+
+
+// static
 bool Bytecodes::IsJump(Bytecode bytecode) {
-  return IsJumpImmediate(bytecode) || IsJumpConstant(bytecode);
+  return IsJumpImmediate(bytecode) || IsJumpConstant(bytecode) ||
+         IsJumpConstantWide(bytecode);
 }
 
 

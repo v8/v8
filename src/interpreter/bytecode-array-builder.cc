@@ -52,7 +52,8 @@ class BytecodeArrayBuilder::PreviousBytecodeHelper {
   }
 
   Handle<Object> GetConstantForIndexOperand(int operand_index) const {
-    return array_builder_.constants_.at(GetOperand(operand_index));
+    return array_builder_.constant_array_builder()->At(
+        GetOperand(operand_index));
   }
 
  private:
@@ -68,12 +69,11 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(Isolate* isolate, Zone* zone)
       zone_(zone),
       bytecodes_(zone),
       bytecode_generated_(false),
+      constant_array_builder_(isolate, zone),
       last_block_end_(0),
       last_bytecode_start_(~0),
       exit_seen_in_block_(false),
       unbound_jumps_(0),
-      constants_map_(isolate->heap(), zone),
-      constants_(zone),
       parameter_count_(-1),
       local_register_count_(-1),
       context_register_count_(-1),
@@ -144,21 +144,14 @@ bool BytecodeArrayBuilder::RegisterIsTemporary(Register reg) const {
 
 Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray() {
   DCHECK_EQ(bytecode_generated_, false);
-
   EnsureReturn();
 
   int bytecode_size = static_cast<int>(bytecodes_.size());
   int register_count = fixed_register_count() + temporary_register_count_;
   int frame_size = register_count * kPointerSize;
-
   Factory* factory = isolate_->factory();
-  int constants_count = static_cast<int>(constants_.size());
   Handle<FixedArray> constant_pool =
-      factory->NewFixedArray(constants_count, TENURED);
-  for (int i = 0; i < constants_count; i++) {
-    constant_pool->set(i, *constants_[i]);
-  }
-
+      constant_array_builder()->ToFixedArray(factory);
   Handle<BytecodeArray> output =
       factory->NewBytecodeArray(bytecode_size, &bytecodes_.front(), frame_size,
                                 parameter_count(), constant_pool);
@@ -773,44 +766,33 @@ Bytecode BytecodeArrayBuilder::GetJumpWithConstantOperand(
       return Bytecode::kJumpIfUndefinedConstant;
     default:
       UNREACHABLE();
-      return Bytecode::kJumpConstant;
+      return static_cast<Bytecode>(-1);
   }
 }
 
 
-void BytecodeArrayBuilder::PatchJump(
-    const ZoneVector<uint8_t>::iterator& jump_target,
-    ZoneVector<uint8_t>::iterator jump_location) {
-  Bytecode jump_bytecode = Bytecodes::FromByte(*jump_location);
-  int delta = static_cast<int>(jump_target - jump_location);
-
-  DCHECK(Bytecodes::IsJump(jump_bytecode));
-  DCHECK_EQ(Bytecodes::Size(jump_bytecode), 2);
-  DCHECK_NE(delta, 0);
-
-  if (FitsInImm8Operand(delta)) {
-    // Just update the operand
-    jump_location++;
-    *jump_location = static_cast<uint8_t>(delta);
-  } else {
-    // Update the jump type and operand
-    size_t entry = GetConstantPoolEntry(handle(Smi::FromInt(delta), isolate()));
-    if (FitsInIdx8Operand(entry)) {
-      jump_bytecode = GetJumpWithConstantOperand(jump_bytecode);
-      *jump_location++ = Bytecodes::ToByte(jump_bytecode);
-      *jump_location = static_cast<uint8_t>(entry);
-    } else {
-      // TODO(oth): OutputJump should reserve a constant pool entry
-      // when jump is written. The reservation should be used here if
-      // needed, or cancelled if not. This is due to the patch needing
-      // to match the size of the code it's replacing. In future,
-      // there will probably be a jump with 32-bit operand for cases
-      // when constant pool is full, but that needs to be emitted in
-      // OutputJump too.
-      UNIMPLEMENTED();
-    }
+// static
+Bytecode BytecodeArrayBuilder::GetJumpWithConstantWideOperand(
+    Bytecode jump_bytecode) {
+  switch (jump_bytecode) {
+    case Bytecode::kJump:
+      return Bytecode::kJumpConstantWide;
+    case Bytecode::kJumpIfTrue:
+      return Bytecode::kJumpIfTrueConstantWide;
+    case Bytecode::kJumpIfFalse:
+      return Bytecode::kJumpIfFalseConstantWide;
+    case Bytecode::kJumpIfToBooleanTrue:
+      return Bytecode::kJumpIfToBooleanTrueConstantWide;
+    case Bytecode::kJumpIfToBooleanFalse:
+      return Bytecode::kJumpIfToBooleanFalseConstantWide;
+    case Bytecode::kJumpIfNull:
+      return Bytecode::kJumpIfNullConstantWide;
+    case Bytecode::kJumpIfUndefined:
+      return Bytecode::kJumpIfUndefinedConstantWide;
+    default:
+      UNREACHABLE();
+      return static_cast<Bytecode>(-1);
   }
-  unbound_jumps_--;
 }
 
 
@@ -832,6 +814,66 @@ Bytecode BytecodeArrayBuilder::GetJumpWithToBoolean(Bytecode jump_bytecode) {
 }
 
 
+void BytecodeArrayBuilder::PatchIndirectJumpWith8BitOperand(
+    const ZoneVector<uint8_t>::iterator& jump_location, int delta) {
+  Bytecode jump_bytecode = Bytecodes::FromByte(*jump_location);
+  DCHECK(Bytecodes::IsJumpImmediate(jump_bytecode));
+  ZoneVector<uint8_t>::iterator operand_location = jump_location + 1;
+  DCHECK_EQ(*operand_location, 0);
+  if (FitsInImm8Operand(delta)) {
+    // The jump fits within the range of an Imm8 operand, so cancel
+    // the reservation and jump directly.
+    constant_array_builder()->DiscardReservedEntry(OperandSize::kByte);
+    *operand_location = static_cast<uint8_t>(delta);
+  } else {
+    // The jump does not fit within the range of an Imm8 operand, so
+    // commit reservation putting the offset into the constant pool,
+    // and update the jump instruction and operand.
+    size_t entry = constant_array_builder()->CommitReservedEntry(
+        OperandSize::kByte, handle(Smi::FromInt(delta), isolate()));
+    DCHECK(FitsInIdx8Operand(entry));
+    jump_bytecode = GetJumpWithConstantOperand(jump_bytecode);
+    *jump_location = Bytecodes::ToByte(jump_bytecode);
+    *operand_location = static_cast<uint8_t>(entry);
+  }
+}
+
+
+void BytecodeArrayBuilder::PatchIndirectJumpWith16BitOperand(
+    const ZoneVector<uint8_t>::iterator& jump_location, int delta) {
+  DCHECK(Bytecodes::IsJumpConstantWide(Bytecodes::FromByte(*jump_location)));
+  ZoneVector<uint8_t>::iterator operand_location = jump_location + 1;
+  size_t entry = constant_array_builder()->CommitReservedEntry(
+      OperandSize::kShort, handle(Smi::FromInt(delta), isolate()));
+  DCHECK(FitsInIdx16Operand(entry));
+  uint8_t operand_bytes[2];
+  WriteUnalignedUInt16(operand_bytes, static_cast<uint16_t>(entry));
+  DCHECK(*operand_location == 0 && *(operand_location + 1) == 0);
+  *operand_location++ = operand_bytes[0];
+  *operand_location = operand_bytes[1];
+}
+
+
+void BytecodeArrayBuilder::PatchJump(
+    const ZoneVector<uint8_t>::iterator& jump_target,
+    const ZoneVector<uint8_t>::iterator& jump_location) {
+  Bytecode jump_bytecode = Bytecodes::FromByte(*jump_location);
+  int delta = static_cast<int>(jump_target - jump_location);
+  DCHECK(Bytecodes::IsJump(jump_bytecode));
+  switch (Bytecodes::GetOperandSize(jump_bytecode, 0)) {
+    case OperandSize::kByte:
+      PatchIndirectJumpWith8BitOperand(jump_location, delta);
+      break;
+    case OperandSize::kShort:
+      PatchIndirectJumpWith16BitOperand(jump_location, delta);
+      break;
+    case OperandSize::kNone:
+      UNREACHABLE();
+  }
+  unbound_jumps_--;
+}
+
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::OutputJump(Bytecode jump_bytecode,
                                                        BytecodeLabel* label) {
   // Don't emit dead code.
@@ -843,30 +885,48 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::OutputJump(Bytecode jump_bytecode,
     jump_bytecode = GetJumpWithToBoolean(jump_bytecode);
   }
 
-  int delta;
   if (label->is_bound()) {
     // Label has been bound already so this is a backwards jump.
     CHECK_GE(bytecodes()->size(), label->offset());
     CHECK_LE(bytecodes()->size(), static_cast<size_t>(kMaxInt));
     size_t abs_delta = bytecodes()->size() - label->offset();
-    delta = -static_cast<int>(abs_delta);
-  } else {
-    // Label has not yet been bound so this is a forward reference
-    // that will be patched when the label is bound.
-    label->set_referrer(bytecodes()->size());
-    delta = 0;
-    unbound_jumps_++;
-  }
+    int delta = -static_cast<int>(abs_delta);
 
-  if (FitsInImm8Operand(delta)) {
-    Output(jump_bytecode, static_cast<uint8_t>(delta));
-  } else {
-    size_t entry = GetConstantPoolEntry(handle(Smi::FromInt(delta), isolate()));
-    if (FitsInIdx8Operand(entry)) {
-      Output(GetJumpWithConstantOperand(jump_bytecode),
-             static_cast<uint8_t>(entry));
+    if (FitsInImm8Operand(delta)) {
+      Output(jump_bytecode, static_cast<uint8_t>(delta));
     } else {
-      UNIMPLEMENTED();
+      size_t entry =
+          GetConstantPoolEntry(handle(Smi::FromInt(delta), isolate()));
+      if (FitsInIdx8Operand(entry)) {
+        Output(GetJumpWithConstantOperand(jump_bytecode),
+               static_cast<uint8_t>(entry));
+      } else if (FitsInIdx16Operand(entry)) {
+        Output(GetJumpWithConstantWideOperand(jump_bytecode),
+               static_cast<uint16_t>(entry));
+      } else {
+        UNREACHABLE();
+      }
+    }
+  } else {
+    // The label has not yet been bound so this is a forward reference
+    // that will be patched when the label is bound. We create a
+    // reservation in the constant pool so the jump can be patched
+    // when the label is bound. The reservation means the maximum size
+    // of the operand for the constant is known and the jump can
+    // be emitted into the bytecode stream with space for the operand.
+    label->set_referrer(bytecodes()->size());
+    unbound_jumps_++;
+    OperandSize reserved_operand_size =
+        constant_array_builder()->CreateReservedEntry();
+    switch (reserved_operand_size) {
+      case OperandSize::kByte:
+        Output(jump_bytecode, 0);
+        break;
+      case OperandSize::kShort:
+        Output(GetJumpWithConstantWideOperand(jump_bytecode), 0);
+        break;
+      case OperandSize::kNone:
+        UNREACHABLE();
     }
   }
   LeaveBasicBlock();
@@ -1032,22 +1092,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::DeleteLookupSlot() {
 
 
 size_t BytecodeArrayBuilder::GetConstantPoolEntry(Handle<Object> object) {
-  // These constants shouldn't be added to the constant pool, the should use
-  // specialzed bytecodes instead.
-  DCHECK(!object.is_identical_to(isolate_->factory()->undefined_value()));
-  DCHECK(!object.is_identical_to(isolate_->factory()->null_value()));
-  DCHECK(!object.is_identical_to(isolate_->factory()->the_hole_value()));
-  DCHECK(!object.is_identical_to(isolate_->factory()->true_value()));
-  DCHECK(!object.is_identical_to(isolate_->factory()->false_value()));
-
-  size_t* entry = constants_map_.Find(object);
-  if (!entry) {
-    entry = constants_map_.Get(object);
-    *entry = constants_.size();
-    constants_.push_back(object);
-  }
-  DCHECK(constants_[*entry].is_identical_to(object));
-  return *entry;
+  return constant_array_builder()->Insert(object);
 }
 
 

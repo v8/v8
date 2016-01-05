@@ -258,6 +258,21 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CreateArrayLiteral(factory->NewFixedArray(2), 0, 0)
       .CreateObjectLiteral(factory->NewFixedArray(2), 0, 0);
 
+  // Longer jumps requiring ConstantWide operand
+  builder.Jump(&start).JumpIfNull(&start).JumpIfUndefined(&start);
+  // Perform an operation that returns boolean value to
+  // generate JumpIfTrue/False
+  builder.CompareOperation(Token::Value::EQ, reg, Strength::WEAK)
+      .JumpIfTrue(&start)
+      .CompareOperation(Token::Value::EQ, reg, Strength::WEAK)
+      .JumpIfFalse(&start);
+  // Perform an operation that returns a non-boolean operation to
+  // generate JumpIfToBooleanTrue/False.
+  builder.BinaryOperation(Token::Value::ADD, reg, Strength::WEAK)
+      .JumpIfTrue(&start)
+      .BinaryOperation(Token::Value::ADD, reg, Strength::WEAK)
+      .JumpIfFalse(&start);
+
   builder.Return();
 
   // Generate BytecodeArray.
@@ -690,6 +705,7 @@ TEST_F(BytecodeArrayBuilderTest, LabelAddressReuse) {
   iterator.Advance();
   CHECK(iterator.done());
 }
+
 
 }  // namespace interpreter
 }  // namespace internal
