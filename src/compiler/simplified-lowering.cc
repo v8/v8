@@ -411,13 +411,54 @@ class RepresentationSelector {
 
   bool lower() { return phase_ == LOWER; }
 
+  void EnqueueUses(Node* node) {
+    for (Edge edge : node->use_edges()) {
+      if (NodeProperties::IsValueEdge(edge)) {
+        Node* const user = edge.from();
+        if (user->id() < count_) {
+          // New type information for the node is available.
+          NodeInfo* info = GetInfo(user);
+          // Enqueue the node only if we are sure it is reachable from
+          // the end and it has not been queued yet.
+          if (info->visited() && !info->queued()) {
+            queue_.push(user);
+            info->set_queued(true);
+          }
+        }
+      }
+    }
+  }
+
   void SetOutput(Node* node, MachineType output) {
     // Every node should have at most one output representation. Note that
     // phis can have 0, if they have not been used in a representation-inducing
     // instruction.
     NodeInfo* info = GetInfo(node);
     DCHECK(MachineTypeRepIsSubtype(info->output_type(), output));
+    if (output != info->output_type()) {
+      EnqueueUses(node);
+    }
     info->set_output_type(output);
+  }
+
+  bool BothInputsAreSigned32(Node* node) {
+    DCHECK_EQ(2, node->InputCount());
+    return (NodeProperties::GetType(node->InputAt(0))->Is(Type::Signed32()) ||
+            (GetInfo(node->InputAt(0))->output_type().semantic() ==
+             MachineSemantic::kInt32)) &&
+           (NodeProperties::GetType(node->InputAt(1))->Is(Type::Signed32()) ||
+            (GetInfo(node->InputAt(1))->output_type().semantic() ==
+             MachineSemantic::kInt32));
+  }
+
+  bool BothInputsAreUnsigned32(Node* node) {
+    DCHECK_EQ(2, node->InputCount());
+    return (NodeProperties::GetType(node->InputAt(0))->Is(Type::Unsigned32()) ||
+            GetInfo(node->InputAt(0))->output_type().semantic() ==
+                MachineSemantic::kUint32) &&
+           (NodeProperties::GetType(node->InputAt(1))->Is(Type::Unsigned32()) ||
+            GetInfo(node->InputAt(1))->output_type().semantic() ==
+                MachineSemantic::kUint32);
   }
 
   bool BothInputsAre(Node* node, Type* type) {
@@ -521,6 +562,11 @@ class RepresentationSelector {
   }
   void VisitInt32Binop(Node* node) {
     VisitBinop(node, UseInfo::TruncatingWord32(), MachineType::Int32());
+  }
+  void VisitWord32TruncatingBinop(Node* node) {
+    VisitBinop(
+        node, UseInfo::TruncatingWord32(),
+        MachineType(MachineRepresentation::kWord32, MachineSemantic::kNumber));
   }
   void VisitUint32Binop(Node* node) {
     VisitBinop(node, UseInfo::TruncatingWord32(), MachineType::Uint32());
@@ -680,29 +726,24 @@ class RepresentationSelector {
   }
 
   bool CanLowerToInt32Binop(Node* node, Truncation use) {
-    return BothInputsAre(node, Type::Signed32()) &&
-           (use.TruncatesToWord32() ||
-            NodeProperties::GetType(node)->Is(Type::Signed32()));
+    return BothInputsAreSigned32(node) &&
+           NodeProperties::GetType(node)->Is(Type::Signed32());
   }
 
   bool CanLowerToInt32AdditiveBinop(Node* node, Truncation use) {
     // It is safe to lower to word32 operation if:
     // - the inputs are safe integers (so the low bits are not discarded), and
-    // - the uses can only observe the lowest 32 bits or they can recover the
-    //   the value from the type.
+    // - the uses can only observe the lowest 32 bits.
     // TODO(jarin): we could support the uint32 case here, but that would
     // require setting kTypeUint32 as the output type. Eventually, we will want
     // to use only the big types, then this should work automatically.
     return BothInputsAre(node, type_cache_.kAdditiveSafeInteger) &&
-           (use.TruncatesToWord32() ||
-            NodeProperties::GetType(node)->Is(Type::Signed32()));
+           use.TruncatesToWord32();
   }
 
   bool CanLowerToInt32MultiplicativeBinop(Node* node, Truncation use) {
-    return BothInputsAre(node, Type::Signed32()) &&
-           (NodeProperties::GetType(node)->Is(Type::Signed32()) ||
-            (use.TruncatesToWord32() &&
-             NodeProperties::GetType(node)->Is(type_cache_.kSafeInteger)));
+    return BothInputsAreSigned32(node) && use.TruncatesToWord32() &&
+           NodeProperties::GetType(node)->Is(type_cache_.kSafeInteger);
   }
 
   // Dispatching routine for visiting the node {node} with the usage {use}.
@@ -812,11 +853,11 @@ class RepresentationSelector {
       case IrOpcode::kNumberLessThan:
       case IrOpcode::kNumberLessThanOrEqual: {
         // Number comparisons reduce to integer comparisons for integer inputs.
-        if (BothInputsAre(node, Type::Signed32())) {
+        if (BothInputsAreSigned32(node)) {
           // => signed Int32Cmp
           VisitInt32Cmp(node);
           if (lower()) NodeProperties::ChangeOp(node, Int32Op(node));
-        } else if (BothInputsAre(node, Type::Unsigned32())) {
+        } else if (BothInputsAreUnsigned32(node)) {
           // => unsigned Int32Cmp
           VisitUint32Cmp(node);
           if (lower()) NodeProperties::ChangeOp(node, Uint32Op(node));
@@ -830,8 +871,9 @@ class RepresentationSelector {
       case IrOpcode::kNumberAdd:
       case IrOpcode::kNumberSubtract: {
         // Add and subtract reduce to Int32Add/Sub if the inputs
-        // are already integers and all uses are truncating.
-        if (CanLowerToInt32AdditiveBinop(node, truncation)) {
+        // are safe integers and all uses are truncating.
+        if (BothInputsAre(node, type_cache_.kAdditiveSafeInteger) &&
+            truncation.TruncatesToWord32()) {
           // => signed Int32Add/Sub
           VisitInt32Binop(node);
           if (lower()) NodeProperties::ChangeOp(node, Int32Op(node));
@@ -843,30 +885,47 @@ class RepresentationSelector {
         break;
       }
       case IrOpcode::kNumberMultiply: {
-        // Multiply reduces to Int32Mul if the inputs are
-        // already integers and all uses are truncating.
-        if (CanLowerToInt32MultiplicativeBinop(node, truncation)) {
-          // => signed Int32Mul
-          VisitInt32Binop(node);
-          if (lower()) NodeProperties::ChangeOp(node, Int32Op(node));
-        } else {
-          // => Float64Mul
-          VisitFloat64Binop(node);
-          if (lower()) NodeProperties::ChangeOp(node, Float64Op(node));
+        if (BothInputsAreSigned32(node)) {
+          if (NodeProperties::GetType(node)->Is(Type::Signed32())) {
+            // Multiply reduces to Int32Mul if the inputs and the output
+            // are integers.
+            VisitInt32Binop(node);
+            if (lower()) NodeProperties::ChangeOp(node, Int32Op(node));
+            break;
+          }
+          if (truncation.TruncatesToWord32() &&
+              NodeProperties::GetType(node)->Is(type_cache_.kSafeInteger)) {
+            // Multiply reduces to Int32Mul if the inputs are integers,
+            // the uses are truncating and the result is in the safe
+            // integer range.
+            VisitWord32TruncatingBinop(node);
+            if (lower()) NodeProperties::ChangeOp(node, Int32Op(node));
+            break;
+          }
         }
+        // => Float64Mul
+        VisitFloat64Binop(node);
+        if (lower()) NodeProperties::ChangeOp(node, Float64Op(node));
         break;
       }
       case IrOpcode::kNumberDivide: {
-        if (CanLowerToInt32Binop(node, truncation)) {
+        if (BothInputsAreSigned32(node)) {
+          if (NodeProperties::GetType(node)->Is(Type::Signed32())) {
           // => signed Int32Div
           VisitInt32Binop(node);
           if (lower()) DeferReplacement(node, lowering->Int32Div(node));
           break;
+          }
+          if (truncation.TruncatesToWord32()) {
+            // => signed Int32Div
+            VisitWord32TruncatingBinop(node);
+            if (lower()) DeferReplacement(node, lowering->Int32Div(node));
+            break;
+          }
         }
-        if (BothInputsAre(node, Type::Unsigned32()) &&
-            truncation.TruncatesNaNToZero()) {
+        if (BothInputsAreUnsigned32(node) && truncation.TruncatesToWord32()) {
           // => unsigned Uint32Div
-          VisitUint32Binop(node);
+          VisitWord32TruncatingBinop(node);
           if (lower()) DeferReplacement(node, lowering->Uint32Div(node));
           break;
         }
@@ -876,16 +935,23 @@ class RepresentationSelector {
         break;
       }
       case IrOpcode::kNumberModulus: {
-        if (CanLowerToInt32Binop(node, truncation)) {
-          // => signed Int32Mod
-          VisitInt32Binop(node);
-          if (lower()) DeferReplacement(node, lowering->Int32Mod(node));
-          break;
+        if (BothInputsAreSigned32(node)) {
+          if (NodeProperties::GetType(node)->Is(Type::Signed32())) {
+            // => signed Int32Mod
+            VisitInt32Binop(node);
+            if (lower()) DeferReplacement(node, lowering->Int32Mod(node));
+            break;
+          }
+          if (truncation.TruncatesToWord32()) {
+            // => signed Int32Mod
+            VisitWord32TruncatingBinop(node);
+            if (lower()) DeferReplacement(node, lowering->Int32Mod(node));
+            break;
+          }
         }
-        if (BothInputsAre(node, Type::Unsigned32()) &&
-            truncation.TruncatesNaNToZero()) {
+        if (BothInputsAreUnsigned32(node) && truncation.TruncatesToWord32()) {
           // => unsigned Uint32Mod
-          VisitUint32Binop(node);
+          VisitWord32TruncatingBinop(node);
           if (lower()) DeferReplacement(node, lowering->Uint32Mod(node));
           break;
         }
