@@ -5838,6 +5838,103 @@ TEST(LookupSlotInEval) {
 }
 
 
+TEST(LookupSlotWideInEval) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+
+  const char* function_prologue =
+      "var f;"
+      "var x = 1;"
+      "function f1() {"
+      "  eval(\"function t() {";
+  const char* function_epilogue =
+      "        }; f = t; f();\");"
+      "}"
+      "f1();";
+
+  int const_count[] = {0, 0, 0, 0};
+  ExpectedSnippet<InstanceType, 257> snippets[] = {
+      {REPEAT_256(SPACE, "var y = 2.3;")
+       "return x;",
+       1 * kPointerSize,
+       1,
+       1028,
+       {
+           REPEAT_256(SPACE,                         //
+             B(LdaConstant), U8(const_count[0]++),   //
+             B(Star), R(0), )                        //
+           B(LdaLookupSlotWide), U16(256),           //
+           B(Return)                                 //
+       },
+       257,
+       {REPEAT_256(COMMA, InstanceType::HEAP_NUMBER_TYPE),
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
+      {REPEAT_256(SPACE, "var y = 2.3;")
+       "return typeof x;",
+       1 * kPointerSize,
+       1,
+       1029,
+       {
+           REPEAT_256(SPACE,                            //
+             B(LdaConstant), U8(const_count[1]++),      //
+             B(Star), R(0), )                           //
+           B(LdaLookupSlotInsideTypeofWide), U16(256),  //
+           B(TypeOf),                                   //
+           B(Return)                                    //
+       },
+       257,
+       {REPEAT_256(COMMA, InstanceType::HEAP_NUMBER_TYPE),
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
+      {REPEAT_256(SPACE, "var y = 2.3;")
+       "x = 10;",
+       1 * kPointerSize,
+       1,
+       1031,
+       {
+           REPEAT_256(SPACE,                        //
+             B(LdaConstant), U8(const_count[2]++),  //
+             B(Star), R(0), )                       //
+           B(LdaSmi8), U8(10),                      //
+           B(StaLookupSlotSloppyWide), U16(256),    //
+           B(LdaUndefined),                         //
+           B(Return)                                //
+       },
+       257,
+       {REPEAT_256(COMMA, InstanceType::HEAP_NUMBER_TYPE),
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
+      {"'use strict';"
+       REPEAT_256(SPACE, "var y = 2.3;")
+       "x = 10;",
+       1 * kPointerSize,
+       1,
+       1031,
+       {
+           REPEAT_256(SPACE,
+             B(LdaConstant), U8(const_count[3]++),  //
+             B(Star), R(0), )                       //
+           B(LdaSmi8), U8(10),                      //
+           B(StaLookupSlotStrictWide), U16(256),    //
+           B(LdaUndefined),                         //
+           B(Return)                                //
+       },
+       257,
+       {REPEAT_256(COMMA, InstanceType::HEAP_NUMBER_TYPE),
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
+  };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    std::string script = std::string(function_prologue) +
+                         std::string(snippets[i].code_snippet) +
+                         std::string(function_epilogue);
+    // TODO(mythria): use * as filter when function declarations are supported
+    // inside eval.
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecode(script.c_str(), "t", "f");
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+}
+
+
 TEST(DeleteLookupSlot) {
   InitializedHandleScope handle_scope;
   BytecodeGeneratorHelper helper;

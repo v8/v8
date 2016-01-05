@@ -477,6 +477,26 @@ void Interpreter::DoLdaLookupSlotInsideTypeof(
 }
 
 
+// LdaLookupSlotWide <name_index>
+//
+// Lookup the object with the name in constant pool entry |name_index|
+// dynamically.
+void Interpreter::DoLdaLookupSlotWide(
+    compiler::InterpreterAssembler* assembler) {
+  DoLdaLookupSlot(assembler);
+}
+
+
+// LdaLookupSlotInsideTypeofWide <name_index>
+//
+// Lookup the object with the name in constant pool entry |name_index|
+// dynamically without causing a NoReferenceError.
+void Interpreter::DoLdaLookupSlotInsideTypeofWide(
+    compiler::InterpreterAssembler* assembler) {
+  DoLdaLookupSlotInsideTypeof(assembler);
+}
+
+
 void Interpreter::DoStoreLookupSlot(LanguageMode language_mode,
                                     compiler::InterpreterAssembler* assembler) {
   Node* value = __ GetAccumulator();
@@ -508,6 +528,26 @@ void Interpreter::DoStaLookupSlotSloppy(
 void Interpreter::DoStaLookupSlotStrict(
     compiler::InterpreterAssembler* assembler) {
   DoStoreLookupSlot(LanguageMode::STRICT, assembler);
+}
+
+
+// StaLookupSlotSloppyWide <name_index>
+//
+// Store the object in accumulator to the object with the name in constant
+// pool entry |name_index| in sloppy mode.
+void Interpreter::DoStaLookupSlotSloppyWide(
+    compiler::InterpreterAssembler* assembler) {
+  DoStaLookupSlotSloppy(assembler);
+}
+
+
+// StaLookupSlotStrictWide <name_index>
+//
+// Store the object in accumulator to the object with the name in constant
+// pool entry |name_index| in strict mode.
+void Interpreter::DoStaLookupSlotStrictWide(
+    compiler::InterpreterAssembler* assembler) {
+  DoStaLookupSlotStrict(assembler);
 }
 
 

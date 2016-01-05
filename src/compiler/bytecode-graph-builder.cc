@@ -765,6 +765,18 @@ void BytecodeGraphBuilder::BuildStaLookupSlot(
 }
 
 
+void BytecodeGraphBuilder::VisitLdaLookupSlotWide(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  VisitLdaLookupSlot(iterator);
+}
+
+
+void BytecodeGraphBuilder::VisitLdaLookupSlotInsideTypeofWide(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  VisitLdaLookupSlotInsideTypeof(iterator);
+}
+
+
 void BytecodeGraphBuilder::VisitStaLookupSlotSloppy(
     const interpreter::BytecodeArrayIterator& iterator) {
   BuildStaLookupSlot(LanguageMode::SLOPPY, iterator);
@@ -774,6 +786,18 @@ void BytecodeGraphBuilder::VisitStaLookupSlotSloppy(
 void BytecodeGraphBuilder::VisitStaLookupSlotStrict(
     const interpreter::BytecodeArrayIterator& iterator) {
   BuildStaLookupSlot(LanguageMode::STRICT, iterator);
+}
+
+
+void BytecodeGraphBuilder::VisitStaLookupSlotSloppyWide(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  VisitStaLookupSlotSloppy(iterator);
+}
+
+
+void BytecodeGraphBuilder::VisitStaLookupSlotStrictWide(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  VisitStaLookupSlotStrict(iterator);
 }
 
 

@@ -240,6 +240,12 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .StoreNamedProperty(reg, wide_name, 0, LanguageMode::STRICT)
       .StoreKeyedProperty(reg, reg, 2056, LanguageMode::STRICT);
 
+  // Emit wide load / store lookup slots.
+  builder.LoadLookupSlot(wide_name, TypeofMode::NOT_INSIDE_TYPEOF)
+      .LoadLookupSlot(wide_name, TypeofMode::INSIDE_TYPEOF)
+      .StoreLookupSlot(wide_name, LanguageMode::SLOPPY)
+      .StoreLookupSlot(wide_name, LanguageMode::STRICT);
+
   // CreateClosureWide
   Handle<SharedFunctionInfo> shared_info2 = factory->NewSharedFunctionInfo(
       factory->NewStringFromStaticChars("function_b"), MaybeHandle<Code>(),

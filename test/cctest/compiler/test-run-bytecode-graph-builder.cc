@@ -1038,6 +1038,8 @@ TEST(BytecodeGraphBuilderLookupSlot) {
       {"return x;", {factory->NewNumber(12)}},
       {"return obj.val;", {factory->NewNumber(3.1414)}},
       {"return typeof x;", {factory->NewStringFromStaticChars("number")}},
+      {"return typeof dummy;",
+       {factory->NewStringFromStaticChars("undefined")}},
       {"x = 23; return x;", {factory->NewNumber(23)}},
       {"'use strict'; obj.val = 23.456; return obj.val;",
        {factory->NewNumber(23.456)}}};
@@ -1045,6 +1047,50 @@ TEST(BytecodeGraphBuilderLookupSlot) {
   size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
   for (size_t i = 0; i < num_snippets; i++) {
     ScopedVector<char> script(1024);
+    SNPrintF(script, "%s %s %s", function_prologue, snippets[i].code_snippet,
+             function_epilogue);
+
+    BytecodeGraphTester tester(isolate, zone, script.start(), "t");
+    auto callable = tester.GetCallable<>();
+    Handle<Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*snippets[i].return_value()));
+  }
+}
+
+
+TEST(BytecodeGraphBuilderLookupSlotWide) {
+  HandleAndZoneScope scope;
+  Isolate* isolate = scope.main_isolate();
+  Zone* zone = scope.main_zone();
+  Factory* factory = isolate->factory();
+
+  const char* function_prologue =
+      "var f;"
+      "var x = 12;"
+      "y = 10;"
+      "var obj = {val:3.1414};"
+      "var z = 30;"
+      "function f1() {"
+      "  var z = 20;"
+      "  eval(\"function t() {";
+  const char* function_epilogue =
+      "        }; f = t; t();\");"
+      "}"
+      "f1();";
+
+  ExpectedSnippet<0> snippets[] = {
+      {"var y = 2.3;" REPEAT_256(SPACE, "y = 2.3;") "return x;",
+       {factory->NewNumber(12)}},
+      {"var y = 2.3;" REPEAT_256(SPACE, "y = 2.3;") "return typeof x;",
+       {factory->NewStringFromStaticChars("number")}},
+      {"var y = 2.3;" REPEAT_256(SPACE, "y = 2.3;") "return x = 23;",
+       {factory->NewNumber(23)}},
+      {"'use strict';" REPEAT_256(SPACE, "y = 2.3;") "return obj.val = 23.456;",
+       {factory->NewNumber(23.456)}}};
+
+  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
+  for (size_t i = 0; i < num_snippets; i++) {
+    ScopedVector<char> script(3072);
     SNPrintF(script, "%s %s %s", function_prologue, snippets[i].code_snippet,
              function_epilogue);
 

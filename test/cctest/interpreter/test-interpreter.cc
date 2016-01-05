@@ -3213,6 +3213,7 @@ TEST(InterpreterLookupSlot) {
   std::pair<const char*, Handle<Object>> lookup_slot[] = {
       {"return x;", handle(Smi::FromInt(1), isolate)},
       {"return typeof x;", factory->NewStringFromStaticChars("number")},
+      {"return typeof dummy;", factory->NewStringFromStaticChars("undefined")},
       {"x = 10; return x;", handle(Smi::FromInt(10), isolate)},
       {"'use strict'; x = 20; return x;", handle(Smi::FromInt(20), isolate)},
   };
@@ -3220,6 +3221,50 @@ TEST(InterpreterLookupSlot) {
   for (size_t i = 0; i < arraysize(lookup_slot); i++) {
     std::string script = std::string(function_prologue) +
                          std::string(lookup_slot[i].first) +
+                         std::string(function_epilogue);
+
+    InterpreterTester tester(handles.main_isolate(), script.c_str(), "t");
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*lookup_slot[i].second));
+  }
+}
+
+
+TEST(InterpreterLookupSlotWide) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  i::Factory* factory = isolate->factory();
+
+  const char* function_prologue =
+      "var f;"
+      "var x = 1;"
+      "function f1() {"
+      "  eval(\"function t() {";
+  const char* function_epilogue =
+      "        }; f = t;\");"
+      "}"
+      "f1();";
+  std::ostringstream str;
+  str << "var y = 2.3;";
+  for (int i = 1; i < 256; i++) {
+    str << "y = " << 2.3 + i << ";";
+  }
+  std::string init_function_body = str.str();
+
+  std::pair<std::string, Handle<Object>> lookup_slot[] = {
+      {init_function_body + "return x;", handle(Smi::FromInt(1), isolate)},
+      {init_function_body + "return typeof x;",
+       factory->NewStringFromStaticChars("number")},
+      {init_function_body + "return x = 10;",
+       handle(Smi::FromInt(10), isolate)},
+      {"'use strict';" + init_function_body + "x = 20; return x;",
+       handle(Smi::FromInt(20), isolate)},
+  };
+
+  for (size_t i = 0; i < arraysize(lookup_slot); i++) {
+    std::string script = std::string(function_prologue) + lookup_slot[i].first +
                          std::string(function_epilogue);
 
     InterpreterTester tester(handles.main_isolate(), script.c_str(), "t");

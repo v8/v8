@@ -466,6 +466,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLookupSlot(
   size_t name_index = GetConstantPoolEntry(name);
   if (FitsInIdx8Operand(name_index)) {
     Output(bytecode, static_cast<uint8_t>(name_index));
+  } else if (FitsInIdx16Operand(name_index)) {
+    Output(BytecodeForWideOperands(bytecode),
+           static_cast<uint16_t>(name_index));
   } else {
     UNIMPLEMENTED();
   }
@@ -479,6 +482,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreLookupSlot(
   size_t name_index = GetConstantPoolEntry(name);
   if (FitsInIdx8Operand(name_index)) {
     Output(bytecode, static_cast<uint8_t>(name_index));
+  } else if (FitsInIdx16Operand(name_index)) {
+    Output(BytecodeForWideOperands(bytecode),
+           static_cast<uint16_t>(name_index));
   } else {
     UNIMPLEMENTED();
   }
@@ -1327,6 +1333,14 @@ Bytecode BytecodeArrayBuilder::BytecodeForWideOperands(Bytecode bytecode) {
       return Bytecode::kStaGlobalSloppyWide;
     case Bytecode::kStaGlobalStrict:
       return Bytecode::kStaGlobalStrictWide;
+    case Bytecode::kLdaLookupSlot:
+      return Bytecode::kLdaLookupSlotWide;
+    case Bytecode::kLdaLookupSlotInsideTypeof:
+      return Bytecode::kLdaLookupSlotInsideTypeofWide;
+    case Bytecode::kStaLookupSlotStrict:
+      return Bytecode::kStaLookupSlotStrictWide;
+    case Bytecode::kStaLookupSlotSloppy:
+      return Bytecode::kStaLookupSlotSloppyWide;
     default:
       UNREACHABLE();
       return static_cast<Bytecode>(-1);

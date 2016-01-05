@@ -70,8 +70,12 @@ namespace interpreter {
   /* Load-Store lookup slots */                                                \
   V(LdaLookupSlot, OperandType::kIdx8)                                         \
   V(LdaLookupSlotInsideTypeof, OperandType::kIdx8)                             \
+  V(LdaLookupSlotWide, OperandType::kIdx16)                                    \
+  V(LdaLookupSlotInsideTypeofWide, OperandType::kIdx16)                        \
   V(StaLookupSlotSloppy, OperandType::kIdx8)                                   \
   V(StaLookupSlotStrict, OperandType::kIdx8)                                   \
+  V(StaLookupSlotSloppyWide, OperandType::kIdx16)                              \
+  V(StaLookupSlotStrictWide, OperandType::kIdx16)                              \
                                                                                \
   /* Register-accumulator transfers */                                         \
   V(Ldar, OperandType::kReg8)                                                  \
