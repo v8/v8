@@ -1249,11 +1249,13 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // Builtin functions for Date.prototype.
     Handle<JSFunction> date_fun = InstallFunction(
         global, "Date", JS_DATE_TYPE, JSDate::kSize,
-        isolate->initial_object_prototype(), Builtins::kIllegal);
+        isolate->initial_object_prototype(), Builtins::kDateConstructor);
     InstallWithIntrinsicDefaultProto(isolate, date_fun,
                                      Context::DATE_FUNCTION_INDEX);
     date_fun->shared()->set_construct_stub(
-        *isolate->builtins()->JSBuiltinsConstructStub());
+        *isolate->builtins()->DateConstructor_ConstructStub());
+    date_fun->shared()->set_length(7);
+    date_fun->shared()->DontAdaptArguments();
   }
 
   {  // -- R e g E x p
@@ -2530,21 +2532,36 @@ bool Genesis::InstallNatives(ContextType context_type) {
     native_context()->set_global_eval_fun(*eval);
   }
 
-  // Install Date.prototype[@@toPrimitive].
+  // Setup the Date constructor.
   {
     Handle<String> key = factory()->Date_string();
-    Handle<JSFunction> date = Handle<JSFunction>::cast(
+    Handle<JSFunction> date_fun = Handle<JSFunction>::cast(
         Object::GetProperty(handle(native_context()->global_object()), key)
             .ToHandleChecked());
-    Handle<JSObject> proto =
-        Handle<JSObject>(JSObject::cast(date->instance_prototype()));
+    Handle<JSObject> prototype =
+        Handle<JSObject>(JSObject::cast(date_fun->instance_prototype()));
+
+    // Install the Date.now, Date.parse and Date.UTC functions.
+    SimpleInstallFunction(date_fun, "now", Builtins::kDateNow, 0, false);
+    SimpleInstallFunction(date_fun, "parse", Builtins::kDateParse, 1, false);
+    SimpleInstallFunction(date_fun, "UTC", Builtins::kDateUTC, 7, false);
+
+    // Install the "constructor" property on the {prototype}.
+    JSObject::AddProperty(prototype, factory()->constructor_string(), date_fun,
+                          DONT_ENUM);
+
+    // Install the toISOString and valueOf functions.
+    SimpleInstallFunction(prototype, "toISOString",
+                          Builtins::kDatePrototypeToISOString, 0, false);
+    SimpleInstallFunction(prototype, "valueOf", Builtins::kDatePrototypeValueOf,
+                          0, false);
 
     // Install the @@toPrimitive function.
-    Handle<JSFunction> to_primitive =
-        InstallFunction(proto, factory()->to_primitive_symbol(), JS_OBJECT_TYPE,
-                        JSObject::kHeaderSize, MaybeHandle<JSObject>(),
-                        Builtins::kDateToPrimitive,
-                        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+    Handle<JSFunction> to_primitive = InstallFunction(
+        prototype, factory()->to_primitive_symbol(), JS_OBJECT_TYPE,
+        JSObject::kHeaderSize, MaybeHandle<JSObject>(),
+        Builtins::kDatePrototypeToPrimitive,
+        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
 
     // Set the expected parameters for @@toPrimitive to 1; required by builtin.
     to_primitive->shared()->set_internal_formal_parameter_count(1);

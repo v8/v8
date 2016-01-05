@@ -175,6 +175,20 @@ int DateCache::DaysFromYearMonth(int year, int month) {
 }
 
 
+void DateCache::BreakDownTime(int64_t time_ms, int* year, int* month, int* day,
+                              int* weekday, int* hour, int* min, int* sec,
+                              int* ms) {
+  int const days = DaysFromTime(time_ms);
+  int const time_in_day_ms = TimeInDay(time_ms, days);
+  YearMonthDayFromDays(days, year, month, day);
+  *weekday = Weekday(days);
+  *hour = time_in_day_ms / (60 * 60 * 1000);
+  *min = (time_in_day_ms / (60 * 1000)) % 60;
+  *sec = (time_in_day_ms / 1000) % 60;
+  *ms = time_in_day_ms % 1000;
+}
+
+
 void DateCache::ExtendTheAfterSegment(int time_sec, int offset_ms) {
   if (after_->offset_ms == offset_ms &&
       after_->start_sec <= time_sec + kDefaultDSTDeltaInSec &&

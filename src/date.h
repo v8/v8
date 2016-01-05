@@ -190,6 +190,10 @@ class DateCache {
   // the first day of the given month in the given year.
   int DaysFromYearMonth(int year, int month);
 
+  // Breaks down the time value.
+  void BreakDownTime(int64_t time_ms, int* year, int* month, int* day,
+                     int* weekday, int* hour, int* min, int* sec, int* ms);
+
   // Cache stamp is used for invalidating caches in JSDate.
   // We increment the stamp each time when the timezone information changes.
   // JSDate objects perform stamp check and invalidate their caches if

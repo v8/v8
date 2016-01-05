@@ -6,7 +6,6 @@
 
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
-#include "src/deoptimizer.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
 #include "src/vm-state-inl.h"
@@ -420,22 +419,6 @@ void StackGuard::InitThread(const ExecutionAccess& lock) {
 
 
 // --- C a l l s   t o   n a t i v e s ---
-
-#define RETURN_NATIVE_CALL(name, args)                                         \
-  do {                                                                         \
-    Handle<Object> argv[] = args;                                              \
-    return Call(isolate, isolate->name##_fun(),                                \
-                isolate->factory()->undefined_value(), arraysize(argv), argv); \
-  } while (false)
-
-
-MaybeHandle<Object> Execution::NewDate(Isolate* isolate, double time) {
-  Handle<Object> time_obj = isolate->factory()->NewNumber(time);
-  RETURN_NATIVE_CALL(create_date, { time_obj });
-}
-
-
-#undef RETURN_NATIVE_CALL
 
 
 MaybeHandle<Object> Execution::ToObject(Isolate* isolate, Handle<Object> obj) {

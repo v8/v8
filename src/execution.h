@@ -13,9 +13,6 @@
 namespace v8 {
 namespace internal {
 
-// Forward declarations.
-class JSRegExp;
-
 class Execution final : public AllStatic {
  public:
   // Call a function, the caller supplies a receiver and an array
@@ -55,10 +52,6 @@ class Execution final : public AllStatic {
   // ECMA-262 9.9
   MUST_USE_RESULT static MaybeHandle<Object> ToObject(
       Isolate* isolate, Handle<Object> obj);
-
-  // Create a new date object from 'time'.
-  MUST_USE_RESULT static MaybeHandle<Object> NewDate(
-      Isolate* isolate, double time);
 
   static Handle<String> GetStackTraceLine(Handle<Object> recv,
                                           Handle<JSFunction> fun,

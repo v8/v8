@@ -7,7 +7,6 @@
 #include "src/arguments.h"
 #include "src/conversions-inl.h"
 #include "src/date.h"
-#include "src/dateparser-inl.h"
 #include "src/factory.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
@@ -79,58 +78,8 @@ RUNTIME_FUNCTION(Runtime_ThrowNotDateError) {
 
 RUNTIME_FUNCTION(Runtime_DateCurrentTime) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 0);
-  if (FLAG_log_timer_events || FLAG_prof_cpp) LOG(isolate, CurrentTimeEvent());
-
-  // According to ECMA-262, section 15.9.1, page 117, the precision of
-  // the number in a Date object representing a particular instant in
-  // time is milliseconds. Therefore, we floor the result of getting
-  // the OS time.
-  double millis;
-  if (FLAG_verify_predictable) {
-    millis = Floor(isolate->heap()->MonotonicallyIncreasingTimeInMs());
-  } else {
-    millis = Floor(base::OS::TimeCurrentMillis());
-  }
-  return *isolate->factory()->NewNumber(millis);
-}
-
-
-RUNTIME_FUNCTION(Runtime_DateParseString) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSArray, output, 1);
-
-  RUNTIME_ASSERT(output->HasFastElements());
-  JSObject::EnsureCanContainHeapObjectElements(output);
-  RUNTIME_ASSERT(output->HasFastObjectElements());
-  Handle<FixedArray> output_array(FixedArray::cast(output->elements()));
-  RUNTIME_ASSERT(output_array->length() >= DateParser::OUTPUT_SIZE);
-
-  Handle<String> str;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, str,
-                                     Object::ToString(isolate, input));
-
-  str = String::Flatten(str);
-  DisallowHeapAllocation no_gc;
-
-  bool result;
-  String::FlatContent str_content = str->GetFlatContent();
-  if (str_content.IsOneByte()) {
-    result = DateParser::Parse(str_content.ToOneByteVector(), *output_array,
-                               isolate->unicode_cache());
-  } else {
-    DCHECK(str_content.IsTwoByte());
-    result = DateParser::Parse(str_content.ToUC16Vector(), *output_array,
-                               isolate->unicode_cache());
-  }
-
-  if (result) {
-    return *output;
-  } else {
-    return isolate->heap()->null_value();
-  }
+  DCHECK_EQ(0, args.length());
+  return *isolate->factory()->NewNumber(JSDate::CurrentTimeValue(isolate));
 }
 
 
@@ -146,19 +95,6 @@ RUNTIME_FUNCTION(Runtime_DateLocalTimezone) {
   Handle<String> result =
       isolate->factory()->NewStringFromUtf8(CStrVector(zone)).ToHandleChecked();
   return *result;
-}
-
-
-RUNTIME_FUNCTION(Runtime_DateToUTC) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  RUNTIME_ASSERT(x >= -DateCache::kMaxTimeBeforeUTCInMs &&
-                 x <= DateCache::kMaxTimeBeforeUTCInMs);
-  int64_t time = isolate->date_cache()->ToUTC(static_cast<int64_t>(x));
-
-  return *isolate->factory()->NewNumber(static_cast<double>(time));
 }
 
 

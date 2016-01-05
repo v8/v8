@@ -49,14 +49,6 @@ function LocalTimezone(t) {
 }
 
 
-function UTC(time) {
-  if (NUMBER_IS_NAN(time)) return time;
-  // local_time_offset is needed before the call to DaylightSavingsOffset,
-  // so it may be uninitialized.
-  return %DateToUTC(time);
-}
-
-
 // ECMA 262 - 15.9.1.11
 function MakeTime(hour, min, sec, ms) {
   if (!IsFinite(hour)) return NaN;
@@ -112,80 +104,6 @@ function TimeClip(time) {
   if (!IsFinite(time)) return NaN;
   if (MathAbs(time) > MAX_TIME_MS) return NaN;
   return TO_INTEGER(time) + 0;
-}
-
-
-// The Date cache is used to limit the cost of parsing the same Date
-// strings over and over again.
-var Date_cache = {
-  // Cached time value.
-  time: 0,
-  // String input for which the cached time is valid.
-  string: null
-};
-
-
-function DateConstructor(year, month, date, hours, minutes, seconds, ms) {
-  if (IS_UNDEFINED(new.target)) {
-    // ECMA 262 - 15.9.2
-    return %_Call(DateToString, new GlobalDate());
-  }
-
-  // ECMA 262 - 15.9.3
-  var argc = %_ArgumentsLength();
-  var value;
-  var result;
-  if (argc == 0) {
-    value = %DateCurrentTime();
-    result = %NewObject(GlobalDate, new.target);
-    SET_UTC_DATE_VALUE(result, value);
-  } else if (argc == 1) {
-    if (IS_NUMBER(year)) {
-      value = TimeClip(year);
-
-    } else if (IS_STRING(year)) {
-      // Probe the Date cache. If we already have a time value for the
-      // given time, we re-use that instead of parsing the string again.
-      CheckDateCacheCurrent();
-      var cache = Date_cache;
-      if (cache.string === year) {
-        value = cache.time;
-      } else {
-        value = DateParse(year);
-        if (!NUMBER_IS_NAN(value)) {
-          cache.time = value;
-          cache.string = year;
-        }
-      }
-
-    } else if (IS_DATE(year)) {
-      value = UTC_DATE_VALUE(year);
-
-    } else {
-      var time = TO_PRIMITIVE(year);
-      value = IS_STRING(time) ? DateParse(time) : TO_NUMBER(time);
-    }
-    result = %NewObject(GlobalDate, new.target);
-    SET_UTC_DATE_VALUE(result, value);
-  } else {
-    year = TO_NUMBER(year);
-    month = TO_NUMBER(month);
-    date = argc > 2 ? TO_NUMBER(date) : 1;
-    hours = argc > 3 ? TO_NUMBER(hours) : 0;
-    minutes = argc > 4 ? TO_NUMBER(minutes) : 0;
-    seconds = argc > 5 ? TO_NUMBER(seconds) : 0;
-    ms = argc > 6 ? TO_NUMBER(ms) : 0;
-    year = (!NUMBER_IS_NAN(year) &&
-            0 <= TO_INTEGER(year) &&
-            TO_INTEGER(year) <= 99) ? 1900 + TO_INTEGER(year) : year;
-    var day = MakeDay(year, month, date);
-    var time = MakeTime(hours, minutes, seconds, ms);
-    value = MakeDate(day, time);
-    result = %NewObject(GlobalDate, new.target);
-    SET_LOCAL_DATE_VALUE(result, value);
-  }
-
-  return result;
 }
 
 
@@ -260,51 +178,6 @@ function DatePrintString(date) {
 
 // -------------------------------------------------------------------
 
-// Reused output buffer. Used when parsing date strings.
-var parse_buffer = new InternalArray(8);
-
-// ECMA 262 - 15.9.4.2
-function DateParse(string) {
-  var arr = %DateParseString(string, parse_buffer);
-  if (IS_NULL(arr)) return NaN;
-
-  var day = MakeDay(arr[0], arr[1], arr[2]);
-  var time = MakeTime(arr[3], arr[4], arr[5], arr[6]);
-  var date = MakeDate(day, time);
-
-  if (IS_NULL(arr[7])) {
-    return TimeClip(UTC(date));
-  } else {
-    return TimeClip(date - arr[7] * 1000);
-  }
-}
-
-
-// ECMA 262 - 15.9.4.3
-function DateUTC(year, month, date, hours, minutes, seconds, ms) {
-  year = TO_NUMBER(year);
-  month = TO_NUMBER(month);
-  var argc = %_ArgumentsLength();
-  date = argc > 2 ? TO_NUMBER(date) : 1;
-  hours = argc > 3 ? TO_NUMBER(hours) : 0;
-  minutes = argc > 4 ? TO_NUMBER(minutes) : 0;
-  seconds = argc > 5 ? TO_NUMBER(seconds) : 0;
-  ms = argc > 6 ? TO_NUMBER(ms) : 0;
-  year = (!NUMBER_IS_NAN(year) &&
-          0 <= TO_INTEGER(year) &&
-          TO_INTEGER(year) <= 99) ? 1900 + TO_INTEGER(year) : year;
-  var day = MakeDay(year, month, date);
-  var time = MakeTime(hours, minutes, seconds, ms);
-  return TimeClip(MakeDate(day, time));
-}
-
-
-// ECMA 262 - 15.9.4.4
-function DateNow() {
-  return %DateCurrentTime();
-}
-
-
 // ECMA 262 - 15.9.5.2
 function DateToString() {
   CHECK_DATE(this);
@@ -356,13 +229,6 @@ function DateToLocaleTimeString() {
   var t = UTC_DATE_VALUE(this);
   if (NUMBER_IS_NAN(t)) return kInvalidDate;
   return TimeString(this);
-}
-
-
-// ECMA 262 - 15.9.5.8
-function DateValueOf() {
-  CHECK_DATE(this);
-  return UTC_DATE_VALUE(this);
 }
 
 
@@ -739,39 +605,6 @@ function DateToGMTString() {
 }
 
 
-function PadInt(n, digits) {
-  if (digits == 1) return n;
-  return n < %_MathPow(10, digits - 1) ? '0' + PadInt(n, digits - 1) : n;
-}
-
-
-// ECMA 262 - 20.3.4.36
-function DateToISOString() {
-  CHECK_DATE(this);
-  var t = UTC_DATE_VALUE(this);
-  if (NUMBER_IS_NAN(t)) throw MakeRangeError(kInvalidTimeValue);
-  var year = UTC_YEAR(this);
-  var year_string;
-  if (year >= 0 && year <= 9999) {
-    year_string = PadInt(year, 4);
-  } else {
-    if (year < 0) {
-      year_string = "-" + PadInt(-year, 6);
-    } else {
-      year_string = "+" + PadInt(year, 6);
-    }
-  }
-  return year_string +
-      '-' + PadInt(UTC_MONTH(this) + 1, 2) +
-      '-' + PadInt(UTC_DAY(this), 2) +
-      'T' + PadInt(UTC_HOUR(this), 2) +
-      ':' + PadInt(UTC_MIN(this), 2) +
-      ':' + PadInt(UTC_SEC(this), 2) +
-      '.' + PadInt(UTC_MS(this), 3) +
-      'Z';
-}
-
-
 // 20.3.4.37 Date.prototype.toJSON ( key )
 function DateToJSON(key) {
   var o = TO_OBJECT(this);
@@ -800,33 +633,11 @@ function CheckDateCacheCurrent() {
   // Reset the timezone cache:
   timezone_cache_time = NaN;
   timezone_cache_timezone = UNDEFINED;
-
-  // Reset the date cache:
-  Date_cache.time = NaN;
-  Date_cache.string = null;
-}
-
-
-function CreateDate(time) {
-  var date = new GlobalDate();
-  date.setTime(time);
-  return date;
 }
 
 // -------------------------------------------------------------------
 
-%SetCode(GlobalDate, DateConstructor);
 %FunctionSetPrototype(GlobalDate, new GlobalObject());
-
-// Set up non-enumerable properties of the Date object itself.
-utils.InstallFunctions(GlobalDate, DONT_ENUM, [
-  "UTC", DateUTC,
-  "parse", DateParse,
-  "now", DateNow
-]);
-
-// Set up non-enumerable constructor property of the Date prototype object.
-%AddNamedProperty(GlobalDate.prototype, "constructor", GlobalDate, DONT_ENUM);
 
 // Set up non-enumerable functions of the Date prototype object and
 // set their names.
@@ -837,7 +648,6 @@ utils.InstallFunctions(GlobalDate.prototype, DONT_ENUM, [
   "toLocaleString", DateToLocaleString,
   "toLocaleDateString", DateToLocaleDateString,
   "toLocaleTimeString", DateToLocaleTimeString,
-  "valueOf", DateValueOf,
   "getTime", DateGetTime,
   "getFullYear", DateGetFullYear,
   "getUTCFullYear", DateGetUTCFullYear,
@@ -875,10 +685,7 @@ utils.InstallFunctions(GlobalDate.prototype, DONT_ENUM, [
   "toUTCString", DateToUTCString,
   "getYear", DateGetYear,
   "setYear", DateSetYear,
-  "toISOString", DateToISOString,
   "toJSON", DateToJSON
 ]);
-
-%InstallToContext(["create_date_fun", CreateDate]);
 
 })

@@ -6043,8 +6043,9 @@ MaybeLocal<v8::Value> v8::Date::New(Local<Context> context, double time) {
   }
   PREPARE_FOR_EXECUTION(context, "Date::New", Value);
   Local<Value> result;
-  has_pending_exception =
-      !ToLocal<Value>(i::Execution::NewDate(isolate, time), &result);
+  has_pending_exception = !ToLocal<Value>(
+      i::JSDate::New(isolate->date_function(), isolate->date_function(), time),
+      &result);
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(result);
 }

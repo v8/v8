@@ -389,10 +389,11 @@ RUNTIME_FUNCTION(Runtime_InternalDateParse) {
   UDate date = date_format->parse(u_date, status);
   if (U_FAILURE(status)) return isolate->heap()->undefined_value();
 
-  Handle<Object> result;
+  Handle<JSDate> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, Execution::NewDate(isolate, static_cast<double>(date)));
-  DCHECK(result->IsJSDate());
+      isolate, result,
+      JSDate::New(isolate->date_function(), isolate->date_function(),
+                  static_cast<double>(date)));
   return *result;
 }
 

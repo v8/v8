@@ -69,7 +69,14 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(ArrayBufferConstructor_ConstructStub, kTargetAndNewTarget) \
   V(ArrayBufferIsView, kNone)                                  \
                                                                \
-  V(DateToPrimitive, kNone)                                    \
+  V(DateConstructor, kNone)                                    \
+  V(DateConstructor_ConstructStub, kTargetAndNewTarget)        \
+  V(DateNow, kNone)                                            \
+  V(DateParse, kNone)                                          \
+  V(DateUTC, kNone)                                            \
+  V(DatePrototypeToISOString, kNone)                           \
+  V(DatePrototypeToPrimitive, kNone)                           \
+  V(DatePrototypeValueOf, kNone)                               \
                                                                \
   V(FunctionConstructor, kTargetAndNewTarget)                  \
   V(FunctionPrototypeBind, kNone)                              \

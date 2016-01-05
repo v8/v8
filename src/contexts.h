@@ -109,7 +109,6 @@ enum BindingFlags {
   V(ARRAY_SLICE_INDEX, JSFunction, array_slice)                               \
   V(ARRAY_UNSHIFT_INDEX, JSFunction, array_unshift)                           \
   V(ARRAY_VALUES_ITERATOR_INDEX, JSFunction, array_values_iterator)           \
-  V(CREATE_DATE_FUN_INDEX, JSFunction, create_date_fun)                       \
   V(DERIVED_GET_TRAP_INDEX, JSFunction, derived_get_trap)                     \
   V(ERROR_FUNCTION_INDEX, JSFunction, error_function)                         \
   V(EVAL_ERROR_FUNCTION_INDEX, JSFunction, eval_error_function)               \

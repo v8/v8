@@ -1027,6 +1027,33 @@ Object* FunctionTemplateInfo::GetCompatibleReceiver(Isolate* isolate,
 }
 
 
+// static
+MaybeHandle<JSObject> JSObject::New(Handle<JSFunction> constructor,
+                                    Handle<JSReceiver> new_target,
+                                    Handle<AllocationSite> site) {
+  // If called through new, new.target can be:
+  // - a subclass of constructor,
+  // - a proxy wrapper around constructor, or
+  // - the constructor itself.
+  // If called through Reflect.construct, it's guaranteed to be a constructor.
+  Isolate* const isolate = constructor->GetIsolate();
+  DCHECK(constructor->IsConstructor());
+  DCHECK(new_target->IsConstructor());
+  DCHECK(!constructor->has_initial_map() ||
+         constructor->initial_map()->instance_type() != JS_FUNCTION_TYPE);
+
+  Handle<Map> initial_map;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, initial_map,
+      JSFunction::GetDerivedMap(isolate, constructor, new_target), JSObject);
+  Handle<JSObject> result =
+      isolate->factory()->NewJSObjectFromMap(initial_map, NOT_TENURED, site);
+  isolate->counters()->constructed_objects()->Increment();
+  isolate->counters()->constructed_objects_runtime()->Increment();
+  return result;
+}
+
+
 Handle<FixedArray> JSObject::EnsureWritableFastElements(
     Handle<JSObject> object) {
   DCHECK(object->HasFastSmiOrObjectElements());
@@ -19094,6 +19121,39 @@ int BreakPointInfo::GetBreakPointCount() {
 }
 
 
+// static
+MaybeHandle<JSDate> JSDate::New(Handle<JSFunction> constructor,
+                                Handle<JSReceiver> new_target, double tv) {
+  Isolate* const isolate = constructor->GetIsolate();
+  Handle<JSObject> result;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
+                             JSObject::New(constructor, new_target), JSDate);
+  if (-DateCache::kMaxTimeInMs <= tv && tv <= DateCache::kMaxTimeInMs) {
+    tv = DoubleToInteger(tv) + 0.0;
+  } else {
+    tv = std::numeric_limits<double>::quiet_NaN();
+  }
+  Handle<Object> value = isolate->factory()->NewNumber(tv);
+  Handle<JSDate>::cast(result)->SetValue(*value, std::isnan(tv));
+  return Handle<JSDate>::cast(result);
+}
+
+
+// static
+double JSDate::CurrentTimeValue(Isolate* isolate) {
+  if (FLAG_log_timer_events || FLAG_prof_cpp) LOG(isolate, CurrentTimeEvent());
+
+  // According to ECMA-262, section 15.9.1, page 117, the precision of
+  // the number in a Date object representing a particular instant in
+  // time is milliseconds. Therefore, we floor the result of getting
+  // the OS time.
+  return Floor(FLAG_verify_predictable
+                   ? isolate->heap()->MonotonicallyIncreasingTimeInMs()
+                   : base::OS::TimeCurrentMillis());
+}
+
+
+// static
 Object* JSDate::GetField(Object* object, Smi* index) {
   return JSDate::cast(object)->DoGetField(
       static_cast<FieldIndex>(index->value()));

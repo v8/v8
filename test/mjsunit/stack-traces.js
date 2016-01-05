@@ -297,7 +297,6 @@ testTraceNativeConversion(RegExp);  // Does ToString on argument.
 testTraceNativeConstructor(String);  // Does ToString on argument.
 testTraceNativeConstructor(Number);  // Does ToNumber on argument.
 testTraceNativeConstructor(RegExp);  // Does ToString on argument.
-testTraceNativeConstructor(Date);    // Does ToNumber on argument.
 
 // Omitted because QuickSort has builtins object as receiver, and is non-native
 // builtin.
