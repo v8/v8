@@ -4100,7 +4100,6 @@ void Simulator::DecodeTypeImmediate(Instruction* instr) {
       if (rs_reg != 0) {  // BEQZC
         BranchCompactHelper(rs == 0, 21);
       } else {  // JIC
-        CheckForbiddenSlot(get_pc());
         next_pc = rt + imm16;
       }
       break;
@@ -4108,9 +4107,7 @@ void Simulator::DecodeTypeImmediate(Instruction* instr) {
       if (rs_reg != 0) {  // BNEZC
         BranchCompactHelper(rs != 0, 21);
       } else {  // JIALC
-        int32_t current_pc = get_pc();
-        CheckForbiddenSlot(current_pc);
-        set_register(31, current_pc + Instruction::kInstrSize);
+        set_register(31, get_pc() + Instruction::kInstrSize);
         next_pc = rt + imm16;
       }
       break;
