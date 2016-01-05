@@ -163,9 +163,6 @@
   # issue 4078:
   'allocation-site-info': [PASS, NO_VARIANTS],
 
-  # Native WASM is not yet enabled by default.
-  'wasm/*': [SKIP],
-
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.
   'compiler/regress-stacktrace-methods': [PASS, ['mode == debug', SKIP]],
@@ -286,6 +283,9 @@
   'regress/regress-crbug-474297': [PASS, ['mode == debug', SLOW]],
   'strong/implicit-conversions': [PASS, SLOW],
   'strong/load-element-mutate-backing-store': [PASS, SLOW],
+
+  # TODO(bradnelson): Enable tests in a separate change.
+  'wasm/*': [SKIP],
 }],  # ALWAYS
 
 ['novfp3 == True', {
@@ -747,6 +747,9 @@
   'harmony/*': [SKIP],
   'regress/debug*': [SKIP],
   'regress/regress-debug*': [SKIP],
+
+  # TODO(bradnelson): Figure out why these tests fail with ignition.
+  'wasm/*': [SKIP],
 
   'allocation-folding': [SKIP],
   'api-call-after-bypassed-exception': [SKIP],

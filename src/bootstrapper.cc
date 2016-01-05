@@ -16,11 +16,7 @@
 #include "src/isolate-inl.h"
 #include "src/snapshot/natives.h"
 #include "src/snapshot/snapshot.h"
-#include "third_party/fdlibm/fdlibm.h"
-
-#if defined(V8_WASM)
 #include "src/wasm/wasm-js.h"
-#endif
 
 namespace v8 {
 namespace internal {
@@ -2941,11 +2937,9 @@ bool Genesis::InstallSpecialObjects(Handle<Context> native_context) {
     JSObject::AddProperty(global, debug_string, global_proxy, DONT_ENUM);
   }
 
-#if defined(V8_WASM)
   if (FLAG_expose_wasm) {
     WasmJs::Install(isolate, global);
   }
-#endif
 
   return true;
 }

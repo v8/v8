@@ -101,9 +101,6 @@
             '<(icu_gyp_path):icudata',
           ],
         }],
-        ['v8_wasm!=0', {
-          'include_dirs': ['../third_party/wasm'],
-        }],
       ],
     },
     {

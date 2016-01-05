@@ -185,6 +185,9 @@
         'test-weakmaps.cc',
         'test-weaksets.cc',
         'trace-extension.cc',
+        'wasm/test-run-wasm.cc',
+        'wasm/test-run-wasm-module.cc',
+        'wasm/test-signatures.h',
       ],
       'conditions': [
         ['v8_target_arch=="ia32"', {
@@ -300,13 +303,6 @@
           'dependencies': ['../../tools/gyp/v8.gyp:v8_maybe_snapshot'],
         }, {
           'dependencies': ['../../tools/gyp/v8.gyp:v8'],
-        }],
-        ['v8_wasm!=0', {
-          'sources': [
-            'wasm/test-run-wasm.cc',
-            'wasm/test-run-wasm-module.cc',
-            'wasm/test-signatures.h',
-          ],
         }],
       ],
     },
