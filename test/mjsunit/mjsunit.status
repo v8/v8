@@ -54,6 +54,7 @@
   'es6/debug-promises/reject-with-throw-in-reject': [FAIL],
   'es6/debug-promises/reject-with-undefined-reject': [FAIL],
   'es6/debug-promises/reject-with-invalid-reject': [FAIL],
+  'es6/debug-promises/throw-with-undefined-reject': [FAIL],
 
   ##############################################################################
   # TurboFan compiler failures.

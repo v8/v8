@@ -180,6 +180,8 @@ class CallSite {
   T(OrdinaryFunctionCalledAsConstructor,                                       \
     "Function object that's not a constructor was created with new")           \
   T(PromiseCyclic, "Chaining cycle detected for promise %")                    \
+  T(PromiseExecutorAlreadyInvoked,                                             \
+    "Promise executor has already been invoked with non-undefined arguments")  \
   T(PropertyDescObject, "Property description must be an object: %")           \
   T(PropertyNotFunction,                                                       \
     "'%' returned for property '%' of object '%' is not a function")           \
