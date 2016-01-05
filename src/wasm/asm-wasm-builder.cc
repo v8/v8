@@ -654,6 +654,14 @@ class AsmWasmBuilderImpl : public AstVisitor {
     }
   }
 
+// Work around Mul + Div being defined in PPC assembler.
+#ifdef Mul
+#undef Mul
+#endif
+#ifdef Div
+#undef Div
+#endif
+
 #define NON_SIGNED_BINOP(op)      \
   static WasmOpcode opcodes[] = { \
     kExprI32##op,                 \
