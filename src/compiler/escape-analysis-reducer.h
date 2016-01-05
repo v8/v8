@@ -10,6 +10,11 @@
 
 namespace v8 {
 namespace internal {
+
+// Forward declarations.
+class Counters;
+
+
 namespace compiler {
 
 // Forward declarations.
@@ -36,6 +41,7 @@ class EscapeAnalysisReducer final : public AdvancedReducer {
   JSGraph* jsgraph() const { return jsgraph_; }
   EscapeAnalysis* escape_analysis() const { return escape_analysis_; }
   Zone* zone() const { return zone_; }
+  Counters* counters() const;
 
   JSGraph* const jsgraph_;
   EscapeAnalysis* escape_analysis_;

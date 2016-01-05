@@ -5,7 +5,7 @@
 #include "src/compiler/escape-analysis-reducer.h"
 
 #include "src/compiler/js-graph.h"
-#include "src/compiler/js-operator.h"
+#include "src/counters.h"
 
 namespace v8 {
 namespace internal {
@@ -50,6 +50,7 @@ Reduction EscapeAnalysisReducer::ReduceLoad(Node* node) {
   DCHECK(node->opcode() == IrOpcode::kLoadField ||
          node->opcode() == IrOpcode::kLoadElement);
   if (Node* rep = escape_analysis()->GetReplacement(node)) {
+    counters()->turbo_escape_loads_replaced()->Increment();
     if (FLAG_trace_turbo_escape) {
       PrintF("Replaced #%d (%s) with #%d (%s)\n", node->id(),
              node->op()->mnemonic(), rep->id(), rep->op()->mnemonic());
@@ -80,6 +81,7 @@ Reduction EscapeAnalysisReducer::ReduceAllocate(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kAllocate);
   if (escape_analysis()->IsVirtual(node)) {
     RelaxEffectsAndControls(node);
+    counters()->turbo_escape_allocs_replaced()->Increment();
     if (FLAG_trace_turbo_escape) {
       PrintF("Removed allocate #%d from effect chain\n", node->id());
     }
@@ -186,6 +188,10 @@ Reduction EscapeAnalysisReducer::ReplaceWithDeoptDummy(Node* node) {
   return r;
 }
 
+
+Counters* EscapeAnalysisReducer::counters() const {
+  return jsgraph_->isolate()->counters();
+}
 
 }  // namespace compiler
 }  // namespace internal
