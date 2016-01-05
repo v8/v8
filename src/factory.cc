@@ -2034,14 +2034,22 @@ void Factory::ReinitializeJSGlobalProxy(Handle<JSGlobalProxy> object,
                                         Handle<JSFunction> constructor) {
   DCHECK(constructor->has_initial_map());
   Handle<Map> map(constructor->initial_map(), isolate());
+  Handle<Map> old_map(object->map(), isolate());
 
   // The proxy's hash should be retained across reinitialization.
   Handle<Object> hash(object->hash(), isolate());
 
+  JSObject::InvalidatePrototypeChains(*old_map);
+  if (old_map->is_prototype_map()) {
+    map = Map::Copy(map, "CopyAsPrototypeForJSGlobalProxy");
+    map->set_is_prototype_map(true);
+  }
+  JSObject::UpdatePrototypeUserRegistration(old_map, map, isolate());
+
   // Check that the already allocated object has the same size and type as
   // objects allocated using the constructor.
-  DCHECK(map->instance_size() == object->map()->instance_size());
-  DCHECK(map->instance_type() == object->map()->instance_type());
+  DCHECK(map->instance_size() == old_map->instance_size());
+  DCHECK(map->instance_type() == old_map->instance_type());
 
   // Allocate the backing storage for the properties.
   Handle<FixedArray> properties = empty_fixed_array();

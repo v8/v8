@@ -2137,6 +2137,9 @@ class JSObject: public JSReceiver {
                                   PrototypeOptimizationMode mode);
   static void ReoptimizeIfPrototype(Handle<JSObject> object);
   static void LazyRegisterPrototypeUser(Handle<Map> user, Isolate* isolate);
+  static void UpdatePrototypeUserRegistration(Handle<Map> old_map,
+                                              Handle<Map> new_map,
+                                              Isolate* isolate);
   static bool UnregisterPrototypeUser(Handle<Map> user, Isolate* isolate);
   static void InvalidatePrototypeChains(Map* map);
 

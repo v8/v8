@@ -2706,9 +2706,10 @@ bool Map::InstancesNeedRewriting(Map* target, int target_number_of_fields,
 }
 
 
-static void UpdatePrototypeUserRegistration(Handle<Map> old_map,
-                                            Handle<Map> new_map,
-                                            Isolate* isolate) {
+// static
+void JSObject::UpdatePrototypeUserRegistration(Handle<Map> old_map,
+                                               Handle<Map> new_map,
+                                               Isolate* isolate) {
   if (!FLAG_track_prototype_users) return;
   if (!old_map->is_prototype_map()) return;
   DCHECK(new_map->is_prototype_map());
@@ -12461,7 +12462,6 @@ static bool PrototypeBenefitsFromNormalization(Handle<JSObject> object) {
 void JSObject::OptimizeAsPrototype(Handle<JSObject> object,
                                    PrototypeOptimizationMode mode) {
   if (object->IsJSGlobalObject()) return;
-  if (object->IsJSGlobalProxy()) return;
   if (mode == FAST_PROTOTYPE && PrototypeBenefitsFromNormalization(object)) {
     // First normalize to ensure all JSFunctions are DATA_CONSTANT.
     JSObject::NormalizeProperties(object, KEEP_INOBJECT_PROPERTIES, 0,
@@ -12519,7 +12519,6 @@ void JSObject::LazyRegisterPrototypeUser(Handle<Map> user, Isolate* isolate) {
       break;
     }
     Handle<Object> maybe_proto = PrototypeIterator::GetCurrent(iter);
-    if (maybe_proto->IsJSGlobalProxy()) continue;
     // Proxies on the prototype chain are not supported. They make it
     // impossible to make any assumptions about the prototype chain anyway.
     if (maybe_proto->IsJSProxy()) return;
@@ -12554,17 +12553,18 @@ bool JSObject::UnregisterPrototypeUser(Handle<Map> user, Isolate* isolate) {
   DCHECK(user->is_prototype_map());
   // If it doesn't have a PrototypeInfo, it was never registered.
   if (!user->prototype_info()->IsPrototypeInfo()) return false;
-  // If it doesn't have a prototype, it can't be registered.
-  if (!user->prototype()->IsJSObject()) return false;
+  // If it had no prototype before, see if it had users that might expect
+  // registration.
+  if (!user->prototype()->IsJSObject()) {
+    Object* users =
+        PrototypeInfo::cast(user->prototype_info())->prototype_users();
+    return users->IsWeakFixedArray();
+  }
   Handle<JSObject> prototype(JSObject::cast(user->prototype()), isolate);
   Handle<PrototypeInfo> user_info =
       Map::GetOrCreatePrototypeInfo(user, isolate);
   int slot = user_info->registry_slot();
   if (slot == PrototypeInfo::UNREGISTERED) return false;
-  if (prototype->IsJSGlobalProxy()) {
-    PrototypeIterator iter(isolate, prototype);
-    prototype = PrototypeIterator::GetCurrent<JSObject>(iter);
-  }
   DCHECK(prototype->map()->is_prototype_map());
   Object* maybe_proto_info = prototype->map()->prototype_info();
   // User knows its registry slot, prototype info and user registry must exist.
@@ -12613,10 +12613,6 @@ static void InvalidatePrototypeChainsInternal(Map* map) {
 void JSObject::InvalidatePrototypeChains(Map* map) {
   if (!FLAG_eliminate_prototype_chain_checks) return;
   DisallowHeapAllocation no_gc;
-  if (map->IsJSGlobalProxyMap()) {
-    PrototypeIterator iter(map);
-    map = iter.GetCurrent<JSObject>()->map();
-  }
   InvalidatePrototypeChainsInternal(map);
 }
 
@@ -12653,10 +12649,6 @@ Handle<Cell> Map::GetOrCreatePrototypeChainValidityCell(Handle<Map> map,
   Handle<Object> maybe_prototype(map->prototype(), isolate);
   if (!maybe_prototype->IsJSObject()) return Handle<Cell>::null();
   Handle<JSObject> prototype = Handle<JSObject>::cast(maybe_prototype);
-  if (prototype->IsJSGlobalProxy()) {
-    PrototypeIterator iter(isolate, prototype);
-    prototype = PrototypeIterator::GetCurrent<JSObject>(iter);
-  }
   // Ensure the prototype is registered with its own prototypes so its cell
   // will be invalidated when necessary.
   JSObject::LazyRegisterPrototypeUser(handle(prototype->map(), isolate),
