@@ -325,7 +325,7 @@ function PromiseCatch(onReject) {
 
 function PromiseCast(x) {
   if (!IS_RECEIVER(this)) {
-    throw MakeTypeError(kCalledOnNonObject, "Promise.resolve");
+    throw MakeTypeError(kCalledOnNonObject, PromiseCast);
   }
   if (IsPromise(x) && x.constructor === this) return x;
 
