@@ -751,6 +751,8 @@ class Assembler : public AssemblerBase {
   void rotr(Register rd, Register rt, uint16_t sa);
   void rotrv(Register rd, Register rt, Register rs);
 
+  // Address computing instructions with shift.
+  void lsa(Register rd, Register rt, Register rs, uint8_t sa);
 
   // ------------Memory-instructions-------------
 

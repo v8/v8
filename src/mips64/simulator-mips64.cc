@@ -3494,6 +3494,20 @@ void Simulator::DecodeTypeRegisterSPECIAL() {
     case DSRAV:
       SetResult(rd_reg(), rt() >> rs());
       break;
+    case LSA: {
+      DCHECK(kArchVariant == kMips64r6);
+      int8_t sa = lsa_sa() + 1;
+      int32_t _rt = static_cast<int32_t>(rt());
+      int32_t _rs = static_cast<int32_t>(rs());
+      int32_t res = _rs << sa;
+      res += _rt;
+      SetResult(rd_reg(), static_cast<int64_t>(res));
+      break;
+    }
+    case DLSA:
+      DCHECK(kArchVariant == kMips64r6);
+      SetResult(rd_reg(), (rs() << (lsa_sa() + 1)) + rt());
+      break;
     case MFHI:  // MFHI == CLZ on R6.
       if (kArchVariant != kMips64r6) {
         DCHECK(sa() == 0);

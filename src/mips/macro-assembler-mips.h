@@ -627,7 +627,10 @@ class MacroAssembler: public Assembler {
 
 #undef DEFINE_INSTRUCTION
 #undef DEFINE_INSTRUCTION2
+#undef DEFINE_INSTRUCTION3
 
+  void Lsa(Register rd, Register rs, Register rt, uint8_t sa,
+           Register scratch = at);
   void Pref(int32_t hint, const MemOperand& rs);
 
 

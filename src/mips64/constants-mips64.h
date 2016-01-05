@@ -237,6 +237,7 @@ const int kRdShift       = 11;
 const int kRdBits        = 5;
 const int kSaShift       = 6;
 const int kSaBits        = 5;
+const int kLsaSaBits = 2;
 const int kFunctionShift = 0;
 const int kFunctionBits  = 6;
 const int kLuiShift      = 16;
@@ -386,6 +387,7 @@ enum SecondaryField {
   SRL = ((0 << 3) + 2),
   SRA = ((0 << 3) + 3),
   SLLV = ((0 << 3) + 4),
+  LSA = ((0 << 3) + 5),
   SRLV = ((0 << 3) + 6),
   SRAV = ((0 << 3) + 7),
 
@@ -402,6 +404,7 @@ enum SecondaryField {
   DCLZ_R6 = ((2 << 3) + 2),
   DCLO_R6 = ((2 << 3) + 3),
   DSLLV = ((2 << 3) + 4),
+  DLSA = ((2 << 3) + 5),
   DSRLV = ((2 << 3) + 6),
   DSRAV = ((2 << 3) + 7),
 
@@ -952,6 +955,7 @@ class Instruction {
       FunctionFieldToBitNumber(SLLV) | FunctionFieldToBitNumber(DSLLV) |
       FunctionFieldToBitNumber(SRLV) | FunctionFieldToBitNumber(DSRLV) |
       FunctionFieldToBitNumber(SRAV) | FunctionFieldToBitNumber(DSRAV) |
+      FunctionFieldToBitNumber(LSA) | FunctionFieldToBitNumber(DLSA) |
       FunctionFieldToBitNumber(MFHI) | FunctionFieldToBitNumber(MFLO) |
       FunctionFieldToBitNumber(MULT) | FunctionFieldToBitNumber(DMULT) |
       FunctionFieldToBitNumber(MULTU) | FunctionFieldToBitNumber(DMULTU) |
@@ -1002,6 +1006,11 @@ class Instruction {
   inline int SaValue() const {
     DCHECK(InstructionType() == kRegisterType);
     return Bits(kSaShift + kSaBits - 1, kSaShift);
+  }
+
+  inline int LsaSaValue() const {
+    DCHECK(InstructionType() == kRegisterType);
+    return Bits(kSaShift + kLsaSaBits - 1, kSaShift);
   }
 
   inline int FunctionValue() const {

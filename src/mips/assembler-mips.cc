@@ -1700,10 +1700,20 @@ void Assembler::rotr(Register rd, Register rt, uint16_t sa) {
 
 void Assembler::rotrv(Register rd, Register rt, Register rs) {
   // Should be called via MacroAssembler::Ror.
-  DCHECK(rd.is_valid() && rt.is_valid() && rs.is_valid() );
+  DCHECK(rd.is_valid() && rt.is_valid() && rs.is_valid());
   DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6));
   Instr instr = SPECIAL | (rs.code() << kRsShift) | (rt.code() << kRtShift)
      | (rd.code() << kRdShift) | (1 << kSaShift) | SRLV;
+  emit(instr);
+}
+
+
+void Assembler::lsa(Register rd, Register rt, Register rs, uint8_t sa) {
+  DCHECK(rd.is_valid() && rt.is_valid() && rs.is_valid());
+  DCHECK(sa < 5 && sa > 0);
+  DCHECK(IsMipsArchVariant(kMips32r6));
+  Instr instr = SPECIAL | (rs.code() << kRsShift) | (rt.code() << kRtShift) |
+                (rd.code() << kRdShift) | (sa - 1) << kSaShift | LSA;
   emit(instr);
 }
 

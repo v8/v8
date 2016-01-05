@@ -1188,6 +1188,32 @@ void MacroAssembler::Pref(int32_t hint, const MemOperand& rs) {
 }
 
 
+void MacroAssembler::Lsa(Register rd, Register rt, Register rs, uint8_t sa,
+                         Register scratch) {
+  if (kArchVariant == kMips64r6 && sa <= 4) {
+    lsa(rd, rt, rs, sa);
+  } else {
+    Register tmp = rd.is(rt) ? scratch : rd;
+    DCHECK(!tmp.is(rt));
+    sll(tmp, rs, sa);
+    Addu(rd, rt, tmp);
+  }
+}
+
+
+void MacroAssembler::Dlsa(Register rd, Register rt, Register rs, uint8_t sa,
+                          Register scratch) {
+  if (kArchVariant == kMips64r6 && sa <= 4) {
+    dlsa(rd, rt, rs, sa);
+  } else {
+    Register tmp = rd.is(rt) ? scratch : rd;
+    DCHECK(!tmp.is(rt));
+    dsll(tmp, rs, sa);
+    Daddu(rd, rt, tmp);
+  }
+}
+
+
 // ------------Pseudo-instructions-------------
 
 void MacroAssembler::Ulw(Register rd, const MemOperand& rs) {

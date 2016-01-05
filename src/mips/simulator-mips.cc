@@ -3514,9 +3514,19 @@ void Simulator::DecodeTypeRegisterSPECIAL() {
       SetResult(rd_reg(), static_cast<int32_t>(alu_out));
       break;
     case SRAV:
-      alu_out = rt() >> rs();
-      SetResult(rd_reg(), static_cast<int32_t>(alu_out));
+      SetResult(rd_reg(), rt() >> rs());
       break;
+    case LSA: {
+      DCHECK(IsMipsArchVariant(kMips32r6));
+      int8_t sa = lsa_sa() + 1;
+      int32_t _rt = rt();
+      int32_t _rs = rs();
+      int32_t res = _rs << sa;
+      res += _rt;
+      DCHECK_EQ(res, (rs() << (lsa_sa() + 1)) + rt());
+      SetResult(rd_reg(), (rs() << (lsa_sa() + 1)) + rt());
+      break;
+    }
     case MFHI:  // MFHI == CLZ on R6.
       if (!IsMipsArchVariant(kMips32r6)) {
         DCHECK(sa() == 0);

@@ -344,6 +344,7 @@ class Simulator {
   inline int32_t ft_reg() const { return currentInstr_->FtValue(); }
   inline int32_t fd_reg() const { return currentInstr_->FdValue(); }
   inline int32_t sa() const { return currentInstr_->SaValue(); }
+  inline int32_t lsa_sa() const { return currentInstr_->LsaSaValue(); }
 
   inline void SetResult(int32_t rd_reg, int32_t alu_out) {
     set_register(rd_reg, alu_out);

@@ -5351,6 +5351,78 @@ TEST(bal) {
 }
 
 
+static uint32_t run_lsa(uint32_t rt, uint32_t rs, int8_t sa) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  MacroAssembler assm(isolate, nullptr, 0,
+                      v8::internal::CodeObjectRequired::kYes);
+
+  __ lsa(v0, a0, a1, sa);
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+
+  F1 f = FUNCTION_CAST<F1>(code->entry());
+
+  uint32_t res = reinterpret_cast<uint32_t>(
+      CALL_GENERATED_CODE(isolate, f, rt, rs, 0, 0, 0));
+
+  return res;
+}
+
+
+TEST(lsa) {
+  if (!IsMipsArchVariant(kMips32r6)) return;
+
+  CcTest::InitializeVM();
+  struct TestCaseLsa {
+    int32_t rt;
+    int32_t rs;
+    uint8_t sa;
+    uint32_t expected_res;
+  };
+
+  struct TestCaseLsa tc[] = {
+      // rt, rs, sa, expected_res
+      {0x4, 0x1, 1, 0x6},
+      {0x4, 0x1, 2, 0x8},
+      {0x4, 0x1, 3, 0xc},
+      {0x4, 0x1, 4, 0x14},
+      {0x0, 0x1, 1, 0x2},
+      {0x0, 0x1, 2, 0x4},
+      {0x0, 0x1, 3, 0x8},
+      {0x0, 0x1, 4, 0x10},
+      {0x4, 0x0, 1, 0x4},
+      {0x4, 0x0, 2, 0x4},
+      {0x4, 0x0, 3, 0x4},
+      {0x4, 0x0, 4, 0x4},
+      {0x4, INT32_MAX, 1, 0x2},              // Shift overflow.
+      {0x4, INT32_MAX >> 1, 2, 0x0},         // Shift overflow.
+      {0x4, INT32_MAX >> 2, 3, 0xfffffffc},  // Shift overflow.
+      {0x4, INT32_MAX >> 3, 4, 0xfffffff4},  // Shift overflow.
+      {INT32_MAX - 1, 0x1, 1, 0x80000000},   // Signed adition overflow.
+      {INT32_MAX - 3, 0x1, 2, 0x80000000},   // Signed addition overflow.
+      {INT32_MAX - 7, 0x1, 3, 0x80000000},   // Signed addition overflow.
+      {INT32_MAX - 15, 0x1, 4, 0x80000000},  // Signed addition overflow.
+      {-2, 0x1, 1, 0x0},                     // Addition overflow.
+      {-4, 0x1, 2, 0x0},                     // Addition overflow.
+      {-8, 0x1, 3, 0x0},                     // Addition overflow.
+      {-16, 0x1, 4, 0x0}};                   // Addition overflow.
+
+  size_t nr_test_cases = sizeof(tc) / sizeof(TestCaseLsa);
+  for (size_t i = 0; i < nr_test_cases; ++i) {
+    uint32_t res = run_lsa(tc[i].rt, tc[i].rs, tc[i].sa);
+    PrintF("0x%x =? 0x%x == lsa(v0, %x, %x, %hhu)\n", tc[i].expected_res, res,
+           tc[i].rt, tc[i].rs, tc[i].sa);
+    CHECK_EQ(tc[i].expected_res, res);
+  }
+}
+
+
 TEST(Trampoline) {
   // Private member of Assembler class.
   static const int kMaxBranchOffset = (1 << (18 - 1)) - 1;
@@ -5381,6 +5453,5 @@ TEST(Trampoline) {
       CALL_GENERATED_CODE(isolate, f, 42, 42, 0, 0, 0));
   CHECK_EQ(res, 0);
 }
-
 
 #undef __

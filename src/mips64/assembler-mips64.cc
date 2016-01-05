@@ -1757,7 +1757,7 @@ void Assembler::rotr(Register rd, Register rt, uint16_t sa) {
 
 void Assembler::rotrv(Register rd, Register rt, Register rs) {
   // Should be called via MacroAssembler::Ror.
-  DCHECK(rd.is_valid() && rt.is_valid() && rs.is_valid() );
+  DCHECK(rd.is_valid() && rt.is_valid() && rs.is_valid());
   DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
   Instr instr = SPECIAL | (rs.code() << kRsShift) | (rt.code() << kRtShift)
      | (rd.code() << kRdShift) | (1 << kSaShift) | SRLV;
@@ -1823,6 +1823,26 @@ void Assembler::dsrl32(Register rd, Register rt, uint16_t sa) {
 
 void Assembler::dsra32(Register rd, Register rt, uint16_t sa) {
   GenInstrRegister(SPECIAL, zero_reg, rt, rd, sa & 0x1F, DSRA32);
+}
+
+
+void Assembler::lsa(Register rd, Register rt, Register rs, uint8_t sa) {
+  DCHECK(rd.is_valid() && rt.is_valid() && rs.is_valid());
+  DCHECK(sa < 5 && sa > 0);
+  DCHECK(kArchVariant == kMips64r6);
+  Instr instr = SPECIAL | (rs.code() << kRsShift) | (rt.code() << kRtShift) |
+                (rd.code() << kRdShift) | (sa - 1) << kSaShift | LSA;
+  emit(instr);
+}
+
+
+void Assembler::dlsa(Register rd, Register rt, Register rs, uint8_t sa) {
+  DCHECK(rd.is_valid() && rt.is_valid() && rs.is_valid());
+  DCHECK(sa < 5 && sa > 0);
+  DCHECK(kArchVariant == kMips64r6);
+  Instr instr = SPECIAL | (rs.code() << kRsShift) | (rt.code() << kRtShift) |
+                (rd.code() << kRdShift) | (sa - 1) << kSaShift | DLSA;
+  emit(instr);
 }
 
 
