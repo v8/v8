@@ -53,7 +53,7 @@ class CodeGenerator final : public GapResolver::Assembler {
 
   InstructionSequence* code() const { return code_; }
   FrameAccessState* frame_access_state() const { return frame_access_state_; }
-  Frame* const frame() const { return frame_access_state_->frame(); }
+  Frame* frame() const { return frame_access_state_->frame(); }
   Isolate* isolate() const { return info_->isolate(); }
   Linkage* linkage() const { return linkage_; }
 

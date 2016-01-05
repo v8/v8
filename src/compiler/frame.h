@@ -228,7 +228,7 @@ class FrameAccessState : public ZoneObject {
     SetFrameAccessToDefault();
   }
 
-  Frame* const frame() const { return frame_; }
+  Frame* frame() const { return frame_; }
 
   int sp_delta() const { return sp_delta_; }
   void ClearSPDelta() { sp_delta_ = 0; }
