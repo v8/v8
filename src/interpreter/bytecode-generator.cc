@@ -473,6 +473,12 @@ void BytecodeGenerator::MakeBytecodeBody() {
   // Build the arguments object if it is used.
   VisitArgumentsObject(scope()->arguments());
 
+  // TODO(mythria): Build rest arguments array if it is used.
+  int rest_index;
+  if (scope()->rest_parameter(&rest_index)) {
+    UNIMPLEMENTED();
+  }
+
   // Build assignment to {.this_function} variable if it is used.
   VisitThisFunctionVariable(scope()->this_function_var());
 

@@ -705,6 +705,7 @@
   'language/object-literal/method': [SKIP],
   'language/object-literal/setter': [SKIP],
   'language/rest-parameters/arrow-function': [SKIP],
+  'language/rest-parameters/expected-argument-count': [SKIP],
   'language/rest-parameters/no-alias-arguments': [SKIP],
   'language/rest-parameters/rest-index': [SKIP],
   'language/rest-parameters/rest-parameters-apply': [SKIP],
