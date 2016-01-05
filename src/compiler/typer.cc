@@ -636,6 +636,11 @@ Type* Typer::Visitor::TypeStateValues(Node* node) {
 }
 
 
+Type* Typer::Visitor::TypeObjectState(Node* node) {
+  return Type::Internal(zone());
+}
+
+
 Type* Typer::Visitor::TypeTypedStateValues(Node* node) {
   return Type::Internal(zone());
 }

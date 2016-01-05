@@ -23,7 +23,9 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+// Forward declarations.
 class Schedule;
+
 
 class InstructionOperand {
  public:
@@ -106,6 +108,9 @@ class InstructionOperand {
 
   uint64_t value_;
 };
+
+
+typedef ZoneVector<InstructionOperand> InstructionOperandVector;
 
 
 struct PrintableInstructionOperand {
@@ -941,6 +946,59 @@ class Constant final {
 };
 
 
+std::ostream& operator<<(std::ostream& os, const Constant& constant);
+
+
+// Forward declarations.
+class FrameStateDescriptor;
+
+
+enum class StateValueKind { kPlain, kNested, kDuplicate };
+
+
+class StateValueDescriptor {
+ public:
+  explicit StateValueDescriptor(Zone* zone)
+      : kind_(StateValueKind::kPlain),
+        type_(MachineType::AnyTagged()),
+        id_(0),
+        fields_(zone) {}
+
+  static StateValueDescriptor Plain(Zone* zone, MachineType type) {
+    return StateValueDescriptor(StateValueKind::kPlain, zone, type, 0);
+  }
+  static StateValueDescriptor Recursive(Zone* zone, size_t id) {
+    return StateValueDescriptor(StateValueKind::kNested, zone,
+                                MachineType::AnyTagged(), id);
+  }
+  static StateValueDescriptor Duplicate(Zone* zone, size_t id) {
+    return StateValueDescriptor(StateValueKind::kDuplicate, zone,
+                                MachineType::AnyTagged(), id);
+  }
+
+  size_t size() { return fields_.size(); }
+  ZoneVector<StateValueDescriptor>& fields() { return fields_; }
+  int IsPlain() { return kind_ == StateValueKind::kPlain; }
+  int IsNested() { return kind_ == StateValueKind::kNested; }
+  int IsDuplicate() { return kind_ == StateValueKind::kDuplicate; }
+  MachineType type() const { return type_; }
+  MachineType GetOperandType(size_t index) const {
+    return fields_[index].type_;
+  }
+  size_t id() const { return id_; }
+
+ private:
+  StateValueDescriptor(StateValueKind kind, Zone* zone, MachineType type,
+                       size_t id)
+      : kind_(kind), type_(type), id_(id), fields_(zone) {}
+
+  StateValueKind kind_;
+  MachineType type_;
+  size_t id_;
+  ZoneVector<StateValueDescriptor> fields_;
+};
+
+
 class FrameStateDescriptor : public ZoneObject {
  public:
   FrameStateDescriptor(Zone* zone, FrameStateType type, BailoutId bailout_id,
@@ -968,8 +1026,10 @@ class FrameStateDescriptor : public ZoneObject {
   size_t GetFrameCount() const;
   size_t GetJSFrameCount() const;
 
-  MachineType GetType(size_t index) const;
-  void SetType(size_t index, MachineType type);
+  MachineType GetType(size_t index) const {
+    return values_.GetOperandType(index);
+  }
+  StateValueDescriptor* GetStateValueDescriptor() { return &values_; }
 
  private:
   FrameStateType type_;
@@ -978,12 +1038,13 @@ class FrameStateDescriptor : public ZoneObject {
   size_t parameters_count_;
   size_t locals_count_;
   size_t stack_count_;
-  ZoneVector<MachineType> types_;
+  StateValueDescriptor values_;
   MaybeHandle<SharedFunctionInfo> const shared_info_;
   FrameStateDescriptor* outer_state_;
 };
 
-std::ostream& operator<<(std::ostream& os, const Constant& constant);
+
+typedef ZoneVector<FrameStateDescriptor*> DeoptimizationVector;
 
 
 class PhiInstruction final : public ZoneObject {
@@ -1100,9 +1161,10 @@ typedef std::map<int, Constant, std::less<int>,
 
 typedef ZoneDeque<Instruction*> InstructionDeque;
 typedef ZoneDeque<ReferenceMap*> ReferenceMapDeque;
-typedef ZoneVector<FrameStateDescriptor*> DeoptimizationVector;
 typedef ZoneVector<InstructionBlock*> InstructionBlocks;
 
+
+// Forward declarations.
 struct PrintableInstructionSequence;
 
 

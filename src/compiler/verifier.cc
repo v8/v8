@@ -436,6 +436,7 @@ void Verifier::Visitor::Check(Node* node) {
       CHECK_EQ(6, input_count);
       break;
     case IrOpcode::kStateValues:
+    case IrOpcode::kObjectState:
     case IrOpcode::kTypedStateValues:
       // TODO(jarin): what are the constraints on these?
       break;

@@ -307,6 +307,9 @@ InstructionOperand OperandForDeopt(OperandGenerator* g, Node* input,
     case IrOpcode::kFloat64Constant:
     case IrOpcode::kHeapConstant:
       return g->UseImmediate(input);
+    case IrOpcode::kObjectState:
+      UNREACHABLE();
+      break;
     default:
       switch (kind) {
         case FrameStateInputKind::kStackSlot:
@@ -314,21 +317,94 @@ InstructionOperand OperandForDeopt(OperandGenerator* g, Node* input,
         case FrameStateInputKind::kAny:
           return g->UseAny(input);
       }
-      UNREACHABLE();
-      return InstructionOperand();
+  }
+  UNREACHABLE();
+  return InstructionOperand();
+}
+
+
+class StateObjectDeduplicator {
+ public:
+  explicit StateObjectDeduplicator(Zone* zone) : objects_(zone) {}
+  static const size_t kNotDuplicated = SIZE_MAX;
+
+  size_t GetObjectId(Node* node) {
+    for (size_t i = 0; i < objects_.size(); ++i) {
+      if (objects_[i] == node) {
+        return i;
+      }
+    }
+    return kNotDuplicated;
+  }
+
+  size_t InsertObject(Node* node) {
+    size_t id = objects_.size();
+    objects_.push_back(node);
+    return id;
+  }
+
+ private:
+  ZoneVector<Node*> objects_;
+};
+
+
+// Returns the number of instruction operands added to inputs.
+size_t AddOperandToStateValueDescriptor(StateValueDescriptor* descriptor,
+                                        InstructionOperandVector* inputs,
+                                        OperandGenerator* g,
+                                        StateObjectDeduplicator* deduplicator,
+                                        Node* input, MachineType type,
+                                        FrameStateInputKind kind, Zone* zone) {
+  switch (input->opcode()) {
+    case IrOpcode::kObjectState: {
+      size_t id = deduplicator->GetObjectId(input);
+      if (id == StateObjectDeduplicator::kNotDuplicated) {
+        size_t entries = 0;
+        id = deduplicator->InsertObject(input);
+        descriptor->fields().push_back(
+            StateValueDescriptor::Recursive(zone, id));
+        StateValueDescriptor* new_desc = &descriptor->fields().back();
+        for (Edge edge : input->input_edges()) {
+          entries += AddOperandToStateValueDescriptor(
+              new_desc, inputs, g, deduplicator, edge.to(),
+              MachineType::AnyTagged(), kind, zone);
+        }
+        return entries;
+      } else {
+        // Crankshaft counts duplicate objects for the running id, so we have
+        // to push the input again.
+        deduplicator->InsertObject(input);
+        descriptor->fields().push_back(
+            StateValueDescriptor::Duplicate(zone, id));
+        return 0;
+      }
+      break;
+    }
+    default: {
+      inputs->push_back(OperandForDeopt(g, input, kind));
+      descriptor->fields().push_back(StateValueDescriptor::Plain(zone, type));
+      return 1;
+    }
   }
 }
 
 
-void AddFrameStateInputs(Node* state, OperandGenerator* g,
-                         InstructionOperandVector* inputs,
-                         FrameStateDescriptor* descriptor,
-                         FrameStateInputKind kind, Zone* zone) {
+// Returns the number of instruction operands added to inputs.
+size_t AddInputsToFrameStateDescriptor(FrameStateDescriptor* descriptor,
+                                       Node* state, OperandGenerator* g,
+                                       StateObjectDeduplicator* deduplicator,
+                                       InstructionOperandVector* inputs,
+                                       FrameStateInputKind kind, Zone* zone) {
   DCHECK_EQ(IrOpcode::kFrameState, state->op()->opcode());
 
+  size_t entries = 0;
+  size_t initial_size = inputs->size();
+  USE(initial_size);  // initial_size is only used for debug.
+
   if (descriptor->outer_state()) {
-    AddFrameStateInputs(state->InputAt(kFrameStateOuterStateInput), g, inputs,
-                        descriptor->outer_state(), kind, zone);
+    entries += AddInputsToFrameStateDescriptor(
+        descriptor->outer_state(), state->InputAt(kFrameStateOuterStateInput),
+        g, deduplicator, inputs, kind, zone);
   }
 
   Node* parameters = state->InputAt(kFrameStateParametersInput);
@@ -342,32 +418,34 @@ void AddFrameStateInputs(Node* state, OperandGenerator* g,
   DCHECK_EQ(descriptor->locals_count(), StateValuesAccess(locals).size());
   DCHECK_EQ(descriptor->stack_count(), StateValuesAccess(stack).size());
 
-  ZoneVector<MachineType> types(zone);
-  types.reserve(descriptor->GetSize());
-
-  size_t value_index = 0;
-  inputs->push_back(
-      OperandForDeopt(g, function, FrameStateInputKind::kStackSlot));
-  descriptor->SetType(value_index++, MachineType::AnyTagged());
+  StateValueDescriptor* values_descriptor =
+      descriptor->GetStateValueDescriptor();
+  entries += AddOperandToStateValueDescriptor(
+      values_descriptor, inputs, g, deduplicator, function,
+      MachineType::AnyTagged(), FrameStateInputKind::kStackSlot, zone);
   for (StateValuesAccess::TypedNode input_node :
        StateValuesAccess(parameters)) {
-    inputs->push_back(OperandForDeopt(g, input_node.node, kind));
-    descriptor->SetType(value_index++, input_node.type);
+    entries += AddOperandToStateValueDescriptor(values_descriptor, inputs, g,
+                                                deduplicator, input_node.node,
+                                                input_node.type, kind, zone);
   }
   if (descriptor->HasContext()) {
-    inputs->push_back(
-        OperandForDeopt(g, context, FrameStateInputKind::kStackSlot));
-    descriptor->SetType(value_index++, MachineType::AnyTagged());
+    entries += AddOperandToStateValueDescriptor(
+        values_descriptor, inputs, g, deduplicator, context,
+        MachineType::AnyTagged(), FrameStateInputKind::kStackSlot, zone);
   }
   for (StateValuesAccess::TypedNode input_node : StateValuesAccess(locals)) {
-    inputs->push_back(OperandForDeopt(g, input_node.node, kind));
-    descriptor->SetType(value_index++, input_node.type);
+    entries += AddOperandToStateValueDescriptor(values_descriptor, inputs, g,
+                                                deduplicator, input_node.node,
+                                                input_node.type, kind, zone);
   }
   for (StateValuesAccess::TypedNode input_node : StateValuesAccess(stack)) {
-    inputs->push_back(OperandForDeopt(g, input_node.node, kind));
-    descriptor->SetType(value_index++, input_node.type);
+    entries += AddOperandToStateValueDescriptor(values_descriptor, inputs, g,
+                                                deduplicator, input_node.node,
+                                                input_node.type, kind, zone);
   }
-  DCHECK(value_index == descriptor->GetSize());
+  DCHECK_EQ(initial_size + entries, inputs->size());
+  return entries;
 }
 
 }  // namespace
@@ -500,6 +578,8 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
   // follows (n is the number of value inputs to the frame state):
   // arg 1               : deoptimization id.
   // arg 2 - arg (n + 1) : value inputs to the frame state.
+  size_t frame_state_entries = 0;
+  USE(frame_state_entries);  // frame_state_entries is only used for debug.
   if (buffer->frame_state_descriptor != NULL) {
     InstructionSequence::StateId state_id =
         sequence()->AddFrameStateDescriptor(buffer->frame_state_descriptor);
@@ -507,12 +587,17 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
 
     Node* frame_state =
         call->InputAt(static_cast<int>(buffer->descriptor->InputCount()));
-    AddFrameStateInputs(frame_state, &g, &buffer->instruction_args,
-                        buffer->frame_state_descriptor,
-                        FrameStateInputKind::kStackSlot, instruction_zone());
+
+    StateObjectDeduplicator deduplicator(instruction_zone());
+
+    frame_state_entries =
+        1 + AddInputsToFrameStateDescriptor(
+                buffer->frame_state_descriptor, frame_state, &g, &deduplicator,
+                &buffer->instruction_args, FrameStateInputKind::kStackSlot,
+                instruction_zone());
+
+    DCHECK_EQ(1 + frame_state_entries, buffer->instruction_args.size());
   }
-  DCHECK(1 + buffer->frame_state_value_count() ==
-         buffer->instruction_args.size());
 
   size_t input_count = static_cast<size_t>(buffer->input_count());
 
@@ -549,7 +634,7 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
     }
   }
   DCHECK_EQ(input_count, buffer->instruction_args.size() + pushed_count -
-                             buffer->frame_state_value_count());
+                             frame_state_entries);
   if (V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK && call_tail &&
       stack_param_delta != 0) {
     // For tail calls that change the size of their parameter list and keep
@@ -752,6 +837,7 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitCall(node);
     case IrOpcode::kFrameState:
     case IrOpcode::kStateValues:
+    case IrOpcode::kObjectState:
       return;
     case IrOpcode::kLoad: {
       LoadRepresentation type = LoadRepresentationOf(node->op());
@@ -1470,19 +1556,19 @@ void InstructionSelector::VisitDeoptimize(DeoptimizeKind kind, Node* value) {
   OperandGenerator g(this);
 
   FrameStateDescriptor* desc = GetFrameStateDescriptor(value);
-  size_t arg_count = desc->GetTotalSize() + 1;  // Include deopt id.
 
   InstructionOperandVector args(instruction_zone());
-  args.reserve(arg_count);
+  args.reserve(desc->GetTotalSize() + 1);  // Include deopt id.
 
   InstructionSequence::StateId state_id =
       sequence()->AddFrameStateDescriptor(desc);
   args.push_back(g.TempImmediate(state_id.ToInt()));
 
-  AddFrameStateInputs(value, &g, &args, desc, FrameStateInputKind::kAny,
-                      instruction_zone());
+  StateObjectDeduplicator deduplicator(instruction_zone());
 
-  DCHECK_EQ(args.size(), arg_count);
+  AddInputsToFrameStateDescriptor(desc, value, &g, &deduplicator, &args,
+                                  FrameStateInputKind::kAny,
+                                  instruction_zone());
 
   InstructionCode opcode = kArchDeoptimize;
   switch (kind) {
@@ -1493,7 +1579,7 @@ void InstructionSelector::VisitDeoptimize(DeoptimizeKind kind, Node* value) {
       opcode |= MiscField::encode(Deoptimizer::SOFT);
       break;
   }
-  Emit(opcode, 0, nullptr, arg_count, &args.front(), 0, nullptr);
+  Emit(opcode, 0, nullptr, args.size(), &args.front(), 0, nullptr);
 }
 
 

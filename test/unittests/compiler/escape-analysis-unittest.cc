@@ -300,6 +300,90 @@ TEST_F(EscapeAnalysisTest, DanglingLoadOrder) {
   ASSERT_EQ(object1, NodeProperties::GetValueInput(result, 0));
 }
 
+
+TEST_F(EscapeAnalysisTest, DeoptReplacement) {
+  Node* object1 = Constant(1);
+  BeginRegion();
+  Node* allocation = Allocate(Constant(kPointerSize));
+  Store(AccessAtIndex(0), allocation, object1);
+  Node* finish = FinishRegion(allocation);
+  Node* effect1 = Store(AccessAtIndex(0), allocation, object1, finish);
+  Branch();
+  Node* ifFalse = IfFalse();
+  Node* state_values1 = graph()->NewNode(common()->StateValues(1), finish);
+  Node* state_values2 = graph()->NewNode(common()->StateValues(0));
+  Node* state_values3 = graph()->NewNode(common()->StateValues(0));
+  Node* frame_state = graph()->NewNode(
+      common()->FrameState(BailoutId::None(), OutputFrameStateCombine::Ignore(),
+                           nullptr),
+      state_values1, state_values2, state_values3, UndefinedConstant(),
+      graph()->start(), graph()->start());
+  Node* deopt = graph()->NewNode(common()->Deoptimize(DeoptimizeKind::kEager),
+                                 frame_state, effect1, ifFalse);
+  Node* ifTrue = IfTrue();
+  Node* load = Load(AccessAtIndex(0), finish, effect1, ifTrue);
+  Node* result = Return(load, effect1, ifTrue);
+  EndGraph();
+  graph()->end()->AppendInput(zone(), deopt);
+  Analysis();
+
+  ExpectVirtual(allocation);
+  ExpectReplacement(load, object1);
+
+  Transformation();
+
+  ASSERT_EQ(object1, NodeProperties::GetValueInput(result, 0));
+  Node* object_state = NodeProperties::GetValueInput(state_values1, 0);
+  ASSERT_EQ(object_state->opcode(), IrOpcode::kObjectState);
+  ASSERT_EQ(1, object_state->op()->ValueInputCount());
+  ASSERT_EQ(object1, NodeProperties::GetValueInput(object_state, 0));
+}
+
+
+TEST_F(EscapeAnalysisTest, DeoptReplacementIdentity) {
+  Node* object1 = Constant(1);
+  BeginRegion();
+  Node* allocation = Allocate(Constant(kPointerSize * 2));
+  Store(AccessAtIndex(0), allocation, object1);
+  Store(AccessAtIndex(kPointerSize), allocation, allocation);
+  Node* finish = FinishRegion(allocation);
+  Node* effect1 = Store(AccessAtIndex(0), allocation, object1, finish);
+  Branch();
+  Node* ifFalse = IfFalse();
+  Node* state_values1 = graph()->NewNode(common()->StateValues(1), finish);
+  Node* state_values2 = graph()->NewNode(common()->StateValues(1), finish);
+  Node* state_values3 = graph()->NewNode(common()->StateValues(0));
+  Node* frame_state = graph()->NewNode(
+      common()->FrameState(BailoutId::None(), OutputFrameStateCombine::Ignore(),
+                           nullptr),
+      state_values1, state_values2, state_values3, UndefinedConstant(),
+      graph()->start(), graph()->start());
+  Node* deopt = graph()->NewNode(common()->Deoptimize(DeoptimizeKind::kEager),
+                                 frame_state, effect1, ifFalse);
+  Node* ifTrue = IfTrue();
+  Node* load = Load(AccessAtIndex(0), finish, effect1, ifTrue);
+  Node* result = Return(load, effect1, ifTrue);
+  EndGraph();
+  graph()->end()->AppendInput(zone(), deopt);
+  Analysis();
+
+  ExpectVirtual(allocation);
+  ExpectReplacement(load, object1);
+
+  Transformation();
+
+  ASSERT_EQ(object1, NodeProperties::GetValueInput(result, 0));
+
+  Node* object_state = NodeProperties::GetValueInput(state_values1, 0);
+  ASSERT_EQ(object_state->opcode(), IrOpcode::kObjectState);
+  ASSERT_EQ(2, object_state->op()->ValueInputCount());
+  ASSERT_EQ(object1, NodeProperties::GetValueInput(object_state, 0));
+  ASSERT_EQ(object_state, NodeProperties::GetValueInput(object_state, 1));
+
+  Node* object_state2 = NodeProperties::GetValueInput(state_values1, 0);
+  ASSERT_EQ(object_state, object_state2);
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

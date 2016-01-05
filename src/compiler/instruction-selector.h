@@ -26,8 +26,6 @@ class Linkage;
 class OperandGenerator;
 struct SwitchInfo;
 
-typedef ZoneVector<InstructionOperand> InstructionOperandVector;
-
 // This struct connects nodes of parameters which are going to be pushed on the
 // call stack with their parameter index in the call descriptor of the callee.
 class PushParameter {

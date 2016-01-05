@@ -6,6 +6,7 @@
 #include "src/compiler/graph.h"
 #include "src/compiler/instruction.h"
 #include "src/compiler/schedule.h"
+#include "src/compiler/state-values-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -831,11 +832,9 @@ FrameStateDescriptor::FrameStateDescriptor(
       parameters_count_(parameters_count),
       locals_count_(locals_count),
       stack_count_(stack_count),
-      types_(zone),
+      values_(zone),
       shared_info_(shared_info),
-      outer_state_(outer_state) {
-  types_.resize(GetSize(), MachineType::None());
-}
+      outer_state_(outer_state) {}
 
 
 size_t FrameStateDescriptor::GetSize(OutputFrameStateCombine combine) const {
@@ -881,17 +880,6 @@ size_t FrameStateDescriptor::GetJSFrameCount() const {
     }
   }
   return count;
-}
-
-
-MachineType FrameStateDescriptor::GetType(size_t index) const {
-  return types_[index];
-}
-
-
-void FrameStateDescriptor::SetType(size_t index, MachineType type) {
-  DCHECK(index < GetSize());
-  types_[index] = type;
 }
 
 

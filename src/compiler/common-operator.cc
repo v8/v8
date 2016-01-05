@@ -753,6 +753,14 @@ const Operator* CommonOperatorBuilder::StateValues(int arguments) {
 }
 
 
+const Operator* CommonOperatorBuilder::ObjectState(int pointer_slots, int id) {
+  return new (zone()) Operator1<int>(           // --
+      IrOpcode::kObjectState, Operator::kPure,  // opcode
+      "ObjectState",                            // name
+      pointer_slots, 0, 0, 1, 0, 0, id);        // counts
+}
+
+
 const Operator* CommonOperatorBuilder::TypedStateValues(
     const ZoneVector<MachineType>* types) {
   return new (zone()) Operator1<const ZoneVector<MachineType>*>(  // --

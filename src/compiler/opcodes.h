@@ -50,6 +50,7 @@
   V(FrameState)          \
   V(StateValues)         \
   V(TypedStateValues)    \
+  V(ObjectState)         \
   V(Call)                \
   V(Parameter)           \
   V(OsrValue)            \

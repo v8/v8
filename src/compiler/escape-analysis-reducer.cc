@@ -36,10 +36,13 @@ Reduction EscapeAnalysisReducer::Reduce(Node* node) {
       return ReduceReferenceEqual(node);
     case IrOpcode::kObjectIsSmi:
       return ReduceObjectIsSmi(node);
-    case IrOpcode::kStateValues:
-    case IrOpcode::kFrameState:
-      return ReplaceWithDeoptDummy(node);
     default:
+      // TODO(sigurds): Change this to GetFrameStateInputCount once
+      // it is working. For now we use EffectInputCount > 0 to determine
+      // whether a node might have a frame state input.
+      if (node->op()->EffectInputCount() > 0) {
+        return ReduceFrameStateUses(node);
+      }
       break;
   }
   return NoChange();
@@ -117,23 +120,14 @@ Reduction EscapeAnalysisReducer::ReduceReferenceEqual(Node* node) {
   Node* left = NodeProperties::GetValueInput(node, 0);
   Node* right = NodeProperties::GetValueInput(node, 1);
   if (escape_analysis()->IsVirtual(left)) {
-    if (escape_analysis()->IsVirtual(right)) {
-      if (Node* rep = escape_analysis()->GetReplacement(left)) {
-        left = rep;
-      }
-      if (Node* rep = escape_analysis()->GetReplacement(right)) {
-        right = rep;
-      }
-      // TODO(sigurds): What to do if either is a PHI?
-      if (left == right) {
-        ReplaceWithValue(node, jsgraph()->TrueConstant());
-        if (FLAG_trace_turbo_escape) {
-          PrintF("Replaced ref eq #%d with true\n", node->id());
-        }
-        return Replace(node);
+    if (escape_analysis()->IsVirtual(right) &&
+        escape_analysis()->CompareVirtualObjects(left, right)) {
+      ReplaceWithValue(node, jsgraph()->TrueConstant());
+      if (FLAG_trace_turbo_escape) {
+        PrintF("Replaced ref eq #%d with true\n", node->id());
       }
     }
-    // Right-hand side is either not virtual, or a different node.
+    // Right-hand side is not a virtual object, or a different one.
     ReplaceWithValue(node, jsgraph()->FalseConstant());
     if (FLAG_trace_turbo_escape) {
       PrintF("Replaced ref eq #%d with false\n", node->id());
@@ -164,28 +158,132 @@ Reduction EscapeAnalysisReducer::ReduceObjectIsSmi(Node* node) {
 }
 
 
-// TODO(sigurds): This is a temporary solution until escape analysis
-// supports deoptimization.
-Reduction EscapeAnalysisReducer::ReplaceWithDeoptDummy(Node* node) {
-  DCHECK(node->opcode() == IrOpcode::kStateValues ||
-         node->opcode() == IrOpcode::kFrameState);
-  Reduction r = NoChange();
-  for (int i = 0; i < node->op()->ValueInputCount(); ++i) {
-    Node* input = NodeProperties::GetValueInput(node, i);
-    if (input->opcode() == IrOpcode::kFinishRegion ||
-        input->opcode() == IrOpcode::kAllocate ||
-        input->opcode() == IrOpcode::kPhi) {
-      if (escape_analysis()->IsVirtual(input)) {
-        NodeProperties::ReplaceValueInput(node, jsgraph()->UndefinedConstant(),
-                                          i);
-        if (FLAG_trace_turbo_escape) {
-          PrintF("Replaced state value (#%d) input with dummy\n", node->id());
-        }
-        r = Changed(node);
+Reduction EscapeAnalysisReducer::ReduceFrameStateUses(Node* node) {
+  DCHECK_GE(node->op()->EffectInputCount(), 1);
+  bool changed = false;
+  for (int i = 0; i < node->InputCount(); ++i) {
+    Node* input = node->InputAt(i);
+    if (input->opcode() == IrOpcode::kFrameState) {
+      if (Node* ret = ReduceFrameState(input, node, false)) {
+        node->ReplaceInput(i, ret);
+        changed = true;
       }
     }
   }
-  return r;
+  if (changed) {
+    return Changed(node);
+  }
+  return NoChange();
+}
+
+
+// Returns the clone if it duplicated the node, and null otherwise.
+Node* EscapeAnalysisReducer::ReduceFrameState(Node* node, Node* effect,
+                                              bool multiple_users) {
+  DCHECK(node->opcode() == IrOpcode::kFrameState);
+  if (FLAG_trace_turbo_escape) {
+    PrintF("Reducing FrameState %d\n", node->id());
+  }
+  Node* clone = nullptr;
+  for (int i = 0; i < node->op()->ValueInputCount(); ++i) {
+    Node* input = NodeProperties::GetValueInput(node, i);
+    Node* ret =
+        input->opcode() == IrOpcode::kStateValues
+            ? ReduceStateValueInputs(input, effect, node->UseCount() > 1)
+            : ReduceStateValueInput(node, i, effect, node->UseCount() > 1);
+    if (ret) {
+      if (node->UseCount() > 1 || multiple_users) {
+        if (FLAG_trace_turbo_escape) {
+          PrintF("  Cloning #%d", node->id());
+        }
+        node = clone = jsgraph()->graph()->CloneNode(node);
+        if (FLAG_trace_turbo_escape) {
+          PrintF(" to #%d\n", node->id());
+        }
+        multiple_users = false;  // Don't clone anymore.
+      }
+      NodeProperties::ReplaceValueInput(node, ret, i);
+    }
+  }
+  Node* outer_frame_state = NodeProperties::GetFrameStateInput(node, 0);
+  if (outer_frame_state->opcode() == IrOpcode::kFrameState) {
+    if (Node* ret =
+            ReduceFrameState(outer_frame_state, effect, node->UseCount() > 1)) {
+      if (node->UseCount() > 1 || multiple_users) {
+        if (FLAG_trace_turbo_escape) {
+          PrintF("  Cloning #%d", node->id());
+        }
+        node = clone = jsgraph()->graph()->CloneNode(node);
+        if (FLAG_trace_turbo_escape) {
+          PrintF(" to #%d\n", node->id());
+        }
+        multiple_users = false;
+      }
+      NodeProperties::ReplaceFrameStateInput(node, 0, ret);
+    }
+  }
+  return clone;
+}
+
+
+// Returns the clone if it duplicated the node, and null otherwise.
+Node* EscapeAnalysisReducer::ReduceStateValueInputs(Node* node, Node* effect,
+                                                    bool multiple_users) {
+  if (FLAG_trace_turbo_escape) {
+    PrintF("Reducing StateValue #%d\n", node->id());
+  }
+  DCHECK(node->opcode() == IrOpcode::kStateValues);
+  DCHECK_NOT_NULL(effect);
+  Node* clone = nullptr;
+  for (int i = 0; i < node->op()->ValueInputCount(); ++i) {
+    if (Node* ret = ReduceStateValueInput(node, i, effect, multiple_users)) {
+      node = ret;
+      DCHECK_NULL(clone);
+      clone = ret;
+      multiple_users = false;
+    }
+  }
+  return clone;
+}
+
+
+// Returns the clone if it duplicated the node, and null otherwise.
+Node* EscapeAnalysisReducer::ReduceStateValueInput(Node* node, int node_index,
+                                                   Node* effect,
+                                                   bool multiple_users) {
+  Node* input = NodeProperties::GetValueInput(node, node_index);
+  if (FLAG_trace_turbo_escape) {
+    PrintF("Reducing State Input #%d (%s)\n", input->id(),
+           input->op()->mnemonic());
+  }
+  Node* clone = nullptr;
+  if (input->opcode() == IrOpcode::kFinishRegion ||
+      input->opcode() == IrOpcode::kAllocate) {
+    if (escape_analysis()->IsVirtual(input)) {
+      if (Node* object_state =
+              escape_analysis()->GetOrCreateObjectState(effect, input)) {
+        if (node->UseCount() > 1 || multiple_users) {
+          if (FLAG_trace_turbo_escape) {
+            PrintF("Cloning #%d", node->id());
+          }
+          node = clone = jsgraph()->graph()->CloneNode(node);
+          if (FLAG_trace_turbo_escape) {
+            PrintF(" to #%d\n", node->id());
+          }
+        }
+        NodeProperties::ReplaceValueInput(node, object_state, node_index);
+        if (FLAG_trace_turbo_escape) {
+          PrintF("Replaced state #%d input #%d with object state #%d\n",
+                 node->id(), input->id(), object_state->id());
+        }
+      } else {
+        if (FLAG_trace_turbo_escape) {
+          PrintF("No object state replacement available.\n");
+        }
+      }
+    }
+  }
+  return clone;
 }
 
 

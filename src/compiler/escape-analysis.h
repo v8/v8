@@ -59,6 +59,7 @@ class EscapeStatusAnalysis {
   bool HasEntry(Node* node);
   void Resize();
   size_t size();
+  bool IsAllocationPhi(Node* node);
 
   Graph* graph() const { return graph_; }
   Zone* zone() const { return zone_; }
@@ -92,6 +93,8 @@ class EscapeAnalysis {
   Node* GetReplacement(Node* node);
   bool IsVirtual(Node* node);
   bool IsEscaped(Node* node);
+  bool CompareVirtualObjects(Node* left, Node* right);
+  Node* GetOrCreateObjectState(Node* effect, Node* node);
 
  private:
   void RunObjectAnalysis();
@@ -110,7 +113,6 @@ class EscapeAnalysis {
                           VirtualState* states);
 
   void ForwardVirtualState(Node* node);
-
   bool IsEffectBranchPoint(Node* node);
   bool IsDanglingEffectNode(Node* node);
   int OffsetFromAccess(Node* node);

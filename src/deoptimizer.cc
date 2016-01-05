@@ -3486,6 +3486,37 @@ Handle<Object> TranslatedState::MaterializeAt(int frame_index,
           object->set_length(*length);
           return object;
         }
+        case FIXED_ARRAY_TYPE: {
+          Handle<Object> lengthObject = MaterializeAt(frame_index, value_index);
+          int32_t length = 0;
+          CHECK(lengthObject->ToInt32(&length));
+          Handle<FixedArray> object =
+              isolate_->factory()->NewFixedArray(length);
+          slot->value_ = object;
+          for (int i = 0; i < length; ++i) {
+            Handle<Object> value = MaterializeAt(frame_index, value_index);
+            object->set(i, *value);
+          }
+          return object;
+        }
+        case FIXED_DOUBLE_ARRAY_TYPE: {
+          Handle<Object> lengthObject = MaterializeAt(frame_index, value_index);
+          int32_t length = 0;
+          CHECK(lengthObject->ToInt32(&length));
+          Handle<FixedArrayBase> object =
+              isolate_->factory()->NewFixedDoubleArray(length);
+          slot->value_ = object;
+          if (length > 0) {
+            Handle<FixedDoubleArray> double_array =
+                Handle<FixedDoubleArray>::cast(object);
+            for (int i = 0; i < length; ++i) {
+              Handle<Object> value = MaterializeAt(frame_index, value_index);
+              CHECK(value->IsNumber());
+              double_array->set(i, value->Number());
+            }
+          }
+          return object;
+        }
         default:
           PrintF(stderr, "[couldn't handle instance type %d]\n",
                  map->instance_type());

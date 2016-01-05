@@ -216,8 +216,10 @@ Handle<Code> CodeGenerator::GenerateCode() {
 
 
 bool CodeGenerator::IsNextInAssemblyOrder(RpoNumber block) const {
-  return code()->InstructionBlockAt(current_block_)->ao_number().IsNext(
-      code()->InstructionBlockAt(block)->ao_number());
+  return code()
+      ->InstructionBlockAt(current_block_)
+      ->ao_number()
+      .IsNext(code()->InstructionBlockAt(block)->ao_number());
 }
 
 
@@ -489,64 +491,84 @@ FrameStateDescriptor* CodeGenerator::GetFrameStateDescriptor(
 }
 
 
-namespace {
-
-struct OperandAndType {
-  InstructionOperand* const operand;
-  MachineType const type;
-};
-
-
-OperandAndType TypedOperandForFrameState(FrameStateDescriptor* descriptor,
-                                         Instruction* instr,
-                                         size_t frame_state_offset,
-                                         size_t index,
-                                         OutputFrameStateCombine combine) {
-  DCHECK(index < descriptor->GetSize(combine));
-  switch (combine.kind()) {
-    case OutputFrameStateCombine::kPushOutput: {
-      DCHECK(combine.GetPushCount() <= instr->OutputCount());
-      size_t size_without_output =
-          descriptor->GetSize(OutputFrameStateCombine::Ignore());
-      // If the index is past the existing stack items, return the output.
-      if (index >= size_without_output) {
-        return {instr->OutputAt(index - size_without_output),
-                MachineType::AnyTagged()};
-      }
-      break;
+void CodeGenerator::TranslateStateValueDescriptor(
+    StateValueDescriptor* desc, Translation* translation,
+    InstructionOperandIterator* iter) {
+  if (desc->IsNested()) {
+    translation->BeginCapturedObject(static_cast<int>(desc->size()));
+    for (size_t index = 0; index < desc->fields().size(); index++) {
+      TranslateStateValueDescriptor(&desc->fields()[index], translation, iter);
     }
-    case OutputFrameStateCombine::kPokeAt:
-      size_t index_from_top =
-          descriptor->GetSize(combine) - 1 - combine.GetOffsetToPokeAt();
-      if (index >= index_from_top &&
-          index < index_from_top + instr->OutputCount()) {
-        return {instr->OutputAt(index - index_from_top),
-                MachineType::AnyTagged()};
-      }
-      break;
+  } else if (desc->IsDuplicate()) {
+    translation->DuplicateObject(static_cast<int>(desc->id()));
+  } else {
+    DCHECK(desc->IsPlain());
+    AddTranslationForOperand(translation, iter->instruction(), iter->Advance(),
+                             desc->type());
   }
-  return {instr->InputAt(frame_state_offset + index),
-          descriptor->GetType(index)};
 }
 
-}  // namespace
+
+void CodeGenerator::TranslateFrameStateDescriptorOperands(
+    FrameStateDescriptor* desc, InstructionOperandIterator* iter,
+    OutputFrameStateCombine combine, Translation* translation) {
+  for (size_t index = 0; index < desc->GetSize(combine); index++) {
+    switch (combine.kind()) {
+      case OutputFrameStateCombine::kPushOutput: {
+        DCHECK(combine.GetPushCount() <= iter->instruction()->OutputCount());
+        size_t size_without_output =
+            desc->GetSize(OutputFrameStateCombine::Ignore());
+        // If the index is past the existing stack items in values_.
+        if (index >= size_without_output) {
+          // Materialize the result of the call instruction in this slot.
+          AddTranslationForOperand(
+              translation, iter->instruction(),
+              iter->instruction()->OutputAt(index - size_without_output),
+              MachineType::AnyTagged());
+          continue;
+        }
+        break;
+      }
+      case OutputFrameStateCombine::kPokeAt:
+        // The result of the call should be placed at position
+        // [index_from_top] in the stack (overwriting whatever was
+        // previously there).
+        size_t index_from_top =
+            desc->GetSize(combine) - 1 - combine.GetOffsetToPokeAt();
+        if (index >= index_from_top &&
+            index < index_from_top + iter->instruction()->OutputCount()) {
+          AddTranslationForOperand(
+              translation, iter->instruction(),
+              iter->instruction()->OutputAt(index - index_from_top),
+              MachineType::AnyTagged());
+          iter->Advance();  // We do not use this input, but we need to
+                            // advace, as the input got replaced.
+          continue;
+        }
+        break;
+    }
+    StateValueDescriptor* value_desc = desc->GetStateValueDescriptor();
+    TranslateStateValueDescriptor(&value_desc->fields()[index], translation,
+                                  iter);
+  }
+}
 
 
 void CodeGenerator::BuildTranslationForFrameStateDescriptor(
-    FrameStateDescriptor* descriptor, Instruction* instr,
-    Translation* translation, size_t frame_state_offset,
-    OutputFrameStateCombine state_combine) {
+    FrameStateDescriptor* descriptor, InstructionOperandIterator* iter,
+    Translation* translation, OutputFrameStateCombine state_combine) {
   // Outer-most state must be added to translation first.
   if (descriptor->outer_state() != nullptr) {
-    BuildTranslationForFrameStateDescriptor(descriptor->outer_state(), instr,
-                                            translation, frame_state_offset,
+    BuildTranslationForFrameStateDescriptor(descriptor->outer_state(), iter,
+                                            translation,
                                             OutputFrameStateCombine::Ignore());
   }
-  frame_state_offset += descriptor->outer_state()->GetTotalSize();
 
   Handle<SharedFunctionInfo> shared_info;
   if (!descriptor->shared_info().ToHandle(&shared_info)) {
-    if (!info()->has_shared_info()) return;  // Stub with no SharedFunctionInfo.
+    if (!info()->has_shared_info()) {
+      return;  // Stub with no SharedFunctionInfo.
+    }
     shared_info = info()->shared_info();
   }
   int shared_info_id = DefineDeoptimizationLiteral(shared_info);
@@ -575,11 +597,8 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
       break;
   }
 
-  for (size_t i = 0; i < descriptor->GetSize(state_combine); i++) {
-    OperandAndType op = TypedOperandForFrameState(
-        descriptor, instr, frame_state_offset, i, state_combine);
-    AddTranslationForOperand(translation, instr, op.operand, op.type);
-  }
+  TranslateFrameStateDescriptorOperands(descriptor, iter, state_combine,
+                                        translation);
 }
 
 
@@ -593,8 +612,9 @@ int CodeGenerator::BuildTranslation(Instruction* instr, int pc_offset,
   Translation translation(
       &translations_, static_cast<int>(descriptor->GetFrameCount()),
       static_cast<int>(descriptor->GetJSFrameCount()), zone());
-  BuildTranslationForFrameStateDescriptor(descriptor, instr, &translation,
-                                          frame_state_offset, state_combine);
+  InstructionOperandIterator iter(instr, frame_state_offset);
+  BuildTranslationForFrameStateDescriptor(descriptor, &iter, &translation,
+                                          state_combine);
 
   int deoptimization_id = static_cast<int>(deoptimization_states_.size());
 
