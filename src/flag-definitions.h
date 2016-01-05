@@ -210,7 +210,6 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
 
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED(V)                                                 \
-  V(harmony_destructuring_assignment, "harmony destructuring assignment") \
   V(harmony_proxies, "harmony proxies")                                   \
   V(harmony_reflect, "harmony Reflect API")                               \
   V(harmony_sloppy, "harmony features in sloppy mode")                    \
@@ -219,14 +218,15 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
   V(harmony_regexp_lookbehind, "harmony regexp lookbehind")
 
 // Features that are shipping (turned on by default, but internal flag remains).
-#define HARMONY_SHIPPING(V)                                   \
-  V(harmony_default_parameters, "harmony default parameters") \
-  V(harmony_destructuring_bind, "harmony destructuring bind") \
-  V(harmony_concat_spreadable, "harmony isConcatSpreadable")  \
-  V(harmony_object_observe, "harmony Object.observe")         \
-  V(harmony_tolength, "harmony ToLength")                     \
-  V(harmony_tostring, "harmony toString")                     \
-  V(harmony_completion, "harmony completion value semantics") \
+#define HARMONY_SHIPPING(V)                                               \
+  V(harmony_default_parameters, "harmony default parameters")             \
+  V(harmony_destructuring_assignment, "harmony destructuring assignment") \
+  V(harmony_destructuring_bind, "harmony destructuring bind")             \
+  V(harmony_concat_spreadable, "harmony isConcatSpreadable")              \
+  V(harmony_object_observe, "harmony Object.observe")                     \
+  V(harmony_tolength, "harmony ToLength")                                 \
+  V(harmony_tostring, "harmony toString")                                 \
+  V(harmony_completion, "harmony completion value semantics")             \
   V(harmony_regexps, "harmony regular expression extensions")
 
 
