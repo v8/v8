@@ -736,6 +736,7 @@
   'language/statements/let/global-closure-get-before-initialization': [SKIP],
   'language/statements/let/global-closure-set-before-initialization': [SKIP],
   'language/statements/let/global-use-before-initialization-in-declaration-statement': [SKIP],
+  'language/statements/let/global-use-before-initialization-in-prior-statement': [SKIP],
   'language/statements/while/S12.6.2_A4_T5': [SKIP],
 
 }],  # ignition == True
