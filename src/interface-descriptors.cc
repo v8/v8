@@ -375,11 +375,10 @@ RestParamAccessDescriptor::BuildCallInterfaceDescriptorFunctionType(
     Isolate* isolate, int paramater_count) {
   Zone* zone = isolate->interface_descriptor_zone();
   Type::FunctionType* function =
-      Type::FunctionType::New(AnyTagged(zone), Type::Undefined(), 4, zone);
+      Type::FunctionType::New(AnyTagged(zone), Type::Undefined(), 3, zone);
   function->InitParameter(0, SmiType(zone));
   function->InitParameter(1, ExternalPointer(zone));
   function->InitParameter(2, SmiType(zone));
-  function->InitParameter(3, SmiType(zone));
   return function;
 }
 
@@ -387,7 +386,7 @@ RestParamAccessDescriptor::BuildCallInterfaceDescriptorFunctionType(
 void RestParamAccessDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {parameter_count(), parameter_pointer(),
-                          rest_parameter_index(), language_mode()};
+                          rest_parameter_index()};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 

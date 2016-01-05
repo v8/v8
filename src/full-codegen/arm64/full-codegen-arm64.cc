@@ -276,9 +276,6 @@ void FullCodeGenerator::Generate() {
            StandardFrameConstants::kCallerSPOffset + offset);
     __ Mov(RestParamAccessDescriptor::rest_parameter_index(),
            Smi::FromInt(rest_index));
-    __ Mov(RestParamAccessDescriptor::language_mode(),
-           Smi::FromInt(language_mode()));
-    DCHECK(x1.is(RestParamAccessDescriptor::language_mode()));
 
     function_in_register_x1 = false;
 

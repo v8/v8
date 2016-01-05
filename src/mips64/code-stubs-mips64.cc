@@ -1972,7 +1972,6 @@ void RestParamAccessStub::GenerateNew(MacroAssembler* masm) {
   // a2 : number of parameters (tagged)
   // a3 : parameters pointer
   // a4 : rest parameter index (tagged)
-  // a1 : language mode (tagged)
   // Check if the calling frame is an arguments adaptor frame.
 
   Label runtime;
@@ -1990,7 +1989,7 @@ void RestParamAccessStub::GenerateNew(MacroAssembler* masm) {
 
   // Do the runtime call to allocate the arguments object.
   __ bind(&runtime);
-  __ Push(a2, a3, a4, a1);
+  __ Push(a2, a3, a4);
   __ TailCallRuntime(Runtime::kNewRestParam);
 }
 

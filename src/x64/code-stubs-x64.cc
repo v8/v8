@@ -845,7 +845,6 @@ void RestParamAccessStub::GenerateNew(MacroAssembler* masm) {
   // rcx : number of parameters (tagged)
   // rdx : parameters pointer
   // rbx : rest parameter index (tagged)
-  // rdi : language mode (tagged)
   // rsp[0] : return address
 
   // Check if the calling frame is an arguments adaptor frame.
@@ -867,7 +866,6 @@ void RestParamAccessStub::GenerateNew(MacroAssembler* masm) {
   __ Push(rcx);  // Push number of parameters.
   __ Push(rdx);  // Push parameters pointer.
   __ Push(rbx);  // Push rest parameter index.
-  __ Push(rdi);  // Push language mode.
   __ PushReturnAddressFrom(rax);
   __ TailCallRuntime(Runtime::kNewRestParam);
 }

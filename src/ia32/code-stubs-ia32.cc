@@ -1156,28 +1156,25 @@ void RestParamAccessStub::GenerateNew(MacroAssembler* masm) {
   // ecx : number of parameters (tagged)
   // edx : parameters pointer
   // ebx : rest parameter index (tagged)
-  // edi : language mode (tagged)
   // esp[0] : return address
 
   // Check if the calling frame is an arguments adaptor frame.
   Label runtime;
-  __ mov(eax, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
-  __ mov(eax, Operand(eax, StandardFrameConstants::kContextOffset));
+  __ mov(edi, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
+  __ mov(eax, Operand(edi, StandardFrameConstants::kContextOffset));
   __ cmp(eax, Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
   __ j(not_equal, &runtime);
 
   // Patch the arguments.length and the parameters pointer.
-  __ mov(edx, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
-  __ mov(ecx, Operand(edx, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ mov(ecx, Operand(edi, ArgumentsAdaptorFrameConstants::kLengthOffset));
   __ lea(edx,
-         Operand(edx, ecx, times_2, StandardFrameConstants::kCallerSPOffset));
+         Operand(edi, ecx, times_2, StandardFrameConstants::kCallerSPOffset));
 
   __ bind(&runtime);
   __ pop(eax);   // Save return address.
   __ push(ecx);  // Push number of parameters.
   __ push(edx);  // Push parameters pointer.
   __ push(ebx);  // Push rest parameter index.
-  __ push(edi);  // Push language mode.
   __ push(eax);  // Push return address.
   __ TailCallRuntime(Runtime::kNewRestParam);
 }

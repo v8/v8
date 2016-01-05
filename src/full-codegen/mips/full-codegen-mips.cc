@@ -284,8 +284,6 @@ void FullCodeGenerator::Generate() {
             Operand(StandardFrameConstants::kCallerSPOffset + offset));
     __ li(RestParamAccessDescriptor::rest_parameter_index(),
           Operand(Smi::FromInt(rest_index)));
-    __ li(RestParamAccessDescriptor::language_mode(),
-          Operand(Smi::FromInt(language_mode())));
     DCHECK(a1.is(RestParamAccessDescriptor::rest_parameter_index()));
     function_in_register_a1 = false;
 

@@ -2125,18 +2125,15 @@ void RestParamAccessStub::GenerateNew(MacroAssembler* masm) {
   // x2 : number of parameters (tagged)
   // x3 : parameters pointer
   // x4 : rest parameter index (tagged)
-  // x1 : language mode (tagged)
   //
   // Returns pointer to result object in x0.
 
   DCHECK(x2.is(ArgumentsAccessNewDescriptor::parameter_count()));
   DCHECK(x3.is(RestParamAccessDescriptor::parameter_pointer()));
   DCHECK(x4.is(RestParamAccessDescriptor::rest_parameter_index()));
-  DCHECK(x1.is(RestParamAccessDescriptor::language_mode()));
 
   // Get the stub arguments from the frame, and make an untagged copy of the
   // parameter count.
-  Register language_mode_smi = x1;
   Register rest_index_smi = x4;
   Register param_count_smi = x2;
   Register params = x3;
@@ -2153,7 +2150,6 @@ void RestParamAccessStub::GenerateNew(MacroAssembler* masm) {
   __ Cmp(caller_ctx, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
   __ B(ne, &runtime);
 
-  //   x1   language_mode_smi  language mode
   //   x4   rest_index_smi     index of rest parameter
   //   x2   param_count_smi    number of parameters passed to function (smi)
   //   x3   params             pointer to parameters
@@ -2168,7 +2164,7 @@ void RestParamAccessStub::GenerateNew(MacroAssembler* masm) {
   __ Add(params, x10, StandardFrameConstants::kCallerSPOffset);
 
   __ Bind(&runtime);
-  __ Push(param_count_smi, params, rest_index_smi, language_mode_smi);
+  __ Push(param_count_smi, params, rest_index_smi);
   __ TailCallRuntime(Runtime::kNewRestParam);
 }
 

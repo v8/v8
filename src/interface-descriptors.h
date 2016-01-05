@@ -719,7 +719,6 @@ class RestParamAccessDescriptor : public CallInterfaceDescriptor {
   static const Register parameter_count();
   static const Register parameter_pointer();
   static const Register rest_parameter_index();
-  static const Register language_mode();
 };
 
 

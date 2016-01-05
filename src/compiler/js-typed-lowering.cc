@@ -1515,10 +1515,7 @@ Reduction JSTypedLowering::ReduceJSCreateArguments(Node* node) {
   // Use the ArgumentsAccessStub for materializing both mapped and unmapped
   // arguments object, but only for non-inlined (i.e. outermost) frames.
   if (outer_state->opcode() != IrOpcode::kFrameState) {
-    Handle<SharedFunctionInfo> shared;
     Isolate* isolate = jsgraph()->isolate();
-    if (!state_info.shared_info().ToHandle(&shared)) return NoChange();
-
     int parameter_count = state_info.parameter_count() - 1;
     int parameter_offset = parameter_count * kPointerSize;
     int offset = StandardFrameConstants::kCallerSPOffset + parameter_offset;
@@ -1527,6 +1524,8 @@ Reduction JSTypedLowering::ReduceJSCreateArguments(Node* node) {
         jsgraph()->IntPtrConstant(offset));
 
     if (p.type() != CreateArgumentsParameters::kRestArray) {
+      Handle<SharedFunctionInfo> shared;
+      if (!state_info.shared_info().ToHandle(&shared)) return NoChange();
       bool unmapped = p.type() == CreateArgumentsParameters::kUnmappedArguments;
       Callable callable = CodeFactory::ArgumentsAccess(
           isolate, unmapped, shared->has_duplicate_parameters());
@@ -1553,8 +1552,6 @@ Reduction JSTypedLowering::ReduceJSCreateArguments(Node* node) {
       node->InsertInput(graph()->zone(), 2, parameter_pointer);
       node->InsertInput(graph()->zone(), 3,
                         jsgraph()->Constant(p.start_index()));
-      node->InsertInput(graph()->zone(), 4,
-                        jsgraph()->Constant(shared->language_mode()));
       NodeProperties::ChangeOp(node, new_op);
       return Changed(node);
     }

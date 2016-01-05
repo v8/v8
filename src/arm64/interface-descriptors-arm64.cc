@@ -68,7 +68,6 @@ const Register ArgumentsAccessNewDescriptor::parameter_pointer() { return x3; }
 const Register RestParamAccessDescriptor::parameter_count() { return x2; }
 const Register RestParamAccessDescriptor::parameter_pointer() { return x3; }
 const Register RestParamAccessDescriptor::rest_parameter_index() { return x4; }
-const Register RestParamAccessDescriptor::language_mode() { return x1; }
 
 
 const Register ApiGetterDescriptor::function_address() { return x2; }

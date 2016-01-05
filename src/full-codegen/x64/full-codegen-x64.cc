@@ -264,8 +264,6 @@ void FullCodeGenerator::Generate() {
             Operand(rbp, StandardFrameConstants::kCallerSPOffset + offset));
     __ Move(RestParamAccessDescriptor::rest_parameter_index(),
             Smi::FromInt(rest_index));
-    __ Move(RestParamAccessDescriptor::language_mode(),
-            Smi::FromInt(language_mode()));
     function_in_register = false;
 
     RestParamAccessStub stub(isolate());
