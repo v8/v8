@@ -3893,6 +3893,28 @@ void Simulator::DecodeTypeRegisterSPECIAL3() {
       SetResult(rt_reg(), alu_out);
       break;
     }
+    case DEXTM: {
+      // Interpret rd field as 5-bit msb of extract.
+      uint16_t msb = rd_reg();
+      // Interpret sa field as 5-bit lsb of extract.
+      uint16_t lsb = sa();
+      uint16_t size = msb + 33;
+      uint64_t mask = (1ULL << size) - 1;
+      alu_out = static_cast<int64_t>((rs_u() & (mask << lsb)) >> lsb);
+      SetResult(rt_reg(), alu_out);
+      break;
+    }
+    case DEXTU: {
+      // Interpret rd field as 5-bit msb of extract.
+      uint16_t msb = rd_reg();
+      // Interpret sa field as 5-bit lsb of extract.
+      uint16_t lsb = sa() + 32;
+      uint16_t size = msb + 1;
+      uint64_t mask = (1ULL << size) - 1;
+      alu_out = static_cast<int64_t>((rs_u() & (mask << lsb)) >> lsb);
+      SetResult(rt_reg(), alu_out);
+      break;
+    }
     case BSHFL: {
       int32_t sa = get_instr()->SaFieldRaw() >> kSaShift;
       switch (sa) {

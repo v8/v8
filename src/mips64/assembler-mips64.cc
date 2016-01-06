@@ -2427,6 +2427,22 @@ void Assembler::dext_(Register rt, Register rs, uint16_t pos, uint16_t size) {
 }
 
 
+void Assembler::dextm(Register rt, Register rs, uint16_t pos, uint16_t size) {
+  // Should be called via MacroAssembler::Dextm.
+  // Dextm instr has 'rt' field as dest, and two uint5: msb, lsb.
+  DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
+  GenInstrRegister(SPECIAL3, rs, rt, size - 1 - 32, pos, DEXTM);
+}
+
+
+void Assembler::dextu(Register rt, Register rs, uint16_t pos, uint16_t size) {
+  // Should be called via MacroAssembler::Dextu.
+  // Dext instr has 'rt' field as dest, and two uint5: msb, lsb.
+  DCHECK(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
+  GenInstrRegister(SPECIAL3, rs, rt, size - 1, pos - 32, DEXTU);
+}
+
+
 void Assembler::bitswap(Register rd, Register rt) {
   DCHECK(kArchVariant == kMips64r6);
   GenInstrRegister(SPECIAL3, zero_reg, rt, rd, 0, BSHFL);

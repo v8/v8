@@ -1228,6 +1228,8 @@ Instruction::Type Instruction::InstructionType(TypeChecks checks) const {
         case INS:
         case EXT:
         case DEXT:
+        case DEXTM:
+        case DEXTU:
           return kRegisterType;
         case BSHFL: {
           int sa = SaFieldRaw() >> kSaShift;
