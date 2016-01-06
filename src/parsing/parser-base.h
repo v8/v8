@@ -739,7 +739,7 @@ class ParserBase : public Traits {
   ObjectLiteralPropertyT ParsePropertyDefinition(
       ObjectLiteralCheckerBase* checker, bool in_class, bool has_extends,
       bool is_static, bool* is_computed_name, bool* has_seen_constructor,
-      ExpressionClassifier* classifier, bool* ok);
+      ExpressionClassifier* classifier, IdentifierT* name, bool* ok);
   typename Traits::Type::ExpressionList ParseArguments(
       Scanner::Location* first_spread_pos, ExpressionClassifier* classifier,
       bool* ok);
@@ -1627,10 +1627,9 @@ typename ParserBase<Traits>::ObjectLiteralPropertyT
 ParserBase<Traits>::ParsePropertyDefinition(
     ObjectLiteralCheckerBase* checker, bool in_class, bool has_extends,
     bool is_static, bool* is_computed_name, bool* has_seen_constructor,
-    ExpressionClassifier* classifier, bool* ok) {
+    ExpressionClassifier* classifier, IdentifierT* name, bool* ok) {
   DCHECK(!in_class || is_static || has_seen_constructor != nullptr);
   ExpressionT value = this->EmptyExpression();
-  IdentifierT name = this->EmptyIdentifier();
   bool is_get = false;
   bool is_set = false;
   bool name_is_static = false;
@@ -1642,12 +1641,12 @@ ParserBase<Traits>::ParsePropertyDefinition(
   bool is_identifier = false;
   bool is_escaped_keyword = false;
   ExpressionT name_expression = ParsePropertyName(
-      &name, &is_get, &is_set, &name_is_static, is_computed_name,
-      &is_identifier, &is_escaped_keyword, classifier,
+      name, &is_get, &is_set, &name_is_static, is_computed_name, &is_identifier,
+      &is_escaped_keyword, classifier,
       CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
   if (fni_ != nullptr && !*is_computed_name) {
-    this->PushLiteralName(fni_, name);
+    this->PushLiteralName(fni_, *name);
   }
 
   bool escaped_static =
@@ -1700,7 +1699,7 @@ ParserBase<Traits>::ParsePropertyDefinition(
       }
 
       ExpressionT lhs = this->ExpressionFromIdentifier(
-          name, next_beg_pos, next_end_pos, scope_, factory());
+          *name, next_beg_pos, next_end_pos, scope_, factory());
       CheckDestructuringElement(lhs, classifier, next_beg_pos, next_end_pos);
 
       if (peek() == Token::ASSIGN) {
@@ -1749,7 +1748,7 @@ ParserBase<Traits>::ParsePropertyDefinition(
     FunctionKind kind = is_generator ? FunctionKind::kConciseGeneratorMethod
                                      : FunctionKind::kConciseMethod;
 
-    if (in_class && !is_static && this->IsConstructor(name)) {
+    if (in_class && !is_static && this->IsConstructor(*name)) {
       *has_seen_constructor = true;
       kind = has_extends ? FunctionKind::kSubclassConstructor
                          : FunctionKind::kBaseConstructor;
@@ -1758,7 +1757,7 @@ ParserBase<Traits>::ParsePropertyDefinition(
     if (!in_class) kind = WithObjectLiteralBit(kind);
 
     value = this->ParseFunctionLiteral(
-        name, scanner()->location(), kSkipFunctionNameCheck, kind,
+        *name, scanner()->location(), kSkipFunctionNameCheck, kind,
         RelocInfo::kNoPosition, FunctionLiteral::ANONYMOUS_EXPRESSION,
         FunctionLiteral::NORMAL_ARITY, language_mode(),
         CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
@@ -1771,20 +1770,22 @@ ParserBase<Traits>::ParsePropertyDefinition(
   if (in_class && name_is_static && !is_static) {
     // ClassElement (static)
     //    'static' MethodDefinition
+    *name = this->EmptyIdentifier();
     return ParsePropertyDefinition(checker, true, has_extends, true,
-                                   is_computed_name, nullptr, classifier, ok);
+                                   is_computed_name, nullptr, classifier, name,
+                                   ok);
   }
 
   if (is_get || is_set) {
     // MethodDefinition (Accessors)
     //    get PropertyName '(' ')' '{' FunctionBody '}'
     //    set PropertyName '(' PropertySetParameterList ')' '{' FunctionBody '}'
-    name = this->EmptyIdentifier();
+    *name = this->EmptyIdentifier();
     bool dont_care = false;
     name_token = peek();
 
     name_expression = ParsePropertyName(
-        &name, &dont_care, &dont_care, &dont_care, is_computed_name, &dont_care,
+        name, &dont_care, &dont_care, &dont_care, is_computed_name, &dont_care,
         &dont_care, classifier, CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
     if (!*is_computed_name) {
@@ -1796,7 +1797,7 @@ ParserBase<Traits>::ParsePropertyDefinition(
     FunctionKind kind = FunctionKind::kAccessorFunction;
     if (!in_class) kind = WithObjectLiteralBit(kind);
     typename Traits::Type::FunctionLiteral value = this->ParseFunctionLiteral(
-        name, scanner()->location(), kSkipFunctionNameCheck, kind,
+        *name, scanner()->location(), kSkipFunctionNameCheck, kind,
         RelocInfo::kNoPosition, FunctionLiteral::ANONYMOUS_EXPRESSION,
         is_get ? FunctionLiteral::GETTER_ARITY : FunctionLiteral::SETTER_ARITY,
         language_mode(), CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
@@ -1806,7 +1807,7 @@ ParserBase<Traits>::ParsePropertyDefinition(
     // statically we can skip the extra runtime check.
     if (!*is_computed_name) {
       name_expression =
-          factory()->NewStringLiteral(name, name_expression->position());
+          factory()->NewStringLiteral(*name, name_expression->position());
     }
 
     return factory()->NewObjectLiteralProperty(
@@ -1845,9 +1846,10 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseObjectLiteral(
     const bool is_static = false;
     const bool has_extends = false;
     bool is_computed_name = false;
+    IdentifierT name = this->EmptyIdentifier();
     ObjectLiteralPropertyT property = this->ParsePropertyDefinition(
         &checker, in_class, has_extends, is_static, &is_computed_name, NULL,
-        classifier, CHECK_OK);
+        classifier, &name, CHECK_OK);
 
     if (is_computed_name) {
       has_computed_names = true;
@@ -1871,6 +1873,10 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseObjectLiteral(
     }
 
     if (fni_ != nullptr) fni_->Infer();
+
+    if (allow_harmony_function_name()) {
+      Traits::SetFunctionNameFromPropertyName(property, name);
+    }
   }
   Expect(Token::RBRACE, CHECK_OK);
 

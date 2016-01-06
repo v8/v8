@@ -906,6 +906,9 @@ class ParserTraits {
   V8_INLINE void QueueDestructuringAssignmentForRewriting(
       Expression* assignment);
 
+  void SetFunctionNameFromPropertyName(ObjectLiteralProperty* property,
+                                       const AstRawString* name);
+
  private:
   Parser* parser_;
 };

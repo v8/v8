@@ -923,6 +923,9 @@ class PreParserTraits {
 
   inline void QueueDestructuringAssignmentForRewriting(PreParserExpression) {}
 
+  void SetFunctionNameFromPropertyName(PreParserExpression,
+                                       PreParserIdentifier) {}
+
  private:
   PreParser* pre_parser_;
 };

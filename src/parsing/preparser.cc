@@ -1233,10 +1233,11 @@ PreParserExpression PreParser::ParseClassLiteral(
     const bool is_static = false;
     bool is_computed_name = false;  // Classes do not care about computed
                                     // property names here.
+    Identifier name;
     ExpressionClassifier classifier;
     ParsePropertyDefinition(&checker, in_class, has_extends, is_static,
                             &is_computed_name, &has_seen_constructor,
-                            &classifier, CHECK_OK);
+                            &classifier, &name, CHECK_OK);
     ValidateExpression(&classifier, CHECK_OK);
   }
 

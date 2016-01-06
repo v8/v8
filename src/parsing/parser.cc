@@ -4927,9 +4927,10 @@ ClassLiteral* Parser::ParseClassLiteral(const AstRawString* name,
     bool is_computed_name = false;  // Classes do not care about computed
                                     // property names here.
     ExpressionClassifier classifier;
+    const AstRawString* name = nullptr;
     ObjectLiteral::Property* property = ParsePropertyDefinition(
         &checker, in_class, has_extends, is_static, &is_computed_name,
-        &has_seen_constructor, &classifier, CHECK_OK);
+        &has_seen_constructor, &classifier, &name, CHECK_OK);
     ValidateExpression(&classifier, CHECK_OK);
 
     if (has_seen_constructor && constructor == NULL) {
@@ -4940,6 +4941,10 @@ ClassLiteral* Parser::ParseClassLiteral(const AstRawString* name,
     }
 
     if (fni_ != NULL) fni_->Infer();
+
+    if (allow_harmony_function_name()) {
+      SetFunctionNameFromPropertyName(property, name);
+    }
   }
 
   Expect(Token::RBRACE, CHECK_OK);
@@ -6519,6 +6524,44 @@ void ParserTraits::QueueDestructuringAssignmentForRewriting(Expression* expr) {
   DCHECK(expr->IsRewritableAssignmentExpression());
   parser_->function_state_->AddDestructuringAssignment(
       Parser::DestructuringAssignment(expr, parser_->scope_));
+}
+
+
+void ParserTraits::SetFunctionNameFromPropertyName(
+    ObjectLiteralProperty* property, const AstRawString* name) {
+  Expression* value = property->value();
+  if (!value->IsFunctionLiteral() && !value->IsClassLiteral()) return;
+
+  // TODO(adamk): Support computed names.
+  if (property->is_computed_name()) return;
+  DCHECK_NOT_NULL(name);
+
+  // Ignore "__proto__" as a name when it's being used to set the [[Prototype]]
+  // of an object literal.
+  if (property->kind() == ObjectLiteralProperty::PROTOTYPE) return;
+
+  if (value->IsFunctionLiteral()) {
+    auto function = value->AsFunctionLiteral();
+    if (function->is_anonymous()) {
+      if (property->kind() == ObjectLiteralProperty::GETTER) {
+        function->set_raw_name(parser_->ast_value_factory()->NewConsString(
+            parser_->ast_value_factory()->get_space_string(), name));
+      } else if (property->kind() == ObjectLiteralProperty::SETTER) {
+        function->set_raw_name(parser_->ast_value_factory()->NewConsString(
+            parser_->ast_value_factory()->set_space_string(), name));
+      } else {
+        function->set_raw_name(name);
+        DCHECK_EQ(ObjectLiteralProperty::COMPUTED, property->kind());
+      }
+    }
+  } else {
+    DCHECK(value->IsClassLiteral());
+    DCHECK_EQ(ObjectLiteralProperty::COMPUTED, property->kind());
+    auto class_literal = value->AsClassLiteral();
+    if (class_literal->raw_name() == nullptr) {
+      class_literal->set_raw_name(name);
+    }
+  }
 }
 
 
