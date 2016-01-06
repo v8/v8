@@ -274,16 +274,16 @@ function PromiseRejected(r) {
 // Multi-unwrapped chaining with thenable coercion.
 
 function PromiseThen(onResolve, onReject) {
+  var status = GET_PRIVATE(this, promiseStatusSymbol);
+  if (IS_UNDEFINED(status)) {
+    throw MakeTypeError(kNotAPromise, this);
+  }
+
   var constructor = this.constructor;
   onResolve = IS_CALLABLE(onResolve) ? onResolve : PromiseIdResolveHandler;
   onReject = IS_CALLABLE(onReject) ? onReject : PromiseIdRejectHandler;
   var deferred = NewPromiseCapability(constructor);
-  switch (GET_PRIVATE(this, promiseStatusSymbol)) {
-    case UNDEFINED:
-      // TODO(littledan): The type check should be called before
-      // constructing NewPromiseCapability; this is observable when
-      // erroneously copying this method to other classes.
-      throw MakeTypeError(kNotAPromise, this);
+  switch (status) {
     case 0:  // Pending
       GET_PRIVATE(this, promiseOnResolveSymbol).push(onResolve, deferred);
       GET_PRIVATE(this, promiseOnRejectSymbol).push(onReject, deferred);

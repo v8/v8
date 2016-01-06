@@ -415,7 +415,6 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4633
   'built-ins/Promise/prototype/then/deferred-is-resolved-value': [SKIP],
-  'built-ins/Promise/prototype/then/context-check-on-entry': [FAIL],
   'built-ins/Promise/exception-after-resolve-in-executor': [FAIL],
   'built-ins/Promise/reject-function-name': [FAIL],
   'built-ins/Promise/reject-function-nonconstructor': [FAIL],
