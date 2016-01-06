@@ -606,16 +606,6 @@
   'js1_5/Regress/regress-290575': [PASS, FAIL_OK],
 
 
-  # Fails because of the way function declarations are
-  # handled in V8/JSC. V8 follows IE behavior and introduce
-  # all nested function declarations when entering the
-  # surrounding function, whereas Spidermonkey declares
-  # them dynamically when the statement is executed.
-  'ecma_3/Function/scope-001': [FAIL_OK],
-  'ecma_3/FunExpr/fe-001': [FAIL_OK],
-  'js1_5/Scope/regress-184107': [FAIL_OK],
-
-
   # Function is deletable in V8 and JSC.
   'js1_5/Regress/regress-352604': [FAIL_OK],
 
@@ -672,6 +662,9 @@
   # Bug 762: http://code.google.com/p/v8/issues/detail?id=762
   # We do not correctly handle assignments within "with"
   'ecma_3/Statements/12.10-01': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4647
+  'ecma_3/FunExpr/fe-001': [FAIL_OK],
 
   ##################### MOZILLA EXTENSION TESTS #####################
 
