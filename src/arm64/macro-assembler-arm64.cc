@@ -1343,6 +1343,8 @@ void MacroAssembler::AssertStackConsistency() {
 
       // Avoid generating AssertStackConsistency checks for the Push in Abort.
       { DontEmitDebugCodeScope dont_emit_debug_code_scope(this);
+        // Restore StackPointer().
+        sub(StackPointer(), csp, StackPointer());
         Abort(kTheCurrentStackPointerIsBelowCsp);
       }
 
