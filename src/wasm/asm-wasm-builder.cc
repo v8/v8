@@ -92,18 +92,34 @@ class AsmWasmBuilderImpl : public AstVisitor {
       }
     }
     DCHECK(in_function_);
-    breakable_blocks_.push_back(
-        std::make_pair(stmt->AsBreakableStatement(), false));
-    current_function_builder_->Emit(kExprBlock);
-    uint32_t index = current_function_builder_->EmitEditableImmediate(0);
-    int prev_block_size = block_size_;
+    BlockVisitor visitor(this, stmt->AsBreakableStatement(), kExprBlock, false);
     block_size_ = static_cast<byte>(stmt->statements()->length());
     RECURSE(VisitStatements(stmt->statements()));
     DCHECK(block_size_ >= 0);
-    current_function_builder_->EditImmediate(index, block_size_);
-    block_size_ = prev_block_size;
-    breakable_blocks_.pop_back();
   }
+
+  class BlockVisitor {
+   private:
+    int prev_block_size_;
+    uint32_t index_;
+    AsmWasmBuilderImpl* builder_;
+
+   public:
+    BlockVisitor(AsmWasmBuilderImpl* builder, BreakableStatement* stmt,
+                 WasmOpcode opcode, bool is_loop)
+        : builder_(builder) {
+      builder_->breakable_blocks_.push_back(std::make_pair(stmt, is_loop));
+      builder_->current_function_builder_->Emit(opcode);
+      index_ = builder_->current_function_builder_->EmitEditableImmediate(0);
+      prev_block_size_ = builder_->block_size_;
+    }
+    ~BlockVisitor() {
+      builder_->current_function_builder_->EditImmediate(index_,
+                                                         builder_->block_size_);
+      builder_->block_size_ = prev_block_size_;
+      builder_->breakable_blocks_.pop_back();
+    }
+  };
 
   void VisitExpressionStatement(ExpressionStatement* stmt) {
     RECURSE(Visit(stmt->expression()));
@@ -207,34 +223,23 @@ class AsmWasmBuilderImpl : public AstVisitor {
 
   void VisitDoWhileStatement(DoWhileStatement* stmt) {
     DCHECK(in_function_);
-    current_function_builder_->Emit(kExprLoop);
-    uint32_t index = current_function_builder_->EmitEditableImmediate(0);
-    int prev_block_size = block_size_;
-    block_size_ = 0;
-    breakable_blocks_.push_back(
-        std::make_pair(stmt->AsBreakableStatement(), true));
-    block_size_++;
+    BlockVisitor visitor(this, stmt->AsBreakableStatement(), kExprLoop, true);
+    block_size_ = 2;
     RECURSE(Visit(stmt->body()));
-    block_size_++;
     current_function_builder_->Emit(kExprIf);
     RECURSE(Visit(stmt->cond()));
     current_function_builder_->EmitWithU8(kExprBr, 0);
     current_function_builder_->Emit(kExprNop);
-    current_function_builder_->EditImmediate(index, block_size_);
-    block_size_ = prev_block_size;
-    breakable_blocks_.pop_back();
   }
 
   void VisitWhileStatement(WhileStatement* stmt) {
     DCHECK(in_function_);
-    current_function_builder_->EmitWithU8(kExprLoop, 1);
-    breakable_blocks_.push_back(
-        std::make_pair(stmt->AsBreakableStatement(), true));
+    BlockVisitor visitor(this, stmt->AsBreakableStatement(), kExprLoop, true);
+    block_size_ = 1;
     current_function_builder_->Emit(kExprIf);
     RECURSE(Visit(stmt->cond()));
     current_function_builder_->EmitWithU8(kExprBr, 0);
     RECURSE(Visit(stmt->body()));
-    breakable_blocks_.pop_back();
   }
 
   void VisitForStatement(ForStatement* stmt) {
@@ -243,12 +248,8 @@ class AsmWasmBuilderImpl : public AstVisitor {
       block_size_++;
       RECURSE(Visit(stmt->init()));
     }
-    current_function_builder_->Emit(kExprLoop);
-    uint32_t index = current_function_builder_->EmitEditableImmediate(0);
-    int prev_block_size = block_size_;
+    BlockVisitor visitor(this, stmt->AsBreakableStatement(), kExprLoop, true);
     block_size_ = 0;
-    breakable_blocks_.push_back(
-        std::make_pair(stmt->AsBreakableStatement(), true));
     if (stmt->cond() != NULL) {
       block_size_++;
       current_function_builder_->Emit(kExprIf);
@@ -268,9 +269,6 @@ class AsmWasmBuilderImpl : public AstVisitor {
     block_size_++;
     current_function_builder_->EmitWithU8(kExprBr, 0);
     current_function_builder_->Emit(kExprNop);
-    current_function_builder_->EditImmediate(index, block_size_);
-    block_size_ = prev_block_size;
-    breakable_blocks_.pop_back();
   }
 
   void VisitForInStatement(ForInStatement* stmt) { UNREACHABLE(); }
