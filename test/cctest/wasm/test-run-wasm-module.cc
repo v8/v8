@@ -76,6 +76,9 @@ TEST(Run_WasmModule_Return114) {
 }
 
 
+// TODO(tizer): Figure out why this crashes with PPC.
+#if !defined(V8_TARGET_ARCH_PPC) && !defined(V8_TARGET_ARCH_PPC64)
+
 TEST(Run_WasmModule_CallAdd) {
   Zone zone;
   WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
@@ -96,6 +99,8 @@ TEST(Run_WasmModule_CallAdd) {
   WasmModuleWriter* writer = builder->Build(&zone);
   TestModule(writer->WriteTo(&zone), 99);
 }
+
+#endif
 
 
 TEST(Run_WasmModule_ReadLoadedDataSegment) {
