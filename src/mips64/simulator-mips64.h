@@ -392,6 +392,18 @@ class Simulator {
   // Used for breakpoints and traps.
   void SoftwareInterrupt(Instruction* instr);
 
+  // Compact branch guard.
+  void CheckForbiddenSlot(int64_t current_pc) {
+    Instruction* instr_after_compact_branch =
+        reinterpret_cast<Instruction*>(current_pc + Instruction::kInstrSize);
+    if (instr_after_compact_branch->IsForbiddenAfterBranch()) {
+      V8_Fatal(__FILE__, __LINE__,
+               "Error: Unexpected instruction 0x%08x immediately after a "
+               "compact branch instruction.",
+               *reinterpret_cast<uint32_t*>(instr_after_compact_branch));
+    }
+  }
+
   // Stop helper functions.
   bool IsWatchpoint(uint64_t code);
   void PrintWatchpoint(uint64_t code);
@@ -414,7 +426,7 @@ class Simulator {
       return;
     }
 
-    if (instr->IsForbiddenInBranchDelay()) {
+    if (instr->IsForbiddenAfterBranch()) {
       V8_Fatal(__FILE__, __LINE__,
                "Eror:Unexpected %i opcode in a branch delay slot.",
                instr->OpcodeValue());

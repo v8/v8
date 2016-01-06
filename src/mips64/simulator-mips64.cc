@@ -146,7 +146,7 @@ void MipsDebugger::Stop(Instruction* instr) {
 
 #else  // GENERATED_CODE_COVERAGE
 
-#define UNSUPPORTED() printf("Unsupported instruction.\n");
+#define UNSUPPORTED() printf("Sim: Unsupported instruction.\n");
 
 static void InitializeCoverage() {}
 
@@ -4073,27 +4073,7 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
 }
 
 
-// Branch instructions common part.
-#define BranchAndLinkHelper(do_branch)                             \
-  execute_branch_delay_instruction = true;                         \
-  if (do_branch) {                                                 \
-    next_pc = current_pc + (imm16 << 2) + Instruction::kInstrSize; \
-    set_register(31, current_pc + kBranchReturnOffset);            \
-  } else {                                                         \
-    next_pc = current_pc + kBranchReturnOffset;                    \
-  }
-
-
-#define BranchHelper(do_branch)                                    \
-  execute_branch_delay_instruction = true;                         \
-  if (do_branch) {                                                 \
-    next_pc = current_pc + (imm16 << 2) + Instruction::kInstrSize; \
-  } else {                                                         \
-    next_pc = current_pc + kBranchReturnOffset;                    \
-  }
-
-
-// Type 2: instructions using a 16 bytes immediate. (e.g. addi, beq).
+// Type 2: instructions using a 16, 21 or 26 bits immediate. (e.g. beq, beqc).
 void Simulator::DecodeTypeImmediate(Instruction* instr) {
   // Instruction fields.
   Opcode op = instr->OpcodeFieldRaw();
@@ -4104,21 +4084,15 @@ void Simulator::DecodeTypeImmediate(Instruction* instr) {
   int64_t rt = get_register(rt_reg);
   int16_t imm16 = instr->Imm16Value();
   int32_t imm18 = instr->Imm18Value();
-  int32_t imm21 = instr->Imm21Value();
-  int32_t imm26 = instr->Imm26Value();
 
   int32_t ft_reg = instr->FtValue();  // Destination register.
-  int64_t ft = get_fpu_register(ft_reg);
 
   // Zero extended immediate.
   uint64_t oe_imm16 = 0xffff & imm16;
   // Sign extended immediate.
   int64_t se_imm16 = imm16;
   int64_t se_imm18 = imm18 | ((imm18 & 0x20000) ? 0xfffffffffffc0000 : 0);
-  int64_t se_imm26 = imm26 | ((imm26 & 0x2000000) ? 0xfffffffffc000000 : 0);
 
-  // Get current pc.
-  int64_t current_pc = get_pc();
   // Next pc.
   int64_t next_pc = bad_ra;
 
@@ -4133,7 +4107,57 @@ void Simulator::DecodeTypeImmediate(Instruction* instr) {
   // Alignment for 32-bit integers used in LWL, LWR, etc.
   const int kInt32AlignmentMask = sizeof(uint32_t) - 1;
 
-  // ---------- Configuration (and execution for REGIMM).
+  // Branch instructions common part.
+  auto BranchAndLinkHelper = [this, instr, &next_pc,
+                              &execute_branch_delay_instruction](
+      bool do_branch) {
+    execute_branch_delay_instruction = true;
+    int64_t current_pc = get_pc();
+    if (do_branch) {
+      int16_t imm16 = instr->Imm16Value();
+      next_pc = current_pc + (imm16 << 2) + Instruction::kInstrSize;
+      set_register(31, current_pc + 2 * Instruction::kInstrSize);
+    } else {
+      next_pc = current_pc + 2 * Instruction::kInstrSize;
+    }
+  };
+
+  auto BranchHelper = [this, instr, &next_pc,
+                       &execute_branch_delay_instruction](bool do_branch) {
+    execute_branch_delay_instruction = true;
+    int64_t current_pc = get_pc();
+    if (do_branch) {
+      int16_t imm16 = instr->Imm16Value();
+      next_pc = current_pc + (imm16 << 2) + Instruction::kInstrSize;
+    } else {
+      next_pc = current_pc + 2 * Instruction::kInstrSize;
+    }
+  };
+
+  auto BranchAndLinkCompactHelper = [this, instr, &next_pc](bool do_branch,
+                                                            int bits) {
+    int64_t current_pc = get_pc();
+    CheckForbiddenSlot(current_pc);
+    if (do_branch) {
+      int32_t imm = instr->ImmValue(bits);
+      imm <<= 32 - bits;
+      imm >>= 32 - bits;
+      next_pc = current_pc + (imm << 2) + Instruction::kInstrSize;
+      set_register(31, current_pc + Instruction::kInstrSize);
+    }
+  };
+
+  auto BranchCompactHelper = [&next_pc, this, instr](bool do_branch, int bits) {
+    int64_t current_pc = get_pc();
+    CheckForbiddenSlot(current_pc);
+    if (do_branch) {
+      int32_t imm = instr->ImmValue(bits);
+      imm <<= 32 - bits;
+      imm >>= 32 - bits;
+      next_pc = get_pc() + (imm << 2) + Instruction::kInstrSize;
+    }
+  };
+
   switch (op) {
     // ------------- COP1. Coprocessor instructions.
     case COP1:
@@ -4143,32 +4167,14 @@ void Simulator::DecodeTypeImmediate(Instruction* instr) {
           uint32_t fcsr_cc = get_fcsr_condition_bit(cc);
           uint32_t cc_value = test_fcsr_bit(fcsr_cc);
           bool do_branch = (instr->FBtrueValue()) ? cc_value : !cc_value;
-          execute_branch_delay_instruction = true;
-          // Set next_pc.
-          if (do_branch) {
-            next_pc = current_pc + (imm16 << 2) + Instruction::kInstrSize;
-          } else {
-            next_pc = current_pc + kBranchReturnOffset;
-          }
+          BranchHelper(do_branch);
           break;
         }
         case BC1EQZ:
-          execute_branch_delay_instruction = true;
-          // Set next_pc.
-          if (!(ft & 0x1)) {
-            next_pc = current_pc + (imm16 << 2) + Instruction::kInstrSize;
-          } else {
-            next_pc = current_pc + kBranchReturnOffset;
-          }
+          BranchHelper(!(get_fpu_register(ft_reg) & 0x1));
           break;
         case BC1NEZ:
-          execute_branch_delay_instruction = true;
-          // Set next_pc.
-          if (ft & 0x1) {
-            next_pc = current_pc + (imm16 << 2) + Instruction::kInstrSize;
-          } else {
-            next_pc = current_pc + kBranchReturnOffset;
-          }
+          BranchHelper(get_fpu_register(ft_reg) & 0x1);
           break;
         default:
           UNREACHABLE();
@@ -4208,55 +4214,156 @@ void Simulator::DecodeTypeImmediate(Instruction* instr) {
     case BNE:
       BranchHelper(rs != rt);
       break;
-    case BLEZ:
-      BranchHelper(rs <= 0);
+    case POP06:  // BLEZALC, BGEZALC, BGEUC, BLEZ (pre-r6)
+      if (kArchVariant == kMips64r6) {
+        if (rt_reg != 0) {
+          if (rs_reg == 0) {  // BLEZALC
+            BranchAndLinkCompactHelper(rt <= 0, 16);
+          } else {
+            if (rs_reg == rt_reg) {  // BGEZALC
+              BranchAndLinkCompactHelper(rt >= 0, 16);
+            } else {  // BGEUC
+              BranchCompactHelper(
+                  static_cast<uint64_t>(rs) >= static_cast<uint64_t>(rt), 16);
+            }
+          }
+        } else {  // BLEZ
+          BranchHelper(rs <= 0);
+        }
+      } else {  // BLEZ
+        BranchHelper(rs <= 0);
+      }
       break;
-    case BGTZ:
-      BranchHelper(rs > 0);
+    case POP07:  // BGTZALC, BLTZALC, BLTUC, BGTZ (pre-r6)
+      if (kArchVariant == kMips64r6) {
+        if (rt_reg != 0) {
+          if (rs_reg == 0) {  // BGTZALC
+            BranchAndLinkCompactHelper(rt > 0, 16);
+          } else {
+            if (rt_reg == rs_reg) {  // BLTZALC
+              BranchAndLinkCompactHelper(rt < 0, 16);
+            } else {  // BLTUC
+              BranchCompactHelper(
+                  static_cast<uint64_t>(rs) < static_cast<uint64_t>(rt), 16);
+            }
+          }
+        } else {  // BGTZ
+          BranchHelper(rs > 0);
+        }
+      } else {  // BGTZ
+        BranchHelper(rs > 0);
+      }
       break;
-    case POP66: {
-      if (rs_reg) {  // BEQZC
-        int32_t se_imm21 =
-            static_cast<int32_t>(imm21 << (kOpcodeBits + kRsBits));
-        se_imm21 = se_imm21 >> (kOpcodeBits + kRsBits);
-        if (rs == 0)
-          next_pc = current_pc + 4 + (se_imm21 << 2);
-        else
-          next_pc = current_pc + 4;
+    case POP26:  // BLEZC, BGEZC, BGEC/BLEC / BLEZL (pre-r6)
+      if (kArchVariant == kMips64r6) {
+        if (rt_reg != 0) {
+          if (rs_reg == 0) {  // BLEZC
+            BranchCompactHelper(rt <= 0, 16);
+          } else {
+            if (rs_reg == rt_reg) {  // BGEZC
+              BranchCompactHelper(rt >= 0, 16);
+            } else {  // BGEC/BLEC
+              BranchCompactHelper(rs >= rt, 16);
+            }
+          }
+        }
+      } else {  // BLEZL
+        BranchAndLinkHelper(rs <= 0);
+      }
+      break;
+    case POP27:  // BGTZC, BLTZC, BLTC/BGTC / BGTZL (pre-r6)
+      if (kArchVariant == kMips64r6) {
+        if (rt_reg != 0) {
+          if (rs_reg == 0) {  // BGTZC
+            BranchCompactHelper(rt > 0, 16);
+          } else {
+            if (rs_reg == rt_reg) {  // BLTZC
+              BranchCompactHelper(rt < 0, 16);
+            } else {  // BLTC/BGTC
+              BranchCompactHelper(rs < rt, 16);
+            }
+          }
+        }
+      } else {  // BGTZL
+        BranchAndLinkHelper(rs > 0);
+      }
+      break;
+    case POP66:           // BEQZC, JIC
+      if (rs_reg != 0) {  // BEQZC
+        BranchCompactHelper(rs == 0, 21);
       } else {  // JIC
         next_pc = rt + imm16;
       }
       break;
-    }
-    case BC: {
-      next_pc = current_pc + 4 + (se_imm26 << 2);
-      set_pc(next_pc);
-      pc_modified_ = true;
+    case POP76:           // BNEZC, JIALC
+      if (rs_reg != 0) {  // BNEZC
+        BranchCompactHelper(rs != 0, 21);
+      } else {  // JIALC
+        int64_t current_pc = get_pc();
+        set_register(31, current_pc + Instruction::kInstrSize);
+        next_pc = rt + imm16;
+      }
       break;
-    }
-    case BALC: {
-      set_register(31, current_pc + 4);
-      next_pc = current_pc + 4 + (se_imm26 << 2);
-      set_pc(next_pc);
-      pc_modified_ = true;
+    case BC:
+      BranchCompactHelper(true, 26);
       break;
-    }
-    // ------------- Arithmetic instructions.
-    case ADDI:
-    case DADDI:
-      if (HaveSameSign(rs, se_imm16)) {
-        if (rs > 0) {
-          if (rs > Registers::kMaxValue - se_imm16) {
-            SignalException(kIntegerOverflow);
+    case BALC:
+      BranchAndLinkCompactHelper(true, 26);
+      break;
+    case POP10:  // BOVC, BEQZALC, BEQC / ADDI (pre-r6)
+      if (kArchVariant == kMips64r6) {
+        if (rs_reg >= rt_reg) {  // BOVC
+          if (HaveSameSign(rs, rt)) {
+            if (rs > 0) {
+              BranchCompactHelper(rs > Registers::kMaxValue - rt, 16);
+            } else if (rs < 0) {
+              BranchCompactHelper(rs < Registers::kMinValue - rt, 16);
+            }
           }
-        } else if (rs < 0) {
-          if (rs < Registers::kMinValue - se_imm16) {
-            SignalException(kIntegerUnderflow);
+        } else {
+          if (rs_reg == 0) {  // BEQZALC
+            BranchAndLinkCompactHelper(rt == 0, 16);
+          } else {  // BEQC
+            BranchCompactHelper(rt == rs, 16);
+          }
+        }
+      } else {  // ADDI
+        if (HaveSameSign(rs, se_imm16)) {
+          if (rs > 0) {
+            if (rs <= Registers::kMaxValue - se_imm16) {
+              SignalException(kIntegerOverflow);
+            }
+          } else if (rs < 0) {
+            if (rs >= Registers::kMinValue - se_imm16) {
+              SignalException(kIntegerUnderflow);
+            }
+          }
+        }
+        SetResult(rt_reg, rs + se_imm16);
+      }
+      break;
+    case POP30:  // BNVC, BNEZALC, BNEC / DADDI (pre-r6)
+      if (kArchVariant == kMips64r6) {
+        if (rs_reg >= rt_reg) {  // BNVC
+          if (!HaveSameSign(rs, rt) || rs == 0 || rt == 0) {
+            BranchCompactHelper(true, 16);
+          } else {
+            if (rs > 0) {
+              BranchCompactHelper(rs <= Registers::kMaxValue - rt, 16);
+            } else if (rs < 0) {
+              BranchCompactHelper(rs >= Registers::kMinValue - rt, 16);
+            }
+          }
+        } else {
+          if (rs_reg == 0) {  // BNEZALC
+            BranchAndLinkCompactHelper(rt != 0, 16);
+          } else {  // BNEC
+            BranchCompactHelper(rt != rs, 16);
           }
         }
       }
-      SetResult(rt_reg, rs + se_imm16);
       break;
+    // ------------- Arithmetic instructions.
     case ADDIU: {
       int32_t alu32_out = static_cast<int32_t>(rs + se_imm16);
       // Sign-extend result of 32bit operation into 64bit register.
@@ -4391,22 +4498,11 @@ void Simulator::DecodeTypeImmediate(Instruction* instr) {
     case SDC1:
       WriteD(rs + se_imm16, get_fpu_register_double(ft_reg), instr);
       break;
-    // ------------- JIALC and BNEZC instructions.
-    case POP76: {
-      // Next pc.
-      next_pc = rt + se_imm16;
-      // The instruction after the jump is NOT executed.
-      uint16_t pc_increment = Instruction::kInstrSize;
-      if (instr->IsLinkingInstruction()) {
-        set_register(31, current_pc + pc_increment);
-      }
-      set_pc(next_pc);
-      pc_modified_ = true;
-      break;
-    }
     // ------------- PC-Relative instructions.
     case PCREL: {
       // rt field: checking 5-bits.
+      int32_t imm21 = instr->Imm21Value();
+      int64_t current_pc = get_pc();
       uint8_t rt = (imm21 >> kImm16Bits);
       switch (rt) {
         case ALUIPC:
@@ -4476,7 +4572,7 @@ void Simulator::DecodeTypeImmediate(Instruction* instr) {
     // We don't check for end_sim_pc. First it should not be met as the current
     // pc is valid. Secondly a jump should always execute its branch delay slot.
     Instruction* branch_delay_instr =
-      reinterpret_cast<Instruction*>(current_pc+Instruction::kInstrSize);
+        reinterpret_cast<Instruction*>(get_pc() + Instruction::kInstrSize);
     BranchDelayInstructionDecode(branch_delay_instr);
   }
 
@@ -4485,9 +4581,6 @@ void Simulator::DecodeTypeImmediate(Instruction* instr) {
     set_pc(next_pc);
   }
 }
-
-#undef BranchHelper
-#undef BranchAndLinkHelper
 
 
 // Type 3: instructions using a 26 bytes immediate. (e.g. j, jal).
@@ -4579,7 +4672,7 @@ void Simulator::Execute() {
     while (program_counter != end_sim_pc) {
       Instruction* instr = reinterpret_cast<Instruction*>(program_counter);
       icount_++;
-      if (icount_ == static_cast<int64_t>(::v8::internal::FLAG_stop_sim_at)) {
+      if (icount_ == static_cast<uint64_t>(::v8::internal::FLAG_stop_sim_at)) {
         MipsDebugger dbg(this);
         dbg.Debug();
       } else {

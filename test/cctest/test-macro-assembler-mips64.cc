@@ -240,9 +240,6 @@ TEST(jump_tables4) {
 
   __ daddiu(sp, sp, -8);
   __ sd(ra, MemOperand(sp));
-  if ((masm->pc_offset() & 7) == 0) {
-    __ nop();
-  }
 
   __ mov(v0, zero_reg);
 
@@ -255,6 +252,7 @@ TEST(jump_tables4) {
     __ addiu(v0, v0, 1);
   }
 
+  __ Align(8);
   Label done;
   {
     __ BlockTrampolinePoolFor(kNumCases * 2 + 6);

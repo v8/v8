@@ -92,7 +92,7 @@ class Decoder {
   void PrintXImm19(Instruction* instr);
   void PrintSImm19(Instruction* instr);
   void PrintXImm21(Instruction* instr);
-
+  void PrintSImm21(Instruction* instr);
   void PrintPCImm21(Instruction* instr, int delta_pc, int n_bits);
   void PrintXImm26(Instruction* instr);
   void PrintSImm26(Instruction* instr);
@@ -342,6 +342,16 @@ void Decoder::PrintSImm19(Instruction* instr) {
 void Decoder::PrintXImm21(Instruction* instr) {
   uint32_t imm = instr->Imm21Value();
   out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "0x%x", imm);
+}
+
+
+// Print 21-bit signed immediate value.
+void Decoder::PrintSImm21(Instruction* instr) {
+  int32_t imm21 = instr->Imm21Value();
+  // set sign
+  imm21 <<= (32 - kImm21Bits);
+  imm21 >>= (32 - kImm21Bits);
+  out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "%d", imm21);
 }
 
 
@@ -622,6 +632,10 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
       } else if (format[3] == '2' && format[4] == '1') {
         DCHECK(STRING_STARTS_WITH(format, "imm21"));
         switch (format[5]) {
+          case 's':
+            DCHECK(STRING_STARTS_WITH(format, "imm21s"));
+            PrintSImm21(instr);
+            break;
           case 'x':
             DCHECK(STRING_STARTS_WITH(format, "imm21x"));
             PrintXImm21(instr);
@@ -1625,12 +1639,12 @@ void Decoder::DecodeTypeImmediate(Instruction* instr) {
         Format(instr, "blez    'rs, 'imm16u -> 'imm16p4s2");
       } else if ((instr->RtValue() != instr->RsValue()) &&
                  (instr->RsValue() != 0) && (instr->RtValue() != 0)) {
-        Format(instr, "bgeuc    'rs, 'rt, 'imm16u -> 'imm16p4s2");
+        Format(instr, "bgeuc   'rs, 'rt, 'imm16u -> 'imm16p4s2");
       } else if ((instr->RtValue() == instr->RsValue()) &&
                  (instr->RtValue() != 0)) {
-        Format(instr, "bgezalc  'rs, 'imm16u -> 'imm16p4s2");
+        Format(instr, "bgezalc 'rs, 'imm16u -> 'imm16p4s2");
       } else if ((instr->RsValue() == 0) && (instr->RtValue() != 0)) {
-        Format(instr, "blezalc  'rt, 'imm16u -> 'imm16p4s2");
+        Format(instr, "blezalc 'rt, 'imm16u -> 'imm16p4s2");
       } else {
         UNREACHABLE();
       }
@@ -1667,7 +1681,7 @@ void Decoder::DecodeTypeImmediate(Instruction* instr) {
         Format(instr, "bltzc    'rt, 'imm16u -> 'imm16p4s2");
       } else if ((instr->RtValue() != instr->RsValue()) &&
                  (instr->RsValue() != 0) && (instr->RtValue() != 0)) {
-        Format(instr, "bltc     'rs, 'rt, 'imm16u -> 'imm16p4s2");
+        Format(instr, "bltc    'rs, 'rt, 'imm16u -> 'imm16p4s2");
       } else if ((instr->RsValue() == 0) && (instr->RtValue() != 0)) {
         Format(instr, "bgtzc    'rt, 'imm16u -> 'imm16p4s2");
       } else {
@@ -1678,14 +1692,14 @@ void Decoder::DecodeTypeImmediate(Instruction* instr) {
       if (instr->RsValue() == JIC) {
         Format(instr, "jic     'rt, 'imm16s");
       } else {
-        Format(instr, "beqzc   'rs, 'imm21x -> 'imm21p4s2");
+        Format(instr, "beqzc   'rs, 'imm21s -> 'imm21p4s2");
       }
       break;
     case POP76:
       if (instr->RsValue() == JIALC) {
-        Format(instr, "jialc   'rt, 'imm16x");
+        Format(instr, "jialc   'rt, 'imm16s");
       } else {
-        Format(instr, "bnezc   'rs, 'imm21x -> 'imm21p4s2");
+        Format(instr, "bnezc   'rs, 'imm21s -> 'imm21p4s2");
       }
       break;
     // ------------- Arithmetic instructions.
@@ -1693,13 +1707,18 @@ void Decoder::DecodeTypeImmediate(Instruction* instr) {
       if (kArchVariant != kMips64r6) {
         Format(instr, "addi    'rt, 'rs, 'imm16s");
       } else {
-        // Check if BOVC or BEQC instruction.
-        if (instr->RsValue() >= instr->RtValue()) {
+        int rs_reg = instr->RsValue();
+        int rt_reg = instr->RtValue();
+        // Check if BOVC, BEQZALC or BEQC instruction.
+        if (rs_reg >= rt_reg) {
           Format(instr, "bovc  'rs, 'rt, 'imm16s -> 'imm16p4s2");
-        } else if (instr->RsValue() < instr->RtValue()) {
-          Format(instr, "beqc  'rs, 'rt, 'imm16s -> 'imm16p4s2");
         } else {
-          UNREACHABLE();
+          DCHECK(rt_reg > 0);
+          if (rs_reg == 0) {
+            Format(instr, "beqzalc 'rt, 'imm16s -> 'imm16p4s2");
+          } else {
+            Format(instr, "beqc    'rs, 'rt, 'imm16s -> 'imm16p4s2");
+          }
         }
       }
       break;
@@ -1707,13 +1726,18 @@ void Decoder::DecodeTypeImmediate(Instruction* instr) {
       if (kArchVariant != kMips64r6) {
         Format(instr, "daddi   'rt, 'rs, 'imm16s");
       } else {
-        // Check if BNVC or BNEC instruction.
-        if (instr->RsValue() >= instr->RtValue()) {
+        int rs_reg = instr->RsValue();
+        int rt_reg = instr->RtValue();
+        // Check if BNVC, BNEZALC or BNEC instruction.
+        if (rs_reg >= rt_reg) {
           Format(instr, "bnvc  'rs, 'rt, 'imm16s -> 'imm16p4s2");
-        } else if (instr->RsValue() < instr->RtValue()) {
-          Format(instr, "bnec  'rs, 'rt, 'imm16s -> 'imm16p4s2");
         } else {
-          UNREACHABLE();
+          DCHECK(rt_reg > 0);
+          if (rs_reg == 0) {
+            Format(instr, "bnezalc 'rt, 'imm16s -> 'imm16p4s2");
+          } else {
+            Format(instr, "bnec  'rs, 'rt, 'imm16s -> 'imm16p4s2");
+          }
         }
       }
       break;

@@ -1646,9 +1646,7 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   __ Branch(GetLabel(i.InputRpo(1)), hs, input, Operand(case_count));
   __ BlockTrampolinePoolFor(static_cast<int>(case_count) * 2 + 7);
   // Ensure that dd-ed labels use 8 byte aligned addresses.
-  if ((masm()->pc_offset() & 7) != 0) {
-    __ nop();
-  }
+  __ Align(8);
   __ bal(&here);
   __ dsll(at, input, 3);  // Branch delay slot.
   __ bind(&here);

@@ -188,9 +188,9 @@ class MacroAssembler: public Assembler {
     Name(target, COND_ARGS, bd); \
   }
 
-#define DECLARE_BRANCH_PROTOTYPES(Name) \
+#define DECLARE_BRANCH_PROTOTYPES(Name)   \
   DECLARE_NORELOC_PROTOTYPE(Name, Label*) \
-  DECLARE_NORELOC_PROTOTYPE(Name, int16_t)
+  DECLARE_NORELOC_PROTOTYPE(Name, int32_t)
 
   DECLARE_BRANCH_PROTOTYPES(Branch)
   DECLARE_BRANCH_PROTOTYPES(BranchAndLink)
@@ -226,6 +226,8 @@ class MacroAssembler: public Assembler {
     Register rs = zero_reg, const Operand& rt = Operand(zero_reg)) {
     Ret(cond, rs, rt, bd);
   }
+
+  bool IsNear(Label* L, Condition cond, int rs_reg);
 
   void Branch(Label* L,
               Condition cond,
@@ -1772,16 +1774,32 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
                            int num_reg_arguments,
                            int num_double_arguments);
 
-  void BranchAndLinkShort(int16_t offset, BranchDelaySlot bdslot = PROTECT);
-  void BranchAndLinkShort(int16_t offset, Condition cond, Register rs,
-                          const Operand& rt,
-                          BranchDelaySlot bdslot = PROTECT);
+  inline Register GetRtAsRegisterHelper(const Operand& rt, Register scratch);
+  inline int32_t GetOffset(int32_t offset, Label* L, OffsetSize bits);
+  void BranchShortHelperR6(int32_t offset, Label* L);
+  void BranchShortHelper(int16_t offset, Label* L, BranchDelaySlot bdslot);
+  bool BranchShortHelperR6(int32_t offset, Label* L, Condition cond,
+                           Register rs, const Operand& rt);
+  bool BranchShortHelper(int16_t offset, Label* L, Condition cond, Register rs,
+                         const Operand& rt, BranchDelaySlot bdslot);
+  bool BranchShortCheck(int32_t offset, Label* L, Condition cond, Register rs,
+                        const Operand& rt, BranchDelaySlot bdslot);
+
+  void BranchAndLinkShortHelperR6(int32_t offset, Label* L);
+  void BranchAndLinkShortHelper(int16_t offset, Label* L,
+                                BranchDelaySlot bdslot);
+  void BranchAndLinkShort(int32_t offset, BranchDelaySlot bdslot = PROTECT);
   void BranchAndLinkShort(Label* L, BranchDelaySlot bdslot = PROTECT);
-  void BranchAndLinkShort(Label* L, Condition cond, Register rs,
-                          const Operand& rt,
-                          BranchDelaySlot bdslot = PROTECT);
-  void J(Label* L, BranchDelaySlot bdslot);
-  void Jal(Label* L, BranchDelaySlot bdslot);
+  bool BranchAndLinkShortHelperR6(int32_t offset, Label* L, Condition cond,
+                                  Register rs, const Operand& rt);
+  bool BranchAndLinkShortHelper(int16_t offset, Label* L, Condition cond,
+                                Register rs, const Operand& rt,
+                                BranchDelaySlot bdslot);
+  bool BranchAndLinkShortCheck(int32_t offset, Label* L, Condition cond,
+                               Register rs, const Operand& rt,
+                               BranchDelaySlot bdslot);
+  void BranchLong(Label* L, BranchDelaySlot bdslot);
+  void BranchAndLinkLong(Label* L, BranchDelaySlot bdslot);
   void Jr(Label* L, BranchDelaySlot bdslot);
   void Jalr(Label* L, BranchDelaySlot bdslot);
 
@@ -1866,7 +1884,7 @@ class CodePatcher {
 
   // Change the condition part of an instruction leaving the rest of the current
   // instruction unchanged.
-  void ChangeBranchCondition(Condition cond);
+  void ChangeBranchCondition(Instr current_instr, uint32_t new_opcode);
 
  private:
   byte* address_;  // The address of the code being patched.
