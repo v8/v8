@@ -410,26 +410,16 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=4632
   'built-ins/Promise/race/same-resolve-function': [FAIL],
   'built-ins/Promise/race/same-reject-function': [FAIL],
-  'built-ins/Promise/all/same-resolve-function': [FAIL],
-  'built-ins/Promise/all/same-reject-function': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4633
-  'built-ins/Promise/exception-after-resolve-in-executor': [FAIL],
   'built-ins/Promise/reject-function-name': [FAIL],
   'built-ins/Promise/reject-function-nonconstructor': [FAIL],
   'built-ins/Promise/resolve-function-name': [FAIL],
   'built-ins/Promise/resolve-function-nonconstructor': [FAIL],
-  'built-ins/Promise/all/call-resolve-element-after-return': [FAIL],
-  'built-ins/Promise/all/call-resolve-element': [FAIL],
-  'built-ins/Promise/all/call-resolve-element-items': [FAIL],
-  'built-ins/Promise/all/resolve-before-loop-exit-from-same': [FAIL],
   'built-ins/Promise/all/resolve-element-function-name': [FAIL],
   'built-ins/Promise/all/resolve-element-function-nonconstructor': [FAIL],
-  'built-ins/Promise/exception-after-resolve-in-thenable-job': [FAIL],
-  'built-ins/Promise/all/resolve-before-loop-exit': [FAIL],
   'built-ins/Promise/executor-function-name': [FAIL],
   'built-ins/Promise/executor-function-nonconstructor': [FAIL],
-  'built-ins/Promise/all/resolve-from-same-thenable': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4634
   'built-ins/DataView/prototype/setFloat64/index-check-before-value-conversion': [FAIL],
