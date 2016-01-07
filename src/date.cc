@@ -71,7 +71,7 @@ void DateCache::YearMonthDayFromDays(
   *year = 400 * (days / kDaysIn400Years) - kYearsOffset;
   days %= kDaysIn400Years;
 
-  DCHECK(DaysFromYearMonth(*year, 0) + days == save_days);
+  DCHECK_EQ(save_days, DaysFromYearMonth(*year, 0) + days);
 
   days--;
   int yd1 = days / kDaysIn100Years;

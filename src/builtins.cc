@@ -2096,7 +2096,9 @@ double ParseDateTimeString(Handle<String> str) {
                                tmp->get(5)->Number(), tmp->get(6)->Number());
   double date = MakeDate(day, time);
   if (tmp->get(7)->IsNull()) {
-    date = isolate->date_cache()->ToUTC(static_cast<int64_t>(date));
+    if (!std::isnan(date)) {
+      date = isolate->date_cache()->ToUTC(static_cast<int64_t>(date));
+    }
   } else {
     date -= tmp->get(7)->Number() * 1000.0;
   }
