@@ -8273,10 +8273,13 @@ bool HasEnumerableElements(JSObject* object) {
       return false;
     }
     case FAST_HOLEY_DOUBLE_ELEMENTS: {
-      FixedDoubleArray* elements = FixedDoubleArray::cast(object->elements());
       int length = object->IsJSArray()
                        ? Smi::cast(JSArray::cast(object)->length())->value()
-                       : elements->length();
+                       : object->elements()->length();
+      // Zero-length arrays would use the empty FixedArray...
+      if (length == 0) return false;
+      // ...so only cast to FixedDoubleArray otherwise.
+      FixedDoubleArray* elements = FixedDoubleArray::cast(object->elements());
       for (int i = 0; i < length; i++) {
         if (!elements->is_the_hole(i)) return true;
       }
