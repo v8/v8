@@ -752,6 +752,10 @@
   'built-ins/decodeURIComponent/S15.1.3.2_A1.2_T2': [SKIP],
   'built-ins/encodeURI*': [SKIP],
   'intl402/9.2.2': [SKIP],
+  'language/statements/let/fn-name-arrow': [SKIP],
+  'language/statements/let/fn-name-cover': [SKIP],
+  'language/statements/let/fn-name-fn': [SKIP],
+  'language/statements/let/fn-name-gen': [SKIP],
 }],  # ignition == True and (arch == arm or arch == arm64)
 
 ]
