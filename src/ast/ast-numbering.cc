@@ -580,6 +580,7 @@ bool AstNumberingVisitor::Renumber(FunctionLiteral* node) {
     DisableOptimization(kFunctionWithIllegalRedeclaration);
     return Finish(node);
   }
+  if (scope->new_target_var()) DisableCrankshaft(kSuperReference);
   if (scope->calls_eval()) DisableOptimization(kFunctionCallsEval);
   if (scope->arguments() != NULL && !scope->arguments()->IsStackAllocated()) {
     DisableCrankshaft(kContextAllocatedArguments);
