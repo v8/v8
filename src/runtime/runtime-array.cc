@@ -487,5 +487,18 @@ RUNTIME_FUNCTION(Runtime_FastOneByteArrayJoin) {
   // to a slow path.
   return isolate->heap()->undefined_value();
 }
+
+
+RUNTIME_FUNCTION(Runtime_ArraySpeciesConstructor) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, original_array, 0);
+  Handle<Object> constructor;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, constructor,
+      Object::ArraySpeciesConstructor(isolate, original_array));
+  return *constructor;
+}
+
 }  // namespace internal
 }  // namespace v8

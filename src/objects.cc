@@ -1605,6 +1605,56 @@ bool Object::SameValueZero(Object* other) {
 }
 
 
+MaybeHandle<Object> Object::ArraySpeciesConstructor(
+    Isolate* isolate, Handle<Object> original_array) {
+  Handle<Context> native_context = isolate->native_context();
+  if (!FLAG_harmony_species) {
+    return Handle<Object>(native_context->array_function(), isolate);
+  }
+  Handle<Object> constructor = isolate->factory()->undefined_value();
+  Maybe<bool> is_array = Object::IsArray(original_array);
+  MAYBE_RETURN_NULL(is_array);
+  if (is_array.FromJust()) {
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, constructor,
+        Object::GetProperty(original_array,
+                            isolate->factory()->constructor_string()),
+        Object);
+    if (constructor->IsConstructor()) {
+      Handle<Context> constructor_context;
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate, constructor_context,
+          JSReceiver::GetFunctionRealm(Handle<JSReceiver>::cast(constructor)),
+          Object);
+      if (*constructor_context != *native_context &&
+          *constructor == constructor_context->array_function()) {
+        constructor = isolate->factory()->undefined_value();
+      }
+    }
+    if (constructor->IsJSReceiver()) {
+      ASSIGN_RETURN_ON_EXCEPTION(
+          isolate, constructor,
+          Object::GetProperty(constructor,
+                              isolate->factory()->species_symbol()),
+          Object);
+      if (constructor->IsNull()) {
+        constructor = isolate->factory()->undefined_value();
+      }
+    }
+  }
+  if (constructor->IsUndefined()) {
+    return Handle<Object>(native_context->array_function(), isolate);
+  } else {
+    if (!constructor->IsConstructor()) {
+      THROW_NEW_ERROR(isolate,
+          NewTypeError(MessageTemplate::kSpeciesNotConstructor),
+          Object);
+    }
+    return constructor;
+  }
+}
+
+
 void Object::ShortPrint(FILE* out) {
   OFStream os(out);
   os << Brief(this);

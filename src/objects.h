@@ -1346,6 +1346,10 @@ class Object {
   // by ES6 Map and Set.
   bool SameValueZero(Object* other);
 
+  // ES6 section 9.4.2.3 ArraySpeciesCreate (part of it)
+  MUST_USE_RESULT static MaybeHandle<Object> ArraySpeciesConstructor(
+      Isolate* isolate, Handle<Object> original_array);
+
   // Tries to convert an object to an array length. Returns true and sets the
   // output parameter if it succeeds.
   inline bool ToArrayLength(uint32_t* index);

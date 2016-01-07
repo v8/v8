@@ -458,6 +458,14 @@ BUILTIN(ArraySlice) {
   int relative_end = 0;
   bool is_sloppy_arguments = false;
 
+  // TODO(littledan): Look up @@species only once, not once here and
+  // again in the JS builtin. Pass the species out?
+  Handle<Object> species;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, species, Object::ArraySpeciesConstructor(isolate, receiver));
+  if (*species != isolate->context()->native_context()->array_function()) {
+    return CallJsIntrinsic(isolate, isolate->array_slice(), args);
+  }
   if (receiver->IsJSArray()) {
     DisallowHeapAllocation no_gc;
     JSArray* array = JSArray::cast(*receiver);
@@ -541,6 +549,14 @@ BUILTIN(ArraySplice) {
       EnsureJSArrayWithWritableFastElements(isolate, receiver, &args, 3);
   Handle<FixedArrayBase> elms_obj;
   if (!maybe_elms_obj.ToHandle(&elms_obj)) {
+    return CallJsIntrinsic(isolate, isolate->array_splice(), args);
+  }
+  // TODO(littledan): Look up @@species only once, not once here and
+  // again in the JS builtin. Pass the species out?
+  Handle<Object> species;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, species, Object::ArraySpeciesConstructor(isolate, receiver));
+  if (*species != isolate->context()->native_context()->array_function()) {
     return CallJsIntrinsic(isolate, isolate->array_splice(), args);
   }
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);

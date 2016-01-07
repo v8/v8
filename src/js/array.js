@@ -13,6 +13,7 @@
 
 var AddIndexedProperty;
 var FLAG_harmony_tolength;
+var FLAG_harmony_species;
 var GetIterator;
 var GetMethod;
 var GlobalArray = global.Array;
@@ -48,9 +49,34 @@ utils.Import(function(from) {
 
 utils.ImportFromExperimental(function(from) {
   FLAG_harmony_tolength = from.FLAG_harmony_tolength;
+  FLAG_harmony_species = from.FLAG_harmony_species;
 });
 
 // -------------------------------------------------------------------
+
+
+function ArraySpeciesCreate(array, length) {
+  var constructor;
+  if (FLAG_harmony_species) {
+    constructor = %ArraySpeciesConstructor(array);
+  } else {
+    constructor = GlobalArray;
+  }
+  return new constructor(length);
+}
+
+
+function DefineIndexedProperty(array, i, value) {
+  if (FLAG_harmony_species) {
+    var result = ObjectDefineProperty(array, i, {
+      value: value, writable: true, configurable: true, enumerable: true
+    });
+    if (!result) throw MakeTypeError(kStrictCannotAssign, i);
+  } else {
+    AddIndexedProperty(array, i, value);
+  }
+}
+
 
 // Global list of arrays visited during toString, toLocaleString and
 // join invocations.
@@ -251,7 +277,7 @@ function SparseSlice(array, start_i, del_count, len, deleted_elements) {
     for (var i = start_i; i < limit; ++i) {
       var current = array[i];
       if (!IS_UNDEFINED(current) || i in array) {
-        AddIndexedProperty(deleted_elements, i - start_i, current);
+        DefineIndexedProperty(deleted_elements, i - start_i, current);
       }
     }
   } else {
@@ -262,7 +288,7 @@ function SparseSlice(array, start_i, del_count, len, deleted_elements) {
         if (key >= start_i) {
           var current = array[key];
           if (!IS_UNDEFINED(current) || key in array) {
-            AddIndexedProperty(deleted_elements, key - start_i, current);
+            DefineIndexedProperty(deleted_elements, key - start_i, current);
           }
         }
       }
@@ -342,9 +368,7 @@ function SimpleSlice(array, start_i, del_count, len, deleted_elements) {
     var index = start_i + i;
     if (HAS_INDEX(array, index, is_array)) {
       var current = array[index];
-      // The spec requires [[DefineOwnProperty]] here, AddIndexedProperty is
-      // close enough (in that it ignores the prototype).
-      AddIndexedProperty(deleted_elements, i, current);
+      DefineIndexedProperty(deleted_elements, i, current);
     }
   }
 }
@@ -759,7 +783,7 @@ function ArraySlice(start, end) {
     if (end_i > len) end_i = len;
   }
 
-  var result = [];
+  var result = ArraySpeciesCreate(array, MaxSimple(end_i - start_i, 0));
 
   if (end_i < start_i) return result;
 
@@ -861,7 +885,7 @@ function ArraySplice(start, delete_count) {
   var start_i = ComputeSpliceStartIndex(TO_INTEGER(start), len);
   var del_count = ComputeSpliceDeleteCount(delete_count, num_arguments, len,
                                            start_i);
-  var deleted_elements = [];
+  var deleted_elements = ArraySpeciesCreate(array, del_count);
   deleted_elements.length = del_count;
   var num_elements_to_add = num_arguments > 2 ? num_arguments - 2 : 0;
 
@@ -1201,24 +1225,21 @@ function ArraySort(comparefn) {
 // The following functions cannot be made efficient on sparse arrays while
 // preserving the semantics, since the calls to the receiver function can add
 // or delete elements from the array.
-function InnerArrayFilter(f, receiver, array, length) {
-  if (!IS_CALLABLE(f)) throw MakeTypeError(kCalledNonCallable, f);
-
-  var accumulator = new InternalArray();
-  var accumulator_length = 0;
+function InnerArrayFilter(f, receiver, array, length, result) {
+  var result_length = 0;
   var is_array = IS_ARRAY(array);
   for (var i = 0; i < length; i++) {
     if (HAS_INDEX(array, i, is_array)) {
       var element = array[i];
       if (%_Call(f, receiver, element, i, array)) {
-        accumulator[accumulator_length++] = element;
+        DefineIndexedProperty(result, result_length, element);
+        result_length++;
       }
     }
   }
-  var result = new GlobalArray();
-  %MoveArrayContents(accumulator, result);
   return result;
 }
+
 
 
 function ArrayFilter(f, receiver) {
@@ -1228,7 +1249,9 @@ function ArrayFilter(f, receiver) {
   // loop will not affect the looping and side effects are visible.
   var array = TO_OBJECT(this);
   var length = TO_LENGTH_OR_UINT32(array.length);
-  return InnerArrayFilter(f, receiver, array, length);
+  if (!IS_CALLABLE(f)) throw MakeTypeError(kCalledNonCallable, f);
+  var result = ArraySpeciesCreate(array, 0);
+  return InnerArrayFilter(f, receiver, array, length, result);
 }
 
 
@@ -1307,23 +1330,6 @@ function ArrayEvery(f, receiver) {
 }
 
 
-function InnerArrayMap(f, receiver, array, length) {
-  if (!IS_CALLABLE(f)) throw MakeTypeError(kCalledNonCallable, f);
-
-  var accumulator = new InternalArray(length);
-  var is_array = IS_ARRAY(array);
-  for (var i = 0; i < length; i++) {
-    if (HAS_INDEX(array, i, is_array)) {
-      var element = array[i];
-      accumulator[i] = %_Call(f, receiver, element, i, array);
-    }
-  }
-  var result = new GlobalArray();
-  %MoveArrayContents(accumulator, result);
-  return result;
-}
-
-
 function ArrayMap(f, receiver) {
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.map");
 
@@ -1331,7 +1337,16 @@ function ArrayMap(f, receiver) {
   // loop will not affect the looping and side effects are visible.
   var array = TO_OBJECT(this);
   var length = TO_LENGTH_OR_UINT32(array.length);
-  return InnerArrayMap(f, receiver, array, length);
+  if (!IS_CALLABLE(f)) throw MakeTypeError(kCalledNonCallable, f);
+  var result = ArraySpeciesCreate(array, length);
+  var is_array = IS_ARRAY(array);
+  for (var i = 0; i < length; i++) {
+    if (HAS_INDEX(array, i, is_array)) {
+      var element = array[i];
+      DefineIndexedProperty(result, i, %_Call(f, receiver, element, i, array));
+    }
+  }
+  return result;
 }
 
 
@@ -1948,7 +1963,6 @@ utils.Export(function(to) {
   to.InnerArrayIndexOf = InnerArrayIndexOf;
   to.InnerArrayJoin = InnerArrayJoin;
   to.InnerArrayLastIndexOf = InnerArrayLastIndexOf;
-  to.InnerArrayMap = InnerArrayMap;
   to.InnerArrayReduce = InnerArrayReduce;
   to.InnerArrayReduceRight = InnerArrayReduceRight;
   to.InnerArraySome = InnerArraySome;

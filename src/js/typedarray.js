@@ -29,7 +29,6 @@ var InnerArrayIncludes;
 var InnerArrayIndexOf;
 var InnerArrayJoin;
 var InnerArrayLastIndexOf;
-var InnerArrayMap;
 var InnerArrayReduce;
 var InnerArrayReduceRight;
 var InnerArraySome;
@@ -80,7 +79,6 @@ utils.Import(function(from) {
   InnerArrayIndexOf = from.InnerArrayIndexOf;
   InnerArrayJoin = from.InnerArrayJoin;
   InnerArrayLastIndexOf = from.InnerArrayLastIndexOf;
-  InnerArrayMap = from.InnerArrayMap;
   InnerArrayReduce = from.InnerArrayReduce;
   InnerArrayReduceRight = from.InnerArrayReduceRight;
   InnerArraySome = from.InnerArraySome;
@@ -493,12 +491,19 @@ function TypedArrayFill(value, start, end) {
 
 
 // ES6 draft 07-15-13, section 22.2.3.9
-function TypedArrayFilter(predicate, thisArg) {
+function TypedArrayFilter(f, thisArg) {
   if (!%_IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
 
   var length = %_TypedArrayGetLength(this);
-  var array = InnerArrayFilter(predicate, thisArg, this, length);
-  return ConstructTypedArrayLike(this, array);
+  if (!IS_CALLABLE(f)) throw MakeTypeError(kCalledNonCallable, f);
+  var result = new InternalArray();
+  InnerArrayFilter(f, thisArg, this, length, result);
+  var captured = result.length;
+  var output = ConstructTypedArrayLike(this, captured);
+  for (var i = 0; i < captured; i++) {
+    output[i] = result[i];
+  }
+  return output;
 }
 %FunctionSetLength(TypedArrayFilter, 1);
 
@@ -592,14 +597,17 @@ function TypedArrayLastIndexOf(element, index) {
 
 
 // ES6 draft 07-15-13, section 22.2.3.18
-function TypedArrayMap(predicate, thisArg) {
+function TypedArrayMap(f, thisArg) {
   if (!%_IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
 
-  // TODO(littledan): Preallocate rather than making an intermediate
-  // InternalArray, for better performance.
   var length = %_TypedArrayGetLength(this);
-  var array = InnerArrayMap(predicate, thisArg, this, length);
-  return ConstructTypedArrayLike(this, array);
+  var result = ConstructTypedArrayLike(this, length);
+  if (!IS_CALLABLE(f)) throw MakeTypeError(kCalledNonCallable, f);
+  for (var i = 0; i < length; i++) {
+    var element = this[i];
+    result[i] = %_Call(f, thisArg, element, i, this);
+  }
+  return result;
 }
 %FunctionSetLength(TypedArrayMap, 1);
 
