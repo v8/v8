@@ -1956,8 +1956,6 @@ TEST(Run_Wasm_StoreMemI32_offset) {
 }
 
 
-#if WASM_64
-// TODO(titzer): Figure out why this fails on 32-bit architectures.
 TEST(Run_Wasm_StoreMem_offset_oob) {
   TestingModule module;
   byte* memory = module.AddMemoryElems<byte>(32);
@@ -1994,7 +1992,6 @@ TEST(Run_Wasm_StoreMem_offset_oob) {
     }
   }
 }
-#endif
 
 
 #if WASM_64
