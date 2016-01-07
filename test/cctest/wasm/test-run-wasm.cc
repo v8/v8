@@ -2800,7 +2800,10 @@ TEST(Run_WasmCall_Float32Sub) {
   BUILD(r, WASM_CALL_FUNCTION(index, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
 
   FOR_FLOAT32_INPUTS(i) {
-    FOR_FLOAT32_INPUTS(j) { CheckFloatEq(*i - *j, r.Call(*i, *j)); }
+    FOR_FLOAT32_INPUTS(j) {
+      volatile float expected = *i - *j;
+      CheckFloatEq(expected, r.Call(*i, *j));
+    }
   }
 }
 
