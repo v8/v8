@@ -197,6 +197,26 @@ class TestingModule : public ModuleEnv {
 };
 
 
+static void TestBuildingGraph(Zone* zone, JSGraph* jsgraph, FunctionEnv* env,
+                              const byte* start, const byte* end) {
+  compiler::WasmGraphBuilder builder(zone, jsgraph, env->sig);
+  TreeResult result = BuildTFGraph(&builder, env, start, end);
+  if (result.failed()) {
+    ptrdiff_t pc = result.error_pc - result.start;
+    ptrdiff_t pt = result.error_pt - result.start;
+    std::ostringstream str;
+    str << "Verification failed: " << result.error_code << " pc = +" << pc;
+    if (result.error_pt) str << ", pt = +" << pt;
+    str << ", msg = " << result.error_msg.get();
+    FATAL(str.str().c_str());
+  }
+  if (FLAG_trace_turbo_graph) {
+    OFStream os(stdout);
+    os << AsRPO(*jsgraph->graph());
+  }
+}
+
+
 // A helper for compiling functions that are only internally callable WASM code.
 class WasmFunctionCompiler : public HandleAndZoneScope,
                              private GraphAndBuilders {
@@ -222,21 +242,7 @@ class WasmFunctionCompiler : public HandleAndZoneScope,
   CallDescriptor* descriptor() { return descriptor_; }
 
   void Build(const byte* start, const byte* end) {
-    compiler::WasmGraphBuilder builder(main_zone(), &jsgraph, env.sig);
-    TreeResult result = BuildTFGraph(&builder, &env, start, end);
-    if (result.failed()) {
-      ptrdiff_t pc = result.error_pc - result.start;
-      ptrdiff_t pt = result.error_pt - result.start;
-      std::ostringstream str;
-      str << "Verification failed: " << result.error_code << " pc = +" << pc;
-      if (result.error_pt) str << ", pt = +" << pt;
-      str << ", msg = " << result.error_msg.get();
-      FATAL(str.str().c_str());
-    }
-    if (FLAG_trace_turbo_graph) {
-      OFStream os(stdout);
-      os << AsRPO(*jsgraph.graph());
-    }
+    TestBuildingGraph(main_zone(), &jsgraph, &env, start, end);
   }
 
   byte AllocateLocal(LocalType type) {
@@ -2337,42 +2343,43 @@ TEST(Run_Wasm_Infinite_Loop_not_taken2_brif) {
 }
 
 
-// TODO(titzer): Fix for nosee4 and re-enable.
-#if 0
+static void TestBuildGraphForSimpleExpression(WasmOpcode opcode) {
+  if (!WasmOpcodes::IsSupported(opcode)) return;
 
-static void TestBuildGraphForUnop(WasmOpcode opcode, FunctionSig* sig) {
-  WasmRunner<int32_t> r(MachineType::Int32());
-  init_env(r.env(), sig);
-  BUILD(r, static_cast<byte>(opcode), kExprGetLocal, 0);
-}
+  Zone zone;
+  Isolate* isolate = CcTest::InitIsolateOnce();
+  HandleScope scope(isolate);
+  // Enable all optional operators.
+  CommonOperatorBuilder common(&zone);
+  MachineOperatorBuilder machine(&zone, MachineType::PointerRepresentation(),
+                                 MachineOperatorBuilder::kAllOptionalOps);
+  Graph graph(&zone);
+  JSGraph jsgraph(isolate, &graph, &common, nullptr, nullptr, &machine);
+  FunctionEnv env;
+  FunctionSig* sig = WasmOpcodes::Signature(opcode);
+  init_env(&env, sig);
 
-
-static void TestBuildGraphForBinop(WasmOpcode opcode, FunctionSig* sig) {
-  WasmRunner<int32_t> r(MachineType::Int32(), MachineType::Int32());
-  init_env(r.env(), sig);
-  BUILD(r, static_cast<byte>(opcode), kExprGetLocal, 0, kExprGetLocal, 1);
+  if (sig->parameter_count() == 1) {
+    byte code[] = {static_cast<byte>(opcode), kExprGetLocal, 0};
+    TestBuildingGraph(&zone, &jsgraph, &env, code, code + arraysize(code));
+  } else {
+    CHECK_EQ(2, sig->parameter_count());
+    byte code[] = {static_cast<byte>(opcode), kExprGetLocal, 0, kExprGetLocal,
+                   1};
+    TestBuildingGraph(&zone, &jsgraph, &env, code, code + arraysize(code));
+  }
 }
 
 
 TEST(Build_Wasm_SimpleExprs) {
 // Test that the decoder can build a graph for all supported simple expressions.
-#define GRAPH_BUILD_TEST(name, opcode, sig)                 \
-  if (WasmOpcodes::IsSupported(kExpr##name)) {              \
-    FunctionSig* sig = WasmOpcodes::Signature(kExpr##name); \
-    printf("expression: " #name "\n");                      \
-    if (sig->parameter_count() == 1) {                      \
-      TestBuildGraphForUnop(kExpr##name, sig);              \
-    } else {                                                \
-      TestBuildGraphForBinop(kExpr##name, sig);             \
-    }                                                       \
-  }
+#define GRAPH_BUILD_TEST(name, opcode, sig) \
+  TestBuildGraphForSimpleExpression(kExpr##name);
 
   FOREACH_SIMPLE_OPCODE(GRAPH_BUILD_TEST);
 
 #undef GRAPH_BUILD_TEST
 }
-
-#endif
 
 
 TEST(Run_Wasm_Int32LoadInt8_signext) {
