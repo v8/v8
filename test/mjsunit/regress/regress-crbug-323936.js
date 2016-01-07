@@ -17,7 +17,7 @@ function listener(event, exec_state, event_data, data) {
       exec_state.frame(0).evaluate("write_0('foo')");
       exec_state.frame(0).evaluate("write_1('modified')");
     } else {
-      assertEquals("argument", exec_state.frame(0).evaluate("e").value());
+      assertEquals("foo", exec_state.frame(0).evaluate("e").value());
       exec_state.frame(0).evaluate("write_2('bar')");
     }
     step++;
@@ -33,14 +33,12 @@ function f(e, x) {
   try {
     throw "error";
   } catch(e) {
-    // In ES2015 hoisting semantics, 'x' binds to the argument
-    // and 'e' binds to the exception.
+    // 'e' and 'x' bind to the argument due to hoisting
     function write_0(v) { e = v }
     function write_1(v) { x = v }
     debugger;
-    assertEquals("foo", e);  // overwritten by the debugger
+    assertEquals("error", e);
   }
-  assertEquals("argument", e);  // debugger did not overwrite
   function write_2(v) { e = v }
   debugger;
   assertEquals("bar", e);

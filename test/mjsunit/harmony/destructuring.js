@@ -991,9 +991,8 @@
 
   function f20({x}) { function x() { return 2 }; return x(); }
   assertEquals(2, f20({x: 1}));
-  // Function hoisting is blocked by the conflicting x declaration
   function f21({x}) { { function x() { return 2 } } return x(); }
-  assertThrows(() => f21({x: 1}), TypeError);
+  assertEquals(2, f21({x: 1}));
 
   var g1 = ({x}) => { var x = 2; return x };
   assertEquals(2, g1({x: 1}));
@@ -1026,7 +1025,7 @@
   var g20 = ({x}) => { function x() { return 2 }; return x(); }
   assertEquals(2, g20({x: 1}));
   var g21 = ({x}) => { { function x() { return 2 } } return x(); }
-  assertThrows(() => g21({x: 1}), TypeError);
+  assertEquals(2, g21({x: 1}));
 
   assertThrows("'use strict'; function f(x) { let x = 0; }; f({});", SyntaxError);
   assertThrows("'use strict'; function f({x}) { let x = 0; }; f({});", SyntaxError);

@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --no-harmony-sloppy-let --no-harmony-sloppy-function
-// Flags: --no-harmony-sloppy
-
 function CheckError(source) {
   var exception = null;
   try {
