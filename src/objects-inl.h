@@ -5260,12 +5260,9 @@ bool Code::IsWeakObjectInOptimizedCode(Object* object) {
   if (object->IsJSReceiver()) {
     return FLAG_weak_embedded_objects_in_optimized_code;
   }
-  if (object->IsFixedArray()) {
+  if (object->IsContext()) {
     // Contexts of inlined functions are embedded in optimized code.
-    Map* map = HeapObject::cast(object)->map();
-    Heap* heap = map->GetHeap();
-    return FLAG_weak_embedded_objects_in_optimized_code &&
-           map == heap->function_context_map();
+    return FLAG_weak_embedded_objects_in_optimized_code;
   }
   return false;
 }
