@@ -5445,6 +5445,13 @@ class V8_EXPORT Isolate {
     kStrongMode = 10,
     kRegExpPrototypeStickyGetter = 11,
     kRegExpPrototypeToString = 12,
+    kRegExpPrototypeUnicodeGetter = 13,
+    kIntlV8Parse = 14,
+    kIntlPattern = 15,
+    kIntlResolved = 16,
+    kPromiseChain = 17,
+    kPromiseAccept = 18,
+    kPromiseDefer = 19,
     kUseCounterFeatureCount  // This enum value must be last.
   };
 

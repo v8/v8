@@ -33,7 +33,9 @@ var MakeTypeError;
 var MathFloor;
 var ObjectDefineProperties = utils.ImportNow("ObjectDefineProperties");
 var ObjectDefineProperty = utils.ImportNow("ObjectDefineProperty");
+var patternSymbol = utils.ImportNow("intl_pattern_symbol");
 var RegExpTest;
+var resolvedSymbol = utils.ImportNow("intl_resolved_symbol");
 var StringIndexOf;
 var StringLastIndexOf;
 var StringMatch;
@@ -878,6 +880,16 @@ function BuildLanguageTagREs() {
   LANGUAGE_TAG_RE = new GlobalRegExp(languageTag, 'i');
 }
 
+var resolvedAccessor = {
+  get() {
+    %IncrementUseCounter(kIntlResolved);
+    return this[resolvedSymbol];
+  },
+  set(value) {
+    this[resolvedSymbol] = value;
+  }
+};
+
 /**
  * Initializes the given object so it's a valid Collator instance.
  * Useful for subclassing.
@@ -976,7 +988,8 @@ function initializeCollator(collator, locales, options) {
 
   // Writable, configurable and enumerable are set to false by default.
   %MarkAsInitializedIntlObjectOfType(collator, 'collator', internalCollator);
-  ObjectDefineProperty(collator, 'resolved', {value: resolved});
+  collator[resolvedSymbol] = resolved;
+  ObjectDefineProperty(collator, 'resolved', resolvedAccessor);
 
   return collator;
 }
@@ -1016,17 +1029,17 @@ function initializeCollator(collator, locales, options) {
     }
 
     var coll = this;
-    var locale = getOptimalLanguageTag(coll.resolved.requestedLocale,
-                                       coll.resolved.locale);
+    var locale = getOptimalLanguageTag(coll[resolvedSymbol].requestedLocale,
+                                       coll[resolvedSymbol].locale);
 
     return {
       locale: locale,
-      usage: coll.resolved.usage,
-      sensitivity: coll.resolved.sensitivity,
-      ignorePunctuation: coll.resolved.ignorePunctuation,
-      numeric: coll.resolved.numeric,
-      caseFirst: coll.resolved.caseFirst,
-      collation: coll.resolved.collation
+      usage: coll[resolvedSymbol].usage,
+      sensitivity: coll[resolvedSymbol].sensitivity,
+      ignorePunctuation: coll[resolvedSymbol].ignorePunctuation,
+      numeric: coll[resolvedSymbol].numeric,
+      caseFirst: coll[resolvedSymbol].caseFirst,
+      collation: coll[resolvedSymbol].collation
     };
   },
   DONT_ENUM
@@ -1103,6 +1116,15 @@ function getNumberOption(options, property, min, max, fallback) {
   return fallback;
 }
 
+var patternAccessor = {
+  get() {
+    %IncrementUseCounter(kIntlPattern);
+    return this[patternSymbol];
+  },
+  set(value) {
+    this[patternSymbol] = value;
+  }
+};
 
 /**
  * Initializes the given object so it's a valid NumberFormat instance.
@@ -1198,6 +1220,7 @@ function initializeNumberFormat(numberFormat, locales, options) {
     minimumFractionDigits: {writable: true},
     minimumIntegerDigits: {writable: true},
     numberingSystem: {writable: true},
+    pattern: patternAccessor,
     requestedLocale: {value: requestedLocale, writable: true},
     style: {value: internalOptions.style, writable: true},
     useGrouping: {writable: true}
@@ -1218,7 +1241,8 @@ function initializeNumberFormat(numberFormat, locales, options) {
   }
 
   %MarkAsInitializedIntlObjectOfType(numberFormat, 'numberformat', formatter);
-  ObjectDefineProperty(numberFormat, 'resolved', {value: resolved});
+  numberFormat[resolvedSymbol] = resolved;
+  ObjectDefineProperty(numberFormat, 'resolved', resolvedAccessor);
 
   return numberFormat;
 }
@@ -1258,33 +1282,33 @@ function initializeNumberFormat(numberFormat, locales, options) {
     }
 
     var format = this;
-    var locale = getOptimalLanguageTag(format.resolved.requestedLocale,
-                                       format.resolved.locale);
+    var locale = getOptimalLanguageTag(format[resolvedSymbol].requestedLocale,
+                                       format[resolvedSymbol].locale);
 
     var result = {
       locale: locale,
-      numberingSystem: format.resolved.numberingSystem,
-      style: format.resolved.style,
-      useGrouping: format.resolved.useGrouping,
-      minimumIntegerDigits: format.resolved.minimumIntegerDigits,
-      minimumFractionDigits: format.resolved.minimumFractionDigits,
-      maximumFractionDigits: format.resolved.maximumFractionDigits,
+      numberingSystem: format[resolvedSymbol].numberingSystem,
+      style: format[resolvedSymbol].style,
+      useGrouping: format[resolvedSymbol].useGrouping,
+      minimumIntegerDigits: format[resolvedSymbol].minimumIntegerDigits,
+      minimumFractionDigits: format[resolvedSymbol].minimumFractionDigits,
+      maximumFractionDigits: format[resolvedSymbol].maximumFractionDigits,
     };
 
     if (result.style === 'currency') {
-      defineWECProperty(result, 'currency', format.resolved.currency);
+      defineWECProperty(result, 'currency', format[resolvedSymbol].currency);
       defineWECProperty(result, 'currencyDisplay',
-                        format.resolved.currencyDisplay);
+                        format[resolvedSymbol].currencyDisplay);
     }
 
-    if (%HasOwnProperty(format.resolved, 'minimumSignificantDigits')) {
+    if (%HasOwnProperty(format[resolvedSymbol], 'minimumSignificantDigits')) {
       defineWECProperty(result, 'minimumSignificantDigits',
-                        format.resolved.minimumSignificantDigits);
+                        format[resolvedSymbol].minimumSignificantDigits);
     }
 
-    if (%HasOwnProperty(format.resolved, 'maximumSignificantDigits')) {
+    if (%HasOwnProperty(format[resolvedSymbol], 'maximumSignificantDigits')) {
       defineWECProperty(result, 'maximumSignificantDigits',
-                        format.resolved.maximumSignificantDigits);
+                        format[resolvedSymbol].maximumSignificantDigits);
     }
 
     return result;
@@ -1602,7 +1626,8 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
     minute: {writable: true},
     month: {writable: true},
     numberingSystem: {writable: true},
-    pattern: {writable: true},
+    [patternSymbol]: {writable: true},
+    pattern: patternAccessor,
     requestedLocale: {value: requestedLocale, writable: true},
     second: {writable: true},
     timeZone: {writable: true},
@@ -1620,7 +1645,8 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
   }
 
   %MarkAsInitializedIntlObjectOfType(dateFormat, 'dateformat', formatter);
-  ObjectDefineProperty(dateFormat, 'resolved', {value: resolved});
+  dateFormat[resolvedSymbol] = resolved;
+  ObjectDefineProperty(dateFormat, 'resolved', resolvedAccessor);
 
   return dateFormat;
 }
@@ -1679,22 +1705,22 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
     };
 
     var format = this;
-    var fromPattern = fromLDMLString(format.resolved.pattern);
-    var userCalendar = ICU_CALENDAR_MAP[format.resolved.calendar];
+    var fromPattern = fromLDMLString(format[resolvedSymbol][patternSymbol]);
+    var userCalendar = ICU_CALENDAR_MAP[format[resolvedSymbol].calendar];
     if (IS_UNDEFINED(userCalendar)) {
       // Use ICU name if we don't have a match. It shouldn't happen, but
       // it would be too strict to throw for this.
-      userCalendar = format.resolved.calendar;
+      userCalendar = format[resolvedSymbol].calendar;
     }
 
-    var locale = getOptimalLanguageTag(format.resolved.requestedLocale,
-                                       format.resolved.locale);
+    var locale = getOptimalLanguageTag(format[resolvedSymbol].requestedLocale,
+                                       format[resolvedSymbol].locale);
 
     var result = {
       locale: locale,
-      numberingSystem: format.resolved.numberingSystem,
+      numberingSystem: format[resolvedSymbol].numberingSystem,
       calendar: userCalendar,
-      timeZone: format.resolved.timeZone
+      timeZone: format[resolvedSymbol].timeZone
     };
 
     addWECPropertyIfDefined(result, 'timeZoneName', fromPattern.timeZoneName);
@@ -1846,7 +1872,8 @@ function initializeBreakIterator(iterator, locales, options) {
 
   %MarkAsInitializedIntlObjectOfType(iterator, 'breakiterator',
                                      internalIterator);
-  ObjectDefineProperty(iterator, 'resolved', {value: resolved});
+  iterator[resolvedSymbol] = resolved;
+  ObjectDefineProperty(iterator, 'resolved', resolvedAccessor);
 
   return iterator;
 }
@@ -1887,12 +1914,13 @@ function initializeBreakIterator(iterator, locales, options) {
     }
 
     var segmenter = this;
-    var locale = getOptimalLanguageTag(segmenter.resolved.requestedLocale,
-                                       segmenter.resolved.locale);
+    var locale =
+        getOptimalLanguageTag(segmenter[resolvedSymbol].requestedLocale,
+                              segmenter[resolvedSymbol].locale);
 
     return {
       locale: locale,
-      type: segmenter.resolved.type
+      type: segmenter[resolvedSymbol].type
     };
   },
   DONT_ENUM

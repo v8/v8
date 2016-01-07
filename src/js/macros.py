@@ -314,3 +314,25 @@ macro DEBUG_PREPARE_STEP_IN_IF_STEPPING(function) = if (%_DebugIsActive() != 0) 
 # SharedFlag equivalents
 define kNotShared = false;
 define kShared = true;
+
+# UseCounters from include/v8.h
+define kUseAsm = 0;
+define kBreakIterator = 1;
+define kLegacyConst = 2;
+define kMarkDequeOverflow = 3;
+define kStoreBufferOverflow = 4;
+define kSlotsBufferOverflow = 5;
+define kObjectObserve = 6;
+define kForcedGC = 7;
+define kSloppyMode = 8;
+define kStrictMode = 9;
+define kStrongMode = 10;
+define kRegExpPrototypeStickyGetter = 11;
+define kRegExpPrototypeToString = 12;
+define kRegExpPrototypeUnicodeGetter = 13;
+define kIntlV8Parse = 14;
+define kIntlPattern = 15;
+define kIntlResolved = 16;
+define kPromiseChain = 17;
+define kPromiseAccept = 18;
+define kPromiseDefer = 19;

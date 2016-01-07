@@ -38,8 +38,6 @@ function RegExpGetFlags() {
   return result;
 }
 
-const kRegExpPrototypeStickyGetter = 11;
-
 // ES6 21.2.5.12.
 function RegExpGetSticky() {
   if (!IS_REGEXP(this)) {

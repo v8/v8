@@ -473,6 +473,8 @@ RUNTIME_FUNCTION(Runtime_InternalNumberParse) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, number_format_holder, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, number_string, 1);
 
+  isolate->CountUsage(v8::Isolate::UseCounterFeature::kIntlV8Parse);
+
   v8::String::Utf8Value utf8_number(v8::Utils::ToLocal(number_string));
   icu::UnicodeString u_number(icu::UnicodeString::fromUTF8(*utf8_number));
   icu::DecimalFormat* number_format =

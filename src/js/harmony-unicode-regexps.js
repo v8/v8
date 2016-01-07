@@ -24,6 +24,9 @@ utils.Import(function(from) {
 // ES6 21.2.5.15.
 function RegExpGetUnicode() {
   if (!IS_REGEXP(this)) {
+    if (this === GlobalRegExpPrototype) {
+      %IncrementUseCounter(kRegExpPrototypeUnicodeGetter);
+    }
     throw MakeTypeError(kRegExpNonRegExp, "RegExp.prototype.unicode");
   }
   return !!REGEXP_UNICODE(this);

@@ -271,8 +271,6 @@ function TrimRegExp(regexp) {
 }
 
 
-var kRegExpPrototypeToString = 12;
-
 function RegExpToString() {
   if (!IS_REGEXP(this)) {
     // RegExp.prototype.toString() returns '/(?:)/' as a compatibility fix;

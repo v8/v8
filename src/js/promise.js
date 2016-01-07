@@ -246,10 +246,12 @@ function NewPromiseCapability(C) {
 }
 
 function PromiseDeferred() {
+  %IncrementUseCounter(kPromiseDefer);
   return NewPromiseCapability(this);
 }
 
 function PromiseResolved(x) {
+  %IncrementUseCounter(kPromiseAccept);
   return %_Call(PromiseCast, this, x);
 }
 
@@ -314,6 +316,7 @@ function PromiseThen(onResolve, onReject) {
 
 // Chain is left around for now as an alias for then
 function PromiseChain(onResolve, onReject) {
+  %IncrementUseCounter(kPromiseChain);
   return %_Call(PromiseThen, this, onResolve, onReject);
 }
 

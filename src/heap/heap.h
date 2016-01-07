@@ -355,6 +355,8 @@ namespace internal {
   V(internal_error_symbol)                  \
   V(intl_impl_object_symbol)                \
   V(intl_initialized_marker_symbol)         \
+  V(intl_pattern_symbol)                    \
+  V(intl_resolved_symbol)                   \
   V(megamorphic_symbol)                     \
   V(native_context_index_symbol)            \
   V(nonexistent_symbol)                     \

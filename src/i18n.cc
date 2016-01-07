@@ -145,7 +145,7 @@ void SetResolvedDateSettings(Isolate* isolate,
   icu::UnicodeString pattern;
   date_format->toPattern(pattern);
   JSObject::SetProperty(
-      resolved, factory->NewStringFromStaticChars("pattern"),
+      resolved, factory->intl_pattern_symbol(),
       factory->NewStringFromTwoByte(
                    Vector<const uint16_t>(
                        reinterpret_cast<const uint16_t*>(pattern.getBuffer()),
@@ -367,7 +367,7 @@ void SetResolvedNumberSettings(Isolate* isolate,
   icu::UnicodeString pattern;
   number_format->toPattern(pattern);
   JSObject::SetProperty(
-      resolved, factory->NewStringFromStaticChars("pattern"),
+      resolved, factory->intl_pattern_symbol(),
       factory->NewStringFromTwoByte(
                    Vector<const uint16_t>(
                        reinterpret_cast<const uint16_t*>(pattern.getBuffer()),
