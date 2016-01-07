@@ -1145,6 +1145,8 @@
   'array-sort': [SKIP],
   'array-store-and-grow': [SKIP],
   'compiler/division-by-constant': [SKIP],
+  'compiler/math-floor-global': [SKIP],
+  'compiler/math-floor-local': [SKIP],
   'compiler/osr-big': [SKIP],
   'compiler/osr-nested': [SKIP],
   'compiler/osr-one': [SKIP],
