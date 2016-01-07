@@ -1060,58 +1060,103 @@ TEST(Run_WASM_Int64DivU_byzero_const) {
 
 
 void TestFloat32Binop(WasmOpcode opcode, int32_t expected, float a, float b) {
-  WasmRunner<int32_t> r;
-  // return K op K
-  BUILD(r, WASM_BINOP(opcode, WASM_F32(a), WASM_F32(b)));
-  CHECK_EQ(expected, r.Call());
-  // TODO(titzer): test float parameters
+  {
+    WasmRunner<int32_t> r;
+    // return K op K
+    BUILD(r, WASM_BINOP(opcode, WASM_F32(a), WASM_F32(b)));
+    CHECK_EQ(expected, r.Call());
+  }
+  {
+    WasmRunner<int32_t> r(MachineType::Float32(), MachineType::Float32());
+    // return a op b
+    BUILD(r, WASM_BINOP(opcode, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+    CHECK_EQ(expected, r.Call(a, b));
+  }
 }
 
 
 void TestFloat32BinopWithConvert(WasmOpcode opcode, int32_t expected, float a,
                                  float b) {
-  WasmRunner<int32_t> r;
-  // return int(K op K)
-  BUILD(r, WASM_I32_SCONVERT_F32(WASM_BINOP(opcode, WASM_F32(a), WASM_F32(b))));
-  CHECK_EQ(expected, r.Call());
-  // TODO(titzer): test float parameters
+  {
+    WasmRunner<int32_t> r;
+    // return int(K op K)
+    BUILD(r,
+          WASM_I32_SCONVERT_F32(WASM_BINOP(opcode, WASM_F32(a), WASM_F32(b))));
+    CHECK_EQ(expected, r.Call());
+  }
+  {
+    WasmRunner<int32_t> r(MachineType::Float32(), MachineType::Float32());
+    // return int(a op b)
+    BUILD(r, WASM_I32_SCONVERT_F32(
+                 WASM_BINOP(opcode, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))));
+    CHECK_EQ(expected, r.Call(a, b));
+  }
 }
 
 
 void TestFloat32UnopWithConvert(WasmOpcode opcode, int32_t expected, float a) {
-  WasmRunner<int32_t> r;
-  // return int(K op K)
-  BUILD(r, WASM_I32_SCONVERT_F32(WASM_UNOP(opcode, WASM_F32(a))));
-  CHECK_EQ(expected, r.Call());
-  // TODO(titzer): test float parameters
+  {
+    WasmRunner<int32_t> r;
+    // return int(op(K))
+    BUILD(r, WASM_I32_SCONVERT_F32(WASM_UNOP(opcode, WASM_F32(a))));
+    CHECK_EQ(expected, r.Call());
+  }
+  {
+    WasmRunner<int32_t> r(MachineType::Float32());
+    // return int(op(a))
+    BUILD(r, WASM_I32_SCONVERT_F32(WASM_UNOP(opcode, WASM_GET_LOCAL(0))));
+    CHECK_EQ(expected, r.Call(a));
+  }
 }
 
 
 void TestFloat64Binop(WasmOpcode opcode, int32_t expected, double a, double b) {
-  WasmRunner<int32_t> r;
-  // return K op K
-  BUILD(r, WASM_BINOP(opcode, WASM_F64(a), WASM_F64(b)));
-  CHECK_EQ(expected, r.Call());
-  // TODO(titzer): test double parameters
+  {
+    WasmRunner<int32_t> r;
+    // return K op K
+    BUILD(r, WASM_BINOP(opcode, WASM_F64(a), WASM_F64(b)));
+    CHECK_EQ(expected, r.Call());
+  }
+  {
+    WasmRunner<int32_t> r(MachineType::Float64(), MachineType::Float64());
+    // return a op b
+    BUILD(r, WASM_BINOP(opcode, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+    CHECK_EQ(expected, r.Call(a, b));
+  }
 }
 
 
 void TestFloat64BinopWithConvert(WasmOpcode opcode, int32_t expected, double a,
                                  double b) {
-  WasmRunner<int32_t> r;
-  // return int(K op K)
-  BUILD(r, WASM_I32_SCONVERT_F64(WASM_BINOP(opcode, WASM_F64(a), WASM_F64(b))));
-  CHECK_EQ(expected, r.Call());
-  // TODO(titzer): test double parameters
+  {
+    WasmRunner<int32_t> r;
+    // return int(K op K)
+    BUILD(r,
+          WASM_I32_SCONVERT_F64(WASM_BINOP(opcode, WASM_F64(a), WASM_F64(b))));
+    CHECK_EQ(expected, r.Call());
+  }
+  {
+    WasmRunner<int32_t> r(MachineType::Float64(), MachineType::Float64());
+    BUILD(r, WASM_I32_SCONVERT_F64(
+                 WASM_BINOP(opcode, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))));
+    CHECK_EQ(expected, r.Call(a, b));
+  }
 }
 
 
 void TestFloat64UnopWithConvert(WasmOpcode opcode, int32_t expected, double a) {
-  WasmRunner<int32_t> r;
-  // return int(K op K)
-  BUILD(r, WASM_I32_SCONVERT_F64(WASM_UNOP(opcode, WASM_F64(a))));
-  CHECK_EQ(expected, r.Call());
-  // TODO(titzer): test float parameters
+  {
+    WasmRunner<int32_t> r;
+    // return int(op(K))
+    BUILD(r, WASM_I32_SCONVERT_F64(WASM_UNOP(opcode, WASM_F64(a))));
+    CHECK_EQ(expected, r.Call());
+  }
+  {
+    WasmRunner<int32_t> r(MachineType::Float64());
+    // return int(op(a))
+    BUILD(r, WASM_I32_SCONVERT_F64(WASM_UNOP(opcode, WASM_GET_LOCAL(0))));
+    CHECK_EQ(expected, r.Call(a));
+  }
 }
 
 
