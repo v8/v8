@@ -41,7 +41,7 @@ function testToStringTag(className) {
   Object.defineProperty(obj, Symbol.toStringTag, {
     get: function() { throw className; }
   });
-  assertThrows(function() {
+  assertThrowsEquals(function() {
     Object.prototype.toString.call(obj);
   }, className);
 

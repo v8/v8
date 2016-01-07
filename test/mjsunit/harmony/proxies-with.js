@@ -168,14 +168,14 @@ function TestWithGetCallThrow2(create, handler) {
 
   var p = create(handler)
   with (p) {
-    assertThrows(function(){ a() }, "myexn")
+    assertThrowsEquals(function(){ a() }, "myexn")
     assertEquals("local", b())
     assertEquals("global", c())
   }
 
   var o = Object.create(p, {d: {value: function() { return "own" }}})
   with (o) {
-    assertThrows(function(){ a() }, "myexn")
+    assertThrowsEquals(function(){ a() }, "myexn")
     assertEquals("local", b())
     assertEquals("global", c())
     assertEquals("own", d())
@@ -185,10 +185,12 @@ function TestWithGetCallThrow2(create, handler) {
 function onproxythrow() { throw "myexn" }
 
 TestWithGetCallThrow({
+  has: function(r, k) { return k === "a"; },
   get: function(r, k) { key = k; return k === "a" ? onproxythrow : undefined },
 })
 
 TestWithGetCallThrow({
+  has: function(r, k) { return k === "a"; },
   get: function(r, k) { return this.get2(r, k) },
   get2: function(r, k) { key = k; return k === "a" ? onproxythrow : undefined },
 })
@@ -305,7 +307,7 @@ function TestWithSetThrow(handler, hasSetter) {
 
 function TestWithSetThrow2(create, handler, hasSetter) {
   var p = create(handler)
-  assertThrows(function(){
+  assertThrowsEquals(function(){
     with (p) {
       a = 1
     }
@@ -314,7 +316,7 @@ function TestWithSetThrow2(create, handler, hasSetter) {
   if (!hasSetter) return
 
   var o = Object.create(p, {})
-  assertThrows(function(){
+  assertThrowsEquals(function(){
     with (o) {
       a = 1
     }

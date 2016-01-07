@@ -93,6 +93,10 @@ var assertNotNull;
 // to the type property on the thrown exception.
 var assertThrows;
 
+// Assert that the passed function throws an exception.
+// The exception is checked against the second argument using assertEquals.
+var assertThrowsEquals;
+
 // Assert that the passed function or eval code does not throw an exception.
 var assertDoesNotThrow;
 
@@ -353,11 +357,24 @@ var assertUnoptimized;
     } catch (e) {
       if (typeof type_opt === 'function') {
         assertInstanceof(e, type_opt);
+      } else if (type_opt !== void 0) {
+        fail("invalid use of assertThrows, maybe you want assertThrowsEquals");
       }
       if (arguments.length >= 3) {
         assertEquals(e.type, cause_opt);
       }
       // Success.
+      return;
+    }
+    throw new MjsUnitAssertionError("Did not throw exception");
+  };
+
+
+  assertThrowsEquals = function assertThrowsEquals(fun, val) {
+    try {
+      fun();
+    } catch(e) {
+      assertEquals(val, e);
       return;
     }
     throw new MjsUnitAssertionError("Did not throw exception");

@@ -115,8 +115,8 @@ function TestForInThrow(handler) {
 function TestForInThrow2(create, handler) {
   var p = create(handler)
   var o = Object.create(p)
-  assertThrows(function(){ for (var x in p) {} }, "myexn")
-  assertThrows(function(){ for (var x in o) {} }, "myexn")
+  assertThrowsEquals(function(){ for (var x in p) {} }, "myexn")
+  assertThrowsEquals(function(){ for (var x in o) {} }, "myexn")
 }
 
 TestForInThrow({

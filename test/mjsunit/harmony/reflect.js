@@ -87,7 +87,7 @@ function prepare(target) {
   var a = { [Symbol.toPrimitive]: function() { return "bla" } };
   var b = { [Symbol.toPrimitive]: function() { throw "gaga" } };
   assertEquals(42, Reflect.get(target, a));
-  assertThrows(function() { Reflect.get(target, b); }, "gaga");
+  assertThrowsEquals(function() { Reflect.get(target, b); }, "gaga");
 })();
 
 
@@ -156,7 +156,7 @@ function prepare(target) {
   var b = { [Symbol.toPrimitive]: function() { throw "gaga" } };
   assertTrue(Reflect.set(target, a, 42));
   assertEquals(42, target.bla);
-  assertThrows(function() { Reflect.set(target, b, 42); }, "gaga");
+  assertThrowsEquals(function() { Reflect.set(target, b, 42); }, "gaga");
 })();
 
 
@@ -297,7 +297,7 @@ function prepare(target) {
   var a = { [Symbol.toPrimitive]: function() { return "bla" } };
   var b = { [Symbol.toPrimitive]: function() { throw "gaga" } };
   assertTrue(Reflect.has(target, a));
-  assertThrows(function() { Reflect.has(target, b); }, "gaga");
+  assertThrowsEquals(function() { Reflect.has(target, b); }, "gaga");
 })();
 
 
@@ -350,7 +350,7 @@ function prepare(target) {
   var b = { [Symbol.toPrimitive]: function() { throw "gaga" } };
   assertTrue(Reflect.defineProperty(target, a, {value: 42}));
   assertEquals(target.bla, 42);
-  assertThrows(function() { Reflect.defineProperty(target, b); }, "gaga");
+  assertThrowsEquals(function() { Reflect.defineProperty(target, b); }, "gaga");
 })();
 
 
@@ -379,7 +379,7 @@ function prepare(target) {
   var a = { [Symbol.toPrimitive]: function() { return "bla" } };
   var b = { [Symbol.toPrimitive]: function() { throw "gaga" } };
   assertTrue(Reflect.deleteProperty(target, a));
-  assertThrows(function() { Reflect.deleteProperty(target, b); }, "gaga");
+  assertThrowsEquals(function() { Reflect.deleteProperty(target, b); }, "gaga");
 })();
 
 
@@ -530,8 +530,7 @@ function prepare(target) {
   var a = { [Symbol.toPrimitive]: function() { return "bla" } };
   var b = { [Symbol.toPrimitive]: function() { throw "gaga" } };
   assertEquals(42, Reflect.getOwnPropertyDescriptor(target, a).value);
-  assertThrows(function() { Reflect.getOwnPropertyDescriptor(target, b); },
-      "gaga");
+  assertThrowsEquals(() => Reflect.getOwnPropertyDescriptor(target, b), "gaga");
 })();
 
 
