@@ -119,11 +119,11 @@ template<NativeType type>
 class NativesHolder {
  public:
   static NativesStore* get() {
-    DCHECK(holder_);
+    CHECK(holder_);
     return holder_;
   }
   static void set(NativesStore* store) {
-    DCHECK(store);
+    CHECK(store);
     holder_ = store;
   }
   static bool empty() { return holder_ == NULL; }
