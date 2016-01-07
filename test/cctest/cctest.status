@@ -33,12 +33,6 @@
 
   ##############################################################################
 
-  # TODO(danno): These tests fail because the incoming descriptor for JavaScript
-  # calls has nothing to do with the interface descriptors of some code stubs,
-  # and they cannot be used interchangably.
-  'test-run-stubs/RunOptimizedMathFloorStub': [SKIP],
-  'test-run-stubs/RunStringAddTFStub': [SKIP],
-
   # BUG(382): Weird test. Can't guarantee that it never times out.
   'test-api/ApplyInterruption': [PASS, TIMEOUT],
 
