@@ -2465,8 +2465,8 @@ void AstGraphBuilder::VisitCall(Call* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   VisitForValues(args);
 
-  // Resolve callee and receiver for a potential direct eval call. This block
-  // will mutate the callee and receiver values pushed onto the environment.
+  // Resolve callee for a potential direct eval call. This block will mutate the
+  // callee value pushed onto the environment.
   if (possibly_eval && args->length() > 0) {
     int arg_count = args->length();
 
