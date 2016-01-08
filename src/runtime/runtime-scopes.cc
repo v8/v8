@@ -8,6 +8,7 @@
 #include "src/arguments.h"
 #include "src/ast/scopeinfo.h"
 #include "src/ast/scopes.h"
+#include "src/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
@@ -412,6 +413,68 @@ RUNTIME_FUNCTION(Runtime_InitializeLegacyConstLookupSlot) {
 
 namespace {
 
+// Find the arguments of the JavaScript function invocation that called
+// into C++ code. Collect these in a newly allocated array of handles (possibly
+// prefixed by a number of empty handles).
+base::SmartArrayPointer<Handle<Object>> GetCallerArguments(Isolate* isolate,
+                                                           int prefix_argc,
+                                                           int* total_argc) {
+  // Find frame containing arguments passed to the caller.
+  JavaScriptFrameIterator it(isolate);
+  JavaScriptFrame* frame = it.frame();
+  List<JSFunction*> functions(2);
+  frame->GetFunctions(&functions);
+  if (functions.length() > 1) {
+    int inlined_jsframe_index = functions.length() - 1;
+    TranslatedState translated_values(frame);
+    translated_values.Prepare(false, frame->fp());
+
+    int argument_count = 0;
+    TranslatedFrame* translated_frame =
+        translated_values.GetArgumentsInfoFromJSFrameIndex(
+            inlined_jsframe_index, &argument_count);
+    TranslatedFrame::iterator iter = translated_frame->begin();
+
+    // Skip the function.
+    iter++;
+
+    // Skip the receiver.
+    iter++;
+    argument_count--;
+
+    *total_argc = prefix_argc + argument_count;
+    base::SmartArrayPointer<Handle<Object>> param_data(
+        NewArray<Handle<Object>>(*total_argc));
+    bool should_deoptimize = false;
+    for (int i = 0; i < argument_count; i++) {
+      should_deoptimize = should_deoptimize || iter->IsMaterializedObject();
+      Handle<Object> value = iter->GetValue();
+      param_data[prefix_argc + i] = value;
+      iter++;
+    }
+
+    if (should_deoptimize) {
+      translated_values.StoreMaterializedValuesAndDeopt();
+    }
+
+    return param_data;
+  } else {
+    it.AdvanceToArgumentsFrame();
+    frame = it.frame();
+    int args_count = frame->ComputeParametersCount();
+
+    *total_argc = prefix_argc + args_count;
+    base::SmartArrayPointer<Handle<Object>> param_data(
+        NewArray<Handle<Object>>(*total_argc));
+    for (int i = 0; i < args_count; i++) {
+      Handle<Object> val = Handle<Object>(frame->GetParameter(i), isolate);
+      param_data[prefix_argc + i] = val;
+    }
+    return param_data;
+  }
+}
+
+
 template <typename T>
 Handle<JSObject> NewSloppyArguments(Isolate* isolate, Handle<JSFunction> callee,
                                     T parameters, int argument_count) {
@@ -568,10 +631,10 @@ RUNTIME_FUNCTION(Runtime_NewSloppyArguments_Generic) {
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, callee, 0);
   // This generic runtime function can also be used when the caller has been
-  // inlined, we use the slow but accurate {Runtime::GetCallerArguments}.
+  // inlined, we use the slow but accurate {GetCallerArguments}.
   int argument_count = 0;
   base::SmartArrayPointer<Handle<Object>> arguments =
-      Runtime::GetCallerArguments(isolate, 0, &argument_count);
+      GetCallerArguments(isolate, 0, &argument_count);
   HandleArguments argument_getter(arguments.get());
   return *NewSloppyArguments(isolate, callee, argument_getter, argument_count);
 }
@@ -582,10 +645,10 @@ RUNTIME_FUNCTION(Runtime_NewStrictArguments_Generic) {
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, callee, 0);
   // This generic runtime function can also be used when the caller has been
-  // inlined, we use the slow but accurate {Runtime::GetCallerArguments}.
+  // inlined, we use the slow but accurate {GetCallerArguments}.
   int argument_count = 0;
   base::SmartArrayPointer<Handle<Object>> arguments =
-      Runtime::GetCallerArguments(isolate, 0, &argument_count);
+      GetCallerArguments(isolate, 0, &argument_count);
   HandleArguments argument_getter(arguments.get());
   return *NewStrictArguments(isolate, callee, argument_getter, argument_count);
 }
@@ -597,10 +660,10 @@ RUNTIME_FUNCTION(Runtime_NewRestArguments_Generic) {
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, callee, 0)
   CONVERT_SMI_ARG_CHECKED(start_index, 1);
   // This generic runtime function can also be used when the caller has been
-  // inlined, we use the slow but accurate {Runtime::GetCallerArguments}.
+  // inlined, we use the slow but accurate {GetCallerArguments}.
   int argument_count = 0;
   base::SmartArrayPointer<Handle<Object>> arguments =
-      Runtime::GetCallerArguments(isolate, 0, &argument_count);
+      GetCallerArguments(isolate, 0, &argument_count);
   HandleArguments argument_getter(arguments.get());
   return *NewRestArguments(isolate, callee, argument_getter, argument_count,
                            start_index);
@@ -1112,7 +1175,7 @@ RUNTIME_FUNCTION(Runtime_ArgumentsLength) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 0);
   int argument_count = 0;
-  Runtime::GetCallerArguments(isolate, 0, &argument_count);
+  GetCallerArguments(isolate, 0, &argument_count);
   return Smi::FromInt(argument_count);
 }
 
@@ -1125,7 +1188,7 @@ RUNTIME_FUNCTION(Runtime_Arguments) {
   // Determine the actual arguments passed to the function.
   int argument_count_signed = 0;
   base::SmartArrayPointer<Handle<Object>> arguments =
-      Runtime::GetCallerArguments(isolate, 0, &argument_count_signed);
+      GetCallerArguments(isolate, 0, &argument_count_signed);
   const uint32_t argument_count = argument_count_signed;
 
   // Try to convert the key to an index. If successful and within

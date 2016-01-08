@@ -7,7 +7,6 @@
 #include "src/accessors.h"
 #include "src/arguments.h"
 #include "src/compiler.h"
-#include "src/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
@@ -244,67 +243,6 @@ RUNTIME_FUNCTION(Runtime_SetForceInlineFlag) {
     func->shared()->set_force_inline(true);
   }
   return isolate->heap()->undefined_value();
-}
-
-
-// Find the arguments of the JavaScript function invocation that called
-// into C++ code. Collect these in a newly allocated array of handles (possibly
-// prefixed by a number of empty handles).
-base::SmartArrayPointer<Handle<Object>> Runtime::GetCallerArguments(
-    Isolate* isolate, int prefix_argc, int* total_argc) {
-  // Find frame containing arguments passed to the caller.
-  JavaScriptFrameIterator it(isolate);
-  JavaScriptFrame* frame = it.frame();
-  List<JSFunction*> functions(2);
-  frame->GetFunctions(&functions);
-  if (functions.length() > 1) {
-    int inlined_jsframe_index = functions.length() - 1;
-    TranslatedState translated_values(frame);
-    translated_values.Prepare(false, frame->fp());
-
-    int argument_count = 0;
-    TranslatedFrame* translated_frame =
-        translated_values.GetArgumentsInfoFromJSFrameIndex(
-            inlined_jsframe_index, &argument_count);
-    TranslatedFrame::iterator iter = translated_frame->begin();
-
-    // Skip the function.
-    iter++;
-
-    // Skip the receiver.
-    iter++;
-    argument_count--;
-
-    *total_argc = prefix_argc + argument_count;
-    base::SmartArrayPointer<Handle<Object> > param_data(
-        NewArray<Handle<Object> >(*total_argc));
-    bool should_deoptimize = false;
-    for (int i = 0; i < argument_count; i++) {
-      should_deoptimize = should_deoptimize || iter->IsMaterializedObject();
-      Handle<Object> value = iter->GetValue();
-      param_data[prefix_argc + i] = value;
-      iter++;
-    }
-
-    if (should_deoptimize) {
-      translated_values.StoreMaterializedValuesAndDeopt();
-    }
-
-    return param_data;
-  } else {
-    it.AdvanceToArgumentsFrame();
-    frame = it.frame();
-    int args_count = frame->ComputeParametersCount();
-
-    *total_argc = prefix_argc + args_count;
-    base::SmartArrayPointer<Handle<Object> > param_data(
-        NewArray<Handle<Object> >(*total_argc));
-    for (int i = 0; i < args_count; i++) {
-      Handle<Object> val = Handle<Object>(frame->GetParameter(i), isolate);
-      param_data[prefix_argc + i] = val;
-    }
-    return param_data;
-  }
 }
 
 
