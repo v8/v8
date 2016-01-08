@@ -1336,18 +1336,8 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
                                           MessageTemplate::kUnexpectedToken,
                                           Token::String(Token::ELLIPSIS));
         classifier->RecordNonSimpleParameter();
-        Scanner::Location expr_loc = scanner()->peek_location();
-        Token::Value tok = peek();
         ExpressionT expr =
             this->ParseAssignmentExpression(true, classifier, CHECK_OK);
-        // Patterns are not allowed as rest parameters.  There is no way we can
-        // succeed so go ahead and use the convenient ReportUnexpectedToken
-        // interface.
-        if (!Traits::IsIdentifier(expr)) {
-          ReportUnexpectedTokenAt(expr_loc, tok);
-          *ok = false;
-          return this->EmptyExpression();
-        }
         if (peek() == Token::COMMA) {
           ReportMessageAt(scanner()->peek_location(),
                           MessageTemplate::kParamAfterRest);
@@ -2869,7 +2859,7 @@ void ParserBase<Traits>::ParseFormalParameter(
   if (!*ok) return;
 
   if (!Traits::IsIdentifier(pattern)) {
-    if (is_rest || !allow_harmony_destructuring_bind()) {
+    if (!allow_harmony_destructuring_bind()) {
       ReportUnexpectedToken(next);
       *ok = false;
       return;

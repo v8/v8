@@ -217,3 +217,26 @@ var O = {
     function(){ eval("(class{foo(a, ...rest) {'use strict';}});") },
     SyntaxError);
 })();
+
+(function TestRestArrayPattern() {
+  function f(...[a, b, c]) { return a + b + c; }
+  assertEquals(6, f(1, 2, 3));
+  assertEquals("123", f(1, "2", 3));
+  assertEquals(NaN, f(1));
+
+  var f2 = (...[a, b, c]) => a + b + c;
+  assertEquals(6, f2(1, 2, 3));
+  assertEquals("123", f2(1, "2", 3));
+  assertEquals(NaN, f2(1));
+})();
+
+(function TestRestObjectPattern() {
+  function f(...{length, 0: firstName, 1: lastName}) {
+    return `Hello ${lastName}, ${firstName}! Called with ${length} args!`;
+  }
+  assertEquals("Hello Ross, Bob! Called with 4 args!", f("Bob", "Ross", 0, 0));
+
+  var f2 = (...{length, 0: firstName, 1: lastName}) =>
+      `Hello ${lastName}, ${firstName}! Called with ${length} args!`;
+  assertEquals("Hello Ross, Bob! Called with 4 args!", f2("Bob", "Ross", 0, 0));
+})();

@@ -389,10 +389,6 @@
   'intl402/String/prototype/toLocaleUpperCase/special_casing_Lithuanian': [FAIL],
   'intl402/String/prototype/toLocaleUpperCase/special_casing_Turkish': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4627
-  'language/rest-parameters/object-pattern': [FAIL],
-  'language/rest-parameters/array-pattern': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=4628
   'language/eval-code/non-definable-function-with-variable': [FAIL],
   'language/eval-code/non-definable-function-with-function': [FAIL],

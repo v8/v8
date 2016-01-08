@@ -5295,21 +5295,27 @@ TEST(ParseRestParameters) {
                                     "/regexp/, 'str', function(){});"},
                                   {NULL, NULL}};
 
-  const char* data[] = {
-    "...args",
-    "a, ...args",
-    "...   args",
-    "a, ...   args",
-    "...\targs",
-    "a, ...\targs",
-    "...\r\nargs",
-    "a, ...\r\nargs",
-    "...\rargs",
-    "a, ...\rargs",
-    "...\t\n\t\t\n  args",
-    "a, ...  \n  \n  args",
-    NULL};
-  RunParserSyncTest(context_data, data, kSuccess);
+  const char* data[] = {"...args",
+                        "a, ...args",
+                        "...   args",
+                        "a, ...   args",
+                        "...\targs",
+                        "a, ...\targs",
+                        "...\r\nargs",
+                        "a, ...\r\nargs",
+                        "...\rargs",
+                        "a, ...\rargs",
+                        "...\t\n\t\t\n  args",
+                        "a, ...  \n  \n  args",
+                        "...{ length, 0: a, 1: b}",
+                        "...{}",
+                        "...[a, b]",
+                        "...[]",
+                        "...[...[a, b, ...c]]",
+                        NULL};
+  static const ParserFlag always_flags[] = {kAllowHarmonyDestructuring};
+  RunParserSyncTest(context_data, data, kSuccess, nullptr, 0, always_flags,
+                    arraysize(always_flags));
 }
 
 
@@ -7195,30 +7201,6 @@ TEST(DestructuringDisallowPatternsInSingleParamArrows) {
   const char* error_data[] = {
     "var f = {x} => {};",
     "var f = {x,y} => {};",
-    nullptr};
-  // clang-format on
-  RunParserSyncTest(context_data, error_data, kError, NULL, 0, always_flags,
-                    arraysize(always_flags));
-}
-
-
-TEST(DestructuringDisallowPatternsInRestParams) {
-  i::FLAG_harmony_destructuring_bind = true;
-  static const ParserFlag always_flags[] = {kAllowHarmonyDestructuring};
-  const char* context_data[][2] = {{"'use strict';", ""},
-                                   {"function outer() { 'use strict';", "}"},
-                                   {"", ""},
-                                   {"function outer() { ", "}"},
-                                   {nullptr, nullptr}};
-
-  // clang-format off
-  const char* error_data[] = {
-    "function(...{}) {}",
-    "function(...{x}) {}",
-    "function(...[x]) {}",
-    "(...{}) => {}",
-    "(...{x}) => {}",
-    "(...[x]) => {}",
     nullptr};
   // clang-format on
   RunParserSyncTest(context_data, error_data, kError, NULL, 0, always_flags,

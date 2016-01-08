@@ -4478,7 +4478,7 @@ Block* Parser::BuildParameterInitializationBlock(
       factory()->NewBlock(NULL, 1, true, RelocInfo::kNoPosition);
   for (int i = 0; i < parameters.params.length(); ++i) {
     auto parameter = parameters.params[i];
-    if (parameter.is_rest) break;
+    if (parameter.is_rest && parameter.pattern->IsVariableProxy()) break;
     DeclarationDescriptor descriptor;
     descriptor.declaration_kind = DeclarationDescriptor::PARAMETER;
     descriptor.parser = this;
