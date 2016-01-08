@@ -878,6 +878,80 @@ TEST_F(WasmFunctionVerifyTest, Ok_v_v_empty) {
 
   if (result.val) delete result.val;
 }
+
+
+TEST_F(WasmModuleVerifyTest, WLLSectionNoLen) {
+  const byte data[] = {
+      kDeclWLL,  // section without length.
+  };
+  EXPECT_FAILURE(data);
+}
+
+
+TEST_F(WasmModuleVerifyTest, WLLSectionEmpty) {
+  const byte data[] = {
+      kDeclWLL, 0,  // empty section
+  };
+  ModuleResult result = DecodeModule(data, data + arraysize(data));
+  EXPECT_TRUE(result.ok());
+  if (result.val) delete result.val;
+}
+
+
+TEST_F(WasmModuleVerifyTest, WLLSectionOne) {
+  const byte data[] = {
+      kDeclWLL,
+      1,  // LEB128 1
+      0,  // one byte section
+  };
+  ModuleResult result = DecodeModule(data, data + arraysize(data));
+  EXPECT_TRUE(result.ok());
+  if (result.val) delete result.val;
+}
+
+
+TEST_F(WasmModuleVerifyTest, WLLSectionTen) {
+  const byte data[] = {
+      kDeclWLL,
+      10,                             // LEB128 10
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10,  // 10 byte section
+  };
+  ModuleResult result = DecodeModule(data, data + arraysize(data));
+  EXPECT_TRUE(result.ok());
+  if (result.val) delete result.val;
+}
+
+
+TEST_F(WasmModuleVerifyTest, WLLSectionOverflow) {
+  const byte data[] = {
+      kDeclWLL,
+      11,                             // LEB128 11
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10,  // 10 byte section
+  };
+  EXPECT_FAILURE(data);
+}
+
+
+TEST_F(WasmModuleVerifyTest, WLLSectionUnderflow) {
+  const byte data[] = {
+    kDeclWLL,
+    0xff, 0xff, 0xff, 0xff, 0x0f,  // LEB128 0xffffffff
+    1, 2, 3, 4,                    // 4 byte section
+  };
+  EXPECT_FAILURE(data);
+}
+
+
+TEST_F(WasmModuleVerifyTest, WLLSectionLoop) {
+  // Would infinite loop decoding if wrapping and allowed.
+  const byte data[] = {
+    kDeclWLL,
+    0xfa, 0xff, 0xff, 0xff, 0x0f,  // LEB128 0xfffffffa
+    1, 2, 3, 4,                    // 4 byte section
+  };
+  EXPECT_FAILURE(data);
+}
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

@@ -181,6 +181,20 @@ class ModuleDecoder : public Decoder {
           }
           break;
         }
+        case kDeclWLL: {
+          // Reserved for experimentation by the Web Low-level Language project
+          // which is augmenting the binary encoding with source code meta
+          // information. This section does not affect the semantics of the code
+          // and can be ignored by the runtime. https://github.com/JSStats/wll
+          int length;
+          uint32_t section_size = u32v(&length, "section size");
+          if (pc_ + section_size > limit_ || pc_ + section_size < pc_) {
+            error(pc_ - length, "invalid section size");
+            break;
+          }
+          pc_ += section_size;
+          break;
+        }
         default:
           error(pc_ - 1, nullptr, "unrecognized section 0x%02x", section);
           break;

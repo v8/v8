@@ -30,6 +30,7 @@ enum WasmSectionDeclCode {
   kDeclGlobals = 0x03,
   kDeclDataSegments = 0x04,
   kDeclFunctionTable = 0x05,
+  kDeclWLL = 0x11,
   kDeclEnd = 0x06,
 };
 
