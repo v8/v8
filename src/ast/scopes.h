@@ -209,6 +209,15 @@ class Scope: public ZoneObject {
   // names.
   Variable* NewTemporary(const AstRawString* name);
 
+  // Remove a temporary variable. This is for adjusting the scope of
+  // temporaries used when desugaring parameter initializers.
+  bool RemoveTemporary(Variable* var);
+
+  // Adds a temporary variable in this scope's TemporaryScope. This is for
+  // adjusting the scope of temporaries used when desugaring parameter
+  // initializers.
+  void AddTemporary(Variable* var) { temps_.Add(var, zone()); }
+
   // Adds the specific declaration node to the list of declarations in
   // this scope. The declarations are processed as part of entering
   // the scope; see codegen.cc:ProcessDeclarations.

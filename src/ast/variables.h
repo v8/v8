@@ -37,6 +37,10 @@ class Variable: public ZoneObject {
   // scope is only used to follow the context chain length.
   Scope* scope() const { return scope_; }
 
+  // This is for adjusting the scope of temporaries used when desugaring
+  // parameter initializers.
+  void set_scope(Scope* scope) { scope_ = scope; }
+
   Handle<String> name() const { return name_->string(); }
   const AstRawString* raw_name() const { return name_; }
   VariableMode mode() const { return mode_; }

@@ -575,8 +575,21 @@ Variable* Scope::NewTemporary(const AstRawString* name) {
                                        TEMPORARY,
                                        Variable::NORMAL,
                                        kCreatedInitialized);
-  scope->temps_.Add(var, zone());
+  scope->AddTemporary(var);
   return var;
+}
+
+
+bool Scope::RemoveTemporary(Variable* var) {
+  // Most likely (always?) any temporary variable we want to remove
+  // was just added before, so we search backwards.
+  for (int i = temps_.length(); i-- > 0;) {
+    if (temps_[i] == var) {
+      temps_.Remove(i);
+      return true;
+    }
+  }
+  return false;
 }
 
 
