@@ -1200,24 +1200,19 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     }
     case kX87BitcastFI: {
-      __ fstp(0);
       __ mov(i.OutputRegister(), MemOperand(esp, 0));
       __ lea(esp, Operand(esp, kFloatSize));
       break;
     }
     case kX87BitcastIF: {
+      __ fstp(0);
       if (instr->InputAt(0)->IsRegister()) {
         __ lea(esp, Operand(esp, -kFloatSize));
         __ mov(MemOperand(esp, 0), i.InputRegister(0));
-        __ fstp(0);
         __ fld_s(MemOperand(esp, 0));
         __ lea(esp, Operand(esp, kFloatSize));
       } else {
-        __ lea(esp, Operand(esp, -kDoubleSize));
-        __ mov(MemOperand(esp, 0), i.InputRegister(0));
-        __ fstp(0);
-        __ fld_d(MemOperand(esp, 0));
-        __ lea(esp, Operand(esp, kDoubleSize));
+        __ fld_s(i.InputOperand(0));
       }
       break;
     }
