@@ -37,13 +37,13 @@ var lastMicrotaskId = 0;
 function CreateResolvingFunctions(promise) {
   var alreadyResolved = false;
 
-  var resolve = function(value) {
+  var resolve = value => {
     if (alreadyResolved === true) return;
     alreadyResolved = true;
     PromiseResolve(promise, value);
   };
 
-  var reject = function(reason) {
+  var reject = reason => {
     if (alreadyResolved === true) return;
     alreadyResolved = true;
     PromiseReject(promise, reason);
@@ -230,7 +230,7 @@ function NewPromiseCapability(C) {
   }
 
   var result = {promise: UNDEFINED, resolve: UNDEFINED, reject: UNDEFINED };
-  result.promise = new C(function(resolve, reject) {
+  result.promise = new C((resolve, reject) => {
     if (!IS_UNDEFINED(result.resolve) || !IS_UNDEFINED(result.reject))
         throw MakeTypeError(kPromiseExecutorAlreadyInvoked);
     result.resolve = resolve;
@@ -348,7 +348,7 @@ function PromiseAll(iterable) {
 
   function CreateResolveElementFunction(index, values, promiseCapability) {
     var alreadyCalled = false;
-    return function(x) {
+    return (x) => {
       if (alreadyCalled === true) return;
       alreadyCalled = true;
       values[index] = x;
@@ -394,8 +394,8 @@ function PromiseRace(iterable) {
   var deferred = NewPromiseCapability(this);
   try {
     for (var value of iterable) {
-      var reject = function(r) { deferred.reject(r) };
-      this.resolve(value).then(function(x) { deferred.resolve(x) }, reject);
+      var reject = reason => { deferred.reject(reason); };
+      this.resolve(value).then((x) => { deferred.resolve(x) }, reject);
       SET_PRIVATE(reject, promiseCombinedDeferredSymbol, deferred);
     }
   } catch (e) {
