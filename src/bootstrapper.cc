@@ -1105,6 +1105,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<JSFunction> object_is_sealed = SimpleInstallFunction(
         object_function, "isSealed", Builtins::kObjectIsSealed, 1, false);
     native_context()->set_object_is_sealed(*object_is_sealed);
+    Handle<JSFunction> object_keys = SimpleInstallFunction(
+        object_function, "keys", Builtins::kObjectKeys, 1, false);
+    native_context()->set_object_keys(*object_keys);
     SimpleInstallFunction(object_function, "preventExtensions",
                           Builtins::kObjectPreventExtensions, 1, false);
     SimpleInstallFunction(object_function, "seal", Builtins::kObjectSeal, 1,

@@ -18,7 +18,6 @@ var MakeTypeError;
 var MaxSimple;
 var MinSimple;
 var ObjectHasOwnProperty;
-var ObjectKeys;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
@@ -26,7 +25,6 @@ utils.Import(function(from) {
   MaxSimple = from.MaxSimple;
   MinSimple = from.MinSimple;
   ObjectHasOwnProperty = from.ObjectHasOwnProperty;
-  ObjectKeys = from.ObjectKeys;
 });
 
 // -------------------------------------------------------------------
@@ -52,7 +50,7 @@ function InternalizeJSONProperty(holder, name, reviver) {
         }
       }
     } else {
-      for (var p of ObjectKeys(val)) {
+      for (var p of %object_keys(val)) {
         var newElement = InternalizeJSONProperty(val, p, reviver);
         if (IS_UNDEFINED(newElement)) {
           %reflect_delete_property(val, p);
@@ -123,7 +121,7 @@ function SerializeObject(value, replacer, stack, indent, gap) {
       }
     }
   } else {
-    for (var p of ObjectKeys(value)) {
+    for (var p of %object_keys(value)) {
       var strP = JSONSerialize(p, value, replacer, stack, indent, gap);
       if (!IS_UNDEFINED(strP)) {
         var member = %QuoteJSONString(p) + ":";

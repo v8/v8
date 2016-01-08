@@ -1602,6 +1602,22 @@ BUILTIN(ObjectIsSealed) {
 }
 
 
+// ES6 section 19.1.2.14 Object.keys ( O )
+BUILTIN(ObjectKeys) {
+  HandleScope scope(isolate);
+  Handle<Object> object = args.atOrUndefined(isolate, 1);
+  Handle<JSReceiver> receiver;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, receiver,
+                                     Execution::ToObject(isolate, object));
+  Handle<FixedArray> keys;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, keys,
+      JSReceiver::GetKeys(receiver, JSReceiver::OWN_ONLY, ENUMERABLE_STRINGS,
+                          CONVERT_TO_STRING));
+  return *isolate->factory()->NewJSArrayWithElements(keys);
+}
+
+
 // ES6 section 19.1.2.15 Object.preventExtensions ( O )
 BUILTIN(ObjectPreventExtensions) {
   HandleScope scope(isolate);

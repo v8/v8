@@ -92,6 +92,7 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(ObjectIsExtensible, kNone)                                 \
   V(ObjectIsFrozen, kNone)                                     \
   V(ObjectIsSealed, kNone)                                     \
+  V(ObjectKeys, kNone)                                         \
   V(ObjectPreventExtensions, kNone)                            \
   V(ObjectSeal, kNone)                                         \
   V(ObjectProtoToString, kNone)                                \

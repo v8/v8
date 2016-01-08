@@ -211,13 +211,6 @@ function ObjectLookupSetter(name) {
 }
 
 
-function ObjectKeys(obj) {
-  obj = TO_OBJECT(obj);
-  var filter = PROPERTY_FILTER_ONLY_ENUMERABLE | PROPERTY_FILTER_SKIP_SYMBOLS;
-  return %GetOwnPropertyKeys(obj, filter);
-}
-
-
 // ES6 6.2.4.1
 function IsAccessorDescriptor(desc) {
   if (IS_UNDEFINED(desc)) return false;
@@ -892,7 +885,7 @@ utils.InstallGetterSetter(GlobalObject.prototype, "__proto__", ObjectGetProto,
 // Set up non-enumerable functions in the Object object.
 utils.InstallFunctions(GlobalObject, DONT_ENUM, [
   // assign is added in bootstrapper.cc.
-  "keys", ObjectKeys,
+  // keys is added in bootstrapper.cc.
   "defineProperty", ObjectDefineProperty,
   "defineProperties", ObjectDefineProperties,
   "getPrototypeOf", ObjectGetPrototypeOf,
@@ -1210,7 +1203,6 @@ utils.Export(function(to) {
   to.ObjectDefineProperties = ObjectDefineProperties;
   to.ObjectDefineProperty = ObjectDefineProperty;
   to.ObjectHasOwnProperty = ObjectHasOwnProperty;
-  to.ObjectKeys = ObjectKeys;
 });
 
 %InstallToContext([

@@ -421,13 +421,15 @@ void StackGuard::InitThread(const ExecutionAccess& lock) {
 // --- C a l l s   t o   n a t i v e s ---
 
 
-MaybeHandle<Object> Execution::ToObject(Isolate* isolate, Handle<Object> obj) {
+MaybeHandle<JSReceiver> Execution::ToObject(Isolate* isolate,
+                                            Handle<Object> obj) {
   Handle<JSReceiver> receiver;
   if (JSReceiver::ToObject(isolate, obj).ToHandle(&receiver)) {
     return receiver;
   }
-  THROW_NEW_ERROR(
-      isolate, NewTypeError(MessageTemplate::kUndefinedOrNullToObject), Object);
+  THROW_NEW_ERROR(isolate,
+                  NewTypeError(MessageTemplate::kUndefinedOrNullToObject),
+                  JSReceiver);
 }
 
 
