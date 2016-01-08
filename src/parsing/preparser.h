@@ -540,12 +540,11 @@ class PreParserFactory {
     return PreParserStatement::Default();
   }
   PreParserExpression NewFunctionLiteral(
-      PreParserIdentifier name, AstValueFactory* ast_value_factory,
-      Scope* scope, PreParserStatementList body, int materialized_literal_count,
-      int expected_property_count, int parameter_count,
+      PreParserIdentifier name, Scope* scope, PreParserStatementList body,
+      int materialized_literal_count, int expected_property_count,
+      int parameter_count,
       FunctionLiteral::ParameterFlag has_duplicate_parameters,
       FunctionLiteral::FunctionType function_type,
-      FunctionLiteral::IsFunctionFlag is_function,
       FunctionLiteral::EagerCompileHint eager_compile_hint, FunctionKind kind,
       int position) {
     return PreParserExpression::Default();

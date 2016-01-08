@@ -236,10 +236,10 @@ FunctionLiteral* Parser::DefaultConstructor(bool call_super, Scope* scope,
   }
 
   FunctionLiteral* function_literal = factory()->NewFunctionLiteral(
-      name, ast_value_factory(), function_scope, body,
-      materialized_literal_count, expected_property_count, parameter_count,
+      name, function_scope, body, materialized_literal_count,
+      expected_property_count, parameter_count,
       FunctionLiteral::kNoDuplicateParameters,
-      FunctionLiteral::ANONYMOUS_EXPRESSION, FunctionLiteral::kIsFunction,
+      FunctionLiteral::kAnonymousExpression,
       FunctionLiteral::kShouldLazyCompile, kind, pos);
 
   return function_literal;
@@ -947,13 +947,12 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
     if (ok) {
       ParserTraits::RewriteDestructuringAssignments();
       result = factory()->NewFunctionLiteral(
-          ast_value_factory()->empty_string(), ast_value_factory(), scope_,
-          body, function_state.materialized_literal_count(),
+          ast_value_factory()->empty_string(), scope_, body,
+          function_state.materialized_literal_count(),
           function_state.expected_property_count(), 0,
           FunctionLiteral::kNoDuplicateParameters,
-          FunctionLiteral::ANONYMOUS_EXPRESSION, FunctionLiteral::kGlobalOrEval,
-          FunctionLiteral::kShouldLazyCompile, FunctionKind::kNormalFunction,
-          0);
+          FunctionLiteral::kGlobalOrEval, FunctionLiteral::kShouldLazyCompile,
+          FunctionKind::kNormalFunction, 0);
     }
   }
 
@@ -1039,11 +1038,12 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
     DCHECK(is_sloppy(scope->language_mode()) ||
            is_strict(info->language_mode()));
     DCHECK(info->language_mode() == shared_info->language_mode());
-    FunctionLiteral::FunctionType function_type = shared_info->is_expression()
-        ? (shared_info->is_anonymous()
-              ? FunctionLiteral::ANONYMOUS_EXPRESSION
-              : FunctionLiteral::NAMED_EXPRESSION)
-        : FunctionLiteral::DECLARATION;
+    FunctionLiteral::FunctionType function_type =
+        shared_info->is_expression()
+            ? (shared_info->is_anonymous()
+                   ? FunctionLiteral::kAnonymousExpression
+                   : FunctionLiteral::kNamedExpression)
+            : FunctionLiteral::kDeclaration;
     bool ok = true;
 
     if (shared_info->is_arrow()) {
@@ -1105,7 +1105,7 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
       result = ParseFunctionLiteral(
           raw_name, Scanner::Location::invalid(), kSkipFunctionNameCheck,
           shared_info->kind(), RelocInfo::kNoPosition, function_type,
-          FunctionLiteral::NORMAL_ARITY, shared_info->language_mode(), &ok);
+          FunctionLiteral::kNormalArity, shared_info->language_mode(), &ok);
     }
     // Make sure the results agree.
     DCHECK(ok == (result != NULL));
@@ -2110,7 +2110,7 @@ Statement* Parser::ParseFunctionDeclaration(
                          : kFunctionNameValidityUnknown,
       is_generator ? FunctionKind::kGeneratorFunction
                    : FunctionKind::kNormalFunction,
-      pos, FunctionLiteral::DECLARATION, FunctionLiteral::NORMAL_ARITY,
+      pos, FunctionLiteral::kDeclaration, FunctionLiteral::kNormalArity,
       language_mode(), CHECK_OK);
 
   // Even if we're not at the top-level of the global or a function
@@ -4111,7 +4111,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   //   nested function, and hoisting works normally relative to that.
   Scope* declaration_scope = scope_->DeclarationScope();
   Scope* original_declaration_scope = original_scope_->DeclarationScope();
-  Scope* scope = function_type == FunctionLiteral::DECLARATION &&
+  Scope* scope = function_type == FunctionLiteral::kDeclaration &&
                          is_sloppy(language_mode) &&
                          !allow_harmony_sloppy_function() &&
                          (original_scope_ == original_declaration_scope ||
@@ -4245,7 +4245,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       // - The function literal shouldn't be hinted to eagerly compile.
       bool use_temp_zone =
           FLAG_lazy && !allow_natives() && extension_ == NULL && allow_lazy() &&
-          function_type == FunctionLiteral::DECLARATION &&
+          function_type == FunctionLiteral::kDeclaration &&
           eager_compile_hint != FunctionLiteral::kShouldEagerCompile;
       // Open a new BodyScope, which sets our AstNodeFactory to allocate in the
       // new temporary zone if the preconditions are satisfied, and ensures that
@@ -4317,9 +4317,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
                                : FunctionLiteral::kNoDuplicateParameters;
 
   FunctionLiteral* function_literal = factory()->NewFunctionLiteral(
-      function_name, ast_value_factory(), scope, body,
-      materialized_literal_count, expected_property_count, arity,
-      duplicate_parameters, function_type, FunctionLiteral::kIsFunction,
+      function_name, scope, body, materialized_literal_count,
+      expected_property_count, arity, duplicate_parameters, function_type,
       eager_compile_hint, kind, pos);
   function_literal->set_function_token_position(function_token_pos);
   if (should_be_used_once_hint)
@@ -4559,7 +4558,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
   ZoneList<Statement*>* result = new(zone()) ZoneList<Statement*>(8, zone());
 
   static const int kFunctionNameAssignmentIndex = 0;
-  if (function_type == FunctionLiteral::NAMED_EXPRESSION) {
+  if (function_type == FunctionLiteral::kNamedExpression) {
     DCHECK(function_name != NULL);
     // If we have a named function expression, we add a local variable
     // declaration to the body of the function with the name of the
@@ -4646,7 +4645,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
     result->Add(inner_block, zone());
   }
 
-  if (function_type == FunctionLiteral::NAMED_EXPRESSION) {
+  if (function_type == FunctionLiteral::kNamedExpression) {
     // Now that we know the language mode, we can create the const assignment
     // in the previously reserved spot.
     // NOTE: We create a proxy and resolve it here so that in the

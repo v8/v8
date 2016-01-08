@@ -1749,8 +1749,8 @@ ParserBase<Traits>::ParsePropertyDefinition(
 
     value = this->ParseFunctionLiteral(
         *name, scanner()->location(), kSkipFunctionNameCheck, kind,
-        RelocInfo::kNoPosition, FunctionLiteral::ANONYMOUS_EXPRESSION,
-        FunctionLiteral::NORMAL_ARITY, language_mode(),
+        RelocInfo::kNoPosition, FunctionLiteral::kAnonymousExpression,
+        FunctionLiteral::kNormalArity, language_mode(),
         CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
     return factory()->NewObjectLiteralProperty(name_expression, value,
@@ -1789,8 +1789,8 @@ ParserBase<Traits>::ParsePropertyDefinition(
     if (!in_class) kind = WithObjectLiteralBit(kind);
     typename Traits::Type::FunctionLiteral value = this->ParseFunctionLiteral(
         *name, scanner()->location(), kSkipFunctionNameCheck, kind,
-        RelocInfo::kNoPosition, FunctionLiteral::ANONYMOUS_EXPRESSION,
-        is_get ? FunctionLiteral::GETTER_ARITY : FunctionLiteral::SETTER_ARITY,
+        RelocInfo::kNoPosition, FunctionLiteral::kAnonymousExpression,
+        is_get ? FunctionLiteral::kGetterArity : FunctionLiteral::kSetterArity,
         language_mode(), CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
     // Make sure the name expression is a string since we need a Name for
@@ -2556,12 +2556,12 @@ ParserBase<Traits>::ParseMemberExpression(ExpressionClassifier* classifier,
     bool is_strict_reserved_name = false;
     Scanner::Location function_name_location = Scanner::Location::invalid();
     FunctionLiteral::FunctionType function_type =
-        FunctionLiteral::ANONYMOUS_EXPRESSION;
+        FunctionLiteral::kAnonymousExpression;
     if (peek_any_identifier()) {
       name = ParseIdentifierOrStrictReservedWord(
           is_generator, &is_strict_reserved_name, CHECK_OK);
       function_name_location = scanner()->location();
-      function_type = FunctionLiteral::NAMED_EXPRESSION;
+      function_type = FunctionLiteral::kNamedExpression;
     }
     result = this->ParseFunctionLiteral(
         name, function_name_location,
@@ -2569,7 +2569,7 @@ ParserBase<Traits>::ParseMemberExpression(ExpressionClassifier* classifier,
                                 : kFunctionNameValidityUnknown,
         is_generator ? FunctionKind::kGeneratorFunction
                      : FunctionKind::kNormalFunction,
-        function_token_position, function_type, FunctionLiteral::NORMAL_ARITY,
+        function_token_position, function_type, FunctionLiteral::kNormalArity,
         language_mode(), CHECK_OK);
   } else if (peek() == Token::SUPER) {
     const bool is_new = false;
@@ -2942,14 +2942,14 @@ void ParserBase<Traits>::CheckArityRestrictions(
     int param_count, FunctionLiteral::ArityRestriction arity_restriction,
     bool has_rest, int formals_start_pos, int formals_end_pos, bool* ok) {
   switch (arity_restriction) {
-    case FunctionLiteral::GETTER_ARITY:
+    case FunctionLiteral::kGetterArity:
       if (param_count != 0) {
         ReportMessageAt(Scanner::Location(formals_start_pos, formals_end_pos),
                         MessageTemplate::kBadGetterArity);
         *ok = false;
       }
       break;
-    case FunctionLiteral::SETTER_ARITY:
+    case FunctionLiteral::kSetterArity:
       if (param_count != 1) {
         ReportMessageAt(Scanner::Location(formals_start_pos, formals_end_pos),
                         MessageTemplate::kBadSetterArity);
@@ -3037,7 +3037,7 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(
       } else {
         body = this->ParseEagerFunctionBody(
             this->EmptyIdentifier(), RelocInfo::kNoPosition, formal_parameters,
-            kArrowFunction, FunctionLiteral::ANONYMOUS_EXPRESSION, CHECK_OK);
+            kArrowFunction, FunctionLiteral::kAnonymousExpression, CHECK_OK);
         materialized_literal_count =
             function_state.materialized_literal_count();
         expected_property_count = function_state.expected_property_count();
@@ -3081,11 +3081,10 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(
   }
 
   FunctionLiteralT function_literal = factory()->NewFunctionLiteral(
-      this->EmptyIdentifierString(), ast_value_factory(),
-      formal_parameters.scope, body, materialized_literal_count,
-      expected_property_count, num_parameters,
+      this->EmptyIdentifierString(), formal_parameters.scope, body,
+      materialized_literal_count, expected_property_count, num_parameters,
       FunctionLiteral::kNoDuplicateParameters,
-      FunctionLiteral::ANONYMOUS_EXPRESSION, FunctionLiteral::kIsFunction,
+      FunctionLiteral::kAnonymousExpression,
       FunctionLiteral::kShouldLazyCompile, FunctionKind::kArrowFunction,
       formal_parameters.scope->start_position());
 
