@@ -1365,6 +1365,7 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
       Expect(Token::RPAREN, CHECK_OK);
       if (peek() != Token::ARROW) {
         ValidateExpression(classifier, CHECK_OK);
+        expr->set_is_parenthesized();
       }
       return expr;
     }
@@ -2041,7 +2042,8 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN, int flags,
           ExpressionClassifier::CoverInitializedNameProduction);
 
   bool maybe_pattern =
-      expression->IsObjectLiteral() || expression->IsArrayLiteral();
+      (expression->IsObjectLiteral() || expression->IsArrayLiteral()) &&
+      !expression->is_parenthesized();
 
   if (!Token::IsAssignmentOp(peek())) {
     // Parsed conditional expression only (no assignment).

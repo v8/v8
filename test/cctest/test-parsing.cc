@@ -7043,6 +7043,21 @@ TEST(DestructuringAssignmentNegativeTests) {
     "[...x,]",
     "[x, y, ...z = 1]",
     "[...z = 1]",
+
+    // v8:4657
+    "({ x: x4, x: (x+=1e4) })",
+    "(({ x: x4, x: (x+=1e4) }))",
+    "({ x: x4, x: (x+=1e4) } = {})",
+    "(({ x: x4, x: (x+=1e4) } = {}))",
+    "(({ x: x4, x: (x+=1e4) }) = {})",
+    "({ x: y } = {})",
+    "(({ x: y } = {}))",
+    "(({ x: y }) = {})",
+    "([a])",
+    "(([a]))",
+    "([a] = [])",
+    "(([a] = []))",
+    "(([a]) = [])",
     NULL};
   // clang-format on
   static const ParserFlag always_flags[] = {

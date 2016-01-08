@@ -591,7 +591,8 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
       }
     }
 
-    is_pattern = pattern.IsObjectLiteral() || pattern.IsArrayLiteral();
+    is_pattern = (pattern.IsObjectLiteral() || pattern.IsArrayLiteral()) &&
+                 !pattern.is_parenthesized();
 
     bool is_for_iteration_variable =
         var_context == kForStatement &&

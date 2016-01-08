@@ -279,6 +279,12 @@ class PreParserExpression {
   int position() const { return RelocInfo::kNoPosition; }
   void set_function_token_position(int position) {}
 
+  // Parenthesized expressions in the form `( Expression )`.
+  void set_is_parenthesized() {
+    code_ = ParenthesizedField::update(code_, true);
+  }
+  bool is_parenthesized() const { return ParenthesizedField::decode(code_); }
+
  private:
   enum Type {
     kExpression,
@@ -305,6 +311,13 @@ class PreParserExpression {
 
   // The first three bits are for the Type.
   typedef BitField<Type, 0, 3> TypeField;
+
+  // The high order bit applies only to nodes which would inherit from the
+  // Expression ASTNode --- This is by necessity, due to the fact that
+  // Expression nodes may be represented as multiple Types, not exclusively
+  // through kExpression.
+  // TODO(caitp, adamk): clean up PreParserExpression bitfields.
+  typedef BitField<bool, 31, 1> ParenthesizedField;
 
   // The rest of the bits are interpreted depending on the value
   // of the Type field, so they can share the storage.

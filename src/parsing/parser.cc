@@ -2366,7 +2366,9 @@ void Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
       }
     }
 
-    bool is_pattern = pattern->IsObjectLiteral() || pattern->IsArrayLiteral();
+    bool is_pattern =
+        (pattern->IsObjectLiteral() || pattern->IsArrayLiteral()) &&
+        !pattern->is_parenthesized();
 
     Scanner::Location variable_loc = scanner()->location();
     const AstRawString* single_name =
