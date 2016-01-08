@@ -40,7 +40,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
         is_set_op_(false),
         marking_exported(false),
         builder_(new (zone) WasmModuleBuilder(zone)),
-        current_function_builder_(NULL),
+        current_function_builder_(nullptr),
         literal_(literal),
         isolate_(isolate),
         zone_(zone),
@@ -58,13 +58,13 @@ class AsmWasmBuilderImpl : public AstVisitor {
 
   void VisitFunctionDeclaration(FunctionDeclaration* decl) {
     DCHECK(!in_function_);
-    DCHECK(current_function_builder_ == NULL);
+    DCHECK(current_function_builder_ == nullptr);
     uint16_t index = LookupOrInsertFunction(decl->proxy()->var());
     current_function_builder_ = builder_->FunctionAt(index);
     in_function_ = true;
     RECURSE(Visit(decl->fun()));
     in_function_ = false;
-    current_function_builder_ = NULL;
+    current_function_builder_ = nullptr;
     local_variables_.Clear();
   }
 
@@ -84,7 +84,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
     if (stmt->statements()->length() == 1) {
       ExpressionStatement* expr =
           stmt->statements()->at(0)->AsExpressionStatement();
-      if (expr != NULL) {
+      if (expr != nullptr) {
         if (expr->expression()->IsAssignment()) {
           RECURSE(VisitExpressionStatement(expr));
           return;
@@ -244,13 +244,13 @@ class AsmWasmBuilderImpl : public AstVisitor {
 
   void VisitForStatement(ForStatement* stmt) {
     DCHECK(in_function_);
-    if (stmt->init() != NULL) {
+    if (stmt->init() != nullptr) {
       block_size_++;
       RECURSE(Visit(stmt->init()));
     }
     BlockVisitor visitor(this, stmt->AsBreakableStatement(), kExprLoop, true);
     block_size_ = 0;
-    if (stmt->cond() != NULL) {
+    if (stmt->cond() != nullptr) {
       block_size_++;
       current_function_builder_->Emit(kExprIf);
       current_function_builder_->Emit(kExprBoolNot);
@@ -258,11 +258,11 @@ class AsmWasmBuilderImpl : public AstVisitor {
       current_function_builder_->EmitWithU8(kExprBr, 1);
       current_function_builder_->Emit(kExprNop);
     }
-    if (stmt->body() != NULL) {
+    if (stmt->body() != nullptr) {
       block_size_++;
       RECURSE(Visit(stmt->body()));
     }
-    if (stmt->next() != NULL) {
+    if (stmt->next() != nullptr) {
       block_size_++;
       RECURSE(Visit(stmt->next()));
     }
@@ -413,7 +413,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
 
   void UnLoadInitFunction() {
     in_function_ = false;
-    current_function_builder_ = NULL;
+    current_function_builder_ = nullptr;
   }
 
   void VisitAssignment(Assignment* expr) {
@@ -427,11 +427,11 @@ class AsmWasmBuilderImpl : public AstVisitor {
       LoadInitFunction();
     }
     BinaryOperation* value_op = expr->value()->AsBinaryOperation();
-    if (value_op != NULL && MatchBinaryOperation(value_op) == kAsIs) {
+    if (value_op != nullptr && MatchBinaryOperation(value_op) == kAsIs) {
       VariableProxy* target_var = expr->target()->AsVariableProxy();
       VariableProxy* effective_value_var = GetLeft(value_op)->AsVariableProxy();
       // TODO(aseemgarg): simplify block_size_ or replace with a kNop
-      if (target_var != NULL && effective_value_var != NULL &&
+      if (target_var != nullptr && effective_value_var != nullptr &&
           target_var->var() == effective_value_var->var()) {
         block_size_--;
         return;
@@ -557,7 +557,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
 
   bool MatchIntBinaryOperation(BinaryOperation* expr, Token::Value op,
                                int32_t val) {
-    DCHECK(expr->right() != NULL);
+    DCHECK(expr->right() != nullptr);
     if (expr->op() == op && expr->right()->IsLiteral() &&
         TypeOf(expr) == kAstI32) {
       Literal* right = expr->right()->AsLiteral();
@@ -571,7 +571,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
 
   bool MatchDoubleBinaryOperation(BinaryOperation* expr, Token::Value op,
                                   double val) {
-    DCHECK(expr->right() != NULL);
+    DCHECK(expr->right() != nullptr);
     if (expr->op() == op && expr->right()->IsLiteral() &&
         TypeOf(expr) == kAstF64) {
       Literal* right = expr->right()->AsLiteral();
@@ -610,7 +610,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
       DCHECK(TypeOf(expr->left()) == kAstI32);
       DCHECK(TypeOf(expr->right()) == kAstI32);
       BinaryOperation* op = expr->left()->AsBinaryOperation();
-      if (op != NULL) {
+      if (op != nullptr) {
         if (MatchIntBinaryOperation(op, Token::BIT_XOR, 0xffffffff)) {
           DCHECK(TypeOf(op->right()) == kAstI32);
           if (TypeOf(op->left()) != kAstI32) {
@@ -899,10 +899,10 @@ class AsmWasmBuilderImpl : public AstVisitor {
   };
 
   uint16_t LookupOrInsertLocal(Variable* v, LocalType type) {
-    DCHECK(current_function_builder_ != NULL);
+    DCHECK(current_function_builder_ != nullptr);
     ZoneHashMap::Entry* entry =
         local_variables_.Lookup(v, ComputePointerHash(v));
-    if (entry == NULL) {
+    if (entry == nullptr) {
       uint16_t index;
       if (v->IsParameter()) {
         index = current_function_builder_->AddParam(type);
@@ -921,7 +921,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
   uint16_t LookupOrInsertGlobal(Variable* v, LocalType type) {
     ZoneHashMap::Entry* entry =
         global_variables_.Lookup(v, ComputePointerHash(v));
-    if (entry == NULL) {
+    if (entry == nullptr) {
       uint16_t index =
           builder_->AddGlobal(WasmOpcodes::MachineTypeFor(type), 0);
       IndexContainer* container = new (zone()) IndexContainer();
@@ -934,9 +934,9 @@ class AsmWasmBuilderImpl : public AstVisitor {
   }
 
   uint16_t LookupOrInsertFunction(Variable* v) {
-    DCHECK(builder_ != NULL);
+    DCHECK(builder_ != nullptr);
     ZoneHashMap::Entry* entry = functions_.Lookup(v, ComputePointerHash(v));
-    if (entry == NULL) {
+    if (entry == nullptr) {
       uint16_t index = builder_->AddFunction(v->raw_name()->raw_data(),
                                              v->raw_name()->length());
       IndexContainer* container = new (zone()) IndexContainer();

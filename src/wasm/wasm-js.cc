@@ -139,7 +139,7 @@ v8::internal::wasm::WasmModuleIndex* TranslateAsmModule(i::ParseInfo* info) {
   v8::internal::AsmTyper typer(info->isolate(), info->zone(), *(info->script()),
                                info->literal());
   if (!typer.Validate()) {
-    return NULL;
+    return nullptr;
   }
 
   auto module = v8::internal::wasm::AsmWasmBuilder(
@@ -170,7 +170,7 @@ void AsmCompileRun(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i::ParseInfo info(&zone, script);
 
   auto module = TranslateAsmModule(&info);
-  if (module == NULL) {
+  if (module == nullptr) {
     thrower.Error("Asm.js validation failed");
     return;
   }
@@ -203,7 +203,7 @@ void InstantiateModuleFromAsm(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i::ParseInfo info(&zone, script);
 
   auto module = TranslateAsmModule(&info);
-  if (module == NULL) {
+  if (module == nullptr) {
     thrower.Error("Asm.js validation failed");
     return;
   }

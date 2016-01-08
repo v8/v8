@@ -101,7 +101,7 @@ void WasmFunctionBuilder::ReturnType(LocalType type) { return_type_ = type; }
 
 
 void WasmFunctionBuilder::EmitCode(const byte* code, uint32_t code_size) {
-  EmitCode(code, code_size, NULL, 0);
+  EmitCode(code, code_size, nullptr, 0);
 }
 
 

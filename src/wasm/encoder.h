@@ -125,7 +125,8 @@ class WasmModuleWriter : public ZoneObject {
 class WasmModuleBuilder : public ZoneObject {
  public:
   explicit WasmModuleBuilder(Zone* zone);
-  uint16_t AddFunction(const unsigned char* name = NULL, int name_length = 0);
+  uint16_t AddFunction(const unsigned char* name = nullptr,
+                       int name_length = 0);
   uint32_t AddGlobal(MachineType type, bool exported);
   WasmFunctionBuilder* FunctionAt(size_t index);
   void AddDataSegment(WasmDataSegmentEncoder* data);
