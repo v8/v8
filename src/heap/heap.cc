@@ -942,7 +942,8 @@ bool Heap::CollectGarbage(GarbageCollector collector, const char* gc_reason,
 
   if (collector == MARK_COMPACTOR && !ShouldFinalizeIncrementalMarking() &&
       !ShouldAbortIncrementalMarking() && !incremental_marking()->IsStopped() &&
-      !incremental_marking()->should_hurry() && FLAG_incremental_marking) {
+      !incremental_marking()->should_hurry() && FLAG_incremental_marking &&
+      OldGenerationAllocationLimitReached()) {
     // Make progress in incremental marking.
     const intptr_t kStepSizeWhenDelayedByScavenge = 1 * MB;
     incremental_marking()->Step(kStepSizeWhenDelayedByScavenge,

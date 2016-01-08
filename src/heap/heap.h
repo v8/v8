@@ -825,7 +825,7 @@ class Heap {
 
   // TODO(hpayer): There is still a missmatch between capacity and actual
   // committed memory size.
-  bool CanExpandOldGeneration(int size) {
+  bool CanExpandOldGeneration(int size = 0) {
     if (force_oom_) return false;
     return (CommittedOldGenerationMemory() + size) < MaxOldGenerationSize();
   }

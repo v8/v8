@@ -3100,8 +3100,7 @@ AllocationResult LargeObjectSpace::AllocateRaw(int object_size,
                                                Executability executable) {
   // Check if we want to force a GC before growing the old space further.
   // If so, fail the allocation.
-  if (!heap()->always_allocate() &&
-      !heap()->CanExpandOldGeneration(object_size)) {
+  if (!heap()->CanExpandOldGeneration(object_size)) {
     return AllocationResult::Retry(identity());
   }
 
