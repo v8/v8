@@ -1265,30 +1265,28 @@ TestKeysThrow({
 //                    Object.prototype.toLocaleString,
 //                    Function.prototype.toString)
 
-//TODO(cbruni): enable once fixed.
-/*
 var key
 
 function TestToString(handler) {
   var p = new Proxy({}, handler)
   key = ""
   assertEquals("[object Object]", Object.prototype.toString.call(p))
-  assertEquals("", key)
+  assertEquals(Symbol.toStringTag, key)
   assertEquals("my_proxy", Object.prototype.toLocaleString.call(p))
   assertEquals("toString", key)
 
-  var f = new Proxy(handler, function() {})
+  var f = new Proxy(function() {}, handler)
   key = ""
   assertEquals("[object Function]", Object.prototype.toString.call(f))
-  assertEquals("", key)
+  assertEquals(Symbol.toStringTag, key)
   assertEquals("my_proxy", Object.prototype.toLocaleString.call(f))
   assertEquals("toString", key)
-  assertDoesNotThrow(function(){ Function.prototype.toString.call(f) })
+  assertThrows(function(){ Function.prototype.toString.call(f) })
 
   var o = Object.create(p)
   key = ""
   assertEquals("[object Object]", Object.prototype.toString.call(o))
-  assertEquals("", key)
+  assertEquals(Symbol.toStringTag, key)
   assertEquals("my_proxy", Object.prototype.toLocaleString.call(o))
   assertEquals("toString", key)
 }
@@ -1311,24 +1309,20 @@ TestToString(new Proxy({}, {
 
 function TestToStringThrow(handler) {
   var p = new Proxy({}, handler)
-  assertEquals("[object Object]", Object.prototype.toString.call(p))
+  assertThrowsEquals(() => Object.prototype.toString.call(p), "myexn")
   assertThrowsEquals(() => Object.prototype.toLocaleString.call(p), "myexn")
 
   var f = new Proxy(function(){}, handler)
-  assertEquals("[object Function]", Object.prototype.toString.call(f))
+  assertThrowsEquals(() => Object.prototype.toString.call(f), "myexn")
   assertThrowsEquals(() => Object.prototype.toLocaleString.call(f), "myexn")
 
   var o = Object.create(p)
-  assertEquals("[object Object]", Object.prototype.toString.call(o))
+  assertThrowsEquals(() => Object.prototype.toString.call(o), "myexn")
   assertThrowsEquals(() => Object.prototype.toLocaleString.call(o), "myexn")
 }
 
 TestToStringThrow({
   get: function(r, k) { throw "myexn" }
-})
-
-TestToStringThrow({
-  get: function(r, k) { return function() { throw "myexn" } }
 })
 
 TestToStringThrow({
@@ -1345,7 +1339,6 @@ TestToStringThrow(new Proxy({}, {
     return function(r, k) { throw "myexn" }
   }
 }))
-*/
 
 
 // ---------------------------------------------------------------------------
