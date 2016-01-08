@@ -70,6 +70,7 @@ class BytecodeGraphTester {
     i::FLAG_ignition = true;
     i::FLAG_always_opt = false;
     i::FLAG_allow_natives_syntax = true;
+    i::FLAG_ignition_fallback_on_eval_and_catch = false;
     // Set ignition filter flag via SetFlagsFromString to avoid double-free
     // (or potential leak with StrDup() based on ownership confusion).
     ScopedVector<char> ignition_filter(64);
@@ -1095,6 +1096,117 @@ TEST(BytecodeGraphBuilderLookupSlotWide) {
              function_epilogue);
 
     BytecodeGraphTester tester(isolate, zone, script.start(), "t");
+    auto callable = tester.GetCallable<>();
+    Handle<Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*snippets[i].return_value()));
+  }
+}
+
+
+TEST(BytecodeGraphBuilderEval) {
+  HandleAndZoneScope scope;
+  Isolate* isolate = scope.main_isolate();
+  Zone* zone = scope.main_zone();
+  Factory* factory = isolate->factory();
+
+  ExpectedSnippet<0> snippets[] = {
+      {"return eval('1;');", {handle(Smi::FromInt(1), isolate)}},
+      {"return eval('100 * 20;');", {handle(Smi::FromInt(2000), isolate)}},
+      {"var x = 10; return eval('x + 20;');",
+       {handle(Smi::FromInt(30), isolate)}},
+      {"var x = 10; eval('x = 33;'); return x;",
+       {handle(Smi::FromInt(33), isolate)}},
+      {"'use strict'; var x = 20; var z = 0;\n"
+       "eval('var x = 33; z = x;'); return x + z;",
+       {handle(Smi::FromInt(53), isolate)}},
+      {"eval('var x = 33;'); eval('var y = x + 20'); return x + y;",
+       {handle(Smi::FromInt(86), isolate)}},
+      {"var x = 1; eval('for(i = 0; i < 10; i++) x = x + 1;'); return x",
+       {handle(Smi::FromInt(11), isolate)}},
+      {"var x = 10; eval('var x = 20;'); return x;",
+       {handle(Smi::FromInt(20), isolate)}},
+      {"var x = 1; eval('\"use strict\"; var x = 2;'); return x;",
+       {handle(Smi::FromInt(1), isolate)}},
+      {"'use strict'; var x = 1; eval('var x = 2;'); return x;",
+       {handle(Smi::FromInt(1), isolate)}},
+      {"var x = 10; eval('x + 20;'); return typeof x;",
+       {factory->NewStringFromStaticChars("number")}},
+      {"eval('var y = 10;'); return typeof unallocated;",
+       {factory->NewStringFromStaticChars("undefined")}},
+      {"'use strict'; eval('var y = 10;'); return typeof unallocated;",
+       {factory->NewStringFromStaticChars("undefined")}},
+      {"eval('var x = 10;'); return typeof x;",
+       {factory->NewStringFromStaticChars("number")}},
+      {"var x = {}; eval('var x = 10;'); return typeof x;",
+       {factory->NewStringFromStaticChars("number")}},
+      {"'use strict'; var x = {}; eval('var x = 10;'); return typeof x;",
+       {factory->NewStringFromStaticChars("object")}},
+  };
+
+  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
+  for (size_t i = 0; i < num_snippets; i++) {
+    ScopedVector<char> script(1024);
+    SNPrintF(script, "function %s() { %s }\n%s();", kFunctionName,
+             snippets[i].code_snippet, kFunctionName);
+    BytecodeGraphTester tester(isolate, zone, script.start());
+    auto callable = tester.GetCallable<>();
+    Handle<Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*snippets[i].return_value()));
+  }
+}
+
+
+TEST(BytecodeGraphBuilderEvalParams) {
+  HandleAndZoneScope scope;
+  Isolate* isolate = scope.main_isolate();
+  Zone* zone = scope.main_zone();
+
+  ExpectedSnippet<1> snippets[] = {
+      {"var x = 10; return eval('x + p1;');",
+       {handle(Smi::FromInt(30), isolate), handle(Smi::FromInt(20), isolate)}},
+      {"var x = 10; eval('p1 = x;'); return p1;",
+       {handle(Smi::FromInt(10), isolate), handle(Smi::FromInt(20), isolate)}},
+      {"var a = 10;"
+       "function inner() { return eval('a + p1;');}"
+       "return inner();",
+       {handle(Smi::FromInt(30), isolate), handle(Smi::FromInt(20), isolate)}},
+  };
+
+  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
+  for (size_t i = 0; i < num_snippets; i++) {
+    ScopedVector<char> script(1024);
+    SNPrintF(script, "function %s(p1) { %s }\n%s(0);", kFunctionName,
+             snippets[i].code_snippet, kFunctionName);
+    BytecodeGraphTester tester(isolate, zone, script.start());
+    auto callable = tester.GetCallable<Handle<Object>>();
+    Handle<Object> return_value =
+        callable(snippets[i].parameter(0)).ToHandleChecked();
+    CHECK(return_value->SameValue(*snippets[i].return_value()));
+  }
+}
+
+
+TEST(BytecodeGraphBuilderEvalGlobal) {
+  HandleAndZoneScope scope;
+  Isolate* isolate = scope.main_isolate();
+  Zone* zone = scope.main_zone();
+  Factory* factory = isolate->factory();
+
+  ExpectedSnippet<0> snippets[] = {
+      {"function add_global() { eval('function f() { z = 33; }; f()'); };"
+       "function f() { add_global(); return z; }; f();",
+       {handle(Smi::FromInt(33), isolate)}},
+      {"function add_global() {\n"
+       " eval('\"use strict\"; function f() { y = 33; };"
+       "      try { f() } catch(e) {}');\n"
+       "}\n"
+       "function f() { add_global(); return typeof y; } f();",
+       {factory->NewStringFromStaticChars("undefined")}},
+  };
+
+  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
+  for (size_t i = 0; i < num_snippets; i++) {
+    BytecodeGraphTester tester(isolate, zone, snippets[i].code_snippet);
     auto callable = tester.GetCallable<>();
     Handle<Object> return_value = callable().ToHandleChecked();
     CHECK(return_value->SameValue(*snippets[i].return_value()));

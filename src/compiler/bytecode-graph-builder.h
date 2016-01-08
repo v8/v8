@@ -28,11 +28,6 @@ class BytecodeGraphBuilder {
   Graph* graph() const { return jsgraph_->graph(); }
 
  private:
-  enum class AccumulatorUpdateMode {
-    kOutputIgnored,
-    kOutputInAccumulator,
-  };
-
   class Environment;
   class FrameStateBeforeAndAfter;
 
@@ -263,14 +258,17 @@ class BytecodeGraphBuilder::Environment : public ZoneObject {
   int parameter_count() const { return parameter_count_; }
   int register_count() const { return register_count_; }
 
-  void BindRegister(interpreter::Register the_register, Node* node);
+  Node* LookupAccumulator() const;
   Node* LookupRegister(interpreter::Register the_register) const;
+
   void ExchangeRegisters(interpreter::Register reg0,
                          interpreter::Register reg1);
 
   void BindAccumulator(Node* node, FrameStateBeforeAndAfter* states = nullptr);
-  Node* LookupAccumulator() const;
-
+  void BindRegister(interpreter::Register the_register, Node* node,
+                    FrameStateBeforeAndAfter* states = nullptr);
+  void BindRegistersToProjections(interpreter::Register first_reg, Node* node,
+                                  FrameStateBeforeAndAfter* states = nullptr);
   void RecordAfterState(Node* node, FrameStateBeforeAndAfter* states);
 
   bool IsMarkedAsUnreachable() const;
@@ -284,12 +282,11 @@ class BytecodeGraphBuilder::Environment : public ZoneObject {
 
   // Preserve a checkpoint of the environment for the IR graph. Any
   // further mutation of the environment will not affect checkpoints.
-  Node* Checkpoint(BailoutId ast_id, AccumulatorUpdateMode update_mode);
+  Node* Checkpoint(BailoutId bytecode_offset, OutputFrameStateCombine combine);
 
   // Returns true if the state values are up to date with the current
-  // environment. If update_mode is AccumulatorUpdateMode::kOutputInAccumulator
-  // then accumulator state can be different from the environment.
-  bool StateValuesAreUpToDate(AccumulatorUpdateMode update_mode);
+  // environment.
+  bool StateValuesAreUpToDate(int output_poke_offset, int output_poke_count);
 
   // Control dependency tracked by this environment.
   Node* GetControlDependency() const { return control_dependency_; }
@@ -307,6 +304,8 @@ class BytecodeGraphBuilder::Environment : public ZoneObject {
  private:
   explicit Environment(const Environment* copy);
   void PrepareForLoop();
+  bool StateValuesAreUpToDate(Node** state_values, int offset, int count,
+                              int output_poke_start, int output_poke_end);
   bool StateValuesRequireUpdate(Node** state_values, int offset, int count);
   void UpdateStateValues(Node** state_values, int offset, int count);
 
