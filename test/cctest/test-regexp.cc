@@ -34,10 +34,10 @@
 #include "src/ast/ast.h"
 #include "src/char-predicates-inl.h"
 #include "src/ostreams.h"
-#include "src/parsing/parser.h"
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-macro-assembler-irregexp.h"
+#include "src/regexp/regexp-parser.h"
 #include "src/splay-tree-inl.h"
 #include "src/string-stream.h"
 #ifdef V8_INTERPRETED_REGEXP

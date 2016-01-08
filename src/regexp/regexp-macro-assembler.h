@@ -5,7 +5,8 @@
 #ifndef V8_REGEXP_REGEXP_MACRO_ASSEMBLER_H_
 #define V8_REGEXP_REGEXP_MACRO_ASSEMBLER_H_
 
-#include "src/ast/ast.h"
+#include "src/assembler.h"
+#include "src/regexp/regexp-ast.h"
 
 namespace v8 {
 namespace internal {

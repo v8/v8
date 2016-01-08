@@ -38,6 +38,7 @@
 #include "src/heap/memory-reducer.h"
 #include "src/ic/ic.h"
 #include "src/macro-assembler.h"
+#include "src/regexp/jsregexp.h"
 #include "src/snapshot/snapshot.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-tester.h"

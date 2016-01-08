@@ -32,6 +32,7 @@
 #include "src/heap/store-buffer.h"
 #include "src/interpreter/interpreter.h"
 #include "src/profiler/cpu-profiler.h"
+#include "src/regexp/jsregexp.h"
 #include "src/runtime-profiler.h"
 #include "src/snapshot/natives.h"
 #include "src/snapshot/serialize.h"

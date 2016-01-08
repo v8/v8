@@ -42,6 +42,7 @@
 #include "src/profiler/cpu-profiler.h"
 #include "src/property-descriptor.h"
 #include "src/prototype.h"
+#include "src/regexp/jsregexp.h"
 #include "src/safepoint-table.h"
 #include "src/string-builder.h"
 #include "src/string-search.h"

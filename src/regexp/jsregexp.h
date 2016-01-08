@@ -7,6 +7,7 @@
 
 #include "src/allocation.h"
 #include "src/assembler.h"
+#include "src/regexp/regexp-ast.h"
 
 namespace v8 {
 namespace internal {
@@ -226,63 +227,6 @@ enum ElementInSetsRelation {
 };
 
 
-// Represents code units in the range from from_ to to_, both ends are
-// inclusive.
-class CharacterRange {
- public:
-  CharacterRange() : from_(0), to_(0) { }
-  // For compatibility with the CHECK_OK macro
-  CharacterRange(void* null) { DCHECK_NULL(null); }  // NOLINT
-  CharacterRange(uc16 from, uc16 to) : from_(from), to_(to) { }
-  static void AddClassEscape(uc16 type, ZoneList<CharacterRange>* ranges,
-                             Zone* zone);
-  static Vector<const int> GetWordBounds();
-  static inline CharacterRange Singleton(uc16 value) {
-    return CharacterRange(value, value);
-  }
-  static inline CharacterRange Range(uc16 from, uc16 to) {
-    DCHECK(from <= to);
-    return CharacterRange(from, to);
-  }
-  static inline CharacterRange Everything() {
-    return CharacterRange(0, 0xFFFF);
-  }
-  bool Contains(uc16 i) { return from_ <= i && i <= to_; }
-  uc16 from() const { return from_; }
-  void set_from(uc16 value) { from_ = value; }
-  uc16 to() const { return to_; }
-  void set_to(uc16 value) { to_ = value; }
-  bool is_valid() { return from_ <= to_; }
-  bool IsEverything(uc16 max) { return from_ == 0 && to_ >= max; }
-  bool IsSingleton() { return (from_ == to_); }
-  void AddCaseEquivalents(Isolate* isolate, Zone* zone,
-                          ZoneList<CharacterRange>* ranges, bool is_one_byte);
-  static void Split(ZoneList<CharacterRange>* base,
-                    Vector<const int> overlay,
-                    ZoneList<CharacterRange>** included,
-                    ZoneList<CharacterRange>** excluded,
-                    Zone* zone);
-  // Whether a range list is in canonical form: Ranges ordered by from value,
-  // and ranges non-overlapping and non-adjacent.
-  static bool IsCanonical(ZoneList<CharacterRange>* ranges);
-  // Convert range list to canonical form. The characters covered by the ranges
-  // will still be the same, but no character is in more than one range, and
-  // adjacent ranges are merged. The resulting list may be shorter than the
-  // original, but cannot be longer.
-  static void Canonicalize(ZoneList<CharacterRange>* ranges);
-  // Negate the contents of a character range in canonical form.
-  static void Negate(ZoneList<CharacterRange>* src,
-                     ZoneList<CharacterRange>* dst,
-                     Zone* zone);
-  static const int kStartMarker = (1 << 24);
-  static const int kPayloadMask = (1 << 24) - 1;
-
- private:
-  uc16 from_;
-  uc16 to_;
-};
-
-
 // A set of unsigned integers that behaves especially well on small
 // integers (< 32).  May do zone-allocation.
 class OutSet: public ZoneObject {
@@ -378,63 +322,6 @@ class DispatchTable : public ZoneObject {
   VISIT(BackReference)                                               \
   VISIT(Assertion)                                                   \
   VISIT(Text)
-
-
-#define FOR_EACH_REG_EXP_TREE_TYPE(VISIT) \
-  VISIT(Disjunction)                      \
-  VISIT(Alternative)                      \
-  VISIT(Assertion)                        \
-  VISIT(CharacterClass)                   \
-  VISIT(Atom)                             \
-  VISIT(Quantifier)                       \
-  VISIT(Capture)                          \
-  VISIT(Lookaround)                       \
-  VISIT(BackReference)                    \
-  VISIT(Empty)                            \
-  VISIT(Text)
-
-
-#define FORWARD_DECLARE(Name) class RegExp##Name;
-FOR_EACH_REG_EXP_TREE_TYPE(FORWARD_DECLARE)
-#undef FORWARD_DECLARE
-
-
-class TextElement final BASE_EMBEDDED {
- public:
-  enum TextType {
-    ATOM,
-    CHAR_CLASS
-  };
-
-  static TextElement Atom(RegExpAtom* atom);
-  static TextElement CharClass(RegExpCharacterClass* char_class);
-
-  int cp_offset() const { return cp_offset_; }
-  void set_cp_offset(int cp_offset) { cp_offset_ = cp_offset; }
-  int length() const;
-
-  TextType text_type() const { return text_type_; }
-
-  RegExpTree* tree() const { return tree_; }
-
-  RegExpAtom* atom() const {
-    DCHECK(text_type() == ATOM);
-    return reinterpret_cast<RegExpAtom*>(tree());
-  }
-
-  RegExpCharacterClass* char_class() const {
-    DCHECK(text_type() == CHAR_CLASS);
-    return reinterpret_cast<RegExpCharacterClass*>(tree());
-  }
-
- private:
-  TextElement(TextType text_type, RegExpTree* tree)
-      : cp_offset_(-1), text_type_(text_type), tree_(tree) {}
-
-  int cp_offset_;
-  TextType text_type_;
-  RegExpTree* tree_;
-};
 
 
 class Trace;
@@ -685,33 +572,6 @@ class RegExpNode: public ZoneObject {
   BoyerMooreLookahead* bm_info_[2];
 
   Zone* zone_;
-};
-
-
-// A simple closed interval.
-class Interval {
- public:
-  Interval() : from_(kNone), to_(kNone) { }
-  Interval(int from, int to) : from_(from), to_(to) { }
-  Interval Union(Interval that) {
-    if (that.from_ == kNone)
-      return *this;
-    else if (from_ == kNone)
-      return that;
-    else
-      return Interval(Min(from_, that.from_), Max(to_, that.to_));
-  }
-  bool Contains(int value) {
-    return (from_ <= value) && (value <= to_);
-  }
-  bool is_empty() { return from_ == kNone; }
-  int from() const { return from_; }
-  int to() const { return to_; }
-  static Interval Empty() { return Interval(); }
-  static const int kNone = -1;
- private:
-  int from_;
-  int to_;
 };
 
 
