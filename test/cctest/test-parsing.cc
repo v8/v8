@@ -1410,13 +1410,13 @@ TEST(DiscardFunctionBody) {
   // See comments in ParseFunctionLiteral in parser.cc.
   const char* discard_sources[] = {
       "(function f() { function g() { var a; } })();",
+      "(function f() { function g() { { function h() { } } } })();",
       /* TODO(conradw): In future it may be possible to apply this optimisation
        * to these productions.
       "(function f() { 0, function g() { var a; } })();",
       "(function f() { 0, { g() { var a; } } })();",
       "(function f() { 0, class c { g() { var a; } } })();", */
-      NULL
-  };
+      NULL};
 
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
@@ -1448,6 +1448,7 @@ TEST(DiscardFunctionBody) {
     } else {
       // TODO(conradw): This path won't be hit until the other test cases can be
       // uncommented.
+      UNREACHABLE();
       CHECK_NOT_NULL(inner->body());
       CHECK_GE(2, inner->body()->length());
       i::Expression* exp = inner->body()->at(1)->AsExpressionStatement()->
