@@ -704,7 +704,7 @@ DEFINE_IMPLICATION(trace_detached_contexts, track_detached_contexts)
 #ifdef VERIFY_HEAP
 DEFINE_BOOL(verify_heap, false, "verify heap pointers before and after GC")
 #endif
-DEFINE_BOOL(move_object_start, false, "enable moving of object starts")
+DEFINE_BOOL(move_object_start, true, "enable moving of object starts")
 DEFINE_BOOL(memory_reducer, true, "use memory reducer")
 DEFINE_BOOL(scavenge_reclaim_unmodified_objects, false,
             "remove unmodified and unreferenced objects")
