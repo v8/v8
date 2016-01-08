@@ -1415,13 +1415,13 @@ class Heap {
   void UpdateSurvivalStatistics(int start_new_space_size);
 
   inline void IncrementPromotedObjectsSize(int object_size) {
-    DCHECK(object_size > 0);
+    DCHECK_GE(object_size, 0);
     promoted_objects_size_ += object_size;
   }
   inline intptr_t promoted_objects_size() { return promoted_objects_size_; }
 
   inline void IncrementSemiSpaceCopiedObjectSize(int object_size) {
-    DCHECK(object_size > 0);
+    DCHECK_GE(object_size, 0);
     semi_space_copied_object_size_ += object_size;
   }
   inline intptr_t semi_space_copied_object_size() {
@@ -1931,6 +1931,16 @@ class Heap {
   void ScheduleIdleScavengeIfNeeded(int bytes_allocated);
 
   // ===========================================================================
+  // HeapIterator helpers. =====================================================
+  // ===========================================================================
+
+  void heap_iterator_start() { heap_iterator_depth_++; }
+
+  void heap_iterator_end() { heap_iterator_depth_--; }
+
+  bool in_heap_iterator() { return heap_iterator_depth_ > 0; }
+
+  // ===========================================================================
   // Allocation methods. =======================================================
   // ===========================================================================
 
@@ -2382,6 +2392,9 @@ class Heap {
   StrongRootsList* strong_roots_list_;
 
   ArrayBufferTracker* array_buffer_tracker_;
+
+  // The depth of HeapIterator nestings.
+  int heap_iterator_depth_;
 
   // Used for testing purposes.
   bool force_oom_;

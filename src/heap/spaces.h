@@ -595,6 +595,7 @@ class MemoryChunk {
     }
     live_byte_count_ = 0;
   }
+
   void IncrementLiveBytes(int by) {
     if (FLAG_gc_verbose) {
       printf("UpdateLiveBytes:%p:%x%c=%x->%x\n", static_cast<void*>(this),
@@ -602,10 +603,12 @@ class MemoryChunk {
              live_byte_count_ + by);
     }
     live_byte_count_ += by;
+    DCHECK_GE(live_byte_count_, 0);
     DCHECK_LE(static_cast<unsigned>(live_byte_count_), size_);
   }
+
   int LiveBytes() {
-    DCHECK(static_cast<unsigned>(live_byte_count_) <= size_);
+    DCHECK_LE(static_cast<unsigned>(live_byte_count_), size_);
     return live_byte_count_;
   }
 

@@ -1617,7 +1617,9 @@ class MarkCompactCollector::EvacuateNewSpaceVisitor final
                                    SlotsBuffer** evacuation_slots_buffer)
       : EvacuateVisitorBase(heap, evacuation_slots_buffer),
         buffer_(LocalAllocationBuffer::InvalidBuffer()),
-        space_to_allocate_(NEW_SPACE) {}
+        space_to_allocate_(NEW_SPACE),
+        promoted_size_(0),
+        semispace_copied_size_(0) {}
 
   bool Visit(HeapObject* object) override {
     Heap::UpdateAllocationSiteFeedback(object, Heap::RECORD_SCRATCHPAD_SLOT);
@@ -1630,7 +1632,7 @@ class MarkCompactCollector::EvacuateNewSpaceVisitor final
         heap_->array_buffer_tracker()->Promote(
             JSArrayBuffer::cast(target_object));
       }
-      heap_->IncrementPromotedObjectsSize(size);
+      promoted_size_ += size;
       return true;
     }
     HeapObject* target = nullptr;
@@ -1641,9 +1643,12 @@ class MarkCompactCollector::EvacuateNewSpaceVisitor final
     if (V8_UNLIKELY(target->IsJSArrayBuffer())) {
       heap_->array_buffer_tracker()->MarkLive(JSArrayBuffer::cast(target));
     }
-    heap_->IncrementSemiSpaceCopiedObjectSize(size);
+    semispace_copied_size_ += size;
     return true;
   }
+
+  intptr_t promoted_size() { return promoted_size_; }
+  intptr_t semispace_copied_size() { return semispace_copied_size_; }
 
  private:
   enum NewSpaceAllocationMode {
@@ -1742,6 +1747,8 @@ class MarkCompactCollector::EvacuateNewSpaceVisitor final
 
   LocalAllocationBuffer buffer_;
   AllocationSpace space_to_allocate_;
+  intptr_t promoted_size_;
+  intptr_t semispace_copied_size_;
 };
 
 
@@ -3096,8 +3103,6 @@ void MarkCompactCollector::EvacuateNewSpace() {
   new_space->Flip();
   new_space->ResetAllocationInfo();
 
-  int survivors_size = 0;
-
   // First pass: traverse all objects in inactive semispace, remove marks,
   // migrate live objects and write forwarding addresses.  This stage puts
   // new entries in the store buffer and may cause some pages to be marked
@@ -3106,13 +3111,17 @@ void MarkCompactCollector::EvacuateNewSpace() {
   EvacuateNewSpaceVisitor new_space_visitor(heap(), &migration_slots_buffer_);
   while (it.has_next()) {
     NewSpacePage* p = it.next();
-    survivors_size += p->LiveBytes();
     bool ok = VisitLiveObjects(p, &new_space_visitor, kClearMarkbits);
     USE(ok);
     DCHECK(ok);
   }
-
-  heap_->IncrementYoungSurvivorsCounter(survivors_size);
+  heap_->IncrementPromotedObjectsSize(
+      static_cast<int>(new_space_visitor.promoted_size()));
+  heap_->IncrementSemiSpaceCopiedObjectSize(
+      static_cast<int>(new_space_visitor.semispace_copied_size()));
+  heap_->IncrementYoungSurvivorsCounter(
+      static_cast<int>(new_space_visitor.promoted_size()) +
+      static_cast<int>(new_space_visitor.semispace_copied_size()));
   new_space->set_age_mark(new_space->top());
 }
 

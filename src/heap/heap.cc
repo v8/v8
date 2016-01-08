@@ -165,6 +165,7 @@ Heap::Heap()
       deserialization_complete_(false),
       strong_roots_list_(NULL),
       array_buffer_tracker_(NULL),
+      heap_iterator_depth_(0),
       force_oom_(false) {
 // Allow build-time customization of the max semispace size. Building
 // V8 with snapshots and a non-default max semispace size is much
@@ -3102,7 +3103,11 @@ bool Heap::CanMoveObjectStart(HeapObject* object) {
 
 
 void Heap::AdjustLiveBytes(HeapObject* object, int by, InvocationMode mode) {
-  if (incremental_marking()->IsMarking() &&
+  // As long as the inspected object is black and we are currently not iterating
+  // the heap using HeapIterator, we can update the live byte count. We cannot
+  // update while using HeapIterator because the iterator is temporarily
+  // marking the whole object graph, without updating live bytes.
+  if (!in_heap_iterator() &&
       Marking::IsBlack(Marking::MarkBitFrom(object->address()))) {
     if (mode == SEQUENTIAL_TO_SWEEPER) {
       MemoryChunk::IncrementLiveBytesFromGC(object, by);
@@ -5659,6 +5664,7 @@ HeapIterator::HeapIterator(Heap* heap,
       filter_(nullptr),
       space_iterator_(nullptr),
       object_iterator_(nullptr) {
+  heap_->heap_iterator_start();
   // Start the iteration.
   space_iterator_ = new SpaceIterator(heap_);
   switch (filtering_) {
@@ -5673,6 +5679,7 @@ HeapIterator::HeapIterator(Heap* heap,
 
 
 HeapIterator::~HeapIterator() {
+  heap_->heap_iterator_end();
 #ifdef DEBUG
   // Assert that in filtering mode we have iterated through all
   // objects. Otherwise, heap will be left in an inconsistent state.
