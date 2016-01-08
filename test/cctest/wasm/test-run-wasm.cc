@@ -71,6 +71,7 @@ class TestingModule : public ModuleEnv {
     linker = nullptr;
     function_code = nullptr;
     asm_js = false;
+    memset(global_data, 0, sizeof(global_data));
   }
 
   ~TestingModule() {
@@ -2125,17 +2126,18 @@ TEST(Run_Wasm_CheckMachIntsZero) {
 }
 
 
-// TODO(titzer): Fix for msan and re-enable.
-#if 0
-
 TEST(Run_Wasm_MemF32_Sum) {
   WasmRunner<int32_t> r(MachineType::Int32());
   const byte kSum = r.AllocateLocal(kAstF32);
-  ModuleEnv module;
   const int kSize = 5;
-  float buffer[kSize] = {-99.25, -888.25, -77.25, 66666.25, 5555.25};
-  module.mem_start = reinterpret_cast<uintptr_t>(&buffer);
-  module.mem_end = reinterpret_cast<uintptr_t>(&buffer[kSize]);
+  TestingModule module;
+  module.AddMemoryElems<float>(kSize);
+  float* buffer = module.raw_mem_start<float>();
+  buffer[0] = -99.25;
+  buffer[1] = -888.25;
+  buffer[2] = -77.25;
+  buffer[3] = 66666.25;
+  buffer[4] = 5555.25;
   r.env()->module = &module;
 
   BUILD(r, WASM_BLOCK(
@@ -2157,8 +2159,6 @@ TEST(Run_Wasm_MemF32_Sum) {
   CHECK_NE(-99.25, buffer[0]);
   CHECK_EQ(71256.0f, buffer[0]);
 }
-
-#endif
 
 
 #if WASM_64
@@ -2197,17 +2197,16 @@ TEST(Run_Wasm_MemI64_Sum) {
 #endif
 
 
-// TODO(titzer): Fix for msan and re-enable.
-#if 0
-
 template <typename T>
-void GenerateAndRunFold(WasmOpcode binop, T* buffer, size_t size,
-                        LocalType astType, MachineType memType) {
+T GenerateAndRunFold(WasmOpcode binop, T* buffer, size_t size,
+                     LocalType astType, MachineType memType) {
   WasmRunner<int32_t> r(MachineType::Int32());
   const byte kAccum = r.AllocateLocal(astType);
-  ModuleEnv module;
-  module.mem_start = reinterpret_cast<uintptr_t>(buffer);
-  module.mem_end = reinterpret_cast<uintptr_t>(buffer + size);
+  TestingModule module;
+  module.AddMemoryElems<T>(size);
+  for (size_t i = 0; i < size; i++) {
+    module.raw_mem_start<T>()[i] = buffer[i];
+  }
   r.env()->module = &module;
 
   BUILD(
@@ -2226,18 +2225,17 @@ void GenerateAndRunFold(WasmOpcode binop, T* buffer, size_t size,
           WASM_STORE_MEM(memType, WASM_ZERO, WASM_GET_LOCAL(kAccum)),
           WASM_GET_LOCAL(0)));
   r.Call(static_cast<int>(sizeof(T) * (size - 1)));
+  return module.raw_mem_at<double>(0);
 }
 
 
 TEST(Run_Wasm_MemF64_Mul) {
   const size_t kSize = 6;
   double buffer[kSize] = {1, 2, 2, 2, 2, 2};
-  GenerateAndRunFold<double>(kExprF64Mul, buffer, kSize, kAstF64,
-                             MachineType::Float64());
-  CHECK_EQ(32, buffer[0]);
+  double result = GenerateAndRunFold<double>(kExprF64Mul, buffer, kSize,
+                                             kAstF64, MachineType::Float64());
+  CHECK_EQ(32, result);
 }
-
-#endif
 
 
 TEST(Build_Wasm_Infinite_Loop) {
@@ -2466,9 +2464,6 @@ TEST(Run_WasmInt32Global) {
 }
 
 
-// TODO(titzer): Fix for msan and re-enable.
-#if 0
-
 TEST(Run_WasmInt32Globals_DontAlias) {
   const int kNumGlobals = 3;
   TestingModule module;
@@ -2497,8 +2492,6 @@ TEST(Run_WasmInt32Globals_DontAlias) {
     }
   }
 }
-
-#endif
 
 
 #if WASM_64
