@@ -127,6 +127,9 @@ void AsmTyper::VisitAsmModule(FunctionLiteral* fun) {
 
   // Validate exports.
   ReturnStatement* stmt = fun->body()->last()->AsReturnStatement();
+  if (stmt == nullptr) {
+    FAIL(fun->body()->last(), "last statement in module is not a return");
+  }
   RECURSE(VisitWithExpectation(stmt->expression(), Type::Object(),
                                "expected object export"));
 }
