@@ -851,6 +851,7 @@ void BytecodeGenerator::VisitForInAssignment(Expression* expr,
       builder()->StoreAccumulatorInRegister(value);
       Register object = VisitForRegisterValue(property->obj());
       Handle<String> name = property->key()->AsLiteral()->AsPropertyName();
+      builder()->LoadAccumulatorWithRegister(value);
       builder()->StoreNamedProperty(object, name, feedback_index(slot),
                                     language_mode());
       break;

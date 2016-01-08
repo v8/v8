@@ -2855,7 +2855,27 @@ TEST(InterpreterForIn) {
        "  }\n"
        "  return flags;\n"
        "  }",
-       0}};
+       0},
+      {"function f() {\n"
+       " var data = {x:23, y:34};\n"
+       " var result = 0;\n"
+       " var o = {};\n"
+       " var arr = [o];\n"
+       " for (arr[0].p in data)\n"      // This is to test if value is loaded
+       "  result += data[arr[0].p];\n"  // back from accumulator before storing
+       " return result;\n"              // named properties.
+       "}",
+       57},
+      {"function f() {\n"
+       " var data = {x:23, y:34};\n"
+       " var result = 0;\n"
+       " var o = {};\n"
+       " var i = 0;\n"
+       " for (o[i++] in data)\n"      // This is to test if value is loaded
+       "  result += data[o[i-1]];\n"  // back from accumulator before
+       " return result;\n"            // storing keyed properties.
+       "}",
+       57}};
 
   for (size_t i = 0; i < arraysize(for_in_samples); i++) {
     InterpreterTester tester(handles.main_isolate(), for_in_samples[i].first);
