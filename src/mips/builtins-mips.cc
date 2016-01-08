@@ -1423,8 +1423,8 @@ void Builtins::Generate_DatePrototype_GetField(MacroAssembler* masm,
     __ li(a1, Operand(Smi::FromInt(field_index)));
     __ CallCFunction(
         ExternalReference::get_date_field_function(masm->isolate()), 2);
-    __ Ret();
   }
+  __ Ret();
 
   // 3. Raise a TypeError if the receiver is not a date.
   __ bind(&receiver_not_date);
