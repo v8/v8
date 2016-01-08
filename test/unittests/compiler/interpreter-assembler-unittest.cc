@@ -350,6 +350,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, BytecodeOperand) {
           break;
         case interpreter::OperandType::kMaybeReg8:
         case interpreter::OperandType::kReg8:
+        case interpreter::OperandType::kRegPair8:
           EXPECT_THAT(m.BytecodeOperandReg(i),
                       m.IsBytecodeOperandSignExtended(offset));
           break;
@@ -592,29 +593,33 @@ TARGET_TEST_F(InterpreterAssemblerTest, CallRuntime2) {
 
 
 TARGET_TEST_F(InterpreterAssemblerTest, CallRuntime) {
+  const int kResultSizes[] = {1, 2};
   TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
-    InterpreterAssemblerForTest m(this, bytecode);
-    Callable builtin = CodeFactory::InterpreterCEntry(isolate());
+    TRACED_FOREACH(int, result_size, kResultSizes) {
+      InterpreterAssemblerForTest m(this, bytecode);
+      Callable builtin = CodeFactory::InterpreterCEntry(isolate(), result_size);
 
-    Node* function_id = m.Int32Constant(0);
-    Node* first_arg = m.Int32Constant(1);
-    Node* arg_count = m.Int32Constant(2);
+      Node* function_id = m.Int32Constant(0);
+      Node* first_arg = m.Int32Constant(1);
+      Node* arg_count = m.Int32Constant(2);
 
-    Matcher<Node*> function_table = IsExternalConstant(
-        ExternalReference::runtime_function_table_address(isolate()));
-    Matcher<Node*> function = IsIntPtrAdd(
-        function_table,
-        IsInt32Mul(function_id, IsInt32Constant(sizeof(Runtime::Function))));
-    Matcher<Node*> function_entry =
-        m.IsLoad(MachineType::Pointer(), function,
-                 IsInt32Constant(offsetof(Runtime::Function, entry)));
+      Matcher<Node*> function_table = IsExternalConstant(
+          ExternalReference::runtime_function_table_address(isolate()));
+      Matcher<Node*> function = IsIntPtrAdd(
+          function_table,
+          IsInt32Mul(function_id, IsInt32Constant(sizeof(Runtime::Function))));
+      Matcher<Node*> function_entry =
+          m.IsLoad(MachineType::Pointer(), function,
+                   IsInt32Constant(offsetof(Runtime::Function, entry)));
 
-    Node* call_runtime = m.CallRuntime(function_id, first_arg, arg_count);
-    EXPECT_THAT(
-        call_runtime,
-        IsCall(_, IsHeapConstant(builtin.code()), arg_count, first_arg,
-               function_entry,
-               IsParameter(Linkage::kInterpreterContextParameter), _, _));
+      Node* call_runtime =
+          m.CallRuntime(function_id, first_arg, arg_count, result_size);
+      EXPECT_THAT(
+          call_runtime,
+          IsCall(_, IsHeapConstant(builtin.code()), arg_count, first_arg,
+                 function_entry,
+                 IsParameter(Linkage::kInterpreterContextParameter), _, _));
+    }
   }
 }
 

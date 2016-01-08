@@ -148,6 +148,12 @@ Node* InterpreterAssembler::StoreRegister(Node* value, Node* reg_index) {
 }
 
 
+Node* InterpreterAssembler::NextRegister(Node* reg_index) {
+  // Register indexes are negative, so the next index is minus one.
+  return IntPtrAdd(reg_index, Int32Constant(-1));
+}
+
+
 Node* InterpreterAssembler::BytecodeOperand(int operand_index) {
   DCHECK_LT(operand_index, interpreter::Bytecodes::NumberOfOperands(bytecode_));
   DCHECK_EQ(interpreter::OperandSize::kByte,
@@ -297,6 +303,7 @@ Node* InterpreterAssembler::BytecodeOperandIdx(int operand_index) {
 Node* InterpreterAssembler::BytecodeOperandReg(int operand_index) {
   switch (interpreter::Bytecodes::GetOperandType(bytecode_, operand_index)) {
     case interpreter::OperandType::kReg8:
+    case interpreter::OperandType::kRegPair8:
     case interpreter::OperandType::kMaybeReg8:
       DCHECK_EQ(
           interpreter::OperandSize::kByte,
@@ -555,11 +562,11 @@ Node* InterpreterAssembler::CallIC(CallInterfaceDescriptor descriptor,
 
 
 Node* InterpreterAssembler::CallRuntime(Node* function_id, Node* first_arg,
-                                        Node* arg_count) {
-  Callable callable = CodeFactory::InterpreterCEntry(isolate());
+                                        Node* arg_count, int result_size) {
+  Callable callable = CodeFactory::InterpreterCEntry(isolate(), result_size);
   CallDescriptor* descriptor = Linkage::GetStubCallDescriptor(
-      isolate(), zone(), callable.descriptor(), 0, CallDescriptor::kNoFlags);
-
+      isolate(), zone(), callable.descriptor(), 0, CallDescriptor::kNoFlags,
+      Operator::kNoProperties, MachineType::AnyTagged(), result_size);
   Node* code_target = HeapConstant(callable.code());
 
   // Get the function entry from the function id.

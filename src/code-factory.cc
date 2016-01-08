@@ -359,11 +359,10 @@ Callable CodeFactory::InterpreterPushArgsAndConstruct(Isolate* isolate) {
 
 
 // static
-Callable CodeFactory::InterpreterCEntry(Isolate* isolate) {
-  // TODO(rmcilroy): Deal with runtime functions that return two values.
+Callable CodeFactory::InterpreterCEntry(Isolate* isolate, int result_size) {
   // Note: If we ever use fpregs in the interpreter then we will need to
   // save fpregs too.
-  CEntryStub stub(isolate, 1, kDontSaveFPRegs, kArgvInRegister);
+  CEntryStub stub(isolate, result_size, kDontSaveFPRegs, kArgvInRegister);
   return Callable(stub.GetCode(), InterpreterCEntryDescriptor(isolate));
 }
 

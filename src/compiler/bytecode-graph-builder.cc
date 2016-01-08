@@ -1199,6 +1199,12 @@ void BytecodeGraphBuilder::VisitCallRuntime(
 }
 
 
+void BytecodeGraphBuilder::VisitCallRuntimeForPair(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  UNIMPLEMENTED();
+}
+
+
 Node* BytecodeGraphBuilder::ProcessCallNewArguments(
     const Operator* call_new_op, interpreter::Register callee,
     interpreter::Register first_arg, size_t arity) {

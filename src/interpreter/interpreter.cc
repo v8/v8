@@ -1086,6 +1086,33 @@ void Interpreter::DoCallRuntime(compiler::InterpreterAssembler* assembler) {
 }
 
 
+// CallRuntimeForPair <function_id> <first_arg> <arg_count> <first_return>
+//
+// Call the runtime function |function_id| which returns a pair, with the
+// first argument in register |first_arg| and |arg_count| arguments in
+// subsequent registers. Returns the result in <first_return> and
+// <first_return + 1>
+void Interpreter::DoCallRuntimeForPair(
+    compiler::InterpreterAssembler* assembler) {
+  // Call the runtime function.
+  Node* function_id = __ BytecodeOperandIdx(0);
+  Node* first_arg_reg = __ BytecodeOperandReg(1);
+  Node* first_arg = __ RegisterLocation(first_arg_reg);
+  Node* args_count = __ BytecodeOperandCount(2);
+  Node* result_pair = __ CallRuntime(function_id, first_arg, args_count, 2);
+
+  // Store the results in <first_return> and <first_return + 1>
+  Node* first_return_reg = __ BytecodeOperandReg(3);
+  Node* second_return_reg = __ NextRegister(first_return_reg);
+  Node* result0 = __ Projection(0, result_pair);
+  Node* result1 = __ Projection(1, result_pair);
+  __ StoreRegister(result0, first_return_reg);
+  __ StoreRegister(result1, second_return_reg);
+
+  __ Dispatch();
+}
+
+
 // CallJSRuntime <context_index> <receiver> <arg_count>
 //
 // Call the JS runtime function that has the |context_index| with the receiver

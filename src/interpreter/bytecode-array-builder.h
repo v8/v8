@@ -167,6 +167,14 @@ class BytecodeArrayBuilder final {
   BytecodeArrayBuilder& CallRuntime(Runtime::FunctionId function_id,
                                     Register first_arg, size_t arg_count);
 
+  // Call the runtime function with |function_id| that returns a pair of values.
+  // The first argument should be in |first_arg| and all subsequent arguments
+  // should be in registers <first_arg + 1> to <first_arg + 1 + arg_count>. The
+  // return values will be returned in <first_return> and <first_return + 1>.
+  BytecodeArrayBuilder& CallRuntimeForPair(Runtime::FunctionId function_id,
+                                           Register first_arg, size_t arg_count,
+                                           Register first_return);
+
   // Call the JS runtime function with |context_index|. The the receiver should
   // be in |receiver| and all subsequent arguments should be in registers
   // <receiver + 1> to <receiver + 1 + arg_count>.
@@ -292,6 +300,8 @@ class BytecodeArrayBuilder final {
 
   bool NeedToBooleanCast();
   bool IsRegisterInAccumulator(Register reg);
+
+  bool RegisterIsValid(Register reg) const;
 
   // Temporary register management.
   int BorrowTemporaryRegister();

@@ -293,6 +293,17 @@ std::ostream& Bytecodes::Decode(std::ostream& os, const uint8_t* bytecode_start,
         }
         break;
       }
+      case interpreter::OperandType::kRegPair8: {
+        Register reg = Register::FromOperand(*operand_start);
+        if (reg.is_parameter()) {
+          int parameter_index = reg.ToParameterIndex(parameter_count);
+          DCHECK_NE(parameter_index, 0);
+          os << "a" << parameter_index - 1 << "-" << parameter_index;
+        } else {
+          os << "r" << reg.index() << "-" << reg.index() + 1;
+        }
+        break;
+      }
       case interpreter::OperandType::kReg16: {
         Register reg =
             Register::FromWideOperand(ReadUnalignedUInt16(operand_start));

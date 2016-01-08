@@ -67,6 +67,9 @@ class InterpreterAssembler {
   Node* StoreRegister(Node* value, interpreter::Register reg);
   Node* StoreRegister(Node* value, Node* reg_index);
 
+  // Returns the next consecutive register.
+  Node* NextRegister(Node* reg_index);
+
   // Returns the location in memory of the register |reg_index| in the
   // interpreter register file.
   Node* RegisterLocation(Node* reg_index);
@@ -130,7 +133,8 @@ class InterpreterAssembler {
                Node* arg2, Node* arg3, Node* arg4, Node* arg5);
 
   // Call runtime function.
-  Node* CallRuntime(Node* function_id, Node* first_arg, Node* arg_count);
+  Node* CallRuntime(Node* function_id, Node* first_arg, Node* arg_count,
+                    int return_size = 1);
   Node* CallRuntime(Runtime::FunctionId function_id, Node* arg1);
   Node* CallRuntime(Runtime::FunctionId function_id, Node* arg1, Node* arg2);
   Node* CallRuntime(Runtime::FunctionId function_id, Node* arg1, Node* arg2,

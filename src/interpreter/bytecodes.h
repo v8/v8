@@ -27,6 +27,7 @@ namespace interpreter {
   V(Idx8, OperandSize::kByte)      \
   V(MaybeReg8, OperandSize::kByte) \
   V(Reg8, OperandSize::kByte)      \
+  V(RegPair8, OperandSize::kByte)  \
                                    \
   /* Short operands. */            \
   V(Count16, OperandSize::kShort)  \
@@ -145,6 +146,8 @@ namespace interpreter {
     OperandType::kIdx16)                                                       \
   V(CallRuntime, OperandType::kIdx16, OperandType::kMaybeReg8,                 \
     OperandType::kCount8)                                                      \
+  V(CallRuntimeForPair, OperandType::kIdx16, OperandType::kMaybeReg8,          \
+    OperandType::kCount8, OperandType::kRegPair8)                              \
   V(CallJSRuntime, OperandType::kIdx16, OperandType::kReg8,                    \
     OperandType::kCount8)                                                      \
                                                                                \

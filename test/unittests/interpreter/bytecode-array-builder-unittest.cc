@@ -109,6 +109,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.Call(reg, reg, 0, 0)
       .Call(reg, reg, 0, 1024)
       .CallRuntime(Runtime::kIsArray, reg, 1)
+      .CallRuntimeForPair(Runtime::kLoadLookupSlot, reg, 1, reg)
       .CallJSRuntime(Context::SPREAD_ITERABLE_INDEX, reg, 1);
 
   // Emit binary operator invocations.

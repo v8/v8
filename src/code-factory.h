@@ -110,7 +110,7 @@ class CodeFactory final {
 
   static Callable InterpreterPushArgsAndCall(Isolate* isolate);
   static Callable InterpreterPushArgsAndConstruct(Isolate* isolate);
-  static Callable InterpreterCEntry(Isolate* isolate);
+  static Callable InterpreterCEntry(Isolate* isolate, int result_size = 1);
 };
 
 }  // namespace internal

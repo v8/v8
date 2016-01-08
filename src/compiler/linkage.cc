@@ -430,21 +430,28 @@ CallDescriptor* Linkage::GetInterpreterDispatchDescriptor(Zone* zone) {
 CallDescriptor* Linkage::GetStubCallDescriptor(
     Isolate* isolate, Zone* zone, const CallInterfaceDescriptor& descriptor,
     int stack_parameter_count, CallDescriptor::Flags flags,
-    Operator::Properties properties, MachineType return_type) {
+    Operator::Properties properties, MachineType return_type,
+    size_t return_count) {
   const int register_parameter_count = descriptor.GetRegisterParameterCount();
   const int js_parameter_count =
       register_parameter_count + stack_parameter_count;
   const int context_count = 1;
-  const size_t return_count = 1;
   const size_t parameter_count =
       static_cast<size_t>(js_parameter_count + context_count);
 
   LocationSignature::Builder locations(zone, return_count, parameter_count);
   MachineSignature::Builder types(zone, return_count, parameter_count);
 
-  // Add return location.
-  locations.AddReturn(regloc(kReturnRegister0));
-  types.AddReturn(return_type);
+  // Add returns.
+  if (locations.return_count_ > 0) {
+    locations.AddReturn(regloc(kReturnRegister0));
+  }
+  if (locations.return_count_ > 1) {
+    locations.AddReturn(regloc(kReturnRegister1));
+  }
+  for (size_t i = 0; i < return_count; i++) {
+    types.AddReturn(return_type);
+  }
 
   // Add parameters in registers and on the stack.
   for (int i = 0; i < js_parameter_count; i++) {

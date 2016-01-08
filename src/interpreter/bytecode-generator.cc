@@ -1690,8 +1690,6 @@ void BytecodeGenerator::VisitCallRuntime(CallRuntime* expr) {
     DCHECK(args->length() == 0 || first_arg.index() == receiver.index() + 1);
     builder()->CallJSRuntime(expr->context_index(), receiver, args->length());
   } else {
-    // TODO(rmcilroy): support multiple return values.
-    DCHECK_LE(expr->function()->result_size, 1);
     Runtime::FunctionId function_id = expr->function()->function_id;
     builder()->CallRuntime(function_id, first_arg, args->length());
   }
