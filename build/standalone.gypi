@@ -845,7 +845,6 @@
           4309, # Truncation of constant value
           4311, # Pointer truncation from 'type' to 'type'
           4312, # Conversion from 'type1' to 'type2' of greater size
-          4481, # Nonstandard extension used: override specifier 'keyword'
           4505, # Unreferenced local function has been removed
           4510, # Default constructor could not be generated
           4512, # Assignment operator could not be generated
