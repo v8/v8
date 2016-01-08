@@ -328,18 +328,11 @@ assertThrows('Date.prototype.setHours.call("", 1, 2, 3, 4);', TypeError);
 assertThrows('Date.prototype.getDate.call("");', TypeError);
 assertThrows('Date.prototype.getUTCDate.call("");', TypeError);
 
-var date = new Date();
-date.getTime();
-date.getTime();
-%OptimizeFunctionOnNextCall(Date.prototype.getTime);
-assertThrows(function() { Date.prototype.getTime.call(""); }, TypeError);
-assertUnoptimized(Date.prototype.getTime);
+assertThrows(function() { Date.prototype.getTime.call(0) }, TypeError);
+assertThrows(function() { Date.prototype.getTime.call("") }, TypeError);
 
-date.getYear();
-date.getYear();
-%OptimizeFunctionOnNextCall(Date.prototype.getYear);
-assertThrows(function() { Date.prototype.getYear.call(""); }, TypeError);
-assertUnoptimized(Date.prototype.getYear);
+assertThrows(function() { Date.prototype.getYear.call(0) }, TypeError);
+assertThrows(function() { Date.prototype.getYear.call("") }, TypeError);
 
 (function TestDatePrototypeOrdinaryObject() {
   assertEquals(Object.prototype, Date.prototype.__proto__);
@@ -353,7 +346,7 @@ delete Date.prototype.getUTCHours;
 delete Date.prototype.getUTCMinutes;
 delete Date.prototype.getUTCSeconds;
 delete Date.prototype.getUTCMilliseconds;
-date.toISOString();
+(new Date()).toISOString();
 
 (function TestDeleteToString() {
   assertTrue(delete Date.prototype.toString);

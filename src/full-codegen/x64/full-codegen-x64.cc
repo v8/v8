@@ -3321,9 +3321,7 @@ void FullCodeGenerator::EmitDateField(CallRuntime* expr) {
   } else {
     Label runtime, done;
     if (index->value() < JSDate::kFirstUncachedField) {
-      ExternalReference stamp = ExternalReference::date_cache_stamp(isolate());
-      Operand stamp_operand = __ ExternalOperand(stamp);
-      __ movp(scratch, stamp_operand);
+      __ Load(scratch, ExternalReference::date_cache_stamp(isolate()));
       __ cmpp(scratch, FieldOperand(object, JSDate::kCacheStampOffset));
       __ j(not_equal, &runtime, Label::kNear);
       __ movp(result, FieldOperand(object, JSDate::kValueOffset +

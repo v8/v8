@@ -2370,6 +2370,114 @@ BUILTIN(DatePrototypeToPrimitive) {
 }
 
 
+// static
+void Builtins::Generate_DatePrototypeGetDate(MacroAssembler* masm) {
+  Generate_DatePrototype_GetField(masm, JSDate::kDay);
+}
+
+
+// static
+void Builtins::Generate_DatePrototypeGetDay(MacroAssembler* masm) {
+  Generate_DatePrototype_GetField(masm, JSDate::kWeekday);
+}
+
+
+// static
+void Builtins::Generate_DatePrototypeGetFullYear(MacroAssembler* masm) {
+  Generate_DatePrototype_GetField(masm, JSDate::kYear);
+}
+
+
+// static
+void Builtins::Generate_DatePrototypeGetHours(MacroAssembler* masm) {
+  Generate_DatePrototype_GetField(masm, JSDate::kHour);
+}
+
+
+// static
+void Builtins::Generate_DatePrototypeGetMilliseconds(MacroAssembler* masm) {
+  Generate_DatePrototype_GetField(masm, JSDate::kMillisecond);
+}
+
+
+// static
+void Builtins::Generate_DatePrototypeGetMinutes(MacroAssembler* masm) {
+  Generate_DatePrototype_GetField(masm, JSDate::kMinute);
+}
+
+
+// static
+void Builtins::Generate_DatePrototypeGetMonth(MacroAssembler* masm) {
+  Generate_DatePrototype_GetField(masm, JSDate::kMonth);
+}
+
+
+// static
+void Builtins::Generate_DatePrototypeGetSeconds(MacroAssembler* masm) {
+  Generate_DatePrototype_GetField(masm, JSDate::kSecond);
+}
+
+
+// static
+void Builtins::Generate_DatePrototypeGetTime(MacroAssembler* masm) {
+  Generate_DatePrototype_GetField(masm, JSDate::kDateValue);
+}
+
+
+// static
+void Builtins::Generate_DatePrototypeGetTimezoneOffset(MacroAssembler* masm) {
+  Generate_DatePrototype_GetField(masm, JSDate::kTimezoneOffset);
+}
+
+
+// static
+void Builtins::Generate_DatePrototypeGetUTCDate(MacroAssembler* masm) {
+  Generate_DatePrototype_GetField(masm, JSDate::kDayUTC);
+}
+
+
+// static
+void Builtins::Generate_DatePrototypeGetUTCDay(MacroAssembler* masm) {
+  Generate_DatePrototype_GetField(masm, JSDate::kWeekdayUTC);
+}
+
+
+// static
+void Builtins::Generate_DatePrototypeGetUTCFullYear(MacroAssembler* masm) {
+  Generate_DatePrototype_GetField(masm, JSDate::kYearUTC);
+}
+
+
+// static
+void Builtins::Generate_DatePrototypeGetUTCHours(MacroAssembler* masm) {
+  Generate_DatePrototype_GetField(masm, JSDate::kHourUTC);
+}
+
+
+// static
+void Builtins::Generate_DatePrototypeGetUTCMilliseconds(MacroAssembler* masm) {
+  Generate_DatePrototype_GetField(masm, JSDate::kMillisecondUTC);
+}
+
+
+// static
+void Builtins::Generate_DatePrototypeGetUTCMinutes(MacroAssembler* masm) {
+  Generate_DatePrototype_GetField(masm, JSDate::kMinuteUTC);
+}
+
+
+// static
+void Builtins::Generate_DatePrototypeGetUTCMonth(MacroAssembler* masm) {
+  Generate_DatePrototype_GetField(masm, JSDate::kMonthUTC);
+}
+
+
+// static
+void Builtins::Generate_DatePrototypeGetUTCSeconds(MacroAssembler* masm) {
+  Generate_DatePrototype_GetField(masm, JSDate::kSecondUTC);
+}
+
+
 namespace {
 
 // ES6 section 19.2.1.1.1 CreateDynamicFunction

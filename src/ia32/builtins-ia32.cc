@@ -1001,6 +1001,58 @@ void Builtins::Generate_NotifyLazyDeoptimized(MacroAssembler* masm) {
 
 
 // static
+void Builtins::Generate_DatePrototype_GetField(MacroAssembler* masm,
+                                               int field_index) {
+  // ----------- S t a t e -------------
+  //  -- esp[0] : return address
+  //  -- esp[4] : receiver
+  // -----------------------------------
+
+  // 1. Load receiver into eax and check that it's actually a JSDate object.
+  Label receiver_not_date;
+  {
+    __ mov(eax, Operand(esp, kPointerSize));
+    __ JumpIfSmi(eax, &receiver_not_date);
+    __ CmpObjectType(eax, JS_DATE_TYPE, ebx);
+    __ j(not_equal, &receiver_not_date);
+  }
+
+  // 2. Load the specified date field, falling back to the runtime as necessary.
+  if (field_index == JSDate::kDateValue) {
+    __ mov(eax, FieldOperand(eax, JSDate::kValueOffset));
+  } else {
+    if (field_index < JSDate::kFirstUncachedField) {
+      Label stamp_mismatch;
+      __ mov(edx, Operand::StaticVariable(
+                      ExternalReference::date_cache_stamp(masm->isolate())));
+      __ cmp(edx, FieldOperand(eax, JSDate::kCacheStampOffset));
+      __ j(not_equal, &stamp_mismatch, Label::kNear);
+      __ mov(eax, FieldOperand(
+                      eax, JSDate::kValueOffset + field_index * kPointerSize));
+      __ ret(1 * kPointerSize);
+      __ bind(&stamp_mismatch);
+    }
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ PrepareCallCFunction(2, ebx);
+    __ mov(Operand(esp, 0), eax);
+    __ mov(Operand(esp, 1 * kPointerSize),
+           Immediate(Smi::FromInt(field_index)));
+    __ CallCFunction(
+        ExternalReference::get_date_field_function(masm->isolate()), 2);
+  }
+  __ ret(1 * kPointerSize);
+
+  // 3. Raise a TypeError if the receiver is not a date.
+  __ bind(&receiver_not_date);
+  {
+    FrameScope scope(masm, StackFrame::MANUAL);
+    __ EnterFrame(StackFrame::INTERNAL);
+    __ CallRuntime(Runtime::kThrowNotDateError);
+  }
+}
+
+
+// static
 void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax     : argc

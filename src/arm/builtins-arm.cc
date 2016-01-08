@@ -1384,6 +1384,53 @@ void Builtins::Generate_OsrAfterStackCheck(MacroAssembler* masm) {
 
 
 // static
+void Builtins::Generate_DatePrototype_GetField(MacroAssembler* masm,
+                                               int field_index) {
+  // ----------- S t a t e -------------
+  //  -- lr    : return address
+  //  -- sp[0] : receiver
+  // -----------------------------------
+
+  // 1. Pop receiver into r0 and check that it's actually a JSDate object.
+  Label receiver_not_date;
+  {
+    __ Pop(r0);
+    __ JumpIfSmi(r0, &receiver_not_date);
+    __ CompareObjectType(r0, r1, r2, JS_DATE_TYPE);
+    __ b(ne, &receiver_not_date);
+  }
+
+  // 2. Load the specified date field, falling back to the runtime as necessary.
+  if (field_index == JSDate::kDateValue) {
+    __ ldr(r0, FieldMemOperand(r0, JSDate::kValueOffset));
+  } else {
+    if (field_index < JSDate::kFirstUncachedField) {
+      Label stamp_mismatch;
+      __ mov(r1, Operand(ExternalReference::date_cache_stamp(masm->isolate())));
+      __ ldr(r1, MemOperand(r1));
+      __ ldr(ip, FieldMemOperand(r0, JSDate::kCacheStampOffset));
+      __ cmp(r1, ip);
+      __ b(ne, &stamp_mismatch);
+      __ ldr(r0, FieldMemOperand(
+                     r0, JSDate::kValueOffset + field_index * kPointerSize));
+      __ Ret();
+      __ bind(&stamp_mismatch);
+    }
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ PrepareCallCFunction(2, r1);
+    __ mov(r1, Operand(Smi::FromInt(field_index)));
+    __ CallCFunction(
+        ExternalReference::get_date_field_function(masm->isolate()), 2);
+  }
+  __ Ret();
+
+  // 3. Raise a TypeError if the receiver is not a date.
+  __ bind(&receiver_not_date);
+  __ TailCallRuntime(Runtime::kThrowNotDateError);
+}
+
+
+// static
 void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r0    : argc
