@@ -641,46 +641,22 @@ RUNTIME_FUNCTION(Runtime_NewStrictArguments) {
 }
 
 
-static Handle<JSArray> NewRestParam(Isolate* isolate, Object** parameters,
-                                    int num_params, int rest_index) {
-  parameters -= rest_index;
-  int num_elements = std::max(0, num_params - rest_index);
-  Handle<FixedArray> elements =
-      isolate->factory()->NewUninitializedFixedArray(num_elements);
-  for (int i = 0; i < num_elements; ++i) {
-    elements->set(i, *--parameters);
-  }
-  return isolate->factory()->NewJSArrayWithElements(elements, FAST_ELEMENTS,
-                                                    num_elements);
-}
-
-
 RUNTIME_FUNCTION(Runtime_NewRestParam) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 3);
   CONVERT_SMI_ARG_CHECKED(num_params, 0);
   Object** parameters = reinterpret_cast<Object**>(args[1]);
   CONVERT_SMI_ARG_CHECKED(rest_index, 2);
-
-  return *NewRestParam(isolate, parameters, num_params, rest_index);
-}
-
-
-RUNTIME_FUNCTION(Runtime_NewRestParamSlow) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_SMI_ARG_CHECKED(rest_index, 0);
-
+#ifdef DEBUG
+  // This runtime function does not materialize the correct arguments when the
+  // caller has been inlined, better make sure we are not hitting that case.
   JavaScriptFrameIterator it(isolate);
-
-  // Find the frame that holds the actual arguments passed to the function.
-  it.AdvanceToArgumentsFrame();
-  JavaScriptFrame* frame = it.frame();
-
-  int argument_count = frame->GetArgumentsLength();
-  Object** parameters = reinterpret_cast<Object**>(frame->GetParameterSlot(-1));
-
-  return *NewRestParam(isolate, parameters, argument_count, rest_index);
+  DCHECK(!it.frame()->HasInlinedFrames());
+#endif  // DEBUG
+  Handle<JSFunction> callee;
+  ParameterArguments argument_getter(parameters);
+  return *NewRestArguments(isolate, callee, argument_getter, num_params,
+                           rest_index);
 }
 
 
