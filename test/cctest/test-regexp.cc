@@ -100,13 +100,14 @@ static bool CheckParse(const char* input) {
 }
 
 
-static void CheckParseEq(const char* input, const char* expected) {
+static void CheckParseEq(const char* input, const char* expected,
+                         bool unicode = false) {
   v8::HandleScope scope(CcTest::isolate());
   Zone zone;
   FlatStringReader reader(CcTest::i_isolate(), CStrVector(input));
   RegExpCompileData result;
   CHECK(v8::internal::RegExpParser::ParseRegExp(
-      CcTest::i_isolate(), &zone, &reader, false, false, &result));
+      CcTest::i_isolate(), &zone, &reader, false, unicode, &result));
   CHECK(result.tree != NULL);
   CHECK(result.error.is_null());
   std::ostringstream os;
@@ -163,6 +164,7 @@ static MinMaxPair CheckMinMaxMatch(const char* input) {
 
 void TestRegExpParser(bool lookbehind) {
   FLAG_harmony_regexp_lookbehind = lookbehind;
+  FLAG_harmony_unicode_regexps = true;
 
   CHECK_PARSE_ERROR("?");
 
@@ -304,6 +306,12 @@ void TestRegExpParser(bool lookbehind) {
   CheckParseEq("\\u0034", "'\x34'");
   CheckParseEq("\\u003z", "'u003z'");
   CheckParseEq("foo[z]*", "(: 'foo' (# 0 - g [z]))");
+
+  // Unicode regexps
+  CheckParseEq("\\u{12345}", "'\\ud808\\udf45'", true);
+  CheckParseEq("\\u{12345}\\u{23456}", "'\\ud808\\udf45\\ud84d\\udc56'", true);
+  CheckParseEq("\\u{12345}|\\u{23456}", "(| '\\ud808\\udf45' '\\ud84d\\udc56')",
+               true);
 
   CHECK_SIMPLE("", false);
   CHECK_SIMPLE("a", true);

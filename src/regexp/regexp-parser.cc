@@ -417,7 +417,12 @@ RegExpTree* RegExpParser::ParseDisjunction() {
             Advance(2);
             uc32 value;
             if (ParseUnicodeEscape(&value)) {
-              builder->AddCharacter(value);
+              if (value > unibrow::Utf16::kMaxNonSurrogateCharCode) {
+                builder->AddCharacter(unibrow::Utf16::LeadSurrogate(value));
+                builder->AddCharacter(unibrow::Utf16::TrailSurrogate(value));
+              } else {
+                builder->AddCharacter(static_cast<uc16>(value));
+              }
             } else if (!unicode_) {
               builder->AddCharacter('u');
             } else {
@@ -986,6 +991,11 @@ bool RegExpParser::ParseRegExp(Isolate* isolate, Zone* zone,
   } else {
     DCHECK(tree != NULL);
     DCHECK(result->error.is_null());
+    if (FLAG_trace_regexp_parser) {
+      OFStream os(stdout);
+      tree->Print(os, zone);
+      os << "\n";
+    }
     result->tree = tree;
     int capture_count = parser.captures_started();
     result->simple = tree->IsAtom() && parser.simple() && capture_count == 0;

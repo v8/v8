@@ -962,6 +962,7 @@ DEFINE_BOOL(regexp_possessive_quantifier, false,
 DEFINE_BOOL(trace_regexp_bytecodes, false, "trace regexp bytecode execution")
 DEFINE_BOOL(trace_regexp_assembler, false,
             "trace regexp macro assembler calls.")
+DEFINE_BOOL(trace_regexp_parser, false, "trace regexp parsing")
 
 //
 // Logging and profiling flags

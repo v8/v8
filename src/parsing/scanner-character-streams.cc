@@ -193,7 +193,8 @@ Utf8ToUtf16CharacterStream::~Utf8ToUtf16CharacterStream() { }
 size_t Utf8ToUtf16CharacterStream::CopyChars(uint16_t* dest, size_t length,
                                              const byte* src, size_t* src_pos,
                                              size_t src_length) {
-  static const unibrow::uchar kMaxUtf16Character = 0xffff;
+  static const unibrow::uchar kMaxUtf16Character =
+      unibrow::Utf16::kMaxNonSurrogateCharCode;
   size_t i = 0;
   // Because of the UTF-16 lead and trail surrogates, we stop filling the buffer
   // one character early (in the normal case), because we need to have at least
