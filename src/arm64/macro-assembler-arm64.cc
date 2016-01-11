@@ -1669,6 +1669,17 @@ void MacroAssembler::AssertString(Register object) {
 }
 
 
+void MacroAssembler::AssertPositiveOrZero(Register value) {
+  if (emit_debug_code()) {
+    Label done;
+    int sign_bit = value.Is64Bits() ? kXSignBit : kWSignBit;
+    Tbz(value, sign_bit, &done);
+    Abort(kUnexpectedNegativeValue);
+    Bind(&done);
+  }
+}
+
+
 void MacroAssembler::CallStub(CodeStub* stub, TypeFeedbackId ast_id) {
   DCHECK(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
   Call(stub->GetCode(), RelocInfo::CODE_TARGET, ast_id);

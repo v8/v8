@@ -724,10 +724,10 @@ class MacroAssembler : public Assembler {
   //
   // Note that unit_size must be specified in bytes. For variants which take a
   // Register count, the unit size must be a power of two.
-  inline void Claim(uint64_t count, uint64_t unit_size = kXRegSize);
+  inline void Claim(int64_t count, uint64_t unit_size = kXRegSize);
   inline void Claim(const Register& count,
                     uint64_t unit_size = kXRegSize);
-  inline void Drop(uint64_t count, uint64_t unit_size = kXRegSize);
+  inline void Drop(int64_t count, uint64_t unit_size = kXRegSize);
   inline void Drop(const Register& count,
                    uint64_t unit_size = kXRegSize);
 
@@ -976,6 +976,10 @@ class MacroAssembler : public Assembler {
 
   // Abort execution if argument is not a string, enabled via --debug-code.
   void AssertString(Register object);
+
+  // Abort execution if argument is not a positive or zero integer, enabled via
+  // --debug-code.
+  void AssertPositiveOrZero(Register value);
 
   void JumpIfHeapNumber(Register object, Label* on_heap_number,
                         SmiCheckType smi_check_type = DONT_DO_SMI_CHECK);

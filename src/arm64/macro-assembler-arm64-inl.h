@@ -1462,7 +1462,8 @@ void MacroAssembler::Push(Handle<Object> handle) {
 }
 
 
-void MacroAssembler::Claim(uint64_t count, uint64_t unit_size) {
+void MacroAssembler::Claim(int64_t count, uint64_t unit_size) {
+  DCHECK(count >= 0);
   uint64_t size = count * unit_size;
 
   if (size == 0) {
@@ -1490,6 +1491,7 @@ void MacroAssembler::Claim(const Register& count, uint64_t unit_size) {
     return;
   }
 
+  AssertPositiveOrZero(count);
   if (!csp.Is(StackPointer())) {
     BumpSystemStackPointer(size);
   }
@@ -1517,7 +1519,8 @@ void MacroAssembler::ClaimBySMI(const Register& count_smi, uint64_t unit_size) {
 }
 
 
-void MacroAssembler::Drop(uint64_t count, uint64_t unit_size) {
+void MacroAssembler::Drop(int64_t count, uint64_t unit_size) {
+  DCHECK(count >= 0);
   uint64_t size = count * unit_size;
 
   if (size == 0) {
@@ -1548,6 +1551,7 @@ void MacroAssembler::Drop(const Register& count, uint64_t unit_size) {
     return;
   }
 
+  AssertPositiveOrZero(count);
   Add(StackPointer(), StackPointer(), size);
 
   if (!csp.Is(StackPointer()) && emit_debug_code()) {
