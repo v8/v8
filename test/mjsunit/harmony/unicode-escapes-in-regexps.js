@@ -247,3 +247,11 @@ assertTrue(/(\u{12345}|\u{23456}).\1/u.test("\u{12345}b\u{12345}"));
 assertFalse(new RegExp("(\u{12345}|\u{23456}).\\1", "u").test(
     "\u{12345}b\u{23456}"));
 assertFalse(/(\u{12345}|\u{23456}).\1/u.test("\u{12345}b\u{23456}"));
+
+// Quantifier.
+assertTrue(new RegExp("\u{12345}{3}", "u").test("\u{12345}\u{12345}\u{12345}"));
+assertTrue(/\u{12345}{3}/u.test("\u{12345}\u{12345}\u{12345}"));
+assertTrue(new RegExp("\u{12345}{3}").test("\u{12345}\udf45\udf45"));
+assertTrue(/\ud808\udf45{3}/u.test("\u{12345}\udf45\udf45"));
+assertFalse(new RegExp("\u{12345}{3}", "u").test("\u{12345}\udf45\udf45"));
+assertFalse(/\u{12345}{3}/u.test("\u{12345}\udf45\udf45"));

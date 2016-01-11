@@ -309,9 +309,12 @@ void TestRegExpParser(bool lookbehind) {
 
   // Unicode regexps
   CheckParseEq("\\u{12345}", "'\\ud808\\udf45'", true);
-  CheckParseEq("\\u{12345}\\u{23456}", "'\\ud808\\udf45\\ud84d\\udc56'", true);
+  CheckParseEq("\\u{12345}\\u{23456}", "(! '\\ud808\\udf45' '\\ud84d\\udc56')",
+               true);
   CheckParseEq("\\u{12345}|\\u{23456}", "(| '\\ud808\\udf45' '\\ud84d\\udc56')",
                true);
+  CheckParseEq("\\u{12345}{3}", "(# 3 3 g '\\ud808\\udf45')", true);
+  CheckParseEq("\\u{12345}*", "(# 0 - g '\\ud808\\udf45')", true);
 
   CHECK_SIMPLE("", false);
   CHECK_SIMPLE("a", true);

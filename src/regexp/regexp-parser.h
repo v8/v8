@@ -101,6 +101,7 @@ class RegExpBuilder : public ZoneObject {
  public:
   explicit RegExpBuilder(Zone* zone);
   void AddCharacter(uc16 character);
+  void AddUnicodeCharacter(uc32 character);
   // "Adds" an empty expression. Does nothing except consume a
   // following quantifier
   void AddEmpty();
