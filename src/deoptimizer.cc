@@ -947,8 +947,6 @@ void Deoptimizer::DoComputeJSFrame(int frame_index) {
   input_offset -= kPointerSize;
   // Read the context from the translations.
   Object* context = value_iterator->GetRawValue();
-  // The context should not be a placeholder for a materialized object.
-  CHECK(context != isolate_->heap()->arguments_marker());
   if (context == isolate_->heap()->undefined_value()) {
     // If the context was optimized away, just use the context from
     // the activation. This should only apply to Crankshaft code.
@@ -963,6 +961,12 @@ void Deoptimizer::DoComputeJSFrame(int frame_index) {
   if (is_topmost) output_frame->SetRegister(context_reg.code(), value);
   WriteValueToOutput(context, input_index, frame_index, output_offset,
                      "context    ");
+  if (context == isolate_->heap()->arguments_marker()) {
+    Address output_address =
+        reinterpret_cast<Address>(output_[frame_index]->GetTop()) +
+        output_offset;
+    values_to_materialize_.push_back({output_address, value_iterator});
+  }
   value_iterator++;
   input_index++;
 
@@ -3492,6 +3496,10 @@ Handle<Object> TranslatedState::MaterializeAt(int frame_index,
           CHECK(lengthObject->ToInt32(&length));
           Handle<FixedArray> object =
               isolate_->factory()->NewFixedArray(length);
+          // We need to set the map, because the fixed array we are
+          // materializing could be a context or an arguments object,
+          // in which case we must retain that information.
+          object->set_map(*map);
           slot->value_ = object;
           for (int i = 0; i < length; ++i) {
             Handle<Object> value = MaterializeAt(frame_index, value_index);
@@ -3500,6 +3508,7 @@ Handle<Object> TranslatedState::MaterializeAt(int frame_index,
           return object;
         }
         case FIXED_DOUBLE_ARRAY_TYPE: {
+          DCHECK_EQ(*map, isolate_->heap()->fixed_double_array_map());
           Handle<Object> lengthObject = MaterializeAt(frame_index, value_index);
           int32_t length = 0;
           CHECK(lengthObject->ToInt32(&length));

@@ -151,6 +151,11 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   RUNTIME_ASSERT(frame->function()->IsJSFunction());
   DCHECK(frame->function() == *function);
 
+  // Ensure the context register is updated for materialized objects.
+  JavaScriptFrameIterator top_it(isolate);
+  JavaScriptFrame* top_frame = top_it.frame();
+  isolate->set_context(Context::cast(top_frame->context()));
+
   if (type == Deoptimizer::LAZY) {
     return isolate->heap()->undefined_value();
   }
