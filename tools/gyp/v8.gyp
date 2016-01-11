@@ -404,6 +404,8 @@
         '../../src/assembler.h',
         '../../src/assert-scope.h',
         '../../src/assert-scope.cc',
+        '../../src/ast/ast-expression-rewriter.cc',
+        '../../src/ast/ast-expression-rewriter.h',
         '../../src/ast/ast-expression-visitor.cc',
         '../../src/ast/ast-expression-visitor.h',
         '../../src/ast/ast-literal-reindexer.cc',
