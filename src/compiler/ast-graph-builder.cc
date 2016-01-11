@@ -219,7 +219,7 @@ class AstGraphBuilder::ControlScope::DeferredCommands : public ZoneObject {
   // One recorded control-flow command.
   struct Entry {
     Command command;       // The command type being applied on this path.
-    Statement* statement;  // The target statement for the command or {NULL}.
+    Statement* statement;  // The target statement for the command or {nullptr}.
     Node* token;           // A token identifying this particular path.
   };
 
@@ -512,7 +512,7 @@ Node* AstGraphBuilder::GetNewTarget() {
 
 bool AstGraphBuilder::CreateGraph(bool stack_check) {
   Scope* scope = info()->scope();
-  DCHECK(graph() != NULL);
+  DCHECK_NOT_NULL(graph());
 
   // Set up the basic structure of the graph. Outputs for {Start} are the formal
   // parameters (including the receiver) plus new target, number of arguments,
@@ -829,7 +829,7 @@ void AstGraphBuilder::Environment::UpdateStateValues(Node** state_values,
                                                      int offset, int count) {
   bool should_update = false;
   Node** env_values = (count == 0) ? nullptr : &values()->at(offset);
-  if (*state_values == NULL || (*state_values)->InputCount() != count) {
+  if (*state_values == nullptr || (*state_values)->InputCount() != count) {
     should_update = true;
   } else {
     DCHECK(static_cast<size_t>(offset + count) <= values()->size());
@@ -939,7 +939,7 @@ void AstGraphBuilder::AstTestContext::ProduceValue(Node* value) {
 }
 
 
-Node* AstGraphBuilder::AstEffectContext::ConsumeValue() { return NULL; }
+Node* AstGraphBuilder::AstEffectContext::ConsumeValue() { return nullptr; }
 
 
 Node* AstGraphBuilder::AstValueContext::ConsumeValue() {
@@ -967,14 +967,14 @@ void AstGraphBuilder::ControlScope::PerformCommand(Command command,
                                                    Node* value) {
   Environment* env = environment()->CopyAsUnreachable();
   ControlScope* current = this;
-  while (current != NULL) {
+  while (current != nullptr) {
     environment()->TrimStack(current->stack_height());
     environment()->TrimContextChain(current->context_length());
     if (current->Execute(command, target, value)) break;
     current = current->outer_;
   }
   builder()->set_environment(env);
-  DCHECK(current != NULL);  // Always handled (unless stack is malformed).
+  DCHECK_NOT_NULL(current);  // Always handled (unless stack is malformed).
 }
 
 
@@ -999,7 +999,7 @@ void AstGraphBuilder::ControlScope::ThrowValue(Node* exception_value) {
 
 
 void AstGraphBuilder::VisitForValueOrNull(Expression* expr) {
-  if (expr == NULL) {
+  if (expr == nullptr) {
     return environment()->Push(jsgraph()->NullConstant());
   }
   VisitForValue(expr);
@@ -1007,7 +1007,7 @@ void AstGraphBuilder::VisitForValueOrNull(Expression* expr) {
 
 
 void AstGraphBuilder::VisitForValueOrTheHole(Expression* expr) {
-  if (expr == NULL) {
+  if (expr == nullptr) {
     return environment()->Push(jsgraph()->TheHoleConstant());
   }
   VisitForValue(expr);
@@ -1141,8 +1141,8 @@ void AstGraphBuilder::VisitExportDeclaration(ExportDeclaration* decl) {
 void AstGraphBuilder::VisitBlock(Block* stmt) {
   BlockBuilder block(this);
   ControlScopeForBreakable scope(this, stmt, &block);
-  if (stmt->labels() != NULL) block.BeginBlock();
-  if (stmt->scope() == NULL) {
+  if (stmt->labels() != nullptr) block.BeginBlock();
+  if (stmt->scope() == nullptr) {
     // Visit statements in the same scope, no declarations.
     VisitStatements(stmt->statements());
   } else {
@@ -1157,7 +1157,7 @@ void AstGraphBuilder::VisitBlock(Block* stmt) {
       VisitStatements(stmt->statements());
     }
   }
-  if (stmt->labels() != NULL) block.EndBlock();
+  if (stmt->labels() != nullptr) block.EndBlock();
 }
 
 
@@ -1298,7 +1298,7 @@ void AstGraphBuilder::VisitForStatement(ForStatement* stmt) {
   LoopBuilder for_loop(this);
   VisitIfNotNull(stmt->init());
   for_loop.BeginLoop(GetVariablesAssignedInLoop(stmt), CheckOsrEntry(stmt));
-  if (stmt->cond() != NULL) {
+  if (stmt->cond() != nullptr) {
     VisitForTest(stmt->cond());
     Node* condition = environment()->Pop();
     for_loop.BreakUnless(condition);
@@ -2112,7 +2112,7 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
   // Evaluate the value and potentially handle compound assignments by loading
   // the left-hand side value and performing a binary operation.
   if (expr->is_compound()) {
-    Node* old_value = NULL;
+    Node* old_value = nullptr;
     switch (assign_type) {
       case VARIABLE: {
         VariableProxy* proxy = expr->target()->AsVariableProxy();
@@ -2640,7 +2640,7 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
   }
 
   // Evaluate LHS expression and get old value.
-  Node* old_value = NULL;
+  Node* old_value = nullptr;
   int stack_depth = -1;
   switch (assign_type) {
     case VARIABLE: {
@@ -2866,7 +2866,7 @@ void AstGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
       op = javascript()->HasProperty();
       break;
     default:
-      op = NULL;
+      op = nullptr;
       UNREACHABLE();
   }
   VisitForValue(expr->left());
@@ -2938,7 +2938,7 @@ void AstGraphBuilder::VisitDeclarations(ZoneList<Declaration*>* declarations) {
 
 
 void AstGraphBuilder::VisitIfNotNull(Statement* stmt) {
-  if (stmt == NULL) return;
+  if (stmt == nullptr) return;
   Visit(stmt);
 }
 
@@ -3206,7 +3206,7 @@ Node* AstGraphBuilder::BuildLocalBlockContext(Scope* scope) {
 
 
 Node* AstGraphBuilder::BuildArgumentsObject(Variable* arguments) {
-  if (arguments == NULL) return NULL;
+  if (arguments == nullptr) return nullptr;
 
   // Allocate and initialize a new arguments object.
   CreateArgumentsParameters::Type type =
@@ -3228,7 +3228,7 @@ Node* AstGraphBuilder::BuildArgumentsObject(Variable* arguments) {
 
 
 Node* AstGraphBuilder::BuildRestArgumentsArray(Variable* rest, int index) {
-  if (rest == NULL) return NULL;
+  if (rest == nullptr) return nullptr;
 
   // Allocate and initialize a new arguments object.
   CreateArgumentsParameters::Type type = CreateArgumentsParameters::kRestArray;
@@ -3412,7 +3412,7 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
     }
   }
   UNREACHABLE();
-  return NULL;
+  return nullptr;
 }
 
 
@@ -3447,7 +3447,7 @@ Node* AstGraphBuilder::BuildVariableDelete(Variable* variable,
     }
   }
   UNREACHABLE();
-  return NULL;
+  return nullptr;
 }
 
 
@@ -3575,7 +3575,7 @@ Node* AstGraphBuilder::BuildVariableAssignment(
     }
   }
   UNREACHABLE();
-  return NULL;
+  return nullptr;
 }
 
 
@@ -3872,7 +3872,7 @@ Node* AstGraphBuilder::BuildBinaryOp(Node* left, Node* right, Token::Value op,
       break;
     default:
       UNREACHABLE();
-      js_op = NULL;
+      js_op = nullptr;
   }
   return NewNode(js_op, left, right);
 }
@@ -4055,7 +4055,7 @@ void AstGraphBuilder::PrepareFrameState(Node* node, BailoutId ast_id,
 
 BitVector* AstGraphBuilder::GetVariablesAssignedInLoop(
     IterationStatement* stmt) {
-  if (loop_assignment_analysis_ == NULL) return NULL;
+  if (loop_assignment_analysis_ == nullptr) return nullptr;
   return loop_assignment_analysis_->GetVariablesAssignedInLoop(stmt);
 }
 
@@ -4082,7 +4082,7 @@ Node* AstGraphBuilder::MakeNode(const Operator* op, int value_input_count,
   DCHECK(op->ControlInputCount() < 2);
   DCHECK(op->EffectInputCount() < 2);
 
-  Node* result = NULL;
+  Node* result = nullptr;
   if (!has_context && frame_state_count == 0 && !has_control && !has_effect) {
     result = graph()->NewNode(op, value_input_count, value_inputs, incomplete);
   } else {

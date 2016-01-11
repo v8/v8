@@ -253,7 +253,7 @@ Instruction::Instruction(InstructionCode opcode)
     : opcode_(opcode),
       bit_field_(OutputCountField::encode(0) | InputCountField::encode(0) |
                  TempCountField::encode(0) | IsCallField::encode(false)),
-      reference_map_(NULL) {
+      reference_map_(nullptr) {
   parallel_moves_[0] = nullptr;
   parallel_moves_[1] = nullptr;
 }
@@ -268,7 +268,7 @@ Instruction::Instruction(InstructionCode opcode, size_t output_count,
                  InputCountField::encode(input_count) |
                  TempCountField::encode(temp_count) |
                  IsCallField::encode(false)),
-      reference_map_(NULL) {
+      reference_map_(nullptr) {
   parallel_moves_[0] = nullptr;
   parallel_moves_[1] = nullptr;
   size_t offset = 0;
@@ -459,7 +459,7 @@ std::ostream& operator<<(std::ostream& os,
   for (int i = Instruction::FIRST_GAP_POSITION;
        i <= Instruction::LAST_GAP_POSITION; i++) {
     os << "(";
-    if (instr.parallel_moves()[i] != NULL) {
+    if (instr.parallel_moves()[i] != nullptr) {
       PrintableParallelMove ppm = {printable.register_configuration_,
                                    instr.parallel_moves()[i]};
       os << ppm;
@@ -568,7 +568,7 @@ size_t InstructionBlock::PredecessorIndexOf(RpoNumber rpo_number) const {
 
 
 static RpoNumber GetRpo(const BasicBlock* block) {
-  if (block == NULL) return RpoNumber::Invalid();
+  if (block == nullptr) return RpoNumber::Invalid();
   return RpoNumber::FromInt(block->rpo_number());
 }
 
@@ -603,7 +603,7 @@ InstructionBlocks* InstructionSequence::InstructionBlocksFor(
     Zone* zone, const Schedule* schedule) {
   InstructionBlocks* blocks = zone->NewArray<InstructionBlocks>(1);
   new (blocks) InstructionBlocks(
-      static_cast<int>(schedule->rpo_order()->size()), NULL, zone);
+      static_cast<int>(schedule->rpo_order()->size()), nullptr, zone);
   size_t rpo_number = 0;
   for (BasicBlockVector::const_iterator it = schedule->rpo_order()->begin();
        it != schedule->rpo_order()->end(); ++it, ++rpo_number) {
@@ -689,7 +689,7 @@ int InstructionSequence::AddInstruction(Instruction* instr) {
   int index = static_cast<int>(instructions_.size());
   instructions_.push_back(instr);
   if (instr->NeedsReferenceMap()) {
-    DCHECK(instr->reference_map() == NULL);
+    DCHECK(instr->reference_map() == nullptr);
     ReferenceMap* reference_map = new (zone()) ReferenceMap(zone());
     reference_map->set_instruction_position(index);
     instr->set_reference_map(reference_map);
@@ -853,7 +853,7 @@ size_t FrameStateDescriptor::GetSize(OutputFrameStateCombine combine) const {
 
 size_t FrameStateDescriptor::GetTotalSize() const {
   size_t total_size = 0;
-  for (const FrameStateDescriptor* iter = this; iter != NULL;
+  for (const FrameStateDescriptor* iter = this; iter != nullptr;
        iter = iter->outer_state_) {
     total_size += iter->GetSize();
   }
@@ -863,7 +863,7 @@ size_t FrameStateDescriptor::GetTotalSize() const {
 
 size_t FrameStateDescriptor::GetFrameCount() const {
   size_t count = 0;
-  for (const FrameStateDescriptor* iter = this; iter != NULL;
+  for (const FrameStateDescriptor* iter = this; iter != nullptr;
        iter = iter->outer_state_) {
     ++count;
   }
@@ -873,7 +873,7 @@ size_t FrameStateDescriptor::GetFrameCount() const {
 
 size_t FrameStateDescriptor::GetJSFrameCount() const {
   size_t count = 0;
-  for (const FrameStateDescriptor* iter = this; iter != NULL;
+  for (const FrameStateDescriptor* iter = this; iter != nullptr;
        iter = iter->outer_state_) {
     if (FrameStateFunctionInfo::IsJSFunctionType(iter->type_)) {
       ++count;

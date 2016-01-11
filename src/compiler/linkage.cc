@@ -120,7 +120,7 @@ bool CallDescriptor::CanTailCall(const Node* node,
 
 
 CallDescriptor* Linkage::ComputeIncoming(Zone* zone, CompilationInfo* info) {
-  if (info->code_stub() != NULL) {
+  if (info->code_stub() != nullptr) {
     // Use the code stub interface descriptor.
     CodeStub* stub = info->code_stub();
     CallInterfaceDescriptor descriptor = stub->GetCallInterfaceDescriptor();
@@ -143,7 +143,7 @@ CallDescriptor* Linkage::ComputeIncoming(Zone* zone, CompilationInfo* info) {
                                1 + shared->internal_formal_parameter_count(),
                                CallDescriptor::kNoFlags);
   }
-  return NULL;  // TODO(titzer): ?
+  return nullptr;  // TODO(titzer): ?
 }
 
 

@@ -328,7 +328,7 @@ class RepresentationSelector {
       queue_.pop();
       info->set_queued(false);
       TRACE(" visit #%d: %s\n", node->id(), node->op()->mnemonic());
-      VisitNode(node, info->truncation(), NULL);
+      VisitNode(node, info->truncation(), nullptr);
       TRACE("  ==> output ");
       PrintInfo(info->output_type());
       TRACE("\n");

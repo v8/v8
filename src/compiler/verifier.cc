@@ -979,7 +979,7 @@ static bool HasDominatingDef(Schedule* schedule, Node* node,
       use_pos--;
     }
     block = block->dominator();
-    if (block == NULL) break;
+    if (block == nullptr) break;
     use_pos = static_cast<int>(block->NodeCount()) - 1;
     if (node == block->control_input()) return true;
   }
@@ -990,7 +990,7 @@ static bool HasDominatingDef(Schedule* schedule, Node* node,
 static bool Dominates(Schedule* schedule, Node* dominator, Node* dominatee) {
   BasicBlock* dom = schedule->block(dominator);
   BasicBlock* sub = schedule->block(dominatee);
-  while (sub != NULL) {
+  while (sub != nullptr) {
     if (sub == dom) {
       return true;
     }
@@ -1106,7 +1106,7 @@ void ScheduleVerifier::Run(Schedule* schedule) {
   {
     // Verify the dominance relation.
     ZoneVector<BitVector*> dominators(zone);
-    dominators.resize(count, NULL);
+    dominators.resize(count, nullptr);
 
     // Compute a set of all the nodes that dominate a given node by using
     // a forward fixpoint. O(n^2).
@@ -1119,7 +1119,7 @@ void ScheduleVerifier::Run(Schedule* schedule) {
       queue.pop();
       BitVector* block_doms = dominators[block->id().ToSize()];
       BasicBlock* idom = block->dominator();
-      if (idom != NULL && !block_doms->Contains(idom->id().ToInt())) {
+      if (idom != nullptr && !block_doms->Contains(idom->id().ToInt())) {
         V8_Fatal(__FILE__, __LINE__, "Block B%d is not dominated by B%d",
                  block->rpo_number(), idom->rpo_number());
       }
@@ -1127,7 +1127,7 @@ void ScheduleVerifier::Run(Schedule* schedule) {
         BasicBlock* succ = block->SuccessorAt(s);
         BitVector* succ_doms = dominators[succ->id().ToSize()];
 
-        if (succ_doms == NULL) {
+        if (succ_doms == nullptr) {
           // First time visiting the node. S.doms = B U B.doms
           succ_doms = new (zone) BitVector(static_cast<int>(count), zone);
           succ_doms->CopyFrom(*block_doms);
@@ -1149,7 +1149,7 @@ void ScheduleVerifier::Run(Schedule* schedule) {
          b != rpo_order->end(); ++b) {
       BasicBlock* block = *b;
       BasicBlock* idom = block->dominator();
-      if (idom == NULL) continue;
+      if (idom == nullptr) continue;
       BitVector* block_doms = dominators[block->id().ToSize()];
 
       for (BitVector::Iterator it(block_doms); !it.Done(); it.Advance()) {
@@ -1189,7 +1189,7 @@ void ScheduleVerifier::Run(Schedule* schedule) {
 
     // Check inputs to control for this block.
     Node* control = block->control_input();
-    if (control != NULL) {
+    if (control != nullptr) {
       CHECK_EQ(block, schedule->block(control));
       CheckInputsDominate(schedule, block, control,
                           static_cast<int>(block->NodeCount()) - 1);

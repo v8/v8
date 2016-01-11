@@ -287,10 +287,10 @@ void LiveRange::VerifyPositions() const {
   for (UsePosition* pos = first_pos_; pos != nullptr; pos = pos->next()) {
     CHECK(Start() <= pos->pos());
     CHECK(pos->pos() <= End());
-    CHECK(interval != nullptr);
+    CHECK_NOT_NULL(interval);
     while (!interval->Contains(pos->pos()) && interval->end() != pos->pos()) {
       interval = interval->next();
-      CHECK(interval != nullptr);
+      CHECK_NOT_NULL(interval);
     }
   }
 }

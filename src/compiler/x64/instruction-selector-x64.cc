@@ -41,12 +41,12 @@ class X64OperandGenerator final : public OperandGenerator {
                                              InstructionOperand inputs[],
                                              size_t* input_count) {
     AddressingMode mode = kMode_MRI;
-    if (base != NULL) {
+    if (base != nullptr) {
       inputs[(*input_count)++] = UseRegister(base);
-      if (index != NULL) {
+      if (index != nullptr) {
         DCHECK(scale_exponent >= 0 && scale_exponent <= 3);
         inputs[(*input_count)++] = UseRegister(index);
-        if (displacement != NULL) {
+        if (displacement != nullptr) {
           inputs[(*input_count)++] = UseImmediate(displacement);
           static const AddressingMode kMRnI_modes[] = {kMode_MR1I, kMode_MR2I,
                                                        kMode_MR4I, kMode_MR8I};
@@ -57,7 +57,7 @@ class X64OperandGenerator final : public OperandGenerator {
           mode = kMRn_modes[scale_exponent];
         }
       } else {
-        if (displacement == NULL) {
+        if (displacement == nullptr) {
           mode = kMode_MR;
         } else {
           inputs[(*input_count)++] = UseImmediate(displacement);
@@ -65,10 +65,10 @@ class X64OperandGenerator final : public OperandGenerator {
         }
       }
     } else {
-      DCHECK(index != NULL);
+      DCHECK_NOT_NULL(index);
       DCHECK(scale_exponent >= 0 && scale_exponent <= 3);
       inputs[(*input_count)++] = UseRegister(index);
-      if (displacement != NULL) {
+      if (displacement != nullptr) {
         inputs[(*input_count)++] = UseImmediate(displacement);
         static const AddressingMode kMnI_modes[] = {kMode_MRI, kMode_M2I,
                                                     kMode_M4I, kMode_M8I};
@@ -91,7 +91,7 @@ class X64OperandGenerator final : public OperandGenerator {
                                                   size_t* input_count) {
     BaseWithIndexAndDisplacement64Matcher m(operand, true);
     DCHECK(m.matches());
-    if ((m.displacement() == NULL || CanBeImmediate(m.displacement()))) {
+    if ((m.displacement() == nullptr || CanBeImmediate(m.displacement()))) {
       return GenerateMemoryOperandInputs(m.index(), m.scale(), m.base(),
                                          m.displacement(), inputs, input_count);
     } else {
@@ -232,7 +232,8 @@ void InstructionSelector::VisitStore(Node* node) {
     InstructionOperand value_operand =
         g.CanBeImmediate(value) ? g.UseImmediate(value) : g.UseRegister(value);
     inputs[input_count++] = value_operand;
-    Emit(code, 0, static_cast<InstructionOperand*>(NULL), input_count, inputs);
+    Emit(code, 0, static_cast<InstructionOperand*>(nullptr), input_count,
+         inputs);
   }
 }
 
@@ -531,8 +532,8 @@ void InstructionSelector::VisitWord32Shl(Node* node) {
   Int32ScaleMatcher m(node, true);
   if (m.matches()) {
     Node* index = node->InputAt(0);
-    Node* base = m.power_of_two_plus_one() ? index : NULL;
-    EmitLea(this, kX64Lea32, node, index, m.scale(), base, NULL);
+    Node* base = m.power_of_two_plus_one() ? index : nullptr;
+    EmitLea(this, kX64Lea32, node, index, m.scale(), base, nullptr);
     return;
   }
   VisitWord32Shift(this, node, kX64Shl32);
@@ -639,7 +640,7 @@ void InstructionSelector::VisitInt32Add(Node* node) {
   // Try to match the Add to a leal pattern
   BaseWithIndexAndDisplacement32Matcher m(node);
   if (m.matches() &&
-      (m.displacement() == NULL || g.CanBeImmediate(m.displacement()))) {
+      (m.displacement() == nullptr || g.CanBeImmediate(m.displacement()))) {
     EmitLea(this, kX64Lea32, node, m.index(), m.scale(), m.base(),
             m.displacement());
     return;
@@ -763,8 +764,8 @@ void InstructionSelector::VisitInt32Mul(Node* node) {
   Int32ScaleMatcher m(node, true);
   if (m.matches()) {
     Node* index = node->InputAt(0);
-    Node* base = m.power_of_two_plus_one() ? index : NULL;
-    EmitLea(this, kX64Lea32, node, index, m.scale(), base, NULL);
+    Node* base = m.power_of_two_plus_one() ? index : nullptr;
+    EmitLea(this, kX64Lea32, node, index, m.scale(), base, nullptr);
     return;
   }
   VisitMul(this, node, kX64Imul32);
@@ -1504,12 +1505,12 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
         if (ProjectionIndexOf(value->op()) == 1u) {
           // We cannot combine the <Operation>WithOverflow with this branch
           // unless the 0th projection (the use of the actual value of the
-          // <Operation> is either NULL, which means there's no use of the
+          // <Operation> is either nullptr, which means there's no use of the
           // actual value, or was already defined, which means it is scheduled
           // *AFTER* this branch).
           Node* const node = value->InputAt(0);
           Node* const result = NodeProperties::FindProjection(node, 0);
-          if (result == NULL || IsDefined(result)) {
+          if (result == nullptr || IsDefined(result)) {
             switch (node->opcode()) {
               case IrOpcode::kInt32AddWithOverflow:
                 cont.OverwriteAndNegateIfEqual(kOverflow);

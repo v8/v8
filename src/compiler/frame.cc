@@ -18,8 +18,8 @@ Frame::Frame(int fixed_frame_size_in_slots, const CallDescriptor* descriptor)
       frame_slot_count_(fixed_frame_size_in_slots),
       callee_saved_slot_count_(0),
       spill_slot_count_(0),
-      allocated_registers_(NULL),
-      allocated_double_registers_(NULL) {}
+      allocated_registers_(nullptr),
+      allocated_double_registers_(nullptr) {}
 
 
 void FrameAccessState::SetFrameAccessToDefault() {

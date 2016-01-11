@@ -730,7 +730,7 @@ class Instruction final {
 
   // TODO(titzer): make call into a flags.
   static Instruction* New(Zone* zone, InstructionCode opcode) {
-    return New(zone, opcode, 0, NULL, 0, NULL, 0, NULL);
+    return New(zone, opcode, 0, nullptr, 0, nullptr, 0, nullptr);
   }
 
   static Instruction* New(Zone* zone, InstructionCode opcode,
@@ -738,9 +738,9 @@ class Instruction final {
                           size_t input_count, InstructionOperand* inputs,
                           size_t temp_count, InstructionOperand* temps) {
     DCHECK(opcode >= 0);
-    DCHECK(output_count == 0 || outputs != NULL);
-    DCHECK(input_count == 0 || inputs != NULL);
-    DCHECK(temp_count == 0 || temps != NULL);
+    DCHECK(output_count == 0 || outputs != nullptr);
+    DCHECK(input_count == 0 || inputs != nullptr);
+    DCHECK(temp_count == 0 || temps != nullptr);
     size_t total_extra_ops = output_count + input_count + temp_count;
     if (total_extra_ops != 0) total_extra_ops--;
     int size = static_cast<int>(
@@ -756,7 +756,7 @@ class Instruction final {
   }
   bool IsCall() const { return IsCallField::decode(bit_field_); }
   bool NeedsReferenceMap() const { return IsCall(); }
-  bool HasReferenceMap() const { return reference_map_ != NULL; }
+  bool HasReferenceMap() const { return reference_map_ != nullptr; }
 
   bool ClobbersRegisters() const { return IsCall(); }
   bool ClobbersTemps() const { return IsCall(); }
@@ -772,7 +772,7 @@ class Instruction final {
   void OverwriteWithNop() {
     opcode_ = ArchOpcodeField::encode(kArchNop);
     bit_field_ = 0;
-    reference_map_ = NULL;
+    reference_map_ = nullptr;
   }
 
   bool IsNop() const {

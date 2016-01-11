@@ -944,8 +944,8 @@ Reduction MachineOperatorReducer::ReduceWord32Or(Node* node) {
   }
   if (m.LeftEqualsRight()) return Replace(m.left().node());  // x | x => x
 
-  Node* shl = NULL;
-  Node* shr = NULL;
+  Node* shl = nullptr;
+  Node* shr = nullptr;
   // Recognize rotation, we are matching either:
   //  * x << y | x >>> (32 - y) => x ror (32 - y), i.e  x rol y
   //  * x << (32 - y) | x >>> y => x ror y
@@ -968,8 +968,8 @@ Reduction MachineOperatorReducer::ReduceWord32Or(Node* node) {
     // Case where y is a constant.
     if (mshl.right().Value() + mshr.right().Value() != 32) return NoChange();
   } else {
-    Node* sub = NULL;
-    Node* y = NULL;
+    Node* sub = nullptr;
+    Node* y = nullptr;
     if (mshl.right().IsInt32Sub()) {
       sub = mshl.right().node();
       y = mshr.right().node();

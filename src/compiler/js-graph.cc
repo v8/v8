@@ -120,7 +120,7 @@ Node* JSGraph::Constant(int32_t value) {
 
 Node* JSGraph::Int32Constant(int32_t value) {
   Node** loc = cache_.FindInt32Constant(value);
-  if (*loc == NULL) {
+  if (*loc == nullptr) {
     *loc = graph()->NewNode(common()->Int32Constant(value));
   }
   return *loc;
@@ -129,7 +129,7 @@ Node* JSGraph::Int32Constant(int32_t value) {
 
 Node* JSGraph::Int64Constant(int64_t value) {
   Node** loc = cache_.FindInt64Constant(value);
-  if (*loc == NULL) {
+  if (*loc == nullptr) {
     *loc = graph()->NewNode(common()->Int64Constant(value));
   }
   return *loc;
@@ -138,7 +138,7 @@ Node* JSGraph::Int64Constant(int64_t value) {
 
 Node* JSGraph::NumberConstant(double value) {
   Node** loc = cache_.FindNumberConstant(value);
-  if (*loc == NULL) {
+  if (*loc == nullptr) {
     *loc = graph()->NewNode(common()->NumberConstant(value));
   }
   return *loc;
@@ -147,7 +147,7 @@ Node* JSGraph::NumberConstant(double value) {
 
 Node* JSGraph::Float32Constant(float value) {
   Node** loc = cache_.FindFloat32Constant(value);
-  if (*loc == NULL) {
+  if (*loc == nullptr) {
     *loc = graph()->NewNode(common()->Float32Constant(value));
   }
   return *loc;
@@ -156,7 +156,7 @@ Node* JSGraph::Float32Constant(float value) {
 
 Node* JSGraph::Float64Constant(double value) {
   Node** loc = cache_.FindFloat64Constant(value);
-  if (*loc == NULL) {
+  if (*loc == nullptr) {
     *loc = graph()->NewNode(common()->Float64Constant(value));
   }
   return *loc;
@@ -165,7 +165,7 @@ Node* JSGraph::Float64Constant(double value) {
 
 Node* JSGraph::ExternalConstant(ExternalReference reference) {
   Node** loc = cache_.FindExternalConstant(reference);
-  if (*loc == NULL) {
+  if (*loc == nullptr) {
     *loc = graph()->NewNode(common()->ExternalConstant(reference));
   }
   return *loc;

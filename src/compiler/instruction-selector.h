@@ -68,35 +68,35 @@ class InstructionSelector final {
   // ===========================================================================
 
   Instruction* Emit(InstructionCode opcode, InstructionOperand output,
-                    size_t temp_count = 0, InstructionOperand* temps = NULL);
+                    size_t temp_count = 0, InstructionOperand* temps = nullptr);
   Instruction* Emit(InstructionCode opcode, InstructionOperand output,
                     InstructionOperand a, size_t temp_count = 0,
-                    InstructionOperand* temps = NULL);
+                    InstructionOperand* temps = nullptr);
   Instruction* Emit(InstructionCode opcode, InstructionOperand output,
                     InstructionOperand a, InstructionOperand b,
-                    size_t temp_count = 0, InstructionOperand* temps = NULL);
+                    size_t temp_count = 0, InstructionOperand* temps = nullptr);
   Instruction* Emit(InstructionCode opcode, InstructionOperand output,
                     InstructionOperand a, InstructionOperand b,
                     InstructionOperand c, size_t temp_count = 0,
-                    InstructionOperand* temps = NULL);
+                    InstructionOperand* temps = nullptr);
   Instruction* Emit(InstructionCode opcode, InstructionOperand output,
                     InstructionOperand a, InstructionOperand b,
                     InstructionOperand c, InstructionOperand d,
-                    size_t temp_count = 0, InstructionOperand* temps = NULL);
+                    size_t temp_count = 0, InstructionOperand* temps = nullptr);
   Instruction* Emit(InstructionCode opcode, InstructionOperand output,
                     InstructionOperand a, InstructionOperand b,
                     InstructionOperand c, InstructionOperand d,
                     InstructionOperand e, size_t temp_count = 0,
-                    InstructionOperand* temps = NULL);
+                    InstructionOperand* temps = nullptr);
   Instruction* Emit(InstructionCode opcode, InstructionOperand output,
                     InstructionOperand a, InstructionOperand b,
                     InstructionOperand c, InstructionOperand d,
                     InstructionOperand e, InstructionOperand f,
-                    size_t temp_count = 0, InstructionOperand* temps = NULL);
+                    size_t temp_count = 0, InstructionOperand* temps = nullptr);
   Instruction* Emit(InstructionCode opcode, size_t output_count,
                     InstructionOperand* outputs, size_t input_count,
                     InstructionOperand* inputs, size_t temp_count = 0,
-                    InstructionOperand* temps = NULL);
+                    InstructionOperand* temps = nullptr);
   Instruction* Emit(Instruction* instr);
 
   // ===========================================================================

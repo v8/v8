@@ -97,7 +97,7 @@ class NodeProperties final {
                                 Node* node);
 
   // Replace all uses of {node} with the given replacement nodes. All occurring
-  // use kinds need to be replaced, {NULL} is only valid if a use kind is
+  // use kinds need to be replaced, {nullptr} is only valid if a use kind is
   // guaranteed not to exist.
   static void ReplaceUses(Node* node, Node* value, Node* effect = nullptr,
                           Node* success = nullptr, Node* exception = nullptr);

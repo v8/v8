@@ -428,7 +428,7 @@ const Operator* RepresentationChanger::Int32OperatorFor(
       return machine()->Int32LessThanOrEqual();
     default:
       UNREACHABLE();
-      return NULL;
+      return nullptr;
   }
 }
 
@@ -454,7 +454,7 @@ const Operator* RepresentationChanger::Uint32OperatorFor(
       return machine()->Uint32LessThanOrEqual();
     default:
       UNREACHABLE();
-      return NULL;
+      return nullptr;
   }
 }
 
@@ -480,7 +480,7 @@ const Operator* RepresentationChanger::Float64OperatorFor(
       return machine()->Float64LessThanOrEqual();
     default:
       UNREACHABLE();
-      return NULL;
+      return nullptr;
   }
 }
 

@@ -48,8 +48,8 @@ struct AsC1VCompilation {
 
 struct AsC1V {
   AsC1V(const char* phase, const Schedule* schedule,
-        const SourcePositionTable* positions = NULL,
-        const InstructionSequence* instructions = NULL)
+        const SourcePositionTable* positions = nullptr,
+        const InstructionSequence* instructions = nullptr)
       : schedule_(schedule),
         instructions_(instructions),
         positions_(positions),

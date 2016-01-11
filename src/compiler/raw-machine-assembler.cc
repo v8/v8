@@ -358,7 +358,7 @@ BasicBlock* RawMachineAssembler::CurrentBlock() {
 Node* RawMachineAssembler::AddNode(const Operator* op, int input_count,
                                    Node** inputs) {
   DCHECK_NOT_NULL(schedule_);
-  DCHECK(current_block_ != nullptr);
+  DCHECK_NOT_NULL(current_block_);
   Node* node = MakeNode(op, input_count, inputs);
   schedule()->AddNode(CurrentBlock(), node);
   return node;
@@ -374,7 +374,7 @@ Node* RawMachineAssembler::MakeNode(const Operator* op, int input_count,
 
 
 RawMachineLabel::RawMachineLabel()
-    : block_(NULL), used_(false), bound_(false) {}
+    : block_(nullptr), used_(false), bound_(false) {}
 
 
 RawMachineLabel::~RawMachineLabel() { DCHECK(bound_ || !used_); }

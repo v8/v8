@@ -304,7 +304,7 @@ class PipelineData {
   Handle<Code> code_;
 
   // All objects in the following group of fields are allocated in graph_zone_.
-  // They are all set to NULL when the graph_zone_ is destroyed.
+  // They are all set to nullptr when the graph_zone_ is destroyed.
   ZonePool::Scope graph_zone_scope_;
   Zone* graph_zone_;
   Graph* graph_;
@@ -320,7 +320,8 @@ class PipelineData {
   Schedule* schedule_;
 
   // All objects in the following group of fields are allocated in
-  // instruction_zone_.  They are all set to NULL when the instruction_zone_ is
+  // instruction_zone_.  They are all set to nullptr when the instruction_zone_
+  // is
   // destroyed.
   ZonePool::Scope instruction_zone_scope_;
   Zone* instruction_zone_;
@@ -328,7 +329,7 @@ class PipelineData {
   Frame* frame_;
 
   // All objects in the following group of fields are allocated in
-  // register_allocation_zone_.  They are all set to NULL when the zone is
+  // register_allocation_zone_.  They are all set to nullptr when the zone is
   // destroyed.
   ZonePool::Scope register_allocation_zone_scope_;
   Zone* register_allocation_zone_;
@@ -349,7 +350,7 @@ struct TurboCfgFile : public std::ofstream {
 
 void TraceSchedule(CompilationInfo* info, Schedule* schedule) {
   if (FLAG_trace_turbo) {
-    FILE* json_file = OpenVisualizerLogFile(info, NULL, "json", "a+");
+    FILE* json_file = OpenVisualizerLogFile(info, nullptr, "json", "a+");
     if (json_file != nullptr) {
       OFStream json_of(json_file);
       json_of << "{\"name\":\"Schedule\",\"type\":\"schedule\",\"data\":\"";
@@ -758,7 +759,7 @@ struct StressLoopPeelingPhase {
     // Peel the first outer loop for testing.
     // TODO(titzer): peel all loops? the N'th loop? Innermost loops?
     LoopTree* loop_tree = LoopFinder::BuildLoopTree(data->graph(), temp_zone);
-    if (loop_tree != NULL && loop_tree->outer_loops().size() > 0) {
+    if (loop_tree != nullptr && loop_tree->outer_loops().size() > 0) {
       LoopPeeler::Peel(data->graph(), data->common(), loop_tree,
                        loop_tree->outer_loops()[0], temp_zone);
     }
@@ -1006,7 +1007,7 @@ struct PrintGraphPhase {
     Graph* graph = data->graph();
 
     {  // Print JSON.
-      FILE* json_file = OpenVisualizerLogFile(info, NULL, "json", "a+");
+      FILE* json_file = OpenVisualizerLogFile(info, nullptr, "json", "a+");
       if (json_file == nullptr) return;
       OFStream json_of(json_file);
       json_of << "{\"name\":\"" << phase << "\",\"type\":\"graph\",\"data\":"
@@ -1035,7 +1036,7 @@ struct VerifyGraphPhase {
 
 
 void Pipeline::BeginPhaseKind(const char* phase_kind_name) {
-  if (data_->pipeline_statistics() != NULL) {
+  if (data_->pipeline_statistics() != nullptr) {
     data_->pipeline_statistics()->BeginPhaseKind(phase_kind_name);
   }
 }
@@ -1068,7 +1069,7 @@ Handle<Code> Pipeline::GenerateCode() {
   }
 
   if (FLAG_trace_turbo) {
-    FILE* json_file = OpenVisualizerLogFile(info(), NULL, "json", "w+");
+    FILE* json_file = OpenVisualizerLogFile(info(), nullptr, "json", "w+");
     if (json_file != nullptr) {
       OFStream json_of(json_file);
       Handle<Script> script = info()->script();
@@ -1233,7 +1234,7 @@ Handle<Code> Pipeline::GenerateCodeForCodeStub(Isolate* isolate,
   DCHECK_NOT_NULL(data.schedule());
 
   if (FLAG_trace_turbo) {
-    FILE* json_file = OpenVisualizerLogFile(&info, NULL, "json", "w+");
+    FILE* json_file = OpenVisualizerLogFile(&info, nullptr, "json", "w+");
     if (json_file != nullptr) {
       OFStream json_of(json_file);
       json_of << "{\"function\":\"" << info.GetDebugName().get()
@@ -1302,7 +1303,7 @@ Handle<Code> Pipeline::ScheduleAndGenerateCode(
   if (data->schedule() == nullptr) Run<ComputeSchedulePhase>();
   TraceSchedule(data->info(), data->schedule());
 
-  BasicBlockProfiler::Data* profiler_data = NULL;
+  BasicBlockProfiler::Data* profiler_data = nullptr;
   if (FLAG_turbo_profiling) {
     profiler_data = BasicBlockInstrumentor::Instrument(info(), data->graph(),
                                                        data->schedule());
@@ -1351,10 +1352,10 @@ Handle<Code> Pipeline::ScheduleAndGenerateCode(
   Run<GenerateCodePhase>(&linkage);
 
   Handle<Code> code = data->code();
-  if (profiler_data != NULL) {
+  if (profiler_data != nullptr) {
 #if ENABLE_DISASSEMBLER
     std::ostringstream os;
-    code->Disassemble(NULL, os);
+    code->Disassemble(nullptr, os);
     profiler_data->SetCode(&os);
 #endif
   }
@@ -1363,14 +1364,14 @@ Handle<Code> Pipeline::ScheduleAndGenerateCode(
   v8::internal::CodeGenerator::PrintCode(code, info());
 
   if (FLAG_trace_turbo) {
-    FILE* json_file = OpenVisualizerLogFile(info(), NULL, "json", "a+");
+    FILE* json_file = OpenVisualizerLogFile(info(), nullptr, "json", "a+");
     if (json_file != nullptr) {
       OFStream json_of(json_file);
       json_of
           << "{\"name\":\"disassembly\",\"type\":\"disassembly\",\"data\":\"";
 #if ENABLE_DISASSEMBLER
       std::stringstream disassembly_stream;
-      code->Disassemble(NULL, disassembly_stream);
+      code->Disassemble(nullptr, disassembly_stream);
       std::string disassembly_string(disassembly_stream.str());
       for (const auto& c : disassembly_string) {
         json_of << AsEscapedUC16ForJSON(c);

@@ -86,7 +86,7 @@ void InstructionSelector::SelectInstructions() {
 void InstructionSelector::StartBlock(RpoNumber rpo) {
   if (FLAG_turbo_instruction_scheduling &&
       InstructionScheduler::SchedulerSupported()) {
-    DCHECK(scheduler_ != nullptr);
+    DCHECK_NOT_NULL(scheduler_);
     scheduler_->StartBlock(rpo);
   } else {
     sequence()->StartBlock(rpo);
@@ -97,7 +97,7 @@ void InstructionSelector::StartBlock(RpoNumber rpo) {
 void InstructionSelector::EndBlock(RpoNumber rpo) {
   if (FLAG_turbo_instruction_scheduling &&
       InstructionScheduler::SchedulerSupported()) {
-    DCHECK(scheduler_ != nullptr);
+    DCHECK_NOT_NULL(scheduler_);
     scheduler_->EndBlock(rpo);
   } else {
     sequence()->EndBlock(rpo);
@@ -108,7 +108,7 @@ void InstructionSelector::EndBlock(RpoNumber rpo) {
 void InstructionSelector::AddInstruction(Instruction* instr) {
   if (FLAG_turbo_instruction_scheduling &&
       InstructionScheduler::SchedulerSupported()) {
-    DCHECK(scheduler_ != nullptr);
+    DCHECK_NOT_NULL(scheduler_);
     scheduler_->AddInstruction(instr);
   } else {
     sequence()->AddInstruction(instr);
@@ -121,7 +121,7 @@ Instruction* InstructionSelector::Emit(InstructionCode opcode,
                                        size_t temp_count,
                                        InstructionOperand* temps) {
   size_t output_count = output.IsInvalid() ? 0 : 1;
-  return Emit(opcode, output_count, &output, 0, NULL, temp_count, temps);
+  return Emit(opcode, output_count, &output, 0, nullptr, temp_count, temps);
 }
 
 
@@ -482,7 +482,7 @@ struct CallBuffer {
   size_t frame_state_count() const { return descriptor->FrameStateCount(); }
 
   size_t frame_state_value_count() const {
-    return (frame_state_descriptor == NULL)
+    return (frame_state_descriptor == nullptr)
                ? 0
                : (frame_state_descriptor->GetTotalSize() +
                   1);  // Include deopt id.
@@ -519,13 +519,13 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
 
     // Filter out the outputs that aren't live because no projection uses them.
     size_t outputs_needed_by_framestate =
-        buffer->frame_state_descriptor == NULL
+        buffer->frame_state_descriptor == nullptr
             ? 0
             : buffer->frame_state_descriptor->state_combine()
                   .ConsumedOutputCount();
     for (size_t i = 0; i < buffer->output_nodes.size(); i++) {
-      bool output_is_live =
-          buffer->output_nodes[i] != NULL || i < outputs_needed_by_framestate;
+      bool output_is_live = buffer->output_nodes[i] != nullptr ||
+                            i < outputs_needed_by_framestate;
       if (output_is_live) {
         MachineType type =
             buffer->descriptor->GetReturnType(static_cast<int>(i));
@@ -534,7 +534,7 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
 
         Node* output = buffer->output_nodes[i];
         InstructionOperand op =
-            output == NULL
+            output == nullptr
                 ? g.TempLocation(location, type.representation())
                 : g.DefineAsLocation(output, location, type.representation());
         MarkAsRepresentation(type.representation(), op);
@@ -580,7 +580,7 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
   // arg 2 - arg (n + 1) : value inputs to the frame state.
   size_t frame_state_entries = 0;
   USE(frame_state_entries);  // frame_state_entries is only used for debug.
-  if (buffer->frame_state_descriptor != NULL) {
+  if (buffer->frame_state_descriptor != nullptr) {
     InstructionSequence::StateId state_id =
         sequence()->AddFrameStateDescriptor(buffer->frame_state_descriptor);
     buffer->instruction_args.push_back(g.TempImmediate(state_id.ToInt()));
@@ -688,7 +688,7 @@ void InstructionSelector::VisitBlock(BasicBlock* block) {
   instruction_block->set_code_start(static_cast<int>(instructions_.size()));
   instruction_block->set_code_end(current_block_end);
 
-  current_block_ = NULL;
+  current_block_ = nullptr;
 }
 
 
@@ -1605,7 +1605,7 @@ FrameStateDescriptor* InstructionSelector::GetFrameStateDescriptor(
   DCHECK_EQ(parameters, state_info.parameter_count());
   DCHECK_EQ(locals, state_info.local_count());
 
-  FrameStateDescriptor* outer_state = NULL;
+  FrameStateDescriptor* outer_state = nullptr;
   Node* outer_node = state->InputAt(kFrameStateOuterStateInput);
   if (outer_node->opcode() == IrOpcode::kFrameState) {
     outer_state = GetFrameStateDescriptor(outer_node);

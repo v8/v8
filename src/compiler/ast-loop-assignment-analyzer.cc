@@ -22,7 +22,7 @@ LoopAssignmentAnalysis* ALAA::Analyze() {
   LoopAssignmentAnalysis* a = new (zone_) LoopAssignmentAnalysis(zone_);
   result_ = a;
   VisitStatements(info()->literal()->body());
-  result_ = NULL;
+  result_ = nullptr;
   return a;
 }
 

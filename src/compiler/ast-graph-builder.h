@@ -169,7 +169,7 @@ class AstGraphBuilder : public AstVisitor {
 
   // Node creation helpers.
   Node* NewNode(const Operator* op, bool incomplete = false) {
-    return MakeNode(op, 0, static_cast<Node**>(NULL), incomplete);
+    return MakeNode(op, 0, static_cast<Node**>(nullptr), incomplete);
   }
 
   Node* NewNode(const Operator* op, Node* n1) {
@@ -365,7 +365,7 @@ class AstGraphBuilder : public AstVisitor {
 
   // ===========================================================================
   // The following build methods have the same contract as the above ones, but
-  // they can also return {NULL} to indicate that no fragment was built. Note
+  // they can also return {nullptr} to indicate that no fragment was built. Note
   // that these are optimizations, disabling any of them should still produce
   // correct graphs.
 

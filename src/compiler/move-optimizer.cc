@@ -255,7 +255,7 @@ void MoveOptimizer::OptimizeMerge(InstructionBlock* block) {
     if (!GapsCanMoveOver(instr, local_zone()) || !instr->AreMovesRedundant())
       break;
   }
-  DCHECK(instr != nullptr);
+  DCHECK_NOT_NULL(instr);
   bool gap_initialized = true;
   if (instr->parallel_moves()[0] == nullptr ||
       instr->parallel_moves()[0]->empty()) {

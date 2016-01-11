@@ -1271,7 +1271,7 @@ Reduction JSTypedLowering::ReduceJSInstanceOf(Node* node) {
       jsgraph()->FalseConstant(), control);
 
   if (if_is_smi != nullptr) {
-    DCHECK(e_is_smi != nullptr);
+    DCHECK_NOT_NULL(e_is_smi);
     control = graph()->NewNode(common()->Merge(2), if_is_smi, control);
     effect =
         graph()->NewNode(common()->EffectPhi(2), e_is_smi, effect, control);
