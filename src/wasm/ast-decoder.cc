@@ -903,7 +903,7 @@ class LR_WasmDecoder : public Decoder {
         LocalType type = LocalOperand(p->pc(), &index, &unused);
         Tree* val = p->last();
         if (type == val->type) {
-          if (builder_) ssa_env_->locals[index] = val->node;
+          if (build()) ssa_env_->locals[index] = val->node;
           p->tree->node = val->node;
         } else {
           error(p->pc(), val->pc, "Typecheck failed in SetLocal");

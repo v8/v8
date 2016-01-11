@@ -1684,6 +1684,15 @@ TEST(Run_Wasm_Block_If_P_assign) {
 }
 
 
+TEST(Run_Wasm_DanglingAssign) {
+  WasmRunner<int32_t> r(MachineType::Int32());
+  // { return 0; p0 = 0; }
+  BUILD(r,
+        WASM_BLOCK(2, WASM_RETURN(WASM_I8(99)), WASM_SET_LOCAL(0, WASM_ZERO)));
+  CHECK_EQ(99, r.Call(1));
+}
+
+
 TEST(Run_Wasm_ExprIf_P) {
   WasmRunner<int32_t> r(MachineType::Int32());
   // p0 ? 11 : 22;
