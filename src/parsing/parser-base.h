@@ -830,6 +830,17 @@ class ParserBase : public Traits {
     return true;
   }
 
+  // Keep track of eval() calls since they disable all local variable
+  // optimizations. This checks if expression is an eval call, and if yes,
+  // forwards the information to scope.
+  void CheckPossibleEvalCall(ExpressionT expression, Scope* scope) {
+    if (Traits::IsIdentifier(expression) &&
+        Traits::IsEval(Traits::AsIdentifier(expression))) {
+      scope->DeclarationScope()->RecordEvalCall();
+      scope->RecordEvalCall();
+    }
+  }
+
   // Used to validate property names in object literals and class literals
   enum PropertyKind {
     kAccessorProperty,

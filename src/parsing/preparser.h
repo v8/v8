@@ -692,14 +692,6 @@ class PreParserTraits {
   static void CheckAssigningFunctionLiteralToProperty(
       PreParserExpression left, PreParserExpression right) {}
 
-  static void CheckPossibleEvalCall(PreParserExpression expression,
-                                    Scope* scope) {
-    if (IsIdentifier(expression) && IsEval(AsIdentifier(expression))) {
-      scope->DeclarationScope()->RecordEvalCall();
-      scope->RecordEvalCall();
-    }
-  }
-
   static PreParserExpression MarkExpressionAsAssigned(
       PreParserExpression expression) {
     // TODO(marja): To be able to produce the same errors, the preparser needs

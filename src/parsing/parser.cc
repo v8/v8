@@ -375,17 +375,6 @@ void ParserTraits::CheckAssigningFunctionLiteralToProperty(Expression* left,
 }
 
 
-void ParserTraits::CheckPossibleEvalCall(Expression* expression,
-                                         Scope* scope) {
-  VariableProxy* callee = expression->AsVariableProxy();
-  if (callee != NULL &&
-      callee->raw_name() == parser_->ast_value_factory()->eval_string()) {
-    scope->DeclarationScope()->RecordEvalCall();
-    scope->RecordEvalCall();
-  }
-}
-
-
 Expression* ParserTraits::MarkExpressionAsAssigned(Expression* expression) {
   VariableProxy* proxy =
       expression != NULL ? expression->AsVariableProxy() : NULL;
