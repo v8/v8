@@ -11,3 +11,7 @@ per-file *-ppc*=mbrandy@us.ibm.com
 per-file *-ppc*=michael_dawson@ca.ibm.com
 per-file *-x87*=chunyang.dai@intel.com
 per-file *-x87*=weiliang.lin@intel.com
+per-file expression-type-collector*=aseemgarg@chromium.org
+per-file expression-type-collector*=bradnelson@chromium.org
+per-file test-validator-asm.cc=aseemgarg@chromium.org
+per-file test-validator-asm.cc=bradnelson@chromium.org
