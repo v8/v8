@@ -131,11 +131,6 @@ macro IS_CALLABLE(arg) = (typeof(arg) === 'function');
 # Will throw a TypeError of the form "[functionName] called on null or undefined".
 macro CHECK_OBJECT_COERCIBLE(arg, functionName) = if (IS_NULL(%IS_VAR(arg)) || IS_UNDEFINED(arg)) throw MakeTypeError(kCalledOnNullOrUndefined, functionName);
 
-# Indices in bound function info retrieved by %BoundFunctionGetBindings(...).
-define kBoundFunctionIndex = 0;
-define kBoundThisIndex = 1;
-define kBoundArgumentsStartIndex = 2;
-
 # Inline macros. Use %IS_VAR to make sure arg is evaluated only once.
 macro NUMBER_IS_NAN(arg) = (!%_IsSmi(%IS_VAR(arg)) && !(arg == arg));
 macro NUMBER_IS_FINITE(arg) = (%_IsSmi(%IS_VAR(arg)) || ((arg == arg) && (arg != 1/0) && (arg != -1/0)));
