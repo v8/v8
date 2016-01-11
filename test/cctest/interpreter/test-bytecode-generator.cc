@@ -109,8 +109,12 @@ class BytecodeGeneratorHelper {
 #error Unknown byte ordering
 #endif
 
+#define XSTR(A) #A
+#define STR(A) XSTR(A)
+
 #define COMMA() ,
 #define SPACE()
+#define UNIQUE_VAR() "var a" STR(__COUNTER__) " = 0;\n"
 
 #define REPEAT_2(SEP, ...)                      \
   __VA_ARGS__ SEP() __VA_ARGS__
@@ -134,6 +138,16 @@ class BytecodeGeneratorHelper {
   REPEAT_16(SEP, __VA_ARGS__) SEP() REPEAT_8(SEP, __VA_ARGS__) SEP()   \
   REPEAT_4(SEP, __VA_ARGS__) SEP() REPEAT_2(SEP, __VA_ARGS__) SEP()    \
   __VA_ARGS__
+
+#define REPEAT_249(SEP, ...)                                            \
+  REPEAT_127(SEP, __VA_ARGS__) SEP() REPEAT_64(SEP, __VA_ARGS__) SEP()  \
+  REPEAT_32(SEP, __VA_ARGS__) SEP() REPEAT_16(SEP, __VA_ARGS__) SEP()   \
+  REPEAT_8(SEP, __VA_ARGS__) SEP() REPEAT_2(SEP, __VA_ARGS__)
+
+#define REPEAT_249_UNIQUE_VARS()                                        \
+UNIQUE_VAR() REPEAT_127(UNIQUE_VAR) UNIQUE_VAR() REPEAT_64(UNIQUE_VAR)  \
+UNIQUE_VAR() REPEAT_32(UNIQUE_VAR) UNIQUE_VAR() REPEAT_16(UNIQUE_VAR)   \
+UNIQUE_VAR() REPEAT_8(UNIQUE_VAR) UNIQUE_VAR() REPEAT_2(UNIQUE_VAR)
 
 // Structure for containing expected bytecode snippets.
 template<typename T, int C = 6>
@@ -4016,7 +4030,15 @@ TEST(ContextVariables) {
       i::NewTypeFeedbackVector(helper.isolate(), &feedback_spec);
 
   int closure = Register::function_closure().index();
+  int new_target = Register::new_target().index();
   int first_context_slot = Context::MIN_CONTEXT_SLOTS;
+
+  // The wide check below relies on MIN_CONTEXT_SLOTS + 3 + 249 == 256, if this
+  // ever changes, the REPEAT_XXX should be changed to output the correct number
+  // of unique variables to trigger the wide slot load / store.
+  STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS + 3 + 249 == 256);
+  int wide_slot = first_context_slot + 3;
+
   ExpectedSnippet<InstanceType> snippets[] = {
       {"var a; return function() { a = 1; };",
        1 * kPointerSize,
@@ -4109,6 +4131,39 @@ TEST(ContextVariables) {
        2,
        {InstanceType::FIXED_ARRAY_TYPE,
         InstanceType::SHARED_FUNCTION_INFO_TYPE}},
+      {"'use strict';\n"
+       REPEAT_249_UNIQUE_VARS()
+       "eval();"
+       "var b = 100;"
+       "return b",
+       3 * kPointerSize,
+       1,
+       1041,
+       {
+           B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure),  //
+                           U8(1),                                          //
+           B(PushContext), R(0),                                           //
+           B(Ldar), THIS(1),                                               //
+           B(StaContextSlot), R(0), U8(first_context_slot),                //
+           B(CreateUnmappedArguments),                                     //
+           B(StaContextSlot), R(0), U8(first_context_slot + 1),            //
+           B(Ldar), R(new_target),                                         //
+           B(StaContextSlot), R(0), U8(first_context_slot + 2),            //
+           REPEAT_249(COMMA,                                               //
+                      B(LdaZero),                                          //
+                      B(StaContextSlot), R(0), U8(wide_slot++)),           //
+           B(LdaUndefined),                                                //
+           B(Star), R(2),                                                  //
+           B(LdaGlobalStrict), U8(0), U8(1),                               //
+           B(Star), R(1),                                                  //
+           B(Call), R(1), R(2), U8(0), U8(0),                              //
+           B(LdaSmi8), U8(100),                                            //
+           B(StaContextSlotWide), R(0), U16(256),                          //
+           B(LdaContextSlotWide), R(0), U16(256),                          //
+           B(Return),                                                      //
+       },
+       1,
+       {InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
   };
 
   for (size_t i = 0; i < arraysize(snippets); i++) {

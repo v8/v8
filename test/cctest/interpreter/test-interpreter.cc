@@ -1944,7 +1944,11 @@ TEST(InterpreterContextVariables) {
   HandleAndZoneScope handles;
   i::Isolate* isolate = handles.main_isolate();
 
-  std::pair<const char*, Handle<Object>> context_vars[] = {
+  std::ostringstream unique_vars;
+  for (int i = 0; i < 250; i++) {
+    unique_vars << "var a" << i << " = 0;";
+  }
+  std::pair<std::string, Handle<Object>> context_vars[] = {
       std::make_pair("var a; (function() { a = 1; })(); return a;",
                      handle(Smi::FromInt(1), isolate)),
       std::make_pair("var a = 10; (function() { a; })(); return a;",
@@ -1959,10 +1963,14 @@ TEST(InterpreterContextVariables) {
                      "{ let b = 20; var c = function() { [a, b] };\n"
                      "  return a + b; }",
                      handle(Smi::FromInt(30), isolate)),
+      std::make_pair("'use strict';" + unique_vars.str() +
+                     "eval(); var b = 100; return b;",
+                     handle(Smi::FromInt(100), isolate)),
   };
 
   for (size_t i = 0; i < arraysize(context_vars); i++) {
-    std::string source(InterpreterTester::SourceForBody(context_vars[i].first));
+    std::string source(
+        InterpreterTester::SourceForBody(context_vars[i].first.c_str()));
     InterpreterTester tester(handles.main_isolate(), source.c_str());
     auto callable = tester.GetCallable<>();
 

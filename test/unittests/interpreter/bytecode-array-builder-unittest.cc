@@ -69,10 +69,10 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .StoreGlobal(name, 1, LanguageMode::STRICT);
 
   // Emit context operations.
-  builder.PushContext(reg);
-  builder.PopContext(reg);
-  builder.LoadContextSlot(reg, 1);
-  builder.StoreContextSlot(reg, 1);
+  builder.PushContext(reg)
+      .PopContext(reg)
+      .LoadContextSlot(reg, 1)
+      .StoreContextSlot(reg, 1);
 
   // Emit load / store property operations.
   builder.LoadNamedProperty(reg, name, 0, LanguageMode::SLOPPY)
@@ -240,6 +240,10 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .LoadKeyedProperty(reg, 2056, LanguageMode::STRICT)
       .StoreNamedProperty(reg, wide_name, 0, LanguageMode::STRICT)
       .StoreKeyedProperty(reg, reg, 2056, LanguageMode::STRICT);
+
+  // Emit wide context operations.
+  builder.LoadContextSlot(reg, 1024)
+      .StoreContextSlot(reg, 1024);
 
   // Emit wide load / store lookup slots.
   builder.LoadLookupSlot(wide_name, TypeofMode::NOT_INSIDE_TYPEOF)

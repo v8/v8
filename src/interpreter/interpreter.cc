@@ -433,6 +433,15 @@ void Interpreter::DoLdaContextSlot(compiler::InterpreterAssembler* assembler) {
 }
 
 
+// LdaContextSlotWide <context> <slot_index>
+//
+// Load the object in |slot_index| of |context| into the accumulator.
+void Interpreter::DoLdaContextSlotWide(
+    compiler::InterpreterAssembler* assembler) {
+  DoLdaContextSlot(assembler);
+}
+
+
 // StaContextSlot <context> <slot_index>
 //
 // Stores the object in the accumulator into |slot_index| of |context|.
@@ -443,6 +452,15 @@ void Interpreter::DoStaContextSlot(compiler::InterpreterAssembler* assembler) {
   Node* slot_index = __ BytecodeOperandIdx(1);
   __ StoreContextSlot(context, slot_index, value);
   __ Dispatch();
+}
+
+
+// StaContextSlot <context> <slot_index>
+//
+// Stores the object in the accumulator into |slot_index| of |context|.
+void Interpreter::DoStaContextSlotWide(
+    compiler::InterpreterAssembler* assembler) {
+  DoStaContextSlot(assembler);
 }
 
 

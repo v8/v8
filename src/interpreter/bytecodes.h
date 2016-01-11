@@ -67,6 +67,8 @@ namespace interpreter {
   V(PopContext, OperandType::kReg8)                                            \
   V(LdaContextSlot, OperandType::kReg8, OperandType::kIdx8)                    \
   V(StaContextSlot, OperandType::kReg8, OperandType::kIdx8)                    \
+  V(LdaContextSlotWide, OperandType::kReg8, OperandType::kIdx16)               \
+  V(StaContextSlotWide, OperandType::kReg8, OperandType::kIdx16)               \
                                                                                \
   /* Load-Store lookup slots */                                                \
   V(LdaLookupSlot, OperandType::kIdx8)                                         \

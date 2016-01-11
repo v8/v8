@@ -431,6 +431,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadContextSlot(Register context,
   if (FitsInIdx8Operand(slot_index)) {
     Output(Bytecode::kLdaContextSlot, context.ToOperand(),
            static_cast<uint8_t>(slot_index));
+  } else if (FitsInIdx16Operand(slot_index)) {
+    Output(Bytecode::kLdaContextSlotWide, context.ToOperand(),
+           static_cast<uint16_t>(slot_index));
   } else {
     UNIMPLEMENTED();
   }
@@ -444,6 +447,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreContextSlot(Register context,
   if (FitsInIdx8Operand(slot_index)) {
     Output(Bytecode::kStaContextSlot, context.ToOperand(),
            static_cast<uint8_t>(slot_index));
+  } else if (FitsInIdx16Operand(slot_index)) {
+    Output(Bytecode::kStaContextSlotWide, context.ToOperand(),
+           static_cast<uint16_t>(slot_index));
   } else {
     UNIMPLEMENTED();
   }

@@ -766,6 +766,12 @@ void BytecodeGraphBuilder::VisitLdaContextSlot(
 }
 
 
+void BytecodeGraphBuilder::VisitLdaContextSlotWide(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  VisitLdaContextSlot(iterator);
+}
+
+
 void BytecodeGraphBuilder::VisitStaContextSlot(
     const interpreter::BytecodeArrayIterator& iterator) {
   // TODO(mythria): LoadContextSlots are unrolled by the required depth when
@@ -776,6 +782,12 @@ void BytecodeGraphBuilder::VisitStaContextSlot(
   Node* context = environment()->LookupRegister(iterator.GetRegisterOperand(0));
   Node* value = environment()->LookupAccumulator();
   NewNode(op, context, value);
+}
+
+
+void BytecodeGraphBuilder::VisitStaContextSlotWide(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  VisitStaContextSlot(iterator);
 }
 
 
