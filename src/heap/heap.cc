@@ -3109,6 +3109,7 @@ void Heap::AdjustLiveBytes(HeapObject* object, int by, InvocationMode mode) {
   // update while using HeapIterator because the iterator is temporarily
   // marking the whole object graph, without updating live bytes.
   if (!in_heap_iterator() &&
+      !mark_compact_collector()->sweeping_in_progress() &&
       Marking::IsBlack(Marking::MarkBitFrom(object->address()))) {
     if (mode == SEQUENTIAL_TO_SWEEPER) {
       MemoryChunk::IncrementLiveBytesFromGC(object, by);

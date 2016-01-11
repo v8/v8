@@ -3982,6 +3982,7 @@ void MarkCompactCollector::SweepSpaces() {
   MoveEvacuationCandidatesToEndOfPagesList();
 
   {
+    sweeping_in_progress_ = true;
     {
       GCTracer::Scope sweep_scope(heap()->tracer(),
                                   GCTracer::Scope::MC_SWEEP_OLD);
@@ -3997,7 +3998,6 @@ void MarkCompactCollector::SweepSpaces() {
                                   GCTracer::Scope::MC_SWEEP_MAP);
       StartSweepSpace(heap()->map_space());
     }
-    sweeping_in_progress_ = true;
     if (FLAG_concurrent_sweeping) {
       StartSweeperThreads();
     }
