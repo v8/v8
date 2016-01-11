@@ -309,6 +309,52 @@ TEST(ValidateMinimum) {
 }
 
 
+TEST(MissingUseAsm) {
+  const char test_function[] =
+      "function foo() {\n"
+      "  function bar() {}\n"
+      "  return { bar: bar };\n"
+      "}\n";
+  v8::V8::Initialize();
+  HandleAndZoneScope handles;
+  Zone* zone = handles.main_zone();
+  ZoneVector<ExpressionTypeEntry> types(zone);
+  CHECK_EQ("asm: line 1: missing \"use asm\"\n",
+           Validate(zone, test_function, &types));
+}
+
+
+TEST(WrongUseAsm) {
+  const char test_function[] =
+      "function foo() {\n"
+      "  \"use wasm\"\n"
+      "  function bar() {}\n"
+      "  return { bar: bar };\n"
+      "}\n";
+  v8::V8::Initialize();
+  HandleAndZoneScope handles;
+  Zone* zone = handles.main_zone();
+  ZoneVector<ExpressionTypeEntry> types(zone);
+  CHECK_EQ("asm: line 1: missing \"use asm\"\n",
+           Validate(zone, test_function, &types));
+}
+
+
+TEST(MissingReturnExports) {
+  const char test_function[] =
+      "function foo() {\n"
+      "  \"use asm\"\n"
+      "  function bar() {}\n"
+      "}\n";
+  v8::V8::Initialize();
+  HandleAndZoneScope handles;
+  Zone* zone = handles.main_zone();
+  ZoneVector<ExpressionTypeEntry> types(zone);
+  CHECK_EQ("asm: line 2: last statement in module is not a return\n",
+           Validate(zone, test_function, &types));
+}
+
+
 #define HARNESS_STDLIB()                 \
   "var Infinity = stdlib.Infinity;\n"    \
   "var NaN = stdlib.NaN;\n"              \

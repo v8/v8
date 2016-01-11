@@ -76,6 +76,13 @@ void AsmTyper::VisitAsmModule(FunctionLiteral* fun) {
   Scope* scope = fun->scope();
   if (!scope->is_function_scope()) FAIL(fun, "not at function scope");
 
+  ExpressionStatement* use_asm = fun->body()->first()->AsExpressionStatement();
+  if (use_asm == NULL) FAIL(fun, "missing \"use asm\"");
+  Literal* use_asm_literal = use_asm->expression()->AsLiteral();
+  if (use_asm_literal == NULL) FAIL(fun, "missing \"use asm\"");
+  if (!use_asm_literal->raw_value()->AsString()->IsOneByteEqualTo("use asm"))
+    FAIL(fun, "missing \"use asm\"");
+
   // Module parameters.
   for (int i = 0; i < scope->num_parameters(); ++i) {
     Variable* param = scope->parameter(i);
