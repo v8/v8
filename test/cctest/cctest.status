@@ -254,6 +254,22 @@
 }],  # 'system == macos'
 
 ##############################################################################
+['byteorder == big', {
+  # TODO(mips-team): Fix Wasm for big-endian.
+  'test-run-wasm-module/Run_WasmModule_CallAdd_rev': [SKIP],
+  'test-run-wasm-module/Run_WasmModule_ReadLoadedDataSegment': [SKIP],
+  'test-run-wasm-module/Run_WasmModule_CheckMemoryIsZero': [SKIP],
+  'test-run-wasm-module/Run_WasmModule_Global': [SKIP],
+  'test-run-wasm/Run_WasmInt32*': [SKIP],
+  'test-run-wasm/Run_Wasm_TableSwitch*': [SKIP],
+  'test-run-wasm/Run_Wasm_StoreMemI32_offset': [SKIP],
+  'test-run-wasm/Run_Wasm_Int32LoadInt16_*': [SKIP],
+  'test-run-wasm/Run_WasmMixedGlobals': [SKIP],
+  'test-run-wasm/Run_WasmCall*': [SKIP],
+  'test-run-wasm/Run_WasmMixedCall_*': [SKIP],
+}],  # 'byteorder == big'
+
+##############################################################################
 ['arch == arm', {
 
   'test-cpu-profiler/CollectDeoptEvents': [PASS, FAIL],
