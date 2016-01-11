@@ -257,6 +257,7 @@ class CallSite {
   T(ProxyPreventExtensionsExtensible,                                          \
     "'preventExtensions' on proxy: trap returned truish but the proxy target " \
     "is extensible")                                                           \
+  T(ProxyPrivate, "Cannot pass private property name to proxy trap")           \
   T(ProxyRevoked, "Cannot perform '%' on a proxy that has been revoked")       \
   T(ProxySetFrozenData,                                                        \
     "'set' on proxy: trap returned truish for property '%' which exists in "   \
