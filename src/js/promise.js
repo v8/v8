@@ -237,11 +237,6 @@ function NewPromiseCapability(C) {
     result.reject = reject;
   });
 
-  if (!IS_CALLABLE(result.resolve))
-      throw MakeTypeError(kCalledNonCallable, "promiseCapability.[[Resolve]]");
-  if (!IS_CALLABLE(result.reject))
-      throw MakeTypeError(kCalledNonCallable, "promiseCapability.[[Reject]]");
-
   return result;
 }
 
