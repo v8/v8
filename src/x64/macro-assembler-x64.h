@@ -230,11 +230,9 @@ class MacroAssembler: public Assembler {
   }
 
   // Check if an object has the black incremental marking color.  Also uses rcx!
-  void JumpIfBlack(Register object,
-                   Register scratch0,
-                   Register scratch1,
-                   Label* on_black,
-                   Label::Distance on_black_distance = Label::kFar);
+  void JumpIfBlack(Register object, Register bitmap_scratch,
+                   Register mask_scratch, Label* on_black,
+                   Label::Distance on_black_distance);
 
   // Checks the color of an object.  If the object is white we jump to the
   // incremental marker.

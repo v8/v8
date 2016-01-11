@@ -45,10 +45,10 @@ class Marking : public AllStatic {
     return !mark_bit.Get() && mark_bit.Next().Get();
   }
 
-  // Black markbits: 10 - this is required by the sweeper.
+  // Black markbits: 11
   static const char* kBlackBitPattern;
   INLINE(static bool IsBlack(MarkBit mark_bit)) {
-    return mark_bit.Get() && !mark_bit.Next().Get();
+    return mark_bit.Get() && mark_bit.Next().Get();
   }
 
   // White markbits: 00 - this is required by the mark bit clearer.
@@ -58,10 +58,10 @@ class Marking : public AllStatic {
     return !mark_bit.Get();
   }
 
-  // Grey markbits: 11
+  // Grey markbits: 10
   static const char* kGreyBitPattern;
   INLINE(static bool IsGrey(MarkBit mark_bit)) {
-    return mark_bit.Get() && mark_bit.Next().Get();
+    return mark_bit.Get() && !mark_bit.Next().Get();
   }
 
   // IsBlackOrGrey assumes that the first bit is set for black or grey
@@ -70,7 +70,7 @@ class Marking : public AllStatic {
 
   INLINE(static void MarkBlack(MarkBit mark_bit)) {
     mark_bit.Set();
-    mark_bit.Next().Clear();
+    mark_bit.Next().Set();
   }
 
   INLINE(static void MarkWhite(MarkBit mark_bit)) {
@@ -81,6 +81,7 @@ class Marking : public AllStatic {
   INLINE(static void BlackToWhite(MarkBit markbit)) {
     DCHECK(IsBlack(markbit));
     markbit.Clear();
+    markbit.Next().Clear();
   }
 
   INLINE(static void GreyToWhite(MarkBit markbit)) {
@@ -91,23 +92,23 @@ class Marking : public AllStatic {
 
   INLINE(static void BlackToGrey(MarkBit markbit)) {
     DCHECK(IsBlack(markbit));
-    markbit.Next().Set();
+    markbit.Next().Clear();
   }
 
   INLINE(static void WhiteToGrey(MarkBit markbit)) {
     DCHECK(IsWhite(markbit));
     markbit.Set();
-    markbit.Next().Set();
   }
 
   INLINE(static void WhiteToBlack(MarkBit markbit)) {
     DCHECK(IsWhite(markbit));
     markbit.Set();
+    markbit.Next().Set();
   }
 
   INLINE(static void GreyToBlack(MarkBit markbit)) {
     DCHECK(IsGrey(markbit));
-    markbit.Next().Clear();
+    markbit.Next().Set();
   }
 
   INLINE(static void BlackToGrey(HeapObject* obj)) {
@@ -116,7 +117,7 @@ class Marking : public AllStatic {
 
   INLINE(static void AnyToGrey(MarkBit markbit)) {
     markbit.Set();
-    markbit.Next().Set();
+    markbit.Next().Clear();
   }
 
   static void TransferMark(Heap* heap, Address old_start, Address new_start);
@@ -160,16 +161,15 @@ class Marking : public AllStatic {
   INLINE(static bool TransferColor(HeapObject* from, HeapObject* to)) {
     MarkBit from_mark_bit = MarkBitFrom(from);
     MarkBit to_mark_bit = MarkBitFrom(to);
-    bool is_black = false;
+    DCHECK(Marking::IsWhite(to_mark_bit));
     if (from_mark_bit.Get()) {
       to_mark_bit.Set();
-      is_black = true;  // Looks black so far.
+      if (from_mark_bit.Next().Get()) {
+        to_mark_bit.Next().Set();
+        return true;
+      }
     }
-    if (from_mark_bit.Next().Get()) {
-      to_mark_bit.Next().Set();
-      is_black = false;  // Was actually gray.
-    }
-    return is_black;
+    return false;
   }
 
  private:
@@ -851,6 +851,26 @@ class MarkBitCellIterator BASE_EMBEDDED {
   unsigned int last_cell_index_;
   unsigned int cell_index_;
   Address cell_base_;
+};
+
+enum LiveObjectIterationMode { kBlackObjects, kGreyObjects, kAllLiveObjects };
+
+template <LiveObjectIterationMode T>
+class LiveObjectIterator BASE_EMBEDDED {
+ public:
+  explicit LiveObjectIterator(MemoryChunk* chunk)
+      : chunk_(chunk),
+        it_(chunk_),
+        cell_base_(it_.CurrentCellBase()),
+        current_cell_(*it_.CurrentCell()) {}
+
+  HeapObject* Next();
+
+ private:
+  MemoryChunk* chunk_;
+  MarkBitCellIterator it_;
+  Address cell_base_;
+  MarkBit::CellType current_cell_;
 };
 
 

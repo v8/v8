@@ -33,8 +33,8 @@ namespace internal {
 
 
 const char* Marking::kWhiteBitPattern = "00";
-const char* Marking::kBlackBitPattern = "10";
-const char* Marking::kGreyBitPattern = "11";
+const char* Marking::kBlackBitPattern = "11";
+const char* Marking::kGreyBitPattern = "10";
 const char* Marking::kImpossibleBitPattern = "01";
 
 
@@ -115,6 +115,8 @@ static void VerifyMarking(Heap* heap, Address bottom, Address top) {
       CHECK(current >= next_object_must_be_here_or_later);
       object->Iterate(&visitor);
       next_object_must_be_here_or_later = current + object->Size();
+      // The next word for sure belongs to the current object, jump over it.
+      current += kPointerSize;
     }
   }
 }
@@ -237,8 +239,8 @@ static void VerifyEvacuation(Heap* heap) {
 
 void MarkCompactCollector::SetUp() {
   DCHECK(strcmp(Marking::kWhiteBitPattern, "00") == 0);
-  DCHECK(strcmp(Marking::kBlackBitPattern, "10") == 0);
-  DCHECK(strcmp(Marking::kGreyBitPattern, "11") == 0);
+  DCHECK(strcmp(Marking::kBlackBitPattern, "11") == 0);
+  DCHECK(strcmp(Marking::kGreyBitPattern, "10") == 0);
   DCHECK(strcmp(Marking::kImpossibleBitPattern, "01") == 0);
 
   free_list_old_space_.Reset(new FreeList(heap_->old_space()));
@@ -1525,51 +1527,16 @@ void MarkCompactCollector::DiscoverGreyObjectsWithIterator(T* it) {
 }
 
 
-static inline int MarkWordToObjectStarts(uint32_t mark_bits,
-                                         uint32_t next_mark_bits, Address base,
-                                         Address* starts);
-
-
 void MarkCompactCollector::DiscoverGreyObjectsOnPage(MemoryChunk* p) {
   DCHECK(!marking_deque()->IsFull());
-  DCHECK(strcmp(Marking::kWhiteBitPattern, "00") == 0);
-  DCHECK(strcmp(Marking::kBlackBitPattern, "10") == 0);
-  DCHECK(strcmp(Marking::kGreyBitPattern, "11") == 0);
-  DCHECK(strcmp(Marking::kImpossibleBitPattern, "01") == 0);
-
-  for (MarkBitCellIterator it(p); !it.Done(); it.Advance()) {
-    Address cell_base = it.CurrentCellBase();
-    MarkBit::CellType* cell = it.CurrentCell();
-
-    const MarkBit::CellType current_cell = *cell;
-    if (current_cell == 0) continue;
-
-    MarkBit::CellType grey_objects;
-    if (it.HasNext()) {
-      const MarkBit::CellType next_cell = *(cell + 1);
-      grey_objects = current_cell & ((current_cell >> 1) |
-                                     (next_cell << (Bitmap::kBitsPerCell - 1)));
-    } else {
-      grey_objects = current_cell & (current_cell >> 1);
-    }
-
-    int offset = 0;
-    while (grey_objects != 0) {
-      int trailing_zeros = base::bits::CountTrailingZeros32(grey_objects);
-      grey_objects >>= trailing_zeros;
-      offset += trailing_zeros;
-      MarkBit markbit(cell, 1 << offset);
-      DCHECK(Marking::IsGrey(markbit));
-      Marking::GreyToBlack(markbit);
-      Address addr = cell_base + offset * kPointerSize;
-      HeapObject* object = HeapObject::FromAddress(addr);
-      PushBlack(object);
-      if (marking_deque()->IsFull()) return;
-      offset += 2;
-      grey_objects >>= 2;
-    }
-
-    grey_objects >>= (Bitmap::kBitsPerCell - 1);
+  LiveObjectIterator<kGreyObjects> it(p);
+  HeapObject* object = NULL;
+  while ((object = it.Next()) != NULL) {
+    MarkBit markbit = Marking::MarkBitFrom(object);
+    DCHECK(Marking::IsGrey(markbit));
+    Marking::GreyToBlack(markbit);
+    PushBlack(object);
+    if (marking_deque()->IsFull()) return;
   }
 }
 
@@ -2955,68 +2922,77 @@ bool MarkCompactCollector::IsSlotInBlackObject(Page* p, Address slot,
   }
 
   uint32_t mark_bit_index = p->AddressToMarkbitIndex(slot);
-  unsigned int start_index = mark_bit_index >> Bitmap::kBitsPerCellLog2;
-  MarkBit::CellType index_in_cell = 1U
-                                    << (mark_bit_index & Bitmap::kBitIndexMask);
+  unsigned int cell_index = mark_bit_index >> Bitmap::kBitsPerCellLog2;
+  MarkBit::CellType index_mask = 1u << Bitmap::IndexInCell(mark_bit_index);
   MarkBit::CellType* cells = p->markbits()->cells();
-  Address cell_base = p->area_start();
-  unsigned int cell_base_start_index = Bitmap::IndexToCell(
-      Bitmap::CellAlignIndex(p->AddressToMarkbitIndex(cell_base)));
+  Address base_address = p->area_start();
+  unsigned int base_address_cell_index = Bitmap::IndexToCell(
+      Bitmap::CellAlignIndex(p->AddressToMarkbitIndex(base_address)));
 
   // Check if the slot points to the start of an object. This can happen e.g.
   // when we left trim a fixed array. Such slots are invalid and we can remove
   // them.
-  if ((cells[start_index] & index_in_cell) != 0) {
-    return false;
+  if (index_mask > 1) {
+    if ((cells[cell_index] & index_mask) != 0 &&
+        (cells[cell_index] & (index_mask >> 1)) == 0) {
+      return false;
+    }
+  } else {
+    // Left trimming moves the mark bits so we cannot be in the very first cell.
+    DCHECK(cell_index != base_address_cell_index);
+    if ((cells[cell_index] & index_mask) != 0 &&
+        (cells[cell_index - 1] & (1u << Bitmap::kBitIndexMask)) == 0) {
+      return false;
+    }
   }
 
   // Check if the object is in the current cell.
   MarkBit::CellType slot_mask;
-  if ((cells[start_index] == 0) ||
-      (base::bits::CountTrailingZeros32(cells[start_index]) >
-       base::bits::CountTrailingZeros32(cells[start_index] | index_in_cell))) {
+  if ((cells[cell_index] == 0) ||
+      (base::bits::CountTrailingZeros32(cells[cell_index]) >
+       base::bits::CountTrailingZeros32(cells[cell_index] | index_mask))) {
     // If we are already in the first cell, there is no live object.
-    if (start_index == cell_base_start_index) return false;
+    if (cell_index == base_address_cell_index) return false;
 
     // If not, find a cell in a preceding cell slot that has a mark bit set.
     do {
-      start_index--;
-    } while (start_index > cell_base_start_index && cells[start_index] == 0);
+      cell_index--;
+    } while (cell_index > base_address_cell_index && cells[cell_index] == 0);
 
     // The slot must be in a dead object if there are no preceding cells that
     // have mark bits set.
-    if (cells[start_index] == 0) {
+    if (cells[cell_index] == 0) {
       return false;
     }
 
     // The object is in a preceding cell. Set the mask to find any object.
-    slot_mask = 0xffffffff;
+    slot_mask = ~0u;
   } else {
-    // The object start is before the the slot index. Hence, in this case the
-    // slot index can not be at the beginning of the cell.
-    CHECK(index_in_cell > 1);
     // We are interested in object mark bits right before the slot.
-    slot_mask = index_in_cell - 1;
+    slot_mask = index_mask + (index_mask - 1);
   }
 
-  MarkBit::CellType current_cell = cells[start_index];
+  MarkBit::CellType current_cell = cells[cell_index];
   CHECK(current_cell != 0);
 
   // Find the last live object in the cell.
   unsigned int leading_zeros =
       base::bits::CountLeadingZeros32(current_cell & slot_mask);
-  CHECK(leading_zeros != 32);
-  unsigned int offset = Bitmap::kBitIndexMask - leading_zeros;
+  CHECK(leading_zeros != Bitmap::kBitsPerCell);
+  int offset = static_cast<int>(Bitmap::kBitIndexMask - leading_zeros) - 1;
 
-  cell_base += (start_index - cell_base_start_index) * 32 * kPointerSize;
-  Address address = cell_base + offset * kPointerSize;
+  base_address += (cell_index - base_address_cell_index) *
+                  Bitmap::kBitsPerCell * kPointerSize;
+  Address address = base_address + offset * kPointerSize;
   HeapObject* object = HeapObject::FromAddress(address);
   CHECK(Marking::IsBlack(Marking::MarkBitFrom(object)));
   CHECK(object->address() < reinterpret_cast<Address>(slot));
-  if (object->address() <= slot &&
+  if ((object->address() + kPointerSize) <= slot &&
       (object->address() + object->Size()) > slot) {
     // If the slot is within the last found object in the cell, the slot is
     // in a live object.
+    // Slots pointing to the first word of an object are invalid and removed.
+    // This can happen when we move the object header while left trimming.
     *out_object = object;
     return true;
   }
@@ -3027,32 +3003,26 @@ bool MarkCompactCollector::IsSlotInBlackObject(Page* p, Address slot,
 bool MarkCompactCollector::IsSlotInBlackObjectSlow(Page* p, Address slot) {
   // This function does not support large objects right now.
   Space* owner = p->owner();
-  if (owner == heap_->lo_space() || owner == NULL) return true;
+  if (owner == heap_->lo_space() || owner == NULL) {
+    Object* large_object = heap_->lo_space()->FindObject(slot);
+    // This object has to exist, otherwise we would not have recorded a slot
+    // for it.
+    CHECK(large_object->IsHeapObject());
+    HeapObject* large_heap_object = HeapObject::cast(large_object);
+    if (IsMarked(large_heap_object)) {
+      return true;
+    }
+    return false;
+  }
 
-  for (MarkBitCellIterator it(p); !it.Done(); it.Advance()) {
-    Address cell_base = it.CurrentCellBase();
-    MarkBit::CellType* cell = it.CurrentCell();
+  LiveObjectIterator<kBlackObjects> it(p);
+  HeapObject* object = NULL;
+  while ((object = it.Next()) != NULL) {
+    int size = object->Size();
 
-    MarkBit::CellType current_cell = *cell;
-    if (current_cell == 0) continue;
-
-    int offset = 0;
-    while (current_cell != 0) {
-      int trailing_zeros = base::bits::CountTrailingZeros32(current_cell);
-      current_cell >>= trailing_zeros;
-      offset += trailing_zeros;
-      Address address = cell_base + offset * kPointerSize;
-
-      HeapObject* object = HeapObject::FromAddress(address);
-      int size = object->Size();
-
-      if (object->address() > slot) return false;
-      if (object->address() <= slot && slot < (object->address() + size)) {
-        return true;
-      }
-
-      offset++;
-      current_cell >>= 1;
+    if (object->address() > slot) return false;
+    if (object->address() <= slot && slot < (object->address() + size)) {
+      return true;
     }
   }
   return false;
@@ -3393,7 +3363,6 @@ static int Sweep(PagedSpace* space, FreeList* free_list, Page* p,
 
   Address free_start = p->area_start();
   DCHECK(reinterpret_cast<intptr_t>(free_start) % (32 * kPointerSize) == 0);
-  Address starts[16];
 
   // If we use the skip list for code space pages, we have to lock the skip
   // list because it could be accessed concurrently by the runtime or the
@@ -3407,43 +3376,39 @@ static int Sweep(PagedSpace* space, FreeList* free_list, Page* p,
   intptr_t max_freed_bytes = 0;
   int curr_region = -1;
 
-  for (MarkBitCellIterator it(p); !it.Done(); it.Advance()) {
-    Address cell_base = it.CurrentCellBase();
-    MarkBit::CellType* cell = it.CurrentCell();
-    int live_objects =
-        MarkWordToObjectStarts(*cell, it.PeekNext(), cell_base, starts);
-    int live_index = 0;
-    for (; live_objects != 0; live_objects--) {
-      Address free_end = starts[live_index++];
-      if (free_end != free_start) {
-        int size = static_cast<int>(free_end - free_start);
-        if (free_space_mode == ZAP_FREE_SPACE) {
-          memset(free_start, 0xcc, size);
-        }
-        freed_bytes = Free<parallelism>(space, free_list, free_start, size);
-        max_freed_bytes = Max(freed_bytes, max_freed_bytes);
+  LiveObjectIterator<kBlackObjects> it(p);
+  HeapObject* object = NULL;
+  while ((object = it.Next()) != NULL) {
+    DCHECK(Marking::IsBlack(Marking::MarkBitFrom(object)));
+    Address free_end = object->address();
+    if (free_end != free_start) {
+      int size = static_cast<int>(free_end - free_start);
+      if (free_space_mode == ZAP_FREE_SPACE) {
+        memset(free_start, 0xcc, size);
       }
-      HeapObject* live_object = HeapObject::FromAddress(free_end);
-      DCHECK(Marking::IsBlack(Marking::MarkBitFrom(live_object)));
-      Map* map = live_object->synchronized_map();
-      int size = live_object->SizeFromMap(map);
-      if (sweeping_mode == SWEEP_AND_VISIT_LIVE_OBJECTS) {
-        live_object->IterateBody(map->instance_type(), size, v);
-      }
-      if ((skip_list_mode == REBUILD_SKIP_LIST) && skip_list != NULL) {
-        int new_region_start = SkipList::RegionNumber(free_end);
-        int new_region_end =
-            SkipList::RegionNumber(free_end + size - kPointerSize);
-        if (new_region_start != curr_region || new_region_end != curr_region) {
-          skip_list->AddObject(free_end, size);
-          curr_region = new_region_end;
-        }
-      }
-      free_start = free_end + size;
+      freed_bytes = Free<parallelism>(space, free_list, free_start, size);
+      max_freed_bytes = Max(freed_bytes, max_freed_bytes);
     }
-    // Clear marking bits for current cell.
-    *cell = 0;
+    Map* map = object->synchronized_map();
+    int size = object->SizeFromMap(map);
+    if (sweeping_mode == SWEEP_AND_VISIT_LIVE_OBJECTS) {
+      object->IterateBody(map->instance_type(), size, v);
+    }
+    if ((skip_list_mode == REBUILD_SKIP_LIST) && skip_list != NULL) {
+      int new_region_start = SkipList::RegionNumber(free_end);
+      int new_region_end =
+          SkipList::RegionNumber(free_end + size - kPointerSize);
+      if (new_region_start != curr_region || new_region_end != curr_region) {
+        skip_list->AddObject(free_end, size);
+        curr_region = new_region_end;
+      }
+    }
+    free_start = free_end + size;
   }
+
+  // Clear the mark bits of that page and reset live bytes count.
+  Bitmap::Clear(p);
+
   if (free_start != p->area_end()) {
     int size = static_cast<int>(p->area_end() - free_start);
     if (free_space_mode == ZAP_FREE_SPACE) {
@@ -3452,7 +3417,6 @@ static int Sweep(PagedSpace* space, FreeList* free_list, Page* p,
     freed_bytes = Free<parallelism>(space, free_list, free_start, size);
     max_freed_bytes = Max(freed_bytes, max_freed_bytes);
   }
-  p->ResetLiveBytes();
 
   if (parallelism == MarkCompactCollector::SWEEP_IN_PARALLEL) {
     // When concurrent sweeping is active, the page will be marked after
@@ -3505,32 +3469,38 @@ void MarkCompactCollector::RemoveObjectSlots(Address start_slot,
   }
 }
 
+#ifdef VERIFY_HEAP
+static void VerifyAllBlackObjects(MemoryChunk* page) {
+  LiveObjectIterator<kAllLiveObjects> it(page);
+  HeapObject* object = NULL;
+  while ((object = it.Next()) != NULL) {
+    CHECK(Marking::IsBlack(Marking::MarkBitFrom(object)));
+  }
+}
+#endif  // VERIFY_HEAP
 
 bool MarkCompactCollector::VisitLiveObjects(MemoryChunk* page,
                                             HeapObjectVisitor* visitor,
                                             IterationMode mode) {
-  Address offsets[16];
-  for (MarkBitCellIterator it(page); !it.Done(); it.Advance()) {
-    Address cell_base = it.CurrentCellBase();
-    MarkBit::CellType* cell = it.CurrentCell();
-    if (*cell == 0) continue;
-    int live_objects =
-        MarkWordToObjectStarts(*cell, it.PeekNext(), cell_base, offsets);
-    for (int i = 0; i < live_objects; i++) {
-      HeapObject* object = HeapObject::FromAddress(offsets[i]);
-      DCHECK(Marking::IsBlack(Marking::MarkBitFrom(object)));
-      if (!visitor->Visit(object)) {
-        if ((mode == kClearMarkbits) && (i > 0)) {
-          page->markbits()->ClearRange(
-              page->AddressToMarkbitIndex(page->area_start()),
-              page->AddressToMarkbitIndex(offsets[i]));
-        }
-        return false;
+#ifdef VERIFY_HEAP
+  VerifyAllBlackObjects(page);
+#endif  // VERIFY_HEAP
+
+  LiveObjectIterator<kBlackObjects> it(page);
+  HeapObject* object = NULL;
+  while ((object = it.Next()) != NULL) {
+    DCHECK(Marking::IsBlack(Marking::MarkBitFrom(object)));
+    if (!visitor->Visit(object)) {
+      if (mode == kClearMarkbits) {
+        page->markbits()->ClearRange(
+            page->AddressToMarkbitIndex(page->area_start()),
+            page->AddressToMarkbitIndex(object->address()));
       }
+      return false;
     }
-    if (mode == kClearMarkbits) {
-      *cell = 0;
-    }
+  }
+  if (mode == kClearMarkbits) {
+    Bitmap::Clear(page);
   }
   return true;
 }
@@ -3538,20 +3508,17 @@ bool MarkCompactCollector::VisitLiveObjects(MemoryChunk* page,
 
 void MarkCompactCollector::VisitLiveObjectsBody(Page* page,
                                                 ObjectVisitor* visitor) {
-  Address starts[16];
-  for (MarkBitCellIterator it(page); !it.Done(); it.Advance()) {
-    Address cell_base = it.CurrentCellBase();
-    MarkBit::CellType* cell = it.CurrentCell();
-    if (*cell == 0) continue;
-    int live_objects =
-        MarkWordToObjectStarts(*cell, it.PeekNext(), cell_base, starts);
-    for (int i = 0; i < live_objects; i++) {
-      HeapObject* live_object = HeapObject::FromAddress(starts[i]);
-      DCHECK(Marking::IsBlack(Marking::MarkBitFrom(live_object)));
-      Map* map = live_object->synchronized_map();
-      int size = live_object->SizeFromMap(map);
-      live_object->IterateBody(map->instance_type(), size, visitor);
-    }
+#ifdef VERIFY_HEAP
+  VerifyAllBlackObjects(page);
+#endif  // VERIFY_HEAP
+
+  LiveObjectIterator<kBlackObjects> it(page);
+  HeapObject* object = NULL;
+  while ((object = it.Next()) != NULL) {
+    DCHECK(Marking::IsBlack(Marking::MarkBitFrom(object)));
+    Map* map = object->synchronized_map();
+    int size = object->SizeFromMap(map);
+    object->IterateBody(map->instance_type(), size, visitor);
   }
 }
 
@@ -3785,47 +3752,6 @@ void MarkCompactCollector::ReleaseEvacuationCandidates() {
   compacting_ = false;
   heap()->FilterStoreBufferEntriesOnAboutToBeFreedPages();
   heap()->FreeQueuedChunks();
-}
-
-
-#ifdef VERIFY_HEAP
-static bool VerifyAllBlackObjects(uint32_t mark_bits, uint32_t next_mark_bits) {
-  // Check for overlapping mark bits.
-  if ((mark_bits & 0x80000000) && (next_mark_bits & 0x1)) return false;
-
-  unsigned index = 0;
-  while ((index = base::bits::CountTrailingZeros32(mark_bits)) != 32) {
-    if (index > 0) mark_bits >>= index;
-    if ((mark_bits & 0x3) == 0x3) {
-      // There should not be any grey (11) objects.
-      return false;
-    }
-    mark_bits &= 0xFFFFFFFE;
-  }
-  return true;
-}
-#endif  // VERIFY_HEAP
-
-
-// Takes a word of mark bits and a base address. Returns the number of objects
-// that start in the range.  Puts the object starts in the supplied array.
-static inline int MarkWordToObjectStarts(uint32_t mark_bits,
-                                         uint32_t next_mark_bits, Address base,
-                                         Address* starts) {
-  int objects = 0;
-
-#ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) {
-    CHECK(VerifyAllBlackObjects(mark_bits, next_mark_bits));
-  }
-#endif  // VERIFY_HEAP
-
-  unsigned index = 0;
-  while ((index = base::bits::CountTrailingZeros32(mark_bits)) != 32) {
-    starts[objects++] = base + kPointerSize * index;
-    mark_bits &= ~(1u << index);
-  }
-  return objects;
 }
 
 

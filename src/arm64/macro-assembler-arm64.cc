@@ -4189,8 +4189,8 @@ void MacroAssembler::HasColor(Register object,
   // These bit sequences are backwards. The first character in the string
   // represents the least significant bit.
   DCHECK(strcmp(Marking::kWhiteBitPattern, "00") == 0);
-  DCHECK(strcmp(Marking::kBlackBitPattern, "10") == 0);
-  DCHECK(strcmp(Marking::kGreyBitPattern, "11") == 0);
+  DCHECK(strcmp(Marking::kBlackBitPattern, "11") == 0);
+  DCHECK(strcmp(Marking::kGreyBitPattern, "10") == 0);
 
   // Check for the color.
   if (first_bit == 0) {
@@ -4218,8 +4218,8 @@ void MacroAssembler::JumpIfBlack(Register object,
                                  Register scratch0,
                                  Register scratch1,
                                  Label* on_black) {
-  DCHECK(strcmp(Marking::kBlackBitPattern, "10") == 0);
-  HasColor(object, scratch0, scratch1, on_black, 1, 0);  // kBlackBitPattern.
+  DCHECK(strcmp(Marking::kBlackBitPattern, "11") == 0);
+  HasColor(object, scratch0, scratch1, on_black, 1, 1);  // kBlackBitPattern.
 }
 
 
@@ -4265,8 +4265,8 @@ void MacroAssembler::JumpIfWhite(Register value, Register bitmap_scratch,
   // These bit sequences are backwards. The first character in the string
   // represents the least significant bit.
   DCHECK(strcmp(Marking::kWhiteBitPattern, "00") == 0);
-  DCHECK(strcmp(Marking::kBlackBitPattern, "10") == 0);
-  DCHECK(strcmp(Marking::kGreyBitPattern, "11") == 0);
+  DCHECK(strcmp(Marking::kBlackBitPattern, "11") == 0);
+  DCHECK(strcmp(Marking::kGreyBitPattern, "10") == 0);
 
   GetMarkBits(value, bitmap_scratch, shift_scratch);
   Ldr(load_scratch, MemOperand(bitmap_scratch, MemoryChunk::kHeaderSize));
