@@ -403,10 +403,6 @@
   'language/expressions/generators/invoke-as-constructor': [FAIL],
   'language/expressions/object/method-definition/generator-invoke-ctor': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4632
-  'built-ins/Promise/race/same-resolve-function': [FAIL],
-  'built-ins/Promise/race/same-reject-function': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=4633
   'built-ins/Promise/reject-function-name': [FAIL],
   'built-ins/Promise/resolve-function-name': [FAIL],

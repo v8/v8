@@ -394,9 +394,8 @@ function PromiseRace(iterable) {
   var deferred = NewPromiseCapability(this);
   try {
     for (var value of iterable) {
-      var reject = reason => { deferred.reject(reason); };
-      this.resolve(value).then((x) => { deferred.resolve(x) }, reject);
-      SET_PRIVATE(reject, promiseCombinedDeferredSymbol, deferred);
+      this.resolve(value).then(deferred.resolve, deferred.reject);
+      SET_PRIVATE(deferred.reject, promiseCombinedDeferredSymbol, deferred);
     }
   } catch (e) {
     deferred.reject(e)
