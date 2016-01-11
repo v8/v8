@@ -132,7 +132,10 @@ v8::internal::wasm::WasmModuleIndex* TranslateAsmModule(i::ParseInfo* info) {
   info->set_allow_lazy_parsing(false);
   info->set_toplevel(true);
 
-  CHECK(i::Compiler::ParseAndAnalyze(info));
+  if (!i::Compiler::ParseAndAnalyze(info)) {
+    return nullptr;
+  }
+
   info->set_literal(
       info->scope()->declarations()->at(0)->AsFunctionDeclaration()->fun());
 
