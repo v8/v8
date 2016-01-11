@@ -1978,3 +1978,49 @@ TEST(TypeConsistency) {
   CHECK(!cache.kAsmDouble->Is(cache.kAsmFixnum));
   CHECK(!cache.kAsmDouble->Is(cache.kAsmFloat));
 }
+
+
+TEST(SwitchTest) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function switcher(x) {\n"
+      "  x = x|0;\n"
+      "  switch (x|0) {\n"
+      "    case 1: return 23;\n"
+      "    case 2: return 43;\n"
+      "    default: return 66;\n"
+      "  }\n"
+      "  return 0;\n"
+      "}\n"
+      "function foo() { switcher(1); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_I2I_TYPE) {
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(x, Bounds(cache.kAsmInt));
+        CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+          CHECK_VAR(x, Bounds(cache.kAsmInt));
+          CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+        }
+      }
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(.switch_tag, Bounds(cache.kAsmInt));
+        CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
+          CHECK_VAR(x, Bounds(cache.kAsmInt));
+          CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+        }
+      }
+      CHECK_EXPR(Literal, Bounds(Type::Undefined(zone)));
+      CHECK_VAR(.switch_tag, Bounds(cache.kAsmSigned));
+      // case 1: return 23;
+      CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+      CHECK_EXPR(Literal, Bounds(cache.kAsmSigned));
+      // case 2: return 43;
+      CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+      CHECK_EXPR(Literal, Bounds(cache.kAsmSigned));
+      // default: return 66;
+      CHECK_EXPR(Literal, Bounds(cache.kAsmSigned));
+      // return 0;
+      CHECK_EXPR(Literal, Bounds(cache.kAsmSigned));
+    }
+    CHECK_SKIP();
+  }
+  CHECK_FUNC_TYPES_END
+}

@@ -388,14 +388,15 @@ void AsmTyper::VisitSwitchStatement(SwitchStatement* stmt) {
   ZoneList<CaseClause*>* clauses = stmt->cases();
   for (int i = 0; i < clauses->length(); ++i) {
     CaseClause* clause = clauses->at(i);
-    if (clause->is_default()) continue;
-    Expression* label = clause->label();
-    RECURSE(VisitWithExpectation(label, cache_.kAsmSigned,
-                                 "case label non-integer"));
-    if (!label->IsLiteral()) FAIL(label, "non-literal case label");
-    Handle<Object> value = label->AsLiteral()->value();
-    int32_t value32;
-    if (!value->ToInt32(&value32)) FAIL(label, "illegal case label value");
+    if (!clause->is_default()) {
+      Expression* label = clause->label();
+      RECURSE(VisitWithExpectation(label, cache_.kAsmSigned,
+                                   "case label non-integer"));
+      if (!label->IsLiteral()) FAIL(label, "non-literal case label");
+      Handle<Object> value = label->AsLiteral()->value();
+      int32_t value32;
+      if (!value->ToInt32(&value32)) FAIL(label, "illegal case label value");
+    }
     // TODO(bradnelson): Detect duplicates.
     ZoneList<Statement*>* stmts = clause->statements();
     RECURSE(VisitStatements(stmts));
@@ -538,7 +539,12 @@ void AsmTyper::VisitVariableProxy(VariableProxy* expr) {
   Variable* var = expr->var();
   VariableInfo* info = GetVariableInfo(var, false);
   if (info == NULL || info->type == NULL) {
-    FAIL(expr, "unbound variable");
+    if (var->mode() == TEMPORARY) {
+      SetType(var, Type::Any(zone()));
+      info = GetVariableInfo(var, false);
+    } else {
+      FAIL(expr, "unbound variable");
+    }
   }
   if (property_info_ != NULL) {
     SetVariableInfo(var, property_info_);
