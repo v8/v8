@@ -395,6 +395,7 @@ TEST(GlobalLoad) {
 
 
 TEST(GlobalStoreSloppy) {
+  FLAG_legacy_const = true;
   FunctionTester T("(function(a,b) { g = a + b; return g; })");
 
   T.CheckCall(T.Val(33), T.Val(22), T.Val(11));

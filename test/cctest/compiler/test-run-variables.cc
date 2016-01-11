@@ -48,6 +48,7 @@ static const char* bind_tests[] = {
 
 
 static void RunVariableTests(const char* source, const char* tests[]) {
+  i::FLAG_legacy_const = true;
   EmbeddedVector<char, 512> buffer;
 
   for (int i = 0; tests[i] != NULL; i += 3) {

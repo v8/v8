@@ -3571,6 +3571,7 @@ TEST(UseAsmUseCount) {
 
 
 TEST(UseConstLegacyCount) {
+  i::FLAG_legacy_const = true;
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
   LocalContext env;
@@ -6425,6 +6426,7 @@ TEST(ArrowFunctionASIErrors) {
 
 TEST(StrongModeFreeVariablesDeclaredByPreviousScript) {
   i::FLAG_strong_mode = true;
+  i::FLAG_legacy_const = true;
   v8::V8::Initialize();
   v8::HandleScope scope(CcTest::isolate());
   v8::Context::Scope context_scope(v8::Context::New(CcTest::isolate()));

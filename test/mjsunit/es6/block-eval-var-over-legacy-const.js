@@ -3,8 +3,10 @@
 // found in the LICENSE file.
 
 // Flags: --harmony-sloppy --harmony-sloppy-let --harmony-sloppy-function
+// Flags: --legacy-const
 
-// Var-let conflict in a function throws, even if the var is in an eval
+// Legacy-const-let conflict in a function throws, even if the legacy const
+// is in an eval
 
 // Throws at the top level of a function
 assertThrows(function() {
@@ -56,7 +58,7 @@ try {
 }
 assertFalse(caught);
 
-// var across with doesn't conflict
+// legacy const across with doesn't conflict
 caught = false;
 try {
   (function() {
@@ -69,7 +71,7 @@ try {
 }
 assertFalse(caught);
 
-// var can still conflict with let across a with
+// legacy const can still conflict with let across a with
 caught = false;
 try {
   (function() {

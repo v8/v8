@@ -62,10 +62,6 @@
   # https://code.google.com/p/v8/issues/detail?id=4405
   'language/block-scope/leave/outermost-binding-updated-in-catch-block-nested-block-let-declaration-unseen-outside-of-block': [PASS, FAIL],
 
-  # https://code.google.com/p/v8/issues/detail?id=3305
-  # This times out in sloppy mode because sloppy const assignment does not throw.
-  'language/statements/const/syntax/const-invalid-assignment-next-expression-for': [SKIP],
-
   # It's unclear what the right behavior for [[Enumerate]] is; we're awaiting
   # clarification in the spec. Currently, our for-in implementation for
   # Proxies checks all trap result values for being strings...

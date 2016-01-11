@@ -227,6 +227,7 @@ v8::Local<Integer> DeclarationContext::Query(Local<Name> key) {
 // Test global declaration of a property the interceptor doesn't know
 // about and doesn't handle.
 TEST(Unknown) {
+  i::FLAG_legacy_const = true;
   HandleScope scope(CcTest::isolate());
   v8::V8::Initialize();
 
@@ -276,6 +277,7 @@ class AbsentPropertyContext: public DeclarationContext {
 
 
 TEST(Absent) {
+  i::FLAG_legacy_const = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::V8::Initialize();
   HandleScope scope(isolate);
@@ -359,6 +361,7 @@ class AppearingPropertyContext: public DeclarationContext {
 
 
 TEST(Appearing) {
+  i::FLAG_legacy_const = true;
   v8::V8::Initialize();
   HandleScope scope(CcTest::isolate());
 
@@ -415,6 +418,7 @@ class ExistsInPrototypeContext: public DeclarationContext {
 
 
 TEST(ExistsInPrototype) {
+  i::FLAG_legacy_const = true;
   HandleScope scope(CcTest::isolate());
 
   // Sanity check to make sure that the holder of the interceptor
@@ -524,6 +528,7 @@ class ExistsInHiddenPrototypeContext: public DeclarationContext {
 
 
 TEST(ExistsInHiddenPrototype) {
+  i::FLAG_legacy_const = true;
   HandleScope scope(CcTest::isolate());
 
   { ExistsInHiddenPrototypeContext context;
@@ -607,6 +612,7 @@ class SimpleContext {
 
 
 TEST(CrossScriptReferences) {
+  i::FLAG_legacy_const = true;
   v8::Isolate* isolate = CcTest::isolate();
   HandleScope scope(isolate);
 

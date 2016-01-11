@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --harmony-sloppy --harmony-sloppy-let --harmony-destructuring-bind
+// Flags: --legacy-const
 
 // let is usable as a variable with var or legacy const, not let or ES6 const
 

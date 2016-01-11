@@ -29,6 +29,7 @@ class BytecodeGeneratorHelper {
     i::FLAG_ignition_filter = StrDup(kFunctionName);
     i::FLAG_always_opt = false;
     i::FLAG_allow_natives_syntax = true;
+    i::FLAG_legacy_const = true;
     CcTest::i_isolate()->interpreter()->Initialize();
   }
 
