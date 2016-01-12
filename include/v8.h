@@ -2198,6 +2198,8 @@ class V8_EXPORT String : public Name {
    public:
     virtual ~ExternalStringResourceBase() {}
 
+    virtual bool IsCompressible() const { return false; }
+
    protected:
     ExternalStringResourceBase() {}
 

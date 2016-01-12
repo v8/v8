@@ -1748,6 +1748,7 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   // Externalizing twice leaks the external resource, so it's
   // prohibited by the API.
   DCHECK(!this->IsExternalString());
+  DCHECK(!resource->IsCompressible());
 #ifdef ENABLE_SLOW_DCHECKS
   if (FLAG_enable_slow_asserts) {
     // Assert that the resource and the string are equivalent.
@@ -1810,6 +1811,7 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
   // Externalizing twice leaks the external resource, so it's
   // prohibited by the API.
   DCHECK(!this->IsExternalString());
+  DCHECK(!resource->IsCompressible());
 #ifdef ENABLE_SLOW_DCHECKS
   if (FLAG_enable_slow_asserts) {
     // Assert that the resource and the string are equivalent.

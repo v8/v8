@@ -670,7 +670,13 @@ MaybeHandle<String> Factory::NewExternalStringFromOneByte(
     THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError(), String);
   }
 
-  Handle<Map> map = external_one_byte_string_map();
+  Handle<Map> map;
+  if (resource->IsCompressible()) {
+    // TODO(hajimehoshi): Rename this to 'uncached_external_one_byte_string_map'
+    map = short_external_one_byte_string_map();
+  } else {
+    map = external_one_byte_string_map();
+  }
   Handle<ExternalOneByteString> external_string =
       New<ExternalOneByteString>(map, NEW_SPACE);
   external_string->set_length(static_cast<int>(length));
@@ -693,8 +699,15 @@ MaybeHandle<String> Factory::NewExternalStringFromTwoByte(
   static const size_t kOneByteCheckLengthLimit = 32;
   bool is_one_byte = length <= kOneByteCheckLengthLimit &&
       String::IsOneByte(resource->data(), static_cast<int>(length));
-  Handle<Map> map = is_one_byte ?
-      external_string_with_one_byte_data_map() : external_string_map();
+  Handle<Map> map;
+  if (resource->IsCompressible()) {
+    // TODO(hajimehoshi): Rename these to 'uncached_external_string_...'.
+    map = is_one_byte ? short_external_string_with_one_byte_data_map()
+                      : short_external_string_map();
+  } else {
+    map = is_one_byte ? external_string_with_one_byte_data_map()
+                      : external_string_map();
+  }
   Handle<ExternalTwoByteString> external_string =
       New<ExternalTwoByteString>(map, NEW_SPACE);
   external_string->set_length(static_cast<int>(length));
