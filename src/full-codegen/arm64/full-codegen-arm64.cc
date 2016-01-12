@@ -2440,6 +2440,7 @@ void FullCodeGenerator::CallIC(Handle<Code> code,
 
 // Code common for calls using the IC.
 void FullCodeGenerator::EmitCallWithLoadIC(Call* expr) {
+  ASM_LOCATION("FullCodeGenerator::EmitCallWithLoadIC");
   Expression* callee = expr->expression();
 
   // Get the target function.
@@ -2476,6 +2477,7 @@ void FullCodeGenerator::EmitCallWithLoadIC(Call* expr) {
 
 
 void FullCodeGenerator::EmitSuperCallWithLoadIC(Call* expr) {
+  ASM_LOCATION("FullCodeGenerator::EmitSuperCallWithLoadIC");
   Expression* callee = expr->expression();
   DCHECK(callee->IsProperty());
   Property* prop = callee->AsProperty();
@@ -2518,6 +2520,7 @@ void FullCodeGenerator::EmitSuperCallWithLoadIC(Call* expr) {
 // Code common for calls using the IC.
 void FullCodeGenerator::EmitKeyedCallWithLoadIC(Call* expr,
                                                 Expression* key) {
+  ASM_LOCATION("FullCodeGenerator::EmitKeyedCallWithLoadIC");
   // Load the key.
   VisitForAccumulatorValue(key);
 
@@ -2539,6 +2542,7 @@ void FullCodeGenerator::EmitKeyedCallWithLoadIC(Call* expr,
 
 
 void FullCodeGenerator::EmitKeyedSuperCallWithLoadIC(Call* expr) {
+  ASM_LOCATION("FullCodeGenerator::EmitKeyedSuperCallWithLoadIC");
   Expression* callee = expr->expression();
   DCHECK(callee->IsProperty());
   Property* prop = callee->AsProperty();
@@ -2577,6 +2581,7 @@ void FullCodeGenerator::EmitKeyedSuperCallWithLoadIC(Call* expr) {
 
 
 void FullCodeGenerator::EmitCall(Call* expr, ConvertReceiverMode mode) {
+  ASM_LOCATION("FullCodeGenerator::EmitCall");
   // Load the arguments.
   ZoneList<Expression*>* args = expr->arguments();
   int arg_count = args->length();
@@ -2669,6 +2674,7 @@ void FullCodeGenerator::PushCalleeAndWithBaseObject(Call* expr) {
 
 
 void FullCodeGenerator::EmitPossiblyEvalCall(Call* expr) {
+  ASM_LOCATION("FullCodeGenerator::EmitPossiblyEvalCall");
   // In a call to eval, we first call RuntimeHidden_ResolvePossiblyDirectEval
   // to resolve the function we need to call.  Then we call the resolved
   // function using the given arguments.
@@ -2748,6 +2754,7 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
 
 
 void FullCodeGenerator::EmitSuperConstructorCall(Call* expr) {
+  ASM_LOCATION("FullCodeGenerator::EmitSuperConstructorCall");
   SuperCallReference* super_call_ref =
       expr->expression()->AsSuperCallReference();
   DCHECK_NOT_NULL(super_call_ref);
