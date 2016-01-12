@@ -2025,6 +2025,7 @@ Handle<JSProxy> Factory::NewJSProxy(Handle<JSReceiver> target,
   }
   DCHECK(map->prototype()->IsNull());
   Handle<JSProxy> result = New<JSProxy>(map, NEW_SPACE);
+  result->initialize_properties();
   result->set_target(*target);
   result->set_handler(*handler);
   result->set_hash(*undefined_value(), SKIP_WRITE_BARRIER);

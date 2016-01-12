@@ -1599,7 +1599,7 @@ SIMD128_BOOLEAN_LANE_FNS(Bool8x16, int8_t, 16, INT8, kCharSize)
 #undef SIMD128_WRITE_LANE
 
 
-ACCESSORS(JSObject, properties, FixedArray, kPropertiesOffset)
+ACCESSORS(JSReceiver, properties, FixedArray, kPropertiesOffset)
 
 
 Object** FixedArray::GetFirstElementAddress() {
@@ -1969,12 +1969,6 @@ void JSObject::set_elements(FixedArrayBase* value, WriteBarrierMode mode) {
 }
 
 
-void JSObject::initialize_properties() {
-  DCHECK(!GetHeap()->InNewSpace(GetHeap()->empty_fixed_array()));
-  WRITE_FIELD(this, kPropertiesOffset, GetHeap()->empty_fixed_array());
-}
-
-
 void JSObject::initialize_elements() {
   FixedArrayBase* elements = map()->GetInitialElements();
   WRITE_FIELD(this, kElementsOffset, elements);
@@ -2312,12 +2306,6 @@ void JSObject::InitializeBody(Map* map, int start_offset,
     WRITE_FIELD(this, offset, filler_value);
     offset += kPointerSize;
   }
-}
-
-
-bool JSObject::HasFastProperties() {
-  DCHECK(properties()->IsDictionary() == map()->is_dictionary_map());
-  return !properties()->IsDictionary();
 }
 
 
@@ -6764,13 +6752,6 @@ bool JSObject::HasIndexedInterceptor() {
 }
 
 
-NameDictionary* JSObject::property_dictionary() {
-  DCHECK(!HasFastProperties());
-  DCHECK(!IsJSGlobalObject());
-  return NameDictionary::cast(properties());
-}
-
-
 GlobalDictionary* JSObject::global_dictionary() {
   DCHECK(!HasFastProperties());
   DCHECK(IsJSGlobalObject());
@@ -7081,6 +7062,25 @@ MaybeHandle<Object> Object::GetPropertyOrElement(Handle<JSReceiver> holder,
   LookupIterator it = LookupIterator::PropertyOrElement(
       name->GetIsolate(), receiver, name, holder);
   return GetProperty(&it, language_mode);
+}
+
+
+void JSReceiver::initialize_properties() {
+  DCHECK(!GetHeap()->InNewSpace(GetHeap()->empty_fixed_array()));
+  WRITE_FIELD(this, kPropertiesOffset, GetHeap()->empty_fixed_array());
+}
+
+
+bool JSReceiver::HasFastProperties() {
+  DCHECK(properties()->IsDictionary() == map()->is_dictionary_map());
+  return !properties()->IsDictionary();
+}
+
+
+NameDictionary* JSReceiver::property_dictionary() {
+  DCHECK(!HasFastProperties());
+  DCHECK(!IsJSGlobalObject());
+  return NameDictionary::cast(properties());
 }
 
 

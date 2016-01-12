@@ -1802,6 +1802,15 @@ enum GetKeysConversion { KEEP_NUMBERS, CONVERT_TO_STRING };
 // JSObject and JSProxy.
 class JSReceiver: public HeapObject {
  public:
+  // [properties]: Backing storage for properties.
+  // properties is a FixedArray in the fast case and a Dictionary in the
+  // slow case.
+  DECL_ACCESSORS(properties, FixedArray)  // Get and set fast properties.
+  inline void initialize_properties();
+  inline bool HasFastProperties();
+  // Gets slow properties for non-global objects.
+  inline NameDictionary* property_dictionary();
+
   DECLARE_CAST(JSReceiver)
 
   // ES6 section 7.1.1 ToPrimitive
@@ -1960,6 +1969,10 @@ class JSReceiver: public HeapObject {
       Handle<JSReceiver> object, KeyCollectionType type, PropertyFilter filter,
       GetKeysConversion keys_conversion = KEEP_NUMBERS);
 
+  // Layout description.
+  static const int kPropertiesOffset = HeapObject::kHeaderSize;
+  static const int kHeaderSize = HeapObject::kHeaderSize + kPointerSize;
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSReceiver);
 };
@@ -1975,14 +1988,6 @@ class JSObject: public JSReceiver {
       Handle<JSFunction> constructor, Handle<JSReceiver> new_target,
       Handle<AllocationSite> site = Handle<AllocationSite>::null());
 
-  // [properties]: Backing storage for properties.
-  // properties is a FixedArray in the fast case and a Dictionary in the
-  // slow case.
-  DECL_ACCESSORS(properties, FixedArray)  // Get and set fast properties.
-  inline void initialize_properties();
-  inline bool HasFastProperties();
-  // Gets slow properties for non-global objects.
-  inline NameDictionary* property_dictionary();
   // Gets global object properties.
   inline GlobalDictionary* global_dictionary();
 
@@ -2474,13 +2479,12 @@ class JSObject: public JSReceiver {
   static const int kFieldsAdded = 3;
 
   // Layout description.
-  static const int kPropertiesOffset = HeapObject::kHeaderSize;
-  static const int kElementsOffset = kPropertiesOffset + kPointerSize;
+  static const int kElementsOffset = JSReceiver::kHeaderSize;
   static const int kHeaderSize = kElementsOffset + kPointerSize;
 
   STATIC_ASSERT(kHeaderSize == Internals::kJSObjectHeaderSize);
 
-  typedef FlexibleBodyDescriptor<kPropertiesOffset> BodyDescriptor;
+  typedef FlexibleBodyDescriptor<JSReceiver::kPropertiesOffset> BodyDescriptor;
 
   // Enqueue change record for Object.observe. May cause GC.
   MUST_USE_RESULT static MaybeHandle<Object> EnqueueChangeRecord(
@@ -9623,15 +9627,14 @@ class JSProxy: public JSReceiver {
   DECLARE_PRINTER(JSProxy)
   DECLARE_VERIFIER(JSProxy)
 
-  // Layout description. We add padding so that a proxy has the same
-  // size as a virgin JSObject. This is essential for becoming a JSObject
-  // upon freeze.
-  static const int kTargetOffset = HeapObject::kHeaderSize;
+  // Layout description.
+  static const int kTargetOffset = JSReceiver::kHeaderSize;
   static const int kHandlerOffset = kTargetOffset + kPointerSize;
   static const int kHashOffset = kHandlerOffset + kPointerSize;
   static const int kSize = kHashOffset + kPointerSize;
 
-  typedef FixedBodyDescriptor<kTargetOffset, kSize, kSize> BodyDescriptor;
+  typedef FixedBodyDescriptor<JSReceiver::kPropertiesOffset, kSize, kSize>
+      BodyDescriptor;
 
   MUST_USE_RESULT Object* GetIdentityHash();
 
