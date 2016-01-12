@@ -157,18 +157,15 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
   }
 
   // Move the relocation info to the beginning of the byte array.
-  int new_reloc_size = reloc_end_address - reloc_info_writer.pos();
-  MemMove(code->relocation_start(), reloc_info_writer.pos(), new_reloc_size);
+  const int new_reloc_length = reloc_end_address - reloc_info_writer.pos();
+  MemMove(code->relocation_start(), reloc_info_writer.pos(), new_reloc_length);
 
-  // The relocation info is in place, update the size.
-  reloc_info->set_length(new_reloc_size);
-
-  // Handle the junk part after the new relocation info. We will create
-  // a non-live object in the extra space at the end of the former reloc info.
-  Address junk_address = reloc_info->address() + reloc_info->Size();
-  DCHECK(junk_address <= reloc_end_address);
-  isolate->heap()->CreateFillerObjectAt(junk_address,
-                                        reloc_end_address - junk_address);
+  // Right trim the relocation info to free up remaining space.
+  const int delta = reloc_info->length() - new_reloc_length;
+  if (delta > 0) {
+    isolate->heap()->RightTrimFixedArray<Heap::SEQUENTIAL_TO_SWEEPER>(
+        reloc_info, delta);
+  }
 }
 
 

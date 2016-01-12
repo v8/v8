@@ -3117,6 +3117,7 @@ void Heap::AdjustLiveBytes(HeapObject* object, int by, InvocationMode mode) {
 FixedArrayBase* Heap::LeftTrimFixedArray(FixedArrayBase* object,
                                          int elements_to_trim) {
   DCHECK(!object->IsFixedTypedArrayBase());
+  DCHECK(!object->IsByteArray());
   const int element_size = object->IsFixedArray() ? kPointerSize : kDoubleSize;
   const int bytes_to_trim = elements_to_trim * element_size;
   Map* map = object->map();
@@ -3173,7 +3174,8 @@ template void Heap::RightTrimFixedArray<Heap::CONCURRENT_TO_SWEEPER>(
 template<Heap::InvocationMode mode>
 void Heap::RightTrimFixedArray(FixedArrayBase* object, int elements_to_trim) {
   const int len = object->length();
-  DCHECK(elements_to_trim < len);
+  DCHECK_LE(elements_to_trim, len);
+  DCHECK_GE(elements_to_trim, 0);
 
   int bytes_to_trim;
   if (object->IsFixedTypedArrayBase()) {
@@ -3181,11 +3183,16 @@ void Heap::RightTrimFixedArray(FixedArrayBase* object, int elements_to_trim) {
     bytes_to_trim =
         FixedTypedArrayBase::TypedArraySize(type, len) -
         FixedTypedArrayBase::TypedArraySize(type, len - elements_to_trim);
+  } else if (object->IsByteArray()) {
+    int new_size = ByteArray::SizeFor(len - elements_to_trim);
+    bytes_to_trim = ByteArray::SizeFor(len) - new_size;
+    DCHECK_GE(bytes_to_trim, 0);
   } else {
     const int element_size =
         object->IsFixedArray() ? kPointerSize : kDoubleSize;
     bytes_to_trim = elements_to_trim * element_size;
   }
+
 
   // For now this trick is only applied to objects in new and paged space.
   DCHECK(object->map() != fixed_cow_array_map());
