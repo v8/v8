@@ -4,6 +4,19 @@
 
 // Flags: --expose-wasm
 
+function EmptyTest() {
+  "use asm";
+  function caller() {
+    empty();
+    return 11;
+  }
+  function empty() {
+  }
+  return {caller: caller};
+}
+
+assertEquals(11, WASM.asmCompileRun(EmptyTest.toString()));
+
 function IntTest() {
   "use asm";
   function sum(a, b) {
