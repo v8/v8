@@ -2024,3 +2024,27 @@ TEST(SwitchTest) {
   }
   CHECK_FUNC_TYPES_END
 }
+
+
+TEST(BadSwitchRange) {
+  CHECK_FUNC_ERROR(
+      "function bar() { switch (1) { case -1: case 0x7fffffff: } }\n"
+      "function foo() { bar(); }",
+      "asm: line 39: case range too large\n");
+}
+
+
+TEST(DuplicateSwitchCase) {
+  CHECK_FUNC_ERROR(
+      "function bar() { switch (1) { case 0: case 0: } }\n"
+      "function foo() { bar(); }",
+      "asm: line 39: duplicate case value\n");
+}
+
+
+TEST(BadSwitchOrder) {
+  CHECK_FUNC_ERROR(
+      "function bar() { switch (1) { default: case 0: } }\n"
+      "function foo() { bar(); }",
+      "asm: line 39: default case out of order\n");
+}

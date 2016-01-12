@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #include "src/typing-asm.h"
+
+#include <limits>
+
+#include "src/v8.h"
 
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
@@ -386,9 +388,14 @@ void AsmTyper::VisitSwitchStatement(SwitchStatement* stmt) {
   RECURSE(VisitWithExpectation(stmt->tag(), cache_.kAsmSigned,
                                "switch expression non-integer"));
   ZoneList<CaseClause*>* clauses = stmt->cases();
+  ZoneSet<int32_t> cases(zone());
   for (int i = 0; i < clauses->length(); ++i) {
     CaseClause* clause = clauses->at(i);
-    if (!clause->is_default()) {
+    if (clause->is_default()) {
+      if (i != clauses->length() - 1) {
+        FAIL(clause, "default case out of order");
+      }
+    } else {
       Expression* label = clause->label();
       RECURSE(VisitWithExpectation(label, cache_.kAsmSigned,
                                    "case label non-integer"));
@@ -396,10 +403,21 @@ void AsmTyper::VisitSwitchStatement(SwitchStatement* stmt) {
       Handle<Object> value = label->AsLiteral()->value();
       int32_t value32;
       if (!value->ToInt32(&value32)) FAIL(label, "illegal case label value");
+      if (cases.find(value32) != cases.end()) {
+        FAIL(label, "duplicate case value");
+      }
+      cases.insert(value32);
     }
     // TODO(bradnelson): Detect duplicates.
     ZoneList<Statement*>* stmts = clause->statements();
     RECURSE(VisitStatements(stmts));
+  }
+  if (cases.size() > 0) {
+    int64_t min_case = *cases.begin();
+    int64_t max_case = *cases.rbegin();
+    if (max_case - min_case > std::numeric_limits<int32_t>::max()) {
+      FAIL(stmt, "case range too large");
+    }
   }
 }
 
