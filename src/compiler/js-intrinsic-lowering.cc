@@ -39,6 +39,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceConstructDouble(node);
     case Runtime::kInlineCreateIterResultObject:
       return ReduceCreateIterResultObject(node);
+    case Runtime::kInlineDateField:
+      return ReduceDateField(node);
     case Runtime::kInlineDeoptimizeNow:
       return ReduceDeoptimizeNow(node);
     case Runtime::kInlineDoubleHi:
@@ -101,6 +103,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceToPrimitive(node);
     case Runtime::kInlineToString:
       return ReduceToString(node);
+    case Runtime::kInlineThrowNotDateError:
+      return ReduceThrowNotDateError(node);
     case Runtime::kInlineCall:
       return ReduceCall(node);
     case Runtime::kInlineTailCall:
@@ -134,6 +138,24 @@ Reduction JSIntrinsicLowering::ReduceConstructDouble(Node* node) {
                        high);
   ReplaceWithValue(node, value);
   return Replace(value);
+}
+
+
+Reduction JSIntrinsicLowering::ReduceDateField(Node* node) {
+  Node* const value = NodeProperties::GetValueInput(node, 0);
+  Node* const index = NodeProperties::GetValueInput(node, 1);
+  Node* const effect = NodeProperties::GetEffectInput(node);
+  Node* const control = NodeProperties::GetControlInput(node);
+  NumberMatcher mindex(index);
+  if (mindex.Is(JSDate::kDateValue)) {
+    return Change(
+        node,
+        simplified()->LoadField(AccessBuilder::ForJSDateField(
+            static_cast<JSDate::FieldIndex>(static_cast<int>(mindex.Value())))),
+        value, effect, control);
+  }
+  // TODO(turbofan): Optimize more patterns.
+  return NoChange();
 }
 
 
@@ -502,6 +524,24 @@ Reduction JSIntrinsicLowering::ReduceRegExpSource(Node* node) {
 
 Reduction JSIntrinsicLowering::ReduceSubString(Node* node) {
   return Change(node, CodeFactory::SubString(isolate()), 3);
+}
+
+
+Reduction JSIntrinsicLowering::ReduceThrowNotDateError(Node* node) {
+  if (mode() != kDeoptimizationEnabled) return NoChange();
+  Node* const frame_state = NodeProperties::GetFrameStateInput(node, 1);
+  Node* const effect = NodeProperties::GetEffectInput(node);
+  Node* const control = NodeProperties::GetControlInput(node);
+
+  // TODO(bmeurer): Move MergeControlToEnd() to the AdvancedReducer.
+  Node* deoptimize =
+      graph()->NewNode(common()->Deoptimize(DeoptimizeKind::kEager),
+                       frame_state, effect, control);
+  NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
+
+  node->TrimInputCount(0);
+  NodeProperties::ChangeOp(node, common()->Dead());
+  return Changed(node);
 }
 
 

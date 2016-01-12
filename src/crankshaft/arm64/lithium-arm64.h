@@ -64,6 +64,7 @@ class LCodeGen;
   V(ConstantT)                               \
   V(ConstructDouble)                         \
   V(Context)                                 \
+  V(DateField)                               \
   V(DebugBreak)                              \
   V(DeclareGlobals)                          \
   V(Deoptimize)                              \
@@ -1239,6 +1240,23 @@ class LContext final : public LTemplateInstruction<1, 0, 0> {
  public:
   DECLARE_CONCRETE_INSTRUCTION(Context, "context")
   DECLARE_HYDROGEN_ACCESSOR(Context)
+};
+
+
+class LDateField final : public LTemplateInstruction<1, 1, 0> {
+ public:
+  LDateField(LOperand* date, Smi* index) : index_(index) {
+    inputs_[0] = date;
+  }
+
+  LOperand* date() { return inputs_[0]; }
+  Smi* index() const { return index_; }
+
+  DECLARE_CONCRETE_INSTRUCTION(DateField, "date-field")
+  DECLARE_HYDROGEN_ACCESSOR(DateField)
+
+ private:
+  Smi* index_;
 };
 
 

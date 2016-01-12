@@ -1810,6 +1810,40 @@ void LCodeGen::DoMapEnumLength(LMapEnumLength* instr) {
 }
 
 
+void LCodeGen::DoDateField(LDateField* instr) {
+  Register object = ToRegister(instr->date());
+  Register result = ToRegister(instr->result());
+  Register scratch = ToRegister(instr->temp());
+  Smi* index = instr->index();
+  DCHECK(object.is(result));
+  DCHECK(object.is(r0));
+  DCHECK(!scratch.is(scratch0()));
+  DCHECK(!scratch.is(object));
+
+  if (index->value() == 0) {
+    __ ldr(result, FieldMemOperand(object, JSDate::kValueOffset));
+  } else {
+    Label runtime, done;
+    if (index->value() < JSDate::kFirstUncachedField) {
+      ExternalReference stamp = ExternalReference::date_cache_stamp(isolate());
+      __ mov(scratch, Operand(stamp));
+      __ ldr(scratch, MemOperand(scratch));
+      __ ldr(scratch0(), FieldMemOperand(object, JSDate::kCacheStampOffset));
+      __ cmp(scratch, scratch0());
+      __ b(ne, &runtime);
+      __ ldr(result, FieldMemOperand(object, JSDate::kValueOffset +
+                                             kPointerSize * index->value()));
+      __ jmp(&done);
+    }
+    __ bind(&runtime);
+    __ PrepareCallCFunction(2, scratch);
+    __ mov(r1, Operand(index));
+    __ CallCFunction(ExternalReference::get_date_field_function(isolate()), 2);
+    __ bind(&done);
+  }
+}
+
+
 MemOperand LCodeGen::BuildSeqStringOperand(Register string,
                                            LOperand* index,
                                            String::Encoding encoding) {

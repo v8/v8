@@ -137,9 +137,14 @@ namespace internal {
 
 
 #define FOR_EACH_INTRINSIC_DATE(F) \
+  F(DateMakeDay, 2, 1)             \
+  F(DateSetValue, 3, 1)            \
   F(IsDate, 1, 1)                  \
+  F(ThrowNotDateError, 0, 1)       \
   F(DateCurrentTime, 0, 1)         \
-  F(ThrowNotDateError, 0, 1)
+  F(DateLocalTimezone, 1, 1)       \
+  F(DateCacheVersion, 0, 1)        \
+  F(DateField, 2 /* date object, field index */, 1)
 
 
 #define FOR_EACH_INTRINSIC_DEBUG(F)            \

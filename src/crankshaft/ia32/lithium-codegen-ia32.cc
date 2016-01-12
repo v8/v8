@@ -1675,6 +1675,37 @@ void LCodeGen::DoMapEnumLength(LMapEnumLength* instr) {
 }
 
 
+void LCodeGen::DoDateField(LDateField* instr) {
+  Register object = ToRegister(instr->date());
+  Register result = ToRegister(instr->result());
+  Register scratch = ToRegister(instr->temp());
+  Smi* index = instr->index();
+  DCHECK(object.is(result));
+  DCHECK(object.is(eax));
+
+  if (index->value() == 0) {
+    __ mov(result, FieldOperand(object, JSDate::kValueOffset));
+  } else {
+    Label runtime, done;
+    if (index->value() < JSDate::kFirstUncachedField) {
+      ExternalReference stamp = ExternalReference::date_cache_stamp(isolate());
+      __ mov(scratch, Operand::StaticVariable(stamp));
+      __ cmp(scratch, FieldOperand(object, JSDate::kCacheStampOffset));
+      __ j(not_equal, &runtime, Label::kNear);
+      __ mov(result, FieldOperand(object, JSDate::kValueOffset +
+                                          kPointerSize * index->value()));
+      __ jmp(&done, Label::kNear);
+    }
+    __ bind(&runtime);
+    __ PrepareCallCFunction(2, scratch);
+    __ mov(Operand(esp, 0), object);
+    __ mov(Operand(esp, 1 * kPointerSize), Immediate(index));
+    __ CallCFunction(ExternalReference::get_date_field_function(isolate()), 2);
+    __ bind(&done);
+  }
+}
+
+
 Operand LCodeGen::BuildSeqStringOperand(Register string,
                                         LOperand* index,
                                         String::Encoding encoding) {

@@ -1899,6 +1899,7 @@
           '../../src/js/uri.js',
           '../../src/js/math.js',
           '../../src/third_party/fdlibm/fdlibm.js',
+          '../../src/js/date.js',
           '../../src/js/regexp.js',
           '../../src/js/arraybuffer.js',
           '../../src/js/typedarray.js',

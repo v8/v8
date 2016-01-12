@@ -2205,6 +2205,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   F(ValueOf)                           \
   F(SetValueOf)                        \
   F(IsDate)                            \
+  F(DateField)                         \
+  F(ThrowNotDateError)                 \
   F(StringCharFromCode)                \
   F(StringCharAt)                      \
   F(OneByteSeqStringSetChar)           \

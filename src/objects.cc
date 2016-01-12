@@ -19333,16 +19333,6 @@ Object* JSDate::GetUTCField(FieldIndex index,
 }
 
 
-// static
-Handle<Object> JSDate::SetValue(Handle<JSDate> date, double v) {
-  Isolate* const isolate = date->GetIsolate();
-  Handle<Object> value = isolate->factory()->NewNumber(v);
-  bool value_is_nan = std::isnan(v);
-  date->SetValue(*value, value_is_nan);
-  return value;
-}
-
-
 void JSDate::SetValue(Object* value, bool is_value_nan) {
   set_value(value);
   if (is_value_nan) {

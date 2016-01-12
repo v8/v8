@@ -11,7 +11,6 @@
 // -------------------------------------------------------------------
 // Imports
 
-var GlobalDate = global.Date;
 var GlobalJSON = global.JSON;
 var GlobalSet = global.Set;
 var InternalArray = utils.InternalArray;
@@ -245,24 +244,6 @@ function JSONStringify(value, replacer, space) {
 utils.InstallFunctions(GlobalJSON, DONT_ENUM, [
   "parse", JSONParse,
   "stringify", JSONStringify
-]);
-
-// -------------------------------------------------------------------
-// Date.toJSON
-
-// 20.3.4.37 Date.prototype.toJSON ( key )
-function DateToJSON(key) {
-  var o = TO_OBJECT(this);
-  var tv = TO_PRIMITIVE_NUMBER(o);
-  if (IS_NUMBER(tv) && !NUMBER_IS_FINITE(tv)) {
-    return null;
-  }
-  return o.toISOString();
-}
-
-// Set up non-enumerable functions of the Date prototype object.
-utils.InstallFunctions(GlobalDate.prototype, DONT_ENUM, [
-  "toJSON", DateToJSON
 ]);
 
 // -------------------------------------------------------------------

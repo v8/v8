@@ -85,6 +85,7 @@ class LChunkBuilder;
   V(Constant)                                 \
   V(ConstructDouble)                          \
   V(Context)                                  \
+  V(DateField)                                \
   V(DebugBreak)                               \
   V(DeclareGlobals)                           \
   V(Deoptimize)                               \
@@ -7528,6 +7529,28 @@ class HToFastProperties final : public HUnaryOperation {
   }
 
   bool IsDeletable() const override { return true; }
+};
+
+
+class HDateField final : public HUnaryOperation {
+ public:
+  DECLARE_INSTRUCTION_FACTORY_P2(HDateField, HValue*, Smi*);
+
+  Smi* index() const { return index_; }
+
+  Representation RequiredInputRepresentation(int index) override {
+    return Representation::Tagged();
+  }
+
+  DECLARE_CONCRETE_INSTRUCTION(DateField)
+
+ private:
+  HDateField(HValue* date, Smi* index)
+      : HUnaryOperation(date), index_(index) {
+    set_representation(Representation::Tagged());
+  }
+
+  Smi* index_;
 };
 
 
