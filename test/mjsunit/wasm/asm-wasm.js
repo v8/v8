@@ -15,7 +15,7 @@ function EmptyTest() {
   return {caller: caller};
 }
 
-assertEquals(11, WASM.asmCompileRun(EmptyTest.toString()));
+assertEquals(11, _WASMEXP_.asmCompileRun(EmptyTest.toString()));
 
 function IntTest() {
   "use asm";
@@ -683,7 +683,7 @@ function TestConditional() {
   return {caller:caller};
 }
 
-assertEquals(41, WASM.asmCompileRun(TestConditional.toString()));
+assertEquals(41, _WASMEXP_.asmCompileRun(TestConditional.toString()));
 
 function TestSwitch() {
   "use asm"
@@ -710,7 +710,7 @@ function TestSwitch() {
   return {caller:caller};
 }
 
-assertEquals(23, WASM.asmCompileRun(TestSwitch.toString()));
+assertEquals(23, _WASMEXP_.asmCompileRun(TestSwitch.toString()));
 
 function TestSwitchFallthrough() {
   "use asm"
@@ -731,7 +731,7 @@ function TestSwitchFallthrough() {
   return {caller:caller};
 }
 
-assertEquals(42, WASM.asmCompileRun(TestSwitchFallthrough.toString()));
+assertEquals(42, _WASMEXP_.asmCompileRun(TestSwitchFallthrough.toString()));
 
 function TestNestedSwitch() {
   "use asm"
@@ -756,4 +756,4 @@ function TestNestedSwitch() {
   return {caller:caller};
 }
 
-assertEquals(43, WASM.asmCompileRun(TestNestedSwitch.toString()));
+assertEquals(43, _WASMEXP_.asmCompileRun(TestNestedSwitch.toString()));

@@ -92,8 +92,8 @@ class AsmWasmBuilderImpl : public AstVisitor {
       }
     }
     DCHECK(in_function_);
-    BlockVisitor visitor(this, stmt->AsBreakableStatement(), kExprBlock, false);
-    block_size_ = static_cast<byte>(stmt->statements()->length());
+    BlockVisitor visitor(this, stmt->AsBreakableStatement(), kExprBlock, false,
+                         static_cast<byte>(stmt->statements()->length()));
     RECURSE(VisitStatements(stmt->statements()));
     DCHECK(block_size_ >= 0);
   }
@@ -106,12 +106,13 @@ class AsmWasmBuilderImpl : public AstVisitor {
 
    public:
     BlockVisitor(AsmWasmBuilderImpl* builder, BreakableStatement* stmt,
-                 WasmOpcode opcode, bool is_loop)
+                 WasmOpcode opcode, bool is_loop, int initial_block_size)
         : builder_(builder) {
       builder_->breakable_blocks_.push_back(std::make_pair(stmt, is_loop));
       builder_->current_function_builder_->Emit(opcode);
       index_ = builder_->current_function_builder_->EmitEditableImmediate(0);
       prev_block_size_ = builder_->block_size_;
+      builder_->block_size_ = initial_block_size;
     }
     ~BlockVisitor() {
       builder_->current_function_builder_->EditImmediate(index_,
@@ -225,8 +226,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
     VisitLiteral(label);
     current_function_builder_->Emit(kExprGetLocal);
     AddLeb128(fall_through, true);
-    BlockVisitor visitor(this, nullptr, kExprBlock, false);
-    block_size_ = 0;
+    BlockVisitor visitor(this, nullptr, kExprBlock, false, 0);
     SetLocalTo(fall_through, 1);
     ZoneList<Statement*>* stmts = clause->statements();
     block_size_ += stmts->length();
@@ -236,8 +236,8 @@ class AsmWasmBuilderImpl : public AstVisitor {
   void VisitSwitchStatement(SwitchStatement* stmt) {
     VariableProxy* tag = stmt->tag()->AsVariableProxy();
     DCHECK(tag != NULL);
-    BlockVisitor visitor(this, stmt->AsBreakableStatement(), kExprBlock, false);
-    block_size_ = 0;
+    BlockVisitor visitor(this, stmt->AsBreakableStatement(), kExprBlock, false,
+                         0);
     uint16_t fall_through = current_function_builder_->AddLocal(kAstI32);
     SetLocalTo(fall_through, 0);
 
@@ -258,8 +258,8 @@ class AsmWasmBuilderImpl : public AstVisitor {
 
   void VisitDoWhileStatement(DoWhileStatement* stmt) {
     DCHECK(in_function_);
-    BlockVisitor visitor(this, stmt->AsBreakableStatement(), kExprLoop, true);
-    block_size_ = 2;
+    BlockVisitor visitor(this, stmt->AsBreakableStatement(), kExprLoop, true,
+                         2);
     RECURSE(Visit(stmt->body()));
     current_function_builder_->Emit(kExprIf);
     RECURSE(Visit(stmt->cond()));
@@ -269,8 +269,8 @@ class AsmWasmBuilderImpl : public AstVisitor {
 
   void VisitWhileStatement(WhileStatement* stmt) {
     DCHECK(in_function_);
-    BlockVisitor visitor(this, stmt->AsBreakableStatement(), kExprLoop, true);
-    block_size_ = 1;
+    BlockVisitor visitor(this, stmt->AsBreakableStatement(), kExprLoop, true,
+                         1);
     current_function_builder_->Emit(kExprIf);
     RECURSE(Visit(stmt->cond()));
     current_function_builder_->EmitWithU8(kExprBr, 0);
@@ -283,8 +283,8 @@ class AsmWasmBuilderImpl : public AstVisitor {
       block_size_++;
       RECURSE(Visit(stmt->init()));
     }
-    BlockVisitor visitor(this, stmt->AsBreakableStatement(), kExprLoop, true);
-    block_size_ = 0;
+    BlockVisitor visitor(this, stmt->AsBreakableStatement(), kExprLoop, true,
+                         0);
     if (stmt->cond() != nullptr) {
       block_size_++;
       current_function_builder_->Emit(kExprIf);
