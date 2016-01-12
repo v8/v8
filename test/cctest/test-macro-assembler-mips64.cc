@@ -305,6 +305,78 @@ TEST(jump_tables4) {
 }
 
 
+TEST(jump_tables5) {
+  if (kArchVariant != kMips64r6) return;
+
+  // Similar to test-assembler-mips jump_tables1, with extra test for emitting a
+  // compact branch instruction before emission of the dd table.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  MacroAssembler assembler(isolate, nullptr, 0,
+                           v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler* masm = &assembler;
+
+  const int kNumCases = 512;
+  int values[kNumCases];
+  isolate->random_number_generator()->NextBytes(values, sizeof(values));
+  Label labels[kNumCases];
+  Label done;
+
+  __ daddiu(sp, sp, -8);
+  __ sd(ra, MemOperand(sp));
+
+  __ Align(8);
+  {
+    __ BlockTrampolinePoolFor(kNumCases * 2 + 7 + 1);
+    PredictableCodeSizeScope predictable(
+        masm, kNumCases * kPointerSize + ((7 + 1) * Assembler::kInstrSize));
+    Label here;
+
+    __ bal(&here);
+    __ dsll(at, a0, 3);  // In delay slot.
+    __ bind(&here);
+    __ daddu(at, at, ra);
+    __ ld(at, MemOperand(at, 6 * Assembler::kInstrSize));
+    __ jalr(at);
+    __ nop();  // Branch delay slot nop.
+    __ bc(&done);
+    for (int i = 0; i < kNumCases; ++i) {
+      __ dd(&labels[i]);
+    }
+  }
+
+  for (int i = 0; i < kNumCases; ++i) {
+    __ bind(&labels[i]);
+    __ lui(v0, (values[i] >> 16) & 0xffff);
+    __ ori(v0, v0, values[i] & 0xffff);
+    __ jr(ra);
+    __ nop();
+  }
+
+  __ bind(&done);
+  __ ld(ra, MemOperand(sp));
+  __ daddiu(sp, sp, 8);
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  masm->GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F1 f = FUNCTION_CAST<F1>(code->entry());
+  for (int i = 0; i < kNumCases; ++i) {
+    int64_t res = reinterpret_cast<int64_t>(
+        CALL_GENERATED_CODE(isolate, f, i, 0, 0, 0, 0));
+    ::printf("f(%d) = %" PRId64 "\n", i, res);
+    CHECK_EQ(values[i], res);
+  }
+}
+
+
 static uint64_t run_lsa(uint32_t rt, uint32_t rs, int8_t sa) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);

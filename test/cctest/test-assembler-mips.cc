@@ -5091,9 +5091,8 @@ int32_t run_bc(int32_t offset) {
   __ li(t8, 0);
   __ li(t9, 2);   // A condition for stopping execution.
 
-  uint32_t instruction_addiu = 0x24420001;  // addiu v0, v0, 1
   for (int32_t i = -100; i <= -11; ++i) {
-    __ dd(instruction_addiu);
+    __ addiu(v0, v0, 1);
   }
 
   __ addiu(t8, t8, 1);              // -10
@@ -5112,7 +5111,7 @@ int32_t run_bc(int32_t offset) {
   __ bc(offset);                    // -1
 
   for (int32_t i = 0; i <= 99; ++i) {
-    __ dd(instruction_addiu);
+    __ addiu(v0, v0, 1);
   }
 
   __ pop(ra);

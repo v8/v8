@@ -1049,9 +1049,6 @@ class Assembler : public AssemblerBase {
   void dp(uintptr_t data) { dd(data); }
   void dd(Label* label);
 
-  // Emits the address of the code stub's first instruction.
-  void emit_code_stub_address(Code* stub);
-
   PositionsRecorder* positions_recorder() { return &positions_recorder_; }
 
   // Postpone the generation of the trampoline pool for the specified number of
@@ -1261,6 +1258,11 @@ class Assembler : public AssemblerBase {
   void GrowBuffer();
   inline void emit(Instr x,
                    CompactBranchType is_compact_branch = CompactBranchType::NO);
+  inline void emit(uint64_t x);
+  inline void CheckForEmitInForbiddenSlot();
+  template <typename T>
+  inline void EmitHelper(T x);
+  inline void EmitHelper(Instr x, CompactBranchType is_compact_branch);
 
   // Instruction generation.
   // We have 3 different kind of encoding layout on MIPS.

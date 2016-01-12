@@ -438,10 +438,22 @@ void Assembler::CheckTrampolinePoolQuick(int extra_instructions) {
 }
 
 
-void Assembler::emit(Instr x, CompactBranchType is_compact_branch) {
+void Assembler::CheckForEmitInForbiddenSlot() {
   if (!is_buffer_growth_blocked()) {
     CheckBuffer();
   }
+  if (IsPrevInstrCompactBranch()) {
+    // Nop instruction to preceed a CTI in forbidden slot:
+    Instr nop = SPECIAL | SLL;
+    *reinterpret_cast<Instr*>(pc_) = nop;
+    pc_ += kInstrSize;
+
+    ClearCompactBranchState();
+  }
+}
+
+
+void Assembler::EmitHelper(Instr x, CompactBranchType is_compact_branch) {
   if (IsPrevInstrCompactBranch()) {
     if (Instruction::IsForbiddenAfterBranchInstr(x)) {
       // Nop instruction to preceed a CTI in forbidden slot:
@@ -460,21 +472,25 @@ void Assembler::emit(Instr x, CompactBranchType is_compact_branch) {
 }
 
 
-void Assembler::emit(uint64_t x) {
+template <typename T>
+void Assembler::EmitHelper(T x) {
+  *reinterpret_cast<T*>(pc_) = x;
+  pc_ += sizeof(x);
+  CheckTrampolinePoolQuick();
+}
+
+
+void Assembler::emit(Instr x, CompactBranchType is_compact_branch) {
   if (!is_buffer_growth_blocked()) {
     CheckBuffer();
   }
-  if (IsPrevInstrCompactBranch()) {
-    // Nop instruction to preceed a CTI in forbidden slot:
-    Instr nop = SPECIAL | SLL;
-    *reinterpret_cast<Instr*>(pc_) = nop;
-    pc_ += kInstrSize;
+  EmitHelper(x, is_compact_branch);
+}
 
-    ClearCompactBranchState();
-  }
-  *reinterpret_cast<uint64_t*>(pc_) = x;
-  pc_ += kInstrSize * 2;
-  CheckTrampolinePoolQuick();
+
+void Assembler::emit(uint64_t data) {
+  CheckForEmitInForbiddenSlot();
+  EmitHelper(data);
 }
 
 

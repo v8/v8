@@ -3222,9 +3222,7 @@ TEST(jump_tables1) {
 
   __ daddiu(sp, sp, -8);
   __ sd(ra, MemOperand(sp));
-  if ((assm.pc_offset() & 7) == 0) {
-    __ nop();
-  }
+  __ Align(8);
 
   Label done;
   {
@@ -3304,9 +3302,7 @@ TEST(jump_tables2) {
     __ nop();
   }
 
-  if ((assm.pc_offset() & 7) == 0) {
-    __ nop();
-  }
+  __ Align(8);
   __ bind(&dispatch);
   {
     __ BlockTrampolinePoolFor(kNumCases * 2 + 7);
@@ -3372,6 +3368,7 @@ TEST(jump_tables3) {
 
   Label done, dispatch;
   __ b(&dispatch);
+  __ nop();
 
 
   for (int i = 0; i < kNumCases; ++i) {
@@ -3386,10 +3383,7 @@ TEST(jump_tables3) {
     __ nop();
   }
 
-  __ stop("chk");
-  if ((assm.pc_offset() & 7) == 0) {
-    __ nop();
-  }
+  __ Align(8);
   __ bind(&dispatch);
   {
     __ BlockTrampolinePoolFor(kNumCases * 2 + 7);
@@ -5547,9 +5541,8 @@ int64_t run_bc(int32_t offset) {
   __ li(t8, 0);
   __ li(t9, 2);   // Condition for the stopping execution.
 
-  uint32_t instruction_addiu = 0x24420001;  // addiu v0, v0, 1
   for (int32_t i = -100; i <= -11; ++i) {
-    __ dd(instruction_addiu);
+    __ addiu(v0, v0, 1);
   }
 
   __ addiu(t8, t8, 1);              // -10
@@ -5568,7 +5561,7 @@ int64_t run_bc(int32_t offset) {
   __ bc(offset);                    // -1
 
   for (int32_t i = 0; i <= 99; ++i) {
-    __ dd(instruction_addiu);
+    __ addiu(v0, v0, 1);
   }
 
   __ pop(ra);

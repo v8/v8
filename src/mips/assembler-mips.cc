@@ -2865,46 +2865,34 @@ void Assembler::GrowBuffer() {
 
 
 void Assembler::db(uint8_t data) {
-  CheckBuffer();
-  *reinterpret_cast<uint8_t*>(pc_) = data;
-  pc_ += sizeof(uint8_t);
+  CheckForEmitInForbiddenSlot();
+  EmitHelper(data);
 }
 
 
 void Assembler::dd(uint32_t data) {
-  CheckBuffer();
-  *reinterpret_cast<uint32_t*>(pc_) = data;
-  pc_ += sizeof(uint32_t);
+  CheckForEmitInForbiddenSlot();
+  EmitHelper(data);
 }
 
 
 void Assembler::dq(uint64_t data) {
-  CheckBuffer();
-  *reinterpret_cast<uint64_t*>(pc_) = data;
-  pc_ += sizeof(uint64_t);
+  CheckForEmitInForbiddenSlot();
+  EmitHelper(data);
 }
 
 
 void Assembler::dd(Label* label) {
-  CheckBuffer();
-  RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE);
   uint32_t data;
+  CheckForEmitInForbiddenSlot();
   if (label->is_bound()) {
     data = reinterpret_cast<uint32_t>(buffer_ + label->pos());
   } else {
     data = jump_address(label);
     internal_reference_positions_.insert(label->pos());
   }
-  *reinterpret_cast<uint32_t*>(pc_) = data;
-  pc_ += sizeof(uint32_t);
-}
-
-
-void Assembler::emit_code_stub_address(Code* stub) {
-  CheckBuffer();
-  *reinterpret_cast<uint32_t*>(pc_) =
-      reinterpret_cast<uint32_t>(stub->instruction_start());
-  pc_ += sizeof(uint32_t);
+  RecordRelocInfo(RelocInfo::INTERNAL_REFERENCE);
+  EmitHelper(data);
 }
 
 
