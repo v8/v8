@@ -7753,6 +7753,14 @@ String::SubStringRange::iterator String::SubStringRange::end() {
 }
 
 
+// Predictably converts HeapObject* or Address to uint32 by calculating
+// offset of the address in respective MemoryChunk.
+static inline uint32_t ObjectAddressForHashing(void* object) {
+  uint32_t value = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(object));
+  return value & MemoryChunk::kAlignmentMask;
+}
+
+
 #undef TYPE_CHECKER
 #undef CAST_ACCESSOR
 #undef INT_ACCESSORS
