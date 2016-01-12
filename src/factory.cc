@@ -1221,14 +1221,15 @@ Handle<JSFunction> Factory::NewFunction(Handle<Map> map,
   Handle<SharedFunctionInfo> info =
       NewSharedFunctionInfo(name, code, map->is_constructor());
   DCHECK(is_sloppy(info->language_mode()));
+  DCHECK(!map->IsUndefined());
   DCHECK(
       map.is_identical_to(isolate()->sloppy_function_map()) ||
       map.is_identical_to(isolate()->sloppy_function_without_prototype_map()) ||
       map.is_identical_to(
           isolate()->sloppy_function_with_readonly_prototype_map()) ||
       map.is_identical_to(isolate()->strict_function_map()) ||
-      (FLAG_expose_wasm &&
-       map.is_identical_to(isolate()->wasm_function_map())) ||
+      // TODO(titzer): wasm_function_map() could be undefined here. ugly.
+      (*map == context->get(Context::WASM_FUNCTION_MAP_INDEX)) ||
       map.is_identical_to(isolate()->proxy_function_map()));
   return NewFunction(map, info, context);
 }
