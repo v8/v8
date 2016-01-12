@@ -806,6 +806,7 @@
   'd8-worker-sharedarraybuffer': [SKIP],
   'delete-in-with': [SKIP],
   'deopt-minus-zero': [SKIP],
+  'deserialize-optimize-inner': [SKIP],
   'double-equals': [SKIP],
   'eval-enclosing-function-name': [SKIP],
   'eval-stack-trace': [SKIP],
@@ -1086,6 +1087,7 @@
 }],  # ignition == True
 
 ['ignition == True and (arch == arm or arch == arm64)', {
+  'array-constructor': [SKIP],
   'array-sort': [SKIP],
   'array-store-and-grow': [SKIP],
   'compiler/division-by-constant': [SKIP],
