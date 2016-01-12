@@ -31,9 +31,9 @@ class SimplifiedLowering final {
 
   void LowerAllNodes();
 
-  // TODO(turbofan): The output_type can be removed once the result of the
+  // TODO(turbofan): The representation can be removed once the result of the
   // representation analysis is stored in the node bounds.
-  void DoLoadBuffer(Node* node, MachineType output_type,
+  void DoLoadBuffer(Node* node, MachineRepresentation rep,
                     RepresentationChanger* changer);
   void DoStoreBuffer(Node* node);
   void DoObjectIsNumber(Node* node);

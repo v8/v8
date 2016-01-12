@@ -83,18 +83,20 @@ class RepresentationChangerTester : public HandleAndZoneScope,
     return n;
   }
 
-  void CheckTypeError(MachineType from, MachineRepresentation to) {
+  void CheckTypeError(MachineRepresentation from, Type* from_type,
+                      MachineRepresentation to) {
     changer()->testing_type_errors_ = true;
     changer()->type_error_ = false;
     Node* n = Parameter(0);
-    Node* c = changer()->GetRepresentationFor(n, from, to);
+    Node* c = changer()->GetRepresentationFor(n, from, from_type, to);
     CHECK(changer()->type_error_);
     CHECK_EQ(n, c);
   }
 
-  void CheckNop(MachineType from, MachineRepresentation to) {
+  void CheckNop(MachineRepresentation from, Type* from_type,
+                MachineRepresentation to) {
     Node* n = Parameter(0);
-    Node* c = changer()->GetRepresentationFor(n, from, to);
+    Node* c = changer()->GetRepresentationFor(n, from, from_type, to);
     CHECK_EQ(n, c);
   }
 };
@@ -112,12 +114,14 @@ TEST(BoolToBit_constant) {
 
   Node* true_node = r.jsgraph()->TrueConstant();
   Node* true_bit = r.changer()->GetRepresentationFor(
-      true_node, MachineType::RepTagged(), MachineRepresentation::kBit);
+      true_node, MachineRepresentation::kTagged, Type::None(),
+      MachineRepresentation::kBit);
   r.CheckInt32Constant(true_bit, 1);
 
   Node* false_node = r.jsgraph()->FalseConstant();
   Node* false_bit = r.changer()->GetRepresentationFor(
-      false_node, MachineType::RepTagged(), MachineRepresentation::kBit);
+      false_node, MachineRepresentation::kTagged, Type::None(),
+      MachineRepresentation::kBit);
   r.CheckInt32Constant(false_bit, 0);
 }
 
@@ -128,7 +132,8 @@ TEST(BitToBool_constant) {
   for (int i = -5; i < 5; i++) {
     Node* node = r.jsgraph()->Int32Constant(i);
     Node* val = r.changer()->GetRepresentationFor(
-        node, MachineType::RepBit(), MachineRepresentation::kTagged);
+        node, MachineRepresentation::kBit, Type::Boolean(),
+        MachineRepresentation::kTagged);
     r.CheckHeapConstant(val, i == 0 ? r.isolate()->heap()->false_value()
                                     : r.isolate()->heap()->true_value());
   }
@@ -142,7 +147,8 @@ TEST(ToTagged_constant) {
     FOR_FLOAT64_INPUTS(i) {
       Node* n = r.jsgraph()->Float64Constant(*i);
       Node* c = r.changer()->GetRepresentationFor(
-          n, MachineType::RepFloat64(), MachineRepresentation::kTagged);
+          n, MachineRepresentation::kFloat64, Type::None(),
+          MachineRepresentation::kTagged);
       r.CheckNumberConstant(c, *i);
     }
   }
@@ -151,7 +157,8 @@ TEST(ToTagged_constant) {
     FOR_FLOAT64_INPUTS(i) {
       Node* n = r.jsgraph()->Constant(*i);
       Node* c = r.changer()->GetRepresentationFor(
-          n, MachineType::RepFloat64(), MachineRepresentation::kTagged);
+          n, MachineRepresentation::kFloat64, Type::None(),
+          MachineRepresentation::kTagged);
       r.CheckNumberConstant(c, *i);
     }
   }
@@ -160,7 +167,8 @@ TEST(ToTagged_constant) {
     FOR_FLOAT32_INPUTS(i) {
       Node* n = r.jsgraph()->Float32Constant(*i);
       Node* c = r.changer()->GetRepresentationFor(
-          n, MachineType::RepFloat32(), MachineRepresentation::kTagged);
+          n, MachineRepresentation::kFloat32, Type::None(),
+          MachineRepresentation::kTagged);
       r.CheckNumberConstant(c, *i);
     }
   }
@@ -169,7 +177,8 @@ TEST(ToTagged_constant) {
     FOR_INT32_INPUTS(i) {
       Node* n = r.jsgraph()->Int32Constant(*i);
       Node* c = r.changer()->GetRepresentationFor(
-          n, MachineType::Int32(), MachineRepresentation::kTagged);
+          n, MachineRepresentation::kWord32, Type::Signed32(),
+          MachineRepresentation::kTagged);
       r.CheckNumberConstant(c, *i);
     }
   }
@@ -178,7 +187,8 @@ TEST(ToTagged_constant) {
     FOR_UINT32_INPUTS(i) {
       Node* n = r.jsgraph()->Int32Constant(*i);
       Node* c = r.changer()->GetRepresentationFor(
-          n, MachineType::Uint32(), MachineRepresentation::kTagged);
+          n, MachineRepresentation::kWord32, Type::Unsigned32(),
+          MachineRepresentation::kTagged);
       r.CheckNumberConstant(c, *i);
     }
   }
@@ -192,7 +202,8 @@ TEST(ToFloat64_constant) {
     FOR_FLOAT64_INPUTS(i) {
       Node* n = r.jsgraph()->Float64Constant(*i);
       Node* c = r.changer()->GetRepresentationFor(
-          n, MachineType::RepFloat64(), MachineRepresentation::kFloat64);
+          n, MachineRepresentation::kFloat64, Type::None(),
+          MachineRepresentation::kFloat64);
       CHECK_EQ(n, c);
     }
   }
@@ -201,7 +212,8 @@ TEST(ToFloat64_constant) {
     FOR_FLOAT64_INPUTS(i) {
       Node* n = r.jsgraph()->Constant(*i);
       Node* c = r.changer()->GetRepresentationFor(
-          n, MachineType::RepTagged(), MachineRepresentation::kFloat64);
+          n, MachineRepresentation::kTagged, Type::None(),
+          MachineRepresentation::kFloat64);
       r.CheckFloat64Constant(c, *i);
     }
   }
@@ -210,7 +222,8 @@ TEST(ToFloat64_constant) {
     FOR_FLOAT32_INPUTS(i) {
       Node* n = r.jsgraph()->Float32Constant(*i);
       Node* c = r.changer()->GetRepresentationFor(
-          n, MachineType::RepFloat32(), MachineRepresentation::kFloat64);
+          n, MachineRepresentation::kFloat32, Type::None(),
+          MachineRepresentation::kFloat64);
       r.CheckFloat64Constant(c, *i);
     }
   }
@@ -219,7 +232,8 @@ TEST(ToFloat64_constant) {
     FOR_INT32_INPUTS(i) {
       Node* n = r.jsgraph()->Int32Constant(*i);
       Node* c = r.changer()->GetRepresentationFor(
-          n, MachineType::Int32(), MachineRepresentation::kFloat64);
+          n, MachineRepresentation::kWord32, Type::Signed32(),
+          MachineRepresentation::kFloat64);
       r.CheckFloat64Constant(c, *i);
     }
   }
@@ -228,7 +242,8 @@ TEST(ToFloat64_constant) {
     FOR_UINT32_INPUTS(i) {
       Node* n = r.jsgraph()->Int32Constant(*i);
       Node* c = r.changer()->GetRepresentationFor(
-          n, MachineType::Uint32(), MachineRepresentation::kFloat64);
+          n, MachineRepresentation::kWord32, Type::Unsigned32(),
+          MachineRepresentation::kFloat64);
       r.CheckFloat64Constant(c, *i);
     }
   }
@@ -250,7 +265,8 @@ TEST(ToFloat32_constant) {
     FOR_FLOAT32_INPUTS(i) {
       Node* n = r.jsgraph()->Float32Constant(*i);
       Node* c = r.changer()->GetRepresentationFor(
-          n, MachineType::RepFloat32(), MachineRepresentation::kFloat32);
+          n, MachineRepresentation::kFloat32, Type::None(),
+          MachineRepresentation::kFloat32);
       CHECK_EQ(n, c);
     }
   }
@@ -259,7 +275,8 @@ TEST(ToFloat32_constant) {
     FOR_FLOAT32_INPUTS(i) {
       Node* n = r.jsgraph()->Constant(*i);
       Node* c = r.changer()->GetRepresentationFor(
-          n, MachineType::RepTagged(), MachineRepresentation::kFloat32);
+          n, MachineRepresentation::kTagged, Type::None(),
+          MachineRepresentation::kFloat32);
       r.CheckFloat32Constant(c, *i);
     }
   }
@@ -268,7 +285,8 @@ TEST(ToFloat32_constant) {
     FOR_FLOAT32_INPUTS(i) {
       Node* n = r.jsgraph()->Float64Constant(*i);
       Node* c = r.changer()->GetRepresentationFor(
-          n, MachineType::RepFloat64(), MachineRepresentation::kFloat32);
+          n, MachineRepresentation::kFloat64, Type::None(),
+          MachineRepresentation::kFloat32);
       r.CheckFloat32Constant(c, *i);
     }
   }
@@ -278,7 +296,8 @@ TEST(ToFloat32_constant) {
       if (!IsFloat32Int32(*i)) continue;
       Node* n = r.jsgraph()->Int32Constant(*i);
       Node* c = r.changer()->GetRepresentationFor(
-          n, MachineType::Int32(), MachineRepresentation::kFloat32);
+          n, MachineRepresentation::kWord32, Type::Signed32(),
+          MachineRepresentation::kFloat32);
       r.CheckFloat32Constant(c, static_cast<float>(*i));
     }
   }
@@ -288,7 +307,8 @@ TEST(ToFloat32_constant) {
       if (!IsFloat32Uint32(*i)) continue;
       Node* n = r.jsgraph()->Int32Constant(*i);
       Node* c = r.changer()->GetRepresentationFor(
-          n, MachineType::Uint32(), MachineRepresentation::kFloat32);
+          n, MachineRepresentation::kWord32, Type::Unsigned32(),
+          MachineRepresentation::kFloat32);
       r.CheckFloat32Constant(c, static_cast<float>(*i));
     }
   }
@@ -302,7 +322,8 @@ TEST(ToInt32_constant) {
     FOR_INT32_INPUTS(i) {
       Node* n = r.jsgraph()->Int32Constant(*i);
       Node* c = r.changer()->GetRepresentationFor(
-          n, MachineType::Int32(), MachineRepresentation::kWord32);
+          n, MachineRepresentation::kWord32, Type::Signed32(),
+          MachineRepresentation::kWord32);
       r.CheckInt32Constant(c, *i);
     }
   }
@@ -312,8 +333,7 @@ TEST(ToInt32_constant) {
       if (!IsFloat32Int32(*i)) continue;
       Node* n = r.jsgraph()->Float32Constant(static_cast<float>(*i));
       Node* c = r.changer()->GetRepresentationFor(
-          n,
-          MachineType(MachineRepresentation::kFloat32, MachineSemantic::kInt32),
+          n, MachineRepresentation::kFloat32, Type::Signed32(),
           MachineRepresentation::kWord32);
       r.CheckInt32Constant(c, *i);
     }
@@ -323,8 +343,7 @@ TEST(ToInt32_constant) {
     FOR_INT32_INPUTS(i) {
       Node* n = r.jsgraph()->Float64Constant(*i);
       Node* c = r.changer()->GetRepresentationFor(
-          n,
-          MachineType(MachineRepresentation::kFloat64, MachineSemantic::kInt32),
+          n, MachineRepresentation::kFloat64, Type::Signed32(),
           MachineRepresentation::kWord32);
       r.CheckInt32Constant(c, *i);
     }
@@ -334,8 +353,7 @@ TEST(ToInt32_constant) {
     FOR_INT32_INPUTS(i) {
       Node* n = r.jsgraph()->Constant(*i);
       Node* c = r.changer()->GetRepresentationFor(
-          n,
-          MachineType(MachineRepresentation::kTagged, MachineSemantic::kInt32),
+          n, MachineRepresentation::kTagged, Type::Signed32(),
           MachineRepresentation::kWord32);
       r.CheckInt32Constant(c, *i);
     }
@@ -350,7 +368,8 @@ TEST(ToUint32_constant) {
     FOR_UINT32_INPUTS(i) {
       Node* n = r.jsgraph()->Int32Constant(*i);
       Node* c = r.changer()->GetRepresentationFor(
-          n, MachineType::Uint32(), MachineRepresentation::kWord32);
+          n, MachineRepresentation::kWord32, Type::Unsigned32(),
+          MachineRepresentation::kWord32);
       r.CheckUint32Constant(c, *i);
     }
   }
@@ -360,8 +379,7 @@ TEST(ToUint32_constant) {
       if (!IsFloat32Uint32(*i)) continue;
       Node* n = r.jsgraph()->Float32Constant(static_cast<float>(*i));
       Node* c = r.changer()->GetRepresentationFor(
-          n, MachineType(MachineRepresentation::kFloat32,
-                         MachineSemantic::kUint32),
+          n, MachineRepresentation::kFloat32, Type::Unsigned32(),
           MachineRepresentation::kWord32);
       r.CheckUint32Constant(c, *i);
     }
@@ -371,8 +389,7 @@ TEST(ToUint32_constant) {
     FOR_UINT32_INPUTS(i) {
       Node* n = r.jsgraph()->Float64Constant(*i);
       Node* c = r.changer()->GetRepresentationFor(
-          n, MachineType(MachineRepresentation::kFloat64,
-                         MachineSemantic::kUint32),
+          n, MachineRepresentation::kFloat64, Type::Unsigned32(),
           MachineRepresentation::kWord32);
       r.CheckUint32Constant(c, *i);
     }
@@ -382,8 +399,7 @@ TEST(ToUint32_constant) {
     FOR_UINT32_INPUTS(i) {
       Node* n = r.jsgraph()->Constant(static_cast<double>(*i));
       Node* c = r.changer()->GetRepresentationFor(
-          n,
-          MachineType(MachineRepresentation::kTagged, MachineSemantic::kUint32),
+          n, MachineRepresentation::kTagged, Type::Unsigned32(),
           MachineRepresentation::kWord32);
       r.CheckUint32Constant(c, *i);
     }
@@ -391,12 +407,12 @@ TEST(ToUint32_constant) {
 }
 
 
-static void CheckChange(IrOpcode::Value expected, MachineType from,
-                        MachineRepresentation to) {
+static void CheckChange(IrOpcode::Value expected, MachineRepresentation from,
+                        Type* from_type, MachineRepresentation to) {
   RepresentationChangerTester r;
 
   Node* n = r.Parameter();
-  Node* c = r.changer()->GetRepresentationFor(n, from, to);
+  Node* c = r.changer()->GetRepresentationFor(n, from, from_type, to);
 
   CHECK_NE(c, n);
   CHECK_EQ(expected, c->opcode());
@@ -405,12 +421,13 @@ static void CheckChange(IrOpcode::Value expected, MachineType from,
 
 
 static void CheckTwoChanges(IrOpcode::Value expected2,
-                            IrOpcode::Value expected1, MachineType from,
+                            IrOpcode::Value expected1,
+                            MachineRepresentation from, Type* from_type,
                             MachineRepresentation to) {
   RepresentationChangerTester r;
 
   Node* n = r.Parameter();
-  Node* c1 = r.changer()->GetRepresentationFor(n, from, to);
+  Node* c1 = r.changer()->GetRepresentationFor(n, from, from_type, to);
 
   CHECK_NE(c1, n);
   CHECK_EQ(expected1, c1->opcode());
@@ -422,68 +439,65 @@ static void CheckTwoChanges(IrOpcode::Value expected2,
 
 
 TEST(SingleChanges) {
-  CheckChange(IrOpcode::kChangeBoolToBit, MachineType::RepTagged(),
-              MachineRepresentation::kBit);
-  CheckChange(IrOpcode::kChangeBitToBool, MachineType::RepBit(),
-              MachineRepresentation::kTagged);
+  CheckChange(IrOpcode::kChangeBoolToBit, MachineRepresentation::kTagged,
+              Type::None(), MachineRepresentation::kBit);
+  CheckChange(IrOpcode::kChangeBitToBool, MachineRepresentation::kBit,
+              Type::None(), MachineRepresentation::kTagged);
 
-  CheckChange(IrOpcode::kChangeInt32ToTagged, MachineType::Int32(),
-              MachineRepresentation::kTagged);
-  CheckChange(IrOpcode::kChangeUint32ToTagged, MachineType::Uint32(),
-              MachineRepresentation::kTagged);
-  CheckChange(IrOpcode::kChangeFloat64ToTagged, MachineType::RepFloat64(),
-              MachineRepresentation::kTagged);
+  CheckChange(IrOpcode::kChangeInt32ToTagged, MachineRepresentation::kWord32,
+              Type::Signed32(), MachineRepresentation::kTagged);
+  CheckChange(IrOpcode::kChangeUint32ToTagged, MachineRepresentation::kWord32,
+              Type::Unsigned32(), MachineRepresentation::kTagged);
+  CheckChange(IrOpcode::kChangeFloat64ToTagged, MachineRepresentation::kFloat64,
+              Type::None(), MachineRepresentation::kTagged);
 
-  CheckChange(
-      IrOpcode::kChangeTaggedToInt32,
-      MachineType(MachineRepresentation::kTagged, MachineSemantic::kInt32),
-      MachineRepresentation::kWord32);
-  CheckChange(
-      IrOpcode::kChangeTaggedToUint32,
-      MachineType(MachineRepresentation::kTagged, MachineSemantic::kUint32),
-      MachineRepresentation::kWord32);
-  CheckChange(IrOpcode::kChangeTaggedToFloat64, MachineType::RepTagged(),
-              MachineRepresentation::kFloat64);
+  CheckChange(IrOpcode::kChangeTaggedToInt32, MachineRepresentation::kTagged,
+              Type::Signed32(), MachineRepresentation::kWord32);
+  CheckChange(IrOpcode::kChangeTaggedToUint32, MachineRepresentation::kTagged,
+              Type::Unsigned32(), MachineRepresentation::kWord32);
+  CheckChange(IrOpcode::kChangeTaggedToFloat64, MachineRepresentation::kTagged,
+              Type::None(), MachineRepresentation::kFloat64);
 
   // Int32,Uint32 <-> Float64 are actually machine conversions.
-  CheckChange(IrOpcode::kChangeInt32ToFloat64, MachineType::Int32(),
-              MachineRepresentation::kFloat64);
-  CheckChange(IrOpcode::kChangeUint32ToFloat64, MachineType::Uint32(),
-              MachineRepresentation::kFloat64);
-  CheckChange(
-      IrOpcode::kChangeFloat64ToInt32,
-      MachineType(MachineRepresentation::kFloat64, MachineSemantic::kInt32),
-      MachineRepresentation::kWord32);
-  CheckChange(
-      IrOpcode::kChangeFloat64ToUint32,
-      MachineType(MachineRepresentation::kFloat64, MachineSemantic::kUint32),
-      MachineRepresentation::kWord32);
+  CheckChange(IrOpcode::kChangeInt32ToFloat64, MachineRepresentation::kWord32,
+              Type::Signed32(), MachineRepresentation::kFloat64);
+  CheckChange(IrOpcode::kChangeUint32ToFloat64, MachineRepresentation::kWord32,
+              Type::Unsigned32(), MachineRepresentation::kFloat64);
+  CheckChange(IrOpcode::kChangeFloat64ToInt32, MachineRepresentation::kFloat64,
+              Type::Signed32(), MachineRepresentation::kWord32);
+  CheckChange(IrOpcode::kChangeFloat64ToUint32, MachineRepresentation::kFloat64,
+              Type::Unsigned32(), MachineRepresentation::kWord32);
 
-  CheckChange(IrOpcode::kTruncateFloat64ToFloat32, MachineType::RepFloat64(),
+  CheckChange(IrOpcode::kTruncateFloat64ToFloat32,
+              MachineRepresentation::kFloat64, Type::None(),
               MachineRepresentation::kFloat32);
 
   // Int32,Uint32 <-> Float32 require two changes.
   CheckTwoChanges(IrOpcode::kChangeInt32ToFloat64,
-                  IrOpcode::kTruncateFloat64ToFloat32, MachineType::Int32(),
+                  IrOpcode::kTruncateFloat64ToFloat32,
+                  MachineRepresentation::kWord32, Type::Signed32(),
                   MachineRepresentation::kFloat32);
   CheckTwoChanges(IrOpcode::kChangeUint32ToFloat64,
-                  IrOpcode::kTruncateFloat64ToFloat32, MachineType::Uint32(),
+                  IrOpcode::kTruncateFloat64ToFloat32,
+                  MachineRepresentation::kWord32, Type::Unsigned32(),
                   MachineRepresentation::kFloat32);
-  CheckTwoChanges(
-      IrOpcode::kChangeFloat32ToFloat64, IrOpcode::kChangeFloat64ToInt32,
-      MachineType(MachineRepresentation::kFloat32, MachineSemantic::kInt32),
-      MachineRepresentation::kWord32);
-  CheckTwoChanges(
-      IrOpcode::kChangeFloat32ToFloat64, IrOpcode::kChangeFloat64ToUint32,
-      MachineType(MachineRepresentation::kFloat32, MachineSemantic::kUint32),
-      MachineRepresentation::kWord32);
+  CheckTwoChanges(IrOpcode::kChangeFloat32ToFloat64,
+                  IrOpcode::kChangeFloat64ToInt32,
+                  MachineRepresentation::kFloat32, Type::Signed32(),
+                  MachineRepresentation::kWord32);
+  CheckTwoChanges(IrOpcode::kChangeFloat32ToFloat64,
+                  IrOpcode::kChangeFloat64ToUint32,
+                  MachineRepresentation::kFloat32, Type::Unsigned32(),
+                  MachineRepresentation::kWord32);
 
   // Float32 <-> Tagged require two changes.
   CheckTwoChanges(IrOpcode::kChangeFloat32ToFloat64,
-                  IrOpcode::kChangeFloat64ToTagged, MachineType::RepFloat32(),
+                  IrOpcode::kChangeFloat64ToTagged,
+                  MachineRepresentation::kFloat32, Type::None(),
                   MachineRepresentation::kTagged);
   CheckTwoChanges(IrOpcode::kChangeTaggedToFloat64,
-                  IrOpcode::kTruncateFloat64ToFloat32, MachineType::RepTagged(),
+                  IrOpcode::kTruncateFloat64ToFloat32,
+                  MachineRepresentation::kTagged, Type::None(),
                   MachineRepresentation::kFloat32);
 }
 
@@ -491,28 +505,25 @@ TEST(SingleChanges) {
 TEST(SignednessInWord32) {
   RepresentationChangerTester r;
 
-  CheckChange(
-      IrOpcode::kChangeTaggedToInt32,
-      MachineType(MachineRepresentation::kTagged, MachineSemantic::kInt32),
-      MachineRepresentation::kWord32);
-  CheckChange(
-      IrOpcode::kChangeTaggedToUint32,
-      MachineType(MachineRepresentation::kTagged, MachineSemantic::kUint32),
-      MachineRepresentation::kWord32);
-  CheckChange(IrOpcode::kChangeInt32ToFloat64, MachineType::RepWord32(),
-              MachineRepresentation::kFloat64);
-  CheckChange(
-      IrOpcode::kChangeFloat64ToInt32,
-      MachineType(MachineRepresentation::kFloat64, MachineSemantic::kInt32),
-      MachineRepresentation::kWord32);
-  CheckChange(IrOpcode::kTruncateFloat64ToInt32, MachineType::RepFloat64(),
+  CheckChange(IrOpcode::kChangeTaggedToInt32, MachineRepresentation::kTagged,
+              Type::Signed32(), MachineRepresentation::kWord32);
+  CheckChange(IrOpcode::kChangeTaggedToUint32, MachineRepresentation::kTagged,
+              Type::Unsigned32(), MachineRepresentation::kWord32);
+  CheckChange(IrOpcode::kChangeInt32ToFloat64, MachineRepresentation::kWord32,
+              Type::None(), MachineRepresentation::kFloat64);
+  CheckChange(IrOpcode::kChangeFloat64ToInt32, MachineRepresentation::kFloat64,
+              Type::Signed32(), MachineRepresentation::kWord32);
+  CheckChange(IrOpcode::kTruncateFloat64ToInt32,
+              MachineRepresentation::kFloat64, Type::Number(),
               MachineRepresentation::kWord32);
 
   CheckTwoChanges(IrOpcode::kChangeInt32ToFloat64,
-                  IrOpcode::kTruncateFloat64ToFloat32, MachineType::RepWord32(),
+                  IrOpcode::kTruncateFloat64ToFloat32,
+                  MachineRepresentation::kWord32, Type::None(),
                   MachineRepresentation::kFloat32);
   CheckTwoChanges(IrOpcode::kChangeFloat32ToFloat64,
-                  IrOpcode::kTruncateFloat64ToInt32, MachineType::RepFloat32(),
+                  IrOpcode::kTruncateFloat64ToInt32,
+                  MachineRepresentation::kFloat32, Type::Number(),
                   MachineRepresentation::kWord32);
 }
 
@@ -522,31 +533,47 @@ TEST(Nops) {
 
   // X -> X is always a nop for any single representation X.
   for (size_t i = 0; i < arraysize(kMachineTypes); i++) {
-    r.CheckNop(kMachineTypes[i], kMachineTypes[i].representation());
+    r.CheckNop(kMachineTypes[i].representation(), Type::None(),
+               kMachineTypes[i].representation());
   }
 
   // 32-bit floats.
-  r.CheckNop(MachineType::RepFloat32(), MachineRepresentation::kFloat32);
-  r.CheckNop(MachineType::Float32(), MachineRepresentation::kFloat32);
+  r.CheckNop(MachineRepresentation::kFloat32, Type::None(),
+             MachineRepresentation::kFloat32);
+  r.CheckNop(MachineRepresentation::kFloat32, Type::Number(),
+             MachineRepresentation::kFloat32);
 
   // 32-bit words can be used as smaller word sizes and vice versa, because
   // loads from memory implicitly sign or zero extend the value to the
   // full machine word size, and stores implicitly truncate.
-  r.CheckNop(MachineType::Int32(), MachineRepresentation::kWord8);
-  r.CheckNop(MachineType::Int32(), MachineRepresentation::kWord16);
-  r.CheckNop(MachineType::Int32(), MachineRepresentation::kWord32);
-  r.CheckNop(MachineType::Int8(), MachineRepresentation::kWord32);
-  r.CheckNop(MachineType::Int16(), MachineRepresentation::kWord32);
+  r.CheckNop(MachineRepresentation::kWord32, Type::Signed32(),
+             MachineRepresentation::kWord8);
+  r.CheckNop(MachineRepresentation::kWord32, Type::Signed32(),
+             MachineRepresentation::kWord16);
+  r.CheckNop(MachineRepresentation::kWord32, Type::Signed32(),
+             MachineRepresentation::kWord32);
+  r.CheckNop(MachineRepresentation::kWord8, Type::Signed32(),
+             MachineRepresentation::kWord32);
+  r.CheckNop(MachineRepresentation::kWord16, Type::Signed32(),
+             MachineRepresentation::kWord32);
 
   // kRepBit (result of comparison) is implicitly a wordish thing.
-  r.CheckNop(MachineType::RepBit(), MachineRepresentation::kWord8);
-  r.CheckNop(MachineType::RepBit(), MachineRepresentation::kWord16);
-  r.CheckNop(MachineType::RepBit(), MachineRepresentation::kWord32);
-  r.CheckNop(MachineType::RepBit(), MachineRepresentation::kWord64);
-  r.CheckNop(MachineType::Bool(), MachineRepresentation::kWord8);
-  r.CheckNop(MachineType::Bool(), MachineRepresentation::kWord16);
-  r.CheckNop(MachineType::Bool(), MachineRepresentation::kWord32);
-  r.CheckNop(MachineType::Bool(), MachineRepresentation::kWord64);
+  r.CheckNop(MachineRepresentation::kBit, Type::None(),
+             MachineRepresentation::kWord8);
+  r.CheckNop(MachineRepresentation::kBit, Type::None(),
+             MachineRepresentation::kWord16);
+  r.CheckNop(MachineRepresentation::kBit, Type::None(),
+             MachineRepresentation::kWord32);
+  r.CheckNop(MachineRepresentation::kBit, Type::None(),
+             MachineRepresentation::kWord64);
+  r.CheckNop(MachineRepresentation::kBit, Type::Boolean(),
+             MachineRepresentation::kWord8);
+  r.CheckNop(MachineRepresentation::kBit, Type::Boolean(),
+             MachineRepresentation::kWord16);
+  r.CheckNop(MachineRepresentation::kBit, Type::Boolean(),
+             MachineRepresentation::kWord32);
+  r.CheckNop(MachineRepresentation::kBit, Type::Boolean(),
+             MachineRepresentation::kWord64);
 }
 
 
@@ -554,31 +581,48 @@ TEST(TypeErrors) {
   RepresentationChangerTester r;
 
   // Wordish cannot be implicitly converted to/from comparison conditions.
-  r.CheckTypeError(MachineType::RepWord8(), MachineRepresentation::kBit);
-  r.CheckTypeError(MachineType::RepWord16(), MachineRepresentation::kBit);
-  r.CheckTypeError(MachineType::RepWord32(), MachineRepresentation::kBit);
-  r.CheckTypeError(MachineType::RepWord64(), MachineRepresentation::kBit);
+  r.CheckTypeError(MachineRepresentation::kWord8, Type::None(),
+                   MachineRepresentation::kBit);
+  r.CheckTypeError(MachineRepresentation::kWord16, Type::None(),
+                   MachineRepresentation::kBit);
+  r.CheckTypeError(MachineRepresentation::kWord32, Type::None(),
+                   MachineRepresentation::kBit);
+  r.CheckTypeError(MachineRepresentation::kWord64, Type::None(),
+                   MachineRepresentation::kBit);
 
   // Floats cannot be implicitly converted to/from comparison conditions.
-  r.CheckTypeError(MachineType::RepFloat64(), MachineRepresentation::kBit);
-  r.CheckTypeError(MachineType::RepBit(), MachineRepresentation::kFloat64);
-  r.CheckTypeError(MachineType::Bool(), MachineRepresentation::kFloat64);
+  r.CheckTypeError(MachineRepresentation::kFloat64, Type::None(),
+                   MachineRepresentation::kBit);
+  r.CheckTypeError(MachineRepresentation::kBit, Type::None(),
+                   MachineRepresentation::kFloat64);
+  r.CheckTypeError(MachineRepresentation::kBit, Type::Boolean(),
+                   MachineRepresentation::kFloat64);
 
   // Floats cannot be implicitly converted to/from comparison conditions.
-  r.CheckTypeError(MachineType::RepFloat32(), MachineRepresentation::kBit);
-  r.CheckTypeError(MachineType::RepBit(), MachineRepresentation::kFloat32);
-  r.CheckTypeError(MachineType::Bool(), MachineRepresentation::kFloat32);
+  r.CheckTypeError(MachineRepresentation::kFloat32, Type::None(),
+                   MachineRepresentation::kBit);
+  r.CheckTypeError(MachineRepresentation::kBit, Type::None(),
+                   MachineRepresentation::kFloat32);
+  r.CheckTypeError(MachineRepresentation::kBit, Type::Boolean(),
+                   MachineRepresentation::kFloat32);
 
   // Word64 is internal and shouldn't be implicitly converted.
-  r.CheckTypeError(MachineType::RepWord64(), MachineRepresentation::kTagged);
-  r.CheckTypeError(MachineType::RepTagged(), MachineRepresentation::kWord64);
-  r.CheckTypeError(MachineType::TaggedBool(), MachineRepresentation::kWord64);
+  r.CheckTypeError(MachineRepresentation::kWord64, Type::None(),
+                   MachineRepresentation::kTagged);
+  r.CheckTypeError(MachineRepresentation::kTagged, Type::None(),
+                   MachineRepresentation::kWord64);
+  r.CheckTypeError(MachineRepresentation::kTagged, Type::Boolean(),
+                   MachineRepresentation::kWord64);
 
   // Word64 / Word32 shouldn't be implicitly converted.
-  r.CheckTypeError(MachineType::RepWord64(), MachineRepresentation::kWord32);
-  r.CheckTypeError(MachineType::RepWord32(), MachineRepresentation::kWord64);
-  r.CheckTypeError(MachineType::Int32(), MachineRepresentation::kWord64);
-  r.CheckTypeError(MachineType::Uint32(), MachineRepresentation::kWord64);
+  r.CheckTypeError(MachineRepresentation::kWord64, Type::None(),
+                   MachineRepresentation::kWord32);
+  r.CheckTypeError(MachineRepresentation::kWord32, Type::None(),
+                   MachineRepresentation::kWord64);
+  r.CheckTypeError(MachineRepresentation::kWord32, Type::Signed32(),
+                   MachineRepresentation::kWord64);
+  r.CheckTypeError(MachineRepresentation::kWord32, Type::Unsigned32(),
+                   MachineRepresentation::kWord64);
 }
 
 }  // namespace compiler
