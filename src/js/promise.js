@@ -23,10 +23,12 @@ var promiseOnResolveSymbol =
 var promiseRawSymbol = utils.ImportNow("promise_raw_symbol");
 var promiseStatusSymbol = utils.ImportNow("promise_status_symbol");
 var promiseValueSymbol = utils.ImportNow("promise_value_symbol");
+var SpeciesConstructor;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
   MakeTypeError = from.MakeTypeError;
+  SpeciesConstructor = from.SpeciesConstructor;
 });
 
 // -------------------------------------------------------------------
@@ -276,7 +278,7 @@ function PromiseThen(onResolve, onReject) {
     throw MakeTypeError(kNotAPromise, this);
   }
 
-  var constructor = this.constructor;
+  var constructor = SpeciesConstructor(this, GlobalPromise);
   onResolve = IS_CALLABLE(onResolve) ? onResolve : PromiseIdResolveHandler;
   onReject = IS_CALLABLE(onReject) ? onReject : PromiseIdRejectHandler;
   var deferred = NewPromiseCapability(constructor);
