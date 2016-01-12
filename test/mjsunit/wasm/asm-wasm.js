@@ -669,3 +669,76 @@ function TestConditional() {
 }
 
 assertEquals(41, WASM.asmCompileRun(TestConditional.toString()));
+
+function TestSwitch() {
+  "use asm"
+
+  function caller() {
+    var ret = 0;
+    var x = 7;
+    switch (x) {
+      case 1: return 0;
+      case 7: {
+        ret = 12;
+        break;
+      }
+      default: return 0;
+    }
+    switch (x) {
+      case 1: return 0;
+      case 8: return 0;
+      default: ret = (ret + 11)|0;
+    }
+    return ret|0;
+  }
+
+  return {caller:caller};
+}
+
+assertEquals(23, WASM.asmCompileRun(TestSwitch.toString()));
+
+function TestSwitchFallthrough() {
+  "use asm"
+
+  function caller() {
+    var x = 17;
+    var ret = 0;
+    switch (x) {
+      case 17:
+      case 14: ret = 39;
+      case 1: ret = (ret + 3)|0;
+      case 4: break;
+      default: ret = (ret + 1)|0;
+    }
+    return ret|0;
+  }
+
+  return {caller:caller};
+}
+
+assertEquals(42, WASM.asmCompileRun(TestSwitchFallthrough.toString()));
+
+function TestNestedSwitch() {
+  "use asm"
+
+  function caller() {
+    var x = 3;
+    var y = -13;
+    switch (x) {
+      case 1: return 0;
+      case 3: {
+        switch (y) {
+          case 2: return 0;
+          case -13: return 43;
+          default: return 0;
+        }
+      }
+      default: return 0;
+    }
+    return 0;
+  }
+
+  return {caller:caller};
+}
+
+assertEquals(43, WASM.asmCompileRun(TestNestedSwitch.toString()));

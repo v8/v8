@@ -149,6 +149,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
 
   void VisitContinueStatement(ContinueStatement* stmt) {
     DCHECK(in_function_);
+    DCHECK(stmt->target() != NULL);
     int i = static_cast<int>(breakable_blocks_.size()) - 1;
     int block_distance = 0;
     for (; i >= 0; i--) {
@@ -169,6 +170,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
 
   void VisitBreakStatement(BreakStatement* stmt) {
     DCHECK(in_function_);
+    DCHECK(stmt->target() != NULL);
     int i = static_cast<int>(breakable_blocks_.size()) - 1;
     int block_distance = 0;
     for (; i >= 0; i--) {
@@ -203,19 +205,52 @@ class AsmWasmBuilderImpl : public AstVisitor {
 
   void VisitWithStatement(WithStatement* stmt) { UNREACHABLE(); }
 
+  void SetLocalTo(uint16_t index, int value) {
+    current_function_builder_->Emit(kExprSetLocal);
+    AddLeb128(index, true);
+    byte code[] = {WASM_I32(value)};
+    current_function_builder_->EmitCode(code, sizeof(code));
+    block_size_++;
+  }
+
+  void CompileCase(CaseClause* clause, uint16_t fall_through,
+                   VariableProxy* tag) {
+    Literal* label = clause->label()->AsLiteral();
+    DCHECK(label != nullptr);
+    block_size_++;
+    current_function_builder_->Emit(kExprIf);
+    current_function_builder_->Emit(kExprI32Ior);
+    current_function_builder_->Emit(kExprI32Eq);
+    VisitVariableProxy(tag);
+    VisitLiteral(label);
+    current_function_builder_->Emit(kExprGetLocal);
+    AddLeb128(fall_through, true);
+    BlockVisitor visitor(this, nullptr, kExprBlock, false);
+    block_size_ = 0;
+    SetLocalTo(fall_through, 1);
+    ZoneList<Statement*>* stmts = clause->statements();
+    block_size_ += stmts->length();
+    RECURSE(VisitStatements(stmts));
+  }
+
   void VisitSwitchStatement(SwitchStatement* stmt) {
-    RECURSE(Visit(stmt->tag()));
+    VariableProxy* tag = stmt->tag()->AsVariableProxy();
+    DCHECK(tag != NULL);
+    BlockVisitor visitor(this, stmt->AsBreakableStatement(), kExprBlock, false);
+    block_size_ = 0;
+    uint16_t fall_through = current_function_builder_->AddLocal(kAstI32);
+    SetLocalTo(fall_through, 0);
 
     ZoneList<CaseClause*>* clauses = stmt->cases();
-
     for (int i = 0; i < clauses->length(); ++i) {
       CaseClause* clause = clauses->at(i);
       if (!clause->is_default()) {
-        Expression* label = clause->label();
-        RECURSE(Visit(label));
+        CompileCase(clause, fall_through, tag);
+      } else {
+        ZoneList<Statement*>* stmts = clause->statements();
+        block_size_ += stmts->length();
+        RECURSE(VisitStatements(stmts));
       }
-      ZoneList<Statement*>* stmts = clause->statements();
-      RECURSE(VisitStatements(stmts));
     }
   }
 
