@@ -1773,12 +1773,12 @@ void AllocationSite::set_memento_create_count(int count) {
 }
 
 
-inline bool AllocationSite::IncrementMementoFoundCount() {
+bool AllocationSite::IncrementMementoFoundCount(int increment) {
   if (IsZombie()) return false;
 
   int value = memento_found_count();
-  set_memento_found_count(value + 1);
-  return memento_found_count() == kPretenureMinimumCreated;
+  set_memento_found_count(value + increment);
+  return memento_found_count() >= kPretenureMinimumCreated;
 }
 
 
@@ -1832,11 +1832,12 @@ inline bool AllocationSite::DigestPretenuringFeedback(
   }
 
   if (FLAG_trace_pretenuring_statistics) {
-    PrintF(
-        "AllocationSite(%p): (created, found, ratio) (%d, %d, %f) %s => %s\n",
-         static_cast<void*>(this), create_count, found_count, ratio,
-         PretenureDecisionName(current_decision),
-         PretenureDecisionName(pretenure_decision()));
+    PrintIsolate(GetIsolate(),
+                 "pretenuring: AllocationSite(%p): (created, found, ratio) "
+                 "(%d, %d, %f) %s => %s\n",
+                 this, create_count, found_count, ratio,
+                 PretenureDecisionName(current_decision),
+                 PretenureDecisionName(pretenure_decision()));
   }
 
   // Clear feedback calculation fields until the next gc.

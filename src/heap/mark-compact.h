@@ -511,6 +511,8 @@ class MarkCompactCollector {
   class HeapObjectVisitor;
   class SweeperTask;
 
+  static const int kInitialLocalPretenuringFeedbackCapacity = 256;
+
   explicit MarkCompactCollector(Heap* heap);
 
   bool WillBeDeoptimized(Code* code);
@@ -696,7 +698,10 @@ class MarkCompactCollector {
   // regions to each space's free list.
   void SweepSpaces();
 
-  void EvacuateNewSpace();
+  void EvacuateNewSpacePrologue();
+
+  // Returns local pretenuring feedback.
+  HashMap* EvacuateNewSpaceInParallel();
 
   void AddEvacuationSlotsBufferSynchronized(
       SlotsBuffer* evacuation_slots_buffer);
@@ -771,6 +776,8 @@ class MarkCompactCollector {
   bool have_code_to_deoptimize_;
 
   List<Page*> evacuation_candidates_;
+
+  List<MemoryChunk*> newspace_evacuation_candidates_;
 
   // The evacuation_slots_buffers_ are used by the compaction threads.
   // When a compaction task finishes, it uses

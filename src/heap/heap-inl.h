@@ -507,21 +507,39 @@ AllocationMemento* Heap::FindAllocationMemento(HeapObject* object) {
 }
 
 
-void Heap::UpdateAllocationSiteFeedback(HeapObject* object,
-                                        ScratchpadSlotMode mode) {
-  Heap* heap = object->GetHeap();
-  DCHECK(heap->InFromSpace(object));
-
+void Heap::UpdateAllocationSite(HeapObject* object,
+                                HashMap* pretenuring_feedback) {
+  DCHECK(InFromSpace(object));
   if (!FLAG_allocation_site_pretenuring ||
       !AllocationSite::CanTrack(object->map()->instance_type()))
     return;
+  AllocationMemento* memento = FindAllocationMemento(object);
+  if (memento == nullptr) return;
 
-  AllocationMemento* memento = heap->FindAllocationMemento(object);
-  if (memento == NULL) return;
+  AllocationSite* key = memento->GetAllocationSite();
+  DCHECK(!key->IsZombie());
 
-  if (memento->GetAllocationSite()->IncrementMementoFoundCount()) {
-    heap->AddAllocationSiteToScratchpad(memento->GetAllocationSite(), mode);
+  if (pretenuring_feedback == global_pretenuring_feedback_) {
+    // For inserting in the global pretenuring storage we need to first
+    // increment the memento found count on the allocation site.
+    if (key->IncrementMementoFoundCount()) {
+      global_pretenuring_feedback_->LookupOrInsert(
+          key, static_cast<uint32_t>(bit_cast<uintptr_t>(key)));
+    }
+  } else {
+    // Any other pretenuring storage than the global one is used as a cache,
+    // where the count is later on merge in the allocation site.
+    HashMap::Entry* e = pretenuring_feedback->LookupOrInsert(
+        key, static_cast<uint32_t>(bit_cast<uintptr_t>(key)));
+    DCHECK(e != nullptr);
+    (*bit_cast<intptr_t*>(&e->value))++;
   }
+}
+
+
+void Heap::RemoveAllocationSitePretenuringFeedback(AllocationSite* site) {
+  global_pretenuring_feedback_->Remove(
+      site, static_cast<uint32_t>(bit_cast<uintptr_t>(site)));
 }
 
 

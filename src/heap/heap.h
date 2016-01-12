@@ -176,7 +176,6 @@ namespace internal {
   V(SeededNumberDictionary, empty_slow_element_dictionary,                     \
     EmptySlowElementDictionary)                                                \
   V(FixedArray, materialized_objects, MaterializedObjects)                     \
-  V(FixedArray, allocation_sites_scratchpad, AllocationSitesScratchpad)        \
   V(FixedArray, microtask_queue, MicrotaskQueue)                               \
   V(TypeFeedbackVector, dummy_vector, DummyVector)                             \
   V(FixedArray, cleared_optimized_code_map, ClearedOptimizedCodeMap)           \
@@ -636,7 +635,7 @@ class Heap {
   // - or mutator code (CONCURRENT_TO_SWEEPER).
   enum InvocationMode { SEQUENTIAL_TO_SWEEPER, CONCURRENT_TO_SWEEPER };
 
-  enum ScratchpadSlotMode { IGNORE_SCRATCHPAD_SLOT, RECORD_SCRATCHPAD_SLOT };
+  enum PretenuringFeedbackInsertionMode { kCached, kGlobal };
 
   enum HeapState { NOT_IN_GC, SCAVENGE, MARK_COMPACT };
 
@@ -761,12 +760,6 @@ class Heap {
 
   // Checks whether the space is valid.
   static bool IsValidAllocationSpace(AllocationSpace space);
-
-  // An object may have an AllocationSite associated with it through a trailing
-  // AllocationMemento. Its feedback should be updated when objects are found
-  // in the heap.
-  static inline void UpdateAllocationSiteFeedback(HeapObject* object,
-                                                  ScratchpadSlotMode mode);
 
   // Generated code can embed direct references to non-writable roots if
   // they are in new space.
@@ -1544,6 +1537,27 @@ class Heap {
     return array_buffer_tracker_;
   }
 
+  // ===========================================================================
+  // Allocation site tracking. =================================================
+  // ===========================================================================
+
+  // Updates the AllocationSite of a given {object}. If the global prenuring
+  // storage is passed as {pretenuring_feedback} the memento found count on
+  // the corresponding allocation site is immediately updated and an entry
+  // in the hash map is created. Otherwise the entry (including a the count
+  // value) is cached on the local pretenuring feedback.
+  inline void UpdateAllocationSite(HeapObject* object,
+                                   HashMap* pretenuring_feedback);
+
+  // Removes an entry from the global pretenuring storage.
+  inline void RemoveAllocationSitePretenuringFeedback(AllocationSite* site);
+
+  // Merges local pretenuring feedback into the global one. Note that this
+  // method needs to be called after evacuation, as allocation sites may be
+  // evacuated and this method resolves forward pointers accordingly.
+  void MergeAllocationSitePretenuringFeedback(
+      const HashMap& local_pretenuring_feedback);
+
 // =============================================================================
 
 #ifdef VERIFY_HEAP
@@ -1567,6 +1581,7 @@ class Heap {
 #endif
 
  private:
+  class PretenuringScope;
   class UnmapFreeMemoryTask;
 
   // External strings table is a place where all external strings are
@@ -1661,7 +1676,7 @@ class Heap {
   static const int kMaxMarkCompactsInIdleRound = 7;
   static const int kIdleScavengeThreshold = 5;
 
-  static const int kAllocationSiteScratchpadSize = 256;
+  static const int kInitialFeedbackCapacity = 256;
 
   Heap();
 
@@ -1702,12 +1717,6 @@ class Heap {
   }
 
   void PreprocessStackTraces();
-
-  // Pretenuring decisions are made based on feedback collected during new
-  // space evacuation. Note that between feedback collection and calling this
-  // method object in old space must not move.
-  // Right now we only process pretenuring feedback in high promotion mode.
-  bool ProcessPretenuringFeedback();
 
   // Checks whether a global GC is necessary
   GarbageCollector SelectGarbageCollector(AllocationSpace space,
@@ -1788,16 +1797,6 @@ class Heap {
   // Flush the number to string cache.
   void FlushNumberStringCache();
 
-  // Sets used allocation sites entries to undefined.
-  void FlushAllocationSitesScratchpad();
-
-  // Initializes the allocation sites scratchpad with undefined values.
-  void InitializeAllocationSitesScratchpad();
-
-  // Adds an allocation site to the scratchpad if there is space left.
-  void AddAllocationSiteToScratchpad(AllocationSite* site,
-                                     ScratchpadSlotMode mode);
-
   // TODO(hpayer): Allocation site pretenuring may make this method obsolete.
   // Re-visit incremental marking heuristics.
   bool IsHighSurvivalRate() { return high_survival_rate_period_length_ > 0; }
@@ -1847,6 +1846,15 @@ class Heap {
   // - GCFinalizeMCReduceMemory: finalization of incremental full GC with
   // memory reduction
   HistogramTimer* GCTypeTimer(GarbageCollector collector);
+
+  // ===========================================================================
+  // Pretenuring. ==============================================================
+  // ===========================================================================
+
+  // Pretenuring decisions are made based on feedback collected during new space
+  // evacuation. Note that between feedback collection and calling this method
+  // object in old space must not move.
+  void ProcessPretenuringFeedback();
 
   // ===========================================================================
   // Actual GC. ================================================================
@@ -2143,6 +2151,8 @@ class Heap {
 
   MUST_USE_RESULT AllocationResult InternalizeString(String* str);
 
+  // ===========================================================================
+
   void set_force_oom(bool value) { force_oom_ = value; }
 
   // The amount of external memory registered through the API kept alive
@@ -2352,7 +2362,12 @@ class Heap {
   // deoptimization triggered by garbage collection.
   int gcs_since_last_deopt_;
 
-  int allocation_sites_scratchpad_length_;
+  // The feedback storage is used to store allocation sites (keys) and how often
+  // they have been visited (values) by finding a memento behind an object. The
+  // storage is only alive temporary during a GC. The invariant is that all
+  // pointers in this map are already fixed, i.e., they do not point to
+  // forwarding pointers.
+  HashMap* global_pretenuring_feedback_;
 
   char trace_ring_buffer_[kTraceRingBufferSize];
   // If it's not full then the data is from 0 to ring_buffer_end_.  If it's

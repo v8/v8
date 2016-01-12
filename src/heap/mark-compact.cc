@@ -1581,15 +1581,17 @@ class MarkCompactCollector::EvacuateNewSpaceVisitor final
   static const intptr_t kMaxLabObjectSize = 256;
 
   explicit EvacuateNewSpaceVisitor(Heap* heap,
-                                   SlotsBuffer** evacuation_slots_buffer)
+                                   SlotsBuffer** evacuation_slots_buffer,
+                                   HashMap* local_pretenuring_feedback)
       : EvacuateVisitorBase(heap, evacuation_slots_buffer),
         buffer_(LocalAllocationBuffer::InvalidBuffer()),
         space_to_allocate_(NEW_SPACE),
         promoted_size_(0),
-        semispace_copied_size_(0) {}
+        semispace_copied_size_(0),
+        local_pretenuring_feedback_(local_pretenuring_feedback) {}
 
   bool Visit(HeapObject* object) override {
-    Heap::UpdateAllocationSiteFeedback(object, Heap::RECORD_SCRATCHPAD_SLOT);
+    heap_->UpdateAllocationSite(object, local_pretenuring_feedback_);
     int size = object->Size();
     HeapObject* target_object = nullptr;
     if (heap_->ShouldBePromoted(object->address(), size) &&
@@ -1716,6 +1718,7 @@ class MarkCompactCollector::EvacuateNewSpaceVisitor final
   AllocationSpace space_to_allocate_;
   intptr_t promoted_size_;
   intptr_t semispace_copied_size_;
+  HashMap* local_pretenuring_feedback_;
 };
 
 
@@ -3056,7 +3059,7 @@ void MarkCompactCollector::VerifyIsSlotInLiveObject(Address slot,
 }
 
 
-void MarkCompactCollector::EvacuateNewSpace() {
+void MarkCompactCollector::EvacuateNewSpacePrologue() {
   // There are soft limits in the allocation code, designed trigger a mark
   // sweep collection by failing allocations.  But since we are already in
   // a mark-sweep allocation, there is no sense in trying to trigger one.
@@ -3073,14 +3076,26 @@ void MarkCompactCollector::EvacuateNewSpace() {
   new_space->Flip();
   new_space->ResetAllocationInfo();
 
+  newspace_evacuation_candidates_.Clear();
+  NewSpacePageIterator it(from_bottom, from_top);
+  while (it.has_next()) {
+    newspace_evacuation_candidates_.Add(it.next());
+  }
+}
+
+
+HashMap* MarkCompactCollector::EvacuateNewSpaceInParallel() {
+  HashMap* local_pretenuring_feedback = new HashMap(
+      HashMap::PointersMatch, kInitialLocalPretenuringFeedbackCapacity);
+  EvacuateNewSpaceVisitor new_space_visitor(heap(), &migration_slots_buffer_,
+                                            local_pretenuring_feedback);
   // First pass: traverse all objects in inactive semispace, remove marks,
   // migrate live objects and write forwarding addresses.  This stage puts
   // new entries in the store buffer and may cause some pages to be marked
   // scan-on-scavenge.
-  NewSpacePageIterator it(from_bottom, from_top);
-  EvacuateNewSpaceVisitor new_space_visitor(heap(), &migration_slots_buffer_);
-  while (it.has_next()) {
-    NewSpacePage* p = it.next();
+  for (int i = 0; i < newspace_evacuation_candidates_.length(); i++) {
+    NewSpacePage* p =
+        reinterpret_cast<NewSpacePage*>(newspace_evacuation_candidates_[i]);
     bool ok = VisitLiveObjects(p, &new_space_visitor, kClearMarkbits);
     USE(ok);
     DCHECK(ok);
@@ -3092,7 +3107,7 @@ void MarkCompactCollector::EvacuateNewSpace() {
   heap_->IncrementYoungSurvivorsCounter(
       static_cast<int>(new_space_visitor.promoted_size()) +
       static_cast<int>(new_space_visitor.semispace_copied_size()));
-  new_space->set_age_mark(new_space->top());
+  return local_pretenuring_feedback;
 }
 
 
@@ -3557,11 +3572,14 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
   GCTracer::Scope gc_scope(heap()->tracer(), GCTracer::Scope::MC_EVACUATE);
   Heap::RelocationLock relocation_lock(heap());
 
+  HashMap* local_pretenuring_feedback = nullptr;
   {
     GCTracer::Scope gc_scope(heap()->tracer(),
                              GCTracer::Scope::MC_EVACUATE_NEW_SPACE);
     EvacuationScope evacuation_scope(this);
-    EvacuateNewSpace();
+    EvacuateNewSpacePrologue();
+    local_pretenuring_feedback = EvacuateNewSpaceInParallel();
+    heap_->new_space()->set_age_mark(heap_->new_space()->top());
   }
 
   {
@@ -3569,6 +3587,11 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
                              GCTracer::Scope::MC_EVACUATE_CANDIDATES);
     EvacuationScope evacuation_scope(this);
     EvacuatePagesInParallel();
+  }
+
+  {
+    heap_->MergeAllocationSitePretenuringFeedback(*local_pretenuring_feedback);
+    delete local_pretenuring_feedback;
   }
 
   UpdatePointersAfterEvacuation();

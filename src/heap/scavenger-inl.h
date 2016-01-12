@@ -28,7 +28,8 @@ void Scavenger::ScavengeObject(HeapObject** p, HeapObject* object) {
     return;
   }
 
-  Heap::UpdateAllocationSiteFeedback(object, Heap::IGNORE_SCRATCHPAD_SLOT);
+  object->GetHeap()->UpdateAllocationSite(
+      object, object->GetHeap()->global_pretenuring_feedback_);
 
   // AllocationMementos are unrooted and shouldn't survive a scavenge
   DCHECK(object->map() != object->GetHeap()->allocation_memento_map());

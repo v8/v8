@@ -150,7 +150,7 @@ Heap::Heap()
       old_generation_allocation_counter_(0),
       old_generation_size_at_last_gc_(0),
       gcs_since_last_deopt_(0),
-      allocation_sites_scratchpad_length_(0),
+      global_pretenuring_feedback_(nullptr),
       ring_buffer_full_(false),
       ring_buffer_end_(0),
       promotion_queue_(this),
@@ -508,7 +508,51 @@ void Heap::RepairFreeListsAfterDeserialization() {
 }
 
 
-bool Heap::ProcessPretenuringFeedback() {
+void Heap::MergeAllocationSitePretenuringFeedback(
+    const HashMap& local_pretenuring_feedback) {
+  AllocationSite* site = nullptr;
+  for (HashMap::Entry* local_entry = local_pretenuring_feedback.Start();
+       local_entry != nullptr;
+       local_entry = local_pretenuring_feedback.Next(local_entry)) {
+    site = reinterpret_cast<AllocationSite*>(local_entry->key);
+    MapWord map_word = site->map_word();
+    if (map_word.IsForwardingAddress()) {
+      site = AllocationSite::cast(map_word.ToForwardingAddress());
+    }
+    DCHECK(site->IsAllocationSite());
+    int value =
+        static_cast<int>(reinterpret_cast<intptr_t>(local_entry->value));
+    DCHECK_GT(value, 0);
+
+    {
+      // TODO(mlippautz): For parallel processing we need synchronization here.
+      if (site->IncrementMementoFoundCount(value)) {
+        global_pretenuring_feedback_->LookupOrInsert(
+            site, static_cast<uint32_t>(bit_cast<uintptr_t>(site)));
+      }
+    }
+  }
+}
+
+
+class Heap::PretenuringScope {
+ public:
+  explicit PretenuringScope(Heap* heap) : heap_(heap) {
+    heap_->global_pretenuring_feedback_ =
+        new HashMap(HashMap::PointersMatch, kInitialFeedbackCapacity);
+  }
+
+  ~PretenuringScope() {
+    delete heap_->global_pretenuring_feedback_;
+    heap_->global_pretenuring_feedback_ = nullptr;
+  }
+
+ private:
+  Heap* heap_;
+};
+
+
+void Heap::ProcessPretenuringFeedback() {
   bool trigger_deoptimization = false;
   if (FLAG_allocation_site_pretenuring) {
     int tenure_decisions = 0;
@@ -517,48 +561,43 @@ bool Heap::ProcessPretenuringFeedback() {
     int allocation_sites = 0;
     int active_allocation_sites = 0;
 
-    // If the scratchpad overflowed, we have to iterate over the allocation
-    // sites list.
-    // TODO(hpayer): We iterate over the whole list of allocation sites when
-    // we grew to the maximum semi-space size to deopt maybe tenured
-    // allocation sites. We could hold the maybe tenured allocation sites
-    // in a seperate data structure if this is a performance problem.
-    bool deopt_maybe_tenured = DeoptMaybeTenuredAllocationSites();
-    bool use_scratchpad =
-        allocation_sites_scratchpad_length_ < kAllocationSiteScratchpadSize &&
-        !deopt_maybe_tenured;
+    AllocationSite* site = nullptr;
 
-    int i = 0;
-    Object* list_element = allocation_sites_list();
+    // Step 1: Digest feedback for recorded allocation sites.
     bool maximum_size_scavenge = MaximumSizeScavenge();
-    while (use_scratchpad ? i < allocation_sites_scratchpad_length_
-                          : list_element->IsAllocationSite()) {
-      AllocationSite* site =
-          use_scratchpad
-              ? AllocationSite::cast(allocation_sites_scratchpad()->get(i))
-              : AllocationSite::cast(list_element);
-      allocation_mementos_found += site->memento_found_count();
-      if (site->memento_found_count() > 0) {
-        active_allocation_sites++;
-        if (site->DigestPretenuringFeedback(maximum_size_scavenge)) {
-          trigger_deoptimization = true;
-        }
-        if (site->GetPretenureMode() == TENURED) {
-          tenure_decisions++;
-        } else {
-          dont_tenure_decisions++;
-        }
-        allocation_sites++;
-      }
-
-      if (deopt_maybe_tenured && site->IsMaybeTenure()) {
-        site->set_deopt_dependent_code(true);
+    for (HashMap::Entry* e = global_pretenuring_feedback_->Start();
+         e != nullptr; e = global_pretenuring_feedback_->Next(e)) {
+      site = reinterpret_cast<AllocationSite*>(e->key);
+      int found_count = site->memento_found_count();
+      // The fact that we have an entry in the storage means that we've found
+      // the site at least once.
+      DCHECK_GT(found_count, 0);
+      DCHECK(site->IsAllocationSite());
+      allocation_sites++;
+      active_allocation_sites++;
+      allocation_mementos_found += found_count;
+      if (site->DigestPretenuringFeedback(maximum_size_scavenge)) {
         trigger_deoptimization = true;
       }
-
-      if (use_scratchpad) {
-        i++;
+      if (site->GetPretenureMode() == TENURED) {
+        tenure_decisions++;
       } else {
+        dont_tenure_decisions++;
+      }
+    }
+
+    // Step 2: Deopt maybe tenured allocation sites if necessary.
+    bool deopt_maybe_tenured = DeoptMaybeTenuredAllocationSites();
+    if (deopt_maybe_tenured) {
+      Object* list_element = allocation_sites_list();
+      while (list_element->IsAllocationSite()) {
+        site = AllocationSite::cast(list_element);
+        DCHECK(site->IsAllocationSite());
+        allocation_sites++;
+        if (site->IsMaybeTenure()) {
+          site->set_deopt_dependent_code(true);
+          trigger_deoptimization = true;
+        }
         list_element = site->weak_next();
       }
     }
@@ -567,28 +606,24 @@ bool Heap::ProcessPretenuringFeedback() {
       isolate_->stack_guard()->RequestDeoptMarkedAllocationSites();
     }
 
-    FlushAllocationSitesScratchpad();
-
     if (FLAG_trace_pretenuring_statistics &&
         (allocation_mementos_found > 0 || tenure_decisions > 0 ||
          dont_tenure_decisions > 0)) {
-      PrintF(
-          "GC: (mode, #visited allocation sites, #active allocation sites, "
-          "#mementos, #tenure decisions, #donttenure decisions) "
-          "(%s, %d, %d, %d, %d, %d)\n",
-          use_scratchpad ? "use scratchpad" : "use list", allocation_sites,
-          active_allocation_sites, allocation_mementos_found, tenure_decisions,
-          dont_tenure_decisions);
+      PrintIsolate(isolate(),
+                   "pretenuring: deopt_maybe_tenured=%d visited_sites=%d "
+                   "active_sites=%d "
+                   "mementos=%d tenured=%d not_tenured=%d\n",
+                   deopt_maybe_tenured ? 1 : 0, allocation_sites,
+                   active_allocation_sites, allocation_mementos_found,
+                   tenure_decisions, dont_tenure_decisions);
     }
   }
-  return trigger_deoptimization;
 }
 
 
 void Heap::DeoptMarkedAllocationSites() {
   // TODO(hpayer): If iterating over the allocation sites list becomes a
-  // performance issue, use a cache heap data structure instead (similar to the
-  // allocation sites scratchpad).
+  // performance issue, use a cache data structure in heap instead.
   Object* list_element = allocation_sites_list();
   while (list_element->IsAllocationSite()) {
     AllocationSite* site = AllocationSite::cast(list_element);
@@ -1262,22 +1297,27 @@ bool Heap::PerformGarbageCollection(
     incremental_marking()->NotifyOfHighPromotionRate();
   }
 
-  if (collector == MARK_COMPACTOR) {
-    UpdateOldGenerationAllocationCounter();
-    // Perform mark-sweep with optional compaction.
-    MarkCompact();
-    old_gen_exhausted_ = false;
-    old_generation_size_configured_ = true;
-    // This should be updated before PostGarbageCollectionProcessing, which can
-    // cause another GC. Take into account the objects promoted during GC.
-    old_generation_allocation_counter_ +=
-        static_cast<size_t>(promoted_objects_size_);
-    old_generation_size_at_last_gc_ = PromotedSpaceSizeOfObjects();
-  } else {
-    Scavenge();
+  {
+    Heap::PretenuringScope pretenuring_scope(this);
+
+    if (collector == MARK_COMPACTOR) {
+      UpdateOldGenerationAllocationCounter();
+      // Perform mark-sweep with optional compaction.
+      MarkCompact();
+      old_gen_exhausted_ = false;
+      old_generation_size_configured_ = true;
+      // This should be updated before PostGarbageCollectionProcessing, which
+      // can cause another GC. Take into account the objects promoted during GC.
+      old_generation_allocation_counter_ +=
+          static_cast<size_t>(promoted_objects_size_);
+      old_generation_size_at_last_gc_ = PromotedSpaceSizeOfObjects();
+    } else {
+      Scavenge();
+    }
+
+    ProcessPretenuringFeedback();
   }
 
-  ProcessPretenuringFeedback();
   UpdateSurvivalStatistics(start_new_space_size);
   ConfigureInitialOldGenerationSize();
 
@@ -1830,6 +1870,7 @@ void Heap::ResetAllAllocationSitesDependentCode(PretenureFlag flag) {
       casted->ResetPretenureDecision();
       casted->set_deopt_dependent_code(true);
       marked = true;
+      RemoveAllocationSitePretenuringFeedback(casted);
     }
     cur = casted->weak_next();
   }
@@ -2835,10 +2876,6 @@ void Heap::CreateInitialObjects() {
       *interpreter::Interpreter::CreateUninitializedInterpreterTable(
           isolate()));
 
-  set_allocation_sites_scratchpad(
-      *factory->NewFixedArray(kAllocationSiteScratchpadSize, TENURED));
-  InitializeAllocationSitesScratchpad();
-
   // Initialize keyed lookup cache.
   isolate_->keyed_lookup_cache()->Clear();
 
@@ -2867,7 +2904,6 @@ bool Heap::RootCanBeWrittenAfterInitialization(Heap::RootListIndex root_index) {
     case kSymbolRegistryRootIndex:
     case kScriptListRootIndex:
     case kMaterializedObjectsRootIndex:
-    case kAllocationSitesScratchpadRootIndex:
     case kMicrotaskQueueRootIndex:
     case kDetachedContextsRootIndex:
     case kWeakObjectToCodeTableRootIndex:
@@ -2914,48 +2950,6 @@ void Heap::FlushNumberStringCache() {
     number_string_cache()->set_undefined(i);
   }
 }
-
-
-void Heap::FlushAllocationSitesScratchpad() {
-  for (int i = 0; i < allocation_sites_scratchpad_length_; i++) {
-    allocation_sites_scratchpad()->set_undefined(i);
-  }
-  allocation_sites_scratchpad_length_ = 0;
-}
-
-
-void Heap::InitializeAllocationSitesScratchpad() {
-  DCHECK(allocation_sites_scratchpad()->length() ==
-         kAllocationSiteScratchpadSize);
-  for (int i = 0; i < kAllocationSiteScratchpadSize; i++) {
-    allocation_sites_scratchpad()->set_undefined(i);
-  }
-}
-
-
-void Heap::AddAllocationSiteToScratchpad(AllocationSite* site,
-                                         ScratchpadSlotMode mode) {
-  if (allocation_sites_scratchpad_length_ < kAllocationSiteScratchpadSize) {
-    // We cannot use the normal write-barrier because slots need to be
-    // recorded with non-incremental marking as well. We have to explicitly
-    // record the slot to take evacuation candidates into account.
-    allocation_sites_scratchpad()->set(allocation_sites_scratchpad_length_,
-                                       site, SKIP_WRITE_BARRIER);
-    Object** slot = allocation_sites_scratchpad()->RawFieldOfElementAt(
-        allocation_sites_scratchpad_length_);
-
-    if (mode == RECORD_SCRATCHPAD_SLOT) {
-      // We need to allow slots buffer overflow here since the evacuation
-      // candidates are not part of the global list of old space pages and
-      // releasing an evacuation candidate due to a slots buffer overflow
-      // results in lost pages.
-      mark_compact_collector()->ForceRecordSlot(allocation_sites_scratchpad(),
-                                                slot, *slot);
-    }
-    allocation_sites_scratchpad_length_++;
-  }
-}
-
 
 
 Map* Heap::MapForFixedTypedArray(ExternalArrayType array_type) {

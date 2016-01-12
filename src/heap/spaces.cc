@@ -3056,7 +3056,6 @@ HeapObject* LargeObjectIterator::Next() {
 
 // -----------------------------------------------------------------------------
 // LargeObjectSpace
-static bool ComparePointers(void* key1, void* key2) { return key1 == key2; }
 
 
 LargeObjectSpace::LargeObjectSpace(Heap* heap, AllocationSpace id)
@@ -3065,7 +3064,7 @@ LargeObjectSpace::LargeObjectSpace(Heap* heap, AllocationSpace id)
       size_(0),
       page_count_(0),
       objects_size_(0),
-      chunk_map_(ComparePointers, 1024) {}
+      chunk_map_(HashMap::PointersMatch, 1024) {}
 
 
 LargeObjectSpace::~LargeObjectSpace() {}
