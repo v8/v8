@@ -622,9 +622,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
 
   ConvertOperation MatchOr(BinaryOperation* expr) {
     if (MatchIntBinaryOperation(expr, Token::BIT_OR, 0)) {
-      DCHECK(TypeOf(expr->left()) == kAstI32);
-      DCHECK(TypeOf(expr->right()) == kAstI32);
-      return kAsIs;
+      return (TypeOf(expr->left()) == kAstI32) ? kAsIs : kToInt;
     } else {
       return kNone;
     }
@@ -632,9 +630,8 @@ class AsmWasmBuilderImpl : public AstVisitor {
 
   ConvertOperation MatchShr(BinaryOperation* expr) {
     if (MatchIntBinaryOperation(expr, Token::SHR, 0)) {
-      DCHECK(TypeOf(expr->left()) == kAstI32);
-      DCHECK(TypeOf(expr->right()) == kAstI32);
-      return kAsIs;
+      // TODO(titzer): this probably needs to be kToUint
+      return (TypeOf(expr->left()) == kAstI32) ? kAsIs : kToInt;
     } else {
       return kNone;
     }

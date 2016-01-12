@@ -23,6 +23,8 @@ function IntTest() {
     a = a|0;
     b = b|0;
     var c = (b + 1)|0
+    var d = 3.0;
+    var e = d | 0;  // double conversion
     return (a + c + 1)|0;
   }
 
