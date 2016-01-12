@@ -735,6 +735,8 @@ class Parser : public ParserBase<ParserTraits> {
                                    bool* ok);
   Statement* ParseNativeDeclaration(bool* ok);
   Block* ParseBlock(ZoneList<const AstRawString*>* labels, bool* ok);
+  Block* ParseBlock(ZoneList<const AstRawString*>* labels,
+                    bool finalize_block_scope, bool* ok);
   Block* ParseVariableStatement(VariableDeclarationContext var_context,
                                 ZoneList<const AstRawString*>* names,
                                 bool* ok);

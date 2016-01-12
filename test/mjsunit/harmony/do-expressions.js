@@ -263,6 +263,36 @@ function TestHoisting() {
 TestHoisting();
 
 
+// v8:4661
+
+function tryFinallySimple() { (do { try {} finally {} }); }
+tryFinallySimple();
+tryFinallySimple();
+tryFinallySimple();
+tryFinallySimple();
+
+var finallyRanCount = 0;
+function tryFinallyDoExpr() {
+  return (do {
+    try {
+      throw "BOO";
+    } catch (e) {
+      "Caught: " + e + " (" + finallyRanCount + ")"
+    } finally {
+      ++finallyRanCount;
+    }
+  });
+}
+assertEquals("Caught: BOO (0)", tryFinallyDoExpr());
+assertEquals(1, finallyRanCount);
+assertEquals("Caught: BOO (1)", tryFinallyDoExpr());
+assertEquals(2, finallyRanCount);
+assertEquals("Caught: BOO (2)", tryFinallyDoExpr());
+assertEquals(3, finallyRanCount);
+assertEquals("Caught: BOO (3)", tryFinallyDoExpr());
+assertEquals(4, finallyRanCount);
+
+
 function TestOSR() {
   var numbers = do {
     let nums = [];
