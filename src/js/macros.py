@@ -39,32 +39,6 @@ define NEW_TWO_BYTE_STRING = false;
 define GETTER = 0;
 define SETTER = 1;
 
-# For date.js.
-define HoursPerDay      = 24;
-define MinutesPerHour   = 60;
-define SecondsPerMinute = 60;
-define msPerSecond      = 1000;
-define msPerMinute      = 60000;
-define msPerHour        = 3600000;
-define msPerDay         = 86400000;
-define msPerMonth       = 2592000000;
-
-# Note: kDayZeroInJulianDay = ToJulianDay(1970, 0, 1).
-define kInvalidDate        = 'Invalid Date';
-define kDayZeroInJulianDay = 2440588;
-define kMonthMask          = 0x1e0;
-define kDayMask            = 0x01f;
-define kYearShift          = 9;
-define kMonthShift         = 5;
-
-# Limits for parts of the date, so that we support all the dates that
-# ECMA 262 - 15.9.1.1 requires us to, but at the same time be sure that
-# the date (days since 1970) is in SMI range.
-define kMinYear  = -1000000;
-define kMaxYear  = 1000000;
-define kMinMonth = -10000000;
-define kMaxMonth = 10000000;
-
 # Safe maximum number of arguments to push to stack, when multiplied by
 # pointer size. Used by Function.prototype.apply(), Reflect.apply() and
 # Reflect.construct().
@@ -182,44 +156,6 @@ macro REGEXP_SOURCE(regexp) = (%_RegExpSource(regexp));
 # We can't put macros in macros so we use constants here.
 # REGEXP_NUMBER_OF_CAPTURES
 macro NUMBER_OF_CAPTURES(array) = ((array)[0]);
-
-# Limit according to ECMA 262 15.9.1.1
-define MAX_TIME_MS = 8640000000000000;
-# Limit which is MAX_TIME_MS + msPerMonth.
-define MAX_TIME_BEFORE_UTC = 8640002592000000;
-
-# Gets the value of a Date object. If arg is not a Date object
-# a type error is thrown.
-macro CHECK_DATE(arg) = if (!%_IsDate(arg)) %_ThrowNotDateError();
-macro LOCAL_DATE_VALUE(arg) = (%_DateField(arg, 0) + %_DateField(arg, 21));
-macro UTC_DATE_VALUE(arg)    = (%_DateField(arg, 0));
-
-macro LOCAL_YEAR(arg)        = (%_DateField(arg, 1));
-macro LOCAL_MONTH(arg)       = (%_DateField(arg, 2));
-macro LOCAL_DAY(arg)         = (%_DateField(arg, 3));
-macro LOCAL_WEEKDAY(arg)     = (%_DateField(arg, 4));
-macro LOCAL_HOUR(arg)        = (%_DateField(arg, 5));
-macro LOCAL_MIN(arg)         = (%_DateField(arg, 6));
-macro LOCAL_SEC(arg)         = (%_DateField(arg, 7));
-macro LOCAL_MS(arg)          = (%_DateField(arg, 8));
-macro LOCAL_DAYS(arg)        = (%_DateField(arg, 9));
-macro LOCAL_TIME_IN_DAY(arg) = (%_DateField(arg, 10));
-
-macro UTC_YEAR(arg)        = (%_DateField(arg, 11));
-macro UTC_MONTH(arg)       = (%_DateField(arg, 12));
-macro UTC_DAY(arg)         = (%_DateField(arg, 13));
-macro UTC_WEEKDAY(arg)     = (%_DateField(arg, 14));
-macro UTC_HOUR(arg)        = (%_DateField(arg, 15));
-macro UTC_MIN(arg)         = (%_DateField(arg, 16));
-macro UTC_SEC(arg)         = (%_DateField(arg, 17));
-macro UTC_MS(arg)          = (%_DateField(arg, 18));
-macro UTC_DAYS(arg)        = (%_DateField(arg, 19));
-macro UTC_TIME_IN_DAY(arg) = (%_DateField(arg, 20));
-
-macro TIMEZONE_OFFSET(arg)   = (%_DateField(arg, 21));
-
-macro SET_UTC_DATE_VALUE(arg, value) = (%DateSetValue(arg, value, 1));
-macro SET_LOCAL_DATE_VALUE(arg, value) = (%DateSetValue(arg, value, 0));
 
 # Last input and last subject of regexp matches.
 define LAST_SUBJECT_INDEX = 1;

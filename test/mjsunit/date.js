@@ -146,16 +146,6 @@ l.setUTCMilliseconds();
 l.setUTCMilliseconds(2);
 assertTrue(isNaN(l.getUTCMilliseconds()));
 
-// Test that toLocaleTimeString only returns the time portion of the
-// date without the timezone information.
-function testToLocaleTimeString() {
-  var d = new Date();
-  var s = d.toLocaleTimeString("en-GB");
-  assertEquals(8, s.length);
-}
-
-testToLocaleTimeString();
-
 // Test that -0 is treated correctly in MakeDay.
 var d = new Date();
 assertDoesNotThrow("d.setDate(-0)");

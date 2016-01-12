@@ -1368,13 +1368,6 @@ LInstruction* LChunkBuilder::DoContext(HContext* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoDateField(HDateField* instr) {
-  LOperand* object = UseFixed(instr->value(), x0);
-  LDateField* result = new(zone()) LDateField(object, instr->index());
-  return MarkAsCall(DefineFixed(result, x0), instr, CANNOT_DEOPTIMIZE_EAGERLY);
-}
-
-
 LInstruction* LChunkBuilder::DoDebugBreak(HDebugBreak* instr) {
   return new(zone()) LDebugBreak();
 }

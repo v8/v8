@@ -109,11 +109,6 @@ test(function() {
   new DataView(1);
 }, "First argument to DataView constructor must be an ArrayBuffer", TypeError);
 
-// kDateType
-test(function() {
-  Date.prototype.setYear.call({}, 1);
-}, "this is not a Date object.", TypeError);
-
 // kDefineDisallowed
 test(function() {
   "use strict";
@@ -189,7 +184,7 @@ test(function() {
 
 // kNotDateObject
 test(function() {
-  Date.prototype.setHours.call(1);
+  Date.prototype.getHours.call(1);
 }, "this is not a Date object.", TypeError);
 
 // kNotGeneric

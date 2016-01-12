@@ -849,7 +849,6 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kCheckSmi:
     case HValue::kCheckValue:
     case HValue::kClampToUint8:
-    case HValue::kDateField:
     case HValue::kDeoptimize:
     case HValue::kDiv:
     case HValue::kForInCacheArray:

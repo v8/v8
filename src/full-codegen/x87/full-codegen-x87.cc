@@ -3302,43 +3302,6 @@ void FullCodeGenerator::EmitIsDate(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitDateField(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK(args->length() == 2);
-  DCHECK_NOT_NULL(args->at(1)->AsLiteral());
-  Smi* index = Smi::cast(*(args->at(1)->AsLiteral()->value()));
-
-  VisitForAccumulatorValue(args->at(0));  // Load the object.
-
-  Register object = eax;
-  Register result = eax;
-  Register scratch = ecx;
-
-  if (index->value() == 0) {
-    __ mov(result, FieldOperand(object, JSDate::kValueOffset));
-  } else {
-    Label runtime, done;
-    if (index->value() < JSDate::kFirstUncachedField) {
-      ExternalReference stamp = ExternalReference::date_cache_stamp(isolate());
-      __ mov(scratch, Operand::StaticVariable(stamp));
-      __ cmp(scratch, FieldOperand(object, JSDate::kCacheStampOffset));
-      __ j(not_equal, &runtime, Label::kNear);
-      __ mov(result, FieldOperand(object, JSDate::kValueOffset +
-                                          kPointerSize * index->value()));
-      __ jmp(&done, Label::kNear);
-    }
-    __ bind(&runtime);
-    __ PrepareCallCFunction(2, scratch);
-    __ mov(Operand(esp, 0), object);
-    __ mov(Operand(esp, 1 * kPointerSize), Immediate(index));
-    __ CallCFunction(ExternalReference::get_date_field_function(isolate()), 2);
-    __ bind(&done);
-  }
-
-  context()->Plug(result);
-}
-
-
 void FullCodeGenerator::EmitOneByteSeqStringSetChar(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   DCHECK_EQ(3, args->length());
