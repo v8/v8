@@ -35,7 +35,7 @@ function IntTest() {
   return {caller: caller};
 }
 
-assertEquals(101, WASM.asmCompileRun(IntTest.toString()));
+assertEquals(101, _WASMEXP_.asmCompileRun(IntTest.toString()));
 
 function Float64Test() {
   "use asm";
@@ -59,7 +59,7 @@ function Float64Test() {
   return {caller: caller};
 }
 
-assertEquals(1, WASM.asmCompileRun(Float64Test.toString()));
+assertEquals(1, _WASMEXP_.asmCompileRun(Float64Test.toString()));
 
 function BadModule() {
   "use asm";
@@ -78,7 +78,7 @@ function BadModule() {
 }
 
 assertThrows(function() {
-  WASM.asmCompileRun(BadModule.toString())
+  _WASMEXP_.asmCompileRun(BadModule.toString())
 });
 
 function TestReturnInBlock() {
@@ -98,7 +98,7 @@ function TestReturnInBlock() {
   return {caller: caller};
 }
 
-assertEquals(1, WASM.asmCompileRun(TestReturnInBlock.toString()));
+assertEquals(1, _WASMEXP_.asmCompileRun(TestReturnInBlock.toString()));
 
 function TestWhileSimple() {
   "use asm";
@@ -114,7 +114,7 @@ function TestWhileSimple() {
   return {caller: caller};
 }
 
-assertEquals(5, WASM.asmCompileRun(TestWhileSimple.toString()));
+assertEquals(5, _WASMEXP_.asmCompileRun(TestWhileSimple.toString()));
 
 function TestWhileWithoutBraces() {
   "use asm";
@@ -129,7 +129,7 @@ function TestWhileWithoutBraces() {
   return {caller: caller};
 }
 
-assertEquals(4, WASM.asmCompileRun(TestWhileWithoutBraces.toString()));
+assertEquals(4, _WASMEXP_.asmCompileRun(TestWhileWithoutBraces.toString()));
 
 function TestReturnInWhile() {
   "use asm";
@@ -146,7 +146,7 @@ function TestReturnInWhile() {
   return {caller: caller};
 }
 
-assertEquals(6, WASM.asmCompileRun(TestReturnInWhile.toString()));
+assertEquals(6, _WASMEXP_.asmCompileRun(TestReturnInWhile.toString()));
 
 function TestReturnInWhileWithoutBraces() {
   "use asm";
@@ -161,7 +161,7 @@ function TestReturnInWhileWithoutBraces() {
   return {caller: caller};
 }
 
-assertEquals(7, WASM.asmCompileRun(TestReturnInWhileWithoutBraces.toString()));
+assertEquals(7, _WASMEXP_.asmCompileRun(TestReturnInWhileWithoutBraces.toString()));
 
 function TestBreakInWhile() {
   "use asm";
@@ -176,7 +176,7 @@ function TestBreakInWhile() {
   return {caller: caller};
 }
 
-assertEquals(8, WASM.asmCompileRun(TestBreakInWhile.toString()));
+assertEquals(8, _WASMEXP_.asmCompileRun(TestBreakInWhile.toString()));
 
 function TestBreakInNestedWhile() {
   "use asm";
@@ -198,7 +198,7 @@ function TestBreakInNestedWhile() {
   return {caller: caller};
 }
 
-assertEquals(9, WASM.asmCompileRun(TestBreakInNestedWhile.toString()));
+assertEquals(9, _WASMEXP_.asmCompileRun(TestBreakInNestedWhile.toString()));
 
 function TestBreakInBlock() {
   "use asm";
@@ -218,7 +218,7 @@ function TestBreakInBlock() {
   return {caller: caller};
 }
 
-assertEquals(10, WASM.asmCompileRun(TestBreakInBlock.toString()));
+assertEquals(10, _WASMEXP_.asmCompileRun(TestBreakInBlock.toString()));
 
 function TestBreakInNamedWhile() {
   "use asm";
@@ -237,7 +237,7 @@ function TestBreakInNamedWhile() {
   return {caller: caller};
 }
 
-assertEquals(11, WASM.asmCompileRun(TestBreakInNamedWhile.toString()));
+assertEquals(11, _WASMEXP_.asmCompileRun(TestBreakInNamedWhile.toString()));
 
 function TestContinue() {
   "use asm";
@@ -258,7 +258,7 @@ function TestContinue() {
   return {caller: caller};
 }
 
-assertEquals(-5, WASM.asmCompileRun(TestContinue.toString()));
+assertEquals(-5, _WASMEXP_.asmCompileRun(TestContinue.toString()));
 
 function TestContinueInNamedWhile() {
   "use asm";
@@ -284,7 +284,7 @@ function TestContinueInNamedWhile() {
   return {caller: caller};
 }
 
-assertEquals(20, WASM.asmCompileRun(TestContinueInNamedWhile.toString()));
+assertEquals(20, _WASMEXP_.asmCompileRun(TestContinueInNamedWhile.toString()));
 
 function TestNot() {
   "use asm";
@@ -297,7 +297,7 @@ function TestNot() {
   return {caller:caller};
 }
 
-assertEquals(1, WASM.asmCompileRun(TestNot.toString()));
+assertEquals(1, _WASMEXP_.asmCompileRun(TestNot.toString()));
 
 function TestNotEquals() {
   "use asm";
@@ -313,7 +313,7 @@ function TestNotEquals() {
   return {caller:caller};
 }
 
-assertEquals(21, WASM.asmCompileRun(TestNotEquals.toString()));
+assertEquals(21, _WASMEXP_.asmCompileRun(TestNotEquals.toString()));
 
 function TestUnsignedComparison() {
   "use asm";
@@ -329,7 +329,7 @@ function TestUnsignedComparison() {
   return {caller:caller};
 }
 
-assertEquals(22, WASM.asmCompileRun(TestUnsignedComparison.toString()));
+assertEquals(22, _WASMEXP_.asmCompileRun(TestUnsignedComparison.toString()));
 
 function TestMixedAdd() {
   "use asm";
@@ -350,7 +350,7 @@ function TestMixedAdd() {
   return {caller:caller};
 }
 
-assertEquals(23, WASM.asmCompileRun(TestMixedAdd.toString()));
+assertEquals(23, _WASMEXP_.asmCompileRun(TestMixedAdd.toString()));
 
 function TestInt32HeapAccess(stdlib, foreign, buffer) {
   "use asm";
@@ -368,7 +368,7 @@ function TestInt32HeapAccess(stdlib, foreign, buffer) {
   return {caller: caller};
 }
 
-assertEquals(7, WASM.asmCompileRun(TestInt32HeapAccess.toString()));
+assertEquals(7, _WASMEXP_.asmCompileRun(TestInt32HeapAccess.toString()));
 
 function TestHeapAccessIntTypes() {
   var types = [
@@ -383,7 +383,7 @@ function TestHeapAccessIntTypes() {
     var code = TestInt32HeapAccess.toString();
     code = code.replace('Int32Array', types[i][0]);
     code = code.replace(/>> 2/g, types[i][1]);
-    assertEquals(7, WASM.asmCompileRun(code));
+    assertEquals(7, _WASMEXP_.asmCompileRun(code));
   }
 }
 
@@ -411,7 +411,7 @@ function TestFloatHeapAccess(stdlib, foreign, buffer) {
   return {caller: caller};
 }
 
-assertEquals(1, WASM.asmCompileRun(TestFloatHeapAccess.toString()));
+assertEquals(1, _WASMEXP_.asmCompileRun(TestFloatHeapAccess.toString()));
 
 function TestConvertI32() {
   "use asm";
@@ -427,7 +427,7 @@ function TestConvertI32() {
   return {caller:caller};
 }
 
-assertEquals(24, WASM.asmCompileRun(TestConvertI32.toString()));
+assertEquals(24, _WASMEXP_.asmCompileRun(TestConvertI32.toString()));
 
 function TestConvertF64FromInt() {
   "use asm";
@@ -443,7 +443,7 @@ function TestConvertF64FromInt() {
   return {caller:caller};
 }
 
-assertEquals(25, WASM.asmCompileRun(TestConvertF64FromInt.toString()));
+assertEquals(25, _WASMEXP_.asmCompileRun(TestConvertF64FromInt.toString()));
 
 function TestConvertF64FromUnsigned() {
   "use asm";
@@ -461,7 +461,7 @@ function TestConvertF64FromUnsigned() {
   return {caller:caller};
 }
 
-assertEquals(26, WASM.asmCompileRun(TestConvertF64FromUnsigned.toString()));
+assertEquals(26, _WASMEXP_.asmCompileRun(TestConvertF64FromUnsigned.toString()));
 
 function TestModInt() {
   "use asm";
@@ -475,7 +475,7 @@ function TestModInt() {
   return {caller:caller};
 }
 
-assertEquals(-27, WASM.asmCompileRun(TestModInt.toString()));
+assertEquals(-27, _WASMEXP_.asmCompileRun(TestModInt.toString()));
 
 function TestModUnsignedInt() {
   "use asm";
@@ -489,7 +489,7 @@ function TestModUnsignedInt() {
   return {caller:caller};
 }
 
-assertEquals(8, WASM.asmCompileRun(TestModUnsignedInt.toString()));
+assertEquals(8, _WASMEXP_.asmCompileRun(TestModUnsignedInt.toString()));
 
 function TestModDouble() {
   "use asm";
@@ -506,7 +506,7 @@ function TestModDouble() {
   return {caller:caller};
 }
 
-assertEquals(28, WASM.asmCompileRun(TestModDouble.toString()));
+assertEquals(28, _WASMEXP_.asmCompileRun(TestModDouble.toString()));
 
 /*
 TODO: Fix parsing of negative doubles
@@ -526,7 +526,7 @@ function TestModDoubleNegative() {
   return {caller:caller};
 }
 
-assertEquals(28, WASM.asmCompileRun(TestModDoubleNegative.toString()));
+assertEquals(28, _WASMEXP_.asmCompileRun(TestModDoubleNegative.toString()));
 */
 
 function TestNamedFunctions() {
@@ -548,7 +548,7 @@ function TestNamedFunctions() {
           add:add};
 }
 
-var module = WASM.instantiateModuleFromAsm(TestNamedFunctions.toString());
+var module = _WASMEXP_.instantiateModuleFromAsm(TestNamedFunctions.toString());
 module.init();
 assertEquals(77.5, module.add());
 
@@ -565,7 +565,7 @@ function TestGlobalsWithInit() {
   return {add:add};
 }
 
-var module = WASM.instantiateModuleFromAsm(TestGlobalsWithInit.toString());
+var module = _WASMEXP_.instantiateModuleFromAsm(TestGlobalsWithInit.toString());
 module.__init__();
 assertEquals(77.5, module.add());
 
@@ -584,7 +584,7 @@ function TestForLoop() {
   return {caller:caller};
 }
 
-assertEquals(54, WASM.asmCompileRun(TestForLoop.toString()));
+assertEquals(54, _WASMEXP_.asmCompileRun(TestForLoop.toString()));
 
 function TestForLoopWithoutInit() {
   "use asm"
@@ -601,7 +601,7 @@ function TestForLoopWithoutInit() {
   return {caller:caller};
 }
 
-assertEquals(100, WASM.asmCompileRun(TestForLoopWithoutInit.toString()));
+assertEquals(100, _WASMEXP_.asmCompileRun(TestForLoopWithoutInit.toString()));
 
 function TestForLoopWithoutCondition() {
   "use asm"
@@ -621,7 +621,7 @@ function TestForLoopWithoutCondition() {
   return {caller:caller};
 }
 
-assertEquals(66, WASM.asmCompileRun(TestForLoopWithoutCondition.toString()));
+assertEquals(66, _WASMEXP_.asmCompileRun(TestForLoopWithoutCondition.toString()));
 
 function TestForLoopWithoutNext() {
   "use asm"
@@ -637,7 +637,7 @@ function TestForLoopWithoutNext() {
   return {caller:caller};
 }
 
-assertEquals(41, WASM.asmCompileRun(TestForLoopWithoutNext.toString()));
+assertEquals(41, _WASMEXP_.asmCompileRun(TestForLoopWithoutNext.toString()));
 
 function TestForLoopWithoutBody() {
   "use asm"
@@ -652,7 +652,7 @@ function TestForLoopWithoutBody() {
   return {caller:caller};
 }
 
-assertEquals(45, WASM.asmCompileRun(TestForLoopWithoutBody.toString()));
+assertEquals(45, _WASMEXP_.asmCompileRun(TestForLoopWithoutBody.toString()));
 
 function TestDoWhile() {
   "use asm"
@@ -670,7 +670,7 @@ function TestDoWhile() {
   return {caller:caller};
 }
 
-assertEquals(84, WASM.asmCompileRun(TestDoWhile.toString()));
+assertEquals(84, _WASMEXP_.asmCompileRun(TestDoWhile.toString()));
 
 function TestConditional() {
   "use asm"

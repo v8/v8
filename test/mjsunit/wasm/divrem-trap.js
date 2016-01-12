@@ -52,7 +52,7 @@ function makeDivRem(opcode) {
     'm', 'a', 'i', 'n', 0       //  --
   );
 
-  var module = WASM.instantiateModule(data);
+  var module = _WASMEXP_.instantiateModule(data);
 
   assertEquals("function", typeof module.main);
 

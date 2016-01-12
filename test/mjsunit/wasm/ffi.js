@@ -38,7 +38,7 @@ function testCallFFI(func, check) {
     'm', 'a', 'i', 'n', 0       //  --
   );
 
-  var module = WASM.instantiateModule(data, ffi);
+  var module = _WASMEXP_.instantiateModule(data, ffi);
 
   assertEquals("function", typeof module.main);
 
@@ -236,7 +236,7 @@ function testCallBinopVoid(type, func, check) {
     'm', 'a', 'i', 'n', 0       // --
   );
 
-  var module = WASM.instantiateModule(data, ffi);
+  var module = _WASMEXP_.instantiateModule(data, ffi);
 
   assertEquals("function", typeof module.main);
 
@@ -320,7 +320,7 @@ function testCallPrint() {
     'm', 'a', 'i', 'n', 0       // --
   );
 
-  var module = WASM.instantiateModule(data, ffi);
+  var module = _WASMEXP_.instantiateModule(data, ffi);
 
   assertEquals("function", typeof module.main);
 

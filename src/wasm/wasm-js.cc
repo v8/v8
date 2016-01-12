@@ -314,7 +314,7 @@ void WasmJs::Install(Isolate* isolate, Handle<JSGlobalObject> global) {
 
   // Bind the WASM object.
   Factory* factory = isolate->factory();
-  Handle<String> name = v8_str(isolate, "WASM");
+  Handle<String> name = v8_str(isolate, "_WASMEXP_");
   Handle<JSFunction> cons = factory->NewFunction(name);
   JSFunction::SetInstancePrototype(
       cons, Handle<Object>(global->native_context()->initial_object_prototype(),

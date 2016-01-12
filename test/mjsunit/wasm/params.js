@@ -35,7 +35,7 @@ function testSelect2(type) {
       's','e','l','e','c','t',0   // name
     );
 
-    var module = WASM.instantiateModule(data);
+    var module = _WASMEXP_.instantiateModule(data);
 
     assertEquals("function", typeof module.select);
     runSelect2(module, which, 99, 97);
@@ -111,7 +111,7 @@ function testSelect10(type) {
       's','e','l','e','c','t',0   // name
     );
 
-    var module = WASM.instantiateModule(data);
+    var module = _WASMEXP_.instantiateModule(data);
 
     assertEquals("function", typeof module.select);
     runSelect10(module, which, 99, 97);

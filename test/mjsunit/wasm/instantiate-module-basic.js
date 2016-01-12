@@ -31,7 +31,7 @@ var data = bytes(
   'm', 'a', 'i', 'n', 0       // name
 );
 
-var module = WASM.instantiateModule(data);
+var module = _WASMEXP_.instantiateModule(data);
 
 // Check the module exists.
 assertFalse(module === undefined);

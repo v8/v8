@@ -15,7 +15,7 @@ var module = (function () {
   var ffi = new Object();
   ffi.add = (function(a, b) { return a + b | 0; });
 
-  return WASM.instantiateModule(bytes(
+  return _WASMEXP_.instantiateModule(bytes(
     // -- signatures
     kDeclSignatures, 1,
     0, kAstStmt, // void -> void

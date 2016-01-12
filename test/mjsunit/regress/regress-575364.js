@@ -8,4 +8,5 @@ function f() {
   "use asm";
 
 }
-assertThrows(function() { WASM.asmCompileRun(f.toString()); });
+assertFalse(_WASMEXP_ == undefined);
+assertThrows(function() { _WASMEXP_.asmCompileRun(f.toString()); });

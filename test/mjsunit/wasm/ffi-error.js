@@ -38,7 +38,7 @@ function testCallFFI(ffi) {
   );
 
   print("instantiate FFI");
-  var module = WASM.instantiateModule(data, ffi);
+  var module = _WASMEXP_.instantiateModule(data, ffi);
 }
 
 // everything is good.

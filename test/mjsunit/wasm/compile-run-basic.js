@@ -28,4 +28,4 @@ var data = bytes(
   'm', 'a', 'i', 'n', 0       // name
 );
 
-assertEquals(kReturnValue, WASM.compileRun(data));
+assertEquals(kReturnValue, _WASMEXP_.compileRun(data));

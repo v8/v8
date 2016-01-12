@@ -10,7 +10,7 @@ var module = (function () {
   var kBodySize = 5;
   var kNameOffset = 21 + kBodySize + 1;
 
-  return WASM.instantiateModule(bytes(
+  return _WASMEXP_.instantiateModule(bytes(
     // -- memory
     kDeclMemory,
     12, 12, 1,
@@ -64,7 +64,7 @@ var module = (function() {
   var kBodySize = 1;
   var kNameOffset2 = 19 + kBodySize + 1;
 
-  return WASM.instantiateModule(bytes(
+  return _WASMEXP_.instantiateModule(bytes(
     // -- memory
     kDeclMemory,
     12, 12, 1,
@@ -136,7 +136,7 @@ assertEquals(undefined, module.nop());
     'f', 'l', 't', 0              // name
   );
 
-  var module = WASM.instantiateModule(data);
+  var module = _WASMEXP_.instantiateModule(data);
 
   assertEquals("function", typeof module.flt);
   assertEquals(1, module.flt(-2, -1));

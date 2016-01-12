@@ -45,7 +45,7 @@ function genModule(memory) {
     'm', 'a', 'i', 'n', 0       //  --
   );
 
-  return WASM.instantiateModule(data, null, memory);
+  return _WASMEXP_.instantiateModule(data, null, memory);
 }
 
 function testPokeMemory() {
@@ -159,7 +159,7 @@ function testOOBThrows() {
   );
 
   var memory = null;
-  var module = WASM.instantiateModule(data, null, memory);
+  var module = _WASMEXP_.instantiateModule(data, null, memory);
 
   var offset;
 
