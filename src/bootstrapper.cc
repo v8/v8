@@ -1117,21 +1117,36 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   Handle<JSObject> global(native_context()->global_object());
 
   {  // --- F u n c t i o n ---
-    Handle<JSFunction> function_function =
+    Handle<JSFunction> prototype = empty_function;
+    Handle<JSFunction> function_fun =
         InstallFunction(global, "Function", JS_FUNCTION_TYPE, JSFunction::kSize,
-                        empty_function, Builtins::kFunctionConstructor);
-    function_function->set_prototype_or_initial_map(
+                        prototype, Builtins::kFunctionConstructor);
+    function_fun->set_prototype_or_initial_map(
         *sloppy_function_map_writable_prototype_);
-    function_function->shared()->DontAdaptArguments();
-    function_function->shared()->set_construct_stub(
+    function_fun->shared()->DontAdaptArguments();
+    function_fun->shared()->set_construct_stub(
         *isolate->builtins()->FunctionConstructor());
-    function_function->shared()->set_length(1);
-    InstallWithIntrinsicDefaultProto(isolate, function_function,
+    function_fun->shared()->set_length(1);
+    InstallWithIntrinsicDefaultProto(isolate, function_fun,
                                      Context::FUNCTION_FUNCTION_INDEX);
 
-    sloppy_function_map_writable_prototype_->SetConstructor(*function_function);
-    strict_function_map_writable_prototype_->SetConstructor(*function_function);
-    native_context()->strong_function_map()->SetConstructor(*function_function);
+    // Setup the methods on the %FunctionPrototype%.
+    SimpleInstallFunction(prototype, factory->apply_string(),
+                          Builtins::kFunctionPrototypeApply, 2, false);
+    SimpleInstallFunction(prototype, factory->bind_string(),
+                          Builtins::kFunctionPrototypeBind, 1, false);
+    SimpleInstallFunction(prototype, factory->call_string(),
+                          Builtins::kFunctionPrototypeCall, 1, false);
+    SimpleInstallFunction(prototype, factory->toString_string(),
+                          Builtins::kFunctionPrototypeToString, 0, false);
+
+    // Install the "constructor" property on the %FunctionPrototype%.
+    JSObject::AddProperty(prototype, factory->constructor_string(),
+                          function_fun, DONT_ENUM);
+
+    sloppy_function_map_writable_prototype_->SetConstructor(*function_fun);
+    strict_function_map_writable_prototype_->SetConstructor(*function_fun);
+    native_context()->strong_function_map()->SetConstructor(*function_fun);
   }
 
   {  // --- A r r a y ---
@@ -2682,26 +2697,6 @@ bool Genesis::InstallNatives(ContextType context_type) {
     DCHECK(concat->is_compiled());
     // Set the lengths for the functions to satisfy ECMA-262.
     concat->shared()->set_length(1);
-  }
-
-  // Install Function.prototype.apply, bind, call, and toString.
-  {
-    Handle<String> key = factory()->Function_string();
-    Handle<JSFunction> function =
-        Handle<JSFunction>::cast(Object::GetProperty(
-            handle(native_context()->global_object()), key).ToHandleChecked());
-    Handle<JSObject> proto =
-        Handle<JSObject>(JSObject::cast(function->instance_prototype()));
-
-    // Install the apply, bind, call and toString functions.
-    SimpleInstallFunction(proto, factory()->apply_string(),
-                          Builtins::kFunctionPrototypeApply, 2, false);
-    SimpleInstallFunction(proto, factory()->bind_string(),
-                          Builtins::kFunctionPrototypeBind, 1, false);
-    SimpleInstallFunction(proto, factory()->call_string(),
-                          Builtins::kFunctionPrototypeCall, 1, false);
-    SimpleInstallFunction(proto, factory()->toString_string(),
-                          Builtins::kFunctionPrototypeToString, 0, false);
   }
 
   // Set up the Promise constructor.

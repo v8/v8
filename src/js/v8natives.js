@@ -11,7 +11,6 @@
 
 var GlobalArray = global.Array;
 var GlobalBoolean = global.Boolean;
-var GlobalFunction = global.Function;
 var GlobalNumber = global.Number;
 var GlobalObject = global.Object;
 var InternalArray = utils.InternalArray;
@@ -1164,14 +1163,6 @@ utils.InstallFunctions(GlobalNumber, DONT_ENUM, [
 
 %SetForceInlineFlag(NumberIsNaN);
 
-
-// ----------------------------------------------------------------------------
-// Function
-
-// ----------------------------------------------------------------------------
-
-%AddNamedProperty(GlobalFunction.prototype, "constructor", GlobalFunction,
-                  DONT_ENUM);
 
 // ----------------------------------------------------------------------------
 // Iterator related spec functions.
