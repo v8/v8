@@ -1103,6 +1103,36 @@ TEST(BytecodeGraphBuilderLookupSlotWide) {
 }
 
 
+TEST(BytecodeGraphBuilderCallLookupSlot) {
+  HandleAndZoneScope scope;
+  Isolate* isolate = scope.main_isolate();
+  Zone* zone = scope.main_zone();
+
+  ExpectedSnippet<0> snippets[] = {
+      {"g = function(){ return 2 }; eval(''); return g();",
+       {handle(Smi::FromInt(2), isolate)}},
+      {"g = function(){ return 2 }; eval('g = function() {return 3}');\n"
+       "return g();",
+       {handle(Smi::FromInt(3), isolate)}},
+      {"g = { x: function(){ return this.y }, y: 20 };\n"
+       "eval('g = { x: g.x, y: 30 }');\n"
+       "return g.x();",
+       {handle(Smi::FromInt(30), isolate)}},
+  };
+
+  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
+  for (size_t i = 0; i < num_snippets; i++) {
+    ScopedVector<char> script(1024);
+    SNPrintF(script, "function %s() { %s }\n%s();", kFunctionName,
+             snippets[i].code_snippet, kFunctionName);
+    BytecodeGraphTester tester(isolate, zone, script.start());
+    auto callable = tester.GetCallable<>();
+    Handle<Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*snippets[i].return_value()));
+  }
+}
+
+
 TEST(BytecodeGraphBuilderEval) {
   HandleAndZoneScope scope;
   Isolate* isolate = scope.main_isolate();

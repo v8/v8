@@ -1607,16 +1607,16 @@ void BytecodeGenerator::VisitCall(Call* expr) {
 
   // Prepare the callee and the receiver to the function call. This depends on
   // the semantics of the underlying call type.
-  Register callee = execution_result()->NewRegister();
 
   // The receiver and arguments need to be allocated consecutively for
-  // Call(). Future optimizations could avoid this there are no
+  // Call(). We allocate the callee and receiver consecutively for calls to
+  // kLoadLookupSlot. Future optimizations could avoid this there are no
   // arguments or the receiver and arguments are already consecutive.
   ZoneList<Expression*>* args = expr->arguments();
-  execution_result()->PrepareForConsecutiveAllocations(args->length() + 1);
+  execution_result()->PrepareForConsecutiveAllocations(args->length() + 2);
+  Register callee = execution_result()->NextConsecutiveRegister();
   Register receiver = execution_result()->NextConsecutiveRegister();
 
-  bool possibly_eval = false;
   switch (call_type) {
     case Call::NAMED_PROPERTY_CALL:
     case Call::KEYED_PROPERTY_CALL: {
@@ -1637,30 +1637,26 @@ void BytecodeGenerator::VisitCall(Call* expr) {
       builder()->StoreAccumulatorInRegister(callee);
       break;
     }
+    case Call::LOOKUP_SLOT_CALL:
     case Call::POSSIBLY_EVAL_CALL: {
-      possibly_eval = true;
       if (callee_expr->AsVariableProxy()->var()->IsLookupSlot()) {
         TemporaryRegisterScope temporary_register_scope(builder());
         temporary_register_scope.PrepareForConsecutiveAllocations(2);
         Register context = temporary_register_scope.NextConsecutiveRegister();
         Register name = temporary_register_scope.NextConsecutiveRegister();
 
+        // Call LoadLookupSlot to get the callee and receiver.
+        DCHECK(Register::AreContiguous(callee, receiver));
         Variable* variable = callee_expr->AsVariableProxy()->var();
         builder()
             ->MoveRegister(Register::function_context(), context)
             .LoadLiteral(variable->name())
-            .StoreAccumulatorInRegister(name);
-
-        // Call LoadLookupSlot to get the callee and receiver. Reuse the context
-        // and name arguments as the return registers (since these are
-        // consecutive), and them move into callee and receiver registers.
-        builder()
-            ->CallRuntimeForPair(Runtime::kLoadLookupSlot, context, 2, context)
-            .MoveRegister(context, callee)
-            .MoveRegister(name, receiver);
+            .StoreAccumulatorInRegister(name)
+            .CallRuntimeForPair(Runtime::kLoadLookupSlot, context, 2, callee);
         break;
       }
       // Fall through.
+      DCHECK_EQ(call_type, Call::POSSIBLY_EVAL_CALL);
     }
     case Call::OTHER_CALL: {
       builder()->LoadUndefined().StoreAccumulatorInRegister(receiver);
@@ -1670,7 +1666,6 @@ void BytecodeGenerator::VisitCall(Call* expr) {
     }
     case Call::NAMED_SUPER_PROPERTY_CALL:
     case Call::KEYED_SUPER_PROPERTY_CALL:
-    case Call::LOOKUP_SLOT_CALL:
     case Call::SUPER_CALL:
       UNIMPLEMENTED();
   }
@@ -1682,7 +1677,7 @@ void BytecodeGenerator::VisitCall(Call* expr) {
 
   // Resolve callee for a potential direct eval call. This block will mutate the
   // callee value.
-  if (possibly_eval && args->length() > 0) {
+  if (call_type == Call::POSSIBLY_EVAL_CALL && args->length() > 0) {
     TemporaryRegisterScope temporary_register_scope(builder());
     temporary_register_scope.PrepareForConsecutiveAllocations(5);
     Register callee_for_eval =

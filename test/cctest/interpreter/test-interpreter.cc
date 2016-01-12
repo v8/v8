@@ -3295,6 +3295,33 @@ TEST(InterpreterLookupSlot) {
 }
 
 
+TEST(InterpreterCallLookupSlot) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+
+  std::pair<const char*, Handle<Object>> call_lookup[] = {
+      {"g = function(){ return 2 }; eval(''); return g();",
+       handle(Smi::FromInt(2), isolate)},
+      {"g = function(){ return 2 }; eval('g = function() {return 3}');\n"
+       "return g();",
+       handle(Smi::FromInt(3), isolate)},
+      {"g = { x: function(){ return this.y }, y: 20 };\n"
+       "eval('g = { x: g.x, y: 30 }');\n"
+       "return g.x();",
+       handle(Smi::FromInt(30), isolate)},
+  };
+
+  for (size_t i = 0; i < arraysize(call_lookup); i++) {
+    std::string source(InterpreterTester::SourceForBody(call_lookup[i].first));
+    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*call_lookup[i].second));
+  }
+}
+
+
 TEST(InterpreterLookupSlotWide) {
   HandleAndZoneScope handles;
   i::Isolate* isolate = handles.main_isolate();
