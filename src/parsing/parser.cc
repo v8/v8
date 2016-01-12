@@ -5189,7 +5189,6 @@ Expression* Parser::CloseTemplateLiteral(TemplateLiteralState* state, int start,
     Smi* hash_obj = Smi::cast(Internals::IntToSmi(static_cast<int>(hash)));
     args->Add(factory()->NewSmiLiteral(hash_obj->value(), pos), zone());
 
-    this->CheckPossibleEvalCall(tag, scope_);
     Expression* call_site = factory()->NewCallRuntime(
         Context::GET_TEMPLATE_CALL_SITE_INDEX, args, start);
 
