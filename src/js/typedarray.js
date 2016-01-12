@@ -18,6 +18,7 @@ var GlobalArray = global.Array;
 var GlobalArrayBuffer = global.ArrayBuffer;
 var GlobalDataView = global.DataView;
 var GlobalObject = global.Object;
+var InternalArray = utils.InternalArray;
 var InnerArrayCopyWithin;
 var InnerArrayEvery;
 var InnerArrayFill;
@@ -41,6 +42,7 @@ var MakeTypeError;
 var MaxSimple;
 var MinSimple;
 var PackedArrayReverse;
+var SpeciesConstructor;
 var ToPositiveInteger;
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
@@ -87,16 +89,50 @@ utils.Import(function(from) {
   IsNaN = from.IsNaN;
   MakeRangeError = from.MakeRangeError;
   MakeTypeError = from.MakeTypeError;
-  MakeTypeError = from.MakeTypeError;
   MaxSimple = from.MaxSimple;
-  MaxSimple = from.MaxSimple;
-  MinSimple = from.MinSimple;
   MinSimple = from.MinSimple;
   PackedArrayReverse = from.PackedArrayReverse;
+  SpeciesConstructor = from.SpeciesConstructor;
   ToPositiveInteger = from.ToPositiveInteger;
 });
 
 // --------------- Typed Arrays ---------------------
+
+function TypedArrayDefaultConstructor(typedArray) {
+  switch (%_ClassOf(typedArray)) {
+macro TYPED_ARRAY_CONSTRUCTOR_CASE(ARRAY_ID, NAME, ELEMENT_SIZE)
+    case "NAME":
+      return GlobalNAME;
+endmacro
+TYPED_ARRAYS(TYPED_ARRAY_CONSTRUCTOR_CASE)
+  }
+  // The TypeError should not be generated since all callers should
+  // have already called ValidateTypedArray.
+  throw MakeTypeError(kIncompatibleMethodReceiver,
+                      "TypedArrayDefaultConstructor", this);
+}
+
+function TypedArrayCreate(constructor, arg0, arg1, arg2) {
+  if (IS_UNDEFINED(arg1)) {
+    var newTypedArray = new constructor(arg0);
+  } else {
+    var newTypedArray = new constructor(arg0, arg1, arg2);
+  }
+  if (!%_IsTypedArray(newTypedArray)) throw MakeTypeError(kNotTypedArray);
+  // TODO(littledan): Check for being detached, here and elsewhere
+  // All callers where the first argument is a Number have no additional
+  // arguments.
+  if (IS_NUMBER(arg0) && %_TypedArrayGetLength(newTypedArray) < arg0) {
+    throw MakeTypeError(kTypedArrayTooShort);
+  }
+  return newTypedArray;
+}
+
+function TypedArraySpeciesCreate(exemplar, arg0, arg1, arg2) {
+  var defaultConstructor = TypedArrayDefaultConstructor(exemplar);
+  var constructor = SpeciesConstructor(exemplar, defaultConstructor);
+  return TypedArrayCreate(constructor, arg0, arg1, arg2);
+}
 
 macro TYPED_ARRAY_CONSTRUCTOR(ARRAY_ID, NAME, ELEMENT_SIZE)
 function NAMEConstructByArrayBuffer(obj, buffer, byteOffset, length) {
@@ -210,6 +246,10 @@ function NAMEConstructor(arg1, arg2, arg3) {
                IS_BOOLEAN(arg1) || IS_UNDEFINED(arg1)) {
       NAMEConstructByLength(this, arg1);
     } else {
+      // TODO(littledan): If arg1 is a TypedArray, follow the constructor
+      // path in ES2015 22.2.4.3, and call SpeciesConstructor, in a
+      // path that seems to be an optimized version of what's below, but
+      // in an observably different way.
       var iteratorFn = arg1[iteratorSymbol];
       if (IS_UNDEFINED(iteratorFn) || iteratorFn === ArrayValues) {
         NAMEConstructByArrayLike(this, arg1);
@@ -251,8 +291,8 @@ function NAMESubArray(begin, end) {
   var newLength = endInt - beginInt;
   var beginByteOffset =
       %_ArrayBufferViewGetByteOffset(this) + beginInt * ELEMENT_SIZE;
-  return new GlobalNAME(%TypedArrayGetBuffer(this),
-                        beginByteOffset, newLength);
+  return TypedArraySpeciesCreate(this, %TypedArrayGetBuffer(this),
+                                 beginByteOffset, newLength);
 }
 endmacro
 
@@ -420,32 +460,6 @@ function TypedArrayGetToStringTag() {
 }
 
 
-function ConstructTypedArray(constructor, arg) {
-  // TODO(littledan): This is an approximation of the spec, which requires
-  // that only real TypedArray classes should be accepted (22.2.2.1.1)
-  if (!%IsConstructor(constructor) || IS_UNDEFINED(constructor.prototype) ||
-      !%HasOwnProperty(constructor.prototype, "BYTES_PER_ELEMENT")) {
-    throw MakeTypeError(kNotTypedArray);
-  }
-
-  // TODO(littledan): The spec requires that, rather than directly calling
-  // the constructor, a TypedArray is created with the proper proto and
-  // underlying size and element size, and elements are put in one by one.
-  // By contrast, this would allow subclasses to make a radically different
-  // constructor with different semantics.
-  return new constructor(arg);
-}
-
-
-function ConstructTypedArrayLike(typedArray, arg) {
-  // TODO(littledan): The spec requires that we actuallly use
-  // typedArray.constructor[Symbol.species] (bug v8:4093)
-  // Also, it should default to the default constructor from
-  // table 49 if typedArray.constructor doesn't exist.
-  return ConstructTypedArray(typedArray.constructor, arg);
-}
-
-
 function TypedArrayCopyWithin(target, start, end) {
   if (!%_IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
 
@@ -499,7 +513,7 @@ function TypedArrayFilter(f, thisArg) {
   var result = new InternalArray();
   InnerArrayFilter(f, thisArg, this, length, result);
   var captured = result.length;
-  var output = ConstructTypedArrayLike(this, captured);
+  var output = TypedArraySpeciesCreate(this, captured);
   for (var i = 0; i < captured; i++) {
     output[i] = result[i];
   }
@@ -601,7 +615,7 @@ function TypedArrayMap(f, thisArg) {
   if (!%_IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
 
   var length = %_TypedArrayGetLength(this);
-  var result = ConstructTypedArrayLike(this, length);
+  var result = TypedArraySpeciesCreate(this, length);
   if (!IS_CALLABLE(f)) throw MakeTypeError(kCalledNonCallable, f);
   for (var i = 0; i < length; i++) {
     var element = this[i];
@@ -699,15 +713,13 @@ function TypedArraySlice(start, end) {
   }
 
   var count = MaxSimple(final - k, 0);
-  var array = ConstructTypedArrayLike(this, count);
+  var array = TypedArraySpeciesCreate(this, count);
   // The code below is the 'then' branch; the 'else' branch species
   // a memcpy. Because V8 doesn't canonicalize NaN, the difference is
   // unobservable.
   var n = 0;
   while (k < final) {
     var kValue = this[k];
-    // TODO(littledan): The spec says to throw on an error in setting;
-    // does this throw?
     array[n] = kValue;
     k++;
     n++;
@@ -730,7 +742,7 @@ function TypedArrayIncludes(searchElement, fromIndex) {
 // ES6 draft 08-24-14, section 22.2.2.2
 function TypedArrayOf() {
   var length = %_ArgumentsLength();
-  var array = new this(length);
+  var array = TypedArrayCreate(this, length);
   for (var i = 0; i < length; i++) {
     array[i] = %_Arguments(i);
   }
@@ -741,8 +753,11 @@ function TypedArrayOf() {
 function TypedArrayFrom(source, mapfn, thisArg) {
   // TODO(littledan): Investigate if there is a receiver which could be
   // faster to accumulate on than Array, e.g., a TypedVector.
+  // TODO(littledan): Rewrite this code to ensure that things happen
+  // in the right order, e.g., the constructor needs to be called before
+  // the mapping function on array-likes.
   var array = %_Call(ArrayFrom, GlobalArray, source, mapfn, thisArg);
-  return ConstructTypedArray(this, array);
+  return TypedArrayCreate(this, array);
 }
 %FunctionSetLength(TypedArrayFrom, 1);
 

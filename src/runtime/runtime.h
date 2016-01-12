@@ -971,7 +971,7 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_TYPEDARRAY(F)     \
   F(ArrayBufferGetByteLength, 1, 1)          \
-  F(ArrayBufferSliceImpl, 3, 1)              \
+  F(ArrayBufferSliceImpl, 4, 1)              \
   F(ArrayBufferNeuter, 1, 1)                 \
   F(TypedArrayInitialize, 6, 1)              \
   F(TypedArrayInitializeFromArrayLike, 4, 1) \

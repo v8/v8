@@ -23,14 +23,16 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferGetByteLength) {
 
 RUNTIME_FUNCTION(Runtime_ArrayBufferSliceImpl) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
+  DCHECK(args.length() == 4);
   CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, source, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, target, 1);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(first, 2);
+  CONVERT_NUMBER_ARG_HANDLE_CHECKED(new_length, 3);
   RUNTIME_ASSERT(!source.is_identical_to(target));
-  size_t start = 0;
+  size_t start = 0, target_length = 0;
   RUNTIME_ASSERT(TryNumberToSize(isolate, *first, &start));
-  size_t target_length = NumberToSize(isolate, target->byte_length());
+  RUNTIME_ASSERT(TryNumberToSize(isolate, *new_length, &target_length));
+  RUNTIME_ASSERT(NumberToSize(isolate, target->byte_length()) >= target_length);
 
   if (target_length == 0) return isolate->heap()->undefined_value();
 

@@ -55,10 +55,6 @@
   'es6/debug-promises/reject-with-undefined-reject': [FAIL],
   'es6/debug-promises/reject-with-invalid-reject': [FAIL],
 
-  # Issue 4093: This test will be updated in the course of implementing
-  # @@species, when TypedArray support is added.
-  'regress/regress-544991': [SKIP],
-
   ##############################################################################
   # TurboFan compiler failures.
 
@@ -998,6 +994,7 @@
   'regress/regress-520029': [SKIP],
   'regress/regress-542099': [SKIP],
   'regress/regress-542100': [SKIP],
+  'regress/regress-544991': [SKIP],
   'regress/regress-568765': [SKIP],
   'regress/regress-580': [SKIP],
   'regress/regress-618': [SKIP],

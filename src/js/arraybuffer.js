@@ -15,11 +15,13 @@ var GlobalArrayBuffer = global.ArrayBuffer;
 var MakeTypeError;
 var MaxSimple;
 var MinSimple;
+var SpeciesConstructor;
 
 utils.Import(function(from) {
   MakeTypeError = from.MakeTypeError;
   MaxSimple = from.MaxSimple;
   MinSimple = from.MinSimple;
+  SpeciesConstructor = from.SpeciesConstructor;
 });
 
 // -------------------------------------------------------------------
@@ -62,10 +64,21 @@ function ArrayBufferSlice(start, end) {
     fin = first;
   }
   var newLen = fin - first;
-  // TODO(dslomov): implement inheritance
-  var result = new GlobalArrayBuffer(newLen);
+  var constructor = SpeciesConstructor(this, GlobalArrayBuffer, true);
+  var result = new constructor(newLen);
+  if (!IS_ARRAYBUFFER(result)) {
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        'ArrayBuffer.prototype.slice', result);
+  }
+  // TODO(littledan): Check for a detached ArrayBuffer
+  if (result === this) {
+    throw MakeTypeError(kArrayBufferSpeciesThis);
+  }
+  if (%_ArrayBufferGetByteLength(result) < newLen) {
+    throw MakeTypeError(kArrayBufferTooShort);
+  }
 
-  %ArrayBufferSliceImpl(this, result, first);
+  %ArrayBufferSliceImpl(this, result, first, newLen);
   return result;
 }
 

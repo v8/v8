@@ -87,6 +87,10 @@ class CallSite {
   T(ApplyNonFunction,                                                          \
     "Function.prototype.apply was called on %, which is a % and not a "        \
     "function")                                                                \
+  T(ArrayBufferTooShort,                                                       \
+    "Derived ArrayBuffer constructor created a buffer which was too small")    \
+  T(ArrayBufferSpeciesThis,                                                    \
+    "ArrayBuffer subclass returned this from species constructor")             \
   T(ArrayFunctionsOnFrozen, "Cannot modify frozen array elements")             \
   T(ArrayFunctionsOnSealed, "Cannot add/remove sealed array elements")         \
   T(ArrayNotSubclassable, "Subclassing Arrays is not currently supported.")    \
@@ -105,6 +109,7 @@ class CallSite {
   T(ConstructorNonCallable,                                                    \
     "Class constructor % cannot be invoked without 'new'")                     \
   T(ConstructorNotFunction, "Constructor % requires 'new'")                    \
+  T(ConstructorNotReceiver, "The .constructor property is not an object")      \
   T(CurrencyCode, "Currency code is required with currency style.")            \
   T(DataViewNotArrayBuffer,                                                    \
     "First argument to DataView constructor must be an ArrayBuffer")           \
@@ -291,7 +296,7 @@ class CallSite {
     "'caller' and 'arguments' are restricted function properties and cannot "  \
     "be accessed in this context.")                                            \
   T(StaticPrototype, "Classes may not have static property named prototype")   \
-  T(StrictCannotAssign, "Cannot assign to read only '% in strict mode")        \
+  T(StrictCannotAssign, "Cannot assign to read only '%' in strict mode")       \
   T(StrictDeleteProperty, "Cannot delete property '%' of %")                   \
   T(StrictPoisonPill,                                                          \
     "'caller', 'callee', and 'arguments' properties may not be accessed on "   \
@@ -487,6 +492,8 @@ class CallSite {
   T(TooManyParameters,                                                         \
     "Too many parameters in function definition (only 65535 allowed)")         \
   T(TooManyVariables, "Too many variables declared (only 4194303 allowed)")    \
+  T(TypedArrayTooShort,                                                        \
+    "Derived TypedArray constructor created an array which was too small")     \
   T(UnexpectedEOS, "Unexpected end of input")                                  \
   T(UnexpectedReserved, "Unexpected reserved word")                            \
   T(UnexpectedStrictReserved, "Unexpected strict mode reserved word")          \
