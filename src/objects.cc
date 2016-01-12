@@ -1366,7 +1366,7 @@ Maybe<PropertyAttributes> JSObject::GetPropertyAttributesWithFailedAccessCheck(
 
 // static
 bool JSObject::AllCanWrite(LookupIterator* it) {
-  for (; it->IsFound(); it->Next()) {
+  for (; it->IsFound() && it->state() != LookupIterator::JSPROXY; it->Next()) {
     if (it->state() == LookupIterator::ACCESSOR) {
       Handle<Object> accessors = it->GetAccessors();
       if (accessors->IsAccessorInfo()) {
