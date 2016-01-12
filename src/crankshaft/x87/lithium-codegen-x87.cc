@@ -140,7 +140,7 @@ bool LCodeGen::GeneratePrologue() {
     if (info()->IsStub()) {
       __ StubPrologue();
     } else {
-      __ Prologue(info()->IsCodePreAgingActive());
+      __ Prologue(info()->GeneratePreagedPrologue());
     }
   }
 

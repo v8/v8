@@ -139,7 +139,7 @@ void FullCodeGenerator::Generate() {
   // the frame (that is done below).
   FrameScope frame_scope(masm_, StackFrame::MANUAL);
   info->set_prologue_offset(masm_->pc_offset());
-  __ Prologue(info->IsCodePreAgingActive());
+  __ Prologue(info->GeneratePreagedPrologue());
 
   { Comment cmnt(masm_, "[ Allocate locals");
     int locals_count = info->scope()->num_stack_slots();

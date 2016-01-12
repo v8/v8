@@ -1346,9 +1346,8 @@ void CodeGenerator::AssemblePrologue() {
     __ Push(lr, fp);
     __ Mov(fp, csp);
   } else if (descriptor->IsJSFunctionCall()) {
-    CompilationInfo* info = this->info();
     __ SetStackPointer(jssp);
-    __ Prologue(info->IsCodePreAgingActive());
+    __ Prologue(this->info()->GeneratePreagedPrologue());
   } else if (frame()->needs_frame()) {
     if (descriptor->UseNativeStack()) {
       __ SetStackPointer(csp);

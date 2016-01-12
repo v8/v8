@@ -1420,10 +1420,9 @@ void CodeGenerator::AssemblePrologue() {
     __ push(ebp);
     __ mov(ebp, esp);
   } else if (descriptor->IsJSFunctionCall()) {
-    // TODO(turbofan): this prologue is redundant with OSR, but needed for
+    // TODO(turbofan): this prologue is redundant with OSR, but still needed for
     // code aging.
-    CompilationInfo* info = this->info();
-    __ Prologue(info->IsCodePreAgingActive());
+    __ Prologue(this->info()->GeneratePreagedPrologue());
   } else if (frame()->needs_frame()) {
     __ StubPrologue();
   } else {

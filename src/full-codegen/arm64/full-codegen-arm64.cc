@@ -134,7 +134,7 @@ void FullCodeGenerator::Generate() {
   //  Push(lr, fp, cp, x1);
   //  Add(fp, jssp, 2 * kPointerSize);
   info->set_prologue_offset(masm_->pc_offset());
-  __ Prologue(info->IsCodePreAgingActive());
+  __ Prologue(info->GeneratePreagedPrologue());
 
   // Reserve space on the stack for locals.
   { Comment cmnt(masm_, "[ Allocate locals");

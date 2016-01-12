@@ -268,10 +268,12 @@ class CompilationInfo {
 
   bool is_first_compile() const { return GetFlag(kFirstCompile); }
 
-  bool IsCodePreAgingActive() const {
-    // TODO(bradnelson): Figure out why this breaks wasm.
+  bool GeneratePreagedPrologue() const {
+    // Generate a pre-aged prologue if we are optimizing for size, which
+    // will make code flushing more aggressive. The code for WASM functions
+    // cannot be flushed, so it does not make sense to age them.
     return FLAG_optimize_for_size && FLAG_age_code && !will_serialize() &&
-           !is_debug() && !FLAG_expose_wasm;
+           !is_debug() && output_code_kind_ != Code::WASM_FUNCTION;
   }
 
   void EnsureFeedbackVector();

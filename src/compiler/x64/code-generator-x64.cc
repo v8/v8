@@ -1809,8 +1809,7 @@ void CodeGenerator::AssemblePrologue() {
     __ pushq(rbp);
     __ movq(rbp, rsp);
   } else if (descriptor->IsJSFunctionCall()) {
-    CompilationInfo* info = this->info();
-    __ Prologue(info->IsCodePreAgingActive());
+    __ Prologue(this->info()->GeneratePreagedPrologue());
   } else if (frame()->needs_frame()) {
     __ StubPrologue();
   } else {
