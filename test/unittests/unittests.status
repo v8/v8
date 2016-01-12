@@ -8,6 +8,7 @@
   'WasmModuleVerifyTest*': [SKIP],
   'WasmFunctionVerifyTest*': [SKIP],
   'WasmDecoderTest.TableSwitch*': [SKIP],
+  'WasmDecoderTest.AllLoadMemCombinations': [SKIP],
 }],  # 'byteorder == big'
 
 ]
