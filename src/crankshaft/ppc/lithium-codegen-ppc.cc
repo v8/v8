@@ -130,9 +130,9 @@ bool LCodeGen::GeneratePrologue() {
   info()->set_prologue_offset(prologue_offset);
   if (NeedsEagerFrame()) {
     if (info()->IsStub()) {
-      __ StubPrologue(prologue_offset);
+      __ StubPrologue(ip, prologue_offset);
     } else {
-      __ Prologue(info()->GeneratePreagedPrologue(), prologue_offset);
+      __ Prologue(info()->GeneratePreagedPrologue(), ip, prologue_offset);
     }
     frame_is_built_ = true;
   }

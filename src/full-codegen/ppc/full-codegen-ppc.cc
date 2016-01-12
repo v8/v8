@@ -135,7 +135,7 @@ void FullCodeGenerator::Generate() {
     __ addi(ip, ip, Operand(prologue_offset));
   }
   info->set_prologue_offset(prologue_offset);
-  __ Prologue(info->GeneratePreagedPrologue(), prologue_offset);
+  __ Prologue(info->GeneratePreagedPrologue(), ip, prologue_offset);
 
   {
     Comment cmnt(masm_, "[ Allocate locals");

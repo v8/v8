@@ -753,20 +753,26 @@ void MacroAssembler::LoadConstantPoolPointerRegister() {
 }
 
 
-void MacroAssembler::StubPrologue(int prologue_offset) {
+void MacroAssembler::StubPrologue(Register base, int prologue_offset) {
   LoadSmiLiteral(r11, Smi::FromInt(StackFrame::STUB));
   PushFixedFrame(r11);
   // Adjust FP to point to saved FP.
   addi(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
   if (FLAG_enable_embedded_constant_pool) {
-    // ip contains prologue address
-    LoadConstantPoolPointerRegister(ip, -prologue_offset);
+    if (!base.is(no_reg)) {
+      // base contains prologue address
+      LoadConstantPoolPointerRegister(base, -prologue_offset);
+    } else {
+      LoadConstantPoolPointerRegister();
+    }
     set_constant_pool_available(true);
   }
 }
 
 
-void MacroAssembler::Prologue(bool code_pre_aging, int prologue_offset) {
+void MacroAssembler::Prologue(bool code_pre_aging, Register base,
+                              int prologue_offset) {
+  DCHECK(!base.is(no_reg));
   {
     PredictableCodeSizeScope predictible_code_size_scope(
         this, kNoCodeAgeSequenceLength);
@@ -796,8 +802,8 @@ void MacroAssembler::Prologue(bool code_pre_aging, int prologue_offset) {
     }
   }
   if (FLAG_enable_embedded_constant_pool) {
-    // ip contains prologue address
-    LoadConstantPoolPointerRegister(ip, -prologue_offset);
+    // base contains prologue address
+    LoadConstantPoolPointerRegister(base, -prologue_offset);
     set_constant_pool_available(true);
   }
 }

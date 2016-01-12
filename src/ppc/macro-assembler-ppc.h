@@ -403,8 +403,8 @@ class MacroAssembler : public Assembler {
 #endif
 
   // Generates function and stub prologue code.
-  void StubPrologue(int prologue_offset = 0);
-  void Prologue(bool code_pre_aging, int prologue_offset = 0);
+  void StubPrologue(Register base = no_reg, int prologue_offset = 0);
+  void Prologue(bool code_pre_aging, Register base, int prologue_offset = 0);
 
   // Enter exit frame.
   // stack_space - extra stack space, used for parameters before call to C.

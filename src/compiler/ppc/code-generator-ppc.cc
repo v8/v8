@@ -1543,9 +1543,9 @@ void CodeGenerator::AssemblePrologue() {
       __ mr(fp, sp);
     }
   } else if (descriptor->IsJSFunctionCall()) {
-    __ Prologue(this->info()->GeneratePreagedPrologue());
+    __ Prologue(this->info()->GeneratePreagedPrologue(), ip);
   } else if (frame()->needs_frame()) {
-    __ StubPrologue();
+    __ StubPrologue(ip);
   } else {
     frame()->SetElidedFrameSizeInSlots(0);
   }
