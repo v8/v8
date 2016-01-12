@@ -7575,6 +7575,8 @@ class JSDate: public JSObject {
   // See FieldIndex for the list of date fields.
   static Object* GetField(Object* date, Smi* index);
 
+  static Handle<Object> SetValue(Handle<JSDate> date, double v);
+
   void SetValue(Object* value, bool is_value_nan);
 
   // ES6 section 20.3.4.45 Date.prototype [ @@toPrimitive ]

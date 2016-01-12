@@ -1246,15 +1246,133 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
   {  // --- D a t e ---
     // Builtin functions for Date.prototype.
-    Handle<JSFunction> date_fun = InstallFunction(
-        global, "Date", JS_DATE_TYPE, JSDate::kSize,
-        isolate->initial_object_prototype(), Builtins::kDateConstructor);
+    Handle<JSObject> prototype =
+        factory->NewJSObject(isolate->object_function(), TENURED);
+    Handle<JSFunction> date_fun =
+        InstallFunction(global, "Date", JS_DATE_TYPE, JSDate::kSize, prototype,
+                        Builtins::kDateConstructor);
     InstallWithIntrinsicDefaultProto(isolate, date_fun,
                                      Context::DATE_FUNCTION_INDEX);
     date_fun->shared()->set_construct_stub(
         *isolate->builtins()->DateConstructor_ConstructStub());
     date_fun->shared()->set_length(7);
     date_fun->shared()->DontAdaptArguments();
+
+    // Install the Date.now, Date.parse and Date.UTC functions.
+    SimpleInstallFunction(date_fun, "now", Builtins::kDateNow, 0, false);
+    SimpleInstallFunction(date_fun, "parse", Builtins::kDateParse, 1, false);
+    SimpleInstallFunction(date_fun, "UTC", Builtins::kDateUTC, 7, false);
+
+    // Install the "constructor" property on the {prototype}.
+    JSObject::AddProperty(prototype, factory->constructor_string(), date_fun,
+                          DONT_ENUM);
+
+    // Install the Date.prototype methods.
+    SimpleInstallFunction(prototype, "toString",
+                          Builtins::kDatePrototypeToString, 0, false);
+    SimpleInstallFunction(prototype, "toDateString",
+                          Builtins::kDatePrototypeToDateString, 0, false);
+    SimpleInstallFunction(prototype, "toTimeString",
+                          Builtins::kDatePrototypeToTimeString, 0, false);
+    SimpleInstallFunction(prototype, "toGMTString",
+                          Builtins::kDatePrototypeToUTCString, 0, false);
+    SimpleInstallFunction(prototype, "toISOString",
+                          Builtins::kDatePrototypeToISOString, 0, false);
+    SimpleInstallFunction(prototype, "toUTCString",
+                          Builtins::kDatePrototypeToUTCString, 0, false);
+    SimpleInstallFunction(prototype, "getDate", Builtins::kDatePrototypeGetDate,
+                          0, true);
+    SimpleInstallFunction(prototype, "setDate", Builtins::kDatePrototypeSetDate,
+                          1, false);
+    SimpleInstallFunction(prototype, "getDay", Builtins::kDatePrototypeGetDay,
+                          0, true);
+    SimpleInstallFunction(prototype, "getFullYear",
+                          Builtins::kDatePrototypeGetFullYear, 0, true);
+    SimpleInstallFunction(prototype, "setFullYear",
+                          Builtins::kDatePrototypeSetFullYear, 3, false);
+    SimpleInstallFunction(prototype, "getHours",
+                          Builtins::kDatePrototypeGetHours, 0, true);
+    SimpleInstallFunction(prototype, "setHours",
+                          Builtins::kDatePrototypeSetHours, 4, false);
+    SimpleInstallFunction(prototype, "getMilliseconds",
+                          Builtins::kDatePrototypeGetMilliseconds, 0, true);
+    SimpleInstallFunction(prototype, "setMilliseconds",
+                          Builtins::kDatePrototypeSetMilliseconds, 1, false);
+    SimpleInstallFunction(prototype, "getMinutes",
+                          Builtins::kDatePrototypeGetMinutes, 0, true);
+    SimpleInstallFunction(prototype, "setMinutes",
+                          Builtins::kDatePrototypeSetMinutes, 3, false);
+    SimpleInstallFunction(prototype, "getMonth",
+                          Builtins::kDatePrototypeGetMonth, 0, true);
+    SimpleInstallFunction(prototype, "setMonth",
+                          Builtins::kDatePrototypeSetMonth, 2, false);
+    SimpleInstallFunction(prototype, "getSeconds",
+                          Builtins::kDatePrototypeGetSeconds, 0, true);
+    SimpleInstallFunction(prototype, "setSeconds",
+                          Builtins::kDatePrototypeSetSeconds, 2, false);
+    SimpleInstallFunction(prototype, "getTime", Builtins::kDatePrototypeGetTime,
+                          0, true);
+    SimpleInstallFunction(prototype, "setTime", Builtins::kDatePrototypeSetTime,
+                          1, false);
+    SimpleInstallFunction(prototype, "getTimezoneOffset",
+                          Builtins::kDatePrototypeGetTimezoneOffset, 0, true);
+    SimpleInstallFunction(prototype, "getUTCDate",
+                          Builtins::kDatePrototypeGetUTCDate, 0, true);
+    SimpleInstallFunction(prototype, "setUTCDate",
+                          Builtins::kDatePrototypeSetUTCDate, 1, false);
+    SimpleInstallFunction(prototype, "getUTCDay",
+                          Builtins::kDatePrototypeGetUTCDay, 0, true);
+    SimpleInstallFunction(prototype, "getUTCFullYear",
+                          Builtins::kDatePrototypeGetUTCFullYear, 0, true);
+    SimpleInstallFunction(prototype, "setUTCFullYear",
+                          Builtins::kDatePrototypeSetUTCFullYear, 3, false);
+    SimpleInstallFunction(prototype, "getUTCHours",
+                          Builtins::kDatePrototypeGetUTCHours, 0, true);
+    SimpleInstallFunction(prototype, "setUTCHours",
+                          Builtins::kDatePrototypeSetUTCHours, 4, false);
+    SimpleInstallFunction(prototype, "getUTCMilliseconds",
+                          Builtins::kDatePrototypeGetUTCMilliseconds, 0, true);
+    SimpleInstallFunction(prototype, "setUTCMilliseconds",
+                          Builtins::kDatePrototypeSetUTCMilliseconds, 1, false);
+    SimpleInstallFunction(prototype, "getUTCMinutes",
+                          Builtins::kDatePrototypeGetUTCMinutes, 0, true);
+    SimpleInstallFunction(prototype, "setUTCMinutes",
+                          Builtins::kDatePrototypeSetUTCMinutes, 3, false);
+    SimpleInstallFunction(prototype, "getUTCMonth",
+                          Builtins::kDatePrototypeGetUTCMonth, 0, true);
+    SimpleInstallFunction(prototype, "setUTCMonth",
+                          Builtins::kDatePrototypeSetUTCMonth, 2, false);
+    SimpleInstallFunction(prototype, "getUTCSeconds",
+                          Builtins::kDatePrototypeGetUTCSeconds, 0, true);
+    SimpleInstallFunction(prototype, "setUTCSeconds",
+                          Builtins::kDatePrototypeSetUTCSeconds, 2, false);
+    SimpleInstallFunction(prototype, "valueOf", Builtins::kDatePrototypeValueOf,
+                          0, false);
+    SimpleInstallFunction(prototype, "getYear", Builtins::kDatePrototypeGetYear,
+                          0, true);
+    SimpleInstallFunction(prototype, "setYear", Builtins::kDatePrototypeSetYear,
+                          1, false);
+
+    // Install i18n fallback functions.
+    SimpleInstallFunction(prototype, "toLocaleString",
+                          Builtins::kDatePrototypeToString, 0, false);
+    SimpleInstallFunction(prototype, "toLocaleDateString",
+                          Builtins::kDatePrototypeToDateString, 0, false);
+    SimpleInstallFunction(prototype, "toLocaleTimeString",
+                          Builtins::kDatePrototypeToTimeString, 0, false);
+
+    // Install the @@toPrimitive function.
+    Handle<JSFunction> to_primitive = InstallFunction(
+        prototype, factory->to_primitive_symbol(), JS_OBJECT_TYPE,
+        JSObject::kHeaderSize, MaybeHandle<JSObject>(),
+        Builtins::kDatePrototypeToPrimitive,
+        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+
+    // Set the expected parameters for @@toPrimitive to 1; required by builtin.
+    to_primitive->shared()->set_internal_formal_parameter_count(1);
+
+    // Set the length for the function to satisfy ECMA-262.
+    to_primitive->shared()->set_length(1);
   }
 
   {  // -- R e g E x p
@@ -1627,7 +1745,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     native_context()->set_call_as_constructor_delegate(*delegate);
     delegate->shared()->DontAdaptArguments();
   }
-}
+}  // NOLINT(readability/fn_size)
 
 
 void Genesis::InstallTypedArray(const char* name, ElementsKind elements_kind,
@@ -2529,80 +2647,6 @@ bool Genesis::InstallNatives(ContextType context_type) {
         handle(native_context()->global_object()), factory()->eval_string(),
         Builtins::kGlobalEval, 1, false);
     native_context()->set_global_eval_fun(*eval);
-  }
-
-  // Setup the Date constructor.
-  {
-    Handle<String> key = factory()->Date_string();
-    Handle<JSFunction> date_fun = Handle<JSFunction>::cast(
-        Object::GetProperty(handle(native_context()->global_object()), key)
-            .ToHandleChecked());
-    Handle<JSObject> prototype =
-        Handle<JSObject>(JSObject::cast(date_fun->instance_prototype()));
-
-    // Install the Date.now, Date.parse and Date.UTC functions.
-    SimpleInstallFunction(date_fun, "now", Builtins::kDateNow, 0, false);
-    SimpleInstallFunction(date_fun, "parse", Builtins::kDateParse, 1, false);
-    SimpleInstallFunction(date_fun, "UTC", Builtins::kDateUTC, 7, false);
-
-    // Install the "constructor" property on the {prototype}.
-    JSObject::AddProperty(prototype, factory()->constructor_string(), date_fun,
-                          DONT_ENUM);
-
-    // Install the toISOString and valueOf functions.
-    SimpleInstallFunction(prototype, "toISOString",
-                          Builtins::kDatePrototypeToISOString, 0, false);
-    SimpleInstallFunction(prototype, "getDate", Builtins::kDatePrototypeGetDate,
-                          0, true);
-    SimpleInstallFunction(prototype, "getDay", Builtins::kDatePrototypeGetDay,
-                          0, true);
-    SimpleInstallFunction(prototype, "getFullYear",
-                          Builtins::kDatePrototypeGetFullYear, 0, true);
-    SimpleInstallFunction(prototype, "getHours",
-                          Builtins::kDatePrototypeGetHours, 0, true);
-    SimpleInstallFunction(prototype, "getMilliseconds",
-                          Builtins::kDatePrototypeGetMilliseconds, 0, true);
-    SimpleInstallFunction(prototype, "getMinutes",
-                          Builtins::kDatePrototypeGetMinutes, 0, true);
-    SimpleInstallFunction(prototype, "getMonth",
-                          Builtins::kDatePrototypeGetMonth, 0, true);
-    SimpleInstallFunction(prototype, "getSeconds",
-                          Builtins::kDatePrototypeGetSeconds, 0, true);
-    SimpleInstallFunction(prototype, "getTime", Builtins::kDatePrototypeGetTime,
-                          0, true);
-    SimpleInstallFunction(prototype, "getTimezoneOffset",
-                          Builtins::kDatePrototypeGetTimezoneOffset, 0, true);
-    SimpleInstallFunction(prototype, "getUTCDate",
-                          Builtins::kDatePrototypeGetUTCDate, 0, true);
-    SimpleInstallFunction(prototype, "getUTCDay",
-                          Builtins::kDatePrototypeGetUTCDay, 0, true);
-    SimpleInstallFunction(prototype, "getUTCFullYear",
-                          Builtins::kDatePrototypeGetUTCFullYear, 0, true);
-    SimpleInstallFunction(prototype, "getUTCHours",
-                          Builtins::kDatePrototypeGetUTCHours, 0, true);
-    SimpleInstallFunction(prototype, "getUTCMilliseconds",
-                          Builtins::kDatePrototypeGetUTCMilliseconds, 0, true);
-    SimpleInstallFunction(prototype, "getUTCMinutes",
-                          Builtins::kDatePrototypeGetUTCMinutes, 0, true);
-    SimpleInstallFunction(prototype, "getUTCMonth",
-                          Builtins::kDatePrototypeGetUTCMonth, 0, true);
-    SimpleInstallFunction(prototype, "getUTCSeconds",
-                          Builtins::kDatePrototypeGetUTCSeconds, 0, true);
-    SimpleInstallFunction(prototype, "valueOf", Builtins::kDatePrototypeValueOf,
-                          0, false);
-
-    // Install the @@toPrimitive function.
-    Handle<JSFunction> to_primitive = InstallFunction(
-        prototype, factory()->to_primitive_symbol(), JS_OBJECT_TYPE,
-        JSObject::kHeaderSize, MaybeHandle<JSObject>(),
-        Builtins::kDatePrototypeToPrimitive,
-        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
-
-    // Set the expected parameters for @@toPrimitive to 1; required by builtin.
-    to_primitive->shared()->set_internal_formal_parameter_count(1);
-
-    // Set the length for the function to satisfy ECMA-262.
-    to_primitive->shared()->set_length(1);
   }
 
   // Install Array.prototype.concat

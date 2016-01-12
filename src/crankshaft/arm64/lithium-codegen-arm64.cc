@@ -2516,40 +2516,6 @@ void LCodeGen::DoLazyBailout(LLazyBailout* instr) {
 }
 
 
-void LCodeGen::DoDateField(LDateField* instr) {
-  Register object = ToRegister(instr->date());
-  Register result = ToRegister(instr->result());
-  Register temp1 = x10;
-  Register temp2 = x11;
-  Smi* index = instr->index();
-
-  DCHECK(object.is(result) && object.Is(x0));
-  DCHECK(instr->IsMarkedAsCall());
-
-  if (index->value() == 0) {
-    __ Ldr(result, FieldMemOperand(object, JSDate::kValueOffset));
-  } else {
-    Label runtime, done;
-    if (index->value() < JSDate::kFirstUncachedField) {
-      ExternalReference stamp = ExternalReference::date_cache_stamp(isolate());
-      __ Mov(temp1, Operand(stamp));
-      __ Ldr(temp1, MemOperand(temp1));
-      __ Ldr(temp2, FieldMemOperand(object, JSDate::kCacheStampOffset));
-      __ Cmp(temp1, temp2);
-      __ B(ne, &runtime);
-      __ Ldr(result, FieldMemOperand(object, JSDate::kValueOffset +
-                                             kPointerSize * index->value()));
-      __ B(&done);
-    }
-
-    __ Bind(&runtime);
-    __ Mov(x1, Operand(index));
-    __ CallCFunction(ExternalReference::get_date_field_function(isolate()), 2);
-    __ Bind(&done);
-  }
-}
-
-
 void LCodeGen::DoDeoptimize(LDeoptimize* instr) {
   Deoptimizer::BailoutType type = instr->hydrogen()->type();
   // TODO(danno): Stubs expect all deopts to be lazy for historical reasons (the

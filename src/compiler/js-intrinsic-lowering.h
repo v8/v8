@@ -40,7 +40,6 @@ class JSIntrinsicLowering final : public AdvancedReducer {
  private:
   Reduction ReduceConstructDouble(Node* node);
   Reduction ReduceCreateIterResultObject(Node* node);
-  Reduction ReduceDateField(Node* node);
   Reduction ReduceDeoptimizeNow(Node* node);
   Reduction ReduceDoubleHi(Node* node);
   Reduction ReduceDoubleLo(Node* node);
@@ -62,7 +61,6 @@ class JSIntrinsicLowering final : public AdvancedReducer {
   Reduction ReduceRegExpFlags(Node* node);
   Reduction ReduceRegExpSource(Node* node);
   Reduction ReduceSubString(Node* node);
-  Reduction ReduceThrowNotDateError(Node* node);
   Reduction ReduceToInteger(Node* node);
   Reduction ReduceToLength(Node* node);
   Reduction ReduceToName(Node* node);

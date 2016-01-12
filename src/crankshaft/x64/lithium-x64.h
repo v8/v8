@@ -60,7 +60,6 @@ class LCodeGen;
   V(ConstantT)                               \
   V(ConstructDouble)                         \
   V(Context)                                 \
-  V(DateField)                               \
   V(DebugBreak)                              \
   V(DeclareGlobals)                          \
   V(Deoptimize)                              \
@@ -1340,23 +1339,6 @@ class LMapEnumLength final : public LTemplateInstruction<1, 1, 0> {
   LOperand* value() { return inputs_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(MapEnumLength, "map-enum-length")
-};
-
-
-class LDateField final : public LTemplateInstruction<1, 1, 0> {
- public:
-  LDateField(LOperand* date, Smi* index) : index_(index) {
-    inputs_[0] = date;
-  }
-
-  LOperand* date() { return inputs_[0]; }
-  Smi* index() const { return index_; }
-
-  DECLARE_CONCRETE_INSTRUCTION(DateField, "date-field")
-  DECLARE_HYDROGEN_ACCESSOR(DateField)
-
- private:
-  Smi* index_;
 };
 
 

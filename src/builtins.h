@@ -74,9 +74,30 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(DateNow, kNone)                                            \
   V(DateParse, kNone)                                          \
   V(DateUTC, kNone)                                            \
+  V(DatePrototypeSetDate, kNone)                               \
+  V(DatePrototypeSetFullYear, kNone)                           \
+  V(DatePrototypeSetHours, kNone)                              \
+  V(DatePrototypeSetMilliseconds, kNone)                       \
+  V(DatePrototypeSetMinutes, kNone)                            \
+  V(DatePrototypeSetMonth, kNone)                              \
+  V(DatePrototypeSetSeconds, kNone)                            \
+  V(DatePrototypeSetTime, kNone)                               \
+  V(DatePrototypeSetUTCDate, kNone)                            \
+  V(DatePrototypeSetUTCFullYear, kNone)                        \
+  V(DatePrototypeSetUTCHours, kNone)                           \
+  V(DatePrototypeSetUTCMilliseconds, kNone)                    \
+  V(DatePrototypeSetUTCMinutes, kNone)                         \
+  V(DatePrototypeSetUTCMonth, kNone)                           \
+  V(DatePrototypeSetUTCSeconds, kNone)                         \
+  V(DatePrototypeToDateString, kNone)                          \
   V(DatePrototypeToISOString, kNone)                           \
   V(DatePrototypeToPrimitive, kNone)                           \
+  V(DatePrototypeToUTCString, kNone)                           \
+  V(DatePrototypeToString, kNone)                              \
+  V(DatePrototypeToTimeString, kNone)                          \
   V(DatePrototypeValueOf, kNone)                               \
+  V(DatePrototypeGetYear, kNone)                               \
+  V(DatePrototypeSetYear, kNone)                               \
                                                                \
   V(FunctionConstructor, kTargetAndNewTarget)                  \
   V(FunctionPrototypeBind, kNone)                              \
