@@ -508,6 +508,12 @@ bool BytecodeGraphBuilder::CreateGraph(bool stack_check) {
 void BytecodeGraphBuilder::CreateGraphBody(bool stack_check) {
   // TODO(oth): Review ast-graph-builder equivalent, i.e. arguments
   // object setup, this function variable if used, tracing hooks.
+
+  if (stack_check) {
+    Node* node = NewNode(javascript()->StackCheck());
+    PrepareEntryFrameState(node);
+  }
+
   VisitBytecodes();
 }
 
@@ -1872,6 +1878,16 @@ Node** BytecodeGraphBuilder::EnsureInputBufferSize(int size) {
     input_buffer_size_ = size;
   }
   return input_buffer_;
+}
+
+
+void BytecodeGraphBuilder::PrepareEntryFrameState(Node* node) {
+  DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node->op()));
+  DCHECK_EQ(IrOpcode::kDead,
+            NodeProperties::GetFrameStateInput(node, 0)->opcode());
+  NodeProperties::ReplaceFrameStateInput(
+      node, 0, environment()->Checkpoint(BailoutId(0),
+                                         OutputFrameStateCombine::Ignore()));
 }
 
 

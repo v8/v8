@@ -168,6 +168,9 @@ class BytecodeGraphBuilder {
   void MergeEnvironmentsOfForwardBranches(int source_offset);
   void BuildLoopHeaderForBackwardBranches(int source_offset);
 
+  // Attaches a frame state to |node| for the entry to the function.
+  void PrepareEntryFrameState(Node* node);
+
   // Growth increment for the temporary buffer used to construct input lists to
   // new nodes.
   static const int kInputBufferSizeIncrement = 64;
