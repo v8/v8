@@ -1174,7 +1174,6 @@
   'regress/regress-copy-hole-to-field': [SKIP],
   'regress/regress-crbug-315252': [SKIP],
   'regress/regress-crbug-412215': [SKIP],
-  'regress/regress-crbug-513507': [SKIP],
   'regress/regress-deopt-store-effect': [SKIP],
   'regress/regress-undefined-store-keyed-fast-element': [SKIP],
   'regress/typed-array-lifetime': [SKIP],
