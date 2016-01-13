@@ -246,6 +246,9 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(InternalArrayCode, BUILTIN, UNINITIALIZED, kNoExtraICState)                \
   V(ArrayCode, BUILTIN, UNINITIALIZED, kNoExtraICState)                        \
                                                                                \
+  V(NumberConstructor, BUILTIN, UNINITIALIZED, kNoExtraICState)                \
+  V(NumberConstructor_ConstructStub, BUILTIN, UNINITIALIZED, kNoExtraICState)  \
+                                                                               \
   V(StringConstructor, BUILTIN, UNINITIALIZED, kNoExtraICState)                \
   V(StringConstructor_ConstructStub, BUILTIN, UNINITIALIZED, kNoExtraICState)  \
                                                                                \
@@ -478,6 +481,11 @@ class Builtins {
 
   static void Generate_InternalArrayCode(MacroAssembler* masm);
   static void Generate_ArrayCode(MacroAssembler* masm);
+
+  // ES6 section 20.1.1.1 Number ( [ value ] ) for the [[Call]] case.
+  static void Generate_NumberConstructor(MacroAssembler* masm);
+  // ES6 section 20.1.1.1 Number ( [ value ] ) for the [[Construct]] case.
+  static void Generate_NumberConstructor_ConstructStub(MacroAssembler* masm);
 
   static void Generate_StringConstructor(MacroAssembler* masm);
   static void Generate_StringConstructor_ConstructStub(MacroAssembler* masm);

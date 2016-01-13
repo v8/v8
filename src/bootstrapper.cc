@@ -1201,14 +1201,15 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   }
 
   {  // --- N u m b e r ---
-    Handle<JSFunction> number_fun =
-        InstallFunction(global, "Number", JS_VALUE_TYPE, JSValue::kSize,
-                        isolate->initial_object_prototype(),
-                        Builtins::kIllegal);
+    Handle<JSFunction> number_fun = InstallFunction(
+        global, "Number", JS_VALUE_TYPE, JSValue::kSize,
+        isolate->initial_object_prototype(), Builtins::kNumberConstructor);
+    number_fun->shared()->DontAdaptArguments();
+    number_fun->shared()->set_construct_stub(
+        *isolate->builtins()->NumberConstructor_ConstructStub());
+    number_fun->shared()->set_length(1);
     InstallWithIntrinsicDefaultProto(isolate, number_fun,
                                      Context::NUMBER_FUNCTION_INDEX);
-    number_fun->shared()->set_construct_stub(
-        *isolate->builtins()->JSBuiltinsConstructStub());
   }
 
   {  // --- B o o l e a n ---

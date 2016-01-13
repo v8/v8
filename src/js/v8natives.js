@@ -952,18 +952,6 @@ utils.InstallFunctions(GlobalBoolean.prototype, DONT_ENUM, [
 // ----------------------------------------------------------------------------
 // Number
 
-function NumberConstructor(x) {
-  // TODO(bmeurer): Move this to toplevel.
-  "use strict";
-  var value = %_ArgumentsLength() == 0 ? 0 : TO_NUMBER(x);
-  if (IS_UNDEFINED(new.target)) return value;
-
-  var result = %NewObject(GlobalNumber, new.target);
-  %_SetValueOf(result, value);
-  return result;
-}
-
-
 // ES6 Number.prototype.toString([ radix ])
 function NumberToStringJS(radix) {
   // NOTE: Both Number objects and values can enter here as
@@ -1114,7 +1102,6 @@ function NumberIsSafeInteger(number) {
 
 // ----------------------------------------------------------------------------
 
-%SetCode(GlobalNumber, NumberConstructor);
 %FunctionSetPrototype(GlobalNumber, new GlobalNumber(0));
 
 %OptimizeObjectForAddingMultipleProperties(GlobalNumber.prototype, 8);

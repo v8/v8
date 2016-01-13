@@ -1340,6 +1340,12 @@ class MacroAssembler : public Assembler {
                           CPURegister heap_number_map = NoReg,
                           MutableMode mode = IMMUTABLE);
 
+  // Allocate and initialize a JSValue wrapper with the specified {constructor}
+  // and {value}.
+  void AllocateJSValue(Register result, Register constructor, Register value,
+                       Register scratch1, Register scratch2,
+                       Label* gc_required);
+
   // ---------------------------------------------------------------------------
   // Support functions.
 

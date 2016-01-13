@@ -291,11 +291,9 @@ testUnintendedCallerCensorship();
 testErrorsDuringFormatting();
 
 testTraceNativeConversion(String);  // Does ToString on argument.
-testTraceNativeConversion(Number);  // Does ToNumber on argument.
 testTraceNativeConversion(RegExp);  // Does ToString on argument.
 
 testTraceNativeConstructor(String);  // Does ToString on argument.
-testTraceNativeConstructor(Number);  // Does ToNumber on argument.
 testTraceNativeConstructor(RegExp);  // Does ToString on argument.
 
 // Omitted because QuickSort has builtins object as receiver, and is non-native

@@ -138,6 +138,107 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
 
 
 // static
+void Builtins::Generate_NumberConstructor(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- x0                     : number of arguments
+  //  -- x1                     : constructor function
+  //  -- lr                     : return address
+  //  -- sp[(argc - n - 1) * 8] : arg[n] (zero based)
+  //  -- sp[argc * 8]           : receiver
+  // -----------------------------------
+  ASM_LOCATION("Builtins::Generate_NumberConstructor");
+
+  // 1. Load the first argument into x0 and get rid of the rest (including the
+  // receiver).
+  Label no_arguments;
+  {
+    __ Cbz(x0, &no_arguments);
+    __ Sub(x0, x0, 1);
+    __ Drop(x0);
+    __ Ldr(x0, MemOperand(jssp, 2 * kPointerSize, PostIndex));
+  }
+
+  // 2a. Convert first argument to number.
+  ToNumberStub stub(masm->isolate());
+  __ TailCallStub(&stub);
+
+  // 2b. No arguments, return +0 (already in x0).
+  __ Bind(&no_arguments);
+  __ Drop(1);
+  __ Ret();
+}
+
+
+// static
+void Builtins::Generate_NumberConstructor_ConstructStub(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- x0                     : number of arguments
+  //  -- x1                     : constructor function
+  //  -- x3                     : new target
+  //  -- lr                     : return address
+  //  -- sp[(argc - n - 1) * 8] : arg[n] (zero based)
+  //  -- sp[argc * 8]           : receiver
+  // -----------------------------------
+  ASM_LOCATION("Builtins::Generate_NumberConstructor_ConstructStub");
+
+  // 1. Make sure we operate in the context of the called function.
+  __ Ldr(cp, FieldMemOperand(x1, JSFunction::kContextOffset));
+
+  // 2. Load the first argument into x2 and get rid of the rest (including the
+  // receiver).
+  {
+    Label no_arguments, done;
+    __ Cbz(x0, &no_arguments);
+    __ Sub(x0, x0, 1);
+    __ Drop(x0);
+    __ Ldr(x2, MemOperand(jssp, 2 * kPointerSize, PostIndex));
+    __ B(&done);
+    __ Bind(&no_arguments);
+    __ Drop(1);
+    __ Mov(x2, Smi::FromInt(0));
+    __ Bind(&done);
+  }
+
+  // 3. Make sure x2 is a number.
+  {
+    Label done_convert;
+    __ JumpIfSmi(x2, &done_convert);
+    __ JumpIfObjectType(x2, x4, x4, HEAP_NUMBER_TYPE, &done_convert, eq);
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ Push(x1, x3);
+      __ Move(x0, x2);
+      ToNumberStub stub(masm->isolate());
+      __ CallStub(&stub);
+      __ Move(x2, x0);
+      __ Pop(x3, x1);
+    }
+    __ Bind(&done_convert);
+  }
+
+  // 4. Check if new target and constructor differ.
+  Label new_object;
+  __ Cmp(x1, x3);
+  __ B(ne, &new_object);
+
+  // 5. Allocate a JSValue wrapper for the number.
+  __ AllocateJSValue(x0, x1, x2, x4, x5, &new_object);
+  __ Ret();
+
+  // 6. Fallback to the runtime to create new object.
+  __ bind(&new_object);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ Push(x2, x1, x3);  // first argument, constructor, new target
+    __ CallRuntime(Runtime::kNewObject);
+    __ Pop(x2);
+  }
+  __ Str(x2, FieldMemOperand(x0, JSValue::kValueOffset));
+  __ Ret();
+}
+
+
+// static
 void Builtins::Generate_StringConstructor(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- x0                     : number of arguments
@@ -206,7 +307,10 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
   // -----------------------------------
   ASM_LOCATION("Builtins::Generate_StringConstructor_ConstructStub");
 
-  // 1. Load the first argument into x2 and get rid of the rest (including the
+  // 1. Make sure we operate in the context of the called function.
+  __ Ldr(cp, FieldMemOperand(x1, JSFunction::kContextOffset));
+
+  // 2. Load the first argument into x2 and get rid of the rest (including the
   // receiver).
   {
     Label no_arguments, done;
@@ -221,7 +325,7 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
     __ Bind(&done);
   }
 
-  // 2. Make sure x2 is a string.
+  // 3. Make sure x2 is a string.
   {
     Label convert, done_convert;
     __ JumpIfSmi(x2, &convert);
@@ -239,33 +343,16 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
     __ Bind(&done_convert);
   }
 
-  // 3. Check if new target and constructor differ.
+  // 4. Check if new target and constructor differ.
   Label new_object;
   __ Cmp(x1, x3);
   __ B(ne, &new_object);
 
-  // 4. Allocate a JSValue wrapper for the string.
-  {
-    // ----------- S t a t e -------------
-    //  -- x2 : the first argument
-    //  -- x1 : constructor function
-    //  -- x3 : new target
-    //  -- lr : return address
-    // -----------------------------------
-    __ Allocate(JSValue::kSize, x0, x4, x5, &new_object, TAG_OBJECT);
+  // 5. Allocate a JSValue wrapper for the string.
+  __ AllocateJSValue(x0, x1, x2, x4, x5, &new_object);
+  __ Ret();
 
-    // Initialize the JSValue in eax.
-    __ LoadGlobalFunctionInitialMap(x1, x3, x4);
-    __ Str(x3, FieldMemOperand(x0, HeapObject::kMapOffset));
-    __ LoadRoot(x3, Heap::kEmptyFixedArrayRootIndex);
-    __ Str(x3, FieldMemOperand(x0, JSObject::kPropertiesOffset));
-    __ Str(x3, FieldMemOperand(x0, JSObject::kElementsOffset));
-    __ Str(x2, FieldMemOperand(x0, JSValue::kValueOffset));
-    STATIC_ASSERT(JSValue::kSize == 4 * kPointerSize);
-    __ Ret();
-  }
-
-  // 5. Fallback to the runtime to create new object.
+  // 6. Fallback to the runtime to create new object.
   __ bind(&new_object);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
