@@ -278,25 +278,27 @@ def CheckChangeOnCommit(input_api, output_api):
 
 
 def GetPreferredTryMasters(project, change):
-  return {
-    'tryserver.v8': {
-      'v8_linux_rel_ng': set(['defaulttests']),
-      'v8_linux_dbg_ng': set(['defaulttests']),
-      'v8_linux_nodcheck_rel': set(['defaulttests']),
-      'v8_linux_gcc_compile_rel': set(['defaulttests']),
-      'v8_linux64_rel_ng': set(['defaulttests']),
-      'v8_linux64_asan_rel': set(['defaulttests']),
-      'v8_linux64_avx2_rel': set(['defaulttests']),
-      'v8_win_rel_ng': set(['defaulttests']),
-      'v8_win_compile_dbg': set(['defaulttests']),
-      'v8_win_nosnap_shared_compile_rel': set(['defaulttests']),
-      'v8_win64_rel_ng': set(['defaulttests']),
-      'v8_mac_rel': set(['defaulttests']),
-      'v8_linux_arm_rel': set(['defaulttests']),
-      'v8_linux_arm64_rel': set(['defaulttests']),
-      'v8_linux_mipsel_compile_rel': set(['defaulttests']),
-      'v8_linux_mips64el_compile_rel': set(['defaulttests']),
-      'v8_android_arm_compile_rel': set(['defaulttests']),
-      'v8_linux_chromium_gn_rel': set(['defaulttests']),
-    },
-  }
+  import json
+  import os.path
+  import platform
+  import subprocess
+
+  cq_config_path = os.path.join(
+      change.RepositoryRoot(), 'infra', 'config', 'cq.cfg')
+  # commit_queue.py below is a script in depot_tools directory, which has a
+  # 'builders' command to retrieve a list of CQ builders from the CQ config.
+  is_win = platform.system() == 'Windows'
+  masters = json.loads(subprocess.check_output(
+      ['commit_queue', 'builders', cq_config_path], shell=is_win))
+
+  try_config = {}
+  for master in masters:
+    try_config.setdefault(master, {})
+    for builder in masters[master]:
+      # Do not trigger presubmit builders, since they're likely to fail
+      # (e.g. OWNERS checks before finished code review), and we're
+      # running local presubmit anyway.
+      if 'presubmit' not in builder:
+        try_config[master][builder] = ['defaulttests']
+
+  return try_config
