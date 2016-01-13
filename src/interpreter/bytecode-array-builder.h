@@ -306,7 +306,6 @@ class BytecodeArrayBuilder final {
   // Temporary register management.
   int BorrowTemporaryRegister();
   int BorrowTemporaryRegisterNotInRange(int start_index, int end_index);
-  int AllocateAndBorrowTemporaryRegister();
   void ReturnTemporaryRegister(int reg_index);
   int PrepareForConsecutiveTemporaryRegisters(size_t count);
   void BorrowConsecutiveTemporaryRegister(int reg_index);
@@ -390,7 +389,6 @@ class TemporaryRegisterScope {
   explicit TemporaryRegisterScope(BytecodeArrayBuilder* builder);
   ~TemporaryRegisterScope();
   Register NewRegister();
-  Register AllocateNewRegister();
 
   void PrepareForConsecutiveAllocations(size_t count);
   Register NextConsecutiveRegister();

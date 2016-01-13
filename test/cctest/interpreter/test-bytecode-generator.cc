@@ -293,117 +293,128 @@ TEST(PrimitiveExpressions) {
         B(Return)},
        0},
       {"var x = 0; return x + 3;",
-       kPointerSize,
+       2 * kPointerSize,
        1,
-       8,
+       10,
        {B(LdaZero),         //
         B(Star), R(0),      //
+        B(Star), R(1),      //
         B(LdaSmi8), U8(3),  //
-        B(Add), R(0),       //
+        B(Add), R(1),       //
         B(Return)},
        0},
       {"var x = 0; return x - 3;",
-       kPointerSize,
+       2 * kPointerSize,
        1,
-       8,
+       10,
        {B(LdaZero),         //
         B(Star), R(0),      //
+        B(Star), R(1),      //
         B(LdaSmi8), U8(3),  //
-        B(Sub), R(0),       //
+        B(Sub), R(1),       //
         B(Return)},
        0},
       {"var x = 4; return x * 3;",
-       kPointerSize,
+       2 * kPointerSize,
        1,
-       9,
+       11,
        {B(LdaSmi8), U8(4),  //
         B(Star), R(0),      //
+        B(Star), R(1),      //
         B(LdaSmi8), U8(3),  //
-        B(Mul), R(0),       //
+        B(Mul), R(1),       //
         B(Return)},
        0},
       {"var x = 4; return x / 3;",
-       kPointerSize,
+       2 * kPointerSize,
        1,
-       9,
+       11,
        {B(LdaSmi8), U8(4),  //
         B(Star), R(0),      //
+        B(Star), R(1),      //
         B(LdaSmi8), U8(3),  //
-        B(Div), R(0),       //
+        B(Div), R(1),       //
         B(Return)},
        0},
       {"var x = 4; return x % 3;",
-       kPointerSize,
+       2 * kPointerSize,
        1,
-       9,
+       11,
        {B(LdaSmi8), U8(4),  //
         B(Star), R(0),      //
+        B(Star), R(1),      //
         B(LdaSmi8), U8(3),  //
-        B(Mod), R(0),       //
+        B(Mod), R(1),       //
         B(Return)},
        0},
       {"var x = 1; return x | 2;",
-       kPointerSize,
+       2 * kPointerSize,
        1,
-       9,
+       11,
        {B(LdaSmi8), U8(1),   //
         B(Star), R(0),       //
+        B(Star), R(1),       //
         B(LdaSmi8), U8(2),   //
-        B(BitwiseOr), R(0),  //
+        B(BitwiseOr), R(1),  //
         B(Return)},
        0},
       {"var x = 1; return x ^ 2;",
-       kPointerSize,
+       2 * kPointerSize,
        1,
-       9,
+       11,
        {B(LdaSmi8), U8(1),    //
         B(Star), R(0),        //
+        B(Star), R(1),        //
         B(LdaSmi8), U8(2),    //
-        B(BitwiseXor), R(0),  //
+        B(BitwiseXor), R(1),  //
         B(Return)},
        0},
       {"var x = 1; return x & 2;",
-       kPointerSize,
+       2 * kPointerSize,
        1,
-       9,
+       11,
        {B(LdaSmi8), U8(1),    //
         B(Star), R(0),        //
+        B(Star), R(1),        //
         B(LdaSmi8), U8(2),    //
-        B(BitwiseAnd), R(0),  //
+        B(BitwiseAnd), R(1),  //
         B(Return)},
        0},
       {"var x = 10; return x << 3;",
-       kPointerSize,
+       2 * kPointerSize,
        1,
-       9,
+       11,
        {B(LdaSmi8), U8(10),  //
         B(Star), R(0),       //
+        B(Star), R(1),       //
         B(LdaSmi8), U8(3),   //
-        B(ShiftLeft), R(0),  //
+        B(ShiftLeft), R(1),  //
         B(Return)},
        0},
       {"var x = 10; return x >> 3;",
-       kPointerSize,
+       2 * kPointerSize,
        1,
-       9,
+       11,
        {B(LdaSmi8), U8(10),   //
         B(Star), R(0),        //
+        B(Star), R(1),        //
         B(LdaSmi8), U8(3),    //
-        B(ShiftRight), R(0),  //
+        B(ShiftRight), R(1),  //
         B(Return)},
        0},
       {"var x = 10; return x >>> 3;",
-       kPointerSize,
+       2 * kPointerSize,
        1,
-       9,
+       11,
        {B(LdaSmi8), U8(10),          //
         B(Star), R(0),               //
+        B(Star), R(1),               //
         B(LdaSmi8), U8(3),           //
-        B(ShiftRightLogical), R(0),  //
+        B(ShiftRightLogical), R(1),  //
         B(Return)},
        0},
       {"var x = 0; return (x, 3);",
-       kPointerSize,
+       1 * kPointerSize,
        1,
        6,
        {B(LdaZero),         //
@@ -436,13 +447,14 @@ TEST(LogicalExpressions) {
         B(Return)},
        0},
       {"var x = 0; return (x == 1) || 3;",
-       1 * kPointerSize,
+       2 * kPointerSize,
        1,
-       12,
+       14,
        {B(LdaZero),            //
         B(Star), R(0),         //
+        B(Star), R(1),         //
         B(LdaSmi8), U8(1),     //
-        B(TestEqual), R(0),    //
+        B(TestEqual), R(1),    //
         B(JumpIfTrue), U8(4),  //
         B(LdaSmi8), U8(3),     //
         B(Return)},
@@ -458,13 +470,14 @@ TEST(LogicalExpressions) {
         B(Return)},
        0},
       {"var x = 0; return (x == 0) && 3;",
-       1 * kPointerSize,
+       2 * kPointerSize,
        1,
-       11,
+       13,
        {B(LdaZero),             //
         B(Star), R(0),          //
+        B(Star), R(1),          //
         B(LdaZero),             //
-        B(TestEqual), R(0),     //
+        B(TestEqual), R(1),     //
         B(JumpIfFalse), U8(4),  //
         B(LdaSmi8), U8(3),      //
         B(Return)},
@@ -482,18 +495,22 @@ TEST(LogicalExpressions) {
       {"var a = 2, b = 3, c = 4; return a || (a, b, a, b, c = 5, 3);",
        3 * kPointerSize,
        1,
-       23,
-       {B(LdaSmi8), U8(2),              //
-        B(Star), R(0),                  //
-        B(LdaSmi8), U8(3),              //
-        B(Star), R(1),                  //
-        B(LdaSmi8), U8(4),              //
-        B(Star), R(2),                  //
-        B(Ldar), R(0),                  //
-        B(JumpIfToBooleanTrue), U8(8),  //
-        B(LdaSmi8), U8(5),              //
-        B(Star), R(2),                  //
-        B(LdaSmi8), U8(3),              //
+       31,
+       {B(LdaSmi8), U8(2),               //
+        B(Star), R(0),                   //
+        B(LdaSmi8), U8(3),               //
+        B(Star), R(1),                   //
+        B(LdaSmi8), U8(4),               //
+        B(Star), R(2),                   //
+        B(Ldar), R(0),                   //
+        B(JumpIfToBooleanTrue), U8(16),  //
+        B(Ldar), R(0),                   //
+        B(Ldar), R(1),                   //
+        B(Ldar), R(0),                   //
+        B(Ldar), R(1),                   //
+        B(LdaSmi8), U8(5),               //
+        B(Star), R(2),                   //
+        B(LdaSmi8), U8(3),               //
         B(Return)},
        0},
       {"var x = 1; var a = 2, b = 3; return x || ("
@@ -511,10 +528,10 @@ TEST(LogicalExpressions) {
         B(Ldar), R(0),                          //
         B(JumpIfToBooleanTrueConstant), U8(0),  //
         REPEAT_32(COMMA,                        //
-          B(LdaSmi8), U8(1),                    //
-          B(Star), R(1),                        //
-          B(LdaSmi8), U8(2),                    //
-          B(Star), R(2)),                       //
+                  B(LdaSmi8), U8(1),            //
+                  B(Star), R(1),                //
+                  B(LdaSmi8), U8(2),            //
+                  B(Star), R(2)),               //
         B(LdaSmi8), U8(3),                      //
         B(Return)},
        1,
@@ -534,10 +551,10 @@ TEST(LogicalExpressions) {
         B(Ldar), R(0),                           //
         B(JumpIfToBooleanFalseConstant), U8(0),  //
         REPEAT_32(COMMA,                         //
-          B(LdaSmi8), U8(1),                     //
-          B(Star), R(1),                         //
-          B(LdaSmi8), U8(2),                     //
-          B(Star), R(2)),                        //
+                  B(LdaSmi8), U8(1),             //
+                  B(Star), R(1),                 //
+                  B(LdaSmi8), U8(2),             //
+                  B(Star), R(2)),                //
         B(LdaSmi8), U8(3),                       //
         B(Return)},                              //
        1,
@@ -545,23 +562,25 @@ TEST(LogicalExpressions) {
       {"var x = 1; var a = 2, b = 3; return (x > 3) || ("
         REPEAT_32(SPACE, "a = 1, b = 2, ")
        "3);",
-       3 * kPointerSize,
+       4 * kPointerSize,
        1,
-       277,
+       281,
        {B(LdaSmi8), U8(1),             //
         B(Star), R(0),                 //
         B(LdaSmi8), U8(2),             //
         B(Star), R(1),                 //
         B(LdaSmi8), U8(3),             //
         B(Star), R(2),                 //
+        B(Ldar), R(0),                 //
+        B(Star), R(3),                 //
         B(LdaSmi8), U8(3),             //
-        B(TestGreaterThan), R(0),      //
+        B(TestGreaterThan), R(3),      //
         B(JumpIfTrueConstant), U8(0),  //
         REPEAT_32(COMMA,               //
-          B(LdaSmi8), U8(1),           //
-          B(Star), R(1),               //
-          B(LdaSmi8), U8(2),           //
-          B(Star), R(2)),              //
+                  B(LdaSmi8), U8(1),   //
+                  B(Star), R(1),       //
+                  B(LdaSmi8), U8(2),   //
+                  B(Star), R(2)),      //
         B(LdaSmi8), U8(3),             //
         B(Return)},
        1,
@@ -569,23 +588,25 @@ TEST(LogicalExpressions) {
       {"var x = 0; var a = 2, b = 3; return (x < 5) && ("
         REPEAT_32(SPACE, "a = 1, b = 2, ")
        "3);",
-       3 * kPointerSize,
+       4 * kPointerSize,
        1,
-       276,
+       280,
        {B(LdaZero),                     //
         B(Star), R(0),                  //
         B(LdaSmi8), U8(2),              //
         B(Star), R(1),                  //
         B(LdaSmi8), U8(3),              //
         B(Star), R(2),                  //
+        B(Ldar), R(0),                  //
+        B(Star), R(3),                  //
         B(LdaSmi8), U8(5),              //
-        B(TestLessThan), R(0),          //
+        B(TestLessThan), R(3),          //
         B(JumpIfFalseConstant), U8(0),  //
         REPEAT_32(COMMA,                //
-          B(LdaSmi8), U8(1),            //
-          B(Star), R(1),                //
-          B(LdaSmi8), U8(2),            //
-          B(Star), R(2)),               //
+                  B(LdaSmi8), U8(1),    //
+                  B(Star), R(1),        //
+                  B(LdaSmi8), U8(2),    //
+                  B(Star), R(2)),       //
         B(LdaSmi8), U8(3),              //
         B(Return)},
        1,
@@ -873,78 +894,94 @@ TEST(PropertyLoads) {
 
   ExpectedSnippet<const char*> snippets[] = {
       {"function f(a) { return a.name; }\nf({name : \"test\"})",
-       0,
+       1 * kPointerSize,
        2,
-       5,
+       9,
        {
-           B(LoadICSloppy), A(1, 2), U8(0), U8(vector->GetIndex(slot1)),  //
-           B(Return),                                                     //
+           B(Ldar), A(1, 2),                                           //
+           B(Star), R(0),                                              //
+           B(LoadICSloppy), R(0), U8(0), U8(vector->GetIndex(slot1)),  //
+           B(Return),                                                  //
        },
        1,
        {"name"}},
       {"function f(a) { return a[\"key\"]; }\nf({key : \"test\"})",
-       0,
+       1 * kPointerSize,
        2,
-       5,
+       9,
        {
-           B(LoadICSloppy), A(1, 2), U8(0), U8(vector->GetIndex(slot1)),  //
-           B(Return)                                                      //
+           B(Ldar), A(1, 2),                                           //
+           B(Star), R(0),                                              //
+           B(LoadICSloppy), R(0), U8(0), U8(vector->GetIndex(slot1)),  //
+           B(Return)                                                   //
        },
        1,
        {"key"}},
       {"function f(a) { return a[100]; }\nf({100 : \"test\"})",
-       0,
+       1 * kPointerSize,
        2,
-       6,
+       10,
        {
-           B(LdaSmi8), U8(100),                                         //
-           B(KeyedLoadICSloppy), A(1, 2), U8(vector->GetIndex(slot1)),  //
-           B(Return)                                                    //
+           B(Ldar), A(1, 2),                                         //
+           B(Star), R(0),                                            //
+           B(LdaSmi8), U8(100),                                      //
+           B(KeyedLoadICSloppy), R(0), U8(vector->GetIndex(slot1)),  //
+           B(Return)                                                 //
        },
        0},
       {"function f(a, b) { return a[b]; }\nf({arg : \"test\"}, \"arg\")",
-       0,
+       1 * kPointerSize,
        3,
-       6,
+       10,
        {
-           B(Ldar), A(1, 2),                                            //
-           B(KeyedLoadICSloppy), A(1, 3), U8(vector->GetIndex(slot1)),  //
-           B(Return)                                                    //
+           B(Ldar), A(1, 3),                                         //
+           B(Star), R(0),                                            //
+           B(Ldar), A(1, 2),                                         //
+           B(KeyedLoadICSloppy), R(0), U8(vector->GetIndex(slot1)),  //
+           B(Return)                                                 //
        },
        0},
       {"function f(a) { var b = a.name; return a[-124]; }\n"
        "f({\"-124\" : \"test\", name : 123 })",
-       kPointerSize,
+       2 * kPointerSize,
        2,
-       12,
+       20,
        {
-           B(LoadICSloppy), A(1, 2), U8(0), U8(vector->GetIndex(slot1)),  //
-           B(Star), R(0),                                                 //
-           B(LdaSmi8), U8(-124),                                          //
-           B(KeyedLoadICSloppy), A(1, 2), U8(vector->GetIndex(slot2)),    //
-           B(Return),                                                     //
+           B(Ldar), A(1, 2),                                           //
+           B(Star), R(1),                                              //
+           B(LoadICSloppy), R(1), U8(0), U8(vector->GetIndex(slot1)),  //
+           B(Star), R(0),                                              //
+           B(Ldar), A(1, 2),                                           //
+           B(Star), R(1),                                              //
+           B(LdaSmi8), U8(-124),                                       //
+           B(KeyedLoadICSloppy), R(1), U8(vector->GetIndex(slot2)),    //
+           B(Return),                                                  //
        },
        1,
        {"name"}},
       {"function f(a) { \"use strict\"; return a.name; }\nf({name : \"test\"})",
-       0,
+       1 * kPointerSize,
        2,
-       5,
+       9,
        {
-           B(LoadICStrict), A(1, 2), U8(0), U8(vector->GetIndex(slot1)),  //
-           B(Return),                                                     //
+           B(Ldar), A(1, 2),                                           //
+           B(Star), R(0),                                              //
+           B(LoadICStrict), R(0), U8(0), U8(vector->GetIndex(slot1)),  //
+           B(Return),                                                  //
        },
        1,
        {"name"}},
       {"function f(a, b) { \"use strict\"; return a[b]; }\n"
        "f({arg : \"test\"}, \"arg\")",
-       0,
+       1 * kPointerSize,
        3,
-       6,
+       10,
        {
-           B(Ldar), A(2, 3),                                            //
-           B(KeyedLoadICStrict), A(1, 3), U8(vector->GetIndex(slot1)),  //
-           B(Return),                                                   //
+           B(Ldar), A(1, 3),                                         //
+           B(Star), R(0),                                            //
+           B(Ldar), A(2, 3),                                         //
+           B(KeyedLoadICStrict), R(0), U8(vector->GetIndex(slot1)),  //
+           B(Return),                                                //
        },
        0},
       {"function f(a) {\n"
@@ -953,18 +990,24 @@ TEST(PropertyLoads) {
        REPEAT_127(SPACE, " b = a.name; ")
        " return a.name; }\n"
        "f({name : \"test\"})\n",
-       1 * kPointerSize,
+       2 * kPointerSize,
        2,
-       775,
+       1291,
        {
-           B(LoadICSloppy), A(1, 2), U8(0), U8(wide_idx_1 += 2),       //
-           B(Star), R(0),                                              //
-           REPEAT_127(COMMA,                                           //
-                      B(LoadICSloppy), A(1, 2), U8(0),                 //
-                                       U8((wide_idx_1 += 2)),          //
-                      B(Star), R(0)),                                  //
-           B(LoadICSloppyWide), A(1, 2), U16(0), U16(wide_idx_1 + 2),  //
-           B(Return),                                                  //
+           B(Ldar), A(1, 2),                                        //
+           B(Star), R(1),                                           //
+           B(LoadICSloppy), R(1), U8(0), U8(wide_idx_1 += 2),       //
+           B(Star), R(0),                                           //
+           REPEAT_127(COMMA,                                        //
+                      B(Ldar), A(1, 2),                             //
+                      B(Star), R(1),                                //
+                      B(LoadICSloppy), R(1), U8(0),                 //
+                                       U8((wide_idx_1 += 2)),       //
+                      B(Star), R(0)),                               //
+           B(Ldar), A(1, 2),                                        //
+           B(Star), R(1),                                           //
+           B(LoadICSloppyWide), R(1), U16(0), U16(wide_idx_1 + 2),  //
+           B(Return),                                               //
        },
        1,
        {"name"}},
@@ -974,18 +1017,24 @@ TEST(PropertyLoads) {
        REPEAT_127(SPACE, " b = a.name; ")
        " return a.name; }\n"
        "f({name : \"test\"})\n",
-       1 * kPointerSize,
+       2 * kPointerSize,
        2,
-       775,
+       1291,
        {
-           B(LoadICStrict), A(1, 2), U8(0), U8((wide_idx_2 += 2)),     //
-           B(Star), R(0),                                              //
-           REPEAT_127(COMMA,                                           //
-                      B(LoadICStrict), A(1, 2), U8(0),                 //
-                                       U8((wide_idx_2 += 2)),          //
-                      B(Star), R(0)),                                  //
-           B(LoadICStrictWide), A(1, 2), U16(0), U16(wide_idx_2 + 2),  //
-           B(Return),                                                  //
+           B(Ldar), A(1, 2),                                        //
+           B(Star), R(1),                                           //
+           B(LoadICStrict), R(1), U8(0), U8((wide_idx_2 += 2)),     //
+           B(Star), R(0),                                           //
+           REPEAT_127(COMMA,                                        //
+                      B(Ldar), A(1, 2),                             //
+                      B(Star), R(1),                                //
+                      B(LoadICStrict), R(1), U8(0),                 //
+                                       U8((wide_idx_2 += 2)),       //
+                      B(Star), R(0)),                               //
+           B(Ldar), A(1, 2),                                        //
+           B(Star), R(1),                                           //
+           B(LoadICStrictWide), R(1), U16(0), U16(wide_idx_2 + 2),  //
+           B(Return),                                               //
        },
        1,
        {"name"}},
@@ -995,20 +1044,26 @@ TEST(PropertyLoads) {
        REPEAT_127(SPACE, " c = a[b]; ")
        " return a[b]; }\n"
        "f({name : \"test\"}, \"name\")\n",
-       1 * kPointerSize,
+       2 * kPointerSize,
        3,
-       903,
+       1419,
        {
-           B(Ldar), A(2, 3),                                                 //
-           B(KeyedLoadICSloppy), A(1, 3), U8((wide_idx_3 += 2)),             //
-           B(Star), R(0),                                                    //
-           REPEAT_127(COMMA,                                                 //
-                      B(Ldar), A(2, 3),                                      //
-                      B(KeyedLoadICSloppy), A(1, 3), U8((wide_idx_3 += 2)),  //
-                      B(Star), R(0)),                                        //
-           B(Ldar), A(2, 3),                                                 //
-           B(KeyedLoadICSloppyWide), A(1, 3), U16(wide_idx_3 + 2),           //
-           B(Return),                                                        //
+           B(Ldar), A(1, 3),                                              //
+           B(Star), R(1),                                                 //
+           B(Ldar), A(2, 3),                                              //
+           B(KeyedLoadICSloppy), R(1), U8((wide_idx_3 += 2)),             //
+           B(Star), R(0),                                                 //
+           REPEAT_127(COMMA,                                              //
+                      B(Ldar), A(1, 3),                                   //
+                      B(Star), R(1),                                      //
+                      B(Ldar), A(2, 3),                                   //
+                      B(KeyedLoadICSloppy), R(1), U8((wide_idx_3 += 2)),  //
+                      B(Star), R(0)),                                     //
+           B(Ldar), A(1, 3),                                              //
+           B(Star), R(1),                                                 //
+           B(Ldar), A(2, 3),                                              //
+           B(KeyedLoadICSloppyWide), R(1), U16(wide_idx_3 + 2),           //
+           B(Return),                                                     //
        }},
       {"function f(a, b) {\n"
        " 'use strict'; var c;\n"
@@ -1016,20 +1071,26 @@ TEST(PropertyLoads) {
        REPEAT_127(SPACE, " c = a[b]; ")
        " return a[b]; }\n"
        "f({name : \"test\"}, \"name\")\n",
-       1 * kPointerSize,
+       2 * kPointerSize,
        3,
-       903,
+       1419,
        {
-           B(Ldar), A(2, 3),                                                 //
-           B(KeyedLoadICStrict), A(1, 3), U8((wide_idx_4 += 2)),             //
-           B(Star), R(0),                                                    //
-           REPEAT_127(COMMA,                                                 //
-                      B(Ldar), A(2, 3),                                      //
-                      B(KeyedLoadICStrict), A(1, 3), U8((wide_idx_4 += 2)),  //
-                      B(Star), R(0)),                                        //
-           B(Ldar), A(2, 3),                                                 //
-           B(KeyedLoadICStrictWide), A(1, 3), U16(wide_idx_4 + 2),           //
-           B(Return),                                                        //
+           B(Ldar), A(1, 3),                                              //
+           B(Star), R(1),                                                 //
+           B(Ldar), A(2, 3),                                              //
+           B(KeyedLoadICStrict), R(1), U8((wide_idx_4 += 2)),             //
+           B(Star), R(0),                                                 //
+           REPEAT_127(COMMA,                                              //
+                      B(Ldar), A(1, 3),                                   //
+                      B(Star), R(1),                                      //
+                      B(Ldar), A(2, 3),                                   //
+                      B(KeyedLoadICStrict), R(1), U8((wide_idx_4 += 2)),  //
+                      B(Star), R(0)),                                     //
+           B(Ldar), A(1, 3),                                              //
+           B(Star), R(1),                                                 //
+           B(Ldar), A(2, 3),                                              //
+           B(KeyedLoadICStrictWide), R(1), U16(wide_idx_4 + 2),           //
+           B(Return),                                                     //
        }},
   };
   for (size_t i = 0; i < arraysize(snippets); i++) {
@@ -1060,95 +1121,114 @@ TEST(PropertyStores) {
 
   ExpectedSnippet<const char*> snippets[] = {
       {"function f(a) { a.name = \"val\"; }\nf({name : \"test\"})",
-       0,
-       2,
-       8,
-       {
-           B(LdaConstant), U8(0),                                          //
-           B(StoreICSloppy), A(1, 2), U8(1), U8(vector->GetIndex(slot1)),  //
-           B(LdaUndefined),                                                //
-           B(Return),                                                      //
-       },
-       2,
-       {"val", "name"}},
-      {"function f(a) { a[\"key\"] = \"val\"; }\nf({key : \"test\"})",
-       0,
-       2,
-       8,
-       {
-           B(LdaConstant), U8(0),                                          //
-           B(StoreICSloppy), A(1, 2), U8(1), U8(vector->GetIndex(slot1)),  //
-           B(LdaUndefined),                                                //
-           B(Return),                                                      //
-       },
-       2,
-       {"val", "key"}},
-      {"function f(a) { a[100] = \"val\"; }\nf({100 : \"test\"})",
        kPointerSize,
        2,
        12,
        {
-           B(LdaSmi8), U8(100),                   //
-           B(Star), R(0),                         //
-           B(LdaConstant), U8(0),                 //
-           B(KeyedStoreICSloppy), A(1, 2), R(0),  //
-           U8(vector->GetIndex(slot1)),           //
-           B(LdaUndefined),                       //
-           B(Return),                             //
+           B(Ldar), A(1, 2),                                            //
+           B(Star), R(0),                                               //
+           B(LdaConstant), U8(0),                                       //
+           B(StoreICSloppy), R(0), U8(1), U8(vector->GetIndex(slot1)),  //
+           B(LdaUndefined),                                             //
+           B(Return),                                                   //
+       },
+       2,
+       {"val", "name"}},
+      {"function f(a) { a[\"key\"] = \"val\"; }\nf({key : \"test\"})",
+       kPointerSize,
+       2,
+       12,
+       {
+           B(Ldar), A(1, 2),                                            //
+           B(Star), R(0),                                               //
+           B(LdaConstant), U8(0),                                       //
+           B(StoreICSloppy), R(0), U8(1), U8(vector->GetIndex(slot1)),  //
+           B(LdaUndefined),                                             //
+           B(Return),                                                   //
+       },
+       2,
+       {"val", "key"}},
+      {"function f(a) { a[100] = \"val\"; }\nf({100 : \"test\"})",
+       2 * kPointerSize,
+       2,
+       16,
+       {
+           B(Ldar), A(1, 2),                   //
+           B(Star), R(0),                      //
+           B(LdaSmi8), U8(100),                //
+           B(Star), R(1),                      //
+           B(LdaConstant), U8(0),              //
+           B(KeyedStoreICSloppy), R(0), R(1),  //
+           U8(vector->GetIndex(slot1)),        //
+           B(LdaUndefined),                    //
+           B(Return),                          //
        },
        1,
        {"val"}},
       {"function f(a, b) { a[b] = \"val\"; }\nf({arg : \"test\"}, \"arg\")",
-       0,
+       2 * kPointerSize,
        3,
-       8,
+       16,
        {
-           B(LdaConstant), U8(0),                    //
-           B(KeyedStoreICSloppy), A(1, 3), A(2, 3),  //
-           U8(vector->GetIndex(slot1)),              //
-           B(LdaUndefined),                          //
-           B(Return),                                //
+           B(Ldar), A(1, 3),                   //
+           B(Star), R(0),                      //
+           B(Ldar), A(2, 3),                   //
+           B(Star), R(1),                      //
+           B(LdaConstant), U8(0),              //
+           B(KeyedStoreICSloppy), R(0), R(1),  //
+           U8(vector->GetIndex(slot1)),        //
+           B(LdaUndefined),                    //
+           B(Return),                          //
        },
        1,
        {"val"}},
       {"function f(a) { a.name = a[-124]; }\n"
        "f({\"-124\" : \"test\", name : 123 })",
-       0,
+       2 * kPointerSize,
        2,
-       11,
+       19,
        {
-           B(LdaSmi8), U8(-124),                                           //
-           B(KeyedLoadICSloppy), A(1, 2), U8(vector->GetIndex(slot1)),     //
-           B(StoreICSloppy), A(1, 2), U8(0), U8(vector->GetIndex(slot2)),  //
-           B(LdaUndefined),                                                //
-           B(Return),                                                      //
+           B(Ldar), A(1, 2),                                            //
+           B(Star), R(0),                                               //
+           B(Ldar), A(1, 2),                                            //
+           B(Star), R(1),                                               //
+           B(LdaSmi8), U8(-124),                                        //
+           B(KeyedLoadICSloppy), R(1), U8(vector->GetIndex(slot1)),     //
+           B(StoreICSloppy), R(0), U8(0), U8(vector->GetIndex(slot2)),  //
+           B(LdaUndefined),                                             //
+           B(Return),                                                   //
        },
        1,
        {"name"}},
       {"function f(a) { \"use strict\"; a.name = \"val\"; }\n"
        "f({name : \"test\"})",
-       0,
+       kPointerSize,
        2,
-       8,
+       12,
        {
-           B(LdaConstant), U8(0),                                          //
-           B(StoreICStrict), A(1, 2), U8(1), U8(vector->GetIndex(slot1)),  //
-           B(LdaUndefined),                                                //
-           B(Return),                                                      //
+           B(Ldar), A(1, 2),                                            //
+           B(Star), R(0),                                               //
+           B(LdaConstant), U8(0),                                       //
+           B(StoreICStrict), R(0), U8(1), U8(vector->GetIndex(slot1)),  //
+           B(LdaUndefined),                                             //
+           B(Return),                                                   //
        },
        2,
        {"val", "name"}},
       {"function f(a, b) { \"use strict\"; a[b] = \"val\"; }\n"
        "f({arg : \"test\"}, \"arg\")",
-       0,
+       2 * kPointerSize,
        3,
-       8,
+       16,
        {
-           B(LdaConstant), U8(0),                    //
-           B(KeyedStoreICStrict), A(1, 3), A(2, 3),  //
-           U8(vector->GetIndex(slot1)),              //
-           B(LdaUndefined),                          //
-           B(Return),                                //
+           B(Ldar), A(1, 3),                                                //
+           B(Star), R(0),                                                   //
+           B(Ldar), A(2, 3),                                                //
+           B(Star), R(1),                                                   //
+           B(LdaConstant), U8(0),                                           //
+           B(KeyedStoreICStrict), R(0), R(1), U8(vector->GetIndex(slot1)),  //
+           B(LdaUndefined),                                                 //
+           B(Return),                                                       //
        },
        1,
        {"val"}},
@@ -1157,20 +1237,26 @@ TEST(PropertyStores) {
        REPEAT_127(SPACE, " a.name = 1; ")
        " a.name = 2; }\n"
        "f({name : \"test\"})\n",
-       0,
+       kPointerSize,
        2,
-       778,
+       1294,
        {
-           B(LdaSmi8), U8(1),                                           //
-           B(StoreICSloppy), A(1, 2), U8(0), U8((wide_idx_1 += 2)),     //
-           REPEAT_127(COMMA,                                            //
-                      B(LdaSmi8), U8(1),                                //
-                      B(StoreICSloppy), A(1, 2), U8(0),                 //
-                                        U8((wide_idx_1 += 2))),         //
-           B(LdaSmi8), U8(2),                                           //
-           B(StoreICSloppyWide), A(1, 2), U16(0), U16(wide_idx_1 + 2),  //
-           B(LdaUndefined),                                             //
-           B(Return),                                                   //
+           B(Ldar), A(1, 2),                                         //
+           B(Star), R(0),                                            //
+           B(LdaSmi8), U8(1),                                        //
+           B(StoreICSloppy), R(0), U8(0), U8((wide_idx_1 += 2)),     //
+           REPEAT_127(COMMA,                                         //
+                      B(Ldar), A(1, 2),                              //
+                      B(Star), R(0),                                 //
+                      B(LdaSmi8), U8(1),                             //
+                      B(StoreICSloppy), R(0), U8(0),                 //
+                                        U8((wide_idx_1 += 2))),      //
+           B(Ldar), A(1, 2),                                         //
+           B(Star), R(0),                                            //
+           B(LdaSmi8), U8(2),                                        //
+           B(StoreICSloppyWide), R(0), U16(0), U16(wide_idx_1 + 2),  //
+           B(LdaUndefined),                                          //
+           B(Return),                                                //
        },
        1,
        {"name"}},
@@ -1180,20 +1266,26 @@ TEST(PropertyStores) {
        REPEAT_127(SPACE, " a.name = 1; ")
        " a.name = 2; }\n"
        "f({name : \"test\"})\n",
-       0,
+       kPointerSize,
        2,
-       778,
+       1294,
        {
-           B(LdaSmi8), U8(1),                                           //
-           B(StoreICStrict), A(1, 2), U8(0), U8(wide_idx_2 += 2),       //
-           REPEAT_127(COMMA,                                            //
-                      B(LdaSmi8), U8(1),                                //
-                      B(StoreICStrict), A(1, 2), U8(0),                 //
-                                        U8((wide_idx_2 += 2))),         //
-           B(LdaSmi8), U8(2),                                           //
-           B(StoreICStrictWide), A(1, 2), U16(0), U16(wide_idx_2 + 2),  //
-           B(LdaUndefined),                                             //
-           B(Return),                                                   //
+           B(Ldar), A(1, 2),                                         //
+           B(Star), R(0),                                            //
+           B(LdaSmi8), U8(1),                                        //
+           B(StoreICStrict), R(0), U8(0), U8(wide_idx_2 += 2),       //
+           REPEAT_127(COMMA,                                         //
+                      B(Ldar), A(1, 2),                              //
+                      B(Star), R(0),                                 //
+                      B(LdaSmi8), U8(1),                             //
+                      B(StoreICStrict), R(0), U8(0),                 //
+                                        U8((wide_idx_2 += 2))),      //
+           B(Ldar), A(1, 2),                                         //
+           B(Star), R(0),                                            //
+           B(LdaSmi8), U8(2),                                        //
+           B(StoreICStrictWide), R(0), U16(0), U16(wide_idx_2 + 2),  //
+           B(LdaUndefined),                                          //
+           B(Return),                                                //
        },
        1,
        {"name"}},
@@ -1202,20 +1294,32 @@ TEST(PropertyStores) {
         REPEAT_127(SPACE, " a[b] = 1; ")
        " a[b] = 2; }\n"
        "f({name : \"test\"})\n",
-       0,
+       2 * kPointerSize,
        3,
-       777,
+       1809,
        {
-           B(LdaSmi8), U8(1),                                                 //
-           B(KeyedStoreICSloppy), A(1, 3), A(2, 3), U8(wide_idx_3 += 2),      //
-           REPEAT_127(COMMA,                                                  //
-                      B(LdaSmi8), U8(1),                                      //
-                      B(KeyedStoreICSloppy), A(1, 3), A(2, 3),                //
-                      U8((wide_idx_3 += 2))),                                 //
-           B(LdaSmi8), U8(2),                                                 //
-           B(KeyedStoreICSloppyWide), A(1, 3), A(2, 3), U16(wide_idx_3 + 2),  //
-           B(LdaUndefined),                                                   //
-           B(Return),                                                         //
+           B(Ldar), A(1, 3),                                            //
+           B(Star), R(0),                                               //
+           B(Ldar), A(2, 3),                                            //
+           B(Star), R(1),                                               //
+           B(LdaSmi8), U8(1),                                           //
+           B(KeyedStoreICSloppy), R(0), R(1), U8(wide_idx_3 += 2),      //
+           REPEAT_127(COMMA,                                            //
+                      B(Ldar), A(1, 3),                                 //
+                      B(Star), R(0),                                    //
+                      B(Ldar), A(2, 3),                                 //
+                      B(Star), R(1),                                    //
+                      B(LdaSmi8), U8(1),                                //
+                      B(KeyedStoreICSloppy), R(0), R(1),                //
+                                             U8((wide_idx_3 += 2))),    //
+           B(Ldar), A(1, 3),                                            //
+           B(Star), R(0),                                               //
+           B(Ldar), A(2, 3),                                            //
+           B(Star), R(1),                                               //
+           B(LdaSmi8), U8(2),                                           //
+           B(KeyedStoreICSloppyWide), R(0), R(1), U16(wide_idx_3 + 2),  //
+           B(LdaUndefined),                                             //
+           B(Return),                                                   //
        }},
       {"function f(a, b) {\n"
        " 'use strict';\n"
@@ -1223,20 +1327,32 @@ TEST(PropertyStores) {
         REPEAT_127(SPACE, " a[b] = 1; ")
        " a[b] = 2; }\n"
        "f({name : \"test\"})\n",
-       0,
+       2 * kPointerSize,
        3,
-       777,
+       1809,
        {
-           B(LdaSmi8), U8(1),                                                 //
-           B(KeyedStoreICStrict), A(1, 3), A(2, 3), U8(wide_idx_4 += 2),      //
-           REPEAT_127(COMMA,                                                  //
-                      B(LdaSmi8), U8(1),                                      //
-                      B(KeyedStoreICStrict), A(1, 3), A(2, 3),                //
-                                             U8((wide_idx_4 += 2))),          //
-           B(LdaSmi8), U8(2),                                                 //
-           B(KeyedStoreICStrictWide), A(1, 3), A(2, 3), U16(wide_idx_4 + 2),  //
-           B(LdaUndefined),                                                   //
-           B(Return),                                                         //
+           B(Ldar), A(1, 3),                                            //
+           B(Star), R(0),                                               //
+           B(Ldar), A(2, 3),                                            //
+           B(Star), R(1),                                               //
+           B(LdaSmi8), U8(1),                                           //
+           B(KeyedStoreICStrict), R(0), R(1), U8(wide_idx_4 += 2),      //
+           REPEAT_127(COMMA,                                            //
+                      B(Ldar), A(1, 3),                                 //
+                      B(Star), R(0),                                    //
+                      B(Ldar), A(2, 3),                                 //
+                      B(Star), R(1),                                    //
+                      B(LdaSmi8), U8(1),                                //
+                      B(KeyedStoreICStrict), R(0), R(1),                //
+                                             U8((wide_idx_4 += 2))),    //
+           B(Ldar), A(1, 3),                                            //
+           B(Star), R(0),                                               //
+           B(Ldar), A(2, 3),                                            //
+           B(Star), R(1),                                               //
+           B(LdaSmi8), U8(2),                                           //
+           B(KeyedStoreICStrictWide), R(0), R(1), U16(wide_idx_4 + 2),  //
+           B(LdaUndefined),                                             //
+           B(Return),                                                   //
        }}};
   for (size_t i = 0; i < arraysize(snippets); i++) {
     Handle<BytecodeArray> bytecode_array =
@@ -1300,14 +1416,16 @@ TEST(PropertyCall) {
       {"function f(a, b) { return a.func(b + b, b); }\nf(" FUNC_ARG ", 1)",
        4 * kPointerSize,
        3,
-       26,
+       30,
        {
            B(Ldar), A(1, 3),                                           //
            B(Star), R(1),                                              //
            B(LoadICSloppy), R(1), U8(0), U8(vector->GetIndex(slot2)),  //
            B(Star), R(0),                                              //
            B(Ldar), A(2, 3),                                           //
-           B(Add), A(2, 3),                                            //
+           B(Star), R(3),                                              //
+           B(Ldar), A(2, 3),                                           //
+           B(Add), R(3),                                               //
            B(Star), R(2),                                              //
            B(Ldar), A(2, 3),                                           //
            B(Star), R(3),                                              //
@@ -1322,17 +1440,21 @@ TEST(PropertyCall) {
        " return a.func(); }\nf(" FUNC_ARG ")",
        2 * kPointerSize,
        2,
-       532,
+       1044,
        {
-           B(LoadICSloppy), A(1, 2), U8(0), U8(wide_idx += 2),                //
-           REPEAT_127(COMMA,                                                  //
-                      B(LoadICSloppy), A(1, 2), U8(0), U8((wide_idx += 2))),  //
-           B(Ldar), A(1, 2),                                                  //
-           B(Star), R(1),                                                     //
-           B(LoadICSloppyWide), R(1), U16(0), U16(wide_idx + 4),              //
-           B(Star), R(0),                                                     //
-           B(CallWide), R(0), R(1), U16(0), U16(wide_idx + 2),                //
-           B(Return),                                                         //
+           B(Ldar), A(1, 2),                                               //
+           B(Star), R(0),                                                  //
+           B(LoadICSloppy), R(0), U8(0), U8(wide_idx += 2),                //
+           REPEAT_127(COMMA,                                               //
+                      B(Ldar), A(1, 2),                                    //
+                      B(Star), R(0),                                       //
+                      B(LoadICSloppy), R(0), U8(0), U8((wide_idx += 2))),  //
+           B(Ldar), A(1, 2),                                               //
+           B(Star), R(1),                                                  //
+           B(LoadICSloppyWide), R(1), U16(0), U16(wide_idx + 4),           //
+           B(Star), R(0),                                                  //
+           B(CallWide), R(0), R(1), U16(0), U16(wide_idx + 2),             //
+           B(Return),                                                      //
        },
        1,
        {"func"}},
@@ -1407,15 +1529,19 @@ TEST(LoadGlobal) {
         REPEAT_127(SPACE, "b.name; ")
        " return a;"
        "}\nf({name: 1});",
-       0,
+       kPointerSize,
        2,
-       518,
+       1030,
        {
-           B(LoadICSloppy), A(1, 2), U8(0), U8(wide_idx_1 += 2),              //
-           REPEAT_127(COMMA,                                                  //
-                      B(LoadICSloppy), A(1, 2), U8(0), U8(wide_idx_1 += 2)),  //
-           B(LdaGlobalSloppyWide), U16(1), U16(wide_idx_1 + 2),               //
-           B(Return),                                                         //
+           B(Ldar), A(1, 2),                                               //
+           B(Star), R(0),                                                  //
+           B(LoadICSloppy), R(0), U8(0), U8(wide_idx_1 += 2),              //
+           REPEAT_127(COMMA,                                               //
+                      B(Ldar), A(1, 2),                                    //
+                      B(Star), R(0),                                       //
+                      B(LoadICSloppy), R(0), U8(0), U8(wide_idx_1 += 2)),  //
+           B(LdaGlobalSloppyWide), U16(1), U16(wide_idx_1 + 2),            //
+           B(Return),                                                      //
        },
        2,
        {"name", "a"}},
@@ -1426,15 +1552,19 @@ TEST(LoadGlobal) {
           REPEAT_127(SPACE, "b.name; ")
        "  return a;"
        "}\nf({name: 1});",
-       0,
+       kPointerSize,
        2,
-       518,
+       1030,
        {
-           B(LoadICStrict), A(1, 2), U8(0), U8(wide_idx_2 += 2),              //
-           REPEAT_127(COMMA,                                                  //
-                      B(LoadICStrict), A(1, 2), U8(0), U8(wide_idx_2 += 2)),  //
-           B(LdaGlobalStrictWide), U16(1), U16(wide_idx_2 + 2),               //
-           B(Return),                                                         //
+           B(Ldar), A(1, 2),                                               //
+           B(Star), R(0),                                                  //
+           B(LoadICStrict), R(0), U8(0), U8(wide_idx_2 += 2),              //
+           REPEAT_127(COMMA,                                               //
+                      B(Ldar), A(1, 2),                                    //
+                      B(Star), R(0),                                       //
+                      B(LoadICStrict), R(0), U8(0), U8(wide_idx_2 += 2)),  //
+           B(LdaGlobalStrictWide), U16(1), U16(wide_idx_2 + 2),            //
+           B(Return),                                                      //
        },
        2,
        {"name", "a"}},
@@ -1518,17 +1648,21 @@ TEST(StoreGlobal) {
        REPEAT_127(SPACE, "b.name; ")
        " a = 2; }\n"
        "f({name: 1});",
-       0,
+       kPointerSize,
        2,
-       521,
+       1033,
        {
-           B(LoadICSloppy), A(1, 2), U8(0), U8(wide_idx_1 += 2),              //
-           REPEAT_127(COMMA,                                                  //
-                      B(LoadICSloppy), A(1, 2), U8(0), U8(wide_idx_1 += 2)),  //
-           B(LdaSmi8), U8(2),                                                 //
-           B(StaGlobalSloppyWide), U16(1), U16(wide_idx_1 + 2),               //
-           B(LdaUndefined),                                                   //
-           B(Return),                                                         //
+           B(Ldar), A(1, 2),                                               //
+           B(Star), R(0),                                                  //
+           B(LoadICSloppy), R(0), U8(0), U8(wide_idx_1 += 2),              //
+           REPEAT_127(COMMA,                                               //
+                      B(Ldar), A(1, 2),                                    //
+                      B(Star), R(0),                                       //
+                      B(LoadICSloppy), R(0), U8(0), U8(wide_idx_1 += 2)),  //
+           B(LdaSmi8), U8(2),                                              //
+           B(StaGlobalSloppyWide), U16(1), U16(wide_idx_1 + 2),            //
+           B(LdaUndefined),                                                //
+           B(Return),                                                      //
        },
        2,
        {"name", "a"}},
@@ -1539,17 +1673,21 @@ TEST(StoreGlobal) {
        REPEAT_127(SPACE, "b.name; ")
        " a = 2; }\n"
        "f({name: 1});",
-       0,
+       kPointerSize,
        2,
-       521,
+       1033,
        {
-           B(LoadICStrict), A(1, 2), U8(0), U8(wide_idx_2 += 2),              //
-           REPEAT_127(COMMA,                                                  //
-                      B(LoadICStrict), A(1, 2), U8(0), U8(wide_idx_2 += 2)),  //
-           B(LdaSmi8), U8(2),                                                 //
-           B(StaGlobalStrictWide), U16(1), U16(wide_idx_2 + 2),               //
-           B(LdaUndefined),                                                   //
-           B(Return),                                                         //
+           B(Ldar), A(1, 2),                                               //
+           B(Star), R(0),                                                  //
+           B(LoadICStrict), R(0), U8(0), U8(wide_idx_2 += 2),              //
+           REPEAT_127(COMMA,                                               //
+                      B(Ldar), A(1, 2),                                    //
+                      B(Star), R(0),                                       //
+                      B(LoadICStrict), R(0), U8(0), U8(wide_idx_2 += 2)),  //
+           B(LdaSmi8), U8(2),                                              //
+           B(StaGlobalStrictWide), U16(1), U16(wide_idx_2 + 2),            //
+           B(LdaUndefined),                                                //
+           B(Return),                                                      //
        },
        2,
        {"name", "a"}},
@@ -1738,15 +1876,17 @@ TEST(IfConditions) {
        0,
        {unused, unused, unused, unused, unused, unused}},
       {"function f() { var a = 1; if (a) { a += 1; } else { return 2; } } f();",
-       1 * kPointerSize,
+       2 * kPointerSize,
        1,
-       19,
+       23,
        {
            B(LdaSmi8), U8(1),                //
            B(Star), R(0),                    //
-           B(JumpIfToBooleanFalse), U8(10),  //
+           B(JumpIfToBooleanFalse), U8(14),  //
+           B(Ldar), R(0),                    //
+           B(Star), R(1),                    //
            B(LdaSmi8), U8(1),                //
-           B(Add), R(0),                     //
+           B(Add), R(1),                     //
            B(Star), R(0),                    //
            B(Jump), U8(5),                   //
            B(LdaSmi8), U8(2),                //
@@ -1758,19 +1898,21 @@ TEST(IfConditions) {
        {unused, unused, unused, unused, unused, unused}},
       {"function f(a) { if (a <= 0) { return 200; } else { return -200; } }"
        "f(99);",
-       0,
+       kPointerSize,
        2,
-       13,
+       17,
        {
-           B(LdaZero),                       //
-           B(TestLessThanOrEqual), A(1, 2),  //
-           B(JumpIfFalse), U8(5),            //
-           B(LdaConstant), U8(0),            //
-           B(Return),                        //
-           B(LdaConstant), U8(1),            //
-           B(Return),                        //
-           B(LdaUndefined),                  //
-           B(Return),                        //
+           B(Ldar), A(1, 2),              //
+           B(Star), R(0),                 //
+           B(LdaZero),                    //
+           B(TestLessThanOrEqual), R(0),  //
+           B(JumpIfFalse), U8(5),         //
+           B(LdaConstant), U8(0),         //
+           B(Return),                     //
+           B(LdaConstant), U8(1),         //
+           B(Return),                     //
+           B(LdaUndefined),               //
+           B(Return),                     //
        },
        2,
        {helper.factory()->NewNumberFromInt(200),
@@ -1778,12 +1920,14 @@ TEST(IfConditions) {
         unused}},
       {"function f(a, b) { if (a in b) { return 200; } }"
        "f('prop', { prop: 'yes'});",
-       0,
+       kPointerSize,
        3,
-       11,
+       15,
        {
+           B(Ldar), A(1, 3),       //
+           B(Star), R(0),          //
            B(Ldar), A(2, 3),       //
-           B(TestIn), A(1, 3),     //
+           B(TestIn), R(0),        //
            B(JumpIfFalse), U8(5),  //
            B(LdaConstant), U8(0),  //
            B(Return),              //
@@ -1796,16 +1940,18 @@ TEST(IfConditions) {
       {"function f(z) { var a = 0; var b = 0; if (a === 0.01) { "
        REPEAT_64(SPACE, "b = a; a = b; ")
        " return 200; } else { return -200; } } f(0.001)",
-       2 * kPointerSize,
+       3 * kPointerSize,
        2,
-       278,
+       282,
        {
            B(LdaZero),                     //
            B(Star), R(0),                  //
            B(LdaZero),                     //
            B(Star), R(1),                  //
+           B(Ldar), R(0),                  //
+           B(Star), R(2),                  //
            B(LdaConstant), U8(0),          //
-           B(TestEqualStrict), R(0),       //
+           B(TestEqualStrict), R(2),       //
            B(JumpIfFalseConstant), U8(2),  //
            B(Ldar), R(0),                  //
            REPEAT_64(COMMA,                //
@@ -1861,13 +2007,15 @@ TEST(IfConditions) {
        "  if (a instanceof b) { return 1; }\n"
        "  return 0;\n"
        "} f(1, 1);",
-       0,
+       kPointerSize,
        3,
-       74,
+       106,
        {
 #define IF_CONDITION_RETURN(condition) \
+         B(Ldar), A(1, 3),             \
+         B(Star), R(0),                \
          B(Ldar), A(2, 3),             \
-         B(condition), A(1, 3),        \
+         B(condition), R(0),           \
          B(JumpIfFalse), U8(5),        \
          B(LdaSmi8), U8(1),            \
          B(Return),
@@ -2048,14 +2196,15 @@ TEST(BreakableBlocks) {
        "  x = x + 1;\n"
        "}\n"
        "return x;",
-       1 * kPointerSize,
+       2 * kPointerSize,
        1,
-       14,
+       16,
        {
            B(LdaZero),         //
            B(Star), R(0),      //
+           B(Star), R(1),      //
            B(LdaSmi8), U8(1),  //
-           B(Add), R(0),       //
+           B(Add), R(1),       //
            B(Star), R(0),      //
            B(Jump), U8(2),     //
            B(Ldar), R(0),      //
@@ -2071,43 +2220,49 @@ TEST(BreakableBlocks) {
        "  }\n"
        "}\n"
        "return sum;",
-       4 * kPointerSize,
+       5 * kPointerSize,
        1,
-       60,
+       72,
        {
            B(LdaZero),              //
            B(Star), R(0),           //
            B(LdaZero),              //
            B(Star), R(1),           //
+           B(Ldar), R(1),           //
+           B(Star), R(3),           //
            B(LdaSmi8), U8(10),      //
-           B(TestLessThan), R(1),   //
-           B(JumpIfFalse), U8(47),  //
+           B(TestLessThan), R(3),   //
+           B(JumpIfFalse), U8(55),  //
            B(LdaZero),              //
            B(Star), R(2),           //
+           B(Ldar), R(2),           //
+           B(Star), R(3),           //
            B(LdaSmi8), U8(3),       //
-           B(TestLessThan), R(2),   //
-           B(JumpIfFalse), U8(30),  //
+           B(TestLessThan), R(3),   //
+           B(JumpIfFalse), U8(34),  //
            B(Ldar), R(0),           //
            B(ToNumber),             //
            B(Inc),                  //
            B(Star), R(0),           //
-           B(Ldar), R(2),           //
-           B(Add), R(1),            //
+           B(Ldar), R(1),           //
            B(Star), R(3),           //
+           B(Ldar), R(2),           //
+           B(Add), R(3),            //
+           B(Star), R(4),           //
            B(LdaSmi8), U8(12),      //
-           B(TestEqual), R(3),      //
+           B(TestEqual), R(4),      //
            B(JumpIfFalse), U8(4),   //
            B(Jump), U8(18),         //
            B(Ldar), R(2),           //
            B(ToNumber),             //
            B(Inc),                  //
            B(Star), R(2),           //
-           B(Jump), U8(-32),        //
+           B(Jump), U8(-40),        //
            B(Ldar), R(1),           //
            B(ToNumber),             //
            B(Inc),                  //
            B(Star), R(1),           //
-           B(Jump), U8(-49),        //
+           B(Jump), U8(-61),        //
            B(Ldar), R(0),           //
            B(Return),               //
        }},
@@ -2160,32 +2315,41 @@ TEST(BasicLoops) {
        "  if (x == 4) break;"
        "}"
        "return y;",
-       2 * kPointerSize,
+       3 * kPointerSize,
        1,
-       46,
+       64,
        {
            B(LdaZero),              //
            B(Star), R(0),           //
            B(LdaSmi8), U8(1),       //
            B(Star), R(1),           //
+           B(Ldar), R(0),           //
+           B(Star), R(2),           //
            B(LdaSmi8), U8(10),      //
-           B(TestLessThan), R(0),   //
-           B(JumpIfFalse), U8(32),  //
+           B(TestLessThan), R(2),   //
+           B(JumpIfFalse), U8(46),  //
+           B(Ldar), R(1),           //
+           B(Star), R(2),           //
            B(LdaSmi8), U8(12),      //
-           B(Mul), R(1),            //
+           B(Mul), R(2),            //
            B(Star), R(1),           //
+           B(Ldar), R(0),           //
+           B(Star), R(2),           //
            B(LdaSmi8), U8(1),       //
-           B(Add), R(0),            //
+           B(Add), R(2),            //
            B(Star), R(0),           //
+           B(Star), R(2),           //
            B(LdaSmi8), U8(3),       //
-           B(TestEqual), R(0),      //
+           B(TestEqual), R(2),      //
            B(JumpIfFalse), U8(4),   //
-           B(Jump), U8(-24),        //
+           B(Jump), U8(-38),        //
+           B(Ldar), R(0),           //
+           B(Star), R(2),           //
            B(LdaSmi8), U8(4),       //
-           B(TestEqual), R(0),      //
+           B(TestEqual), R(2),      //
            B(JumpIfFalse), U8(4),   //
            B(Jump), U8(4),          //
-           B(Jump), U8(-34),        //
+           B(Jump), U8(-52),        //
            B(Ldar), R(1),           //
            B(Return),               //
        },
@@ -2200,36 +2364,48 @@ TEST(BasicLoops) {
        "  i = i + 1;"
        "}"
        "return i;",
-       1 * kPointerSize,
+       2 * kPointerSize,
        1,
-       53,
+       77,
        {
            B(LdaZero),             //
            B(Star), R(0),          //
+           B(Ldar), R(0),          //
+           B(Star), R(1),          //
            B(LdaZero),             //
-           B(TestLessThan), R(0),  //
+           B(TestLessThan), R(1),  //
            B(JumpIfFalse), U8(4),  //
-           B(Jump), U8(-5),        //
+           B(Jump), U8(-9),        //
+           B(Ldar), R(0),          //
+           B(Star), R(1),          //
            B(LdaSmi8), U8(3),      //
-           B(TestEqual), R(0),     //
+           B(TestEqual), R(1),     //
            B(JumpIfFalse), U8(4),  //
-           B(Jump), U8(34),        //
+           B(Jump), U8(50),        //
+           B(Ldar), R(0),          //
+           B(Star), R(1),          //
            B(LdaSmi8), U8(4),      //
-           B(TestEqual), R(0),     //
+           B(TestEqual), R(1),     //
            B(JumpIfFalse), U8(4),  //
-           B(Jump), U8(26),        //
+           B(Jump), U8(38),        //
+           B(Ldar), R(0),          //
+           B(Star), R(1),          //
            B(LdaSmi8), U8(10),     //
-           B(TestEqual), R(0),     //
+           B(TestEqual), R(1),     //
            B(JumpIfFalse), U8(4),  //
-           B(Jump), U8(-29),       //
-           B(LdaSmi8), U8(5),      //
-           B(TestEqual), R(0),     //
-           B(JumpIfFalse), U8(4),  //
-           B(Jump), U8(10),        //
-           B(LdaSmi8), U8(1),      //
-           B(Add), R(0),           //
-           B(Star), R(0),          //
            B(Jump), U8(-45),       //
+           B(Ldar), R(0),          //
+           B(Star), R(1),          //
+           B(LdaSmi8), U8(5),      //
+           B(TestEqual), R(1),     //
+           B(JumpIfFalse), U8(4),  //
+           B(Jump), U8(14),        //
+           B(Ldar), R(0),          //
+           B(Star), R(1),          //
+           B(LdaSmi8), U8(1),      //
+           B(Add), R(1),           //
+           B(Star), R(0),          //
+           B(Jump), U8(-69),       //
            B(Ldar), R(0),          //
            B(Return),              //
        },
@@ -2244,28 +2420,36 @@ TEST(BasicLoops) {
        "  break;"
        "}"
        "return i;",
-       1 * kPointerSize,
+       2 * kPointerSize,
        1,
-       38,
+       54,
        {
            B(LdaZero),              //
            B(Star), R(0),           //
+           B(Ldar), R(0),           //
+           B(Star), R(1),           //
            B(LdaSmi8), U8(3),       //
-           B(TestLessThan), R(0),   //
-           B(JumpIfFalse), U8(18),  //
+           B(TestLessThan), R(1),   //
+           B(JumpIfFalse), U8(26),  //
+           B(Ldar), R(0),           //
+           B(Star), R(1),           //
            B(LdaSmi8), U8(2),       //
-           B(TestEqual), R(0),      //
+           B(TestEqual), R(1),      //
            B(JumpIfFalse), U8(4),   //
-           B(Jump), U8(10),         //
+           B(Jump), U8(14),         //
+           B(Ldar), R(0),           //
+           B(Star), R(1),           //
            B(LdaSmi8), U8(1),       //
-           B(Add), R(0),            //
+           B(Add), R(1),            //
            B(Star), R(0),           //
-           B(Jump), U8(-20),        //
+           B(Jump), U8(-32),        //
+           B(Ldar), R(0),           //
+           B(Star), R(1),           //
            B(LdaSmi8), U8(1),       //
-           B(Add), R(0),            //
+           B(Add), R(1),            //
            B(Star), R(0),           //
            B(Jump), U8(4),          //
-           B(Jump), U8(-30),        //
+           B(Jump), U8(-46),        //
            B(Ldar), R(0),           //
            B(Return),               //
        },
@@ -2277,23 +2461,27 @@ TEST(BasicLoops) {
        "  x = x - 1;"
        "}"
        "return y;",
-       2 * kPointerSize,
+       3 * kPointerSize,
        1,
-       29,
+       37,
        {
            B(LdaSmi8), U8(10),               //
            B(Star), R(0),                    //
            B(LdaSmi8), U8(1),                //
            B(Star), R(1),                    //
            B(Ldar), R(0),                    //
-           B(JumpIfToBooleanFalse), U8(16),  //
+           B(JumpIfToBooleanFalse), U8(24),  //
+           B(Ldar), R(1),                    //
+           B(Star), R(2),                    //
            B(LdaSmi8), U8(12),               //
-           B(Mul), R(1),                     //
+           B(Mul), R(2),                     //
            B(Star), R(1),                    //
+           B(Ldar), R(0),                    //
+           B(Star), R(2),                    //
            B(LdaSmi8), U8(1),                //
-           B(Sub), R(0),                     //
+           B(Sub), R(2),                     //
            B(Star), R(0),                    //
-           B(Jump), U8(-16),                 //
+           B(Jump), U8(-24),                 //
            B(Ldar), R(1),                    //
            B(Return),                        //
        },
@@ -2306,31 +2494,41 @@ TEST(BasicLoops) {
        "  x = x + 1;"
        "} while (x < 10);"
        "return y;",
-       2 * kPointerSize,
+       3 * kPointerSize,
        1,
-       44,
+       64,
        {
            B(LdaZero),              //
            B(Star), R(0),           //
            B(LdaSmi8), U8(1),       //
            B(Star), R(1),           //
+           B(Ldar), R(1),           //
+           B(Star), R(2),           //
            B(LdaSmi8), U8(10),      //
-           B(Mul), R(1),            //
+           B(Mul), R(2),            //
            B(Star), R(1),           //
+           B(Ldar), R(0),           //
+           B(Star), R(2),           //
            B(LdaSmi8), U8(5),       //
-           B(TestEqual), R(0),      //
+           B(TestEqual), R(2),      //
            B(JumpIfFalse), U8(4),   //
-           B(Jump), U8(22),         //
+           B(Jump), U8(34),         //
+           B(Ldar), R(0),           //
+           B(Star), R(2),           //
            B(LdaSmi8), U8(6),       //
-           B(TestEqual), R(0),      //
+           B(TestEqual), R(2),      //
            B(JumpIfFalse), U8(4),   //
-           B(Jump), U8(8),          //
+           B(Jump), U8(12),         //
+           B(Ldar), R(0),           //
+           B(Star), R(2),           //
            B(LdaSmi8), U8(1),       //
-           B(Add), R(0),            //
+           B(Add), R(2),            //
            B(Star), R(0),           //
+           B(Ldar), R(0),           //
+           B(Star), R(2),           //
            B(LdaSmi8), U8(10),      //
-           B(TestLessThan), R(0),   //
-           B(JumpIfTrue), U8(-32),  //
+           B(TestLessThan), R(2),   //
+           B(JumpIfTrue), U8(-52),  //
            B(Ldar), R(1),           //
            B(Return),               //
        },
@@ -2342,22 +2540,26 @@ TEST(BasicLoops) {
        "  x = x - 1;"
        "} while (x);"
        "return y;",
-       2 * kPointerSize,
+       3 * kPointerSize,
        1,
-       27,
+       35,
        {
            B(LdaSmi8), U8(10),               //
            B(Star), R(0),                    //
            B(LdaSmi8), U8(1),                //
            B(Star), R(1),                    //
+           B(Ldar), R(1),                    //
+           B(Star), R(2),                    //
            B(LdaSmi8), U8(12),               //
-           B(Mul), R(1),                     //
+           B(Mul), R(2),                     //
            B(Star), R(1),                    //
+           B(Ldar), R(0),                    //
+           B(Star), R(2),                    //
            B(LdaSmi8), U8(1),                //
-           B(Sub), R(0),                     //
+           B(Sub), R(2),                     //
            B(Star), R(0),                    //
            B(Ldar), R(0),                    //
-           B(JumpIfToBooleanTrue), U8(-14),  //
+           B(JumpIfToBooleanTrue), U8(-22),  //
            B(Ldar), R(1),                    //
            B(Return),                        //
        },
@@ -2370,26 +2572,33 @@ TEST(BasicLoops) {
        "  if (x == 6) continue;"
        "} while (false);"
        "return y;",
-       2 * kPointerSize,
+       3 * kPointerSize,
        1,
-       38,
+       52,
        {
            B(LdaZero),             //
            B(Star), R(0),          //
            B(LdaSmi8), U8(1),      //
            B(Star), R(1),          //
+           B(Ldar), R(1),          //
+           B(Star), R(2),          //
            B(LdaSmi8), U8(10),     //
-           B(Mul), R(1),           //
+           B(Mul), R(2),           //
            B(Star), R(1),          //
+           B(Ldar), R(0),          //
+           B(Star), R(2),          //
            B(LdaSmi8), U8(5),      //
-           B(TestEqual), R(0),     //
+           B(TestEqual), R(2),     //
            B(JumpIfFalse), U8(4),  //
-           B(Jump), U8(16),        //
+           B(Jump), U8(22),        //
+           B(Ldar), R(0),          //
+           B(Star), R(2),          //
            B(LdaSmi8), U8(1),      //
-           B(Add), R(0),           //
+           B(Add), R(2),           //
            B(Star), R(0),          //
+           B(Star), R(2),          //
            B(LdaSmi8), U8(6),      //
-           B(TestEqual), R(0),     //
+           B(TestEqual), R(2),     //
            B(JumpIfFalse), U8(4),  //
            B(Jump), U8(2),         //
            B(Ldar), R(1),          //
@@ -2404,29 +2613,36 @@ TEST(BasicLoops) {
        "  if (x == 6) continue;"
        "} while (true);"
        "return y;",
-       2 * kPointerSize,
+       3 * kPointerSize,
        1,
-       40,
+       54,
        {
            B(LdaZero),             //
            B(Star), R(0),          //
            B(LdaSmi8), U8(1),      //
            B(Star), R(1),          //
+           B(Ldar), R(1),          //
+           B(Star), R(2),          //
            B(LdaSmi8), U8(10),     //
-           B(Mul), R(1),           //
+           B(Mul), R(2),           //
            B(Star), R(1),          //
+           B(Ldar), R(0),          //
+           B(Star), R(2),          //
            B(LdaSmi8), U8(5),      //
-           B(TestEqual), R(0),     //
+           B(TestEqual), R(2),     //
            B(JumpIfFalse), U8(4),  //
-           B(Jump), U8(18),        //
+           B(Jump), U8(24),        //
+           B(Ldar), R(0),          //
+           B(Star), R(2),          //
            B(LdaSmi8), U8(1),      //
-           B(Add), R(0),           //
+           B(Add), R(2),           //
            B(Star), R(0),          //
+           B(Star), R(2),          //
            B(LdaSmi8), U8(6),      //
-           B(TestEqual), R(0),     //
+           B(TestEqual), R(2),     //
            B(JumpIfFalse), U8(4),  //
-           B(Jump), U8(-26),       //
-           B(Jump), U8(-28),       //
+           B(Jump), U8(-40),       //
+           B(Jump), U8(-42),       //
            B(Ldar), R(1),          //
            B(Return),              //
        },
@@ -2437,24 +2653,30 @@ TEST(BasicLoops) {
        "  if (x == 2) continue;"
        "  x = x + 1;"
        "}",
-       1 * kPointerSize,
+       2 * kPointerSize,
        1,
-       29,
+       41,
        {
            B(LdaZero),             //
            B(Star), R(0),          //
+           B(Ldar), R(0),          //
+           B(Star), R(1),          //
            B(LdaSmi8), U8(1),      //
-           B(TestEqual), R(0),     //
+           B(TestEqual), R(1),     //
            B(JumpIfFalse), U8(4),  //
-           B(Jump), U8(18),        //
+           B(Jump), U8(26),        //
+           B(Ldar), R(0),          //
+           B(Star), R(1),          //
            B(LdaSmi8), U8(2),      //
-           B(TestEqual), R(0),     //
+           B(TestEqual), R(1),     //
            B(JumpIfFalse), U8(4),  //
-           B(Jump), U8(-14),       //
-           B(LdaSmi8), U8(1),      //
-           B(Add), R(0),           //
-           B(Star), R(0),          //
            B(Jump), U8(-22),       //
+           B(Ldar), R(0),          //
+           B(Star), R(1),          //
+           B(LdaSmi8), U8(1),      //
+           B(Add), R(1),           //
+           B(Star), R(0),          //
+           B(Jump), U8(-34),       //
            B(LdaUndefined),        //
            B(Return),              //
        },
@@ -2464,24 +2686,30 @@ TEST(BasicLoops) {
        "  if (x == 2) continue;"
        "  x = x + 1;"
        "}",
-       1 * kPointerSize,
+       2 * kPointerSize,
        1,
-       29,
+       41,
        {
            B(LdaZero),             //
            B(Star), R(0),          //
+           B(Ldar), R(0),          //
+           B(Star), R(1),          //
            B(LdaSmi8), U8(1),      //
-           B(TestEqual), R(0),     //
+           B(TestEqual), R(1),     //
            B(JumpIfFalse), U8(4),  //
-           B(Jump), U8(18),        //
+           B(Jump), U8(26),        //
+           B(Ldar), R(0),          //
+           B(Star), R(1),          //
            B(LdaSmi8), U8(2),      //
-           B(TestEqual), R(0),     //
+           B(TestEqual), R(1),     //
            B(JumpIfFalse), U8(4),  //
-           B(Jump), U8(-14),       //
-           B(LdaSmi8), U8(1),      //
-           B(Add), R(0),           //
-           B(Star), R(0),          //
            B(Jump), U8(-22),       //
+           B(Ldar), R(0),          //
+           B(Star), R(1),          //
+           B(LdaSmi8), U8(1),      //
+           B(Add), R(1),           //
+           B(Star), R(0),          //
+           B(Jump), U8(-34),       //
            B(LdaUndefined),        //
            B(Return),              //
        },
@@ -2491,24 +2719,30 @@ TEST(BasicLoops) {
        "  if (x == 1) break;"
        "  if (x == 2) continue;"
        "}",
-       1 * kPointerSize,
+       2 * kPointerSize,
        1,
-       29,
+       41,
        {
            B(LdaZero),             //
            B(Star), R(0),          //
+           B(Ldar), R(0),          //
+           B(Star), R(1),          //
            B(LdaSmi8), U8(1),      //
-           B(TestEqual), R(0),     //
+           B(TestEqual), R(1),     //
            B(JumpIfFalse), U8(4),  //
-           B(Jump), U8(18),        //
+           B(Jump), U8(26),        //
+           B(Ldar), R(0),          //
+           B(Star), R(1),          //
            B(LdaSmi8), U8(2),      //
-           B(TestEqual), R(0),     //
+           B(TestEqual), R(1),     //
            B(JumpIfFalse), U8(4),  //
            B(Jump), U8(2),         //
+           B(Ldar), R(0),          //
+           B(Star), R(1),          //
            B(LdaSmi8), U8(1),      //
-           B(Add), R(0),           //
+           B(Add), R(1),           //
            B(Star), R(0),          //
-           B(Jump), U8(-22),       //
+           B(Jump), U8(-34),       //
            B(LdaUndefined),        //
            B(Return),              //
        },
@@ -2517,24 +2751,30 @@ TEST(BasicLoops) {
        "  if (x == 1) break;"
        "  if (x == 2) continue;"
        "}",
-       1 * kPointerSize,
+       2 * kPointerSize,
        1,
-       29,
+       41,
        {
            B(LdaZero),             //
            B(Star), R(0),          //
+           B(Ldar), R(0),          //
+           B(Star), R(1),          //
            B(LdaSmi8), U8(1),      //
-           B(TestEqual), R(0),     //
+           B(TestEqual), R(1),     //
            B(JumpIfFalse), U8(4),  //
-           B(Jump), U8(18),        //
+           B(Jump), U8(26),        //
+           B(Ldar), R(0),          //
+           B(Star), R(1),          //
            B(LdaSmi8), U8(2),      //
-           B(TestEqual), R(0),     //
+           B(TestEqual), R(1),     //
            B(JumpIfFalse), U8(4),  //
            B(Jump), U8(2),         //
+           B(Ldar), R(0),          //
+           B(Star), R(1),          //
            B(LdaSmi8), U8(1),      //
-           B(Add), R(0),           //
+           B(Add), R(1),           //
            B(Star), R(0),          //
-           B(Jump), U8(-22),       //
+           B(Jump), U8(-34),       //
            B(LdaUndefined),        //
            B(Return),              //
        },
@@ -2544,25 +2784,31 @@ TEST(BasicLoops) {
        "  u = u + 1;"
        "  continue;"
        "}",
-       2 * kPointerSize,
+       3 * kPointerSize,
        1,
-       30,
+       42,
        {
            B(LdaZero),              //
            B(Star), R(0),           //
            B(LdaZero),              //
            B(Star), R(1),           //
+           B(Ldar), R(1),           //
+           B(Star), R(2),           //
            B(LdaSmi8), U8(100),     //
-           B(TestLessThan), R(1),   //
-           B(JumpIfFalse), U8(18),  //
+           B(TestLessThan), R(2),   //
+           B(JumpIfFalse), U8(26),  //
+           B(Ldar), R(0),           //
+           B(Star), R(2),           //
            B(LdaSmi8), U8(1),       //
-           B(Add), R(0),            //
+           B(Add), R(2),            //
            B(Star), R(0),           //
            B(Jump), U8(2),          //
+           B(Ldar), R(1),           //
+           B(Star), R(2),           //
            B(LdaSmi8), U8(1),       //
-           B(Add), R(1),            //
+           B(Add), R(2),            //
            B(Star), R(1),           //
-           B(Jump), U8(-20),        //
+           B(Jump), U8(-32),        //
            B(LdaUndefined),         //
            B(Return),               //
        },
@@ -2572,24 +2818,26 @@ TEST(BasicLoops) {
        "  y = y * 12;"
        "}"
        "return y;",
-       2 * kPointerSize,
+       3 * kPointerSize,
        1,
-       29,
+       33,
        {
            B(LdaSmi8), U8(1),                //
            B(Star), R(0),                    //
            B(LdaSmi8), U8(10),               //
            B(Star), R(1),                    //
            B(Ldar), R(1),                    //
-           B(JumpIfToBooleanFalse), U8(16),  //
+           B(JumpIfToBooleanFalse), U8(20),  //
+           B(Ldar), R(0),                    //
+           B(Star), R(2),                    //
            B(LdaSmi8), U8(12),               //
-           B(Mul), R(0),                     //
+           B(Mul), R(2),                     //
            B(Star), R(0),                    //
            B(Ldar), R(1),                    //
            B(ToNumber),                      //
            B(Dec),                           //
            B(Star), R(1),                    //
-           B(Jump), U8(-16),                 //
+           B(Jump), U8(-20),                 //
            B(Ldar), R(0),                    //
            B(Return),                        //
        },
@@ -2617,26 +2865,29 @@ TEST(BasicLoops) {
        "  if (x == 20) break;"
        "};"
        "return x;",
-       2 * kPointerSize,
+       3 * kPointerSize,
        1,
-       31,
+       37,
        {
            B(LdaZero),             //
            B(Star), R(0),          //
            B(LdaZero),             //
            B(Star), R(1),          //
+           B(Ldar), R(0),          //
+           B(Star), R(2),          //
            B(LdaSmi8), U8(1),      //
-           B(Add), R(0),           //
+           B(Add), R(2),           //
            B(Star), R(0),          //
+           B(Star), R(2),          //
            B(LdaSmi8), U8(20),     //
-           B(TestEqual), R(0),     //
+           B(TestEqual), R(2),     //
            B(JumpIfFalse), U8(4),  //
            B(Jump), U8(10),        //
            B(Ldar), R(1),          //
            B(ToNumber),            //
            B(Inc),                 //
            B(Star), R(1),          //
-           B(Jump), U8(-20),       //
+           B(Jump), U8(-26),       //
            B(Ldar), R(0),          //
            B(Return),              //
        },
@@ -2656,7 +2907,7 @@ TEST(JumpsRequiringConstantWideOperands) {
   BytecodeGeneratorHelper helper;
 
   int constant_count = 0;
-  ExpectedSnippet<Handle<Object>, 315> snippets[] = {
+  ExpectedSnippet<Handle<Object>, 316> snippets[] = {
       {
        REPEAT_256(SPACE, "var x = 0.1;")
        REPEAT_32(SPACE, "var x = 0.2;")
@@ -2669,27 +2920,33 @@ TEST(JumpsRequiringConstantWideOperands) {
        "return 3;",
        kPointerSize * 3,
        1,
-       1347,
+       1359,
        {
 #define L(c) B(LdaConstant), U8(c), B(Star), R(0)
-         REPEAT_256(COMMA, L(constant_count++)),
+           REPEAT_256(COMMA, L(constant_count++)),
 #undef L
 #define LW(c) B(LdaConstantWide), U16I(c), B(Star), R(0)
-         REPEAT_32(COMMA, LW(constant_count)),
-         REPEAT_16(COMMA, LW(constant_count)),
-         REPEAT_8(COMMA, LW(constant_count)),
+           REPEAT_32(COMMA, LW(constant_count)),
+           REPEAT_16(COMMA, LW(constant_count)),
+           REPEAT_8(COMMA, LW(constant_count)),
 #undef LW
            B(LdaZero),                            //
            B(Star), R(1),                         //
+           B(Ldar), R(1),                         //
+           B(Star), R(2),                         //
            B(LdaSmi8), U8(3),                     //
-           B(TestLessThan), R(1),                 //
+           B(TestLessThan), R(2),                 //
            B(JumpIfFalseConstantWide), U16(313),  //
+           B(Ldar), R(1),                         //
+           B(Star), R(2),                         //
            B(LdaSmi8), U8(1),                     //
-           B(TestEqual), R(1),                    //
+           B(TestEqual), R(2),                    //
            B(JumpIfFalseConstantWide), U16(312),  //
-           B(JumpConstantWide), U16(314),         //
+           B(JumpConstantWide), U16(315),         //
+           B(Ldar), R(1),                         //
+           B(Star), R(2),                         //
            B(LdaSmi8), U8(2),                     //
-           B(TestEqual), R(1),                    //
+           B(TestEqual), R(2),                    //
            B(JumpIfFalseConstantWide), U16(312),  //
            B(JumpConstantWide), U16(314),         //
            B(Ldar), R(1),                         //
@@ -2697,11 +2954,11 @@ TEST(JumpsRequiringConstantWideOperands) {
            B(Star), R(2),                         //
            B(Inc),                                //
            B(Star), R(1),                         //
-           B(Jump), U8(-35),                      //
+           B(Jump), U8(-47),                      //
            B(LdaSmi8), U8(3),                     //
            B(Return)                              //
        },
-       315,
+       316,
        {
 #define S(x) CcTest::i_isolate()->factory()->NewNumber(x)
         REPEAT_256(COMMA, S(0.1)),
@@ -2710,7 +2967,7 @@ TEST(JumpsRequiringConstantWideOperands) {
         REPEAT_8(COMMA, S(0.4)),
 #undef S
 #define N(x) CcTest::i_isolate()->factory()->NewNumberFromInt(x)
-        N(6), N(33), N(13),
+           N(6), N(41), N(13), N(17)
 #undef N
        }}};
 
@@ -2732,20 +2989,24 @@ TEST(UnaryOperators) {
        "  x = x + 10;"
        "}"
        "return x;",
-       kPointerSize,
+       2 * kPointerSize,
        1,
-       21,
+       29,
        {
            B(LdaZero),              //
            B(Star), R(0),           //
+           B(Ldar), R(0),           //
+           B(Star), R(1),           //
            B(LdaSmi8), U8(10),      //
-           B(TestEqual), R(0),      //
+           B(TestEqual), R(1),      //
            B(LogicalNot),           //
-           B(JumpIfFalse), U8(10),  //
+           B(JumpIfFalse), U8(14),  //
+           B(Ldar), R(0),           //
+           B(Star), R(1),           //
            B(LdaSmi8), U8(10),      //
-           B(Add), R(0),            //
+           B(Add), R(1),            //
            B(Star), R(0),           //
-           B(Jump), U8(-13),        //
+           B(Jump), U8(-21),        //
            B(Ldar), R(0),           //
            B(Return),               //
        },
@@ -2755,32 +3016,35 @@ TEST(UnaryOperators) {
        "  x = !x;"
        "} while(x == false);"
        "return x;",
-       kPointerSize,
+       2 * kPointerSize,
        1,
-       16,
+       20,
        {
            B(LdaFalse),            //
            B(Star), R(0),          //
            B(Ldar), R(0),          //
            B(LogicalNot),          //
            B(Star), R(0),          //
+           B(Ldar), R(0),          //
+           B(Star), R(1),          //
            B(LdaFalse),            //
-           B(TestEqual), R(0),     //
-           B(JumpIfTrue), U8(-8),  //
+           B(TestEqual), R(1),     //
+           B(JumpIfTrue), U8(-12),  //
            B(Ldar), R(0),          //
            B(Return),              //
        },
        0},
       {"var x = 101;"
        "return void(x * 3);",
-       kPointerSize,
+       2 * kPointerSize,
        1,
-       10,
+       12,
        {
            B(LdaSmi8), U8(101),  //
            B(Star), R(0),        //
+           B(Star), R(1),        //
            B(LdaSmi8), U8(3),    //
-           B(Mul), R(0),         //
+           B(Mul), R(1),         //
            B(LdaUndefined),      //
            B(Return),            //
        },
@@ -2788,16 +3052,18 @@ TEST(UnaryOperators) {
       {"var x = 1234;"
        "var y = void (x * x - 1);"
        "return y;",
-       3 * kPointerSize,
+       4 * kPointerSize,
        1,
-       16,
+       20,
        {
            B(LdaConstant), U8(0),  //
            B(Star), R(0),          //
-           B(Mul), R(0),           //
            B(Star), R(2),          //
+           B(Ldar), R(0),          //
+           B(Mul), R(2),           //
+           B(Star), R(3),          //
            B(LdaSmi8), U8(1),      //
-           B(Sub), R(2),           //
+           B(Sub), R(3),           //
            B(LdaUndefined),        //
            B(Star), R(1),          //
            B(Return),              //
@@ -2806,40 +3072,43 @@ TEST(UnaryOperators) {
        {1234}},
       {"var x = 13;"
        "return ~x;",
-       1 * kPointerSize,
+       2 * kPointerSize,
        1,
-       9,
+       11,
        {
            B(LdaSmi8), U8(13),   //
            B(Star), R(0),        //
+           B(Star), R(1),        //
            B(LdaSmi8), U8(-1),   //
-           B(BitwiseXor), R(0),  //
+           B(BitwiseXor), R(1),  //
            B(Return),            //
        },
        0},
       {"var x = 13;"
        "return +x;",
-       1 * kPointerSize,
+       2 * kPointerSize,
        1,
-       9,
+       11,
        {
            B(LdaSmi8), U8(13),  //
            B(Star), R(0),       //
+           B(Star), R(1),       //
            B(LdaSmi8), U8(1),   //
-           B(Mul), R(0),        //
+           B(Mul), R(1),        //
            B(Return),           //
        },
        0},
       {"var x = 13;"
        "return -x;",
-       1 * kPointerSize,
+       2 * kPointerSize,
        1,
-       9,
+       11,
        {
            B(LdaSmi8), U8(13),  //
            B(Star), R(0),       //
+           B(Star), R(1),       //
            B(LdaSmi8), U8(-1),  //
-           B(Mul), R(0),        //
+           B(Mul), R(1),        //
            B(Return),           //
        },
        0}};
@@ -2929,42 +3198,45 @@ TEST(Delete) {
 
   ExpectedSnippet<InstanceType> snippets[] = {
       {"var a = {x:13, y:14}; return delete a.x;",
-       1 * kPointerSize,
+       2 * kPointerSize,
        1,
-       11,
+       13,
        {
            B(CreateObjectLiteral), U8(0), U8(0), U8(deep_elements_flags),  //
            B(Star), R(0),                                                  //
+           B(Star), R(1),                                                  //
            B(LdaConstant), U8(1),                                          //
-           B(DeletePropertySloppy), R(0),                                  //
+           B(DeletePropertySloppy), R(1),                                  //
            B(Return)
        },
        2,
        {InstanceType::FIXED_ARRAY_TYPE,
         InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
       {"'use strict'; var a = {x:13, y:14}; return delete a.x;",
-       1 * kPointerSize,
+       2 * kPointerSize,
        1,
-       11,
+       13,
        {
            B(CreateObjectLiteral), U8(0), U8(0), U8(deep_elements_flags),  //
            B(Star), R(0),                                                  //
+           B(Star), R(1),                                                  //
            B(LdaConstant), U8(1),                                          //
-           B(DeletePropertyStrict), R(0),                                  //
+           B(DeletePropertyStrict), R(1),                                  //
            B(Return)
        },
        2,
        {InstanceType::FIXED_ARRAY_TYPE,
         InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
       {"var a = {1:13, 2:14}; return delete a[2];",
-       1 * kPointerSize,
+       2 * kPointerSize,
        1,
-       11,
+       13,
        {
            B(CreateObjectLiteral), U8(0), U8(0), U8(deep_elements_flags),  //
            B(Star), R(0),                                                  //
+           B(Star), R(1),                                                  //
            B(LdaSmi8), U8(2),                                              //
-           B(DeletePropertySloppy), R(0),                                  //
+           B(DeletePropertySloppy), R(1),                                  //
            B(Return)
        },
        1,
@@ -3278,9 +3550,9 @@ TEST(ArrayLiterals) {
        1,
        {InstanceType::FIXED_ARRAY_TYPE}},
       {"var a = 1; return [ a, a + 1 ];",
-       3 * kPointerSize,
+       4 * kPointerSize,
        1,
-       34,
+       38,
        {
            B(LdaSmi8), U8(1),                                               //
            B(Star), R(0),                                                   //
@@ -3292,8 +3564,10 @@ TEST(ArrayLiterals) {
            B(KeyedStoreICSloppy), R(2), R(1), U8(vector->GetIndex(slot1)),  //
            B(LdaSmi8), U8(1),                                               //
            B(Star), R(1),                                                   //
+           B(Ldar), R(0),                                                   //
+           B(Star), R(3),                                                   //
            B(LdaSmi8), U8(1),                                               //
-           B(Add), R(0),                                                    //
+           B(Add), R(3),                                                    //
            B(KeyedStoreICSloppy), R(2), R(1), U8(vector->GetIndex(slot1)),  //
            B(Ldar), R(2),                                                   //
            B(Return),                                                       //
@@ -3311,9 +3585,9 @@ TEST(ArrayLiterals) {
        1,
        {InstanceType::FIXED_ARRAY_TYPE}},
       {"var a = 1; return [ [ a, 2 ], [ a + 2 ] ];",
-       5 * kPointerSize,
+       6 * kPointerSize,
        1,
-       64,
+       68,
        {
            B(LdaSmi8), U8(1),                                               //
            B(Star), R(0),                                                   //
@@ -3335,8 +3609,10 @@ TEST(ArrayLiterals) {
            B(Star), R(4),                                                   //
            B(LdaZero),                                                      //
            B(Star), R(3),                                                   //
+           B(Ldar), R(0),                                                   //
+           B(Star), R(5),                                                   //
            B(LdaSmi8), U8(2),                                               //
-           B(Add), R(0),                                                    //
+           B(Add), R(5),                                                    //
            B(KeyedStoreICSloppy), R(4), R(3), U8(vector->GetIndex(slot2)),  //
            B(Ldar), R(4),                                                   //
            B(KeyedStoreICSloppy), R(2), R(1), U8(vector->GetIndex(slot3)),  //
@@ -3445,16 +3721,18 @@ TEST(ObjectLiterals) {
        {InstanceType::FIXED_ARRAY_TYPE,
         InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
       {"var a = 1; return { val: a, val: a + 1 };",
-       2 * kPointerSize,
+       3 * kPointerSize,
        1,
-       21,
+       25,
        {
            B(LdaSmi8), U8(1),                                              //
            B(Star), R(0),                                                  //
            B(CreateObjectLiteral), U8(0), U8(0), U8(deep_elements_flags),  //
            B(Star), R(1),                                                  //
+           B(Ldar), R(0),                                                  //
+           B(Star), R(2),                                                  //
            B(LdaSmi8), U8(1),                                              //
-           B(Add), R(0),                                                   //
+           B(Add), R(2),                                                   //
            B(StoreICSloppy), R(1), U8(1), U8(vector->GetIndex(slot1)),     //
            B(Ldar), R(1),                                                  //
            B(Return),                                                      //
@@ -4398,76 +4676,80 @@ TEST(CountOperators) {
            B(Return),          //
        }},
       {"var a = { val: 1 }; return a.val++;",
-       2 * kPointerSize,
+       3 * kPointerSize,
        1,
-       21,
+       23,
        {
            B(CreateObjectLiteral), U8(0), U8(0), U8(object_literal_flags),  //
            B(Star), R(0),                                                   //
-           B(LoadICSloppy), R(0), U8(1), U8(vector->GetIndex(slot1)),       //
-           B(ToNumber),                                                     //
            B(Star), R(1),                                                   //
+           B(LoadICSloppy), R(1), U8(1), U8(vector->GetIndex(slot1)),       //
+           B(ToNumber),                                                     //
+           B(Star), R(2),                                                   //
            B(Inc),                                                          //
-           B(StoreICSloppy), R(0), U8(1), U8(vector->GetIndex(slot2)),      //
-           B(Ldar), R(1),                                                   //
+           B(StoreICSloppy), R(1), U8(1), U8(vector->GetIndex(slot2)),      //
+           B(Ldar), R(2),                                                   //
            B(Return),                                                       //
        },
        2,
        {InstanceType::FIXED_ARRAY_TYPE,
         InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
       {"var a = { val: 1 }; return --a.val;",
-       1 * kPointerSize,
+       2 * kPointerSize,
        1,
-       17,
+       19,
        {
            B(CreateObjectLiteral), U8(0), U8(0), U8(object_literal_flags),  //
            B(Star), R(0),                                                   //
-           B(LoadICSloppy), R(0), U8(1), U8(vector->GetIndex(slot1)),       //
+           B(Star), R(1),                                                   //
+           B(LoadICSloppy), R(1), U8(1), U8(vector->GetIndex(slot1)),       //
            B(ToNumber),                                                     //
            B(Dec),                                                          //
-           B(StoreICSloppy), R(0), U8(1), U8(vector->GetIndex(slot2)),      //
+           B(StoreICSloppy), R(1), U8(1), U8(vector->GetIndex(slot2)),      //
            B(Return),                                                       //
        },
        2,
        {InstanceType::FIXED_ARRAY_TYPE,
         InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
       {"var name = 'var'; var a = { val: 1 }; return a[name]--;",
-       4 * kPointerSize,
+       5 * kPointerSize,
        1,
-       28,
+       30,
        {
            B(LdaConstant), U8(0),                                           //
            B(Star), R(0),                                                   //
            B(CreateObjectLiteral), U8(1), U8(0), U8(object_literal_flags),  //
            B(Star), R(1),                                                   //
-           B(Ldar), R(0),                                                   //
            B(Star), R(2),                                                   //
-           B(KeyedLoadICSloppy), R(1), U8(vector->GetIndex(slot1)),         //
-           B(ToNumber),                                                     //
+           B(Ldar), R(0),                                                   //
            B(Star), R(3),                                                   //
+           B(KeyedLoadICSloppy), R(2), U8(vector->GetIndex(slot1)),         //
+           B(ToNumber),                                                     //
+           B(Star), R(4),                                                   //
            B(Dec),                                                          //
-           B(KeyedStoreICSloppy), R(1), R(2), U8(vector->GetIndex(slot2)),  //
-           B(Ldar), R(3),                                                   //
+           B(KeyedStoreICSloppy), R(2), R(3), U8(vector->GetIndex(slot2)),  //
+           B(Ldar), R(4),                                                   //
            B(Return),                                                       //
        },
        2,
        {InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
         InstanceType::FIXED_ARRAY_TYPE}},
       {"var name = 'var'; var a = { val: 1 }; return ++a[name];",
-       3 * kPointerSize,
+       4 * kPointerSize,
        1,
-       24,
+       26,
        {
            B(LdaConstant), U8(0),                                           //
            B(Star), R(0),                                                   //
            B(CreateObjectLiteral), U8(1), U8(0), U8(object_literal_flags),  //
            B(Star), R(1),                                                   //
-           B(Ldar), R(0),                                                   //
            B(Star), R(2),                                                   //
-           B(KeyedLoadICSloppy), R(1), U8(vector->GetIndex(slot1)),         //
+           B(Ldar), R(0),                                                   //
+           B(Star), R(3),                                                   //
+           B(KeyedLoadICSloppy), R(2), U8(vector->GetIndex(slot1)),         //
            B(ToNumber),                                                     //
            B(Inc),                                                          //
-           B(KeyedStoreICSloppy), R(1), R(2), U8(vector->GetIndex(slot2)),  //
+           B(KeyedStoreICSloppy), R(2), R(3), U8(vector->GetIndex(slot2)),  //
            B(Return),                                                       //
        },
        2,
@@ -4516,21 +4798,22 @@ TEST(CountOperators) {
        1,
        {InstanceType::SHARED_FUNCTION_INFO_TYPE}},
       {"var idx = 1; var a = [1, 2]; return a[idx++] = 2;",
-       3 * kPointerSize,
+       4 * kPointerSize,
        1,
-       25,
+       27,
        {
            B(LdaSmi8), U8(1),                                              //
            B(Star), R(0),                                                  //
            B(CreateArrayLiteral), U8(0), U8(0), U8(array_literal_flags),   //
            B(Star), R(1),                                                  //
+           B(Star), R(2),                                                  //
            B(Ldar), R(0),                                                  //
            B(ToNumber),                                                    //
-           B(Star), R(2),                                                  //
+           B(Star), R(3),                                                  //
            B(Inc),                                                         //
            B(Star), R(0),                                                  //
            B(LdaSmi8), U8(2),                                              //
-           B(KeyedStoreICSloppy), R(1), R(2),                              //
+           B(KeyedStoreICSloppy), R(2), R(3),                              //
                                   U8(store_vector->GetIndex(store_slot)),  //
            B(Return),                                                      //
        },
@@ -4645,43 +4928,46 @@ TEST(CompoundExpressions) {
       ObjectLiteral::kFastElements | ObjectLiteral::kDisableMementos;
   ExpectedSnippet<InstanceType> snippets[] = {
       {"var a = 1; a += 2;",
-       1 * kPointerSize,
+       2 * kPointerSize,
        1,
-       12,
+       14,
        {
            B(LdaSmi8), U8(1),  //
            B(Star), R(0),      //
+           B(Star), R(1),      //
            B(LdaSmi8), U8(2),  //
-           B(Add), R(0),       //
+           B(Add), R(1),       //
            B(Star), R(0),      //
            B(LdaUndefined),    //
            B(Return),          //
        }},
       {"var a = 1; a /= 2;",
-       1 * kPointerSize,
+       2 * kPointerSize,
        1,
-       12,
+       14,
        {
            B(LdaSmi8), U8(1),  //
            B(Star), R(0),      //
+           B(Star), R(1),      //
            B(LdaSmi8), U8(2),  //
-           B(Div), R(0),       //
+           B(Div), R(1),       //
            B(Star), R(0),      //
            B(LdaUndefined),    //
            B(Return),          //
        }},
       {"var a = { val: 2 }; a.name *= 2;",
-       2 * kPointerSize,
+       3 * kPointerSize,
        1,
-       22,
+       24,
        {
            B(CreateObjectLiteral), U8(0), U8(0), U8(object_literal_flags),  //
            B(Star), R(0),                                                   //
-           B(LoadICSloppy), R(0), U8(1), U8(vector->GetIndex(slot1)),       //
            B(Star), R(1),                                                   //
+           B(LoadICSloppy), R(1), U8(1), U8(vector->GetIndex(slot1)),       //
+           B(Star), R(2),                                                   //
            B(LdaSmi8), U8(2),                                               //
-           B(Mul), R(1),                                                    //
-           B(StoreICSloppy), R(0), U8(1), U8(vector->GetIndex(slot2)),      //
+           B(Mul), R(2),                                                    //
+           B(StoreICSloppy), R(1), U8(1), U8(vector->GetIndex(slot2)),      //
            B(LdaUndefined),                                                 //
            B(Return),                                                       //
        },
@@ -4689,19 +4975,20 @@ TEST(CompoundExpressions) {
        {InstanceType::FIXED_ARRAY_TYPE,
         InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
       {"var a = { 1: 2 }; a[1] ^= 2;",
-       3 * kPointerSize,
+       4 * kPointerSize,
        1,
-       25,
+       27,
        {
            B(CreateObjectLiteral), U8(0), U8(0), U8(object_literal_flags),  //
            B(Star), R(0),                                                   //
-           B(LdaSmi8), U8(1),                                               //
            B(Star), R(1),                                                   //
-           B(KeyedLoadICSloppy), R(0), U8(vector->GetIndex(slot1)),         //
+           B(LdaSmi8), U8(1),                                               //
            B(Star), R(2),                                                   //
+           B(KeyedLoadICSloppy), R(1), U8(vector->GetIndex(slot1)),         //
+           B(Star), R(3),                                                   //
            B(LdaSmi8), U8(2),                                               //
-           B(BitwiseXor), R(2),                                             //
-           B(KeyedStoreICSloppy), R(0), R(1), U8(vector->GetIndex(slot2)),  //
+           B(BitwiseXor), R(3),                                             //
+           B(KeyedStoreICSloppy), R(1), R(2), U8(vector->GetIndex(slot2)),  //
            B(LdaUndefined),                                                 //
            B(Return),                                                       //
        },
@@ -4814,14 +5101,15 @@ TEST(CreateArguments) {
            B(Return),                 //
        }},
       {"function f() { return arguments[0]; }",
-       1 * kPointerSize,
+       2 * kPointerSize,
        1,
-       8,
+       10,
        {
            B(CreateMappedArguments),                                //
            B(Star), R(0),                                           //
+           B(Star), R(1),                                           //
            B(LdaZero),                                              //
-           B(KeyedLoadICSloppy), R(0), U8(vector->GetIndex(slot)),  //
+           B(KeyedLoadICSloppy), R(1), U8(vector->GetIndex(slot)),  //
            B(Return),                                               //
        }},
       {"function f() { 'use strict'; return arguments; }",
@@ -4834,9 +5122,9 @@ TEST(CreateArguments) {
            B(Return),                   //
        }},
       {"function f(a) { return arguments[0]; }",
-       2 * kPointerSize,
+       3 * kPointerSize,
        2,
-       20,
+       22,
        {
            B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure),  //
                            U8(1),                                          //
@@ -4845,8 +5133,9 @@ TEST(CreateArguments) {
            B(StaContextSlot), R(1), U8(first_context_slot),                //
            B(CreateMappedArguments),                                       //
            B(Star), R(0),                                                  //
+           B(Star), R(2),                                                  //
            B(LdaZero),                                                     //
-           B(KeyedLoadICSloppy), R(0), U8(vector->GetIndex(slot)),         //
+           B(KeyedLoadICSloppy), R(2), U8(vector->GetIndex(slot)),         //
            B(Return),                                                      //
        }},
       {"function f(a, b, c) { return arguments; }",
@@ -4989,32 +5278,35 @@ TEST(ForIn) {
        {InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
       {"var x = 0;\n"
        "for (var p in [1,2,3]) { x += p; }",
-       8 * kPointerSize,
+       9 * kPointerSize,
        1,
-       51,
+       57,
        {
            B(LdaZero),                                  //
            B(Star), R(1),                               //
            B(CreateArrayLiteral), U8(0), U8(0), U8(3),  //
-           B(JumpIfUndefined), U8(42),                  //
-           B(JumpIfNull), U8(40),                       //
+           B(JumpIfUndefined), U8(48),                  //
+           B(JumpIfNull), U8(46),                       //
            B(ToObject),                                 //
-           B(JumpIfNull), U8(37),                       //
+           B(JumpIfNull), U8(43),                       //
            B(Star), R(3),                               //
            B(ForInPrepare), R(4), R(5), R(6),           //
            B(LdaZero),                                  //
            B(Star), R(7),                               //
            B(ForInDone), R(7), R(6),                    //
-           B(JumpIfTrue), U8(23),                       //
+           B(JumpIfTrue), U8(29),                       //
            B(ForInNext), R(3), R(4), R(5), R(7),        //
-           B(JumpIfUndefined), U8(10),                  //
+           B(JumpIfUndefined), U8(16),                  //
            B(Star), R(0),                               //
            B(Star), R(2),                               //
-           B(Add), R(1),                                //
+           B(Ldar), R(1),                               //
+           B(Star), R(8),                               //
+           B(Ldar), R(2),                               //
+           B(Add), R(8),                                //
            B(Star), R(1),                               //
            B(ForInStep), R(7),                          //
            B(Star), R(7),                               //
-           B(Jump), U8(-24),                            //
+           B(Jump), U8(-30),                            //
            B(LdaUndefined),                             //
            B(Return),                                   //
        },
@@ -5025,42 +5317,49 @@ TEST(ForIn) {
        "  if (x['a'] == 10) continue;\n"
        "  if (x['a'] == 20) break;\n"
        "}",
-       7 * kPointerSize,
+       9 * kPointerSize,
        1,
-       80,
+       94,
        {
            B(CreateObjectLiteral), U8(0), U8(0), U8(deep_elements_flags),  //
            B(Star), R(0),                                                  //
            B(CreateArrayLiteral), U8(1), U8(1), U8(simple_flags),          //
-           B(JumpIfUndefined), U8(68),                                     //
-           B(JumpIfNull), U8(66),                                          //
+           B(JumpIfUndefined), U8(82),                                     //
+           B(JumpIfNull), U8(80),                                          //
            B(ToObject),                                                    //
-           B(JumpIfNull), U8(63),                                          //
+           B(JumpIfNull), U8(77),                                          //
            B(Star), R(1),                                                  //
            B(ForInPrepare), R(2), R(3), R(4),                              //
            B(LdaZero),                                                     //
            B(Star), R(5),                                                  //
            B(ForInDone), R(5), R(4),                                       //
-           B(JumpIfTrue), U8(49),                                          //
+           B(JumpIfTrue), U8(63),                                          //
            B(ForInNext), R(1), R(2), R(3), R(5),                           //
-           B(JumpIfUndefined), U8(36),                                     //
+           B(JumpIfUndefined), U8(50),                                     //
            B(Star), R(6),                                                  //
-           B(StoreICSloppy), R(0), U8(2), U8(vector->GetIndex(slot4)),     //
-           B(LoadICSloppy), R(0), U8(2), U8(vector->GetIndex(slot2)),      //
+           B(Ldar), R(0),                                                  //
+           B(Star), R(7),                                                  //
+           B(Ldar), R(6),                                                  //
+           B(StoreICSloppy), R(7), U8(2), U8(vector->GetIndex(slot4)),     //
+           B(Ldar), R(0),                                                  //
            B(Star), R(6),                                                  //
+           B(LoadICSloppy), R(6), U8(2), U8(vector->GetIndex(slot2)),      //
+           B(Star), R(8),                                                  //
            B(LdaSmi8), U8(10),                                             //
-           B(TestEqual), R(6),                                             //
+           B(TestEqual), R(8),                                             //
            B(JumpIfFalse), U8(4),                                          //
-           B(Jump), U8(16),                                                //
-           B(LoadICSloppy), R(0), U8(2), U8(vector->GetIndex(slot3)),      //
+           B(Jump), U8(20),                                                //
+           B(Ldar), R(0),                                                  //
            B(Star), R(6),                                                  //
+           B(LoadICSloppy), R(6), U8(2), U8(vector->GetIndex(slot3)),      //
+           B(Star), R(8),                                                  //
            B(LdaSmi8), U8(20),                                             //
-           B(TestEqual), R(6),                                             //
+           B(TestEqual), R(8),                                             //
            B(JumpIfFalse), U8(4),                                          //
            B(Jump), U8(8),                                                 //
            B(ForInStep), R(5),                                             //
            B(Star), R(5),                                                  //
-           B(Jump), U8(-50),                                               //
+           B(Jump), U8(-64),                                               //
            B(LdaUndefined),                                                //
            B(Return),                                                      //
        },
@@ -5069,36 +5368,40 @@ TEST(ForIn) {
         InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
       {"var x = [ 10, 11, 12 ] ;\n"
        "for (x[0] in [1,2,3]) { return x[3]; }",
-       8 * kPointerSize,
+       9 * kPointerSize,
        1,
-       63,
+       71,
        {
            B(CreateArrayLiteral), U8(0), U8(0), U8(simple_flags),           //
            B(Star), R(0),                                                   //
            B(CreateArrayLiteral), U8(1), U8(1), U8(simple_flags),           //
-           B(JumpIfUndefined), U8(51),                                      //
-           B(JumpIfNull), U8(49),                                           //
+           B(JumpIfUndefined), U8(59),                                      //
+           B(JumpIfNull), U8(57),                                           //
            B(ToObject),                                                     //
-           B(JumpIfNull), U8(46),                                           //
+           B(JumpIfNull), U8(54),                                           //
            B(Star), R(1),                                                   //
            B(ForInPrepare), R(2), R(3), R(4),                               //
            B(LdaZero),                                                      //
            B(Star), R(5),                                                   //
            B(ForInDone), R(5), R(4),                                        //
-           B(JumpIfTrue), U8(32),                                           //
+           B(JumpIfTrue), U8(40),                                           //
            B(ForInNext), R(1), R(2), R(3), R(5),                            //
-           B(JumpIfUndefined), U8(19),                                      //
+           B(JumpIfUndefined), U8(27),                                      //
            B(Star), R(6),                                                   //
-           B(LdaZero),                                                      //
+           B(Ldar), R(0),                                                   //
            B(Star), R(7),                                                   //
+           B(LdaZero),                                                      //
+           B(Star), R(8),                                                   //
            B(Ldar), R(6),                                                   //
-           B(KeyedStoreICSloppy), R(0), R(7), U8(vector->GetIndex(slot3)),  //
+           B(KeyedStoreICSloppy), R(7), R(8), U8(vector->GetIndex(slot3)),  //
+           B(Ldar), R(0),                                                   //
+           B(Star), R(6),                                                   //
            B(LdaSmi8), U8(3),                                               //
-           B(KeyedLoadICSloppy), R(0), U8(vector->GetIndex(slot2)),         //
+           B(KeyedLoadICSloppy), R(6), U8(vector->GetIndex(slot2)),         //
            B(Return),                                                       //
            B(ForInStep), R(5),                                              //
            B(Star), R(5),                                                   //
-           B(Jump), U8(-33),                                                //
+           B(Jump), U8(-41),                                                //
            B(LdaUndefined),                                                 //
            B(Return),                                                       //
        },
@@ -5167,18 +5470,19 @@ TEST(Switch) {
        " case 1: return 2;\n"
        " case 2: return 3;\n"
        "}\n",
-       2 * kPointerSize,
+       3 * kPointerSize,
        1,
-       28,
+       30,
        {
            B(LdaSmi8), U8(1),         //
            B(Star), R(1),             // The tag variable is allocated as a
            B(Star), R(0),             // local by the parser, hence the store
-           B(LdaSmi8), U8(1),         // to another local register.
-           B(TestEqualStrict), R(0),  //
+           B(Star), R(2),             // to another local register.
+           B(LdaSmi8), U8(1),         //
+           B(TestEqualStrict), R(2),  //
            B(JumpIfTrue), U8(10),     //
            B(LdaSmi8), U8(2),         //
-           B(TestEqualStrict), R(0),  //
+           B(TestEqualStrict), R(2),  //
            B(JumpIfTrue), U8(7),      //
            B(Jump), U8(8),            //
            B(LdaSmi8), U8(2),         //
@@ -5193,18 +5497,19 @@ TEST(Switch) {
        " case 1: a = 2; break;\n"
        " case 2: a = 3; break;\n"
        "}\n",
-       2 * kPointerSize,
+       3 * kPointerSize,
        1,
-       34,
+       36,
        {
            B(LdaSmi8), U8(1),         //
            B(Star), R(1),             //
            B(Star), R(0),             //
+           B(Star), R(2),             //
            B(LdaSmi8), U8(1),         //
-           B(TestEqualStrict), R(0),  //
+           B(TestEqualStrict), R(2),  //
            B(JumpIfTrue), U8(10),     //
            B(LdaSmi8), U8(2),         //
-           B(TestEqualStrict), R(0),  //
+           B(TestEqualStrict), R(2),  //
            B(JumpIfTrue), U8(10),     //
            B(Jump), U8(14),           //
            B(LdaSmi8), U8(2),         //
@@ -5221,18 +5526,19 @@ TEST(Switch) {
        " case 1: a = 2; // fall-through\n"
        " case 2: a = 3; break;\n"
        "}\n",
-       2 * kPointerSize,
+       3 * kPointerSize,
        1,
-       32,
+       34,
        {
            B(LdaSmi8), U8(1),         //
            B(Star), R(1),             //
            B(Star), R(0),             //
+           B(Star), R(2),             //
            B(LdaSmi8), U8(1),         //
-           B(TestEqualStrict), R(0),  //
+           B(TestEqualStrict), R(2),  //
            B(JumpIfTrue), U8(10),     //
            B(LdaSmi8), U8(2),         //
-           B(TestEqualStrict), R(0),  //
+           B(TestEqualStrict), R(2),  //
            B(JumpIfTrue), U8(8),      //
            B(Jump), U8(12),           //
            B(LdaSmi8), U8(2),         //
@@ -5249,18 +5555,19 @@ TEST(Switch) {
        " case 3: break;\n"
        " default: a = 1; break;\n"
        "}\n",
-       2 * kPointerSize,
+       3 * kPointerSize,
        1,
-       32,
+       34,
        {
            B(LdaSmi8), U8(1),         //
            B(Star), R(1),             //
            B(Star), R(0),             //
+           B(Star), R(2),             //
            B(LdaSmi8), U8(2),         //
-           B(TestEqualStrict), R(0),  //
+           B(TestEqualStrict), R(2),  //
            B(JumpIfTrue), U8(10),     //
            B(LdaSmi8), U8(3),         //
-           B(TestEqualStrict), R(0),  //
+           B(TestEqualStrict), R(2),  //
            B(JumpIfTrue), U8(6),      //
            B(Jump), U8(6),            //
            B(Jump), U8(10),           //
@@ -5277,19 +5584,20 @@ TEST(Switch) {
        " case 3: a = 2; break;\n"
        " default: a = 3; break;\n"
        "}\n",
-       2 * kPointerSize,
+       3 * kPointerSize,
        1,
-       41,
+       43,
        {
            B(LdaSmi8), U8(1),         //
            B(Star), R(1),             //
            B(TypeOf),                 //
            B(Star), R(0),             //
+           B(Star), R(2),             //
            B(LdaSmi8), U8(2),         //
-           B(TestEqualStrict), R(0),  //
+           B(TestEqualStrict), R(2),  //
            B(JumpIfTrue), U8(10),     //
            B(LdaSmi8), U8(3),         //
-           B(TestEqualStrict), R(0),  //
+           B(TestEqualStrict), R(2),  //
            B(JumpIfTrue), U8(10),     //
            B(Jump), U8(14),           //
            B(LdaSmi8), U8(1),         //
@@ -5309,16 +5617,17 @@ TEST(Switch) {
        " case typeof(a): a = 1; break;\n"
        " default: a = 2; break;\n"
        "}\n",
-       2 * kPointerSize,
+       3 * kPointerSize,
        1,
-       29,
+       31,
        {
            B(LdaSmi8), U8(1),         //
            B(Star), R(1),             //
            B(Star), R(0),             //
+           B(Star), R(2),             //
            B(Ldar), R(1),             //
            B(TypeOf),                 //
-           B(TestEqualStrict), R(0),  //
+           B(TestEqualStrict), R(2),  //
            B(JumpIfTrue), U8(4),      //
            B(Jump), U8(8),            //
            B(LdaSmi8), U8(1),         //
@@ -5336,23 +5645,24 @@ TEST(Switch) {
        "break;\n"
        " case 2: a = 3; break;"
        "}\n",
-       2 * kPointerSize,
+       3 * kPointerSize,
        1,
-       286,
+       288,
        {
            B(LdaSmi8), U8(1),             //
            B(Star), R(1),                 //
            B(Star), R(0),                 //
+           B(Star), R(2),                 //
            B(LdaSmi8), U8(1),             //
-           B(TestEqualStrict), R(0),      //
+           B(TestEqualStrict), R(2),      //
            B(JumpIfTrue), U8(10),         //
            B(LdaSmi8), U8(2),             //
-           B(TestEqualStrict), R(0),      //
+           B(TestEqualStrict), R(2),      //
            B(JumpIfTrueConstant), U8(0),  //
            B(JumpConstant), U8(1),        //
            REPEAT_64(COMMA,               //
-              B(LdaSmi8), U8(2),          //
-              B(Star), R(1)),             //
+                     B(LdaSmi8), U8(2),   //
+                     B(Star), R(1)),      //
            B(Jump), U8(8),                //
            B(LdaSmi8), U8(3),             //
            B(Star), R(1),                 //
@@ -5371,25 +5681,29 @@ TEST(Switch) {
        "   }  // fall-through\n"
        " case 2: a = 3;\n"
        "}\n",
-       3 * kPointerSize,
+       5 * kPointerSize,
        1,
-       52,
+       60,
        {
            B(LdaSmi8), U8(1),         //
            B(Star), R(2),             //
            B(Star), R(0),             //
+           B(Star), R(3),             //
            B(LdaSmi8), U8(1),         //
-           B(TestEqualStrict), R(0),  //
+           B(TestEqualStrict), R(3),  //
            B(JumpIfTrue), U8(10),     //
            B(LdaSmi8), U8(2),         //
-           B(TestEqualStrict), R(0),  //
-           B(JumpIfTrue), U8(30),     //
-           B(Jump), U8(32),           //
+           B(TestEqualStrict), R(3),  //
+           B(JumpIfTrue), U8(36),     //
+           B(Jump), U8(38),           //
+           B(Ldar), R(2),             //
+           B(Star), R(4),             //
            B(LdaSmi8), U8(1),         //
-           B(Add), R(2),              //
+           B(Add), R(4),              //
            B(Star), R(1),             //
+           B(Star), R(4),             //
            B(LdaSmi8), U8(2),         //
-           B(TestEqualStrict), R(1),  //
+           B(TestEqualStrict), R(4),  //
            B(JumpIfTrue), U8(4),      //
            B(Jump), U8(8),            //
            B(LdaSmi8), U8(1),         //
@@ -5417,19 +5731,21 @@ TEST(BasicBlockToBoolean) {
   InitializedHandleScope handle_scope;
   BytecodeGeneratorHelper helper;
 
-  // Check that we don't omit ToBoolean calls if they are at the start of basic
+  // Check that we generate JumpIfToBoolean if they are at the start of basic
   // blocks.
   ExpectedSnippet<int> snippets[] = {
       {"var a = 1; if (a || a < 0) { return 1; }",
-       1 * kPointerSize,
+       2 * kPointerSize,
        1,
-       16,
+       20,
        {
            B(LdaSmi8), U8(1),               //
            B(Star), R(0),                   //
-           B(JumpIfToBooleanTrue), U8(5),   //
+           B(JumpIfToBooleanTrue), U8(9),   //
+           B(Ldar), R(0),                   //
+           B(Star), R(1),                   //
            B(LdaZero),                      //
-           B(TestLessThan), R(0),           //
+           B(TestLessThan), R(1),           //
            B(JumpIfToBooleanFalse), U8(5),  //
            B(LdaSmi8), U8(1),               //
            B(Return),                       //
@@ -5437,15 +5753,17 @@ TEST(BasicBlockToBoolean) {
            B(Return),                       //
        }},
       {"var a = 1; if (a && a < 0) { return 1; }",
-       1 * kPointerSize,
+       2 * kPointerSize,
        1,
-       16,
+       20,
        {
            B(LdaSmi8), U8(1),               //
            B(Star), R(0),                   //
-           B(JumpIfToBooleanFalse), U8(5),  //
+           B(JumpIfToBooleanFalse), U8(9),  //
+           B(Ldar), R(0),                   //
+           B(Star), R(1),                   //
            B(LdaZero),                      //
-           B(TestLessThan), R(0),           //
+           B(TestLessThan), R(1),           //
            B(JumpIfToBooleanFalse), U8(5),  //
            B(LdaSmi8), U8(1),               //
            B(Return),                       //
@@ -5453,15 +5771,17 @@ TEST(BasicBlockToBoolean) {
            B(Return),                       //
        }},
       {"var a = 1; a = (a || a < 0) ? 2 : 3;",
-       1 * kPointerSize,
+       2 * kPointerSize,
        1,
-       21,
+       25,
        {
            B(LdaSmi8), U8(1),               //
            B(Star), R(0),                   //
-           B(JumpIfToBooleanTrue), U8(5),   //
+           B(JumpIfToBooleanTrue), U8(9),   //
+           B(Ldar), R(0),                   //
+           B(Star), R(1),                   //
            B(LdaZero),                      //
-           B(TestLessThan), R(0),           //
+           B(TestLessThan), R(1),           //
            B(JumpIfToBooleanFalse), U8(6),  //
            B(LdaSmi8), U8(2),               //
            B(Jump), U8(4),                  //
@@ -5621,19 +5941,22 @@ TEST(RemoveRedundantLdar) {
        "  if (ld_a > 10) break;\n"
        "}\n"
        "return ld_a;",
-       1 * kPointerSize,
+       2 * kPointerSize,
        1,
-       23,
+       29,
        {B(LdaSmi8), U8(1),         //
         B(Star), R(0),             //
         B(Ldar), R(0),             //  This load should not be removed as it
-        B(Add), R(0),              //  is the target of the branch.
+        B(Star), R(1),             //  is the target of the branch.
+        B(Ldar), R(0),             //
+        B(Add), R(1),              //
         B(Star), R(0),             //
+        B(Star), R(1),             //
         B(LdaSmi8), U8(10),        //
-        B(TestGreaterThan), R(0),  //
+        B(TestGreaterThan), R(1),  //
         B(JumpIfFalse), U8(4),     //
         B(Jump), U8(4),            //
-        B(Jump), U8(-14),          //
+        B(Jump), U8(-20),          //
         B(Ldar), R(0),             //
         B(Return)}},
       {"var ld_a = 1;\n"
@@ -5642,16 +5965,19 @@ TEST(RemoveRedundantLdar) {
        "  if (ld_a > 10) continue;\n"
        "} while(false);\n"
        "return ld_a;",
-       1 * kPointerSize,
+       2 * kPointerSize,
        1,
-       21,
+       27,
        {B(LdaSmi8), U8(1),         //
         B(Star), R(0),             //
         B(Ldar), R(0),             //
-        B(Add), R(0),              //
+        B(Star), R(1),             //
+        B(Ldar), R(0),             //
+        B(Add), R(1),              //
         B(Star), R(0),             //
+        B(Star), R(1),             //
         B(LdaSmi8), U8(10),        //
-        B(TestGreaterThan), R(0),  //
+        B(TestGreaterThan), R(1),  //
         B(JumpIfFalse), U8(4),     //
         B(Jump), U8(2),            //
         B(Ldar), R(0),             //
@@ -5659,13 +5985,15 @@ TEST(RemoveRedundantLdar) {
       {"var ld_a = 1;\n"
        "  ld_a = ld_a + ld_a;\n"
        "  return ld_a;",
-       1 * kPointerSize,
+       2 * kPointerSize,
        1,
-       9,
+       13,
        {
            B(LdaSmi8), U8(1),  //
            B(Star), R(0),      //
-           B(Add), R(0),       //
+           B(Star), R(1),      //
+           B(Ldar), R(0),      //
+           B(Add), R(1),       //
            B(Star), R(0),      //
            B(Return)           //
        }},
@@ -5722,20 +6050,20 @@ TEST(AssignmentsInBinaryExpression) {
       {"var x = 55;\n"
        "x = x + (x = 100) + (x = 101);\n"
        "return x;",
-       4 * kPointerSize,
+       3 * kPointerSize,
        1,
-       24,
+       23,
        {
            B(LdaSmi8), U8(55),   //
            B(Star), R(0),        //
-           B(LdaSmi8), U8(100),  //
            B(Star), R(1),        //
-           B(Add), R(0),         //
+           B(LdaSmi8), U8(100),  //
+           B(Star), R(0),        //
+           B(Add), R(1),         //
            B(Star), R(2),        //
            B(LdaSmi8), U8(101),  //
-           B(Star), R(3),        //
+           B(Star), R(0),        //
            B(Add), R(2),         //
-           B(Mov), R(3), R(0),   //
            B(Star), R(0),        //
            B(Return),            //
        },
@@ -5746,7 +6074,7 @@ TEST(AssignmentsInBinaryExpression) {
        "return x;",
        3 * kPointerSize,
        1,
-       34,
+       31,
        {
            B(LdaSmi8), U8(55),  //
            B(Star), R(0),       //
@@ -5757,9 +6085,8 @@ TEST(AssignmentsInBinaryExpression) {
            B(Sub), R(1),        //
            B(Star), R(2),       //
            B(LdaSmi8), U8(57),  //
-           B(Star), R(1),       //
+           B(Star), R(0),       //
            B(Add), R(2),        //
-           B(Mov), R(1), R(0),  //
            B(Star), R(0),       //
            B(ToNumber),         //
            B(Star), R(1),       //
@@ -5771,24 +6098,24 @@ TEST(AssignmentsInBinaryExpression) {
       {"var x = 55;\n"
        "var y = x + (x = 1) + (x = 2) + (x = 3);\n"
        "return y;",
-       6 * kPointerSize,
+       4 * kPointerSize,
        1,
-       32,
+       31,
        {
            B(LdaSmi8), U8(55),  //
            B(Star), R(0),       //
-           B(LdaSmi8), U8(1),   //
            B(Star), R(2),       //
-           B(Add), R(0),        //
+           B(LdaSmi8), U8(1),   //
+           B(Star), R(0),       //
+           B(Add), R(2),        //
            B(Star), R(3),       //
            B(LdaSmi8), U8(2),   //
-           B(Star), R(4),       //
+           B(Star), R(0),       //
            B(Add), R(3),        //
-           B(Star), R(5),       //
+           B(Star), R(2),       //
            B(LdaSmi8), U8(3),   //
-           B(Star), R(3),       //
-           B(Add), R(5),        //
-           B(Mov), R(3), R(0),  //
+           B(Star), R(0),       //
+           B(Add), R(2),        //
            B(Star), R(1),       //
            B(Return),           //
        },
@@ -5796,24 +6123,24 @@ TEST(AssignmentsInBinaryExpression) {
       {"var x = 55;\n"
        "var x = x + (x = 1) + (x = 2) + (x = 3);\n"
        "return x;",
-       5 * kPointerSize,
+       3 * kPointerSize,
        1,
-       32,
+       31,
        {
            B(LdaSmi8), U8(55),  //
            B(Star), R(0),       //
-           B(LdaSmi8), U8(1),   //
            B(Star), R(1),       //
-           B(Add), R(0),        //
+           B(LdaSmi8), U8(1),   //
+           B(Star), R(0),       //
+           B(Add), R(1),        //
            B(Star), R(2),       //
            B(LdaSmi8), U8(2),   //
-           B(Star), R(3),       //
+           B(Star), R(0),       //
            B(Add), R(2),        //
-           B(Star), R(4),       //
+           B(Star), R(1),       //
            B(LdaSmi8), U8(3),   //
-           B(Star), R(2),       //
-           B(Add), R(4),        //
-           B(Mov), R(2), R(0),  //
+           B(Star), R(0),       //
+           B(Add), R(1),        //
            B(Star), R(0),       //
            B(Return),           //
        },
@@ -5821,18 +6148,22 @@ TEST(AssignmentsInBinaryExpression) {
       {"var x = 10, y = 20;\n"
        "return x + (x = 1) + (x + 1) * (y = 2) + (y = 3) + (x = 4) + (y = 5) + "
        "y;\n",
-       6 * kPointerSize,
+       5 * kPointerSize,
        1,
-       64,
+       69,
        {
            B(LdaSmi8), U8(10),  //
            B(Star), R(0),       //
            B(LdaSmi8), U8(20),  //
            B(Star), R(1),       //
-           B(LdaSmi8), U8(1),   //
+           B(Ldar), R(0),       //
            B(Star), R(2),       //
-           B(Add), R(0),        //
+           B(LdaSmi8), U8(1),   //
+           B(Star), R(0),       //
+           B(Add), R(2),        //
            B(Star), R(3),       //
+           B(Ldar), R(0),       //
+           B(Star), R(2),       //
            B(LdaSmi8), U8(1),   //
            B(Add), R(2),        //
            B(Star), R(4),       //
@@ -5840,30 +6171,29 @@ TEST(AssignmentsInBinaryExpression) {
            B(Star), R(1),       //
            B(Mul), R(4),        //
            B(Add), R(3),        //
-           B(Star), R(4),       //
+           B(Star), R(2),       //
            B(LdaSmi8), U8(3),   //
            B(Star), R(1),       //
-           B(Add), R(4),        //
+           B(Add), R(2),        //
            B(Star), R(3),       //
            B(LdaSmi8), U8(4),   //
-           B(Star), R(5),       //
+           B(Star), R(0),       //
            B(Add), R(3),        //
-           B(Star), R(4),       //
+           B(Star), R(2),       //
            B(LdaSmi8), U8(5),   //
            B(Star), R(1),       //
-           B(Add), R(4),        //
+           B(Add), R(2),        //
            B(Star), R(3),       //
            B(Ldar), R(1),       //
            B(Add), R(3),        //
-           B(Mov), R(5), R(0),  //
            B(Return),           //
        },
        0},
       {"var x = 17;\n"
        "return 1 + x + (x++) + (++x);\n",
-       5 * kPointerSize,
+       4 * kPointerSize,
        1,
-       40,
+       37,
        {
            B(LdaSmi8), U8(17),  //
            B(Star), R(0),       //
@@ -5876,16 +6206,15 @@ TEST(AssignmentsInBinaryExpression) {
            B(ToNumber),         //
            B(Star), R(1),       //
            B(Inc),              //
-           B(Star), R(3),       //
+           B(Star), R(0),       //
            B(Ldar), R(1),       //
            B(Add), R(2),        //
-           B(Star), R(4),       //
-           B(Ldar), R(3),       //
+           B(Star), R(3),       //
+           B(Ldar), R(0),       //
            B(ToNumber),         //
            B(Inc),              //
-           B(Star), R(1),       //
-           B(Add), R(4),        //
-           B(Mov), R(1), R(0),  //
+           B(Star), R(0),       //
+           B(Add), R(3),        //
            B(Return),           //
        },
        0}};

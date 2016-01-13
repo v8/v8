@@ -35,37 +35,6 @@ class BytecodeGenerator final : public AstVisitor {
   class EffectResultScope;
   class AccumulatorResultScope;
   class RegisterResultScope;
-  class AssignmentHazardScope;
-
-  // Helper class that aliases locals and parameters when assignment
-  // hazards occur in binary expressions. For y = x + (x = 1) has an
-  // assignment hazard because the lhs evaluates to the register
-  // holding x and the rhs (x = 1) potentially updates x. When this
-  // hazard is detected, the rhs uses a temporary to hold the newer
-  // value of x while preserving the lhs for the binary expresion
-  // evaluation. The newer value is spilled to x at the end of the
-  // binary expression evaluation.
-  class AssignmentHazardHelper final {
-   public:
-    explicit AssignmentHazardHelper(BytecodeGenerator* generator);
-    MUST_USE_RESULT Register GetRegisterForLoad(Register reg);
-    MUST_USE_RESULT Register GetRegisterForStore(Register reg);
-
-   private:
-    friend class AssignmentHazardScope;
-
-    void EnterScope();
-    void LeaveScope();
-    void RestoreAliasedLocalsAndParameters();
-
-    BytecodeGenerator* generator_;
-    ZoneMap<int, int> alias_mappings_;
-    ZoneSet<int> aliased_locals_and_parameters_;
-    ExpressionResultScope* execution_result_;
-    int scope_depth_;
-
-    DISALLOW_COPY_AND_ASSIGN(AssignmentHazardHelper);
-  };
 
   void MakeBytecodeBody();
   Register NextContextRegister() const;
@@ -149,9 +118,6 @@ class BytecodeGenerator final : public AstVisitor {
     execution_result_ = execution_result;
   }
   ExpressionResultScope* execution_result() const { return execution_result_; }
-  inline AssignmentHazardHelper* assignment_hazard_helper() {
-    return &assignment_hazard_helper_;
-  }
 
   ZoneVector<Handle<Object>>* globals() { return &globals_; }
   inline LanguageMode language_mode() const;
@@ -167,7 +133,6 @@ class BytecodeGenerator final : public AstVisitor {
   ControlScope* execution_control_;
   ContextScope* execution_context_;
   ExpressionResultScope* execution_result_;
-  AssignmentHazardHelper assignment_hazard_helper_;
 };
 
 }  // namespace interpreter
