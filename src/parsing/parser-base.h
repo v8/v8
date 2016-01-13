@@ -2126,6 +2126,10 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN, int flags,
     }
   }
 
+  if (op == Token::ASSIGN && allow_harmony_function_name()) {
+    Traits::SetFunctionNameFromIdentifierRef(right, expression);
+  }
+
   ExpressionT result = factory()->NewAssignment(op, expression, right, pos);
 
   if (is_destructuring_assignment) {

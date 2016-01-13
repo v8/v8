@@ -5453,5 +5453,28 @@ void ParserTraits::SetFunctionNameFromPropertyName(
 }
 
 
+void ParserTraits::SetFunctionNameFromIdentifierRef(Expression* value,
+                                                    Expression* identifier) {
+  if (!value->IsFunctionLiteral() && !value->IsClassLiteral()) return;
+  if (!identifier->IsVariableProxy()) return;
+
+  auto name = identifier->AsVariableProxy()->raw_name();
+  DCHECK_NOT_NULL(name);
+
+  if (value->IsFunctionLiteral()) {
+    auto function = value->AsFunctionLiteral();
+    if (function->is_anonymous()) {
+      function->set_raw_name(name);
+    }
+  } else {
+    DCHECK(value->IsClassLiteral());
+    auto class_literal = value->AsClassLiteral();
+    if (class_literal->raw_name() == nullptr) {
+      class_literal->set_raw_name(name);
+    }
+  }
+}
+
+
 }  // namespace internal
 }  // namespace v8

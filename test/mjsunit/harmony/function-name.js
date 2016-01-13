@@ -120,3 +120,42 @@
   // Should be '[2]'
   assertEquals('', C[sym2].name);
 })();
+
+
+(function testAssignment() {
+  var basicFn, arrowFn, generatorFn, classLit;
+
+  basicFn = function() { return true; };
+  assertEquals('basicFn', basicFn.name);
+  var basicFn2 = basicFn;
+  assertEquals('basicFn', basicFn2.name);
+  basicFn = function functionWithName() { };
+  assertEquals("functionWithName", basicFn.name);
+
+  arrowFn = x => x;
+  assertEquals('arrowFn', arrowFn.name);
+  var arrowFn2 = arrowFn;
+  assertEquals('arrowFn', arrowFn2.name);
+
+  generatorFn = function*() { yield true; };
+  assertEquals('generatorFn', generatorFn.name);
+  var generatorFn2 = generatorFn;
+  assertEquals('generatorFn', generatorFn2.name);
+  generatorFn = function* generatorWithName() { };
+  assertEquals("generatorWithName", generatorFn.name);
+
+  classLit = class { constructor() {} };
+  assertEquals('classLit', classLit.name);
+  var classLit2 = classLit;
+  assertEquals('classLit', classLit2.name);
+  classLit = class classWithName { constructor() {} };
+  assertEquals('classWithName', classLit.name);
+  classLit = class { constructor() {} static name() {} };
+  assertEquals('function', typeof classLit.name);
+  classLit = class { constructor() {} static get name() { return true; } };
+  assertTrue(classLit.name);
+  classLit = class { constructor() {} static ['name']() {} };
+  assertEquals('function', typeof classLit.name);
+  classLit = class { constructor() {} static get ['name']() { return true; } };
+  assertTrue(classLit.name);
+})();

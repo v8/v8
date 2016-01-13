@@ -646,6 +646,9 @@ class ParserTraits {
   void SetFunctionNameFromPropertyName(ObjectLiteralProperty* property,
                                        const AstRawString* name);
 
+  void SetFunctionNameFromIdentifierRef(Expression* value,
+                                        Expression* identifier);
+
  private:
   Parser* parser_;
 };

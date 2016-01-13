@@ -929,6 +929,8 @@ class PreParserTraits {
 
   void SetFunctionNameFromPropertyName(PreParserExpression,
                                        PreParserIdentifier) {}
+  void SetFunctionNameFromIdentifierRef(PreParserExpression,
+                                        PreParserExpression) {}
 
  private:
   PreParser* pre_parser_;
