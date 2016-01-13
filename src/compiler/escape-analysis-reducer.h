@@ -5,8 +5,10 @@
 #ifndef V8_COMPILER_ESCAPE_ANALYSIS_REDUCER_H_
 #define V8_COMPILER_ESCAPE_ANALYSIS_REDUCER_H_
 
+#include "src/bit-vector.h"
 #include "src/compiler/escape-analysis.h"
 #include "src/compiler/graph-reducer.h"
+
 
 namespace v8 {
 namespace internal {
@@ -49,6 +51,7 @@ class EscapeAnalysisReducer final : public AdvancedReducer {
   JSGraph* const jsgraph_;
   EscapeAnalysis* escape_analysis_;
   Zone* const zone_;
+  BitVector visited_;
 
   DISALLOW_COPY_AND_ASSIGN(EscapeAnalysisReducer);
 };

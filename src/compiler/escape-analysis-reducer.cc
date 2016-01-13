@@ -17,7 +17,8 @@ EscapeAnalysisReducer::EscapeAnalysisReducer(Editor* editor, JSGraph* jsgraph,
     : AdvancedReducer(editor),
       jsgraph_(jsgraph),
       escape_analysis_(escape_analysis),
-      zone_(zone) {}
+      zone_(zone),
+      visited_(static_cast<int>(jsgraph->graph()->NodeCount()), zone) {}
 
 
 Reduction EscapeAnalysisReducer::Reduce(Node* node) {
@@ -52,7 +53,10 @@ Reduction EscapeAnalysisReducer::Reduce(Node* node) {
 Reduction EscapeAnalysisReducer::ReduceLoad(Node* node) {
   DCHECK(node->opcode() == IrOpcode::kLoadField ||
          node->opcode() == IrOpcode::kLoadElement);
+  if (visited_.Contains(node->id())) return NoChange();
+  visited_.Add(node->id());
   if (Node* rep = escape_analysis()->GetReplacement(node)) {
+    visited_.Add(node->id());
     counters()->turbo_escape_loads_replaced()->Increment();
     if (FLAG_trace_turbo_escape) {
       PrintF("Replaced #%d (%s) with #%d (%s)\n", node->id(),
@@ -68,6 +72,8 @@ Reduction EscapeAnalysisReducer::ReduceLoad(Node* node) {
 Reduction EscapeAnalysisReducer::ReduceStore(Node* node) {
   DCHECK(node->opcode() == IrOpcode::kStoreField ||
          node->opcode() == IrOpcode::kStoreElement);
+  if (visited_.Contains(node->id())) return NoChange();
+  visited_.Add(node->id());
   if (escape_analysis()->IsVirtual(NodeProperties::GetValueInput(node, 0))) {
     if (FLAG_trace_turbo_escape) {
       PrintF("Removed #%d (%s) from effect chain\n", node->id(),
@@ -82,6 +88,8 @@ Reduction EscapeAnalysisReducer::ReduceStore(Node* node) {
 
 Reduction EscapeAnalysisReducer::ReduceAllocate(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kAllocate);
+  if (visited_.Contains(node->id())) return NoChange();
+  visited_.Add(node->id());
   if (escape_analysis()->IsVirtual(node)) {
     RelaxEffectsAndControls(node);
     counters()->turbo_escape_allocs_replaced()->Increment();
@@ -159,6 +167,8 @@ Reduction EscapeAnalysisReducer::ReduceObjectIsSmi(Node* node) {
 
 
 Reduction EscapeAnalysisReducer::ReduceFrameStateUses(Node* node) {
+  if (visited_.Contains(node->id())) return NoChange();
+  visited_.Add(node->id());
   DCHECK_GE(node->op()->EffectInputCount(), 1);
   bool changed = false;
   for (int i = 0; i < node->InputCount(); ++i) {
