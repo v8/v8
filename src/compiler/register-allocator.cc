@@ -1919,7 +1919,10 @@ void LiveRangeBuilder::ProcessInstructions(const InstructionBlock* block,
         int out_vreg = ConstantOperand::cast(output)->virtual_register();
         live->Remove(out_vreg);
       }
-      if (block->IsHandler() && index == block_start) {
+      if (block->IsHandler() && index == block_start && output->IsAllocated() &&
+          output->IsRegister() &&
+          AllocatedOperand::cast(output)->GetRegister().is(
+              v8::internal::kReturnRegister0)) {
         // The register defined here is blocked from gap start - it is the
         // exception value.
         // TODO(mtrofin): should we explore an explicit opcode for
