@@ -2767,6 +2767,28 @@ void MacroAssembler::AllocateHeapNumberWithValue(
 }
 
 
+void MacroAssembler::AllocateJSValue(Register result, Register constructor,
+                                     Register value, Register scratch1,
+                                     Register scratch2, Label* gc_required) {
+  DCHECK(!result.is(constructor));
+  DCHECK(!result.is(scratch1));
+  DCHECK(!result.is(scratch2));
+  DCHECK(!result.is(value));
+
+  // Allocate JSValue in new space.
+  Allocate(JSValue::kSize, result, scratch1, scratch2, gc_required, TAG_OBJECT);
+
+  // Initialize the JSValue.
+  LoadGlobalFunctionInitialMap(constructor, scratch1, scratch2);
+  StoreP(scratch1, FieldMemOperand(result, HeapObject::kMapOffset), r0);
+  LoadRoot(scratch1, Heap::kEmptyFixedArrayRootIndex);
+  StoreP(scratch1, FieldMemOperand(result, JSObject::kPropertiesOffset), r0);
+  StoreP(scratch1, FieldMemOperand(result, JSObject::kElementsOffset), r0);
+  StoreP(value, FieldMemOperand(result, JSValue::kValueOffset), r0);
+  STATIC_ASSERT(JSValue::kSize == 4 * kPointerSize);
+}
+
+
 void MacroAssembler::CopyBytes(Register src, Register dst, Register length,
                                Register scratch) {
   Label align_loop, aligned, word_loop, byte_loop, byte_loop_1, done;
