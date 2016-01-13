@@ -289,7 +289,7 @@ TEST(jump_tables5) {
     Label here;
 
     __ bal(&here);
-    __ sll(at, a0, 3);  // In delay slot.
+    __ sll(at, a0, 2);  // In delay slot.
     __ bind(&here);
     __ addu(at, at, ra);
     __ lw(at, MemOperand(at, 6 * Assembler::kInstrSize));
@@ -324,9 +324,9 @@ TEST(jump_tables5) {
 #endif
   F1 f = FUNCTION_CAST<F1>(code->entry());
   for (int i = 0; i < kNumCases; ++i) {
-    int64_t res = reinterpret_cast<int64_t>(
+    int32_t res = reinterpret_cast<int32_t>(
         CALL_GENERATED_CODE(isolate, f, i, 0, 0, 0, 0));
-    ::printf("f(%d) = %" PRId64 "\n", i, res);
+    ::printf("f(%d) = %d\n", i, res);
     CHECK_EQ(values[i], res);
   }
 }

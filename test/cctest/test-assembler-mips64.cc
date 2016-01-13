@@ -3226,17 +3226,16 @@ TEST(jump_tables1) {
 
   Label done;
   {
-    __ BlockTrampolinePoolFor(kNumCases * 2 + 7);
+    __ BlockTrampolinePoolFor(kNumCases * 2 + 6);
     PredictableCodeSizeScope predictable(
-        &assm, (kNumCases * 2 + 7) * Assembler::kInstrSize);
+        &assm, (kNumCases * 2 + 6) * Assembler::kInstrSize);
     Label here;
 
     __ bal(&here);
-    __ nop();
+    __ dsll(at, a0, 3);  // In delay slot.
     __ bind(&here);
-    __ dsll(at, a0, 3);
     __ daddu(at, at, ra);
-    __ ld(at, MemOperand(at, 5 * Assembler::kInstrSize));
+    __ ld(at, MemOperand(at, 4 * Assembler::kInstrSize));
     __ jr(at);
     __ nop();
     for (int i = 0; i < kNumCases; ++i) {
@@ -3305,17 +3304,16 @@ TEST(jump_tables2) {
   __ Align(8);
   __ bind(&dispatch);
   {
-    __ BlockTrampolinePoolFor(kNumCases * 2 + 7);
+    __ BlockTrampolinePoolFor(kNumCases * 2 + 6);
     PredictableCodeSizeScope predictable(
-        &assm, (kNumCases * 2 + 7) * Assembler::kInstrSize);
+        &assm, (kNumCases * 2 + 6) * Assembler::kInstrSize);
     Label here;
 
     __ bal(&here);
-    __ nop();
+    __ dsll(at, a0, 3);  // In delay slot.
     __ bind(&here);
-    __ dsll(at, a0, 3);
     __ daddu(at, at, ra);
-    __ ld(at, MemOperand(at, 5 * Assembler::kInstrSize));
+    __ ld(at, MemOperand(at, 4 * Assembler::kInstrSize));
     __ jr(at);
     __ nop();
     for (int i = 0; i < kNumCases; ++i) {
@@ -3386,17 +3384,16 @@ TEST(jump_tables3) {
   __ Align(8);
   __ bind(&dispatch);
   {
-    __ BlockTrampolinePoolFor(kNumCases * 2 + 7);
+    __ BlockTrampolinePoolFor(kNumCases * 2 + 6);
     PredictableCodeSizeScope predictable(
-        &assm, (kNumCases * 2 + 7) * Assembler::kInstrSize);
+        &assm, (kNumCases * 2 + 6) * Assembler::kInstrSize);
     Label here;
 
     __ bal(&here);
-    __ nop();
+    __ dsll(at, a0, 3);  // In delay slot.
     __ bind(&here);
-    __ dsll(at, a0, 3);
     __ daddu(at, at, ra);
-    __ ld(at, MemOperand(at, 5 * Assembler::kInstrSize));
+    __ ld(at, MemOperand(at, 4 * Assembler::kInstrSize));
     __ jr(at);
     __ nop();
     for (int i = 0; i < kNumCases; ++i) {
