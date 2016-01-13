@@ -6505,7 +6505,7 @@ Maybe<bool> JSReceiver::OrdinaryDefineOwnProperty(Isolate* isolate,
     if (!it.HasAccess()) {
       isolate->ReportFailedAccessCheck(it.GetHolder<JSObject>());
       RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<bool>());
-      return Just(false);
+      return Just(true);
     }
     it.Next();
   }
@@ -7672,7 +7672,6 @@ Maybe<bool> JSObject::PreventExtensions(Handle<JSObject> object,
       !isolate->MayAccess(handle(isolate->context()), object)) {
     isolate->ReportFailedAccessCheck(object);
     RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<bool>());
-    UNREACHABLE();
     RETURN_FAILURE(isolate, should_throw,
                    NewTypeError(MessageTemplate::kNoAccess));
   }
@@ -7820,7 +7819,6 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
       !isolate->MayAccess(handle(isolate->context()), object)) {
     isolate->ReportFailedAccessCheck(object);
     RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<bool>());
-    UNREACHABLE();
     RETURN_FAILURE(isolate, should_throw,
                    NewTypeError(MessageTemplate::kNoAccess));
   }
@@ -15534,7 +15532,8 @@ Maybe<bool> JSObject::SetPrototypeUnobserved(Handle<JSObject> object,
         !isolate->MayAccess(handle(isolate->context()), object)) {
       isolate->ReportFailedAccessCheck(object);
       RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<bool>());
-      UNREACHABLE();
+      RETURN_FAILURE(isolate, should_throw,
+                     NewTypeError(MessageTemplate::kNoAccess));
     }
   } else {
     DCHECK(!object->IsAccessCheckNeeded());
