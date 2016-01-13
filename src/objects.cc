@@ -4870,8 +4870,6 @@ Maybe<bool> JSProxy::HasProperty(Isolate* isolate, Handle<JSProxy> proxy,
     // 7a. Return target.[[HasProperty]](P).
     return JSReceiver::HasProperty(target, name);
   }
-  // Do not leak private property names.
-  if (name->IsPrivate()) return Just(false);
   // 8. Let booleanTrapResult be ToBoolean(? Call(trap, handler, «target, P»)).
   Handle<Object> trap_result_obj;
   Handle<Object> args[] = {target, name};
