@@ -65,10 +65,11 @@ class WasmFunctionBuilder : public ZoneObject {
   void EditImmediate(uint32_t offset, const byte immediate);
   void Exported(uint8_t flag);
   void External(uint8_t flag);
+  void SetName(const unsigned char* name, int name_length);
   WasmFunctionEncoder* Build(Zone* zone, WasmModuleBuilder* mb) const;
 
  private:
-  WasmFunctionBuilder(Zone* zone, const unsigned char* name, int name_length);
+  explicit WasmFunctionBuilder(Zone* zone);
   friend class WasmModuleBuilder;
   LocalType return_type_;
   struct Type;
@@ -125,8 +126,7 @@ class WasmModuleWriter : public ZoneObject {
 class WasmModuleBuilder : public ZoneObject {
  public:
   explicit WasmModuleBuilder(Zone* zone);
-  uint16_t AddFunction(const unsigned char* name = nullptr,
-                       int name_length = 0);
+  uint16_t AddFunction();
   uint32_t AddGlobal(MachineType type, bool exported);
   WasmFunctionBuilder* FunctionAt(size_t index);
   void AddDataSegment(WasmDataSegmentEncoder* data);

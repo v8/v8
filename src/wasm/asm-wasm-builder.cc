@@ -47,12 +47,24 @@ class AsmWasmBuilderImpl : public AstVisitor {
         cache_(TypeCache::Get()),
         breakable_blocks_(zone),
         block_size_(0),
-        init_function_initialized(false),
         init_function_index(0) {
     InitializeAstVisitor(isolate);
   }
 
-  void Compile() { RECURSE(VisitFunctionLiteral(literal_)); }
+  void InitializeInitFunction() {
+    unsigned char init[] = "__init__";
+    init_function_index = builder_->AddFunction();
+    current_function_builder_ = builder_->FunctionAt(init_function_index);
+    current_function_builder_->SetName(init, 8);
+    current_function_builder_->ReturnType(kAstStmt);
+    current_function_builder_->Exported(1);
+    current_function_builder_ = nullptr;
+  }
+
+  void Compile() {
+    InitializeInitFunction();
+    RECURSE(VisitFunctionLiteral(literal_));
+  }
 
   void VisitVariableDeclaration(VariableDeclaration* decl) {}
 
@@ -380,12 +392,6 @@ class AsmWasmBuilderImpl : public AstVisitor {
           AddLeb128(LookupOrInsertLocal(var, var_type), true);
         }
       }
-    } else if (marking_exported) {
-      Variable* var = expr->var();
-      if (var->is_function()) {
-        uint16_t index = LookupOrInsertFunction(var);
-        builder_->FunctionAt(index)->Exported(1);
-      }
     }
   }
 
@@ -425,25 +431,28 @@ class AsmWasmBuilderImpl : public AstVisitor {
     ZoneList<ObjectLiteralProperty*>* props = expr->properties();
     for (int i = 0; i < props->length(); ++i) {
       ObjectLiteralProperty* prop = props->at(i);
-      RECURSE(Visit(prop->value()));
+      DCHECK(marking_exported);
+      VariableProxy* expr = prop->value()->AsVariableProxy();
+      DCHECK(expr != nullptr);
+      Variable* var = expr->var();
+      Literal* name = prop->key()->AsLiteral();
+      DCHECK(name != nullptr);
+      DCHECK(name->IsPropertyName());
+      const AstRawString* raw_name = name->AsRawPropertyName();
+      if (var->is_function()) {
+        uint16_t index = LookupOrInsertFunction(var);
+        builder_->FunctionAt(index)->Exported(1);
+        builder_->FunctionAt(index)
+            ->SetName(raw_name->raw_data(), raw_name->length());
+      }
     }
   }
 
   void VisitArrayLiteral(ArrayLiteral* expr) { UNREACHABLE(); }
 
   void LoadInitFunction() {
-    if (!init_function_initialized) {
-      init_function_initialized = true;
-      unsigned char init[] = "__init__";
-      init_function_index = builder_->AddFunction(init, 8);
-      current_function_builder_ = builder_->FunctionAt(init_function_index);
-      current_function_builder_->ReturnType(kAstStmt);
-      current_function_builder_->Exported(1);
-      in_function_ = true;
-    } else {
-      current_function_builder_ = builder_->FunctionAt(init_function_index);
-      in_function_ = true;
-    }
+    current_function_builder_ = builder_->FunctionAt(init_function_index);
+    in_function_ = true;
   }
 
   void UnLoadInitFunction() {
@@ -465,7 +474,6 @@ class AsmWasmBuilderImpl : public AstVisitor {
     if (value_op != nullptr && MatchBinaryOperation(value_op) == kAsIs) {
       VariableProxy* target_var = expr->target()->AsVariableProxy();
       VariableProxy* effective_value_var = GetLeft(value_op)->AsVariableProxy();
-      // TODO(aseemgarg): simplify block_size_ or replace with a kNop
       if (target_var != nullptr && effective_value_var != nullptr &&
           target_var->var() == effective_value_var->var()) {
         block_size_--;
@@ -969,8 +977,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
     DCHECK(builder_ != nullptr);
     ZoneHashMap::Entry* entry = functions_.Lookup(v, ComputePointerHash(v));
     if (entry == nullptr) {
-      uint16_t index = builder_->AddFunction(v->raw_name()->raw_data(),
-                                             v->raw_name()->length());
+      uint16_t index = builder_->AddFunction();
       IndexContainer* container = new (zone()) IndexContainer();
       container->index = index;
       entry = functions_.LookupOrInsert(v, ComputePointerHash(v),
@@ -1013,7 +1020,6 @@ class AsmWasmBuilderImpl : public AstVisitor {
   TypeCache const& cache_;
   ZoneVector<std::pair<BreakableStatement*, bool>> breakable_blocks_;
   int block_size_;
-  bool init_function_initialized;
   uint16_t init_function_index;
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();

@@ -757,3 +757,29 @@ function TestNestedSwitch() {
 }
 
 assertEquals(43, _WASMEXP_.asmCompileRun(TestNestedSwitch.toString()));
+
+function TestInitFunctionWithNoGlobals() {
+  "use asm";
+  function caller() {
+    return 51;
+  }
+  return {caller};
+}
+
+var module = _WASMEXP_.instantiateModuleFromAsm(
+    TestInitFunctionWithNoGlobals.toString());
+module.__init__();
+assertEquals(51, module.caller());
+
+function TestExportNameDifferentFromFunctionName() {
+  "use asm";
+  function caller() {
+    return 55;
+  }
+  return {alt_caller:caller};
+}
+
+var module = _WASMEXP_.instantiateModuleFromAsm(
+    TestExportNameDifferentFromFunctionName.toString());
+module.__init__();
+assertEquals(55, module.alt_caller());

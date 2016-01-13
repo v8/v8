@@ -63,22 +63,14 @@ struct WasmFunctionBuilder::Type {
 };
 
 
-WasmFunctionBuilder::WasmFunctionBuilder(Zone* zone, const unsigned char* name,
-                                         int name_length)
+WasmFunctionBuilder::WasmFunctionBuilder(Zone* zone)
     : return_type_(kAstI32),
       locals_(zone),
       exported_(0),
       external_(0),
       body_(zone),
       local_indices_(zone),
-      name_(zone) {
-  if (name_length > 0) {
-    for (int i = 0; i < name_length; i++) {
-      name_.push_back(*(name + i));
-    }
-    name_.push_back('\0');
-  }
-}
+      name_(zone) {}
 
 
 uint16_t WasmFunctionBuilder::AddParam(LocalType type) {
@@ -151,6 +143,16 @@ void WasmFunctionBuilder::Exported(uint8_t flag) { exported_ = flag; }
 
 
 void WasmFunctionBuilder::External(uint8_t flag) { external_ = flag; }
+
+void WasmFunctionBuilder::SetName(const unsigned char* name, int name_length) {
+  name_.clear();
+  if (name_length > 0) {
+    for (int i = 0; i < name_length; i++) {
+      name_.push_back(*(name + i));
+    }
+    name_.push_back('\0');
+  }
+}
 
 
 WasmFunctionEncoder* WasmFunctionBuilder::Build(Zone* zone,
@@ -348,10 +350,8 @@ WasmModuleBuilder::WasmModuleBuilder(Zone* zone)
       signature_map_(zone) {}
 
 
-uint16_t WasmModuleBuilder::AddFunction(const unsigned char* name,
-                                        int name_length) {
-  functions_.push_back(new (zone_)
-                           WasmFunctionBuilder(zone_, name, name_length));
+uint16_t WasmModuleBuilder::AddFunction() {
+  functions_.push_back(new (zone_) WasmFunctionBuilder(zone_));
   return static_cast<uint16_t>(functions_.size() - 1);
 }
 
