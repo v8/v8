@@ -190,6 +190,7 @@ TEST_F(EscapeAnalysisTest, StraightNonEscape) {
   Node* load = Load(AccessAtIndex(0), finish);
   Node* result = Return(load);
   EndGraph();
+
   Analysis();
 
   ExpectVirtual(allocation);
@@ -210,6 +211,8 @@ TEST_F(EscapeAnalysisTest, StraightEscape) {
   Node* load = Load(AccessAtIndex(0), finish);
   Node* result = Return(allocation);
   EndGraph();
+  graph()->end()->AppendInput(zone(), load);
+
   Analysis();
 
   ExpectEscaped(allocation);
@@ -266,6 +269,8 @@ TEST_F(EscapeAnalysisTest, BranchNonEscape) {
   Node* load = Load(AccessAtIndex(0), finish, phi, merge);
   Node* result = Return(load, phi);
   EndGraph();
+  graph()->end()->AppendInput(zone(), result);
+
   Analysis();
 
   ExpectVirtual(allocation);
@@ -284,10 +289,12 @@ TEST_F(EscapeAnalysisTest, DanglingLoadOrder) {
   Node* allocation = Allocate(Constant(kPointerSize));
   Node* store1 = Store(AccessAtIndex(0), allocation, object1);
   Node* load1 = Load(AccessAtIndex(0), allocation);
-  Store(AccessAtIndex(0), allocation, object2);
+  Node* store2 = Store(AccessAtIndex(0), allocation, object2);
   Node* load2 = Load(AccessAtIndex(0), allocation, store1);
   Node* result = Return(load2);
   EndGraph();
+  graph()->end()->AppendInput(zone(), store2);
+  graph()->end()->AppendInput(zone(), load1);
 
   Analysis();
 

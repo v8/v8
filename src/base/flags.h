@@ -108,13 +108,17 @@ class Flags final {
       ALLOW_UNUSED_TYPE WARN_UNUSED_RESULT;                                   \
   inline Type operator^(Type::flag_type lhs, Type::flag_type rhs) {           \
     return Type(lhs) ^ rhs;                                                   \
-  } inline Type operator^(Type::flag_type lhs, const Type& rhs)               \
+  } inline Type                                                               \
+  operator^(Type::flag_type lhs, const Type& rhs)                             \
       ALLOW_UNUSED_TYPE WARN_UNUSED_RESULT;                                   \
   inline Type operator^(Type::flag_type lhs, const Type& rhs) {               \
     return rhs ^ lhs;                                                         \
-  } inline void operator^(Type::flag_type lhs, Type::mask_type rhs)           \
-      ALLOW_UNUSED_TYPE;                                                      \
-  inline void operator^(Type::flag_type lhs, Type::mask_type rhs) {}
+  } inline void                                                               \
+  operator^(Type::flag_type lhs, Type::mask_type rhs) ALLOW_UNUSED_TYPE;      \
+  inline void operator^(Type::flag_type lhs, Type::mask_type rhs) {           \
+  } inline Type                                                               \
+  operator~(Type::flag_type val)ALLOW_UNUSED_TYPE;                            \
+  inline Type operator~(Type::flag_type val) { return ~Type(val); }
 
 }  // namespace base
 }  // namespace v8

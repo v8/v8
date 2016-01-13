@@ -26,10 +26,12 @@ class EscapeStatusAnalysis {
 
   enum EscapeStatusFlag {
     kUnknown = 0u,
-    kVirtual = 1u << 0,
+    kTracked = 1u << 0,
     kEscaped = 1u << 1,
+    kOnStack = 1u << 2,
+    kVisited = 1u << 3,
   };
-  typedef base::Flags<EscapeStatusFlag> EscapeStatusFlags;
+  typedef base::Flags<EscapeStatusFlag, unsigned char> EscapeStatusFlags;
 
   void Run();
 
@@ -67,7 +69,7 @@ class EscapeStatusAnalysis {
   EscapeAnalysis* object_analysis_;
   Graph* const graph_;
   Zone* const zone_;
-  ZoneVector<EscapeStatusFlags> info_;
+  ZoneVector<EscapeStatusFlags> status_;
   ZoneDeque<Node*> queue_;
 
   DISALLOW_COPY_AND_ASSIGN(EscapeStatusAnalysis);
@@ -85,6 +87,8 @@ class MergeCache;
 // an object is virtual and eliminated.
 class EscapeAnalysis {
  public:
+  typedef NodeId Alias;
+
   EscapeAnalysis(Graph* graph, CommonOperatorBuilder* common, Zone* zone);
   ~EscapeAnalysis();
 
@@ -98,6 +102,7 @@ class EscapeAnalysis {
 
  private:
   void RunObjectAnalysis();
+  void AssignAliases();
   bool Process(Node* node);
   void ProcessLoadField(Node* node);
   void ProcessStoreField(Node* node);
@@ -129,14 +134,21 @@ class EscapeAnalysis {
   bool SetReplacement(Node* node, Node* rep);
   bool UpdateReplacement(VirtualState* state, Node* node, Node* rep);
 
+  VirtualObject* GetVirtualObject(VirtualState* state, Node* node);
+
   void DebugPrint();
   void DebugPrintState(VirtualState* state);
-  void DebugPrintObject(VirtualObject* state, NodeId id);
+  void DebugPrintObject(VirtualObject* state, Alias id);
+
+  Alias NextAlias() { return next_free_alias_++; }
+  Alias AliasCount() const { return next_free_alias_; }
 
   Graph* graph() const { return graph_; }
   CommonOperatorBuilder* common() const { return common_; }
   Zone* zone() const { return zone_; }
 
+  static const Alias kNotReachable;
+  static const Alias kUntrackable;
   Graph* const graph_;
   CommonOperatorBuilder* const common_;
   Zone* const zone_;
@@ -144,6 +156,8 @@ class EscapeAnalysis {
   ZoneVector<Node*> replacements_;
   EscapeStatusAnalysis escape_status_;
   MergeCache* cache_;
+  ZoneVector<Alias> aliases_;
+  Alias next_free_alias_;
 
   DISALLOW_COPY_AND_ASSIGN(EscapeAnalysis);
 };
