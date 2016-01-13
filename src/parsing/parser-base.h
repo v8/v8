@@ -3277,8 +3277,13 @@ void ParserBase<Traits>::CheckDestructuringElement(
       MessageTemplate::kInvalidDestructuringTarget;
   const Scanner::Location location(begin, end);
   if (expression->IsArrayLiteral() || expression->IsObjectLiteral() ||
-      expression->IsAssignment())
+      expression->IsAssignment()) {
+    if (expression->is_parenthesized()) {
+      classifier->RecordPatternError(location, message);
+    }
     return;
+  }
+
   if (expression->IsProperty()) {
     classifier->RecordBindingPatternError(location, message);
   } else if (!this->IsAssignableIdentifier(expression)) {

@@ -6960,6 +6960,19 @@ TEST(DestructuringAssignmentPositiveTests) {
 
     "{x: { y = 10 } }",
     "[(({ x } = { x: 1 }) => x).a]",
+
+    // v8:4662
+    "{ x: (y) }",
+    "{ x: (y) = [] }",
+    "{ x: (foo.bar) }",
+    "{ x: (foo['bar']) }",
+    "[ ...(a) ]",
+    "[ ...(foo['bar']) ]",
+    "[ ...(foo.bar) ]",
+    "[ (y) ]",
+    "[ (foo.bar) ]",
+    "[ (foo['bar']) ]",
+
     NULL};
   // clang-format on
   static const ParserFlag always_flags[] = {
@@ -7066,6 +7079,23 @@ TEST(DestructuringAssignmentNegativeTests) {
     "([a] = [])",
     "(([a] = []))",
     "(([a]) = [])",
+
+    // v8:4662
+    "{ x: ([y]) }",
+    "{ x: ([y] = []) }",
+    "{ x: ({y}) }",
+    "{ x: ({y} = {}) }",
+    "{ x: (++y) }",
+    "[ (...[a]) ]",
+    "[ ...([a]) ]",
+    "[ ...([a] = [])",
+    "[ ...[ ( [ a ] ) ] ]",
+    "[ ([a]) ]",
+    "[ (...[a]) ]",
+    "[ ([a] = []) ]",
+    "[ (++y) ]",
+    "[ ...(++y) ]",
+
     NULL};
   // clang-format on
   static const ParserFlag always_flags[] = {
@@ -7097,7 +7127,7 @@ TEST(DestructuringAssignmentNegativeTests) {
                     always_flags, arraysize(always_flags));
 
   // Strict mode errors
-  const char* strict_context_data[][2] = {{"'use strict'; ", " = {}"},
+  const char* strict_context_data[][2] = {{"'use strict'; (", " = {})"},
                                           {"'use strict'; for (", " of {}) {}"},
                                           {"'use strict'; for (", " in {}) {}"},
                                           {NULL, NULL}};
@@ -7113,6 +7143,27 @@ TEST(DestructuringAssignmentNegativeTests) {
                                "[ arguments ]",
                                "[ eval = 0 ]",
                                "[ arguments = 0 ]",
+
+                               // v8:4662
+                               "{ x: (eval) }",
+                               "{ x: (arguments) }",
+                               "{ x: (eval = 0) }",
+                               "{ x: (arguments = 0) }",
+                               "{ x: (eval) = 0 }",
+                               "{ x: (arguments) = 0 }",
+                               "[ (eval) ]",
+                               "[ (arguments) ]",
+                               "[ (eval = 0) ]",
+                               "[ (arguments = 0) ]",
+                               "[ (eval) = 0 ]",
+                               "[ (arguments) = 0 ]",
+                               "[ ...(eval) ]",
+                               "[ ...(arguments) ]",
+                               "[ ...(eval = 0) ]",
+                               "[ ...(arguments = 0) ]",
+                               "[ ...(eval) = 0 ]",
+                               "[ ...(arguments) = 0 ]",
+
                                NULL};
   RunParserSyncTest(strict_context_data, strict_data, kError, NULL, 0,
                     always_flags, arraysize(always_flags));
