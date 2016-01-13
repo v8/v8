@@ -1212,10 +1212,6 @@ static void CompatibleReceiverCheck(MacroAssembler* masm, Register receiver,
   Register map = scratch1;
   Register constructor = scratch2;
 
-  // If the receiver is not an object, jump to receiver_check_failed.
-  __ CompareObjectType(receiver, map, ip, FIRST_JS_OBJECT_TYPE);
-  __ b(lo, receiver_check_failed);
-
   // If there is no signature, return the holder.
   __ ldr(signature, FieldMemOperand(function_template_info,
                                     FunctionTemplateInfo::kSignatureOffset));
@@ -1284,21 +1280,13 @@ void Builtins::Generate_HandleFastApiCall(MacroAssembler* masm) {
   //  -- sp[4 * argc]       : receiver
   // -----------------------------------
 
-  // Load the receiver.
-  __ ldr(r2, MemOperand(sp, r0, LSL, kPointerSizeLog2));
-
-  // Update the receiver if this is a contextual call.
-  Label set_global_proxy, valid_receiver;
-  __ CompareRoot(r2, Heap::kUndefinedValueRootIndex);
-  __ b(eq, &set_global_proxy);
-  __ bind(&valid_receiver);
-
   // Load the FunctionTemplateInfo.
   __ ldr(r3, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
   __ ldr(r3, FieldMemOperand(r3, SharedFunctionInfo::kFunctionDataOffset));
 
   // Do the compatible receiver check.
   Label receiver_check_failed;
+  __ ldr(r2, MemOperand(sp, r0, LSL, kPointerSizeLog2));
   CompatibleReceiverCheck(masm, r2, r3, r4, r5, r6, &receiver_check_failed);
 
   // Get the callback offset from the FunctionTemplateInfo, and jump to the
@@ -1307,11 +1295,6 @@ void Builtins::Generate_HandleFastApiCall(MacroAssembler* masm) {
   __ ldr(r4, FieldMemOperand(r4, CallHandlerInfo::kFastHandlerOffset));
   __ add(r4, r4, Operand(Code::kHeaderSize - kHeapObjectTag));
   __ Jump(r4);
-
-  __ bind(&set_global_proxy);
-  __ LoadGlobalProxy(r2);
-  __ str(r2, MemOperand(sp, r0, LSL, kPointerSizeLog2));
-  __ b(&valid_receiver);
 
   // Compatible receiver check failed: throw an Illegal Invocation exception.
   __ bind(&receiver_check_failed);

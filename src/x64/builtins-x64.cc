@@ -2332,10 +2332,6 @@ static void CompatibleReceiverCheck(MacroAssembler* masm, Register receiver,
   Register map = scratch1;
   Register constructor = scratch2;
 
-  // If the receiver is not an object, jump to receiver_check_failed.
-  __ CmpObjectType(receiver, FIRST_JS_OBJECT_TYPE, kScratchRegister);
-  __ j(below, receiver_check_failed);
-
   // If there is no signature, return the holder.
   __ movp(signature, FieldOperand(function_template_info,
                                   FunctionTemplateInfo::kSignatureOffset));
@@ -2408,13 +2404,6 @@ void Builtins::Generate_HandleFastApiCall(MacroAssembler* masm) {
   // -----------------------------------
 
   StackArgumentsAccessor args(rsp, rax);
-  __ movp(rcx, args.GetReceiverOperand());
-
-  // Update the receiver if this is a contextual call.
-  Label set_global_proxy, valid_receiver;
-  __ CompareRoot(rcx, Heap::kUndefinedValueRootIndex);
-  __ j(equal, &set_global_proxy);
-  __ bind(&valid_receiver);
 
   // Load the FunctionTemplateInfo.
   __ movp(rbx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
@@ -2422,6 +2411,7 @@ void Builtins::Generate_HandleFastApiCall(MacroAssembler* masm) {
 
   // Do the compatible receiver check.
   Label receiver_check_failed;
+  __ movp(rcx, args.GetReceiverOperand());
   CompatibleReceiverCheck(masm, rcx, rbx, rdx, r8, r9, &receiver_check_failed);
 
   // Get the callback offset from the FunctionTemplateInfo, and jump to the
@@ -2430,12 +2420,6 @@ void Builtins::Generate_HandleFastApiCall(MacroAssembler* masm) {
   __ movp(rdx, FieldOperand(rdx, CallHandlerInfo::kFastHandlerOffset));
   __ addp(rdx, Immediate(Code::kHeaderSize - kHeapObjectTag));
   __ jmp(rdx);
-
-  __ bind(&set_global_proxy);
-  __ movp(rcx, NativeContextOperand());
-  __ movp(rcx, ContextOperand(rcx, Context::GLOBAL_PROXY_INDEX));
-  __ movp(args.GetReceiverOperand(), rcx);
-  __ jmp(&valid_receiver, Label::kNear);
 
   // Compatible receiver check failed: pop return address, arguments and
   // receiver and throw an Illegal Invocation exception.

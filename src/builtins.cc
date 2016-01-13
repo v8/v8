@@ -3370,6 +3370,7 @@ MUST_USE_RESULT MaybeHandle<Object> HandleApiCallHelper(
     Isolate* isolate, BuiltinArguments<BuiltinExtraArguments::kTarget> args) {
   HandleScope scope(isolate);
   Handle<JSFunction> function = args.target();
+  DCHECK(args.receiver()->IsJSReceiver());
   // TODO(ishell): turn this back to a DCHECK.
   CHECK(function->shared()->IsApiFunction());
 
@@ -3383,11 +3384,8 @@ MUST_USE_RESULT MaybeHandle<Object> HandleApiCallHelper(
         Object);
   }
 
-  DCHECK(!args[0]->IsNull());
-  if (args[0]->IsUndefined()) args[0] = function->global_proxy();
-
   if (!is_construct && !fun_data->accept_any_receiver()) {
-    Handle<Object> receiver(&args[0]);
+    Handle<JSReceiver> receiver = args.at<JSReceiver>(0);
     if (receiver->IsJSObject() && receiver->IsAccessCheckNeeded()) {
       Handle<JSObject> js_receiver = Handle<JSObject>::cast(receiver);
       if (!isolate->MayAccess(handle(isolate->context()), js_receiver)) {

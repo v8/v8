@@ -2247,10 +2247,6 @@ static void CompatibleReceiverCheck(MacroAssembler* masm, Register receiver,
                                     Register function_template_info,
                                     Register scratch0, Register scratch1,
                                     Label* receiver_check_failed) {
-  // If receiver is not an object, jump to receiver_check_failed.
-  __ CmpObjectType(receiver, FIRST_JS_OBJECT_TYPE, scratch0);
-  __ j(below, receiver_check_failed);
-
   // If there is no signature, return the holder.
   __ CompareRoot(FieldOperand(function_template_info,
                               FunctionTemplateInfo::kSignatureOffset),
@@ -2324,22 +2320,13 @@ void Builtins::Generate_HandleFastApiCall(MacroAssembler* masm) {
   //  -- esp[(eax + 1) * 4] : receiver
   // -----------------------------------
 
-  // Load the receiver.
-  Operand receiver_operand(esp, eax, times_pointer_size, kPCOnStackSize);
-  __ mov(ecx, receiver_operand);
-
-  // Update the receiver if this is a contextual call.
-  Label set_global_proxy, valid_receiver;
-  __ CompareRoot(ecx, Heap::kUndefinedValueRootIndex);
-  __ j(equal, &set_global_proxy);
-  __ bind(&valid_receiver);
-
   // Load the FunctionTemplateInfo.
   __ mov(ebx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
   __ mov(ebx, FieldOperand(ebx, SharedFunctionInfo::kFunctionDataOffset));
 
   // Do the compatible receiver check.
   Label receiver_check_failed;
+  __ mov(ecx, Operand(esp, eax, times_pointer_size, kPCOnStackSize));
   __ Push(eax);
   CompatibleReceiverCheck(masm, ecx, ebx, edx, eax, &receiver_check_failed);
   __ Pop(eax);
@@ -2349,12 +2336,6 @@ void Builtins::Generate_HandleFastApiCall(MacroAssembler* masm) {
   __ mov(edx, FieldOperand(edx, CallHandlerInfo::kFastHandlerOffset));
   __ add(edx, Immediate(Code::kHeaderSize - kHeapObjectTag));
   __ jmp(edx);
-
-  __ bind(&set_global_proxy);
-  __ mov(ecx, NativeContextOperand());
-  __ mov(ecx, ContextOperand(ecx, Context::GLOBAL_PROXY_INDEX));
-  __ mov(receiver_operand, ecx);
-  __ jmp(&valid_receiver, Label::kNear);
 
   // Compatible receiver check failed: pop return address, arguments and
   // receiver and throw an Illegal Invocation exception.

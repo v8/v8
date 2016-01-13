@@ -22172,6 +22172,12 @@ TEST(EmptyApiCallback) {
   result = CompileRun("x(1,2,3)");
   CHECK(v8::Utils::OpenHandle(*result)->IsJSGlobalProxy());
 
+  result = CompileRun("x.call(undefined)");
+  CHECK(v8::Utils::OpenHandle(*result)->IsJSGlobalProxy());
+
+  result = CompileRun("x.call(null)");
+  CHECK(v8::Utils::OpenHandle(*result)->IsJSGlobalProxy());
+
   result = CompileRun("7 + x.call(3) + 11");
   CHECK(result->IsInt32());
   CHECK_EQ(21, result->Int32Value(context.local()).FromJust());
