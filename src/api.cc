@@ -1051,8 +1051,6 @@ Local<FunctionTemplate> FunctionTemplate::NewWithFastHandler(
     Isolate* isolate, FunctionCallback callback,
     experimental::FastAccessorBuilder* fast_handler, v8::Local<Value> data,
     v8::Local<Signature> signature, int length) {
-  // TODO(vogelheim): 'fast_handler' should have a more specific type than
-  // Local<Value>.
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   DCHECK(!i_isolate->serializer_enabled());
   LOG_API(i_isolate, "FunctionTemplate::NewWithFastHandler");
