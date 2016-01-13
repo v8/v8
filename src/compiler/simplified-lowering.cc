@@ -500,37 +500,39 @@ class RepresentationSelector {
     // Every node should have at most one output representation. Note that
     // phis can have 0, if they have not been used in a representation-inducing
     // instruction.
+    Type* output_type = output_info.type();
+    if (NodeProperties::IsTyped(node)) {
+      output_type = Type::Intersect(NodeProperties::GetType(node),
+                                    output_info.type(), jsgraph_->zone());
+    }
     NodeInfo* info = GetInfo(node);
+    DCHECK(info->output_type()->Is(output_type));
     DCHECK(MachineRepresentationIsSubtype(info->representation(),
                                           output_info.representation()));
-    DCHECK(info->output_type()->Is(output_info.type()));
-    if (!output_info.type()->Is(info->output_type()) ||
+    if (!output_type->Is(info->output_type()) ||
         output_info.representation() != info->representation()) {
       EnqueueUses(node);
     }
-    info->set_output_type(output_info);
+    info->set_output_type(
+        NodeOutputInfo(output_info.representation(), output_type));
   }
 
   bool BothInputsAreSigned32(Node* node) {
     DCHECK_EQ(2, node->InputCount());
-    return (NodeProperties::GetType(node->InputAt(0))->Is(Type::Signed32()) ||
-            GetInfo(node->InputAt(0))->output_type()->Is(Type::Signed32())) &&
-           (NodeProperties::GetType(node->InputAt(1))->Is(Type::Signed32()) ||
-            GetInfo(node->InputAt(1))->output_type()->Is(Type::Signed32()));
+    return GetInfo(node->InputAt(0))->output_type()->Is(Type::Signed32()) &&
+           GetInfo(node->InputAt(1))->output_type()->Is(Type::Signed32());
   }
 
   bool BothInputsAreUnsigned32(Node* node) {
     DCHECK_EQ(2, node->InputCount());
-    return (NodeProperties::GetType(node->InputAt(0))->Is(Type::Unsigned32()) ||
-            GetInfo(node->InputAt(0))->output_type()->Is(Type::Unsigned32())) &&
-           (NodeProperties::GetType(node->InputAt(1))->Is(Type::Unsigned32()) ||
-            GetInfo(node->InputAt(1))->output_type()->Is(Type::Unsigned32()));
+    return GetInfo(node->InputAt(0))->output_type()->Is(Type::Unsigned32()) &&
+           GetInfo(node->InputAt(1))->output_type()->Is(Type::Unsigned32());
   }
 
   bool BothInputsAre(Node* node, Type* type) {
     DCHECK_EQ(2, node->InputCount());
-    return NodeProperties::GetType(node->InputAt(0))->Is(type) &&
-           NodeProperties::GetType(node->InputAt(1))->Is(type);
+    return GetInfo(node->InputAt(0))->output_type()->Is(type) &&
+           GetInfo(node->InputAt(1))->output_type()->Is(type);
   }
 
   void ConvertInput(Node* node, int index, UseInfo use) {
@@ -661,48 +663,66 @@ class RepresentationSelector {
   }
 
   // Infer representation for phi-like nodes.
-  static MachineRepresentation GetRepresentationForPhi(Node* node,
-                                                       Truncation use) {
-    // Phis adapt to the output representation their uses demand.
-    Type* type = NodeProperties::GetType(node);
-    if (type->Is(Type::Signed32()) || type->Is(Type::Unsigned32())) {
-      // We are within 32 bits range => pick kRepWord32.
-      return MachineRepresentation::kWord32;
-    } else if (use.TruncatesToWord32()) {
-      // We only use 32 bits.
-      return MachineRepresentation::kWord32;
-    } else if (type->Is(Type::Boolean())) {
-      // multiple uses => pick kRepBit.
-      return MachineRepresentation::kBit;
-    } else if (type->Is(Type::Number())) {
-      // multiple uses => pick kRepFloat64.
-      return MachineRepresentation::kFloat64;
-    } else if (type->Is(Type::Internal())) {
-      return MachineType::PointerRepresentation();
+  NodeOutputInfo GetOutputInfoForPhi(Node* node, Truncation use) {
+    // Compute the type.
+    Type* type = GetInfo(node->InputAt(0))->output_type();
+    for (int i = 1; i < node->op()->ValueInputCount(); ++i) {
+      type = Type::Union(type, GetInfo(node->InputAt(i))->output_type(),
+                         jsgraph_->zone());
     }
-    return MachineRepresentation::kTagged;
+
+    // Compute the representation.
+    MachineRepresentation rep = MachineRepresentation::kTagged;
+    if (type->Is(Type::None())) {
+      rep = MachineRepresentation::kNone;
+    } else if (type->Is(Type::Signed32()) || type->Is(Type::Unsigned32())) {
+      rep = MachineRepresentation::kWord32;
+    } else if (use.TruncatesToWord32()) {
+      rep = MachineRepresentation::kWord32;
+    } else if (type->Is(Type::Boolean())) {
+      rep = MachineRepresentation::kBit;
+    } else if (type->Is(Type::Number())) {
+      rep = MachineRepresentation::kFloat64;
+    } else if (type->Is(Type::Internal())) {
+      // We mark (u)int64 as Type::Internal.
+      // TODO(jarin) This is a workaround for our lack of (u)int64
+      // types. This can be removed once we can represent (u)int64
+      // unambiguously. (At the moment internal objects, such as the hole,
+      // are also Type::Internal()).
+      bool is_word64 = GetInfo(node->InputAt(0))->representation() ==
+                       MachineRepresentation::kWord64;
+#ifdef DEBUG
+      // Check that all the inputs agree on being Word64.
+      for (int i = 1; i < node->op()->ValueInputCount(); i++) {
+        DCHECK_EQ(is_word64, GetInfo(node->InputAt(i))->representation() ==
+                                 MachineRepresentation::kWord64);
+      }
+#endif
+      rep = is_word64 ? MachineRepresentation::kWord64
+                      : MachineRepresentation::kTagged;
+    }
+    return NodeOutputInfo(rep, type);
   }
 
   // Helper for handling selects.
   void VisitSelect(Node* node, Truncation truncation,
                    SimplifiedLowering* lowering) {
     ProcessInput(node, 0, UseInfo::Bool());
-    MachineRepresentation output = GetRepresentationForPhi(node, truncation);
 
-    Type* type = NodeProperties::GetType(node);
-    SetOutput(node, NodeOutputInfo(output, type));
+    NodeOutputInfo output = GetOutputInfoForPhi(node, truncation);
+    SetOutput(node, output);
 
     if (lower()) {
       // Update the select operator.
       SelectParameters p = SelectParametersOf(node->op());
-      if (output != p.representation()) {
-        NodeProperties::ChangeOp(node,
-                                 lowering->common()->Select(output, p.hint()));
+      if (output.representation() != p.representation()) {
+        NodeProperties::ChangeOp(node, lowering->common()->Select(
+                                           output.representation(), p.hint()));
       }
     }
     // Convert inputs to the output representation of this phi, pass the
     // truncation truncation along.
-    UseInfo input_use(output, truncation);
+    UseInfo input_use(output.representation(), truncation);
     ProcessInput(node, 1, input_use);
     ProcessInput(node, 2, input_use);
   }
@@ -710,23 +730,21 @@ class RepresentationSelector {
   // Helper for handling phis.
   void VisitPhi(Node* node, Truncation truncation,
                 SimplifiedLowering* lowering) {
-    MachineRepresentation output = GetRepresentationForPhi(node, truncation);
-
-    Type* type = NodeProperties::GetType(node);
-    SetOutput(node, NodeOutputInfo(output, type));
+    NodeOutputInfo output = GetOutputInfoForPhi(node, truncation);
+    SetOutput(node, output);
 
     int values = node->op()->ValueInputCount();
-
     if (lower()) {
       // Update the phi operator.
-      if (output != PhiRepresentationOf(node->op())) {
-        NodeProperties::ChangeOp(node, lowering->common()->Phi(output, values));
+      if (output.representation() != PhiRepresentationOf(node->op())) {
+        NodeProperties::ChangeOp(
+            node, lowering->common()->Phi(output.representation(), values));
       }
     }
 
     // Convert inputs to the output representation of this phi, pass the
     // truncation truncation along.
-    UseInfo input_use(output, truncation);
+    UseInfo input_use(output.representation(), truncation);
     for (int i = 0; i < node->InputCount(); i++) {
       ProcessInput(node, i, i < values ? input_use : UseInfo::None());
     }
@@ -780,9 +798,14 @@ class RepresentationSelector {
               ZoneVector<MachineType>(node->InputCount(), zone);
       for (int i = 0; i < node->InputCount(); i++) {
         NodeInfo* input_info = GetInfo(node->InputAt(i));
-        (*types)[i] =
-            MachineType(input_info->representation(),
-                        DeoptValueSemanticOf(input_info->output_type()));
+        MachineType machine_type(
+            input_info->representation(),
+            DeoptValueSemanticOf(input_info->output_type()));
+        DCHECK(machine_type.representation() !=
+                   MachineRepresentation::kWord32 ||
+               machine_type.semantic() == MachineSemantic::kInt32 ||
+               machine_type.semantic() == MachineSemantic::kUint32);
+        (*types)[i] = machine_type;
       }
       NodeProperties::ChangeOp(node,
                                jsgraph_->common()->TypedStateValues(types));
@@ -800,27 +823,6 @@ class RepresentationSelector {
 
   const Operator* Float64Op(Node* node) {
     return changer_->Float64OperatorFor(node->opcode());
-  }
-
-  bool CanLowerToInt32Binop(Node* node, Truncation use) {
-    return BothInputsAreSigned32(node) &&
-           NodeProperties::GetType(node)->Is(Type::Signed32());
-  }
-
-  bool CanLowerToInt32AdditiveBinop(Node* node, Truncation use) {
-    // It is safe to lower to word32 operation if:
-    // - the inputs are safe integers (so the low bits are not discarded), and
-    // - the uses can only observe the lowest 32 bits.
-    // TODO(jarin): we could support the uint32 case here, but that would
-    // require setting kTypeUint32 as the output type. Eventually, we will want
-    // to use only the big types, then this should work automatically.
-    return BothInputsAre(node, type_cache_.kAdditiveSafeInteger) &&
-           use.TruncatesToWord32();
-  }
-
-  bool CanLowerToInt32MultiplicativeBinop(Node* node, Truncation use) {
-    return BothInputsAreSigned32(node) && use.TruncatesToWord32() &&
-           NodeProperties::GetType(node)->Is(type_cache_.kSafeInteger);
   }
 
   // Dispatching routine for visiting the node {node} with the usage {use}.

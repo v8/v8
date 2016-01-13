@@ -64,7 +64,7 @@ Truncation::TruncationKind Truncation::Generalize(TruncationKind rep1,
     return TruncationKind::kFloat64;
   }
   // All other combinations are illegal.
-  FATAL("Tried to combine incompatible representations");
+  FATAL("Tried to combine incompatible truncations");
   return TruncationKind::kNone;
 }
 
