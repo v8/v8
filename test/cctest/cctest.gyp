@@ -186,10 +186,8 @@
         'test-weaksets.cc',
         'trace-extension.cc',
         'wasm/test-run-wasm.cc',
-        'wasm/test-run-wasm-js.cc',
         'wasm/test-run-wasm-module.cc',
         'wasm/test-signatures.h',
-        'wasm/wasm-run-utils.h',
       ],
       'conditions': [
         ['v8_target_arch=="ia32"', {

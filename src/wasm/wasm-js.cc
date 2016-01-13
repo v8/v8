@@ -307,15 +307,18 @@ static void InstallFunc(Isolate* isolate, Handle<JSObject> object,
 
 void WasmJs::Install(Isolate* isolate, Handle<JSGlobalObject> global) {
   // Setup wasm function map.
-  Handle<Context> context(global->native_context(), isolate);
-  InstallWasmFunctionMap(isolate, context);
+  Handle<Map> wasm_function_map = isolate->factory()->NewMap(
+      JS_FUNCTION_TYPE, JSFunction::kSize + kPointerSize);
+  wasm_function_map->set_is_callable();
+  global->native_context()->set_wasm_function_map(*wasm_function_map);
 
   // Bind the WASM object.
   Factory* factory = isolate->factory();
   Handle<String> name = v8_str(isolate, "_WASMEXP_");
   Handle<JSFunction> cons = factory->NewFunction(name);
   JSFunction::SetInstancePrototype(
-      cons, Handle<Object>(context->initial_object_prototype(), isolate));
+      cons, Handle<Object>(global->native_context()->initial_object_prototype(),
+                           isolate));
   cons->shared()->set_instance_class_name(*name);
   Handle<JSObject> wasm_object = factory->NewJSObject(cons, TENURED);
   PropertyAttributes attributes = static_cast<PropertyAttributes>(DONT_ENUM);
@@ -330,16 +333,5 @@ void WasmJs::Install(Isolate* isolate, Handle<JSGlobalObject> global) {
   InstallFunc(isolate, wasm_object, "instantiateModuleFromAsm",
               InstantiateModuleFromAsm);
 }
-
-
-void WasmJs::InstallWasmFunctionMap(Isolate* isolate, Handle<Context> context) {
-  if (!context->get(Context::WASM_FUNCTION_MAP_INDEX)->IsMap()) {
-    Handle<Map> wasm_function_map = isolate->factory()->NewMap(
-        JS_FUNCTION_TYPE, JSFunction::kSize + kPointerSize);
-    wasm_function_map->set_is_callable();
-    context->set_wasm_function_map(*wasm_function_map);
-  }
-}
-
 }  // namespace internal
 }  // namespace v8
