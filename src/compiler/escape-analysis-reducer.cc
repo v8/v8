@@ -246,7 +246,14 @@ Node* EscapeAnalysisReducer::ReduceStateValueInputs(Node* node, Node* effect,
   DCHECK_NOT_NULL(effect);
   Node* clone = nullptr;
   for (int i = 0; i < node->op()->ValueInputCount(); ++i) {
-    if (Node* ret = ReduceStateValueInput(node, i, effect, multiple_users)) {
+    Node* input = NodeProperties::GetValueInput(node, i);
+    Node* ret = nullptr;
+    if (input->opcode() == IrOpcode::kStateValues) {
+      ret = ReduceStateValueInputs(input, effect, multiple_users);
+    } else {
+      ret = ReduceStateValueInput(node, i, effect, multiple_users);
+    }
+    if (ret) {
       node = ret;
       DCHECK_NULL(clone);
       clone = ret;
