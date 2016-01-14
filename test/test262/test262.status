@@ -50,18 +50,6 @@
 
   ###################### MISSING ES6 FEATURES #######################
 
-  # Functions in blocks are var-declared and hoisted in sloppy mode
-  # https://code.google.com/p/v8/issues/detail?id=3305
-  'language/block-scope/shadowing/dynamic-lookup-from-closure': [PASS],
-  'language/block-scope/shadowing/lookup-from-closure': [PASS],
-  'language/block-scope/syntax/redeclaration-in-block/attempt-to-redeclare-function-declaration-with-function-declaration': [PASS],
-  'language/block-scope/syntax/redeclaration-in-block/attempt-to-redeclare-function-declaration-with-var': [PASS],
-  'language/block-scope/syntax/redeclaration-in-block/attempt-to-redeclare-var-with-function-declaration': [PASS],
-  'language/statements/let/block-local-closure-set-before-initialization': [PASS],
-
-  # https://code.google.com/p/v8/issues/detail?id=4405
-  'language/block-scope/leave/outermost-binding-updated-in-catch-block-nested-block-let-declaration-unseen-outside-of-block': [PASS, FAIL],
-
   # It's unclear what the right behavior for [[Enumerate]] is; we're awaiting
   # clarification in the spec. Currently, our for-in implementation for
   # Proxies checks all trap result values for being strings...
