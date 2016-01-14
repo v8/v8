@@ -2112,6 +2112,12 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN, int flags,
     function_state_->AddProperty();
   }
 
+  if (op != Token::ASSIGN && is_pattern_element) {
+    classifier->RecordAssignmentPatternError(
+        Scanner::Location(lhs_beg_pos, scanner()->location().end_pos),
+        MessageTemplate::kInvalidDestructuringTarget);
+  }
+
   this->CheckAssigningFunctionLiteralToProperty(expression, right);
 
   if (fni_ != NULL) {

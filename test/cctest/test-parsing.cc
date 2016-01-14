@@ -7096,6 +7096,9 @@ TEST(DestructuringAssignmentNegativeTests) {
     "[ (++y) ]",
     "[ ...(++y) ]",
 
+    "[ x += x ]",
+    "{ foo: x += x }",
+
     NULL};
   // clang-format on
   static const ParserFlag always_flags[] = {
@@ -7121,6 +7124,10 @@ TEST(DestructuringAssignmentNegativeTests) {
       "var { x = 10 } = { x = 20 };",
       "var { x = 10 } = (o = { x = 20 });",
       "var x; (({ x = 10 } = { x = 20 }) => x)({})",
+
+      // Not ambiguous, but uses same context data
+      "switch([window %= []] = []) { default: }",
+
       NULL,
   };
   RunParserSyncTest(empty_context_data, ambiguity_data, kError, NULL, 0,
