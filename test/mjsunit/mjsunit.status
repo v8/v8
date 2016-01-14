@@ -945,6 +945,7 @@
   'regress/regress-542100': [SKIP],
   'regress/regress-544991': [SKIP],
   'regress/regress-568765': [SKIP],
+  'regress/regress-572589': [SKIP],
   'regress/regress-580': [SKIP],
   'regress/regress-618': [SKIP],
   'regress/regress-69': [SKIP],

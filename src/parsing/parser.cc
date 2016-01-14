@@ -1037,9 +1037,19 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
     bool ok = true;
 
     if (shared_info->is_arrow()) {
+      // TODO(adamk): We should construct this scope from the ScopeInfo.
       Scope* scope =
           NewScope(scope_, FUNCTION_SCOPE, FunctionKind::kArrowFunction);
+
+      // These two bits only need to be explicitly set because we're
+      // not passing the ScopeInfo to the Scope constructor.
+      // TODO(adamk): Remove these calls once the above NewScope call
+      // passes the ScopeInfo.
+      if (shared_info->scope_info()->CallsEval()) {
+        scope->RecordEvalCall();
+      }
       SetLanguageMode(scope, shared_info->language_mode());
+
       scope->set_start_position(shared_info->start_position());
       ExpressionClassifier formals_classifier;
       ParserFormalParameters formals(scope);
