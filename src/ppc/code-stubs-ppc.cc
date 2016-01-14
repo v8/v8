@@ -1091,16 +1091,15 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // Call C built-in.
   __ mov(isolate_reg, Operand(ExternalReference::isolate_address(isolate())));
 
+  Register target = r15;
 #if ABI_USES_FUNCTION_DESCRIPTORS && !defined(USE_SIMULATOR)
   // Native AIX/PPC64 Linux use a function descriptor.
   __ LoadP(ToRegister(ABI_TOC_REGISTER), MemOperand(r15, kPointerSize));
   __ LoadP(ip, MemOperand(r15, 0));  // Instruction address
-  Register target = ip;
-#elif ABI_TOC_ADDRESSABILITY_VIA_IP
+  target = ip;
+#elif ABI_CALL_VIA_IP
   __ Move(ip, r15);
-  Register target = ip;
-#else
-  Register target = r15;
+  target = ip;
 #endif
 
   // To let the GC traverse the return address of the exit frames, we need to
@@ -3827,7 +3826,7 @@ void DirectCEntryStub::GenerateCall(MacroAssembler* masm, Register target) {
   __ LoadP(ip, MemOperand(target, 0));  // Instruction address
 #else
   // ip needs to be set for DirectCEentryStub::Generate, and also
-  // for ABI_TOC_ADDRESSABILITY_VIA_IP.
+  // for ABI_CALL_VIA_IP.
   __ Move(ip, target);
 #endif
 
@@ -4798,7 +4797,7 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   // Function descriptor
   __ LoadP(ToRegister(ABI_TOC_REGISTER), MemOperand(ip, kPointerSize));
   __ LoadP(ip, MemOperand(ip, 0));
-#elif ABI_TOC_ADDRESSABILITY_VIA_IP
+#elif ABI_CALL_VIA_IP
 // ip set above, so nothing to do.
 #endif
 

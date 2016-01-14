@@ -3090,17 +3090,16 @@ void MacroAssembler::CallCFunctionHelper(Register function,
 // Just call directly. The function called cannot cause a GC, or
 // allow preemption, so the return address in the link register
 // stays correct.
+  Register dest = function;
 #if ABI_USES_FUNCTION_DESCRIPTORS && !defined(USE_SIMULATOR)
   // AIX uses a function descriptor. When calling C code be aware
   // of this descriptor and pick up values from it
   LoadP(ToRegister(ABI_TOC_REGISTER), MemOperand(function, kPointerSize));
   LoadP(ip, MemOperand(function, 0));
-  Register dest = ip;
-#elif ABI_TOC_ADDRESSABILITY_VIA_IP
+  dest = ip;
+#elif ABI_CALL_VIA_IP
   Move(ip, function);
-  Register dest = ip;
-#else
-  Register dest = function;
+  dest = ip;
 #endif
 
   Call(dest);

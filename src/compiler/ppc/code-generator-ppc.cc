@@ -1545,7 +1545,12 @@ void CodeGenerator::AssemblePrologue() {
   } else if (descriptor->IsJSFunctionCall()) {
     __ Prologue(this->info()->GeneratePreagedPrologue(), ip);
   } else if (frame()->needs_frame()) {
-    __ StubPrologue(ip);
+    if (!ABI_CALL_VIA_IP && info()->output_code_kind() == Code::WASM_FUNCTION) {
+      // TODO(mbrandy): Restrict only to the wasm wrapper case.
+      __ StubPrologue();
+    } else {
+      __ StubPrologue(ip);
+    }
   } else {
     frame()->SetElidedFrameSizeInSlots(0);
   }
