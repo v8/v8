@@ -196,17 +196,19 @@ class UseInterval final : public ZoneObject {
     return start_ <= point && point < end_;
   }
 
-  int FirstInstructionIndex() const {
+  // Returns the index of the first gap covered by this interval.
+  int FirstGapIndex() const {
     int ret = start_.ToInstructionIndex();
-    if (start_.IsInstructionPosition() && start_.IsEnd()) {
+    if (start_.IsInstructionPosition()) {
       ++ret;
     }
     return ret;
   }
 
-  int LastInstructionIndex() const {
+  // Returns the index of the last gap covered by this interval.
+  int LastGapIndex() const {
     int ret = end_.ToInstructionIndex();
-    if (end_.IsGapPosition() || end_.IsStart()) {
+    if (end_.IsGapPosition() && end_.IsStart()) {
       --ret;
     }
     return ret;
@@ -1150,10 +1152,10 @@ class LiveRangeConnector final : public ZoneObject {
 
   bool CanEagerlyResolveControlFlow(const InstructionBlock* block) const;
 
-  void ResolveControlFlow(const InstructionBlock* block,
-                          const InstructionOperand& cur_op,
-                          const InstructionBlock* pred,
-                          const InstructionOperand& pred_op);
+  int ResolveControlFlow(const InstructionBlock* block,
+                         const InstructionOperand& cur_op,
+                         const InstructionBlock* pred,
+                         const InstructionOperand& pred_op);
 
   RegisterAllocationData* const data_;
 

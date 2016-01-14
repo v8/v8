@@ -1426,8 +1426,8 @@ bool RegisterAllocationData::RangesDefinedInDeferredStayInDeferred() {
     }
     for (const UseInterval* i = range->first_interval(); i != nullptr;
          i = i->next()) {
-      int first = i->FirstInstructionIndex();
-      int last = i->LastInstructionIndex();
+      int first = i->FirstGapIndex();
+      int last = i->LastGapIndex();
       for (int instr = first; instr <= last;) {
         const InstructionBlock* block = code()->GetInstructionBlock(instr);
         if (!block->IsDeferred()) return false;
@@ -3383,7 +3383,12 @@ void LiveRangeConnector::ResolveControlFlow(Zone* local_zone) {
         InstructionOperand pred_op = result.pred_cover_->GetAssignedOperand();
         InstructionOperand cur_op = result.cur_cover_->GetAssignedOperand();
         if (pred_op.Equals(cur_op)) continue;
-        ResolveControlFlow(block, cur_op, pred_block, pred_op);
+        int move_loc = ResolveControlFlow(block, cur_op, pred_block, pred_op);
+        USE(move_loc);
+        DCHECK_IMPLIES(
+            result.cur_cover_->TopLevel()->IsSpilledOnlyInDeferredBlocks() &&
+                !(pred_op.IsAnyRegister() && cur_op.IsAnyRegister()),
+            code()->GetInstructionBlock(move_loc)->IsDeferred());
       }
       iterator.Advance();
     }
@@ -3391,10 +3396,10 @@ void LiveRangeConnector::ResolveControlFlow(Zone* local_zone) {
 }
 
 
-void LiveRangeConnector::ResolveControlFlow(const InstructionBlock* block,
-                                            const InstructionOperand& cur_op,
-                                            const InstructionBlock* pred,
-                                            const InstructionOperand& pred_op) {
+int LiveRangeConnector::ResolveControlFlow(const InstructionBlock* block,
+                                           const InstructionOperand& cur_op,
+                                           const InstructionBlock* pred,
+                                           const InstructionOperand& pred_op) {
   DCHECK(!pred_op.Equals(cur_op));
   int gap_index;
   Instruction::GapPosition position;
@@ -3410,6 +3415,7 @@ void LiveRangeConnector::ResolveControlFlow(const InstructionBlock* block,
     position = Instruction::END;
   }
   data()->AddGapMove(gap_index, position, pred_op, cur_op);
+  return gap_index;
 }
 
 
@@ -3446,6 +3452,13 @@ void LiveRangeConnector::ConnectRanges(Zone* local_zone) {
         }
         gap_pos = delay_insertion ? Instruction::END : Instruction::START;
       }
+      // Fills or spills for spilled in deferred blocks ranges must happen
+      // only in deferred blocks.
+      DCHECK_IMPLIES(
+          connect_spilled &&
+              !(prev_operand.IsAnyRegister() && cur_operand.IsAnyRegister()),
+          code()->GetInstructionBlock(gap_index)->IsDeferred());
+
       ParallelMove* move =
           code()->InstructionAt(gap_index)->GetOrCreateParallelMove(
               gap_pos, code_zone());

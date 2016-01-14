@@ -64,6 +64,7 @@ class InstructionOperand {
   INSTRUCTION_OPERAND_PREDICATE(Allocated, ALLOCATED)
 #undef INSTRUCTION_OPERAND_PREDICATE
 
+  inline bool IsAnyRegister() const;
   inline bool IsRegister() const;
   inline bool IsDoubleRegister() const;
   inline bool IsStackSlot() const;
@@ -504,17 +505,20 @@ class AllocatedOperand : public LocationOperand {
 #undef INSTRUCTION_OPERAND_CASTS
 
 
-bool InstructionOperand::IsRegister() const {
+bool InstructionOperand::IsAnyRegister() const {
   return (IsAllocated() || IsExplicit()) &&
          LocationOperand::cast(this)->location_kind() ==
-             LocationOperand::REGISTER &&
+             LocationOperand::REGISTER;
+}
+
+
+bool InstructionOperand::IsRegister() const {
+  return IsAnyRegister() &&
          !IsFloatingPoint(LocationOperand::cast(this)->representation());
 }
 
 bool InstructionOperand::IsDoubleRegister() const {
-  return (IsAllocated() || IsExplicit()) &&
-         LocationOperand::cast(this)->location_kind() ==
-             LocationOperand::REGISTER &&
+  return IsAnyRegister() &&
          IsFloatingPoint(LocationOperand::cast(this)->representation());
 }
 

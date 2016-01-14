@@ -69,9 +69,9 @@ void SplinterLiveRange(TopLevelLiveRange *range, RegisterAllocationData *data) {
   while (interval != nullptr) {
     UseInterval *next_interval = interval->next();
     const InstructionBlock *first_block =
-        code->GetInstructionBlock(interval->FirstInstructionIndex());
+        code->GetInstructionBlock(interval->FirstGapIndex());
     const InstructionBlock *last_block =
-        code->GetInstructionBlock(interval->LastInstructionIndex());
+        code->GetInstructionBlock(interval->LastGapIndex());
     int first_block_nr = first_block->rpo_number().ToInt();
     int last_block_nr = last_block->rpo_number().ToInt();
     for (int block_id = first_block_nr; block_id <= last_block_nr; ++block_id) {
@@ -110,7 +110,7 @@ void LiveRangeSeparator::Splinter() {
     if (range == nullptr || range->IsEmpty() || range->IsSplinter()) {
       continue;
     }
-    int first_instr = range->first_interval()->FirstInstructionIndex();
+    int first_instr = range->first_interval()->FirstGapIndex();
     if (!data()->code()->GetInstructionBlock(first_instr)->IsDeferred()) {
       SplinterLiveRange(range, data());
     }
