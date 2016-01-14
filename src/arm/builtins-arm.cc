@@ -1028,7 +1028,8 @@ void Builtins::Generate_InterpreterPushArgsAndConstruct(MacroAssembler* masm) {
   __ sub(r4, r2, r4);
 
   // Push a slot for the receiver to be constructed.
-  __ push(r0);
+  __ mov(ip, Operand::Zero());
+  __ push(ip);
 
   // Push the arguments.
   Generate_InterpreterPushArgs(masm, r2, r4, r5);
