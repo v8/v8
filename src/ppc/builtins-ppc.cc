@@ -1013,7 +1013,8 @@ void Builtins::Generate_InterpreterPushArgsAndConstruct(MacroAssembler* masm) {
   // -----------------------------------
 
   // Push a slot for the receiver to be constructed.
-  __ push(r3);
+  __ li(r0, Operand::Zero());
+  __ push(r0);
 
   // Push the arguments (skip if none).
   Label skip;
