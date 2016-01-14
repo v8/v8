@@ -19,7 +19,9 @@ namespace internal {
 class WasmJs {
  public:
   static void Install(Isolate* isolate, Handle<JSGlobalObject> global_object);
+  static void InstallWasmFunctionMap(Isolate* isolate, Handle<Context> context);
 };
+
 }  // namespace internal
 }  // namespace v8
 #endif

@@ -1597,7 +1597,9 @@ void WasmGraphBuilder::BuildWasmToJSWrapper(Handle<JSFunction> function,
   if (arg_count_before_args) {
     args[pos++] = jsgraph()->Int32Constant(wasm_count);  // argument count
   }
-  args[pos++] = jsgraph()->UndefinedConstant();  // JS receiver.
+  // JS receiver.
+  Handle<Object> global(function->context()->global_object(), isolate);
+  args[pos++] = jsgraph()->Constant(global);
 
   // Convert WASM numbers to JS values.
   for (int i = 0; i < wasm_count; i++) {
