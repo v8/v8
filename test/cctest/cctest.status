@@ -478,8 +478,11 @@
 ##############################################################################
 ['system == aix or (arch == ppc64 and byteorder == big)', {
 
-  # Test currently broken for platforms with function desciptors
+  # TODO(ppc): Fix for platforms with function desciptors.
   'test-run-machops/RunComputedCodeObject' : [SKIP],
+  'test-run-wasm-module/Run_WasmModule_Return114' : [SKIP],
+  'test-run-wasm-module/Run_WasmModule_CallAdd' : [SKIP],
+  'test-run-wasm-module/Run_WasmModule_CallMain_recursive' : [SKIP],
 
 }],  # 'system == aix or (arch == ppc64 and byteorder == big)'
 
