@@ -948,11 +948,16 @@ class RepresentationSelector {
       }
       case IrOpcode::kNumberAdd:
       case IrOpcode::kNumberSubtract: {
-        // Add and subtract reduce to Int32Add/Sub if the inputs
-        // are safe integers and all uses are truncating.
-        if (BothInputsAre(node, type_cache_.kAdditiveSafeInteger) &&
-            truncation.TruncatesToWord32()) {
+        if (BothInputsAre(node, Type::Signed32()) &&
+            NodeProperties::GetType(node)->Is(Type::Signed32())) {
+          // int32 + int32 = int32
           // => signed Int32Add/Sub
+          VisitInt32Binop(node);
+          if (lower()) NodeProperties::ChangeOp(node, Int32Op(node));
+        } else if (BothInputsAre(node, type_cache_.kAdditiveSafeInteger) &&
+                   truncation.TruncatesToWord32()) {
+          // safe-int + safe-int = x (truncated to int32)
+          // => signed Int32Add/Sub (truncated)
           VisitWord32TruncatingBinop(node);
           if (lower()) NodeProperties::ChangeOp(node, Int32Op(node));
         } else {
