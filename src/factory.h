@@ -343,7 +343,9 @@ class Factory final {
                                   PretenureFlag pretenure = NOT_TENURED);
   Handle<Object> NewNumberFromSize(size_t value,
                                    PretenureFlag pretenure = NOT_TENURED) {
-    if (Smi::IsValid(static_cast<intptr_t>(value))) {
+    // We can't use Smi::IsValid() here because that operates on a signed
+    // intptr_t, and casting from size_t could create a bogus sign bit.
+    if (value <= static_cast<size_t>(Smi::kMaxValue)) {
       return Handle<Object>(Smi::FromIntptr(static_cast<intptr_t>(value)),
                             isolate());
     }
