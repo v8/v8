@@ -1322,15 +1322,9 @@ static void CompatibleReceiverCheck(MacroAssembler* masm, Register receiver,
                 &receiver_check_passed);
 
   // Walk the prototype chain.
+  __ lw(map, FieldMemOperand(receiver, HeapObject::kMapOffset));
   Label prototype_loop_start;
   __ bind(&prototype_loop_start);
-
-  // End if the receiver is null or if it's a hidden type.
-  __ JumpIfRoot(receiver, Heap::kNullValueRootIndex, receiver_check_failed);
-  __ lw(map, FieldMemOperand(receiver, HeapObject::kMapOffset));
-  __ lw(scratch, FieldMemOperand(map, Map::kBitField3Offset));
-  __ DecodeField<Map::IsHiddenPrototype>(scratch);
-  __ Branch(receiver_check_failed, ne, scratch, Operand(zero_reg));
 
   // Get the constructor, if any.
   __ GetMapConstructor(constructor, map, scratch, scratch);
@@ -1363,6 +1357,13 @@ static void CompatibleReceiverCheck(MacroAssembler* masm, Register receiver,
   // Load the next prototype and iterate.
   __ bind(&next_prototype);
   __ lw(receiver, FieldMemOperand(map, Map::kPrototypeOffset));
+  // End if the prototype is null or not hidden.
+  __ JumpIfRoot(receiver, Heap::kNullValueRootIndex, receiver_check_failed);
+  __ lw(map, FieldMemOperand(receiver, HeapObject::kMapOffset));
+  __ lw(scratch, FieldMemOperand(map, Map::kBitField3Offset));
+  __ DecodeField<Map::IsHiddenPrototype>(scratch);
+  __ Branch(receiver_check_failed, eq, scratch, Operand(zero_reg));
+
   __ Branch(&prototype_loop_start);
 
   __ bind(&receiver_check_passed);

@@ -2436,16 +2436,9 @@ static void CompatibleReceiverCheck(MacroAssembler* masm, Register receiver,
   __ j(equal, &receiver_check_passed, Label::kNear);
 
   // Walk the prototype chain.
+  __ movp(map, FieldOperand(receiver, HeapObject::kMapOffset));
   Label prototype_loop_start;
   __ bind(&prototype_loop_start);
-
-  // End if the receiver is null or if it's a hidden prototype.
-  __ CompareRoot(receiver, Heap::kNullValueRootIndex);
-  __ j(equal, receiver_check_failed, Label::kNear);
-  __ movp(map, FieldOperand(receiver, HeapObject::kMapOffset));
-  __ testq(FieldOperand(map, Map::kBitField3Offset),
-           Immediate(Map::IsHiddenPrototype::kMask));
-  __ j(not_zero, receiver_check_failed, Label::kNear);
 
   // Get the constructor, if any.
   __ GetMapConstructor(constructor, map, kScratchRegister);
@@ -2478,9 +2471,17 @@ static void CompatibleReceiverCheck(MacroAssembler* masm, Register receiver,
           FieldOperand(type, FunctionTemplateInfo::kParentTemplateOffset));
   __ jmp(&function_template_loop, Label::kNear);
 
-  // Load the next prototype and iterate.
+  // Load the next prototype.
   __ bind(&next_prototype);
   __ movp(receiver, FieldOperand(map, Map::kPrototypeOffset));
+  // End if the prototype is null or not hidden.
+  __ CompareRoot(receiver, Heap::kNullValueRootIndex);
+  __ j(equal, receiver_check_failed);
+  __ movp(map, FieldOperand(receiver, HeapObject::kMapOffset));
+  __ testq(FieldOperand(map, Map::kBitField3Offset),
+           Immediate(Map::IsHiddenPrototype::kMask));
+  __ j(zero, receiver_check_failed);
+  // Iterate.
   __ jmp(&prototype_loop_start, Label::kNear);
 
   __ bind(&receiver_check_passed);
