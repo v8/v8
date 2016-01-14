@@ -23,8 +23,9 @@ class BytecodeGenerator final : public AstVisitor {
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 
-  // Visiting function for declarations list is overridden.
+  // Visiting function for declarations list and statements are overridden.
   void VisitDeclarations(ZoneList<Declaration*>* declarations) override;
+  void VisitStatements(ZoneList<Statement*>* statments) override;
 
  private:
   class ContextScope;
@@ -35,6 +36,7 @@ class BytecodeGenerator final : public AstVisitor {
   class EffectResultScope;
   class AccumulatorResultScope;
   class RegisterResultScope;
+  class RegisterAllocationScope;
 
   void MakeBytecodeBody();
   Register NextContextRegister() const;
@@ -118,6 +120,13 @@ class BytecodeGenerator final : public AstVisitor {
     execution_result_ = execution_result;
   }
   ExpressionResultScope* execution_result() const { return execution_result_; }
+  inline void set_register_allocator(
+      RegisterAllocationScope* register_allocator) {
+    register_allocator_ = register_allocator;
+  }
+  RegisterAllocationScope* register_allocator() const {
+    return register_allocator_;
+  }
 
   ZoneVector<Handle<Object>>* globals() { return &globals_; }
   inline LanguageMode language_mode() const;
@@ -133,6 +142,7 @@ class BytecodeGenerator final : public AstVisitor {
   ControlScope* execution_control_;
   ContextScope* execution_context_;
   ExpressionResultScope* execution_result_;
+  RegisterAllocationScope* register_allocator_;
 };
 
 }  // namespace interpreter

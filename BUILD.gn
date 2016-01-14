@@ -1087,6 +1087,8 @@ source_set("v8_base") {
     "src/interpreter/bytecode-array-iterator.h",
     "src/interpreter/bytecode-generator.cc",
     "src/interpreter/bytecode-generator.h",
+    "src/interpreter/bytecode-register-allocator.cc",
+    "src/interpreter/bytecode-register-allocator.h",
     "src/interpreter/bytecode-traits.h",
     "src/interpreter/constant-array-builder.cc",
     "src/interpreter/constant-array-builder.h",

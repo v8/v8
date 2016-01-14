@@ -5317,7 +5317,7 @@ TEST(ForIn) {
        "  if (x['a'] == 10) continue;\n"
        "  if (x['a'] == 20) break;\n"
        "}",
-       9 * kPointerSize,
+       8 * kPointerSize,
        1,
        94,
        {
@@ -5344,17 +5344,17 @@ TEST(ForIn) {
            B(Ldar), R(0),                                                  //
            B(Star), R(6),                                                  //
            B(LoadICSloppy), R(6), U8(2), U8(vector->GetIndex(slot2)),      //
-           B(Star), R(8),                                                  //
+           B(Star), R(7),                                                  //
            B(LdaSmi8), U8(10),                                             //
-           B(TestEqual), R(8),                                             //
+           B(TestEqual), R(7),                                             //
            B(JumpIfFalse), U8(4),                                          //
            B(Jump), U8(20),                                                //
            B(Ldar), R(0),                                                  //
            B(Star), R(6),                                                  //
            B(LoadICSloppy), R(6), U8(2), U8(vector->GetIndex(slot3)),      //
-           B(Star), R(8),                                                  //
+           B(Star), R(7),                                                  //
            B(LdaSmi8), U8(20),                                             //
-           B(TestEqual), R(8),                                             //
+           B(TestEqual), R(7),                                             //
            B(JumpIfFalse), U8(4),                                          //
            B(Jump), U8(8),                                                 //
            B(ForInStep), R(5),                                             //

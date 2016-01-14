@@ -2231,6 +2231,19 @@ TEST(InterpreterCountOperators) {
                      handle(Smi::FromInt(3), isolate)),
       std::make_pair("var a = 1; (function() { a = 2 })(); return a--;",
                      handle(Smi::FromInt(2), isolate)),
+      std::make_pair("var i = 5; while(i--) {}; return i;",
+                     handle(Smi::FromInt(-1), isolate)),
+      std::make_pair("var i = 1; if(i--) { return 1; } else { return 2; };",
+                     handle(Smi::FromInt(1), isolate)),
+      std::make_pair("var i = -2; do {} while(i++) {}; return i;",
+                      handle(Smi::FromInt(1), isolate)),
+      std::make_pair("var i = -1; for(; i++; ) {}; return i",
+                      handle(Smi::FromInt(1), isolate)),
+      std::make_pair("var i = 20; switch(i++) {\n"
+                     "  case 20: return 1;\n"
+                     "  default: return 2;\n"
+                     "}",
+                     handle(Smi::FromInt(1), isolate)),
   };
 
   for (size_t i = 0; i < arraysize(count_ops); i++) {

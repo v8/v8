@@ -863,6 +863,8 @@
         '../../src/interpreter/bytecode-array-builder.h',
         '../../src/interpreter/bytecode-array-iterator.cc',
         '../../src/interpreter/bytecode-array-iterator.h',
+        '../../src/interpreter/bytecode-register-allocator.cc',
+        '../../src/interpreter/bytecode-register-allocator.h',
         '../../src/interpreter/bytecode-generator.cc',
         '../../src/interpreter/bytecode-generator.h',
         '../../src/interpreter/bytecode-traits.h',

@@ -6,6 +6,7 @@
 
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/bytecode-array-iterator.h"
+#include "src/interpreter/bytecode-register-allocator.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {
@@ -317,7 +318,7 @@ TEST_F(BytecodeArrayBuilderTest, FrameSizesLookGood) {
         builder.set_locals_count(locals);
         builder.set_context_count(contexts);
 
-        TemporaryRegisterScope temporaries(&builder);
+        BytecodeRegisterAllocator temporaries(&builder);
         for (int i = 0; i < temps; i++) {
           builder.StoreAccumulatorInRegister(temporaries.NewRegister());
         }
@@ -329,32 +330,6 @@ TEST_F(BytecodeArrayBuilderTest, FrameSizesLookGood) {
       }
     }
   }
-}
-
-
-TEST_F(BytecodeArrayBuilderTest, TemporariesRecycled) {
-  BytecodeArrayBuilder builder(isolate(), zone());
-  builder.set_parameter_count(0);
-  builder.set_locals_count(0);
-  builder.set_context_count(0);
-  builder.Return();
-
-  int first;
-  {
-    TemporaryRegisterScope temporaries(&builder);
-    first = temporaries.NewRegister().index();
-    temporaries.NewRegister();
-    temporaries.NewRegister();
-    temporaries.NewRegister();
-  }
-
-  int second;
-  {
-    TemporaryRegisterScope temporaries(&builder);
-    second = temporaries.NewRegister().index();
-  }
-
-  CHECK_EQ(first, second);
 }
 
 
@@ -391,15 +366,15 @@ TEST_F(BytecodeArrayBuilderTest, RegisterType) {
   builder.set_locals_count(3);
   builder.set_context_count(0);
 
-  TemporaryRegisterScope temporary_register_scope(&builder);
-  Register temp0 = temporary_register_scope.NewRegister();
+  BytecodeRegisterAllocator register_allocator(&builder);
+  Register temp0 = register_allocator.NewRegister();
   Register param0(builder.Parameter(0));
   Register param9(builder.Parameter(9));
-  Register temp1 = temporary_register_scope.NewRegister();
+  Register temp1 = register_allocator.NewRegister();
   Register reg0(0);
   Register reg1(1);
   Register reg2(2);
-  Register temp2 = temporary_register_scope.NewRegister();
+  Register temp2 = register_allocator.NewRegister();
   CHECK_EQ(builder.RegisterIsParameterOrLocal(temp0), false);
   CHECK_EQ(builder.RegisterIsParameterOrLocal(temp1), false);
   CHECK_EQ(builder.RegisterIsParameterOrLocal(temp2), false);
