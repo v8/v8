@@ -28,8 +28,6 @@ v8::experimental::FastAccessorBuilder* FastAccessor(v8::Isolate* isolate) {
 
 
 TEST(FastAccessors) {
-  if (i::FLAG_always_opt) return;
-
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   LocalContext env;

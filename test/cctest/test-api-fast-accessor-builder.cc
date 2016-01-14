@@ -13,20 +13,47 @@
 namespace {
 
 // These tests mean to exercise v8::FastAccessorBuilder. Since initially the
-// "native" accessor will get called, we need to 'warmup' any accessor first,
+// "native" accessor will get called, we need to "warmup" any accessor first,
 // to make sure we're actually testing the v8::FastAccessorBuilder result.
 // To accomplish this, we will
 // - call each accesssor N times before the actual test.
 // - wrap that call in a function, so that all such calls will go
 //   through a single call site.
+// - bloat that function with a very long comment to prevent its inlining.
 // - register a native accessor which is different from the build one
 //   (so that our tests will always fail if we don't end up in the 'fast'
-//    accessor)
+//    accessor).
 //
-// This doesn't work if the src function is inlined - as it is when
-// --always-opt is enabled - since then every inlined functino is its own
-// callsite. Hence most test will check for i::FLAG_always_opt.
-#define WARMUP(src) "for(i = 0; i < 2; i++) { " src " } "
+// FN_WARMUP(name, src) define a JS function "name" with body "src".
+// It adds the INLINE_SPOILER to prevent inlining and will call name()
+// repeatedly to guarantee it's "warm".
+//
+// Use:
+//   CompileRun(FN_WARMUP("fn", "return something();"));
+//   ExpectXXX("fn(1234)", 5678);
+
+#define INLINE_SPOILER                                           \
+  " /* "                                                         \
+  "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" \
+  "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" \
+  "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" \
+  "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" \
+  "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" \
+  "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" \
+  "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" \
+  "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" \
+  "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" \
+  "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" \
+  "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" \
+  "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" \
+  "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" \
+  "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" \
+  "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" \
+  "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" \
+  "*/ "  // 16 lines * 64 'X' =~ 1024 character comment.
+#define FN_WARMUP(name, src)                  \
+  "function " name "() { " src INLINE_SPOILER \
+  " }; for(i = 0; i < 2; i++) { " name "() } "
 
 static void NativePropertyAccessor(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
@@ -38,8 +65,6 @@ static void NativePropertyAccessor(
 
 // Build a simple "fast accessor" and verify that it is being called.
 TEST(FastAccessor) {
-  if (i::FLAG_always_opt) return;
-
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -65,8 +90,7 @@ TEST(FastAccessor) {
             .FromJust());
 
   // Wrap f.barf + IC warmup.
-  CompileRun(
-      "function barf() { f = new foo(); return f.barf }; " WARMUP("barf()"));
+  CompileRun(FN_WARMUP("barf", "f = new foo(); return f.barf"));
 
   ExpectInt32("f = new foo(); f.bar", 123);
   ExpectInt32("f = new foo(); f.barf", 123);  // First call in this call site.
@@ -88,8 +112,6 @@ void AddInternalFieldAccessor(v8::Isolate* isolate,
 
 // "Fast" accessor that accesses an internal field.
 TEST(FastAccessorWithInternalField) {
-  if (i::FLAG_always_opt) return;
-
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -107,9 +129,9 @@ TEST(FastAccessorWithInternalField) {
   CHECK(env->Global()->Set(env.local(), v8_str("obj"), obj).FromJust());
 
   // Warmup.
-  CompileRun("function field0() { return obj.field0 }; " WARMUP("field0()"));
-  CompileRun("function field1() { return obj.field1 }; " WARMUP("field1()"));
-  CompileRun("function field2() { return obj.field2 }; " WARMUP("field2()"));
+  CompileRun(FN_WARMUP("field0", "return obj.field0"));
+  CompileRun(FN_WARMUP("field1", "return obj.field1"));
+  CompileRun(FN_WARMUP("field2", "return obj.field2"));
 
   // Access fields.
   ExpectString("field0()", "Hi there!");
@@ -120,8 +142,6 @@ TEST(FastAccessorWithInternalField) {
 
 // "Fast" accessor with control flow via ...OrReturnNull methods.
 TEST(FastAccessorOrReturnNull) {
-  if (i::FLAG_always_opt) return;
-
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -154,16 +174,14 @@ TEST(FastAccessorOrReturnNull) {
   CHECK(env->Global()->Set(env.local(), v8_str("obj"), obj).FromJust());
 
   // CheckNotZeroOrReturnNull:
-  CompileRun(
-      "function nullcheck() { return obj.nullcheck }; " WARMUP("nullcheck()"));
+  CompileRun(FN_WARMUP("nullcheck", "return obj.nullcheck"));
   obj->SetAlignedPointerInInternalField(0, /* anything != nullptr */ isolate);
   ExpectInt32("nullcheck()", 5);
   obj->SetAlignedPointerInInternalField(0, nullptr);
   ExpectNull("nullcheck()");
 
   // CheckFlagSetOrReturnNull:
-  CompileRun(
-      "function maskcheck() { return obj.maskcheck }; " WARMUP("maskcheck()"));
+  CompileRun(FN_WARMUP("maskcheck", "return obj.maskcheck"));
   obj->SetAlignedPointerInInternalField(1, reinterpret_cast<void*>(0xf0));
   ExpectInt32("maskcheck()", 42);
   obj->SetAlignedPointerInInternalField(1, reinterpret_cast<void*>(0xfe));
@@ -173,8 +191,6 @@ TEST(FastAccessorOrReturnNull) {
 
 // "Fast" accessor with simple control flow via explicit labels.
 TEST(FastAccessorControlFlowWithLabels) {
-  if (i::FLAG_always_opt) return;
-
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -200,7 +216,7 @@ TEST(FastAccessorControlFlowWithLabels) {
   CHECK(env->Global()->Set(env.local(), v8_str("obj"), obj).FromJust());
 
   // CheckNotZeroOrReturnNull:
-  CompileRun("function isnull() { return obj.isnull }; " WARMUP("isnull()"));
+  CompileRun(FN_WARMUP("isnull", "return obj.isnull"));
   obj->SetAlignedPointerInInternalField(0, /* anything != nullptr */ isolate);
   ExpectInt32("isnull()", 1);
   obj->SetAlignedPointerInInternalField(0, nullptr);
@@ -210,8 +226,6 @@ TEST(FastAccessorControlFlowWithLabels) {
 
 // "Fast" accessor, loading things.
 TEST(FastAccessorLoad) {
-  if (i::FLAG_always_opt) return;
-
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -261,7 +275,7 @@ TEST(FastAccessorLoad) {
   CHECK(env->Global()->Set(env.local(), v8_str("obj"), obj).FromJust());
 
   // Access val.intval:
-  CompileRun("function nonzero() { return obj.nonzero }; " WARMUP("nonzero()"));
+  CompileRun(FN_WARMUP("nonzero", "return obj.nonzero"));
   ExpectInt32("nonzero()", 1);
   val.intval = 0;
   ExpectInt32("nonzero()", 0);
@@ -269,6 +283,6 @@ TEST(FastAccessorLoad) {
   ExpectInt32("nonzero()", 1);
 
   // Access val.v8val:
-  CompileRun("function loadval() { return obj.loadval }; " WARMUP("loadval()"));
+  CompileRun(FN_WARMUP("loadval", "return obj.loadval"));
   ExpectString("loadval()", "Hello");
 }
