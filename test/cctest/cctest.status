@@ -267,6 +267,10 @@
   'test-run-wasm/Run_WasmMixedGlobals': [SKIP],
   'test-run-wasm/Run_WasmCall*': [SKIP],
   'test-run-wasm/Run_WasmMixedCall_*': [SKIP],
+  'test-run-wasm/Run_WasmInt64*': [SKIP],
+  'test-run-wasm/Run_Wasm_LoadStoreI64_sx': [SKIP],
+  'test-run-wasm/Run_WASM_Int64DivS_byzero_const': [SKIP],
+  'test-run-wasm/Run_TestI64WasmRunner': [SKIP],
 }],  # 'byteorder == big'
 
 ##############################################################################
