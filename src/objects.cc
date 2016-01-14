@@ -10031,6 +10031,22 @@ Handle<DescriptorArray> DescriptorArray::CopyUpToAddAttributes(
 }
 
 
+bool DescriptorArray::IsEqualUpTo(DescriptorArray* desc, int nof_descriptors) {
+  for (int i = 0; i < nof_descriptors; i++) {
+    if (GetKey(i) != desc->GetKey(i) || GetValue(i) != desc->GetValue(i)) {
+      return false;
+    }
+    PropertyDetails details = GetDetails(i);
+    PropertyDetails other_details = desc->GetDetails(i);
+    if (details.type() != other_details.type() ||
+        !details.representation().Equals(other_details.representation())) {
+      return false;
+    }
+  }
+  return true;
+}
+
+
 Handle<Map> Map::CopyReplaceDescriptor(Handle<Map> map,
                                        Handle<DescriptorArray> descriptors,
                                        Descriptor* descriptor,
@@ -12201,7 +12217,15 @@ bool CheckEquivalent(Map* first, Map* second) {
 
 
 bool Map::EquivalentToForTransition(Map* other) {
-  return CheckEquivalent(this, other);
+  if (!CheckEquivalent(this, other)) return false;
+  if (instance_type() == JS_FUNCTION_TYPE) {
+    // JSFunctions require more checks to ensure that sloppy function is
+    // not equvalent to strict function.
+    int nof = Min(NumberOfOwnDescriptors(), other->NumberOfOwnDescriptors());
+    return instance_descriptors()->IsEqualUpTo(other->instance_descriptors(),
+                                               nof);
+  }
+  return true;
 }
 
 

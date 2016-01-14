@@ -2919,6 +2919,8 @@ class DescriptorArray: public FixedArray {
   // necessary.
   INLINE(int SearchWithCache(Name* name, Map* map));
 
+  bool IsEqualUpTo(DescriptorArray* desc, int nof_descriptors);
+
   // Allocates a DescriptorArray, but returns the singleton
   // empty descriptor array object if number_of_descriptors is 0.
   static Handle<DescriptorArray> Allocate(Isolate* isolate,
