@@ -932,6 +932,16 @@ class PreParserTraits {
   void SetFunctionNameFromIdentifierRef(PreParserExpression,
                                         PreParserExpression) {}
 
+  inline PreParserExpression RewriteNonPattern(
+      PreParserExpression expr, const ExpressionClassifier* classifier,
+      bool* ok);
+  inline PreParserExpression RewriteNonPatternArguments(
+      PreParserExpression args, const ExpressionClassifier* classifier,
+      bool* ok);
+  inline PreParserExpression RewriteNonPatternObjectLiteralProperty(
+      PreParserExpression property, const ExpressionClassifier* classifier,
+      bool* ok);
+
  private:
   PreParser* pre_parser_;
 };
@@ -1110,6 +1120,30 @@ void PreParserTraits::ParseArrowFunctionFormalParameterList(
 
 PreParserExpression PreParserTraits::ParseDoExpression(bool* ok) {
   return pre_parser_->ParseDoExpression(ok);
+}
+
+
+PreParserExpression PreParserTraits::RewriteNonPattern(
+    PreParserExpression expr, const ExpressionClassifier* classifier,
+    bool* ok) {
+  pre_parser_->ValidateExpression(classifier, ok);
+  return expr;
+}
+
+
+PreParserExpression PreParserTraits::RewriteNonPatternArguments(
+    PreParserExpression args, const ExpressionClassifier* classifier,
+    bool* ok) {
+  pre_parser_->ValidateExpression(classifier, ok);
+  return args;
+}
+
+
+PreParserExpression PreParserTraits::RewriteNonPatternObjectLiteralProperty(
+    PreParserExpression property, const ExpressionClassifier* classifier,
+    bool* ok) {
+  pre_parser_->ValidateExpression(classifier, ok);
+  return property;
 }
 
 

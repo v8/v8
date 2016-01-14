@@ -1565,7 +1565,7 @@ Statement* Parser::ParseExportDefault(bool* ok) {
       int pos = peek_position();
       ExpressionClassifier classifier;
       Expression* expr = ParseAssignmentExpression(true, &classifier, CHECK_OK);
-      ValidateExpression(&classifier, CHECK_OK);
+      expr = ParserTraits::RewriteNonPattern(expr, &classifier, CHECK_OK);
 
       ExpectSemicolon(CHECK_OK);
       result = factory()->NewExpressionStatement(expr, pos);
@@ -2392,7 +2392,7 @@ void Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
       value = ParseAssignmentExpression(var_context != kForStatement,
                                         &classifier, ok);
       if (!*ok) return;
-      ValidateExpression(&classifier, ok);
+      value = ParserTraits::RewriteNonPattern(value, &classifier, ok);
       if (!*ok) return;
       variable_loc.end_pos = scanner()->location().end_pos;
 
@@ -2503,7 +2503,7 @@ Statement* Parser::ParseExpressionOrLabelledStatement(
         } else {
           expr = ParseStrongSuperCallExpression(&classifier, CHECK_OK);
         }
-        ValidateExpression(&classifier, CHECK_OK);
+        expr = ParserTraits::RewriteNonPattern(expr, &classifier, CHECK_OK);
         switch (peek()) {
           case Token::SEMICOLON:
             Consume(Token::SEMICOLON);
@@ -3724,7 +3724,8 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
       if (is_destructuring) {
         ValidateAssignmentPattern(&classifier, CHECK_OK);
       } else {
-        ValidateExpression(&classifier, CHECK_OK);
+        expression =
+            ParserTraits::RewriteNonPattern(expression, &classifier, CHECK_OK);
       }
 
       if (is_for_each) {
@@ -4748,7 +4749,7 @@ ClassLiteral* Parser::ParseClassLiteral(const AstRawString* name,
     block_scope->set_start_position(scanner()->location().end_pos);
     ExpressionClassifier classifier;
     extends = ParseLeftHandSideExpression(&classifier, CHECK_OK);
-    ValidateExpression(&classifier, CHECK_OK);
+    extends = ParserTraits::RewriteNonPattern(extends, &classifier, CHECK_OK);
   } else {
     block_scope->set_start_position(scanner()->location().end_pos);
   }
@@ -4774,7 +4775,8 @@ ClassLiteral* Parser::ParseClassLiteral(const AstRawString* name,
     ObjectLiteral::Property* property = ParsePropertyDefinition(
         &checker, in_class, has_extends, is_static, &is_computed_name,
         &has_seen_constructor, &classifier, &name, CHECK_OK);
-    ValidateExpression(&classifier, CHECK_OK);
+    property = ParserTraits::RewriteNonPatternObjectLiteralProperty(
+        property, &classifier, CHECK_OK);
 
     if (has_seen_constructor && constructor == NULL) {
       constructor = GetPropertyValue(property)->AsFunctionLiteral();
@@ -4825,7 +4827,7 @@ Expression* Parser::ParseV8Intrinsic(bool* ok) {
   ExpressionClassifier classifier;
   ZoneList<Expression*>* args =
       ParseArguments(&spread_pos, &classifier, CHECK_OK);
-  ValidateExpression(&classifier, CHECK_OK);
+  args = RewriteNonPatternArguments(args, &classifier, CHECK_OK);
 
   DCHECK(!spread_pos.IsValid());
 
@@ -5385,6 +5387,58 @@ void Parser::RaiseLanguageMode(LanguageMode mode) {
 
 void ParserTraits::RewriteDestructuringAssignments() {
   parser_->RewriteDestructuringAssignments();
+}
+
+
+Expression* ParserTraits::RewriteNonPattern(
+    Expression* expr, const ExpressionClassifier* classifier, bool* ok) {
+  return parser_->RewriteNonPattern(expr, classifier, ok);
+}
+
+
+ZoneList<Expression*>* ParserTraits::RewriteNonPatternArguments(
+    ZoneList<Expression*>* args, const ExpressionClassifier* classifier,
+    bool* ok) {
+  return parser_->RewriteNonPatternArguments(args, classifier, ok);
+}
+
+
+ObjectLiteralProperty* ParserTraits::RewriteNonPatternObjectLiteralProperty(
+    ObjectLiteralProperty* property, const ExpressionClassifier* classifier,
+    bool* ok) {
+  return parser_->RewriteNonPatternObjectLiteralProperty(property, classifier,
+                                                         ok);
+}
+
+
+Expression* Parser::RewriteNonPattern(Expression* expr,
+                                      const ExpressionClassifier* classifier,
+                                      bool* ok) {
+  // For the time being, this does no rewriting at all.
+  ValidateExpression(classifier, ok);
+  return expr;
+}
+
+
+ZoneList<Expression*>* Parser::RewriteNonPatternArguments(
+    ZoneList<Expression*>* args, const ExpressionClassifier* classifier,
+    bool* ok) {
+  // For the time being, this does no rewriting at all.
+  ValidateExpression(classifier, ok);
+  return args;
+}
+
+
+ObjectLiteralProperty* Parser::RewriteNonPatternObjectLiteralProperty(
+    ObjectLiteralProperty* property, const ExpressionClassifier* classifier,
+    bool* ok) {
+  if (property != nullptr) {
+    Expression* key = RewriteNonPattern(property->key(), classifier, ok);
+    property->set_key(key);
+    Expression* value = RewriteNonPattern(property->value(), classifier, ok);
+    property->set_value(value);
+  }
+  return property;
 }
 
 

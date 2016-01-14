@@ -649,6 +649,16 @@ class ParserTraits {
   void SetFunctionNameFromIdentifierRef(Expression* value,
                                         Expression* identifier);
 
+  // Rewrite expressions that are not used as patterns
+  V8_INLINE Expression* RewriteNonPattern(
+      Expression* expr, const ExpressionClassifier* classifier, bool* ok);
+  V8_INLINE ZoneList<Expression*>* RewriteNonPatternArguments(
+      ZoneList<Expression*>* args, const ExpressionClassifier* classifier,
+      bool* ok);
+  V8_INLINE ObjectLiteralProperty* RewriteNonPatternObjectLiteralProperty(
+      ObjectLiteralProperty* property, const ExpressionClassifier* classifier,
+      bool* ok);
+
  private:
   Parser* parser_;
 };
@@ -1002,6 +1012,15 @@ class Parser : public ParserBase<ParserTraits> {
   void RaiseLanguageMode(LanguageMode mode);
 
   V8_INLINE void RewriteDestructuringAssignments();
+
+  V8_INLINE Expression* RewriteNonPattern(
+      Expression* expr, const ExpressionClassifier* classifier, bool* ok);
+  V8_INLINE ZoneList<Expression*>* RewriteNonPatternArguments(
+      ZoneList<Expression*>* args, const ExpressionClassifier* classifier,
+      bool* ok);
+  V8_INLINE ObjectLiteralProperty* RewriteNonPatternObjectLiteralProperty(
+      ObjectLiteralProperty* property, const ExpressionClassifier* classifier,
+      bool* ok);
 
   friend class InitializerRewriter;
   void RewriteParameterInitializer(Expression* expr, Scope* scope);
