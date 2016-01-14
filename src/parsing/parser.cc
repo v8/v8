@@ -6,6 +6,7 @@
 
 #include "src/api.h"
 #include "src/ast/ast.h"
+#include "src/ast/ast-expression-rewriter.h"
 #include "src/ast/ast-expression-visitor.h"
 #include "src/ast/ast-literal-reindexer.h"
 #include "src/ast/scopeinfo.h"
@@ -5411,20 +5412,61 @@ ObjectLiteralProperty* ParserTraits::RewriteNonPatternObjectLiteralProperty(
 }
 
 
+class NonPatternRewriter : public AstExpressionRewriter {
+ public:
+  NonPatternRewriter(uintptr_t stack_limit, Parser* parser)
+      : AstExpressionRewriter(stack_limit), parser_(parser) {}
+  ~NonPatternRewriter() override {}
+
+ private:
+  bool RewriteExpression(Expression* expr) override {
+    // Rewrite only what could have been a pattern but is not.
+    if (expr->IsArrayLiteral()) {
+      // Spread rewriting in array literals.
+      ArrayLiteral* lit = expr->AsArrayLiteral();
+      VisitExpressions(lit->values());
+      replacement_ = parser_->RewriteSpreads(lit);
+      return false;
+    }
+    if (expr->IsObjectLiteral()) {
+      return true;
+    }
+    if (expr->IsBinaryOperation() &&
+        expr->AsBinaryOperation()->op() == Token::COMMA) {
+      return true;
+    }
+    // Everything else does not need rewriting.
+    return false;
+  }
+
+  Parser* parser_;
+};
+
+
 Expression* Parser::RewriteNonPattern(Expression* expr,
                                       const ExpressionClassifier* classifier,
                                       bool* ok) {
-  // For the time being, this does no rewriting at all.
   ValidateExpression(classifier, ok);
-  return expr;
+  if (!*ok) return expr;
+  NonPatternRewriter rewriter(stack_limit_, this);
+  Expression* result = reinterpret_cast<Expression*>(rewriter.Rewrite(expr));
+  DCHECK_NOT_NULL(result);
+  return result;
 }
 
 
 ZoneList<Expression*>* Parser::RewriteNonPatternArguments(
     ZoneList<Expression*>* args, const ExpressionClassifier* classifier,
     bool* ok) {
-  // For the time being, this does no rewriting at all.
   ValidateExpression(classifier, ok);
+  if (!*ok) return args;
+  for (int i = 0; i < args->length(); i++) {
+    NonPatternRewriter rewriter(stack_limit_, this);
+    Expression* result =
+        reinterpret_cast<Expression*>(rewriter.Rewrite(args->at(i)));
+    DCHECK_NOT_NULL(result);
+    args->Set(i, result);
+  }
   return args;
 }
 
@@ -5459,6 +5501,125 @@ void Parser::RewriteDestructuringAssignments() {
       PatternRewriter::RewriteDestructuringAssignment(this, to_rewrite, scope);
     }
   }
+}
+
+
+Expression* Parser::RewriteSpreads(ArrayLiteral* lit) {
+  // Array literals containing spreads are rewritten using do expressions, e.g.
+  //    [1, 2, 3, ...x, 4, ...y, 5]
+  // is roughly rewritten as:
+  //    do {
+  //      $R = [1, 2, 3];
+  //      for ($i of x) %AppendElement($R, $i);
+  //      %AppendElement($R, 4);
+  //      for ($j of y) %AppendElement($R, $j);
+  //      %AppendElement($R, 5);
+  //      $R
+  //    }
+  // where $R, $i and $j are fresh temporary variables.
+  ZoneList<Expression*>::iterator s = lit->FirstSpread();
+  if (s == lit->EndValue()) return nullptr;  // no spread, no rewriting...
+  Variable* result =
+      scope_->NewTemporary(ast_value_factory()->dot_result_string());
+  // NOTE: The value assigned to R is the whole original array literal,
+  // spreads included. This will be fixed before the rewritten AST is returned.
+  // $R = lit
+  Expression* init_result =
+      factory()->NewAssignment(Token::INIT, factory()->NewVariableProxy(result),
+                               lit, RelocInfo::kNoPosition);
+  Block* do_block =
+      factory()->NewBlock(nullptr, 16, false, RelocInfo::kNoPosition);
+  do_block->statements()->Add(
+      factory()->NewExpressionStatement(init_result, RelocInfo::kNoPosition),
+      zone());
+  // Traverse the array literal starting from the first spread.
+  while (s != lit->EndValue()) {
+    Expression* value = *s++;
+    Spread* spread = value->AsSpread();
+    if (spread == nullptr) {
+      // If the element is not a spread, we're adding a single:
+      // %AppendElement($R, value)
+      ZoneList<Expression*>* append_element_args = NewExpressionList(2, zone());
+      append_element_args->Add(factory()->NewVariableProxy(result), zone());
+      append_element_args->Add(value, zone());
+      do_block->statements()->Add(
+          factory()->NewExpressionStatement(
+              factory()->NewCallRuntime(Runtime::kAppendElement,
+                                        append_element_args,
+                                        RelocInfo::kNoPosition),
+              RelocInfo::kNoPosition),
+          zone());
+    } else {
+      // If it's a spread, we're adding a for/of loop iterating through it.
+      Variable* each =
+          scope_->NewTemporary(ast_value_factory()->dot_for_string());
+      Expression* subject = spread->expression();
+      Variable* iterator =
+          scope_->NewTemporary(ast_value_factory()->dot_iterator_string());
+      Variable* element =
+          scope_->NewTemporary(ast_value_factory()->dot_result_string());
+      // iterator = subject[Symbol.iterator]()
+      Expression* assign_iterator = factory()->NewAssignment(
+          Token::ASSIGN, factory()->NewVariableProxy(iterator),
+          GetIterator(subject, factory(), spread->expression_position()),
+          subject->position());
+      // !%_IsJSReceiver(element = iterator.next()) &&
+      //     %ThrowIteratorResultNotAnObject(element)
+      Expression* next_element;
+      {
+        // element = iterator.next()
+        Expression* iterator_proxy = factory()->NewVariableProxy(iterator);
+        next_element = BuildIteratorNextResult(iterator_proxy, element,
+                                               spread->expression_position());
+      }
+      // element.done
+      Expression* element_done;
+      {
+        Expression* done_literal = factory()->NewStringLiteral(
+            ast_value_factory()->done_string(), RelocInfo::kNoPosition);
+        Expression* element_proxy = factory()->NewVariableProxy(element);
+        element_done = factory()->NewProperty(element_proxy, done_literal,
+                                              RelocInfo::kNoPosition);
+      }
+      // each = element.value
+      Expression* assign_each;
+      {
+        Expression* value_literal = factory()->NewStringLiteral(
+            ast_value_factory()->value_string(), RelocInfo::kNoPosition);
+        Expression* element_proxy = factory()->NewVariableProxy(element);
+        Expression* element_value = factory()->NewProperty(
+            element_proxy, value_literal, RelocInfo::kNoPosition);
+        assign_each = factory()->NewAssignment(
+            Token::ASSIGN, factory()->NewVariableProxy(each), element_value,
+            RelocInfo::kNoPosition);
+      }
+      // %AppendElement($R, each)
+      Statement* append_body;
+      {
+        ZoneList<Expression*>* append_element_args =
+            NewExpressionList(2, zone());
+        append_element_args->Add(factory()->NewVariableProxy(result), zone());
+        append_element_args->Add(factory()->NewVariableProxy(each), zone());
+        append_body = factory()->NewExpressionStatement(
+            factory()->NewCallRuntime(Runtime::kAppendElement,
+                                      append_element_args,
+                                      RelocInfo::kNoPosition),
+            RelocInfo::kNoPosition);
+      }
+      // for (each of spread) %AppendElement($R, each)
+      ForEachStatement* loop = factory()->NewForEachStatement(
+          ForEachStatement::ITERATE, nullptr, RelocInfo::kNoPosition);
+      ForOfStatement* for_of = loop->AsForOfStatement();
+      for_of->Initialize(factory()->NewVariableProxy(each), subject,
+                         append_body, assign_iterator, next_element,
+                         element_done, assign_each);
+      do_block->statements()->Add(for_of, zone());
+    }
+  }
+  // Now, rewind the original array literal to truncate everything from the
+  // first spread (included) until the end. This fixes $R's initialization.
+  lit->RewindSpreads();
+  return factory()->NewDoExpression(do_block, result, lit->position());
 }
 
 

@@ -1339,6 +1339,7 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
         // (...x)=>x.  The continuation that looks for the => is in
         // ParseAssignmentExpression.
         int ellipsis_pos = position();
+        int expr_pos = peek_position();
         classifier->RecordExpressionError(scanner()->location(),
                                           MessageTemplate::kUnexpectedToken,
                                           Token::String(Token::ELLIPSIS));
@@ -1352,7 +1353,7 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
           return this->EmptyExpression();
         }
         Expect(Token::RPAREN, CHECK_OK);
-        return factory()->NewSpread(expr, ellipsis_pos);
+        return factory()->NewSpread(expr, ellipsis_pos, expr_pos);
       }
       // Heuristically try to detect immediately called functions before
       // seeing the call parentheses.
@@ -1469,10 +1470,10 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseExpression(
       Consume(Token::ELLIPSIS);
       seen_rest = is_rest = true;
     }
-    int pos = position();
+    int pos = position(), expr_pos = peek_position();
     ExpressionT right = this->ParseAssignmentExpression(
         accept_IN, flags, &binding_classifier, CHECK_OK);
-    if (is_rest) right = factory()->NewSpread(right, pos);
+    if (is_rest) right = factory()->NewSpread(right, pos, expr_pos);
     is_simple_parameter_list =
         is_simple_parameter_list && this->IsIdentifier(right);
     classifier->Accumulate(binding_classifier,
@@ -1511,9 +1512,10 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseArrayLiteral(
     } else if (peek() == Token::ELLIPSIS) {
       int start_pos = peek_position();
       Consume(Token::ELLIPSIS);
+      int expr_pos = peek_position();
       ExpressionT argument =
           this->ParseAssignmentExpression(true, classifier, CHECK_OK);
-      elem = factory()->NewSpread(argument, start_pos);
+      elem = factory()->NewSpread(argument, start_pos, expr_pos);
 
       if (first_spread_index < 0) {
         first_spread_index = values->length();
@@ -1913,6 +1915,7 @@ typename Traits::Type::ExpressionList ParserBase<Traits>::ParseArguments(
   while (!done) {
     int start_pos = peek_position();
     bool is_spread = Check(Token::ELLIPSIS);
+    int expr_pos = peek_position();
 
     ExpressionT argument = this->ParseAssignmentExpression(
         true, classifier, CHECK_OK_CUSTOM(NullExpressionList));
@@ -1923,7 +1926,7 @@ typename Traits::Type::ExpressionList ParserBase<Traits>::ParseArguments(
         spread_arg.beg_pos = start_pos;
         spread_arg.end_pos = peek_position();
       }
-      argument = factory()->NewSpread(argument, start_pos);
+      argument = factory()->NewSpread(argument, start_pos, expr_pos);
     }
     result->Add(argument, zone_);
 

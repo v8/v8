@@ -1683,6 +1683,19 @@ class ArrayLiteral final : public MaterializedLiteral {
     return flags;
   }
 
+  // Provide a mechanism for iterating through values to rewrite spreads.
+  ZoneList<Expression*>::iterator FirstSpread() const {
+    return (first_spread_index_ >= 0) ? values_->begin() + first_spread_index_
+                                      : values_->end();
+  }
+  ZoneList<Expression*>::iterator EndValue() const { return values_->end(); }
+
+  // Rewind an array literal omitting everything from the first spread on.
+  void RewindSpreads() {
+    values_->Rewind(first_spread_index_);
+    first_spread_index_ = -1;
+  }
+
   enum Flags {
     kNoFlags = 0,
     kShallowElements = 1,
@@ -2372,17 +2385,20 @@ class Spread final : public Expression {
   Expression* expression() const { return expression_; }
   void set_expression(Expression* e) { expression_ = e; }
 
+  int expression_position() const { return expr_pos_; }
+
   static int num_ids() { return parent_num_ids(); }
 
  protected:
-  Spread(Zone* zone, Expression* expression, int pos)
-      : Expression(zone, pos), expression_(expression) {}
+  Spread(Zone* zone, Expression* expression, int pos, int expr_pos)
+      : Expression(zone, pos), expression_(expression), expr_pos_(expr_pos) {}
   static int parent_num_ids() { return Expression::num_ids(); }
 
  private:
   int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
   Expression* expression_;
+  int expr_pos_;
 };
 
 
@@ -3389,8 +3405,8 @@ class AstNodeFactory final BASE_EMBEDDED {
         CompareOperation(local_zone_, op, left, right, pos);
   }
 
-  Spread* NewSpread(Expression* expression, int pos) {
-    return new (local_zone_) Spread(local_zone_, expression, pos);
+  Spread* NewSpread(Expression* expression, int pos, int expr_pos) {
+    return new (local_zone_) Spread(local_zone_, expression, pos, expr_pos);
   }
 
   Conditional* NewConditional(Expression* condition,

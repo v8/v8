@@ -1013,6 +1013,9 @@ class Parser : public ParserBase<ParserTraits> {
 
   V8_INLINE void RewriteDestructuringAssignments();
 
+  friend class NonPatternRewriter;
+  V8_INLINE Expression* RewriteSpreads(ArrayLiteral* lit);
+
   V8_INLINE Expression* RewriteNonPattern(
       Expression* expr, const ExpressionClassifier* classifier, bool* ok);
   V8_INLINE ZoneList<Expression*>* RewriteNonPatternArguments(
