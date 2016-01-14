@@ -1375,6 +1375,113 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
 
 
 // static
+void Builtins::Generate_NumberConstructor(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- eax                 : number of arguments
+  //  -- edi                 : constructor function
+  //  -- esp[0]              : return address
+  //  -- esp[(argc - n) * 4] : arg[n] (zero-based)
+  //  -- esp[(argc + 1) * 4] : receiver
+  // -----------------------------------
+
+  // 1. Load the first argument into eax and get rid of the rest (including the
+  // receiver).
+  Label no_arguments;
+  {
+    __ test(eax, eax);
+    __ j(zero, &no_arguments, Label::kNear);
+    __ mov(ebx, Operand(esp, eax, times_pointer_size, 0));
+    __ PopReturnAddressTo(ecx);
+    __ lea(esp, Operand(esp, eax, times_pointer_size, kPointerSize));
+    __ PushReturnAddressFrom(ecx);
+    __ mov(eax, ebx);
+  }
+
+  // 2a. Convert the first argument to a number.
+  ToNumberStub stub(masm->isolate());
+  __ TailCallStub(&stub);
+
+  // 2b. No arguments, return +0 (already in eax).
+  __ bind(&no_arguments);
+  __ ret(1 * kPointerSize);
+}
+
+
+// static
+void Builtins::Generate_NumberConstructor_ConstructStub(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- eax                 : number of arguments
+  //  -- edi                 : constructor function
+  //  -- edx                 : new target
+  //  -- esp[0]              : return address
+  //  -- esp[(argc - n) * 4] : arg[n] (zero-based)
+  //  -- esp[(argc + 1) * 4] : receiver
+  // -----------------------------------
+
+  // 1. Make sure we operate in the context of the called function.
+  __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
+
+  // 2. Load the first argument into ebx and get rid of the rest (including the
+  // receiver).
+  {
+    Label no_arguments, done;
+    __ test(eax, eax);
+    __ j(zero, &no_arguments, Label::kNear);
+    __ mov(ebx, Operand(esp, eax, times_pointer_size, 0));
+    __ jmp(&done, Label::kNear);
+    __ bind(&no_arguments);
+    __ Move(ebx, Smi::FromInt(0));
+    __ bind(&done);
+    __ PopReturnAddressTo(ecx);
+    __ lea(esp, Operand(esp, eax, times_pointer_size, kPointerSize));
+    __ PushReturnAddressFrom(ecx);
+  }
+
+  // 3. Make sure ebx is a number.
+  {
+    Label done_convert;
+    __ JumpIfSmi(ebx, &done_convert);
+    __ CompareRoot(FieldOperand(ebx, HeapObject::kMapOffset),
+                   Heap::kHeapNumberMapRootIndex);
+    __ j(equal, &done_convert);
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ Push(edi);
+      __ Push(edx);
+      __ Move(eax, ebx);
+      ToNumberStub stub(masm->isolate());
+      __ CallStub(&stub);
+      __ Move(ebx, eax);
+      __ Pop(edx);
+      __ Pop(edi);
+    }
+    __ bind(&done_convert);
+  }
+
+  // 4. Check if new target and constructor differ.
+  Label new_object;
+  __ cmp(edx, edi);
+  __ j(not_equal, &new_object);
+
+  // 5. Allocate a JSValue wrapper for the number.
+  __ AllocateJSValue(eax, edi, ebx, ecx, &new_object);
+  __ Ret();
+
+  // 6. Fallback to the runtime to create new object.
+  __ bind(&new_object);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ Push(ebx);  // the first argument
+    __ Push(edi);  // constructor function
+    __ Push(edx);  // new target
+    __ CallRuntime(Runtime::kNewObject);
+    __ Pop(FieldOperand(eax, JSValue::kValueOffset));
+  }
+  __ Ret();
+}
+
+
+// static
 void Builtins::Generate_StringConstructor(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax                 : number of arguments
@@ -1445,7 +1552,10 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
   //  -- esp[(argc + 1) * 4] : receiver
   // -----------------------------------
 
-  // 1. Load the first argument into ebx and get rid of the rest (including the
+  // 1. Make sure we operate in the context of the called function.
+  __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
+
+  // 2. Load the first argument into ebx and get rid of the rest (including the
   // receiver).
   {
     Label no_arguments, done;
@@ -1461,7 +1571,7 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
     __ PushReturnAddressFrom(ecx);
   }
 
-  // 2. Make sure ebx is a string.
+  // 3. Make sure ebx is a string.
   {
     Label convert, done_convert;
     __ JumpIfSmi(ebx, &convert, Label::kNear);
@@ -1482,33 +1592,16 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
     __ bind(&done_convert);
   }
 
-  // 3. Check if new target and constructor differ.
+  // 4. Check if new target and constructor differ.
   Label new_object;
   __ cmp(edx, edi);
   __ j(not_equal, &new_object);
 
-  // 4. Allocate a JSValue wrapper for the string.
-  {
-    // ----------- S t a t e -------------
-    //  -- ebx : the first argument
-    //  -- edi : constructor function
-    //  -- edx : new target
-    // -----------------------------------
-    __ Allocate(JSValue::kSize, eax, ecx, no_reg, &new_object, TAG_OBJECT);
+  // 5. Allocate a JSValue wrapper for the string.
+  __ AllocateJSValue(eax, edi, ebx, ecx, &new_object);
+  __ Ret();
 
-    // Initialize the JSValue in eax.
-    __ LoadGlobalFunctionInitialMap(edi, ecx);
-    __ mov(FieldOperand(eax, HeapObject::kMapOffset), ecx);
-    __ mov(FieldOperand(eax, JSObject::kPropertiesOffset),
-           masm->isolate()->factory()->empty_fixed_array());
-    __ mov(FieldOperand(eax, JSObject::kElementsOffset),
-           masm->isolate()->factory()->empty_fixed_array());
-    __ mov(FieldOperand(eax, JSValue::kValueOffset), ebx);
-    STATIC_ASSERT(JSValue::kSize == 4 * kPointerSize);
-    __ Ret();
-  }
-
-  // 5. Fallback to the runtime to create new object.
+  // 6. Fallback to the runtime to create new object.
   __ bind(&new_object);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);

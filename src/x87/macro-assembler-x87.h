@@ -601,6 +601,11 @@ class MacroAssembler: public Assembler {
   void AllocateOneByteSlicedString(Register result, Register scratch1,
                                    Register scratch2, Label* gc_required);
 
+  // Allocate and initialize a JSValue wrapper with the specified {constructor}
+  // and {value}.
+  void AllocateJSValue(Register result, Register constructor, Register value,
+                       Register scratch, Label* gc_required);
+
   // Copy memory, byte-by-byte, from source to destination.  Not optimized for
   // long or aligned copies.
   // The contents of index and scratch are destroyed.
@@ -750,9 +755,11 @@ class MacroAssembler: public Assembler {
   void Move(Register dst, const Immediate& x);
   void Move(const Operand& dst, const Immediate& x);
 
+  void Move(Register dst, Smi* source) { Move(dst, Immediate(source)); }
+
   // Push a handle value.
   void Push(Handle<Object> handle) { push(Immediate(handle)); }
-  void Push(Smi* smi) { Push(Handle<Smi>(smi, isolate())); }
+  void Push(Smi* smi) { Push(Immediate(smi)); }
 
   Handle<Object> CodeObject() {
     DCHECK(!code_object_.is_null());
