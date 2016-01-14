@@ -33,3 +33,6 @@ class MyPromise extends Promise { }
 let myPromise = new MyPromise(() => {});
 assertEquals(MyPromise, myPromise.constructor);
 assertEquals(MyPromise, myPromise.then().constructor);
+
+// However, subarray instantiates members of the parent class
+assertEquals(Uint8Array, myTypedArray.subarray(1).constructor);
