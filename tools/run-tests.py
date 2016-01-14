@@ -593,7 +593,7 @@ def Main():
   # suites as otherwise filters would break.
   def ExpandTestGroups(name):
     if name in TEST_MAP:
-      return [suite for suite in TEST_MAP[arg]]
+      return [suite for suite in TEST_MAP[name]]
     else:
       return [name]
   args = reduce(lambda x, y: x + y,
