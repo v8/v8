@@ -38,7 +38,7 @@ class SimplifiedLowering final {
   void DoStoreBuffer(Node* node);
   void DoObjectIsNumber(Node* node);
   void DoObjectIsSmi(Node* node);
-  void DoShift(Node* node, Operator const* op);
+  void DoShift(Node* node, Operator const* op, Type* rhs_type);
   void DoStringEqual(Node* node);
   void DoStringLessThan(Node* node);
   void DoStringLessThanOrEqual(Node* node);
