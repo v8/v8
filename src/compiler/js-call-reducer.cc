@@ -260,10 +260,44 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
       if (*function == function->native_context()->number_function()) {
         return ReduceNumberConstructor(node);
       }
+    } else if (m.Value()->IsJSBoundFunction()) {
+      Handle<JSBoundFunction> function =
+          Handle<JSBoundFunction>::cast(m.Value());
+      Handle<JSReceiver> bound_target_function(
+          function->bound_target_function(), isolate());
+      Handle<Object> bound_this(function->bound_this(), isolate());
+      Handle<FixedArray> bound_arguments(function->bound_arguments(),
+                                         isolate());
+      CallFunctionParameters const& p = CallFunctionParametersOf(node->op());
+      ConvertReceiverMode const convert_mode =
+          (bound_this->IsNull() || bound_this->IsUndefined())
+              ? ConvertReceiverMode::kNullOrUndefined
+              : ConvertReceiverMode::kNotNullOrUndefined;
+      size_t arity = p.arity();
+      DCHECK_LE(2u, arity);
+      // Patch {node} to use [[BoundTargetFunction]] and [[BoundThis]].
+      NodeProperties::ReplaceValueInput(
+          node, jsgraph()->Constant(bound_target_function), 0);
+      NodeProperties::ReplaceValueInput(node, jsgraph()->Constant(bound_this),
+                                        1);
+      // Insert the [[BoundArguments]] for {node}.
+      for (int i = 0; i < bound_arguments->length(); ++i) {
+        node->InsertInput(
+            graph()->zone(), i + 2,
+            jsgraph()->Constant(handle(bound_arguments->get(i), isolate())));
+        arity++;
+      }
+      NodeProperties::ChangeOp(
+          node, javascript()->CallFunction(arity, p.language_mode(),
+                                           CallCountFeedback(p.feedback()),
+                                           convert_mode, p.tail_call_mode()));
+      // Try to further reduce the JSCallFunction {node}.
+      Reduction const reduction = ReduceJSCallFunction(node);
+      return reduction.Changed() ? reduction : Changed(node);
     }
 
     // Don't mess with other {node}s that have a constant {target}.
-    // TODO(bmeurer): Also support optimizing bound functions and proxies here.
+    // TODO(bmeurer): Also support proxies here.
     return NoChange();
   }
 
