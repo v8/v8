@@ -915,6 +915,7 @@
         '../../src/parsing/json-parser.h',
         '../../src/parsing/parameter-initializer-rewriter.cc',
         '../../src/parsing/parameter-initializer-rewriter.h',
+        '../../src/parsing/parser-base.h',
         '../../src/parsing/parser.cc',
         '../../src/parsing/parser.h',
         '../../src/parsing/pattern-rewriter.cc',
