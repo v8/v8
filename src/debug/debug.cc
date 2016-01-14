@@ -1300,6 +1300,7 @@ Handle<Object> Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
       closure = finder.ResultClosure();
       shared = finder.Result();
     }
+    if (shared == NULL) break;
     HandleScope scope(isolate_);
     if (closure == NULL) {
       if (!Compiler::CompileDebugCode(handle(shared))) break;
