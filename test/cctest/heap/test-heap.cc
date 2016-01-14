@@ -1567,18 +1567,26 @@ TEST(CompilationCacheCachingBehavior) {
       language_mode);
   CHECK(!info.is_null());
 
-  heap->CollectAllGarbage();
+  // Check that the code cache entry survives at least on GC.
+  // (Unless --optimize-for-size, in which case it might get collected
+  // immediately.)
+  if (!FLAG_optimize_for_size) {
+    heap->CollectAllGarbage();
+    info = compilation_cache->LookupScript(
+        source, Handle<Object>(), 0, 0,
+        v8::ScriptOriginOptions(false, true, false), native_context,
+        language_mode);
+    CHECK(!info.is_null());
+  }
 
-  // On second compilation, the hash is replaced by a real cache entry mapping
-  // the source to the shared function info containing the code.
-  info = compilation_cache->LookupScript(
-      source, Handle<Object>(), 0, 0,
-      v8::ScriptOriginOptions(false, true, false), native_context,
-      language_mode);
-  CHECK(!info.is_null());
-
+  // Progress code age until it's old and ready for GC.
   while (!info.ToHandleChecked()->code()->IsOld()) {
-    info.ToHandleChecked()->code()->MakeOlder(NO_MARKING_PARITY);
+    // To guarantee progress, we have to MakeOlder with different parities.
+    // We can't just use NO_MARKING_PARITY, since e.g. kExecutedOnceCodeAge is
+    // always NO_MARKING_PARITY and the code age only progresses if the parity
+    // is different.
+    info.ToHandleChecked()->code()->MakeOlder(ODD_MARKING_PARITY);
+    info.ToHandleChecked()->code()->MakeOlder(EVEN_MARKING_PARITY);
   }
 
   heap->CollectAllGarbage();

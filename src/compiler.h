@@ -270,10 +270,10 @@ class CompilationInfo {
 
   bool GeneratePreagedPrologue() const {
     // Generate a pre-aged prologue if we are optimizing for size, which
-    // will make code flushing more aggressive. The code for WASM functions
-    // cannot be flushed, so it does not make sense to age them.
+    // will make code flushing more aggressive. Only apply to Code::FUNCTION,
+    // since StaticMarkingVisitor::IsFlushable only flushes proper functions.
     return FLAG_optimize_for_size && FLAG_age_code && !will_serialize() &&
-           !is_debug() && output_code_kind_ != Code::WASM_FUNCTION;
+           !is_debug() && output_code_kind_ == Code::FUNCTION;
   }
 
   void EnsureFeedbackVector();

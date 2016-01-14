@@ -38,7 +38,7 @@ static void NativePropertyAccessor(
 
 // Build a simple "fast accessor" and verify that it is being called.
 TEST(FastAccessor) {
-  if (i::FLAG_always_opt || i::FLAG_optimize_for_size) return;
+  if (i::FLAG_always_opt) return;
 
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -88,7 +88,7 @@ void AddInternalFieldAccessor(v8::Isolate* isolate,
 
 // "Fast" accessor that accesses an internal field.
 TEST(FastAccessorWithInternalField) {
-  if (i::FLAG_always_opt || i::FLAG_optimize_for_size) return;
+  if (i::FLAG_always_opt) return;
 
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -120,7 +120,7 @@ TEST(FastAccessorWithInternalField) {
 
 // "Fast" accessor with control flow via ...OrReturnNull methods.
 TEST(FastAccessorOrReturnNull) {
-  if (i::FLAG_always_opt || i::FLAG_optimize_for_size) return;
+  if (i::FLAG_always_opt) return;
 
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -173,7 +173,7 @@ TEST(FastAccessorOrReturnNull) {
 
 // "Fast" accessor with simple control flow via explicit labels.
 TEST(FastAccessorControlFlowWithLabels) {
-  if (i::FLAG_always_opt || i::FLAG_optimize_for_size) return;
+  if (i::FLAG_always_opt) return;
 
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -210,7 +210,7 @@ TEST(FastAccessorControlFlowWithLabels) {
 
 // "Fast" accessor, loading things.
 TEST(FastAccessorLoad) {
-  if (i::FLAG_always_opt || i::FLAG_optimize_for_size) return;
+  if (i::FLAG_always_opt) return;
 
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
