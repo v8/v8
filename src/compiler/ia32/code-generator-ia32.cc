@@ -1616,10 +1616,19 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     // Register-register.
     Register src = g.ToRegister(source);
     Register dst = g.ToRegister(destination);
-    __ xchg(dst, src);
+    __ push(src);
+    __ mov(src, dst);
+    __ pop(dst);
   } else if (source->IsRegister() && destination->IsStackSlot()) {
     // Register-memory.
-    __ xchg(g.ToRegister(source), g.ToOperand(destination));
+    Register src = g.ToRegister(source);
+    __ push(src);
+    frame_access_state()->IncreaseSPDelta(1);
+    Operand dst = g.ToOperand(destination);
+    __ mov(src, dst);
+    frame_access_state()->IncreaseSPDelta(-1);
+    dst = g.ToOperand(destination);
+    __ pop(dst);
   } else if (source->IsStackSlot() && destination->IsStackSlot()) {
     // Memory-memory.
     Operand dst1 = g.ToOperand(destination);

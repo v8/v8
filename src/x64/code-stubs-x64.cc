@@ -3291,7 +3291,9 @@ void CompareICStub::GenerateBooleans(MacroAssembler* masm) {
       __ AssertSmi(rax);
       __ movp(rdx, FieldOperand(rdx, Oddball::kToNumberOffset));
       __ AssertSmi(rdx);
-      __ xchgp(rax, rdx);
+      __ pushq(rax);
+      __ movq(rax, rdx);
+      __ popq(rdx);
     }
     __ subp(rax, rdx);
     __ Ret();

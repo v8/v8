@@ -2046,11 +2046,20 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
   // combinations are possible.
   if (source->IsRegister() && destination->IsRegister()) {
     // Register-register.
-    __ xchgq(g.ToRegister(source), g.ToRegister(destination));
+    Register src = g.ToRegister(source);
+    Register dst = g.ToRegister(destination);
+    __ movq(kScratchRegister, src);
+    __ movq(src, dst);
+    __ movq(dst, kScratchRegister);
   } else if (source->IsRegister() && destination->IsStackSlot()) {
     Register src = g.ToRegister(source);
+    __ pushq(src);
+    frame_access_state()->IncreaseSPDelta(1);
     Operand dst = g.ToOperand(destination);
-    __ xchgq(src, dst);
+    __ movq(src, dst);
+    frame_access_state()->IncreaseSPDelta(-1);
+    dst = g.ToOperand(destination);
+    __ popq(dst);
   } else if ((source->IsStackSlot() && destination->IsStackSlot()) ||
              (source->IsDoubleStackSlot() &&
               destination->IsDoubleStackSlot())) {
@@ -2059,8 +2068,13 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     Operand src = g.ToOperand(source);
     Operand dst = g.ToOperand(destination);
     __ movq(tmp, dst);
-    __ xchgq(tmp, src);
-    __ movq(dst, tmp);
+    __ pushq(src);
+    frame_access_state()->IncreaseSPDelta(1);
+    src = g.ToOperand(source);
+    __ movq(src, tmp);
+    frame_access_state()->IncreaseSPDelta(-1);
+    dst = g.ToOperand(destination);
+    __ popq(dst);
   } else if (source->IsDoubleRegister() && destination->IsDoubleRegister()) {
     // XMM register-register swap. We rely on having xmm0
     // available as a fixed scratch register.
