@@ -612,6 +612,12 @@ class MemoryChunk {
     return live_byte_count_;
   }
 
+  void SetLiveBytes(int live_bytes) {
+    DCHECK_GE(live_bytes, 0);
+    DCHECK_LE(static_cast<unsigned>(live_bytes), size_);
+    live_byte_count_ = live_bytes;
+  }
+
   int write_barrier_counter() {
     return static_cast<int>(write_barrier_counter_);
   }

@@ -730,6 +730,8 @@ class MarkCompactCollector {
 
   void VisitLiveObjectsBody(Page* page, ObjectVisitor* visitor);
 
+  void RecomputeLiveBytes(MemoryChunk* page);
+
   void SweepAbortedPages();
 
   void ReleaseEvacuationCandidates();

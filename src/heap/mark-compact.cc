@@ -3484,6 +3484,7 @@ void MarkCompactCollector::RemoveObjectSlots(Address start_slot,
   }
 }
 
+
 #ifdef VERIFY_HEAP
 static void VerifyAllBlackObjects(MemoryChunk* page) {
   LiveObjectIterator<kAllLiveObjects> it(page);
@@ -3494,6 +3495,7 @@ static void VerifyAllBlackObjects(MemoryChunk* page) {
 }
 #endif  // VERIFY_HEAP
 
+
 bool MarkCompactCollector::VisitLiveObjects(MemoryChunk* page,
                                             HeapObjectVisitor* visitor,
                                             IterationMode mode) {
@@ -3502,14 +3504,15 @@ bool MarkCompactCollector::VisitLiveObjects(MemoryChunk* page,
 #endif  // VERIFY_HEAP
 
   LiveObjectIterator<kBlackObjects> it(page);
-  HeapObject* object = NULL;
-  while ((object = it.Next()) != NULL) {
+  HeapObject* object = nullptr;
+  while ((object = it.Next()) != nullptr) {
     DCHECK(Marking::IsBlack(Marking::MarkBitFrom(object)));
     if (!visitor->Visit(object)) {
       if (mode == kClearMarkbits) {
         page->markbits()->ClearRange(
             page->AddressToMarkbitIndex(page->area_start()),
             page->AddressToMarkbitIndex(object->address()));
+        RecomputeLiveBytes(page);
       }
       return false;
     }
@@ -3518,6 +3521,17 @@ bool MarkCompactCollector::VisitLiveObjects(MemoryChunk* page,
     Bitmap::Clear(page);
   }
   return true;
+}
+
+
+void MarkCompactCollector::RecomputeLiveBytes(MemoryChunk* page) {
+  LiveObjectIterator<kBlackObjects> it(page);
+  int new_live_size = 0;
+  HeapObject* object = nullptr;
+  while ((object = it.Next()) != nullptr) {
+    new_live_size += object->Size();
+  }
+  page->SetLiveBytes(new_live_size);
 }
 
 
