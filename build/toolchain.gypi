@@ -135,6 +135,7 @@
   'conditions': [
     ['host_arch=="ia32" or host_arch=="x64" or \
       host_arch=="ppc" or host_arch=="ppc64" or \
+      host_arch=="s390" or host_arch=="s390x" or \
       clang==1', {
       'variables': {
         'host_cxx_is_biarch%': 1,
@@ -145,8 +146,8 @@
       },
     }],
     ['target_arch=="ia32" or target_arch=="x64" or target_arch=="x87" or \
-      target_arch=="ppc" or target_arch=="ppc64" or \
-      clang==1', {
+      target_arch=="ppc" or target_arch=="ppc64" or target_arch=="s390" or \
+      target_arch=="s390x" or clang==1', {
       'variables': {
         'target_cxx_is_biarch%': 1,
        },
@@ -297,6 +298,23 @@
           'V8_TARGET_ARCH_ARM64',
         ],
       }],
+      ['v8_target_arch=="s390" or v8_target_arch=="s390x"', {
+        'defines': [
+          'V8_TARGET_ARCH_S390',
+        ],
+        'conditions': [
+          ['v8_target_arch=="s390x"', {
+            'defines': [
+              'V8_TARGET_ARCH_S390X',
+            ],
+          }],
+          ['v8_host_byteorder=="little"', {
+            'defines': [
+              'V8_TARGET_ARCH_S390_LE_SIM',
+            ],
+          }],
+          ],
+      }],  # s390
       ['v8_target_arch=="ppc" or v8_target_arch=="ppc64"', {
         'defines': [
           'V8_TARGET_ARCH_PPC',
@@ -979,13 +997,21 @@
          or OS=="netbsd" or OS=="mac" or OS=="android" or OS=="qnx") and \
         (v8_target_arch=="arm" or v8_target_arch=="ia32" or \
          v8_target_arch=="x87" or v8_target_arch=="mips" or \
-         v8_target_arch=="mipsel" or v8_target_arch=="ppc")', {
+         v8_target_arch=="mipsel" or v8_target_arch=="ppc" or \
+         v8_target_arch=="s390")', {
         'target_conditions': [
           ['_toolset=="host"', {
             'conditions': [
               ['host_cxx_is_biarch==1', {
-                'cflags': [ '-m32' ],
-                'ldflags': [ '-m32' ]
+                'conditions': [
+                  ['host_arch=="s390" or host_arch=="s390x"', {
+                    'cflags': [ '-m31' ],
+                    'ldflags': [ '-m31' ]
+                  },{
+                   'cflags': [ '-m32' ],
+                   'ldflags': [ '-m32' ]
+                  }],
+                ],
               }],
             ],
             'xcode_settings': {
@@ -995,8 +1021,15 @@
           ['_toolset=="target"', {
             'conditions': [
               ['target_cxx_is_biarch==1 and nacl_target_arch!="nacl_x64"', {
-                'cflags': [ '-m32' ],
-                'ldflags': [ '-m32' ],
+                'conditions': [
+                  ['host_arch=="s390" or host_arch=="s390x"', {
+                    'cflags': [ '-m31' ],
+                    'ldflags': [ '-m31' ]
+                  },{
+                   'cflags': [ '-m32' ],
+                   'ldflags': [ '-m32' ],
+                  }],
+                ],
               }],
             ],
             'xcode_settings': {
@@ -1007,7 +1040,7 @@
       }],
       ['(OS=="linux" or OS=="android") and \
         (v8_target_arch=="x64" or v8_target_arch=="arm64" or \
-         v8_target_arch=="ppc64")', {
+         v8_target_arch=="ppc64" or v8_target_arch=="s390x")', {
         'target_conditions': [
           ['_toolset=="host"', {
             'conditions': [
