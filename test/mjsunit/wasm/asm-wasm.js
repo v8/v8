@@ -391,19 +391,38 @@ function TestInt32HeapAccess(stdlib, foreign, buffer) {
 assertEquals(7, _WASMEXP_.asmCompileRun(TestInt32HeapAccess.toString()));
 
 
+function TestInt32HeapAccessExternal() {
+  var memory = new ArrayBuffer(1024);
+  var memory_int32 = new Int32Array(memory);
+  var module = _WASMEXP_.instantiateModuleFromAsm(
+      TestInt32HeapAccess.toString(), null, memory);
+  module.__init__();
+  assertEquals(7, module.caller());
+  assertEquals(7, memory_int32[2]);
+}
+
+TestInt32HeapAccessExternal();
+
+
 function TestHeapAccessIntTypes() {
   var types = [
-    ['Int8Array', '>> 0'],
-    ['Uint8Array', '>> 0'],
-    ['Int16Array', '>> 1'],
-    ['Uint16Array', '>> 1'],
-    ['Int32Array', '>> 2'],
-    ['Uint32Array', '>> 2'],
+    [Int8Array, 'Int8Array', '>> 0'],
+    [Uint8Array, 'Uint8Array', '>> 0'],
+    [Int16Array, 'Int16Array', '>> 1'],
+    [Uint16Array, 'Uint16Array', '>> 1'],
+    [Int32Array, 'Int32Array', '>> 2'],
+    [Uint32Array, 'Uint32Array', '>> 2'],
   ];
   for (var i = 0; i < types.length; i++) {
     var code = TestInt32HeapAccess.toString();
-    code = code.replace('Int32Array', types[i][0]);
-    code = code.replace(/>> 2/g, types[i][1]);
+    code = code.replace('Int32Array', types[i][1]);
+    code = code.replace(/>> 2/g, types[i][2]);
+    var memory = new ArrayBuffer(1024);
+    var memory_view = new types[i][0](memory);
+    var module = _WASMEXP_.instantiateModuleFromAsm(code, null, memory);
+    module.__init__();
+    assertEquals(7, module.caller());
+    assertEquals(7, memory_view[2]);
     assertEquals(7, _WASMEXP_.asmCompileRun(code));
   }
 }
@@ -434,6 +453,19 @@ function TestFloatHeapAccess(stdlib, foreign, buffer) {
 }
 
 assertEquals(1, _WASMEXP_.asmCompileRun(TestFloatHeapAccess.toString()));
+
+
+function TestFloatHeapAccessExternal() {
+  var memory = new ArrayBuffer(1024);
+  var memory_float64 = new Float64Array(memory);
+  var module = _WASMEXP_.instantiateModuleFromAsm(
+      TestFloatHeapAccess.toString(), null, memory);
+  module.__init__();
+  assertEquals(1, module.caller());
+  assertEquals(9.0, memory_float64[1]);
+}
+
+TestFloatHeapAccessExternal();
 
 
 function TestConvertI32() {
