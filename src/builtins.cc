@@ -1563,6 +1563,21 @@ BUILTIN(ObjectFreeze) {
 }
 
 
+// ES6 section 19.1.2.8 Object.getOwnPropertySymbols ( O )
+BUILTIN(ObjectGetOwnPropertySymbols) {
+  HandleScope scope(isolate);
+  Handle<Object> object = args.atOrUndefined(isolate, 1);
+  Handle<JSReceiver> receiver;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, receiver,
+                                     Execution::ToObject(isolate, object));
+  Handle<FixedArray> keys;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, keys, JSReceiver::GetKeys(receiver, JSReceiver::OWN_ONLY,
+                                         SKIP_STRINGS, CONVERT_TO_STRING));
+  return *isolate->factory()->NewJSArrayWithElements(keys);
+}
+
+
 // ES6 section 19.1.2.11 Object.isExtensible ( O )
 BUILTIN(ObjectIsExtensible) {
   HandleScope scope(isolate);

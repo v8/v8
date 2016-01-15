@@ -1095,6 +1095,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<JSFunction> object_freeze = SimpleInstallFunction(
         object_function, "freeze", Builtins::kObjectFreeze, 1, false);
     native_context()->set_object_freeze(*object_freeze);
+    SimpleInstallFunction(object_function, "getOwnPropertySymbols",
+                          Builtins::kObjectGetOwnPropertySymbols, 1, false);
     Handle<JSFunction> object_is_extensible =
         SimpleInstallFunction(object_function, "isExtensible",
                               Builtins::kObjectIsExtensible, 1, false);
@@ -1250,14 +1252,20 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
   {
     // --- S y m b o l ---
-    Handle<JSFunction> symbol_fun = InstallFunction(
-        global, "Symbol", JS_VALUE_TYPE, JSValue::kSize,
-        isolate->initial_object_prototype(), Builtins::kSymbolConstructor);
+    Handle<JSObject> prototype =
+        factory->NewJSObject(isolate->object_function(), TENURED);
+    Handle<JSFunction> symbol_fun =
+        InstallFunction(global, "Symbol", JS_VALUE_TYPE, JSValue::kSize,
+                        prototype, Builtins::kSymbolConstructor);
     symbol_fun->shared()->set_construct_stub(
         *isolate->builtins()->SymbolConstructor_ConstructStub());
     symbol_fun->shared()->set_length(1);
     symbol_fun->shared()->DontAdaptArguments();
     native_context()->set_symbol_function(*symbol_fun);
+
+    // Install the "constructor" property on the {prototype}.
+    JSObject::AddProperty(prototype, factory->constructor_string(), symbol_fun,
+                          DONT_ENUM);
   }
 
   {  // --- D a t e ---
