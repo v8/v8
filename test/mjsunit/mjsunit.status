@@ -1088,6 +1088,7 @@
   'mul-exhaustive-part*': [SKIP],
   'regress/regress-1257': [SKIP],
   'regress/regress-165637': [SKIP],
+  'regress/regress-2249': [SKIP],
   'regress/regress-319722-ArrayBuffer': [SKIP],
   'regress/regress-411210': [SKIP],
   'regress/regress-91008': [SKIP],
