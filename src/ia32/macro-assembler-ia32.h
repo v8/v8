@@ -16,6 +16,7 @@ namespace internal {
 // Give alias names to registers for calling conventions.
 const Register kReturnRegister0 = {Register::kCode_eax};
 const Register kReturnRegister1 = {Register::kCode_edx};
+const Register kReturnRegister2 = {Register::kCode_edi};
 const Register kJSFunctionRegister = {Register::kCode_edi};
 const Register kContextRegister = {Register::kCode_esi};
 const Register kInterpreterAccumulatorRegister = {Register::kCode_eax};
@@ -225,7 +226,7 @@ class MacroAssembler: public Assembler {
   // arguments in register eax and sets up the number of arguments in
   // register edi and the pointer to the first argument in register
   // esi.
-  void EnterExitFrame(bool save_doubles);
+  void EnterExitFrame(int argc, bool save_doubles);
 
   void EnterApiExitFrame(int argc);
 

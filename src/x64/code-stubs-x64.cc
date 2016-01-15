@@ -2158,12 +2158,34 @@ void CEntryStub::Generate(MacroAssembler* masm) {
 
   ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
-  // Enter the exit frame that transitions from JavaScript to C++.
 #ifdef _WIN64
-  int arg_stack_space = (result_size() < 2 ? 2 : 4);
-#else   // _WIN64
-  int arg_stack_space = 0;
+  // Windows 64-bit ABI passes arguments in rcx, rdx, r8, r9. It requires the
+  // stack to be aligned to 16 bytes. It only allows a single-word to be
+  // returned in register rax. Larger return sizes must be written to an address
+  // passed as a hidden first argument.
+  const Register kCCallArg0 = rcx;
+  const Register kCCallArg1 = rdx;
+  const Register kCCallArg2 = r8;
+  const Register kCCallArg3 = r9;
+  const int kArgExtraStackSpace = 2;
+  const int kMaxRegisterResultSize = 1;
+#else
+  // GCC / Clang passes arguments in rdi, rsi, rdx, rcx, r8, r9. Simple results
+  // are returned in rax, and a struct of two pointers are returned in rax+rdx.
+  // Larger return sizes must be written to an address passed as a hidden first
+  // argument.
+  const Register kCCallArg0 = rdi;
+  const Register kCCallArg1 = rsi;
+  const Register kCCallArg2 = rdx;
+  const Register kCCallArg3 = rcx;
+  const int kArgExtraStackSpace = 0;
+  const int kMaxRegisterResultSize = 2;
 #endif  // _WIN64
+
+  // Enter the exit frame that transitions from JavaScript to C++.
+  int arg_stack_space =
+      kArgExtraStackSpace +
+      (result_size() <= kMaxRegisterResultSize ? 0 : result_size());
   if (argv_in_register()) {
     DCHECK(!save_doubles());
     __ EnterApiExitFrame(arg_stack_space);
@@ -2179,56 +2201,41 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // r14: number of arguments including receiver (C callee-saved).
   // r15: argv pointer (C callee-saved).
 
-  // Simple results returned in rax (both AMD64 and Win64 calling conventions).
-  // Complex results must be written to address passed as first argument.
-  // AMD64 calling convention: a struct of two pointers in rax+rdx
-
   // Check stack alignment.
   if (FLAG_debug_code) {
     __ CheckStackAlignment();
   }
 
-  // Call C function.
-#ifdef _WIN64
-  // Windows 64-bit ABI passes arguments in rcx, rdx, r8, r9.
-  // Pass argv and argc as two parameters. The arguments object will
-  // be created by stubs declared by DECLARE_RUNTIME_FUNCTION().
-  if (result_size() < 2) {
+  // Call C function. The arguments object will be created by stubs declared by
+  // DECLARE_RUNTIME_FUNCTION().
+  if (result_size() <= kMaxRegisterResultSize) {
     // Pass a pointer to the Arguments object as the first argument.
-    // Return result in single register (rax).
-    __ movp(rcx, r14);  // argc.
-    __ movp(rdx, r15);  // argv.
-    __ Move(r8, ExternalReference::isolate_address(isolate()));
+    // Return result in single register (rax), or a register pair (rax, rdx).
+    __ movp(kCCallArg0, r14);  // argc.
+    __ movp(kCCallArg1, r15);  // argv.
+    __ Move(kCCallArg2, ExternalReference::isolate_address(isolate()));
   } else {
-    DCHECK_EQ(2, result_size());
+    DCHECK_LE(result_size(), 3);
     // Pass a pointer to the result location as the first argument.
-    __ leap(rcx, StackSpaceOperand(2));
+    __ leap(kCCallArg0, StackSpaceOperand(kArgExtraStackSpace));
     // Pass a pointer to the Arguments object as the second argument.
-    __ movp(rdx, r14);  // argc.
-    __ movp(r8, r15);   // argv.
-    __ Move(r9, ExternalReference::isolate_address(isolate()));
+    __ movp(kCCallArg1, r14);  // argc.
+    __ movp(kCCallArg2, r15);  // argv.
+    __ Move(kCCallArg3, ExternalReference::isolate_address(isolate()));
   }
-
-#else  // _WIN64
-  // GCC passes arguments in rdi, rsi, rdx, rcx, r8, r9.
-  __ movp(rdi, r14);  // argc.
-  __ movp(rsi, r15);  // argv.
-  __ Move(rdx, ExternalReference::isolate_address(isolate()));
-#endif  // _WIN64
   __ call(rbx);
-  // Result is in rax - do not destroy this register!
 
-#ifdef _WIN64
-  // If return value is on the stack, pop it to registers.
-  if (result_size() > 1) {
-    DCHECK_EQ(2, result_size());
+  if (result_size() > kMaxRegisterResultSize) {
     // Read result values stored on stack. Result is stored
-    // above the four argument mirror slots and the two
-    // Arguments object slots.
-    __ movq(rax, Operand(rsp, 6 * kRegisterSize));
-    __ movq(rdx, Operand(rsp, 7 * kRegisterSize));
+    // above the the two Arguments object slots on Win64.
+    DCHECK_LE(result_size(), 3);
+    __ movq(kReturnRegister0, StackSpaceOperand(kArgExtraStackSpace + 0));
+    __ movq(kReturnRegister1, StackSpaceOperand(kArgExtraStackSpace + 1));
+    if (result_size() > 2) {
+      __ movq(kReturnRegister2, StackSpaceOperand(kArgExtraStackSpace + 2));
+    }
   }
-#endif  // _WIN64
+  // Result is in rax, rdx:rax or r8:rdx:rax - do not destroy these registers!
 
   // Check result for exception sentinel.
   Label exception_returned;

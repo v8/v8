@@ -5,10 +5,56 @@
 #include "src/runtime/runtime-utils.h"
 
 #include "src/arguments.h"
+#include "src/factory.h"
+#include "src/isolate-inl.h"
 #include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
+
+RUNTIME_FUNCTION_RETURN_TRIPLE(Runtime_ForInPrepare) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+
+  if (!args[0]->IsJSReceiver()) {
+    return MakeTriple(isolate->ThrowIllegalOperation(), nullptr, nullptr);
+  }
+  Handle<JSReceiver> receiver = args.at<JSReceiver>(0);
+
+  Object* property_names = Runtime_GetPropertyNamesFast(
+      1, Handle<Object>::cast(receiver).location(), isolate);
+  if (isolate->has_pending_exception()) {
+    return MakeTriple(property_names, nullptr, nullptr);
+  }
+
+  Handle<Object> cache_type(property_names, isolate);
+  Handle<FixedArray> cache_array;
+  int cache_length;
+
+  Handle<Map> receiver_map = handle(receiver->map(), isolate);
+  if (cache_type->IsMap()) {
+    Handle<Map> cache_type_map =
+        handle(Handle<Map>::cast(cache_type)->map(), isolate);
+    DCHECK(cache_type_map.is_identical_to(isolate->factory()->meta_map()));
+    int enum_length = cache_type_map->EnumLength();
+    DescriptorArray* descriptors = receiver_map->instance_descriptors();
+    if (enum_length > 0 && descriptors->HasEnumCache()) {
+      cache_array = handle(descriptors->GetEnumCache(), isolate);
+      cache_length = cache_array->length();
+    } else {
+      cache_array = isolate->factory()->empty_fixed_array();
+      cache_length = 0;
+    }
+  } else {
+    cache_array = Handle<FixedArray>::cast(cache_type);
+    cache_length = cache_array->length();
+    // Cache type of SMI one entails slow check.
+    cache_type = Handle<Object>(Smi::FromInt(1), isolate);
+  }
+
+  return MakeTriple(*cache_type, *cache_array, Smi::FromInt(cache_length));
+}
+
 
 RUNTIME_FUNCTION(Runtime_ForInDone) {
   SealHandleScope scope(isolate);

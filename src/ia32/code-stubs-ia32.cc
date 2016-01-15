@@ -2303,16 +2303,22 @@ void CEntryStub::Generate(MacroAssembler* masm) {
 
   ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
+  // Reserve space on the stack for the three arguments passed to the call. If
+  // result size is greater than can be returned in registers, also reserve
+  // space for the hidden argument for the result location, and space for the
+  // result itself.
+  int arg_stack_space = result_size() < 3 ? 3 : 4 + result_size();
+
   // Enter the exit frame that transitions from JavaScript to C++.
   if (argv_in_register()) {
     DCHECK(!save_doubles());
-    __ EnterApiExitFrame(3);
+    __ EnterApiExitFrame(arg_stack_space);
 
     // Move argc and argv into the correct registers.
     __ mov(esi, ecx);
     __ mov(edi, eax);
   } else {
-    __ EnterExitFrame(save_doubles());
+    __ EnterExitFrame(arg_stack_space, save_doubles());
   }
 
   // ebx: pointer to C function  (C callee-saved)
@@ -2327,14 +2333,36 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   if (FLAG_debug_code) {
     __ CheckStackAlignment();
   }
-
   // Call C function.
-  __ mov(Operand(esp, 0 * kPointerSize), edi);  // argc.
-  __ mov(Operand(esp, 1 * kPointerSize), esi);  // argv.
-  __ mov(Operand(esp, 2 * kPointerSize),
-         Immediate(ExternalReference::isolate_address(isolate())));
+  if (result_size() <= 2) {
+    __ mov(Operand(esp, 0 * kPointerSize), edi);  // argc.
+    __ mov(Operand(esp, 1 * kPointerSize), esi);  // argv.
+    __ mov(Operand(esp, 2 * kPointerSize),
+           Immediate(ExternalReference::isolate_address(isolate())));
+  } else {
+    DCHECK_EQ(3, result_size());
+    // Pass a pointer to the result location as the first argument.
+    __ lea(eax, Operand(esp, 4 * kPointerSize));
+    __ mov(Operand(esp, 0 * kPointerSize), eax);
+    __ mov(Operand(esp, 1 * kPointerSize), edi);  // argc.
+    __ mov(Operand(esp, 2 * kPointerSize), esi);  // argv.
+    __ mov(Operand(esp, 3 * kPointerSize),
+           Immediate(ExternalReference::isolate_address(isolate())));
+  }
   __ call(ebx);
-  // Result is in eax or edx:eax - do not destroy these registers!
+
+  if (result_size() > 2) {
+    DCHECK_EQ(3, result_size());
+#ifndef _WIN32
+    // Restore the "hidden" argument on the stack which was popped by caller.
+    __ sub(esp, Immediate(kPointerSize));
+#endif
+    // Read result values stored on stack. Result is stored above the arguments.
+    __ mov(kReturnRegister0, Operand(esp, 4 * kPointerSize));
+    __ mov(kReturnRegister1, Operand(esp, 5 * kPointerSize));
+    __ mov(kReturnRegister2, Operand(esp, 6 * kPointerSize));
+  }
+  // Result is in eax, edx:eax or edi:edx:eax - do not destroy these registers!
 
   // Check result for exception sentinel.
   Label exception_returned;

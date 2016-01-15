@@ -999,11 +999,9 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // r1: pointer to the first argument (C callee-saved)
   // r5: pointer to builtin function  (C callee-saved)
 
-  // Result returned in r0 or r0+r1 by default.
-
-#if V8_HOST_ARCH_ARM
   int frame_alignment = MacroAssembler::ActivationFrameAlignment();
   int frame_alignment_mask = frame_alignment - 1;
+#if V8_HOST_ARCH_ARM
   if (FLAG_debug_code) {
     if (frame_alignment > kPointerSize) {
       Label alignment_as_expected;
@@ -1018,8 +1016,25 @@ void CEntryStub::Generate(MacroAssembler* masm) {
 #endif
 
   // Call C built-in.
-  // r0 = argc, r1 = argv
-  __ mov(r2, Operand(ExternalReference::isolate_address(isolate())));
+  int result_stack_size;
+  if (result_size() <= 2) {
+    // r0 = argc, r1 = argv, r2 = isolate
+    __ mov(r2, Operand(ExternalReference::isolate_address(isolate())));
+    result_stack_size = 0;
+  } else {
+    DCHECK_EQ(3, result_size());
+    // Allocate additional space for the result.
+    result_stack_size =
+        ((result_size() * kPointerSize) + frame_alignment_mask) &
+        ~frame_alignment_mask;
+    __ sub(sp, sp, Operand(result_stack_size));
+
+    // r0 = hidden result argument, r1 = argc, r2 = argv, r3 = isolate.
+    __ mov(r3, Operand(ExternalReference::isolate_address(isolate())));
+    __ mov(r2, Operand(r1));
+    __ mov(r1, Operand(r0));
+    __ mov(r0, Operand(sp));
+  }
 
   // To let the GC traverse the return address of the exit frames, we need to
   // know where the return address is. The CEntryStub is unmovable, so
@@ -1032,11 +1047,19 @@ void CEntryStub::Generate(MacroAssembler* masm) {
     // Prevent literal pool emission before return address.
     Assembler::BlockConstPoolScope block_const_pool(masm);
     __ add(lr, pc, Operand(4));
-    __ str(lr, MemOperand(sp, 0));
+    __ str(lr, MemOperand(sp, result_stack_size));
     __ Call(r5);
   }
+  if (result_size() > 2) {
+    DCHECK_EQ(3, result_size());
+    // Read result values stored on stack.
+    __ ldr(r2, MemOperand(r0, 2 * kPointerSize));
+    __ ldr(r1, MemOperand(r0, 1 * kPointerSize));
+    __ ldr(r0, MemOperand(r0, 0 * kPointerSize));
+  }
+  // Result returned in r0, r1:r0 or r2:r1:r0 - do not destroy these registers!
 
-  __ VFPEnsureFPSCRState(r2);
+  __ VFPEnsureFPSCRState(r3);
 
   // Check result for exception sentinel.
   Label exception_returned;
@@ -1049,9 +1072,9 @@ void CEntryStub::Generate(MacroAssembler* masm) {
     Label okay;
     ExternalReference pending_exception_address(
         Isolate::kPendingExceptionAddress, isolate());
-    __ mov(r2, Operand(pending_exception_address));
-    __ ldr(r2, MemOperand(r2));
-    __ CompareRoot(r2, Heap::kTheHoleValueRootIndex);
+    __ mov(r3, Operand(pending_exception_address));
+    __ ldr(r3, MemOperand(r3));
+    __ CompareRoot(r3, Heap::kTheHoleValueRootIndex);
     // Cannot use check here as it attempts to generate call into runtime.
     __ b(eq, &okay);
     __ stop("Unexpected pending exception");

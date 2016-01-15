@@ -1024,12 +1024,14 @@ ExternalReference::ExternalReference(Builtins::Name name, Isolate* isolate)
 
 
 ExternalReference::ExternalReference(Runtime::FunctionId id, Isolate* isolate)
-    : address_(Redirect(isolate, Runtime::FunctionForId(id)->entry)) {}
+    : ExternalReference(Runtime::FunctionForId(id), isolate) {}
 
 
 ExternalReference::ExternalReference(const Runtime::Function* f,
                                      Isolate* isolate)
-    : address_(Redirect(isolate, f->entry)) {}
+    : address_(Redirect(isolate, f->entry, f->result_size == 3
+                                               ? BUILTIN_CALL_TRIPLE
+                                               : BUILTIN_CALL)) {}
 
 
 ExternalReference ExternalReference::isolate_address(Isolate* isolate) {

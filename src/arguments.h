@@ -285,6 +285,8 @@ static Type __RT_impl_##Name(Arguments args, Isolate* isolate)
 #define RUNTIME_FUNCTION(Name) RUNTIME_FUNCTION_RETURNS_TYPE(Object*, Name)
 #define RUNTIME_FUNCTION_RETURN_PAIR(Name) \
     RUNTIME_FUNCTION_RETURNS_TYPE(ObjectPair, Name)
+#define RUNTIME_FUNCTION_RETURN_TRIPLE(Name) \
+    RUNTIME_FUNCTION_RETURNS_TYPE(ObjectTriple, Name)
 
 }  // namespace internal
 }  // namespace v8

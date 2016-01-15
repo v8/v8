@@ -1716,14 +1716,16 @@ void Interpreter::DoReturn(compiler::InterpreterAssembler* assembler) {
 // |cache_length| represent output parameters.
 void Interpreter::DoForInPrepare(compiler::InterpreterAssembler* assembler) {
   Node* object = __ GetAccumulator();
-  Node* result = __ CallRuntime(Runtime::kInterpreterForInPrepare, object);
+  Node* result_triple = __ CallRuntime(Runtime::kForInPrepare, object);
+
+  // Set output registers:
+  //   0 == cache_type, 1 == cache_array, 2 == cache_length
   for (int i = 0; i < 3; i++) {
-    // 0 == cache_type, 1 == cache_array, 2 == cache_length
-    Node* cache_info = __ LoadFixedArrayElement(result, i);
+    Node* cache_info = __ Projection(i, result_triple);
     Node* cache_info_reg = __ BytecodeOperandReg(i);
     __ StoreRegister(cache_info, cache_info_reg);
   }
-  __ SetAccumulator(result);
+
   __ Dispatch();
 }
 

@@ -1092,14 +1092,34 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // a0 = argc
   __ mov(s0, a0);
   __ mov(s2, a1);
-  // a1 = argv (set in the delay slot after find_ra below).
 
   // We are calling compiled C/C++ code. a0 and a1 hold our two arguments. We
   // also need to reserve the 4 argument slots on the stack.
 
   __ AssertStackIsAligned();
 
-  __ li(a2, Operand(ExternalReference::isolate_address(isolate())));
+  int frame_alignment = MacroAssembler::ActivationFrameAlignment();
+  int frame_alignment_mask = frame_alignment - 1;
+  int result_stack_size;
+  if (result_size() <= 2) {
+    // a0 = argc, a1 = argv, a2 = isolate
+    __ li(a2, Operand(ExternalReference::isolate_address(isolate())));
+    __ mov(a1, s1);
+    result_stack_size = 0;
+  } else {
+    DCHECK_EQ(3, result_size());
+    // Allocate additional space for the result.
+    result_stack_size =
+        ((result_size() * kPointerSize) + frame_alignment_mask) &
+        ~frame_alignment_mask;
+    __ Subu(sp, sp, Operand(result_stack_size));
+
+    // a0 = hidden result argument, a1 = argc, a2 = argv, a3 = isolate.
+    __ li(a3, Operand(ExternalReference::isolate_address(isolate())));
+    __ mov(a2, s1);
+    __ mov(a1, a0);
+    __ mov(a0, sp);
+  }
 
   // To let the GC traverse the return address of the exit frames, we need to
   // know where the return address is. The CEntryStub is unmovable, so
@@ -1111,29 +1131,37 @@ void CEntryStub::Generate(MacroAssembler* masm) {
     // Use masm-> here instead of the double-underscore macro since extra
     // coverage code can interfere with the proper calculation of ra.
     Label find_ra;
-    masm->bal(&find_ra);  // bal exposes branch delay slot.
-    masm->mov(a1, s1);
-    masm->bind(&find_ra);
+    __ bal(&find_ra);  // bal exposes branch delay slot.
+    __ nop();
+    __ bind(&find_ra);
 
     // Adjust the value in ra to point to the correct return location, 2nd
     // instruction past the real call into C code (the jalr(t9)), and push it.
     // This is the return address of the exit frame.
     const int kNumInstructionsToJump = 5;
-    masm->Addu(ra, ra, kNumInstructionsToJump * kPointerSize);
-    masm->sw(ra, MemOperand(sp));  // This spot was reserved in EnterExitFrame.
+    __ Addu(ra, ra, kNumInstructionsToJump * kPointerSize);
+    // This spot was reserved in EnterExitFrame.
+    __ sw(ra, MemOperand(sp, result_stack_size));
     // Stack space reservation moved to the branch delay slot below.
     // Stack is still aligned.
 
     // Call the C routine.
-    masm->mov(t9, s2);  // Function pointer to t9 to conform to ABI for PIC.
-    masm->jalr(t9);
+    __ mov(t9, s2);  // Function pointer to t9 to conform to ABI for PIC.
+    __ jalr(t9);
     // Set up sp in the delay slot.
-    masm->addiu(sp, sp, -kCArgsSlotsSize);
+    __ addiu(sp, sp, -kCArgsSlotsSize);
     // Make sure the stored 'ra' points to this position.
     DCHECK_EQ(kNumInstructionsToJump,
               masm->InstructionsGeneratedSince(&find_ra));
   }
-
+  if (result_size() > 2) {
+    DCHECK_EQ(3, result_size());
+    // Read result values stored on stack.
+    __ lw(a0, MemOperand(v0, 2 * kPointerSize));
+    __ lw(v1, MemOperand(v0, 1 * kPointerSize));
+    __ lw(v0, MemOperand(v0, 0 * kPointerSize));
+  }
+  // Result returned in v0, v1:v0 or a0:v1:v0 - do not destroy these registers!
 
   // Check result for exception sentinel.
   Label exception_returned;

@@ -147,56 +147,5 @@ RUNTIME_FUNCTION(Runtime_InterpreterNewClosure) {
       shared, context, static_cast<PretenureFlag>(pretenured_flag));
 }
 
-
-RUNTIME_FUNCTION(Runtime_InterpreterForInPrepare) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
-
-  Object* property_names = Runtime_GetPropertyNamesFast(
-      1, Handle<Object>::cast(receiver).location(), isolate);
-  if (isolate->has_pending_exception()) {
-    return property_names;
-  }
-
-  Handle<Object> cache_type(property_names, isolate);
-  Handle<FixedArray> cache_array;
-  int cache_length;
-
-  Handle<Map> receiver_map = handle(receiver->map(), isolate);
-  if (cache_type->IsMap()) {
-    Handle<Map> cache_type_map =
-        handle(Handle<Map>::cast(cache_type)->map(), isolate);
-    DCHECK(cache_type_map.is_identical_to(isolate->factory()->meta_map()));
-    int enum_length = cache_type_map->EnumLength();
-    DescriptorArray* descriptors = receiver_map->instance_descriptors();
-    if (enum_length > 0 && descriptors->HasEnumCache()) {
-      cache_array = handle(descriptors->GetEnumCache(), isolate);
-      cache_length = cache_array->length();
-    } else {
-      cache_array = isolate->factory()->empty_fixed_array();
-      cache_length = 0;
-    }
-  } else {
-    cache_array = Handle<FixedArray>::cast(cache_type);
-    cache_length = cache_array->length();
-
-    STATIC_ASSERT(JS_PROXY_TYPE == FIRST_JS_RECEIVER_TYPE);
-    if (receiver_map->instance_type() == JS_PROXY_TYPE) {
-      // Zero indicates proxy
-      cache_type = Handle<Object>(Smi::FromInt(0), isolate);
-    } else {
-      // One entails slow check
-      cache_type = Handle<Object>(Smi::FromInt(1), isolate);
-    }
-  }
-
-  Handle<FixedArray> result = isolate->factory()->NewFixedArray(3);
-  result->set(0, *cache_type);
-  result->set(1, *cache_array);
-  result->set(2, Smi::FromInt(cache_length));
-  return *result;
-}
-
 }  // namespace internal
 }  // namespace v8

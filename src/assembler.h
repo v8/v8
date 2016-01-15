@@ -814,8 +814,13 @@ class ExternalReference BASE_EMBEDDED {
   // Used in the simulator to support different native api calls.
   enum Type {
     // Builtin call.
-    // Object* f(v8::internal::Arguments).
+    // Object* f(v8::internal::Arguments) or
+    // ObjectPair f(v8::internal::Arguments).
     BUILTIN_CALL,  // default
+
+    // Builtin call that returns .
+    // ObjectTriple f(v8::internal::Arguments).
+    BUILTIN_CALL_TRIPLE,
 
     // Builtin that takes float arguments and returns an int.
     // int f(double, double).

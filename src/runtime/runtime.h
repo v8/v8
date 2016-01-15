@@ -220,8 +220,7 @@ namespace internal {
   F(InterpreterToBoolean, 1, 1)           \
   F(InterpreterLogicalNot, 1, 1)          \
   F(InterpreterTypeOf, 1, 1)              \
-  F(InterpreterNewClosure, 2, 1)          \
-  F(InterpreterForInPrepare, 1, 1)
+  F(InterpreterNewClosure, 2, 1)
 
 
 #define FOR_EACH_INTRINSIC_FUNCTION(F)     \
@@ -1009,6 +1008,8 @@ namespace internal {
   F(LoadLookupSlot, 2, 2)                 \
   F(LoadLookupSlotNoReferenceError, 2, 2)
 
+#define FOR_EACH_INTRINSIC_RETURN_TRIPLE(F) \
+  F(ForInPrepare, 1, 3)
 
 // Most intrinsics are implemented in the runtime/ directory, but ICs are
 // implemented in ic.cc for now.
@@ -1074,8 +1075,9 @@ namespace internal {
 
 // FOR_EACH_INTRINSIC defines the list of all intrinsics, coming in 2 flavors,
 // either returning an object or a pair.
-#define FOR_EACH_INTRINSIC(F)       \
-  FOR_EACH_INTRINSIC_RETURN_PAIR(F) \
+#define FOR_EACH_INTRINSIC(F)         \
+  FOR_EACH_INTRINSIC_RETURN_TRIPLE(F) \
+  FOR_EACH_INTRINSIC_RETURN_PAIR(F)   \
   FOR_EACH_INTRINSIC_RETURN_OBJECT(F)
 
 

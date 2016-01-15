@@ -18,6 +18,7 @@ namespace internal {
 // Give alias names to registers for calling conventions.
 const Register kReturnRegister0 = {Register::kCode_rax};
 const Register kReturnRegister1 = {Register::kCode_rdx};
+const Register kReturnRegister2 = {Register::kCode_r8};
 const Register kJSFunctionRegister = {Register::kCode_rdi};
 const Register kContextRegister = {Register::kCode_rsi};
 const Register kInterpreterAccumulatorRegister = {Register::kCode_rax};

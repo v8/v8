@@ -37,6 +37,7 @@ namespace internal {
 // TODO(titzer): arm64 is a pain for aliasing; get rid of these macros
 #define kReturnRegister0 x0
 #define kReturnRegister1 x1
+#define kReturnRegister2 x2
 #define kJSFunctionRegister x1
 #define kContextRegister cp
 #define kInterpreterAccumulatorRegister x0

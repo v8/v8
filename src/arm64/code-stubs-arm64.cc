@@ -1104,16 +1104,24 @@ void CEntryStub::Generate(MacroAssembler* masm) {
     __ Sub(temp_argv, temp_argv, 1 * kPointerSize);
   }
 
-  // Enter the exit frame. Reserve three slots to preserve x21-x23 callee-saved
-  // registers.
+  // Reserve three slots to preserve x21-x23 callee-saved registers. If the
+  // result size is too large to be returned in registers then also reserve
+  // space for the return value.
+  int extra_stack_space = 3 + (result_size() <= 2 ? 0 : result_size());
+  // Enter the exit frame.
   FrameScope scope(masm, StackFrame::MANUAL);
-  __ EnterExitFrame(save_doubles(), x10, 3);
+  __ EnterExitFrame(save_doubles(), x10, extra_stack_space);
   DCHECK(csp.Is(__ StackPointer()));
 
   // Poke callee-saved registers into reserved space.
   __ Poke(argv, 1 * kPointerSize);
   __ Poke(argc, 2 * kPointerSize);
   __ Poke(target, 3 * kPointerSize);
+
+  if (result_size() > 2) {
+    // Save the location of the return value into x8 for call.
+    __ Add(x8, __ StackPointer(), Operand(4 * kPointerSize));
+  }
 
   // We normally only keep tagged values in callee-saved registers, as they
   // could be pushed onto the stack by called stubs and functions, and on the
@@ -1184,7 +1192,18 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ Blr(target);
   __ Bind(&return_location);
 
-  //  x0    result      The return code from the call.
+  if (result_size() > 2) {
+    DCHECK_EQ(3, result_size());
+    // Read result values stored on stack.
+    __ Ldr(x0, MemOperand(__ StackPointer(), 4 * kPointerSize));
+    __ Ldr(x1, MemOperand(__ StackPointer(), 5 * kPointerSize));
+    __ Ldr(x2, MemOperand(__ StackPointer(), 6 * kPointerSize));
+  }
+  // Result returned in x0, x1:x0 or x2:x1:x0 - do not destroy these registers!
+
+  //  x0    result0      The return code from the call.
+  //  x1    result1      For calls which return ObjectPair or ObjectTriple.
+  //  x2    result2      For calls which return ObjectTriple.
   //  x21   argv
   //  x22   argc
   //  x23   target

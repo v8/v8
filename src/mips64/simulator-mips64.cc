@@ -16,6 +16,7 @@
 #include "src/mips64/constants-mips64.h"
 #include "src/mips64/simulator-mips64.h"
 #include "src/ostreams.h"
+#include "src/runtime/runtime-utils.h"
 
 // Only build the simulator if not compiling for real MIPS hardware.
 #if defined(USE_SIMULATOR)
@@ -1964,11 +1965,6 @@ void Simulator::Format(Instruction* instr, const char* format) {
 // 64 bits of result. If they don't, the v1 result register contains a bogus
 // value, which is fine because it is caller-saved.
 
-struct ObjectPair {
-  Object* x;
-  Object* y;
-};
-
 typedef ObjectPair (*SimulatorRuntimeCall)(int64_t arg0,
                                         int64_t arg1,
                                         int64_t arg2,
@@ -1976,6 +1972,9 @@ typedef ObjectPair (*SimulatorRuntimeCall)(int64_t arg0,
                                         int64_t arg4,
                                         int64_t arg5);
 
+typedef ObjectTriple (*SimulatorRuntimeTripleCall)(int64_t arg0, int64_t arg1,
+                                                   int64_t arg2, int64_t arg3,
+                                                   int64_t arg4);
 
 // These prototypes handle the four types of FP calls.
 typedef int64_t (*SimulatorRuntimeCompareCall)(double darg0, double darg1);
@@ -2175,6 +2174,27 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
       SimulatorRuntimeProfilingGetterCall target =
           reinterpret_cast<SimulatorRuntimeProfilingGetterCall>(external);
       target(arg0, arg1, Redirection::ReverseRedirection(arg2));
+    } else if (redirection->type() == ExternalReference::BUILTIN_CALL_TRIPLE) {
+      // builtin call returning ObjectTriple.
+      SimulatorRuntimeTripleCall target =
+          reinterpret_cast<SimulatorRuntimeTripleCall>(external);
+      if (::v8::internal::FLAG_trace_sim) {
+        PrintF(
+            "Call to host triple returning runtime function %p "
+            "args %016" PRIx64 ", %016" PRIx64 ", %016" PRIx64 ", %016" PRIx64
+            ", %016" PRIx64 "\n",
+            FUNCTION_ADDR(target), arg1, arg2, arg3, arg4, arg5);
+      }
+      // arg0 is a hidden argument pointing to the return location, so don't
+      // pass it to the target function.
+      ObjectTriple result = target(arg1, arg2, arg3, arg4, arg5);
+      if (::v8::internal::FLAG_trace_sim) {
+        PrintF("Returned { %p, %p, %p }\n", result.x, result.y, result.z);
+      }
+      // Return is passed back in address pointed to by hidden first argument.
+      ObjectTriple* sim_result = reinterpret_cast<ObjectTriple*>(arg0);
+      *sim_result = result;
+      set_register(v0, arg0);
     } else {
       SimulatorRuntimeCall target =
                   reinterpret_cast<SimulatorRuntimeCall>(external);
