@@ -1275,6 +1275,7 @@ Statement* Parser::ParseStatementListItem(bool* ok) {
         scope_->set_class_declaration_group_start(
             scanner()->peek_location().beg_pos);
       }
+      Consume(Token::CLASS);
       return ParseClassDeclaration(NULL, ok);
     case Token::CONST:
       if (allow_const()) {
@@ -1559,17 +1560,47 @@ Statement* Parser::ParseExportDefault(bool* ok) {
   Expect(Token::DEFAULT, CHECK_OK);
   Scanner::Location default_loc = scanner()->location();
 
+  const AstRawString* default_string = ast_value_factory()->default_string();
   ZoneList<const AstRawString*> names(1, zone());
-  Statement* result = NULL;
+  Statement* result = nullptr;
+  Expression* default_export = nullptr;
   switch (peek()) {
-    case Token::FUNCTION:
-      // TODO(ES6): Support parsing anonymous function declarations here.
-      result = ParseFunctionDeclaration(&names, CHECK_OK);
+    case Token::FUNCTION: {
+      Consume(Token::FUNCTION);
+      int pos = position();
+      bool is_generator = Check(Token::MUL);
+      if (peek() == Token::LPAREN) {
+        // FunctionDeclaration[+Default] ::
+        //   'function' '(' FormalParameters ')' '{' FunctionBody '}'
+        //
+        // GeneratorDeclaration[+Default] ::
+        //   'function' '*' '(' FormalParameters ')' '{' FunctionBody '}'
+        default_export = ParseFunctionLiteral(
+            default_string, Scanner::Location::invalid(),
+            kSkipFunctionNameCheck,
+            is_generator ? FunctionKind::kGeneratorFunction
+                         : FunctionKind::kNormalFunction,
+            pos, FunctionLiteral::kDeclaration, FunctionLiteral::kNormalArity,
+            language_mode(), CHECK_OK);
+        result = factory()->NewEmptyStatement(RelocInfo::kNoPosition);
+      } else {
+        result = ParseFunctionDeclaration(pos, is_generator, &names, CHECK_OK);
+      }
       break;
+    }
 
     case Token::CLASS:
-      // TODO(ES6): Support parsing anonymous class declarations here.
-      result = ParseClassDeclaration(&names, CHECK_OK);
+      Consume(Token::CLASS);
+      if (peek() == Token::EXTENDS || peek() == Token::LBRACE) {
+        // ClassDeclaration[+Default] ::
+        //   'class' ('extends' LeftHandExpression)? '{' ClassBody '}'
+        default_export =
+            ParseClassLiteral(default_string, Scanner::Location::invalid(),
+                              false, position(), CHECK_OK);
+        result = factory()->NewEmptyStatement(RelocInfo::kNoPosition);
+      } else {
+        result = ParseClassDeclaration(&names, CHECK_OK);
+      }
       break;
 
     default: {
@@ -1584,19 +1615,18 @@ Statement* Parser::ParseExportDefault(bool* ok) {
     }
   }
 
-  const AstRawString* default_string = ast_value_factory()->default_string();
-
   DCHECK_LE(names.length(), 1);
   if (names.length() == 1) {
     scope_->module()->AddLocalExport(default_string, names.first(), zone(), ok);
     if (!*ok) {
       ParserTraits::ReportMessageAt(
           default_loc, MessageTemplate::kDuplicateExport, default_string);
-      return NULL;
+      return nullptr;
     }
   } else {
     // TODO(ES6): Assign result to a const binding with the name "*default*"
     // and add an export entry with "*default*" as the local name.
+    USE(default_export);
   }
 
   return result;
@@ -1687,6 +1717,7 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
       break;
 
     case Token::CLASS:
+      Consume(Token::CLASS);
       result = ParseClassDeclaration(&names, CHECK_OK);
       break;
 
@@ -2090,14 +2121,22 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
 
 Statement* Parser::ParseFunctionDeclaration(
     ZoneList<const AstRawString*>* names, bool* ok) {
-  // FunctionDeclaration ::
-  //   'function' Identifier '(' FormalParameterListopt ')' '{' FunctionBody '}'
-  // GeneratorDeclaration ::
-  //   'function' '*' Identifier '(' FormalParameterListopt ')'
-  //      '{' FunctionBody '}'
   Expect(Token::FUNCTION, CHECK_OK);
   int pos = position();
   bool is_generator = Check(Token::MUL);
+  return ParseFunctionDeclaration(pos, is_generator, names, ok);
+}
+
+
+Statement* Parser::ParseFunctionDeclaration(
+    int pos, bool is_generator, ZoneList<const AstRawString*>* names,
+    bool* ok) {
+  // FunctionDeclaration ::
+  //   'function' Identifier '(' FormalParameters ')' '{' FunctionBody '}'
+  // GeneratorDeclaration ::
+  //   'function' '*' Identifier '(' FormalParameters ')' '{' FunctionBody '}'
+  //
+  // 'function' and '*' (if present) have been consumed by the caller.
   bool is_strict_reserved = false;
   const AstRawString* name = ParseIdentifierOrStrictReservedWord(
       &is_strict_reserved, CHECK_OK);
@@ -2148,6 +2187,8 @@ Statement* Parser::ParseClassDeclaration(ZoneList<const AstRawString*>* names,
   // ClassDeclaration ::
   //   'class' Identifier ('extends' LeftHandExpression)? '{' ClassBody '}'
   //
+  // 'class' is expected to be consumed by the caller.
+  //
   // A ClassDeclaration
   //
   //   class C { ... }
@@ -2158,7 +2199,6 @@ Statement* Parser::ParseClassDeclaration(ZoneList<const AstRawString*>* names,
   //
   // so rewrite it as such.
 
-  Expect(Token::CLASS, CHECK_OK);
   if (!allow_harmony_sloppy() && is_sloppy(language_mode())) {
     ReportMessage(MessageTemplate::kSloppyLexical);
     *ok = false;

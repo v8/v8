@@ -5539,6 +5539,7 @@ TEST(ComputedPropertyNameShorthandError) {
 TEST(BasicImportExportParsing) {
   i::FLAG_harmony_modules = true;
 
+  // clang-format off
   const char* kSources[] = {
       "export let x = 0;",
       "export var y = 0;",
@@ -5550,7 +5551,11 @@ TEST(BasicImportExportParsing) {
       "var a, b, c; export { a, b as baz, c };",
       "var d, e; export { d as dreary, e, };",
       "export default function f() {}",
+      "export default function() {}",
+      "export default function*() {}",
       "export default class C {}",
+      "export default class {}"
+      "export default class extends C {}"
       "export default 42",
       "var x; export default x = 7",
       "export { Q } from 'somemodule.js';",
@@ -5577,6 +5582,7 @@ TEST(BasicImportExportParsing) {
       "import { static as s } from 'm.js';",
       "import { let as l } from 'm.js';",
   };
+  // clang-format on
 
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
@@ -5633,6 +5639,7 @@ TEST(BasicImportExportParsing) {
 TEST(ImportExportParsingErrors) {
   i::FLAG_harmony_modules = true;
 
+  // clang-format off
   const char* kErrorSources[] = {
       "export {",
       "var a; export { a",
@@ -5661,6 +5668,10 @@ TEST(ImportExportParsingErrors) {
       "var a, b; export { a as c, b as c };",
       "export default function f(){}; export default class C {};",
       "export default function f(){}; var a; export { a as default };",
+      "export function() {}",
+      "export function*() {}",
+      "export class {}",
+      "export class extends C {}",
 
       "import from;",
       "import from 'm.js';",
@@ -5689,11 +5700,8 @@ TEST(ImportExportParsingErrors) {
       "import * as x, * as y from 'm.js';",
       "import {x}, {y} from 'm.js';",
       "import * as x, {y} from 'm.js';",
-
-      // TODO(ES6): These two forms should be supported
-      "export default function() {};",
-      "export default class {};"
   };
+  // clang-format on
 
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();

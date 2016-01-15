@@ -744,6 +744,9 @@ class Parser : public ParserBase<ParserTraits> {
                                    bool* ok);
   Statement* ParseFunctionDeclaration(ZoneList<const AstRawString*>* names,
                                       bool* ok);
+  Statement* ParseFunctionDeclaration(int pos, bool is_generator,
+                                      ZoneList<const AstRawString*>* names,
+                                      bool* ok);
   Statement* ParseClassDeclaration(ZoneList<const AstRawString*>* names,
                                    bool* ok);
   Statement* ParseNativeDeclaration(bool* ok);
