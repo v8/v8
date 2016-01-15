@@ -584,6 +584,7 @@
 ['ignition == True and arch == arm64', {
   'test-js-arm64-variables/lookup_slots': [SKIP],
   'test-spaces/SizeOfFirstPageIsLargeEnough': [SKIP],
+  'test-heap/Regress538257': [SKIP],
 }],  # ignition == True and arch == arm64
 
 ]
