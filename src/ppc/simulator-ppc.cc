@@ -1235,9 +1235,9 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
       const int kArgCount = 6;
       int arg0_regnum = 3;
       intptr_t result_buffer = 0;
-      if (redirection->type() == ExternalReference::BUILTIN_CALL_TRIPLE ||
-          (redirection->type() == ExternalReference::BUILTIN_CALL_PAIR &&
-           !ABI_RETURNS_OBJECT_PAIRS_IN_REGS)) {
+      bool uses_result_buffer =
+          redirection->type() == ExternalReference::BUILTIN_CALL_TRIPLE;
+      if (uses_result_buffer) {
         result_buffer = get_register(r3);
         arg0_regnum++;
       }
