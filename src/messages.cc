@@ -223,9 +223,12 @@ bool CheckMethodName(Isolate* isolate, Handle<JSObject> obj, Handle<Name> name,
 
 
 Handle<Object> CallSite::GetMethodName() {
-  MaybeHandle<JSReceiver> maybe = Object::ToObject(isolate_, receiver_);
-  Handle<JSReceiver> receiver;
-  if (!maybe.ToHandle(&receiver) || !receiver->IsJSObject()) {
+  if (receiver_->IsNull() || receiver_->IsUndefined()) {
+    return isolate_->factory()->null_value();
+  }
+  Handle<JSReceiver> receiver =
+      Object::ToObject(isolate_, receiver_).ToHandleChecked();
+  if (!receiver->IsJSObject()) {
     return isolate_->factory()->null_value();
   }
 

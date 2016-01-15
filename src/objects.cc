@@ -98,7 +98,9 @@ MaybeHandle<JSReceiver> Object::ToObject(Isolate* isolate,
     int constructor_function_index =
         Handle<HeapObject>::cast(object)->map()->GetConstructorFunctionIndex();
     if (constructor_function_index == Map::kNoConstructorFunctionIndex) {
-      return MaybeHandle<JSReceiver>();
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError(MessageTemplate::kUndefinedOrNullToObject),
+                      JSReceiver);
     }
     constructor = handle(
         JSFunction::cast(native_context->get(constructor_function_index)),
@@ -16553,8 +16555,8 @@ MaybeHandle<String> Object::ObjectProtoToString(Isolate* isolate,
   if (object->IsUndefined()) return isolate->factory()->undefined_to_string();
   if (object->IsNull()) return isolate->factory()->null_to_string();
 
-  Handle<JSReceiver> receiver;
-  CHECK(Object::ToObject(isolate, object).ToHandle(&receiver));
+  Handle<JSReceiver> receiver =
+      Object::ToObject(isolate, object).ToHandleChecked();
 
   Handle<String> tag;
   if (FLAG_harmony_tostring) {

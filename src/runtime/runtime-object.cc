@@ -274,7 +274,7 @@ RUNTIME_FUNCTION(Runtime_GetOwnProperty) {
   CONVERT_ARG_HANDLE_CHECKED(Object, raw_name, 1);
   // 1. Let obj be ? ToObject(O).
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, object,
-                                     Execution::ToObject(isolate, object));
+                                     Object::ToObject(isolate, object));
   // 2. Let key be ? ToPropertyKey(P).
   Handle<Name> key;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, key,
@@ -563,10 +563,8 @@ namespace {
 Object* DeleteProperty(Isolate* isolate, Handle<Object> object,
                        Handle<Object> key, LanguageMode language_mode) {
   Handle<JSReceiver> receiver;
-  if (!JSReceiver::ToObject(isolate, object).ToHandle(&receiver)) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kUndefinedOrNullToObject));
-  }
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, receiver,
+                                     Object::ToObject(isolate, object));
   Maybe<bool> result =
       Runtime::DeleteObjectProperty(isolate, receiver, key, language_mode);
   MAYBE_RETURN(result, isolate->heap()->exception());
@@ -1063,11 +1061,9 @@ RUNTIME_FUNCTION(Runtime_ToObject) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
   Handle<JSReceiver> receiver;
-  if (JSReceiver::ToObject(isolate, object).ToHandle(&receiver)) {
-    return *receiver;
-  }
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError(MessageTemplate::kUndefinedOrNullToObject));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, receiver,
+                                     Object::ToObject(isolate, object));
+  return *receiver;
 }
 
 

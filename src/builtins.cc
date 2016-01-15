@@ -1428,18 +1428,21 @@ MaybeHandle<JSArray> Fast_ArrayConcat(Isolate* isolate, Arguments* args) {
 
 }  // namespace
 
+
 // ES6 22.1.3.1 Array.prototype.concat
 BUILTIN(ArrayConcat) {
   HandleScope scope(isolate);
 
-  Handle<Object> receiver;
-  if (!Object::ToObject(isolate, handle(args[0], isolate))
-           .ToHandle(&receiver)) {
+  Handle<Object> receiver = args.receiver();
+  // TODO(bmeurer): Do we really care about the exact exception message here?
+  if (receiver->IsNull() || receiver->IsUndefined()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,
                               isolate->factory()->NewStringFromAsciiChecked(
                                   "Array.prototype.concat")));
   }
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, receiver, Object::ToObject(isolate, args.receiver()));
   args[0] = *receiver;
 
   Handle<JSArray> result_array;
@@ -1469,7 +1472,7 @@ BUILTIN(ObjectAssign) {
 
   // 1. Let to be ? ToObject(target).
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, target,
-                                     Execution::ToObject(isolate, target));
+                                     Object::ToObject(isolate, target));
   Handle<JSReceiver> to = Handle<JSReceiver>::cast(target);
   // 2. If only one argument was passed, return to.
   if (args.length() == 2) return *to;
@@ -1569,7 +1572,7 @@ BUILTIN(ObjectGetOwnPropertySymbols) {
   Handle<Object> object = args.atOrUndefined(isolate, 1);
   Handle<JSReceiver> receiver;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, receiver,
-                                     Execution::ToObject(isolate, object));
+                                     Object::ToObject(isolate, object));
   Handle<FixedArray> keys;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, keys, JSReceiver::GetKeys(receiver, JSReceiver::OWN_ONLY,
@@ -1623,7 +1626,7 @@ BUILTIN(ObjectKeys) {
   Handle<Object> object = args.atOrUndefined(isolate, 1);
   Handle<JSReceiver> receiver;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, receiver,
-                                     Execution::ToObject(isolate, object));
+                                     Object::ToObject(isolate, object));
   Handle<FixedArray> keys;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, keys,
