@@ -702,6 +702,12 @@ void Builtins::Generate_JSBuiltinsConstructStub(MacroAssembler* masm) {
 }
 
 
+void Builtins::Generate_JSBuiltinsConstructStubForDerived(
+    MacroAssembler* masm) {
+  Generate_JSConstructStubHelper(masm, false, false);
+}
+
+
 void Builtins::Generate_ConstructedNonConstructable(MacroAssembler* masm) {
   FrameScope scope(masm, StackFrame::INTERNAL);
   __ Push(a1);

@@ -148,7 +148,7 @@ static MaybeHandle<Object> DefineClass(Isolate* isolate, Handle<Object> name,
     // [[construct]]. Instead they just set up new.target and call into the
     // constructor. Hence we can reuse the builtins construct stub for derived
     // classes.
-    Handle<Code> stub(isolate->builtins()->JSBuiltinsConstructStub());
+    Handle<Code> stub(isolate->builtins()->JSBuiltinsConstructStubForDerived());
     constructor->shared()->set_construct_stub(*stub);
   }
 

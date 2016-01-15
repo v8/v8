@@ -2725,22 +2725,21 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
 
     if (IsSubclassConstructor(function_state_->kind())) {
       // For subclass constructors we need to return this in case of undefined
-      // and throw an exception in case of a non object.
+      // return a Smi (transformed into an exception in the ConstructStub)
+      // for a non object.
       //
       //   return expr;
       //
       // Is rewritten as:
       //
       //   return (temp = expr) === undefined ? this :
-      //       %_IsJSReceiver(temp) ? temp : throw new TypeError(...);
+      //       %_IsJSReceiver(temp) ? temp : 1;
+
+      // temp = expr
       Variable* temp = scope_->NewTemporary(
           ast_value_factory()->empty_string());
       Assignment* assign = factory()->NewAssignment(
           Token::ASSIGN, factory()->NewVariableProxy(temp), return_value, pos);
-
-      Expression* throw_expression =
-          NewThrowTypeError(MessageTemplate::kDerivedConstructorReturn,
-                            ast_value_factory()->empty_string(), pos);
 
       // %_IsJSReceiver(temp)
       ZoneList<Expression*>* is_spec_object_args =
@@ -2752,7 +2751,7 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
       // %_IsJSReceiver(temp) ? temp : throw_expression
       Expression* is_object_conditional = factory()->NewConditional(
           is_spec_object_call, factory()->NewVariableProxy(temp),
-          throw_expression, pos);
+          factory()->NewSmiLiteral(1, pos), pos);
 
       // temp === undefined
       Expression* is_undefined = factory()->NewCompareOperation(

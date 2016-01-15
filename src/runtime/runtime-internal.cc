@@ -448,6 +448,14 @@ RUNTIME_FUNCTION(Runtime_ThrowConstructedNonConstructable) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_ThrowDerivedConstructorReturnedNonObject) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kDerivedConstructorReturn));
+}
+
+
 // ES6 section 7.3.17 CreateListFromArrayLike (obj)
 RUNTIME_FUNCTION(Runtime_CreateListFromArrayLike) {
   HandleScope scope(isolate);

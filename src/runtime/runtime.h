@@ -292,49 +292,50 @@ namespace internal {
 #endif
 
 
-#define FOR_EACH_INTRINSIC_INTERNAL(F)        \
-  F(CheckIsBootstrapping, 0, 1)               \
-  F(ExportFromRuntime, 1, 1)                  \
-  F(ExportExperimentalFromRuntime, 1, 1)      \
-  F(InstallToContext, 1, 1)                   \
-  F(Throw, 1, 1)                              \
-  F(ReThrow, 1, 1)                            \
-  F(UnwindAndFindExceptionHandler, 0, 1)      \
-  F(PromoteScheduledException, 0, 1)          \
-  F(ThrowReferenceError, 1, 1)                \
-  F(ThrowApplyNonFunction, 1, 1)              \
-  F(NewTypeError, 2, 1)                       \
-  F(NewSyntaxError, 2, 1)                     \
-  F(NewReferenceError, 2, 1)                  \
-  F(ThrowIllegalInvocation, 0, 1)             \
-  F(ThrowIteratorResultNotAnObject, 1, 1)     \
-  F(ThrowStackOverflow, 0, 1)                 \
-  F(ThrowStrongModeImplicitConversion, 0, 1)  \
-  F(PromiseRejectEvent, 3, 1)                 \
-  F(PromiseRevokeReject, 1, 1)                \
-  F(StackGuard, 0, 1)                         \
-  F(Interrupt, 0, 1)                          \
-  F(AllocateInNewSpace, 1, 1)                 \
-  F(AllocateInTargetSpace, 2, 1)              \
-  F(CollectStackTrace, 2, 1)                  \
-  F(MessageGetStartPosition, 1, 1)            \
-  F(MessageGetScript, 1, 1)                   \
-  F(FormatMessageString, 4, 1)                \
-  F(CallSiteGetFileNameRT, 1, 1)              \
-  F(CallSiteGetFunctionNameRT, 1, 1)          \
-  F(CallSiteGetScriptNameOrSourceUrlRT, 1, 1) \
-  F(CallSiteGetMethodNameRT, 1, 1)            \
-  F(CallSiteGetLineNumberRT, 1, 1)            \
-  F(CallSiteGetColumnNumberRT, 1, 1)          \
-  F(CallSiteIsNativeRT, 1, 1)                 \
-  F(CallSiteIsToplevelRT, 1, 1)               \
-  F(CallSiteIsEvalRT, 1, 1)                   \
-  F(CallSiteIsConstructorRT, 1, 1)            \
-  F(IS_VAR, 1, 1)                             \
-  F(IncrementStatsCounter, 1, 1)              \
-  F(ThrowConstructedNonConstructable, 1, 1)   \
-  F(ThrowCalledNonCallable, 1, 1)             \
-  F(CreateListFromArrayLike, 1, 1)            \
+#define FOR_EACH_INTRINSIC_INTERNAL(F)              \
+  F(CheckIsBootstrapping, 0, 1)                     \
+  F(ExportFromRuntime, 1, 1)                        \
+  F(ExportExperimentalFromRuntime, 1, 1)            \
+  F(InstallToContext, 1, 1)                         \
+  F(Throw, 1, 1)                                    \
+  F(ReThrow, 1, 1)                                  \
+  F(UnwindAndFindExceptionHandler, 0, 1)            \
+  F(PromoteScheduledException, 0, 1)                \
+  F(ThrowReferenceError, 1, 1)                      \
+  F(ThrowApplyNonFunction, 1, 1)                    \
+  F(NewTypeError, 2, 1)                             \
+  F(NewSyntaxError, 2, 1)                           \
+  F(NewReferenceError, 2, 1)                        \
+  F(ThrowIllegalInvocation, 0, 1)                   \
+  F(ThrowIteratorResultNotAnObject, 1, 1)           \
+  F(ThrowStackOverflow, 0, 1)                       \
+  F(ThrowStrongModeImplicitConversion, 0, 1)        \
+  F(PromiseRejectEvent, 3, 1)                       \
+  F(PromiseRevokeReject, 1, 1)                      \
+  F(StackGuard, 0, 1)                               \
+  F(Interrupt, 0, 1)                                \
+  F(AllocateInNewSpace, 1, 1)                       \
+  F(AllocateInTargetSpace, 2, 1)                    \
+  F(CollectStackTrace, 2, 1)                        \
+  F(MessageGetStartPosition, 1, 1)                  \
+  F(MessageGetScript, 1, 1)                         \
+  F(FormatMessageString, 4, 1)                      \
+  F(CallSiteGetFileNameRT, 1, 1)                    \
+  F(CallSiteGetFunctionNameRT, 1, 1)                \
+  F(CallSiteGetScriptNameOrSourceUrlRT, 1, 1)       \
+  F(CallSiteGetMethodNameRT, 1, 1)                  \
+  F(CallSiteGetLineNumberRT, 1, 1)                  \
+  F(CallSiteGetColumnNumberRT, 1, 1)                \
+  F(CallSiteIsNativeRT, 1, 1)                       \
+  F(CallSiteIsToplevelRT, 1, 1)                     \
+  F(CallSiteIsEvalRT, 1, 1)                         \
+  F(CallSiteIsConstructorRT, 1, 1)                  \
+  F(IS_VAR, 1, 1)                                   \
+  F(IncrementStatsCounter, 1, 1)                    \
+  F(ThrowConstructedNonConstructable, 1, 1)         \
+  F(ThrowDerivedConstructorReturnedNonObject, 0, 1) \
+  F(ThrowCalledNonCallable, 1, 1)                   \
+  F(CreateListFromArrayLike, 1, 1)                  \
   F(IncrementUseCounter, 1, 1)
 
 

@@ -174,6 +174,8 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(InOptimizationQueue, BUILTIN, UNINITIALIZED, kNoExtraICState)              \
   V(JSConstructStubGeneric, BUILTIN, UNINITIALIZED, kNoExtraICState)           \
   V(JSBuiltinsConstructStub, BUILTIN, UNINITIALIZED, kNoExtraICState)          \
+  V(JSBuiltinsConstructStubForDerived, BUILTIN, UNINITIALIZED,                 \
+    kNoExtraICState)                                                           \
   V(JSConstructStubApi, BUILTIN, UNINITIALIZED, kNoExtraICState)               \
   V(JSEntryTrampoline, BUILTIN, UNINITIALIZED, kNoExtraICState)                \
   V(JSConstructEntryTrampoline, BUILTIN, UNINITIALIZED, kNoExtraICState)       \
@@ -384,6 +386,7 @@ class Builtins {
   static void Generate_CompileOptimizedConcurrent(MacroAssembler* masm);
   static void Generate_JSConstructStubGeneric(MacroAssembler* masm);
   static void Generate_JSBuiltinsConstructStub(MacroAssembler* masm);
+  static void Generate_JSBuiltinsConstructStubForDerived(MacroAssembler* masm);
   static void Generate_JSConstructStubApi(MacroAssembler* masm);
   static void Generate_JSEntryTrampoline(MacroAssembler* masm);
   static void Generate_JSConstructEntryTrampoline(MacroAssembler* masm);
