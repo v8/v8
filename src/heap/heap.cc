@@ -2752,6 +2752,11 @@ void Heap::CreateInitialObjects() {
   Runtime::InitializeIntrinsicFunctionNames(isolate(), intrinsic_names);
   set_intrinsic_function_names(*intrinsic_names);
 
+  Handle<NameDictionary> empty_properties_dictionary =
+      NameDictionary::New(isolate(), 0, TENURED);
+  empty_properties_dictionary->SetRequiresCopyOnCapacityChange();
+  set_empty_properties_dictionary(*empty_properties_dictionary);
+
   set_number_string_cache(
       *factory->NewFixedArray(kInitialNumberStringCacheSize * 2, TENURED));
 
