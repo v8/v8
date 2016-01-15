@@ -1055,14 +1055,13 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // Need at least one extra slot for return address location.
   int arg_stack_space = 1;
 
-// PPC LINUX ABI:
-#if !ABI_RETURNS_OBJECT_PAIRS_IN_REGS
   // Pass buffer for return value on stack if necessary
-  if (result_size() > 1) {
-    DCHECK_EQ(2, result_size());
-    arg_stack_space += 2;
+  bool needs_return_buffer =
+      result_size() > 2 ||
+      (result_size() == 2 && !ABI_RETURNS_OBJECT_PAIRS_IN_REGS);
+  if (needs_return_buffer) {
+    arg_stack_space += result_size();
   }
-#endif
 
   __ EnterExitFrame(save_doubles(), arg_stack_space);
 
@@ -1076,9 +1075,8 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // Result returned in registers or stack, depending on result size and ABI.
 
   Register isolate_reg = r5;
-#if !ABI_RETURNS_OBJECT_PAIRS_IN_REGS
-  if (result_size() > 1) {
-    // The return value is 16-byte non-scalar value.
+  if (needs_return_buffer) {
+    // The return value is a non-scalar value.
     // Use frame storage reserved by calling function to pass return
     // buffer as implicit first argument.
     __ mr(r5, r4);
@@ -1086,7 +1084,6 @@ void CEntryStub::Generate(MacroAssembler* masm) {
     __ addi(r3, sp, Operand((kStackFrameExtraParamSlot + 1) * kPointerSize));
     isolate_reg = r6;
   }
-#endif
 
   // Call C built-in.
   __ mov(isolate_reg, Operand(ExternalReference::isolate_address(isolate())));
@@ -1112,13 +1109,12 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ Call(target);
   __ bind(&after_call);
 
-#if !ABI_RETURNS_OBJECT_PAIRS_IN_REGS
   // If return value is on the stack, pop it to registers.
-  if (result_size() > 1) {
+  if (needs_return_buffer) {
+    if (result_size() > 2) __ LoadP(r5, MemOperand(r3, 2 * kPointerSize));
     __ LoadP(r4, MemOperand(r3, kPointerSize));
     __ LoadP(r3, MemOperand(r3));
   }
-#endif
 
   // Check result for exception sentinel.
   Label exception_returned;
@@ -1132,9 +1128,9 @@ void CEntryStub::Generate(MacroAssembler* masm) {
     ExternalReference pending_exception_address(
         Isolate::kPendingExceptionAddress, isolate());
 
-    __ mov(r5, Operand(pending_exception_address));
-    __ LoadP(r5, MemOperand(r5));
-    __ CompareRoot(r5, Heap::kTheHoleValueRootIndex);
+    __ mov(r6, Operand(pending_exception_address));
+    __ LoadP(r6, MemOperand(r6));
+    __ CompareRoot(r6, Heap::kTheHoleValueRootIndex);
     // Cannot use check here as it attempts to generate call into runtime.
     __ beq(&okay);
     __ stop("Unexpected pending exception");
