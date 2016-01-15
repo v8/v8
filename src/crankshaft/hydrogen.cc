@@ -9058,6 +9058,7 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
     case kArrayLastIndexOf: {
       if (receiver_map.is_null()) return false;
       if (receiver_map->instance_type() != JS_ARRAY_TYPE) return false;
+      if (!receiver_map->prototype()->IsJSObject()) return false;
       ElementsKind kind = receiver_map->elements_kind();
       if (!IsFastElementsKind(kind)) return false;
       if (receiver_map->is_observed()) return false;
