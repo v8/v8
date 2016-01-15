@@ -182,11 +182,7 @@ void StoreBuffer::EnsureSpace(intptr_t space_needed) {
 // Sample the store buffer to see if some pages are taking up a lot of space
 // in the store buffer.
 void StoreBuffer::ExemptPopularPages(int prime_sample_step, int threshold) {
-  PointerChunkIterator it(heap_);
-  MemoryChunk* chunk;
-  while ((chunk = it.next()) != NULL) {
-    chunk->set_store_buffer_counter(0);
-  }
+  HashMap store_buffer_counts(HashMap::PointersMatch, 16);
   bool created_new_scan_on_scavenge_pages = false;
   MemoryChunk* previous_chunk = NULL;
   for (Address* p = old_start_; p < old_top_; p += prime_sample_step) {
@@ -197,12 +193,16 @@ void StoreBuffer::ExemptPopularPages(int prime_sample_step, int threshold) {
     } else {
       containing_chunk = MemoryChunk::FromAnyPointerAddress(heap_, addr);
     }
-    int old_counter = containing_chunk->store_buffer_counter();
+    HashMap::Entry* e = store_buffer_counts.LookupOrInsert(
+        containing_chunk,
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(containing_chunk) >>
+                              kPageSizeBits));
+    intptr_t old_counter = bit_cast<intptr_t>(e->value);
     if (old_counter >= threshold) {
       containing_chunk->set_scan_on_scavenge(true);
       created_new_scan_on_scavenge_pages = true;
     }
-    containing_chunk->set_store_buffer_counter(old_counter + 1);
+    (*bit_cast<intptr_t*>(&e->value))++;
     previous_chunk = containing_chunk;
   }
   if (created_new_scan_on_scavenge_pages) {

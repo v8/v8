@@ -396,7 +396,7 @@ class MemoryChunk {
       + 2 * kPointerSize          // base::VirtualMemory reservation_
       + kPointerSize              // Address owner_
       + kPointerSize              // Heap* heap_
-      + kIntSize;                 // int store_buffer_counter_
+      + kIntSize;                 // int progress_bar_
 
   static const size_t kSlotsBufferOffset =
       kLiveBytesOffset + kIntSize;  // int live_byte_count_
@@ -408,7 +408,6 @@ class MemoryChunk {
   static const size_t kMinHeaderSize =
       kWriteBarrierCounterOffset +
       kIntptrSize         // intptr_t write_barrier_counter_
-      + kIntSize          // int progress_bar_
       + kPointerSize      // AtomicValue high_water_mark_
       + kPointerSize      // base::Mutex* mutex_
       + kPointerSize      // base::AtomicWord parallel_sweeping_
@@ -420,7 +419,7 @@ class MemoryChunk {
   // We add some more space to the computed header size to amount for missing
   // alignment requirements in our computation.
   // Try to get kHeaderSize properly aligned on 32-bit and 64-bit machines.
-  static const size_t kHeaderSize = kMinHeaderSize + kIntSize;
+  static const size_t kHeaderSize = kMinHeaderSize;
 
   static const int kBodyOffset =
       CODE_POINTER_ALIGN(kHeaderSize + Bitmap::kSize);
@@ -518,11 +517,6 @@ class MemoryChunk {
     }
   }
   inline void set_scan_on_scavenge(bool scan);
-
-  int store_buffer_counter() { return store_buffer_counter_; }
-  void set_store_buffer_counter(int counter) {
-    store_buffer_counter_ = counter;
-  }
 
   bool Contains(Address addr) {
     return addr >= area_start() && addr < area_end();
@@ -751,17 +745,14 @@ class MemoryChunk {
   // in a fixed array.
   Address owner_;
   Heap* heap_;
-  // Used by the store buffer to keep track of which pages to mark scan-on-
-  // scavenge.
-  int store_buffer_counter_;
+  // Used by the incremental marker to keep track of the scanning progress in
+  // large objects that have a progress bar and are scanned in increments.
+  int progress_bar_;
   // Count of bytes marked black on page.
   int live_byte_count_;
   SlotsBuffer* slots_buffer_;
   SkipList* skip_list_;
   intptr_t write_barrier_counter_;
-  // Used by the incremental marker to keep track of the scanning progress in
-  // large objects that have a progress bar and are scanned in increments.
-  int progress_bar_;
   // Assuming the initial allocation on a page is sequential,
   // count highest number of bytes ever allocated on the page.
   AtomicValue<intptr_t> high_water_mark_;
