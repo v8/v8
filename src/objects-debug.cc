@@ -553,9 +553,7 @@ void JSBoundFunction::JSBoundFunctionVerify() {
   VerifyObjectField(kBoundThisOffset);
   VerifyObjectField(kBoundTargetFunctionOffset);
   VerifyObjectField(kBoundArgumentsOffset);
-  VerifyObjectField(kCreationContextOffset);
   CHECK(bound_target_function()->IsCallable());
-  CHECK(creation_context()->IsNativeContext());
   CHECK(IsCallable());
   CHECK_EQ(IsConstructor(), bound_target_function()->IsConstructor());
 }

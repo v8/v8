@@ -2571,18 +2571,19 @@ Handle<String> JSReceiver::GetConstructorName(Handle<JSReceiver> receiver) {
 
 
 Context* JSReceiver::GetCreationContext() {
-  if (IsJSBoundFunction()) {
-    return JSBoundFunction::cast(this)->creation_context();
+  JSReceiver* receiver = this;
+  while (receiver->IsJSBoundFunction()) {
+    receiver = JSBoundFunction::cast(receiver)->bound_target_function();
   }
-  Object* constructor = map()->GetConstructor();
+  Object* constructor = receiver->map()->GetConstructor();
   JSFunction* function;
   if (constructor->IsJSFunction()) {
     function = JSFunction::cast(constructor);
   } else {
     // Functions have null as a constructor,
     // but any JSFunction knows its context immediately.
-    CHECK(IsJSFunction());
-    function = JSFunction::cast(this);
+    CHECK(receiver->IsJSFunction());
+    function = JSFunction::cast(receiver);
   }
 
   return function->context()->native_context();

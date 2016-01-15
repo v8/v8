@@ -19673,7 +19673,7 @@ THREADED_TEST(CreationContextOfJsBoundFunction) {
   Context::Scope scope(other_context);
   CHECK(bound_function1->CreationContext() == context1);
   CheckContextId(bound_function1, 1);
-  CHECK(bound_function2->CreationContext() == context2);
+  CHECK(bound_function2->CreationContext() == context1);
   CheckContextId(bound_function2, 1);
 }
 

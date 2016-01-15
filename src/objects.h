@@ -7244,12 +7244,6 @@ class JSBoundFunction : public JSObject {
   // arguments to any call to the wrapped function.
   DECL_ACCESSORS(bound_arguments, FixedArray)
 
-  // [creation_context]: The native context in which the function was bound.
-  // TODO(bmeurer, verwaest): Can we (mis)use (unused) constructor field in
-  // the Map instead of putting this into the object? Only required for
-  // JSReceiver::GetCreationContext() anyway.
-  DECL_ACCESSORS(creation_context, Context)
-
   static MaybeHandle<Context> GetFunctionRealm(
       Handle<JSBoundFunction> function);
 
@@ -7267,9 +7261,7 @@ class JSBoundFunction : public JSObject {
   static const int kBoundTargetFunctionOffset = JSObject::kHeaderSize;
   static const int kBoundThisOffset = kBoundTargetFunctionOffset + kPointerSize;
   static const int kBoundArgumentsOffset = kBoundThisOffset + kPointerSize;
-  static const int kCreationContextOffset =
-      kBoundArgumentsOffset + kPointerSize;
-  static const int kLengthOffset = kCreationContextOffset + kPointerSize;
+  static const int kLengthOffset = kBoundArgumentsOffset + kPointerSize;
   static const int kNameOffset = kLengthOffset + kPointerSize;
   static const int kSize = kNameOffset + kPointerSize;
 

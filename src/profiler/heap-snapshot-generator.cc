@@ -1109,10 +1109,6 @@ void V8HeapExplorer::ExtractJSObjectReferences(
     TagObject(js_fun->bound_arguments(), "(bound arguments)");
     SetInternalReference(js_fun, entry, "bindings", js_fun->bound_arguments(),
                          JSBoundFunction::kBoundArgumentsOffset);
-    TagObject(js_fun->creation_context(), "(creation context)");
-    SetInternalReference(js_fun, entry, "creation_context",
-                         js_fun->creation_context(),
-                         JSBoundFunction::kCreationContextOffset);
     SetNativeBindReference(js_obj, entry, "bound_this", js_fun->bound_this());
     SetNativeBindReference(js_obj, entry, "bound_function",
                            js_fun->bound_target_function());

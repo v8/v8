@@ -5458,7 +5458,6 @@ ACCESSORS(JSBoundFunction, bound_target_function, JSReceiver,
           kBoundTargetFunctionOffset)
 ACCESSORS(JSBoundFunction, bound_this, Object, kBoundThisOffset)
 ACCESSORS(JSBoundFunction, bound_arguments, FixedArray, kBoundArgumentsOffset)
-ACCESSORS(JSBoundFunction, creation_context, Context, kCreationContextOffset)
 
 ACCESSORS(JSFunction, shared, SharedFunctionInfo, kSharedFunctionInfoOffset)
 ACCESSORS(JSFunction, literals, LiteralsArray, kLiteralsOffset)
