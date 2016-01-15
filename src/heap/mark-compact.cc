@@ -3100,13 +3100,12 @@ HashMap* MarkCompactCollector::EvacuateNewSpaceInParallel() {
     USE(ok);
     DCHECK(ok);
   }
-  heap_->IncrementPromotedObjectsSize(
-      static_cast<int>(new_space_visitor.promoted_size()));
+  heap_->IncrementPromotedObjectsSize(new_space_visitor.promoted_size());
   heap_->IncrementSemiSpaceCopiedObjectSize(
-      static_cast<int>(new_space_visitor.semispace_copied_size()));
+      new_space_visitor.semispace_copied_size());
   heap_->IncrementYoungSurvivorsCounter(
-      static_cast<int>(new_space_visitor.promoted_size()) +
-      static_cast<int>(new_space_visitor.semispace_copied_size()));
+      new_space_visitor.promoted_size() +
+      new_space_visitor.semispace_copied_size());
   return local_pretenuring_feedback;
 }
 

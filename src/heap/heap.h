@@ -1407,22 +1407,26 @@ class Heap {
 
   void UpdateSurvivalStatistics(int start_new_space_size);
 
-  inline void IncrementPromotedObjectsSize(int object_size) {
+  inline void IncrementPromotedObjectsSize(intptr_t object_size) {
     DCHECK_GE(object_size, 0);
-    promoted_objects_size_ += object_size;
+    promoted_objects_size_.Increment(object_size);
   }
-  inline intptr_t promoted_objects_size() { return promoted_objects_size_; }
 
-  inline void IncrementSemiSpaceCopiedObjectSize(int object_size) {
-    DCHECK_GE(object_size, 0);
-    semi_space_copied_object_size_ += object_size;
+  inline intptr_t promoted_objects_size() {
+    return promoted_objects_size_.Value();
   }
+
+  inline void IncrementSemiSpaceCopiedObjectSize(intptr_t object_size) {
+    DCHECK_GE(object_size, 0);
+    semi_space_copied_object_size_.Increment(object_size);
+  }
+
   inline intptr_t semi_space_copied_object_size() {
-    return semi_space_copied_object_size_;
+    return semi_space_copied_object_size_.Value();
   }
 
   inline intptr_t SurvivedNewSpaceObjectSize() {
-    return promoted_objects_size_ + semi_space_copied_object_size_;
+    return promoted_objects_size() + semi_space_copied_object_size();
   }
 
   inline void IncrementNodesDiedInNewSpace() { nodes_died_in_new_space_++; }
@@ -1431,10 +1435,18 @@ class Heap {
 
   inline void IncrementNodesPromoted() { nodes_promoted_++; }
 
-  inline void IncrementYoungSurvivorsCounter(int survived) {
-    DCHECK(survived >= 0);
-    survived_last_scavenge_ = survived;
-    survived_since_last_expansion_ += survived;
+  inline void IncrementYoungSurvivorsCounter(intptr_t survived) {
+    DCHECK_GE(survived, 0);
+    survived_last_scavenge_.SetValue(survived);
+    survived_since_last_expansion_.Increment(survived);
+  }
+
+  inline intptr_t survived_last_scavenge() {
+    return survived_last_scavenge_.Value();
+  }
+
+  inline intptr_t survived_since_last_expansion() {
+    return survived_since_last_expansion_.Value();
   }
 
   inline intptr_t PromotedTotalSize() {
@@ -2181,10 +2193,10 @@ class Heap {
 
   // For keeping track of how much data has survived
   // scavenge since last new space expansion.
-  int survived_since_last_expansion_;
+  AtomicNumber<intptr_t> survived_since_last_expansion_;
 
   // ... and since the last scavenge.
-  int survived_last_scavenge_;
+  AtomicNumber<intptr_t> survived_last_scavenge_;
 
   // This is not the depth of nested AlwaysAllocateScope's but rather a single
   // count, as scopes can be acquired from multiple tasks (read: threads).
@@ -2282,10 +2294,10 @@ class Heap {
   GCTracer* tracer_;
 
   int high_survival_rate_period_length_;
-  intptr_t promoted_objects_size_;
+  AtomicNumber<intptr_t> promoted_objects_size_;
   double promotion_ratio_;
   double promotion_rate_;
-  intptr_t semi_space_copied_object_size_;
+  AtomicNumber<intptr_t> semi_space_copied_object_size_;
   intptr_t previous_semi_space_copied_object_size_;
   double semi_space_copied_rate_;
   int nodes_died_in_new_space_;
