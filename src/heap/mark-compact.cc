@@ -1224,9 +1224,6 @@ class MarkCompactMarkingVisitor
   }
 
  private:
-  template <int id>
-  static inline void TrackObjectStatsAndVisit(Map* map, HeapObject* obj);
-
   // Code flushing support.
 
   static const int kRegExpCodeThreshold = 5;
