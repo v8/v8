@@ -49,7 +49,6 @@ class ApiFunction;
 namespace internal {
 
 // Forward declarations.
-class SourcePosition;
 class StatsCounter;
 
 // -----------------------------------------------------------------------------

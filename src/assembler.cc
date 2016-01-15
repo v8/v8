@@ -1837,11 +1837,9 @@ int ConstantPoolBuilder::Emit(Assembler* assm) {
 // Platform specific but identical code for all the platforms.
 
 
-void Assembler::RecordDeoptReason(const int reason,
-                                  const SourcePosition position) {
+void Assembler::RecordDeoptReason(const int reason, int raw_position) {
   if (FLAG_trace_deopt || isolate()->cpu_profiler()->is_profiling()) {
     EnsureSpace ensure_space(this);
-    int raw_position = position.IsUnknown() ? 0 : position.raw();
     RecordRelocInfo(RelocInfo::POSITION, raw_position);
     RecordRelocInfo(RelocInfo::DEOPT_REASON, reason);
   }

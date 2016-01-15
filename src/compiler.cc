@@ -37,16 +37,6 @@
 namespace v8 {
 namespace internal {
 
-std::ostream& operator<<(std::ostream& os, const SourcePosition& p) {
-  if (p.IsUnknown()) {
-    return os << "<?>";
-  } else if (FLAG_hydrogen_track_positions) {
-    return os << "<" << p.inlining_id() << ":" << p.position() << ">";
-  } else {
-    return os << "<0:" << p.raw() << ">";
-  }
-}
-
 
 #define PARSE_INFO_GETTER(type, name)  \
   type CompilationInfo::name() const { \

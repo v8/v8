@@ -1262,6 +1262,7 @@ source_set("v8_base") {
     "src/snapshot/snapshot-common.cc",
     "src/snapshot/snapshot-source-sink.cc",
     "src/snapshot/snapshot-source-sink.h",
+    "src/source-position.h",
     "src/splay-tree.h",
     "src/splay-tree-inl.h",
     "src/snapshot/snapshot.h",

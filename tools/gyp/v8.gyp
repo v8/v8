@@ -1033,6 +1033,7 @@
         '../../src/snapshot/snapshot-common.cc',
         '../../src/snapshot/snapshot-source-sink.cc',
         '../../src/snapshot/snapshot-source-sink.h',
+        '../../src/source-position.h',
         '../../src/splay-tree.h',
         '../../src/splay-tree-inl.h',
         '../../src/startup-data-util.cc',
