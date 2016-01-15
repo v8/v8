@@ -5,6 +5,8 @@
 #include "src/ast/ast.h"
 
 #include <cmath>  // For isfinite.
+
+#include "src/ast/prettyprinter.h"
 #include "src/ast/scopes.h"
 #include "src/builtins.h"
 #include "src/code-stubs.h"
@@ -31,6 +33,25 @@ AST_NODE_LIST(DECL_ACCEPT)
 
 // ----------------------------------------------------------------------------
 // Implementation of other node functionality.
+
+#ifdef DEBUG
+
+void AstNode::PrintAst() { PrintAst(Isolate::Current()); }
+
+
+void AstNode::PrintAst(Isolate* isolate) {
+  AstPrinter::PrintOut(isolate, this);
+}
+
+
+void AstNode::PrettyPrint() { PrettyPrint(Isolate::Current()); }
+
+
+void AstNode::PrettyPrint(Isolate* isolate) {
+  PrettyPrinter::PrintOut(isolate, this);
+}
+
+#endif  // DEBUG
 
 
 bool Expression::IsSmiLiteral() const {

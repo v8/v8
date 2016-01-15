@@ -196,6 +196,13 @@ class AstNode: public ZoneObject {
   virtual NodeType node_type() const = 0;
   int position() const { return position_; }
 
+#ifdef DEBUG
+  void PrettyPrint(Isolate* isolate);
+  void PrettyPrint();
+  void PrintAst(Isolate* isolate);
+  void PrintAst();
+#endif  // DEBUG
+
   // Type testing & conversion functions overridden by concrete subclasses.
 #define DECLARE_NODE_FUNCTIONS(type) \
   bool Is##type() const { return node_type() == AstNode::k##type; } \
