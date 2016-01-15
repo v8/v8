@@ -38,7 +38,6 @@
 #include "src/allocation.h"
 #include "src/builtins.h"
 #include "src/isolate.h"
-#include "src/parsing/token.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -1118,8 +1117,6 @@ inline int NumberOfBitsSet(uint32_t x) {
   }
   return num_bits_set;
 }
-
-bool EvalComparison(Token::Value op, double op1, double op2);
 
 // Computes pow(x, y) with the special cases in the spec for Math.pow.
 double power_helper(Isolate* isolate, double x, double y);

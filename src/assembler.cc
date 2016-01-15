@@ -51,7 +51,6 @@
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
 #include "src/ostreams.h"
-#include "src/parsing/token.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-macro-assembler.h"
@@ -1518,23 +1517,6 @@ ExternalReference ExternalReference::power_double_int_function(
   return ExternalReference(Redirect(isolate,
                                     FUNCTION_ADDR(power_double_int),
                                     BUILTIN_FP_INT_CALL));
-}
-
-
-bool EvalComparison(Token::Value op, double op1, double op2) {
-  DCHECK(Token::IsCompareOp(op));
-  switch (op) {
-    case Token::EQ:
-    case Token::EQ_STRICT: return (op1 == op2);
-    case Token::NE: return (op1 != op2);
-    case Token::LT: return (op1 < op2);
-    case Token::GT: return (op1 > op2);
-    case Token::LTE: return (op1 <= op2);
-    case Token::GTE: return (op1 >= op2);
-    default:
-      UNREACHABLE();
-      return false;
-  }
 }
 
 
