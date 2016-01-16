@@ -78,6 +78,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmVrintnF64:
     case kArmVcvtF32F64:
     case kArmVcvtF64F32:
+    case kArmVcvtF32S32:
     case kArmVcvtF64S32:
     case kArmVcvtF64U32:
     case kArmVcvtS32F32:

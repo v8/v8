@@ -2000,6 +2000,15 @@ void Assembler::cvtsd2si(Register dst, XMMRegister src) {
 }
 
 
+void Assembler::cvtsi2ss(XMMRegister dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0xF3);
+  EMIT(0x0F);
+  EMIT(0x2A);
+  emit_sse_operand(dst, src);
+}
+
+
 void Assembler::cvtsi2sd(XMMRegister dst, const Operand& src) {
   EnsureSpace ensure_space(this);
   EMIT(0xF2);

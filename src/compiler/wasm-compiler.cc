@@ -696,9 +696,7 @@ Node* WasmGraphBuilder::Unop(wasm::WasmOpcode opcode, Node* input) {
       op = m->ChangeUint32ToFloat64();
       break;
     case wasm::kExprF32SConvertI32:
-      op = m->ChangeInt32ToFloat64();  // TODO(titzer): two conversions
-      input = graph()->NewNode(op, input);
-      op = m->TruncateFloat64ToFloat32();
+      op = m->RoundInt32ToFloat32();
       break;
     case wasm::kExprF32UConvertI32:
       op = m->ChangeUint32ToFloat64();

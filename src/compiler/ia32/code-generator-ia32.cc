@@ -752,6 +752,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ add(i.OutputRegister(), Immediate(0x80000000));
       break;
     }
+    case kSSEInt32ToFloat32:
+      __ cvtsi2ss(i.OutputDoubleRegister(), i.InputOperand(0));
+      break;
     case kSSEInt32ToFloat64:
       __ cvtsi2sd(i.OutputDoubleRegister(), i.InputOperand(0));
       break;

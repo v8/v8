@@ -6013,6 +6013,13 @@ TEST(RunBitcastFloat32ToInt32) {
 }
 
 
+TEST(RunRoundInt32ToFloat32) {
+  BufferedRawMachineAssemblerTester<float> m(MachineType::Int32());
+  m.Return(m.RoundInt32ToFloat32(m.Parameter(0)));
+  FOR_INT32_INPUTS(i) { CHECK_EQ(static_cast<float>(*i), m.Call(*i)); }
+}
+
+
 TEST(RunBitcastInt32ToFloat32) {
   int32_t input = 1;
   float output = 0.0;

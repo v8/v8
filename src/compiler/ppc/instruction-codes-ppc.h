@@ -82,6 +82,7 @@ namespace compiler {
   V(PPC_Int64ToDouble)             \
   V(PPC_Uint64ToFloat32)           \
   V(PPC_Uint64ToDouble)            \
+  V(PPC_Int32ToFloat32)            \
   V(PPC_Int32ToDouble)             \
   V(PPC_Uint32ToDouble)            \
   V(PPC_Float32ToDouble)           \

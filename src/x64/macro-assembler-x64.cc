@@ -823,6 +823,30 @@ void MacroAssembler::Cvtlsi2sd(XMMRegister dst, const Operand& src) {
 }
 
 
+void MacroAssembler::Cvtlsi2ss(XMMRegister dst, Register src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vxorps(dst, dst, dst);
+    vcvtlsi2ss(dst, dst, src);
+  } else {
+    xorps(dst, dst);
+    cvtlsi2ss(dst, src);
+  }
+}
+
+
+void MacroAssembler::Cvtlsi2ss(XMMRegister dst, const Operand& src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vxorps(dst, dst, dst);
+    vcvtlsi2ss(dst, dst, src);
+  } else {
+    xorps(dst, dst);
+    cvtlsi2ss(dst, src);
+  }
+}
+
+
 void MacroAssembler::Cvtqsi2ss(XMMRegister dst, Register src) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);

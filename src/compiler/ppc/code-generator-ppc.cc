@@ -1194,6 +1194,11 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
 #endif
+    case kPPC_Int32ToFloat32:
+      __ ConvertIntToFloat(i.OutputDoubleRegister(), i.InputRegister(0),
+                           kScratchReg);
+      DCHECK_EQ(LeaveRC, i.OutputRCBit());
+      break;
     case kPPC_Int32ToDouble:
       __ ConvertIntToDouble(i.InputRegister(0), i.OutputDoubleRegister());
       DCHECK_EQ(LeaveRC, i.OutputRCBit());

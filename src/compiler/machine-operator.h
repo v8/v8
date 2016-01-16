@@ -228,6 +228,7 @@ class MachineOperatorBuilder final : public ZoneObject {
   const Operator* TruncateFloat64ToFloat32();
   const Operator* TruncateFloat64ToInt32(TruncationMode);
   const Operator* TruncateInt64ToInt32();
+  const Operator* RoundInt32ToFloat32();
   const Operator* RoundInt64ToFloat32();
   const Operator* RoundInt64ToFloat64();
   const Operator* RoundUint64ToFloat32();
