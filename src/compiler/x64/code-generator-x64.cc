@@ -947,6 +947,13 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ Roundss(i.OutputDoubleRegister(), i.InputDoubleRegister(0), mode);
       break;
     }
+    case kSSEFloat32ToInt32:
+      if (instr->InputAt(0)->IsDoubleRegister()) {
+        __ Cvttss2si(i.OutputRegister(), i.InputDoubleRegister(0));
+      } else {
+        __ Cvttss2si(i.OutputRegister(), i.InputOperand(0));
+      }
+      break;
     case kSSEFloat64Cmp:
       ASSEMBLE_SSE_BINOP(Ucomisd);
       break;

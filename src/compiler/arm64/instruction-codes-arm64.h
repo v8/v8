@@ -110,6 +110,7 @@ namespace compiler {
   V(Arm64Float64RoundTiesEven)     \
   V(Arm64Float32ToFloat64)         \
   V(Arm64Float64ToFloat32)         \
+  V(Arm64Float32ToInt32)           \
   V(Arm64Float64ToInt32)           \
   V(Arm64Float64ToUint32)          \
   V(Arm64Float32ToInt64)           \

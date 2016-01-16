@@ -1384,6 +1384,14 @@ class Assembler : public AssemblerBase {
   void vcvtqsi2sd(XMMRegister dst, XMMRegister src1, const Operand& src2) {
     vsd(0x2a, dst, src1, src2, kF2, k0F, kW1);
   }
+  void vcvttss2si(Register dst, XMMRegister src) {
+    XMMRegister idst = {dst.code()};
+    vsd(0x2c, idst, xmm0, src, kF3, k0F, kW0);
+  }
+  void vcvttss2si(Register dst, const Operand& src) {
+    XMMRegister idst = {dst.code()};
+    vsd(0x2c, idst, xmm0, src, kF3, k0F, kW0);
+  }
   void vcvttsd2si(Register dst, XMMRegister src) {
     XMMRegister idst = {dst.code()};
     vsd(0x2c, idst, xmm0, src, kF2, k0F, kW0);

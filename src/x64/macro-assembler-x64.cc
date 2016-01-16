@@ -918,6 +918,26 @@ void MacroAssembler::Cvtsd2si(Register dst, XMMRegister src) {
 }
 
 
+void MacroAssembler::Cvttss2si(Register dst, XMMRegister src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vcvttss2si(dst, src);
+  } else {
+    cvttss2si(dst, src);
+  }
+}
+
+
+void MacroAssembler::Cvttss2si(Register dst, const Operand& src) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vcvttss2si(dst, src);
+  } else {
+    cvttss2si(dst, src);
+  }
+}
+
+
 void MacroAssembler::Cvttsd2si(Register dst, XMMRegister src) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);

@@ -1005,6 +1005,16 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ LoadUint32NoSSE2(i.InputRegister(0));
       break;
     }
+    case kX87Float32ToInt32: {
+      if (!instr->InputAt(0)->IsDoubleRegister()) {
+        __ fld_s(i.InputOperand(0));
+      }
+      __ TruncateX87TOSToI(i.OutputRegister(0));
+      if (!instr->InputAt(0)->IsDoubleRegister()) {
+        __ fstp(0);
+      }
+      break;
+    }
     case kX87Float64ToInt32: {
       if (!instr->InputAt(0)->IsDoubleRegister()) {
         __ fld_d(i.InputOperand(0));
