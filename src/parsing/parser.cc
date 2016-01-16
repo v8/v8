@@ -1347,7 +1347,6 @@ void* Parser::ParseModuleItemList(ZoneList<Statement*>* body, bool* ok) {
     }
   }
 
-  scope_->module()->Freeze();
   return NULL;
 }
 
