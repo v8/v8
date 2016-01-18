@@ -286,6 +286,9 @@
 
   # TODO(titzer): correct WASM adapter frame alignment on arm64
   'wasm/*': [PASS, ['arch == arm64', SKIP]],
+
+  # TODO(titzer): SSE 4.1 required for asm-wasm test (floor).
+  'wasm/asm-wasm': [SKIP],
 }],  # ALWAYS
 
 ['novfp3 == True', {
