@@ -4,6 +4,8 @@
 
 // A simple interpreter for the Irregexp byte code.
 
+#ifdef V8_INTERPRETED_REGEXP
+
 #include "src/regexp/interpreter-irregexp.h"
 
 #include "src/ast/ast.h"
@@ -15,7 +17,6 @@
 
 namespace v8 {
 namespace internal {
-
 
 typedef unibrow::Mapping<unibrow::Ecma262Canonicalize> Canonicalize;
 
@@ -619,3 +620,5 @@ RegExpImpl::IrregexpResult IrregexpInterpreter::Match(
 
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_INTERPRETED_REGEXP
