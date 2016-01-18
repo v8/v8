@@ -466,13 +466,17 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, WasmModule* module) {
   // Compile all functions.
   Handle<Code> main_code = Handle<Code>::null();  // record last code.
   int index = 0;
+  int main_index = 0;
   for (const WasmFunction& func : *module->functions) {
     if (!func.external) {
       // Compile the function and install it in the code table.
       Handle<Code> code = compiler::CompileWasmFunction(
           thrower, isolate, &module_env, func, index);
       if (!code.is_null()) {
-        if (func.exported) main_code = code;
+        if (func.exported) {
+          main_code = code;
+          main_index = index;
+        }
         linker.Finish(index, code);
       }
       if (thrower.error()) return -1;
@@ -480,30 +484,37 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, WasmModule* module) {
     index++;
   }
 
-  if (!main_code.is_null()) {
-    linker.Link(module_env.function_table, module->function_table);
-#if USE_SIMULATOR && V8_TARGET_ARCH_ARM64
-    // Run the main code on arm64 simulator.
-    Simulator* simulator = Simulator::current(isolate);
-    Simulator::CallArgument args[] = {Simulator::CallArgument(0),
-                                      Simulator::CallArgument::End()};
-    return static_cast<int32_t>(simulator->CallInt64(main_code->entry(), args));
-#elif USE_SIMULATOR
-    // Run the main code on simulator.
-    Simulator* simulator = Simulator::current(isolate);
-    return static_cast<int32_t>(
-        simulator->Call(main_code->entry(), 4, 0, 0, 0, 0));
-#else
-    // Run the main code as raw machine code.
-    int32_t (*raw_func)() = reinterpret_cast<int32_t (*)()>(
-        reinterpret_cast<uintptr_t>(main_code->entry()));
-    return raw_func();
-#endif
-  } else {
-    // No main code was found.
-    isolate->Throw(*isolate->factory()->NewStringFromStaticChars(
-        "WASM.compileRun() failed: no valid main code produced."));
+  if (main_code.is_null()) {
+    thrower.Error("WASM.compileRun() failed: no main code found");
+    return -1;
   }
+
+  linker.Link(module_env.function_table, module->function_table);
+
+  // Wrap the main code so it can be called as a JS function.
+  Handle<String> name = isolate->factory()->NewStringFromStaticChars("main");
+  Handle<JSObject> module_object = Handle<JSObject>(0, isolate);
+  Handle<JSFunction> jsfunc = compiler::CompileJSToWasmWrapper(
+      isolate, &module_env, name, main_code, module_object, main_index);
+
+  // Call the JS function.
+  Handle<Object> undefined(isolate->heap()->undefined_value(), isolate);
+  MaybeHandle<Object> retval =
+      Execution::Call(isolate, jsfunc, undefined, 0, nullptr);
+
+  // The result should be a number.
+  if (retval.is_null()) {
+    thrower.Error("WASM.compileRun() failed: Invocation was null");
+    return -1;
+  }
+  Handle<Object> result = retval.ToHandleChecked();
+  if (result->IsSmi()) {
+    return Smi::cast(*result)->value();
+  }
+  if (result->IsHeapNumber()) {
+    return static_cast<int32_t>(HeapNumber::cast(*result)->value());
+  }
+  thrower.Error("WASM.compileRun() failed: Return value should be number");
   return -1;
 }
 }  // namespace wasm
