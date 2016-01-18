@@ -3200,57 +3200,52 @@ TEST(Delete) {
       {"var a = {x:13, y:14}; return delete a.x;",
        2 * kPointerSize,
        1,
-       13,
-       {
-           B(CreateObjectLiteral), U8(0), U8(0), U8(deep_elements_flags),  //
-           B(Star), R(0),                                                  //
-           B(Star), R(1),                                                  //
-           B(LdaConstant), U8(1),                                          //
-           B(DeletePropertySloppy), R(1),                                  //
-           B(Return)
-       },
+       15,
+       {B(CreateObjectLiteral), U8(0), U8(0), U8(deep_elements_flags),  //
+        B(Star), R(1),                                                  //
+        B(Star), R(0),                                                  //
+        B(Star), R(1),                                                  //
+        B(LdaConstant), U8(1),                                          //
+        B(DeletePropertySloppy), R(1),                                  //
+        B(Return)},
        2,
        {InstanceType::FIXED_ARRAY_TYPE,
         InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
       {"'use strict'; var a = {x:13, y:14}; return delete a.x;",
        2 * kPointerSize,
        1,
-       13,
-       {
-           B(CreateObjectLiteral), U8(0), U8(0), U8(deep_elements_flags),  //
-           B(Star), R(0),                                                  //
-           B(Star), R(1),                                                  //
-           B(LdaConstant), U8(1),                                          //
-           B(DeletePropertyStrict), R(1),                                  //
-           B(Return)
-       },
+       15,
+       {B(CreateObjectLiteral), U8(0), U8(0), U8(deep_elements_flags),  //
+        B(Star), R(1),                                                  //
+        B(Star), R(0),                                                  //
+        B(Star), R(1),                                                  //
+        B(LdaConstant), U8(1),                                          //
+        B(DeletePropertyStrict), R(1),                                  //
+        B(Return)},
        2,
        {InstanceType::FIXED_ARRAY_TYPE,
         InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
       {"var a = {1:13, 2:14}; return delete a[2];",
        2 * kPointerSize,
        1,
-       13,
-       {
-           B(CreateObjectLiteral), U8(0), U8(0), U8(deep_elements_flags),  //
-           B(Star), R(0),                                                  //
-           B(Star), R(1),                                                  //
-           B(LdaSmi8), U8(2),                                              //
-           B(DeletePropertySloppy), R(1),                                  //
-           B(Return)
-       },
+       15,
+       {B(CreateObjectLiteral), U8(0), U8(0), U8(deep_elements_flags),  //
+        B(Star), R(1),                                                  //
+        B(Star), R(0),                                                  //
+        B(Star), R(1),                                                  //
+        B(LdaSmi8), U8(2),                                              //
+        B(DeletePropertySloppy), R(1),                                  //
+        B(Return)},
        1,
        {InstanceType::FIXED_ARRAY_TYPE}},
       {"var a = 10; return delete a;",
        1 * kPointerSize,
        1,
        6,
-       {
-           B(LdaSmi8), U8(10),  //
-           B(Star), R(0),       //
-           B(LdaFalse),         //
-           B(Return)
-        },
+       {B(LdaSmi8), U8(10),  //
+        B(Star), R(0),       //
+        B(LdaFalse),         //
+        B(Return)},
        0},
       {"'use strict';"
        "var a = {1:10};"
@@ -3258,20 +3253,19 @@ TEST(Delete) {
        "return delete a[1];",
        2 * kPointerSize,
        1,
-       27,
-       {
-           B(CallRuntime), U16(Runtime::kNewFunctionContext),              //
-                            R(closure), U8(1),                             //
-           B(PushContext), R(0),                                           //
-           B(CreateObjectLiteral), U8(0), U8(0), U8(deep_elements_flags),  //
-           B(StaContextSlot), R(0), U8(first_context_slot),                //
-           B(CreateClosure), U8(1), U8(0),                                 //
-           B(LdaContextSlot), R(0), U8(first_context_slot),                //
-           B(Star), R(1),                                                  //
-           B(LdaSmi8), U8(1),                                              //
-           B(DeletePropertyStrict), R(1),                                  //
-           B(Return)
-       },
+       29,
+       {B(CallRuntime), U16(Runtime::kNewFunctionContext),              //
+        R(closure), U8(1),                                              //
+        B(PushContext), R(0),                                           //
+        B(CreateObjectLiteral), U8(0), U8(0), U8(deep_elements_flags),  //
+        B(Star), R(1),                                                  //
+        B(StaContextSlot), R(0), U8(first_context_slot),                //
+        B(CreateClosure), U8(1), U8(0),                                 //
+        B(LdaContextSlot), R(0), U8(first_context_slot),                //
+        B(Star), R(1),                                                  //
+        B(LdaSmi8), U8(1),                                              //
+        B(DeletePropertyStrict), R(1),                                  //
+        B(Return)},
        2,
        {InstanceType::FIXED_ARRAY_TYPE,
         InstanceType::SHARED_FUNCTION_INFO_TYPE}},
@@ -3279,10 +3273,8 @@ TEST(Delete) {
        0 * kPointerSize,
        1,
        2,
-       {
-           B(LdaTrue),  //
-           B(Return)
-       },
+       {B(LdaTrue),  //
+        B(Return)},
        0},
   };
 
@@ -3684,21 +3676,23 @@ TEST(ObjectLiterals) {
       ObjectLiteral::kFastElements | ObjectLiteral::kDisableMementos;
   ExpectedSnippet<InstanceType> snippets[] = {
       {"return { };",
-       0,
+       kPointerSize,
        1,
-       5,
+       7,
        {
            B(CreateObjectLiteral), U8(0), U8(0), U8(simple_flags),  //
+           B(Star), R(0),                                           //
            B(Return)                                                //
        },
        1,
        {InstanceType::FIXED_ARRAY_TYPE}},
       {"return { name: 'string', val: 9.2 };",
-       0,
+       kPointerSize,
        1,
-       5,
+       7,
        {
            B(CreateObjectLiteral), U8(0), U8(0), U8(deep_elements_flags),  //
+           B(Star), R(0),                                                  //
            B(Return)                                                       //
        },
        1,
@@ -3753,8 +3747,7 @@ TEST(ObjectLiterals) {
            B(Return),                                                      //
        },
        3,
-       {InstanceType::FIXED_ARRAY_TYPE,
-        InstanceType::SHARED_FUNCTION_INFO_TYPE,
+       {InstanceType::FIXED_ARRAY_TYPE, InstanceType::SHARED_FUNCTION_INFO_TYPE,
         InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
       {"return { func(a) { return a; } };",
        1 * kPointerSize,
@@ -3769,26 +3762,26 @@ TEST(ObjectLiterals) {
            B(Return),                                                      //
        },
        3,
-       {InstanceType::FIXED_ARRAY_TYPE,
-        InstanceType::SHARED_FUNCTION_INFO_TYPE,
+       {InstanceType::FIXED_ARRAY_TYPE, InstanceType::SHARED_FUNCTION_INFO_TYPE,
         InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
       {"return { get a() { return 2; } };",
-       5 * kPointerSize,
+       6 * kPointerSize,
        1,
-       29,
+       32,
        {
            B(CreateObjectLiteral), U8(0), U8(0), U8(deep_elements_flags),   //
            B(Star), R(0),                                                   //
+           B(Mov), R(0), R(1),                                              //
            B(LdaConstant), U8(1),                                           //
-           B(Star), R(1),                                                   //
-           B(CreateClosure), U8(2), U8(0),                                  //
            B(Star), R(2),                                                   //
-           B(LdaNull),                                                      //
+           B(CreateClosure), U8(2), U8(0),                                  //
            B(Star), R(3),                                                   //
-           B(LdaZero),                                                      //
+           B(LdaNull),                                                      //
            B(Star), R(4),                                                   //
+           B(LdaZero),                                                      //
+           B(Star), R(5),                                                   //
            B(CallRuntime), U16(Runtime::kDefineAccessorPropertyUnchecked),  //
-                           R(0), U8(5),                                     //
+           R(1), U8(5),                                                     //
            B(Ldar), R(0),                                                   //
            B(Return),                                                       //
        },
@@ -3797,22 +3790,23 @@ TEST(ObjectLiterals) {
         InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
         InstanceType::SHARED_FUNCTION_INFO_TYPE}},
       {"return { get a() { return this.x; }, set a(val) { this.x = val } };",
-       5 * kPointerSize,
+       6 * kPointerSize,
        1,
-       31,
+       34,
        {
            B(CreateObjectLiteral), U8(0), U8(0), U8(deep_elements_flags),   //
            B(Star), R(0),                                                   //
+           B(Mov), R(0), R(1),                                              //
            B(LdaConstant), U8(1),                                           //
-           B(Star), R(1),                                                   //
-           B(CreateClosure), U8(2), U8(0),                                  //
            B(Star), R(2),                                                   //
-           B(CreateClosure), U8(3), U8(0),                                  //
+           B(CreateClosure), U8(2), U8(0),                                  //
            B(Star), R(3),                                                   //
-           B(LdaZero),                                                      //
+           B(CreateClosure), U8(3), U8(0),                                  //
            B(Star), R(4),                                                   //
+           B(LdaZero),                                                      //
+           B(Star), R(5),                                                   //
            B(CallRuntime), U16(Runtime::kDefineAccessorPropertyUnchecked),  //
-                           R(0), U8(5),                                     //
+           R(1), U8(5),                                                     //
            B(Ldar), R(0),                                                   //
            B(Return),                                                       //
        },
@@ -3822,22 +3816,23 @@ TEST(ObjectLiterals) {
         InstanceType::SHARED_FUNCTION_INFO_TYPE,
         InstanceType::SHARED_FUNCTION_INFO_TYPE}},
       {"return { set b(val) { this.y = val } };",
-       5 * kPointerSize,
+       6 * kPointerSize,
        1,
-       29,
+       32,
        {
            B(CreateObjectLiteral), U8(0), U8(0), U8(deep_elements_flags),   //
            B(Star), R(0),                                                   //
+           B(Mov), R(0), R(1),                                              //
            B(LdaConstant), U8(1),                                           //
-           B(Star), R(1),                                                   //
-           B(LdaNull),                                                      //
            B(Star), R(2),                                                   //
-           B(CreateClosure), U8(2), U8(0),                                  //
+           B(LdaNull),                                                      //
            B(Star), R(3),                                                   //
-           B(LdaZero),                                                      //
+           B(CreateClosure), U8(2), U8(0),                                  //
            B(Star), R(4),                                                   //
+           B(LdaZero),                                                      //
+           B(Star), R(5),                                                   //
            B(CallRuntime), U16(Runtime::kDefineAccessorPropertyUnchecked),  //
-                           R(0), U8(5),                                     //
+           R(1), U8(5),                                                     //
            B(Ldar), R(0),                                                   //
            B(Return),                                                       //
        },
@@ -3846,58 +3841,61 @@ TEST(ObjectLiterals) {
         InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
         InstanceType::SHARED_FUNCTION_INFO_TYPE}},
       {"var a = 1; return { 1: a };",
-       5 * kPointerSize,
+       6 * kPointerSize,
        1,
-       29,
+       32,
        {
            B(LdaSmi8), U8(1),                                              //
            B(Star), R(0),                                                  //
            B(CreateObjectLiteral), U8(0), U8(0), U8(deep_elements_flags),  //
            B(Star), R(1),                                                  //
+           B(Mov), R(1), R(2),                                             //
            B(LdaSmi8), U8(1),                                              //
-           B(Star), R(2),                                                  //
-           B(Ldar), R(0),                                                  //
            B(Star), R(3),                                                  //
-           B(LdaZero),                                                     //
+           B(Ldar), R(0),                                                  //
            B(Star), R(4),                                                  //
-           B(CallRuntime), U16(Runtime::kSetProperty), R(1), U8(4),        //
+           B(LdaZero),                                                     //
+           B(Star), R(5),                                                  //
+           B(CallRuntime), U16(Runtime::kSetProperty), R(2), U8(4),        //
            B(Ldar), R(1),                                                  //
            B(Return),                                                      //
        },
        1,
        {InstanceType::FIXED_ARRAY_TYPE}},
       {"return { __proto__: null }",
-       2 * kPointerSize,
+       3 * kPointerSize,
        1,
-       17,
+       20,
        {
            B(CreateObjectLiteral), U8(0), U8(0), U8(simple_flags),            //
            B(Star), R(0),                                                     //
-           B(LdaNull), B(Star), R(1),                                         //
-           B(CallRuntime), U16(Runtime::kInternalSetPrototype), R(0), U8(2),  //
+           B(Mov), R(0), R(1),                                                //
+           B(LdaNull), B(Star), R(2),                                         //
+           B(CallRuntime), U16(Runtime::kInternalSetPrototype), R(1), U8(2),  //
            B(Ldar), R(0),                                                     //
            B(Return),                                                         //
        },
        1,
        {InstanceType::FIXED_ARRAY_TYPE}},
       {"var a = 'test'; return { [a]: 1 }",
-       5 * kPointerSize,
+       6 * kPointerSize,
        1,
-       30,
+       33,
        {
            B(LdaConstant), U8(0),                                             //
            B(Star), R(0),                                                     //
            B(CreateObjectLiteral), U8(1), U8(0), U8(simple_flags),            //
            B(Star), R(1),                                                     //
+           B(Mov), R(1), R(2),                                                //
            B(Ldar), R(0),                                                     //
            B(ToName),                                                         //
-           B(Star), R(2),                                                     //
-           B(LdaSmi8), U8(1),                                                 //
            B(Star), R(3),                                                     //
-           B(LdaZero),                                                        //
+           B(LdaSmi8), U8(1),                                                 //
            B(Star), R(4),                                                     //
-           B(CallRuntime), U16(Runtime::kDefineDataPropertyUnchecked), R(1),  //
-                           U8(4),                                             //
+           B(LdaZero),                                                        //
+           B(Star), R(5),                                                     //
+           B(CallRuntime), U16(Runtime::kDefineDataPropertyUnchecked), R(2),  //
+           U8(4),                                                             //
            B(Ldar), R(1),                                                     //
            B(Return),                                                         //
        },
@@ -3905,9 +3903,9 @@ TEST(ObjectLiterals) {
        {InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
         InstanceType::FIXED_ARRAY_TYPE}},
       {"var a = 'test'; return { val: a, [a]: 1 }",
-       5 * kPointerSize,
+       6 * kPointerSize,
        1,
-       36,
+       39,
        {
            B(LdaConstant), U8(0),                                             //
            B(Star), R(0),                                                     //
@@ -3915,15 +3913,16 @@ TEST(ObjectLiterals) {
            B(Star), R(1),                                                     //
            B(Ldar), R(0),                                                     //
            B(StoreICSloppy), R(1), U8(2), U8(vector->GetIndex(slot1)),        //
+           B(Mov), R(1), R(2),                                                //
            B(Ldar), R(0),                                                     //
            B(ToName),                                                         //
-           B(Star), R(2),                                                     //
-           B(LdaSmi8), U8(1),                                                 //
            B(Star), R(3),                                                     //
-           B(LdaZero),                                                        //
+           B(LdaSmi8), U8(1),                                                 //
            B(Star), R(4),                                                     //
-           B(CallRuntime), U16(Runtime::kDefineDataPropertyUnchecked), R(1),  //
-                           U8(4),                                             //
+           B(LdaZero),                                                        //
+           B(Star), R(5),                                                     //
+           B(CallRuntime), U16(Runtime::kDefineDataPropertyUnchecked), R(2),  //
+           U8(4),                                                             //
            B(Ldar), R(1),                                                     //
            B(Return),                                                         //
        },
@@ -3932,26 +3931,29 @@ TEST(ObjectLiterals) {
         InstanceType::FIXED_ARRAY_TYPE,
         InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
       {"var a = 'test'; return { [a]: 1, __proto__: {} }",
-       5 * kPointerSize,
+       6 * kPointerSize,
        1,
-       41,
+       49,
        {
            B(LdaConstant), U8(0),                                             //
            B(Star), R(0),                                                     //
            B(CreateObjectLiteral), U8(1), U8(1), U8(simple_flags),            //
            B(Star), R(1),                                                     //
+           B(Mov), R(1), R(2),                                                //
            B(Ldar), R(0),                                                     //
            B(ToName),                                                         //
-           B(Star), R(2),                                                     //
-           B(LdaSmi8), U8(1),                                                 //
            B(Star), R(3),                                                     //
-           B(LdaZero),                                                        //
+           B(LdaSmi8), U8(1),                                                 //
            B(Star), R(4),                                                     //
-           B(CallRuntime), U16(Runtime::kDefineDataPropertyUnchecked), R(1),  //
-                           U8(4),                                             //
+           B(LdaZero),                                                        //
+           B(Star), R(5),                                                     //
+           B(CallRuntime), U16(Runtime::kDefineDataPropertyUnchecked), R(2),  //
+           U8(4),                                                             //
+           B(Mov), R(1), R(2),                                                //
            B(CreateObjectLiteral), U8(1), U8(0), U8(13),                      //
-           B(Star), R(2),                                                     //
-           B(CallRuntime), U16(Runtime::kInternalSetPrototype), R(1), U8(2),  //
+           B(Star), R(4),                                                     //
+           B(Star), R(3),                                                     //
+           B(CallRuntime), U16(Runtime::kInternalSetPrototype), R(2), U8(2),  //
            B(Ldar), R(1),                                                     //
            B(Return),                                                         //
        },
@@ -3959,39 +3961,42 @@ TEST(ObjectLiterals) {
        {InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
         InstanceType::FIXED_ARRAY_TYPE}},
       {"var n = 'name'; return { [n]: 'val', get a() { }, set a(b) {} };",
-       5 * kPointerSize,
+       6 * kPointerSize,
        1,
-       64,
+       73,
        {
            B(LdaConstant), U8(0),                                             //
            B(Star), R(0),                                                     //
            B(CreateObjectLiteral), U8(1), U8(0), U8(simple_flags),            //
            B(Star), R(1),                                                     //
+           B(Mov), R(1), R(2),                                                //
            B(Ldar), R(0),                                                     //
            B(ToName),                                                         //
-           B(Star), R(2),                                                     //
+           B(Star), R(3),                                                     //
            B(LdaConstant), U8(2),                                             //
-           B(Star), R(3),                                                     //
-           B(LdaZero),                                                        //
            B(Star), R(4),                                                     //
-           B(CallRuntime), U16(Runtime::kDefineDataPropertyUnchecked), R(1),  //
-                           U8(4),                                             //
+           B(LdaZero),                                                        //
+           B(Star), R(5),                                                     //
+           B(CallRuntime), U16(Runtime::kDefineDataPropertyUnchecked), R(2),  //
+           U8(4),                                                             //
+           B(Mov), R(1), R(2),                                                //
            B(LdaConstant), U8(3),                                             //
-           B(Star), R(2),                                                     //
+           B(Star), R(3),                                                     //
            B(CreateClosure), U8(4), U8(0),                                    //
-           B(Star), R(3),                                                     //
-           B(LdaZero),                                                        //
            B(Star), R(4),                                                     //
+           B(LdaZero),                                                        //
+           B(Star), R(5),                                                     //
            B(CallRuntime), U16(Runtime::kDefineGetterPropertyUnchecked),      //
-                           R(1), U8(4),                                       //
+           R(2), U8(4),                                                       //
+           B(Mov), R(1), R(2),                                                //
            B(LdaConstant), U8(3),                                             //
-           B(Star), R(2),                                                     //
-           B(CreateClosure), U8(5), U8(0),                                    //
            B(Star), R(3),                                                     //
-           B(LdaZero),                                                        //
+           B(CreateClosure), U8(5), U8(0),                                    //
            B(Star), R(4),                                                     //
+           B(LdaZero),                                                        //
+           B(Star), R(5),                                                     //
            B(CallRuntime), U16(Runtime::kDefineSetterPropertyUnchecked),      //
-                           R(1), U8(4),                                       //
+           R(2), U8(4),                                                       //
            B(Ldar), R(1),                                                     //
            B(Return),                                                         //
        },
@@ -4024,16 +4029,18 @@ TEST(ObjectLiteralsWide) {
   ExpectedSnippet<InstanceType, 257> snippets[] = {
       {"var a;" REPEAT_256(SPACE,
                            "a = 1.23;") "return { name: 'string', val: 9.2 };",
-       1 * kPointerSize,
+       2 * kPointerSize,
        1,
-       1031,
+       1033,
        {
-           REPEAT_256(COMMA,                                     //
-             B(LdaConstant), U8(wide_idx++),                     //
-             B(Star), R(0)),                                     //
-           B(CreateObjectLiteralWide), U16(256), U16(0),         //
-                                       U8(deep_elements_flags),  //
-           B(Return)                                             //
+           REPEAT_256(COMMA,                           //
+                      B(LdaConstant), U8(wide_idx++),  //
+                      B(Star), R(0)),                  //
+           B(CreateObjectLiteralWide),
+           U16(256), U16(0),         //
+           U8(deep_elements_flags),  //
+           B(Star), R(1),            //
+           B(Return)                 //
        },
        257,
        {REPEAT_256(COMMA, InstanceType::HEAP_NUMBER_TYPE),
@@ -4678,9 +4685,10 @@ TEST(CountOperators) {
       {"var a = { val: 1 }; return a.val++;",
        3 * kPointerSize,
        1,
-       23,
+       25,
        {
            B(CreateObjectLiteral), U8(0), U8(0), U8(object_literal_flags),  //
+           B(Star), R(1),                                                   //
            B(Star), R(0),                                                   //
            B(Star), R(1),                                                   //
            B(LoadICSloppy), R(1), U8(1), U8(vector->GetIndex(slot1)),       //
@@ -4697,9 +4705,10 @@ TEST(CountOperators) {
       {"var a = { val: 1 }; return --a.val;",
        2 * kPointerSize,
        1,
-       19,
+       21,
        {
            B(CreateObjectLiteral), U8(0), U8(0), U8(object_literal_flags),  //
+           B(Star), R(1),                                                   //
            B(Star), R(0),                                                   //
            B(Star), R(1),                                                   //
            B(LoadICSloppy), R(1), U8(1), U8(vector->GetIndex(slot1)),       //
@@ -4714,11 +4723,12 @@ TEST(CountOperators) {
       {"var name = 'var'; var a = { val: 1 }; return a[name]--;",
        5 * kPointerSize,
        1,
-       30,
+       32,
        {
            B(LdaConstant), U8(0),                                           //
            B(Star), R(0),                                                   //
            B(CreateObjectLiteral), U8(1), U8(0), U8(object_literal_flags),  //
+           B(Star), R(2),                                                   //
            B(Star), R(1),                                                   //
            B(Star), R(2),                                                   //
            B(Ldar), R(0),                                                   //
@@ -4737,11 +4747,12 @@ TEST(CountOperators) {
       {"var name = 'var'; var a = { val: 1 }; return ++a[name];",
        4 * kPointerSize,
        1,
-       26,
+       28,
        {
            B(LdaConstant), U8(0),                                           //
            B(Star), R(0),                                                   //
            B(CreateObjectLiteral), U8(1), U8(0), U8(object_literal_flags),  //
+           B(Star), R(2),                                                   //
            B(Star), R(1),                                                   //
            B(Star), R(2),                                                   //
            B(Ldar), R(0),                                                   //
@@ -4761,7 +4772,7 @@ TEST(CountOperators) {
        26,
        {
            B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure),  //
-                           U8(1),                                          //
+           U8(1),                                                          //
            B(PushContext), R(1),                                           //
            B(LdaSmi8), U8(1),                                              //
            B(StaContextSlot), R(1), U8(first_context_slot),                //
@@ -4781,7 +4792,7 @@ TEST(CountOperators) {
        30,
        {
            B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure),  //
-                           U8(1),                                          //
+           U8(1),                                                          //
            B(PushContext), R(1),                                           //
            B(LdaSmi8), U8(1),                                              //
            B(StaContextSlot), R(1), U8(first_context_slot),                //
@@ -4802,20 +4813,20 @@ TEST(CountOperators) {
        1,
        27,
        {
-           B(LdaSmi8), U8(1),                                              //
-           B(Star), R(0),                                                  //
-           B(CreateArrayLiteral), U8(0), U8(0), U8(array_literal_flags),   //
-           B(Star), R(1),                                                  //
-           B(Star), R(2),                                                  //
-           B(Ldar), R(0),                                                  //
-           B(ToNumber),                                                    //
-           B(Star), R(3),                                                  //
-           B(Inc),                                                         //
-           B(Star), R(0),                                                  //
-           B(LdaSmi8), U8(2),                                              //
-           B(KeyedStoreICSloppy), R(2), R(3),                              //
-                                  U8(store_vector->GetIndex(store_slot)),  //
-           B(Return),                                                      //
+           B(LdaSmi8), U8(1),                                             //
+           B(Star), R(0),                                                 //
+           B(CreateArrayLiteral), U8(0), U8(0), U8(array_literal_flags),  //
+           B(Star), R(1),                                                 //
+           B(Star), R(2),                                                 //
+           B(Ldar), R(0),                                                 //
+           B(ToNumber),                                                   //
+           B(Star), R(3),                                                 //
+           B(Inc),                                                        //
+           B(Star), R(0),                                                 //
+           B(LdaSmi8), U8(2),                                             //
+           B(KeyedStoreICSloppy), R(2), R(3),                             //
+           U8(store_vector->GetIndex(store_slot)),                        //
+           B(Return),                                                     //
        },
        1,
        {InstanceType::FIXED_ARRAY_TYPE}},
@@ -4958,9 +4969,10 @@ TEST(CompoundExpressions) {
       {"var a = { val: 2 }; a.name *= 2;",
        3 * kPointerSize,
        1,
-       24,
+       26,
        {
            B(CreateObjectLiteral), U8(0), U8(0), U8(object_literal_flags),  //
+           B(Star), R(1),                                                   //
            B(Star), R(0),                                                   //
            B(Star), R(1),                                                   //
            B(LoadICSloppy), R(1), U8(1), U8(vector->GetIndex(slot1)),       //
@@ -4977,9 +4989,10 @@ TEST(CompoundExpressions) {
       {"var a = { 1: 2 }; a[1] ^= 2;",
        4 * kPointerSize,
        1,
-       27,
+       29,
        {
            B(CreateObjectLiteral), U8(0), U8(0), U8(object_literal_flags),  //
+           B(Star), R(1),                                                   //
            B(Star), R(0),                                                   //
            B(Star), R(1),                                                   //
            B(LdaSmi8), U8(1),                                               //
@@ -5000,7 +5013,7 @@ TEST(CompoundExpressions) {
        29,
        {
            B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure),  //
-                           U8(1),                                          //
+           U8(1),                                                          //
            B(PushContext), R(0),                                           //
            B(LdaSmi8), U8(1),                                              //
            B(StaContextSlot), R(0), U8(first_context_slot),                //
@@ -5319,9 +5332,10 @@ TEST(ForIn) {
        "}",
        8 * kPointerSize,
        1,
-       91,
+       93,
        {
            B(CreateObjectLiteral), U8(0), U8(0), U8(deep_elements_flags),  //
+           B(Star), R(1),                                                  //
            B(Star), R(0),                                                  //
            B(CreateArrayLiteral), U8(1), U8(1), U8(simple_flags),          //
            B(JumpIfUndefined), U8(79),                                     //

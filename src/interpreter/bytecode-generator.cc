@@ -1006,22 +1006,19 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   builder()->CreateObjectLiteral(expr->constant_properties(),
                                  expr->literal_index(),
                                  expr->ComputeFlags(true));
-  Register literal;
+
+  // Allocate in the outer scope since this register is used to return the
+  // expression's results to the caller.
+  Register literal = register_allocator()->outer()->NewRegister();
+  builder()->StoreAccumulatorInRegister(literal);
 
   // Store computed values into the literal.
-  bool literal_in_accumulator = true;
   int property_index = 0;
   AccessorTable accessor_table(zone());
   for (; property_index < expr->properties()->length(); property_index++) {
     ObjectLiteral::Property* property = expr->properties()->at(property_index);
     if (property->is_computed_name()) break;
     if (property->IsCompileTimeValue()) continue;
-
-    if (literal_in_accumulator) {
-      literal = register_allocator()->NewRegister();
-      builder()->StoreAccumulatorInRegister(literal);
-      literal_in_accumulator = false;
-    }
 
     RegisterAllocationScope inner_register_scope(this);
     Literal* literal_key = property->key()->AsLiteral();
@@ -1044,14 +1041,14 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
             VisitForEffect(property->value());
           }
         } else {
-          register_allocator()->PrepareForConsecutiveAllocations(3);
+          register_allocator()->PrepareForConsecutiveAllocations(4);
+          Register literal_argument =
+              register_allocator()->NextConsecutiveRegister();
           Register key = register_allocator()->NextConsecutiveRegister();
           Register value = register_allocator()->NextConsecutiveRegister();
           Register language = register_allocator()->NextConsecutiveRegister();
-          // TODO(oth): This is problematic - can't assume contiguous here.
-          // literal is allocated in outer register scope, whereas key, value,
-          // language are in another.
-          DCHECK(Register::AreContiguous(literal, key, value, language));
+
+          builder()->MoveRegister(literal, literal_argument);
           VisitForAccumulatorValue(property->key());
           builder()->StoreAccumulatorInRegister(key);
           VisitForAccumulatorValue(property->value());
@@ -1060,20 +1057,23 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
             builder()
                 ->LoadLiteral(Smi::FromInt(SLOPPY))
                 .StoreAccumulatorInRegister(language)
-                .CallRuntime(Runtime::kSetProperty, literal, 4);
+                .CallRuntime(Runtime::kSetProperty, literal_argument, 4);
             VisitSetHomeObject(value, literal, property);
           }
         }
         break;
       }
       case ObjectLiteral::Property::PROTOTYPE: {
-        register_allocator()->PrepareForConsecutiveAllocations(1);
         DCHECK(property->emit_store());
+        register_allocator()->PrepareForConsecutiveAllocations(2);
+        Register literal_argument =
+            register_allocator()->NextConsecutiveRegister();
         Register value = register_allocator()->NextConsecutiveRegister();
-        DCHECK(Register::AreContiguous(literal, value));
+
+        builder()->MoveRegister(literal, literal_argument);
         VisitForAccumulatorValue(property->value());
         builder()->StoreAccumulatorInRegister(value).CallRuntime(
-            Runtime::kInternalSetPrototype, literal, 2);
+            Runtime::kInternalSetPrototype, literal_argument, 2);
         break;
       }
       case ObjectLiteral::Property::GETTER:
@@ -1094,12 +1094,14 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   for (AccessorTable::Iterator it = accessor_table.begin();
        it != accessor_table.end(); ++it) {
     RegisterAllocationScope inner_register_scope(this);
-    register_allocator()->PrepareForConsecutiveAllocations(4);
+    register_allocator()->PrepareForConsecutiveAllocations(5);
+    Register literal_argument = register_allocator()->NextConsecutiveRegister();
     Register name = register_allocator()->NextConsecutiveRegister();
     Register getter = register_allocator()->NextConsecutiveRegister();
     Register setter = register_allocator()->NextConsecutiveRegister();
     Register attr = register_allocator()->NextConsecutiveRegister();
-    DCHECK(Register::AreContiguous(literal, name, getter, setter, attr));
+
+    builder()->MoveRegister(literal, literal_argument);
     VisitForAccumulatorValue(it->first);
     builder()->StoreAccumulatorInRegister(name);
     VisitObjectLiteralAccessor(literal, it->second->getter, getter);
@@ -1107,7 +1109,8 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
     builder()
         ->LoadLiteral(Smi::FromInt(NONE))
         .StoreAccumulatorInRegister(attr)
-        .CallRuntime(Runtime::kDefineAccessorPropertyUnchecked, literal, 5);
+        .CallRuntime(Runtime::kDefineAccessorPropertyUnchecked,
+                     literal_argument, 5);
   }
 
   // Object literals have two parts. The "static" part on the left contains no
@@ -1120,30 +1123,31 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   // compile them into a series of "SetOwnProperty" runtime calls. This will
   // preserve insertion order.
   for (; property_index < expr->properties()->length(); property_index++) {
-    if (literal_in_accumulator) {
-      literal = register_allocator()->NewRegister();
-      builder()->StoreAccumulatorInRegister(literal);
-      literal_in_accumulator = false;
-    }
-
     ObjectLiteral::Property* property = expr->properties()->at(property_index);
     RegisterAllocationScope inner_register_scope(this);
+
     if (property->kind() == ObjectLiteral::Property::PROTOTYPE) {
       DCHECK(property->emit_store());
-      Register value = register_allocator()->NewRegister();
-      DCHECK(Register::AreContiguous(literal, value));
+      register_allocator()->PrepareForConsecutiveAllocations(2);
+      Register literal_argument =
+          register_allocator()->NextConsecutiveRegister();
+      Register value = register_allocator()->NextConsecutiveRegister();
+
+      builder()->MoveRegister(literal, literal_argument);
       VisitForAccumulatorValue(property->value());
       builder()->StoreAccumulatorInRegister(value).CallRuntime(
-          Runtime::kInternalSetPrototype, literal, 2);
+          Runtime::kInternalSetPrototype, literal_argument, 2);
       continue;
     }
 
-    register_allocator()->PrepareForConsecutiveAllocations(3);
+    register_allocator()->PrepareForConsecutiveAllocations(4);
+    Register literal_argument = register_allocator()->NextConsecutiveRegister();
     Register key = register_allocator()->NextConsecutiveRegister();
     Register value = register_allocator()->NextConsecutiveRegister();
     Register attr = register_allocator()->NextConsecutiveRegister();
-    DCHECK(Register::AreContiguous(literal, key, value, attr));
+    DCHECK(Register::AreContiguous(literal_argument, key, value, attr));
 
+    builder()->MoveRegister(literal, literal_argument);
     VisitForAccumulatorValue(property->key());
     builder()->CastAccumulatorToName().StoreAccumulatorInRegister(key);
     VisitForAccumulatorValue(property->value());
@@ -1167,20 +1171,15 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         function_id = Runtime::kDefineSetterPropertyUnchecked;
         break;
     }
-    builder()->CallRuntime(function_id, literal, 4);
+    builder()->CallRuntime(function_id, literal_argument, 4);
   }
 
   // Transform literals that contain functions to fast properties.
   if (expr->has_function()) {
-    DCHECK(!literal_in_accumulator);
     builder()->CallRuntime(Runtime::kToFastProperties, literal, 1);
   }
 
-  if (!literal_in_accumulator) {
-    // Restore literal array into accumulator.
-    builder()->LoadAccumulatorWithRegister(literal);
-  }
-  execution_result()->SetResultInAccumulator();
+  execution_result()->SetResultInRegister(literal);
 }
 
 
