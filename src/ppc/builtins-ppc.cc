@@ -1013,7 +1013,8 @@ void Builtins::Generate_InterpreterPushArgsAndConstruct(MacroAssembler* masm) {
   // -----------------------------------
 
   // Push a slot for the receiver to be constructed.
-  __ push(r3);
+  __ li(r0, Operand::Zero());
+  __ push(r0);
 
   // Push the arguments (skip if none).
   Label skip;
@@ -1349,7 +1350,7 @@ void CompatibleReceiverCheck(MacroAssembler* masm, Register receiver,
   // End if the prototype is null or not hidden.
   __ JumpIfRoot(receiver, Heap::kNullValueRootIndex, receiver_check_failed);
   __ LoadP(map, FieldMemOperand(receiver, HeapObject::kMapOffset));
-  __ LoadP(scratch, FieldMemOperand(map, Map::kBitField3Offset));
+  __ lwz(scratch, FieldMemOperand(map, Map::kBitField3Offset));
   __ DecodeField<Map::IsHiddenPrototype>(scratch, SetRC);
   __ beq(receiver_check_failed, cr0);
   // Iterate.
