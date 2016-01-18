@@ -1545,10 +1545,10 @@ TEST(Run_Wasm_LoadMemI32_offset) {
 }
 
 
-// TODO(titzer): Fix for mips and re-enable.
 #if !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
 
-TEST(Run_Wasm_LoadMemI32_const_oob) {
+TEST(Run_Wasm_LoadMemI32_const_oob_misaligned) {
+  // TODO(titzer): Fix misaligned accesses on MIPS and re-enable.
   TestingModule module;
   const int kMemSize = 12;
   module.AddMemoryElems<byte>(kMemSize);
@@ -1572,6 +1572,30 @@ TEST(Run_Wasm_LoadMemI32_const_oob) {
 }
 
 #endif
+
+
+TEST(Run_Wasm_LoadMemI32_const_oob) {
+  TestingModule module;
+  const int kMemSize = 24;
+  module.AddMemoryElems<byte>(kMemSize);
+
+  for (int offset = 0; offset < kMemSize + 5; offset += 4) {
+    for (int index = 0; index < kMemSize + 5; index += 4) {
+      WasmRunner<int32_t> r;
+      r.env()->module = &module;
+      module.RandomizeMemory();
+
+      BUILD(r,
+            WASM_LOAD_MEM_OFFSET(MachineType::Int32(), offset, WASM_I8(index)));
+
+      if ((offset + index) <= (kMemSize - sizeof(int32_t))) {
+        CHECK_EQ(module.raw_val_at<int32_t>(offset + index), r.Call());
+      } else {
+        CHECK_TRAP(r.Call());
+      }
+    }
+  }
+}
 
 
 TEST(Run_Wasm_StoreMemI32_offset) {
