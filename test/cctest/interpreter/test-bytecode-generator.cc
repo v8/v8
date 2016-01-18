@@ -6233,7 +6233,6 @@ TEST(Eval) {
   Zone zone;
 
   int closure = Register::function_closure().index();
-  int context = Register::function_context().index();
   int new_target = Register::new_target().index();
 
   int first_context_slot = Context::MIN_CONTEXT_SLOTS;
@@ -6244,34 +6243,34 @@ TEST(Eval) {
        1,
        67,
        {
-           B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure),     //
-                           U8(1),                                             //
-           B(PushContext), R(0),                                              //
-           B(Ldar), THIS(1),                                                  //
-           B(StaContextSlot), R(0), U8(first_context_slot),                   //
-           B(CreateMappedArguments),                                          //
-           B(StaContextSlot), R(0), U8(first_context_slot + 1),               //
-           B(Ldar), R(new_target),                                            //
-           B(StaContextSlot), R(0), U8(first_context_slot + 2),               //
-           B(Mov), R(context), R(3),                                          //
-           B(LdaConstant), U8(0),                                             //
-           B(Star), R(4),                                                     //
-           B(CallRuntimeForPair), U16(Runtime::kLoadLookupSlot),              //
-                                  R(3), U8(2), R(1),                          //
-           B(LdaConstant), U8(1),                                             //
-           B(Star), R(3),                                                     //
-           B(Mov), R(1), R(4),                                                //
-           B(Mov), R(3), R(5),                                                //
-           B(Mov), R(closure), R(6),                                          //
-           B(LdaZero),                                                        //
-           B(Star), R(7),                                                     //
-           B(LdaSmi8), U8(10),                                                //
-           B(Star), R(8),                                                     //
-           B(CallRuntime), U16(Runtime::kResolvePossiblyDirectEval), R(4),    //
-                           U8(5),                                             //
-           B(Star), R(1),                                                     //
-           B(Call), R(1), R(2), U8(1), U8(0),                                 //
-           B(Return),                                                         //
+           B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure),   //
+                           U8(1),                                           //
+           B(PushContext), R(0),                                            //
+           B(Ldar), THIS(1),                                                //
+           B(StaContextSlot), R(0), U8(first_context_slot),                 //
+           B(CreateMappedArguments),                                        //
+           B(StaContextSlot), R(0), U8(first_context_slot + 1),             //
+           B(Ldar), R(new_target),                                          //
+           B(StaContextSlot), R(0), U8(first_context_slot + 2),             //
+           B(Mov), R(0), R(3),                                              //
+           B(LdaConstant), U8(0),                                           //
+           B(Star), R(4),                                                   //
+           B(CallRuntimeForPair), U16(Runtime::kLoadLookupSlot),            //
+                                  R(3), U8(2), R(1),                        //
+           B(LdaConstant), U8(1),                                           //
+           B(Star), R(3),                                                   //
+           B(Mov), R(1), R(4),                                              //
+           B(Mov), R(3), R(5),                                              //
+           B(Mov), R(closure), R(6),                                        //
+           B(LdaZero),                                                      //
+           B(Star), R(7),                                                   //
+           B(LdaSmi8), U8(10),                                              //
+           B(Star), R(8),                                                   //
+           B(CallRuntime), U16(Runtime::kResolvePossiblyDirectEval), R(4),  //
+                           U8(5),                                           //
+           B(Star), R(1),                                                   //
+           B(Call), R(1), R(2), U8(1), U8(0),                               //
+           B(Return),                                                       //
        },
        2,
        {"eval", "1;"}},
@@ -6291,7 +6290,6 @@ TEST(LookupSlot) {
 
   int closure = Register::function_closure().index();
   int first_context_slot = Context::MIN_CONTEXT_SLOTS;
-  int context = Register::function_context().index();
   int new_target = Register::new_target().index();
 
   ExpectedSnippet<const char*> snippets[] = {
@@ -6300,73 +6298,73 @@ TEST(LookupSlot) {
        1,
        69,
        {
-           B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure),     //
-                           U8(1),                                             //
-           B(PushContext), R(0),                                              //
-           B(Ldar), THIS(1),                                                  //
-           B(StaContextSlot), R(0), U8(first_context_slot),                   //
-           B(CreateMappedArguments),                                          //
-           B(StaContextSlot), R(0), U8(first_context_slot + 1),               //
-           B(Ldar), R(new_target),                                            //
-           B(StaContextSlot), R(0), U8(first_context_slot + 2),               //
-           B(Mov), R(context), R(3),                                          //
-           B(LdaConstant), U8(0),                                             //
-           B(Star), R(4),                                                     //
-           B(CallRuntimeForPair), U16(Runtime::kLoadLookupSlot),              //
-                                  R(3), U8(2), R(1),                          //
-           B(LdaConstant), U8(1),                                             //
-           B(Star), R(3),                                                     //
-           B(Mov), R(1), R(4),                                                //
-           B(Mov), R(3), R(5),                                                //
-           B(Mov), R(closure), R(6),                                          //
-           B(LdaZero),                                                        //
-           B(Star), R(7),                                                     //
-           B(LdaSmi8), U8(10),                                                //
-           B(Star), R(8),                                                     //
-           B(CallRuntime), U16(Runtime::kResolvePossiblyDirectEval), R(4),    //
-                           U8(5),                                             //
-           B(Star), R(1),                                                     //
-           B(Call), R(1), R(2), U8(1), U8(0),                                 //
-           B(LdaLookupSlot), U8(2),                                           //
-           B(Return),                                                         //
+           B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure),   //
+                           U8(1),                                           //
+           B(PushContext), R(0),                                            //
+           B(Ldar), THIS(1),                                                //
+           B(StaContextSlot), R(0), U8(first_context_slot),                 //
+           B(CreateMappedArguments),                                        //
+           B(StaContextSlot), R(0), U8(first_context_slot + 1),             //
+           B(Ldar), R(new_target),                                          //
+           B(StaContextSlot), R(0), U8(first_context_slot + 2),             //
+           B(Mov), R(0), R(3),                                              //
+           B(LdaConstant), U8(0),                                           //
+           B(Star), R(4),                                                   //
+           B(CallRuntimeForPair), U16(Runtime::kLoadLookupSlot),            //
+                                  R(3), U8(2), R(1),                        //
+           B(LdaConstant), U8(1),                                           //
+           B(Star), R(3),                                                   //
+           B(Mov), R(1), R(4),                                              //
+           B(Mov), R(3), R(5),                                              //
+           B(Mov), R(closure), R(6),                                        //
+           B(LdaZero),                                                      //
+           B(Star), R(7),                                                   //
+           B(LdaSmi8), U8(10),                                              //
+           B(Star), R(8),                                                   //
+           B(CallRuntime), U16(Runtime::kResolvePossiblyDirectEval), R(4),  //
+                           U8(5),                                           //
+           B(Star), R(1),                                                   //
+           B(Call), R(1), R(2), U8(1), U8(0),                               //
+           B(LdaLookupSlot), U8(2),                                         //
+           B(Return),                                                       //
        },
        3,
        {"eval", "var x = 10;", "x"}},
       {"eval('var x = 10;'); return typeof x;",
-        9 * kPointerSize,
-        1,
-        70,
-        {
-           B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure),     //
-                           U8(1),                                             //
-           B(PushContext), R(0),                                              //
-           B(Ldar), THIS(1),                                                  //
-           B(StaContextSlot), R(0), U8(first_context_slot),                   //
-           B(CreateMappedArguments),                                          //
-           B(StaContextSlot), R(0), U8(first_context_slot + 1),               //
-           B(Ldar), R(new_target),                                            //
-           B(StaContextSlot), R(0), U8(first_context_slot + 2),               //
-           B(Mov), R(context), R(3),                                          //
-           B(LdaConstant), U8(0),                                             //
-           B(Star), R(4),                                                     //
-           B(CallRuntimeForPair), U16(Runtime::kLoadLookupSlot),              //
-                                  R(3), U8(2), R(1),                          //
-           B(LdaConstant), U8(1),                                             //
-           B(Star), R(3),                                                     //
-           B(Mov), R(1), R(4),                                                //
-           B(Mov), R(3), R(5),                                                //
-           B(Mov), R(closure), R(6),                                          //
-           B(LdaZero),                                                        //
-           B(Star), R(7),                                                     //
-           B(LdaSmi8), U8(10),                                                //
-           B(Star), R(8),                                                     //
-           B(CallRuntime), U16(Runtime::kResolvePossiblyDirectEval), R(4),    //
-                           U8(5),                                             //
-           B(Star), R(1),                                                     //
-           B(Call), R(1), R(2), U8(1), U8(0),                                 //
-           B(LdaLookupSlotInsideTypeof), U8(2),                               //
-           B(TypeOf),                                                         //
-           B(Return),                                                         //
+       9 * kPointerSize,
+       1,
+       70,
+       {
+           B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure),   //
+                           U8(1),                                           //
+           B(PushContext), R(0),                                            //
+           B(Ldar), THIS(1),                                                //
+           B(StaContextSlot), R(0), U8(first_context_slot),                 //
+           B(CreateMappedArguments),                                        //
+           B(StaContextSlot), R(0), U8(first_context_slot + 1),             //
+           B(Ldar), R(new_target),                                          //
+           B(StaContextSlot), R(0), U8(first_context_slot + 2),             //
+           B(Mov), R(0), R(3),                                              //
+           B(LdaConstant), U8(0),                                           //
+           B(Star), R(4),                                                   //
+           B(CallRuntimeForPair), U16(Runtime::kLoadLookupSlot),            //
+                                  R(3), U8(2), R(1),                        //
+           B(LdaConstant), U8(1),                                           //
+           B(Star), R(3),                                                   //
+           B(Mov), R(1), R(4),                                              //
+           B(Mov), R(3), R(5),                                              //
+           B(Mov), R(closure), R(6),                                        //
+           B(LdaZero),                                                      //
+           B(Star), R(7),                                                   //
+           B(LdaSmi8), U8(10),                                              //
+           B(Star), R(8),                                                   //
+           B(CallRuntime), U16(Runtime::kResolvePossiblyDirectEval), R(4),  //
+                           U8(5),                                           //
+           B(Star), R(1),                                                   //
+           B(Call), R(1), R(2), U8(1), U8(0),                               //
+           B(LdaLookupSlotInsideTypeof), U8(2),                             //
+           B(TypeOf),                                                       //
+           B(Return),                                                       //
        },
        3,
        {"eval", "var x = 10;", "x"}},
@@ -6375,36 +6373,36 @@ TEST(LookupSlot) {
        1,
        71,
        {
-           B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure),     //
-                           U8(1),                                             //
-           B(PushContext), R(0),                                              //
-           B(Ldar), THIS(1),                                                  //
-           B(StaContextSlot), R(0), U8(first_context_slot),                   //
-           B(CreateMappedArguments),                                          //
-           B(StaContextSlot), R(0), U8(first_context_slot + 1),               //
-           B(Ldar), R(new_target),                                            //
-           B(StaContextSlot), R(0), U8(first_context_slot + 2),               //
-           B(LdaSmi8), U8(20),                                                //
-           B(StaLookupSlotSloppy), U8(0),                                     //
-           B(Mov), R(context), R(3),                                          //
-           B(LdaConstant), U8(1),                                             //
-           B(Star), R(4),                                                     //
-           B(CallRuntimeForPair), U16(Runtime::kLoadLookupSlot),              //
-                                  R(3), U8(2), R(1),                          //
-           B(LdaConstant), U8(2),                                             //
-           B(Star), R(3),                                                     //
-           B(Mov), R(1), R(4),                                                //
-           B(Mov), R(3), R(5),                                                //
-           B(Mov), R(closure), R(6),                                          //
-           B(LdaZero),                                                        //
-           B(Star), R(7),                                                     //
-           B(LdaSmi8), U8(10),                                                //
-           B(Star), R(8),                                                     //
-           B(CallRuntime), U16(Runtime::kResolvePossiblyDirectEval), R(4),    //
-                           U8(5),                                             //
-           B(Star), R(1),                                                     //
-           B(Call), R(1), R(2), U8(1), U8(0),                                 //
-           B(Return),                                                         //
+           B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure),   //
+                           U8(1),                                           //
+           B(PushContext), R(0),                                            //
+           B(Ldar), THIS(1),                                                //
+           B(StaContextSlot), R(0), U8(first_context_slot),                 //
+           B(CreateMappedArguments),                                        //
+           B(StaContextSlot), R(0), U8(first_context_slot + 1),             //
+           B(Ldar), R(new_target),                                          //
+           B(StaContextSlot), R(0), U8(first_context_slot + 2),             //
+           B(LdaSmi8), U8(20),                                              //
+           B(StaLookupSlotSloppy), U8(0),                                   //
+           B(Mov), R(0), R(3),                                              //
+           B(LdaConstant), U8(1),                                           //
+           B(Star), R(4),                                                   //
+           B(CallRuntimeForPair), U16(Runtime::kLoadLookupSlot),            //
+                                  R(3), U8(2), R(1),                        //
+           B(LdaConstant), U8(2),                                           //
+           B(Star), R(3),                                                   //
+           B(Mov), R(1), R(4),                                              //
+           B(Mov), R(3), R(5),                                              //
+           B(Mov), R(closure), R(6),                                        //
+           B(LdaZero),                                                      //
+           B(Star), R(7),                                                   //
+           B(LdaSmi8), U8(10),                                              //
+           B(Star), R(8),                                                   //
+           B(CallRuntime), U16(Runtime::kResolvePossiblyDirectEval), R(4),  //
+                           U8(5),                                           //
+           B(Star), R(1),                                                   //
+           B(Call), R(1), R(2), U8(1), U8(0),                               //
+           B(Return),                                                       //
        },
        3,
        {"x", "eval", ""}},
@@ -6432,7 +6430,6 @@ TEST(CallLookupSlot) {
       i::NewTypeFeedbackVector(helper.isolate(), &feedback_spec);
 
   int closure = Register::function_closure().index();
-  int context = Register::function_context().index();
   int new_target = Register::new_target().index();
 
   ExpectedSnippet<InstanceType> snippets[] = {
@@ -6452,7 +6449,7 @@ TEST(CallLookupSlot) {
            B(StaContextSlot), R(0), U8(6),                                  //
            B(CreateClosure), U8(0), U8(0),                                  //
            B(StaLookupSlotSloppy), U8(1),                                   //
-           B(Mov), R(context), R(3),                                        //
+           B(Mov), R(0), R(3),                                              //
            B(LdaConstant), U8(2),                                           //
            B(Star), R(4),                                                   //
            B(CallRuntimeForPair), U16(Runtime::kLoadLookupSlot),            //
@@ -6470,7 +6467,7 @@ TEST(CallLookupSlot) {
                            U8(5),                                           //
            B(Star), R(1),                                                   //
            B(Call), R(1), R(2), U8(1), U8(0),                               //
-           B(Mov), R(context), R(3),                                        //
+           B(Mov), R(0), R(3),                                              //
            B(LdaConstant), U8(1),                                           //
            B(Star), R(4),                                                   //
            B(CallRuntimeForPair), U16(Runtime::kLoadLookupSlot),            //
@@ -6492,6 +6489,8 @@ TEST(CallLookupSlot) {
   }
 }
 
+
+// TODO(mythria): tests for variable/function declaration in lookup slots.
 
 TEST(LookupSlotInEval) {
   InitializedHandleScope handle_scope;
@@ -6557,10 +6556,8 @@ TEST(LookupSlotInEval) {
     std::string script = std::string(function_prologue) +
                          std::string(snippets[i].code_snippet) +
                          std::string(function_epilogue);
-    // TODO(mythria): use * as filter when function declarations are supported
-    // inside eval.
     Handle<BytecodeArray> bytecode_array =
-        helper.MakeBytecode(script.c_str(), "t", "f");
+        helper.MakeBytecode(script.c_str(), "*", "f");
     CheckBytecodeArrayEqual(snippets[i], bytecode_array);
   }
 }
@@ -6654,10 +6651,8 @@ TEST(LookupSlotWideInEval) {
     std::string script = std::string(function_prologue) +
                          std::string(snippets[i].code_snippet) +
                          std::string(function_epilogue);
-    // TODO(mythria): use * as filter when function declarations are supported
-    // inside eval.
     Handle<BytecodeArray> bytecode_array =
-        helper.MakeBytecode(script.c_str(), "t", "f");
+        helper.MakeBytecode(script.c_str(), "*", "f");
     CheckBytecodeArrayEqual(snippets[i], bytecode_array);
   }
 }
@@ -6717,7 +6712,7 @@ TEST(DeleteLookupSlotInEval) {
                          std::string(snippets[i].code_snippet) +
                          std::string(function_epilogue);
     Handle<BytecodeArray> bytecode_array =
-        helper.MakeBytecode(script.c_str(), "t", "f");
+        helper.MakeBytecode(script.c_str(), "*", "f");
     CheckBytecodeArrayEqual(snippets[i], bytecode_array);
   }
 }

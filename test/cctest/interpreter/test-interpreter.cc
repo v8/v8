@@ -3562,6 +3562,81 @@ TEST(InterpreterEvalGlobal) {
   }
 }
 
+
+TEST(InterpreterEvalVariableDecl) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  i::Factory* factory = isolate->factory();
+
+  std::pair<const char*, Handle<Object>> eval_global[] = {
+      {"function f() { eval('var x = 10; x++;'); return x; }",
+       handle(Smi::FromInt(11), isolate)},
+      {"function f() { var x = 20; eval('var x = 10; x++;'); return x; }",
+       handle(Smi::FromInt(11), isolate)},
+      {"function f() {"
+       " var x = 20;"
+       " eval('\"use strict\"; var x = 10; x++;');"
+       " return x; }",
+       handle(Smi::FromInt(20), isolate)},
+      {"function f() {"
+       " var y = 30;"
+       " eval('var x = {1:20}; x[2]=y;');"
+       " return x[2]; }",
+       handle(Smi::FromInt(30), isolate)},
+      {"function f() {"
+       " eval('var x = {name:\"test\"};');"
+       " return x.name; }",
+       factory->NewStringFromStaticChars("test")},
+      {"function f() {"
+       "  eval('var x = [{name:\"test\"}, {type:\"cc\"}];');"
+       "  return x[1].type+x[0].name; }",
+       factory->NewStringFromStaticChars("cctest")},
+      {"function f() {\n"
+       " var x = 3;\n"
+       " var get_eval_x;\n"
+       " eval('\"use strict\"; "
+       "      var x = 20; "
+       "      get_eval_x = function func() {return x;};');\n"
+       " return get_eval_x() + x;\n"
+       "}",
+       handle(Smi::FromInt(23), isolate)},
+      // TODO(mythria): Add tests with const declarations.
+  };
+
+  for (size_t i = 0; i < arraysize(eval_global); i++) {
+    InterpreterTester tester(handles.main_isolate(), eval_global[i].first, "*");
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*eval_global[i].second));
+  }
+}
+
+
+TEST(InterpreterEvalFunctionDecl) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+
+  std::pair<const char*, Handle<Object>> eval_func_decl[] = {
+      {"function f() {\n"
+       " var x = 3;\n"
+       " eval('var x = 20;"
+       "       function get_x() {return x;};');\n"
+       " return get_x() + x;\n"
+       "}",
+       handle(Smi::FromInt(40), isolate)},
+  };
+
+  for (size_t i = 0; i < arraysize(eval_func_decl); i++) {
+    InterpreterTester tester(handles.main_isolate(), eval_func_decl[i].first,
+                             "*");
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*eval_func_decl[i].second));
+  }
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

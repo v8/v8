@@ -480,9 +480,31 @@ void BytecodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
                                                   variable->index());
       }
       break;
-    case VariableLocation::LOOKUP:
-      UNIMPLEMENTED();
+    case VariableLocation::LOOKUP: {
+      DCHECK(IsDeclaredVariableMode(mode));
+
+      register_allocator()->PrepareForConsecutiveAllocations(3);
+      Register name = register_allocator()->NextConsecutiveRegister();
+      Register init_value = register_allocator()->NextConsecutiveRegister();
+      Register attributes = register_allocator()->NextConsecutiveRegister();
+
+      builder()->LoadLiteral(variable->name()).StoreAccumulatorInRegister(name);
+      if (hole_init) {
+        builder()->LoadTheHole().StoreAccumulatorInRegister(init_value);
+      } else {
+        // For variables, we must not use an initial value (such as 'undefined')
+        // because we may have a (legal) redeclaration and we must not destroy
+        // the current value.
+        builder()
+            ->LoadLiteral(Smi::FromInt(0))
+            .StoreAccumulatorInRegister(init_value);
+      }
+      builder()
+          ->LoadLiteral(Smi::FromInt(variable->DeclarationPropertyAttributes()))
+          .StoreAccumulatorInRegister(attributes)
+          .CallRuntime(Runtime::kDeclareLookupSlot, name, 3);
       break;
+    }
   }
 }
 
@@ -513,8 +535,20 @@ void BytecodeGenerator::VisitFunctionDeclaration(FunctionDeclaration* decl) {
                                   variable->index());
       break;
     }
-    case VariableLocation::LOOKUP:
-      UNIMPLEMENTED();
+    case VariableLocation::LOOKUP: {
+      register_allocator()->PrepareForConsecutiveAllocations(3);
+      Register name = register_allocator()->NextConsecutiveRegister();
+      Register literal = register_allocator()->NextConsecutiveRegister();
+      Register attributes = register_allocator()->NextConsecutiveRegister();
+      builder()->LoadLiteral(variable->name()).StoreAccumulatorInRegister(name);
+
+      VisitForAccumulatorValue(decl->fun());
+      builder()
+          ->StoreAccumulatorInRegister(literal)
+          .LoadLiteral(Smi::FromInt(variable->DeclarationPropertyAttributes()))
+          .StoreAccumulatorInRegister(attributes)
+          .CallRuntime(Runtime::kDeclareLookupSlot, name, 3);
+    }
   }
 }
 
@@ -533,7 +567,10 @@ void BytecodeGenerator::VisitDeclarations(
     ZoneList<Declaration*>* declarations) {
   RegisterAllocationScope register_scope(this);
   DCHECK(globals()->empty());
-  AstVisitor::VisitDeclarations(declarations);
+  for (int i = 0; i < declarations->length(); i++) {
+    RegisterAllocationScope register_scope(this);
+    Visit(declarations->at(i));
+  }
   if (globals()->empty()) return;
   int array_index = 0;
   Handle<FixedArray> data = isolate()->factory()->NewFixedArray(
@@ -1319,6 +1356,8 @@ void BytecodeGenerator::VisitVariableAssignment(Variable* variable,
       break;
     }
     case VariableLocation::LOOKUP: {
+      // TODO(mythria): Use Runtime::kInitializeLegacyConstLookupSlot for
+      // initializations of const declarations.
       builder()->StoreLookupSlot(variable->name(), language_mode());
       break;
     }
@@ -1559,7 +1598,7 @@ void BytecodeGenerator::VisitCall(Call* expr) {
         DCHECK(Register::AreContiguous(callee, receiver));
         Variable* variable = callee_expr->AsVariableProxy()->var();
         builder()
-            ->MoveRegister(Register::function_context(), context)
+            ->MoveRegister(execution_context()->reg(), context)
             .LoadLiteral(variable->name())
             .StoreAccumulatorInRegister(name)
             .CallRuntimeForPair(Runtime::kLoadLookupSlot, context, 2, callee);
