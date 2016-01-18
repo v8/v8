@@ -344,6 +344,13 @@ class MacroAssembler: public Assembler {
   // xorps to clear the dst register before cvtsi2sd to solve this issue.
   void Cvtsi2sd(XMMRegister dst, Register src) { Cvtsi2sd(dst, Operand(src)); }
   void Cvtsi2sd(XMMRegister dst, const Operand& src);
+  void Cvtsi2ss(XMMRegister dst, Register src) { Cvtsi2ss(dst, Operand(src)); }
+  void Cvtsi2ss(XMMRegister dst, const Operand& src);
+
+  void Roundss(XMMRegister dst, XMMRegister src, Register tmp,
+               RoundingMode mode);
+  void Roundsd(XMMRegister dst, XMMRegister src, Register tmp, XMMRegister xtmp,
+               RoundingMode mode);
 
   // Support for constant splitting.
   bool IsUnsafeImmediate(const Immediate& x);

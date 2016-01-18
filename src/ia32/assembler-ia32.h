@@ -954,10 +954,13 @@ class Assembler : public AssemblerBase {
   void cvttss2si(Register dst, XMMRegister src) {
     cvttss2si(dst, Operand(src));
   }
+  void cvtss2si(Register dst, const Operand& src);
+  void cvtss2si(Register dst, XMMRegister src) { cvtss2si(dst, Operand(src)); }
   void cvttsd2si(Register dst, const Operand& src);
   void cvttsd2si(Register dst, XMMRegister src) {
     cvttsd2si(dst, Operand(src));
   }
+  void cvtsd2si(Register dst, const Operand& src);
   void cvtsd2si(Register dst, XMMRegister src);
 
   void cvtsi2ss(XMMRegister dst, Register src) { cvtsi2ss(dst, Operand(src)); }
@@ -992,6 +995,9 @@ class Assembler : public AssemblerBase {
 
   void roundss(XMMRegister dst, XMMRegister src, RoundingMode mode);
   void roundsd(XMMRegister dst, XMMRegister src, RoundingMode mode);
+
+  void ldmxcsr(const Operand& dst);
+  void stmxcsr(const Operand& dst);
 
   void movmskpd(Register dst, XMMRegister src);
   void movmskps(Register dst, XMMRegister src);
@@ -1495,6 +1501,7 @@ class Assembler : public AssemblerBase {
   void emit_arith(int sel, Operand dst, const Immediate& x);
 
   void emit_operand(Register reg, const Operand& adr);
+  void emit_operand(int code, const Operand& adr);
 
   void emit_label(Label* label);
 

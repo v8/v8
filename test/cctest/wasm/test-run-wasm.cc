@@ -2909,9 +2909,6 @@ TEST(Run_Wasm_MultipleCallIndirect) {
 }
 
 
-// TODO(titzer): Fix for nosee4 and re-enable.
-#if 0
-
 TEST(Run_Wasm_F32Floor) {
   WasmRunner<float> r(MachineType::Float32());
   BUILD(r, WASM_F32_FLOOR(WASM_GET_LOCAL(0)));
@@ -2960,6 +2957,32 @@ TEST(Run_Wasm_F64Ceil) {
 }
 
 
+TEST(Run_WasmCallF64StackParameterTrunc) {
+  // Build the target function.
+  LocalType param_types[20];
+  for (int i = 0; i < 20; i++) param_types[i] = kAstF64;
+  FunctionSig sig(1, 19, param_types);
+  TestingModule module;
+  WasmFunctionCompiler t(&sig);
+  BUILD(t, WASM_F64_TRUNC(WASM_GET_LOCAL(17)));
+  uint32_t index = t.CompileAndAdd(&module);
+
+  // Build the calling function.
+  WasmRunner<double> r(MachineType::Float64());
+  r.env()->module = &module;
+  BUILD(r, WASM_CALL_FUNCTION(index, WASM_F64(1.0), WASM_F64(2.0),
+                              WASM_F64(4.0), WASM_F64(8.0), WASM_F64(16.0),
+                              WASM_F64(32.0), WASM_F64(64.0), WASM_F64(128.0),
+                              WASM_F64(256.0), WASM_F64(1.5), WASM_F64(2.5),
+                              WASM_F64(4.5), WASM_F64(8.5), WASM_F64(16.5),
+                              WASM_F64(32.5), WASM_F64(64.5), WASM_F64(128.5),
+                              WASM_GET_LOCAL(0), WASM_F64(512.5)));
+
+
+  FOR_FLOAT64_INPUTS(i) { CheckDoubleEq(trunc(*i), r.Call(*i)); }
+}
+
+
 TEST(Run_Wasm_F64Trunc) {
   WasmRunner<double> r(MachineType::Float64());
   BUILD(r, WASM_F64_TRUNC(WASM_GET_LOCAL(0)));
@@ -2974,8 +2997,6 @@ TEST(Run_Wasm_F64NearestInt) {
 
   FOR_FLOAT64_INPUTS(i) { CheckDoubleEq(nearbyint(*i), r.Call(*i)); }
 }
-
-#endif
 
 
 TEST(Run_Wasm_F32Min) {

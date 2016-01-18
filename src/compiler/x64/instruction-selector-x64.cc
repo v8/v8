@@ -1226,32 +1226,44 @@ void InstructionSelector::VisitFloat64Sqrt(Node* node) {
 
 
 void InstructionSelector::VisitFloat32RoundDown(Node* node) {
-  VisitRR(this, node, kSSEFloat32Round | MiscField::encode(kRoundDown));
+  X64OperandGenerator g(this);
+  Emit(kSSEFloat32Round | MiscField::encode(kRoundDown),
+       g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)));
 }
 
 
 void InstructionSelector::VisitFloat64RoundDown(Node* node) {
-  VisitRR(this, node, kSSEFloat64Round | MiscField::encode(kRoundDown));
+  X64OperandGenerator g(this);
+  Emit(kSSEFloat64Round | MiscField::encode(kRoundDown),
+       g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)));
 }
 
 
 void InstructionSelector::VisitFloat32RoundUp(Node* node) {
-  VisitRR(this, node, kSSEFloat32Round | MiscField::encode(kRoundUp));
+  X64OperandGenerator g(this);
+  Emit(kSSEFloat32Round | MiscField::encode(kRoundUp),
+       g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)));
 }
 
 
 void InstructionSelector::VisitFloat64RoundUp(Node* node) {
-  VisitRR(this, node, kSSEFloat64Round | MiscField::encode(kRoundUp));
+  X64OperandGenerator g(this);
+  Emit(kSSEFloat64Round | MiscField::encode(kRoundUp),
+       g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)));
 }
 
 
 void InstructionSelector::VisitFloat32RoundTruncate(Node* node) {
-  VisitRR(this, node, kSSEFloat32Round | MiscField::encode(kRoundToZero));
+  X64OperandGenerator g(this);
+  Emit(kSSEFloat32Round | MiscField::encode(kRoundToZero),
+       g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)));
 }
 
 
 void InstructionSelector::VisitFloat64RoundTruncate(Node* node) {
-  VisitRR(this, node, kSSEFloat64Round | MiscField::encode(kRoundToZero));
+  X64OperandGenerator g(this);
+  Emit(kSSEFloat64Round | MiscField::encode(kRoundToZero),
+       g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)));
 }
 
 
@@ -1261,12 +1273,16 @@ void InstructionSelector::VisitFloat64RoundTiesAway(Node* node) {
 
 
 void InstructionSelector::VisitFloat32RoundTiesEven(Node* node) {
-  VisitRR(this, node, kSSEFloat32Round | MiscField::encode(kRoundToNearest));
+  X64OperandGenerator g(this);
+  Emit(kSSEFloat32Round | MiscField::encode(kRoundToNearest),
+       g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)));
 }
 
 
 void InstructionSelector::VisitFloat64RoundTiesEven(Node* node) {
-  VisitRR(this, node, kSSEFloat64Round | MiscField::encode(kRoundToNearest));
+  X64OperandGenerator g(this);
+  Emit(kSSEFloat64Round | MiscField::encode(kRoundToNearest),
+       g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)));
 }
 
 
@@ -1799,20 +1815,18 @@ InstructionSelector::SupportedMachineOperatorFlags() {
       MachineOperatorBuilder::kFloat64Max |
       MachineOperatorBuilder::kFloat64Min |
       MachineOperatorBuilder::kWord32ShiftIsSafe |
-      MachineOperatorBuilder::kWord32Ctz | MachineOperatorBuilder::kWord64Ctz;
+      MachineOperatorBuilder::kWord32Ctz | MachineOperatorBuilder::kWord64Ctz |
+      MachineOperatorBuilder::kFloat32RoundDown |
+      MachineOperatorBuilder::kFloat32RoundUp |
+      MachineOperatorBuilder::kFloat32RoundTruncate |
+      MachineOperatorBuilder::kFloat32RoundTiesEven |
+      MachineOperatorBuilder::kFloat64RoundDown |
+      MachineOperatorBuilder::kFloat64RoundUp |
+      MachineOperatorBuilder::kFloat64RoundTruncate |
+      MachineOperatorBuilder::kFloat64RoundTiesEven;
   if (CpuFeatures::IsSupported(POPCNT)) {
     flags |= MachineOperatorBuilder::kWord32Popcnt |
              MachineOperatorBuilder::kWord64Popcnt;
-  }
-  if (CpuFeatures::IsSupported(SSE4_1)) {
-    flags |= MachineOperatorBuilder::kFloat32RoundDown |
-             MachineOperatorBuilder::kFloat64RoundDown |
-             MachineOperatorBuilder::kFloat32RoundUp |
-             MachineOperatorBuilder::kFloat64RoundUp |
-             MachineOperatorBuilder::kFloat32RoundTruncate |
-             MachineOperatorBuilder::kFloat64RoundTruncate |
-             MachineOperatorBuilder::kFloat32RoundTiesEven |
-             MachineOperatorBuilder::kFloat64RoundTiesEven;
   }
   return flags;
 }

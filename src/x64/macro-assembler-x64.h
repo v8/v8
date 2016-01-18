@@ -831,8 +831,12 @@ class MacroAssembler: public Assembler {
   void Cvttsd2si(Register dst, const Operand& src);
   void Cvttss2siq(Register dst, XMMRegister src);
   void Cvttss2siq(Register dst, const Operand& src);
+  void Cvtss2siq(Register dst, XMMRegister src);
+  void Cvtss2siq(Register dst, const Operand& src);
   void Cvttsd2siq(Register dst, XMMRegister src);
   void Cvttsd2siq(Register dst, const Operand& src);
+  void Cvtsd2siq(Register dst, XMMRegister src);
+  void Cvtsd2siq(Register dst, const Operand& src);
 
   // Move if the registers are not identical.
   void Move(Register target, Register source);
@@ -967,7 +971,11 @@ class MacroAssembler: public Assembler {
   void Movmskpd(Register dst, XMMRegister src);
 
   void Roundss(XMMRegister dst, XMMRegister src, RoundingMode mode);
+  void Roundss(XMMRegister dst, XMMRegister src, Register tmp,
+               RoundingMode mode);
   void Roundsd(XMMRegister dst, XMMRegister src, RoundingMode mode);
+  void Roundsd(XMMRegister dst, XMMRegister src, Register tmp,
+               RoundingMode mode);
   void Sqrtsd(XMMRegister dst, XMMRegister src);
   void Sqrtsd(XMMRegister dst, const Operand& src);
 

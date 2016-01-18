@@ -1484,6 +1484,29 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
             } else {
               AppendToBuffer(",%s,cl", NameOfCPURegister(regop));
             }
+          } else if (f0byte == 0xAE) {
+            // ldmxcsr and stmxcsr
+            data += 2;
+            byte modrm = *data;
+            int mod, regop, rm;
+            get_modrm(modrm, &mod, &regop, &rm);
+            regop &= 0x7;  // The REX.R bit does not affect the operation.
+            const char* mnem = NULL;
+            switch (regop) {
+              case 2:
+                mnem = "ldmxcsr";
+                break;
+              case 3:
+                mnem = "stmxcsr";
+                break;
+              default:
+                UnimplementedInstruction();
+                return 2;
+            }
+            DCHECK_NOT_NULL(mnem);
+            AppendToBuffer("%s ", mnem);
+            data += PrintRightOperandHelper(
+                data, &DisassemblerIA32::NameOfCPURegister);
           } else if (f0byte == 0xBC) {
             data += 2;
             int mod, regop, rm;
@@ -1630,7 +1653,15 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
             }
           } else if (*data == 0x3A) {
             data++;
-            if (*data == 0x0B) {
+            if (*data == 0x0A) {
+              data++;
+              int mod, regop, rm;
+              get_modrm(*data, &mod, &regop, &rm);
+              int8_t imm8 = static_cast<int8_t>(data[1]);
+              AppendToBuffer("roundss %s,%s,%d", NameOfXMMRegister(regop),
+                             NameOfXMMRegister(rm), static_cast<int>(imm8));
+              data += 2;
+            } else if (*data == 0x0B) {
               data++;
               int mod, regop, rm;
               get_modrm(*data, &mod, &regop, &rm);

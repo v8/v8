@@ -581,9 +581,134 @@ void MacroAssembler::DebugBreak() {
 }
 
 
+void MacroAssembler::Cvtsi2ss(XMMRegister dst, const Operand& src) {
+  xorps(dst, dst);
+  cvtsi2ss(dst, src);
+}
+
+
 void MacroAssembler::Cvtsi2sd(XMMRegister dst, const Operand& src) {
   xorps(dst, dst);
   cvtsi2sd(dst, src);
+}
+
+
+void MacroAssembler::Roundss(XMMRegister dst, XMMRegister src, Register tmp,
+                             RoundingMode mode) {
+  if (CpuFeatures::IsSupported(SSE4_1)) {
+    CpuFeatureScope sse_scope(this, SSE4_1);
+    roundss(dst, src, mode);
+  } else {
+    // We have to store the original rounding mode to restore it later.
+    {
+      sub(esp, Immediate(kPointerSize * 2));
+      stmxcsr(Operand(esp, 0));
+      mov(tmp, Operand(esp, 0));
+      and_(tmp, Immediate(0xffff9fff));
+      or_(tmp, Immediate(mode << 13));
+      mov(Operand(esp, kPointerSize), tmp);
+      ldmxcsr(Operand(esp, kPointerSize));
+    }
+
+    // Do rounding by conversion to int.
+    cvtss2si(tmp, src);
+
+    Label out_of_range;
+    Label done;
+    // Check whether the input is within int32 range.
+    cmp(tmp, Immediate(1));
+    j(overflow, &out_of_range);
+    // If the conversion results in INT_MIN, then the input is outside
+    // int range, and due to the limited precision of float32 this means
+    // that the input must have been an integer already. We are therefore
+    // done already.
+    cvtsi2ss(dst, tmp);
+    if (!dst.is(src)) {
+      jmp(&done);
+    }
+
+    bind(&out_of_range);
+    if (!dst.is(src)) {
+      movss(dst, src);
+    }
+
+    bind(&done);
+    // Restore the original rounding mode.
+    ldmxcsr(Operand(esp, 0));
+    add(esp, Immediate(kPointerSize * 2));
+  }
+}
+
+
+void MacroAssembler::Roundsd(XMMRegister dst, XMMRegister src, Register tmp,
+                             XMMRegister xtmp, RoundingMode mode) {
+  if (CpuFeatures::IsSupported(SSE4_1)) {
+    CpuFeatureScope sse_scope(this, SSE4_1);
+    roundsd(dst, src, mode);
+  } else {
+    // We have to store the original rounding mode to restore it later.
+    {
+      sub(esp, Immediate(kPointerSize * 2));
+      stmxcsr(Operand(esp, 0));
+      mov(tmp, Operand(esp, 0));
+      and_(tmp, Immediate(0xffff9fff));
+      or_(tmp, Immediate(mode << 13));
+      mov(Operand(esp, kPointerSize), tmp);
+      ldmxcsr(Operand(esp, kPointerSize));
+    }
+
+    // Convert the input to int32.
+    cvtsd2si(tmp, src);
+
+    Label out_of_range;
+    Label done;
+    // Check whether the input is within int32 range.
+    cmp(tmp, Immediate(1));
+    j(overflow, &out_of_range);
+    // The input is within int32 range. We achieve rounding by converting
+    // back to float.
+    Cvtsi2sd(dst, tmp);
+    jmp(&done);
+    bind(&out_of_range);
+    if (!dst.is(src)) {
+      movsd(dst, src);
+    }
+    // If the input is outside [-2^52, 2^52], then the result = input.
+    int64_t offset = 1;
+    offset <<= 52;
+    Move(xtmp, static_cast<double>(offset));
+
+    ucomisd(xtmp, src);
+
+    j(below_equal, &done);
+
+    Move(xtmp, static_cast<double>(-offset));
+
+    ucomisd(xtmp, src);
+    j(above_equal, &done);
+
+    // Positive number have to be handled differently than negative numbers.
+    xorpd(xtmp, xtmp);
+    ucomisd(xtmp, src);
+
+    Move(xtmp, static_cast<double>(offset));
+
+    Label below_zero;
+    j(above, &below_zero);
+
+    addsd(dst, xtmp);
+    subsd(dst, xtmp);
+    jmp(&done);
+
+    bind(&below_zero);
+    subsd(dst, xtmp);
+    addsd(dst, xtmp);
+
+    bind(&done);
+    // Restore the original rounding mode.
+    ldmxcsr(Operand(esp, 0));
+    add(esp, Immediate(kPointerSize * 2));
+  }
 }
 
 

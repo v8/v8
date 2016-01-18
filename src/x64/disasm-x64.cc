@@ -994,6 +994,11 @@ int DisassemblerX64::AVXInstruction(byte* data) {
                        NameOfCPURegister(regop));
         current += PrintRightXMMOperand(current);
         break;
+      case 0x2d:
+        AppendToBuffer("vcvtss2si%s %s,", vex_w() ? "q" : "",
+                       NameOfCPURegister(regop));
+        current += PrintRightXMMOperand(current);
+        break;
       case 0x58:
         AppendToBuffer("vaddss %s,%s,", NameOfXMMRegister(regop),
                        NameOfXMMRegister(vvvv));
@@ -1711,6 +1716,14 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
       AppendToBuffer("cvttss2si%c %s,",
           operand_size_code(), NameOfCPURegister(regop));
       current += PrintRightXMMOperand(current);
+    } else if (opcode == 0x2D) {
+      // CVTSS2SI:
+      // Convert with rounded scalar single-precision FP to dword integer.
+      int mod, regop, rm;
+      get_modrm(*current, &mod, &regop, &rm);
+      AppendToBuffer("cvtss2si%c %s,", operand_size_code(),
+                     NameOfCPURegister(regop));
+      current += PrintRightXMMOperand(current);
     } else if (opcode == 0x7E) {
       int mod, regop, rm;
       get_modrm(*current, &mod, &regop, &rm);
@@ -1871,6 +1884,27 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
     current += PrintRightOperand(current);
   } else if (opcode == 0x0B) {
     AppendToBuffer("ud2");
+  } else if (opcode == 0xAE) {
+    byte modrm = *(data + 2);
+    int mod, regop, rm;
+    get_modrm(modrm, &mod, &regop, &rm);
+    regop &= 0x7;  // The REX.R bit does not affect the operation.
+    const char* mnem = NULL;
+    switch (regop) {
+      case 2:
+        mnem = "ldmxcsr";
+        break;
+      case 3:
+        mnem = "stmxcsr";
+        break;
+      default:
+        UnimplementedInstruction();
+        return 2;
+    }
+    DCHECK_NOT_NULL(mnem);
+    AppendToBuffer("%s ", mnem);
+    current +=
+        PrintRightOperandHelper(current, &DisassemblerX64::NameOfCPURegister);
   } else {
     UnimplementedInstruction();
   }
