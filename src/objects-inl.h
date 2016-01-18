@@ -4050,6 +4050,7 @@ int BytecodeArray::parameter_count() const {
 
 
 ACCESSORS(BytecodeArray, constant_pool, FixedArray, kConstantPoolOffset)
+ACCESSORS(BytecodeArray, handler_table, FixedArray, kHandlerTableOffset)
 
 
 Address BytecodeArray::GetFirstBytecodeAddress() {

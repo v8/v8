@@ -4373,6 +4373,9 @@ class BytecodeArray : public FixedArrayBase {
   // Accessors for the constant pool.
   DECL_ACCESSORS(constant_pool, FixedArray)
 
+  // Accessors for handler table containing offsets of exception handlers.
+  DECL_ACCESSORS(handler_table, FixedArray)
+
   DECLARE_CAST(BytecodeArray)
 
   // Dispatched behavior.
@@ -4387,7 +4390,8 @@ class BytecodeArray : public FixedArrayBase {
   static const int kFrameSizeOffset = FixedArrayBase::kHeaderSize;
   static const int kParameterSizeOffset = kFrameSizeOffset + kIntSize;
   static const int kConstantPoolOffset = kParameterSizeOffset + kIntSize;
-  static const int kHeaderSize = kConstantPoolOffset + kPointerSize;
+  static const int kHandlerTableOffset = kConstantPoolOffset + kPointerSize;
+  static const int kHeaderSize = kHandlerTableOffset + kPointerSize;
 
   static const int kAlignedSize = OBJECT_POINTER_ALIGN(kHeaderSize);
 
