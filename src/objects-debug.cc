@@ -909,12 +909,6 @@ void PrototypeInfo::PrototypeInfoVerify() {
 }
 
 
-void AccessorInfo::AccessorInfoVerify() {
-  VerifyPointer(name());
-  VerifyPointer(expected_receiver_type());
-}
-
-
 void SloppyBlockWithEvalContextExtension::
     SloppyBlockWithEvalContextExtensionVerify() {
   CHECK(IsSloppyBlockWithEvalContextExtension());
@@ -923,9 +917,10 @@ void SloppyBlockWithEvalContextExtension::
 }
 
 
-void ExecutableAccessorInfo::ExecutableAccessorInfoVerify() {
-  CHECK(IsExecutableAccessorInfo());
-  AccessorInfoVerify();
+void AccessorInfo::AccessorInfoVerify() {
+  CHECK(IsAccessorInfo());
+  VerifyPointer(name());
+  VerifyPointer(expected_receiver_type());
   VerifyPointer(getter());
   VerifyPointer(setter());
   VerifyPointer(data());

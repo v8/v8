@@ -592,7 +592,7 @@ void NamedStoreHandlerCompiler::FrontendFooter(Handle<Name> name, Label* miss) {
 
 
 void NamedLoadHandlerCompiler::GenerateLoadCallback(
-    Register reg, Handle<ExecutableAccessorInfo> callback) {
+    Register reg, Handle<AccessorInfo> callback) {
   // Insert additional parameters into the stack frame above return address.
   DCHECK(!scratch4().is(reg));
   __ PopReturnAddressTo(scratch4());
@@ -722,8 +722,7 @@ void NamedLoadHandlerCompiler::GenerateLoadInterceptor(Register holder_reg) {
 
 
 Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
-    Handle<JSObject> object, Handle<Name> name,
-    Handle<ExecutableAccessorInfo> callback) {
+    Handle<JSObject> object, Handle<Name> name, Handle<AccessorInfo> callback) {
   Register holder_reg = Frontend(name);
 
   __ PopReturnAddressTo(scratch1());

@@ -150,9 +150,6 @@ bool Object::IsExternal() const {
 }
 
 
-bool Object::IsAccessorInfo() const { return IsExecutableAccessorInfo(); }
-
-
 TYPE_CHECKER(HeapNumber, HEAP_NUMBER_TYPE)
 TYPE_CHECKER(MutableHeapNumber, MUTABLE_HEAP_NUMBER_TYPE)
 TYPE_CHECKER(Symbol, SYMBOL_TYPE)
@@ -3181,7 +3178,6 @@ void SeededNumberDictionary::set_requires_slow_elements() {
 // Cast operations
 
 
-CAST_ACCESSOR(AccessorInfo)
 CAST_ACCESSOR(ArrayList)
 CAST_ACCESSOR(Bool16x8)
 CAST_ACCESSOR(Bool32x4)
@@ -5478,9 +5474,9 @@ SMI_ACCESSORS(AccessorInfo, flag, kFlagOffset)
 ACCESSORS(AccessorInfo, expected_receiver_type, Object,
           kExpectedReceiverTypeOffset)
 
-ACCESSORS(ExecutableAccessorInfo, getter, Object, kGetterOffset)
-ACCESSORS(ExecutableAccessorInfo, setter, Object, kSetterOffset)
-ACCESSORS(ExecutableAccessorInfo, data, Object, kDataOffset)
+ACCESSORS(AccessorInfo, getter, Object, kGetterOffset)
+ACCESSORS(AccessorInfo, setter, Object, kSetterOffset)
+ACCESSORS(AccessorInfo, data, Object, kDataOffset)
 
 ACCESSORS(Box, value, Object, kValueOffset)
 

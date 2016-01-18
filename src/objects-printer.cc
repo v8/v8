@@ -966,9 +966,8 @@ void Foreign::ForeignPrint(std::ostream& os) {  // NOLINT
 }
 
 
-void ExecutableAccessorInfo::ExecutableAccessorInfoPrint(
-    std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "ExecutableAccessorInfo");
+void AccessorInfo::AccessorInfoPrint(std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "AccessorInfo");
   os << "\n - name: " << Brief(name());
   os << "\n - flag: " << flag();
   os << "\n - getter: " << Brief(getter());

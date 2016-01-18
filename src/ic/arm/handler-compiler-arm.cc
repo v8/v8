@@ -594,7 +594,7 @@ void NamedLoadHandlerCompiler::GenerateLoadConstant(Handle<Object> value) {
 
 
 void NamedLoadHandlerCompiler::GenerateLoadCallback(
-    Register reg, Handle<ExecutableAccessorInfo> callback) {
+    Register reg, Handle<AccessorInfo> callback) {
   // Build AccessorInfo::args_ list on the stack and push property name below
   // the exit frame to make GC aware of them and store pointers to them.
   STATIC_ASSERT(PropertyCallbackArguments::kHolderIndex == 0);
@@ -608,7 +608,7 @@ void NamedLoadHandlerCompiler::GenerateLoadCallback(
   DCHECK(!scratch3().is(reg));
   DCHECK(!scratch4().is(reg));
   __ push(receiver());
-  // Push data from ExecutableAccessorInfo.
+  // Push data from AccessorInfo.
   Handle<Object> data(callback->data(), isolate());
   if (data->IsUndefined() || data->IsSmi()) {
     __ Move(scratch3(), data);
@@ -714,8 +714,7 @@ void NamedLoadHandlerCompiler::GenerateLoadInterceptor(Register holder_reg) {
 
 
 Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
-    Handle<JSObject> object, Handle<Name> name,
-    Handle<ExecutableAccessorInfo> callback) {
+    Handle<JSObject> object, Handle<Name> name, Handle<AccessorInfo> callback) {
   Register holder_reg = Frontend(name);
 
   __ push(receiver());  // receiver

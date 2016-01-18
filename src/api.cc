@@ -1125,8 +1125,7 @@ static i::Handle<i::AccessorInfo> MakeAccessorInfo(
     v8::AccessControl settings, v8::PropertyAttribute attributes,
     v8::Local<AccessorSignature> signature) {
   i::Isolate* isolate = Utils::OpenHandle(*name)->GetIsolate();
-  i::Handle<i::ExecutableAccessorInfo> obj =
-      isolate->factory()->NewExecutableAccessorInfo();
+  i::Handle<i::AccessorInfo> obj = isolate->factory()->NewAccessorInfo();
   SET_FIELD_WRAPPED(obj, set_getter, getter);
   SET_FIELD_WRAPPED(obj, set_setter, setter);
   if (data.IsEmpty()) {

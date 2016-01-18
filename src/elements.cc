@@ -902,7 +902,7 @@ class ElementsAccessorBase : public ElementsAccessor {
       Handle<Object> value = ElementsAccessorSubclass::GetImpl(from, i);
       DCHECK(!value->IsTheHole());
       DCHECK(!value->IsAccessorPair());
-      DCHECK(!value->IsExecutableAccessorInfo());
+      DCHECK(!value->IsAccessorInfo());
       accumulator->AddKey(value, convert);
     }
   }

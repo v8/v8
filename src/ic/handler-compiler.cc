@@ -228,7 +228,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadNonexistent(
 
 
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
-    Handle<Name> name, Handle<ExecutableAccessorInfo> callback) {
+    Handle<Name> name, Handle<AccessorInfo> callback) {
   Register reg = Frontend(name);
   GenerateLoadCallback(reg, callback);
   return GetCode(kind(), Code::FAST, name);
@@ -278,7 +278,7 @@ void NamedLoadHandlerCompiler::InterceptorVectorSlotPop(Register holder_reg,
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadInterceptor(
     LookupIterator* it) {
   // So far the most popular follow ups for interceptor loads are DATA and
-  // ExecutableAccessorInfo, so inline only them. Other cases may be added
+  // AccessorInfo, so inline only them. Other cases may be added
   // later.
   bool inline_followup = false;
   switch (it->state()) {
@@ -296,12 +296,11 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadInterceptor(
       break;
     case LookupIterator::ACCESSOR: {
       Handle<Object> accessors = it->GetAccessors();
-      if (accessors->IsExecutableAccessorInfo()) {
-        Handle<ExecutableAccessorInfo> info =
-            Handle<ExecutableAccessorInfo>::cast(accessors);
-        inline_followup = info->getter() != NULL &&
-                          ExecutableAccessorInfo::IsCompatibleReceiverMap(
-                              isolate(), info, map());
+      if (accessors->IsAccessorInfo()) {
+        Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(accessors);
+        inline_followup =
+            info->getter() != NULL &&
+            AccessorInfo::IsCompatibleReceiverMap(isolate(), info, map());
       } else if (accessors->IsAccessorPair()) {
         Handle<JSObject> property_holder(it->GetHolder<JSObject>());
         Handle<Object> getter(Handle<AccessorPair>::cast(accessors)->getter(),
@@ -396,9 +395,9 @@ void NamedLoadHandlerCompiler::GenerateLoadPostInterceptor(
       break;
     }
     case LookupIterator::ACCESSOR:
-      if (it->GetAccessors()->IsExecutableAccessorInfo()) {
-        Handle<ExecutableAccessorInfo> info =
-            Handle<ExecutableAccessorInfo>::cast(it->GetAccessors());
+      if (it->GetAccessors()->IsAccessorInfo()) {
+        Handle<AccessorInfo> info =
+            Handle<AccessorInfo>::cast(it->GetAccessors());
         DCHECK_NOT_NULL(info->getter());
         GenerateLoadCallback(reg, info);
       } else {

@@ -2071,7 +2071,7 @@ TEST(AccessorInfo) {
   const v8::HeapGraphNode* length_accessor =
       GetProperty(descriptors, v8::HeapGraphEdge::kInternal, "4");
   CHECK(length_accessor);
-  CHECK_EQ(0, strcmp("system / ExecutableAccessorInfo",
+  CHECK_EQ(0, strcmp("system / AccessorInfo",
                      *v8::String::Utf8Value(length_accessor->GetName())));
   const v8::HeapGraphNode* name =
       GetProperty(length_accessor, v8::HeapGraphEdge::kInternal, "name");

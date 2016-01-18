@@ -123,7 +123,7 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
   Handle<Code> CompileLoadField(Handle<Name> name, FieldIndex index);
 
   Handle<Code> CompileLoadCallback(Handle<Name> name,
-                                   Handle<ExecutableAccessorInfo> callback);
+                                   Handle<AccessorInfo> callback);
 
   Handle<Code> CompileLoadCallback(Handle<Name> name,
                                    const CallOptimization& call_optimization,
@@ -180,8 +180,7 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
  private:
   Handle<Code> CompileLoadNonexistent(Handle<Name> name);
   void GenerateLoadConstant(Handle<Object> value);
-  void GenerateLoadCallback(Register reg,
-                            Handle<ExecutableAccessorInfo> callback);
+  void GenerateLoadCallback(Register reg, Handle<AccessorInfo> callback);
   void GenerateLoadCallback(const CallOptimization& call_optimization,
                             Handle<Map> receiver_map);
 
@@ -224,7 +223,7 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
                                       Handle<Name> name);
   Handle<Code> CompileStoreField(LookupIterator* it);
   Handle<Code> CompileStoreCallback(Handle<JSObject> object, Handle<Name> name,
-                                    Handle<ExecutableAccessorInfo> callback);
+                                    Handle<AccessorInfo> callback);
   Handle<Code> CompileStoreCallback(Handle<JSObject> object, Handle<Name> name,
                                     const CallOptimization& call_optimization,
                                     int accessor_index);

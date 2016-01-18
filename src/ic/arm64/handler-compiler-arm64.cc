@@ -645,10 +645,10 @@ void NamedLoadHandlerCompiler::GenerateLoadConstant(Handle<Object> value) {
 
 
 void NamedLoadHandlerCompiler::GenerateLoadCallback(
-    Register reg, Handle<ExecutableAccessorInfo> callback) {
+    Register reg, Handle<AccessorInfo> callback) {
   DCHECK(!AreAliased(scratch2(), scratch3(), scratch4(), reg));
 
-  // Build ExecutableAccessorInfo::args_ list on the stack and push property
+  // Build AccessorInfo::args_ list on the stack and push property
   // name below the exit frame to make GC aware of them and store pointers to
   // them.
   STATIC_ASSERT(PropertyCallbackArguments::kHolderIndex == 0);
@@ -774,8 +774,7 @@ void NamedLoadHandlerCompiler::GenerateLoadInterceptor(Register holder_reg) {
 
 
 Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
-    Handle<JSObject> object, Handle<Name> name,
-    Handle<ExecutableAccessorInfo> callback) {
+    Handle<JSObject> object, Handle<Name> name, Handle<AccessorInfo> callback) {
   ASM_LOCATION("NamedStoreHandlerCompiler::CompileStoreCallback");
   Register holder_reg = Frontend(name);
 

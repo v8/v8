@@ -267,8 +267,7 @@ TypeImpl<Config>::BitsetType::Lub(i::Map* map) {
       // over type or class variables, esp ones with bounds...
       return kDetectable & kTaggedPointer;
     case ALLOCATION_SITE_TYPE:
-    case DECLARED_ACCESSOR_INFO_TYPE:
-    case EXECUTABLE_ACCESSOR_INFO_TYPE:
+    case ACCESSOR_INFO_TYPE:
     case SHARED_FUNCTION_INFO_TYPE:
     case ACCESSOR_PAIR_TYPE:
     case FIXED_ARRAY_TYPE:
@@ -292,7 +291,6 @@ TypeImpl<Config>::BitsetType::Lub(i::Map* map) {
       TYPED_ARRAYS(FIXED_TYPED_ARRAY_CASE)
 #undef FIXED_TYPED_ARRAY_CASE
     case FILLER_TYPE:
-    case DECLARED_ACCESSOR_DESCRIPTOR_TYPE:
     case ACCESS_CHECK_INFO_TYPE:
     case INTERCEPTOR_INFO_TYPE:
     case CALL_HANDLER_INFO_TYPE:

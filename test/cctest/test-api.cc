@@ -2135,7 +2135,7 @@ static void ThrowingSymbolAccessorGetter(
 }
 
 
-THREADED_TEST(ExecutableAccessorIsPreservedOnAttributeChange) {
+THREADED_TEST(AccessorIsPreservedOnAttributeChange) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   LocalContext env;
@@ -2145,11 +2145,11 @@ THREADED_TEST(ExecutableAccessorIsPreservedOnAttributeChange) {
   CHECK_GT(i::FixedArray::cast(a->map()->instance_descriptors())->length(), 0);
   CompileRun("Object.defineProperty(a, 'length', { writable: false });");
   CHECK_EQ(i::FixedArray::cast(a->map()->instance_descriptors())->length(), 0);
-  // But we should still have an ExecutableAccessorInfo.
+  // But we should still have an AccessorInfo.
   i::Handle<i::String> name(v8::Utils::OpenHandle(*v8_str("length")));
   i::LookupIterator it(a, name, i::LookupIterator::OWN_SKIP_INTERCEPTOR);
   CHECK_EQ(i::LookupIterator::ACCESSOR, it.state());
-  CHECK(it.GetAccessors()->IsExecutableAccessorInfo());
+  CHECK(it.GetAccessors()->IsAccessorInfo());
 }
 
 

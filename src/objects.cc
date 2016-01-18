@@ -936,9 +936,8 @@ Handle<Object> JSReceiver::GetDataProperty(LookupIterator* it) {
         it->NotFound();
         return it->isolate()->factory()->undefined_value();
       case LookupIterator::ACCESSOR:
-        // TODO(verwaest): For now this doesn't call into
-        // ExecutableAccessorInfo, since clients don't need it. Update once
-        // relevant.
+        // TODO(verwaest): For now this doesn't call into AccessorInfo, since
+        // clients don't need it. Update once relevant.
         it->NotFound();
         return it->isolate()->factory()->undefined_value();
       case LookupIterator::INTEGER_INDEXED_EXOTIC:
@@ -1147,8 +1146,7 @@ MaybeHandle<Object> Object::GetPropertyWithAccessor(
   if (structure->IsAccessorInfo()) {
     Handle<JSObject> holder = it->GetHolder<JSObject>();
     Handle<Name> name = it->GetName();
-    Handle<ExecutableAccessorInfo> info =
-        Handle<ExecutableAccessorInfo>::cast(structure);
+    Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(structure);
     if (!info->IsCompatibleReceiver(*receiver)) {
       THROW_NEW_ERROR(isolate,
                       NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
@@ -1207,11 +1205,10 @@ Maybe<bool> Object::SetPropertyWithAccessor(LookupIterator* it,
   DCHECK(!structure->IsForeign());
 
   // API style callbacks.
-  if (structure->IsExecutableAccessorInfo()) {
+  if (structure->IsAccessorInfo()) {
     Handle<JSObject> holder = it->GetHolder<JSObject>();
     Handle<Name> name = it->GetName();
-    Handle<ExecutableAccessorInfo> info =
-        Handle<ExecutableAccessorInfo>::cast(structure);
+    Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(structure);
     if (!info->IsCompatibleReceiver(*receiver)) {
       isolate->Throw(*isolate->factory()->NewTypeError(
           MessageTemplate::kIncompatibleMethodReceiver, name, receiver));
@@ -1221,10 +1218,10 @@ Maybe<bool> Object::SetPropertyWithAccessor(LookupIterator* it,
     v8::AccessorNameSetterCallback call_fun =
         v8::ToCData<v8::AccessorNameSetterCallback>(info->setter());
     if (call_fun == nullptr) return Just(true);
-    // TODO(verwaest): Shouldn't this case be unreachable (at least in the
-    // long run?) Should we have ExecutableAccessorPairs with missing setter
-    // that are "writable"? If they aren't writable, shouldn't we have bailed
-    // out already earlier?
+    // TODO(verwaest): Shouldn't this case be unreachable (at least in the long
+    // run?) Should we have AccessorInfo with missing setter that are
+    // "writable"? If they aren't writable, shouldn't we have bailed out already
+    // earlier?
 
     LOG(isolate, ApiNamedPropertyAccess("store", *holder, *name));
     PropertyCallbackArguments args(isolate, info->data(), *receiver, *holder);
@@ -5208,7 +5205,7 @@ void JSObject::AddProperty(Handle<JSObject> object, Handle<Name> name,
 
 
 // static
-void ExecutableAccessorInfo::ClearSetter(Handle<ExecutableAccessorInfo> info) {
+void AccessorInfo::ClearSetter(Handle<AccessorInfo> info) {
   Handle<Object> object = v8::FromCData(info->GetIsolate(), nullptr);
   info->set_setter(*object);
 }
@@ -5220,7 +5217,7 @@ void ExecutableAccessorInfo::ClearSetter(Handle<ExecutableAccessorInfo> info) {
 // hidden prototypes.
 MaybeHandle<Object> JSObject::DefineOwnPropertyIgnoreAttributes(
     LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
-    ExecutableAccessorInfoHandling handling) {
+    AccessorInfoHandling handling) {
   MAYBE_RETURN_NULL(DefineOwnPropertyIgnoreAttributes(
       it, value, attributes, THROW_ON_ERROR, handling));
   return value;
@@ -5229,7 +5226,7 @@ MaybeHandle<Object> JSObject::DefineOwnPropertyIgnoreAttributes(
 
 Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
     LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
-    ShouldThrow should_throw, ExecutableAccessorInfoHandling handling) {
+    ShouldThrow should_throw, AccessorInfoHandling handling) {
   Handle<JSObject> object = Handle<JSObject>::cast(it->GetReceiver());
   bool is_observed = object->map()->is_observed() &&
                      (it->IsElement() ||
@@ -5268,10 +5265,9 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
       case LookupIterator::ACCESSOR: {
         Handle<Object> accessors = it->GetAccessors();
 
-        // Special handling for ExecutableAccessorInfo, which behaves like a
-        // data property.
-        if (accessors->IsExecutableAccessorInfo() &&
-            handling == DONT_FORCE_FIELD) {
+        // Special handling for AccessorInfo, which behaves like a data
+        // property.
+        if (accessors->IsAccessorInfo() && handling == DONT_FORCE_FIELD) {
           PropertyDetails details = it->property_details();
           // Ensure the context isn't changed after calling into accessors.
           AssertNoContextChange ncc(it->isolate());
@@ -5283,15 +5279,13 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
           if (details.attributes() == attributes) return Just(true);
 
           // Reconfigure the accessor if attributes mismatch.
-          Handle<ExecutableAccessorInfo> new_data = Accessors::CloneAccessor(
-              it->isolate(), Handle<ExecutableAccessorInfo>::cast(accessors));
+          Handle<AccessorInfo> new_data = Accessors::CloneAccessor(
+              it->isolate(), Handle<AccessorInfo>::cast(accessors));
           new_data->set_property_attributes(attributes);
           // By clearing the setter we don't have to introduce a lookup to
           // the setter, simply make it unavailable to reflect the
           // attributes.
-          if (attributes & READ_ONLY) {
-            ExecutableAccessorInfo::ClearSetter(new_data);
-          }
+          if (attributes & READ_ONLY) AccessorInfo::ClearSetter(new_data);
 
           it->TransitionToAccessorPair(new_data, attributes);
         } else {
@@ -5353,7 +5347,7 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
 
 MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
     Handle<JSObject> object, Handle<Name> name, Handle<Object> value,
-    PropertyAttributes attributes, ExecutableAccessorInfoHandling handling) {
+    PropertyAttributes attributes, AccessorInfoHandling handling) {
   DCHECK(!value->IsTheHole());
   LookupIterator it(object, name, LookupIterator::OWN);
   return DefineOwnPropertyIgnoreAttributes(&it, value, attributes, handling);
@@ -5362,7 +5356,7 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
 
 MaybeHandle<Object> JSObject::SetOwnElementIgnoreAttributes(
     Handle<JSObject> object, uint32_t index, Handle<Object> value,
-    PropertyAttributes attributes, ExecutableAccessorInfoHandling handling) {
+    PropertyAttributes attributes, AccessorInfoHandling handling) {
   Isolate* isolate = object->GetIsolate();
   LookupIterator it(isolate, object, index, LookupIterator::OWN);
   return DefineOwnPropertyIgnoreAttributes(&it, value, attributes, handling);
@@ -5371,7 +5365,7 @@ MaybeHandle<Object> JSObject::SetOwnElementIgnoreAttributes(
 
 MaybeHandle<Object> JSObject::DefinePropertyOrElementIgnoreAttributes(
     Handle<JSObject> object, Handle<Name> name, Handle<Object> value,
-    PropertyAttributes attributes, ExecutableAccessorInfoHandling handling) {
+    PropertyAttributes attributes, AccessorInfoHandling handling) {
   Isolate* isolate = object->GetIsolate();
   LookupIterator it = LookupIterator::PropertyOrElement(isolate, object, name,
                                                         LookupIterator::OWN);

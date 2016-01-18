@@ -134,7 +134,6 @@
 //     - Struct
 //       - Box
 //       - AccessorInfo
-//         - ExecutableAccessorInfo
 //       - AccessorPair
 //       - AccessCheckInfo
 //       - InterceptorInfo
@@ -384,9 +383,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
                                                                 \
   V(FILLER_TYPE)                                                \
                                                                 \
-  V(DECLARED_ACCESSOR_DESCRIPTOR_TYPE)                          \
-  V(DECLARED_ACCESSOR_INFO_TYPE)                                \
-  V(EXECUTABLE_ACCESSOR_INFO_TYPE)                              \
+  V(ACCESSOR_INFO_TYPE)                                         \
   V(ACCESSOR_PAIR_TYPE)                                         \
   V(ACCESS_CHECK_INFO_TYPE)                                     \
   V(INTERCEPTOR_INFO_TYPE)                                      \
@@ -505,8 +502,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
 // manually.
 #define STRUCT_LIST(V)                                                       \
   V(BOX, Box, box)                                                           \
-  V(EXECUTABLE_ACCESSOR_INFO, ExecutableAccessorInfo,                        \
-    executable_accessor_info)                                                \
+  V(ACCESSOR_INFO, AccessorInfo, accessor_info)                              \
   V(ACCESSOR_PAIR, AccessorPair, accessor_pair)                              \
   V(ACCESS_CHECK_INFO, AccessCheckInfo, access_check_info)                   \
   V(INTERCEPTOR_INFO, InterceptorInfo, interceptor_info)                     \
@@ -676,9 +672,7 @@ enum InstanceType {
   FILLER_TYPE,  // LAST_DATA_TYPE
 
   // Structs.
-  DECLARED_ACCESSOR_DESCRIPTOR_TYPE,
-  DECLARED_ACCESSOR_INFO_TYPE,
-  EXECUTABLE_ACCESSOR_INFO_TYPE,
+  ACCESSOR_INFO_TYPE,
   ACCESSOR_PAIR_TYPE,
   ACCESS_CHECK_INFO_TYPE,
   INTERCEPTOR_INFO_TYPE,
@@ -1043,7 +1037,6 @@ class Object {
 
   INLINE(bool IsFixedArrayBase() const);
   INLINE(bool IsExternal() const);
-  INLINE(bool IsAccessorInfo() const);
 
   INLINE(bool IsStruct() const);
 #define DECLARE_STRUCT_PREDICATE(NAME, Name, name) \
@@ -2076,27 +2069,27 @@ class JSObject: public JSReceiver {
       LookupIterator* it, Handle<Object> value);
 
   // SetLocalPropertyIgnoreAttributes converts callbacks to fields. We need to
-  // grant an exemption to ExecutableAccessor callbacks in some cases.
-  enum ExecutableAccessorInfoHandling { DEFAULT_HANDLING, DONT_FORCE_FIELD };
+  // grant an exemption to AccessorInfo callbacks in some cases.
+  enum AccessorInfoHandling { DEFAULT_HANDLING, DONT_FORCE_FIELD };
 
   MUST_USE_RESULT static MaybeHandle<Object> DefineOwnPropertyIgnoreAttributes(
       LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
-      ExecutableAccessorInfoHandling handling = DEFAULT_HANDLING);
+      AccessorInfoHandling handling = DEFAULT_HANDLING);
 
   MUST_USE_RESULT static Maybe<bool> DefineOwnPropertyIgnoreAttributes(
       LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
       ShouldThrow should_throw,
-      ExecutableAccessorInfoHandling handling = DEFAULT_HANDLING);
+      AccessorInfoHandling handling = DEFAULT_HANDLING);
 
   MUST_USE_RESULT static MaybeHandle<Object> SetOwnPropertyIgnoreAttributes(
       Handle<JSObject> object, Handle<Name> name, Handle<Object> value,
       PropertyAttributes attributes,
-      ExecutableAccessorInfoHandling handling = DEFAULT_HANDLING);
+      AccessorInfoHandling handling = DEFAULT_HANDLING);
 
   MUST_USE_RESULT static MaybeHandle<Object> SetOwnElementIgnoreAttributes(
       Handle<JSObject> object, uint32_t index, Handle<Object> value,
       PropertyAttributes attributes,
-      ExecutableAccessorInfoHandling handling = DEFAULT_HANDLING);
+      AccessorInfoHandling handling = DEFAULT_HANDLING);
 
   // Equivalent to one of the above depending on whether |name| can be converted
   // to an array index.
@@ -2104,7 +2097,7 @@ class JSObject: public JSReceiver {
   DefinePropertyOrElementIgnoreAttributes(
       Handle<JSObject> object, Handle<Name> name, Handle<Object> value,
       PropertyAttributes attributes = NONE,
-      ExecutableAccessorInfoHandling handling = DEFAULT_HANDLING);
+      AccessorInfoHandling handling = DEFAULT_HANDLING);
 
   // Adds or reconfigures a property to attributes NONE. It will fail when it
   // cannot.
@@ -10187,11 +10180,28 @@ class JSRegExpResult: public JSArray {
 };
 
 
+// An accessor must have a getter, but can have no setter.
+//
+// When setting a property, V8 searches accessors in prototypes.
+// If an accessor was found and it does not have a setter,
+// the request is ignored.
+//
+// If the accessor in the prototype has the READ_ONLY property attribute, then
+// a new value is added to the derived object when the property is set.
+// This shadows the accessor in the prototype.
 class AccessorInfo: public Struct {
  public:
   DECL_ACCESSORS(name, Object)
   DECL_INT_ACCESSORS(flag)
   DECL_ACCESSORS(expected_receiver_type, Object)
+  DECL_ACCESSORS(getter, Object)
+  DECL_ACCESSORS(setter, Object)
+  DECL_ACCESSORS(data, Object)
+
+  // Dispatched behavior.
+  DECLARE_PRINTER(AccessorInfo)
+
+  static void ClearSetter(Handle<AccessorInfo> info);
 
   inline bool all_can_read();
   inline void set_all_can_read(bool value);
@@ -10225,7 +10235,11 @@ class AccessorInfo: public Struct {
   static const int kNameOffset = HeapObject::kHeaderSize;
   static const int kFlagOffset = kNameOffset + kPointerSize;
   static const int kExpectedReceiverTypeOffset = kFlagOffset + kPointerSize;
-  static const int kSize = kExpectedReceiverTypeOffset + kPointerSize;
+  static const int kGetterOffset = kExpectedReceiverTypeOffset + kPointerSize;
+  static const int kSetterOffset = kGetterOffset + kPointerSize;
+  static const int kDataOffset = kSetterOffset + kPointerSize;
+  static const int kSize = kDataOffset + kPointerSize;
+
 
  private:
   inline bool HasExpectedReceiverType();
@@ -10237,39 +10251,6 @@ class AccessorInfo: public Struct {
   class AttributesField : public BitField<PropertyAttributes, 3, 3> {};
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(AccessorInfo);
-};
-
-
-// An accessor must have a getter, but can have no setter.
-//
-// When setting a property, V8 searches accessors in prototypes.
-// If an accessor was found and it does not have a setter,
-// the request is ignored.
-//
-// If the accessor in the prototype has the READ_ONLY property attribute, then
-// a new value is added to the derived object when the property is set.
-// This shadows the accessor in the prototype.
-class ExecutableAccessorInfo: public AccessorInfo {
- public:
-  DECL_ACCESSORS(getter, Object)
-  DECL_ACCESSORS(setter, Object)
-  DECL_ACCESSORS(data, Object)
-
-  DECLARE_CAST(ExecutableAccessorInfo)
-
-  // Dispatched behavior.
-  DECLARE_PRINTER(ExecutableAccessorInfo)
-  DECLARE_VERIFIER(ExecutableAccessorInfo)
-
-  static const int kGetterOffset = AccessorInfo::kSize;
-  static const int kSetterOffset = kGetterOffset + kPointerSize;
-  static const int kDataOffset = kSetterOffset + kPointerSize;
-  static const int kSize = kDataOffset + kPointerSize;
-
-  static void ClearSetter(Handle<ExecutableAccessorInfo> info);
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ExecutableAccessorInfo);
 };
 
 

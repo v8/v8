@@ -1567,7 +1567,7 @@ bool PartialSerializer::ShouldBeInThePartialSnapshotCache(HeapObject* o) {
   // would cause dupes.
   DCHECK(!o->IsScript());
   return o->IsName() || o->IsSharedFunctionInfo() || o->IsHeapNumber() ||
-         o->IsCode() || o->IsScopeInfo() || o->IsExecutableAccessorInfo() ||
+         o->IsCode() || o->IsScopeInfo() || o->IsAccessorInfo() ||
          o->map() ==
              startup_serializer_->isolate()->heap()->fixed_cow_array_map();
 }

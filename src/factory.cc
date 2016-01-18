@@ -868,10 +868,9 @@ Handle<AliasedArgumentsEntry> Factory::NewAliasedArgumentsEntry(
 }
 
 
-Handle<ExecutableAccessorInfo> Factory::NewExecutableAccessorInfo() {
-  Handle<ExecutableAccessorInfo> info =
-      Handle<ExecutableAccessorInfo>::cast(
-          NewStruct(EXECUTABLE_ACCESSOR_INFO_TYPE));
+Handle<AccessorInfo> Factory::NewAccessorInfo() {
+  Handle<AccessorInfo> info =
+      Handle<AccessorInfo>::cast(NewStruct(ACCESSOR_INFO_TYPE));
   info->set_flag(0);  // Must clear the flag, it was initialized as undefined.
   return info;
 }

@@ -27,7 +27,7 @@ Handle<AccessorInfo> Accessors::MakeAccessor(
     AccessorNameSetterCallback setter,
     PropertyAttributes attributes) {
   Factory* factory = isolate->factory();
-  Handle<ExecutableAccessorInfo> info = factory->NewExecutableAccessorInfo();
+  Handle<AccessorInfo> info = factory->NewAccessorInfo();
   info->set_property_attributes(attributes);
   info->set_all_can_read(false);
   info->set_all_can_write(false);
@@ -41,11 +41,10 @@ Handle<AccessorInfo> Accessors::MakeAccessor(
 }
 
 
-Handle<ExecutableAccessorInfo> Accessors::CloneAccessor(
-    Isolate* isolate,
-    Handle<ExecutableAccessorInfo> accessor) {
+Handle<AccessorInfo> Accessors::CloneAccessor(Isolate* isolate,
+                                              Handle<AccessorInfo> accessor) {
   Factory* factory = isolate->factory();
-  Handle<ExecutableAccessorInfo> info = factory->NewExecutableAccessorInfo();
+  Handle<AccessorInfo> info = factory->NewAccessorInfo();
   info->set_name(accessor->name());
   info->set_flag(accessor->flag());
   info->set_expected_receiver_type(accessor->expected_receiver_type());
@@ -1453,7 +1452,7 @@ Handle<AccessorInfo> Accessors::MakeModuleExport(
     PropertyAttributes attributes) {
   Isolate* isolate = name->GetIsolate();
   Factory* factory = isolate->factory();
-  Handle<ExecutableAccessorInfo> info = factory->NewExecutableAccessorInfo();
+  Handle<AccessorInfo> info = factory->NewAccessorInfo();
   info->set_property_attributes(attributes);
   info->set_all_can_read(true);
   info->set_all_can_write(true);
