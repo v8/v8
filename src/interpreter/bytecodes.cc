@@ -293,14 +293,16 @@ std::ostream& Bytecodes::Decode(std::ostream& os, const uint8_t* bytecode_start,
         }
         break;
       }
-      case interpreter::OperandType::kRegPair8: {
+      case interpreter::OperandType::kRegPair8:
+      case interpreter::OperandType::kRegTriple8: {
         Register reg = Register::FromOperand(*operand_start);
+        int range = op_type == interpreter::OperandType::kRegPair8 ? 1 : 2;
         if (reg.is_parameter()) {
           int parameter_index = reg.ToParameterIndex(parameter_count);
           DCHECK_NE(parameter_index, 0);
-          os << "a" << parameter_index - 1 << "-" << parameter_index;
+          os << "a" << parameter_index - range << "-" << parameter_index;
         } else {
-          os << "r" << reg.index() << "-" << reg.index() + 1;
+          os << "r" << reg.index() << "-" << reg.index() + range;
         }
         break;
       }

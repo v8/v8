@@ -16,22 +16,23 @@ namespace internal {
 namespace interpreter {
 
 // The list of operand types used by bytecodes.
-#define OPERAND_TYPE_LIST(V)       \
-                                   \
-  /* None operand. */              \
-  V(None, OperandSize::kNone)      \
-                                   \
-  /* Byte operands. */             \
-  V(Count8, OperandSize::kByte)    \
-  V(Imm8, OperandSize::kByte)      \
-  V(Idx8, OperandSize::kByte)      \
-  V(MaybeReg8, OperandSize::kByte) \
-  V(Reg8, OperandSize::kByte)      \
-  V(RegPair8, OperandSize::kByte)  \
-                                   \
-  /* Short operands. */            \
-  V(Count16, OperandSize::kShort)  \
-  V(Idx16, OperandSize::kShort)    \
+#define OPERAND_TYPE_LIST(V)        \
+                                    \
+  /* None operand. */               \
+  V(None, OperandSize::kNone)       \
+                                    \
+  /* Byte operands. */              \
+  V(Count8, OperandSize::kByte)     \
+  V(Imm8, OperandSize::kByte)       \
+  V(Idx8, OperandSize::kByte)       \
+  V(MaybeReg8, OperandSize::kByte)  \
+  V(Reg8, OperandSize::kByte)       \
+  V(RegPair8, OperandSize::kByte)   \
+  V(RegTriple8, OperandSize::kByte) \
+                                    \
+  /* Short operands. */             \
+  V(Count16, OperandSize::kShort)   \
+  V(Idx16, OperandSize::kShort)     \
   V(Reg16, OperandSize::kShort)
 
 // The list of bytecodes which are interpreted by the interpreter.
@@ -219,10 +220,9 @@ namespace interpreter {
   V(JumpIfUndefinedConstantWide, OperandType::kIdx16)                          \
                                                                                \
   /* Complex flow control For..in */                                           \
-  V(ForInPrepare, OperandType::kReg8, OperandType::kReg8, OperandType::kReg8)  \
+  V(ForInPrepare, OperandType::kRegTriple8)                                    \
   V(ForInDone, OperandType::kReg8, OperandType::kReg8)                         \
-  V(ForInNext, OperandType::kReg8, OperandType::kReg8, OperandType::kReg8,     \
-    OperandType::kReg8)                                                        \
+  V(ForInNext, OperandType::kReg8, OperandType::kReg8, OperandType::kRegPair8) \
   V(ForInStep, OperandType::kReg8)                                             \
                                                                                \
   /* Non-local flow control */                                                 \

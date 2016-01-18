@@ -981,9 +981,8 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Return() {
 
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::ForInPrepare(
-    Register cache_type, Register cache_array, Register cache_length) {
-  Output(Bytecode::kForInPrepare, cache_type.ToOperand(),
-         cache_array.ToOperand(), cache_length.ToOperand());
+    Register cache_info_triple) {
+  Output(Bytecode::kForInPrepare, cache_info_triple.ToOperand());
   return *this;
 }
 
@@ -995,12 +994,10 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::ForInDone(Register index,
 }
 
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::ForInNext(Register receiver,
-                                                      Register cache_type,
-                                                      Register cache_array,
-                                                      Register index) {
-  Output(Bytecode::kForInNext, receiver.ToOperand(), cache_type.ToOperand(),
-         cache_array.ToOperand(), index.ToOperand());
+BytecodeArrayBuilder& BytecodeArrayBuilder::ForInNext(
+    Register receiver, Register index, Register cache_type_array_pair) {
+  Output(Bytecode::kForInNext, receiver.ToOperand(), index.ToOperand(),
+         cache_type_array_pair.ToOperand());
   return *this;
 }
 
@@ -1255,6 +1252,14 @@ bool BytecodeArrayBuilder::OperandIsValid(Bytecode bytecode, int operand_index,
           Register::FromOperand(static_cast<uint8_t>(operand_value));
       Register reg1 = Register(reg0.index() + 1);
       return RegisterIsValid(reg0) && RegisterIsValid(reg1);
+    }
+    case OperandType::kRegTriple8: {
+      Register reg0 =
+          Register::FromOperand(static_cast<uint8_t>(operand_value));
+      Register reg1 = Register(reg0.index() + 1);
+      Register reg2 = Register(reg0.index() + 2);
+      return RegisterIsValid(reg0) && RegisterIsValid(reg1) &&
+             RegisterIsValid(reg2);
     }
     case OperandType::kReg16:
       if (bytecode != Bytecode::kExchange &&

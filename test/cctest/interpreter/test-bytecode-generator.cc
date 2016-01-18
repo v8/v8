@@ -5249,30 +5249,30 @@ TEST(ForIn) {
        "for (var p in x) { return p; }",
        8 * kPointerSize,
        1,
-       45,
+       42,
        {
-           B(LdaConstant), U8(0),                 //
-           B(Star), R(1),                         //
-           B(JumpIfUndefined), U8(39),            //
-           B(JumpIfNull), U8(37),                 //
-           B(ToObject),                           //
-           B(JumpIfNull), U8(34),                 //
-           B(Star), R(3),                         //
-           B(ForInPrepare), R(4), R(5), R(6),     //
-           B(LdaZero),                            //
-           B(Star), R(7),                         //
-           B(ForInDone), R(7), R(6),              //
-           B(JumpIfTrue), U8(20),                 //
-           B(ForInNext), R(3), R(4), R(5), R(7),  //
-           B(JumpIfUndefined), U8(7),             //
-           B(Star), R(0),                         //
-           B(Star), R(2),                         //
-           B(Return),                             //
-           B(ForInStep), R(7),                    //
-           B(Star), R(7),                         //
-           B(Jump), U8(-21),                      //
-           B(LdaUndefined),                       //
-           B(Return),                             //
+           B(LdaConstant), U8(0),           //
+           B(Star), R(1),                   //
+           B(JumpIfUndefined), U8(36),      //
+           B(JumpIfNull), U8(34),           //
+           B(ToObject),                     //
+           B(JumpIfNull), U8(31),           //
+           B(Star), R(3),                   //
+           B(ForInPrepare), R(4),           //
+           B(LdaZero),                      //
+           B(Star), R(7),                   //
+           B(ForInDone), R(7), R(6),        //
+           B(JumpIfTrue), U8(19),           //
+           B(ForInNext), R(3), R(7), R(4),  //
+           B(JumpIfUndefined), U8(7),       //
+           B(Star), R(0),                   //
+           B(Star), R(2),                   //
+           B(Return),                       //
+           B(ForInStep), R(7),              //
+           B(Star), R(7),                   //
+           B(Jump), U8(-20),                //
+           B(LdaUndefined),                 //
+           B(Return),                       //
        },
        1,
        {InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
@@ -5280,22 +5280,22 @@ TEST(ForIn) {
        "for (var p in [1,2,3]) { x += p; }",
        9 * kPointerSize,
        1,
-       57,
+       54,
        {
            B(LdaZero),                                  //
            B(Star), R(1),                               //
            B(CreateArrayLiteral), U8(0), U8(0), U8(3),  //
-           B(JumpIfUndefined), U8(48),                  //
-           B(JumpIfNull), U8(46),                       //
-           B(ToObject),                                 //
+           B(JumpIfUndefined), U8(45),                  //
            B(JumpIfNull), U8(43),                       //
+           B(ToObject),                                 //
+           B(JumpIfNull), U8(40),                       //
            B(Star), R(3),                               //
-           B(ForInPrepare), R(4), R(5), R(6),           //
+           B(ForInPrepare), R(4),                       //
            B(LdaZero),                                  //
            B(Star), R(7),                               //
            B(ForInDone), R(7), R(6),                    //
-           B(JumpIfTrue), U8(29),                       //
-           B(ForInNext), R(3), R(4), R(5), R(7),        //
+           B(JumpIfTrue), U8(28),                       //
+           B(ForInNext), R(3), R(7), R(4),              //
            B(JumpIfUndefined), U8(16),                  //
            B(Star), R(0),                               //
            B(Star), R(2),                               //
@@ -5306,7 +5306,7 @@ TEST(ForIn) {
            B(Star), R(1),                               //
            B(ForInStep), R(7),                          //
            B(Star), R(7),                               //
-           B(Jump), U8(-30),                            //
+           B(Jump), U8(-29),                            //
            B(LdaUndefined),                             //
            B(Return),                                   //
        },
@@ -5319,22 +5319,22 @@ TEST(ForIn) {
        "}",
        8 * kPointerSize,
        1,
-       94,
+       91,
        {
            B(CreateObjectLiteral), U8(0), U8(0), U8(deep_elements_flags),  //
            B(Star), R(0),                                                  //
            B(CreateArrayLiteral), U8(1), U8(1), U8(simple_flags),          //
-           B(JumpIfUndefined), U8(82),                                     //
-           B(JumpIfNull), U8(80),                                          //
-           B(ToObject),                                                    //
+           B(JumpIfUndefined), U8(79),                                     //
            B(JumpIfNull), U8(77),                                          //
+           B(ToObject),                                                    //
+           B(JumpIfNull), U8(74),                                          //
            B(Star), R(1),                                                  //
-           B(ForInPrepare), R(2), R(3), R(4),                              //
+           B(ForInPrepare), R(2),                                          //
            B(LdaZero),                                                     //
            B(Star), R(5),                                                  //
            B(ForInDone), R(5), R(4),                                       //
-           B(JumpIfTrue), U8(63),                                          //
-           B(ForInNext), R(1), R(2), R(3), R(5),                           //
+           B(JumpIfTrue), U8(62),                                          //
+           B(ForInNext), R(1), R(5), R(2),                                 //
            B(JumpIfUndefined), U8(50),                                     //
            B(Star), R(6),                                                  //
            B(Ldar), R(0),                                                  //
@@ -5359,7 +5359,7 @@ TEST(ForIn) {
            B(Jump), U8(8),                                                 //
            B(ForInStep), R(5),                                             //
            B(Star), R(5),                                                  //
-           B(Jump), U8(-64),                                               //
+           B(Jump), U8(-63),                                               //
            B(LdaUndefined),                                                //
            B(Return),                                                      //
        },
@@ -5370,22 +5370,22 @@ TEST(ForIn) {
        "for (x[0] in [1,2,3]) { return x[3]; }",
        9 * kPointerSize,
        1,
-       71,
+       68,
        {
            B(CreateArrayLiteral), U8(0), U8(0), U8(simple_flags),           //
            B(Star), R(0),                                                   //
            B(CreateArrayLiteral), U8(1), U8(1), U8(simple_flags),           //
-           B(JumpIfUndefined), U8(59),                                      //
-           B(JumpIfNull), U8(57),                                           //
-           B(ToObject),                                                     //
+           B(JumpIfUndefined), U8(56),                                      //
            B(JumpIfNull), U8(54),                                           //
+           B(ToObject),                                                     //
+           B(JumpIfNull), U8(51),                                           //
            B(Star), R(1),                                                   //
-           B(ForInPrepare), R(2), R(3), R(4),                               //
+           B(ForInPrepare), R(2),                                           //
            B(LdaZero),                                                      //
            B(Star), R(5),                                                   //
            B(ForInDone), R(5), R(4),                                        //
-           B(JumpIfTrue), U8(40),                                           //
-           B(ForInNext), R(1), R(2), R(3), R(5),                            //
+           B(JumpIfTrue), U8(39),                                           //
+           B(ForInNext), R(1), R(5), R(2),                                  //
            B(JumpIfUndefined), U8(27),                                      //
            B(Star), R(6),                                                   //
            B(Ldar), R(0),                                                   //
@@ -5401,7 +5401,7 @@ TEST(ForIn) {
            B(Return),                                                       //
            B(ForInStep), R(5),                                              //
            B(Star), R(5),                                                   //
-           B(Jump), U8(-41),                                                //
+           B(Jump), U8(-40),                                                //
            B(LdaUndefined),                                                 //
            B(Return),                                                       //
        },

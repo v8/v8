@@ -1709,39 +1709,41 @@ void Interpreter::DoReturn(compiler::InterpreterAssembler* assembler) {
 }
 
 
-// ForInPrepare <cache_type> <cache_array> <cache_length>
+// ForInPrepare <cache_info_triple>
 //
 // Returns state for for..in loop execution based on the object in the
-// accumulator. The registers |cache_type|, |cache_array|, and
-// |cache_length| represent output parameters.
+// accumulator. The result is output in registers |cache_info_triple| to
+// |cache_info_triple + 2|, with the registers holding cache_type, cache_array,
+// and cache_length respectively.
 void Interpreter::DoForInPrepare(compiler::InterpreterAssembler* assembler) {
   Node* object = __ GetAccumulator();
   Node* result_triple = __ CallRuntime(Runtime::kForInPrepare, object);
 
   // Set output registers:
   //   0 == cache_type, 1 == cache_array, 2 == cache_length
+  Node* output_register = __ BytecodeOperandReg(0);
   for (int i = 0; i < 3; i++) {
     Node* cache_info = __ Projection(i, result_triple);
-    Node* cache_info_reg = __ BytecodeOperandReg(i);
-    __ StoreRegister(cache_info, cache_info_reg);
+    __ StoreRegister(cache_info, output_register);
+    output_register = __ NextRegister(output_register);
   }
 
   __ Dispatch();
 }
 
 
-// ForInNext <receiver> <cache_type> <cache_array> <index>
+// ForInNext <receiver> <index> <cache_info_pair>
 //
 // Returns the next enumerable property in the the accumulator.
 void Interpreter::DoForInNext(compiler::InterpreterAssembler* assembler) {
   Node* receiver_reg = __ BytecodeOperandReg(0);
   Node* receiver = __ LoadRegister(receiver_reg);
-  Node* cache_type_reg = __ BytecodeOperandReg(1);
-  Node* cache_type = __ LoadRegister(cache_type_reg);
-  Node* cache_array_reg = __ BytecodeOperandReg(2);
-  Node* cache_array = __ LoadRegister(cache_array_reg);
-  Node* index_reg = __ BytecodeOperandReg(3);
+  Node* index_reg = __ BytecodeOperandReg(1);
   Node* index = __ LoadRegister(index_reg);
+  Node* cache_type_reg = __ BytecodeOperandReg(2);
+  Node* cache_type = __ LoadRegister(cache_type_reg);
+  Node* cache_array_reg = __ NextRegister(cache_type_reg);
+  Node* cache_array = __ LoadRegister(cache_array_reg);
   Node* result = __ CallRuntime(Runtime::kForInNext, receiver, cache_array,
                                 cache_type, index);
   __ SetAccumulator(result);

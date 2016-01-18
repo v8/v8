@@ -304,6 +304,7 @@ Node* InterpreterAssembler::BytecodeOperandReg(int operand_index) {
   switch (interpreter::Bytecodes::GetOperandType(bytecode_, operand_index)) {
     case interpreter::OperandType::kReg8:
     case interpreter::OperandType::kRegPair8:
+    case interpreter::OperandType::kRegTriple8:
     case interpreter::OperandType::kMaybeReg8:
       DCHECK_EQ(
           interpreter::OperandSize::kByte,

@@ -858,10 +858,14 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   builder()->CastAccumulatorToJSObject();
   builder()->JumpIfNull(&not_object_label);
   builder()->StoreAccumulatorInRegister(receiver);
-  Register cache_type = register_allocator()->NewRegister();
-  Register cache_array = register_allocator()->NewRegister();
-  Register cache_length = register_allocator()->NewRegister();
-  builder()->ForInPrepare(cache_type, cache_array, cache_length);
+
+  register_allocator()->PrepareForConsecutiveAllocations(3);
+  Register cache_type = register_allocator()->NextConsecutiveRegister();
+  Register cache_array = register_allocator()->NextConsecutiveRegister();
+  Register cache_length = register_allocator()->NextConsecutiveRegister();
+  // Used as kRegTriple8 and kRegPair8 in ForInPrepare and ForInNext.
+  USE(cache_array);
+  builder()->ForInPrepare(cache_type);
 
   // Set up loop counter
   Register index = register_allocator()->NewRegister();
@@ -873,7 +877,8 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   loop_builder.Condition();
   builder()->ForInDone(index, cache_length);
   loop_builder.BreakIfTrue();
-  builder()->ForInNext(receiver, cache_type, cache_array, index);
+  DCHECK(Register::AreContiguous(cache_type, cache_array));
+  builder()->ForInNext(receiver, index, cache_type);
   loop_builder.ContinueIfUndefined();
   VisitForInAssignment(stmt->each(), stmt->EachFeedbackSlot());
   Visit(stmt->body());

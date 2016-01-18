@@ -209,9 +209,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
     .Throw()
     .Bind(&after_throw);
 
-  builder.ForInPrepare(reg, reg, reg)
+  builder.ForInPrepare(reg)
       .ForInDone(reg, reg)
-      .ForInNext(reg, reg, reg, reg)
+      .ForInNext(reg, reg, reg)
       .ForInStep(reg);
 
   // Wide constant pool loads

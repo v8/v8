@@ -89,6 +89,7 @@ Register BytecodeArrayIterator::GetRegisterOperand(int operand_index) const {
       Bytecodes::GetOperandType(current_bytecode(), operand_index);
   DCHECK(operand_type == OperandType::kReg8 ||
          operand_type == OperandType::kRegPair8 ||
+         operand_type == OperandType::kRegTriple8 ||
          operand_type == OperandType::kMaybeReg8 ||
          operand_type == OperandType::kReg16);
   uint32_t operand = GetRawOperand(operand_index, operand_type);
