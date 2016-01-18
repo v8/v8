@@ -44,7 +44,8 @@ void AstLiteralReindexer::VisitNativeFunctionLiteral(
 
 
 void AstLiteralReindexer::VisitDoExpression(DoExpression* node) {
-  // TODO(caitp): literals in do expressions need re-indexing too.
+  Visit(node->block());
+  Visit(node->result());
 }
 
 

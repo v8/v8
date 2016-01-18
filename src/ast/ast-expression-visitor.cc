@@ -208,6 +208,7 @@ void AstExpressionVisitor::VisitNativeFunctionLiteral(
 
 
 void AstExpressionVisitor::VisitDoExpression(DoExpression* expr) {
+  VisitExpression(expr);
   RECURSE(VisitBlock(expr->block()));
   RECURSE(VisitVariableProxy(expr->result()));
 }
