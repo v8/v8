@@ -5204,13 +5204,6 @@ void JSObject::AddProperty(Handle<JSObject> object, Handle<Name> name,
 }
 
 
-// static
-void AccessorInfo::ClearSetter(Handle<AccessorInfo> info) {
-  Handle<Object> object = v8::FromCData(info->GetIsolate(), nullptr);
-  info->set_setter(*object);
-}
-
-
 // Reconfigures a property to a data property with attributes, even if it is not
 // reconfigurable.
 // Requires a LookupIterator that does not look at the prototype chain beyond
@@ -5279,15 +5272,7 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
           if (details.attributes() == attributes) return Just(true);
 
           // Reconfigure the accessor if attributes mismatch.
-          Handle<AccessorInfo> new_data = Accessors::CloneAccessor(
-              it->isolate(), Handle<AccessorInfo>::cast(accessors));
-          new_data->set_property_attributes(attributes);
-          // By clearing the setter we don't have to introduce a lookup to
-          // the setter, simply make it unavailable to reflect the
-          // attributes.
-          if (attributes & READ_ONLY) AccessorInfo::ClearSetter(new_data);
-
-          it->TransitionToAccessorPair(new_data, attributes);
+          it->TransitionToAccessorPair(accessors, attributes);
         } else {
           it->ReconfigureDataProperty(value, attributes);
         }

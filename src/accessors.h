@@ -100,9 +100,6 @@ class Accessors : public AllStatic {
       AccessorNameGetterCallback getter,
       AccessorNameSetterCallback setter,
       PropertyAttributes attributes);
-
-  static Handle<AccessorInfo> CloneAccessor(Isolate* isolate,
-                                            Handle<AccessorInfo> accessor);
 };
 
 }  // namespace internal

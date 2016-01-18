@@ -41,20 +41,6 @@ Handle<AccessorInfo> Accessors::MakeAccessor(
 }
 
 
-Handle<AccessorInfo> Accessors::CloneAccessor(Isolate* isolate,
-                                              Handle<AccessorInfo> accessor) {
-  Factory* factory = isolate->factory();
-  Handle<AccessorInfo> info = factory->NewAccessorInfo();
-  info->set_name(accessor->name());
-  info->set_flag(accessor->flag());
-  info->set_expected_receiver_type(accessor->expected_receiver_type());
-  info->set_getter(accessor->getter());
-  info->set_setter(accessor->setter());
-  info->set_data(accessor->data());
-  return info;
-}
-
-
 static V8_INLINE bool CheckForName(Handle<Name> name,
                                    Handle<String> property_name,
                                    int offset,

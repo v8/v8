@@ -10205,8 +10205,6 @@ class AccessorInfo: public Struct {
   // Dispatched behavior.
   DECLARE_PRINTER(AccessorInfo)
 
-  static void ClearSetter(Handle<AccessorInfo> info);
-
   inline bool all_can_read();
   inline void set_all_can_read(bool value);
 
