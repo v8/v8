@@ -120,7 +120,8 @@ void LiveRangeSeparator::Splinter() {
 
 void LiveRangeMerger::MarkRangesSpilledInDeferredBlocks() {
   for (TopLevelLiveRange *top : data()->live_ranges()) {
-    if (top == nullptr || top->IsEmpty() || top->splinter() == nullptr) {
+    if (top == nullptr || top->IsEmpty() || top->splinter() == nullptr ||
+        top->HasSpillOperand() || !top->splinter()->HasSpillRange()) {
       continue;
     }
 
