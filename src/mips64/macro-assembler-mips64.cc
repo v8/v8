@@ -4479,7 +4479,7 @@ void MacroAssembler::FloodFunctionIfStepping(Register fun, Register new_target,
     }
     Push(fun);
     Push(fun);
-    CallRuntime(Runtime::kDebugPrepareStepInIfStepping, 1);
+    CallRuntime(Runtime::kDebugPrepareStepInIfStepping);
     Pop(fun);
     if (new_target.is_valid()) {
       Pop(new_target);
@@ -5338,9 +5338,9 @@ void MacroAssembler::Abort(BailoutReason reason) {
     // We don't actually want to generate a pile of code for this, so just
     // claim there is a stack frame, without generating one.
     FrameScope scope(this, StackFrame::NONE);
-    CallRuntime(Runtime::kAbort, 1);
+    CallRuntime(Runtime::kAbort);
   } else {
-    CallRuntime(Runtime::kAbort, 1);
+    CallRuntime(Runtime::kAbort);
   }
   // Will not return here.
   if (is_trampoline_pool_blocked()) {

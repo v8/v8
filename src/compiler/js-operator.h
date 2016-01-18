@@ -527,7 +527,9 @@ class JSOperatorBuilder final : public ZoneObject {
       VectorSlotPair const& feedback = VectorSlotPair(),
       ConvertReceiverMode convert_mode = ConvertReceiverMode::kAny,
       TailCallMode tail_call_mode = TailCallMode::kDisallow);
+  const Operator* CallRuntime(Runtime::FunctionId id);
   const Operator* CallRuntime(Runtime::FunctionId id, size_t arity);
+  const Operator* CallRuntime(const Runtime::Function* function, size_t arity);
   const Operator* CallConstruct(size_t arity, VectorSlotPair const& feedback);
 
   const Operator* ConvertReceiver(ConvertReceiverMode convert_mode);

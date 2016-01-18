@@ -1221,7 +1221,7 @@ Reduction JSTypedLowering::ReduceJSInstanceOf(Node* node) {
   // If we need an access check or the object is a Proxy, make a runtime call
   // to finish the lowering.
   Node* bool_result_runtime_has_in_proto_chain_case = graph()->NewNode(
-      javascript()->CallRuntime(Runtime::kHasInPrototypeChain, 2), r.left(),
+      javascript()->CallRuntime(Runtime::kHasInPrototypeChain), r.left(),
       prototype, context, frame_state, effect, control);
 
   control = graph()->NewNode(common()->IfFalse(), branch_is_proxy);
@@ -2280,7 +2280,7 @@ Reduction JSTypedLowering::ReduceJSForInPrepare(Node* node) {
 
   // Get the set of properties to enumerate.
   Node* cache_type = effect = graph()->NewNode(
-      javascript()->CallRuntime(Runtime::kGetPropertyNamesFast, 1), receiver,
+      javascript()->CallRuntime(Runtime::kGetPropertyNamesFast), receiver,
       context, frame_state, effect, control);
   control = graph()->NewNode(common()->IfSuccess(), cache_type);
 
@@ -2486,7 +2486,7 @@ Reduction JSTypedLowering::ReduceJSForInNext(Node* node) {
       // Filter the {key} to check if it's still a valid property of the
       // {receiver} (does the ToName conversion implicitly).
       vfalse1 = efalse1 = graph()->NewNode(
-          javascript()->CallRuntime(Runtime::kForInFilter, 2), receiver, key,
+          javascript()->CallRuntime(Runtime::kForInFilter), receiver, key,
           context, frame_state, effect, if_false1);
       if_false1 = graph()->NewNode(common()->IfSuccess(), vfalse1);
     }

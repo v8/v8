@@ -829,7 +829,7 @@ void BytecodeGraphBuilder::BuildStaLookupSlot(
   Node* value = environment()->LookupAccumulator();
   Node* name = jsgraph()->Constant(iterator.GetConstantForIndexOperand(0));
   Node* language = jsgraph()->Constant(language_mode);
-  const Operator* op = javascript()->CallRuntime(Runtime::kStoreLookupSlot, 4);
+  const Operator* op = javascript()->CallRuntime(Runtime::kStoreLookupSlot);
   Node* store = NewNode(op, value, environment()->Context(), name, language);
   environment()->BindAccumulator(store, &states);
 }
@@ -1321,7 +1321,7 @@ void BytecodeGraphBuilder::VisitThrow(
   Node* value = environment()->LookupAccumulator();
   // TODO(mythria): Change to Runtime::kThrow when we have deoptimization
   // information support in the interpreter.
-  NewNode(javascript()->CallRuntime(Runtime::kReThrow, 1), value);
+  NewNode(javascript()->CallRuntime(Runtime::kReThrow), value);
   Node* control = NewNode(common()->Throw(), value);
   environment()->RecordAfterState(control, &states);
   UpdateControlDependencyToLeaveFunction(control);
@@ -1485,7 +1485,7 @@ void BytecodeGraphBuilder::VisitDeleteLookupSlot(
     const interpreter::BytecodeArrayIterator& iterator) {
   FrameStateBeforeAndAfter states(this, iterator);
   Node* name = environment()->LookupAccumulator();
-  const Operator* op = javascript()->CallRuntime(Runtime::kDeleteLookupSlot, 2);
+  const Operator* op = javascript()->CallRuntime(Runtime::kDeleteLookupSlot);
   Node* result = NewNode(op, environment()->Context(), name);
   environment()->BindAccumulator(result, &states);
 }

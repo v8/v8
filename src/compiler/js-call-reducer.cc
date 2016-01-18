@@ -404,8 +404,7 @@ Reduction JSCallReducer::ReduceJSCallConstruct(Node* node) {
         NodeProperties::RemoveFrameStateInput(node, 0);
         NodeProperties::ReplaceValueInputs(node, target);
         NodeProperties::ChangeOp(
-            node,
-            javascript()->CallRuntime(Runtime::kThrowCalledNonCallable, 1));
+            node, javascript()->CallRuntime(Runtime::kThrowCalledNonCallable));
         return Changed(node);
       }
 

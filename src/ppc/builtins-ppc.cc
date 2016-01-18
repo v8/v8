@@ -2114,7 +2114,7 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
       {
         FrameScope scope(masm, StackFrame::MANUAL);
         __ EnterFrame(StackFrame::INTERNAL);
-        __ CallRuntime(Runtime::kThrowStackOverflow, 0);
+        __ CallRuntime(Runtime::kThrowStackOverflow);
       }
       __ bind(&done);
     }

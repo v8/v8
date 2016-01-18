@@ -746,10 +746,22 @@ const Operator* JSOperatorBuilder::CallFunction(
 }
 
 
+const Operator* JSOperatorBuilder::CallRuntime(Runtime::FunctionId id) {
+  const Runtime::Function* f = Runtime::FunctionForId(id);
+  return CallRuntime(f, f->nargs);
+}
+
+
 const Operator* JSOperatorBuilder::CallRuntime(Runtime::FunctionId id,
                                                size_t arity) {
-  CallRuntimeParameters parameters(id, arity);
-  const Runtime::Function* f = Runtime::FunctionForId(parameters.id());
+  const Runtime::Function* f = Runtime::FunctionForId(id);
+  return CallRuntime(f, arity);
+}
+
+
+const Operator* JSOperatorBuilder::CallRuntime(const Runtime::Function* f,
+                                               size_t arity) {
+  CallRuntimeParameters parameters(f->function_id, arity);
   DCHECK(f->nargs == -1 || f->nargs == static_cast<int>(parameters.arity()));
   return new (zone()) Operator1<CallRuntimeParameters>(   // --
       IrOpcode::kJSCallRuntime, Operator::kNoProperties,  // opcode
