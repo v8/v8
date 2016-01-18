@@ -936,7 +936,7 @@ void MacroAssembler::EnterExitFrameEpilogue(int argc, bool save_doubles) {
 }
 
 
-void MacroAssembler::EnterExitFrame(bool save_doubles) {
+void MacroAssembler::EnterExitFrame(int argc, bool save_doubles) {
   EnterExitFramePrologue();
 
   // Set up argc and argv in callee-saved registers.
@@ -945,7 +945,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles) {
   lea(esi, Operand(ebp, eax, times_4, offset));
 
   // Reserve space for argc, argv and isolate.
-  EnterExitFrameEpilogue(3, save_doubles);
+  EnterExitFrameEpilogue(argc, save_doubles);
 }
 
 
