@@ -101,9 +101,9 @@ function TestGenerator(g, expected_values_for_next,
   testThrow(function*() { return yield* g(); });
 
   if (g instanceof GeneratorFunction) {
-    testNext(function() { return new g(); });
-    testSend(function() { return new g(); });
-    testThrow(function() { return new g(); });
+    testNext(g);
+    testSend(g);
+    testThrow(g);
   }
 }
 
@@ -253,18 +253,6 @@ TestGenerator(
       function* g() { yield this.x; yield this.y; }
       var o = { start: g, x: 1, y: 2 };
       return o.start();
-    },
-    [1, 2, undefined],
-    "foo",
-    [1, 2, undefined]);
-
-TestGenerator(
-    function g18() {
-      function* g() { yield this.x; yield this.y; }
-      var iter = new g;
-      iter.x = 1;
-      iter.y = 2;
-      return iter;
     },
     [1, 2, undefined],
     "foo",

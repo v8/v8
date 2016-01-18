@@ -5551,7 +5551,7 @@ class Map: public HeapObject {
 
   // Tells whether the instance has a [[Construct]] internal method.
   // This property is implemented according to ES6, section 7.2.4.
-  inline void set_is_constructor();
+  inline void set_is_constructor(bool value);
   inline bool is_constructor() const;
 
   // Tells whether the instance with this map should be ignored by the

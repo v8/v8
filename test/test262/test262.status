@@ -382,11 +382,6 @@
   'built-ins/ArrayBuffer/length-is-not-number': [FAIL],
   'built-ins/ArrayBuffer/positive-integer-length': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4630
-  'language/statements/generators/invoke-as-constructor': [FAIL],
-  'language/expressions/generators/invoke-as-constructor': [FAIL],
-  'language/expressions/object/method-definition/generator-invoke-ctor': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=4633
   'built-ins/Promise/reject-function-name': [FAIL],
   'built-ins/Promise/resolve-function-name': [FAIL],

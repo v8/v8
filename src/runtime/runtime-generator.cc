@@ -22,11 +22,8 @@ RUNTIME_FUNCTION(Runtime_CreateJSGeneratorObject) {
   RUNTIME_ASSERT(function->shared()->is_generator());
 
   Handle<JSGeneratorObject> generator;
-  if (frame->IsConstructor()) {
-    generator = handle(JSGeneratorObject::cast(frame->receiver()));
-  } else {
-    generator = isolate->factory()->NewJSGeneratorObject(function);
-  }
+  DCHECK(!frame->IsConstructor());
+  generator = isolate->factory()->NewJSGeneratorObject(function);
   generator->set_function(*function);
   generator->set_context(Context::cast(frame->context()));
   generator->set_receiver(frame->receiver());

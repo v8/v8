@@ -483,7 +483,7 @@ void Genesis::SetFunctionInstanceDescriptor(Handle<Map> map,
 Handle<Map> Genesis::CreateSloppyFunctionMap(FunctionMode function_mode) {
   Handle<Map> map = factory()->NewMap(JS_FUNCTION_TYPE, JSFunction::kSize);
   SetFunctionInstanceDescriptor(map, function_mode);
-  if (IsFunctionModeWithPrototype(function_mode)) map->set_is_constructor();
+  map->set_is_constructor(IsFunctionModeWithPrototype(function_mode));
   map->set_is_callable();
   return map;
 }
@@ -715,7 +715,7 @@ Handle<Map> Genesis::CreateStrictFunctionMap(
     FunctionMode function_mode, Handle<JSFunction> empty_function) {
   Handle<Map> map = factory()->NewMap(JS_FUNCTION_TYPE, JSFunction::kSize);
   SetStrictFunctionInstanceDescriptor(map, function_mode);
-  if (IsFunctionModeWithPrototype(function_mode)) map->set_is_constructor();
+  map->set_is_constructor(IsFunctionModeWithPrototype(function_mode));
   map->set_is_callable();
   Map::SetPrototype(map, empty_function);
   return map;
@@ -726,7 +726,7 @@ Handle<Map> Genesis::CreateStrongFunctionMap(
     Handle<JSFunction> empty_function, bool is_constructor) {
   Handle<Map> map = factory()->NewMap(JS_FUNCTION_TYPE, JSFunction::kSize);
   SetStrongFunctionInstanceDescriptor(map);
-  if (is_constructor) map->set_is_constructor();
+  map->set_is_constructor(is_constructor);
   Map::SetPrototype(map, empty_function);
   map->set_is_callable();
   map->set_is_extensible(is_constructor);
@@ -789,6 +789,7 @@ void Genesis::CreateIteratorMaps() {
   // Generator functions do not have "caller" or "arguments" accessors.
   Handle<Map> sloppy_generator_function_map =
       Map::Copy(strict_function_map, "SloppyGeneratorFunction");
+  sloppy_generator_function_map->set_is_constructor(false);
   Map::SetPrototype(sloppy_generator_function_map,
                     generator_function_prototype);
   native_context()->set_sloppy_generator_function_map(
@@ -796,6 +797,7 @@ void Genesis::CreateIteratorMaps() {
 
   Handle<Map> strict_generator_function_map =
       Map::Copy(strict_function_map, "StrictGeneratorFunction");
+  strict_generator_function_map->set_is_constructor(false);
   Map::SetPrototype(strict_generator_function_map,
                     generator_function_prototype);
   native_context()->set_strict_generator_function_map(
@@ -804,6 +806,7 @@ void Genesis::CreateIteratorMaps() {
   Handle<Map> strong_function_map(native_context()->strong_function_map());
   Handle<Map> strong_generator_function_map =
       Map::Copy(strong_function_map, "StrongGeneratorFunction");
+  strong_generator_function_map->set_is_constructor(false);
   Map::SetPrototype(strong_generator_function_map,
                     generator_function_prototype);
   native_context()->set_strong_generator_function_map(
@@ -1626,7 +1629,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     native_context()->set_bound_function_without_constructor_map(*map);
 
     map = Map::Copy(map, "IsConstructor");
-    map->set_is_constructor();
+    map->set_is_constructor(true);
     native_context()->set_bound_function_with_constructor_map(*map);
   }
 
@@ -2453,7 +2456,7 @@ void Genesis::InstallJSProxyMaps() {
 
   Handle<Map> proxy_function_map =
       Map::Copy(isolate()->sloppy_function_without_prototype_map(), "Proxy");
-  proxy_function_map->set_is_constructor();
+  proxy_function_map->set_is_constructor(true);
   native_context()->set_proxy_function_map(*proxy_function_map);
 
   Handle<Map> proxy_map =
@@ -2468,7 +2471,7 @@ void Genesis::InstallJSProxyMaps() {
 
   Handle<Map> proxy_constructor_map =
       Map::Copy(proxy_callable_map, "constructor Proxy");
-  proxy_constructor_map->set_is_constructor();
+  proxy_constructor_map->set_is_constructor(true);
   native_context()->set_proxy_constructor_map(*proxy_constructor_map);
 }
 

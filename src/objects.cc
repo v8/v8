@@ -12919,7 +12919,8 @@ void JSFunction::SetInstancePrototype(Handle<JSFunction> function,
 
 void JSFunction::SetPrototype(Handle<JSFunction> function,
                               Handle<Object> value) {
-  DCHECK(function->IsConstructor());
+  DCHECK(function->IsConstructor() ||
+         IsGeneratorFunction(function->shared()->kind()));
   Handle<Object> construct_prototype = value;
 
   // If the value is not a JSReceiver, store the value in the map's

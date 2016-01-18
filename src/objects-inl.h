@@ -4470,8 +4470,12 @@ bool Map::has_non_instance_prototype() {
 }
 
 
-void Map::set_is_constructor() {
-  set_bit_field(bit_field() | (1 << kIsConstructor));
+void Map::set_is_constructor(bool value) {
+  if (value) {
+    set_bit_field(bit_field() | (1 << kIsConstructor));
+  } else {
+    set_bit_field(bit_field() & ~(1 << kIsConstructor));
+  }
 }
 
 
