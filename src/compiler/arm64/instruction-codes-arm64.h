@@ -76,8 +76,10 @@ namespace compiler {
   V(Arm64TestAndBranch32)          \
   V(Arm64TestAndBranch)            \
   V(Arm64CompareAndBranch32)       \
-  V(Arm64ClaimForCallArguments)    \
-  V(Arm64Poke)                     \
+  V(Arm64ClaimCSP)                 \
+  V(Arm64ClaimJSSP)                \
+  V(Arm64PokeCSP)                  \
+  V(Arm64PokeJSSP)                 \
   V(Arm64PokePair)                 \
   V(Arm64Float32Cmp)               \
   V(Arm64Float32Add)               \
@@ -170,6 +172,8 @@ namespace compiler {
   V(Operand2_R_UXTH)  /* %r0 UXTH (unsigned extend halfword) */ \
   V(Operand2_R_SXTB)  /* %r0 SXTB (signed extend byte) */       \
   V(Operand2_R_SXTH)  /* %r0 SXTH (signed extend halfword) */
+
+enum ResetJSSPAfterCall { kNoResetJSSP, kResetJSSP };
 
 }  // namespace compiler
 }  // namespace internal

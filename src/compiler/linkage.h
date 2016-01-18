@@ -153,9 +153,10 @@ class CallDescriptor final : public ZoneObject {
     kHasLocalCatchHandler = 1u << 4,
     kSupportsTailCalls = 1u << 5,
     kCanUseRoots = 1u << 6,
-    // Indicates that the native stack should be used for a code object. This
-    // information is important for native calls on arm64.
+    // (arm64 only) native stack should be used for arguments.
     kUseNativeStack = 1u << 7,
+    // (arm64 only) call instruction has to restore JSSP.
+    kRestoreJSSP = 1u << 8,
     kPatchableCallSiteWithNop = kPatchableCallSite | kNeedsNopAfterCall
   };
   typedef base::Flags<Flag> Flags;

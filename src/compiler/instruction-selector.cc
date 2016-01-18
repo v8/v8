@@ -1416,6 +1416,13 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
     buffer.instruction_args.push_back(g.Label(handler));
   }
 
+  // (arm64 only) caller uses JSSP but callee might destroy it.
+  if (descriptor->UseNativeStack() &&
+      !linkage()->GetIncomingDescriptor()->UseNativeStack()) {
+    flags |= CallDescriptor::kRestoreJSSP;
+  }
+
+
   // Select the appropriate opcode based on the call type.
   InstructionCode opcode = kArchNop;
   switch (descriptor->kind()) {

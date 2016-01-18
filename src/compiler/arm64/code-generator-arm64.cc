@@ -488,7 +488,8 @@ void CodeGenerator::AssemblePrepareTailCall(int stack_param_delta) {
 void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
   Arm64OperandConverter i(this, instr);
   InstructionCode opcode = instr->opcode();
-  switch (ArchOpcodeField::decode(opcode)) {
+  ArchOpcode arch_opcode = ArchOpcodeField::decode(opcode);
+  switch (arch_opcode) {
     case kArchCallCodeObject: {
       EnsureSpaceForLazyDeopt();
       if (instr->InputAt(0)->IsImmediate()) {
@@ -498,6 +499,14 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         Register target = i.InputRegister(0);
         __ Add(target, target, Code::kHeaderSize - kHeapObjectTag);
         __ Call(target);
+      }
+      // TODO(titzer): this is ugly. JSSP should be a caller-save register
+      // in this case, but it is not possible to express in the register
+      // allocator.
+      CallDescriptor::Flags flags =
+          static_cast<CallDescriptor::Flags>(MiscField::decode(opcode));
+      if (flags & CallDescriptor::kRestoreJSSP) {
+        __ mov(jssp, csp);
       }
       frame_access_state()->ClearSPDelta();
       RecordCallPosition(instr);
@@ -530,6 +539,14 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       }
       __ Ldr(x10, FieldMemOperand(func, JSFunction::kCodeEntryOffset));
       __ Call(x10);
+      // TODO(titzer): this is ugly. JSSP should be a caller-save register
+      // in this case, but it is not possible to express in the register
+      // allocator.
+      CallDescriptor::Flags flags =
+          static_cast<CallDescriptor::Flags>(MiscField::decode(opcode));
+      if (flags & CallDescriptor::kRestoreJSSP) {
+        __ mov(jssp, csp);
+      }
       frame_access_state()->ClearSPDelta();
       RecordCallPosition(instr);
       break;
@@ -885,18 +902,41 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArm64CompareAndBranch32:
       // Pseudo instruction turned into cbz/cbnz in AssembleArchBranch.
       break;
-    case kArm64ClaimForCallArguments: {
-      __ Claim(i.InputInt32(0));
-      frame_access_state()->IncreaseSPDelta(i.InputInt32(0));
+    case kArm64ClaimCSP: {
+      int count = i.InputInt32(0);
+      Register prev = __ StackPointer();
+      __ SetStackPointer(csp);
+      __ Claim(count);
+      __ SetStackPointer(prev);
+      frame_access_state()->IncreaseSPDelta(count);
       break;
     }
-    case kArm64Poke: {
+    case kArm64ClaimJSSP: {
+      int count = i.InputInt32(0);
+      if (csp.Is(__ StackPointer())) {
+        // No JSP is set up. Compute it from the CSP.
+        int even = RoundUp(count, 2);
+        __ Sub(jssp, csp, count * kPointerSize);
+        __ Sub(csp, csp, even * kPointerSize);  // Must always be aligned.
+        frame_access_state()->IncreaseSPDelta(even);
+      } else {
+        // JSSP is the current stack pointer, just use regular Claim().
+        __ Claim(count);
+        frame_access_state()->IncreaseSPDelta(count);
+      }
+      break;
+    }
+    case kArm64PokeCSP:  // fall through
+    case kArm64PokeJSSP: {
+      Register prev = __ StackPointer();
+      __ SetStackPointer(arch_opcode == kArm64PokeCSP ? csp : jssp);
       Operand operand(i.InputInt32(1) * kPointerSize);
       if (instr->InputAt(0)->IsDoubleRegister()) {
         __ Poke(i.InputFloat64Register(0), operand);
       } else {
         __ Poke(i.InputRegister(0), operand);
       }
+      __ SetStackPointer(prev);
       break;
     }
     case kArm64PokePair: {

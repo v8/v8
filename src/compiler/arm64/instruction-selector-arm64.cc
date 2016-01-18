@@ -1593,30 +1593,27 @@ void InstructionSelector::EmitPrepareArguments(
     Node* node) {
   Arm64OperandGenerator g(this);
 
-  // Push the arguments to the stack.
-  int aligned_push_count = static_cast<int>(arguments->size());
+  bool to_native_stack = descriptor->UseNativeStack();
 
-  bool pushed_count_uneven = aligned_push_count & 1;
-  int claim_count = aligned_push_count;
-  if (pushed_count_uneven && descriptor->UseNativeStack()) {
-    // We can only claim for an even number of call arguments when we use the
-    // native stack.
-    claim_count++;
+  int claim_count = static_cast<int>(arguments->size());
+  int slot = claim_count - 1;
+  if (to_native_stack) {
+    // Native stack must always be aligned to 16 (2 words).
+    claim_count = RoundUp(claim_count, 2);
   }
-  // TODO(dcarney): claim and poke probably take small immediates,
-  //                loop here or whatever.
+  // TODO(titzer): claim and poke probably take small immediates.
   // Bump the stack pointer(s).
-  if (aligned_push_count > 0) {
-    // TODO(dcarney): it would be better to bump the csp here only
+  if (claim_count > 0) {
+    // TODO(titzer): it would be better to bump the csp here only
     //                and emit paired stores with increment for non c frames.
-    Emit(kArm64ClaimForCallArguments, g.NoOutput(),
-         g.TempImmediate(claim_count));
+    ArchOpcode claim = to_native_stack ? kArm64ClaimCSP : kArm64ClaimJSSP;
+    Emit(claim, g.NoOutput(), g.TempImmediate(claim_count));
   }
 
-  // Move arguments to the stack.
-  int slot = aligned_push_count - 1;
+  // Poke the arguments into the stack.
+  ArchOpcode poke = to_native_stack ? kArm64PokeCSP : kArm64PokeJSSP;
   while (slot >= 0) {
-    Emit(kArm64Poke, g.NoOutput(), g.UseRegister((*arguments)[slot].node()),
+    Emit(poke, g.NoOutput(), g.UseRegister((*arguments)[slot].node()),
          g.TempImmediate(slot));
     slot--;
     // TODO(ahaas): Poke arguments in pairs if two subsequent arguments have the

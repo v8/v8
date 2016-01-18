@@ -143,8 +143,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64Ldr:
       return kIsLoadOperation;
 
-    case kArm64ClaimForCallArguments:
-    case kArm64Poke:
+    case kArm64ClaimCSP:
+    case kArm64ClaimJSSP:
+    case kArm64PokeCSP:
+    case kArm64PokeJSSP:
     case kArm64PokePair:
     case kArm64StrS:
     case kArm64StrD:
