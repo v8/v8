@@ -628,8 +628,8 @@ class Compiler : public AllStatic {
   // In the latter case, return the InOptimizationQueue builtin.  On failure,
   // return the empty handle.
   MUST_USE_RESULT static MaybeHandle<Code> GetOptimizedCode(
-      Handle<JSFunction> function, Handle<Code> current_code,
-      ConcurrencyMode mode, BailoutId osr_ast_id = BailoutId::None(),
+      Handle<JSFunction> function, ConcurrencyMode mode,
+      BailoutId osr_ast_id = BailoutId::None(),
       JavaScriptFrame* osr_frame = nullptr);
 
   // Generate and return code from previously queued optimization job.

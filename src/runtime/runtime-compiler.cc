@@ -52,8 +52,7 @@ Object* CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
   if (check.JsHasOverflowed(1 * KB)) return isolate->StackOverflow();
 
   Handle<Code> code;
-  Handle<Code> unoptimized(function->shared()->code());
-  if (Compiler::GetOptimizedCode(function, unoptimized, mode).ToHandle(&code)) {
+  if (Compiler::GetOptimizedCode(function, mode).ToHandle(&code)) {
     // Optimization succeeded, return optimized code.
     function->ReplaceCode(*code);
   } else {
@@ -282,7 +281,7 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
       PrintF(" at AST id %d]\n", ast_id.ToInt());
     }
     MaybeHandle<Code> maybe_result = Compiler::GetOptimizedCode(
-        function, caller_code, mode, ast_id,
+        function, mode, ast_id,
         (mode == Compiler::NOT_CONCURRENT) ? frame : nullptr);
     if (maybe_result.ToHandle(&result) &&
         result.is_identical_to(isolate->builtins()->InOptimizationQueue())) {

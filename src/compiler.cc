@@ -1056,9 +1056,8 @@ MaybeHandle<Code> Compiler::GetLazyCode(Handle<JSFunction> function) {
 
   if (FLAG_always_opt) {
     Handle<Code> opt_code;
-    if (Compiler::GetOptimizedCode(
-            function, result,
-            Compiler::NOT_CONCURRENT).ToHandle(&opt_code)) {
+    if (Compiler::GetOptimizedCode(function, Compiler::NOT_CONCURRENT)
+            .ToHandle(&opt_code)) {
       result = opt_code;
     }
   }
@@ -1692,7 +1691,6 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
 
 
 MaybeHandle<Code> Compiler::GetOptimizedCode(Handle<JSFunction> function,
-                                             Handle<Code> current_code,
                                              ConcurrencyMode mode,
                                              BailoutId osr_ast_id,
                                              JavaScriptFrame* osr_frame) {
@@ -1716,6 +1714,7 @@ MaybeHandle<Code> Compiler::GetOptimizedCode(Handle<JSFunction> function,
 
   DCHECK(AllowCompilation::IsAllowed(isolate));
 
+  Handle<Code> current_code(shared->code());
   if (!shared->is_compiled() ||
       shared->scope_info() == ScopeInfo::Empty(isolate)) {
     // The function was never compiled. Compile it unoptimized first.
