@@ -53,6 +53,7 @@ namespace compiler {
   V(X87Float64Max)                 \
   V(X87Float64Min)                 \
   V(X87Float64Abs)                 \
+  V(X87Int32ToFloat32)             \
   V(X87Int32ToFloat64)             \
   V(X87Float32ToFloat64)           \
   V(X87Uint32ToFloat64)            \

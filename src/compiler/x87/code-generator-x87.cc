@@ -972,6 +972,20 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ lea(esp, Operand(esp, kDoubleSize));
       break;
     }
+    case kX87Int32ToFloat32: {
+      InstructionOperand* input = instr->InputAt(0);
+      DCHECK(input->IsRegister() || input->IsStackSlot());
+      __ fstp(0);
+      if (input->IsRegister()) {
+        Register input_reg = i.InputRegister(0);
+        __ push(input_reg);
+        __ fild_s(Operand(esp, 0));
+        __ pop(input_reg);
+      } else {
+        __ fild_s(i.InputOperand(0));
+      }
+      break;
+    }
     case kX87Int32ToFloat64: {
       InstructionOperand* input = instr->InputAt(0);
       DCHECK(input->IsRegister() || input->IsStackSlot());
