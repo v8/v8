@@ -654,16 +654,10 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     }
     case kSSEFloat32Round: {
+      CpuFeatureScope sse_scope(masm(), SSE4_1);
       RoundingMode const mode =
           static_cast<RoundingMode>(MiscField::decode(instr->opcode()));
-      if (CpuFeatures::IsSupported(SSE4_1)) {
-        CpuFeatureScope sse_scope(masm(), SSE4_1);
       __ roundss(i.OutputDoubleRegister(), i.InputDoubleRegister(0), mode);
-      } else {
-        Register scratch = i.TempRegister(0);
-        __ Roundss(i.OutputDoubleRegister(), i.InputDoubleRegister(0), scratch,
-                   mode);
-      }
       break;
     }
     case kSSEFloat64Cmp:
@@ -733,16 +727,10 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ sqrtsd(i.OutputDoubleRegister(), i.InputOperand(0));
       break;
     case kSSEFloat64Round: {
+      CpuFeatureScope sse_scope(masm(), SSE4_1);
       RoundingMode const mode =
           static_cast<RoundingMode>(MiscField::decode(instr->opcode()));
-      if (CpuFeatures::IsSupported(SSE4_1)) {
-        CpuFeatureScope sse_scope(masm(), SSE4_1);
-        __ roundsd(i.OutputDoubleRegister(), i.InputDoubleRegister(0), mode);
-      } else {
-        Register scratch = i.TempRegister(0);
-        __ Roundsd(i.OutputDoubleRegister(), i.InputDoubleRegister(0), scratch,
-                   kScratchDoubleReg, mode);
-      }
+      __ roundsd(i.OutputDoubleRegister(), i.InputDoubleRegister(0), mode);
       break;
     }
     case kSSEFloat32ToFloat64:

@@ -3130,28 +3130,6 @@ void Assembler::cvttss2siq(Register dst, const Operand& src) {
   emit(0xF3);
   emit_rex_64(dst, src);
   emit(0x0F);
-  emit(0x2D);
-  emit_sse_operand(dst, src);
-}
-
-
-void Assembler::cvtss2siq(Register dst, XMMRegister src) {
-  DCHECK(!IsEnabled(AVX));
-  EnsureSpace ensure_space(this);
-  emit(0xF3);
-  emit_rex_64(dst, src);
-  emit(0x0F);
-  emit(0x2D);
-  emit_sse_operand(dst, src);
-}
-
-
-void Assembler::cvtss2siq(Register dst, const Operand& src) {
-  DCHECK(!IsEnabled(AVX));
-  EnsureSpace ensure_space(this);
-  emit(0xF3);
-  emit_rex_64(dst, src);
-  emit(0x0F);
   emit(0x2C);
   emit_sse_operand(dst, src);
 }
@@ -3322,17 +3300,6 @@ void Assembler::cvtsd2si(Register dst, XMMRegister src) {
 
 
 void Assembler::cvtsd2siq(Register dst, XMMRegister src) {
-  DCHECK(!IsEnabled(AVX));
-  EnsureSpace ensure_space(this);
-  emit(0xF2);
-  emit_rex_64(dst, src);
-  emit(0x0F);
-  emit(0x2D);
-  emit_sse_operand(dst, src);
-}
-
-
-void Assembler::cvtsd2siq(Register dst, const Operand& src) {
   DCHECK(!IsEnabled(AVX));
   EnsureSpace ensure_space(this);
   emit(0xF2);
@@ -3576,22 +3543,6 @@ void Assembler::roundsd(XMMRegister dst, XMMRegister src, RoundingMode mode) {
   emit_sse_operand(dst, src);
   // Mask precision exception.
   emit(static_cast<byte>(mode) | 0x8);
-}
-
-
-void Assembler::ldmxcsr(const Operand& dst) {
-  EnsureSpace ensure_space(this);
-  emit(0x0F);
-  emit(0xAE);
-  emit_operand(2, dst);
-}
-
-
-void Assembler::stmxcsr(const Operand& dst) {
-  EnsureSpace ensure_space(this);
-  emit(0x0F);
-  emit(0xAE);
-  emit_operand(3, dst);
 }
 
 

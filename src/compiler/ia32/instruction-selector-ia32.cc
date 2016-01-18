@@ -871,74 +871,32 @@ void InstructionSelector::VisitFloat64Sqrt(Node* node) {
 
 
 void InstructionSelector::VisitFloat32RoundDown(Node* node) {
-  if (CpuFeatures::IsSupported(SSE4_1)) {
-    VisitRR(this, node, kSSEFloat32Round | MiscField::encode(kRoundDown));
-  } else {
-    IA32OperandGenerator g(this);
-    InstructionOperand temps[] = {g.TempRegister()};
-    Emit(kSSEFloat32Round | MiscField::encode(kRoundDown),
-         g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)), 1, temps);
-  }
+  VisitRR(this, node, kSSEFloat32Round | MiscField::encode(kRoundDown));
 }
 
 
 void InstructionSelector::VisitFloat64RoundDown(Node* node) {
-  if (CpuFeatures::IsSupported(SSE4_1)) {
-    VisitRR(this, node, kSSEFloat64Round | MiscField::encode(kRoundDown));
-  } else {
-    IA32OperandGenerator g(this);
-    InstructionOperand temps[] = {g.TempRegister()};
-    Emit(kSSEFloat64Round | MiscField::encode(kRoundDown),
-         g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)), 1, temps);
-  }
+  VisitRR(this, node, kSSEFloat64Round | MiscField::encode(kRoundDown));
 }
 
 
 void InstructionSelector::VisitFloat32RoundUp(Node* node) {
-  if (CpuFeatures::IsSupported(SSE4_1)) {
-    VisitRR(this, node, kSSEFloat32Round | MiscField::encode(kRoundUp));
-  } else {
-    IA32OperandGenerator g(this);
-    InstructionOperand temps[] = {g.TempRegister()};
-    Emit(kSSEFloat32Round | MiscField::encode(kRoundUp),
-         g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)), 1, temps);
-  }
+  VisitRR(this, node, kSSEFloat32Round | MiscField::encode(kRoundUp));
 }
 
 
 void InstructionSelector::VisitFloat64RoundUp(Node* node) {
-  if (CpuFeatures::IsSupported(SSE4_1)) {
-    VisitRR(this, node, kSSEFloat64Round | MiscField::encode(kRoundUp));
-  } else {
-    IA32OperandGenerator g(this);
-    InstructionOperand temps[] = {g.TempRegister()};
-    Emit(kSSEFloat64Round | MiscField::encode(kRoundUp),
-         g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)), 1, temps);
-  }
+  VisitRR(this, node, kSSEFloat64Round | MiscField::encode(kRoundUp));
 }
 
 
 void InstructionSelector::VisitFloat32RoundTruncate(Node* node) {
-  if (CpuFeatures::IsSupported(SSE4_1)) {
-    VisitRR(this, node, kSSEFloat32Round | MiscField::encode(kRoundToZero));
-  } else {
-    IA32OperandGenerator g(this);
-    InstructionOperand temps[] = {g.TempRegister()};
-    Emit(kSSEFloat32Round | MiscField::encode(kRoundToZero),
-         g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)), 1, temps);
-  }
+  VisitRR(this, node, kSSEFloat32Round | MiscField::encode(kRoundToZero));
 }
 
 
 void InstructionSelector::VisitFloat64RoundTruncate(Node* node) {
-  if (CpuFeatures::IsSupported(SSE4_1)) {
-    VisitRR(this, node, kSSEFloat64Round | MiscField::encode(kRoundToZero));
-  } else {
-    IA32OperandGenerator g(this);
-    InstructionOperand temps[] = {g.TempRegister()};
-    Emit(kSSEFloat64Round | MiscField::encode(kRoundToZero),
-         g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)), 1, temps);
-  }
+  VisitRR(this, node, kSSEFloat64Round | MiscField::encode(kRoundToZero));
 }
 
 
@@ -948,26 +906,12 @@ void InstructionSelector::VisitFloat64RoundTiesAway(Node* node) {
 
 
 void InstructionSelector::VisitFloat32RoundTiesEven(Node* node) {
-  if (CpuFeatures::IsSupported(SSE4_1)) {
-    VisitRR(this, node, kSSEFloat32Round | MiscField::encode(kRoundToNearest));
-  } else {
-    IA32OperandGenerator g(this);
-    InstructionOperand temps[] = {g.TempRegister()};
-    Emit(kSSEFloat32Round | MiscField::encode(kRoundToNearest),
-         g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)), 1, temps);
-  }
+  VisitRR(this, node, kSSEFloat32Round | MiscField::encode(kRoundToNearest));
 }
 
 
 void InstructionSelector::VisitFloat64RoundTiesEven(Node* node) {
-  if (CpuFeatures::IsSupported(SSE4_1)) {
-    VisitRR(this, node, kSSEFloat64Round | MiscField::encode(kRoundToNearest));
-  } else {
-    IA32OperandGenerator g(this);
-    InstructionOperand temps[] = {g.TempRegister()};
-    Emit(kSSEFloat64Round | MiscField::encode(kRoundToNearest),
-         g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)), 1, temps);
-  }
+  VisitRR(this, node, kSSEFloat64Round | MiscField::encode(kRoundToNearest));
 }
 
 
@@ -1379,18 +1323,19 @@ InstructionSelector::SupportedMachineOperatorFlags() {
       MachineOperatorBuilder::kFloat64Max |
       MachineOperatorBuilder::kFloat64Min |
       MachineOperatorBuilder::kWord32ShiftIsSafe |
-      MachineOperatorBuilder::kWord32Ctz |
-      MachineOperatorBuilder::kFloat32RoundDown |
-      MachineOperatorBuilder::kFloat32RoundUp |
-      MachineOperatorBuilder::kFloat32RoundTruncate |
-      MachineOperatorBuilder::kFloat32RoundTiesEven |
-      MachineOperatorBuilder::kFloat64RoundDown |
-      MachineOperatorBuilder::kFloat64RoundUp |
-      MachineOperatorBuilder::kFloat64RoundTruncate |
-      MachineOperatorBuilder::kFloat64RoundTiesEven;
-
+      MachineOperatorBuilder::kWord32Ctz;
   if (CpuFeatures::IsSupported(POPCNT)) {
     flags |= MachineOperatorBuilder::kWord32Popcnt;
+  }
+  if (CpuFeatures::IsSupported(SSE4_1)) {
+    flags |= MachineOperatorBuilder::kFloat32RoundDown |
+             MachineOperatorBuilder::kFloat64RoundDown |
+             MachineOperatorBuilder::kFloat32RoundUp |
+             MachineOperatorBuilder::kFloat64RoundUp |
+             MachineOperatorBuilder::kFloat32RoundTruncate |
+             MachineOperatorBuilder::kFloat64RoundTruncate |
+             MachineOperatorBuilder::kFloat32RoundTiesEven |
+             MachineOperatorBuilder::kFloat64RoundTiesEven;
   }
   return flags;
 }

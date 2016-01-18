@@ -1982,29 +1982,11 @@ void Assembler::cvttss2si(Register dst, const Operand& src) {
 }
 
 
-void Assembler::cvtss2si(Register dst, const Operand& src) {
-  EnsureSpace ensure_space(this);
-  EMIT(0xF3);
-  EMIT(0x0F);
-  EMIT(0x2D);
-  emit_operand(dst, src);
-}
-
-
 void Assembler::cvttsd2si(Register dst, const Operand& src) {
   EnsureSpace ensure_space(this);
   EMIT(0xF2);
   EMIT(0x0F);
   EMIT(0x2C);
-  emit_operand(dst, src);
-}
-
-
-void Assembler::cvtsd2si(Register dst, const Operand& src) {
-  EnsureSpace ensure_space(this);
-  EMIT(0xF2);
-  EMIT(0x0F);
-  EMIT(0x2D);
   emit_operand(dst, src);
 }
 
@@ -2214,22 +2196,6 @@ void Assembler::roundsd(XMMRegister dst, XMMRegister src, RoundingMode mode) {
   emit_sse_operand(dst, src);
   // Mask precision exeption.
   EMIT(static_cast<byte>(mode) | 0x8);
-}
-
-
-void Assembler::ldmxcsr(const Operand& dst) {
-  EnsureSpace ensure_space(this);
-  EMIT(0x0F);
-  EMIT(0xAE);
-  emit_operand(2, dst);
-}
-
-
-void Assembler::stmxcsr(const Operand& dst) {
-  EnsureSpace ensure_space(this);
-  EMIT(0x0F);
-  EMIT(0xAE);
-  emit_operand(3, dst);
 }
 
 
@@ -2883,17 +2849,11 @@ void Assembler::emit_arith(int sel, Operand dst, const Immediate& x) {
 
 
 void Assembler::emit_operand(Register reg, const Operand& adr) {
-  emit_operand(reg.code(), adr);
-}
-
-
-void Assembler::emit_operand(int code, const Operand& adr) {
-  DCHECK(is_uint3(code));
   const unsigned length = adr.len_;
   DCHECK(length > 0);
 
   // Emit updated ModRM byte containing the given register.
-  pc_[0] = (adr.buf_[0] & ~0x38) | (code << 3);
+  pc_[0] = (adr.buf_[0] & ~0x38) | (reg.code() << 3);
 
   // Emit the rest of the encoded operand.
   for (unsigned i = 1; i < length; i++) pc_[i] = adr.buf_[i];

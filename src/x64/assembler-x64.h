@@ -1080,8 +1080,6 @@ class Assembler : public AssemblerBase {
   void cvttsd2si(Register dst, XMMRegister src);
   void cvttss2siq(Register dst, XMMRegister src);
   void cvttss2siq(Register dst, const Operand& src);
-  void cvtss2siq(Register dst, XMMRegister src);
-  void cvtss2siq(Register dst, const Operand& src);
   void cvttsd2siq(Register dst, XMMRegister src);
   void cvttsd2siq(Register dst, const Operand& src);
 
@@ -1102,7 +1100,6 @@ class Assembler : public AssemblerBase {
 
   void cvtsd2si(Register dst, XMMRegister src);
   void cvtsd2siq(Register dst, XMMRegister src);
-  void cvtsd2siq(Register dst, const Operand& src);
 
   void addsd(XMMRegister dst, XMMRegister src);
   void addsd(XMMRegister dst, const Operand& src);
@@ -1144,9 +1141,6 @@ class Assembler : public AssemblerBase {
 
   void roundss(XMMRegister dst, XMMRegister src, RoundingMode mode);
   void roundsd(XMMRegister dst, XMMRegister src, RoundingMode mode);
-
-  void ldmxcsr(const Operand& dst);
-  void stmxcsr(const Operand& dst);
 
   // AVX instruction
   void vfmadd132sd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
@@ -1422,14 +1416,6 @@ class Assembler : public AssemblerBase {
     XMMRegister idst = {dst.code()};
     vsd(0x2c, idst, xmm0, src, kF3, k0F, kW1);
   }
-  void vcvtss2siq(Register dst, XMMRegister src) {
-    XMMRegister idst = {dst.code()};
-    vsd(0x2d, idst, xmm0, src, kF3, k0F, kW1);
-  }
-  void vcvtss2siq(Register dst, const Operand& src) {
-    XMMRegister idst = {dst.code()};
-    vsd(0x2d, idst, xmm0, src, kF3, k0F, kW1);
-  }
   void vcvttsd2siq(Register dst, XMMRegister src) {
     XMMRegister idst = {dst.code()};
     vsd(0x2c, idst, xmm0, src, kF2, k0F, kW1);
@@ -1437,14 +1423,6 @@ class Assembler : public AssemblerBase {
   void vcvttsd2siq(Register dst, const Operand& src) {
     XMMRegister idst = {dst.code()};
     vsd(0x2c, idst, xmm0, src, kF2, k0F, kW1);
-  }
-  void vcvtsd2siq(Register dst, XMMRegister src) {
-    XMMRegister idst = {dst.code()};
-    vsd(0x2d, idst, xmm0, src, kF2, k0F, kW1);
-  }
-  void vcvtsd2siq(Register dst, const Operand& src) {
-    XMMRegister idst = {dst.code()};
-    vsd(0x2d, idst, xmm0, src, kF2, k0F, kW1);
   }
   void vcvtsd2si(Register dst, XMMRegister src) {
     XMMRegister idst = {dst.code()};

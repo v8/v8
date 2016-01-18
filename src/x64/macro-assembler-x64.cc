@@ -1002,46 +1002,6 @@ void MacroAssembler::Cvttss2siq(Register dst, const Operand& src) {
 }
 
 
-void MacroAssembler::Cvtss2siq(Register dst, XMMRegister src) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vcvtss2siq(dst, src);
-  } else {
-    cvtss2siq(dst, src);
-  }
-}
-
-
-void MacroAssembler::Cvtss2siq(Register dst, const Operand& src) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vcvtss2siq(dst, src);
-  } else {
-    cvtss2siq(dst, src);
-  }
-}
-
-
-void MacroAssembler::Cvtsd2siq(Register dst, XMMRegister src) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vcvtsd2siq(dst, src);
-  } else {
-    cvtsd2siq(dst, src);
-  }
-}
-
-
-void MacroAssembler::Cvtsd2siq(Register dst, const Operand& src) {
-  if (CpuFeatures::IsSupported(AVX)) {
-    CpuFeatureScope scope(this, AVX);
-    vcvtsd2siq(dst, src);
-  } else {
-    cvtsd2siq(dst, src);
-  }
-}
-
-
 void MacroAssembler::Cvttsd2siq(Register dst, XMMRegister src) {
   if (CpuFeatures::IsSupported(AVX)) {
     CpuFeatureScope scope(this, AVX);
@@ -2856,53 +2816,6 @@ void MacroAssembler::Roundss(XMMRegister dst, XMMRegister src,
 }
 
 
-void MacroAssembler::Roundss(XMMRegister dst, XMMRegister src, Register tmp,
-                             RoundingMode mode) {
-  if (CpuFeatures::IsSupported(SSE4_1)) {
-    CpuFeatureScope scope(this, SSE4_1);
-    Roundss(dst, src, mode);
-  } else {
-    {
-      // Set the right rounding mode.
-      subq(rsp, Immediate(kPointerSize * 2));
-      stmxcsr(Operand(rsp, 0));
-      movl(tmp, Operand(rsp, 0));
-      andl(tmp, Immediate(0xffff9fff));
-      orl(tmp, Immediate(mode << 13));
-      movl(Operand(rsp, kPointerSize), tmp);
-      ldmxcsr(Operand(rsp, kPointerSize));
-    }
-
-    // Do rounding by conversion to int64.
-    Cvtss2siq(tmp, src);
-
-    Label done;
-    Label out_of_range;
-    cmpq(tmp, Immediate(1));
-    // If the conversion results in INT64_MIN, then the input is outside
-    // int64 range, and due to the limited precision of float32 this means
-    // that the input must have been an integer already. We are therefore
-    // done already.
-    j(overflow, &out_of_range);
-    // Rounding is done by converting the value back to float.
-    Cvtqsi2ss(dst, tmp);
-    if (!dst.is(src)) {
-      jmp(&done);
-    }
-
-    bind(&out_of_range);
-    if (!dst.is(src)) {
-      movss(dst, src);
-    }
-
-    bind(&done);
-    // Restore the original rounding mode.
-    ldmxcsr(Operand(rsp, 0));
-    addq(rsp, Immediate(kPointerSize * 2));
-  }
-}
-
-
 void MacroAssembler::Roundsd(XMMRegister dst, XMMRegister src,
                              RoundingMode mode) {
   if (CpuFeatures::IsSupported(AVX)) {
@@ -2910,53 +2823,6 @@ void MacroAssembler::Roundsd(XMMRegister dst, XMMRegister src,
     vroundsd(dst, dst, src, mode);
   } else {
     roundsd(dst, src, mode);
-  }
-}
-
-
-void MacroAssembler::Roundsd(XMMRegister dst, XMMRegister src, Register tmp,
-                             RoundingMode mode) {
-  if (CpuFeatures::IsSupported(SSE4_1)) {
-    CpuFeatureScope scope(this, SSE4_1);
-    Roundsd(dst, src, mode);
-  } else {
-    {
-      // Set the right rounding mode.
-      subq(rsp, Immediate(kPointerSize * 2));
-      stmxcsr(Operand(rsp, 0));
-      movl(tmp, Operand(rsp, 0));
-      andl(tmp, Immediate(0xffff9fff));
-      orl(tmp, Immediate(mode << 13));
-      movl(Operand(rsp, kPointerSize), tmp);
-      ldmxcsr(Operand(rsp, kPointerSize));
-    }
-
-    // Do rounding by conversion to int64.
-    Cvtsd2siq(tmp, src);
-
-    Label out_of_range;
-    Label done;
-    cmpq(tmp, Immediate(1));
-    // If the conversion results in INT64_MIN, then the input is outside
-    // int64 range, and due to the limited precision of float64 this means
-    // that the input must have been an integer already. We are therefore
-    // done already.
-    j(overflow, &out_of_range);
-    // Rounding is done by converting the value back to float.
-    Cvtqsi2sd(dst, tmp);
-    if (!dst.is(src)) {
-      jmp(&done);
-    }
-
-    bind(&out_of_range);
-    if (!dst.is(src)) {
-      movsd(dst, src);
-    }
-
-    bind(&done);
-    // Restore the original rounding mode.
-    ldmxcsr(Operand(rsp, 0));
-    addq(rsp, Immediate(kPointerSize * 2));
   }
 }
 
