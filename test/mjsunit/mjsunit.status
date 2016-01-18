@@ -284,8 +284,8 @@
   'strong/implicit-conversions': [PASS, SLOW],
   'strong/load-element-mutate-backing-store': [PASS, SLOW],
 
-  # TODO(bradnelson): Enable tests in a separate change.
-  'wasm/*': [SKIP],
+  # TODO(titzer): correct WASM adapter frame alignment on arm64
+  'wasm/*': [PASS, ['arch == arm64', SKIP]],
 }],  # ALWAYS
 
 ['novfp3 == True', {
@@ -376,6 +376,8 @@
   'asm/embenchen/*': [SKIP],
   'asm/poppler/*': [SKIP],
   'asm/sqlite3/*': [SKIP],
+  # TODO(mips-team): Fix Wasm for big-endian.
+  'wasm/*': [SKIP],
 }],  # 'byteorder == big'
 
 ##############################################################################
