@@ -82,6 +82,12 @@ class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
                                         uc16 to,
                                         Label* on_not_in_range);
   virtual void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set);
+  virtual void CheckPosition(int cp_offset, Label* on_outside_input) {
+    LoadCurrentCharacter(cp_offset, on_outside_input, true);
+  }
+  virtual bool CheckSpecialCharacterClass(uc16 type, Label* on_no_match) {
+    return false;  // No custom support for character classes.
+  }
   virtual void CheckNotBackReference(int start_reg, bool read_backward,
                                      Label* on_no_match);
   virtual void CheckNotBackReferenceIgnoreCase(int start_reg,
