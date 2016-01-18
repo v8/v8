@@ -166,13 +166,6 @@ void CreateWeakCellDescriptor::InitializePlatformSpecific(
 }
 
 
-void StoreArrayLiteralElementDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {rcx, rax};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
-
 void CallFunctionDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {rdi};

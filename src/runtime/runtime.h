@@ -345,12 +345,11 @@ namespace internal {
   F(ParseJson, 1, 1)
 
 
-#define FOR_EACH_INTRINSIC_LITERALS(F)   \
-  F(CreateRegExpLiteral, 4, 1)           \
-  F(CreateObjectLiteral, 4, 1)           \
-  F(CreateArrayLiteral, 4, 1)            \
-  F(CreateArrayLiteralStubBailout, 3, 1) \
-  F(StoreArrayLiteralElement, 5, 1)
+#define FOR_EACH_INTRINSIC_LITERALS(F) \
+  F(CreateRegExpLiteral, 4, 1)         \
+  F(CreateObjectLiteral, 4, 1)         \
+  F(CreateArrayLiteral, 4, 1)          \
+  F(CreateArrayLiteralStubBailout, 3, 1)
 
 
 #define FOR_EACH_INTRINSIC_LIVEEDIT(F)              \

@@ -69,7 +69,6 @@ class PlatformInterfaceDescriptor;
   V(ArgumentsAccessRead)                      \
   V(ArgumentsAccessNew)                       \
   V(RestParamAccess)                          \
-  V(StoreArrayLiteralElement)                 \
   V(LoadGlobalViaContext)                     \
   V(StoreGlobalViaContext)                    \
   V(MathPowTagged)                            \
@@ -719,13 +718,6 @@ class RestParamAccessDescriptor : public CallInterfaceDescriptor {
   static const Register parameter_count();
   static const Register parameter_pointer();
   static const Register rest_parameter_index();
-};
-
-
-class StoreArrayLiteralElementDescriptor : public CallInterfaceDescriptor {
- public:
-  DECLARE_DESCRIPTOR(StoreArrayLiteralElementDescriptor,
-                     CallInterfaceDescriptor)
 };
 
 
