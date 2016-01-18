@@ -1272,7 +1272,6 @@ class Assembler : public AssemblerBase {
   void EmitForbiddenSlotInstruction() {
     if (IsPrevInstrCompactBranch()) {
       nop();
-      ClearCompactBranchState();
     }
   }
 

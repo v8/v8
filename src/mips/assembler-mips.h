@@ -1206,6 +1206,12 @@ class Assembler : public AssemblerBase {
     return block_buffer_growth_;
   }
 
+  void EmitForbiddenSlotInstruction() {
+    if (IsPrevInstrCompactBranch()) {
+      nop();
+    }
+  }
+
   inline void CheckTrampolinePoolQuick(int extra_instructions = 0);
 
  private:

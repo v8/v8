@@ -390,7 +390,7 @@ enum Opcode : uint32_t {
   POP10 = ADDI,   // beqzalc, bovc, beqc
   POP26 = BLEZL,  // bgezc, blezc, bgec/blec
   POP27 = BGTZL,  // bgtzc, bltzc, bltc/bgtc
-  POP30 = DADDI,  // bnezalc, bvnc, bnec
+  POP30 = DADDI,  // bnezalc, bnvc, bnec
 };
 
 enum SecondaryField : uint32_t {
