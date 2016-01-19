@@ -148,7 +148,7 @@ function ObjectHasOwnProperty(value) {
 function ObjectIsPrototypeOf(V) {
   if (!IS_RECEIVER(V)) return false;
   var O = TO_OBJECT(this);
-  return %_HasInPrototypeChain(V, O);
+  return %HasInPrototypeChain(V, O);
 }
 
 

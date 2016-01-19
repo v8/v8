@@ -12739,18 +12739,6 @@ void HOptimizedGraphBuilder::GenerateMathSqrt(CallRuntime* call) {
 }
 
 
-void HOptimizedGraphBuilder::GenerateHasInPrototypeChain(CallRuntime* call) {
-  DCHECK_EQ(2, call->arguments()->length());
-  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
-  CHECK_ALIVE(VisitForValue(call->arguments()->at(1)));
-  HValue* prototype = Pop();
-  HValue* object = Pop();
-  HHasInPrototypeChainAndBranch* result =
-      New<HHasInPrototypeChainAndBranch>(object, prototype);
-  return ast_context()->ReturnControl(result, call->id());
-}
-
-
 void HOptimizedGraphBuilder::GenerateFixedArrayGet(CallRuntime* call) {
   DCHECK(call->arguments()->length() == 2);
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
