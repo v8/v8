@@ -1590,8 +1590,11 @@ BUILTIN(ObjectGetOwnPropertyDescriptor) {
 }
 
 
-// ES6 section 19.1.2.8 Object.getOwnPropertySymbols ( O )
-BUILTIN(ObjectGetOwnPropertySymbols) {
+namespace {
+
+Object* GetOwnPropertyKeys(Isolate* isolate,
+                           BuiltinArguments<BuiltinExtraArguments::kNone> args,
+                           PropertyFilter filter) {
   HandleScope scope(isolate);
   Handle<Object> object = args.atOrUndefined(isolate, 1);
   Handle<JSReceiver> receiver;
@@ -1599,9 +1602,23 @@ BUILTIN(ObjectGetOwnPropertySymbols) {
                                      Object::ToObject(isolate, object));
   Handle<FixedArray> keys;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, keys, JSReceiver::GetKeys(receiver, JSReceiver::OWN_ONLY,
-                                         SKIP_STRINGS, CONVERT_TO_STRING));
+      isolate, keys, JSReceiver::GetKeys(receiver, JSReceiver::OWN_ONLY, filter,
+                                         CONVERT_TO_STRING));
   return *isolate->factory()->NewJSArrayWithElements(keys);
+}
+
+}  // namespace
+
+
+// ES6 section 19.1.2.7 Object.getOwnPropertyNames ( O )
+BUILTIN(ObjectGetOwnPropertyNames) {
+  return GetOwnPropertyKeys(isolate, args, SKIP_SYMBOLS);
+}
+
+
+// ES6 section 19.1.2.8 Object.getOwnPropertySymbols ( O )
+BUILTIN(ObjectGetOwnPropertySymbols) {
+  return GetOwnPropertyKeys(isolate, args, SKIP_STRINGS);
 }
 
 

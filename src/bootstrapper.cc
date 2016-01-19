@@ -1100,6 +1100,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     native_context()->set_object_freeze(*object_freeze);
     SimpleInstallFunction(object_function, "getOwnPropertyDescriptor",
                           Builtins::kObjectGetOwnPropertyDescriptor, 2, false);
+    SimpleInstallFunction(object_function, "getOwnPropertyNames",
+                          Builtins::kObjectGetOwnPropertyNames, 1, false);
     SimpleInstallFunction(object_function, "getOwnPropertySymbols",
                           Builtins::kObjectGetOwnPropertySymbols, 1, false);
     Handle<JSFunction> object_is_extensible =

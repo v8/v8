@@ -111,6 +111,7 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(ObjectCreate, kNone)                                       \
   V(ObjectFreeze, kNone)                                       \
   V(ObjectGetOwnPropertyDescriptor, kNone)                     \
+  V(ObjectGetOwnPropertyNames, kNone)                          \
   V(ObjectGetOwnPropertySymbols, kNone)                        \
   V(ObjectIsExtensible, kNone)                                 \
   V(ObjectIsFrozen, kNone)                                     \
