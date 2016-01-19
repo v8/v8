@@ -271,6 +271,12 @@
   'test-run-wasm/Run_Wasm_LoadStoreI64_sx': [SKIP],
   'test-run-wasm/Run_WASM_Int64DivS_byzero_const': [SKIP],
   'test-run-wasm/Run_TestI64WasmRunner': [SKIP],
+  'test-run-wasm-js/Run_JSSelect_1': [SKIP],
+  'test-run-wasm-js/Run_JSSelect_2': [SKIP],
+  'test-run-wasm-js/Run_JSSelect_3': [SKIP],
+  'test-run-wasm-js/Run_JSSelect_4': [SKIP],
+  'test-run-wasm-js/Run_JSSelect_5': [SKIP],
+  'test-run-wasm-js/Run_JSSelect_6': [SKIP],
 }],  # 'byteorder == big'
 
 ##############################################################################
