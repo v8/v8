@@ -1524,14 +1524,22 @@ LInstruction* LChunkBuilder::DoMul(HMul* instr) {
     DCHECK(instr->left()->representation().Equals(instr->representation()));
     DCHECK(instr->right()->representation().Equals(instr->representation()));
     LOperand* left = UseRegisterAtStart(instr->BetterLeftOperand());
-    LOperand* right = UseOrConstant(instr->BetterRightOperand());
+    HValue* h_right = instr->BetterRightOperand();
+    LOperand* right = UseOrConstant(h_right);
     LOperand* temp = NULL;
     if (instr->CheckFlag(HValue::kBailoutOnMinusZero)) {
       temp = TempRegister();
     }
     LMulI* mul = new(zone()) LMulI(left, right, temp);
-    if (instr->CheckFlag(HValue::kCanOverflow) ||
-        instr->CheckFlag(HValue::kBailoutOnMinusZero)) {
+    int constant_value =
+        h_right->IsConstant() ? HConstant::cast(h_right)->Integer32Value() : 0;
+    // |needs_environment| must mirror the cases where LCodeGen::DoMulI calls
+    // |DeoptimizeIf|.
+    bool needs_environment =
+        instr->CheckFlag(HValue::kCanOverflow) ||
+        (instr->CheckFlag(HValue::kBailoutOnMinusZero) &&
+         (!right->IsConstantOperand() || constant_value <= 0));
+    if (needs_environment) {
       AssignEnvironment(mul);
     }
     return DefineSameAsFirst(mul);
