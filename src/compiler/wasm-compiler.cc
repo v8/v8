@@ -1133,6 +1133,10 @@ Node* WasmGraphBuilder::BuildI32SConvertF32(Node* input) {
 
 Node* WasmGraphBuilder::BuildI32SConvertF64(Node* input) {
   MachineOperatorBuilder* m = jsgraph()->machine();
+  if (module_ && module_->asm_js) {
+    return graph()->NewNode(
+        m->TruncateFloat64ToInt32(TruncationMode::kJavaScript), input);
+  }
   // Truncation of the input value is needed for the overflow check later.
   Node* trunc = Unop(wasm::kExprF64Trunc, input);
   Node* result = graph()->NewNode(m->ChangeFloat64ToInt32(), trunc);
@@ -1167,6 +1171,10 @@ Node* WasmGraphBuilder::BuildI32UConvertF32(Node* input) {
 
 Node* WasmGraphBuilder::BuildI32UConvertF64(Node* input) {
   MachineOperatorBuilder* m = jsgraph()->machine();
+  if (module_ && module_->asm_js) {
+    return graph()->NewNode(
+        m->TruncateFloat64ToInt32(TruncationMode::kJavaScript), input);
+  }
   // Truncation of the input value is needed for the overflow check later.
   Node* trunc = Unop(wasm::kExprF64Trunc, input);
   Node* result = graph()->NewNode(m->ChangeFloat64ToUint32(), trunc);
