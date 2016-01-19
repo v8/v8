@@ -574,7 +574,7 @@ void ArrayLiteral::AssignFeedbackVectorSlots(Isolate* isolate,
   int array_index = 0;
   for (; array_index < values()->length(); array_index++) {
     Expression* subexpr = values()->at(array_index);
-    if (subexpr->IsSpread()) break;
+    DCHECK(!subexpr->IsSpread());
     if (CompileTimeValue::IsCompileTimeValue(subexpr)) continue;
 
     // We'll reuse the same literal slot for all of the non-constant

@@ -1197,10 +1197,7 @@ void BytecodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
        array_index++) {
     Expression* subexpr = expr->values()->at(array_index);
     if (CompileTimeValue::IsCompileTimeValue(subexpr)) continue;
-    if (subexpr->IsSpread()) {
-      // TODO(rmcilroy): Deal with spread expressions.
-      UNIMPLEMENTED();
-    }
+    DCHECK(!subexpr->IsSpread());
 
     if (literal_in_accumulator) {
       index = register_allocator()->NewRegister();

@@ -188,6 +188,8 @@ void AstLiteralReindexer::VisitCompareOperation(CompareOperation* node) {
 
 
 void AstLiteralReindexer::VisitSpread(Spread* node) {
+  // This is reachable because ParserBase::ParseArrowFunctionLiteral calls
+  // ReindexLiterals before calling RewriteDestructuringAssignments.
   Visit(node->expression());
 }
 

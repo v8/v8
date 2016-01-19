@@ -1937,7 +1937,7 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   int array_index = 0;
   for (; array_index < expr->values()->length(); array_index++) {
     Expression* subexpr = expr->values()->at(array_index);
-    if (subexpr->IsSpread()) break;
+    DCHECK(!subexpr->IsSpread());
     if (CompileTimeValue::IsCompileTimeValue(subexpr)) continue;
 
     VisitForValue(subexpr);
@@ -1960,29 +1960,17 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   // number elements an iterable produces is unknown ahead of time.
   for (; array_index < expr->values()->length(); array_index++) {
     Expression* subexpr = expr->values()->at(array_index);
-    Node* result;
+    DCHECK(!subexpr->IsSpread());
 
-    if (subexpr->IsSpread()) {
-      VisitForValue(subexpr->AsSpread()->expression());
-      FrameStateBeforeAndAfter states(this,
-                                      subexpr->AsSpread()->expression()->id());
-      Node* iterable = environment()->Pop();
-      Node* array = environment()->Pop();
-      Node* function = BuildLoadNativeContextField(
-          Context::CONCAT_ITERABLE_TO_ARRAY_BUILTIN_INDEX);
-      result = NewNode(javascript()->CallFunction(3, language_mode()), function,
-                       array, iterable);
-      states.AddToNode(result, expr->GetIdForElement(array_index));
-    } else {
-      VisitForValue(subexpr);
+    VisitForValue(subexpr);
+    {
       Node* value = environment()->Pop();
       Node* array = environment()->Pop();
       const Operator* op = javascript()->CallRuntime(Runtime::kAppendElement);
-      result = NewNode(op, array, value);
+      Node* result = NewNode(op, array, value);
       PrepareFrameState(result, expr->GetIdForElement(array_index));
+      environment()->Push(result);
     }
-
-    environment()->Push(result);
   }
 
   ast_context()->ProduceValue(environment()->Pop());

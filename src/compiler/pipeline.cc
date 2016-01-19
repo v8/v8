@@ -1053,13 +1053,6 @@ void Pipeline::RunPrintAndVerify(const char* phase, bool untyped) {
 
 
 Handle<Code> Pipeline::GenerateCode() {
-  // TODO(mstarzinger): This is just a temporary hack to make TurboFan work,
-  // the correct solution is to restore the context register after invoking
-  // builtins from full-codegen.
-  if (Context::IsJSBuiltin(isolate()->native_context(), info()->closure())) {
-    return Handle<Code>::null();
-  }
-
   ZonePool zone_pool;
   base::SmartPointer<PipelineStatistics> pipeline_statistics;
 

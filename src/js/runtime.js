@@ -36,16 +36,6 @@ utils.ImportFromExperimental(function(from) {
 
 // ----------------------------------------------------------------------------
 
-/* -----------------------------
-   - - -   H e l p e r s   - - -
-   -----------------------------
-*/
-
-function CONCAT_ITERABLE_TO_ARRAY(iterable) {
-  return %concat_iterable_to_array(this, iterable);
-};
-
-
 /* -------------------------------------
    - - -   C o n v e r s i o n s   - - -
    -------------------------------------
@@ -179,10 +169,6 @@ utils.Export(function(to) {
   to.ToPositiveInteger = ToPositiveInteger;
   to.SpeciesConstructor = SpeciesConstructor;
 });
-
-%InstallToContext([
-  "concat_iterable_to_array_builtin", CONCAT_ITERABLE_TO_ARRAY,
-]);
 
 %InstallToContext([
   "concat_iterable_to_array", ConcatIterableToArray,

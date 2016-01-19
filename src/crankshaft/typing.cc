@@ -752,7 +752,7 @@ void AstTyper::VisitCompareOperation(CompareOperation* expr) {
 }
 
 
-void AstTyper::VisitSpread(Spread* expr) { RECURSE(Visit(expr->expression())); }
+void AstTyper::VisitSpread(Spread* expr) { UNREACHABLE(); }
 
 
 void AstTyper::VisitEmptyParentheses(EmptyParentheses* expr) {
@@ -760,8 +760,7 @@ void AstTyper::VisitEmptyParentheses(EmptyParentheses* expr) {
 }
 
 
-void AstTyper::VisitThisFunction(ThisFunction* expr) {
-}
+void AstTyper::VisitThisFunction(ThisFunction* expr) {}
 
 
 void AstTyper::VisitSuperPropertyReference(SuperPropertyReference* expr) {}

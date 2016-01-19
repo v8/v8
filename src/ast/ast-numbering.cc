@@ -372,11 +372,7 @@ void AstNumberingVisitor::VisitCompareOperation(CompareOperation* node) {
 }
 
 
-void AstNumberingVisitor::VisitSpread(Spread* node) {
-  IncrementNodeCount();
-  DisableCrankshaft(kSpread);
-  Visit(node->expression());
-}
+void AstNumberingVisitor::VisitSpread(Spread* node) { UNREACHABLE(); }
 
 
 void AstNumberingVisitor::VisitEmptyParentheses(EmptyParentheses* node) {
