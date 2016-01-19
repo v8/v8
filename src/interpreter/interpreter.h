@@ -87,6 +87,18 @@ class Interpreter {
   // Generates code to perform a JS call.
   void DoJSCall(compiler::InterpreterAssembler* assembler);
 
+  // Generates code to perform a runtime call.
+  void DoCallRuntimeCommon(compiler::InterpreterAssembler* assembler);
+
+  // Generates code to perform a runtime call returning a pair.
+  void DoCallRuntimeForPairCommon(compiler::InterpreterAssembler* assembler);
+
+  // Generates code to perform a JS runtime call.
+  void DoCallJSRuntimeCommon(compiler::InterpreterAssembler* assembler);
+
+  // Generates code to perform a constructor call..
+  void DoCallConstruct(compiler::InterpreterAssembler* assembler);
+
   // Generates code ro create a literal via |function_id|.
   void DoCreateLiteral(Runtime::FunctionId function_id,
                        compiler::InterpreterAssembler* assembler);

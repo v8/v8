@@ -147,6 +147,11 @@ class BytecodeGraphBuilder {
   void BuildStaLookupSlot(LanguageMode language_mode,
                           const interpreter::BytecodeArrayIterator& iterator);
   void BuildCall(const interpreter::BytecodeArrayIterator& iterator);
+  void BuildCallJSRuntime(const interpreter::BytecodeArrayIterator& iterator);
+  void BuildCallRuntime(const interpreter::BytecodeArrayIterator& iterator);
+  void BuildCallRuntimeForPair(
+      const interpreter::BytecodeArrayIterator& iterator);
+  void BuildCallConstruct(const interpreter::BytecodeArrayIterator& iterator);
   void BuildBinaryOp(const Operator* op,
                      const interpreter::BytecodeArrayIterator& iterator);
   void BuildCompareOp(const Operator* op,
@@ -154,6 +159,8 @@ class BytecodeGraphBuilder {
   void BuildDelete(const interpreter::BytecodeArrayIterator& iterator);
   void BuildCastOperator(const Operator* js_op,
                          const interpreter::BytecodeArrayIterator& iterator);
+  void BuildForInPrepare(const interpreter::BytecodeArrayIterator& iterator);
+  void BuildForInNext(const interpreter::BytecodeArrayIterator& iterator);
 
   // Control flow plumbing.
   void BuildJump(int source_offset, int target_offset);

@@ -15,25 +15,35 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
-// The list of operand types used by bytecodes.
-#define OPERAND_TYPE_LIST(V)        \
-                                    \
-  /* None operand. */               \
-  V(None, OperandSize::kNone)       \
-                                    \
+#define INVALID_OPERAND_TYPE_LIST(V) \
+  V(None, OperandSize::kNone)
+
+#define REGISTER_OPERAND_TYPE_LIST(V) \
+  /* Byte operands. */                \
+  V(MaybeReg8, OperandSize::kByte)    \
+  V(Reg8, OperandSize::kByte)         \
+  V(RegPair8, OperandSize::kByte)     \
+  V(RegTriple8, OperandSize::kByte)   \
+  /* Short operands. */               \
+  V(MaybeReg16, OperandSize::kShort)  \
+  V(Reg16, OperandSize::kShort)       \
+  V(RegPair16, OperandSize::kShort)   \
+  V(RegTriple16, OperandSize::kShort)
+
+#define SCALAR_OPERAND_TYPE_LIST(V) \
   /* Byte operands. */              \
-  V(Count8, OperandSize::kByte)     \
-  V(Imm8, OperandSize::kByte)       \
   V(Idx8, OperandSize::kByte)       \
-  V(MaybeReg8, OperandSize::kByte)  \
-  V(Reg8, OperandSize::kByte)       \
-  V(RegPair8, OperandSize::kByte)   \
-  V(RegTriple8, OperandSize::kByte) \
-                                    \
+  V(Imm8, OperandSize::kByte)       \
+  V(RegCount8, OperandSize::kByte)  \
   /* Short operands. */             \
-  V(Count16, OperandSize::kShort)   \
   V(Idx16, OperandSize::kShort)     \
-  V(Reg16, OperandSize::kShort)
+  V(RegCount16, OperandSize::kShort)
+
+// The list of operand types used by bytecodes.
+#define OPERAND_TYPE_LIST(V)    \
+  INVALID_OPERAND_TYPE_LIST(V)  \
+  REGISTER_OPERAND_TYPE_LIST(V) \
+  SCALAR_OPERAND_TYPE_LIST(V)
 
 // The list of bytecodes which are interpreted by the interpreter.
 #define BYTECODE_LIST(V)                                                       \
@@ -87,8 +97,7 @@ namespace interpreter {
                                                                                \
   /* Register-register transfers */                                            \
   V(Mov, OperandType::kReg8, OperandType::kReg8)                               \
-  V(Exchange, OperandType::kReg8, OperandType::kReg16)                         \
-  V(ExchangeWide, OperandType::kReg16, OperandType::kReg16)                    \
+  V(MovWide, OperandType::kReg16, OperandType::kReg16)                         \
                                                                                \
   /* LoadIC operations */                                                      \
   V(LoadICSloppy, OperandType::kReg8, OperandType::kIdx8, OperandType::kIdx8)  \
@@ -143,19 +152,27 @@ namespace interpreter {
   V(DeleteLookupSlot, OperandType::kNone)                                      \
                                                                                \
   /* Call operations */                                                        \
-  V(Call, OperandType::kReg8, OperandType::kReg8, OperandType::kCount8,        \
+  V(Call, OperandType::kReg8, OperandType::kReg8, OperandType::kRegCount8,     \
     OperandType::kIdx8)                                                        \
-  V(CallWide, OperandType::kReg8, OperandType::kReg8, OperandType::kCount16,   \
-    OperandType::kIdx16)                                                       \
+  V(CallWide, OperandType::kReg16, OperandType::kReg16,                        \
+    OperandType::kRegCount16, OperandType::kIdx16)                             \
   V(CallRuntime, OperandType::kIdx16, OperandType::kMaybeReg8,                 \
-    OperandType::kCount8)                                                      \
+    OperandType::kRegCount8)                                                   \
+  V(CallRuntimeWide, OperandType::kIdx16, OperandType::kMaybeReg16,            \
+    OperandType::kRegCount8)                                                   \
   V(CallRuntimeForPair, OperandType::kIdx16, OperandType::kMaybeReg8,          \
-    OperandType::kCount8, OperandType::kRegPair8)                              \
+    OperandType::kRegCount8, OperandType::kRegPair8)                           \
+  V(CallRuntimeForPairWide, OperandType::kIdx16, OperandType::kMaybeReg16,     \
+    OperandType::kRegCount8, OperandType::kRegPair16)                          \
   V(CallJSRuntime, OperandType::kIdx16, OperandType::kReg8,                    \
-    OperandType::kCount8)                                                      \
+    OperandType::kRegCount8)                                                   \
+  V(CallJSRuntimeWide, OperandType::kIdx16, OperandType::kReg16,               \
+    OperandType::kRegCount16)                                                  \
                                                                                \
   /* New operator */                                                           \
-  V(New, OperandType::kReg8, OperandType::kMaybeReg8, OperandType::kCount8)    \
+  V(New, OperandType::kReg8, OperandType::kMaybeReg8, OperandType::kRegCount8) \
+  V(NewWide, OperandType::kReg16, OperandType::kMaybeReg16,                    \
+    OperandType::kRegCount16)                                                  \
                                                                                \
   /* Test Operators */                                                         \
   V(TestEqual, OperandType::kReg8)                                             \
@@ -221,8 +238,11 @@ namespace interpreter {
                                                                                \
   /* Complex flow control For..in */                                           \
   V(ForInPrepare, OperandType::kRegTriple8)                                    \
+  V(ForInPrepareWide, OperandType::kRegTriple16)                               \
   V(ForInDone, OperandType::kReg8, OperandType::kReg8)                         \
   V(ForInNext, OperandType::kReg8, OperandType::kReg8, OperandType::kRegPair8) \
+  V(ForInNextWide, OperandType::kReg16, OperandType::kReg16,                   \
+    OperandType::kRegPair16)                                                   \
   V(ForInStep, OperandType::kReg8)                                             \
                                                                                \
   /* Non-local flow control */                                                 \
@@ -301,6 +321,9 @@ class Register {
   static Register FromWideOperand(uint16_t operand);
   uint16_t ToWideOperand() const;
 
+  static Register FromRawOperand(uint32_t raw_operand);
+  uint32_t ToRawOperand() const;
+
   static bool AreContiguous(Register reg1, Register reg2,
                             Register reg3 = Register(),
                             Register reg4 = Register(),
@@ -317,6 +340,12 @@ class Register {
   }
   bool operator<=(const Register& other) const {
     return index() <= other.index();
+  }
+  bool operator>(const Register& other) const {
+    return index() > other.index();
+  }
+  bool operator>=(const Register& other) const {
+    return index() >= other.index();
   }
 
  private:

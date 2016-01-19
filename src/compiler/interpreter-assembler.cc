@@ -259,18 +259,18 @@ Node* InterpreterAssembler::BytecodeOperandCount(int operand_index) {
   switch (interpreter::Bytecodes::GetOperandSize(bytecode_, operand_index)) {
     case interpreter::OperandSize::kByte:
       DCHECK_EQ(
-          interpreter::OperandType::kCount8,
+          interpreter::OperandType::kRegCount8,
           interpreter::Bytecodes::GetOperandType(bytecode_, operand_index));
       return BytecodeOperand(operand_index);
     case interpreter::OperandSize::kShort:
       DCHECK_EQ(
-          interpreter::OperandType::kCount16,
+          interpreter::OperandType::kRegCount16,
           interpreter::Bytecodes::GetOperandType(bytecode_, operand_index));
       return BytecodeOperandShort(operand_index);
-    default:
+    case interpreter::OperandSize::kNone:
       UNREACHABLE();
-      return nullptr;
   }
+  return nullptr;
 }
 
 
@@ -293,32 +293,40 @@ Node* InterpreterAssembler::BytecodeOperandIdx(int operand_index) {
           interpreter::OperandType::kIdx16,
           interpreter::Bytecodes::GetOperandType(bytecode_, operand_index));
       return BytecodeOperandShort(operand_index);
-    default:
+    case interpreter::OperandSize::kNone:
       UNREACHABLE();
-      return nullptr;
   }
+  return nullptr;
 }
 
 
 Node* InterpreterAssembler::BytecodeOperandReg(int operand_index) {
   switch (interpreter::Bytecodes::GetOperandType(bytecode_, operand_index)) {
+    case interpreter::OperandType::kMaybeReg8:
     case interpreter::OperandType::kReg8:
     case interpreter::OperandType::kRegPair8:
     case interpreter::OperandType::kRegTriple8:
-    case interpreter::OperandType::kMaybeReg8:
       DCHECK_EQ(
           interpreter::OperandSize::kByte,
           interpreter::Bytecodes::GetOperandSize(bytecode_, operand_index));
       return BytecodeOperandSignExtended(operand_index);
+    case interpreter::OperandType::kMaybeReg16:
     case interpreter::OperandType::kReg16:
+    case interpreter::OperandType::kRegPair16:
+    case interpreter::OperandType::kRegTriple16:
       DCHECK_EQ(
           interpreter::OperandSize::kShort,
           interpreter::Bytecodes::GetOperandSize(bytecode_, operand_index));
       return BytecodeOperandShortSignExtended(operand_index);
-    default:
+    case interpreter::OperandType::kNone:
+    case interpreter::OperandType::kIdx8:
+    case interpreter::OperandType::kIdx16:
+    case interpreter::OperandType::kImm8:
+    case interpreter::OperandType::kRegCount8:
+    case interpreter::OperandType::kRegCount16:
       UNREACHABLE();
-      return nullptr;
   }
+  return nullptr;
 }
 
 

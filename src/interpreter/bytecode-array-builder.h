@@ -18,7 +18,6 @@ class Isolate;
 namespace interpreter {
 
 class BytecodeLabel;
-class ConstantArrayBuilder;
 class Register;
 
 // TODO(rmcilroy): Unify this with CreateArgumentsParameters::Type in Turbofan
@@ -98,7 +97,6 @@ class BytecodeArrayBuilder final {
 
   // Register-register transfer.
   BytecodeArrayBuilder& MoveRegister(Register from, Register to);
-  BytecodeArrayBuilder& ExchangeRegisters(Register reg0, Register reg1);
 
   // Named load property.
   BytecodeArrayBuilder& LoadNamedProperty(Register object,
@@ -231,15 +229,8 @@ class BytecodeArrayBuilder final {
   Zone* zone() const { return zone_; }
 
  private:
-  ZoneVector<uint8_t>* bytecodes() { return &bytecodes_; }
-  const ZoneVector<uint8_t>* bytecodes() const { return &bytecodes_; }
-  Isolate* isolate() const { return isolate_; }
-  ConstantArrayBuilder* constant_array_builder() {
-    return &constant_array_builder_;
-  }
-  const ConstantArrayBuilder* constant_array_builder() const {
-    return &constant_array_builder_;
-  }
+  class PreviousBytecodeHelper;
+  friend class BytecodeRegisterAllocator;
 
   static Bytecode BytecodeForBinaryOperation(Token::Value op);
   static Bytecode BytecodeForCountOperation(Token::Value op);
@@ -296,11 +287,10 @@ class BytecodeArrayBuilder final {
   bool OperandIsValid(Bytecode bytecode, int operand_index,
                       uint32_t operand_value) const;
   bool LastBytecodeInSameBlock() const;
+  bool RegisterIsValid(Register reg, OperandType reg_type) const;
 
   bool NeedToBooleanCast();
   bool IsRegisterInAccumulator(Register reg);
-
-  bool RegisterIsValid(Register reg) const;
 
   // Temporary register management.
   int BorrowTemporaryRegister();
@@ -315,6 +305,16 @@ class BytecodeArrayBuilder final {
 
   // Gets a constant pool entry for the |object|.
   size_t GetConstantPoolEntry(Handle<Object> object);
+
+  ZoneVector<uint8_t>* bytecodes() { return &bytecodes_; }
+  const ZoneVector<uint8_t>* bytecodes() const { return &bytecodes_; }
+  Isolate* isolate() const { return isolate_; }
+  ConstantArrayBuilder* constant_array_builder() {
+    return &constant_array_builder_;
+  }
+  const ConstantArrayBuilder* constant_array_builder() const {
+    return &constant_array_builder_;
+  }
 
   Isolate* isolate_;
   Zone* zone_;
@@ -331,9 +331,6 @@ class BytecodeArrayBuilder final {
   int context_register_count_;
   int temporary_register_count_;
   ZoneSet<int> free_temporaries_;
-
-  class PreviousBytecodeHelper;
-  friend class BytecodeRegisterAllocator;
 
   DISALLOW_COPY_AND_ASSIGN(BytecodeArrayBuilder);
 };

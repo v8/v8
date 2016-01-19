@@ -23,12 +23,12 @@ class BytecodeArrayBuilderTest : public TestWithIsolateAndZone {
 TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   BytecodeArrayBuilder builder(isolate(), zone());
 
-  builder.set_locals_count(200);
+  builder.set_locals_count(131);
   builder.set_context_count(1);
   builder.set_parameter_count(0);
-  CHECK_EQ(builder.locals_count(), 200);
+  CHECK_EQ(builder.locals_count(), 131);
   CHECK_EQ(builder.context_count(), 1);
-  CHECK_EQ(builder.fixed_register_count(), 201);
+  CHECK_EQ(builder.fixed_register_count(), 132);
 
   // Emit constant loads.
   builder.LoadLiteral(Smi::FromInt(0))
@@ -40,23 +40,17 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .LoadTrue()
       .LoadFalse();
 
-  // Emit accumulator transfers. Stores followed by loads to the same register
-  // are not generated. Hence, a dummy instruction in between.
   Register reg(0);
+  Register other(reg.index() + 1);
+  Register wide(128);
+
   builder.LoadAccumulatorWithRegister(reg)
       .LoadNull()
       .StoreAccumulatorInRegister(reg);
 
   // Emit register-register transfer.
-  Register other(1);
   builder.MoveRegister(reg, other);
-
-  // Emit register-register exchanges.
-  Register wide(150);
-  builder.ExchangeRegisters(reg, wide);
-  builder.ExchangeRegisters(wide, reg);
-  Register wider(151);
-  builder.ExchangeRegisters(wide, wider);
+  builder.MoveRegister(reg, wide);
 
   // Emit global load / store operations.
   Factory* factory = isolate()->factory();
@@ -107,11 +101,14 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CreateObjectLiteral(factory->NewFixedArray(1), 0, 0);
 
   // Call operations.
-  builder.Call(reg, reg, 0, 0)
-      .Call(reg, reg, 0, 1024)
+  builder.Call(reg, other, 1, 0)
+      .Call(reg, wide, 1, 0)
       .CallRuntime(Runtime::kIsArray, reg, 1)
-      .CallRuntimeForPair(Runtime::kLoadLookupSlot, reg, 1, reg)
-      .CallJSRuntime(Context::SPREAD_ITERABLE_INDEX, reg, 1);
+      .CallRuntime(Runtime::kIsArray, wide, 1)
+      .CallRuntimeForPair(Runtime::kLoadLookupSlot, reg, 1, other)
+      .CallRuntimeForPair(Runtime::kLoadLookupSlot, wide, 1, other)
+      .CallJSRuntime(Context::SPREAD_ITERABLE_INDEX, reg, 1)
+      .CallJSRuntime(Context::SPREAD_ITERABLE_INDEX, wide, 1);
 
   // Emit binary operator invocations.
   builder.BinaryOperation(Token::Value::ADD, reg, Strength::WEAK)
@@ -144,6 +141,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   // Emit new.
   builder.New(reg, reg, 0);
+  builder.New(wide, wide, 0);
 
   // Emit test operator invocations.
   builder.CompareOperation(Token::Value::EQ, reg, Strength::WEAK)
@@ -205,13 +203,15 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Emit throw in it's own basic block so that the rest of the code isn't
   // omitted due to being dead.
   BytecodeLabel after_throw;
-  builder.Jump(&after_throw)
-    .Throw()
-    .Bind(&after_throw);
+  builder.Jump(&after_throw).Throw().Bind(&after_throw);
 
   builder.ForInPrepare(reg)
       .ForInDone(reg, reg)
       .ForInNext(reg, reg, reg)
+      .ForInStep(reg);
+  builder.ForInPrepare(wide)
+      .ForInDone(reg, other)
+      .ForInNext(wide, wide, wide)
       .ForInStep(reg);
 
   // Wide constant pool loads
@@ -243,8 +243,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .StoreKeyedProperty(reg, reg, 2056, LanguageMode::STRICT);
 
   // Emit wide context operations.
-  builder.LoadContextSlot(reg, 1024)
-      .StoreContextSlot(reg, 1024);
+  builder.LoadContextSlot(reg, 1024).StoreContextSlot(reg, 1024);
 
   // Emit wide load / store lookup slots.
   builder.LoadLookupSlot(wide_name, TypeofMode::NOT_INSIDE_TYPEOF)

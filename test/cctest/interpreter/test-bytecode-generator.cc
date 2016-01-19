@@ -94,6 +94,7 @@ class BytecodeGeneratorHelper {
 #define B(x) static_cast<uint8_t>(Bytecode::k##x)
 #define U8(x) static_cast<uint8_t>((x) & 0xff)
 #define R(x) static_cast<uint8_t>(-(x) & 0xff)
+#define R16(x) U16(-(x))
 #define A(x, n) R(helper.kLastParamIndex - (n) + 1 + (x))
 #define THIS(n) A(0, n)
 #if defined(V8_TARGET_LITTLE_ENDIAN)
@@ -1440,7 +1441,7 @@ TEST(PropertyCall) {
        " return a.func(); }\nf(" FUNC_ARG ")",
        2 * kPointerSize,
        2,
-       1044,
+       1046,
        {
            B(Ldar), A(1, 2),                                               //
            B(Star), R(0),                                                  //
@@ -1453,7 +1454,7 @@ TEST(PropertyCall) {
            B(Star), R(1),                                                  //
            B(LoadICSloppyWide), R(1), U16(0), U16(wide_idx + 4),           //
            B(Star), R(0),                                                  //
-           B(CallWide), R(0), R(1), U16(0), U16(wide_idx + 2),             //
+           B(CallWide), R16(0), R16(1), U16(0), U16(wide_idx + 2),         //
            B(Return),                                                      //
        },
        1,

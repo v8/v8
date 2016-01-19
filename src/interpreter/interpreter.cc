@@ -201,28 +201,6 @@ void Interpreter::DoStar(compiler::InterpreterAssembler* assembler) {
 }
 
 
-// Exchange <reg8> <reg16>
-//
-// Exchange two registers.
-void Interpreter::DoExchange(compiler::InterpreterAssembler* assembler) {
-  Node* reg0_index = __ BytecodeOperandReg(0);
-  Node* reg1_index = __ BytecodeOperandReg(1);
-  Node* reg0_value = __ LoadRegister(reg0_index);
-  Node* reg1_value = __ LoadRegister(reg1_index);
-  __ StoreRegister(reg1_value, reg0_index);
-  __ StoreRegister(reg0_value, reg1_index);
-  __ Dispatch();
-}
-
-
-// ExchangeWide <reg16> <reg16>
-//
-// Exchange two registers.
-void Interpreter::DoExchangeWide(compiler::InterpreterAssembler* assembler) {
-  return DoExchange(assembler);
-}
-
-
 // Mov <src> <dst>
 //
 // Stores the value of register <src> to register <dst>.
@@ -232,6 +210,14 @@ void Interpreter::DoMov(compiler::InterpreterAssembler* assembler) {
   Node* dst_index = __ BytecodeOperandReg(1);
   __ StoreRegister(src_value, dst_index);
   __ Dispatch();
+}
+
+
+// MovWide <src> <dst>
+//
+// Stores the value of register <src> to register <dst>.
+void Interpreter::DoMovWide(compiler::InterpreterAssembler* assembler) {
+  DoMov(assembler);
 }
 
 
@@ -1088,12 +1074,8 @@ void Interpreter::DoCallWide(compiler::InterpreterAssembler* assembler) {
 }
 
 
-// CallRuntime <function_id> <first_arg> <arg_count>
-//
-// Call the runtime function |function_id| with the first argument in
-// register |first_arg| and |arg_count| arguments in subsequent
-// registers.
-void Interpreter::DoCallRuntime(compiler::InterpreterAssembler* assembler) {
+void Interpreter::DoCallRuntimeCommon(
+    compiler::InterpreterAssembler* assembler) {
   Node* function_id = __ BytecodeOperandIdx(0);
   Node* first_arg_reg = __ BytecodeOperandReg(1);
   Node* first_arg = __ RegisterLocation(first_arg_reg);
@@ -1104,13 +1086,27 @@ void Interpreter::DoCallRuntime(compiler::InterpreterAssembler* assembler) {
 }
 
 
-// CallRuntimeForPair <function_id> <first_arg> <arg_count> <first_return>
+// CallRuntime <function_id> <first_arg> <arg_count>
 //
-// Call the runtime function |function_id| which returns a pair, with the
-// first argument in register |first_arg| and |arg_count| arguments in
-// subsequent registers. Returns the result in <first_return> and
-// <first_return + 1>
-void Interpreter::DoCallRuntimeForPair(
+// Call the runtime function |function_id| with the first argument in
+// register |first_arg| and |arg_count| arguments in subsequent
+// registers.
+void Interpreter::DoCallRuntime(compiler::InterpreterAssembler* assembler) {
+  DoCallRuntimeCommon(assembler);
+}
+
+
+// CallRuntime <function_id> <first_arg> <arg_count>
+//
+// Call the runtime function |function_id| with the first argument in
+// register |first_arg| and |arg_count| arguments in subsequent
+// registers.
+void Interpreter::DoCallRuntimeWide(compiler::InterpreterAssembler* assembler) {
+  DoCallRuntimeCommon(assembler);
+}
+
+
+void Interpreter::DoCallRuntimeForPairCommon(
     compiler::InterpreterAssembler* assembler) {
   // Call the runtime function.
   Node* function_id = __ BytecodeOperandIdx(0);
@@ -1126,16 +1122,36 @@ void Interpreter::DoCallRuntimeForPair(
   Node* result1 = __ Projection(1, result_pair);
   __ StoreRegister(result0, first_return_reg);
   __ StoreRegister(result1, second_return_reg);
-
   __ Dispatch();
 }
 
 
-// CallJSRuntime <context_index> <receiver> <arg_count>
+// CallRuntimeForPair <function_id> <first_arg> <arg_count> <first_return>
 //
-// Call the JS runtime function that has the |context_index| with the receiver
-// in register |receiver| and |arg_count| arguments in subsequent registers.
-void Interpreter::DoCallJSRuntime(compiler::InterpreterAssembler* assembler) {
+// Call the runtime function |function_id| which returns a pair, with the
+// first argument in register |first_arg| and |arg_count| arguments in
+// subsequent registers. Returns the result in <first_return> and
+// <first_return + 1>
+void Interpreter::DoCallRuntimeForPair(
+    compiler::InterpreterAssembler* assembler) {
+  DoCallRuntimeForPairCommon(assembler);
+}
+
+
+// CallRuntimeForPairWide <function_id> <first_arg> <arg_count> <first_return>
+//
+// Call the runtime function |function_id| which returns a pair, with the
+// first argument in register |first_arg| and |arg_count| arguments in
+// subsequent registers. Returns the result in <first_return> and
+// <first_return + 1>
+void Interpreter::DoCallRuntimeForPairWide(
+    compiler::InterpreterAssembler* assembler) {
+  DoCallRuntimeForPairCommon(assembler);
+}
+
+
+void Interpreter::DoCallJSRuntimeCommon(
+    compiler::InterpreterAssembler* assembler) {
   Node* context_index = __ BytecodeOperandIdx(0);
   Node* receiver_reg = __ BytecodeOperandReg(1);
   Node* first_arg = __ RegisterLocation(receiver_reg);
@@ -1154,12 +1170,26 @@ void Interpreter::DoCallJSRuntime(compiler::InterpreterAssembler* assembler) {
 }
 
 
-// New <constructor> <first_arg> <arg_count>
+// CallJSRuntime <context_index> <receiver> <arg_count>
 //
-// Call operator new with |constructor| and the first argument in
-// register |first_arg| and |arg_count| arguments in subsequent
+// Call the JS runtime function that has the |context_index| with the receiver
+// in register |receiver| and |arg_count| arguments in subsequent registers.
+void Interpreter::DoCallJSRuntime(compiler::InterpreterAssembler* assembler) {
+  DoCallJSRuntimeCommon(assembler);
+}
+
+
+// CallJSRuntimeWide <context_index> <receiver> <arg_count>
 //
-void Interpreter::DoNew(compiler::InterpreterAssembler* assembler) {
+// Call the JS runtime function that has the |context_index| with the receiver
+// in register |receiver| and |arg_count| arguments in subsequent registers.
+void Interpreter::DoCallJSRuntimeWide(
+    compiler::InterpreterAssembler* assembler) {
+  DoCallJSRuntimeCommon(assembler);
+}
+
+
+void Interpreter::DoCallConstruct(compiler::InterpreterAssembler* assembler) {
   Callable ic = CodeFactory::InterpreterPushArgsAndConstruct(isolate_);
   Node* constructor_reg = __ BytecodeOperandReg(0);
   Node* constructor = __ LoadRegister(constructor_reg);
@@ -1170,6 +1200,26 @@ void Interpreter::DoNew(compiler::InterpreterAssembler* assembler) {
       __ CallConstruct(constructor, constructor, first_arg, args_count);
   __ SetAccumulator(result);
   __ Dispatch();
+}
+
+
+// New <constructor> <first_arg> <arg_count>
+//
+// Call operator new with |constructor| and the first argument in
+// register |first_arg| and |arg_count| arguments in subsequent
+//
+void Interpreter::DoNew(compiler::InterpreterAssembler* assembler) {
+  DoCallConstruct(assembler);
+}
+
+
+// NewWide <constructor> <first_arg> <arg_count>
+//
+// Call operator new with |constructor| and the first argument in
+// register |first_arg| and |arg_count| arguments in subsequent
+//
+void Interpreter::DoNewWide(compiler::InterpreterAssembler* assembler) {
+  DoCallConstruct(assembler);
 }
 
 
@@ -1727,8 +1777,19 @@ void Interpreter::DoForInPrepare(compiler::InterpreterAssembler* assembler) {
     __ StoreRegister(cache_info, output_register);
     output_register = __ NextRegister(output_register);
   }
-
   __ Dispatch();
+}
+
+
+// ForInPrepareWide <cache_info_triple>
+//
+// Returns state for for..in loop execution based on the object in the
+// accumulator. The result is output in registers |cache_info_triple| to
+// |cache_info_triple + 2|, with the registers holding cache_type, cache_array,
+// and cache_length respectively.
+void Interpreter::DoForInPrepareWide(
+    compiler::InterpreterAssembler* assembler) {
+  DoForInPrepare(assembler);
 }
 
 
@@ -1748,6 +1809,14 @@ void Interpreter::DoForInNext(compiler::InterpreterAssembler* assembler) {
                                 cache_type, index);
   __ SetAccumulator(result);
   __ Dispatch();
+}
+
+
+// ForInNextWide <receiver> <index> <cache_info_pair>
+//
+// Returns the next enumerable property in the the accumulator.
+void Interpreter::DoForInNextWide(compiler::InterpreterAssembler* assembler) {
+  return DoForInNext(assembler);
 }
 
 

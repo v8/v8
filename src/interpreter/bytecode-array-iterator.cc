@@ -67,8 +67,8 @@ int8_t BytecodeArrayIterator::GetImmediateOperand(int operand_index) const {
 int BytecodeArrayIterator::GetCountOperand(int operand_index) const {
   OperandSize size =
       Bytecodes::GetOperandSize(current_bytecode(), operand_index);
-  OperandType type = (size == OperandSize::kByte) ? OperandType::kCount8
-                                                  : OperandType::kCount16;
+  OperandType type = (size == OperandSize::kByte) ? OperandType::kRegCount8
+                                                  : OperandType::kRegCount16;
   uint32_t operand = GetRawOperand(operand_index, type);
   return static_cast<int>(operand);
 }
@@ -93,7 +93,15 @@ Register BytecodeArrayIterator::GetRegisterOperand(int operand_index) const {
          operand_type == OperandType::kMaybeReg8 ||
          operand_type == OperandType::kReg16);
   uint32_t operand = GetRawOperand(operand_index, operand_type);
-  return Register::FromOperand(operand);
+  switch (Bytecodes::GetOperandSize(current_bytecode(), operand_index)) {
+    case OperandSize::kByte:
+      return Register::FromOperand(static_cast<uint8_t>(operand));
+    case OperandSize::kShort:
+      return Register::FromWideOperand(static_cast<uint16_t>(operand));
+    case OperandSize::kNone:
+      UNREACHABLE();
+  }
+  return Register();
 }
 
 

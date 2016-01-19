@@ -630,17 +630,9 @@ void BytecodeGraphBuilder::VisitMov(
 }
 
 
-void BytecodeGraphBuilder::VisitExchange(
+void BytecodeGraphBuilder::VisitMovWide(
     const interpreter::BytecodeArrayIterator& iterator) {
-  environment()->ExchangeRegisters(iterator.GetRegisterOperand(0),
-                                   iterator.GetRegisterOperand(1));
-}
-
-
-void BytecodeGraphBuilder::VisitExchangeWide(
-    const interpreter::BytecodeArrayIterator& iterator) {
-  environment()->ExchangeRegisters(iterator.GetRegisterOperand(0),
-                                   iterator.GetRegisterOperand(1));
+  VisitMov(iterator);
 }
 
 
@@ -1223,7 +1215,7 @@ void BytecodeGraphBuilder::VisitCallWide(
 }
 
 
-void BytecodeGraphBuilder::VisitCallJSRuntime(
+void BytecodeGraphBuilder::BuildCallJSRuntime(
     const interpreter::BytecodeArrayIterator& iterator) {
   FrameStateBeforeAndAfter states(this, iterator);
   Node* callee = BuildLoadNativeContextField(iterator.GetIndexOperand(0));
@@ -1235,6 +1227,18 @@ void BytecodeGraphBuilder::VisitCallJSRuntime(
       javascript()->CallFunction(arg_count + 2, language_mode());
   Node* value = ProcessCallArguments(call, callee, receiver, arg_count + 2);
   environment()->BindAccumulator(value, &states);
+}
+
+
+void BytecodeGraphBuilder::VisitCallJSRuntime(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  BuildCallJSRuntime(iterator);
+}
+
+
+void BytecodeGraphBuilder::VisitCallJSRuntimeWide(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  BuildCallJSRuntime(iterator);
 }
 
 
@@ -1252,7 +1256,7 @@ Node* BytecodeGraphBuilder::ProcessCallRuntimeArguments(
 }
 
 
-void BytecodeGraphBuilder::VisitCallRuntime(
+void BytecodeGraphBuilder::BuildCallRuntime(
     const interpreter::BytecodeArrayIterator& iterator) {
   FrameStateBeforeAndAfter states(this, iterator);
   Runtime::FunctionId functionId =
@@ -1267,7 +1271,19 @@ void BytecodeGraphBuilder::VisitCallRuntime(
 }
 
 
-void BytecodeGraphBuilder::VisitCallRuntimeForPair(
+void BytecodeGraphBuilder::VisitCallRuntime(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  BuildCallRuntime(iterator);
+}
+
+
+void BytecodeGraphBuilder::VisitCallRuntimeWide(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  BuildCallRuntime(iterator);
+}
+
+
+void BytecodeGraphBuilder::BuildCallRuntimeForPair(
     const interpreter::BytecodeArrayIterator& iterator) {
   FrameStateBeforeAndAfter states(this, iterator);
   Runtime::FunctionId functionId =
@@ -1280,6 +1296,18 @@ void BytecodeGraphBuilder::VisitCallRuntimeForPair(
   const Operator* call = javascript()->CallRuntime(functionId, arg_count);
   Node* return_pair = ProcessCallRuntimeArguments(call, first_arg, arg_count);
   environment()->BindRegistersToProjections(first_return, return_pair, &states);
+}
+
+
+void BytecodeGraphBuilder::VisitCallRuntimeForPair(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  BuildCallRuntimeForPair(iterator);
+}
+
+
+void BytecodeGraphBuilder::VisitCallRuntimeForPairWide(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  BuildCallRuntimeForPair(iterator);
 }
 
 
@@ -1300,7 +1328,7 @@ Node* BytecodeGraphBuilder::ProcessCallNewArguments(
 }
 
 
-void BytecodeGraphBuilder::VisitNew(
+void BytecodeGraphBuilder::BuildCallConstruct(
     const interpreter::BytecodeArrayIterator& iterator) {
   FrameStateBeforeAndAfter states(this, iterator);
   interpreter::Register callee = iterator.GetRegisterOperand(0);
@@ -1312,6 +1340,18 @@ void BytecodeGraphBuilder::VisitNew(
       static_cast<int>(arg_count) + 2, VectorSlotPair());
   Node* value = ProcessCallNewArguments(call, callee, first_arg, arg_count + 2);
   environment()->BindAccumulator(value, &states);
+}
+
+
+void BytecodeGraphBuilder::VisitNew(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  BuildCallConstruct(iterator);
+}
+
+
+void BytecodeGraphBuilder::VisitNewWide(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  BuildCallConstruct(iterator);
 }
 
 
@@ -1722,13 +1762,25 @@ void BytecodeGraphBuilder::VisitReturn(
 }
 
 
-void BytecodeGraphBuilder::VisitForInPrepare(
+void BytecodeGraphBuilder::BuildForInPrepare(
     const interpreter::BytecodeArrayIterator& iterator) {
   FrameStateBeforeAndAfter states(this, iterator);
   Node* receiver = environment()->LookupAccumulator();
   Node* prepare = NewNode(javascript()->ForInPrepare(), receiver);
   environment()->BindRegistersToProjections(iterator.GetRegisterOperand(0),
                                             prepare, &states);
+}
+
+
+void BytecodeGraphBuilder::VisitForInPrepare(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  BuildForInPrepare(iterator);
+}
+
+
+void BytecodeGraphBuilder::VisitForInPrepareWide(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  BuildForInPrepare(iterator);
 }
 
 
@@ -1743,7 +1795,7 @@ void BytecodeGraphBuilder::VisitForInDone(
 }
 
 
-void BytecodeGraphBuilder::VisitForInNext(
+void BytecodeGraphBuilder::BuildForInNext(
     const interpreter::BytecodeArrayIterator& iterator) {
   FrameStateBeforeAndAfter states(this, iterator);
   Node* receiver =
@@ -1758,6 +1810,18 @@ void BytecodeGraphBuilder::VisitForInNext(
   Node* value = NewNode(javascript()->ForInNext(), receiver, cache_array,
                         cache_type, index);
   environment()->BindAccumulator(value, &states);
+}
+
+
+void BytecodeGraphBuilder::VisitForInNext(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  BuildForInNext(iterator);
+}
+
+
+void BytecodeGraphBuilder::VisitForInNextWide(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  BuildForInNext(iterator);
 }
 
 
