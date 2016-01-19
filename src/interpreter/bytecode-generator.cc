@@ -422,24 +422,24 @@ void BytecodeGenerator::MakeBytecodeBody() {
 
 
 void BytecodeGenerator::VisitBlock(Block* stmt) {
-  BlockBuilder block_builder(this->builder());
-  ControlScopeForBreakable execution_control(this, stmt, &block_builder);
-
-  if (stmt->scope() == NULL) {
-    // Visit statements in the same scope, no declarations.
-    VisitStatements(stmt->statements());
+  // Visit declarations and statements.
+  if (stmt->scope() != nullptr && stmt->scope()->NeedsContext()) {
+    VisitNewLocalBlockContext(stmt->scope());
+    ContextScope scope(this, stmt->scope());
+    VisitBlockDeclarationsAndStatements(stmt);
   } else {
-    // Visit declarations and statements in a block scope.
-    if (stmt->scope()->NeedsContext()) {
-      VisitNewLocalBlockContext(stmt->scope());
-      ContextScope scope(this, stmt->scope());
-      VisitDeclarations(stmt->scope()->declarations());
-      VisitStatements(stmt->statements());
-    } else {
-      VisitDeclarations(stmt->scope()->declarations());
-      VisitStatements(stmt->statements());
-    }
+    VisitBlockDeclarationsAndStatements(stmt);
   }
+}
+
+
+void BytecodeGenerator::VisitBlockDeclarationsAndStatements(Block* stmt) {
+  BlockBuilder block_builder(builder());
+  ControlScopeForBreakable execution_control(this, stmt, &block_builder);
+  if (stmt->scope() != nullptr) {
+    VisitDeclarations(stmt->scope()->declarations());
+  }
+  VisitStatements(stmt->statements());
   if (stmt->labels() != nullptr) block_builder.EndBlock();
 }
 

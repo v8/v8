@@ -2188,7 +2188,10 @@ TEST(BreakableBlocks) {
   InitializedHandleScope handle_scope;
   BytecodeGeneratorHelper helper;
 
-  ExpectedSnippet<int> snippets[] = {
+  int closure = Register::function_closure().index();
+  int context = Register::function_context().index();
+
+  ExpectedSnippet<InstanceType> snippets[] = {
       {"var x = 0;\n"
        "label: {\n"
        "  x = x + 1;\n"
@@ -2266,6 +2269,37 @@ TEST(BreakableBlocks) {
            B(Ldar), R(0),           //
            B(Return),               //
        }},
+      {"outer: {\n"
+       "  let y = 10;"
+       "  function f() { return y; }\n"
+       "  break outer;\n"
+       "}\n",
+       5 * kPointerSize,
+       1,
+       39,
+       {
+           B(LdaConstant), U8(0),                                         //
+           B(Star), R(3),                                                 //
+           B(Ldar), R(closure),                                           //
+           B(Star), R(4),                                                 //
+           B(CallRuntime), U16(Runtime::kPushBlockContext), R(3), U8(2),  //
+           B(PushContext), R(2),                                          //
+           B(LdaTheHole),                                                 //
+           B(StaContextSlot), R(2), U8(4),                                //
+           B(CreateClosure), U8(1), U8(0),                                //
+           B(Star), R(0),                                                 //
+           B(LdaSmi8), U8(10),                                            //
+           B(StaContextSlot), R(2), U8(4),                                //
+           B(Ldar), R(0),                                                 //
+           B(Star), R(1),                                                 //
+           B(Jump), U8(2),                                                //
+           B(PopContext), R(context),                                     //
+           B(LdaUndefined),                                               //
+           B(Return),                                                     //
+       },
+       2,
+       {InstanceType::FIXED_ARRAY_TYPE,
+        InstanceType::SHARED_FUNCTION_INFO_TYPE}},
   };
 
   for (size_t i = 0; i < arraysize(snippets); i++) {
