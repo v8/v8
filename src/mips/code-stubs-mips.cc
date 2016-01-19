@@ -1075,8 +1075,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
     __ mov(s1, a2);
   } else {
     // Compute the argv pointer in a callee-saved register.
-    __ sll(s1, a0, kPointerSizeLog2);
-    __ Addu(s1, sp, s1);
+    __ Lsa(s1, sp, a0, kPointerSizeLog2);
     __ Subu(s1, s1, kPointerSize);
   }
 
@@ -1612,8 +1611,7 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
 
   // Read the argument from the stack and return it.
   __ subu(a3, a0, a1);
-  __ sll(t3, a3, kPointerSizeLog2 - kSmiTagSize);
-  __ Addu(a3, fp, Operand(t3));
+  __ Lsa(a3, fp, a3, kPointerSizeLog2 - kSmiTagSize);
   __ Ret(USE_DELAY_SLOT);
   __ lw(v0, MemOperand(a3, kDisplacement));
 
@@ -1626,8 +1624,7 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
 
   // Read the argument from the adaptor frame and return it.
   __ subu(a3, a0, a1);
-  __ sll(t3, a3, kPointerSizeLog2 - kSmiTagSize);
-  __ Addu(a3, a2, Operand(t3));
+  __ Lsa(a3, a2, a3, kPointerSizeLog2 - kSmiTagSize);
   __ Ret(USE_DELAY_SLOT);
   __ lw(v0, MemOperand(a3, kDisplacement));
 
@@ -1657,8 +1654,7 @@ void ArgumentsAccessStub::GenerateNewSloppySlow(MacroAssembler* masm) {
 
   // Patch the arguments.length and the parameters pointer in the current frame.
   __ lw(a2, MemOperand(t0, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ sll(t3, a2, 1);
-  __ Addu(t0, t0, Operand(t3));
+  __ Lsa(t0, t0, a2, 1);
   __ addiu(a3, t0, StandardFrameConstants::kCallerSPOffset);
 
   __ bind(&runtime);
@@ -1694,8 +1690,7 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   // We have an adaptor frame. Patch the parameters pointer.
   __ bind(&adaptor_frame);
   __ lw(t1, MemOperand(t0, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ sll(t6, t1, 1);
-  __ Addu(t0, t0, Operand(t6));
+  __ Lsa(t0, t0, t1, 1);
   __ Addu(a3, t0, Operand(StandardFrameConstants::kCallerSPOffset));
 
   // t1 = argument count (tagged)
@@ -1721,8 +1716,7 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   __ bind(&param_map_size);
 
   // 2. Backing store.
-  __ sll(t6, t1, 1);
-  __ Addu(t5, t5, Operand(t6));
+  __ Lsa(t5, t5, t1, 1);
   __ Addu(t5, t5, Operand(FixedArray::kHeaderSize));
 
   // 3. Arguments object.
@@ -1798,8 +1792,7 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   __ Addu(t1, t2, Operand(Smi::FromInt(2)));
   __ sw(t1, FieldMemOperand(t0, FixedArray::kLengthOffset));
   __ sw(cp, FieldMemOperand(t0, FixedArray::kHeaderSize + 0 * kPointerSize));
-  __ sll(t6, t2, 1);
-  __ Addu(t1, t0, Operand(t6));
+  __ Lsa(t1, t0, t2, 1);
   __ Addu(t1, t1, Operand(kParameterMapHeaderSize));
   __ sw(t1, FieldMemOperand(t0, FixedArray::kHeaderSize + 1 * kPointerSize));
 
@@ -1816,8 +1809,7 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   __ Addu(t5, a2, Operand(Smi::FromInt(Context::MIN_CONTEXT_SLOTS)));
   __ Subu(t5, t5, Operand(t2));
   __ LoadRoot(t3, Heap::kTheHoleValueRootIndex);
-  __ sll(t6, t1, 1);
-  __ Addu(a1, t0, Operand(t6));
+  __ Lsa(a1, t0, t1, 1);
   __ Addu(a1, a1, Operand(kParameterMapHeaderSize));
 
   // a1 = address of backing store (tagged)
@@ -1862,8 +1854,7 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   __ bind(&arguments_loop);
   __ Subu(a3, a3, Operand(kPointerSize));
   __ lw(t0, MemOperand(a3, 0));
-  __ sll(t6, t2, 1);
-  __ Addu(t5, a1, Operand(t6));
+  __ Lsa(t5, a1, t2, 1);
   __ sw(t0, FieldMemOperand(t5, FixedArray::kHeaderSize));
   __ Addu(t2, t2, Operand(Smi::FromInt(1)));
 
@@ -1922,8 +1913,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
 
   // Patch the arguments.length and the parameters pointer.
   __ lw(a2, MemOperand(t0, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ sll(at, a2, kPointerSizeLog2 - kSmiTagSize);
-  __ Addu(t0, t0, Operand(at));
+  __ Lsa(t0, t0, a2, kPointerSizeLog2 - kSmiTagSize);
   __ Addu(a3, t0, Operand(StandardFrameConstants::kCallerSPOffset));
 
   // Try the new space allocation. Start out with computing the size
@@ -2008,8 +1998,7 @@ void RestParamAccessStub::GenerateNew(MacroAssembler* masm) {
 
   // Patch the arguments.length and the parameters pointer.
   __ lw(a2, MemOperand(t0, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ sll(t1, a2, kPointerSizeLog2 - kSmiTagSize);
-  __ Addu(a3, t0, Operand(t1));
+  __ Lsa(a3, t0, a2, kPointerSizeLog2 - kSmiTagSize);
   __ Addu(a3, a3, Operand(StandardFrameConstants::kCallerSPOffset));
 
   // Do the runtime call to allocate the arguments object.
@@ -2489,8 +2478,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
             masm->isolate()->heap()->uninitialized_symbol());
 
   // Load the cache state into t2.
-  __ sll(t2, a3, kPointerSizeLog2 - kSmiTagSize);
-  __ Addu(t2, a2, Operand(t2));
+  __ Lsa(t2, a2, a3, kPointerSizeLog2 - kSmiTagSize);
   __ lw(t2, FieldMemOperand(t2, FixedArray::kHeaderSize));
 
   // A monomorphic cache hit or an already megamorphic state: invoke the
@@ -2534,8 +2522,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // MegamorphicSentinel is an immortal immovable object (undefined) so no
   // write-barrier is needed.
   __ bind(&megamorphic);
-  __ sll(t2, a3, kPointerSizeLog2 - kSmiTagSize);
-  __ Addu(t2, a2, Operand(t2));
+  __ Lsa(t2, a2, a3, kPointerSizeLog2 - kSmiTagSize);
   __ LoadRoot(at, Heap::kmegamorphic_symbolRootIndex);
   __ sw(at, FieldMemOperand(t2, FixedArray::kHeaderSize));
   __ jmp(&done);
@@ -2575,8 +2562,7 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
 
   GenerateRecordCallTarget(masm);
 
-  __ sll(at, a3, kPointerSizeLog2 - kSmiTagSize);
-  __ Addu(t1, a2, at);
+  __ Lsa(t1, a2, a3, kPointerSizeLog2 - kSmiTagSize);
   Label feedback_register_initialized;
   // Put the AllocationSite from the feedback vector into a2, or undefined.
   __ lw(a2, FieldMemOperand(t1, FixedArray::kHeaderSize));
@@ -2615,8 +2601,7 @@ void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
   __ li(a0, Operand(arg_count()));
 
   // Increment the call count for monomorphic function calls.
-  __ sll(at, a3, kPointerSizeLog2 - kSmiTagSize);
-  __ Addu(at, a2, Operand(at));
+  __ Lsa(at, a2, a3, kPointerSizeLog2 - kSmiTagSize);
   __ lw(a3, FieldMemOperand(at, FixedArray::kHeaderSize + kPointerSize));
   __ Addu(a3, a3, Operand(Smi::FromInt(CallICNexus::kCallCountIncrement)));
   __ sw(a3, FieldMemOperand(at, FixedArray::kHeaderSize + kPointerSize));
@@ -2637,8 +2622,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   ParameterCount actual(argc);
 
   // The checks. First, does r1 match the recorded monomorphic target?
-  __ sll(t0, a3, kPointerSizeLog2 - kSmiTagSize);
-  __ Addu(t0, a2, Operand(t0));
+  __ Lsa(t0, a2, a3, kPointerSizeLog2 - kSmiTagSize);
   __ lw(t0, FieldMemOperand(t0, FixedArray::kHeaderSize));
 
   // We don't know that we have a weak cell. We might have a private symbol
@@ -2663,8 +2647,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ JumpIfSmi(a1, &extra_checks_or_miss);
 
   // Increment the call count for monomorphic function calls.
-  __ sll(at, a3, kPointerSizeLog2 - kSmiTagSize);
-  __ Addu(at, a2, Operand(at));
+  __ Lsa(at, a2, a3, kPointerSizeLog2 - kSmiTagSize);
   __ lw(a3, FieldMemOperand(at, FixedArray::kHeaderSize + kPointerSize));
   __ Addu(a3, a3, Operand(Smi::FromInt(CallICNexus::kCallCountIncrement)));
   __ sw(a3, FieldMemOperand(at, FixedArray::kHeaderSize + kPointerSize));
@@ -2704,8 +2687,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ AssertNotSmi(t0);
   __ GetObjectType(t0, t1, t1);
   __ Branch(&miss, ne, t1, Operand(JS_FUNCTION_TYPE));
-  __ sll(t0, a3, kPointerSizeLog2 - kSmiTagSize);
-  __ Addu(t0, a2, Operand(t0));
+  __ Lsa(t0, a2, a3, kPointerSizeLog2 - kSmiTagSize);
   __ LoadRoot(at, Heap::kmegamorphic_symbolRootIndex);
   __ sw(at, FieldMemOperand(t0, FixedArray::kHeaderSize));
 
@@ -2736,8 +2718,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ Branch(&miss, ne, t0, Operand(t1));
 
   // Initialize the call counter.
-  __ sll(at, a3, kPointerSizeLog2 - kSmiTagSize);
-  __ Addu(at, a2, Operand(at));
+  __ Lsa(at, a2, a3, kPointerSizeLog2 - kSmiTagSize);
   __ li(t0, Operand(Smi::FromInt(CallICNexus::kCallCountIncrement)));
   __ sw(t0, FieldMemOperand(at, FixedArray::kHeaderSize + kPointerSize));
 
@@ -2901,8 +2882,7 @@ void StringCharFromCodeGenerator::GenerateFast(MacroAssembler* masm) {
   __ LoadRoot(result_, Heap::kSingleCharacterStringCacheRootIndex);
   // At this point code register contains smi tagged one-byte char code.
   STATIC_ASSERT(kSmiTag == 0);
-  __ sll(t0, code_, kPointerSizeLog2 - kSmiTagSize);
-  __ Addu(result_, result_, t0);
+  __ Lsa(result_, result_, code_, kPointerSizeLog2 - kSmiTagSize);
   __ lw(result_, FieldMemOperand(result_, FixedArray::kHeaderSize));
   __ LoadRoot(t0, Heap::kUndefinedValueRootIndex);
   __ Branch(&slow_case_, eq, result_, Operand(t0));
@@ -3159,8 +3139,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 
   // Locate first character of substring to copy.
   STATIC_ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
-  __ sll(t0, a3, 1);
-  __ Addu(t1, t1, t0);
+  __ Lsa(t1, t1, a3, 1);
   // Locate first character of result.
   __ Addu(a1, v0, Operand(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
 
@@ -3895,15 +3874,13 @@ void NameDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
 
     // Scale the index by multiplying by the entry size.
     STATIC_ASSERT(NameDictionary::kEntrySize == 3);
-    __ sll(at, index, 1);
-    __ Addu(index, index, at);
+    __ Lsa(index, index, index, 1);
 
     Register entity_name = scratch0;
     // Having undefined at this place means the name is not contained.
     STATIC_ASSERT(kSmiTagSize == 1);
     Register tmp = properties;
-    __ sll(scratch0, index, 1);
-    __ Addu(tmp, properties, scratch0);
+    __ Lsa(tmp, properties, index, 1);
     __ lw(entity_name, FieldMemOperand(tmp, kElementsStartOffset));
 
     DCHECK(!tmp.is(entity_name));
@@ -3993,12 +3970,10 @@ void NameDictionaryLookupStub::GeneratePositiveLookup(MacroAssembler* masm,
     STATIC_ASSERT(NameDictionary::kEntrySize == 3);
     // scratch2 = scratch2 * 3.
 
-    __ sll(at, scratch2, 1);
-    __ Addu(scratch2, scratch2, at);
+    __ Lsa(scratch2, scratch2, scratch2, 1);
 
     // Check if the key is identical to the name.
-    __ sll(at, scratch2, 2);
-    __ Addu(scratch2, elements, at);
+    __ Lsa(scratch2, elements, scratch2, 2);
     __ lw(at, FieldMemOperand(scratch2, kElementsStartOffset));
     __ Branch(done, eq, name, Operand(at));
   }
@@ -4080,13 +4055,11 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
     STATIC_ASSERT(NameDictionary::kEntrySize == 3);
     // index *= 3.
     __ mov(at, index);
-    __ sll(index, index, 1);
-    __ Addu(index, index, at);
+    __ Lsa(index, index, index, 1);
 
 
     STATIC_ASSERT(kSmiTagSize == 1);
-    __ sll(index, index, 2);
-    __ Addu(index, index, dictionary);
+    __ Lsa(index, dictionary, index, 2);
     __ lw(entry_key, FieldMemOperand(index, kElementsStartOffset));
 
     // Having undefined at this place means the name is not contained.
@@ -4410,8 +4383,7 @@ static void HandleArrayCases(MacroAssembler* masm, Register feedback,
   //                         aka feedback     scratch2
   // also need receiver_map
   // use cached_map (scratch1) to look in the weak map values.
-  __ sll(at, length, kPointerSizeLog2 - kSmiTagSize);
-  __ Addu(too_far, feedback, Operand(at));
+  __ Lsa(too_far, feedback, length, kPointerSizeLog2 - kSmiTagSize);
   __ Addu(too_far, too_far, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   __ Addu(pointer_reg, feedback,
           Operand(FixedArray::OffsetOfElementAt(2) - kHeapObjectTag));
@@ -4447,8 +4419,7 @@ static void HandleMonomorphicCase(MacroAssembler* masm, Register receiver,
   __ Branch(try_array, ne, cached_map, Operand(receiver_map));
   Register handler = feedback;
 
-  __ sll(at, slot, kPointerSizeLog2 - kSmiTagSize);
-  __ Addu(handler, vector, Operand(at));
+  __ Lsa(handler, vector, slot, kPointerSizeLog2 - kSmiTagSize);
   __ lw(handler,
         FieldMemOperand(handler, FixedArray::kHeaderSize + kPointerSize));
   __ Addu(t9, handler, Operand(Code::kHeaderSize - kHeapObjectTag));
@@ -4465,8 +4436,7 @@ void LoadICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
   Register receiver_map = t1;
   Register scratch1 = t4;
 
-  __ sll(at, slot, kPointerSizeLog2 - kSmiTagSize);
-  __ Addu(feedback, vector, Operand(at));
+  __ Lsa(feedback, vector, slot, kPointerSizeLog2 - kSmiTagSize);
   __ lw(feedback, FieldMemOperand(feedback, FixedArray::kHeaderSize));
 
   // Try to quickly handle the monomorphic case without knowing for sure
@@ -4521,8 +4491,7 @@ void KeyedLoadICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
   Register receiver_map = t1;
   Register scratch1 = t4;
 
-  __ sll(at, slot, kPointerSizeLog2 - kSmiTagSize);
-  __ Addu(feedback, vector, Operand(at));
+  __ Lsa(feedback, vector, slot, kPointerSizeLog2 - kSmiTagSize);
   __ lw(feedback, FieldMemOperand(feedback, FixedArray::kHeaderSize));
 
   // Try to quickly handle the monomorphic case without knowing for sure
@@ -4558,8 +4527,7 @@ void KeyedLoadICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
   __ Branch(&miss, ne, key, Operand(feedback));
   // If the name comparison succeeded, we know we have a fixed array with
   // at least one map/handler pair.
-  __ sll(at, slot, kPointerSizeLog2 - kSmiTagSize);
-  __ Addu(feedback, vector, Operand(at));
+  __ Lsa(feedback, vector, slot, kPointerSizeLog2 - kSmiTagSize);
   __ lw(feedback,
         FieldMemOperand(feedback, FixedArray::kHeaderSize + kPointerSize));
   HandleArrayCases(masm, feedback, receiver_map, scratch1, t5, false, &miss);
@@ -4607,8 +4575,7 @@ void VectorStoreICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
   Register receiver_map = t2;
   Register scratch1 = t5;
 
-  __ sll(scratch1, slot, kPointerSizeLog2 - kSmiTagSize);
-  __ Addu(feedback, vector, Operand(scratch1));
+  __ Lsa(feedback, vector, slot, kPointerSizeLog2 - kSmiTagSize);
   __ lw(feedback, FieldMemOperand(feedback, FixedArray::kHeaderSize));
 
   // Try to quickly handle the monomorphic case without knowing for sure
@@ -4680,8 +4647,7 @@ static void HandlePolymorphicStoreCase(MacroAssembler* masm, Register feedback,
   //             aka feedback                       scratch2
   // also need receiver_map
   // use cached_map (scratch1) to look in the weak map values.
-  __ sll(scratch1, too_far, kPointerSizeLog2 - kSmiTagSize);
-  __ Addu(too_far, feedback, Operand(scratch1));
+  __ Lsa(too_far, feedback, too_far, kPointerSizeLog2 - kSmiTagSize);
   __ Addu(too_far, too_far, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   __ Addu(pointer_reg, feedback,
           Operand(FixedArray::OffsetOfElementAt(0) - kHeapObjectTag));
@@ -4730,8 +4696,7 @@ void VectorKeyedStoreICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
   Register receiver_map = t2;
   Register scratch1 = t5;
 
-  __ sll(scratch1, slot, kPointerSizeLog2 - kSmiTagSize);
-  __ Addu(feedback, vector, Operand(scratch1));
+  __ Lsa(feedback, vector, slot, kPointerSizeLog2 - kSmiTagSize);
   __ lw(feedback, FieldMemOperand(feedback, FixedArray::kHeaderSize));
 
   // Try to quickly handle the monomorphic case without knowing for sure
@@ -4770,8 +4735,7 @@ void VectorKeyedStoreICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
   __ Branch(&miss, ne, key, Operand(feedback));
   // If the name comparison succeeded, we know we have a fixed array with
   // at least one map/handler pair.
-  __ sll(scratch1, slot, kPointerSizeLog2 - kSmiTagSize);
-  __ Addu(feedback, vector, Operand(scratch1));
+  __ Lsa(feedback, vector, slot, kPointerSizeLog2 - kSmiTagSize);
   __ lw(feedback,
         FieldMemOperand(feedback, FixedArray::kHeaderSize + kPointerSize));
   HandleArrayCases(masm, feedback, receiver_map, scratch1, scratch2, false,
@@ -5078,8 +5042,7 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   switch (argument_count()) {
     case ANY:
     case MORE_THAN_ONE:
-      __ sll(at, a0, kPointerSizeLog2);
-      __ addu(at, sp, at);
+      __ Lsa(at, sp, a0, kPointerSizeLog2);
       __ sw(a1, MemOperand(at));
       __ li(at, Operand(3));
       __ addu(a0, a0, at);
@@ -5185,8 +5148,7 @@ void LoadGlobalViaContextStub::Generate(MacroAssembler* masm) {
   }
 
   // Load the PropertyCell value at the specified slot.
-  __ sll(at, slot_reg, kPointerSizeLog2);
-  __ Addu(at, at, Operand(context_reg));
+  __ Lsa(at, context_reg, slot_reg, kPointerSizeLog2);
   __ lw(result_reg, ContextMemOperand(at, 0));
   __ lw(result_reg, FieldMemOperand(result_reg, PropertyCell::kValueOffset));
 
@@ -5224,8 +5186,7 @@ void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
   }
 
   // Load the PropertyCell at the specified slot.
-  __ sll(at, slot_reg, kPointerSizeLog2);
-  __ Addu(at, at, Operand(context_reg));
+  __ Lsa(at, context_reg, slot_reg, kPointerSizeLog2);
   __ lw(cell_reg, ContextMemOperand(at, 0));
 
   // Load PropertyDetails for the cell (actually only the cell_type and kind).

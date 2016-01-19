@@ -1411,8 +1411,7 @@ void LCodeGen::DoMulI(LMulI* instr) {
           if (constant < 0)  __ Subu(result, zero_reg, result);
         } else if (base::bits::IsPowerOfTwo32(constant_abs - 1)) {
           int32_t shift = WhichPowerOf2(constant_abs - 1);
-          __ sll(scratch, left, shift);
-          __ Addu(result, scratch, left);
+          __ Lsa(result, left, left, shift);
           // Correct the sign of the result if the constant is negative.
           if (constant < 0)  __ Subu(result, zero_reg, result);
         } else if (base::bits::IsPowerOfTwo32(constant_abs + 1)) {
@@ -2578,8 +2577,7 @@ void LCodeGen::DoReturn(LReturn* instr) {
     Register reg = ToRegister(instr->parameter_count());
     // The argument count parameter is a smi
     __ SmiUntag(reg);
-    __ sll(at, reg, kPointerSizeLog2);
-    __ Addu(sp, sp, at);
+    __ Lsa(sp, sp, reg, kPointerSizeLog2);
   }
 
   __ Jump(ra);
@@ -2781,8 +2779,7 @@ void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
       Register index = ToRegister(instr->index());
       __ li(at, Operand(const_length + 1));
       __ Subu(result, at, index);
-      __ sll(at, result, kPointerSizeLog2);
-      __ Addu(at, arguments, at);
+      __ Lsa(at, arguments, result, kPointerSizeLog2);
       __ lw(result, MemOperand(at));
     }
   } else if (instr->index()->IsConstantOperand()) {
@@ -2791,12 +2788,10 @@ void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
     int loc = const_index - 1;
     if (loc != 0) {
       __ Subu(result, length, Operand(loc));
-      __ sll(at, result, kPointerSizeLog2);
-      __ Addu(at, arguments, at);
+      __ Lsa(at, arguments, result, kPointerSizeLog2);
       __ lw(result, MemOperand(at));
     } else {
-      __ sll(at, length, kPointerSizeLog2);
-      __ Addu(at, arguments, at);
+      __ Lsa(at, arguments, length, kPointerSizeLog2);
       __ lw(result, MemOperand(at));
     }
   } else {
@@ -2804,8 +2799,7 @@ void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
     Register index = ToRegister(instr->index());
     __ Subu(result, length, index);
     __ Addu(result, result, 1);
-    __ sll(at, result, kPointerSizeLog2);
-    __ Addu(at, arguments, at);
+    __ Lsa(at, arguments, result, kPointerSizeLog2);
     __ lw(result, MemOperand(at));
   }
 }
@@ -2914,8 +2908,7 @@ void LCodeGen::DoLoadKeyedFixedDoubleArray(LLoadKeyed* instr) {
     key = ToRegister(instr->key());
     int shift_size = (instr->hydrogen()->key()->representation().IsSmi())
         ? (element_size_shift - kSmiTagSize) : element_size_shift;
-    __ sll(at, key, shift_size);
-    __ Addu(scratch, scratch, at);
+    __ Lsa(scratch, scratch, key, shift_size);
   }
 
   __ ldc1(result, MemOperand(scratch));
@@ -2946,11 +2939,9 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
     // during bound check elimination with the index argument to the bounds
     // check, which can be tagged, so that case must be handled here, too.
     if (instr->hydrogen()->key()->representation().IsSmi()) {
-      __ sll(scratch, key, kPointerSizeLog2 - kSmiTagSize);
-      __ addu(scratch, elements, scratch);
+      __ Lsa(scratch, elements, key, kPointerSizeLog2 - kSmiTagSize);
     } else {
-      __ sll(scratch, key, kPointerSizeLog2);
-      __ addu(scratch, elements, scratch);
+      __ Lsa(scratch, elements, key, kPointerSizeLog2);
     }
   }
   __ lw(result, MemOperand(store_base, offset));
@@ -3945,8 +3936,7 @@ void LCodeGen::DoStoreKeyedExternalArray(LStoreKeyed* instr) {
         address = external_pointer;
       }
     } else {
-      __ sll(address, key, shift_size);
-      __ Addu(address, external_pointer, address);
+      __ Lsa(address, external_pointer, key, shift_size);
     }
 
     if (elements_kind == FLOAT32_ELEMENTS) {
@@ -4063,11 +4053,9 @@ void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
     // during bound check elimination with the index argument to the bounds
     // check, which can be tagged, so that case must be handled here, too.
     if (instr->hydrogen()->key()->representation().IsSmi()) {
-      __ sll(scratch, key, kPointerSizeLog2 - kSmiTagSize);
-      __ addu(scratch, elements, scratch);
+      __ Lsa(scratch, elements, key, kPointerSizeLog2 - kSmiTagSize);
     } else {
-      __ sll(scratch, key, kPointerSizeLog2);
-      __ addu(scratch, elements, scratch);
+      __ Lsa(scratch, elements, key, kPointerSizeLog2);
     }
   }
   __ sw(value, MemOperand(store_base, offset));
@@ -4354,8 +4342,7 @@ void LCodeGen::DoStringCharFromCode(LStringCharFromCode* instr) {
   __ Branch(deferred->entry(), hi,
             char_code, Operand(String::kMaxOneByteCharCode));
   __ LoadRoot(result, Heap::kSingleCharacterStringCacheRootIndex);
-  __ sll(scratch, char_code, kPointerSizeLog2);
-  __ Addu(result, result, scratch);
+  __ Lsa(result, result, char_code, kPointerSizeLog2);
   __ lw(result, FieldMemOperand(result, FixedArray::kHeaderSize));
   __ LoadRoot(scratch, Heap::kUndefinedValueRootIndex);
   __ Branch(deferred->entry(), eq, result, Operand(scratch));

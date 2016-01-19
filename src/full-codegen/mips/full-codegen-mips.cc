@@ -1140,8 +1140,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // Get the current entry of the array into register a3.
   __ lw(a2, MemOperand(sp, 2 * kPointerSize));
   __ Addu(a2, a2, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ sll(t0, a0, kPointerSizeLog2 - kSmiTagSize);
-  __ addu(t0, a2, t0);  // Array base + scaled (smi) index.
+  __ Lsa(t0, a2, a0, kPointerSizeLog2 - kSmiTagSize);
   __ lw(a3, MemOperand(t0));  // Current entry.
 
   // Get the expected map from the stack or a smi in the
@@ -3798,8 +3797,7 @@ void FullCodeGenerator::EmitFastOneByteArrayJoin(CallRuntime* expr) {
   __ mov(string_length, zero_reg);
   __ Addu(element,
           elements, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ sll(elements_end, array_length, kPointerSizeLog2);
-  __ Addu(elements_end, element, elements_end);
+  __ Lsa(elements_end, element, array_length, kPointerSizeLog2);
   // Loop condition: while (element < elements_end).
   // Live values in registers:
   //   elements: Fixed array of strings.
@@ -3876,8 +3874,7 @@ void FullCodeGenerator::EmitFastOneByteArrayJoin(CallRuntime* expr) {
   // Prepare for looping. Set up elements_end to end of the array. Set
   // result_pos to the position of the result where to write the first
   // character.
-  __ sll(elements_end, array_length, kPointerSizeLog2);
-  __ Addu(elements_end, element, elements_end);
+  __ Lsa(elements_end, element, array_length, kPointerSizeLog2);
   result_pos = array_length;  // End of live range for array_length.
   array_length = no_reg;
   __ Addu(result_pos,

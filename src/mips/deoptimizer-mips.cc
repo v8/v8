@@ -268,8 +268,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   // a1 = one past the last FrameDescription**.
   __ lw(a1, MemOperand(a0, Deoptimizer::output_count_offset()));
   __ lw(t0, MemOperand(a0, Deoptimizer::output_offset()));  // t0 is output_.
-  __ sll(a1, a1, kPointerSizeLog2);  // Count to offset.
-  __ addu(a1, t0, a1);  // a1 = one past the last FrameDescription**.
+  __ Lsa(a1, t0, a1, kPointerSizeLog2);
   __ BranchShort(&outer_loop_header);
   __ bind(&outer_push_loop);
   // Inner loop state: a2 = current FrameDescription*, a3 = loop index.

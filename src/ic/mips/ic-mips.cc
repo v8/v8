@@ -230,8 +230,7 @@ static void GenerateFastArrayLoad(MacroAssembler* masm, Register receiver,
           Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   // The key is a smi.
   STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
-  __ sll(at, key, kPointerSizeLog2 - kSmiTagSize);
-  __ addu(at, at, scratch1);
+  __ Lsa(at, scratch1, key, kPointerSizeLog2 - kSmiTagSize);
   __ lw(scratch2, MemOperand(at));
 
   __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
@@ -491,8 +490,7 @@ static void KeyedStoreGenerateMegamorphicHelper(
   // there may be a callback on the element.
   Label holecheck_passed1;
   __ Addu(address, elements, FixedArray::kHeaderSize - kHeapObjectTag);
-  __ sll(at, key, kPointerSizeLog2 - kSmiTagSize);
-  __ addu(address, address, at);
+  __ Lsa(address, address, key, kPointerSizeLog2 - kSmiTagSize);
   __ lw(scratch, MemOperand(address));
   __ Branch(&holecheck_passed1, ne, scratch,
             Operand(masm->isolate()->factory()->the_hole_value()));
@@ -511,8 +509,7 @@ static void KeyedStoreGenerateMegamorphicHelper(
   }
   // It's irrelevant whether array is smi-only or not when writing a smi.
   __ Addu(address, elements, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ sll(scratch, key, kPointerSizeLog2 - kSmiTagSize);
-  __ Addu(address, address, scratch);
+  __ Lsa(address, address, key, kPointerSizeLog2 - kSmiTagSize);
   __ sw(value, MemOperand(address));
   __ Ret();
 
@@ -528,8 +525,7 @@ static void KeyedStoreGenerateMegamorphicHelper(
     __ sw(scratch, FieldMemOperand(receiver, JSArray::kLengthOffset));
   }
   __ Addu(address, elements, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ sll(scratch, key, kPointerSizeLog2 - kSmiTagSize);
-  __ Addu(address, address, scratch);
+  __ Lsa(address, address, key, kPointerSizeLog2 - kSmiTagSize);
   __ sw(value, MemOperand(address));
   // Update write barrier for the elements array address.
   __ mov(scratch, value);  // Preserve the value which is returned.
@@ -550,8 +546,7 @@ static void KeyedStoreGenerateMegamorphicHelper(
   // go to the runtime.
   __ Addu(address, elements, Operand(FixedDoubleArray::kHeaderSize +
                                      kHoleNanUpper32Offset - kHeapObjectTag));
-  __ sll(at, key, kPointerSizeLog2);
-  __ addu(address, address, at);
+  __ Lsa(address, address, key, kPointerSizeLog2);
   __ lw(scratch, MemOperand(address));
   __ Branch(&fast_double_without_map_check, ne, scratch,
             Operand(kHoleNanUpper32));

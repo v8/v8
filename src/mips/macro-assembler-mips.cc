@@ -499,16 +499,14 @@ void MacroAssembler::GetNumberHash(Register reg0, Register scratch) {
   //
   // hash = ~hash + (hash << 15);
   nor(scratch, reg0, zero_reg);
-  sll(at, reg0, 15);
-  addu(reg0, scratch, at);
+  Lsa(reg0, scratch, reg0, 15);
 
   // hash = hash ^ (hash >> 12);
   srl(at, reg0, 12);
   xor_(reg0, reg0, at);
 
   // hash = hash + (hash << 2);
-  sll(at, reg0, 2);
-  addu(reg0, reg0, at);
+  Lsa(reg0, reg0, reg0, 2);
 
   // hash = hash ^ (hash >> 4);
   srl(at, reg0, 4);
@@ -516,8 +514,7 @@ void MacroAssembler::GetNumberHash(Register reg0, Register scratch) {
 
   // hash = hash * 2057;
   sll(scratch, reg0, 11);
-  sll(at, reg0, 3);
-  addu(reg0, reg0, at);
+  Lsa(reg0, reg0, reg0, 3);
   addu(reg0, reg0, scratch);
 
   // hash = hash ^ (hash >> 16);
@@ -577,12 +574,10 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
 
     // Scale the index by multiplying by the element size.
     DCHECK(SeededNumberDictionary::kEntrySize == 3);
-    sll(at, reg2, 1);  // 2x.
-    addu(reg2, reg2, at);  // reg2 = reg2 * 3.
+    Lsa(reg2, reg2, reg2, 1);  // reg2 = reg2 * 3.
 
     // Check if the key is identical to the name.
-    sll(at, reg2, kPointerSizeLog2);
-    addu(reg2, elements, at);
+    Lsa(reg2, elements, reg2, kPointerSizeLog2);
 
     lw(at, FieldMemOperand(reg2, SeededNumberDictionary::kElementsStartOffset));
     if (i != kNumberDictionaryProbes - 1) {
@@ -3412,8 +3407,7 @@ void MacroAssembler::Allocate(Register object_size, Register result,
   // to calculate the new top. Object size may be in words so a shift is
   // required to get the number of bytes.
   if ((flags & SIZE_IN_WORDS) != 0) {
-    sll(result_end, object_size, kPointerSizeLog2);
-    Addu(result_end, result, result_end);
+    Lsa(result_end, result, object_size, kPointerSizeLog2);
   } else {
     Addu(result_end, result, Operand(object_size));
   }
@@ -3775,8 +3769,7 @@ void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
   lw(mantissa_reg, FieldMemOperand(value_reg, HeapNumber::kMantissaOffset));
 
   bind(&have_double_value);
-  sll(scratch1, key_reg, kDoubleSizeLog2 - kSmiTagSize);
-  Addu(scratch1, scratch1, elements_reg);
+  Lsa(scratch1, elements_reg, key_reg, kDoubleSizeLog2 - kSmiTagSize);
   sw(mantissa_reg,
       FieldMemOperand(scratch1, FixedDoubleArray::kHeaderSize - elements_offset
           + kHoleNanLower32Offset));
@@ -3802,8 +3795,7 @@ void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
   Addu(scratch1, elements_reg,
       Operand(FixedDoubleArray::kHeaderSize - kHeapObjectTag -
               elements_offset));
-  sll(scratch2, key_reg, kDoubleSizeLog2 - kSmiTagSize);
-  Addu(scratch1, scratch1, scratch2);
+  Lsa(scratch1, scratch1, key_reg, kDoubleSizeLog2 - kSmiTagSize);
   // scratch1 is now effective address of the double element
 
   Register untagged_value = scratch2;
@@ -4945,8 +4937,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
     if (argument_count_is_length) {
       addu(sp, sp, argument_count);
     } else {
-      sll(t8, argument_count, kPointerSizeLog2);
-      addu(sp, sp, t8);
+      Lsa(sp, sp, argument_count, kPointerSizeLog2, t8);
     }
   }
 
@@ -5473,8 +5464,7 @@ void MacroAssembler::GetMarkBits(Register addr_reg,
   Ext(mask_reg, addr_reg, kPointerSizeLog2, Bitmap::kBitsPerCellLog2);
   const int kLowBits = kPointerSizeLog2 + Bitmap::kBitsPerCellLog2;
   Ext(t8, addr_reg, kLowBits, kPageSizeBits - kLowBits);
-  sll(t8, t8, kPointerSizeLog2);
-  Addu(bitmap_reg, bitmap_reg, t8);
+  Lsa(bitmap_reg, bitmap_reg, t8, kPointerSizeLog2, t8);
   li(t8, Operand(1));
   sllv(mask_reg, t8, mask_reg);
 }
