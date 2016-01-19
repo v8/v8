@@ -733,7 +733,6 @@ class ParserBase : public Traits {
   ExpressionT ParseArrayLiteral(ExpressionClassifier* classifier, bool* ok);
   ExpressionT ParsePropertyName(IdentifierT* name, bool* is_get, bool* is_set,
                                 bool* is_static, bool* is_computed_name,
-                                bool* is_identifier, bool* is_escaped_keyword,
                                 ExpressionClassifier* classifier, bool* ok);
   ExpressionT ParseObjectLiteral(ExpressionClassifier* classifier, bool* ok);
   ObjectLiteralPropertyT ParsePropertyDefinition(
@@ -1116,7 +1115,9 @@ ParserBase<Traits>::ParseAndClassifyIdentifier(ExpressionClassifier* classifier,
       *ok = false;
       return Traits::EmptyIdentifier();
     }
-    if (next == Token::LET) {
+    if (next == Token::LET ||
+        (next == Token::ESCAPED_STRICT_RESERVED_WORD &&
+         scanner()->is_literal_contextual_keyword(CStrVector("let")))) {
       classifier->RecordLetPatternError(scanner()->location(),
                                         MessageTemplate::kLetInLexicalBinding);
     }
@@ -1557,8 +1558,7 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseArrayLiteral(
 template <class Traits>
 typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParsePropertyName(
     IdentifierT* name, bool* is_get, bool* is_set, bool* is_static,
-    bool* is_computed_name, bool* is_identifier, bool* is_escaped_keyword,
-    ExpressionClassifier* classifier, bool* ok) {
+    bool* is_computed_name, ExpressionClassifier* classifier, bool* ok) {
   Token::Value token = peek();
   int pos = peek_position();
 
@@ -1601,17 +1601,11 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParsePropertyName(
       return expression;
     }
 
-    case Token::ESCAPED_KEYWORD:
-      *is_escaped_keyword = true;
-      *name = ParseIdentifierNameOrGetOrSet(is_get, is_set, CHECK_OK);
-      break;
-
     case Token::STATIC:
       *is_static = true;
 
     // Fall through.
     default:
-      *is_identifier = true;
       *name = ParseIdentifierNameOrGetOrSet(is_get, is_set, CHECK_OK);
       break;
   }
@@ -1639,20 +1633,13 @@ ParserBase<Traits>::ParsePropertyDefinition(
   Token::Value name_token = peek();
   int next_beg_pos = scanner()->peek_location().beg_pos;
   int next_end_pos = scanner()->peek_location().end_pos;
-  bool is_identifier = false;
-  bool is_escaped_keyword = false;
   ExpressionT name_expression = ParsePropertyName(
-      name, &is_get, &is_set, &name_is_static, is_computed_name, &is_identifier,
-      &is_escaped_keyword, classifier,
+      name, &is_get, &is_set, &name_is_static, is_computed_name, classifier,
       CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
   if (fni_ != nullptr && !*is_computed_name) {
     this->PushLiteralName(fni_, *name);
   }
-
-  bool escaped_static =
-      is_escaped_keyword &&
-      scanner()->is_literal_contextual_keyword(CStrVector("static"));
 
   if (!in_class && !is_generator) {
     DCHECK(!is_static);
@@ -1673,7 +1660,8 @@ ParserBase<Traits>::ParsePropertyDefinition(
                                                  *is_computed_name);
     }
 
-    if ((is_identifier || is_escaped_keyword) &&
+    if (Token::IsIdentifier(name_token, language_mode(),
+                            this->is_generator()) &&
         (peek() == Token::COMMA || peek() == Token::RBRACE ||
          peek() == Token::ASSIGN)) {
       // PropertyDefinition
@@ -1682,14 +1670,6 @@ ParserBase<Traits>::ParsePropertyDefinition(
       //
       // CoverInitializedName
       //    IdentifierReference Initializer?
-      if (!Token::IsIdentifier(name_token, language_mode(),
-                               this->is_generator())) {
-        if (!escaped_static) {
-          ReportUnexpectedTokenAt(scanner()->location(), name_token);
-          *ok = false;
-          return this->EmptyObjectLiteralProperty();
-        }
-      }
       if (classifier->duplicate_finder() != nullptr &&
           scanner()->FindSymbol(classifier->duplicate_finder(), 1) != 0) {
         classifier->RecordDuplicateFormalParameterError(scanner()->location());
@@ -1725,12 +1705,6 @@ ParserBase<Traits>::ParsePropertyDefinition(
           name_expression, value, ObjectLiteralProperty::COMPUTED, false,
           false);
     }
-  }
-
-  if (in_class && escaped_static && !is_static) {
-    ReportUnexpectedTokenAt(scanner()->location(), name_token);
-    *ok = false;
-    return this->EmptyObjectLiteralProperty();
   }
 
   // Method definitions are never valid in patterns.
@@ -1791,8 +1765,8 @@ ParserBase<Traits>::ParsePropertyDefinition(
     name_token = peek();
 
     name_expression = ParsePropertyName(
-        name, &dont_care, &dont_care, &dont_care, is_computed_name, &dont_care,
-        &dont_care, classifier, CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+        name, &dont_care, &dont_care, &dont_care, is_computed_name, classifier,
+        CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
     if (!*is_computed_name) {
       checker->CheckProperty(name_token, kAccessorProperty, is_static,

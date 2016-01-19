@@ -1206,7 +1206,9 @@ static Token::Value KeywordOrIdentifierToken(const uint8_t* input,
         (keyword_length <= 8 || input[8] == keyword[8]) &&          \
         (keyword_length <= 9 || input[9] == keyword[9])) {          \
       if (escaped) {                                                \
-        return token == Token::FUTURE_STRICT_RESERVED_WORD          \
+        /* TODO(adamk): YIELD should be handled specially. */       \
+        return (token == Token::FUTURE_STRICT_RESERVED_WORD ||      \
+                token == Token::LET || token == Token::STATIC)      \
                    ? Token::ESCAPED_STRICT_RESERVED_WORD            \
                    : Token::ESCAPED_KEYWORD;                        \
       }                                                             \

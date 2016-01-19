@@ -4426,6 +4426,7 @@ TEST(ClassDeclarationNoErrors) {
 
 
 TEST(ClassBodyNoErrors) {
+  // clang-format off
   // Tests that parser and preparser accept valid class syntax.
   const char* context_data[][2] = {{"(class {", "});"},
                                    {"(class extends Base {", "});"},
@@ -4448,6 +4449,8 @@ TEST(ClassBodyNoErrors) {
     "; *g() {}",
     "*g() {}; *h(x) {}",
     "static() {}",
+    "get static() {}",
+    "set static(v) {}",
     "static m() {}",
     "static get x() {}",
     "static set x(v) {}",
@@ -4457,10 +4460,23 @@ TEST(ClassBodyNoErrors) {
     "static get static() {}",
     "static set static(v) {}",
     "*static() {}",
+    "static *static() {}",
     "*get() {}",
     "*set() {}",
     "static *g() {}",
+
+    // Escaped 'static' should be allowed anywhere
+    // static-as-PropertyName is.
+    "st\\u0061tic() {}",
+    "get st\\u0061tic() {}",
+    "set st\\u0061tic(v) {}",
+    "static st\\u0061tic() {}",
+    "static get st\\u0061tic() {}",
+    "static set st\\u0061tic(v) {}",
+    "*st\\u0061tic() {}",
+    "static *st\\u0061tic() {}",
     NULL};
+  // clang-format on
 
   static const ParserFlag always_flags[] = {
     kAllowHarmonySloppy
@@ -7678,6 +7694,13 @@ TEST(LetSloppyOnly) {
     "for (const [let] = 1; let < 1; let++) {}",
     "for (const [let] in {}) {}",
     "for (const [let] of []) {}",
+
+    // Sprinkle in the escaped version too.
+    "let l\\u0065t = 1",
+    "const l\\u0065t = 1",
+    "let [l\\u0065t] = 1",
+    "const [l\\u0065t] = 1",
+    "for (let l\\u0065t in {}) {}",
     NULL
   };
   // clang-format on
@@ -7736,6 +7759,7 @@ TEST(EscapedKeywords) {
     "wh\\u0069le (true) { }",
     "w\\u0069th (this.scope) { }",
     "(function*() { y\\u0069eld 1; })()",
+    "(function*() { var y\\u0069eld = 1; })()",
 
     "var \\u0065num = 1;",
     "var { \\u0065num } = {}",
@@ -7773,7 +7797,11 @@ TEST(EscapedKeywords) {
     "do { ; } wh\\u0069le (true) { }",
     "(function*() { return (n++, y\\u0069eld 1); })()",
     "class C { st\\u0061tic bar() {} }",
+    "class C { st\\u0061tic *bar() {} }",
+    "class C { st\\u0061tic get bar() {} }",
+    "class C { st\\u0061tic set bar() {} }",
 
+    // TODO(adamk): These should not be errors in sloppy mode.
     "(y\\u0069eld);",
     "var y\\u0069eld = 1;",
     "var { y\\u0069eld } = {};",
@@ -7799,14 +7827,14 @@ TEST(EscapedKeywords) {
   };
   // clang-format on
 
-  RunParserSyncTest(sloppy_context_data, let_data, kError, NULL, 0,
+  RunParserSyncTest(sloppy_context_data, let_data, kSuccess, NULL, 0,
                     always_flags, arraysize(always_flags));
   RunParserSyncTest(strict_context_data, let_data, kError, NULL, 0,
                     always_flags, arraysize(always_flags));
 
   static const ParserFlag sloppy_let_flags[] = {
       kAllowHarmonySloppy, kAllowHarmonySloppyLet, kAllowHarmonyDestructuring};
-  RunParserSyncTest(sloppy_context_data, let_data, kError, NULL, 0,
+  RunParserSyncTest(sloppy_context_data, let_data, kSuccess, NULL, 0,
                     sloppy_let_flags, arraysize(sloppy_let_flags));
 
   // Non-errors in sloppy mode
@@ -7828,6 +7856,9 @@ TEST(EscapedKeywords) {
                               "(publ\\u0069c);",
                               "var publ\\u0069c = 1;",
                               "var { publ\\u0069c } = {};",
+                              "(st\\u0061tic);",
+                              "var st\\u0061tic = 1;",
+                              "var { st\\u0061tic } = {};",
                               NULL};
   RunParserSyncTest(sloppy_context_data, valid_data, kSuccess, NULL, 0,
                     always_flags, arraysize(always_flags));
