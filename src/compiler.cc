@@ -761,8 +761,7 @@ static bool CompileUnoptimizedCode(CompilationInfo* info) {
 // TODO(rmcilroy): Remove this temporary work-around when ignition supports
 // catch and eval.
 static bool IgnitionShouldFallbackToFullCodeGen(Scope* scope) {
-  if (scope->is_eval_scope() || scope->is_catch_scope() ||
-      scope->calls_eval()) {
+  if (scope->is_catch_scope()) {
     return true;
   }
   for (auto inner_scope : *scope->inner_scopes()) {
@@ -779,7 +778,7 @@ static bool UseIgnition(CompilationInfo* info) {
   }
 
   // Checks whether the scope chain is supported.
-  if (FLAG_ignition_fallback_on_eval_and_catch &&
+  if (FLAG_ignition_fallback_on_catch &&
       IgnitionShouldFallbackToFullCodeGen(info->scope())) {
     return false;
   }

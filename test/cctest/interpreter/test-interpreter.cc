@@ -66,7 +66,7 @@ class InterpreterTester {
         feedback_vector_(feedback_vector) {
     i::FLAG_ignition = true;
     i::FLAG_ignition_fake_try_catch = true;
-    i::FLAG_ignition_fallback_on_eval_and_catch = false;
+    i::FLAG_ignition_fallback_on_catch = false;
     i::FLAG_always_opt = false;
     // Set ignition filter flag via SetFlagsFromString to avoid double-free
     // (or potential leak with StrDup() based on ownership confusion).

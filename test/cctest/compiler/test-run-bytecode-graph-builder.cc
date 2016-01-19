@@ -70,7 +70,7 @@ class BytecodeGraphTester {
     i::FLAG_ignition = true;
     i::FLAG_always_opt = false;
     i::FLAG_allow_natives_syntax = true;
-    i::FLAG_ignition_fallback_on_eval_and_catch = false;
+    i::FLAG_ignition_fallback_on_catch = false;
     // Set ignition filter flag via SetFlagsFromString to avoid double-free
     // (or potential leak with StrDup() based on ownership confusion).
     ScopedVector<char> ignition_filter(64);
