@@ -437,9 +437,9 @@ void Heap::GarbageCollectionPrologue() {
   }
 
   // Reset GC statistics.
-  promoted_objects_size_.SetValue(0);
-  previous_semi_space_copied_object_size_ = semi_space_copied_object_size();
-  semi_space_copied_object_size_.SetValue(0);
+  promoted_objects_size_ = 0;
+  previous_semi_space_copied_object_size_ = semi_space_copied_object_size_;
+  semi_space_copied_object_size_ = 0;
   nodes_died_in_new_space_ = 0;
   nodes_copied_in_new_space_ = 0;
   nodes_promoted_ = 0;
@@ -1234,19 +1234,19 @@ void Heap::ClearNormalizedMapCaches() {
 void Heap::UpdateSurvivalStatistics(int start_new_space_size) {
   if (start_new_space_size == 0) return;
 
-  promotion_ratio_ = (static_cast<double>(promoted_objects_size()) /
+  promotion_ratio_ = (static_cast<double>(promoted_objects_size_) /
                       static_cast<double>(start_new_space_size) * 100);
 
   if (previous_semi_space_copied_object_size_ > 0) {
     promotion_rate_ =
-        (static_cast<double>(promoted_objects_size()) /
+        (static_cast<double>(promoted_objects_size_) /
          static_cast<double>(previous_semi_space_copied_object_size_) * 100);
   } else {
     promotion_rate_ = 0;
   }
 
   semi_space_copied_rate_ =
-      (static_cast<double>(semi_space_copied_object_size()) /
+      (static_cast<double>(semi_space_copied_object_size_) /
        static_cast<double>(start_new_space_size) * 100);
 
   double survival_rate = promotion_ratio_ + semi_space_copied_rate_;
@@ -1309,7 +1309,7 @@ bool Heap::PerformGarbageCollection(
       // This should be updated before PostGarbageCollectionProcessing, which
       // can cause another GC. Take into account the objects promoted during GC.
       old_generation_allocation_counter_ +=
-          static_cast<size_t>(promoted_objects_size());
+          static_cast<size_t>(promoted_objects_size_);
       old_generation_size_at_last_gc_ = PromotedSpaceSizeOfObjects();
     } else {
       Scavenge();
@@ -1513,18 +1513,18 @@ static void VerifyNonPointerSpacePointers(Heap* heap) {
 void Heap::CheckNewSpaceExpansionCriteria() {
   if (FLAG_experimental_new_space_growth_heuristic) {
     if (new_space_.TotalCapacity() < new_space_.MaximumCapacity() &&
-        survived_last_scavenge() * 100 / new_space_.TotalCapacity() >= 10) {
+        survived_last_scavenge_ * 100 / new_space_.TotalCapacity() >= 10) {
       // Grow the size of new space if there is room to grow, and more than 10%
       // have survived the last scavenge.
       new_space_.Grow();
-      survived_since_last_expansion_.SetValue(0);
+      survived_since_last_expansion_ = 0;
     }
   } else if (new_space_.TotalCapacity() < new_space_.MaximumCapacity() &&
-             survived_since_last_expansion() > new_space_.TotalCapacity()) {
+             survived_since_last_expansion_ > new_space_.TotalCapacity()) {
     // Grow the size of new space if there is room to grow, and enough data
     // has survived scavenge since the last expansion.
     new_space_.Grow();
-    survived_since_last_expansion_.SetValue(0);
+    survived_since_last_expansion_ = 0;
   }
 }
 
@@ -1761,8 +1761,8 @@ void Heap::Scavenge() {
   array_buffer_tracker()->FreeDead(true);
 
   // Update how much has survived scavenge.
-  IncrementYoungSurvivorsCounter(PromotedSpaceSizeOfObjects() -
-                                 survived_watermark + new_space_.Size());
+  IncrementYoungSurvivorsCounter(static_cast<int>(
+      (PromotedSpaceSizeOfObjects() - survived_watermark) + new_space_.Size()));
 
   LOG(isolate_, ResourceEvent("scavenge", "end"));
 
