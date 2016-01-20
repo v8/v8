@@ -1185,7 +1185,7 @@ void HGraphBuilder::LoopBuilder::EndBody() {
 
 
 HGraph* HGraphBuilder::CreateGraph() {
-  graph_ = new(zone()) HGraph(info_);
+  graph_ = new (zone()) HGraph(info_, descriptor_);
   if (FLAG_hydrogen_stats) isolate()->GetHStatistics()->Initialize(info_);
   CompilationPhase phase("H_Block building", info_);
   set_current_block(graph()->entry_block());
@@ -3547,14 +3547,14 @@ HValue* HGraphBuilder::AddLoadJSBuiltin(int context_index) {
 
 
 HOptimizedGraphBuilder::HOptimizedGraphBuilder(CompilationInfo* info)
-    : HGraphBuilder(info),
+    : HGraphBuilder(info, CallInterfaceDescriptor()),
       function_state_(NULL),
       initial_function_state_(this, info, NORMAL_RETURN, 0),
       ast_context_(NULL),
       break_scope_(NULL),
       inlined_count_(0),
       globals_(10, info->zone()),
-      osr_(new(info->zone()) HOsrBuilder(this)) {
+      osr_(new (info->zone()) HOsrBuilder(this)) {
   // This is not initialized in the initializer list because the
   // constructor for the initial state relies on function_state_ == NULL
   // to know it's the initial state.
@@ -3641,7 +3641,7 @@ std::ostream& operator<<(std::ostream& os, const HBasicBlock& b) {
 }
 
 
-HGraph::HGraph(CompilationInfo* info)
+HGraph::HGraph(CompilationInfo* info, CallInterfaceDescriptor descriptor)
     : isolate_(info->isolate()),
       next_block_id_(0),
       entry_block_(NULL),
@@ -3651,6 +3651,7 @@ HGraph::HGraph(CompilationInfo* info)
       uint32_instructions_(NULL),
       osr_(NULL),
       info_(info),
+      descriptor_(descriptor),
       zone_(info->zone()),
       is_recursive_(false),
       use_optimistic_licm_(false),
@@ -3660,8 +3661,6 @@ HGraph::HGraph(CompilationInfo* info)
       no_side_effects_scope_count_(0),
       disallow_adding_new_values_(false) {
   if (info->IsStub()) {
-    CallInterfaceDescriptor descriptor =
-        info->code_stub()->GetCallInterfaceDescriptor();
     start_environment_ =
         new (zone_) HEnvironment(zone_, descriptor.GetRegisterParameterCount());
   } else {

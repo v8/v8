@@ -2500,8 +2500,7 @@ LInstruction* LChunkBuilder::DoParameter(HParameter* instr) {
     return DefineAsSpilled(result, spill_index);
   } else {
     DCHECK(info()->IsStub());
-    CallInterfaceDescriptor descriptor =
-        info()->code_stub()->GetCallInterfaceDescriptor();
+    CallInterfaceDescriptor descriptor = graph()->descriptor();
     int index = static_cast<int>(instr->index());
     Register reg = descriptor.GetRegisterParameter(index);
     return DefineFixed(result, reg);

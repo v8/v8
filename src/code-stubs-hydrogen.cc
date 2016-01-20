@@ -34,11 +34,12 @@ static LChunk* OptimizeGraph(HGraph* graph) {
 
 class CodeStubGraphBuilderBase : public HGraphBuilder {
  public:
-  explicit CodeStubGraphBuilderBase(CompilationInfo* info)
-      : HGraphBuilder(info),
+  explicit CodeStubGraphBuilderBase(CompilationInfo* info, CodeStub* code_stub)
+      : HGraphBuilder(info, code_stub->GetCallInterfaceDescriptor()),
         arguments_length_(NULL),
         info_(info),
-        descriptor_(info->code_stub()),
+        code_stub_(code_stub),
+        descriptor_(code_stub),
         context_(NULL) {
     int parameter_count = GetParameterCount();
     parameters_.Reset(new HParameter*[parameter_count]);
@@ -68,7 +69,7 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
     return arguments_length_;
   }
   CompilationInfo* info() { return info_; }
-  CodeStub* stub() { return info_->code_stub(); }
+  CodeStub* stub() { return code_stub_; }
   HContext* context() { return context_; }
   Isolate* isolate() { return info_->isolate(); }
 
@@ -124,6 +125,7 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
   base::SmartArrayPointer<HParameter*> parameters_;
   HValue* arguments_length_;
   CompilationInfo* info_;
+  CodeStub* code_stub_;
   CodeStubDescriptor descriptor_;
   HContext* context_;
 };
@@ -214,8 +216,8 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
 template <class Stub>
 class CodeStubGraphBuilder: public CodeStubGraphBuilderBase {
  public:
-  explicit CodeStubGraphBuilder(CompilationInfo* info)
-      : CodeStubGraphBuilderBase(info) {}
+  explicit CodeStubGraphBuilder(CompilationInfo* info, CodeStub* stub)
+      : CodeStubGraphBuilderBase(info, stub) {}
 
  protected:
   virtual HValue* BuildCodeStub() {
@@ -269,13 +271,8 @@ Handle<Code> HydrogenCodeStub::GenerateLightweightMissCode(
   masm.GetCode(&desc);
 
   // Copy the generated code into a heap object.
-  Code::Flags flags = Code::ComputeFlags(
-      GetCodeKind(),
-      GetICState(),
-      GetExtraICState(),
-      GetStubType());
   Handle<Code> new_object = factory->NewCode(
-      desc, flags, masm.CodeObject(), NeedsImmovableCode());
+      desc, GetCodeFlags(), masm.CodeObject(), NeedsImmovableCode());
   return new_object;
 }
 
@@ -297,8 +294,15 @@ static Handle<Code> DoGenerateCode(Stub* stub) {
     timer.Start();
   }
   Zone zone;
-  CompilationInfo info(stub, isolate, &zone);
-  CodeStubGraphBuilder<Stub> builder(&info);
+  CompilationInfo info(CodeStub::MajorName(stub->MajorKey()), isolate, &zone,
+                       stub->GetCodeFlags());
+  // Parameter count is number of stack parameters.
+  int parameter_count = descriptor.GetStackParameterCount();
+  if (descriptor.function_mode() == NOT_JS_FUNCTION_STUB_MODE) {
+    parameter_count--;
+  }
+  info.set_parameter_count(parameter_count);
+  CodeStubGraphBuilder<Stub> builder(&info, stub);
   LChunk* chunk = OptimizeGraph(builder.CreateGraph());
   Handle<Code> code = chunk->Codegen();
   if (FLAG_profile_hydrogen_code_stub_compilation) {
@@ -2186,8 +2190,8 @@ template <>
 class CodeStubGraphBuilder<KeyedLoadGenericStub>
     : public CodeStubGraphBuilderBase {
  public:
-  explicit CodeStubGraphBuilder(CompilationInfo* info)
-      : CodeStubGraphBuilderBase(info) {}
+  explicit CodeStubGraphBuilder(CompilationInfo* info, CodeStub* stub)
+      : CodeStubGraphBuilderBase(info, stub) {}
 
  protected:
   virtual HValue* BuildCodeStub();

@@ -120,14 +120,7 @@ bool CallDescriptor::CanTailCall(const Node* node,
 
 
 CallDescriptor* Linkage::ComputeIncoming(Zone* zone, CompilationInfo* info) {
-  if (info->code_stub() != nullptr) {
-    // Use the code stub interface descriptor.
-    CodeStub* stub = info->code_stub();
-    CallInterfaceDescriptor descriptor = stub->GetCallInterfaceDescriptor();
-    return GetStubCallDescriptor(
-        info->isolate(), zone, descriptor, stub->GetStackParameterCount(),
-        CallDescriptor::kNoFlags, Operator::kNoProperties);
-  }
+  DCHECK(!info->IsStub());
   if (info->has_literal()) {
     // If we already have the function literal, use the number of parameters
     // plus the receiver.

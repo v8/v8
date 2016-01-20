@@ -67,8 +67,8 @@ class CompilationInfo {
   };
 
   explicit CompilationInfo(ParseInfo* parse_info);
-  CompilationInfo(CodeStub* stub, Isolate* isolate, Zone* zone);
-  CompilationInfo(const char* debug_name, Isolate* isolate, Zone* zone);
+  CompilationInfo(const char* debug_name, Isolate* isolate, Zone* zone,
+                  Code::Flags code_flags = Code::ComputeFlags(Code::STUB));
   virtual ~CompilationInfo();
 
   ParseInfo* parse_info() const { return parse_info_; }
@@ -98,7 +98,7 @@ class CompilationInfo {
   Zone* zone() { return zone_; }
   bool is_osr() const { return !osr_ast_id_.IsNone(); }
   Handle<Code> code() const { return code_; }
-  CodeStub* code_stub() const { return code_stub_; }
+  Code::Flags code_flags() const { return code_flags_; }
   BailoutId osr_ast_id() const { return osr_ast_id_; }
   Handle<Code> unoptimized_code() const { return unoptimized_code_; }
   int opt_count() const { return opt_count_; }
@@ -212,7 +212,7 @@ class CompilationInfo {
     // will make code flushing more aggressive. Only apply to Code::FUNCTION,
     // since StaticMarkingVisitor::IsFlushable only flushes proper functions.
     return FLAG_optimize_for_size && FLAG_age_code && !will_serialize() &&
-           !is_debug() && output_code_kind_ == Code::FUNCTION;
+           !is_debug() && output_code_kind() == Code::FUNCTION;
   }
 
   void EnsureFeedbackVector();
@@ -253,7 +253,8 @@ class CompilationInfo {
     osr_ast_id_ = osr_ast_id;
     unoptimized_code_ = unoptimized;
     optimization_id_ = isolate()->NextOptimizationId();
-    set_output_code_kind(Code::OPTIMIZED_FUNCTION);
+    code_flags_ =
+        Code::KindField::update(code_flags_, Code::OPTIMIZED_FUNCTION);
   }
 
   // Deoptimization support.
@@ -362,9 +363,9 @@ class CompilationInfo {
 
   base::SmartArrayPointer<char> GetDebugName() const;
 
-  Code::Kind output_code_kind() const { return output_code_kind_; }
-
-  void set_output_code_kind(Code::Kind kind) { output_code_kind_ = kind; }
+  Code::Kind output_code_kind() const {
+    return Code::ExtractKindFromFlags(code_flags_);
+  }
 
  protected:
   ParseInfo* parse_info_;
@@ -385,8 +386,8 @@ class CompilationInfo {
     STUB
   };
 
-  CompilationInfo(ParseInfo* parse_info, CodeStub* code_stub,
-                  const char* debug_name, Mode mode, Isolate* isolate,
+  CompilationInfo(ParseInfo* parse_info, const char* debug_name,
+                  Code::Flags code_flags, Mode mode, Isolate* isolate,
                   Zone* zone);
 
   Isolate* isolate_;
@@ -405,10 +406,8 @@ class CompilationInfo {
 
   unsigned flags_;
 
-  Code::Kind output_code_kind_;
+  Code::Flags code_flags_;
 
-  // For compiled stubs, the stub object
-  CodeStub* code_stub_;
   // The compiled code.
   Handle<Code> code_;
 

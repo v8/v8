@@ -53,9 +53,10 @@ Handle<Code> InterpreterAssembler::GenerateCode() {
 
   const char* bytecode_name = interpreter::Bytecodes::ToString(bytecode_);
   Schedule* schedule = raw_assembler_->Export();
+  Code::Flags flags = Code::ComputeFlags(Code::STUB);
   Handle<Code> code = Pipeline::GenerateCodeForCodeStub(
-      isolate(), raw_assembler_->call_descriptor(), graph(), schedule,
-      Code::STUB, bytecode_name);
+      isolate(), raw_assembler_->call_descriptor(), graph(), schedule, flags,
+      bytecode_name);
 
 #ifdef ENABLE_DISASSEMBLER
   if (FLAG_trace_ignition_codegen) {

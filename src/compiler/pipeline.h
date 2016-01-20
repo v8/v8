@@ -35,7 +35,7 @@ class Pipeline {
   static Handle<Code> GenerateCodeForCodeStub(Isolate* isolate,
                                               CallDescriptor* call_descriptor,
                                               Graph* graph, Schedule* schedule,
-                                              Code::Kind kind,
+                                              Code::Flags flags,
                                               const char* debug_name);
 
   // Run the pipeline on a machine graph and generate code. If {schedule} is

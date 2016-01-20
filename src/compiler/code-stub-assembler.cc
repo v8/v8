@@ -27,12 +27,12 @@ namespace compiler {
 
 CodeStubAssembler::CodeStubAssembler(Isolate* isolate, Zone* zone,
                                      const CallInterfaceDescriptor& descriptor,
-                                     Code::Kind kind, const char* name)
+                                     Code::Flags flags, const char* name)
     : raw_assembler_(new RawMachineAssembler(
           isolate, new (zone) Graph(zone),
           Linkage::GetStubCallDescriptor(isolate, zone, descriptor, 0,
                                          CallDescriptor::kNoFlags))),
-      kind_(kind),
+      flags_(flags),
       name_(name),
       code_generated_(false) {}
 
@@ -45,7 +45,7 @@ Handle<Code> CodeStubAssembler::GenerateCode() {
 
   Schedule* schedule = raw_assembler_->Export();
   Handle<Code> code = Pipeline::GenerateCodeForCodeStub(
-      isolate(), raw_assembler_->call_descriptor(), graph(), schedule, kind_,
+      isolate(), raw_assembler_->call_descriptor(), graph(), schedule, flags_,
       name_);
 
   code_generated_ = true;

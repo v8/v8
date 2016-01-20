@@ -176,9 +176,10 @@ MaybeHandle<Code> FastAccessorAssembler::Build() {
 
   // Export the schedule and call the compiler.
   Schedule* schedule = assembler_->Export();
+  Code::Flags flags = Code::ComputeFlags(Code::STUB);
   MaybeHandle<Code> code = Pipeline::GenerateCodeForCodeStub(
       assembler_->isolate(), assembler_->call_descriptor(), assembler_->graph(),
-      schedule, Code::STUB, "FastAccessorAssembler");
+      schedule, flags, "FastAccessorAssembler");
 
   // Update state & return.
   state_ = !code.is_null() ? kBuilt : kError;

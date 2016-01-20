@@ -16,7 +16,7 @@ class CodeStubAssemblerTester : public CodeStubAssembler {
   CodeStubAssemblerTester(Isolate* isolate,
                           const CallInterfaceDescriptor& descriptor)
       : CodeStubAssembler(isolate, isolate->runtime_zone(), descriptor,
-                          Code::STUB, "test"),
+                          Code::ComputeFlags(Code::STUB), "test"),
         scope_(isolate) {}
 
  private:

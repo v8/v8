@@ -297,11 +297,12 @@ class BoundsCheckTable;
 class InductionVariableBlocksTable;
 class HGraph final : public ZoneObject {
  public:
-  explicit HGraph(CompilationInfo* info);
+  explicit HGraph(CompilationInfo* info, CallInterfaceDescriptor descriptor);
 
   Isolate* isolate() const { return isolate_; }
   Zone* zone() const { return zone_; }
   CompilationInfo* info() const { return info_; }
+  CallInterfaceDescriptor descriptor() const { return descriptor_; }
 
   const ZoneList<HBasicBlock*>* blocks() const { return &blocks_; }
   const ZoneList<HPhi*>* phi_list() const { return phi_list_; }
@@ -486,6 +487,7 @@ class HGraph final : public ZoneObject {
   HOsrBuilder* osr_;
 
   CompilationInfo* info_;
+  CallInterfaceDescriptor descriptor_;
   Zone* zone_;
 
   bool is_recursive_;
@@ -1006,8 +1008,10 @@ class HAllocationMode final BASE_EMBEDDED {
 
 class HGraphBuilder {
  public:
-  explicit HGraphBuilder(CompilationInfo* info)
+  explicit HGraphBuilder(CompilationInfo* info,
+                         CallInterfaceDescriptor descriptor)
       : info_(info),
+        descriptor_(descriptor),
         graph_(NULL),
         current_block_(NULL),
         scope_(info->scope()),
@@ -1912,6 +1916,7 @@ class HGraphBuilder {
   }
 
   CompilationInfo* info_;
+  CallInterfaceDescriptor descriptor_;
   HGraph* graph_;
   HBasicBlock* current_block_;
   Scope* scope_;

@@ -96,6 +96,12 @@ Code::Kind CodeStub::GetCodeKind() const {
 }
 
 
+Code::Flags CodeStub::GetCodeFlags() const {
+  return Code::ComputeFlags(GetCodeKind(), GetICState(), GetExtraICState(),
+                            GetStubType());
+}
+
+
 Handle<Code> CodeStub::GetCodeCopy(const Code::FindAndReplacePattern& pattern) {
   Handle<Code> ic = GetCode();
   ic = isolate()->factory()->CopyCode(ic);
@@ -474,7 +480,7 @@ Handle<Code> TurboFanCodeStub::GenerateCode() {
   Zone zone;
   CallInterfaceDescriptor descriptor(GetCallInterfaceDescriptor());
   compiler::CodeStubAssembler assembler(isolate(), &zone, descriptor,
-                                        GetCodeKind(), name);
+                                        GetCodeFlags(), name);
   GenerateAssembly(&assembler);
   return assembler.GenerateCode();
 }

@@ -110,8 +110,8 @@ bool CompilationInfo::has_scope() const {
 
 
 CompilationInfo::CompilationInfo(ParseInfo* parse_info)
-    : CompilationInfo(parse_info, nullptr, nullptr, BASE, parse_info->isolate(),
-                      parse_info->zone()) {
+    : CompilationInfo(parse_info, nullptr, Code::ComputeFlags(Code::FUNCTION),
+                      BASE, parse_info->isolate(), parse_info->zone()) {
   // Compiling for the snapshot typically results in different code than
   // compiling later on. This means that code recompiled with deoptimization
   // support won't be "equivalent" (as defined by SharedFunctionInfo::
@@ -138,23 +138,17 @@ CompilationInfo::CompilationInfo(ParseInfo* parse_info)
 }
 
 
-CompilationInfo::CompilationInfo(CodeStub* stub, Isolate* isolate, Zone* zone)
-    : CompilationInfo(nullptr, stub, CodeStub::MajorName(stub->MajorKey()),
-                      STUB, isolate, zone) {}
-
 CompilationInfo::CompilationInfo(const char* debug_name, Isolate* isolate,
-                                 Zone* zone)
-    : CompilationInfo(nullptr, nullptr, debug_name, STUB, isolate, zone) {
-  set_output_code_kind(Code::STUB);
-}
+                                 Zone* zone, Code::Flags code_flags)
+    : CompilationInfo(nullptr, debug_name, code_flags, STUB, isolate, zone) {}
 
-CompilationInfo::CompilationInfo(ParseInfo* parse_info, CodeStub* code_stub,
-                                 const char* debug_name, Mode mode,
+CompilationInfo::CompilationInfo(ParseInfo* parse_info, const char* debug_name,
+                                 Code::Flags code_flags, Mode mode,
                                  Isolate* isolate, Zone* zone)
     : parse_info_(parse_info),
       isolate_(isolate),
       flags_(0),
-      code_stub_(code_stub),
+      code_flags_(code_flags),
       mode_(mode),
       osr_ast_id_(BailoutId::None()),
       zone_(zone),
@@ -168,19 +162,7 @@ CompilationInfo::CompilationInfo(ParseInfo* parse_info, CodeStub* code_stub,
       parameter_count_(0),
       optimization_id_(-1),
       osr_expr_stack_height_(0),
-      debug_name_(debug_name) {
-  // Parameter count is number of stack parameters.
-  if (code_stub_ != NULL) {
-    CodeStubDescriptor descriptor(code_stub_);
-    parameter_count_ = descriptor.GetStackParameterCount();
-    if (descriptor.function_mode() == NOT_JS_FUNCTION_STUB_MODE) {
-      parameter_count_--;
-    }
-    set_output_code_kind(code_stub->GetCodeKind());
-  } else {
-    set_output_code_kind(Code::FUNCTION);
-  }
-}
+      debug_name_(debug_name) {}
 
 
 CompilationInfo::~CompilationInfo() {

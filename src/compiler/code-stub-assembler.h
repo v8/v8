@@ -30,8 +30,8 @@ class Schedule;
 class CodeStubAssembler {
  public:
   CodeStubAssembler(Isolate* isolate, Zone* zone,
-                    const CallInterfaceDescriptor& descriptor, Code::Kind kind,
-                    const char* name);
+                    const CallInterfaceDescriptor& descriptor,
+                    Code::Flags flags, const char* name);
   virtual ~CodeStubAssembler();
 
   Handle<Code> GenerateCode();
@@ -82,7 +82,7 @@ class CodeStubAssembler {
   Zone* zone();
 
   base::SmartPointer<RawMachineAssembler> raw_assembler_;
-  Code::Kind kind_;
+  Code::Flags flags_;
   const char* name_;
   bool code_generated_;
 

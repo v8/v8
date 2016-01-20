@@ -1853,9 +1853,9 @@ Handle<JSFunction> CompileJSToWasmWrapper(
         module->GetFunctionSignature(index)->parameter_count());
     CallDescriptor* incoming = Linkage::GetJSCallDescriptor(
         &zone, false, params + 1, CallDescriptor::kNoFlags);
-    CompilationInfo info("js-to-wasm", isolate, &zone);
     // TODO(titzer): this is technically a WASM wrapper, not a wasm function.
-    info.set_output_code_kind(Code::WASM_FUNCTION);
+    Code::Flags flags = Code::ComputeFlags(Code::WASM_FUNCTION);
+    CompilationInfo info("js-to-wasm", isolate, &zone, flags);
     Handle<Code> code =
         Pipeline::GenerateCodeForTesting(&info, incoming, &graph, nullptr);
 
@@ -1928,9 +1928,9 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, wasm::ModuleEnv* module,
 
     // Schedule and compile to machine code.
     CallDescriptor* incoming = module->GetWasmCallDescriptor(&zone, func->sig);
-    CompilationInfo info("wasm-to-js", isolate, &zone);
     // TODO(titzer): this is technically a WASM wrapper, not a wasm function.
-    info.set_output_code_kind(Code::WASM_FUNCTION);
+    Code::Flags flags = Code::ComputeFlags(Code::WASM_FUNCTION);
+    CompilationInfo info("wasm-to-js", isolate, &zone, flags);
     code = Pipeline::GenerateCodeForTesting(&info, incoming, &graph, nullptr);
 
 #ifdef ENABLE_DISASSEMBLER
@@ -2007,8 +2007,8 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
   // Run the compiler pipeline to generate machine code.
   CallDescriptor* descriptor = const_cast<CallDescriptor*>(
       module_env->GetWasmCallDescriptor(&zone, function.sig));
-  CompilationInfo info("wasm", isolate, &zone);
-  info.set_output_code_kind(Code::WASM_FUNCTION);
+  Code::Flags flags = Code::ComputeFlags(Code::WASM_FUNCTION);
+  CompilationInfo info("wasm", isolate, &zone, flags);
   Handle<Code> code =
       Pipeline::GenerateCodeForTesting(&info, descriptor, &graph);
 

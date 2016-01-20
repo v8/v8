@@ -240,6 +240,8 @@ class CodeStub BASE_EMBEDDED {
   virtual ExtraICState GetExtraICState() const { return kNoExtraICState; }
   virtual Code::StubType GetStubType() const { return Code::NORMAL; }
 
+  Code::Flags GetCodeFlags() const;
+
   friend std::ostream& operator<<(std::ostream& os, const CodeStub& s) {
     s.PrintName(os);
     return os;
@@ -323,8 +325,10 @@ class CodeStub BASE_EMBEDDED {
 
 
 #define DEFINE_CODE_STUB(NAME, SUPER)                      \
- protected:                                                \
+ public:                                                   \
   inline Major MajorKey() const override { return NAME; }; \
+                                                           \
+ protected:                                                \
   DEFINE_CODE_STUB_BASE(NAME##Stub, SUPER)
 
 
