@@ -900,7 +900,6 @@ void BytecodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
 
 void BytecodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
   TryCatchBuilder try_control_builder(builder());
-  if (!FLAG_ignition_fake_try_catch) UNIMPLEMENTED();
 
   // Preserve the context in a dedicated register, so that it can be restored
   // when the handler is entered by the stack-unwinding machinery.
@@ -938,7 +937,6 @@ void BytecodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
 
 void BytecodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   TryFinallyBuilder try_control_builder(builder());
-  if (!FLAG_ignition_fake_try_catch) UNIMPLEMENTED();
 
   // Preserve the context in a dedicated register, so that it can be restored
   // when the handler is entered by the stack-unwinding machinery.

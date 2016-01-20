@@ -24,7 +24,6 @@ class BytecodeGeneratorHelper {
 
   BytecodeGeneratorHelper() {
     i::FLAG_ignition = true;
-    i::FLAG_ignition_fake_try_catch = true;
     i::FLAG_ignition_fallback_on_catch = false;
     i::FLAG_ignition_filter = StrDup(kFunctionName);
     i::FLAG_always_opt = false;
