@@ -1128,6 +1128,33 @@ Object* OptimizedFrame::StackSlotAt(int index) const {
 }
 
 
+int InterpretedFrame::LookupExceptionHandlerInTable(
+    int* stack_slots, HandlerTable::CatchPrediction* prediction) {
+  BytecodeArray* bytecode = function()->shared()->bytecode_array();
+  HandlerTable* table = HandlerTable::cast(bytecode->handler_table());
+  int pc_offset = GetBytecodeOffset() + 1;  // Point after current bytecode.
+  return table->LookupRange(pc_offset, stack_slots, prediction);
+}
+
+
+int InterpretedFrame::GetBytecodeOffset() const {
+  const int index = InterpreterFrameConstants::kBytecodeOffsetExpressionIndex;
+  DCHECK_EQ(InterpreterFrameConstants::kBytecodeOffsetFromFp,
+            StandardFrameConstants::kExpressionsOffset - index * kPointerSize);
+  int raw_offset = Smi::cast(GetExpression(index))->value();
+  return raw_offset - BytecodeArray::kHeaderSize + kHeapObjectTag;
+}
+
+
+void InterpretedFrame::PatchBytecodeOffset(int new_offset) {
+  const int index = InterpreterFrameConstants::kBytecodeOffsetExpressionIndex;
+  DCHECK_EQ(InterpreterFrameConstants::kBytecodeOffsetFromFp,
+            StandardFrameConstants::kExpressionsOffset - index * kPointerSize);
+  int raw_offset = new_offset + BytecodeArray::kHeaderSize - kHeapObjectTag;
+  SetExpression(index, Smi::FromInt(raw_offset));
+}
+
+
 int ArgumentsAdaptorFrame::GetNumberOfIncomingArguments() const {
   return Smi::cast(GetExpression(0))->value();
 }

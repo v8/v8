@@ -2021,15 +2021,25 @@ TEST(InterpreterLogicalAnd) {
 
 TEST(InterpreterTryCatch) {
   HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
 
-  // TODO(rmcilroy): modify tests when we have real try catch support.
-  std::string source(InterpreterTester::SourceForBody(
-      "var a = 1; try { a = a + 1; } catch(e) { a = a + 2; }; return a;"));
-  InterpreterTester tester(handles.main_isolate(), source.c_str());
-  auto callable = tester.GetCallable<>();
+  std::pair<const char*, Handle<Object>> catches[] = {
+      std::make_pair("var a = 1; try { a = 2 } catch(e) { a = 3 }; return a;",
+                     handle(Smi::FromInt(2), isolate)),
+      std::make_pair("var a; try { undef.x } catch(e) { a = 2 }; return a;",
+                     handle(Smi::FromInt(2), isolate)),
+      std::make_pair("var a; try { throw 1 } catch(e) { a = e + 2 }; return a;",
+                     handle(Smi::FromInt(3), isolate)),
+  };
 
-  Handle<Object> return_val = callable().ToHandleChecked();
-  CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(2));
+  for (size_t i = 0; i < arraysize(catches); i++) {
+    std::string source(InterpreterTester::SourceForBody(catches[i].first));
+    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*catches[i].second));
+  }
 }
 
 
@@ -2052,7 +2062,6 @@ TEST(InterpreterThrow) {
   i::Isolate* isolate = handles.main_isolate();
   i::Factory* factory = isolate->factory();
 
-  // TODO(rmcilroy): modify tests when we have real try catch support.
   std::pair<const char*, Handle<Object>> throws[] = {
       std::make_pair("throw undefined;\n",
                      factory->undefined_value()),

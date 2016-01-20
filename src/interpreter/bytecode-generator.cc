@@ -917,20 +917,10 @@ void BytecodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
   // TODO(mstarzinger): Implement this!
 
   // Create a catch scope that binds the exception.
-  register_allocator()->PrepareForConsecutiveAllocations(3);
-  Register name = register_allocator()->NextConsecutiveRegister();
-  Register exception = register_allocator()->NextConsecutiveRegister();
-  Register closure = register_allocator()->NextConsecutiveRegister();
-  builder()
-      ->StoreAccumulatorInRegister(exception)
-      .LoadLiteral(stmt->variable()->name())
-      .StoreAccumulatorInRegister(name);
-  VisitFunctionClosureForContext();
-  builder()->StoreAccumulatorInRegister(closure).CallRuntime(
-      Runtime::kPushCatchContext, name, 3);
+  VisitNewLocalCatchContext(stmt->variable());
 
   // Evaluate the catch-block.
-  Visit(stmt->catch_block());
+  VisitInScope(stmt->catch_block(), stmt->scope());
   try_control_builder.EndCatch();
 }
 
@@ -2128,6 +2118,27 @@ void BytecodeGenerator::VisitNewLocalBlockContext(Scope* scope) {
 }
 
 
+void BytecodeGenerator::VisitNewLocalCatchContext(Variable* variable) {
+  AccumulatorResultScope accumulator_execution_result(this);
+  DCHECK(variable->IsContextSlot());
+
+  // Allocate a new local block context.
+  register_allocator()->PrepareForConsecutiveAllocations(3);
+  Register name = register_allocator()->NextConsecutiveRegister();
+  Register exception = register_allocator()->NextConsecutiveRegister();
+  Register closure = register_allocator()->NextConsecutiveRegister();
+
+  builder()
+      ->StoreAccumulatorInRegister(exception)
+      .LoadLiteral(variable->name())
+      .StoreAccumulatorInRegister(name);
+  VisitFunctionClosureForContext();
+  builder()->StoreAccumulatorInRegister(closure).CallRuntime(
+      Runtime::kPushCatchContext, name, 3);
+  execution_result()->SetResultInAccumulator();
+}
+
+
 void BytecodeGenerator::VisitObjectLiteralAccessor(
     Register home_object, ObjectLiteralProperty* property, Register value_out) {
   // TODO(rmcilroy): Replace value_out with VisitForRegister();
@@ -2229,6 +2240,13 @@ Register BytecodeGenerator::VisitForRegisterValue(Expression* expr) {
   RegisterResultScope register_scope(this);
   Visit(expr);
   return register_scope.ResultRegister();
+}
+
+
+void BytecodeGenerator::VisitInScope(Statement* stmt, Scope* scope) {
+  ContextScope context_scope(this, scope);
+  DCHECK(scope->declarations()->is_empty());
+  Visit(stmt);
 }
 
 

@@ -183,8 +183,13 @@ class InterpreterFrameConstants : public AllStatic {
       StandardFrameConstants::kFixedFrameSizeFromFp + 2 * kPointerSize;
 
   // FP-relative.
+  static const int kBytecodeOffsetFromFp =
+      -StandardFrameConstants::kFixedFrameSizeFromFp - 2 * kPointerSize;
   static const int kRegisterFilePointerFromFp =
       -StandardFrameConstants::kFixedFrameSizeFromFp - 3 * kPointerSize;
+
+  // Expression index for {StandardFrame::GetExpressionAddress}.
+  static const int kBytecodeOffsetExpressionIndex = 1;
 
   // Register file pointer relative.
   static const int kLastParamFromRegisterPointer =
@@ -249,6 +254,7 @@ class StackFrame BASE_EMBEDDED {
   bool is_entry_construct() const { return type() == ENTRY_CONSTRUCT; }
   bool is_exit() const { return type() == EXIT; }
   bool is_optimized() const { return type() == OPTIMIZED; }
+  bool is_interpreted() const { return type() == INTERPRETED; }
   bool is_arguments_adaptor() const { return type() == ARGUMENTS_ADAPTOR; }
   bool is_internal() const { return type() == INTERNAL; }
   bool is_stub_failure_trampoline() const {
@@ -711,7 +717,20 @@ class OptimizedFrame : public JavaScriptFrame {
 
 
 class InterpretedFrame : public JavaScriptFrame {
+ public:
   Type type() const override { return INTERPRETED; }
+
+  // Lookup exception handler for current {pc}, returns -1 if none found. Also
+  // returns the expected number of stack slots at the handler site.
+  int LookupExceptionHandlerInTable(
+      int* stack_slots, HandlerTable::CatchPrediction* prediction) override;
+
+  // Returns the current offset into the bytecode stream.
+  int GetBytecodeOffset() const;
+
+  // Updates the current offset into the bytecode stream, mainly used for stack
+  // unwinding to continue execution at a different bytecode offset.
+  void PatchBytecodeOffset(int new_offset);
 
  protected:
   inline explicit InterpretedFrame(StackFrameIteratorBase* iterator);

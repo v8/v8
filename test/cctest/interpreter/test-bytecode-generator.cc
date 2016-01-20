@@ -4167,12 +4167,13 @@ TEST(TryCatch) {
   BytecodeGeneratorHelper helper;
 
   int closure = Register::function_closure().index();
+  int context = Register::function_context().index();
 
   ExpectedSnippet<const char*> snippets[] = {
       {"try { return 1; } catch(e) { return 2; }",
        5 * kPointerSize,
        1,
-       23,
+       25,
        {
            B(LdaSmi8), U8(1),                                             //
            B(Return),                                                     //
@@ -4182,6 +4183,7 @@ TEST(TryCatch) {
            B(Ldar), R(closure),                                           //
            B(Star), R(4),                                                 //
            B(CallRuntime), U16(Runtime::kPushCatchContext), R(2), U8(3),  //
+           B(PushContext), R(0),                                          //
            B(LdaSmi8), U8(2),                                             //
            B(Return),                                                     //
            // TODO(mstarzinger): Potential optimization, elide next bytes.
@@ -4195,35 +4197,39 @@ TEST(TryCatch) {
       {"var a; try { a = 1 } catch(e1) {}; try { a = 2 } catch(e2) { a = 3 }",
        6 * kPointerSize,
        1,
-       48,
+       56,
        {
            B(LdaSmi8), U8(1),                                             //
            B(Star), R(0),                                                 //
-           B(Jump), U8(17),                                               //
+           B(Jump), U8(21),                                               //
            B(Star), R(4),                                                 //
            B(LdaConstant), U8(0),                                         //
            B(Star), R(3),                                                 //
            B(Ldar), R(closure),                                           //
            B(Star), R(5),                                                 //
            B(CallRuntime), U16(Runtime::kPushCatchContext), R(3), U8(3),  //
+           B(PushContext), R(1),                                          //
+           B(PopContext), R(context),                                     //
            B(LdaSmi8), U8(2),                                             //
            B(Star), R(0),                                                 //
-           B(Jump), U8(21),                                               //
+           B(Jump), U8(25),                                               //
            B(Star), R(4),                                                 //
            B(LdaConstant), U8(1),                                         //
            B(Star), R(3),                                                 //
            B(Ldar), R(closure),                                           //
            B(Star), R(5),                                                 //
            B(CallRuntime), U16(Runtime::kPushCatchContext), R(3), U8(3),  //
+           B(PushContext), R(1),                                          //
            B(LdaSmi8), U8(3),                                             //
            B(Star), R(0),                                                 //
+           B(PopContext), R(context),                                     //
            B(LdaUndefined),                                               //
            B(Return),                                                     //
        },
        2,
        {"e1", "e2"},
        2,
-       {{0, 4, 6}, {21, 25, 27}}},
+       {{0, 4, 6}, {25, 29, 31}}},
   };
 
   for (size_t i = 0; i < arraysize(snippets); i++) {
@@ -4239,6 +4245,7 @@ TEST(TryFinally) {
   BytecodeGeneratorHelper helper;
 
   int closure = Register::function_closure().index();
+  int context = Register::function_context().index();
 
   ExpectedSnippet<const char*> snippets[] = {
       {"var a = 1; try { a = 2; } finally { a = 3; }",
@@ -4262,21 +4269,23 @@ TEST(TryFinally) {
       {"var a = 1; try { a = 2; } catch(e) { a = 20 } finally { a = 3; }",
        7 * kPointerSize,
        1,
-       35,
+       39,
        {
            B(LdaSmi8), U8(1),                                             //
            B(Star), R(0),                                                 //
            B(LdaSmi8), U8(2),                                             //
            B(Star), R(0),                                                 //
-           B(Jump), U8(21),                                               //
+           B(Jump), U8(25),                                               //
            B(Star), R(5),                                                 //
            B(LdaConstant), U8(0),                                         //
            B(Star), R(4),                                                 //
            B(Ldar), R(closure),                                           //
            B(Star), R(6),                                                 //
            B(CallRuntime), U16(Runtime::kPushCatchContext), R(4), U8(3),  //
+           B(PushContext), R(1),                                          //
            B(LdaSmi8), U8(20),                                            //
            B(Star), R(0),                                                 //
+           B(PopContext), R(context),                                     //
            B(LdaSmi8), U8(3),                                             //
            B(Star), R(0),                                                 //
            B(LdaUndefined),                                               //
@@ -4285,34 +4294,38 @@ TEST(TryFinally) {
        1,
        {"e"},
        2,
-       {{4, 29, 29}, {4, 8, 10}}},
+       {{4, 33, 33}, {4, 8, 10}}},
       {"var a; try {"
        "  try { a = 1 } catch(e) { a = 2 }"
        "} catch(e) { a = 20 } finally { a = 3; }",
        8 * kPointerSize,
        1,
-       52,
+       60,
        {
            B(LdaSmi8), U8(1),                                             //
            B(Star), R(0),                                                 //
-           B(Jump), U8(21),                                               //
+           B(Jump), U8(25),                                               //
            B(Star), R(6),                                                 //
            B(LdaConstant), U8(0),                                         //
            B(Star), R(5),                                                 //
            B(Ldar), R(closure),                                           //
            B(Star), R(7),                                                 //
            B(CallRuntime), U16(Runtime::kPushCatchContext), R(5), U8(3),  //
+           B(PushContext), R(1),                                          //
            B(LdaSmi8), U8(2),                                             //
            B(Star), R(0),                                                 //
-           B(Jump), U8(21),                                               //
+           B(PopContext), R(context),                                     //
+           B(Jump), U8(25),                                               //
            B(Star), R(5),                                                 //
            B(LdaConstant), U8(0),                                         //
            B(Star), R(4),                                                 //
            B(Ldar), R(closure),                                           //
            B(Star), R(6),                                                 //
            B(CallRuntime), U16(Runtime::kPushCatchContext), R(4), U8(3),  //
+           B(PushContext), R(1),                                          //
            B(LdaSmi8), U8(20),                                            //
            B(Star), R(0),                                                 //
+           B(PopContext), R(context),                                     //
            B(LdaSmi8), U8(3),                                             //
            B(Star), R(0),                                                 //
            B(LdaUndefined),                                               //
@@ -4321,7 +4334,7 @@ TEST(TryFinally) {
        1,
        {"e"},
        3,
-       {{0, 46, 46}, {0, 25, 27}, {0, 4, 6}}},
+       {{0, 54, 54}, {0, 29, 31}, {0, 4, 6}}},
   };
 
   for (size_t i = 0; i < arraysize(snippets); i++) {

@@ -624,6 +624,7 @@
   'built-ins/String/prototype/concat/S15.5.4.6_A2': [SKIP],
   'built-ins/String/prototype/endsWith/this-is-undefined-throws': [SKIP],
   'built-ins/String/prototype/includes/this-is-undefined-throws': [SKIP],
+  'built-ins/String/prototype/match/invoke-builtin-match': [SKIP],
   'built-ins/String/prototype/repeat/this-is-undefined-throws': [SKIP],
   'built-ins/String/prototype/startsWith/this-is-undefined-throws': [SKIP],
   'built-ins/String/prototype/trim/15.5.4.20-1-1': [SKIP],
