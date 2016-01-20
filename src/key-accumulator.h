@@ -5,6 +5,8 @@
 #ifndef V8_KEY_ACCUMULATOR_H_
 #define V8_KEY_ACCUMULATOR_H_
 
+#include <set>
+
 #include "src/isolate.h"
 #include "src/objects.h"
 
@@ -45,6 +47,10 @@ class KeyAccumulator final BASE_EMBEDDED {
   void AddKeysFromProxy(Handle<JSObject> array);
   Maybe<bool> AddKeysFromProxy(Handle<JSProxy> proxy, Handle<FixedArray> keys);
   void AddElementKeysFromInterceptor(Handle<JSObject> array);
+  void HideKey(uint32_t key);
+  void HideKey(Object* key);
+  void HideKey(Handle<Object> key);
+  void Prepare();
   // Jump to the next level, pushing the current |levelLength_| to
   // |levelLengths_| and adding a new list to |elements_|.
   void NextPrototype();
@@ -59,6 +65,8 @@ class KeyAccumulator final BASE_EMBEDDED {
   bool AddStringKey(Handle<Object> key, AddKeyConversion convert);
   bool AddSymbolKey(Handle<Object> array);
   void SortCurrentElementsListRemoveDuplicates();
+  bool IsKeyHidden(Handle<Object> key);
+  bool IsKeyHidden(uint32_t key);
 
   Isolate* isolate_;
   PropertyFilter filter_;
@@ -73,6 +81,11 @@ class KeyAccumulator final BASE_EMBEDDED {
   // |symbol_properties_| contains the unique Symbol property keys for all
   // levels in insertion order per level.
   Handle<OrderedHashSet> symbol_properties_;
+  // |hidden_keys_| keeps track of the non-enumerable property keys to prevent
+  // them from being added to the accumulator if they reappear higher up in the
+  // prototype-chain.
+  Handle<OrderedHashSet> hidden_keys_;
+  std::set<uint32_t> hidden_element_keys_;
   // |length_| keeps track of the total number of all element and property keys.
   int length_ = 0;
   // |levelLength_| keeps track of the number of String keys in the current

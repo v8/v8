@@ -2284,9 +2284,6 @@ class JSObject: public JSReceiver {
   inline void SetInternalField(int index, Object* value);
   inline void SetInternalField(int index, Smi* value);
 
-  void CollectOwnPropertyNames(KeyAccumulator* keys,
-                               PropertyFilter filter = ALL_PROPERTIES);
-
   // Returns the number of properties on this object filtering out properties
   // with the specified attributes (ignoring interceptors).
   // TODO(jkummerow): Deprecated, only used by Object.observe.
@@ -2296,12 +2293,15 @@ class JSObject: public JSReceiver {
   // TODO(jkummerow): Deprecated, only used by Object.observe.
   int GetOwnElementKeys(FixedArray* storage, PropertyFilter filter);
 
+  void CollectOwnPropertyKeys(
+      KeyAccumulator* keys, PropertyFilter filter = ALL_PROPERTIES,
+      JSReceiver::KeyCollectionType type = JSReceiver::OWN_ONLY);
+
   static void CollectOwnElementKeys(Handle<JSObject> object,
                                     KeyAccumulator* keys,
                                     PropertyFilter filter);
-
-  static Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
-                                                bool cache_result);
+  static Handle<FixedArray> GetOwnEnumPropertyKeys(Handle<JSObject> object,
+                                                   bool cache_result);
 
   // Returns a new map with all transitions dropped from the object's current
   // map and the ElementsKind set.
@@ -2554,6 +2554,9 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT static Maybe<bool> SetPrototypeUnobserved(
       Handle<JSObject> object, Handle<Object> value, bool from_javascript,
       ShouldThrow should_throw);
+
+  void CollectFastPropertyKeysTo(KeyAccumulator* keys, PropertyFilter filter,
+                                 JSReceiver::KeyCollectionType type);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSObject);
 };
