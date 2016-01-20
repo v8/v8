@@ -176,6 +176,7 @@ class WasmGraphBuilder {
   Node* BuildI32Popcnt(Node* input);
   Node* BuildI64Ctz(Node* input);
   Node* BuildI64Popcnt(Node* input);
+  Node* BuildF32Trunc(Node* input);
 
   Node** Realloc(Node** buffer, size_t count) {
     Node** buf = Buffer(count);

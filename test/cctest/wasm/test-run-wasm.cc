@@ -2933,6 +2933,14 @@ TEST(Run_Wasm_MultipleCallIndirect) {
 }
 
 
+TEST(Run_Wasm_F32Trunc) {
+  WasmRunner<float> r(MachineType::Float32());
+  BUILD(r, WASM_F32_TRUNC(WASM_GET_LOCAL(0)));
+
+  FOR_FLOAT32_INPUTS(i) { CheckFloatEq(trunc(*i), r.Call(*i)); }
+}
+
+
 // TODO(titzer): Fix for nosee4 and re-enable.
 #if 0
 
@@ -2949,14 +2957,6 @@ TEST(Run_Wasm_F32Ceil) {
   BUILD(r, WASM_F32_CEIL(WASM_GET_LOCAL(0)));
 
   FOR_FLOAT32_INPUTS(i) { CheckFloatEq(ceil(*i), r.Call(*i)); }
-}
-
-
-TEST(Run_Wasm_F32Trunc) {
-  WasmRunner<float> r(MachineType::Float32());
-  BUILD(r, WASM_F32_TRUNC(WASM_GET_LOCAL(0)));
-
-  FOR_FLOAT32_INPUTS(i) { CheckFloatEq(trunc(*i), r.Call(*i)); }
 }
 
 
