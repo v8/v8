@@ -872,6 +872,8 @@
         '../../src/interpreter/constant-array-builder.h',
         '../../src/interpreter/control-flow-builders.cc',
         '../../src/interpreter/control-flow-builders.h',
+        '../../src/interpreter/handler-table-builder.cc',
+        '../../src/interpreter/handler-table-builder.h',
         '../../src/interpreter/interpreter.cc',
         '../../src/interpreter/interpreter.h',
         '../../src/isolate-inl.h',

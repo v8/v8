@@ -899,21 +899,65 @@ void BytecodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
 
 
 void BytecodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
-  if (FLAG_ignition_fake_try_catch) {
-    Visit(stmt->try_block());
-    return;
-  }
-  UNIMPLEMENTED();
+  TryCatchBuilder try_control_builder(builder());
+  if (!FLAG_ignition_fake_try_catch) UNIMPLEMENTED();
+
+  // Preserve the context in a dedicated register, so that it can be restored
+  // when the handler is entered by the stack-unwinding machinery.
+  // TODO(mstarzinger): Be smarter about register allocation.
+  Register context = register_allocator()->NewRegister();
+
+  // Evaluate the try-block inside a control scope. This simulates a handler
+  // that is intercepting 'throw' control commands.
+  try_control_builder.BeginTry(context);
+  // TODO(mstarzinger): Control scope is missing!
+  Visit(stmt->try_block());
+  try_control_builder.EndTry();
+
+  // Clear message object as we enter the catch block.
+  // TODO(mstarzinger): Implement this!
+
+  // Create a catch scope that binds the exception.
+  register_allocator()->PrepareForConsecutiveAllocations(3);
+  Register name = register_allocator()->NextConsecutiveRegister();
+  Register exception = register_allocator()->NextConsecutiveRegister();
+  Register closure = register_allocator()->NextConsecutiveRegister();
+  builder()
+      ->StoreAccumulatorInRegister(exception)
+      .LoadLiteral(stmt->variable()->name())
+      .StoreAccumulatorInRegister(name);
+  VisitFunctionClosureForContext();
+  builder()->StoreAccumulatorInRegister(closure).CallRuntime(
+      Runtime::kPushCatchContext, name, 3);
+
+  // Evaluate the catch-block.
+  Visit(stmt->catch_block());
+  try_control_builder.EndCatch();
 }
 
 
 void BytecodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
-  if (FLAG_ignition_fake_try_catch) {
-    Visit(stmt->try_block());
-    Visit(stmt->finally_block());
-    return;
-  }
-  UNIMPLEMENTED();
+  TryFinallyBuilder try_control_builder(builder());
+  if (!FLAG_ignition_fake_try_catch) UNIMPLEMENTED();
+
+  // Preserve the context in a dedicated register, so that it can be restored
+  // when the handler is entered by the stack-unwinding machinery.
+  // TODO(mstarzinger): Be smarter about register allocation.
+  Register context = register_allocator()->NewRegister();
+
+  // Evaluate the try-block inside a control scope. This simulates a handler
+  // that is intercepting all control commands.
+  try_control_builder.BeginTry(context);
+  // TODO(mstarzinger): Control scope is missing!
+  Visit(stmt->try_block());
+  try_control_builder.EndTry();
+
+  // Clear message object as we enter the finally block.
+  // TODO(mstarzinger): Implement this!
+
+  // Evaluate the finally-block.
+  Visit(stmt->finally_block());
+  try_control_builder.EndFinally();
 }
 
 

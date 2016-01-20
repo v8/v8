@@ -70,6 +70,7 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(Isolate* isolate, Zone* zone)
       bytecodes_(zone),
       bytecode_generated_(false),
       constant_array_builder_(isolate, zone),
+      handler_table_builder_(isolate, zone),
       last_block_end_(0),
       last_bytecode_start_(~0),
       exit_seen_in_block_(false),
@@ -152,9 +153,11 @@ Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray() {
   Factory* factory = isolate_->factory();
   Handle<FixedArray> constant_pool =
       constant_array_builder()->ToFixedArray(factory);
+  Handle<FixedArray> handler_table = handler_table_builder()->ToHandlerTable();
   Handle<BytecodeArray> output =
       factory->NewBytecodeArray(bytecode_size, &bytecodes_.front(), frame_size,
                                 parameter_count(), constant_pool);
+  output->set_handler_table(*handler_table);
   bytecode_generated_ = true;
   return output;
 }
@@ -1006,6 +1009,28 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::ForInNext(
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::ForInStep(Register index) {
   Output(Bytecode::kForInStep, index.ToRawOperand());
+  return *this;
+}
+
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::MarkHandler(int handler_id,
+                                                        bool will_catch) {
+  handler_table_builder()->SetHandlerTarget(handler_id, bytecodes()->size());
+  handler_table_builder()->SetPrediction(handler_id, will_catch);
+  return *this;
+}
+
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::MarkTryBegin(int handler_id,
+                                                         Register context) {
+  handler_table_builder()->SetTryRegionStart(handler_id, bytecodes()->size());
+  handler_table_builder()->SetContextRegister(handler_id, context);
+  return *this;
+}
+
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::MarkTryEnd(int handler_id) {
+  handler_table_builder()->SetTryRegionEnd(handler_id, bytecodes()->size());
   return *this;
 }
 

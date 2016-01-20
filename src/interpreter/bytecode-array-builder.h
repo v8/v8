@@ -8,6 +8,7 @@
 #include "src/ast/ast.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/constant-array-builder.h"
+#include "src/interpreter/handler-table-builder.h"
 #include "src/zone-containers.h"
 
 namespace v8 {
@@ -225,6 +226,15 @@ class BytecodeArrayBuilder final {
                                   Register cache_type_array_pair);
   BytecodeArrayBuilder& ForInStep(Register index);
 
+  // Exception handling.
+  BytecodeArrayBuilder& MarkHandler(int handler_id, bool will_catch);
+  BytecodeArrayBuilder& MarkTryBegin(int handler_id, Register context);
+  BytecodeArrayBuilder& MarkTryEnd(int handler_id);
+
+  // Creates a new handler table entry and returns a {hander_id} identifying the
+  // entry, so that it can be referenced by above exception handling support.
+  int NewHandlerEntry() { return handler_table_builder()->NewHandlerEntry(); }
+
   // Accessors
   Zone* zone() const { return zone_; }
 
@@ -315,12 +325,16 @@ class BytecodeArrayBuilder final {
   const ConstantArrayBuilder* constant_array_builder() const {
     return &constant_array_builder_;
   }
+  HandlerTableBuilder* handler_table_builder() {
+    return &handler_table_builder_;
+  }
 
   Isolate* isolate_;
   Zone* zone_;
   ZoneVector<uint8_t> bytecodes_;
   bool bytecode_generated_;
   ConstantArrayBuilder constant_array_builder_;
+  HandlerTableBuilder handler_table_builder_;
   size_t last_block_end_;
   size_t last_bytecode_start_;
   bool exit_seen_in_block_;

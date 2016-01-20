@@ -15012,8 +15012,17 @@ void BytecodeArray::Disassemble(std::ostream& os) {
     os << "\n";
   }
 
-  os << "Constant pool (size = " << constant_pool()->length() << ")\n";
-  constant_pool()->Print();
+  if (constant_pool()->length() > 0) {
+    os << "Constant pool (size = " << constant_pool()->length() << ")\n";
+    constant_pool()->Print();
+  }
+
+#ifdef ENABLE_DISASSEMBLER
+  if (handler_table()->length() > 0) {
+    os << "Handler Table (size = " << handler_table()->Size() << ")\n";
+    HandlerTable::cast(handler_table())->HandlerTableRangePrint(os);
+  }
+#endif
 }
 
 

@@ -137,6 +137,39 @@ void SwitchBuilder::SetCaseTarget(int index) {
   builder()->Bind(&site);
 }
 
+
+void TryCatchBuilder::BeginTry(Register context) {
+  builder()->MarkTryBegin(handler_id_, context);
+}
+
+
+void TryCatchBuilder::EndTry() {
+  builder()->MarkTryEnd(handler_id_);
+  builder()->Jump(&exit_);
+  builder()->Bind(&handler_);
+  builder()->MarkHandler(handler_id_, true);
+}
+
+
+void TryCatchBuilder::EndCatch() { builder()->Bind(&exit_); }
+
+
+void TryFinallyBuilder::BeginTry(Register context) {
+  builder()->MarkTryBegin(handler_id_, context);
+}
+
+
+void TryFinallyBuilder::EndTry() {
+  builder()->MarkTryEnd(handler_id_);
+  builder()->Bind(&handler_);
+  builder()->MarkHandler(handler_id_, false);
+}
+
+
+void TryFinallyBuilder::EndFinally() {
+  // Nothing to be done here.
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

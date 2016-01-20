@@ -161,6 +161,12 @@ struct ExpectedSnippet {
   const uint8_t bytecode[2048];
   int constant_count;
   T constants[C];
+  int handler_count;
+  struct {
+    int start;
+    int end;
+    int handler;
+  } handlers[C];
 };
 
 
@@ -203,6 +209,24 @@ static void CheckBytecodeArrayEqual(const ExpectedSnippet<T, C>& expected,
     CHECK_EQ(expected.constant_count, actual->constant_pool()->length());
     for (int i = 0; i < expected.constant_count; i++) {
       CheckConstant(expected.constants[i], actual->constant_pool()->get(i));
+    }
+  }
+  if (expected.handler_count == 0) {
+    CHECK_EQ(CcTest::heap()->empty_fixed_array(), actual->handler_table());
+  } else {
+    static const int kHTSize = 4;     // see HandlerTable::kRangeEntrySize
+    static const int kHTStart = 0;    // see HandlerTable::kRangeStartIndex
+    static const int kHTEnd = 1;      // see HandlerTable::kRangeEndIndex
+    static const int kHTHandler = 2;  // see HandlerTable::kRangeHandlerIndex
+    HandlerTable* table = HandlerTable::cast(actual->handler_table());
+    CHECK_EQ(expected.handler_count * kHTSize, table->length());
+    for (int i = 0; i < expected.handler_count; i++) {
+      int start = Smi::cast(table->get(i * kHTSize + kHTStart))->value();
+      int end = Smi::cast(table->get(i * kHTSize + kHTEnd))->value();
+      int handler = Smi::cast(table->get(i * kHTSize + kHTHandler))->value();
+      CHECK_EQ(expected.handlers[i].start, start);
+      CHECK_EQ(expected.handlers[i].end, end);
+      CHECK_EQ(expected.handlers[i].handler, handler >> 1);
     }
   }
 
@@ -4143,17 +4167,64 @@ TEST(TryCatch) {
   InitializedHandleScope handle_scope;
   BytecodeGeneratorHelper helper;
 
-  // TODO(rmcilroy): modify tests when we have real try catch support.
-  ExpectedSnippet<int> snippets[] = {
+  int closure = Register::function_closure().index();
+
+  ExpectedSnippet<const char*> snippets[] = {
       {"try { return 1; } catch(e) { return 2; }",
-       kPointerSize,
+       5 * kPointerSize,
        1,
-       3,
+       23,
        {
-           B(LdaSmi8), U8(1),  //
-           B(Return),          //
+           B(LdaSmi8), U8(1),                                             //
+           B(Return),                                                     //
+           B(Star), R(3),                                                 //
+           B(LdaConstant), U8(0),                                         //
+           B(Star), R(2),                                                 //
+           B(Ldar), R(closure),                                           //
+           B(Star), R(4),                                                 //
+           B(CallRuntime), U16(Runtime::kPushCatchContext), R(2), U8(3),  //
+           B(LdaSmi8), U8(2),                                             //
+           B(Return),                                                     //
+           // TODO(mstarzinger): Potential optimization, elide next bytes.
+           B(LdaUndefined),  //
+           B(Return),        //
        },
-       0},
+       1,
+       {"e"},
+       1,
+       {{0, 3, 3}}},
+      {"var a; try { a = 1 } catch(e1) {}; try { a = 2 } catch(e2) { a = 3 }",
+       6 * kPointerSize,
+       1,
+       48,
+       {
+           B(LdaSmi8), U8(1),                                             //
+           B(Star), R(0),                                                 //
+           B(Jump), U8(17),                                               //
+           B(Star), R(4),                                                 //
+           B(LdaConstant), U8(0),                                         //
+           B(Star), R(3),                                                 //
+           B(Ldar), R(closure),                                           //
+           B(Star), R(5),                                                 //
+           B(CallRuntime), U16(Runtime::kPushCatchContext), R(3), U8(3),  //
+           B(LdaSmi8), U8(2),                                             //
+           B(Star), R(0),                                                 //
+           B(Jump), U8(21),                                               //
+           B(Star), R(4),                                                 //
+           B(LdaConstant), U8(1),                                         //
+           B(Star), R(3),                                                 //
+           B(Ldar), R(closure),                                           //
+           B(Star), R(5),                                                 //
+           B(CallRuntime), U16(Runtime::kPushCatchContext), R(3), U8(3),  //
+           B(LdaSmi8), U8(3),                                             //
+           B(Star), R(0),                                                 //
+           B(LdaUndefined),                                               //
+           B(Return),                                                     //
+       },
+       2,
+       {"e1", "e2"},
+       2,
+       {{0, 4, 6}, {21, 25, 27}}},
   };
 
   for (size_t i = 0; i < arraysize(snippets); i++) {
@@ -4168,24 +4239,10 @@ TEST(TryFinally) {
   InitializedHandleScope handle_scope;
   BytecodeGeneratorHelper helper;
 
-  // TODO(rmcilroy): modify tests when we have real try finally support.
-  ExpectedSnippet<int> snippets[] = {
+  int closure = Register::function_closure().index();
+
+  ExpectedSnippet<const char*> snippets[] = {
       {"var a = 1; try { a = 2; } finally { a = 3; }",
-       kPointerSize,
-       1,
-       14,
-       {
-           B(LdaSmi8), U8(1),  //
-           B(Star), R(0),      //
-           B(LdaSmi8), U8(2),  //
-           B(Star), R(0),      //
-           B(LdaSmi8), U8(3),  //
-           B(Star), R(0),      //
-           B(LdaUndefined),    //
-           B(Return),          //
-       },
-       0},
-      {"var a = 1; try { a = 2; } catch(e) { a = 20 } finally { a = 3; }",
        2 * kPointerSize,
        1,
        14,
@@ -4199,7 +4256,73 @@ TEST(TryFinally) {
            B(LdaUndefined),    //
            B(Return),          //
        },
-       0},
+       0,
+       {},
+       1,
+       {{4, 8, 8}}},
+      {"var a = 1; try { a = 2; } catch(e) { a = 20 } finally { a = 3; }",
+       7 * kPointerSize,
+       1,
+       35,
+       {
+           B(LdaSmi8), U8(1),                                             //
+           B(Star), R(0),                                                 //
+           B(LdaSmi8), U8(2),                                             //
+           B(Star), R(0),                                                 //
+           B(Jump), U8(21),                                               //
+           B(Star), R(5),                                                 //
+           B(LdaConstant), U8(0),                                         //
+           B(Star), R(4),                                                 //
+           B(Ldar), R(closure),                                           //
+           B(Star), R(6),                                                 //
+           B(CallRuntime), U16(Runtime::kPushCatchContext), R(4), U8(3),  //
+           B(LdaSmi8), U8(20),                                            //
+           B(Star), R(0),                                                 //
+           B(LdaSmi8), U8(3),                                             //
+           B(Star), R(0),                                                 //
+           B(LdaUndefined),                                               //
+           B(Return),                                                     //
+       },
+       1,
+       {"e"},
+       2,
+       {{4, 29, 29}, {4, 8, 10}}},
+      {"var a; try {"
+       "  try { a = 1 } catch(e) { a = 2 }"
+       "} catch(e) { a = 20 } finally { a = 3; }",
+       8 * kPointerSize,
+       1,
+       52,
+       {
+           B(LdaSmi8), U8(1),                                             //
+           B(Star), R(0),                                                 //
+           B(Jump), U8(21),                                               //
+           B(Star), R(6),                                                 //
+           B(LdaConstant), U8(0),                                         //
+           B(Star), R(5),                                                 //
+           B(Ldar), R(closure),                                           //
+           B(Star), R(7),                                                 //
+           B(CallRuntime), U16(Runtime::kPushCatchContext), R(5), U8(3),  //
+           B(LdaSmi8), U8(2),                                             //
+           B(Star), R(0),                                                 //
+           B(Jump), U8(21),                                               //
+           B(Star), R(5),                                                 //
+           B(LdaConstant), U8(0),                                         //
+           B(Star), R(4),                                                 //
+           B(Ldar), R(closure),                                           //
+           B(Star), R(6),                                                 //
+           B(CallRuntime), U16(Runtime::kPushCatchContext), R(4), U8(3),  //
+           B(LdaSmi8), U8(20),                                            //
+           B(Star), R(0),                                                 //
+           B(LdaSmi8), U8(3),                                             //
+           B(Star), R(0),                                                 //
+           B(LdaUndefined),                                               //
+           B(Return),                                                     //
+       },
+       1,
+       {"e"},
+       3,
+       {{0, 46, 46}, {0, 25, 27}, {0, 4, 6}}},
   };
 
   for (size_t i = 0; i < arraysize(snippets); i++) {
@@ -4214,7 +4337,6 @@ TEST(Throw) {
   InitializedHandleScope handle_scope;
   BytecodeGeneratorHelper helper;
 
-  // TODO(rmcilroy): modify tests when we have real try catch support.
   ExpectedSnippet<const char*> snippets[] = {
       {"throw 1;",
        0,
