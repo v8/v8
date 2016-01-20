@@ -2559,6 +2559,52 @@ class JSObject: public JSReceiver {
 };
 
 
+// JSAccessorPropertyDescriptor is just a JSObject with a specific initial
+// map. This initial map adds in-object properties for "get", "set",
+// "enumerable" and "configurable" properties, as assigned by the
+// FromPropertyDescriptor function for regular accessor properties.
+class JSAccessorPropertyDescriptor: public JSObject {
+ public:
+  // Offsets of object fields.
+  static const int kGetOffset = JSObject::kHeaderSize;
+  static const int kSetOffset = kGetOffset + kPointerSize;
+  static const int kEnumerableOffset = kSetOffset + kPointerSize;
+  static const int kConfigurableOffset = kEnumerableOffset + kPointerSize;
+  static const int kSize = kConfigurableOffset + kPointerSize;
+  // Indices of in-object properties.
+  static const int kGetIndex = 0;
+  static const int kSetIndex = 1;
+  static const int kEnumerableIndex = 2;
+  static const int kConfigurableIndex = 3;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSAccessorPropertyDescriptor);
+};
+
+
+// JSDataPropertyDescriptor is just a JSObject with a specific initial map.
+// This initial map adds in-object properties for "value", "writable",
+// "enumerable" and "configurable" properties, as assigned by the
+// FromPropertyDescriptor function for regular data properties.
+class JSDataPropertyDescriptor: public JSObject {
+ public:
+  // Offsets of object fields.
+  static const int kValueOffset = JSObject::kHeaderSize;
+  static const int kWritableOffset = kValueOffset + kPointerSize;
+  static const int kEnumerableOffset = kWritableOffset + kPointerSize;
+  static const int kConfigurableOffset = kEnumerableOffset + kPointerSize;
+  static const int kSize = kConfigurableOffset + kPointerSize;
+  // Indices of in-object properties.
+  static const int kValueIndex = 0;
+  static const int kWritableIndex = 1;
+  static const int kEnumerableIndex = 2;
+  static const int kConfigurableIndex = 3;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSDataPropertyDescriptor);
+};
+
+
 // Common superclass for FixedArrays that allow implementations to share
 // common accessors and some code paths.
 class FixedArrayBase: public HeapObject {
