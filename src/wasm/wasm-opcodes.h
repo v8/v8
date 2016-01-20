@@ -66,6 +66,7 @@ struct MemoryAccess {
 };
 
 typedef Signature<LocalType> FunctionSig;
+std::ostream& operator<<(std::ostream& os, const FunctionSig& function);
 
 // Control expressions and blocks.
 #define FOREACH_CONTROL_OPCODE(V) \
@@ -398,7 +399,6 @@ class WasmOpcodes {
     }
   }
 
-  // TODO(titzer): remove this method
   static WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
     if (type == MachineType::Int8()) {
       return store ? kExprI32StoreMem8 : kExprI32LoadMem8S;

@@ -37,14 +37,13 @@ struct RawBuffer {
 
 RawBuffer GetRawBufferArgument(
     ErrorThrower& thrower, const v8::FunctionCallbackInfo<v8::Value>& args) {
+  // TODO(titzer): allow typed array views.
   if (args.Length() < 1 || !args[0]->IsArrayBuffer()) {
     thrower.Error("Argument 0 must be an array buffer");
     return {nullptr, nullptr};
   }
   Local<ArrayBuffer> buffer = Local<ArrayBuffer>::Cast(args[0]);
   ArrayBuffer::Contents contents = buffer->GetContents();
-
-  // TODO(titzer): allow offsets into buffers, views, etc.
 
   const byte* start = reinterpret_cast<const byte*>(contents.Data());
   const byte* end = start + contents.ByteLength();

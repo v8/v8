@@ -157,7 +157,7 @@ class ModuleDecoder : public Decoder {
                   static_cast<int>(pc_ - start_));
             module->data_segments->push_back({0, 0, 0});
             WasmDataSegment* segment = &module->data_segments->back();
-            DecodeDataSegmentInModule(segment);
+            DecodeDataSegmentInModule(module, segment);
           }
           break;
         }
@@ -345,14 +345,33 @@ class ModuleDecoder : public Decoder {
     }
   }
 
+  bool IsWithinLimit(uint32_t limit, uint32_t offset, uint32_t size) {
+    if (offset > limit) return false;
+    if ((offset + size) < offset) return false;  // overflow
+    return (offset + size) <= limit;
+  }
+
   // Decodes a single data segment entry inside a module starting at {pc_}.
-  void DecodeDataSegmentInModule(WasmDataSegment* segment) {
-    segment->dest_addr =
-        u32("destination");  // TODO(titzer): check it's within the memory size.
+  void DecodeDataSegmentInModule(WasmModule* module, WasmDataSegment* segment) {
+    segment->dest_addr = u32("destination");
     segment->source_offset = offset("source offset");
-    segment->source_size =
-        u32("source size");  // TODO(titzer): check the size is reasonable.
+    segment->source_size = u32("source size");
     segment->init = u8("init");
+
+    // Validate the data is in the module.
+    uint32_t module_limit = static_cast<uint32_t>(limit_ - start_);
+    if (!IsWithinLimit(module_limit, segment->source_offset,
+                       segment->source_size)) {
+      error(pc_ - sizeof(uint32_t), "segment out of bounds of module");
+    }
+
+    // Validate that the segment will fit into the (minimum) memory.
+    uint32_t memory_limit =
+        1 << (module ? module->min_mem_size_log2 : WasmModule::kMaxMemSize);
+    if (!IsWithinLimit(memory_limit, segment->dest_addr,
+                       segment->source_size)) {
+      error(pc_ - sizeof(uint32_t), "segment out of bounds of memory");
+    }
   }
 
   // Verifies the body (code) of a given function.

@@ -31,18 +31,8 @@ std::ostream& operator<<(std::ostream& os, const WasmModule& module) {
 
 
 std::ostream& operator<<(std::ostream& os, const WasmFunction& function) {
-  os << "WASM function with signature ";
+  os << "WASM function with signature " << *function.sig;
 
-  // TODO(titzer): factor out rendering of signatures.
-  if (function.sig->return_count() == 0) os << "v";
-  for (size_t i = 0; i < function.sig->return_count(); i++) {
-    os << WasmOpcodes::ShortNameOf(function.sig->GetReturn(i));
-  }
-  os << "_";
-  if (function.sig->parameter_count() == 0) os << "v";
-  for (size_t i = 0; i < function.sig->parameter_count(); i++) {
-    os << WasmOpcodes::ShortNameOf(function.sig->GetParam(i));
-  }
   os << " locals: ";
   if (function.local_int32_count)
     os << function.local_int32_count << " int32s ";

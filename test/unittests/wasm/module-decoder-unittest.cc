@@ -45,6 +45,15 @@ struct LocalTypePair {
                    {kLocalF64, kAstF64}};
 
 
+// TODO(titzer): use these macros everywhere below.
+#define U32_LE(v)                                    \
+  static_cast<byte>(v), static_cast<byte>((v) >> 8), \
+      static_cast<byte>((v) >> 16), static_cast<byte>((v) >> 24)
+
+
+#define U16_LE(v) static_cast<byte>(v), static_cast<byte>((v) >> 8)
+
+
 TEST_F(WasmModuleVerifyTest, DecodeEmpty) {
   static const byte data[1]{kDeclEnd};
   {
@@ -463,10 +472,13 @@ TEST_F(WasmModuleVerifyTest, OneFunctionWithNopBody_WithLocals) {
 
 
 TEST_F(WasmModuleVerifyTest, OneGlobalOneFunctionWithNopBodyOneDataSegment) {
-  static const byte kCodeStartOffset = 2 + kDeclGlobalSize + 4 + 2 + 17;
+  static const byte kDeclMemorySize = 4;
+  static const byte kCodeStartOffset =
+      2 + kDeclMemorySize + kDeclGlobalSize + 4 + 2 + 17;
   static const byte kCodeEndOffset = kCodeStartOffset + 3;
 
   static const byte data[] = {
+      kDeclMemory, 28, 28, 1,
       // global#0 --------------------------------------------------
       kDeclGlobals, 1, 0, 0, 0, 0,  // name offset
       kMemU8,                       // memory type
@@ -531,24 +543,17 @@ TEST_F(WasmModuleVerifyTest, OneGlobalOneFunctionWithNopBodyOneDataSegment) {
 
 TEST_F(WasmModuleVerifyTest, OneDataSegment) {
   const byte data[] = {
-      kDeclDataSegments,
-      1,
-      0xaa,
-      0xbb,
-      0x09,
+      kDeclMemory, 28, 28, 1, kDeclDataSegments, 1, 0xaa, 0xbb, 0x09,
       0,  // dest addr
-      11,
-      0,
-      0,
+      11,          0,  0,
       0,  // source offset
-      3,
-      0,
-      0,
+      3,           0,  0,
       0,  // source size
       1,  // init
   };
 
   {
+    EXPECT_VERIFIES(data);
     ModuleResult result = DecodeModule(data, data + arraysize(data));
     EXPECT_TRUE(result.ok());
     EXPECT_EQ(0, result.val->globals->size());
@@ -565,7 +570,7 @@ TEST_F(WasmModuleVerifyTest, OneDataSegment) {
     if (result.val) delete result.val;
   }
 
-  for (size_t size = 1; size < arraysize(data); size++) {
+  for (size_t size = 5; size < arraysize(data); size++) {
     // Should fall off end of module bytes.
     ModuleResult result = DecodeModule(data, data + size);
     EXPECT_FALSE(result.ok());
@@ -576,32 +581,18 @@ TEST_F(WasmModuleVerifyTest, OneDataSegment) {
 
 TEST_F(WasmModuleVerifyTest, TwoDataSegments) {
   const byte data[] = {
-      kDeclDataSegments,
-      2,
-      0xee,
-      0xff,
-      0x07,
+      kDeclMemory, 28,   28,   1, kDeclDataSegments, 2, 0xee, 0xff, 0x07,
       0,  // dest addr
-      9,
-      0,
-      0,
+      9,           0,    0,
       0,  // #0: source offset
-      4,
-      0,
-      0,
+      4,           0,    0,
       0,  // source size
       0,  // init
-      0xcc,
-      0xdd,
-      0x06,
+      0xcc,        0xdd, 0x06,
       0,  // #1: dest addr
-      6,
-      0,
-      0,
+      6,           0,    0,
       0,  // source offset
-      10,
-      0,
-      0,
+      10,          0,    0,
       0,  // source size
       1,  // init
   };
@@ -629,11 +620,76 @@ TEST_F(WasmModuleVerifyTest, TwoDataSegments) {
     if (result.val) delete result.val;
   }
 
-  for (size_t size = 1; size < arraysize(data); size++) {
+  for (size_t size = 5; size < arraysize(data); size++) {
     // Should fall off end of module bytes.
     ModuleResult result = DecodeModule(data, data + size);
     EXPECT_FALSE(result.ok());
     if (result.val) delete result.val;
+  }
+}
+
+
+TEST_F(WasmModuleVerifyTest, DataSegmentWithInvalidSource) {
+  const int dest_addr = 0x100;
+  const byte mem_size_log2 = 15;
+  const int kDataSize = 19;
+
+  for (int source_offset = 0; source_offset < 5 + kDataSize; source_offset++) {
+    for (int source_size = -1; source_size < 5 + kDataSize; source_size += 3) {
+      byte data[] = {
+          kDeclMemory,
+          mem_size_log2,
+          mem_size_log2,
+          1,
+          kDeclDataSegments,
+          1,
+          U32_LE(dest_addr),
+          U32_LE(source_offset),
+          U32_LE(source_size),
+          1,  // init
+      };
+
+      STATIC_ASSERT(kDataSize == arraysize(data));
+
+      if (source_offset < kDataSize && source_size >= 0 &&
+          (source_offset + source_size) <= kDataSize) {
+        EXPECT_VERIFIES(data);
+      } else {
+        EXPECT_FAILURE(data);
+      }
+    }
+  }
+}
+
+
+TEST_F(WasmModuleVerifyTest, DataSegmentWithInvalidDest) {
+  const int source_size = 3;
+  const int source_offset = 11;
+
+  for (byte mem_size_log2 = 12; mem_size_log2 < 20; mem_size_log2++) {
+    int mem_size = 1 << mem_size_log2;
+
+    for (int dest_addr = mem_size - source_size;
+         dest_addr < mem_size + source_size; dest_addr++) {
+      byte data[] = {
+          kDeclMemory,
+          mem_size_log2,
+          mem_size_log2,
+          1,
+          kDeclDataSegments,
+          1,
+          U32_LE(dest_addr),
+          U32_LE(source_offset),
+          U32_LE(source_size),
+          1,  // init
+      };
+
+      if (dest_addr <= (mem_size - source_size)) {
+        EXPECT_VERIFIES(data);
+      } else {
+        EXPECT_FAILURE(data);
+      }
+    }
   }
 }
 
