@@ -3676,7 +3676,15 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
             factory()->NewForEachStatement(mode, labels, stmt_pos);
         Target target(&this->target_stack_, loop);
 
-        Expression* enumerable = ParseExpression(true, CHECK_OK);
+        Expression* enumerable;
+        if (mode == ForEachStatement::ITERATE) {
+          ExpressionClassifier classifier;
+          enumerable = ParseAssignmentExpression(true, &classifier, CHECK_OK);
+          enumerable = ParserTraits::RewriteNonPattern(enumerable, &classifier,
+                                                       CHECK_OK);
+        } else {
+          enumerable = ParseExpression(true, CHECK_OK);
+        }
 
         Expect(Token::RPAREN, CHECK_OK);
 
@@ -3791,7 +3799,16 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
             factory()->NewForEachStatement(mode, labels, stmt_pos);
         Target target(&this->target_stack_, loop);
 
-        Expression* enumerable = ParseExpression(true, CHECK_OK);
+        Expression* enumerable;
+        if (mode == ForEachStatement::ITERATE) {
+          ExpressionClassifier classifier;
+          enumerable = ParseAssignmentExpression(true, &classifier, CHECK_OK);
+          enumerable = ParserTraits::RewriteNonPattern(enumerable, &classifier,
+                                                       CHECK_OK);
+        } else {
+          enumerable = ParseExpression(true, CHECK_OK);
+        }
+
         Expect(Token::RPAREN, CHECK_OK);
 
         // Make a block around the statement in case a lexical binding

@@ -950,7 +950,16 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
           *ok = false;
           return Statement::Default();
         }
-        ParseExpression(true, CHECK_OK);
+
+        if (mode == ForEachStatement::ITERATE) {
+          ExpressionClassifier classifier;
+          Expression enumerable =
+              ParseAssignmentExpression(true, &classifier, CHECK_OK);
+          PreParserTraits::RewriteNonPattern(enumerable, &classifier, CHECK_OK);
+        } else {
+          ParseExpression(true, CHECK_OK);
+        }
+
         Expect(Token::RPAREN, CHECK_OK);
         ParseSubStatement(CHECK_OK);
         return Statement::Default();
@@ -980,7 +989,16 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
               lhs, lhs_beg_pos, lhs_end_pos, MessageTemplate::kInvalidLhsInFor,
               kSyntaxError, CHECK_OK);
         }
-        ParseExpression(true, CHECK_OK);
+
+        if (mode == ForEachStatement::ITERATE) {
+          ExpressionClassifier classifier;
+          Expression enumerable =
+              ParseAssignmentExpression(true, &classifier, CHECK_OK);
+          PreParserTraits::RewriteNonPattern(enumerable, &classifier, CHECK_OK);
+        } else {
+          ParseExpression(true, CHECK_OK);
+        }
+
         Expect(Token::RPAREN, CHECK_OK);
         ParseSubStatement(CHECK_OK);
         return Statement::Default();

@@ -4925,6 +4925,23 @@ TEST(ConstParsingInForIn) {
 }
 
 
+TEST(StatementParsingInForIn) {
+  const char* context_data[][2] = {{"", ""},
+                                   {"'use strict';", ""},
+                                   {"function foo(){ 'use strict';", "}"},
+                                   {NULL, NULL}};
+
+  const char* data[] = {"for(x in {}, {}) {}", "for(var x in {}, {}) {}",
+                        "for(let x in {}, {}) {}", "for(const x in {}, {}) {}",
+                        NULL};
+
+  static const ParserFlag always_flags[] = {
+      kAllowHarmonySloppy, kAllowHarmonySloppyLet, kNoLegacyConst};
+  RunParserSyncTest(context_data, data, kSuccess, nullptr, 0, always_flags,
+                    arraysize(always_flags));
+}
+
+
 TEST(ConstParsingInForInError) {
   const char* context_data[][2] = {{"'use strict';", ""},
                                    {"function foo(){ 'use strict';", "}"},
@@ -5093,6 +5110,76 @@ TEST(ForOfNoDeclarationsError) {
       "for (const of [1, 2, 3]) {}",
       NULL};
   static const ParserFlag always_flags[] = {kAllowHarmonySloppy};
+  RunParserSyncTest(context_data, data, kError, nullptr, 0, always_flags,
+                    arraysize(always_flags));
+}
+
+
+TEST(ForOfInOperator) {
+  const char* context_data[][2] = {{"", ""},
+                                   {"'use strict';", ""},
+                                   {"function foo(){ 'use strict';", "}"},
+                                   {NULL, NULL}};
+
+  const char* data[] = {
+      "for(x of 'foo' in {}) {}", "for(var x of 'foo' in {}) {}",
+      "for(let x of 'foo' in {}) {}", "for(const x of 'foo' in {}) {}", NULL};
+
+  static const ParserFlag always_flags[] = {
+      kAllowHarmonySloppy, kAllowHarmonySloppyLet, kNoLegacyConst};
+  RunParserSyncTest(context_data, data, kSuccess, nullptr, 0, always_flags,
+                    arraysize(always_flags));
+}
+
+
+TEST(ForOfYieldIdentifier) {
+  const char* context_data[][2] = {{"", ""}, {NULL, NULL}};
+
+  const char* data[] = {"for(x of yield) {}", "for(var x of yield) {}",
+                        "for(let x of yield) {}", "for(const x of yield) {}",
+                        NULL};
+
+  static const ParserFlag always_flags[] = {
+      kAllowHarmonySloppy, kAllowHarmonySloppyLet, kNoLegacyConst};
+  RunParserSyncTest(context_data, data, kSuccess, nullptr, 0, always_flags,
+                    arraysize(always_flags));
+}
+
+
+TEST(ForOfYieldExpression) {
+  const char* context_data[][2] = {{"", ""},
+                                   {"'use strict';", ""},
+                                   {"function foo(){ 'use strict';", "}"},
+                                   {NULL, NULL}};
+
+  const char* data[] = {"function* g() { for(x of yield) {} }",
+                        "function* g() { for(var x of yield) {} }",
+                        "function* g() { for(let x of yield) {} }",
+                        "function* g() { for(const x of yield) {} }", NULL};
+
+  static const ParserFlag always_flags[] = {
+      kAllowHarmonySloppy, kAllowHarmonySloppyLet, kNoLegacyConst};
+  RunParserSyncTest(context_data, data, kSuccess, nullptr, 0, always_flags,
+                    arraysize(always_flags));
+}
+
+
+TEST(ForOfExpressionError) {
+  const char* context_data[][2] = {{"", ""},
+                                   {"'use strict';", ""},
+                                   {"function foo(){ 'use strict';", "}"},
+                                   {NULL, NULL}};
+
+  const char* data[] = {
+      "for(x of [], []) {}", "for(var x of [], []) {}",
+      "for(let x of [], []) {}", "for(const x of [], []) {}",
+
+      // AssignmentExpression should be validated statically:
+      "for(x of { y = 23 }) {}", "for(var x of { y = 23 }) {}",
+      "for(let x of { y = 23 }) {}", "for(const x of { y = 23 }) {}", NULL};
+
+  static const ParserFlag always_flags[] = {
+      kAllowHarmonySloppy, kAllowHarmonySloppyLet, kNoLegacyConst};
   RunParserSyncTest(context_data, data, kError, nullptr, 0, always_flags,
                     arraysize(always_flags));
 }
