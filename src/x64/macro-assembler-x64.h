@@ -396,10 +396,6 @@ class MacroAssembler: public Assembler {
                       InvokeFlag flag,
                       const CallWrapper& call_wrapper);
 
-  // Invoke specified builtin JavaScript function.
-  void InvokeBuiltin(int native_context_index, InvokeFlag flag,
-                     const CallWrapper& call_wrapper = NullCallWrapper());
-
   // ---------------------------------------------------------------------------
   // Smi tagging, untagging and operations on tagged smis.
 

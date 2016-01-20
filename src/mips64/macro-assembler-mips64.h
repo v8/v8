@@ -1450,10 +1450,6 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   void JumpToExternalReference(const ExternalReference& builtin,
                                BranchDelaySlot bd = PROTECT);
 
-  // Invoke specified builtin JavaScript function.
-  void InvokeBuiltin(int native_context_index, InvokeFlag flag,
-                     const CallWrapper& call_wrapper = NullCallWrapper());
-
   struct Unresolved {
     int pc;
     uint32_t flags;  // See Bootstrapper::FixupFlags decoders/encoders.

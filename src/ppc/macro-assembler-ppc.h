@@ -1005,10 +1005,6 @@ class MacroAssembler : public Assembler {
   // Jump to a runtime routine.
   void JumpToExternalReference(const ExternalReference& builtin);
 
-  // Invoke specified builtin JavaScript function.
-  void InvokeBuiltin(int native_context_index, InvokeFlag flag,
-                     const CallWrapper& call_wrapper = NullCallWrapper());
-
   Handle<Object> CodeObject() {
     DCHECK(!code_object_.is_null());
     return code_object_;

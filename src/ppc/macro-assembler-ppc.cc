@@ -2335,18 +2335,6 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin) {
 }
 
 
-void MacroAssembler::InvokeBuiltin(int native_context_index, InvokeFlag flag,
-                                   const CallWrapper& call_wrapper) {
-  // You can't call a builtin without a valid frame.
-  DCHECK(flag == JUMP_FUNCTION || has_frame());
-
-  // Fake a parameter count to avoid emitting code to do the check.
-  ParameterCount expected(0);
-  LoadNativeContextSlot(native_context_index, r4);
-  InvokeFunctionCode(r4, no_reg, expected, expected, flag, call_wrapper);
-}
-
-
 void MacroAssembler::SetCounter(StatsCounter* counter, int value,
                                 Register scratch1, Register scratch2) {
   if (FLAG_native_code_counters && counter->Enabled()) {

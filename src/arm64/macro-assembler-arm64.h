@@ -1139,10 +1139,6 @@ class MacroAssembler : public Assembler {
                              int num_arguments);
 
 
-  // Invoke specified builtin JavaScript function.
-  void InvokeBuiltin(int native_context_index, InvokeFlag flag,
-                     const CallWrapper& call_wrapper = NullCallWrapper());
-
   void Jump(Register target);
   void Jump(Address target, RelocInfo::Mode rmode, Condition cond = al);
   void Jump(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al);

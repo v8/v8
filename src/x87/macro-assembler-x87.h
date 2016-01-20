@@ -326,10 +326,6 @@ class MacroAssembler: public Assembler {
                       const ParameterCount& actual, InvokeFlag flag,
                       const CallWrapper& call_wrapper);
 
-  // Invoke specified builtin JavaScript function.
-  void InvokeBuiltin(int native_context_index, InvokeFlag flag,
-                     const CallWrapper& call_wrapper = NullCallWrapper());
-
   // Store the function for the given builtin in the target register.
   void GetBuiltinFunction(Register target, int native_context_index);
 
