@@ -664,6 +664,8 @@ struct EscapeAnalysisPhase {
     JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
     EscapeAnalysisReducer escape_reducer(&graph_reducer, data->jsgraph(),
                                          &escape_analysis, temp_zone);
+    escape_reducer.SetExistsVirtualAllocate(
+        escape_analysis.ExistsVirtualAllocate());
     AddReducer(data, &graph_reducer, &escape_reducer);
     graph_reducer.ReduceGraph();
   }

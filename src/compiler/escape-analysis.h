@@ -58,6 +58,7 @@ class EscapeStatusAnalysis {
   void RevisitUses(Node* node);
   void RevisitInputs(Node* node);
   bool SetEscaped(Node* node);
+  bool IsVirtual(NodeId id);
   bool HasEntry(Node* node);
   void Resize();
   size_t size();
@@ -99,6 +100,7 @@ class EscapeAnalysis {
   bool IsEscaped(Node* node);
   bool CompareVirtualObjects(Node* left, Node* right);
   Node* GetOrCreateObjectState(Node* effect, Node* node);
+  bool ExistsVirtualAllocate();
 
  private:
   void RunObjectAnalysis();

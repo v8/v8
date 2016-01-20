@@ -428,13 +428,20 @@ void Verifier::Visitor::Check(Node* node) {
       }
       break;
     }
-    case IrOpcode::kFrameState:
+    case IrOpcode::kFrameState: {
       // TODO(jarin): what are the constraints on these?
       CHECK_EQ(5, value_count);
       CHECK_EQ(0, control_count);
       CHECK_EQ(0, effect_count);
       CHECK_EQ(6, input_count);
+      for (int i = 0; i < 3; ++i) {
+        CHECK(NodeProperties::GetValueInput(node, i)->opcode() ==
+                  IrOpcode::kStateValues ||
+              NodeProperties::GetValueInput(node, i)->opcode() ==
+                  IrOpcode::kTypedStateValues);
+      }
       break;
+    }
     case IrOpcode::kStateValues:
     case IrOpcode::kObjectState:
     case IrOpcode::kTypedStateValues:
