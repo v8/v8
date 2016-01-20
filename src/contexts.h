@@ -155,8 +155,6 @@ enum BindingFlags {
   V(GLOBAL_PROXY_INDEX, JSObject, global_proxy_object)                         \
   V(EMBEDDER_DATA_INDEX, FixedArray, embedder_data)                            \
   /* Below is alpha-sorted */                                                  \
-  V(ACCESSOR_PROPERTY_DESCRIPTOR_MAP_INDEX, Map,                               \
-    accessor_property_descriptor_map)                                          \
   V(ALLOW_CODE_GEN_FROM_STRINGS_INDEX, Object, allow_code_gen_from_strings)    \
   V(ARRAY_BUFFER_FUN_INDEX, JSFunction, array_buffer_fun)                      \
   V(ARRAY_BUFFER_MAP_INDEX, Map, array_buffer_map)                             \
@@ -173,7 +171,6 @@ enum BindingFlags {
     call_as_constructor_delegate)                                              \
   V(CALL_AS_FUNCTION_DELEGATE_INDEX, JSFunction, call_as_function_delegate)    \
   V(CONTEXT_EXTENSION_FUNCTION_INDEX, JSFunction, context_extension_function)  \
-  V(DATA_PROPERTY_DESCRIPTOR_MAP_INDEX, Map, data_property_descriptor_map)     \
   V(DATA_VIEW_FUN_INDEX, JSFunction, data_view_fun)                            \
   V(DATE_FUNCTION_INDEX, JSFunction, date_function)                            \
   V(ERROR_MESSAGE_FOR_CODE_GEN_FROM_STRINGS_INDEX, Object,                     \
