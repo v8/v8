@@ -409,7 +409,7 @@ void BytecodeGenerator::MakeBytecodeBody() {
 
   // Visit illegal re-declaration and bail out if it exists.
   if (scope()->HasIllegalRedeclaration()) {
-    Visit(scope()->GetIllegalRedeclaration());
+    VisitForEffect(scope()->GetIllegalRedeclaration());
     return;
   }
 
@@ -1519,6 +1519,11 @@ void BytecodeGenerator::VisitYield(Yield* expr) { UNIMPLEMENTED(); }
 void BytecodeGenerator::VisitThrow(Throw* expr) {
   VisitForAccumulatorValue(expr->exception());
   builder()->Throw();
+  // Throw statments are modeled as expression instead of statments. These are
+  // converted from assignment statements in Rewriter::ReWrite pass. An
+  // assignment statement expects a value in the accumulator. This is a hack to
+  // avoid DCHECK fails assert accumulator has been set.
+  execution_result()->SetResultInAccumulator();
 }
 
 
