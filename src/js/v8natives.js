@@ -772,6 +772,12 @@ function ObjectSetPrototypeOf(obj, proto) {
 }
 
 
+// ES6 section 19.1.2.6
+function ObjectGetOwnPropertyDescriptor(obj, p) {
+  return %GetOwnProperty(obj, p);
+}
+
+
 // ES5 section 15.2.3.4.
 function ObjectGetOwnPropertyNames(obj) {
   obj = TO_OBJECT(obj);
@@ -883,6 +889,7 @@ utils.InstallFunctions(GlobalObject, DONT_ENUM, [
   "defineProperties", ObjectDefineProperties,
   "getPrototypeOf", ObjectGetPrototypeOf,
   "setPrototypeOf", ObjectSetPrototypeOf,
+  "getOwnPropertyDescriptor", ObjectGetOwnPropertyDescriptor,
   "getOwnPropertyNames", ObjectGetOwnPropertyNames,
   // getOwnPropertySymbols is added in symbol.js.
   "is", SameValue,  // ECMA-262, Edition 6, section 19.1.2.10

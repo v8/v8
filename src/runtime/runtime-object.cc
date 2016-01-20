@@ -266,6 +266,31 @@ RUNTIME_FUNCTION(Runtime_GetOwnProperty_Legacy) {
 }
 
 
+// ES6 19.1.2.6
+RUNTIME_FUNCTION(Runtime_GetOwnProperty) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, raw_name, 1);
+  // 1. Let obj be ? ToObject(O).
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, object,
+                                     Object::ToObject(isolate, object));
+  // 2. Let key be ? ToPropertyKey(P).
+  Handle<Name> key;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, key,
+                                     Object::ToName(isolate, raw_name));
+
+  // 3. Let desc be ? obj.[[GetOwnProperty]](key).
+  PropertyDescriptor desc;
+  Maybe<bool> found = JSReceiver::GetOwnPropertyDescriptor(
+      isolate, Handle<JSReceiver>::cast(object), key, &desc);
+  MAYBE_RETURN(found, isolate->heap()->exception());
+  // 4. Return FromPropertyDescriptor(desc).
+  if (!found.FromJust()) return isolate->heap()->undefined_value();
+  return *desc.ToObject(isolate);
+}
+
+
 RUNTIME_FUNCTION(Runtime_OptimizeObjectForAddingMultipleProperties) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);

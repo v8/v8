@@ -414,6 +414,7 @@ namespace internal {
   F(GetPrototype, 1, 1)                              \
   F(InternalSetPrototype, 2, 1)                      \
   F(SetPrototype, 2, 1)                              \
+  F(GetOwnProperty, 2, 1)                            \
   F(GetOwnProperty_Legacy, 2, 1)                     \
   F(OptimizeObjectForAddingMultipleProperties, 2, 1) \
   F(GetProperty, 2, 1)                               \
