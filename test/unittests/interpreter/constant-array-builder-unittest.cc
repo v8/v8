@@ -158,8 +158,7 @@ TEST_F(ConstantArrayBuilderTest, ToFixedArray) {
     builder.Insert(object);
     CHECK(builder.At(i)->SameValue(*object));
   }
-  Handle<FixedArray> constant_array =
-      builder.ToFixedArray(isolate()->factory());
+  Handle<FixedArray> constant_array = builder.ToFixedArray();
   CHECK_EQ(constant_array->length(), kNumberOfElements);
   for (size_t i = 0; i < kNumberOfElements; i++) {
     CHECK(constant_array->get(static_cast<int>(i))->SameValue(*builder.At(i)));

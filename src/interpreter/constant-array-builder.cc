@@ -86,9 +86,9 @@ Handle<Object> ConstantArrayBuilder::At(size_t index) const {
 }
 
 
-Handle<FixedArray> ConstantArrayBuilder::ToFixedArray(Factory* factory) const {
-  Handle<FixedArray> fixed_array =
-      factory->NewFixedArray(static_cast<int>(size()), PretenureFlag::TENURED);
+Handle<FixedArray> ConstantArrayBuilder::ToFixedArray() const {
+  Handle<FixedArray> fixed_array = isolate_->factory()->NewFixedArray(
+      static_cast<int>(size()), PretenureFlag::TENURED);
   for (int i = 0; i < fixed_array->length(); i++) {
     fixed_array->set(i, *At(static_cast<size_t>(i)));
   }

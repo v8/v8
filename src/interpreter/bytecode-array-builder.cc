@@ -150,13 +150,11 @@ Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray() {
   int bytecode_size = static_cast<int>(bytecodes_.size());
   int register_count = fixed_register_count() + temporary_register_count_;
   int frame_size = register_count * kPointerSize;
-  Factory* factory = isolate_->factory();
-  Handle<FixedArray> constant_pool =
-      constant_array_builder()->ToFixedArray(factory);
+  Handle<FixedArray> constant_pool = constant_array_builder()->ToFixedArray();
   Handle<FixedArray> handler_table = handler_table_builder()->ToHandlerTable();
-  Handle<BytecodeArray> output =
-      factory->NewBytecodeArray(bytecode_size, &bytecodes_.front(), frame_size,
-                                parameter_count(), constant_pool);
+  Handle<BytecodeArray> output = isolate_->factory()->NewBytecodeArray(
+      bytecode_size, &bytecodes_.front(), frame_size, parameter_count(),
+      constant_pool);
   output->set_handler_table(*handler_table);
   bytecode_generated_ = true;
   return output;

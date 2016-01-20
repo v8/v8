@@ -12,7 +12,6 @@
 namespace v8 {
 namespace internal {
 
-class Factory;
 class Isolate;
 
 namespace interpreter {
@@ -32,7 +31,7 @@ class ConstantArrayBuilder final : public ZoneObject {
   ConstantArrayBuilder(Isolate* isolate, Zone* zone);
 
   // Generate a fixed array of constants based on inserted objects.
-  Handle<FixedArray> ToFixedArray(Factory* factory) const;
+  Handle<FixedArray> ToFixedArray() const;
 
   // Returns the object in the constant pool array that at index
   // |index|.
