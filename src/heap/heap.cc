@@ -3057,6 +3057,7 @@ AllocationResult Heap::AllocateBytecodeArray(int length,
   instance->set_parameter_count(parameter_count);
   instance->set_constant_pool(constant_pool);
   instance->set_handler_table(empty_fixed_array());
+  instance->set_source_position_table(empty_fixed_array());
   CopyBytes(instance->GetFirstBytecodeAddress(), raw_bytecodes, length);
 
   return result;
