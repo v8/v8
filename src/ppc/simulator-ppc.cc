@@ -856,10 +856,19 @@ class Redirection {
         isolate->simulator_i_cache(),
         reinterpret_cast<void*>(&swi_instruction_), Instruction::kInstrSize);
     isolate->set_simulator_redirection(this);
+    if (ABI_USES_FUNCTION_DESCRIPTORS) {
+      function_descriptor_[0] = reinterpret_cast<intptr_t>(&swi_instruction_);
+      function_descriptor_[1] = 0;
+      function_descriptor_[2] = 0;
+    }
   }
 
-  void* address_of_swi_instruction() {
-    return reinterpret_cast<void*>(&swi_instruction_);
+  void* address() {
+    if (ABI_USES_FUNCTION_DESCRIPTORS) {
+      return reinterpret_cast<void*>(function_descriptor_);
+    } else {
+      return reinterpret_cast<void*>(&swi_instruction_);
+    }
   }
 
   void* external_function() { return external_function_; }
@@ -884,9 +893,16 @@ class Redirection {
     return reinterpret_cast<Redirection*>(addr_of_redirection);
   }
 
+  static Redirection* FromAddress(void* address) {
+    int delta = ABI_USES_FUNCTION_DESCRIPTORS
+                    ? offsetof(Redirection, function_descriptor_)
+                    : offsetof(Redirection, swi_instruction_);
+    char* addr_of_redirection = reinterpret_cast<char*>(address) - delta;
+    return reinterpret_cast<Redirection*>(addr_of_redirection);
+  }
+
   static void* ReverseRedirection(intptr_t reg) {
-    Redirection* redirection = FromSwiInstruction(
-        reinterpret_cast<Instruction*>(reinterpret_cast<void*>(reg)));
+    Redirection* redirection = FromAddress(reinterpret_cast<void*>(reg));
     return redirection->external_function();
   }
 
@@ -903,6 +919,7 @@ class Redirection {
   uint32_t swi_instruction_;
   ExternalReference::Type type_;
   Redirection* next_;
+  intptr_t function_descriptor_[3];
 };
 
 
@@ -923,7 +940,7 @@ void* Simulator::RedirectExternalReference(Isolate* isolate,
                                            void* external_function,
                                            ExternalReference::Type type) {
   Redirection* redirection = Redirection::Get(isolate, external_function, type);
-  return redirection->address_of_swi_instruction();
+  return redirection->address();
 }
 
 
@@ -1386,9 +1403,9 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         CHECK(stack_aligned);
         SimulatorRuntimeDirectGetterCall target =
             reinterpret_cast<SimulatorRuntimeDirectGetterCall>(external);
-#if !ABI_PASSES_HANDLES_IN_REGS
-        arg[0] = *(reinterpret_cast<intptr_t*>(arg[0]));
-#endif
+        if (!ABI_PASSES_HANDLES_IN_REGS) {
+          arg[0] = *(reinterpret_cast<intptr_t*>(arg[0]));
+        }
         target(arg[0], arg[1]);
       } else if (redirection->type() ==
                  ExternalReference::PROFILING_GETTER_CALL) {
@@ -1405,9 +1422,9 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         CHECK(stack_aligned);
         SimulatorRuntimeProfilingGetterCall target =
             reinterpret_cast<SimulatorRuntimeProfilingGetterCall>(external);
-#if !ABI_PASSES_HANDLES_IN_REGS
-        arg[0] = *(reinterpret_cast<intptr_t*>(arg[0]));
-#endif
+        if (!ABI_PASSES_HANDLES_IN_REGS) {
+          arg[0] = *(reinterpret_cast<intptr_t*>(arg[0]));
+        }
         target(arg[0], arg[1], Redirection::ReverseRedirection(arg[2]));
       } else {
         // builtin call.
@@ -3866,17 +3883,19 @@ void Simulator::CallInternal(byte* entry) {
   // Adjust JS-based stack limit to C-based stack limit.
   isolate_->stack_guard()->AdjustStackLimitForSimulator();
 
-// Prepare to execute the code at entry
-#if ABI_USES_FUNCTION_DESCRIPTORS
-  // entry is the function descriptor
-  set_pc(*(reinterpret_cast<intptr_t*>(entry)));
-#else
-  // entry is the instruction address
-  set_pc(reinterpret_cast<intptr_t>(entry));
-#endif
+  // Prepare to execute the code at entry
+  if (ABI_USES_FUNCTION_DESCRIPTORS) {
+    // entry is the function descriptor
+    set_pc(*(reinterpret_cast<intptr_t*>(entry)));
+  } else {
+    // entry is the instruction address
+    set_pc(reinterpret_cast<intptr_t>(entry));
+  }
 
-  // Put target address in ip (for JS prologue).
-  set_register(r12, get_pc());
+  if (ABI_CALL_VIA_IP) {
+    // Put target address in ip (for JS prologue).
+    set_register(r12, get_pc());
+  }
 
   // Put down marker for end of simulation. The simulator will stop simulation
   // when the PC reaches this value. By saving the "end simulation" value into
@@ -3933,8 +3952,12 @@ void Simulator::CallInternal(byte* entry) {
   Execute();
 
   // Check that the non-volatile registers have been preserved.
-  CHECK_EQ(callee_saved_value, get_register(r2));
-  CHECK_EQ(callee_saved_value, get_register(r13));
+  if (ABI_TOC_REGISTER != 2) {
+    CHECK_EQ(callee_saved_value, get_register(r2));
+  }
+  if (ABI_TOC_REGISTER != 13) {
+    CHECK_EQ(callee_saved_value, get_register(r13));
+  }
   CHECK_EQ(callee_saved_value, get_register(r14));
   CHECK_EQ(callee_saved_value, get_register(r15));
   CHECK_EQ(callee_saved_value, get_register(r16));

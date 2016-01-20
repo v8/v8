@@ -3087,20 +3087,21 @@ void MacroAssembler::CallCFunctionHelper(Register function,
                                          int num_reg_arguments,
                                          int num_double_arguments) {
   DCHECK(has_frame());
-// Just call directly. The function called cannot cause a GC, or
-// allow preemption, so the return address in the link register
-// stays correct.
+
+  // Just call directly. The function called cannot cause a GC, or
+  // allow preemption, so the return address in the link register
+  // stays correct.
   Register dest = function;
-#if ABI_USES_FUNCTION_DESCRIPTORS && !defined(USE_SIMULATOR)
-  // AIX uses a function descriptor. When calling C code be aware
-  // of this descriptor and pick up values from it
-  LoadP(ToRegister(ABI_TOC_REGISTER), MemOperand(function, kPointerSize));
-  LoadP(ip, MemOperand(function, 0));
-  dest = ip;
-#elif ABI_CALL_VIA_IP
-  Move(ip, function);
-  dest = ip;
-#endif
+  if (ABI_USES_FUNCTION_DESCRIPTORS) {
+    // AIX/PPC64BE Linux uses a function descriptor. When calling C code be
+    // aware of this descriptor and pick up values from it
+    LoadP(ToRegister(ABI_TOC_REGISTER), MemOperand(function, kPointerSize));
+    LoadP(ip, MemOperand(function, 0));
+    dest = ip;
+  } else if (ABI_CALL_VIA_IP) {
+    Move(ip, function);
+    dest = ip;
+  }
 
   Call(dest);
 
