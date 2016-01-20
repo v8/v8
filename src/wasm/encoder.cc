@@ -121,12 +121,6 @@ void WasmFunctionBuilder::EmitWithU8(WasmOpcode opcode, const byte immediate) {
 }
 
 
-void WasmFunctionBuilder::EmitWithLocal(WasmOpcode opcode) {
-  body_.push_back(static_cast<byte>(opcode));
-  local_indices_.push_back(static_cast<uint32_t>(body_.size()) - 1);
-}
-
-
 uint32_t WasmFunctionBuilder::EmitEditableImmediate(const byte immediate) {
   body_.push_back(immediate);
   return static_cast<uint32_t>(body_.size()) - 1;
@@ -370,21 +364,21 @@ void WasmModuleBuilder::AddDataSegment(WasmDataSegmentEncoder* data) {
 }
 
 
-int WasmModuleBuilder::CompareFunctionSigs::operator()(FunctionSig* a,
-                                                       FunctionSig* b) const {
-  if (a->return_count() < b->return_count()) return -1;
-  if (a->return_count() > b->return_count()) return 1;
-  if (a->parameter_count() < b->parameter_count()) return -1;
-  if (a->parameter_count() > b->parameter_count()) return 1;
+bool WasmModuleBuilder::CompareFunctionSigs::operator()(FunctionSig* a,
+                                                        FunctionSig* b) const {
+  if (a->return_count() < b->return_count()) return true;
+  if (a->return_count() > b->return_count()) return false;
+  if (a->parameter_count() < b->parameter_count()) return true;
+  if (a->parameter_count() > b->parameter_count()) return false;
   for (size_t r = 0; r < a->return_count(); r++) {
-    if (a->GetReturn(r) < b->GetReturn(r)) return -1;
-    if (a->GetReturn(r) > b->GetReturn(r)) return 1;
+    if (a->GetReturn(r) < b->GetReturn(r)) return true;
+    if (a->GetReturn(r) > b->GetReturn(r)) return false;
   }
   for (size_t p = 0; p < a->parameter_count(); p++) {
-    if (a->GetParam(p) < b->GetParam(p)) return -1;
-    if (a->GetParam(p) > b->GetParam(p)) return 1;
+    if (a->GetParam(p) < b->GetParam(p)) return true;
+    if (a->GetParam(p) > b->GetParam(p)) return false;
   }
-  return 0;
+  return false;
 }
 
 

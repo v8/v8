@@ -721,28 +721,31 @@ Type* AsmTyper::StorageType(Type* type) {
 void AsmTyper::VisitHeapAccess(Property* expr, bool assigning,
                                Type* assignment_type) {
   Type::ArrayType* array_type = computed_type_->AsArray();
-  size_t size = array_size_;
+  //  size_t size = array_size_;
   Type* type = array_type->AsArray()->Element();
   if (type->IsFunction()) {
     if (assigning) {
       FAIL(expr, "assigning to function table is illegal");
     }
-    BinaryOperation* bin = expr->key()->AsBinaryOperation();
-    if (bin == NULL || bin->op() != Token::BIT_AND) {
-      FAIL(expr->key(), "expected & in call");
-    }
-    RECURSE(VisitWithExpectation(bin->left(), cache_.kAsmSigned,
-                                 "array index expected to be integer"));
-    Literal* right = bin->right()->AsLiteral();
-    if (right == NULL || right->raw_value()->ContainsDot()) {
-      FAIL(right, "call mask must be integer");
-    }
-    RECURSE(VisitWithExpectation(bin->right(), cache_.kAsmSigned,
-                                 "call mask expected to be integer"));
-    if (static_cast<size_t>(right->raw_value()->AsNumber()) != size - 1) {
-      FAIL(right, "call mask must match function table");
-    }
-    bin->set_bounds(Bounds(cache_.kAsmSigned));
+    // TODO(bradnelson): Fix the parser and then un-comment this part
+    // BinaryOperation* bin = expr->key()->AsBinaryOperation();
+    // if (bin == NULL || bin->op() != Token::BIT_AND) {
+    //   FAIL(expr->key(), "expected & in call");
+    // }
+    // RECURSE(VisitWithExpectation(bin->left(), cache_.kAsmSigned,
+    //                              "array index expected to be integer"));
+    // Literal* right = bin->right()->AsLiteral();
+    // if (right == NULL || right->raw_value()->ContainsDot()) {
+    //   FAIL(right, "call mask must be integer");
+    // }
+    // RECURSE(VisitWithExpectation(bin->right(), cache_.kAsmSigned,
+    //                              "call mask expected to be integer"));
+    // if (static_cast<size_t>(right->raw_value()->AsNumber()) != size - 1) {
+    //   FAIL(right, "call mask must match function table");
+    // }
+    // bin->set_bounds(Bounds(cache_.kAsmSigned));
+    RECURSE(VisitWithExpectation(expr->key(), cache_.kAsmSigned,
+                                 "must be integer"));
     IntersectResult(expr, type);
   } else {
     Literal* literal = expr->key()->AsLiteral();

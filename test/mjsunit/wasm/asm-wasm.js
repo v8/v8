@@ -858,3 +858,103 @@ var module = _WASMEXP_.instantiateModuleFromAsm(
     TestExportNameDifferentFromFunctionName.toString());
 module.__init__();
 assertEquals(55, module.alt_caller());
+
+
+function TestFunctionTableSingleFunction() {
+  "use asm";
+
+  function dummy() {
+    return 71;
+  }
+
+  function caller() {
+    return function_table[0&0]() | 0;
+  }
+
+  var function_table = [dummy]
+
+  return {caller:caller};
+}
+
+assertEquals(71,
+    _WASMEXP_.asmCompileRun(TestFunctionTableSingleFunction.toString()));
+
+
+function TestFunctionTableMultipleFunctions() {
+  "use asm";
+
+  function inc1(x) {
+    x = x|0;
+    return (x+1)|0;
+  }
+
+  function inc2(x) {
+    x = x|0;
+    return (x+2)|0;
+  }
+
+  function caller() {
+    if (function_table[0&1](50) == 51) {
+      if (function_table[1&1](60) == 62) {
+        return 73;
+      }
+    }
+    return 0;
+  }
+
+  var function_table = [inc1, inc2]
+
+  return {caller:caller};
+}
+
+assertEquals(73,
+    _WASMEXP_.asmCompileRun(TestFunctionTableMultipleFunctions.toString()));
+
+
+function TestFunctionTable() {
+  "use asm";
+
+  function add(a, b) {
+    a = a|0;
+    b = b|0;
+    return (a+b)|0;
+  }
+
+  function sub(a, b) {
+    a = a|0;
+    b = b|0;
+    return (a-b)|0;
+  }
+
+  function inc(a) {
+    a = a|0;
+    return (a+1)|0;
+  }
+
+  function caller(table_id, fun_id, arg1, arg2) {
+    table_id = table_id|0;
+    fun_id = fun_id|0;
+    arg1 = arg1|0;
+    arg2 = arg2|0;
+    if (table_id == 0) {
+      return funBin[fun_id&3](arg1, arg2)|0;
+    } else if (table_id == 1) {
+      return fun[fun_id&0](arg1)|0;
+    }
+    return 0;
+  }
+
+  var funBin = [add, sub, sub, add];
+  var fun = [inc];
+
+  return {caller:caller};
+}
+
+var module = _WASMEXP_.instantiateModuleFromAsm(TestFunctionTable.toString());
+module.__init__();
+assertEquals(55, module.caller(0, 0, 33, 22));
+assertEquals(11, module.caller(0, 1, 33, 22));
+assertEquals(9, module.caller(0, 2, 54, 45));
+assertEquals(99, module.caller(0, 3, 54, 45));
+assertEquals(23, module.caller(0, 4, 12, 11));
+assertEquals(31, module.caller(1, 0, 30, 11));

@@ -47,14 +47,18 @@ class AsmWasmBuilderImpl : public AstVisitor {
         cache_(TypeCache::Get()),
         breakable_blocks_(zone),
         block_size_(0),
-        init_function_index(0) {
+        init_function_index_(0),
+        next_table_index_(0),
+        function_tables_(HashMap::PointersMatch,
+                         ZoneHashMap::kDefaultHashMapCapacity,
+                         ZoneAllocationPolicy(zone)) {
     InitializeAstVisitor(isolate);
   }
 
   void InitializeInitFunction() {
     unsigned char init[] = "__init__";
-    init_function_index = builder_->AddFunction();
-    current_function_builder_ = builder_->FunctionAt(init_function_index);
+    init_function_index_ = builder_->AddFunction();
+    current_function_builder_ = builder_->FunctionAt(init_function_index_);
     current_function_builder_->SetName(init, 8);
     current_function_builder_->ReturnType(kAstStmt);
     current_function_builder_->Exported(1);
@@ -344,8 +348,8 @@ class AsmWasmBuilderImpl : public AstVisitor {
         UNREACHABLE();
       }
     }
-    RECURSE(VisitDeclarations(scope->declarations()));
     RECURSE(VisitStatements(expr->body()));
+    RECURSE(VisitDeclarations(scope->declarations()));
   }
 
   void VisitNativeFunctionLiteral(NativeFunctionLiteral* expr) {
@@ -451,7 +455,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
   void VisitArrayLiteral(ArrayLiteral* expr) { UNREACHABLE(); }
 
   void LoadInitFunction() {
-    current_function_builder_ = builder_->FunctionAt(init_function_index);
+    current_function_builder_ = builder_->FunctionAt(init_function_index_);
     in_function_ = true;
   }
 
@@ -460,11 +464,62 @@ class AsmWasmBuilderImpl : public AstVisitor {
     current_function_builder_ = nullptr;
   }
 
+  void AddFunctionTable(VariableProxy* table, ArrayLiteral* funcs) {
+    Type::FunctionType* func_type =
+        funcs->bounds().lower->AsArray()->Element()->AsFunction();
+    LocalType return_type = TypeFrom(func_type->Result());
+    FunctionSig::Builder sig(zone(), return_type == kAstStmt ? 0 : 1,
+                             func_type->Arity());
+    if (return_type != kAstStmt) {
+      sig.AddReturn(static_cast<LocalType>(return_type));
+    }
+    for (int i = 0; i < func_type->Arity(); i++) {
+      sig.AddParam(TypeFrom(func_type->Parameter(i)));
+    }
+    uint16_t signature_index = builder_->AddSignature(sig.Build());
+    InsertFunctionTable(table->var(), next_table_index_, signature_index);
+    next_table_index_ += funcs->values()->length();
+    for (int i = 0; i < funcs->values()->length(); i++) {
+      VariableProxy* func = funcs->values()->at(i)->AsVariableProxy();
+      DCHECK(func != nullptr);
+      builder_->AddIndirectFunction(LookupOrInsertFunction(func->var()));
+    }
+  }
+
+  struct FunctionTableIndices : public ZoneObject {
+    uint32_t start_index;
+    uint16_t signature_index;
+  };
+
+  void InsertFunctionTable(Variable* v, uint32_t start_index,
+                           uint16_t signature_index) {
+    FunctionTableIndices* container = new (zone()) FunctionTableIndices();
+    container->start_index = start_index;
+    container->signature_index = signature_index;
+    ZoneHashMap::Entry* entry = function_tables_.LookupOrInsert(
+        v, ComputePointerHash(v), ZoneAllocationPolicy(zone()));
+    entry->value = container;
+  }
+
+  FunctionTableIndices* LookupFunctionTable(Variable* v) {
+    ZoneHashMap::Entry* entry =
+        function_tables_.Lookup(v, ComputePointerHash(v));
+    DCHECK(entry != nullptr);
+    return reinterpret_cast<FunctionTableIndices*>(entry->value);
+  }
+
   void VisitAssignment(Assignment* expr) {
     bool in_init = false;
     if (!in_function_) {
       // TODO(bradnelson): Get rid of this.
       if (TypeOf(expr->value()) == kAstStmt) {
+        ArrayLiteral* funcs = expr->value()->AsArrayLiteral();
+        if (funcs != nullptr &&
+            funcs->bounds().lower->AsArray()->Element()->IsFunction()) {
+          VariableProxy* target = expr->target()->AsVariableProxy();
+          DCHECK(target != nullptr);
+          AddFunctionTable(target, funcs);
+        }
         return;
       }
       in_init = true;
@@ -567,15 +622,30 @@ class AsmWasmBuilderImpl : public AstVisitor {
         DCHECK(in_function_);
         current_function_builder_->Emit(kExprCallFunction);
         RECURSE(Visit(expr->expression()));
-        ZoneList<Expression*>* args = expr->arguments();
-        for (int i = 0; i < args->length(); ++i) {
-          Expression* arg = args->at(i);
-          RECURSE(Visit(arg));
-        }
+        break;
+      }
+      case Call::KEYED_PROPERTY_CALL: {
+        DCHECK(in_function_);
+        Property* p = expr->expression()->AsProperty();
+        DCHECK(p != nullptr);
+        VariableProxy* var = p->obj()->AsVariableProxy();
+        DCHECK(var != nullptr);
+        FunctionTableIndices* indices = LookupFunctionTable(var->var());
+        current_function_builder_->EmitWithU8(kExprCallIndirect,
+                                              indices->signature_index);
+        current_function_builder_->Emit(kExprI32Add);
+        byte code[] = {WASM_I32(indices->start_index)};
+        current_function_builder_->EmitCode(code, sizeof(code));
+        RECURSE(Visit(p->key()));
         break;
       }
       default:
         UNREACHABLE();
+    }
+    ZoneList<Expression*>* args = expr->arguments();
+    for (int i = 0; i < args->length(); ++i) {
+      Expression* arg = args->at(i);
+      RECURSE(Visit(arg));
     }
   }
 
@@ -768,6 +838,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
         BINOP_CASE(Token::MUL, Mul, NON_SIGNED_BINOP, true);
         BINOP_CASE(Token::DIV, Div, SIGNED_BINOP, false);
         BINOP_CASE(Token::BIT_OR, Ior, NON_SIGNED_INT_BINOP, true);
+        BINOP_CASE(Token::BIT_AND, And, NON_SIGNED_INT_BINOP, true);
         BINOP_CASE(Token::BIT_XOR, Xor, NON_SIGNED_INT_BINOP, true);
         BINOP_CASE(Token::SHL, Shl, NON_SIGNED_INT_BINOP, true);
         BINOP_CASE(Token::SAR, ShrS, NON_SIGNED_INT_BINOP, true);
@@ -1020,7 +1091,9 @@ class AsmWasmBuilderImpl : public AstVisitor {
   TypeCache const& cache_;
   ZoneVector<std::pair<BreakableStatement*, bool>> breakable_blocks_;
   int block_size_;
-  uint16_t init_function_index;
+  uint16_t init_function_index_;
+  uint32_t next_table_index_;
+  ZoneHashMap function_tables_;
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
 
