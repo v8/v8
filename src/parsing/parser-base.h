@@ -715,10 +715,6 @@ class ParserBase : public Traits {
   }
 
   IdentifierT ParseIdentifierName(bool* ok);
-  // Parses an identifier and determines whether or not it is 'get' or 'set'.
-  IdentifierT ParseIdentifierNameOrGetOrSet(bool* is_get, bool* is_set,
-                                            bool* ok);
-
 
   ExpressionT ParseRegExpLiteral(bool seen_equal,
                                  ExpressionClassifier* classifier, bool* ok);
@@ -732,7 +728,7 @@ class ParserBase : public Traits {
                               ExpressionClassifier* classifier, bool* ok);
   ExpressionT ParseArrayLiteral(ExpressionClassifier* classifier, bool* ok);
   ExpressionT ParsePropertyName(IdentifierT* name, bool* is_get, bool* is_set,
-                                bool* is_static, bool* is_computed_name,
+                                bool* is_computed_name,
                                 ExpressionClassifier* classifier, bool* ok);
   ExpressionT ParseObjectLiteral(ExpressionClassifier* classifier, bool* ok);
   ObjectLiteralPropertyT ParsePropertyDefinition(
@@ -1173,18 +1169,6 @@ ParserBase<Traits>::ParseIdentifierName(bool* ok) {
 
 
 template <class Traits>
-typename ParserBase<Traits>::IdentifierT
-ParserBase<Traits>::ParseIdentifierNameOrGetOrSet(bool* is_get,
-                                                  bool* is_set,
-                                                  bool* ok) {
-  IdentifierT result = ParseIdentifierName(ok);
-  if (!*ok) return Traits::EmptyIdentifier();
-  scanner()->IsGetOrSet(is_get, is_set);
-  return result;
-}
-
-
-template <class Traits>
 typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseRegExpLiteral(
     bool seen_equal, ExpressionClassifier* classifier, bool* ok) {
   int pos = peek_position();
@@ -1557,8 +1541,8 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseArrayLiteral(
 
 template <class Traits>
 typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParsePropertyName(
-    IdentifierT* name, bool* is_get, bool* is_set, bool* is_static,
-    bool* is_computed_name, ExpressionClassifier* classifier, bool* ok) {
+    IdentifierT* name, bool* is_get, bool* is_set, bool* is_computed_name,
+    ExpressionClassifier* classifier, bool* ok) {
   Token::Value token = peek();
   int pos = peek_position();
 
@@ -1601,12 +1585,9 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParsePropertyName(
       return expression;
     }
 
-    case Token::STATIC:
-      *is_static = true;
-
-    // Fall through.
     default:
-      *name = ParseIdentifierNameOrGetOrSet(is_get, is_set, CHECK_OK);
+      *name = ParseIdentifierName(CHECK_OK);
+      scanner()->IsGetOrSet(is_get, is_set);
       break;
   }
 
@@ -1627,15 +1608,14 @@ ParserBase<Traits>::ParsePropertyDefinition(
   ExpressionT value = this->EmptyExpression();
   bool is_get = false;
   bool is_set = false;
-  bool name_is_static = false;
   bool is_generator = Check(Token::MUL);
 
   Token::Value name_token = peek();
   int next_beg_pos = scanner()->peek_location().beg_pos;
   int next_end_pos = scanner()->peek_location().end_pos;
-  ExpressionT name_expression = ParsePropertyName(
-      name, &is_get, &is_set, &name_is_static, is_computed_name, classifier,
-      CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+  ExpressionT name_expression =
+      ParsePropertyName(name, &is_get, &is_set, is_computed_name, classifier,
+                        CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
   if (fni_ != nullptr && !*is_computed_name) {
     this->PushLiteralName(fni_, *name);
@@ -1744,7 +1724,7 @@ ParserBase<Traits>::ParsePropertyDefinition(
                                                is_static, *is_computed_name);
   }
 
-  if (in_class && name_is_static && !is_static) {
+  if (in_class && name_token == Token::STATIC && !is_static) {
     // ClassElement (static)
     //    'static' MethodDefinition
     *name = this->EmptyIdentifier();
@@ -1765,7 +1745,7 @@ ParserBase<Traits>::ParsePropertyDefinition(
     name_token = peek();
 
     name_expression = ParsePropertyName(
-        name, &dont_care, &dont_care, &dont_care, is_computed_name, classifier,
+        name, &dont_care, &dont_care, is_computed_name, classifier,
         CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
     if (!*is_computed_name) {
