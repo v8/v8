@@ -15,20 +15,18 @@ namespace v8 {
 namespace internal {
 
 RegExpParser::RegExpParser(FlatStringReader* in, Handle<String>* error,
-                           bool multiline, bool unicode, Isolate* isolate,
-                           Zone* zone)
+                           JSRegExp::Flags flags, Isolate* isolate, Zone* zone)
     : isolate_(isolate),
       zone_(zone),
       error_(error),
       captures_(NULL),
       in_(in),
       current_(kEndMarker),
+      flags_(flags),
       next_pos_(0),
       captures_started_(0),
       capture_count_(0),
       has_more_(true),
-      multiline_(multiline),
-      unicode_(unicode),
       simple_(false),
       contains_anchor_(false),
       is_scanned_for_captures_(false),
@@ -37,9 +35,28 @@ RegExpParser::RegExpParser(FlatStringReader* in, Handle<String>* error,
 }
 
 
+template <bool update_position>
+uc32 RegExpParser::ReadNext() {
+  int position = next_pos_;
+  uc32 c0 = in()->Get(position);
+  position++;
+  // Read the whole surrogate pair in case of unicode flag, if possible.
+  if (unicode() && position < in()->length() &&
+      unibrow::Utf16::IsLeadSurrogate(static_cast<uc16>(c0))) {
+    uc16 c1 = in()->Get(position);
+    if (unibrow::Utf16::IsTrailSurrogate(c1)) {
+      c0 = unibrow::Utf16::CombineSurrogatePair(static_cast<uc16>(c0), c1);
+      position++;
+    }
+  }
+  if (update_position) next_pos_ = position;
+  return c0;
+}
+
+
 uc32 RegExpParser::Next() {
   if (has_next()) {
-    return in()->Get(next_pos_);
+    return ReadNext<false>();
   } else {
     return kEndMarker;
   }
@@ -47,25 +64,14 @@ uc32 RegExpParser::Next() {
 
 
 void RegExpParser::Advance() {
-  if (next_pos_ < in()->length()) {
+  if (has_next()) {
     StackLimitCheck check(isolate());
     if (check.HasOverflowed()) {
       ReportError(CStrVector(Isolate::kStackOverflowMessage));
     } else if (zone()->excess_allocation()) {
       ReportError(CStrVector("Regular expression too large"));
     } else {
-      current_ = in()->Get(next_pos_);
-      next_pos_++;
-      // Read the whole surrogate pair in case of unicode flag, if possible.
-      if (unicode_ && next_pos_ < in()->length() &&
-          unibrow::Utf16::IsLeadSurrogate(static_cast<uc16>(current_))) {
-        uc16 trail = in()->Get(next_pos_);
-        if (unibrow::Utf16::IsTrailSurrogate(trail)) {
-          current_ = unibrow::Utf16::CombineSurrogatePair(
-              static_cast<uc16>(current_), trail);
-          next_pos_++;
-        }
-      }
+      current_ = ReadNext<true>();
     }
   } else {
     current_ = kEndMarker;
@@ -142,7 +148,7 @@ RegExpTree* RegExpParser::ParsePattern() {
 RegExpTree* RegExpParser::ParseDisjunction() {
   // Used to store current state while parsing subexpressions.
   RegExpParserState initial_state(NULL, INITIAL, RegExpLookaround::LOOKAHEAD, 0,
-                                  zone());
+                                  flags_, zone());
   RegExpParserState* state = &initial_state;
   // Cache the builder in a local variable for quick access.
   RegExpBuilder* builder = initial_state.builder();
@@ -206,7 +212,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
         return ReportError(CStrVector("Nothing to repeat"));
       case '^': {
         Advance();
-        if (multiline_) {
+        if (multiline()) {
           builder->AddAssertion(
               new (zone()) RegExpAssertion(RegExpAssertion::START_OF_LINE));
         } else {
@@ -219,8 +225,8 @@ RegExpTree* RegExpParser::ParseDisjunction() {
       case '$': {
         Advance();
         RegExpAssertion::AssertionType assertion_type =
-            multiline_ ? RegExpAssertion::END_OF_LINE
-                       : RegExpAssertion::END_OF_INPUT;
+            multiline() ? RegExpAssertion::END_OF_LINE
+                        : RegExpAssertion::END_OF_INPUT;
         builder->AddAssertion(new (zone()) RegExpAssertion(assertion_type));
         continue;
       }
@@ -230,8 +236,9 @@ RegExpTree* RegExpParser::ParseDisjunction() {
         ZoneList<CharacterRange>* ranges =
             new (zone()) ZoneList<CharacterRange>(2, zone());
         CharacterRange::AddClassEscape('.', ranges, zone());
-        RegExpTree* atom = new (zone()) RegExpCharacterClass(ranges, false);
-        builder->AddAtom(atom);
+        RegExpCharacterClass* cc =
+            new (zone()) RegExpCharacterClass(ranges, false);
+        builder->AddCharacterClass(cc);
         break;
       }
       case '(': {
@@ -276,14 +283,15 @@ RegExpTree* RegExpParser::ParseDisjunction() {
           captures_started_++;
         }
         // Store current state and begin new disjunction parsing.
-        state = new (zone()) RegExpParserState(
-            state, subexpr_type, lookaround_type, captures_started_, zone());
+        state =
+            new (zone()) RegExpParserState(state, subexpr_type, lookaround_type,
+                                           captures_started_, flags_, zone());
         builder = state->builder();
         continue;
       }
       case '[': {
-        RegExpTree* atom = ParseCharacterClass(CHECK_FAILED);
-        builder->AddAtom(atom);
+        RegExpTree* cc = ParseCharacterClass(CHECK_FAILED);
+        builder->AddCharacterClass(cc->AsCharacterClass());
         break;
       }
       // Atom ::
@@ -318,8 +326,9 @@ RegExpTree* RegExpParser::ParseDisjunction() {
             ZoneList<CharacterRange>* ranges =
                 new (zone()) ZoneList<CharacterRange>(2, zone());
             CharacterRange::AddClassEscape(c, ranges, zone());
-            RegExpTree* atom = new (zone()) RegExpCharacterClass(ranges, false);
-            builder->AddAtom(atom);
+            RegExpCharacterClass* cc =
+                new (zone()) RegExpCharacterClass(ranges, false);
+            builder->AddCharacterClass(cc);
             break;
           }
           case '1':
@@ -353,7 +362,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
               // escaped,
               // no other identity escapes are allowed. If the 'u' flag is not
               // present, all identity escapes are allowed.
-              if (!unicode_) {
+              if (!unicode()) {
                 builder->AddCharacter(first_digit);
                 Advance(2);
               } else {
@@ -414,7 +423,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
             uc32 value;
             if (ParseHexEscape(2, &value)) {
               builder->AddCharacter(value);
-            } else if (!unicode_) {
+            } else if (!unicode()) {
               builder->AddCharacter('x');
             } else {
               // If the 'u' flag is present, invalid escapes are not treated as
@@ -428,7 +437,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
             uc32 value;
             if (ParseUnicodeEscape(&value)) {
               builder->AddUnicodeCharacter(value);
-            } else if (!unicode_) {
+            } else if (!unicode()) {
               builder->AddCharacter('u');
             } else {
               // If the 'u' flag is present, invalid escapes are not treated as
@@ -444,7 +453,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
             // other identity escapes are allowed. If the 'u' flag is not
             // present,
             // all identity escapes are allowed.
-            if (!unicode_ || IsSyntaxCharacter(current())) {
+            if (!unicode() || IsSyntaxCharacter(current())) {
               builder->AddCharacter(current());
               Advance();
             } else {
@@ -745,7 +754,7 @@ bool RegExpParser::ParseUnicodeEscape(uc32* value) {
   // Accept both \uxxxx and \u{xxxxxx} (if harmony unicode escapes are
   // allowed). In the latter case, the number of hex digits between { } is
   // arbitrary. \ and u have already been read.
-  if (current() == '{' && unicode_) {
+  if (current() == '{' && unicode()) {
     int start = position();
     Advance();
     if (ParseUnlimitedLengthHexNumber(0x10ffff, value)) {
@@ -840,7 +849,7 @@ uc32 RegExpParser::ParseClassCharacterEscape() {
       if (ParseHexEscape(2, &value)) {
         return value;
       }
-      if (!unicode_) {
+      if (!unicode()) {
         // If \x is not followed by a two-digit hexadecimal, treat it
         // as an identity escape.
         return 'x';
@@ -856,7 +865,7 @@ uc32 RegExpParser::ParseClassCharacterEscape() {
       if (ParseUnicodeEscape(&value)) {
         return value;
       }
-      if (!unicode_) {
+      if (!unicode()) {
         return 'u';
       }
       // If the 'u' flag is present, invalid escapes are not treated as
@@ -869,7 +878,7 @@ uc32 RegExpParser::ParseClassCharacterEscape() {
       // If the 'u' flag is present, only syntax characters can be escaped, no
       // other identity escapes are allowed. If the 'u' flag is not present, all
       // identity escapes are allowed.
-      if (!unicode_ || IsSyntaxCharacter(result)) {
+      if (!unicode() || IsSyntaxCharacter(result)) {
         Advance();
         return result;
       }
@@ -899,13 +908,29 @@ CharacterRange RegExpParser::ParseClassAtom(uc16* char_class) {
       case kEndMarker:
         return ReportError(CStrVector("\\ at end of pattern"));
       default:
-        uc32 c = ParseClassCharacterEscape(CHECK_FAILED);
-        return CharacterRange::Singleton(c);
+        first = ParseClassCharacterEscape(CHECK_FAILED);
     }
   } else {
     Advance();
-    return CharacterRange::Singleton(first);
   }
+
+  if (unicode() && unibrow::Utf16::IsLeadSurrogate(first)) {
+    // Combine with possibly following trail surrogate.
+    int start = position();
+    uc32 second = current();
+    if (second == '\\') {
+      second = ParseClassCharacterEscape(CHECK_FAILED);
+    } else {
+      Advance();
+    }
+    if (unibrow::Utf16::IsTrailSurrogate(second)) {
+      first = unibrow::Utf16::CombineSurrogatePair(first, second);
+    } else {
+      Reset(start);
+    }
+  }
+
+  return CharacterRange::Singleton(first);
 }
 
 
@@ -985,10 +1010,10 @@ RegExpTree* RegExpParser::ParseCharacterClass() {
 
 
 bool RegExpParser::ParseRegExp(Isolate* isolate, Zone* zone,
-                               FlatStringReader* input, bool multiline,
-                               bool unicode, RegExpCompileData* result) {
+                               FlatStringReader* input, JSRegExp::Flags flags,
+                               RegExpCompileData* result) {
   DCHECK(result != NULL);
-  RegExpParser parser(input, &result->error, multiline, unicode, isolate, zone);
+  RegExpParser parser(input, &result->error, flags, isolate, zone);
   RegExpTree* tree = parser.ParsePattern();
   if (parser.failed()) {
     DCHECK(tree == NULL);
@@ -1011,10 +1036,12 @@ bool RegExpParser::ParseRegExp(Isolate* isolate, Zone* zone,
 }
 
 
-RegExpBuilder::RegExpBuilder(Zone* zone)
+RegExpBuilder::RegExpBuilder(Zone* zone, JSRegExp::Flags flags)
     : zone_(zone),
       pending_empty_(false),
+      flags_(flags),
       characters_(NULL),
+      pending_surrogate_(kNoPendingSurrogate),
       terms_(),
       alternatives_()
 #ifdef DEBUG
@@ -1025,7 +1052,48 @@ RegExpBuilder::RegExpBuilder(Zone* zone)
 }
 
 
+void RegExpBuilder::AddLeadSurrogate(uc16 lead_surrogate) {
+  DCHECK(unibrow::Utf16::IsLeadSurrogate(lead_surrogate));
+  FlushPendingSurrogate();
+  // Hold onto the lead surrogate, waiting for a trail surrogate to follow.
+  pending_surrogate_ = lead_surrogate;
+}
+
+
+void RegExpBuilder::AddTrailSurrogate(uc16 trail_surrogate) {
+  DCHECK(unibrow::Utf16::IsTrailSurrogate(trail_surrogate));
+  if (pending_surrogate_ != kNoPendingSurrogate) {
+    uc16 lead_surrogate = pending_surrogate_;
+    DCHECK(unibrow::Utf16::IsLeadSurrogate(lead_surrogate));
+    ZoneList<uc16> surrogate_pair(2, zone());
+    surrogate_pair.Add(lead_surrogate, zone());
+    surrogate_pair.Add(trail_surrogate, zone());
+    RegExpAtom* atom = new (zone()) RegExpAtom(surrogate_pair.ToConstVector());
+    pending_surrogate_ = kNoPendingSurrogate;
+    AddAtom(atom);
+  } else {
+    pending_surrogate_ = trail_surrogate;
+    FlushPendingSurrogate();
+  }
+}
+
+
+void RegExpBuilder::FlushPendingSurrogate() {
+  if (pending_surrogate_ != kNoPendingSurrogate) {
+    // Use character class to desugar lone surrogate matching.
+    RegExpCharacterClass* cc = new (zone()) RegExpCharacterClass(
+        CharacterRange::List(zone(),
+                             CharacterRange::Singleton(pending_surrogate_)),
+        false);
+    pending_surrogate_ = kNoPendingSurrogate;
+    DCHECK(unicode());
+    AddCharacterClass(cc);
+  }
+}
+
+
 void RegExpBuilder::FlushCharacters() {
+  FlushPendingSurrogate();
   pending_empty_ = false;
   if (characters_ != NULL) {
     RegExpTree* atom = new (zone()) RegExpAtom(characters_->ToConstVector());
@@ -1053,6 +1121,7 @@ void RegExpBuilder::FlushText() {
 
 
 void RegExpBuilder::AddCharacter(uc16 c) {
+  FlushPendingSurrogate();
   pending_empty_ = false;
   if (characters_ == NULL) {
     characters_ = new (zone()) ZoneList<uc16>(4, zone());
@@ -1064,11 +1133,13 @@ void RegExpBuilder::AddCharacter(uc16 c) {
 
 void RegExpBuilder::AddUnicodeCharacter(uc32 c) {
   if (c > unibrow::Utf16::kMaxNonSurrogateCharCode) {
-    ZoneList<uc16> surrogate_pair(2, zone());
-    surrogate_pair.Add(unibrow::Utf16::LeadSurrogate(c), zone());
-    surrogate_pair.Add(unibrow::Utf16::TrailSurrogate(c), zone());
-    RegExpAtom* atom = new (zone()) RegExpAtom(surrogate_pair.ToConstVector());
-    AddAtom(atom);
+    DCHECK(unicode());
+    AddLeadSurrogate(unibrow::Utf16::LeadSurrogate(c));
+    AddTrailSurrogate(unibrow::Utf16::TrailSurrogate(c));
+  } else if (unicode() && unibrow::Utf16::IsLeadSurrogate(c)) {
+    AddLeadSurrogate(c);
+  } else if (unicode() && unibrow::Utf16::IsTrailSurrogate(c)) {
+    AddTrailSurrogate(c);
   } else {
     AddCharacter(static_cast<uc16>(c));
   }
@@ -1076,6 +1147,17 @@ void RegExpBuilder::AddUnicodeCharacter(uc32 c) {
 
 
 void RegExpBuilder::AddEmpty() { pending_empty_ = true; }
+
+
+void RegExpBuilder::AddCharacterClass(RegExpCharacterClass* cc) {
+  if (unicode() && cc->NeedsDesugaringForUnicode(zone())) {
+    // In unicode mode, character class needs to be desugared, so it
+    // must be a standalone term instead of being part of a RegExpText.
+    AddTerm(cc);
+  } else {
+    AddAtom(cc);
+  }
+}
 
 
 void RegExpBuilder::AddAtom(RegExpTree* term) {
@@ -1090,6 +1172,13 @@ void RegExpBuilder::AddAtom(RegExpTree* term) {
     FlushText();
     terms_.Add(term, zone());
   }
+  LAST(ADD_ATOM);
+}
+
+
+void RegExpBuilder::AddTerm(RegExpTree* term) {
+  FlushText();
+  terms_.Add(term, zone());
   LAST(ADD_ATOM);
 }
 
@@ -1132,6 +1221,7 @@ RegExpTree* RegExpBuilder::ToRegExp() {
 
 void RegExpBuilder::AddQuantifierToAtom(
     int min, int max, RegExpQuantifier::QuantifierType quantifier_type) {
+  FlushPendingSurrogate();
   if (pending_empty_) {
     pending_empty_ = false;
     return;
