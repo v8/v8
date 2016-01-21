@@ -302,18 +302,6 @@ static void ChangeScriptBreakPointConditionFromJS(v8::Isolate* isolate,
 }
 
 
-static void ChangeScriptBreakPointIgnoreCountFromJS(v8::Isolate* isolate,
-                                                    int break_point_number,
-                                                    int ignoreCount) {
-  EmbeddedVector<char, SMALL_STRING_BUFFER_SIZE> buffer;
-  SNPrintF(buffer,
-           "debug.Debug.changeScriptBreakPointIgnoreCount(%d, %d)",
-           break_point_number, ignoreCount);
-  buffer[SMALL_STRING_BUFFER_SIZE - 1] = '\0';
-  CompileRunChecked(isolate, buffer.start());
-}
-
-
 // Change break on exception.
 static void ChangeBreakOnException(bool caught, bool uncaught) {
   v8::internal::Debug* debug = CcTest::i_isolate()->debug();
@@ -1709,72 +1697,6 @@ TEST(ConditionalScriptBreakPoint) {
   break_point_hit_count = 0;
   for (int i = 0; i < 10; i++) {
     f->Call(env.context(), env->Global(), 0, NULL).ToLocalChecked();
-  }
-  CHECK_EQ(5, break_point_hit_count);
-
-  v8::Debug::SetDebugEventListener(env->GetIsolate(), nullptr);
-  CheckDebuggerUnloaded(env->GetIsolate());
-}
-
-
-// Test ignore count on script break points.
-TEST(ScriptBreakPointIgnoreCount) {
-  break_point_hit_count = 0;
-  DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-  env.ExposeDebug();
-
-  v8::Debug::SetDebugEventListener(env->GetIsolate(),
-                                   DebugEventBreakPointHitCount);
-
-  v8::Local<v8::String> script = v8_str(env->GetIsolate(),
-                                        "function f() {\n"
-                                        "  a = 0;  // line 1\n"
-                                        "};");
-
-  // Compile the script and get function f.
-  v8::Local<v8::Context> context = env.context();
-  v8::ScriptOrigin origin = v8::ScriptOrigin(v8_str(env->GetIsolate(), "test"));
-  v8::Script::Compile(context, script, &origin)
-      .ToLocalChecked()
-      ->Run(context)
-      .ToLocalChecked();
-  v8::Local<v8::Function> f = v8::Local<v8::Function>::Cast(
-      env->Global()
-          ->Get(context, v8_str(env->GetIsolate(), "f"))
-          .ToLocalChecked());
-
-  // Set script break point on line 1 (in function f).
-  int sbp = SetScriptBreakPointByNameFromJS(env->GetIsolate(), "test", 1, 0);
-
-  // Call f with different ignores on the script break point.
-  break_point_hit_count = 0;
-  ChangeScriptBreakPointIgnoreCountFromJS(env->GetIsolate(), sbp, 1);
-  f->Call(context, env->Global(), 0, NULL).ToLocalChecked();
-  CHECK_EQ(0, break_point_hit_count);
-  f->Call(context, env->Global(), 0, NULL).ToLocalChecked();
-  CHECK_EQ(1, break_point_hit_count);
-
-  ChangeScriptBreakPointIgnoreCountFromJS(env->GetIsolate(), sbp, 5);
-  break_point_hit_count = 0;
-  for (int i = 0; i < 10; i++) {
-    f->Call(context, env->Global(), 0, NULL).ToLocalChecked();
-  }
-  CHECK_EQ(5, break_point_hit_count);
-
-  // Reload the script and get f again checking that the ignore survives.
-  v8::Script::Compile(context, script, &origin)
-      .ToLocalChecked()
-      ->Run(context)
-      .ToLocalChecked();
-  f = v8::Local<v8::Function>::Cast(
-      env->Global()
-          ->Get(context, v8_str(env->GetIsolate(), "f"))
-          .ToLocalChecked());
-
-  break_point_hit_count = 0;
-  for (int i = 0; i < 10; i++) {
-    f->Call(context, env->Global(), 0, NULL).ToLocalChecked();
   }
   CHECK_EQ(5, break_point_hit_count);
 
