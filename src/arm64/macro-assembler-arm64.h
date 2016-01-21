@@ -1583,12 +1583,8 @@ class MacroAssembler : public Assembler {
   void LeaveFrame(StackFrame::Type type);
 
   // Returns map with validated enum cache in object register.
-  void CheckEnumCache(Register object,
-                      Register null_value,
-                      Register scratch0,
-                      Register scratch1,
-                      Register scratch2,
-                      Register scratch3,
+  void CheckEnumCache(Register object, Register scratch0, Register scratch1,
+                      Register scratch2, Register scratch3, Register scratch4,
                       Label* call_runtime);
 
   // AllocationMemento support. Arrays may have an associated

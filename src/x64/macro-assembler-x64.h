@@ -1541,8 +1541,7 @@ class MacroAssembler: public Assembler {
 
   // Expects object in rax and returns map with validated enum cache
   // in rax.  Assumes that any other register can be used as a scratch.
-  void CheckEnumCache(Register null_value,
-                      Label* call_runtime);
+  void CheckEnumCache(Label* call_runtime);
 
   // AllocationMemento support. Arrays may have an associated
   // AllocationMemento object that can be checked for in order to pretransition

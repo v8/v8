@@ -977,22 +977,20 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   ForIn loop_statement(this, stmt);
   increment_loop_depth();
 
-  // Get the object to enumerate over. If the object is null or undefined, skip
-  // over the loop.  See ECMA-262 version 5, section 12.6.4.
+  // Get the object to enumerate over.
   SetExpressionAsStatementPosition(stmt->enumerable());
   VisitForAccumulatorValue(stmt->enumerable());
-  __ cmp(eax, isolate()->factory()->undefined_value());
-  __ j(equal, &exit);
-  __ cmp(eax, isolate()->factory()->null_value());
-  __ j(equal, &exit);
 
-  PrepareForBailoutForId(stmt->PrepareId(), TOS_REG);
-
-  // Convert the object to a JS object.
+  // If the object is null or undefined, skip over the loop, otherwise convert
+  // it to a JS receiver.  See ECMA-262 version 5, section 12.6.4.
   Label convert, done_convert;
   __ JumpIfSmi(eax, &convert, Label::kNear);
   __ CmpObjectType(eax, FIRST_JS_RECEIVER_TYPE, ecx);
   __ j(above_equal, &done_convert, Label::kNear);
+  __ cmp(eax, isolate()->factory()->undefined_value());
+  __ j(equal, &exit);
+  __ cmp(eax, isolate()->factory()->null_value());
+  __ j(equal, &exit);
   __ bind(&convert);
   ToObjectStub stub(isolate());
   __ CallStub(&stub);
@@ -1000,15 +998,13 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   PrepareForBailoutForId(stmt->ToObjectId(), TOS_REG);
   __ push(eax);
 
-  // Check for proxies.
-  Label call_runtime, use_cache, fixed_array;
-  __ CmpObjectType(eax, JS_PROXY_TYPE, ecx);
-  __ j(equal, &call_runtime);
-
   // Check cache validity in generated code. This is a fast case for
   // the JSObject::IsSimpleEnum cache validity checks. If we cannot
   // guarantee cache validity, call the runtime system to check cache
   // validity or get the property names in a fixed array.
+  // Note: Proxies never have an enum cache, so will always take the
+  // slow path.
+  Label call_runtime, use_cache, fixed_array;
   __ CheckEnumCache(&call_runtime);
 
   __ mov(eax, FieldOperand(eax, HeapObject::kMapOffset));

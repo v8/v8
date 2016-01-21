@@ -5314,10 +5314,17 @@ void HOptimizedGraphBuilder::BuildForInBody(ForInStatement* stmt,
   HInstruction* map;
   HInstruction* array;
   HInstruction* enum_length;
+  BuildCheckHeapObject(enumerable);
+  Add<HCheckInstanceType>(enumerable, HCheckInstanceType::IS_JS_RECEIVER);
+  Add<HSimulate>(stmt->ToObjectId());
   bool fast = stmt->for_in_type() == ForInStatement::FAST_FOR_IN;
   if (fast) {
     map = Add<HForInPrepareMap>(enumerable);
-    Add<HSimulate>(stmt->PrepareId());
+    Push(map);
+    Add<HSimulate>(stmt->EnumId());
+    Drop(1);
+    Handle<Map> meta_map = isolate()->factory()->meta_map();
+    Add<HCheckMaps>(map, meta_map);
 
     array = Add<HForInCacheArray>(enumerable, map,
                                   DescriptorArray::kEnumCacheBridgeCacheIndex);
@@ -5328,13 +5335,6 @@ void HOptimizedGraphBuilder::BuildForInBody(ForInStatement* stmt,
     HForInCacheArray::cast(array)
         ->set_index_cache(HForInCacheArray::cast(index_cache));
   } else {
-    Add<HSimulate>(stmt->PrepareId());
-    {
-      NoObservableSideEffectsScope no_effects(this);
-      BuildJSObjectCheck(enumerable, 0);
-    }
-    Add<HSimulate>(stmt->ToObjectId());
-
     map = graph()->GetConstant1();
     Runtime::FunctionId function_id = Runtime::kGetPropertyNamesFast;
     Add<HPushArguments>(enumerable);

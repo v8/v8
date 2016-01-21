@@ -1041,25 +1041,20 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   ForIn loop_statement(this, stmt);
   increment_loop_depth();
 
-  // Get the object to enumerate over. If the object is null or undefined, skip
-  // over the loop.  See ECMA-262 version 5, section 12.6.4.
+  // Get the object to enumerate over.
   SetExpressionAsStatementPosition(stmt->enumerable());
   VisitForAccumulatorValue(stmt->enumerable());
-  __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
-  __ cmp(r0, ip);
-  __ b(eq, &exit);
-  Register null_value = r5;
-  __ LoadRoot(null_value, Heap::kNullValueRootIndex);
-  __ cmp(r0, null_value);
-  __ b(eq, &exit);
 
-  PrepareForBailoutForId(stmt->PrepareId(), TOS_REG);
-
-  // Convert the object to a JS object.
+  // If the object is null or undefined, skip over the loop, otherwise convert
+  // it to a JS receiver.  See ECMA-262 version 5, section 12.6.4.
   Label convert, done_convert;
   __ JumpIfSmi(r0, &convert);
   __ CompareObjectType(r0, r1, r1, FIRST_JS_RECEIVER_TYPE);
   __ b(ge, &done_convert);
+  __ CompareRoot(r0, Heap::kNullValueRootIndex);
+  __ b(eq, &exit);
+  __ CompareRoot(r0, Heap::kUndefinedValueRootIndex);
+  __ b(eq, &exit);
   __ bind(&convert);
   ToObjectStub stub(isolate());
   __ CallStub(&stub);
@@ -1067,16 +1062,14 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   PrepareForBailoutForId(stmt->ToObjectId(), TOS_REG);
   __ push(r0);
 
-  // Check for proxies.
-  Label call_runtime;
-  __ CompareObjectType(r0, r1, r1, JS_PROXY_TYPE);
-  __ b(eq, &call_runtime);
-
   // Check cache validity in generated code. This is a fast case for
   // the JSObject::IsSimpleEnum cache validity checks. If we cannot
   // guarantee cache validity, call the runtime system to check cache
   // validity or get the property names in a fixed array.
-  __ CheckEnumCache(null_value, &call_runtime);
+  // Note: Proxies never have an enum cache, so will always take the
+  // slow path.
+  Label call_runtime;
+  __ CheckEnumCache(&call_runtime);
 
   // The enum cache is valid.  Load the map of the object being
   // iterated over and use the cache for the iteration.

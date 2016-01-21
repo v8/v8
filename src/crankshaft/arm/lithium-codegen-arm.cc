@@ -5451,17 +5451,8 @@ void LCodeGen::DoOsrEntry(LOsrEntry* instr) {
 
 
 void LCodeGen::DoForInPrepareMap(LForInPrepareMap* instr) {
-  __ SmiTst(r0);
-  DeoptimizeIf(eq, instr, Deoptimizer::kSmi);
-
-  STATIC_ASSERT(JS_PROXY_TYPE == FIRST_JS_RECEIVER_TYPE);
-  __ CompareObjectType(r0, r1, r1, JS_PROXY_TYPE);
-  DeoptimizeIf(le, instr, Deoptimizer::kWrongInstanceType);
-
   Label use_cache, call_runtime;
-  Register null_value = r5;
-  __ LoadRoot(null_value, Heap::kNullValueRootIndex);
-  __ CheckEnumCache(null_value, &call_runtime);
+  __ CheckEnumCache(&call_runtime);
 
   __ ldr(r0, FieldMemOperand(r0, HeapObject::kMapOffset));
   __ b(&use_cache);
@@ -5470,11 +5461,6 @@ void LCodeGen::DoForInPrepareMap(LForInPrepareMap* instr) {
   __ bind(&call_runtime);
   __ push(r0);
   CallRuntime(Runtime::kGetPropertyNamesFast, instr);
-
-  __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
-  __ LoadRoot(ip, Heap::kMetaMapRootIndex);
-  __ cmp(r1, ip);
-  DeoptimizeIf(ne, instr, Deoptimizer::kWrongMap);
   __ bind(&use_cache);
 }
 

@@ -990,24 +990,20 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   ForIn loop_statement(this, stmt);
   increment_loop_depth();
 
-  // Get the object to enumerate over. If the object is null or undefined, skip
-  // over the loop.  See ECMA-262 version 5, section 12.6.4.
+  // Get the object to enumerate over.
   SetExpressionAsStatementPosition(stmt->enumerable());
   VisitForAccumulatorValue(stmt->enumerable());
-  __ CompareRoot(rax, Heap::kUndefinedValueRootIndex);
-  __ j(equal, &exit);
-  Register null_value = rdi;
-  __ LoadRoot(null_value, Heap::kNullValueRootIndex);
-  __ cmpp(rax, null_value);
-  __ j(equal, &exit);
 
-  PrepareForBailoutForId(stmt->PrepareId(), TOS_REG);
-
-  // Convert the object to a JS object.
+  // If the object is null or undefined, skip over the loop, otherwise convert
+  // it to a JS receiver.  See ECMA-262 version 5, section 12.6.4.
   Label convert, done_convert;
   __ JumpIfSmi(rax, &convert, Label::kNear);
   __ CmpObjectType(rax, FIRST_JS_RECEIVER_TYPE, rcx);
   __ j(above_equal, &done_convert, Label::kNear);
+  __ CompareRoot(rax, Heap::kNullValueRootIndex);
+  __ j(equal, &exit);
+  __ CompareRoot(rax, Heap::kUndefinedValueRootIndex);
+  __ j(equal, &exit);
   __ bind(&convert);
   ToObjectStub stub(isolate());
   __ CallStub(&stub);
@@ -1015,16 +1011,14 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   PrepareForBailoutForId(stmt->ToObjectId(), TOS_REG);
   __ Push(rax);
 
-  // Check for proxies.
-  Label call_runtime;
-  __ CmpObjectType(rax, JS_PROXY_TYPE, rcx);
-  __ j(equal, &call_runtime);
-
   // Check cache validity in generated code. This is a fast case for
   // the JSObject::IsSimpleEnum cache validity checks. If we cannot
   // guarantee cache validity, call the runtime system to check cache
   // validity or get the property names in a fixed array.
-  __ CheckEnumCache(null_value, &call_runtime);
+  // Note: Proxies never have an enum cache, so will always take the
+  // slow path.
+  Label call_runtime;
+  __ CheckEnumCache(&call_runtime);
 
   // The enum cache is valid.  Load the map of the object being
   // iterated over and use the cache for the iteration.

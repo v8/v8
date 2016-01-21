@@ -1044,22 +1044,17 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   ForIn loop_statement(this, stmt);
   increment_loop_depth();
 
-  // Get the object to enumerate over. If the object is null or undefined, skip
-  // over the loop.  See ECMA-262 version 5, section 12.6.4.
+  // Get the object to enumerate over.
   SetExpressionAsStatementPosition(stmt->enumerable());
   VisitForAccumulatorValue(stmt->enumerable());
-  __ JumpIfRoot(x0, Heap::kUndefinedValueRootIndex, &exit);
-  Register null_value = x15;
-  __ LoadRoot(null_value, Heap::kNullValueRootIndex);
-  __ Cmp(x0, null_value);
-  __ B(eq, &exit);
 
-  PrepareForBailoutForId(stmt->PrepareId(), TOS_REG);
-
-  // Convert the object to a JS object.
+  // If the object is null or undefined, skip over the loop, otherwise convert
+  // it to a JS receiver.  See ECMA-262 version 5, section 12.6.4.
   Label convert, done_convert;
   __ JumpIfSmi(x0, &convert);
   __ JumpIfObjectType(x0, x10, x11, FIRST_JS_RECEIVER_TYPE, &done_convert, ge);
+  __ JumpIfRoot(x0, Heap::kNullValueRootIndex, &exit);
+  __ JumpIfRoot(x0, Heap::kUndefinedValueRootIndex, &exit);
   __ Bind(&convert);
   ToObjectStub stub(isolate());
   __ CallStub(&stub);
@@ -1067,15 +1062,14 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   PrepareForBailoutForId(stmt->ToObjectId(), TOS_REG);
   __ Push(x0);
 
-  // Check for proxies.
-  Label call_runtime;
-  __ JumpIfObjectType(x0, x10, x11, JS_PROXY_TYPE, &call_runtime, eq);
-
   // Check cache validity in generated code. This is a fast case for
   // the JSObject::IsSimpleEnum cache validity checks. If we cannot
   // guarantee cache validity, call the runtime system to check cache
   // validity or get the property names in a fixed array.
-  __ CheckEnumCache(x0, null_value, x10, x11, x12, x13, &call_runtime);
+  // Note: Proxies never have an enum cache, so will always take the
+  // slow path.
+  Label call_runtime;
+  __ CheckEnumCache(x0, x15, x10, x11, x12, x13, &call_runtime);
 
   // The enum cache is valid.  Load the map of the object being
   // iterated over and use the cache for the iteration.

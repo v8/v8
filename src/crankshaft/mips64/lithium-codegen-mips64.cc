@@ -5690,19 +5690,9 @@ void LCodeGen::DoForInPrepareMap(LForInPrepareMap* instr) {
   Register result = ToRegister(instr->result());
   Register object = ToRegister(instr->object());
 
-  __ And(at, object, kSmiTagMask);
-  DeoptimizeIf(eq, instr, Deoptimizer::kSmi, at, Operand(zero_reg));
-
-  STATIC_ASSERT(JS_PROXY_TYPE == FIRST_JS_RECEIVER_TYPE);
-  __ GetObjectType(object, a1, a1);
-  DeoptimizeIf(le, instr, Deoptimizer::kNotAJavaScriptObject, a1,
-               Operand(JS_PROXY_TYPE));
-
   Label use_cache, call_runtime;
   DCHECK(object.is(a0));
-  Register null_value = a5;
-  __ LoadRoot(null_value, Heap::kNullValueRootIndex);
-  __ CheckEnumCache(null_value, &call_runtime);
+  __ CheckEnumCache(&call_runtime);
 
   __ ld(result, FieldMemOperand(object, HeapObject::kMapOffset));
   __ Branch(&use_cache);
@@ -5711,11 +5701,6 @@ void LCodeGen::DoForInPrepareMap(LForInPrepareMap* instr) {
   __ bind(&call_runtime);
   __ push(object);
   CallRuntime(Runtime::kGetPropertyNamesFast, instr);
-
-  __ ld(a1, FieldMemOperand(v0, HeapObject::kMapOffset));
-  DCHECK(result.is(v0));
-  __ LoadRoot(at, Heap::kMetaMapRootIndex);
-  DeoptimizeIf(ne, instr, Deoptimizer::kWrongMap, a1, Operand(at));
   __ bind(&use_cache);
 }
 

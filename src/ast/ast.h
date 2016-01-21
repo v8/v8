@@ -862,13 +862,12 @@ class ForInStatement final : public ForEachStatement {
   ForInType for_in_type() const { return for_in_type_; }
   void set_for_in_type(ForInType type) { for_in_type_ = type; }
 
-  static int num_ids() { return parent_num_ids() + 6; }
+  static int num_ids() { return parent_num_ids() + 5; }
   BailoutId BodyId() const { return BailoutId(local_id(0)); }
-  BailoutId PrepareId() const { return BailoutId(local_id(1)); }
-  BailoutId EnumId() const { return BailoutId(local_id(2)); }
-  BailoutId ToObjectId() const { return BailoutId(local_id(3)); }
-  BailoutId FilterId() const { return BailoutId(local_id(4)); }
-  BailoutId AssignmentId() const { return BailoutId(local_id(5)); }
+  BailoutId EnumId() const { return BailoutId(local_id(1)); }
+  BailoutId ToObjectId() const { return BailoutId(local_id(2)); }
+  BailoutId FilterId() const { return BailoutId(local_id(3)); }
+  BailoutId AssignmentId() const { return BailoutId(local_id(4)); }
   BailoutId ContinueId() const override { return EntryId(); }
   BailoutId StackCheckId() const override { return BodyId(); }
 

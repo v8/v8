@@ -1040,19 +1040,19 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // over the loop.  See ECMA-262 version 5, section 12.6.4.
   SetExpressionAsStatementPosition(stmt->enumerable());
   VisitForAccumulatorValue(stmt->enumerable());
-  __ mov(a0, result_register());  // Result as param to InvokeBuiltin below.
-  __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
-  __ Branch(&exit, eq, a0, Operand(at));
-  Register null_value = a5;
-  __ LoadRoot(null_value, Heap::kNullValueRootIndex);
-  __ Branch(&exit, eq, a0, Operand(null_value));
-  PrepareForBailoutForId(stmt->PrepareId(), TOS_REG);
-  __ mov(a0, v0);
-  // Convert the object to a JS object.
+  __ mov(a0, result_register());
+
+  // If the object is null or undefined, skip over the loop, otherwise convert
+  // it to a JS receiver.  See ECMA-262 version 5, section 12.6.4.
   Label convert, done_convert;
   __ JumpIfSmi(a0, &convert);
   __ GetObjectType(a0, a1, a1);
-  __ Branch(&done_convert, ge, a1, Operand(FIRST_JS_RECEIVER_TYPE));
+  __ Branch(USE_DELAY_SLOT, &done_convert, ge, a1,
+            Operand(FIRST_JS_RECEIVER_TYPE));
+  __ LoadRoot(at, Heap::kNullValueRootIndex);  // In delay slot.
+  __ Branch(USE_DELAY_SLOT, &exit, eq, a0, Operand(at));
+  __ LoadRoot(at, Heap::kUndefinedValueRootIndex);  // In delay slot.
+  __ Branch(&exit, eq, a0, Operand(at));
   __ bind(&convert);
   ToObjectStub stub(isolate());
   __ CallStub(&stub);
@@ -1061,16 +1061,14 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   PrepareForBailoutForId(stmt->ToObjectId(), TOS_REG);
   __ push(a0);
 
-  // Check for proxies.
-  Label call_runtime;
-  __ GetObjectType(a0, a1, a1);
-  __ Branch(&call_runtime, eq, a1, Operand(JS_PROXY_TYPE));
-
   // Check cache validity in generated code. This is a fast case for
   // the JSObject::IsSimpleEnum cache validity checks. If we cannot
   // guarantee cache validity, call the runtime system to check cache
   // validity or get the property names in a fixed array.
-  __ CheckEnumCache(null_value, &call_runtime);
+  // Note: Proxies never have an enum cache, so will always take the
+  // slow path.
+  Label call_runtime;
+  __ CheckEnumCache(&call_runtime);
 
   // The enum cache is valid.  Load the map of the object being
   // iterated over and use the cache for the iteration.
