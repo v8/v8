@@ -5,7 +5,6 @@
 #ifndef V8_REGEXP_REGEXP_AST_H_
 #define V8_REGEXP_REGEXP_AST_H_
 
-#include "src/objects.h"
 #include "src/utils.h"
 #include "src/zone.h"
 
@@ -78,37 +77,33 @@ class CharacterRange {
   CharacterRange() : from_(0), to_(0) {}
   // For compatibility with the CHECK_OK macro
   CharacterRange(void* null) { DCHECK_NULL(null); }  // NOLINT
-  CharacterRange(uc32 from, uc32 to) : from_(from), to_(to) {}
+  CharacterRange(uc16 from, uc16 to) : from_(from), to_(to) {}
   static void AddClassEscape(uc16 type, ZoneList<CharacterRange>* ranges,
                              Zone* zone);
   static Vector<const int> GetWordBounds();
-  static inline CharacterRange Singleton(uc32 value) {
+  static inline CharacterRange Singleton(uc16 value) {
     return CharacterRange(value, value);
   }
-  static inline CharacterRange Range(uc32 from, uc32 to) {
+  static inline CharacterRange Range(uc16 from, uc16 to) {
     DCHECK(from <= to);
     return CharacterRange(from, to);
   }
   static inline CharacterRange Everything() {
-    return CharacterRange(0, String::kMaxCodePoint);
+    return CharacterRange(0, 0xFFFF);
   }
-  static inline ZoneList<CharacterRange>* List(Zone* zone,
-                                               CharacterRange range) {
-    ZoneList<CharacterRange>* list =
-        new (zone) ZoneList<CharacterRange>(1, zone);
-    list->Add(range, zone);
-    return list;
-  }
-  bool Contains(uc32 i) { return from_ <= i && i <= to_; }
-  uc32 from() const { return from_; }
-  void set_from(uc32 value) { from_ = value; }
-  uc32 to() const { return to_; }
-  void set_to(uc32 value) { to_ = value; }
+  bool Contains(uc16 i) { return from_ <= i && i <= to_; }
+  uc16 from() const { return from_; }
+  void set_from(uc16 value) { from_ = value; }
+  uc16 to() const { return to_; }
+  void set_to(uc16 value) { to_ = value; }
   bool is_valid() { return from_ <= to_; }
   bool IsEverything(uc16 max) { return from_ == 0 && to_ >= max; }
   bool IsSingleton() { return (from_ == to_); }
   void AddCaseEquivalents(Isolate* isolate, Zone* zone,
                           ZoneList<CharacterRange>* ranges, bool is_one_byte);
+  static void Split(ZoneList<CharacterRange>* base, Vector<const int> overlay,
+                    ZoneList<CharacterRange>** included,
+                    ZoneList<CharacterRange>** excluded, Zone* zone);
   // Whether a range list is in canonical form: Ranges ordered by from value,
   // and ranges non-overlapping and non-adjacent.
   static bool IsCanonical(ZoneList<CharacterRange>* ranges);
@@ -124,8 +119,8 @@ class CharacterRange {
   static const int kPayloadMask = (1 << 24) - 1;
 
  private:
-  uc32 from_;
-  uc32 to_;
+  uc16 from_;
+  uc16 to_;
 };
 
 
@@ -292,7 +287,6 @@ class RegExpCharacterClass final : public RegExpTree {
   RegExpCharacterClass* AsCharacterClass() override;
   bool IsCharacterClass() override;
   bool IsTextElement() override { return true; }
-  bool NeedsDesugaringForUnicode(Zone* zone);
   int min_match() override { return 1; }
   int max_match() override { return 1; }
   void AppendToText(RegExpText* text, Zone* zone) override;
@@ -456,22 +450,6 @@ class RegExpLookaround final : public RegExpTree {
   int capture_count() { return capture_count_; }
   int capture_from() { return capture_from_; }
   Type type() { return type_; }
-
-  class Builder {
-   public:
-    Builder(bool is_positive, RegExpNode* on_success,
-            int stack_pointer_register, int position_register,
-            int capture_register_count = 0, int capture_register_start = 0);
-    RegExpNode* on_match_success() { return on_match_success_; }
-    RegExpNode* ForMatch(RegExpNode* match);
-
-   private:
-    bool is_positive_;
-    RegExpNode* on_match_success_;
-    RegExpNode* on_success_;
-    int stack_pointer_register_;
-    int position_register_;
-  };
 
  private:
   RegExpTree* body_;

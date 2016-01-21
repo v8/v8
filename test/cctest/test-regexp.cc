@@ -96,7 +96,7 @@ static bool CheckParse(const char* input) {
   FlatStringReader reader(CcTest::i_isolate(), CStrVector(input));
   RegExpCompileData result;
   return v8::internal::RegExpParser::ParseRegExp(
-      CcTest::i_isolate(), &zone, &reader, JSRegExp::kNone, &result);
+      CcTest::i_isolate(), &zone, &reader, false, false, &result);
 }
 
 
@@ -106,10 +106,8 @@ static void CheckParseEq(const char* input, const char* expected,
   Zone zone;
   FlatStringReader reader(CcTest::i_isolate(), CStrVector(input));
   RegExpCompileData result;
-  JSRegExp::Flags flags = JSRegExp::kNone;
-  if (unicode) flags |= JSRegExp::kUnicode;
-  CHECK(v8::internal::RegExpParser::ParseRegExp(CcTest::i_isolate(), &zone,
-                                                &reader, flags, &result));
+  CHECK(v8::internal::RegExpParser::ParseRegExp(
+      CcTest::i_isolate(), &zone, &reader, false, unicode, &result));
   CHECK(result.tree != NULL);
   CHECK(result.error.is_null());
   std::ostringstream os;
@@ -127,7 +125,7 @@ static bool CheckSimple(const char* input) {
   FlatStringReader reader(CcTest::i_isolate(), CStrVector(input));
   RegExpCompileData result;
   CHECK(v8::internal::RegExpParser::ParseRegExp(
-      CcTest::i_isolate(), &zone, &reader, JSRegExp::kNone, &result));
+      CcTest::i_isolate(), &zone, &reader, false, false, &result));
   CHECK(result.tree != NULL);
   CHECK(result.error.is_null());
   return result.simple;
@@ -145,7 +143,7 @@ static MinMaxPair CheckMinMaxMatch(const char* input) {
   FlatStringReader reader(CcTest::i_isolate(), CStrVector(input));
   RegExpCompileData result;
   CHECK(v8::internal::RegExpParser::ParseRegExp(
-      CcTest::i_isolate(), &zone, &reader, JSRegExp::kNone, &result));
+      CcTest::i_isolate(), &zone, &reader, false, false, &result));
   CHECK(result.tree != NULL);
   CHECK(result.error.is_null());
   int min_match = result.tree->min_match();
@@ -208,8 +206,8 @@ void TestRegExpParser(bool lookbehind) {
   }
   CheckParseEq("()", "(^ %)");
   CheckParseEq("(?=)", "(-> + %)");
-  CheckParseEq("[]", "^[\\x00-\\u{10ffff}]");  // Doesn't compile on windows
-  CheckParseEq("[^]", "[\\x00-\\u{10ffff}]");  // \uffff isn't in codepage 1252
+  CheckParseEq("[]", "^[\\x00-\\uffff]");  // Doesn't compile on windows
+  CheckParseEq("[^]", "[\\x00-\\uffff]");  // \uffff isn't in codepage 1252
   CheckParseEq("[x]", "[x]");
   CheckParseEq("[xyz]", "[x y z]");
   CheckParseEq("[a-zA-Z0-9]", "[a-z A-Z 0-9]");
@@ -317,10 +315,6 @@ void TestRegExpParser(bool lookbehind) {
                true);
   CheckParseEq("\\u{12345}{3}", "(# 3 3 g '\\ud808\\udf45')", true);
   CheckParseEq("\\u{12345}*", "(# 0 - g '\\ud808\\udf45')", true);
-
-  CheckParseEq("\\ud808\\udf45*", "(# 0 - g '\\ud808\\udf45')", true);
-  CheckParseEq("[\\ud808\\udf45-\\ud809\\udccc]", "[\\u{012345}-\\u{0124cc}]",
-               true);
 
   CHECK_SIMPLE("", false);
   CHECK_SIMPLE("a", true);
@@ -460,7 +454,7 @@ static void ExpectError(const char* input,
   FlatStringReader reader(CcTest::i_isolate(), CStrVector(input));
   RegExpCompileData result;
   CHECK(!v8::internal::RegExpParser::ParseRegExp(
-      CcTest::i_isolate(), &zone, &reader, JSRegExp::kNone, &result));
+            CcTest::i_isolate(), &zone, &reader, false, false, &result));
   CHECK(result.tree == NULL);
   CHECK(!result.error.is_null());
   v8::base::SmartArrayPointer<char> str = result.error->ToCString(ALLOW_NULLS);
@@ -529,7 +523,7 @@ static void TestCharacterClassEscapes(uc16 c, bool (pred)(uc16 c)) {
   ZoneList<CharacterRange>* ranges =
       new(&zone) ZoneList<CharacterRange>(2, &zone);
   CharacterRange::AddClassEscape(c, ranges, &zone);
-  for (uc32 i = 0; i < (1 << 16); i++) {
+  for (unsigned i = 0; i < (1 << 16); i++) {
     bool in_class = false;
     for (int j = 0; !in_class && j < ranges->length(); j++) {
       CharacterRange& range = ranges->at(j);
@@ -556,19 +550,17 @@ static RegExpNode* Compile(const char* input, bool multiline, bool unicode,
   Isolate* isolate = CcTest::i_isolate();
   FlatStringReader reader(isolate, CStrVector(input));
   RegExpCompileData compile_data;
-  JSRegExp::Flags flags = JSRegExp::kNone;
-  if (multiline) flags = JSRegExp::kMultiline;
-  if (unicode) flags = JSRegExp::kUnicode;
   if (!v8::internal::RegExpParser::ParseRegExp(CcTest::i_isolate(), zone,
-                                               &reader, flags, &compile_data))
+                                               &reader, multiline, unicode,
+                                               &compile_data))
     return NULL;
   Handle<String> pattern = isolate->factory()
                                ->NewStringFromUtf8(CStrVector(input))
                                .ToHandleChecked();
   Handle<String> sample_subject =
       isolate->factory()->NewStringFromUtf8(CStrVector("")).ToHandleChecked();
-  RegExpEngine::Compile(isolate, zone, &compile_data, flags, pattern,
-                        sample_subject, is_one_byte);
+  RegExpEngine::Compile(isolate, zone, &compile_data, false, false, multiline,
+                        false, pattern, sample_subject, is_one_byte);
   return compile_data.node;
 }
 
@@ -1677,7 +1669,7 @@ TEST(CharacterRangeCaseIndependence) {
 }
 
 
-static bool InClass(uc32 c, ZoneList<CharacterRange>* ranges) {
+static bool InClass(uc16 c, ZoneList<CharacterRange>* ranges) {
   if (ranges == NULL)
     return false;
   for (int i = 0; i < ranges->length(); i++) {
@@ -1689,46 +1681,29 @@ static bool InClass(uc32 c, ZoneList<CharacterRange>* ranges) {
 }
 
 
-TEST(UnicodeRangeSplitter) {
+TEST(CharClassDifference) {
   Zone zone;
   ZoneList<CharacterRange>* base =
       new(&zone) ZoneList<CharacterRange>(1, &zone);
   base->Add(CharacterRange::Everything(), &zone);
-  UnicodeRangeSplitter splitter(&zone, base);
-  // BMP
-  for (uc32 c = 0; c < 0xd800; c++) {
-    CHECK(InClass(c, splitter.bmp()));
-    CHECK(!InClass(c, splitter.lead_surrogates()));
-    CHECK(!InClass(c, splitter.trail_surrogates()));
-    CHECK(!InClass(c, splitter.non_bmp()));
-  }
-  // Lead surrogates
-  for (uc32 c = 0xd800; c < 0xdbff; c++) {
-    CHECK(!InClass(c, splitter.bmp()));
-    CHECK(InClass(c, splitter.lead_surrogates()));
-    CHECK(!InClass(c, splitter.trail_surrogates()));
-    CHECK(!InClass(c, splitter.non_bmp()));
-  }
-  // Trail surrogates
-  for (uc32 c = 0xdc00; c < 0xdfff; c++) {
-    CHECK(!InClass(c, splitter.bmp()));
-    CHECK(!InClass(c, splitter.lead_surrogates()));
-    CHECK(InClass(c, splitter.trail_surrogates()));
-    CHECK(!InClass(c, splitter.non_bmp()));
-  }
-  // BMP
-  for (uc32 c = 0xe000; c < 0xffff; c++) {
-    CHECK(InClass(c, splitter.bmp()));
-    CHECK(!InClass(c, splitter.lead_surrogates()));
-    CHECK(!InClass(c, splitter.trail_surrogates()));
-    CHECK(!InClass(c, splitter.non_bmp()));
-  }
-  // Non-BMP
-  for (uc32 c = 0x10000; c < 0x10ffff; c++) {
-    CHECK(!InClass(c, splitter.bmp()));
-    CHECK(!InClass(c, splitter.lead_surrogates()));
-    CHECK(!InClass(c, splitter.trail_surrogates()));
-    CHECK(InClass(c, splitter.non_bmp()));
+  Vector<const int> overlay = CharacterRange::GetWordBounds();
+  ZoneList<CharacterRange>* included = NULL;
+  ZoneList<CharacterRange>* excluded = NULL;
+  CharacterRange::Split(base, overlay, &included, &excluded, &zone);
+  for (int i = 0; i < (1 << 16); i++) {
+    bool in_base = InClass(i, base);
+    if (in_base) {
+      bool in_overlay = false;
+      for (int j = 0; !in_overlay && j < overlay.length(); j += 2) {
+        if (overlay[j] <= i && i < overlay[j+1])
+          in_overlay = true;
+      }
+      CHECK_EQ(in_overlay, InClass(i, included));
+      CHECK_EQ(!in_overlay, InClass(i, excluded));
+    } else {
+      CHECK(!InClass(i, included));
+      CHECK(!InClass(i, excluded));
+    }
   }
 }
 
