@@ -151,15 +151,20 @@ class LR_WasmDecoder : public Decoder {
     }
 
     if (ok()) {
+      if (FLAG_trace_wasm_ast) {
+        PrintAst(function_env, pc, end);
+      }
       if (FLAG_trace_wasm_decode_time) {
         double ms = decode_timer.Elapsed().InMillisecondsF();
-        PrintF(" - decoding took %0.3f ms\n", ms);
+        PrintF("wasm-decode ok (%0.3f ms)\n\n", ms);
+      } else {
+        TRACE("wasm-decode ok\n\n");
       }
-      TRACE("wasm-decode ok\n\n");
     } else {
       TRACE("wasm-error module+%-6d func+%d: %s\n\n", baserel(error_pc_),
             startrel(error_pc_), error_msg_.get());
     }
+
     return toResult(tree);
   }
 
@@ -1477,7 +1482,17 @@ int OpcodeLength(const byte* pc) {
     FOREACH_LOAD_MEM_OPCODE(DECLARE_OPCODE_CASE)
     FOREACH_STORE_MEM_OPCODE(DECLARE_OPCODE_CASE)
 #undef DECLARE_OPCODE_CASE
-
+    {
+      // Loads and stores have an optional offset.
+      byte bitfield = pc[1];
+      if (MemoryAccess::OffsetField::decode(bitfield)) {
+        int length;
+        uint32_t result = 0;
+        ReadUnsignedLEB128Operand(pc + 2, pc + 7, &length, &result);
+        return 2 + length;
+      }
+      return 2;
+    }
     case kExprI8Const:
     case kExprBlock:
     case kExprLoop:
@@ -1577,6 +1592,37 @@ int OpcodeArity(FunctionEnv* env, const byte* pc) {
   }
   UNREACHABLE();
   return 0;
+}
+
+
+void PrintAst(FunctionEnv* env, const byte* start, const byte* end) {
+  const byte* pc = start;
+  std::vector<int> arity_stack;
+  while (pc < end) {
+    int arity = OpcodeArity(env, pc);
+    size_t length = OpcodeLength(pc);
+
+    for (auto arity : arity_stack) {
+      printf("  ");
+      USE(arity);
+    }
+
+    WasmOpcode opcode = static_cast<WasmOpcode>(*pc);
+    printf("k%s,", WasmOpcodes::OpcodeName(opcode));
+
+    for (size_t i = 1; i < length; i++) {
+      printf(" 0x%02x,", pc[i]);
+    }
+    pc += length;
+    printf("\n");
+
+    arity_stack.push_back(arity);
+    while (arity_stack.back() == 0) {
+      arity_stack.pop_back();
+      if (arity_stack.empty()) break;
+      arity_stack.back()--;
+    }
+  }
 }
 }  // namespace wasm
 }  // namespace internal

@@ -1491,13 +1491,14 @@ void CodeGenerator::AssembleReturn() {
       __ Bind(&return_label_);
       if (descriptor->UseNativeStack()) {
         __ Mov(csp, fp);
+        pop_count += (pop_count & 1);  // align
       } else {
         __ Mov(jssp, fp);
       }
       __ Pop(fp, lr);
     }
   } else if (descriptor->UseNativeStack()) {
-    pop_count += (pop_count & 1);
+    pop_count += (pop_count & 1);  // align
   }
   __ Drop(pop_count);
   __ Ret();

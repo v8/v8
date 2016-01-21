@@ -168,6 +168,30 @@ class TestingModule : public ModuleEnv {
     return &module->functions->back();
   }
 
+  void AddIndirectFunctionTable(int* functions, int table_size) {
+    AllocModule();
+    Isolate* isolate = module->shared_isolate;
+    Handle<FixedArray> fixed =
+        isolate->factory()->NewFixedArray(2 * table_size);
+    function_table = fixed;
+    module->function_table = new std::vector<uint16_t>();
+    for (int i = 0; i < table_size; i++) {
+      module->function_table->push_back(functions[i]);
+    }
+  }
+
+  void PopulateIndirectFunctionTable() {
+    if (function_table.is_null()) return;
+    int table_size = static_cast<int>(module->function_table->size());
+    for (int i = 0; i < table_size; i++) {
+      int function_index = module->function_table->at(i);
+      WasmFunction* function = &module->functions->at(function_index);
+      function_table->set(i, Smi::FromInt(function->sig_index));
+      function_table->set(i + table_size, *function_code->at(function_index));
+    }
+  }
+
+
  private:
   size_t mem_size;
   uint32_t global_offset;
@@ -271,12 +295,13 @@ class WasmFunctionCompiler : public HandleAndZoneScope,
     return result;
   }
 
-  uint32_t CompileAndAdd(TestingModule* module) {
+  uint32_t CompileAndAdd(TestingModule* module, int sig_index = 0) {
     uint32_t index = 0;
     if (module->module && module->module->functions) {
       index = static_cast<uint32_t>(module->module->functions->size());
     }
-    module->AddFunction(env.sig, Compile(module));
+    WasmFunction* function = module->AddFunction(env.sig, Compile(module));
+    function->sig_index = sig_index;
     return index;
   }
 };

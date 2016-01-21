@@ -89,6 +89,8 @@ TreeResult VerifyWasmCode(FunctionEnv* env, const byte* base, const byte* start,
 TreeResult BuildTFGraph(TFBuilder* builder, FunctionEnv* env, const byte* base,
                         const byte* start, const byte* end);
 
+void PrintAst(FunctionEnv* env, const byte* start, const byte* end);
+
 inline TreeResult VerifyWasmCode(FunctionEnv* env, const byte* start,
                                  const byte* end) {
   return VerifyWasmCode(env, nullptr, start, end);

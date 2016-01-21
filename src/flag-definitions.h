@@ -473,6 +473,7 @@ DEFINE_BOOL(expose_wasm, false, "expose WASM interface to JavaScript")
 DEFINE_BOOL(trace_wasm_decoder, false, "trace decoding of wasm code")
 DEFINE_BOOL(trace_wasm_decode_time, false, "trace decoding time of wasm code")
 DEFINE_BOOL(trace_wasm_compiler, false, "trace compiling of wasm code")
+DEFINE_BOOL(trace_wasm_ast, false, "dump AST after WASM decode")
 DEFINE_BOOL(wasm_break_on_decoder_error, false,
             "debug break when wasm decoder encounters an error")
 
