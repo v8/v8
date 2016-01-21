@@ -652,9 +652,6 @@ class ParserTraits {
   // Rewrite expressions that are not used as patterns
   V8_INLINE Expression* RewriteNonPattern(
       Expression* expr, const ExpressionClassifier* classifier, bool* ok);
-  V8_INLINE ZoneList<Expression*>* RewriteNonPatternArguments(
-      ZoneList<Expression*>* args, const ExpressionClassifier* classifier,
-      bool* ok);
   V8_INLINE ObjectLiteralProperty* RewriteNonPatternObjectLiteralProperty(
       ObjectLiteralProperty* property, const ExpressionClassifier* classifier,
       bool* ok);
@@ -1021,9 +1018,6 @@ class Parser : public ParserBase<ParserTraits> {
 
   V8_INLINE Expression* RewriteNonPattern(
       Expression* expr, const ExpressionClassifier* classifier, bool* ok);
-  V8_INLINE ZoneList<Expression*>* RewriteNonPatternArguments(
-      ZoneList<Expression*>* args, const ExpressionClassifier* classifier,
-      bool* ok);
   V8_INLINE ObjectLiteralProperty* RewriteNonPatternObjectLiteralProperty(
       ObjectLiteralProperty* property, const ExpressionClassifier* classifier,
       bool* ok);

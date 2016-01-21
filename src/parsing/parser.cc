@@ -4895,7 +4895,6 @@ Expression* Parser::ParseV8Intrinsic(bool* ok) {
   ExpressionClassifier classifier;
   ZoneList<Expression*>* args =
       ParseArguments(&spread_pos, &classifier, CHECK_OK);
-  args = RewriteNonPatternArguments(args, &classifier, CHECK_OK);
 
   DCHECK(!spread_pos.IsValid());
 
@@ -5464,13 +5463,6 @@ Expression* ParserTraits::RewriteNonPattern(
 }
 
 
-ZoneList<Expression*>* ParserTraits::RewriteNonPatternArguments(
-    ZoneList<Expression*>* args, const ExpressionClassifier* classifier,
-    bool* ok) {
-  return parser_->RewriteNonPatternArguments(args, classifier, ok);
-}
-
-
 ObjectLiteralProperty* ParserTraits::RewriteNonPatternObjectLiteralProperty(
     ObjectLiteralProperty* property, const ExpressionClassifier* classifier,
     bool* ok) {
@@ -5519,22 +5511,6 @@ Expression* Parser::RewriteNonPattern(Expression* expr,
   Expression* result = reinterpret_cast<Expression*>(rewriter.Rewrite(expr));
   DCHECK_NOT_NULL(result);
   return result;
-}
-
-
-ZoneList<Expression*>* Parser::RewriteNonPatternArguments(
-    ZoneList<Expression*>* args, const ExpressionClassifier* classifier,
-    bool* ok) {
-  ValidateExpression(classifier, ok);
-  if (!*ok) return args;
-  for (int i = 0; i < args->length(); i++) {
-    NonPatternRewriter rewriter(stack_limit_, this);
-    Expression* result =
-        reinterpret_cast<Expression*>(rewriter.Rewrite(args->at(i)));
-    DCHECK_NOT_NULL(result);
-    args->Set(i, result);
-  }
-  return args;
 }
 
 

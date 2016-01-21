@@ -936,9 +936,6 @@ class PreParserTraits {
   inline PreParserExpression RewriteNonPattern(
       PreParserExpression expr, const ExpressionClassifier* classifier,
       bool* ok);
-  inline PreParserExpression RewriteNonPatternArguments(
-      PreParserExpression args, const ExpressionClassifier* classifier,
-      bool* ok);
   inline PreParserExpression RewriteNonPatternObjectLiteralProperty(
       PreParserExpression property, const ExpressionClassifier* classifier,
       bool* ok);
@@ -1129,14 +1126,6 @@ PreParserExpression PreParserTraits::RewriteNonPattern(
     bool* ok) {
   pre_parser_->ValidateExpression(classifier, ok);
   return expr;
-}
-
-
-PreParserExpression PreParserTraits::RewriteNonPatternArguments(
-    PreParserExpression args, const ExpressionClassifier* classifier,
-    bool* ok) {
-  pre_parser_->ValidateExpression(classifier, ok);
-  return args;
 }
 
 
