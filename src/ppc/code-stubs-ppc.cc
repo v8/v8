@@ -5597,7 +5597,7 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   int apiStackSpace = 0;
   DCHECK(api_function_address.is(r5));
 
-  __ mr(r3, sp);                               // r0 = Handle<Name>
+  __ mr(r3, sp);                               // r3 = Handle<Name>
   __ addi(r4, r3, Operand(1 * kPointerSize));  // r4 = PCA
 
 // If ABI passes Handles (pointer-sized struct) in a register:

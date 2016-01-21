@@ -1443,9 +1443,9 @@ class MacroAssembler : public Assembler {
   // Returns the pc offset at which the frame ends.
   int LeaveFrame(StackFrame::Type type, int stack_adjustment = 0);
 
-  // Expects object in r0 and returns map with validated enum cache
-  // in r0.  Assumes that any other register can be used as a scratch.
-  void CheckEnumCache(Register null_value, Label* call_runtime);
+  // Expects object in r3 and returns map with validated enum cache
+  // in r3.  Assumes that any other register can be used as a scratch.
+  void CheckEnumCache(Label* call_runtime);
 
   // AllocationMemento support. Arrays may have an associated
   // AllocationMemento object that can be checked for in order to pretransition
