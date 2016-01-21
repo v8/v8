@@ -66,6 +66,13 @@ class BreakLocation {
   // the address.
   static BreakLocation FromAddress(Handle<DebugInfo> debug_info, Address pc);
 
+  template <class Frame>
+  static BreakLocation FromFrame(Handle<DebugInfo> debug_info, Frame* frame) {
+    // PC points to the instruction after the current one, possibly a break
+    // location as well. So the "- 1" to exclude it from the search.
+    return FromAddress(debug_info, frame->pc() - 1);
+  }
+
   static void FromAddressSameStatement(Handle<DebugInfo> debug_info, Address pc,
                                        List<BreakLocation>* result_out);
 
@@ -554,7 +561,9 @@ class Debug {
   void ClearOneShot();
   void ActivateStepOut(StackFrame* frame);
   void RemoveDebugInfoAndClearFromShared(Handle<DebugInfo> debug_info);
-  Handle<Object> CheckBreakPoints(Handle<Object> break_point);
+  Handle<Object> CheckBreakPoints(BreakLocation* location,
+                                  bool* has_break_points = nullptr);
+  bool IsMutedAtCurrentLocation(JavaScriptFrame* frame);
   bool CheckBreakPoint(Handle<Object> break_point_object);
   MaybeHandle<Object> CallFunction(const char* name, int argc,
                                    Handle<Object> args[]);

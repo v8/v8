@@ -58,12 +58,8 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
     // return, which requires a debug info to be available.
     Handle<DebugInfo> debug_info(shared_info->GetDebugInfo());
 
-    // PC points to the instruction after the current one, possibly a break
-    // location as well. So the "- 1" to exclude it from the search.
-    Address call_pc = GetFrame()->pc() - 1;
-
     // Find the break point where execution has stopped.
-    BreakLocation location = BreakLocation::FromAddress(debug_info, call_pc);
+    BreakLocation location = BreakLocation::FromFrame(debug_info, GetFrame());
 
     ignore_nested_scopes = location.IsReturn();
   }

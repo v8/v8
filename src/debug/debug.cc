@@ -444,22 +444,16 @@ void Debug::Break(Arguments args, JavaScriptFrame* frame) {
   Handle<DebugInfo> debug_info(shared->GetDebugInfo());
 
   // Find the break location where execution has stopped.
-  // PC points to the instruction after the current one, possibly a break
-  // location as well. So the "- 1" to exclude it from the search.
-  Address call_pc = frame->pc() - 1;
-  BreakLocation location = BreakLocation::FromAddress(debug_info, call_pc);
+  BreakLocation location = BreakLocation::FromFrame(debug_info, frame);
 
   // Find actual break points, if any, and trigger debug break event.
-  if (break_points_active_ && location.HasBreakPoint()) {
-    Handle<Object> break_point_objects = location.BreakPointObjects();
-    Handle<Object> break_points_hit = CheckBreakPoints(break_point_objects);
-    if (!break_points_hit->IsUndefined()) {
-      // Clear all current stepping setup.
-      ClearStepping();
-      // Notify the debug event listeners.
-      OnDebugBreak(break_points_hit, false);
-      return;
-    }
+  Handle<Object> break_points_hit = CheckBreakPoints(&location);
+  if (!break_points_hit->IsUndefined()) {
+    // Clear all current stepping setup.
+    ClearStepping();
+    // Notify the debug event listeners.
+    OnDebugBreak(break_points_hit, false);
+    return;
   }
 
   // No break point. Check for stepping.
@@ -503,12 +497,17 @@ void Debug::Break(Arguments args, JavaScriptFrame* frame) {
 }
 
 
-// Check the break point objects for whether one or more are actually
-// triggered. This function returns a JSArray with the break point objects
-// which is triggered.
-Handle<Object> Debug::CheckBreakPoints(Handle<Object> break_point_objects) {
+// Find break point objects for this location, if any, and evaluate them.
+// Return an array of break point objects that evaluated true.
+Handle<Object> Debug::CheckBreakPoints(BreakLocation* location,
+                                       bool* has_break_points) {
   Factory* factory = isolate_->factory();
+  bool has_break_points_to_check =
+      break_points_active_ && location->HasBreakPoint();
+  if (has_break_points) *has_break_points = has_break_points_to_check;
+  if (!has_break_points_to_check) return factory->undefined_value();
 
+  Handle<Object> break_point_objects = location->BreakPointObjects();
   // Count the number of break points hit. If there are multiple break points
   // they are in a FixedArray.
   Handle<FixedArray> break_points_hit;
@@ -518,9 +517,9 @@ Handle<Object> Debug::CheckBreakPoints(Handle<Object> break_point_objects) {
     Handle<FixedArray> array(FixedArray::cast(*break_point_objects));
     break_points_hit = factory->NewFixedArray(array->length());
     for (int i = 0; i < array->length(); i++) {
-      Handle<Object> o(array->get(i), isolate_);
-      if (CheckBreakPoint(o)) {
-        break_points_hit->set(break_points_hit_count++, *o);
+      Handle<Object> break_point_object(array->get(i), isolate_);
+      if (CheckBreakPoint(break_point_object)) {
+        break_points_hit->set(break_points_hit_count++, *break_point_object);
       }
     }
   } else {
@@ -529,15 +528,32 @@ Handle<Object> Debug::CheckBreakPoints(Handle<Object> break_point_objects) {
       break_points_hit->set(break_points_hit_count++, *break_point_objects);
     }
   }
-
-  // Return undefined if no break points were triggered.
-  if (break_points_hit_count == 0) {
-    return factory->undefined_value();
-  }
-  // Return break points hit as a JSArray.
+  if (break_points_hit_count == 0) return factory->undefined_value();
   Handle<JSArray> result = factory->NewJSArrayWithElements(break_points_hit);
   result->set_length(Smi::FromInt(break_points_hit_count));
   return result;
+}
+
+
+bool Debug::IsMutedAtCurrentLocation(JavaScriptFrame* frame) {
+  // A break location is considered muted if the break location has break
+  // points, but their conditions all evaluate to false.
+  // Aside from not triggering a debug break event at the break location,
+  // we also do not trigger one for debugger statements, nor an exception event
+  // on exception at this location.
+  Object* fun = frame->function();
+  if (!fun->IsJSFunction()) return false;
+  JSFunction* function = JSFunction::cast(fun);
+  if (!function->shared()->HasDebugInfo()) return false;
+  HandleScope scope(isolate_);
+  Handle<DebugInfo> debug_info(function->shared()->GetDebugInfo());
+  // Enter the debugger.
+  DebugScope debug_scope(this);
+  if (debug_scope.failed()) return false;
+  BreakLocation location = BreakLocation::FromFrame(debug_info, frame);
+  bool has_break_points;
+  Handle<Object> check_result = CheckBreakPoints(&location, &has_break_points);
+  return has_break_points && check_result->IsUndefined();
 }
 
 
@@ -847,8 +863,7 @@ void Debug::PrepareStep(StepAction step_action) {
 
   // PC points to the instruction after the current one, possibly a break
   // location as well. So the "- 1" to exclude it from the search.
-  Address call_pc = summary.pc() - 1;
-  BreakLocation location = BreakLocation::FromAddress(debug_info, call_pc);
+  BreakLocation location = BreakLocation::FromFrame(debug_info, &summary);
 
   // At a return statement we will step out either way.
   if (location.IsReturn()) step_action = StepOut;
@@ -1619,6 +1634,12 @@ void Debug::OnException(Handle<Object> exception, Handle<Object> promise) {
     if (!break_on_exception_) return;
   }
 
+  {
+    // Check whether the break location is muted.
+    JavaScriptFrameIterator it(isolate_);
+    if (!it.done() && IsMutedAtCurrentLocation(it.frame())) return;
+  }
+
   DebugScope debug_scope(this);
   if (debug_scope.failed()) return;
 
@@ -1636,8 +1657,7 @@ void Debug::OnException(Handle<Object> exception, Handle<Object> promise) {
 }
 
 
-void Debug::OnDebugBreak(Handle<Object> break_points_hit,
-                            bool auto_continue) {
+void Debug::OnDebugBreak(Handle<Object> break_points_hit, bool auto_continue) {
   // The caller provided for DebugScope.
   AssertDebugContext();
   // Bail out if there is no listener for this event
@@ -2071,6 +2091,8 @@ void Debug::HandleDebugBreak() {
           JSFunction::cast(fun)->context()->global_object();
       // Don't stop in debugger functions.
       if (IsDebugGlobal(global)) return;
+      // Don't stop if the break location is muted.
+      if (IsMutedAtCurrentLocation(it.frame())) return;
     }
   }
 
