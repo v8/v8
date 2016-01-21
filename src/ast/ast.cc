@@ -497,10 +497,11 @@ void ObjectLiteral::BuildConstantProperties(Isolate* isolate) {
 
 
 void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
+  DCHECK_LT(first_spread_index_, 0);
+
   if (!constant_elements_.is_null()) return;
 
-  int constants_length =
-      first_spread_index_ >= 0 ? first_spread_index_ : values()->length();
+  int constants_length = values()->length();
 
   // Allocate a fixed array to hold all the object literals.
   Handle<JSArray> array = isolate->factory()->NewJSArray(
@@ -508,7 +509,7 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
       Strength::WEAK, INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
 
   // Fill in the literals.
-  bool is_simple = (first_spread_index_ < 0);
+  bool is_simple = true;
   int depth_acc = 1;
   bool is_holey = false;
   int array_index = 0;
