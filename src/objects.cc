@@ -8108,8 +8108,8 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
       PropertyFilter filter = static_cast<PropertyFilter>(
           ONLY_WRITABLE | ONLY_ENUMERABLE | ONLY_CONFIGURABLE);
       KeyAccumulator accumulator(isolate, filter);
-      accumulator.Prepare();
-      copy->CollectOwnPropertyKeys(&accumulator, filter);
+      accumulator.NextPrototype();
+      copy->CollectOwnPropertyNames(&accumulator, filter);
       Handle<FixedArray> names = accumulator.GetKeys();
       for (int i = 0; i < names->length(); i++) {
         DCHECK(names->get(i)->IsName());
@@ -8448,9 +8448,10 @@ static Handle<FixedArray> ReduceFixedArrayTo(
 
 namespace {
 
-Handle<FixedArray> GetFastEnumPropertyKeys(Isolate* isolate, JSObject* object,
+Handle<FixedArray> GetFastEnumPropertyKeys(Isolate* isolate,
+                                           Handle<JSObject> object,
                                            bool cache_enum_length) {
-  Handle<Map> map(object->map(), isolate);
+  Handle<Map> map(object->map());
   Handle<DescriptorArray> descs =
       Handle<DescriptorArray>(map->instance_descriptors(), isolate);
   int own_property_count = map->EnumLength();
@@ -8524,13 +8525,30 @@ Handle<FixedArray> GetFastEnumPropertyKeys(Isolate* isolate, JSObject* object,
 }  // namespace
 
 
-Handle<FixedArray> JSObject::GetOwnEnumPropertyKeys(Handle<JSObject> object,
-                                                    bool cache_enum_length) {
-  PropertyFilter filter = PropertyFilter::ENUMERABLE_STRINGS;
-  KeyAccumulator keys(object->GetIsolate(), filter);
-  keys.Prepare();
-  object->CollectOwnPropertyKeys(&keys, filter);
-  return keys.GetKeys();
+Handle<FixedArray> JSObject::GetEnumPropertyKeys(Handle<JSObject> object,
+                                                 bool cache_enum_length) {
+  Isolate* isolate = object->GetIsolate();
+  if (object->HasFastProperties()) {
+    return GetFastEnumPropertyKeys(isolate, object, cache_enum_length);
+  } else if (object->IsJSGlobalObject()) {
+    Handle<GlobalDictionary> dictionary(object->global_dictionary());
+    int length = dictionary->NumberOfEnumElements();
+    if (length == 0) {
+      return Handle<FixedArray>(isolate->heap()->empty_fixed_array());
+    }
+    Handle<FixedArray> storage = isolate->factory()->NewFixedArray(length);
+    dictionary->CopyEnumKeysTo(*storage);
+    return storage;
+  } else {
+    Handle<NameDictionary> dictionary(object->property_dictionary());
+    int length = dictionary->NumberOfEnumElements();
+    if (length == 0) {
+      return Handle<FixedArray>(isolate->heap()->empty_fixed_array());
+    }
+    Handle<FixedArray> storage = isolate->factory()->NewFixedArray(length);
+    dictionary->CopyEnumKeysTo(*storage);
+    return storage;
+  }
 }
 
 
@@ -8614,7 +8632,30 @@ static Maybe<bool> GetKeysFromJSObject(Isolate* isolate,
           isolate, receiver, object, *filter, accumulator);
   MAYBE_RETURN(success, Nothing<bool>());
 
-  object->CollectOwnPropertyKeys(accumulator, *filter, type);
+  if (*filter == ENUMERABLE_STRINGS) {
+    // We can cache the computed property keys if access checks are
+    // not needed and no interceptors are involved.
+    //
+    // We do not use the cache if the object has elements and
+    // therefore it does not make sense to cache the property names
+    // for arguments objects.  Arguments objects will always have
+    // elements.
+    // Wrapped strings have elements, but don't have an elements
+    // array or dictionary.  So the fast inline test for whether to
+    // use the cache says yes, so we should not create a cache.
+    Handle<JSFunction> arguments_function(
+        JSFunction::cast(isolate->sloppy_arguments_map()->GetConstructor()));
+    bool cache_enum_length =
+        ((object->map()->GetConstructor() != *arguments_function) &&
+         !object->IsJSValue() && !object->IsAccessCheckNeeded() &&
+         !object->HasNamedInterceptor() && !object->HasIndexedInterceptor());
+    // Compute the property keys and cache them if possible.
+    Handle<FixedArray> enum_keys =
+        JSObject::GetEnumPropertyKeys(object, cache_enum_length);
+    accumulator->AddKeys(enum_keys);
+  } else {
+    object->CollectOwnPropertyNames(accumulator, *filter);
+  }
 
   // Add the property keys from the interceptor.
   success = GetKeysFromInterceptor<v8::GenericNamedPropertyEnumeratorCallback,
@@ -16360,74 +16401,24 @@ void FixedArray::SortPairs(FixedArray* numbers, uint32_t len) {
 }
 
 
-namespace {
-
-void CollectEnumCacheTo(KeyAccumulator* keys, JSObject* object) {
-  // We can cache the computed property keys if access checks are
-  // not needed and no interceptors are involved.
-  //
-  // We do not use the cache if the object has elements and
-  // therefore it does not make sense to cache the property names
-  // for arguments objects.  Arguments objects will always have
-  // elements.
-  // Wrapped strings have elements, but don't have an elements
-  // array or dictionary.  So the fast inline test for whether to
-  // use the cache says yes, so we should not create a cache.
-  Isolate* isolate = keys->isolate();
-  Handle<JSFunction> arguments_function(
-      JSFunction::cast(isolate->sloppy_arguments_map()->GetConstructor()));
-  bool cache_enum_length =
-      ((object->map()->GetConstructor() != *arguments_function) &&
-       !object->IsJSValue() && !object->IsAccessCheckNeeded() &&
-       !object->HasNamedInterceptor() && !object->HasIndexedInterceptor());
-  // Compute the property keys and cache them if possible.
-  Handle<FixedArray> enum_keys =
-      GetFastEnumPropertyKeys(isolate, object, cache_enum_length);
-  keys->AddKeys(enum_keys);
-}
-
-}  // namespace
-
-
-void JSObject::CollectFastPropertyKeysTo(KeyAccumulator* keys,
-                                         PropertyFilter filter,
-                                         JSReceiver::KeyCollectionType type) {
-  // Avoid using the enum cache if we have to walk the prototype chain due
-  // to shadowing properties.
-  if (filter == ENUMERABLE_STRINGS && type == JSReceiver::OWN_ONLY) {
-    CollectEnumCacheTo(keys, this);
-    return;
-  }
-
-  int real_size = map()->NumberOfOwnDescriptors();
-  Handle<DescriptorArray> descs(map()->instance_descriptors());
-  for (int i = 0; i < real_size; i++) {
-    PropertyDetails details = descs->GetDetails(i);
-    if ((details.attributes() & filter) != 0) {
-      if (type == JSReceiver::OWN_ONLY) continue;
-      if (details.attributes() & DONT_ENUM) {
-        keys->HideKey(descs->GetKey(i));
-      }
-      continue;
-    }
-    if (filter & ONLY_ALL_CAN_READ) {
-      if (details.kind() != kAccessor) continue;
-      Object* accessors = descs->GetValue(i);
-      if (!accessors->IsAccessorInfo()) continue;
-      if (!AccessorInfo::cast(accessors)->all_can_read()) continue;
-    }
-    Name* key = descs->GetKey(i);
-    if (key->FilterKey(filter)) continue;
-    keys->AddKey(key);
-  }
-}
-
-
-void JSObject::CollectOwnPropertyKeys(KeyAccumulator* keys,
-                                      PropertyFilter filter,
-                                      JSReceiver::KeyCollectionType type) {
+void JSObject::CollectOwnPropertyNames(KeyAccumulator* keys,
+                                       PropertyFilter filter) {
   if (HasFastProperties()) {
-    CollectFastPropertyKeysTo(keys, filter, type);
+    int real_size = map()->NumberOfOwnDescriptors();
+    Handle<DescriptorArray> descs(map()->instance_descriptors());
+    for (int i = 0; i < real_size; i++) {
+      PropertyDetails details = descs->GetDetails(i);
+      if ((details.attributes() & filter) != 0) continue;
+      if (filter & ONLY_ALL_CAN_READ) {
+        if (details.kind() != kAccessor) continue;
+        Object* accessors = descs->GetValue(i);
+        if (!accessors->IsAccessorInfo()) continue;
+        if (!AccessorInfo::cast(accessors)->all_can_read()) continue;
+      }
+      Name* key = descs->GetKey(i);
+      if (key->FilterKey(filter)) continue;
+      keys->AddKey(key);
+    }
   } else if (IsJSGlobalObject()) {
     GlobalDictionary::CollectKeysTo(handle(global_dictionary()), keys, filter);
   } else {
@@ -18461,27 +18452,20 @@ template <typename Derived, typename Shape, typename Key>
 void Dictionary<Derived, Shape, Key>::CollectKeysTo(
     Handle<Dictionary<Derived, Shape, Key> > dictionary, KeyAccumulator* keys,
     PropertyFilter filter) {
-  if (dictionary->NumberOfElements() == 0) return;
   int capacity = dictionary->Capacity();
   Handle<FixedArray> array =
       keys->isolate()->factory()->NewFixedArray(dictionary->NumberOfElements());
   int array_size = 0;
-  std::vector<int> hidden_key_indices;
 
   {
     DisallowHeapAllocation no_gc;
     Dictionary<Derived, Shape, Key>* raw_dict = *dictionary;
     for (int i = 0; i < capacity; i++) {
-      Object* key = raw_dict->KeyAt(i);
-      if (!raw_dict->IsKey(key) || key->FilterKey(filter)) continue;
+      Object* k = raw_dict->KeyAt(i);
+      if (!raw_dict->IsKey(k) || k->FilterKey(filter)) continue;
       if (raw_dict->IsDeleted(i)) continue;
       PropertyDetails details = raw_dict->DetailsAt(i);
-      if ((details.attributes() & filter) != 0) {
-        if (details.attributes() & DONT_ENUM) {
-          hidden_key_indices.push_back(i);
-        }
-        continue;
-      }
+      if ((details.attributes() & filter) != 0) continue;
       if (filter & ONLY_ALL_CAN_READ) {
         if (details.kind() != kAccessor) continue;
         Object* accessors = raw_dict->ValueAt(i);
@@ -18498,9 +18482,7 @@ void Dictionary<Derived, Shape, Key>::CollectKeysTo(
     Smi** start = reinterpret_cast<Smi**>(array->GetFirstElementAddress());
     std::sort(start, start + array_size, cmp);
   }
-  for (uint32_t i = 0; i < hidden_key_indices.size(); i++) {
-    keys->HideKey(dictionary->KeyAt(hidden_key_indices[i]));
-  }
+
   for (int i = 0; i < array_size; i++) {
     int index = Smi::cast(array->get(i))->value();
     keys->AddKey(dictionary->KeyAt(index));

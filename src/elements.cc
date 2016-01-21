@@ -1153,12 +1153,7 @@ class DictionaryElementsAccessor
         if (!AccessorInfo::cast(accessors)->all_can_read()) continue;
       }
       PropertyAttributes attr = details.attributes();
-      if ((attr & filter) != 0) {
-        if (attr & PropertyAttributes::DONT_ENUM) {
-          keys->HideKey(index);
-        }
-        continue;
-      }
+      if ((attr & filter) != 0) continue;
       keys->AddKey(index);
     }
 

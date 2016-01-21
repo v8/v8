@@ -250,8 +250,7 @@ Handle<Object> CallSite::GetMethodName() {
     if (!current->IsJSObject()) break;
     Handle<JSObject> current_obj = Handle<JSObject>::cast(current);
     if (current_obj->IsAccessCheckNeeded()) break;
-    Handle<FixedArray> keys =
-        JSObject::GetOwnEnumPropertyKeys(current_obj, false);
+    Handle<FixedArray> keys = JSObject::GetEnumPropertyKeys(current_obj, false);
     for (int i = 0; i < keys->length(); i++) {
       HandleScope inner_scope(isolate_);
       if (!keys->get(i)->IsName()) continue;
