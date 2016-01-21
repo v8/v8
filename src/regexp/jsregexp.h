@@ -265,28 +265,28 @@ class DispatchTable : public ZoneObject {
   class Entry {
    public:
     Entry() : from_(0), to_(0), out_set_(NULL) { }
-    Entry(uc16 from, uc16 to, OutSet* out_set)
-        : from_(from), to_(to), out_set_(out_set) { }
-    uc16 from() { return from_; }
-    uc16 to() { return to_; }
-    void set_to(uc16 value) { to_ = value; }
+    Entry(uc32 from, uc32 to, OutSet* out_set)
+        : from_(from), to_(to), out_set_(out_set) {}
+    uc32 from() { return from_; }
+    uc32 to() { return to_; }
+    void set_to(uc32 value) { to_ = value; }
     void AddValue(int value, Zone* zone) {
       out_set_ = out_set_->Extend(value, zone);
     }
     OutSet* out_set() { return out_set_; }
    private:
-    uc16 from_;
-    uc16 to_;
+    uc32 from_;
+    uc32 to_;
     OutSet* out_set_;
   };
 
   class Config {
    public:
-    typedef uc16 Key;
+    typedef uc32 Key;
     typedef Entry Value;
-    static const uc16 kNoKey;
+    static const uc32 kNoKey;
     static const Entry NoValue() { return Value(); }
-    static inline int Compare(uc16 a, uc16 b) {
+    static inline int Compare(uc32 a, uc32 b) {
       if (a == b)
         return 0;
       else if (a < b)
@@ -297,7 +297,7 @@ class DispatchTable : public ZoneObject {
   };
 
   void AddRange(CharacterRange range, int value, Zone* zone);
-  OutSet* Get(uc16 value);
+  OutSet* Get(uc32 value);
   void Dump();
 
   template <typename Callback>
@@ -312,6 +312,34 @@ class DispatchTable : public ZoneObject {
   OutSet empty_;
   ZoneSplayTree<Config>* tree() { return &tree_; }
   ZoneSplayTree<Config> tree_;
+};
+
+
+// Categorizes character ranges into BMP, non-BMP, lead, and trail surrogates.
+class UnicodeRangeSplitter {
+ public:
+  UnicodeRangeSplitter(Zone* zone, ZoneList<CharacterRange>* base);
+  void Call(uc32 from, DispatchTable::Entry entry);
+
+  ZoneList<CharacterRange>* bmp() { return bmp_; }
+  ZoneList<CharacterRange>* lead_surrogates() { return lead_surrogates_; }
+  ZoneList<CharacterRange>* trail_surrogates() { return trail_surrogates_; }
+  ZoneList<CharacterRange>* non_bmp() const { return non_bmp_; }
+
+ private:
+  static const int kBase = 0;
+  // Separate ranges into
+  static const int kBmpCodePoints = 1;
+  static const int kLeadSurrogates = 2;
+  static const int kTrailSurrogates = 3;
+  static const int kNonBmpCodePoints = 4;
+
+  Zone* zone_;
+  DispatchTable table_;
+  ZoneList<CharacterRange>* bmp_;
+  ZoneList<CharacterRange>* lead_surrogates_;
+  ZoneList<CharacterRange>* trail_surrogates_;
+  ZoneList<CharacterRange>* non_bmp_;
 };
 
 
@@ -690,6 +718,17 @@ class TextNode: public SeqRegExpNode {
         read_backward_(read_backward) {
     elms_->Add(TextElement::CharClass(that), zone());
   }
+  // Create TextNode for a single character class for the given ranges.
+  static TextNode* CreateForCharacterRanges(Zone* zone,
+                                            ZoneList<CharacterRange>* ranges,
+                                            bool read_backward,
+                                            RegExpNode* on_success);
+  // Create TextNode for a surrogate pair with a range given for the
+  // lead and the trail surrogate each.
+  static TextNode* CreateForSurrogatePair(Zone* zone, CharacterRange lead,
+                                          CharacterRange trail,
+                                          bool read_backward,
+                                          RegExpNode* on_success);
   virtual void Accept(NodeVisitor* visitor);
   virtual void Emit(RegExpCompiler* compiler, Trace* trace);
   virtual int EatsAtLeast(int still_to_find, int budget, bool not_at_start);
@@ -813,8 +852,7 @@ class BackReferenceNode: public SeqRegExpNode {
 class EndNode: public RegExpNode {
  public:
   enum Action { ACCEPT, BACKTRACK, NEGATIVE_SUBMATCH_SUCCESS };
-  explicit EndNode(Action action, Zone* zone)
-      : RegExpNode(zone), action_(action) { }
+  EndNode(Action action, Zone* zone) : RegExpNode(zone), action_(action) {}
   virtual void Accept(NodeVisitor* visitor);
   virtual void Emit(RegExpCompiler* compiler, Trace* trace);
   virtual int EatsAtLeast(int still_to_find,
@@ -1505,8 +1543,8 @@ class RegExpEngine: public AllStatic {
   };
 
   static CompilationResult Compile(Isolate* isolate, Zone* zone,
-                                   RegExpCompileData* input, bool ignore_case,
-                                   bool global, bool multiline, bool sticky,
+                                   RegExpCompileData* input,
+                                   JSRegExp::Flags flags,
                                    Handle<String> pattern,
                                    Handle<String> sample_subject,
                                    bool is_one_byte);
