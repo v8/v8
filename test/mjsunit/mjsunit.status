@@ -1143,6 +1143,9 @@
   'array-functions-prototype-misc': [SKIP],
   'strong/implicit-conversions': [SKIP],
   'strong/load-element-mutate-backing-store': [SKIP],
+
+  # Stack overflow.
+  'big-array-literal': [SKIP],
 }],  # 'gcov_coverage'
 
 ]
