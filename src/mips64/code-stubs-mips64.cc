@@ -1073,8 +1073,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
     __ mov(s1, a2);
   } else {
     // Compute the argv pointer in a callee-saved register.
-    __ dsll(s1, a0, kPointerSizeLog2);
-    __ Daddu(s1, sp, s1);
+    __ Dlsa(s1, sp, a0, kPointerSizeLog2);
     __ Dsubu(s1, s1, kPointerSize);
   }
 
@@ -3192,8 +3191,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 
   // Locate first character of substring to copy.
   STATIC_ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
-  __ dsll(a4, a3, 1);
-  __ Daddu(a5, a5, a4);
+  __ Dlsa(a5, a5, a3, 1);
   // Locate first character of result.
   __ Daddu(a1, v0, Operand(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
 
@@ -3928,16 +3926,14 @@ void NameDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
 
     // Scale the index by multiplying by the entry size.
     STATIC_ASSERT(NameDictionary::kEntrySize == 3);
-    __ dsll(at, index, 1);
-    __ Daddu(index, index, at);  // index *= 3.
+    __ Dlsa(index, index, index, 1);  // index *= 3.
 
     Register entity_name = scratch0;
     // Having undefined at this place means the name is not contained.
     STATIC_ASSERT(kSmiTagSize == 1);
     Register tmp = properties;
 
-    __ dsll(scratch0, index, kPointerSizeLog2);
-    __ Daddu(tmp, properties, scratch0);
+    __ Dlsa(tmp, properties, index, kPointerSizeLog2);
     __ ld(entity_name, FieldMemOperand(tmp, kElementsStartOffset));
 
     DCHECK(!tmp.is(entity_name));
@@ -4026,13 +4022,10 @@ void NameDictionaryLookupStub::GeneratePositiveLookup(MacroAssembler* masm,
     // Scale the index by multiplying by the entry size.
     STATIC_ASSERT(NameDictionary::kEntrySize == 3);
     // scratch2 = scratch2 * 3.
-
-    __ dsll(at, scratch2, 1);
-    __ Daddu(scratch2, scratch2, at);
+    __ Dlsa(scratch2, scratch2, scratch2, 1);
 
     // Check if the key is identical to the name.
-    __ dsll(at, scratch2, kPointerSizeLog2);
-    __ Daddu(scratch2, elements, at);
+    __ Dlsa(scratch2, elements, scratch2, kPointerSizeLog2);
     __ ld(at, FieldMemOperand(scratch2, kElementsStartOffset));
     __ Branch(done, eq, name, Operand(at));
   }
@@ -4113,14 +4106,10 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
     // Scale the index by multiplying by the entry size.
     STATIC_ASSERT(NameDictionary::kEntrySize == 3);
     // index *= 3.
-    __ mov(at, index);
-    __ dsll(index, index, 1);
-    __ Daddu(index, index, at);
-
+    __ Dlsa(index, index, index, 1);
 
     STATIC_ASSERT(kSmiTagSize == 1);
-    __ dsll(index, index, kPointerSizeLog2);
-    __ Daddu(index, index, dictionary);
+    __ Dlsa(index, dictionary, index, kPointerSizeLog2);
     __ ld(entry_key, FieldMemOperand(index, kElementsStartOffset));
 
     // Having undefined at this place means the name is not contained.
@@ -5105,8 +5094,7 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   switch (argument_count()) {
     case ANY:
     case MORE_THAN_ONE:
-      __ dsll(at, a0, kPointerSizeLog2);
-      __ Daddu(at, sp, at);
+      __ Dlsa(at, sp, a0, kPointerSizeLog2);
       __ sd(a1, MemOperand(at));
       __ li(at, Operand(3));
       __ Daddu(a0, a0, at);
@@ -5212,8 +5200,7 @@ void LoadGlobalViaContextStub::Generate(MacroAssembler* masm) {
   }
 
   // Load the PropertyCell value at the specified slot.
-  __ dsll(at, slot_reg, kPointerSizeLog2);
-  __ Daddu(at, at, Operand(context_reg));
+  __ Dlsa(at, context_reg, slot_reg, kPointerSizeLog2);
   __ ld(result_reg, ContextMemOperand(at, 0));
   __ ld(result_reg, FieldMemOperand(result_reg, PropertyCell::kValueOffset));
 
@@ -5251,8 +5238,7 @@ void StoreGlobalViaContextStub::Generate(MacroAssembler* masm) {
   }
 
   // Load the PropertyCell at the specified slot.
-  __ dsll(at, slot_reg, kPointerSizeLog2);
-  __ Daddu(at, at, Operand(context_reg));
+  __ Dlsa(at, context_reg, slot_reg, kPointerSizeLog2);
   __ ld(cell_reg, ContextMemOperand(at, 0));
 
   // Load PropertyDetails for the cell (actually only the cell_type and kind).

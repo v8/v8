@@ -1410,8 +1410,7 @@ void LCodeGen::DoMulS(LMulS* instr) {
           if (constant < 0) __ Dsubu(result, zero_reg, result);
         } else if (base::bits::IsPowerOfTwo32(constant_abs - 1)) {
           int32_t shift = WhichPowerOf2(constant_abs - 1);
-          __ dsll(scratch, left, shift);
-          __ Daddu(result, scratch, left);
+          __ Dlsa(result, left, left, shift);
           // Correct the sign of the result if the constant is negative.
           if (constant < 0) __ Dsubu(result, zero_reg, result);
         } else if (base::bits::IsPowerOfTwo32(constant_abs + 1)) {
@@ -1512,8 +1511,7 @@ void LCodeGen::DoMulI(LMulI* instr) {
           if (constant < 0) __ Subu(result, zero_reg, result);
         } else if (base::bits::IsPowerOfTwo32(constant_abs - 1)) {
           int32_t shift = WhichPowerOf2(constant_abs - 1);
-          __ sll(scratch, left, shift);
-          __ addu(result, scratch, left);
+          __ Lsa(result, left, left, shift);
           // Correct the sign of the result if the constant is negative.
           if (constant < 0) __ Subu(result, zero_reg, result);
         } else if (base::bits::IsPowerOfTwo32(constant_abs + 1)) {
@@ -2703,8 +2701,7 @@ void LCodeGen::DoReturn(LReturn* instr) {
     Register reg = ToRegister(instr->parameter_count());
     // The argument count parameter is a smi
     __ SmiUntag(reg);
-    __ dsll(at, reg, kPointerSizeLog2);
-    __ Daddu(sp, sp, at);
+    __ Dlsa(sp, sp, reg, kPointerSizeLog2);
   }
 
   __ Jump(ra);
@@ -2921,8 +2918,7 @@ void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
       Register index = ToRegister(instr->index());
       __ li(at, Operand(const_length + 1));
       __ Dsubu(result, at, index);
-      __ dsll(at, result, kPointerSizeLog2);
-      __ Daddu(at, arguments, at);
+      __ Dlsa(at, arguments, result, kPointerSizeLog2);
       __ ld(result, MemOperand(at));
     }
   } else if (instr->index()->IsConstantOperand()) {
@@ -2931,12 +2927,10 @@ void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
     int loc = const_index - 1;
     if (loc != 0) {
       __ Dsubu(result, length, Operand(loc));
-      __ dsll(at, result, kPointerSizeLog2);
-      __ Daddu(at, arguments, at);
+      __ Dlsa(at, arguments, result, kPointerSizeLog2);
       __ ld(result, MemOperand(at));
     } else {
-      __ dsll(at, length, kPointerSizeLog2);
-      __ Daddu(at, arguments, at);
+      __ Dlsa(at, arguments, length, kPointerSizeLog2);
       __ ld(result, MemOperand(at));
     }
   } else {
@@ -2944,8 +2938,7 @@ void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
     Register index = ToRegister(instr->index());
     __ Dsubu(result, length, index);
     __ Daddu(result, result, 1);
-    __ dsll(at, result, kPointerSizeLog2);
-    __ Daddu(at, arguments, at);
+    __ Dlsa(at, arguments, result, kPointerSizeLog2);
     __ ld(result, MemOperand(at));
   }
 }
@@ -3107,8 +3100,7 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
     __ SmiScale(scratch, key, kPointerSizeLog2);
     __ daddu(scratch, elements, scratch);
     } else {
-      __ dsll(scratch, key, kPointerSizeLog2);
-      __ daddu(scratch, elements, scratch);
+      __ Dlsa(scratch, elements, key, kPointerSizeLog2);
     }
   }
 
@@ -4282,8 +4274,7 @@ void LCodeGen::DoStoreKeyedFixedArray(LStoreKeyed* instr) {
       __ SmiScale(scratch, key, kPointerSizeLog2);
       __ daddu(store_base, elements, scratch);
     } else {
-      __ dsll(scratch, key, kPointerSizeLog2);
-      __ daddu(store_base, elements, scratch);
+      __ Dlsa(store_base, elements, key, kPointerSizeLog2);
     }
   }
 
@@ -4588,8 +4579,7 @@ void LCodeGen::DoStringCharFromCode(LStringCharFromCode* instr) {
   __ Branch(deferred->entry(), hi,
             char_code, Operand(String::kMaxOneByteCharCode));
   __ LoadRoot(result, Heap::kSingleCharacterStringCacheRootIndex);
-  __ dsll(scratch, char_code, kPointerSizeLog2);
-  __ Daddu(result, result, scratch);
+  __ Dlsa(result, result, char_code, kPointerSizeLog2);
   __ ld(result, FieldMemOperand(result, FixedArray::kHeaderSize));
   __ LoadRoot(scratch, Heap::kUndefinedValueRootIndex);
   __ Branch(deferred->entry(), eq, result, Operand(scratch));

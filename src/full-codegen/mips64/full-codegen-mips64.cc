@@ -3802,8 +3802,7 @@ void FullCodeGenerator::EmitFastOneByteArrayJoin(CallRuntime* expr) {
   __ mov(string_length, zero_reg);
   __ Daddu(element,
           elements, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ dsll(elements_end, array_length, kPointerSizeLog2);
-  __ Daddu(elements_end, element, elements_end);
+  __ Dlsa(elements_end, element, array_length, kPointerSizeLog2);
   // Loop condition: while (element < elements_end).
   // Live values in registers:
   //   elements: Fixed array of strings.
@@ -3882,8 +3881,7 @@ void FullCodeGenerator::EmitFastOneByteArrayJoin(CallRuntime* expr) {
   // Prepare for looping. Set up elements_end to end of the array. Set
   // result_pos to the position of the result where to write the first
   // character.
-  __ dsll(elements_end, array_length, kPointerSizeLog2);
-  __ Daddu(elements_end, element, elements_end);
+  __ Dlsa(elements_end, element, array_length, kPointerSizeLog2);
   result_pos = array_length;  // End of live range for array_length.
   array_length = no_reg;
   __ Daddu(result_pos,

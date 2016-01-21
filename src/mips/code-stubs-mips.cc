@@ -4054,9 +4054,7 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
     // Scale the index by multiplying by the entry size.
     STATIC_ASSERT(NameDictionary::kEntrySize == 3);
     // index *= 3.
-    __ mov(at, index);
     __ Lsa(index, index, index, 1);
-
 
     STATIC_ASSERT(kSmiTagSize == 1);
     __ Lsa(index, dictionary, index, 2);
