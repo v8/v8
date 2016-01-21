@@ -2116,10 +2116,6 @@ class PagedSpace : public Space {
   // It returns true when sweeping is completed and false otherwise.
   bool EnsureSweeperProgress(intptr_t size_in_bytes);
 
-  void set_end_of_unswept_pages(Page* page) { end_of_unswept_pages_ = page; }
-
-  Page* end_of_unswept_pages() { return end_of_unswept_pages_; }
-
   Page* FirstPage() { return anchor_.next_page(); }
   Page* LastPage() { return anchor_.prev_page(); }
 
@@ -2202,11 +2198,6 @@ class PagedSpace : public Space {
 
   // Normal allocation information.
   AllocationInfo allocation_info_;
-
-  // The sweeper threads iterate over the list of pointer and data space pages
-  // and sweep these pages concurrently. They will stop sweeping after the
-  // end_of_unswept_pages_ page.
-  Page* end_of_unswept_pages_;
 
   // Mutex guarding any concurrent access to the space.
   base::Mutex space_mutex_;

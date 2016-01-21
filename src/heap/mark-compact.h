@@ -421,7 +421,8 @@ class MarkCompactCollector {
   // required_freed_bytes was freed. If required_freed_bytes was set to zero
   // then the whole given space is swept. It returns the size of the maximum
   // continuous freed memory chunk.
-  int SweepInParallel(PagedSpace* space, int required_freed_bytes);
+  int SweepInParallel(PagedSpace* space, int required_freed_bytes,
+                      int max_pages = 0);
 
   // Sweeps a given page concurrently to the sweeper threads. It returns the
   // size of the maximum continuous freed memory chunk.
@@ -510,6 +511,8 @@ class MarkCompactCollector {
   class EvacuateVisitorBase;
   class HeapObjectVisitor;
   class SweeperTask;
+
+  typedef std::vector<Page*> SweepingList;
 
   static const int kInitialLocalPretenuringFeedbackCapacity = 256;
 
@@ -693,6 +696,8 @@ class MarkCompactCollector {
   //          evacuation.
   //
 
+  inline SweepingList& sweeping_list(Space* space);
+
   // If we are not compacting the heap, we simply sweep the spaces except
   // for the large object space, clearing mark bits and adding unmarked
   // regions to each space's free list.
@@ -735,10 +740,6 @@ class MarkCompactCollector {
   void SweepAbortedPages();
 
   void ReleaseEvacuationCandidates();
-
-  // Moves the pages of the evacuation_candidates_ list to the end of their
-  // corresponding space pages list.
-  void MoveEvacuationCandidatesToEndOfPagesList();
 
   // Starts sweeping of a space by contributing on the main thread and setting
   // up other pages for sweeping.
@@ -792,6 +793,10 @@ class MarkCompactCollector {
   base::SmartPointer<FreeList> free_list_old_space_;
   base::SmartPointer<FreeList> free_list_code_space_;
   base::SmartPointer<FreeList> free_list_map_space_;
+
+  SweepingList sweeping_list_old_space_;
+  SweepingList sweeping_list_code_space_;
+  SweepingList sweeping_list_map_space_;
 
   // True if we are collecting slots to perform evacuation from evacuation
   // candidates.

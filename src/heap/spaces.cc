@@ -952,9 +952,7 @@ STATIC_ASSERT(static_cast<ObjectSpace>(1 << AllocationSpace::MAP_SPACE) ==
 
 PagedSpace::PagedSpace(Heap* heap, AllocationSpace space,
                        Executability executable)
-    : Space(heap, space, executable),
-      free_list_(this),
-      end_of_unswept_pages_(NULL) {
+    : Space(heap, space, executable), free_list_(this) {
   area_size_ = MemoryAllocator::PageAreaSize(space);
   accounting_stats_.Clear();
 
@@ -1108,8 +1106,6 @@ void PagedSpace::MergeCompactionSpace(CompactionSpace* other) {
   // The linear allocation area of {other} should be destroyed now.
   DCHECK(other->top() == nullptr);
   DCHECK(other->limit() == nullptr);
-
-  DCHECK(other->end_of_unswept_pages_ == nullptr);
 
   AccountCommitted(other->CommittedMemory());
 
@@ -2837,6 +2833,8 @@ HeapObject* CompactionSpace::SweepAndRetryAllocation(int size_in_bytes) {
 
 
 HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
+  const int kMaxPagesToSweep = 1;
+
   // Allocation in this space has failed.
 
   MarkCompactCollector* collector = heap()->mark_compact_collector();
@@ -2851,10 +2849,13 @@ HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
     if (object != NULL) return object;
 
     // If sweeping is still in progress try to sweep pages on the main thread.
-    collector->SweepInParallel(heap()->paged_space(identity()), size_in_bytes);
+    int max_freed = collector->SweepInParallel(heap()->paged_space(identity()),
+                                               size_in_bytes, kMaxPagesToSweep);
     RefillFreeList();
-    object = free_list_.Allocate(size_in_bytes);
-    if (object != nullptr) return object;
+    if (max_freed >= size_in_bytes) {
+      object = free_list_.Allocate(size_in_bytes);
+      if (object != nullptr) return object;
+    }
   }
 
   // Free list allocation failed and there is no next page.  Fail if we have
