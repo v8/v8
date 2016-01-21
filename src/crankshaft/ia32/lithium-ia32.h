@@ -105,7 +105,6 @@ class LCodeGen;
   V(LoadNamedField)                          \
   V(LoadNamedGeneric)                        \
   V(LoadRoot)                                \
-  V(MapEnumLength)                           \
   V(MathAbs)                                 \
   V(MathClz32)                               \
   V(MathExp)                                 \
@@ -1335,18 +1334,6 @@ class LCmpMapAndBranch final : public LControlInstruction<1, 0> {
   DECLARE_HYDROGEN_ACCESSOR(CompareMap)
 
   Handle<Map> map() const { return hydrogen()->map().handle(); }
-};
-
-
-class LMapEnumLength final : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LMapEnumLength(LOperand* value) {
-    inputs_[0] = value;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(MapEnumLength, "map-enum-length")
 };
 
 

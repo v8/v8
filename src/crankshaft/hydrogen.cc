@@ -1275,6 +1275,14 @@ HValue* HGraphBuilder::BuildGetElementsKind(HValue* object) {
 }
 
 
+HValue* HGraphBuilder::BuildEnumLength(HValue* map) {
+  NoObservableSideEffectsScope scope(this);
+  HValue* bit_field3 =
+      Add<HLoadNamedField>(map, nullptr, HObjectAccess::ForMapBitField3());
+  return BuildDecodeField<Map::EnumLengthBits>(bit_field3);
+}
+
+
 HValue* HGraphBuilder::BuildCheckHeapObject(HValue* obj) {
   if (obj->type().IsHeapObject()) return obj;
   return Add<HCheckHeapObject>(obj);
@@ -5328,7 +5336,7 @@ void HOptimizedGraphBuilder::BuildForInBody(ForInStatement* stmt,
 
     array = Add<HForInCacheArray>(enumerable, map,
                                   DescriptorArray::kEnumCacheBridgeCacheIndex);
-    enum_length = Add<HMapEnumLength>(map);
+    enum_length = BuildEnumLength(map);
 
     HInstruction* index_cache = Add<HForInCacheArray>(
         enumerable, map, DescriptorArray::kEnumCacheBridgeIndicesCacheIndex);
@@ -5350,7 +5358,7 @@ void HOptimizedGraphBuilder::BuildForInBody(ForInStatement* stmt,
         HValue* cache_map = array;
         HForInCacheArray* cache = Add<HForInCacheArray>(
             enumerable, cache_map, DescriptorArray::kEnumCacheBridgeCacheIndex);
-        enum_length = Add<HMapEnumLength>(cache_map);
+        enum_length = BuildEnumLength(cache_map);
         Push(cache_map);
         Push(cache);
         Push(enum_length);

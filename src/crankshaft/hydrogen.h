@@ -1298,6 +1298,8 @@ class HGraphBuilder {
 
   HValue* BuildGetElementsKind(HValue* object);
 
+  HValue* BuildEnumLength(HValue* map);
+
   HValue* BuildCheckHeapObject(HValue* object);
   HValue* BuildCheckString(HValue* string);
   HValue* BuildWrapReceiver(HValue* object, HValue* function);

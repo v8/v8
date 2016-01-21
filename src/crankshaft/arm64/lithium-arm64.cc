@@ -1743,12 +1743,6 @@ LInstruction* LChunkBuilder::DoLoadRoot(HLoadRoot* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoMapEnumLength(HMapEnumLength* instr) {
-  LOperand* map = UseRegisterAtStart(instr->value());
-  return DefineAsRegister(new(zone()) LMapEnumLength(map));
-}
-
-
 LInstruction* LChunkBuilder::DoFlooringDivByPowerOf2I(HMathFloorOfDiv* instr) {
   DCHECK(instr->representation().IsInteger32());
   DCHECK(instr->left()->representation().Equals(instr->representation()));

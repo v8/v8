@@ -1766,12 +1766,6 @@ LInstruction* LChunkBuilder::DoClassOfTestAndBranch(
 }
 
 
-LInstruction* LChunkBuilder::DoMapEnumLength(HMapEnumLength* instr) {
-  LOperand* map = UseRegisterAtStart(instr->value());
-  return DefineAsRegister(new(zone()) LMapEnumLength(map));
-}
-
-
 LInstruction* LChunkBuilder::DoSeqStringGetChar(HSeqStringGetChar* instr) {
   LOperand* string = UseRegisterAtStart(instr->string());
   LOperand* index = UseRegisterOrConstantAtStart(instr->index());

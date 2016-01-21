@@ -106,7 +106,6 @@ class LCodeGen;
   V(LoadNamedField)                          \
   V(LoadNamedGeneric)                        \
   V(LoadRoot)                                \
-  V(MapEnumLength)                           \
   V(MathAbs)                                 \
   V(MathAbsTagged)                           \
   V(MathClz32)                               \
@@ -1788,18 +1787,6 @@ class LLoadRoot final : public LTemplateInstruction<1, 0, 0> {
   DECLARE_HYDROGEN_ACCESSOR(LoadRoot)
 
   Heap::RootListIndex index() const { return hydrogen()->index(); }
-};
-
-
-class LMapEnumLength final : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LMapEnumLength(LOperand* value) {
-    inputs_[0] = value;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(MapEnumLength, "map-enum-length")
 };
 
 

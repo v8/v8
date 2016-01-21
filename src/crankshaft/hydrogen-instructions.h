@@ -117,7 +117,6 @@ class LChunkBuilder;
   V(LoadNamedField)                           \
   V(LoadNamedGeneric)                         \
   V(LoadRoot)                                 \
-  V(MapEnumLength)                            \
   V(MathFloorOfDiv)                           \
   V(MathMinMax)                               \
   V(MaybeGrowElements)                        \
@@ -2490,31 +2489,6 @@ class HCallRuntime final : public HCall<1> {
 
   const Runtime::Function* c_function_;
   SaveFPRegsMode save_doubles_;
-};
-
-
-class HMapEnumLength final : public HUnaryOperation {
- public:
-  DECLARE_INSTRUCTION_FACTORY_P1(HMapEnumLength, HValue*);
-
-  Representation RequiredInputRepresentation(int index) override {
-    return Representation::Tagged();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(MapEnumLength)
-
- protected:
-  bool DataEquals(HValue* other) override { return true; }
-
- private:
-  explicit HMapEnumLength(HValue* value)
-      : HUnaryOperation(value, HType::Smi()) {
-    set_representation(Representation::Smi());
-    SetFlag(kUseGVN);
-    SetDependsOnFlag(kMaps);
-  }
-
-  bool IsDeletable() const override { return true; }
 };
 
 
@@ -6025,6 +5999,11 @@ class HObjectAccess final {
     return HObjectAccess(kInobject,
                          Map::kBitField2Offset,
                          Representation::UInteger8());
+  }
+
+  static HObjectAccess ForMapBitField3() {
+    return HObjectAccess(kInobject, Map::kBitField3Offset,
+                         Representation::Integer32());
   }
 
   static HObjectAccess ForNameHashField() {

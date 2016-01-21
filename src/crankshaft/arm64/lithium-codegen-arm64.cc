@@ -3405,13 +3405,6 @@ void LCodeGen::DoLoadRoot(LLoadRoot* instr) {
 }
 
 
-void LCodeGen::DoMapEnumLength(LMapEnumLength* instr) {
-  Register result = ToRegister(instr->result());
-  Register map = ToRegister(instr->value());
-  __ EnumLengthSmi(result, map);
-}
-
-
 void LCodeGen::DoMathAbs(LMathAbs* instr) {
   Representation r = instr->hydrogen()->value()->representation();
   if (r.IsDouble()) {

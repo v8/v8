@@ -1945,13 +1945,6 @@ void LCodeGen::DoConstantT(LConstantT* instr) {
 }
 
 
-void LCodeGen::DoMapEnumLength(LMapEnumLength* instr) {
-  Register result = ToRegister(instr->result());
-  Register map = ToRegister(instr->value());
-  __ EnumLength(result, map);
-}
-
-
 Operand LCodeGen::BuildSeqStringOperand(Register string,
                                         LOperand* index,
                                         String::Encoding encoding) {
