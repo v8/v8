@@ -955,8 +955,6 @@
         '../../src/profiler/profile-generator.h',
         '../../src/profiler/sampler.cc',
         '../../src/profiler/sampler.h',
-        '../../src/profiler/sampling-heap-profiler.cc',
-        '../../src/profiler/sampling-heap-profiler.h',
         '../../src/profiler/strings-storage.cc',
         '../../src/profiler/strings-storage.h',
         '../../src/profiler/unbound-queue-inl.h',
