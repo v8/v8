@@ -113,165 +113,6 @@ int GetByteWidth(MachineRepresentation rep) {
 
 }  // namespace
 
-class LiveRangeBound {
- public:
-  explicit LiveRangeBound(LiveRange* range, bool skip)
-      : range_(range), start_(range->Start()), end_(range->End()), skip_(skip) {
-    DCHECK(!range->IsEmpty());
-  }
-
-  bool CanCover(LifetimePosition position) {
-    return start_ <= position && position < end_;
-  }
-
-  LiveRange* const range_;
-  const LifetimePosition start_;
-  const LifetimePosition end_;
-  const bool skip_;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(LiveRangeBound);
-};
-
-
-struct FindResult {
-  LiveRange* cur_cover_;
-  LiveRange* pred_cover_;
-};
-
-
-class LiveRangeBoundArray {
- public:
-  LiveRangeBoundArray() : length_(0), start_(nullptr) {}
-
-  bool ShouldInitialize() { return start_ == nullptr; }
-
-  void Initialize(Zone* zone, TopLevelLiveRange* range) {
-    length_ = range->GetChildCount();
-
-    start_ = zone->NewArray<LiveRangeBound>(length_);
-    LiveRangeBound* curr = start_;
-    // Normally, spilled ranges do not need connecting moves, because the spill
-    // location has been assigned at definition. For ranges spilled in deferred
-    // blocks, that is not the case, so we need to connect the spilled children.
-    for (LiveRange *i = range; i != nullptr; i = i->next(), ++curr) {
-      new (curr) LiveRangeBound(i, i->spilled());
-    }
-  }
-
-  LiveRangeBound* Find(const LifetimePosition position) const {
-    size_t left_index = 0;
-    size_t right_index = length_;
-    while (true) {
-      size_t current_index = left_index + (right_index - left_index) / 2;
-      DCHECK(right_index > current_index);
-      LiveRangeBound* bound = &start_[current_index];
-      if (bound->start_ <= position) {
-        if (position < bound->end_) return bound;
-        DCHECK(left_index < current_index);
-        left_index = current_index;
-      } else {
-        right_index = current_index;
-      }
-    }
-  }
-
-  LiveRangeBound* FindPred(const InstructionBlock* pred) {
-    LifetimePosition pred_end =
-        LifetimePosition::InstructionFromInstructionIndex(
-            pred->last_instruction_index());
-    return Find(pred_end);
-  }
-
-  LiveRangeBound* FindSucc(const InstructionBlock* succ) {
-    LifetimePosition succ_start = LifetimePosition::GapFromInstructionIndex(
-        succ->first_instruction_index());
-    return Find(succ_start);
-  }
-
-  bool FindConnectableSubranges(const InstructionBlock* block,
-                                const InstructionBlock* pred,
-                                FindResult* result) const {
-    LifetimePosition pred_end =
-        LifetimePosition::InstructionFromInstructionIndex(
-            pred->last_instruction_index());
-    LiveRangeBound* bound = Find(pred_end);
-    result->pred_cover_ = bound->range_;
-    LifetimePosition cur_start = LifetimePosition::GapFromInstructionIndex(
-        block->first_instruction_index());
-
-    if (bound->CanCover(cur_start)) {
-      // Both blocks are covered by the same range, so there is nothing to
-      // connect.
-      return false;
-    }
-    bound = Find(cur_start);
-    if (bound->skip_) {
-      return false;
-    }
-    result->cur_cover_ = bound->range_;
-    DCHECK(result->pred_cover_ != nullptr && result->cur_cover_ != nullptr);
-    return (result->cur_cover_ != result->pred_cover_);
-  }
-
- private:
-  size_t length_;
-  LiveRangeBound* start_;
-
-  DISALLOW_COPY_AND_ASSIGN(LiveRangeBoundArray);
-};
-
-
-class LiveRangeFinder {
- public:
-  explicit LiveRangeFinder(const RegisterAllocationData* data, Zone* zone)
-      : data_(data),
-        bounds_length_(static_cast<int>(data_->live_ranges().size())),
-        bounds_(zone->NewArray<LiveRangeBoundArray>(bounds_length_)),
-        zone_(zone) {
-    for (int i = 0; i < bounds_length_; ++i) {
-      new (&bounds_[i]) LiveRangeBoundArray();
-    }
-  }
-
-  LiveRangeBoundArray* ArrayFor(int operand_index) {
-    DCHECK(operand_index < bounds_length_);
-    TopLevelLiveRange* range = data_->live_ranges()[operand_index];
-    DCHECK(range != nullptr && !range->IsEmpty());
-    LiveRangeBoundArray* array = &bounds_[operand_index];
-    if (array->ShouldInitialize()) {
-      array->Initialize(zone_, range);
-    }
-    return array;
-  }
-
- private:
-  const RegisterAllocationData* const data_;
-  const int bounds_length_;
-  LiveRangeBoundArray* const bounds_;
-  Zone* const zone_;
-
-  DISALLOW_COPY_AND_ASSIGN(LiveRangeFinder);
-};
-
-
-typedef std::pair<ParallelMove*, InstructionOperand> DelayedInsertionMapKey;
-
-
-struct DelayedInsertionMapCompare {
-  bool operator()(const DelayedInsertionMapKey& a,
-                  const DelayedInsertionMapKey& b) const {
-    if (a.first == b.first) {
-      return a.second.Compare(b.second);
-    }
-    return a.first < b.first;
-  }
-};
-
-
-typedef ZoneMap<DelayedInsertionMapKey, InstructionOperand,
-                DelayedInsertionMapCompare> DelayedInsertionMap;
-
 
 UsePosition::UsePosition(LifetimePosition pos, InstructionOperand* operand,
                          void* hint, UsePositionHintType hint_type)
@@ -893,13 +734,51 @@ void TopLevelLiveRange::RecordSpillLocation(Zone* zone, int gap_index,
       gap_index, operand, spill_move_insertion_locations_);
 }
 
+
+bool TopLevelLiveRange::TryCommitSpillInDeferredBlock(
+    InstructionSequence* code, const InstructionOperand& spill_operand) {
+  if (!IsSpilledOnlyInDeferredBlocks()) return false;
+
+  TRACE("Live Range %d will be spilled only in deferred blocks.\n", vreg());
+  // If we have ranges that aren't spilled but require the operand on the stack,
+  // make sure we insert the spill.
+  for (const LiveRange* child = this; child != nullptr; child = child->next()) {
+    if (!child->spilled() &&
+        child->NextSlotPosition(child->Start()) != nullptr) {
+      Instruction* instr =
+          code->InstructionAt(child->Start().ToInstructionIndex());
+      // Insert spill at the end to let live range connections happen at START.
+      ParallelMove* move =
+          instr->GetOrCreateParallelMove(Instruction::END, code->zone());
+      InstructionOperand assigned = child->GetAssignedOperand();
+      if (TopLevel()->has_slot_use()) {
+        bool found = false;
+        for (MoveOperands* move_op : *move) {
+          if (move_op->IsEliminated()) continue;
+          if (move_op->source().Equals(assigned) &&
+              move_op->destination().Equals(spill_operand)) {
+            found = true;
+            break;
+          }
+        }
+        if (found) continue;
+      }
+
+      move->AddMove(assigned, spill_operand);
+    }
+  }
+
+  return true;
+}
+
+
 void TopLevelLiveRange::CommitSpillMoves(InstructionSequence* sequence,
                                          const InstructionOperand& op,
                                          bool might_be_duplicated) {
-  DCHECK_IMPLIES(op.IsConstant(), GetSpillMoveInsertionLocations() == nullptr);
+  DCHECK_IMPLIES(op.IsConstant(), spill_move_insertion_locations() == nullptr);
   Zone* zone = sequence->zone();
 
-  for (SpillMoveInsertionList* to_spill = GetSpillMoveInsertionLocations();
+  for (SpillMoveInsertionList* to_spill = spill_move_insertion_locations();
        to_spill != nullptr; to_spill = to_spill->next) {
     Instruction* instr = sequence->InstructionAt(to_spill->gap_index);
     ParallelMove* move =
@@ -3086,7 +2965,7 @@ void SpillSlotLocator::LocateSpillSlots() {
       }
     } else {
       TopLevelLiveRange::SpillMoveInsertionList* spills =
-          range->GetSpillMoveInsertionLocations();
+          range->spill_move_insertion_locations();
       DCHECK_NOT_NULL(spills);
       for (; spills != nullptr; spills = spills->next) {
         code->GetInstructionBlock(spills->gap_index)->mark_needs_frame();
@@ -3153,10 +3032,12 @@ void OperandAssigner::CommitAssignment() {
       // connecting move when a successor child range is spilled - because the
       // spilled range picks up its value from the slot which was assigned at
       // definition. For ranges that are determined to spill only in deferred
-      // blocks, we let ConnectLiveRanges and ResolveControlFlow find the blocks
-      // where a spill operand is expected, and then finalize by inserting the
-      // spills in the deferred blocks dominators.
-      if (!top_range->IsSpilledOnlyInDeferredBlocks()) {
+      // blocks, we let ConnectLiveRanges and ResolveControlFlow insert such
+      // moves between ranges. Because of how the ranges are split around
+      // deferred blocks, this amounts to spilling and filling inside such
+      // blocks.
+      if (!top_range->TryCommitSpillInDeferredBlock(data()->code(),
+                                                    spill_operand)) {
         // Spill at definition if the range isn't spilled only in deferred
         // blocks.
         top_range->CommitSpillMoves(
@@ -3307,6 +3188,171 @@ void ReferenceMapPopulator::PopulateReferenceMaps() {
 }
 
 
+namespace {
+
+class LiveRangeBound {
+ public:
+  explicit LiveRangeBound(const LiveRange* range, bool skip)
+      : range_(range), start_(range->Start()), end_(range->End()), skip_(skip) {
+    DCHECK(!range->IsEmpty());
+  }
+
+  bool CanCover(LifetimePosition position) {
+    return start_ <= position && position < end_;
+  }
+
+  const LiveRange* const range_;
+  const LifetimePosition start_;
+  const LifetimePosition end_;
+  const bool skip_;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(LiveRangeBound);
+};
+
+
+struct FindResult {
+  const LiveRange* cur_cover_;
+  const LiveRange* pred_cover_;
+};
+
+
+class LiveRangeBoundArray {
+ public:
+  LiveRangeBoundArray() : length_(0), start_(nullptr) {}
+
+  bool ShouldInitialize() { return start_ == nullptr; }
+
+  void Initialize(Zone* zone, const TopLevelLiveRange* const range) {
+    length_ = range->GetChildCount();
+
+    start_ = zone->NewArray<LiveRangeBound>(length_);
+    LiveRangeBound* curr = start_;
+    // Normally, spilled ranges do not need connecting moves, because the spill
+    // location has been assigned at definition. For ranges spilled in deferred
+    // blocks, that is not the case, so we need to connect the spilled children.
+    bool spilled_in_blocks = range->IsSpilledOnlyInDeferredBlocks();
+    for (const LiveRange *i = range; i != nullptr; i = i->next(), ++curr) {
+      new (curr) LiveRangeBound(i, !spilled_in_blocks && i->spilled());
+    }
+  }
+
+  LiveRangeBound* Find(const LifetimePosition position) const {
+    size_t left_index = 0;
+    size_t right_index = length_;
+    while (true) {
+      size_t current_index = left_index + (right_index - left_index) / 2;
+      DCHECK(right_index > current_index);
+      LiveRangeBound* bound = &start_[current_index];
+      if (bound->start_ <= position) {
+        if (position < bound->end_) return bound;
+        DCHECK(left_index < current_index);
+        left_index = current_index;
+      } else {
+        right_index = current_index;
+      }
+    }
+  }
+
+  LiveRangeBound* FindPred(const InstructionBlock* pred) {
+    LifetimePosition pred_end =
+        LifetimePosition::InstructionFromInstructionIndex(
+            pred->last_instruction_index());
+    return Find(pred_end);
+  }
+
+  LiveRangeBound* FindSucc(const InstructionBlock* succ) {
+    LifetimePosition succ_start = LifetimePosition::GapFromInstructionIndex(
+        succ->first_instruction_index());
+    return Find(succ_start);
+  }
+
+  bool FindConnectableSubranges(const InstructionBlock* block,
+                                const InstructionBlock* pred,
+                                FindResult* result) const {
+    LifetimePosition pred_end =
+        LifetimePosition::InstructionFromInstructionIndex(
+            pred->last_instruction_index());
+    LiveRangeBound* bound = Find(pred_end);
+    result->pred_cover_ = bound->range_;
+    LifetimePosition cur_start = LifetimePosition::GapFromInstructionIndex(
+        block->first_instruction_index());
+
+    if (bound->CanCover(cur_start)) {
+      // Both blocks are covered by the same range, so there is nothing to
+      // connect.
+      return false;
+    }
+    bound = Find(cur_start);
+    if (bound->skip_) {
+      return false;
+    }
+    result->cur_cover_ = bound->range_;
+    DCHECK(result->pred_cover_ != nullptr && result->cur_cover_ != nullptr);
+    return (result->cur_cover_ != result->pred_cover_);
+  }
+
+ private:
+  size_t length_;
+  LiveRangeBound* start_;
+
+  DISALLOW_COPY_AND_ASSIGN(LiveRangeBoundArray);
+};
+
+
+class LiveRangeFinder {
+ public:
+  explicit LiveRangeFinder(const RegisterAllocationData* data, Zone* zone)
+      : data_(data),
+        bounds_length_(static_cast<int>(data_->live_ranges().size())),
+        bounds_(zone->NewArray<LiveRangeBoundArray>(bounds_length_)),
+        zone_(zone) {
+    for (int i = 0; i < bounds_length_; ++i) {
+      new (&bounds_[i]) LiveRangeBoundArray();
+    }
+  }
+
+  LiveRangeBoundArray* ArrayFor(int operand_index) {
+    DCHECK(operand_index < bounds_length_);
+    TopLevelLiveRange* range = data_->live_ranges()[operand_index];
+    DCHECK(range != nullptr && !range->IsEmpty());
+    LiveRangeBoundArray* array = &bounds_[operand_index];
+    if (array->ShouldInitialize()) {
+      array->Initialize(zone_, range);
+    }
+    return array;
+  }
+
+ private:
+  const RegisterAllocationData* const data_;
+  const int bounds_length_;
+  LiveRangeBoundArray* const bounds_;
+  Zone* const zone_;
+
+  DISALLOW_COPY_AND_ASSIGN(LiveRangeFinder);
+};
+
+
+typedef std::pair<ParallelMove*, InstructionOperand> DelayedInsertionMapKey;
+
+
+struct DelayedInsertionMapCompare {
+  bool operator()(const DelayedInsertionMapKey& a,
+                  const DelayedInsertionMapKey& b) const {
+    if (a.first == b.first) {
+      return a.second.Compare(b.second);
+    }
+    return a.first < b.first;
+  }
+};
+
+
+typedef ZoneMap<DelayedInsertionMapKey, InstructionOperand,
+                DelayedInsertionMapCompare> DelayedInsertionMap;
+
+}  // namespace
+
+
 LiveRangeConnector::LiveRangeConnector(RegisterAllocationData* data)
     : data_(data) {}
 
@@ -3337,18 +3383,6 @@ void LiveRangeConnector::ResolveControlFlow(Zone* local_zone) {
         InstructionOperand pred_op = result.pred_cover_->GetAssignedOperand();
         InstructionOperand cur_op = result.cur_cover_->GetAssignedOperand();
         if (pred_op.Equals(cur_op)) continue;
-        if (!pred_op.IsAnyRegister() && cur_op.IsAnyRegister()) {
-          // We're doing a reload.
-          const LiveRange* current = result.cur_cover_;
-
-          if (current->TopLevel()->IsSpilledOnlyInDeferredBlocks() &&
-              pred_block->IsDeferred()) {
-            // The spill location should be defined in pred_block, so add
-            // pred_block to the list of blocks requiring a spill operand.
-            current->TopLevel()->GetListOfBlocksRequiringSpillOperands()->Add(
-                pred_block->rpo_number().ToInt());
-          }
-        }
         int move_loc = ResolveControlFlow(block, cur_op, pred_block, pred_op);
         USE(move_loc);
         DCHECK_IMPLIES(
@@ -3358,16 +3392,6 @@ void LiveRangeConnector::ResolveControlFlow(Zone* local_zone) {
       }
       iterator.Advance();
     }
-  }
-
-  // At this stage, we collected blocks needing a spill operand from
-  // ConnectRanges and from ResolveControlFlow. Time to commit the spills for
-  // deferred blocks.
-  for (TopLevelLiveRange* top : data()->live_ranges()) {
-    if (top == nullptr || top->IsEmpty() ||
-        !top->IsSpilledOnlyInDeferredBlocks())
-      continue;
-    CommitSpillsInDeferredBlocks(top, finder.ArrayFor(top->vreg()), local_zone);
   }
 }
 
@@ -3406,7 +3430,7 @@ void LiveRangeConnector::ConnectRanges(Zone* local_zone) {
       LifetimePosition pos = second_range->Start();
       // Add gap move if the two live ranges touch and there is no block
       // boundary.
-      if (second_range->spilled()) continue;
+      if (!connect_spilled && second_range->spilled()) continue;
       if (first_range->End() != pos) continue;
       if (data()->IsBlockBoundary(pos) &&
           !CanEagerlyResolveControlFlow(GetInstructionBlock(code(), pos))) {
@@ -3418,16 +3442,6 @@ void LiveRangeConnector::ConnectRanges(Zone* local_zone) {
       bool delay_insertion = false;
       Instruction::GapPosition gap_pos;
       int gap_index = pos.ToInstructionIndex();
-      if (connect_spilled && !prev_operand.IsAnyRegister() &&
-          cur_operand.IsAnyRegister()) {
-        const InstructionBlock* block = code()->GetInstructionBlock(gap_index);
-        DCHECK(block->IsDeferred());
-        // Performing a reload in this block, meaning the spill operand must
-        // be defined here.
-        top_range->GetListOfBlocksRequiringSpillOperands()->Add(
-            block->rpo_number().ToInt());
-      }
-
       if (pos.IsGapPosition()) {
         gap_pos = pos.IsStart() ? Instruction::START : Instruction::END;
       } else {
@@ -3438,7 +3452,7 @@ void LiveRangeConnector::ConnectRanges(Zone* local_zone) {
         }
         gap_pos = delay_insertion ? Instruction::END : Instruction::START;
       }
-      // Reloads or spills for spilled in deferred blocks ranges must happen
+      // Fills or spills for spilled in deferred blocks ranges must happen
       // only in deferred blocks.
       DCHECK_IMPLIES(
           connect_spilled &&
@@ -3485,73 +3499,6 @@ void LiveRangeConnector::ConnectRanges(Zone* local_zone) {
     MoveOperands* eliminate = moves->PrepareInsertAfter(move);
     to_insert.push_back(move);
     if (eliminate != nullptr) to_eliminate.push_back(eliminate);
-  }
-}
-
-
-void LiveRangeConnector::CommitSpillsInDeferredBlocks(
-    TopLevelLiveRange* range, LiveRangeBoundArray* array, Zone* temp_zone) {
-  DCHECK(range->IsSpilledOnlyInDeferredBlocks());
-  DCHECK(!range->spilled());
-
-  InstructionSequence* code = data()->code();
-  InstructionOperand spill_operand = range->GetSpillRangeOperand();
-
-  TRACE("Live Range %d will be spilled only in deferred blocks.\n",
-        range->vreg());
-  // If we have ranges that aren't spilled but require the operand on the stack,
-  // make sure we insert the spill.
-  for (const LiveRange* child = range; child != nullptr;
-       child = child->next()) {
-    for (const UsePosition* pos = child->first_pos(); pos != nullptr;
-         pos = pos->next()) {
-      if (pos->type() != UsePositionType::kRequiresSlot && !child->spilled())
-        continue;
-      range->AddBlockRequiringSpillOperand(
-          code->GetInstructionBlock(pos->pos().ToInstructionIndex())
-              ->rpo_number());
-    }
-  }
-
-  ZoneQueue<int> worklist(temp_zone);
-
-  for (BitVector::Iterator iterator(
-           range->GetListOfBlocksRequiringSpillOperands());
-       !iterator.Done(); iterator.Advance()) {
-    worklist.push(iterator.Current());
-  }
-
-  // Seek the deferred blocks that dominate locations requiring spill operands,
-  // and spill there. We only need to spill at the start of such blocks.
-  BitVector done_blocks(
-      range->GetListOfBlocksRequiringSpillOperands()->length(), temp_zone);
-  while (!worklist.empty()) {
-    int block_id = worklist.front();
-    worklist.pop();
-    if (done_blocks.Contains(block_id)) continue;
-    done_blocks.Add(block_id);
-    const InstructionBlock* spill_block =
-        code->InstructionBlockAt(RpoNumber::FromInt(block_id));
-
-    for (const RpoNumber& pred : spill_block->predecessors()) {
-      const InstructionBlock* pred_block = code->InstructionBlockAt(pred);
-
-      if (pred_block->IsDeferred()) {
-        worklist.push(pred_block->rpo_number().ToInt());
-      } else {
-        LifetimePosition pred_end =
-            LifetimePosition::InstructionFromInstructionIndex(
-                pred_block->last_instruction_index());
-
-        LiveRangeBound* bound = array->Find(pred_end);
-
-        InstructionOperand pred_op = bound->range_->GetAssignedOperand();
-
-        data()->AddGapMove(spill_block->first_instruction_index(),
-                           Instruction::GapPosition::START, pred_op,
-                           spill_operand);
-      }
-    }
   }
 }
 

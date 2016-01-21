@@ -579,17 +579,14 @@ class TopLevelLiveRange final : public LiveRange {
   // and instead let the LiveRangeConnector perform the spills within the
   // deferred blocks. If so, we insert here spills for non-spilled ranges
   // with slot use positions.
-  void TreatAsSpilledInDeferredBlock(Zone* zone, int total_block_count) {
+  void MarkSpilledInDeferredBlock() {
     spill_start_index_ = -1;
     spilled_in_deferred_blocks_ = true;
     spill_move_insertion_locations_ = nullptr;
-    list_of_blocks_requiring_spill_operands_ =
-        new (zone) BitVector(total_block_count, zone);
   }
 
-  void CommitSpillInDeferredBlocks(RegisterAllocationData* data,
-                                   const InstructionOperand& spill_operand,
-                                   BitVector* necessary_spill_points);
+  bool TryCommitSpillInDeferredBlock(InstructionSequence* code,
+                                     const InstructionOperand& spill_operand);
 
   TopLevelLiveRange* splintered_from() const { return splintered_from_; }
   bool IsSplinter() const { return splintered_from_ != nullptr; }
@@ -620,8 +617,7 @@ class TopLevelLiveRange final : public LiveRange {
 
   struct SpillMoveInsertionList;
 
-  SpillMoveInsertionList* GetSpillMoveInsertionLocations() const {
-    DCHECK(!IsSpilledOnlyInDeferredBlocks());
+  SpillMoveInsertionList* spill_move_insertion_locations() const {
     return spill_move_insertion_locations_;
   }
   TopLevelLiveRange* splinter() const { return splinter_; }
@@ -637,16 +633,6 @@ class TopLevelLiveRange final : public LiveRange {
 
   void MarkHasPreassignedSlot() { has_preassigned_slot_ = true; }
   bool has_preassigned_slot() const { return has_preassigned_slot_; }
-
-  void AddBlockRequiringSpillOperand(RpoNumber block_id) {
-    DCHECK(IsSpilledOnlyInDeferredBlocks());
-    GetListOfBlocksRequiringSpillOperands()->Add(block_id.ToInt());
-  }
-
-  BitVector* GetListOfBlocksRequiringSpillOperands() const {
-    DCHECK(IsSpilledOnlyInDeferredBlocks());
-    return list_of_blocks_requiring_spill_operands_;
-  }
 
  private:
   void SetSplinteredFrom(TopLevelLiveRange* splinter_parent);
@@ -664,12 +650,7 @@ class TopLevelLiveRange final : public LiveRange {
     InstructionOperand* spill_operand_;
     SpillRange* spill_range_;
   };
-
-  union {
-    SpillMoveInsertionList* spill_move_insertion_locations_;
-    BitVector* list_of_blocks_requiring_spill_operands_;
-  };
-
+  SpillMoveInsertionList* spill_move_insertion_locations_;
   // TODO(mtrofin): generalize spilling after definition, currently specialized
   // just for spill in a single deferred block.
   bool spilled_in_deferred_blocks_;
@@ -1144,7 +1125,6 @@ class ReferenceMapPopulator final : public ZoneObject {
 };
 
 
-class LiveRangeBoundArray;
 // Insert moves of the form
 //
 //          Operand(child_(k+1)) = Operand(child_k)
@@ -1176,10 +1156,6 @@ class LiveRangeConnector final : public ZoneObject {
                          const InstructionOperand& cur_op,
                          const InstructionBlock* pred,
                          const InstructionOperand& pred_op);
-
-  void CommitSpillsInDeferredBlocks(TopLevelLiveRange* range,
-                                    LiveRangeBoundArray* array,
-                                    Zone* temp_zone);
 
   RegisterAllocationData* const data_;
 
