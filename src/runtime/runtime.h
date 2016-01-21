@@ -1030,7 +1030,7 @@ namespace internal {
   F(LoadIC_MissFromStubFailure, 4, 1)        \
   F(LoadPropertyWithInterceptor, 3, 1)       \
   F(LoadPropertyWithInterceptorOnly, 3, 1)   \
-  F(StoreCallbackProperty, 6, 1)             \
+  F(StoreCallbackProperty, 5, 1)             \
   F(StoreIC_Miss, 5, 1)                      \
   F(StoreIC_MissFromStubFailure, 5, 1)       \
   F(StoreIC_Slow, 5, 1)                      \

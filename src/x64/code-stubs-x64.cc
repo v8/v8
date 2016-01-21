@@ -5368,11 +5368,11 @@ void CallApiAccessorStub::Generate(MacroAssembler* masm) {
 
 void CallApiGetterStub::Generate(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- rsp[0]                          : return address
-  //  -- rsp[8]                          : name
-  //  -- rsp[16 .. (16 + kArgsLength*8)] : v8::PropertyCallbackInfo::args_
+  //  -- rsp[0]                  : return address
+  //  -- rsp[8]                  : name
+  //  -- rsp[16 - kArgsLength*8] : PropertyCallbackArguments object
   //  -- ...
-  //  -- r8                              : api_function_address
+  //  -- r8                    : api_function_address
   // -----------------------------------
 
 #if defined(__MINGW64__) || defined(_WIN64)
@@ -5388,25 +5388,23 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   DCHECK(api_function_address.is(r8));
   Register scratch = rax;
 
-  // v8::PropertyCallbackInfo::args_ array and name handle.
-  const int kStackUnwindSpace = PropertyCallbackArguments::kArgsLength + 1;
+  // v8::Arguments::values_ and handler for name.
+  const int kStackSpace = PropertyCallbackArguments::kArgsLength + 1;
 
-  // Allocate v8::PropertyCallbackInfo in non-GCed stack space.
+  // Allocate v8::AccessorInfo in non-GCed stack space.
   const int kArgStackSpace = 1;
 
-  // Load address of v8::PropertyAccessorInfo::args_ array.
-  __ leap(scratch, Operand(rsp, 2 * kPointerSize));
+  __ leap(name_arg, Operand(rsp, kPCOnStackSize));
 
   PrepareCallApiFunction(masm, kArgStackSpace);
-  // Create v8::PropertyCallbackInfo object on the stack and initialize
-  // it's args_ field.
-  Operand info_object = StackSpaceOperand(0);
-  __ movp(info_object, scratch);
+  __ leap(scratch, Operand(name_arg, 1 * kPointerSize));
 
-  __ leap(name_arg, Operand(scratch, -kPointerSize));
+  // v8::PropertyAccessorInfo::args_.
+  __ movp(StackSpaceOperand(0), scratch);
+
   // The context register (rsi) has been saved in PrepareCallApiFunction and
   // could be used to pass arguments.
-  __ leap(accessor_info_arg, info_object);
+  __ leap(accessor_info_arg, StackSpaceOperand(0));
 
   ExternalReference thunk_ref =
       ExternalReference::invoke_accessor_getter_callback(isolate());
@@ -5416,12 +5414,13 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   DCHECK(!api_function_address.is(accessor_info_arg) &&
          !api_function_address.is(name_arg));
 
-  // +3 is to skip prolog, return address and name handle.
-  Operand return_value_operand(
-      rbp, (PropertyCallbackArguments::kReturnValueOffset + 3) * kPointerSize);
+  // The name handler is counted as an argument.
+  StackArgumentsAccessor args(rbp, PropertyCallbackArguments::kArgsLength);
+  Operand return_value_operand = args.GetArgumentOperand(
+      PropertyCallbackArguments::kArgsLength - 1 -
+      PropertyCallbackArguments::kReturnValueOffset);
   CallApiFunctionAndReturn(masm, api_function_address, thunk_ref, getter_arg,
-                           kStackUnwindSpace, nullptr, return_value_operand,
-                           NULL);
+                           kStackSpace, nullptr, return_value_operand, NULL);
 }
 
 

@@ -5344,50 +5344,38 @@ void CallApiAccessorStub::Generate(MacroAssembler* masm) {
 
 void CallApiGetterStub::Generate(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- esp[0]                        : return address
-  //  -- esp[4]                        : name
-  //  -- esp[8 .. (8 + kArgsLength*4)] : v8::PropertyCallbackInfo::args_
+  //  -- esp[0]                  : return address
+  //  -- esp[4]                  : name
+  //  -- esp[8 - kArgsLength*4]  : PropertyCallbackArguments object
   //  -- ...
-  //  -- edx                           : api_function_address
+  //  -- edx                    : api_function_address
   // -----------------------------------
   DCHECK(edx.is(ApiGetterDescriptor::function_address()));
 
-  // v8::PropertyCallbackInfo::args_ array and name handle.
-  const int kStackUnwindSpace = PropertyCallbackArguments::kArgsLength + 1;
-
-  // Allocate v8::PropertyCallbackInfo object, arguments for callback and
-  // space for optional callback address parameter (in case CPU profiler is
-  // active) in non-GCed stack space.
-  const int kApiArgc = 3 + 1;
+  // array for v8::Arguments::values_, handler for name and pointer
+  // to the values (it considered as smi in GC).
+  const int kStackSpace = PropertyCallbackArguments::kArgsLength + 2;
+  // Allocate space for opional callback address parameter in case
+  // CPU profiler is active.
+  const int kApiArgc = 2 + 1;
 
   Register api_function_address = edx;
   Register scratch = ebx;
 
-  // Load address of v8::PropertyAccessorInfo::args_ array.
-  __ lea(scratch, Operand(esp, 2 * kPointerSize));
+  // load address of name
+  __ lea(scratch, Operand(esp, 1 * kPointerSize));
 
   PrepareCallApiFunction(masm, kApiArgc);
-  // Create v8::PropertyCallbackInfo object on the stack and initialize
-  // it's args_ field.
-  Operand info_object = ApiParameterOperand(3);
-  __ mov(info_object, scratch);
-
-  __ sub(scratch, Immediate(kPointerSize));
   __ mov(ApiParameterOperand(0), scratch);  // name.
-  __ lea(scratch, info_object);
+  __ add(scratch, Immediate(kPointerSize));
   __ mov(ApiParameterOperand(1), scratch);  // arguments pointer.
-  // Reserve space for optional callback address parameter.
-  Operand thunk_last_arg = ApiParameterOperand(2);
 
   ExternalReference thunk_ref =
       ExternalReference::invoke_accessor_getter_callback(isolate());
 
-  // +3 is to skip prolog, return address and name handle.
-  Operand return_value_operand(
-      ebp, (PropertyCallbackArguments::kReturnValueOffset + 3) * kPointerSize);
   CallApiFunctionAndReturn(masm, api_function_address, thunk_ref,
-                           thunk_last_arg, kStackUnwindSpace, nullptr,
-                           return_value_operand, NULL);
+                           ApiParameterOperand(2), kStackSpace, nullptr,
+                           Operand(ebp, 7 * kPointerSize), NULL);
 }
 
 

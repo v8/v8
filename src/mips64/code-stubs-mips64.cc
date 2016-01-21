@@ -5607,41 +5607,34 @@ void CallApiAccessorStub::Generate(MacroAssembler* masm) {
 
 void CallApiGetterStub::Generate(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- sp[0]                        : name
-  //  -- sp[8 .. (8 + kArgsLength*8)] : v8::PropertyCallbackInfo::args_
+  //  -- sp[0]                  : name
+  //  -- sp[4 - kArgsLength*4]  : PropertyCallbackArguments object
   //  -- ...
-  //  -- a2                           : api_function_address
+  //  -- a2                     : api_function_address
   // -----------------------------------
 
   Register api_function_address = ApiGetterDescriptor::function_address();
   DCHECK(api_function_address.is(a2));
 
-  // v8::PropertyCallbackInfo::args_ array and name handle.
-  const int kStackUnwindSpace = PropertyCallbackArguments::kArgsLength + 1;
-
-  // Load address of v8::PropertyAccessorInfo::args_ array and name handle.
-  __ mov(a0, sp);                               // a0 = Handle<Name>
-  __ Daddu(a1, a0, Operand(1 * kPointerSize));  // a1 = v8::PCI::args_
+  __ mov(a0, sp);  // a0 = Handle<Name>
+  __ Daddu(a1, a0, Operand(1 * kPointerSize));  // a1 = PCA
 
   const int kApiStackSpace = 1;
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ EnterExitFrame(false, kApiStackSpace);
 
-  // Create v8::PropertyCallbackInfo object on the stack and initialize
-  // it's args_ field.
+  // Create PropertyAccessorInfo instance on the stack above the exit frame with
+  // a1 (internal::Object** args_) as the data.
   __ sd(a1, MemOperand(sp, 1 * kPointerSize));
-  __ Daddu(a1, sp, Operand(1 * kPointerSize));
-  // a1 = v8::PropertyCallbackInfo&
+  __ Daddu(a1, sp, Operand(1 * kPointerSize));  // a1 = AccessorInfo&
+
+  const int kStackUnwindSpace = PropertyCallbackArguments::kArgsLength + 1;
 
   ExternalReference thunk_ref =
       ExternalReference::invoke_accessor_getter_callback(isolate());
-
-  // +3 is to skip prolog, return address and name handle.
-  MemOperand return_value_operand(
-      fp, (PropertyCallbackArguments::kReturnValueOffset + 3) * kPointerSize);
   CallApiFunctionAndReturn(masm, api_function_address, thunk_ref,
                            kStackUnwindSpace, kInvalidStackOffset,
-                           return_value_operand, NULL);
+                           MemOperand(fp, 6 * kPointerSize), NULL);
 }
 
 

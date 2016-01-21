@@ -595,38 +595,37 @@ void NamedLoadHandlerCompiler::GenerateLoadConstant(Handle<Object> value) {
 
 void NamedLoadHandlerCompiler::GenerateLoadCallback(
     Register reg, Handle<AccessorInfo> callback) {
-  DCHECK(!AreAliased(scratch2(), scratch3(), scratch4(), receiver()));
-  DCHECK(!AreAliased(scratch2(), scratch3(), scratch4(), reg));
-
-  // Build v8::PropertyCallbackInfo::args_ array on the stack and push property
-  // name below the exit frame to make GC aware of them.
-  STATIC_ASSERT(PropertyCallbackArguments::kShouldThrowOnErrorIndex == 0);
-  STATIC_ASSERT(PropertyCallbackArguments::kHolderIndex == 1);
-  STATIC_ASSERT(PropertyCallbackArguments::kIsolateIndex == 2);
-  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueDefaultValueIndex == 3);
-  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueOffset == 4);
-  STATIC_ASSERT(PropertyCallbackArguments::kDataIndex == 5);
-  STATIC_ASSERT(PropertyCallbackArguments::kThisIndex == 6);
-  STATIC_ASSERT(PropertyCallbackArguments::kArgsLength == 7);
-
+  // Build AccessorInfo::args_ list on the stack and push property name below
+  // the exit frame to make GC aware of them and store pointers to them.
+  STATIC_ASSERT(PropertyCallbackArguments::kHolderIndex == 0);
+  STATIC_ASSERT(PropertyCallbackArguments::kIsolateIndex == 1);
+  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueDefaultValueIndex == 2);
+  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueOffset == 3);
+  STATIC_ASSERT(PropertyCallbackArguments::kDataIndex == 4);
+  STATIC_ASSERT(PropertyCallbackArguments::kThisIndex == 5);
+  STATIC_ASSERT(PropertyCallbackArguments::kArgsLength == 6);
+  DCHECK(!scratch2().is(reg));
+  DCHECK(!scratch3().is(reg));
+  DCHECK(!scratch4().is(reg));
   __ push(receiver());
   // Push data from AccessorInfo.
   Handle<Object> data(callback->data(), isolate());
   if (data->IsUndefined() || data->IsSmi()) {
-    __ Move(scratch2(), data);
+    __ Move(scratch3(), data);
   } else {
     Handle<WeakCell> cell =
         isolate()->factory()->NewWeakCell(Handle<HeapObject>::cast(data));
     // The callback is alive if this instruction is executed,
     // so the weak cell is not cleared and points to data.
-    __ GetWeakValue(scratch2(), cell);
+    __ GetWeakValue(scratch3(), cell);
   }
-  __ push(scratch2());
-  __ LoadRoot(scratch2(), Heap::kUndefinedValueRootIndex);
-  __ Push(scratch2(), scratch2());
-  __ mov(scratch2(), Operand(ExternalReference::isolate_address(isolate())));
-  __ Push(scratch2(), reg);
-  __ Push(Smi::FromInt(0));  // should_throw_on_error -> false
+  __ push(scratch3());
+  __ LoadRoot(scratch3(), Heap::kUndefinedValueRootIndex);
+  __ mov(scratch4(), scratch3());
+  __ Push(scratch3(), scratch4());
+  __ mov(scratch4(), Operand(ExternalReference::isolate_address(isolate())));
+  __ Push(scratch4(), reg);
+  __ mov(scratch2(), sp);  // scratch2 = PropertyAccessorInfo::args_
   __ push(name());
 
   // Abi for CallApiGetter
@@ -715,8 +714,7 @@ void NamedLoadHandlerCompiler::GenerateLoadInterceptor(Register holder_reg) {
 
 
 Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
-    Handle<JSObject> object, Handle<Name> name, Handle<AccessorInfo> callback,
-    LanguageMode language_mode) {
+    Handle<JSObject> object, Handle<Name> name, Handle<AccessorInfo> callback) {
   Register holder_reg = Frontend(name);
 
   __ push(receiver());  // receiver
@@ -733,7 +731,6 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
   __ push(ip);
   __ mov(ip, Operand(name));
   __ Push(ip, value());
-  __ Push(Smi::FromInt(language_mode));
 
   // Do tail-call to the runtime system.
   __ TailCallRuntime(Runtime::kStoreCallbackProperty);

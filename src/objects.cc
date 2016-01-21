@@ -1159,8 +1159,7 @@ MaybeHandle<Object> Object::GetPropertyWithAccessor(
     if (call_fun == nullptr) return isolate->factory()->undefined_value();
 
     LOG(isolate, ApiNamedPropertyAccess("load", *holder, *name));
-    PropertyCallbackArguments args(isolate, info->data(), *receiver, *holder,
-                                   Object::DONT_THROW);
+    PropertyCallbackArguments args(isolate, info->data(), *receiver, *holder);
     v8::Local<v8::Value> result = args.Call(call_fun, v8::Utils::ToLocal(name));
     RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
     if (result.IsEmpty()) {
@@ -1225,8 +1224,7 @@ Maybe<bool> Object::SetPropertyWithAccessor(LookupIterator* it,
     // earlier?
 
     LOG(isolate, ApiNamedPropertyAccess("store", *holder, *name));
-    PropertyCallbackArguments args(isolate, info->data(), *receiver, *holder,
-                                   should_throw);
+    PropertyCallbackArguments args(isolate, info->data(), *receiver, *holder);
     args.Call(call_fun, v8::Utils::ToLocal(name), v8::Utils::ToLocal(value));
     RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<bool>());
     return Just(true);
@@ -3998,7 +3996,6 @@ Handle<Map> Map::Update(Handle<Map> map) {
 
 
 Maybe<bool> JSObject::SetPropertyWithInterceptor(LookupIterator* it,
-                                                 ShouldThrow should_throw,
                                                  Handle<Object> value) {
   Isolate* isolate = it->isolate();
   // Make sure that the top context does not change when doing callbacks or
@@ -4012,7 +4009,7 @@ Maybe<bool> JSObject::SetPropertyWithInterceptor(LookupIterator* it,
   Handle<JSObject> holder = it->GetHolder<JSObject>();
   v8::Local<v8::Value> result;
   PropertyCallbackArguments args(isolate, interceptor->data(),
-                                 *it->GetReceiver(), *holder, should_throw);
+                                 *it->GetReceiver(), *holder);
 
   if (it->IsElement()) {
     uint32_t index = it->index();
@@ -4093,8 +4090,7 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
 
       case LookupIterator::INTERCEPTOR:
         if (it->HolderIsReceiverOrHiddenPrototype()) {
-          Maybe<bool> result =
-              JSObject::SetPropertyWithInterceptor(it, should_throw, value);
+          Maybe<bool> result = JSObject::SetPropertyWithInterceptor(it, value);
           if (result.IsNothing() || result.FromJust()) return result;
         } else {
           Maybe<PropertyAttributes> maybe_attributes =
@@ -5254,8 +5250,7 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
       // they throw. Here we should do the same.
       case LookupIterator::INTERCEPTOR:
         if (handling == DONT_FORCE_FIELD) {
-          Maybe<bool> result =
-              JSObject::SetPropertyWithInterceptor(it, should_throw, value);
+          Maybe<bool> result = JSObject::SetPropertyWithInterceptor(it, value);
           if (result.IsNothing() || result.FromJust()) return result;
         }
         break;
@@ -5378,8 +5373,7 @@ Maybe<PropertyAttributes> JSObject::GetPropertyAttributesWithInterceptor(
     return Just(ABSENT);
   }
   PropertyCallbackArguments args(isolate, interceptor->data(),
-                                 *it->GetReceiver(), *holder,
-                                 Object::DONT_THROW);
+                                 *it->GetReceiver(), *holder);
   if (!interceptor->query()->IsUndefined()) {
     v8::Local<v8::Integer> result;
     if (it->IsElement()) {
@@ -6135,8 +6129,7 @@ Handle<Object> JSObject::SetHiddenPropertiesHashTable(Handle<JSObject> object,
 }
 
 
-Maybe<bool> JSObject::DeletePropertyWithInterceptor(LookupIterator* it,
-                                                    ShouldThrow should_throw) {
+Maybe<bool> JSObject::DeletePropertyWithInterceptor(LookupIterator* it) {
   Isolate* isolate = it->isolate();
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
@@ -6149,7 +6142,7 @@ Maybe<bool> JSObject::DeletePropertyWithInterceptor(LookupIterator* it,
   Handle<JSObject> holder = it->GetHolder<JSObject>();
 
   PropertyCallbackArguments args(isolate, interceptor->data(),
-                                 *it->GetReceiver(), *holder, should_throw);
+                                 *it->GetReceiver(), *holder);
   v8::Local<v8::Boolean> result;
   if (it->IsElement()) {
     uint32_t index = it->index();
@@ -6247,10 +6240,7 @@ Maybe<bool> JSReceiver::DeleteProperty(LookupIterator* it,
         RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<bool>());
         return Just(false);
       case LookupIterator::INTERCEPTOR: {
-        ShouldThrow should_throw =
-            is_sloppy(language_mode) ? DONT_THROW : THROW_ON_ERROR;
-        Maybe<bool> result =
-            JSObject::DeletePropertyWithInterceptor(it, should_throw);
+        Maybe<bool> result = JSObject::DeletePropertyWithInterceptor(it);
         // An exception was thrown in the interceptor. Propagate.
         if (isolate->has_pending_exception()) return Nothing<bool>();
         // Delete with interceptor succeeded. Return result.
@@ -8575,7 +8565,7 @@ static Maybe<bool> GetKeysFromInterceptor(Isolate* isolate,
     return Just(true);
   }
   PropertyCallbackArguments args(isolate, interceptor->data(), *receiver,
-                                 *object, Object::DONT_THROW);
+                                 *object);
   v8::Local<v8::Object> result;
   if (!interceptor->enumerator()->IsUndefined()) {
     Callback enum_fun = v8::ToCData<Callback>(interceptor->enumerator());
@@ -16225,8 +16215,7 @@ MaybeHandle<Object> JSObject::GetPropertyWithInterceptor(LookupIterator* it,
   Handle<JSObject> holder = it->GetHolder<JSObject>();
   v8::Local<v8::Value> result;
   PropertyCallbackArguments args(isolate, interceptor->data(),
-                                 *it->GetReceiver(), *holder,
-                                 Object::DONT_THROW);
+                                 *it->GetReceiver(), *holder);
 
   if (it->IsElement()) {
     uint32_t index = it->index();
