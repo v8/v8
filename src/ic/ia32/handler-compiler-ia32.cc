@@ -594,23 +594,29 @@ void NamedStoreHandlerCompiler::FrontendFooter(Handle<Name> name, Label* miss) {
 
 void NamedLoadHandlerCompiler::GenerateLoadCallback(
     Register reg, Handle<AccessorInfo> callback) {
+  DCHECK(!AreAliased(scratch2(), scratch3(), receiver()));
+  DCHECK(!AreAliased(scratch2(), scratch3(), reg));
+
   // Insert additional parameters into the stack frame above return address.
-  DCHECK(!scratch3().is(reg));
   __ pop(scratch3());  // Get return address to place it below.
 
-  STATIC_ASSERT(PropertyCallbackArguments::kHolderIndex == 0);
-  STATIC_ASSERT(PropertyCallbackArguments::kIsolateIndex == 1);
-  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueDefaultValueIndex == 2);
-  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueOffset == 3);
-  STATIC_ASSERT(PropertyCallbackArguments::kDataIndex == 4);
-  STATIC_ASSERT(PropertyCallbackArguments::kThisIndex == 5);
+  // Build v8::PropertyCallbackInfo::args_ array on the stack and push property
+  // name below the exit frame to make GC aware of them.
+  STATIC_ASSERT(PropertyCallbackArguments::kShouldThrowOnErrorIndex == 0);
+  STATIC_ASSERT(PropertyCallbackArguments::kHolderIndex == 1);
+  STATIC_ASSERT(PropertyCallbackArguments::kIsolateIndex == 2);
+  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueDefaultValueIndex == 3);
+  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueOffset == 4);
+  STATIC_ASSERT(PropertyCallbackArguments::kDataIndex == 5);
+  STATIC_ASSERT(PropertyCallbackArguments::kThisIndex == 6);
+  STATIC_ASSERT(PropertyCallbackArguments::kArgsLength == 7);
+
   __ push(receiver());  // receiver
   // Push data from AccessorInfo.
   Handle<Object> data(callback->data(), isolate());
   if (data->IsUndefined() || data->IsSmi()) {
     __ push(Immediate(data));
   } else {
-    DCHECK(!scratch2().is(reg));
     Handle<WeakCell> cell =
         isolate()->factory()->NewWeakCell(Handle<HeapObject>::cast(data));
     // The callback is alive if this instruction is executed,
@@ -623,13 +629,9 @@ void NamedLoadHandlerCompiler::GenerateLoadCallback(
   __ push(Immediate(isolate()->factory()->undefined_value()));
   __ push(Immediate(reinterpret_cast<int>(isolate())));
   __ push(reg);  // holder
-
-  // Save a pointer to where we pushed the arguments. This will be
-  // passed as the const PropertyAccessorInfo& to the C++ callback.
-  __ push(esp);
+  __ push(Immediate(Smi::FromInt(0)));  // should_throw_on_error -> false
 
   __ push(name());  // name
-
   __ push(scratch3());  // Restore return address.
 
   // Abi for CallApiGetter
@@ -731,7 +733,8 @@ void NamedLoadHandlerCompiler::GenerateLoadInterceptor(Register holder_reg) {
 
 
 Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
-    Handle<JSObject> object, Handle<Name> name, Handle<AccessorInfo> callback) {
+    Handle<JSObject> object, Handle<Name> name, Handle<AccessorInfo> callback,
+    LanguageMode language_mode) {
   Register holder_reg = Frontend(name);
 
   __ pop(scratch1());  // remove the return address
@@ -747,6 +750,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
   }
   __ Push(name);
   __ push(value());
+  __ push(Immediate(Smi::FromInt(language_mode)));
   __ push(scratch1());  // restore return address
 
   // Do tail-call to the runtime system.

@@ -204,6 +204,19 @@ void Accessors::ArrayLengthSetter(
   if (JSArray::ObservableSetLength(array, length).is_null()) {
     isolate->OptionalRescheduleException(false);
   }
+
+  if (info.ShouldThrowOnError()) {
+    uint32_t actual_new_len = 0;
+    CHECK(array->length()->ToArrayLength(&actual_new_len));
+    // Throw TypeError if there were non-deletable elements.
+    if (actual_new_len != length) {
+      Factory* factory = isolate->factory();
+      isolate->Throw(*factory->NewTypeError(
+          MessageTemplate::kStrictDeleteProperty,
+          factory->NewNumberFromUint(actual_new_len - 1), array));
+      isolate->OptionalRescheduleException(false);
+    }
+  }
 }
 
 
@@ -1404,6 +1417,7 @@ static void ModuleGetExport(v8::Local<v8::Name> property,
 static void ModuleSetExport(v8::Local<v8::Name> property,
                             v8::Local<v8::Value> value,
                             const v8::PropertyCallbackInfo<void>& info) {
+  if (!info.ShouldThrowOnError()) return;
   Handle<Name> name = v8::Utils::OpenHandle(*property);
   Isolate* isolate = name->GetIsolate();
   Handle<Object> exception =

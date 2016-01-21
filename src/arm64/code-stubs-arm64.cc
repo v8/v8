@@ -5817,17 +5817,21 @@ void CallApiAccessorStub::Generate(MacroAssembler* masm) {
 
 void CallApiGetterStub::Generate(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- sp[0]                  : name
-  //  -- sp[8 - kArgsLength*8]  : PropertyCallbackArguments object
+  //  -- sp[0]                         : name
+  //  -- sp[8 .. (8 + kArgsLength*8)]  : v8::PropertyCallbackInfo::args_
   //  -- ...
-  //  -- x2                     : api_function_address
+  //  -- x2                            : api_function_address
   // -----------------------------------
 
   Register api_function_address = ApiGetterDescriptor::function_address();
   DCHECK(api_function_address.is(x2));
 
+  // v8::PropertyCallbackInfo::args_ array and name handle.
+  const int kStackUnwindSpace = PropertyCallbackArguments::kArgsLength + 1;
+
+  // Load address of v8::PropertyAccessorInfo::args_ array and name handle.
   __ Mov(x0, masm->StackPointer());  // x0 = Handle<Name>
-  __ Add(x1, x0, 1 * kPointerSize);  // x1 = PCA
+  __ Add(x1, x0, 1 * kPointerSize);  // x1 = v8::PCI::args_
 
   const int kApiStackSpace = 1;
 
@@ -5838,20 +5842,22 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ EnterExitFrame(false, x10, kApiStackSpace + kCallApiFunctionSpillSpace);
 
-  // Create PropertyAccessorInfo instance on the stack above the exit frame with
-  // x1 (internal::Object** args_) as the data.
+  // Create v8::PropertyCallbackInfo object on the stack and initialize
+  // it's args_ field.
   __ Poke(x1, 1 * kPointerSize);
-  __ Add(x1, masm->StackPointer(), 1 * kPointerSize);  // x1 = AccessorInfo&
-
-  const int kStackUnwindSpace = PropertyCallbackArguments::kArgsLength + 1;
+  __ Add(x1, masm->StackPointer(), 1 * kPointerSize);
+  // x1 = v8::PropertyCallbackInfo&
 
   ExternalReference thunk_ref =
       ExternalReference::invoke_accessor_getter_callback(isolate());
 
   const int spill_offset = 1 + kApiStackSpace;
+  // +3 is to skip prolog, return address and name handle.
+  MemOperand return_value_operand(
+      fp, (PropertyCallbackArguments::kReturnValueOffset + 3) * kPointerSize);
   CallApiFunctionAndReturn(masm, api_function_address, thunk_ref,
                            kStackUnwindSpace, NULL, spill_offset,
-                           MemOperand(fp, 6 * kPointerSize), NULL);
+                           return_value_operand, NULL);
 }
 
 

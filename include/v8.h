@@ -3191,19 +3191,21 @@ class PropertyCallbackInfo {
   V8_INLINE Local<Object> This() const;
   V8_INLINE Local<Object> Holder() const;
   V8_INLINE ReturnValue<T> GetReturnValue() const;
+  V8_INLINE bool ShouldThrowOnError() const;
   // This shouldn't be public, but the arm compiler needs it.
-  static const int kArgsLength = 6;
+  static const int kArgsLength = 7;
 
  protected:
   friend class MacroAssembler;
   friend class internal::PropertyCallbackArguments;
   friend class internal::CustomArguments<PropertyCallbackInfo>;
-  static const int kHolderIndex = 0;
-  static const int kIsolateIndex = 1;
-  static const int kReturnValueDefaultValueIndex = 2;
-  static const int kReturnValueIndex = 3;
-  static const int kDataIndex = 4;
-  static const int kThisIndex = 5;
+  static const int kShouldThrowOnErrorIndex = 0;
+  static const int kHolderIndex = 1;
+  static const int kIsolateIndex = 2;
+  static const int kReturnValueDefaultValueIndex = 3;
+  static const int kReturnValueIndex = 4;
+  static const int kDataIndex = 5;
+  static const int kThisIndex = 6;
 
   V8_INLINE PropertyCallbackInfo(internal::Object** args) : args_(args) {}
   internal::Object** args_;
@@ -8260,6 +8262,12 @@ Local<Object> PropertyCallbackInfo<T>::Holder() const {
 template<typename T>
 ReturnValue<T> PropertyCallbackInfo<T>::GetReturnValue() const {
   return ReturnValue<T>(&args_[kReturnValueIndex]);
+}
+
+template <typename T>
+bool PropertyCallbackInfo<T>::ShouldThrowOnError() const {
+  typedef internal::Internals I;
+  return args_[kShouldThrowOnErrorIndex] != I::IntToSmi(0);
 }
 
 

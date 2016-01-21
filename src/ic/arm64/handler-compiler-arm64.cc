@@ -646,18 +646,19 @@ void NamedLoadHandlerCompiler::GenerateLoadConstant(Handle<Object> value) {
 
 void NamedLoadHandlerCompiler::GenerateLoadCallback(
     Register reg, Handle<AccessorInfo> callback) {
+  DCHECK(!AreAliased(scratch2(), scratch3(), scratch4(), receiver()));
   DCHECK(!AreAliased(scratch2(), scratch3(), scratch4(), reg));
 
-  // Build AccessorInfo::args_ list on the stack and push property
-  // name below the exit frame to make GC aware of them and store pointers to
-  // them.
-  STATIC_ASSERT(PropertyCallbackArguments::kHolderIndex == 0);
-  STATIC_ASSERT(PropertyCallbackArguments::kIsolateIndex == 1);
-  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueDefaultValueIndex == 2);
-  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueOffset == 3);
-  STATIC_ASSERT(PropertyCallbackArguments::kDataIndex == 4);
-  STATIC_ASSERT(PropertyCallbackArguments::kThisIndex == 5);
-  STATIC_ASSERT(PropertyCallbackArguments::kArgsLength == 6);
+  // Build v8::PropertyCallbackInfo::args_ array on the stack and push property
+  // name below the exit frame to make GC aware of them.
+  STATIC_ASSERT(PropertyCallbackArguments::kShouldThrowOnErrorIndex == 0);
+  STATIC_ASSERT(PropertyCallbackArguments::kHolderIndex == 1);
+  STATIC_ASSERT(PropertyCallbackArguments::kIsolateIndex == 2);
+  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueDefaultValueIndex == 3);
+  STATIC_ASSERT(PropertyCallbackArguments::kReturnValueOffset == 4);
+  STATIC_ASSERT(PropertyCallbackArguments::kDataIndex == 5);
+  STATIC_ASSERT(PropertyCallbackArguments::kThisIndex == 6);
+  STATIC_ASSERT(PropertyCallbackArguments::kArgsLength == 7);
 
   __ Push(receiver());
 
@@ -673,18 +674,9 @@ void NamedLoadHandlerCompiler::GenerateLoadCallback(
   }
   __ LoadRoot(scratch4(), Heap::kUndefinedValueRootIndex);
   __ Mov(scratch2(), Operand(ExternalReference::isolate_address(isolate())));
-  __ Push(scratch3(), scratch4(), scratch4(), scratch2(), reg, name());
-
-  Register args_addr = scratch2();
-  __ Add(args_addr, __ StackPointer(), kPointerSize);
-
-  // Stack at this point:
-  //              sp[40] callback data
-  //              sp[32] undefined
-  //              sp[24] undefined
-  //              sp[16] isolate
-  // args_addr -> sp[8]  reg
-  //              sp[0]  name
+  __ Push(scratch3(), scratch4(), scratch4(), scratch2(), reg);
+  __ Push(Smi::FromInt(0));  // should_throw_on_error -> false
+  __ Push(name());
 
   // Abi for CallApiGetter.
   Register getter_address_reg = x2;
@@ -774,7 +766,8 @@ void NamedLoadHandlerCompiler::GenerateLoadInterceptor(Register holder_reg) {
 
 
 Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
-    Handle<JSObject> object, Handle<Name> name, Handle<AccessorInfo> callback) {
+    Handle<JSObject> object, Handle<Name> name, Handle<AccessorInfo> callback,
+    LanguageMode language_mode) {
   ASM_LOCATION("NamedStoreHandlerCompiler::CompileStoreCallback");
   Register holder_reg = Frontend(name);
 
@@ -794,6 +787,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
   }
   __ Mov(scratch2(), Operand(name));
   __ Push(receiver(), holder_reg, scratch1(), scratch2(), value());
+  __ Push(Smi::FromInt(language_mode));
 
   // Do tail-call to the runtime system.
   __ TailCallRuntime(Runtime::kStoreCallbackProperty);

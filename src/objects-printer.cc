@@ -371,6 +371,7 @@ void JSObject::PrintElements(std::ostream& os) {  // NOLINT
 #undef PRINT_ELEMENTS
 
     case DICTIONARY_ELEMENTS:
+      os << "\n - elements: ";
       elements()->Print(os);
       break;
     case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
