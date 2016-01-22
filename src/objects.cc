@@ -4155,16 +4155,16 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
 Maybe<bool> Object::SetProperty(LookupIterator* it, Handle<Object> value,
                                 LanguageMode language_mode,
                                 StoreFromKeyed store_mode) {
-  bool found = false;
-  Maybe<bool> result =
-      SetPropertyInternal(it, value, language_mode, store_mode, &found);
-  if (found) return result;
   ShouldThrow should_throw =
       is_sloppy(language_mode) ? DONT_THROW : THROW_ON_ERROR;
   if (it->GetReceiver()->IsJSProxy() && it->GetName()->IsPrivate()) {
     RETURN_FAILURE(it->isolate(), should_throw,
                    NewTypeError(MessageTemplate::kProxyPrivate));
   }
+  bool found = false;
+  Maybe<bool> result =
+      SetPropertyInternal(it, value, language_mode, store_mode, &found);
+  if (found) return result;
   return AddDataProperty(it, value, NONE, should_throw, store_mode);
 }
 
@@ -4175,15 +4175,15 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it, Handle<Object> value,
   ShouldThrow should_throw =
       is_sloppy(language_mode) ? DONT_THROW : THROW_ON_ERROR;
   Isolate* isolate = it->isolate();
+  if (it->GetReceiver()->IsJSProxy() && it->GetName()->IsPrivate()) {
+    RETURN_FAILURE(isolate, should_throw,
+                   NewTypeError(MessageTemplate::kProxyPrivate));
+  }
 
   bool found = false;
   Maybe<bool> result =
       SetPropertyInternal(it, value, language_mode, store_mode, &found);
   if (found) return result;
-  if (it->GetReceiver()->IsJSProxy() && it->GetName()->IsPrivate()) {
-    RETURN_FAILURE(isolate, should_throw,
-                   NewTypeError(MessageTemplate::kProxyPrivate));
-  }
 
   // The property either doesn't exist on the holder or exists there as a data
   // property.
@@ -6193,14 +6193,15 @@ Maybe<bool> JSObject::DeletePropertyWithInterceptor(LookupIterator* it) {
 }
 
 
-void JSObject::DeleteNormalizedProperty(Handle<JSObject> object,
-                                        Handle<Name> name, int entry) {
+void JSReceiver::DeleteNormalizedProperty(Handle<JSReceiver> object,
+                                          Handle<Name> name, int entry) {
   DCHECK(!object->HasFastProperties());
   Isolate* isolate = object->GetIsolate();
 
   if (object->IsJSGlobalObject()) {
     // If we have a global object, invalidate the cell and swap in a new one.
-    Handle<GlobalDictionary> dictionary(object->global_dictionary());
+    Handle<GlobalDictionary> dictionary(
+        JSObject::cast(*object)->global_dictionary());
     DCHECK_NE(GlobalDictionary::kNotFound, entry);
 
     auto cell = PropertyCell::InvalidateEntry(dictionary, entry);
@@ -6230,8 +6231,11 @@ Maybe<bool> JSReceiver::DeleteProperty(LookupIterator* it,
   }
 
   if (it->GetReceiver()->IsJSProxy()) {
-    DCHECK(it->state() == LookupIterator::NOT_FOUND);
-    DCHECK(it->GetName()->IsPrivate());
+    if (it->state() != LookupIterator::NOT_FOUND) {
+      DCHECK_EQ(LookupIterator::DATA, it->state());
+      DCHECK(it->GetName()->IsPrivate());
+      it->Delete();
+    }
     return Just(true);
   }
   Handle<JSObject> receiver = Handle<JSObject>::cast(it->GetReceiver());
@@ -7076,6 +7080,10 @@ Maybe<bool> JSProxy::DefineOwnProperty(Isolate* isolate, Handle<JSProxy> proxy,
                                        PropertyDescriptor* desc,
                                        ShouldThrow should_throw) {
   STACK_CHECK(Nothing<bool>());
+  if (key->IsSymbol() && Handle<Symbol>::cast(key)->IsPrivate()) {
+    return AddPrivateProperty(isolate, proxy, Handle<Symbol>::cast(key), desc,
+                              should_throw);
+  }
   Handle<String> trap_name = isolate->factory()->defineProperty_string();
   // 1. Assert: IsPropertyKey(P) is true.
   DCHECK(key->IsName() || key->IsNumber());
@@ -7111,10 +7119,7 @@ Maybe<bool> JSProxy::DefineOwnProperty(Isolate* isolate, Handle<JSProxy> proxy,
           ? Handle<Name>::cast(key)
           : Handle<Name>::cast(isolate->factory()->NumberToString(key));
   // Do not leak private property names.
-  if (property_name->IsPrivate()) {
-    RETURN_FAILURE(isolate, should_throw,
-                   NewTypeError(MessageTemplate::kProxyPrivate));
-  }
+  DCHECK(!property_name->IsPrivate());
   Handle<Object> trap_result_obj;
   Handle<Object> args[] = {target, property_name, desc_obj};
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -7177,6 +7182,41 @@ Maybe<bool> JSProxy::DefineOwnProperty(Isolate* isolate, Handle<JSProxy> proxy,
     }
   }
   // 17. Return true.
+  return Just(true);
+}
+
+
+// static
+Maybe<bool> JSProxy::AddPrivateProperty(Isolate* isolate, Handle<JSProxy> proxy,
+                                        Handle<Symbol> private_name,
+                                        PropertyDescriptor* desc,
+                                        ShouldThrow should_throw) {
+  // Despite the generic name, this can only add private data properties.
+  if (!PropertyDescriptor::IsDataDescriptor(desc) ||
+      desc->ToAttributes() != DONT_ENUM) {
+    RETURN_FAILURE(isolate, should_throw,
+                   NewTypeError(MessageTemplate::kProxyPrivate));
+  }
+  DCHECK(proxy->map()->is_dictionary_map());
+  Handle<Object> value =
+      desc->has_value()
+          ? desc->value()
+          : Handle<Object>::cast(isolate->factory()->undefined_value());
+
+  LookupIterator it(proxy, private_name);
+
+  if (it.IsFound()) {
+    DCHECK_EQ(LookupIterator::DATA, it.state());
+    DCHECK_EQ(DONT_ENUM, it.property_details().attributes());
+    it.WriteDataValue(value);
+    return Just(true);
+  }
+
+  Handle<NameDictionary> dict(proxy->property_dictionary());
+  PropertyDetails details(DONT_ENUM, DATA, 0, PropertyCellType::kNoCell);
+  Handle<NameDictionary> result =
+      NameDictionary::Add(dict, private_name, value, details);
+  if (!dict.is_identical_to(result)) proxy->set_properties(*result);
   return Just(true);
 }
 

@@ -1811,6 +1811,10 @@ class JSReceiver: public HeapObject {
   // Gets slow properties for non-global objects.
   inline NameDictionary* property_dictionary();
 
+  // Deletes an existing named property in a normalized object.
+  static void DeleteNormalizedProperty(Handle<JSReceiver> object,
+                                       Handle<Name> name, int entry);
+
   DECLARE_CAST(JSReceiver)
 
   // ES6 section 7.1.1 ToPrimitive
@@ -2493,10 +2497,6 @@ class JSObject: public JSReceiver {
 
   // Gets the number of currently used elements.
   int GetFastElementsUsage();
-
-  // Deletes an existing named property in a normalized object.
-  static void DeleteNormalizedProperty(Handle<JSObject> object,
-                                       Handle<Name> name, int entry);
 
   static bool AllCanRead(LookupIterator* it);
   static bool AllCanWrite(LookupIterator* it);
@@ -9649,6 +9649,11 @@ class JSProxy: public JSReceiver {
   static Handle<Smi> GetOrCreateIdentityHash(Handle<JSProxy> proxy);
 
  private:
+  static Maybe<bool> AddPrivateProperty(Isolate* isolate, Handle<JSProxy> proxy,
+                                        Handle<Symbol> private_name,
+                                        PropertyDescriptor* desc,
+                                        ShouldThrow should_throw);
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSProxy);
 };
 
