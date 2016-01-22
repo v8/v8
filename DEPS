@@ -12,11 +12,11 @@ deps = {
   "v8/third_party/icu":
     Var("git_url") + "/chromium/deps/icu.git" + "@" + "8d342a405be5ae8aacb1e16f0bc31c3a4fbf26a2",
   "v8/buildtools":
-    Var("git_url") + "/chromium/buildtools.git" + "@" + "0f8e6e4b126ee88137930a0ae4776c4741808740",
+    Var("git_url") + "/chromium/buildtools.git" + "@" + "cf8c4332f5c9d0da4b4782d7f0122df74a16819b",
   "v8/base/trace_event/common":
     Var("git_url") + "/chromium/src/base/trace_event/common.git" + "@" + "d83d44b13d07c2fd0a40101a7deef9b93b841732",
   "v8/tools/swarming_client":
-    Var('git_url') + '/external/swarming.client.git' + '@' + "9cdd76171e517a430a72dcd7d66ade67e109aa00",
+    Var('git_url') + '/external/swarming.client.git' + '@' + "0b908f18767c8304dc089454bc1c91755d21f1f5",
   "v8/testing/gtest":
     Var("git_url") + "/external/github.com/google/googletest.git" + "@" + "6f8a66431cb592dad629028a50b3dd418a408c87",
   "v8/testing/gmock":
@@ -29,7 +29,7 @@ deps = {
   "v8/test/test262/data":
     Var("git_url") + "/external/github.com/tc39/test262.git" + "@" + "67ba34b03a46bac4254223ae25f42c7b959540f0",
   "v8/tools/clang":
-    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "9c45873bbb82dc33f5f88f5c7dbc06ee9ecc7e8f",
+    Var("git_url") + "/chromium/src/tools/clang.git" + "@" + "e47364ad9fb37e8255a7a5cdf7891781b3f8256e",
 }
 
 deps_os = {
