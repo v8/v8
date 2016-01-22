@@ -28,6 +28,7 @@ class PlatformInterfaceDescriptor;
   V(ToNumber)                                 \
   V(ToLength)                                 \
   V(ToString)                                 \
+  V(ToName)                                   \
   V(ToObject)                                 \
   V(NumberToString)                           \
   V(Typeof)                                   \
@@ -400,6 +401,16 @@ class ToStringDescriptor : public CallInterfaceDescriptor {
   enum ParameterIndices { kReceiverIndex };
 
   DECLARE_DESCRIPTOR(ToStringDescriptor, CallInterfaceDescriptor)
+
+  static const Register ReceiverRegister();
+};
+
+
+class ToNameDescriptor : public CallInterfaceDescriptor {
+ public:
+  enum ParameterIndices { kReceiverIndex };
+
+  DECLARE_DESCRIPTOR(ToNameDescriptor, CallInterfaceDescriptor)
 
   static const Register ReceiverRegister();
 };

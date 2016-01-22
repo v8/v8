@@ -169,6 +169,13 @@ Callable CodeFactory::ToString(Isolate* isolate) {
 
 
 // static
+Callable CodeFactory::ToName(Isolate* isolate) {
+  ToNameStub stub(isolate);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
+
+
+// static
 Callable CodeFactory::ToLength(Isolate* isolate) {
   ToLengthStub stub(isolate);
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());

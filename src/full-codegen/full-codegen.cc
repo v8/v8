@@ -520,6 +520,11 @@ void FullCodeGenerator::EmitToString(CallRuntime* expr) {
 }
 
 
+void FullCodeGenerator::EmitToName(CallRuntime* expr) {
+  EmitIntrinsicAsStubCall(expr, CodeFactory::ToName(isolate()));
+}
+
+
 void FullCodeGenerator::EmitToLength(CallRuntime* expr) {
   EmitIntrinsicAsStubCall(expr, CodeFactory::ToLength(isolate()));
 }

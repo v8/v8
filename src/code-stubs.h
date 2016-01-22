@@ -54,6 +54,7 @@ namespace internal {
   V(ToNumber)                               \
   V(ToLength)                               \
   V(ToString)                               \
+  V(ToName)                                 \
   V(ToObject)                               \
   V(VectorStoreICTrampoline)                \
   V(VectorKeyedStoreICTrampoline)           \
@@ -2947,6 +2948,15 @@ class ToStringStub final : public PlatformCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(ToString);
   DEFINE_PLATFORM_CODE_STUB(ToString, PlatformCodeStub);
+};
+
+
+class ToNameStub final : public PlatformCodeStub {
+ public:
+  explicit ToNameStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(ToName);
+  DEFINE_PLATFORM_CODE_STUB(ToName, PlatformCodeStub);
 };
 
 

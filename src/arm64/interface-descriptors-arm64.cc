@@ -116,6 +116,10 @@ const Register ToStringDescriptor::ReceiverRegister() { return x0; }
 
 
 // static
+const Register ToNameDescriptor::ReceiverRegister() { return x0; }
+
+
+// static
 const Register ToObjectDescriptor::ReceiverRegister() { return x0; }
 
 

@@ -70,6 +70,7 @@ class CodeFactory final {
 
   static Callable ToNumber(Isolate* isolate);
   static Callable ToString(Isolate* isolate);
+  static Callable ToName(Isolate* isolate);
   static Callable ToLength(Isolate* isolate);
   static Callable ToObject(Isolate* isolate);
   static Callable NumberToString(Isolate* isolate);

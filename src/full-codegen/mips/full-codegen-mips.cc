@@ -3537,26 +3537,6 @@ void FullCodeGenerator::EmitToInteger(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitToName(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK_EQ(1, args->length());
-
-  // Load the argument into v0 and convert it.
-  VisitForAccumulatorValue(args->at(0));
-
-  Label convert, done_convert;
-  __ JumpIfSmi(v0, &convert);
-  STATIC_ASSERT(FIRST_NAME_TYPE == FIRST_TYPE);
-  __ GetObjectType(v0, a1, a1);
-  __ Branch(&done_convert, le, a1, Operand(LAST_NAME_TYPE));
-  __ bind(&convert);
-  __ Push(v0);
-  __ CallRuntime(Runtime::kToName);
-  __ bind(&done_convert);
-  context()->Plug(v0);
-}
-
-
 void FullCodeGenerator::EmitStringCharFromCode(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   DCHECK(args->length() == 1);

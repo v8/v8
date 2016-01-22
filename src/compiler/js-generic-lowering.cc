@@ -267,7 +267,9 @@ void JSGenericLowering::LowerJSToString(Node* node) {
 
 
 void JSGenericLowering::LowerJSToName(Node* node) {
-  ReplaceWithRuntimeCall(node, Runtime::kToName);
+  CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
+  Callable callable = CodeFactory::ToName(isolate());
+  ReplaceWithStubCall(node, callable, flags);
 }
 
 
