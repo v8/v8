@@ -5740,6 +5740,243 @@ TEST(ForIn) {
 }
 
 
+TEST(ForOf) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+  Zone zone;
+
+  int array_literal_flags =
+      ArrayLiteral::kDisableMementos | ArrayLiteral::kShallowElements;
+  int object_literal_flags =
+      ObjectLiteral::kFastElements | ObjectLiteral::kDisableMementos;
+
+  FeedbackVectorSpec feedback_spec(&zone);
+  FeedbackVectorSlot slot1 = feedback_spec.AddCallICSlot();
+  FeedbackVectorSlot slot2 = feedback_spec.AddKeyedLoadICSlot();
+  FeedbackVectorSlot slot3 = feedback_spec.AddCallICSlot();
+  FeedbackVectorSlot slot4 = feedback_spec.AddLoadICSlot();
+  FeedbackVectorSlot slot5 = feedback_spec.AddLoadICSlot();
+  FeedbackVectorSlot slot6 = feedback_spec.AddLoadICSlot();
+  FeedbackVectorSlot slot7 = feedback_spec.AddStoreICSlot();
+  FeedbackVectorSlot slot8 = feedback_spec.AddLoadICSlot();
+  Handle<i::TypeFeedbackVector> vector =
+      i::NewTypeFeedbackVector(helper.isolate(), &feedback_spec);
+
+  ExpectedSnippet<InstanceType, 8> snippets[] = {
+      {"for (var p of [0, 1, 2]) {}",
+       7 * kPointerSize,
+       1,
+       82,
+       {
+           B(CreateArrayLiteral), U8(0), U8(0), U8(array_literal_flags),    //
+           B(Star), R(5),                                                   //
+           B(LdaConstant), U8(1),                                           //
+           B(KeyedLoadICSloppy), R(5), U8(vector->GetIndex(slot2)),         //
+           B(Star), R(4),                                                   //
+           B(Call), R(4), R(5), U8(0), U8(vector->GetIndex(slot1)),         //
+           B(Star), R(1),                                                   //
+           B(Ldar), R(1),                                                   //
+           B(Star), R(6),                                                   //
+           B(LoadICSloppy), R(6), U8(2), U8(vector->GetIndex(slot4)),       //
+           B(Star), R(5),                                                   //
+           B(Call), R(5), R(6), U8(0), U8(vector->GetIndex(slot3)),         //
+           B(Star), R(2),                                                   //
+           B(Star), R(4),                                                   //
+           B(CallRuntime), U16(Runtime::kInlineIsJSReceiver), R(4), U8(1),  //
+           B(LogicalNot),                                                   //
+           B(JumpIfFalse), U8(11),                                          //
+           B(Ldar), R(2),                                                   //
+           B(Star), R(4),                                                   //
+           B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject),   //
+                           R(4), U8(1),                                     //
+           B(Ldar), R(2),                                                   //
+           B(Star), R(4),                                                   //
+           B(LoadICSloppy), R(4), U8(3), U8(vector->GetIndex(slot5)),       //
+           B(JumpIfToBooleanTrue), U8(16),                                  //
+           B(Ldar), R(2),                                                   //
+           B(Star), R(4),                                                   //
+           B(LoadICSloppy), R(4), U8(4), U8(vector->GetIndex(slot6)),       //
+           B(Star), R(0),                                                   //
+           B(Star), R(3),                                                   //
+           B(Jump), U8(-58),                                                //
+           B(LdaUndefined),                                                 //
+           B(Return),                                                       //
+       },
+       5,
+       {InstanceType::FIXED_ARRAY_TYPE, InstanceType::SYMBOL_TYPE,
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
+      {"var x = 'potatoes';\n"
+       "for (var p of x) { return p; }",
+       8 * kPointerSize,
+       1,
+       81,
+       {
+           B(LdaConstant), U8(0),                                           //
+           B(Star), R(3),                                                   //
+           B(Star), R(6),                                                   //
+           B(LdaConstant), U8(1),                                           //
+           B(KeyedLoadICSloppy), R(6), U8(vector->GetIndex(slot2)),         //
+           B(Star), R(5),                                                   //
+           B(Call), R(5), R(6), U8(0), U8(vector->GetIndex(slot1)),         //
+           B(Star), R(1),                                                   //
+           B(Ldar), R(1),                                                   //
+           B(Star), R(7),                                                   //
+           B(LoadICSloppy), R(7), U8(2), U8(vector->GetIndex(slot4)),       //
+           B(Star), R(6),                                                   //
+           B(Call), R(6), R(7), U8(0), U8(vector->GetIndex(slot3)),         //
+           B(Star), R(2),                                                   //
+           B(Star), R(5),                                                   //
+           B(CallRuntime), U16(Runtime::kInlineIsJSReceiver), R(5), U8(1),  //
+           B(LogicalNot),                                                   //
+           B(JumpIfFalse), U8(11),                                          //
+           B(Ldar), R(2),                                                   //
+           B(Star), R(5),                                                   //
+           B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject),   //
+                           R(5), U8(1),                                     //
+           B(Ldar), R(2),                                                   //
+           B(Star), R(5),                                                   //
+           B(LoadICSloppy), R(5), U8(3), U8(vector->GetIndex(slot5)),       //
+           B(JumpIfToBooleanTrue), U8(15),                                  //
+           B(Ldar), R(2),                                                   //
+           B(Star), R(5),                                                   //
+           B(LoadICSloppy), R(5), U8(4), U8(vector->GetIndex(slot6)),       //
+           B(Star), R(0),                                                   //
+           B(Star), R(4),                                                   //
+           B(Return),                                                       //
+           B(LdaUndefined),                                                 //
+           B(Return),                                                       //
+       },
+       5,
+       {InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+        InstanceType::SYMBOL_TYPE,
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
+      {"for (var x of [10, 20, 30]) {\n"
+       "  if (x == 10) continue;\n"
+       "  if (x == 20) break;\n"
+       "}",
+       7 * kPointerSize,
+       1,
+       104,
+       {
+           B(CreateArrayLiteral), U8(0), U8(0), U8(array_literal_flags),    //
+           B(Star), R(5),                                                   //
+           B(LdaConstant), U8(1),                                           //
+           B(KeyedLoadICSloppy), R(5), U8(vector->GetIndex(slot2)),         //
+           B(Star), R(4),                                                   //
+           B(Call), R(4), R(5), U8(0), U8(vector->GetIndex(slot1)),         //
+           B(Star), R(1),                                                   //
+           B(Ldar), R(1),                                                   //
+           B(Star), R(6),                                                   //
+           B(LoadICSloppy), R(6), U8(2), U8(vector->GetIndex(slot4)),       //
+           B(Star), R(5),                                                   //
+           B(Call), R(5), R(6), U8(0), U8(vector->GetIndex(slot3)),         //
+           B(Star), R(2),                                                   //
+           B(Star), R(4),                                                   //
+           B(CallRuntime), U16(Runtime::kInlineIsJSReceiver), R(4), U8(1),  //
+           B(LogicalNot),                                                   //
+           B(JumpIfFalse), U8(11),                                          //
+           B(Ldar), R(2),                                                   //
+           B(Star), R(4),                                                   //
+           B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject),   //
+                           R(4), U8(1),                                     //
+           B(Ldar), R(2),                                                   //
+           B(Star), R(4),                                                   //
+           B(LoadICSloppy), R(4), U8(3), U8(vector->GetIndex(slot5)),       //
+           B(JumpIfToBooleanTrue), U8(38),                                  //
+           B(Ldar), R(2),                                                   //
+           B(Star), R(4),                                                   //
+           B(LoadICSloppy), R(4), U8(4), U8(vector->GetIndex(slot6)),       //
+           B(Star), R(0),                                                   //
+           B(Star), R(3),                                                   //
+           B(Star), R(4),                                                   //
+           B(LdaSmi8), U8(10),                                              //
+           B(TestEqual), R(4),                                              //
+           B(JumpIfFalse), U8(4),                                           //
+           B(Jump), U8(-66),                                                //
+           B(Ldar), R(3),                                                   //
+           B(Star), R(4),                                                   //
+           B(LdaSmi8), U8(20),                                              //
+           B(TestEqual), R(4),                                              //
+           B(JumpIfFalse), U8(4),                                           //
+           B(Jump), U8(4),                                                  //
+           B(Jump), U8(-80),                                                //
+           B(LdaUndefined),                                                 //
+           B(Return),                                                       //
+       },
+       5,
+       {InstanceType::FIXED_ARRAY_TYPE, InstanceType::SYMBOL_TYPE,
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
+      {"var x = { 'a': 1, 'b': 2 };\n"
+       "for (x['a'] of [1,2,3]) { return x['a']; }",
+       6 * kPointerSize,
+       1,
+       101,
+       {
+           B(CreateObjectLiteral), U8(0), U8(0), U8(object_literal_flags),  //
+           B(Star), R(3),                                                   //
+           B(Star), R(2),                                                   //
+           B(CreateArrayLiteral), U8(1), U8(1), U8(array_literal_flags),    //
+           B(Star), R(4),                                                   //
+           B(LdaConstant), U8(2),                                           //
+           B(KeyedLoadICSloppy), R(4), U8(vector->GetIndex(slot2)),         //
+           B(Star), R(3),                                                   //
+           B(Call), R(3), R(4), U8(0), U8(vector->GetIndex(slot1)),         //
+           B(Star), R(0),                                                   //
+           B(Ldar), R(0),                                                   //
+           B(Star), R(5),                                                   //
+           B(LoadICSloppy), R(5), U8(3), U8(vector->GetIndex(slot4)),       //
+           B(Star), R(4),                                                   //
+           B(Call), R(4), R(5), U8(0), U8(vector->GetIndex(slot3)),         //
+           B(Star), R(1),                                                   //
+           B(Star), R(3),                                                   //
+           B(CallRuntime), U16(Runtime::kInlineIsJSReceiver), R(3), U8(1),  //
+           B(LogicalNot),                                                   //
+           B(JumpIfFalse), U8(11),                                          //
+           B(Ldar), R(1),                                                   //
+           B(Star), R(3),                                                   //
+           B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject),   //
+                           R(3), U8(1),                                     //
+           B(Ldar), R(1),                                                   //
+           B(Star), R(3),                                                   //
+           B(LoadICSloppy), R(3), U8(4), U8(vector->GetIndex(slot5)),       //
+           B(JumpIfToBooleanTrue), U8(27),                                  //
+           B(Ldar), R(2),                                                   //
+           B(Star), R(3),                                                   //
+           B(Ldar), R(1),                                                   //
+           B(Star), R(4),                                                   //
+           B(LoadICSloppy), R(4), U8(5), U8(vector->GetIndex(slot6)),       //
+           B(StoreICSloppy), R(3), U8(6), U8(vector->GetIndex(slot7)),      //
+           B(Ldar), R(2),                                                   //
+           B(Star), R(3),                                                   //
+           B(LoadICSloppy), R(3), U8(6), U8(vector->GetIndex(slot8)),       //
+           B(Return),                                                       //
+           B(LdaUndefined),                                                 //
+           B(Return),                                                       //
+       },
+       7,
+       {InstanceType::FIXED_ARRAY_TYPE,
+        InstanceType::FIXED_ARRAY_TYPE,
+        InstanceType::SYMBOL_TYPE,
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
+  };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+}
+
+
 TEST(Conditional) {
   InitializedHandleScope handle_scope;
   BytecodeGeneratorHelper helper;

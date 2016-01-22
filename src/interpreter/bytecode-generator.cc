@@ -1082,7 +1082,21 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
 
 void BytecodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
-  UNIMPLEMENTED();
+  LoopBuilder loop_builder(builder());
+  ControlScopeForIteration control_scope(this, stmt, &loop_builder);
+
+  VisitForEffect(stmt->assign_iterator());
+
+  loop_builder.LoopHeader();
+  loop_builder.Next();
+  VisitForEffect(stmt->next_result());
+  VisitForAccumulatorValue(stmt->result_done());
+  loop_builder.BreakIfTrue();
+
+  VisitForEffect(stmt->assign_each());
+  Visit(stmt->body());
+  loop_builder.JumpToHeader();
+  loop_builder.EndLoop();
 }
 
 

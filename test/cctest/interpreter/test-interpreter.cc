@@ -2837,6 +2837,116 @@ TEST(InterpreterForIn) {
 }
 
 
+TEST(InterpreterForOf) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  i::Factory* factory = isolate->factory();
+
+  std::pair<const char*, Handle<Object>> for_of[] = {
+      {"function f() {\n"
+       "  var r = 0;\n"
+       "  for (var a of [0,6,7,9]) { r += a; }\n"
+       "  return r;\n"
+       "}",
+       handle(Smi::FromInt(22), isolate)},
+      {"function f() {\n"
+       "  var r = '';\n"
+       "  for (var a of 'foobar') { r = a + r; }\n"
+       "  return r;\n"
+       "}",
+       factory->NewStringFromStaticChars("raboof")},
+      {"function f() {\n"
+       "  var a = [1, 2, 3];\n"
+       "  a.name = 4;\n"
+       "  var r = 0;\n"
+       "  for (var x of a) { r += x; }\n"
+       "  return r;\n"
+       "}",
+       handle(Smi::FromInt(6), isolate)},
+      {"function f() {\n"
+       "  var r = '';\n"
+       "  var data = [1, 2, 3]; \n"
+       "  for (a of data) { delete data[0]; r += a; } return r; }",
+       factory->NewStringFromStaticChars("123")},
+      {"function f() {\n"
+       "  var r = '';\n"
+       "  var data = [1, 2, 3]; \n"
+       "  for (a of data) { delete data[2]; r += a; } return r; }",
+       factory->NewStringFromStaticChars("12undefined")},
+      {"function f() {\n"
+       "  var r = '';\n"
+       "  var data = [1, 2, 3]; \n"
+       "  for (a of data) { delete data; r += a; } return r; }",
+       factory->NewStringFromStaticChars("123")},
+      {"function f() {\n"
+       "  var r = '';\n"
+       "  var input = 'foobar';\n"
+       "  for (var a of input) {\n"
+       "    if (a == 'b') break;\n"
+       "    r += a;\n"
+       "  }\n"
+       "  return r;\n"
+       "}",
+       factory->NewStringFromStaticChars("foo")},
+      {"function f() {\n"
+       "  var r = '';\n"
+       "  var input = 'foobar';\n"
+       "  for (var a of input) {\n"
+       "    if (a == 'b') continue;\n"
+       "    r += a;\n"
+       "  }\n"
+       "  return r;\n"
+       "}",
+       factory->NewStringFromStaticChars("fooar")},
+      {"function f() {\n"
+       "  var r = '';\n"
+       "  var data = [1, 2, 3, 4]; \n"
+       "  for (a of data) { data[2] = 567; r += a; }\n"
+       "  return r;\n"
+       "}",
+       factory->NewStringFromStaticChars("125674")},
+      {"function f() {\n"
+       "  var r = '';\n"
+       "  var data = [1, 2, 3, 4]; \n"
+       "  for (a of data) { data[4] = 567; r += a; }\n"
+       "  return r;\n"
+       "}",
+       factory->NewStringFromStaticChars("1234567")},
+      {"function f() {\n"
+       "  var r = '';\n"
+       "  var data = [1, 2, 3, 4]; \n"
+       "  for (a of data) { data[5] = 567; r += a; }\n"
+       "  return r;\n"
+       "}",
+       factory->NewStringFromStaticChars("1234undefined567")},
+      {"function f() {\n"
+       "  var r = '';\n"
+       "  var obj = new Object();\n"
+       "  obj[Symbol.iterator] = function() { return {\n"
+       "    index: 3,\n"
+       "    data: ['a', 'b', 'c', 'd'],"
+       "    next: function() {"
+       "      return {"
+       "        done: this.index == -1,\n"
+       "        value: this.index < 0 ? undefined : this.data[this.index--]\n"
+       "      }\n"
+       "    }\n"
+       "    }}\n"
+       "  for (a of obj) { r += a }\n"
+       "  return r;\n"
+       "}",
+       factory->NewStringFromStaticChars("dcba")},
+  };
+
+  for (size_t i = 0; i < arraysize(for_of); i++) {
+    InterpreterTester tester(handles.main_isolate(), for_of[i].first);
+    auto callable = tester.GetCallable<>();
+    Handle<Object> return_val = callable().ToHandleChecked();
+    CHECK(return_val->SameValue(*for_of[i].second));
+  }
+}
+
+
 TEST(InterpreterSwitch) {
   HandleAndZoneScope handles;
   i::Isolate* isolate = handles.main_isolate();

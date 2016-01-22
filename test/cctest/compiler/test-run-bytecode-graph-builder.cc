@@ -2294,6 +2294,99 @@ TEST(BytecodeGraphBuilderForIn) {
 }
 
 
+TEST(BytecodeGraphBuilderForOf) {
+  HandleAndZoneScope scope;
+  Isolate* isolate = scope.main_isolate();
+  Zone* zone = scope.main_zone();
+  Factory* factory = isolate->factory();
+  ExpectedSnippet<0> snippets[] = {
+      {"  var r = 0;\n"
+       "  for (var a of [0,6,7,9]) { r += a; }\n"
+       "  return r;\n",
+       {handle(Smi::FromInt(22), isolate)}},
+      {"  var r = '';\n"
+       "  for (var a of 'foobar') { r = a + r; }\n"
+       "  return r;\n",
+       {factory->NewStringFromStaticChars("raboof")}},
+      {"  var a = [1, 2, 3];\n"
+       "  a.name = 4;\n"
+       "  var r = 0;\n"
+       "  for (var x of a) { r += x; }\n"
+       "  return r;\n",
+       {handle(Smi::FromInt(6), isolate)}},
+      {"  var r = '';\n"
+       "  var data = [1, 2, 3]; \n"
+       "  for (a of data) { delete data[0]; r += a; } return r;",
+       {factory->NewStringFromStaticChars("123")}},
+      {"  var r = '';\n"
+       "  var data = [1, 2, 3]; \n"
+       "  for (a of data) { delete data[2]; r += a; } return r;",
+       {factory->NewStringFromStaticChars("12undefined")}},
+      {"  var r = '';\n"
+       "  var data = [1, 2, 3]; \n"
+       "  for (a of data) { delete data; r += a; } return r;",
+       {factory->NewStringFromStaticChars("123")}},
+      {"  var r = '';\n"
+       "  var input = 'foobar';\n"
+       "  for (var a of input) {\n"
+       "    if (a == 'b') break;\n"
+       "    r += a;\n"
+       "  }\n"
+       "  return r;\n",
+       {factory->NewStringFromStaticChars("foo")}},
+      {"  var r = '';\n"
+       "  var input = 'foobar';\n"
+       "  for (var a of input) {\n"
+       "    if (a == 'b') continue;\n"
+       "    r += a;\n"
+       "  }\n"
+       "  return r;\n",
+       {factory->NewStringFromStaticChars("fooar")}},
+      {"  var r = '';\n"
+       "  var data = [1, 2, 3, 4]; \n"
+       "  for (a of data) { data[2] = 567; r += a; }\n"
+       "  return r;\n",
+       {factory->NewStringFromStaticChars("125674")}},
+      {"  var r = '';\n"
+       "  var data = [1, 2, 3, 4]; \n"
+       "  for (a of data) { data[4] = 567; r += a; }\n"
+       "  return r;\n",
+       {factory->NewStringFromStaticChars("1234567")}},
+      {"  var r = '';\n"
+       "  var data = [1, 2, 3, 4]; \n"
+       "  for (a of data) { data[5] = 567; r += a; }\n"
+       "  return r;\n",
+       {factory->NewStringFromStaticChars("1234undefined567")}},
+      {"  var r = '';\n"
+       "  var obj = new Object();\n"
+       "  obj[Symbol.iterator] = function() { return {\n"
+       "    index: 3,\n"
+       "    data: ['a', 'b', 'c', 'd'],"
+       "    next: function() {"
+       "      return {"
+       "        done: this.index == -1,\n"
+       "        value: this.index < 0 ? undefined : this.data[this.index--]\n"
+       "      }\n"
+       "    }\n"
+       "    }}\n"
+       "  for (a of obj) { r += a }\n"
+       "  return r;\n",
+       {factory->NewStringFromStaticChars("dcba")}},
+  };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    ScopedVector<char> script(1024);
+    SNPrintF(script, "function %s() { %s }\n%s();", kFunctionName,
+             snippets[i].code_snippet, kFunctionName);
+
+    BytecodeGraphTester tester(isolate, zone, script.start());
+    auto callable = tester.GetCallable<>();
+    Handle<Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*snippets[i].return_value()));
+  }
+}
+
+
 TEST(JumpWithConstantsAndWideConstants) {
   HandleAndZoneScope scope;
   auto isolate = scope.main_isolate();
