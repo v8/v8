@@ -580,7 +580,6 @@
   'test-run-variables/StackLoadVariables': [SKIP],
   'test-run-variables/StackStoreVariables': [SKIP],
   'test-sampler-api/StackFramesConsistent': [SKIP],
-  'test-strings/OneByteArrayJoin': [SKIP],
   'test-thread-termination/TerminateCancelTerminateFromThreadItself': [SKIP],
   'test-thread-termination/TerminateFromOtherThreadWhileMicrotaskRunning': [SKIP],
   'test-thread-termination/TerminateOnlyV8ThreadFromThreadItselfNoLoop': [SKIP],
