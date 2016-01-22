@@ -5444,7 +5444,10 @@ void HOptimizedGraphBuilder::BuildForInBody(ForInStatement* stmt,
     set_current_block(body_exit);
 
     HValue* current_index = Pop();
-    Push(AddUncasted<HAdd>(current_index, graph()->GetConstant1()));
+    HValue* increment =
+        AddUncasted<HAdd>(current_index, graph()->GetConstant1());
+    increment->ClearFlag(HValue::kCanOverflow);
+    Push(increment);
     body_exit = current_block();
   }
 
