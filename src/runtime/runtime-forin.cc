@@ -31,16 +31,13 @@ RUNTIME_FUNCTION_RETURN_TRIPLE(Runtime_ForInPrepare) {
   Handle<FixedArray> cache_array;
   int cache_length;
 
-  Handle<Map> receiver_map = handle(receiver->map(), isolate);
   if (cache_type->IsMap()) {
-    Handle<Map> cache_type_map =
-        handle(Handle<Map>::cast(cache_type)->map(), isolate);
-    DCHECK(cache_type_map.is_identical_to(isolate->factory()->meta_map()));
-    int enum_length = cache_type_map->EnumLength();
-    DescriptorArray* descriptors = receiver_map->instance_descriptors();
-    if (enum_length > 0 && descriptors->HasEnumCache()) {
+    Handle<Map> cache_type_map = Handle<Map>::cast(cache_type);
+    int const enum_length = cache_type_map->EnumLength();
+    DescriptorArray* descriptors = cache_type_map->instance_descriptors();
+    if (enum_length && descriptors->HasEnumCache()) {
       cache_array = handle(descriptors->GetEnumCache(), isolate);
-      cache_length = cache_array->length();
+      cache_length = enum_length;
     } else {
       cache_array = isolate->factory()->empty_fixed_array();
       cache_length = 0;
