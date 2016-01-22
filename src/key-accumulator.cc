@@ -138,11 +138,10 @@ bool KeyAccumulator::AddKey(uint32_t key) { return AddIntegerKey(key); }
 
 
 bool KeyAccumulator::AddIntegerKey(uint32_t key) {
-  if (IsKeyHidden(key)) return false;
   // Make sure we do not add keys to a proxy-level (see AddKeysFromProxy).
   // We mark proxy-levels with a negative length
   DCHECK_LE(0, level_string_length_);
-  // Binary search over all but the last level. The last level might not be
+  // Binary search over all but the last level. The last one might not be
   // sorted yet.
   for (size_t i = 1; i < elements_.size(); i++) {
     if (AccumulatorHasKey(elements_[i - 1], key)) return false;
@@ -155,10 +154,11 @@ bool KeyAccumulator::AddIntegerKey(uint32_t key) {
 
 bool KeyAccumulator::AddStringKey(Handle<Object> key,
                                   AddKeyConversion convert) {
-  if (IsKeyHidden(key)) return false;
   if (string_properties_.is_null()) {
     string_properties_ = OrderedHashSet::Allocate(isolate_, 16);
   }
+  // TODO(cbruni): remove this conversion once we throw the correct TypeError
+  // for non-string/symbol elements returned by proxies
   if (convert == PROXY_MAGIC && key->IsNumber()) {
     key = isolate_->factory()->NumberToString(key);
   }
@@ -175,7 +175,6 @@ bool KeyAccumulator::AddStringKey(Handle<Object> key,
 
 
 bool KeyAccumulator::AddSymbolKey(Handle<Object> key) {
-  if (IsKeyHidden(key)) return false;
   if (symbol_properties_.is_null()) {
     symbol_properties_ = OrderedHashSet::Allocate(isolate_, 16);
   }
@@ -300,9 +299,6 @@ void KeyAccumulator::SortCurrentElementsList() {
 }
 
 
-void KeyAccumulator::Prepare() { NextPrototype(); }
-
-
 void KeyAccumulator::NextPrototype() {
   // Store the protoLength on the first call of this method.
   if (!elements_.empty()) {
@@ -312,33 +308,6 @@ void KeyAccumulator::NextPrototype() {
   elements_.push_back(new std::vector<uint32_t>());
   level_string_length_ = 0;
   level_symbol_length_ = 0;
-}
-
-
-void KeyAccumulator::HideKey(uint32_t key) { hidden_element_keys_.insert(key); }
-
-
-void KeyAccumulator::HideKey(Object* key) {
-  HideKey(Handle<Object>(key, isolate_));
-}
-
-
-void KeyAccumulator::HideKey(Handle<Object> key) {
-  if (hidden_keys_.is_null()) {
-    hidden_keys_ = OrderedHashSet::Allocate(isolate_, 8);
-  }
-  hidden_keys_ = OrderedHashSet::Add(hidden_keys_, key);
-}
-
-
-bool KeyAccumulator::IsKeyHidden(uint32_t key) {
-  return hidden_element_keys_.count(key);
-}
-
-
-bool KeyAccumulator::IsKeyHidden(Handle<Object> key) {
-  if (hidden_keys_.is_null()) return false;
-  return OrderedHashSet::HasKey(hidden_keys_, key);
 }
 
 
