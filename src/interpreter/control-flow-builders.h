@@ -166,15 +166,23 @@ class TryCatchBuilder final : public ControlFlowBuilder {
 class TryFinallyBuilder final : public ControlFlowBuilder {
  public:
   explicit TryFinallyBuilder(BytecodeArrayBuilder* builder)
-      : ControlFlowBuilder(builder), handler_id_(builder->NewHandlerEntry()) {}
+      : ControlFlowBuilder(builder),
+        handler_id_(builder->NewHandlerEntry()),
+        finalization_sites_(builder->zone()) {}
 
   void BeginTry(Register context);
+  void LeaveTry();
   void EndTry();
+  void BeginHandler();
+  void BeginFinally();
   void EndFinally();
 
  private:
   int handler_id_;
   BytecodeLabel handler_;
+
+  // Unbound labels that identify jumps to the finally block in the code.
+  ZoneVector<BytecodeLabel> finalization_sites_;
 };
 
 }  // namespace interpreter

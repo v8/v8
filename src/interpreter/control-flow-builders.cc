@@ -159,10 +159,28 @@ void TryFinallyBuilder::BeginTry(Register context) {
 }
 
 
+void TryFinallyBuilder::LeaveTry() {
+  finalization_sites_.push_back(BytecodeLabel());
+  builder()->Jump(&finalization_sites_.back());
+}
+
+
 void TryFinallyBuilder::EndTry() {
   builder()->MarkTryEnd(handler_id_);
+}
+
+
+void TryFinallyBuilder::BeginHandler() {
   builder()->Bind(&handler_);
   builder()->MarkHandler(handler_id_, false);
+}
+
+
+void TryFinallyBuilder::BeginFinally() {
+  for (size_t i = 0; i < finalization_sites_.size(); i++) {
+    BytecodeLabel& site = finalization_sites_.at(i);
+    builder()->Bind(&site);
+  }
 }
 
 

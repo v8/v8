@@ -2048,15 +2048,45 @@ TEST(InterpreterTryCatch) {
 
 TEST(InterpreterTryFinally) {
   HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  i::Factory* factory = isolate->factory();
 
-  // TODO(rmcilroy): modify tests when we have real try finally support.
-  std::string source(InterpreterTester::SourceForBody(
-      "var a = 1; try { a = a + 1; } finally { a = a + 2; }; return a;"));
-  InterpreterTester tester(handles.main_isolate(), source.c_str());
-  auto callable = tester.GetCallable<>();
+  std::pair<const char*, Handle<Object>> finallies[] = {
+      std::make_pair(
+          "var a = 1; try { a = a + 1; } finally { a = a + 2; }; return a;",
+          factory->NewStringFromStaticChars("R4")),
+      std::make_pair(
+          "var a = 1; try { a = 2; return 23; } finally { a = 3 }; return a;",
+          factory->NewStringFromStaticChars("R23")),
+      std::make_pair(
+          "var a = 1; try { a = 2; throw 23; } finally { a = 3 }; return a;",
+          factory->NewStringFromStaticChars("E23")),
+      std::make_pair(
+          "var a = 1; try { a = 2; throw 23; } finally { return a; };",
+          factory->NewStringFromStaticChars("R2")),
+      std::make_pair(
+          "var a = 1; try { a = 2; throw 23; } finally { throw 42; };",
+          factory->NewStringFromStaticChars("E42")),
+      std::make_pair("var a = 1; for (var i = 10; i < 20; i += 5) {"
+                     "  try { a = 2; break; } finally { a = 3; }"
+                     "} return a + i;",
+                     factory->NewStringFromStaticChars("R13")),
+      std::make_pair("var a = 1; for (var i = 10; i < 20; i += 5) {"
+                     "  try { a = 2; continue; } finally { a = 3; }"
+                     "} return a + i;",
+                     factory->NewStringFromStaticChars("R23")),
+  };
 
-  Handle<Object> return_val = callable().ToHandleChecked();
-  CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(4));
+  const char* try_wrapper =
+      "(function() { try { return 'R' + f() } catch(e) { return 'E' + e }})()";
+
+  for (size_t i = 0; i < arraysize(finallies); i++) {
+    std::string source(InterpreterTester::SourceForBody(finallies[i].first));
+    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    tester.GetCallable<>();
+    Handle<Object> wrapped = v8::Utils::OpenHandle(*CompileRun(try_wrapper));
+    CHECK(wrapped->SameValue(*finallies[i].second));
+  }
 }
 
 

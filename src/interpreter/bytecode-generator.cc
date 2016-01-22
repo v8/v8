@@ -89,9 +89,13 @@ class BytecodeGenerator::ControlScope BASE_EMBEDDED {
 
   void Break(Statement* stmt) { PerformCommand(CMD_BREAK, stmt); }
   void Continue(Statement* stmt) { PerformCommand(CMD_CONTINUE, stmt); }
+  void ReturnAccumulator() { PerformCommand(CMD_RETURN, nullptr); }
+  void ReThrowAccumulator() { PerformCommand(CMD_RETHROW, nullptr); }
+
+  class DeferredCommands;
 
  protected:
-  enum Command { CMD_BREAK, CMD_CONTINUE };
+  enum Command { CMD_BREAK, CMD_CONTINUE, CMD_RETURN, CMD_RETHROW };
   void PerformCommand(Command command, Statement* statement);
   virtual bool Execute(Command command, Statement* statement) = 0;
 
@@ -105,6 +109,112 @@ class BytecodeGenerator::ControlScope BASE_EMBEDDED {
   ContextScope* context_;
 
   DISALLOW_COPY_AND_ASSIGN(ControlScope);
+};
+
+
+// Helper class for a try-finally control scope. It can record intercepted
+// control-flow commands that cause entry into a finally-block, and re-apply
+// them after again leaving that block. Special tokens are used to identify
+// paths going through the finally-block to dispatch after leaving the block.
+class BytecodeGenerator::ControlScope::DeferredCommands final {
+ public:
+  DeferredCommands(BytecodeGenerator* generator, Register token_register,
+                   Register result_register)
+      : generator_(generator),
+        deferred_(generator->zone()),
+        token_register_(token_register),
+        result_register_(result_register) {}
+
+  // One recorded control-flow command.
+  struct Entry {
+    Command command;       // The command type being applied on this path.
+    Statement* statement;  // The target statement for the command or {nullptr}.
+    int token;             // A token identifying this particular path.
+  };
+
+  // Records a control-flow command while entering the finally-block. This also
+  // generates a new dispatch token that identifies one particular path. This
+  // expects the result to be in the accumulator.
+  void RecordCommand(Command command, Statement* statement) {
+    int token = static_cast<int>(deferred_.size());
+    deferred_.push_back({command, statement, token});
+
+    builder()->StoreAccumulatorInRegister(result_register_);
+    builder()->LoadLiteral(Smi::FromInt(token));
+    builder()->StoreAccumulatorInRegister(token_register_);
+  }
+
+  // Records the dispatch token to be used to identify the re-throw path when
+  // the finally-block has been entered through the exception handler. This
+  // expects the exception to be in the accumulator.
+  void RecordHandlerReThrowPath() {
+    // The accumulator contains the exception object.
+    RecordCommand(CMD_RETHROW, nullptr);
+  }
+
+  // Records the dispatch token to be used to identify the implicit fall-through
+  // path at the end of a try-block into the corresponding finally-block.
+  void RecordFallThroughPath() {
+    builder()->LoadLiteral(Smi::FromInt(-1));
+    builder()->StoreAccumulatorInRegister(token_register_);
+  }
+
+  // Applies all recorded control-flow commands after the finally-block again.
+  // This generates a dynamic dispatch on the token from the entry point.
+  void ApplyDeferredCommands() {
+    // The fall-through path is covered by the default case, hence +1 here.
+    SwitchBuilder dispatch(builder(), static_cast<int>(deferred_.size() + 1));
+    for (size_t i = 0; i < deferred_.size(); ++i) {
+      Entry& entry = deferred_[i];
+      builder()->LoadLiteral(Smi::FromInt(entry.token));
+      builder()->CompareOperation(Token::EQ_STRICT, token_register_,
+                                  Strength::WEAK);
+      dispatch.Case(static_cast<int>(i));
+    }
+    dispatch.DefaultAt(static_cast<int>(deferred_.size()));
+    for (size_t i = 0; i < deferred_.size(); ++i) {
+      Entry& entry = deferred_[i];
+      dispatch.SetCaseTarget(static_cast<int>(i));
+      builder()->LoadAccumulatorWithRegister(result_register_);
+      execution_control()->PerformCommand(entry.command, entry.statement);
+    }
+    dispatch.SetCaseTarget(static_cast<int>(deferred_.size()));
+  }
+
+  BytecodeArrayBuilder* builder() { return generator_->builder(); }
+  ControlScope* execution_control() { return generator_->execution_control(); }
+
+ private:
+  BytecodeGenerator* generator_;
+  ZoneVector<Entry> deferred_;
+  Register token_register_;
+  Register result_register_;
+};
+
+
+// Scoped class for dealing with control flow reaching the function level.
+class BytecodeGenerator::ControlScopeForTopLevel final
+    : public BytecodeGenerator::ControlScope {
+ public:
+  explicit ControlScopeForTopLevel(BytecodeGenerator* generator)
+      : ControlScope(generator) {}
+
+ protected:
+  bool Execute(Command command, Statement* statement) override {
+    switch (command) {
+      case CMD_BREAK:
+      case CMD_CONTINUE:
+        break;
+      case CMD_RETURN:
+        generator()->builder()->Return();
+        return true;
+      case CMD_RETHROW:
+        // TODO(mstarzinger): Should be a ReThrow instead.
+        generator()->builder()->Throw();
+        return true;
+    }
+    return false;
+  }
 };
 
 
@@ -127,6 +237,8 @@ class BytecodeGenerator::ControlScopeForBreakable final
         control_builder_->Break();
         return true;
       case CMD_CONTINUE:
+      case CMD_RETURN:
+      case CMD_RETHROW:
         break;
     }
     return false;
@@ -160,6 +272,9 @@ class BytecodeGenerator::ControlScopeForIteration final
       case CMD_CONTINUE:
         loop_builder_->Continue();
         return true;
+      case CMD_RETURN:
+      case CMD_RETHROW:
+        break;
     }
     return false;
   }
@@ -167,6 +282,66 @@ class BytecodeGenerator::ControlScopeForIteration final
  private:
   Statement* statement_;
   LoopBuilder* loop_builder_;
+};
+
+
+// Scoped class for enabling 'throw' in try-catch constructs.
+class BytecodeGenerator::ControlScopeForTryCatch final
+    : public BytecodeGenerator::ControlScope {
+ public:
+  ControlScopeForTryCatch(BytecodeGenerator* generator,
+                          TryCatchBuilder* try_catch_builder)
+      : ControlScope(generator), try_catch_builder_(try_catch_builder) {}
+
+ protected:
+  bool Execute(Command command, Statement* statement) override {
+    switch (command) {
+      case CMD_BREAK:
+      case CMD_CONTINUE:
+      case CMD_RETURN:
+        break;
+      case CMD_RETHROW:
+        // TODO(mstarzinger): Test and implement this!
+        USE(try_catch_builder_);
+        UNIMPLEMENTED();
+        return true;
+    }
+    return false;
+  }
+
+ private:
+  TryCatchBuilder* try_catch_builder_;
+};
+
+
+// Scoped class for enabling control flow through try-finally constructs.
+class BytecodeGenerator::ControlScopeForTryFinally final
+    : public BytecodeGenerator::ControlScope {
+ public:
+  ControlScopeForTryFinally(BytecodeGenerator* generator,
+                            TryFinallyBuilder* try_finally_builder,
+                            DeferredCommands* commands)
+      : ControlScope(generator),
+        try_finally_builder_(try_finally_builder),
+        commands_(commands) {}
+
+ protected:
+  bool Execute(Command command, Statement* statement) override {
+    switch (command) {
+      case CMD_BREAK:
+      case CMD_CONTINUE:
+      case CMD_RETURN:
+      case CMD_RETHROW:
+        commands_->RecordCommand(command, statement);
+        try_finally_builder_->LeaveTry();
+        return true;
+    }
+    return false;
+  }
+
+ private:
+  TryFinallyBuilder* try_finally_builder_;
+  DeferredCommands* commands_;
 };
 
 
@@ -374,6 +549,9 @@ Handle<BytecodeArray> BytecodeGenerator::MakeBytecode(CompilationInfo* info) {
 
   // Initialize the incoming context.
   ContextScope incoming_context(this, scope(), false);
+
+  // Initialize control scope.
+  ControlScopeForTopLevel control(this);
 
   builder()->set_parameter_count(info->num_parameters_including_this());
   builder()->set_locals_count(scope()->num_stack_slots());
@@ -671,7 +849,7 @@ void BytecodeGenerator::VisitBreakStatement(BreakStatement* stmt) {
 
 void BytecodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
   VisitForAccumulatorValue(stmt->expression());
-  builder()->Return();
+  execution_control()->ReturnAccumulator();
 }
 
 
@@ -919,8 +1097,10 @@ void BytecodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
   // Evaluate the try-block inside a control scope. This simulates a handler
   // that is intercepting 'throw' control commands.
   try_control_builder.BeginTry(context);
-  // TODO(mstarzinger): Control scope is missing!
-  Visit(stmt->try_block());
+  {
+    ControlScopeForTryCatch scope(this, &try_control_builder);
+    Visit(stmt->try_block());
+  }
   try_control_builder.EndTry();
 
   // Clear message object as we enter the catch block.
@@ -938,6 +1118,25 @@ void BytecodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
 void BytecodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   TryFinallyBuilder try_control_builder(builder());
 
+  // We keep a record of all paths that enter the finally-block to be able to
+  // dispatch to the correct continuation point after the statements in the
+  // finally-block have been evaluated.
+  //
+  // The try-finally construct can enter the finally-block in three ways:
+  // 1. By exiting the try-block normally, falling through at the end.
+  // 2. By exiting the try-block with a function-local control flow transfer
+  //    (i.e. through break/continue/return statements).
+  // 3. By exiting the try-block with a thrown exception.
+  //
+  // The result register semantics depend on how the block was entered:
+  //  - ReturnStatement: It represents the return value being returned.
+  //  - ThrowStatement: It represents the exception being thrown.
+  //  - BreakStatement/ContinueStatement: Undefined and not used.
+  //  - Falling through into finally-block: Undefined and not used.
+  Register token = register_allocator()->NewRegister();
+  Register result = register_allocator()->NewRegister();
+  ControlScope::DeferredCommands commands(this, token, result);
+
   // Preserve the context in a dedicated register, so that it can be restored
   // when the handler is entered by the stack-unwinding machinery.
   // TODO(mstarzinger): Be smarter about register allocation.
@@ -946,9 +1145,19 @@ void BytecodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   // Evaluate the try-block inside a control scope. This simulates a handler
   // that is intercepting all control commands.
   try_control_builder.BeginTry(context);
-  // TODO(mstarzinger): Control scope is missing!
-  Visit(stmt->try_block());
+  {
+    ControlScopeForTryFinally scope(this, &try_control_builder, &commands);
+    Visit(stmt->try_block());
+  }
   try_control_builder.EndTry();
+
+  // Record fall-through and exception cases.
+  commands.RecordFallThroughPath();
+  try_control_builder.LeaveTry();
+  try_control_builder.BeginHandler();
+  commands.RecordHandlerReThrowPath();
+
+  try_control_builder.BeginFinally();
 
   // Clear message object as we enter the finally block.
   // TODO(mstarzinger): Implement this!
@@ -956,6 +1165,9 @@ void BytecodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   // Evaluate the finally-block.
   Visit(stmt->finally_block());
   try_control_builder.EndFinally();
+
+  // Dynamic dispatch after the finally-block.
+  commands.ApplyDeferredCommands();
 }
 
 
