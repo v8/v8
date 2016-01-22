@@ -7067,7 +7067,13 @@ MaybeHandle<Object> Object::GetPropertyOrElement(Handle<JSReceiver> holder,
 
 void JSReceiver::initialize_properties() {
   DCHECK(!GetHeap()->InNewSpace(GetHeap()->empty_fixed_array()));
-  WRITE_FIELD(this, kPropertiesOffset, GetHeap()->empty_fixed_array());
+  DCHECK(!GetHeap()->InNewSpace(GetHeap()->empty_properties_dictionary()));
+  if (map()->is_dictionary_map()) {
+    WRITE_FIELD(this, kPropertiesOffset,
+                GetHeap()->empty_properties_dictionary());
+  } else {
+    WRITE_FIELD(this, kPropertiesOffset, GetHeap()->empty_fixed_array());
+  }
 }
 
 
