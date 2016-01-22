@@ -24,6 +24,15 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+#ifdef DEBUG
+#define TRACE(...)                                    \
+  do {                                                \
+    if (FLAG_trace_turbo_escape) PrintF(__VA_ARGS__); \
+  } while (false)
+#else
+#define TRACE(...)
+#endif
+
 const EscapeAnalysis::Alias EscapeAnalysis::kNotReachable =
     std::numeric_limits<Alias>::max();
 const EscapeAnalysis::Alias EscapeAnalysis::kUntrackable =
@@ -75,9 +84,9 @@ class VirtualObject : public ZoneObject {
     bool changed = fields_[offset] != node || phi_[offset] != created_phi;
     fields_[offset] = node;
     phi_[offset] = created_phi;
-    if (changed && FLAG_trace_turbo_escape && node) {
-      PrintF("Setting field %zu of #%d to #%d (%s)\n", offset, id(), node->id(),
-             node->op()->mnemonic());
+    if (changed && node) {
+      TRACE("Setting field %zu of #%d to #%d (%s)\n", offset, id(), node->id(),
+            node->op()->mnemonic());
     }
     return changed;
   }
@@ -290,9 +299,7 @@ bool VirtualState::UpdateFrom(VirtualState* from, Zone* zone) {
       continue;
     }
 
-    if (FLAG_trace_turbo_escape) {
-      PrintF("  Updating fields of @%d\n", alias);
-    }
+    TRACE("  Updating fields of @%d\n", alias);
 
     changed = ls->UpdateFrom(*rs) || changed;
   }
@@ -354,18 +361,23 @@ bool VirtualState::MergeFrom(MergeCache* cache, Zone* zone, Graph* graph,
   for (EscapeAnalysis::Alias alias = 0; alias < size(); ++alias) {
     size_t fields = cache->LoadVirtualObjectsFromStatesFor(alias);
     if (cache->objects().size() == cache->states().size()) {
-      if (FLAG_trace_turbo_escape) {
-        PrintF("  Merging virtual objects of @%d\n", alias);
-      }
       VirtualObject* mergeObject = GetOrCreateTrackedVirtualObject(
           alias, cache->objects().front()->id(), fields, zone);
+#ifdef DEBUG
+      if (FLAG_trace_turbo_escape) {
+        PrintF("  Alias @%d, merging into %p virtual objects", alias,
+               static_cast<void*>(mergeObject));
+        for (size_t i = 0; i < cache->objects().size(); i++) {
+          PrintF(" %p", static_cast<void*>(cache->objects()[i]));
+        }
+        PrintF("\n");
+      }
+#endif  // DEBUG
       changed = mergeObject->ResizeFields(fields) || changed;
       for (size_t i = 0; i < fields; ++i) {
         if (Node* field = cache->GetFields(i)) {
           changed = mergeObject->SetField(i, field) || changed;
-          if (FLAG_trace_turbo_escape) {
-            PrintF("    Field %zu agree on rep #%d\n", i, field->id());
-          }
+          TRACE("    Field %zu agree on rep #%d\n", i, field->id());
         } else {
           int value_input_count = static_cast<int>(cache->fields().size());
           if (cache->fields().size() == cache->objects().size()) {
@@ -377,6 +389,7 @@ bool VirtualState::MergeFrom(MergeCache* cache, Zone* zone, Graph* graph,
                               value_input_count),
                   value_input_count + 1, &cache->fields().front());
               mergeObject->SetField(i, phi, true);
+#ifdef DEBUG
               if (FLAG_trace_turbo_escape) {
                 PrintF("    Creating Phi #%d as merge of", phi->id());
                 for (int i = 0; i < value_input_count; i++) {
@@ -385,6 +398,7 @@ bool VirtualState::MergeFrom(MergeCache* cache, Zone* zone, Graph* graph,
                 }
                 PrintF("\n");
               }
+#endif  // DEBUG
               changed = true;
             } else {
               DCHECK(rep->opcode() == IrOpcode::kPhi);
@@ -402,18 +416,17 @@ bool VirtualState::MergeFrom(MergeCache* cache, Zone* zone, Graph* graph,
                 }
               }
               if (rep->op()->ValueInputCount() != value_input_count) {
-                if (FLAG_trace_turbo_escape) {
-                  PrintF("    Widening Phi #%d of arity %d to %d", rep->id(),
-                         rep->op()->ValueInputCount(), value_input_count);
-                }
+                TRACE("    Widening Phi #%d of arity %d to %d\n", rep->id(),
+                      rep->op()->ValueInputCount(), value_input_count);
                 NodeProperties::ChangeOp(
                     rep, common->Phi(MachineRepresentation::kTagged,
                                      value_input_count));
               }
             }
           } else {
-            if (FLAG_trace_turbo_escape) {
-              PrintF("    Field %zu cleared\n", i);
+            if (mergeObject->GetField(i) != nullptr) {
+              TRACE("    Field %zu cleared\n", i);
+              changed = true;
             }
             changed = mergeObject->SetField(i, nullptr) || changed;
           }
@@ -580,10 +593,8 @@ void EscapeStatusAnalysis::ProcessStoreField(Node* node) {
   if ((IsEscaped(to) || !IsAllocation(to)) && SetEscaped(val)) {
     RevisitUses(val);
     RevisitInputs(val);
-    if (FLAG_trace_turbo_escape) {
-      PrintF("Setting #%d (%s) to escaped because of store to field of #%d\n",
-             val->id(), val->op()->mnemonic(), to->id());
-    }
+    TRACE("Setting #%d (%s) to escaped because of store to field of #%d\n",
+          val->id(), val->op()->mnemonic(), to->id());
   }
 }
 
@@ -595,10 +606,8 @@ void EscapeStatusAnalysis::ProcessStoreElement(Node* node) {
   if ((IsEscaped(to) || !IsAllocation(to)) && SetEscaped(val)) {
     RevisitUses(val);
     RevisitInputs(val);
-    if (FLAG_trace_turbo_escape) {
-      PrintF("Setting #%d (%s) to escaped because of store to field of #%d\n",
-             val->id(), val->op()->mnemonic(), to->id());
-    }
+    TRACE("Setting #%d (%s) to escaped because of store to field of #%d\n",
+          val->id(), val->op()->mnemonic(), to->id());
   }
 }
 
@@ -607,10 +616,8 @@ void EscapeStatusAnalysis::ProcessAllocate(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kAllocate);
   if (!HasEntry(node)) {
     status_[node->id()] |= kTracked;
-    if (FLAG_trace_turbo_escape) {
-      PrintF("Created status entry for node #%d (%s)\n", node->id(),
-             node->op()->mnemonic());
-    }
+    TRACE("Created status entry for node #%d (%s)\n", node->id(),
+          node->op()->mnemonic());
     NumberMatcher size(node->InputAt(0));
     DCHECK(node->InputAt(0)->opcode() != IrOpcode::kInt32Constant &&
            node->InputAt(0)->opcode() != IrOpcode::kInt64Constant &&
@@ -618,10 +625,7 @@ void EscapeStatusAnalysis::ProcessAllocate(Node* node) {
            node->InputAt(0)->opcode() != IrOpcode::kFloat64Constant);
     if (!size.HasValue() && SetEscaped(node)) {
       RevisitUses(node);
-      if (FLAG_trace_turbo_escape) {
-        PrintF("Setting #%d to escaped because of non-const alloc\n",
-               node->id());
-      }
+      TRACE("Setting #%d to escaped because of non-const alloc\n", node->id());
       // This node is known to escape, uses do not have to be checked.
       return;
     }
@@ -642,13 +646,11 @@ bool EscapeStatusAnalysis::CheckUsesForEscape(Node* uses, Node* rep,
     switch (use->opcode()) {
       case IrOpcode::kPhi:
         if (phi_escaping && SetEscaped(rep)) {
-          if (FLAG_trace_turbo_escape) {
-            PrintF(
-                "Setting #%d (%s) to escaped because of use by phi node "
-                "#%d (%s)\n",
-                rep->id(), rep->op()->mnemonic(), use->id(),
-                use->op()->mnemonic());
-          }
+          TRACE(
+              "Setting #%d (%s) to escaped because of use by phi node "
+              "#%d (%s)\n",
+              rep->id(), rep->op()->mnemonic(), use->id(),
+              use->op()->mnemonic());
           return true;
         }
       // Fallthrough.
@@ -661,45 +663,41 @@ bool EscapeStatusAnalysis::CheckUsesForEscape(Node* uses, Node* rep,
       case IrOpcode::kReferenceEqual:
       case IrOpcode::kFinishRegion:
         if (IsEscaped(use) && SetEscaped(rep)) {
-          if (FLAG_trace_turbo_escape) {
-            PrintF(
-                "Setting #%d (%s) to escaped because of use by escaping node "
-                "#%d (%s)\n",
-                rep->id(), rep->op()->mnemonic(), use->id(),
-                use->op()->mnemonic());
-          }
+          TRACE(
+              "Setting #%d (%s) to escaped because of use by escaping node "
+              "#%d (%s)\n",
+              rep->id(), rep->op()->mnemonic(), use->id(),
+              use->op()->mnemonic());
           return true;
         }
         break;
       case IrOpcode::kObjectIsSmi:
         if (!IsAllocation(rep) && SetEscaped(rep)) {
-          PrintF("Setting #%d (%s) to escaped because of use by #%d (%s)\n",
-                 rep->id(), rep->op()->mnemonic(), use->id(),
-                 use->op()->mnemonic());
+          TRACE("Setting #%d (%s) to escaped because of use by #%d (%s)\n",
+                rep->id(), rep->op()->mnemonic(), use->id(),
+                use->op()->mnemonic());
           return true;
         }
         break;
       case IrOpcode::kSelect:
         if (SetEscaped(rep)) {
-          PrintF("Setting #%d (%s) to escaped because of use by #%d (%s)\n",
-                 rep->id(), rep->op()->mnemonic(), use->id(),
-                 use->op()->mnemonic());
+          TRACE("Setting #%d (%s) to escaped because of use by #%d (%s)\n",
+                rep->id(), rep->op()->mnemonic(), use->id(),
+                use->op()->mnemonic());
           return true;
         }
         break;
       default:
         if (use->op()->EffectInputCount() == 0 &&
             uses->op()->EffectInputCount() > 0) {
-          PrintF("Encountered unaccounted use by #%d (%s)\n", use->id(),
-                 use->op()->mnemonic());
+          TRACE("Encountered unaccounted use by #%d (%s)\n", use->id(),
+                use->op()->mnemonic());
           UNREACHABLE();
         }
         if (SetEscaped(rep)) {
-          if (FLAG_trace_turbo_escape) {
-            PrintF("Setting #%d (%s) to escaped because of use by #%d (%s)\n",
-                   rep->id(), rep->op()->mnemonic(), use->id(),
-                   use->op()->mnemonic());
-          }
+          TRACE("Setting #%d (%s) to escaped because of use by #%d (%s)\n",
+                rep->id(), rep->op()->mnemonic(), use->id(),
+                use->op()->mnemonic());
           return true;
         }
     }
@@ -762,6 +760,7 @@ void EscapeAnalysis::AssignAliases() {
   CHECK_LT(graph()->NodeCount(), kUntrackable);
   aliases_.resize(graph()->NodeCount(), kNotReachable);
   aliases_[graph()->end()->id()] = kUntrackable;
+  TRACE("Discovering trackable nodes");
   while (!stack.empty()) {
     Node* node = stack.back();
     stack.pop_back();
@@ -769,6 +768,8 @@ void EscapeAnalysis::AssignAliases() {
       case IrOpcode::kAllocate:
         if (aliases_[node->id()] >= kUntrackable) {
           aliases_[node->id()] = NextAlias();
+          TRACE(" @%d:%s#%u", aliases_[node->id()], node->op()->mnemonic(),
+                node->id());
         }
         break;
       case IrOpcode::kFinishRegion: {
@@ -779,10 +780,17 @@ void EscapeAnalysis::AssignAliases() {
               stack.push_back(allocate);
             }
             aliases_[allocate->id()] = NextAlias();
+            TRACE(" @%d:%s#%u", aliases_[allocate->id()],
+                  allocate->op()->mnemonic(), allocate->id());
           }
           aliases_[node->id()] = aliases_[allocate->id()];
+          TRACE(" @%d:%s#%u", aliases_[node->id()], node->op()->mnemonic(),
+                node->id());
+
         } else {
           aliases_[node->id()] = NextAlias();
+          TRACE(" @%d:%s#%u", aliases_[node->id()], node->op()->mnemonic(),
+                node->id());
         }
         break;
       }
@@ -798,18 +806,7 @@ void EscapeAnalysis::AssignAliases() {
       }
     }
   }
-
-  if (FLAG_trace_turbo_escape) {
-    PrintF("Discovered trackable nodes");
-    for (EscapeAnalysis::Alias id = 0; id < graph()->NodeCount(); ++id) {
-      if (aliases_[id] < kUntrackable) {
-        if (FLAG_trace_turbo_escape) {
-          PrintF(" #%u", id);
-        }
-      }
-    }
-    PrintF("\n");
-  }
+  TRACE("\n");
 }
 
 
@@ -844,9 +841,11 @@ void EscapeAnalysis::RunObjectAnalysis() {
       }
     }
   }
+#ifdef DEBUG
   if (FLAG_trace_turbo_escape) {
     DebugPrint();
   }
+#endif
 }
 
 
@@ -971,11 +970,9 @@ void EscapeAnalysis::ForwardVirtualState(Node* node) {
   }
   DCHECK_NOT_NULL(virtual_states_[effect->id()]);
   if (IsEffectBranchPoint(effect)) {
-    if (FLAG_trace_turbo_escape) {
-      PrintF("Copying object state %p from #%d (%s) to #%d (%s)\n",
-             static_cast<void*>(virtual_states_[effect->id()]), effect->id(),
-             effect->op()->mnemonic(), node->id(), node->op()->mnemonic());
-    }
+    TRACE("Copying virtual state %p from #%d (%s) to #%d (%s)\n",
+          static_cast<void*>(virtual_states_[effect->id()]), effect->id(),
+          effect->op()->mnemonic(), node->id(), node->op()->mnemonic());
     if (!virtual_states_[node->id()]) {
       virtual_states_[node->id()] =
           new (zone()) VirtualState(*virtual_states_[effect->id()]);
@@ -985,11 +982,9 @@ void EscapeAnalysis::ForwardVirtualState(Node* node) {
     }
   } else {
     virtual_states_[node->id()] = virtual_states_[effect->id()];
-    if (FLAG_trace_turbo_escape) {
-      PrintF("Forwarding object state %p from #%d (%s) to #%d (%s)\n",
-             static_cast<void*>(virtual_states_[effect->id()]), effect->id(),
-             effect->op()->mnemonic(), node->id(), node->op()->mnemonic());
-    }
+    TRACE("Forwarding virtual state %p from #%d (%s) to #%d (%s)\n",
+          static_cast<void*>(virtual_states_[effect->id()]), effect->id(),
+          effect->op()->mnemonic(), node->id(), node->op()->mnemonic());
   }
 }
 
@@ -1009,20 +1004,16 @@ bool EscapeAnalysis::ProcessEffectPhi(Node* node) {
     mergeState = new (zone()) VirtualState(zone(), AliasCount());
     virtual_states_[node->id()] = mergeState;
     changed = true;
-    if (FLAG_trace_turbo_escape) {
-      PrintF("Effect Phi #%d got new states map %p.\n", node->id(),
-             static_cast<void*>(mergeState));
-    }
+    TRACE("Effect Phi #%d got new virtual state %p.\n", node->id(),
+          static_cast<void*>(mergeState));
   } else if (mergeState->GetLastChanged() != node) {
     changed = true;
   }
 
   cache_->Clear();
 
-  if (FLAG_trace_turbo_escape) {
-    PrintF("At Effect Phi #%d, merging states into %p:", node->id(),
-           static_cast<void*>(mergeState));
-  }
+  TRACE("At Effect Phi #%d, merging states into %p:", node->id(),
+        static_cast<void*>(mergeState));
 
   for (int i = 0; i < node->op()->EffectInputCount(); ++i) {
     Node* input = NodeProperties::GetEffectInput(node, i);
@@ -1030,14 +1021,10 @@ bool EscapeAnalysis::ProcessEffectPhi(Node* node) {
     if (state) {
       cache_->states().push_back(state);
     }
-    if (FLAG_trace_turbo_escape) {
-      PrintF(" %p (from %d %s)", static_cast<void*>(state), input->id(),
-             input->op()->mnemonic());
-    }
+    TRACE(" %p (from %d %s)", static_cast<void*>(state), input->id(),
+          input->op()->mnemonic());
   }
-  if (FLAG_trace_turbo_escape) {
-    PrintF("\n");
-  }
+  TRACE("\n");
 
   if (cache_->states().size() == 0) {
     return changed;
@@ -1047,9 +1034,7 @@ bool EscapeAnalysis::ProcessEffectPhi(Node* node) {
                                   NodeProperties::GetControlInput(node)) ||
             changed;
 
-  if (FLAG_trace_turbo_escape) {
-    PrintF("Merge %s the node.\n", changed ? "changed" : "did not change");
-  }
+  TRACE("Merge %s the node.\n", changed ? "changed" : "did not change");
 
   if (changed) {
     mergeState->LastChangedAt(node);
@@ -1098,10 +1083,8 @@ void EscapeAnalysis::ProcessFinishRegion(Node* node) {
           state->VirtualObjectFromAlias(aliases_[allocation->id()]);
       DCHECK_NOT_NULL(vobj_alloc);
       state->SetVirtualObject(aliases_[node->id()], vobj_alloc);
-      if (FLAG_trace_turbo_escape) {
-        PrintF("Linked finish region node #%d to node #%d\n", node->id(),
-               allocation->id());
-      }
+      TRACE("Linked finish region node #%d to node #%d\n", node->id(),
+            allocation->id());
       state->LastChangedAt(node);
     }
   }
@@ -1130,13 +1113,11 @@ bool EscapeAnalysis::UpdateReplacement(VirtualState* state, Node* node,
                                        Node* rep) {
   if (SetReplacement(node, rep)) {
     state->LastChangedAt(node);
-    if (FLAG_trace_turbo_escape) {
-      if (rep) {
-        PrintF("Replacement of #%d is #%d (%s)\n", node->id(), rep->id(),
-               rep->op()->mnemonic());
-      } else {
-        PrintF("Replacement of #%d cleared\n", node->id());
-      }
+    if (rep) {
+      TRACE("Replacement of #%d is #%d (%s)\n", node->id(), rep->id(),
+            rep->op()->mnemonic());
+    } else {
+      TRACE("Replacement of #%d cleared\n", node->id());
     }
     return true;
   }
@@ -1221,9 +1202,7 @@ int EscapeAnalysis::OffsetFromAccess(Node* node) {
 
 void EscapeAnalysis::ProcessLoadFromPhi(int offset, Node* from, Node* node,
                                         VirtualState* state) {
-  if (FLAG_trace_turbo_escape) {
-    PrintF("Load #%d from phi #%d", node->id(), from->id());
-  }
+  TRACE("Load #%d from phi #%d", node->id(), from->id());
 
   cache_->fields().clear();
   for (int i = 0; i < node->op()->ValueInputCount(); ++i) {
@@ -1245,17 +1224,15 @@ void EscapeAnalysis::ProcessLoadFromPhi(int offset, Node* from, Node* node,
         escape_status_.Resize();
         SetReplacement(node, phi);
         state->LastChangedAt(node);
-        if (FLAG_trace_turbo_escape) {
-          PrintF(" got phi created.\n");
-        }
-      } else if (FLAG_trace_turbo_escape) {
-        PrintF(" has already phi #%d.\n", rep->id());
+        TRACE(" got phi created.\n");
+      } else {
+        TRACE(" has already phi #%d.\n", rep->id());
       }
-    } else if (FLAG_trace_turbo_escape) {
-      PrintF(" has incomplete field info.\n");
+    } else {
+      TRACE(" has incomplete field info.\n");
     }
-  } else if (FLAG_trace_turbo_escape) {
-    PrintF(" has incomplete virtual object info.\n");
+  } else {
+    TRACE(" has incomplete virtual object info.\n");
   }
 }
 
@@ -1321,14 +1298,11 @@ void EscapeAnalysis::ProcessLoadElement(Node* node) {
   } else {
     // We have a load from a non-const index, cannot eliminate object.
     if (SetEscaped(from)) {
-      if (FLAG_trace_turbo_escape) {
-        PrintF(
-            "Setting #%d (%s) to escaped because load element #%d from "
-            "non-const "
-            "index #%d (%s)\n",
-            from->id(), from->op()->mnemonic(), node->id(), index_node->id(),
-            index_node->op()->mnemonic());
-      }
+      TRACE(
+          "Setting #%d (%s) to escaped because load element #%d from non-const "
+          "index #%d (%s)\n",
+          from->id(), from->op()->mnemonic(), node->id(), index_node->id(),
+          index_node->op()->mnemonic());
     }
   }
 }
@@ -1377,17 +1351,15 @@ void EscapeAnalysis::ProcessStoreElement(Node* node) {
   } else {
     // We have a store to a non-const index, cannot eliminate object.
     if (SetEscaped(to)) {
-      if (FLAG_trace_turbo_escape) {
-        PrintF(
-            "Setting #%d (%s) to escaped because store element #%d to "
-            "non-const "
-            "index #%d (%s)\n",
-            to->id(), to->op()->mnemonic(), node->id(), index_node->id(),
-            index_node->op()->mnemonic());
-      }
+      TRACE(
+          "Setting #%d (%s) to escaped because store element #%d to non-const "
+          "index #%d (%s)\n",
+          to->id(), to->op()->mnemonic(), node->id(), index_node->id(),
+          index_node->op()->mnemonic());
     }
     if (obj && obj->IsTracked() && obj->ClearAllFields()) {
       state->LastChangedAt(node);
+      TRACE("Cleared all fields of @%d:#%d\n", aliases_[obj->id()], obj->id());
     }
   }
 }
@@ -1413,13 +1385,11 @@ Node* EscapeAnalysis::GetOrCreateObjectState(Node* effect, Node* node) {
             graph()->NewNode(common()->ObjectState(input_count, vobj->id()),
                              input_count, &cache_->fields().front());
         vobj->SetObjectState(new_object_state);
-        if (FLAG_trace_turbo_escape) {
-          PrintF(
-              "Creating object state #%d for vobj %p (from node #%d) at effect "
-              "#%d\n",
-              new_object_state->id(), static_cast<void*>(vobj), node->id(),
-              effect->id());
-        }
+        TRACE(
+            "Creating object state #%d for vobj %p (from node #%d) at effect "
+            "#%d\n",
+            new_object_state->id(), static_cast<void*>(vobj), node->id(),
+            effect->id());
         // Now fix uses of other objects.
         for (size_t i = 0; i < vobj->field_count(); ++i) {
           if (Node* field = vobj->GetField(i)) {
@@ -1450,7 +1420,7 @@ void EscapeAnalysis::DebugPrintObject(VirtualObject* object, Alias alias) {
 
 
 void EscapeAnalysis::DebugPrintState(VirtualState* state) {
-  PrintF("Dumping object state %p\n", static_cast<void*>(state));
+  PrintF("Dumping virtual state %p\n", static_cast<void*>(state));
   for (Alias alias = 0; alias < AliasCount(); ++alias) {
     if (VirtualObject* object = state->VirtualObjectFromAlias(alias)) {
       DebugPrintObject(object, alias);
