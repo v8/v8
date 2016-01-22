@@ -942,6 +942,20 @@ void RelocInfo::Verify(Isolate* isolate) {
 
 // Implementation of ExternalReference
 
+static ExternalReference::Type BuiltinCallTypeForResultSize(int result_size) {
+  switch (result_size) {
+    case 1:
+      return ExternalReference::BUILTIN_CALL;
+    case 2:
+      return ExternalReference::BUILTIN_CALL_PAIR;
+    case 3:
+      return ExternalReference::BUILTIN_CALL_TRIPLE;
+  }
+  UNREACHABLE();
+  return ExternalReference::BUILTIN_CALL;
+}
+
+
 void ExternalReference::SetUp() {
   double_constants.min_int = kMinInt;
   double_constants.one_half = 0.5;
@@ -1029,9 +1043,8 @@ ExternalReference::ExternalReference(Runtime::FunctionId id, Isolate* isolate)
 
 ExternalReference::ExternalReference(const Runtime::Function* f,
                                      Isolate* isolate)
-    : address_(Redirect(isolate, f->entry, f->result_size == 3
-                                               ? BUILTIN_CALL_TRIPLE
-                                               : BUILTIN_CALL)) {}
+    : address_(Redirect(isolate, f->entry,
+                        BuiltinCallTypeForResultSize(f->result_size))) {}
 
 
 ExternalReference ExternalReference::isolate_address(Isolate* isolate) {

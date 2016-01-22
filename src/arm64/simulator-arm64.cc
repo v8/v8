@@ -589,7 +589,8 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
       UNREACHABLE();
       break;
 
-    case ExternalReference::BUILTIN_CALL: {
+    case ExternalReference::BUILTIN_CALL:
+    case ExternalReference::BUILTIN_CALL_PAIR: {
       // Object* f(v8::internal::Arguments) or
       // ObjectPair f(v8::internal::Arguments).
       TraceSim("Type: BUILTIN_CALL\n");

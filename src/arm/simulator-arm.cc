@@ -1933,7 +1933,8 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         set_register(r0, arg0);
       } else {
         // builtin call.
-        DCHECK(redirection->type() == ExternalReference::BUILTIN_CALL);
+        DCHECK(redirection->type() == ExternalReference::BUILTIN_CALL ||
+               redirection->type() == ExternalReference::BUILTIN_CALL_PAIR);
         SimulatorRuntimeCall target =
             reinterpret_cast<SimulatorRuntimeCall>(external);
         if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
