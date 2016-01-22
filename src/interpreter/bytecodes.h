@@ -247,6 +247,7 @@ namespace interpreter {
                                                                                \
   /* Non-local flow control */                                                 \
   V(Throw, OperandType::kNone)                                                 \
+  V(ReThrow, OperandType::kNone)                                               \
   V(Return, OperandType::kNone)
 
 

@@ -960,6 +960,13 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Throw() {
 }
 
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::ReThrow() {
+  Output(Bytecode::kReThrow);
+  exit_seen_in_block_ = true;
+  return *this;
+}
+
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::Return() {
   Output(Bytecode::kReturn);
   exit_seen_in_block_ = true;

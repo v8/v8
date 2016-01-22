@@ -217,6 +217,7 @@ class BytecodeArrayBuilder final {
   BytecodeArrayBuilder& JumpIfUndefined(BytecodeLabel* label);
 
   BytecodeArrayBuilder& Throw();
+  BytecodeArrayBuilder& ReThrow();
   BytecodeArrayBuilder& Return();
 
   // Complex flow control.

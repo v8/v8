@@ -1368,6 +1368,17 @@ void BytecodeGraphBuilder::VisitThrow(
 }
 
 
+void BytecodeGraphBuilder::VisitReThrow(
+    const interpreter::BytecodeArrayIterator& iterator) {
+  FrameStateBeforeAndAfter states(this, iterator);
+  Node* value = environment()->LookupAccumulator();
+  NewNode(javascript()->CallRuntime(Runtime::kReThrow), value);
+  Node* control = NewNode(common()->Throw(), value);
+  environment()->RecordAfterState(control, &states);
+  UpdateControlDependencyToLeaveFunction(control);
+}
+
+
 void BytecodeGraphBuilder::BuildBinaryOp(
     const Operator* js_op, const interpreter::BytecodeArrayIterator& iterator) {
   FrameStateBeforeAndAfter states(this, iterator);

@@ -200,10 +200,12 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .BinaryOperation(Token::Value::ADD, reg, Strength::WEAK)
       .JumpIfFalse(&start);
 
-  // Emit throw in it's own basic block so that the rest of the code isn't
-  // omitted due to being dead.
+  // Emit throw and re-throw in it's own basic block so that the rest of the
+  // code isn't omitted due to being dead.
   BytecodeLabel after_throw;
   builder.Jump(&after_throw).Throw().Bind(&after_throw);
+  BytecodeLabel after_rethrow;
+  builder.Jump(&after_rethrow).ReThrow().Bind(&after_rethrow);
 
   builder.ForInPrepare(reg)
       .ForInDone(reg, reg)

@@ -2075,6 +2075,10 @@ TEST(InterpreterTryFinally) {
                      "  try { a = 2; continue; } finally { a = 3; }"
                      "} return a + i;",
                      factory->NewStringFromStaticChars("R23")),
+      std::make_pair("var a = 1; try { a = 2;"
+                     "  try { a = 3; throw 23; } finally { a = 4; }"
+                     "} catch(e) { a = a + e; } return a;",
+                     factory->NewStringFromStaticChars("R27")),
   };
 
   const char* try_wrapper =

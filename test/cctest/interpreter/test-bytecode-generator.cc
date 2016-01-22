@@ -4372,7 +4372,7 @@ TEST(TryFinally) {
            B(JumpIfTrue), U8(4),      //
            B(Jump), U8(5),            //
            B(Ldar), R(2),             //
-           B(Throw),                  //
+           B(ReThrow),                //
            B(LdaUndefined),           //
            B(Return),                 //
        },
@@ -4413,7 +4413,7 @@ TEST(TryFinally) {
            B(JumpIfTrue), U8(4),                                          //
            B(Jump), U8(5),                                                //
            B(Ldar), R(3),                                                 //
-           B(Throw),                                                      //
+           B(ReThrow),                                                    //
            B(LdaUndefined),                                               //
            B(Return),                                                     //
        },
@@ -4465,7 +4465,7 @@ TEST(TryFinally) {
            B(JumpIfTrue), U8(4),                                          //
            B(Jump), U8(5),                                                //
            B(Ldar), R(3),                                                 //
-           B(Throw),                                                      //
+           B(ReThrow),                                                    //
            B(LdaUndefined),                                               //
            B(Return),                                                     //
        },

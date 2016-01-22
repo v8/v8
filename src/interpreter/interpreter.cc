@@ -1751,6 +1751,17 @@ void Interpreter::DoThrow(compiler::InterpreterAssembler* assembler) {
 }
 
 
+// ReThrow
+//
+// Re-throws the exception in the accumulator.
+void Interpreter::DoReThrow(compiler::InterpreterAssembler* assembler) {
+  Node* exception = __ GetAccumulator();
+  __ CallRuntime(Runtime::kReThrow, exception);
+  // We shouldn't ever return from a throw.
+  __ Abort(kUnexpectedReturnFromThrow);
+}
+
+
 // Return
 //
 // Return the value in the accumulator.
