@@ -7,6 +7,7 @@
 
 #include "src/cancelable-task.h"
 #include "src/execution.h"
+#include "src/heap/heap.h"
 #include "src/heap/incremental-marking-job.h"
 #include "src/heap/spaces.h"
 #include "src/objects.h"

@@ -1939,13 +1939,14 @@ void Isolate::Deinit() {
   delete basic_block_profiler_;
   basic_block_profiler_ = NULL;
 
+  delete heap_profiler_;
+  heap_profiler_ = NULL;
+
   heap_.TearDown();
   logger_->TearDown();
 
   cancelable_task_manager()->CancelAndWait();
 
-  delete heap_profiler_;
-  heap_profiler_ = NULL;
   delete cpu_profiler_;
   cpu_profiler_ = NULL;
 

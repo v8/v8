@@ -718,6 +718,11 @@ DEFINE_BOOL(heap_profiler_trace_objects, false,
             "Dump heap object allocations/movements/size_updates")
 
 
+// sampling-heap-profiler.cc
+DEFINE_BOOL(sampling_heap_profiler_suppress_randomness, false,
+            "Use constant sample intervals to eliminate test flakiness")
+
+
 // v8.cc
 DEFINE_BOOL(use_idle_notification, true,
             "Use idle notification to reduce memory footprint.")
