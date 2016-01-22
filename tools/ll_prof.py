@@ -183,9 +183,9 @@ class Code(object):
         # 6 for the percentage number, incl. the '.'
         # 1 for the '%' sign
         # => 15
-        print "%5d | %6.2f%% %x: %s" % (count, percent, offset, lines[i][1])
+        print "%5d | %6.2f%% %x(%d): %s" % (count, percent, offset, offset, lines[i][1])
       else:
-        print "%s %x: %s" % (" " * 15, offset, lines[i][1])
+        print "%s %x(%d): %s" % (" " * 15, offset, offset, lines[i][1])
     print
     assert total_count == self.self_ticks, \
         "Lost ticks (%d != %d) in %s" % (total_count, self.self_ticks, self)
