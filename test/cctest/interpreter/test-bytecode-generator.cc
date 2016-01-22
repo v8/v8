@@ -4274,7 +4274,7 @@ TEST(TryCatch) {
       {"try { return 1; } catch(e) { return 2; }",
        5 * kPointerSize,
        1,
-       25,
+       27,
        {
            B(LdaSmi8), U8(1),                                             //
            B(Return),                                                     //
@@ -4286,6 +4286,7 @@ TEST(TryCatch) {
            B(CallRuntime), U16(Runtime::kPushCatchContext), R(2), U8(3),  //
            B(PushContext), R(0),                                          //
            B(LdaSmi8), U8(2),                                             //
+           B(PopContext), R(context),                                     //
            B(Return),                                                     //
            // TODO(mstarzinger): Potential optimization, elide next bytes.
            B(LdaUndefined),  //
@@ -4622,6 +4623,7 @@ TEST(ContextVariables) {
       i::NewTypeFeedbackVector(helper.isolate(), &feedback_spec);
 
   int closure = Register::function_closure().index();
+  int context = Register::function_context().index();
   int new_target = Register::new_target().index();
   int first_context_slot = Context::MIN_CONTEXT_SLOTS;
 
@@ -4698,7 +4700,7 @@ TEST(ContextVariables) {
       {"'use strict'; let a = 1; { let b = 2; return function() { a + b; }; }",
        4 * kPointerSize,
        1,
-       44,
+       46,
        {
            B(CallRuntime), U16(Runtime::kNewFunctionContext),             //
                            R(closure), U8(1),                             //
@@ -4718,6 +4720,7 @@ TEST(ContextVariables) {
            B(LdaSmi8), U8(2),                                             //
            B(StaContextSlot), R(1), U8(first_context_slot),               //
            B(CreateClosure), U8(1), U8(0),                                //
+           B(PopContext), R(context),                                     //
            B(Return),                                                     //
        },
        2,
