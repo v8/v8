@@ -732,6 +732,7 @@
 
   # Skip tests that are known to be non-deterministic.
   'd8-worker-sharedarraybuffer': [SKIP],
+  'd8-os': [SKIP],
 }],  # 'predictable == True'
 
 ##############################################################################
