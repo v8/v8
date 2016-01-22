@@ -2030,6 +2030,9 @@ TEST(InterpreterTryCatch) {
                      handle(Smi::FromInt(2), isolate)),
       std::make_pair("var a; try { throw 1 } catch(e) { a = e + 2 }; return a;",
                      handle(Smi::FromInt(3), isolate)),
+      std::make_pair("var a; try { throw 1 } catch(e) { a = e + 2 };"
+                     "       try { throw a } catch(e) { a = e + 3 }; return a;",
+                     handle(Smi::FromInt(6), isolate)),
   };
 
   for (size_t i = 0; i < arraysize(catches); i++) {
