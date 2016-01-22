@@ -81,7 +81,8 @@ class BytecodeGenerator::ContextScope BASE_EMBEDDED {
 class BytecodeGenerator::ControlScope BASE_EMBEDDED {
  public:
   explicit ControlScope(BytecodeGenerator* generator)
-      : generator_(generator), outer_(generator->execution_control()) {
+      : generator_(generator), outer_(generator->execution_control()),
+        context_(generator->execution_context()) {
     generator_->set_execution_control(this);
   }
   virtual ~ControlScope() { generator_->set_execution_control(outer()); }
@@ -96,10 +97,12 @@ class BytecodeGenerator::ControlScope BASE_EMBEDDED {
 
   BytecodeGenerator* generator() const { return generator_; }
   ControlScope* outer() const { return outer_; }
+  ContextScope* context() const { return context_; }
 
  private:
   BytecodeGenerator* generator_;
   ControlScope* outer_;
+  ContextScope* context_;
 
   DISALLOW_COPY_AND_ASSIGN(ControlScope);
 };
@@ -117,7 +120,7 @@ class BytecodeGenerator::ControlScopeForBreakable final
         control_builder_(control_builder) {}
 
  protected:
-  virtual bool Execute(Command command, Statement* statement) {
+  bool Execute(Command command, Statement* statement) override {
     if (statement != statement_) return false;
     switch (command) {
       case CMD_BREAK:
@@ -148,7 +151,7 @@ class BytecodeGenerator::ControlScopeForIteration final
         loop_builder_(loop_builder) {}
 
  protected:
-  virtual bool Execute(Command command, Statement* statement) {
+  bool Execute(Command command, Statement* statement) override {
     if (statement != statement_) return false;
     switch (command) {
       case CMD_BREAK:
@@ -170,9 +173,16 @@ class BytecodeGenerator::ControlScopeForIteration final
 void BytecodeGenerator::ControlScope::PerformCommand(Command command,
                                                      Statement* statement) {
   ControlScope* current = this;
+  ContextScope* context = this->context();
   do {
-    if (current->Execute(command, statement)) return;
+    if (current->Execute(command, statement)) { return; }
     current = current->outer();
+    if (current->context() != context) {
+      // Pop context to the expected depth.
+      // TODO(rmcilroy): Only emit a single context pop.
+      generator()->builder()->PopContext(current->context()->reg());
+      context = current->context();
+    }
   } while (current != nullptr);
   UNREACHABLE();
 }

@@ -2324,6 +2324,56 @@ TEST(BreakableBlocks) {
        2,
        {InstanceType::FIXED_ARRAY_TYPE,
         InstanceType::SHARED_FUNCTION_INFO_TYPE}},
+      {"let x = 1;\n"
+       "outer: {\n"
+       "  inner: {\n"
+       "   let y = 2;\n"
+       "    function f() { return x + y; }\n"
+       "    if (y) break outer;\n"
+       "    y = 3;\n"
+       "  }\n"
+       "}\n"
+       "x = 4;",
+       6 * kPointerSize,
+       1,
+       72,
+       {
+           B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure),  //
+                           U8(1),                                          //
+           B(PushContext), R(2),                                           //
+           B(LdaTheHole),                                                  //
+           B(StaContextSlot), R(2), U8(4),                                 //
+           B(LdaSmi8), U8(1),                                              //
+           B(StaContextSlot), R(2), U8(4),                                 //
+           B(LdaConstant), U8(0),                                          //
+           B(Star), R(4),                                                  //
+           B(Ldar), R(closure),                                            //
+           B(Star), R(5),                                                  //
+           B(CallRuntime), U16(Runtime::kPushBlockContext), R(4), U8(2),   //
+           B(PushContext), R(3),                                           //
+           B(LdaTheHole),                                                  //
+           B(StaContextSlot), R(3), U8(4),                                 //
+           B(CreateClosure), U8(1), U8(0),                                 //
+           B(Star), R(0),                                                  //
+           B(LdaSmi8), U8(2),                                              //
+           B(StaContextSlot), R(3), U8(4),                                 //
+           B(Ldar), R(0),                                                  //
+           B(Star), R(1),                                                  //
+           B(LdaContextSlot), R(3), U8(4),                                 //
+           B(JumpIfToBooleanFalse), U8(6),                                 //
+           B(PopContext), R(2),                                            //
+           B(Jump), U8(9),                                                 //
+           B(LdaSmi8), U8(3),                                              //
+           B(StaContextSlot), R(3), U8(4),                                 //
+           B(PopContext), R(2),                                            //
+           B(LdaSmi8), U8(4),                                              //
+           B(StaContextSlot), R(2), U8(4),                                 //
+           B(LdaUndefined),                                                //
+           B(Return),                                                      //
+        },
+        2,
+        {InstanceType::FIXED_ARRAY_TYPE,
+         InstanceType::SHARED_FUNCTION_INFO_TYPE}},
   };
 
   for (size_t i = 0; i < arraysize(snippets); i++) {
@@ -2338,7 +2388,10 @@ TEST(BasicLoops) {
   InitializedHandleScope handle_scope;
   BytecodeGeneratorHelper helper;
 
-  ExpectedSnippet<int> snippets[] = {
+  int closure = Register::function_closure().index();
+  int context = Register::function_context().index();
+
+  ExpectedSnippet<InstanceType> snippets[] = {
       {"var x = 0;\n"
        "while (false) { x = 99; break; continue; }\n"
        "return x;",
@@ -2950,6 +3003,54 @@ TEST(BasicLoops) {
            B(Return),              //
        },
        0},
+      {"var a = 0;\n"
+       "while (a) {\n"
+       "  { \n"
+        "   let z = 1;\n"
+        "   function f() { z = 2; }\n"
+        "   if (z) continue;\n"
+        "   z++;\n"
+        "  }\n"
+        "}\n",
+        6 * kPointerSize,
+        1,
+        65,
+        {
+            B(LdaZero),                                                    //
+            B(Star), R(1),                                                 //
+            B(Ldar), R(1),                                                 //
+            B(JumpIfToBooleanFalse), U8(58),                               //
+            B(LdaConstant), U8(0),                                         //
+            B(Star), R(4),                                                 //
+            B(Ldar), R(closure),                                           //
+            B(Star), R(5),                                                 //
+            B(CallRuntime), U16(Runtime::kPushBlockContext), R(4), U8(2),  //
+            B(PushContext), R(3),                                          //
+            B(LdaTheHole),                                                 //
+            B(StaContextSlot), R(3), U8(4),                                //
+            B(CreateClosure), U8(1), U8(0),                                //
+            B(Star), R(0),                                                 //
+            B(LdaSmi8), U8(1),                                             //
+            B(StaContextSlot), R(3), U8(4),                                //
+            B(Ldar), R(0),                                                 //
+            B(Star), R(2),                                                 //
+            B(LdaContextSlot), R(3), U8(4),                                //
+            B(JumpIfToBooleanFalse), U8(6),                                //
+            B(PopContext), R(context),                                     //
+            B(Jump), U8(-44),                                              //
+            B(LdaContextSlot), R(3), U8(4),                                //
+            B(ToNumber),                                                   //
+            B(Star), R(4),                                                 //
+            B(Inc),                                                        //
+            B(StaContextSlot), R(3), U8(4),                                //
+            B(PopContext), R(context),                                     //
+            B(Jump), U8(-58),                                              //
+            B(LdaUndefined),                                               //
+            B(Return),                                                     //
+        },
+        2,
+        {InstanceType::FIXED_ARRAY_TYPE,
+         InstanceType::SHARED_FUNCTION_INFO_TYPE}},
   };
 
   for (size_t i = 0; i < arraysize(snippets); i++) {
