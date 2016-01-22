@@ -393,8 +393,6 @@ DEFINE_BOOL(inline_accessors, true, "inline JavaScript accessors")
 DEFINE_INT(escape_analysis_iterations, 2,
            "maximum number of escape analysis fix-point iterations")
 
-DEFINE_BOOL(optimize_for_in, true, "optimize functions containing for-in loops")
-
 DEFINE_BOOL(concurrent_recompilation, true,
             "optimizing hot functions asynchronously on a separate thread")
 DEFINE_BOOL(trace_concurrent_recompilation, false,

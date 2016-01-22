@@ -5290,10 +5290,6 @@ void HOptimizedGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
   DCHECK(current_block() != NULL);
   DCHECK(current_block()->HasPredecessor());
 
-  if (!FLAG_optimize_for_in) {
-    return Bailout(kForInStatementOptimizationIsDisabled);
-  }
-
   if (!stmt->each()->IsVariableProxy() ||
       !stmt->each()->AsVariableProxy()->var()->IsStackLocal()) {
     return Bailout(kForInStatementWithNonLocalEachVariable);
