@@ -2396,6 +2396,11 @@ void Isolate::DumpAndResetCompilationStats() {
   turbo_statistics_ = nullptr;
   delete hstatistics_;
   hstatistics_ = nullptr;
+  if (FLAG_runtime_call_stats) {
+    OFStream os(stdout);
+    runtime_state()->runtime_call_stats()->Print(os);
+    runtime_state()->runtime_call_stats()->Reset();
+  }
 }
 
 

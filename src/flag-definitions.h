@@ -802,6 +802,9 @@ DEFINE_INT(hash_seed, 0,
            "Fixed seed to use to hash property keys (0 means random)"
            "(with snapshots this option cannot override the baked-in seed)")
 
+// runtime.cc
+DEFINE_BOOL(runtime_call_stats, false, "report runtime call counts and times")
+
 // snapshot-common.cc
 DEFINE_BOOL(profile_deserialization, false,
             "Print the time it takes to deserialize the snapshot.")
