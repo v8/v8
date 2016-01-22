@@ -247,6 +247,7 @@ namespace internal {
   V(done_string, "done")                                         \
   V(dot_result_string, ".result")                                \
   V(dot_string, ".")                                             \
+  V(entries_string, "entries")                                   \
   V(enumerable_string, "enumerable")                             \
   V(enumerate_string, "enumerate")                               \
   V(Error_string, "Error")                                       \
@@ -328,6 +329,7 @@ namespace internal {
   V(undefined_string, "undefined")                               \
   V(undefined_to_string, "[object Undefined]")                   \
   V(valueOf_string, "valueOf")                                   \
+  V(values_string, "values")                                     \
   V(value_string, "value")                                       \
   V(WeakMap_string, "WeakMap")                                   \
   V(WeakSet_string, "WeakSet")                                   \
