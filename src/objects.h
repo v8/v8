@@ -2066,7 +2066,7 @@ class JSObject: public JSReceiver {
                                                    uint32_t limit);
 
   MUST_USE_RESULT static Maybe<bool> SetPropertyWithInterceptor(
-      LookupIterator* it, Handle<Object> value);
+      LookupIterator* it, ShouldThrow should_throw, Handle<Object> value);
 
   // SetLocalPropertyIgnoreAttributes converts callbacks to fields. We need to
   // grant an exemption to AccessorInfo callbacks in some cases.
@@ -2517,7 +2517,7 @@ class JSObject: public JSReceiver {
                               PropertyAttributes attributes);
 
   MUST_USE_RESULT static Maybe<bool> DeletePropertyWithInterceptor(
-      LookupIterator* it);
+      LookupIterator* it, ShouldThrow should_throw);
 
   bool ReferencesObjectFromElements(FixedArray* elements,
                                     ElementsKind kind,

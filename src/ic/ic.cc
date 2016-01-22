@@ -21,6 +21,7 @@
 #include "src/macro-assembler.h"
 #include "src/prototype.h"
 #include "src/runtime/runtime.h"
+#include "src/runtime/runtime-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -1747,7 +1748,8 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
           break;
         }
         NamedStoreHandlerCompiler compiler(isolate(), receiver_map(), holder);
-        return compiler.CompileStoreCallback(receiver, lookup->name(), info);
+        return compiler.CompileStoreCallback(receiver, lookup->name(), info,
+                                             language_mode());
       } else if (accessors->IsAccessorPair()) {
         Handle<Object> setter(Handle<AccessorPair>::cast(accessors)->setter(),
                               isolate());
@@ -2813,6 +2815,7 @@ RUNTIME_FUNCTION(Runtime_StoreCallbackProperty) {
   Handle<HeapObject> callback_or_cell = args.at<HeapObject>(2);
   Handle<Name> name = args.at<Name>(3);
   Handle<Object> value = args.at<Object>(4);
+  CONVERT_LANGUAGE_MODE_ARG_CHECKED(language_mode, 5);
   HandleScope scope(isolate);
 
   Handle<AccessorInfo> callback(
@@ -2828,8 +2831,10 @@ RUNTIME_FUNCTION(Runtime_StoreCallbackProperty) {
   DCHECK(fun != NULL);
 
   LOG(isolate, ApiNamedPropertyAccess("store", *receiver, *name));
+  Object::ShouldThrow should_throw =
+      is_sloppy(language_mode) ? Object::DONT_THROW : Object::THROW_ON_ERROR;
   PropertyCallbackArguments custom_args(isolate, callback->data(), *receiver,
-                                        *holder);
+                                        *holder, should_throw);
   custom_args.Call(fun, v8::Utils::ToLocal(name), v8::Utils::ToLocal(value));
   RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
   return *value;

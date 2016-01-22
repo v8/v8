@@ -5585,10 +5585,10 @@ void CallApiAccessorStub::Generate(MacroAssembler* masm) {
 
 void CallApiGetterStub::Generate(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- sp[0]                  : name
-  //  -- sp[4 - kArgsLength*4]  : PropertyCallbackArguments object
+  //  -- sp[0]                        : name
+  //  -- sp[4 .. (4 + kArgsLength*4)] : v8::PropertyCallbackInfo::args_
   //  -- ...
-  //  -- r5                     : api_function_address
+  //  -- r5                           : api_function_address
   // -----------------------------------
 
   Register api_function_address = ApiGetterDescriptor::function_address();
@@ -5597,8 +5597,12 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   int apiStackSpace = 0;
   DCHECK(api_function_address.is(r5));
 
+  // v8::PropertyCallbackInfo::args_ array and name handle.
+  const int kStackUnwindSpace = PropertyCallbackArguments::kArgsLength + 1;
+
+  // Load address of v8::PropertyAccessorInfo::args_ array and name handle.
   __ mr(r3, sp);                               // r3 = Handle<Name>
-  __ addi(r4, r3, Operand(1 * kPointerSize));  // r4 = PCA
+  __ addi(r4, r3, Operand(1 * kPointerSize));  // r4 = v8::PCI::args_
 
 // If ABI passes Handles (pointer-sized struct) in a register:
 //
@@ -5630,19 +5634,20 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
     __ addi(r3, sp, Operand(arg0Slot * kPointerSize));
   }
 
-  // Create PropertyAccessorInfo instance on the stack above the exit frame with
-  // r4 (internal::Object** args_) as the data.
+  // Create v8::PropertyCallbackInfo object on the stack and initialize
+  // it's args_ field.
   __ StoreP(r4, MemOperand(sp, accessorInfoSlot * kPointerSize));
-  // r4 = AccessorInfo&
   __ addi(r4, sp, Operand(accessorInfoSlot * kPointerSize));
-
-  const int kStackUnwindSpace = PropertyCallbackArguments::kArgsLength + 1;
+  // r4 = v8::PropertyCallbackInfo&
 
   ExternalReference thunk_ref =
       ExternalReference::invoke_accessor_getter_callback(isolate());
+
+  // +3 is to skip prolog, return address and name handle.
+  MemOperand return_value_operand(
+      fp, (PropertyCallbackArguments::kReturnValueOffset + 3) * kPointerSize);
   CallApiFunctionAndReturn(masm, api_function_address, thunk_ref,
-                           kStackUnwindSpace, NULL,
-                           MemOperand(fp, 6 * kPointerSize), NULL);
+                           kStackUnwindSpace, NULL, return_value_operand, NULL);
 }
 
 

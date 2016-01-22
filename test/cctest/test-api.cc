@@ -12792,6 +12792,203 @@ THREADED_TEST(Overriding) {
 }
 
 
+static void ShouldThrowOnErrorGetter(
+    Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  ApiTestFuzzer::Fuzz();
+  v8::Isolate* isolate = info.GetIsolate();
+  Local<Boolean> should_throw_on_error =
+      Boolean::New(isolate, info.ShouldThrowOnError());
+  info.GetReturnValue().Set(should_throw_on_error);
+}
+
+
+template <typename T>
+static void ShouldThrowOnErrorSetter(Local<Name> name, Local<v8::Value> value,
+                                     const v8::PropertyCallbackInfo<T>& info) {
+  ApiTestFuzzer::Fuzz();
+  v8::Isolate* isolate = info.GetIsolate();
+  auto context = isolate->GetCurrentContext();
+  Local<Boolean> should_throw_on_error_value =
+      Boolean::New(isolate, info.ShouldThrowOnError());
+  CHECK(context->Global()
+            ->Set(isolate->GetCurrentContext(), v8_str("should_throw_setter"),
+                  should_throw_on_error_value)
+            .FromJust());
+}
+
+
+THREADED_TEST(AccessorShouldThrowOnError) {
+  i::FLAG_strong_mode = true;
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+  Local<Object> global = context->Global();
+
+  Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
+  Local<ObjectTemplate> instance_templ = templ->InstanceTemplate();
+  instance_templ->SetAccessor(v8_str("f"), ShouldThrowOnErrorGetter,
+                              ShouldThrowOnErrorSetter<void>);
+
+  Local<v8::Object> instance = templ->GetFunction(context.local())
+                                   .ToLocalChecked()
+                                   ->NewInstance(context.local())
+                                   .ToLocalChecked();
+
+  CHECK(global->Set(context.local(), v8_str("o"), instance).FromJust());
+
+  // SLOPPY mode
+  Local<Value> value = v8_compile("o.f")->Run(context.local()).ToLocalChecked();
+  CHECK(value->IsFalse());
+  v8_compile("o.f = 153")->Run(context.local()).ToLocalChecked();
+  value = global->Get(context.local(), v8_str("should_throw_setter"))
+              .ToLocalChecked();
+  CHECK(value->IsFalse());
+
+  // STRICT mode
+  value = v8_compile("'use strict';o.f")->Run(context.local()).ToLocalChecked();
+  CHECK(value->IsFalse());
+  v8_compile("'use strict'; o.f = 153")->Run(context.local()).ToLocalChecked();
+  value = global->Get(context.local(), v8_str("should_throw_setter"))
+              .ToLocalChecked();
+  CHECK(value->IsTrue());
+
+  // STRONG mode
+  value = v8_compile("'use strong';o.f")->Run(context.local()).ToLocalChecked();
+  CHECK(value->IsFalse());
+  v8_compile("'use strong'; o.f = 153")->Run(context.local()).ToLocalChecked();
+  value = global->Get(context.local(), v8_str("should_throw_setter"))
+              .ToLocalChecked();
+  CHECK(value->IsTrue());
+}
+
+
+static void ShouldThrowOnErrorQuery(
+    Local<Name> name, const v8::PropertyCallbackInfo<v8::Integer>& info) {
+  ApiTestFuzzer::Fuzz();
+  v8::Isolate* isolate = info.GetIsolate();
+  info.GetReturnValue().Set(v8::None);
+
+  auto context = isolate->GetCurrentContext();
+  Local<Boolean> should_throw_on_error_value =
+      Boolean::New(isolate, info.ShouldThrowOnError());
+  CHECK(context->Global()
+            ->Set(isolate->GetCurrentContext(), v8_str("should_throw_query"),
+                  should_throw_on_error_value)
+            .FromJust());
+}
+
+
+static void ShouldThrowOnErrorDeleter(
+    Local<Name> name, const v8::PropertyCallbackInfo<v8::Boolean>& info) {
+  ApiTestFuzzer::Fuzz();
+  v8::Isolate* isolate = info.GetIsolate();
+  info.GetReturnValue().Set(v8::True(isolate));
+
+  auto context = isolate->GetCurrentContext();
+  Local<Boolean> should_throw_on_error_value =
+      Boolean::New(isolate, info.ShouldThrowOnError());
+  CHECK(context->Global()
+            ->Set(isolate->GetCurrentContext(), v8_str("should_throw_deleter"),
+                  should_throw_on_error_value)
+            .FromJust());
+}
+
+
+static void ShouldThrowOnErrorPropertyEnumerator(
+    const v8::PropertyCallbackInfo<v8::Array>& info) {
+  ApiTestFuzzer::Fuzz();
+  v8::Isolate* isolate = info.GetIsolate();
+  Local<v8::Array> names = v8::Array::New(isolate, 1);
+  CHECK(names->Set(isolate->GetCurrentContext(), names, v8_num(1)).FromJust());
+  info.GetReturnValue().Set(names);
+
+  auto context = isolate->GetCurrentContext();
+  Local<Boolean> should_throw_on_error_value =
+      Boolean::New(isolate, info.ShouldThrowOnError());
+  CHECK(context->Global()
+            ->Set(isolate->GetCurrentContext(),
+                  v8_str("should_throw_enumerator"),
+                  should_throw_on_error_value)
+            .FromJust());
+}
+
+
+THREADED_TEST(InterceptorShouldThrowOnError) {
+  i::FLAG_strong_mode = true;
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+  Local<Object> global = context->Global();
+
+  auto interceptor_templ = v8::ObjectTemplate::New(isolate);
+  v8::NamedPropertyHandlerConfiguration handler(
+      ShouldThrowOnErrorGetter, ShouldThrowOnErrorSetter<Value>,
+      ShouldThrowOnErrorQuery, ShouldThrowOnErrorDeleter,
+      ShouldThrowOnErrorPropertyEnumerator);
+  interceptor_templ->SetHandler(handler);
+
+  Local<v8::Object> instance =
+      interceptor_templ->NewInstance(context.local()).ToLocalChecked();
+
+  CHECK(global->Set(context.local(), v8_str("o"), instance).FromJust());
+
+  // SLOPPY mode
+  Local<Value> value = v8_compile("o.f")->Run(context.local()).ToLocalChecked();
+  CHECK(value->IsFalse());
+  v8_compile("o.f = 153")->Run(context.local()).ToLocalChecked();
+  value = global->Get(context.local(), v8_str("should_throw_setter"))
+              .ToLocalChecked();
+  CHECK(value->IsFalse());
+
+  v8_compile("delete o.f")->Run(context.local()).ToLocalChecked();
+  value = global->Get(context.local(), v8_str("should_throw_deleter"))
+              .ToLocalChecked();
+  CHECK(value->IsFalse());
+
+  v8_compile("Object.getOwnPropertyNames(o)")
+      ->Run(context.local())
+      .ToLocalChecked();
+  value = global->Get(context.local(), v8_str("should_throw_enumerator"))
+              .ToLocalChecked();
+  CHECK(value->IsFalse());
+
+  // STRICT mode
+  value = v8_compile("'use strict';o.f")->Run(context.local()).ToLocalChecked();
+  CHECK(value->IsFalse());
+  v8_compile("'use strict'; o.f = 153")->Run(context.local()).ToLocalChecked();
+  value = global->Get(context.local(), v8_str("should_throw_setter"))
+              .ToLocalChecked();
+  CHECK(value->IsTrue());
+
+  v8_compile("'use strict'; delete o.f")->Run(context.local()).ToLocalChecked();
+  value = global->Get(context.local(), v8_str("should_throw_deleter"))
+              .ToLocalChecked();
+  CHECK(value->IsTrue());
+
+  v8_compile("'use strict'; Object.getOwnPropertyNames(o)")
+      ->Run(context.local())
+      .ToLocalChecked();
+  value = global->Get(context.local(), v8_str("should_throw_enumerator"))
+              .ToLocalChecked();
+  CHECK(value->IsFalse());
+
+  // STRONG mode
+  value = v8_compile("'use strong';o.f")->Run(context.local()).ToLocalChecked();
+  CHECK(value->IsFalse());
+  v8_compile("'use strong'; o.f = 153")->Run(context.local()).ToLocalChecked();
+  value = global->Get(context.local(), v8_str("should_throw_setter"))
+              .ToLocalChecked();
+  CHECK(value->IsTrue());
+
+  v8_compile("'use strong'; Object.getOwnPropertyNames(o)")
+      ->Run(context.local())
+      .ToLocalChecked();
+  value = global->Get(context.local(), v8_str("should_throw_enumerator"))
+              .ToLocalChecked();
+  CHECK(value->IsFalse());
+}
+
+
 static void IsConstructHandler(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   ApiTestFuzzer::Fuzz();
