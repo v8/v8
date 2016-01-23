@@ -155,8 +155,8 @@ Node* BytecodeGraphBuilder::Environment::LookupAccumulator() const {
 
 Node* BytecodeGraphBuilder::Environment::LookupRegister(
     interpreter::Register the_register) const {
-  if (the_register.is_function_context()) {
-    return builder()->GetFunctionContext();
+  if (the_register.is_current_context()) {
+    return Context();
   } else if (the_register.is_function_closure()) {
     return builder()->GetFunctionClosure();
   } else if (the_register.is_new_target()) {
@@ -1034,9 +1034,10 @@ void BytecodeGraphBuilder::VisitKeyedStoreICStrictWide(
 
 void BytecodeGraphBuilder::VisitPushContext(
     const interpreter::BytecodeArrayIterator& iterator) {
-  Node* context = environment()->LookupAccumulator();
-  environment()->BindRegister(iterator.GetRegisterOperand(0), context);
-  environment()->SetContext(context);
+  Node* new_context = environment()->LookupAccumulator();
+  environment()->BindRegister(iterator.GetRegisterOperand(0),
+                              environment()->Context());
+  environment()->SetContext(new_context);
 }
 
 

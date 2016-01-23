@@ -821,8 +821,6 @@ static void Generate_EnterBytecodeDispatch(MacroAssembler* masm) {
           Immediate(FixedArray::kHeaderSize - kHeapObjectTag));
 
   // Get the context from the frame.
-  // TODO(rmcilroy): Update interpreter frame to expect current context at the
-  // context slot instead of the function context.
   __ movp(kContextRegister,
           Operand(kInterpreterRegisterFileRegister,
                   InterpreterFrameConstants::kContextFromRegisterPointer));

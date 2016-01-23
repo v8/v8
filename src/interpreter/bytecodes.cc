@@ -294,7 +294,7 @@ std::ostream& Bytecodes::Decode(std::ostream& os, const uint8_t* bytecode_start,
       case interpreter::OperandType::kReg8:
       case interpreter::OperandType::kReg16: {
         Register reg = DecodeRegister(operand_start, op_type);
-        if (reg.is_function_context()) {
+        if (reg.is_current_context()) {
           os << "<context>";
         } else if (reg.is_function_closure()) {
           os << "<closure>";
@@ -358,7 +358,7 @@ static const int kLastParamRegisterIndex =
     -InterpreterFrameConstants::kLastParamFromRegisterPointer / kPointerSize;
 static const int kFunctionClosureRegisterIndex =
     -InterpreterFrameConstants::kFunctionFromRegisterPointer / kPointerSize;
-static const int kFunctionContextRegisterIndex =
+static const int kCurrentContextRegisterIndex =
     -InterpreterFrameConstants::kContextFromRegisterPointer / kPointerSize;
 static const int kNewTargetRegisterIndex =
     -InterpreterFrameConstants::kNewTargetFromRegisterPointer / kPointerSize;
@@ -397,13 +397,13 @@ bool Register::is_function_closure() const {
 }
 
 
-Register Register::function_context() {
-  return Register(kFunctionContextRegisterIndex);
+Register Register::current_context() {
+  return Register(kCurrentContextRegisterIndex);
 }
 
 
-bool Register::is_function_context() const {
-  return index() == kFunctionContextRegisterIndex;
+bool Register::is_current_context() const {
+  return index() == kCurrentContextRegisterIndex;
 }
 
 

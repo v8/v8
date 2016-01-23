@@ -409,6 +409,16 @@ TARGET_TEST_F(InterpreterAssemblerTest, GetSetAccumulator) {
 }
 
 
+TARGET_TEST_F(InterpreterAssemblerTest, GetSetContext) {
+  TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
+    InterpreterAssemblerForTest m(this, bytecode);
+    Node* context_node = m.Int32Constant(100);
+    m.SetContext(context_node);
+    EXPECT_THAT(m.GetContext(), context_node);
+  }
+}
+
+
 TARGET_TEST_F(InterpreterAssemblerTest, RegisterLocation) {
   TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
     InterpreterAssemblerForTest m(this, bytecode);

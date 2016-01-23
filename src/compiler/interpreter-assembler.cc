@@ -80,7 +80,10 @@ void InterpreterAssembler::SetAccumulator(Node* value) { accumulator_ = value; }
 Node* InterpreterAssembler::GetContext() { return context_; }
 
 
-void InterpreterAssembler::SetContext(Node* value) { context_ = value; }
+void InterpreterAssembler::SetContext(Node* value) {
+  StoreRegister(value, interpreter::Register::current_context());
+  context_ = value;
+}
 
 
 Node* InterpreterAssembler::BytecodeOffset() { return bytecode_offset_; }

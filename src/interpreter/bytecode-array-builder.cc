@@ -1341,7 +1341,7 @@ bool BytecodeArrayBuilder::RegisterIsValid(Register reg,
       return false;
   }
 
-  if (reg.is_function_context() || reg.is_function_closure() ||
+  if (reg.is_current_context() || reg.is_function_closure() ||
       reg.is_new_target()) {
     return true;
   } else if (reg.is_parameter()) {

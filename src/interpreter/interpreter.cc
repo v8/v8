@@ -816,12 +816,14 @@ void Interpreter::DoKeyedStoreICStrictWide(
 
 // PushContext <context>
 //
-// Pushes the accumulator as the current context, and saves it in <context>
+// Saves the current context in <context>, and pushes the accumulator as the
+// new current context.
 void Interpreter::DoPushContext(compiler::InterpreterAssembler* assembler) {
   Node* reg_index = __ BytecodeOperandReg(0);
-  Node* context = __ GetAccumulator();
-  __ SetContext(context);
-  __ StoreRegister(context, reg_index);
+  Node* new_context = __ GetAccumulator();
+  Node* old_context = __ GetContext();
+  __ StoreRegister(old_context, reg_index);
+  __ SetContext(new_context);
   __ Dispatch();
 }
 

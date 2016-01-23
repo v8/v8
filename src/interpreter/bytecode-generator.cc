@@ -27,19 +27,26 @@ class BytecodeGenerator::ContextScope BASE_EMBEDDED {
       : generator_(generator),
         scope_(scope),
         outer_(generator_->execution_context()),
-        register_(generator_->NextContextRegister()),
+        register_(Register::current_context()),
         depth_(0),
         should_pop_context_(should_pop_context) {
     if (outer_) {
       depth_ = outer_->depth_ + 1;
-      generator_->builder()->PushContext(register_);
+
+      // Push the outer context into a new context register.
+      Register outer_context_reg(builder()->first_context_register().index() +
+                                 outer_->depth_);
+      outer_->set_register(outer_context_reg);
+      generator_->builder()->PushContext(outer_context_reg);
     }
     generator_->set_execution_context(this);
   }
 
   ~ContextScope() {
     if (outer_ && should_pop_context_) {
+      DCHECK_EQ(register_.index(), Register::current_context().index());
       generator_->builder()->PopContext(outer_->reg());
+      outer_->set_register(register_);
     }
     generator_->set_execution_context(outer_);
   }
@@ -67,6 +74,10 @@ class BytecodeGenerator::ContextScope BASE_EMBEDDED {
   Register reg() const { return register_; }
 
  private:
+  const BytecodeArrayBuilder* builder() const { return generator_->builder(); }
+
+  void set_register(Register reg) { register_ = reg; }
+
   BytecodeGenerator* generator_;
   Scope* scope_;
   ContextScope* outer_;
@@ -1866,7 +1877,7 @@ void BytecodeGenerator::VisitCall(Call* expr) {
         DCHECK(Register::AreContiguous(callee, receiver));
         Variable* variable = callee_expr->AsVariableProxy()->var();
         builder()
-            ->MoveRegister(execution_context()->reg(), context)
+            ->MoveRegister(Register::current_context(), context)
             .LoadLiteral(variable->name())
             .StoreAccumulatorInRegister(name)
             .CallRuntimeForPair(Runtime::kLoadLookupSlot, context, 2, callee);
@@ -2477,24 +2488,6 @@ void BytecodeGenerator::VisitInScope(Statement* stmt, Scope* scope) {
   ContextScope context_scope(this, scope);
   DCHECK(scope->declarations()->is_empty());
   Visit(stmt);
-}
-
-
-Register BytecodeGenerator::NextContextRegister() const {
-  if (execution_context() == nullptr) {
-    // Return the incoming function context for the outermost execution context.
-    return Register::function_context();
-  }
-  Register previous = execution_context()->reg();
-  if (previous == Register::function_context()) {
-    // If the previous context was the incoming function context, then the next
-    // context register is the first local context register.
-    return builder_.first_context_register();
-  } else {
-    // Otherwise use the next local context register.
-    DCHECK_LT(previous.index(), builder_.last_context_register().index());
-    return Register(previous.index() + 1);
-  }
 }
 
 

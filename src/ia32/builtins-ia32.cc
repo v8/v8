@@ -800,8 +800,6 @@ static void Generate_EnterBytecodeDispatch(MacroAssembler* masm) {
   __ mov(ebx, Operand(ebx, esi, times_pointer_size, 0));
 
   // Get the context from the frame.
-  // TODO(rmcilroy): Update interpreter frame to expect current context at the
-  // context slot instead of the function context.
   __ mov(kContextRegister,
          Operand(kInterpreterRegisterFileRegister,
                  InterpreterFrameConstants::kContextFromRegisterPointer));

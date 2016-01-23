@@ -42,7 +42,6 @@ class BytecodeGenerator final : public AstVisitor {
   class RegisterAllocationScope;
 
   void MakeBytecodeBody();
-  Register NextContextRegister() const;
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
 

@@ -308,9 +308,9 @@ class Register {
   static Register function_closure();
   bool is_function_closure() const;
 
-  // Returns the register for the function's outer context.
-  static Register function_context();
-  bool is_function_context() const;
+  // Returns the register which holds the current context object.
+  static Register current_context();
+  bool is_current_context() const;
 
   // Returns the register for the incoming new target value.
   static Register new_target();
