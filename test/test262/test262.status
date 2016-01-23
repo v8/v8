@@ -448,6 +448,9 @@
   'language/types/number/S8.5_A2.1': [PASS, FAIL_OK],
   'language/types/number/S8.5_A2.2': [PASS, FAIL_OK],
 
+  # https://code.google.com/p/v8/issues/detail?id=4693
+  'language/block-scope/syntax/redeclaration-in-block/attempt-to-redeclare-function-declaration-with-function-declaration': [PASS, FAIL_SLOPPY],
+
   ############################ INVALID TESTS #############################
 
   # The reference value calculated by Test262 is incorrect if you run these
