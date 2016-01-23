@@ -1895,6 +1895,7 @@ Variable* Parser::Declare(Declaration* declaration,
   DCHECK(proxy->raw_name() != NULL);
   const AstRawString* name = proxy->raw_name();
   VariableMode mode = declaration->mode();
+  bool is_function_declaration = declaration->IsFunctionDeclaration();
   if (scope == nullptr) scope = scope_;
   Scope* declaration_scope =
       IsLexicalVariableMode(mode) ? scope : scope->DeclarationScope();
@@ -1921,7 +1922,7 @@ Variable* Parser::Declare(Declaration* declaration,
       // Declare the name.
       Variable::Kind kind = Variable::NORMAL;
       int declaration_group_start = -1;
-      if (declaration->IsFunctionDeclaration()) {
+      if (is_function_declaration) {
         kind = Variable::FUNCTION;
       } else if (declaration->IsVariableDeclaration() &&
                  declaration->AsVariableDeclaration()->is_class_declaration()) {
@@ -1932,8 +1933,11 @@ Variable* Parser::Declare(Declaration* declaration,
       var = declaration_scope->DeclareLocal(
           name, mode, declaration->initialization(), kind, kNotAssigned,
           declaration_group_start);
-    } else if (IsLexicalVariableMode(mode) ||
-               IsLexicalVariableMode(var->mode()) ||
+    } else if (((IsLexicalVariableMode(mode) ||
+                 IsLexicalVariableMode(var->mode())) &&
+                // Allow duplicate function decls for web compat, see bug 4693.
+                (is_strict(language_mode()) || !is_function_declaration ||
+                 !var->is_function())) ||
                ((mode == CONST_LEGACY || var->mode() == CONST_LEGACY) &&
                 !declaration_scope->is_script_scope())) {
       // The name was declared in this scope before; check for conflicting
