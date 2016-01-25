@@ -166,8 +166,8 @@ bool VirtualObject::UpdateFrom(const VirtualObject& other) {
 
 class VirtualState : public ZoneObject {
  public:
-  VirtualState(Node* owner, Zone* zone, size_t size);
-  VirtualState(Node* owner, const VirtualState& states);
+  VirtualState(NodeId owner, Zone* zone, size_t size);
+  VirtualState(NodeId owner, const VirtualState& states);
 
   VirtualObject* VirtualObjectFromAlias(size_t alias);
   VirtualObject* GetOrCreateTrackedVirtualObject(Alias alias, NodeId id,
@@ -179,7 +179,7 @@ class VirtualState : public ZoneObject {
   bool MergeFrom(MergeCache* cache, Zone* zone, Graph* graph,
                  CommonOperatorBuilder* common, Node* control, int arity);
   size_t size() const { return info_.size(); }
-  Node* owner() const { return owner_; }
+  NodeId owner() const { return owner_; }
   VirtualObject* Copy(VirtualObject* obj, Alias alias);
   void SetCopyRequired() {
     for (VirtualObject* obj : info_) {
@@ -189,7 +189,7 @@ class VirtualState : public ZoneObject {
 
  private:
   ZoneVector<VirtualObject*> info_;
-  Node* owner_;
+  NodeId owner_;
 
   DISALLOW_COPY_AND_ASSIGN(VirtualState);
 };
@@ -272,11 +272,11 @@ Node* MergeCache::GetFields(size_t pos) {
 }
 
 
-VirtualState::VirtualState(Node* owner, Zone* zone, size_t size)
+VirtualState::VirtualState(NodeId owner, Zone* zone, size_t size)
     : info_(size, nullptr, zone), owner_(owner) {}
 
 
-VirtualState::VirtualState(Node* owner, const VirtualState& state)
+VirtualState::VirtualState(NodeId owner, const VirtualState& state)
     : info_(state.info_.size(), nullptr, state.info_.get_allocator().zone()),
       owner_(owner) {
   for (size_t i = 0; i < info_.size(); ++i) {
@@ -879,6 +879,7 @@ bool EscapeStatusAnalysis::IsNotReachable(Node* node) {
 void EscapeAnalysis::RunObjectAnalysis() {
   virtual_states_.resize(graph()->NodeCount());
   stack().push_back(graph()->start());
+  ZoneVector<Node*> danglers(zone());
   while (!stack().empty()) {
     Node* node = stack().back();
     stack().pop_back();
@@ -893,23 +894,13 @@ void EscapeAnalysis::RunObjectAnalysis() {
                use->opcode() != IrOpcode::kLoadElement) ||
               !IsDanglingEffectNode(use)) {
             stack().push_back(use);
+          } else {
+            danglers.push_back(use);
           }
         }
       }
-      // First process loads: dangling loads are a problem otherwise.
-      for (Edge edge : node->use_edges()) {
-        Node* use = edge.from();
-        if (IsNotReachable(use)) {
-          continue;
-        }
-        if (NodeProperties::IsEffectEdge(edge)) {
-          if ((use->opcode() == IrOpcode::kLoadField ||
-               use->opcode() == IrOpcode::kLoadElement) &&
-              IsDanglingEffectNode(use)) {
-            stack().push_back(use);
-          }
-        }
-      }
+      stack().insert(stack().end(), danglers.begin(), danglers.end());
+      danglers.clear();
     }
   }
 #ifdef DEBUG
@@ -924,10 +915,10 @@ bool EscapeStatusAnalysis::IsDanglingEffectNode(Node* node) {
   if (status_[node->id()] & kDanglingComputed) {
     return status_[node->id()] & kDangling;
   }
-  if (node->op()->EffectInputCount() == 0) return false;
-  if (node->op()->EffectOutputCount() == 0) return false;
-  if (node->op()->EffectInputCount() == 1 &&
-      NodeProperties::GetEffectInput(node)->opcode() == IrOpcode::kStart) {
+  if (node->op()->EffectInputCount() == 0 ||
+      node->op()->EffectOutputCount() == 0 ||
+      (node->op()->EffectInputCount() == 1 &&
+       NodeProperties::GetEffectInput(node)->opcode() == IrOpcode::kStart)) {
     // The start node is used as sentinel for nodes that are in general
     // effectful, but of which an analysis has determined that they do not
     // produce effects in this instance. We don't consider these nodes dangling.
@@ -956,10 +947,10 @@ bool EscapeStatusAnalysis::IsEffectBranchPoint(Node* node) {
     Node* use = edge.from();
     if (aliases_[use->id()] == kNotReachable) continue;
     if (NodeProperties::IsEffectEdge(edge)) {
-      if ((node->opcode() == IrOpcode::kLoadField ||
-           node->opcode() == IrOpcode::kLoadElement ||
-           node->opcode() == IrOpcode::kLoad) &&
-          IsDanglingEffectNode(node))
+      if ((use->opcode() == IrOpcode::kLoadField ||
+           use->opcode() == IrOpcode::kLoadElement ||
+           use->opcode() == IrOpcode::kLoad) &&
+          IsDanglingEffectNode(use))
         continue;
       if (++count > 1) {
         status_[node->id()] |= kBranchPointComputed | kBranchPoint;
@@ -1048,8 +1039,8 @@ void EscapeAnalysis::ProcessAllocationUsers(Node* node) {
 
 VirtualState* EscapeAnalysis::CopyForModificationAt(VirtualState* state,
                                                     Node* node) {
-  if (state->owner() != node) {
-    VirtualState* new_state = new (zone()) VirtualState(node, *state);
+  if (state->owner() != node->id()) {
+    VirtualState* new_state = new (zone()) VirtualState(node->id(), *state);
     virtual_states_[node->id()] = new_state;
     TRACE("Copying virtual state %p to new state %p at node %s#%d\n",
           static_cast<void*>(state), static_cast<void*>(new_state),
@@ -1087,7 +1078,7 @@ void EscapeAnalysis::ForwardVirtualState(Node* node) {
   if (effect->opcode() == IrOpcode::kEffectPhi &&
       virtual_states_[effect->id()] == nullptr) {
     VirtualState* state =
-        new (zone()) VirtualState(effect, zone(), AliasCount());
+        new (zone()) VirtualState(effect->id(), zone(), AliasCount());
     virtual_states_[effect->id()] = state;
     TRACE("Effect Phi #%d got new virtual state %p.\n", effect->id(),
           static_cast<void*>(virtual_states_[effect->id()]));
@@ -1116,7 +1107,7 @@ void EscapeAnalysis::ForwardVirtualState(Node* node) {
 void EscapeAnalysis::ProcessStart(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kStart);
   virtual_states_[node->id()] =
-      new (zone()) VirtualState(node, zone(), AliasCount());
+      new (zone()) VirtualState(node->id(), zone(), AliasCount());
 }
 
 
@@ -1126,7 +1117,7 @@ bool EscapeAnalysis::ProcessEffectPhi(Node* node) {
 
   VirtualState* mergeState = virtual_states_[node->id()];
   if (!mergeState) {
-    mergeState = new (zone()) VirtualState(node, zone(), AliasCount());
+    mergeState = new (zone()) VirtualState(node->id(), zone(), AliasCount());
     virtual_states_[node->id()] = mergeState;
     changed = true;
     TRACE("Effect Phi #%d got new virtual state %p.\n", node->id(),
@@ -1144,7 +1135,8 @@ bool EscapeAnalysis::ProcessEffectPhi(Node* node) {
     if (state) {
       cache_->states().push_back(state);
       if (state == mergeState) {
-        mergeState = new (zone()) VirtualState(node, zone(), AliasCount());
+        mergeState =
+            new (zone()) VirtualState(node->id(), zone(), AliasCount());
         virtual_states_[node->id()] = mergeState;
         changed = true;
       }

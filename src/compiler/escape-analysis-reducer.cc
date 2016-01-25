@@ -109,7 +109,7 @@ Reduction EscapeAnalysisReducer::ReduceLoad(Node* node) {
     TRACE("Replaced #%d (%s) with #%d (%s)\n", node->id(),
           node->op()->mnemonic(), rep->id(), rep->op()->mnemonic());
     ReplaceWithValue(node, rep);
-    return Changed(rep);
+    return Replace(rep);
   }
   return NoChange();
 }
@@ -178,16 +178,17 @@ Reduction EscapeAnalysisReducer::ReduceReferenceEqual(Node* node) {
         escape_analysis()->CompareVirtualObjects(left, right)) {
       ReplaceWithValue(node, jsgraph()->TrueConstant());
       TRACE("Replaced ref eq #%d with true\n", node->id());
+      Replace(jsgraph()->TrueConstant());
     }
     // Right-hand side is not a virtual object, or a different one.
     ReplaceWithValue(node, jsgraph()->FalseConstant());
     TRACE("Replaced ref eq #%d with false\n", node->id());
-    return Replace(node);
+    return Replace(jsgraph()->FalseConstant());
   } else if (escape_analysis()->IsVirtual(right)) {
     // Left-hand side is not a virtual object.
     ReplaceWithValue(node, jsgraph()->FalseConstant());
     TRACE("Replaced ref eq #%d with false\n", node->id());
-    return Replace(node);
+    return Replace(jsgraph()->FalseConstant());
   }
   return NoChange();
 }
@@ -199,7 +200,7 @@ Reduction EscapeAnalysisReducer::ReduceObjectIsSmi(Node* node) {
   if (escape_analysis()->IsVirtual(input)) {
     ReplaceWithValue(node, jsgraph()->FalseConstant());
     TRACE("Replaced ObjectIsSmi #%d with false\n", node->id());
-    return Replace(node);
+    return Replace(jsgraph()->FalseConstant());
   }
   return NoChange();
 }

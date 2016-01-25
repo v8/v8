@@ -332,6 +332,73 @@ TEST_F(EscapeAnalysisTest, BranchNonEscape) {
 }
 
 
+TEST_F(EscapeAnalysisTest, BranchEscapeOne) {
+  Node* object1 = Constant(1);
+  Node* object2 = Constant(2);
+  Node* index = graph()->NewNode(common()->Parameter(0), start());
+  BeginRegion();
+  Node* allocation = Allocate(Constant(kPointerSize));
+  Store(FieldAccessAtIndex(0), allocation, object1);
+  Node* finish = FinishRegion(allocation);
+  Branch();
+  Node* ifFalse = IfFalse();
+  Node* ifTrue = IfTrue();
+  Node* effect1 =
+      Store(FieldAccessAtIndex(0), allocation, object1, finish, ifFalse);
+  Node* effect2 = StoreElement(MakeElementAccess(0), allocation, index, object2,
+                               finish, ifTrue);
+  Node* merge = Merge2(ifFalse, ifTrue);
+  Node* phi = graph()->NewNode(common()->EffectPhi(2), effect1, effect2, merge);
+  Node* load = Load(FieldAccessAtIndex(0), finish, phi, merge);
+  Node* result = Return(load, phi);
+  EndGraph();
+
+  Analysis();
+
+  ExpectEscaped(allocation);
+  ExpectReplacement(load, nullptr);
+
+  Transformation();
+
+  ASSERT_EQ(load, NodeProperties::GetValueInput(result, 0));
+}
+
+
+TEST_F(EscapeAnalysisTest, BranchEscapeThroughStore) {
+  Node* object1 = Constant(1);
+  Node* object2 = Constant(2);
+  BeginRegion();
+  Node* allocation = Allocate(Constant(kPointerSize));
+  Store(FieldAccessAtIndex(0), allocation, object1);
+  FinishRegion(allocation);
+  BeginRegion();
+  Node* allocation2 = Allocate(Constant(kPointerSize));
+  Store(FieldAccessAtIndex(0), allocation, object2);
+  Node* finish2 = FinishRegion(allocation2);
+  Branch();
+  Node* ifFalse = IfFalse();
+  Node* ifTrue = IfTrue();
+  Node* effect1 =
+      Store(FieldAccessAtIndex(0), allocation, allocation2, finish2, ifFalse);
+  Node* merge = Merge2(ifFalse, ifTrue);
+  Node* phi = graph()->NewNode(common()->EffectPhi(2), effect1, finish2, merge);
+  Node* load = Load(FieldAccessAtIndex(0), finish2, phi, merge);
+  Node* result = Return(allocation, phi);
+  EndGraph();
+  graph()->end()->AppendInput(zone(), load);
+
+  Analysis();
+
+  ExpectEscaped(allocation);
+  ExpectEscaped(allocation2);
+  ExpectReplacement(load, nullptr);
+
+  Transformation();
+
+  ASSERT_EQ(allocation, NodeProperties::GetValueInput(result, 0));
+}
+
+
 TEST_F(EscapeAnalysisTest, DanglingLoadOrder) {
   Node* object1 = Constant(1);
   Node* object2 = Constant(2);
