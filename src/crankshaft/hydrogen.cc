@@ -5340,7 +5340,7 @@ void HOptimizedGraphBuilder::BuildForInBody(ForInStatement* stmt,
     Push(enum_length);
     Add<HSimulate>(stmt->PrepareId());
   } else {
-    Runtime::FunctionId function_id = Runtime::kGetPropertyNamesFast;
+    Runtime::FunctionId function_id = Runtime::kForInEnumerate;
     Add<HPushArguments>(enumerable);
     HCallRuntime* array =
         Add<HCallRuntime>(Runtime::FunctionForId(function_id), 1);

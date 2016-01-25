@@ -204,6 +204,7 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_FORIN(F) \
   F(ForInDone, 2, 1)                \
+  F(ForInEnumerate, 1, 1)           \
   F(ForInFilter, 2, 1)              \
   F(ForInNext, 4, 1)                \
   F(ForInStep, 1, 1)
@@ -435,7 +436,6 @@ namespace internal {
   F(HasOwnProperty, 2, 1)                            \
   F(HasProperty, 2, 1)                               \
   F(PropertyIsEnumerable, 2, 1)                      \
-  F(GetPropertyNamesFast, 1, 1)                      \
   F(GetOwnPropertyKeys, 2, 1)                        \
   F(GetInterceptorInfo, 1, 1)                        \
   F(ToFastProperties, 1, 1)                          \

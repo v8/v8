@@ -714,32 +714,6 @@ RUNTIME_FUNCTION(Runtime_PropertyIsEnumerable) {
 }
 
 
-// Returns either a FixedArray or, if the given object has an enum cache that
-// contains all enumerable properties of the object and its prototypes have
-// none, the map of the object. This is used to speed up the check for
-// deletions during a for-in.
-RUNTIME_FUNCTION(Runtime_GetPropertyNamesFast) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
-
-  CONVERT_ARG_CHECKED(JSReceiver, raw_object, 0);
-
-  if (raw_object->IsSimpleEnum()) return raw_object->map();
-
-  HandleScope scope(isolate);
-  Handle<JSReceiver> object(raw_object);
-  Handle<FixedArray> content;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, content, JSReceiver::GetKeys(object, JSReceiver::INCLUDE_PROTOS,
-                                            ENUMERABLE_STRINGS));
-
-  // Test again, since cache may have been built by preceding call.
-  if (object->IsSimpleEnum()) return object->map();
-
-  return *content;
-}
-
-
 RUNTIME_FUNCTION(Runtime_GetOwnPropertyKeys) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);

@@ -332,6 +332,7 @@ class TypeImpl : public Config::Base {
   class ContextType;
   class ArrayType;
   class FunctionType;
+  class TupleType;
 
   typedef typename Config::template Handle<TypeImpl>::type TypeHandle;
   typedef typename Config::template Handle<ClassType>::type ClassHandle;
@@ -341,6 +342,7 @@ class TypeImpl : public Config::Base {
   typedef typename Config::template Handle<ArrayType>::type ArrayHandle;
   typedef typename Config::template Handle<FunctionType>::type FunctionHandle;
   typedef typename Config::template Handle<UnionType>::type UnionHandle;
+  typedef typename Config::template Handle<TupleType>::type TupleHandle;
   typedef typename Config::Region Region;
 
   // Constructors.
@@ -424,6 +426,14 @@ class TypeImpl : public Config::Base {
     }
     return function;
   }
+  static TypeHandle Tuple(TypeHandle first, TypeHandle second, TypeHandle third,
+                          Region* region) {
+    TupleHandle tuple = TupleType::New(3, region);
+    tuple->InitElement(0, first);
+    tuple->InitElement(1, second);
+    tuple->InitElement(2, third);
+    return tuple;
+  }
 
 #define CONSTRUCT_SIMD_TYPE(NAME, Name, name, lane_count, lane_type) \
   static TypeHandle Name(Isolate* isolate, Region* region);
@@ -501,6 +511,7 @@ class TypeImpl : public Config::Base {
   bool IsFunction() {
     return Config::is_struct(this, StructuralType::kFunctionTag);
   }
+  bool IsTuple() { return Config::is_struct(this, StructuralType::kTupleTag); }
 
   ClassType* AsClass() { return ClassType::cast(this); }
   ConstantType* AsConstant() { return ConstantType::cast(this); }
@@ -508,6 +519,7 @@ class TypeImpl : public Config::Base {
   ContextType* AsContext() { return ContextType::cast(this); }
   ArrayType* AsArray() { return ArrayType::cast(this); }
   FunctionType* AsFunction() { return FunctionType::cast(this); }
+  TupleType* AsTuple() { return TupleType::cast(this); }
 
   // Minimum and maximum of a numeric type.
   // These functions do not distinguish between -0 and +0.  If the type equals
@@ -724,6 +736,7 @@ class TypeImpl<Config>::StructuralType : public TypeImpl<Config> {
     kContextTag,
     kArrayTag,
     kFunctionTag,
+    kTupleTag,
     kUnionTag
   };
 
@@ -962,6 +975,30 @@ class TypeImpl<Config>::FunctionType : public StructuralType {
   static FunctionType* cast(TypeImpl* type) {
     DCHECK(type->IsFunction());
     return static_cast<FunctionType*>(type);
+  }
+};
+
+
+// -----------------------------------------------------------------------------
+// Tuple types.
+
+template <class Config>
+class TypeImpl<Config>::TupleType : public StructuralType {
+ public:
+  int Arity() { return this->Length(); }
+  TypeHandle Element(int i) { return this->Get(i); }
+
+  void InitElement(int i, TypeHandle type) { this->Set(i, type); }
+
+  static TupleHandle New(int length, Region* region) {
+    TupleHandle type = Config::template cast<TupleType>(
+        StructuralType::New(StructuralType::kTupleTag, length, region));
+    return type;
+  }
+
+  static TupleType* cast(TypeImpl* type) {
+    DCHECK(type->IsTuple());
+    return static_cast<TupleType*>(type);
   }
 };
 

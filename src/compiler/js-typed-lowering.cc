@@ -2311,38 +2311,12 @@ Reduction JSTypedLowering::ReduceJSForInNext(Node* node) {
   Node* efalse0;
   Node* vfalse0;
   {
-    // Check if the {cache_type} is zero, which indicates proxy.
-    Node* check1 = graph()->NewNode(simplified()->ReferenceEqual(Type::Any()),
-                                    cache_type, jsgraph()->ZeroConstant());
-    Node* branch1 = graph()->NewNode(common()->Branch(BranchHint::kFalse),
-                                     check1, if_false0);
-
-    Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
-    Node* etrue1;
-    Node* vtrue1;
-    {
-      // Don't do filtering for proxies.
-      etrue1 = effect;
-      vtrue1 = key;
-    }
-
-    Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
-    Node* efalse1;
-    Node* vfalse1;
-    {
-      // Filter the {key} to check if it's still a valid property of the
-      // {receiver} (does the ToName conversion implicitly).
-      vfalse1 = efalse1 = graph()->NewNode(
-          javascript()->CallRuntime(Runtime::kForInFilter), receiver, key,
-          context, frame_state, effect, if_false1);
-      if_false1 = graph()->NewNode(common()->IfSuccess(), vfalse1);
-    }
-
-    if_false0 = graph()->NewNode(common()->Merge(2), if_true1, if_false1);
-    efalse0 =
-        graph()->NewNode(common()->EffectPhi(2), etrue1, efalse1, if_false0);
-    vfalse0 = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
-                               vtrue1, vfalse1, if_false0);
+    // Filter the {key} to check if it's still a valid property of the
+    // {receiver} (does the ToName conversion implicitly).
+    vfalse0 = efalse0 = graph()->NewNode(
+        javascript()->CallRuntime(Runtime::kForInFilter), receiver, key,
+        context, frame_state, effect, if_false0);
+    if_false0 = graph()->NewNode(common()->IfSuccess(), vfalse0);
   }
 
   control = graph()->NewNode(common()->Merge(2), if_true0, if_false0);

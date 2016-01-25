@@ -2729,7 +2729,7 @@ void LCodeGen::DoForInPrepareMap(LForInPrepareMap* instr) {
   // Get the set of properties to enumerate.
   __ Bind(&call_runtime);
   __ Push(object);
-  CallRuntime(Runtime::kGetPropertyNamesFast, instr);
+  CallRuntime(Runtime::kForInEnumerate, instr);
   __ Bind(&use_cache);
 }
 

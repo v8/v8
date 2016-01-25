@@ -174,6 +174,7 @@ TypeImpl<Config>::BitsetType::Lub(TypeImpl* type) {
   if (type->IsContext()) return kInternal & kTaggedPointer;
   if (type->IsArray()) return kOtherObject;
   if (type->IsFunction()) return kFunction;
+  if (type->IsTuple()) return kInternal;
   UNREACHABLE();
   return kNone;
 }
@@ -500,6 +501,18 @@ bool TypeImpl<Config>::SimplyEquals(TypeImpl* that) {
     }
     for (int i = 0, n = this_fun->Arity(); i < n; ++i) {
       if (!this_fun->Parameter(i)->Equals(that_fun->Parameter(i))) return false;
+    }
+    return true;
+  }
+  if (this->IsTuple()) {
+    if (!that->IsTuple()) return false;
+    TupleType* this_tuple = this->AsTuple();
+    TupleType* that_tuple = that->AsTuple();
+    if (this_tuple->Arity() != that_tuple->Arity()) {
+      return false;
+    }
+    for (int i = 0, n = this_tuple->Arity(); i < n; ++i) {
+      if (!this_tuple->Element(i)->Equals(that_tuple->Element(i))) return false;
     }
     return true;
   }
@@ -1238,6 +1251,13 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Convert(
       function->InitParameter(i, param);
     }
     return function;
+  } else if (type->IsTuple()) {
+    TupleHandle tuple = TupleType::New(type->AsTuple()->Arity(), region);
+    for (int i = 0; i < tuple->Arity(); ++i) {
+      tuple->InitElement(
+          i, Convert<OtherType>(type->AsTuple()->Element(i), region));
+    }
+    return tuple;
   } else {
     UNREACHABLE();
     return None(region);
@@ -1355,6 +1375,14 @@ void TypeImpl<Config>::PrintTo(std::ostream& os, PrintDimension dim) {
       }
       os << ")->";
       this->AsFunction()->Result()->PrintTo(os, dim);
+    } else if (this->IsTuple()) {
+      os << "<";
+      for (int i = 0, n = this->AsTuple()->Arity(); i < n; ++i) {
+        TypeHandle type_i = this->AsTuple()->Element(i);
+        if (i > 0) os << ", ";
+        type_i->PrintTo(os, dim);
+      }
+      os << ">";
     } else {
       UNREACHABLE();
     }

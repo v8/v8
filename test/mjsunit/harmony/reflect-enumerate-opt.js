@@ -68,7 +68,7 @@ var handler = {
 //
 // check_f2();
 // check_f2();
-// Test lazy deopt after GetPropertyNamesFast
+// Test lazy deopt after ForInEnumerate
 // %OptimizeFunctionOnNextCall(f2);
 // deopt_enum = true;
 // check_f2();
