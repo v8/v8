@@ -28,13 +28,17 @@ assertEquals(TypedArrayPrototype.__proto__, Object.prototype);
 let classProperties = new Set([
   "length", "name", "arguments", "caller", "prototype", "BYTES_PER_ELEMENT"
 ]);
-let instanceProperties = new Set(["BYTES_PER_ELEMENT", "constructor", "prototype"]);
+let instanceProperties = new Set([
+  "BYTES_PER_ELEMENT", "constructor", "prototype",
+  // length is also an instance property as a temporary workaround to
+  // BUG(chromium:579905). TODO(littledan): remove the workaround
+  "length"
+]);
 
 function functionProperties(object) {
   return Object.getOwnPropertyNames(object).filter(function(name) {
     return typeof Object.getOwnPropertyDescriptor(object, name).value
-        == "function"
-      && name != 'constructor' && name != 'subarray';
+        == "function" && name != 'constructor';
   });
 }
 
