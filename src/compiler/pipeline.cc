@@ -668,6 +668,7 @@ struct EscapeAnalysisPhase {
         escape_analysis.ExistsVirtualAllocate());
     AddReducer(data, &graph_reducer, &escape_reducer);
     graph_reducer.ReduceGraph();
+    escape_reducer.VerifyReplacement();
   }
 };
 

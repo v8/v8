@@ -32,6 +32,7 @@ class EscapeAnalysisReducer final : public AdvancedReducer {
   void SetExistsVirtualAllocate(bool exists) {
     exists_virtual_allocate_ = exists;
   }
+  void VerifyReplacement() const;
 
  private:
   Reduction ReduceLoad(Node* node);
@@ -56,7 +57,7 @@ class EscapeAnalysisReducer final : public AdvancedReducer {
   Zone* const zone_;
   // _visited marks nodes we already processed (allocs, loads, stores)
   // and nodes that do not need a visit from ReduceDeoptState etc.
-  BitVector visited_;
+  BitVector fully_reduced_;
   bool exists_virtual_allocate_;
 
   DISALLOW_COPY_AND_ASSIGN(EscapeAnalysisReducer);
