@@ -10952,6 +10952,11 @@ Handle<LiteralsArray> LiteralsArray::New(Isolate* isolate,
 int HandlerTable::LookupRange(int pc_offset, int* stack_depth_out,
                               CatchPrediction* prediction_out) {
   int innermost_handler = -1, innermost_start = -1;
+#ifdef DEBUG
+  // Assuming that ranges are well nested, we don't need to track the innermost
+  // end offset. This is just to verify that the table is actually well nested.
+  int innermost_end = std::numeric_limits<int>::max();
+#endif
   for (int i = 0; i < length(); i += kRangeEntrySize) {
     int start_offset = Smi::cast(get(i + kRangeStartIndex))->value();
     int end_offset = Smi::cast(get(i + kRangeEndIndex))->value();
@@ -10960,10 +10965,13 @@ int HandlerTable::LookupRange(int pc_offset, int* stack_depth_out,
     CatchPrediction prediction = HandlerPredictionField::decode(handler_field);
     int stack_depth = Smi::cast(get(i + kRangeDepthIndex))->value();
     if (pc_offset > start_offset && pc_offset <= end_offset) {
-      DCHECK_NE(start_offset, innermost_start);
       if (start_offset < innermost_start) continue;
+      DCHECK_LT(end_offset, innermost_end);
       innermost_handler = handler_offset;
       innermost_start = start_offset;
+#ifdef DEBUG
+      innermost_end = end_offset;
+#endif
       *stack_depth_out = stack_depth;
       if (prediction_out) *prediction_out = prediction;
     }

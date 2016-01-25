@@ -755,13 +755,6 @@
   # TODO(bradnelson): Figure out why these tests fail with ignition.
   'wasm/*': [SKIP],
 
-  # TODO(mstarzinger,4674): Beginning of two "try" statements can overlap.
-  'regress/regress-1213516': [SKIP],
-  'regress/regress-444805': [SKIP],
-  'regress/regress-86': [SKIP],
-  'regress/regress-binop': [SKIP],
-  'string-charat': [SKIP],
-
   # TODO(4684): Support for "with" statements is missing.
   'regress/regress-1528': [FAIL],
   'regress/regress-2594': [FAIL],
