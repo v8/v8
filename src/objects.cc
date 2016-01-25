@@ -12250,6 +12250,7 @@ bool CheckEquivalent(Map* first, Map* second) {
          first->bit_field() == second->bit_field() &&
          first->is_extensible() == second->is_extensible() &&
          first->is_strong() == second->is_strong() &&
+         first->new_target_is_base() == second->new_target_is_base() &&
          first->is_hidden_prototype() == second->is_hidden_prototype();
 }
 
