@@ -83,7 +83,6 @@ class JSTypedLowering final : public AdvancedReducer {
   Reduction ReduceJSCallFunction(Node* node);
   Reduction ReduceJSForInDone(Node* node);
   Reduction ReduceJSForInNext(Node* node);
-  Reduction ReduceJSForInPrepare(Node* node);
   Reduction ReduceJSForInStep(Node* node);
   Reduction ReduceSelect(Node* node);
   Reduction ReduceNumberBinop(Node* node, const Operator* numberOp);

@@ -1122,8 +1122,10 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ li(a1, Operand(Smi::FromInt(1)));  // Smi(1) indicates slow check
   __ Push(a1, v0);  // Smi and array
   __ ld(a1, FieldMemOperand(v0, FixedArray::kLengthOffset));
+  __ Push(a1);  // Fixed array length (as smi).
+  PrepareForBailoutForId(stmt->PrepareId(), NO_REGISTERS);
   __ li(a0, Operand(Smi::FromInt(0)));
-  __ Push(a1, a0);  // Fixed array length (as smi) and initial index.
+  __ Push(a0);  // Initial index.
 
   // Generate code for doing the condition check.
   __ bind(&loop);

@@ -650,6 +650,11 @@ Type* Typer::Visitor::TypeCall(Node* node) { return Type::Any(); }
 
 
 Type* Typer::Visitor::TypeProjection(Node* node) {
+  // TODO(bmeurer): Make this beautiful! Use tuple type here.
+  if (node->InputAt(0)->opcode() == IrOpcode::kJSForInPrepare &&
+      ProjectionIndexOf(node->op()) == 2) {
+    return typer_->cache_.kSmi;
+  }
   // TODO(titzer): use the output type of the input to determine the bounds.
   return Type::Any();
 }

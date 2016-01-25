@@ -1331,7 +1331,8 @@ void AstGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
 
     // Prepare for-in cache.
     Node* prepare = NewNode(javascript()->ForInPrepare(), object);
-    PrepareFrameState(prepare, stmt->EnumId(), OutputFrameStateCombine::Push());
+    PrepareFrameState(prepare, stmt->PrepareId(),
+                      OutputFrameStateCombine::Push(3));
     Node* cache_type = NewNode(common()->Projection(0), prepare);
     Node* cache_array = NewNode(common()->Projection(1), prepare);
     Node* cache_length = NewNode(common()->Projection(2), prepare);

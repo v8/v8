@@ -5315,69 +5315,62 @@ void HOptimizedGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
 void HOptimizedGraphBuilder::BuildForInBody(ForInStatement* stmt,
                                             Variable* each_var,
                                             HValue* enumerable) {
-  HValue* map;
-  HValue* array;
-  HValue* enum_length;
   Handle<Map> meta_map = isolate()->factory()->meta_map();
   bool fast = stmt->for_in_type() == ForInStatement::FAST_FOR_IN;
   BuildCheckHeapObject(enumerable);
   Add<HCheckInstanceType>(enumerable, HCheckInstanceType::IS_JS_RECEIVER);
   Add<HSimulate>(stmt->ToObjectId());
   if (fast) {
-    map = Add<HForInPrepareMap>(enumerable);
+    HForInPrepareMap* map = Add<HForInPrepareMap>(enumerable);
     Push(map);
     Add<HSimulate>(stmt->EnumId());
     Drop(1);
     Add<HCheckMaps>(map, meta_map);
 
-    array = Add<HForInCacheArray>(enumerable, map,
-                                  DescriptorArray::kEnumCacheBridgeCacheIndex);
-    enum_length = BuildEnumLength(map);
+    HForInCacheArray* array = Add<HForInCacheArray>(
+        enumerable, map, DescriptorArray::kEnumCacheBridgeCacheIndex);
+    HValue* enum_length = BuildEnumLength(map);
 
-    HInstruction* index_cache = Add<HForInCacheArray>(
+    HForInCacheArray* index_cache = Add<HForInCacheArray>(
         enumerable, map, DescriptorArray::kEnumCacheBridgeIndicesCacheIndex);
-    HForInCacheArray::cast(array)
-        ->set_index_cache(HForInCacheArray::cast(index_cache));
+    array->set_index_cache(index_cache);
+
+    Push(map);
+    Push(array);
+    Push(enum_length);
+    Add<HSimulate>(stmt->PrepareId());
   } else {
     Runtime::FunctionId function_id = Runtime::kGetPropertyNamesFast;
     Add<HPushArguments>(enumerable);
-    array = Add<HCallRuntime>(Runtime::FunctionForId(function_id), 1);
+    HCallRuntime* array =
+        Add<HCallRuntime>(Runtime::FunctionForId(function_id), 1);
     Push(array);
     Add<HSimulate>(stmt->EnumId());
     Drop(1);
+
+    IfBuilder if_fast(this);
+    if_fast.If<HCompareMap>(array, meta_map);
+    if_fast.Then();
     {
-      NoObservableSideEffectsScope scope(this);
-      IfBuilder if_fast(this);
-      if_fast.If<HCompareMap>(array, meta_map);
-      if_fast.Then();
-      {
-        HValue* cache_map = array;
-        HForInCacheArray* cache = Add<HForInCacheArray>(
-            enumerable, cache_map, DescriptorArray::kEnumCacheBridgeCacheIndex);
-        enum_length = BuildEnumLength(cache_map);
-        Push(cache_map);
-        Push(cache);
-        Push(enum_length);
-      }
-      if_fast.Else();
-      {
-        Push(graph()->GetConstant1());
-        Push(array);
-        Push(AddLoadFixedArrayLength(array));
-      }
-      if_fast.End();
-      enum_length = Pop();
-      array = Pop();
-      map = Pop();
+      HValue* cache_map = array;
+      HForInCacheArray* cache = Add<HForInCacheArray>(
+          enumerable, cache_map, DescriptorArray::kEnumCacheBridgeCacheIndex);
+      HValue* enum_length = BuildEnumLength(cache_map);
+      Push(cache_map);
+      Push(cache);
+      Push(enum_length);
+      Add<HSimulate>(stmt->PrepareId(), FIXED_SIMULATE);
+    }
+    if_fast.Else();
+    {
+      Push(graph()->GetConstant1());
+      Push(array);
+      Push(AddLoadFixedArrayLength(array));
+      Add<HSimulate>(stmt->PrepareId(), FIXED_SIMULATE);
     }
   }
 
-  HInstruction* start_index = Add<HConstant>(0);
-
-  Push(map);
-  Push(array);
-  Push(enum_length);
-  Push(start_index);
+  Push(graph()->GetConstant0());
 
   HBasicBlock* loop_entry = BuildLoopEntry(stmt);
 
