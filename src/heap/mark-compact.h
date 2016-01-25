@@ -749,8 +749,6 @@ class MarkCompactCollector {
   // swept in parallel.
   void ParallelSweepSpacesComplete();
 
-  void ParallelSweepSpaceComplete(PagedSpace* space);
-
   // Updates store buffer and slot buffer for a pointer in a migrating object.
   void RecordMigratedSlot(Object* value, Address slot,
                           SlotsBuffer** evacuation_slots_buffer);

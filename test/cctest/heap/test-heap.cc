@@ -5571,33 +5571,6 @@ TEST(Regress507979) {
 }
 
 
-TEST(ArrayShiftSweeping) {
-  i::FLAG_expose_gc = true;
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  Isolate* isolate = CcTest::i_isolate();
-  Heap* heap = isolate->heap();
-
-  v8::Local<v8::Value> result = CompileRun(
-      "var array = new Array(400);"
-      "var tmp = new Array(1000);"
-      "array[0] = 10;"
-      "gc();"
-      "gc();"
-      "array.shift();"
-      "array;");
-
-  Handle<JSObject> o = Handle<JSObject>::cast(
-      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(result)));
-  CHECK(heap->InOldSpace(o->elements()));
-  CHECK(heap->InOldSpace(*o));
-  Page* page = Page::FromAddress(o->elements()->address());
-  CHECK(page->parallel_sweeping_state().Value() <=
-            MemoryChunk::kSweepingFinalize ||
-        Marking::IsBlack(Marking::MarkBitFrom(o->elements())));
-}
-
-
 UNINITIALIZED_TEST(PromotionQueue) {
   i::FLAG_expose_gc = true;
   i::FLAG_max_semi_space_size = 2 * (Page::kPageSize / MB);

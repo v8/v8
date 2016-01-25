@@ -308,10 +308,6 @@ class MemoryChunk {
     NEVER_EVACUATE,  // May contain immortal immutables.
     POPULAR_PAGE,    // Slots buffer of this page overflowed on the previous GC.
 
-    // WAS_SWEPT indicates that marking bits have been cleared by the sweeper,
-    // otherwise marking bits are still intact.
-    WAS_SWEPT,
-
     // Large objects can have a progress bar in their page header. These object
     // are scanned in increments and will be kept black while being scanned.
     // Even if the mutator writes to them they will be kept black and a white
@@ -353,16 +349,14 @@ class MemoryChunk {
   };
 
   // |kSweepingDone|: The page state when sweeping is complete or sweeping must
-  //   not be performed on that page.
-  // |kSweepingFinalize|: A sweeper thread is done sweeping this page and will
-  //   not touch the page memory anymore.
-  // |kSweepingInProgress|: This page is currently swept by a sweeper thread.
+  //   not be performed on that page. Sweeper threads that are done with their
+  //   work will set this value and not touch the page anymore.
   // |kSweepingPending|: This page is ready for parallel sweeping.
-  enum ParallelSweepingState {
+  // |kSweepingInProgress|: This page is currently swept by a sweeper thread.
+  enum ConcurrentSweepingState {
     kSweepingDone,
-    kSweepingFinalize,
+    kSweepingPending,
     kSweepingInProgress,
-    kSweepingPending
   };
 
   // Every n write barrier invocations we go to runtime even though
@@ -556,8 +550,8 @@ class MemoryChunk {
   // Return all current flags.
   intptr_t GetFlags() { return flags_; }
 
-  AtomicValue<ParallelSweepingState>& parallel_sweeping_state() {
-    return parallel_sweeping_;
+  AtomicValue<ConcurrentSweepingState>& concurrent_sweeping_state() {
+    return concurrent_sweeping_;
   }
 
   AtomicValue<ParallelCompactingState>& parallel_compaction_state() {
@@ -567,19 +561,6 @@ class MemoryChunk {
   bool TryLock() { return mutex_->TryLock(); }
 
   base::Mutex* mutex() { return mutex_; }
-
-  // WaitUntilSweepingCompleted only works when concurrent sweeping is in
-  // progress. In particular, when we know that right before this call a
-  // sweeper thread was sweeping this page.
-  void WaitUntilSweepingCompleted() {
-    mutex_->Lock();
-    mutex_->Unlock();
-    DCHECK(SweepingCompleted());
-  }
-
-  bool SweepingCompleted() {
-    return parallel_sweeping_state().Value() <= kSweepingFinalize;
-  }
 
   // Manage live byte count (count of bytes known to be live,
   // because they are marked black).
@@ -759,7 +740,7 @@ class MemoryChunk {
   AtomicValue<intptr_t> high_water_mark_;
 
   base::Mutex* mutex_;
-  AtomicValue<ParallelSweepingState> parallel_sweeping_;
+  AtomicValue<ConcurrentSweepingState> concurrent_sweeping_;
   AtomicValue<ParallelCompactingState> parallel_compaction_;
 
   // PagedSpace free-list statistics.
@@ -865,9 +846,18 @@ class Page : public MemoryChunk {
 
   void InitializeAsAnchor(PagedSpace* owner);
 
-  bool WasSwept() { return IsFlagSet(WAS_SWEPT); }
-  void SetWasSwept() { SetFlag(WAS_SWEPT); }
-  void ClearWasSwept() { ClearFlag(WAS_SWEPT); }
+  // WaitUntilSweepingCompleted only works when concurrent sweeping is in
+  // progress. In particular, when we know that right before this call a
+  // sweeper thread was sweeping this page.
+  void WaitUntilSweepingCompleted() {
+    mutex_->Lock();
+    mutex_->Unlock();
+    DCHECK(SweepingDone());
+  }
+
+  bool SweepingDone() {
+    return concurrent_sweeping_state().Value() == kSweepingDone;
+  }
 
   void ResetFreeListStatistics();
 
@@ -2077,7 +2067,7 @@ class PagedSpace : public Space {
   void IncreaseCapacity(int size);
 
   // Releases an unused page and shrinks the space.
-  void ReleasePage(Page* page);
+  void ReleasePage(Page* page, bool evict_free_list_items);
 
   // The dummy page that anchors the linked list of pages.
   Page* anchor() { return &anchor_; }
@@ -2103,13 +2093,6 @@ class PagedSpace : public Space {
   static void ReportCodeStatistics(Isolate* isolate);
   static void ResetCodeStatistics(Isolate* isolate);
 #endif
-
-  // Evacuation candidates are swept by evacuator.  Needs to return a valid
-  // result before _and_ after evacuation has finished.
-  static bool ShouldBeSweptBySweeperThreads(Page* p) {
-    return !p->IsEvacuationCandidate() &&
-           !p->IsFlagSet(Page::RESCAN_ON_EVACUATION) && !p->WasSwept();
-  }
 
   // This function tries to steal size_in_bytes memory from the sweeper threads
   // free-lists. If it does not succeed stealing enough memory, it will wait

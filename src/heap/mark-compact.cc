@@ -540,9 +540,9 @@ void MarkCompactCollector::StartSweeperThreads() {
 
 void MarkCompactCollector::SweepOrWaitUntilSweepingCompleted(Page* page) {
   PagedSpace* owner = reinterpret_cast<PagedSpace*>(page->owner());
-  if (!page->SweepingCompleted()) {
+  if (!page->SweepingDone()) {
     SweepInParallel(page, owner);
-    if (!page->SweepingCompleted()) {
+    if (!page->SweepingDone()) {
       // We were not able to sweep that page, i.e., a concurrent
       // sweeper thread currently owns this page. Wait for the sweeper
       // thread to be done with this page.
@@ -721,14 +721,14 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
       continue;
     }
     // Invariant: Evacuation candidates are just created when marking is
-    // started. At the end of a GC all evacuation candidates are cleared and
-    // their slot buffers are released.
+    // started. This means that sweeping has finished. Furthermore, at the end
+    // of a GC all evacuation candidates are cleared and their slot buffers are
+    // released.
     CHECK(!p->IsEvacuationCandidate());
-    CHECK(p->slots_buffer() == NULL);
+    CHECK(p->slots_buffer() == nullptr);
+    CHECK(p->SweepingDone());
     DCHECK(p->area_size() == area_size);
-    int live_bytes =
-        p->WasSwept() ? p->LiveBytesFromFreeList() : p->LiveBytes();
-    pages.push_back(std::make_pair(live_bytes, p));
+    pages.push_back(std::make_pair(p->LiveBytesFromFreeList(), p));
   }
 
   int candidate_count = 0;
@@ -3224,7 +3224,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
         break;
       case MemoryChunk::kCompactingFinalize:
         DCHECK(p->IsEvacuationCandidate());
-        p->SetWasSwept();
+        DCHECK(p->SweepingDone());
         p->Unlink();
         break;
       case MemoryChunk::kCompactingDone:
@@ -3290,8 +3290,7 @@ void MarkCompactCollector::EvacuatePages(
     Page* p = evacuation_candidates_[i];
     DCHECK(p->IsEvacuationCandidate() ||
            p->IsFlagSet(Page::RESCAN_ON_EVACUATION));
-    DCHECK(static_cast<int>(p->parallel_sweeping_state().Value()) ==
-           MemoryChunk::kSweepingDone);
+    DCHECK(p->SweepingDone());
     if (p->parallel_compaction_state().TrySetValue(
             MemoryChunk::kCompactingDone, MemoryChunk::kCompactingInProgress)) {
       if (p->IsEvacuationCandidate()) {
@@ -3365,7 +3364,7 @@ template <SweepingMode sweeping_mode,
           FreeSpaceTreatmentMode free_space_mode>
 static int Sweep(PagedSpace* space, FreeList* free_list, Page* p,
                  ObjectVisitor* v) {
-  DCHECK(!p->IsEvacuationCandidate() && !p->WasSwept());
+  DCHECK(!p->IsEvacuationCandidate() && !p->SweepingDone());
   DCHECK_EQ(skip_list_mode == REBUILD_SKIP_LIST,
             space->identity() == CODE_SPACE);
   DCHECK((p->skip_list() == NULL) || (skip_list_mode == REBUILD_SKIP_LIST));
@@ -3428,14 +3427,7 @@ static int Sweep(PagedSpace* space, FreeList* free_list, Page* p,
     freed_bytes = Free<parallelism>(space, free_list, free_start, size);
     max_freed_bytes = Max(freed_bytes, max_freed_bytes);
   }
-
-  if (parallelism == MarkCompactCollector::SWEEP_IN_PARALLEL) {
-    // When concurrent sweeping is active, the page will be marked after
-    // sweeping by the main thread.
-    p->parallel_sweeping_state().SetValue(MemoryChunk::kSweepingFinalize);
-  } else {
-    p->SetWasSwept();
-  }
+  p->concurrent_sweeping_state().SetValue(Page::kSweepingDone);
   return FreeList::GuaranteedAllocatable(static_cast<int>(max_freed_bytes));
 }
 
@@ -3554,6 +3546,7 @@ void MarkCompactCollector::SweepAbortedPages() {
     Page* p = evacuation_candidates_[i];
     if (p->IsFlagSet(Page::COMPACTION_WAS_ABORTED)) {
       p->ClearFlag(MemoryChunk::COMPACTION_WAS_ABORTED);
+      p->concurrent_sweeping_state().SetValue(Page::kSweepingInProgress);
       PagedSpace* space = static_cast<PagedSpace*>(p->owner());
       switch (space->identity()) {
         case OLD_SPACE:
@@ -3716,6 +3709,7 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
         }
         PagedSpace* space = static_cast<PagedSpace*>(p->owner());
         p->ClearFlag(MemoryChunk::RESCAN_ON_EVACUATION);
+        p->concurrent_sweeping_state().SetValue(Page::kSweepingInProgress);
 
         switch (space->identity()) {
           case OLD_SPACE:
@@ -3766,8 +3760,8 @@ void MarkCompactCollector::ReleaseEvacuationCandidates() {
     space->Free(p->area_start(), p->area_size());
     p->set_scan_on_scavenge(false);
     p->ResetLiveBytes();
-    CHECK(p->WasSwept());
-    space->ReleasePage(p);
+    CHECK(p->SweepingDone());
+    space->ReleasePage(p, true);
   }
   evacuation_candidates_.Rewind(0);
   compacting_ = false;
@@ -3802,12 +3796,11 @@ int MarkCompactCollector::SweepInParallel(Page* page, PagedSpace* space) {
   int max_freed = 0;
   if (page->TryLock()) {
     // If this page was already swept in the meantime, we can return here.
-    if (page->parallel_sweeping_state().Value() !=
-        MemoryChunk::kSweepingPending) {
+    if (page->concurrent_sweeping_state().Value() != Page::kSweepingPending) {
       page->mutex()->Unlock();
       return 0;
     }
-    page->parallel_sweeping_state().SetValue(MemoryChunk::kSweepingInProgress);
+    page->concurrent_sweeping_state().SetValue(Page::kSweepingInProgress);
     FreeList* free_list;
     FreeList private_free_list(space);
     if (space->identity() == OLD_SPACE) {
@@ -3827,6 +3820,7 @@ int MarkCompactCollector::SweepInParallel(Page* page, PagedSpace* space) {
                 IGNORE_FREE_SPACE>(space, &private_free_list, page, NULL);
     }
     free_list->Concatenate(&private_free_list);
+    page->concurrent_sweeping_state().SetValue(Page::kSweepingDone);
     page->mutex()->Unlock();
   }
   return max_freed;
@@ -3843,10 +3837,7 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
 
   while (it.has_next()) {
     Page* p = it.next();
-    DCHECK(p->parallel_sweeping_state().Value() == MemoryChunk::kSweepingDone);
-
-    // Clear sweeping flags indicating that marking bits are still intact.
-    p->ClearWasSwept();
+    DCHECK(p->SweepingDone());
 
     if (p->IsFlagSet(Page::RESCAN_ON_EVACUATION) ||
         p->IsEvacuationCandidate()) {
@@ -3860,6 +3851,7 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
       // that this adds unusable memory into the free list that is later on
       // (in the free list) dropped again. Since we only use the flag for
       // testing this is fine.
+      p->concurrent_sweeping_state().SetValue(Page::kSweepingInProgress);
       Sweep<SWEEP_ONLY, SWEEP_ON_MAIN_THREAD, IGNORE_SKIP_LIST,
             IGNORE_FREE_SPACE>(space, nullptr, p, nullptr);
       continue;
@@ -3871,14 +3863,14 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
         if (FLAG_gc_verbose) {
           PrintIsolate(isolate(), "sweeping: released page: %p", p);
         }
-        space->ReleasePage(p);
+        space->ReleasePage(p, false);
         continue;
       }
       unused_page_present = true;
     }
 
+    p->concurrent_sweeping_state().SetValue(Page::kSweepingPending);
     sweeping_list(space).push_back(p);
-    p->parallel_sweeping_state().SetValue(MemoryChunk::kSweepingPending);
     int to_sweep = p->area_size() - p->LiveBytes();
     space->accounting_stats_.ShrinkSpace(to_sweep);
     will_be_swept++;
@@ -3940,22 +3932,7 @@ void MarkCompactCollector::SweepSpaces() {
 }
 
 
-void MarkCompactCollector::ParallelSweepSpaceComplete(PagedSpace* space) {
-  for (Page* p : sweeping_list(space)) {
-    if (p->parallel_sweeping_state().Value() ==
-        MemoryChunk::kSweepingFinalize) {
-      p->parallel_sweeping_state().SetValue(MemoryChunk::kSweepingDone);
-      p->SetWasSwept();
-    }
-    DCHECK(p->parallel_sweeping_state().Value() == MemoryChunk::kSweepingDone);
-  }
-}
-
-
 void MarkCompactCollector::ParallelSweepSpacesComplete() {
-  ParallelSweepSpaceComplete(heap()->old_space());
-  ParallelSweepSpaceComplete(heap()->code_space());
-  ParallelSweepSpaceComplete(heap()->map_space());
   sweeping_list(heap()->old_space()).clear();
   sweeping_list(heap()->code_space()).clear();
   sweeping_list(heap()->map_space()).clear();

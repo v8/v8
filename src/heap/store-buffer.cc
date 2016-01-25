@@ -476,7 +476,7 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback) {
           Page* page = reinterpret_cast<Page*>(chunk);
           PagedSpace* owner = reinterpret_cast<PagedSpace*>(page->owner());
           if (owner == heap_->map_space()) {
-            DCHECK(page->WasSwept());
+            DCHECK(page->SweepingDone());
             HeapObjectIterator iterator(page);
             for (HeapObject* heap_object = iterator.Next(); heap_object != NULL;
                  heap_object = iterator.Next()) {

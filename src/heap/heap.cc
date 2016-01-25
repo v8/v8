@@ -3100,7 +3100,7 @@ bool Heap::CanMoveObjectStart(HeapObject* object) {
   // (3) the page was already concurrently swept. This case is an optimization
   // for concurrent sweeping. The WasSwept predicate for concurrently swept
   // pages is set after sweeping all pages.
-  return !InOldSpace(address) || page->WasSwept() || page->SweepingCompleted();
+  return !InOldSpace(address) || page->SweepingDone();
 }
 
 
