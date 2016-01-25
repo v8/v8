@@ -12,6 +12,8 @@
 namespace v8 {
 namespace internal {
 
+class BitVector;  // forward declaration
+
 namespace compiler {  // external declarations from compiler.
 class WasmGraphBuilder;
 }
@@ -105,6 +107,9 @@ enum ReadUnsignedLEB128ErrorCode { kNoError, kInvalidLEB128, kMissingLEB128 };
 
 ReadUnsignedLEB128ErrorCode ReadUnsignedLEB128Operand(const byte*, const byte*,
                                                       int*, uint32_t*);
+
+BitVector* AnalyzeLoopAssignmentForTesting(Zone* zone, FunctionEnv* env,
+                                           const byte* start, const byte* end);
 
 // Computes the length of the opcode at the given address.
 int OpcodeLength(const byte* pc);
