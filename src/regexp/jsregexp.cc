@@ -3957,6 +3957,11 @@ void ChoiceNode::SetUpPreLoad(RegExpCompiler* compiler,
 void ChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
   int choice_count = alternatives_->length();
 
+  if (choice_count == 1 && alternatives_->at(0).guards() == NULL) {
+    alternatives_->at(0).node()->Emit(compiler, trace);
+    return;
+  }
+
   AssertGuardsMentionRegisters(trace);
 
   LimitResult limit_result = LimitVersions(compiler, trace);
@@ -5040,22 +5045,21 @@ void AddLoneLeadSurrogates(RegExpCompiler* compiler, ChoiceNode* result,
   if (lead_surrogates == nullptr) return;
   Zone* zone = compiler->zone();
   // E.g. \ud801 becomes \ud801(?![\udc00-\udfff]).
-  ZoneList<CharacterRange>* trail_surrogates =
-      new (zone) ZoneList<CharacterRange>(1, zone);
-  trail_surrogates->Add(
-      CharacterRange::Range(kTrailSurrogateStart, kTrailSurrogateEnd), zone);
+  ZoneList<CharacterRange>* trail_surrogates = CharacterRange::List(
+      zone, CharacterRange::Range(kTrailSurrogateStart, kTrailSurrogateEnd));
 
-  RegExpNode* match =
-      compiler->read_backward()
-          // Reading backward. Assert that reading forward, there is no trail
-          // surrogate, and then backward match the lead surrogate.
-          ? NegativeLookaroundAgainstReadDirectionAndMatch(
-                compiler, trail_surrogates, lead_surrogates, on_success, true)
-          // Reading forward. Forwrad match the lead surrogate and assert that
-          // no
-          // trail surrogate follows.
-          : MatchAndNegativeLookaroundInReadDirection(
-                compiler, lead_surrogates, trail_surrogates, on_success, false);
+  RegExpNode* match;
+  if (compiler->read_backward()) {
+    // Reading backward. Assert that reading forward, there is no trail
+    // surrogate, and then backward match the lead surrogate.
+    match = NegativeLookaroundAgainstReadDirectionAndMatch(
+        compiler, trail_surrogates, lead_surrogates, on_success, true);
+  } else {
+    // Reading forward. Forward match the lead surrogate and assert that
+    // no trail surrogate follows.
+    match = MatchAndNegativeLookaroundInReadDirection(
+        compiler, lead_surrogates, trail_surrogates, on_success, false);
+  }
   result->AddAlternative(GuardedAlternative(match));
 }
 
@@ -5067,22 +5071,52 @@ void AddLoneTrailSurrogates(RegExpCompiler* compiler, ChoiceNode* result,
   if (trail_surrogates == nullptr) return;
   Zone* zone = compiler->zone();
   // E.g. \udc01 becomes (?<![\ud800-\udbff])\udc01
-  ZoneList<CharacterRange>* lead_surrogates =
-      new (zone) ZoneList<CharacterRange>(1, zone);
-  lead_surrogates->Add(
-      CharacterRange::Range(kLeadSurrogateStart, kLeadSurrogateEnd), zone);
+  ZoneList<CharacterRange>* lead_surrogates = CharacterRange::List(
+      zone, CharacterRange::Range(kLeadSurrogateStart, kLeadSurrogateEnd));
 
-  RegExpNode* match =
-      compiler->read_backward()
-          // Reading backward. Backward match the trail surrogate and assert
-          // that no lead surrogate precedes it.
-          ? MatchAndNegativeLookaroundInReadDirection(
-                compiler, trail_surrogates, lead_surrogates, on_success, true)
-          // Reading forward. Assert that reading backward, there is no lead
-          // surrogate, and then forward match the trail surrogate.
-          : NegativeLookaroundAgainstReadDirectionAndMatch(
-                compiler, lead_surrogates, trail_surrogates, on_success, false);
+  RegExpNode* match;
+  if (compiler->read_backward()) {
+    // Reading backward. Backward match the trail surrogate and assert that no
+    // lead surrogate precedes it.
+    match = MatchAndNegativeLookaroundInReadDirection(
+        compiler, trail_surrogates, lead_surrogates, on_success, true);
+  } else {
+    // Reading forward. Assert that reading backward, there is no lead
+    // surrogate, and then forward match the trail surrogate.
+    match = NegativeLookaroundAgainstReadDirectionAndMatch(
+        compiler, lead_surrogates, trail_surrogates, on_success, false);
+  }
   result->AddAlternative(GuardedAlternative(match));
+}
+
+
+void AddUnanchoredAdvance(RegExpCompiler* compiler, ChoiceNode* result,
+                          RegExpNode* on_success) {
+  // This implements ES2015 21.2.5.2.3, AdvanceStringIndex.
+  DCHECK(!compiler->read_backward());
+  Zone* zone = compiler->zone();
+  // Advancing can either consume a BMP character or a trail surrogate.
+  ZoneList<CharacterRange>* bmp_and_trail =
+      new (zone) ZoneList<CharacterRange>(2, zone);
+  bmp_and_trail->Add(CharacterRange::Range(0, kLeadSurrogateStart - 1), zone);
+  bmp_and_trail->Add(
+      CharacterRange::Range(kLeadSurrogateEnd + 1, kNonBmpStart - 1), zone);
+  result->AddAlternative(GuardedAlternative(TextNode::CreateForCharacterRanges(
+      zone, bmp_and_trail, false, on_success)));
+
+  // Or it could consume a lead optionally followed by a trail surrogate.
+  ZoneList<CharacterRange>* lead_surrogates = CharacterRange::List(
+      zone, CharacterRange::Range(kLeadSurrogateStart, kLeadSurrogateEnd));
+  ZoneList<CharacterRange>* trail_surrogates = CharacterRange::List(
+      zone, CharacterRange::Range(kTrailSurrogateStart, kTrailSurrogateEnd));
+  ChoiceNode* optional_trail = new (zone) ChoiceNode(2, zone);
+  optional_trail->AddAlternative(
+      GuardedAlternative(TextNode::CreateForCharacterRanges(
+          zone, trail_surrogates, false, on_success)));
+  optional_trail->AddAlternative(GuardedAlternative(on_success));
+  RegExpNode* optional_pair = TextNode::CreateForCharacterRanges(
+      zone, lead_surrogates, false, optional_trail);
+  result->AddAlternative(GuardedAlternative(optional_pair));
 }
 
 
@@ -5102,12 +5136,16 @@ RegExpNode* RegExpCharacterClass::ToNode(RegExpCompiler* compiler,
       // No matches possible.
       return new (zone) EndNode(EndNode::BACKTRACK, zone);
     }
-    UnicodeRangeSplitter splitter(zone, ranges);
-    ChoiceNode* result = new (compiler->zone()) ChoiceNode(2, compiler->zone());
-    AddBmpCharacters(compiler, result, on_success, &splitter);
-    AddNonBmpSurrogatePairs(compiler, result, on_success, &splitter);
-    AddLoneLeadSurrogates(compiler, result, on_success, &splitter);
-    AddLoneTrailSurrogates(compiler, result, on_success, &splitter);
+    ChoiceNode* result = new (zone) ChoiceNode(2, zone);
+    if (standard_type() == '*') {
+      AddUnanchoredAdvance(compiler, result, on_success);
+    } else {
+      UnicodeRangeSplitter splitter(zone, ranges);
+      AddBmpCharacters(compiler, result, on_success, &splitter);
+      AddNonBmpSurrogatePairs(compiler, result, on_success, &splitter);
+      AddLoneLeadSurrogates(compiler, result, on_success, &splitter);
+      AddLoneTrailSurrogates(compiler, result, on_success, &splitter);
+    }
     return result;
   } else {
     return new (zone) TextNode(this, compiler->read_backward(), on_success);
@@ -6513,6 +6551,36 @@ void DispatchTableConstructor::VisitAction(ActionNode* that) {
 }
 
 
+RegExpNode* OptionallyStepBackToLeadSurrogate(RegExpCompiler* compiler,
+                                              RegExpNode* on_success) {
+  // If the regexp matching starts within a surrogate pair, step back
+  // to the lead surrogate and start matching from there.
+  DCHECK(!compiler->read_backward());
+  Zone* zone = compiler->zone();
+  ZoneList<CharacterRange>* lead_surrogates = CharacterRange::List(
+      zone, CharacterRange::Range(kLeadSurrogateStart, kLeadSurrogateEnd));
+  ZoneList<CharacterRange>* trail_surrogates = CharacterRange::List(
+      zone, CharacterRange::Range(kTrailSurrogateStart, kTrailSurrogateEnd));
+
+  ChoiceNode* optional_step_back = new (zone) ChoiceNode(2, zone);
+
+  int stack_register = compiler->UnicodeLookaroundStackRegister();
+  int position_register = compiler->UnicodeLookaroundPositionRegister();
+  RegExpNode* step_back = TextNode::CreateForCharacterRanges(
+      zone, lead_surrogates, true, on_success);
+  RegExpLookaround::Builder builder(true, step_back, stack_register,
+                                    position_register);
+  RegExpNode* match_trail = TextNode::CreateForCharacterRanges(
+      zone, trail_surrogates, false, builder.on_match_success());
+
+  optional_step_back->AddAlternative(
+      GuardedAlternative(builder.ForMatch(match_trail)));
+  optional_step_back->AddAlternative(GuardedAlternative(on_success));
+
+  return optional_step_back;
+}
+
+
 RegExpEngine::CompilationResult RegExpEngine::Compile(
     Isolate* isolate, Zone* zone, RegExpCompileData* data,
     JSRegExp::Flags flags, Handle<String> pattern,
@@ -6575,6 +6643,8 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(
     if (node != NULL) {
       node = node->FilterOneByte(RegExpCompiler::kMaxRecursion, ignore_case);
     }
+  } else if (compiler.unicode() && (is_global || is_sticky)) {
+    node = OptionallyStepBackToLeadSurrogate(&compiler, node);
   }
 
   if (node == NULL) node = new(zone) EndNode(EndNode::BACKTRACK, zone);

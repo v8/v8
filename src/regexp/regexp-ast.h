@@ -311,7 +311,7 @@ class RegExpCharacterClass final : public RegExpTree {
   // d : ASCII digit
   // D : non-ASCII digit
   // . : non-unicode non-newline
-  // * : All characters
+  // * : All characters, for advancing unanchored regexp
   uc16 standard_type() { return set_.standard_set_type(); }
   ZoneList<CharacterRange>* ranges(Zone* zone) { return set_.ranges(zone); }
   bool is_negated() { return is_negated_; }
