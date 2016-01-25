@@ -510,6 +510,18 @@
   'test-inobject-slack-tracking/*' : [SKIP],
   'test-serialize/*' : [SKIP],
 
+  # TODO(mstarzinger,4674): Message object is not properly cleared.
+  'test-heap/MessageObjectLeak': [FAIL],
+
+  # TODO(mstarzinger,4674): Support exception handlers in BytecodeGraphBuilder.
+  'test-run-deopt/DeoptExceptionHandlerCatch': [FAIL],
+  'test-run-jsexceptions/Catch': [FAIL],
+  'test-run-jsexceptions/CatchBreak': [FAIL],
+  'test-run-jsexceptions/CatchCall': [FAIL],
+  'test-run-jsexceptions/CatchNested': [FAIL],
+  'test-run-jsexceptions/DeoptCatch': [FAIL],
+  'test-run-jsexceptions/ThrowMessageIndirectly': [FAIL],
+
   'test-api-interceptors/InterceptorCallICInvalidatedConstantFunctionViaGlobal': [SKIP],
   'test-api-interceptors/InterceptorLoadICInvalidatedCallbackViaGlobal': [SKIP],
   'test-api-interceptors/InterceptorLoadICInvalidatedFieldViaGlobal': [SKIP],
@@ -577,8 +589,11 @@
   'test-run-variables/StackLoadVariables': [SKIP],
   'test-run-variables/StackStoreVariables': [SKIP],
   'test-sampler-api/StackFramesConsistent': [SKIP],
+  'test-thread-termination/TerminateAndReenterFromThreadItself': [SKIP],
   'test-thread-termination/TerminateCancelTerminateFromThreadItself': [SKIP],
   'test-thread-termination/TerminateFromOtherThreadWhileMicrotaskRunning': [SKIP],
+  'test-thread-termination/TerminateOnlyV8ThreadFromOtherThread': [SKIP],
+  'test-thread-termination/TerminateOnlyV8ThreadFromThreadItself': [SKIP],
   'test-thread-termination/TerminateOnlyV8ThreadFromThreadItselfNoLoop': [SKIP],
   'test-thread-termination/TerminationInInnerTryCall': [SKIP],
   'test-unscopables-hidden-prototype/Unscopables': [SKIP],

@@ -755,6 +755,24 @@
   # TODO(bradnelson): Figure out why these tests fail with ignition.
   'wasm/*': [SKIP],
 
+  # TODO(mstarzinger,4674): Beginning of two "try" statements can overlap.
+  'regress/regress-1213516': [SKIP],
+  'regress/regress-444805': [SKIP],
+  'regress/regress-86': [SKIP],
+  'regress/regress-binop': [SKIP],
+  'string-charat': [SKIP],
+
+  # TODO(4684): Support for "with" statements is missing.
+  'regress/regress-1528': [FAIL],
+  'regress/regress-2594': [FAIL],
+  'regress/regress-410030': [FAIL],
+  'regress/regress-96523': [FAIL],
+  'regress/regress-crbug-505907': [FAIL],
+  'regress/regress-crbug-506956': [FAIL],
+  'strict-mode-implicit-receiver': [FAIL],
+  'throw-and-catch-function': [FAIL],
+  'with-leave': [FAIL],
+
   'allocation-folding': [SKIP],
   'apply-arguments-gc-safepoint': [SKIP],
   'arguments-load-across-eval': [SKIP],
@@ -793,6 +811,8 @@
   'compiler/regress-variable-liveness': [SKIP],
   'compiler/rotate': [SKIP],
   'compiler/safepoint': [SKIP],
+  'compiler/strict-recompile': [SKIP],
+  'compiler/try-binop': [SKIP],
   'compiler/try-deopt': [SKIP],
   'compiler/uint32': [SKIP],
   'compiler/variables': [SKIP],
@@ -914,6 +934,7 @@
   'regress/regress-419663': [SKIP],
   'regress/regress-4214': [SKIP],
   'regress/regress-4255-4': [SKIP],
+  'regress/regress-4266': [SKIP],
   'regress/regress-430201b': [SKIP],
   'regress/regress-430201': [SKIP],
   'regress/regress-4309-1': [SKIP],
@@ -1053,6 +1074,7 @@
   'string-slices': [SKIP],
   'tools/profviz': [SKIP],
   'try': [SKIP],
+  'try-binop': [SKIP],
   'undetectable-compare': [SKIP],
   'unused-context-in-with': [SKIP],
   'value-wrapper': [SKIP],
@@ -1064,9 +1086,11 @@
 }],  # ignition == True
 
 ['ignition == True and (arch == arm or arch == arm64)', {
+  'apply': [SKIP],
   'array-constructor': [SKIP],
   'array-sort': [SKIP],
   'array-store-and-grow': [SKIP],
+  'asm/construct-double': [SKIP],
   'compiler/division-by-constant': [SKIP],
   'compiler/osr-big': [SKIP],
   'compiler/osr-nested': [SKIP],
@@ -1085,6 +1109,7 @@
   'regress/regress-crbug-500497': [SKIP],
   'regress/regress-crbug-505007-1': [SKIP],
   'regress/regress-crbug-505007-2': [SKIP],
+  'regress/regress-crbug-514081': [SKIP],
   'regress/regress-2193': [SKIP],
   'regress/regress-3158': [SKIP],
   'regress/regress-347904': [SKIP],
