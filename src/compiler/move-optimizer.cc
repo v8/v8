@@ -211,6 +211,12 @@ void MoveOptimizer::OptimizeMerge(InstructionBlock* block) {
   // things that would prevent moving gap moves across them.
   for (RpoNumber& pred_index : block->predecessors()) {
     const InstructionBlock* pred = code()->InstructionBlockAt(pred_index);
+
+    // If the predecessor has more than one successor, we shouldn't attempt to
+    // move down to this block (one of the successors) any of the gap moves,
+    // because their effect may be necessary to the other successors.
+    if (pred->SuccessorCount() > 1) return;
+
     const Instruction* last_instr =
         code()->instructions()[pred->last_instruction_index()];
     if (last_instr->IsCall()) return;
@@ -246,15 +252,58 @@ void MoveOptimizer::OptimizeMerge(InstructionBlock* block) {
       }
     }
   }
-  if (move_map.empty() || correct_counts != move_map.size()) return;
+  if (move_map.empty() || correct_counts == 0) return;
+
   // Find insertion point.
   Instruction* instr = nullptr;
   for (int i = block->first_instruction_index();
        i <= block->last_instruction_index(); ++i) {
     instr = code()->instructions()[i];
-    if (!GapsCanMoveOver(instr, local_zone()) || !instr->AreMovesRedundant())
+    if (correct_counts != move_map.size() ||
+        !GapsCanMoveOver(instr, local_zone()) || !instr->AreMovesRedundant())
       break;
   }
+  DCHECK_NOT_NULL(instr);
+
+  if (correct_counts != move_map.size()) {
+    // Moves that are unique to each predecessor won't be pushed to the common
+    // successor.
+    OperandSet conflicting_srcs(local_zone());
+    for (auto iter = move_map.begin(), end = move_map.end(); iter != end;) {
+      auto current = iter;
+      ++iter;
+      if (current->second != block->PredecessorCount()) {
+        InstructionOperand dest = current->first.second;
+        // Not all the moves in all the gaps are the same. Maybe some are. If
+        // there are such moves, we could move them, but the destination of the
+        // moves staying behind can't appear as a source of a common move,
+        // because the move staying behind will clobber this destination.
+        conflicting_srcs.insert(dest);
+        move_map.erase(current);
+      }
+    }
+
+    bool changed = false;
+    do {
+      // If a common move can't be pushed to the common successor, then its
+      // destination also can't appear as source to any move being pushed.
+      changed = false;
+      for (auto iter = move_map.begin(), end = move_map.end(); iter != end;) {
+        auto current = iter;
+        ++iter;
+        DCHECK_EQ(block->PredecessorCount(), current->second);
+        if (conflicting_srcs.find(current->first.first) !=
+            conflicting_srcs.end()) {
+          conflicting_srcs.insert(current->first.second);
+          move_map.erase(current);
+          changed = true;
+        }
+      }
+    } while (changed);
+  }
+
+  if (move_map.empty()) return;
+
   DCHECK_NOT_NULL(instr);
   bool gap_initialized = true;
   if (instr->parallel_moves()[0] == nullptr ||
@@ -275,12 +324,12 @@ void MoveOptimizer::OptimizeMerge(InstructionBlock* block) {
       if (move->IsRedundant()) continue;
       MoveKey key = {move->source(), move->destination()};
       auto it = move_map.find(key);
-      USE(it);
-      DCHECK(it != move_map.end());
-      if (first_iteration) {
-        moves->AddMove(move->source(), move->destination());
+      if (it != move_map.end()) {
+        if (first_iteration) {
+          moves->AddMove(move->source(), move->destination());
+        }
+        move->Eliminate();
       }
-      move->Eliminate();
     }
     first_iteration = false;
   }
