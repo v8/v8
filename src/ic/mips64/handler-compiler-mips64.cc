@@ -602,7 +602,7 @@ void NamedLoadHandlerCompiler::GenerateLoadCallback(
   // Here and below +1 is for name() pushed after the args_ array.
   typedef PropertyCallbackArguments PCA;
   __ Dsubu(sp, sp, (PCA::kArgsLength + 1) * kPointerSize);
-  __ sw(receiver(), MemOperand(sp, (PCA::kThisIndex + 1) * kPointerSize));
+  __ sd(receiver(), MemOperand(sp, (PCA::kThisIndex + 1) * kPointerSize));
   Handle<Object> data(callback->data(), isolate());
   if (data->IsUndefined() || data->IsSmi()) {
     __ li(scratch2(), data);
