@@ -627,28 +627,42 @@ namespace {
  */
 class ArrayConcatVisitor {
  public:
-  ArrayConcatVisitor(Isolate* isolate, Handle<FixedArray> storage,
+  ArrayConcatVisitor(Isolate* isolate, Handle<Object> storage,
                      bool fast_elements)
       : isolate_(isolate),
-        storage_(Handle<FixedArray>::cast(
-            isolate->global_handles()->Create(*storage))),
+        storage_(isolate->global_handles()->Create(*storage)),
         index_offset_(0u),
         bit_field_(FastElementsField::encode(fast_elements) |
-                   ExceedsLimitField::encode(false)) {}
+                   ExceedsLimitField::encode(false) |
+                   IsFixedArrayField::encode(storage->IsFixedArray())) {
+    DCHECK(!(this->fast_elements() && !is_fixed_array()));
+  }
 
   ~ArrayConcatVisitor() { clear_storage(); }
 
-  void visit(uint32_t i, Handle<Object> elm) {
-    if (i >= JSObject::kMaxElementCount - index_offset_) {
-      set_exceeds_array_limit(true);
-      return;
-    }
+  bool visit(uint32_t i, Handle<Object> elm) {
     uint32_t index = index_offset_ + i;
 
+    if (!is_fixed_array()) {
+      Handle<Object> element_value;
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate_, element_value,
+          Object::SetElement(isolate_, storage_, index, elm, STRICT), false);
+      return true;
+    }
+
+    if (i >= JSObject::kMaxElementCount - index_offset_) {
+      set_exceeds_array_limit(true);
+      // Exception hasn't been thrown at this point. Return true to
+      // break out, and caller will throw. !visit would imply that
+      // there is already a pending exception.
+      return true;
+    }
+
     if (fast_elements()) {
-      if (index < static_cast<uint32_t>(storage_->length())) {
-        storage_->set(index, *elm);
-        return;
+      if (index < static_cast<uint32_t>(storage_fixed_array()->length())) {
+        storage_fixed_array()->set(index, *elm);
+        return true;
       }
       // Our initial estimate of length was foiled, possibly by
       // getters on the arrays increasing the length of later arrays
@@ -669,6 +683,7 @@ class ArrayConcatVisitor {
       clear_storage();
       set_storage(*result);
     }
+    return true;
   }
 
   void increase_index_offset(uint32_t delta) {
@@ -692,6 +707,7 @@ class ArrayConcatVisitor {
   }
 
   Handle<JSArray> ToArray() {
+    DCHECK(is_fixed_array());
     Handle<JSArray> array = isolate_->factory()->NewJSArray(0);
     Handle<Object> length =
         isolate_->factory()->NewNumber(static_cast<double>(index_offset_));
@@ -699,15 +715,26 @@ class ArrayConcatVisitor {
         array, fast_elements() ? FAST_HOLEY_ELEMENTS : DICTIONARY_ELEMENTS);
     array->set_map(*map);
     array->set_length(*length);
-    array->set_elements(*storage_);
+    array->set_elements(*storage_fixed_array());
     return array;
+  }
+
+  // Storage is either a FixedArray (if is_fixed_array()) or a JSReciever
+  // (otherwise)
+  Handle<FixedArray> storage_fixed_array() {
+    DCHECK(is_fixed_array());
+    return Handle<FixedArray>::cast(storage_);
+  }
+  Handle<JSReceiver> storage_jsreceiver() {
+    DCHECK(!is_fixed_array());
+    return Handle<JSReceiver>::cast(storage_);
   }
 
  private:
   // Convert storage to dictionary mode.
   void SetDictionaryMode() {
-    DCHECK(fast_elements());
-    Handle<FixedArray> current_storage(*storage_);
+    DCHECK(fast_elements() && is_fixed_array());
+    Handle<FixedArray> current_storage = storage_fixed_array();
     Handle<SeededNumberDictionary> slow_storage(
         SeededNumberDictionary::New(isolate_, current_storage->length()));
     uint32_t current_length = static_cast<uint32_t>(current_storage->length());
@@ -735,12 +762,13 @@ class ArrayConcatVisitor {
   }
 
   inline void set_storage(FixedArray* storage) {
-    storage_ =
-        Handle<FixedArray>::cast(isolate_->global_handles()->Create(storage));
+    DCHECK(is_fixed_array());
+    storage_ = isolate_->global_handles()->Create(storage);
   }
 
   class FastElementsField : public BitField<bool, 0, 1> {};
   class ExceedsLimitField : public BitField<bool, 1, 1> {};
+  class IsFixedArrayField : public BitField<bool, 2, 1> {};
 
   bool fast_elements() const { return FastElementsField::decode(bit_field_); }
   void set_fast_elements(bool fast) {
@@ -749,9 +777,10 @@ class ArrayConcatVisitor {
   void set_exceeds_array_limit(bool exceeds) {
     bit_field_ = ExceedsLimitField::update(bit_field_, exceeds);
   }
+  bool is_fixed_array() const { return IsFixedArrayField::decode(bit_field_); }
 
   Isolate* isolate_;
-  Handle<FixedArray> storage_;  // Always a global handle.
+  Handle<Object> storage_;  // Always a global handle.
   // Index after last seen index. Always less than or equal to
   // JSObject::kMaxElementCount.
   uint32_t index_offset_;
@@ -822,7 +851,7 @@ uint32_t EstimateElementCount(Handle<JSArray> array) {
 
 
 template <class ExternalArrayClass, class ElementType>
-void IterateTypedArrayElements(Isolate* isolate, Handle<JSObject> receiver,
+bool IterateTypedArrayElements(Isolate* isolate, Handle<JSObject> receiver,
                                bool elements_are_ints,
                                bool elements_are_guaranteed_smis,
                                ArrayConcatVisitor* visitor) {
@@ -837,7 +866,7 @@ void IterateTypedArrayElements(Isolate* isolate, Handle<JSObject> receiver,
         HandleScope loop_scope(isolate);
         Handle<Smi> e(Smi::FromInt(static_cast<int>(array->get_scalar(j))),
                       isolate);
-        visitor->visit(j, e);
+        if (!visitor->visit(j, e)) return false;
       }
     } else {
       for (uint32_t j = 0; j < len; j++) {
@@ -845,11 +874,11 @@ void IterateTypedArrayElements(Isolate* isolate, Handle<JSObject> receiver,
         int64_t val = static_cast<int64_t>(array->get_scalar(j));
         if (Smi::IsValid(static_cast<intptr_t>(val))) {
           Handle<Smi> e(Smi::FromInt(static_cast<int>(val)), isolate);
-          visitor->visit(j, e);
+          if (!visitor->visit(j, e)) return false;
         } else {
           Handle<Object> e =
               isolate->factory()->NewNumber(static_cast<ElementType>(val));
-          visitor->visit(j, e);
+          if (!visitor->visit(j, e)) return false;
         }
       }
     }
@@ -857,9 +886,10 @@ void IterateTypedArrayElements(Isolate* isolate, Handle<JSObject> receiver,
     for (uint32_t j = 0; j < len; j++) {
       HandleScope loop_scope(isolate);
       Handle<Object> e = isolate->factory()->NewNumber(array->get_scalar(j));
-      visitor->visit(j, e);
+      if (!visitor->visit(j, e)) return false;
     }
   }
+  return true;
 }
 
 
@@ -976,7 +1006,7 @@ bool IterateElementsSlow(Isolate* isolate, Handle<JSReceiver> receiver,
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, element_value,
                                        Object::GetElement(isolate, receiver, i),
                                        false);
-      visitor->visit(i, element_value);
+      if (!visitor->visit(i, element_value)) return false;
     }
   }
   visitor->increase_index_offset(length);
@@ -1036,7 +1066,7 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
         HandleScope loop_scope(isolate);
         Handle<Object> element_value(elements->get(j), isolate);
         if (!element_value->IsTheHole()) {
-          visitor->visit(j, element_value);
+          if (!visitor->visit(j, element_value)) return false;
         } else {
           Maybe<bool> maybe = JSReceiver::HasElement(array, j);
           if (!maybe.IsJust()) return false;
@@ -1046,7 +1076,7 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
             ASSIGN_RETURN_ON_EXCEPTION_VALUE(
                 isolate, element_value, Object::GetElement(isolate, array, j),
                 false);
-            visitor->visit(j, element_value);
+            if (!visitor->visit(j, element_value)) return false;
           }
         }
       }
@@ -1072,7 +1102,7 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
           double double_value = elements->get_scalar(j);
           Handle<Object> element_value =
               isolate->factory()->NewNumber(double_value);
-          visitor->visit(j, element_value);
+          if (!visitor->visit(j, element_value)) return false;
         } else {
           Maybe<bool> maybe = JSReceiver::HasElement(array, j);
           if (!maybe.IsJust()) return false;
@@ -1083,7 +1113,7 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
             ASSIGN_RETURN_ON_EXCEPTION_VALUE(
                 isolate, element_value, Object::GetElement(isolate, array, j),
                 false);
-            visitor->visit(j, element_value);
+            if (!visitor->visit(j, element_value)) return false;
           }
         }
       }
@@ -1112,7 +1142,7 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
         Handle<Object> element;
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
             isolate, element, Object::GetElement(isolate, array, index), false);
-        visitor->visit(index, element);
+        if (!visitor->visit(index, element)) return false;
         // Skip to next different index (i.e., omit duplicates).
         do {
           j++;
@@ -1130,43 +1160,51 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
       break;
     }
     case INT8_ELEMENTS: {
-      IterateTypedArrayElements<FixedInt8Array, int8_t>(isolate, array, true,
-                                                        true, visitor);
+      if (!IterateTypedArrayElements<FixedInt8Array, int8_t>(
+              isolate, array, true, true, visitor))
+        return false;
       break;
     }
     case UINT8_ELEMENTS: {
-      IterateTypedArrayElements<FixedUint8Array, uint8_t>(isolate, array, true,
-                                                          true, visitor);
+      if (!IterateTypedArrayElements<FixedUint8Array, uint8_t>(
+              isolate, array, true, true, visitor))
+        return false;
       break;
     }
     case INT16_ELEMENTS: {
-      IterateTypedArrayElements<FixedInt16Array, int16_t>(isolate, array, true,
-                                                          true, visitor);
+      if (!IterateTypedArrayElements<FixedInt16Array, int16_t>(
+              isolate, array, true, true, visitor))
+        return false;
       break;
     }
     case UINT16_ELEMENTS: {
-      IterateTypedArrayElements<FixedUint16Array, uint16_t>(
-          isolate, array, true, true, visitor);
+      if (!IterateTypedArrayElements<FixedUint16Array, uint16_t>(
+              isolate, array, true, true, visitor))
+        return false;
       break;
     }
     case INT32_ELEMENTS: {
-      IterateTypedArrayElements<FixedInt32Array, int32_t>(isolate, array, true,
-                                                          false, visitor);
+      if (!IterateTypedArrayElements<FixedInt32Array, int32_t>(
+              isolate, array, true, false, visitor))
+        return false;
       break;
     }
     case UINT32_ELEMENTS: {
-      IterateTypedArrayElements<FixedUint32Array, uint32_t>(
-          isolate, array, true, false, visitor);
+      if (!IterateTypedArrayElements<FixedUint32Array, uint32_t>(
+              isolate, array, true, false, visitor))
+        return false;
       break;
     }
     case FLOAT32_ELEMENTS: {
-      IterateTypedArrayElements<FixedFloat32Array, float>(isolate, array, false,
-                                                          false, visitor);
+      if (!IterateTypedArrayElements<FixedFloat32Array, float>(
+              isolate, array, false, false, visitor))
+        return false;
       break;
     }
     case FLOAT64_ELEMENTS: {
-      IterateTypedArrayElements<FixedFloat64Array, double>(
-          isolate, array, false, false, visitor);
+      if (!IterateTypedArrayElements<FixedFloat64Array, double>(
+              isolate, array, false, false, visitor))
+        return false;
       break;
     }
     case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
@@ -1176,7 +1214,7 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
         Handle<Object> element;
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
             isolate, element, Object::GetElement(isolate, array, index), false);
-        visitor->visit(index, element);
+        if (!visitor->visit(index, element)) return false;
       }
       break;
     }
@@ -1210,8 +1248,11 @@ static Maybe<bool> IsConcatSpreadable(Isolate* isolate, Handle<Object> obj) {
 }
 
 
-Object* Slow_ArrayConcat(Arguments* args, Isolate* isolate) {
+Object* Slow_ArrayConcat(Arguments* args, Handle<Object> species,
+                         Isolate* isolate) {
   int argument_count = args->length();
+
+  bool is_array_species = *species == isolate->context()->array_function();
 
   // Pass 1: estimate the length and number of elements of the result.
   // The actual length can be larger if any of the arguments have getters
@@ -1263,7 +1304,8 @@ Object* Slow_ArrayConcat(Arguments* args, Isolate* isolate) {
   // If estimated number of elements is more than half of length, a
   // fixed array (fast case) is more time and space-efficient than a
   // dictionary.
-  bool fast_case = (estimate_nof_elements * 2) >= estimate_result_length;
+  bool fast_case =
+      is_array_species && (estimate_nof_elements * 2) >= estimate_result_length;
 
   if (fast_case && kind == FAST_DOUBLE_ELEMENTS) {
     Handle<FixedArrayBase> storage =
@@ -1347,18 +1389,25 @@ Object* Slow_ArrayConcat(Arguments* args, Isolate* isolate) {
     // In case of failure, fall through.
   }
 
-  Handle<FixedArray> storage;
+  Handle<Object> storage;
   if (fast_case) {
     // The backing storage array must have non-existing elements to preserve
     // holes across concat operations.
     storage =
         isolate->factory()->NewFixedArrayWithHoles(estimate_result_length);
-  } else {
+  } else if (is_array_species) {
     // TODO(126): move 25% pre-allocation logic into Dictionary::Allocate
     uint32_t at_least_space_for =
         estimate_nof_elements + (estimate_nof_elements >> 2);
-    storage = Handle<FixedArray>::cast(
-        SeededNumberDictionary::New(isolate, at_least_space_for));
+    storage = SeededNumberDictionary::New(isolate, at_least_space_for);
+  } else {
+    DCHECK(species->IsConstructor());
+    Handle<Object> length(Smi::FromInt(0), isolate);
+    Handle<Object> storage_object;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, storage_object,
+        Execution::New(isolate, species, species, 1, &length));
+    storage = storage_object;
   }
 
   ArrayConcatVisitor visitor(isolate, storage, fast_case);
@@ -1382,7 +1431,12 @@ Object* Slow_ArrayConcat(Arguments* args, Isolate* isolate) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kInvalidArrayLength));
   }
-  return *visitor.ToArray();
+
+  if (is_array_species) {
+    return *visitor.ToArray();
+  } else {
+    return *visitor.storage_jsreceiver();
+  }
 }
 
 
@@ -1446,11 +1500,19 @@ BUILTIN(ArrayConcat) {
   args[0] = *receiver;
 
   Handle<JSArray> result_array;
-  if (Fast_ArrayConcat(isolate, &args).ToHandle(&result_array)) {
-    return *result_array;
+
+  // Reading @@species happens before anything else with a side effect, so
+  // we can do it here to determine whether to take the fast path.
+  Handle<Object> species;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, species, Object::ArraySpeciesConstructor(isolate, receiver));
+  if (*species == isolate->context()->native_context()->array_function()) {
+    if (Fast_ArrayConcat(isolate, &args).ToHandle(&result_array)) {
+      return *result_array;
+    }
+    if (isolate->has_pending_exception()) return isolate->heap()->exception();
   }
-  if (isolate->has_pending_exception()) return isolate->heap()->exception();
-  return Slow_ArrayConcat(&args, isolate);
+  return Slow_ArrayConcat(&args, species, isolate);
 }
 
 
