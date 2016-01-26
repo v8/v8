@@ -61,7 +61,7 @@ void Interpreter::Initialize() {
 
 bool Interpreter::MakeBytecode(CompilationInfo* info) {
   BytecodeGenerator generator(info->isolate(), info->zone());
-  info->EnsureFeedbackVector();
+  info->EnsureFeedbackMetadata();
   Handle<BytecodeArray> bytecodes = generator.MakeBytecode(info);
   if (FLAG_print_bytecode) {
     OFStream os(stdout);
