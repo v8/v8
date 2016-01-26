@@ -1855,6 +1855,9 @@ AllocationSite* AllocationMemento::GetAllocationSite() {
   return AllocationSite::cast(allocation_site());
 }
 
+Address AllocationMemento::GetAllocationSiteUnchecked() {
+  return reinterpret_cast<Address>(allocation_site());
+}
 
 void JSObject::EnsureCanContainHeapObjectElements(Handle<JSObject> object) {
   JSObject::ValidateElements(object);
