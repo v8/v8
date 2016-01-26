@@ -1545,6 +1545,7 @@
         '../../src/base/atomicops_internals_mips64_gcc.h',
         '../../src/base/atomicops_internals_portable.h',
         '../../src/base/atomicops_internals_ppc_gcc.h',
+        '../../src/base/atomicops_internals_s390_gcc.h',
         '../../src/base/atomicops_internals_tsan.h',
         '../../src/base/atomicops_internals_x86_gcc.cc',
         '../../src/base/atomicops_internals_x86_gcc.h',
