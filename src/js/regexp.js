@@ -693,9 +693,6 @@ utils.InstallGetter(GlobalRegExp.prototype, 'ignoreCase', RegExpGetIgnoreCase);
 utils.InstallGetter(GlobalRegExp.prototype, 'multiline', RegExpGetMultiline);
 utils.InstallGetter(GlobalRegExp.prototype, 'source', RegExpGetSource);
 
-// The length of compile is 1 in SpiderMonkey.
-%FunctionSetLength(GlobalRegExp.prototype.compile, 1);
-
 // The properties `input` and `$_` are aliases for each other.  When this
 // value is set the value it is set to is coerced to a string.
 // Getter and setter for the input.
