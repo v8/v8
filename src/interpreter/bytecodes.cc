@@ -57,6 +57,7 @@ const char* Bytecodes::OperandSizeToString(OperandSize operand_size) {
 
 // static
 uint8_t Bytecodes::ToByte(Bytecode bytecode) {
+  DCHECK(bytecode <= Bytecode::kLast);
   return static_cast<uint8_t>(bytecode);
 }
 
@@ -100,6 +101,21 @@ int Bytecodes::NumberOfOperands(Bytecode bytecode) {
 
 
 // static
+int Bytecodes::NumberOfRegisterOperands(Bytecode bytecode) {
+  DCHECK(bytecode <= Bytecode::kLast);
+  switch (bytecode) {
+#define CASE(Name, ...)                                            \
+  case Bytecode::k##Name:                                          \
+    typedef BytecodeTraits<__VA_ARGS__, OPERAND_TERM> Name##Trait; \
+    return Name##Trait::kRegisterOperandCount;
+    BYTECODE_LIST(CASE)
+#undef CASE
+  }
+  UNREACHABLE();
+  return false;
+}
+
+// static
 OperandType Bytecodes::GetOperandType(Bytecode bytecode, int i) {
   DCHECK(bytecode <= Bytecode::kLast);
   switch (bytecode) {
@@ -128,6 +144,21 @@ OperandSize Bytecodes::GetOperandSize(Bytecode bytecode, int i) {
   return OperandSize::kNone;
 }
 
+
+// static
+int Bytecodes::GetRegisterOperandBitmap(Bytecode bytecode) {
+  DCHECK(bytecode <= Bytecode::kLast);
+  switch (bytecode) {
+#define CASE(Name, ...)                                            \
+  case Bytecode::k##Name:                                          \
+    typedef BytecodeTraits<__VA_ARGS__, OPERAND_TERM> Name##Trait; \
+    return Name##Trait::kRegisterOperandBitmap;
+    BYTECODE_LIST(CASE)
+#undef CASE
+  }
+  UNREACHABLE();
+  return false;
+}
 
 // static
 int Bytecodes::GetOperandOffset(Bytecode bytecode, int i) {
@@ -363,12 +394,24 @@ static const int kCurrentContextRegisterIndex =
 static const int kNewTargetRegisterIndex =
     -InterpreterFrameConstants::kNewTargetFromRegisterPointer / kPointerSize;
 
+// The register space is a signed 16-bit space. Register operands
+// occupy range above 0. Parameter indices are biased with the
+// negative value kLastParamRegisterIndex for ease of access in the
+// interpreter.
+static const int kMaxParameterIndex = kMaxInt16 + kLastParamRegisterIndex;
+static const int kMaxRegisterIndex = -kMinInt16;
+static const int kMaxReg8Index = -kMinInt8;
+static const int kMinReg8Index = -kMaxInt8;
+static const int kMaxReg16Index = -kMinInt16;
+static const int kMinReg16Index = -kMaxInt16;
 
-// Registers occupy range 0-127 in 8-bit value leaving 128 unused values.
-// Parameter indices are biased with the negative value kLastParamRegisterIndex
-// for ease of access in the interpreter.
-static const int kMaxParameterIndex = 128 + kLastParamRegisterIndex;
+bool Register::is_byte_operand() const {
+  return index_ >= kMinReg8Index && index_ <= kMaxReg8Index;
+}
 
+bool Register::is_short_operand() const {
+  return index_ >= kMinReg16Index && index_ <= kMaxReg16Index;
+}
 
 Register Register::FromParameterIndex(int index, int parameter_count) {
   DCHECK_GE(index, 0);
@@ -376,7 +419,6 @@ Register Register::FromParameterIndex(int index, int parameter_count) {
   DCHECK_LE(parameter_count, kMaxParameterIndex + 1);
   int register_index = kLastParamRegisterIndex - parameter_count + index + 1;
   DCHECK_LT(register_index, 0);
-  DCHECK_GE(register_index, kMinInt8);
   return Register(register_index);
 }
 
@@ -417,10 +459,12 @@ bool Register::is_new_target() const {
 
 int Register::MaxParameterIndex() { return kMaxParameterIndex; }
 
+int Register::MaxRegisterIndex() { return kMaxRegisterIndex; }
+
+int Register::MaxRegisterIndexForByteOperand() { return kMaxReg8Index; }
 
 uint8_t Register::ToOperand() const {
-  DCHECK_GE(index_, kMinInt8);
-  DCHECK_LE(index_, kMaxInt8);
+  DCHECK(is_byte_operand());
   return static_cast<uint8_t>(-index_);
 }
 
@@ -431,8 +475,7 @@ Register Register::FromOperand(uint8_t operand) {
 
 
 uint16_t Register::ToWideOperand() const {
-  DCHECK_GE(index_, kMinInt16);
-  DCHECK_LE(index_, kMaxInt16);
+  DCHECK(is_short_operand());
   return static_cast<uint16_t>(-index_);
 }
 

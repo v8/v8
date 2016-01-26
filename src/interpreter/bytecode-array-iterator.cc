@@ -47,14 +47,14 @@ uint32_t BytecodeArrayIterator::GetRawOperand(int operand_index,
       bytecode_array()->GetFirstBytecodeAddress() + bytecode_offset_ +
       Bytecodes::GetOperandOffset(current_bytecode(), operand_index);
   switch (Bytecodes::SizeOfOperand(operand_type)) {
-    default:
-    case OperandSize::kNone:
-      UNREACHABLE();
     case OperandSize::kByte:
       return static_cast<uint32_t>(*operand_start);
     case OperandSize::kShort:
       return ReadUnalignedUInt16(operand_start);
+    case OperandSize::kNone:
+      UNREACHABLE();
   }
+  return 0;
 }
 
 

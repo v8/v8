@@ -164,9 +164,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   BytecodeLabel start;
   builder.Bind(&start);
   // Short jumps with Imm8 operands
-  builder.Jump(&start)
-      .JumpIfNull(&start)
-      .JumpIfUndefined(&start);
+  builder.Jump(&start).JumpIfNull(&start).JumpIfUndefined(&start);
   // Perform an operation that returns boolean value to
   // generate JumpIfTrue/False
   builder.CompareOperation(Token::Value::EQ, reg, Strength::WEAK)
@@ -184,9 +182,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
     builder.LoadTrue();
   }
   // Longer jumps requiring Constant operand
-  builder.Jump(&start)
-      .JumpIfNull(&start)
-      .JumpIfUndefined(&start);
+  builder.Jump(&start).JumpIfNull(&start).JumpIfUndefined(&start);
   // Perform an operation that returns boolean value to
   // generate JumpIfTrue/False
   builder.CompareOperation(Token::Value::EQ, reg, Strength::WEAK)
@@ -285,7 +281,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Generate BytecodeArray.
   Handle<BytecodeArray> the_array = builder.ToBytecodeArray();
   CHECK_EQ(the_array->frame_size(),
-           builder.fixed_register_count() * kPointerSize);
+           (builder.fixed_and_temporary_register_count() +
+            builder.translation_register_count()) *
+               kPointerSize);
 
   // Build scorecard of bytecodes encountered in the BytecodeArray.
   std::vector<int> scorecard(Bytecodes::ToByte(Bytecode::kLast) + 1);
@@ -686,7 +684,6 @@ TEST_F(BytecodeArrayBuilderTest, LabelAddressReuse) {
   iterator.Advance();
   CHECK(iterator.done());
 }
-
 
 }  // namespace interpreter
 }  // namespace internal

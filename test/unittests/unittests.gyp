@@ -99,6 +99,7 @@
         'interpreter/bytecode-array-iterator-unittest.cc',
         'interpreter/bytecode-register-allocator-unittest.cc',
         'interpreter/constant-array-builder-unittest.cc',
+        'interpreter/register-translator-unittest.cc',
         'libplatform/default-platform-unittest.cc',
         'libplatform/task-queue-unittest.cc',
         'libplatform/worker-thread-unittest.cc',

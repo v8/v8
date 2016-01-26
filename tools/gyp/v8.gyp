@@ -877,6 +877,8 @@
         '../../src/interpreter/handler-table-builder.h',
         '../../src/interpreter/interpreter.cc',
         '../../src/interpreter/interpreter.h',
+        '../../src/interpreter/register-translator.cc',
+        '../../src/interpreter/register-translator.h',
         '../../src/isolate-inl.h',
         '../../src/isolate.cc',
         '../../src/isolate.h',

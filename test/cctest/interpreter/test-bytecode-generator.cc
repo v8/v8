@@ -1458,9 +1458,8 @@ TEST(PropertyCall) {
        1,
        {"func"}},
       {"function f(a) {\n"
-       " a.func;\n"
-       REPEAT_127(SPACE, " a.func;\n")
-       " return a.func(); }\nf(" FUNC_ARG ")",
+       " a.func;\n" REPEAT_127(
+           SPACE, " a.func;\n") " return a.func(); }\nf(" FUNC_ARG ")",
        2 * kPointerSize,
        2,
        1046,
@@ -1472,12 +1471,13 @@ TEST(PropertyCall) {
                       B(Ldar), A(1, 2),                                    //
                       B(Star), R(0),                                       //
                       B(LoadICSloppy), R(0), U8(0), U8((wide_idx += 2))),  //
-           B(Ldar), A(1, 2),                                               //
-           B(Star), R(1),                                                  //
-           B(LoadICSloppyWide), R(1), U16(0), U16(wide_idx + 4),           //
-           B(Star), R(0),                                                  //
-           B(CallWide), R16(0), R16(1), U16(0), U16(wide_idx + 2),         //
-           B(Return),                                                      //
+           B(Ldar),
+           A(1, 2),                                                 //
+           B(Star), R(1),                                           //
+           B(LoadICSloppyWide), R(1), U16(0), U16(wide_idx + 4),    //
+           B(Star), R(0),                                           //
+           B(CallWide), R16(0), R16(1), U16(0), U16(wide_idx + 2),  //
+           B(Return),                                               //
        },
        1,
        {"func"}},
@@ -7278,6 +7278,273 @@ TEST(DeleteLookupSlotInEval) {
                          std::string(function_epilogue);
     Handle<BytecodeArray> bytecode_array =
         helper.MakeBytecode(script.c_str(), "*", "f");
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+}
+
+TEST(WideRegisters) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+
+  // Prepare prologue that creates frame for lots of registers.
+  std::ostringstream os;
+  for (size_t i = 0; i < 157; ++i) {
+    os << "var x" << i << ";\n";
+  }
+  std::string prologue(os.str());
+
+  ExpectedSnippet<int> snippets[] = {
+      {"x0 = x127;\n"
+       "return x0;\n",
+       161 * kPointerSize,
+       1,
+       15,
+       {
+           B(MovWide), R16(131), R16(125),  //
+           B(Ldar), R(125),                 //
+           B(MovWide), R16(125), R16(131),  //
+           B(Star), R(0),                   //
+           B(Return),                       //
+       }},
+      {"x127 = x126;\n"
+       "return x127;\n",
+       161 * kPointerSize,
+       1,
+       37,
+       {
+           B(MovWide), R16(130), R16(125),  //
+           B(Ldar), R(125),                 //
+           B(MovWide), R16(125), R16(130),  //
+           B(MovWide), R16(131), R16(125),  //
+           B(Star), R(125),                 //
+           B(MovWide), R16(125), R16(131),  //
+           B(MovWide), R16(131), R16(125),  //
+           B(Ldar), R(125),                 //
+           B(MovWide), R16(125), R16(131),  //
+           B(Return),                       //
+       }},
+      {"if (x2 > 3) { return x129; }\n"
+       "return x128;\n",
+       162 * kPointerSize,
+       1,
+       56,
+       {
+           B(Ldar), R(2),                    //
+           B(MovWide), R16(161), R16(125),   //
+           B(Star), R(125),                  //
+           B(MovWide), R16(125), R16(161),   //
+           B(LdaSmi8), U8(3),                //
+           B(MovWide), R16(161), R16(125),   //
+           B(TestGreaterThan), R(125),       //
+           B(MovWide), R16(125), R16(161),   //
+           B(JumpIfToBooleanFalse), U8(15),  //
+           B(MovWide), R16(133), R16(125),   //
+           B(Ldar), R(125),                  //
+           B(MovWide), R16(125), R16(133),   //
+           B(Return),                        //
+           B(MovWide), R16(132), R16(125),   //
+           B(Ldar), R(125),                  //
+           B(MovWide), R16(125), R16(132),   //
+           B(Return),                        //
+       }},
+      {"var x0 = 0;\n"
+       "if (x129 == 3) { var x129 = x0; }\n"
+       "if (x2 > 3) { return x0; }\n"
+       "return x129;\n",
+       162 * kPointerSize,
+       1,
+       103,
+       {
+           B(LdaZero),                       //
+           B(Star), R(0),                    //
+           B(MovWide), R16(133), R16(125),   //
+           B(Ldar), R(125),                  //
+           B(MovWide), R16(125), R16(133),   //
+           B(MovWide), R16(161), R16(125),   //
+           B(Star), R(125),                  //
+           B(MovWide), R16(125), R16(161),   //
+           B(LdaSmi8), U8(3),                //
+           B(MovWide), R16(161), R16(125),   //
+           B(TestEqual), R(125),             //
+           B(MovWide), R16(125), R16(161),   //
+           B(JumpIfToBooleanFalse), U8(16),  //
+           B(Ldar), R(0),                    //
+           B(MovWide), R16(133), R16(125),   //
+           B(Star), R(125),                  //
+           B(MovWide), R16(125), R16(133),   //
+           B(Ldar), R(2),                    //
+           B(MovWide), R16(161), R16(125),   //
+           B(Star), R(125),                  //
+           B(MovWide), R16(125), R16(161),   //
+           B(LdaSmi8), U8(3),                //
+           B(MovWide), R16(161), R16(125),   //
+           B(TestGreaterThan), R(125),       //
+           B(MovWide), R16(125), R16(161),   //
+           B(JumpIfToBooleanFalse), U8(5),   //
+           B(Ldar), R(0),                    //
+           B(Return),                        //
+           B(MovWide), R16(133), R16(125),   //
+           B(Ldar), R(125),                  //
+           B(MovWide), R16(125), R16(133),   //
+           B(Return),                        //
+       }},
+      {"var x0 = 0;\n"
+       "var x1 = 0;\n"
+       "for (x128 = 0; x128 < 64; x128++) {"
+       "  x1 += x128;"
+       "}"
+       "return x128;\n",
+       162 * kPointerSize,
+       1,
+       152,
+       {
+           B(LdaZero),                       //
+           B(Star), R(0),                    //
+           B(LdaZero),                       //
+           B(Star), R(1),                    //
+           B(LdaZero),                       //
+           B(MovWide), R16(132), R16(125),   //
+           B(Star), R(125),                  //
+           B(MovWide), R16(125), R16(132),   //
+           B(MovWide), R16(132), R16(125),   //
+           B(Ldar), R(125),                  //
+           B(MovWide), R16(125), R16(132),   //
+           B(MovWide), R16(161), R16(125),   //
+           B(Star), R(125),                  //
+           B(MovWide), R16(125), R16(161),   //
+           B(LdaSmi8), U8(64),               //
+           B(MovWide), R16(161), R16(125),   //
+           B(TestLessThan), R(125),          //
+           B(MovWide), R16(125), R16(161),   //
+           B(JumpIfToBooleanFalse), U8(82),  //
+           B(Ldar), R(1),                    //
+           B(MovWide), R16(161), R16(125),   //
+           B(Star), R(125),                  //
+           B(MovWide), R16(125), R16(161),   //
+           B(MovWide), R16(132), R16(125),   //
+           B(Ldar), R(125),                  //
+           B(MovWide), R16(125), R16(132),   //
+           B(MovWide), R16(161), R16(125),   //
+           B(Add), R(125),                   //
+           B(MovWide), R16(125), R16(161),   //
+           B(Star), R(1),                    //
+           B(MovWide), R16(132), R16(125),   //
+           B(Ldar), R(125),                  //
+           B(MovWide), R16(125), R16(132),   //
+           B(ToNumber),                      //
+           B(MovWide), R16(161), R16(125),   //
+           B(Star), R(125),                  //
+           B(MovWide), R16(125), R16(161),   //
+           B(Inc),                           //
+           B(MovWide), R16(132), R16(125),   //
+           B(Star), R(125),                  //
+           B(MovWide), R16(125), R16(132),   //
+           B(Jump), U8(-118),                //
+           B(MovWide), R16(132), R16(125),   //
+           B(Ldar), R(125),                  //
+           B(MovWide), R16(125), R16(132),   //
+           B(Return),                        //
+       }},
+      {"var x0 = 1234;\n"
+       "var x1 = 0;\n"
+       "for (x128 in x0) {"
+       "  x1 += x128;"
+       "}"
+       "return x1;\n",
+       167 * kPointerSize,
+       1,
+       159,
+       {
+           B(LdaConstant), U8(0),                           //
+           B(Star), R(0),                                   //
+           B(LdaZero),                                      //
+           B(Star), R(1),                                   //
+           B(Ldar), R(0),                                   //
+           B(JumpIfUndefinedConstant), U8(3),               //
+           B(JumpIfNullConstant), U8(2),                    //
+           B(ToObject),                                     //
+           B(JumpIfNullConstant), U8(1),                    //
+           B(MovWide), R16(161), R16(125),                  //
+           B(Star), R(125),                                 //
+           B(MovWide), R16(125), R16(161),                  //
+           B(ForInPrepareWide), R16(162),                   //
+           B(LdaZero),                                      //
+           B(MovWide), R16(165), R16(125),                  //
+           B(Star), R(125),                                 //
+           B(MovWide), R16(125), R16(165),                  //
+           B(MovWide), R16(165), R16(125),                  //
+           B(MovWide), R16(164), R16(126),                  //
+           B(ForInDone), R(125), R(126),                    //
+           B(MovWide), R16(126), R16(164),                  //
+           B(MovWide), R16(125), R16(165),                  //
+           B(JumpIfToBooleanTrue), U8(89),                  //
+           B(ForInNextWide), R16(161), R16(165), R16(162),  //
+           B(JumpIfUndefined), U8(54),                      //
+           B(MovWide), R16(132), R16(125),                  //
+           B(Star), R(125),                                 //
+           B(MovWide), R16(125), R16(132),                  //
+           B(Ldar), R(1),                                   //
+           B(MovWide), R16(166), R16(125),                  //
+           B(Star), R(125),                                 //
+           B(MovWide), R16(125), R16(166),                  //
+           B(MovWide), R16(132), R16(125),                  //
+           B(Ldar), R(125),                                 //
+           B(MovWide), R16(125), R16(132),                  //
+           B(MovWide), R16(166), R16(125),                  //
+           B(Add), R(125),                                  //
+           B(MovWide), R16(125), R16(166),                  //
+           B(Star), R(1),                                   //
+           B(MovWide), R16(165), R16(125),                  //
+           B(ForInStep), R(125),                            //
+           B(MovWide), R16(125), R16(165),                  //
+           B(MovWide), R16(165), R16(125),                  //
+           B(Star), R(125),                                 //
+           B(MovWide), R16(125), R16(165),                  //
+           B(Jump), U8(-110),                               //
+           B(Ldar), R(1),                                   //
+           B(Return),                                       //
+       },
+       4,
+       {1234, 142, 145, 147}},
+      {"x0 = %Add(x64, x63);\n"
+       "x1 = %Add(x27, x143);\n"
+       "%TheHole();\n"
+       "return x1;\n",
+       163 * kPointerSize,
+       1,
+       90,
+       {
+           B(Ldar), R(64),                                           //
+           B(MovWide), R16(161), R16(125),                           //
+           B(Star), R(125),                                          //
+           B(MovWide), R16(125), R16(161),                           //
+           B(Ldar), R(63),                                           //
+           B(MovWide), R16(162), R16(125),                           //
+           B(Star), R(125),                                          //
+           B(MovWide), R16(125), R16(162),                           //
+           B(CallRuntimeWide), U16(Runtime::kAdd), R16(161), U8(2),  //
+           B(Star), R(0),                                            //
+           B(Ldar), R(27),                                           //
+           B(MovWide), R16(161), R16(125),                           //
+           B(Star), R(125),                                          //
+           B(MovWide), R16(125), R16(161),                           //
+           B(MovWide), R16(147), R16(125),                           //
+           B(Ldar), R(125),                                          //
+           B(MovWide), R16(125), R16(147),                           //
+           B(MovWide), R16(162), R16(125),                           //
+           B(Star), R(125),                                          //
+           B(MovWide), R16(125), R16(162),                           //
+           B(CallRuntimeWide), U16(Runtime::kAdd), R16(161), U8(2),  //
+           B(Star), R(1),                                            //
+           B(CallRuntime), U16(Runtime::kTheHole), R(0), U8(0),      //
+           B(Ldar), R(1),                                            //
+           B(Return),                                                //
+       }}};
+
+  for (size_t i = 0; i < arraysize(snippets); ++i) {
+    std::string body = prologue + snippets[i].code_snippet;
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecodeForFunctionBody(body.c_str());
     CheckBytecodeArrayEqual(snippets[i], bytecode_array);
   }
 }

@@ -3680,6 +3680,151 @@ TEST(InterpreterEvalFunctionDecl) {
   }
 }
 
+TEST(InterpreterWideRegisterArithmetic) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+
+  static const size_t kMaxRegisterForTest = 150;
+  std::ostringstream os;
+  os << "function " << InterpreterTester::function_name() << "(arg) {\n";
+  os << "  var retval = -77;\n";
+  for (size_t i = 0; i < kMaxRegisterForTest; i++) {
+    os << "  var x" << i << " = " << i << ";\n";
+  }
+  for (size_t i = 0; i < kMaxRegisterForTest / 2; i++) {
+    size_t j = kMaxRegisterForTest - i - 1;
+    os << "  var tmp = x" << j << ";\n";
+    os << "  var x" << j << " = x" << i << ";\n";
+    os << "  var x" << i << " = tmp;\n";
+  }
+  for (size_t i = 0; i < kMaxRegisterForTest / 2; i++) {
+    size_t j = kMaxRegisterForTest - i - 1;
+    os << "  var tmp = x" << j << ";\n";
+    os << "  var x" << j << " = x" << i << ";\n";
+    os << "  var x" << i << " = tmp;\n";
+  }
+  for (size_t i = 0; i < kMaxRegisterForTest; i++) {
+    os << "  if (arg == " << i << ") {\n"  //
+       << "    retval = x" << i << ";\n"   //
+       << "  }\n";                         //
+  }
+  os << "  return retval;\n";
+  os << "}\n";
+
+  std::string source = os.str();
+  InterpreterTester tester(handles.main_isolate(), source.c_str());
+  auto callable = tester.GetCallable<Handle<Object>>();
+  for (size_t i = 0; i < kMaxRegisterForTest; i++) {
+    Handle<Object> arg = handle(Smi::FromInt(static_cast<int>(i)), isolate);
+    Handle<Object> return_value = callable(arg).ToHandleChecked();
+    CHECK(return_value->SameValue(*arg));
+  }
+}
+
+TEST(InterpreterCallWideRegisters) {
+  static const int kPeriod = 25;
+  static const int kLength = 512;
+  static const int kStartChar = 65;
+
+  for (int pass = 0; pass < 3; pass += 1) {
+    std::ostringstream os;
+    for (int i = 0; i < pass * 97; i += 1) {
+      os << "var x" << i << " = " << i << "\n";
+    }
+    os << "return String.fromCharCode(";
+    os << kStartChar;
+    for (int i = 1; i < kLength; i += 1) {
+      os << "," << kStartChar + (i % kPeriod);
+    }
+    os << ");";
+    std::string source = InterpreterTester::SourceForBody(os.str().c_str());
+    HandleAndZoneScope handles;
+    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    auto callable = tester.GetCallable();
+    Handle<Object> return_val = callable().ToHandleChecked();
+    Handle<String> return_string = Handle<String>::cast(return_val);
+    CHECK_EQ(return_string->length(), kLength);
+    for (int i = 0; i < kLength; i += 1) {
+      CHECK_EQ(return_string->Get(i), 65 + (i % kPeriod));
+    }
+  }
+}
+
+TEST(InterpreterWideParametersPickOne) {
+  static const int kParameterCount = 130;
+  for (int parameter = 0; parameter < 10; parameter++) {
+    HandleAndZoneScope handles;
+    i::Isolate* isolate = handles.main_isolate();
+    std::ostringstream os;
+    os << "function " << InterpreterTester::function_name() << "(arg) {\n";
+    os << "  function selector(i";
+    for (int i = 0; i < kParameterCount; i++) {
+      os << ","
+         << "a" << i;
+    }
+    os << ") {\n";
+    os << "  return a" << parameter << ";\n";
+    os << "  };\n";
+    os << "  return selector(arg";
+    for (int i = 0; i < kParameterCount; i++) {
+      os << "," << i;
+    }
+    os << ");";
+    os << "}\n";
+
+    std::string source = os.str();
+    InterpreterTester tester(handles.main_isolate(), source.c_str(), "*");
+    auto callable = tester.GetCallable<Handle<Object>>();
+    Handle<Object> arg = handle(Smi::FromInt(0xaa55), isolate);
+    Handle<Object> return_value = callable(arg).ToHandleChecked();
+    Handle<Smi> actual = Handle<Smi>::cast(return_value);
+    CHECK_EQ(actual->value(), parameter);
+  }
+}
+
+TEST(InterpreterWideParametersSummation) {
+  static int kParameterCount = 200;
+  static int kBaseValue = 17000;
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  std::ostringstream os;
+  os << "function " << InterpreterTester::function_name() << "(arg) {\n";
+  os << "  function summation(i";
+  for (int i = 0; i < kParameterCount; i++) {
+    os << ","
+       << "a" << i;
+  }
+  os << ") {\n";
+  os << "    var sum = " << kBaseValue << ";\n";
+  os << "    switch(i) {\n";
+  for (int i = 0; i < kParameterCount; i++) {
+    int j = kParameterCount - i - 1;
+    os << "      case " << j << ": sum += a" << j << ";\n";
+  }
+  os << "  }\n";
+  os << "    return sum;\n";
+  os << "  };\n";
+  os << "  return summation(arg";
+  for (int i = 0; i < kParameterCount; i++) {
+    os << "," << i;
+  }
+  os << ");";
+  os << "}\n";
+
+  std::string source = os.str();
+  InterpreterTester tester(handles.main_isolate(), source.c_str(), "*");
+  auto callable = tester.GetCallable<Handle<Object>>();
+  for (int i = 0; i < kParameterCount; i++) {
+    Handle<Object> arg = handle(Smi::FromInt(i), isolate);
+    Handle<Object> return_value = callable(arg).ToHandleChecked();
+    int expected = kBaseValue + i * (i + 1) / 2;
+    Handle<Smi> actual = Handle<Smi>::cast(return_value);
+    CHECK_EQ(actual->value(), expected);
+  }
+}
+
+// TODO(oth): Test for..in with wide registers.
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

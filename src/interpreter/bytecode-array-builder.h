@@ -9,6 +9,7 @@
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/constant-array-builder.h"
 #include "src/interpreter/handler-table-builder.h"
+#include "src/interpreter/register-translator.h"
 #include "src/zone-containers.h"
 
 namespace v8 {
@@ -25,7 +26,7 @@ class Register;
 // when rest parameters implementation has settled down.
 enum class CreateArgumentsType { kMappedArguments, kUnmappedArguments };
 
-class BytecodeArrayBuilder final {
+class BytecodeArrayBuilder final : private RegisterMover {
  public:
   BytecodeArrayBuilder(Isolate* isolate, Zone* zone);
   ~BytecodeArrayBuilder();
@@ -58,6 +59,18 @@ class BytecodeArrayBuilder final {
 
   // Returns the number of fixed (non-temporary) registers.
   int fixed_register_count() const { return context_count() + locals_count(); }
+
+  // Returns the number of fixed and temporary registers.
+  int fixed_and_temporary_register_count() const {
+    return fixed_register_count() + temporary_register_count_;
+  }
+
+  // Returns the number of registers used for translating wide
+  // register operands into byte sized register operands.
+  int translation_register_count() const {
+    return RegisterTranslator::RegisterCountAdjustment(
+        fixed_and_temporary_register_count(), parameter_count());
+  }
 
   Register Parameter(int parameter_index) const;
 
@@ -264,14 +277,17 @@ class BytecodeArrayBuilder final {
   static bool FitsInIdx16Operand(int value);
   static bool FitsInIdx16Operand(size_t value);
   static bool FitsInReg8Operand(Register value);
+  static bool FitsInReg8OperandUntranslated(Register value);
   static bool FitsInReg16Operand(Register value);
+  static bool FitsInReg16OperandUntranslated(Register value);
+
+  // RegisterMover interface methods.
+  void MoveRegisterUntranslated(Register from, Register to) override;
+  bool RegisterOperandIsMovable(Bytecode bytecode, int operand_index) override;
 
   static Bytecode GetJumpWithConstantOperand(Bytecode jump_smi8_operand);
   static Bytecode GetJumpWithConstantWideOperand(Bytecode jump_smi8_operand);
   static Bytecode GetJumpWithToBoolean(Bytecode jump_smi8_operand);
-
-  Register MapRegister(Register reg);
-  Register MapRegisters(Register reg, Register args_base, int args_length = 1);
 
   template <size_t N>
   INLINE(void Output(Bytecode bytecode, uint32_t(&operands)[N]));
@@ -297,13 +313,14 @@ class BytecodeArrayBuilder final {
 
   bool OperandIsValid(Bytecode bytecode, int operand_index,
                       uint32_t operand_value) const;
-  bool LastBytecodeInSameBlock() const;
   bool RegisterIsValid(Register reg, OperandType reg_type) const;
 
+  bool LastBytecodeInSameBlock() const;
   bool NeedToBooleanCast();
   bool IsRegisterInAccumulator(Register reg);
 
   // Temporary register management.
+  void ForgeTemporaryRegister();
   int BorrowTemporaryRegister();
   int BorrowTemporaryRegisterNotInRange(int start_index, int end_index);
   void ReturnTemporaryRegister(int reg_index);
@@ -329,6 +346,7 @@ class BytecodeArrayBuilder final {
   HandlerTableBuilder* handler_table_builder() {
     return &handler_table_builder_;
   }
+  RegisterTranslator* register_translator() { return &register_translator_; }
 
   Isolate* isolate_;
   Zone* zone_;
@@ -340,12 +358,12 @@ class BytecodeArrayBuilder final {
   size_t last_bytecode_start_;
   bool exit_seen_in_block_;
   int unbound_jumps_;
-
   int parameter_count_;
   int local_register_count_;
   int context_register_count_;
   int temporary_register_count_;
   ZoneSet<int> free_temporaries_;
+  RegisterTranslator register_translator_;
 
   DISALLOW_COPY_AND_ASSIGN(BytecodeArrayBuilder);
 };
