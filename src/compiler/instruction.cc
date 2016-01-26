@@ -819,6 +819,62 @@ void InstructionSequence::Print() const {
   Print(config);
 }
 
+void InstructionSequence::PrintBlock(const RegisterConfiguration* config,
+                                     int block_id) const {
+  OFStream os(stdout);
+  RpoNumber rpo = RpoNumber::FromInt(block_id);
+  const InstructionBlock* block = InstructionBlockAt(rpo);
+  CHECK(block->rpo_number() == rpo);
+
+  os << "B" << block->rpo_number();
+  os << ": AO#" << block->ao_number();
+  if (block->IsDeferred()) os << " (deferred)";
+  if (!block->needs_frame()) os << " (no frame)";
+  if (block->must_construct_frame()) os << " (construct frame)";
+  if (block->must_deconstruct_frame()) os << " (deconstruct frame)";
+  if (block->IsLoopHeader()) {
+    os << " loop blocks: [" << block->rpo_number() << ", " << block->loop_end()
+       << ")";
+  }
+  os << "  instructions: [" << block->code_start() << ", " << block->code_end()
+     << ")\n  predecessors:";
+
+  for (auto pred : block->predecessors()) {
+    os << " B" << pred.ToInt();
+  }
+  os << "\n";
+
+  for (auto phi : block->phis()) {
+    PrintableInstructionOperand printable_op = {config, phi->output()};
+    os << "     phi: " << printable_op << " =";
+    for (auto input : phi->operands()) {
+      os << " v" << input;
+    }
+    os << "\n";
+  }
+
+  ScopedVector<char> buf(32);
+  PrintableInstruction printable_instr;
+  printable_instr.register_configuration_ = config;
+  for (int j = block->first_instruction_index();
+       j <= block->last_instruction_index(); j++) {
+    // TODO(svenpanne) Add some basic formatting to our streams.
+    SNPrintF(buf, "%5d", j);
+    printable_instr.instr_ = InstructionAt(j);
+    os << "   " << buf.start() << ": " << printable_instr << "\n";
+  }
+
+  for (auto succ : block->successors()) {
+    os << " B" << succ.ToInt();
+  }
+  os << "\n";
+}
+
+void InstructionSequence::PrintBlock(int block_id) const {
+  const RegisterConfiguration* config =
+      RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN);
+  PrintBlock(config, block_id);
+}
 
 FrameStateDescriptor::FrameStateDescriptor(
     Zone* zone, FrameStateType type, BailoutId bailout_id,
@@ -901,53 +957,7 @@ std::ostream& operator<<(std::ostream& os,
     os << "CST#" << i << ": v" << it->first << " = " << it->second << "\n";
   }
   for (int i = 0; i < code.InstructionBlockCount(); i++) {
-    RpoNumber rpo = RpoNumber::FromInt(i);
-    const InstructionBlock* block = code.InstructionBlockAt(rpo);
-    CHECK(block->rpo_number() == rpo);
-
-    os << "B" << block->rpo_number();
-    os << ": AO#" << block->ao_number();
-    if (block->IsDeferred()) os << " (deferred)";
-    if (!block->needs_frame()) os << " (no frame)";
-    if (block->must_construct_frame()) os << " (construct frame)";
-    if (block->must_deconstruct_frame()) os << " (deconstruct frame)";
-    if (block->IsLoopHeader()) {
-      os << " loop blocks: [" << block->rpo_number() << ", "
-         << block->loop_end() << ")";
-    }
-    os << "  instructions: [" << block->code_start() << ", "
-       << block->code_end() << ")\n  predecessors:";
-
-    for (auto pred : block->predecessors()) {
-      os << " B" << pred.ToInt();
-    }
-    os << "\n";
-
-    for (auto phi : block->phis()) {
-      PrintableInstructionOperand printable_op = {
-          printable.register_configuration_, phi->output()};
-      os << "     phi: " << printable_op << " =";
-      for (auto input : phi->operands()) {
-        os << " v" << input;
-      }
-      os << "\n";
-    }
-
-    ScopedVector<char> buf(32);
-    PrintableInstruction printable_instr;
-    printable_instr.register_configuration_ = printable.register_configuration_;
-    for (int j = block->first_instruction_index();
-         j <= block->last_instruction_index(); j++) {
-      // TODO(svenpanne) Add some basic formatting to our streams.
-      SNPrintF(buf, "%5d", j);
-      printable_instr.instr_ = code.InstructionAt(j);
-      os << "   " << buf.start() << ": " << printable_instr << "\n";
-    }
-
-    for (auto succ : block->successors()) {
-      os << " B" << succ.ToInt();
-    }
-    os << "\n";
+    printable.sequence_->PrintBlock(printable.register_configuration_, i);
   }
   return os;
 }

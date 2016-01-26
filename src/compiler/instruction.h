@@ -1323,6 +1323,9 @@ class InstructionSequence final : public ZoneObject {
   void Print(const RegisterConfiguration* config) const;
   void Print() const;
 
+  void PrintBlock(const RegisterConfiguration* config, int block_id) const;
+  void PrintBlock(int block_id) const;
+
  private:
   friend std::ostream& operator<<(std::ostream& os,
                                   const PrintableInstructionSequence& code);
