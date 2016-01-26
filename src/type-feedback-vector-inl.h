@@ -80,17 +80,17 @@ FeedbackVectorSlotKind TypeFeedbackVector::GetKind(
   return metadata()->GetKind(slot);
 }
 
-// static
-int TypeFeedbackVector::GetIndex(FeedbackVectorSlot slot) {
+
+int TypeFeedbackVector::GetIndex(FeedbackVectorSlot slot) const {
+  DCHECK(slot.ToInt() < slot_count());
   return kReservedIndexCount + slot.ToInt();
 }
 
 
 // Conversion from an integer index to either a slot or an ic slot. The caller
 // should know what kind she expects.
-// static
-FeedbackVectorSlot TypeFeedbackVector::ToSlot(int index) {
-  DCHECK(index >= kReservedIndexCount);
+FeedbackVectorSlot TypeFeedbackVector::ToSlot(int index) const {
+  DCHECK(index >= kReservedIndexCount && index < length());
   return FeedbackVectorSlot(index - kReservedIndexCount);
 }
 

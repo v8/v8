@@ -763,9 +763,6 @@
   'throw-and-catch-function': [FAIL],
   'with-leave': [FAIL],
 
-  # TODO(mstarzinger,4674): Support exception handlers in BytecodeGraphBuilder.
-  'regress/regress-568765': [SKIP],
-
   'arguments-load-across-eval': [SKIP],
   'arguments-read-and-assignment': [SKIP],
   'array-constructor': [PASS, SLOW],

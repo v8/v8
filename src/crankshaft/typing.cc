@@ -14,6 +14,7 @@
 namespace v8 {
 namespace internal {
 
+
 AstTyper::AstTyper(Isolate* isolate, Zone* zone, Handle<JSFunction> closure,
                    Scope* scope, BailoutId osr_ast_id, FunctionLiteral* root)
     : isolate_(isolate),
@@ -23,7 +24,7 @@ AstTyper::AstTyper(Isolate* isolate, Zone* zone, Handle<JSFunction> closure,
       osr_ast_id_(osr_ast_id),
       root_(root),
       oracle_(isolate, zone, handle(closure->shared()->code()),
-              handle(closure->feedback_vector()),
+              handle(closure->shared()->feedback_vector()),
               handle(closure->context()->native_context())),
       store_(zone) {
   InitializeAstVisitor(isolate);

@@ -1819,8 +1819,8 @@ Reduction JSTypedLowering::ReduceJSCreateClosure(Node* node) {
   Handle<SharedFunctionInfo> shared = p.shared_info();
 
   // Use the FastNewClosureStub that allocates in new space only for nested
-  // functions that don't need pretenuring.
-  if (p.pretenure() == NOT_TENURED) {
+  // functions that don't need literals cloning.
+  if (p.pretenure() == NOT_TENURED && shared->num_literals() == 0) {
     Isolate* isolate = jsgraph()->isolate();
     Callable callable = CodeFactory::FastNewClosure(
         isolate, shared->language_mode(), shared->kind());

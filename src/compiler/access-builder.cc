@@ -321,15 +321,8 @@ FieldAccess AccessBuilder::ForPropertyCellValue(Type* type) {
 
 
 // static
-FieldAccess AccessBuilder::ForJSFunctionLiterals() {
-  FieldAccess access = {kTaggedBase, JSFunction::kLiteralsOffset,
-                        Handle<Name>(), Type::Any(), MachineType::AnyTagged()};
-  return access;
-}
-
-// static
-FieldAccess AccessBuilder::ForLiteralsTypeFeedbackVector() {
-  FieldAccess access = {kTaggedBase, LiteralsArray::kFeedbackVectorOffset,
+FieldAccess AccessBuilder::ForSharedFunctionInfoTypeFeedbackVector() {
+  FieldAccess access = {kTaggedBase, SharedFunctionInfo::kFeedbackVectorOffset,
                         Handle<Name>(), Type::Any(), MachineType::AnyTagged()};
   return access;
 }
