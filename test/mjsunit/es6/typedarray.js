@@ -529,6 +529,8 @@ function TestTypedArraySet() {
 
   assertThrows(function() { a.set(0); }, TypeError);
   assertThrows(function() { a.set(0, 1); }, TypeError);
+
+  assertEquals(1, a.set.length);
 }
 
 TestTypedArraySet();
@@ -693,6 +695,19 @@ function TestDataViewPropertyTypeChecks() {
   CheckProperty("buffer");
   CheckProperty("byteOffset");
   CheckProperty("byteLength");
+
+  function CheckGetSetLength(name) {
+    assertEquals(1, DataView.prototype["get" + name].length);
+    assertEquals(2, DataView.prototype["set" + name].length);
+  }
+  CheckGetSetLength("Int8");
+  CheckGetSetLength("Uint8");
+  CheckGetSetLength("Int16");
+  CheckGetSetLength("Uint16");
+  CheckGetSetLength("Int32");
+  CheckGetSetLength("Uint32");
+  CheckGetSetLength("Float32");
+  CheckGetSetLength("Float64");
 }
 
 

@@ -460,6 +460,7 @@ function TypedArraySet(obj, offset) {
       return;
   }
 }
+%FunctionSetLength(TypedArraySet, 1);
 
 function TypedArrayGetToStringTag() {
   if (!%_IsTypedArray(this)) return;
@@ -921,6 +922,7 @@ function DataViewGetTYPENAMEJS(offset, little_endian) {
   offset = ToPositiveInteger(offset, kInvalidDataViewAccessorOffset);
   return %DataViewGetTYPENAME(this, offset, !!little_endian);
 }
+%FunctionSetLength(DataViewGetTYPENAMEJS, 1);
 
 function DataViewSetTYPENAMEJS(offset, value, little_endian) {
   if (!IS_DATAVIEW(this)) {
@@ -931,6 +933,7 @@ function DataViewSetTYPENAMEJS(offset, value, little_endian) {
   offset = ToPositiveInteger(offset, kInvalidDataViewAccessorOffset);
   %DataViewSetTYPENAME(this, offset, TO_NUMBER(value), !!little_endian);
 }
+%FunctionSetLength(DataViewSetTYPENAMEJS, 2);
 endmacro
 
 DATA_VIEW_TYPES(DATA_VIEW_GETTER_SETTER)
