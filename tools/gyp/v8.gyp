@@ -799,6 +799,7 @@
         '../../src/handles.cc',
         '../../src/handles.h',
         '../../src/hashmap.h',
+        '../../src/heap-symbols.h',
         '../../src/heap/array-buffer-tracker.cc',
         '../../src/heap/array-buffer-tracker.h',
         '../../src/heap/memory-reducer.cc',
