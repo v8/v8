@@ -33,6 +33,14 @@ function g(x) {
   }
 }
 
+function h(x) {
+  var a = undefined;
+  try {
+    var x = a();
+  } catch (e) {
+  }
+}
+
 Debug.setListener(listener);
 
 assertCount(0, 0);
@@ -78,6 +86,14 @@ g(1);
 assertCount(8, 4);
 g(0);
 assertCount(8, 4);
+
+h(0);
+assertCount(8, 5);
+Debug.setBreakPoint(h, 3, 0, "x > 0");
+h(1);
+assertCount(9, 6);
+h(0);
+assertCount(9, 6);
 
 Debug.clearBreakOnException();
 Debug.setListener(null);

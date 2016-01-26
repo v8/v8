@@ -76,6 +76,10 @@ class BreakLocation {
   static void FromAddressSameStatement(Handle<DebugInfo> debug_info, Address pc,
                                        List<BreakLocation>* result_out);
 
+  static void AllForStatementPosition(Handle<DebugInfo> debug_info,
+                                      int statement_position,
+                                      List<BreakLocation>* result_out);
+
   static BreakLocation FromPosition(Handle<DebugInfo> debug_info, int position,
                                     BreakPositionAlignment alignment);
 

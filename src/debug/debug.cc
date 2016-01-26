@@ -168,6 +168,18 @@ void BreakLocation::FromAddressSameStatement(Handle<DebugInfo> debug_info,
 }
 
 
+// Find all break locations with the given statement position.
+void BreakLocation::AllForStatementPosition(Handle<DebugInfo> debug_info,
+                                            int statement_position,
+                                            List<BreakLocation>* result_out) {
+  for (Iterator it(debug_info, ALL_BREAK_LOCATIONS); !it.Done(); it.Next()) {
+    if (it.statement_position() == statement_position) {
+      result_out->Add(it.GetBreakLocation());
+    }
+  }
+}
+
+
 int BreakLocation::BreakIndexFromAddress(Handle<DebugInfo> debug_info,
                                          Address pc) {
   // Run through all break points to locate the one closest to the address.
@@ -536,11 +548,11 @@ Handle<Object> Debug::CheckBreakPoints(BreakLocation* location,
 
 
 bool Debug::IsMutedAtCurrentLocation(JavaScriptFrame* frame) {
-  // A break location is considered muted if the break location has break
-  // points, but their conditions all evaluate to false.
-  // Aside from not triggering a debug break event at the break location,
-  // we also do not trigger one for debugger statements, nor an exception event
-  // on exception at this location.
+  // A break location is considered muted if break locations on the current
+  // statement have at least one break point, and all of these break points
+  // evaluate to false. Aside from not triggering a debug break event at the
+  // break location, we also do not trigger one for debugger statements, nor
+  // an exception event on exception at this location.
   Object* fun = frame->function();
   if (!fun->IsJSFunction()) return false;
   JSFunction* function = JSFunction::cast(fun);
@@ -550,10 +562,19 @@ bool Debug::IsMutedAtCurrentLocation(JavaScriptFrame* frame) {
   // Enter the debugger.
   DebugScope debug_scope(this);
   if (debug_scope.failed()) return false;
-  BreakLocation location = BreakLocation::FromFrame(debug_info, frame);
-  bool has_break_points;
-  Handle<Object> check_result = CheckBreakPoints(&location, &has_break_points);
-  return has_break_points && check_result->IsUndefined();
+  BreakLocation current_position = BreakLocation::FromFrame(debug_info, frame);
+  List<BreakLocation> break_locations;
+  BreakLocation::AllForStatementPosition(
+      debug_info, current_position.statement_position(), &break_locations);
+  bool has_break_points_at_all = false;
+  for (int i = 0; i < break_locations.length(); i++) {
+    bool has_break_points;
+    Handle<Object> check_result =
+        CheckBreakPoints(&break_locations[i], &has_break_points);
+    has_break_points_at_all |= has_break_points;
+    if (has_break_points && !check_result->IsUndefined()) return false;
+  }
+  return has_break_points_at_all;
 }
 
 
