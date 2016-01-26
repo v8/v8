@@ -46,6 +46,15 @@ if (is_msan) {
   v8_target_arch = target_cpu
 }
 
+if (v8_use_snapshot && v8_use_external_startup_data) {
+  snapshot_target = ":v8_external_snapshot"
+} else if (v8_use_snapshot) {
+  snapshot_target = ":v8_snapshot"
+} else {
+  assert(!v8_use_external_startup_data)
+  snapshot_target = ":v8_nosnapshot"
+}
+
 ###############################################################################
 # Configurations
 #
@@ -1788,6 +1797,28 @@ source_set("v8_libplatform") {
   ]
 }
 
+source_set("fuzzer_support") {
+  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+
+  sources = [
+    "test/fuzzer/fuzzer-support.cc",
+    "test/fuzzer/fuzzer-support.h",
+  ]
+
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+  configs += [
+    ":internal_config_base",
+    ":features",
+    ":toolchain",
+  ]
+
+  deps = [
+    ":v8_libplatform",
+    snapshot_target,
+  ]
+}
+
 ###############################################################################
 # Executables
 #
@@ -1820,15 +1851,6 @@ if (current_toolchain == snapshot_toolchain) {
 ###############################################################################
 # Public targets
 #
-
-if (v8_use_snapshot && v8_use_external_startup_data) {
-  snapshot_target = ":v8_external_snapshot"
-} else if (v8_use_snapshot) {
-  snapshot_target = ":v8_snapshot"
-} else {
-  assert(!v8_use_external_startup_data)
-  snapshot_target = ":v8_nosnapshot"
-}
 
 if (is_component_build) {
   component("v8") {
@@ -1910,4 +1932,22 @@ if ((current_toolchain == host_toolchain && v8_toolset_for_d8 == "host") ||
       deps += [ "//third_party/icu" ]
     }
   }
+}
+
+source_set("parser_fuzzer") {
+  sources = [
+    "test/fuzzer/parser.cc",
+  ]
+
+  deps = [
+    ":fuzzer_support",
+  ]
+
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+  configs += [
+    ":internal_config",
+    ":features",
+    ":toolchain",
+  ]
 }
