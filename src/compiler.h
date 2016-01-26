@@ -621,6 +621,10 @@ class Compiler : public AllStatic {
   static Handle<SharedFunctionInfo> GetSharedFunctionInfo(
       FunctionLiteral* node, Handle<Script> script, CompilationInfo* outer);
 
+  // Create a shared function info object for a native function literal.
+  static Handle<SharedFunctionInfo> GetSharedFunctionInfoForNative(
+      v8::Extension* extension, Handle<String> name);
+
   enum ConcurrencyMode { NOT_CONCURRENT, CONCURRENT };
 
   // Generate and return optimized code or start a concurrent optimization job.

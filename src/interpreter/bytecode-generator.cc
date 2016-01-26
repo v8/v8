@@ -1213,7 +1213,11 @@ void BytecodeGenerator::VisitClassLiteral(ClassLiteral* expr) {
 
 void BytecodeGenerator::VisitNativeFunctionLiteral(
     NativeFunctionLiteral* expr) {
-  UNIMPLEMENTED();
+  // Find or build a shared function info for the native function template.
+  Handle<SharedFunctionInfo> shared_info =
+      Compiler::GetSharedFunctionInfoForNative(expr->extension(), expr->name());
+  builder()->CreateClosure(shared_info, NOT_TENURED);
+  execution_result()->SetResultInAccumulator();
 }
 
 

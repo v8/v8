@@ -1348,35 +1348,8 @@ void FullCodeGenerator::VisitClassLiteral(ClassLiteral* lit) {
 void FullCodeGenerator::VisitNativeFunctionLiteral(
     NativeFunctionLiteral* expr) {
   Comment cmnt(masm_, "[ NativeFunctionLiteral");
-
-  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate());
-
-  // Compute the function template for the native function.
-  Handle<String> name = expr->name();
-  v8::Local<v8::FunctionTemplate> fun_template =
-      expr->extension()->GetNativeFunctionTemplate(v8_isolate,
-                                                   v8::Utils::ToLocal(name));
-  DCHECK(!fun_template.IsEmpty());
-
-  // Instantiate the function and create a shared function info from it.
-  Handle<JSFunction> fun = Handle<JSFunction>::cast(Utils::OpenHandle(
-      *fun_template->GetFunction(v8_isolate->GetCurrentContext())
-           .ToLocalChecked()));
-  const int literals = fun->NumberOfLiterals();
-  Handle<Code> code = Handle<Code>(fun->shared()->code());
-  Handle<Code> construct_stub = Handle<Code>(fun->shared()->construct_stub());
   Handle<SharedFunctionInfo> shared =
-      isolate()->factory()->NewSharedFunctionInfo(
-          name, literals, FunctionKind::kNormalFunction, code,
-          Handle<ScopeInfo>(fun->shared()->scope_info()),
-          Handle<TypeFeedbackVector>(fun->shared()->feedback_vector()));
-  shared->set_construct_stub(*construct_stub);
-
-  // Copy the function data to the shared function info.
-  shared->set_function_data(fun->shared()->function_data());
-  int parameters = fun->shared()->internal_formal_parameter_count();
-  shared->set_internal_formal_parameter_count(parameters);
-
+      Compiler::GetSharedFunctionInfoForNative(expr->extension(), expr->name());
   EmitNewClosure(shared, false);
 }
 
