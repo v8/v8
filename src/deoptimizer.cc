@@ -1211,14 +1211,15 @@ void Deoptimizer::DoComputeInterpretedFrame(int frame_index) {
   value_iterator++;
 
   Builtins* builtins = isolate_->builtins();
-  Code* trampoline = builtins->builtin(Builtins::kInterpreterEntryTrampoline);
-  output_frame->SetPc(reinterpret_cast<intptr_t>(trampoline->entry()));
+  Code* dispatch_builtin =
+      builtins->builtin(Builtins::kInterpreterEnterBytecodeDispatch);
+  output_frame->SetPc(reinterpret_cast<intptr_t>(dispatch_builtin->entry()));
   output_frame->SetState(0);
 
   // Update constant pool.
   if (FLAG_enable_embedded_constant_pool) {
     intptr_t constant_pool_value =
-        reinterpret_cast<intptr_t>(trampoline->constant_pool());
+        reinterpret_cast<intptr_t>(dispatch_builtin->constant_pool());
     output_frame->SetConstantPool(constant_pool_value);
     if (is_topmost) {
       Register constant_pool_reg =

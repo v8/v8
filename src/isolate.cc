@@ -1129,7 +1129,7 @@ Object* Isolate::UnwindAndFindHandler() {
         offset = 0;
 
         // Gather information from the frame.
-        code = *builtins()->InterpreterEnterExceptionHandler();
+        code = *builtins()->InterpreterEnterBytecodeDispatch();
         handler_sp = frame->sp();
         handler_fp = frame->fp();
         break;

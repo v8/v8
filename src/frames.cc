@@ -446,7 +446,8 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
             return ARGUMENTS_ADAPTOR;
           } else {
             // The interpreter entry trampoline has a non-SMI marker.
-            DCHECK(code_obj->is_interpreter_entry_trampoline());
+            DCHECK(code_obj->is_interpreter_entry_trampoline() ||
+                   code_obj->is_interpreter_enter_bytecode_dispatch());
             return INTERPRETED;
           }
         }

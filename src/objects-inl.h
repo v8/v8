@@ -4901,6 +4901,13 @@ inline bool Code::is_interpreter_entry_trampoline() {
   return interpreter_entry.location() != nullptr && *interpreter_entry == this;
 }
 
+inline bool Code::is_interpreter_enter_bytecode_dispatch() {
+  Handle<Code> interpreter_handler =
+      GetIsolate()->builtins()->InterpreterEnterBytecodeDispatch();
+  return interpreter_handler.location() != nullptr &&
+         *interpreter_handler == this;
+}
+
 inline void Code::set_is_crankshafted(bool value) {
   int previous = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
   int updated = IsCrankshaftedField::update(previous, value);

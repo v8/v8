@@ -209,7 +209,7 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(InterpreterNotifyDeoptimized, BUILTIN, UNINITIALIZED, kNoExtraICState)     \
   V(InterpreterNotifySoftDeoptimized, BUILTIN, UNINITIALIZED, kNoExtraICState) \
   V(InterpreterNotifyLazyDeoptimized, BUILTIN, UNINITIALIZED, kNoExtraICState) \
-  V(InterpreterEnterExceptionHandler, BUILTIN, UNINITIALIZED, kNoExtraICState) \
+  V(InterpreterEnterBytecodeDispatch, BUILTIN, UNINITIALIZED, kNoExtraICState) \
                                                                                \
   V(LoadIC_Miss, BUILTIN, UNINITIALIZED, kNoExtraICState)                      \
   V(KeyedLoadIC_Miss, BUILTIN, UNINITIALIZED, kNoExtraICState)                 \
@@ -565,7 +565,7 @@ class Builtins {
   static void Generate_InterpreterNotifyDeoptimized(MacroAssembler* masm);
   static void Generate_InterpreterNotifySoftDeoptimized(MacroAssembler* masm);
   static void Generate_InterpreterNotifyLazyDeoptimized(MacroAssembler* masm);
-  static void Generate_InterpreterEnterExceptionHandler(MacroAssembler* masm);
+  static void Generate_InterpreterEnterBytecodeDispatch(MacroAssembler* masm);
 
 #define DECLARE_CODE_AGE_BUILTIN_GENERATOR(C)                \
   static void Generate_Make##C##CodeYoungAgainEvenMarking(   \

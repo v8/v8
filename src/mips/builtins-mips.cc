@@ -1136,8 +1136,7 @@ void Builtins::Generate_InterpreterNotifyLazyDeoptimized(MacroAssembler* masm) {
   Generate_InterpreterNotifyDeoptimizedHelper(masm, Deoptimizer::LAZY);
 }
 
-
-void Builtins::Generate_InterpreterEnterExceptionHandler(MacroAssembler* masm) {
+void Builtins::Generate_InterpreterEnterBytecodeDispatch(MacroAssembler* masm) {
   // Set the address of the interpreter entry trampoline as a return address.
   // This simulates the initial call to bytecode handlers in interpreter entry
   // trampoline. The return will never actually be taken, but our stack walker
