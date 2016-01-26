@@ -37,9 +37,10 @@ struct TickSample {
         external_callback(NULL),
         frames_count(0),
         has_external_callback(false),
+        update_stats(true),
         top_frame_type(StackFrame::NONE) {}
   void Init(Isolate* isolate, const v8::RegisterState& state,
-            RecordCEntryFrame record_c_entry_frame);
+            RecordCEntryFrame record_c_entry_frame, bool update_stats);
   static void GetStackSample(Isolate* isolate, const v8::RegisterState& state,
                              RecordCEntryFrame record_c_entry_frame,
                              void** frames, size_t frames_limit,
@@ -56,6 +57,7 @@ struct TickSample {
   base::TimeTicks timestamp;
   unsigned frames_count : kMaxFramesCountLog2;  // Number of captured frames.
   bool has_external_callback : 1;
+  bool update_stats : 1;  // Whether the sample should update aggregated stats.
   StackFrame::Type top_frame_type : 4;
 };
 

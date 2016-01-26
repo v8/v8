@@ -1603,11 +1603,52 @@ TEST(JsNative1JsNative2JsSample) {
   profile->Delete();
 }
 
+static const char* js_force_collect_sample_source =
+    "function start() {\n"
+    "  CallCollectSample();\n"
+    "}";
+
+static void CallCollectSample(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  info.GetIsolate()->GetCpuProfiler()->CollectSample();
+}
+
+TEST(CollectSampleAPI) {
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Context::Scope context_scope(env);
+
+  v8::Local<v8::FunctionTemplate> func_template =
+      v8::FunctionTemplate::New(env->GetIsolate(), CallCollectSample);
+  v8::Local<v8::Function> func =
+      func_template->GetFunction(env).ToLocalChecked();
+  func->SetName(v8_str("CallCollectSample"));
+  env->Global()->Set(env, v8_str("CallCollectSample"), func).FromJust();
+
+  CompileRun(js_force_collect_sample_source);
+  v8::Local<v8::Function> function = GetFunction(env, "start");
+
+  v8::CpuProfile* profile = RunProfiler(env, function, NULL, 0, 0);
+
+  const v8::CpuProfileNode* root = profile->GetTopDownRoot();
+  {
+    ScopedVector<v8::Local<v8::String> > names(3);
+    names[0] = v8_str(ProfileGenerator::kGarbageCollectorEntryName);
+    names[1] = v8_str(ProfileGenerator::kProgramEntryName);
+    names[2] = v8_str("start");
+    CheckChildrenNames(env, root, names);
+  }
+
+  const v8::CpuProfileNode* startNode = GetChild(env, root, "start");
+  CHECK_LE(1, startNode->GetChildrenCount());
+  GetChild(env, startNode, "CallCollectSample");
+
+  profile->Delete();
+}
 
 // [Top down]:
-//     6     0   (root) #0 1
-//     3     3    (program) #0 2
-//     3     3    (idle) #0 3
+//     0   (root) #0 1
+//     2    (program) #0 2
+//     3    (idle) #0 3
 TEST(IdleTime) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -1618,17 +1659,16 @@ TEST(IdleTime) {
 
   i::Isolate* isolate = CcTest::i_isolate();
   i::ProfilerEventsProcessor* processor = isolate->cpu_profiler()->processor();
-  processor->AddCurrentStack(isolate);
+  processor->AddCurrentStack(isolate, true);
 
   cpu_profiler->SetIdle(true);
 
   for (int i = 0; i < 3; i++) {
-    processor->AddCurrentStack(isolate);
+    processor->AddCurrentStack(isolate, true);
   }
 
   cpu_profiler->SetIdle(false);
-  processor->AddCurrentStack(isolate);
-
+  processor->AddCurrentStack(isolate, true);
 
   v8::CpuProfile* profile = cpu_profiler->StopProfiling(profile_name);
   CHECK(profile);
@@ -1645,7 +1685,7 @@ TEST(IdleTime) {
   const v8::CpuProfileNode* programNode =
       GetChild(env.local(), root, ProfileGenerator::kProgramEntryName);
   CHECK_EQ(0, programNode->GetChildrenCount());
-  CHECK_GE(programNode->GetHitCount(), 3u);
+  CHECK_GE(programNode->GetHitCount(), 2u);
 
   const v8::CpuProfileNode* idleNode =
       GetChild(env.local(), root, ProfileGenerator::kIdleEntryName);

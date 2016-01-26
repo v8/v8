@@ -8049,6 +8049,9 @@ void CpuProfiler::SetSamplingInterval(int us) {
       base::TimeDelta::FromMicroseconds(us));
 }
 
+void CpuProfiler::CollectSample() {
+  reinterpret_cast<i::CpuProfiler*>(this)->CollectSample();
+}
 
 void CpuProfiler::StartProfiling(Local<String> title, bool record_samples) {
   reinterpret_cast<i::CpuProfiler*>(this)->StartProfiling(
