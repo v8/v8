@@ -2529,7 +2529,8 @@ void CallICStub::Generate(MacroAssembler* masm) {
 
   __ bind(&call_function);
   __ mov(r0, Operand(argc));
-  __ Jump(masm->isolate()->builtins()->CallFunction(convert_mode()),
+  __ Jump(masm->isolate()->builtins()->CallFunction(convert_mode(),
+                                                    tail_call_mode()),
           RelocInfo::CODE_TARGET);
 
   __ bind(&extra_checks_or_miss);
@@ -2568,7 +2569,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
 
   __ bind(&call);
   __ mov(r0, Operand(argc));
-  __ Jump(masm->isolate()->builtins()->Call(convert_mode()),
+  __ Jump(masm->isolate()->builtins()->Call(convert_mode(), tail_call_mode()),
           RelocInfo::CODE_TARGET);
 
   __ bind(&uninitialized);

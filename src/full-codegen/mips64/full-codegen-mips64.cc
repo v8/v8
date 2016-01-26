@@ -2868,7 +2868,9 @@ void FullCodeGenerator::EmitCall(Call* expr, ConvertReceiverMode mode) {
   PrepareForBailoutForId(expr->CallId(), NO_REGISTERS);
   // Record source position of the IC call.
   SetCallPosition(expr);
-  Handle<Code> ic = CodeFactory::CallIC(isolate(), arg_count, mode).code();
+  Handle<Code> ic =
+      CodeFactory::CallIC(isolate(), arg_count, mode, expr->tail_call_mode())
+          .code();
   __ li(a3, Operand(SmiFromSlot(expr->CallFeedbackICSlot())));
   __ ld(a1, MemOperand(sp, (arg_count + 1) * kPointerSize));
   // Don't assign a type feedback id to the IC, since type feedback is provided

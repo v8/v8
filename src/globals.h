@@ -754,6 +754,21 @@ inline std::ostream& operator<<(std::ostream& os, ConvertReceiverMode mode) {
   return os;
 }
 
+// Defines whether tail call optimization is allowed.
+enum class TailCallMode : unsigned { kAllow, kDisallow };
+
+inline size_t hash_value(TailCallMode mode) { return bit_cast<unsigned>(mode); }
+
+inline std::ostream& operator<<(std::ostream& os, TailCallMode mode) {
+  switch (mode) {
+    case TailCallMode::kAllow:
+      return os << "ALLOW_TAIL_CALLS";
+    case TailCallMode::kDisallow:
+      return os << "DISALLOW_TAIL_CALLS";
+  }
+  UNREACHABLE();
+  return os;
+}
 
 // Used to specify if a macro instruction must perform a smi check on tagged
 // values.

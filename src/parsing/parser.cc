@@ -2807,7 +2807,10 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
           is_object_conditional, pos);
     }
 
-    return_value->MarkTail();
+    // ES6 14.6.1 Static Semantics: IsInTailPosition
+    if (FLAG_harmony_tailcalls && !is_sloppy(language_mode())) {
+      return_value->MarkTail();
+    }
   }
   ExpectSemicolon(CHECK_OK);
 

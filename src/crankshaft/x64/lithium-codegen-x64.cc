@@ -3734,31 +3734,36 @@ void LCodeGen::DoInvokeFunction(LInvokeFunction* instr) {
 
 
 void LCodeGen::DoCallFunction(LCallFunction* instr) {
+  HCallFunction* hinstr = instr->hydrogen();
   DCHECK(ToRegister(instr->context()).is(rsi));
   DCHECK(ToRegister(instr->function()).is(rdi));
   DCHECK(ToRegister(instr->result()).is(rax));
 
   int arity = instr->arity();
-  ConvertReceiverMode mode = instr->hydrogen()->convert_mode();
-  if (instr->hydrogen()->HasVectorAndSlot()) {
+
+  ConvertReceiverMode mode = hinstr->convert_mode();
+  TailCallMode tail_call_mode = hinstr->tail_call_mode();
+  if (hinstr->HasVectorAndSlot()) {
     Register slot_register = ToRegister(instr->temp_slot());
     Register vector_register = ToRegister(instr->temp_vector());
     DCHECK(slot_register.is(rdx));
     DCHECK(vector_register.is(rbx));
 
     AllowDeferredHandleDereference vector_structure_check;
-    Handle<TypeFeedbackVector> vector = instr->hydrogen()->feedback_vector();
-    int index = vector->GetIndex(instr->hydrogen()->slot());
+    Handle<TypeFeedbackVector> vector = hinstr->feedback_vector();
+    int index = vector->GetIndex(hinstr->slot());
 
     __ Move(vector_register, vector);
     __ Move(slot_register, Smi::FromInt(index));
 
-    Handle<Code> ic =
-        CodeFactory::CallICInOptimizedCode(isolate(), arity, mode).code();
+    Handle<Code> ic = CodeFactory::CallICInOptimizedCode(isolate(), arity, mode,
+                                                         tail_call_mode)
+                          .code();
     CallCode(ic, RelocInfo::CODE_TARGET, instr);
   } else {
     __ Set(rax, arity);
-    CallCode(isolate()->builtins()->Call(mode), RelocInfo::CODE_TARGET, instr);
+    CallCode(isolate()->builtins()->Call(mode, tail_call_mode),
+             RelocInfo::CODE_TARGET, instr);
   }
 }
 

@@ -1197,6 +1197,7 @@ void BytecodeGraphBuilder::BuildCall(
   size_t arg_count = iterator.GetCountOperand(2);
   VectorSlotPair feedback = CreateVectorSlotPair(iterator.GetIndexOperand(3));
 
+  // TODO(ishell): provide correct tail_call_mode value to CallFunction.
   const Operator* call = javascript()->CallFunction(
       arg_count + 2, language_mode(), feedback, receiver_hint);
   Node* value = ProcessCallArguments(call, callee, receiver, arg_count + 2);

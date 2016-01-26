@@ -1952,10 +1952,123 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
   }
 }
 
+namespace {
+
+// Drops top JavaScript frame and an arguments adaptor frame below it (if
+// present) preserving all the arguments prepared for current call.
+// Does nothing if debugger is currently active.
+// ES6 14.6.3. PrepareForTailCall
+//
+// Stack structure for the function g() tail calling f():
+//
+// ------- Caller frame: -------
+// |  ...
+// |  g()'s arg M
+// |  ...
+// |  g()'s arg 1
+// |  g()'s receiver arg
+// |  g()'s caller pc
+// ------- g()'s frame: -------
+// |  g()'s caller fp      <- fp
+// |  g()'s context
+// |  function pointer: g
+// |  -------------------------
+// |  ...
+// |  ...
+// |  f()'s arg N
+// |  ...
+// |  f()'s arg 1
+// |  f()'s receiver arg   <- sp (f()'s caller pc is not on the stack yet!)
+// ----------------------
+//
+void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
+                        Register scratch1, Register scratch2,
+                        Register scratch3) {
+  DCHECK(!AreAliased(args_reg, scratch1, scratch2, scratch3));
+  Comment cmnt(masm, "[ PrepareForTailCall");
+
+  // Prepare for tail call only if the debugger is not active.
+  Label done;
+  ExternalReference debug_is_active =
+      ExternalReference::debug_is_active_address(masm->isolate());
+  __ li(at, Operand(debug_is_active));
+  __ lb(scratch1, MemOperand(at));
+  __ Branch(&done, ne, scratch1, Operand(zero_reg));
+
+  // Check if next frame is an arguments adaptor frame.
+  Label no_arguments_adaptor, formal_parameter_count_loaded;
+  __ ld(scratch2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+  __ ld(scratch3, MemOperand(scratch2, StandardFrameConstants::kContextOffset));
+  __ Branch(&no_arguments_adaptor, ne, scratch3,
+            Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+
+  // Drop arguments adaptor frame and load arguments count.
+  __ mov(fp, scratch2);
+  __ ld(scratch1,
+        MemOperand(fp, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ SmiUntag(scratch1);
+  __ Branch(&formal_parameter_count_loaded);
+
+  __ bind(&no_arguments_adaptor);
+  // Load caller's formal parameter count
+  __ ld(scratch1, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+  __ ld(scratch1,
+        FieldMemOperand(scratch1, JSFunction::kSharedFunctionInfoOffset));
+  __ lw(scratch1,
+        FieldMemOperand(scratch1,
+                        SharedFunctionInfo::kFormalParameterCountOffset));
+
+  __ bind(&formal_parameter_count_loaded);
+
+  // Calculate the end of destination area where we will put the arguments
+  // after we drop current frame. We add kPointerSize to count the receiver
+  // argument which is not included into formal parameters count.
+  Register dst_reg = scratch2;
+  __ Dlsa(dst_reg, fp, scratch1, kPointerSizeLog2);
+  __ Daddu(dst_reg, dst_reg,
+           Operand(StandardFrameConstants::kCallerSPOffset + kPointerSize));
+
+  Register src_reg = scratch1;
+  __ Dlsa(src_reg, sp, args_reg, kPointerSizeLog2);
+  // Count receiver argument as well (not included in args_reg).
+  __ Daddu(src_reg, src_reg, Operand(kPointerSize));
+
+  if (FLAG_debug_code) {
+    __ Check(lo, kStackAccessBelowStackPointer, src_reg, Operand(dst_reg));
+  }
+
+  // Restore caller's frame pointer and return address now as they will be
+  // overwritten by the copying loop.
+  __ ld(ra, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
+  __ ld(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+
+  // Now copy callee arguments to the caller frame going backwards to avoid
+  // callee arguments corruption (source and destination areas could overlap).
+
+  // Both src_reg and dst_reg are pointing to the word after the one to copy,
+  // so they must be pre-decremented in the loop.
+  Register tmp_reg = scratch3;
+  Label loop, entry;
+  __ Branch(&entry);
+  __ bind(&loop);
+  __ Dsubu(src_reg, src_reg, Operand(kPointerSize));
+  __ Dsubu(dst_reg, dst_reg, Operand(kPointerSize));
+  __ ld(tmp_reg, MemOperand(src_reg));
+  __ sd(tmp_reg, MemOperand(dst_reg));
+  __ bind(&entry);
+  __ Branch(&loop, ne, sp, Operand(src_reg));
+
+  // Leave current frame.
+  __ mov(sp, dst_reg);
+
+  __ bind(&done);
+}
+}  // namespace
 
 // static
 void Builtins::Generate_CallFunction(MacroAssembler* masm,
-                                     ConvertReceiverMode mode) {
+                                     ConvertReceiverMode mode,
+                                     TailCallMode tail_call_mode) {
   // ----------- S t a t e -------------
   //  -- a0 : the number of arguments (not including the receiver)
   //  -- a1 : the function to call (checked to be a JSFunction)
@@ -2043,6 +2156,10 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   //  -- cp : the function context.
   // -----------------------------------
 
+  if (tail_call_mode == TailCallMode::kAllow) {
+    PrepareForTailCall(masm, a0, t0, t1, t2);
+  }
+
   __ lw(a2,
         FieldMemOperand(a2, SharedFunctionInfo::kFormalParameterCountOffset));
   ParameterCount actual(a0);
@@ -2061,12 +2178,17 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
 
 
 // static
-void Builtins::Generate_CallBoundFunction(MacroAssembler* masm) {
+void Builtins::Generate_CallBoundFunctionImpl(MacroAssembler* masm,
+                                              TailCallMode tail_call_mode) {
   // ----------- S t a t e -------------
   //  -- a0 : the number of arguments (not including the receiver)
   //  -- a1 : the function to call (checked to be a JSBoundFunction)
   // -----------------------------------
   __ AssertBoundFunction(a1);
+
+  if (tail_call_mode == TailCallMode::kAllow) {
+    PrepareForTailCall(masm, a0, t0, t1, t2);
+  }
 
   // Patch the receiver to [[BoundThis]].
   {
@@ -2151,7 +2273,8 @@ void Builtins::Generate_CallBoundFunction(MacroAssembler* masm) {
 
 
 // static
-void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
+void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode,
+                             TailCallMode tail_call_mode) {
   // ----------- S t a t e -------------
   //  -- a0 : the number of arguments (not including the receiver)
   //  -- a1 : the target to call (can be any Object).
@@ -2161,11 +2284,16 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   __ JumpIfSmi(a1, &non_callable);
   __ bind(&non_smi);
   __ GetObjectType(a1, t1, t2);
-  __ Jump(masm->isolate()->builtins()->CallFunction(mode),
+  __ Jump(masm->isolate()->builtins()->CallFunction(mode, tail_call_mode),
           RelocInfo::CODE_TARGET, eq, t2, Operand(JS_FUNCTION_TYPE));
-  __ Jump(masm->isolate()->builtins()->CallBoundFunction(),
+  __ Jump(masm->isolate()->builtins()->CallBoundFunction(tail_call_mode),
           RelocInfo::CODE_TARGET, eq, t2, Operand(JS_BOUND_FUNCTION_TYPE));
   __ Branch(&non_function, ne, t2, Operand(JS_PROXY_TYPE));
+
+  // 0. Prepare for tail call if necessary.
+  if (tail_call_mode == TailCallMode::kAllow) {
+    PrepareForTailCall(masm, a0, t0, t1, t2);
+  }
 
   // 1. Runtime fallback for Proxy [[Call]].
   __ Push(a1);
@@ -2189,7 +2317,7 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   // Let the "call_as_function_delegate" take care of the rest.
   __ LoadNativeContextSlot(Context::CALL_AS_FUNCTION_DELEGATE_INDEX, a1);
   __ Jump(masm->isolate()->builtins()->CallFunction(
-              ConvertReceiverMode::kNotNullOrUndefined),
+              ConvertReceiverMode::kNotNullOrUndefined, tail_call_mode),
           RelocInfo::CODE_TARGET);
 
   // 3. Call to something that is not callable.

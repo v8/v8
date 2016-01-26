@@ -2747,7 +2747,8 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ sd(t0, FieldMemOperand(a3, FixedArray::kHeaderSize + kPointerSize));
 
   __ bind(&call_function);
-  __ Jump(masm->isolate()->builtins()->CallFunction(convert_mode()),
+  __ Jump(masm->isolate()->builtins()->CallFunction(convert_mode(),
+                                                    tail_call_mode()),
           RelocInfo::CODE_TARGET, al, zero_reg, Operand(zero_reg),
           USE_DELAY_SLOT);
   __ li(a0, Operand(argc));  // In delay slot.
@@ -2787,7 +2788,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ sd(at, FieldMemOperand(a4, FixedArray::kHeaderSize));
 
   __ bind(&call);
-  __ Jump(masm->isolate()->builtins()->Call(convert_mode()),
+  __ Jump(masm->isolate()->builtins()->Call(convert_mode(), tail_call_mode()),
           RelocInfo::CODE_TARGET, al, zero_reg, Operand(zero_reg),
           USE_DELAY_SLOT);
   __ li(a0, Operand(argc));  // In delay slot.

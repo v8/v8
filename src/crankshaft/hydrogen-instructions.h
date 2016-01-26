@@ -2395,13 +2395,19 @@ class HInvokeFunction final : public HBinaryCall {
 
 class HCallFunction final : public HBinaryCall {
  public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P3(HCallFunction, HValue*, int,
-                                              ConvertReceiverMode);
+  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P4(HCallFunction, HValue*, int,
+                                              ConvertReceiverMode,
+                                              TailCallMode);
 
   HValue* context() const { return first(); }
   HValue* function() const { return second(); }
 
-  ConvertReceiverMode convert_mode() const { return convert_mode_; }
+  ConvertReceiverMode convert_mode() const {
+    return ConvertReceiverModeField::decode(bit_field_);
+  }
+  TailCallMode tail_call_mode() const {
+    return TailCallModeField::decode(bit_field_);
+  }
   FeedbackVectorSlot slot() const { return slot_; }
   Handle<TypeFeedbackVector> feedback_vector() const {
     return feedback_vector_;
@@ -2421,12 +2427,19 @@ class HCallFunction final : public HBinaryCall {
 
  private:
   HCallFunction(HValue* context, HValue* function, int argument_count,
-                ConvertReceiverMode convert_mode)
+                ConvertReceiverMode convert_mode, TailCallMode tail_call_mode)
       : HBinaryCall(context, function, argument_count),
-        convert_mode_(convert_mode) {}
+        bit_field_(ConvertReceiverModeField::encode(convert_mode) |
+                   TailCallModeField::encode(tail_call_mode)) {}
   Handle<TypeFeedbackVector> feedback_vector_;
   FeedbackVectorSlot slot_;
-  ConvertReceiverMode convert_mode_;
+
+  class ConvertReceiverModeField : public BitField<ConvertReceiverMode, 0, 2> {
+  };
+  class TailCallModeField
+      : public BitField<TailCallMode, ConvertReceiverModeField::kNext, 1> {};
+
+  uint32_t bit_field_;
 };
 
 

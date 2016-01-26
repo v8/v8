@@ -1425,7 +1425,9 @@ void FullCodeGenerator::VisitCall(Call* expr) {
   expr->return_is_recorded_ = false;
 #endif
 
-  Comment cmnt(masm_, "[ Call");
+  Comment cmnt(masm_, (expr->tail_call_mode() == TailCallMode::kAllow)
+                          ? "[ TailCall"
+                          : "[ Call");
   Expression* callee = expr->expression();
   Call::CallType call_type = expr->GetCallType(isolate());
 

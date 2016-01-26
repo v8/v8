@@ -59,18 +59,20 @@ Callable CodeFactory::KeyedLoadICInOptimizedCode(
 
 // static
 Callable CodeFactory::CallIC(Isolate* isolate, int argc,
-                             ConvertReceiverMode mode) {
-  return Callable(CallIC::initialize_stub(isolate, argc, mode),
+                             ConvertReceiverMode mode,
+                             TailCallMode tail_call_mode) {
+  return Callable(CallIC::initialize_stub(isolate, argc, mode, tail_call_mode),
                   CallFunctionWithFeedbackDescriptor(isolate));
 }
 
 
 // static
 Callable CodeFactory::CallICInOptimizedCode(Isolate* isolate, int argc,
-                                            ConvertReceiverMode mode) {
-  return Callable(
-      CallIC::initialize_stub_in_optimized_code(isolate, argc, mode),
-      CallFunctionWithFeedbackAndVectorDescriptor(isolate));
+                                            ConvertReceiverMode mode,
+                                            TailCallMode tail_call_mode) {
+  return Callable(CallIC::initialize_stub_in_optimized_code(isolate, argc, mode,
+                                                            tail_call_mode),
+                  CallFunctionWithFeedbackAndVectorDescriptor(isolate));
 }
 
 

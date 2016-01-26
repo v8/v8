@@ -206,6 +206,7 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
   V(harmony_simd, "harmony simd")                             \
   V(harmony_do_expressions, "harmony do-expressions")         \
   V(harmony_regexp_subclass, "harmony regexp subclassing")    \
+  V(harmony_tailcalls, "harmony tail calls")                  \
   V(harmony_species, "harmony Symbol.species")                \
   V(harmony_object_values_entries, "harmony Object.values / Object.entries")
 

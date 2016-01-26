@@ -1995,7 +1995,10 @@ class Call final : public Expression {
     bit_field_ = IsUninitializedField::update(bit_field_, b);
   }
 
-  bool is_tail() const { return IsTailField::decode(bit_field_); }
+  TailCallMode tail_call_mode() const {
+    return IsTailField::decode(bit_field_) ? TailCallMode::kAllow
+                                           : TailCallMode::kDisallow;
+  }
   void MarkTail() override {
     bit_field_ = IsTailField::update(bit_field_, true);
   }

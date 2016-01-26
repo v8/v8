@@ -5072,7 +5072,7 @@ void MacroAssembler::CopyBytes(Register destination,
     incp(source);
     incp(destination);
     decl(length);
-    j(not_zero, &short_loop);
+    j(not_zero, &short_loop, Label::kNear);
   }
 
   bind(&done);
@@ -5083,13 +5083,13 @@ void MacroAssembler::InitializeFieldsWithFiller(Register current_address,
                                                 Register end_address,
                                                 Register filler) {
   Label loop, entry;
-  jmp(&entry);
+  jmp(&entry, Label::kNear);
   bind(&loop);
   movp(Operand(current_address, 0), filler);
   addp(current_address, Immediate(kPointerSize));
   bind(&entry);
   cmpp(current_address, end_address);
-  j(below, &loop);
+  j(below, &loop, Label::kNear);
 }
 
 

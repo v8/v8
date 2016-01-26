@@ -52,23 +52,6 @@ ToBooleanHints ToBooleanHintsOf(Operator const* op) {
 }
 
 
-size_t hash_value(TailCallMode mode) {
-  return base::hash_value(static_cast<unsigned>(mode));
-}
-
-
-std::ostream& operator<<(std::ostream& os, TailCallMode mode) {
-  switch (mode) {
-    case TailCallMode::kAllow:
-      return os << "ALLOW_TAIL_CALLS";
-    case TailCallMode::kDisallow:
-      return os << "DISALLOW_TAIL_CALLS";
-  }
-  UNREACHABLE();
-  return os;
-}
-
-
 bool operator==(BinaryOperationParameters const& lhs,
                 BinaryOperationParameters const& rhs) {
   return lhs.language_mode() == rhs.language_mode() &&

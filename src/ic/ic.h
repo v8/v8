@@ -284,9 +284,11 @@ class CallIC : public IC {
 
   // Code generator routines.
   static Handle<Code> initialize_stub(Isolate* isolate, int argc,
-                                      ConvertReceiverMode mode);
+                                      ConvertReceiverMode mode,
+                                      TailCallMode tail_call_mode);
   static Handle<Code> initialize_stub_in_optimized_code(
-      Isolate* isolate, int argc, ConvertReceiverMode mode);
+      Isolate* isolate, int argc, ConvertReceiverMode mode,
+      TailCallMode tail_call_mode);
 
   static void Clear(Isolate* isolate, Code* host, CallICNexus* nexus);
 };

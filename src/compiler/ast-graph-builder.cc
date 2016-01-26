@@ -2477,8 +2477,9 @@ void AstGraphBuilder::VisitCall(Call* expr) {
 
   // Create node to perform the function call.
   VectorSlotPair feedback = CreateVectorSlotPair(expr->CallFeedbackICSlot());
-  const Operator* call = javascript()->CallFunction(
-      args->length() + 2, language_mode(), feedback, receiver_hint);
+  const Operator* call =
+      javascript()->CallFunction(args->length() + 2, language_mode(), feedback,
+                                 receiver_hint, expr->tail_call_mode());
   FrameStateBeforeAndAfter states(this, expr->CallId());
   Node* value = ProcessArguments(call, args->length() + 2);
   environment()->Push(value->InputAt(0));  // The callee passed to the call.

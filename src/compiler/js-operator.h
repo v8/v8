@@ -51,14 +51,6 @@ ConvertReceiverMode ConvertReceiverModeOf(Operator const* op);
 ToBooleanHints ToBooleanHintsOf(Operator const* op);
 
 
-// Defines whether tail call optimization is allowed.
-enum class TailCallMode : unsigned { kAllow, kDisallow };
-
-size_t hash_value(TailCallMode);
-
-std::ostream& operator<<(std::ostream&, TailCallMode);
-
-
 // Defines the language mode and hints for a JavaScript binary operations.
 // This is used as parameter by JSAdd, JSSubtract, etc. operators.
 class BinaryOperationParameters final {

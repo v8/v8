@@ -2318,7 +2318,7 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_do_expressions)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexp_lookbehind)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_function_name)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(promise_extra)
-
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_tailcalls)
 
 void InstallPublicSymbol(Factory* factory, Handle<Context> native_context,
                          const char* name, Handle<Symbol> value) {
@@ -2934,6 +2934,7 @@ bool Genesis::InstallExperimentalNatives() {
   static const char* harmony_sloppy_let_natives[] = {nullptr};
   static const char* harmony_species_natives[] = {"native harmony-species.js",
                                                   nullptr};
+  static const char* harmony_tailcalls_natives[] = {nullptr};
   static const char* harmony_unicode_regexps_natives[] = {
       "native harmony-unicode-regexps.js", nullptr};
   static const char* harmony_default_parameters_natives[] = {nullptr};
