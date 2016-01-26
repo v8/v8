@@ -195,17 +195,11 @@
   'language/expressions/assignment/S11.13.1_A6*': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=3699
-  'built-ins/Proxy/revocable/revocation-function-name': [FAIL],
   'language/expressions/assignment/destructuring/array-elem-init-fn-name-arrow': [FAIL],
   'language/expressions/assignment/destructuring/array-elem-init-fn-name-class': [FAIL],
   'language/expressions/assignment/destructuring/array-elem-init-fn-name-cover': [FAIL],
   'language/expressions/assignment/destructuring/array-elem-init-fn-name-fn': [FAIL],
   'language/expressions/assignment/destructuring/array-elem-init-fn-name-gen': [FAIL],
-  'language/expressions/assignment/destructuring/obj-id-init-fn-name-arrow': [FAIL],
-  'language/expressions/assignment/destructuring/obj-id-init-fn-name-class': [FAIL],
-  'language/expressions/assignment/destructuring/obj-id-init-fn-name-cover': [FAIL],
-  'language/expressions/assignment/destructuring/obj-id-init-fn-name-fn': [FAIL],
-  'language/expressions/assignment/destructuring/obj-id-init-fn-name-gen': [FAIL],
   'language/expressions/assignment/destructuring/obj-prop-elem-init-fn-name-arrow': [FAIL],
   'language/expressions/assignment/destructuring/obj-prop-elem-init-fn-name-class': [FAIL],
   'language/expressions/assignment/destructuring/obj-prop-elem-init-fn-name-cover': [FAIL],
@@ -216,13 +210,7 @@
   'language/expressions/assignment/fn-name-cover': [FAIL],
   'language/expressions/assignment/fn-name-fn': [FAIL],
   'language/expressions/assignment/fn-name-gen': [FAIL],
-  'language/expressions/assignment/fn-name-lhs-cover': [FAIL],
-  'language/expressions/assignment/fn-name-lhs-member': [FAIL],
-  'language/expressions/class/name': [FAIL],
-  'language/expressions/function/name': [FAIL],
   'language/expressions/generators/implicit-name': [FAIL],
-  'language/expressions/generators/name': [FAIL],
-  'language/expressions/generators/name-property-descriptor': [FAIL],
   'language/expressions/object/fn-name-accessor-get': [FAIL],
   'language/expressions/object/fn-name-accessor-set': [FAIL],
   'language/expressions/object/fn-name-arrow': [FAIL],
@@ -230,8 +218,6 @@
   'language/expressions/object/fn-name-cover': [FAIL],
   'language/expressions/object/fn-name-fn': [FAIL],
   'language/expressions/object/fn-name-gen': [FAIL],
-  'language/expressions/object/fn-name-lhs-cover': [FAIL],
-  'language/expressions/object/fn-name-lhs-member': [FAIL],
   'language/expressions/object/method-definition/fn-name-accessor-get': [FAIL],
   'language/expressions/object/method-definition/fn-name-accessor-set': [FAIL],
   'language/expressions/object/method-definition/fn-name-arrow': [FAIL],
@@ -260,6 +246,25 @@
   'language/statements/variable/fn-name-fn': [FAIL],
   'language/statements/variable/fn-name-gen': [FAIL],
 
+  # https://code.google.com/p/v8/issues/detail?id=3761
+  'language/expressions/object/method-definition/generator-name-prop-symbol': [FAIL],
+  'language/expressions/object/method-definition/name-name-prop-symbol': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4709
+  'built-ins/Proxy/revocable/revocation-function-name': [FAIL],
+  'language/expressions/assignment/fn-name-lhs-cover': [FAIL],
+  'language/expressions/assignment/fn-name-lhs-member': [FAIL],
+  'language/expressions/class/name': [FAIL],
+  'language/expressions/function/name': [FAIL],
+  'language/expressions/generators/name': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4710
+  'language/expressions/assignment/destructuring/obj-id-init-fn-name-arrow': [FAIL],
+  'language/expressions/assignment/destructuring/obj-id-init-fn-name-class': [FAIL],
+  'language/expressions/assignment/destructuring/obj-id-init-fn-name-cover': [FAIL],
+  'language/expressions/assignment/destructuring/obj-id-init-fn-name-fn': [FAIL],
+  'language/expressions/assignment/destructuring/obj-id-init-fn-name-gen': [FAIL],
+
   # https://code.google.com/p/v8/issues/detail?id=4251
   'language/expressions/postfix-increment/S11.3.1_A5_T1': [FAIL],
   'language/expressions/postfix-increment/S11.3.1_A5_T2': [FAIL],
@@ -272,10 +277,6 @@
 
   # https://code.google.com/p/v8/issues/detail?id=4253
   'language/asi/S7.9_A5.7_T1': [PASS, FAIL_OK],
-
-  # https://code.google.com/p/v8/issues/detail?id=3761
-  'language/expressions/object/method-definition/generator-name-prop-symbol': [FAIL],
-  'language/expressions/object/method-definition/name-name-prop-symbol': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=2952
   'built-ins/RegExp/prototype/exec/u-lastindex-adv': [FAIL],
