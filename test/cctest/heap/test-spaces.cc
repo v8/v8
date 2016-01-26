@@ -744,50 +744,6 @@ TEST(SizeOfFirstPageIsLargeEnough) {
   CHECK(isolate->heap()->lo_space()->IsEmpty());
 }
 
-
-UNINITIALIZED_TEST(NewSpaceGrowsToTargetCapacity) {
-  FLAG_target_semi_space_size = 2 * (Page::kPageSize / MB);
-  if (FLAG_optimize_for_size) return;
-
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  v8::Isolate* isolate = v8::Isolate::New(create_params);
-  {
-    v8::Isolate::Scope isolate_scope(isolate);
-    v8::HandleScope handle_scope(isolate);
-    v8::Context::New(isolate)->Enter();
-
-    Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
-
-    NewSpace* new_space = i_isolate->heap()->new_space();
-
-    // This test doesn't work if we start with a non-default new space
-    // configuration.
-    if (new_space->InitialTotalCapacity() == Page::kPageSize) {
-      CHECK_EQ(new_space->CommittedMemory(), new_space->InitialTotalCapacity());
-
-      // Fill up the first (and only) page of the semi space.
-      FillCurrentPage(new_space);
-
-      // Try to allocate out of the new space. A new page should be added and
-      // the
-      // allocation should succeed.
-      v8::internal::AllocationResult allocation =
-          new_space->AllocateRawUnaligned(80);
-      CHECK(!allocation.IsRetry());
-      CHECK_EQ(new_space->CommittedMemory(), 2 * Page::kPageSize);
-
-      // Turn the allocation into a proper object so isolate teardown won't
-      // crash.
-      HeapObject* free_space = NULL;
-      CHECK(allocation.To(&free_space));
-      new_space->heap()->CreateFillerObjectAt(free_space->address(), 80);
-    }
-  }
-  isolate->Dispose();
-}
-
-
 static HeapObject* AllocateUnaligned(NewSpace* space, int size) {
   AllocationResult allocation = space->AllocateRawUnaligned(size);
   CHECK(!allocation.IsRetry());

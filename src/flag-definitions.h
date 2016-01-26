@@ -628,8 +628,6 @@ DEFINE_BOOL(always_inline_smi_code, false,
 DEFINE_INT(min_semi_space_size, 0,
            "min size of a semi-space (in MBytes), the new space consists of two"
            "semi-spaces")
-DEFINE_INT(target_semi_space_size, 0,
-           "target size of a semi-space (in MBytes) before triggering a GC")
 DEFINE_INT(max_semi_space_size, 0,
            "max size of a semi-space (in MBytes), the new space consists of two"
            "semi-spaces")
