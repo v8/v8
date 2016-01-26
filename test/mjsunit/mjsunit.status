@@ -984,6 +984,7 @@
   'regress/regress-319722-ArrayBuffer': [SKIP],
   'regress/regress-347914': [SKIP],
   'regress/regress-411210': [SKIP],
+  'regress/regress-568765': [SKIP],
   'regress/regress-91008': [SKIP],
   'regress/regress-crbug-347903': [SKIP],
   'regress/regress-crbug-474297': [SKIP],
