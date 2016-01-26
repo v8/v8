@@ -1361,11 +1361,9 @@ void BytecodeGraphBuilder::VisitThrow(
     const interpreter::BytecodeArrayIterator& iterator) {
   FrameStateBeforeAndAfter states(this, iterator);
   Node* value = environment()->LookupAccumulator();
-  // TODO(mythria): Change to Runtime::kThrow when we have deoptimization
-  // information support in the interpreter.
-  NewNode(javascript()->CallRuntime(Runtime::kReThrow), value);
+  Node* call = NewNode(javascript()->CallRuntime(Runtime::kThrow), value);
+  environment()->RecordAfterState(call, &states);
   Node* control = NewNode(common()->Throw(), value);
-  environment()->RecordAfterState(control, &states);
   UpdateControlDependencyToLeaveFunction(control);
 }
 
@@ -1374,9 +1372,9 @@ void BytecodeGraphBuilder::VisitReThrow(
     const interpreter::BytecodeArrayIterator& iterator) {
   FrameStateBeforeAndAfter states(this, iterator);
   Node* value = environment()->LookupAccumulator();
-  NewNode(javascript()->CallRuntime(Runtime::kReThrow), value);
+  Node* call = NewNode(javascript()->CallRuntime(Runtime::kReThrow), value);
+  environment()->RecordAfterState(call, &states);
   Node* control = NewNode(common()->Throw(), value);
-  environment()->RecordAfterState(control, &states);
   UpdateControlDependencyToLeaveFunction(control);
 }
 
