@@ -82,7 +82,7 @@ def MakeProcessContext(context):
 
 def GetCommand(test, context):
   d8testflag = []
-  shell = test.suite.shell()
+  shell = test.shell()
   if shell == "d8":
     d8testflag = ["--test"]
   if utils.IsWindows():

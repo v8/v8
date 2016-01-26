@@ -11,6 +11,7 @@
         '../samples/samples.gyp:*',
         '../src/d8.gyp:d8',
         '../test/cctest/cctest.gyp:*',
+        '../test/fuzzer/fuzzer.gyp:*',
         '../test/unittests/unittests.gyp:*',
       ],
       'conditions': [
