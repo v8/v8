@@ -5656,8 +5656,9 @@ TEST(Regress388880) {
   Handle<Map> map1 = Map::Create(isolate, 1);
   Handle<Map> map2 =
       Map::CopyWithField(map1, factory->NewStringFromStaticChars("foo"),
-                         HeapType::Any(isolate), NONE, Representation::Tagged(),
-                         OMIT_TRANSITION).ToHandleChecked();
+                         FieldType::Any(isolate), NONE,
+                         Representation::Tagged(), OMIT_TRANSITION)
+          .ToHandleChecked();
 
   int desired_offset = Page::kPageSize - map1->instance_size();
 

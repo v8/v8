@@ -277,8 +277,7 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
           // Extract the field type from the property details (make sure its
           // representation is TaggedPointer to reflect the heap object case).
           field_type = Type::Intersect(
-              Type::Convert<HeapType>(
-                  handle(descriptors->GetFieldType(number), isolate()), zone()),
+              descriptors->GetFieldType(number)->Convert(zone()),
               Type::TaggedPointer(), zone());
           if (field_type->Is(Type::None())) {
             // Store is not safe if the field type was cleared.
@@ -454,10 +453,7 @@ bool AccessInfoFactory::LookupTransition(Handle<Map> map, Handle<Name> name,
       // Extract the field type from the property details (make sure its
       // representation is TaggedPointer to reflect the heap object case).
       field_type = Type::Intersect(
-          Type::Convert<HeapType>(
-              handle(
-                  transition_map->instance_descriptors()->GetFieldType(number),
-                  isolate()),
+          transition_map->instance_descriptors()->GetFieldType(number)->Convert(
               zone()),
           Type::TaggedPointer(), zone());
       if (field_type->Is(Type::None())) {

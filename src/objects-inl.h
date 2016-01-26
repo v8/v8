@@ -2973,15 +2973,14 @@ int DescriptorArray::GetFieldIndex(int descriptor_number) {
   return GetDetails(descriptor_number).field_index();
 }
 
-
-HeapType* DescriptorArray::GetFieldType(int descriptor_number) {
+FieldType* DescriptorArray::GetFieldType(int descriptor_number) {
   DCHECK(GetDetails(descriptor_number).location() == kField);
   Object* value = GetValue(descriptor_number);
   if (value->IsWeakCell()) {
-    if (WeakCell::cast(value)->cleared()) return HeapType::None();
+    if (WeakCell::cast(value)->cleared()) return FieldType::None();
     value = WeakCell::cast(value)->value();
   }
-  return HeapType::cast(value);
+  return FieldType::cast(value);
 }
 
 

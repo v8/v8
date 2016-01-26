@@ -265,8 +265,8 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
                              Register value_reg, Register scratch,
                              Label* miss_label);
 
-  bool RequiresFieldTypeChecks(HeapType* field_type) const;
-  void GenerateFieldTypeChecks(HeapType* field_type, Register value_reg,
+  bool RequiresFieldTypeChecks(FieldType* field_type) const;
+  void GenerateFieldTypeChecks(FieldType* field_type, Register value_reg,
                                Label* miss_label);
 
   static Builtins::Name SlowBuiltin(Code::Kind kind) {

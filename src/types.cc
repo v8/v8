@@ -1210,62 +1210,6 @@ void TypeImpl<Config>::Iterator<T>::Advance() {
 
 
 // -----------------------------------------------------------------------------
-// Conversion between low-level representations.
-
-template<class Config>
-template<class OtherType>
-typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Convert(
-    typename OtherType::TypeHandle type, Region* region) {
-  if (type->IsBitset()) {
-    return BitsetType::New(type->AsBitset(), region);
-  } else if (type->IsClass()) {
-    return ClassType::New(type->AsClass()->Map(), region);
-  } else if (type->IsConstant()) {
-    return ConstantType::New(type->AsConstant()->Value(), region);
-  } else if (type->IsRange()) {
-    return RangeType::New(
-        type->AsRange()->Min(), type->AsRange()->Max(),
-        BitsetType::New(REPRESENTATION(type->BitsetLub()), region), region);
-  } else if (type->IsContext()) {
-    TypeHandle outer = Convert<OtherType>(type->AsContext()->Outer(), region);
-    return ContextType::New(outer, region);
-  } else if (type->IsUnion()) {
-    int length = type->AsUnion()->Length();
-    UnionHandle unioned = UnionType::New(length, region);
-    for (int i = 0; i < length; ++i) {
-      TypeHandle t = Convert<OtherType>(type->AsUnion()->Get(i), region);
-      unioned->Set(i, t);
-    }
-    return unioned;
-  } else if (type->IsArray()) {
-    TypeHandle element = Convert<OtherType>(type->AsArray()->Element(), region);
-    return ArrayType::New(element, region);
-  } else if (type->IsFunction()) {
-    TypeHandle res = Convert<OtherType>(type->AsFunction()->Result(), region);
-    TypeHandle rcv = Convert<OtherType>(type->AsFunction()->Receiver(), region);
-    FunctionHandle function = FunctionType::New(
-        res, rcv, type->AsFunction()->Arity(), region);
-    for (int i = 0; i < function->Arity(); ++i) {
-      TypeHandle param = Convert<OtherType>(
-          type->AsFunction()->Parameter(i), region);
-      function->InitParameter(i, param);
-    }
-    return function;
-  } else if (type->IsTuple()) {
-    TupleHandle tuple = TupleType::New(type->AsTuple()->Arity(), region);
-    for (int i = 0; i < tuple->Arity(); ++i) {
-      tuple->InitElement(
-          i, Convert<OtherType>(type->AsTuple()->Element(i), region));
-    }
-    return tuple;
-  } else {
-    UNREACHABLE();
-    return None(region);
-  }
-}
-
-
-// -----------------------------------------------------------------------------
 // Printing.
 
 template<class Config>
@@ -1409,6 +1353,97 @@ void TypeImpl<Config>::BitsetType::Print(bitset bits) {
 }
 #endif
 
+// static
+FieldType* FieldType::None() {
+  return reinterpret_cast<FieldType*>(Smi::FromInt(0));
+}
+
+// static
+FieldType* FieldType::Any() {
+  return reinterpret_cast<FieldType*>(Smi::FromInt(1));
+}
+
+// static
+Handle<FieldType> FieldType::None(Isolate* isolate) {
+  return handle(None(), isolate);
+}
+
+// static
+Handle<FieldType> FieldType::Any(Isolate* isolate) {
+  return handle(Any(), isolate);
+}
+
+// static
+FieldType* FieldType::Class(i::Map* map) { return FieldType::cast(map); }
+
+// static
+Handle<FieldType> FieldType::Class(i::Handle<i::Map> map, Isolate* isolate) {
+  return handle(Class(*map), isolate);
+}
+
+// static
+FieldType* FieldType::cast(Object* object) {
+  DCHECK(object == None() || object == Any() || object->IsMap());
+  return reinterpret_cast<FieldType*>(object);
+}
+
+bool FieldType::NowContains(Object* value) {
+  if (this == Any()) return true;
+  if (this == None()) return false;
+  if (!value->IsHeapObject()) return false;
+  return HeapObject::cast(value)->map() == Map::cast(this);
+}
+
+bool FieldType::NowContains(Handle<Object> value) {
+  return NowContains(*value);
+}
+
+bool FieldType::IsClass() { return this->IsMap(); }
+
+Handle<i::Map> FieldType::AsClass() {
+  DCHECK(IsClass());
+  i::Map* map = Map::cast(this);
+  return handle(map, map->GetIsolate());
+}
+
+bool FieldType::NowStable() {
+  return !this->IsClass() || this->AsClass()->is_stable();
+}
+
+bool FieldType::NowIs(FieldType* other) {
+  if (other->IsAny()) return true;
+  if (IsNone()) return true;
+  if (other->IsNone()) return false;
+  if (IsAny()) return false;
+  DCHECK(IsClass());
+  DCHECK(other->IsClass());
+  return this == other;
+}
+
+bool FieldType::NowIs(Handle<FieldType> other) { return NowIs(*other); }
+
+Type* FieldType::Convert(Zone* zone) {
+  if (IsAny()) return Type::Any();
+  if (IsNone()) return Type::None();
+  DCHECK(IsClass());
+  return Type::Class(AsClass(), zone);
+}
+
+FieldType::Iterator FieldType::Classes() {
+  if (IsClass()) return Iterator(this->AsClass());
+  return Iterator();
+}
+
+void FieldType::PrintTo(std::ostream& os) {
+  if (IsAny()) {
+    os << "Any";
+  } else if (IsNone()) {
+    os << "None";
+  } else {
+    DCHECK(IsClass());
+    os << "Class(" << static_cast<void*>(*AsClass()) << ")";
+  }
+}
 
 // -----------------------------------------------------------------------------
 // Instantiations.
@@ -1416,17 +1451,6 @@ void TypeImpl<Config>::BitsetType::Print(bitset bits) {
 template class TypeImpl<ZoneTypeConfig>;
 template class TypeImpl<ZoneTypeConfig>::Iterator<i::Map>;
 template class TypeImpl<ZoneTypeConfig>::Iterator<i::Object>;
-
-template class TypeImpl<HeapTypeConfig>;
-template class TypeImpl<HeapTypeConfig>::Iterator<i::Map>;
-template class TypeImpl<HeapTypeConfig>::Iterator<i::Object>;
-
-template TypeImpl<ZoneTypeConfig>::TypeHandle
-  TypeImpl<ZoneTypeConfig>::Convert<HeapType>(
-    TypeImpl<HeapTypeConfig>::TypeHandle, TypeImpl<ZoneTypeConfig>::Region*);
-template TypeImpl<HeapTypeConfig>::TypeHandle
-  TypeImpl<HeapTypeConfig>::Convert<Type>(
-    TypeImpl<ZoneTypeConfig>::TypeHandle, TypeImpl<HeapTypeConfig>::Region*);
 
 }  // namespace internal
 }  // namespace v8

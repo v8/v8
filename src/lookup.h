@@ -243,7 +243,7 @@ class LookupIterator final BASE_EMBEDDED {
     return property_details().representation();
   }
   FieldIndex GetFieldIndex() const;
-  Handle<HeapType> GetFieldType() const;
+  Handle<FieldType> GetFieldType() const;
   int GetAccessorIndex() const;
   int GetConstantIndex() const;
   Handle<PropertyCell> GetPropertyCell() const;

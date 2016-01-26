@@ -947,7 +947,7 @@ TEST(DescriptorArrayTrimming) {
   const int kSplitFieldIndex = 32;
   const int kTrimmedLayoutDescriptorLength = 64;
 
-  Handle<HeapType> any_type = HeapType::Any(isolate);
+  Handle<FieldType> any_type = FieldType::Any(isolate);
   Handle<Map> map = Map::Create(isolate, kFieldCount);
   for (int i = 0; i < kSplitFieldIndex; i++) {
     map = Map::CopyWithField(map, MakeName("prop", i), any_type, NONE,
@@ -1035,7 +1035,7 @@ TEST(DoScavenge) {
   // a pointer to "from space" pointer. Do scavenge one more time and ensure
   // that it didn't crash or corrupt the double value stored in the object.
 
-  Handle<HeapType> any_type = HeapType::Any(isolate);
+  Handle<FieldType> any_type = FieldType::Any(isolate);
   Handle<Map> map = Map::Create(isolate, 10);
   map = Map::CopyWithField(map, MakeName("prop", 0), any_type, NONE,
                            Representation::Double(),
@@ -1097,7 +1097,7 @@ TEST(DoScavengeWithIncrementalWriteBarrier) {
   // scavenges to promote |obj| to old space, a GC in old space and ensure that
   // the tagged value was properly updated after candidates evacuation.
 
-  Handle<HeapType> any_type = HeapType::Any(isolate);
+  Handle<FieldType> any_type = FieldType::Any(isolate);
   Handle<Map> map = Map::Create(isolate, 10);
   map = Map::CopyWithField(map, MakeName("prop", 0), any_type, NONE,
                            Representation::Double(),
@@ -1321,7 +1321,7 @@ TEST(LayoutDescriptorSharing) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
-  Handle<HeapType> any_type = HeapType::Any(isolate);
+  Handle<FieldType> any_type = FieldType::Any(isolate);
 
   Handle<Map> split_map;
   {
@@ -1369,7 +1369,7 @@ TEST(StoreBufferScanOnScavenge) {
   Factory* factory = isolate->factory();
   v8::HandleScope scope(CcTest::isolate());
 
-  Handle<HeapType> any_type = HeapType::Any(isolate);
+  Handle<FieldType> any_type = FieldType::Any(isolate);
   Handle<Map> map = Map::Create(isolate, 10);
   map = Map::CopyWithField(map, MakeName("prop", 0), any_type, NONE,
                            Representation::Double(),
@@ -1580,7 +1580,7 @@ static void TestWriteBarrierObjectShiftFieldsRight(
   Isolate* isolate = CcTest::i_isolate();
   v8::HandleScope scope(CcTest::isolate());
 
-  Handle<HeapType> any_type = HeapType::Any(isolate);
+  Handle<FieldType> any_type = FieldType::Any(isolate);
 
   CompileRun("function func() { return 1; }");
 

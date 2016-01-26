@@ -6360,14 +6360,14 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::LoadFieldMaps(
   field_type_ = HType::Tagged();
 
   // Figure out the field type from the accessor map.
-  Handle<HeapType> field_type = GetFieldTypeFromMap(map);
+  Handle<FieldType> field_type = GetFieldTypeFromMap(map);
 
   // Collect the (stable) maps from the field type.
-  int num_field_maps = field_type->NumClasses();
+  int num_field_maps = field_type->ClassCount();
   if (num_field_maps > 0) {
     DCHECK(access_.representation().IsHeapObject());
     field_maps_.Reserve(num_field_maps, zone());
-    HeapType::Iterator<Map> it = field_type->Classes();
+    FieldType::Iterator it = field_type->Classes();
     while (!it.Done()) {
       Handle<Map> field_map = it.Current();
       if (!field_map->is_stable()) {
@@ -6381,14 +6381,14 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::LoadFieldMaps(
 
   if (field_maps_.is_empty()) {
     // Store is not safe if the field map was cleared.
-    return IsLoad() || !field_type->Is(HeapType::None());
+    return IsLoad() || !field_type->IsNone();
   }
 
   field_maps_.Sort();
   DCHECK_EQ(num_field_maps, field_maps_.length());
 
-  // Determine field HType from field HeapType.
-  field_type_ = HType::FromType<HeapType>(field_type);
+  // Determine field HType from field type.
+  field_type_ = HType::FromFieldType(field_type, zone());
   DCHECK(field_type_.IsHeapObject());
 
   // Add dependency on the map that introduced the field.

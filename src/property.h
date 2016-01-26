@@ -76,7 +76,7 @@ class DataDescriptor final : public Descriptor {
  public:
   DataDescriptor(Handle<Name> key, int field_index,
                  PropertyAttributes attributes, Representation representation)
-      : Descriptor(key, HeapType::Any(key->GetIsolate()), attributes, DATA,
+      : Descriptor(key, FieldType::Any(key->GetIsolate()), attributes, DATA,
                    representation, field_index) {}
   // The field type is either a simple type or a map wrapped in a weak cell.
   DataDescriptor(Handle<Name> key, int field_index,

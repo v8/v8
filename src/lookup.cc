@@ -476,8 +476,7 @@ FieldIndex LookupIterator::GetFieldIndex() const {
   return FieldIndex::ForPropertyIndex(*holder_map_, index, is_double);
 }
 
-
-Handle<HeapType> LookupIterator::GetFieldType() const {
+Handle<FieldType> LookupIterator::GetFieldType() const {
   DCHECK(has_property_);
   DCHECK(!holder_map_->is_dictionary_map());
   DCHECK_EQ(v8::internal::DATA, property_details_.type());

@@ -509,9 +509,8 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
   return GetCode(kind(), Code::FAST, name);
 }
 
-
 bool NamedStoreHandlerCompiler::RequiresFieldTypeChecks(
-    HeapType* field_type) const {
+    FieldType* field_type) const {
   return !field_type->Classes().Done();
 }
 
@@ -520,7 +519,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreField(LookupIterator* it) {
   Label miss;
   DCHECK(it->representation().IsHeapObject());
 
-  HeapType* field_type = *it->GetFieldType();
+  FieldType* field_type = *it->GetFieldType();
   bool need_save_restore = false;
   if (RequiresFieldTypeChecks(field_type)) {
     need_save_restore = IC::ICUseVector(kind());

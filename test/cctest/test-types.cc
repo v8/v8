@@ -62,36 +62,6 @@ struct ZoneRep {
 };
 
 
-struct HeapRep {
-  typedef FixedArray Struct;
-
-  static bool IsStruct(Handle<HeapType> t, int tag) {
-    return t->IsFixedArray() && Smi::cast(AsStruct(t)->get(0))->value() == tag;
-  }
-  static bool IsBitset(Handle<HeapType> t) { return t->IsSmi(); }
-  // HACK: the number 5 below is the value of StructuralType::kUnionTag.
-  static bool IsUnion(Handle<HeapType> t) { return t->IsUnionForTesting(); }
-
-  static Struct* AsStruct(Handle<HeapType> t) { return FixedArray::cast(*t); }
-  static bitset AsBitset(Handle<HeapType> t) {
-    return static_cast<bitset>(reinterpret_cast<uintptr_t>(*t));
-  }
-  static Struct* AsUnion(Handle<HeapType> t) { return AsStruct(t); }
-  static int Length(Struct* structured) { return structured->length() - 1; }
-
-  static Isolate* ToRegion(Zone* zone, Isolate* isolate) { return isolate; }
-
-  struct BitsetType : HeapType::BitsetType {
-    using HeapType::BitsetType::New;
-    using HeapType::BitsetType::Glb;
-    using HeapType::BitsetType::Lub;
-    using HeapType::BitsetType::IsInhabited;
-    static bitset Glb(Handle<HeapType> type) { return Glb(*type); }
-    static bitset Lub(Handle<HeapType> type) { return Lub(*type); }
-  };
-};
-
-
 template<class Type, class TypeHandle, class Region, class Rep>
 struct Tests : Rep {
   typedef Types<Type, TypeHandle, Region> TypesInstance;
@@ -1953,8 +1923,8 @@ struct Tests : Rep {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
         TypeHandle type1 = *it1;
         TypeHandle type2 = *it2;
-        HType htype1 = HType::FromType<Type>(type1);
-        HType htype2 = HType::FromType<Type>(type2);
+        HType htype1 = HType::FromType(type1);
+        HType htype2 = HType::FromType(type2);
         CHECK(!type1->Is(type2) || htype1.IsSubtypeOf(htype2));
       }
     }
@@ -1962,174 +1932,84 @@ struct Tests : Rep {
 };
 
 typedef Tests<Type, Type*, Zone, ZoneRep> ZoneTests;
-typedef Tests<HeapType, Handle<HeapType>, Isolate, HeapRep> HeapTests;
 
 
 TEST(IsSomeType_zone) { ZoneTests().IsSomeType(); }
 
 
-TEST(IsSomeType_heap) { HeapTests().IsSomeType(); }
-
-
 TEST(PointwiseRepresentation_zone) { ZoneTests().PointwiseRepresentation(); }
-
-
-TEST(PointwiseRepresentation_heap) { HeapTests().PointwiseRepresentation(); }
 
 
 TEST(BitsetType_zone) { ZoneTests().Bitset(); }
 
 
-TEST(BitsetType_heap) { HeapTests().Bitset(); }
-
-
 TEST(ClassType_zone) { ZoneTests().Class(); }
-
-
-TEST(ClassType_heap) { HeapTests().Class(); }
 
 
 TEST(ConstantType_zone) { ZoneTests().Constant(); }
 
 
-TEST(ConstantType_heap) { HeapTests().Constant(); }
-
-
 TEST(RangeType_zone) { ZoneTests().Range(); }
-
-
-TEST(RangeType_heap) { HeapTests().Range(); }
 
 
 TEST(ArrayType_zone) { ZoneTests().Array(); }
 
 
-TEST(ArrayType_heap) { HeapTests().Array(); }
-
-
 TEST(FunctionType_zone) { ZoneTests().Function(); }
-
-
-TEST(FunctionType_heap) { HeapTests().Function(); }
 
 
 TEST(Of_zone) { ZoneTests().Of(); }
 
 
-TEST(Of_heap) { HeapTests().Of(); }
-
-
 TEST(NowOf_zone) { ZoneTests().NowOf(); }
-
-
-TEST(NowOf_heap) { HeapTests().NowOf(); }
 
 
 TEST(MinMax_zone) { ZoneTests().MinMax(); }
 
 
-TEST(MinMax_heap) { HeapTests().MinMax(); }
-
-
 TEST(BitsetGlb_zone) { ZoneTests().BitsetGlb(); }
-
-
-TEST(BitsetGlb_heap) { HeapTests().BitsetGlb(); }
 
 
 TEST(BitsetLub_zone) { ZoneTests().BitsetLub(); }
 
 
-TEST(BitsetLub_heap) { HeapTests().BitsetLub(); }
-
-
 TEST(Is1_zone) { ZoneTests().Is1(); }
-
-
-TEST(Is1_heap) { HeapTests().Is1(); }
 
 
 TEST(Is2_zone) { ZoneTests().Is2(); }
 
 
-TEST(Is2_heap) { HeapTests().Is2(); }
-
-
 TEST(NowIs_zone) { ZoneTests().NowIs(); }
-
-
-TEST(NowIs_heap) { HeapTests().NowIs(); }
 
 
 TEST(Contains_zone) { ZoneTests().Contains(); }
 
 
-TEST(Contains_heap) { HeapTests().Contains(); }
-
-
 TEST(NowContains_zone) { ZoneTests().NowContains(); }
-
-
-TEST(NowContains_heap) { HeapTests().NowContains(); }
 
 
 TEST(Maybe_zone) { ZoneTests().Maybe(); }
 
 
-TEST(Maybe_heap) { HeapTests().Maybe(); }
-
-
 TEST(Union1_zone) { ZoneTests().Union1(); }
-
-
-TEST(Union1_heap) { HeapTests().Union1(); }
 
 
 TEST(Union2_zone) { ZoneTests().Union2(); }
 
 
-TEST(Union2_heap) { HeapTests().Union2(); }
-
-
 TEST(Union3_zone) { ZoneTests().Union3(); }
-
-
-TEST(Union3_heap) { HeapTests().Union3(); }
 
 
 TEST(Union4_zone) { ZoneTests().Union4(); }
 
 
-TEST(Union4_heap) { HeapTests().Union4(); }
-
-
 TEST(Intersect_zone) { ZoneTests().Intersect(); }
-
-
-TEST(Intersect_heap) { HeapTests().Intersect(); }
 
 
 TEST(Distributivity_zone) { ZoneTests().Distributivity(); }
 
 
-TEST(Distributivity_heap) { HeapTests().Distributivity(); }
-
-
 TEST(GetRange_zone) { ZoneTests().GetRange(); }
 
 
-TEST(GetRange_heap) { HeapTests().GetRange(); }
-
-
-TEST(Convert_zone) {
-  ZoneTests().Convert<HeapType, Handle<HeapType>, Isolate, HeapRep>();
-}
-
-
-TEST(Convert_heap) { HeapTests().Convert<Type, Type*, Zone, ZoneRep>(); }
-
-
 TEST(HTypeFromType_zone) { ZoneTests().HTypeFromType(); }
-
-
-TEST(HTypeFromType_heap) { HeapTests().HTypeFromType(); }
