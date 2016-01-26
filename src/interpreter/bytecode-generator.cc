@@ -1222,7 +1222,8 @@ void BytecodeGenerator::VisitNativeFunctionLiteral(
 
 
 void BytecodeGenerator::VisitDoExpression(DoExpression* expr) {
-  UNIMPLEMENTED();
+  VisitBlock(expr->block());
+  VisitVariableProxy(expr->result());
 }
 
 

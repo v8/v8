@@ -7549,6 +7549,68 @@ TEST(WideRegisters) {
   }
 }
 
+TEST(DoExpression) {
+  bool old_flag = FLAG_harmony_do_expressions;
+  FLAG_harmony_do_expressions = true;
+
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+
+  ExpectedSnippet<const char*> snippets[] = {
+      {"var a = do { }; return a;",
+       2 * kPointerSize,
+       1,
+       5,
+       {
+           B(Ldar), R(0),  //
+           B(Star), R(1),  //
+           B(Return)       //
+       },
+       0},
+      {"var a = do { var x = 100; }; return a;",
+       3 * kPointerSize,
+       1,
+       10,
+       {
+           B(LdaSmi8), U8(100),  //
+           B(Star), R(1),        //
+           B(LdaUndefined),      //
+           B(Star), R(0),        //
+           B(Star), R(2),        //
+           B(Return)             //
+       },
+       0},
+      {"while(true) { var a = 10; a = do { ++a; break; }; a = 20; }",
+       2 * kPointerSize,
+       1,
+       24,
+       {
+           B(LdaSmi8),      U8(10),   //
+           B(Star),         R(1),     //
+           B(ToNumber),               //
+           B(Inc),                    //
+           B(Star),         R(1),     //
+           B(Star),         R(0),     //
+           B(Jump),         U8(12),   //
+           B(Ldar),         R(0),     //
+           B(Star),         R(1),     //
+           B(LdaSmi8),      U8(20),   //
+           B(Star),         R(1),     //
+           B(Jump),         U8(-20),  //
+           B(LdaUndefined),           //
+           B(Return),                 //
+       },
+       0},
+  };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+  FLAG_harmony_do_expressions = old_flag;
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8
