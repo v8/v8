@@ -262,6 +262,58 @@ bool Bytecodes::IsJumpOrReturn(Bytecode bytecode) {
   return bytecode == Bytecode::kReturn || IsJump(bytecode);
 }
 
+// static
+bool Bytecodes::IsRegisterOperandType(OperandType operand_type) {
+  switch (operand_type) {
+#define CASE(Name, _)        \
+  case OperandType::k##Name: \
+    return true;
+    REGISTER_OPERAND_TYPE_LIST(CASE)
+#undef CASE
+#define CASE(Name, _)        \
+  case OperandType::k##Name: \
+    break;
+    NON_REGISTER_OPERAND_TYPE_LIST(CASE)
+#undef CASE
+  }
+  return false;
+}
+
+// static
+bool Bytecodes::IsRegisterInputOperandType(OperandType operand_type) {
+  switch (operand_type) {
+#define CASE(Name, _)        \
+  case OperandType::k##Name: \
+    return true;
+    REGISTER_INPUT_OPERAND_TYPE_LIST(CASE)
+#undef CASE
+#define CASE(Name, _)        \
+  case OperandType::k##Name: \
+    break;
+    NON_REGISTER_OPERAND_TYPE_LIST(CASE)
+    REGISTER_OUTPUT_OPERAND_TYPE_LIST(CASE)
+#undef CASE
+  }
+  return false;
+}
+
+// static
+bool Bytecodes::IsRegisterOutputOperandType(OperandType operand_type) {
+  switch (operand_type) {
+#define CASE(Name, _)        \
+  case OperandType::k##Name: \
+    return true;
+    REGISTER_OUTPUT_OPERAND_TYPE_LIST(CASE)
+#undef CASE
+#define CASE(Name, _)        \
+  case OperandType::k##Name: \
+    break;
+    NON_REGISTER_OPERAND_TYPE_LIST(CASE)
+    REGISTER_INPUT_OPERAND_TYPE_LIST(CASE)
+#undef CASE
+  }
+  return false;
+}
 
 namespace {
 static Register DecodeRegister(const uint8_t* operand_start,
@@ -300,6 +352,7 @@ std::ostream& Bytecodes::Decode(std::ostream& os, const uint8_t* bytecode_start,
   os << bytecode << " ";
 
   int number_of_operands = NumberOfOperands(bytecode);
+  int range = 0;
   for (int i = 0; i < number_of_operands; i++) {
     OperandType op_type = GetOperandType(bytecode, i);
     const uint8_t* operand_start =
@@ -323,7 +376,9 @@ std::ostream& Bytecodes::Decode(std::ostream& os, const uint8_t* bytecode_start,
       case interpreter::OperandType::kMaybeReg8:
       case interpreter::OperandType::kMaybeReg16:
       case interpreter::OperandType::kReg8:
-      case interpreter::OperandType::kReg16: {
+      case interpreter::OperandType::kReg16:
+      case interpreter::OperandType::kRegOut8:
+      case interpreter::OperandType::kRegOut16: {
         Register reg = DecodeRegister(operand_start, op_type);
         if (reg.is_current_context()) {
           os << "<context>";
@@ -343,12 +398,15 @@ std::ostream& Bytecodes::Decode(std::ostream& os, const uint8_t* bytecode_start,
         }
         break;
       }
+      case interpreter::OperandType::kRegOutTriple8:
+      case interpreter::OperandType::kRegOutTriple16:
+        range += 1;
+      case interpreter::OperandType::kRegOutPair8:
+      case interpreter::OperandType::kRegOutPair16:
       case interpreter::OperandType::kRegPair8:
-      case interpreter::OperandType::kRegTriple8:
-      case interpreter::OperandType::kRegPair16:
-      case interpreter::OperandType::kRegTriple16: {
+      case interpreter::OperandType::kRegPair16: {
+        range += 1;
         Register reg = DecodeRegister(operand_start, op_type);
-        int range = op_type == interpreter::OperandType::kRegPair8 ? 1 : 2;
         if (reg.is_parameter()) {
           int parameter_index = reg.ToParameterIndex(parameter_count);
           DCHECK_GT(parameter_index, 0);
@@ -455,7 +513,6 @@ Register Register::new_target() { return Register(kNewTargetRegisterIndex); }
 bool Register::is_new_target() const {
   return index() == kNewTargetRegisterIndex;
 }
-
 
 int Register::MaxParameterIndex() { return kMaxParameterIndex; }
 

@@ -27,10 +27,14 @@ class RegisterTranslatorTest : public TestWithIsolateAndZone,
   ~RegisterTranslatorTest() override {}
 
   bool PopMoveAndMatch(Register from, Register to) {
-    CHECK(from.is_valid() && to.is_valid());
-    const std::pair<Register, Register> top = moves_.top();
-    moves_.pop();
-    return top.first == from && top.second == to;
+    if (!moves_.empty()) {
+      CHECK(from.is_valid() && to.is_valid());
+      const std::pair<Register, Register> top = moves_.top();
+      moves_.pop();
+      return top.first == from && top.second == to;
+    } else {
+      return false;
+    }
   }
 
   int move_count() const { return move_count_; }
@@ -49,23 +53,6 @@ class RegisterTranslatorTest : public TestWithIsolateAndZone,
     move_count_++;
   }
 
-  bool RegisterOperandIsMovable(Bytecode bytecode, int operand_index) override {
-    OperandType operand_type =
-        Bytecodes::GetOperandType(bytecode, operand_index);
-    if (operand_type == OperandType::kReg8 ||
-        operand_type == OperandType::kReg16) {
-      if (operand_index == Bytecodes::NumberOfOperands(bytecode) - 1) {
-        return true;
-      }
-      OperandType next_operand_type =
-          Bytecodes::GetOperandType(bytecode, operand_index + 1);
-      return (next_operand_type != OperandType::kRegCount8 &&
-              next_operand_type != OperandType::kRegCount16);
-    } else {
-      return false;
-    }
-  }
-
   RegisterTranslator translator_;
   std::stack<std::pair<Register, Register>> moves_;
   int move_count_;
@@ -74,7 +61,8 @@ class RegisterTranslatorTest : public TestWithIsolateAndZone,
 };
 
 const char* const RegisterTranslatorTest::kBadOperandRegex =
-    ".*OperandType::kReg8 && mover\\(\\)->RegisterOperandIsMovable.*";
+    ".*OperandType::kReg8 \\|\\| .*OperandType::kRegOut8\\) && "
+    "RegisterIsMovableToWindow.*";
 
 TEST_F(RegisterTranslatorTest, TestFrameSizeAdjustmentsForTranslationWindow) {
   EXPECT_EQ(0, RegisterTranslator::RegisterCountAdjustment(0, 0));
@@ -157,7 +145,7 @@ TEST_F(RegisterTranslatorTest, NoTranslationRequired) {
 
   Register param_reg = Register::FromParameterIndex(129, 130);
   operands[0] = param_reg.ToRawOperand();
-  translator()->TranslateInputRegisters(Bytecode::kLdar, operands, 1);
+  translator()->TranslateInputRegisters(Bytecode::kAdd, operands, 1);
   translator()->TranslateOutputRegisters();
   EXPECT_EQ(0, move_count());
 }
@@ -172,6 +160,14 @@ TEST_F(RegisterTranslatorTest, TranslationRequired) {
   EXPECT_EQ(1, move_count());
   EXPECT_TRUE(PopMoveAndMatch(local_reg_translated, window_reg));
   translator()->TranslateOutputRegisters();
+  EXPECT_EQ(1, move_count());
+  EXPECT_FALSE(PopMoveAndMatch(window_reg, local_reg_translated));
+
+  operands[0] = local_reg.ToRawOperand();
+  translator()->TranslateInputRegisters(Bytecode::kStar, operands, 1);
+  EXPECT_EQ(1, move_count());
+  EXPECT_FALSE(PopMoveAndMatch(local_reg_translated, window_reg));
+  translator()->TranslateOutputRegisters();
   EXPECT_EQ(2, move_count());
   EXPECT_TRUE(PopMoveAndMatch(window_reg, local_reg_translated));
 
@@ -180,6 +176,14 @@ TEST_F(RegisterTranslatorTest, TranslationRequired) {
   translator()->TranslateInputRegisters(Bytecode::kLdar, operands, 1);
   EXPECT_EQ(3, move_count());
   EXPECT_TRUE(PopMoveAndMatch(param_reg, window_reg));
+  translator()->TranslateOutputRegisters();
+  EXPECT_EQ(3, move_count());
+  EXPECT_FALSE(PopMoveAndMatch(window_reg, param_reg));
+
+  operands[0] = {param_reg.ToRawOperand()};
+  translator()->TranslateInputRegisters(Bytecode::kStar, operands, 1);
+  EXPECT_EQ(3, move_count());
+  EXPECT_FALSE(PopMoveAndMatch(local_reg_translated, window_reg));
   translator()->TranslateOutputRegisters();
   EXPECT_EQ(4, move_count());
   EXPECT_TRUE(PopMoveAndMatch(window_reg, param_reg));

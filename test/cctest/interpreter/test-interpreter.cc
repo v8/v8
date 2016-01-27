@@ -2631,211 +2631,191 @@ TEST(InterpreterBasicLoops) {
 
 
 TEST(InterpreterForIn) {
-  HandleAndZoneScope handles;
-
   std::pair<const char*, int> for_in_samples[] = {
-      {"function f() {\n"
-       "  var r = -1;\n"
-       "  for (var a in null) { r = a; }\n"
-       "  return r;\n"
-       "}",
+      {"var r = -1;\n"
+       "for (var a in null) { r = a; }\n"
+       "return r;\n",
        -1},
-      {"function f() {\n"
-       "  var r = -1;\n"
-       "  for (var a in undefined) { r = a; }\n"
-       "  return r;\n"
-       "}",
+      {"var r = -1;\n"
+       "for (var a in undefined) { r = a; }\n"
+       "return r;\n",
        -1},
-      {"function f() {\n"
-       "  var r = 0;\n"
-       "  for (var a in [0,6,7,9]) { r = r + (1 << a); }\n"
-       "  return r;\n"
-       "}",
+      {"var r = 0;\n"
+       "for (var a in [0,6,7,9]) { r = r + (1 << a); }\n"
+       "return r;\n",
        0xf},
-      {"function f() {\n"
-       "  var r = 0;\n"
-       "  for (var a in [0,6,7,9]) { r = r + (1 << a); }\n"
-       "  var r = 0;\n"
-       "  for (var a in [0,6,7,9]) { r = r + (1 << a); }\n"
-       "  return r;\n"
-       "}",
-       0xf},
-      {"function f() {\n"
-       "  var r = 0;\n"
-       "  for (var a in 'foobar') { r = r + (1 << a); }\n"
-       "  return r;\n"
-       "}",
-       0x3f},
-      {"function f() {\n"
-       "  var r = 0;\n"
-       "  for (var a in {1:0, 10:1, 100:2, 1000:3}) {\n"
-       "    r = r + Number(a);\n"
-       "   }\n"
-       "   return r;\n"
-       "}",
-       1111},
-      {"function f() {\n"
-       "  var r = 0;\n"
-       "  var data = {1:0, 10:1, 100:2, 1000:3};\n"
-       "  for (var a in data) {\n"
-       "    if (a == 1) delete data[1];\n"
-       "    r = r + Number(a);\n"
-       "   }\n"
-       "   return r;\n"
-       "}",
-       1111},
-      {"function f() {\n"
-       "  var r = 0;\n"
-       "  var data = {1:0, 10:1, 100:2, 1000:3};\n"
-       "  for (var a in data) {\n"
-       "    if (a == 10) delete data[100];\n"
-       "    r = r + Number(a);\n"
-       "   }\n"
-       "   return r;\n"
-       "}",
-       1011},
-      {"function f() {\n"
-       "  var r = 0;\n"
-       "  var data = {1:0, 10:1, 100:2, 1000:3};\n"
-       "  for (var a in data) {\n"
-       "    if (a == 10) data[10000] = 4;\n"
-       "    r = r + Number(a);\n"
-       "   }\n"
-       "   return r;\n"
-       "}",
-       1111},
-      {"function f() {\n"
-       "  var r = 0;\n"
-       "  var input = 'foobar';\n"
-       "  for (var a in input) {\n"
-       "    if (input[a] == 'b') break;\n"
-       "    r = r + (1 << a);\n"
-       "  }\n"
-       "  return r;\n"
-       "}",
-       0x7},
-      {"function f() {\n"
+      {"var r = 0;\n"
+       "for (var a in [0,6,7,9]) { r = r + (1 << a); }\n"
        "var r = 0;\n"
+       "for (var a in [0,6,7,9]) { r = r + (1 << a); }\n"
+       "return r;\n",
+       0xf},
+      {"var r = 0;\n"
+       "for (var a in 'foobar') { r = r + (1 << a); }\n"
+       "return r;\n",
+       0x3f},
+      {"var r = 0;\n"
+       "for (var a in {1:0, 10:1, 100:2, 1000:3}) {\n"
+       "  r = r + Number(a);\n"
+       " }\n"
+       " return r;\n",
+       1111},
+      {"var r = 0;\n"
+       "var data = {1:0, 10:1, 100:2, 1000:3};\n"
+       "for (var a in data) {\n"
+       "  if (a == 1) delete data[1];\n"
+       "  r = r + Number(a);\n"
+       " }\n"
+       " return r;\n",
+       1111},
+      {"var r = 0;\n"
+       "var data = {1:0, 10:1, 100:2, 1000:3};\n"
+       "for (var a in data) {\n"
+       "  if (a == 10) delete data[100];\n"
+       "  r = r + Number(a);\n"
+       " }\n"
+       " return r;\n",
+       1011},
+      {"var r = 0;\n"
+       "var data = {1:0, 10:1, 100:2, 1000:3};\n"
+       "for (var a in data) {\n"
+       "  if (a == 10) data[10000] = 4;\n"
+       "  r = r + Number(a);\n"
+       " }\n"
+       " return r;\n",
+       1111},
+      {"var r = 0;\n"
        "var input = 'foobar';\n"
        "for (var a in input) {\n"
-       "   if (input[a] == 'b') continue;\n"
-       "   r = r + (1 << a);\n"
+       "  if (input[a] == 'b') break;\n"
+       "  r = r + (1 << a);\n"
        "}\n"
-       "return r;\n"
-       "}",
+       "return r;\n",
+       0x7},
+      {"var r = 0;\n"
+       "var input = 'foobar';\n"
+       "for (var a in input) {\n"
+       " if (input[a] == 'b') continue;\n"
+       " r = r + (1 << a);\n"
+       "}\n"
+       "return r;\n",
        0x37},
-      {"function f() {\n"
-       "  var r = 0;\n"
-       "  var data = {1:0, 10:1, 100:2, 1000:3};\n"
-       "  for (var a in data) {\n"
-       "    if (a == 10) {\n"
-       "       data[10000] = 4;\n"
-       "    }\n"
-       "    r = r + Number(a);\n"
+      {"var r = 0;\n"
+       "var data = {1:0, 10:1, 100:2, 1000:3};\n"
+       "for (var a in data) {\n"
+       "  if (a == 10) {\n"
+       "     data[10000] = 4;\n"
        "  }\n"
-       "  return r;\n"
-       "}",
+       "  r = r + Number(a);\n"
+       "}\n"
+       "return r;\n",
        1111},
-      {"function f() {\n"
-       "  var r = [ 3 ];\n"
-       "  var data = {1:0, 10:1, 100:2, 1000:3};\n"
-       "  for (r[10] in data) {\n"
-       "  }\n"
-       "  return Number(r[10]);\n"
-       "}",
+      {"var r = [ 3 ];\n"
+       "var data = {1:0, 10:1, 100:2, 1000:3};\n"
+       "for (r[10] in data) {\n"
+       "}\n"
+       "return Number(r[10]);\n",
        1000},
-      {"function f() {\n"
-       "  var r = [ 3 ];\n"
-       "  var data = {1:0, 10:1, 100:2, 1000:3};\n"
-       "  for (r['100'] in data) {\n"
-       "  }\n"
-       "  return Number(r['100']);\n"
-       "}",
+      {"var r = [ 3 ];\n"
+       "var data = {1:0, 10:1, 100:2, 1000:3};\n"
+       "for (r['100'] in data) {\n"
+       "}\n"
+       "return Number(r['100']);\n",
        1000},
-      {"function f() {\n"
-       "  var obj = {}\n"
-       "  var descObj = new Boolean(false);\n"
-       "  var accessed = 0;\n"
-       "  descObj.enumerable = true;\n"
-       "  Object.defineProperties(obj, { prop:descObj });\n"
-       "  for (var p in obj) {\n"
-       "    if (p === 'prop') { accessed = 1; }\n"
-       "  }\n"
-       "  return accessed;"
-       "}",
+      {"var obj = {}\n"
+       "var descObj = new Boolean(false);\n"
+       "var accessed = 0;\n"
+       "descObj.enumerable = true;\n"
+       "Object.defineProperties(obj, { prop:descObj });\n"
+       "for (var p in obj) {\n"
+       "  if (p === 'prop') { accessed = 1; }\n"
+       "}\n"
+       "return accessed;",
        1},
-      {"function f() {\n"
-       "  var appointment = {};\n"
-       "  Object.defineProperty(appointment, 'startTime', {\n"
-       "      value: 1001,\n"
-       "      writable: false,\n"
-       "      enumerable: false,\n"
-       "      configurable: true\n"
-       "  });\n"
-       "  Object.defineProperty(appointment, 'name', {\n"
-       "      value: 'NAME',\n"
-       "      writable: false,\n"
-       "      enumerable: false,\n"
-       "      configurable: true\n"
-       "  });\n"
-       "  var meeting = Object.create(appointment);\n"
-       "  Object.defineProperty(meeting, 'conferenceCall', {\n"
-       "      value: 'In-person meeting',\n"
-       "      writable: false,\n"
-       "      enumerable: false,\n"
-       "      configurable: true\n"
-       "  });\n"
+      {"var appointment = {};\n"
+       "Object.defineProperty(appointment, 'startTime', {\n"
+       "    value: 1001,\n"
+       "    writable: false,\n"
+       "    enumerable: false,\n"
+       "    configurable: true\n"
+       "});\n"
+       "Object.defineProperty(appointment, 'name', {\n"
+       "    value: 'NAME',\n"
+       "    writable: false,\n"
+       "    enumerable: false,\n"
+       "    configurable: true\n"
+       "});\n"
+       "var meeting = Object.create(appointment);\n"
+       "Object.defineProperty(meeting, 'conferenceCall', {\n"
+       "    value: 'In-person meeting',\n"
+       "    writable: false,\n"
+       "    enumerable: false,\n"
+       "    configurable: true\n"
+       "});\n"
        "\n"
-       "  var teamMeeting = Object.create(meeting);\n"
+       "var teamMeeting = Object.create(meeting);\n"
        "\n"
-       "  var flags = 0;\n"
-       "  for (var p in teamMeeting) {\n"
-       "      if (p === 'startTime') {\n"
-       "          flags |= 1;\n"
-       "      }\n"
-       "      if (p === 'name') {\n"
-       "          flags |= 2;\n"
-       "      }\n"
-       "      if (p === 'conferenceCall') {\n"
-       "          flags |= 4;\n"
-       "      }\n"
-       "  }\n"
+       "var flags = 0;\n"
+       "for (var p in teamMeeting) {\n"
+       "    if (p === 'startTime') {\n"
+       "        flags |= 1;\n"
+       "    }\n"
+       "    if (p === 'name') {\n"
+       "        flags |= 2;\n"
+       "    }\n"
+       "    if (p === 'conferenceCall') {\n"
+       "        flags |= 4;\n"
+       "    }\n"
+       "}\n"
        "\n"
-       "  var hasOwnProperty = !teamMeeting.hasOwnProperty('name') &&\n"
-       "      !teamMeeting.hasOwnProperty('startTime') &&\n"
-       "      !teamMeeting.hasOwnProperty('conferenceCall');\n"
-       "  if (!hasOwnProperty) {\n"
-       "      flags |= 8;\n"
-       "  }\n"
-       "  return flags;\n"
-       "  }",
+       "var hasOwnProperty = !teamMeeting.hasOwnProperty('name') &&\n"
+       "    !teamMeeting.hasOwnProperty('startTime') &&\n"
+       "    !teamMeeting.hasOwnProperty('conferenceCall');\n"
+       "if (!hasOwnProperty) {\n"
+       "    flags |= 8;\n"
+       "}\n"
+       "return flags;\n",
        0},
-      {"function f() {\n"
-       " var data = {x:23, y:34};\n"
+      {"var data = {x:23, y:34};\n"
        " var result = 0;\n"
-       " var o = {};\n"
-       " var arr = [o];\n"
-       " for (arr[0].p in data)\n"      // This is to test if value is loaded
+       "var o = {};\n"
+       "var arr = [o];\n"
+       "for (arr[0].p in data)\n"       // This is to test if value is loaded
        "  result += data[arr[0].p];\n"  // back from accumulator before storing
-       " return result;\n"              // named properties.
-       "}",
+       "return result;\n",              // named properties.
        57},
-      {"function f() {\n"
-       " var data = {x:23, y:34};\n"
-       " var result = 0;\n"
-       " var o = {};\n"
-       " var i = 0;\n"
-       " for (o[i++] in data)\n"      // This is to test if value is loaded
+      {"var data = {x:23, y:34};\n"
+       "var result = 0;\n"
+       "var o = {};\n"
+       "var i = 0;\n"
+       "for (o[i++] in data)\n"       // This is to test if value is loaded
        "  result += data[o[i-1]];\n"  // back from accumulator before
-       " return result;\n"            // storing keyed properties.
-       "}",
+       "return result;\n",            // storing keyed properties.
        57}};
 
-  for (size_t i = 0; i < arraysize(for_in_samples); i++) {
-    InterpreterTester tester(handles.main_isolate(), for_in_samples[i].first);
-    auto callable = tester.GetCallable<>();
-    Handle<Object> return_val = callable().ToHandleChecked();
-    CHECK_EQ(Handle<Smi>::cast(return_val)->value(), for_in_samples[i].second);
+  // Two passes are made for this test. On the first, 8-bit register
+  // operands are employed, and on the 16-bit register operands are
+  // used.
+  for (int pass = 0; pass < 2; pass++) {
+    HandleAndZoneScope handles;
+    std::ostringstream wide_os;
+    if (pass == 1) {
+      for (int i = 0; i < 200; i++) {
+        wide_os << "var local" << i << " = 0;\n";
+      }
+    }
+
+    for (size_t i = 0; i < arraysize(for_in_samples); i++) {
+      std::ostringstream body_os;
+      body_os << wide_os.str() << for_in_samples[i].first;
+      std::string body(body_os.str());
+      std::string function = InterpreterTester::SourceForBody(body.c_str());
+      InterpreterTester tester(handles.main_isolate(), function.c_str());
+      auto callable = tester.GetCallable<>();
+      Handle<Object> return_val = callable().ToHandleChecked();
+      CHECK_EQ(Handle<Smi>::cast(return_val)->value(),
+               for_in_samples[i].second);
+    }
   }
 }
 
@@ -3822,8 +3802,6 @@ TEST(InterpreterWideParametersSummation) {
     CHECK_EQ(actual->value(), expected);
   }
 }
-
-// TODO(oth): Test for..in with wide registers.
 
 TEST(InterpreterDoExpression) {
   bool old_flag = FLAG_harmony_do_expressions;

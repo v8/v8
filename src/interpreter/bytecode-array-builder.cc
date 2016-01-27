@@ -401,25 +401,6 @@ void BytecodeArrayBuilder::MoveRegisterUntranslated(Register from,
   Output(Bytecode::kMovWide, from.ToRawOperand(), to.ToRawOperand());
 }
 
-bool BytecodeArrayBuilder::RegisterOperandIsMovable(Bytecode bytecode,
-                                                    int operand_index) {
-  // By design, we only support moving individual registers. There
-  // should be wide variants of such bytecodes instead to avoid the
-  // need for a large translation window.
-  OperandType operand_type = Bytecodes::GetOperandType(bytecode, operand_index);
-  if (operand_type != OperandType::kReg8 &&
-      operand_type != OperandType::kReg16) {
-    return false;
-  } else if (operand_index + 1 == Bytecodes::NumberOfOperands(bytecode)) {
-    return true;
-  } else {
-    OperandType next_operand_type =
-        Bytecodes::GetOperandType(bytecode, operand_index + 1);
-    return (next_operand_type != OperandType::kRegCount8 &&
-            next_operand_type != OperandType::kRegCount16);
-  }
-}
-
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadGlobal(
     const Handle<String> name, int feedback_slot, LanguageMode language_mode,
     TypeofMode typeof_mode) {
@@ -1413,8 +1394,11 @@ bool BytecodeArrayBuilder::OperandIsValid(Bytecode bytecode, int operand_index,
       }
     // Fall-through to kReg8 case.
     case OperandType::kReg8:
+    case OperandType::kRegOut8:
       return RegisterIsValid(Register::FromRawOperand(operand_value),
                              operand_type);
+    case OperandType::kRegOutPair8:
+    case OperandType::kRegOutPair16:
     case OperandType::kRegPair8:
     case OperandType::kRegPair16: {
       Register reg0 = Register::FromRawOperand(operand_value);
@@ -1422,8 +1406,8 @@ bool BytecodeArrayBuilder::OperandIsValid(Bytecode bytecode, int operand_index,
       return RegisterIsValid(reg0, operand_type) &&
              RegisterIsValid(reg1, operand_type);
     }
-    case OperandType::kRegTriple8:
-    case OperandType::kRegTriple16: {
+    case OperandType::kRegOutTriple8:
+    case OperandType::kRegOutTriple16: {
       Register reg0 = Register::FromRawOperand(operand_value);
       Register reg1 = Register(reg0.index() + 1);
       Register reg2 = Register(reg0.index() + 2);
@@ -1436,7 +1420,8 @@ bool BytecodeArrayBuilder::OperandIsValid(Bytecode bytecode, int operand_index,
         return true;
       }
     // Fall-through to kReg16 case.
-    case OperandType::kReg16: {
+    case OperandType::kReg16:
+    case OperandType::kRegOut16: {
       Register reg = Register::FromRawOperand(operand_value);
       return RegisterIsValid(reg, operand_type);
     }

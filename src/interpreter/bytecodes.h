@@ -18,17 +18,25 @@ namespace interpreter {
 #define INVALID_OPERAND_TYPE_LIST(V) \
   V(None, OperandSize::kNone)
 
-#define REGISTER_OPERAND_TYPE_LIST(V) \
-  /* Byte operands. */                \
-  V(MaybeReg8, OperandSize::kByte)    \
-  V(Reg8, OperandSize::kByte)         \
-  V(RegPair8, OperandSize::kByte)     \
-  V(RegTriple8, OperandSize::kByte)   \
-  /* Short operands. */               \
-  V(MaybeReg16, OperandSize::kShort)  \
-  V(Reg16, OperandSize::kShort)       \
-  V(RegPair16, OperandSize::kShort)   \
-  V(RegTriple16, OperandSize::kShort)
+#define REGISTER_INPUT_OPERAND_TYPE_LIST(V) \
+  /* Byte operands. */                      \
+  V(MaybeReg8, OperandSize::kByte)          \
+  V(Reg8, OperandSize::kByte)               \
+  V(RegPair8, OperandSize::kByte)           \
+  /* Short operands. */                     \
+  V(MaybeReg16, OperandSize::kShort)        \
+  V(Reg16, OperandSize::kShort)             \
+  V(RegPair16, OperandSize::kShort)
+
+#define REGISTER_OUTPUT_OPERAND_TYPE_LIST(V) \
+  /* Byte operands. */                       \
+  V(RegOut8, OperandSize::kByte)             \
+  V(RegOutPair8, OperandSize::kByte)         \
+  V(RegOutTriple8, OperandSize::kByte)       \
+  /* Short operands. */                      \
+  V(RegOut16, OperandSize::kShort)           \
+  V(RegOutPair16, OperandSize::kShort)       \
+  V(RegOutTriple16, OperandSize::kShort)
 
 #define SCALAR_OPERAND_TYPE_LIST(V) \
   /* Byte operands. */              \
@@ -39,11 +47,18 @@ namespace interpreter {
   V(Idx16, OperandSize::kShort)     \
   V(RegCount16, OperandSize::kShort)
 
-// The list of operand types used by bytecodes.
-#define OPERAND_TYPE_LIST(V)    \
-  INVALID_OPERAND_TYPE_LIST(V)  \
-  REGISTER_OPERAND_TYPE_LIST(V) \
+#define REGISTER_OPERAND_TYPE_LIST(V) \
+  REGISTER_INPUT_OPERAND_TYPE_LIST(V) \
+  REGISTER_OUTPUT_OPERAND_TYPE_LIST(V)
+
+#define NON_REGISTER_OPERAND_TYPE_LIST(V) \
+  INVALID_OPERAND_TYPE_LIST(V)            \
   SCALAR_OPERAND_TYPE_LIST(V)
+
+// The list of operand types used by bytecodes.
+#define OPERAND_TYPE_LIST(V)        \
+  NON_REGISTER_OPERAND_TYPE_LIST(V) \
+  REGISTER_OPERAND_TYPE_LIST(V)
 
 // The list of bytecodes which are interpreted by the interpreter.
 #define BYTECODE_LIST(V)                                                       \
@@ -93,11 +108,11 @@ namespace interpreter {
                                                                                \
   /* Register-accumulator transfers */                                         \
   V(Ldar, OperandType::kReg8)                                                  \
-  V(Star, OperandType::kReg8)                                                  \
+  V(Star, OperandType::kRegOut8)                                               \
                                                                                \
   /* Register-register transfers */                                            \
-  V(Mov, OperandType::kReg8, OperandType::kReg8)                               \
-  V(MovWide, OperandType::kReg16, OperandType::kReg16)                         \
+  V(Mov, OperandType::kReg8, OperandType::kRegOut8)                            \
+  V(MovWide, OperandType::kReg16, OperandType::kRegOut16)                      \
                                                                                \
   /* LoadIC operations */                                                      \
   V(LoadICSloppy, OperandType::kReg8, OperandType::kIdx8, OperandType::kIdx8)  \
@@ -159,9 +174,9 @@ namespace interpreter {
   V(CallRuntimeWide, OperandType::kIdx16, OperandType::kMaybeReg16,            \
     OperandType::kRegCount8)                                                   \
   V(CallRuntimeForPair, OperandType::kIdx16, OperandType::kMaybeReg8,          \
-    OperandType::kRegCount8, OperandType::kRegPair8)                           \
+    OperandType::kRegCount8, OperandType::kRegOutPair8)                        \
   V(CallRuntimeForPairWide, OperandType::kIdx16, OperandType::kMaybeReg16,     \
-    OperandType::kRegCount8, OperandType::kRegPair16)                          \
+    OperandType::kRegCount8, OperandType::kRegOutPair16)                       \
   V(CallJSRuntime, OperandType::kIdx16, OperandType::kReg8,                    \
     OperandType::kRegCount8)                                                   \
   V(CallJSRuntimeWide, OperandType::kIdx16, OperandType::kReg16,               \
@@ -235,8 +250,8 @@ namespace interpreter {
   V(JumpIfUndefinedConstantWide, OperandType::kIdx16)                          \
                                                                                \
   /* Complex flow control For..in */                                           \
-  V(ForInPrepare, OperandType::kRegTriple8)                                    \
-  V(ForInPrepareWide, OperandType::kRegTriple16)                               \
+  V(ForInPrepare, OperandType::kRegOutTriple8)                                 \
+  V(ForInPrepareWide, OperandType::kRegOutTriple16)                            \
   V(ForInDone, OperandType::kReg8, OperandType::kReg8)                         \
   V(ForInNext, OperandType::kReg8, OperandType::kReg8, OperandType::kRegPair8) \
   V(ForInNextWide, OperandType::kReg16, OperandType::kReg16,                   \
@@ -247,7 +262,6 @@ namespace interpreter {
   V(Throw, OperandType::kNone)                                                 \
   V(ReThrow, OperandType::kNone)                                               \
   V(Return, OperandType::kNone)
-
 
 // Enumeration of the size classes of operand types used by bytecodes.
 enum class OperandSize : uint8_t {
@@ -382,10 +396,10 @@ class Bytecodes {
   // Returns the number of register operands expected by |bytecode|.
   static int NumberOfRegisterOperands(Bytecode bytecode);
 
-  // Return the i-th operand of |bytecode|.
+  // Returns the i-th operand of |bytecode|.
   static OperandType GetOperandType(Bytecode bytecode, int i);
 
-  // Return the size of the i-th operand of |bytecode|.
+  // Returns the size of the i-th operand of |bytecode|.
   static OperandSize GetOperandSize(Bytecode bytecode, int i);
 
   // Returns the offset of the i-th operand of |bytecode| relative to the start
@@ -430,12 +444,21 @@ class Bytecodes {
   // constant pool entry (OperandType::kIdx16).
   static bool IsJumpConstantWide(Bytecode bytecode);
 
-  // Return true if the bytecode is a jump or conditional jump taking
+  // Returns true if the bytecode is a jump or conditional jump taking
   // any kind of operand.
   static bool IsJump(Bytecode bytecode);
 
-  // Return true if the bytecode is a conditional jump, a jump, or a return.
+  // Returns true if the bytecode is a conditional jump, a jump, or a return.
   static bool IsJumpOrReturn(Bytecode bytecode);
+
+  // Returns true if |operand_type| is any type of register operand.
+  static bool IsRegisterOperandType(OperandType operand_type);
+
+  // Returns true if |operand_type| represents a register used as an input.
+  static bool IsRegisterInputOperandType(OperandType operand_type);
+
+  // Returns true if |operand_type| represents a register used as an output.
+  static bool IsRegisterOutputOperandType(OperandType operand_type);
 
   // Decode a single bytecode and operands to |os|.
   static std::ostream& Decode(std::ostream& os, const uint8_t* bytecode_start,

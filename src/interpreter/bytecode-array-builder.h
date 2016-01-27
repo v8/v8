@@ -281,9 +281,8 @@ class BytecodeArrayBuilder final : private RegisterMover {
   static bool FitsInReg16Operand(Register value);
   static bool FitsInReg16OperandUntranslated(Register value);
 
-  // RegisterMover interface methods.
+  // RegisterMover interface.
   void MoveRegisterUntranslated(Register from, Register to) override;
-  bool RegisterOperandIsMovable(Bytecode bytecode, int operand_index) override;
 
   static Bytecode GetJumpWithConstantOperand(Bytecode jump_smi8_operand);
   static Bytecode GetJumpWithConstantWideOperand(Bytecode jump_smi8_operand);

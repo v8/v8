@@ -77,7 +77,8 @@ class RegisterTranslator final {
       kTranslationWindowLimit - kTranslationWindowLength + 1;
 
   Register TranslateAndMove(Bytecode bytecode, int operand_index, Register reg);
-  Register MakeAddressable(Register reg, OperandType reg_type);
+  static bool RegisterIsMovableToWindow(Bytecode bytecode, int operand_index);
+
   static Register Translate(Register reg);
 
   RegisterMover* mover() const { return mover_; }
@@ -90,9 +91,12 @@ class RegisterTranslator final {
   // translation.
   bool emitting_moves_;
 
-  // State for restoring registers after bytecode.
-  Register window_registers_[kTranslationWindowLength];
+  // Number of window registers in use.
   int window_registers_count_;
+
+  // State for restoring register moves emitted by TranslateOutputRegisters.
+  std::pair<Register, Register> output_moves_[kTranslationWindowLength];
+  int output_moves_count_;
 };
 
 // Interface for RegisterTranslator helper class that will emit
@@ -106,11 +110,6 @@ class RegisterMover {
   // of this method must be aware that register moves with bad
   // register values are a security hole.
   virtual void MoveRegisterUntranslated(Register from, Register to) = 0;
-
-  // Returns true if the register operand can be moved into the
-  // translation window.
-  virtual bool RegisterOperandIsMovable(Bytecode bytecode,
-                                        int operand_index) = 0;
 };
 
 }  // namespace interpreter

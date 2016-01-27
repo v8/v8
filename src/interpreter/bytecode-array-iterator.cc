@@ -87,11 +87,7 @@ int BytecodeArrayIterator::GetIndexOperand(int operand_index) const {
 Register BytecodeArrayIterator::GetRegisterOperand(int operand_index) const {
   OperandType operand_type =
       Bytecodes::GetOperandType(current_bytecode(), operand_index);
-  DCHECK(operand_type == OperandType::kReg8 ||
-         operand_type == OperandType::kRegPair8 ||
-         operand_type == OperandType::kRegTriple8 ||
-         operand_type == OperandType::kMaybeReg8 ||
-         operand_type == OperandType::kReg16);
+  DCHECK(Bytecodes::IsRegisterOperandType(operand_type));
   uint32_t operand = GetRawOperand(operand_index, operand_type);
   switch (Bytecodes::GetOperandSize(current_bytecode(), operand_index)) {
     case OperandSize::kByte:

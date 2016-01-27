@@ -350,8 +350,10 @@ TARGET_TEST_F(InterpreterAssemblerTest, BytecodeOperand) {
           break;
         case interpreter::OperandType::kMaybeReg8:
         case interpreter::OperandType::kReg8:
+        case interpreter::OperandType::kRegOut8:
+        case interpreter::OperandType::kRegOutPair8:
+        case interpreter::OperandType::kRegOutTriple8:
         case interpreter::OperandType::kRegPair8:
-        case interpreter::OperandType::kRegTriple8:
           EXPECT_THAT(m.BytecodeOperandReg(i),
                       m.IsBytecodeOperandSignExtended(offset));
           break;
@@ -365,8 +367,10 @@ TARGET_TEST_F(InterpreterAssemblerTest, BytecodeOperand) {
           break;
         case interpreter::OperandType::kMaybeReg16:
         case interpreter::OperandType::kReg16:
+        case interpreter::OperandType::kRegOut16:
+        case interpreter::OperandType::kRegOutPair16:
+        case interpreter::OperandType::kRegOutTriple16:
         case interpreter::OperandType::kRegPair16:
-        case interpreter::OperandType::kRegTriple16:
           EXPECT_THAT(m.BytecodeOperandReg(i),
                       m.IsBytecodeOperandShortSignExtended(offset));
           break;

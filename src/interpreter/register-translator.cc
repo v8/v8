@@ -11,7 +11,10 @@ namespace internal {
 namespace interpreter {
 
 RegisterTranslator::RegisterTranslator(RegisterMover* mover)
-    : mover_(mover), emitting_moves_(false), window_registers_count_(0) {}
+    : mover_(mover),
+      emitting_moves_(false),
+      window_registers_count_(0),
+      output_moves_count_(0) {}
 
 void RegisterTranslator::TranslateInputRegisters(Bytecode bytecode,
                                                  uint32_t* raw_operands,
@@ -29,6 +32,7 @@ void RegisterTranslator::TranslateInputRegisters(Bytecode bytecode,
       Register out_reg = TranslateAndMove(bytecode, i, in_reg);
       raw_operands[i] = out_reg.ToRawOperand();
     }
+    window_registers_count_ = 0;
     emitting_moves_ = false;
   } else {
     // When the register translator is translating registers, it will
@@ -42,46 +46,67 @@ void RegisterTranslator::TranslateInputRegisters(Bytecode bytecode,
 
 Register RegisterTranslator::TranslateAndMove(Bytecode bytecode,
                                               int operand_index, Register reg) {
-  OperandType operand_type = Bytecodes::GetOperandType(bytecode, operand_index);
-  Register translated_reg = Translate(reg);
-  Register addressable_reg = MakeAddressable(translated_reg, operand_type);
-  if (addressable_reg != translated_reg) {
-    CHECK(operand_type == OperandType::kReg8 &&
-          mover()->RegisterOperandIsMovable(bytecode, operand_index));
-    mover()->MoveRegisterUntranslated(translated_reg, addressable_reg);
+  if (FitsInReg8Operand(reg)) {
+    return reg;
   }
-  return addressable_reg;
+
+  OperandType operand_type = Bytecodes::GetOperandType(bytecode, operand_index);
+  OperandSize operand_size = Bytecodes::SizeOfOperand(operand_type);
+  if (operand_size == OperandSize::kShort) {
+    CHECK(FitsInReg16Operand(reg));
+    return Translate(reg);
+  }
+
+  CHECK((operand_type == OperandType::kReg8 ||
+         operand_type == OperandType::kRegOut8) &&
+        RegisterIsMovableToWindow(bytecode, operand_index));
+  Register translated_reg = Translate(reg);
+  Register window_reg(kTranslationWindowStart + window_registers_count_);
+  window_registers_count_ += 1;
+  if (Bytecodes::IsRegisterInputOperandType(operand_type)) {
+    DCHECK(!Bytecodes::IsRegisterOutputOperandType(operand_type));
+    mover()->MoveRegisterUntranslated(translated_reg, window_reg);
+  } else if (Bytecodes::IsRegisterOutputOperandType(operand_type)) {
+    DCHECK_LT(output_moves_count_, kTranslationWindowLength);
+    output_moves_[output_moves_count_] =
+        std::make_pair(window_reg, translated_reg);
+    output_moves_count_ += 1;
+  } else {
+    UNREACHABLE();
+  }
+  return window_reg;
+}
+
+// static
+bool RegisterTranslator::RegisterIsMovableToWindow(Bytecode bytecode,
+                                                   int operand_index) {
+  // By design, we only support moving individual registers. There
+  // should be wide variants of such bytecodes instead to avoid the
+  // need for a large translation window.
+  OperandType operand_type = Bytecodes::GetOperandType(bytecode, operand_index);
+  if (operand_type != OperandType::kReg8 &&
+      operand_type != OperandType::kRegOut8) {
+    return false;
+  } else if (operand_index + 1 == Bytecodes::NumberOfOperands(bytecode)) {
+    return true;
+  } else {
+    OperandType next_operand_type =
+        Bytecodes::GetOperandType(bytecode, operand_index + 1);
+    return (next_operand_type != OperandType::kRegCount8 &&
+            next_operand_type != OperandType::kRegCount16);
+  }
 }
 
 void RegisterTranslator::TranslateOutputRegisters() {
   if (!emitting_moves_) {
     emitting_moves_ = true;
-    while (window_registers_count_ > 0) {
-      window_registers_count_ -= 1;
-      Register source(kTranslationWindowStart + window_registers_count_);
-      Register destination = window_registers_[window_registers_count_];
-      mover()->MoveRegisterUntranslated(source, destination);
+    while (output_moves_count_ > 0) {
+      output_moves_count_ -= 1;
+      mover()->MoveRegisterUntranslated(
+          output_moves_[output_moves_count_].first,
+          output_moves_[output_moves_count_].second);
     }
     emitting_moves_ = false;
-  }
-}
-
-Register RegisterTranslator::MakeAddressable(Register reg,
-                                             OperandType reg_type) {
-  DCHECK(!InTranslationWindow(reg));
-  OperandSize reg_size = Bytecodes::SizeOfOperand(reg_type);
-  if (reg_size == OperandSize::kByte && !FitsInReg8Operand(reg)) {
-    // TODO(oth): Moves into and out from translation window could be
-    // decoupled if there were metadata to say whether the register
-    // operand was an input, output, or input-and-output for a given
-    // bytecode.
-    Register destination(kTranslationWindowStart + window_registers_count_);
-    window_registers_[window_registers_count_] = reg;
-    window_registers_count_ += 1;
-    DCHECK_LE(window_registers_count_, kTranslationWindowLength);
-    return destination;
-  } else {
-    return reg;
   }
 }
 

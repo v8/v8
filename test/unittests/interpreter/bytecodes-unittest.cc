@@ -43,7 +43,6 @@ TEST(OperandConversion, Registers) {
   }
 }
 
-
 TEST(OperandConversion, Parameters) {
   int parameter_counts[] = {7, 13, 99};
 
@@ -58,7 +57,6 @@ TEST(OperandConversion, Parameters) {
     }
   }
 }
-
 
 TEST(OperandConversion, RegistersParametersNoOverlap) {
   int register_count = Register::MaxRegisterIndex() + 1;
@@ -116,6 +114,46 @@ TEST(Bytecodes, RegisterOperandBitmaps) {
   CHECK_EQ(Bytecodes::GetRegisterOperandBitmap(Bytecode::kForInPrepare), 1);
   CHECK_EQ(Bytecodes::GetRegisterOperandBitmap(Bytecode::kForInDone), 3);
   CHECK_EQ(Bytecodes::GetRegisterOperandBitmap(Bytecode::kForInNext), 7);
+}
+
+TEST(Bytecodes, RegisterOperands) {
+  CHECK(Bytecodes::IsRegisterOperandType(OperandType::kReg8));
+  CHECK(Bytecodes::IsRegisterInputOperandType(OperandType::kReg8));
+  CHECK(!Bytecodes::IsRegisterOutputOperandType(OperandType::kReg8));
+  CHECK(!Bytecodes::IsRegisterInputOperandType(OperandType::kRegOut8));
+  CHECK(Bytecodes::IsRegisterOutputOperandType(OperandType::kRegOut8));
+
+#define IS_REGISTER_OPERAND_TYPE(Name, _) \
+  CHECK(Bytecodes::IsRegisterOperandType(OperandType::k##Name));
+  REGISTER_OPERAND_TYPE_LIST(IS_REGISTER_OPERAND_TYPE)
+#undef IS_REGISTER_OPERAND_TYPE
+
+#define IS_NOT_REGISTER_OPERAND_TYPE(Name, _) \
+  CHECK(!Bytecodes::IsRegisterOperandType(OperandType::k##Name));
+  NON_REGISTER_OPERAND_TYPE_LIST(IS_NOT_REGISTER_OPERAND_TYPE)
+#undef IS_NOT_REGISTER_OPERAND_TYPE
+
+#define IS_REGISTER_INPUT_OPERAND_TYPE(Name, _) \
+  CHECK(Bytecodes::IsRegisterInputOperandType(OperandType::k##Name));
+  REGISTER_INPUT_OPERAND_TYPE_LIST(IS_REGISTER_INPUT_OPERAND_TYPE)
+#undef IS_REGISTER_INPUT_OPERAND_TYPE
+
+#define IS_NOT_REGISTER_INPUT_OPERAND_TYPE(Name, _) \
+  CHECK(!Bytecodes::IsRegisterInputOperandType(OperandType::k##Name));
+  NON_REGISTER_OPERAND_TYPE_LIST(IS_NOT_REGISTER_INPUT_OPERAND_TYPE);
+  REGISTER_OUTPUT_OPERAND_TYPE_LIST(IS_NOT_REGISTER_INPUT_OPERAND_TYPE)
+#undef IS_NOT_REGISTER_INPUT_OPERAND_TYPE
+
+#define IS_REGISTER_OUTPUT_OPERAND_TYPE(Name, _) \
+  CHECK(Bytecodes::IsRegisterOutputOperandType(OperandType::k##Name));
+  REGISTER_OUTPUT_OPERAND_TYPE_LIST(IS_REGISTER_OUTPUT_OPERAND_TYPE)
+#undef IS_REGISTER_OUTPUT_OPERAND_TYPE
+
+#define IS_NOT_REGISTER_OUTPUT_OPERAND_TYPE(Name, _) \
+  CHECK(!Bytecodes::IsRegisterOutputOperandType(OperandType::k##Name));
+  NON_REGISTER_OPERAND_TYPE_LIST(IS_NOT_REGISTER_OUTPUT_OPERAND_TYPE)
+  REGISTER_INPUT_OPERAND_TYPE_LIST(IS_NOT_REGISTER_OUTPUT_OPERAND_TYPE)
+#undef IS_NOT_REGISTER_INPUT_OPERAND_TYPE
 }
 
 }  // namespace interpreter

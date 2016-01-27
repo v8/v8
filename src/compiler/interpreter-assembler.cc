@@ -305,31 +305,18 @@ Node* InterpreterAssembler::BytecodeOperandIdx(int operand_index) {
 
 
 Node* InterpreterAssembler::BytecodeOperandReg(int operand_index) {
-  switch (interpreter::Bytecodes::GetOperandType(bytecode_, operand_index)) {
-    case interpreter::OperandType::kMaybeReg8:
-    case interpreter::OperandType::kReg8:
-    case interpreter::OperandType::kRegPair8:
-    case interpreter::OperandType::kRegTriple8:
-      DCHECK_EQ(
-          interpreter::OperandSize::kByte,
-          interpreter::Bytecodes::GetOperandSize(bytecode_, operand_index));
+  interpreter::OperandType operand_type =
+      interpreter::Bytecodes::GetOperandType(bytecode_, operand_index);
+  if (interpreter::Bytecodes::IsRegisterOperandType(operand_type)) {
+    interpreter::OperandSize operand_size =
+        interpreter::Bytecodes::SizeOfOperand(operand_type);
+    if (operand_size == interpreter::OperandSize::kByte) {
       return BytecodeOperandSignExtended(operand_index);
-    case interpreter::OperandType::kMaybeReg16:
-    case interpreter::OperandType::kReg16:
-    case interpreter::OperandType::kRegPair16:
-    case interpreter::OperandType::kRegTriple16:
-      DCHECK_EQ(
-          interpreter::OperandSize::kShort,
-          interpreter::Bytecodes::GetOperandSize(bytecode_, operand_index));
+    } else if (operand_size == interpreter::OperandSize::kShort) {
       return BytecodeOperandShortSignExtended(operand_index);
-    case interpreter::OperandType::kNone:
-    case interpreter::OperandType::kIdx8:
-    case interpreter::OperandType::kIdx16:
-    case interpreter::OperandType::kImm8:
-    case interpreter::OperandType::kRegCount8:
-    case interpreter::OperandType::kRegCount16:
-      UNREACHABLE();
+    }
   }
+  UNREACHABLE();
   return nullptr;
 }
 
