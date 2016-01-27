@@ -106,15 +106,6 @@
   'built-ins/WeakMap/iterator-items-are-not-object-close-iterator': [FAIL],
   'built-ins/WeakSet/iterator-close-after-add-failure': [FAIL],
 
-  # https://code.google.com/p/v8/issues/detail?id=4119
-  'built-ins/RegExp/call_with_non_regexp_same_constructor': [FAIL],
-  'built-ins/RegExp/from-regexp-like-short-circuit': [FAIL],
-  'built-ins/RegExp/from-regexp-like': [FAIL],
-  'built-ins/RegExp/from-regexp-like-flag-override': [FAIL],
-  'built-ins/RegExp/from-regexp-like-get-source-err': [FAIL],
-  'built-ins/RegExp/from-regexp-like-get-flags-err': [FAIL],
-  'built-ins/RegExp/from-regexp-like-get-ctor-err': [FAIL],
-
   # https://code.google.com/p/v8/issues/detail?id=4348
   'built-ins/String/prototype/Symbol.iterator/this-val-non-obj-coercible': [FAIL],
 
@@ -312,33 +303,19 @@
   # happens to be thrown for some other reason (e.g,
   # built-ins/RegExp/prototype/Symbol.match/builtin-failure-set-lastindex-err)
   'built-ins/RegExp/prototype/Symbol.match/*': [SKIP],
-  'built-ins/Symbol/match/prop-desc': [FAIL],
   'built-ins/String/prototype/endsWith/return-abrupt-from-searchstring-regexp-test': [FAIL],
   'built-ins/String/prototype/includes/return-abrupt-from-searchstring-regexp-test': [FAIL],
   'built-ins/String/prototype/startsWith/return-abrupt-from-searchstring-regexp-test': [FAIL],
-  'built-ins/String/prototype/match/cstm-matcher-get-err': [FAIL],
   'built-ins/String/prototype/match/invoke-builtin-match': [FAIL],
-  'built-ins/String/prototype/match/cstm-matcher-invocation': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=4343
   'built-ins/RegExp/prototype/Symbol.replace/*': [SKIP],
-  'built-ins/Symbol/replace/prop-desc': [FAIL],
-  'built-ins/String/prototype/replace/cstm-replace-get-err': [FAIL],
-  'built-ins/String/prototype/replace/cstm-replace-invocation': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=4344
   'built-ins/RegExp/prototype/Symbol.search/*': [SKIP],
-  'built-ins/Symbol/search/prop-desc': [FAIL],
-  'built-ins/String/prototype/search/cstm-search-get-err': [FAIL],
-  'built-ins/String/prototype/search/invoke-builtin-search-searcher-undef': [FAIL],
-  'built-ins/String/prototype/search/cstm-search-invocation': [FAIL],
-  'built-ins/String/prototype/search/invoke-builtin-search': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=4345
   'built-ins/RegExp/prototype/Symbol.split/*': [SKIP],
-  'built-ins/Symbol/split/prop-desc': [FAIL],
-  'built-ins/String/prototype/split/cstm-split-invocation': [FAIL],
-  'built-ins/String/prototype/split/cstm-split-get-err': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=4346
   'built-ins/RegExp/prototype/flags/u': [FAIL],
@@ -485,9 +462,6 @@
   # https://github.com/tc39/test262/issues/435
   'built-ins/Array/prototype/indexOf/15.4.4.14-5-9': [FAIL],
   'built-ins/Array/prototype/lastIndexOf/15.4.4.15-5-9': [FAIL],
-
-  # https://github.com/tc39/test262/issues/436
-  'built-ins/RegExp/call_with_regexp_match_falsy': [FAIL],
 
   ############################ SKIPPED TESTS #############################
 
