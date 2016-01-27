@@ -1630,14 +1630,6 @@ TEST(CollectSampleAPI) {
   v8::CpuProfile* profile = RunProfiler(env, function, NULL, 0, 0);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
-  {
-    ScopedVector<v8::Local<v8::String> > names(3);
-    names[0] = v8_str(ProfileGenerator::kGarbageCollectorEntryName);
-    names[1] = v8_str(ProfileGenerator::kProgramEntryName);
-    names[2] = v8_str("start");
-    CheckChildrenNames(env, root, names);
-  }
-
   const v8::CpuProfileNode* startNode = GetChild(env, root, "start");
   CHECK_LE(1, startNode->GetChildrenCount());
   GetChild(env, startNode, "CallCollectSample");
