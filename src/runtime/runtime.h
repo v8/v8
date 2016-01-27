@@ -539,6 +539,7 @@ namespace internal {
   F(RegExpExecReThrow, 4, 1)                   \
   F(IsRegExp, 1, 1)
 
+
 #define FOR_EACH_INTRINSIC_SCOPES(F)       \
   F(ThrowConstAssignError, 0, 1)           \
   F(DeclareGlobals, 2, 1)                  \
@@ -551,7 +552,6 @@ namespace internal {
   F(NewRestArguments_Generic, 2, 1)        \
   F(NewSloppyArguments, 3, 1)              \
   F(NewStrictArguments, 3, 1)              \
-  F(InstallLiterals, 1, 1)                 \
   F(NewRestParam, 3, 1)                    \
   F(NewClosure, 1, 1)                      \
   F(NewClosure_Tenured, 1, 1)              \
@@ -567,6 +567,7 @@ namespace internal {
   F(StoreLookupSlot, 4, 1)                 \
   F(ArgumentsLength, 0, 1)                 \
   F(Arguments, 1, 1)
+
 
 #define FOR_EACH_INTRINSIC_SIMD(F)     \
   F(IsSimdValue, 1, 1)                 \

@@ -849,7 +849,6 @@ class SafepointEntry;
 class SharedFunctionInfo;
 class StringStream;
 class TypeFeedbackInfo;
-class TypeFeedbackMetadata;
 class TypeFeedbackVector;
 class WeakCell;
 class TransitionArray;
@@ -4712,8 +4711,8 @@ class LiteralsArray : public FixedArray {
  public:
   static const int kVectorIndex = 0;
   static const int kFirstLiteralIndex = 1;
-  static const int kFeedbackVectorOffset = FixedArray::kHeaderSize;
-  static const int kOffsetToFirstLiteral = kFeedbackVectorOffset + kPointerSize;
+  static const int kOffsetToFirstLiteral =
+      FixedArray::kHeaderSize + kPointerSize;
 
   static int OffsetOfLiteralAt(int index) {
     return SizeFor(index + kFirstLiteralIndex);
@@ -4723,7 +4722,6 @@ class LiteralsArray : public FixedArray {
   inline void set_feedback_vector(TypeFeedbackVector* vector);
   inline Object* literal(int literal_index) const;
   inline void set_literal(int literal_index, Object* literal);
-  inline void set_literal_undefined(int literal_index);
   inline int literals_count() const;
 
   static Handle<LiteralsArray> New(Isolate* isolate,
@@ -6543,9 +6541,6 @@ class SharedFunctionInfo: public HeapObject {
   // Clear optimized code map.
   void ClearOptimizedCodeMap();
 
-  // Like ClearOptimizedCodeMap, but preserves literals.
-  void ClearCodeFromOptimizedCodeMap();
-
   // We have a special root FixedArray with the right shape and values
   // to represent the cleared optimized code map. This predicate checks
   // if that root is installed.
@@ -6558,9 +6553,6 @@ class SharedFunctionInfo: public HeapObject {
 
   // Trims the optimized code map after entries have been removed.
   void TrimOptimizedCodeMap(int shrink_by);
-
-  static Handle<LiteralsArray> FindOrCreateLiterals(
-      Handle<SharedFunctionInfo> shared, Handle<Context> native_context);
 
   // Add a new entry to the optimized code map for context-independent code.
   static void AddSharedCodeToOptimizedCodeMap(Handle<SharedFunctionInfo> shared,
@@ -6596,13 +6588,6 @@ class SharedFunctionInfo: public HeapObject {
 
   static const int kNotFound = -1;
 
-  // Helpers for assembly code that does a backwards walk of the optimized code
-  // map.
-  static inline int OffsetToPreviousContext();
-  static inline int OffsetToPreviousCachedCode();
-  static inline int OffsetToPreviousLiterals();
-  static inline int OffsetToPreviousOsrAstId();
-
   // [scope_info]: Scope info.
   DECL_ACCESSORS(scope_info, ScopeInfo)
 
@@ -6631,10 +6616,16 @@ class SharedFunctionInfo: public HeapObject {
   inline int expected_nof_properties() const;
   inline void set_expected_nof_properties(int value);
 
-  // [feedback_metadata] - describes ast node feedback from full-codegen and
+  // [feedback_vector] - accumulates ast node feedback from full-codegen and
   // (increasingly) from crankshafted code where sufficient feedback isn't
   // available.
-  DECL_ACCESSORS(feedback_metadata, TypeFeedbackMetadata)
+  DECL_ACCESSORS(feedback_vector, TypeFeedbackVector)
+
+  // Unconditionally clear the type feedback vector (including vector ICs).
+  void ClearTypeFeedbackInfo();
+
+  // Clear the type feedback vector with a more subtle policy at GC time.
+  void ClearTypeFeedbackInfoAtGCTime();
 
 #if TRACE_MAPS
   // [unique_id] - For --trace-maps purposes, an identifier that's persistent
@@ -6928,14 +6919,15 @@ class SharedFunctionInfo: public HeapObject {
   static const int kScriptOffset = kFunctionDataOffset + kPointerSize;
   static const int kDebugInfoOffset = kScriptOffset + kPointerSize;
   static const int kInferredNameOffset = kDebugInfoOffset + kPointerSize;
-  static const int kFeedbackMetadataOffset = kInferredNameOffset + kPointerSize;
+  static const int kFeedbackVectorOffset =
+      kInferredNameOffset + kPointerSize;
 #if TRACE_MAPS
-  static const int kUniqueIdOffset = kFeedbackMetadataOffset + kPointerSize;
+  static const int kUniqueIdOffset = kFeedbackVectorOffset + kPointerSize;
   static const int kLastPointerFieldOffset = kUniqueIdOffset;
 #else
   // Just to not break the postmortrem support with conditional offsets
-  static const int kUniqueIdOffset = kFeedbackMetadataOffset;
-  static const int kLastPointerFieldOffset = kFeedbackMetadataOffset;
+  static const int kUniqueIdOffset = kFeedbackVectorOffset;
+  static const int kLastPointerFieldOffset = kFeedbackVectorOffset;
 #endif
 
 #if V8_HOST_ARCH_32_BIT
@@ -7352,7 +7344,6 @@ class JSFunction: public JSObject {
   inline void set_code(Code* code);
   inline void set_code_no_write_barrier(Code* code);
   inline void ReplaceCode(Code* code);
-  static void EnsureLiterals(Handle<JSFunction> function);
 
   // Tells whether this function inlines the given shared function info.
   bool Inlines(SharedFunctionInfo* candidate);
@@ -7373,12 +7364,6 @@ class JSFunction: public JSObject {
   // Tells whether or not the function is on the concurrent recompilation queue.
   inline bool IsInOptimizationQueue();
 
-  // Unconditionally clear the type feedback vector (including vector ICs).
-  void ClearTypeFeedbackInfo();
-
-  // Clear the type feedback vector with a more subtle policy at GC time.
-  void ClearTypeFeedbackInfoAtGCTime();
-
   // Completes inobject slack tracking on initial map if it is active.
   inline void CompleteInobjectSlackTrackingIfActive();
 
@@ -7392,8 +7377,6 @@ class JSFunction: public JSObject {
   // using the functions from a new context that we should not have
   // access to.
   DECL_ACCESSORS(literals, LiteralsArray)
-
-  inline TypeFeedbackVector* feedback_vector();
 
   // The initial map for an object created by this constructor.
   inline Map* initial_map();

@@ -43,9 +43,6 @@ class AccessBuilder final : public AllStatic {
   // Provides access to JSArray::length() field.
   static FieldAccess ForJSArrayLength(ElementsKind elements_kind);
 
-  // Provides access to JSFunction::literals() field.
-  static FieldAccess ForJSFunctionLiterals();
-
   // Provides access to JSArrayBuffer::backing_store() field.
   static FieldAccess ForJSArrayBufferBackingStore();
 
@@ -120,8 +117,8 @@ class AccessBuilder final : public AllStatic {
   static FieldAccess ForPropertyCellValue();
   static FieldAccess ForPropertyCellValue(Type* type);
 
-  // Provides access to JSFunction::literals()[0] field.
-  static FieldAccess ForLiteralsTypeFeedbackVector();
+  // Provides access to SharedFunctionInfo::feedback_vector() field.
+  static FieldAccess ForSharedFunctionInfoTypeFeedbackVector();
 
   // Provides access to FixedArray elements.
   static ElementAccess ForFixedArrayElement();
