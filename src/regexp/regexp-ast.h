@@ -108,8 +108,9 @@ class CharacterRange {
   bool is_valid() { return from_ <= to_; }
   bool IsEverything(uc16 max) { return from_ == 0 && to_ >= max; }
   bool IsSingleton() { return (from_ == to_); }
-  void AddCaseEquivalents(Isolate* isolate, Zone* zone,
-                          ZoneList<CharacterRange>* ranges, bool is_one_byte);
+  static void AddCaseEquivalents(Isolate* isolate, Zone* zone,
+                                 ZoneList<CharacterRange>* ranges,
+                                 bool is_one_byte);
   // Whether a range list is in canonical form: Ranges ordered by from value,
   // and ranges non-overlapping and non-adjacent.
   static bool IsCanonical(ZoneList<CharacterRange>* ranges);
@@ -293,7 +294,6 @@ class RegExpCharacterClass final : public RegExpTree {
   RegExpCharacterClass* AsCharacterClass() override;
   bool IsCharacterClass() override;
   bool IsTextElement() override { return true; }
-  bool NeedsDesugaringForUnicode(Zone* zone);
   int min_match() override { return 1; }
   int max_match() override { return 1; }
   void AppendToText(RegExpText* text, Zone* zone) override;
@@ -310,7 +310,7 @@ class RegExpCharacterClass final : public RegExpTree {
   // W : non-ASCII word character
   // d : ASCII digit
   // D : non-ASCII digit
-  // . : non-unicode non-newline
+  // . : non-newline
   // * : All characters, for advancing unanchored regexp
   uc16 standard_type() { return set_.standard_set_type(); }
   ZoneList<CharacterRange>* ranges(Zone* zone) { return set_.ranges(zone); }

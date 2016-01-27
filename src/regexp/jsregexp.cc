@@ -25,6 +25,11 @@
 #include "src/string-search.h"
 #include "src/unicode-decoder.h"
 
+#ifdef V8_I18N_SUPPORT
+#include "unicode/uset.h"
+#include "unicode/utypes.h"
+#endif  // V8_I18N_SUPPORT
+
 #ifndef V8_INTERPRETED_REGEXP
 #if V8_TARGET_ARCH_IA32
 #include "src/regexp/ia32/regexp-macro-assembler-ia32.h"
@@ -3420,10 +3425,7 @@ void TextNode::MakeCaseIndependent(Isolate* isolate, bool is_one_byte) {
       // independent case and it slows us down if we don't know that.
       if (cc->is_standard(zone())) continue;
       ZoneList<CharacterRange>* ranges = cc->ranges(zone());
-      int range_count = ranges->length();
-      for (int j = 0; j < range_count; j++) {
-        ranges->at(j).AddCaseEquivalents(isolate, zone(), ranges, is_one_byte);
-      }
+      CharacterRange::AddCaseEquivalents(isolate, zone(), ranges, is_one_byte);
     }
   }
 }
@@ -3586,13 +3588,6 @@ class AlternativeGenerationList {
   AlternativeGeneration a_few_alt_gens_[kAFew];
 };
 
-
-static const uc32 kLeadSurrogateStart = 0xd800;
-static const uc32 kLeadSurrogateEnd = 0xdbff;
-static const uc32 kTrailSurrogateStart = 0xdc00;
-static const uc32 kTrailSurrogateEnd = 0xdfff;
-static const uc32 kNonBmpStart = 0x10000;
-static const uc32 kNonBmpEnd = 0x10ffff;
 static const uc32 kRangeEndMarker = 0x110000;
 
 // The '2' variant is has inclusive from and exclusive to.
@@ -4395,8 +4390,8 @@ void BackReferenceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
 
   DCHECK_EQ(start_reg_ + 1, end_reg_);
   if (compiler->ignore_case()) {
-    assembler->CheckNotBackReferenceIgnoreCase(start_reg_, read_backward(),
-                                               trace->backtrack());
+    assembler->CheckNotBackReferenceIgnoreCase(
+        start_reg_, read_backward(), compiler->unicode(), trace->backtrack());
   } else {
     assembler->CheckNotBackReference(start_reg_, read_backward(),
                                      trace->backtrack());
@@ -4866,21 +4861,6 @@ bool RegExpCharacterClass::is_standard(Zone* zone) {
 }
 
 
-bool RegExpCharacterClass::NeedsDesugaringForUnicode(Zone* zone) {
-  ZoneList<CharacterRange>* ranges = this->ranges(zone);
-  CharacterRange::Canonicalize(ranges);
-  for (int i = ranges->length() - 1; i >= 0; i--) {
-    uc32 from = ranges->at(i).from();
-    uc32 to = ranges->at(i).to();
-    // Check for non-BMP characters.
-    if (to >= kNonBmpStart) return true;
-    // Check for lone surrogates.
-    if (from <= kTrailSurrogateEnd && to >= kLeadSurrogateStart) return true;
-  }
-  return false;
-}
-
-
 UnicodeRangeSplitter::UnicodeRangeSplitter(Zone* zone,
                                            ZoneList<CharacterRange>* base)
     : zone_(zone),
@@ -5120,11 +5100,53 @@ void AddUnanchoredAdvance(RegExpCompiler* compiler, ChoiceNode* result,
 }
 
 
+void AddUnicodeCaseEquivalents(RegExpCompiler* compiler,
+                               ZoneList<CharacterRange>* ranges) {
+#ifdef V8_I18N_SUPPORT
+  // Use ICU to compute the case fold closure over the ranges.
+  DCHECK(compiler->unicode());
+  DCHECK(compiler->ignore_case());
+  USet* set = uset_openEmpty();
+  for (int i = 0; i < ranges->length(); i++) {
+    uset_addRange(set, ranges->at(i).from(), ranges->at(i).to());
+  }
+  ranges->Clear();
+  uset_closeOver(set, USET_CASE_INSENSITIVE);
+  // Full case mapping map single characters to multiple characters.
+  // Those are represented as strings in the set. Remove them so that
+  // we end up with only simple and common case mappings.
+  uset_removeAllStrings(set);
+  int item_count = uset_getItemCount(set);
+  int item_result = 0;
+  UErrorCode ec = U_ZERO_ERROR;
+  Zone* zone = compiler->zone();
+  for (int i = 0; i < item_count; i++) {
+    uc32 start = 0;
+    uc32 end = 0;
+    item_result += uset_getItem(set, i, &start, &end, nullptr, 0, &ec);
+    ranges->Add(CharacterRange::Range(start, end), zone);
+  }
+  // No errors and everything we collected have been ranges.
+  DCHECK_EQ(U_ZERO_ERROR, ec);
+  DCHECK_EQ(0, item_result);
+  uset_close(set);
+#else
+  // Fallback if ICU is not included.
+  CharacterRange::AddCaseEquivalents(compiler->isolate(), compiler->zone(),
+                                     ranges, compiler->one_byte());
+#endif  // V8_I18N_SUPPORT
+  CharacterRange::Canonicalize(ranges);
+}
+
+
 RegExpNode* RegExpCharacterClass::ToNode(RegExpCompiler* compiler,
                                          RegExpNode* on_success) {
   set_.Canonicalize();
   Zone* zone = compiler->zone();
   ZoneList<CharacterRange>* ranges = this->ranges(zone);
+  if (compiler->unicode() && compiler->ignore_case()) {
+    AddUnicodeCaseEquivalents(compiler, ranges);
+  }
   if (compiler->unicode() && !compiler->one_byte()) {
     if (is_negated()) {
       ZoneList<CharacterRange>* negated =
@@ -5853,16 +5875,19 @@ Vector<const int> CharacterRange::GetWordBounds() {
 void CharacterRange::AddCaseEquivalents(Isolate* isolate, Zone* zone,
                                         ZoneList<CharacterRange>* ranges,
                                         bool is_one_byte) {
-  uc32 bottom = from();
-  uc32 top = to();
-  // Nothing to be done for surrogates.
-  if (bottom >= kLeadSurrogateStart && top <= kTrailSurrogateEnd) return;
-  if (is_one_byte && !RangeContainsLatin1Equivalents(*this)) {
-    if (bottom > String::kMaxOneByteCharCode) return;
-    if (top > String::kMaxOneByteCharCode) top = String::kMaxOneByteCharCode;
-  }
-  unibrow::uchar chars[unibrow::Ecma262UnCanonicalize::kMaxWidth];
-  if (top == bottom) {
+  int range_count = ranges->length();
+  for (int i = 0; i < range_count; i++) {
+    CharacterRange range = ranges->at(i);
+    uc32 bottom = range.from();
+    uc32 top = range.to();
+    // Nothing to be done for surrogates.
+    if (bottom >= kLeadSurrogateStart && top <= kTrailSurrogateEnd) return;
+    if (is_one_byte && !RangeContainsLatin1Equivalents(range)) {
+      if (bottom > String::kMaxOneByteCharCode) return;
+      if (top > String::kMaxOneByteCharCode) top = String::kMaxOneByteCharCode;
+    }
+    unibrow::uchar chars[unibrow::Ecma262UnCanonicalize::kMaxWidth];
+    if (top == bottom) {
     // If this is a singleton we just expand the one character.
     int length = isolate->jsregexp_uncanonicalize()->get(bottom, '\0', chars);
     for (int i = 0; i < length; i++) {
@@ -5913,6 +5938,7 @@ void CharacterRange::AddCaseEquivalents(Isolate* isolate, Zone* zone,
       }
       pos = end + 1;
     }
+  }
   }
 }
 
@@ -6284,7 +6310,7 @@ void TextNode::CalculateOffsets() {
 
 
 void Analysis::VisitText(TextNode* that) {
-  if (ignore_case_) {
+  if (ignore_case()) {
     that->MakeCaseIndependent(isolate(), is_one_byte_);
   }
   EnsureAnalyzed(that->on_success());
@@ -6649,7 +6675,7 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(
 
   if (node == NULL) node = new(zone) EndNode(EndNode::BACKTRACK, zone);
   data->node = node;
-  Analysis analysis(isolate, ignore_case, is_one_byte);
+  Analysis analysis(isolate, flags, is_one_byte);
   analysis.EnsureAnalyzed(node);
   if (analysis.has_failed()) {
     const char* error_message = analysis.error_message();

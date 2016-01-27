@@ -1186,16 +1186,16 @@ TEST(MacroAssemblerNativeBackRefNoCase) {
   m.WriteCurrentPositionToRegister(2, 0);
   m.AdvanceCurrentPosition(3);
   m.WriteCurrentPositionToRegister(3, 0);
-  m.CheckNotBackReferenceIgnoreCase(2, false, &fail);  // Match "AbC".
-  m.CheckNotBackReferenceIgnoreCase(2, false, &fail);  // Match "ABC".
+  m.CheckNotBackReferenceIgnoreCase(2, false, false, &fail);  // Match "AbC".
+  m.CheckNotBackReferenceIgnoreCase(2, false, false, &fail);  // Match "ABC".
   Label expected_fail;
-  m.CheckNotBackReferenceIgnoreCase(2, false, &expected_fail);
+  m.CheckNotBackReferenceIgnoreCase(2, false, false, &expected_fail);
   m.Bind(&fail);
   m.Fail();
 
   m.Bind(&expected_fail);
   m.AdvanceCurrentPosition(3);  // Skip "xYz"
-  m.CheckNotBackReferenceIgnoreCase(2, false, &succ);
+  m.CheckNotBackReferenceIgnoreCase(2, false, false, &succ);
   m.Fail();
 
   m.Bind(&succ);
@@ -1629,7 +1629,9 @@ static void TestRangeCaseIndependence(Isolate* isolate, CharacterRange input,
   int count = expected.length();
   ZoneList<CharacterRange>* list =
       new(&zone) ZoneList<CharacterRange>(count, &zone);
-  input.AddCaseEquivalents(isolate, &zone, list, false);
+  list->Add(input, &zone);
+  CharacterRange::AddCaseEquivalents(isolate, &zone, list, false);
+  list->Remove(0);  // Remove the input before checking results.
   CHECK_EQ(count, list->length());
   for (int i = 0; i < list->length(); i++) {
     CHECK_EQ(expected[i].from(), list->at(i).from());

@@ -19,6 +19,15 @@ class RegExpNode;
 class RegExpTree;
 class BoyerMooreLookahead;
 
+
+static const uc32 kLeadSurrogateStart = 0xd800;
+static const uc32 kLeadSurrogateEnd = 0xdbff;
+static const uc32 kTrailSurrogateStart = 0xdc00;
+static const uc32 kTrailSurrogateEnd = 0xdfff;
+static const uc32 kNonBmpStart = 0x10000;
+static const uc32 kNonBmpEnd = 0x10ffff;
+
+
 class RegExpImpl {
  public:
   // Whether V8 is compiled with native regexp support or not.
@@ -1478,9 +1487,9 @@ FOR_EACH_NODE_TYPE(DECLARE_VISIT)
 //   +-------+        +------------+
 class Analysis: public NodeVisitor {
  public:
-  Analysis(Isolate* isolate, bool ignore_case, bool is_one_byte)
+  Analysis(Isolate* isolate, JSRegExp::Flags flags, bool is_one_byte)
       : isolate_(isolate),
-        ignore_case_(ignore_case),
+        flags_(flags),
         is_one_byte_(is_one_byte),
         error_message_(NULL) {}
   void EnsureAnalyzed(RegExpNode* node);
@@ -1502,9 +1511,12 @@ FOR_EACH_NODE_TYPE(DECLARE_VISIT)
 
   Isolate* isolate() const { return isolate_; }
 
+  bool ignore_case() const { return (flags_ & JSRegExp::kIgnoreCase) != 0; }
+  bool unicode() const { return (flags_ & JSRegExp::kUnicode) != 0; }
+
  private:
   Isolate* isolate_;
-  bool ignore_case_;
+  JSRegExp::Flags flags_;
   bool is_one_byte_;
   const char* error_message_;
 

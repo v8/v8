@@ -106,6 +106,7 @@ class RegExpBuilder : public ZoneObject {
   // following quantifier
   void AddEmpty();
   void AddCharacterClass(RegExpCharacterClass* cc);
+  void AddCharacterClass(uc32 c);
   void AddAtom(RegExpTree* tree);
   void AddTerm(RegExpTree* tree);
   void AddAssertion(RegExpTree* tree);
@@ -122,8 +123,11 @@ class RegExpBuilder : public ZoneObject {
   void FlushCharacters();
   void FlushText();
   void FlushTerms();
+  bool NeedsDesugaringForUnicode(RegExpCharacterClass* cc);
+  bool NeedsDesugaringForIgnoreCase(uc32 c);
   Zone* zone() const { return zone_; }
   bool unicode() const { return (flags_ & JSRegExp::kUnicode) != 0; }
+  bool ignore_case() const { return (flags_ & JSRegExp::kIgnoreCase) != 0; }
 
   Zone* zone_;
   bool pending_empty_;

@@ -381,11 +381,13 @@ void RegExpMacroAssemblerIrregexp::CheckNotBackReference(int start_reg,
 
 
 void RegExpMacroAssemblerIrregexp::CheckNotBackReferenceIgnoreCase(
-    int start_reg, bool read_backward, Label* on_not_equal) {
+    int start_reg, bool read_backward, bool unicode, Label* on_not_equal) {
   DCHECK(start_reg >= 0);
   DCHECK(start_reg <= kMaxRegister);
-  Emit(read_backward ? BC_CHECK_NOT_BACK_REF_NO_CASE_BACKWARD
-                     : BC_CHECK_NOT_BACK_REF_NO_CASE,
+  Emit(read_backward ? (unicode ? BC_CHECK_NOT_BACK_REF_NO_CASE_UNICODE_BACKWARD
+                                : BC_CHECK_NOT_BACK_REF_NO_CASE_BACKWARD)
+                     : (unicode ? BC_CHECK_NOT_BACK_REF_NO_CASE_UNICODE
+                                : BC_CHECK_NOT_BACK_REF_NO_CASE),
        start_reg);
   EmitOrLink(on_not_equal);
 }

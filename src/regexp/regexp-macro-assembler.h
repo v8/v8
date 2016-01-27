@@ -76,7 +76,7 @@ class RegExpMacroAssembler {
   virtual void CheckNotBackReference(int start_reg, bool read_backward,
                                      Label* on_no_match) = 0;
   virtual void CheckNotBackReferenceIgnoreCase(int start_reg,
-                                               bool read_backward,
+                                               bool read_backward, bool unicode,
                                                Label* on_no_match) = 0;
   // Check the current character for a match with a literal character.  If we
   // fail to match then goto the on_failure label.  End of input always
@@ -146,6 +146,12 @@ class RegExpMacroAssembler {
   virtual void ClearRegisters(int reg_from, int reg_to) = 0;
   virtual void WriteStackPointerToRegister(int reg) = 0;
 
+  // Compares two-byte strings case insensitively.
+  // Called from generated RegExp code.
+  static int CaseInsensitiveCompareUC16(Address byte_offset1,
+                                        Address byte_offset2,
+                                        size_t byte_length, Isolate* isolate);
+
   // Controls the generation of large inlined constants in the code.
   void set_slow_safe(bool ssc) { slow_safe_compiler_ = ssc; }
   bool slow_safe() { return slow_safe_compiler_; }
@@ -198,13 +204,6 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
                       int offsets_vector_length,
                       int previous_index,
                       Isolate* isolate);
-
-  // Compares two-byte strings case insensitively.
-  // Called from generated RegExp code.
-  static int CaseInsensitiveCompareUC16(Address byte_offset1,
-                                        Address byte_offset2,
-                                        size_t byte_length,
-                                        Isolate* isolate);
 
   // Called from RegExp if the backtrack stack limit is hit.
   // Tries to expand the stack. Returns the new stack-pointer if

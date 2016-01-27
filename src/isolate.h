@@ -891,7 +891,7 @@ class Isolate {
 
   unibrow::Mapping<unibrow::Ecma262Canonicalize>*
       interp_canonicalize_mapping() {
-    return &interp_canonicalize_mapping_;
+    return &regexp_macro_assembler_canonicalize_;
   }
 
   Debug* debug() { return debug_; }
@@ -1245,7 +1245,6 @@ class Isolate {
       regexp_macro_assembler_canonicalize_;
   RegExpStack* regexp_stack_;
   DateCache* date_cache_;
-  unibrow::Mapping<unibrow::Ecma262Canonicalize> interp_canonicalize_mapping_;
   CallInterfaceDescriptorData* call_descriptor_data_;
   base::RandomNumberGenerator* random_number_generator_;
 

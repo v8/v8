@@ -251,7 +251,7 @@ void RegExpMacroAssemblerMIPS::CheckGreedyLoop(Label* on_equal) {
 
 
 void RegExpMacroAssemblerMIPS::CheckNotBackReferenceIgnoreCase(
-    int start_reg, bool read_backward, Label* on_no_match) {
+    int start_reg, bool read_backward, bool unicode, Label* on_no_match) {
   Label fallthrough;
   __ ld(a0, register_location(start_reg));  // Index of start of capture.
   __ ld(a1, register_location(start_reg + 1));  // Index of end of capture.
@@ -346,7 +346,7 @@ void RegExpMacroAssemblerMIPS::CheckNotBackReferenceIgnoreCase(
     //   a0: Address byte_offset1 - Address captured substring's start.
     //   a1: Address byte_offset2 - Address of current character position.
     //   a2: size_t byte_length - length of capture in bytes(!).
-    //   a3: Isolate* isolate.
+    //   a3: Isolate* isolate or 0 if unicode flag.
 
     // Address of start of capture.
     __ Daddu(a0, a0, Operand(end_of_input_address()));
@@ -360,7 +360,14 @@ void RegExpMacroAssemblerMIPS::CheckNotBackReferenceIgnoreCase(
       __ Dsubu(a1, a1, Operand(s3));
     }
     // Isolate.
-    __ li(a3, Operand(ExternalReference::isolate_address(masm_->isolate())));
+#ifdef V8_I18N_SUPPORT
+    if (unicode) {
+      __ li(a3, Operand(zero_reg));
+    } else  // NOLINT
+#endif      // V8_I18N_SUPPORT
+    {
+      __ li(a3, Operand(ExternalReference::isolate_address(masm_->isolate())));
+    }
 
     {
       AllowExternalCallThatCantCauseGC scope(masm_);

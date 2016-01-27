@@ -11,6 +11,10 @@
 #include "src/regexp/jsregexp.h"
 #include "src/utils.h"
 
+#ifdef V8_I18N_SUPPORT
+#include "unicode/uset.h"
+#endif  // V8_I18N_SUPPORT
+
 namespace v8 {
 namespace internal {
 
@@ -1064,13 +1068,20 @@ void RegExpBuilder::AddTrailSurrogate(uc16 trail_surrogate) {
   DCHECK(unibrow::Utf16::IsTrailSurrogate(trail_surrogate));
   if (pending_surrogate_ != kNoPendingSurrogate) {
     uc16 lead_surrogate = pending_surrogate_;
-    DCHECK(unibrow::Utf16::IsLeadSurrogate(lead_surrogate));
-    ZoneList<uc16> surrogate_pair(2, zone());
-    surrogate_pair.Add(lead_surrogate, zone());
-    surrogate_pair.Add(trail_surrogate, zone());
-    RegExpAtom* atom = new (zone()) RegExpAtom(surrogate_pair.ToConstVector());
     pending_surrogate_ = kNoPendingSurrogate;
-    AddAtom(atom);
+    DCHECK(unibrow::Utf16::IsLeadSurrogate(lead_surrogate));
+    uc32 combined =
+        unibrow::Utf16::CombineSurrogatePair(lead_surrogate, trail_surrogate);
+    if (NeedsDesugaringForIgnoreCase(combined)) {
+      AddCharacterClass(combined);
+    } else {
+      ZoneList<uc16> surrogate_pair(2, zone());
+      surrogate_pair.Add(lead_surrogate, zone());
+      surrogate_pair.Add(trail_surrogate, zone());
+      RegExpAtom* atom =
+          new (zone()) RegExpAtom(surrogate_pair.ToConstVector());
+      AddAtom(atom);
+    }
   } else {
     pending_surrogate_ = trail_surrogate;
     FlushPendingSurrogate();
@@ -1080,14 +1091,10 @@ void RegExpBuilder::AddTrailSurrogate(uc16 trail_surrogate) {
 
 void RegExpBuilder::FlushPendingSurrogate() {
   if (pending_surrogate_ != kNoPendingSurrogate) {
-    // Use character class to desugar lone surrogate matching.
-    RegExpCharacterClass* cc = new (zone()) RegExpCharacterClass(
-        CharacterRange::List(zone(),
-                             CharacterRange::Singleton(pending_surrogate_)),
-        false);
-    pending_surrogate_ = kNoPendingSurrogate;
     DCHECK(unicode());
-    AddCharacterClass(cc);
+    uc32 c = pending_surrogate_;
+    pending_surrogate_ = kNoPendingSurrogate;
+    AddCharacterClass(c);
   }
 }
 
@@ -1123,11 +1130,15 @@ void RegExpBuilder::FlushText() {
 void RegExpBuilder::AddCharacter(uc16 c) {
   FlushPendingSurrogate();
   pending_empty_ = false;
-  if (characters_ == NULL) {
-    characters_ = new (zone()) ZoneList<uc16>(4, zone());
+  if (NeedsDesugaringForIgnoreCase(c)) {
+    AddCharacterClass(c);
+  } else {
+    if (characters_ == NULL) {
+      characters_ = new (zone()) ZoneList<uc16>(4, zone());
+    }
+    characters_->Add(c, zone());
+    LAST(ADD_CHAR);
   }
-  characters_->Add(c, zone());
-  LAST(ADD_CHAR);
 }
 
 
@@ -1150,13 +1161,19 @@ void RegExpBuilder::AddEmpty() { pending_empty_ = true; }
 
 
 void RegExpBuilder::AddCharacterClass(RegExpCharacterClass* cc) {
-  if (unicode() && cc->NeedsDesugaringForUnicode(zone())) {
+  if (NeedsDesugaringForUnicode(cc)) {
     // In unicode mode, character class needs to be desugared, so it
     // must be a standalone term instead of being part of a RegExpText.
     AddTerm(cc);
   } else {
     AddAtom(cc);
   }
+}
+
+
+void RegExpBuilder::AddCharacterClass(uc32 c) {
+  AddCharacterClass(new (zone()) RegExpCharacterClass(
+      CharacterRange::List(zone(), CharacterRange::Singleton(c)), false));
 }
 
 
@@ -1207,6 +1224,47 @@ void RegExpBuilder::FlushTerms() {
   alternatives_.Add(alternative, zone());
   terms_.Clear();
   LAST(ADD_NONE);
+}
+
+
+bool RegExpBuilder::NeedsDesugaringForUnicode(RegExpCharacterClass* cc) {
+  if (!unicode()) return false;
+  switch (cc->standard_type()) {
+    case 's':        // white space
+    case 'w':        // ASCII word character
+    case 'd':        // ASCII digit
+      return false;  // These characters do not need desugaring.
+    default:
+      break;
+  }
+  ZoneList<CharacterRange>* ranges = cc->ranges(zone());
+  CharacterRange::Canonicalize(ranges);
+  for (int i = ranges->length() - 1; i >= 0; i--) {
+    uc32 from = ranges->at(i).from();
+    uc32 to = ranges->at(i).to();
+    // Check for non-BMP characters.
+    if (to >= kNonBmpStart) return true;
+    // Check for lone surrogates.
+    if (from <= kTrailSurrogateEnd && to >= kLeadSurrogateStart) return true;
+  }
+  return false;
+}
+
+
+bool RegExpBuilder::NeedsDesugaringForIgnoreCase(uc32 c) {
+#ifdef V8_I18N_SUPPORT
+  if (unicode() && ignore_case()) {
+    USet* set = uset_open(c, c);
+    uset_closeOver(set, USET_CASE_INSENSITIVE);
+    uset_removeAllStrings(set);
+    bool result = uset_size(set) > 1;
+    uset_close(set);
+    return result;
+  }
+  // In the case where ICU is not included, we act as if the unicode flag is
+  // not set, and do not desugar.
+#endif  // V8_I18N_SUPPORT
+  return false;
 }
 
 
