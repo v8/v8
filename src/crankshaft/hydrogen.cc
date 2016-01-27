@@ -6363,19 +6363,11 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::LoadFieldMaps(
   Handle<FieldType> field_type = GetFieldTypeFromMap(map);
 
   // Collect the (stable) maps from the field type.
-  int num_field_maps = field_type->ClassCount();
-  if (num_field_maps > 0) {
+  if (field_type->IsClass()) {
     DCHECK(access_.representation().IsHeapObject());
-    field_maps_.Reserve(num_field_maps, zone());
-    FieldType::Iterator it = field_type->Classes();
-    while (!it.Done()) {
-      Handle<Map> field_map = it.Current();
-      if (!field_map->is_stable()) {
-        field_maps_.Clear();
-        break;
-      }
+    Handle<Map> field_map = field_type->AsClass();
+    if (field_map->is_stable()) {
       field_maps_.Add(field_map, zone());
-      it.Advance();
     }
   }
 
@@ -6383,9 +6375,6 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::LoadFieldMaps(
     // Store is not safe if the field map was cleared.
     return IsLoad() || !field_type->IsNone();
   }
-
-  field_maps_.Sort();
-  DCHECK_EQ(num_field_maps, field_maps_.length());
 
   // Determine field HType from field type.
   field_type_ = HType::FromFieldType(field_type, zone());

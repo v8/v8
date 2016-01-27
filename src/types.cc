@@ -1429,11 +1429,6 @@ Type* FieldType::Convert(Zone* zone) {
   return Type::Class(AsClass(), zone);
 }
 
-FieldType::Iterator FieldType::Classes() {
-  if (IsClass()) return Iterator(this->AsClass());
-  return Iterator();
-}
-
 void FieldType::PrintTo(std::ostream& os) {
   if (IsAny()) {
     os << "Any";

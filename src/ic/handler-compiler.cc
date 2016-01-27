@@ -511,7 +511,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
 
 bool NamedStoreHandlerCompiler::RequiresFieldTypeChecks(
     FieldType* field_type) const {
-  return !field_type->Classes().Done();
+  return field_type->IsClass();
 }
 
 

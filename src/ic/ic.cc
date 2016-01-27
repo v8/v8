@@ -1798,8 +1798,7 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
         if (lookup->representation().IsHeapObject()) {
           // Only use a generic stub if no types need to be tracked.
           Handle<FieldType> field_type = lookup->GetFieldType();
-          FieldType::Iterator it = field_type->Classes();
-          use_stub = it.Done();
+          use_stub = !field_type->IsClass();
         }
         if (use_stub) {
           StoreFieldStub stub(isolate(), lookup->GetFieldIndex(),

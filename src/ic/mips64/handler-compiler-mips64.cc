@@ -391,21 +391,11 @@ void NamedStoreHandlerCompiler::GenerateFieldTypeChecks(FieldType* field_type,
   DCHECK(!value_reg.is(map_reg));
   DCHECK(!value_reg.is(scratch));
   __ JumpIfSmi(value_reg, miss_label);
-  FieldType::Iterator it = field_type->Classes();
-  if (!it.Done()) {
+  if (field_type->IsClass()) {
     __ ld(map_reg, FieldMemOperand(value_reg, HeapObject::kMapOffset));
-    Label do_store;
-    while (true) {
-      // Compare map directly within the Branch() functions.
-      __ GetWeakValue(scratch, Map::WeakCellForMap(it.Current()));
-      it.Advance();
-      if (it.Done()) {
-        __ Branch(miss_label, ne, map_reg, Operand(scratch));
-        break;
-      }
-      __ Branch(&do_store, eq, map_reg, Operand(scratch));
-    }
-    __ bind(&do_store);
+    // Compare map directly within the Branch() functions.
+    __ GetWeakValue(scratch, Map::WeakCellForMap(field_type->AsClass()));
+    __ Branch(miss_label, ne, map_reg, Operand(scratch));
   }
 }
 

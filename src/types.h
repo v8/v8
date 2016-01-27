@@ -1142,9 +1142,6 @@ typedef BoundsImpl<ZoneTypeConfig> Bounds;
 
 class FieldType : public Object {
  public:
-  class Iterator;
-
-  // static Handle<FieldType> Create(Isolate* isolate, int length);
   static FieldType* None();
   static FieldType* Any();
   static Handle<FieldType> None(Isolate* isolate);
@@ -1163,32 +1160,8 @@ class FieldType : public Object {
   bool NowIs(FieldType* other);
   bool NowIs(Handle<FieldType> other);
   Type* Convert(Zone* zone);
-  Iterator Classes();
-  int ClassCount() { return IsClass() ? 1 : 0; }
 
   void PrintTo(std::ostream& os);
-};
-
-class FieldType::Iterator {
- public:
-  bool Done() const { return done_; }
-  i::Handle<i::Map> Current() {
-    DCHECK(!Done());
-    return map_.ToHandleChecked();
-  }
-  void Advance() {
-    if (!done_) done_ = true;
-  }
-
- private:
-  friend FieldType;
-
-  Iterator() : done_(true) {}
-  explicit Iterator(MaybeHandle<i::Map> map)
-      : done_(map.is_null()), map_(map) {}
-
-  bool done_;
-  MaybeHandle<i::Map> map_;
 };
 
 }  // namespace internal
