@@ -1073,7 +1073,7 @@ void RegExpBuilder::AddTrailSurrogate(uc16 trail_surrogate) {
     uc32 combined =
         unibrow::Utf16::CombineSurrogatePair(lead_surrogate, trail_surrogate);
     if (NeedsDesugaringForIgnoreCase(combined)) {
-      AddCharacterClass(combined);
+      AddCharacterClassForDesugaring(combined);
     } else {
       ZoneList<uc16> surrogate_pair(2, zone());
       surrogate_pair.Add(lead_surrogate, zone());
@@ -1094,7 +1094,7 @@ void RegExpBuilder::FlushPendingSurrogate() {
     DCHECK(unicode());
     uc32 c = pending_surrogate_;
     pending_surrogate_ = kNoPendingSurrogate;
-    AddCharacterClass(c);
+    AddCharacterClassForDesugaring(c);
   }
 }
 
@@ -1131,7 +1131,7 @@ void RegExpBuilder::AddCharacter(uc16 c) {
   FlushPendingSurrogate();
   pending_empty_ = false;
   if (NeedsDesugaringForIgnoreCase(c)) {
-    AddCharacterClass(c);
+    AddCharacterClassForDesugaring(c);
   } else {
     if (characters_ == NULL) {
       characters_ = new (zone()) ZoneList<uc16>(4, zone());
@@ -1170,9 +1170,8 @@ void RegExpBuilder::AddCharacterClass(RegExpCharacterClass* cc) {
   }
 }
 
-
-void RegExpBuilder::AddCharacterClass(uc32 c) {
-  AddCharacterClass(new (zone()) RegExpCharacterClass(
+void RegExpBuilder::AddCharacterClassForDesugaring(uc32 c) {
+  AddTerm(new (zone()) RegExpCharacterClass(
       CharacterRange::List(zone(), CharacterRange::Singleton(c)), false));
 }
 

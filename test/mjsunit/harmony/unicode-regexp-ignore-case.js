@@ -52,3 +52,7 @@ assertEquals(["\u00e5\u212b\u00c5", "\u00e5"],
              /(.)\1\1/ui.exec("\u00e5\u212b\u00c5"));
 assertEquals(["\u{118aa}\u{118ca}", "\u{118aa}"],
              /(.)\1/ui.exec("\u{118aa}\u{118ca}"));
+
+// Misc.
+assertTrue(/\u00e5\u00e5\u00e5/ui.test("\u212b\u00e5\u00c5"));
+assertTrue(/AB\u{10400}/ui.test("ab\u{10428}"));

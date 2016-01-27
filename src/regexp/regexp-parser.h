@@ -106,7 +106,7 @@ class RegExpBuilder : public ZoneObject {
   // following quantifier
   void AddEmpty();
   void AddCharacterClass(RegExpCharacterClass* cc);
-  void AddCharacterClass(uc32 c);
+  void AddCharacterClassForDesugaring(uc32 c);
   void AddAtom(RegExpTree* tree);
   void AddTerm(RegExpTree* tree);
   void AddAssertion(RegExpTree* tree);
