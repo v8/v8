@@ -1080,7 +1080,6 @@
         '../../src/unicode-cache.h',
         '../../src/unicode-decoder.cc',
         '../../src/unicode-decoder.h',
-        '../../src/utils-inl.h',
         '../../src/utils.cc',
         '../../src/utils.h',
         '../../src/v8.cc',

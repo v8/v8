@@ -33,6 +33,10 @@ class StoreBuffer {
   // This is used to add addresses to the store buffer non-concurrently.
   inline void Mark(Address addr);
 
+  // This is used to add addresses to the store buffer when multiple threads
+  // may operate on the store buffer.
+  inline void MarkSynchronized(Address addr);
+
   // This is used by the heap traversal to enter the addresses into the store
   // buffer that should still be in the store buffer after GC.  It enters
   // addresses directly into the old buffer because the GC starts by wiping the
@@ -212,39 +216,6 @@ class DontMoveStoreBufferEntriesScope {
   StoreBuffer* store_buffer_;
   bool stored_state_;
 };
-
-class LocalStoreBuffer BASE_EMBEDDED {
- public:
-  LocalStoreBuffer() : top_(new Node(nullptr)) {}
-
-  ~LocalStoreBuffer() {
-    Node* current = top_;
-    while (current != nullptr) {
-      Node* tmp = current->next;
-      delete current;
-      current = tmp;
-    }
-  }
-
-  inline void Record(Address addr);
-  inline void Process(StoreBuffer* store_buffer);
-
- private:
-  static const int kBufferSize = 16 * KB;
-
-  struct Node : Malloced {
-    explicit Node(Node* next_node) : next(next_node), count(0) {}
-
-    inline bool is_full() { return count == kBufferSize; }
-
-    Node* next;
-    Address buffer[kBufferSize];
-    int count;
-  };
-
-  Node* top_;
-};
-
 }  // namespace internal
 }  // namespace v8
 

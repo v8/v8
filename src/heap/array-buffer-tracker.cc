@@ -77,7 +77,6 @@ void ArrayBufferTracker::Unregister(JSArrayBuffer* buffer) {
 
 
 void ArrayBufferTracker::MarkLive(JSArrayBuffer* buffer) {
-  base::LockGuard<base::Mutex> guard(&mutex_);
   void* data = buffer->backing_store();
 
   // ArrayBuffer might be in the middle of being constructed.
@@ -124,8 +123,6 @@ void ArrayBufferTracker::PrepareDiscoveryInNewSpace() {
 
 
 void ArrayBufferTracker::Promote(JSArrayBuffer* buffer) {
-  base::LockGuard<base::Mutex> guard(&mutex_);
-
   if (buffer->is_external()) return;
   void* data = buffer->backing_store();
   if (!data) return;

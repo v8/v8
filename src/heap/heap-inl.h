@@ -467,7 +467,7 @@ void Heap::MoveBlock(Address dst, Address src, int byte_size) {
   }
 }
 
-template <Heap::FindMementoMode mode>
+
 AllocationMemento* Heap::FindAllocationMemento(HeapObject* object) {
   // Check if there is potentially a memento behind the object. If
   // the last word of the memento is on another page we return
@@ -476,43 +476,34 @@ AllocationMemento* Heap::FindAllocationMemento(HeapObject* object) {
   Address memento_address = object_address + object->Size();
   Address last_memento_word_address = memento_address + kPointerSize;
   if (!NewSpacePage::OnSamePage(object_address, last_memento_word_address)) {
-    return nullptr;
+    return NULL;
   }
+
   HeapObject* candidate = HeapObject::FromAddress(memento_address);
   Map* candidate_map = candidate->map();
   // This fast check may peek at an uninitialized word. However, the slow check
   // below (memento_address == top) ensures that this is safe. Mark the word as
   // initialized to silence MemorySanitizer warnings.
   MSAN_MEMORY_IS_INITIALIZED(&candidate_map, sizeof(candidate_map));
-  if (candidate_map != allocation_memento_map()) {
-    return nullptr;
-  }
-  AllocationMemento* memento_candidate = AllocationMemento::cast(candidate);
+  if (candidate_map != allocation_memento_map()) return NULL;
 
-  // Depending on what the memento is used for, we might need to perform
-  // additional checks.
-  Address top;
-  switch (mode) {
-    case Heap::kForGC:
-      return memento_candidate;
-    case Heap::kForRuntime:
-      if (memento_candidate == nullptr) return nullptr;
-      // Either the object is the last object in the new space, or there is
-      // another object of at least word size (the header map word) following
-      // it, so suffices to compare ptr and top here.
-      top = NewSpaceTop();
-      DCHECK(memento_address == top ||
-             memento_address + HeapObject::kHeaderSize <= top ||
-             !NewSpacePage::OnSamePage(memento_address, top - 1));
-      if ((memento_address != top) && memento_candidate->IsValid()) {
-        return memento_candidate;
-      }
-      return nullptr;
-    default:
-      UNREACHABLE();
-  }
-  UNREACHABLE();
-  return nullptr;
+  // Either the object is the last object in the new space, or there is another
+  // object of at least word size (the header map word) following it, so
+  // suffices to compare ptr and top here. Note that technically we do not have
+  // to compare with the current top pointer of the from space page during GC,
+  // since we always install filler objects above the top pointer of a from
+  // space page when performing a garbage collection. However, always performing
+  // the test makes it possible to have a single, unified version of
+  // FindAllocationMemento that is used both by the GC and the mutator.
+  Address top = NewSpaceTop();
+  DCHECK(memento_address == top ||
+         memento_address + HeapObject::kHeaderSize <= top ||
+         !NewSpacePage::OnSamePage(memento_address, top - 1));
+  if (memento_address == top) return NULL;
+
+  AllocationMemento* memento = AllocationMemento::cast(candidate);
+  if (!memento->IsValid()) return NULL;
+  return memento;
 }
 
 
@@ -522,28 +513,24 @@ void Heap::UpdateAllocationSite(HeapObject* object,
   if (!FLAG_allocation_site_pretenuring ||
       !AllocationSite::CanTrack(object->map()->instance_type()))
     return;
-  AllocationMemento* memento_candidate = FindAllocationMemento<kForGC>(object);
-  if (memento_candidate == nullptr) return;
+  AllocationMemento* memento = FindAllocationMemento(object);
+  if (memento == nullptr) return;
+
+  AllocationSite* key = memento->GetAllocationSite();
+  DCHECK(!key->IsZombie());
 
   if (pretenuring_feedback == global_pretenuring_feedback_) {
-    // Entering global pretenuring feedback is only used in the scavenger, where
-    // we are allowed to actually touch the allocation site.
-    if (!memento_candidate->IsValid()) return;
-    AllocationSite* site = memento_candidate->GetAllocationSite();
-    DCHECK(!site->IsZombie());
     // For inserting in the global pretenuring storage we need to first
     // increment the memento found count on the allocation site.
-    if (site->IncrementMementoFoundCount()) {
-      global_pretenuring_feedback_->LookupOrInsert(site,
-                                                   ObjectHash(site->address()));
+    if (key->IncrementMementoFoundCount()) {
+      global_pretenuring_feedback_->LookupOrInsert(
+          key, static_cast<uint32_t>(bit_cast<uintptr_t>(key)));
     }
   } else {
-    // Entering cached feedback is used in the parallel case. We are not allowed
-    // to dereference the allocation site and rather have to postpone all checks
-    // till actually merging the data.
-    Address key = memento_candidate->GetAllocationSiteUnchecked();
-    HashMap::Entry* e =
-        pretenuring_feedback->LookupOrInsert(key, ObjectHash(key));
+    // Any other pretenuring storage than the global one is used as a cache,
+    // where the count is later on merge in the allocation site.
+    HashMap::Entry* e = pretenuring_feedback->LookupOrInsert(
+        key, static_cast<uint32_t>(bit_cast<uintptr_t>(key)));
     DCHECK(e != nullptr);
     (*bit_cast<intptr_t*>(&e->value))++;
   }

@@ -2917,7 +2917,9 @@ class CompactionSpaceCollection : public Malloced {
  public:
   explicit CompactionSpaceCollection(Heap* heap)
       : old_space_(heap, OLD_SPACE, Executability::NOT_EXECUTABLE),
-        code_space_(heap, CODE_SPACE, Executability::EXECUTABLE) {}
+        code_space_(heap, CODE_SPACE, Executability::EXECUTABLE),
+        duration_(0.0),
+        bytes_compacted_(0) {}
 
   CompactionSpace* Get(AllocationSpace space) {
     switch (space) {
@@ -2932,9 +2934,21 @@ class CompactionSpaceCollection : public Malloced {
     return nullptr;
   }
 
+  void ReportCompactionProgress(double duration, intptr_t bytes_compacted) {
+    duration_ += duration;
+    bytes_compacted_ += bytes_compacted;
+  }
+
+  double duration() const { return duration_; }
+  intptr_t bytes_compacted() const { return bytes_compacted_; }
+
  private:
   CompactionSpace old_space_;
   CompactionSpace code_space_;
+
+  // Book keeping.
+  double duration_;
+  intptr_t bytes_compacted_;
 };
 
 
