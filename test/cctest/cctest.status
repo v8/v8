@@ -586,6 +586,10 @@
 
 ['ignition == True and arch == arm64', {
   'test-decls/CrossScriptReferencesHarmony': [SKIP],
+
+  'test-decls/CrossScriptReferences_Simple2': [SKIP],
+  'test-log/EquivalenceOfLoggingAndTraversal': [SKIP],
+
   'test-js-arm64-variables/lookup_slots': [SKIP],
   'test-spaces/SizeOfFirstPageIsLargeEnough': [SKIP],
   'test-heap/AddInstructionChangesNewSpacePromotion': [SKIP],
