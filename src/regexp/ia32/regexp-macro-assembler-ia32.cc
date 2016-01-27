@@ -829,13 +829,15 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
         __ test(edi, edi);
         __ j(zero, &exit_label_, Label::kNear);
         // Advance current position after a zero-length match.
+        Label advance;
+        __ bind(&advance);
         if (mode_ == UC16) {
           __ add(edi, Immediate(2));
         } else {
           __ inc(edi);
         }
+        if (global_unicode()) CheckNotInSurrogatePair(0, &advance);
       }
-
       __ jmp(&load_char_start_regexp);
     } else {
       __ mov(eax, Immediate(SUCCESS));

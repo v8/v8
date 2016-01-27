@@ -122,7 +122,6 @@ class RegExpImpl {
    public:
     GlobalCache(Handle<JSRegExp> regexp,
                 Handle<String> subject,
-                bool is_global,
                 Isolate* isolate);
 
     INLINE(~GlobalCache());
@@ -138,6 +137,8 @@ class RegExpImpl {
     INLINE(bool HasException()) { return num_matches_ < 0; }
 
    private:
+    int AdvanceZeroLength(int last_index);
+
     int num_matches_;
     int max_matches_;
     int current_match_index_;

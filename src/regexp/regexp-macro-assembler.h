@@ -166,21 +166,27 @@ class RegExpMacroAssembler {
   void set_slow_safe(bool ssc) { slow_safe_compiler_ = ssc; }
   bool slow_safe() { return slow_safe_compiler_; }
 
-  enum GlobalMode { NOT_GLOBAL, GLOBAL, GLOBAL_NO_ZERO_LENGTH_CHECK };
+  enum GlobalMode {
+    NOT_GLOBAL,
+    GLOBAL_NO_ZERO_LENGTH_CHECK,
+    GLOBAL,
+    GLOBAL_UNICODE
+  };
   // Set whether the regular expression has the global flag.  Exiting due to
   // a failure in a global regexp may still mean success overall.
   inline void set_global_mode(GlobalMode mode) { global_mode_ = mode; }
   inline bool global() { return global_mode_ != NOT_GLOBAL; }
   inline bool global_with_zero_length_check() {
-    return global_mode_ == GLOBAL;
+    return global_mode_ == GLOBAL || global_mode_ == GLOBAL_UNICODE;
   }
+  inline bool global_unicode() { return global_mode_ == GLOBAL_UNICODE; }
 
   Isolate* isolate() const { return isolate_; }
   Zone* zone() const { return zone_; }
 
  private:
   bool slow_safe_compiler_;
-  bool global_mode_;
+  GlobalMode global_mode_;
   Isolate* isolate_;
   Zone* zone_;
 };

@@ -848,9 +848,12 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
           __ Branch(&exit_label_, eq, current_input_offset(),
                     Operand(zero_reg));
           // Advance current position after a zero-length match.
+          Label advance;
+          __ bind(&advance);
           __ Daddu(current_input_offset(),
                   current_input_offset(),
                   Operand((mode_ == UC16) ? 2 : 1));
+          if (global_unicode()) CheckNotInSurrogatePair(0, &advance);
         }
 
         __ Branch(&load_char_start_regexp);

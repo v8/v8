@@ -877,11 +877,14 @@ Handle<HeapObject> RegExpMacroAssemblerX64::GetCode(Handle<String> source) {
         __ testp(rdi, rdi);
         __ j(zero, &exit_label_, Label::kNear);
         // Advance current position after a zero-length match.
+        Label advance;
+        __ bind(&advance);
         if (mode_ == UC16) {
           __ addq(rdi, Immediate(2));
         } else {
           __ incq(rdi);
         }
+        if (global_unicode()) CheckNotInSurrogatePair(0, &advance);
       }
 
       __ jmp(&load_char_start_regexp);

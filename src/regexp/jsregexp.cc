@@ -638,7 +638,6 @@ Handle<JSArray> RegExpImpl::SetLastMatchInfo(Handle<JSArray> last_match_info,
 
 RegExpImpl::GlobalCache::GlobalCache(Handle<JSRegExp> regexp,
                                      Handle<String> subject,
-                                     bool is_global,
                                      Isolate* isolate)
   : register_array_(NULL),
     register_array_size_(0),
@@ -663,7 +662,8 @@ RegExpImpl::GlobalCache::GlobalCache(Handle<JSRegExp> regexp,
     }
   }
 
-  if (is_global && !interpreted) {
+  DCHECK_NE(0, regexp->GetFlags() & JSRegExp::kGlobal);
+  if (!interpreted) {
     register_array_size_ =
         Max(registers_per_match_, Isolate::kJSRegexpStaticOffsetsVectorSize);
     max_matches_ = register_array_size_ / registers_per_match_;
@@ -692,6 +692,16 @@ RegExpImpl::GlobalCache::GlobalCache(Handle<JSRegExp> regexp,
   last_match[1] = 0;
 }
 
+int RegExpImpl::GlobalCache::AdvanceZeroLength(int last_index) {
+  if ((regexp_->GetFlags() & JSRegExp::kUnicode) != 0 &&
+      last_index + 1 < subject_->length() &&
+      unibrow::Utf16::IsLeadSurrogate(subject_->Get(last_index)) &&
+      unibrow::Utf16::IsTrailSurrogate(subject_->Get(last_index + 1))) {
+    // Advance over the surrogate pair.
+    return last_index + 2;
+  }
+  return last_index + 1;
+}
 
 // -------------------------------------------------------------------
 // Implementation of the Irregexp regular expression engine.
@@ -6623,6 +6633,7 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(
   bool ignore_case = flags & JSRegExp::kIgnoreCase;
   bool is_sticky = flags & JSRegExp::kSticky;
   bool is_global = flags & JSRegExp::kGlobal;
+  bool is_unicode = flags & JSRegExp::kUnicode;
   RegExpCompiler compiler(isolate, zone, data->capture_count, flags,
                           is_one_byte);
 
@@ -6742,10 +6753,13 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(
   }
 
   if (is_global) {
-    macro_assembler.set_global_mode(
-        (data->tree->min_match() > 0)
-            ? RegExpMacroAssembler::GLOBAL_NO_ZERO_LENGTH_CHECK
-            : RegExpMacroAssembler::GLOBAL);
+    RegExpMacroAssembler::GlobalMode mode = RegExpMacroAssembler::GLOBAL;
+    if (data->tree->min_match() > 0) {
+      mode = RegExpMacroAssembler::GLOBAL_NO_ZERO_LENGTH_CHECK;
+    } else if (is_unicode) {
+      mode = RegExpMacroAssembler::GLOBAL_UNICODE;
+    }
+    macro_assembler.set_global_mode(mode);
   }
 
   return compiler.Assemble(&macro_assembler,
