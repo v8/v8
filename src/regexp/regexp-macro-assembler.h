@@ -11,6 +11,13 @@
 namespace v8 {
 namespace internal {
 
+static const uc32 kLeadSurrogateStart = 0xd800;
+static const uc32 kLeadSurrogateEnd = 0xdbff;
+static const uc32 kTrailSurrogateStart = 0xdc00;
+static const uc32 kTrailSurrogateEnd = 0xdfff;
+static const uc32 kNonBmpStart = 0x10000;
+static const uc32 kNonBmpEnd = 0x10ffff;
+
 struct DisjunctDecisionRow {
   RegExpCharacterClass cc;
   Label* on_match;
@@ -151,6 +158,9 @@ class RegExpMacroAssembler {
   static int CaseInsensitiveCompareUC16(Address byte_offset1,
                                         Address byte_offset2,
                                         size_t byte_length, Isolate* isolate);
+
+  // Check that we are not in the middle of a surrogate pair.
+  void CheckNotInSurrogatePair(int cp_offset, Label* on_failure);
 
   // Controls the generation of large inlined constants in the code.
   void set_slow_safe(bool ssc) { slow_safe_compiler_ = ssc; }

@@ -3588,6 +3588,7 @@ class AlternativeGenerationList {
   AlternativeGeneration a_few_alt_gens_[kAFew];
 };
 
+
 static const uc32 kRangeEndMarker = 0x110000;
 
 // The '2' variant is has inclusive from and exclusive to.
@@ -4398,6 +4399,11 @@ void BackReferenceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
   }
   // We are going to advance backward, so we may end up at the start.
   if (read_backward()) trace->set_at_start(Trace::UNKNOWN);
+
+  // Check that the back reference does not end inside a surrogate pair.
+  if (compiler->unicode() && !compiler->one_byte()) {
+    assembler->CheckNotInSurrogatePair(trace->cp_offset(), trace->backtrack());
+  }
   on_success()->Emit(compiler, trace);
 }
 

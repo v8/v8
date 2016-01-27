@@ -8,6 +8,7 @@
 #include "src/allocation.h"
 #include "src/assembler.h"
 #include "src/regexp/regexp-ast.h"
+#include "src/regexp/regexp-macro-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -18,15 +19,6 @@ class RegExpMacroAssembler;
 class RegExpNode;
 class RegExpTree;
 class BoyerMooreLookahead;
-
-
-static const uc32 kLeadSurrogateStart = 0xd800;
-static const uc32 kLeadSurrogateEnd = 0xdbff;
-static const uc32 kTrailSurrogateStart = 0xdc00;
-static const uc32 kTrailSurrogateEnd = 0xdfff;
-static const uc32 kNonBmpStart = 0x10000;
-static const uc32 kNonBmpEnd = 0x10ffff;
-
 
 class RegExpImpl {
  public:

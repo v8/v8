@@ -88,6 +88,19 @@ int RegExpMacroAssembler::CaseInsensitiveCompareUC16(Address byte_offset1,
 }
 
 
+void RegExpMacroAssembler::CheckNotInSurrogatePair(int cp_offset,
+                                                   Label* on_failure) {
+  Label ok;
+  // Check that current character is not a trail surrogate.
+  LoadCurrentCharacter(cp_offset, &ok);
+  CheckCharacterNotInRange(kTrailSurrogateStart, kTrailSurrogateEnd, &ok);
+  // Check that previous character is not a lead surrogate.
+  LoadCurrentCharacter(cp_offset - 1, &ok);
+  CheckCharacterInRange(kLeadSurrogateStart, kLeadSurrogateEnd, on_failure);
+  Bind(&ok);
+}
+
+
 #ifndef V8_INTERPRETED_REGEXP  // Avoid unused code, e.g., on ARM.
 
 NativeRegExpMacroAssembler::NativeRegExpMacroAssembler(Isolate* isolate,
