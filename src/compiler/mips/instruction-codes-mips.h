@@ -28,6 +28,8 @@ namespace compiler {
   V(MipsNor)                       \
   V(MipsXor)                       \
   V(MipsClz)                       \
+  V(MipsCtz)                       \
+  V(MipsPopcnt)                    \
   V(MipsShl)                       \
   V(MipsShr)                       \
   V(MipsSar)                       \

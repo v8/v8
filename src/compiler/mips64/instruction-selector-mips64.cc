@@ -562,16 +562,30 @@ void InstructionSelector::VisitWord32Clz(Node* node) {
 }
 
 
-void InstructionSelector::VisitWord32Ctz(Node* node) { UNREACHABLE(); }
+void InstructionSelector::VisitWord32Ctz(Node* node) {
+  Mips64OperandGenerator g(this);
+  Emit(kMips64Ctz, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+}
 
 
-void InstructionSelector::VisitWord64Ctz(Node* node) { UNREACHABLE(); }
+void InstructionSelector::VisitWord64Ctz(Node* node) {
+  Mips64OperandGenerator g(this);
+  Emit(kMips64Dctz, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+}
 
 
-void InstructionSelector::VisitWord32Popcnt(Node* node) { UNREACHABLE(); }
+void InstructionSelector::VisitWord32Popcnt(Node* node) {
+  Mips64OperandGenerator g(this);
+  Emit(kMips64Popcnt, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)));
+}
 
 
-void InstructionSelector::VisitWord64Popcnt(Node* node) { UNREACHABLE(); }
+void InstructionSelector::VisitWord64Popcnt(Node* node) {
+  Mips64OperandGenerator g(this);
+  Emit(kMips64Dpopcnt, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)));
+}
 
 
 void InstructionSelector::VisitWord64Ror(Node* node) {
@@ -1856,7 +1870,11 @@ void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
-  return MachineOperatorBuilder::kWord32ShiftIsSafe |
+  return MachineOperatorBuilder::kWord32Ctz |
+         MachineOperatorBuilder::kWord64Ctz |
+         MachineOperatorBuilder::kWord32Popcnt |
+         MachineOperatorBuilder::kWord64Popcnt |
+         MachineOperatorBuilder::kWord32ShiftIsSafe |
          MachineOperatorBuilder::kInt32DivIsSafe |
          MachineOperatorBuilder::kUint32DivIsSafe |
          MachineOperatorBuilder::kFloat64Min |

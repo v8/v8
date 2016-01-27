@@ -401,10 +401,16 @@ void InstructionSelector::VisitWord32Clz(Node* node) {
 }
 
 
-void InstructionSelector::VisitWord32Ctz(Node* node) { UNREACHABLE(); }
+void InstructionSelector::VisitWord32Ctz(Node* node) {
+  MipsOperandGenerator g(this);
+  Emit(kMipsCtz, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+}
 
 
-void InstructionSelector::VisitWord32Popcnt(Node* node) { UNREACHABLE(); }
+void InstructionSelector::VisitWord32Popcnt(Node* node) {
+  MipsOperandGenerator g(this);
+  Emit(kMipsPopcnt, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+}
 
 
 void InstructionSelector::VisitInt32Add(Node* node) {
@@ -1328,7 +1334,9 @@ InstructionSelector::SupportedMachineOperatorFlags() {
              MachineOperatorBuilder::kFloat64RoundTruncate |
              MachineOperatorBuilder::kFloat64RoundTiesEven;
   }
-  return flags | MachineOperatorBuilder::kInt32DivIsSafe |
+  return flags | MachineOperatorBuilder::kWord32Ctz |
+         MachineOperatorBuilder::kWord32Popcnt |
+         MachineOperatorBuilder::kInt32DivIsSafe |
          MachineOperatorBuilder::kUint32DivIsSafe |
          MachineOperatorBuilder::kWord32ShiftIsSafe |
          MachineOperatorBuilder::kFloat64Min |

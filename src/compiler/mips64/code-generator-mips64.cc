@@ -735,6 +735,142 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kMips64Dclz:
       __ dclz(i.OutputRegister(), i.InputRegister(0));
       break;
+    case kMips64Ctz: {
+      Register reg1 = kScratchReg;
+      Register reg2 = kScratchReg2;
+      Label skip_for_zero;
+      Label end;
+      // Branch if the operand is zero
+      __ Branch(&skip_for_zero, eq, i.InputRegister(0), Operand(zero_reg));
+      // Find the number of bits before the last bit set to 1.
+      __ Subu(reg2, zero_reg, i.InputRegister(0));
+      __ And(reg2, reg2, i.InputRegister(0));
+      __ clz(reg2, reg2);
+      // Get the number of bits after the last bit set to 1.
+      __ li(reg1, 0x1F);
+      __ Subu(i.OutputRegister(), reg1, reg2);
+      __ Branch(&end);
+      __ bind(&skip_for_zero);
+      // If the operand is zero, return word length as the result.
+      __ li(i.OutputRegister(), 0x20);
+      __ bind(&end);
+    } break;
+    case kMips64Dctz: {
+      Register reg1 = kScratchReg;
+      Register reg2 = kScratchReg2;
+      Label skip_for_zero;
+      Label end;
+      // Branch if the operand is zero
+      __ Branch(&skip_for_zero, eq, i.InputRegister(0), Operand(zero_reg));
+      // Find the number of bits before the last bit set to 1.
+      __ Dsubu(reg2, zero_reg, i.InputRegister(0));
+      __ And(reg2, reg2, i.InputRegister(0));
+      __ dclz(reg2, reg2);
+      // Get the number of bits after the last bit set to 1.
+      __ li(reg1, 0x3F);
+      __ Subu(i.OutputRegister(), reg1, reg2);
+      __ Branch(&end);
+      __ bind(&skip_for_zero);
+      // If the operand is zero, return word length as the result.
+      __ li(i.OutputRegister(), 0x40);
+      __ bind(&end);
+    } break;
+    case kMips64Popcnt: {
+      Register reg1 = kScratchReg;
+      Register reg2 = kScratchReg2;
+      uint32_t m1 = 0x55555555;
+      uint32_t m2 = 0x33333333;
+      uint32_t m4 = 0x0f0f0f0f;
+      uint32_t m8 = 0x00ff00ff;
+      uint32_t m16 = 0x0000ffff;
+
+      // Put count of ones in every 2 bits into those 2 bits.
+      __ li(at, m1);
+      __ dsrl(reg1, i.InputRegister(0), 1);
+      __ And(reg2, i.InputRegister(0), at);
+      __ And(reg1, reg1, at);
+      __ Daddu(reg1, reg1, reg2);
+
+      // Put count of ones in every 4 bits into those 4 bits.
+      __ li(at, m2);
+      __ dsrl(reg2, reg1, 2);
+      __ And(reg2, reg2, at);
+      __ And(reg1, reg1, at);
+      __ Daddu(reg1, reg1, reg2);
+
+      // Put count of ones in every 8 bits into those 8 bits.
+      __ li(at, m4);
+      __ dsrl(reg2, reg1, 4);
+      __ And(reg2, reg2, at);
+      __ And(reg1, reg1, at);
+      __ Daddu(reg1, reg1, reg2);
+
+      // Put count of ones in every 16 bits into those 16 bits.
+      __ li(at, m8);
+      __ dsrl(reg2, reg1, 8);
+      __ And(reg2, reg2, at);
+      __ And(reg1, reg1, at);
+      __ Daddu(reg1, reg1, reg2);
+
+      // Calculate total number of ones.
+      __ li(at, m16);
+      __ dsrl(reg2, reg1, 16);
+      __ And(reg2, reg2, at);
+      __ And(reg1, reg1, at);
+      __ Daddu(i.OutputRegister(), reg1, reg2);
+    } break;
+    case kMips64Dpopcnt: {
+      Register reg1 = kScratchReg;
+      Register reg2 = kScratchReg2;
+      uint64_t m1 = 0x5555555555555555;
+      uint64_t m2 = 0x3333333333333333;
+      uint64_t m4 = 0x0f0f0f0f0f0f0f0f;
+      uint64_t m8 = 0x00ff00ff00ff00ff;
+      uint64_t m16 = 0x0000ffff0000ffff;
+      uint64_t m32 = 0x00000000ffffffff;
+
+      // Put count of ones in every 2 bits into those 2 bits.
+      __ li(at, m1);
+      __ dsrl(reg1, i.InputRegister(0), 1);
+      __ and_(reg2, i.InputRegister(0), at);
+      __ and_(reg1, reg1, at);
+      __ Daddu(reg1, reg1, reg2);
+
+      // Put count of ones in every 4 bits into those 4 bits.
+      __ li(at, m2);
+      __ dsrl(reg2, reg1, 2);
+      __ and_(reg2, reg2, at);
+      __ and_(reg1, reg1, at);
+      __ Daddu(reg1, reg1, reg2);
+
+      // Put count of ones in every 8 bits into those 8 bits.
+      __ li(at, m4);
+      __ dsrl(reg2, reg1, 4);
+      __ and_(reg2, reg2, at);
+      __ and_(reg1, reg1, at);
+      __ Daddu(reg1, reg1, reg2);
+
+      // Put count of ones in every 16 bits into those 16 bits.
+      __ li(at, m8);
+      __ dsrl(reg2, reg1, 8);
+      __ and_(reg2, reg2, at);
+      __ and_(reg1, reg1, at);
+      __ Daddu(reg1, reg1, reg2);
+
+      // Put count of ones in every 32 bits into those 32 bits.
+      __ li(at, m16);
+      __ dsrl(reg2, reg1, 16);
+      __ and_(reg2, reg2, at);
+      __ and_(reg1, reg1, at);
+      __ Daddu(reg1, reg1, reg2);
+
+      // Calculate total number of ones.
+      __ li(at, m32);
+      __ dsrl32(reg2, reg1, 0);
+      __ and_(reg2, reg2, at);
+      __ and_(reg1, reg1, at);
+      __ Daddu(i.OutputRegister(), reg1, reg2);
+    } break;
     case kMips64Shl:
       if (instr->InputAt(1)->IsRegister()) {
         __ sllv(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
