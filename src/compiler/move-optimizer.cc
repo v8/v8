@@ -10,14 +10,17 @@ namespace compiler {
 
 namespace {
 
-typedef std::pair<InstructionOperand, InstructionOperand> MoveKey;
+struct MoveKey {
+  InstructionOperand source;
+  InstructionOperand destination;
+};
 
 struct MoveKeyCompare {
   bool operator()(const MoveKey& a, const MoveKey& b) const {
-    if (a.first.EqualsCanonicalized(b.first)) {
-      return a.second.CompareCanonicalized(b.second);
+    if (a.source.EqualsCanonicalized(b.source)) {
+      return a.destination.CompareCanonicalized(b.destination);
     }
-    return a.first.CompareCanonicalized(b.first);
+    return a.source.CompareCanonicalized(b.source);
   }
 };
 
@@ -273,7 +276,7 @@ void MoveOptimizer::OptimizeMerge(InstructionBlock* block) {
       auto current = iter;
       ++iter;
       if (current->second != block->PredecessorCount()) {
-        InstructionOperand dest = current->first.second;
+        InstructionOperand dest = current->first.destination;
         // Not all the moves in all the gaps are the same. Maybe some are. If
         // there are such moves, we could move them, but the destination of the
         // moves staying behind can't appear as a source of a common move,
@@ -292,9 +295,9 @@ void MoveOptimizer::OptimizeMerge(InstructionBlock* block) {
         auto current = iter;
         ++iter;
         DCHECK_EQ(block->PredecessorCount(), current->second);
-        if (conflicting_srcs.find(current->first.first) !=
+        if (conflicting_srcs.find(current->first.source) !=
             conflicting_srcs.end()) {
-          conflicting_srcs.insert(current->first.second);
+          conflicting_srcs.insert(current->first.destination);
           move_map.erase(current);
           changed = true;
         }
