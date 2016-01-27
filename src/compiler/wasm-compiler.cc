@@ -197,7 +197,7 @@ class WasmTrapHelper : public ZoneObject {
     *effect_ptr = effects_[reason] =
         graph()->NewNode(common()->EffectPhi(1), *effect_ptr, *control_ptr);
 
-    if (module && !module->context.is_null()) {
+    if (module && !module->instance->context.is_null()) {
       // Use the module context to call the runtime to throw an exception.
       Runtime::FunctionId f = Runtime::kThrow;
       const Runtime::Function* fun = Runtime::FunctionForId(f);
@@ -210,7 +210,7 @@ class WasmTrapHelper : public ZoneObject {
           jsgraph()->ExternalConstant(
               ExternalReference(f, jsgraph()->isolate())),  // ref
           jsgraph()->Int32Constant(fun->nargs),             // arity
-          jsgraph()->Constant(module->context),             // context
+          jsgraph()->Constant(module->instance->context),   // context
           *effect_ptr,
           *control_ptr};
 
@@ -1701,18 +1701,23 @@ void WasmGraphBuilder::BuildWasmToJSWrapper(Handle<JSFunction> function,
 
 
 Node* WasmGraphBuilder::MemBuffer(uint32_t offset) {
+  DCHECK(module_ && module_->instance);
   if (offset == 0) {
-    if (!mem_buffer_)
-      mem_buffer_ = jsgraph()->IntPtrConstant(module_->mem_start);
+    if (!mem_buffer_) {
+      mem_buffer_ = jsgraph()->IntPtrConstant(
+          reinterpret_cast<uintptr_t>(module_->instance->mem_start));
+    }
     return mem_buffer_;
   } else {
-    return jsgraph()->IntPtrConstant(module_->mem_start + offset);
+    return jsgraph()->IntPtrConstant(
+        reinterpret_cast<uintptr_t>(module_->instance->mem_start + offset));
   }
 }
 
 
 Node* WasmGraphBuilder::MemSize(uint32_t offset) {
-  int32_t size = static_cast<int>(module_->mem_end - module_->mem_start);
+  DCHECK(module_ && module_->instance);
+  uint32_t size = static_cast<uint32_t>(module_->instance->mem_size);
   if (offset == 0) {
     if (!mem_size_) mem_size_ = jsgraph()->Int32Constant(size);
     return mem_size_;
@@ -1723,18 +1728,21 @@ Node* WasmGraphBuilder::MemSize(uint32_t offset) {
 
 
 Node* WasmGraphBuilder::FunctionTable() {
+  DCHECK(module_ && module_->instance &&
+         !module_->instance->function_table.is_null());
   if (!function_table_) {
-    DCHECK(!module_->function_table.is_null());
-    function_table_ = jsgraph()->Constant(module_->function_table);
+    function_table_ = jsgraph()->Constant(module_->instance->function_table);
   }
   return function_table_;
 }
 
 
 Node* WasmGraphBuilder::LoadGlobal(uint32_t index) {
+  DCHECK(module_ && module_->instance && module_->instance->globals_start);
   MachineType mem_type = module_->GetGlobalType(index);
   Node* addr = jsgraph()->IntPtrConstant(
-      module_->globals_area + module_->module->globals->at(index).offset);
+      reinterpret_cast<uintptr_t>(module_->instance->globals_start +
+                                  module_->module->globals->at(index).offset));
   const Operator* op = jsgraph()->machine()->Load(mem_type);
   Node* node = graph()->NewNode(op, addr, jsgraph()->Int32Constant(0), *effect_,
                                 *control_);
@@ -1744,9 +1752,11 @@ Node* WasmGraphBuilder::LoadGlobal(uint32_t index) {
 
 
 Node* WasmGraphBuilder::StoreGlobal(uint32_t index, Node* val) {
+  DCHECK(module_ && module_->instance && module_->instance->globals_start);
   MachineType mem_type = module_->GetGlobalType(index);
   Node* addr = jsgraph()->IntPtrConstant(
-      module_->globals_area + module_->module->globals->at(index).offset);
+      reinterpret_cast<uintptr_t>(module_->instance->globals_start +
+                                  module_->module->globals->at(index).offset));
   const Operator* op = jsgraph()->machine()->Store(
       StoreRepresentation(mem_type.representation(), kNoWriteBarrier));
   Node* node = graph()->NewNode(op, addr, jsgraph()->Int32Constant(0), val,
@@ -1759,12 +1769,11 @@ Node* WasmGraphBuilder::StoreGlobal(uint32_t index, Node* val) {
 void WasmGraphBuilder::BoundsCheckMem(MachineType memtype, Node* index,
                                       uint32_t offset) {
   // TODO(turbofan): fold bounds checks for constant indexes.
-  CHECK_GE(module_->mem_end, module_->mem_start);
-  ptrdiff_t size = module_->mem_end - module_->mem_start;
+  DCHECK(module_ && module_->instance);
+  size_t size = module_->instance->mem_size;
   byte memsize = wasm::WasmOpcodes::MemSize(memtype);
   Node* cond;
-  if (static_cast<ptrdiff_t>(offset) >= size ||
-      static_cast<ptrdiff_t>(offset + memsize) > size) {
+  if (offset >= size || (static_cast<uint64_t>(offset) + memsize) > size) {
     // The access will always throw.
     cond = jsgraph()->Int32Constant(0);
   } else {

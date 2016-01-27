@@ -1204,11 +1204,9 @@ namespace {
 class TestModuleEnv : public ModuleEnv {
  public:
   TestModuleEnv() {
-    mem_start = 0;
-    mem_end = 0;
+    instance = nullptr;
     module = &mod;
     linker = nullptr;
-    function_code = nullptr;
     mod.globals = new std::vector<WasmGlobal>;
     mod.signatures = new std::vector<FunctionSig*>;
     mod.functions = new std::vector<WasmFunction>;

@@ -102,10 +102,7 @@ class ModuleDecoder : public Decoder {
           // Set up module environment for verification.
           ModuleEnv menv;
           menv.module = module;
-          menv.globals_area = 0;
-          menv.mem_start = 0;
-          menv.mem_end = 0;
-          menv.function_code = nullptr;
+          menv.instance = nullptr;
           menv.asm_js = asm_js_;
           // Decode functions.
           for (uint32_t i = 0; i < functions_count; i++) {

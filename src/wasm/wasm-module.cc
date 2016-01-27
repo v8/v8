@@ -183,24 +183,80 @@ Handle<FixedArray> BuildFunctionTable(Isolate* isolate, WasmModule* module) {
   return fixed;
 }
 
-
-Handle<JSArrayBuffer> NewArrayBuffer(Isolate* isolate, int size,
+Handle<JSArrayBuffer> NewArrayBuffer(Isolate* isolate, size_t size,
                                      byte** backing_store) {
-  void* memory = isolate->array_buffer_allocator()->Allocate(size);
-  if (!memory) return Handle<JSArrayBuffer>::null();
+  if (size > (1 << WasmModule::kMaxMemSize)) {
+    // TODO(titzer): lift restriction on maximum memory allocated here.
+    *backing_store = nullptr;
+    return Handle<JSArrayBuffer>::null();
+  }
+  void* memory =
+      isolate->array_buffer_allocator()->Allocate(static_cast<int>(size));
+  if (!memory) {
+    *backing_store = nullptr;
+    return Handle<JSArrayBuffer>::null();
+  }
+
   *backing_store = reinterpret_cast<byte*>(memory);
 
 #if DEBUG
   // Double check the API allocator actually zero-initialized the memory.
-  for (int i = 0; i < size; i++) {
-    DCHECK_EQ(0, (*backing_store)[i]);
+  byte* bytes = reinterpret_cast<byte*>(*backing_store);
+  for (size_t i = 0; i < size; i++) {
+    DCHECK_EQ(0, bytes[i]);
   }
 #endif
 
   Handle<JSArrayBuffer> buffer = isolate->factory()->NewJSArrayBuffer();
-  JSArrayBuffer::Setup(buffer, isolate, false, memory, size);
+  JSArrayBuffer::Setup(buffer, isolate, false, memory, static_cast<int>(size));
   buffer->set_is_neuterable(false);
   return buffer;
+}
+
+// Set the memory for a module instance to be the {memory} array buffer.
+void SetMemory(WasmModuleInstance* instance, Handle<JSArrayBuffer> memory) {
+  memory->set_is_neuterable(false);
+  instance->mem_start = reinterpret_cast<byte*>(memory->backing_store());
+  instance->mem_size = memory->byte_length()->Number();
+  instance->mem_buffer = memory;
+}
+
+// Allocate memory for a module instance as a new JSArrayBuffer.
+bool AllocateMemory(ErrorThrower* thrower, Isolate* isolate,
+                    WasmModuleInstance* instance) {
+  DCHECK(instance->module);
+  DCHECK(instance->mem_buffer.is_null());
+
+  if (instance->module->min_mem_size_log2 > WasmModule::kMaxMemSize) {
+    thrower->Error("Out of memory: wasm memory too large");
+    return false;
+  }
+  instance->mem_size = static_cast<size_t>(1)
+                       << instance->module->min_mem_size_log2;
+  instance->mem_buffer =
+      NewArrayBuffer(isolate, instance->mem_size, &instance->mem_start);
+  if (!instance->mem_start) {
+    thrower->Error("Out of memory: wasm memory");
+    instance->mem_size = 0;
+    return false;
+  }
+  return true;
+}
+
+bool AllocateGlobals(ErrorThrower* thrower, Isolate* isolate,
+                     WasmModuleInstance* instance) {
+  instance->globals_size = AllocateGlobalsOffsets(instance->module->globals);
+
+  if (instance->globals_size > 0) {
+    instance->globals_buffer = NewArrayBuffer(isolate, instance->globals_size,
+                                              &instance->globals_start);
+    if (!instance->globals_start) {
+      // Not enough space for backing store of globals.
+      thrower->Error("Out of memory: wasm globals");
+      return false;
+    }
+  }
+  return true;
 }
 }  // namespace
 
@@ -232,90 +288,63 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
                                               Handle<JSArrayBuffer> memory) {
   this->shared_isolate = isolate;  // TODO(titzer): have a real shared isolate.
   ErrorThrower thrower(isolate, "WasmModule::Instantiate()");
-
   Factory* factory = isolate->factory();
-  // Memory is bigger than maximum supported size.
-  if (memory.is_null() && min_mem_size_log2 > kMaxMemSize) {
-    thrower.Error("Out of memory: wasm memory too large");
-    return MaybeHandle<JSObject>();
-  }
 
+  //-------------------------------------------------------------------------
+  // Allocate the instance and its JS counterpart.
+  //-------------------------------------------------------------------------
   Handle<Map> map = factory->NewMap(
       JS_OBJECT_TYPE,
       JSObject::kHeaderSize + kWasmModuleInternalFieldCount * kPointerSize);
-
-  //-------------------------------------------------------------------------
-  // Allocate the module object.
-  //-------------------------------------------------------------------------
-  Handle<JSObject> module = factory->NewJSObjectFromMap(map, TENURED);
+  WasmModuleInstance instance(this);
+  instance.context = isolate->native_context();
+  instance.js_object = factory->NewJSObjectFromMap(map, TENURED);
   Handle<FixedArray> code_table =
       factory->NewFixedArray(static_cast<int>(functions->size()), TENURED);
+  instance.js_object->SetInternalField(kWasmModuleCodeTable, *code_table);
 
   //-------------------------------------------------------------------------
-  // Allocate the linear memory.
+  // Allocate and initialize the linear memory.
   //-------------------------------------------------------------------------
-  uint32_t mem_size = 1 << min_mem_size_log2;
-  byte* mem_addr = nullptr;
-  Handle<JSArrayBuffer> mem_buffer;
-  if (!memory.is_null()) {
-    memory->set_is_neuterable(false);
-    mem_addr = reinterpret_cast<byte*>(memory->backing_store());
-    mem_size = memory->byte_length()->Number();
-    mem_buffer = memory;
-  } else {
-    mem_buffer = NewArrayBuffer(isolate, mem_size, &mem_addr);
-    if (!mem_addr) {
-      // Not enough space for backing store of memory
-      thrower.Error("Out of memory: wasm memory");
+  if (memory.is_null()) {
+    if (!AllocateMemory(&thrower, isolate, &instance)) {
       return MaybeHandle<JSObject>();
     }
+  } else {
+    SetMemory(&instance, memory);
   }
-
-  // Load initialized data segments.
-  LoadDataSegments(this, mem_addr, mem_size);
-
-  module->SetInternalField(kWasmMemArrayBuffer, *mem_buffer);
+  instance.js_object->SetInternalField(kWasmMemArrayBuffer,
+                                       *instance.mem_buffer);
+  LoadDataSegments(this, instance.mem_start, instance.mem_size);
 
   if (mem_export) {
     // Export the memory as a named property.
     Handle<String> name = factory->InternalizeUtf8String("memory");
-    JSObject::AddProperty(module, name, mem_buffer, READ_ONLY);
+    JSObject::AddProperty(instance.js_object, name, instance.mem_buffer,
+                          READ_ONLY);
   }
 
   //-------------------------------------------------------------------------
   // Allocate the globals area if necessary.
   //-------------------------------------------------------------------------
-  size_t globals_size = AllocateGlobalsOffsets(globals);
-  byte* globals_addr = nullptr;
-  if (globals_size > 0) {
-    Handle<JSArrayBuffer> globals_buffer =
-        NewArrayBuffer(isolate, mem_size, &globals_addr);
-    if (!globals_addr) {
-      // Not enough space for backing store of globals.
-      thrower.Error("Out of memory: wasm globals");
-      return MaybeHandle<JSObject>();
-    }
-
-    module->SetInternalField(kWasmGlobalsArrayBuffer, *globals_buffer);
-  } else {
-    module->SetInternalField(kWasmGlobalsArrayBuffer, Smi::FromInt(0));
+  if (!AllocateGlobals(&thrower, isolate, &instance)) {
+    return MaybeHandle<JSObject>();
+  }
+  if (!instance.globals_buffer.is_null()) {
+    instance.js_object->SetInternalField(kWasmGlobalsArrayBuffer,
+                                         *instance.globals_buffer);
   }
 
   //-------------------------------------------------------------------------
   // Compile all functions in the module.
   //-------------------------------------------------------------------------
+  instance.function_table = BuildFunctionTable(isolate, this);
   int index = 0;
   WasmLinker linker(isolate, functions->size());
   ModuleEnv module_env;
   module_env.module = this;
-  module_env.mem_start = reinterpret_cast<uintptr_t>(mem_addr);
-  module_env.mem_end = reinterpret_cast<uintptr_t>(mem_addr) + mem_size;
-  module_env.globals_area = reinterpret_cast<uintptr_t>(globals_addr);
+  module_env.instance = &instance;
   module_env.linker = &linker;
-  module_env.function_code = nullptr;
-  module_env.function_table = BuildFunctionTable(isolate, this);
-  module_env.memory = memory;
-  module_env.context = isolate->native_context();
   module_env.asm_js = false;
 
   // First pass: compile each function and initialize the code table.
@@ -358,8 +387,8 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
         return MaybeHandle<JSObject>();
       }
       if (func.exported) {
-        function = compiler::CompileJSToWasmWrapper(isolate, &module_env, name,
-                                                    code, module, index);
+        function = compiler::CompileJSToWasmWrapper(
+            isolate, &module_env, name, code, instance.js_object, index);
       }
     }
     if (!code.is_null()) {
@@ -369,24 +398,25 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
     }
     if (func.exported) {
       // Exported functions are installed as read-only properties on the module.
-      JSObject::AddProperty(module, name, function, READ_ONLY);
+      JSObject::AddProperty(instance.js_object, name, function, READ_ONLY);
     }
     index++;
   }
 
   // Second pass: patch all direct call sites.
-  linker.Link(module_env.function_table, this->function_table);
-
-  module->SetInternalField(kWasmModuleFunctionTable, Smi::FromInt(0));
-  module->SetInternalField(kWasmModuleCodeTable, *code_table);
-  return module;
+  linker.Link(instance.function_table, this->function_table);
+  instance.js_object->SetInternalField(kWasmModuleFunctionTable,
+                                       Smi::FromInt(0));
+  return instance.js_object;
 }
 
 
 Handle<Code> ModuleEnv::GetFunctionCode(uint32_t index) {
   DCHECK(IsValidFunction(index));
   if (linker) return linker->GetFunctionCode(index);
-  if (function_code) return function_code->at(index);
+  if (instance && instance->function_code) {
+    return instance->function_code->at(index);
+  }
   return Handle<Code>::null();
 }
 
@@ -426,32 +456,29 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
 
 int32_t CompileAndRunWasmModule(Isolate* isolate, WasmModule* module) {
   ErrorThrower thrower(isolate, "CompileAndRunWasmModule");
+  WasmModuleInstance instance(module);
 
-  // Allocate temporary linear memory and globals.
-  size_t mem_size = 1 << module->min_mem_size_log2;
-  size_t globals_size = AllocateGlobalsOffsets(module->globals);
+  // Allocate and initialize the linear memory.
+  if (!AllocateMemory(&thrower, isolate, &instance)) {
+    return -1;
+  }
+  LoadDataSegments(module, instance.mem_start, instance.mem_size);
 
-  base::SmartArrayPointer<byte> mem_addr(new byte[mem_size]);
-  base::SmartArrayPointer<byte> globals_addr(new byte[globals_size]);
+  // Allocate the globals area if necessary.
+  if (!AllocateGlobals(&thrower, isolate, &instance)) {
+    return -1;
+  }
 
-  memset(mem_addr.get(), 0, mem_size);
-  memset(globals_addr.get(), 0, globals_size);
+  // Build the function table.
+  instance.function_table = BuildFunctionTable(isolate, module);
 
   // Create module environment.
   WasmLinker linker(isolate, module->functions->size());
   ModuleEnv module_env;
   module_env.module = module;
-  module_env.mem_start = reinterpret_cast<uintptr_t>(mem_addr.get());
-  module_env.mem_end = reinterpret_cast<uintptr_t>(mem_addr.get()) + mem_size;
-  module_env.globals_area = reinterpret_cast<uintptr_t>(globals_addr.get());
+  module_env.instance = &instance;
   module_env.linker = &linker;
-  module_env.function_code = nullptr;
-  module_env.function_table = BuildFunctionTable(isolate, module);
   module_env.asm_js = false;
-
-  // Load data segments.
-  // TODO(titzer): throw instead of crashing if segments don't fit in memory?
-  LoadDataSegments(module, mem_addr.get(), mem_size);
 
   // Compile all functions.
   Handle<Code> main_code = Handle<Code>::null();  // record last code.
@@ -479,7 +506,7 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, WasmModule* module) {
     return -1;
   }
 
-  linker.Link(module_env.function_table, module->function_table);
+  linker.Link(instance.function_table, instance.module->function_table);
 
   // Wrap the main code so it can be called as a JS function.
   Handle<String> name = isolate->factory()->NewStringFromStaticChars("main");

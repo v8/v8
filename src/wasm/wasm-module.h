@@ -121,22 +121,41 @@ struct WasmModule {
                                     Handle<JSArrayBuffer> memory);
 };
 
+// An instantiated WASM module, including memory, function table, etc.
+struct WasmModuleInstance {
+  WasmModule* module;  // static representation of the module.
+  // -- Heap allocated --------------------------------------------------------
+  Handle<JSObject> js_object;            // JavaScript module object.
+  Handle<Context> context;               // JavaScript native context.
+  Handle<JSArrayBuffer> mem_buffer;      // Handle to array buffer of memory.
+  Handle<JSArrayBuffer> globals_buffer;  // Handle to array buffer of globals.
+  Handle<FixedArray> function_table;     // indirect function table.
+  std::vector<Handle<Code>>* function_code;  // code objects for each function.
+  // -- raw memory ------------------------------------------------------------
+  byte* mem_start;  // start of linear memory.
+  size_t mem_size;  // size of the linear memory.
+  // -- raw globals -----------------------------------------------------------
+  byte* globals_start;  // start of the globals area.
+  size_t globals_size;  // size of the globals area.
+
+  explicit WasmModuleInstance(WasmModule* m)
+      : module(m),
+        function_code(nullptr),
+        mem_start(nullptr),
+        mem_size(0),
+        globals_start(nullptr),
+        globals_size(0) {}
+};
+
 // forward declaration.
 class WasmLinker;
 
 // Interface provided to the decoder/graph builder which contains only
 // minimal information about the globals, functions, and function tables.
 struct ModuleEnv {
-  uintptr_t globals_area;  // address of the globals area.
-  uintptr_t mem_start;     // address of the start of linear memory.
-  uintptr_t mem_end;       // address of the end of linear memory.
-
   WasmModule* module;
+  WasmModuleInstance* instance;
   WasmLinker* linker;
-  std::vector<Handle<Code>>* function_code;
-  Handle<FixedArray> function_table;
-  Handle<JSArrayBuffer> memory;
-  Handle<Context> context;
   bool asm_js;  // true if the module originated from asm.js.
 
   bool IsValidGlobal(uint32_t index) {
