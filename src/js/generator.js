@@ -36,12 +36,7 @@ function GeneratorObjectNext(value) {
   if (continuation > 0) {
     // Generator is suspended.
     DEBUG_PREPARE_STEP_IN_IF_STEPPING(this);
-    try {
-      return %_GeneratorNext(this, value);
-    } catch (e) {
-      %GeneratorClose(this);
-      throw e;
-    }
+    return %_GeneratorNext(this, value);
   } else if (continuation == 0) {
     // Generator is already closed.
     return { value: void 0, done: true };
@@ -61,12 +56,7 @@ function GeneratorObjectThrow(exn) {
   var continuation = %GeneratorGetContinuation(this);
   if (continuation > 0) {
     // Generator is suspended.
-    try {
-      return %_GeneratorThrow(this, exn);
-    } catch (e) {
-      %GeneratorClose(this);
-      throw e;
-    }
+    return %_GeneratorThrow(this, exn);
   } else if (continuation == 0) {
     // Generator is already closed.
     throw exn;

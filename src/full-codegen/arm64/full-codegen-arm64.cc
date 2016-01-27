@@ -4386,10 +4386,6 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
     }
 
     case Yield::kFinal: {
-      VisitForAccumulatorValue(expr->generator_object());
-      __ Mov(x1, Smi::FromInt(JSGeneratorObject::kGeneratorClosed));
-      __ Str(x1, FieldMemOperand(result_register(),
-                                 JSGeneratorObject::kContinuationOffset));
       // Pop value from top-of-stack slot, box result into result register.
       EmitCreateIteratorResult(true);
       EmitUnwindBeforeReturn();
