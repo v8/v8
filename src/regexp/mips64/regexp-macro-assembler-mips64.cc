@@ -362,7 +362,7 @@ void RegExpMacroAssemblerMIPS::CheckNotBackReferenceIgnoreCase(
     // Isolate.
 #ifdef V8_I18N_SUPPORT
     if (unicode) {
-      __ li(a3, Operand(zero_reg));
+      __ mov(a3, zero_reg);
     } else  // NOLINT
 #endif      // V8_I18N_SUPPORT
     {
