@@ -5148,6 +5148,12 @@ void Parser::Internalize(Isolate* isolate, Handle<Script> script, bool error) {
       isolate->CountUsage(v8::Isolate::UseCounterFeature(feature));
     }
   }
+  if (scanner_.FoundHtmlComment()) {
+    isolate->CountUsage(v8::Isolate::kHtmlComment);
+    if (script->line_offset() == 0 && script->column_offset() == 0) {
+      isolate->CountUsage(v8::Isolate::kHtmlCommentInExternalScript);
+    }
+  }
   isolate->counters()->total_preparse_skipped()->Increment(
       total_preparse_skipped_);
 }

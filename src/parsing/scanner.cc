@@ -39,7 +39,8 @@ void Utf16CharacterStream::ResetToBookmark() { UNREACHABLE(); }
 Scanner::Scanner(UnicodeCache* unicode_cache)
     : unicode_cache_(unicode_cache),
       bookmark_c0_(kNoBookmark),
-      octal_pos_(Location::invalid()) {
+      octal_pos_(Location::invalid()),
+      found_html_comment_(false) {
   bookmark_current_.literal_chars = &bookmark_current_literal_;
   bookmark_current_.raw_literal_chars = &bookmark_current_raw_literal_;
   bookmark_next_.literal_chars = &bookmark_next_literal_;
@@ -438,7 +439,10 @@ Token::Value Scanner::ScanHtmlComment() {
   Advance();
   if (c0_ == '-') {
     Advance();
-    if (c0_ == '-') return SkipSingleLineComment();
+    if (c0_ == '-') {
+      found_html_comment_ = true;
+      return SkipSingleLineComment();
+    }
     PushBack('-');  // undo Advance()
   }
   PushBack('!');  // undo Advance()

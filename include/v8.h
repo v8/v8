@@ -5457,6 +5457,8 @@ class V8_EXPORT Isolate {
     kPromiseChain = 17,
     kPromiseAccept = 18,
     kPromiseDefer = 19,
+    kHtmlCommentInExternalScript = 20,
+    kHtmlComment = 21,
     kUseCounterFeatureCount  // This enum value must be last.
   };
 
