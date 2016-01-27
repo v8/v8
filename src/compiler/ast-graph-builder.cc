@@ -2726,7 +2726,7 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
     // TODO(bmeurer): Cleanup this feedback/bailout mess!
     FrameStateBeforeAndAfter states(this, BailoutId::None());
     value = BuildBinaryOp(old_value, jsgraph()->OneConstant(),
-                          expr->binary_op(), TypeFeedbackId::None());
+                          expr->binary_op(), expr->CountBinOpFeedbackId());
     // This should never deoptimize outside strong mode because otherwise we
     // have converted to number before.
     states.AddToNode(value, is_strong(language_mode()) ? expr->ToNumberId()
