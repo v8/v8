@@ -18,7 +18,6 @@ class EscapeAnalysis;
 class VirtualState;
 class VirtualObject;
 
-
 // EscapeStatusAnalysis determines for each allocation whether it escapes.
 class EscapeStatusAnalysis {
  public:
@@ -39,14 +38,19 @@ class EscapeStatusAnalysis {
     // effect successors.
     kBranchPointComputed = 1u << 6,
     kBranchPoint = 1u << 7,
+    kInQueue = 1u << 8
   };
-  typedef base::Flags<Status, unsigned char> StatusFlags;
+  typedef base::Flags<Status, uint16_t> StatusFlags;
 
   void RunStatusAnalysis();
 
   bool IsVirtual(Node* node);
   bool IsEscaped(Node* node);
   bool IsAllocation(Node* node);
+
+  bool IsInQueue(NodeId id);
+  void SetInQueue(NodeId id, bool on_stack);
+
   void DebugPrint();
 
   EscapeStatusAnalysis(EscapeAnalysis* object_analysis, Graph* graph,
@@ -102,13 +106,10 @@ class EscapeStatusAnalysis {
   DISALLOW_COPY_AND_ASSIGN(EscapeStatusAnalysis);
 };
 
-
 DEFINE_OPERATORS_FOR_FLAGS(EscapeStatusAnalysis::StatusFlags)
-
 
 // Forward Declaration.
 class MergeCache;
-
 
 // EscapeObjectAnalysis simulates stores to determine values of loads if
 // an object is virtual and eliminated.

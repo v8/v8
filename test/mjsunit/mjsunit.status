@@ -279,7 +279,7 @@
   'es7/object-observe': [PASS, ['mode == debug', SLOW]],
   'numops-fuzz-part*': [PASS, ['mode == debug', SLOW]],
   'readonly': [PASS, SLOW],
-  'regress/regress-1200351': [PASS, ['mode == debug', SLOW, NO_VARIANTS]],
+  'regress/regress-1200351': [PASS, ['mode == debug', SLOW]],
   'regress/regress-crbug-474297': [PASS, ['mode == debug', SLOW]],
   'strong/implicit-conversions': [PASS, SLOW],
   'strong/load-element-mutate-backing-store': [PASS, SLOW],
