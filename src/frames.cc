@@ -121,15 +121,15 @@ StackFrame* StackFrameIteratorBase::SingletonFor(StackFrame::Type type,
 
 StackFrame* StackFrameIteratorBase::SingletonFor(StackFrame::Type type) {
 #define FRAME_TYPE_CASE(type, field) \
-  case StackFrame::type: result = &field##_; break;
+  case StackFrame::type:             \
+    return &field##_;
 
-  StackFrame* result = NULL;
   switch (type) {
     case StackFrame::NONE: return NULL;
     STACK_FRAME_TYPE_LIST(FRAME_TYPE_CASE)
     default: break;
   }
-  return result;
+  return NULL;
 
 #undef FRAME_TYPE_CASE
 }
@@ -234,7 +234,7 @@ SafeStackFrameIterator::SafeStackFrameIterator(
   }
   if (SingletonFor(type) == NULL) return;
   frame_ = SingletonFor(type, &state);
-  if (frame_ == NULL) return;
+  DCHECK(frame_);
 
   Advance();
 
@@ -272,8 +272,12 @@ void SafeStackFrameIterator::AdvanceOneFrame() {
   // Advance to the previous frame.
   StackFrame::State state;
   StackFrame::Type type = frame_->GetCallerState(&state);
+  if (SingletonFor(type) == NULL) {
+    frame_ = NULL;
+    return;
+  }
   frame_ = SingletonFor(type, &state);
-  if (frame_ == NULL) return;
+  DCHECK(frame_);
 
   // Check that we have actually moved to the previous frame in the stack.
   if (frame_->sp() < last_sp || frame_->fp() < last_fp) {
