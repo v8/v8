@@ -1734,13 +1734,13 @@ void MacroAssembler::InitializeFieldsWithFiller(Register current_address,
                                                 Register end_address,
                                                 Register filler) {
   Label loop, entry;
-  jmp(&entry);
+  jmp(&entry, Label::kNear);
   bind(&loop);
   mov(Operand(current_address, 0), filler);
   add(current_address, Immediate(kPointerSize));
   bind(&entry);
   cmp(current_address, end_address);
-  j(below, &loop);
+  j(below, &loop, Label::kNear);
 }
 
 
@@ -1762,9 +1762,9 @@ void MacroAssembler::NegativeZeroTest(Register result,
                                       Label* then_label) {
   Label ok;
   test(result, result);
-  j(not_zero, &ok);
+  j(not_zero, &ok, Label::kNear);
   test(op, op);
-  j(sign, then_label);
+  j(sign, then_label, Label::kNear);
   bind(&ok);
 }
 
@@ -1776,10 +1776,10 @@ void MacroAssembler::NegativeZeroTest(Register result,
                                       Label* then_label) {
   Label ok;
   test(result, result);
-  j(not_zero, &ok);
+  j(not_zero, &ok, Label::kNear);
   mov(scratch, op1);
   or_(scratch, op2);
-  j(sign, then_label);
+  j(sign, then_label, Label::kNear);
   bind(&ok);
 }
 
