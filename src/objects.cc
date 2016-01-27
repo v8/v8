@@ -1192,7 +1192,6 @@ bool AccessorInfo::IsCompatibleReceiverMap(Isolate* isolate,
       ->IsTemplateFor(*map);
 }
 
-
 Maybe<bool> Object::SetPropertyWithAccessor(LookupIterator* it,
                                             Handle<Object> value,
                                             ShouldThrow should_throw) {
@@ -1217,11 +1216,10 @@ Maybe<bool> Object::SetPropertyWithAccessor(LookupIterator* it,
 
     v8::AccessorNameSetterCallback call_fun =
         v8::ToCData<v8::AccessorNameSetterCallback>(info->setter());
+    // TODO(verwaest): We should not get here anymore once all AccessorInfos are
+    // marked as special_data_property. They cannot both be writable and not
+    // have a setter.
     if (call_fun == nullptr) return Just(true);
-    // TODO(verwaest): Shouldn't this case be unreachable (at least in the long
-    // run?) Should we have AccessorInfo with missing setter that are
-    // "writable"? If they aren't writable, shouldn't we have bailed out already
-    // earlier?
 
     LOG(isolate, ApiNamedPropertyAccess("store", *holder, *name));
     PropertyCallbackArguments args(isolate, info->data(), *receiver, *holder,
@@ -1350,7 +1348,7 @@ Maybe<PropertyAttributes> JSObject::GetPropertyAttributesWithFailedAccessCheck(
   Handle<JSObject> checked = it->GetHolder<JSObject>();
   while (AllCanRead(it)) {
     if (it->state() == LookupIterator::ACCESSOR) {
-      return Just(it->property_details().attributes());
+      return Just(it->property_attributes());
     }
     DCHECK_EQ(LookupIterator::INTERCEPTOR, it->state());
     auto result = GetPropertyAttributesWithInterceptor(it);
@@ -4219,8 +4217,7 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it, Handle<Object> value,
                                             should_throw);
 
       case LookupIterator::DATA: {
-        PropertyDetails details = own_lookup.property_details();
-        if (details.IsReadOnly()) {
+        if (own_lookup.IsReadOnly()) {
           return WriteToReadOnlyProperty(&own_lookup, value, should_throw);
         }
         return SetDataProperty(&own_lookup, value);
@@ -5268,18 +5265,23 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
         // Special handling for AccessorInfo, which behaves like a data
         // property.
         if (accessors->IsAccessorInfo() && handling == DONT_FORCE_FIELD) {
-          PropertyDetails details = it->property_details();
+          PropertyAttributes current_attributes = it->property_attributes();
           // Ensure the context isn't changed after calling into accessors.
           AssertNoContextChange ncc(it->isolate());
 
+          // Update the attributes before calling the setter. The setter may
+          // later change the shape of the property.
+          if (current_attributes != attributes) {
+            it->TransitionToAccessorPair(accessors, attributes);
+          }
+
           Maybe<bool> result =
               JSObject::SetPropertyWithAccessor(it, value, should_throw);
-          if (result.IsNothing() || !result.FromJust()) return result;
 
-          if (details.attributes() == attributes) return Just(true);
+          if (current_attributes == attributes || result.IsNothing()) {
+            return result;
+          }
 
-          // Reconfigure the accessor if attributes mismatch.
-          it->TransitionToAccessorPair(accessors, attributes);
         } else {
           it->ReconfigureDataProperty(value, attributes);
         }
@@ -5299,10 +5301,9 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
                                             should_throw);
 
       case LookupIterator::DATA: {
-        PropertyDetails details = it->property_details();
         Handle<Object> old_value = it->factory()->the_hole_value();
         // Regular property update if the attributes match.
-        if (details.attributes() == attributes) {
+        if (it->property_attributes() == attributes) {
           return SetDataProperty(it, value);
         }
 
@@ -5458,7 +5459,7 @@ Maybe<PropertyAttributes> JSReceiver::GetPropertyAttributes(
         return Just(ABSENT);
       case LookupIterator::ACCESSOR:
       case LookupIterator::DATA:
-        return Just(it->property_details().attributes());
+        return Just(it->property_attributes());
     }
   }
   return Just(ABSENT);
@@ -7201,7 +7202,7 @@ Maybe<bool> JSProxy::AddPrivateProperty(Isolate* isolate, Handle<JSProxy> proxy,
 
   if (it.IsFound()) {
     DCHECK_EQ(LookupIterator::DATA, it.state());
-    DCHECK_EQ(DONT_ENUM, it.property_details().attributes());
+    DCHECK_EQ(DONT_ENUM, it.property_attributes());
     it.WriteDataValue(value);
     return Just(true);
   }

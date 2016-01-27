@@ -268,8 +268,13 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
   static const AccessorRefTable accessors[] = {
 #define ACCESSOR_INFO_DECLARATION(name)                                     \
   { FUNCTION_ADDR(&Accessors::name##Getter), "Accessors::" #name "Getter" } \
-  , {FUNCTION_ADDR(&Accessors::name##Setter), "Accessors::" #name "Setter"},
+  ,
       ACCESSOR_INFO_LIST(ACCESSOR_INFO_DECLARATION)
+#undef ACCESSOR_INFO_DECLARATION
+#define ACCESSOR_SETTER_DECLARATION(name)                  \
+  { FUNCTION_ADDR(&Accessors::name), "Accessors::" #name } \
+  ,
+          ACCESSOR_SETTER_LIST(ACCESSOR_SETTER_DECLARATION)
 #undef ACCESSOR_INFO_DECLARATION
   };
 

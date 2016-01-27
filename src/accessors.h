@@ -44,6 +44,12 @@ class AccessorInfo;
   V(ScriptIsEmbedderDebugScript)  \
   V(StringLength)
 
+#define ACCESSOR_SETTER_LIST(V)        \
+  V(ReconfigureToDataProperty)         \
+  V(ObservedReconfigureToDataProperty) \
+  V(ArrayLengthSetter)                 \
+  V(FunctionPrototypeSetter)
+
 // Accessors contains all predefined proxy accessors.
 
 class Accessors : public AllStatic {
@@ -53,15 +59,17 @@ class Accessors : public AllStatic {
   static void name##Getter(                               \
       v8::Local<v8::Name> name,                           \
       const v8::PropertyCallbackInfo<v8::Value>& info);   \
-  static void name##Setter(                               \
-      v8::Local<v8::Name> name,                           \
-      v8::Local<v8::Value> value,                         \
-      const v8::PropertyCallbackInfo<void>& info);   \
   static Handle<AccessorInfo> name##Info(                 \
       Isolate* isolate,                                   \
       PropertyAttributes attributes);
   ACCESSOR_INFO_LIST(ACCESSOR_INFO_DECLARATION)
 #undef ACCESSOR_INFO_DECLARATION
+
+#define ACCESSOR_SETTER_DECLARATION(name)                                \
+  static void name(v8::Local<v8::Name> name, v8::Local<v8::Value> value, \
+                   const v8::PropertyCallbackInfo<void>& info);
+  ACCESSOR_SETTER_LIST(ACCESSOR_SETTER_DECLARATION)
+#undef ACCESSOR_SETTER_DECLARATION
 
   enum DescriptorId {
 #define ACCESSOR_INFO_DECLARATION(name) \

@@ -237,6 +237,9 @@ class LookupIterator final BASE_EMBEDDED {
     DCHECK(has_property_);
     return property_details_;
   }
+  PropertyAttributes property_attributes() const {
+    return property_details().attributes();
+  }
   bool IsConfigurable() const { return property_details().IsConfigurable(); }
   bool IsReadOnly() const { return property_details().IsReadOnly(); }
   Representation representation() const {

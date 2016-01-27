@@ -202,14 +202,12 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
   return obj;
 }
 
-
 MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
-                                        Handle<ObjectTemplateInfo> data) {
+                                        Handle<ObjectTemplateInfo> info) {
   // Enter a new scope.  Recursion could otherwise create a lot of handles.
   HandleScope scope(isolate);
   // Fast path.
   Handle<JSObject> result;
-  auto info = Handle<ObjectTemplateInfo>::cast(data);
   auto constructor = handle(info->constructor(), isolate);
   Handle<JSFunction> cons;
   if (constructor->IsUndefined()) {
