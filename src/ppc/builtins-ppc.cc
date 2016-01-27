@@ -2077,13 +2077,7 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
 
   // Restore caller's frame pointer and return address now as they will be
   // overwritten by the copying loop.
-  if (FLAG_enable_embedded_constant_pool) {
-    __ LoadP(kConstantPoolRegister,
-             MemOperand(fp, StandardFrameConstants::kConstantPoolOffset));
-  }
-  __ LoadP(r0, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
-  __ LoadP(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-  __ mtlr(r0);
+  __ RestoreFrameStateForTailCall();
 
   // Now copy callee arguments to the caller frame going backwards to avoid
   // callee arguments corruption (source and destination areas could overlap).

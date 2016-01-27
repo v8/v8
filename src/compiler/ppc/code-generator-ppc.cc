@@ -651,13 +651,7 @@ void CodeGenerator::AssemblePrepareTailCall(int stack_param_delta) {
     frame_access_state()->IncreaseSPDelta(-sp_slot_delta);
   }
   if (frame()->needs_frame()) {
-    if (FLAG_enable_embedded_constant_pool) {
-      __ LoadP(kConstantPoolRegister,
-               MemOperand(fp, StandardFrameConstants::kConstantPoolOffset));
-    }
-    __ LoadP(r0, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
-    __ LoadP(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-    __ mtlr(r0);
+    __ RestoreFrameStateForTailCall();
   }
   frame_access_state()->SetFrameAccessToSP();
 }

@@ -564,6 +564,16 @@ void MacroAssembler::PopFixedFrame(Register marker_reg) {
   mtlr(r0);
 }
 
+void MacroAssembler::RestoreFrameStateForTailCall() {
+  if (FLAG_enable_embedded_constant_pool) {
+    LoadP(kConstantPoolRegister,
+          MemOperand(fp, StandardFrameConstants::kConstantPoolOffset));
+    set_constant_pool_available(false);
+  }
+  LoadP(r0, MemOperand(fp, StandardFrameConstants::kCallerPCOffset));
+  LoadP(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+  mtlr(r0);
+}
 
 const RegList MacroAssembler::kSafepointSavedRegisters = Register::kAllocatable;
 const int MacroAssembler::kNumSafepointSavedRegisters =

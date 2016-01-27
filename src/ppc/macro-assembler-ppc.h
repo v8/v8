@@ -342,6 +342,10 @@ class MacroAssembler : public Assembler {
   void PushFixedFrame(Register marker_reg = no_reg);
   void PopFixedFrame(Register marker_reg = no_reg);
 
+  // Restore caller's frame pointer and return address prior to being
+  // overwritten by tail call stack preparation.
+  void RestoreFrameStateForTailCall();
+
   // Push and pop the registers that can hold pointers, as defined by the
   // RegList constant kSafepointSavedRegisters.
   void PushSafepointRegisters();
