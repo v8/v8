@@ -851,8 +851,11 @@ Handle<HeapObject> RegExpMacroAssemblerPPC::GetCode(Handle<String> source) {
           __ cmpi(current_input_offset(), Operand::Zero());
           __ beq(&exit_label_);
           // Advance current position after a zero-length match.
+          Label advance;
+          __ bind(&advance);
           __ addi(current_input_offset(), current_input_offset(),
                   Operand((mode_ == UC16) ? 2 : 1));
+          if (global_unicode()) CheckNotInSurrogatePair(0, &advance);
         }
 
         __ b(&load_char_start_regexp);
