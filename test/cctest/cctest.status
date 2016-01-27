@@ -554,8 +554,6 @@
   'test-parsing/StrongModeFreeVariablesDeclaredByLanguage': [SKIP],
   'test-parsing/StrongModeFreeVariablesDeclaredByPreviousScript': [SKIP],
   'test-parsing/StrongModeFreeVariablesDeclaredInGlobalPrototype': [SKIP],
-  'test-pipeline/PipelineGeneric': [SKIP],
-  'test-pipeline/PipelineTyped': [SKIP],
   'test-profile-generator/BailoutReason': [SKIP],
   'test-profile-generator/LineNumber': [SKIP],
   'test-profile-generator/ProfileNodeScriptId': [SKIP],

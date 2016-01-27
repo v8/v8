@@ -363,6 +363,7 @@ bool BytecodeGraphBuilder::Environment::StateValuesAreUpToDate(
 
 bool BytecodeGraphBuilder::Environment::StateValuesAreUpToDate(
     int output_poke_offset, int output_poke_count) {
+  if (!builder()->info()->is_deoptimization_enabled()) return true;
   // Poke offset is relative to the top of the stack (i.e., the accumulator).
   int output_poke_start = accumulator_base() - output_poke_offset;
   int output_poke_end = output_poke_start + output_poke_count;
