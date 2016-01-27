@@ -518,19 +518,17 @@ void Heap::MergeAllocationSitePretenuringFeedback(
     if (map_word.IsForwardingAddress()) {
       site = AllocationSite::cast(map_word.ToForwardingAddress());
     }
-
-    // We have not validated the allocation site yet, since we have not
-    // dereferenced the site during collecting information.
-    // This is an inlined check of AllocationMemento::IsValid.
-    if (!site->IsAllocationSite() || site->IsZombie()) continue;
-
+    DCHECK(site->IsAllocationSite());
     int value =
         static_cast<int>(reinterpret_cast<intptr_t>(local_entry->value));
     DCHECK_GT(value, 0);
 
-    if (site->IncrementMementoFoundCount(value)) {
-      global_pretenuring_feedback_->LookupOrInsert(site,
-                                                   ObjectHash(site->address()));
+    {
+      // TODO(mlippautz): For parallel processing we need synchronization here.
+      if (site->IncrementMementoFoundCount(value)) {
+        global_pretenuring_feedback_->LookupOrInsert(
+            site, static_cast<uint32_t>(bit_cast<uintptr_t>(site)));
+      }
     }
   }
 }

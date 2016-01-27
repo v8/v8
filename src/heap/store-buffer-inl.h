@@ -26,6 +26,12 @@ void StoreBuffer::Mark(Address addr) {
 }
 
 
+inline void StoreBuffer::MarkSynchronized(Address addr) {
+  base::LockGuard<base::Mutex> lock_guard(&mutex_);
+  Mark(addr);
+}
+
+
 void StoreBuffer::EnterDirectlyIntoStoreBuffer(Address addr) {
   if (store_buffer_rebuilding_enabled_) {
     SLOW_DCHECK(!heap_->code_space()->Contains(addr) &&
@@ -42,22 +48,6 @@ void StoreBuffer::EnterDirectlyIntoStoreBuffer(Address addr) {
     }
   }
 }
-
-void LocalStoreBuffer::Record(Address addr) {
-  if (top_->is_full()) top_ = new Node(top_);
-  top_->buffer[top_->count++] = addr;
-}
-
-void LocalStoreBuffer::Process(StoreBuffer* store_buffer) {
-  Node* current = top_;
-  while (current != nullptr) {
-    for (int i = 0; i < current->count; i++) {
-      store_buffer->Mark(current->buffer[i]);
-    }
-    current = current->next;
-  }
-}
-
 }  // namespace internal
 }  // namespace v8
 

@@ -7,7 +7,6 @@
 
 #include "src/base/bits.h"
 #include "src/heap/spaces.h"
-#include "src/heap/store-buffer.h"
 
 namespace v8 {
 namespace internal {
@@ -407,8 +406,7 @@ class MarkCompactCollector {
 
   void MigrateObject(HeapObject* dst, HeapObject* src, int size,
                      AllocationSpace to_old_space,
-                     SlotsBuffer** evacuation_slots_buffer,
-                     LocalStoreBuffer* local_store_buffer);
+                     SlotsBuffer** evacuation_slots_buffer);
 
   void InvalidateCode(Code* code);
 
@@ -511,11 +509,12 @@ class MarkCompactCollector {
   class EvacuateNewSpaceVisitor;
   class EvacuateOldSpaceVisitor;
   class EvacuateVisitorBase;
-  class Evacuator;
   class HeapObjectVisitor;
   class SweeperTask;
 
   typedef std::vector<Page*> SweepingList;
+
+  static const int kInitialLocalPretenuringFeedbackCapacity = 256;
 
   explicit MarkCompactCollector(Heap* heap);
 
@@ -705,18 +704,25 @@ class MarkCompactCollector {
   void SweepSpaces();
 
   void EvacuateNewSpacePrologue();
-  void EvacuateNewSpaceEpilogue();
+
+  // Returns local pretenuring feedback.
+  HashMap* EvacuateNewSpaceInParallel();
 
   void AddEvacuationSlotsBufferSynchronized(
       SlotsBuffer* evacuation_slots_buffer);
 
+  void EvacuatePages(CompactionSpaceCollection* compaction_spaces,
+                     SlotsBuffer** evacuation_slots_buffer);
+
   void EvacuatePagesInParallel();
 
   // The number of parallel compaction tasks, including the main thread.
-  int NumberOfParallelCompactionTasks(int pages, intptr_t live_bytes);
+  int NumberOfParallelCompactionTasks();
 
-  void StartParallelCompaction(Evacuator** evacuators, int len);
-  void WaitUntilCompactionCompleted(Evacuator** evacuators, int len);
+
+  void StartParallelCompaction(CompactionSpaceCollection** compaction_spaces,
+                               uint32_t* task_ids, int len);
+  void WaitUntilCompactionCompleted(uint32_t* task_ids, int len);
 
   void EvacuateNewSpaceAndCandidates();
 
@@ -745,8 +751,7 @@ class MarkCompactCollector {
 
   // Updates store buffer and slot buffer for a pointer in a migrating object.
   void RecordMigratedSlot(Object* value, Address slot,
-                          SlotsBuffer** evacuation_slots_buffer,
-                          LocalStoreBuffer* local_store_buffer);
+                          SlotsBuffer** evacuation_slots_buffer);
 
   // Adds the code entry slot to the slots buffer.
   void RecordMigratedCodeEntrySlot(Address code_entry, Address code_entry_slot,
@@ -772,7 +777,8 @@ class MarkCompactCollector {
   bool have_code_to_deoptimize_;
 
   List<Page*> evacuation_candidates_;
-  List<NewSpacePage*> newspace_evacuation_candidates_;
+
+  List<MemoryChunk*> newspace_evacuation_candidates_;
 
   // The evacuation_slots_buffers_ are used by the compaction threads.
   // When a compaction task finishes, it uses

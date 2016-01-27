@@ -450,8 +450,6 @@ class Heap {
 
   enum PretenuringFeedbackInsertionMode { kCached, kGlobal };
 
-  enum FindMementoMode { kForRuntime, kForGC };
-
   enum HeapState { NOT_IN_GC, SCAVENGE, MARK_COMPACT };
 
   // Taking this lock prevents the GC from entering a phase that relocates
@@ -741,7 +739,6 @@ class Heap {
 
   // If an object has an AllocationMemento trailing it, return it, otherwise
   // return NULL;
-  template <FindMementoMode mode>
   inline AllocationMemento* FindAllocationMemento(HeapObject* object);
 
   // Returns false if not able to reserve.
@@ -1222,13 +1219,13 @@ class Heap {
 
   void UpdateSurvivalStatistics(int start_new_space_size);
 
-  inline void IncrementPromotedObjectsSize(intptr_t object_size) {
+  inline void IncrementPromotedObjectsSize(int object_size) {
     DCHECK_GE(object_size, 0);
     promoted_objects_size_ += object_size;
   }
   inline intptr_t promoted_objects_size() { return promoted_objects_size_; }
 
-  inline void IncrementSemiSpaceCopiedObjectSize(intptr_t object_size) {
+  inline void IncrementSemiSpaceCopiedObjectSize(int object_size) {
     DCHECK_GE(object_size, 0);
     semi_space_copied_object_size_ += object_size;
   }
@@ -1246,8 +1243,8 @@ class Heap {
 
   inline void IncrementNodesPromoted() { nodes_promoted_++; }
 
-  inline void IncrementYoungSurvivorsCounter(intptr_t survived) {
-    DCHECK_GE(survived, 0);
+  inline void IncrementYoungSurvivorsCounter(int survived) {
+    DCHECK(survived >= 0);
     survived_last_scavenge_ = survived;
     survived_since_last_expansion_ += survived;
   }
@@ -1996,10 +1993,10 @@ class Heap {
 
   // For keeping track of how much data has survived
   // scavenge since last new space expansion.
-  intptr_t survived_since_last_expansion_;
+  int survived_since_last_expansion_;
 
   // ... and since the last scavenge.
-  intptr_t survived_last_scavenge_;
+  int survived_last_scavenge_;
 
   // This is not the depth of nested AlwaysAllocateScope's but rather a single
   // count, as scopes can be acquired from multiple tasks (read: threads).

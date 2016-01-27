@@ -3514,13 +3514,6 @@ TEST(ReleaseOverReservedPages) {
   // The optimizer can allocate stuff, messing up the test.
   i::FLAG_crankshaft = false;
   i::FLAG_always_opt = false;
-  // Parallel compaction increases fragmentation, depending on how existing
-  // memory is distributed. Since this is non-deterministic because of
-  // concurrent sweeping, we disable it for this test.
-  i::FLAG_parallel_compaction = false;
-  // Concurrent sweeping adds non determinism, depending on when memory is
-  // available for further reuse.
-  i::FLAG_concurrent_sweeping = false;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
