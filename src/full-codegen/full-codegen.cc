@@ -148,8 +148,8 @@ bool FullCodeGenerator::MustCreateObjectLiteralWithRuntime(
   // support copy-on-write (COW) elements for now.
   // TODO(mvstanton): make object literals support COW elements.
   return masm()->serializer_enabled() ||
-         literal_flags != ObjectLiteral::kShallowProperties ||
-         literal_flags != ObjectLiteral::kFastElements ||
+         (literal_flags & ObjectLiteral::kShallowProperties) == 0 ||
+         (literal_flags & ObjectLiteral::kFastElements) == 0 ||
          expr->properties_count() >
              FastCloneShallowObjectStub::kMaximumClonedProperties;
 }
