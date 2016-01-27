@@ -1677,6 +1677,10 @@ ParserBase<Traits>::ParsePropertyDefinition(
         classifier->RecordCoverInitializedNameError(
             Scanner::Location(next_beg_pos, scanner()->location().end_pos),
             MessageTemplate::kInvalidCoverInitializedName);
+
+        if (allow_harmony_function_name()) {
+          Traits::SetFunctionNameFromIdentifierRef(rhs, lhs);
+        }
       } else {
         value = lhs;
       }
@@ -2882,6 +2886,10 @@ void ParserBase<Traits>::ParseFormalParameter(
     if (!*ok) return;
     parameters->is_simple = false;
     classifier->RecordNonSimpleParameter();
+
+    if (allow_harmony_function_name()) {
+      Traits::SetFunctionNameFromIdentifierRef(initializer, pattern);
+    }
   }
 
   Traits::AddFormalParameter(parameters, pattern, initializer,

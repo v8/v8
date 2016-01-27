@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 //
 // Flags: --harmony-function-name
+// Flags: --harmony-destructuring-bind --harmony-destructuring-assignment
 
 (function testVariableDeclarationsFunction() {
   'use strict';
@@ -158,4 +159,154 @@
   assertEquals('function', typeof classLit.name);
   classLit = class { constructor() {} static get ['name']() { return true; } };
   assertTrue(classLit.name);
+})();
+
+(function testObjectBindingPattern() {
+  var {
+    a = function() {},
+    b = () => {},
+    x = function withName() { },
+    y = class { },
+    z = class ClassName { },
+    q = class { static name() { return 42 } },
+    foo: bar = function() {},
+    inParens = (() => {}),
+    inManyParens = ((((() => {})))),
+  } = {};
+  assertEquals('a', a.name);
+  assertEquals('b', b.name);
+  assertEquals('withName', x.name);
+  assertEquals('y', y.name);
+  assertEquals('ClassName', z.name);
+  assertEquals('function', typeof q.name);
+  assertEquals('bar', bar.name);
+  assertEquals('inParens', inParens.name)
+  assertEquals('inManyParens', inManyParens.name)
+})();
+
+(function testArrayBindingPattern() {
+  var [
+    a = function() {},
+    b = () => {},
+    x = function withName() { },
+    y = class { },
+    z = class ClassName { },
+    q = class { static name() { return 42 } },
+    inParens = (() => {}),
+    inManyParens = ((((() => {})))),
+  ] = [];
+  assertEquals('a', a.name);
+  assertEquals('b', b.name);
+  assertEquals('withName', x.name);
+  assertEquals('y', y.name);
+  assertEquals('ClassName', z.name);
+  assertEquals('function', typeof q.name);
+  assertEquals('inParens', inParens.name)
+  assertEquals('inManyParens', inManyParens.name)
+})();
+
+(function testObjectAssignmentPattern() {
+  var a, b, x, y, z, q;
+  ({
+    a = function() {},
+    b = () => {},
+    x = function withName() { },
+    y = class { },
+    z = class ClassName { },
+    q = class { static name() { return 42 } },
+    foo: bar = function() {},
+    inParens = (() => {}),
+    inManyParens = ((((() => {})))),
+  } = {});
+  assertEquals('a', a.name);
+  assertEquals('b', b.name);
+  assertEquals('withName', x.name);
+  assertEquals('y', y.name);
+  assertEquals('ClassName', z.name);
+  assertEquals('function', typeof q.name);
+  assertEquals('bar', bar.name);
+  assertEquals('inParens', inParens.name)
+  assertEquals('inManyParens', inManyParens.name)
+})();
+
+(function testArrayAssignmentPattern() {
+  var a, b, x, y, z, q;
+  [
+    a = function() {},
+    b = () => {},
+    x = function withName() { },
+    y = class { },
+    z = class ClassName { },
+    q = class { static name() { return 42 } },
+    inParens = (() => {}),
+    inManyParens = ((((() => {})))),
+  ] = [];
+  assertEquals('a', a.name);
+  assertEquals('b', b.name);
+  assertEquals('withName', x.name);
+  assertEquals('y', y.name);
+  assertEquals('ClassName', z.name);
+  assertEquals('function', typeof q.name);
+  assertEquals('inParens', inParens.name)
+  assertEquals('inManyParens', inManyParens.name)
+})();
+
+(function testParameterDestructuring() {
+  (function({ a = function() {},
+              b = () => {},
+              x = function withName() { },
+              y = class { },
+              z = class ClassName { },
+              q = class { static name() { return 42 } },
+              foo: bar = function() {},
+              inParens = (() => {}),
+              inManyParens = ((((() => {})))) }) {
+    assertEquals('a', a.name);
+    assertEquals('b', b.name);
+    assertEquals('withName', x.name);
+    assertEquals('y', y.name);
+    assertEquals('ClassName', z.name);
+    assertEquals('function', typeof q.name);
+    assertEquals('bar', bar.name);
+    assertEquals('inParens', inParens.name)
+    assertEquals('inManyParens', inManyParens.name)
+  })({});
+
+  (function([ a = function() {},
+              b = () => {},
+              x = function withName() { },
+              y = class { },
+              z = class ClassName { },
+              q = class { static name() { return 42 } },
+              inParens = (() => {}),
+              inManyParens = ((((() => {})))) ]) {
+    assertEquals('a', a.name);
+    assertEquals('b', b.name);
+    assertEquals('withName', x.name);
+    assertEquals('y', y.name);
+    assertEquals('ClassName', z.name);
+    assertEquals('function', typeof q.name);
+    assertEquals('inParens', inParens.name)
+    assertEquals('inManyParens', inManyParens.name)
+  })([]);
+})();
+
+(function testDefaultParameters() {
+  (function(a = function() {},
+            b = () => {},
+            x = function withName() { },
+            y = class { },
+            z = class ClassName { },
+            q = class { static name() { return 42 } },
+            inParens = (() => {}),
+            inManyParens = ((((() => {}))))) {
+    assertEquals('a', a.name);
+    assertEquals('b', b.name);
+    assertEquals('withName', x.name);
+    assertEquals('y', y.name);
+    assertEquals('ClassName', z.name);
+    assertEquals('function', typeof q.name);
+    assertEquals('inParens', inParens.name)
+    assertEquals('inManyParens', inManyParens.name)
+  })();
 })();
