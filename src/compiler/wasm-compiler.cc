@@ -105,6 +105,9 @@ class WasmTrapHelper : public ZoneObject {
   // Make the current control path trap to unreachable.
   void Unreachable() { ConnectTrap(kTrapUnreachable); }
 
+  // Always trap with the given reason.
+  void TrapAlways(TrapReason reason) { ConnectTrap(reason); }
+
   // Add a check that traps if {node} is equal to {val}.
   Node* TrapIfEq32(TrapReason reason, Node* node, int32_t val) {
     Int32Matcher m(node);
@@ -163,6 +166,28 @@ class WasmTrapHelper : public ZoneObject {
     ConnectTrap(reason);
     *control_ptr = iftrue ? if_false : if_true;
     *effect_ptr = before;
+  }
+
+  Node* GetTrapValue(wasm::FunctionSig* sig) {
+    if (sig->return_count() > 0) {
+      switch (sig->GetReturn()) {
+        case wasm::kAstI32:
+          return jsgraph()->Int32Constant(0xdeadbeef);
+        case wasm::kAstI64:
+          return jsgraph()->Int64Constant(0xdeadbeefdeadbeef);
+        case wasm::kAstF32:
+          return jsgraph()->Float32Constant(bit_cast<float>(0xdeadbeef));
+        case wasm::kAstF64:
+          return jsgraph()->Float64Constant(
+              bit_cast<double>(0xdeadbeefdeadbeef));
+          break;
+        default:
+          UNREACHABLE();
+          return nullptr;
+      }
+    } else {
+      return jsgraph()->Int32Constant(0xdeadbeef);
+    }
   }
 
  private:
@@ -227,29 +252,7 @@ class WasmTrapHelper : public ZoneObject {
       end = thrw;
     } else {
       // End the control flow with returning 0xdeadbeef
-      Node* ret_value;
-      if (builder_->GetFunctionSignature()->return_count() > 0) {
-        switch (builder_->GetFunctionSignature()->GetReturn()) {
-          case wasm::kAstI32:
-            ret_value = jsgraph()->Int32Constant(0xdeadbeef);
-            break;
-          case wasm::kAstI64:
-            ret_value = jsgraph()->Int64Constant(0xdeadbeefdeadbeef);
-            break;
-          case wasm::kAstF32:
-            ret_value = jsgraph()->Float32Constant(bit_cast<float>(0xdeadbeef));
-            break;
-          case wasm::kAstF64:
-            ret_value = jsgraph()->Float64Constant(
-                bit_cast<double>(0xdeadbeefdeadbeef));
-            break;
-          default:
-            UNREACHABLE();
-            ret_value = nullptr;
-        }
-      } else {
-        ret_value = jsgraph()->Int32Constant(0xdeadbeef);
-      }
+      Node* ret_value = GetTrapValue(builder_->GetFunctionSignature());
       end = graph()->NewNode(jsgraph()->common()->Return(), ret_value,
                              *effect_ptr, *control_ptr);
     }
@@ -1465,20 +1468,26 @@ Node* WasmGraphBuilder::CallDirect(uint32_t index, Node** args) {
 
 Node* WasmGraphBuilder::CallIndirect(uint32_t index, Node** args) {
   DCHECK_NOT_NULL(args[0]);
+  DCHECK(module_ && module_->instance);
 
   MachineOperatorBuilder* machine = jsgraph()->machine();
 
   // Compute the code object by loading it from the function table.
   Node* key = args[0];
-  Node* table = FunctionTable();
 
   // Bounds check the index.
   int table_size = static_cast<int>(module_->FunctionTableSize());
-  {
+  if (table_size > 0) {
+    // Bounds check against the table size.
     Node* size = Int32Constant(static_cast<int>(table_size));
     Node* in_bounds = graph()->NewNode(machine->Uint32LessThan(), key, size);
     trap_->AddTrapIfFalse(kTrapFuncInvalid, in_bounds);
+  } else {
+    // No function table. Generate a trap and return a constant.
+    trap_->AddTrapIfFalse(kTrapFuncInvalid, Int32Constant(0));
+    return trap_->GetTrapValue(module_->GetSignature(index));
   }
+  Node* table = FunctionTable();
 
   // Load signature from the table and check.
   // The table is a FixedArray; signatures are encoded as SMIs.

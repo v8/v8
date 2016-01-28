@@ -180,7 +180,8 @@ struct ModuleEnv {
     return module->signatures->at(index);
   }
   size_t FunctionTableSize() {
-    return module ? module->function_table->size() : 0;
+    return module && module->function_table ? module->function_table->size()
+                                            : 0;
   }
 
   Handle<Code> GetFunctionCode(uint32_t index);

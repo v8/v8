@@ -2938,6 +2938,27 @@ TEST(Run_Wasm_MultipleCallIndirect) {
   CHECK_TRAP(r.Call(2, 1, 0));
 }
 
+TEST(Run_Wasm_CallIndirect_NoTable) {
+  WasmRunner<int32_t> r(MachineType::Int32());
+  TestSignatures sigs;
+  TestingModule module;
+  r.env()->module = &module;
+  // One function.
+  WasmFunctionCompiler t1(sigs.i_ii());
+  BUILD(t1, WASM_I32_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+  t1.CompileAndAdd(&module, /*sig_index*/ 1);
+
+  // Signature table.
+  module.AddSignature(sigs.f_ff());
+  module.AddSignature(sigs.i_ii());
+
+  // Builder the caller function.
+  BUILD(r, WASM_CALL_INDIRECT(1, WASM_GET_LOCAL(0), WASM_I8(66), WASM_I8(22)));
+
+  CHECK_TRAP(r.Call(0));
+  CHECK_TRAP(r.Call(1));
+  CHECK_TRAP(r.Call(2));
+}
 
 TEST(Run_Wasm_F32Trunc) {
   WasmRunner<float> r(MachineType::Float32());
