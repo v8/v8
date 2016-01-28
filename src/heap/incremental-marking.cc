@@ -128,8 +128,7 @@ void IncrementalMarking::RecordWriteIntoCodeSlow(HeapObject* obj,
                                                  Object* value) {
   if (BaseRecordWrite(obj, value)) {
       // Object is not going to be rescanned.  We need to record the slot.
-      heap_->mark_compact_collector()->RecordRelocSlot(rinfo,
-                                                       Code::cast(value));
+      heap_->mark_compact_collector()->RecordRelocSlot(rinfo, value);
   }
 }
 
