@@ -663,7 +663,6 @@ void Accessors::ScriptEvalFromScriptPositionGetter(
     Handle<Code> code(SharedFunctionInfo::cast(
         script->eval_from_shared())->code());
     result = Handle<Object>(Smi::FromInt(code->SourcePosition(
-                                code->instruction_start() +
                                 script->eval_from_instructions_offset())),
                             isolate);
   }

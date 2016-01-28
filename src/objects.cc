@@ -14063,12 +14063,12 @@ void Code::CopyFrom(const CodeDesc& desc) {
   Assembler::FlushICache(GetIsolate(), instruction_start(), instruction_size());
 }
 
-
-// Locate the source position which is closest to the address in the code. This
-// is using the source position information embedded in the relocation info.
+// Locate the source position which is closest to the code offset. This is
+// using the source position information embedded in the relocation info.
 // The position returned is relative to the beginning of the script where the
 // source for this function is found.
-int Code::SourcePosition(Address pc) {
+int Code::SourcePosition(int code_offset) {
+  Address pc = instruction_start() + code_offset;
   int distance = kMaxInt;
   int position = RelocInfo::kNoPosition;  // Initially no position found.
   // Run through all the relocation info to find the best matching source
@@ -14100,10 +14100,10 @@ int Code::SourcePosition(Address pc) {
 
 // Same as Code::SourcePosition above except it only looks for statement
 // positions.
-int Code::SourceStatementPosition(Address pc) {
+int Code::SourceStatementPosition(int code_offset) {
   // First find the position as close as possible using all position
   // information.
-  int position = SourcePosition(pc);
+  int position = SourcePosition(code_offset);
   // Now find the closest statement position before the position.
   int statement_position = 0;
   RelocIterator it(this, RelocInfo::kPositionMask);
@@ -14304,6 +14304,10 @@ void Code::ClearInlineCaches(Code::Kind* kind) {
   }
 }
 
+int AbstractCode::SourcePosition(int offset) {
+  if (IsBytecodeArray()) return GetBytecodeArray()->SourcePosition(offset);
+  return GetCode()->SourcePosition(offset);
+}
 
 void SharedFunctionInfo::ClearTypeFeedbackInfo() {
   feedback_vector()->ClearSlots(this);
@@ -14996,6 +15000,10 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
 }
 #endif  // ENABLE_DISASSEMBLER
 
+int BytecodeArray::SourcePosition(int offset) {
+  // TODO(yangguo): implement this.
+  return 0;
+}
 
 void BytecodeArray::Disassemble(std::ostream& os) {
   os << "Parameter count " << parameter_count() << "\n";
@@ -19050,35 +19058,31 @@ bool JSWeakCollection::Delete(Handle<JSWeakCollection> weak_collection,
   return was_present;
 }
 
-
-// Check if there is a break point at this code position.
-bool DebugInfo::HasBreakPoint(int code_position) {
-  // Get the break point info object for this code position.
-  Object* break_point_info = GetBreakPointInfo(code_position);
+// Check if there is a break point at this code offset.
+bool DebugInfo::HasBreakPoint(int code_offset) {
+  // Get the break point info object for this code offset.
+  Object* break_point_info = GetBreakPointInfo(code_offset);
 
   // If there is no break point info object or no break points in the break
-  // point info object there is no break point at this code position.
+  // point info object there is no break point at this code offset.
   if (break_point_info->IsUndefined()) return false;
   return BreakPointInfo::cast(break_point_info)->GetBreakPointCount() > 0;
 }
 
-
-// Get the break point info object for this code position.
-Object* DebugInfo::GetBreakPointInfo(int code_position) {
-  // Find the index of the break point info object for this code position.
-  int index = GetBreakPointInfoIndex(code_position);
+// Get the break point info object for this code offset.
+Object* DebugInfo::GetBreakPointInfo(int code_offset) {
+  // Find the index of the break point info object for this code offset.
+  int index = GetBreakPointInfoIndex(code_offset);
 
   // Return the break point info object if any.
   if (index == kNoBreakPointInfo) return GetHeap()->undefined_value();
   return BreakPointInfo::cast(break_points()->get(index));
 }
 
-
-// Clear a break point at the specified code position.
-void DebugInfo::ClearBreakPoint(Handle<DebugInfo> debug_info,
-                                int code_position,
+// Clear a break point at the specified code offset.
+void DebugInfo::ClearBreakPoint(Handle<DebugInfo> debug_info, int code_offset,
                                 Handle<Object> break_point_object) {
-  Handle<Object> break_point_info(debug_info->GetBreakPointInfo(code_position),
+  Handle<Object> break_point_info(debug_info->GetBreakPointInfo(code_offset),
                                   debug_info->GetIsolate());
   if (break_point_info->IsUndefined()) return;
   BreakPointInfo::ClearBreakPoint(
@@ -19086,14 +19090,11 @@ void DebugInfo::ClearBreakPoint(Handle<DebugInfo> debug_info,
       break_point_object);
 }
 
-
-void DebugInfo::SetBreakPoint(Handle<DebugInfo> debug_info,
-                              int code_position,
-                              int source_position,
-                              int statement_position,
+void DebugInfo::SetBreakPoint(Handle<DebugInfo> debug_info, int code_offset,
+                              int source_position, int statement_position,
                               Handle<Object> break_point_object) {
   Isolate* isolate = debug_info->GetIsolate();
-  Handle<Object> break_point_info(debug_info->GetBreakPointInfo(code_position),
+  Handle<Object> break_point_info(debug_info->GetBreakPointInfo(code_offset),
                                   isolate);
   if (!break_point_info->IsUndefined()) {
     BreakPointInfo::SetBreakPoint(
@@ -19102,7 +19103,7 @@ void DebugInfo::SetBreakPoint(Handle<DebugInfo> debug_info,
     return;
   }
 
-  // Adding a new break point for a code position which did not have any
+  // Adding a new break point for a code offset which did not have any
   // break points before. Try to find a free slot.
   int index = kNoBreakPointInfo;
   for (int i = 0; i < debug_info->break_points()->length(); i++) {
@@ -19131,7 +19132,7 @@ void DebugInfo::SetBreakPoint(Handle<DebugInfo> debug_info,
   // Allocate new BreakPointInfo object and set the break point.
   Handle<BreakPointInfo> new_break_point_info = Handle<BreakPointInfo>::cast(
       isolate->factory()->NewStruct(BREAK_POINT_INFO_TYPE));
-  new_break_point_info->set_code_position(code_position);
+  new_break_point_info->set_code_offset(code_offset);
   new_break_point_info->set_source_position(source_position);
   new_break_point_info->set_statement_position(statement_position);
   new_break_point_info->set_break_point_objects(
@@ -19140,10 +19141,9 @@ void DebugInfo::SetBreakPoint(Handle<DebugInfo> debug_info,
   debug_info->break_points()->set(index, *new_break_point_info);
 }
 
-
-// Get the break point objects for a code position.
-Handle<Object> DebugInfo::GetBreakPointObjects(int code_position) {
-  Object* break_point_info = GetBreakPointInfo(code_position);
+// Get the break point objects for a code offset.
+Handle<Object> DebugInfo::GetBreakPointObjects(int code_offset) {
+  Object* break_point_info = GetBreakPointInfo(code_offset);
   if (break_point_info->IsUndefined()) {
     return GetIsolate()->factory()->undefined_value();
   }
@@ -19189,13 +19189,13 @@ Handle<Object> DebugInfo::FindBreakPointInfo(
 
 // Find the index of the break point info object for the specified code
 // position.
-int DebugInfo::GetBreakPointInfoIndex(int code_position) {
+int DebugInfo::GetBreakPointInfoIndex(int code_offset) {
   if (break_points()->IsUndefined()) return kNoBreakPointInfo;
   for (int i = 0; i < break_points()->length(); i++) {
     if (!break_points()->get(i)->IsUndefined()) {
       BreakPointInfo* break_point_info =
           BreakPointInfo::cast(break_points()->get(i));
-      if (break_point_info->code_position() == code_position) {
+      if (break_point_info->code_offset() == code_offset) {
         return i;
       }
     }

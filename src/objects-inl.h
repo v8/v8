@@ -846,6 +846,7 @@ TYPE_CHECKER(JSValue, JS_VALUE_TYPE)
 TYPE_CHECKER(JSDate, JS_DATE_TYPE)
 TYPE_CHECKER(JSMessageObject, JS_MESSAGE_OBJECT_TYPE)
 
+bool Object::IsAbstractCode() const { return IsBytecodeArray() || IsCode(); }
 
 bool Object::IsStringWrapper() const {
   return IsJSValue() && JSValue::cast(this)->value()->IsString();
@@ -3179,7 +3180,7 @@ void SeededNumberDictionary::set_requires_slow_elements() {
 // ------------------------------------
 // Cast operations
 
-
+CAST_ACCESSOR(AbstractCode)
 CAST_ACCESSOR(ArrayList)
 CAST_ACCESSOR(Bool16x8)
 CAST_ACCESSOR(Bool32x4)
@@ -5286,6 +5287,10 @@ class Code::FindAndReplacePattern {
   friend class Code;
 };
 
+Code* AbstractCode::GetCode() { return Code::cast(this); }
+BytecodeArray* AbstractCode::GetBytecodeArray() {
+  return BytecodeArray::cast(this);
+}
 
 Object* Map::prototype() const {
   return READ_FIELD(this, kPrototypeOffset);
@@ -5615,7 +5620,7 @@ ACCESSORS(DebugInfo, shared, SharedFunctionInfo, kSharedFunctionInfoIndex)
 ACCESSORS(DebugInfo, code, Code, kCodeIndex)
 ACCESSORS(DebugInfo, break_points, FixedArray, kBreakPointsStateIndex)
 
-SMI_ACCESSORS(BreakPointInfo, code_position, kCodePositionIndex)
+SMI_ACCESSORS(BreakPointInfo, code_offset, kCodeOffsetIndex)
 SMI_ACCESSORS(BreakPointInfo, source_position, kSourcePositionIndex)
 SMI_ACCESSORS(BreakPointInfo, statement_position, kStatementPositionIndex)
 ACCESSORS(BreakPointInfo, break_point_objects, Object, kBreakPointObjectsIndex)

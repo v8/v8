@@ -86,13 +86,9 @@ RUNTIME_FUNCTION(Runtime_FunctionGetPositionForOffset) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 2);
 
-  CONVERT_ARG_CHECKED(Code, code, 0);
+  CONVERT_ARG_CHECKED(AbstractCode, abstract_code, 0);
   CONVERT_NUMBER_CHECKED(int, offset, Int32, args[1]);
-
-  RUNTIME_ASSERT(0 <= offset && offset < code->Size());
-
-  Address pc = code->address() + offset;
-  return Smi::FromInt(code->SourcePosition(pc));
+  return Smi::FromInt(abstract_code->SourcePosition(offset));
 }
 
 

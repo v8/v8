@@ -64,17 +64,14 @@ class BreakLocation {
  public:
   // Find the break point at the supplied address, or the closest one before
   // the address.
-  static BreakLocation FromAddress(Handle<DebugInfo> debug_info, Address pc);
+  static BreakLocation FromCodeOffset(Handle<DebugInfo> debug_info, int offset);
 
-  template <class Frame>
-  static BreakLocation FromFrame(Handle<DebugInfo> debug_info, Frame* frame) {
-    // PC points to the instruction after the current one, possibly a break
-    // location as well. So the "- 1" to exclude it from the search.
-    return FromAddress(debug_info, frame->pc() - 1);
-  }
+  static BreakLocation FromFrame(Handle<DebugInfo> debug_info,
+                                 JavaScriptFrame* frame);
 
-  static void FromAddressSameStatement(Handle<DebugInfo> debug_info, Address pc,
-                                       List<BreakLocation>* result_out);
+  static void FromCodeOffsetSameStatement(Handle<DebugInfo> debug_info,
+                                          int offset,
+                                          List<BreakLocation>* result_out);
 
   static void AllForStatementPosition(Handle<DebugInfo> debug_info,
                                       int statement_position,
@@ -92,7 +89,7 @@ class BreakLocation {
     return RelocInfo::IsDebugBreakSlotAtCall(rmode_);
   }
   inline bool HasBreakPoint() const {
-    return debug_info_->HasBreakPoint(pc_offset_);
+    return debug_info_->HasBreakPoint(code_offset_);
   }
 
   Handle<Object> BreakPointObjects() const;
@@ -111,7 +108,7 @@ class BreakLocation {
   inline int position() const { return position_; }
   inline int statement_position() const { return statement_position_; }
 
-  inline Address pc() const { return code()->entry() + pc_offset_; }
+  inline int code_offset() const { return code_offset_; }
 
   inline RelocInfo::Mode rmode() const { return rmode_; }
 
@@ -160,7 +157,7 @@ class BreakLocation {
 
   friend class Debug;
 
-  static int BreakIndexFromAddress(Handle<DebugInfo> debug_info, Address pc);
+  static int BreakIndexFromCodeOffset(Handle<DebugInfo> debug_info, int offset);
 
   void SetDebugBreak();
   void ClearDebugBreak();
@@ -172,8 +169,10 @@ class BreakLocation {
     return RelocInfo::IsDebugBreakSlot(rmode_);
   }
 
+  inline Address pc() const { return code()->entry() + code_offset_; }
+
   Handle<DebugInfo> debug_info_;
-  int pc_offset_;
+  int code_offset_;
   RelocInfo::Mode rmode_;
   intptr_t data_;
   int position_;

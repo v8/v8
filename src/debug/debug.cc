@@ -58,16 +58,14 @@ static v8::Local<v8::Context> GetDebugEventContext(Isolate* isolate) {
   return v8::Utils::ToLocal(native_context);
 }
 
-
 BreakLocation::BreakLocation(Handle<DebugInfo> debug_info, RelocInfo* rinfo,
                              int position, int statement_position)
     : debug_info_(debug_info),
-      pc_offset_(static_cast<int>(rinfo->pc() - debug_info->code()->entry())),
+      code_offset_(static_cast<int>(rinfo->pc() - debug_info->code()->entry())),
       rmode_(rinfo->rmode()),
       data_(rinfo->data()),
       position_(position),
       statement_position_(statement_position) {}
-
 
 BreakLocation::Iterator::Iterator(Handle<DebugInfo> debug_info,
                                   BreakLocatorType type)
@@ -144,20 +142,27 @@ void BreakLocation::Iterator::Next() {
 
 // Find the break point at the supplied address, or the closest one before
 // the address.
-BreakLocation BreakLocation::FromAddress(Handle<DebugInfo> debug_info,
-                                         Address pc) {
+BreakLocation BreakLocation::FromCodeOffset(Handle<DebugInfo> debug_info,
+                                            int offset) {
   Iterator it(debug_info, ALL_BREAK_LOCATIONS);
-  it.SkipTo(BreakIndexFromAddress(debug_info, pc));
+  it.SkipTo(BreakIndexFromCodeOffset(debug_info, offset));
   return it.GetBreakLocation();
 }
 
+BreakLocation BreakLocation::FromFrame(Handle<DebugInfo> debug_info,
+                                       JavaScriptFrame* frame) {
+  // Code offset to the instruction after the current one, possibly a break
+  // location as well. So the "- 1" to exclude it from the search.
+  Code* code = frame->LookupCode();
+  int code_offset = static_cast<int>(frame->pc() - code->instruction_start());
+  return FromCodeOffset(debug_info, code_offset - 1);
+}
 
 // Find the break point at the supplied address, or the closest one before
 // the address.
-void BreakLocation::FromAddressSameStatement(Handle<DebugInfo> debug_info,
-                                             Address pc,
-                                             List<BreakLocation>* result_out) {
-  int break_index = BreakIndexFromAddress(debug_info, pc);
+void BreakLocation::FromCodeOffsetSameStatement(
+    Handle<DebugInfo> debug_info, int offset, List<BreakLocation>* result_out) {
+  int break_index = BreakIndexFromCodeOffset(debug_info, offset);
   Iterator it(debug_info, ALL_BREAK_LOCATIONS);
   it.SkipTo(break_index);
   int statement_position = it.statement_position();
@@ -168,7 +173,6 @@ void BreakLocation::FromAddressSameStatement(Handle<DebugInfo> debug_info,
 }
 
 
-// Find all break locations with the given statement position.
 void BreakLocation::AllForStatementPosition(Handle<DebugInfo> debug_info,
                                             int statement_position,
                                             List<BreakLocation>* result_out) {
@@ -179,12 +183,14 @@ void BreakLocation::AllForStatementPosition(Handle<DebugInfo> debug_info,
   }
 }
 
-
-int BreakLocation::BreakIndexFromAddress(Handle<DebugInfo> debug_info,
-                                         Address pc) {
+int BreakLocation::BreakIndexFromCodeOffset(Handle<DebugInfo> debug_info,
+                                            int offset) {
   // Run through all break points to locate the one closest to the address.
   int closest_break = 0;
   int distance = kMaxInt;
+  Code* code = debug_info->code();
+  DCHECK(0 <= offset && offset < code->instruction_size());
+  Address pc = code->instruction_start() + offset;
   for (Iterator it(debug_info, ALL_BREAK_LOCATIONS); !it.Done(); it.Next()) {
     // Check if this break point is closer that what was previously found.
     if (it.pc() <= pc && pc - it.pc() < distance) {
@@ -234,14 +240,14 @@ void BreakLocation::SetBreakPoint(Handle<Object> break_point_object) {
   if (!HasBreakPoint()) SetDebugBreak();
   DCHECK(IsDebugBreak() || IsDebuggerStatement());
   // Set the break point information.
-  DebugInfo::SetBreakPoint(debug_info_, pc_offset_, position_,
+  DebugInfo::SetBreakPoint(debug_info_, code_offset_, position_,
                            statement_position_, break_point_object);
 }
 
 
 void BreakLocation::ClearBreakPoint(Handle<Object> break_point_object) {
   // Clear the break point information.
-  DebugInfo::ClearBreakPoint(debug_info_, pc_offset_, break_point_object);
+  DebugInfo::ClearBreakPoint(debug_info_, code_offset_, break_point_object);
   // If there are no more break points here remove the debug break.
   if (!HasBreakPoint()) {
     ClearDebugBreak();
@@ -319,7 +325,7 @@ bool BreakLocation::IsDebugBreak() const {
 
 
 Handle<Object> BreakLocation::BreakPointObjects() const {
-  return debug_info_->GetBreakPointObjects(pc_offset_);
+  return debug_info_->GetBreakPointObjects(code_offset_);
 }
 
 
@@ -486,11 +492,14 @@ void Debug::Break(Arguments args, JavaScriptFrame* frame) {
       // Step next should not break in a deeper frame.
       if (current_fp < target_fp) return;
     // Fall through.
-    case StepIn:
+    case StepIn: {
+      int offset =
+          static_cast<int>(frame->pc() - location.code()->instruction_start());
       step_break = location.IsReturn() || (current_fp != last_fp) ||
                    (thread_local_.last_statement_position_ !=
-                    location.code()->SourceStatementPosition(frame->pc()));
+                    location.code()->SourceStatementPosition(offset));
       break;
+    }
     case StepFrame:
       step_break = current_fp != last_fp;
       break;
@@ -705,11 +714,8 @@ void Debug::ClearBreakPoint(Handle<Object> break_point_object) {
           Handle<BreakPointInfo>::cast(result);
       Handle<DebugInfo> debug_info = node->debug_info();
 
-      // Find the break point and clear it.
-      Address pc =
-          debug_info->code()->entry() + break_point_info->code_position();
-
-      BreakLocation location = BreakLocation::FromAddress(debug_info, pc);
+      BreakLocation location = BreakLocation::FromCodeOffset(
+          debug_info, break_point_info->code_offset());
       location.ClearBreakPoint(break_point_object);
 
       // If there are no more break points left remove the debug info for this
@@ -880,17 +886,20 @@ void Debug::PrepareStep(StepAction step_action) {
 
   Handle<DebugInfo> debug_info(shared->GetDebugInfo());
   // Refresh frame summary if the code has been recompiled for debugging.
-  if (shared->code() != *summary.code()) summary = GetFirstFrameSummary(frame);
+  if (AbstractCode::cast(shared->code()) != *summary.abstract_code()) {
+    summary = GetFirstFrameSummary(frame);
+  }
 
   // PC points to the instruction after the current one, possibly a break
   // location as well. So the "- 1" to exclude it from the search.
-  BreakLocation location = BreakLocation::FromFrame(debug_info, &summary);
+  BreakLocation location =
+      BreakLocation::FromCodeOffset(debug_info, summary.code_offset() - 1);
 
   // At a return statement we will step out either way.
   if (location.IsReturn()) step_action = StepOut;
 
   thread_local_.last_statement_position_ =
-      debug_info->code()->SourceStatementPosition(summary.pc());
+      debug_info->code()->SourceStatementPosition(summary.code_offset());
   thread_local_.last_fp_ = frame->UnpaddedFP();
 
   switch (step_action) {
@@ -1502,16 +1511,20 @@ void Debug::GetStepinPositions(JavaScriptFrame* frame, StackFrame::Id frame_id,
 
   Handle<DebugInfo> debug_info(shared->GetDebugInfo());
   // Refresh frame summary if the code has been recompiled for debugging.
-  if (shared->code() != *summary.code()) summary = GetFirstFrameSummary(frame);
+  if (AbstractCode::cast(shared->code()) != *summary.abstract_code()) {
+    summary = GetFirstFrameSummary(frame);
+  }
 
   // Find range of break points starting from the break point where execution
-  // has stopped.
-  Address call_pc = summary.pc() - 1;
+  // has stopped. The code offset points to the instruction after the current
+  // possibly a break location, too. Subtract one to exclude it from the search.
+  int call_offset = summary.code_offset() - 1;
   List<BreakLocation> locations;
-  BreakLocation::FromAddressSameStatement(debug_info, call_pc, &locations);
+  BreakLocation::FromCodeOffsetSameStatement(debug_info, call_offset,
+                                             &locations);
 
   for (BreakLocation location : locations) {
-    if (location.pc() <= summary.pc()) {
+    if (location.code_offset() <= summary.code_offset()) {
       // The break point is near our pc. Could be a step-in possibility,
       // that is currently taken by active debugger call.
       if (break_frame_id() == StackFrame::NO_ID) {

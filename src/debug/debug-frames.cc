@@ -69,8 +69,13 @@ Object* FrameInspector::GetExpression(int index) {
 
 
 int FrameInspector::GetSourcePosition() {
-  return is_optimized_ ? deoptimized_frame_->GetSourcePosition()
-                       : frame_->LookupCode()->SourcePosition(frame_->pc());
+  if (is_optimized_) {
+    return deoptimized_frame_->GetSourcePosition();
+  } else {
+    Code* code = frame_->LookupCode();
+    int offset = static_cast<int>(frame_->pc() - code->instruction_start());
+    return code->SourcePosition(offset);
+  }
 }
 
 

@@ -772,8 +772,7 @@ void Heap::PreprocessStackTraces() {
       if (!maybe_code->IsCode()) break;
       Code* code = Code::cast(maybe_code);
       int offset = Smi::cast(elements->get(j + 3))->value();
-      Address pc = code->address() + offset;
-      int pos = code->SourcePosition(pc);
+      int pos = code->SourcePosition(offset);
       elements->set(j + 2, Smi::FromInt(pos));
     }
   }

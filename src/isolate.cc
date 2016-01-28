@@ -390,8 +390,9 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSObject> error_object,
       }
       DCHECK(cursor + 4 <= elements->length());
 
-      Handle<Code> code = frames[i].code();
-      Handle<Smi> offset(Smi::FromInt(frames[i].offset()), this);
+      Handle<AbstractCode> abstract_code = frames[i].abstract_code();
+
+      Handle<Smi> offset(Smi::FromInt(frames[i].code_offset()), this);
       // The stack trace API should not expose receivers and function
       // objects on frames deeper than the top-most one with a strict
       // mode function.  The number of sloppy frames is stored as
@@ -405,7 +406,7 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSObject> error_object,
       }
       elements->set(cursor++, *recv);
       elements->set(cursor++, *fun);
-      elements->set(cursor++, *code);
+      elements->set(cursor++, *abstract_code);
       elements->set(cursor++, *offset);
       frames_seen++;
     }
@@ -594,9 +595,9 @@ int PositionFromStackTrace(Handle<FixedArray> elements, int index) {
   if (maybe_code->IsSmi()) {
     return Smi::cast(maybe_code)->value();
   } else {
-    Code* code = Code::cast(maybe_code);
-    Address pc = code->address() + Smi::cast(elements->get(index + 3))->value();
-    return code->SourcePosition(pc);
+    AbstractCode* abstract_code = AbstractCode::cast(maybe_code);
+    int code_offset = Smi::cast(elements->get(index + 3))->value();
+    return abstract_code->SourcePosition(code_offset);
   }
 }
 
@@ -661,7 +662,8 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
       // Filter frames from other security contexts.
       if (!(options & StackTrace::kExposeFramesAcrossSecurityOrigins) &&
           !this->context()->HasSameSecurityTokenAs(fun->context())) continue;
-      int position = frames[i].code()->SourcePosition(frames[i].pc());
+      int position =
+          frames[i].abstract_code()->SourcePosition(frames[i].code_offset());
       Handle<JSObject> stack_frame =
           helper.NewStackFrameObject(fun, position, frames[i].is_constructor());
 
@@ -1283,7 +1285,9 @@ void Isolate::PrintCurrentStackTrace(FILE* out) {
     HandleScope scope(this);
     // Find code position if recorded in relocation info.
     JavaScriptFrame* frame = it.frame();
-    int pos = frame->LookupCode()->SourcePosition(frame->pc());
+    Code* code = frame->LookupCode();
+    int offset = static_cast<int>(frame->pc() - code->instruction_start());
+    int pos = frame->LookupCode()->SourcePosition(offset);
     Handle<Object> pos_obj(Smi::FromInt(pos), this);
     // Fetch function and receiver.
     Handle<JSFunction> fun(frame->function());
@@ -1318,7 +1322,7 @@ bool Isolate::ComputeLocation(MessageLocation* target) {
       List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
       it.frame()->Summarize(&frames);
       FrameSummary& summary = frames.last();
-      int pos = summary.code()->SourcePosition(summary.pc());
+      int pos = summary.abstract_code()->SourcePosition(summary.code_offset());
       *target = MessageLocation(casted_script, pos, pos + 1, handle(fun));
       return true;
     }

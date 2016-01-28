@@ -2508,7 +2508,8 @@ DeoptimizedFrameInfo::DeoptimizedFrameInfo(Deoptimizer* deoptimizer,
   // Get the source position using the unoptimized code.
   Address pc = reinterpret_cast<Address>(output_frame->GetPc());
   Code* code = Code::cast(deoptimizer->isolate()->FindCodeObject(pc));
-  source_position_ = code->SourcePosition(pc);
+  int offset = static_cast<int>(pc - code->instruction_start());
+  source_position_ = code->SourcePosition(offset);
 
   for (int i = 0; i < expression_count_; i++) {
     Object* value = output_frame->GetExpression(i);

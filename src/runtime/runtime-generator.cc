@@ -205,11 +205,8 @@ RUNTIME_FUNCTION(Runtime_GeneratorGetSourcePosition) {
   if (generator->is_suspended()) {
     Handle<Code> code(generator->function()->code(), isolate);
     int offset = generator->continuation();
-
-    RUNTIME_ASSERT(0 <= offset && offset < code->Size());
-    Address pc = code->address() + offset;
-
-    return Smi::FromInt(code->SourcePosition(pc));
+    RUNTIME_ASSERT(0 <= offset && offset < code->instruction_size());
+    return Smi::FromInt(code->SourcePosition(offset));
   }
 
   return isolate->heap()->undefined_value();

@@ -395,7 +395,7 @@ bool ComputeLocation(Isolate* isolate, MessageLocation* target) {
       List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
       it.frame()->Summarize(&frames);
       FrameSummary& summary = frames.last();
-      int pos = summary.code()->SourcePosition(summary.pc());
+      int pos = summary.abstract_code()->SourcePosition(summary.code_offset());
       *target = MessageLocation(casted_script, pos, pos + 1, handle(fun));
       return true;
     }
