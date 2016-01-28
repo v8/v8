@@ -264,6 +264,9 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(InternalArrayCode, BUILTIN, UNINITIALIZED, kNoExtraICState)                \
   V(ArrayCode, BUILTIN, UNINITIALIZED, kNoExtraICState)                        \
                                                                                \
+  V(MathMax, BUILTIN, UNINITIALIZED, kNoExtraICState)                          \
+  V(MathMin, BUILTIN, UNINITIALIZED, kNoExtraICState)                          \
+                                                                               \
   V(NumberConstructor, BUILTIN, UNINITIALIZED, kNoExtraICState)                \
   V(NumberConstructor_ConstructStub, BUILTIN, UNINITIALIZED, kNoExtraICState)  \
                                                                                \
@@ -545,6 +548,17 @@ class Builtins {
 
   static void Generate_InternalArrayCode(MacroAssembler* masm);
   static void Generate_ArrayCode(MacroAssembler* masm);
+
+  enum class MathMaxMinKind { kMax, kMin };
+  static void Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind);
+  // ES6 section 20.2.2.24 Math.max ( value1, value2 , ...values )
+  static void Generate_MathMax(MacroAssembler* masm) {
+    Generate_MathMaxMin(masm, MathMaxMinKind::kMax);
+  }
+  // ES6 section 20.2.2.25 Math.min ( value1, value2 , ...values )
+  static void Generate_MathMin(MacroAssembler* masm) {
+    Generate_MathMaxMin(masm, MathMaxMinKind::kMin);
+  }
 
   // ES6 section 20.1.1.1 Number ( [ value ] ) for the [[Call]] case.
   static void Generate_NumberConstructor(MacroAssembler* masm);

@@ -1517,9 +1517,11 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         cons,
         Handle<Object>(native_context()->initial_object_prototype(), isolate));
     cons->shared()->set_instance_class_name(*name);
-    Handle<JSObject> json_object = factory->NewJSObject(cons, TENURED);
-    DCHECK(json_object->IsJSObject());
-    JSObject::AddProperty(global, name, json_object, DONT_ENUM);
+    Handle<JSObject> math = factory->NewJSObject(cons, TENURED);
+    DCHECK(math->IsJSObject());
+    JSObject::AddProperty(global, name, math, DONT_ENUM);
+    SimpleInstallFunction(math, "max", Builtins::kMathMax, 2, false);
+    SimpleInstallFunction(math, "min", Builtins::kMathMin, 2, false);
   }
 
   {  // -- A r r a y B u f f e r

@@ -17,8 +17,8 @@ var InternalArray = utils.InternalArray;
 var InternalPackedArray = utils.InternalPackedArray;
 var MakeRangeError;
 var MakeTypeError;
-var MathMax;
-var MathMin;
+var MaxSimple;
+var MinSimple;
 var matchSymbol = utils.ImportNow("match_symbol");
 var RegExpExecNoTests;
 var replaceSymbol = utils.ImportNow("replace_symbol");
@@ -30,8 +30,8 @@ utils.Import(function(from) {
   ArrayJoin = from.ArrayJoin;
   MakeRangeError = from.MakeRangeError;
   MakeTypeError = from.MakeTypeError;
-  MathMax = from.MathMax;
-  MathMin = from.MathMin;
+  MaxSimple = from.MaxSimple;
+  MinSimple = from.MinSimple;
   RegExpExecNoTests = from.RegExpExecNoTests;
 });
 
@@ -735,7 +735,7 @@ function StringStartsWith(searchString /* position */) {  // length == 1
   }
 
   var s_len = s.length;
-  var start = MathMin(MathMax(pos, 0), s_len);
+  var start = MinSimple(MaxSimple(pos, 0), s_len);
   var ss_len = ss.length;
   if (ss_len + start > s_len) {
     return false;
@@ -765,7 +765,7 @@ function StringEndsWith(searchString /* position */) {  // length == 1
     }
   }
 
-  var end = MathMin(MathMax(pos, 0), s_len);
+  var end = MinSimple(MaxSimple(pos, 0), s_len);
   var ss_len = ss.length;
   var start = end - ss_len;
   if (start < 0) {

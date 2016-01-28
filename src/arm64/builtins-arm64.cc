@@ -138,6 +138,110 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
 
 
 // static
+void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
+  // ----------- S t a t e -------------
+  //  -- x0                 : number of arguments
+  //  -- lr                 : return address
+  //  -- sp[(argc - n) * 8] : arg[n] (zero-based)
+  //  -- sp[(argc + 1) * 8] : receiver
+  // -----------------------------------
+  ASM_LOCATION("Builtins::Generate_MathMaxMin");
+
+  Condition const cc_done = (kind == MathMaxMinKind::kMin) ? mi : gt;
+  Condition const cc_swap = (kind == MathMaxMinKind::kMin) ? gt : mi;
+  Heap::RootListIndex const root_index =
+      (kind == MathMaxMinKind::kMin) ? Heap::kInfinityValueRootIndex
+                                     : Heap::kMinusInfinityValueRootIndex;
+  DoubleRegister const reg = (kind == MathMaxMinKind::kMin) ? d2 : d1;
+
+  // Load the accumulator with the default return value (either -Infinity or
+  // +Infinity), with the tagged value in x1 and the double value in d1.
+  __ LoadRoot(x1, root_index);
+  __ Ldr(d1, FieldMemOperand(x1, HeapNumber::kValueOffset));
+  __ Mov(x4, x0);
+
+  Label done_loop, loop;
+  __ Bind(&loop);
+  {
+    // Check if all parameters done.
+    __ Subs(x0, x0, 1);
+    __ B(lt, &done_loop);
+
+    // Load the next parameter tagged value into x2.
+    __ Peek(x2, Operand(x0, LSL, kPointerSizeLog2));
+
+    // Load the double value of the parameter into d2, maybe converting the
+    // parameter to a number first using the ToNumberStub if necessary.
+    Label convert, convert_smi, convert_number, done_convert;
+    __ Bind(&convert);
+    __ JumpIfSmi(x2, &convert_smi);
+    __ Ldr(x3, FieldMemOperand(x2, HeapObject::kMapOffset));
+    __ JumpIfRoot(x3, Heap::kHeapNumberMapRootIndex, &convert_number);
+    {
+      // Parameter is not a Number, use the ToNumberStub to convert it.
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ SmiTag(x0);
+      __ SmiTag(x4);
+      __ Push(x0, x1, x4);
+      __ Mov(x0, x2);
+      ToNumberStub stub(masm->isolate());
+      __ CallStub(&stub);
+      __ Mov(x2, x0);
+      __ Pop(x4, x1, x0);
+      {
+        // Restore the double accumulator value (d1).
+        Label restore_smi, done_restore;
+        __ JumpIfSmi(x1, &restore_smi);
+        __ Ldr(d1, FieldMemOperand(x1, HeapNumber::kValueOffset));
+        __ B(&done_restore);
+        __ Bind(&restore_smi);
+        __ SmiUntagToDouble(d1, x1);
+        __ bind(&done_restore);
+      }
+      __ SmiUntag(x4);
+      __ SmiUntag(x0);
+    }
+    __ B(&convert);
+    __ Bind(&convert_number);
+    __ Ldr(d2, FieldMemOperand(x2, HeapNumber::kValueOffset));
+    __ B(&done_convert);
+    __ Bind(&convert_smi);
+    __ SmiUntagToDouble(d2, x2);
+    __ Bind(&done_convert);
+
+    // Perform the actual comparison with the accumulator value on the left hand
+    // side (d1) and the next parameter value on the right hand side (d2).
+    Label compare_nan, compare_swap;
+    __ Fcmp(d1, d2);
+    __ B(cc_done, &loop);
+    __ B(cc_swap, &compare_swap);
+    __ B(vs, &compare_nan);
+
+    // Left and right hand side are equal, check for -0 vs. +0.
+    __ Fmov(x3, reg);
+    __ TestAndBranchIfAllClear(x3, V8_INT64_C(0x8000000000000000), &loop);
+
+    // Result is on the right hand side.
+    __ Bind(&compare_swap);
+    __ Fmov(d1, d2);
+    __ Mov(x1, x2);
+    __ B(&loop);
+
+    // At least one side is NaN, which means that the result will be NaN too.
+    __ Bind(&compare_nan);
+    __ LoadRoot(x1, Heap::kNanValueRootIndex);
+    __ Ldr(d1, FieldMemOperand(x1, HeapNumber::kValueOffset));
+    __ B(&loop);
+  }
+
+  __ Bind(&done_loop);
+  __ Mov(x0, x1);
+  __ Drop(x4);
+  __ Drop(1);
+  __ Ret();
+}
+
+// static
 void Builtins::Generate_NumberConstructor(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- x0                     : number of arguments

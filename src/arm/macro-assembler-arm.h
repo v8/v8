@@ -128,6 +128,7 @@ class MacroAssembler: public Assembler {
   // Emit code to discard a non-negative number of pointer-sized elements
   // from the stack, clobbering only the sp register.
   void Drop(int count, Condition cond = al);
+  void Drop(Register count, Condition cond = al);
 
   void Ret(int drop, Condition cond = al);
 

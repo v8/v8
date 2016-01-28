@@ -179,8 +179,6 @@ function PostNatives(utils) {
     "MapEntries",
     "MapIterator",
     "MapIteratorNext",
-    "MathMax",
-    "MathMin",
     "MaxSimple",
     "MinSimple",
     "ObjectDefineProperty",
