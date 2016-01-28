@@ -344,6 +344,8 @@ class Register {
                             Register reg4 = Register(),
                             Register reg5 = Register());
 
+  std::string ToString(int parameter_count);
+
   bool operator==(const Register& other) const {
     return index() == other.index();
   }

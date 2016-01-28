@@ -100,6 +100,36 @@ Register BytecodeArrayIterator::GetRegisterOperand(int operand_index) const {
   return Register();
 }
 
+int BytecodeArrayIterator::GetRegisterOperandRange(int operand_index) const {
+  interpreter::OperandType operand_type =
+      Bytecodes::GetOperandType(current_bytecode(), operand_index);
+  DCHECK(Bytecodes::IsRegisterOperandType(operand_type));
+  switch (operand_type) {
+    case OperandType::kRegPair8:
+    case OperandType::kRegPair16:
+    case OperandType::kRegOutPair8:
+    case OperandType::kRegOutPair16:
+      return 2;
+    case OperandType::kRegOutTriple8:
+    case OperandType::kRegOutTriple16:
+      return 3;
+    default: {
+      if (operand_index + 1 !=
+          Bytecodes::NumberOfOperands(current_bytecode())) {
+        // TODO(oth): Ensure all bytecodes specify the full range of registers
+        // with kRegCount (currently Call/CallJSRuntime are off by one due to
+        // reciever.
+        OperandType next_operand_type =
+            Bytecodes::GetOperandType(current_bytecode(), operand_index + 1);
+        if (next_operand_type == OperandType::kRegCount8 ||
+            next_operand_type == OperandType::kRegCount16) {
+          return GetCountOperand(operand_index + 1);
+        }
+      }
+      return 1;
+    }
+  }
+}
 
 Handle<Object> BytecodeArrayIterator::GetConstantForIndexOperand(
     int operand_index) const {

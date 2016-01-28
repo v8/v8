@@ -21,6 +21,7 @@ class BytecodeArrayIterator {
   bool done() const;
   Bytecode current_bytecode() const;
   int current_bytecode_size() const;
+  void set_current_offset(int offset) { bytecode_offset_ = offset; }
   int current_offset() const { return bytecode_offset_; }
   const Handle<BytecodeArray>& bytecode_array() const {
     return bytecode_array_;
@@ -30,6 +31,7 @@ class BytecodeArrayIterator {
   int GetIndexOperand(int operand_index) const;
   int GetCountOperand(int operand_index) const;
   Register GetRegisterOperand(int operand_index) const;
+  int GetRegisterOperandRange(int operand_index) const;
   Handle<Object> GetConstantForIndexOperand(int operand_index) const;
 
   // Get the raw byte for the given operand. Note: you should prefer using the

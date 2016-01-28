@@ -380,22 +380,7 @@ std::ostream& Bytecodes::Decode(std::ostream& os, const uint8_t* bytecode_start,
       case interpreter::OperandType::kRegOut8:
       case interpreter::OperandType::kRegOut16: {
         Register reg = DecodeRegister(operand_start, op_type);
-        if (reg.is_current_context()) {
-          os << "<context>";
-        } else if (reg.is_function_closure()) {
-          os << "<closure>";
-        } else if (reg.is_new_target()) {
-          os << "<new.target>";
-        } else if (reg.is_parameter()) {
-          int parameter_index = reg.ToParameterIndex(parameter_count);
-          if (parameter_index == 0) {
-            os << "<this>";
-          } else {
-            os << "a" << parameter_index - 1;
-          }
-        } else {
-          os << "r" << reg.index();
-        }
+        os << reg.ToString(parameter_count);
         break;
       }
       case interpreter::OperandType::kRegOutTriple8:
@@ -406,14 +391,10 @@ std::ostream& Bytecodes::Decode(std::ostream& os, const uint8_t* bytecode_start,
       case interpreter::OperandType::kRegPair8:
       case interpreter::OperandType::kRegPair16: {
         range += 1;
-        Register reg = DecodeRegister(operand_start, op_type);
-        if (reg.is_parameter()) {
-          int parameter_index = reg.ToParameterIndex(parameter_count);
-          DCHECK_GT(parameter_index, 0);
-          os << "a" << parameter_index - range << "-" << parameter_index;
-        } else {
-          os << "r" << reg.index() << "-" << reg.index() + range;
-        }
+        Register first_reg = DecodeRegister(operand_start, op_type);
+        Register last_reg = Register(first_reg.index() + range);
+        os << first_reg.ToString(parameter_count) << "-"
+           << last_reg.ToString(parameter_count);
         break;
       }
       case interpreter::OperandType::kNone:
@@ -426,7 +407,6 @@ std::ostream& Bytecodes::Decode(std::ostream& os, const uint8_t* bytecode_start,
   }
   return os;
 }
-
 
 std::ostream& operator<<(std::ostream& os, const Bytecode& bytecode) {
   return os << Bytecodes::ToString(bytecode);
@@ -441,7 +421,6 @@ std::ostream& operator<<(std::ostream& os, const OperandType& operand_type) {
 std::ostream& operator<<(std::ostream& os, const OperandSize& operand_size) {
   return os << Bytecodes::OperandSizeToString(operand_size);
 }
-
 
 static const int kLastParamRegisterIndex =
     -InterpreterFrameConstants::kLastParamFromRegisterPointer / kPointerSize;
@@ -567,6 +546,29 @@ bool Register::AreContiguous(Register reg1, Register reg2, Register reg3,
     return false;
   }
   return true;
+}
+
+std::string Register::ToString(int parameter_count) {
+  if (is_current_context()) {
+    return std::string("<context>");
+  } else if (is_function_closure()) {
+    return std::string("<closure>");
+  } else if (is_new_target()) {
+    return std::string("<new.target>");
+  } else if (is_parameter()) {
+    int parameter_index = ToParameterIndex(parameter_count);
+    if (parameter_index == 0) {
+      return std::string("<this>");
+    } else {
+      std::ostringstream s;
+      s << "a" << parameter_index - 1;
+      return s.str();
+    }
+  } else {
+    std::ostringstream s;
+    s << "r" << index();
+    return s.str();
+  }
 }
 
 }  // namespace interpreter

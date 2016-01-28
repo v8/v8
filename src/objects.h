@@ -4448,8 +4448,6 @@ class BytecodeArray : public FixedArrayBase {
       kHandlerTableOffset + kPointerSize;
   static const int kHeaderSize = kSourcePositionTableOffset + kPointerSize;
 
-  static const int kAlignedSize = OBJECT_POINTER_ALIGN(kHeaderSize);
-
   // Maximal memory consumption for a single BytecodeArray.
   static const int kMaxSize = 512 * MB;
   // Maximal length of a single BytecodeArray.

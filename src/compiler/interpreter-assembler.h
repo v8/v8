@@ -138,6 +138,8 @@ class InterpreterAssembler {
   Node* CallRuntime(Runtime::FunctionId function_id, Node* arg1);
   Node* CallRuntime(Runtime::FunctionId function_id, Node* arg1, Node* arg2);
   Node* CallRuntime(Runtime::FunctionId function_id, Node* arg1, Node* arg2,
+                    Node* arg3);
+  Node* CallRuntime(Runtime::FunctionId function_id, Node* arg1, Node* arg2,
                     Node* arg3, Node* arg4);
 
   // Jump relative to the current bytecode by |jump_offset|.
@@ -176,7 +178,9 @@ class InterpreterAssembler {
   // Saves and restores interpreter bytecode offset to the interpreter stack
   // frame when performing a call.
   void CallPrologue();
-  void CallEpilogue();
+
+  // Traces the current bytecode by calling |function_id|.
+  void TraceBytecode(Runtime::FunctionId function_id);
 
   // Returns the offset of register |index| relative to RegisterFilePointer().
   Node* RegisterFrameOffset(Node* index);
@@ -209,7 +213,6 @@ class InterpreterAssembler {
   base::SmartPointer<RawMachineAssembler> raw_assembler_;
 
   Node* accumulator_;
-  Node* bytecode_offset_;
   Node* context_;
 
   bool code_generated_;

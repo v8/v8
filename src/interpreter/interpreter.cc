@@ -4,6 +4,7 @@
 
 #include "src/interpreter/interpreter.h"
 
+#include "src/ast/prettyprinter.h"
 #include "src/code-factory.h"
 #include "src/compiler.h"
 #include "src/compiler/interpreter-assembler.h"
@@ -60,6 +61,31 @@ void Interpreter::Initialize() {
 
 
 bool Interpreter::MakeBytecode(CompilationInfo* info) {
+  if (FLAG_print_bytecode || FLAG_print_source || FLAG_print_ast) {
+    OFStream os(stdout);
+    base::SmartArrayPointer<char> name = info->GetDebugName();
+    os << "[generating bytecode for function: " << info->GetDebugName().get()
+       << "]" << std::endl
+       << std::flush;
+  }
+
+#ifdef DEBUG
+  if (info->parse_info() && FLAG_print_source) {
+    OFStream os(stdout);
+    os << "--- Source from AST ---" << std::endl
+       << PrettyPrinter(info->isolate()).PrintProgram(info->literal())
+       << std::endl
+       << std::flush;
+  }
+
+  if (info->parse_info() && FLAG_print_ast) {
+    OFStream os(stdout);
+    os << "--- AST ---" << std::endl
+       << AstPrinter(info->isolate()).PrintProgram(info->literal()) << std::endl
+       << std::flush;
+  }
+#endif  // DEBUG
+
   BytecodeGenerator generator(info->isolate(), info->zone());
   info->EnsureFeedbackVector();
   Handle<BytecodeArray> bytecodes = generator.MakeBytecode(info);
@@ -78,10 +104,13 @@ bool Interpreter::MakeBytecode(CompilationInfo* info) {
 
 bool Interpreter::IsInterpreterTableInitialized(
     Handle<FixedArray> handler_table) {
+  if (FLAG_trace_ignition) {
+    // Regenerate table to add bytecode tracing operations.
+    return false;
+  }
   DCHECK(handler_table->length() == static_cast<int>(Bytecode::kLast) + 1);
   return handler_table->get(0) != isolate_->heap()->undefined_value();
 }
-
 
 // LdaZero
 //
