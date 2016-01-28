@@ -1974,6 +1974,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       Label l_next, l_call;
       Register load_receiver = LoadDescriptor::ReceiverRegister();
       Register load_name = LoadDescriptor::NameRegister();
+
       // Initial send value is undefined.
       __ LoadRoot(a0, Heap::kUndefinedValueRootIndex);
       __ Branch(&l_next);
@@ -2085,6 +2086,13 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   VisitForStackValue(generator);
   VisitForAccumulatorValue(value);
   __ pop(a1);
+
+  // Store input value into generator object.
+  __ sd(result_register(),
+        FieldMemOperand(a1, JSGeneratorObject::kInputOffset));
+  __ mov(a2, result_register());
+  __ RecordWriteField(a1, JSGeneratorObject::kInputOffset, a2, a3,
+                      kRAHasBeenSaved, kDontSaveFPRegs);
 
   // Load suspended function and context.
   __ ld(cp, FieldMemOperand(a1, JSGeneratorObject::kContextOffset));

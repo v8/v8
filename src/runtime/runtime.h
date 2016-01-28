@@ -258,6 +258,7 @@ namespace internal {
   F(GeneratorGetFunction, 1, 1)         \
   F(GeneratorGetContext, 1, 1)          \
   F(GeneratorGetReceiver, 1, 1)         \
+  F(GeneratorGetInput, 1, 1)            \
   F(GeneratorGetContinuation, 1, 1)     \
   F(GeneratorGetSourcePosition, 1, 1)   \
   F(GeneratorNext, 2, 1)                \

@@ -1999,6 +1999,12 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   VisitForAccumulatorValue(value);
   __ pop(ebx);
 
+  // Store input value into generator object.
+  __ mov(FieldOperand(ebx, JSGeneratorObject::kInputOffset), result_register());
+  __ mov(ecx, result_register());
+  __ RecordWriteField(ebx, JSGeneratorObject::kInputOffset, ecx, edx,
+                      kDontSaveFPRegs);
+
   // Load suspended function and context.
   __ mov(esi, FieldOperand(ebx, JSGeneratorObject::kContextOffset));
   __ mov(edi, FieldOperand(ebx, JSGeneratorObject::kFunctionOffset));

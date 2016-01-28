@@ -798,6 +798,12 @@ class PreParserTraits {
     return PreParserExpression::Default();
   }
 
+  static PreParserExpression FunctionSentExpression(Scope* scope,
+                                                    PreParserFactory* factory,
+                                                    int pos) {
+    return PreParserExpression::Default();
+  }
+
   static PreParserExpression DefaultConstructor(bool call_super, Scope* scope,
                                                 int pos, int end_pos) {
     return PreParserExpression::Default();

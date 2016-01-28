@@ -177,6 +177,16 @@ RUNTIME_FUNCTION(Runtime_GeneratorGetReceiver) {
 }
 
 
+// Returns input of generator activation.
+RUNTIME_FUNCTION(Runtime_GeneratorGetInput) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
+
+  return generator->input();
+}
+
+
 // Returns generator continuation as a PC offset, or the magic -1 or 0 values.
 RUNTIME_FUNCTION(Runtime_GeneratorGetContinuation) {
   HandleScope scope(isolate);

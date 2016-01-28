@@ -643,6 +643,19 @@ Expression* ParserTraits::NewTargetExpression(Scope* scope,
 }
 
 
+Expression* ParserTraits::FunctionSentExpression(Scope* scope,
+                                                 AstNodeFactory* factory,
+                                                 int pos) {
+  // We desugar function.sent into %GeneratorGetInput(generator).
+  Zone* zone = parser_->zone();
+  ZoneList<Expression*>* args = new (zone) ZoneList<Expression*>(1, zone);
+  VariableProxy* generator = factory->NewVariableProxy(
+      parser_->function_state_->generator_object_variable());
+  args->Add(generator, zone);
+  return factory->NewCallRuntime(Runtime::kGeneratorGetInput, args, pos);
+}
+
+
 Expression* ParserTraits::DefaultConstructor(bool call_super, Scope* scope,
                                              int pos, int end_pos,
                                              LanguageMode mode) {

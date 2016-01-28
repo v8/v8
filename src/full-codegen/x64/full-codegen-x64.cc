@@ -2021,6 +2021,13 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   VisitForAccumulatorValue(value);
   __ Pop(rbx);
 
+  // Store input value into generator object.
+  __ movp(FieldOperand(rbx, JSGeneratorObject::kInputOffset),
+          result_register());
+  __ movp(rcx, result_register());
+  __ RecordWriteField(rbx, JSGeneratorObject::kInputOffset, rcx, rdx,
+                      kDontSaveFPRegs);
+
   // Load suspended function and context.
   __ movp(rsi, FieldOperand(rbx, JSGeneratorObject::kContextOffset));
   __ movp(rdi, FieldOperand(rbx, JSGeneratorObject::kFunctionOffset));

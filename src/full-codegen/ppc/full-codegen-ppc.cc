@@ -2041,6 +2041,13 @@ void FullCodeGenerator::EmitGeneratorResume(
   VisitForAccumulatorValue(value);
   __ pop(r4);
 
+  // Store input value into generator object.
+  __ StoreP(result_register(),
+            FieldMemOperand(r4, JSGeneratorObject::kInputOffset));
+  __ mr(r5, result_register());
+  __ RecordWriteField(r4, JSGeneratorObject::kInputOffset, r5, r6,
+                      kLRHasBeenSaved, kDontSaveFPRegs);
+
   // Load suspended function and context.
   __ LoadP(cp, FieldMemOperand(r4, JSGeneratorObject::kContextOffset));
   __ LoadP(r7, FieldMemOperand(r4, JSGeneratorObject::kFunctionOffset));

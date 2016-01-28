@@ -202,6 +202,7 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
   V(harmony_modules, "harmony modules")                       \
   V(harmony_unicode_regexps, "harmony unicode regexps")       \
   V(harmony_function_name, "harmony Function name inference") \
+  V(harmony_function_sent, "harmony function.sent")           \
   V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")   \
   V(harmony_simd, "harmony simd")                             \
   V(harmony_do_expressions, "harmony do-expressions")         \

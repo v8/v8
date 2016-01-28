@@ -513,6 +513,8 @@ class ParserTraits {
                                  int pos);
   Expression* NewTargetExpression(Scope* scope, AstNodeFactory* factory,
                                   int pos);
+  Expression* FunctionSentExpression(Scope* scope, AstNodeFactory* factory,
+                                     int pos);
   Expression* DefaultConstructor(bool call_super, Scope* scope, int pos,
                                  int end_pos, LanguageMode language_mode);
   Literal* ExpressionFromLiteral(Token::Value token, int pos, Scanner* scanner,
