@@ -945,16 +945,6 @@ void IncrementalMarking::Stop() {
     PatchIncrementalMarkingRecordWriteStubs(heap_,
                                             RecordWriteStub::STORE_BUFFER_ONLY);
     DeactivateIncrementalWriteBarrier();
-
-    if (is_compacting_) {
-      LargeObjectIterator it(heap_->lo_space());
-      for (HeapObject* obj = it.Next(); obj != NULL; obj = it.Next()) {
-        Page* p = Page::FromAddress(obj->address());
-        if (p->IsFlagSet(Page::RESCAN_ON_EVACUATION)) {
-          p->ClearFlag(Page::RESCAN_ON_EVACUATION);
-        }
-      }
-    }
   }
   heap_->isolate()->stack_guard()->ClearGC();
   state_ = STOPPED;
@@ -964,17 +954,7 @@ void IncrementalMarking::Stop() {
 
 void IncrementalMarking::Finalize() {
   Hurry();
-  state_ = STOPPED;
-  is_compacting_ = false;
-
-  heap_->new_space()->RemoveInlineAllocationObserver(&observer_);
-  IncrementalMarking::set_should_hurry(false);
-  ResetStepCounters();
-  PatchIncrementalMarkingRecordWriteStubs(heap_,
-                                          RecordWriteStub::STORE_BUFFER_ONLY);
-  DeactivateIncrementalWriteBarrier();
-  DCHECK(heap_->mark_compact_collector()->marking_deque()->IsEmpty());
-  heap_->isolate()->stack_guard()->ClearGC();
+  Stop();
 }
 
 
