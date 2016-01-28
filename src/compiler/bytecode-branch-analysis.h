@@ -57,8 +57,14 @@ class BytecodeBranchAnalysis BASE_EMBEDDED {
     return sites != nullptr && sites->size() > 0;
   }
 
+  // Adds an additional implicit branch from a throw-site at {throw_offset} to
+  // the corresponding exception handler at {handler_offset}. Note that such a
+  // branch must be a forward branch and has to target a known handler.
+  void AddExceptionalBranch(int throw_offset, int handler_offset);
+
  private:
   void AddBranch(int origin_offset, int target_offset);
+  void AnalyzeExceptionHandlers();
 
   Zone* zone() const { return zone_; }
   Handle<BytecodeArray> bytecode_array() const { return bytecode_array_; }

@@ -4761,13 +4761,18 @@ class HandlerTable : public FixedArray {
   // undecidable it is merely an approximation (e.g. useful for debugger).
   enum CatchPrediction { UNCAUGHT, CAUGHT };
 
-  // Accessors for handler table based on ranges.
+  // Getters for handler table based on ranges.
+  inline int GetRangeStart(int index) const;
+  inline int GetRangeEnd(int index) const;
+  inline int GetRangeHandler(int index) const;
+
+  // Setters for handler table based on ranges.
   inline void SetRangeStart(int index, int value);
   inline void SetRangeEnd(int index, int value);
   inline void SetRangeHandler(int index, int offset, CatchPrediction pred);
   inline void SetRangeDepth(int index, int value);
 
-  // Accessors for handler table based on return addresses.
+  // Setters for handler table based on return addresses.
   inline void SetReturnOffset(int index, int value);
   inline void SetReturnHandler(int index, int offset, CatchPrediction pred);
 
@@ -4776,6 +4781,9 @@ class HandlerTable : public FixedArray {
 
   // Lookup handler in a table based on return addresses.
   int LookupReturn(int pc_offset, CatchPrediction* prediction);
+
+  // Returns the number of entries in the table.
+  inline int NumberOfRangeEntries() const;
 
   // Returns the required length of the underlying fixed array.
   static int LengthForRange(int entries) { return entries * kRangeEntrySize; }

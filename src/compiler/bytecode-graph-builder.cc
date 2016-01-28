@@ -376,7 +376,6 @@ bool BytecodeGraphBuilder::Environment::StateValuesAreUpToDate(
                                 1, output_poke_start, output_poke_end);
 }
 
-
 BytecodeGraphBuilder::BytecodeGraphBuilder(Zone* local_zone,
                                            CompilationInfo* compilation_info,
                                            JSGraph* jsgraph)
@@ -384,6 +383,8 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(Zone* local_zone,
       info_(compilation_info),
       jsgraph_(jsgraph),
       bytecode_array_(handle(info()->shared_info()->bytecode_array())),
+      exception_handler_table_(
+          handle(HandlerTable::cast(bytecode_array()->handler_table()))),
       frame_state_function_info_(common()->CreateFrameStateFunctionInfo(
           FrameStateType::kInterpretedFunction,
           bytecode_array()->parameter_count(),
@@ -391,10 +392,11 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(Zone* local_zone,
           CALL_MAINTAINS_NATIVE_CONTEXT)),
       merge_environments_(local_zone),
       loop_header_environments_(local_zone),
+      exception_handlers_(local_zone),
+      current_exception_handler_(0),
       input_buffer_size_(0),
       input_buffer_(nullptr),
       exit_controls_(local_zone) {}
-
 
 Node* BytecodeGraphBuilder::GetNewTarget() {
   if (!new_target_.is_set()) {
@@ -528,6 +530,7 @@ void BytecodeGraphBuilder::VisitBytecodes() {
   while (!iterator.done()) {
     int current_offset = iterator.current_offset();
     if (analysis.is_reachable(current_offset)) {
+      EnterAndExitExceptionHandlers(current_offset);
       MergeEnvironmentsOfForwardBranches(current_offset);
       BuildLoopHeaderForBackwardBranches(current_offset);
 
@@ -544,6 +547,7 @@ void BytecodeGraphBuilder::VisitBytecodes() {
   }
   set_branch_analysis(nullptr);
   set_bytecode_iterator(nullptr);
+  DCHECK(exception_handlers_.empty());
 }
 
 
@@ -1950,6 +1954,27 @@ Node** BytecodeGraphBuilder::EnsureInputBufferSize(int size) {
   return input_buffer_;
 }
 
+void BytecodeGraphBuilder::EnterAndExitExceptionHandlers(int current_offset) {
+  Handle<HandlerTable> table = exception_handler_table();
+  int num_entries = table->NumberOfRangeEntries();
+
+  // Potentially exit exception handlers.
+  while (!exception_handlers_.empty()) {
+    int current_end = exception_handlers_.top().end_offset_;
+    if (current_offset < current_end) break;  // Still covered by range.
+    exception_handlers_.pop();
+  }
+
+  // Potentially enter exception handlers.
+  while (current_exception_handler_ < num_entries) {
+    int next_start = table->GetRangeStart(current_exception_handler_);
+    if (current_offset < next_start) break;  // Not yet covered by range.
+    int next_end = table->GetRangeEnd(current_exception_handler_);
+    int next_handler = table->GetRangeHandler(current_exception_handler_);
+    exception_handlers_.push({next_start, next_end, next_handler});
+    current_exception_handler_++;
+  }
+}
 
 void BytecodeGraphBuilder::PrepareEntryFrameState(Node* node) {
   DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node->op()));
@@ -1977,6 +2002,7 @@ Node* BytecodeGraphBuilder::MakeNode(const Operator* op, int value_input_count,
   if (!has_context && frame_state_count == 0 && !has_control && !has_effect) {
     result = graph()->NewNode(op, value_input_count, value_inputs, incomplete);
   } else {
+    bool inside_handler = !exception_handlers_.empty();
     int input_count_with_deps = value_input_count;
     if (has_context) ++input_count_with_deps;
     input_count_with_deps += frame_state_count;
@@ -2010,11 +2036,32 @@ Node* BytecodeGraphBuilder::MakeNode(const Operator* op, int value_input_count,
       if (result->op()->EffectOutputCount() > 0) {
         environment()->UpdateEffectDependency(result);
       }
+      // Add implicit exception continuation for throwing nodes.
+      if (!result->op()->HasProperty(Operator::kNoThrow) && inside_handler) {
+        int throw_offset = bytecode_iterator()->current_offset();
+        int handler_offset = exception_handlers_.top().handler_offset_;
+        // TODO(mstarzinger): Thread through correct prediction!
+        IfExceptionHint hint = IfExceptionHint::kLocallyCaught;
+        // TODO(mstarzinger): For now we mutate the branch analysis result and
+        // add the artificial control flow from throw-site to handler-entry.
+        // This can be simplified by pushing environment forward along the
+        // direction of the data-flow.
+        branch_analysis_->AddExceptionalBranch(throw_offset, handler_offset);
+        Environment* success_env = environment()->CopyForConditional();
+        const Operator* op = common()->IfException(hint);
+        Node* effect = environment()->GetEffectDependency();
+        Node* on_exception = graph()->NewNode(op, effect, result);
+        environment()->UpdateControlDependency(on_exception);
+        environment()->UpdateEffectDependency(on_exception);
+        environment()->BindAccumulator(on_exception);
+        BuildJump(throw_offset, handler_offset);
+        set_environment(success_env);
+      }
       // Add implicit success continuation for throwing nodes.
       if (!result->op()->HasProperty(Operator::kNoThrow)) {
         const Operator* if_success = common()->IfSuccess();
         Node* on_success = graph()->NewNode(if_success, result);
-        environment_->UpdateControlDependency(on_success);
+        environment()->UpdateControlDependency(on_success);
       }
     }
   }

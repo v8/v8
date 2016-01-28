@@ -55,6 +55,7 @@ BytecodeBranchAnalysis::BytecodeBranchAnalysis(
 
 void BytecodeBranchAnalysis::Analyze() {
   interpreter::BytecodeArrayIterator iterator(bytecode_array());
+  AnalyzeExceptionHandlers();
   bool reachable = true;
   while (!iterator.done()) {
     interpreter::Bytecode bytecode = iterator.current_bytecode();
@@ -63,6 +64,10 @@ void BytecodeBranchAnalysis::Analyze() {
     // and may also be backward reachable. Hence if there's a forward
     // branch targetting here the code becomes reachable.
     reachable = reachable || forward_branches_target(current_offset);
+    // Some bytecode basic blocks are reachable through a side-entry
+    // (e.g. exception handler), which has been represented in the
+    // bit-vector by a corresponding pre-pass.
+    reachable = reachable || reachable_.Contains(current_offset);
     if (reachable) {
       reachable_.Add(current_offset);
       if (interpreter::Bytecodes::IsConditionalJump(bytecode)) {
@@ -106,6 +111,12 @@ const ZoneVector<int>* BytecodeBranchAnalysis::ForwardBranchesTargetting(
   }
 }
 
+void BytecodeBranchAnalysis::AddExceptionalBranch(int throw_offset,
+                                                  int handler_offset) {
+  DCHECK(is_reachable(handler_offset));     // Handler was marked reachable.
+  DCHECK_LT(throw_offset, handler_offset);  // Always a forward branch.
+  AddBranch(throw_offset, handler_offset);
+}
 
 void BytecodeBranchAnalysis::AddBranch(int source_offset, int target_offset) {
   BytecodeBranchInfo* branch_info = nullptr;
@@ -119,6 +130,12 @@ void BytecodeBranchAnalysis::AddBranch(int source_offset, int target_offset) {
   branch_info->AddBranch(source_offset, target_offset);
 }
 
+void BytecodeBranchAnalysis::AnalyzeExceptionHandlers() {
+  HandlerTable* table = HandlerTable::cast(bytecode_array()->handler_table());
+  for (int i = 0; i < table->NumberOfRangeEntries(); ++i) {
+    reachable_.Add(table->GetRangeHandler(i));
+  }
+}
 
 }  // namespace compiler
 }  // namespace internal

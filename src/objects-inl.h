@@ -3417,6 +3417,18 @@ int LiteralsArray::literals_count() const {
   return length() - kFirstLiteralIndex;
 }
 
+int HandlerTable::GetRangeStart(int index) const {
+  return Smi::cast(get(index * kRangeEntrySize + kRangeStartIndex))->value();
+}
+
+int HandlerTable::GetRangeEnd(int index) const {
+  return Smi::cast(get(index * kRangeEntrySize + kRangeEndIndex))->value();
+}
+
+int HandlerTable::GetRangeHandler(int index) const {
+  return HandlerOffsetField::decode(
+      Smi::cast(get(index * kRangeEntrySize + kRangeHandlerIndex))->value());
+}
 
 void HandlerTable::SetRangeStart(int index, int value) {
   set(index * kRangeEntrySize + kRangeStartIndex, Smi::FromInt(value));
@@ -3453,6 +3465,9 @@ void HandlerTable::SetReturnHandler(int index, int offset,
   set(index * kReturnEntrySize + kReturnHandlerIndex, Smi::FromInt(value));
 }
 
+int HandlerTable::NumberOfRangeEntries() const {
+  return length() / kRangeEntrySize;
+}
 
 #define MAKE_STRUCT_CAST(NAME, Name, name) CAST_ACCESSOR(Name)
   STRUCT_LIST(MAKE_STRUCT_CAST)

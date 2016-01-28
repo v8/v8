@@ -1412,6 +1412,103 @@ TEST(BytecodeGraphBuilderTestInstanceOf) {
   }
 }
 
+TEST(BytecodeGraphBuilderTryCatch) {
+  HandleAndZoneScope scope;
+  Isolate* isolate = scope.main_isolate();
+  Zone* zone = scope.main_zone();
+
+  ExpectedSnippet<0> snippets[] = {
+      // TODO(mstarzinger): Fix cases where nothing throws.
+      // {"var a = 1; try { a = 2 } catch(e) { a = 3 }; return a;",
+      //  {handle(Smi::FromInt(2), isolate)}},
+      {"var a; try { undef.x } catch(e) { a = 2 }; return a;",
+       {handle(Smi::FromInt(2), isolate)}},
+      {"var a; try { throw 1 } catch(e) { a = e + 2 }; return a;",
+       {handle(Smi::FromInt(3), isolate)}},
+      {"var a; try { throw 1 } catch(e) { a = e + 2 };"
+       "       try { throw a } catch(e) { a = e + 3 }; return a;",
+       {handle(Smi::FromInt(6), isolate)}},
+  };
+
+  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
+  for (size_t i = 0; i < num_snippets; i++) {
+    ScopedVector<char> script(1024);
+    SNPrintF(script, "function %s() { %s }\n%s();", kFunctionName,
+             snippets[i].code_snippet, kFunctionName);
+
+    BytecodeGraphTester tester(isolate, zone, script.start());
+    auto callable = tester.GetCallable<>();
+    Handle<Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*snippets[i].return_value()));
+  }
+}
+
+TEST(BytecodeGraphBuilderTryFinally1) {
+  HandleAndZoneScope scope;
+  Isolate* isolate = scope.main_isolate();
+  Zone* zone = scope.main_zone();
+
+  ExpectedSnippet<0> snippets[] = {
+      {"var a = 1; try { a = a + 1; } finally { a = a + 2; }; return a;",
+       {handle(Smi::FromInt(4), isolate)}},
+      // TODO(mstarzinger): Fix cases where nothing throws.
+      // {"var a = 1; try { a = 2; return 23; } finally { a = 3 }; return a;",
+      //  {handle(Smi::FromInt(23), isolate)}},
+      {"var a = 1; try { a = 2; throw 23; } finally { return a; };",
+       {handle(Smi::FromInt(2), isolate)}},
+      // {"var a = 1; for (var i = 10; i < 20; i += 5) {"
+      //  "  try { a = 2; break; } finally { a = 3; }"
+      //  "} return a + i;",
+      //  {handle(Smi::FromInt(13), isolate)}},
+      // {"var a = 1; for (var i = 10; i < 20; i += 5) {"
+      //  "  try { a = 2; continue; } finally { a = 3; }"
+      //  "} return a + i;",
+      //  {handle(Smi::FromInt(23), isolate)}},
+      // {"var a = 1; try { a = 2;"
+      //  "  try { a = 3; throw 23; } finally { a = 4; }"
+      //  "} catch(e) { a = a + e; } return a;",
+      //  {handle(Smi::FromInt(27), isolate)}},
+  };
+
+  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
+  for (size_t i = 0; i < num_snippets; i++) {
+    ScopedVector<char> script(1024);
+    SNPrintF(script, "function %s() { %s }\n%s();", kFunctionName,
+             snippets[i].code_snippet, kFunctionName);
+
+    BytecodeGraphTester tester(isolate, zone, script.start());
+    auto callable = tester.GetCallable<>();
+    Handle<Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*snippets[i].return_value()));
+  }
+}
+
+TEST(BytecodeGraphBuilderTryFinally2) {
+  HandleAndZoneScope scope;
+  Isolate* isolate = scope.main_isolate();
+  Zone* zone = scope.main_zone();
+
+  ExpectedSnippet<0, const char*> snippets[] = {
+      {"var a = 1; try { a = 2; throw 23; } finally { a = 3 }; return a;",
+       {"Uncaught 23"}},
+      {"var a = 1; try { a = 2; throw 23; } finally { throw 42; };",
+       {"Uncaught 42"}},
+  };
+
+  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
+  for (size_t i = 0; i < num_snippets; i++) {
+    ScopedVector<char> script(1024);
+    SNPrintF(script, "function %s() { %s }\n%s();", kFunctionName,
+             snippets[i].code_snippet, kFunctionName);
+
+    BytecodeGraphTester tester(isolate, zone, script.start());
+    v8::Local<v8::String> message = tester.CheckThrowsReturnMessage()->Get();
+    v8::Local<v8::String> expected_string = v8_str(snippets[i].return_value());
+    CHECK(
+        message->Equals(CcTest::isolate()->GetCurrentContext(), expected_string)
+            .FromJust());
+  }
+}
 
 TEST(BytecodeGraphBuilderThrow) {
   HandleAndZoneScope scope;
@@ -1425,8 +1522,7 @@ TEST(BytecodeGraphBuilderThrow) {
       {"throw 1;", {"Uncaught 1"}},
       {"throw 'Error';", {"Uncaught Error"}},
       {"throw 'Error1'; throw 'Error2'", {"Uncaught Error1"}},
-      // TODO(mythria): Enable these tests when JumpIfTrue is supported.
-      // {"var a = true; if (a) { throw 'Error'; }", {"Error"}},
+      {"var a = true; if (a) { throw 'Error'; }", {"Uncaught Error"}},
   };
 
   size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
@@ -1434,6 +1530,7 @@ TEST(BytecodeGraphBuilderThrow) {
     ScopedVector<char> script(1024);
     SNPrintF(script, "function %s() { %s }\n%s();", kFunctionName,
              snippets[i].code_snippet, kFunctionName);
+
     BytecodeGraphTester tester(isolate, zone, script.start());
     v8::Local<v8::String> message = tester.CheckThrowsReturnMessage()->Get();
     v8::Local<v8::String> expected_string = v8_str(snippets[i].return_value());

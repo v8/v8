@@ -175,12 +175,25 @@ class BytecodeGraphBuilder {
   void MergeEnvironmentsOfForwardBranches(int source_offset);
   void BuildLoopHeaderForBackwardBranches(int source_offset);
 
+  // Simulates entry and exit of exception handlers.
+  void EnterAndExitExceptionHandlers(int current_offset);
+
   // Attaches a frame state to |node| for the entry to the function.
   void PrepareEntryFrameState(Node* node);
 
   // Growth increment for the temporary buffer used to construct input lists to
   // new nodes.
   static const int kInputBufferSizeIncrement = 64;
+
+  // An abstract representation for an exception handler that is being
+  // entered and exited while the graph builder is iterating over the
+  // underlying bytecode. The exception handlers within the bytecode are
+  // well scoped, hence will form a stack during iteration.
+  struct ExceptionHandler {
+    int start_offset_;    // Start offset of the handled area in the bytecode.
+    int end_offset_;      // End offset of the handled area in the bytecode.
+    int handler_offset_;  // Handler entry offset within the bytecode.
+  };
 
   // Field accessors
   CommonOperatorBuilder* common() const { return jsgraph_->common(); }
@@ -191,6 +204,9 @@ class BytecodeGraphBuilder {
   Zone* local_zone() const { return local_zone_; }
   const Handle<BytecodeArray>& bytecode_array() const {
     return bytecode_array_;
+  }
+  const Handle<HandlerTable>& exception_handler_table() const {
+    return exception_handler_table_;
   }
   const FrameStateFunctionInfo* frame_state_function_info() const {
     return frame_state_function_info_;
@@ -214,7 +230,7 @@ class BytecodeGraphBuilder {
     return branch_analysis_;
   }
 
-  void set_branch_analysis(const BytecodeBranchAnalysis* branch_analysis) {
+  void set_branch_analysis(BytecodeBranchAnalysis* branch_analysis) {
     branch_analysis_ = branch_analysis;
   }
 
@@ -227,11 +243,11 @@ class BytecodeGraphBuilder {
   CompilationInfo* info_;
   JSGraph* jsgraph_;
   Handle<BytecodeArray> bytecode_array_;
+  Handle<HandlerTable> exception_handler_table_;
   const FrameStateFunctionInfo* frame_state_function_info_;
   const interpreter::BytecodeArrayIterator* bytecode_iterator_;
-  const BytecodeBranchAnalysis* branch_analysis_;
+  BytecodeBranchAnalysis* branch_analysis_;  // TODO(mstarzinger): Make const.
   Environment* environment_;
-
 
   // Merge environments are snapshots of the environment at a particular
   // bytecode offset to be merged into a later environment.
@@ -240,6 +256,10 @@ class BytecodeGraphBuilder {
   // Loop header environments are environments created for bytecodes
   // where it is known there are back branches, ie a loop header.
   ZoneMap<int, Environment*> loop_header_environments_;
+
+  // Exception handlers currently entered by the iteration.
+  ZoneStack<ExceptionHandler> exception_handlers_;
+  int current_exception_handler_;
 
   // Temporary storage for building node input lists.
   int input_buffer_size_;

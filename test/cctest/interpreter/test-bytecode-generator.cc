@@ -212,19 +212,12 @@ static void CheckBytecodeArrayEqual(const ExpectedSnippet<T, C>& expected,
   if (expected.handler_count == 0) {
     CHECK_EQ(CcTest::heap()->empty_fixed_array(), actual->handler_table());
   } else {
-    static const int kHTSize = 4;     // see HandlerTable::kRangeEntrySize
-    static const int kHTStart = 0;    // see HandlerTable::kRangeStartIndex
-    static const int kHTEnd = 1;      // see HandlerTable::kRangeEndIndex
-    static const int kHTHandler = 2;  // see HandlerTable::kRangeHandlerIndex
     HandlerTable* table = HandlerTable::cast(actual->handler_table());
-    CHECK_EQ(expected.handler_count * kHTSize, table->length());
+    CHECK_EQ(expected.handler_count, table->NumberOfRangeEntries());
     for (int i = 0; i < expected.handler_count; i++) {
-      int start = Smi::cast(table->get(i * kHTSize + kHTStart))->value();
-      int end = Smi::cast(table->get(i * kHTSize + kHTEnd))->value();
-      int handler = Smi::cast(table->get(i * kHTSize + kHTHandler))->value();
-      CHECK_EQ(expected.handlers[i].start, start);
-      CHECK_EQ(expected.handlers[i].end, end);
-      CHECK_EQ(expected.handlers[i].handler, handler >> 1);
+      CHECK_EQ(expected.handlers[i].start, table->GetRangeStart(i));
+      CHECK_EQ(expected.handlers[i].end, table->GetRangeEnd(i));
+      CHECK_EQ(expected.handlers[i].handler, table->GetRangeHandler(i));
     }
   }
 
