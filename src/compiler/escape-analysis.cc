@@ -1044,15 +1044,6 @@ void EscapeAnalysis::ForwardVirtualState(Node* node) {
   }
 #endif  // DEBUG
   Node* effect = NodeProperties::GetEffectInput(node);
-  // Break the cycle for effect phis.
-  if (effect->opcode() == IrOpcode::kEffectPhi &&
-      virtual_states_[effect->id()] == nullptr) {
-    VirtualState* state =
-        new (zone()) VirtualState(effect, zone(), AliasCount());
-    virtual_states_[effect->id()] = state;
-    TRACE("Effect Phi #%d got new virtual state %p.\n", effect->id(),
-          static_cast<void*>(virtual_states_[effect->id()]));
-  }
   DCHECK_NOT_NULL(virtual_states_[effect->id()]);
   if (virtual_states_[node->id()]) {
     virtual_states_[node->id()]->UpdateFrom(virtual_states_[effect->id()],
