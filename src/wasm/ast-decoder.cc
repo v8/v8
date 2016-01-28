@@ -907,36 +907,22 @@ class LR_WasmDecoder : public WasmDecoder {
         break;
       }
       case kExprTableSwitch: {
-        uint16_t table_count = *reinterpret_cast<const uint16_t*>(p->pc() + 3);
-        if (table_count == 1) {
-          // Degenerate switch with only a default target.
-          if (p->index == 1) {
-            SsaEnv* break_env = ssa_env_;
-            PushBlock(break_env);
-            SetEnv("switch:default", Steal(break_env));
-          }
-          if (p->done()) {
-            Block* block = &blocks_.back();
-            // fall through to the end.
-            ReduceBreakToExprBlock(p, block);
-            SetEnv("switch:end", block->ssa_env);
-            blocks_.pop_back();
-          }
-          break;
-        }
-
         if (p->index == 1) {
           // Switch key finished.
           TypeCheckLast(p, kAstI32);
 
-          TFNode* sw = BUILD(Switch, table_count, p->last()->node);
+          uint16_t table_count =
+              *reinterpret_cast<const uint16_t*>(p->pc() + 3);
+
+          // Build the switch only if it has more than just a default target.
+          bool build_switch = table_count > 1;
+          TFNode* sw = nullptr;
+          if (build_switch) sw = BUILD(Switch, table_count, p->last()->node);
 
           // Allocate environments for each case.
           uint16_t case_count = *reinterpret_cast<const uint16_t*>(p->pc() + 1);
           SsaEnv** case_envs = zone_->NewArray<SsaEnv*>(case_count);
-          for (int i = 0; i < case_count; i++) {
-            case_envs[i] = UnreachableEnv();
-          }
+          for (int i = 0; i < case_count; i++) case_envs[i] = UnreachableEnv();
 
           ifs_.push_back({nullptr, nullptr, case_envs});
           SsaEnv* break_env = ssa_env_;
@@ -949,9 +935,12 @@ class LR_WasmDecoder : public WasmDecoder {
               reinterpret_cast<const uint16_t*>(p->pc() + 5);
           for (int i = 0; i < table_count; i++) {
             uint16_t target = table[i];
-            SsaEnv* env = Split(copy);
-            env->control = (i == table_count - 1) ? BUILD(IfDefault, sw)
-                                                  : BUILD(IfValue, i, sw);
+            SsaEnv* env = copy;
+            if (build_switch) {
+              env = Split(env);
+              env->control = (i == table_count - 1) ? BUILD(IfDefault, sw)
+                                                    : BUILD(IfValue, i, sw);
+            }
             if (target >= 0x8000) {
               // Targets an outer block.
               int depth = target - 0x8000;
@@ -962,25 +951,21 @@ class LR_WasmDecoder : public WasmDecoder {
               Goto(env, case_envs[target]);
             }
           }
+        }
 
-          // Switch to the environment for the first case.
-          SetEnv("switch:case", case_envs[0]);
+        if (p->done()) {
+          // Last case. Fall through to the end.
+          Block* block = &blocks_.back();
+          if (p->index > 1) ReduceBreakToExprBlock(p, block);
+          SsaEnv* next = block->ssa_env;
+          blocks_.pop_back();
+          ifs_.pop_back();
+          SetEnv("switch:end", next);
         } else {
-          // Switch case finished.
-          if (p->done()) {
-            // Last case. Fall through to the end.
-            Block* block = &blocks_.back();
-            ReduceBreakToExprBlock(p, block);
-            SsaEnv* next = block->ssa_env;
-            blocks_.pop_back();
-            ifs_.pop_back();
-            SetEnv("switch:end", next);
-          } else {
-            // Interior case. Maybe fall through to the next case.
-            SsaEnv* next = ifs_.back().case_envs[p->index - 1];
-            if (ssa_env_->go()) Goto(ssa_env_, next);
-            SetEnv("switch:case", next);
-          }
+          // Interior case. Maybe fall through to the next case.
+          SsaEnv* next = ifs_.back().case_envs[p->index - 1];
+          if (p->index > 1 && ssa_env_->go()) Goto(ssa_env_, next);
+          SetEnv("switch:case", next);
         }
         break;
       }

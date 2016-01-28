@@ -1798,6 +1798,12 @@ TEST_F(WasmDecoderTest, TableSwitch0c) {
   EXPECT_VERIFIES(&env_v_v, code);
 }
 
+TEST_F(WasmDecoderTest, TableSwitch0d) {
+  static byte code[] = {
+      WASM_BLOCK(1, WASM_TABLESWITCH_OP(0, 2, WASM_CASE_BR(0), WASM_CASE_BR(1)),
+                 WASM_I8(67))};
+  EXPECT_VERIFIES(&env_v_v, code);
+}
 
 TEST_F(WasmDecoderTest, TableSwitch1) {
   static byte code[] = {WASM_TABLESWITCH_OP(1, 1, WASM_CASE(0)),
@@ -1845,27 +1851,25 @@ TEST_F(WasmDecoderTest, TableSwitch1b) {
 
 #endif
 
-
-TEST_F(WasmDecoderTest, TableSwitch_br) {
-  EXPECT_VERIFIES_INLINE(&env_i_i, WASM_TABLESWITCH_OP(0, 1, WASM_CASE_BR(0)),
-                         WASM_GET_LOCAL(0));
+TEST_F(WasmDecoderTest, TableSwitch_br1) {
   for (int depth = 0; depth < 2; depth++) {
-    EXPECT_VERIFIES_INLINE(
-        &env_i_i, WASM_BLOCK(1, WASM_TABLESWITCH_OP(0, 1, WASM_CASE_BR(depth)),
-                             WASM_GET_LOCAL(0)));
+    byte code[] = {WASM_BLOCK(1, WASM_TABLESWITCH_OP(0, 1, WASM_CASE_BR(depth)),
+                              WASM_GET_LOCAL(0))};
+    EXPECT_VERIFIES(&env_v_i, code);
+    EXPECT_FAILURE(&env_i_i, code);
   }
 }
 
 
 TEST_F(WasmDecoderTest, TableSwitch_invalid_br) {
   for (int depth = 1; depth < 4; depth++) {
-    EXPECT_FAILURE_INLINE(&env_i_i,
+    EXPECT_FAILURE_INLINE(&env_v_i,
                           WASM_TABLESWITCH_OP(0, 1, WASM_CASE_BR(depth)),
                           WASM_GET_LOCAL(0));
     EXPECT_FAILURE_INLINE(
-        &env_i_i,
-        WASM_BLOCK(1, WASM_TABLESWITCH_OP(0, 1, WASM_CASE_BR(depth + 1)),
-                   WASM_GET_LOCAL(0)));
+        &env_v_i,
+        WASM_TABLESWITCH_OP(0, 2, WASM_CASE_BR(depth), WASM_CASE_BR(depth)),
+        WASM_GET_LOCAL(0));
   }
 }
 

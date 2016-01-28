@@ -1002,6 +1002,34 @@ TEST(Run_Wasm_BrIf_strict) {
   FOR_INT32_INPUTS(i) { CHECK_EQ(99, r.Call(*i)); }
 }
 
+TEST(Run_Wasm_TableSwitch0a) {
+  WasmRunner<int32_t> r(MachineType::Int32());
+  BUILD(r, WASM_BLOCK(2, WASM_TABLESWITCH_OP(0, 1, WASM_CASE_BR(0)),
+                      WASM_TABLESWITCH_BODY0(WASM_GET_LOCAL(0)), WASM_I8(91)));
+  FOR_INT32_INPUTS(i) { CHECK_EQ(91, r.Call(*i)); }
+}
+
+TEST(Run_Wasm_TableSwitch0b) {
+  WasmRunner<int32_t> r(MachineType::Int32());
+  BUILD(r, WASM_BLOCK(
+               2, WASM_TABLESWITCH_OP(0, 2, WASM_CASE_BR(0), WASM_CASE_BR(0)),
+               WASM_TABLESWITCH_BODY0(WASM_GET_LOCAL(0)), WASM_I8(92)));
+  FOR_INT32_INPUTS(i) { CHECK_EQ(92, r.Call(*i)); }
+}
+
+TEST(Run_Wasm_TableSwitch0c) {
+  WasmRunner<int32_t> r(MachineType::Int32());
+  BUILD(r,
+        WASM_BLOCK(2, WASM_BLOCK(2, WASM_TABLESWITCH_OP(0, 2, WASM_CASE_BR(0),
+                                                        WASM_CASE_BR(1)),
+                                 WASM_TABLESWITCH_BODY0(WASM_GET_LOCAL(0)),
+                                 WASM_RETURN(WASM_I8(76))),
+                   WASM_I8(77)));
+  FOR_INT32_INPUTS(i) {
+    int32_t expected = *i == 0 ? 76 : 77;
+    CHECK_EQ(expected, r.Call(*i));
+  }
+}
 
 TEST(Run_Wasm_TableSwitch1) {
   WasmRunner<int32_t> r(MachineType::Int32());
