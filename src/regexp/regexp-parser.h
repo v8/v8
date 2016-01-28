@@ -111,7 +111,7 @@ class RegExpBuilder : public ZoneObject {
   void AddTerm(RegExpTree* tree);
   void AddAssertion(RegExpTree* tree);
   void NewAlternative();  // '|'
-  bool AddQuantifierToAtom(int min, int max,
+  void AddQuantifierToAtom(int min, int max,
                            RegExpQuantifier::QuantifierType type);
   RegExpTree* ToRegExp();
 
@@ -198,7 +198,7 @@ class RegExpParser BASE_EMBEDDED {
   bool unicode() const { return (flags_ & JSRegExp::kUnicode) != 0; }
   bool multiline() const { return (flags_ & JSRegExp::kMultiline) != 0; }
 
-  static bool IsSyntaxCharacterOrSlash(uc32 c);
+  static bool IsSyntaxCharacter(uc32 c);
 
   static const int kMaxCaptures = 1 << 16;
   static const uc32 kEndMarker = (1 << 21);
