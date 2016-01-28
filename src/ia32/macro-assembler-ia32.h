@@ -331,9 +331,6 @@ class MacroAssembler: public Assembler {
                       const ParameterCount& actual, InvokeFlag flag,
                       const CallWrapper& call_wrapper);
 
-  // Store the function for the given builtin in the target register.
-  void GetBuiltinFunction(Register target, int native_context_index);
-
   // Expression support
   // cvtsi2sd instruction only writes to the low 64-bit of dst register, which
   // hinders register renaming and makes dependence chains longer. So we use

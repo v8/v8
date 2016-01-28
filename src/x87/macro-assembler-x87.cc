@@ -2111,14 +2111,6 @@ void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
 }
 
 
-void MacroAssembler::GetBuiltinFunction(Register target,
-                                        int native_context_index) {
-  // Load the JavaScript builtin function from the builtins object.
-  mov(target, NativeContextOperand());
-  mov(target, ContextOperand(target, native_context_index));
-}
-
-
 void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
   if (context_chain_length > 0) {
     // Move up the chain of contexts to the context containing the slot.

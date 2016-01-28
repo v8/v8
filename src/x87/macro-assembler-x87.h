@@ -326,9 +326,6 @@ class MacroAssembler: public Assembler {
                       const ParameterCount& actual, InvokeFlag flag,
                       const CallWrapper& call_wrapper);
 
-  // Store the function for the given builtin in the target register.
-  void GetBuiltinFunction(Register target, int native_context_index);
-
 
   // Expression support
   // Support for constant splitting.
