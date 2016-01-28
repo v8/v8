@@ -671,10 +671,7 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
         s3.bit() | s4.bit() | s5.bit() | s6.bit() | s7.bit() | fp.bit();
     RegList argument_registers = a0.bit() | a1.bit() | a2.bit() | a3.bit();
 
-    if (kMipsAbi == kN64) {
-      // TODO(plind): Should probably alias a4-a7, for clarity.
-      argument_registers |= a4.bit() | a5.bit() | a6.bit() | a7.bit();
-    }
+    argument_registers |= a4.bit() | a5.bit() | a6.bit() | a7.bit();
 
     __ MultiPush(argument_registers | registers_to_retain | ra.bit());
     // Set frame pointer in space for it if this is not a direct call

@@ -45,27 +45,6 @@ enum ArchVariants {
 #error Unknown endianness
 #endif
 
-// TODO(plind): consider deriving ABI from compiler flags or build system.
-
-// ABI-dependent definitions are made with #define in simulator-mips64.h,
-// so the ABI choice must be available to the pre-processor. However, in all
-// other cases, we should use the enum AbiVariants with normal if statements.
-
-#define MIPS_ABI_N64 1
-// #define MIPS_ABI_O32 1
-
-// The only supported Abi's are O32, and n64.
-enum AbiVariants {
-  kO32,
-  kN64  // Use upper case N for 'n64' ABI to conform to style standard.
-};
-
-#ifdef MIPS_ABI_N64
-static const AbiVariants kMipsAbi = kN64;
-#else
-static const AbiVariants kMipsAbi = kO32;
-#endif
-
 
 // TODO(plind): consider renaming these ...
 #if(defined(__mips_hard_float) && __mips_hard_float != 0)
@@ -1184,7 +1163,7 @@ class Instruction {
 // MIPS assembly various constants.
 
 // C/C++ argument slots size.
-const int kCArgSlotCount = (kMipsAbi == kN64) ? 0 : 4;
+const int kCArgSlotCount = 0;
 
 // TODO(plind): below should be based on kPointerSize
 // TODO(plind): find all usages and remove the needless instructions for n64.

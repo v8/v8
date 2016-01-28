@@ -4359,7 +4359,7 @@ void MacroAssembler::MovToFloatResult(DoubleRegister src) {
 void MacroAssembler::MovToFloatParameters(DoubleRegister src1,
                                           DoubleRegister src2) {
   if (!IsMipsSoftFloatABI) {
-    const DoubleRegister fparg2 = (kMipsAbi == kN64) ? f13 : f14;
+    const DoubleRegister fparg2 = f13;
     if (src2.is(f12)) {
       DCHECK(!src1.is(fparg2));
       Move(fparg2, src2);
@@ -5950,8 +5950,7 @@ void MacroAssembler::JumpIfInstanceTypeIsNotSequentialOneByte(Register type,
   Branch(failure, ne, scratch, Operand(kFlatOneByteStringTag));
 }
 
-
-static const int kRegisterPassedArguments = (kMipsAbi == kN64) ? 8 : 4;
+static const int kRegisterPassedArguments = 8;
 
 int MacroAssembler::CalculateStackPassedWords(int num_reg_arguments,
                                               int num_double_arguments) {

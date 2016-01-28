@@ -1160,7 +1160,7 @@ double Simulator::get_fpu_register_double(int fpureg) const {
 // from a0-a3 or f12 and f13 (n64), or f14 (O32).
 void Simulator::GetFpArgs(double* x, double* y, int32_t* z) {
   if (!IsMipsSoftFloatABI) {
-    const int fparg2 = (kMipsAbi == kN64) ? 13 : 14;
+    const int fparg2 = 13;
     *x = get_fpu_register_double(12);
     *y = get_fpu_register_double(fparg2);
     *z = static_cast<int32_t>(get_register(a2));
@@ -2009,15 +2009,9 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
     int64_t arg3 = get_register(a3);
     int64_t arg4, arg5;
 
-    if (kMipsAbi == kN64) {
-      arg4 = get_register(a4);  // Abi n64 register a4.
-      arg5 = get_register(a5);  // Abi n64 register a5.
-    } else {  // Abi O32.
-      int64_t* stack_pointer = reinterpret_cast<int64_t*>(get_register(sp));
-      // Args 4 and 5 are on the stack after the reserved space for args 0..3.
-      arg4 = stack_pointer[4];
-      arg5 = stack_pointer[5];
-    }
+    arg4 = get_register(a4);  // Abi n64 register a4.
+    arg5 = get_register(a5);  // Abi n64 register a5.
+
     bool fp_call =
          (redirection->type() == ExternalReference::BUILTIN_FP_FP_CALL) ||
          (redirection->type() == ExternalReference::BUILTIN_COMPARE_CALL) ||
@@ -4799,7 +4793,7 @@ void Simulator::CallInternal(byte* entry) {
 
 
 int64_t Simulator::Call(byte* entry, int argument_count, ...) {
-  const int kRegisterPassedArguments = (kMipsAbi == kN64) ? 8 : 4;
+  const int kRegisterPassedArguments = 8;
   va_list parameters;
   va_start(parameters, argument_count);
   // Set up arguments.
@@ -4811,14 +4805,12 @@ int64_t Simulator::Call(byte* entry, int argument_count, ...) {
   set_register(a2, va_arg(parameters, int64_t));
   set_register(a3, va_arg(parameters, int64_t));
 
-  if (kMipsAbi == kN64) {
-    // Up to eight arguments passed in registers in N64 ABI.
-    // TODO(plind): N64 ABI calls these regs a4 - a7. Clarify this.
-    if (argument_count >= 5) set_register(a4, va_arg(parameters, int64_t));
-    if (argument_count >= 6) set_register(a5, va_arg(parameters, int64_t));
-    if (argument_count >= 7) set_register(a6, va_arg(parameters, int64_t));
-    if (argument_count >= 8) set_register(a7, va_arg(parameters, int64_t));
-  }
+  // Up to eight arguments passed in registers in N64 ABI.
+  // TODO(plind): N64 ABI calls these regs a4 - a7. Clarify this.
+  if (argument_count >= 5) set_register(a4, va_arg(parameters, int64_t));
+  if (argument_count >= 6) set_register(a5, va_arg(parameters, int64_t));
+  if (argument_count >= 7) set_register(a6, va_arg(parameters, int64_t));
+  if (argument_count >= 8) set_register(a7, va_arg(parameters, int64_t));
 
   // Remaining arguments passed on stack.
   int64_t original_stack = get_register(sp);
@@ -4853,7 +4845,7 @@ int64_t Simulator::Call(byte* entry, int argument_count, ...) {
 
 double Simulator::CallFP(byte* entry, double d0, double d1) {
   if (!IsMipsSoftFloatABI) {
-    const FPURegister fparg2 = (kMipsAbi == kN64) ? f13 : f14;
+    const FPURegister fparg2 = f13;
     set_fpu_register_double(f12, d0);
     set_fpu_register_double(fparg2, d1);
   } else {
