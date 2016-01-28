@@ -250,6 +250,8 @@ namespace internal {
   V(kUnsupportedPhiUseOfArguments, "Unsupported phi use of arguments")         \
   V(kUnsupportedPhiUseOfConstVariable,                                         \
     "Unsupported phi use of const variable")                                   \
+  V(kUnexpectedReturnFromBytecodeHandler,                                      \
+    "Unexpectedly returned from a bytecode handler")                           \
   V(kUnexpectedReturnFromThrow, "Unexpectedly returned from a throw")          \
   V(kUnsupportedSwitchStatement, "Unsupported switch statement")               \
   V(kUnsupportedTaggedImmediate, "Unsupported tagged immediate")               \
@@ -263,7 +265,6 @@ namespace internal {
   V(kShouldNotDirectlyEnterOsrFunction,                                        \
     "Should not directly enter OSR-compiled function")                         \
   V(kYield, "Yield")
-
 
 #define ERROR_MESSAGES_CONSTANTS(C, T) C,
 enum BailoutReason {
