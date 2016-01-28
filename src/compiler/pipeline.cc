@@ -1441,7 +1441,8 @@ void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
     Run<MergeSplintersPhase>();
   }
 
-  if (FLAG_turbo_frame_elision) {
+  // We plan to enable frame elision only for stubs and bytecode handlers.
+  if (FLAG_turbo_frame_elision && info()->IsStub()) {
     Run<LocateSpillSlotsPhase>();
     Run<FrameElisionPhase>();
   }
