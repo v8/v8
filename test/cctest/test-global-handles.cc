@@ -401,3 +401,19 @@ TEST(PersistentBaseGetLocal) {
   CHECK(o == g.Get(isolate));
   CHECK(v8::Local<v8::Object>::New(isolate, g) == g.Get(isolate));
 }
+
+
+void WeakCallback(const v8::WeakCallbackInfo<void>& data) {}
+
+
+TEST(WeakPersistentSmi) {
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Number> n = v8::Number::New(isolate, 0);
+  v8::Global<v8::Number> g(isolate, n);
+
+  // Should not crash.
+  g.SetWeak<void>(nullptr, &WeakCallback, v8::WeakCallbackType::kParameter);
+}
