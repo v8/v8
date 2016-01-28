@@ -1388,6 +1388,7 @@ class RepresentationSelector {
       case IrOpcode::kFloat64RoundDown:
       case IrOpcode::kFloat64RoundTruncate:
       case IrOpcode::kFloat64RoundTiesAway:
+      case IrOpcode::kFloat64RoundUp:
         return VisitUnop(node, UseInfo::Float64(), NodeOutputInfo::Float64());
       case IrOpcode::kFloat64Equal:
       case IrOpcode::kFloat64LessThan:
