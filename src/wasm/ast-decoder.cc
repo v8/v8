@@ -112,28 +112,28 @@ class WasmDecoder : public Decoder {
     function_env_ = function_env;
   }
 
-  // Load an operand at [pc + 1].
-  template <typename V>
-  V Operand(const byte* pc) {
-    if ((limit_ - pc) < static_cast<int>(1 + sizeof(V))) {
-      const char* msg = "Expected operand following opcode";
-      switch (sizeof(V)) {
-        case 1:
-          msg = "Expected 1-byte operand following opcode";
-          break;
-        case 2:
-          msg = "Expected 2-byte operand following opcode";
-          break;
-        case 4:
-          msg = "Expected 4-byte operand following opcode";
-          break;
-        default:
-          break;
-      }
+  byte ByteOperand(const byte* pc, const char* msg = "missing 1-byte operand") {
+    if ((pc + sizeof(byte)) >= limit_) {
       error(pc, msg);
-      return -1;
+      return 0;
     }
-    return *reinterpret_cast<const V*>(pc + 1);
+    return pc[1];
+  }
+
+  uint32_t Uint32Operand(const byte* pc) {
+    if ((pc + sizeof(uint32_t)) >= limit_) {
+      error(pc, "missing 4-byte operand");
+      return 0;
+    }
+    return read_u32(pc + 1);
+  }
+
+  uint64_t Uint64Operand(const byte* pc) {
+    if ((pc + sizeof(uint64_t)) >= limit_) {
+      error(pc, "missing 8-byte operand");
+      return 0;
+    }
+    return read_u64(pc + 1);
   }
 
   LocalType LocalOperand(const byte* pc, uint32_t* index, int* length) {
@@ -185,7 +185,7 @@ class WasmDecoder : public Decoder {
   }
 
   void MemoryAccessOperand(const byte* pc, int* length, uint32_t* offset) {
-    byte bitfield = Operand<uint8_t>(pc);
+    byte bitfield = ByteOperand(pc, "missing memory access operand");
     if (MemoryAccess::OffsetField::decode(bitfield)) {
       *offset = UnsignedLEB128Operand(pc + 1, length);
       (*length)++;  // to account for the memory access byte
@@ -431,7 +431,7 @@ class LR_WasmDecoder : public WasmDecoder {
           Leaf(kAstStmt);
           break;
         case kExprBlock: {
-          int length = Operand<uint8_t>(pc_);
+          int length = ByteOperand(pc_);
           if (length < 1) {
             Leaf(kAstStmt);
           } else {
@@ -445,7 +445,7 @@ class LR_WasmDecoder : public WasmDecoder {
           break;
         }
         case kExprLoop: {
-          int length = Operand<uint8_t>(pc_);
+          int length = ByteOperand(pc_);
           if (length < 1) {
             Leaf(kAstStmt);
           } else {
@@ -474,7 +474,7 @@ class LR_WasmDecoder : public WasmDecoder {
           Shift(kAstStmt, 3);  // Result type is typeof(x) in {c ? x : y}.
           break;
         case kExprBr: {
-          uint32_t depth = Operand<uint8_t>(pc_);
+          uint32_t depth = ByteOperand(pc_);
           Shift(kAstEnd, 1);
           if (depth >= blocks_.size()) {
             error("improperly nested branch");
@@ -483,7 +483,7 @@ class LR_WasmDecoder : public WasmDecoder {
           break;
         }
         case kExprBrIf: {
-          uint32_t depth = Operand<uint8_t>(pc_);
+          uint32_t depth = ByteOperand(pc_);
           Shift(kAstStmt, 2);
           if (depth >= blocks_.size()) {
             error("improperly nested conditional branch");
@@ -496,8 +496,8 @@ class LR_WasmDecoder : public WasmDecoder {
             error("expected #tableswitch <cases> <table>, fell off end");
             break;
           }
-          uint16_t case_count = *reinterpret_cast<const uint16_t*>(pc_ + 1);
-          uint16_t table_count = *reinterpret_cast<const uint16_t*>(pc_ + 3);
+          uint16_t case_count = read_u16(pc_ + 1);
+          uint16_t table_count = read_u16(pc_ + 3);
           len = 5 + table_count * 2;
 
           if (table_count == 0) {
@@ -514,8 +514,7 @@ class LR_WasmDecoder : public WasmDecoder {
 
           // Verify table.
           for (int i = 0; i < table_count; i++) {
-            uint16_t target =
-                *reinterpret_cast<const uint16_t*>(pc_ + 5 + i * 2);
+            uint16_t target = read_u16(pc_ + 5 + i * 2);
             if (target >= 0x8000) {
               size_t depth = target - 0x8000;
               if (depth > blocks_.size()) {
@@ -547,31 +546,31 @@ class LR_WasmDecoder : public WasmDecoder {
           break;
         }
         case kExprI8Const: {
-          int32_t value = Operand<int8_t>(pc_);
+          int32_t value = bit_cast<int8_t>(ByteOperand(pc_));
           Leaf(kAstI32, BUILD(Int32Constant, value));
           len = 2;
           break;
         }
         case kExprI32Const: {
-          int32_t value = Operand<int32_t>(pc_);
+          uint32_t value = Uint32Operand(pc_);
           Leaf(kAstI32, BUILD(Int32Constant, value));
           len = 5;
           break;
         }
         case kExprI64Const: {
-          int64_t value = Operand<int64_t>(pc_);
+          uint64_t value = Uint64Operand(pc_);
           Leaf(kAstI64, BUILD(Int64Constant, value));
           len = 9;
           break;
         }
         case kExprF32Const: {
-          float value = Operand<float>(pc_);
+          float value = bit_cast<float>(Uint32Operand(pc_));
           Leaf(kAstF32, BUILD(Float32Constant, value));
           len = 5;
           break;
         }
         case kExprF64Const: {
-          double value = Operand<double>(pc_);
+          double value = bit_cast<double>(Uint64Operand(pc_));
           Leaf(kAstF64, BUILD(Float64Constant, value));
           len = 9;
           break;
@@ -877,7 +876,7 @@ class LR_WasmDecoder : public WasmDecoder {
         break;
       }
       case kExprBr: {
-        uint32_t depth = Operand<uint8_t>(p->pc());
+        uint32_t depth = ByteOperand(p->pc());
         if (depth >= blocks_.size()) {
           error("improperly nested branch");
           break;
@@ -890,7 +889,7 @@ class LR_WasmDecoder : public WasmDecoder {
         if (p->index == 1) {
           TypeCheckLast(p, kAstI32);
         } else if (p->done()) {
-          uint32_t depth = Operand<uint8_t>(p->pc());
+          uint32_t depth = ByteOperand(p->pc());
           if (depth >= blocks_.size()) {
             error("improperly nested branch");
             break;
@@ -911,8 +910,7 @@ class LR_WasmDecoder : public WasmDecoder {
           // Switch key finished.
           TypeCheckLast(p, kAstI32);
 
-          uint16_t table_count =
-              *reinterpret_cast<const uint16_t*>(p->pc() + 3);
+          uint16_t table_count = read_u16(p->pc() + 3);
 
           // Build the switch only if it has more than just a default target.
           bool build_switch = table_count > 1;
@@ -920,7 +918,7 @@ class LR_WasmDecoder : public WasmDecoder {
           if (build_switch) sw = BUILD(Switch, table_count, p->last()->node);
 
           // Allocate environments for each case.
-          uint16_t case_count = *reinterpret_cast<const uint16_t*>(p->pc() + 1);
+          uint16_t case_count = read_u16(p->pc() + 1);
           SsaEnv** case_envs = zone_->NewArray<SsaEnv*>(case_count);
           for (int i = 0; i < case_count; i++) case_envs[i] = UnreachableEnv();
 
@@ -931,10 +929,8 @@ class LR_WasmDecoder : public WasmDecoder {
           ssa_env_ = copy;
 
           // Build the environments for each case based on the table.
-          const uint16_t* table =
-              reinterpret_cast<const uint16_t*>(p->pc() + 5);
           for (int i = 0; i < table_count; i++) {
-            uint16_t target = table[i];
+            uint16_t target = read_u16(p->pc() + 5 + i * 2);
             SsaEnv* env = copy;
             if (build_switch) {
               env = Split(env);

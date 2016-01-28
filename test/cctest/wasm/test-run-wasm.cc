@@ -2378,9 +2378,6 @@ TEST(Run_WasmCallEmpty) {
 }
 
 
-// TODO(tizer): Fix on arm and reenable.
-#if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64
-
 TEST(Run_WasmCallF32StackParameter) {
   // Build the target function.
   LocalType param_types[20];
@@ -2431,8 +2428,6 @@ TEST(Run_WasmCallF64StackParameter) {
   float result = r.Call();
   CHECK_EQ(256.5, result);
 }
-
-#endif
 
 
 TEST(Run_WasmCallVoid) {
