@@ -982,9 +982,10 @@ struct FrameElisionPhase {
 struct JumpThreadingPhase {
   static const char* phase_name() { return "jump threading"; }
 
-  void Run(PipelineData* data, Zone* temp_zone) {
+  void Run(PipelineData* data, Zone* temp_zone, bool frame_at_start) {
     ZoneVector<RpoNumber> result(temp_zone);
-    if (JumpThreading::ComputeForwarding(temp_zone, result, data->sequence())) {
+    if (JumpThreading::ComputeForwarding(temp_zone, result, data->sequence(),
+                                         frame_at_start)) {
       JumpThreading::ApplyForwarding(result, data->sequence());
     }
   }
@@ -1334,10 +1335,16 @@ Handle<Code> Pipeline::ScheduleAndGenerateCode(
   }
 
   BeginPhaseKind("code generation");
-
+  // TODO(mtrofin): move this off to the register allocator.
+  bool generate_frame_at_start =
+      !FLAG_turbo_frame_elision || !data_->info()->IsStub() ||
+      !data_->frame()->needs_frame() ||
+      data_->sequence()->instruction_blocks().front()->needs_frame() ||
+      linkage.GetIncomingDescriptor()->CalleeSavedFPRegisters() != 0 ||
+      linkage.GetIncomingDescriptor()->CalleeSavedRegisters() != 0;
   // Optimimize jumps.
   if (FLAG_turbo_jt) {
-    Run<JumpThreadingPhase>();
+    Run<JumpThreadingPhase>(generate_frame_at_start);
   }
 
   // Generate final machine code.

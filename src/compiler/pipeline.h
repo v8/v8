@@ -65,6 +65,8 @@ class Pipeline {
   void Run();
   template <typename Phase, typename Arg0>
   void Run(Arg0 arg_0);
+  template <typename Phase, typename Arg0, typename Arg1>
+  void Run(Arg0 arg_0, Arg1 arg_1);
 
   CompilationInfo* info() const { return info_; }
   Isolate* isolate() { return info_->isolate(); }
