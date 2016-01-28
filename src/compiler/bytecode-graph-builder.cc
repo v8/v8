@@ -1902,6 +1902,12 @@ void BytecodeGraphBuilder::BuildLoopHeaderForBackwardBranches(
 
 void BytecodeGraphBuilder::BuildJump(int source_offset, int target_offset) {
   DCHECK_NULL(merge_environments_[source_offset]);
+  // Append merge nodes to the environment. We may merge here with another
+  // environment. So add a place holder for merge nodes. We may add redundant
+  // but will be eliminated in a later pass.
+  // TODO(mstarzinger): This can be simplified by propagating environment
+  // forward along the direction of the dataflow.
+  NewMerge();
   merge_environments_[source_offset] = environment();
   if (source_offset >= target_offset) {
     MergeEnvironmentsOfBackwardBranches(source_offset, target_offset);

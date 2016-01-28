@@ -1952,6 +1952,35 @@ TEST(BytecodeGraphBuilderIf) {
        "   if (p1 < -10) { return -2; } else { return -1; }\n"
        "}",
        {factory->NewNumberFromInt(-1), factory->NewNumberFromInt(-10)}},
+      {"var b = 20, c;"
+       "if (p1 >= 0) {\n"
+       "   if (b > 0) { c = 2; } else { c = 3; }\n"
+       "} else {\n"
+       "   if (b < -10) { c = -2; } else { c = -1; }\n"
+       "}"
+       "return c;",
+       {factory->NewNumberFromInt(-1), factory->NewNumberFromInt(-1)}},
+      {"var b = 20, c = 10;"
+       "if (p1 >= 0) {\n"
+       "   if (b < 0) { c = 2; }\n"
+       "} else {\n"
+       "   if (b < -10) { c = -2; } else { c = -1; }\n"
+       "}"
+       "return c;",
+       {factory->NewNumberFromInt(10), factory->NewNumberFromInt(1)}},
+      {"var x = 2, a = 10, b = 20, c, d;"
+       "x = 0;"
+       "if (a) {\n"
+       "   b = x;"
+       "   if (b > 0) { c = 2; } else { c = 3; }\n"
+       "   x = 4; d = 2;"
+       "} else {\n"
+       "   d = 3;\n"
+       "}"
+       "x = d;"
+       "function f1() {x}"
+       "return x + c;",
+       {factory->NewNumberFromInt(5), factory->NewNumberFromInt(-1)}},
   };
 
   size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
@@ -2048,6 +2077,54 @@ TEST(BytecodeGraphBuilderSwitch) {
   }
 }
 
+TEST(BytecodeGraphBuilderSwitchMerge) {
+  HandleAndZoneScope scope;
+  Isolate* isolate = scope.main_isolate();
+  Zone* zone = scope.main_zone();
+  Factory* factory = isolate->factory();
+
+  const char* switch_code =
+      "var x = 10;"
+      "switch (p1) {\n"
+      "  case 1: x = 0;\n"
+      "  case 2: x = 1;\n"
+      "  case 3:\n"
+      "  case 4: x = 2; break;\n"
+      "  case 5: x = 3;\n"
+      "  case 9: break;\n"
+      "  default: x = 4;\n"
+      "}\n"
+      "return x;";
+
+  ExpectedSnippet<1> snippets[] = {
+      {switch_code,
+       {factory->NewNumberFromInt(2), factory->NewNumberFromInt(1)}},
+      {switch_code,
+       {factory->NewNumberFromInt(2), factory->NewNumberFromInt(2)}},
+      {switch_code,
+       {factory->NewNumberFromInt(2), factory->NewNumberFromInt(3)}},
+      {switch_code,
+       {factory->NewNumberFromInt(2), factory->NewNumberFromInt(4)}},
+      {switch_code,
+       {factory->NewNumberFromInt(3), factory->NewNumberFromInt(5)}},
+      {switch_code,
+       {factory->NewNumberFromInt(10), factory->NewNumberFromInt(9)}},
+      {switch_code,
+       {factory->NewNumberFromInt(4), factory->NewNumberFromInt(6)}},
+  };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    ScopedVector<char> script(2048);
+    SNPrintF(script, "function %s(p1) { %s };\n%s(0);", kFunctionName,
+             snippets[i].code_snippet, kFunctionName);
+
+    BytecodeGraphTester tester(isolate, zone, script.start());
+    auto callable = tester.GetCallable<Handle<Object>>();
+    Handle<Object> return_value =
+        callable(snippets[i].parameter(0)).ToHandleChecked();
+    CHECK(return_value->SameValue(*snippets[i].return_value()));
+  }
+}
 
 TEST(BytecodeGraphBuilderNestedSwitch) {
   HandleAndZoneScope scope;
