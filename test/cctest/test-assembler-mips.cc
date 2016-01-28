@@ -384,14 +384,6 @@ TEST(MIPS3) {
 
 
 TEST(MIPS4) {
-  // Exchange between GP anf FP registers is done through memory
-  // on FPXX compiled binaries and architectures that do not support
-  // MTHC1 and MTFC1. If this is the case, skipping this test.
-  if (IsFpxxMode() &&
-      (IsMipsArchVariant(kMips32r1) || IsMipsArchVariant(kLoongson))) {
-    return;
-  }
-
   // Test moves between floating point and integer registers.
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -411,7 +403,7 @@ TEST(MIPS4) {
   __ ldc1(f6, MemOperand(a0, offsetof(T, b)) );
 
   // Swap f4 and f6, by using four integer registers, t0-t3.
-  if (IsFp32Mode()) {
+  if (!IsFp64Mode()) {
     __ mfc1(t0, f4);
     __ mfc1(t1, f5);
     __ mfc1(t2, f6);
@@ -423,7 +415,6 @@ TEST(MIPS4) {
     __ mtc1(t3, f5);
   } else {
     CHECK(!IsMipsArchVariant(kMips32r1) && !IsMipsArchVariant(kLoongson));
-    DCHECK(IsFp64Mode() || IsFpxxMode());
     __ mfc1(t0, f4);
     __ mfhc1(t1, f4);
     __ mfc1(t2, f6);
@@ -434,7 +425,6 @@ TEST(MIPS4) {
     __ mtc1(t2, f4);
     __ mthc1(t3, f4);
   }
-
   // Store the swapped f4 and f5 back to memory.
   __ sdc1(f4, MemOperand(a0, offsetof(T, a)) );
   __ sdc1(f6, MemOperand(a0, offsetof(T, c)) );
@@ -821,6 +811,8 @@ TEST(MIPS9) {
 
 TEST(MIPS10) {
   // Test conversions between doubles and words.
+  // Test maps double to FP reg pairs in fp32 mode
+  // and into FP reg in fp64 mode.
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
@@ -838,16 +830,24 @@ TEST(MIPS10) {
   Assembler assm(isolate, NULL, 0);
   Label L, C;
 
-  if (IsMipsArchVariant(kMips32r1) || IsMipsArchVariant(kLoongson)) return;
+  if (!IsMipsArchVariant(kMips32r2)) return;
 
   // Load all structure elements to registers.
   // (f0, f1) = a (fp32), f0 = a (fp64)
   __ ldc1(f0, MemOperand(a0, offsetof(T, a)));
 
-  __ mfc1(t0, f0);   // t0 = f0(31..0)
-  __ mfhc1(t1, f0);  // t1 = sign_extend(f0(63..32))
-  __ sw(t0, MemOperand(a0, offsetof(T, dbl_mant)));  // dbl_mant = t0
-  __ sw(t1, MemOperand(a0, offsetof(T, dbl_exp)));   // dbl_exp = t1
+  if (IsFp64Mode()) {
+    __ mfc1(t0, f0);  // t0 = f0(31..0)
+    __ mfhc1(t1, f0);  // t1 = sign_extend(f0(63..32))
+    __ sw(t0, MemOperand(a0, offsetof(T, dbl_mant)));  // dbl_mant = t0
+    __ sw(t1, MemOperand(a0, offsetof(T, dbl_exp)));  // dbl_exp = t1
+  } else {
+    // Save the raw bits of the double.
+    __ mfc1(t0, f0);  // t0 = a1
+    __ mfc1(t1, f1);  // t1 = a2
+    __ sw(t0, MemOperand(a0, offsetof(T, dbl_mant)));  // dbl_mant = t0
+    __ sw(t1, MemOperand(a0, offsetof(T, dbl_exp)));  // dbl_exp = t1
+  }
 
   // Convert double in f0 to word, save hi/lo parts.
   __ cvt_w_d(f0, f0);  // a_word = (word)a

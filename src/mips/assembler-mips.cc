@@ -2099,7 +2099,7 @@ void Assembler::ldc1(FPURegister fd, const MemOperand& src) {
       GenInstrImmediate(LW, at, at, Register::kExponentOffset);
       mthc1(at, fd);
     }
-  } else if (IsFp32Mode()) {  // fp32 mode.
+  } else {  // fp32 mode.
     if (is_int16(src.offset_) && is_int16(src.offset_ + kIntSize)) {
       GenInstrImmediate(LWC1, src.rm(), fd,
                         src.offset_ + Register::kMantissaOffset);
@@ -2113,22 +2113,6 @@ void Assembler::ldc1(FPURegister fd, const MemOperand& src) {
       FPURegister nextfpreg;
       nextfpreg.setcode(fd.code() + 1);
       GenInstrImmediate(LWC1, at, nextfpreg, Register::kExponentOffset);
-    }
-  } else {
-    DCHECK(IsFpxxMode());
-    // Currently we support FPXX on Mips32r2 and Mips32r6
-    DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6));
-    if (is_int16(src.offset_) && is_int16(src.offset_ + kIntSize)) {
-      GenInstrImmediate(LWC1, src.rm(), fd,
-                        src.offset_ + Register::kMantissaOffset);
-      GenInstrImmediate(LW, src.rm(), at,
-                        src.offset_ + Register::kExponentOffset);
-      mthc1(at, fd);
-    } else {  // Offset > 16 bits, use multiple instructions to load.
-      LoadRegPlusOffsetToAt(src);
-      GenInstrImmediate(LWC1, at, fd, Register::kMantissaOffset);
-      GenInstrImmediate(LW, at, at, Register::kExponentOffset);
-      mthc1(at, fd);
     }
   }
 }
@@ -2162,7 +2146,7 @@ void Assembler::sdc1(FPURegister fd, const MemOperand& src) {
       mfhc1(t8, fd);
       GenInstrImmediate(SW, at, t8, Register::kExponentOffset);
     }
-  } else if (IsFp32Mode()) {  // fp32 mode.
+  } else {  // fp32 mode.
     if (is_int16(src.offset_) && is_int16(src.offset_ + kIntSize)) {
       GenInstrImmediate(SWC1, src.rm(), fd,
                         src.offset_ + Register::kMantissaOffset);
@@ -2176,22 +2160,6 @@ void Assembler::sdc1(FPURegister fd, const MemOperand& src) {
       FPURegister nextfpreg;
       nextfpreg.setcode(fd.code() + 1);
       GenInstrImmediate(SWC1, at, nextfpreg, Register::kExponentOffset);
-    }
-  } else {
-    DCHECK(IsFpxxMode());
-    // Currently we support FPXX on Mips32r2 and Mips32r6
-    DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6));
-    if (is_int16(src.offset_) && is_int16(src.offset_ + kIntSize)) {
-      GenInstrImmediate(SWC1, src.rm(), fd,
-                        src.offset_ + Register::kMantissaOffset);
-      mfhc1(at, fd);
-      GenInstrImmediate(SW, src.rm(), at,
-                        src.offset_ + Register::kExponentOffset);
-    } else {  // Offset > 16 bits, use multiple instructions to load.
-      LoadRegPlusOffsetToAt(src);
-      GenInstrImmediate(SWC1, at, fd, Register::kMantissaOffset);
-      mfhc1(t8, fd);
-      GenInstrImmediate(SW, at, t8, Register::kExponentOffset);
     }
   }
 }

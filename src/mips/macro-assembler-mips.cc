@@ -1396,7 +1396,7 @@ void MacroAssembler::Trunc_uw_d(FPURegister fd,
 
 
 void MacroAssembler::Mthc1(Register rt, FPURegister fs) {
-  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+  if (IsFp64Mode()) {
     mthc1(rt, fs);
   } else {
     mtc1(rt, fs.high());
@@ -1405,7 +1405,7 @@ void MacroAssembler::Mthc1(Register rt, FPURegister fs) {
 
 
 void MacroAssembler::Mfhc1(Register rt, FPURegister fs) {
-  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+  if (IsFp64Mode()) {
     mfhc1(rt, fs);
   } else {
     mfc1(rt, fs.high());
