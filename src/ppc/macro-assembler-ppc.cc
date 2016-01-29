@@ -2128,6 +2128,60 @@ void MacroAssembler::TestDoubleIsInt32(DoubleRegister double_input,
   TryDoubleToInt32Exact(scratch1, double_input, scratch2, double_scratch);
 }
 
+void MacroAssembler::TestDoubleIsMinusZero(DoubleRegister input,
+                                           Register scratch1,
+                                           Register scratch2) {
+#if V8_TARGET_ARCH_PPC64
+  MovDoubleToInt64(scratch1, input);
+  rotldi(scratch1, scratch1, 1);
+  cmpi(scratch1, Operand(1));
+#else
+  MovDoubleToInt64(scratch1, scratch2, input);
+  Label done;
+  cmpi(scratch2, Operand::Zero());
+  bne(&done);
+  lis(scratch2, Operand(SIGN_EXT_IMM16(0x8000)));
+  cmp(scratch1, scratch2);
+  bind(&done);
+#endif
+}
+
+void MacroAssembler::TestHeapNumberIsMinusZero(Register input,
+                                               Register scratch1,
+                                               Register scratch2) {
+#if V8_TARGET_ARCH_PPC64
+  LoadP(scratch1, FieldMemOperand(input, HeapNumber::kValueOffset));
+  rotldi(scratch1, scratch1, 1);
+  cmpi(scratch1, Operand(1));
+#else
+  lwz(scratch1, FieldMemOperand(input, HeapNumber::kExponentOffset));
+  lwz(scratch2, FieldMemOperand(input, HeapNumber::kMantissaOffset));
+  Label done;
+  cmpi(scratch2, Operand::Zero());
+  bne(&done);
+  lis(scratch2, Operand(SIGN_EXT_IMM16(0x8000)));
+  cmp(scratch1, scratch2);
+  bind(&done);
+#endif
+}
+
+void MacroAssembler::TestDoubleSign(DoubleRegister input, Register scratch) {
+#if V8_TARGET_ARCH_PPC64
+  MovDoubleToInt64(scratch, input);
+#else
+  MovDoubleHighToInt(scratch, input);
+#endif
+  cmpi(scratch, Operand::Zero());
+}
+
+void MacroAssembler::TestHeapNumberSign(Register input, Register scratch) {
+#if V8_TARGET_ARCH_PPC64
+  LoadP(scratch, FieldMemOperand(input, HeapNumber::kValueOffset));
+#else
+  lwz(scratch, FieldMemOperand(input, HeapNumber::kExponentOffset));
+#endif
+  cmpi(scratch, Operand::Zero());
+}
 
 void MacroAssembler::TryDoubleToInt32Exact(Register result,
                                            DoubleRegister double_input,

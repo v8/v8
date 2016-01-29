@@ -3173,22 +3173,7 @@ void FullCodeGenerator::EmitIsMinusZero(CallRuntime* expr) {
                          &if_false, &fall_through);
 
   __ CheckMap(r3, r4, Heap::kHeapNumberMapRootIndex, if_false, DO_SMI_CHECK);
-#if V8_TARGET_ARCH_PPC64
-  __ LoadP(r4, FieldMemOperand(r3, HeapNumber::kValueOffset));
-  __ li(r5, Operand(1));
-  __ rotrdi(r5, r5, 1);  // r5 = 0x80000000_00000000
-  __ cmp(r4, r5);
-#else
-  __ lwz(r5, FieldMemOperand(r3, HeapNumber::kExponentOffset));
-  __ lwz(r4, FieldMemOperand(r3, HeapNumber::kMantissaOffset));
-  Label skip;
-  __ lis(r0, Operand(SIGN_EXT_IMM16(0x8000)));
-  __ cmp(r5, r0);
-  __ bne(&skip);
-  __ cmpi(r4, Operand::Zero());
-  __ bind(&skip);
-#endif
-
+  __ TestHeapNumberIsMinusZero(r3, r4, r5);
   PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
   Split(eq, if_true, if_false, fall_through);
 

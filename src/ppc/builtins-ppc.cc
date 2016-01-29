@@ -215,17 +215,7 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
     __ b(CommuteCondition(cond_done), &compare_swap);
 
     // Left and right hand side are equal, check for -0 vs. +0.
-#if V8_TARGET_ARCH_PPC64
-    __ MovDoubleToInt64(r7, reg);
-    __ rotldi(r7, r7, 1);
-    __ cmpi(r7, Operand(1));
-#else
-    __ MovDoubleToInt64(r7, r8, reg);
-    __ cmpi(r8, Operand::Zero());
-    __ bne(&loop);
-    __ lis(r8, Operand(SIGN_EXT_IMM16(0x8000)));
-    __ cmp(r7, r8);
-#endif
+    __ TestDoubleIsMinusZero(reg, r7, r8);
     __ bne(&loop);
 
     // Update accumulator. Result is on the right hand side.
