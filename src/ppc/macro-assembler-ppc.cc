@@ -183,6 +183,10 @@ void MacroAssembler::Drop(int count) {
   }
 }
 
+void MacroAssembler::Drop(Register count, Register scratch) {
+  ShiftLeftImm(scratch, count, Operand(kPointerSizeLog2));
+  add(sp, sp, scratch);
+}
 
 void MacroAssembler::Call(Label* target) { b(target, SetLK); }
 
