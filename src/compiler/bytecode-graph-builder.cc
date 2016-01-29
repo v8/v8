@@ -13,6 +13,93 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+// The abstract execution environment simulates the content of the interpreter
+// register file. The environment performs SSA-renaming of all tracked nodes at
+// split and merge points in the control flow.
+class BytecodeGraphBuilder::Environment : public ZoneObject {
+ public:
+  Environment(BytecodeGraphBuilder* builder, int register_count,
+              int parameter_count, Node* control_dependency, Node* context);
+
+  int parameter_count() const { return parameter_count_; }
+  int register_count() const { return register_count_; }
+
+  Node* LookupAccumulator() const;
+  Node* LookupRegister(interpreter::Register the_register) const;
+
+  void ExchangeRegisters(interpreter::Register reg0,
+                         interpreter::Register reg1);
+
+  void BindAccumulator(Node* node, FrameStateBeforeAndAfter* states = nullptr);
+  void BindRegister(interpreter::Register the_register, Node* node,
+                    FrameStateBeforeAndAfter* states = nullptr);
+  void BindRegistersToProjections(interpreter::Register first_reg, Node* node,
+                                  FrameStateBeforeAndAfter* states = nullptr);
+  void RecordAfterState(Node* node, FrameStateBeforeAndAfter* states);
+
+  bool IsMarkedAsUnreachable() const;
+  void MarkAsUnreachable();
+
+  // Effect dependency tracked by this environment.
+  Node* GetEffectDependency() { return effect_dependency_; }
+  void UpdateEffectDependency(Node* dependency) {
+    effect_dependency_ = dependency;
+  }
+
+  // Preserve a checkpoint of the environment for the IR graph. Any
+  // further mutation of the environment will not affect checkpoints.
+  Node* Checkpoint(BailoutId bytecode_offset, OutputFrameStateCombine combine);
+
+  // Returns true if the state values are up to date with the current
+  // environment.
+  bool StateValuesAreUpToDate(int output_poke_offset, int output_poke_count);
+
+  // Control dependency tracked by this environment.
+  Node* GetControlDependency() const { return control_dependency_; }
+  void UpdateControlDependency(Node* dependency) {
+    control_dependency_ = dependency;
+  }
+
+  Node* Context() const { return context_; }
+  void SetContext(Node* new_context) { context_ = new_context; }
+
+  Environment* CopyForConditional() const;
+  Environment* CopyForLoop();
+  void Merge(Environment* other);
+
+ private:
+  explicit Environment(const Environment* copy);
+  void PrepareForLoop();
+  bool StateValuesAreUpToDate(Node** state_values, int offset, int count,
+                              int output_poke_start, int output_poke_end);
+  bool StateValuesRequireUpdate(Node** state_values, int offset, int count);
+  void UpdateStateValues(Node** state_values, int offset, int count);
+
+  int RegisterToValuesIndex(interpreter::Register the_register) const;
+
+  Zone* zone() const { return builder_->local_zone(); }
+  Graph* graph() const { return builder_->graph(); }
+  CommonOperatorBuilder* common() const { return builder_->common(); }
+  BytecodeGraphBuilder* builder() const { return builder_; }
+  const NodeVector* values() const { return &values_; }
+  NodeVector* values() { return &values_; }
+  int register_base() const { return register_base_; }
+  int accumulator_base() const { return accumulator_base_; }
+
+  BytecodeGraphBuilder* builder_;
+  int register_count_;
+  int parameter_count_;
+  Node* context_;
+  Node* control_dependency_;
+  Node* effect_dependency_;
+  NodeVector values_;
+  Node* parameters_state_values_;
+  Node* registers_state_values_;
+  Node* accumulator_state_values_;
+  int register_base_;
+  int accumulator_base_;
+};
+
 // Helper for generating frame states for before and after a bytecode.
 class BytecodeGraphBuilder::FrameStateBeforeAndAfter {
  public:
