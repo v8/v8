@@ -25,16 +25,12 @@ class BytecodeGraphBuilder {
   // Creates a graph by visiting bytecodes.
   bool CreateGraph(bool stack_check = true);
 
-  Graph* graph() const { return jsgraph_->graph(); }
-
  private:
   class Environment;
   class FrameStateBeforeAndAfter;
 
   void CreateGraphBody(bool stack_check);
   void VisitBytecodes();
-
-  Node* LoadAccumulator(Node* value);
 
   // Get or create the node that represents the outer function closure.
   Node* GetFunctionClosure();
@@ -125,42 +121,30 @@ class BytecodeGraphBuilder {
                                     interpreter::Register first_arg,
                                     size_t arity);
 
-  void BuildCreateLiteral(const Operator* op,
-                          const interpreter::BytecodeArrayIterator& iterator);
-  void BuildCreateRegExpLiteral(
-      const interpreter::BytecodeArrayIterator& iterator);
-  void BuildCreateArrayLiteral(
-      const interpreter::BytecodeArrayIterator& iterator);
-  void BuildCreateObjectLiteral(
-      const interpreter::BytecodeArrayIterator& iterator);
-  void BuildCreateArguments(CreateArgumentsParameters::Type type,
-                            const interpreter::BytecodeArrayIterator& iterator);
-  void BuildLoadGlobal(const interpreter::BytecodeArrayIterator& iterator,
-                       TypeofMode typeof_mode);
-  void BuildStoreGlobal(const interpreter::BytecodeArrayIterator& iterator);
-  void BuildNamedLoad(const interpreter::BytecodeArrayIterator& iterator);
-  void BuildKeyedLoad(const interpreter::BytecodeArrayIterator& iterator);
-  void BuildNamedStore(const interpreter::BytecodeArrayIterator& iterator);
-  void BuildKeyedStore(const interpreter::BytecodeArrayIterator& iterator);
-  void BuildLdaLookupSlot(TypeofMode typeof_mode,
-                          const interpreter::BytecodeArrayIterator& iterator);
-  void BuildStaLookupSlot(LanguageMode language_mode,
-                          const interpreter::BytecodeArrayIterator& iterator);
-  void BuildCall(const interpreter::BytecodeArrayIterator& iterator);
-  void BuildCallJSRuntime(const interpreter::BytecodeArrayIterator& iterator);
-  void BuildCallRuntime(const interpreter::BytecodeArrayIterator& iterator);
-  void BuildCallRuntimeForPair(
-      const interpreter::BytecodeArrayIterator& iterator);
-  void BuildCallConstruct(const interpreter::BytecodeArrayIterator& iterator);
-  void BuildBinaryOp(const Operator* op,
-                     const interpreter::BytecodeArrayIterator& iterator);
-  void BuildCompareOp(const Operator* op,
-                      const interpreter::BytecodeArrayIterator& iterator);
-  void BuildDelete(const interpreter::BytecodeArrayIterator& iterator);
-  void BuildCastOperator(const Operator* js_op,
-                         const interpreter::BytecodeArrayIterator& iterator);
-  void BuildForInPrepare(const interpreter::BytecodeArrayIterator& iterator);
-  void BuildForInNext(const interpreter::BytecodeArrayIterator& iterator);
+  void BuildCreateLiteral(const Operator* op);
+  void BuildCreateRegExpLiteral();
+  void BuildCreateArrayLiteral();
+  void BuildCreateObjectLiteral();
+  void BuildCreateArguments(CreateArgumentsParameters::Type type);
+  void BuildLoadGlobal(TypeofMode typeof_mode);
+  void BuildStoreGlobal();
+  void BuildNamedLoad();
+  void BuildKeyedLoad();
+  void BuildNamedStore();
+  void BuildKeyedStore();
+  void BuildLdaLookupSlot(TypeofMode typeof_mode);
+  void BuildStaLookupSlot(LanguageMode language_mode);
+  void BuildCall();
+  void BuildCallJSRuntime();
+  void BuildCallRuntime();
+  void BuildCallRuntimeForPair();
+  void BuildCallConstruct();
+  void BuildBinaryOp(const Operator* op);
+  void BuildCompareOp(const Operator* op);
+  void BuildDelete();
+  void BuildCastOperator(const Operator* js_op);
+  void BuildForInPrepare();
+  void BuildForInNext();
 
   // Control flow plumbing.
   void BuildJump(int source_offset, int target_offset);
@@ -196,6 +180,7 @@ class BytecodeGraphBuilder {
   };
 
   // Field accessors
+  Graph* graph() const { return jsgraph_->graph(); }
   CommonOperatorBuilder* common() const { return jsgraph_->common(); }
   Zone* graph_zone() const { return graph()->zone(); }
   CompilationInfo* info() const { return info_; }
@@ -217,8 +202,8 @@ class BytecodeGraphBuilder {
     return info()->language_mode();
   }
 
-  const interpreter::BytecodeArrayIterator* bytecode_iterator() const {
-    return bytecode_iterator_;
+  const interpreter::BytecodeArrayIterator& bytecode_iterator() const {
+    return *bytecode_iterator_;
   }
 
   void set_bytecode_iterator(
@@ -234,8 +219,7 @@ class BytecodeGraphBuilder {
     branch_analysis_ = branch_analysis;
   }
 
-#define DECLARE_VISIT_BYTECODE(name, ...) \
-  void Visit##name(const interpreter::BytecodeArrayIterator& iterator);
+#define DECLARE_VISIT_BYTECODE(name, ...) void Visit##name();
   BYTECODE_LIST(DECLARE_VISIT_BYTECODE)
 #undef DECLARE_VISIT_BYTECODE
 
