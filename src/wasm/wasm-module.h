@@ -105,8 +105,8 @@ struct WasmModule {
 
   // Get a pointer to a string stored in the module bytes representing a name.
   const char* GetName(uint32_t offset) {
-    CHECK(BoundsCheck(offset, offset + 1));
     if (offset == 0) return "<?>";  // no name.
+    CHECK(BoundsCheck(offset, offset + 1));
     return reinterpret_cast<const char*>(module_start + offset);
   }
 
