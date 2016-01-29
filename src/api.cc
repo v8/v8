@@ -3557,8 +3557,7 @@ static i::MaybeHandle<i::Object> DefineObjectProperty(
       isolate, js_object, key, &success, i::LookupIterator::OWN);
   if (!success) return i::MaybeHandle<i::Object>();
 
-  return i::JSObject::DefineOwnPropertyIgnoreAttributes(
-      &it, value, attrs, i::JSObject::FORCE_FIELD);
+  return i::JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, attrs);
 }
 
 

@@ -2067,35 +2067,36 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT static Maybe<bool> SetPropertyWithInterceptor(
       LookupIterator* it, ShouldThrow should_throw, Handle<Object> value);
 
-  // The API currently still wants DefineOwnPropertyIgnoreAttributes to convert
-  // AccessorInfo objects to data fields. We allow FORCE_FIELD as an exception
-  // to the default behavior that calls the setter.
-  enum AccessorInfoHandling { FORCE_FIELD, DONT_FORCE_FIELD };
+  // SetLocalPropertyIgnoreAttributes converts callbacks to fields. We need to
+  // grant an exemption to AccessorInfo callbacks in some cases.
+  enum AccessorInfoHandling { DEFAULT_HANDLING, DONT_FORCE_FIELD };
 
   MUST_USE_RESULT static MaybeHandle<Object> DefineOwnPropertyIgnoreAttributes(
       LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
-      AccessorInfoHandling handling = DONT_FORCE_FIELD);
+      AccessorInfoHandling handling = DEFAULT_HANDLING);
 
   MUST_USE_RESULT static Maybe<bool> DefineOwnPropertyIgnoreAttributes(
       LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
       ShouldThrow should_throw,
-      AccessorInfoHandling handling = DONT_FORCE_FIELD);
+      AccessorInfoHandling handling = DEFAULT_HANDLING);
 
   MUST_USE_RESULT static MaybeHandle<Object> SetOwnPropertyIgnoreAttributes(
       Handle<JSObject> object, Handle<Name> name, Handle<Object> value,
-      PropertyAttributes attributes);
+      PropertyAttributes attributes,
+      AccessorInfoHandling handling = DEFAULT_HANDLING);
 
   MUST_USE_RESULT static MaybeHandle<Object> SetOwnElementIgnoreAttributes(
       Handle<JSObject> object, uint32_t index, Handle<Object> value,
-      PropertyAttributes attributes);
+      PropertyAttributes attributes,
+      AccessorInfoHandling handling = DEFAULT_HANDLING);
 
   // Equivalent to one of the above depending on whether |name| can be converted
   // to an array index.
   MUST_USE_RESULT static MaybeHandle<Object>
-  DefinePropertyOrElementIgnoreAttributes(Handle<JSObject> object,
-                                          Handle<Name> name,
-                                          Handle<Object> value,
-                                          PropertyAttributes attributes = NONE);
+  DefinePropertyOrElementIgnoreAttributes(
+      Handle<JSObject> object, Handle<Name> name, Handle<Object> value,
+      PropertyAttributes attributes = NONE,
+      AccessorInfoHandling handling = DEFAULT_HANDLING);
 
   // Adds or reconfigures a property to attributes NONE. It will fail when it
   // cannot.

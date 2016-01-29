@@ -78,8 +78,8 @@ static Object* DeclareGlobals(Isolate* isolate, Handle<JSGlobalObject> global,
   }
 
   // Define or redefine own property.
-  RETURN_FAILURE_ON_EXCEPTION(
-      isolate, JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, attr));
+  RETURN_FAILURE_ON_EXCEPTION(isolate, JSObject::SetOwnPropertyIgnoreAttributes(
+                                           global, name, value, attr));
 
   return isolate->heap()->undefined_value();
 }
@@ -196,8 +196,8 @@ RUNTIME_FUNCTION(Runtime_InitializeConstGlobal) {
     }
   }
 
-  RETURN_FAILURE_ON_EXCEPTION(
-      isolate, JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, attr));
+  RETURN_FAILURE_ON_EXCEPTION(isolate, JSObject::SetOwnPropertyIgnoreAttributes(
+                                           global, name, value, attr));
 
   return *value;
 }
