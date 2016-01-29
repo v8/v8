@@ -149,6 +149,11 @@ class PreParserExpression {
                                IsUseStrongField::encode(true));
   }
 
+  static PreParserExpression UseTypesStringLiteral() {
+    return PreParserExpression(TypeField::encode(kStringLiteralExpression) |
+                               IsUseTypesField::encode(true));
+  }
+
   static PreParserExpression This() {
     return PreParserExpression(TypeField::encode(kExpression) |
                                ExpressionTypeField::encode(kThisExpression));
@@ -318,6 +323,7 @@ class PreParserExpression {
   typedef BitField<ExpressionType, TypeField::kNext, 3> ExpressionTypeField;
   typedef BitField<bool, TypeField::kNext, 1> IsUseStrictField;
   typedef BitField<bool, IsUseStrictField::kNext, 1> IsUseStrongField;
+  typedef BitField<bool, IsUseStrongField::kNext, 1> IsUseTypesField;
   typedef BitField<PreParserIdentifier::Type, TypeField::kNext, 10>
       IdentifierTypeField;
   typedef BitField<bool, TypeField::kNext, 1> HasCoverInitializedNameField;

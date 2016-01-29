@@ -273,6 +273,7 @@ class AstValue : public ZoneObject {
   F(use_asm, "use asm")                         \
   F(use_strong, "use strong")                   \
   F(use_strict, "use strict")                   \
+  F(use_types, "use types")                     \
   F(value, "value")
 
 #define OTHER_CONSTANTS(F) \

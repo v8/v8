@@ -181,6 +181,7 @@ void Scope::SetDefaults(ScopeType scope_type, Scope* outer_scope,
   language_mode_ = outer_scope != NULL ? outer_scope->language_mode_ : SLOPPY;
   outer_scope_calls_sloppy_eval_ = false;
   inner_scope_calls_eval_ = false;
+  typed_ = outer_scope != NULL && outer_scope->typed_;
   scope_nonlinear_ = false;
   force_eager_compilation_ = false;
   force_context_allocation_ = (outer_scope != NULL && !is_function_scope())
@@ -239,6 +240,7 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
                                        script_scope->ast_value_factory_);
       if (scope_info->IsAsmFunction()) current_scope->asm_function_ = true;
       if (scope_info->IsAsmModule()) current_scope->asm_module_ = true;
+      if (scope_info->IsTyped()) current_scope->typed_ = true;
     } else if (context->IsBlockContext()) {
       ScopeInfo* scope_info = context->scope_info();
       current_scope = new (zone)

@@ -118,7 +118,8 @@ class ParserBase : public Traits {
         allow_legacy_const_(true),
         allow_harmony_do_expressions_(false),
         allow_harmony_function_name_(false),
-        allow_harmony_function_sent_(false) {}
+        allow_harmony_function_sent_(false),
+        allow_harmony_types_(false) {}
 
 #define ALLOW_ACCESSORS(name)                           \
   bool allow_##name() const { return allow_##name##_; } \
@@ -137,6 +138,7 @@ class ParserBase : public Traits {
   ALLOW_ACCESSORS(harmony_do_expressions);
   ALLOW_ACCESSORS(harmony_function_name);
   ALLOW_ACCESSORS(harmony_function_sent);
+  ALLOW_ACCESSORS(harmony_types);
 #undef ALLOW_ACCESSORS
 
   uintptr_t stack_limit() const { return stack_limit_; }
@@ -956,6 +958,7 @@ class ParserBase : public Traits {
   bool allow_harmony_do_expressions_;
   bool allow_harmony_function_name_;
   bool allow_harmony_function_sent_;
+  bool allow_harmony_types_;
 };
 
 template <class Traits>

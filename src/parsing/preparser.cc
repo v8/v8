@@ -80,6 +80,8 @@ PreParserExpression PreParserTraits::ExpressionFromString(
     return PreParserExpression::UseStrictStringLiteral();
   } else if (scanner->UnescapedLiteralMatches("use strong", 10)) {
     return PreParserExpression::UseStrongStringLiteral();
+  } else if (scanner->UnescapedLiteralMatches("use types", 9)) {
+    return PreParserExpression::UseTypesStringLiteral();
   }
   return PreParserExpression::StringLiteral();
 }

@@ -203,6 +203,13 @@ DEFINE_IMPLICATION(es_staging, harmony_regexp_lookbehind)
 DEFINE_IMPLICATION(es_staging, move_object_start)
 DEFINE_IMPLICATION(es_staging, harmony_tailcalls)
 
+// Support for optional type system.
+DEFINE_BOOL(harmony_types, false, "enable typed mode")
+DEFINE_IMPLICATION(harmony_types, harmony)
+DEFINE_BOOL(use_types, false, "enforce typed mode")
+DEFINE_IMPLICATION(use_types, harmony_types)
+DEFINE_IMPLICATION(use_types, use_strict)
+
 // Features that are still work in progress (behind individual flags).
 #define HARMONY_INPROGRESS(V)                                                \
   V(harmony_object_observe, "harmony Object.observe")                        \

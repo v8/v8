@@ -4139,6 +4139,9 @@ class ScopeInfo : public FixedArray {
   // Return if this is a nested function within an asm module scope.
   inline bool IsAsmFunction();
 
+  // Return if the optional type system is enforced for this scope.
+  inline bool IsTyped();
+
   inline bool HasSimpleParameters();
 
   // Return the function_name if present.
@@ -4333,6 +4336,7 @@ class ScopeInfo : public FixedArray {
       : public BitField<bool, AsmFunctionField::kNext, 1> {};
   class FunctionKindField
       : public BitField<FunctionKind, HasSimpleParametersField::kNext, 8> {};
+  class TypedField : public BitField<bool, FunctionKindField::kNext, 1> {};
 
   // BitFields representing the encoded information for context locals in the
   // ContextLocalInfoEntries part.

@@ -774,6 +774,7 @@ Parser::Parser(ParseInfo* info)
   set_allow_harmony_do_expressions(FLAG_harmony_do_expressions);
   set_allow_harmony_function_name(FLAG_harmony_function_name);
   set_allow_harmony_function_sent(FLAG_harmony_function_sent);
+  set_allow_harmony_types(FLAG_harmony_types);
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
     use_counts_[feature] = 0;
@@ -1202,9 +1203,16 @@ void* Parser::ParseStatementList(ZoneList<Statement*>* body, int end_token,
                 ast_value_factory()->use_strong_string() &&
             token_loc.end_pos - token_loc.beg_pos ==
                 ast_value_factory()->use_strong_string()->length() + 2;
-        if (use_strict_found || use_strong_found) {
-          // Strong mode implies strict mode. If there are several "use strict"
-          // / "use strong" directives, do the strict mode changes only once.
+        bool use_types_found =
+            allow_harmony_types() &&
+            literal->raw_value()->AsString() ==
+                ast_value_factory()->use_types_string() &&
+            token_loc.end_pos - token_loc.beg_pos ==
+                ast_value_factory()->use_types_string()->length() + 2;
+        if (use_strict_found || use_strong_found || use_types_found) {
+          // Strong and typed mode imply strict mode. If there are several
+          // "use strict" / "use strong" / "use types" directives, do the
+          // strict mode changes only once.
           if (is_sloppy(scope_->language_mode())) {
             RaiseLanguageMode(STRICT);
           }
@@ -1220,6 +1228,18 @@ void* Parser::ParseStatementList(ZoneList<Statement*>* body, int end_token,
               return nullptr;
             }
           }
+
+          if (use_types_found) {
+            // We do not allow "use types" directives in function scopes.
+            if (scope_->is_function_scope()) {
+              ParserTraits::ReportMessageAt(
+                  token_loc, MessageTemplate::kIllegalTypedModeDirective);
+              *ok = false;
+              return nullptr;
+            }
+            scope_->SetTyped();
+          }
+
           if (!scope_->HasSimpleParameters()) {
             // TC39 deemed "use strict" directives to be an error when occurring
             // in the body of a function with non-simple parameter list, on

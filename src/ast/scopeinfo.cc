@@ -93,7 +93,8 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone,
               AsmModuleField::encode(scope->asm_module()) |
               AsmFunctionField::encode(scope->asm_function()) |
               HasSimpleParametersField::encode(has_simple_parameters) |
-              FunctionKindField::encode(scope->function_kind());
+              FunctionKindField::encode(scope->function_kind()) |
+              TypedField::encode(scope->typed());
   scope_info->SetFlags(flags);
   scope_info->SetParameterCount(parameter_count);
   scope_info->SetStackLocalCount(stack_local_count);
@@ -226,7 +227,8 @@ Handle<ScopeInfo> ScopeInfo::CreateGlobalThisBinding(Isolate* isolate) {
               FunctionVariableMode::encode(function_variable_mode) |
               AsmModuleField::encode(false) | AsmFunctionField::encode(false) |
               HasSimpleParametersField::encode(has_simple_parameters) |
-              FunctionKindField::encode(FunctionKind::kNormalFunction);
+              FunctionKindField::encode(FunctionKind::kNormalFunction) |
+              TypedField::encode(false);
   scope_info->SetFlags(flags);
   scope_info->SetParameterCount(parameter_count);
   scope_info->SetStackLocalCount(stack_local_count);

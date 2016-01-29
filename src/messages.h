@@ -396,6 +396,8 @@ class CallSite {
   T(IllegalLanguageModeDirective,                                              \
     "Illegal '%' directive in function with non-simple parameter list")        \
   T(IllegalReturn, "Illegal return statement")                                 \
+  T(IllegalTypedModeDirective,                                                 \
+    "Illegal 'use types' directive in function scope")                         \
   T(InvalidEscapedReservedWord, "Keyword must not contain escaped characters") \
   T(InvalidEscapedMetaProperty, "'%' must not contain escaped characters")     \
   T(InvalidLhsInAssignment, "Invalid left-hand side in assignment")            \

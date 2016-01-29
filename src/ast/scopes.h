@@ -265,6 +265,9 @@ class Scope: public ZoneObject {
   // Set the ASM module flag.
   void SetAsmModule() { asm_module_ = true; }
 
+  // Set the flag for the optional type system.
+  void SetTyped() { typed_ = true; }
+
   // Inform the scope that the scope may execute declarations nonlinearly.
   // Currently, the only nonlinear scope is a switch statement. The name is
   // more general in case something else comes up with similar control flow,
@@ -348,6 +351,7 @@ class Scope: public ZoneObject {
   }
   bool asm_module() const { return asm_module_; }
   bool asm_function() const { return asm_function_; }
+  bool typed() const { return typed_; }
 
   // Is this scope inside a with statement.
   bool inside_with() const { return scope_inside_with_; }
@@ -666,6 +670,8 @@ class Scope: public ZoneObject {
   bool asm_module_;
   // This scope's outer context is an asm module.
   bool asm_function_;
+  // The optional type system is enforced for this scope.
+  bool typed_;
   // This scope's declarations might not be executed in order (e.g., switch).
   bool scope_nonlinear_;
   // The language mode of this scope.

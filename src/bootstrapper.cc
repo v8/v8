@@ -200,6 +200,7 @@ class Genesis BASE_EMBEDDED {
   HARMONY_STAGED(DECLARE_FEATURE_INITIALIZATION)
   HARMONY_SHIPPING(DECLARE_FEATURE_INITIALIZATION)
   DECLARE_FEATURE_INITIALIZATION(promise_extra, "")
+  DECLARE_FEATURE_INITIALIZATION(harmony_types, "")
 #undef DECLARE_FEATURE_INITIALIZATION
 
   Handle<JSFunction> InstallArrayBuffer(Handle<JSObject> target,
@@ -2362,6 +2363,7 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_function_sent)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(promise_extra)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_tailcalls)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_instanceof)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_types)
 
 void InstallPublicSymbol(Factory* factory, Handle<Context> native_context,
                          const char* name, Handle<Symbol> value) {
@@ -3013,6 +3015,7 @@ bool Genesis::InstallExperimentalNatives() {
   static const char* harmony_object_values_entries_natives[] = {nullptr};
   static const char* harmony_object_own_property_descriptors_natives[] = {
       nullptr};
+  static const char* harmony_types_natives[] = {nullptr};
 
   for (int i = ExperimentalNatives::GetDebuggerCount();
        i < ExperimentalNatives::GetBuiltinsCount(); i++) {
@@ -3032,6 +3035,7 @@ bool Genesis::InstallExperimentalNatives() {
     HARMONY_STAGED(INSTALL_EXPERIMENTAL_NATIVES);
     HARMONY_SHIPPING(INSTALL_EXPERIMENTAL_NATIVES);
     INSTALL_EXPERIMENTAL_NATIVES(promise_extra, "");
+    INSTALL_EXPERIMENTAL_NATIVES(harmony_types, "");
 #undef INSTALL_EXPERIMENTAL_NATIVES
   }
 

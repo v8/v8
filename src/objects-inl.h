@@ -7363,6 +7363,9 @@ bool ScopeInfo::IsAsmModule() { return AsmModuleField::decode(Flags()); }
 bool ScopeInfo::IsAsmFunction() { return AsmFunctionField::decode(Flags()); }
 
 
+bool ScopeInfo::IsTyped() { return TypedField::decode(Flags()); }
+
+
 bool ScopeInfo::HasSimpleParameters() {
   return HasSimpleParametersField::decode(Flags());
 }
