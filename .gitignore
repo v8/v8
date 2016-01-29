@@ -40,10 +40,10 @@ gcsuspects
 shell
 shell_g
 /_*
-/base/trace_event/common
+/base
 /build/Debug
 /build/gyp
-/build/ipch/
+/build/ipch
 /build/Release
 /build/win_toolchain.json
 /buildtools
