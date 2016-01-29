@@ -5377,9 +5377,11 @@ void HOptimizedGraphBuilder::BuildForInBody(ForInStatement* stmt,
   // Reload the values to ensure we have up-to-date values inside of the loop.
   // This is relevant especially for OSR where the values don't come from the
   // computation above, but from the OSR entry block.
-  enumerable = environment()->ExpressionStackAt(4);
   HValue* index = environment()->ExpressionStackAt(0);
   HValue* limit = environment()->ExpressionStackAt(1);
+  HValue* array = environment()->ExpressionStackAt(2);
+  HValue* type = environment()->ExpressionStackAt(3);
+  enumerable = environment()->ExpressionStackAt(4);
 
   // Check that we still have more keys.
   HCompareNumericAndBranch* compare_index =
@@ -5399,21 +5401,31 @@ void HOptimizedGraphBuilder::BuildForInBody(ForInStatement* stmt,
 
   set_current_block(loop_body);
 
-  HValue* key =
-      Add<HLoadKeyed>(environment()->ExpressionStackAt(2),  // Enum cache.
-                      index, index, nullptr, FAST_ELEMENTS);
+  HValue* key = Add<HLoadKeyed>(array, index, index, nullptr, FAST_ELEMENTS);
 
   if (fast) {
     // Check if the expected map still matches that of the enumerable.
     // If not just deoptimize.
-    Add<HCheckMapValue>(enumerable, environment()->ExpressionStackAt(3));
+    Add<HCheckMapValue>(enumerable, type);
     Bind(each_var, key);
   } else {
-    Add<HPushArguments>(enumerable, key);
-    Runtime::FunctionId function_id = Runtime::kForInFilter;
-    key = Add<HCallRuntime>(Runtime::FunctionForId(function_id), 2);
-    Push(key);
-    Add<HSimulate>(stmt->FilterId());
+    HValue* enumerable_map =
+        Add<HLoadNamedField>(enumerable, nullptr, HObjectAccess::ForMap());
+    IfBuilder if_fast(this);
+    if_fast.If<HCompareObjectEqAndBranch>(enumerable_map, type);
+    if_fast.Then();
+    {
+      Push(key);
+      Add<HSimulate>(stmt->FilterId());
+    }
+    if_fast.Else();
+    {
+      Add<HPushArguments>(enumerable, key);
+      Runtime::FunctionId function_id = Runtime::kForInFilter;
+      Push(Add<HCallRuntime>(Runtime::FunctionForId(function_id), 2));
+      Add<HSimulate>(stmt->FilterId());
+    }
+    if_fast.End();
     key = Pop();
     Bind(each_var, key);
     IfBuilder if_undefined(this);
