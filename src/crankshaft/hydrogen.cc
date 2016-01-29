@@ -5401,42 +5401,67 @@ void HOptimizedGraphBuilder::BuildForInBody(ForInStatement* stmt,
 
   set_current_block(loop_body);
 
+  // Compute the next enumerated value.
   HValue* key = Add<HLoadKeyed>(array, index, index, nullptr, FAST_ELEMENTS);
 
+  HBasicBlock* continue_block = nullptr;
   if (fast) {
-    // Check if the expected map still matches that of the enumerable.
-    // If not just deoptimize.
+    // Check if expected map still matches that of the enumerable.
     Add<HCheckMapValue>(enumerable, type);
-    Bind(each_var, key);
+    Add<HSimulate>(stmt->FilterId());
   } else {
+    // We need the continue block here to be able to skip over invalidated keys.
+    continue_block = graph()->CreateBasicBlock();
+
+    // We cannot use the IfBuilder here, since we need to be able to jump
+    // over the loop body in case of undefined result from %ForInFilter,
+    // and the poor soul that is the IfBuilder get's really confused about
+    // such "advanced control flow requirements".
+    HBasicBlock* if_fast = graph()->CreateBasicBlock();
+    HBasicBlock* if_slow = graph()->CreateBasicBlock();
+    HBasicBlock* if_slow_pass = graph()->CreateBasicBlock();
+    HBasicBlock* if_slow_skip = graph()->CreateBasicBlock();
+    HBasicBlock* if_join = graph()->CreateBasicBlock();
+
+    // Check if expected map still matches that of the enumerable.
     HValue* enumerable_map =
         Add<HLoadNamedField>(enumerable, nullptr, HObjectAccess::ForMap());
-    IfBuilder if_fast(this);
-    if_fast.If<HCompareObjectEqAndBranch>(enumerable_map, type);
-    if_fast.Then();
+    FinishCurrentBlock(
+        New<HCompareObjectEqAndBranch>(enumerable_map, type, if_fast, if_slow));
+    set_current_block(if_fast);
     {
+      // The enum cache for enumerable is still valid, no need to check key.
       Push(key);
-      Add<HSimulate>(stmt->FilterId());
+      Goto(if_join);
     }
-    if_fast.Else();
+    set_current_block(if_slow);
     {
+      // Check if key is still valid for enumerable.
       Add<HPushArguments>(enumerable, key);
       Runtime::FunctionId function_id = Runtime::kForInFilter;
       Push(Add<HCallRuntime>(Runtime::FunctionForId(function_id), 2));
       Add<HSimulate>(stmt->FilterId());
+      FinishCurrentBlock(New<HCompareObjectEqAndBranch>(
+          Top(), graph()->GetConstantUndefined(), if_slow_skip, if_slow_pass));
     }
-    if_fast.End();
+    set_current_block(if_slow_pass);
+    { Goto(if_join); }
+    set_current_block(if_slow_skip);
+    {
+      // The key is no longer valid for enumerable, skip it.
+      Drop(1);
+      Goto(continue_block);
+    }
+    if_join->SetJoinId(stmt->FilterId());
+    set_current_block(if_join);
     key = Pop();
-    Bind(each_var, key);
-    IfBuilder if_undefined(this);
-    if_undefined.If<HCompareObjectEqAndBranch>(key,
-                                               graph()->GetConstantUndefined());
-    if_undefined.ThenDeopt(Deoptimizer::kUndefined);
-    if_undefined.End();
-    Add<HSimulate>(stmt->AssignmentId());
   }
 
+  Bind(each_var, key);
+  Add<HSimulate>(stmt->AssignmentId());
+
   BreakAndContinueInfo break_info(stmt, scope(), 5);
+  break_info.set_continue_block(continue_block);
   {
     BreakAndContinueScope push(&break_info, this);
     CHECK_BAILOUT(VisitLoopBody(stmt, loop_entry));
