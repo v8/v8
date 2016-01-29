@@ -91,6 +91,10 @@ CheckedStoreRepresentation CheckedStoreRepresentationOf(Operator const* op) {
   return OpParameter<CheckedStoreRepresentation>(op);
 }
 
+MachineRepresentation StackSlotRepresentationOf(Operator const* op) {
+  DCHECK_EQ(IrOpcode::kStackSlot, op->opcode());
+  return OpParameter<MachineRepresentation>(op);
+}
 
 #define PURE_OP_LIST(V)                                                       \
   V(Word32And, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)      \
@@ -281,6 +285,18 @@ struct MachineOperatorGlobalCache {
   MACHINE_TYPE_LIST(LOAD)
 #undef LOAD
 
+#define STACKSLOT(Type)                                                       \
+  struct StackSlot##Type##Operator final                                      \
+      : public Operator1<MachineRepresentation> {                             \
+    StackSlot##Type##Operator()                                               \
+        : Operator1<MachineRepresentation>(                                   \
+              IrOpcode::kStackSlot, Operator::kNoThrow, "StackSlot", 0, 0, 0, \
+              1, 0, 0, MachineType::Type().representation()) {}               \
+  };                                                                          \
+  StackSlot##Type##Operator kStackSlot##Type;
+  MACHINE_TYPE_LIST(STACKSLOT)
+#undef STACKSLOT
+
 #define STORE(Type)                                                            \
   struct Store##Type##Operator : public Operator1<StoreRepresentation> {       \
     explicit Store##Type##Operator(WriteBarrierKind write_barrier_kind)        \
@@ -381,6 +397,16 @@ const Operator* MachineOperatorBuilder::Load(LoadRepresentation rep) {
   return nullptr;
 }
 
+const Operator* MachineOperatorBuilder::StackSlot(MachineRepresentation rep) {
+#define STACKSLOT(Type)                              \
+  if (rep == MachineType::Type().representation()) { \
+    return &cache_.kStackSlot##Type;                 \
+  }
+  MACHINE_TYPE_LIST(STACKSLOT)
+#undef STACKSLOT
+  UNREACHABLE();
+  return nullptr;
+}
 
 const Operator* MachineOperatorBuilder::Store(StoreRepresentation store_rep) {
   switch (store_rep.representation()) {

@@ -227,6 +227,7 @@
   MACHINE_COMPARE_BINOP_LIST(V) \
   V(Load)                       \
   V(Store)                      \
+  V(StackSlot)                  \
   V(Word32And)                  \
   V(Word32Or)                   \
   V(Word32Xor)                  \
