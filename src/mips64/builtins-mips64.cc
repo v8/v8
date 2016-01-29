@@ -165,11 +165,10 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
   {
     // Check if all parameters done.
     __ Dsubu(a0, a0, Operand(1));
-    __ Branch(USE_DELAY_SLOT, &done_loop, lt, a0, Operand(zero_reg));
+    __ Branch(&done_loop, lt, a0, Operand(zero_reg));
 
     // Load the next parameter tagged value into a2.
-    __ dsll(at, a0, kPointerSizeLog2);  // In delay slot
-    __ Daddu(at, at, sp);
+    __ Dlsa(at, sp, a0, kPointerSizeLog2);
     __ ld(a2, MemOperand(at));
 
     // Load the double value of the parameter into f2, maybe converting the
@@ -177,8 +176,8 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
     Label convert, convert_smi, convert_number, done_convert;
     __ bind(&convert);
     __ JumpIfSmi(a2, &convert_smi);
-    __ ld(t0, FieldMemOperand(a2, HeapObject::kMapOffset));
-    __ JumpIfRoot(t0, Heap::kHeapNumberMapRootIndex, &convert_number);
+    __ ld(a4, FieldMemOperand(a2, HeapObject::kMapOffset));
+    __ JumpIfRoot(a4, Heap::kHeapNumberMapRootIndex, &convert_number);
     {
       // Parameter is not a Number, use the ToNumberStub to convert it.
       FrameScope scope(masm, StackFrame::INTERNAL);
@@ -197,7 +196,7 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
         __ ldc1(f0, FieldMemOperand(a1, HeapNumber::kValueOffset));
         __ jmp(&done_restore);
         __ bind(&restore_smi);
-        __ SmiToDoubleFPURegister(a1, f0, t0);
+        __ SmiToDoubleFPURegister(a1, f0, a4);
         __ bind(&done_restore);
       }
       __ SmiUntag(a3);
@@ -208,11 +207,11 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
     __ ldc1(f2, FieldMemOperand(a2, HeapNumber::kValueOffset));
     __ jmp(&done_convert);
     __ bind(&convert_smi);
-    __ SmiToDoubleFPURegister(a2, f2, t0);
+    __ SmiToDoubleFPURegister(a2, f2, a4);
     __ bind(&done_convert);
 
     // Perform the actual comparison with the accumulator value on the left hand
-    // side (d1) and the next parameter value on the right hand side (d2).
+    // side (f0) and the next parameter value on the right hand side (f2).
     Label compare_equal, compare_nan, compare_swap;
     __ BranchF(&compare_equal, &compare_nan, eq, f0, f2);
     __ BranchF(&compare_swap, nullptr, cc, f0, f2);
@@ -220,8 +219,10 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
 
     // Left and right hand side are equal, check for -0 vs. +0.
     __ bind(&compare_equal);
-    __ FmoveHigh(t0, reg);
-    __ Branch(&loop, ne, t0, Operand(0x80000000));
+    __ FmoveHigh(a4, reg);
+    // Make a4 unsigned.
+    __ dsll32(a4, a4, 0);
+    __ Branch(&loop, ne, a4, Operand(0x8000000000000000));
 
     // Result is on the right hand side.
     __ bind(&compare_swap);
@@ -237,8 +238,7 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
   }
 
   __ bind(&done_loop);
-  __ dsll(a3, a3, kPointerSizeLog2);
-  __ Daddu(sp, sp, a3);
+  __ Dlsa(sp, sp, a3, kPointerSizeLog2);
   __ mov(v0, a1);
   __ DropAndRet(1);
 }

@@ -166,11 +166,10 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
   {
     // Check if all parameters done.
     __ Subu(a0, a0, Operand(1));
-    __ Branch(USE_DELAY_SLOT, &done_loop, lt, a0, Operand(zero_reg));
+    __ Branch(&done_loop, lt, a0, Operand(zero_reg));
 
     // Load the next parameter tagged value into a2.
-    __ sll(at, a0, kPointerSizeLog2);  // In delay slot
-    __ Addu(at, at, sp);
+    __ Lsa(at, sp, a0, kPointerSizeLog2);
     __ lw(a2, MemOperand(at));
 
     // Load the double value of the parameter into f2, maybe converting the
@@ -213,7 +212,7 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
     __ bind(&done_convert);
 
     // Perform the actual comparison with the accumulator value on the left hand
-    // side (d1) and the next parameter value on the right hand side (d2).
+    // side (f0) and the next parameter value on the right hand side (f2).
     Label compare_equal, compare_nan, compare_swap;
     __ BranchF(&compare_equal, &compare_nan, eq, f0, f2);
     __ BranchF(&compare_swap, nullptr, cc, f0, f2);
@@ -238,8 +237,7 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
   }
 
   __ bind(&done_loop);
-  __ sll(a3, a3, kPointerSizeLog2);
-  __ addu(sp, sp, a3);
+  __ Lsa(sp, sp, a3, kPointerSizeLog2);
   __ mov(v0, a1);
   __ DropAndRet(1);
 }
