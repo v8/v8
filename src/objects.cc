@@ -5337,32 +5337,29 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
                          CERTAINLY_NOT_STORE_FROM_KEYED);
 }
 
-
 MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
     Handle<JSObject> object, Handle<Name> name, Handle<Object> value,
-    PropertyAttributes attributes, AccessorInfoHandling handling) {
+    PropertyAttributes attributes) {
   DCHECK(!value->IsTheHole());
   LookupIterator it(object, name, LookupIterator::OWN);
-  return DefineOwnPropertyIgnoreAttributes(&it, value, attributes, handling);
+  return DefineOwnPropertyIgnoreAttributes(&it, value, attributes);
 }
-
 
 MaybeHandle<Object> JSObject::SetOwnElementIgnoreAttributes(
     Handle<JSObject> object, uint32_t index, Handle<Object> value,
-    PropertyAttributes attributes, AccessorInfoHandling handling) {
+    PropertyAttributes attributes) {
   Isolate* isolate = object->GetIsolate();
   LookupIterator it(isolate, object, index, LookupIterator::OWN);
-  return DefineOwnPropertyIgnoreAttributes(&it, value, attributes, handling);
+  return DefineOwnPropertyIgnoreAttributes(&it, value, attributes);
 }
-
 
 MaybeHandle<Object> JSObject::DefinePropertyOrElementIgnoreAttributes(
     Handle<JSObject> object, Handle<Name> name, Handle<Object> value,
-    PropertyAttributes attributes, AccessorInfoHandling handling) {
+    PropertyAttributes attributes) {
   Isolate* isolate = object->GetIsolate();
   LookupIterator it = LookupIterator::PropertyOrElement(isolate, object, name,
                                                         LookupIterator::OWN);
-  return DefineOwnPropertyIgnoreAttributes(&it, value, attributes, handling);
+  return DefineOwnPropertyIgnoreAttributes(&it, value, attributes);
 }
 
 
@@ -6594,8 +6591,8 @@ Maybe<bool> JSReceiver::ValidateAndApplyPropertyDescriptor(
                 ? desc->value()
                 : Handle<Object>::cast(isolate->factory()->undefined_value()));
         MaybeHandle<Object> result =
-            JSObject::DefineOwnPropertyIgnoreAttributes(
-                it, value, desc->ToAttributes(), JSObject::DONT_FORCE_FIELD);
+            JSObject::DefineOwnPropertyIgnoreAttributes(it, value,
+                                                        desc->ToAttributes());
         if (result.is_null()) return Nothing<bool>();
       }
     } else {
@@ -6787,8 +6784,8 @@ Maybe<bool> JSReceiver::ValidateAndApplyPropertyDescriptor(
                                   ? current->value()
                                   : Handle<Object>::cast(
                                         isolate->factory()->undefined_value()));
-      MaybeHandle<Object> result = JSObject::DefineOwnPropertyIgnoreAttributes(
-          it, value, attrs, JSObject::DONT_FORCE_FIELD);
+      MaybeHandle<Object> result =
+          JSObject::DefineOwnPropertyIgnoreAttributes(it, value, attrs);
       if (result.is_null()) return Nothing<bool>();
     } else {
       DCHECK(desc_is_accessor_descriptor ||
@@ -6852,10 +6849,9 @@ Maybe<bool> JSObject::CreateDataProperty(LookupIterator* it,
       return Just(false);
   }
 
-  RETURN_ON_EXCEPTION_VALUE(
-      it->isolate(),
-      DefineOwnPropertyIgnoreAttributes(it, value, NONE, DONT_FORCE_FIELD),
-      Nothing<bool>());
+  RETURN_ON_EXCEPTION_VALUE(it->isolate(),
+                            DefineOwnPropertyIgnoreAttributes(it, value, NONE),
+                            Nothing<bool>());
 
   return Just(true);
 }
