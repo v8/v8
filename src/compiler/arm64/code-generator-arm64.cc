@@ -646,18 +646,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ Bind(ool->exit());
       break;
     }
-    case kArchStackSlot: {
-      FrameOffset offset =
-          frame_access_state()->GetFrameOffset(i.InputInt32(0));
-      Register base;
-      if (offset.from_stack_pointer()) {
-        base = __ StackPointer();
-      } else {
-        base = fp;
-      }
-      __ Add(i.OutputRegister(0), base, Operand(offset.offset()));
-      break;
-    }
     case kArm64Float32RoundDown:
       __ Frintm(i.OutputFloat32Register(), i.InputFloat32Register(0));
       break;

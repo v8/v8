@@ -96,6 +96,7 @@ class BufferedRawMachineAssemblerTester
     return parameter_nodes_[index];
   }
 
+
   // The BufferedRawMachineAssemblerTester adds a Store node to the IR graph
   // to store the graph's return value in memory. The memory address for the
   // Store node is provided as a parameter. By storing the return value in
@@ -243,6 +244,7 @@ class BufferedRawMachineAssemblerTester<void>
                               ? nullptr
                               : Load(p3, RawMachineAssembler::Parameter(3));
   }
+
 
   // The BufferedRawMachineAssemblerTester does not pass parameters directly
   // to the constructed IR graph. Instead it passes a pointer to the parameter

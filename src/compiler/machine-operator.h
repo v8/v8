@@ -102,7 +102,6 @@ typedef MachineRepresentation CheckedStoreRepresentation;
 
 CheckedStoreRepresentation CheckedStoreRepresentationOf(Operator const*);
 
-MachineRepresentation StackSlotRepresentationOf(Operator const* op);
 
 // Interface for building machine-level operators. These operators are
 // machine-level but machine-independent and thus define a language suitable
@@ -305,8 +304,6 @@ class MachineOperatorBuilder final : public ZoneObject {
 
   // store [base + index], value
   const Operator* Store(StoreRepresentation rep);
-
-  const Operator* StackSlot(MachineRepresentation rep);
 
   // Access to the machine stack.
   const Operator* LoadStackPointer();

@@ -499,18 +499,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ bind(ool->exit());
       break;
     }
-    case kArchStackSlot: {
-      FrameOffset offset =
-          frame_access_state()->GetFrameOffset(i.InputInt32(0));
-      Register base;
-      if (offset.from_stack_pointer()) {
-        base = esp;
-      } else {
-        base = ebp;
-      }
-      __ lea(i.OutputRegister(), Operand(base, offset.offset()));
-      break;
-    }
     case kIA32Add:
       if (HasImmediateInput(instr, 1)) {
         __ add(i.InputOperand(0), i.InputImmediate(1));

@@ -635,13 +635,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ bind(ool->exit());
       break;
     }
-    case kArchStackSlot: {
-      FrameOffset offset =
-          frame_access_state()->GetFrameOffset(i.InputInt32(0));
-      __ Daddu(i.OutputRegister(), offset.from_stack_pointer() ? sp : fp,
-               Operand(offset.offset()));
-      break;
-    }
     case kMips64Add:
       __ Addu(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;

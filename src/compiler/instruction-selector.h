@@ -52,7 +52,7 @@ class InstructionSelector final {
   InstructionSelector(
       Zone* zone, size_t node_count, Linkage* linkage,
       InstructionSequence* sequence, Schedule* schedule,
-      SourcePositionTable* source_positions, Frame* frame,
+      SourcePositionTable* source_positions,
       SourcePositionMode source_position_mode = kCallSourcePositions,
       Features features = SupportedFeatures());
 
@@ -271,7 +271,6 @@ class InstructionSelector final {
   BoolVector used_;
   IntVector virtual_registers_;
   InstructionScheduler* scheduler_;
-  Frame* frame_;
 };
 
 }  // namespace compiler

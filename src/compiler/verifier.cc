@@ -831,7 +831,6 @@ void Verifier::Visitor::Check(Node* node) {
     // -----------------------
     case IrOpcode::kLoad:
     case IrOpcode::kStore:
-    case IrOpcode::kStackSlot:
     case IrOpcode::kWord32And:
     case IrOpcode::kWord32Or:
     case IrOpcode::kWord32Xor:
