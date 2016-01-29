@@ -329,9 +329,7 @@ class Local {
   friend class PersistentValueMapBase;
   template<class F1, class F2> friend class PersistentValueVector;
 
-  template <class S>
-  V8_INLINE Local(S* that)
-      : val_(that) {}
+  explicit V8_INLINE Local(T* that) : val_(that) {}
   V8_INLINE static Local<T> New(Isolate* isolate, T* that);
   T* val_;
 };
@@ -787,7 +785,7 @@ template <class T, class M> class Persistent : public PersistentBase<T> {
   template<class F1, class F2> friend class Persistent;
   template<class F> friend class ReturnValue;
 
-  template <class S> V8_INLINE Persistent(S* that) : PersistentBase<T>(that) { }
+  explicit V8_INLINE Persistent(T* that) : PersistentBase<T>(that) {}
   V8_INLINE T* operator*() const { return this->val_; }
   template<class S, class M2>
   V8_INLINE void Copy(const Persistent<S, M2>& that);
