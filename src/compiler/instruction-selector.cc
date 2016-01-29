@@ -21,7 +21,7 @@ namespace compiler {
 InstructionSelector::InstructionSelector(
     Zone* zone, size_t node_count, Linkage* linkage,
     InstructionSequence* sequence, Schedule* schedule,
-    SourcePositionTable* source_positions,
+    SourcePositionTable* source_positions, Frame* frame,
     SourcePositionMode source_position_mode, Features features)
     : zone_(zone),
       linkage_(linkage),
@@ -36,7 +36,8 @@ InstructionSelector::InstructionSelector(
       used_(node_count, false, zone),
       virtual_registers_(node_count,
                          InstructionOperand::kInvalidVirtualRegister, zone),
-      scheduler_(nullptr) {
+      scheduler_(nullptr),
+      frame_(frame) {
   instructions_.reserve(node_count);
 }
 
@@ -1066,6 +1067,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsFloat64(node), VisitFloat64InsertLowWord32(node);
     case IrOpcode::kFloat64InsertHighWord32:
       return MarkAsFloat64(node), VisitFloat64InsertHighWord32(node);
+    case IrOpcode::kStackSlot:
+      return VisitStackSlot(node);
     case IrOpcode::kLoadStackPointer:
       return VisitLoadStackPointer(node);
     case IrOpcode::kLoadFramePointer:
@@ -1133,6 +1136,14 @@ void InstructionSelector::EmitLookupSwitch(const SwitchInfo& sw,
   Emit(kArchLookupSwitch, 0, nullptr, input_count, inputs, 0, nullptr);
 }
 
+void InstructionSelector::VisitStackSlot(Node* node) {
+  int size = 1 << ElementSizeLog2Of(StackSlotRepresentationOf(node->op()));
+  int slot = frame_->AllocateSpillSlot(size);
+  OperandGenerator g(this);
+
+  Emit(kArchStackSlot, g.DefineAsRegister(node),
+       sequence()->AddImmediate(Constant(slot)), 0, nullptr);
+}
 
 // 32 bit targets do not implement the following instructions.
 #if V8_TARGET_ARCH_32_BIT

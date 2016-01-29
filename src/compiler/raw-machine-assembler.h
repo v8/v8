@@ -79,6 +79,9 @@ class RawMachineAssembler {
   Node* Int32Constant(int32_t value) {
     return AddNode(common()->Int32Constant(value));
   }
+  Node* StackSlot(MachineRepresentation rep) {
+    return AddNode(machine()->StackSlot(rep));
+  }
   Node* Int64Constant(int64_t value) {
     return AddNode(common()->Int64Constant(value));
   }

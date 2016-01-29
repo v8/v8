@@ -72,7 +72,8 @@ enum class RecordWriteMode { kValueIsMap, kValueIsPointer, kValueIsAny };
   V(CheckedStoreWord32)            \
   V(CheckedStoreWord64)            \
   V(CheckedStoreFloat32)           \
-  V(CheckedStoreFloat64)
+  V(CheckedStoreFloat64)           \
+  V(ArchStackSlot)
 
 #define ARCH_OPCODE_LIST(V)  \
   COMMON_ARCH_OPCODE_LIST(V) \

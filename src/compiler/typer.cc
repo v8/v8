@@ -1962,6 +1962,7 @@ Type* Typer::Visitor::TypeObjectIsSmi(Node* node) {
 
 Type* Typer::Visitor::TypeLoad(Node* node) { return Type::Any(); }
 
+Type* Typer::Visitor::TypeStackSlot(Node* node) { return Type::Any(); }
 
 Type* Typer::Visitor::TypeStore(Node* node) {
   UNREACHABLE();

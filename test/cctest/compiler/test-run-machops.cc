@@ -72,7 +72,6 @@ TEST(RunWord32Ctz) {
   CHECK_EQ(0, m.Call(uint32_t(0x9afdbc81)));
 }
 
-
 TEST(RunWord32Clz) {
   BufferedRawMachineAssemblerTester<int32_t> m(MachineType::Uint32());
   m.Return(m.Word32Clz(m.Parameter(0)));
