@@ -2054,7 +2054,7 @@ void FullCodeGenerator::EmitGeneratorResume(
 
   // Store input value into generator object.
   __ StoreP(result_register(),
-            FieldMemOperand(r4, JSGeneratorObject::kInputOffset));
+            FieldMemOperand(r4, JSGeneratorObject::kInputOffset), r0);
   __ mr(r5, result_register());
   __ RecordWriteField(r4, JSGeneratorObject::kInputOffset, r5, r6,
                       kLRHasBeenSaved, kDontSaveFPRegs);
