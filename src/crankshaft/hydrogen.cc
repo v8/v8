@@ -5695,7 +5695,7 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
           Handle<Context> script_context = ScriptContextTable::GetContext(
               script_contexts, lookup.context_index);
           Handle<Object> current_value =
-              FixedArray::get(script_context, lookup.slot_index);
+              FixedArray::get(*script_context, lookup.slot_index, isolate());
 
           // If the values is not the hole, it will stay initialized,
           // so no need to generate a check.
@@ -6891,7 +6891,7 @@ void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(
           ScriptContextTable::GetContext(script_contexts, lookup.context_index);
 
       Handle<Object> current_value =
-          FixedArray::get(script_context, lookup.slot_index);
+          FixedArray::get(*script_context, lookup.slot_index, isolate());
 
       // If the values is not the hole, it will stay initialized,
       // so no need to generate a check.
@@ -7415,8 +7415,8 @@ HInstruction* HOptimizedGraphBuilder::BuildMonomorphicElementAccess(
 
 
 static bool CanInlineElementAccess(Handle<Map> map) {
-  return map->IsJSObjectMap() && !map->has_dictionary_elements() &&
-         !map->has_sloppy_arguments_elements() &&
+  return map->IsJSObjectMap() &&
+         (map->has_fast_elements() || map->has_fixed_typed_array_elements()) &&
          !map->has_indexed_interceptor() && !map->is_access_check_needed();
 }
 

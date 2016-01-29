@@ -1060,7 +1060,7 @@ TEST(DoScavenge) {
   CcTest::heap()->CollectGarbage(i::NEW_SPACE);
 
   // Create temp object in the new space.
-  Handle<JSArray> temp = factory->NewJSArray(FAST_ELEMENTS);
+  Handle<JSArray> temp = factory->NewJSArray(0, FAST_ELEMENTS);
   CHECK(isolate->heap()->new_space()->Contains(*temp));
 
   // Construct a double value that looks like a pointer to the new space object
@@ -1399,7 +1399,7 @@ TEST(StoreBufferScanOnScavenge) {
   CHECK(isolate->heap()->old_space()->Contains(*obj));
 
   // Create temp object in the new space.
-  Handle<JSArray> temp = factory->NewJSArray(FAST_ELEMENTS);
+  Handle<JSArray> temp = factory->NewJSArray(0, FAST_ELEMENTS);
   CHECK(isolate->heap()->new_space()->Contains(*temp));
 
   // Construct a double value that looks like a pointer to the new space object

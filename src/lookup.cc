@@ -398,19 +398,17 @@ bool LookupIterator::InternalHolderIsReceiverOrHiddenPrototype() const {
   if (!check_prototype_chain()) return true;
   DisallowHeapAllocation no_gc;
   if (!receiver_->IsJSReceiver()) return false;
-  Object* current = *receiver_;
+  JSReceiver* current = JSReceiver::cast(*receiver_);
   JSReceiver* holder = *holder_;
+  if (current == holder) return true;
+  if (!holder->map()->is_hidden_prototype()) return false;
   // JSProxy do not occur as hidden prototypes.
-  if (current->IsJSProxy()) {
-    return JSReceiver::cast(current) == holder;
-  }
-  PrototypeIterator iter(isolate(), current,
-                         PrototypeIterator::START_AT_RECEIVER);
-  do {
+  if (current->IsJSProxy()) return false;
+  PrototypeIterator iter(isolate(), current);
+  while (!iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN)) {
     if (iter.GetCurrent<JSReceiver>() == holder) return true;
-    DCHECK(!current->IsJSProxy());
     iter.Advance();
-  } while (!iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN));
+  }
   return false;
 }
 
@@ -419,16 +417,8 @@ Handle<Object> LookupIterator::FetchValue() const {
   Object* result = NULL;
   if (IsElement()) {
     Handle<JSObject> holder = GetHolder<JSObject>();
-    // TODO(verwaest): Optimize.
-    if (holder->IsStringObjectWithCharacterAt(index_)) {
-      Handle<JSValue> js_value = Handle<JSValue>::cast(holder);
-      Handle<String> string(String::cast(js_value->value()));
-      return factory()->LookupSingleCharacterStringFromCode(
-          String::Flatten(string)->Get(index_));
-    }
-
     ElementsAccessor* accessor = holder->GetElementsAccessor();
-    return accessor->Get(handle(holder->elements()), number_);
+    return accessor->Get(holder, number_);
   } else if (holder_map_->IsJSGlobalObjectMap()) {
     Handle<JSObject> holder = GetHolder<JSObject>();
     result = holder->global_dictionary()->ValueAt(number_);
@@ -515,7 +505,7 @@ void LookupIterator::WriteDataValue(Handle<Object> value) {
   if (IsElement()) {
     Handle<JSObject> object = Handle<JSObject>::cast(holder);
     ElementsAccessor* accessor = object->GetElementsAccessor();
-    accessor->Set(object->elements(), number_, *value);
+    accessor->Set(object, number_, *value);
   } else if (holder->IsJSGlobalObject()) {
     Handle<GlobalDictionary> property_dictionary =
         handle(JSObject::cast(*holder)->global_dictionary());
@@ -625,10 +615,6 @@ LookupIterator::State LookupIterator::LookupInHolder(Map* const map,
       }
     // Fall through.
     case ACCESS_CHECK:
-      if (exotic_index_state_ != ExoticIndexState::kNotExotic &&
-          holder->IsJSTypedArray() && IsIntegerIndexedExotic(holder)) {
-        return INTEGER_INDEXED_EXOTIC;
-      }
       if (check_interceptor() && HasInterceptor(map) &&
           !SkipInterceptor(JSObject::cast(holder))) {
         // Do not leak private property names.
@@ -638,25 +624,20 @@ LookupIterator::State LookupIterator::LookupInHolder(Map* const map,
     // Fall through.
     case INTERCEPTOR:
       if (IsElement()) {
-        // TODO(verwaest): Optimize.
-        if (holder->IsStringObjectWithCharacterAt(index_)) {
-          PropertyAttributes attributes =
-              static_cast<PropertyAttributes>(READ_ONLY | DONT_DELETE);
-          property_details_ = PropertyDetails(attributes, v8::internal::DATA, 0,
-                                              PropertyCellType::kNoCell);
-        } else {
-          JSObject* js_object = JSObject::cast(holder);
-          if (js_object->elements() == isolate()->heap()->empty_fixed_array()) {
-            return NOT_FOUND;
+        JSObject* js_object = JSObject::cast(holder);
+        ElementsAccessor* accessor = js_object->GetElementsAccessor();
+        FixedArrayBase* backing_store = js_object->elements();
+        number_ = accessor->GetEntryForIndex(js_object, backing_store, index_);
+        if (number_ == kMaxUInt32) {
+          if (*receiver_ == Object::cast(holder) && holder->IsJSTypedArray()) {
+            return INTEGER_INDEXED_EXOTIC;
           }
-
-          ElementsAccessor* accessor = js_object->GetElementsAccessor();
-          FixedArrayBase* backing_store = js_object->elements();
-          number_ =
-              accessor->GetEntryForIndex(js_object, backing_store, index_);
-          if (number_ == kMaxUInt32) return NOT_FOUND;
-          property_details_ = accessor->GetDetails(backing_store, number_);
+          return NOT_FOUND;
         }
+        property_details_ = accessor->GetDetails(js_object, number_);
+      } else if (exotic_index_state_ != ExoticIndexState::kNotExotic &&
+                 holder->IsJSTypedArray() && IsIntegerIndexedExotic(holder)) {
+        return INTEGER_INDEXED_EXOTIC;
       } else if (!map->is_dictionary_map()) {
         DescriptorArray* descriptors = map->instance_descriptors();
         int number = descriptors->SearchWithCache(*name_, map);

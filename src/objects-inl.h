@@ -1954,7 +1954,8 @@ void JSObject::SetMapAndElements(Handle<JSObject> object,
                                  Handle<FixedArrayBase> value) {
   JSObject::MigrateToMap(object, new_map);
   DCHECK((object->map()->has_fast_smi_or_object_elements() ||
-          (*value == object->GetHeap()->empty_fixed_array())) ==
+          (*value == object->GetHeap()->empty_fixed_array()) ||
+          object->map()->has_fast_string_wrapper_elements()) ==
          (value->map() == object->GetHeap()->fixed_array_map() ||
           value->map() == object->GetHeap()->fixed_cow_array_map()));
   DCHECK((*value == object->GetHeap()->empty_fixed_array()) ||
@@ -2336,19 +2337,6 @@ bool Object::ToArrayIndex(uint32_t* index) {
 }
 
 
-bool Object::IsStringObjectWithCharacterAt(uint32_t index) {
-  if (!this->IsJSValue()) return false;
-
-  JSValue* js_value = JSValue::cast(this);
-  if (!js_value->value()->IsString()) return false;
-
-  String* str = String::cast(js_value->value());
-  if (index >= static_cast<uint32_t>(str->length())) return false;
-
-  return true;
-}
-
-
 void Object::VerifyApiCallResultType() {
 #if DEBUG
   if (!(IsSmi() || IsString() || IsSymbol() || IsJSReceiver() ||
@@ -2365,9 +2353,8 @@ Object* FixedArray::get(int index) const {
   return READ_FIELD(this, kHeaderSize + index * kPointerSize);
 }
 
-
-Handle<Object> FixedArray::get(Handle<FixedArray> array, int index) {
-  return handle(array->get(index), array->GetIsolate());
+Handle<Object> FixedArray::get(FixedArray* array, int index, Isolate* isolate) {
+  return handle(array->get(index), isolate);
 }
 
 
@@ -2412,13 +2399,12 @@ uint64_t FixedDoubleArray::get_representation(int index) {
   return READ_UINT64_FIELD(this, offset);
 }
 
-
-Handle<Object> FixedDoubleArray::get(Handle<FixedDoubleArray> array,
-                                     int index) {
+Handle<Object> FixedDoubleArray::get(FixedDoubleArray* array, int index,
+                                     Isolate* isolate) {
   if (array->is_the_hole(index)) {
-    return array->GetIsolate()->factory()->the_hole_value();
+    return isolate->factory()->the_hole_value();
   } else {
-    return array->GetIsolate()->factory()->NewNumber(array->get_scalar(index));
+    return isolate->factory()->NewNumber(array->get_scalar(index));
   }
 }
 
@@ -2875,8 +2861,7 @@ void Map::SetEnumLength(int length) {
 
 
 FixedArrayBase* Map::GetInitialElements() {
-  if (has_fast_smi_or_object_elements() ||
-      has_fast_double_elements()) {
+  if (has_fast_elements() || has_fast_string_wrapper_elements()) {
     DCHECK(!GetHeap()->InNewSpace(GetHeap()->empty_fixed_array()));
     return GetHeap()->empty_fixed_array();
   } else if (has_fixed_typed_array_elements()) {
@@ -4236,11 +4221,9 @@ double FixedTypedArray<Float64ArrayTraits>::from_double(double value) {
   return value;
 }
 
-
 template <class Traits>
-Handle<Object> FixedTypedArray<Traits>::get(
-    Handle<FixedTypedArray<Traits> > array,
-    int index) {
+Handle<Object> FixedTypedArray<Traits>::get(FixedTypedArray<Traits>* array,
+                                            int index) {
   return Traits::ToHandle(array->GetIsolate(), array->get_scalar(index));
 }
 
@@ -4615,6 +4598,10 @@ bool Map::has_fast_elements() { return IsFastElementsKind(elements_kind()); }
 
 bool Map::has_sloppy_arguments_elements() {
   return IsSloppyArgumentsElements(elements_kind());
+}
+
+bool Map::has_fast_string_wrapper_elements() {
+  return elements_kind() == FAST_STRING_WRAPPER_ELEMENTS;
 }
 
 bool Map::has_fixed_typed_array_elements() {
@@ -6752,6 +6739,17 @@ bool JSObject::HasSloppyArgumentsElements() {
   return IsSloppyArgumentsElements(GetElementsKind());
 }
 
+bool JSObject::HasStringWrapperElements() {
+  return IsStringWrapperElementsKind(GetElementsKind());
+}
+
+bool JSObject::HasFastStringWrapperElements() {
+  return GetElementsKind() == FAST_STRING_WRAPPER_ELEMENTS;
+}
+
+bool JSObject::HasSlowStringWrapperElements() {
+  return GetElementsKind() == SLOW_STRING_WRAPPER_ELEMENTS;
+}
 
 bool JSObject::HasFixedTypedArrayElements() {
   HeapObject* array = elements();
@@ -6792,7 +6790,7 @@ GlobalDictionary* JSObject::global_dictionary() {
 
 
 SeededNumberDictionary* JSObject::element_dictionary() {
-  DCHECK(HasDictionaryElements());
+  DCHECK(HasDictionaryElements() || HasSlowStringWrapperElements());
   return SeededNumberDictionary::cast(elements());
 }
 

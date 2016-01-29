@@ -1241,6 +1241,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     Handle<Map> string_map =
         Handle<Map>(native_context()->string_function()->initial_map());
+    string_map->set_elements_kind(FAST_STRING_WRAPPER_ELEMENTS);
     Map::EnsureDescriptorSlack(string_map, 1);
 
     PropertyAttributes attribs = static_cast<PropertyAttributes>(

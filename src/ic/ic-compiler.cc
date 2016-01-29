@@ -49,7 +49,6 @@ Handle<Code> PropertyICCompiler::ComputeKeyedLoadMonomorphicHandler(
   if (receiver_map->has_indexed_interceptor()) {
     stub = LoadIndexedInterceptorStub(isolate).GetCode();
   } else if (receiver_map->IsStringMap()) {
-    // We have a string.
     stub = LoadIndexedStringStub(isolate).GetCode();
   } else if (receiver_map->has_sloppy_arguments_elements()) {
     stub = KeyedLoadSloppyArgumentsStub(isolate).GetCode();
@@ -58,6 +57,7 @@ Handle<Code> PropertyICCompiler::ComputeKeyedLoadMonomorphicHandler(
     stub = LoadFastElementStub(isolate, is_js_array, elements_kind,
                                convert_hole_to_undefined).GetCode();
   } else {
+    DCHECK(receiver_map->has_dictionary_elements());
     stub = LoadDictionaryElementStub(isolate, LoadICState(extra_ic_state))
                .GetCode();
   }

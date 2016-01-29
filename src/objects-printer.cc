@@ -326,7 +326,8 @@ void JSObject::PrintElements(std::ostream& os) {  // NOLINT
     case FAST_HOLEY_SMI_ELEMENTS:
     case FAST_SMI_ELEMENTS:
     case FAST_HOLEY_ELEMENTS:
-    case FAST_ELEMENTS: {
+    case FAST_ELEMENTS:
+    case FAST_STRING_WRAPPER_ELEMENTS: {
       // Print in array notation for non-sparse arrays.
       FixedArray* p = FixedArray::cast(elements());
       for (int i = 0; i < p->length(); i++) {
@@ -371,6 +372,7 @@ void JSObject::PrintElements(std::ostream& os) {  // NOLINT
 #undef PRINT_ELEMENTS
 
     case DICTIONARY_ELEMENTS:
+    case SLOW_STRING_WRAPPER_ELEMENTS:
       os << "\n - elements: ";
       elements()->Print(os);
       break;
@@ -385,6 +387,8 @@ void JSObject::PrintElements(std::ostream& os) {  // NOLINT
          << "\n   arguments: " << Brief(p->get(1));
       break;
     }
+    case NO_ELEMENTS:
+      break;
   }
 }
 

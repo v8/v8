@@ -2726,6 +2726,9 @@ class StoreElementStub : public PlatformCodeStub {
   StoreElementStub(Isolate* isolate, ElementsKind elements_kind,
                    KeyedAccessStoreMode mode)
       : PlatformCodeStub(isolate) {
+    // TODO(jkummerow): Rename this stub to StoreSlowElementStub,
+    // drop elements_kind parameter.
+    DCHECK_EQ(DICTIONARY_ELEMENTS, elements_kind);
     minor_key_ = ElementsKindBits::encode(elements_kind) |
                  CommonStoreModeBits::encode(mode);
   }

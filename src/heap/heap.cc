@@ -3517,7 +3517,8 @@ AllocationResult Heap::AllocateJSObjectFromMap(
 
   // Initialize the JSObject.
   InitializeJSObjectFromMap(js_obj, properties, map);
-  DCHECK(js_obj->HasFastElements() || js_obj->HasFixedTypedArrayElements());
+  DCHECK(js_obj->HasFastElements() || js_obj->HasFixedTypedArrayElements() ||
+         js_obj->HasFastStringWrapperElements());
   return js_obj;
 }
 

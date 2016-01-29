@@ -133,8 +133,9 @@ int BytecodeArrayIterator::GetRegisterOperandRange(int operand_index) const {
 
 Handle<Object> BytecodeArrayIterator::GetConstantForIndexOperand(
     int operand_index) const {
-  Handle<FixedArray> constants = handle(bytecode_array()->constant_pool());
-  return FixedArray::get(constants, GetIndexOperand(operand_index));
+  return FixedArray::get(bytecode_array()->constant_pool(),
+                         GetIndexOperand(operand_index),
+                         bytecode_array()->GetIsolate());
 }
 
 

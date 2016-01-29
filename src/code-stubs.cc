@@ -804,28 +804,8 @@ void CreateWeakCellStub::GenerateAheadOfTime(Isolate* isolate) {
 
 
 void StoreElementStub::Generate(MacroAssembler* masm) {
-  switch (elements_kind()) {
-    case FAST_ELEMENTS:
-    case FAST_HOLEY_ELEMENTS:
-    case FAST_SMI_ELEMENTS:
-    case FAST_HOLEY_SMI_ELEMENTS:
-    case FAST_DOUBLE_ELEMENTS:
-    case FAST_HOLEY_DOUBLE_ELEMENTS:
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
-    case TYPE##_ELEMENTS:
-
-    TYPED_ARRAYS(TYPED_ARRAY_CASE)
-#undef TYPED_ARRAY_CASE
-      UNREACHABLE();
-      break;
-    case DICTIONARY_ELEMENTS:
-      ElementHandlerCompiler::GenerateStoreSlow(masm);
-      break;
-    case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
-    case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
-      UNREACHABLE();
-      break;
-  }
+  DCHECK_EQ(DICTIONARY_ELEMENTS, elements_kind());
+  ElementHandlerCompiler::GenerateStoreSlow(masm);
 }
 
 

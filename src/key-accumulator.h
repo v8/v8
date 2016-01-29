@@ -36,12 +36,10 @@ class KeyAccumulator final BASE_EMBEDDED {
   ~KeyAccumulator();
 
   bool AddKey(uint32_t key);
-  bool AddKey(Object* key, AddKeyConversion convert = DO_NOT_CONVERT);
-  bool AddKey(Handle<Object> key, AddKeyConversion convert = DO_NOT_CONVERT);
-  void AddKeys(Handle<FixedArray> array,
-               AddKeyConversion convert = DO_NOT_CONVERT);
-  void AddKeys(Handle<JSObject> array,
-               AddKeyConversion convert = DO_NOT_CONVERT);
+  bool AddKey(Object* key, AddKeyConversion convert);
+  bool AddKey(Handle<Object> key, AddKeyConversion convert);
+  void AddKeys(Handle<FixedArray> array, AddKeyConversion convert);
+  void AddKeys(Handle<JSObject> array, AddKeyConversion convert);
   void AddKeysFromProxy(Handle<JSObject> array);
   Maybe<bool> AddKeysFromProxy(Handle<JSProxy> proxy, Handle<FixedArray> keys);
   void AddElementKeysFromInterceptor(Handle<JSObject> array);

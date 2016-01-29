@@ -1351,10 +1351,6 @@ class Object {
   // allow kMaxUInt32.
   inline bool ToArrayIndex(uint32_t* index);
 
-  // Returns true if this is a JSValue containing a string and the index is
-  // < the length of the string.  Used to implement [] on strings.
-  inline bool IsStringObjectWithCharacterAt(uint32_t index);
-
   DECLARE_VERIFIER(Object)
 #ifdef VERIFY_HEAP
   // Verify a pointer is a valid object pointer.
@@ -2030,6 +2026,7 @@ class JSObject: public JSReceiver {
   // ElementsKind.
   inline bool HasFastHoleyElements();
   inline bool HasSloppyArgumentsElements();
+  inline bool HasStringWrapperElements();
   inline bool HasDictionaryElements();
 
   inline bool HasFixedTypedArrayElements();
@@ -2047,6 +2044,8 @@ class JSObject: public JSReceiver {
 
   inline bool HasFastArgumentsElements();
   inline bool HasSlowArgumentsElements();
+  inline bool HasFastStringWrapperElements();
+  inline bool HasSlowStringWrapperElements();
   inline SeededNumberDictionary* element_dictionary();  // Gets slow elements.
 
   // Requires: HasFastElements().
@@ -2634,7 +2633,8 @@ class FixedArray: public FixedArrayBase {
  public:
   // Setter and getter for elements.
   inline Object* get(int index) const;
-  static inline Handle<Object> get(Handle<FixedArray> array, int index);
+  static inline Handle<Object> get(FixedArray* array, int index,
+                                   Isolate* isolate);
   // Setter that uses write barrier.
   inline void set(int index, Object* value);
   inline bool is_the_hole(int index);
@@ -2721,7 +2721,8 @@ class FixedDoubleArray: public FixedArrayBase {
   // Setter and getter for elements.
   inline double get_scalar(int index);
   inline uint64_t get_representation(int index);
-  static inline Handle<Object> get(Handle<FixedDoubleArray> array, int index);
+  static inline Handle<Object> get(FixedDoubleArray* array, int index,
+                                   Isolate* isolate);
   inline void set(int index, double value);
   inline void set_the_hole(int index);
 
@@ -4559,7 +4560,7 @@ class FixedTypedArray: public FixedTypedArrayBase {
   DECLARE_CAST(FixedTypedArray<Traits>)
 
   inline ElementType get_scalar(int index);
-  static inline Handle<Object> get(Handle<FixedTypedArray> array, int index);
+  static inline Handle<Object> get(FixedTypedArray* array, int index);
   inline void set(int index, ElementType value);
 
   static inline ElementType from_int(int value);
@@ -5675,6 +5676,7 @@ class Map: public HeapObject {
   inline bool has_fast_double_elements();
   inline bool has_fast_elements();
   inline bool has_sloppy_arguments_elements();
+  inline bool has_fast_string_wrapper_elements();
   inline bool has_fixed_typed_array_elements();
   inline bool has_dictionary_elements();
 

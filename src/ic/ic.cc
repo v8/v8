@@ -686,9 +686,9 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
     ScriptContextTable::LookupResult lookup_result;
     if (ScriptContextTable::Lookup(script_contexts, str_name, &lookup_result)) {
       Handle<Object> result =
-          FixedArray::get(ScriptContextTable::GetContext(
+          FixedArray::get(*ScriptContextTable::GetContext(
                               script_contexts, lookup_result.context_index),
-                          lookup_result.slot_index);
+                          lookup_result.slot_index, isolate());
       if (*result == *isolate()->factory()->the_hole_value()) {
         // Do not install stubs and stay pre-monomorphic for
         // uninitialized accesses.
@@ -1375,7 +1375,8 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
     ASSIGN_RETURN_ON_EXCEPTION(isolate(), load_handle,
                                LoadIC::Load(object, Handle<Name>::cast(key)),
                                Object);
-  } else if (FLAG_use_ic && !object->IsAccessCheckNeeded()) {
+  } else if (FLAG_use_ic && !object->IsAccessCheckNeeded() &&
+             !object->IsJSValue()) {
     if (object->IsJSObject() || (object->IsString() && key->IsNumber())) {
       Handle<HeapObject> receiver = Handle<HeapObject>::cast(object);
       if (object->IsString() || key->IsSmi()) stub = LoadElementStub(receiver);
@@ -1507,7 +1508,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
       }
 
       Handle<Object> previous_value =
-          FixedArray::get(script_context, lookup_result.slot_index);
+          FixedArray::get(*script_context, lookup_result.slot_index, isolate());
 
       if (*previous_value == *isolate()->factory()->the_hole_value()) {
         // Do not install stubs and stay pre-monomorphic for
