@@ -269,26 +269,6 @@
   # https://code.google.com/p/v8/issues/detail?id=4253
   'language/asi/S7.9_A5.7_T1': [PASS, FAIL_OK],
 
-  # https://code.google.com/p/v8/issues/detail?id=2952
-  'built-ins/RegExp/prototype/exec/u-lastindex-adv': [FAIL],
-  'built-ins/RegExp/prototype/exec/u-captured-value': [FAIL],
-  'built-ins/RegExp/prototype/exec/u-lastindex-value': [FAIL],
-  'built-ins/RegExp/prototype/test/u-captured-value': [FAIL],
-  'built-ins/RegExp/prototype/test/u-lastindex-adv': [FAIL],
-  'built-ins/RegExp/prototype/test/u-lastindex-value': [FAIL],
-  'built-ins/RegExp/prototype/unicode/this-regexp': [FAIL],
-  'built-ins/RegExp/unicode_identity_escape': [FAIL],
-  'language/literals/regexp/u-unicode-esc': [FAIL],
-  'language/literals/regexp/u-surrogate-pairs': [FAIL],
-  'language/literals/regexp/u-case-mapping': [FAIL],
-  'language/literals/regexp/u-astral': [FAIL],
-  'built-ins/RegExp/valid-flags-y': [FAIL],
-  'built-ins/RegExp/prototype/unicode/length': [FAIL],
-  'built-ins/RegExp/prototype/unicode/name': [FAIL],
-  'built-ins/RegExp/prototype/unicode/prop-desc': [FAIL],
-  'built-ins/RegExp/prototype/unicode/this-invald-obj': [FAIL],
-  'built-ins/RegExp/prototype/unicode/this-non-obj': [FAIL],
-
    # https://code.google.com/p/v8/issues/detail?id=4602
   'built-ins/RegExp/prototype/exec/get-sticky-coerce': [FAIL],
   'built-ins/RegExp/prototype/exec/get-sticky-err': [FAIL],
@@ -316,9 +296,6 @@
 
   # https://code.google.com/p/v8/issues/detail?id=4345
   'built-ins/RegExp/prototype/Symbol.split/*': [SKIP],
-
-  # https://code.google.com/p/v8/issues/detail?id=4346
-  'built-ins/RegExp/prototype/flags/u': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=4360
   'intl402/Collator/10.1.1_1': [FAIL],
