@@ -186,7 +186,7 @@ class ModuleDecoder : public Decoder {
           // which is augmenting the binary encoding with source code meta
           // information. This section does not affect the semantics of the code
           // and can be ignored by the runtime. https://github.com/JSStats/wll
-          int length;
+          int length = 0;
           uint32_t section_size = u32v(&length, "section size");
           if (pc_ + section_size > limit_ || pc_ + section_size < pc_) {
             error(pc_ - length, "invalid section size");
