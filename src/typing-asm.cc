@@ -1000,6 +1000,7 @@ void AsmTyper::VisitCall(Call* expr) {
       }
     }
     intish_ = kMaxUncombinedAdditiveSteps;
+    expr->expression()->set_bounds(Bounds(Type::Function(zone())));
     IntersectResult(expr, expected_type);
   } else {
     FAIL(expr, "invalid callee");
@@ -1135,7 +1136,7 @@ void AsmTyper::VisitBinaryOperation(BinaryOperation* expr) {
       VisitIntegerBitwiseOperator(expr, Type::Any(zone()), cache_.kAsmInt,
                                   cache_.kAsmSigned, true);
       if (expr->left()->IsCall() && expr->op() == Token::BIT_OR) {
-        IntersectResult(expr->left(), cache_.kAsmSigned);
+        expr->left()->set_bounds(Bounds(cache_.kAsmSigned));
       }
       return;
     }
@@ -1224,7 +1225,7 @@ void AsmTyper::VisitBinaryOperation(BinaryOperation* expr) {
                  right_type->Is(cache_.kAsmDouble)) {
         // For unary +, expressed as x * 1.0
         if (expr->left()->IsCall() && expr->op() == Token::MUL) {
-          IntersectResult(expr->left(), cache_.kAsmDouble);
+          expr->left()->set_bounds(Bounds(cache_.kAsmDouble));
         }
         IntersectResult(expr, cache_.kAsmDouble);
         return;

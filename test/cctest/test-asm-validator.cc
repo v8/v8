@@ -16,6 +16,7 @@
 #include "test/cctest/expression-type-collector-macros.h"
 
 // Macros for function types.
+#define FUNC_BARE_TYPE Bounds(Type::Function(zone))
 #define FUNC_V_TYPE Bounds(Type::Function(Type::Undefined(zone), zone))
 #define FUNC_I_TYPE Bounds(Type::Function(cache.kAsmSigned, zone))
 #define FUNC_F_TYPE Bounds(Type::Function(cache.kAsmFloat, zone))
@@ -1727,7 +1728,7 @@ TEST(ForeignFunction) {
     CHECK_EXPR(FunctionLiteral, FUNC_I_TYPE) {
       CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
         CHECK_EXPR(Call, Bounds(cache.kAsmSigned)) {
-          CHECK_VAR(baz, Bounds(Type::Any(zone)));
+          CHECK_VAR(baz, FUNC_BARE_TYPE);
           CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
           CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
         }
@@ -2128,7 +2129,7 @@ TEST(Imports) {
       CHECK_EXPR(FunctionLiteral, FUNC_I_TYPE) {
         CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
           CHECK_EXPR(Call, Bounds(cache.kAsmSigned)) {
-            CHECK_VAR(ffunc, Bounds(Type::Any(zone)));
+            CHECK_VAR(ffunc, FUNC_BARE_TYPE);
             CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
               CHECK_VAR(fint, Bounds(cache.kAsmInt));
               CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
@@ -2142,7 +2143,7 @@ TEST(Imports) {
       CHECK_EXPR(FunctionLiteral, FUNC_D_TYPE) {
         CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmDouble)) {
           CHECK_EXPR(Call, Bounds(cache.kAsmDouble)) {
-            CHECK_VAR(ffunc, Bounds(Type::Any(zone)));
+            CHECK_VAR(ffunc, FUNC_BARE_TYPE);
             CHECK_VAR(fdouble, Bounds(cache.kAsmDouble));
             CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
               CHECK_VAR(fint, Bounds(cache.kAsmInt));
