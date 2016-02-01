@@ -78,10 +78,12 @@ Handle<Code> CodeGenerator::GenerateCode() {
   if (linkage()->GetIncomingDescriptor()->IsJSFunctionCall()) {
     ProfileEntryHookStub::MaybeCallEntryHook(masm());
   }
-
   // Architecture-specific, linkage-specific prologue.
   info->set_prologue_offset(masm()->pc_offset());
   AssemblePrologue();
+  if (linkage()->GetIncomingDescriptor()->InitializeRootRegister()) {
+    masm()->InitializeRootRegister();
+  }
 
   // Define deoptimization literals for all inlined functions.
   DCHECK_EQ(0u, deoptimization_literals_.size());
