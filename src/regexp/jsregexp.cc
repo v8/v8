@@ -5904,57 +5904,57 @@ void CharacterRange::AddCaseEquivalents(Isolate* isolate, Zone* zone,
     }
     unibrow::uchar chars[unibrow::Ecma262UnCanonicalize::kMaxWidth];
     if (top == bottom) {
-    // If this is a singleton we just expand the one character.
-    int length = isolate->jsregexp_uncanonicalize()->get(bottom, '\0', chars);
-    for (int i = 0; i < length; i++) {
-      uc32 chr = chars[i];
-      if (chr != bottom) {
-        ranges->Add(CharacterRange::Singleton(chars[i]), zone);
-      }
-    }
-  } else {
-    // If this is a range we expand the characters block by block,
-    // expanding contiguous subranges (blocks) one at a time.
-    // The approach is as follows.  For a given start character we
-    // look up the remainder of the block that contains it (represented
-    // by the end point), for instance we find 'z' if the character
-    // is 'c'.  A block is characterized by the property
-    // that all characters uncanonicalize in the same way, except that
-    // each entry in the result is incremented by the distance from the first
-    // element.  So a-z is a block because 'a' uncanonicalizes to ['a', 'A'] and
-    // the k'th letter uncanonicalizes to ['a' + k, 'A' + k].
-    // Once we've found the end point we look up its uncanonicalization
-    // and produce a range for each element.  For instance for [c-f]
-    // we look up ['z', 'Z'] and produce [c-f] and [C-F].  We then only
-    // add a range if it is not already contained in the input, so [c-f]
-    // will be skipped but [C-F] will be added.  If this range is not
-    // completely contained in a block we do this for all the blocks
-    // covered by the range (handling characters that is not in a block
-    // as a "singleton block").
-    unibrow::uchar range[unibrow::Ecma262UnCanonicalize::kMaxWidth];
-    int pos = bottom;
-    while (pos <= top) {
-      int length = isolate->jsregexp_canonrange()->get(pos, '\0', range);
-      uc32 block_end;
-      if (length == 0) {
-        block_end = pos;
-      } else {
-        DCHECK_EQ(1, length);
-        block_end = range[0];
-      }
-      int end = (block_end > top) ? top : block_end;
-      length = isolate->jsregexp_uncanonicalize()->get(block_end, '\0', range);
+      // If this is a singleton we just expand the one character.
+      int length = isolate->jsregexp_uncanonicalize()->get(bottom, '\0', chars);
       for (int i = 0; i < length; i++) {
-        uc32 c = range[i];
-        uc32 range_from = c - (block_end - pos);
-        uc32 range_to = c - (block_end - end);
-        if (!(bottom <= range_from && range_to <= top)) {
-          ranges->Add(CharacterRange(range_from, range_to), zone);
+        uc32 chr = chars[i];
+        if (chr != bottom) {
+          ranges->Add(CharacterRange::Singleton(chars[i]), zone);
         }
       }
-      pos = end + 1;
+    } else {
+      // If this is a range we expand the characters block by block, expanding
+      // contiguous subranges (blocks) one at a time.  The approach is as
+      // follows.  For a given start character we look up the remainder of the
+      // block that contains it (represented by the end point), for instance we
+      // find 'z' if the character is 'c'.  A block is characterized by the
+      // property that all characters uncanonicalize in the same way, except
+      // that each entry in the result is incremented by the distance from the
+      // first element.  So a-z is a block because 'a' uncanonicalizes to ['a',
+      // 'A'] and the k'th letter uncanonicalizes to ['a' + k, 'A' + k].  Once
+      // we've found the end point we look up its uncanonicalization and
+      // produce a range for each element.  For instance for [c-f] we look up
+      // ['z', 'Z'] and produce [c-f] and [C-F].  We then only add a range if
+      // it is not already contained in the input, so [c-f] will be skipped but
+      // [C-F] will be added.  If this range is not completely contained in a
+      // block we do this for all the blocks covered by the range (handling
+      // characters that is not in a block as a "singleton block").
+      unibrow::uchar equivalents[unibrow::Ecma262UnCanonicalize::kMaxWidth];
+      int pos = bottom;
+      while (pos <= top) {
+        int length =
+            isolate->jsregexp_canonrange()->get(pos, '\0', equivalents);
+        uc32 block_end;
+        if (length == 0) {
+          block_end = pos;
+        } else {
+          DCHECK_EQ(1, length);
+          block_end = equivalents[0];
+        }
+        int end = (block_end > top) ? top : block_end;
+        length = isolate->jsregexp_uncanonicalize()->get(block_end, '\0',
+                                                         equivalents);
+        for (int i = 0; i < length; i++) {
+          uc32 c = equivalents[i];
+          uc32 range_from = c - (block_end - pos);
+          uc32 range_to = c - (block_end - end);
+          if (!(bottom <= range_from && range_to <= top)) {
+            ranges->Add(CharacterRange(range_from, range_to), zone);
+          }
+        }
+        pos = end + 1;
+      }
     }
-  }
   }
 }
 
