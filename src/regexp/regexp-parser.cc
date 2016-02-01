@@ -26,7 +26,9 @@ RegExpParser::RegExpParser(FlatStringReader* in, Handle<String>* error,
       captures_(NULL),
       in_(in),
       current_(kEndMarker),
-      flags_(flags),
+      ignore_case_(flags & JSRegExp::kIgnoreCase),
+      multiline_(flags & JSRegExp::kMultiline),
+      unicode_(flags & JSRegExp::kUnicode),
       next_pos_(0),
       captures_started_(0),
       capture_count_(0),
@@ -38,9 +40,8 @@ RegExpParser::RegExpParser(FlatStringReader* in, Handle<String>* error,
   Advance();
 }
 
-
 template <bool update_position>
-uc32 RegExpParser::ReadNext() {
+inline uc32 RegExpParser::ReadNext() {
   int position = next_pos_;
   uc32 c0 = in()->Get(position);
   position++;
@@ -169,7 +170,7 @@ RegExpTree* RegExpParser::ParsePattern() {
 RegExpTree* RegExpParser::ParseDisjunction() {
   // Used to store current state while parsing subexpressions.
   RegExpParserState initial_state(NULL, INITIAL, RegExpLookaround::LOOKAHEAD, 0,
-                                  flags_, zone());
+                                  ignore_case(), unicode(), zone());
   RegExpParserState* state = &initial_state;
   // Cache the builder in a local variable for quick access.
   RegExpBuilder* builder = initial_state.builder();
@@ -303,9 +304,9 @@ RegExpTree* RegExpParser::ParseDisjunction() {
           captures_started_++;
         }
         // Store current state and begin new disjunction parsing.
-        state =
-            new (zone()) RegExpParserState(state, subexpr_type, lookaround_type,
-                                           captures_started_, flags_, zone());
+        state = new (zone()) RegExpParserState(
+            state, subexpr_type, lookaround_type, captures_started_,
+            ignore_case(), unicode(), zone());
         builder = state->builder();
         continue;
       }
@@ -1080,11 +1081,11 @@ bool RegExpParser::ParseRegExp(Isolate* isolate, Zone* zone,
   return !parser.failed();
 }
 
-
-RegExpBuilder::RegExpBuilder(Zone* zone, JSRegExp::Flags flags)
+RegExpBuilder::RegExpBuilder(Zone* zone, bool ignore_case, bool unicode)
     : zone_(zone),
       pending_empty_(false),
-      flags_(flags),
+      ignore_case_(ignore_case),
+      unicode_(unicode),
       characters_(NULL),
       pending_surrogate_(kNoPendingSurrogate),
       terms_(),
