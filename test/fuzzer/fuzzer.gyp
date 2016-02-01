@@ -35,6 +35,32 @@
       ],
     },
     {
+      'target_name': 'regexp_fuzzer',
+      'type': 'executable',
+      'dependencies': [
+        'regexp_fuzzer_lib',
+      ],
+      'include_dirs': [
+        '../..',
+      ],
+      'sources': [
+        'fuzzer.cc',
+      ],
+    },
+    {
+      'target_name': 'regexp_fuzzer_lib',
+      'type': 'static_library',
+      'dependencies': [
+        'fuzzer_support',
+      ],
+      'include_dirs': [
+        '../..',
+      ],
+      'sources': [  ### gcmole(all) ###
+        'regexp.cc',
+      ],
+    },
+    {
       'target_name': 'fuzzer_support',
       'type': 'static_library',
       'dependencies': [
@@ -66,6 +92,7 @@
           'type': 'none',
           'dependencies': [
             'parser_fuzzer',
+            'regexp_fuzzer',
           ],
           'includes': [
             '../../build/isolate.gypi',

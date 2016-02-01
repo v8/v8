@@ -1953,3 +1953,21 @@ source_set("parser_fuzzer") {
     ":toolchain",
   ]
 }
+
+source_set("regexp_fuzzer") {
+  sources = [
+    "test/fuzzer/regexp.cc",
+  ]
+
+  deps = [
+    ":fuzzer_support",
+  ]
+
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+  configs += [
+    ":internal_config",
+    ":features",
+    ":toolchain",
+  ]
+}

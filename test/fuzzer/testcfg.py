@@ -9,7 +9,7 @@ from testrunner.objects import testcase
 
 
 class FuzzerTestSuite(testsuite.TestSuite):
-  SUB_TESTS = ( 'parser', )
+  SUB_TESTS = ( 'parser', 'regexp', )
 
   def __init__(self, name, root):
     super(FuzzerTestSuite, self).__init__(name, root)

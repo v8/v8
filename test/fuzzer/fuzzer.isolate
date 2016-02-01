@@ -6,9 +6,11 @@
   'variables': {
     'files': [
       '<(PRODUCT_DIR)/parser_fuzzer<(EXECUTABLE_SUFFIX)',
+      '<(PRODUCT_DIR)/regexp_fuzzer<(EXECUTABLE_SUFFIX)',
       './fuzzer.status',
       './testcfg.py',
       './parser/',
+      './regexp/',
     ],
   },
   'includes': [
