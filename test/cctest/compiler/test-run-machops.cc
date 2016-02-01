@@ -6015,7 +6015,10 @@ TEST(RunBitcastFloat32ToInt32) {
 TEST(RunRoundInt32ToFloat32) {
   BufferedRawMachineAssemblerTester<float> m(MachineType::Int32());
   m.Return(m.RoundInt32ToFloat32(m.Parameter(0)));
-  FOR_INT32_INPUTS(i) { CHECK_EQ(static_cast<float>(*i), m.Call(*i)); }
+  FOR_INT32_INPUTS(i) {
+    volatile float expected = static_cast<float>(*i);
+    CHECK_EQ(expected, m.Call(*i));
+  }
 }
 
 
