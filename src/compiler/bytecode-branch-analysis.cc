@@ -111,13 +111,6 @@ const ZoneVector<int>* BytecodeBranchAnalysis::ForwardBranchesTargetting(
   }
 }
 
-void BytecodeBranchAnalysis::AddExceptionalBranch(int throw_offset,
-                                                  int handler_offset) {
-  DCHECK(is_reachable(handler_offset));     // Handler was marked reachable.
-  DCHECK_LT(throw_offset, handler_offset);  // Always a forward branch.
-  AddBranch(throw_offset, handler_offset);
-}
-
 void BytecodeBranchAnalysis::AddBranch(int source_offset, int target_offset) {
   BytecodeBranchInfo* branch_info = nullptr;
   auto iterator = branch_infos_.find(target_offset);

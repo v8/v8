@@ -478,7 +478,6 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(Zone* local_zone,
           bytecode_array()->register_count(), info()->shared_info(),
           CALL_MAINTAINS_NATIVE_CONTEXT)),
       merge_environments_(local_zone),
-      loop_header_environments_(local_zone),
       exception_handlers_(local_zone),
       current_exception_handler_(0),
       input_buffer_size_(0),
@@ -618,8 +617,8 @@ void BytecodeGraphBuilder::VisitBytecodes() {
     int current_offset = iterator.current_offset();
     if (analysis.is_reachable(current_offset)) {
       EnterAndExitExceptionHandlers(current_offset);
-      MergeEnvironmentsOfForwardBranches(current_offset);
-      BuildLoopHeaderForBackwardBranches(current_offset);
+      SwitchToMergeEnvironment(current_offset);
+      BuildLoopHeaderEnvironment(current_offset);
 
       switch (iterator.current_bytecode()) {
 #define BYTECODE_CASE(name, ...)       \
@@ -1602,86 +1601,48 @@ void BytecodeGraphBuilder::VisitForInStep() {
   environment()->BindAccumulator(index, &states);
 }
 
-
-void BytecodeGraphBuilder::MergeEnvironmentsOfBackwardBranches(
-    int source_offset, int target_offset) {
-  DCHECK_GE(source_offset, target_offset);
-  const ZoneVector<int>* branch_sites =
-      branch_analysis()->BackwardBranchesTargetting(target_offset);
-  if (branch_sites->back() == source_offset) {
-    // The set of back branches is complete, merge them.
-    DCHECK_GE(branch_sites->at(0), target_offset);
-    Environment* merged = merge_environments_[branch_sites->at(0)];
-    for (size_t i = 1; i < branch_sites->size(); i++) {
-      DCHECK_GE(branch_sites->at(i), target_offset);
-      merged->Merge(merge_environments_[branch_sites->at(i)]);
+void BytecodeGraphBuilder::SwitchToMergeEnvironment(int current_offset) {
+  if (merge_environments_[current_offset] != nullptr) {
+    if (environment() != nullptr) {
+      merge_environments_[current_offset]->Merge(environment());
     }
-    // And now merge with loop header environment created when loop
-    // header was visited.
-    loop_header_environments_[target_offset]->Merge(merged);
+    set_environment(merge_environments_[current_offset]);
   }
 }
 
-
-void BytecodeGraphBuilder::MergeEnvironmentsOfForwardBranches(
-    int source_offset) {
-  if (branch_analysis()->forward_branches_target(source_offset)) {
-    // Merge environments of branches that reach this bytecode.
-    auto branch_sites =
-        branch_analysis()->ForwardBranchesTargetting(source_offset);
-    DCHECK_LT(branch_sites->at(0), source_offset);
-    Environment* merged = merge_environments_[branch_sites->at(0)];
-    for (size_t i = 1; i < branch_sites->size(); i++) {
-      DCHECK_LT(branch_sites->at(i), source_offset);
-      merged->Merge(merge_environments_[branch_sites->at(i)]);
-    }
-    if (environment()) {
-      merged->Merge(environment());
-    }
-    set_environment(merged);
-  }
-}
-
-
-void BytecodeGraphBuilder::BuildLoopHeaderForBackwardBranches(
-    int source_offset) {
-  if (branch_analysis()->backward_branches_target(source_offset)) {
+void BytecodeGraphBuilder::BuildLoopHeaderEnvironment(int current_offset) {
+  if (branch_analysis()->backward_branches_target(current_offset)) {
     // Add loop header and store a copy so we can connect merged back
     // edge inputs to the loop header.
-    loop_header_environments_[source_offset] = environment()->CopyForLoop();
+    merge_environments_[current_offset] = environment()->CopyForLoop();
   }
 }
 
-
-void BytecodeGraphBuilder::BuildJump(int source_offset, int target_offset) {
-  DCHECK_NULL(merge_environments_[source_offset]);
-  // Append merge nodes to the environment. We may merge here with another
-  // environment. So add a place holder for merge nodes. We may add redundant
-  // but will be eliminated in a later pass.
-  // TODO(mstarzinger): This can be simplified by propagating environment
-  // forward along the direction of the dataflow.
-  NewMerge();
-  merge_environments_[source_offset] = environment();
-  if (source_offset >= target_offset) {
-    MergeEnvironmentsOfBackwardBranches(source_offset, target_offset);
+void BytecodeGraphBuilder::MergeIntoSuccessorEnvironment(int target_offset) {
+  if (merge_environments_[target_offset] == nullptr) {
+    // Append merge nodes to the environment. We may merge here with another
+    // environment. So add a place holder for merge nodes. We may add redundant
+    // but will be eliminated in a later pass.
+    // TODO(mstarzinger): Be smarter about this!
+    NewMerge();
+    merge_environments_[target_offset] = environment();
+  } else {
+    merge_environments_[target_offset]->Merge(environment());
   }
   set_environment(nullptr);
 }
 
 
 void BytecodeGraphBuilder::BuildJump() {
-  int source_offset = bytecode_iterator().current_offset();
-  int target_offset = bytecode_iterator().GetJumpTargetOffset();
-  BuildJump(source_offset, target_offset);
+  MergeIntoSuccessorEnvironment(bytecode_iterator().GetJumpTargetOffset());
 }
 
 
 void BytecodeGraphBuilder::BuildConditionalJump(Node* condition) {
-  int source_offset = bytecode_iterator().current_offset();
   NewBranch(condition);
   Environment* if_false_environment = environment()->CopyForConditional();
   NewIfTrue();
-  BuildJump(source_offset, bytecode_iterator().GetJumpTargetOffset());
+  MergeIntoSuccessorEnvironment(bytecode_iterator().GetJumpTargetOffset());
   set_environment(if_false_environment);
   NewIfFalse();
 }
@@ -1797,15 +1758,9 @@ Node* BytecodeGraphBuilder::MakeNode(const Operator* op, int value_input_count,
       }
       // Add implicit exception continuation for throwing nodes.
       if (!result->op()->HasProperty(Operator::kNoThrow) && inside_handler) {
-        int throw_offset = bytecode_iterator().current_offset();
         int handler_offset = exception_handlers_.top().handler_offset_;
         // TODO(mstarzinger): Thread through correct prediction!
         IfExceptionHint hint = IfExceptionHint::kLocallyCaught;
-        // TODO(mstarzinger): For now we mutate the branch analysis result and
-        // add the artificial control flow from throw-site to handler-entry.
-        // This can be simplified by pushing environment forward along the
-        // direction of the data-flow.
-        branch_analysis_->AddExceptionalBranch(throw_offset, handler_offset);
         Environment* success_env = environment()->CopyForConditional();
         const Operator* op = common()->IfException(hint);
         Node* effect = environment()->GetEffectDependency();
@@ -1813,7 +1768,7 @@ Node* BytecodeGraphBuilder::MakeNode(const Operator* op, int value_input_count,
         environment()->UpdateControlDependency(on_exception);
         environment()->UpdateEffectDependency(on_exception);
         environment()->BindAccumulator(on_exception);
-        BuildJump(throw_offset, handler_offset);
+        MergeIntoSuccessorEnvironment(handler_offset);
         set_environment(success_env);
       }
       // Add implicit success continuation for throwing nodes.

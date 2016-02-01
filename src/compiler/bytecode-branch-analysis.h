@@ -34,12 +34,6 @@ class BytecodeBranchAnalysis BASE_EMBEDDED {
   // until this has been called.
   void Analyze();
 
-  // Offsets of bytecodes having a backward branch to the bytecode at |offset|.
-  const ZoneVector<int>* BackwardBranchesTargetting(int offset) const;
-
-  // Offsets of bytecodes having a forward branch to the bytecode at |offset|.
-  const ZoneVector<int>* ForwardBranchesTargetting(int offset) const;
-
   // Returns true if the bytecode at |offset| is reachable.
   bool is_reachable(int offset) const { return reachable_.Contains(offset); }
 
@@ -57,14 +51,15 @@ class BytecodeBranchAnalysis BASE_EMBEDDED {
     return sites != nullptr && sites->size() > 0;
   }
 
-  // Adds an additional implicit branch from a throw-site at {throw_offset} to
-  // the corresponding exception handler at {handler_offset}. Note that such a
-  // branch must be a forward branch and has to target a known handler.
-  void AddExceptionalBranch(int throw_offset, int handler_offset);
-
  private:
   void AddBranch(int origin_offset, int target_offset);
   void AnalyzeExceptionHandlers();
+
+  // Offsets of bytecodes having a backward branch to the bytecode at |offset|.
+  const ZoneVector<int>* BackwardBranchesTargetting(int offset) const;
+
+  // Offsets of bytecodes having a forward branch to the bytecode at |offset|.
+  const ZoneVector<int>* ForwardBranchesTargetting(int offset) const;
 
   Zone* zone() const { return zone_; }
   Handle<BytecodeArray> bytecode_array() const { return bytecode_array_; }
