@@ -73,7 +73,6 @@ class EscapeStatusAnalysis {
   static const Alias kUntrackable;
 
   bool IsNotReachable(Node* node);
-  ZoneVector<Node*>& stack() { return stack_; }
 
  private:
   void Process(Node* node);
@@ -170,7 +169,6 @@ class EscapeAnalysis {
   Graph* graph() const { return status_analysis_.graph(); }
   Zone* zone() const { return status_analysis_.zone(); }
   CommonOperatorBuilder* common() const { return common_; }
-  ZoneVector<Node*>& stack() { return status_analysis_.stack(); }
   bool IsEffectBranchPoint(Node* node) {
     return status_analysis_.IsEffectBranchPoint(node);
   }

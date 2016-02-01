@@ -94,7 +94,7 @@ class VirtualObject : public ZoneObject {
   Node** fields_array() { return &fields_.front(); }
   size_t field_count() { return fields_.size(); }
   bool ResizeFields(size_t field_count) {
-    if (field_count != fields_.size()) {
+    if (field_count > fields_.size()) {
       fields_.resize(field_count);
       phi_.resize(field_count);
       return true;
@@ -758,21 +758,31 @@ EscapeAnalysis::EscapeAnalysis(Graph* graph, CommonOperatorBuilder* common,
       common_(common),
       virtual_states_(zone),
       replacements_(zone),
-      cache_(new (zone) MergeCache(zone)) {}
+      cache_(nullptr) {}
 
 EscapeAnalysis::~EscapeAnalysis() {}
 
 void EscapeAnalysis::Run() {
   replacements_.resize(graph()->NodeCount());
   status_analysis_.AssignAliases();
-  if (status_analysis_.AliasCount() == 0) return;
-  status_analysis_.ResizeStatusVector();
-  RunObjectAnalysis();
-  status_analysis_.RunStatusAnalysis();
+  if (status_analysis_.AliasCount() > 0) {
+    cache_ = new (zone()) MergeCache(zone());
+    replacements_.resize(graph()->NodeCount());
+    status_analysis_.ResizeStatusVector();
+    RunObjectAnalysis();
+    status_analysis_.RunStatusAnalysis();
+  }
 }
 
 void EscapeStatusAnalysis::AssignAliases() {
-  stack_.reserve(graph()->NodeCount() * 0.2);
+  size_t max_size = 1024;
+  size_t min_size = 32;
+  size_t stack_size = std::min(
+      std::max(
+          std::min(graph()->NodeCount() / 5, graph()->NodeCount() / 20 + 128),
+          min_size),
+      max_size);
+  stack_.reserve(stack_size);
   ResizeStatusVector();
   stack_.push_back(graph()->end());
   CHECK_LT(graph()->NodeCount(), kUntrackable);
@@ -806,11 +816,6 @@ void EscapeStatusAnalysis::AssignAliases() {
             EnqueueForStatusAnalysis(allocate);
           }
           aliases_[node->id()] = aliases_[allocate->id()];
-          TRACE(" @%d:%s#%u", aliases_[node->id()], node->op()->mnemonic(),
-                node->id());
-
-        } else {
-          aliases_[node->id()] = NextAlias();
           TRACE(" @%d:%s#%u", aliases_[node->id()], node->op()->mnemonic(),
                 node->id());
         }
@@ -992,7 +997,7 @@ void EscapeAnalysis::ProcessAllocationUsers(Node* node) {
       case IrOpcode::kStateValues:
       case IrOpcode::kReferenceEqual:
       case IrOpcode::kFinishRegion:
-      case IrOpcode::kPhi:
+      case IrOpcode::kObjectIsSmi:
         break;
       default:
         VirtualState* state = virtual_states_[node->id()];
