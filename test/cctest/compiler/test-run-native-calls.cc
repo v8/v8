@@ -1163,7 +1163,7 @@ void TestStackSlot(MachineType slot_type, T expected) {
   // function g from f which writes into the stack slot of f.
 
   if (RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN)
-          ->num_double_registers() < 2)
+          ->num_allocatable_double_registers() < 2)
     return;
 
   Isolate* isolate = CcTest::InitIsolateOnce();
