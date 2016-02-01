@@ -450,6 +450,9 @@ class Context: public FixedArray {
   Context* declaration_context();
   bool is_declaration_context();
 
+  // Get the next closure's context on the context chain.
+  Context* closure_context();
+
   // Returns a JSGlobalProxy object or null.
   JSObject* global_proxy();
   void set_global_proxy(JSObject* global);

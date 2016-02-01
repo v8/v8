@@ -467,7 +467,7 @@ MaybeHandle<JSObject> ScopeIterator::MaterializeLocalScope() {
   if (!scope_info->HasContext()) return local_scope;
 
   // Third fill all context locals.
-  Handle<Context> function_context(frame_context->declaration_context());
+  Handle<Context> function_context(frame_context->closure_context());
   CopyContextLocalsToScopeObject(scope_info, function_context, local_scope);
 
   // Finally copy any properties from the function context extension.

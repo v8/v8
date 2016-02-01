@@ -940,6 +940,7 @@
   'regress/regress-crbug-568477-4': [SKIP],
   'regress/regress-crbug-575080': [SKIP],
   'regress/regress-crbug-580506': [SKIP],
+  'regress/regress-crbug-582051': [SKIP],
   'regress/regress-deopt-in-array-literal-spread': [SKIP],
   'regress/regress-fast-literal-transition': [SKIP],
   'regress/regress-function-constructor-receiver': [SKIP],

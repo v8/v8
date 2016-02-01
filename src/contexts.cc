@@ -79,6 +79,15 @@ Context* Context::declaration_context() {
   return current;
 }
 
+Context* Context::closure_context() {
+  Context* current = this;
+  while (!current->IsFunctionContext() && !current->IsScriptContext() &&
+         !current->IsNativeContext()) {
+    current = current->previous();
+    DCHECK(current->closure() == closure());
+  }
+  return current;
+}
 
 JSObject* Context::extension_object() {
   DCHECK(IsNativeContext() || IsFunctionContext() || IsBlockContext());
