@@ -5457,6 +5457,8 @@ class V8_EXPORT Isolate {
     kPromiseDefer = 19,
     kHtmlCommentInExternalScript = 20,
     kHtmlComment = 21,
+    kSloppyModeBlockScopedFunctionRedefinition = 22,
+    kForInInitializer = 23,
     kUseCounterFeatureCount  // This enum value must be last.
   };
 

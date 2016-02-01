@@ -1969,30 +1969,39 @@ Variable* Parser::Declare(Declaration* declaration,
       var = declaration_scope->DeclareLocal(
           name, mode, declaration->initialization(), kind, kNotAssigned,
           declaration_group_start);
-    } else if (((IsLexicalVariableMode(mode) ||
-                 IsLexicalVariableMode(var->mode())) &&
-                // Allow duplicate function decls for web compat, see bug 4693.
-                (is_strict(language_mode()) || !is_function_declaration ||
-                 !var->is_function())) ||
-               ((mode == CONST_LEGACY || var->mode() == CONST_LEGACY) &&
-                !declaration_scope->is_script_scope())) {
-      // The name was declared in this scope before; check for conflicting
-      // re-declarations. We have a conflict if either of the declarations is
-      // not a var (in script scope, we also have to ignore legacy const for
-      // compatibility). There is similar code in runtime.cc in the Declare
-      // functions. The function CheckConflictingVarDeclarations checks for
-      // var and let bindings from different scopes whereas this is a check for
-      // conflicting declarations within the same scope. This check also covers
-      // the special case
-      //
-      // function () { let x; { var x; } }
-      //
-      // because the var declaration is hoisted to the function scope where 'x'
-      // is already bound.
-      DCHECK(IsDeclaredVariableMode(var->mode()));
-      if (is_strict(language_mode()) ||
-          (allow_harmony_sloppy() && mode != CONST_LEGACY &&
-           var->mode() != CONST_LEGACY)) {
+    } else if ((mode == CONST_LEGACY || var->mode() == CONST_LEGACY) &&
+               !declaration_scope->is_script_scope()) {
+      // Duplicate legacy const definitions throw at runtime.
+      DCHECK(is_sloppy(language_mode()));
+      Expression* expression = NewThrowSyntaxError(
+          MessageTemplate::kVarRedeclaration, name, declaration->position());
+      declaration_scope->SetIllegalRedeclaration(expression);
+    } else if ((IsLexicalVariableMode(mode) ||
+                IsLexicalVariableMode(var->mode())) &&
+               // Lexical bindings may appear for some parameters in sloppy
+               // mode even with --harmony-sloppy off.
+               (is_strict(language_mode()) || allow_harmony_sloppy())) {
+      // Allow duplicate function decls for web compat, see bug 4693.
+      if (is_sloppy(language_mode()) && is_function_declaration &&
+          var->is_function()) {
+        DCHECK(IsLexicalVariableMode(mode) &&
+               IsLexicalVariableMode(var->mode()));
+        ++use_counts_[v8::Isolate::kSloppyModeBlockScopedFunctionRedefinition];
+      } else {
+        // The name was declared in this scope before; check for conflicting
+        // re-declarations. We have a conflict if either of the declarations
+        // is not a var (in script scope, we also have to ignore legacy const
+        // for compatibility). There is similar code in runtime.cc in the
+        // Declare functions. The function CheckConflictingVarDeclarations
+        // checks for var and let bindings from different scopes whereas this
+        // is a check for conflicting declarations within the same scope. This
+        // check also covers the special case
+        //
+        // function () { let x; { var x; } }
+        //
+        // because the var declaration is hoisted to the function scope where
+        // 'x' is already bound.
+        DCHECK(IsDeclaredVariableMode(var->mode()));
         // In harmony we treat re-declarations as early errors. See
         // ES5 16 for a definition of early errors.
         if (declaration_kind == DeclarationDescriptor::NORMAL) {
@@ -2003,9 +2012,6 @@ Variable* Parser::Declare(Declaration* declaration,
         *ok = false;
         return nullptr;
       }
-      Expression* expression = NewThrowSyntaxError(
-          MessageTemplate::kVarRedeclaration, name, declaration->position());
-      declaration_scope->SetIllegalRedeclaration(expression);
     } else if (mode == VAR) {
       var->set_maybe_assigned();
     }
@@ -3641,6 +3647,7 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
         // special case for legacy for (var/const x =.... in)
         if (!IsLexicalVariableMode(parsing_result.descriptor.mode) &&
             decl.pattern->IsVariableProxy() && decl.initializer != nullptr) {
+          ++use_counts_[v8::Isolate::kForInInitializer];
           const AstRawString* name =
               decl.pattern->AsVariableProxy()->raw_name();
           VariableProxy* single_var = scope_->NewUnresolved(
