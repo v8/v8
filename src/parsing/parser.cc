@@ -179,15 +179,14 @@ void Parser::SetCachedData(ParseInfo* info) {
   }
 }
 
-
-FunctionLiteral* Parser::DefaultConstructor(bool call_super, Scope* scope,
+FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
+                                            bool call_super, Scope* scope,
                                             int pos, int end_pos,
                                             LanguageMode language_mode) {
   int materialized_literal_count = -1;
   int expected_property_count = -1;
   int parameter_count = 0;
-  const AstRawString* name = ast_value_factory()->empty_string();
-
+  if (name == nullptr) name = ast_value_factory()->empty_string();
 
   FunctionKind kind = call_super ? FunctionKind::kDefaultSubclassConstructor
                                  : FunctionKind::kDefaultBaseConstructor;
@@ -656,13 +655,6 @@ Expression* ParserTraits::FunctionSentExpression(Scope* scope,
 }
 
 
-Expression* ParserTraits::DefaultConstructor(bool call_super, Scope* scope,
-                                             int pos, int end_pos,
-                                             LanguageMode mode) {
-  return parser_->DefaultConstructor(call_super, scope, pos, end_pos, mode);
-}
-
-
 Literal* ParserTraits::ExpressionFromLiteral(Token::Value token, int pos,
                                              Scanner* scanner,
                                              AstNodeFactory* factory) {
@@ -1110,10 +1102,10 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
         }
       }
     } else if (shared_info->is_default_constructor()) {
-      result = DefaultConstructor(IsSubclassConstructor(shared_info->kind()),
-                                  scope, shared_info->start_position(),
-                                  shared_info->end_position(),
-                                  shared_info->language_mode());
+      result = DefaultConstructor(
+          raw_name, IsSubclassConstructor(shared_info->kind()), scope,
+          shared_info->start_position(), shared_info->end_position(),
+          shared_info->language_mode());
     } else {
       result = ParseFunctionLiteral(
           raw_name, Scanner::Location::invalid(), kSkipFunctionNameCheck,
@@ -2477,18 +2469,8 @@ void Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
         }
       }
 
-      if (allow_harmony_function_name() && single_name) {
-        if (value->IsFunctionLiteral()) {
-          auto function_literal = value->AsFunctionLiteral();
-          if (function_literal->is_anonymous()) {
-            function_literal->set_raw_name(single_name);
-          }
-        } else if (value->IsClassLiteral()) {
-          auto class_literal = value->AsClassLiteral();
-          if (class_literal->raw_name() == nullptr) {
-            class_literal->set_raw_name(single_name);
-          }
-        }
+      if (allow_harmony_function_name()) {
+        ParserTraits::SetFunctionNameFromIdentifierRef(value, pattern);
       }
 
       // End position of the initializer is after the assignment expression.
@@ -4896,24 +4878,27 @@ ClassLiteral* Parser::ParseClassLiteral(const AstRawString* name,
     bool is_computed_name = false;  // Classes do not care about computed
                                     // property names here.
     ExpressionClassifier classifier;
-    const AstRawString* name = nullptr;
+    const AstRawString* property_name = nullptr;
     ObjectLiteral::Property* property = ParsePropertyDefinition(
         &checker, in_class, has_extends, is_static, &is_computed_name,
-        &has_seen_constructor, &classifier, &name, CHECK_OK);
+        &has_seen_constructor, &classifier, &property_name, CHECK_OK);
     property = ParserTraits::RewriteNonPatternObjectLiteralProperty(
         property, &classifier, CHECK_OK);
 
     if (has_seen_constructor && constructor == NULL) {
       constructor = GetPropertyValue(property)->AsFunctionLiteral();
       DCHECK_NOT_NULL(constructor);
+      constructor->set_raw_name(
+          name != nullptr ? name : ast_value_factory()->empty_string());
     } else {
       properties->Add(property, zone());
     }
 
     if (fni_ != NULL) fni_->Infer();
 
-    if (allow_harmony_function_name()) {
-      SetFunctionNameFromPropertyName(property, name);
+    if (allow_harmony_function_name() &&
+        property_name != ast_value_factory()->constructor_string()) {
+      SetFunctionNameFromPropertyName(property, property_name);
     }
   }
 
@@ -4921,8 +4906,8 @@ ClassLiteral* Parser::ParseClassLiteral(const AstRawString* name,
   int end_pos = scanner()->location().end_pos;
 
   if (constructor == NULL) {
-    constructor = DefaultConstructor(extends != NULL, block_scope, pos, end_pos,
-                                     block_scope->language_mode());
+    constructor = DefaultConstructor(name, extends != NULL, block_scope, pos,
+                                     end_pos, block_scope->language_mode());
   }
 
   // Note that we do not finalize this block scope because strong
@@ -4934,8 +4919,8 @@ ClassLiteral* Parser::ParseClassLiteral(const AstRawString* name,
     proxy->var()->set_initializer_position(end_pos);
   }
 
-  return factory()->NewClassLiteral(name, block_scope, proxy, extends,
-                                    constructor, properties, pos, end_pos);
+  return factory()->NewClassLiteral(block_scope, proxy, extends, constructor,
+                                    properties, pos, end_pos);
 }
 
 
@@ -5744,7 +5729,7 @@ void ParserTraits::QueueDestructuringAssignmentForRewriting(Expression* expr) {
 void ParserTraits::SetFunctionNameFromPropertyName(
     ObjectLiteralProperty* property, const AstRawString* name) {
   Expression* value = property->value();
-  if (!value->IsFunctionLiteral() && !value->IsClassLiteral()) return;
+  if (!value->IsAnonymousFunctionDefinition()) return;
 
   // TODO(adamk): Support computed names.
   if (property->is_computed_name()) return;
@@ -5754,50 +5739,40 @@ void ParserTraits::SetFunctionNameFromPropertyName(
   // of an object literal.
   if (property->kind() == ObjectLiteralProperty::PROTOTYPE) return;
 
-  if (value->IsFunctionLiteral()) {
-    auto function = value->AsFunctionLiteral();
-    if (function->is_anonymous()) {
-      if (property->kind() == ObjectLiteralProperty::GETTER) {
-        function->set_raw_name(parser_->ast_value_factory()->NewConsString(
-            parser_->ast_value_factory()->get_space_string(), name));
-      } else if (property->kind() == ObjectLiteralProperty::SETTER) {
-        function->set_raw_name(parser_->ast_value_factory()->NewConsString(
-            parser_->ast_value_factory()->set_space_string(), name));
-      } else {
-        function->set_raw_name(name);
-        DCHECK_EQ(ObjectLiteralProperty::COMPUTED, property->kind());
-      }
+  auto function = value->AsFunctionLiteral();
+  if (function != nullptr) {
+    if (property->kind() == ObjectLiteralProperty::GETTER) {
+      function->set_raw_name(parser_->ast_value_factory()->NewConsString(
+          parser_->ast_value_factory()->get_space_string(), name));
+    } else if (property->kind() == ObjectLiteralProperty::SETTER) {
+      function->set_raw_name(parser_->ast_value_factory()->NewConsString(
+          parser_->ast_value_factory()->set_space_string(), name));
+    } else {
+      function->set_raw_name(name);
+      DCHECK_EQ(ObjectLiteralProperty::COMPUTED, property->kind());
     }
   } else {
     DCHECK(value->IsClassLiteral());
     DCHECK_EQ(ObjectLiteralProperty::COMPUTED, property->kind());
-    auto class_literal = value->AsClassLiteral();
-    if (class_literal->raw_name() == nullptr) {
-      class_literal->set_raw_name(name);
-    }
+    value->AsClassLiteral()->constructor()->set_raw_name(name);
   }
 }
 
 
 void ParserTraits::SetFunctionNameFromIdentifierRef(Expression* value,
                                                     Expression* identifier) {
-  if (!value->IsFunctionLiteral() && !value->IsClassLiteral()) return;
+  if (!value->IsAnonymousFunctionDefinition()) return;
   if (!identifier->IsVariableProxy()) return;
 
   auto name = identifier->AsVariableProxy()->raw_name();
   DCHECK_NOT_NULL(name);
 
-  if (value->IsFunctionLiteral()) {
-    auto function = value->AsFunctionLiteral();
-    if (function->is_anonymous()) {
-      function->set_raw_name(name);
-    }
+  auto function = value->AsFunctionLiteral();
+  if (function != nullptr) {
+    function->set_raw_name(name);
   } else {
     DCHECK(value->IsClassLiteral());
-    auto class_literal = value->AsClassLiteral();
-    if (class_literal->raw_name() == nullptr) {
-      class_literal->set_raw_name(name);
-    }
+    value->AsClassLiteral()->constructor()->set_raw_name(name);
   }
 }
 

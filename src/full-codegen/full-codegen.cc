@@ -1311,12 +1311,6 @@ void FullCodeGenerator::VisitClassLiteral(ClassLiteral* lit) {
     EnterBlockScopeIfNeeded block_scope_state(
         this, lit->scope(), lit->EntryId(), lit->DeclsId(), lit->ExitId());
 
-    if (lit->raw_name() != NULL) {
-      __ Push(lit->name());
-    } else {
-      __ Push(isolate()->factory()->undefined_value());
-    }
-
     if (lit->extends() != NULL) {
       VisitForStackValue(lit->extends());
     } else {

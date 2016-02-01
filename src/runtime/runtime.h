@@ -74,7 +74,6 @@ namespace internal {
   F(AtomicsFutexWakeOrRequeue, 5, 1) \
   F(AtomicsFutexNumWaitersForTesting, 2, 1)
 
-
 #define FOR_EACH_INTRINSIC_CLASSES(F)       \
   F(ThrowNonMethodError, 0, 1)              \
   F(ThrowUnsupportedSuperError, 0, 1)       \
@@ -83,7 +82,7 @@ namespace internal {
   F(ThrowStaticPrototypeError, 0, 1)        \
   F(ThrowIfStaticPrototype, 1, 1)           \
   F(HomeObjectSymbol, 0, 1)                 \
-  F(DefineClass, 5, 1)                      \
+  F(DefineClass, 4, 1)                      \
   F(FinalizeClassDefinition, 2, 1)          \
   F(DefineClassMethod, 3, 1)                \
   F(LoadFromSuper, 4, 1)                    \
@@ -93,7 +92,6 @@ namespace internal {
   F(StoreKeyedToSuper_Strict, 4, 1)         \
   F(StoreKeyedToSuper_Sloppy, 4, 1)         \
   F(GetSuperConstructor, 1, 1)
-
 
 #define FOR_EACH_INTRINSIC_COLLECTIONS(F) \
   F(StringGetRawHashField, 1, 1)          \

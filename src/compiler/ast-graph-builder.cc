@@ -1558,22 +1558,16 @@ void AstGraphBuilder::VisitClassLiteral(ClassLiteral* expr) {
 
 
 void AstGraphBuilder::VisitClassLiteralContents(ClassLiteral* expr) {
-  Node* class_name = expr->raw_name() ? jsgraph()->Constant(expr->name())
-                                      : jsgraph()->UndefinedConstant();
-
-  // The class name is expected on the operand stack.
-  environment()->Push(class_name);
   VisitForValueOrTheHole(expr->extends());
   VisitForValue(expr->constructor());
 
   // Create node to instantiate a new class.
   Node* constructor = environment()->Pop();
   Node* extends = environment()->Pop();
-  Node* name = environment()->Pop();
   Node* start = jsgraph()->Constant(expr->start_position());
   Node* end = jsgraph()->Constant(expr->end_position());
   const Operator* opc = javascript()->CallRuntime(Runtime::kDefineClass);
-  Node* literal = NewNode(opc, name, extends, constructor, start, end);
+  Node* literal = NewNode(opc, extends, constructor, start, end);
   PrepareFrameState(literal, expr->CreateLiteralId(),
                     OutputFrameStateCombine::Push());
 

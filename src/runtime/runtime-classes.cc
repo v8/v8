@@ -81,8 +81,7 @@ RUNTIME_FUNCTION(Runtime_HomeObjectSymbol) {
   return isolate->heap()->home_object_symbol();
 }
 
-
-static MaybeHandle<Object> DefineClass(Isolate* isolate, Handle<Object> name,
+static MaybeHandle<Object> DefineClass(Isolate* isolate,
                                        Handle<Object> super_class,
                                        Handle<JSFunction> constructor,
                                        int start_position, int end_position) {
@@ -138,11 +137,6 @@ static MaybeHandle<Object> DefineClass(Isolate* isolate, Handle<Object> name,
   map->SetConstructor(*constructor);
   Handle<JSObject> prototype = isolate->factory()->NewJSObjectFromMap(map);
 
-  Handle<String> name_string = name->IsString()
-                                   ? Handle<String>::cast(name)
-                                   : isolate->factory()->empty_string();
-  constructor->shared()->set_name(*name_string);
-
   if (!super_class->IsTheHole()) {
     // Derived classes, just like builtins, don't create implicit receivers in
     // [[construct]]. Instead they just set up new.target and call into the
@@ -195,16 +189,15 @@ static MaybeHandle<Object> DefineClass(Isolate* isolate, Handle<Object> name,
 
 RUNTIME_FUNCTION(Runtime_DefineClass) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 5);
-  CONVERT_ARG_HANDLE_CHECKED(Object, name, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, super_class, 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, 2);
-  CONVERT_SMI_ARG_CHECKED(start_position, 3);
-  CONVERT_SMI_ARG_CHECKED(end_position, 4);
+  DCHECK(args.length() == 4);
+  CONVERT_ARG_HANDLE_CHECKED(Object, super_class, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, 1);
+  CONVERT_SMI_ARG_CHECKED(start_position, 2);
+  CONVERT_SMI_ARG_CHECKED(end_position, 3);
 
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, DefineClass(isolate, name, super_class, constructor,
+      isolate, result, DefineClass(isolate, super_class, constructor,
                                    start_position, end_position));
   return *result;
 }

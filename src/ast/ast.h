@@ -324,6 +324,10 @@ class Expression : public AstNode {
   // names because [] for string objects is handled only by keyed ICs.
   virtual bool IsPropertyName() const { return false; }
 
+  // True iff the expression is a class or function expression without
+  // a syntactic name.
+  virtual bool IsAnonymousFunctionDefinition() const { return false; }
+
   // True iff the expression is a literal represented as a smi.
   bool IsSmiLiteral() const;
 
@@ -2758,6 +2762,13 @@ class FunctionLiteral final : public Expression {
     dont_optimize_reason_ = reason;
   }
 
+  bool IsAnonymousFunctionDefinition() const final {
+    // TODO(adamk): This isn't quite accurate, as many non-expressions
+    // (such as concise methods) are marked as anonymous, but it's
+    // sufficient for the current callers.
+    return is_anonymous();
+  }
+
  protected:
   FunctionLiteral(Zone* zone, const AstString* name,
                   AstValueFactory* ast_value_factory, Scope* scope,
@@ -2825,13 +2836,6 @@ class ClassLiteral final : public Expression {
 
   DECLARE_NODE_TYPE(ClassLiteral)
 
-  Handle<String> name() const { return raw_name_->string(); }
-  const AstRawString* raw_name() const { return raw_name_; }
-  void set_raw_name(const AstRawString* name) {
-    DCHECK_NULL(raw_name_);
-    raw_name_ = name;
-  }
-
   Scope* scope() const { return scope_; }
   VariableProxy* class_variable_proxy() const { return class_variable_proxy_; }
   Expression* extends() const { return extends_; }
@@ -2866,13 +2870,16 @@ class ClassLiteral final : public Expression {
 
   FeedbackVectorSlot ProxySlot() const { return slot_; }
 
+  bool IsAnonymousFunctionDefinition() const final {
+    return constructor()->raw_name()->length() == 0;
+  }
+
  protected:
-  ClassLiteral(Zone* zone, const AstRawString* name, Scope* scope,
-               VariableProxy* class_variable_proxy, Expression* extends,
-               FunctionLiteral* constructor, ZoneList<Property*>* properties,
-               int start_position, int end_position)
+  ClassLiteral(Zone* zone, Scope* scope, VariableProxy* class_variable_proxy,
+               Expression* extends, FunctionLiteral* constructor,
+               ZoneList<Property*>* properties, int start_position,
+               int end_position)
       : Expression(zone, start_position),
-        raw_name_(name),
         scope_(scope),
         class_variable_proxy_(class_variable_proxy),
         extends_(extends),
@@ -2885,7 +2892,6 @@ class ClassLiteral final : public Expression {
  private:
   int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
-  const AstRawString* raw_name_;
   Scope* scope_;
   VariableProxy* class_variable_proxy_;
   Expression* extends_;
@@ -3481,13 +3487,13 @@ class AstNodeFactory final BASE_EMBEDDED {
         position);
   }
 
-  ClassLiteral* NewClassLiteral(const AstRawString* name, Scope* scope,
-                                VariableProxy* proxy, Expression* extends,
+  ClassLiteral* NewClassLiteral(Scope* scope, VariableProxy* proxy,
+                                Expression* extends,
                                 FunctionLiteral* constructor,
                                 ZoneList<ObjectLiteral::Property*>* properties,
                                 int start_position, int end_position) {
     return new (parser_zone_)
-        ClassLiteral(parser_zone_, name, scope, proxy, extends, constructor,
+        ClassLiteral(parser_zone_, scope, proxy, extends, constructor,
                      properties, start_position, end_position);
   }
 
