@@ -22,7 +22,7 @@ class AsmTyper : public AstVisitor {
   explicit AsmTyper(Isolate* isolate, Zone* zone, Script* script,
                     FunctionLiteral* root);
   bool Validate();
-  void set_allow_simd(bool simd);
+  void set_allow_simd(bool simd) { allow_simd_ = simd; }
   const char* error_message() { return error_message_; }
 
   enum StandardMember {

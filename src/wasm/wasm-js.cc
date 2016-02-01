@@ -141,6 +141,9 @@ v8::internal::wasm::WasmModuleIndex* TranslateAsmModule(i::ParseInfo* info,
 
   v8::internal::AsmTyper typer(info->isolate(), info->zone(), *(info->script()),
                                info->literal());
+  if (i::FLAG_enable_simd_asmjs) {
+    typer.set_allow_simd(true);
+  }
   if (!typer.Validate()) {
     thrower->Error("Asm.js validation failed: %s", typer.error_message());
     return nullptr;

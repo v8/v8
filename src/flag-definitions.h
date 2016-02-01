@@ -483,6 +483,8 @@ DEFINE_BOOL(trace_wasm_ast, false, "dump AST after WASM decode")
 DEFINE_BOOL(wasm_break_on_decoder_error, false,
             "debug break when wasm decoder encounters an error")
 
+DEFINE_BOOL(enable_simd_asmjs, false, "enable SIMD.js in asm.js stdlib")
+
 DEFINE_INT(typed_array_max_size_in_heap, 64,
            "threshold for in-heap typed array")
 
