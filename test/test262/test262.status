@@ -535,7 +535,13 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=4639
   # The failed allocation causes an asan error
   'built-ins/ArrayBuffer/allocation-limit': [SKIP],
-}],
+}],  # asan == True
+
+['msan == True', {
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4639
+  # The failed allocation causes an msan error
+  'built-ins/ArrayBuffer/allocation-limit': [SKIP],
+}],  # msan == True
 
 ['ignition == True', {
   'annexB/B.2.3.*': [SKIP],
