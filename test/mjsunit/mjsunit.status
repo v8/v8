@@ -797,7 +797,6 @@
   'declare-locally': [SKIP],
   'delete-in-with': [SKIP],
   'deserialize-optimize-inner': [SKIP],
-  'double-equals': [SKIP],
   'eval-enclosing-function-name': [SKIP],
   'eval': [SKIP],
   'eval-stack-trace': [SKIP],

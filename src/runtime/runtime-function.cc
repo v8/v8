@@ -162,6 +162,9 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
   // Set the code, scope info, formal parameter count, and the length
   // of the target shared function info.
   target_shared->ReplaceCode(source_shared->code());
+  if (source_shared->HasBytecodeArray()) {
+    target_shared->set_function_data(source_shared->bytecode_array());
+  }
   target_shared->set_scope_info(source_shared->scope_info());
   target_shared->set_length(source_shared->length());
   target_shared->set_feedback_vector(source_shared->feedback_vector());

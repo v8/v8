@@ -508,7 +508,6 @@
   'test-debug/*' : [SKIP],
   'test-func-name-inference/*' : [SKIP],
   'test-inobject-slack-tracking/*' : [SKIP],
-  'test-serialize/*' : [SKIP],
 
   # TODO(mstarzinger,4674): Message object is not properly cleared.
   'test-heap/MessageObjectLeak': [FAIL],
@@ -518,6 +517,12 @@
 
   # TODO(mstarzinger,4674): Bug in control flow modeling. Investigate and fix.
   'test-run-jsexceptions/ThrowMessageIndirectly': [FAIL],
+
+  # TODO(rmcilroy,4680): Check failure in runtime-compiler.cc on code type.
+  'test-serialize/SerializeInternalReference': [FAIL],
+
+  # TODO(rmcilroy,4680): Check failed: toplevel_test_code_event_found.
+  'test-serialize/SerializeToplevelIsolates': [FAIL],
 
   'test-api-interceptors/InterceptorCallICInvalidatedConstantFunctionViaGlobal': [SKIP],
   'test-api-interceptors/InterceptorLoadICInvalidatedCallbackViaGlobal': [SKIP],
@@ -537,7 +542,6 @@
   'test-heap/IncrementalMarkingPreservesMonomorphicCallIC': [SKIP],
   'test-heap/IncrementalMarkingPreservesMonomorphicConstructor': [SKIP],
   'test-heap/NoWeakHashTableLeakWithIncrementalMarking': [SKIP],
-  'test-heap-profiler/HeapSnapshotSimd': [SKIP],
   'test-heap/OptimizedAllocationAlwaysInNewSpace': [SKIP],
   'test-heap/Regress169209': [SKIP],
   'test-heap/Regress357137': [SKIP],
@@ -584,9 +588,14 @@
   'test-unscopables-hidden-prototype/Unscopables': [SKIP],
 }],  # ignition == True
 
+['ignition == True and arch == arm', {
+  'test-serialize/SerializeInternalReference': [SKIP],
+}],
+
 ['ignition == True and arch == arm64', {
   'test-decls/CrossScriptReferencesHarmony': [SKIP],
   'test-js-arm64-variables/lookup_slots': [SKIP],
+  'test-serialize/SerializeInternalReference': [SKIP],
   'test-spaces/SizeOfFirstPageIsLargeEnough': [SKIP],
   'test-heap/AddInstructionChangesNewSpacePromotion': [SKIP],
   'test-heap/Regress538257': [SKIP],
