@@ -37,9 +37,6 @@ class BytecodeGraphBuilder::Environment : public ZoneObject {
                                   FrameStateBeforeAndAfter* states = nullptr);
   void RecordAfterState(Node* node, FrameStateBeforeAndAfter* states);
 
-  bool IsMarkedAsUnreachable() const;
-  void MarkAsUnreachable();
-
   // Effect dependency tracked by this environment.
   Node* GetEffectDependency() { return effect_dependency_; }
   void UpdateEffectDependency(Node* dependency) {
@@ -307,16 +304,6 @@ void BytecodeGraphBuilder::Environment::RecordAfterState(
 }
 
 
-bool BytecodeGraphBuilder::Environment::IsMarkedAsUnreachable() const {
-  return GetControlDependency()->opcode() == IrOpcode::kDead;
-}
-
-
-void BytecodeGraphBuilder::Environment::MarkAsUnreachable() {
-  UpdateControlDependency(builder()->jsgraph()->Dead());
-}
-
-
 BytecodeGraphBuilder::Environment*
 BytecodeGraphBuilder::Environment::CopyForLoop() {
   PrepareForLoop();
@@ -332,11 +319,6 @@ BytecodeGraphBuilder::Environment::CopyForConditional() const {
 
 void BytecodeGraphBuilder::Environment::Merge(
     BytecodeGraphBuilder::Environment* other) {
-  // Nothing to do if the other environment is dead.
-  if (other->IsMarkedAsUnreachable()) {
-    return;
-  }
-
   // Create a merge of the control dependencies of both environments and update
   // the current environment's control dependency accordingly.
   Node* control = builder()->MergeControl(GetControlDependency(),
@@ -1256,22 +1238,25 @@ void BytecodeGraphBuilder::VisitNew() { BuildCallConstruct(); }
 
 void BytecodeGraphBuilder::VisitNewWide() { BuildCallConstruct(); }
 
-void BytecodeGraphBuilder::VisitThrow() {
+void BytecodeGraphBuilder::BuildThrowOp(const Operator* call_op) {
   FrameStateBeforeAndAfter states(this);
   Node* value = environment()->LookupAccumulator();
-  Node* call = NewNode(javascript()->CallRuntime(Runtime::kThrow), value);
+  Node* call = NewNode(call_op, value);
   environment()->RecordAfterState(call, &states);
-  Node* control = NewNode(common()->Throw(), value);
-  UpdateControlDependencyToLeaveFunction(control);
+}
+
+void BytecodeGraphBuilder::VisitThrow() {
+  BuildThrowOp(javascript()->CallRuntime(Runtime::kThrow));
+  Node* control =
+      NewNode(common()->Throw(), environment()->LookupAccumulator());
+  MergeControlToLeaveFunction(control);
 }
 
 void BytecodeGraphBuilder::VisitReThrow() {
-  FrameStateBeforeAndAfter states(this);
-  Node* value = environment()->LookupAccumulator();
-  Node* call = NewNode(javascript()->CallRuntime(Runtime::kReThrow), value);
-  environment()->RecordAfterState(call, &states);
-  Node* control = NewNode(common()->Throw(), value);
-  UpdateControlDependencyToLeaveFunction(control);
+  BuildThrowOp(javascript()->CallRuntime(Runtime::kReThrow));
+  Node* control =
+      NewNode(common()->Throw(), environment()->LookupAccumulator());
+  MergeControlToLeaveFunction(control);
 }
 
 void BytecodeGraphBuilder::BuildBinaryOp(const Operator* js_op) {
@@ -1546,8 +1531,7 @@ void BytecodeGraphBuilder::VisitJumpIfUndefinedConstantWide() {
 void BytecodeGraphBuilder::VisitReturn() {
   Node* control =
       NewNode(common()->Return(), environment()->LookupAccumulator());
-  UpdateControlDependencyToLeaveFunction(control);
-  set_environment(nullptr);
+  MergeControlToLeaveFunction(control);
 }
 
 void BytecodeGraphBuilder::BuildForInPrepare() {
@@ -1632,6 +1616,10 @@ void BytecodeGraphBuilder::MergeIntoSuccessorEnvironment(int target_offset) {
   set_environment(nullptr);
 }
 
+void BytecodeGraphBuilder::MergeControlToLeaveFunction(Node* exit) {
+  exit_controls_.push_back(exit);
+  set_environment(nullptr);
+}
 
 void BytecodeGraphBuilder::BuildJump() {
   MergeIntoSuccessorEnvironment(bytecode_iterator().GetJumpTargetOffset());
@@ -1747,36 +1735,34 @@ Node* BytecodeGraphBuilder::MakeNode(const Operator* op, int value_input_count,
       *current_input++ = environment()->GetControlDependency();
     }
     result = graph()->NewNode(op, input_count_with_deps, buffer, incomplete);
-    if (!environment()->IsMarkedAsUnreachable()) {
-      // Update the current control dependency for control-producing nodes.
-      if (NodeProperties::IsControl(result)) {
-        environment()->UpdateControlDependency(result);
-      }
-      // Update the current effect dependency for effect-producing nodes.
-      if (result->op()->EffectOutputCount() > 0) {
-        environment()->UpdateEffectDependency(result);
-      }
-      // Add implicit exception continuation for throwing nodes.
-      if (!result->op()->HasProperty(Operator::kNoThrow) && inside_handler) {
-        int handler_offset = exception_handlers_.top().handler_offset_;
-        // TODO(mstarzinger): Thread through correct prediction!
-        IfExceptionHint hint = IfExceptionHint::kLocallyCaught;
-        Environment* success_env = environment()->CopyForConditional();
-        const Operator* op = common()->IfException(hint);
-        Node* effect = environment()->GetEffectDependency();
-        Node* on_exception = graph()->NewNode(op, effect, result);
-        environment()->UpdateControlDependency(on_exception);
-        environment()->UpdateEffectDependency(on_exception);
-        environment()->BindAccumulator(on_exception);
-        MergeIntoSuccessorEnvironment(handler_offset);
-        set_environment(success_env);
-      }
-      // Add implicit success continuation for throwing nodes.
-      if (!result->op()->HasProperty(Operator::kNoThrow)) {
-        const Operator* if_success = common()->IfSuccess();
-        Node* on_success = graph()->NewNode(if_success, result);
-        environment()->UpdateControlDependency(on_success);
-      }
+    // Update the current control dependency for control-producing nodes.
+    if (NodeProperties::IsControl(result)) {
+      environment()->UpdateControlDependency(result);
+    }
+    // Update the current effect dependency for effect-producing nodes.
+    if (result->op()->EffectOutputCount() > 0) {
+      environment()->UpdateEffectDependency(result);
+    }
+    // Add implicit exception continuation for throwing nodes.
+    if (!result->op()->HasProperty(Operator::kNoThrow) && inside_handler) {
+      int handler_offset = exception_handlers_.top().handler_offset_;
+      // TODO(mstarzinger): Thread through correct prediction!
+      IfExceptionHint hint = IfExceptionHint::kLocallyCaught;
+      Environment* success_env = environment()->CopyForConditional();
+      const Operator* op = common()->IfException(hint);
+      Node* effect = environment()->GetEffectDependency();
+      Node* on_exception = graph()->NewNode(op, effect, result);
+      environment()->UpdateControlDependency(on_exception);
+      environment()->UpdateEffectDependency(on_exception);
+      environment()->BindAccumulator(on_exception);
+      MergeIntoSuccessorEnvironment(handler_offset);
+      set_environment(success_env);
+    }
+    // Add implicit success continuation for throwing nodes.
+    if (!result->op()->HasProperty(Operator::kNoThrow)) {
+      const Operator* if_success = common()->IfSuccess();
+      Node* on_success = graph()->NewNode(if_success, result);
+      environment()->UpdateControlDependency(on_success);
     }
   }
 
@@ -1857,13 +1843,6 @@ Node* BytecodeGraphBuilder::MergeValue(Node* value, Node* other,
     value->ReplaceInput(inputs - 1, other);
   }
   return value;
-}
-
-
-void BytecodeGraphBuilder::UpdateControlDependencyToLeaveFunction(Node* exit) {
-  if (environment()->IsMarkedAsUnreachable()) return;
-  environment()->MarkAsUnreachable();
-  exit_controls_.push_back(exit);
 }
 
 }  // namespace compiler

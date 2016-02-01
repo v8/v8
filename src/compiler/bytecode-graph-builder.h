@@ -107,9 +107,6 @@ class BytecodeGraphBuilder {
   Node* MakeNode(const Operator* op, int value_input_count, Node** value_inputs,
                  bool incomplete);
 
-  // Helper to indicate a node exits the function body.
-  void UpdateControlDependencyToLeaveFunction(Node* exit);
-
   Node** EnsureInputBufferSize(int size);
 
   Node* ProcessCallArguments(const Operator* call_op, Node* callee,
@@ -139,10 +136,11 @@ class BytecodeGraphBuilder {
   void BuildCallRuntime();
   void BuildCallRuntimeForPair();
   void BuildCallConstruct();
+  void BuildThrowOp(const Operator* op);
   void BuildBinaryOp(const Operator* op);
   void BuildCompareOp(const Operator* op);
   void BuildDelete();
-  void BuildCastOperator(const Operator* js_op);
+  void BuildCastOperator(const Operator* op);
   void BuildForInPrepare();
   void BuildForInNext();
 
@@ -156,6 +154,9 @@ class BytecodeGraphBuilder {
   void MergeIntoSuccessorEnvironment(int target_offset);
   void BuildLoopHeaderEnvironment(int current_offset);
   void SwitchToMergeEnvironment(int current_offset);
+
+  // Simulates control flow that exits the function body.
+  void MergeControlToLeaveFunction(Node* exit);
 
   // Simulates entry and exit of exception handlers.
   void EnterAndExitExceptionHandlers(int current_offset);
