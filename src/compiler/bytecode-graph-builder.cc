@@ -615,9 +615,9 @@ void BytecodeGraphBuilder::VisitBytecodes() {
   set_bytecode_iterator(&iterator);
   while (!iterator.done()) {
     int current_offset = iterator.current_offset();
-    if (analysis.is_reachable(current_offset)) {
-      EnterAndExitExceptionHandlers(current_offset);
-      SwitchToMergeEnvironment(current_offset);
+    EnterAndExitExceptionHandlers(current_offset);
+    SwitchToMergeEnvironment(current_offset);
+    if (environment() != nullptr) {
       BuildLoopHeaderEnvironment(current_offset);
 
       switch (iterator.current_bytecode()) {

@@ -19,9 +19,9 @@ namespace compiler {
 class BytecodeBranchInfo;
 
 // A class for identifying the branch targets and their branch sites
-// within a bytecode array and also identifying which bytecodes are
-// reachable. This information can be used to construct the local
-// control flow logic for high-level IR graphs built from bytecode.
+// within a bytecode array. This information can be used to construct
+// the local control flow logic for high-level IR graphs built from
+// bytecode.
 //
 // NB This class relies on the only backwards branches in bytecode
 // being jumps back to loop headers.
@@ -33,9 +33,6 @@ class BytecodeBranchAnalysis BASE_EMBEDDED {
   // targets. No other methods in this class return valid information
   // until this has been called.
   void Analyze();
-
-  // Returns true if the bytecode at |offset| is reachable.
-  bool is_reachable(int offset) const { return reachable_.Contains(offset); }
 
   // Returns true if there are any forward branches to the bytecode at
   // |offset|.
@@ -53,7 +50,6 @@ class BytecodeBranchAnalysis BASE_EMBEDDED {
 
  private:
   void AddBranch(int origin_offset, int target_offset);
-  void AnalyzeExceptionHandlers();
 
   // Offsets of bytecodes having a backward branch to the bytecode at |offset|.
   const ZoneVector<int>* BackwardBranchesTargetting(int offset) const;
@@ -66,7 +62,6 @@ class BytecodeBranchAnalysis BASE_EMBEDDED {
 
   ZoneMap<int, BytecodeBranchInfo*> branch_infos_;
   Handle<BytecodeArray> bytecode_array_;
-  BitVector reachable_;
   Zone* zone_;
 
   DISALLOW_COPY_AND_ASSIGN(BytecodeBranchAnalysis);

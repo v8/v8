@@ -49,41 +49,16 @@ BytecodeBranchAnalysis::BytecodeBranchAnalysis(
     Handle<BytecodeArray> bytecode_array, Zone* zone)
     : branch_infos_(zone),
       bytecode_array_(bytecode_array),
-      reachable_(bytecode_array->length(), zone),
       zone_(zone) {}
 
 
 void BytecodeBranchAnalysis::Analyze() {
   interpreter::BytecodeArrayIterator iterator(bytecode_array());
-  AnalyzeExceptionHandlers();
-  bool reachable = true;
   while (!iterator.done()) {
     interpreter::Bytecode bytecode = iterator.current_bytecode();
     int current_offset = iterator.current_offset();
-    // All bytecode basic blocks are generated to be forward reachable
-    // and may also be backward reachable. Hence if there's a forward
-    // branch targetting here the code becomes reachable.
-    reachable = reachable || forward_branches_target(current_offset);
-    // Some bytecode basic blocks are reachable through a side-entry
-    // (e.g. exception handler), which has been represented in the
-    // bit-vector by a corresponding pre-pass.
-    reachable = reachable || reachable_.Contains(current_offset);
-    if (reachable) {
-      reachable_.Add(current_offset);
-      if (interpreter::Bytecodes::IsConditionalJump(bytecode)) {
-        // Only the branch is recorded, the forward path falls through
-        // and is handled as normal bytecode data flow.
-        AddBranch(current_offset, iterator.GetJumpTargetOffset());
-      } else if (interpreter::Bytecodes::IsJump(bytecode)) {
-        // Unless the branch targets the next bytecode it's not
-        // reachable. If it targets the next bytecode the check at the
-        // start of the loop will set the reachable flag.
-        AddBranch(current_offset, iterator.GetJumpTargetOffset());
-        reachable = false;
-      } else if (interpreter::Bytecodes::IsJumpOrReturn(bytecode)) {
-        DCHECK_EQ(bytecode, interpreter::Bytecode::kReturn);
-        reachable = false;
-      }
+    if (interpreter::Bytecodes::IsJump(bytecode)) {
+      AddBranch(current_offset, iterator.GetJumpTargetOffset());
     }
     iterator.Advance();
   }
@@ -121,13 +96,6 @@ void BytecodeBranchAnalysis::AddBranch(int source_offset, int target_offset) {
     branch_info = iterator->second;
   }
   branch_info->AddBranch(source_offset, target_offset);
-}
-
-void BytecodeBranchAnalysis::AnalyzeExceptionHandlers() {
-  HandlerTable* table = HandlerTable::cast(bytecode_array()->handler_table());
-  for (int i = 0; i < table->NumberOfRangeEntries(); ++i) {
-    reachable_.Add(table->GetRangeHandler(i));
-  }
 }
 
 }  // namespace compiler
