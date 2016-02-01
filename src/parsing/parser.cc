@@ -5561,6 +5561,12 @@ class NonPatternRewriter : public AstExpressionRewriter {
     return false;
   }
 
+  void VisitObjectLiteralProperty(ObjectLiteralProperty* property) override {
+    if (property == nullptr) return;
+    // Do not rewrite (computed) key expressions
+    AST_REWRITE_PROPERTY(Expression, property, value);
+  }
+
   Parser* parser_;
 };
 
@@ -5581,8 +5587,7 @@ ObjectLiteralProperty* Parser::RewriteNonPatternObjectLiteralProperty(
     ObjectLiteralProperty* property, const ExpressionClassifier* classifier,
     bool* ok) {
   if (property != nullptr) {
-    Expression* key = RewriteNonPattern(property->key(), classifier, ok);
-    property->set_key(key);
+    // Do not rewrite (computed) key expressions
     Expression* value = RewriteNonPattern(property->value(), classifier, ok);
     property->set_value(value);
   }
