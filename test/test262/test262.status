@@ -56,10 +56,12 @@
   'built-ins/Reflect/enumerate/return-abrupt-from-result': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=4093
-  'built-ins/Array/symbol-species': [FAIL],
-  'built-ins/Array/symbol-species-name': [FAIL],
-  'built-ins/ArrayBuffer/symbol-species': [FAIL],
-  'built-ins/ArrayBuffer/symbol-species-name': [FAIL],
+  'built-ins/Array/Symbol.species/length': [FAIL],
+  'built-ins/Array/Symbol.species/symbol-species': [FAIL],
+  'built-ins/Array/Symbol.species/symbol-species-name': [FAIL],
+  'built-ins/ArrayBuffer/Symbol.species/length': [FAIL],
+  'built-ins/ArrayBuffer/Symbol.species/symbol-species': [FAIL],
+  'built-ins/ArrayBuffer/Symbol.species/symbol-species-name': [FAIL],
   'built-ins/ArrayBuffer/prototype/slice/species-constructor-is-not-object': [FAIL],
   'built-ins/ArrayBuffer/prototype/slice/species-returns-smaller-arraybuffer': [FAIL],
   'built-ins/ArrayBuffer/prototype/slice/species-is-not-object': [FAIL],
@@ -68,22 +70,32 @@
   'built-ins/ArrayBuffer/prototype/slice/species-returns-not-arraybuffer': [FAIL],
   'built-ins/ArrayBuffer/prototype/slice/species-returns-same-arraybuffer': [FAIL],
   'built-ins/ArrayBuffer/prototype/slice/species': [FAIL],
-  'built-ins/Map/symbol-species': [FAIL],
-  'built-ins/Map/symbol-species-name': [FAIL],
+  'built-ins/Map/Symbol.species/length': [FAIL],
+  'built-ins/Map/Symbol.species/symbol-species': [FAIL],
+  'built-ins/Map/Symbol.species/symbol-species-name': [FAIL],
   'built-ins/Promise/Symbol.species/prop-desc': [FAIL],
   'built-ins/Promise/Symbol.species/return-value': [FAIL],
   'built-ins/Promise/all/species-get-error': [PASS, FAIL],
   'built-ins/Promise/prototype/then/ctor-custom': [FAIL],
+  'built-ins/Promise/prototype/then/ctor-throws': [FAIL],
   'built-ins/Promise/race/species-get-error': [PASS, FAIL],
-  'built-ins/Promise/symbol-species': [FAIL],
-  'built-ins/Promise/symbol-species-name': [FAIL],
-  'built-ins/RegExp/symbol-species': [FAIL],
-  'built-ins/RegExp/symbol-species-name': [FAIL],
-  'built-ins/Set/symbol-species': [FAIL],
-  'built-ins/Set/symbol-species-name': [FAIL],
+  'built-ins/Promise/Symbol.species/length': [FAIL],
+  'built-ins/Promise/Symbol.species/symbol-species': [FAIL],
+  'built-ins/Promise/Symbol.species/symbol-species-name': [FAIL],
+  'built-ins/RegExp/Symbol.species/length': [FAIL],
+  'built-ins/RegExp/Symbol.species/symbol-species': [FAIL],
+  'built-ins/RegExp/Symbol.species/symbol-species-name': [FAIL],
+  'built-ins/Set/Symbol.species/length': [FAIL],
+  'built-ins/Set/Symbol.species/symbol-species': [FAIL],
+  'built-ins/Set/Symbol.species/symbol-species-name': [FAIL],
   'built-ins/Symbol/species/basic': [FAIL],
   'built-ins/Symbol/species/builtin-getter-name': [FAIL],
   'built-ins/Symbol/species/subclassing': [FAIL],
+  'built-ins/TypedArray/Symbol.species/length': [FAIL],
+  'built-ins/TypedArray/Symbol.species/name': [FAIL],
+  'built-ins/TypedArray/Symbol.species/symbol-species': [FAIL],
+  'built-ins/TypedArray/Symbol.species/symbol-species-name': [FAIL],
+  'language/statements/class/subclass/builtin-objects/ArrayBuffer/regular-subclassing': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=4163
   'built-ins/GeneratorPrototype/next/context-constructor-invocation': [FAIL],
@@ -96,6 +108,7 @@
   'built-ins/Map/iterator-item-second-entry-returns-abrupt': [FAIL],
   'built-ins/Map/iterator-items-are-not-object-close-iterator': [FAIL],
   'built-ins/Promise/all/iter-close': [FAIL],
+  'built-ins/Promise/race/iter-close': [PASS, FAIL],
   'built-ins/Set/set-iterator-close-after-add-failure': [FAIL],
   'built-ins/WeakMap/iterator-close-after-set-failure': [FAIL],
   'built-ins/WeakMap/iterator-item-first-entry-returns-abrupt': [FAIL],
@@ -137,22 +150,7 @@
   'built-ins/Array/prototype/Symbol.unscopables/value': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=3566
-  'built-ins/GeneratorPrototype/return/from-state-completed': [FAIL],
-  'built-ins/GeneratorPrototype/return/from-state-suspended-start': [FAIL],
-  'built-ins/GeneratorPrototype/return/property-descriptor': [FAIL],
-  'built-ins/GeneratorPrototype/return/try-catch-before-try': [FAIL],
-  'built-ins/GeneratorPrototype/return/try-catch-following-catch': [FAIL],
-  'built-ins/GeneratorPrototype/return/try-catch-within-catch': [FAIL],
-  'built-ins/GeneratorPrototype/return/try-catch-within-try': [FAIL],
-  'built-ins/GeneratorPrototype/return/try-finally-before-try': [FAIL],
-  'built-ins/GeneratorPrototype/return/try-finally-following-finally': [FAIL],
-  'built-ins/GeneratorPrototype/return/try-finally-nested-try-catch-within-catch': [FAIL],
-  'built-ins/GeneratorPrototype/return/try-finally-nested-try-catch-within-finally': [FAIL],
-  'built-ins/GeneratorPrototype/return/try-finally-nested-try-catch-within-inner-try': [FAIL],
-  'built-ins/GeneratorPrototype/return/try-finally-nested-try-catch-within-outer-try-after-nested': [FAIL],
-  'built-ins/GeneratorPrototype/return/try-finally-nested-try-catch-within-outer-try-before-nested': [FAIL],
-  'built-ins/GeneratorPrototype/return/try-finally-within-finally': [FAIL],
-  'built-ins/GeneratorPrototype/return/try-finally-within-try': [FAIL],
+  'built-ins/GeneratorPrototype/return/*': [SKIP],
 
   # https://code.google.com/p/v8/issues/detail?id=4248
   'language/expressions/compound-assignment/S11.13.2_A5.*': [FAIL],
@@ -305,6 +303,9 @@
   # https://code.google.com/p/v8/issues/detail?id=4447
   'built-ins/Function/prototype/Symbol.hasInstance/*': [SKIP],
   'built-ins/Symbol/hasInstance/prop-desc': [FAIL],
+  'language/expressions/instanceof/prototype-getter-with-object-throws': [FAIL],
+  'language/expressions/instanceof/prototype-getter-with-object': [FAIL],
+  'language/expressions/instanceof/primitive-prototype-with-object': [FAIL],
   'language/expressions/instanceof/symbol-hasinstance-get-err': [FAIL],
   'language/expressions/instanceof/symbol-hasinstance-invocation': [FAIL],
   'language/expressions/instanceof/symbol-hasinstance-to-boolean': [FAIL],
@@ -356,8 +357,23 @@
   'built-ins/DataView/prototype/setUint8/index-check-before-value-conversion': [FAIL],
   'built-ins/DataView/prototype/setInt8/index-check-before-value-conversion': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4639
-  'built-ins/ArrayBuffer/allocation-limit': [SKIP],
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4706
+  'language/statements/class/subclass/builtin-objects/NativeError/EvalError-message': [FAIL],
+  'language/statements/class/subclass/builtin-objects/NativeError/RangeError-message': [FAIL],
+  'language/statements/class/subclass/builtin-objects/NativeError/ReferenceError-message': [FAIL],
+  'language/statements/class/subclass/builtin-objects/NativeError/SyntaxError-message': [FAIL],
+  'language/statements/class/subclass/builtin-objects/NativeError/TypeError-message': [FAIL],
+  'language/statements/class/subclass/builtin-objects/NativeError/URIError-message': [FAIL],
+  'language/statements/class/subclass/builtin-objects/Error/message-property-assignment': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4663
+  'built-ins/object/entries/*': [SKIP],
+  'built-ins/object/values/*': [SKIP],
+  'built-ins/Object/entries/*': [SKIP],
+  'built-ins/Object/values/*': [SKIP],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4708
+  'annexB/Date/prototype/toGMTString/name': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 
@@ -515,6 +531,10 @@
   # BUG(v8:4653): Test262 tests which rely on quit() are not compatible with
   # asan's --omit-quit flag.
   'built-ins/Promise/prototype/then/deferred-is-resolved-value': [SKIP],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4639
+  # The failed allocation causes an asan error
+  'built-ins/ArrayBuffer/allocation-limit': [SKIP],
 }],
 
 ['ignition == True', {
@@ -535,6 +555,9 @@
   'language/expressions/assignment/destructuring/*': [SKIP],
   'language/expressions/class/*': [SKIP],
   'language/expressions/generators/*': [SKIP],
+  'language/expressions/instanceof/primitive-prototype-with-object': [SKIP],
+  'language/expressions/instanceof/prototype-getter-with-object-throws': [SKIP],
+  'language/expressions/instanceof/prototype-getter-with-object': [SKIP],
   'language/expressions/object/method-definition/yield*': [SKIP],
   'language/expressions/object/method-definition/generator*': [SKIP],
   'language/expressions/object/prop-def-id-eval-error-2': [SKIP],
