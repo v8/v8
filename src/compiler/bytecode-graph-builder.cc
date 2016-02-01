@@ -1238,24 +1238,24 @@ void BytecodeGraphBuilder::VisitNew() { BuildCallConstruct(); }
 
 void BytecodeGraphBuilder::VisitNewWide() { BuildCallConstruct(); }
 
-void BytecodeGraphBuilder::BuildThrowOp(const Operator* call_op) {
+void BytecodeGraphBuilder::BuildThrow() {
   FrameStateBeforeAndAfter states(this);
   Node* value = environment()->LookupAccumulator();
-  Node* call = NewNode(call_op, value);
-  environment()->RecordAfterState(call, &states);
+  Node* call = NewNode(javascript()->CallRuntime(Runtime::kThrow), value);
+  environment()->BindAccumulator(call, &states);
 }
 
 void BytecodeGraphBuilder::VisitThrow() {
-  BuildThrowOp(javascript()->CallRuntime(Runtime::kThrow));
-  Node* control =
-      NewNode(common()->Throw(), environment()->LookupAccumulator());
+  BuildThrow();
+  Node* call = environment()->LookupAccumulator();
+  Node* control = NewNode(common()->Throw(), call);
   MergeControlToLeaveFunction(control);
 }
 
 void BytecodeGraphBuilder::VisitReThrow() {
-  BuildThrowOp(javascript()->CallRuntime(Runtime::kReThrow));
-  Node* control =
-      NewNode(common()->Throw(), environment()->LookupAccumulator());
+  Node* value = environment()->LookupAccumulator();
+  Node* call = NewNode(javascript()->CallRuntime(Runtime::kReThrow), value);
+  Node* control = NewNode(common()->Throw(), call);
   MergeControlToLeaveFunction(control);
 }
 

@@ -1462,11 +1462,10 @@ TEST(BytecodeGraphBuilderTryFinally1) {
        "  try { a = 2; continue; } finally { a = 3; }"
        "} return a + i;",
        {handle(Smi::FromInt(23), isolate)}},
-      // TODO(mstarzinger): Investigate failure!
-      // {"var a = 1; try { a = 2;"
-      //  "  try { a = 3; throw 23; } finally { a = 4; }"
-      //  "} catch(e) { a = a + e; } return a;",
-      //  {handle(Smi::FromInt(27), isolate)}},
+      {"var a = 1; try { a = 2;"
+       "  try { a = 3; throw 23; } finally { a = 4; }"
+       "} catch(e) { a = a + e; } return a;",
+       {handle(Smi::FromInt(27), isolate)}},
   };
 
   size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);

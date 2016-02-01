@@ -136,7 +136,7 @@ class BytecodeGraphBuilder {
   void BuildCallRuntime();
   void BuildCallRuntimeForPair();
   void BuildCallConstruct();
-  void BuildThrowOp(const Operator* op);
+  void BuildThrow();
   void BuildBinaryOp(const Operator* op);
   void BuildCompareOp(const Operator* op);
   void BuildDelete();
