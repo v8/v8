@@ -155,7 +155,9 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
   // +Infinity), with the tagged value in r1 and the double value in d1.
   __ LoadRoot(r1, root_index);
   __ vldr(d1, FieldMemOperand(r1, HeapNumber::kValueOffset));
-  __ mov(r4, r0);
+
+  // Remember how many slots to drop (including the receiver).
+  __ add(r4, r0, Operand(1));
 
   Label done_loop, loop;
   __ bind(&loop);
@@ -177,8 +179,8 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
     {
       // Parameter is not a Number, use the ToNumberStub to convert it.
       FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
-      __ SmiTag(r0, r0);
-      __ SmiTag(r4, r4);
+      __ SmiTag(r0);
+      __ SmiTag(r4);
       __ Push(r0, r1, r4);
       __ mov(r0, r2);
       ToNumberStub stub(masm->isolate());
@@ -187,12 +189,10 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
       __ Pop(r0, r1, r4);
       {
         // Restore the double accumulator value (d1).
-        Label restore_smi, done_restore;
-        __ JumpIfSmi(r1, &restore_smi);
-        __ vldr(d1, FieldMemOperand(r1, HeapNumber::kValueOffset));
-        __ b(&done_restore);
-        __ bind(&restore_smi);
+        Label done_restore;
         __ SmiToDouble(d1, r1);
+        __ JumpIfSmi(r1, &done_restore);
+        __ vldr(d1, FieldMemOperand(r1, HeapNumber::kValueOffset));
         __ bind(&done_restore);
       }
       __ SmiUntag(r4);
@@ -235,7 +235,7 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
   __ bind(&done_loop);
   __ mov(r0, r1);
   __ Drop(r4);
-  __ Ret(1);
+  __ Ret();
 }
 
 // static

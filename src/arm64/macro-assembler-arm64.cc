@@ -1677,6 +1677,15 @@ void MacroAssembler::AssertPositiveOrZero(Register value) {
   }
 }
 
+void MacroAssembler::AssertNumber(Register value) {
+  if (emit_debug_code()) {
+    Label done;
+    JumpIfSmi(value, &done);
+    JumpIfHeapNumber(value, &done);
+    Abort(kOperandIsNotANumber);
+    Bind(&done);
+  }
+}
 
 void MacroAssembler::CallStub(CodeStub* stub, TypeFeedbackId ast_id) {
   DCHECK(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.

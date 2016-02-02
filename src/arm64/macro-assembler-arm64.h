@@ -982,6 +982,9 @@ class MacroAssembler : public Assembler {
   // --debug-code.
   void AssertPositiveOrZero(Register value);
 
+  // Abort execution if argument is not a number (heap number or smi).
+  void AssertNumber(Register value);
+
   void JumpIfHeapNumber(Register object, Label* on_heap_number,
                         SmiCheckType smi_check_type = DONT_DO_SMI_CHECK);
   void JumpIfNotHeapNumber(Register object, Label* on_not_heap_number,
