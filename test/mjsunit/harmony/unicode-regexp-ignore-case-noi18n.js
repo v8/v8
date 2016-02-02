@@ -50,3 +50,10 @@ assertTrue(/\u1f6b/ui.test("\u1f63"));
 // Back references.
 assertNull(/(.)\1\1/ui.exec("\u00e5\u212b\u00c5"));
 assertNull(/(.)\1/ui.exec("\u{118aa}\u{118ca}"));
+
+
+// Non-Latin1 maps to Latin1.
+assertNull(/^\u017F/ui.exec("s"));
+assertNull(/^\u017F/ui.exec("s\u1234"));
+assertNull(/^a[\u017F]/ui.exec("as"));
+assertNull(/^a[\u017F]/ui.exec("as\u1234"));

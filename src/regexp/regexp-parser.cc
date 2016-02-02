@@ -1294,10 +1294,7 @@ bool RegExpBuilder::NeedsDesugaringForUnicode(RegExpCharacterClass* cc) {
 
 bool RegExpBuilder::NeedsDesugaringForIgnoreCase(uc32 c) {
 #ifdef V8_I18N_SUPPORT
-  if (unicode() && ignore_case() && c >= kNonBmpStart) {
-    // BMP characters are handled in the case-insensitive TextEmitPass.
-    // Surrogate code units do not have case equivalents.
-    // Non-BMP characters need to be desugared into two uc16 parts.
+  if (unicode() && ignore_case()) {
     USet* set = uset_open(c, c);
     uset_closeOver(set, USET_CASE_INSENSITIVE);
     uset_removeAllStrings(set);

@@ -1382,7 +1382,7 @@ TEST(IsAscii) {
 
 template<typename Op, bool return_first>
 static uint16_t ConvertLatin1(uint16_t c) {
-  uc32 result[Op::kMaxWidth];
+  uint32_t result[Op::kMaxWidth];
   int chars;
   chars = Op::Convert(c, 0, result, NULL);
   if (chars == 0) return 0;

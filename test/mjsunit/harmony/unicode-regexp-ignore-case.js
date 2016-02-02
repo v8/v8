@@ -56,3 +56,9 @@ assertEquals(["\u{118aa}\u{118ca}", "\u{118aa}"],
 // Misc.
 assertTrue(/\u00e5\u00e5\u00e5/ui.test("\u212b\u00e5\u00c5"));
 assertTrue(/AB\u{10400}/ui.test("ab\u{10428}"));
+
+// Non-Latin1 maps to Latin1.
+assertEquals(["s"], /^\u017F/ui.exec("s"));
+assertEquals(["s"], /^\u017F/ui.exec("s\u1234"));
+assertEquals(["as"], /^a[\u017F]/ui.exec("as"));
+assertEquals(["as"], /^a[\u017F]/ui.exec("as\u1234"));
