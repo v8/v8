@@ -14,6 +14,12 @@
 
 namespace i = v8::internal;
 
+void Test(v8::Isolate* isolate, i::Handle<i::JSRegExp> regexp,
+          i::Handle<i::String> subject, i::Handle<i::JSArray> results_array) {
+  v8::TryCatch try_catch(isolate);
+  USE(i::RegExpImpl::Exec(regexp, subject, 0, results_array));
+}
+
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   v8_fuzzer::FuzzerSupport* support = v8_fuzzer::FuzzerSupport::Get();
   v8::Isolate* isolate = support->GetIsolate();
@@ -42,7 +48,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   const uint8_t one_byte_array[6] = {'f', 'o', 'o', 'b', 'a', 'r'};
   const i::uc16 two_byte_array[6] = {'f', 0xD83D, 0xDCA9, 'b', 'a', 0x2603};
 
-  i::Handle<i::JSArray> results_array = factory->NewJSArray(4);
+  i::Handle<i::JSArray> results_array = factory->NewJSArray(5);
   i::Handle<i::String> one_byte =
       factory->NewStringFromOneByte(i::Vector<const uint8_t>(one_byte_array, 6))
           .ToHandleChecked();
@@ -51,13 +57,17 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
           .ToHandleChecked();
 
   for (int flags = 0; flags <= kAllFlags; flags++) {
-    v8::TryCatch try_catch(isolate);
-    i::MaybeHandle<i::JSRegExp> maybe_regexp =
-        i::JSRegExp::New(source, static_cast<i::JSRegExp::Flags>(flags));
     i::Handle<i::JSRegExp> regexp;
-    if (!maybe_regexp.ToHandle(&regexp)) continue;
-    USE(i::RegExpImpl::Exec(regexp, one_byte, 0, results_array).is_null() &&
-        i::RegExpImpl::Exec(regexp, two_byte, 0, results_array).is_null());
+    {
+      v8::TryCatch try_catch(isolate);
+      i::MaybeHandle<i::JSRegExp> maybe_regexp =
+          i::JSRegExp::New(source, static_cast<i::JSRegExp::Flags>(flags));
+      if (!maybe_regexp.ToHandle(&regexp)) continue;
+    }
+    Test(isolate, regexp, one_byte, results_array);
+    Test(isolate, regexp, two_byte, results_array);
+    Test(isolate, regexp, factory->empty_string(), results_array);
+    Test(isolate, regexp, source, results_array);
   }
 
   return 0;
