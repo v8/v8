@@ -214,7 +214,7 @@ class BytecodeGraphBuilder {
     return branch_analysis_;
   }
 
-  void set_branch_analysis(BytecodeBranchAnalysis* branch_analysis) {
+  void set_branch_analysis(const BytecodeBranchAnalysis* branch_analysis) {
     branch_analysis_ = branch_analysis;
   }
 
@@ -229,7 +229,7 @@ class BytecodeGraphBuilder {
   Handle<HandlerTable> exception_handler_table_;
   const FrameStateFunctionInfo* frame_state_function_info_;
   const interpreter::BytecodeArrayIterator* bytecode_iterator_;
-  BytecodeBranchAnalysis* branch_analysis_;  // TODO(mstarzinger): Make const.
+  const BytecodeBranchAnalysis* branch_analysis_;
   Environment* environment_;
 
   // Merge environments are snapshots of the environment at points where the
