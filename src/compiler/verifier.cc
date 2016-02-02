@@ -713,6 +713,7 @@ void Verifier::Visitor::Check(Node* node) {
       break;
     }
     case IrOpcode::kObjectIsNumber:
+    case IrOpcode::kObjectIsReceiver:
     case IrOpcode::kObjectIsSmi:
       CheckValueInputIs(node, 0, Type::Any());
       CheckUpperIs(node, Type::Boolean());

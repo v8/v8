@@ -705,7 +705,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     Type* element_type = Type::Any();
     MachineType element_machine_type = MachineType::AnyTagged();
     if (IsFastDoubleElementsKind(elements_kind)) {
-      element_type = type_cache_.kFloat64;
+      element_type = Type::Number();
       element_machine_type = MachineType::Float64();
     } else if (IsFastSmiElementsKind(elements_kind)) {
       element_type = type_cache_.kSmi;

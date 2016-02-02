@@ -241,6 +241,10 @@ class Typer::Visitor : public Reducer {
   static Type* NumberToInt32(Type*, Typer*);
   static Type* NumberToUint32(Type*, Typer*);
 
+  static Type* ObjectIsNumber(Type*, Typer*);
+  static Type* ObjectIsReceiver(Type*, Typer*);
+  static Type* ObjectIsSmi(Type*, Typer*);
+
   static Type* JSAddRanger(RangeType*, RangeType*, Typer*);
   static Type* JSSubtractRanger(RangeType*, RangeType*, Typer*);
   static Type* JSDivideRanger(RangeType*, RangeType*, Typer*);
@@ -502,6 +506,30 @@ Type* Typer::Visitor::NumberToUint32(Type* type, Typer* t) {
         Type::Unsigned32(), t->zone());
   }
   return Type::Unsigned32();
+}
+
+
+// Type checks.
+
+
+Type* Typer::Visitor::ObjectIsNumber(Type* type, Typer* t) {
+  if (type->Is(Type::Number())) return t->singleton_true_;
+  if (!type->Maybe(Type::Number())) return t->singleton_false_;
+  return Type::Boolean();
+}
+
+
+Type* Typer::Visitor::ObjectIsReceiver(Type* type, Typer* t) {
+  if (type->Is(Type::Receiver())) return t->singleton_true_;
+  if (!type->Maybe(Type::Receiver())) return t->singleton_false_;
+  return Type::Boolean();
+}
+
+
+Type* Typer::Visitor::ObjectIsSmi(Type* type, Typer* t) {
+  if (type->Is(Type::TaggedSigned())) return t->singleton_true_;
+  if (type->Is(Type::TaggedPointer())) return t->singleton_false_;
+  return Type::Boolean();
 }
 
 
@@ -1529,13 +1557,15 @@ Type* Typer::Visitor::TypeJSCallFunction(Node* node) {
 
 Type* Typer::Visitor::TypeJSCallRuntime(Node* node) {
   switch (CallRuntimeParametersOf(node->op()).id()) {
+    case Runtime::kInlineIsJSReceiver:
+      return TypeUnaryOp(node, ObjectIsReceiver);
     case Runtime::kInlineIsSmi:
+      return TypeUnaryOp(node, ObjectIsSmi);
     case Runtime::kInlineIsArray:
     case Runtime::kInlineIsDate:
     case Runtime::kInlineIsTypedArray:
     case Runtime::kInlineIsMinusZero:
     case Runtime::kInlineIsRegExp:
-    case Runtime::kInlineIsJSReceiver:
       return Type::Boolean();
     case Runtime::kInlineDoubleLo:
     case Runtime::kInlineDoubleHi:
@@ -1878,20 +1908,17 @@ Type* Typer::Visitor::TypeStoreElement(Node* node) {
 
 
 Type* Typer::Visitor::TypeObjectIsNumber(Node* node) {
-  Type* arg = Operand(node, 0);
-  if (arg->Is(Type::None())) return Type::None();
-  if (arg->Is(Type::Number())) return typer_->singleton_true_;
-  if (!arg->Maybe(Type::Number())) return typer_->singleton_false_;
-  return Type::Boolean();
+  return TypeUnaryOp(node, ObjectIsNumber);
+}
+
+
+Type* Typer::Visitor::TypeObjectIsReceiver(Node* node) {
+  return TypeUnaryOp(node, ObjectIsReceiver);
 }
 
 
 Type* Typer::Visitor::TypeObjectIsSmi(Node* node) {
-  Type* arg = Operand(node, 0);
-  if (arg->Is(Type::None())) return Type::None();
-  if (arg->Is(Type::TaggedSigned())) return typer_->singleton_true_;
-  if (arg->Is(Type::TaggedPointer())) return typer_->singleton_false_;
-  return Type::Boolean();
+  return TypeUnaryOp(node, ObjectIsSmi);
 }
 
 

@@ -23,9 +23,9 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class JSIntrinsicLoweringTest : public TypedGraphTest {
+class JSIntrinsicLoweringTest : public GraphTest {
  public:
-  JSIntrinsicLoweringTest() : TypedGraphTest(3), javascript_(zone()) {}
+  JSIntrinsicLoweringTest() : GraphTest(3), javascript_(zone()) {}
   ~JSIntrinsicLoweringTest() override {}
 
  protected:
@@ -257,57 +257,16 @@ TEST_F(JSIntrinsicLoweringTest, InlineIsRegExp) {
 // %_IsJSReceiver
 
 
-TEST_F(JSIntrinsicLoweringTest, InlineIsJSReceiverWithAny) {
-  Node* const input = Parameter(Type::Any());
-  Node* const context = Parameter(Type::Any());
+TEST_F(JSIntrinsicLoweringTest, InlineIsJSReceiver) {
+  Node* const input = Parameter(0);
+  Node* const context = Parameter(1);
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
   Reduction const r = Reduce(graph()->NewNode(
       javascript()->CallRuntime(Runtime::kInlineIsJSReceiver, 1), input,
       context, effect, control));
   ASSERT_TRUE(r.Changed());
-
-  Node* phi = r.replacement();
-  Capture<Node *> branch, if_false;
-  EXPECT_THAT(
-      phi,
-      IsPhi(
-          MachineRepresentation::kTagged, IsFalseConstant(),
-          IsUint32LessThanOrEqual(
-              IsInt32Constant(FIRST_JS_RECEIVER_TYPE),
-              IsLoadField(AccessBuilder::ForMapInstanceType(),
-                          IsLoadField(AccessBuilder::ForMap(), input, effect,
-                                      CaptureEq(&if_false)),
-                          effect, _)),
-          IsMerge(IsIfTrue(AllOf(CaptureEq(&branch),
-                                 IsBranch(IsObjectIsSmi(input), control))),
-                  AllOf(CaptureEq(&if_false), IsIfFalse(CaptureEq(&branch))))));
-}
-
-
-TEST_F(JSIntrinsicLoweringTest, InlineIsJSReceiverWithReceiver) {
-  Node* const input = Parameter(Type::Receiver());
-  Node* const context = Parameter(Type::Any());
-  Node* const effect = graph()->start();
-  Node* const control = graph()->start();
-  Reduction const r = Reduce(graph()->NewNode(
-      javascript()->CallRuntime(Runtime::kInlineIsJSReceiver, 1), input,
-      context, effect, control));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsTrueConstant());
-}
-
-
-TEST_F(JSIntrinsicLoweringTest, InlineIsJSReceiverWithUndefined) {
-  Node* const input = Parameter(Type::Undefined());
-  Node* const context = Parameter(Type::Any());
-  Node* const effect = graph()->start();
-  Node* const control = graph()->start();
-  Reduction const r = Reduce(graph()->NewNode(
-      javascript()->CallRuntime(Runtime::kInlineIsJSReceiver, 1), input,
-      context, effect, control));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsFalseConstant());
+  EXPECT_THAT(r.replacement(), IsObjectIsReceiver(input));
 }
 
 

@@ -37,6 +37,7 @@ class SimplifiedLowering final {
                     RepresentationChanger* changer);
   void DoStoreBuffer(Node* node);
   void DoObjectIsNumber(Node* node);
+  void DoObjectIsReceiver(Node* node);
   void DoObjectIsSmi(Node* node);
   void DoShift(Node* node, Operator const* op, Type* rhs_type);
   void DoStringEqual(Node* node);
@@ -55,6 +56,9 @@ class SimplifiedLowering final {
   // position information via the SourcePositionWrapper like all other reducers.
   SourcePositionTable* source_positions_;
 
+  Node* IsSmi(Node* value);
+  Node* LoadHeapObjectMap(Node* object, Node* control);
+  Node* LoadMapInstanceType(Node* map);
   Node* StringComparison(Node* node);
   Node* Int32Div(Node* const node);
   Node* Int32Mod(Node* const node);

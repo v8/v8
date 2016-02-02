@@ -202,6 +202,7 @@
   V(StoreBuffer)                   \
   V(StoreElement)                  \
   V(ObjectIsNumber)                \
+  V(ObjectIsReceiver)              \
   V(ObjectIsSmi)
 
 // Opcodes for Machine-level operators.
