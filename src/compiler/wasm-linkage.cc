@@ -264,6 +264,7 @@ CallDescriptor* ModuleEnv::GetWasmCallDescriptor(Zone* zone,
   // The target for WASM calls is always a code object.
   MachineType target_type = MachineType::AnyTagged();
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister();
+
   return new (zone) CallDescriptor(       // --
       CallDescriptor::kCallCodeObject,    // kind
       target_type,                        // target MachineType

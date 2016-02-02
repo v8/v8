@@ -5588,6 +5588,19 @@ TEST(RunCallCFunction8) {
 }
 #endif  // USE_SIMULATOR
 
+TEST(RunCallExternalReferenceF64Trunc) {
+  BufferedRawMachineAssemblerTester<double> m(MachineType::Float64());
+  Node* stack_slot = m.StackSlot(MachineRepresentation::kFloat64);
+  m.Store(MachineRepresentation::kFloat64, stack_slot, m.Parameter(0),
+          WriteBarrierKind::kNoWriteBarrier);
+  Node* function = m.ExternalConstant(
+      ExternalReference::trunc64_wrapper_function(m.isolate()));
+  m.CallCFunction1(MachineType::Pointer(), MachineType::Pointer(), function,
+                   stack_slot);
+  m.Return(m.Load(MachineType::Float64(), stack_slot));
+  FOR_FLOAT64_INPUTS(i) { CheckDoubleEq(trunc(*i), m.Call(*i)); }
+}
+
 #if V8_TARGET_ARCH_64_BIT
 // TODO(titzer): run int64 tests on all platforms when supported.
 TEST(RunCheckedLoadInt64) {

@@ -795,13 +795,9 @@ Node* WasmGraphBuilder::Unop(wasm::WasmOpcode opcode, Node* input) {
       }
     }
     case wasm::kExprF64Trunc: {
-      if (m->Float64RoundTruncate().IsSupported()) {
-        op = m->Float64RoundTruncate().op();
-        break;
-      } else {
-        op = UnsupportedOpcode(opcode);
-        break;
-      }
+      if (!m->Float64RoundTruncate().IsSupported()) return BuildF64Trunc(input);
+      op = m->Float64RoundTruncate().op();
+      break;
     }
     case wasm::kExprF64NearestInt: {
       if (m->Float64RoundTiesEven().IsSupported()) {
@@ -1436,6 +1432,60 @@ Node* WasmGraphBuilder::BuildF32Trunc(Node* input) {
   return Unop(wasm::kExprF32ReinterpretI32, result);
 }
 
+Node* WasmGraphBuilder::BuildF64Trunc(Node* input) {
+  // We do truncation by calling a C function which calculates the truncation
+  // for us. The input is passed to the C function as a double* to avoid double
+  // parameters. For this we reserve a slot on the stack, store the parameter in
+  // that slot, pass a pointer to the slot to the C function, and after calling
+  // the C function we collect the return value from the stack slot.
+
+  Node* stack_slot_param = graph()->NewNode(
+      jsgraph()->machine()->StackSlot(MachineRepresentation::kFloat64));
+
+  const Operator* store_op = jsgraph()->machine()->Store(
+      StoreRepresentation(MachineRepresentation::kFloat64, kNoWriteBarrier));
+  *effect_ =
+      graph()->NewNode(store_op, stack_slot_param, jsgraph()->Int32Constant(0),
+                       input, *effect_, *control_);
+
+  Signature<MachineType>::Builder sig_builder(jsgraph()->zone(), 0, 1);
+  sig_builder.AddParam(MachineType::Pointer());
+  Node* function = graph()->NewNode(jsgraph()->common()->ExternalConstant(
+      ExternalReference::trunc64_wrapper_function(jsgraph()->isolate())));
+
+  Node* args[] = {function, stack_slot_param};
+
+  BuildCCall(sig_builder.Build(), args);
+
+  const Operator* load_op = jsgraph()->machine()->Load(MachineType::Float64());
+
+  Node* load =
+      graph()->NewNode(load_op, stack_slot_param, jsgraph()->Int32Constant(0),
+                       *effect_, *control_);
+  *effect_ = load;
+  return load;
+}
+
+Node* WasmGraphBuilder::BuildCCall(MachineSignature* sig, Node** args) {
+  const size_t params = sig->parameter_count();
+  const size_t extra = 2;  // effect and control inputs.
+  const size_t count = 1 + params + extra;
+
+  // Reallocate the buffer to make space for extra inputs.
+  args = Realloc(args, count);
+
+  // Add effect and control inputs.
+  args[params + 1] = *effect_;
+  args[params + 2] = *control_;
+
+  CallDescriptor* desc =
+      Linkage::GetSimplifiedCDescriptor(jsgraph()->zone(), sig);
+
+  const Operator* op = jsgraph()->common()->Call(desc);
+  Node* call = graph()->NewNode(op, static_cast<int>(count), args);
+  *effect_ = call;
+  return call;
+}
 
 Node* WasmGraphBuilder::BuildWasmCall(wasm::FunctionSig* sig, Node** args) {
   const size_t params = sig->parameter_count();

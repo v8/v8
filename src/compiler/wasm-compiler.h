@@ -159,6 +159,7 @@ class WasmGraphBuilder {
   Node* MemBuffer(uint32_t offset);
   void BoundsCheckMem(MachineType memtype, Node* index, uint32_t offset);
 
+  Node* BuildCCall(MachineSignature* sig, Node** args);
   Node* BuildWasmCall(wasm::FunctionSig* sig, Node** args);
   Node* BuildF32Neg(Node* input);
   Node* BuildF64Neg(Node* input);
@@ -177,6 +178,7 @@ class WasmGraphBuilder {
   Node* BuildI64Ctz(Node* input);
   Node* BuildI64Popcnt(Node* input);
   Node* BuildF32Trunc(Node* input);
+  Node* BuildF64Trunc(Node* input);
 
   Node** Realloc(Node** buffer, size_t count) {
     Node** buf = Buffer(count);

@@ -3006,14 +3006,6 @@ TEST(Run_Wasm_F64Ceil) {
 }
 
 
-TEST(Run_Wasm_F64Trunc) {
-  WasmRunner<double> r(MachineType::Float64());
-  BUILD(r, WASM_F64_TRUNC(WASM_GET_LOCAL(0)));
-
-  FOR_FLOAT64_INPUTS(i) { CheckDoubleEq(trunc(*i), r.Call(*i)); }
-}
-
-
 TEST(Run_Wasm_F64NearestInt) {
   WasmRunner<double> r(MachineType::Float64());
   BUILD(r, WASM_F64_NEARESTINT(WASM_GET_LOCAL(0)));
@@ -3023,6 +3015,12 @@ TEST(Run_Wasm_F64NearestInt) {
 
 #endif
 
+TEST(Run_Wasm_F64Trunc) {
+  WasmRunner<double> r(MachineType::Float64());
+  BUILD(r, WASM_F64_TRUNC(WASM_GET_LOCAL(0)));
+
+  FOR_FLOAT64_INPUTS(i) { CheckDoubleEq(trunc(*i), r.Call(*i)); }
+}
 
 TEST(Run_Wasm_F32Min) {
   WasmRunner<float> r(MachineType::Float32(), MachineType::Float32());
