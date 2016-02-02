@@ -63,7 +63,7 @@ void RawMachineAssembler::Goto(RawMachineLabel* label) {
 void RawMachineAssembler::Branch(Node* condition, RawMachineLabel* true_val,
                                  RawMachineLabel* false_val) {
   DCHECK(current_block_ != schedule()->end());
-  Node* branch = AddNode(common()->Branch(), condition);
+  Node* branch = MakeNode(common()->Branch(), 1, &condition);
   schedule()->AddBranch(CurrentBlock(), branch, Use(true_val), Use(false_val));
   current_block_ = nullptr;
 }
@@ -281,6 +281,51 @@ Node* RawMachineAssembler::TailCallRuntime2(Runtime::FunctionId function,
   return tail_call;
 }
 
+Node* RawMachineAssembler::TailCallRuntime3(Runtime::FunctionId function,
+                                            Node* arg1, Node* arg2, Node* arg3,
+                                            Node* context) {
+  const int kArity = 3;
+  CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
+      zone(), function, kArity, Operator::kNoProperties,
+      CallDescriptor::kSupportsTailCalls);
+  int return_count = static_cast<int>(desc->ReturnCount());
+
+  Node* centry = HeapConstant(CEntryStub(isolate(), return_count).GetCode());
+  Node* ref = AddNode(
+      common()->ExternalConstant(ExternalReference(function, isolate())));
+  Node* arity = Int32Constant(kArity);
+
+  Node* nodes[] = {centry, arg1, arg2, arg3, ref, arity, context};
+  Node* tail_call = MakeNode(common()->TailCall(desc), arraysize(nodes), nodes);
+
+  NodeProperties::MergeControlToEnd(graph(), common(), tail_call);
+  schedule()->AddTailCall(CurrentBlock(), tail_call);
+  current_block_ = nullptr;
+  return tail_call;
+}
+
+Node* RawMachineAssembler::TailCallRuntime4(Runtime::FunctionId function,
+                                            Node* arg1, Node* arg2, Node* arg3,
+                                            Node* arg4, Node* context) {
+  const int kArity = 4;
+  CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
+      zone(), function, kArity, Operator::kNoProperties,
+      CallDescriptor::kSupportsTailCalls);
+  int return_count = static_cast<int>(desc->ReturnCount());
+
+  Node* centry = HeapConstant(CEntryStub(isolate(), return_count).GetCode());
+  Node* ref = AddNode(
+      common()->ExternalConstant(ExternalReference(function, isolate())));
+  Node* arity = Int32Constant(kArity);
+
+  Node* nodes[] = {centry, arg1, arg2, arg3, arg4, ref, arity, context};
+  Node* tail_call = MakeNode(common()->TailCall(desc), arraysize(nodes), nodes);
+
+  NodeProperties::MergeControlToEnd(graph(), common(), tail_call);
+  schedule()->AddTailCall(CurrentBlock(), tail_call);
+  current_block_ = nullptr;
+  return tail_call;
+}
 
 Node* RawMachineAssembler::CallCFunction0(MachineType return_type,
                                           Node* function) {
@@ -369,9 +414,24 @@ BasicBlock* RawMachineAssembler::CurrentBlock() {
   return current_block_;
 }
 
+Node* RawMachineAssembler::Phi(MachineRepresentation rep, int input_count,
+                               Node* const* inputs) {
+  Node** buffer = new (zone()->New(sizeof(Node*) * (input_count + 1)))
+      Node*[input_count + 1];
+  std::copy(inputs, inputs + input_count, buffer);
+  buffer[input_count] = graph()->start();
+  return AddNode(common()->Phi(rep, input_count), input_count + 1, buffer);
+}
+
+void RawMachineAssembler::AppendPhiInput(Node* phi, Node* new_input) {
+  const Operator* op = phi->op();
+  const Operator* new_op = common()->ResizeMergeOrPhi(op, phi->InputCount());
+  phi->InsertInput(zone(), phi->InputCount() - 1, new_input);
+  NodeProperties::ChangeOp(phi, new_op);
+}
 
 Node* RawMachineAssembler::AddNode(const Operator* op, int input_count,
-                                   Node** inputs) {
+                                   Node* const* inputs) {
   DCHECK_NOT_NULL(schedule_);
   DCHECK_NOT_NULL(current_block_);
   Node* node = MakeNode(op, input_count, inputs);
@@ -379,9 +439,8 @@ Node* RawMachineAssembler::AddNode(const Operator* op, int input_count,
   return node;
 }
 
-
 Node* RawMachineAssembler::MakeNode(const Operator* op, int input_count,
-                                    Node** inputs) {
+                                    Node* const* inputs) {
   // The raw machine assembler nodes do not have effect and control inputs,
   // so we disable checking input counts here.
   return graph()->NewNodeUnchecked(op, input_count, inputs);

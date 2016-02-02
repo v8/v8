@@ -604,7 +604,12 @@ class RawMachineAssembler {
   // Tail call to a runtime function with two arguments.
   Node* TailCallRuntime2(Runtime::FunctionId function, Node* arg1, Node* arg2,
                          Node* context);
-
+  // Tail call to a runtime function with three arguments.
+  Node* TailCallRuntime3(Runtime::FunctionId function, Node* arg1, Node* arg2,
+                         Node* arg3, Node* context);
+  // Tail call to a runtime function with four arguments.
+  Node* TailCallRuntime4(Runtime::FunctionId function, Node* arg1, Node* arg2,
+                         Node* arg3, Node* arg4, Node* context);
 
   // ===========================================================================
   // The following utility methods deal with control flow, hence might switch
@@ -624,24 +629,26 @@ class RawMachineAssembler {
 
   // Variables.
   Node* Phi(MachineRepresentation rep, Node* n1, Node* n2) {
-    return AddNode(common()->Phi(rep, 2), n1, n2);
+    return AddNode(common()->Phi(rep, 2), n1, n2, graph()->start());
   }
   Node* Phi(MachineRepresentation rep, Node* n1, Node* n2, Node* n3) {
-    return AddNode(common()->Phi(rep, 3), n1, n2, n3);
+    return AddNode(common()->Phi(rep, 3), n1, n2, n3, graph()->start());
   }
   Node* Phi(MachineRepresentation rep, Node* n1, Node* n2, Node* n3, Node* n4) {
-    return AddNode(common()->Phi(rep, 4), n1, n2, n3, n4);
+    return AddNode(common()->Phi(rep, 4), n1, n2, n3, n4, graph()->start());
   }
+  Node* Phi(MachineRepresentation rep, int input_count, Node* const* inputs);
+  void AppendPhiInput(Node* phi, Node* new_input);
 
   // ===========================================================================
   // The following generic node creation methods can be used for operators that
   // are not covered by the above utility methods. There should rarely be a need
   // to do that outside of testing though.
 
-  Node* AddNode(const Operator* op, int input_count, Node** inputs);
+  Node* AddNode(const Operator* op, int input_count, Node* const* inputs);
 
   Node* AddNode(const Operator* op) {
-    return AddNode(op, 0, static_cast<Node**>(nullptr));
+    return AddNode(op, 0, static_cast<Node* const*>(nullptr));
   }
 
   template <class... TArgs>
@@ -651,7 +658,7 @@ class RawMachineAssembler {
   }
 
  private:
-  Node* MakeNode(const Operator* op, int input_count, Node** inputs);
+  Node* MakeNode(const Operator* op, int input_count, Node* const* inputs);
   BasicBlock* Use(RawMachineLabel* label);
   BasicBlock* EnsureBlock(RawMachineLabel* label);
   BasicBlock* CurrentBlock();
