@@ -390,23 +390,19 @@ void LookupIterator::TransitionToAccessorPair(Handle<Object> pair,
 
 bool LookupIterator::HolderIsReceiverOrHiddenPrototype() const {
   DCHECK(has_property_ || state_ == INTERCEPTOR || state_ == JSPROXY);
-  return InternalHolderIsReceiverOrHiddenPrototype();
-}
-
-bool LookupIterator::InternalHolderIsReceiverOrHiddenPrototype() const {
   // Optimization that only works if configuration_ is not mutable.
   if (!check_prototype_chain()) return true;
   DisallowHeapAllocation no_gc;
   if (!receiver_->IsJSReceiver()) return false;
   JSReceiver* current = JSReceiver::cast(*receiver_);
-  JSReceiver* holder = *holder_;
-  if (current == holder) return true;
-  if (!holder->map()->is_hidden_prototype()) return false;
+  JSReceiver* object = *holder_;
+  if (current == object) return true;
+  if (!object->map()->is_hidden_prototype()) return false;
   // JSProxy do not occur as hidden prototypes.
   if (current->IsJSProxy()) return false;
   PrototypeIterator iter(isolate(), current);
   while (!iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN)) {
-    if (iter.GetCurrent<JSReceiver>() == holder) return true;
+    if (iter.GetCurrent<JSReceiver>() == object) return true;
     iter.Advance();
   }
   return false;
@@ -523,26 +519,14 @@ void LookupIterator::WriteDataValue(Handle<Object> value) {
 
 
 bool LookupIterator::IsIntegerIndexedExotic(JSReceiver* holder) {
-  DCHECK(exotic_index_state_ != ExoticIndexState::kNotExotic);
-  if (exotic_index_state_ == ExoticIndexState::kExotic) return true;
-  if (!InternalHolderIsReceiverOrHiddenPrototype()) {
-    exotic_index_state_ = ExoticIndexState::kNotExotic;
-    return false;
-  }
-  DCHECK(exotic_index_state_ == ExoticIndexState::kUninitialized);
-  bool result = false;
-  // Compute and cache result.
-  if (IsElement()) {
-    result = index_ >= JSTypedArray::cast(holder)->length_value();
-  } else if (name()->IsString()) {
-    Handle<String> name_string = Handle<String>::cast(name());
-    if (name_string->length() != 0) {
-      result = IsSpecialIndex(isolate_->unicode_cache(), *name_string);
-    }
-  }
-  exotic_index_state_ =
-      result ? ExoticIndexState::kExotic : ExoticIndexState::kNotExotic;
-  return result;
+  DCHECK(!IsElement());
+  if (!name_->IsString()) return false;
+  if (*receiver_ != holder) return false;
+
+  Handle<String> name_string = Handle<String>::cast(name_);
+  if (name_string->length() == 0) return false;
+
+  return IsSpecialIndex(isolate_->unicode_cache(), *name_string);
 }
 
 
@@ -629,14 +613,13 @@ LookupIterator::State LookupIterator::LookupInHolder(Map* const map,
         FixedArrayBase* backing_store = js_object->elements();
         number_ = accessor->GetEntryForIndex(js_object, backing_store, index_);
         if (number_ == kMaxUInt32) {
-          if (*receiver_ == Object::cast(holder) && holder->IsJSTypedArray()) {
+          if (*receiver_ == holder && holder->IsJSTypedArray()) {
             return INTEGER_INDEXED_EXOTIC;
           }
           return NOT_FOUND;
         }
         property_details_ = accessor->GetDetails(js_object, number_);
-      } else if (exotic_index_state_ != ExoticIndexState::kNotExotic &&
-                 holder->IsJSTypedArray() && IsIntegerIndexedExotic(holder)) {
+      } else if (holder->IsJSTypedArray() && IsIntegerIndexedExotic(holder)) {
         return INTEGER_INDEXED_EXOTIC;
       } else if (!map->is_dictionary_map()) {
         DescriptorArray* descriptors = map->instance_descriptors();

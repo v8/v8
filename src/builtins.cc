@@ -1978,7 +1978,7 @@ BUILTIN(ReflectGet) {
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result, Object::GetPropertyOrElement(
-          Handle<JSReceiver>::cast(target), name, receiver));
+                           receiver, name, Handle<JSReceiver>::cast(target)));
 
   return *result;
 }

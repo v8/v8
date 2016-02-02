@@ -1276,7 +1276,7 @@ class Object {
       Handle<Object> object, Handle<Name> name,
       LanguageMode language_mode = SLOPPY);
   MUST_USE_RESULT static inline MaybeHandle<Object> GetPropertyOrElement(
-      Handle<JSReceiver> holder, Handle<Name> name, Handle<Object> receiver,
+      Handle<Object> receiver, Handle<Name> name, Handle<JSReceiver> holder,
       LanguageMode language_mode = SLOPPY);
   MUST_USE_RESULT static inline MaybeHandle<Object> GetProperty(
       Isolate* isolate, Handle<Object> object, const char* key,

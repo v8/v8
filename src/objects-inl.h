@@ -7084,10 +7084,9 @@ MaybeHandle<Object> Object::GetPropertyOrElement(Handle<Object> object,
   return GetProperty(&it, language_mode);
 }
 
-
-MaybeHandle<Object> Object::GetPropertyOrElement(Handle<JSReceiver> holder,
+MaybeHandle<Object> Object::GetPropertyOrElement(Handle<Object> receiver,
                                                  Handle<Name> name,
-                                                 Handle<Object> receiver,
+                                                 Handle<JSReceiver> holder,
                                                  LanguageMode language_mode) {
   LookupIterator it = LookupIterator::PropertyOrElement(
       name->GetIsolate(), receiver, name, holder);
