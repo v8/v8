@@ -71,7 +71,6 @@ class CallSite {
   int32_t pos_;
 };
 
-
 #define MESSAGE_TEMPLATES(T)                                                   \
   /* Error */                                                                  \
   T(None, "")                                                                  \
@@ -417,6 +416,8 @@ class CallSite {
   T(NoCatchOrFinally, "Missing catch or finally after try")                    \
   T(NotIsvar, "builtin %%IS_VAR: not a variable")                              \
   T(ParamAfterRest, "Rest parameter must be last formal parameter")            \
+  T(InvalidRestParameter,                                                      \
+    "Rest parameter must be an identifier or destructuring pattern")           \
   T(PushPastSafeLength,                                                        \
     "Pushing % elements on an array-like of length % "                         \
     "is disallowed, as the total surpasses 2**53-1")                           \

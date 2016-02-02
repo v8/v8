@@ -3712,6 +3712,8 @@ TEST(ErrorsArrowFormalParameters) {
 TEST(ErrorsArrowFunctions) {
   // Tests that parser and preparser generate the same kind of errors
   // on invalid arrow function syntax.
+
+  // clang-format off
   const char* context_data[][2] = {
     {"", ";"},
     {"v = ", ";"},
@@ -3812,8 +3814,14 @@ TEST(ErrorsArrowFunctions) {
     "(c, a.b) => {}",
     "(a['b'], c) => {}",
     "(c, a['b']) => {}",
+
+    // crbug.com/582626
+    "(...rest - a) => b",
+    "(a, ...b - 10) => b",
+
     NULL
   };
+  // clang-format on
 
   // The test is quite slow, so run it with a reduced set of flags.
   static const ParserFlag flags[] = {kAllowLazy};
@@ -7976,9 +7984,20 @@ TEST(EscapedKeywords) {
 
 
 TEST(MiscSyntaxErrors) {
+  // clang-format off
   const char* context_data[][2] = {
-      {"'use strict'", ""}, {"", ""}, {NULL, NULL}};
-  const char* error_data[] = {"for (();;) {}", NULL};
+    { "'use strict'", "" },
+    { "", "" },
+    { NULL, NULL }
+  };
+  const char* error_data[] = {
+    "for (();;) {}",
+
+    // crbug.com/582626
+    "{ NaN ,chA((evarA=new t ( l = !.0[((... co -a0([1]))=> greturnkf",
+    NULL
+  };
+  // clang-format on
 
   RunParserSyncTest(context_data, error_data, kError, NULL, 0, NULL, 0);
 }

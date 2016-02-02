@@ -1329,8 +1329,14 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
                                           MessageTemplate::kUnexpectedToken,
                                           Token::String(Token::ELLIPSIS));
         classifier->RecordNonSimpleParameter();
-        ExpressionT expr =
-            this->ParseAssignmentExpression(true, classifier, CHECK_OK);
+        ExpressionT expr = this->ParseAssignmentExpression(
+            true, kIsPossibleArrowFormals, classifier, CHECK_OK);
+        if (!this->IsIdentifier(expr) && !expr->IsObjectLiteral() &&
+            !expr->IsArrayLiteral()) {
+          classifier->RecordArrowFormalParametersError(
+              Scanner::Location(ellipsis_pos, scanner()->location().end_pos),
+              MessageTemplate::kInvalidRestParameter);
+        }
         if (peek() == Token::COMMA) {
           ReportMessageAt(scanner()->peek_location(),
                           MessageTemplate::kParamAfterRest);
@@ -1458,7 +1464,15 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseExpression(
     int pos = position(), expr_pos = peek_position();
     ExpressionT right = this->ParseAssignmentExpression(
         accept_IN, flags, &binding_classifier, CHECK_OK);
-    if (is_rest) right = factory()->NewSpread(right, pos, expr_pos);
+    if (is_rest) {
+      if (!this->IsIdentifier(right) && !right->IsObjectLiteral() &&
+          !right->IsArrayLiteral()) {
+        classifier->RecordArrowFormalParametersError(
+            Scanner::Location(pos, scanner()->location().end_pos),
+            MessageTemplate::kInvalidRestParameter);
+      }
+      right = factory()->NewSpread(right, pos, expr_pos);
+    }
     is_simple_parameter_list =
         is_simple_parameter_list && this->IsIdentifier(right);
     classifier->Accumulate(binding_classifier,
