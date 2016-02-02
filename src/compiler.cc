@@ -727,7 +727,6 @@ static void RecordFunctionCompilation(Logger::LogEventsAndTags tag,
   }
 }
 
-
 static bool CompileUnoptimizedCode(CompilationInfo* info) {
   DCHECK(AllowCompilation::IsAllowed(info->isolate()));
   if (!Compiler::Analyze(info->parse_info()) ||
@@ -756,13 +755,39 @@ static bool UseIgnition(CompilationInfo* info) {
   return info->closure()->PassesFilter(FLAG_ignition_filter);
 }
 
+static int CodeAndMetadataSize(CompilationInfo* info) {
+  int size = 0;
+  if (info->has_bytecode_array()) {
+    Handle<BytecodeArray> bytecode_array = info->bytecode_array();
+    size += bytecode_array->BytecodeArraySize();
+    size += bytecode_array->constant_pool()->Size();
+    size += bytecode_array->handler_table()->Size();
+    size += bytecode_array->source_position_table()->Size();
+  } else {
+    Handle<Code> code = info->code();
+    size += code->CodeSize();
+    size += code->relocation_info()->Size();
+    size += code->deoptimization_data()->Size();
+    size += code->handler_table()->Size();
+  }
+  return size;
+}
+
 
 static bool GenerateBaselineCode(CompilationInfo* info) {
+  bool success;
   if (FLAG_ignition && UseIgnition(info)) {
-    return interpreter::Interpreter::MakeBytecode(info);
+    success = interpreter::Interpreter::MakeBytecode(info);
   } else {
-    return FullCodeGenerator::MakeCode(info);
+    success = FullCodeGenerator::MakeCode(info);
   }
+  if (success) {
+    Isolate* isolate = info->isolate();
+    Counters* counters = isolate->counters();
+    counters->total_baseline_code_size()->Increment(CodeAndMetadataSize(info));
+    counters->total_baseline_compile_count()->Increment(1);
+  }
+  return success;
 }
 
 

@@ -576,7 +576,7 @@ double AggregatedMemoryHistogram<Histogram>::Aggregate(double current_ms,
   SC(call_premonomorphic_stubs, V8.CallPreMonomorphicStubs)           \
   SC(call_normal_stubs, V8.CallNormalStubs)                           \
   SC(call_megamorphic_stubs, V8.CallMegamorphicStubs)                 \
-  SC(inlined_copied_elements, V8.InlinedCopiedElements)              \
+  SC(inlined_copied_elements, V8.InlinedCopiedElements)               \
   SC(arguments_adaptors, V8.ArgumentsAdaptors)                        \
   SC(compilation_cache_hits, V8.CompilationCacheHits)                 \
   SC(compilation_cache_misses, V8.CompilationCacheMisses)             \
@@ -718,8 +718,11 @@ double AggregatedMemoryHistogram<Histogram>::Aggregate(double current_ms,
   SC(turbo_escape_allocs_replaced, V8.TurboEscapeAllocsReplaced)               \
   SC(crankshaft_escape_allocs_replaced, V8.CrankshaftEscapeAllocsReplaced)     \
   SC(turbo_escape_loads_replaced, V8.TurboEscapeLoadsReplaced)                 \
-  SC(crankshaft_escape_loads_replaced, V8.CrankshaftEscapeLoadsReplaced)
-
+  SC(crankshaft_escape_loads_replaced, V8.CrankshaftEscapeLoadsReplaced)       \
+  /* Total code size (including metadata) of baseline code or bytecode. */     \
+  SC(total_baseline_code_size, V8.TotalBaselineCodeSize)                       \
+  /* Total count of functions compiled using the baseline compiler. */         \
+  SC(total_baseline_compile_count, V8.TotalBaselineCompileCount)
 
 // This file contains all the v8 counters that are in use.
 class Counters {
