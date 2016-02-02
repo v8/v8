@@ -487,7 +487,6 @@ class FullCodeGenerator: public AstVisitor {
   F(OneByteSeqStringSetChar)            \
   F(TwoByteSeqStringSetChar)            \
   F(ObjectEquals)                       \
-  F(IsFunction)                         \
   F(IsJSReceiver)                       \
   F(IsSimdValue)                        \
   F(MathPow)                            \

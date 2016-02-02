@@ -24,9 +24,6 @@ function test() {
   assertTrue(%_IsArray([1]));
   assertFalse(%_IsArray(function() {}));
 
-  assertTrue(%_IsFunction(function() {}));
-  assertFalse(%_IsFunction(null));
-
   assertTrue(%_IsJSReceiver(new Date()));
   assertFalse(%_IsJSReceiver(1));
 

@@ -223,38 +223,6 @@ TEST_F(JSIntrinsicLoweringTest, InlineIsTypedArray) {
 
 
 // -----------------------------------------------------------------------------
-// %_IsFunction
-
-
-TEST_F(JSIntrinsicLoweringTest, InlineIsFunction) {
-  Node* const input = Parameter(Type::Any());
-  Node* const context = Parameter(Type::Any());
-  Node* const effect = graph()->start();
-  Node* const control = graph()->start();
-  Reduction const r = Reduce(
-      graph()->NewNode(javascript()->CallRuntime(Runtime::kInlineIsFunction, 1),
-                       input, context, effect, control));
-  ASSERT_TRUE(r.Changed());
-
-  Node* phi = r.replacement();
-  Capture<Node*> branch, if_false;
-  EXPECT_THAT(
-      phi,
-      IsPhi(
-          MachineRepresentation::kTagged, IsFalseConstant(),
-          IsUint32LessThanOrEqual(
-              IsInt32Constant(FIRST_FUNCTION_TYPE),
-              IsLoadField(AccessBuilder::ForMapInstanceType(),
-                          IsLoadField(AccessBuilder::ForMap(), input, effect,
-                                      CaptureEq(&if_false)),
-                          effect, _)),
-          IsMerge(IsIfTrue(AllOf(CaptureEq(&branch),
-                                 IsBranch(IsObjectIsSmi(input), control))),
-                  AllOf(CaptureEq(&if_false), IsIfFalse(CaptureEq(&branch))))));
-}
-
-
-// -----------------------------------------------------------------------------
 // %_IsRegExp
 
 

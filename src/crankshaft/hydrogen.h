@@ -2223,7 +2223,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   F(ToString)                          \
   F(ToLength)                          \
   F(ToNumber)                          \
-  F(IsFunction)                        \
   F(IsJSReceiver)                      \
   F(MathPow)                           \
   F(IsMinusZero)                       \

@@ -69,7 +69,7 @@ macro IS_BOOLEAN_WRAPPER(arg)   = (%_ClassOf(arg) === 'Boolean');
 macro IS_DATAVIEW(arg)          = (%_ClassOf(arg) === 'DataView');
 macro IS_DATE(arg)              = (%_IsDate(arg));
 macro IS_ERROR(arg)             = (%_ClassOf(arg) === 'Error');
-macro IS_FUNCTION(arg)          = (%_IsFunction(arg));
+macro IS_FUNCTION(arg)          = (%IsFunction(arg));
 macro IS_GENERATOR(arg)         = (%_ClassOf(arg) === 'Generator');
 macro IS_GLOBAL(arg)            = (%_ClassOf(arg) === 'global');
 macro IS_MAP(arg)               = (%_ClassOf(arg) === 'Map');
