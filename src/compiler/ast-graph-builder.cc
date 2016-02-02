@@ -610,13 +610,6 @@ void AstGraphBuilder::CreateGraphBody(bool stack_check) {
   // Visit statements in the function body.
   VisitStatements(info()->literal()->body());
 
-  // Emit tracing call if requested to do so.
-  if (FLAG_trace) {
-    // TODO(mstarzinger): Only traces implicit return.
-    Node* return_value = jsgraph()->UndefinedConstant();
-    NewNode(javascript()->CallRuntime(Runtime::kTraceExit), return_value);
-  }
-
   // Return 'undefined' in case we can fall off the end.
   BuildReturn(jsgraph()->UndefinedConstant());
 }
@@ -3791,6 +3784,11 @@ Node* AstGraphBuilder::BuildThrowUnsupportedSuperError(BailoutId bailout_id) {
 
 
 Node* AstGraphBuilder::BuildReturn(Node* return_value) {
+  // Emit tracing call if requested to do so.
+  if (FLAG_trace) {
+    return_value =
+        NewNode(javascript()->CallRuntime(Runtime::kTraceExit), return_value);
+  }
   Node* control = NewNode(common()->Return(), return_value);
   UpdateControlDependencyToLeaveFunction(control);
   return control;
