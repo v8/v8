@@ -3893,10 +3893,15 @@ Node* AstGraphBuilder::TryLoadDynamicVariable(
       fast_block.BreakUnless(check, BranchHint::kTrue);
     }
 
-    // Fast case, because variable is not shadowed. Perform global slot load.
-    Node* fast = BuildGlobalLoad(name, feedback, typeof_mode);
-    states.AddToNode(fast, bailout_id, combine);
-    environment()->Push(fast);
+    // Fast case, because variable is not shadowed.
+    if (Node* constant = TryLoadGlobalConstant(name)) {
+      environment()->Push(constant);
+    } else {
+      // Perform global slot load.
+      Node* fast = BuildGlobalLoad(name, feedback, typeof_mode);
+      states.AddToNode(fast, bailout_id, combine);
+      environment()->Push(fast);
+    }
     slow_block.Break();
     environment()->Pop();
     fast_block.EndBlock();
