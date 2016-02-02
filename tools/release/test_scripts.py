@@ -43,8 +43,6 @@ import merge_to_branch
 from merge_to_branch import *
 import push_to_candidates
 from push_to_candidates import *
-import chromium_roll
-from chromium_roll import ChromiumRoll
 import releases
 from releases import Releases
 from auto_tag import AutoTag
@@ -1086,7 +1084,6 @@ deps = {
       Cmd("git status -s -uno", "", cwd=chrome_dir),
       Cmd("git checkout -f master", "", cwd=chrome_dir),
       Cmd("git branch", "", cwd=chrome_dir),
-      Cmd("gclient sync --nohooks", "syncing...", cwd=chrome_dir),
       Cmd("git pull", "", cwd=chrome_dir),
       Cmd("git fetch origin", ""),
       Cmd("git new-branch work-branch", "", cwd=chrome_dir),
