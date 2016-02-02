@@ -27,9 +27,6 @@ class BytecodeGraphBuilder::Environment : public ZoneObject {
   Node* LookupAccumulator() const;
   Node* LookupRegister(interpreter::Register the_register) const;
 
-  void ExchangeRegisters(interpreter::Register reg0,
-                         interpreter::Register reg1);
-
   void BindAccumulator(Node* node, FrameStateBeforeAndAfter* states = nullptr);
   void BindRegister(interpreter::Register the_register, Node* node,
                     FrameStateBeforeAndAfter* states = nullptr);
@@ -249,16 +246,6 @@ Node* BytecodeGraphBuilder::Environment::LookupRegister(
     int values_index = RegisterToValuesIndex(the_register);
     return values()->at(values_index);
   }
-}
-
-
-void BytecodeGraphBuilder::Environment::ExchangeRegisters(
-    interpreter::Register reg0, interpreter::Register reg1) {
-  int reg0_index = RegisterToValuesIndex(reg0);
-  int reg1_index = RegisterToValuesIndex(reg1);
-  Node* saved_reg0_value = values()->at(reg0_index);
-  values()->at(reg0_index) = values()->at(reg1_index);
-  values()->at(reg1_index) = saved_reg0_value;
 }
 
 
