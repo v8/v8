@@ -98,6 +98,12 @@ namespace internal {
   STATEMENT_NODE_LIST(V)                        \
   EXPRESSION_NODE_LIST(V)
 
+// OTS type nodes are intentionally not in in AST_NODE_LIST.
+// Visitors should not have to worry about them.
+#define OTSTYPE_NODE_LIST(V)                    \
+  V(PredefinedType)
+
+
 // Forward declarations
 class AstNodeFactory;
 class AstVisitor;
@@ -109,9 +115,11 @@ class IterationStatement;
 class MaterializedLiteral;
 class Statement;
 class TypeFeedbackOracle;
+class OTSType;
 
 #define DEF_FORWARD_DECLARATION(type) class type;
 AST_NODE_LIST(DEF_FORWARD_DECLARATION)
+OTSTYPE_NODE_LIST(DEF_FORWARD_DECLARATION)
 #undef DEF_FORWARD_DECLARATION
 
 
@@ -183,6 +191,7 @@ class AstNode: public ZoneObject {
 #define DECLARE_TYPE_ENUM(type) k##type,
   enum NodeType {
     AST_NODE_LIST(DECLARE_TYPE_ENUM)
+    OTSTYPE_NODE_LIST(DECLARE_TYPE_ENUM)
     kInvalid = -1
   };
 #undef DECLARE_TYPE_ENUM
@@ -207,6 +216,7 @@ class AstNode: public ZoneObject {
   V8_INLINE type* As##type();        \
   V8_INLINE const type* As##type() const;
   AST_NODE_LIST(DECLARE_NODE_FUNCTIONS)
+  OTSTYPE_NODE_LIST(DECLARE_NODE_FUNCTIONS)
 #undef DECLARE_NODE_FUNCTIONS
 
   virtual BreakableStatement* AsBreakableStatement() { return NULL; }
@@ -2913,6 +2923,37 @@ class EmptyParentheses final : public Expression {
 };
 
 
+// Nodes for the optional type system.
+class OTSType : public AstNode {
+ protected:
+  explicit OTSType(Zone* zone, int position) : AstNode(position) {}
+};
+
+
+class PredefinedType : public OTSType {
+ public:
+  DECLARE_NODE_TYPE(PredefinedType)
+
+  enum Kind {
+    kAnyType,
+    kNumberType,
+    kBooleanType,
+    kStringType,
+    kSymbolType,
+    kVoidType
+  };
+
+  Kind kind() const { return kind_; }
+
+ protected:
+  PredefinedType(Zone* zone, Kind kind, int pos)
+      : OTSType(zone, pos), kind_(kind) {}
+
+ private:
+  Kind kind_;
+};
+
+
 #undef DECLARE_NODE_TYPE
 
 
@@ -3458,6 +3499,10 @@ class AstNodeFactory final BASE_EMBEDDED {
 
   EmptyParentheses* NewEmptyParentheses(int pos) {
     return new (local_zone_) EmptyParentheses(local_zone_, pos);
+  }
+
+  PredefinedType* NewPredefinedType(PredefinedType::Kind kind, int pos) {
+    return new (local_zone_) PredefinedType(local_zone_, kind, pos);
   }
 
   Zone* zone() const { return local_zone_; }

@@ -593,6 +593,11 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
 
     is_pattern = pattern.IsObjectLiteral() || pattern.IsArrayLiteral();
 
+    // Optional type annotation.
+    if (scope_->typed() && Check(Token::COLON)) {
+      ParseType(CHECK_OK);
+    }
+
     Scanner::Location variable_loc = scanner()->location();
     nvars++;
     if (Check(Token::ASSIGN)) {

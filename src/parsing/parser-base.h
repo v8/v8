@@ -89,6 +89,7 @@ class ParserBase : public Traits {
   typedef typename Traits::Type::ObjectLiteralProperty ObjectLiteralPropertyT;
   typedef typename Traits::Type::StatementList StatementListT;
   typedef typename Traits::Type::ExpressionClassifier ExpressionClassifier;
+  typedef typename Traits::Type::OTSType OTSTypeT;
 
   ParserBase(Zone* zone, Scanner* scanner, uintptr_t stack_limit,
              v8::Extension* extension, AstValueFactory* ast_value_factory,
@@ -865,6 +866,9 @@ class ParserBase : public Traits {
     }
   }
 
+  // Parsing optional types.
+  OTSTypeT ParseType(bool* ok);
+
   // Used to validate property names in object literals and class literals
   enum PropertyKind {
     kAccessorProperty,
@@ -1238,6 +1242,12 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseRegExpLiteral(
 #define DUMMY )  // to make indentation work
 #undef DUMMY
 
+// Used in functions for parsing optional types.
+#define CHECK_OK_TYPE  ok);              \
+  if (!*ok) return this->EmptyOTSType(); \
+  ((void)0
+#define DUMMY )  // to make indentation work
+#undef DUMMY
 
 template <class Traits>
 typename ParserBase<Traits>::ExpressionT
@@ -3316,8 +3326,31 @@ void ParserBase<Traits>::CheckDestructuringElement(
 }
 
 
+template <typename Traits>
+typename ParserBase<Traits>::OTSTypeT ParserBase<Traits>::ParseType(bool* ok) {
+  // Type ::
+  //   UnionOrIntersectionOrPrimaryType
+  //   FunctionType
+  //   ConstructorType
+
+  int pos = peek_position();
+  // !!! alternative
+  // SomeT some = this->ParseUnionOrIntersectionOrPrimaryType(CHECK_OK);
+
+  // !!! alternative
+  // SomeT some = this->ParseFunctionType(CHECK_OK);
+
+  // !!! alternative
+  // SomeT some = this->ParseConstructorType(CHECK_OK);
+  IdentifierT name = ParseIdentifierName(CHECK_OK_TYPE);
+  USE(name);
+  return factory()->NewPredefinedType(PredefinedType::kNumberType, pos);
+}
+
+
 #undef CHECK_OK
 #undef CHECK_OK_CUSTOM
+#undef CHECK_OK_TYPE
 
 
 template <typename Traits>

@@ -51,6 +51,8 @@ class CallPrinter : public AstVisitor {
 
 #ifdef DEBUG
 
+// TODO(nikolaos): Think about how to pretty print OTS types.
+
 class PrettyPrinter: public AstVisitor {
  public:
   explicit PrettyPrinter(Isolate* isolate);

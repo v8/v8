@@ -418,6 +418,17 @@ class PreParserStatement {
 typedef PreParserList<PreParserStatement> PreParserStatementList;
 
 
+class PreParserOTSType {
+ public:
+  static PreParserOTSType Default() {
+    return PreParserOTSType();
+  }
+
+ private:
+  PreParserOTSType() {}
+};
+
+
 class PreParserFactory {
  public:
   explicit PreParserFactory(void* unused_value_factory) {}
@@ -557,6 +568,10 @@ class PreParserFactory {
     return PreParserExpression::Default();
   }
 
+  PreParserOTSType NewPredefinedType(PredefinedType::Kind kind, int pos) {
+    return PreParserOTSType::Default();
+  }
+
   // Return the object itself as AstVisitor and implement the needed
   // dummy method right in this class.
   PreParserFactory* visitor() { return this; }
@@ -607,6 +622,7 @@ class PreParserTraits {
     typedef PreParserIdentifier FormalParameter;
     typedef PreParserFormalParameters FormalParameters;
     typedef PreParserStatementList StatementList;
+    typedef PreParserOTSType OTSType;
 
     // For constructing objects returned by the traversing functions.
     typedef PreParserFactory Factory;
@@ -759,6 +775,9 @@ class PreParserTraits {
   }
   static PreParserExpressionList NullExpressionList() {
     return PreParserExpressionList();
+  }
+  static PreParserOTSType EmptyOTSType() {
+    return PreParserOTSType::Default();
   }
 
   // Odd-ball literal creators.

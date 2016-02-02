@@ -2411,6 +2411,13 @@ Block* Parser::ParseVariableDeclarations(
       }
     }
 
+    // Optional type annotation.
+    if (scope_->typed() && Check(Token::COLON)) {
+      OTSTypeT type = ParseType(ok);
+      if (!*ok) return nullptr;
+      USE(type);
+    }
+
     Scanner::Location variable_loc = scanner()->location();
     const AstRawString* single_name =
         pattern->IsVariableProxy() ? pattern->AsVariableProxy()->raw_name()
