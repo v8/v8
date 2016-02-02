@@ -723,20 +723,16 @@
 }],  # ignition == True
 
 ['ignition == True and mode == debug and arch == x64', {
-  # TODO(rmcilroy,4680): Fatal error in .././src/handles.h, line 206
-  'test-run-jsexceptions/CatchNested': [FAIL],
-  'test-run-jsexceptions/Catch': [FAIL],
-  'test-run-jsexceptions/CatchBreak': [FAIL],
-  'test-run-jsexceptions/CatchCall': [FAIL],
-  'test-run-jsexceptions/DeoptCatch': [FAIL],
-
-  # TODO(rmcilroy,4689): Stack trace line number failures.
-  'test-api/TryCatchMixedNesting': [FAIL],
-
-  # TODO(rmcilroy,4680): Test assert failures.
-  'test-api/CallAsFunction': [FAIL],
-  'test-api/ConstructorForObject': [FAIL],
-  'test-api/Regress528': [FAIL],
+  # TODO(rmcilroy,4680): Flaky failures.
+  'test-run-jsexceptions/CatchNested': [PASS, FAIL],
+  'test-run-jsexceptions/Catch': [PASS, FAIL],
+  'test-run-jsexceptions/CatchBreak': [PASS, FAIL],
+  'test-run-jsexceptions/CatchCall': [PASS, FAIL],
+  'test-run-jsexceptions/DeoptCatch': [PASS, FAIL],
+  'test-api/CallAsFunction': [PASS, FAIL],
+  'test-api/ConstructorForObject': [PASS, FAIL],
+  'test-api/Regress528': [PASS, FAIL],
+  'test-api/TryCatchMixedNesting': [PASS, FAIL],
 }],
 
 ['ignition == True and arch == x64', {
@@ -754,16 +750,16 @@
 
 ['ignition == True and arch == arm64', {
   # TODO(rmcilroy,4680): Arm64 specific test failures.
-  'test-decls/CrossScriptReferencesHarmony': [FAIL],
   'test-js-arm64-variables/lookup_slots': [FAIL],
-  'test-serialize/SerializeInternalReference': [FAIL],
-  'test-spaces/SizeOfFirstPageIsLargeEnough': [FAIL],
-  'test-api/InitializeDefaultIsolateOnSecondaryThread1': [FAIL],
-  'test-api/ExternalWrap': [FAIL],
 
   # TODO(rmcilroy,4680): Arm64 flakes.
+  'test-serialize/SerializeInternalReference': [PASS, FAIL],
+  'test-spaces/SizeOfFirstPageIsLargeEnough': [PASS, FAIL],
+  'test-api/InitializeDefaultIsolateOnSecondaryThread1': [PASS, FAIL],
   'test-heap/Regress538257': [PASS, FAIL],
   'test-heap/AddInstructionChangesNewSpacePromotion': [PASS, FAIL],
+  'test-api/ExternalWrap': [PASS, FAIL],
+  'test-decls/CrossScriptReferencesHarmony': [PASS, FAIL],
 }],  # ignition == True and arch == arm64
 
 ]
