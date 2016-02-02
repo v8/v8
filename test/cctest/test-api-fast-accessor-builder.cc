@@ -287,7 +287,6 @@ TEST(FastAccessorLoad) {
   ExpectString("loadval()", "Hello");
 }
 
-
 void ApiCallbackInt(const v8::FunctionCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(12345);
 }
@@ -298,13 +297,11 @@ void ApiCallbackString(const v8::FunctionCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(v8_str(kApiCallbackStringValue));
 }
 
-
 void ApiCallbackParam(const v8::FunctionCallbackInfo<v8::Value>& info) {
   CHECK_EQ(1, info.Length());
   CHECK(info[0]->IsNumber());
   info.GetReturnValue().Set(info[0]);
 }
-
 
 // "Fast" accessor, callback to embedder
 TEST(FastAccessorCallback) {

@@ -167,7 +167,6 @@ void FastAccessorAssembler::CheckNotZeroOrJump(ValueId value_id,
   assembler_->Bind(&pass);
 }
 
-
 FastAccessorAssembler::ValueId FastAccessorAssembler::Call(
     FunctionCallback callback_function, ValueId arg) {
   CHECK_EQ(kBuilding, state_);
@@ -208,7 +207,6 @@ FastAccessorAssembler::ValueId FastAccessorAssembler::Call(
       assembler_->HeapConstant(stub.GetCode()), args);
   return FromRaw(call);
 }
-
 
 MaybeHandle<Code> FastAccessorAssembler::Build() {
   CHECK_EQ(kBuilding, state_);

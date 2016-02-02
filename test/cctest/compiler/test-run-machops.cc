@@ -5588,17 +5588,77 @@ TEST(RunCallCFunction8) {
 }
 #endif  // USE_SIMULATOR
 
+template <typename T>
+void TestExternalReferenceFunction(
+    BufferedRawMachineAssemblerTester<int32_t>* m, ExternalReference ref,
+    T (*comparison)(T)) {
+  T parameter;
+
+  Node* function = m->ExternalConstant(ref);
+  m->CallCFunction1(MachineType::Pointer(), MachineType::Pointer(), function,
+                    m->PointerConstant(&parameter));
+  m->Return(m->Int32Constant(4356));
+  FOR_FLOAT64_INPUTS(i) {
+    parameter = *i;
+    m->Call();
+    CheckDoubleEq(comparison(*i), parameter);
+  }
+}
+
+TEST(RunCallExternalReferenceF32Trunc) {
+  BufferedRawMachineAssemblerTester<int32_t> m;
+  ExternalReference ref =
+      ExternalReference::f32_trunc_wrapper_function(m.isolate());
+  TestExternalReferenceFunction<float>(&m, ref, truncf);
+}
+
+TEST(RunCallExternalReferenceF32Floor) {
+  BufferedRawMachineAssemblerTester<int32_t> m;
+  ExternalReference ref =
+      ExternalReference::f32_floor_wrapper_function(m.isolate());
+  TestExternalReferenceFunction<float>(&m, ref, floorf);
+}
+
+TEST(RunCallExternalReferenceF32Ceil) {
+  BufferedRawMachineAssemblerTester<int32_t> m;
+  ExternalReference ref =
+      ExternalReference::f32_ceil_wrapper_function(m.isolate());
+  TestExternalReferenceFunction<float>(&m, ref, ceilf);
+}
+
+TEST(RunCallExternalReferenceF32RoundTiesEven) {
+  BufferedRawMachineAssemblerTester<int32_t> m;
+  ExternalReference ref =
+      ExternalReference::f32_nearest_int_wrapper_function(m.isolate());
+  TestExternalReferenceFunction<float>(&m, ref, nearbyintf);
+}
+
 TEST(RunCallExternalReferenceF64Trunc) {
-  BufferedRawMachineAssemblerTester<double> m(MachineType::Float64());
-  Node* stack_slot = m.StackSlot(MachineRepresentation::kFloat64);
-  m.Store(MachineRepresentation::kFloat64, stack_slot, m.Parameter(0),
-          WriteBarrierKind::kNoWriteBarrier);
-  Node* function = m.ExternalConstant(
-      ExternalReference::trunc64_wrapper_function(m.isolate()));
-  m.CallCFunction1(MachineType::Pointer(), MachineType::Pointer(), function,
-                   stack_slot);
-  m.Return(m.Load(MachineType::Float64(), stack_slot));
-  FOR_FLOAT64_INPUTS(i) { CheckDoubleEq(trunc(*i), m.Call(*i)); }
+  BufferedRawMachineAssemblerTester<int32_t> m;
+  ExternalReference ref =
+      ExternalReference::f64_trunc_wrapper_function(m.isolate());
+  TestExternalReferenceFunction<double>(&m, ref, trunc);
+}
+
+TEST(RunCallExternalReferenceF64Floor) {
+  BufferedRawMachineAssemblerTester<int32_t> m;
+  ExternalReference ref =
+      ExternalReference::f64_floor_wrapper_function(m.isolate());
+  TestExternalReferenceFunction<double>(&m, ref, floor);
+}
+
+TEST(RunCallExternalReferenceF64Ceil) {
+  BufferedRawMachineAssemblerTester<int32_t> m;
+  ExternalReference ref =
+      ExternalReference::f64_ceil_wrapper_function(m.isolate());
+  TestExternalReferenceFunction<double>(&m, ref, ceil);
+}
+
+TEST(RunCallExternalReferenceF64RoundTiesEven) {
+  BufferedRawMachineAssemblerTester<int32_t> m;
+  ExternalReference ref =
+      ExternalReference::f64_nearest_int_wrapper_function(m.isolate());
+  TestExternalReferenceFunction<double>(&m, ref, nearbyint);
 }
 
 #if V8_TARGET_ARCH_64_BIT

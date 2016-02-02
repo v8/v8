@@ -119,8 +119,22 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
       "InvokeFunctionCallback");
   Add(ExternalReference::invoke_accessor_getter_callback(isolate).address(),
       "InvokeAccessorGetterCallback");
-  Add(ExternalReference::trunc64_wrapper_function(isolate).address(),
-      "trunc64_wrapper");
+  Add(ExternalReference::f32_trunc_wrapper_function(isolate).address(),
+      "f32_trunc_wrapper");
+  Add(ExternalReference::f32_floor_wrapper_function(isolate).address(),
+      "f32_floor_wrapper");
+  Add(ExternalReference::f32_ceil_wrapper_function(isolate).address(),
+      "f32_ceil_wrapper");
+  Add(ExternalReference::f32_nearest_int_wrapper_function(isolate).address(),
+      "f32_nearest_int_wrapper");
+  Add(ExternalReference::f64_trunc_wrapper_function(isolate).address(),
+      "f64_trunc_wrapper");
+  Add(ExternalReference::f64_floor_wrapper_function(isolate).address(),
+      "f64_floor_wrapper");
+  Add(ExternalReference::f64_ceil_wrapper_function(isolate).address(),
+      "f64_ceil_wrapper");
+  Add(ExternalReference::f64_nearest_int_wrapper_function(isolate).address(),
+      "f64_nearest_int_wrapper");
   Add(ExternalReference::log_enter_external_function(isolate).address(),
       "Logger::EnterExternal");
   Add(ExternalReference::log_leave_external_function(isolate).address(),
