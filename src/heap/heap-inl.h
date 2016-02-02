@@ -515,7 +515,7 @@ AllocationMemento* Heap::FindAllocationMemento(HeapObject* object) {
   return nullptr;
 }
 
-
+template <Heap::UpdateAllocationSiteMode mode>
 void Heap::UpdateAllocationSite(HeapObject* object,
                                 HashMap* pretenuring_feedback) {
   DCHECK(InFromSpace(object));
@@ -525,7 +525,8 @@ void Heap::UpdateAllocationSite(HeapObject* object,
   AllocationMemento* memento_candidate = FindAllocationMemento<kForGC>(object);
   if (memento_candidate == nullptr) return;
 
-  if (pretenuring_feedback == global_pretenuring_feedback_) {
+  if (mode == kGlobal) {
+    DCHECK_EQ(pretenuring_feedback, global_pretenuring_feedback_);
     // Entering global pretenuring feedback is only used in the scavenger, where
     // we are allowed to actually touch the allocation site.
     if (!memento_candidate->IsValid()) return;
@@ -538,6 +539,8 @@ void Heap::UpdateAllocationSite(HeapObject* object,
                                                    ObjectHash(site->address()));
     }
   } else {
+    DCHECK_EQ(mode, kCached);
+    DCHECK_NE(pretenuring_feedback, global_pretenuring_feedback_);
     // Entering cached feedback is used in the parallel case. We are not allowed
     // to dereference the allocation site and rather have to postpone all checks
     // till actually merging the data.

@@ -1571,7 +1571,8 @@ class MarkCompactCollector::EvacuateNewSpaceVisitor final
         local_pretenuring_feedback_(local_pretenuring_feedback) {}
 
   bool Visit(HeapObject* object) override {
-    heap_->UpdateAllocationSite(object, local_pretenuring_feedback_);
+    heap_->UpdateAllocationSite<Heap::kCached>(object,
+                                               local_pretenuring_feedback_);
     int size = object->Size();
     HeapObject* target_object = nullptr;
     if (heap_->ShouldBePromoted(object->address(), size) &&

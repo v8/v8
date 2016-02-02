@@ -442,17 +442,17 @@ class Heap {
     kSmiRootsStart = kStringTableRootIndex + 1
   };
 
+  enum FindMementoMode { kForRuntime, kForGC };
+
+  enum HeapState { NOT_IN_GC, SCAVENGE, MARK_COMPACT };
+
   // Indicates whether live bytes adjustment is triggered
   // - from within the GC code before sweeping started (SEQUENTIAL_TO_SWEEPER),
   // - or from within GC (CONCURRENT_TO_SWEEPER),
   // - or mutator code (CONCURRENT_TO_SWEEPER).
   enum InvocationMode { SEQUENTIAL_TO_SWEEPER, CONCURRENT_TO_SWEEPER };
 
-  enum PretenuringFeedbackInsertionMode { kCached, kGlobal };
-
-  enum FindMementoMode { kForRuntime, kForGC };
-
-  enum HeapState { NOT_IN_GC, SCAVENGE, MARK_COMPACT };
+  enum UpdateAllocationSiteMode { kGlobal, kCached };
 
   // Taking this lock prevents the GC from entering a phase that relocates
   // object references.
@@ -1361,6 +1361,7 @@ class Heap {
   // the corresponding allocation site is immediately updated and an entry
   // in the hash map is created. Otherwise the entry (including a the count
   // value) is cached on the local pretenuring feedback.
+  template <UpdateAllocationSiteMode mode>
   inline void UpdateAllocationSite(HeapObject* object,
                                    HashMap* pretenuring_feedback);
 
