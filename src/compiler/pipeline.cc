@@ -552,11 +552,8 @@ struct InliningPhase {
     JSFrameSpecialization frame_specialization(data->info()->osr_frame(),
                                                data->jsgraph());
     JSGlobalObjectSpecialization global_object_specialization(
-        &graph_reducer, data->jsgraph(),
-        data->info()->is_deoptimization_enabled()
-            ? JSGlobalObjectSpecialization::kDeoptimizationEnabled
-            : JSGlobalObjectSpecialization::kNoFlags,
-        data->native_context(), data->info()->dependencies());
+        &graph_reducer, data->jsgraph(), data->native_context(),
+        data->info()->dependencies());
     JSNativeContextSpecialization native_context_specialization(
         &graph_reducer, data->jsgraph(),
         data->info()->is_deoptimization_enabled()
@@ -573,7 +570,9 @@ struct InliningPhase {
     if (data->info()->is_frame_specializing()) {
       AddReducer(data, &graph_reducer, &frame_specialization);
     }
-    AddReducer(data, &graph_reducer, &global_object_specialization);
+    if (data->info()->is_deoptimization_enabled()) {
+      AddReducer(data, &graph_reducer, &global_object_specialization);
+    }
     AddReducer(data, &graph_reducer, &native_context_specialization);
     AddReducer(data, &graph_reducer, &context_specialization);
     AddReducer(data, &graph_reducer, &call_reducer);
