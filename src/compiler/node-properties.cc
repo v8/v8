@@ -8,7 +8,7 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/verifier.h"
-#include "src/types-inl.h"
+#include "src/handles-inl.h"
 
 namespace v8 {
 namespace internal {

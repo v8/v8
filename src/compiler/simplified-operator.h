@@ -15,10 +15,7 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations.
-template <class>
-class TypeImpl;
-struct ZoneTypeConfig;
-typedef TypeImpl<ZoneTypeConfig> Type;
+class Type;
 class Zone;
 
 

@@ -49,7 +49,7 @@ class TyperTest : public TypedGraphTest {
     }
   }
 
-  Types<Type, Type*, Zone> types_;
+  Types types_;
   JSOperatorBuilder javascript_;
   BinaryOperationHints const hints_ = BinaryOperationHints::Any();
   Node* context_node_;
@@ -115,7 +115,7 @@ class TyperTest : public TypedGraphTest {
     return result;
   }
 
-  double RandomInt(Type::RangeType* range) {
+  double RandomInt(RangeType* range) {
     return RandomInt(range->Min(), range->Max());
   }
 
@@ -149,12 +149,12 @@ class TyperTest : public TypedGraphTest {
   void TestBinaryArithOp(const Operator* op, BinaryFunction opfun) {
     TestBinaryArithOpCloseToZero(op, opfun, 8);
     for (int i = 0; i < 100; ++i) {
-      Type::RangeType* r1 = RandomRange()->AsRange();
-      Type::RangeType* r2 = RandomRange()->AsRange();
+      Type* r1 = RandomRange();
+      Type* r2 = RandomRange();
       Type* expected_type = TypeBinaryOp(op, r1, r2);
       for (int i = 0; i < 10; i++) {
-        double x1 = RandomInt(r1);
-        double x2 = RandomInt(r2);
+        double x1 = RandomInt(r1->AsRange());
+        double x2 = RandomInt(r2->AsRange());
         double result_value = opfun(x1, x2);
         Type* result_type = Type::Constant(
             isolate()->factory()->NewNumber(result_value), zone());
@@ -166,12 +166,12 @@ class TyperTest : public TypedGraphTest {
   template <class BinaryFunction>
   void TestBinaryCompareOp(const Operator* op, BinaryFunction opfun) {
     for (int i = 0; i < 100; ++i) {
-      Type::RangeType* r1 = RandomRange()->AsRange();
-      Type::RangeType* r2 = RandomRange()->AsRange();
+      Type* r1 = RandomRange();
+      Type* r2 = RandomRange();
       Type* expected_type = TypeBinaryOp(op, r1, r2);
       for (int i = 0; i < 10; i++) {
-        double x1 = RandomInt(r1);
-        double x2 = RandomInt(r2);
+        double x1 = RandomInt(r1->AsRange());
+        double x2 = RandomInt(r2->AsRange());
         bool result_value = opfun(x1, x2);
         Type* result_type =
             Type::Constant(result_value ? isolate()->factory()->true_value()
@@ -185,12 +185,12 @@ class TyperTest : public TypedGraphTest {
   template <class BinaryFunction>
   void TestBinaryBitOp(const Operator* op, BinaryFunction opfun) {
     for (int i = 0; i < 100; ++i) {
-      Type::RangeType* r1 = RandomRange(true)->AsRange();
-      Type::RangeType* r2 = RandomRange(true)->AsRange();
+      Type* r1 = RandomRange(true);
+      Type* r2 = RandomRange(true);
       Type* expected_type = TypeBinaryOp(op, r1, r2);
       for (int i = 0; i < 10; i++) {
-        int32_t x1 = static_cast<int32_t>(RandomInt(r1));
-        int32_t x2 = static_cast<int32_t>(RandomInt(r2));
+        int32_t x1 = static_cast<int32_t>(RandomInt(r1->AsRange()));
+        int32_t x2 = static_cast<int32_t>(RandomInt(r2->AsRange()));
         double result_value = opfun(x1, x2);
         Type* result_type = Type::Constant(
             isolate()->factory()->NewNumber(result_value), zone());

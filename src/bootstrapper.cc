@@ -134,7 +134,8 @@ class Genesis BASE_EMBEDDED {
  public:
   Genesis(Isolate* isolate, MaybeHandle<JSGlobalProxy> maybe_global_proxy,
           v8::Local<v8::ObjectTemplate> global_proxy_template,
-          v8::ExtensionConfiguration* extensions, ContextType context_type);
+          v8::ExtensionConfiguration* extensions,
+          GlobalContextType context_type);
   ~Genesis() { }
 
   Isolate* isolate() const { return isolate_; }
@@ -187,10 +188,10 @@ class Genesis BASE_EMBEDDED {
   // New context initialization.  Used for creating a context from scratch.
   void InitializeGlobal(Handle<JSGlobalObject> global_object,
                         Handle<JSFunction> empty_function,
-                        ContextType context_type);
+                        GlobalContextType context_type);
   void InitializeExperimentalGlobal();
   // Depending on the situation, expose and/or get rid of the utils object.
-  void ConfigureUtilsObject(ContextType context_type);
+  void ConfigureUtilsObject(GlobalContextType context_type);
 
 #define DECLARE_FEATURE_INITIALIZATION(id, descr) \
   void InitializeGlobal_##id();
@@ -206,7 +207,7 @@ class Genesis BASE_EMBEDDED {
   Handle<JSFunction> InstallInternalArray(Handle<JSObject> target,
                                           const char* name,
                                           ElementsKind elements_kind);
-  bool InstallNatives(ContextType context_type);
+  bool InstallNatives(GlobalContextType context_type);
 
   void InstallTypedArray(const char* name, ElementsKind elements_kind,
                          Handle<JSFunction>* fun);
@@ -318,11 +319,10 @@ void Bootstrapper::Iterate(ObjectVisitor* v) {
   v->Synchronize(VisitorSynchronization::kExtensions);
 }
 
-
 Handle<Context> Bootstrapper::CreateEnvironment(
     MaybeHandle<JSGlobalProxy> maybe_global_proxy,
     v8::Local<v8::ObjectTemplate> global_proxy_template,
-    v8::ExtensionConfiguration* extensions, ContextType context_type) {
+    v8::ExtensionConfiguration* extensions, GlobalContextType context_type) {
   HandleScope scope(isolate_);
   Genesis genesis(isolate_, maybe_global_proxy, global_proxy_template,
                   extensions, context_type);
@@ -1066,7 +1066,7 @@ static void InstallWithIntrinsicDefaultProto(Isolate* isolate,
 // work in the snapshot case is done in HookUpGlobalObject.
 void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                                Handle<JSFunction> empty_function,
-                               ContextType context_type) {
+                               GlobalContextType context_type) {
   // --- N a t i v e   C o n t e x t ---
   // Use the empty function as closure (no scope info).
   native_context()->set_closure(*empty_function);
@@ -1993,8 +1993,7 @@ static Handle<JSObject> ResolveBuiltinIdHolder(Handle<Context> native_context,
   return Handle<JSObject>::cast(value);
 }
 
-
-void Genesis::ConfigureUtilsObject(ContextType context_type) {
+void Genesis::ConfigureUtilsObject(GlobalContextType context_type) {
   switch (context_type) {
     // We still need the utils object to find debug functions.
     case DEBUG_CONTEXT:
@@ -2607,8 +2606,7 @@ Handle<JSFunction> Genesis::InstallInternalArray(Handle<JSObject> target,
   return array_function;
 }
 
-
-bool Genesis::InstallNatives(ContextType context_type) {
+bool Genesis::InstallNatives(GlobalContextType context_type) {
   HandleScope scope(isolate());
 
   // Set up the utils object as shared container between native scripts.
@@ -3490,12 +3488,11 @@ class NoTrackDoubleFieldsForSerializerScope {
   bool enabled_;
 };
 
-
 Genesis::Genesis(Isolate* isolate,
                  MaybeHandle<JSGlobalProxy> maybe_global_proxy,
                  v8::Local<v8::ObjectTemplate> global_proxy_template,
                  v8::ExtensionConfiguration* extensions,
-                 ContextType context_type)
+                 GlobalContextType context_type)
     : isolate_(isolate), active_(isolate->bootstrapper()) {
   NoTrackDoubleFieldsForSerializerScope disable_scope(isolate);
   result_ = Handle<Context>::null();

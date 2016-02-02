@@ -6,7 +6,7 @@
 #include "src/compiler/operator.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/types-inl.h"
+#include "src/types.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {

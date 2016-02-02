@@ -2379,7 +2379,7 @@ class CompareOperation final : public Expression {
         op_(op),
         left_(left),
         right_(right),
-        combined_type_(Type::None(zone)) {
+        combined_type_(Type::None()) {
     DCHECK(Token::IsCompareOp(op));
   }
   static int parent_num_ids() { return Expression::num_ids(); }

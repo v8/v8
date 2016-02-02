@@ -71,6 +71,7 @@ class CallSite {
   int32_t pos_;
 };
 
+
 #define MESSAGE_TEMPLATES(T)                                                   \
   /* Error */                                                                  \
   T(None, "")                                                                  \

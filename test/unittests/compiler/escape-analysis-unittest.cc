@@ -9,7 +9,7 @@
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/types-inl.h"
+#include "src/types.h"
 #include "src/zone-containers.h"
 #include "test/unittests/compiler/graph-unittest.h"
 

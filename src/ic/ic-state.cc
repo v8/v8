@@ -371,25 +371,25 @@ const char* CompareICState::GetStateName(State state) {
 Type* CompareICState::StateToType(Zone* zone, State state, Handle<Map> map) {
   switch (state) {
     case UNINITIALIZED:
-      return Type::None(zone);
+      return Type::None();
     case BOOLEAN:
-      return Type::Boolean(zone);
+      return Type::Boolean();
     case SMI:
-      return Type::SignedSmall(zone);
+      return Type::SignedSmall();
     case NUMBER:
-      return Type::Number(zone);
+      return Type::Number();
     case STRING:
-      return Type::String(zone);
+      return Type::String();
     case INTERNALIZED_STRING:
-      return Type::InternalizedString(zone);
+      return Type::InternalizedString();
     case UNIQUE_NAME:
-      return Type::UniqueName(zone);
+      return Type::UniqueName();
     case RECEIVER:
-      return Type::Receiver(zone);
+      return Type::Receiver();
     case KNOWN_RECEIVER:
-      return map.is_null() ? Type::Receiver(zone) : Type::Class(map, zone);
+      return map.is_null() ? Type::Receiver() : Type::Class(map, zone);
     case GENERIC:
-      return Type::Any(zone);
+      return Type::Any();
   }
   UNREACHABLE();
   return NULL;

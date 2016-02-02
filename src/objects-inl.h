@@ -18,6 +18,7 @@
 #include "src/conversions-inl.h"
 #include "src/factory.h"
 #include "src/field-index-inl.h"
+#include "src/handles-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
 #include "src/isolate.h"
@@ -28,7 +29,6 @@
 #include "src/prototype.h"
 #include "src/transitions-inl.h"
 #include "src/type-feedback-vector-inl.h"
-#include "src/types-inl.h"
 #include "src/v8memory.h"
 
 namespace v8 {

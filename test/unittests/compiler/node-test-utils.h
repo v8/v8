@@ -17,11 +17,8 @@ class ExternalReference;
 template <typename T>
 class Handle;
 class HeapObject;
-template <class>
-class TypeImpl;
+class Type;
 enum TypeofMode : int;
-struct ZoneTypeConfig;
-typedef TypeImpl<ZoneTypeConfig> Type;
 
 namespace compiler {
 

@@ -10906,7 +10906,7 @@ HValue* HGraphBuilder::TruncateToNumber(HValue* value, Type** expected) {
     Maybe<HConstant*> number =
         constant->CopyToTruncatedNumber(isolate(), zone());
     if (number.IsJust()) {
-      *expected = Type::Number(zone());
+      *expected = Type::Number();
       return AddInstruction(number.FromJust());
     }
   }
@@ -10920,20 +10920,20 @@ HValue* HGraphBuilder::TruncateToNumber(HValue* value, Type** expected) {
 
   // Separate the number type from the rest.
   Type* expected_obj =
-      Type::Intersect(expected_type, Type::NonNumber(zone()), zone());
+      Type::Intersect(expected_type, Type::NonNumber(), zone());
   Type* expected_number =
-      Type::Intersect(expected_type, Type::Number(zone()), zone());
+      Type::Intersect(expected_type, Type::Number(), zone());
 
   // We expect to get a number.
   // (We need to check first, since Type::None->Is(Type::Any()) == true.
   if (expected_obj->Is(Type::None())) {
-    DCHECK(!expected_number->Is(Type::None(zone())));
+    DCHECK(!expected_number->Is(Type::None()));
     return value;
   }
 
-  if (expected_obj->Is(Type::Undefined(zone()))) {
+  if (expected_obj->Is(Type::Undefined())) {
     // This is already done by HChange.
-    *expected = Type::Union(expected_number, Type::Number(zone()), zone());
+    *expected = Type::Union(expected_number, Type::Number(), zone());
     return value;
   }
 
@@ -11008,7 +11008,7 @@ HValue* HGraphBuilder::BuildBinaryOperation(
     Add<HDeoptimize>(
         Deoptimizer::kInsufficientTypeFeedbackForLHSOfBinaryOperation,
         Deoptimizer::SOFT);
-    left_type = Type::Any(zone());
+    left_type = Type::Any();
     left_rep = RepresentationFor(left_type);
     maybe_string_add = op == Token::ADD;
   }
@@ -11017,7 +11017,7 @@ HValue* HGraphBuilder::BuildBinaryOperation(
     Add<HDeoptimize>(
         Deoptimizer::kInsufficientTypeFeedbackForRHSOfBinaryOperation,
         Deoptimizer::SOFT);
-    right_type = Type::Any(zone());
+    right_type = Type::Any();
     right_rep = RepresentationFor(right_type);
     maybe_string_add = op == Token::ADD;
   }
@@ -11571,7 +11571,7 @@ HControlInstruction* HOptimizedGraphBuilder::BuildCompareInstruction(
     Add<HDeoptimize>(
         Deoptimizer::kInsufficientTypeFeedbackForCombinedTypeOfBinaryOperation,
         Deoptimizer::SOFT);
-    combined_type = left_type = right_type = Type::Any(zone());
+    combined_type = left_type = right_type = Type::Any();
   }
 
   Representation left_rep = RepresentationFor(left_type);
@@ -11757,7 +11757,8 @@ void HOptimizedGraphBuilder::HandleLiteralCompareNil(CompareOperation* expr,
   } else {
     DCHECK_EQ(Token::EQ, expr->op());
     Type* type = expr->combined_type()->Is(Type::None())
-        ? Type::Any(zone()) : expr->combined_type();
+                     ? Type::Any()
+                     : expr->combined_type();
     HIfContinuation continuation;
     BuildCompareNil(value, type, &continuation);
     return ast_context()->ReturnContinuation(&continuation, expr->id());
@@ -12320,10 +12321,10 @@ void HOptimizedGraphBuilder::GenerateToName(CallRuntime* call) {
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
   HValue* input = Pop();
   if (input->type().IsSmi()) {
-    HValue* result = BuildNumberToString(input, Type::SignedSmall(zone()));
+    HValue* result = BuildNumberToString(input, Type::SignedSmall());
     return ast_context()->ReturnValue(result);
   } else if (input->type().IsTaggedNumber()) {
-    HValue* result = BuildNumberToString(input, Type::Number(zone()));
+    HValue* result = BuildNumberToString(input, Type::Number());
     return ast_context()->ReturnValue(result);
   } else if (input->type().IsString()) {
     return ast_context()->ReturnValue(input);
@@ -12744,7 +12745,7 @@ void HOptimizedGraphBuilder::GenerateNumberToString(CallRuntime* call) {
   DCHECK_EQ(1, call->arguments()->length());
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
   HValue* number = Pop();
-  HValue* result = BuildNumberToString(number, Type::Any(zone()));
+  HValue* result = BuildNumberToString(number, Type::Any());
   return ast_context()->ReturnValue(result);
 }
 

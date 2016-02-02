@@ -14,11 +14,7 @@ namespace internal {
 
 // Forward declarations.
 class ExternalReference;
-template <class>
-class TypeImpl;
-struct ZoneTypeConfig;
-typedef TypeImpl<ZoneTypeConfig> Type;
-
+class Type;
 
 namespace compiler {
 

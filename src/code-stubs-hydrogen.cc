@@ -318,7 +318,7 @@ template <>
 HValue* CodeStubGraphBuilder<NumberToStringStub>::BuildCodeStub() {
   info()->MarkAsSavesCallerDoubles();
   HValue* number = GetParameter(NumberToStringStub::kNumber);
-  return BuildNumberToString(number, Type::Number(zone()));
+  return BuildNumberToString(number, Type::Number());
 }
 
 
@@ -1468,10 +1468,9 @@ HValue* CodeStubGraphBuilder<BinaryOpICStub>::BuildCodeInitializedStub() {
       if_leftisstring.If<HIsStringAndBranch>(left);
       if_leftisstring.Then();
       {
-        Push(BuildBinaryOperation(state.op(), left, right, Type::String(zone()),
-                                  right_type, result_type,
-                                  state.fixed_right_arg(), allocation_mode,
-                                  state.strength()));
+        Push(BuildBinaryOperation(
+            state.op(), left, right, Type::String(), right_type, result_type,
+            state.fixed_right_arg(), allocation_mode, state.strength()));
       }
       if_leftisstring.Else();
       {
@@ -1486,10 +1485,9 @@ HValue* CodeStubGraphBuilder<BinaryOpICStub>::BuildCodeInitializedStub() {
       if_rightisstring.If<HIsStringAndBranch>(right);
       if_rightisstring.Then();
       {
-        Push(BuildBinaryOperation(state.op(), left, right, left_type,
-                                  Type::String(zone()), result_type,
-                                  state.fixed_right_arg(), allocation_mode,
-                                  state.strength()));
+        Push(BuildBinaryOperation(
+            state.op(), left, right, left_type, Type::String(), result_type,
+            state.fixed_right_arg(), allocation_mode, state.strength()));
       }
       if_rightisstring.Else();
       {

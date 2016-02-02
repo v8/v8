@@ -6,9 +6,9 @@
 
 #include "src/contexts.h"
 #include "src/frames.h"
+#include "src/handles-inl.h"
 #include "src/heap/heap.h"
 #include "src/type-cache.h"
-#include "src/types-inl.h"
 
 namespace v8 {
 namespace internal {

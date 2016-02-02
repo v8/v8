@@ -4,9 +4,8 @@
 
 #include "src/crankshaft/hydrogen-types.h"
 
+#include "src/handles-inl.h"
 #include "src/ostreams.h"
-#include "src/types-inl.h"
-
 
 namespace v8 {
 namespace internal {

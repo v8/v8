@@ -10,7 +10,6 @@
 #include "src/field-index-inl.h"
 #include "src/objects-inl.h"  // TODO(mstarzinger): Temporary cycle breaker!
 #include "src/type-cache.h"
-#include "src/types-inl.h"
 
 namespace v8 {
 namespace internal {

@@ -16,15 +16,15 @@
 #include "test/cctest/expression-type-collector-macros.h"
 
 // Macros for function types.
-#define FUNC_BARE_TYPE Bounds(Type::Function(zone))
-#define FUNC_V_TYPE Bounds(Type::Function(Type::Undefined(zone), zone))
+#define FUNC_BARE_TYPE Bounds(Type::Function())
+#define FUNC_V_TYPE Bounds(Type::Function(Type::Undefined(), zone))
 #define FUNC_I_TYPE Bounds(Type::Function(cache.kAsmSigned, zone))
 #define FUNC_F_TYPE Bounds(Type::Function(cache.kAsmFloat, zone))
 #define FUNC_D_TYPE Bounds(Type::Function(cache.kAsmDouble, zone))
 #define FUNC_D2D_TYPE \
   Bounds(Type::Function(cache.kAsmDouble, cache.kAsmDouble, zone))
 #define FUNC_N2F_TYPE \
-  Bounds(Type::Function(cache.kAsmFloat, Type::Number(zone), zone))
+  Bounds(Type::Function(cache.kAsmFloat, Type::Number(), zone))
 #define FUNC_I2I_TYPE \
   Bounds(Type::Function(cache.kAsmSigned, cache.kAsmInt, zone))
 #define FUNC_II2D_TYPE \
@@ -34,11 +34,10 @@
 #define FUNC_DD2D_TYPE                                                        \
   Bounds(Type::Function(cache.kAsmDouble, cache.kAsmDouble, cache.kAsmDouble, \
                         zone))
-#define FUNC_NN2N_TYPE                                          \
-  Bounds(Type::Function(Type::Number(zone), Type::Number(zone), \
-                        Type::Number(zone), zone))
+#define FUNC_NN2N_TYPE \
+  Bounds(Type::Function(Type::Number(), Type::Number(), Type::Number(), zone))
 #define FUNC_N2N_TYPE \
-  Bounds(Type::Function(Type::Number(zone), Type::Number(zone), zone))
+  Bounds(Type::Function(Type::Number(), Type::Number(), zone))
 
 // Macros for array types.
 #define FLOAT64_ARRAY_TYPE Bounds(Type::Array(cache.kAsmDouble, zone))
@@ -266,7 +265,7 @@ TEST(ValidateMinimum) {
         }
       }
       // "use asm";
-      CHECK_EXPR(Literal, Bounds(Type::String(zone)));
+      CHECK_EXPR(Literal, Bounds(Type::String()));
       // var exp = stdlib.Math.exp;
       CHECK_EXPR(Assignment, FUNC_D2D_TYPE) {
         CHECK_VAR(exp, FUNC_D2D_TYPE);
@@ -519,11 +518,10 @@ void CheckStdlibShortcuts2(Zone* zone, ZoneVector<ExpressionTypeEntry>& types,
     CHECK_EXPR(FunctionLiteral, Bounds::Unbounded()) {
 #define CHECK_FUNC_TYPES_END_1()                           \
   /* "use asm"; */                                         \
-  CHECK_EXPR(Literal, Bounds(Type::String(zone)));         \
+  CHECK_EXPR(Literal, Bounds(Type::String()));             \
   /* stdlib shortcuts. */                                  \
   CheckStdlibShortcuts1(zone, types, index, depth, cache); \
   CheckStdlibShortcuts2(zone, types, index, depth, cache);
-
 
 #define CHECK_FUNC_TYPES_END_2()                   \
   /* return { foo: foo }; */                       \
@@ -565,10 +563,10 @@ TEST(ReturnVoid) {
       "function foo() { bar(); }") {
     CHECK_EXPR(FunctionLiteral, FUNC_V_TYPE) {
       // return undefined;
-      CHECK_EXPR(Literal, Bounds(Type::Undefined(zone)));
+      CHECK_EXPR(Literal, Bounds(Type::Undefined()));
     }
     CHECK_EXPR(FunctionLiteral, FUNC_V_TYPE) {
-      CHECK_EXPR(Call, Bounds(Type::Undefined(zone))) {
+      CHECK_EXPR(Call, Bounds(Type::Undefined())) {
         CHECK_VAR(bar, FUNC_V_TYPE);
       }
     }
@@ -583,7 +581,7 @@ TEST(EmptyBody) {
       "function foo() { bar(); }") {
     CHECK_EXPR(FunctionLiteral, FUNC_V_TYPE);
     CHECK_EXPR(FunctionLiteral, FUNC_V_TYPE) {
-      CHECK_EXPR(Call, Bounds(Type::Undefined(zone))) {
+      CHECK_EXPR(Call, Bounds(Type::Undefined())) {
         CHECK_VAR(bar, FUNC_V_TYPE);
       }
     }
@@ -603,7 +601,7 @@ TEST(DoesNothing) {
       }
     }
     CHECK_EXPR(FunctionLiteral, FUNC_V_TYPE) {
-      CHECK_EXPR(Call, Bounds(Type::Undefined(zone))) {
+      CHECK_EXPR(Call, Bounds(Type::Undefined())) {
         CHECK_VAR(bar, FUNC_V_TYPE);
       }
     }
@@ -1067,7 +1065,7 @@ TEST(UnsignedDivide) {
         CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
       }
       CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
-        CHECK_EXPR(BinaryOperation, Bounds(Type::None(zone), Type::Any(zone))) {
+        CHECK_EXPR(BinaryOperation, Bounds(Type::None(), Type::Any())) {
           CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmUnsigned)) {
             CHECK_VAR(x, Bounds(cache.kAsmInt));
             CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
@@ -1742,9 +1740,9 @@ TEST(ForeignFunction) {
     }
   }
   CHECK_FUNC_TYPES_END_1()
-  CHECK_EXPR(Assignment, Bounds(Type::Any(zone))) {
-    CHECK_VAR(baz, Bounds(Type::Any(zone)));
-    CHECK_EXPR(Property, Bounds(Type::Any(zone))) {
+  CHECK_EXPR(Assignment, Bounds(Type::Any())) {
+    CHECK_VAR(baz, Bounds(Type::Any()));
+    CHECK_EXPR(Property, Bounds(Type::Any())) {
       CHECK_VAR(foreign, Bounds::Unbounded());
       CHECK_EXPR(Literal, Bounds::Unbounded());
     }
@@ -2010,7 +2008,7 @@ TEST(SwitchTest) {
           CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
         }
       }
-      CHECK_EXPR(Literal, Bounds(Type::Undefined(zone)));
+      CHECK_EXPR(Literal, Bounds(Type::Undefined()));
       CHECK_VAR(.switch_tag, Bounds(cache.kAsmSigned));
       // case 1: return 23;
       CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
@@ -2154,11 +2152,11 @@ TEST(Imports) {
         }
       }
       // "use asm";
-      CHECK_EXPR(Literal, Bounds(Type::String(zone)));
+      CHECK_EXPR(Literal, Bounds(Type::String()));
       // var func = foreign.foo;
-      CHECK_EXPR(Assignment, Bounds(Type::Any(zone))) {
-        CHECK_VAR(ffunc, Bounds(Type::Any(zone)));
-        CHECK_EXPR(Property, Bounds(Type::Any(zone))) {
+      CHECK_EXPR(Assignment, Bounds(Type::Any())) {
+        CHECK_VAR(ffunc, Bounds(Type::Any()));
+        CHECK_EXPR(Property, Bounds(Type::Any())) {
           CHECK_VAR(foreign, Bounds::Unbounded());
           CHECK_EXPR(Literal, Bounds::Unbounded());
         }
@@ -2167,7 +2165,7 @@ TEST(Imports) {
       CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
         CHECK_VAR(fint, Bounds(cache.kAsmInt));
         CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
-          CHECK_EXPR(Property, Bounds(Type::Number(zone))) {
+          CHECK_EXPR(Property, Bounds(Type::Number())) {
             CHECK_VAR(foreign, Bounds::Unbounded());
             CHECK_EXPR(Literal, Bounds::Unbounded());
           }
@@ -2178,7 +2176,7 @@ TEST(Imports) {
       CHECK_EXPR(Assignment, Bounds(cache.kAsmDouble)) {
         CHECK_VAR(fdouble, Bounds(cache.kAsmDouble));
         CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmDouble)) {
-          CHECK_EXPR(Property, Bounds(Type::Number(zone))) {
+          CHECK_EXPR(Property, Bounds(Type::Number())) {
             CHECK_VAR(foreign, Bounds::Unbounded());
             CHECK_EXPR(Literal, Bounds::Unbounded());
           }

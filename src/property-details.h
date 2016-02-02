@@ -56,9 +56,7 @@ STATIC_ASSERT(((SKIP_STRINGS | SKIP_SYMBOLS | ONLY_ALL_CAN_READ) &
 
 
 class Smi;
-template<class> class TypeImpl;
-struct ZoneTypeConfig;
-typedef TypeImpl<ZoneTypeConfig> Type;
+class Type;
 class TypeInfo;
 
 // Type of properties.

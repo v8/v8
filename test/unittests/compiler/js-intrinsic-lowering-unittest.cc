@@ -7,7 +7,6 @@
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-intrinsic-lowering.h"
 #include "src/compiler/js-operator.h"
-#include "src/types-inl.h"
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"
 #include "testing/gmock-support.h"

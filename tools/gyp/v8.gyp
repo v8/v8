@@ -1066,7 +1066,6 @@
         '../../src/type-feedback-vector.h',
         '../../src/type-info.cc',
         '../../src/type-info.h',
-        '../../src/types-inl.h',
         '../../src/types.cc',
         '../../src/types.h',
         '../../src/typing-asm.cc',

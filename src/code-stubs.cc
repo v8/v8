@@ -555,18 +555,17 @@ std::ostream& operator<<(std::ostream& os, const CompareNilICStub::State& s) {
 
 Type* CompareNilICStub::GetType(Zone* zone, Handle<Map> map) {
   State state = this->state();
-  if (state.Contains(CompareNilICStub::GENERIC)) return Type::Any(zone);
+  if (state.Contains(CompareNilICStub::GENERIC)) return Type::Any();
 
-  Type* result = Type::None(zone);
+  Type* result = Type::None();
   if (state.Contains(CompareNilICStub::UNDEFINED)) {
-    result = Type::Union(result, Type::Undefined(zone), zone);
+    result = Type::Union(result, Type::Undefined(), zone);
   }
   if (state.Contains(CompareNilICStub::NULL_TYPE)) {
-    result = Type::Union(result, Type::Null(zone), zone);
+    result = Type::Union(result, Type::Null(), zone);
   }
   if (state.Contains(CompareNilICStub::MONOMORPHIC_MAP)) {
-    Type* type =
-        map.is_null() ? Type::Detectable(zone) : Type::Class(map, zone);
+    Type* type = map.is_null() ? Type::Detectable() : Type::Class(map, zone);
     result = Type::Union(result, type, zone);
   }
 
@@ -576,8 +575,7 @@ Type* CompareNilICStub::GetType(Zone* zone, Handle<Map> map) {
 
 Type* CompareNilICStub::GetInputType(Zone* zone, Handle<Map> map) {
   Type* output_type = GetType(zone, map);
-  Type* nil_type =
-      nil_value() == kNullValue ? Type::Null(zone) : Type::Undefined(zone);
+  Type* nil_type = nil_value() == kNullValue ? Type::Null() : Type::Undefined();
   return Type::Union(output_type, nil_type, zone);
 }
 
