@@ -1935,6 +1935,24 @@ if ((current_toolchain == host_toolchain && v8_toolset_for_d8 == "host") ||
   }
 }
 
+source_set("json_fuzzer") {
+  sources = [
+    "test/fuzzer/json.cc",
+  ]
+
+  deps = [
+    ":fuzzer_support",
+  ]
+
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+  configs += [
+    ":internal_config",
+    ":features",
+    ":toolchain",
+  ]
+}
+
 source_set("parser_fuzzer") {
   sources = [
     "test/fuzzer/parser.cc",

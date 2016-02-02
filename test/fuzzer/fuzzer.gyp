@@ -9,6 +9,32 @@
   'includes': ['../../build/toolchain.gypi', '../../build/features.gypi'],
   'targets': [
     {
+      'target_name': 'json_fuzzer',
+      'type': 'executable',
+      'dependencies': [
+        'json_fuzzer_lib',
+      ],
+      'include_dirs': [
+        '../..',
+      ],
+      'sources': [
+        'fuzzer.cc',
+      ],
+    },
+    {
+      'target_name': 'json_fuzzer_lib',
+      'type': 'static_library',
+      'dependencies': [
+        'fuzzer_support',
+      ],
+      'include_dirs': [
+        '../..',
+      ],
+      'sources': [  ### gcmole(all) ###
+        'json.cc',
+      ],
+    },
+    {
       'target_name': 'parser_fuzzer',
       'type': 'executable',
       'dependencies': [
@@ -91,6 +117,7 @@
           'target_name': 'fuzzer_run',
           'type': 'none',
           'dependencies': [
+            'json_fuzzer',
             'parser_fuzzer',
             'regexp_fuzzer',
           ],
