@@ -139,7 +139,8 @@ void CopyObjectToObjectElements(FixedArrayBase* from_base,
   if (copy_size == 0) return;
   FixedArray* from = FixedArray::cast(from_base);
   FixedArray* to = FixedArray::cast(to_base);
-  DCHECK(IsFastSmiOrObjectElementsKind(from_kind));
+  DCHECK(IsFastSmiOrObjectElementsKind(from_kind) ||
+         from_kind == FAST_STRING_WRAPPER_ELEMENTS);
   DCHECK(IsFastSmiOrObjectElementsKind(to_kind));
 
   WriteBarrierMode write_barrier_mode =
