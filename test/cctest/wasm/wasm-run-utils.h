@@ -196,7 +196,7 @@ class TestingModule : public ModuleEnv {
  private:
   WasmModuleInstance instance_;
   uint32_t global_offset;
-  byte global_data[kMaxGlobalsSize];  // preallocated global data.
+  V8_ALIGNED(8) byte global_data[kMaxGlobalsSize];  // preallocated global data.
 
   WasmGlobal* AddGlobal(MachineType mem_type) {
     AllocModule();

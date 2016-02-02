@@ -30,13 +30,13 @@ void EmitUint8(byte** b, uint8_t x) {
 
 
 void EmitUint16(byte** b, uint16_t x) {
-  Memory::uint16_at(*b) = x;
+  WriteUnalignedUInt16(*b, x);
   *b += 2;
 }
 
 
 void EmitUint32(byte** b, uint32_t x) {
-  Memory::uint32_at(*b) = x;
+  WriteUnalignedUInt32(*b, x);
   *b += 4;
 }
 
