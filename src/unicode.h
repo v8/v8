@@ -15,8 +15,8 @@
 
 namespace unibrow {
 
-typedef unsigned int uchar;
-typedef unsigned char byte;
+typedef int32_t uchar;
+typedef uint8_t byte;
 
 /**
  * The max length of the result of converting the case of a single
@@ -130,7 +130,7 @@ class Utf16 {
 
 class Utf8 {
  public:
-  static inline uchar Length(uchar chr, int previous);
+  static inline unsigned Length(uchar chr, int previous);
   static inline unsigned EncodeOneByte(char* out, uint8_t c);
   static inline unsigned Encode(char* out,
                                 uchar c,
