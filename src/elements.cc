@@ -144,7 +144,9 @@ void CopyObjectToObjectElements(FixedArrayBase* from_base,
   DCHECK(IsFastSmiOrObjectElementsKind(to_kind));
 
   WriteBarrierMode write_barrier_mode =
-      (IsFastObjectElementsKind(from_kind) && IsFastObjectElementsKind(to_kind))
+      ((IsFastObjectElementsKind(from_kind) &&
+        IsFastObjectElementsKind(to_kind)) ||
+       from_kind == FAST_STRING_WRAPPER_ELEMENTS)
           ? UPDATE_WRITE_BARRIER
           : SKIP_WRITE_BARRIER;
   for (int i = 0; i < copy_size; i++) {
@@ -2366,10 +2368,12 @@ class StringWrapperElementsAccessor
                       Handle<Object> value, PropertyAttributes attributes,
                       uint32_t new_capacity) {
     DCHECK(index >= static_cast<uint32_t>(GetString(*object)->length()));
-    if ((KindTraits::Kind == FAST_STRING_WRAPPER_ELEMENTS &&
-         object->GetElementsKind() == SLOW_STRING_WRAPPER_ELEMENTS) ||
-        BackingStoreAccessor::GetCapacityImpl(*object, object->elements()) !=
-            new_capacity) {
+    // Explicitly grow fast backing stores if needed. Dictionaries know how to
+    // extend their capacity themselves.
+    if (KindTraits::Kind == FAST_STRING_WRAPPER_ELEMENTS &&
+        (object->GetElementsKind() == SLOW_STRING_WRAPPER_ELEMENTS ||
+         BackingStoreAccessor::GetCapacityImpl(*object, object->elements()) !=
+             new_capacity)) {
       StringWrapperElementsAccessorSubclass::GrowCapacityAndConvertImpl(
           object, new_capacity);
     }

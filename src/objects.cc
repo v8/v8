@@ -7908,7 +7908,8 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
   if (transition != NULL) {
     Handle<Map> transition_map(transition, isolate);
     DCHECK(transition_map->has_dictionary_elements() ||
-           transition_map->has_fixed_typed_array_elements());
+           transition_map->has_fixed_typed_array_elements() ||
+           transition_map->elements_kind() == SLOW_STRING_WRAPPER_ELEMENTS);
     DCHECK(!transition_map->is_extensible());
     JSObject::MigrateToMap(object, transition_map);
   } else if (TransitionArray::CanHaveMoreTransitions(old_map)) {
