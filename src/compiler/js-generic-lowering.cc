@@ -116,7 +116,6 @@ REPLACE_COMPARE_IC_CALL_WITH_LANGUAGE_MODE(JSGreaterThanOrEqual, Token::GTE)
   void JSGenericLowering::Lower##op(Node* node) { \
     ReplaceWithRuntimeCall(node, fun);            \
   }
-REPLACE_RUNTIME_CALL(JSCreateFunctionContext, Runtime::kNewFunctionContext)
 REPLACE_RUNTIME_CALL(JSCreateWithContext, Runtime::kPushWithContext)
 REPLACE_RUNTIME_CALL(JSCreateModuleContext, Runtime::kPushModuleContext)
 REPLACE_RUNTIME_CALL(JSConvertReceiver, Runtime::kConvertReceiver)
@@ -475,7 +474,8 @@ void JSGenericLowering::LowerJSCreateArguments(Node* node) {
 void JSGenericLowering::LowerJSCreateArray(Node* node) {
   CreateArrayParameters const& p = CreateArrayParametersOf(node->op());
   int const arity = static_cast<int>(p.arity());
-  Node* new_target = node->InputAt(1);
+  Handle<AllocationSite> const site = p.site();
+
   // TODO(turbofan): We embed the AllocationSite from the Operator at this
   // point, which we should not do once we want to both consume the feedback
   // but at the same time shared the optimized code across native contexts,
@@ -483,21 +483,93 @@ void JSGenericLowering::LowerJSCreateArray(Node* node) {
   // stored in the type feedback vector after all). Once we go for cross
   // context code generation, we should somehow find a way to get to the
   // allocation site for the actual native context at runtime.
-  Node* type_info = p.site().is_null() ? jsgraph()->UndefinedConstant()
-                                       : jsgraph()->HeapConstant(p.site());
-  node->RemoveInput(1);
-  node->InsertInput(zone(), 1 + arity, new_target);
-  node->InsertInput(zone(), 2 + arity, type_info);
-  ReplaceWithRuntimeCall(node, Runtime::kNewArray, arity + 3);
+  if (!site.is_null()) {
+    // Reduce {node} to the appropriate ArrayConstructorStub backend.
+    // Note that these stubs "behave" like JSFunctions, which means they
+    // expect a receiver on the stack, which they remove. We just push
+    // undefined for the receiver.
+    ElementsKind elements_kind = site->GetElementsKind();
+    AllocationSiteOverrideMode override_mode =
+        (AllocationSite::GetMode(elements_kind) == TRACK_ALLOCATION_SITE)
+            ? DISABLE_ALLOCATION_SITES
+            : DONT_OVERRIDE;
+    if (arity == 0) {
+      ArrayNoArgumentConstructorStub stub(isolate(), elements_kind,
+                                          override_mode);
+      CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+          isolate(), graph()->zone(), stub.GetCallInterfaceDescriptor(), 1,
+          CallDescriptor::kNeedsFrameState);
+      node->ReplaceInput(0, jsgraph()->HeapConstant(stub.GetCode()));
+      node->InsertInput(graph()->zone(), 2, jsgraph()->HeapConstant(site));
+      node->InsertInput(graph()->zone(), 3, jsgraph()->UndefinedConstant());
+      NodeProperties::ChangeOp(node, common()->Call(desc));
+    } else if (arity == 1) {
+      // TODO(bmeurer): Optimize for the 0 length non-holey case?
+      ArraySingleArgumentConstructorStub stub(
+          isolate(), GetHoleyElementsKind(elements_kind), override_mode);
+      CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+          isolate(), graph()->zone(), stub.GetCallInterfaceDescriptor(), 2,
+          CallDescriptor::kNeedsFrameState);
+      node->ReplaceInput(0, jsgraph()->HeapConstant(stub.GetCode()));
+      node->InsertInput(graph()->zone(), 2, jsgraph()->HeapConstant(site));
+      node->InsertInput(graph()->zone(), 3, jsgraph()->Int32Constant(1));
+      node->InsertInput(graph()->zone(), 4, jsgraph()->UndefinedConstant());
+      NodeProperties::ChangeOp(node, common()->Call(desc));
+    } else {
+      ArrayNArgumentsConstructorStub stub(isolate(), elements_kind,
+                                          override_mode);
+      CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+          isolate(), graph()->zone(), stub.GetCallInterfaceDescriptor(),
+          arity + 1, CallDescriptor::kNeedsFrameState);
+      node->ReplaceInput(0, jsgraph()->HeapConstant(stub.GetCode()));
+      node->InsertInput(graph()->zone(), 2, jsgraph()->HeapConstant(site));
+      node->InsertInput(graph()->zone(), 3, jsgraph()->Int32Constant(arity));
+      node->InsertInput(graph()->zone(), 4, jsgraph()->UndefinedConstant());
+      NodeProperties::ChangeOp(node, common()->Call(desc));
+    }
+  } else {
+    Node* new_target = node->InputAt(1);
+    Node* type_info = site.is_null() ? jsgraph()->UndefinedConstant()
+                                     : jsgraph()->HeapConstant(site);
+    node->RemoveInput(1);
+    node->InsertInput(zone(), 1 + arity, new_target);
+    node->InsertInput(zone(), 2 + arity, type_info);
+    ReplaceWithRuntimeCall(node, Runtime::kNewArray, arity + 3);
+  }
 }
 
 
 void JSGenericLowering::LowerJSCreateClosure(Node* node) {
-  CreateClosureParameters p = CreateClosureParametersOf(node->op());
-  node->InsertInput(zone(), 0, jsgraph()->HeapConstant(p.shared_info()));
-  ReplaceWithRuntimeCall(node, (p.pretenure() == TENURED)
-                                   ? Runtime::kNewClosure_Tenured
-                                   : Runtime::kNewClosure);
+  CreateClosureParameters const& p = CreateClosureParametersOf(node->op());
+  CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
+  Handle<SharedFunctionInfo> const shared_info = p.shared_info();
+  node->InsertInput(zone(), 0, jsgraph()->HeapConstant(shared_info));
+
+  // Use the FastNewClosureStub that allocates in new space only for nested
+  // functions that don't need literals cloning.
+  if (p.pretenure() == NOT_TENURED && shared_info->num_literals() == 0) {
+    Callable callable = CodeFactory::FastNewClosure(
+        isolate(), shared_info->language_mode(), shared_info->kind());
+    ReplaceWithStubCall(node, callable, flags);
+  } else {
+    ReplaceWithRuntimeCall(node, (p.pretenure() == TENURED)
+                                     ? Runtime::kNewClosure_Tenured
+                                     : Runtime::kNewClosure);
+  }
+}
+
+
+void JSGenericLowering::LowerJSCreateFunctionContext(Node* node) {
+  int const slot_count = OpParameter<int>(node->op());
+  CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
+
+  // Use the FastNewContextStub only for function contexts up maximum size.
+  if (slot_count <= FastNewContextStub::kMaximumSlots) {
+    Callable callable = CodeFactory::FastNewContext(isolate(), slot_count);
+    ReplaceWithStubCall(node, callable, flags);
+  } else {
+    ReplaceWithRuntimeCall(node, Runtime::kNewFunctionContext);
+  }
 }
 
 
@@ -508,19 +580,42 @@ void JSGenericLowering::LowerJSCreateIterResultObject(Node* node) {
 
 void JSGenericLowering::LowerJSCreateLiteralArray(Node* node) {
   CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
+  CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
+  int const length = Handle<FixedArray>::cast(p.constant())->length();
   node->InsertInput(zone(), 1, jsgraph()->SmiConstant(p.index()));
   node->InsertInput(zone(), 2, jsgraph()->HeapConstant(p.constant()));
-  node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.flags()));
-  ReplaceWithRuntimeCall(node, Runtime::kCreateArrayLiteral);
+
+  // Use the FastCloneShallowArrayStub only for shallow boilerplates up to the
+  // initial length limit for arrays with "fast" elements kind.
+  if ((p.flags() & ArrayLiteral::kShallowElements) != 0 &&
+      (p.flags() & ArrayLiteral::kIsStrong) == 0 &&
+      length < JSArray::kInitialMaxFastElementArray) {
+    Callable callable = CodeFactory::FastCloneShallowArray(isolate());
+    ReplaceWithStubCall(node, callable, flags);
+  } else {
+    node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.flags()));
+    ReplaceWithRuntimeCall(node, Runtime::kCreateArrayLiteral);
+  }
 }
 
 
 void JSGenericLowering::LowerJSCreateLiteralObject(Node* node) {
   CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
+  CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
+  int const length = Handle<FixedArray>::cast(p.constant())->length();
   node->InsertInput(zone(), 1, jsgraph()->SmiConstant(p.index()));
   node->InsertInput(zone(), 2, jsgraph()->HeapConstant(p.constant()));
   node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.flags()));
-  ReplaceWithRuntimeCall(node, Runtime::kCreateObjectLiteral);
+
+  // Use the FastCloneShallowObjectStub only for shallow boilerplates without
+  // elements up to the number of properties that the stubs can handle.
+  if ((p.flags() & ObjectLiteral::kShallowProperties) != 0 &&
+      length <= FastCloneShallowObjectStub::kMaximumClonedProperties) {
+    Callable callable = CodeFactory::FastCloneShallowObject(isolate(), length);
+    ReplaceWithStubCall(node, callable, flags);
+  } else {
+    ReplaceWithRuntimeCall(node, Runtime::kCreateObjectLiteral);
+  }
 }
 
 

@@ -1773,78 +1773,6 @@ Reduction JSTypedLowering::ReduceJSCreateArray(Node* node) {
     }
   }
 
-  // Reduce {node} to the appropriate ArrayConstructorStub backend.
-  // Note that these stubs "behave" like JSFunctions, which means they
-  // expect a receiver on the stack, which they remove. We just push
-  // undefined for the receiver.
-  ElementsKind elements_kind = site->GetElementsKind();
-  AllocationSiteOverrideMode override_mode =
-      (AllocationSite::GetMode(elements_kind) == TRACK_ALLOCATION_SITE)
-          ? DISABLE_ALLOCATION_SITES
-          : DONT_OVERRIDE;
-  if (p.arity() == 0) {
-    ArrayNoArgumentConstructorStub stub(isolate(), elements_kind,
-                                        override_mode);
-    CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-        isolate(), graph()->zone(), stub.GetCallInterfaceDescriptor(), 1,
-        CallDescriptor::kNeedsFrameState);
-    node->ReplaceInput(0, jsgraph()->HeapConstant(stub.GetCode()));
-    node->InsertInput(graph()->zone(), 2, jsgraph()->HeapConstant(site));
-    node->InsertInput(graph()->zone(), 3, jsgraph()->UndefinedConstant());
-    NodeProperties::ChangeOp(node, common()->Call(desc));
-    return Changed(node);
-  } else if (p.arity() == 1) {
-    // TODO(bmeurer): Optimize for the 0 length non-holey case?
-    ArraySingleArgumentConstructorStub stub(
-        isolate(), GetHoleyElementsKind(elements_kind), override_mode);
-    CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-        isolate(), graph()->zone(), stub.GetCallInterfaceDescriptor(), 2,
-        CallDescriptor::kNeedsFrameState);
-    node->ReplaceInput(0, jsgraph()->HeapConstant(stub.GetCode()));
-    node->InsertInput(graph()->zone(), 2, jsgraph()->HeapConstant(site));
-    node->InsertInput(graph()->zone(), 3, jsgraph()->Int32Constant(1));
-    node->InsertInput(graph()->zone(), 4, jsgraph()->UndefinedConstant());
-    NodeProperties::ChangeOp(node, common()->Call(desc));
-    return Changed(node);
-  } else {
-    int const arity = static_cast<int>(p.arity());
-    ArrayNArgumentsConstructorStub stub(isolate(), elements_kind,
-                                        override_mode);
-    CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-        isolate(), graph()->zone(), stub.GetCallInterfaceDescriptor(),
-        arity + 1, CallDescriptor::kNeedsFrameState);
-    node->ReplaceInput(0, jsgraph()->HeapConstant(stub.GetCode()));
-    node->InsertInput(graph()->zone(), 2, jsgraph()->HeapConstant(site));
-    node->InsertInput(graph()->zone(), 3, jsgraph()->Int32Constant(arity));
-    node->InsertInput(graph()->zone(), 4, jsgraph()->UndefinedConstant());
-    NodeProperties::ChangeOp(node, common()->Call(desc));
-    return Changed(node);
-  }
-}
-
-
-Reduction JSTypedLowering::ReduceJSCreateClosure(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSCreateClosure, node->opcode());
-  CreateClosureParameters const& p = CreateClosureParametersOf(node->op());
-  Handle<SharedFunctionInfo> shared = p.shared_info();
-
-  // Use the FastNewClosureStub that allocates in new space only for nested
-  // functions that don't need literals cloning.
-  if (p.pretenure() == NOT_TENURED && shared->num_literals() == 0) {
-    Isolate* isolate = jsgraph()->isolate();
-    Callable callable = CodeFactory::FastNewClosure(
-        isolate, shared->language_mode(), shared->kind());
-    CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-        isolate, graph()->zone(), callable.descriptor(), 0,
-        CallDescriptor::kNoFlags);
-    const Operator* new_op = common()->Call(desc);
-    Node* stub_code = jsgraph()->HeapConstant(callable.code());
-    node->InsertInput(graph()->zone(), 0, stub_code);
-    node->InsertInput(graph()->zone(), 1, jsgraph()->HeapConstant(shared));
-    NodeProperties::ChangeOp(node, new_op);
-    return Changed(node);
-  }
-
   return NoChange();
 }
 
@@ -1880,77 +1808,6 @@ Reduction JSTypedLowering::ReduceJSCreateIterResultObject(Node* node) {
 }
 
 
-Reduction JSTypedLowering::ReduceJSCreateLiteralArray(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSCreateLiteralArray, node->opcode());
-  CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
-  Handle<FixedArray> const constants = Handle<FixedArray>::cast(p.constant());
-  int const length = constants->length();
-  int const flags = p.flags();
-
-  // Use the FastCloneShallowArrayStub only for shallow boilerplates up to the
-  // initial length limit for arrays with "fast" elements kind.
-  // TODO(rossberg): Teach strong mode to FastCloneShallowArrayStub.
-  if ((flags & ArrayLiteral::kShallowElements) != 0 &&
-      (flags & ArrayLiteral::kIsStrong) == 0 &&
-      length < JSArray::kInitialMaxFastElementArray) {
-    Isolate* isolate = jsgraph()->isolate();
-    Callable callable = CodeFactory::FastCloneShallowArray(isolate);
-    CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-        isolate, graph()->zone(), callable.descriptor(), 0,
-        (OperatorProperties::GetFrameStateInputCount(node->op()) != 0)
-            ? CallDescriptor::kNeedsFrameState
-            : CallDescriptor::kNoFlags);
-    const Operator* new_op = common()->Call(desc);
-    Node* stub_code = jsgraph()->HeapConstant(callable.code());
-    Node* literal_index = jsgraph()->SmiConstant(p.index());
-    Node* constant_elements = jsgraph()->HeapConstant(constants);
-    node->InsertInput(graph()->zone(), 0, stub_code);
-    node->InsertInput(graph()->zone(), 2, literal_index);
-    node->InsertInput(graph()->zone(), 3, constant_elements);
-    NodeProperties::ChangeOp(node, new_op);
-    return Changed(node);
-  }
-
-  return NoChange();
-}
-
-
-Reduction JSTypedLowering::ReduceJSCreateLiteralObject(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSCreateLiteralObject, node->opcode());
-  CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
-  Handle<FixedArray> const constants = Handle<FixedArray>::cast(p.constant());
-  // Constants are pairs, see ObjectLiteral::properties_count().
-  int const length = constants->length() / 2;
-  int const flags = p.flags();
-
-  // Use the FastCloneShallowObjectStub only for shallow boilerplates without
-  // elements up to the number of properties that the stubs can handle.
-  if ((flags & ObjectLiteral::kShallowProperties) != 0 &&
-      length <= FastCloneShallowObjectStub::kMaximumClonedProperties) {
-    Isolate* isolate = jsgraph()->isolate();
-    Callable callable = CodeFactory::FastCloneShallowObject(isolate, length);
-    CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-        isolate, graph()->zone(), callable.descriptor(), 0,
-        (OperatorProperties::GetFrameStateInputCount(node->op()) != 0)
-            ? CallDescriptor::kNeedsFrameState
-            : CallDescriptor::kNoFlags);
-    const Operator* new_op = common()->Call(desc);
-    Node* stub_code = jsgraph()->HeapConstant(callable.code());
-    Node* literal_index = jsgraph()->SmiConstant(p.index());
-    Node* literal_flags = jsgraph()->SmiConstant(flags);
-    Node* constant_elements = jsgraph()->HeapConstant(constants);
-    node->InsertInput(graph()->zone(), 0, stub_code);
-    node->InsertInput(graph()->zone(), 2, literal_index);
-    node->InsertInput(graph()->zone(), 3, constant_elements);
-    node->InsertInput(graph()->zone(), 4, literal_flags);
-    NodeProperties::ChangeOp(node, new_op);
-    return Changed(node);
-  }
-
-  return NoChange();
-}
-
-
 Reduction JSTypedLowering::ReduceJSCreateFunctionContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateFunctionContext, node->opcode());
   int slot_count = OpParameter<int>(node->op());
@@ -1980,20 +1837,6 @@ Reduction JSTypedLowering::ReduceJSCreateFunctionContext(Node* node) {
     }
     RelaxControls(node);
     a.FinishAndChange(node);
-    return Changed(node);
-  }
-
-  // Use the FastNewContextStub only for function contexts up maximum size.
-  if (slot_count <= FastNewContextStub::kMaximumSlots) {
-    Isolate* isolate = jsgraph()->isolate();
-    Callable callable = CodeFactory::FastNewContext(isolate, slot_count);
-    CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-        isolate, graph()->zone(), callable.descriptor(), 0,
-        CallDescriptor::kNoFlags);
-    const Operator* new_op = common()->Call(desc);
-    Node* stub_code = jsgraph()->HeapConstant(callable.code());
-    node->InsertInput(graph()->zone(), 0, stub_code);
-    NodeProperties::ChangeOp(node, new_op);
     return Changed(node);
   }
 
@@ -2477,14 +2320,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSCreateArguments(node);
     case IrOpcode::kJSCreateArray:
       return ReduceJSCreateArray(node);
-    case IrOpcode::kJSCreateClosure:
-      return ReduceJSCreateClosure(node);
     case IrOpcode::kJSCreateIterResultObject:
       return ReduceJSCreateIterResultObject(node);
-    case IrOpcode::kJSCreateLiteralArray:
-      return ReduceJSCreateLiteralArray(node);
-    case IrOpcode::kJSCreateLiteralObject:
-      return ReduceJSCreateLiteralObject(node);
     case IrOpcode::kJSCreateFunctionContext:
       return ReduceJSCreateFunctionContext(node);
     case IrOpcode::kJSCreateWithContext:

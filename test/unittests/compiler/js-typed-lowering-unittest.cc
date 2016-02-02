@@ -1032,84 +1032,6 @@ TEST_F(JSTypedLoweringTest, JSCreateArgumentsInlinedRestArray) {
 
 
 // -----------------------------------------------------------------------------
-// JSCreateClosure
-
-
-TEST_F(JSTypedLoweringTest, JSCreateClosure) {
-  Node* const context = UndefinedConstant();
-  Node* const effect = graph()->start();
-  Node* const control = graph()->start();
-  Handle<SharedFunctionInfo> shared(isolate()->object_function()->shared());
-  Reduction r =
-      Reduce(graph()->NewNode(javascript()->CreateClosure(shared, NOT_TENURED),
-                              context, effect, control));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(),
-              IsCall(_, IsHeapConstant(CodeFactory::FastNewClosure(
-                                           isolate(), shared->language_mode(),
-                                           shared->kind()).code()),
-                     IsHeapConstant(shared), effect, control));
-}
-
-
-// -----------------------------------------------------------------------------
-// JSCreateLiteralArray
-
-
-TEST_F(JSTypedLoweringTest, JSCreateLiteralArray) {
-  Handle<FixedArray> const constant_elements = factory()->NewFixedArray(12);
-  int const literal_flags = ArrayLiteral::kShallowElements;
-  int const literal_index = 1;
-  Node* const closure = Parameter(0);
-  Node* const context = Parameter(1);
-  Node* const frame_state = EmptyFrameState();
-  Node* const effect = graph()->start();
-  Node* const control = graph()->start();
-  Reduction const r = Reduce(
-      graph()->NewNode(javascript()->CreateLiteralArray(
-                           constant_elements, literal_flags, literal_index),
-                       closure, context, frame_state, effect, control));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(
-      r.replacement(),
-      IsCall(_, IsHeapConstant(
-                    CodeFactory::FastCloneShallowArray(isolate()).code()),
-             closure, IsNumberConstant(literal_index),
-             IsHeapConstant(constant_elements), context, frame_state, effect,
-             control));
-}
-
-
-// -----------------------------------------------------------------------------
-// JSCreateLiteralObject
-
-
-TEST_F(JSTypedLoweringTest, JSCreateLiteralObject) {
-  Handle<FixedArray> const constant_properties =
-      factory()->NewFixedArray(6 * 2);
-  int const literal_flags = ObjectLiteral::kShallowProperties;
-  int const literal_index = 1;
-  Node* const closure = Parameter(0);
-  Node* const context = Parameter(1);
-  Node* const frame_state = EmptyFrameState();
-  Node* const effect = graph()->start();
-  Node* const control = graph()->start();
-  Reduction const r = Reduce(
-      graph()->NewNode(javascript()->CreateLiteralObject(
-                           constant_properties, literal_flags, literal_index),
-                       closure, context, frame_state, effect, control));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(
-      r.replacement(),
-      IsCall(_, IsHeapConstant(
-                    CodeFactory::FastCloneShallowObject(isolate(), 6).code()),
-             closure, IsNumberConstant(literal_index),
-             IsHeapConstant(constant_properties), _, context, frame_state,
-             effect, control));
-}
-
-
-// -----------------------------------------------------------------------------
 // JSCreateFunctionContext
 
 
@@ -1127,22 +1049,6 @@ TEST_F(JSTypedLoweringTest, JSCreateFunctionContextViaInlinedAllocation) {
                                             8 + Context::MIN_CONTEXT_SLOTS)),
                                         IsBeginRegion(_), control),
                              _));
-}
-
-
-TEST_F(JSTypedLoweringTest, JSCreateFunctionContextViaStub) {
-  Node* const closure = Parameter(Type::Any());
-  Node* const context = Parameter(Type::Any());
-  Node* const effect = graph()->start();
-  Node* const control = graph()->start();
-  Reduction const r =
-      Reduce(graph()->NewNode(javascript()->CreateFunctionContext(32), closure,
-                              context, effect, control));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(),
-              IsCall(_, IsHeapConstant(
-                            CodeFactory::FastNewContext(isolate(), 32).code()),
-                     closure, context, effect, control));
 }
 
 
