@@ -780,8 +780,18 @@ Reduction JSTypedLowering::ReduceJSToNumberInput(Node* input) {
       }
     }
   }
-  // Check if we have a cached conversion.
+  // Try constant-folding of JSToNumber with constant inputs.
   Type* input_type = NodeProperties::GetType(input);
+  if (input_type->IsConstant()) {
+    Handle<Object> input_value = input_type->AsConstant()->Value();
+    if (input_value->IsString()) {
+      return Replace(jsgraph()->Constant(
+          String::ToNumber(Handle<String>::cast(input_value))));
+    } else if (input_value->IsOddball()) {
+      return Replace(jsgraph()->Constant(
+          Oddball::ToNumber(Handle<Oddball>::cast(input_value))));
+    }
+  }
   if (input_type->Is(Type::Number())) {
     // JSToNumber(x:number) => x
     return Changed(input);
