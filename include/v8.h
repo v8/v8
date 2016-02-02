@@ -432,7 +432,10 @@ class WeakCallbackInfo {
     return internal_fields_[1];
   }
 
-  bool IsFirstPass() const { return callback_ != nullptr; }
+  V8_DEPRECATED("Not realiable once SetSecondPassCallback() was used.",
+                bool IsFirstPass() const) {
+    return callback_ != nullptr;
+  }
 
   // When first called, the embedder MUST Reset() the Global which triggered the
   // callback. The Global itself is unusable for anything else. No v8 other api
