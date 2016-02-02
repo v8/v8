@@ -2068,7 +2068,7 @@ Reduction JSTypedLowering::ReduceJSCreateBlockContext(Node* node) {
     a.Store(AccessBuilder::ForContextSlot(Context::NATIVE_CONTEXT_INDEX),
             native_context);
     for (int i = Context::MIN_CONTEXT_SLOTS; i < context_length; ++i) {
-      a.Store(AccessBuilder::ForContextSlot(i), jsgraph()->TheHoleConstant());
+      a.Store(AccessBuilder::ForContextSlot(i), jsgraph()->UndefinedConstant());
     }
     RelaxControls(node);
     a.FinishAndChange(node);
