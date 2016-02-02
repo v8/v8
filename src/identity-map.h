@@ -36,6 +36,7 @@ class IdentityMapBase {
 
   RawEntry GetEntry(Object* key);
   RawEntry FindEntry(Object* key);
+  void Clear();
 
  private:
   // Internal implementation should not be called directly by subclasses.
@@ -85,6 +86,9 @@ class IdentityMap : public IdentityMapBase {
   // Set the value for the given key.
   void Set(Handle<Object> key, V v) { Set(*key, v); }
   void Set(Object* key, V v) { *(reinterpret_cast<V*>(GetEntry(key))) = v; }
+
+  // Removes all elements from the map.
+  void Clear() { IdentityMapBase::Clear(); }
 };
 }  // namespace internal
 }  // namespace v8

@@ -2559,8 +2559,6 @@ TEST(BytecodeGraphBuilderForOf) {
 
 
 TEST(JumpWithConstantsAndWideConstants) {
-  HandleAndZoneScope scope;
-  auto isolate = scope.main_isolate();
   const int kStep = 19;
   int start = 7;
   for (int constants = start; constants < 256 + 3 * kStep; constants += kStep) {
@@ -2585,6 +2583,9 @@ TEST(JumpWithConstantsAndWideConstants) {
     script_os << "}\n";
     script_os << kFunctionName << "(0);\n";
     std::string script(script_os.str());
+
+    HandleAndZoneScope scope;
+    auto isolate = scope.main_isolate();
     auto factory = isolate->factory();
     auto zone = scope.main_zone();
     for (int a = 0; a < 3; a++) {

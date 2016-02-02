@@ -6,6 +6,7 @@
 #define V8_INTERPRETER_BYTECODE_ARRAY_BUILDER_H_
 
 #include "src/ast/ast.h"
+#include "src/interpreter/bytecode-register-allocator.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/constant-array-builder.h"
 #include "src/interpreter/handler-table-builder.h"
@@ -26,29 +27,27 @@ class Register;
 // when rest parameters implementation has settled down.
 enum class CreateArgumentsType { kMappedArguments, kUnmappedArguments };
 
-class BytecodeArrayBuilder final : private RegisterMover {
+class BytecodeArrayBuilder final : public ZoneObject, private RegisterMover {
  public:
-  BytecodeArrayBuilder(Isolate* isolate, Zone* zone);
+  BytecodeArrayBuilder(Isolate* isolate, Zone* zone, int parameter_count,
+                       int context_count, int locals_count);
   ~BytecodeArrayBuilder();
 
   Handle<BytecodeArray> ToBytecodeArray();
 
-  // Set the number of parameters expected by function.
-  void set_parameter_count(int number_of_params);
+  // Get the number of parameters expected by function.
   int parameter_count() const {
     DCHECK_GE(parameter_count_, 0);
     return parameter_count_;
   }
 
-  // Set the number of locals required for bytecode array.
-  void set_locals_count(int number_of_locals);
+  // Get the number of locals required for bytecode array.
   int locals_count() const {
     DCHECK_GE(local_register_count_, 0);
     return local_register_count_;
   }
 
-  // Set number of contexts required for bytecode array.
-  void set_context_count(int number_of_contexts);
+  // Get number of contexts required for bytecode array.
   int context_count() const {
     DCHECK_GE(context_register_count_, 0);
     return context_register_count_;
@@ -62,7 +61,11 @@ class BytecodeArrayBuilder final : private RegisterMover {
 
   // Returns the number of fixed and temporary registers.
   int fixed_and_temporary_register_count() const {
-    return fixed_register_count() + temporary_register_count_;
+    return fixed_register_count() + temporary_register_count();
+  }
+
+  int temporary_register_count() const {
+    return temporary_register_allocator()->allocation_count();
   }
 
   // Returns the number of registers used for translating wide
@@ -78,8 +81,8 @@ class BytecodeArrayBuilder final : private RegisterMover {
   // local.
   bool RegisterIsParameterOrLocal(Register reg) const;
 
-  // Return true if the register |reg| represents a temporary register.
-  bool RegisterIsTemporary(Register reg) const;
+  // Returns true if the register |reg| is a live temporary register.
+  bool TemporaryRegisterIsLive(Register reg) const;
 
   // Constant loads to accumulator.
   BytecodeArrayBuilder& LoadLiteral(v8::internal::Smi* value);
@@ -251,6 +254,12 @@ class BytecodeArrayBuilder final : private RegisterMover {
 
   // Accessors
   Zone* zone() const { return zone_; }
+  TemporaryRegisterAllocator* temporary_register_allocator() {
+    return &temporary_allocator_;
+  }
+  const TemporaryRegisterAllocator* temporary_register_allocator() const {
+    return &temporary_allocator_;
+  }
 
  private:
   class PreviousBytecodeHelper;
@@ -318,18 +327,6 @@ class BytecodeArrayBuilder final : private RegisterMover {
   bool NeedToBooleanCast();
   bool IsRegisterInAccumulator(Register reg);
 
-  // Temporary register management.
-  void ForgeTemporaryRegister();
-  int BorrowTemporaryRegister();
-  int BorrowTemporaryRegisterNotInRange(int start_index, int end_index);
-  void ReturnTemporaryRegister(int reg_index);
-  int PrepareForConsecutiveTemporaryRegisters(size_t count);
-  void BorrowConsecutiveTemporaryRegister(int reg_index);
-  bool TemporaryRegisterIsLive(Register reg) const;
-
-  Register first_temporary_register() const;
-  Register last_temporary_register() const;
-
   // Gets a constant pool entry for the |object|.
   size_t GetConstantPoolEntry(Handle<Object> object);
 
@@ -360,8 +357,7 @@ class BytecodeArrayBuilder final : private RegisterMover {
   int parameter_count_;
   int local_register_count_;
   int context_register_count_;
-  int temporary_register_count_;
-  ZoneSet<int> free_temporaries_;
+  TemporaryRegisterAllocator temporary_allocator_;
   RegisterTranslator register_translator_;
 
   DISALLOW_COPY_AND_ASSIGN(BytecodeArrayBuilder);

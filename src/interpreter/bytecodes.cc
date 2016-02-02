@@ -262,6 +262,16 @@ bool Bytecodes::IsJumpOrReturn(Bytecode bytecode) {
   return bytecode == Bytecode::kReturn || IsJump(bytecode);
 }
 
+bool Bytecodes::IsMaybeRegisterOperandType(OperandType operand_type) {
+  return (operand_type == OperandType::kMaybeReg8 ||
+          operand_type == OperandType::kMaybeReg16);
+}
+
+bool Bytecodes::IsRegisterCountOperandType(OperandType operand_type) {
+  return (operand_type == OperandType::kRegCount8 ||
+          operand_type == OperandType::kRegCount16);
+}
+
 // static
 bool Bytecodes::IsRegisterOperandType(OperandType operand_type) {
   switch (operand_type) {

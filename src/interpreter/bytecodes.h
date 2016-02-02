@@ -318,6 +318,9 @@ class Register {
   static int MaxRegisterIndex();
   static int MaxRegisterIndexForByteOperand();
 
+  // Returns an invalid register.
+  static Register invalid_value() { return Register(); }
+
   // Returns the register for the function's closure object.
   static Register function_closure();
   bool is_function_closure() const;
@@ -452,6 +455,14 @@ class Bytecodes {
 
   // Returns true if the bytecode is a conditional jump, a jump, or a return.
   static bool IsJumpOrReturn(Bytecode bytecode);
+
+  // Returns true if |operand_type| is a maybe register operand
+  // (kMaybeReg8/kMaybeReg16).
+  static bool IsMaybeRegisterOperandType(OperandType operand_type);
+
+  // Returns true if |operand_type| is a register count operand
+  // (kRegCount8/kRegCount16).
+  static bool IsRegisterCountOperandType(OperandType operand_type);
 
   // Returns true if |operand_type| is any type of register operand.
   static bool IsRegisterOperandType(OperandType operand_type);

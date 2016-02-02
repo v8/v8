@@ -64,7 +64,9 @@ class BytecodeArrayBuilder::PreviousBytecodeHelper BASE_EMBEDDED {
   DISALLOW_COPY_AND_ASSIGN(PreviousBytecodeHelper);
 };
 
-BytecodeArrayBuilder::BytecodeArrayBuilder(Isolate* isolate, Zone* zone)
+BytecodeArrayBuilder::BytecodeArrayBuilder(Isolate* isolate, Zone* zone,
+                                           int parameter_count,
+                                           int context_count, int locals_count)
     : isolate_(isolate),
       zone_(zone),
       bytecodes_(zone),
@@ -75,32 +77,17 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(Isolate* isolate, Zone* zone)
       last_bytecode_start_(~0),
       exit_seen_in_block_(false),
       unbound_jumps_(0),
-      parameter_count_(-1),
-      local_register_count_(-1),
-      context_register_count_(-1),
-      temporary_register_count_(0),
-      free_temporaries_(zone),
-      register_translator_(this) {}
-
-BytecodeArrayBuilder::~BytecodeArrayBuilder() { DCHECK_EQ(0, unbound_jumps_); }
-
-
-void BytecodeArrayBuilder::set_locals_count(int number_of_locals) {
-  local_register_count_ = number_of_locals;
-  DCHECK_LE(context_register_count_, 0);
-}
-
-
-void BytecodeArrayBuilder::set_parameter_count(int number_of_parameters) {
-  parameter_count_ = number_of_parameters;
-}
-
-
-void BytecodeArrayBuilder::set_context_count(int number_of_contexts) {
-  context_register_count_ = number_of_contexts;
+      parameter_count_(parameter_count),
+      local_register_count_(locals_count),
+      context_register_count_(context_count),
+      temporary_allocator_(zone, fixed_register_count()),
+      register_translator_(this) {
+  DCHECK_GE(parameter_count_, 0);
+  DCHECK_GE(context_register_count_, 0);
   DCHECK_GE(local_register_count_, 0);
 }
 
+BytecodeArrayBuilder::~BytecodeArrayBuilder() { DCHECK_EQ(0, unbound_jumps_); }
 
 Register BytecodeArrayBuilder::first_context_register() const {
   DCHECK_GT(context_register_count_, 0);
@@ -114,18 +101,6 @@ Register BytecodeArrayBuilder::last_context_register() const {
 }
 
 
-Register BytecodeArrayBuilder::first_temporary_register() const {
-  DCHECK_GT(temporary_register_count_, 0);
-  return Register(fixed_register_count());
-}
-
-
-Register BytecodeArrayBuilder::last_temporary_register() const {
-  DCHECK_GT(temporary_register_count_, 0);
-  return Register(fixed_register_count() + temporary_register_count_ - 1);
-}
-
-
 Register BytecodeArrayBuilder::Parameter(int parameter_index) const {
   DCHECK_GE(parameter_index, 0);
   return Register::FromParameterIndex(parameter_index, parameter_count());
@@ -134,12 +109,6 @@ Register BytecodeArrayBuilder::Parameter(int parameter_index) const {
 
 bool BytecodeArrayBuilder::RegisterIsParameterOrLocal(Register reg) const {
   return reg.is_parameter() || reg.index() < locals_count();
-}
-
-
-bool BytecodeArrayBuilder::RegisterIsTemporary(Register reg) const {
-  return temporary_register_count_ > 0 && first_temporary_register() <= reg &&
-         reg <= last_temporary_register();
 }
 
 
@@ -1208,147 +1177,9 @@ size_t BytecodeArrayBuilder::GetConstantPoolEntry(Handle<Object> object) {
   return constant_array_builder()->Insert(object);
 }
 
-void BytecodeArrayBuilder::ForgeTemporaryRegister() {
-  temporary_register_count_++;
-}
-
-int BytecodeArrayBuilder::BorrowTemporaryRegister() {
-  if (free_temporaries_.empty()) {
-    ForgeTemporaryRegister();
-    return last_temporary_register().index();
-  } else {
-    auto pos = free_temporaries_.begin();
-    int retval = *pos;
-    free_temporaries_.erase(pos);
-    return retval;
-  }
-}
-
-
-int BytecodeArrayBuilder::BorrowTemporaryRegisterNotInRange(int start_index,
-                                                            int end_index) {
-  auto index = free_temporaries_.lower_bound(start_index);
-  if (index == free_temporaries_.begin()) {
-    // If start_index is the first free register, check for a register
-    // greater than end_index.
-    index = free_temporaries_.upper_bound(end_index);
-    if (index == free_temporaries_.end()) {
-      ForgeTemporaryRegister();
-      return last_temporary_register().index();
-    }
-  } else {
-    // If there is a free register < start_index
-    index--;
-  }
-
-  int retval = *index;
-  free_temporaries_.erase(index);
-  return retval;
-}
-
-
-void BytecodeArrayBuilder::BorrowConsecutiveTemporaryRegister(int reg_index) {
-  DCHECK(free_temporaries_.find(reg_index) != free_temporaries_.end());
-  free_temporaries_.erase(reg_index);
-}
-
-
-void BytecodeArrayBuilder::ReturnTemporaryRegister(int reg_index) {
-  DCHECK(free_temporaries_.find(reg_index) == free_temporaries_.end());
-  free_temporaries_.insert(reg_index);
-}
-
-
-int BytecodeArrayBuilder::PrepareForConsecutiveTemporaryRegisters(
-    size_t count) {
-  if (count == 0) {
-    return -1;
-  }
-
-  // TODO(oth): replace use of set<> here for free_temporaries with a
-  // more efficient structure. And/or partition into two searches -
-  // one before the translation window and one after.
-
-  // A run will require at least |count| free temporaries.
-  while (free_temporaries_.size() < count) {
-    ForgeTemporaryRegister();
-    free_temporaries_.insert(last_temporary_register().index());
-  }
-
-  // Search within existing temporaries for a run.
-  auto start = free_temporaries_.begin();
-  size_t run_length = 0;
-  for (auto run_end = start; run_end != free_temporaries_.end(); run_end++) {
-    int expected = *start + static_cast<int>(run_length);
-    if (*run_end != expected) {
-      start = run_end;
-      run_length = 0;
-    }
-    Register reg_start(*start);
-    Register reg_expected(expected);
-    if (RegisterTranslator::DistanceToTranslationWindow(reg_start) > 0 &&
-        RegisterTranslator::DistanceToTranslationWindow(reg_expected) <= 0) {
-      // Run straddles the lower edge of the translation window. Registers
-      // after the start of this boundary are displaced by the register
-      // translator to provide a hole for translation. Runs either side
-      // of the boundary are fine.
-      start = run_end;
-      run_length = 0;
-    }
-    if (++run_length == count) {
-      return *start;
-    }
-  }
-
-  // Continue run if possible across existing last temporary.
-  if (temporary_register_count_ > 0 &&
-      (start == free_temporaries_.end() ||
-       *start + static_cast<int>(run_length) !=
-           last_temporary_register().index() + 1)) {
-    run_length = 0;
-  }
-
-  // Pad temporaries if extended run would cross translation boundary.
-  Register reg_first(*start);
-  Register reg_last(*start + static_cast<int>(count) - 1);
-  DCHECK_GT(RegisterTranslator::DistanceToTranslationWindow(reg_first),
-            RegisterTranslator::DistanceToTranslationWindow(reg_last));
-  while (RegisterTranslator::DistanceToTranslationWindow(reg_first) > 0 &&
-         RegisterTranslator::DistanceToTranslationWindow(reg_last) <= 0) {
-    ForgeTemporaryRegister();
-    free_temporaries_.insert(last_temporary_register().index());
-    start = --free_temporaries_.end();
-    reg_first = Register(*start);
-    reg_last = Register(*start + static_cast<int>(count) - 1);
-    run_length = 0;
-  }
-
-  // Ensure enough registers for run.
-  while (run_length++ < count) {
-    ForgeTemporaryRegister();
-    free_temporaries_.insert(last_temporary_register().index());
-  }
-
-  int run_start =
-      last_temporary_register().index() - static_cast<int>(count) + 1;
-  DCHECK(RegisterTranslator::DistanceToTranslationWindow(Register(run_start)) <=
-             0 ||
-         RegisterTranslator::DistanceToTranslationWindow(
-             Register(run_start + static_cast<int>(count) - 1)) > 0);
-  return run_start;
-}
-
-
 bool BytecodeArrayBuilder::TemporaryRegisterIsLive(Register reg) const {
-  if (temporary_register_count_ > 0) {
-    DCHECK(reg.index() >= first_temporary_register().index() &&
-           reg.index() <= last_temporary_register().index());
-    return free_temporaries_.find(reg.index()) == free_temporaries_.end();
-  } else {
-    return false;
-  }
+  return temporary_register_allocator()->RegisterIsLive(reg);
 }
-
 
 bool BytecodeArrayBuilder::OperandIsValid(Bytecode bytecode, int operand_index,
                                           uint32_t operand_value) const {

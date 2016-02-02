@@ -7276,9 +7276,6 @@ TEST(DeleteLookupSlotInEval) {
 }
 
 TEST(WideRegisters) {
-  InitializedHandleScope handle_scope;
-  BytecodeGeneratorHelper helper;
-
   // Prepare prologue that creates frame for lots of registers.
   std::ostringstream os;
   for (size_t i = 0; i < 157; ++i) {
@@ -7492,6 +7489,9 @@ TEST(WideRegisters) {
            B(Ldar), R(1),                                            //
            B(Return),                                                //
        }}};
+
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
 
   for (size_t i = 0; i < arraysize(snippets); ++i) {
     std::string body = prologue + snippets[i].code_snippet;

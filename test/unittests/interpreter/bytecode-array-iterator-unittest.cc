@@ -22,11 +22,7 @@ class BytecodeArrayIteratorTest : public TestWithIsolateAndZone {
 TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
   // Use a builder to create an array with containing multiple bytecodes
   // with 0, 1 and 2 operands.
-  BytecodeArrayBuilder builder(isolate(), zone());
-  builder.set_parameter_count(3);
-  builder.set_locals_count(2);
-  builder.set_context_count(0);
-
+  BytecodeArrayBuilder builder(isolate(), zone(), 3, 2, 0);
   Factory* factory = isolate()->factory();
   Handle<HeapObject> heap_num_0 = factory->NewHeapNumber(2.718);
   Handle<HeapObject> heap_num_1 = factory->NewHeapNumber(2147483647);

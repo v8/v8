@@ -373,7 +373,8 @@ class BytecodeGenerator::RegisterAllocationScope {
   explicit RegisterAllocationScope(BytecodeGenerator* generator)
       : generator_(generator),
         outer_(generator->register_allocator()),
-        allocator_(builder()) {
+        allocator_(builder()->zone(),
+                   builder()->temporary_register_allocator()) {
     generator_->set_register_allocator(this);
   }
 
@@ -395,11 +396,11 @@ class BytecodeGenerator::RegisterAllocationScope {
       // walk the full context chain and compute the list of consecutive
       // reservations in the innerscopes.
       UNIMPLEMENTED();
-      return Register(-1);
+      return Register::invalid_value();
     }
   }
 
-  void PrepareForConsecutiveAllocations(size_t count) {
+  void PrepareForConsecutiveAllocations(int count) {
     allocator_.PrepareForConsecutiveAllocations(count);
   }
 
@@ -520,7 +521,7 @@ class BytecodeGenerator::RegisterResultScope final
 
   virtual void SetResultInRegister(Register reg) {
     DCHECK(builder()->RegisterIsParameterOrLocal(reg) ||
-           (builder()->RegisterIsTemporary(reg) &&
+           (builder()->TemporaryRegisterIsLive(reg) &&
             !allocator()->RegisterIsAllocatedInThisScope(reg)));
     result_register_ = reg;
     set_result_identified();
@@ -532,11 +533,10 @@ class BytecodeGenerator::RegisterResultScope final
   Register result_register_;
 };
 
-
 BytecodeGenerator::BytecodeGenerator(Isolate* isolate, Zone* zone)
     : isolate_(isolate),
       zone_(zone),
-      builder_(isolate, zone),
+      builder_(nullptr),
       info_(nullptr),
       scope_(nullptr),
       globals_(0, zone),
@@ -552,15 +552,16 @@ Handle<BytecodeArray> BytecodeGenerator::MakeBytecode(CompilationInfo* info) {
   set_info(info);
   set_scope(info->scope());
 
+  // Initialize bytecode array builder.
+  set_builder(new (zone()) BytecodeArrayBuilder(
+      isolate(), zone(), info->num_parameters_including_this(),
+      scope()->MaxNestedContextChainLength(), scope()->num_stack_slots()));
+
   // Initialize the incoming context.
   ContextScope incoming_context(this, scope(), false);
 
   // Initialize control scope.
   ControlScopeForTopLevel control(this);
-
-  builder()->set_parameter_count(info->num_parameters_including_this());
-  builder()->set_locals_count(scope()->num_stack_slots());
-  builder()->set_context_count(scope()->MaxNestedContextChainLength());
 
   // Build function context only if there are context allocated variables.
   if (scope()->NeedsContext()) {
@@ -575,7 +576,7 @@ Handle<BytecodeArray> BytecodeGenerator::MakeBytecode(CompilationInfo* info) {
 
   set_scope(nullptr);
   set_info(nullptr);
-  return builder_.ToBytecodeArray();
+  return builder()->ToBytecodeArray();
 }
 
 

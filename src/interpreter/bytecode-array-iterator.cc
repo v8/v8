@@ -89,15 +89,27 @@ Register BytecodeArrayIterator::GetRegisterOperand(int operand_index) const {
       Bytecodes::GetOperandType(current_bytecode(), operand_index);
   DCHECK(Bytecodes::IsRegisterOperandType(operand_type));
   uint32_t operand = GetRawOperand(operand_index, operand_type);
+  Register reg;
   switch (Bytecodes::GetOperandSize(current_bytecode(), operand_index)) {
     case OperandSize::kByte:
-      return Register::FromOperand(static_cast<uint8_t>(operand));
+      reg = Register::FromOperand(static_cast<uint8_t>(operand));
+      break;
     case OperandSize::kShort:
-      return Register::FromWideOperand(static_cast<uint16_t>(operand));
+      reg = Register::FromWideOperand(static_cast<uint16_t>(operand));
+      break;
     case OperandSize::kNone:
       UNREACHABLE();
+      reg = Register::invalid_value();
+      break;
   }
-  return Register();
+  DCHECK_GE(reg.index(),
+            Register::FromParameterIndex(0, bytecode_array()->parameter_count())
+                .index());
+  DCHECK(reg.index() < bytecode_array()->register_count() ||
+         (reg.index() == 0 &&
+          Bytecodes::IsMaybeRegisterOperandType(
+              Bytecodes::GetOperandType(current_bytecode(), operand_index))));
+  return reg;
 }
 
 int BytecodeArrayIterator::GetRegisterOperandRange(int operand_index) const {
@@ -121,8 +133,7 @@ int BytecodeArrayIterator::GetRegisterOperandRange(int operand_index) const {
         // reciever.
         OperandType next_operand_type =
             Bytecodes::GetOperandType(current_bytecode(), operand_index + 1);
-        if (next_operand_type == OperandType::kRegCount8 ||
-            next_operand_type == OperandType::kRegCount16) {
+        if (Bytecodes::IsRegisterCountOperandType(next_operand_type)) {
           return GetCountOperand(operand_index + 1);
         }
       }

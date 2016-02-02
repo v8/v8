@@ -14,10 +14,17 @@ namespace internal {
 static const int kInitialIdentityMapSize = 4;
 static const int kResizeFactor = 4;
 
-IdentityMapBase::~IdentityMapBase() {
-  if (keys_) heap_->UnregisterStrongRoots(keys_);
-}
+IdentityMapBase::~IdentityMapBase() { Clear(); }
 
+void IdentityMapBase::Clear() {
+  if (keys_) {
+    heap_->UnregisterStrongRoots(keys_);
+    keys_ = nullptr;
+    values_ = nullptr;
+    size_ = 0;
+    mask_ = 0;
+  }
+}
 
 IdentityMapBase::RawEntry IdentityMapBase::Lookup(Object* key) {
   int index = LookupIndex(key);
