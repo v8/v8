@@ -969,6 +969,9 @@ static void InitializeFunctionTemplate(
   info->set_flag(0);
 }
 
+static Local<ObjectTemplate> ObjectTemplateNew(
+    i::Isolate* isolate, v8::Local<FunctionTemplate> constructor,
+    bool do_not_cache);
 
 Local<ObjectTemplate> FunctionTemplate::PrototypeTemplate() {
   i::Isolate* i_isolate = Utils::OpenHandle(this)->GetIsolate();
@@ -976,8 +979,9 @@ Local<ObjectTemplate> FunctionTemplate::PrototypeTemplate() {
   i::Handle<i::Object> result(Utils::OpenHandle(this)->prototype_template(),
                               i_isolate);
   if (result->IsUndefined()) {
-    v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(i_isolate);
-    result = Utils::OpenHandle(*ObjectTemplate::New(isolate));
+    // Do not cache prototype objects.
+    result = Utils::OpenHandle(
+        *ObjectTemplateNew(i_isolate, Local<FunctionTemplate>(), true));
     Utils::OpenHandle(this)->set_prototype_template(*result);
   }
   return ToApiHandle<ObjectTemplate>(result);
@@ -1227,9 +1231,9 @@ Local<ObjectTemplate> ObjectTemplate::New() {
   return New(i::Isolate::Current(), Local<FunctionTemplate>());
 }
 
-
-Local<ObjectTemplate> ObjectTemplate::New(
-    i::Isolate* isolate, v8::Local<FunctionTemplate> constructor) {
+static Local<ObjectTemplate> ObjectTemplateNew(
+    i::Isolate* isolate, v8::Local<FunctionTemplate> constructor,
+    bool do_not_cache) {
   // Changes to the environment cannot be captured in the snapshot. Expect no
   // object templates when the isolate is created for serialization.
   DCHECK(!isolate->serializer_enabled());
@@ -1240,12 +1244,22 @@ Local<ObjectTemplate> ObjectTemplate::New(
   i::Handle<i::ObjectTemplateInfo> obj =
       i::Handle<i::ObjectTemplateInfo>::cast(struct_obj);
   InitializeTemplate(obj, Consts::OBJECT_TEMPLATE);
+  int next_serial_number = 0;
+  if (!do_not_cache) {
+    next_serial_number = isolate->next_serial_number() + 1;
+    isolate->set_next_serial_number(next_serial_number);
+  }
+  obj->set_serial_number(i::Smi::FromInt(next_serial_number));
   if (!constructor.IsEmpty())
     obj->set_constructor(*Utils::OpenHandle(*constructor));
   obj->set_internal_field_count(i::Smi::FromInt(0));
   return Utils::ToLocal(obj);
 }
 
+Local<ObjectTemplate> ObjectTemplate::New(
+    i::Isolate* isolate, v8::Local<FunctionTemplate> constructor) {
+  return ObjectTemplateNew(isolate, constructor, false);
+}
 
 // Ensure that the object template has a constructor.  If no
 // constructor is available we create one.
@@ -1266,21 +1280,6 @@ static i::Handle<i::FunctionTemplateInfo> EnsureConstructor(
 }
 
 
-static inline i::Handle<i::TemplateInfo> GetTemplateInfo(
-    i::Isolate* isolate,
-    Template* template_obj) {
-  return Utils::OpenHandle(template_obj);
-}
-
-
-// TODO(dcarney): remove this with ObjectTemplate::SetAccessor
-static inline i::Handle<i::TemplateInfo> GetTemplateInfo(
-    i::Isolate* isolate,
-    ObjectTemplate* object_template) {
-  EnsureConstructor(isolate, object_template);
-  return Utils::OpenHandle(object_template);
-}
-
 template <typename Getter, typename Setter, typename Data, typename Template>
 static bool TemplateSetAccessor(Template* template_obj, v8::Local<Name> name,
                                 Getter getter, Setter setter, Data data,
@@ -1288,13 +1287,13 @@ static bool TemplateSetAccessor(Template* template_obj, v8::Local<Name> name,
                                 PropertyAttribute attribute,
                                 v8::Local<AccessorSignature> signature,
                                 bool is_special_data_property) {
-  auto isolate = Utils::OpenHandle(template_obj)->GetIsolate();
+  auto info = Utils::OpenHandle(template_obj);
+  auto isolate = info->GetIsolate();
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   auto obj = MakeAccessorInfo(name, getter, setter, data, settings, attribute,
                               signature, is_special_data_property);
   if (obj.is_null()) return false;
-  auto info = GetTemplateInfo(isolate, template_obj);
   i::ApiNatives::AddNativeDataProperty(isolate, info, obj);
   return true;
 }
@@ -3306,16 +3305,14 @@ double Value::NumberValue() const {
 
 Maybe<int64_t> Value::IntegerValue(Local<Context> context) const {
   auto obj = Utils::OpenHandle(this);
-  i::Handle<i::Object> num;
   if (obj->IsNumber()) {
-    num = obj;
-  } else {
-    PREPARE_FOR_EXECUTION_PRIMITIVE(context, "IntegerValue", int64_t);
-    has_pending_exception = !i::Object::ToInteger(isolate, obj).ToHandle(&num);
-    RETURN_ON_FAILED_EXECUTION_PRIMITIVE(int64_t);
+    return Just(NumberToInt64(*obj));
   }
-  return Just(num->IsSmi() ? static_cast<int64_t>(i::Smi::cast(*num)->value())
-                           : static_cast<int64_t>(num->Number()));
+  PREPARE_FOR_EXECUTION_PRIMITIVE(context, "IntegerValue", int64_t);
+  i::Handle<i::Object> num;
+  has_pending_exception = !i::Object::ToInteger(isolate, obj).ToHandle(&num);
+  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(int64_t);
+  return Just(NumberToInt64(*num));
 }
 
 

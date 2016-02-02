@@ -1889,59 +1889,244 @@ THREADED_TEST(GlobalPrototype) {
 
 
 THREADED_TEST(ObjectTemplate) {
+  LocalContext env;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
+  Local<v8::FunctionTemplate> acc =
+      v8::FunctionTemplate::New(isolate, Returns42);
+  CHECK(env->Global()
+            ->Set(env.local(), v8_str("acc"),
+                  acc->GetFunction(env.local()).ToLocalChecked())
+            .FromJust());
+
   Local<v8::FunctionTemplate> fun = v8::FunctionTemplate::New(isolate);
   v8::Local<v8::String> class_name = v8_str("the_class_name");
   fun->SetClassName(class_name);
   Local<ObjectTemplate> templ1 = ObjectTemplate::New(isolate, fun);
   templ1->Set(isolate, "x", v8_num(10));
   templ1->Set(isolate, "y", v8_num(13));
-  LocalContext env;
   Local<v8::Object> instance1 =
       templ1->NewInstance(env.local()).ToLocalChecked();
   CHECK(class_name->StrictEquals(instance1->GetConstructorName()));
   CHECK(env->Global()->Set(env.local(), v8_str("p"), instance1).FromJust());
-  CHECK(v8_compile("(p.x == 10)")
-            ->Run(env.local())
-            .ToLocalChecked()
-            ->BooleanValue(env.local())
-            .FromJust());
-  CHECK(v8_compile("(p.y == 13)")
-            ->Run(env.local())
-            .ToLocalChecked()
-            ->BooleanValue(env.local())
-            .FromJust());
+  CHECK(CompileRun("(p.x == 10)")->BooleanValue(env.local()).FromJust());
+  CHECK(CompileRun("(p.y == 13)")->BooleanValue(env.local()).FromJust());
   Local<v8::FunctionTemplate> fun2 = v8::FunctionTemplate::New(isolate);
   fun2->PrototypeTemplate()->Set(isolate, "nirk", v8_num(123));
   Local<ObjectTemplate> templ2 = fun2->InstanceTemplate();
   templ2->Set(isolate, "a", v8_num(12));
   templ2->Set(isolate, "b", templ1);
+  templ2->SetAccessorProperty(v8_str("acc"), acc);
   Local<v8::Object> instance2 =
       templ2->NewInstance(env.local()).ToLocalChecked();
   CHECK(env->Global()->Set(env.local(), v8_str("q"), instance2).FromJust());
-  CHECK(v8_compile("(q.nirk == 123)")
-            ->Run(env.local())
-            .ToLocalChecked()
+  CHECK(CompileRun("(q.nirk == 123)")->BooleanValue(env.local()).FromJust());
+  CHECK(CompileRun("(q.a == 12)")->BooleanValue(env.local()).FromJust());
+  CHECK(CompileRun("(q.b.x == 10)")->BooleanValue(env.local()).FromJust());
+  CHECK(CompileRun("(q.b.y == 13)")->BooleanValue(env.local()).FromJust());
+  CHECK(CompileRun("(q.b !== p)")->BooleanValue(env.local()).FromJust());
+  CHECK(CompileRun("(q.acc == 42)")->BooleanValue(env.local()).FromJust());
+
+  instance2 = templ2->NewInstance(env.local()).ToLocalChecked();
+  CHECK(env->Global()->Set(env.local(), v8_str("q2"), instance2).FromJust());
+  CHECK(CompileRun("(q2.nirk == 123)")->BooleanValue(env.local()).FromJust());
+  CHECK(CompileRun("(q2.a == 12)")->BooleanValue(env.local()).FromJust());
+  CHECK(CompileRun("(q2.b.x == 10)")->BooleanValue(env.local()).FromJust());
+  CHECK(CompileRun("(q2.b.y == 13)")->BooleanValue(env.local()).FromJust());
+  CHECK(CompileRun("(q2.acc == 42)")->BooleanValue(env.local()).FromJust());
+
+  CHECK(CompileRun("(q.b !== q2.b)")->BooleanValue(env.local()).FromJust());
+  CHECK(CompileRun("q.b.x = 17; (q2.b.x == 10)")
             ->BooleanValue(env.local())
             .FromJust());
-  CHECK(v8_compile("(q.a == 12)")
-            ->Run(env.local())
-            .ToLocalChecked()
+  CHECK(CompileRun("desc1 = Object.getOwnPropertyDescriptor(q, 'acc');"
+                   "(desc1.get === acc)")
             ->BooleanValue(env.local())
             .FromJust());
-  CHECK(v8_compile("(q.b.x == 10)")
-            ->Run(env.local())
-            .ToLocalChecked()
-            ->BooleanValue(env.local())
-            .FromJust());
-  CHECK(v8_compile("(q.b.y == 13)")
-            ->Run(env.local())
-            .ToLocalChecked()
+  CHECK(CompileRun("desc2 = Object.getOwnPropertyDescriptor(q2, 'acc');"
+                   "(desc2.get === acc)")
             ->BooleanValue(env.local())
             .FromJust());
 }
 
+THREADED_TEST(IntegerValue) {
+  LocalContext env;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  CHECK_EQ(0, CompileRun("undefined")->IntegerValue(env.local()).FromJust());
+}
+
+static void GetNirk(Local<String> name,
+                    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  ApiTestFuzzer::Fuzz();
+  info.GetReturnValue().Set(v8_num(900));
+}
+
+static void GetRino(Local<String> name,
+                    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  ApiTestFuzzer::Fuzz();
+  info.GetReturnValue().Set(v8_num(560));
+}
+
+enum ObjectInstantiationMode {
+  // Create object using ObjectTemplate::NewInstance.
+  ObjectTemplate_NewInstance,
+  // Create object using FunctionTemplate::NewInstance on constructor.
+  Constructor_GetFunction_NewInstance,
+  // Create object using new operator on constructor.
+  Constructor_GetFunction_New
+};
+
+// Test object instance creation using a function template with an instance
+// template inherited from another function template with accessors and data
+// properties in prototype template.
+static void TestObjectTemplateInheritedWithPrototype(
+    ObjectInstantiationMode mode) {
+  LocalContext env;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  Local<v8::FunctionTemplate> fun_A = v8::FunctionTemplate::New(isolate);
+  fun_A->SetClassName(v8_str("A"));
+  v8::Local<v8::ObjectTemplate> prototype_templ = fun_A->PrototypeTemplate();
+  prototype_templ->Set(isolate, "a", v8_num(113));
+  prototype_templ->SetNativeDataProperty(v8_str("nirk"), GetNirk);
+  prototype_templ->Set(isolate, "b", v8_num(153));
+
+  Local<v8::FunctionTemplate> fun_B = v8::FunctionTemplate::New(isolate);
+  v8::Local<v8::String> class_name = v8_str("B");
+  fun_B->SetClassName(class_name);
+  fun_B->Inherit(fun_A);
+  prototype_templ = fun_B->PrototypeTemplate();
+  prototype_templ->Set(isolate, "c", v8_num(713));
+  prototype_templ->SetNativeDataProperty(v8_str("rino"), GetRino);
+  prototype_templ->Set(isolate, "d", v8_num(753));
+
+  Local<ObjectTemplate> templ = fun_B->InstanceTemplate();
+  templ->Set(isolate, "x", v8_num(10));
+  templ->Set(isolate, "y", v8_num(13));
+
+  // Perform several iterations to trigger creation from cached boilerplate.
+  for (int i = 0; i < 3; i++) {
+    Local<v8::Object> instance;
+    switch (mode) {
+      case ObjectTemplate_NewInstance:
+        instance = templ->NewInstance(env.local()).ToLocalChecked();
+        break;
+
+      case Constructor_GetFunction_NewInstance: {
+        Local<v8::Function> function_B =
+            fun_B->GetFunction(env.local()).ToLocalChecked();
+        instance = function_B->NewInstance(env.local()).ToLocalChecked();
+        break;
+      }
+      case Constructor_GetFunction_New: {
+        Local<v8::Function> function_B =
+            fun_B->GetFunction(env.local()).ToLocalChecked();
+        if (i == 0) {
+          CHECK(env->Global()
+                    ->Set(env.local(), class_name, function_B)
+                    .FromJust());
+        }
+        instance =
+            CompileRun("new B()")->ToObject(env.local()).ToLocalChecked();
+        break;
+      }
+      default:
+        UNREACHABLE();
+    }
+
+    CHECK(class_name->StrictEquals(instance->GetConstructorName()));
+    CHECK(env->Global()->Set(env.local(), v8_str("o"), instance).FromJust());
+
+    CHECK_EQ(10, CompileRun("o.x")->IntegerValue(env.local()).FromJust());
+    CHECK_EQ(13, CompileRun("o.y")->IntegerValue(env.local()).FromJust());
+
+    CHECK_EQ(113, CompileRun("o.a")->IntegerValue(env.local()).FromJust());
+    CHECK_EQ(900, CompileRun("o.nirk")->IntegerValue(env.local()).FromJust());
+    CHECK_EQ(153, CompileRun("o.b")->IntegerValue(env.local()).FromJust());
+    CHECK_EQ(713, CompileRun("o.c")->IntegerValue(env.local()).FromJust());
+    CHECK_EQ(560, CompileRun("o.rino")->IntegerValue(env.local()).FromJust());
+    CHECK_EQ(753, CompileRun("o.d")->IntegerValue(env.local()).FromJust());
+  }
+}
+
+THREADED_TEST(TestObjectTemplateInheritedWithAccessorsInPrototype1) {
+  TestObjectTemplateInheritedWithPrototype(ObjectTemplate_NewInstance);
+}
+
+THREADED_TEST(TestObjectTemplateInheritedWithAccessorsInPrototype2) {
+  TestObjectTemplateInheritedWithPrototype(Constructor_GetFunction_NewInstance);
+}
+
+THREADED_TEST(TestObjectTemplateInheritedWithAccessorsInPrototype3) {
+  TestObjectTemplateInheritedWithPrototype(Constructor_GetFunction_New);
+}
+
+// Test object instance creation using a function template without an instance
+// template inherited from another function template.
+static void TestObjectTemplateInheritedWithoutInstanceTemplate(
+    ObjectInstantiationMode mode) {
+  LocalContext env;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  Local<v8::FunctionTemplate> fun_A = v8::FunctionTemplate::New(isolate);
+  fun_A->SetClassName(v8_str("A"));
+
+  Local<ObjectTemplate> templ_A = fun_A->InstanceTemplate();
+  templ_A->SetNativeDataProperty(v8_str("nirk"), GetNirk);
+  templ_A->SetNativeDataProperty(v8_str("rino"), GetRino);
+
+  Local<v8::FunctionTemplate> fun_B = v8::FunctionTemplate::New(isolate);
+  v8::Local<v8::String> class_name = v8_str("B");
+  fun_B->SetClassName(class_name);
+  fun_B->Inherit(fun_A);
+
+  // Perform several iterations to trigger creation from cached boilerplate.
+  for (int i = 0; i < 3; i++) {
+    Local<v8::Object> instance;
+    switch (mode) {
+      case Constructor_GetFunction_NewInstance: {
+        Local<v8::Function> function_B =
+            fun_B->GetFunction(env.local()).ToLocalChecked();
+        instance = function_B->NewInstance(env.local()).ToLocalChecked();
+        break;
+      }
+      case Constructor_GetFunction_New: {
+        Local<v8::Function> function_B =
+            fun_B->GetFunction(env.local()).ToLocalChecked();
+        if (i == 0) {
+          CHECK(env->Global()
+                    ->Set(env.local(), class_name, function_B)
+                    .FromJust());
+        }
+        instance =
+            CompileRun("new B()")->ToObject(env.local()).ToLocalChecked();
+        break;
+      }
+      default:
+        UNREACHABLE();
+    }
+
+    CHECK(class_name->StrictEquals(instance->GetConstructorName()));
+    CHECK(env->Global()->Set(env.local(), v8_str("o"), instance).FromJust());
+
+    CHECK_EQ(900, CompileRun("o.nirk")->IntegerValue(env.local()).FromJust());
+    CHECK_EQ(560, CompileRun("o.rino")->IntegerValue(env.local()).FromJust());
+  }
+}
+
+THREADED_TEST(TestObjectTemplateInheritedWithPrototype1) {
+  TestObjectTemplateInheritedWithoutInstanceTemplate(
+      Constructor_GetFunction_NewInstance);
+}
+
+THREADED_TEST(TestObjectTemplateInheritedWithPrototype2) {
+  TestObjectTemplateInheritedWithoutInstanceTemplate(
+      Constructor_GetFunction_New);
+}
 
 static void GetFlabby(const v8::FunctionCallbackInfo<v8::Value>& args) {
   ApiTestFuzzer::Fuzz();
@@ -2020,31 +2205,12 @@ THREADED_TEST(DescriptorInheritance) {
                                                   ->NewInstance(env.local())
                                                   .ToLocalChecked())
             .FromJust());
-  CHECK_EQ(17.2, v8_compile("obj.flabby()")
-                     ->Run(env.local())
-                     .ToLocalChecked()
-                     ->NumberValue(env.local())
-                     .FromJust());
-  CHECK(v8_compile("'flabby' in obj")
-            ->Run(env.local())
-            .ToLocalChecked()
-            ->BooleanValue(env.local())
-            .FromJust());
-  CHECK_EQ(15.2, v8_compile("obj.knurd")
-                     ->Run(env.local())
-                     .ToLocalChecked()
-                     ->NumberValue(env.local())
-                     .FromJust());
-  CHECK(v8_compile("'knurd' in obj")
-            ->Run(env.local())
-            .ToLocalChecked()
-            ->BooleanValue(env.local())
-            .FromJust());
-  CHECK_EQ(20.1, v8_compile("obj.v1")
-                     ->Run(env.local())
-                     .ToLocalChecked()
-                     ->NumberValue(env.local())
-                     .FromJust());
+  CHECK_EQ(17.2,
+           CompileRun("obj.flabby()")->NumberValue(env.local()).FromJust());
+  CHECK(CompileRun("'flabby' in obj")->BooleanValue(env.local()).FromJust());
+  CHECK_EQ(15.2, CompileRun("obj.knurd")->NumberValue(env.local()).FromJust());
+  CHECK(CompileRun("'knurd' in obj")->BooleanValue(env.local()).FromJust());
+  CHECK_EQ(20.1, CompileRun("obj.v1")->NumberValue(env.local()).FromJust());
 
   CHECK(env->Global()
             ->Set(env.local(), v8_str("obj2"), base2->GetFunction(env.local())
@@ -2052,36 +2218,106 @@ THREADED_TEST(DescriptorInheritance) {
                                                    ->NewInstance(env.local())
                                                    .ToLocalChecked())
             .FromJust());
-  CHECK_EQ(17.2, v8_compile("obj2.flabby()")
-                     ->Run(env.local())
-                     .ToLocalChecked()
-                     ->NumberValue(env.local())
-                     .FromJust());
-  CHECK(v8_compile("'flabby' in obj2")
-            ->Run(env.local())
-            .ToLocalChecked()
-            ->BooleanValue(env.local())
-            .FromJust());
-  CHECK_EQ(15.2, v8_compile("obj2.knurd")
-                     ->Run(env.local())
-                     .ToLocalChecked()
-                     ->NumberValue(env.local())
-                     .FromJust());
-  CHECK(v8_compile("'knurd' in obj2")
-            ->Run(env.local())
-            .ToLocalChecked()
-            ->BooleanValue(env.local())
-            .FromJust());
-  CHECK_EQ(10.1, v8_compile("obj2.v2")
-                     ->Run(env.local())
-                     .ToLocalChecked()
-                     ->NumberValue(env.local())
-                     .FromJust());
+  CHECK_EQ(17.2,
+           CompileRun("obj2.flabby()")->NumberValue(env.local()).FromJust());
+  CHECK(CompileRun("'flabby' in obj2")->BooleanValue(env.local()).FromJust());
+  CHECK_EQ(15.2, CompileRun("obj2.knurd")->NumberValue(env.local()).FromJust());
+  CHECK(CompileRun("'knurd' in obj2")->BooleanValue(env.local()).FromJust());
+  CHECK_EQ(10.1, CompileRun("obj2.v2")->NumberValue(env.local()).FromJust());
 
   // base1 and base2 cannot cross reference to each's prototype
-  CHECK(v8_compile("obj.v2")->Run(env.local()).ToLocalChecked()->IsUndefined());
-  CHECK(
-      v8_compile("obj2.v1")->Run(env.local()).ToLocalChecked()->IsUndefined());
+  CHECK(CompileRun("obj.v2")->IsUndefined());
+  CHECK(CompileRun("obj2.v1")->IsUndefined());
+}
+
+THREADED_TEST(DescriptorInheritance2) {
+  LocalContext env;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::FunctionTemplate> fun_A = v8::FunctionTemplate::New(isolate);
+  fun_A->SetClassName(v8_str("A"));
+  fun_A->InstanceTemplate()->SetNativeDataProperty(v8_str("knurd1"), GetKnurd);
+  fun_A->InstanceTemplate()->SetNativeDataProperty(v8_str("nirk1"), GetNirk);
+  fun_A->InstanceTemplate()->SetNativeDataProperty(v8_str("rino1"), GetRino);
+
+  v8::Local<v8::FunctionTemplate> fun_B = v8::FunctionTemplate::New(isolate);
+  fun_B->SetClassName(v8_str("B"));
+  fun_B->Inherit(fun_A);
+
+  v8::Local<v8::FunctionTemplate> fun_C = v8::FunctionTemplate::New(isolate);
+  fun_C->SetClassName(v8_str("C"));
+  fun_C->Inherit(fun_B);
+  fun_C->InstanceTemplate()->SetNativeDataProperty(v8_str("knurd2"), GetKnurd);
+  fun_C->InstanceTemplate()->SetNativeDataProperty(v8_str("nirk2"), GetNirk);
+  fun_C->InstanceTemplate()->SetNativeDataProperty(v8_str("rino2"), GetRino);
+
+  v8::Local<v8::FunctionTemplate> fun_D = v8::FunctionTemplate::New(isolate);
+  fun_D->SetClassName(v8_str("D"));
+  fun_D->Inherit(fun_C);
+
+  v8::Local<v8::FunctionTemplate> fun_E = v8::FunctionTemplate::New(isolate);
+  fun_E->SetClassName(v8_str("E"));
+  fun_E->Inherit(fun_D);
+  fun_E->InstanceTemplate()->SetNativeDataProperty(v8_str("knurd3"), GetKnurd);
+  fun_E->InstanceTemplate()->SetNativeDataProperty(v8_str("nirk3"), GetNirk);
+  fun_E->InstanceTemplate()->SetNativeDataProperty(v8_str("rino3"), GetRino);
+
+  v8::Local<v8::FunctionTemplate> fun_F = v8::FunctionTemplate::New(isolate);
+  fun_F->SetClassName(v8_str("F"));
+  fun_F->Inherit(fun_E);
+  v8::Local<v8::ObjectTemplate> templ = fun_F->InstanceTemplate();
+  const int kDataPropertiesNumber = 100;
+  for (int i = 0; i < kDataPropertiesNumber; i++) {
+    v8::Local<v8::Value> val = v8_num(i);
+    v8::Local<v8::String> val_str = val->ToString(env.local()).ToLocalChecked();
+    v8::Local<v8::String> name = String::Concat(v8_str("p"), val_str);
+
+    templ->Set(name, val);
+    templ->Set(val_str, val);
+  }
+
+  CHECK(env->Global()
+            ->Set(env.local(), v8_str("F"),
+                  fun_F->GetFunction(env.local()).ToLocalChecked())
+            .FromJust());
+
+  v8::Local<v8::Script> script = v8_compile("o = new F()");
+
+  for (int i = 0; i < 100; i++) {
+    v8::HandleScope scope(isolate);
+    script->Run(env.local()).ToLocalChecked();
+  }
+  v8::Local<v8::Object> object = script->Run(env.local())
+                                     .ToLocalChecked()
+                                     ->ToObject(env.local())
+                                     .ToLocalChecked();
+
+  CHECK_EQ(15.2, CompileRun("o.knurd1")->NumberValue(env.local()).FromJust());
+  CHECK_EQ(15.2, CompileRun("o.knurd2")->NumberValue(env.local()).FromJust());
+  CHECK_EQ(15.2, CompileRun("o.knurd3")->NumberValue(env.local()).FromJust());
+
+  CHECK_EQ(900, CompileRun("o.nirk1")->IntegerValue(env.local()).FromJust());
+  CHECK_EQ(900, CompileRun("o.nirk2")->IntegerValue(env.local()).FromJust());
+  CHECK_EQ(900, CompileRun("o.nirk3")->IntegerValue(env.local()).FromJust());
+
+  CHECK_EQ(560, CompileRun("o.rino1")->IntegerValue(env.local()).FromJust());
+  CHECK_EQ(560, CompileRun("o.rino2")->IntegerValue(env.local()).FromJust());
+  CHECK_EQ(560, CompileRun("o.rino3")->IntegerValue(env.local()).FromJust());
+
+  for (int i = 0; i < kDataPropertiesNumber; i++) {
+    v8::Local<v8::Value> val = v8_num(i);
+    v8::Local<v8::String> val_str = val->ToString(env.local()).ToLocalChecked();
+    v8::Local<v8::String> name = String::Concat(v8_str("p"), val_str);
+
+    CHECK_EQ(i, object->Get(env.local(), name)
+                    .ToLocalChecked()
+                    ->IntegerValue(env.local())
+                    .FromJust());
+    CHECK_EQ(i, object->Get(env.local(), val)
+                    .ToLocalChecked()
+                    ->IntegerValue(env.local())
+                    .FromJust());
+  }
 }
 
 
@@ -10723,7 +10959,8 @@ THREADED_TEST(Regress91517) {
   Local<v8::FunctionTemplate> t2 = v8::FunctionTemplate::New(isolate);
   t2->SetHiddenPrototype(true);
   t2->InstanceTemplate()->Set(v8_str("fuz1"), v8_num(2));
-  t2->InstanceTemplate()->Set(v8_str("objects"), v8::Object::New(isolate));
+  t2->InstanceTemplate()->Set(v8_str("objects"),
+                              v8::ObjectTemplate::New(isolate));
   t2->InstanceTemplate()->Set(v8_str("fuz2"), v8_num(2));
   Local<v8::FunctionTemplate> t3 = v8::FunctionTemplate::New(isolate);
   t3->SetHiddenPrototype(true);
@@ -10771,6 +11008,7 @@ THREADED_TEST(Regress91517) {
   ExpectTrue("names.indexOf(\"boo\") >= 0");
   ExpectTrue("names.indexOf(\"foo\") >= 0");
   ExpectTrue("names.indexOf(\"fuz1\") >= 0");
+  ExpectTrue("names.indexOf(\"objects\") >= 0");
   ExpectTrue("names.indexOf(\"fuz2\") >= 0");
   ExpectFalse("names[1005] == undefined");
 }
@@ -20361,16 +20599,20 @@ THREADED_TEST(Regress93759) {
 
   context->Exit();
 
-  // Template for object for second context. Values to test are put on it as
-  // properties.
-  Local<ObjectTemplate> global_template = ObjectTemplate::New(isolate);
-  global_template->Set(v8_str("simple"), simple_object);
-  global_template->Set(v8_str("protected"), protected_object);
-  global_template->Set(v8_str("global"), global_object);
-  global_template->Set(v8_str("proxy"), proxy_object);
-  global_template->Set(v8_str("hidden"), object_with_hidden);
+  LocalContext context2;
+  v8::Local<v8::Object> global = context2->Global();
 
-  LocalContext context2(NULL, global_template);
+  // Setup global variables.
+  CHECK(global->Set(context2.local(), v8_str("simple"), simple_object)
+            .FromJust());
+  CHECK(global->Set(context2.local(), v8_str("protected"), protected_object)
+            .FromJust());
+  CHECK(global->Set(context2.local(), v8_str("global"), global_object)
+            .FromJust());
+  CHECK(
+      global->Set(context2.local(), v8_str("proxy"), proxy_object).FromJust());
+  CHECK(global->Set(context2.local(), v8_str("hidden"), object_with_hidden)
+            .FromJust());
 
   Local<Value> result1 = CompileRun("Object.getPrototypeOf(simple)");
   CHECK(result1->Equals(context2.local(), simple_object->GetPrototype())
@@ -21866,9 +22108,8 @@ class RequestInterruptTestWithMethodCall
     v8::Local<v8::FunctionTemplate> t = v8::FunctionTemplate::New(isolate_);
     v8::Local<v8::Template> proto = t->PrototypeTemplate();
     proto->Set(v8_str("shouldContinue"),
-               Function::New(env_.local(), ShouldContinueCallback,
-                             v8::External::New(isolate_, this))
-                   .ToLocalChecked());
+               FunctionTemplate::New(isolate_, ShouldContinueCallback,
+                                     v8::External::New(isolate_, this)));
     CHECK(env_->Global()
               ->Set(env_.local(), v8_str("Klass"),
                     t->GetFunction(env_.local()).ToLocalChecked())
@@ -21934,9 +22175,8 @@ class RequestInterruptTestWithMethodCallAndInterceptor
     v8::Local<v8::FunctionTemplate> t = v8::FunctionTemplate::New(isolate_);
     v8::Local<v8::Template> proto = t->PrototypeTemplate();
     proto->Set(v8_str("shouldContinue"),
-               Function::New(env_.local(), ShouldContinueCallback,
-                             v8::External::New(isolate_, this))
-                   .ToLocalChecked());
+               FunctionTemplate::New(isolate_, ShouldContinueCallback,
+                                     v8::External::New(isolate_, this)));
     v8::Local<v8::ObjectTemplate> instance_template = t->InstanceTemplate();
     instance_template->SetHandler(
         v8::NamedPropertyHandlerConfiguration(EmptyInterceptor));
@@ -22148,7 +22388,7 @@ THREADED_TEST(FunctionNew) {
                        ->get_api_func_data()
                        ->serial_number()),
       i_isolate);
-  auto cache = i_isolate->function_cache();
+  auto cache = i_isolate->template_instantiations_cache();
   CHECK(cache->Lookup(serial_number)->IsTheHole());
   // Verify that each Function::New creates a new function instance
   Local<Object> data2 = v8::Object::New(isolate);

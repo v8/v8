@@ -5533,11 +5533,11 @@ ACCESSORS(CallHandlerInfo, data, Object, kDataOffset)
 ACCESSORS(CallHandlerInfo, fast_handler, Object, kFastHandlerOffset)
 
 ACCESSORS(TemplateInfo, tag, Object, kTagOffset)
+ACCESSORS(TemplateInfo, serial_number, Object, kSerialNumberOffset)
 SMI_ACCESSORS(TemplateInfo, number_of_properties, kNumberOfProperties)
 ACCESSORS(TemplateInfo, property_list, Object, kPropertyListOffset)
 ACCESSORS(TemplateInfo, property_accessors, Object, kPropertyAccessorsOffset)
 
-ACCESSORS(FunctionTemplateInfo, serial_number, Object, kSerialNumberOffset)
 ACCESSORS(FunctionTemplateInfo, call_code, Object, kCallCodeOffset)
 ACCESSORS(FunctionTemplateInfo, prototype_template, Object,
           kPrototypeTemplateOffset)

@@ -2668,10 +2668,11 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
 
   if (!CallUtilsFunction(isolate(), "PostNatives")) return false;
 
-  auto function_cache =
+  auto template_instantiations_cache =
       ObjectHashTable::New(isolate(), ApiNatives::kInitialFunctionCacheSize,
                            USE_CUSTOM_MINIMUM_CAPACITY);
-  native_context()->set_function_cache(*function_cache);
+  native_context()->set_template_instantiations_cache(
+      *template_instantiations_cache);
 
   // Store the map for the %ObjectPrototype% after the natives has been compiled
   // and the Object function has been set up.
