@@ -984,52 +984,6 @@ void PagedSpace::AddMemory(Address start, intptr_t size) {
 }
 
 
-FreeSpace* PagedSpace::TryRemoveMemory(intptr_t size_in_bytes) {
-  FreeSpace* free_space = free_list()->TryRemoveMemory(size_in_bytes);
-  if (free_space != nullptr) {
-    accounting_stats_.DecreaseCapacity(free_space->size());
-  }
-  return free_space;
-}
-
-
-void PagedSpace::DivideUponCompactionSpaces(CompactionSpaceCollection** other,
-                                            int num, intptr_t limit) {
-  DCHECK_GT(num, 0);
-  DCHECK(other != nullptr);
-
-  if (limit == 0) limit = std::numeric_limits<intptr_t>::max();
-
-  EmptyAllocationInfo();
-
-  bool memory_available = true;
-  bool spaces_need_memory = true;
-  FreeSpace* node = nullptr;
-  CompactionSpace* current_space = nullptr;
-  // Iterate over spaces and memory as long as we have memory and there are
-  // spaces in need of some.
-  while (memory_available && spaces_need_memory) {
-    spaces_need_memory = false;
-    // Round-robin over all spaces.
-    for (int i = 0; i < num; i++) {
-      current_space = other[i]->Get(identity());
-      if (current_space->free_list()->Available() < limit) {
-        // Space has not reached its limit. Try to get some memory.
-        spaces_need_memory = true;
-        node = TryRemoveMemory(limit - current_space->free_list()->Available());
-        if (node != nullptr) {
-          CHECK(current_space->identity() == identity());
-          current_space->AddMemory(node->address(), node->size());
-        } else {
-          memory_available = false;
-          break;
-        }
-      }
-    }
-  }
-}
-
-
 void PagedSpace::RefillFreeList() {
   MarkCompactCollector* collector = heap()->mark_compact_collector();
   FreeList* free_list = nullptr;
@@ -1071,7 +1025,6 @@ void CompactionSpace::RefillFreeList() {
     AddMemory(node->address(), node->size());
   }
 }
-
 
 void PagedSpace::MoveOverFreeMemory(PagedSpace* other) {
   DCHECK(identity() == other->identity());
