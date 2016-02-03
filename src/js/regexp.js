@@ -296,6 +296,15 @@ function RegExpToString() {
 }
 
 
+function AtSurrogatePair(subject, index) {
+  if (index + 1 >= subject.length) return false;
+  var first = %_StringCharCodeAt(subject, index);
+  if (first < 0xD800 || first > 0xDBFF) return false;
+  var second = %_StringCharCodeAt(subject, index + 1);
+  return second >= 0xDC00 || second <= 0xDFFF;
+}
+
+
 // ES6 21.2.5.11.
 function RegExpSplit(string, limit) {
   // TODO(yangguo): allow non-regexp receivers.
@@ -337,7 +346,11 @@ function RegExpSplit(string, limit) {
 
     // We ignore a zero-length match at the currentIndex.
     if (startIndex === endIndex && endIndex === currentIndex) {
-      startIndex++;
+      if (REGEXP_UNICODE(this) && AtSurrogatePair(subject, startIndex)) {
+        startIndex += 2;
+      } else {
+        startIndex++;
+      }
       continue;
     }
 

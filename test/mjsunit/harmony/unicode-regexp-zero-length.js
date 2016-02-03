@@ -53,3 +53,6 @@ assertEquals(["","",""], (L + T + L + T).match(u));
 var expected = [];
 for (var i = 0; i <= 1000; i++) expected.push("");
 assertEquals(expected, (L + T).repeat(1000).match(u));
+
+// Also test RegExp.prototype.@@split.
+assertEquals(["\u{12345}"], "\u{12345}".split(/(?:)/u));
