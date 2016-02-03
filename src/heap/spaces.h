@@ -2119,12 +2119,17 @@ class PagedSpace : public Space {
   // e.g., removes its bump pointer area and resets statistics.
   void MergeCompactionSpace(CompactionSpace* other);
 
+  void DivideUponCompactionSpaces(CompactionSpaceCollection** other, int num,
+                                  intptr_t limit = kCompactionMemoryWanted);
+
   // Refills the free list from the corresponding free list filled by the
   // sweeper.
   virtual void RefillFreeList();
 
  protected:
   void AddMemory(Address start, intptr_t size);
+
+  FreeSpace* TryRemoveMemory(intptr_t size_in_bytes);
 
   void MoveOverFreeMemory(PagedSpace* other);
 
@@ -2887,6 +2892,12 @@ class CompactionSpace : public PagedSpace {
  public:
   CompactionSpace(Heap* heap, AllocationSpace id, Executability executable)
       : PagedSpace(heap, id, executable) {}
+
+  // Adds external memory starting at {start} of {size_in_bytes} to the space.
+  void AddExternalMemory(Address start, int size_in_bytes) {
+    IncreaseCapacity(size_in_bytes);
+    Free(start, size_in_bytes);
+  }
 
   bool is_local() override { return true; }
 
