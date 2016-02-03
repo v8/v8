@@ -28,10 +28,10 @@ struct ModuleEnv;  // forward declaration of module interface.
 struct FunctionEnv {
   ModuleEnv* module;             // module environment
   FunctionSig* sig;              // signature of this function
-  uint32_t local_int32_count;    // number of int32 locals
-  uint32_t local_int64_count;    // number of int64 locals
-  uint32_t local_float32_count;  // number of float32 locals
-  uint32_t local_float64_count;  // number of float64 locals
+  uint32_t local_i32_count;      // number of int32 locals
+  uint32_t local_i64_count;      // number of int64 locals
+  uint32_t local_f32_count;      // number of float32 locals
+  uint32_t local_f64_count;      // number of float64 locals
   uint32_t total_locals;         // sum of parameters and all locals
 
   bool IsValidLocal(uint32_t index) { return index < total_locals; }
@@ -41,43 +41,43 @@ struct FunctionEnv {
       return sig->GetParam(index);
     }
     index -= static_cast<uint32_t>(sig->parameter_count());
-    if (index < local_int32_count) return kAstI32;
-    index -= local_int32_count;
-    if (index < local_int64_count) return kAstI64;
-    index -= local_int64_count;
-    if (index < local_float32_count) return kAstF32;
-    index -= local_float32_count;
-    if (index < local_float64_count) return kAstF64;
+    if (index < local_i32_count) return kAstI32;
+    index -= local_i32_count;
+    if (index < local_i64_count) return kAstI64;
+    index -= local_i64_count;
+    if (index < local_f32_count) return kAstF32;
+    index -= local_f32_count;
+    if (index < local_f64_count) return kAstF64;
     return kAstStmt;
   }
 
   void AddLocals(LocalType type, uint32_t count) {
     switch (type) {
       case kAstI32:
-        local_int32_count += count;
+        local_i32_count += count;
         break;
       case kAstI64:
-        local_int64_count += count;
+        local_i64_count += count;
         break;
       case kAstF32:
-        local_float32_count += count;
+        local_f32_count += count;
         break;
       case kAstF64:
-        local_float64_count += count;
+        local_f64_count += count;
         break;
       default:
         UNREACHABLE();
     }
     total_locals += count;
     DCHECK(total_locals ==
-           (sig->parameter_count() + local_int32_count + local_int64_count +
-            local_float32_count + local_float64_count));
+           (sig->parameter_count() + local_i32_count + local_i64_count +
+            local_f32_count + local_f64_count));
   }
 
   void SumLocals() {
     total_locals = static_cast<uint32_t>(sig->parameter_count()) +
-                   local_int32_count + local_int64_count + local_float32_count +
-                   local_float64_count;
+                   local_i32_count + local_i64_count + local_f32_count +
+                   local_f64_count;
   }
 };
 

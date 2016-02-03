@@ -55,10 +55,10 @@ struct WasmFunction {
   uint32_t name_offset;  // offset in the module bytes of the name, if any.
   uint32_t code_start_offset;    // offset in the module bytes of code start.
   uint32_t code_end_offset;      // offset in the module bytes of code end.
-  uint16_t local_int32_count;    // number of int32 local variables.
-  uint16_t local_int64_count;    // number of int64 local variables.
-  uint16_t local_float32_count;  // number of float32 local variables.
-  uint16_t local_float64_count;  // number of float64 local variables.
+  uint16_t local_i32_count;      // number of i32 local variables.
+  uint16_t local_i64_count;      // number of i64 local variables.
+  uint16_t local_f32_count;      // number of f32 local variables.
+  uint16_t local_f64_count;      // number of f64 local variables.
   bool exported;                 // true if this function is exported.
   bool external;  // true if this function is externally supplied.
 };

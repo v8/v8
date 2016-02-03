@@ -252,10 +252,10 @@ class ModuleDecoder : public Decoder {
     function->name_offset = 0;                   // ---- name
     function->code_start_offset = off(pc_ + 8);  // ---- code start
     function->code_end_offset = off(limit_);     // ---- code end
-    function->local_int32_count = consume_u16();    // read u16
-    function->local_int64_count = consume_u16();    // read u16
-    function->local_float32_count = consume_u16();  // read u16
-    function->local_float64_count = consume_u16();  // read u16
+    function->local_i32_count = consume_u16();      // read u16
+    function->local_i64_count = consume_u16();      // read u16
+    function->local_f32_count = consume_u16();      // read u16
+    function->local_f64_count = consume_u16();      // read u16
     function->exported = false;                  // ---- exported
     function->external = false;                  // ---- external
 
@@ -324,10 +324,10 @@ class ModuleDecoder : public Decoder {
     }
 
     if (decl_bits & kDeclFunctionLocals) {
-      function->local_int32_count = consume_u16("int32 count");
-      function->local_int64_count = consume_u16("int64 count");
-      function->local_float32_count = consume_u16("float32 count");
-      function->local_float64_count = consume_u16("float64 count");
+      function->local_i32_count = consume_u16("i32 count");
+      function->local_i64_count = consume_u16("i64 count");
+      function->local_f32_count = consume_u16("f32 count");
+      function->local_f64_count = consume_u16("f64 count");
     }
 
     uint16_t size = consume_u16("body size");
@@ -388,10 +388,10 @@ class ModuleDecoder : public Decoder {
     FunctionEnv fenv;
     fenv.module = menv;
     fenv.sig = function->sig;
-    fenv.local_int32_count = function->local_int32_count;
-    fenv.local_int64_count = function->local_int64_count;
-    fenv.local_float32_count = function->local_float32_count;
-    fenv.local_float64_count = function->local_float64_count;
+    fenv.local_i32_count = function->local_i32_count;
+    fenv.local_i64_count = function->local_i64_count;
+    fenv.local_f32_count = function->local_f32_count;
+    fenv.local_f64_count = function->local_f64_count;
     fenv.SumLocals();
 
     TreeResult result =

@@ -342,10 +342,10 @@ TEST_F(WasmModuleVerifyTest, OneEmptyVoidVoidFunction) {
     EXPECT_EQ(kCodeStartOffset, function->code_start_offset);
     EXPECT_EQ(kCodeEndOffset, function->code_end_offset);
 
-    EXPECT_EQ(523, function->local_int32_count);
-    EXPECT_EQ(1037, function->local_int64_count);
-    EXPECT_EQ(1551, function->local_float32_count);
-    EXPECT_EQ(2065, function->local_float64_count);
+    EXPECT_EQ(523, function->local_i32_count);
+    EXPECT_EQ(1037, function->local_i64_count);
+    EXPECT_EQ(1551, function->local_f32_count);
+    EXPECT_EQ(2065, function->local_f64_count);
 
     EXPECT_TRUE(function->exported);
     EXPECT_FALSE(function->external);
@@ -382,10 +382,10 @@ TEST_F(WasmModuleVerifyTest, OneFunctionImported) {
   EXPECT_EQ(0, function->code_start_offset);
   EXPECT_EQ(0, function->code_end_offset);
 
-  EXPECT_EQ(0, function->local_int32_count);
-  EXPECT_EQ(0, function->local_int64_count);
-  EXPECT_EQ(0, function->local_float32_count);
-  EXPECT_EQ(0, function->local_float64_count);
+  EXPECT_EQ(0, function->local_i32_count);
+  EXPECT_EQ(0, function->local_i64_count);
+  EXPECT_EQ(0, function->local_f32_count);
+  EXPECT_EQ(0, function->local_f64_count);
 
   EXPECT_FALSE(function->exported);
   EXPECT_TRUE(function->external);
@@ -419,10 +419,10 @@ TEST_F(WasmModuleVerifyTest, OneFunctionWithNopBody) {
   EXPECT_EQ(kCodeStartOffset, function->code_start_offset);
   EXPECT_EQ(kCodeEndOffset, function->code_end_offset);
 
-  EXPECT_EQ(0, function->local_int32_count);
-  EXPECT_EQ(0, function->local_int64_count);
-  EXPECT_EQ(0, function->local_float32_count);
-  EXPECT_EQ(0, function->local_float64_count);
+  EXPECT_EQ(0, function->local_i32_count);
+  EXPECT_EQ(0, function->local_i64_count);
+  EXPECT_EQ(0, function->local_f32_count);
+  EXPECT_EQ(0, function->local_f64_count);
 
   EXPECT_FALSE(function->exported);
   EXPECT_FALSE(function->external);
@@ -459,10 +459,10 @@ TEST_F(WasmModuleVerifyTest, OneFunctionWithNopBody_WithLocals) {
   EXPECT_EQ(kCodeStartOffset, function->code_start_offset);
   EXPECT_EQ(kCodeEndOffset, function->code_end_offset);
 
-  EXPECT_EQ(513, function->local_int32_count);
-  EXPECT_EQ(1027, function->local_int64_count);
-  EXPECT_EQ(1541, function->local_float32_count);
-  EXPECT_EQ(2055, function->local_float64_count);
+  EXPECT_EQ(513, function->local_i32_count);
+  EXPECT_EQ(1027, function->local_i64_count);
+  EXPECT_EQ(1541, function->local_f32_count);
+  EXPECT_EQ(2055, function->local_f64_count);
 
   EXPECT_FALSE(function->exported);
   EXPECT_FALSE(function->external);
@@ -924,10 +924,10 @@ TEST_F(WasmFunctionVerifyTest, Ok_v_v_empty) {
     EXPECT_EQ(0, function->name_offset);
     EXPECT_EQ(arraysize(data) - 1, function->code_start_offset);
     EXPECT_EQ(arraysize(data), function->code_end_offset);
-    EXPECT_EQ(3, function->local_int32_count);
-    EXPECT_EQ(4, function->local_int64_count);
-    EXPECT_EQ(5, function->local_float32_count);
-    EXPECT_EQ(6, function->local_float64_count);
+    EXPECT_EQ(3, function->local_i32_count);
+    EXPECT_EQ(4, function->local_i64_count);
+    EXPECT_EQ(5, function->local_f32_count);
+    EXPECT_EQ(6, function->local_f64_count);
     EXPECT_FALSE(function->external);
     EXPECT_FALSE(function->exported);
   }

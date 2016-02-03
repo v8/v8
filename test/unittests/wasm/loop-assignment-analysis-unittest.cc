@@ -33,10 +33,10 @@ class WasmLoopAssignmentAnalyzerTest : public TestWithZone {
   static void init_env(FunctionEnv* env, FunctionSig* sig) {
     env->module = nullptr;
     env->sig = sig;
-    env->local_int32_count = 0;
-    env->local_int64_count = 0;
-    env->local_float32_count = 0;
-    env->local_float64_count = 0;
+    env->local_i32_count = 0;
+    env->local_i64_count = 0;
+    env->local_f32_count = 0;
+    env->local_f64_count = 0;
     env->SumLocals();
   }
 

@@ -2069,10 +2069,10 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
   wasm::FunctionEnv env;
   env.module = module_env;
   env.sig = function.sig;
-  env.local_int32_count = function.local_int32_count;
-  env.local_int64_count = function.local_int64_count;
-  env.local_float32_count = function.local_float32_count;
-  env.local_float64_count = function.local_float64_count;
+  env.local_i32_count = function.local_i32_count;
+  env.local_i64_count = function.local_i64_count;
+  env.local_f32_count = function.local_f32_count;
+  env.local_f64_count = function.local_f64_count;
   env.SumLocals();
 
   // Create a TF graph during decoding.

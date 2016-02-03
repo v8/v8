@@ -196,44 +196,44 @@ WasmFunctionEncoder* WasmFunctionBuilder::Build(Zone* zone,
 void WasmFunctionBuilder::IndexVars(WasmFunctionEncoder* e,
                                     uint16_t* var_index) const {
   uint16_t param = 0;
-  uint16_t int32 = 0;
-  uint16_t int64 = 0;
-  uint16_t float32 = 0;
-  uint16_t float64 = 0;
+  uint16_t i32 = 0;
+  uint16_t i64 = 0;
+  uint16_t f32 = 0;
+  uint16_t f64 = 0;
   for (size_t i = 0; i < locals_.size(); i++) {
     if (locals_.at(i).param_) {
       param++;
     } else if (locals_.at(i).type_ == kAstI32) {
-      int32++;
+      i32++;
     } else if (locals_.at(i).type_ == kAstI64) {
-      int64++;
+      i64++;
     } else if (locals_.at(i).type_ == kAstF32) {
-      float32++;
+      f32++;
     } else if (locals_.at(i).type_ == kAstF64) {
-      float64++;
+      f64++;
     }
   }
-  e->local_int32_count_ = int32;
-  e->local_int64_count_ = int64;
-  e->local_float32_count_ = float32;
-  e->local_float64_count_ = float64;
-  float64 = param + int32 + int64 + float32;
-  float32 = param + int32 + int64;
-  int64 = param + int32;
-  int32 = param;
+  e->local_i32_count_ = i32;
+  e->local_i64_count_ = i64;
+  e->local_f32_count_ = f32;
+  e->local_f64_count_ = f64;
+  f64 = param + i32 + i64 + f32;
+  f32 = param + i32 + i64;
+  i64 = param + i32;
+  i32 = param;
   param = 0;
   for (size_t i = 0; i < locals_.size(); i++) {
     if (locals_.at(i).param_) {
       e->params_.push_back(locals_.at(i).type_);
       var_index[i] = param++;
     } else if (locals_.at(i).type_ == kAstI32) {
-      var_index[i] = int32++;
+      var_index[i] = i32++;
     } else if (locals_.at(i).type_ == kAstI64) {
-      var_index[i] = int64++;
+      var_index[i] = i64++;
     } else if (locals_.at(i).type_ == kAstF32) {
-      var_index[i] = float32++;
+      var_index[i] = f32++;
     } else if (locals_.at(i).type_ == kAstF64) {
-      var_index[i] = float64++;
+      var_index[i] = f64++;
     }
   }
 }
@@ -285,10 +285,10 @@ void WasmFunctionEncoder::Serialize(byte* buffer, byte** header,
   }
 
   if (HasLocals()) {
-    EmitUint16(header, local_int32_count_);
-    EmitUint16(header, local_int64_count_);
-    EmitUint16(header, local_float32_count_);
-    EmitUint16(header, local_float64_count_);
+    EmitUint16(header, local_i32_count_);
+    EmitUint16(header, local_i64_count_);
+    EmitUint16(header, local_f32_count_);
+    EmitUint16(header, local_f64_count_);
   }
 
   if (!external_) {
