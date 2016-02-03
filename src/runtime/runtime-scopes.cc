@@ -414,10 +414,8 @@ RUNTIME_FUNCTION(Runtime_InitializeLegacyConstLookupSlot) {
 namespace {
 
 // Find the arguments of the JavaScript function invocation that called
-// into C++ code. Collect these in a newly allocated array of handles (possibly
-// prefixed by a number of empty handles).
+// into C++ code. Collect these in a newly allocated array of handles.
 base::SmartArrayPointer<Handle<Object>> GetCallerArguments(Isolate* isolate,
-                                                           int prefix_argc,
                                                            int* total_argc) {
   // Find frame containing arguments passed to the caller.
   JavaScriptFrameIterator it(isolate);
@@ -442,14 +440,14 @@ base::SmartArrayPointer<Handle<Object>> GetCallerArguments(Isolate* isolate,
     iter++;
     argument_count--;
 
-    *total_argc = prefix_argc + argument_count;
+    *total_argc = argument_count;
     base::SmartArrayPointer<Handle<Object>> param_data(
         NewArray<Handle<Object>>(*total_argc));
     bool should_deoptimize = false;
     for (int i = 0; i < argument_count; i++) {
       should_deoptimize = should_deoptimize || iter->IsMaterializedObject();
       Handle<Object> value = iter->GetValue();
-      param_data[prefix_argc + i] = value;
+      param_data[i] = value;
       iter++;
     }
 
@@ -463,12 +461,12 @@ base::SmartArrayPointer<Handle<Object>> GetCallerArguments(Isolate* isolate,
     frame = it.frame();
     int args_count = frame->ComputeParametersCount();
 
-    *total_argc = prefix_argc + args_count;
+    *total_argc = args_count;
     base::SmartArrayPointer<Handle<Object>> param_data(
         NewArray<Handle<Object>>(*total_argc));
     for (int i = 0; i < args_count; i++) {
       Handle<Object> val = Handle<Object>(frame->GetParameter(i), isolate);
-      param_data[prefix_argc + i] = val;
+      param_data[i] = val;
     }
     return param_data;
   }
@@ -634,7 +632,7 @@ RUNTIME_FUNCTION(Runtime_NewSloppyArguments_Generic) {
   // inlined, we use the slow but accurate {GetCallerArguments}.
   int argument_count = 0;
   base::SmartArrayPointer<Handle<Object>> arguments =
-      GetCallerArguments(isolate, 0, &argument_count);
+      GetCallerArguments(isolate, &argument_count);
   HandleArguments argument_getter(arguments.get());
   return *NewSloppyArguments(isolate, callee, argument_getter, argument_count);
 }
@@ -648,7 +646,7 @@ RUNTIME_FUNCTION(Runtime_NewStrictArguments_Generic) {
   // inlined, we use the slow but accurate {GetCallerArguments}.
   int argument_count = 0;
   base::SmartArrayPointer<Handle<Object>> arguments =
-      GetCallerArguments(isolate, 0, &argument_count);
+      GetCallerArguments(isolate, &argument_count);
   HandleArguments argument_getter(arguments.get());
   return *NewStrictArguments(isolate, callee, argument_getter, argument_count);
 }
@@ -663,7 +661,7 @@ RUNTIME_FUNCTION(Runtime_NewRestArguments_Generic) {
   // inlined, we use the slow but accurate {GetCallerArguments}.
   int argument_count = 0;
   base::SmartArrayPointer<Handle<Object>> arguments =
-      GetCallerArguments(isolate, 0, &argument_count);
+      GetCallerArguments(isolate, &argument_count);
   HandleArguments argument_getter(arguments.get());
   return *NewRestArguments(isolate, callee, argument_getter, argument_count,
                            start_index);
@@ -1175,7 +1173,7 @@ RUNTIME_FUNCTION(Runtime_ArgumentsLength) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 0);
   int argument_count = 0;
-  GetCallerArguments(isolate, 0, &argument_count);
+  GetCallerArguments(isolate, &argument_count);
   return Smi::FromInt(argument_count);
 }
 
@@ -1188,7 +1186,7 @@ RUNTIME_FUNCTION(Runtime_Arguments) {
   // Determine the actual arguments passed to the function.
   int argument_count_signed = 0;
   base::SmartArrayPointer<Handle<Object>> arguments =
-      GetCallerArguments(isolate, 0, &argument_count_signed);
+      GetCallerArguments(isolate, &argument_count_signed);
   const uint32_t argument_count = argument_count_signed;
 
   // Try to convert the key to an index. If successful and within
