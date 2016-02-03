@@ -442,7 +442,7 @@ function TestHeapAccessIntTypes() {
     module.__init__();
     assertEquals(7, module.caller());
     assertEquals(7, memory_view[2]);
-    assertEquals(7, _WASMEXP_.instantiateModuleFromAsm(code));
+    assertEquals(7, _WASMEXP_.instantiateModuleFromAsm(code).caller());
   }
 }
 
