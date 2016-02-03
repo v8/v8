@@ -156,10 +156,10 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
 
   // Setup state for loop
   // r5: address of arg[0] + kPointerSize
-  // r6: number of arguments
+  // r6: number of slots to drop at exit (arguments + receiver)
   __ ShiftLeftImm(r5, r3, Operand(kPointerSizeLog2));
   __ add(r5, sp, r5);
-  __ mr(r6, r3);
+  __ addi(r6, r3, Operand(1));
 
   Label done_loop, loop;
   __ bind(&loop);
@@ -189,12 +189,10 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
       __ SmiUntag(r6);
       {
         // Restore the double accumulator value (d1).
-        Label restore_smi, done_restore;
-        __ JumpIfSmi(r4, &restore_smi);
-        __ lfd(d1, FieldMemOperand(r4, HeapNumber::kValueOffset));
-        __ b(&done_restore);
-        __ bind(&restore_smi);
+        Label done_restore;
         __ SmiToDouble(d1, r4);
+        __ JumpIfSmi(r4, &done_restore);
+        __ lfd(d1, FieldMemOperand(r4, HeapNumber::kValueOffset));
         __ bind(&done_restore);
       }
     }
@@ -235,7 +233,7 @@ void Builtins::Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind) {
   __ bind(&done_loop);
   __ mr(r3, r4);
   __ Drop(r6);
-  __ Ret(1);
+  __ Ret();
 }
 
 // static
