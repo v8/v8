@@ -8939,7 +8939,8 @@ TEST(TryCatchFinallyStoresMessageUsingTryCatchHandler) {
 // For use within the TestSecurityHandler() test.
 static bool g_security_callback_result = false;
 static bool SecurityTestCallback(Local<v8::Context> accessing_context,
-                                 Local<v8::Object> accessed_object) {
+                                 Local<v8::Object> accessed_object,
+                                 Local<v8::Value> data) {
   printf("a\n");
   return g_security_callback_result;
 }
@@ -9137,7 +9138,8 @@ THREADED_TEST(SecurityChecksForPrototypeChain) {
 static bool security_check_with_gc_called;
 
 static bool SecurityTestCallbackWithGC(Local<v8::Context> accessing_context,
-                                       Local<v8::Object> accessed_object) {
+                                       Local<v8::Object> accessed_object,
+                                       Local<v8::Value> data) {
   CcTest::heap()->CollectAllGarbage();
   security_check_with_gc_called = true;
   return true;
@@ -9624,7 +9626,8 @@ TEST(DetachedAccesses) {
 
 static bool allowed_access = false;
 static bool AccessBlocker(Local<v8::Context> accessing_context,
-                          Local<v8::Object> accessed_object) {
+                          Local<v8::Object> accessed_object,
+                          Local<v8::Value> data) {
   v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
   return context->Global()->Equals(context, accessed_object).FromJust() ||
          allowed_access;
@@ -9918,9 +9921,9 @@ TEST(AccessControlES5) {
   CHECK_EQ(42, g_echo_value);  // Make sure we didn't call the setter.
 }
 
-
 static bool AccessAlwaysBlocked(Local<v8::Context> accessing_context,
-                                Local<v8::Object> global) {
+                                Local<v8::Object> global,
+                                Local<v8::Value> data) {
   i::PrintF("Access blocked.\n");
   return false;
 }
@@ -10064,7 +10067,8 @@ THREADED_TEST(CrossDomainAccessors) {
 static int access_count = 0;
 
 static bool AccessCounter(Local<v8::Context> accessing_context,
-                          Local<v8::Object> accessed_object) {
+                          Local<v8::Object> accessed_object,
+                          Local<v8::Value> data) {
   access_count++;
   return true;
 }
@@ -23888,16 +23892,16 @@ TEST(SealHandleScopeNested) {
 
 static bool access_was_called = false;
 
-
 static bool AccessAlwaysAllowedWithFlag(Local<v8::Context> accessing_context,
-                                        Local<v8::Object> accessed_object) {
+                                        Local<v8::Object> accessed_object,
+                                        Local<v8::Value> data) {
   access_was_called = true;
   return true;
 }
 
-
 static bool AccessAlwaysBlockedWithFlag(Local<v8::Context> accessing_context,
-                                        Local<v8::Object> accessed_object) {
+                                        Local<v8::Object> accessed_object,
+                                        Local<v8::Value> data) {
   access_was_called = true;
   return false;
 }

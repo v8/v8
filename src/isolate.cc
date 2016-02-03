@@ -843,7 +843,7 @@ bool Isolate::MayAccess(Handle<Context> accessing_context,
     VMState<EXTERNAL> state(this);
     if (callback) {
       return callback(v8::Utils::ToLocal(accessing_context),
-                      v8::Utils::ToLocal(receiver));
+                      v8::Utils::ToLocal(receiver), v8::Utils::ToLocal(data));
     }
     Handle<Object> key = factory()->undefined_value();
     return named_callback(v8::Utils::ToLocal(receiver), v8::Utils::ToLocal(key),

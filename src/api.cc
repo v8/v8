@@ -1450,6 +1450,10 @@ void ObjectTemplate::SetAccessCheckCallback(AccessCheckCallback callback,
   cons->set_needs_access_check(true);
 }
 
+void ObjectTemplate::SetAccessCheckCallback(
+    DeprecatedAccessCheckCallback callback, Local<Value> data) {
+  SetAccessCheckCallback(reinterpret_cast<AccessCheckCallback>(callback), data);
+}
 
 void ObjectTemplate::SetAccessCheckCallbacks(
     NamedSecurityCallback named_callback,

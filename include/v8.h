@@ -4325,8 +4325,10 @@ enum AccessType {
  * object.
  */
 typedef bool (*AccessCheckCallback)(Local<Context> accessing_context,
-                                    Local<Object> accessed_object);
-
+                                    Local<Object> accessed_object,
+                                    Local<Value> data);
+typedef bool (*DeprecatedAccessCheckCallback)(Local<Context> accessing_context,
+                                              Local<Object> accessed_object);
 
 /**
  * Returns true if cross-context access should be allowed to the named
@@ -4756,6 +4758,10 @@ class V8_EXPORT ObjectTemplate : public Template {
    */
   void SetAccessCheckCallback(AccessCheckCallback callback,
                               Local<Value> data = Local<Value>());
+  V8_DEPRECATE_SOON(
+      "Use SetAccessCheckCallback with new AccessCheckCallback signature.",
+      void SetAccessCheckCallback(DeprecatedAccessCheckCallback callback,
+                                  Local<Value> data = Local<Value>()));
 
   V8_DEPRECATED(
       "Use SetAccessCheckCallback instead",
