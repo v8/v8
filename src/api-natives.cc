@@ -148,77 +148,17 @@ Object* GetIntrinsic(Isolate* isolate, v8::Intrinsic intrinsic) {
   return nullptr;
 }
 
-// Returns parent function template or null.
-FunctionTemplateInfo* GetParent(FunctionTemplateInfo* data) {
-  Object* parent = data->parent_template();
-  return parent->IsUndefined() ? nullptr : FunctionTemplateInfo::cast(parent);
-}
 
-// Starting from given object template's constructor walk up the inheritance
-// chain till a function template that has an instance template is found.
-ObjectTemplateInfo* GetParent(ObjectTemplateInfo* data) {
-  Object* maybe_ctor = data->constructor();
-  if (maybe_ctor->IsUndefined()) return nullptr;
-  FunctionTemplateInfo* ctor = FunctionTemplateInfo::cast(maybe_ctor);
-  while (true) {
-    ctor = GetParent(ctor);
-    if (ctor == nullptr) return nullptr;
-    Object* maybe_obj = ctor->instance_template();
-    if (!maybe_obj->IsUndefined()) return ObjectTemplateInfo::cast(maybe_obj);
-  }
-}
-
-template <typename TemplateInfoT>
 MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
-                                        Handle<TemplateInfoT> data) {
-  HandleScope scope(isolate);
-  // Disable access checks while instantiating the object.
-  AccessCheckDisableScope access_check_scope(isolate, obj);
-
-  // Walk the inheritance chain and copy all accessors to current object.
-  int max_number_of_properties = 0;
-  TemplateInfoT* info = *data;
-  while (info != nullptr) {
-    if (!info->property_accessors()->IsUndefined()) {
-      Object* props = info->property_accessors();
-      if (!props->IsUndefined()) {
-        Handle<Object> props_handle(props, isolate);
-        NeanderArray props_array(props_handle);
-        max_number_of_properties += props_array.length();
-      }
-    }
-    info = GetParent(info);
-  }
-
-  if (max_number_of_properties > 0) {
-    int valid_descriptors = 0;
-    // Use a temporary FixedArray to accumulate unique accessors.
-    Handle<FixedArray> array =
-        isolate->factory()->NewFixedArray(max_number_of_properties);
-
-    info = *data;
-    while (info != nullptr) {
-      // Accumulate accessors.
-      if (!info->property_accessors()->IsUndefined()) {
-        Handle<Object> props(info->property_accessors(), isolate);
-        valid_descriptors =
-            AccessorInfo::AppendUnique(props, array, valid_descriptors);
-      }
-      info = GetParent(info);
-    }
-
-    // Install accumulated accessors.
-    for (int i = 0; i < valid_descriptors; i++) {
-      Handle<AccessorInfo> accessor(AccessorInfo::cast(array->get(i)));
-      JSObject::SetAccessor(obj, accessor).Assert();
-    }
-  }
-
+                                        Handle<TemplateInfo> data) {
   auto property_list = handle(data->property_list(), isolate);
   if (property_list->IsUndefined()) return obj;
   // TODO(dcarney): just use a FixedArray here.
   NeanderArray properties(property_list);
   if (properties.length() == 0) return obj;
+  HandleScope scope(isolate);
+  // Disable access checks while instantiating the object.
+  AccessCheckDisableScope access_check_scope(isolate, obj);
 
   int i = 0;
   for (int c = 0; c < data->number_of_properties(); c++) {
@@ -231,9 +171,6 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
 
       if (kind == kData) {
         auto prop_data = handle(properties.get(i++), isolate);
-        // JSReceivers could cause cross-context leaks therefore they must
-        // never appear as data properties.
-        DCHECK(!prop_data->IsJSReceiver());
 
         RETURN_ON_EXCEPTION(isolate, DefineDataProperty(isolate, obj, name,
                                                         prop_data, attributes),
@@ -265,21 +202,6 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
   return obj;
 }
 
-void CacheTemplateInstantiation(Isolate* isolate, Handle<Smi> serial_number,
-                                Handle<JSObject> object) {
-  auto cache = isolate->template_instantiations_cache();
-  auto new_cache = ObjectHashTable::Put(cache, serial_number, object);
-  isolate->native_context()->set_template_instantiations_cache(*new_cache);
-}
-
-void UncacheTemplateInstantiation(Isolate* isolate, Handle<Smi> serial_number) {
-  auto cache = isolate->template_instantiations_cache();
-  bool was_present = false;
-  auto new_cache = ObjectHashTable::Remove(cache, serial_number, &was_present);
-  DCHECK(was_present);
-  isolate->native_context()->set_template_instantiations_cache(*new_cache);
-}
-
 MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
                                         Handle<ObjectTemplateInfo> info) {
   // Enter a new scope.  Recursion could otherwise create a lot of handles.
@@ -295,30 +217,29 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, cons, InstantiateFunction(isolate, cons_templ), JSFunction);
   }
-  auto serial_number = handle(Smi::cast(info->serial_number()), isolate);
-  if (serial_number->value()) {
-    // Probe cache.
-    auto cache = isolate->template_instantiations_cache();
-    Object* boilerplate = cache->Lookup(serial_number);
-    if (boilerplate->IsJSObject()) {
-      result = handle(JSObject::cast(boilerplate), isolate);
-      ASSIGN_RETURN_ON_EXCEPTION(isolate, result, JSObject::DeepCopy(result),
-                                 JSObject);
-      return scope.CloseAndEscape(result);
-    }
-  }
   auto object = isolate->factory()->NewJSObject(cons);
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, result, ConfigureInstance(isolate, object, info), JSFunction);
   // TODO(dcarney): is this necessary?
   JSObject::MigrateSlowToFast(result, 0, "ApiNatives::InstantiateObject");
-
-  if (serial_number->value()) {
-    CacheTemplateInstantiation(isolate, serial_number, result);
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, result, JSObject::DeepCopy(result),
-                               JSObject);
-  }
   return scope.CloseAndEscape(result);
+}
+
+
+void CacheFunction(Isolate* isolate, Handle<Smi> serial_number,
+                   Handle<JSFunction> function) {
+  auto cache = isolate->function_cache();
+  auto new_cache = ObjectHashTable::Put(cache, serial_number, function);
+  isolate->native_context()->set_function_cache(*new_cache);
+}
+
+
+void UncacheFunction(Isolate* isolate, Handle<Smi> serial_number) {
+  auto cache = isolate->function_cache();
+  bool was_present = false;
+  auto new_cache = ObjectHashTable::Remove(cache, serial_number, &was_present);
+  DCHECK(was_present);
+  isolate->native_context()->set_function_cache(*new_cache);
 }
 
 
@@ -326,9 +247,9 @@ MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
                                             Handle<FunctionTemplateInfo> data,
                                             Handle<Name> name) {
   auto serial_number = handle(Smi::cast(data->serial_number()), isolate);
-  if (serial_number->value()) {
-    // Probe cache.
-    auto cache = isolate->template_instantiations_cache();
+  // Probe cache.
+  if (!data->do_not_cache()) {
+    auto cache = isolate->function_cache();
     Object* element = cache->Lookup(serial_number);
     if (element->IsJSFunction()) {
       return handle(JSFunction::cast(element), isolate);
@@ -373,15 +294,15 @@ MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
   if (!name.is_null() && name->IsString()) {
     function->shared()->set_name(*name);
   }
-  if (serial_number->value()) {
+  if (!data->do_not_cache()) {
     // Cache the function.
-    CacheTemplateInstantiation(isolate, serial_number, function);
+    CacheFunction(isolate, serial_number, function);
   }
   auto result = ConfigureInstance(isolate, function, data);
   if (result.is_null()) {
     // Uncache on error.
-    if (serial_number->value()) {
-      UncacheTemplateInstantiation(isolate, serial_number);
+    if (!data->do_not_cache()) {
+      UncacheFunction(isolate, serial_number);
     }
     return MaybeHandle<JSFunction>();
   }
@@ -445,12 +366,25 @@ MaybeHandle<JSObject> ApiNatives::InstantiateObject(
 }
 
 
+MaybeHandle<FunctionTemplateInfo> ApiNatives::ConfigureInstance(
+    Isolate* isolate, Handle<FunctionTemplateInfo> desc,
+    Handle<JSObject> instance) {
+  // Configure the instance by adding the properties specified by the
+  // instance template.
+  if (desc->instance_template()->IsUndefined()) return desc;
+  InvokeScope invoke_scope(isolate);
+  Handle<ObjectTemplateInfo> instance_template(
+      ObjectTemplateInfo::cast(desc->instance_template()), isolate);
+  RETURN_ON_EXCEPTION(isolate, ::v8::internal::ConfigureInstance(
+                                   isolate, instance, instance_template),
+                      FunctionTemplateInfo);
+  return desc;
+}
+
+
 void ApiNatives::AddDataProperty(Isolate* isolate, Handle<TemplateInfo> info,
                                  Handle<Name> name, Handle<Object> value,
                                  PropertyAttributes attributes) {
-  // JSReceivers could cause cross-context leaks therefore they must
-  // never appear as data properties.
-  CHECK(!value->IsJSReceiver());
   const int kSize = 3;
   PropertyDetails details(attributes, DATA, 0, PropertyCellType::kNoCell);
   auto details_handle = handle(details.AsSmi(), isolate);
@@ -613,6 +547,72 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
   if (!obj->instance_call_handler()->IsUndefined()) {
     map->set_is_callable();
     map->set_is_constructor(true);
+  }
+
+  // Recursively copy parent instance templates' accessors,
+  // 'data' may be modified.
+  int max_number_of_additional_properties = 0;
+  int max_number_of_static_properties = 0;
+  FunctionTemplateInfo* info = *obj;
+  while (true) {
+    if (!info->instance_template()->IsUndefined()) {
+      Object* props = ObjectTemplateInfo::cast(info->instance_template())
+                          ->property_accessors();
+      if (!props->IsUndefined()) {
+        Handle<Object> props_handle(props, isolate);
+        NeanderArray props_array(props_handle);
+        max_number_of_additional_properties += props_array.length();
+      }
+    }
+    if (!info->property_accessors()->IsUndefined()) {
+      Object* props = info->property_accessors();
+      if (!props->IsUndefined()) {
+        Handle<Object> props_handle(props, isolate);
+        NeanderArray props_array(props_handle);
+        max_number_of_static_properties += props_array.length();
+      }
+    }
+    Object* parent = info->parent_template();
+    if (parent->IsUndefined()) break;
+    info = FunctionTemplateInfo::cast(parent);
+  }
+
+  Map::EnsureDescriptorSlack(map, max_number_of_additional_properties);
+
+  // Use a temporary FixedArray to acculumate static accessors
+  int valid_descriptors = 0;
+  Handle<FixedArray> array;
+  if (max_number_of_static_properties > 0) {
+    array = isolate->factory()->NewFixedArray(max_number_of_static_properties);
+  }
+
+  while (true) {
+    // Install instance descriptors
+    if (!obj->instance_template()->IsUndefined()) {
+      Handle<ObjectTemplateInfo> instance = Handle<ObjectTemplateInfo>(
+          ObjectTemplateInfo::cast(obj->instance_template()), isolate);
+      Handle<Object> props =
+          Handle<Object>(instance->property_accessors(), isolate);
+      if (!props->IsUndefined()) {
+        Map::AppendCallbackDescriptors(map, props);
+      }
+    }
+    // Accumulate static accessors
+    if (!obj->property_accessors()->IsUndefined()) {
+      Handle<Object> props = Handle<Object>(obj->property_accessors(), isolate);
+      valid_descriptors =
+          AccessorInfo::AppendUnique(props, array, valid_descriptors);
+    }
+    // Climb parent chain
+    Handle<Object> parent = Handle<Object>(obj->parent_template(), isolate);
+    if (parent->IsUndefined()) break;
+    obj = Handle<FunctionTemplateInfo>::cast(parent);
+  }
+
+  // Install accumulated static accessors
+  for (int i = 0; i < valid_descriptors; i++) {
+    Handle<AccessorInfo> accessor(AccessorInfo::cast(array->get(i)));
+    JSObject::SetAccessor(result, accessor).Assert();
   }
 
   DCHECK(result->shared()->IsApiFunction());

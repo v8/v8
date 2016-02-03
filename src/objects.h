@@ -2388,8 +2388,6 @@ class JSObject: public JSReceiver {
       Handle<JSObject> object,
       AllocationSiteUsageContext* site_context,
       DeepCopyHints hints = kNoHints);
-  MUST_USE_RESULT static MaybeHandle<JSObject> DeepCopy(
-      Handle<JSObject> object, DeepCopyHints hints = kNoHints);
   MUST_USE_RESULT static MaybeHandle<JSObject> DeepWalk(
       Handle<JSObject> object,
       AllocationSiteCreationContext* site_context);
@@ -10471,16 +10469,15 @@ class CallHandlerInfo: public Struct {
 class TemplateInfo: public Struct {
  public:
   DECL_ACCESSORS(tag, Object)
-  DECL_ACCESSORS(serial_number, Object)
-  DECL_INT_ACCESSORS(number_of_properties)
+  inline int number_of_properties() const;
+  inline void set_number_of_properties(int value);
   DECL_ACCESSORS(property_list, Object)
   DECL_ACCESSORS(property_accessors, Object)
 
   DECLARE_VERIFIER(TemplateInfo)
 
   static const int kTagOffset = HeapObject::kHeaderSize;
-  static const int kSerialNumberOffset = kTagOffset + kPointerSize;
-  static const int kNumberOfProperties = kSerialNumberOffset + kPointerSize;
+  static const int kNumberOfProperties = kTagOffset + kPointerSize;
   static const int kPropertyListOffset = kNumberOfProperties + kPointerSize;
   static const int kPropertyAccessorsOffset =
       kPropertyListOffset + kPointerSize;
@@ -10495,6 +10492,7 @@ class TemplateInfo: public Struct {
 
 class FunctionTemplateInfo: public TemplateInfo {
  public:
+  DECL_ACCESSORS(serial_number, Object)
   DECL_ACCESSORS(call_code, Object)
   DECL_ACCESSORS(prototype_template, Object)
   DECL_ACCESSORS(parent_template, Object)
@@ -10528,7 +10526,8 @@ class FunctionTemplateInfo: public TemplateInfo {
   DECLARE_PRINTER(FunctionTemplateInfo)
   DECLARE_VERIFIER(FunctionTemplateInfo)
 
-  static const int kCallCodeOffset = TemplateInfo::kHeaderSize;
+  static const int kSerialNumberOffset = TemplateInfo::kHeaderSize;
+  static const int kCallCodeOffset = kSerialNumberOffset + kPointerSize;
   static const int kPrototypeTemplateOffset =
       kCallCodeOffset + kPointerSize;
   static const int kParentTemplateOffset =

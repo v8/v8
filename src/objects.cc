@@ -8255,25 +8255,6 @@ MaybeHandle<JSObject> JSObject::DeepCopy(
   return copy;
 }
 
-class DummyContextObject : public AllocationSiteContext {
- public:
-  explicit DummyContextObject(Isolate* isolate)
-      : AllocationSiteContext(isolate) {}
-
-  bool ShouldCreateMemento(Handle<JSObject> object) { return false; }
-  Handle<AllocationSite> EnterNewScope() { return Handle<AllocationSite>(); }
-  void ExitScope(Handle<AllocationSite> site, Handle<JSObject> object) {}
-};
-
-MaybeHandle<JSObject> JSObject::DeepCopy(Handle<JSObject> object,
-                                         DeepCopyHints hints) {
-  DummyContextObject dummy_context_object(object->GetIsolate());
-  JSObjectWalkVisitor<DummyContextObject> v(&dummy_context_object, true, hints);
-  MaybeHandle<JSObject> copy = v.StructureWalk(object);
-  Handle<JSObject> for_assert;
-  DCHECK(!copy.ToHandle(&for_assert) || !for_assert.is_identical_to(object));
-  return copy;
-}
 
 // static
 MaybeHandle<Object> JSReceiver::ToPrimitive(Handle<JSReceiver> receiver,
