@@ -7602,6 +7602,55 @@ TEST(DoExpression) {
   FLAG_harmony_do_expressions = old_flag;
 }
 
+TEST(WithStatement) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+
+  int deep_elements_flags =
+      ObjectLiteral::kFastElements | ObjectLiteral::kDisableMementos;
+  int context = Register::current_context().index();
+  int closure = Register::function_closure().index();
+  int new_target = Register::new_target().index();
+
+  ExpectedSnippet<InstanceType> snippets[] = {
+      {"with ({x:42}) { return x; }",
+       5 * kPointerSize,
+       1,
+       46,
+       {
+           B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure),  //
+                           U8(1),                                          //
+           B(PushContext), R(0),                                           //
+           B(Ldar), THIS(1),                                               //
+           B(StaContextSlot), R(context), U8(4),                           //
+           B(CreateMappedArguments),                                       //
+           B(StaContextSlot), R(context), U8(5),                           //
+           B(Ldar), R(new_target),                                         //
+           B(StaContextSlot), R(context), U8(6),                           //
+           B(CreateObjectLiteral), U8(0), U8(0), U8(deep_elements_flags),  //
+           B(Star), R(2),                                                  //
+           B(ToObject),                                                    //
+           B(Star), R(3),                                                  //
+           B(Ldar), R(closure),                                            //
+           B(Star), R(4),                                                  //
+           B(CallRuntime), U16(Runtime::kPushWithContext), R(3), U8(2),    //
+           B(PushContext), R(1),                                           //
+           B(LdaLookupSlot), U8(1),                                        //
+           B(PopContext), R(0),                                            //
+           B(Return),                                                      //
+       },
+       2,
+       {InstanceType::FIXED_ARRAY_TYPE,
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
+  };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

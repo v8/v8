@@ -563,22 +563,6 @@
   'test-api/ClassPrototypeCreationContext': [FAIL],
   'test-run-jsops/ClassLiteral': [FAIL],
 
-  # TODO(rmcilroy,4684): Requires support for with statements.
-  'test-unscopables-hidden-prototype/Unscopables': [FAIL],
-  'test-decls/CrossScriptDynamicLookup': [FAIL],
-  'test-api/EvalAliasedDynamic': [FAIL],
-  'test-api/CrossEval': [FAIL],
-  'test-api/ReadOnlyPropertyInGlobalProto': [FAIL],
-  'test-api/StreamingWithDebuggingEnabledLate': [FAIL],
-  'test-heap/CellsInOptimizedCodeAreWeak': [FAIL],
-  'test-heap/NoWeakHashTableLeakWithIncrementalMarking': [FAIL],
-  'test-api/CatchExceptionFromWith': [FAIL],
-  'test-api/CallbackExceptionRegression': [FAIL],
-  'test-api/UseWithFromExtension': [FAIL],
-  'test-run-jscalls/LookupCall': [FAIL],
-  'test-run-jsops/LookupLoad': [FAIL],
-  'test-run-jsops/LookupStore': [FAIL],
-
   # TODO(rmcilroy,4681): Requires support for generators.
   'test-inobject-slack-tracking/JSGeneratorObjectBasic': [FAIL],
   'test-inobject-slack-tracking/JSGeneratorObjectBasicNoInlineNew': [FAIL],
@@ -664,6 +648,7 @@
   'test-heap/IncrementalMarkingPreservesMonomorphicConstructor': [FAIL],
   'test-heap/IncrementalMarkingPreservesMonomorphicCallIC': [FAIL],
   'test-heap/CompilationCacheCachingBehavior': [FAIL],
+  'test-heap/CellsInOptimizedCodeAreWeak': [FAIL],
   'test-run-inlining/InlineTwice': [FAIL],
   'test-run-jsobjects/ArgumentsRest': [FAIL],
   'test-decls/Regress425510': [FAIL],
@@ -750,7 +735,7 @@
 
 ['ignition == True and arch == arm64', {
   # TODO(rmcilroy,4680): Arm64 specific test failures.
-  'test-js-arm64-variables/lookup_slots': [FAIL],
+  'test-heap/NoWeakHashTableLeakWithIncrementalMarking': [FAIL],
 
   # TODO(rmcilroy,4680): Arm64 flakes.
   'test-serialize/SerializeInternalReference': [PASS, FAIL],

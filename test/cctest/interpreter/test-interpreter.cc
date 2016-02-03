@@ -3750,6 +3750,39 @@ TEST(InterpreterDoExpression) {
   FLAG_harmony_do_expressions = old_flag;
 }
 
+TEST(InterpreterWithStatement) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+
+  std::pair<const char*, Handle<Object>> with_stmt[] = {
+      {"with({x:42}) return x;", handle(Smi::FromInt(42), isolate)},
+      {"with({}) { var y = 10; return y;}", handle(Smi::FromInt(10), isolate)},
+      {"var y = {x:42};"
+       " function inner() {"
+       "   var x = 20;"
+       "   with(y) return x;"
+       "}"
+       "return inner();",
+       handle(Smi::FromInt(42), isolate)},
+      {"var y = {x:42};"
+       " function inner(o) {"
+       "   var x = 20;"
+       "   with(o) return x;"
+       "}"
+       "return inner(y);",
+       handle(Smi::FromInt(42), isolate)},
+  };
+
+  for (size_t i = 0; i < arraysize(with_stmt); i++) {
+    std::string source(InterpreterTester::SourceForBody(with_stmt[i].first));
+    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*with_stmt[i].second));
+  }
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

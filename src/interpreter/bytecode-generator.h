@@ -84,6 +84,7 @@ class BytecodeGenerator final : public AstVisitor {
   void VisitBlockDeclarationsAndStatements(Block* stmt);
   void VisitNewLocalBlockContext(Scope* scope);
   void VisitNewLocalCatchContext(Variable* variable);
+  void VisitNewLocalWithContext();
   void VisitFunctionClosureForContext();
   void VisitSetHomeObject(Register value, Register home_object,
                           ObjectLiteralProperty* property, int slot_number = 0);

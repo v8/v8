@@ -860,7 +860,10 @@ void BytecodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
 
 
 void BytecodeGenerator::VisitWithStatement(WithStatement* stmt) {
-  UNIMPLEMENTED();
+  VisitForAccumulatorValue(stmt->expression());
+  builder()->CastAccumulatorToJSObject();
+  VisitNewLocalWithContext();
+  VisitInScope(stmt->statement(), stmt->scope());
 }
 
 
@@ -2377,6 +2380,19 @@ void BytecodeGenerator::VisitNewLocalBlockContext(Scope* scope) {
   execution_result()->SetResultInAccumulator();
 }
 
+void BytecodeGenerator::VisitNewLocalWithContext() {
+  AccumulatorResultScope accumulator_execution_result(this);
+
+  register_allocator()->PrepareForConsecutiveAllocations(2);
+  Register extension_object = register_allocator()->NextConsecutiveRegister();
+  Register closure = register_allocator()->NextConsecutiveRegister();
+
+  builder()->StoreAccumulatorInRegister(extension_object);
+  VisitFunctionClosureForContext();
+  builder()->StoreAccumulatorInRegister(closure).CallRuntime(
+      Runtime::kPushWithContext, extension_object, 2);
+  execution_result()->SetResultInAccumulator();
+}
 
 void BytecodeGenerator::VisitNewLocalCatchContext(Variable* variable) {
   AccumulatorResultScope accumulator_execution_result(this);
@@ -2472,6 +2488,12 @@ void BytecodeGenerator::VisitFunctionClosureForContext() {
                           Context::NATIVE_CONTEXT_INDEX)
         .StoreAccumulatorInRegister(native_context)
         .LoadContextSlot(native_context, Context::CLOSURE_INDEX);
+  } else if (closure_scope->is_eval_scope()) {
+    // Contexts created by a call to eval have the same closure as the
+    // context calling eval, not the anonymous closure containing the eval
+    // code. Fetch it from the context.
+    builder()->LoadContextSlot(execution_context()->reg(),
+                               Context::CLOSURE_INDEX);
   } else {
     DCHECK(closure_scope->is_function_scope());
     builder()->LoadAccumulatorWithRegister(Register::function_closure());
