@@ -908,13 +908,16 @@ void AsmTyper::VisitProperty(Property* expr) {
     return;
   }
 
-  // stdlib.x or foreign.x
   VariableProxy* proxy = expr->obj()->AsVariableProxy();
   if (proxy != NULL) {
     Variable* var = proxy->var();
     if (var->location() == VariableLocation::PARAMETER && var->index() == 1) {
-      // foreign.x is ok.
-      SetResult(expr, expected_type_);
+      // foreign.x - Function represent as () -> Any
+      if (Type::Any()->Is(expected_type_)) {
+        SetResult(expr, Type::Function(Type::Any(), zone()));
+      } else {
+        SetResult(expr, expected_type_);
+      }
       return;
     }
   }
@@ -942,63 +945,66 @@ void AsmTyper::VisitCall(Call* expr) {
     FunctionType* fun_type = computed_type_->AsFunction();
     Type* result_type = fun_type->Result();
     ZoneList<Expression*>* args = expr->arguments();
-    if (fun_type->Arity() != args->length()) {
-      FAIL(expr, "call with wrong arity");
-    }
-    for (int i = 0; i < args->length(); ++i) {
-      Expression* arg = args->at(i);
-      RECURSE(VisitWithExpectation(
-          arg, fun_type->Parameter(i),
-          "call argument expected to match callee parameter"));
-      if (standard_member != kNone && standard_member != kMathFround &&
-          i == 0) {
-        result_type = computed_type_;
-      }
-    }
-    // Handle polymorphic stdlib functions specially.
-    if (standard_member == kMathCeil || standard_member == kMathFloor ||
-        standard_member == kMathSqrt) {
-      if (!args->at(0)->bounds().upper->Is(cache_.kAsmFloat) &&
-          !args->at(0)->bounds().upper->Is(cache_.kAsmDouble)) {
-        FAIL(expr, "illegal function argument type");
-      }
-    } else if (standard_member == kMathAbs || standard_member == kMathMin ||
-               standard_member == kMathMax) {
-      if (!args->at(0)->bounds().upper->Is(cache_.kAsmFloat) &&
-          !args->at(0)->bounds().upper->Is(cache_.kAsmDouble) &&
-          !args->at(0)->bounds().upper->Is(cache_.kAsmSigned)) {
-        FAIL(expr, "illegal function argument type");
-      }
-      if (args->length() > 1) {
-        Type* other = Type::Intersect(args->at(0)->bounds().upper,
-                                      args->at(1)->bounds().upper, zone());
-        if (!other->Is(cache_.kAsmFloat) && !other->Is(cache_.kAsmDouble) &&
-            !other->Is(cache_.kAsmSigned)) {
-          FAIL(expr, "function arguments types don't match");
+    if (Type::Any()->Is(result_type)) {
+      // For foreign calls.
+      ZoneList<Expression*>* args = expr->arguments();
+      for (int i = 0; i < args->length(); ++i) {
+        Expression* arg = args->at(i);
+        RECURSE(VisitWithExpectation(
+            arg, Type::Any(), "foreign call argument expected to be any"));
+        // Checking for asm extern types explicitly, as the type system
+        // doesn't correctly check their inheritance relationship.
+        if (!computed_type_->Is(cache_.kAsmSigned) &&
+            !computed_type_->Is(cache_.kAsmFixnum) &&
+            !computed_type_->Is(cache_.kAsmDouble)) {
+          FAIL(arg,
+               "foreign call argument expected to be int, double, or fixnum");
         }
       }
-    }
-    intish_ = 0;
-    IntersectResult(expr, result_type);
-  } else if (computed_type_->Is(Type::Any())) {
-    // For foreign calls.
-    ZoneList<Expression*>* args = expr->arguments();
-    for (int i = 0; i < args->length(); ++i) {
-      Expression* arg = args->at(i);
-      RECURSE(VisitWithExpectation(arg, Type::Any(),
-                                   "foreign call argument expected to be any"));
-      // Checking for asm extern types explicitly, as the type system
-      // doesn't correctly check their inheritance relationship.
-      if (!computed_type_->Is(cache_.kAsmSigned) &&
-          !computed_type_->Is(cache_.kAsmFixnum) &&
-          !computed_type_->Is(cache_.kAsmDouble)) {
-        FAIL(arg,
-             "foreign call argument expected to be int, double, or fixnum");
+      intish_ = 0;
+      expr->expression()->set_bounds(
+          Bounds(Type::Function(Type::Any(), zone())));
+      IntersectResult(expr, expected_type);
+    } else {
+      if (fun_type->Arity() != args->length()) {
+        FAIL(expr, "call with wrong arity");
       }
+      for (int i = 0; i < args->length(); ++i) {
+        Expression* arg = args->at(i);
+        RECURSE(VisitWithExpectation(
+            arg, fun_type->Parameter(i),
+            "call argument expected to match callee parameter"));
+        if (standard_member != kNone && standard_member != kMathFround &&
+            i == 0) {
+          result_type = computed_type_;
+        }
+      }
+      // Handle polymorphic stdlib functions specially.
+      if (standard_member == kMathCeil || standard_member == kMathFloor ||
+          standard_member == kMathSqrt) {
+        if (!args->at(0)->bounds().upper->Is(cache_.kAsmFloat) &&
+            !args->at(0)->bounds().upper->Is(cache_.kAsmDouble)) {
+          FAIL(expr, "illegal function argument type");
+        }
+      } else if (standard_member == kMathAbs || standard_member == kMathMin ||
+                 standard_member == kMathMax) {
+        if (!args->at(0)->bounds().upper->Is(cache_.kAsmFloat) &&
+            !args->at(0)->bounds().upper->Is(cache_.kAsmDouble) &&
+            !args->at(0)->bounds().upper->Is(cache_.kAsmSigned)) {
+          FAIL(expr, "illegal function argument type");
+        }
+        if (args->length() > 1) {
+          Type* other = Type::Intersect(args->at(0)->bounds().upper,
+                                        args->at(1)->bounds().upper, zone());
+          if (!other->Is(cache_.kAsmFloat) && !other->Is(cache_.kAsmDouble) &&
+              !other->Is(cache_.kAsmSigned)) {
+            FAIL(expr, "function arguments types don't match");
+          }
+        }
+      }
+      intish_ = 0;
+      IntersectResult(expr, result_type);
     }
-    intish_ = kMaxUncombinedAdditiveSteps;
-    expr->expression()->set_bounds(Bounds(Type::Function()));
-    IntersectResult(expr, expected_type);
   } else {
     FAIL(expr, "invalid callee");
   }

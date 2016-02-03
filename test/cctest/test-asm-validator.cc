@@ -16,7 +16,7 @@
 #include "test/cctest/expression-type-collector-macros.h"
 
 // Macros for function types.
-#define FUNC_BARE_TYPE Bounds(Type::Function())
+#define FUNC_FOREIGN_TYPE Bounds(Type::Function(Type::Any(), zone))
 #define FUNC_V_TYPE Bounds(Type::Function(Type::Undefined(), zone))
 #define FUNC_I_TYPE Bounds(Type::Function(cache.kAsmSigned, zone))
 #define FUNC_F_TYPE Bounds(Type::Function(cache.kAsmFloat, zone))
@@ -1726,7 +1726,7 @@ TEST(ForeignFunction) {
     CHECK_EXPR(FunctionLiteral, FUNC_I_TYPE) {
       CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
         CHECK_EXPR(Call, Bounds(cache.kAsmSigned)) {
-          CHECK_VAR(baz, FUNC_BARE_TYPE);
+          CHECK_VAR(baz, FUNC_FOREIGN_TYPE);
           CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
           CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
         }
@@ -1740,9 +1740,9 @@ TEST(ForeignFunction) {
     }
   }
   CHECK_FUNC_TYPES_END_1()
-  CHECK_EXPR(Assignment, Bounds(Type::Any())) {
-    CHECK_VAR(baz, Bounds(Type::Any()));
-    CHECK_EXPR(Property, Bounds(Type::Any())) {
+  CHECK_EXPR(Assignment, Bounds(FUNC_FOREIGN_TYPE)) {
+    CHECK_VAR(baz, Bounds(FUNC_FOREIGN_TYPE));
+    CHECK_EXPR(Property, Bounds(FUNC_FOREIGN_TYPE)) {
       CHECK_VAR(foreign, Bounds::Unbounded());
       CHECK_EXPR(Literal, Bounds::Unbounded());
     }
@@ -2127,7 +2127,7 @@ TEST(Imports) {
       CHECK_EXPR(FunctionLiteral, FUNC_I_TYPE) {
         CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
           CHECK_EXPR(Call, Bounds(cache.kAsmSigned)) {
-            CHECK_VAR(ffunc, FUNC_BARE_TYPE);
+            CHECK_VAR(ffunc, FUNC_FOREIGN_TYPE);
             CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
               CHECK_VAR(fint, Bounds(cache.kAsmInt));
               CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
@@ -2141,7 +2141,7 @@ TEST(Imports) {
       CHECK_EXPR(FunctionLiteral, FUNC_D_TYPE) {
         CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmDouble)) {
           CHECK_EXPR(Call, Bounds(cache.kAsmDouble)) {
-            CHECK_VAR(ffunc, FUNC_BARE_TYPE);
+            CHECK_VAR(ffunc, FUNC_FOREIGN_TYPE);
             CHECK_VAR(fdouble, Bounds(cache.kAsmDouble));
             CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
               CHECK_VAR(fint, Bounds(cache.kAsmInt));
@@ -2154,9 +2154,9 @@ TEST(Imports) {
       // "use asm";
       CHECK_EXPR(Literal, Bounds(Type::String()));
       // var func = foreign.foo;
-      CHECK_EXPR(Assignment, Bounds(Type::Any())) {
-        CHECK_VAR(ffunc, Bounds(Type::Any()));
-        CHECK_EXPR(Property, Bounds(Type::Any())) {
+      CHECK_EXPR(Assignment, Bounds(FUNC_FOREIGN_TYPE)) {
+        CHECK_VAR(ffunc, Bounds(FUNC_FOREIGN_TYPE));
+        CHECK_EXPR(Property, Bounds(FUNC_FOREIGN_TYPE)) {
           CHECK_VAR(foreign, Bounds::Unbounded());
           CHECK_EXPR(Literal, Bounds::Unbounded());
         }
