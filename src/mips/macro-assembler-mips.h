@@ -208,6 +208,11 @@ class MacroAssembler: public Assembler {
               Heap::RootListIndex index,
               BranchDelaySlot bdslot = PROTECT);
 
+  // GetLabelFunction must be lambda '[](size_t index) -> Label*' or a
+  // functor/function with 'Label *func(size_t index)' declaration.
+  template <typename Func>
+  void GenerateSwitchTable(Register index, size_t case_count,
+                           Func GetLabelFunction);
 #undef COND_ARGS
 
   // Emit code to discard a non-negative number of pointer-sized elements
@@ -1746,7 +1751,29 @@ class CodePatcher {
   FlushICache flush_cache_;  // Whether to flush the I cache after patching.
 };
 
-
+template <typename Func>
+void MacroAssembler::GenerateSwitchTable(Register index, size_t case_count,
+                                         Func GetLabelFunction) {
+  if (kArchVariant >= kMips32r6) {
+    BlockTrampolinePoolFor(case_count + 5);
+    addiupc(at, 5);
+    lsa(at, at, index, kPointerSizeLog2);
+    lw(at, MemOperand(at));
+  } else {
+    Label here;
+    BlockTrampolinePoolFor(case_count + 6);
+    bal(&here);
+    sll(at, index, kPointerSizeLog2);  // Branch delay slot.
+    bind(&here);
+    addu(at, at, ra);
+    lw(at, MemOperand(at, 4 * v8::internal::Assembler::kInstrSize));
+  }
+  jr(at);
+  nop();  // Branch delay slot nop.
+  for (size_t index = 0; index < case_count; ++index) {
+    dd(GetLabelFunction(index));
+  }
+}
 
 #ifdef GENERATED_CODE_COVERAGE
 #define CODE_COVERAGE_STRINGIFY(x) #x

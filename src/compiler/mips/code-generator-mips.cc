@@ -1487,19 +1487,10 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   MipsOperandConverter i(this, instr);
   Register input = i.InputRegister(0);
   size_t const case_count = instr->InputCount() - 2;
-  Label here;
   __ Branch(GetLabel(i.InputRpo(1)), hs, input, Operand(case_count));
-  __ BlockTrampolinePoolFor(case_count + 6);
-  __ bal(&here);
-  __ sll(at, input, 2);  // Branch delay slot.
-  __ bind(&here);
-  __ addu(at, at, ra);
-  __ lw(at, MemOperand(at, 4 * v8::internal::Assembler::kInstrSize));
-  __ jr(at);
-  __ nop();  // Branch delay slot nop.
-  for (size_t index = 0; index < case_count; ++index) {
-    __ dd(GetLabel(i.InputRpo(index + 2)));
-  }
+  __ GenerateSwitchTable(input, case_count, [&i, this](size_t index) {
+    return GetLabel(i.InputRpo(index + 2));
+  });
 }
 
 

@@ -5024,8 +5024,7 @@ TEST(r6_jialc) {
   }
 }
 
-
-uint64_t run_addiupc(int32_t imm19) {
+static uint32_t run_addiupc(int32_t imm19) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
@@ -5058,13 +5057,13 @@ TEST(r6_addiupc) {
       int32_t   imm19;
     };
 
-    struct TestCaseAddiupc tc[] = {
-      //  imm19
-      { -262144 },   // 0x40000
-      {      -1 },   // 0x7FFFF
-      {       0 },
-      {       1 },   // 0x00001
-      {  262143 }    // 0x3FFFF
+    TestCaseAddiupc tc[] = {
+        //  imm19
+        {-262144},  // 0x40000
+        {-1},       // 0x7FFFF
+        {0},
+        {1},      // 0x00001
+        {262143}  // 0x3FFFF
     };
 
     size_t nr_test_cases = sizeof(tc) / sizeof(TestCaseAddiupc);
