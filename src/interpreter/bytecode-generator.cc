@@ -1108,6 +1108,7 @@ void BytecodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
 
 void BytecodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
   TryCatchBuilder try_control_builder(builder());
+  Register no_reg;
 
   // Preserve the context in a dedicated register, so that it can be restored
   // when the handler is entered by the stack-unwinding machinery.
@@ -1123,11 +1124,15 @@ void BytecodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
   }
   try_control_builder.EndTry();
 
-  // Clear message object as we enter the catch block.
-  // TODO(mstarzinger): Implement this!
-
   // Create a catch scope that binds the exception.
   VisitNewLocalCatchContext(stmt->variable());
+  builder()->StoreAccumulatorInRegister(context);
+
+  // Clear message object as we enter the catch block.
+  builder()->CallRuntime(Runtime::kInterpreterClearPendingMessage, no_reg, 0);
+
+  // Load the catch context into the accumulator.
+  builder()->LoadAccumulatorWithRegister(context);
 
   // Evaluate the catch-block.
   VisitInScope(stmt->catch_block(), stmt->scope());
@@ -1137,6 +1142,7 @@ void BytecodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
 
 void BytecodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   TryFinallyBuilder try_control_builder(builder());
+  Register no_reg;
 
   // We keep a record of all paths that enter the finally-block to be able to
   // dispatch to the correct continuation point after the statements in the
@@ -1177,14 +1183,21 @@ void BytecodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   try_control_builder.BeginHandler();
   commands.RecordHandlerReThrowPath();
 
+  // Pending message object is saved on entry.
   try_control_builder.BeginFinally();
+  Register message = context;  // Reuse register.
 
   // Clear message object as we enter the finally block.
-  // TODO(mstarzinger): Implement this!
+  builder()
+      ->CallRuntime(Runtime::kInterpreterClearPendingMessage, no_reg, 0)
+      .StoreAccumulatorInRegister(message);
 
   // Evaluate the finally-block.
   Visit(stmt->finally_block());
   try_control_builder.EndFinally();
+
+  // Pending message object is restored on exit.
+  builder()->CallRuntime(Runtime::kInterpreterSetPendingMessage, message, 1);
 
   // Dynamic dispatch after the finally-block.
   commands.ApplyDeferredCommands();

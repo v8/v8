@@ -513,11 +513,8 @@
   'test-profile-generator/BailoutReason': [FAIL],
   'test-api/Regress385349': [FAIL],
 
-  # TODO(mstarzinger,4674): Message object is not properly cleared.
-  'test-heap/MessageObjectLeak': [FAIL],
-
   # TODO(mstarzinger,4674): Support exception handlers in BytecodeGraphBuilder.
-  'test-run-deopt/DeoptExceptionHandlerCatch': [FAIL],
+  'test-run-deopt/DeoptExceptionHandlerCatch': [PASS, FAIL],
 
   # TODO(rmcilroy,4680): Check failed: toplevel_test_code_event_found.
   'test-serialize/SerializeToplevelIsolates': [FAIL],

@@ -221,7 +221,9 @@ namespace internal {
   F(InterpreterTypeOf, 1, 1)              \
   F(InterpreterNewClosure, 2, 1)          \
   F(InterpreterTraceBytecodeEntry, 3, 1)  \
-  F(InterpreterTraceBytecodeExit, 3, 1)
+  F(InterpreterTraceBytecodeExit, 3, 1)   \
+  F(InterpreterClearPendingMessage, 0, 1) \
+  F(InterpreterSetPendingMessage, 1, 1)
 
 #define FOR_EACH_INTRINSIC_FUNCTION(F)     \
   F(FunctionGetName, 1, 1)                 \

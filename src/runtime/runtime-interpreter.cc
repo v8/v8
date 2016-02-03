@@ -253,5 +253,21 @@ RUNTIME_FUNCTION(Runtime_InterpreterTraceBytecodeExit) {
   return isolate->heap()->undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_InterpreterClearPendingMessage) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(0, args.length());
+  Object* message = isolate->thread_local_top()->pending_message_obj_;
+  isolate->clear_pending_message();
+  return message;
+}
+
+RUNTIME_FUNCTION(Runtime_InterpreterSetPendingMessage) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, message, 0);
+  isolate->thread_local_top()->pending_message_obj_ = *message;
+  return isolate->heap()->undefined_value();
+}
+
 }  // namespace internal
 }  // namespace v8
