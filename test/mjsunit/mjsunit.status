@@ -760,6 +760,7 @@
   'regress/regress-1528': [FAIL],
   'regress/regress-2594': [FAIL],
   'regress/regress-410030': [FAIL],
+  'regress/regress-583260': [FAIL],
   'regress/regress-96523': [FAIL],
   'regress/regress-crbug-505907': [FAIL],
   'regress/regress-crbug-506956': [FAIL],
