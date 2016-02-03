@@ -4,7 +4,7 @@
 
 var o = {__proto__:new Int32Array(100)};
 Object.prototype[1.3] = 10;
-assertEquals(10, o[1.3]);
+assertEquals(undefined, o[1.3]);
 
 var o = new Int32Array(100);
 var o2 = new Int32Array(200);

@@ -315,7 +315,7 @@ class LookupIterator final BASE_EMBEDDED {
     return GetRootForNonJSReceiver(isolate, receiver, index);
   }
 
-  inline bool IsIntegerIndexedExotic(JSReceiver* holder);
+  State NotFound(JSReceiver* const holder) const;
 
   // If configuration_ becomes mutable, update
   // HolderIsReceiverOrHiddenPrototype.

@@ -518,18 +518,6 @@ void LookupIterator::WriteDataValue(Handle<Object> value) {
 }
 
 
-bool LookupIterator::IsIntegerIndexedExotic(JSReceiver* holder) {
-  DCHECK(!IsElement());
-  if (!name_->IsString()) return false;
-  if (*receiver_ != holder) return false;
-
-  Handle<String> name_string = Handle<String>::cast(name_);
-  if (name_string->length() == 0) return false;
-
-  return IsSpecialIndex(isolate_->unicode_cache(), *name_string);
-}
-
-
 void LookupIterator::InternalizeName() {
   if (name_->IsUniqueName()) return;
   name_ = factory()->InternalizeString(Handle<String>::cast(name_));
@@ -579,6 +567,17 @@ JSReceiver* LookupIterator::NextHolder(Map* map) {
   return next;
 }
 
+LookupIterator::State LookupIterator::NotFound(JSReceiver* const holder) const {
+  DCHECK(!IsElement());
+  if (!holder->IsJSTypedArray() || !name_->IsString()) return NOT_FOUND;
+
+  Handle<String> name_string = Handle<String>::cast(name_);
+  if (name_string->length() == 0) return NOT_FOUND;
+
+  return IsSpecialIndex(isolate_->unicode_cache(), *name_string)
+             ? INTEGER_INDEXED_EXOTIC
+             : NOT_FOUND;
+}
 
 LookupIterator::State LookupIterator::LookupInHolder(Map* const map,
                                                      JSReceiver* const holder) {
@@ -613,18 +612,13 @@ LookupIterator::State LookupIterator::LookupInHolder(Map* const map,
         FixedArrayBase* backing_store = js_object->elements();
         number_ = accessor->GetEntryForIndex(js_object, backing_store, index_);
         if (number_ == kMaxUInt32) {
-          if (*receiver_ == holder && holder->IsJSTypedArray()) {
-            return INTEGER_INDEXED_EXOTIC;
-          }
-          return NOT_FOUND;
+          return holder->IsJSTypedArray() ? INTEGER_INDEXED_EXOTIC : NOT_FOUND;
         }
         property_details_ = accessor->GetDetails(js_object, number_);
-      } else if (holder->IsJSTypedArray() && IsIntegerIndexedExotic(holder)) {
-        return INTEGER_INDEXED_EXOTIC;
       } else if (!map->is_dictionary_map()) {
         DescriptorArray* descriptors = map->instance_descriptors();
         int number = descriptors->SearchWithCache(*name_, map);
-        if (number == DescriptorArray::kNotFound) return NOT_FOUND;
+        if (number == DescriptorArray::kNotFound) return NotFound(holder);
         number_ = static_cast<uint32_t>(number);
         property_details_ = descriptors->GetDetails(number_);
       } else if (map->IsJSGlobalObjectMap()) {
@@ -639,7 +633,7 @@ LookupIterator::State LookupIterator::LookupInHolder(Map* const map,
       } else {
         NameDictionary* dict = holder->property_dictionary();
         int number = dict->FindEntry(name_);
-        if (number == NameDictionary::kNotFound) return NOT_FOUND;
+        if (number == NameDictionary::kNotFound) return NotFound(holder);
         number_ = static_cast<uint32_t>(number);
         property_details_ = dict->DetailsAt(number_);
       }
