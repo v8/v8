@@ -734,8 +734,8 @@
 }],
 
 ['ignition == True and arch == arm64', {
-  # TODO(rmcilroy,4680): Arm64 specific test failures.
-  'test-heap/NoWeakHashTableLeakWithIncrementalMarking': [FAIL],
+  # TODO(rmcilroy,4680): Arm64 specific crashes.
+  'test-heap/NoWeakHashTableLeakWithIncrementalMarking': [SKIP],
 
   # TODO(rmcilroy,4680): Arm64 flakes.
   'test-serialize/SerializeInternalReference': [PASS, FAIL],
