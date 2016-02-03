@@ -1078,10 +1078,12 @@ void Interpreter::DoJSCall(compiler::InterpreterAssembler* assembler) {
   Node* function_reg = __ BytecodeOperandReg(0);
   Node* function = __ LoadRegister(function_reg);
   Node* receiver_reg = __ BytecodeOperandReg(1);
-  Node* first_arg = __ RegisterLocation(receiver_reg);
-  Node* args_count = __ BytecodeOperandCount(2);
+  Node* receiver_arg = __ RegisterLocation(receiver_reg);
+  Node* receiver_args_count = __ BytecodeOperandCount(2);
+  Node* receiver_count = __ Int32Constant(1);
+  Node* args_count = __ Int32Sub(receiver_args_count, receiver_count);
   // TODO(rmcilroy): Use the call type feedback slot to call via CallIC.
-  Node* result = __ CallJS(function, first_arg, args_count);
+  Node* result = __ CallJS(function, receiver_arg, args_count);
   __ SetAccumulator(result);
   __ Dispatch();
 }
@@ -1186,7 +1188,9 @@ void Interpreter::DoCallJSRuntimeCommon(
   Node* context_index = __ BytecodeOperandIdx(0);
   Node* receiver_reg = __ BytecodeOperandReg(1);
   Node* first_arg = __ RegisterLocation(receiver_reg);
-  Node* args_count = __ BytecodeOperandCount(2);
+  Node* receiver_args_count = __ BytecodeOperandCount(2);
+  Node* receiver_count = __ Int32Constant(1);
+  Node* args_count = __ Int32Sub(receiver_args_count, receiver_count);
 
   // Get the function to call from the native context.
   Node* context = __ GetContext();

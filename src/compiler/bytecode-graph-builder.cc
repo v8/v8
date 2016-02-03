@@ -1111,8 +1111,8 @@ void BytecodeGraphBuilder::BuildCall() {
 
   // TODO(ishell): provide correct tail_call_mode value to CallFunction.
   const Operator* call = javascript()->CallFunction(
-      arg_count + 2, language_mode(), feedback, receiver_hint);
-  Node* value = ProcessCallArguments(call, callee, receiver, arg_count + 2);
+      arg_count + 1, language_mode(), feedback, receiver_hint);
+  Node* value = ProcessCallArguments(call, callee, receiver, arg_count + 1);
   environment()->BindAccumulator(value, &states);
 }
 
@@ -1129,8 +1129,8 @@ void BytecodeGraphBuilder::BuildCallJSRuntime() {
 
   // Create node to perform the JS runtime call.
   const Operator* call =
-      javascript()->CallFunction(arg_count + 2, language_mode());
-  Node* value = ProcessCallArguments(call, callee, receiver, arg_count + 2);
+      javascript()->CallFunction(arg_count + 1, language_mode());
+  Node* value = ProcessCallArguments(call, callee, receiver, arg_count + 1);
   environment()->BindAccumulator(value, &states);
 }
 

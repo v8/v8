@@ -128,9 +128,6 @@ int BytecodeArrayIterator::GetRegisterOperandRange(int operand_index) const {
     default: {
       if (operand_index + 1 !=
           Bytecodes::NumberOfOperands(current_bytecode())) {
-        // TODO(oth): Ensure all bytecodes specify the full range of registers
-        // with kRegCount (currently Call/CallJSRuntime are off by one due to
-        // reciever.
         OperandType next_operand_type =
             Bytecodes::GetOperandType(current_bytecode(), operand_index + 1);
         if (Bytecodes::IsRegisterCountOperandType(next_operand_type)) {

@@ -164,11 +164,11 @@ class BytecodeArrayBuilder final : public ZoneObject, private RegisterMover {
   BytecodeArrayBuilder& PopContext(Register context);
 
   // Call a JS function. The JSFunction or Callable to be called should be in
-  // |callable|, the receiver should be in |receiver| and all subsequent
-  // arguments should be in registers <receiver + 1> to
-  // <receiver + 1 + arg_count>.
-  BytecodeArrayBuilder& Call(Register callable, Register receiver,
-                             size_t arg_count, int feedback_slot);
+  // |callable|, the receiver should be in |receiver_args| and all subsequent
+  // arguments should be in registers <receiver_args + 1> to
+  // <receiver_args + receiver_arg_count - 1>.
+  BytecodeArrayBuilder& Call(Register callable, Register receiver_args,
+                             size_t receiver_arg_count, int feedback_slot);
 
   // Call the new operator. The |constructor| register is followed by
   // |arg_count| consecutive registers containing arguments to be
@@ -178,23 +178,23 @@ class BytecodeArrayBuilder final : public ZoneObject, private RegisterMover {
 
   // Call the runtime function with |function_id|. The first argument should be
   // in |first_arg| and all subsequent arguments should be in registers
-  // <first_arg + 1> to <first_arg + 1 + arg_count>.
+  // <first_arg + 1> to <first_arg + arg_count - 1>.
   BytecodeArrayBuilder& CallRuntime(Runtime::FunctionId function_id,
                                     Register first_arg, size_t arg_count);
 
   // Call the runtime function with |function_id| that returns a pair of values.
   // The first argument should be in |first_arg| and all subsequent arguments
-  // should be in registers <first_arg + 1> to <first_arg + 1 + arg_count>. The
+  // should be in registers <first_arg + 1> to <first_arg + arg_count - 1>. The
   // return values will be returned in <first_return> and <first_return + 1>.
   BytecodeArrayBuilder& CallRuntimeForPair(Runtime::FunctionId function_id,
                                            Register first_arg, size_t arg_count,
                                            Register first_return);
 
   // Call the JS runtime function with |context_index|. The the receiver should
-  // be in |receiver| and all subsequent arguments should be in registers
-  // <receiver + 1> to <receiver + 1 + arg_count>.
-  BytecodeArrayBuilder& CallJSRuntime(int context_index, Register receiver,
-                                      size_t arg_count);
+  // be in |receiver_args| and all subsequent arguments should be in registers
+  // <receiver + 1> to <receiver + receiver_args_count - 1>.
+  BytecodeArrayBuilder& CallJSRuntime(int context_index, Register receiver_args,
+                                      size_t receiver_args_count);
 
   // Operators (register holds the lhs value, accumulator holds the rhs value).
   BytecodeArrayBuilder& BinaryOperation(Token::Value binop, Register reg,

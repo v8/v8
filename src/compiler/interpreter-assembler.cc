@@ -371,6 +371,9 @@ Node* InterpreterAssembler::IntPtrSub(Node* a, Node* b) {
   return raw_assembler_->IntPtrSub(a, b);
 }
 
+Node* InterpreterAssembler::Int32Sub(Node* a, Node* b) {
+  return raw_assembler_->Int32Sub(a, b);
+}
 
 Node* InterpreterAssembler::WordShl(Node* value, int shift) {
   return raw_assembler_->WordShl(value, Int32Constant(shift));

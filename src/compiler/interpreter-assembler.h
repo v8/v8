@@ -88,6 +88,7 @@ class InterpreterAssembler {
   // Basic arithmetic operations.
   Node* IntPtrAdd(Node* a, Node* b);
   Node* IntPtrSub(Node* a, Node* b);
+  Node* Int32Sub(Node* a, Node* b);
   Node* WordShl(Node* value, int shift);
 
   // Load constant at |index| in the constant pool.

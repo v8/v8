@@ -1051,21 +1051,24 @@ void BytecodeArrayBuilder::EnsureReturn() {
   }
 }
 
-
 BytecodeArrayBuilder& BytecodeArrayBuilder::Call(Register callable,
-                                                 Register receiver,
-                                                 size_t arg_count,
+                                                 Register receiver_args,
+                                                 size_t receiver_args_count,
                                                  int feedback_slot) {
-  if (FitsInReg8Operand(callable) && FitsInReg8Operand(receiver) &&
-      FitsInIdx8Operand(arg_count) && FitsInIdx8Operand(feedback_slot)) {
-    Output(Bytecode::kCall, callable.ToRawOperand(), receiver.ToRawOperand(),
-           static_cast<uint8_t>(arg_count),
+  if (FitsInReg8Operand(callable) && FitsInReg8Operand(receiver_args) &&
+      FitsInIdx8Operand(receiver_args_count) &&
+      FitsInIdx8Operand(feedback_slot)) {
+    Output(Bytecode::kCall, callable.ToRawOperand(),
+           receiver_args.ToRawOperand(),
+           static_cast<uint8_t>(receiver_args_count),
            static_cast<uint8_t>(feedback_slot));
-  } else if (FitsInReg16Operand(callable) && FitsInReg16Operand(receiver) &&
-             FitsInIdx16Operand(arg_count) &&
+  } else if (FitsInReg16Operand(callable) &&
+             FitsInReg16Operand(receiver_args) &&
+             FitsInIdx16Operand(receiver_args_count) &&
              FitsInIdx16Operand(feedback_slot)) {
     Output(Bytecode::kCallWide, callable.ToRawOperand(),
-           receiver.ToRawOperand(), static_cast<uint16_t>(arg_count),
+           receiver_args.ToRawOperand(),
+           static_cast<uint16_t>(receiver_args_count),
            static_cast<uint16_t>(feedback_slot));
   } else {
     UNIMPLEMENTED();
@@ -1142,17 +1145,19 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CallRuntimeForPair(
   return *this;
 }
 
-
-BytecodeArrayBuilder& BytecodeArrayBuilder::CallJSRuntime(int context_index,
-                                                          Register receiver,
-                                                          size_t arg_count) {
+BytecodeArrayBuilder& BytecodeArrayBuilder::CallJSRuntime(
+    int context_index, Register receiver_args, size_t receiver_args_count) {
   DCHECK(FitsInIdx16Operand(context_index));
-  if (FitsInReg8Operand(receiver) && FitsInIdx8Operand(arg_count)) {
+  if (FitsInReg8Operand(receiver_args) &&
+      FitsInIdx8Operand(receiver_args_count)) {
     Output(Bytecode::kCallJSRuntime, static_cast<uint16_t>(context_index),
-           receiver.ToRawOperand(), static_cast<uint8_t>(arg_count));
-  } else if (FitsInReg16Operand(receiver) && FitsInIdx16Operand(arg_count)) {
+           receiver_args.ToRawOperand(),
+           static_cast<uint8_t>(receiver_args_count));
+  } else if (FitsInReg16Operand(receiver_args) &&
+             FitsInIdx16Operand(receiver_args_count)) {
     Output(Bytecode::kCallJSRuntimeWide, static_cast<uint16_t>(context_index),
-           receiver.ToRawOperand(), static_cast<uint16_t>(arg_count));
+           receiver_args.ToRawOperand(),
+           static_cast<uint16_t>(receiver_args_count));
   } else {
     UNIMPLEMENTED();
   }

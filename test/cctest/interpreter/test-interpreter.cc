@@ -941,7 +941,7 @@ TEST(InterpreterCall) {
                                  0, 1);
     builder.LoadNamedProperty(builder.Parameter(0), name, slot_index, i::SLOPPY)
         .StoreAccumulatorInRegister(Register(0))
-        .Call(Register(0), builder.Parameter(0), 0, 0)
+        .Call(Register(0), builder.Parameter(0), 1, 0)
         .Return();
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
 
@@ -960,7 +960,7 @@ TEST(InterpreterCall) {
                                  0, 1);
     builder.LoadNamedProperty(builder.Parameter(0), name, slot_index, i::SLOPPY)
         .StoreAccumulatorInRegister(Register(0))
-        .Call(Register(0), builder.Parameter(0), 0, 0)
+        .Call(Register(0), builder.Parameter(0), 1, 0)
         .Return();
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
 
@@ -988,7 +988,7 @@ TEST(InterpreterCall) {
         .StoreAccumulatorInRegister(Register(2))
         .LoadLiteral(Smi::FromInt(11))
         .StoreAccumulatorInRegister(Register(3))
-        .Call(Register(0), Register(1), 2, 0)
+        .Call(Register(0), Register(1), 3, 0)
         .Return();
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
 
@@ -1031,7 +1031,7 @@ TEST(InterpreterCall) {
         .StoreAccumulatorInRegister(Register(10))
         .LoadLiteral(factory->NewStringFromAsciiChecked("j"))
         .StoreAccumulatorInRegister(Register(11))
-        .Call(Register(0), Register(1), 10, 0)
+        .Call(Register(0), Register(1), 11, 0)
         .Return();
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
 

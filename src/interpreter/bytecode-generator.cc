@@ -1956,7 +1956,7 @@ void BytecodeGenerator::VisitCall(Call* expr) {
   }
 
   // TODO(rmcilroy): Use CallIC to allow call type feedback.
-  builder()->Call(callee, receiver, args->length(),
+  builder()->Call(callee, receiver, 1 + args->length(),
                   feedback_index(expr->CallFeedbackICSlot()));
   execution_result()->SetResultInAccumulator();
 }
@@ -1976,20 +1976,18 @@ void BytecodeGenerator::VisitCallNew(CallNew* expr) {
 
 void BytecodeGenerator::VisitCallRuntime(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
-  Register receiver;
   if (expr->is_jsruntime()) {
     // Allocate a register for the receiver and load it with undefined.
-    register_allocator()->PrepareForConsecutiveAllocations(args->length() + 1);
-    receiver = register_allocator()->NextConsecutiveRegister();
+    register_allocator()->PrepareForConsecutiveAllocations(1 + args->length());
+    Register receiver = register_allocator()->NextConsecutiveRegister();
     builder()->LoadUndefined().StoreAccumulatorInRegister(receiver);
-  }
-  // Evaluate all arguments to the runtime call.
-  Register first_arg = VisitArguments(args);
-
-  if (expr->is_jsruntime()) {
-    DCHECK(args->length() == 0 || first_arg.index() == receiver.index() + 1);
-    builder()->CallJSRuntime(expr->context_index(), receiver, args->length());
+    Register first_arg = VisitArguments(args);
+    CHECK(args->length() == 0 || first_arg.index() == receiver.index() + 1);
+    builder()->CallJSRuntime(expr->context_index(), receiver,
+                             1 + args->length());
   } else {
+    // Evaluate all arguments to the runtime call.
+    Register first_arg = VisitArguments(args);
     Runtime::FunctionId function_id = expr->function()->function_id;
     builder()->CallRuntime(function_id, first_arg, args->length());
   }
