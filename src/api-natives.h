@@ -25,6 +25,10 @@ class ApiNatives {
   MUST_USE_RESULT static MaybeHandle<JSObject> InstantiateObject(
       Handle<ObjectTemplateInfo> data);
 
+  MUST_USE_RESULT static MaybeHandle<FunctionTemplateInfo> ConfigureInstance(
+      Isolate* isolate, Handle<FunctionTemplateInfo> instance,
+      Handle<JSObject> data);
+
   enum ApiInstanceType {
     JavaScriptObjectType,
     GlobalObjectType,

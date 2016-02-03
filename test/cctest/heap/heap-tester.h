@@ -59,25 +59,6 @@ class HeapTester {
 
   /* test-api.cc */
   static void ResetWeakHandle(bool global_gc);
-
-  /* test-spaces.cc */
-  static CompactionSpaceCollection** InitializeCompactionSpaces(Heap* heap,
-                                                                int num_spaces);
-  static void DestroyCompactionSpaces(CompactionSpaceCollection** spaces,
-                                      int num_spaces);
-  static void MergeCompactionSpaces(PagedSpace* space,
-                                    CompactionSpaceCollection** spaces,
-                                    int num_spaces);
-  static void AllocateInCompactionSpaces(CompactionSpaceCollection** spaces,
-                                         AllocationSpace id, int num_spaces,
-                                         int num_objects, int object_size);
-  static void CompactionStats(CompactionSpaceCollection** spaces,
-                              AllocationSpace id, int num_spaces,
-                              intptr_t* capacity, intptr_t* size);
-  static void TestCompactionSpaceDivide(int num_additional_objects,
-                                        int object_size,
-                                        int num_compaction_spaces,
-                                        int additional_capacity_in_bytes);
 };
 
 }  // namespace internal

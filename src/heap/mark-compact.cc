@@ -3282,18 +3282,10 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
 
   // Set up compaction spaces.
   Evacuator** evacuators = new Evacuator*[num_tasks];
-  CompactionSpaceCollection** compaction_spaces_for_tasks =
-      new CompactionSpaceCollection*[num_tasks];
   for (int i = 0; i < num_tasks; i++) {
     evacuators[i] = new Evacuator(this, evacuation_candidates_,
                                   newspace_evacuation_candidates_);
-    compaction_spaces_for_tasks[i] = evacuators[i]->compaction_spaces();
   }
-  heap()->old_space()->DivideUponCompactionSpaces(compaction_spaces_for_tasks,
-                                                  num_tasks);
-  heap()->code_space()->DivideUponCompactionSpaces(compaction_spaces_for_tasks,
-                                                   num_tasks);
-  delete[] compaction_spaces_for_tasks;
 
   // Kick off parallel tasks.
   StartParallelCompaction(evacuators, num_tasks);

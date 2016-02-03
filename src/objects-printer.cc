@@ -33,7 +33,7 @@ void Object::Print(std::ostream& os) {  // NOLINT
 
 
 void HeapObject::PrintHeader(std::ostream& os, const char* id) {  // NOLINT
-  os << reinterpret_cast<void*>(this) << ": [" << id << "]";
+  os << reinterpret_cast<void*>(this) << ": [" << id << "]\n";
 }
 
 
@@ -399,7 +399,7 @@ static void JSObjectPrintHeader(std::ostream& os, JSObject* obj,
   // Don't call GetElementsKind, its validation code can cause the printer to
   // fail when debugging.
   PrototypeIterator iter(obj->GetIsolate(), obj);
-  os << "\n - map = " << reinterpret_cast<void*>(obj->map()) << " ["
+  os << " - map = " << reinterpret_cast<void*>(obj->map()) << " ["
      << ElementsKindToString(obj->map()->elements_kind())
      << "]\n - prototype = " << reinterpret_cast<void*>(iter.GetCurrent());
 }
@@ -438,7 +438,7 @@ void JSModule::JSModulePrint(std::ostream& os) {  // NOLINT
 
 void Symbol::SymbolPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "Symbol");
-  os << "\n - hash: " << Hash();
+  os << " - hash: " << Hash();
   os << "\n - name: " << Brief(name());
   if (name()->IsUndefined()) {
     os << " (" << PrivateSymbolToName() << ")";
@@ -450,31 +450,31 @@ void Symbol::SymbolPrint(std::ostream& os) {  // NOLINT
 
 void Map::MapPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "Map");
-  os << "\n - type: " << instance_type();
-  os << "\n - instance size: " << instance_size();
+  os << " - type: " << instance_type() << "\n";
+  os << " - instance size: " << instance_size() << "\n";
   if (IsJSObjectMap()) {
-    os << "\n - inobject properties: " << GetInObjectProperties();
+    os << " - inobject properties: " << GetInObjectProperties() << "\n";
   }
-  os << "\n - elements kind: " << ElementsKindToString(elements_kind());
-  os << "\n - unused property fields: " << unused_property_fields();
-  if (is_deprecated()) os << "\n - deprecated_map";
-  if (is_stable()) os << "\n - stable_map";
-  if (is_dictionary_map()) os << "\n - dictionary_map";
-  if (is_hidden_prototype()) os << "\n - hidden_prototype";
-  if (has_named_interceptor()) os << " - named_interceptor";
-  if (has_indexed_interceptor()) os << "\n - indexed_interceptor";
-  if (is_undetectable()) os << "\n - undetectable";
-  if (is_callable()) os << "\n - callable";
-  if (is_constructor()) os << "\n - constructor";
-  if (is_access_check_needed()) os << "\n - access_check_needed";
-  if (!is_extensible()) os << "\n - non-extensible";
-  if (is_observed()) os << "\n - observed";
-  if (is_strong()) os << "\n - strong_map";
+  os << " - elements kind: " << ElementsKindToString(elements_kind()) << "\n";
+  os << " - unused property fields: " << unused_property_fields() << "\n";
+  if (is_deprecated()) os << " - deprecated_map\n";
+  if (is_stable()) os << " - stable_map\n";
+  if (is_dictionary_map()) os << " - dictionary_map\n";
+  if (is_hidden_prototype()) os << " - hidden_prototype\n";
+  if (has_named_interceptor()) os << " - named_interceptor\n";
+  if (has_indexed_interceptor()) os << " - indexed_interceptor\n";
+  if (is_undetectable()) os << " - undetectable\n";
+  if (is_callable()) os << " - callable\n";
+  if (is_constructor()) os << " - constructor\n";
+  if (is_access_check_needed()) os << " - access_check_needed\n";
+  if (!is_extensible()) os << " - non-extensible\n";
+  if (is_observed()) os << " - observed\n";
+  if (is_strong()) os << " - strong_map\n";
   if (is_prototype_map()) {
-    os << "\n - prototype_map";
-    os << "\n - prototype info: " << Brief(prototype_info());
+    os << " - prototype_map\n";
+    os << " - prototype info: " << Brief(prototype_info());
   } else {
-    os << "\n - back pointer: " << Brief(GetBackPointer());
+    os << " - back pointer: " << Brief(GetBackPointer());
   }
   os << "\n - instance descriptors " << (owns_descriptors() ? "(own) " : "")
      << "#" << NumberOfOwnDescriptors() << ": "
@@ -513,7 +513,7 @@ void PolymorphicCodeCache::PolymorphicCodeCachePrint(
 
 void TypeFeedbackInfo::TypeFeedbackInfoPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "TypeFeedbackInfo");
-  os << "\n - ic_total_count: " << ic_total_count()
+  os << " - ic_total_count: " << ic_total_count()
      << ", ic_with_type_info_count: " << ic_with_type_info_count()
      << ", ic_generic_count: " << ic_generic_count() << "\n";
 }
@@ -528,7 +528,7 @@ void AliasedArgumentsEntry::AliasedArgumentsEntryPrint(
 
 void FixedArray::FixedArrayPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "FixedArray");
-  os << "\n - length: " << length();
+  os << " - length: " << length();
   for (int i = 0; i < length(); i++) {
     os << "\n  [" << i << "]: " << Brief(get(i));
   }
@@ -538,7 +538,7 @@ void FixedArray::FixedArrayPrint(std::ostream& os) {  // NOLINT
 
 void FixedDoubleArray::FixedDoubleArrayPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "FixedDoubleArray");
-  os << "\n - length: " << length();
+  os << " - length: " << length();
   for (int i = 0; i < length(); i++) {
     os << "\n  [" << i << "]: ";
     if (is_the_hole(i)) {
@@ -553,7 +553,7 @@ void FixedDoubleArray::FixedDoubleArrayPrint(std::ostream& os) {  // NOLINT
 
 void TransitionArray::TransitionArrayPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "TransitionArray");
-  os << "\n - capacity: " << length();
+  os << " - capacity: " << length();
   for (int i = 0; i < length(); i++) {
     os << "\n  [" << i << "]: " << Brief(get(i));
     if (i == kNextLinkIndex) os << " (next link)";
@@ -574,7 +574,7 @@ void TypeFeedbackMetadata::Print() {
 void TypeFeedbackMetadata::TypeFeedbackMetadataPrint(
     std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "TypeFeedbackMetadata");
-  os << "\n - length: " << length();
+  os << " - length: " << length();
   if (length() == 0) {
     os << " (empty)\n";
     return;
@@ -599,7 +599,7 @@ void TypeFeedbackVector::Print() {
 
 void TypeFeedbackVector::TypeFeedbackVectorPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "TypeFeedbackVector");
-  os << "\n - length: " << length();
+  os << " - length: " << length();
   if (length() == 0) {
     os << " (empty)\n";
     return;
@@ -742,7 +742,7 @@ void JSDate::JSDatePrint(std::ostream& os) {  // NOLINT
 
 void JSProxy::JSProxyPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "JSProxy");
-  os << "\n - map = " << reinterpret_cast<void*>(map());
+  os << " - map = " << reinterpret_cast<void*>(map());
   os << "\n - target = ";
   target()->ShortPrint(os);
   os << "\n - handler = ";
@@ -879,7 +879,7 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
 
 void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "SharedFunctionInfo");
-  os << "\n - name: " << Brief(name());
+  os << " - name: " << Brief(name());
   os << "\n - expected_nof_properties: " << expected_nof_properties();
   os << "\n - ast_node_count: " << ast_node_count();
   os << "\n - instance class name = ";
@@ -931,14 +931,14 @@ void JSGlobalObject::JSGlobalObjectPrint(std::ostream& os) {  // NOLINT
 
 void Cell::CellPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "Cell");
-  os << "\n - value: " << Brief(value());
+  os << " - value: " << Brief(value());
   os << "\n";
 }
 
 
 void PropertyCell::PropertyCellPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "PropertyCell");
-  os << "\n - value: " << Brief(value());
+  os << " - value: " << Brief(value());
   os << "\n - details: " << property_details();
   os << "\n";
 }
@@ -1050,8 +1050,8 @@ void FunctionTemplateInfo::FunctionTemplateInfoPrint(
   HeapObject::PrintHeader(os, "FunctionTemplateInfo");
   os << "\n - class name: " << Brief(class_name());
   os << "\n - tag: " << Brief(tag());
-  os << "\n - serial_number: " << Brief(serial_number());
   os << "\n - property_list: " << Brief(property_list());
+  os << "\n - serial_number: " << Brief(serial_number());
   os << "\n - call_code: " << Brief(call_code());
   os << "\n - property_accessors: " << Brief(property_accessors());
   os << "\n - prototype_template: " << Brief(prototype_template());
@@ -1071,8 +1071,7 @@ void FunctionTemplateInfo::FunctionTemplateInfoPrint(
 
 void ObjectTemplateInfo::ObjectTemplateInfoPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "ObjectTemplateInfo");
-  os << "\n - tag: " << Brief(tag());
-  os << "\n - serial_number: " << Brief(serial_number());
+  os << " - tag: " << Brief(tag());
   os << "\n - property_list: " << Brief(property_list());
   os << "\n - property_accessors: " << Brief(property_accessors());
   os << "\n - constructor: " << Brief(constructor());
@@ -1083,7 +1082,7 @@ void ObjectTemplateInfo::ObjectTemplateInfoPrint(std::ostream& os) {  // NOLINT
 
 void AllocationSite::AllocationSitePrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "AllocationSite");
-  os << "\n - weak_next: " << Brief(weak_next());
+  os << " - weak_next: " << Brief(weak_next());
   os << "\n - dependent code: " << Brief(dependent_code());
   os << "\n - nested site: " << Brief(nested_site());
   os << "\n - memento found count: "
@@ -1107,7 +1106,7 @@ void AllocationSite::AllocationSitePrint(std::ostream& os) {  // NOLINT
 
 void AllocationMemento::AllocationMementoPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "AllocationMemento");
-  os << "\n - allocation site: ";
+  os << " - allocation site: ";
   if (IsValid()) {
     GetAllocationSite()->Print(os);
   } else {
