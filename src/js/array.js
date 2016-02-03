@@ -12,7 +12,6 @@
 // Imports
 
 var AddIndexedProperty;
-var FLAG_harmony_tolength;
 var FLAG_harmony_species;
 var GetIterator;
 var GetMethod;
@@ -48,7 +47,6 @@ utils.Import(function(from) {
 });
 
 utils.ImportFromExperimental(function(from) {
-  FLAG_harmony_tolength = from.FLAG_harmony_tolength;
   FLAG_harmony_species = from.FLAG_harmony_species;
 });
 
@@ -431,7 +429,7 @@ function ArrayToString() {
 
 
 function InnerArrayToLocaleString(array, length) {
-  var len = TO_LENGTH_OR_UINT32(length);
+  var len = TO_LENGTH(length);
   if (len === 0) return "";
   return Join(array, len, ',', ConvertToLocaleString);
 }
@@ -469,7 +467,7 @@ function ArrayJoin(separator) {
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.join");
 
   var array = TO_OBJECT(this);
-  var length = TO_LENGTH_OR_UINT32(array.length);
+  var length = TO_LENGTH(array.length);
 
   return InnerArrayJoin(separator, array, length);
 }
@@ -498,7 +496,7 @@ function ArrayPop() {
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.pop");
 
   var array = TO_OBJECT(this);
-  var n = TO_LENGTH_OR_UINT32(array.length);
+  var n = TO_LENGTH(array.length);
   if (n == 0) {
     array.length = n;
     return;
@@ -516,7 +514,7 @@ function ArrayPop() {
 
 
 function ObservedArrayPush() {
-  var n = TO_LENGTH_OR_UINT32(this.length);
+  var n = TO_LENGTH(this.length);
   var m = %_ArgumentsLength();
 
   try {
@@ -544,7 +542,7 @@ function ArrayPush() {
     return ObservedArrayPush.apply(this, arguments);
 
   var array = TO_OBJECT(this);
-  var n = TO_LENGTH_OR_UINT32(array.length);
+  var n = TO_LENGTH(array.length);
   var m = %_ArgumentsLength();
 
   // It appears that there is no enforced, absolute limit on the number of
@@ -650,7 +648,7 @@ function ArrayReverse() {
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.reverse");
 
   var array = TO_OBJECT(this);
-  var len = TO_LENGTH_OR_UINT32(array.length);
+  var len = TO_LENGTH(array.length);
   var isArray = IS_ARRAY(array);
 
   if (UseSparseVariant(array, len, isArray, len)) {
@@ -685,7 +683,7 @@ function ArrayShift() {
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.shift");
 
   var array = TO_OBJECT(this);
-  var len = TO_LENGTH_OR_UINT32(array.length);
+  var len = TO_LENGTH(array.length);
 
   if (len === 0) {
     array.length = 0;
@@ -712,7 +710,7 @@ function ArrayShift() {
 
 
 function ObservedArrayUnshift() {
-  var len = TO_LENGTH_OR_UINT32(this.length);
+  var len = TO_LENGTH(this.length);
   var num_arguments = %_ArgumentsLength();
 
   try {
@@ -739,7 +737,7 @@ function ArrayUnshift(arg1) {  // length == 1
     return ObservedArrayUnshift.apply(this, arguments);
 
   var array = TO_OBJECT(this);
-  var len = TO_LENGTH_OR_UINT32(array.length);
+  var len = TO_LENGTH(array.length);
   var num_arguments = %_ArgumentsLength();
 
   if (len > 0 && UseSparseVariant(array, len, IS_ARRAY(array), len) &&
@@ -763,7 +761,7 @@ function ArraySlice(start, end) {
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.slice");
 
   var array = TO_OBJECT(this);
-  var len = TO_LENGTH_OR_UINT32(array.length);
+  var len = TO_LENGTH(array.length);
   var start_i = TO_INTEGER(start);
   var end_i = len;
 
@@ -834,7 +832,7 @@ function ComputeSpliceDeleteCount(delete_count, num_arguments, len, start_i) {
 
 function ObservedArraySplice(start, delete_count) {
   var num_arguments = %_ArgumentsLength();
-  var len = TO_LENGTH_OR_UINT32(this.length);
+  var len = TO_LENGTH(this.length);
   var start_i = ComputeSpliceStartIndex(TO_INTEGER(start), len);
   var del_count = ComputeSpliceDeleteCount(delete_count, num_arguments, len,
                                            start_i);
@@ -881,7 +879,7 @@ function ArraySplice(start, delete_count) {
 
   var num_arguments = %_ArgumentsLength();
   var array = TO_OBJECT(this);
-  var len = TO_LENGTH_OR_UINT32(array.length);
+  var len = TO_LENGTH(array.length);
   var start_i = ComputeSpliceStartIndex(TO_INTEGER(start), len);
   var del_count = ComputeSpliceDeleteCount(delete_count, num_arguments, len,
                                            start_i);
@@ -1217,7 +1215,7 @@ function ArraySort(comparefn) {
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.sort");
 
   var array = TO_OBJECT(this);
-  var length = TO_LENGTH_OR_UINT32(array.length);
+  var length = TO_LENGTH(array.length);
   return InnerArraySort(array, length, comparefn);
 }
 
@@ -1248,7 +1246,7 @@ function ArrayFilter(f, receiver) {
   // Pull out the length so that modifications to the length in the
   // loop will not affect the looping and side effects are visible.
   var array = TO_OBJECT(this);
-  var length = TO_LENGTH_OR_UINT32(array.length);
+  var length = TO_LENGTH(array.length);
   if (!IS_CALLABLE(f)) throw MakeTypeError(kCalledNonCallable, f);
   var result = ArraySpeciesCreate(array, 0);
   return InnerArrayFilter(f, receiver, array, length, result);
@@ -1274,7 +1272,7 @@ function ArrayForEach(f, receiver) {
   // Pull out the length so that modifications to the length in the
   // loop will not affect the looping and side effects are visible.
   var array = TO_OBJECT(this);
-  var length = TO_LENGTH_OR_UINT32(array.length);
+  var length = TO_LENGTH(array.length);
   InnerArrayForEach(f, receiver, array, length);
 }
 
@@ -1301,7 +1299,7 @@ function ArraySome(f, receiver) {
   // Pull out the length so that modifications to the length in the
   // loop will not affect the looping and side effects are visible.
   var array = TO_OBJECT(this);
-  var length = TO_LENGTH_OR_UINT32(array.length);
+  var length = TO_LENGTH(array.length);
   return InnerArraySome(f, receiver, array, length);
 }
 
@@ -1325,7 +1323,7 @@ function ArrayEvery(f, receiver) {
   // Pull out the length so that modifications to the length in the
   // loop will not affect the looping and side effects are visible.
   var array = TO_OBJECT(this);
-  var length = TO_LENGTH_OR_UINT32(array.length);
+  var length = TO_LENGTH(array.length);
   return InnerArrayEvery(f, receiver, array, length);
 }
 
@@ -1336,7 +1334,7 @@ function ArrayMap(f, receiver) {
   // Pull out the length so that modifications to the length in the
   // loop will not affect the looping and side effects are visible.
   var array = TO_OBJECT(this);
-  var length = TO_LENGTH_OR_UINT32(array.length);
+  var length = TO_LENGTH(array.length);
   if (!IS_CALLABLE(f)) throw MakeTypeError(kCalledNonCallable, f);
   var result = ArraySpeciesCreate(array, length);
   var is_array = IS_ARRAY(array);
@@ -1411,7 +1409,7 @@ function InnerArrayIndexOf(array, element, index, length) {
 function ArrayIndexOf(element, index) {
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.indexOf");
 
-  var length = TO_LENGTH_OR_UINT32(this.length);
+  var length = TO_LENGTH(this.length);
   return InnerArrayIndexOf(this, element, index, length);
 }
 
@@ -1469,7 +1467,7 @@ function InnerArrayLastIndexOf(array, element, index, length, argumentsLength) {
 function ArrayLastIndexOf(element, index) {
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.lastIndexOf");
 
-  var length = TO_LENGTH_OR_UINT32(this.length);
+  var length = TO_LENGTH(this.length);
   return InnerArrayLastIndexOf(this, element, index, length,
                         %_ArgumentsLength());
 }
@@ -1508,7 +1506,7 @@ function ArrayReduce(callback, current) {
   // Pull out the length so that modifications to the length in the
   // loop will not affect the looping and side effects are visible.
   var array = TO_OBJECT(this);
-  var length = TO_LENGTH_OR_UINT32(array.length);
+  var length = TO_LENGTH(array.length);
   return InnerArrayReduce(callback, current, array, length,
                           %_ArgumentsLength());
 }
@@ -1548,7 +1546,7 @@ function ArrayReduceRight(callback, current) {
   // Pull out the length so that side effects are visible before the
   // callback function is checked.
   var array = TO_OBJECT(this);
-  var length = TO_LENGTH_OR_UINT32(array.length);
+  var length = TO_LENGTH(array.length);
   return InnerArrayReduceRight(callback, current, array, length,
                                %_ArgumentsLength());
 }
@@ -1701,7 +1699,7 @@ function ArrayFill(value, start, end) {
   CHECK_OBJECT_COERCIBLE(this, "Array.prototype.fill");
 
   var array = TO_OBJECT(this);
-  var length = TO_LENGTH_OR_UINT32(array.length);
+  var length = TO_LENGTH(array.length);
 
   return InnerArrayFill(value, start, end, array, length);
 }

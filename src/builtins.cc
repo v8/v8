@@ -1261,7 +1261,6 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
 
 bool HasConcatSpreadableModifier(Isolate* isolate, Handle<JSArray> obj) {
   DCHECK(isolate->IsFastArrayConstructorPrototypeChainIntact());
-  if (!FLAG_harmony_concat_spreadable) return false;
   Handle<Symbol> key(isolate->factory()->is_concat_spreadable_symbol());
   Maybe<bool> maybe = JSReceiver::HasProperty(obj, key);
   return maybe.FromMaybe(false);
@@ -1271,14 +1270,12 @@ bool HasConcatSpreadableModifier(Isolate* isolate, Handle<JSArray> obj) {
 static Maybe<bool> IsConcatSpreadable(Isolate* isolate, Handle<Object> obj) {
   HandleScope handle_scope(isolate);
   if (!obj->IsJSReceiver()) return Just(false);
-  if (FLAG_harmony_concat_spreadable) {
-    Handle<Symbol> key(isolate->factory()->is_concat_spreadable_symbol());
-    Handle<Object> value;
-    MaybeHandle<Object> maybeValue =
-        i::Runtime::GetObjectProperty(isolate, obj, key);
-    if (!maybeValue.ToHandle(&value)) return Nothing<bool>();
-    if (!value->IsUndefined()) return Just(value->BooleanValue());
-  }
+  Handle<Symbol> key(isolate->factory()->is_concat_spreadable_symbol());
+  Handle<Object> value;
+  MaybeHandle<Object> maybeValue =
+      i::Runtime::GetObjectProperty(isolate, obj, key);
+  if (!maybeValue.ToHandle(&value)) return Nothing<bool>();
+  if (!value->IsUndefined()) return Just(value->BooleanValue());
   return Object::IsArray(obj);
 }
 

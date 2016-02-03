@@ -148,7 +148,7 @@ void Processor::VisitIfStatement(IfStatement* node) {
   is_set_ = is_set_ && set_in_then;
   replacement_ = node;
 
-  if (FLAG_harmony_completion && !is_set_) {
+  if (!is_set_) {
     is_set_ = true;
     replacement_ = AssignUndefinedBefore(node);
   }
@@ -164,7 +164,7 @@ void Processor::VisitIterationStatement(IterationStatement* node) {
   is_set_ = is_set_ && set_after;
   replacement_ = node;
 
-  if (FLAG_harmony_completion && !is_set_) {
+  if (!is_set_) {
     is_set_ = true;
     replacement_ = AssignUndefinedBefore(node);
   }
@@ -208,7 +208,7 @@ void Processor::VisitTryCatchStatement(TryCatchStatement* node) {
   is_set_ = is_set_ && set_in_try;
   replacement_ = node;
 
-  if (FLAG_harmony_completion && !is_set_) {
+  if (!is_set_) {
     is_set_ = true;
     replacement_ = AssignUndefinedBefore(node);
   }
@@ -245,7 +245,7 @@ void Processor::VisitTryFinallyStatement(TryFinallyStatement* node) {
   node->set_try_block(replacement_->AsBlock());
   replacement_ = node;
 
-  if (FLAG_harmony_completion && !is_set_) {
+  if (!is_set_) {
     is_set_ = true;
     replacement_ = AssignUndefinedBefore(node);
   }
@@ -263,7 +263,7 @@ void Processor::VisitSwitchStatement(SwitchStatement* node) {
   is_set_ = is_set_ && set_after;
   replacement_ = node;
 
-  if (FLAG_harmony_completion && !is_set_) {
+  if (!is_set_) {
     is_set_ = true;
     replacement_ = AssignUndefinedBefore(node);
   }
@@ -287,7 +287,7 @@ void Processor::VisitWithStatement(WithStatement* node) {
   node->set_statement(replacement_);
   replacement_ = node;
 
-  if (FLAG_harmony_completion && !is_set_) {
+  if (!is_set_) {
     is_set_ = true;
     replacement_ = AssignUndefinedBefore(node);
   }

@@ -10,7 +10,6 @@
 // Imports
 
 var ExpandReplacement;
-var FLAG_harmony_tolength;
 var GlobalObject = global.Object;
 var GlobalRegExp = global.RegExp;
 var GlobalRegExpPrototype;
@@ -21,10 +20,6 @@ var matchSymbol = utils.ImportNow("match_symbol");
 var replaceSymbol = utils.ImportNow("replace_symbol");
 var searchSymbol = utils.ImportNow("search_symbol");
 var splitSymbol = utils.ImportNow("split_symbol");
-
-utils.ImportFromExperimental(function(from) {
-  FLAG_harmony_tolength = from.FLAG_harmony_tolength;
-});
 
 utils.Import(function(from) {
   ExpandReplacement = from.ExpandReplacement;
@@ -176,7 +171,7 @@ function RegExpExecJS(string) {
 
   // Conversion is required by the ES2015 specification (RegExpBuiltinExec
   // algorithm, step 4) even if the value is discarded for non-global RegExps.
-  var i = TO_LENGTH_OR_INTEGER(lastIndex);
+  var i = TO_LENGTH(lastIndex);
 
   var updateLastIndex = REGEXP_GLOBAL(this) || REGEXP_STICKY(this);
   if (updateLastIndex) {
@@ -223,7 +218,7 @@ function RegExpTest(string) {
 
   // Conversion is required by the ES2015 specification (RegExpBuiltinExec
   // algorithm, step 4) even if the value is discarded for non-global RegExps.
-  var i = TO_LENGTH_OR_INTEGER(lastIndex);
+  var i = TO_LENGTH(lastIndex);
 
   if (REGEXP_GLOBAL(this) || REGEXP_STICKY(this)) {
     if (i < 0 || i > string.length) {

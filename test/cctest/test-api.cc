@@ -24517,7 +24517,6 @@ TEST(AbortOnUncaughtExceptionNoAbort) {
 
 
 TEST(AccessCheckedIsConcatSpreadable) {
-  i::FLAG_harmony_concat_spreadable = true;
   v8::Isolate* isolate = CcTest::isolate();
   HandleScope scope(isolate);
   LocalContext env;

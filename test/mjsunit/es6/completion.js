@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-completion --harmony-sloppy-let --no-legacy-const
+// Flags: --harmony-sloppy-let --no-legacy-const
 
 
 function assertUndef(x) {

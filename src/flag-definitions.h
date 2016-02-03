@@ -224,11 +224,8 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
   V(harmony_default_parameters, "harmony default parameters")             \
   V(harmony_destructuring_assignment, "harmony destructuring assignment") \
   V(harmony_destructuring_bind, "harmony destructuring bind")             \
-  V(harmony_concat_spreadable, "harmony isConcatSpreadable")              \
   V(harmony_object_observe, "harmony Object.observe")                     \
-  V(harmony_tolength, "harmony ToLength")                                 \
   V(harmony_tostring, "harmony toString")                                 \
-  V(harmony_completion, "harmony completion value semantics")             \
   V(harmony_regexps, "harmony regular expression extensions")             \
   V(harmony_sloppy, "harmony features in sloppy mode")                    \
   V(harmony_sloppy_let, "harmony let in sloppy mode")                     \

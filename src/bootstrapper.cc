@@ -2294,7 +2294,6 @@ void Bootstrapper::ExportExperimentalFromRuntime(Isolate* isolate,
   }
 
   INITIALIZE_FLAG(FLAG_harmony_tostring)
-  INITIALIZE_FLAG(FLAG_harmony_tolength)
   INITIALIZE_FLAG(FLAG_harmony_species)
 
 #undef INITIALIZE_FLAG
@@ -2314,8 +2313,6 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_destructuring_assignment)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_object_observe)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexps)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_unicode_regexps)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_completion)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_tolength)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_do_expressions)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexp_lookbehind)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_function_name)
@@ -2341,13 +2338,6 @@ void Genesis::InitializeGlobal_harmony_tostring() {
   if (!FLAG_harmony_tostring) return;
   InstallPublicSymbol(factory(), native_context(), "toStringTag",
                       factory()->to_string_tag_symbol());
-}
-
-
-void Genesis::InitializeGlobal_harmony_concat_spreadable() {
-  if (!FLAG_harmony_concat_spreadable) return;
-  InstallPublicSymbol(factory(), native_context(), "isConcatSpreadable",
-                      factory()->is_concat_spreadable_symbol());
 }
 
 
@@ -2948,11 +2938,8 @@ bool Genesis::InstallExperimentalNatives() {
       "native harmony-object-observe.js", nullptr};
   static const char* harmony_sharedarraybuffer_natives[] = {
       "native harmony-sharedarraybuffer.js", "native harmony-atomics.js", NULL};
-  static const char* harmony_concat_spreadable_natives[] = {nullptr};
   static const char* harmony_simd_natives[] = {"native harmony-simd.js",
                                                nullptr};
-  static const char* harmony_tolength_natives[] = {nullptr};
-  static const char* harmony_completion_natives[] = {nullptr};
   static const char* harmony_do_expressions_natives[] = {nullptr};
   static const char* harmony_regexp_subclass_natives[] = {nullptr};
   static const char* harmony_regexp_lookbehind_natives[] = {nullptr};

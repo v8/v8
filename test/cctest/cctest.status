@@ -745,6 +745,7 @@
   'test-heap/AddInstructionChangesNewSpacePromotion': [PASS, FAIL],
   'test-api/ExternalWrap': [PASS, FAIL],
   'test-decls/CrossScriptReferencesHarmony': [PASS, FAIL],
+  'test-lockers/IsolateNestedLocking': [PASS, FAIL],
 }],  # ignition == True and arch == arm64
 
 ]
