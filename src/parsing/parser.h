@@ -656,8 +656,14 @@ class ParserTraits {
       ObjectLiteralProperty* property, const ExpressionClassifier* classifier,
       bool* ok);
 
+  Expression* RewriteYieldStar(
+      Expression* generator, Expression* expression, int pos);
+
  private:
   Parser* parser_;
+
+  void BuildIteratorClose(ZoneList<Statement*>* statements, Variable* iterator,
+                          Maybe<Variable*> input);
 };
 
 
@@ -754,6 +760,7 @@ class Parser : public ParserBase<ParserTraits> {
                                 ZoneList<const AstRawString*>* names,
                                 bool* ok);
   DoExpression* ParseDoExpression(bool* ok);
+  Expression* ParseYieldStarExpression(bool* ok);
 
   struct DeclarationDescriptor {
     enum Kind { NORMAL, PARAMETER };

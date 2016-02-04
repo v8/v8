@@ -397,39 +397,17 @@ TestGenerator(
     "foo",
     [42, undefined]);
 
-// Test that yield* re-yields received results without re-boxing.
-function TestDelegatingYield() {
-  function results(results) {
-    var i = 0;
-    function next() {
-      return results[i++];
-    }
-    var iter = { next: next };
-    var ret = {};
-    ret[Symbol.iterator] = function() { return iter; };
-    return ret;
-  }
-  function* yield_results(expected) {
-    return yield* results(expected);
-  }
-  function collect_results(iterable) {
-    var iter = iterable[Symbol.iterator]();
-    var ret = [];
-    var result;
-    do {
-      result = iter.next();
-      ret.push(result);
-    } while (!result.done);
-    return ret;
-  }
-  // We have to put a full result for the end, because the return will re-box.
-  var expected = [{value: 1}, 13, "foo", {value: 34, done: true}];
-
-  // Sanity check.
-  assertEquals(expected, collect_results(results(expected)));
-  assertEquals(expected, collect_results(yield_results(expected)));
+// Test that yield* validates iterator results.
+function TestDelegatingYield(junk) {
+  var iterator = {next: () => junk};
+  var iterable = {[Symbol.iterator]: () => iterator};
+  function* g() { return yield* iterable };
+  assertThrows(() => g().next(), TypeError);
 }
 TestDelegatingYield();
+TestDelegatingYield(null);
+TestDelegatingYield(42);
+TestDelegatingYield(true);
 
 function TestTryCatch(instantiate) {
   function* g() { yield 1; try { yield 2; } catch (e) { yield e; } yield 3; }
@@ -681,3 +659,16 @@ function TestRecursion() {
   assertThrows(TestThrowRecursion, Error);
 }
 TestRecursion();
+
+
+// Test yield* on non-iterable objects.
+function* g(junk) { return yield* junk }
+var non_iterables = [
+  42,
+  {[Symbol.iterator]: 42},
+  {[Symbol.iterator]: () => 42},
+  {[Symbol.iterator]: () => ({next: 42})},
+];
+for (let junk of non_iterables) {
+  assertThrows(() => g(junk).next(), TypeError);
+}

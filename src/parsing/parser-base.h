@@ -2160,10 +2160,7 @@ ParserBase<Traits>::ParseYieldExpression(ExpressionClassifier* classifier,
     }
   }
   if (kind == Yield::kDelegating) {
-    // var iterator = subject[Symbol.iterator]();
-    // Hackily disambiguate o from o.next and o [Symbol.iterator]().
-    // TODO(verwaest): Come up with a better solution.
-    expression = this->GetIterator(expression, factory(), pos + 1);
+    return Traits::RewriteYieldStar(generator_object, expression, pos);
   }
   // Hackily disambiguate o from o.next and o [Symbol.iterator]().
   // TODO(verwaest): Come up with a better solution.

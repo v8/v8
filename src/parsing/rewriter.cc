@@ -225,6 +225,7 @@ void Processor::VisitTryFinallyStatement(TryFinallyStatement* node) {
      // at the end again: ".backup = .result; ...; .result = .backup"
      // This is necessary because the finally block does not normally contribute
      // to the completion value.
+    CHECK(scope() != nullptr);
     Variable* backup = scope()->NewTemporary(
         factory()->ast_value_factory()->dot_result_string());
     Expression* backup_proxy = factory()->NewVariableProxy(backup);
