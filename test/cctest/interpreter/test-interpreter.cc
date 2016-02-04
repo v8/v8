@@ -3792,6 +3792,67 @@ TEST(InterpreterWithStatement) {
   }
 }
 
+TEST(InterpreterClassLiterals) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  std::pair<const char*, Handle<Object>> examples[] = {
+      {"class C {\n"
+       "  constructor(x) { this.x_ = x; }\n"
+       "  method() { return this.x_; }\n"
+       "}\n"
+       "return new C(99).method();",
+       handle(Smi::FromInt(99), isolate)},
+      {"class C {\n"
+       "  constructor(x) { this.x_ = x; }\n"
+       "  static static_method(x) { return x; }\n"
+       "}\n"
+       "return C.static_method(101);",
+       handle(Smi::FromInt(101), isolate)},
+      {"class C {\n"
+       "  get x() { return 102; }\n"
+       "}\n"
+       "return new C().x",
+       handle(Smi::FromInt(102), isolate)},
+      {"class C {\n"
+       "  static get x() { return 103; }\n"
+       "}\n"
+       "return C.x",
+       handle(Smi::FromInt(103), isolate)},
+      {"class C {\n"
+       "  constructor() { this.x_ = 0; }"
+       "  set x(value) { this.x_ = value; }\n"
+       "  get x() { return this.x_; }\n"
+       "}\n"
+       "var c = new C();"
+       "c.x = 104;"
+       "return c.x;",
+       handle(Smi::FromInt(104), isolate)},
+      {"var x = 0;"
+       "class C {\n"
+       "  static set x(value) { x = value; }\n"
+       "  static get x() { return x; }\n"
+       "}\n"
+       "C.x = 105;"
+       "return C.x;",
+       handle(Smi::FromInt(105), isolate)},
+      {"var method = 'f';"
+       "class C {\n"
+       "  [method]() { return 106; }\n"
+       "}\n"
+       "return new C().f();",
+       handle(Smi::FromInt(106), isolate)},
+  };
+
+  for (size_t i = 0; i < arraysize(examples); ++i) {
+    std::string source(InterpreterTester::SourceForBody(examples[i].first));
+    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*examples[i].second));
+  }
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

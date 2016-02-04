@@ -80,6 +80,11 @@ class BytecodeGenerator final : public AstVisitor {
 
   void VisitArgumentsObject(Variable* variable);
   void VisitRestArgumentsArray(Variable* rest, int index);
+  void VisitClassLiteralContents(ClassLiteral* expr);
+  void VisitClassLiteralForRuntimeDefinition(ClassLiteral* expr);
+  void VisitClassLiteralProperties(ClassLiteral* expr, Register literal,
+                                   Register prototype);
+  void VisitClassLiteralStaticPrototypeWithComputedName(Register name);
   void VisitThisFunctionVariable(Variable* variable);
   void VisitNewTargetVariable(Variable* variable);
   void VisitNewLocalFunctionContext();
@@ -104,9 +109,10 @@ class BytecodeGenerator final : public AstVisitor {
 
   // Visitors for obtaining expression result in the accumulator, in a
   // register, or just getting the effect.
-  void VisitForAccumulatorValue(Expression* expression);
-  MUST_USE_RESULT Register VisitForRegisterValue(Expression* expression);
-  void VisitForEffect(Expression* node);
+  void VisitForAccumulatorValue(Expression* expr);
+  void VisitForAccumulatorValueOrTheHole(Expression* expr);
+  MUST_USE_RESULT Register VisitForRegisterValue(Expression* expr);
+  void VisitForEffect(Expression* expr);
 
   // Methods for tracking and remapping register.
   void RecordStoreToRegister(Register reg);

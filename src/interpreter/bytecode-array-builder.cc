@@ -326,6 +326,10 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadBooleanConstant(bool value) {
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadPrototypeOrInitialMap() {
+  Output(Bytecode::kLdaInitialMap);
+  return *this;
+}
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadAccumulatorWithRegister(
     Register reg) {

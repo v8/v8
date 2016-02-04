@@ -841,6 +841,17 @@ void Interpreter::DoKeyedStoreICStrictWide(
   DoKeyedStoreIC(ic, assembler);
 }
 
+// LdaInitialMap
+//
+// Loads the prototype or initial map of the JSFunction referenced by
+// the accumulator. The result is placed in the accumulator.
+void Interpreter::DoLdaInitialMap(compiler::InterpreterAssembler* assembler) {
+  Node* js_function = __ GetAccumulator();
+  Node* initial_map =
+      __ LoadObjectField(js_function, JSFunction::kPrototypeOrInitialMapOffset);
+  __ SetAccumulator(initial_map);
+  __ Dispatch();
+}
 
 // PushContext <context>
 //

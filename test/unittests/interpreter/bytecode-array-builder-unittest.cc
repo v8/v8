@@ -55,6 +55,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.MoveRegister(reg, other);
   builder.MoveRegister(reg, wide);
 
+  // Prototype info for classes.
+  builder.LoadPrototypeOrInitialMap();
+
   // Emit global load / store operations.
   Factory* factory = isolate()->factory();
   Handle<String> name = factory->NewStringFromStaticChars("var_name");

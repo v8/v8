@@ -1228,9 +1228,148 @@ void BytecodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
 
 
 void BytecodeGenerator::VisitClassLiteral(ClassLiteral* expr) {
-  UNIMPLEMENTED();
+  if (expr->scope()->ContextLocalCount() > 0) {
+    VisitNewLocalBlockContext(expr->scope());
+    ContextScope scope(this, expr->scope());
+    VisitDeclarations(expr->scope()->declarations());
+    VisitClassLiteralContents(expr);
+  } else {
+    VisitDeclarations(expr->scope()->declarations());
+    VisitClassLiteralContents(expr);
+  }
 }
 
+void BytecodeGenerator::VisitClassLiteralContents(ClassLiteral* expr) {
+  VisitClassLiteralForRuntimeDefinition(expr);
+  // The prototype is ensured to exist by Runtime_DefineClass in
+  // VisitClassForRuntimeDefinition. No access check is needed here
+  // since the constructor is created by the class literal.
+  register_allocator()->PrepareForConsecutiveAllocations(2);
+  Register literal = register_allocator()->NextConsecutiveRegister();
+  Register prototype = register_allocator()->NextConsecutiveRegister();
+  builder()
+      ->StoreAccumulatorInRegister(literal)
+      .LoadPrototypeOrInitialMap()
+      .StoreAccumulatorInRegister(prototype);
+
+  VisitClassLiteralProperties(expr, literal, prototype);
+  builder()->CallRuntime(Runtime::kFinalizeClassDefinition, literal, 2);
+  // Assign to class variable.
+  if (expr->class_variable_proxy() != nullptr) {
+    Variable* var = expr->class_variable_proxy()->var();
+    FeedbackVectorSlot slot = expr->NeedsProxySlot()
+                                  ? expr->ProxySlot()
+                                  : FeedbackVectorSlot::Invalid();
+    VisitVariableAssignment(var, slot);
+  }
+  execution_result()->SetResultInAccumulator();
+}
+
+void BytecodeGenerator::VisitClassLiteralForRuntimeDefinition(
+    ClassLiteral* expr) {
+  AccumulatorResultScope result_scope(this);
+  register_allocator()->PrepareForConsecutiveAllocations(4);
+  Register extends = register_allocator()->NextConsecutiveRegister();
+  Register constructor = register_allocator()->NextConsecutiveRegister();
+  Register start_position = register_allocator()->NextConsecutiveRegister();
+  Register end_position = register_allocator()->NextConsecutiveRegister();
+
+  VisitForAccumulatorValueOrTheHole(expr->extends());
+  builder()->StoreAccumulatorInRegister(extends);
+
+  VisitForAccumulatorValue(expr->constructor());
+  builder()
+      ->StoreAccumulatorInRegister(constructor)
+      .LoadLiteral(Smi::FromInt(expr->start_position()))
+      .StoreAccumulatorInRegister(start_position)
+      .LoadLiteral(Smi::FromInt(expr->end_position()))
+      .StoreAccumulatorInRegister(end_position)
+      .CallRuntime(Runtime::kDefineClass, extends, 4);
+  result_scope.SetResultInAccumulator();
+}
+
+void BytecodeGenerator::VisitClassLiteralProperties(ClassLiteral* expr,
+                                                    Register literal,
+                                                    Register prototype) {
+  RegisterAllocationScope register_scope(this);
+  register_allocator()->PrepareForConsecutiveAllocations(4);
+  Register receiver = register_allocator()->NextConsecutiveRegister();
+  Register key = register_allocator()->NextConsecutiveRegister();
+  Register value = register_allocator()->NextConsecutiveRegister();
+  Register attr = register_allocator()->NextConsecutiveRegister();
+
+  bool attr_assigned = false;
+  Register old_receiver = Register::invalid_value();
+
+  // Create nodes to store method values into the literal.
+  for (int i = 0; i < expr->properties()->length(); i++) {
+    ObjectLiteral::Property* property = expr->properties()->at(i);
+
+    // Set-up receiver.
+    Register new_receiver = property->is_static() ? literal : prototype;
+    if (new_receiver != old_receiver) {
+      builder()->MoveRegister(new_receiver, receiver);
+      old_receiver = new_receiver;
+    }
+
+    VisitForAccumulatorValue(property->key());
+    builder()->CastAccumulatorToName().StoreAccumulatorInRegister(key);
+    // The static prototype property is read only. We handle the non computed
+    // property name case in the parser. Since this is the only case where we
+    // need to check for an own read only property we special case this so we do
+    // not need to do this for every property.
+    if (property->is_static() && property->is_computed_name()) {
+      VisitClassLiteralStaticPrototypeWithComputedName(key);
+    }
+    VisitForAccumulatorValue(property->value());
+    builder()->StoreAccumulatorInRegister(value);
+
+    VisitSetHomeObject(value, receiver, property);
+
+    if ((property->kind() == ObjectLiteral::Property::GETTER ||
+         property->kind() == ObjectLiteral::Property::SETTER) &&
+        !attr_assigned) {
+      builder()
+          ->LoadLiteral(Smi::FromInt(DONT_ENUM))
+          .StoreAccumulatorInRegister(attr);
+      attr_assigned = true;
+    }
+
+    switch (property->kind()) {
+      case ObjectLiteral::Property::CONSTANT:
+      case ObjectLiteral::Property::MATERIALIZED_LITERAL:
+      case ObjectLiteral::Property::PROTOTYPE:
+        // Invalid properties for ES6 classes.
+        UNREACHABLE();
+        break;
+      case ObjectLiteral::Property::COMPUTED: {
+        builder()->CallRuntime(Runtime::kDefineClassMethod, receiver, 3);
+        break;
+      }
+      case ObjectLiteral::Property::GETTER: {
+        builder()->CallRuntime(Runtime::kDefineGetterPropertyUnchecked,
+                               receiver, 4);
+        break;
+      }
+      case ObjectLiteral::Property::SETTER: {
+        builder()->CallRuntime(Runtime::kDefineSetterPropertyUnchecked,
+                               receiver, 4);
+        break;
+      }
+    }
+  }
+}
+
+void BytecodeGenerator::VisitClassLiteralStaticPrototypeWithComputedName(
+    Register key) {
+  BytecodeLabel done;
+  builder()
+      ->LoadLiteral(isolate()->factory()->prototype_string())
+      .CompareOperation(Token::Value::EQ_STRICT, key, Strength::WEAK)
+      .JumpIfFalse(&done)
+      .CallRuntime(Runtime::kThrowStaticPrototypeError, Register(0), 0)
+      .Bind(&done);
+}
 
 void BytecodeGenerator::VisitNativeFunctionLiteral(
     NativeFunctionLiteral* expr) {
@@ -2520,6 +2659,13 @@ void BytecodeGenerator::VisitForAccumulatorValue(Expression* expr) {
   Visit(expr);
 }
 
+void BytecodeGenerator::VisitForAccumulatorValueOrTheHole(Expression* expr) {
+  if (expr == nullptr) {
+    builder()->LoadTheHole();
+  } else {
+    VisitForAccumulatorValue(expr);
+  }
+}
 
 // Visits the expression |expr| and discards the result.
 void BytecodeGenerator::VisitForEffect(Expression* expr) {

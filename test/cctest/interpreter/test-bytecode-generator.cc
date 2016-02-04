@@ -15,6 +15,8 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
+static const InstanceType kInstanceTypeDontCare = static_cast<InstanceType>(-1);
+
 class BytecodeGeneratorHelper {
  public:
   const char* kFunctionName = "f";
@@ -191,7 +193,9 @@ static void CheckConstant(Handle<Object> expected, Object* actual) {
 
 
 static void CheckConstant(InstanceType expected, Object* actual) {
-  CHECK_EQ(expected, HeapObject::cast(actual)->map()->instance_type());
+  if (expected != kInstanceTypeDontCare) {
+    CHECK_EQ(expected, HeapObject::cast(actual)->map()->instance_type());
+  }
 }
 
 
@@ -8375,6 +8379,210 @@ TEST(DoDebugger) {
   Handle<BytecodeArray> bytecode_array =
       helper.MakeBytecodeForFunctionBody(snippet.code_snippet);
   CheckBytecodeArrayEqual(snippet, bytecode_array);
+}
+
+TEST(ClassDeclarations) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+
+  int closure = Register::function_closure().index();
+  int context = Register::current_context().index();
+
+  // clang-format off
+  ExpectedSnippet<InstanceType, 12> snippets[] = {
+    {"class Person {\n"
+     "  constructor(name) { this.name = name; }\n"
+     "  speak() { console.log(this.name + ' is speaking.'); }\n"
+     "}\n",
+     8 * kPointerSize,
+     1,
+     61,
+     {
+       B(LdaTheHole),                                                        //
+       B(Star), R(1),                                                        //
+       B(StackCheck),                                                        //
+       B(LdaTheHole),                                                        //
+       B(Star), R(0),                                                        //
+       B(LdaTheHole),                                                        //
+       B(Star), R(2),                                                        //
+       B(CreateClosure), U8(0), U8(0),                                       //
+       B(Star), R(3),                                                        //
+       B(LdaSmi8), U8(15),                                                   //
+       B(Star), R(4),                                                        //
+       B(LdaConstant), U8(1),                                                //
+       B(Star), R(5),                                                        //
+       B(CallRuntime), U16(Runtime::kDefineClass), R(2), U8(4),              //
+       B(Star), R(2),                                                        //
+       B(LdaInitialMap),                                                     //
+       B(Star), R(3),                                                        //
+       B(Mov), R(3), R(4),                                                   //
+       B(LdaConstant), U8(2),                                                //
+       B(Star), R(5),                                                        //
+       B(CreateClosure), U8(3), U8(0),                                       //
+       B(Star), R(6),                                                        //
+       B(CallRuntime), U16(Runtime::kDefineClassMethod), R(4), U8(3),        //
+       B(CallRuntime), U16(Runtime::kFinalizeClassDefinition), R(2), U8(2),  //
+       B(Star), R(0),                                                        //
+       B(Star), R(1),                                                        //
+       B(LdaUndefined),                                                      //
+       B(Return)                                                             //
+     },
+     4,
+     { InstanceType::SHARED_FUNCTION_INFO_TYPE, kInstanceTypeDontCare,
+       InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+       InstanceType::SHARED_FUNCTION_INFO_TYPE}},
+    {"class person {\n"
+     "  constructor(name) { this.name = name; }\n"
+     "  speak() { console.log(this.name + ' is speaking.'); }\n"
+     "}\n",
+     8 * kPointerSize,
+     1,
+     61,
+     {
+       B(LdaTheHole),                                                        //
+       B(Star), R(1),                                                        //
+       B(StackCheck),                                                        //
+       B(LdaTheHole),                                                        //
+       B(Star), R(0),                                                        //
+       B(LdaTheHole),                                                        //
+       B(Star), R(2),                                                        //
+       B(CreateClosure), U8(0), U8(0),                                       //
+       B(Star), R(3),                                                        //
+       B(LdaSmi8), U8(15),                                                   //
+       B(Star), R(4),                                                        //
+       B(LdaConstant), U8(1),                                                //
+       B(Star), R(5),                                                        //
+       B(CallRuntime), U16(Runtime::kDefineClass), R(2), U8(4),              //
+       B(Star), R(2),                                                        //
+       B(LdaInitialMap),                                                     //
+       B(Star), R(3),                                                        //
+       B(Mov), R(3), R(4),                                                   //
+       B(LdaConstant), U8(2),                                                //
+       B(Star), R(5),                                                        //
+       B(CreateClosure), U8(3), U8(0),                                       //
+       B(Star), R(6),                                                        //
+       B(CallRuntime), U16(Runtime::kDefineClassMethod), R(4), U8(3),        //
+       B(CallRuntime), U16(Runtime::kFinalizeClassDefinition), R(2), U8(2),  //
+       B(Star), R(0),                                                        //
+       B(Star), R(1),                                                        //
+       B(LdaUndefined),                                                      //
+       B(Return)                                                             //
+     },
+     4,
+     { InstanceType::SHARED_FUNCTION_INFO_TYPE, kInstanceTypeDontCare,
+       InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+       InstanceType::SHARED_FUNCTION_INFO_TYPE}},
+    {"var n0 = 'a';"
+     "var n1 = 'b';"
+     "class N {\n"
+     "  [n0]() { return n0; }\n"
+     "  static [n1]() { return n1; }\n"
+     "}\n",
+     9 * kPointerSize,
+     1,
+     110,
+     {
+       B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure),        //
+       /*           */ U8(1),                                                //
+       B(PushContext), R(2),                                                 //
+       B(LdaTheHole),                                                        //
+       B(Star), R(1),                                                        //
+       B(StackCheck),                                                        //
+       B(LdaConstant), U8(0),                                                //
+       B(StaContextSlot),  R(context), U8(4),                                //
+       B(LdaConstant), U8(1),                                                //
+       B(StaContextSlot),  R(context), U8(5),                                //
+       B(LdaTheHole),                                                        //
+       B(Star), R(0),                                                        //
+       B(LdaTheHole),                                                        //
+       B(Star), R(3),                                                        //
+       B(CreateClosure), U8(2), U8(0),                                       //
+       B(Star), R(4),                                                        //
+       B(LdaSmi8), U8(41),                                                   //
+       B(Star), R(5),                                                        //
+       B(LdaSmi8), U8(107),                                                  //
+       B(Star), R(6),                                                        //
+       B(CallRuntime), U16(Runtime::kDefineClass), R(3), U8(4),              //
+       B(Star), R(3),                                                        //
+       B(LdaInitialMap),                                                     //
+       B(Star), R(4),                                                        //
+       B(Mov), R(4), R(5),                                                   //
+       B(LdaContextSlot), R(context), U8(4),                                 //
+       B(ToName),                                                            //
+       B(Star), R(6),                                                        //
+       B(CreateClosure), U8(3), U8(0),                                       //
+       B(Star), R(7),                                                        //
+       B(CallRuntime), U16(Runtime::kDefineClassMethod), R(5), U8(3),        //
+       B(Mov), R(3), R(5),                                                   //
+       B(LdaContextSlot), R(context), U8(5),                                 //
+       B(ToName),                                                            //
+       B(Star), R(6),                                                        //
+       B(LdaConstant), U8(4),                                                //
+       B(TestEqualStrict), R(6),                                             //
+       B(JumpIfFalse), U8(7),                                                //
+       B(CallRuntime), U16(Runtime::kThrowStaticPrototypeError),             //
+       /*           */ R(0), U8(0),                                          //
+       B(CreateClosure), U8(5), U8(0),                                       //
+       B(Star), R(7),                                                        //
+       B(CallRuntime), U16(Runtime::kDefineClassMethod), R(5), U8(3),        //
+       B(CallRuntime), U16(Runtime::kFinalizeClassDefinition), R(3), U8(2),  //
+       B(Star), R(0),                                                        //
+       B(Star), R(1),                                                        //
+       B(LdaUndefined),                                                      //
+       B(Return),                                                            //
+     },
+     6,
+     { InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+       InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+       InstanceType::SHARED_FUNCTION_INFO_TYPE,
+       InstanceType::SHARED_FUNCTION_INFO_TYPE,
+       InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+       InstanceType::SHARED_FUNCTION_INFO_TYPE}},
+    {"var count = 0;\n"
+     "class C { constructor() { count++; }}\n"
+     "return new C();\n",
+     9 * kPointerSize,
+     1,
+     60,
+     {
+       B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure), U8(1),  //
+       B(PushContext), R(2),                                                  //
+       B(LdaTheHole),                                                         //
+       B(Star), R(1),                                                         //
+       B(StackCheck),                                                         //
+       B(LdaZero),                                                            //
+       B(StaContextSlot), R(context), U8(4),                                  //
+       B(LdaTheHole),                                                         //
+       B(Star), R(0),                                                         //
+       B(LdaTheHole),                                                         //
+       B(Star), R(3),                                                         //
+       B(CreateClosure), U8(0), U8(0),                                        //
+       B(Star), R(4),                                                         //
+       B(LdaSmi8), U8(30),                                                    //
+       B(Star), R(5),                                                         //
+       B(LdaSmi8), U8(67),                                                    //
+       B(Star), R(6),                                                         //
+       B(CallRuntime), U16(Runtime::kDefineClass), R(3), U8(4),               //
+       B(Star), R(3),                                                         //
+       B(LdaInitialMap),                                                      //
+       B(Star), R(4),                                                         //
+       B(CallRuntime), U16(Runtime::kFinalizeClassDefinition), R(3), U8(2),   //
+       B(Star), R(0),                                                         //
+       B(Star), R(1),                                                         //
+       B(Star), R(3),                                                         //
+       B(New), R(3), R(0), U8(0),                                             //
+       B(Return),                                                             //
+     },
+     1,
+     { InstanceType::SHARED_FUNCTION_INFO_TYPE}},
+  };
+  // clang-format on
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
 }
 
 }  // namespace interpreter

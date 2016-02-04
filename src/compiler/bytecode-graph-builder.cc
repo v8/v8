@@ -964,6 +964,13 @@ void BytecodeGraphBuilder::VisitKeyedStoreICStrictWide() {
   BuildKeyedStore();
 }
 
+void BytecodeGraphBuilder::VisitLdaInitialMap() {
+  Node* js_function = environment()->LookupAccumulator();
+  Node* load = BuildLoadObjectField(js_function,
+                                    JSFunction::kPrototypeOrInitialMapOffset);
+  environment()->BindAccumulator(load);
+}
+
 void BytecodeGraphBuilder::VisitPushContext() {
   Node* new_context = environment()->LookupAccumulator();
   environment()->BindRegister(bytecode_iterator().GetRegisterOperand(0),

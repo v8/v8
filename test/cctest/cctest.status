@@ -556,8 +556,10 @@
   'test-inobject-slack-tracking/SubclassPromiseBuiltin': [FAIL],
   'test-api/Regress470113': [FAIL],
   'test-api/SubclassGetConstructorName': [FAIL],
-  'test-api/ClassPrototypeCreationContext': [FAIL],
-  'test-run-jsops/ClassLiteral': [FAIL],
+
+  # BUG(4333). Function name inferrer does not work for ES6 clases.
+  'test-func-name-inference/UpperCaseClass': [TIMEOUT],
+  'test-func-name-inference/LowerCaseClass': [TIMEOUT],
 
   # TODO(rmcilroy,4681): Requires support for generators.
   'test-inobject-slack-tracking/JSGeneratorObjectBasic': [FAIL],
