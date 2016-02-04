@@ -116,6 +116,8 @@ class VirtualObject : public ZoneObject {
     return true;
   }
   bool UpdateFrom(const VirtualObject& other);
+  bool MergeFrom(MergeCache* cache, Node* at, Graph* graph,
+                 CommonOperatorBuilder* common);
   void SetObjectState(Node* node) { object_state_ = node; }
   Node* GetObjectState() const { return object_state_; }
   bool IsCopyRequired() const { return status_ & kCopyRequired; }
@@ -131,6 +133,9 @@ class VirtualObject : public ZoneObject {
   void id(NodeId id) { id_ = id; }
 
  private:
+  bool MergeFields(size_t i, Node* at, MergeCache* cache, Graph* graph,
+                   CommonOperatorBuilder* common);
+
   NodeId id_;
   StatusFlags status_;
   ZoneVector<Node*> fields_;
@@ -176,14 +181,10 @@ class VirtualState : public ZoneObject {
   }
 
   VirtualObject* VirtualObjectFromAlias(size_t alias);
-  VirtualObject* GetOrCreateTrackedVirtualObject(Alias alias, NodeId id,
-                                                 size_t fields,
-                                                 bool initialized, Zone* zone,
-                                                 bool force_copy);
   void SetVirtualObject(Alias alias, VirtualObject* state);
   bool UpdateFrom(VirtualState* state, Zone* zone);
   bool MergeFrom(MergeCache* cache, Zone* zone, Graph* graph,
-                 CommonOperatorBuilder* common, Node* control, int arity);
+                 CommonOperatorBuilder* common, Node* at);
   size_t size() const { return info_.size(); }
   Node* owner() const { return owner_; }
   VirtualObject* Copy(VirtualObject* obj, Alias alias);
@@ -288,19 +289,6 @@ VirtualObject* VirtualState::VirtualObjectFromAlias(size_t alias) {
   return info_[alias];
 }
 
-VirtualObject* VirtualState::GetOrCreateTrackedVirtualObject(
-    Alias alias, NodeId id, size_t field_number, bool initialized, Zone* zone,
-    bool force_copy) {
-  if (!force_copy) {
-    if (VirtualObject* obj = VirtualObjectFromAlias(alias)) {
-      return obj;
-    }
-  }
-  VirtualObject* obj = new (zone) VirtualObject(id, this, zone, 0, initialized);
-  SetVirtualObject(alias, obj);
-  return obj;
-}
-
 void VirtualState::SetVirtualObject(Alias alias, VirtualObject* obj) {
   info_[alias] = obj;
 }
@@ -362,19 +350,72 @@ bool IsEquivalentPhi(Node* phi, ZoneVector<Node*>& inputs) {
 
 }  // namespace
 
-Node* EscapeAnalysis::GetReplacementIfSame(ZoneVector<VirtualObject*>& objs) {
-  Node* rep = GetReplacement(objs.front()->id());
-  for (VirtualObject* obj : objs) {
-    if (GetReplacement(obj->id()) != rep) {
-      return nullptr;
+bool VirtualObject::MergeFields(size_t i, Node* at, MergeCache* cache,
+                                Graph* graph, CommonOperatorBuilder* common) {
+  bool changed = false;
+  int value_input_count = static_cast<int>(cache->fields().size());
+  Node* rep = GetField(i);
+  if (!rep || !IsCreatedPhi(i)) {
+    Node* control = NodeProperties::GetControlInput(at);
+    cache->fields().push_back(control);
+    Node* phi = graph->NewNode(
+        common->Phi(MachineRepresentation::kTagged, value_input_count),
+        value_input_count + 1, &cache->fields().front());
+    SetField(i, phi, true);
+#ifdef DEBUG
+    if (FLAG_trace_turbo_escape) {
+      PrintF("    Creating Phi #%d as merge of", phi->id());
+      for (int i = 0; i < value_input_count; i++) {
+        PrintF(" #%d (%s)", cache->fields()[i]->id(),
+               cache->fields()[i]->op()->mnemonic());
+      }
+      PrintF("\n");
+    }
+#endif
+    changed = true;
+  } else {
+    DCHECK(rep->opcode() == IrOpcode::kPhi);
+    for (int n = 0; n < value_input_count; ++n) {
+      Node* old = NodeProperties::GetValueInput(rep, n);
+      if (old != cache->fields()[n]) {
+        changed = true;
+        NodeProperties::ReplaceValueInput(rep, cache->fields()[n], n);
+      }
     }
   }
-  return rep;
+  return changed;
+}
+
+bool VirtualObject::MergeFrom(MergeCache* cache, Node* at, Graph* graph,
+                              CommonOperatorBuilder* common) {
+  DCHECK(at->opcode() == IrOpcode::kEffectPhi ||
+         at->opcode() == IrOpcode::kPhi);
+  bool changed = false;
+  for (size_t i = 0; i < field_count(); ++i) {
+    if (Node* field = cache->GetFields(i)) {
+      changed = changed || GetField(i) != field;
+      SetField(i, field);
+      TRACE("    Field %zu agree on rep #%d\n", i, field->id());
+    } else {
+      int arity = at->opcode() == IrOpcode::kEffectPhi
+                      ? at->op()->EffectInputCount()
+                      : at->op()->ValueInputCount();
+      if (cache->fields().size() == arity) {
+        changed = MergeFields(i, at, cache, graph, common) || changed;
+      } else {
+        if (GetField(i) != nullptr) {
+          TRACE("    Field %zu cleared\n", i);
+          changed = true;
+        }
+        SetField(i, nullptr);
+      }
+    }
+  }
+  return changed;
 }
 
 bool VirtualState::MergeFrom(MergeCache* cache, Zone* zone, Graph* graph,
-                             CommonOperatorBuilder* common, Node* control,
-                             int arity) {
+                             CommonOperatorBuilder* common, Node* at) {
   DCHECK_GT(cache->states().size(), 0u);
   bool changed = false;
   for (Alias alias = 0; alias < size(); ++alias) {
@@ -387,16 +428,26 @@ bool VirtualState::MergeFrom(MergeCache* cache, Zone* zone, Graph* graph,
         cache->objects().push_back(obj);
         if (mergeObject == obj) {
           copy_merge_object = true;
-          changed = true;
         }
         fields = std::min(obj->field_count(), fields);
       }
     }
     if (cache->objects().size() == cache->states().size()) {
-      mergeObject = GetOrCreateTrackedVirtualObject(
-          alias, cache->objects().front()->id(),
-          cache->objects().front()->IsInitialized(), fields, zone,
-          copy_merge_object);
+      if (!mergeObject) {
+        VirtualObject* obj = new (zone)
+            VirtualObject(cache->objects().front()->id(), this, zone, fields,
+                          cache->objects().front()->IsInitialized());
+        SetVirtualObject(alias, obj);
+        mergeObject = obj;
+        changed = true;
+      } else if (copy_merge_object) {
+        VirtualObject* obj = new (zone) VirtualObject(this, *mergeObject);
+        SetVirtualObject(alias, obj);
+        mergeObject = obj;
+        changed = true;
+      } else {
+        changed = mergeObject->ResizeFields(fields) || changed;
+      }
 #ifdef DEBUG
       if (FLAG_trace_turbo_escape) {
         PrintF("  Alias @%d, merging into %p virtual objects", alias,
@@ -407,53 +458,7 @@ bool VirtualState::MergeFrom(MergeCache* cache, Zone* zone, Graph* graph,
         PrintF("\n");
       }
 #endif  // DEBUG
-      changed = mergeObject->ResizeFields(fields) || changed;
-      for (size_t i = 0; i < fields; ++i) {
-        if (Node* field = cache->GetFields(i)) {
-          changed = changed || mergeObject->GetField(i) != field;
-          mergeObject->SetField(i, field);
-          TRACE("    Field %zu agree on rep #%d\n", i, field->id());
-        } else {
-          int value_input_count = static_cast<int>(cache->fields().size());
-          if (cache->fields().size() == arity) {
-            Node* rep = mergeObject->GetField(i);
-            if (!rep || !mergeObject->IsCreatedPhi(i)) {
-              cache->fields().push_back(control);
-              Node* phi = graph->NewNode(
-                  common->Phi(MachineRepresentation::kTagged,
-                              value_input_count),
-                  value_input_count + 1, &cache->fields().front());
-              mergeObject->SetField(i, phi, true);
-#ifdef DEBUG
-              if (FLAG_trace_turbo_escape) {
-                PrintF("    Creating Phi #%d as merge of", phi->id());
-                for (int i = 0; i < value_input_count; i++) {
-                  PrintF(" #%d (%s)", cache->fields()[i]->id(),
-                         cache->fields()[i]->op()->mnemonic());
-                }
-                PrintF("\n");
-              }
-#endif  // DEBUG
-              changed = true;
-            } else {
-              DCHECK(rep->opcode() == IrOpcode::kPhi);
-              for (int n = 0; n < value_input_count; ++n) {
-                Node* old = NodeProperties::GetValueInput(rep, n);
-                if (old != cache->fields()[n]) {
-                  changed = true;
-                  NodeProperties::ReplaceValueInput(rep, cache->fields()[n], n);
-                }
-              }
-            }
-          } else {
-            if (mergeObject->GetField(i) != nullptr) {
-              TRACE("    Field %zu cleared\n", i);
-              changed = true;
-            }
-            mergeObject->SetField(i, nullptr);
-          }
-        }
-      }
+      changed = mergeObject->MergeFrom(cache, at, graph, common) || changed;
     } else {
       if (mergeObject) {
         TRACE("  Alias %d, virtual object removed\n", alias);
@@ -471,7 +476,7 @@ EscapeStatusAnalysis::EscapeStatusAnalysis(EscapeAnalysis* object_analysis,
       object_analysis_(object_analysis),
       graph_(graph),
       zone_(zone),
-      status_(graph->NodeCount(), kUnknown, zone),
+      status_(zone),
       next_free_alias_(0),
       status_stack_(zone),
       aliases_(zone) {}
@@ -777,11 +782,8 @@ void EscapeAnalysis::Run() {
 void EscapeStatusAnalysis::AssignAliases() {
   size_t max_size = 1024;
   size_t min_size = 32;
-  size_t stack_size = std::min(
-      std::max(
-          std::min(graph()->NodeCount() / 5, graph()->NodeCount() / 20 + 128),
-          min_size),
-      max_size);
+  size_t stack_size =
+      std::min(std::max(graph()->NodeCount() / 5, min_size), max_size);
   stack_.reserve(stack_size);
   ResizeStatusVector();
   stack_.push_back(graph()->end());
@@ -1001,7 +1003,8 @@ void EscapeAnalysis::ProcessAllocationUsers(Node* node) {
         break;
       default:
         VirtualState* state = virtual_states_[node->id()];
-        if (VirtualObject* obj = ResolveVirtualObject(state, input)) {
+        if (VirtualObject* obj =
+                GetVirtualObject(state, ResolveReplacement(input))) {
           if (!obj->AllFieldsClear()) {
             obj = CopyForModificationAt(obj, state, node);
             obj->ClearAllFields();
@@ -1113,10 +1116,8 @@ bool EscapeAnalysis::ProcessEffectPhi(Node* node) {
     return changed;
   }
 
-  changed = mergeState->MergeFrom(cache_, zone(), graph(), common(),
-                                  NodeProperties::GetControlInput(node),
-                                  node->op()->EffectInputCount()) ||
-            changed;
+  changed =
+      mergeState->MergeFrom(cache_, zone(), graph(), common(), node) || changed;
 
   TRACE("Merge %s the node.\n", changed ? "changed" : "did not change");
 
@@ -1242,11 +1243,6 @@ VirtualObject* EscapeAnalysis::GetVirtualObject(Node* at, NodeId id) {
   return nullptr;
 }
 
-VirtualObject* EscapeAnalysis::ResolveVirtualObject(VirtualState* state,
-                                                    Node* node) {
-  return GetVirtualObject(state, ResolveReplacement(node));
-}
-
 bool EscapeAnalysis::CompareVirtualObjects(Node* left, Node* right) {
   DCHECK(IsVirtual(left) && IsVirtual(right));
   left = ResolveReplacement(left);
@@ -1262,13 +1258,13 @@ int EscapeAnalysis::OffsetFromAccess(Node* node) {
   return OpParameter<FieldAccess>(node).offset / kPointerSize;
 }
 
-void EscapeAnalysis::ProcessLoadFromPhi(int offset, Node* from, Node* node,
+void EscapeAnalysis::ProcessLoadFromPhi(int offset, Node* from, Node* load,
                                         VirtualState* state) {
-  TRACE("Load #%d from phi #%d", node->id(), from->id());
+  TRACE("Load #%d from phi #%d", load->id(), from->id());
 
   cache_->fields().clear();
-  for (int i = 0; i < node->op()->ValueInputCount(); ++i) {
-    Node* input = NodeProperties::GetValueInput(node, i);
+  for (int i = 0; i < load->op()->ValueInputCount(); ++i) {
+    Node* input = NodeProperties::GetValueInput(load, i);
     cache_->fields().push_back(input);
   }
 
@@ -1277,7 +1273,7 @@ void EscapeAnalysis::ProcessLoadFromPhi(int offset, Node* from, Node* node,
   if (cache_->objects().size() == cache_->fields().size()) {
     cache_->GetFields(offset);
     if (cache_->fields().size() == cache_->objects().size()) {
-      Node* rep = replacement(node);
+      Node* rep = replacement(load);
       if (!rep || !IsEquivalentPhi(rep, cache_->fields())) {
         int value_input_count = static_cast<int>(cache_->fields().size());
         cache_->fields().push_back(NodeProperties::GetControlInput(from));
@@ -1285,7 +1281,7 @@ void EscapeAnalysis::ProcessLoadFromPhi(int offset, Node* from, Node* node,
             common()->Phi(MachineRepresentation::kTagged, value_input_count),
             value_input_count + 1, &cache_->fields().front());
         status_analysis_.ResizeStatusVector();
-        SetReplacement(node, phi);
+        SetReplacement(load, phi);
         TRACE(" got phi created.\n");
       } else {
         TRACE(" has already phi #%d.\n", rep->id());
@@ -1441,8 +1437,8 @@ Node* EscapeAnalysis::GetOrCreateObjectState(Node* effect, Node* node) {
   if ((node->opcode() == IrOpcode::kFinishRegion ||
        node->opcode() == IrOpcode::kAllocate) &&
       IsVirtual(node)) {
-    if (VirtualObject* vobj =
-            ResolveVirtualObject(virtual_states_[effect->id()], node)) {
+    if (VirtualObject* vobj = GetVirtualObject(virtual_states_[effect->id()],
+                                               ResolveReplacement(node))) {
       if (Node* object_state = vobj->GetObjectState()) {
         return object_state;
       } else {

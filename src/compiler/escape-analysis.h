@@ -149,8 +149,6 @@ class EscapeAnalysis {
   VirtualObject* CopyForModificationAt(VirtualObject* obj, VirtualState* state,
                                        Node* node);
   VirtualObject* GetVirtualObject(Node* at, NodeId id);
-  VirtualObject* ResolveVirtualObject(VirtualState* state, Node* node);
-  Node* GetReplacementIfSame(ZoneVector<VirtualObject*>& objs);
 
   bool SetEscaped(Node* node);
   Node* replacement(NodeId id);

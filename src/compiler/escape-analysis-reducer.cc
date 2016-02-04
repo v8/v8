@@ -133,6 +133,9 @@ Reduction EscapeAnalysisReducer::ReduceStore(Node* node) {
 
 Reduction EscapeAnalysisReducer::ReduceAllocate(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kAllocate);
+  if (node->id() < static_cast<NodeId>(fully_reduced_.length())) {
+    fully_reduced_.Add(node->id());
+  }
   if (escape_analysis()->IsVirtual(node)) {
     RelaxEffectsAndControls(node);
     counters()->turbo_escape_allocs_replaced()->Increment();
@@ -147,6 +150,8 @@ Reduction EscapeAnalysisReducer::ReduceFinishRegion(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kFinishRegion);
   Node* effect = NodeProperties::GetEffectInput(node, 0);
   if (effect->opcode() == IrOpcode::kBeginRegion) {
+    // We only add it now to remove empty Begin/Finish region pairs
+    // in the process.
     if (node->id() < static_cast<NodeId>(fully_reduced_.length())) {
       fully_reduced_.Add(node->id());
     }
@@ -208,6 +213,9 @@ Reduction EscapeAnalysisReducer::ReduceObjectIsSmi(Node* node) {
 
 Reduction EscapeAnalysisReducer::ReduceFrameStateUses(Node* node) {
   DCHECK_GE(node->op()->EffectInputCount(), 1);
+  if (node->id() < static_cast<NodeId>(fully_reduced_.length())) {
+    fully_reduced_.Add(node->id());
+  }
   bool changed = false;
   for (int i = 0; i < node->InputCount(); ++i) {
     Node* input = node->InputAt(i);
