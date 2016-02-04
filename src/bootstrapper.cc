@@ -2459,6 +2459,19 @@ void Genesis::InitializeGlobal_harmony_object_values_entries() {
                         Builtins::kObjectValues, 1, false);
 }
 
+void Genesis::InitializeGlobal_harmony_object_own_property_descriptors() {
+  if (!FLAG_harmony_object_own_property_descriptors) return;
+
+  Handle<JSGlobalObject> global(
+      JSGlobalObject::cast(native_context()->global_object()));
+  Isolate* isolate = global->GetIsolate();
+  Factory* factory = isolate->factory();
+
+  Handle<JSFunction> object_function = isolate->object_function();
+  SimpleInstallFunction(object_function,
+                        factory->getOwnPropertyDescriptors_string(),
+                        Builtins::kObjectGetOwnPropertyDescriptors, 1, false);
+}
 
 void Genesis::InstallJSProxyMaps() {
   // Allocate the different maps for all Proxy types.
@@ -2948,6 +2961,8 @@ bool Genesis::InstallExperimentalNatives() {
   static const char* promise_extra_natives[] = {"native promise-extra.js",
                                                 nullptr};
   static const char* harmony_object_values_entries_natives[] = {nullptr};
+  static const char* harmony_object_own_property_descriptors_natives[] = {
+      nullptr};
 
   for (int i = ExperimentalNatives::GetDebuggerCount();
        i < ExperimentalNatives::GetBuiltinsCount(); i++) {

@@ -203,16 +203,18 @@ DEFINE_IMPLICATION(es_staging, harmony_regexp_lookbehind)
 DEFINE_IMPLICATION(es_staging, move_object_start)
 
 // Features that are still work in progress (behind individual flags).
-#define HARMONY_INPROGRESS(V)                                 \
-  V(harmony_modules, "harmony modules")                       \
-  V(harmony_function_name, "harmony Function name inference") \
-  V(harmony_function_sent, "harmony function.sent")           \
-  V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")   \
-  V(harmony_simd, "harmony simd")                             \
-  V(harmony_do_expressions, "harmony do-expressions")         \
-  V(harmony_tailcalls, "harmony tail calls")                  \
-  V(harmony_species, "harmony Symbol.species")                \
-  V(harmony_object_values_entries, "harmony Object.values / Object.entries")
+#define HARMONY_INPROGRESS(V)                                                \
+  V(harmony_modules, "harmony modules")                                      \
+  V(harmony_function_name, "harmony Function name inference")                \
+  V(harmony_function_sent, "harmony function.sent")                          \
+  V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")                  \
+  V(harmony_simd, "harmony simd")                                            \
+  V(harmony_do_expressions, "harmony do-expressions")                        \
+  V(harmony_tailcalls, "harmony tail calls")                                 \
+  V(harmony_species, "harmony Symbol.species")                               \
+  V(harmony_object_values_entries, "harmony Object.values / Object.entries") \
+  V(harmony_object_own_property_descriptors,                                 \
+    "harmony Object.getOwnPropertyDescriptors()")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED(V)                                   \

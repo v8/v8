@@ -1800,6 +1800,43 @@ BUILTIN(ObjectEntries) {
   return *isolate->factory()->NewJSArrayWithElements(keys);
 }
 
+BUILTIN(ObjectGetOwnPropertyDescriptors) {
+  HandleScope scope(isolate);
+  Handle<Object> object = args.atOrUndefined(isolate, 1);
+  Handle<Object> undefined = isolate->factory()->undefined_value();
+
+  Handle<JSReceiver> receiver;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, receiver,
+                                     Object::ToObject(isolate, object));
+
+  Handle<FixedArray> keys;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, keys, JSReceiver::GetKeys(receiver, OWN_ONLY, ALL_PROPERTIES,
+                                         CONVERT_TO_STRING));
+
+  Handle<Object> descriptors =
+      isolate->factory()->NewJSObject(isolate->object_function());
+
+  for (int i = 0; i < keys->length(); ++i) {
+    Handle<Name> key = Handle<Name>::cast(FixedArray::get(*keys, i, isolate));
+    PropertyDescriptor descriptor;
+    Maybe<bool> did_get_descriptor = JSReceiver::GetOwnPropertyDescriptor(
+        isolate, receiver, key, &descriptor);
+    MAYBE_RETURN(did_get_descriptor, isolate->heap()->exception());
+
+    Handle<Object> from_descriptor = did_get_descriptor.FromJust()
+                                         ? descriptor.ToObject(isolate)
+                                         : undefined;
+
+    LookupIterator it = LookupIterator::PropertyOrElement(
+        isolate, descriptors, key, LookupIterator::OWN);
+    Maybe<bool> success = JSReceiver::CreateDataProperty(&it, from_descriptor,
+                                                         Object::DONT_THROW);
+    CHECK(success.FromJust());
+  }
+
+  return *descriptors;
+}
 
 // ES6 section 19.1.2.15 Object.preventExtensions ( O )
 BUILTIN(ObjectPreventExtensions) {
