@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --ignition --ignition-filter=f
+// Flags: --ignition-filter=f
 // Flags: --no-turbo
 
 // TODO(yangguo): fix for turbofan
