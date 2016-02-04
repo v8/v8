@@ -278,6 +278,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .BinaryOperation(Token::Value::ADD, reg, Strength::WEAK)
       .JumpIfFalse(&start);
 
+  builder.Debugger();
+
   builder.Return();
 
   // Generate BytecodeArray.

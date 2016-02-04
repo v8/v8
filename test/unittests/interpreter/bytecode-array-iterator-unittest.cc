@@ -45,6 +45,7 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
       .LoadNamedProperty(reg_1, name, feedback_slot, LanguageMode::SLOPPY)
       .StoreAccumulatorInRegister(reg_2)
       .CallRuntime(Runtime::kLoadIC_Miss, reg_0, 1)
+      .Debugger()
       .Return();
 
   // Test iterator sees the expected output from the builder.
@@ -95,6 +96,10 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
            Runtime::kLoadIC_Miss);
   CHECK_EQ(iterator.GetRegisterOperand(1).index(), reg_0.index());
   CHECK_EQ(iterator.GetCountOperand(2), 1);
+  CHECK(!iterator.done());
+  iterator.Advance();
+
+  CHECK_EQ(iterator.current_bytecode(), Bytecode::kDebugger);
   CHECK(!iterator.done());
   iterator.Advance();
 

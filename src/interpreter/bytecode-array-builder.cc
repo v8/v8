@@ -989,6 +989,10 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Return() {
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::Debugger() {
+  Output(Bytecode::kDebugger);
+  return *this;
+}
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::ForInPrepare(
     Register cache_info_triple) {

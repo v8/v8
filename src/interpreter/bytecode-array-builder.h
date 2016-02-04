@@ -242,6 +242,9 @@ class BytecodeArrayBuilder final : public ZoneObject, private RegisterMover {
   BytecodeArrayBuilder& ReThrow();
   BytecodeArrayBuilder& Return();
 
+  // Debugger.
+  BytecodeArrayBuilder& Debugger();
+
   // Complex flow control.
   BytecodeArrayBuilder& ForInPrepare(Register cache_info_triple);
   BytecodeArrayBuilder& ForInDone(Register index, Register cache_length);

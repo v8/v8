@@ -1824,6 +1824,13 @@ void Interpreter::DoReturn(compiler::InterpreterAssembler* assembler) {
   __ Return();
 }
 
+// Debugger
+//
+// Call runtime to handle debugger statement.
+void Interpreter::DoDebugger(compiler::InterpreterAssembler* assembler) {
+  __ CallRuntime(Runtime::kHandleDebuggerStatement);
+  __ Dispatch();
+}
 
 // ForInPrepare <cache_info_triple>
 //

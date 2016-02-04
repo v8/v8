@@ -8352,6 +8352,31 @@ TEST(WithStatement) {
   }
 }
 
+TEST(DoDebugger) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+
+  // clang-format off
+  ExpectedSnippet<const char*> snippet = {
+      "debugger;",
+       0,
+       1,
+       4,
+       {
+           B(StackCheck),    //
+           B(Debugger),      //
+           B(LdaUndefined),  //
+           B(Return)         //
+       },
+       0
+  };
+  // clang-format on
+
+  Handle<BytecodeArray> bytecode_array =
+      helper.MakeBytecodeForFunctionBody(snippet.code_snippet);
+  CheckBytecodeArrayEqual(snippet, bytecode_array);
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

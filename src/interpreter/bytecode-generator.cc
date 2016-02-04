@@ -1212,7 +1212,7 @@ void BytecodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
 
 
 void BytecodeGenerator::VisitDebuggerStatement(DebuggerStatement* stmt) {
-  UNIMPLEMENTED();
+  builder()->Debugger();
 }
 
 

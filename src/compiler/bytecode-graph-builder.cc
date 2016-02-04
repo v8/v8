@@ -1518,6 +1518,13 @@ void BytecodeGraphBuilder::VisitReturn() {
   MergeControlToLeaveFunction(control);
 }
 
+void BytecodeGraphBuilder::VisitDebugger() {
+  FrameStateBeforeAndAfter states(this);
+  Node* call =
+      NewNode(javascript()->CallRuntime(Runtime::kHandleDebuggerStatement));
+  environment()->BindAccumulator(call, &states);
+}
+
 void BytecodeGraphBuilder::BuildForInPrepare() {
   FrameStateBeforeAndAfter states(this);
   Node* receiver = environment()->LookupAccumulator();
