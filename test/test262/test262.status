@@ -453,6 +453,10 @@
   'built-ins/Array/prototype/indexOf/15.4.4.14-5-9': [FAIL],
   'built-ins/Array/prototype/lastIndexOf/15.4.4.15-5-9': [FAIL],
 
+  # https://github.com/tc39/test262/issues/489
+  # Test will pass in 0 or -GMT, but fail in +GMT
+  'language/statements/class/subclass/builtin-objects/Date/regular-subclassing': [PASS, FAIL_OK],
+
   ############################ SKIPPED TESTS #############################
 
   # These tests take a looong time to run.
