@@ -726,6 +726,7 @@
 
 ['ignition == True and arch == arm64', {
   # TODO(rmcilroy,4680): Arm64 specific crashes.
+  'test-api/ExternalWrap': [SKIP],
   'test-heap/NoWeakHashTableLeakWithIncrementalMarking': [SKIP],
 
   # TODO(rmcilroy,4680): Arm64 flakes.
@@ -734,7 +735,6 @@
   'test-api/InitializeDefaultIsolateOnSecondaryThread1': [PASS, FAIL],
   'test-heap/Regress538257': [PASS, FAIL],
   'test-heap/AddInstructionChangesNewSpacePromotion': [PASS, FAIL],
-  'test-api/ExternalWrap': [PASS, FAIL],
   'test-decls/CrossScriptReferencesHarmony': [PASS, FAIL],
   'test-lockers/IsolateNestedLocking': [PASS, FAIL],
 }],  # ignition == True and arch == arm64
