@@ -426,6 +426,7 @@ static v8::CpuProfile* RunProfiler(v8::Local<v8::Context> env,
   v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
   v8::Local<v8::String> profile_name = v8_str("my_profile");
 
+  cpu_profiler->SetSamplingInterval(100);
   cpu_profiler->StartProfiling(profile_name, collect_samples);
 
   i::Sampler* sampler =
@@ -537,6 +538,9 @@ static const ProfileNode* GetSimpleBranch(v8::Local<v8::Context> context,
   return reinterpret_cast<const ProfileNode*>(node);
 }
 
+static void CallCollectSample(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  info.GetIsolate()->GetCpuProfiler()->CollectSample();
+}
 
 static const char* cpu_profiler_test_source = "function loop(timeout) {\n"
 "  this.mmm = 0;\n"
@@ -1608,10 +1612,6 @@ static const char* js_force_collect_sample_source =
     "  CallCollectSample();\n"
     "}";
 
-static void CallCollectSample(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  info.GetIsolate()->GetCpuProfiler()->CollectSample();
-}
-
 TEST(CollectSampleAPI) {
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
@@ -1633,6 +1633,70 @@ TEST(CollectSampleAPI) {
   const v8::CpuProfileNode* startNode = GetChild(env, root, "start");
   CHECK_LE(1, startNode->GetChildrenCount());
   GetChild(env, startNode, "CallCollectSample");
+
+  profile->Delete();
+}
+
+static const char* js_native_js_runtime_multiple_test_source =
+    "function foo() {\n"
+    "  CallCollectSample();"
+    "  return Math.sin(Math.random());\n"
+    "}\n"
+    "var bound = foo.bind(this);\n"
+    "function bar() {\n"
+    "  try { return bound(); } catch(e) {}\n"
+    "}\n"
+    "function start() {\n"
+    "  try {\n"
+    "    startProfiling('my_profile');\n"
+    "    var startTime = Date.now();\n"
+    "    do {\n"
+    "      CallJsFunction(bar);\n"
+    "    } while (Date.now() - startTime < 200);\n"
+    "  } catch(e) {}\n"
+    "}";
+
+// The test check multiple entrances/exits between JS and native code.
+//
+// [Top down]:
+//    (root) #0 1
+//      start #16 3
+//        CallJsFunction #0 4
+//          bar #16 5
+//            foo #16 6
+//              CallCollectSample
+//      (program) #0 2
+TEST(JsNativeJsRuntimeJsSampleMultiple) {
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Context::Scope context_scope(env);
+
+  v8::Local<v8::FunctionTemplate> func_template =
+      v8::FunctionTemplate::New(env->GetIsolate(), CallJsFunction);
+  v8::Local<v8::Function> func =
+      func_template->GetFunction(env).ToLocalChecked();
+  func->SetName(v8_str("CallJsFunction"));
+  env->Global()->Set(env, v8_str("CallJsFunction"), func).FromJust();
+
+  func_template =
+      v8::FunctionTemplate::New(env->GetIsolate(), CallCollectSample);
+  func = func_template->GetFunction(env).ToLocalChecked();
+  func->SetName(v8_str("CallCollectSample"));
+  env->Global()->Set(env, v8_str("CallCollectSample"), func).FromJust();
+
+  CompileRun(js_native_js_runtime_multiple_test_source);
+  v8::Local<v8::Function> function = GetFunction(env, "start");
+
+  v8::CpuProfile* profile = RunProfiler(env, function, NULL, 0, 1000);
+
+  const v8::CpuProfileNode* root = profile->GetTopDownRoot();
+  const v8::CpuProfileNode* startNode = GetChild(env, root, "start");
+  const v8::CpuProfileNode* nativeFunctionNode =
+      GetChild(env, startNode, "CallJsFunction");
+
+  const v8::CpuProfileNode* barNode = GetChild(env, nativeFunctionNode, "bar");
+  const v8::CpuProfileNode* fooNode = GetChild(env, barNode, "foo");
+  GetChild(env, fooNode, "CallCollectSample");
 
   profile->Delete();
 }

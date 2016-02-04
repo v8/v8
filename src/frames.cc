@@ -235,16 +235,7 @@ SafeStackFrameIterator::SafeStackFrameIterator(
   if (SingletonFor(type) == NULL) return;
   frame_ = SingletonFor(type, &state);
   DCHECK(frame_);
-
   Advance();
-
-  if (frame_ != NULL && !frame_->is_exit() &&
-      external_callback_scope_ != NULL &&
-      external_callback_scope_->scope_address() < frame_->fp()) {
-    // Skip top ExternalCallbackScope if we already advanced to a JS frame
-    // under it. Sampler will anyways take this top external callback.
-    external_callback_scope_ = external_callback_scope_->previous();
-  }
 }
 
 
@@ -329,22 +320,30 @@ bool SafeStackFrameIterator::IsValidExitFrame(Address fp) const {
 void SafeStackFrameIterator::Advance() {
   while (true) {
     AdvanceOneFrame();
-    if (done()) return;
-    if (frame_->is_java_script()) return;
-    if (frame_->is_exit() && external_callback_scope_) {
+    if (done()) break;
+    ExternalCallbackScope* last_callback_scope = NULL;
+    while (external_callback_scope_ != NULL &&
+           external_callback_scope_->scope_address() < frame_->fp()) {
+      // As long as the setup of a frame is not atomic, we may happen to be
+      // in an interval where an ExternalCallbackScope is already created,
+      // but the frame is not yet entered. So we are actually observing
+      // the previous frame.
+      // Skip all the ExternalCallbackScope's that are below the current fp.
+      last_callback_scope = external_callback_scope_;
+      external_callback_scope_ = external_callback_scope_->previous();
+    }
+    if (frame_->is_java_script()) break;
+    if (frame_->is_exit()) {
       // Some of the EXIT frames may have ExternalCallbackScope allocated on
       // top of them. In that case the scope corresponds to the first EXIT
       // frame beneath it. There may be other EXIT frames on top of the
       // ExternalCallbackScope, just skip them as we cannot collect any useful
       // information about them.
-      if (external_callback_scope_->scope_address() < frame_->fp()) {
+      if (last_callback_scope) {
         frame_->state_.pc_address =
-            external_callback_scope_->callback_entrypoint_address();
-        external_callback_scope_ = external_callback_scope_->previous();
-        DCHECK(external_callback_scope_ == NULL ||
-               external_callback_scope_->scope_address() > frame_->fp());
-        return;
+            last_callback_scope->callback_entrypoint_address();
       }
+      break;
     }
   }
 }
