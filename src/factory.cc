@@ -1205,7 +1205,7 @@ Handle<JSFunction> Factory::NewFunction(Handle<Map> map,
   function->set_code(info->code());
   function->set_context(*context);
   function->set_prototype_or_initial_map(*the_hole_value());
-  function->set_literals(LiteralsArray::cast(*empty_fixed_array()));
+  function->set_literals(LiteralsArray::cast(*empty_literals_array()));
   function->set_next_function_link(*undefined_value(), SKIP_WRITE_BARRIER);
   isolate()->heap()->InitializeJSObjectBody(*function, *map, JSFunction::kSize);
   return function;
@@ -1371,11 +1371,12 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
 
   if (cached.literals != nullptr) {
     result->set_literals(cached.literals);
-  } else {
+  } else if (info->is_compiled()) {
     int number_of_literals = info->num_literals();
+    Handle<TypeFeedbackVector> vector =
+        TypeFeedbackVector::New(isolate(), handle(info->feedback_metadata()));
     Handle<LiteralsArray> literals =
-        LiteralsArray::New(isolate(), handle(info->feedback_vector()),
-                           number_of_literals, pretenure);
+        LiteralsArray::New(isolate(), vector, number_of_literals, pretenure);
     result->set_literals(*literals);
 
     // Cache context-specific literals.
@@ -2081,16 +2082,15 @@ void Factory::ReinitializeJSGlobalProxy(Handle<JSGlobalProxy> object,
   object->set_hash(*hash);
 }
 
-
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
     Handle<String> name, int number_of_literals, FunctionKind kind,
     Handle<Code> code, Handle<ScopeInfo> scope_info,
-    Handle<TypeFeedbackVector> feedback_vector) {
+    Handle<TypeFeedbackMetadata> feedback_metadata) {
   DCHECK(IsValidFunctionKind(kind));
   Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo(
       name, code, IsConstructable(kind, scope_info->language_mode()));
   shared->set_scope_info(*scope_info);
-  shared->set_feedback_vector(*feedback_vector);
+  shared->set_feedback_metadata(*feedback_metadata);
   shared->set_kind(kind);
   shared->set_num_literals(number_of_literals);
   if (IsGeneratorFunction(kind)) {
@@ -2146,9 +2146,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
   StaticFeedbackVectorSpec empty_spec;
   Handle<TypeFeedbackMetadata> feedback_metadata =
       TypeFeedbackMetadata::New(isolate(), &empty_spec);
-  Handle<TypeFeedbackVector> feedback_vector =
-      TypeFeedbackVector::New(isolate(), feedback_metadata);
-  share->set_feedback_vector(*feedback_vector, SKIP_WRITE_BARRIER);
+  share->set_feedback_metadata(*feedback_metadata, SKIP_WRITE_BARRIER);
 #if TRACE_MAPS
   share->set_unique_id(isolate()->GetNextUniqueSharedFunctionInfoId());
 #endif

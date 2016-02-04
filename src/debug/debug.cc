@@ -1157,15 +1157,13 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
   List<Handle<JSFunction> > functions;
   List<Handle<JSGeneratorObject> > suspended_generators;
 
-  // Flush all optimized code maps. Note that the below heap iteration does not
+  // Flush all optimized code. Note that the below heap iteration does not
   // cover this, because the given function might have been inlined into code
   // for which no JSFunction exists.
   {
     SharedFunctionInfo::Iterator iterator(isolate_);
     while (SharedFunctionInfo* shared = iterator.Next()) {
-      if (!shared->OptimizedCodeMapIsCleared()) {
-        shared->ClearOptimizedCodeMap();
-      }
+      shared->ClearCodeFromOptimizedCodeMap();
     }
   }
 
@@ -1207,6 +1205,7 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
 
   for (Handle<JSFunction> const function : functions) {
     function->ReplaceCode(shared->code());
+    JSFunction::EnsureLiterals(function);
   }
 
   for (Handle<JSGeneratorObject> const generator_obj : suspended_generators) {
