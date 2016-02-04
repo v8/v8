@@ -2362,11 +2362,6 @@ void Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
   parsing_result->descriptor.declaration_pos = peek_position();
   parsing_result->descriptor.initialization_pos = peek_position();
   parsing_result->descriptor.mode = VAR;
-  // True if the binding needs initialization. 'let' and 'const' declared
-  // bindings are created uninitialized by their declaration nodes and
-  // need initialization. 'var' declared bindings are always initialized
-  // immediately by their declaration nodes.
-  parsing_result->descriptor.needs_init = false;
   if (peek() == Token::VAR) {
     if (is_strong(language_mode())) {
       Scanner::Location location = scanner()->peek_location();
@@ -2385,12 +2380,10 @@ void Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
       DCHECK(var_context != kStatement);
       parsing_result->descriptor.mode = CONST;
     }
-    parsing_result->descriptor.needs_init = true;
   } else if (peek() == Token::LET && allow_let()) {
     Consume(Token::LET);
     DCHECK(var_context != kStatement);
     parsing_result->descriptor.mode = LET;
-    parsing_result->descriptor.needs_init = true;
   } else {
     UNREACHABLE();  // by current callers
   }
@@ -2401,7 +2394,6 @@ void Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
 
   bool first_declaration = true;
   int bindings_start = peek_position();
-  bool is_for_iteration_variable;
   do {
     FuncNameInferrer::State fni_state(fni_);
 
@@ -2428,10 +2420,6 @@ void Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
       }
     }
 
-    bool is_pattern =
-        (pattern->IsObjectLiteral() || pattern->IsArrayLiteral()) &&
-        !pattern->is_parenthesized();
-
     Scanner::Location variable_loc = scanner()->location();
     const AstRawString* single_name =
         pattern->IsVariableProxy() ? pattern->AsVariableProxy()->raw_name()
@@ -2440,17 +2428,7 @@ void Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
       if (fni_ != NULL) fni_->PushVariableName(single_name);
     }
 
-    is_for_iteration_variable =
-        var_context == kForStatement &&
-        (peek() == Token::IN || PeekContextualKeyword(CStrVector("of")));
-    if (is_for_iteration_variable &&
-        (parsing_result->descriptor.mode == CONST ||
-         parsing_result->descriptor.mode == CONST_LEGACY)) {
-      parsing_result->descriptor.needs_init = false;
-    }
-
     Expression* value = NULL;
-    // Harmony consts have non-optional initializers.
     int initializer_position = RelocInfo::kNoPosition;
     if (Check(Token::ASSIGN)) {
       ExpressionClassifier classifier;
@@ -2482,22 +2460,29 @@ void Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
       // End position of the initializer is after the assignment expression.
       initializer_position = scanner()->location().end_pos;
     } else {
-      if ((parsing_result->descriptor.mode == CONST || is_pattern) &&
-          !is_for_iteration_variable) {
-        ParserTraits::ReportMessageAt(
-            Scanner::Location(decl_pos, scanner()->location().end_pos),
-            MessageTemplate::kDeclarationMissingInitializer,
-            is_pattern ? "destructuring" : "const");
-        *ok = false;
-        return;
+      // Initializers may be either required or implied unless this is a
+      // for-in/of iteration variable.
+      if (var_context != kForStatement || !PeekInOrOf()) {
+        // ES6 'const' and binding patterns require initializers.
+        if (parsing_result->descriptor.mode == CONST ||
+            !pattern->IsVariableProxy()) {
+          ParserTraits::ReportMessageAt(
+              Scanner::Location(decl_pos, scanner()->location().end_pos),
+              MessageTemplate::kDeclarationMissingInitializer,
+              !pattern->IsVariableProxy() ? "destructuring" : "const");
+          *ok = false;
+          return;
+        }
+
+        // 'let x' and (legacy) 'const x' initialize 'x' to undefined.
+        if (parsing_result->descriptor.mode == LET ||
+            parsing_result->descriptor.mode == CONST_LEGACY) {
+          value = GetLiteralUndefined(position());
+        }
       }
+
       // End position of the initializer is after the variable.
       initializer_position = position();
-    }
-
-    // Make sure that 'const x' and 'let x' initialize 'x' to undefined.
-    if (value == NULL && parsing_result->descriptor.needs_init) {
-      value = GetLiteralUndefined(position());
     }
 
     parsing_result->declarations.Add(DeclarationParsingResult::Declaration(
@@ -3090,7 +3075,6 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
           descriptor.scope = scope_;
           descriptor.hoist_scope = nullptr;
           descriptor.mode = LET;
-          descriptor.needs_init = true;
           descriptor.declaration_pos = pattern->position();
           descriptor.initialization_pos = pattern->position();
 
@@ -4545,7 +4529,6 @@ Block* Parser::BuildParameterInitializationBlock(
     descriptor.scope = scope_;
     descriptor.hoist_scope = nullptr;
     descriptor.mode = LET;
-    descriptor.needs_init = true;
     descriptor.declaration_pos = parameter.pattern->position();
     // The position that will be used by the AssignmentExpression
     // which copies from the temp parameter to the pattern.

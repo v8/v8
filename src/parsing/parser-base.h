@@ -461,6 +461,10 @@ class ParserBase : public Traits {
     return false;
   }
 
+  bool PeekInOrOf() {
+    return peek() == Token::IN || PeekContextualKeyword(CStrVector("of"));
+  }
+
   // Checks whether an octal literal was last seen between beg_pos and end_pos.
   // If so, reports an error. Only called for strict mode and template strings.
   void CheckOctalLiteral(int beg_pos, int end_pos,

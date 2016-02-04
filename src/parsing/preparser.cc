@@ -591,12 +591,7 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
       }
     }
 
-    is_pattern = (pattern.IsObjectLiteral() || pattern.IsArrayLiteral()) &&
-                 !pattern.is_parenthesized();
-
-    bool is_for_iteration_variable =
-        var_context == kForStatement &&
-        (peek() == Token::IN || PeekContextualKeyword(CStrVector("of")));
+    is_pattern = pattern.IsObjectLiteral() || pattern.IsArrayLiteral();
 
     Scanner::Location variable_loc = scanner()->location();
     nvars++;
@@ -611,7 +606,7 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
         *first_initializer_loc = variable_loc;
       }
     } else if ((require_initializer || is_pattern) &&
-               !is_for_iteration_variable) {
+               (var_context != kForStatement || !PeekInOrOf())) {
       PreParserTraits::ReportMessageAt(
           Scanner::Location(decl_pos, scanner()->location().end_pos),
           MessageTemplate::kDeclarationMissingInitializer,

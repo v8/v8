@@ -768,7 +768,6 @@ class Parser : public ParserBase<ParserTraits> {
     Scope* scope;
     Scope* hoist_scope;
     VariableMode mode;
-    bool needs_init;
     int declaration_pos;
     int initialization_pos;
     Kind declaration_kind;
