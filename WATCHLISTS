@@ -53,9 +53,6 @@
     'gc_changes': {
       'filepath': 'src/heap/',
     },
-    'merges': {
-      'filepath': '.',
-     },
   },
 
   'WATCHLISTS': {
@@ -78,10 +75,6 @@
     'gc_changes': [
       'hpayer@chromium.org',
       'ulan@chromium.org',
-    ],
-    'merges': [
-      # Only enabled on branches created with tools/release/create_release.py
-      # 'v8-merges@googlegroups.com',
     ],
   },
 }
