@@ -4400,10 +4400,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   if (should_be_used_once_hint)
     function_literal->set_should_be_used_once_hint();
 
-  if (scope->has_rest_parameter()) {
-    function_literal->set_dont_optimize_reason(kRestParameter);
-  }
-
   if (fni_ != NULL && should_infer_name) fni_->AddFunction(function_literal);
   return function_literal;
 }
