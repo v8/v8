@@ -731,6 +731,12 @@ class AndroidPlatform(Platform):  # pragma: no cover
         target_dir,
         skip_if_missing=True,
     )
+    self._PushFile(
+        shell_dir,
+        "snapshot_blob_ignition.bin",
+        target_dir,
+        skip_if_missing=True,
+    )
 
   def PreTests(self, node, path):
     suite_dir = os.path.abspath(os.path.dirname(path))
