@@ -652,10 +652,6 @@
   'test-run-jsexceptions/DeoptFinallyReturn': [PASS, FAIL],
   'test-serialize/SerializeInternalReference': [PASS, FAIL],
 
-  # TODO(rmcilroy,4680): Test crashes.
-  'test-pipeline/PipelineGeneric': [SKIP],
-  'test-pipeline/PipelineTyped': [SKIP],
-
   # TODO(rmcilroy,4680): DCHECK(shared->function_data()->IsUndefined()) in
   # compiler.cc GetUnoptimizedCodeCommon() or timeout in release mode.
   'test-func-name-inference/GlobalProperty': [SKIP],
