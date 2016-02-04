@@ -682,21 +682,6 @@
   'test-func-name-inference/MethodAssignmentInAnonymousFunctionCall': [SKIP],
   'test-func-name-inference/AssignmentAndCall': [SKIP],
   'test-func-name-inference/ReturnAnonymousFunction': [SKIP],
-
-  # TODO(rmcilroy,4680): Test timeouts.
-  'test-thread-termination/TerminateOnlyV8ThreadFromThreadItself': [SKIP],
-  'test-thread-termination/TerminateOnlyV8ThreadFromThreadItselfNoLoop': [SKIP],
-  'test-thread-termination/TerminateOnlyV8ThreadFromOtherThread': [SKIP],
-  'test-thread-termination/TerminateAndReenterFromThreadItself': [SKIP],
-  'test-thread-termination/TerminateCancelTerminateFromThreadItself': [SKIP],
-  'test-thread-termination/TerminationInInnerTryCall': [SKIP],
-  'test-thread-termination/TerminateFromOtherThreadWhileMicrotaskRunning': [SKIP],
-  'test-api/RequestInterruptTestWithFunctionCall': [SKIP],
-  'test-api/RequestInterruptTestWithAccessor': [SKIP],
-  'test-api/RequestInterruptTestWithNativeAccessor': [SKIP],
-  'test-api/RequestInterruptTestWithMethodCall': [SKIP],
-  'test-api/RequestMultipleInterrupts': [SKIP],
-  'test-api/RequestInterruptTestWithMethodCallAndInterceptor': [SKIP],
 }],  # ignition == True
 
 ['ignition == True and mode == debug and arch == x64', {

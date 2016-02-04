@@ -1031,17 +1031,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   //  - Allow simulator stop operations if FLAG_stop_at is set.
   //  - Code aging of the BytecodeArray object.
 
-  // Perform stack guard check.
-  {
-    Label ok;
-    __ LoadRoot(at, Heap::kStackLimitRootIndex);
-    __ Branch(&ok, hs, sp, Operand(at));
-    __ push(kInterpreterBytecodeArrayRegister);
-    __ CallRuntime(Runtime::kStackGuard);
-    __ pop(kInterpreterBytecodeArrayRegister);
-    __ bind(&ok);
-  }
-
   // Load bytecode offset and dispatch table into registers.
   __ LoadRoot(kInterpreterAccumulatorRegister, Heap::kUndefinedValueRootIndex);
   __ Addu(kInterpreterRegisterFileRegister, fp,

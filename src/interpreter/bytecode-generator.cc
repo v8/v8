@@ -609,6 +609,9 @@ void BytecodeGenerator::MakeBytecodeBody() {
   // Visit declarations within the function scope.
   VisitDeclarations(scope()->declarations());
 
+  // Perform a stack-check before the body.
+  builder()->StackCheck();
+
   // Visit statements in the function body.
   VisitStatements(info()->literal()->body());
 }
@@ -921,27 +924,31 @@ void BytecodeGenerator::VisitCaseClause(CaseClause* clause) {
   UNREACHABLE();
 }
 
+void BytecodeGenerator::VisitIterationBody(IterationStatement* stmt,
+                                           LoopBuilder* loop_builder) {
+  ControlScopeForIteration execution_control(this, stmt, loop_builder);
+  builder()->StackCheck();
+  Visit(stmt->body());
+}
 
 void BytecodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
   LoopBuilder loop_builder(builder());
-  ControlScopeForIteration execution_control(this, stmt, &loop_builder);
   loop_builder.LoopHeader();
   if (stmt->cond()->ToBooleanIsFalse()) {
-    Visit(stmt->body());
+    VisitIterationBody(stmt, &loop_builder);
     loop_builder.Condition();
   } else if (stmt->cond()->ToBooleanIsTrue()) {
     loop_builder.Condition();
-    Visit(stmt->body());
+    VisitIterationBody(stmt, &loop_builder);
     loop_builder.JumpToHeader();
   } else {
-    Visit(stmt->body());
+    VisitIterationBody(stmt, &loop_builder);
     loop_builder.Condition();
     VisitForAccumulatorValue(stmt->cond());
     loop_builder.JumpToHeaderIfTrue();
   }
   loop_builder.EndLoop();
 }
-
 
 void BytecodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
   if (stmt->cond()->ToBooleanIsFalse()) {
@@ -950,14 +957,13 @@ void BytecodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
   }
 
   LoopBuilder loop_builder(builder());
-  ControlScopeForIteration execution_control(this, stmt, &loop_builder);
   loop_builder.LoopHeader();
   loop_builder.Condition();
   if (!stmt->cond()->ToBooleanIsTrue()) {
     VisitForAccumulatorValue(stmt->cond());
     loop_builder.BreakIfFalse();
   }
-  Visit(stmt->body());
+  VisitIterationBody(stmt, &loop_builder);
   loop_builder.JumpToHeader();
   loop_builder.EndLoop();
 }
@@ -974,15 +980,13 @@ void BytecodeGenerator::VisitForStatement(ForStatement* stmt) {
   }
 
   LoopBuilder loop_builder(builder());
-  ControlScopeForIteration execution_control(this, stmt, &loop_builder);
-
   loop_builder.LoopHeader();
   loop_builder.Condition();
   if (stmt->cond() && !stmt->cond()->ToBooleanIsTrue()) {
     VisitForAccumulatorValue(stmt->cond());
     loop_builder.BreakIfFalse();
   }
-  Visit(stmt->body());
+  VisitIterationBody(stmt, &loop_builder);
   if (stmt->next() != nullptr) {
     loop_builder.Next();
     Visit(stmt->next());
@@ -1043,7 +1047,6 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   }
 
   LoopBuilder loop_builder(builder());
-  ControlScopeForIteration control_scope(this, stmt, &loop_builder);
   BytecodeLabel subject_null_label, subject_undefined_label, not_object_label;
 
   // Prepare the state for executing ForIn.
@@ -1077,7 +1080,7 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   builder()->ForInNext(receiver, index, cache_type);
   loop_builder.ContinueIfUndefined();
   VisitForInAssignment(stmt->each(), stmt->EachFeedbackSlot());
-  Visit(stmt->body());
+  VisitIterationBody(stmt, &loop_builder);
   loop_builder.Next();
   builder()->ForInStep(index);
   builder()->StoreAccumulatorInRegister(index);
@@ -1102,7 +1105,7 @@ void BytecodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
   loop_builder.BreakIfTrue();
 
   VisitForEffect(stmt->assign_each());
-  Visit(stmt->body());
+  VisitIterationBody(stmt, &loop_builder);
   loop_builder.JumpToHeader();
   loop_builder.EndLoop();
 }

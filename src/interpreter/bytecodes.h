@@ -259,6 +259,9 @@ namespace interpreter {
     OperandType::kRegPair16)                                                   \
   V(ForInStep, OperandType::kReg8)                                             \
                                                                                \
+  /* Perform a stack guard check */                                            \
+  V(StackCheck, OperandType::kNone)                                            \
+                                                                               \
   /* Non-local flow control */                                                 \
   V(Throw, OperandType::kNone)                                                 \
   V(ReThrow, OperandType::kNone)                                               \

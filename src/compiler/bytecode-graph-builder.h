@@ -23,13 +23,12 @@ class BytecodeGraphBuilder {
                        JSGraph* jsgraph);
 
   // Creates a graph by visiting bytecodes.
-  bool CreateGraph(bool stack_check = true);
+  bool CreateGraph();
 
  private:
   class Environment;
   class FrameStateBeforeAndAfter;
 
-  void CreateGraphBody(bool stack_check);
   void VisitBytecodes();
 
   // Get or create the node that represents the outer function closure.
@@ -160,9 +159,6 @@ class BytecodeGraphBuilder {
 
   // Simulates entry and exit of exception handlers.
   void EnterAndExitExceptionHandlers(int current_offset);
-
-  // Attaches a frame state to |node| for the entry to the function.
-  void PrepareEntryFrameState(Node* node);
 
   // Growth increment for the temporary buffer used to construct input lists to
   // new nodes.

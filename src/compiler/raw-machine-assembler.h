@@ -278,6 +278,10 @@ class RawMachineAssembler {
   Node* Int32GreaterThanOrEqual(Node* a, Node* b) {
     return Int32LessThanOrEqual(b, a);
   }
+  Node* Uint32GreaterThan(Node* a, Node* b) { return Uint32LessThan(b, a); }
+  Node* Uint32GreaterThanOrEqual(Node* a, Node* b) {
+    return Uint32LessThanOrEqual(b, a);
+  }
   Node* Int32Neg(Node* a) { return Int32Sub(Int32Constant(0), a); }
 
   Node* Int64Add(Node* a, Node* b) {
@@ -318,6 +322,10 @@ class RawMachineAssembler {
   Node* Int64GreaterThanOrEqual(Node* a, Node* b) {
     return Int64LessThanOrEqual(b, a);
   }
+  Node* Uint64GreaterThan(Node* a, Node* b) { return Uint64LessThan(b, a); }
+  Node* Uint64GreaterThanOrEqual(Node* a, Node* b) {
+    return Uint64LessThanOrEqual(b, a);
+  }
   Node* Uint64Div(Node* a, Node* b) {
     return AddNode(machine()->Uint64Div(), a, b);
   }
@@ -341,6 +349,19 @@ class RawMachineAssembler {
   INTPTR_BINOP(Int, GreaterThan);
 
 #undef INTPTR_BINOP
+
+#define UINTPTR_BINOP(prefix, name)                    \
+  Node* UintPtr##name(Node* a, Node* b) {              \
+    return kPointerSize == 8 ? prefix##64##name(a, b)  \
+                             : prefix##32##name(a, b); \
+  }
+
+  UINTPTR_BINOP(Uint, LessThan);
+  UINTPTR_BINOP(Uint, LessThanOrEqual);
+  UINTPTR_BINOP(Uint, GreaterThanOrEqual);
+  UINTPTR_BINOP(Uint, GreaterThan);
+
+#undef UINTPTR_BINOP
 
   Node* Float32Add(Node* a, Node* b) {
     return AddNode(machine()->Float32Add(), a, b);
@@ -567,6 +588,8 @@ class RawMachineAssembler {
   // Call a given call descriptor and the given arguments and frame-state.
   Node* CallNWithFrameState(CallDescriptor* desc, Node* function, Node** args,
                             Node* frame_state);
+  // Call to a runtime function with zero arguments.
+  Node* CallRuntime0(Runtime::FunctionId function, Node* context);
   // Call to a runtime function with one arguments.
   Node* CallRuntime1(Runtime::FunctionId function, Node* arg0, Node* context);
   // Call to a runtime function with two arguments.

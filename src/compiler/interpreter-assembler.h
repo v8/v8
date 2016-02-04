@@ -136,6 +136,7 @@ class InterpreterAssembler {
   // Call runtime function.
   Node* CallRuntime(Node* function_id, Node* first_arg, Node* arg_count,
                     int return_size = 1);
+  Node* CallRuntime(Runtime::FunctionId function_id);
   Node* CallRuntime(Runtime::FunctionId function_id, Node* arg1);
   Node* CallRuntime(Runtime::FunctionId function_id, Node* arg1, Node* arg2);
   Node* CallRuntime(Runtime::FunctionId function_id, Node* arg1, Node* arg2,
@@ -149,6 +150,9 @@ class InterpreterAssembler {
   // Jump relative to the current bytecode by |jump_offset| if the
   // word values |lhs| and |rhs| are equal.
   void JumpIfWordEqual(Node* lhs, Node* rhs, Node* jump_offset);
+
+  // Perform a stack guard check.
+  void StackCheck();
 
   // Returns from the function.
   void Return();

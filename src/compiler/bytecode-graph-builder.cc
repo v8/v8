@@ -533,8 +533,7 @@ VectorSlotPair BytecodeGraphBuilder::CreateVectorSlotPair(int slot_id) {
   return VectorSlotPair(feedback_vector, slot);
 }
 
-
-bool BytecodeGraphBuilder::CreateGraph(bool stack_check) {
+bool BytecodeGraphBuilder::CreateGraph() {
   // Set up the basic structure of the graph. Outputs for {Start} are
   // the formal parameters (including the receiver) plus context and
   // closure.
@@ -550,7 +549,7 @@ bool BytecodeGraphBuilder::CreateGraph(bool stack_check) {
                   GetFunctionContext());
   set_environment(&env);
 
-  CreateGraphBody(stack_check);
+  VisitBytecodes();
 
   // Finish the basic structure of the graph.
   DCHECK_NE(0u, exit_controls_.size());
@@ -561,20 +560,6 @@ bool BytecodeGraphBuilder::CreateGraph(bool stack_check) {
 
   return true;
 }
-
-
-void BytecodeGraphBuilder::CreateGraphBody(bool stack_check) {
-  // TODO(oth): Review ast-graph-builder equivalent, i.e. arguments
-  // object setup, this function variable if used, tracing hooks.
-
-  if (stack_check) {
-    Node* node = NewNode(javascript()->StackCheck());
-    PrepareEntryFrameState(node);
-  }
-
-  VisitBytecodes();
-}
-
 
 void BytecodeGraphBuilder::VisitBytecodes() {
   BytecodeBranchAnalysis analysis(bytecode_array(), local_zone());
@@ -1521,6 +1506,12 @@ void BytecodeGraphBuilder::VisitJumpIfUndefinedConstantWide() {
   BuildJumpIfEqual(jsgraph()->UndefinedConstant());
 }
 
+void BytecodeGraphBuilder::VisitStackCheck() {
+  FrameStateBeforeAndAfter states(this);
+  Node* node = NewNode(javascript()->StackCheck());
+  environment()->RecordAfterState(node, &states);
+}
+
 void BytecodeGraphBuilder::VisitReturn() {
   Node* control =
       NewNode(common()->Return(), environment()->LookupAccumulator());
@@ -1676,16 +1667,6 @@ void BytecodeGraphBuilder::EnterAndExitExceptionHandlers(int current_offset) {
     current_exception_handler_++;
   }
 }
-
-void BytecodeGraphBuilder::PrepareEntryFrameState(Node* node) {
-  DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node->op()));
-  DCHECK_EQ(IrOpcode::kDead,
-            NodeProperties::GetFrameStateInput(node, 0)->opcode());
-  NodeProperties::ReplaceFrameStateInput(
-      node, 0, environment()->Checkpoint(BailoutId(0),
-                                         OutputFrameStateCombine::Ignore()));
-}
-
 
 Node* BytecodeGraphBuilder::MakeNode(const Operator* op, int value_input_count,
                                      Node** value_inputs, bool incomplete) {

@@ -515,7 +515,7 @@ struct GraphBuilderPhase {
     if (data->info()->shared_info()->HasBytecodeArray()) {
       BytecodeGraphBuilder graph_builder(temp_zone, data->info(),
                                          data->jsgraph());
-      succeeded = graph_builder.CreateGraph(stack_check);
+      succeeded = graph_builder.CreateGraph();
     } else {
       AstGraphBuilderWithPositions graph_builder(
           temp_zone, data->info(), data->jsgraph(), data->loop_assignment(),

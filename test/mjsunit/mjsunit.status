@@ -759,6 +759,9 @@
   # TODO(4674): This might be failing because of missing context switch.
   'with-leave': [FAIL],
 
+  # TODO(4690): Failing in debugger DebuggerInspectableFrame.
+  'for-in-opt': [FAIL],
+
   'arguments-load-across-eval': [SKIP],
   'array-constructor': [PASS, SLOW],
   'array-functions-prototype-misc': [SKIP],

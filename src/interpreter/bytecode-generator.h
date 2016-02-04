@@ -13,6 +13,8 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
+class LoopBuilder;
+
 class BytecodeGenerator final : public AstVisitor {
  public:
   BytecodeGenerator(Isolate* isolate, Zone* zone);
@@ -93,6 +95,9 @@ class BytecodeGenerator final : public AstVisitor {
                                   ObjectLiteralProperty* property,
                                   Register value_out);
   void VisitForInAssignment(Expression* expr, FeedbackVectorSlot slot);
+
+  // Visit the body of a loop iteration.
+  void VisitIterationBody(IterationStatement* stmt, LoopBuilder* loop_builder);
 
   // Visit a statement and switch scopes, the context is in the accumulator.
   void VisitInScope(Statement* stmt, Scope* scope);

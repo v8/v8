@@ -964,6 +964,10 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfUndefined(
   return OutputJump(Bytecode::kJumpIfUndefined, label);
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::StackCheck() {
+  Output(Bytecode::kStackCheck);
+  return *this;
+}
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::Throw() {
   Output(Bytecode::kThrow);

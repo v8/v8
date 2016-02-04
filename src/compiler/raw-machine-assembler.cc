@@ -152,6 +152,19 @@ Node* RawMachineAssembler::CallNWithFrameState(CallDescriptor* desc,
   return AddNode(common()->Call(desc), input_count, buffer);
 }
 
+Node* RawMachineAssembler::CallRuntime0(Runtime::FunctionId function,
+                                        Node* context) {
+  CallDescriptor* descriptor = Linkage::GetRuntimeCallDescriptor(
+      zone(), function, 0, Operator::kNoProperties, CallDescriptor::kNoFlags);
+  int return_count = static_cast<int>(descriptor->ReturnCount());
+
+  Node* centry = HeapConstant(CEntryStub(isolate(), return_count).GetCode());
+  Node* ref = AddNode(
+      common()->ExternalConstant(ExternalReference(function, isolate())));
+  Node* arity = Int32Constant(0);
+
+  return AddNode(common()->Call(descriptor), centry, ref, arity, context);
+}
 
 Node* RawMachineAssembler::CallRuntime1(Runtime::FunctionId function,
                                         Node* arg1, Node* context) {

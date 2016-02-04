@@ -195,6 +195,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .BinaryOperation(Token::Value::ADD, reg, Strength::WEAK)
       .JumpIfFalse(&start);
 
+  // Emit stack check bytecode.
+  builder.StackCheck();
+
   // Emit throw and re-throw in it's own basic block so that the rest of the
   // code isn't omitted due to being dead.
   BytecodeLabel after_throw;

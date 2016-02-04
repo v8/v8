@@ -91,7 +91,6 @@ bool Interpreter::MakeBytecode(CompilationInfo* info) {
   Handle<BytecodeArray> bytecodes = generator.MakeBytecode(info);
   if (FLAG_print_bytecode) {
     OFStream os(stdout);
-    os << "Function: " << info->GetDebugName().get() << std::endl;
     bytecodes->Print(os);
     os << std::flush;
   }
@@ -1785,6 +1784,14 @@ void Interpreter::DoCreateRestArguments(
   Node* result =
       __ CallRuntime(Runtime::kNewRestArguments_Generic, closure, rest_index);
   __ SetAccumulator(result);
+  __ Dispatch();
+}
+
+// StackCheck
+//
+// Performs a stack guard check.
+void Interpreter::DoStackCheck(compiler::InterpreterAssembler* assembler) {
+  __ StackCheck();
   __ Dispatch();
 }
 
