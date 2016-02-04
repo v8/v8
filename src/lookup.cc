@@ -292,6 +292,7 @@ void LookupIterator::Delete() {
       JSObject::ReoptimizeIfPrototype(Handle<JSObject>::cast(holder));
     }
   }
+  state_ = NOT_FOUND;
 }
 
 

@@ -65,21 +65,27 @@ static Object* DeclareGlobals(Isolate* isolate, Handle<JSGlobalObject> global,
       // Check whether we can reconfigure the existing property into a
       // function.
       PropertyDetails old_details = it.property_details();
-      // TODO(verwaest): ACCESSOR_CONSTANT invalidly includes
-      // ExecutableAccessInfo,
-      // which are actually data properties, not accessor properties.
       if (old_details.IsReadOnly() || old_details.IsDontEnum() ||
-          old_details.type() == ACCESSOR_CONSTANT) {
+          (it.state() == LookupIterator::ACCESSOR &&
+           it.GetAccessors()->IsAccessorPair())) {
         return ThrowRedeclarationError(isolate, name);
       }
       // If the existing property is not configurable, keep its attributes. Do
       attr = old_attributes;
     }
+
+    // If the current state is ACCESSOR, this could mean it's an AccessorInfo
+    // type property. We are not allowed to call into such setters during global
+    // function declaration since this would break e.g., onload. Meaning
+    // 'function onload() {}' would invalidly register that function as the
+    // onload callback. To avoid this situation, we first delete the property
+    // before readding it as a regular data property below.
+    if (it.state() == LookupIterator::ACCESSOR) it.Delete();
   }
 
   // Define or redefine own property.
-  RETURN_FAILURE_ON_EXCEPTION(isolate, JSObject::SetOwnPropertyIgnoreAttributes(
-                                           global, name, value, attr));
+  RETURN_FAILURE_ON_EXCEPTION(
+      isolate, JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, attr));
 
   return isolate->heap()->undefined_value();
 }
@@ -196,8 +202,8 @@ RUNTIME_FUNCTION(Runtime_InitializeConstGlobal) {
     }
   }
 
-  RETURN_FAILURE_ON_EXCEPTION(isolate, JSObject::SetOwnPropertyIgnoreAttributes(
-                                           global, name, value, attr));
+  RETURN_FAILURE_ON_EXCEPTION(
+      isolate, JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, attr));
 
   return *value;
 }
