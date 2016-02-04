@@ -981,10 +981,10 @@ RUNTIME_FUNCTION(Runtime_DeleteLookupSlot) {
     return isolate->heap()->false_value();
   }
 
-  // The slot was found in a JSObject, either a context extension object,
+  // The slot was found in a JSReceiver, either a context extension object,
   // the global object, or the subject of a with.  Try to delete it
   // (respecting DONT_DELETE).
-  Handle<JSObject> object = Handle<JSObject>::cast(holder);
+  Handle<JSReceiver> object = Handle<JSReceiver>::cast(holder);
   Maybe<bool> result = JSReceiver::DeleteProperty(object, name);
   MAYBE_RETURN(result, isolate->heap()->exception());
   return isolate->heap()->ToBoolean(result.FromJust());
