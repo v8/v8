@@ -647,6 +647,10 @@ void Deserializer::VisitPointers(Object** start, Object** end) {
   ReadData(start, end, NEW_SPACE, NULL);
 }
 
+void Deserializer::Synchronize(VisitorSynchronization::SyncTag tag) {
+  static const byte expected = kSynchronize;
+  CHECK_EQ(expected, source_.Get());
+}
 
 void Deserializer::DeserializeDeferredObjects() {
   for (int code = source_.Get(); code != kSynchronize; code = source_.Get()) {
@@ -1747,6 +1751,7 @@ void StartupSerializer::Synchronize(VisitorSynchronization::SyncTag tag) {
   // We expect the builtins tag after builtins have been serialized.
   DCHECK(!serializing_builtins_ || tag == VisitorSynchronization::kBuiltins);
   serializing_builtins_ = (tag == VisitorSynchronization::kHandleScope);
+  sink_->Put(kSynchronize, "Synchronize");
 }
 
 void Serializer::PutRoot(int root_index,
