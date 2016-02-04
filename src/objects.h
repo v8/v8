@@ -7271,7 +7271,7 @@ class JSGeneratorObject: public JSObject {
   static const int kSize = kOperandStackOffset + kPointerSize;
 
   // Resume mode, for use by runtime functions.
-  enum ResumeMode { NEXT, THROW };
+  enum ResumeMode { NEXT, RETURN, THROW };
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSGeneratorObject);

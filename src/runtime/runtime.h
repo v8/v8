@@ -262,6 +262,7 @@ namespace internal {
   F(GeneratorGetContinuation, 1, 1)     \
   F(GeneratorGetSourcePosition, 1, 1)   \
   F(GeneratorNext, 2, 1)                \
+  F(GeneratorReturn, 2, 1)              \
   F(GeneratorThrow, 2, 1)
 
 

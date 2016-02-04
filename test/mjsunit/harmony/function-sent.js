@@ -22,16 +22,23 @@
   }
 
   {
-    x = g();
+    let x = g();
     assertEquals({value: 1, done: false}, x.next(1));
     assertEquals({value: 2, done: false}, x.next(2));
     assertEquals({value: 3, done: true}, x.next(3));
   }
 
   {
-    x = g();
+    let x = g();
     assertEquals({value: 1, done: false}, x.next(1));
     assertEquals({value: 2, done: false}, x.throw(2));
+    assertEquals({value: 3, done: true}, x.next(3));
+  }
+
+  {
+    let x = g();
+    assertEquals({value: 1, done: false}, x.next(1));
+    assertEquals({value: 2, done: false}, x.return(2));
     assertEquals({value: 3, done: true}, x.next(3));
   }
 }
@@ -53,17 +60,24 @@
   }
 
   {
-    x = g();
+    let x = g();
     assertEquals({value: 1, done: false}, x.next(1));
     assertEquals({value: undefined, done: false}, x.next(2));
     assertEquals({value: 3, done: true}, x.next(3));
   }
 
   {
-    x = g();
+    let x = g();
     assertEquals({value: 1, done: false}, x.next(1));
     assertEquals({value: undefined, done: false}, x.next(2));
     assertEquals({value: 42, done: true}, x.throw(42));
+  }
+
+  {
+    let x = g();
+    assertEquals({value: 1, done: false}, x.next(1));
+    assertEquals({value: undefined, done: false}, x.next(2));
+    assertEquals({value: 42, done: true}, x.return(42));
   }
 }
 

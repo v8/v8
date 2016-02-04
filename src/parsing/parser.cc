@@ -5869,9 +5869,6 @@ Expression* ParserTraits::RewriteYieldStar(
 
   Statement* skip = factory->NewEmptyStatement(nopos);
 
-  enum { kNext, kReturn, kThrow };
-  // TODO(neis): Use JSGenerator::ResumeMode once extended with RETURN.
-
   // Forward definition for break/continue statements.
   WhileStatement* loop = factory->NewWhileStatement(nullptr, nopos);
 
@@ -5892,7 +5889,7 @@ Expression* ParserTraits::RewriteYieldStar(
   Statement* initialize_mode;
   {
     Expression* mode_proxy = factory->NewVariableProxy(var_mode);
-    Expression* knext = factory->NewSmiLiteral(kNext, nopos);
+    Expression* knext = factory->NewSmiLiteral(JSGeneratorObject::NEXT, nopos);
     Expression* assignment =
         factory->NewAssignment(Token::ASSIGN, mode_proxy, knext, nopos);
     initialize_mode = factory->NewExpressionStatement(assignment, nopos);
@@ -6087,7 +6084,8 @@ Expression* ParserTraits::RewriteYieldStar(
   Statement* set_mode_return;
   {
     Expression* mode_proxy = factory->NewVariableProxy(var_mode);
-    Expression* kreturn = factory->NewSmiLiteral(kReturn, nopos);
+    Expression* kreturn =
+        factory->NewSmiLiteral(JSGeneratorObject::RETURN, nopos);
     Expression* assignment =
         factory->NewAssignment(Token::ASSIGN, mode_proxy, kreturn, nopos);
     set_mode_return = factory->NewExpressionStatement(assignment, nopos);
@@ -6108,7 +6106,7 @@ Expression* ParserTraits::RewriteYieldStar(
   Statement* set_mode_next;
   {
     Expression* mode_proxy = factory->NewVariableProxy(var_mode);
-    Expression* knext = factory->NewSmiLiteral(kNext, nopos);
+    Expression* knext = factory->NewSmiLiteral(JSGeneratorObject::NEXT, nopos);
     Expression* assignment =
         factory->NewAssignment(Token::ASSIGN, mode_proxy, knext, nopos);
     set_mode_next = factory->NewExpressionStatement(assignment, nopos);
@@ -6119,7 +6117,8 @@ Expression* ParserTraits::RewriteYieldStar(
   Statement* set_mode_throw;
   {
     Expression* mode_proxy = factory->NewVariableProxy(var_mode);
-    Expression* kthrow = factory->NewSmiLiteral(kThrow, nopos);
+    Expression* kthrow =
+        factory->NewSmiLiteral(JSGeneratorObject::THROW, nopos);
     Expression* assignment =
         factory->NewAssignment(Token::ASSIGN, mode_proxy, kthrow, nopos);
     set_mode_throw = factory->NewExpressionStatement(assignment, nopos);
@@ -6208,9 +6207,11 @@ Expression* ParserTraits::RewriteYieldStar(
     case_throw->Add(factory->NewBreakStatement(switch_mode, nopos), zone);
 
     auto cases = new (zone) ZoneList<CaseClause*>(3, zone);
-    Expression* knext = factory->NewSmiLiteral(kNext, nopos);
-    Expression* kreturn = factory->NewSmiLiteral(kReturn, nopos);
-    Expression* kthrow = factory->NewSmiLiteral(kThrow, nopos);
+    Expression* knext = factory->NewSmiLiteral(JSGeneratorObject::NEXT, nopos);
+    Expression* kreturn =
+        factory->NewSmiLiteral(JSGeneratorObject::RETURN, nopos);
+    Expression* kthrow =
+        factory->NewSmiLiteral(JSGeneratorObject::THROW, nopos);
     cases->Add(factory->NewCaseClause(knext, case_next, nopos), zone);
     cases->Add(factory->NewCaseClause(kreturn, case_return, nopos), zone);
     cases->Add(factory->NewCaseClause(kthrow, case_throw, nopos), zone);

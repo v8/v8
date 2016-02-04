@@ -87,9 +87,9 @@ RUNTIME_FUNCTION(Runtime_SuspendJSGeneratorObject) {
 // called if the suspended activation had operands on the stack, stack handlers
 // needing rewinding, or if the resume should throw an exception.  The fast path
 // is handled directly in FullCodeGenerator::EmitGeneratorResume(), which is
-// inlined into GeneratorNext and GeneratorThrow.  EmitGeneratorResumeResume is
-// called in any case, as it needs to reconstruct the stack frame and make space
-// for arguments and operands.
+// inlined into GeneratorNext, GeneratorReturn, and GeneratorThrow.
+// EmitGeneratorResume is called in any case, as it needs to reconstruct the
+// stack frame and make space for arguments and operands.
 RUNTIME_FUNCTION(Runtime_ResumeJSGeneratorObject) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 3);
@@ -125,7 +125,10 @@ RUNTIME_FUNCTION(Runtime_ResumeJSGeneratorObject) {
   JSGeneratorObject::ResumeMode resume_mode =
       static_cast<JSGeneratorObject::ResumeMode>(resume_mode_int);
   switch (resume_mode) {
+    // Note: this looks like NEXT and RETURN are the same but RETURN receives
+    // special treatment in the generator code (to which we return here).
     case JSGeneratorObject::NEXT:
+    case JSGeneratorObject::RETURN:
       return value;
     case JSGeneratorObject::THROW:
       return isolate->Throw(value);
@@ -213,15 +216,25 @@ RUNTIME_FUNCTION(Runtime_GeneratorGetSourcePosition) {
 }
 
 
+// Optimization for the following three functions is disabled in
+// js/generator.js and compiler/ast-graph-builder.cc.
+
+
 RUNTIME_FUNCTION(Runtime_GeneratorNext) {
-  UNREACHABLE();  // Optimization disabled in SetUpGenerators().
-  return NULL;
+  UNREACHABLE();
+  return nullptr;
+}
+
+
+RUNTIME_FUNCTION(Runtime_GeneratorReturn) {
+  UNREACHABLE();
+  return nullptr;
 }
 
 
 RUNTIME_FUNCTION(Runtime_GeneratorThrow) {
-  UNREACHABLE();  // Optimization disabled in SetUpGenerators().
-  return NULL;
+  UNREACHABLE();
+  return nullptr;
 }
 }  // namespace internal
 }  // namespace v8

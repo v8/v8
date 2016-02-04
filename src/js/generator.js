@@ -39,7 +39,28 @@ function GeneratorObjectNext(value) {
     return %_GeneratorNext(this, value);
   } else if (continuation == 0) {
     // Generator is already closed.
-    return { value: void 0, done: true };
+    return %_CreateIterResultObject(UNDEFINED, true);
+  } else {
+    // Generator is running.
+    throw MakeTypeError(kGeneratorRunning);
+  }
+}
+
+
+function GeneratorObjectReturn(value) {
+  if (!IS_GENERATOR(this)) {
+    throw MakeTypeError(kIncompatibleMethodReceiver,
+                        '[Generator].prototype.return', this);
+  }
+
+  var continuation = %GeneratorGetContinuation(this);
+  if (continuation > 0) {
+    // Generator is suspended.
+    DEBUG_PREPARE_STEP_IN_IF_STEPPING(this);
+    return %_GeneratorReturn(this, value);
+  } else if (continuation == 0) {
+    // Generator is already closed.
+    return %_CreateIterResultObject(value, true);
   } else {
     // Generator is running.
     throw MakeTypeError(kGeneratorRunning);
@@ -56,6 +77,7 @@ function GeneratorObjectThrow(exn) {
   var continuation = %GeneratorGetContinuation(this);
   if (continuation > 0) {
     // Generator is suspended.
+    DEBUG_PREPARE_STEP_IN_IF_STEPPING(this);
     return %_GeneratorThrow(this, exn);
   } else if (continuation == 0) {
     // Generator is already closed.
@@ -68,9 +90,11 @@ function GeneratorObjectThrow(exn) {
 
 // ----------------------------------------------------------------------------
 
-// Both Runtime_GeneratorNext and Runtime_GeneratorThrow are supported by
-// neither Crankshaft nor TurboFan, disable optimization of wrappers here.
+// None of the three resume operations (Runtime_GeneratorNext,
+// Runtime_GeneratorReturn, Runtime_GeneratorThrow) is supported by
+// Crankshaft or TurboFan.  Disable optimization of wrappers here.
 %NeverOptimizeFunction(GeneratorObjectNext);
+%NeverOptimizeFunction(GeneratorObjectReturn);
 %NeverOptimizeFunction(GeneratorObjectThrow);
 
 // Set up non-enumerable functions on the generator prototype object.
@@ -78,6 +102,7 @@ var GeneratorObjectPrototype = GeneratorFunctionPrototype.prototype;
 utils.InstallFunctions(GeneratorObjectPrototype,
                        DONT_ENUM,
                       ["next", GeneratorObjectNext,
+                       "return", GeneratorObjectReturn,
                        "throw", GeneratorObjectThrow]);
 
 %AddNamedProperty(GeneratorObjectPrototype, "constructor",

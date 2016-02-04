@@ -1868,8 +1868,17 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
 
       __ jmp(&suspend);
       __ bind(&continuation);
+      // When we arrive here, the stack top is the resume mode and
+      // result_register() holds the input value (the argument given to the
+      // respective resume operation).
       __ RecordGeneratorContinuation();
-      __ jmp(&resume);
+      __ Pop(rbx);
+      __ SmiCompare(rbx, Smi::FromInt(JSGeneratorObject::RETURN));
+      __ j(not_equal, &resume);
+      __ Push(result_register());
+      EmitCreateIteratorResult(true);
+      EmitUnwindBeforeReturn();
+      EmitReturnSequence();
 
       __ bind(&suspend);
       VisitForAccumulatorValue(expr->generator_object());
@@ -2017,8 +2026,8 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
 }
 
 
-void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
-    Expression *value,
+void FullCodeGenerator::EmitGeneratorResume(
+    Expression* generator, Expression* value,
     JSGeneratorObject::ResumeMode resume_mode) {
   // The value stays in rax, and is ultimately read by the resumed generator, as
   // if CallRuntime(Runtime::kSuspendJSGeneratorObject) returned it. Or it
@@ -2083,6 +2092,7 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
     __ addp(rdx, rcx);
     __ Move(FieldOperand(rbx, JSGeneratorObject::kContinuationOffset),
             Smi::FromInt(JSGeneratorObject::kGeneratorExecuting));
+    __ Push(Smi::FromInt(resume_mode));  // Consumed in continuation.
     __ jmp(rdx);
     __ bind(&slow_resume);
   }
@@ -2096,6 +2106,7 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   __ Push(rcx);
   __ jmp(&push_operand_holes);
   __ bind(&call_resume);
+  __ Push(Smi::FromInt(resume_mode));  // Consumed in continuation.
   __ Push(rbx);
   __ Push(result_register());
   __ Push(Smi::FromInt(resume_mode));

@@ -149,9 +149,6 @@
   'built-ins/Array/prototype/values/iteration-mutable': [FAIL],
   'built-ins/Array/prototype/Symbol.unscopables/value': [FAIL],
 
-  # https://code.google.com/p/v8/issues/detail?id=3566
-  'built-ins/GeneratorPrototype/return/*': [SKIP],
-
   # https://code.google.com/p/v8/issues/detail?id=4248
   'language/expressions/compound-assignment/S11.13.2_A5.*': [FAIL],
   'language/expressions/compound-assignment/S11.13.2_A6.*': [FAIL],

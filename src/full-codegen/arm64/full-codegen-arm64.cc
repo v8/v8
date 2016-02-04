@@ -4343,8 +4343,17 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       // looks at its pos(). Is it possible to do something more efficient here,
       // perhaps using Adr?
       __ Bind(&continuation);
+      // When we arrive here, the stack top is the resume mode and
+      // result_register() holds the input value (the argument given to the
+      // respective resume operation).
       __ RecordGeneratorContinuation();
-      __ B(&resume);
+      __ Pop(x1);
+      __ Cmp(x1, Smi::FromInt(JSGeneratorObject::RETURN));
+      __ B(ne, &resume);
+      __ Push(result_register());
+      EmitCreateIteratorResult(true);
+      EmitUnwindBeforeReturn();
+      EmitReturnSequence();
 
       __ Bind(&suspend);
       VisitForAccumulatorValue(expr->generator_object());
@@ -4571,6 +4580,7 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
     __ Mov(x12, Smi::FromInt(JSGeneratorObject::kGeneratorExecuting));
     __ Str(x12, FieldMemOperand(generator_object,
                                 JSGeneratorObject::kContinuationOffset));
+    __ Push(Smi::FromInt(resume_mode));  // Consumed in continuation.
     __ Br(x10);
 
     __ Bind(&slow_resume);
@@ -4581,6 +4591,7 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
   __ PushMultipleTimes(the_hole, operand_stack_size);
 
   __ Mov(x10, Smi::FromInt(resume_mode));
+  __ Push(Smi::FromInt(resume_mode));  // Consumed in continuation.
   __ Push(generator_object, result_register(), x10);
   __ CallRuntime(Runtime::kResumeJSGeneratorObject);
   // Not reached: the runtime call returns elsewhere.
