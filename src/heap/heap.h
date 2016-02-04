@@ -190,9 +190,7 @@ namespace internal {
   V(Object, noscript_shared_function_infos, NoScriptSharedFunctionInfos)       \
   V(FixedArray, interpreter_table, InterpreterTable)                           \
   V(Map, bytecode_array_map, BytecodeArrayMap)                                 \
-  V(WeakCell, empty_weak_cell, EmptyWeakCell)                                  \
-  V(BytecodeArray, empty_bytecode_array, EmptyBytecodeArray)
-
+  V(WeakCell, empty_weak_cell, EmptyWeakCell)
 
 // Entries in this list are limited to Smis and are not visited during GC.
 #define SMI_ROOT_LIST(V)                                                   \
@@ -254,7 +252,6 @@ namespace internal {
   V(OrderedHashTableMap)                \
   V(EmptyFixedArray)                    \
   V(EmptyByteArray)                     \
-  V(EmptyBytecodeArray)                 \
   V(EmptyDescriptorArray)               \
   V(ArgumentsMarker)                    \
   V(SymbolMap)                          \

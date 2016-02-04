@@ -1680,9 +1680,10 @@ bool Serializer::SerializeKnownObject(HeapObject* obj, HowToCode how_to_code,
   return false;
 }
 
-
 StartupSerializer::StartupSerializer(Isolate* isolate, SnapshotByteSink* sink)
-    : Serializer(isolate, sink), root_index_wave_front_(0) {
+    : Serializer(isolate, sink),
+      root_index_wave_front_(0),
+      serializing_builtins_(false) {
   // Clear the cache of objects used by the partial snapshot.  After the
   // strong roots have been serialized we can create a partial snapshot
   // which will repopulate the cache with objects needed by that partial
@@ -1696,6 +1697,19 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
                                         WhereToPoint where_to_point, int skip) {
   DCHECK(!obj->IsJSFunction());
 
+  if (obj->IsCode()) {
+    Code* code = Code::cast(obj);
+    // If the function code is compiled (either as native code or bytecode),
+    // replace it with lazy-compile builtin. Only exception is when we are
+    // serializing the canonical interpreter-entry-trampoline builtin.
+    if (code->kind() == Code::FUNCTION ||
+        (!serializing_builtins_ && code->is_interpreter_entry_trampoline())) {
+      obj = isolate()->builtins()->builtin(Builtins::kCompileLazy);
+    }
+  } else if (obj->IsBytecodeArray()) {
+    obj = isolate()->heap()->undefined_value();
+  }
+
   int root_index = root_index_map_.Lookup(obj);
   // We can only encode roots as such if it has already been serialized.
   // That applies to root indices below the wave front.
@@ -1703,10 +1717,6 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
       root_index < root_index_wave_front_) {
     PutRoot(root_index, obj, how_to_code, where_to_point, skip);
     return;
-  }
-
-  if (obj->IsCode() && Code::cast(obj)->kind() == Code::FUNCTION) {
-    obj = isolate()->builtins()->builtin(Builtins::kCompileLazy);
   }
 
   if (SerializeKnownObject(obj, how_to_code, where_to_point, skip)) return;
@@ -1733,6 +1743,11 @@ void StartupSerializer::SerializeWeakReferencesAndDeferred() {
   Pad();
 }
 
+void StartupSerializer::Synchronize(VisitorSynchronization::SyncTag tag) {
+  // We expect the builtins tag after builtins have been serialized.
+  DCHECK(!serializing_builtins_ || tag == VisitorSynchronization::kBuiltins);
+  serializing_builtins_ = (tag == VisitorSynchronization::kHandleScope);
+}
 
 void Serializer::PutRoot(int root_index,
                          HeapObject* object,

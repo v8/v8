@@ -2417,14 +2417,6 @@ bool Heap::CreateInitialMaps() {
       ByteArray* byte_array;
       if (!AllocateByteArray(0, TENURED).To(&byte_array)) return false;
       set_empty_byte_array(byte_array);
-
-      BytecodeArray* bytecode_array = nullptr;
-      AllocationResult allocation =
-          AllocateBytecodeArray(0, nullptr, 0, 0, empty_fixed_array());
-      if (!allocation.To(&bytecode_array)) {
-        return false;
-      }
-      set_empty_bytecode_array(bytecode_array);
     }
 
 #define ALLOCATE_EMPTY_FIXED_TYPED_ARRAY(Type, type, TYPE, ctype, size) \

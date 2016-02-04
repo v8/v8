@@ -652,8 +652,11 @@ class StartupSerializer : public Serializer {
                        WhereToPoint where_to_point, int skip) override;
   void SerializeWeakReferencesAndDeferred();
 
+  void Synchronize(VisitorSynchronization::SyncTag tag) override;
+
  private:
   intptr_t root_index_wave_front_;
+  bool serializing_builtins_;
   DISALLOW_COPY_AND_ASSIGN(StartupSerializer);
 };
 

@@ -71,6 +71,8 @@ Object* CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
 
   DCHECK(function->code()->kind() == Code::FUNCTION ||
          function->code()->kind() == Code::OPTIMIZED_FUNCTION ||
+         (function->code()->is_interpreter_entry_trampoline() &&
+          function->shared()->HasBytecodeArray()) ||
          function->IsInOptimizationQueue());
   return function->code();
 }
