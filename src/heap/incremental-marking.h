@@ -154,6 +154,9 @@ class IncrementalMarking {
   static void RecordWriteFromCode(HeapObject* obj, Object** slot,
                                   Isolate* isolate);
 
+  static void RecordWriteOfCodeEntryFromCode(JSFunction* host, Object** slot,
+                                             Isolate* isolate);
+
   // Record a slot for compaction.  Returns false for objects that are
   // guaranteed to be rescanned or not guaranteed to survive.
   //

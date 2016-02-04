@@ -120,6 +120,55 @@ void MacroAssembler::PushRoot(Heap::RootListIndex index) {
   Push(isolate()->heap()->root_handle(index));
 }
 
+#define REG(Name) \
+  { Register::kCode_##Name }
+
+static const Register saved_regs[] = {REG(eax), REG(ecx), REG(edx)};
+
+#undef REG
+
+static const int kNumberOfSavedRegs = sizeof(saved_regs) / sizeof(Register);
+
+void MacroAssembler::PushCallerSaved(SaveFPRegsMode fp_mode,
+                                     Register exclusion1, Register exclusion2,
+                                     Register exclusion3) {
+  // We don't allow a GC during a store buffer overflow so there is no need to
+  // store the registers in any particular way, but we do have to store and
+  // restore them.
+  for (int i = 0; i < kNumberOfSavedRegs; i++) {
+    Register reg = saved_regs[i];
+    if (!reg.is(exclusion1) && !reg.is(exclusion2) && !reg.is(exclusion3)) {
+      push(reg);
+    }
+  }
+  if (fp_mode == kSaveFPRegs) {
+    sub(esp, Immediate(kDoubleSize * (XMMRegister::kMaxNumRegisters - 1)));
+    // Save all XMM registers except XMM0.
+    for (int i = XMMRegister::kMaxNumRegisters - 1; i > 0; i--) {
+      XMMRegister reg = XMMRegister::from_code(i);
+      movsd(Operand(esp, (i - 1) * kDoubleSize), reg);
+    }
+  }
+}
+
+void MacroAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
+                                    Register exclusion2, Register exclusion3) {
+  if (fp_mode == kSaveFPRegs) {
+    // Restore all XMM registers except XMM0.
+    for (int i = XMMRegister::kMaxNumRegisters - 1; i > 0; i--) {
+      XMMRegister reg = XMMRegister::from_code(i);
+      movsd(reg, Operand(esp, (i - 1) * kDoubleSize));
+    }
+    add(esp, Immediate(kDoubleSize * (XMMRegister::kMaxNumRegisters - 1)));
+  }
+
+  for (int i = kNumberOfSavedRegs - 1; i >= 0; i--) {
+    Register reg = saved_regs[i];
+    if (!reg.is(exclusion1) && !reg.is(exclusion2) && !reg.is(exclusion3)) {
+      pop(reg);
+    }
+  }
+}
 
 void MacroAssembler::InNewSpace(
     Register object,
@@ -571,6 +620,75 @@ void MacroAssembler::RecordWrite(
   }
 }
 
+void MacroAssembler::RecordWriteCodeEntryField(Register js_function,
+                                               Register code_entry,
+                                               Register scratch) {
+  const int offset = JSFunction::kCodeEntryOffset;
+
+  // Since a code entry (value) is always in old space, we don't need to update
+  // remembered set. If incremental marking is off, there is nothing for us to
+  // do.
+  if (!FLAG_incremental_marking) return;
+
+  DCHECK(!js_function.is(code_entry));
+  DCHECK(!js_function.is(scratch));
+  DCHECK(!code_entry.is(scratch));
+  AssertNotSmi(js_function);
+
+  if (emit_debug_code()) {
+    Label ok;
+    lea(scratch, FieldOperand(js_function, offset));
+    cmp(code_entry, Operand(scratch, 0));
+    j(equal, &ok, Label::kNear);
+    int3();
+    bind(&ok);
+  }
+
+  // First, check if a write barrier is even needed. The tests below
+  // catch stores of Smis and stores into young gen.
+  Label done;
+
+  CheckPageFlag(code_entry, scratch,
+                MemoryChunk::kPointersToHereAreInterestingMask, zero, &done,
+                Label::kNear);
+  CheckPageFlag(js_function, scratch,
+                MemoryChunk::kPointersFromHereAreInterestingMask, zero, &done,
+                Label::kNear);
+
+  // Save input registers.
+  push(js_function);
+  push(code_entry);
+
+  const Register dst = scratch;
+  lea(dst, FieldOperand(js_function, offset));
+
+  // Save caller-saved registers.
+  PushCallerSaved(kDontSaveFPRegs, js_function, code_entry);
+
+  int argument_count = 3;
+  PrepareCallCFunction(argument_count, code_entry);
+  mov(Operand(esp, 0 * kPointerSize), js_function);
+  mov(Operand(esp, 1 * kPointerSize), dst);  // Slot.
+  mov(Operand(esp, 2 * kPointerSize),
+      Immediate(ExternalReference::isolate_address(isolate())));
+
+  {
+    AllowExternalCallThatCantCauseGC scope(this);
+    CallCFunction(
+        ExternalReference::incremental_marking_record_write_code_entry_function(
+            isolate()),
+        argument_count);
+  }
+
+  // Restore caller-saved registers.
+  PopCallerSaved(kDontSaveFPRegs, js_function, code_entry);
+
+  // Restore input registers.
+  pop(code_entry);
+  pop(js_function);
+
+  bind(&done);
+}
 
 void MacroAssembler::DebugBreak() {
   Move(eax, Immediate(0));

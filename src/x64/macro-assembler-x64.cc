@@ -507,6 +507,90 @@ void MacroAssembler::RecordWrite(
   }
 }
 
+void MacroAssembler::RecordWriteCodeEntryField(Register js_function,
+                                               Register code_entry,
+                                               Register scratch) {
+  const int offset = JSFunction::kCodeEntryOffset;
+
+  // The input registers are fixed to make calling the C write barrier function
+  // easier.
+  DCHECK(js_function.is(rdi));
+  DCHECK(code_entry.is(rcx));
+  DCHECK(scratch.is(rax));
+
+  // Since a code entry (value) is always in old space, we don't need to update
+  // remembered set. If incremental marking is off, there is nothing for us to
+  // do.
+  if (!FLAG_incremental_marking) return;
+
+  AssertNotSmi(js_function);
+
+  if (emit_debug_code()) {
+    Label ok;
+    leap(scratch, FieldOperand(js_function, offset));
+    cmpp(code_entry, Operand(scratch, 0));
+    j(equal, &ok, Label::kNear);
+    int3();
+    bind(&ok);
+  }
+
+  // First, check if a write barrier is even needed. The tests below
+  // catch stores of Smis and stores into young gen.
+  Label done;
+
+  CheckPageFlag(code_entry, scratch,
+                MemoryChunk::kPointersToHereAreInterestingMask, zero, &done,
+                Label::kNear);
+  CheckPageFlag(js_function, scratch,
+                MemoryChunk::kPointersFromHereAreInterestingMask, zero, &done,
+                Label::kNear);
+
+  // Save input registers.
+  Push(js_function);
+  Push(code_entry);
+
+  const Register dst = scratch;
+  leap(dst, FieldOperand(js_function, offset));
+
+  // Save caller-saved registers.
+  PushCallerSaved(kDontSaveFPRegs, js_function, code_entry);
+
+  int argument_count = 3;
+  PrepareCallCFunction(argument_count);
+
+  // Load the argument registers.
+  if (arg_reg_1.is(rcx)) {
+    // Windows calling convention.
+    DCHECK(arg_reg_2.is(rdx) && arg_reg_3.is(r8));
+
+    movp(arg_reg_1, js_function);  // rcx gets rdi.
+    movp(arg_reg_2, dst);          // rdx gets rax.
+  } else {
+    // AMD64 calling convention.
+    DCHECK(arg_reg_1.is(rdi) && arg_reg_2.is(rsi) && arg_reg_3.is(rdx));
+
+    // rdi is already loaded with js_function.
+    movp(arg_reg_2, dst);  // rsi gets rax.
+  }
+  Move(arg_reg_3, ExternalReference::isolate_address(isolate()));
+
+  {
+    AllowExternalCallThatCantCauseGC scope(this);
+    CallCFunction(
+        ExternalReference::incremental_marking_record_write_code_entry_function(
+            isolate()),
+        argument_count);
+  }
+
+  // Restore caller-saved registers.
+  PopCallerSaved(kDontSaveFPRegs, js_function, code_entry);
+
+  // Restore input registers.
+  Pop(code_entry);
+  Pop(js_function);
+
+  bind(&done);
+}
 
 void MacroAssembler::Assert(Condition cc, BailoutReason reason) {
   if (emit_debug_code()) Check(cc, reason);

@@ -1515,6 +1515,50 @@ TEST(TestCodeFlushingIncrementalAbort) {
   CHECK(function->is_compiled() || !function->IsOptimized());
 }
 
+TEST(TestUseOfIncrementalBarrierOnCompileLazy) {
+  // Turn off always_opt because it interferes with running the built-in for
+  // the last call to g().
+  i::FLAG_always_opt = false;
+  i::FLAG_allow_natives_syntax = true;
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  Heap* heap = isolate->heap();
+  v8::HandleScope scope(CcTest::isolate());
+
+  CompileRun(
+      "function make_closure(x) {"
+      "  return function() { return x + 3 };"
+      "}"
+      "var f = make_closure(5); f();"
+      "var g = make_closure(5);");
+
+  // Check f is compiled.
+  Handle<String> f_name = factory->InternalizeUtf8String("f");
+  Handle<Object> f_value =
+      Object::GetProperty(isolate->global_object(), f_name).ToHandleChecked();
+  Handle<JSFunction> f_function = Handle<JSFunction>::cast(f_value);
+  CHECK(f_function->is_compiled());
+
+  // Check g is not compiled.
+  Handle<String> g_name = factory->InternalizeUtf8String("g");
+  Handle<Object> g_value =
+      Object::GetProperty(isolate->global_object(), g_name).ToHandleChecked();
+  Handle<JSFunction> g_function = Handle<JSFunction>::cast(g_value);
+  // TODO(mvstanton): change to check that g is *not* compiled when optimized
+  // cache
+  // map lookup moves to the compile lazy builtin.
+  CHECK(g_function->is_compiled());
+
+  SimulateIncrementalMarking(heap);
+  CompileRun("%OptimizeFunctionOnNextCall(f); f();");
+
+  // g should now have available an optimized function, unmarked by gc. The
+  // CompileLazy built-in will discover it and install it in the closure, and
+  // the incremental write barrier should be used.
+  CompileRun("g();");
+  CHECK(g_function->is_compiled());
+}
 
 TEST(CompilationCacheCachingBehavior) {
   // If we do not flush code, or have the compilation cache turned off, this

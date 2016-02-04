@@ -91,6 +91,16 @@ void IncrementalMarking::RecordWriteFromCode(HeapObject* obj, Object** slot,
   marking->RecordWrite(obj, slot, *slot);
 }
 
+// static
+void IncrementalMarking::RecordWriteOfCodeEntryFromCode(JSFunction* host,
+                                                        Object** slot,
+                                                        Isolate* isolate) {
+  DCHECK(host->IsJSFunction());
+  IncrementalMarking* marking = isolate->heap()->incremental_marking();
+  Code* value = Code::cast(
+      Code::GetObjectFromEntryAddress(reinterpret_cast<Address>(slot)));
+  marking->RecordWriteOfCodeEntry(host, slot, value);
+}
 
 void IncrementalMarking::RecordCodeTargetPatch(Code* host, Address pc,
                                                HeapObject* value) {

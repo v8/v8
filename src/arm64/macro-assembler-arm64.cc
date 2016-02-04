@@ -3818,6 +3818,65 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
   Ldr(result, FieldMemOperand(scratch2, kValueOffset));
 }
 
+void MacroAssembler::RecordWriteCodeEntryField(Register js_function,
+                                               Register code_entry,
+                                               Register scratch) {
+  const int offset = JSFunction::kCodeEntryOffset;
+
+  // Since a code entry (value) is always in old space, we don't need to update
+  // remembered set. If incremental marking is off, there is nothing for us to
+  // do.
+  if (!FLAG_incremental_marking) return;
+
+  DCHECK(js_function.is(x1));
+  DCHECK(code_entry.is(x7));
+  DCHECK(scratch.is(x5));
+  AssertNotSmi(js_function);
+
+  if (emit_debug_code()) {
+    UseScratchRegisterScope temps(this);
+    Register temp = temps.AcquireX();
+    Add(scratch, js_function, offset - kHeapObjectTag);
+    Ldr(temp, MemOperand(scratch));
+    Cmp(temp, code_entry);
+    Check(eq, kWrongAddressOrValuePassedToRecordWrite);
+  }
+
+  // First, check if a write barrier is even needed. The tests below
+  // catch stores of Smis and stores into young gen.
+  Label done;
+
+  CheckPageFlagClear(code_entry, scratch,
+                     MemoryChunk::kPointersToHereAreInterestingMask, &done);
+  CheckPageFlagClear(js_function, scratch,
+                     MemoryChunk::kPointersFromHereAreInterestingMask, &done);
+
+  const Register dst = scratch;
+  Add(dst, js_function, offset - kHeapObjectTag);
+
+  // Save caller-saved registers.Both input registers (x1 and x7) are caller
+  // saved, so there is no need to push them.
+  PushCPURegList(kCallerSaved);
+
+  int argument_count = 3;
+
+  Mov(x0, js_function);
+  Mov(x1, dst);
+  Mov(x2, ExternalReference::isolate_address(isolate()));
+
+  {
+    AllowExternalCallThatCantCauseGC scope(this);
+    CallCFunction(
+        ExternalReference::incremental_marking_record_write_code_entry_function(
+            isolate()),
+        argument_count);
+  }
+
+  // Restore caller-saved registers.
+  PopCPURegList(kCallerSaved);
+
+  Bind(&done);
+}
 
 void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
                                          Register address,

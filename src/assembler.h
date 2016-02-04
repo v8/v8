@@ -899,6 +899,8 @@ class ExternalReference BASE_EMBEDDED {
 
   static ExternalReference incremental_marking_record_write_function(
       Isolate* isolate);
+  static ExternalReference incremental_marking_record_write_code_entry_function(
+      Isolate* isolate);
   static ExternalReference store_buffer_overflow_function(
       Isolate* isolate);
   static ExternalReference delete_handle_scope_extensions(Isolate* isolate);
