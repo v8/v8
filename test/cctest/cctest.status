@@ -518,9 +518,6 @@
   # TODO(rmcilroy,4680): Check failed: toplevel_test_code_event_found.
   'test-serialize/SerializeToplevelIsolates': [FAIL],
 
-  # TODO(rmcilroy,4680): Exception message doesn't match in release mode.
-  'test-run-jsexceptions/ThrowMessageIndirectly': [FAIL, PASS],
-
   # TODO(rmcilroy,4682): Requires support for classes.
   'test-inobject-slack-tracking/SubclassBasicNoBaseClassInstancesNoInlineNew': [FAIL],
   'test-inobject-slack-tracking/SubclassBasicNoBaseClassInstances': [FAIL],
