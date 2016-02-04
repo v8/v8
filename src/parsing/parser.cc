@@ -5809,7 +5809,7 @@ void ParserTraits::SetFunctionNameFromIdentifierRef(Expression* value,
 //           if (!IS_RECEIVER(output)) %ThrowIterResultNotAnObject(output);
 //           break;
 //         case kReturn:
-//           IteratorClose(iterator, input);  // See below.
+//           IteratorClose(iterator, input, output);  // See below.
 //           break;
 //         case kThrow:
 //           let iteratorThrow = iterator.throw;
@@ -5846,15 +5846,15 @@ void ParserTraits::SetFunctionNameFromIdentifierRef(Expression* value,
 //
 //   let iteratorReturn = iterator.return;
 //   if (IS_NULL_OR_UNDEFINED(iteratorReturn)) return;
-//   let result = %_Call(iteratorReturn, iterator);
-//   if (!IS_RECEIVER(result)) %ThrowIterResultNotAnObject(result);
+//   let output = %_Call(iteratorReturn, iterator);
+//   if (!IS_RECEIVER(output)) %ThrowIterResultNotAnObject(output);
 //
-// IteratorClose(iterator, input) expands to the following:
+// IteratorClose(iterator, input, output) expands to the following:
 //
 //   let iteratorReturn = iterator.return;
 //   if (IS_NULL_OR_UNDEFINED(iteratorReturn)) return input;
-//   let result = %_Call(iteratorReturn, iterator, input);
-//   if (!IS_RECEIVER(result)) %ThrowIterResultNotAnObject(result);
+//   output = %_Call(iteratorReturn, iterator, input);
+//   if (!IS_RECEIVER(output)) %ThrowIterResultNotAnObject(output);
 
 
 Expression* ParserTraits::RewriteYieldStar(
@@ -6023,7 +6023,8 @@ Expression* ParserTraits::RewriteYieldStar(
     Statement* throw_call = factory->NewExpressionStatement(call, nopos);
 
     Block* then = factory->NewBlock(nullptr, 4+1, false, nopos);
-    BuildIteratorClose(then->statements(), var_iterator, Nothing<Variable*>());
+    BuildIteratorClose(then->statements(), var_iterator, Nothing<Variable*>(),
+                       Nothing<Variable*>());
     then->statements()->Add(throw_call, zone);
     check_throw =
         factory->NewIfStatement(condition, then, skip, nopos);
@@ -6195,7 +6196,8 @@ Expression* ParserTraits::RewriteYieldStar(
     case_next->Add(factory->NewBreakStatement(switch_mode, nopos), zone);
 
     auto case_return = new (zone) ZoneList<Statement*>(5, zone);
-    BuildIteratorClose(case_return, var_iterator, Just(var_input));
+    BuildIteratorClose(
+        case_return, var_iterator, Just(var_input), Just(var_output));
     case_return->Add(factory->NewBreakStatement(switch_mode, nopos), zone);
 
     auto case_throw = new (zone) ZoneList<Statement*>(5, zone);
@@ -6259,7 +6261,8 @@ Expression* ParserTraits::RewriteYieldStar(
 
 void ParserTraits::BuildIteratorClose(ZoneList<Statement*>* statements,
                                       Variable* iterator,
-                                      Maybe<Variable*> input) {
+                                      Maybe<Variable*> input,
+                                      Maybe<Variable*> output) {
   const int nopos = RelocInfo::kNoPosition;
   auto factory = parser_->factory();
   auto avfactory = parser_->ast_value_factory();
@@ -6300,8 +6303,8 @@ void ParserTraits::BuildIteratorClose(ZoneList<Statement*>* statements,
         factory->NewIfStatement(condition, return_undefined, skip, nopos);
   }
 
-  // let result = %_Call(iteratorReturn, iterator);  OR
-  // let result = %_Call(iteratorReturn, iterator, input);
+  // let output = %_Call(iteratorReturn, iterator);  OR
+  // output = %_Call(iteratorReturn, iterator, input);
   Statement* call_return;
   {
     auto args = new (zone) ZoneList<Expression*>(3, zone);
@@ -6313,13 +6316,15 @@ void ParserTraits::BuildIteratorClose(ZoneList<Statement*>* statements,
 
     Expression* call =
         factory->NewCallRuntime(Runtime::kInlineCall, args, nopos);
+    Expression* output_proxy = factory->NewVariableProxy(
+        output.IsJust() ? output.FromJust() : var);
     Expression* assignment = factory->NewAssignment(
-        Token::ASSIGN, factory->NewVariableProxy(var), call, nopos);
+        Token::ASSIGN, output_proxy, call, nopos);
     call_return = factory->NewExpressionStatement(assignment, nopos);
   }
 
-  // if (!IS_RECEIVER(result)) %ThrowIterResultNotAnObject(result);
-  Statement* validate_result;
+  // if (!IS_RECEIVER(output)) %ThrowIterResultNotAnObject(output);
+  Statement* validate_output;
   {
     Expression* is_receiver_call;
     {
@@ -6338,14 +6343,14 @@ void ParserTraits::BuildIteratorClose(ZoneList<Statement*>* statements,
       throw_call = factory->NewExpressionStatement(call, nopos);
     }
 
-    validate_result =
+    validate_output =
         factory->NewIfStatement(is_receiver_call, skip, throw_call, nopos);
   }
 
   statements->Add(get_return, zone);
   statements->Add(check_return, zone);
   statements->Add(call_return, zone);
-  statements->Add(validate_result, zone);
+  statements->Add(validate_output, zone);
 }
 
 

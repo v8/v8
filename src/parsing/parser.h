@@ -663,7 +663,7 @@ class ParserTraits {
   Parser* parser_;
 
   void BuildIteratorClose(ZoneList<Statement*>* statements, Variable* iterator,
-                          Maybe<Variable*> input);
+                          Maybe<Variable*> input, Maybe<Variable*> output);
 };
 
 
