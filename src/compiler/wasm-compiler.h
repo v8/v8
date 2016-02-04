@@ -132,6 +132,8 @@ class WasmGraphBuilder {
 
   wasm::FunctionSig* GetFunctionSignature() { return function_signature_; }
 
+  void Int64LoweringForTesting();
+
  private:
   static const int kDefaultBufferSize = 16;
   friend class WasmTrapHelper;

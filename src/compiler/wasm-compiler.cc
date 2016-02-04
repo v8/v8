@@ -15,6 +15,7 @@
 #include "src/compiler/graph.h"
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/instruction-selector.h"
+#include "src/compiler/int64-lowering.h"
 #include "src/compiler/js-generic-lowering.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-operator.h"
@@ -481,6 +482,9 @@ Node* WasmGraphBuilder::Binop(wasm::WasmOpcode opcode, Node* left,
       op = m->Uint32LessThanOrEqual();
       std::swap(left, right);
       break;
+    case wasm::kExprI64And:
+      op = m->Word64And();
+      break;
 #if WASM_64
     // Opcodes only supported on 64-bit platforms.
     // TODO(titzer): query the machine operator builder here instead of #ifdef.
@@ -531,9 +535,6 @@ Node* WasmGraphBuilder::Binop(wasm::WasmOpcode opcode, Node* left,
       op = m->Uint64Mod();
       return graph()->NewNode(op, left, right,
                               trap_->ZeroCheck64(kTrapRemByZero, right));
-    case wasm::kExprI64And:
-      op = m->Word64And();
-      break;
     case wasm::kExprI64Ior:
       op = m->Word64Or();
       break;
@@ -783,13 +784,12 @@ Node* WasmGraphBuilder::Unop(wasm::WasmOpcode opcode, Node* input) {
       op = m->Float64RoundTiesEven().op();
       break;
     }
-
-#if WASM_64
-    // Opcodes only supported on 64-bit platforms.
-    // TODO(titzer): query the machine operator builder here instead of #ifdef.
     case wasm::kExprI32ConvertI64:
       op = m->TruncateInt64ToInt32();
       break;
+#if WASM_64
+    // Opcodes only supported on 64-bit platforms.
+    // TODO(titzer): query the machine operator builder here instead of #ifdef.
     case wasm::kExprI64SConvertI32:
       op = m->ChangeInt32ToInt64();
       break;
@@ -1888,6 +1888,13 @@ Node* WasmGraphBuilder::String(const char* string) {
 
 Graph* WasmGraphBuilder::graph() { return jsgraph()->graph(); }
 
+void WasmGraphBuilder::Int64LoweringForTesting() {
+#if !WASM_64
+  Int64Lowering r(jsgraph()->graph(), jsgraph()->machine(), jsgraph()->common(),
+                  jsgraph()->zone());
+  r.ReduceGraph();
+#endif
+}
 
 static void RecordFunctionCompilation(Logger::LogEventsAndTags tag,
                                       CompilationInfo* info,
@@ -1909,7 +1916,6 @@ static void RecordFunctionCompilation(Logger::LogEventsAndTags tag,
             CodeCreateEvent(tag, *code, *shared, info, *script_str, 0, 0));
   }
 }
-
 
 Handle<JSFunction> CompileJSToWasmWrapper(
     Isolate* isolate, wasm::ModuleEnv* module, Handle<String> name,
@@ -2119,6 +2125,7 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
     func_name = buffer.start();
   }
   CompilationInfo info(func_name, isolate, &zone, flags);
+
   Handle<Code> code =
       Pipeline::GenerateCodeForTesting(&info, descriptor, &graph);
   if (debugging) {

@@ -12,6 +12,7 @@
 #include "src/base/utils/random-number-generator.h"
 
 #include "src/compiler/graph-visualizer.h"
+#include "src/compiler/int64-lowering.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/wasm-compiler.h"
 
@@ -236,6 +237,7 @@ inline void TestBuildingGraph(Zone* zone, JSGraph* jsgraph, FunctionEnv* env,
     str << ", msg = " << result.error_msg.get();
     FATAL(str.str().c_str());
   }
+  builder.Int64LoweringForTesting();
   if (FLAG_trace_turbo_graph) {
     OFStream os(stdout);
     os << AsRPO(*jsgraph->graph());

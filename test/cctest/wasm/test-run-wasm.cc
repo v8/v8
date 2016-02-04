@@ -116,6 +116,23 @@ TEST(Run_WasmInt64Const_many) {
 }
 #endif
 
+TEST(Run_WasmI32ConvertI64) {
+  FOR_INT64_INPUTS(i) {
+    WasmRunner<int32_t> r;
+    BUILD(r, WASM_I32_CONVERT_I64(WASM_I64(*i)));
+    CHECK_EQ(static_cast<int32_t>(*i), r.Call());
+  }
+}
+
+TEST(Run_WasmI64AndConstants) {
+  FOR_INT64_INPUTS(i) {
+    FOR_INT64_INPUTS(j) {
+      WasmRunner<int32_t> r;
+      BUILD(r, WASM_I32_CONVERT_I64(WASM_I64_AND(WASM_I64(*i), WASM_I64(*j))));
+      CHECK_EQ(static_cast<int32_t>(*i & *j), r.Call());
+    }
+  }
+}
 
 TEST(Run_WasmInt32Param0) {
   WasmRunner<int32_t> r(MachineType::Int32());
@@ -215,7 +232,6 @@ void TestInt32Binop(WasmOpcode opcode, int32_t expected, int32_t a, int32_t b) {
     CHECK_EQ(expected, r.Call(a, b));
   }
 }
-
 
 TEST(Run_WasmInt32Binops) {
   TestInt32Binop(kExprI32Add, 88888888, 33333333, 55555555);

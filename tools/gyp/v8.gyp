@@ -541,6 +541,8 @@
         '../../src/compiler/instruction-scheduler.h',
         '../../src/compiler/instruction.cc',
         '../../src/compiler/instruction.h',
+        '../../src/compiler/int64-lowering.cc',
+        '../../src/compiler/int64-lowering.h',
         '../../src/compiler/interpreter-assembler.cc',
         '../../src/compiler/interpreter-assembler.h',
         '../../src/compiler/js-builtin-reducer.cc',
