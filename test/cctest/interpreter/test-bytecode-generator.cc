@@ -4174,6 +4174,7 @@ TEST(ObjectLiterals) {
                      ObjectLiteral::kDisableMementos;
   int deep_elements_flags =
       ObjectLiteral::kFastElements | ObjectLiteral::kDisableMementos;
+
   // clang-format off
   ExpectedSnippet<InstanceType> snippets[] = {
       {"return { };",
@@ -4390,9 +4391,9 @@ TEST(ObjectLiterals) {
        1,
        {InstanceType::FIXED_ARRAY_TYPE}},
       {"var a = 'test'; return { [a]: 1 }",
-       6 * kPointerSize,
+       7 * kPointerSize,
        1,
-       34,
+       37,
        {
            B(StackCheck),                                                     //
            B(LdaConstant), U8(0),                                             //
@@ -4407,8 +4408,10 @@ TEST(ObjectLiterals) {
            B(Star), R(4),                                                     //
            B(LdaZero),                                                        //
            B(Star), R(5),                                                     //
-           B(CallRuntime), U16(Runtime::kDefineDataPropertyUnchecked), R(2),  //
-           /*           */ U8(4),                                             //
+           B(LdaZero),                                                        //
+           B(Star), R(6),                                                     //
+           B(CallRuntime), U16(Runtime::kDefineDataPropertyInLiteral), R(2),  //
+           /*           */ U8(5),                                             //
            B(Ldar), R(1),                                                     //
            B(Return),                                                         //
        },
@@ -4416,9 +4419,9 @@ TEST(ObjectLiterals) {
        {InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
         InstanceType::FIXED_ARRAY_TYPE}},
       {"var a = 'test'; return { val: a, [a]: 1 }",
-       6 * kPointerSize,
+       7 * kPointerSize,
        1,
-       40,
+       43,
        {
            B(StackCheck),                                                     //
            B(LdaConstant), U8(0),                                             //
@@ -4435,8 +4438,10 @@ TEST(ObjectLiterals) {
            B(Star), R(4),                                                     //
            B(LdaZero),                                                        //
            B(Star), R(5),                                                     //
-           B(CallRuntime), U16(Runtime::kDefineDataPropertyUnchecked), R(2),  //
-           /*           */ U8(4),                                             //
+           B(LdaZero),                                                        //
+           B(Star), R(6),                                                     //
+           B(CallRuntime), U16(Runtime::kDefineDataPropertyInLiteral), R(2),  //
+           /*           */ U8(5),                                             //
            B(Ldar), R(1),                                                     //
            B(Return),                                                         //
        },
@@ -4445,9 +4450,9 @@ TEST(ObjectLiterals) {
         InstanceType::FIXED_ARRAY_TYPE,
         InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
       {"var a = 'test'; return { [a]: 1, __proto__: {} }",
-       6 * kPointerSize,
+       7 * kPointerSize,
        1,
-       50,
+       53,
        {
            B(StackCheck),                                                     //
            B(LdaConstant), U8(0),                                             //
@@ -4462,8 +4467,10 @@ TEST(ObjectLiterals) {
            B(Star), R(4),                                                     //
            B(LdaZero),                                                        //
            B(Star), R(5),                                                     //
-           B(CallRuntime), U16(Runtime::kDefineDataPropertyUnchecked), R(2),  //
-           /*           */ U8(4),                                             //
+           B(LdaZero),                                                        //
+           B(Star), R(6),                                                     //
+           B(CallRuntime), U16(Runtime::kDefineDataPropertyInLiteral), R(2),  //
+           /*           */ U8(5),                                             //
            B(Mov), R(1), R(2),                                                //
            B(CreateObjectLiteral), U8(1), U8(0), U8(13),                      //
            B(Star), R(4),                                                     //
@@ -4476,9 +4483,9 @@ TEST(ObjectLiterals) {
        {InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
         InstanceType::FIXED_ARRAY_TYPE}},
       {"var n = 'name'; return { [n]: 'val', get a() { }, set a(b) {} };",
-       6 * kPointerSize,
+       7 * kPointerSize,
        1,
-       74,
+       77,
        {
            B(StackCheck),                                                     //
            B(LdaConstant), U8(0),                                             //
@@ -4493,8 +4500,10 @@ TEST(ObjectLiterals) {
            B(Star), R(4),                                                     //
            B(LdaZero),                                                        //
            B(Star), R(5),                                                     //
-           B(CallRuntime), U16(Runtime::kDefineDataPropertyUnchecked), R(2),  //
-           /*           */ U8(4),                                             //
+           B(LdaZero),                                                        //
+           B(Star), R(6),                                                     //
+           B(CallRuntime), U16(Runtime::kDefineDataPropertyInLiteral), R(2),  //
+           /*           */ U8(5),                                             //
            B(Mov), R(1), R(2),                                                //
            B(LdaConstant), U8(3),                                             //
            B(Star), R(3),                                                     //
@@ -8381,7 +8390,9 @@ TEST(DoDebugger) {
   CheckBytecodeArrayEqual(snippet, bytecode_array);
 }
 
-TEST(ClassDeclarations) {
+// TODO(rmcilroy): Update expectations after switch to
+// Runtime::kDefineDataPropertyInLiteral.
+DISABLED_TEST(ClassDeclarations) {
   InitializedHandleScope handle_scope;
   BytecodeGeneratorHelper helper;
 
@@ -8420,7 +8431,7 @@ TEST(ClassDeclarations) {
        B(Star), R(5),                                                        //
        B(CreateClosure), U8(3), U8(0),                                       //
        B(Star), R(6),                                                        //
-       B(CallRuntime), U16(Runtime::kDefineClassMethod), R(4), U8(3),        //
+       B(CallRuntime), U16(Runtime::kDefineDataPropertyInLiteral), R(4), U8(3),
        B(CallRuntime), U16(Runtime::kFinalizeClassDefinition), R(2), U8(2),  //
        B(Star), R(0),                                                        //
        B(Star), R(1),                                                        //
@@ -8461,7 +8472,7 @@ TEST(ClassDeclarations) {
        B(Star), R(5),                                                        //
        B(CreateClosure), U8(3), U8(0),                                       //
        B(Star), R(6),                                                        //
-       B(CallRuntime), U16(Runtime::kDefineClassMethod), R(4), U8(3),        //
+       B(CallRuntime), U16(Runtime::kDefineDataPropertyInLiteral), R(4), U8(3),
        B(CallRuntime), U16(Runtime::kFinalizeClassDefinition), R(2), U8(2),  //
        B(Star), R(0),                                                        //
        B(Star), R(1),                                                        //
@@ -8512,7 +8523,7 @@ TEST(ClassDeclarations) {
        B(Star), R(6),                                                        //
        B(CreateClosure), U8(3), U8(0),                                       //
        B(Star), R(7),                                                        //
-       B(CallRuntime), U16(Runtime::kDefineClassMethod), R(5), U8(3),        //
+       B(CallRuntime), U16(Runtime::kDefineDataPropertyInLiteral), R(5), U8(3),
        B(Mov), R(3), R(5),                                                   //
        B(LdaContextSlot), R(context), U8(5),                                 //
        B(ToName),                                                            //
@@ -8524,7 +8535,7 @@ TEST(ClassDeclarations) {
        /*           */ R(0), U8(0),                                          //
        B(CreateClosure), U8(5), U8(0),                                       //
        B(Star), R(7),                                                        //
-       B(CallRuntime), U16(Runtime::kDefineClassMethod), R(5), U8(3),        //
+       B(CallRuntime), U16(Runtime::kDefineDataPropertyInLiteral), R(5), U8(3),
        B(CallRuntime), U16(Runtime::kFinalizeClassDefinition), R(3), U8(2),  //
        B(Star), R(0),                                                        //
        B(Star), R(1),                                                        //

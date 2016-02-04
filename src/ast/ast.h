@@ -1477,6 +1477,10 @@ class ObjectLiteralProperty final : public ZoneObject {
 
   void set_receiver_type(Handle<Map> map) { receiver_type_ = map; }
 
+  bool NeedsSetFunctionName() const {
+    return is_computed_name_ && value_->IsAnonymousFunctionDefinition();
+  }
+
  protected:
   friend class AstNodeFactory;
 

@@ -1292,11 +1292,12 @@ void BytecodeGenerator::VisitClassLiteralProperties(ClassLiteral* expr,
                                                     Register literal,
                                                     Register prototype) {
   RegisterAllocationScope register_scope(this);
-  register_allocator()->PrepareForConsecutiveAllocations(4);
+  register_allocator()->PrepareForConsecutiveAllocations(5);
   Register receiver = register_allocator()->NextConsecutiveRegister();
   Register key = register_allocator()->NextConsecutiveRegister();
   Register value = register_allocator()->NextConsecutiveRegister();
   Register attr = register_allocator()->NextConsecutiveRegister();
+  Register set_function_name = register_allocator()->NextConsecutiveRegister();
 
   bool attr_assigned = false;
   Register old_receiver = Register::invalid_value();
@@ -1326,9 +1327,7 @@ void BytecodeGenerator::VisitClassLiteralProperties(ClassLiteral* expr,
 
     VisitSetHomeObject(value, receiver, property);
 
-    if ((property->kind() == ObjectLiteral::Property::GETTER ||
-         property->kind() == ObjectLiteral::Property::SETTER) &&
-        !attr_assigned) {
+    if (!attr_assigned) {
       builder()
           ->LoadLiteral(Smi::FromInt(DONT_ENUM))
           .StoreAccumulatorInRegister(attr);
@@ -1343,7 +1342,11 @@ void BytecodeGenerator::VisitClassLiteralProperties(ClassLiteral* expr,
         UNREACHABLE();
         break;
       case ObjectLiteral::Property::COMPUTED: {
-        builder()->CallRuntime(Runtime::kDefineClassMethod, receiver, 3);
+        builder()
+            ->LoadLiteral(Smi::FromInt(property->NeedsSetFunctionName()))
+            .StoreAccumulatorInRegister(set_function_name);
+        builder()->CallRuntime(Runtime::kDefineDataPropertyInLiteral, receiver,
+                               5);
         break;
       }
       case ObjectLiteral::Property::GETTER: {
@@ -1578,12 +1581,14 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
       continue;
     }
 
-    register_allocator()->PrepareForConsecutiveAllocations(4);
+    register_allocator()->PrepareForConsecutiveAllocations(5);
     Register literal_argument = register_allocator()->NextConsecutiveRegister();
     Register key = register_allocator()->NextConsecutiveRegister();
     Register value = register_allocator()->NextConsecutiveRegister();
     Register attr = register_allocator()->NextConsecutiveRegister();
     DCHECK(Register::AreContiguous(literal_argument, key, value, attr));
+    Register set_function_name =
+        register_allocator()->NextConsecutiveRegister();
 
     builder()->MoveRegister(literal, literal_argument);
     VisitForAccumulatorValue(property->key());
@@ -1592,24 +1597,28 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
     builder()->StoreAccumulatorInRegister(value);
     VisitSetHomeObject(value, literal, property);
     builder()->LoadLiteral(Smi::FromInt(NONE)).StoreAccumulatorInRegister(attr);
-    Runtime::FunctionId function_id = static_cast<Runtime::FunctionId>(-1);
     switch (property->kind()) {
       case ObjectLiteral::Property::CONSTANT:
       case ObjectLiteral::Property::COMPUTED:
       case ObjectLiteral::Property::MATERIALIZED_LITERAL:
-        function_id = Runtime::kDefineDataPropertyUnchecked;
+        builder()
+            ->LoadLiteral(Smi::FromInt(property->NeedsSetFunctionName()))
+            .StoreAccumulatorInRegister(set_function_name);
+        builder()->CallRuntime(Runtime::kDefineDataPropertyInLiteral,
+                               literal_argument, 5);
         break;
       case ObjectLiteral::Property::PROTOTYPE:
         UNREACHABLE();  // Handled specially above.
         break;
       case ObjectLiteral::Property::GETTER:
-        function_id = Runtime::kDefineGetterPropertyUnchecked;
+        builder()->CallRuntime(Runtime::kDefineGetterPropertyUnchecked,
+                               literal_argument, 4);
         break;
       case ObjectLiteral::Property::SETTER:
-        function_id = Runtime::kDefineSetterPropertyUnchecked;
+        builder()->CallRuntime(Runtime::kDefineSetterPropertyUnchecked,
+                               literal_argument, 4);
         break;
     }
-    builder()->CallRuntime(function_id, literal_argument, 4);
   }
 
   // Transform literals that contain functions to fast properties.

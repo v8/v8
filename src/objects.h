@@ -7509,6 +7509,12 @@ class JSFunction: public JSObject {
   // debug name.
   static Handle<String> GetName(Handle<JSFunction> function);
 
+  // ES6 section 9.2.11 SetFunctionName
+  // Because of the way this abstract operation is used in the spec,
+  // it should never fail.
+  static void SetName(Handle<JSFunction> function, Handle<Name> name,
+                      Handle<String> prefix);
+
   // The function's displayName if it is set, otherwise name if it is
   // configured, otherwise shared function info
   // debug name.

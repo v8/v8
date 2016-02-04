@@ -1606,9 +1606,12 @@ void AstGraphBuilder::VisitClassLiteralContents(ClassLiteral* expr) {
       case ObjectLiteral::Property::PROTOTYPE:
         UNREACHABLE();
       case ObjectLiteral::Property::COMPUTED: {
+        Node* attr = jsgraph()->Constant(DONT_ENUM);
+        Node* set_function_name =
+            jsgraph()->Constant(property->NeedsSetFunctionName());
         const Operator* op =
-            javascript()->CallRuntime(Runtime::kDefineClassMethod);
-        NewNode(op, receiver, key, value);
+            javascript()->CallRuntime(Runtime::kDefineDataPropertyInLiteral);
+        NewNode(op, receiver, key, value, attr, set_function_name);
         break;
       }
       case ObjectLiteral::Property::GETTER: {
@@ -1855,10 +1858,11 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
       case ObjectLiteral::Property::COMPUTED:
       case ObjectLiteral::Property::MATERIALIZED_LITERAL: {
         Node* attr = jsgraph()->Constant(NONE);
+        Node* set_function_name =
+            jsgraph()->Constant(property->NeedsSetFunctionName());
         const Operator* op =
-            javascript()->CallRuntime(Runtime::kDefineDataPropertyUnchecked);
-        Node* call = NewNode(op, receiver, key, value, attr);
-        PrepareFrameState(call, BailoutId::None());
+            javascript()->CallRuntime(Runtime::kDefineDataPropertyInLiteral);
+        NewNode(op, receiver, key, value, attr, set_function_name);
         break;
       }
       case ObjectLiteral::Property::PROTOTYPE:

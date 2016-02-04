@@ -84,7 +84,6 @@ namespace internal {
   F(HomeObjectSymbol, 0, 1)                 \
   F(DefineClass, 4, 1)                      \
   F(FinalizeClassDefinition, 2, 1)          \
-  F(DefineClassMethod, 3, 1)                \
   F(LoadFromSuper, 4, 1)                    \
   F(LoadKeyedFromSuper, 4, 1)               \
   F(StoreToSuper_Strict, 4, 1)              \
@@ -414,7 +413,6 @@ namespace internal {
   F(GetHoleNaNUpper, 0, 1)             \
   F(GetHoleNaNLower, 0, 1)
 
-
 #define FOR_EACH_INTRINSIC_OBJECT(F)                 \
   F(GetPrototype, 1, 1)                              \
   F(InternalSetPrototype, 2, 1)                      \
@@ -451,6 +449,7 @@ namespace internal {
   F(IsJSGlobalProxy, 1, 1)                           \
   F(DefineAccessorPropertyUnchecked, 5, 1)           \
   F(DefineDataPropertyUnchecked, 4, 1)               \
+  F(DefineDataPropertyInLiteral, 5, 1)               \
   F(GetDataProperty, 2, 1)                           \
   F(HasFastPackedElements, 1, 1)                     \
   F(ValueOf, 1, 1)                                   \
@@ -481,7 +480,6 @@ namespace internal {
   F(IsAccessCheckNeeded, 1, 1)                       \
   F(ObjectDefineProperties, 2, 1)                    \
   F(ObjectDefineProperty, 3, 1)
-
 
 #define FOR_EACH_INTRINSIC_OBSERVE(F)            \
   F(IsObserved, 1, 1)                            \

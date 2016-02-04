@@ -13317,6 +13317,22 @@ Handle<String> JSFunction::GetDebugName(Handle<JSFunction> function) {
   return JSFunction::GetName(function);
 }
 
+void JSFunction::SetName(Handle<JSFunction> function, Handle<Name> name,
+                         Handle<String> prefix) {
+  Isolate* isolate = function->GetIsolate();
+  Handle<String> function_name = Name::ToFunctionName(name).ToHandleChecked();
+  if (prefix->length() > 0) {
+    IncrementalStringBuilder builder(isolate);
+    builder.AppendString(prefix);
+    builder.AppendCharacter(' ');
+    builder.AppendString(function_name);
+    function_name = builder.Finish().ToHandleChecked();
+  }
+  JSObject::DefinePropertyOrElementIgnoreAttributes(
+      function, isolate->factory()->name_string(), function_name,
+      static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY))
+      .ToHandleChecked();
+}
 
 namespace {
 

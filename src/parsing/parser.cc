@@ -5706,8 +5706,9 @@ void ParserTraits::SetFunctionNameFromPropertyName(
   Expression* value = property->value();
   if (!value->IsAnonymousFunctionDefinition()) return;
 
-  // TODO(adamk): Support computed names.
+  // Computed name setting must happen at runtime.
   if (property->is_computed_name()) return;
+
   DCHECK_NOT_NULL(name);
 
   // Ignore "__proto__" as a name when it's being used to set the [[Prototype]]

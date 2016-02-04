@@ -203,20 +203,6 @@ RUNTIME_FUNCTION(Runtime_DefineClass) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_DefineClassMethod) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 2);
-
-  RETURN_FAILURE_ON_EXCEPTION(isolate,
-                              JSObject::DefinePropertyOrElementIgnoreAttributes(
-                                  object, name, function, DONT_ENUM));
-  return isolate->heap()->undefined_value();
-}
-
-
 RUNTIME_FUNCTION(Runtime_FinalizeClassDefinition) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
