@@ -1774,6 +1774,19 @@ void Interpreter::DoCreateUnmappedArguments(
   __ Dispatch();
 }
 
+// CreateRestArguments
+//
+// Creates a new rest arguments object starting at |rest_index|.
+void Interpreter::DoCreateRestArguments(
+    compiler::InterpreterAssembler* assembler) {
+  Node* closure = __ LoadRegister(Register::function_closure());
+  Node* constant_pool_index = __ BytecodeOperandIdx(0);
+  Node* rest_index = __ LoadConstantPoolEntry(constant_pool_index);
+  Node* result =
+      __ CallRuntime(Runtime::kNewRestArguments_Generic, closure, rest_index);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
 
 // Throw
 //

@@ -5529,6 +5529,100 @@ TEST(CreateArguments) {
   }
 }
 
+TEST(CreateRestArguments) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+  Zone zone;
+
+  FeedbackVectorSpec feedback_spec(&zone);
+  FeedbackVectorSlot slot = feedback_spec.AddKeyedLoadICSlot();
+  FeedbackVectorSlot slot1 = feedback_spec.AddKeyedLoadICSlot();
+
+  Handle<i::TypeFeedbackVector> vector =
+      i::NewTypeFeedbackVector(helper.isolate(), &feedback_spec);
+
+  ExpectedSnippet<int> snippets[] = {
+      {"function f(...restArgs) { return restArgs; }",
+       1 * kPointerSize,
+       2,
+       5,
+       {
+           B(CreateRestArguments), U8(0),  //
+           B(Star), R(0),                  //
+           B(Return),                      //
+       },
+       1,
+       {0}},
+      {"function f(a, ...restArgs) { return restArgs; }",
+       2 * kPointerSize,
+       3,
+       14,
+       {
+           B(CreateRestArguments), U8(0),  //
+           B(Star), R(0),                  //
+           B(LdaTheHole),                  //
+           B(Star), R(1),                  //
+           B(Ldar), A(1, 3),               //
+           B(Star), R(1),                  //
+           B(Ldar), R(0),                  //
+           B(Return),                      //
+       },
+       1,
+       {1}},
+      {"function f(a, ...restArgs) { return restArgs[0]; }",
+       3 * kPointerSize,
+       3,
+       20,
+       {
+           B(CreateRestArguments), U8(0),                           //
+           B(Star), R(0),                                           //
+           B(LdaTheHole),                                           //
+           B(Star), R(1),                                           //
+           B(Ldar), A(1, 3),                                        //
+           B(Star), R(1),                                           //
+           B(Ldar), R(0),                                           //
+           B(Star), R(2),                                           //
+           B(LdaZero),                                              //
+           B(KeyedLoadICSloppy), R(2), U8(vector->GetIndex(slot)),  //
+           B(Return),                                               //
+       },
+       1,
+       {1}},
+      {"function f(a, ...restArgs) { return restArgs[0] + arguments[0]; }",
+       5 * kPointerSize,
+       3,
+       35,
+       {
+           B(CreateUnmappedArguments),                               //
+           B(Star), R(0),                                            //
+           B(CreateRestArguments), U8(0),                            //
+           B(Star), R(1),                                            //
+           B(LdaTheHole),                                            //
+           B(Star), R(2),                                            //
+           B(Ldar), A(1, 3),                                         //
+           B(Star), R(2),                                            //
+           B(Ldar), R(1),                                            //
+           B(Star), R(3),                                            //
+           B(LdaZero),                                               //
+           B(KeyedLoadICSloppy), R(3), U8(vector->GetIndex(slot)),   //
+           B(Star), R(4),                                            //
+           B(Ldar), R(0),                                            //
+           B(Star), R(3),                                            //
+           B(LdaZero),                                               //
+           B(KeyedLoadICSloppy), R(3), U8(vector->GetIndex(slot1)),  //
+           B(Add), R(4),                                             //
+           B(Return),                                                //
+       },
+       1,
+       {1}},
+  };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecodeForFunction(snippets[i].code_snippet);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+}
 
 TEST(IllegalRedeclaration) {
   InitializedHandleScope handle_scope;

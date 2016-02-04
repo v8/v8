@@ -148,6 +148,9 @@ class BytecodeArrayBuilder final : public ZoneObject, private RegisterMover {
   // Create a new arguments object in the accumulator.
   BytecodeArrayBuilder& CreateArguments(CreateArgumentsType type);
 
+  // Create a new rest arguments object starting at |index| in the accumulator.
+  BytecodeArrayBuilder& CreateRestArguments(int index);
+
   // Literals creation.  Constant elements should be in the accumulator.
   BytecodeArrayBuilder& CreateRegExpLiteral(Handle<String> pattern,
                                             int literal_index, int flags);

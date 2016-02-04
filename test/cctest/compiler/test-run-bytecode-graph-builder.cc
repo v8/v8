@@ -1679,6 +1679,10 @@ TEST(BytecodeGraphBuilderCreateArgumentsNoParameters) {
        {factory->undefined_value()}},
       {"function f(a) {'use strict'; return arguments[0];}",
        {factory->undefined_value()}},
+      {"function f(...restArgs) {return restArgs[0];}",
+       {factory->undefined_value()}},
+      {"function f(a, ...restArgs) {return restArgs[0];}",
+       {factory->undefined_value()}},
   };
 
   size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
@@ -1741,6 +1745,49 @@ TEST(BytecodeGraphBuilderCreateArguments) {
   }
 }
 
+TEST(BytecodeGraphBuilderCreateRestArguments) {
+  HandleAndZoneScope scope;
+  Isolate* isolate = scope.main_isolate();
+  Zone* zone = scope.main_zone();
+  Factory* factory = isolate->factory();
+
+  ExpectedSnippet<3> snippets[] = {
+      {"function f(...restArgs) {return restArgs[0];}",
+       {factory->NewNumberFromInt(1), factory->NewNumberFromInt(1),
+        factory->NewNumberFromInt(2), factory->NewNumberFromInt(3)}},
+      {"function f(a, b, ...restArgs) {return restArgs[0];}",
+       {factory->NewNumberFromInt(3), factory->NewNumberFromInt(1),
+        factory->NewNumberFromInt(2), factory->NewNumberFromInt(3)}},
+      {"function f(a, b, ...restArgs) {return arguments[2];}",
+       {factory->NewNumberFromInt(3), factory->NewNumberFromInt(1),
+        factory->NewNumberFromInt(2), factory->NewNumberFromInt(3)}},
+      {"function f(a, ...restArgs) { return restArgs[2];}",
+       {factory->undefined_value(), factory->NewNumberFromInt(1),
+        factory->NewNumberFromInt(2), factory->NewNumberFromInt(3)}},
+      {"function f(a, ...restArgs) { return arguments[0] + restArgs[1];}",
+       {factory->NewNumberFromInt(4), factory->NewNumberFromInt(1),
+        factory->NewNumberFromInt(2), factory->NewNumberFromInt(3)}},
+      {"function inline_func(a, ...restArgs) { return restArgs[0] }"
+       "function f(a, b, c) {return inline_func(b, c) + arguments[0];}",
+       {factory->NewNumberFromInt(31), factory->NewNumberFromInt(1),
+        factory->NewNumberFromInt(2), factory->NewNumberFromInt(30)}},
+  };
+
+  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
+  for (size_t i = 0; i < num_snippets; i++) {
+    ScopedVector<char> script(1024);
+    SNPrintF(script, "%s\n%s();", snippets[i].code_snippet, kFunctionName);
+
+    BytecodeGraphTester tester(isolate, zone, script.start());
+    auto callable =
+        tester.GetCallable<Handle<Object>, Handle<Object>, Handle<Object>>();
+    Handle<Object> return_value =
+        callable(snippets[i].parameter(0), snippets[i].parameter(1),
+                 snippets[i].parameter(2))
+            .ToHandleChecked();
+    CHECK(return_value->SameValue(*snippets[i].return_value()));
+  }
+}
 
 TEST(BytecodeGraphBuilderRegExpLiterals) {
   HandleAndZoneScope scope;

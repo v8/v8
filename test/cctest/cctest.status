@@ -650,7 +650,6 @@
   'test-heap/CompilationCacheCachingBehavior': [FAIL],
   'test-heap/CellsInOptimizedCodeAreWeak': [FAIL],
   'test-run-inlining/InlineTwice': [FAIL],
-  'test-run-jsobjects/ArgumentsRest': [FAIL],
   'test-decls/Regress425510': [FAIL],
 
   # TODO(rmcilroy,4680): Fail on some bot configurations.

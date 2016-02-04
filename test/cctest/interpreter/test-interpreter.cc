@@ -2214,6 +2214,15 @@ TEST(InterpreterCreateArguments) {
       std::make_pair("function f(a, b, c, d) {"
                      "  'use strict'; c = b; return arguments[2]; }",
                      2),
+      // check rest parameters
+      std::make_pair("function f(...restArray) { return restArray[0]; }", 0),
+      std::make_pair("function f(a, ...restArray) { return restArray[0]; }", 1),
+      std::make_pair("function f(a, ...restArray) { return arguments[0]; }", 0),
+      std::make_pair("function f(a, ...restArray) { return arguments[1]; }", 1),
+      std::make_pair("function f(a, ...restArray) { return restArray[1]; }", 2),
+      std::make_pair("function f(a, ...arguments) { return arguments[0]; }", 1),
+      std::make_pair("function f(a, b, ...restArray) { return restArray[0]; }",
+                     2),
   };
 
   // Test passing no arguments.

@@ -27,6 +27,12 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   CHECK_EQ(builder.context_count(), 1);
   CHECK_EQ(builder.fixed_register_count(), 132);
 
+  // Emit argument creation operations. CreateRestArguments should
+  // be output before any bytecodes that change constant pool.
+  builder.CreateArguments(CreateArgumentsType::kMappedArguments)
+      .CreateArguments(CreateArgumentsType::kUnmappedArguments)
+      .CreateRestArguments(0);
+
   // Emit constant loads.
   builder.LoadLiteral(Smi::FromInt(0))
       .LoadLiteral(Smi::FromInt(8))
@@ -87,10 +93,6 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       factory->NewStringFromStaticChars("function_a"), MaybeHandle<Code>(),
       false);
   builder.CreateClosure(shared_info, NOT_TENURED);
-
-  // Emit argument creation operations.
-  builder.CreateArguments(CreateArgumentsType::kMappedArguments)
-      .CreateArguments(CreateArgumentsType::kUnmappedArguments);
 
   // Emit literal creation operations.
   builder.CreateRegExpLiteral(factory->NewStringFromStaticChars("a"), 0, 0)

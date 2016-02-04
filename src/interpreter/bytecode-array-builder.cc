@@ -575,6 +575,16 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateArguments(
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::CreateRestArguments(int index) {
+  size_t index_entry =
+      GetConstantPoolEntry(Handle<Object>(Smi::FromInt(index), isolate_));
+  // This will always be the first entry in the constant pool, since the rest
+  // arguments object is created at the start of the function just after
+  // creating the arguments object.
+  CHECK(FitsInIdx8Operand(index_entry));
+  Output(Bytecode::kCreateRestArguments, static_cast<uint8_t>(index_entry));
+  return *this;
+}
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateRegExpLiteral(
     Handle<String> pattern, int literal_index, int flags) {
