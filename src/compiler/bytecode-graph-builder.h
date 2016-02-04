@@ -169,9 +169,10 @@ class BytecodeGraphBuilder {
   // underlying bytecode. The exception handlers within the bytecode are
   // well scoped, hence will form a stack during iteration.
   struct ExceptionHandler {
-    int start_offset_;    // Start offset of the handled area in the bytecode.
-    int end_offset_;      // End offset of the handled area in the bytecode.
-    int handler_offset_;  // Handler entry offset within the bytecode.
+    int start_offset_;      // Start offset of the handled area in the bytecode.
+    int end_offset_;        // End offset of the handled area in the bytecode.
+    int handler_offset_;    // Handler entry offset within the bytecode.
+    int context_register_;  // Index of register holding handler context.
   };
 
   // Field accessors

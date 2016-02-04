@@ -1663,7 +1663,11 @@ void BytecodeGraphBuilder::EnterAndExitExceptionHandlers(int current_offset) {
     if (current_offset < next_start) break;  // Not yet covered by range.
     int next_end = table->GetRangeEnd(current_exception_handler_);
     int next_handler = table->GetRangeHandler(current_exception_handler_);
-    exception_handlers_.push({next_start, next_end, next_handler});
+    // TODO(mstarzinger): We are hijacking the "depth" field in the exception
+    // handler table to hold the context register. We should rename the field.
+    int context_register = table->GetRangeDepth(current_exception_handler_);
+    exception_handlers_.push(
+        {next_start, next_end, next_handler, context_register});
     current_exception_handler_++;
   }
 }
@@ -1720,15 +1724,19 @@ Node* BytecodeGraphBuilder::MakeNode(const Operator* op, int value_input_count,
     // Add implicit exception continuation for throwing nodes.
     if (!result->op()->HasProperty(Operator::kNoThrow) && inside_handler) {
       int handler_offset = exception_handlers_.top().handler_offset_;
+      int context_index = exception_handlers_.top().context_register_;
+      interpreter::Register context_register(context_index);
       // TODO(mstarzinger): Thread through correct prediction!
       IfExceptionHint hint = IfExceptionHint::kLocallyCaught;
       Environment* success_env = environment()->CopyForConditional();
       const Operator* op = common()->IfException(hint);
       Node* effect = environment()->GetEffectDependency();
       Node* on_exception = graph()->NewNode(op, effect, result);
+      Node* context = environment()->LookupRegister(context_register);
       environment()->UpdateControlDependency(on_exception);
       environment()->UpdateEffectDependency(on_exception);
       environment()->BindAccumulator(on_exception);
+      environment()->SetContext(context);
       MergeIntoSuccessorEnvironment(handler_offset);
       set_environment(success_env);
     }

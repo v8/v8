@@ -4764,6 +4764,7 @@ class HandlerTable : public FixedArray {
   inline int GetRangeStart(int index) const;
   inline int GetRangeEnd(int index) const;
   inline int GetRangeHandler(int index) const;
+  inline int GetRangeDepth(int index) const;
 
   // Setters for handler table based on ranges.
   inline void SetRangeStart(int index, int value);

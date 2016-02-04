@@ -756,9 +756,6 @@
   'regress/debug*': [SKIP],
   'regress/regress-debug*': [SKIP],
 
-  # TODO(4674): This might be failing because of missing context switch.
-  'with-leave': [FAIL],
-
   # TODO(4690): Failing in debugger DebuggerInspectableFrame.
   'for-in-opt': [FAIL],
 

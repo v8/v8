@@ -1163,6 +1163,13 @@ void InterpretedFrame::PatchBytecodeOffset(int new_offset) {
   SetExpression(index, Smi::FromInt(raw_offset));
 }
 
+Object* InterpretedFrame::GetInterpreterRegister(int register_index) const {
+  const int index = InterpreterFrameConstants::kRegisterFileExpressionIndex;
+  DCHECK_EQ(InterpreterFrameConstants::kRegisterFilePointerFromFp,
+            StandardFrameConstants::kExpressionsOffset - index * kPointerSize);
+  return GetExpression(index + register_index);
+}
+
 void InterpretedFrame::Summarize(List<FrameSummary>* functions) {
   DCHECK(functions->length() == 0);
   AbstractCode* abstract_code =

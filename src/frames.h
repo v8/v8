@@ -190,6 +190,7 @@ class InterpreterFrameConstants : public AllStatic {
 
   // Expression index for {StandardFrame::GetExpressionAddress}.
   static const int kBytecodeOffsetExpressionIndex = 1;
+  static const int kRegisterFileExpressionIndex = 2;
 
   // Register file pointer relative.
   static const int kLastParamFromRegisterPointer =
@@ -731,6 +732,9 @@ class InterpretedFrame : public JavaScriptFrame {
   // Updates the current offset into the bytecode stream, mainly used for stack
   // unwinding to continue execution at a different bytecode offset.
   void PatchBytecodeOffset(int new_offset);
+
+  // Access to the interpreter register file for this frame.
+  Object* GetInterpreterRegister(int register_index) const;
 
   // Build a list with summaries for this frame including all inlined frames.
   void Summarize(List<FrameSummary>* frames) override;

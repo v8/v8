@@ -1119,6 +1119,7 @@ void BytecodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
   // when the handler is entered by the stack-unwinding machinery.
   // TODO(mstarzinger): Be smarter about register allocation.
   Register context = register_allocator()->NewRegister();
+  builder()->MoveRegister(Register::current_context(), context);
 
   // Evaluate the try-block inside a control scope. This simulates a handler
   // that is intercepting 'throw' control commands.
@@ -1172,6 +1173,7 @@ void BytecodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   // when the handler is entered by the stack-unwinding machinery.
   // TODO(mstarzinger): Be smarter about register allocation.
   Register context = register_allocator()->NewRegister();
+  builder()->MoveRegister(Register::current_context(), context);
 
   // Evaluate the try-block inside a control scope. This simulates a handler
   // that is intercepting all control commands.

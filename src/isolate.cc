@@ -1102,7 +1102,7 @@ Object* Isolate::UnwindAndFindHandler() {
     if (frame->is_optimized() && catchable_by_js) {
       OptimizedFrame* js_frame = static_cast<OptimizedFrame*>(frame);
       int stack_slots = 0;  // Will contain stack slot count of frame.
-      offset = js_frame->LookupExceptionHandlerInTable(&stack_slots, NULL);
+      offset = js_frame->LookupExceptionHandlerInTable(&stack_slots, nullptr);
       if (offset >= 0) {
         // Compute the stack pointer from the frame pointer. This ensures that
         // argument slots on the stack are dropped as returning would.
@@ -1121,12 +1121,14 @@ Object* Isolate::UnwindAndFindHandler() {
     // For interpreted frame we perform a range lookup in the handler table.
     if (frame->is_interpreted() && catchable_by_js) {
       InterpretedFrame* js_frame = static_cast<InterpretedFrame*>(frame);
-      int stack_slots = 0;  // Will contain stack slot count of frame.
-      offset = js_frame->LookupExceptionHandlerInTable(&stack_slots, NULL);
+      int context_reg = 0;  // Will contain register index holding context.
+      offset = js_frame->LookupExceptionHandlerInTable(&context_reg, nullptr);
       if (offset >= 0) {
         // Patch the bytecode offset in the interpreted frame to reflect the
         // position of the exception handler. The special builtin below will
-        // take care of continuing to dispatch at that position.
+        // take care of continuing to dispatch at that position. Also restore
+        // the correct context for the handler from the interpreter register.
+        context = Context::cast(js_frame->GetInterpreterRegister(context_reg));
         js_frame->PatchBytecodeOffset(static_cast<int>(offset));
         offset = 0;
 
@@ -1141,15 +1143,15 @@ Object* Isolate::UnwindAndFindHandler() {
     // For JavaScript frames we perform a range lookup in the handler table.
     if (frame->is_java_script() && catchable_by_js) {
       JavaScriptFrame* js_frame = static_cast<JavaScriptFrame*>(frame);
-      int stack_slots = 0;  // Will contain operand stack depth of handler.
-      offset = js_frame->LookupExceptionHandlerInTable(&stack_slots, NULL);
+      int stack_depth = 0;  // Will contain operand stack depth of handler.
+      offset = js_frame->LookupExceptionHandlerInTable(&stack_depth, nullptr);
       if (offset >= 0) {
         // Compute the stack pointer from the frame pointer. This ensures that
         // operand stack slots are dropped for nested statements. Also restore
         // correct context for the handler which is pushed within the try-block.
         Address return_sp = frame->fp() -
                             StandardFrameConstants::kFixedFrameSizeFromFp -
-                            stack_slots * kPointerSize;
+                            stack_depth * kPointerSize;
         STATIC_ASSERT(TryBlockConstant::kElementCount == 1);
         context = Context::cast(Memory::Object_at(return_sp - kPointerSize));
 

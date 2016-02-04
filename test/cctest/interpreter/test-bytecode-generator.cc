@@ -4627,15 +4627,17 @@ TEST(TryCatch) {
   BytecodeGeneratorHelper helper;
 
   int closure = Register::function_closure().index();
+  int context = Register::current_context().index();
 
   // clang-format off
   ExpectedSnippet<const char*> snippets[] = {
       {"try { return 1; } catch(e) { return 2; }",
        5 * kPointerSize,
        1,
-       37,
+       40,
        {
            B(StackCheck),                                                 //
+           B(Mov), R(context), R(1),                                       //
            B(LdaSmi8), U8(1),                                              //
            B(Return),                                                      //
            B(Star), R(3),                                                  //
@@ -4659,13 +4661,14 @@ TEST(TryCatch) {
        1,
        {"e"},
        1,
-       {{1, 4, 4}}},
+       {{4, 7, 7}}},
       {"var a; try { a = 1 } catch(e1) {}; try { a = 2 } catch(e2) { a = 3 }",
        6 * kPointerSize,
        1,
-       75,
+       81,
        {
            B(StackCheck),                                                 //
+           B(Mov), R(context), R(2),                                       //
            B(LdaSmi8), U8(1),                                              //
            B(Star), R(0),                                                  //
            B(Jump), U8(30),                                                //
@@ -4681,6 +4684,7 @@ TEST(TryCatch) {
            B(Ldar), R(2),                                                  //
            B(PushContext), R(1),                                           //
            B(PopContext), R(1),                                            //
+           B(Mov), R(context), R(2),                                       //
            B(LdaSmi8), U8(2),                                              //
            B(Star), R(0),                                                  //
            B(Jump), U8(34),                                                //
@@ -4704,7 +4708,7 @@ TEST(TryCatch) {
        2,
        {"e1", "e2"},
        2,
-       {{1, 5, 7}, {35, 39, 41}}},
+       {{4, 8, 10}, {41, 45, 47}}},
   };
   // clang-format on
 
@@ -4721,17 +4725,19 @@ TEST(TryFinally) {
   BytecodeGeneratorHelper helper;
 
   int closure = Register::function_closure().index();
+  int context = Register::current_context().index();
 
   // clang-format off
   ExpectedSnippet<const char*> snippets[] = {
       {"var a = 1; try { a = 2; } finally { a = 3; }",
        4 * kPointerSize,
        1,
-       48,
+       51,
        {
            B(StackCheck),                                                  //
            B(LdaSmi8), U8(1),                                              //
            B(Star), R(0),                                                  //
+           B(Mov), R(context), R(3),                                       //
            B(LdaSmi8), U8(2),                                              //
            B(Star), R(0),                                                  //
            B(LdaSmi8), U8(-1),                                             //
@@ -4759,15 +4765,17 @@ TEST(TryFinally) {
        0,
        {},
        1,
-       {{5, 9, 15}}},
+       {{8, 12, 18}}},
       {"var a = 1; try { a = 2; } catch(e) { a = 20 } finally { a = 3; }",
        9 * kPointerSize,
        1,
-       82,
+       88,
        {
            B(StackCheck),                                                  //
            B(LdaSmi8), U8(1),                                              //
            B(Star), R(0),                                                  //
+           B(Mov), R(context), R(4),                                       //
+           B(Mov), R(context), R(5),                                       //
            B(LdaSmi8), U8(2),                                              //
            B(Star), R(0),                                                  //
            B(Jump), U8(34),                                                //
@@ -4810,15 +4818,18 @@ TEST(TryFinally) {
        1,
        {"e"},
        2,
-       {{5, 43, 49}, {5, 9, 11}}},
+       {{8, 49, 55}, {11, 15, 17}}},
       {"var a; try {"
        "  try { a = 1 } catch(e) { a = 2 }"
        "} catch(e) { a = 20 } finally { a = 3; }",
        10 * kPointerSize,
        1,
-       112,
+       121,
        {
-           B(StackCheck),                                                 //
+           B(StackCheck),                                                  //
+           B(Mov), R(context), R(4),                                       //
+           B(Mov), R(context), R(5),                                       //
+           B(Mov), R(context), R(6),                                       //
            B(LdaSmi8), U8(1),                                              //
            B(Star), R(0),                                                  //
            B(Jump), U8(34),                                                //
@@ -4876,7 +4887,7 @@ TEST(TryFinally) {
        1,
        {"e"},
        3,
-       {{1, 73, 79}, {1, 39, 41}, {1, 5, 7}}},
+       {{4, 82, 88}, {7, 48, 50}, {10, 14, 16}}},
   };
   // clang-format on
 
