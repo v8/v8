@@ -50,6 +50,9 @@
     'feature_shipping_status': {
       'filepath': 'src/flag-definitions.h',
     },
+    'merges': {
+      'filepath': '.',
+    },
   },
 
   'WATCHLISTS': {
@@ -68,6 +71,10 @@
     ],
     'feature_shipping_status': [
       'hablich@chromium.org',
+    ],
+    'merges': [
+      # Only enabled on branches created with tools/release/create_release.py
+      'v8-merges@googlegroups.com',
     ],
   },
 }
