@@ -1895,8 +1895,17 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
 
       __ b(&suspend);
       __ bind(&continuation);
+      // When we arrive here, the stack top is the resume mode and
+      // result_register() holds the input value (the argument given to the
+      // respective resume operation).
       __ RecordGeneratorContinuation();
-      __ b(&resume);
+      __ pop(r4);
+      __ CmpSmiLiteral(r4, Smi::FromInt(JSGeneratorObject::RETURN), r0);
+      __ bne(&resume);
+      __ push(result_register());
+      EmitCreateIteratorResult(true);
+      EmitUnwindBeforeReturn();
+      EmitReturnSequence();
 
       __ bind(&suspend);
       VisitForAccumulatorValue(expr->generator_object());
@@ -2124,6 +2133,7 @@ void FullCodeGenerator::EmitGeneratorResume(
                         Smi::FromInt(JSGeneratorObject::kGeneratorExecuting));
       __ StoreP(r5, FieldMemOperand(r4, JSGeneratorObject::kContinuationOffset),
                 r0);
+      __ Push(Smi::FromInt(resume_mode));  // Consumed in continuation.
       __ Jump(ip);
       __ bind(&slow_resume);
     }
@@ -2140,6 +2150,7 @@ void FullCodeGenerator::EmitGeneratorResume(
   __ bdnz(&operand_loop);
 
   __ bind(&call_resume);
+  __ Push(Smi::FromInt(resume_mode));  // Consumed in continuation.
   DCHECK(!result_register().is(r4));
   __ Push(r4, result_register());
   __ Push(Smi::FromInt(resume_mode));
