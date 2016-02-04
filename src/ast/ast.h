@@ -376,14 +376,6 @@ class Expression : public AstNode {
   BailoutId id() const { return BailoutId(local_id(0)); }
   TypeFeedbackId test_id() const { return TypeFeedbackId(local_id(1)); }
 
-  // Parenthesized expressions in the form `( Expression )`.
-  void set_is_parenthesized() {
-    bit_field_ = ParenthesizedField::update(bit_field_, true);
-  }
-  bool is_parenthesized() const {
-    return ParenthesizedField::decode(bit_field_);
-  }
-
  protected:
   Expression(Zone* zone, int pos)
       : AstNode(pos),
@@ -406,8 +398,6 @@ class Expression : public AstNode {
   int base_id_;
   Bounds bounds_;
   class ToBooleanTypesField : public BitField16<uint16_t, 0, 9> {};
-  class ParenthesizedField
-      : public BitField16<bool, ToBooleanTypesField::kNext, 1> {};
   uint16_t bit_field_;
   // Ends with 16-bit field; deriving classes in turn begin with
   // 16-bit fields for optimum packing efficiency.
