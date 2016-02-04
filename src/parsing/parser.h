@@ -917,9 +917,9 @@ class Parser : public ParserBase<ParserTraits> {
                                   Expression* subject, Statement* body,
                                   bool is_destructuring);
   Statement* DesugarLexicalBindingsInForStatement(
-      Scope* inner_scope, bool is_const, ZoneList<const AstRawString*>* names,
-      ForStatement* loop, Statement* init, Expression* cond, Statement* next,
-      Statement* body, bool* ok);
+      Scope* inner_scope, VariableMode mode,
+      ZoneList<const AstRawString*>* names, ForStatement* loop, Statement* init,
+      Expression* cond, Statement* next, Statement* body, bool* ok);
 
   void RewriteDoExpression(Expression* expr, bool* ok);
 

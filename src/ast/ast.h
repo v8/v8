@@ -831,6 +831,10 @@ class ForEachStatement : public IterationStatement {
                                  FeedbackVectorSlotCache* cache) override;
   FeedbackVectorSlot EachFeedbackSlot() const { return each_slot_; }
 
+  static const char* VisitModeString(VisitMode mode) {
+    return mode == ITERATE ? "for-of" : "for-in";
+  }
+
  protected:
   ForEachStatement(Zone* zone, ZoneList<const AstRawString*>* labels, int pos)
       : IterationStatement(zone, labels, pos), each_(NULL), subject_(NULL) {}

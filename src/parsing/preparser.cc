@@ -924,29 +924,21 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
       ParseVariableDeclarations(kForStatement, &decl_count, &is_lexical,
                                 &is_binding_pattern, &first_initializer_loc,
                                 &bindings_loc, CHECK_OK);
-      bool accept_IN = decl_count >= 1;
-      if (accept_IN && CheckInOrOf(&mode, ok)) {
+      if (CheckInOrOf(&mode, ok)) {
         if (!*ok) return Statement::Default();
         if (decl_count != 1) {
-          const char* loop_type =
-              mode == ForEachStatement::ITERATE ? "for-of" : "for-in";
           PreParserTraits::ReportMessageAt(
               bindings_loc, MessageTemplate::kForInOfLoopMultiBindings,
-              loop_type);
+              ForEachStatement::VisitModeString(mode));
           *ok = false;
           return Statement::Default();
         }
         if (first_initializer_loc.IsValid() &&
             (is_strict(language_mode()) || mode == ForEachStatement::ITERATE ||
              is_lexical || is_binding_pattern)) {
-          if (mode == ForEachStatement::ITERATE) {
-            ReportMessageAt(first_initializer_loc,
-                            MessageTemplate::kForOfLoopInitializer);
-          } else {
-            // TODO(caitp): This should be an error in sloppy mode, too.
-            ReportMessageAt(first_initializer_loc,
-                            MessageTemplate::kForInLoopInitializer);
-          }
+          PreParserTraits::ReportMessageAt(
+              first_initializer_loc, MessageTemplate::kForInOfLoopInitializer,
+              ForEachStatement::VisitModeString(mode));
           *ok = false;
           return Statement::Default();
         }

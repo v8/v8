@@ -3331,9 +3331,8 @@ void Parser::InitializeForEachStatement(ForEachStatement* stmt,
   }
 }
 
-
 Statement* Parser::DesugarLexicalBindingsInForStatement(
-    Scope* inner_scope, bool is_const, ZoneList<const AstRawString*>* names,
+    Scope* inner_scope, VariableMode mode, ZoneList<const AstRawString*>* names,
     ForStatement* loop, Statement* init, Expression* cond, Statement* next,
     Statement* body, bool* ok) {
   // ES6 13.7.4.8 specifies that on each loop iteration the let variables are
@@ -3438,7 +3437,6 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
     ZoneList<Variable*> inner_vars(names->length(), zone());
     // For each let variable x:
     //    make statement: let/const x = temp_x.
-    VariableMode mode = is_const ? CONST : LET;
     for (int i = 0; i < names->length(); i++) {
       VariableProxy* proxy = NewUnresolved(names->at(i), mode);
       Declaration* declaration = factory()->NewVariableDeclaration(
@@ -3588,7 +3586,6 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
   //   'for' '(' Expression? ';' Expression? ';' Expression? ')' Statement
 
   int stmt_pos = peek_position();
-  bool is_const = false;
   Statement* init = NULL;
   ZoneList<const AstRawString*> lexical_bindings(1, zone());
 
@@ -3605,22 +3602,18 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
     if (peek() == Token::VAR || (peek() == Token::CONST && allow_const()) ||
         (peek() == Token::LET && IsNextLetKeyword())) {
       ParseVariableDeclarations(kForStatement, &parsing_result, CHECK_OK);
-      is_const = parsing_result.descriptor.mode == CONST;
 
-      int num_decl = parsing_result.declarations.length();
-      bool accept_IN = num_decl >= 1;
       ForEachStatement::VisitMode mode;
       int each_beg_pos = scanner()->location().beg_pos;
       int each_end_pos = scanner()->location().end_pos;
 
-      if (accept_IN && CheckInOrOf(&mode, ok)) {
+      if (CheckInOrOf(&mode, ok)) {
         if (!*ok) return nullptr;
-        if (num_decl != 1) {
-          const char* loop_type =
-              mode == ForEachStatement::ITERATE ? "for-of" : "for-in";
+        if (parsing_result.declarations.length() != 1) {
           ParserTraits::ReportMessageAt(
               parsing_result.bindings_loc,
-              MessageTemplate::kForInOfLoopMultiBindings, loop_type);
+              MessageTemplate::kForInOfLoopMultiBindings,
+              ForEachStatement::VisitModeString(mode));
           *ok = false;
           return nullptr;
         }
@@ -3630,14 +3623,10 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
             (is_strict(language_mode()) || mode == ForEachStatement::ITERATE ||
              IsLexicalVariableMode(parsing_result.descriptor.mode) ||
              !decl.pattern->IsVariableProxy())) {
-          if (mode == ForEachStatement::ITERATE) {
-            ReportMessageAt(parsing_result.first_initializer_loc,
-                            MessageTemplate::kForOfLoopInitializer);
-          } else {
-            // TODO(caitp): This should be an error in sloppy mode too.
-            ReportMessageAt(parsing_result.first_initializer_loc,
-                            MessageTemplate::kForInLoopInitializer);
-          }
+          ParserTraits::ReportMessageAt(
+              parsing_result.first_initializer_loc,
+              MessageTemplate::kForInOfLoopInitializer,
+              ForEachStatement::VisitModeString(mode));
           *ok = false;
           return nullptr;
         }
@@ -3895,8 +3884,8 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
   if (lexical_bindings.length() > 0) {
     BlockState block_state(&scope_, for_scope);
     result = DesugarLexicalBindingsInForStatement(
-                 inner_scope, is_const, &lexical_bindings, loop, init, cond,
-                 next, body, CHECK_OK);
+        inner_scope, parsing_result.descriptor.mode, &lexical_bindings, loop,
+        init, cond, next, body, CHECK_OK);
     for_scope->set_end_position(scanner()->location().end_pos);
   } else {
     for_scope->set_end_position(scanner()->location().end_pos);
