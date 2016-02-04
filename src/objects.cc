@@ -6413,8 +6413,8 @@ MaybeHandle<Object> JSReceiver::DefineProperties(Isolate* isolate,
   // 5. ReturnIfAbrupt(keys).
   Handle<FixedArray> keys;
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, keys,
-      JSReceiver::GetKeys(props, JSReceiver::OWN_ONLY, ALL_PROPERTIES), Object);
+      isolate, keys, JSReceiver::GetKeys(props, OWN_ONLY, ALL_PROPERTIES),
+      Object);
   // 6. Let descriptors be an empty List.
   int capacity = keys->length();
   std::vector<PropertyDescriptor> descriptors(capacity);
@@ -8124,7 +8124,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
       // an array.
       PropertyFilter filter = static_cast<PropertyFilter>(
           ONLY_WRITABLE | ONLY_ENUMERABLE | ONLY_CONFIGURABLE);
-      KeyAccumulator accumulator(isolate, filter);
+      KeyAccumulator accumulator(isolate, OWN_ONLY, filter);
       accumulator.NextPrototype();
       copy->CollectOwnPropertyNames(&accumulator, filter);
       Handle<FixedArray> names = accumulator.GetKeys();
@@ -8629,7 +8629,7 @@ static Maybe<bool> GetKeysFromJSObject(Isolate* isolate,
                                        Handle<JSReceiver> receiver,
                                        Handle<JSObject> object,
                                        PropertyFilter* filter,
-                                       JSReceiver::KeyCollectionType type,
+                                       KeyCollectionType type,
                                        KeyAccumulator* accumulator) {
   accumulator->NextPrototype();
   // Check access rights if required.
@@ -8637,11 +8637,11 @@ static Maybe<bool> GetKeysFromJSObject(Isolate* isolate,
       !isolate->MayAccess(handle(isolate->context()), object)) {
     // The cross-origin spec says that [[Enumerate]] shall return an empty
     // iterator when it doesn't have access...
-    if (type == JSReceiver::INCLUDE_PROTOS) {
+    if (type == INCLUDE_PROTOS) {
       return Just(false);
     }
     // ...whereas [[OwnPropertyKeys]] shall return whitelisted properties.
-    DCHECK(type == JSReceiver::OWN_ONLY);
+    DCHECK_EQ(OWN_ONLY, type);
     *filter = static_cast<PropertyFilter>(*filter | ONLY_ALL_CAN_READ);
   }
 
@@ -8692,10 +8692,10 @@ static Maybe<bool> GetKeysFromJSObject(Isolate* isolate,
 static Maybe<bool> GetKeys_Internal(Isolate* isolate,
                                     Handle<JSReceiver> receiver,
                                     Handle<JSReceiver> object,
-                                    JSReceiver::KeyCollectionType type,
+                                    KeyCollectionType type,
                                     PropertyFilter filter,
                                     KeyAccumulator* accumulator) {
-  PrototypeIterator::WhereToEnd end = type == JSReceiver::OWN_ONLY
+  PrototypeIterator::WhereToEnd end = type == OWN_ONLY
                                           ? PrototypeIterator::END_AT_NON_HIDDEN
                                           : PrototypeIterator::END_AT_NULL;
   for (PrototypeIterator iter(isolate, object,
@@ -8705,12 +8705,12 @@ static Maybe<bool> GetKeys_Internal(Isolate* isolate,
         PrototypeIterator::GetCurrent<JSReceiver>(iter);
     Maybe<bool> result = Just(false);  // Dummy initialization.
     if (current->IsJSProxy()) {
-      if (type == JSReceiver::OWN_ONLY) {
+      if (type == OWN_ONLY) {
         result = JSProxy::OwnPropertyKeys(isolate, receiver,
                                           Handle<JSProxy>::cast(current),
                                           filter, accumulator);
       } else {
-        DCHECK(type == JSReceiver::INCLUDE_PROTOS);
+        DCHECK(type == INCLUDE_PROTOS);
         result = JSProxy::Enumerate(
             isolate, receiver, Handle<JSProxy>::cast(current), accumulator);
       }
@@ -8872,10 +8872,15 @@ Maybe<bool> JSProxy::OwnPropertyKeys(Isolate* isolate,
   const int kPresent = 1;
   const int kGone = 0;
   IdentityMap<int> unchecked_result_keys(isolate->heap(), &set_zone);
-  int unchecked_result_keys_size = trap_result->length();
+  int unchecked_result_keys_size = 0;
   for (int i = 0; i < trap_result->length(); ++i) {
     DCHECK(trap_result->get(i)->IsUniqueName());
-    unchecked_result_keys.Set(trap_result->get(i), kPresent);
+    Object* key = trap_result->get(i);
+    int* entry = unchecked_result_keys.Get(key);
+    if (*entry != kPresent) {
+      *entry = kPresent;
+      unchecked_result_keys_size++;
+    }
   }
   // 17. Repeat, for each key that is an element of targetNonconfigurableKeys:
   for (int i = 0; i < nonconfigurable_keys_length; ++i) {
@@ -8930,7 +8935,7 @@ MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
                                             GetKeysConversion keys_conversion) {
   USE(ContainsOnlyValidKeys);
   Isolate* isolate = object->GetIsolate();
-  KeyAccumulator accumulator(isolate, filter);
+  KeyAccumulator accumulator(isolate, type, filter);
   MAYBE_RETURN(
       GetKeys_Internal(isolate, object, object, type, filter, &accumulator),
       MaybeHandle<FixedArray>());

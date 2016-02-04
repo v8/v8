@@ -24,8 +24,8 @@ MaybeHandle<HeapObject> Enumerate(Handle<JSReceiver> receiver) {
   if (!receiver->IsSimpleEnum()) {
     Handle<FixedArray> keys;
     ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, keys, JSReceiver::GetKeys(receiver, JSReceiver::INCLUDE_PROTOS,
-                                           ENUMERABLE_STRINGS),
+        isolate, keys,
+        JSReceiver::GetKeys(receiver, INCLUDE_PROTOS, ENUMERABLE_STRINGS),
         HeapObject);
     // Test again, since cache may have been built by GetKeys() calls above.
     if (!receiver->IsSimpleEnum()) return keys;

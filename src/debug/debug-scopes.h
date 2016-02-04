@@ -139,7 +139,7 @@ class ScopeIterator {
                                       Handle<JSObject> scope_object);
   bool CopyContextExtensionToScopeObject(Handle<JSObject> extension,
                                          Handle<JSObject> scope_object,
-                                         JSReceiver::KeyCollectionType type);
+                                         KeyCollectionType type);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(ScopeIterator);
 };

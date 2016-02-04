@@ -1585,8 +1585,8 @@ BUILTIN(ObjectAssign) {
     // 4b ii. Let keys be ? from.[[OwnPropertyKeys]]().
     Handle<FixedArray> keys;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, keys, JSReceiver::GetKeys(from, JSReceiver::OWN_ONLY,
-                                           ALL_PROPERTIES, KEEP_NUMBERS));
+        isolate, keys,
+        JSReceiver::GetKeys(from, OWN_ONLY, ALL_PROPERTIES, KEEP_NUMBERS));
     // 4c. Repeat for each element nextKey of keys in List order,
     for (int j = 0; j < keys->length(); ++j) {
       Handle<Object> next_key(keys->get(j), isolate);
@@ -1673,8 +1673,8 @@ Object* GetOwnPropertyKeys(Isolate* isolate,
                                      Object::ToObject(isolate, object));
   Handle<FixedArray> keys;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, keys, JSReceiver::GetKeys(receiver, JSReceiver::OWN_ONLY, filter,
-                                         CONVERT_TO_STRING));
+      isolate, keys,
+      JSReceiver::GetKeys(receiver, OWN_ONLY, filter, CONVERT_TO_STRING));
   return *isolate->factory()->NewJSArrayWithElements(keys);
 }
 
@@ -1741,9 +1741,8 @@ BUILTIN(ObjectKeys) {
                                      Object::ToObject(isolate, object));
   Handle<FixedArray> keys;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, keys,
-      JSReceiver::GetKeys(receiver, JSReceiver::OWN_ONLY, ENUMERABLE_STRINGS,
-                          CONVERT_TO_STRING));
+      isolate, keys, JSReceiver::GetKeys(receiver, OWN_ONLY, ENUMERABLE_STRINGS,
+                                         CONVERT_TO_STRING));
   return *isolate->factory()->NewJSArrayWithElements(keys);
 }
 
@@ -1756,9 +1755,8 @@ BUILTIN(ObjectValues) {
                                      Object::ToObject(isolate, object));
   Handle<FixedArray> keys;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, keys,
-      JSReceiver::GetKeys(receiver, JSReceiver::OWN_ONLY, ENUMERABLE_STRINGS,
-                          CONVERT_TO_STRING));
+      isolate, keys, JSReceiver::GetKeys(receiver, OWN_ONLY, ENUMERABLE_STRINGS,
+                                         CONVERT_TO_STRING));
 
   for (int i = 0; i < keys->length(); ++i) {
     auto key = Handle<Name>::cast(FixedArray::get(*keys, i, isolate));
@@ -1782,9 +1780,8 @@ BUILTIN(ObjectEntries) {
                                      Object::ToObject(isolate, object));
   Handle<FixedArray> keys;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, keys,
-      JSReceiver::GetKeys(receiver, JSReceiver::OWN_ONLY, ENUMERABLE_STRINGS,
-                          CONVERT_TO_STRING));
+      isolate, keys, JSReceiver::GetKeys(receiver, OWN_ONLY, ENUMERABLE_STRINGS,
+                                         CONVERT_TO_STRING));
 
   for (int i = 0; i < keys->length(); ++i) {
     auto key = Handle<Name>::cast(FixedArray::get(*keys, i, isolate));
@@ -2087,9 +2084,9 @@ BUILTIN(ReflectOwnKeys) {
 
   Handle<FixedArray> keys;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, keys, JSReceiver::GetKeys(Handle<JSReceiver>::cast(target),
-                                         JSReceiver::OWN_ONLY, ALL_PROPERTIES,
-                                         CONVERT_TO_STRING));
+      isolate, keys,
+      JSReceiver::GetKeys(Handle<JSReceiver>::cast(target), OWN_ONLY,
+                          ALL_PROPERTIES, CONVERT_TO_STRING));
   return *isolate->factory()->NewJSArrayWithElements(keys);
 }
 

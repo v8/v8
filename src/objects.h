@@ -1786,6 +1786,7 @@ enum AccessorComponent {
 
 enum GetKeysConversion { KEEP_NUMBERS, CONVERT_TO_STRING };
 
+enum KeyCollectionType { OWN_ONLY, INCLUDE_PROTOS };
 
 // JSReceiver includes types on which properties can be defined, i.e.,
 // JSObject and JSProxy.
@@ -1947,13 +1948,10 @@ class JSReceiver: public HeapObject {
   inline static Handle<Smi> GetOrCreateIdentityHash(
       Handle<JSReceiver> object);
 
-  enum KeyCollectionType { OWN_ONLY, INCLUDE_PROTOS };
-
   // ES6 [[OwnPropertyKeys]] (modulo return type)
   MUST_USE_RESULT static MaybeHandle<FixedArray> OwnPropertyKeys(
       Handle<JSReceiver> object) {
-    return GetKeys(object, JSReceiver::OWN_ONLY, ALL_PROPERTIES,
-                   CONVERT_TO_STRING);
+    return GetKeys(object, OWN_ONLY, ALL_PROPERTIES, CONVERT_TO_STRING);
   }
 
   // Computes the enumerable keys for a JSObject. Used for implementing

@@ -206,7 +206,7 @@ RUNTIME_FUNCTION(Runtime_GetArrayKeys) {
     return *isolate->factory()->NewNumberFromUint(Min(actual_length, length));
   }
 
-  KeyAccumulator accumulator(isolate, ALL_PROPERTIES);
+  KeyAccumulator accumulator(isolate, OWN_ONLY, ALL_PROPERTIES);
   // No need to separate protoype levels since we only get numbers/element keys
   for (PrototypeIterator iter(isolate, array,
                               PrototypeIterator::START_AT_RECEIVER);
