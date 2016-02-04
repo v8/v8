@@ -1954,7 +1954,7 @@ void BytecodeGenerator::VisitCall(Call* expr) {
         .StoreAccumulatorInRegister(callee);
   }
 
-  // TODO(rmcilroy): Use CallIC to allow call type feedback.
+  builder()->SetExpressionPosition(expr);
   builder()->Call(callee, receiver, 1 + args->length(),
                   feedback_index(expr->CallFeedbackICSlot()));
   execution_result()->SetResultInAccumulator();
@@ -1968,6 +1968,7 @@ void BytecodeGenerator::VisitCallNew(CallNew* expr) {
 
   ZoneList<Expression*>* args = expr->arguments();
   Register first_arg = VisitArguments(args);
+  builder()->SetExpressionPosition(expr);
   builder()->New(constructor, first_arg, args->length());
   execution_result()->SetResultInAccumulator();
 }

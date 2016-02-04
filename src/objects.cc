@@ -30,6 +30,7 @@
 #include "src/ic/ic.h"
 #include "src/identity-map.h"
 #include "src/interpreter/bytecodes.h"
+#include "src/interpreter/source-position-table.h"
 #include "src/isolate-inl.h"
 #include "src/key-accumulator.h"
 #include "src/list.h"
@@ -15025,8 +15026,8 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
 #endif  // ENABLE_DISASSEMBLER
 
 int BytecodeArray::SourcePosition(int offset) {
-  // TODO(yangguo): implement this.
-  return 0;
+  return interpreter::SourcePositionTableIterator::PositionFromBytecodeOffset(
+      this, offset);
 }
 
 void BytecodeArray::Disassemble(std::ostream& os) {
@@ -15036,11 +15037,22 @@ void BytecodeArray::Disassemble(std::ostream& os) {
 
   const uint8_t* first_bytecode_address = GetFirstBytecodeAddress();
   int bytecode_size = 0;
+
+  interpreter::SourcePositionTableIterator source_positions(this);
+
   for (int i = 0; i < this->length(); i += bytecode_size) {
     const uint8_t* bytecode_start = &first_bytecode_address[i];
     interpreter::Bytecode bytecode =
         interpreter::Bytecodes::FromByte(bytecode_start[0]);
     bytecode_size = interpreter::Bytecodes::Size(bytecode);
+
+    if (!source_positions.done() && i == source_positions.bytecode_offset()) {
+      os << std::setw(5) << source_positions.source_position();
+      os << (source_positions.is_statement() ? " S> " : " E> ");
+      source_positions.Advance();
+    } else {
+      os << "         ";
+    }
 
     SNPrintF(buf, "%p", bytecode_start);
     os << buf.start() << " : ";
@@ -15064,7 +15076,8 @@ void BytecodeArray::Disassemble(std::ostream& os) {
       SNPrintF(buf, " (%p)", bytecode_start + offset);
       os << buf.start();
     }
-    os << "\n";
+
+    os << std::endl;
   }
 
   if (constant_pool()->length() > 0) {

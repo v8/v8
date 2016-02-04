@@ -73,6 +73,7 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(Isolate* isolate, Zone* zone,
       bytecode_generated_(false),
       constant_array_builder_(isolate, zone),
       handler_table_builder_(isolate, zone),
+      source_position_table_builder_(isolate, zone),
       last_block_end_(0),
       last_bytecode_start_(~0),
       exit_seen_in_block_(false),
@@ -122,10 +123,13 @@ Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray() {
   int frame_size = register_count * kPointerSize;
   Handle<FixedArray> constant_pool = constant_array_builder()->ToFixedArray();
   Handle<FixedArray> handler_table = handler_table_builder()->ToHandlerTable();
+  Handle<FixedArray> source_position_table =
+      source_position_table_builder()->ToFixedArray();
   Handle<BytecodeArray> output = isolate_->factory()->NewBytecodeArray(
       bytecode_size, &bytecodes_.front(), frame_size, parameter_count(),
       constant_pool);
   output->set_handler_table(*handler_table);
+  output->set_source_position_table(*source_position_table);
   bytecode_generated_ = true;
   return output;
 }
@@ -1190,6 +1194,18 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::DeleteLookupSlot() {
 
 size_t BytecodeArrayBuilder::GetConstantPoolEntry(Handle<Object> object) {
   return constant_array_builder()->Insert(object);
+}
+
+void BytecodeArrayBuilder::SetStatementPosition(Statement* stmt) {
+  if (stmt->position() == RelocInfo::kNoPosition) return;
+  source_position_table_builder_.AddStatementPosition(
+      static_cast<int>(bytecodes_.size()), stmt->position());
+}
+
+void BytecodeArrayBuilder::SetExpressionPosition(Expression* expr) {
+  if (expr->position() == RelocInfo::kNoPosition) return;
+  source_position_table_builder_.AddExpressionPosition(
+      static_cast<int>(bytecodes_.size()), expr->position());
 }
 
 bool BytecodeArrayBuilder::TemporaryRegisterIsLive(Register reg) const {

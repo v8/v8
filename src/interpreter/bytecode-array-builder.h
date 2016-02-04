@@ -11,6 +11,7 @@
 #include "src/interpreter/constant-array-builder.h"
 #include "src/interpreter/handler-table-builder.h"
 #include "src/interpreter/register-translator.h"
+#include "src/interpreter/source-position-table.h"
 #include "src/zone-containers.h"
 
 namespace v8 {
@@ -255,6 +256,9 @@ class BytecodeArrayBuilder final : public ZoneObject, private RegisterMover {
   // entry, so that it can be referenced by above exception handling support.
   int NewHandlerEntry() { return handler_table_builder()->NewHandlerEntry(); }
 
+  void SetStatementPosition(Statement* stmt);
+  void SetExpressionPosition(Expression* expr);
+
   // Accessors
   Zone* zone() const { return zone_; }
   TemporaryRegisterAllocator* temporary_register_allocator() {
@@ -345,6 +349,9 @@ class BytecodeArrayBuilder final : public ZoneObject, private RegisterMover {
   HandlerTableBuilder* handler_table_builder() {
     return &handler_table_builder_;
   }
+  SourcePositionTableBuilder* source_position_table_builder() {
+    return &source_position_table_builder_;
+  }
   RegisterTranslator* register_translator() { return &register_translator_; }
 
   Isolate* isolate_;
@@ -353,6 +360,7 @@ class BytecodeArrayBuilder final : public ZoneObject, private RegisterMover {
   bool bytecode_generated_;
   ConstantArrayBuilder constant_array_builder_;
   HandlerTableBuilder handler_table_builder_;
+  SourcePositionTableBuilder source_position_table_builder_;
   size_t last_block_end_;
   size_t last_bytecode_start_;
   bool exit_seen_in_block_;

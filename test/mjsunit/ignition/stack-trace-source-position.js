@@ -3,11 +3,19 @@
 // found in the LICENSE file.
 
 // Flags: --ignition --ignition-filter=f
+// Flags: --no-turbo
 
-function f() {
-  return new Error().stack;
+// TODO(yangguo): fix for turbofan
+
+function f(x) {
+  if (x == 0) {
+    return new Error().stack;
+  }
+  return f(x - 1);
 }
 
-// TODO(yangguo): this is just a dummy source position calculated for
-// interpreter bytecode. Update this once something better comes along.
-assertTrue(/at f.*?:\d+:\d+/.test(f()));
+var stack_lines = f(2).split("\n");
+
+assertTrue(/at f \(.*?:12:12\)/.test(stack_lines[1]));
+assertTrue(/at f \(.*?:14:10\)/.test(stack_lines[2]));
+assertTrue(/at f \(.*?:14:10\)/.test(stack_lines[3]));

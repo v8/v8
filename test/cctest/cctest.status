@@ -599,21 +599,18 @@
   'test-compiler/OptimizedCodeSharing3': [FAIL],
 
   # TODO(rmcilroy,4689): Stack trace line number failures.
-  'test-api/CaptureStackTrace': [FAIL],
-  'test-api/GetStackTraceForUncaughtExceptionFromSimpleStackTrace': [FAIL],
   'test-api/CaptureStackTraceForUncaughtException': [FAIL],
   'test-api/GetStackTraceContainsFunctionsWithFunctionName': [FAIL],
   'test-run-jsexceptions/ThrowMessagePosition': [FAIL],
+  'test-api/TryCatchMixedNesting': [PASS, FAIL],
 
   # TODO(rmcilroy,4689): Stack frame calling frame is_javascript() failure.
   'test-log-stack-tracer/CFromJSStackTrace': [FAIL],
   'test-log-stack-tracer/PureJSStackTrace': [FAIL],
 
   # TODO(rmcilroy,4680): Exception message assert failure.
-  'test-api/CallICFastApi_SimpleSignature_Miss2': [FAIL],
-  'test-api/CallICFastApi_SimpleSignature_Miss2WithProfiler': [FAIL],
-  'test-api/InterceptorCallICFastApi_SimpleSignature_Miss3': [FAIL],
-  'test-api/InterceptorCallICFastApi_SimpleSignature_Miss3WithProfiler': [FAIL],
+  'test-api/CallICFastApi_SimpleSignature_Miss2WithProfiler': [PASS, FAIL],
+  'test-api/InterceptorCallICFastApi_SimpleSignature_Miss3WithProfiler': [PASS, FAIL],
 
   # TODO(rmcilroy,4680): Test assert errors.
   'test-cpu-profiler/CodeEvents': [FAIL],
@@ -632,14 +629,10 @@
   'test-cpu-profiler/NativeAccessorMonomorphicIC': [FAIL],
   'test-cpu-profiler/CollectSampleAPI': [FAIL],
   'test-compiler/FeedbackVectorPreservedAcrossRecompiles': [FAIL],
-  'test-api/ExceptionInNativeScript': [FAIL],
-  'test-api/ExceptionCreateMessage': [FAIL],
-  'test-api/TryFinallyMessage': [FAIL],
   'test-api/DynamicWithSourceURLInStackTraceString': [FAIL],
   'test-api/PromiseRejectCallback': [FAIL],
   'test-api/RethrowBogusErrorStackTrace': [FAIL],
   'test-api/RethrowPrimitiveStackTrace': [FAIL],
-  'test-api/RethrowStackTrace': [FAIL],
   'test-api/TryCatchSourceInfo': [FAIL],
   'test-api/SetJitCodeEventHandler': [FAIL],
   'test-heap/WeakFunctionInConstructor': [FAIL],
@@ -716,7 +709,6 @@
   'test-api/CallAsFunction': [PASS, FAIL],
   'test-api/ConstructorForObject': [PASS, FAIL],
   'test-api/Regress528': [PASS, FAIL],
-  'test-api/TryCatchMixedNesting': [PASS, FAIL],
 }],
 
 ['ignition == True and arch == x64', {
