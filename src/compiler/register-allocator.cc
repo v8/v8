@@ -3339,8 +3339,31 @@ void LiveRangeConnector::ResolveControlFlow(Zone* local_zone) {
         if (pred_op.Equals(cur_op)) continue;
         if (!pred_op.IsAnyRegister() && cur_op.IsAnyRegister()) {
           // We're doing a reload.
+          // We don't need to, if:
+          // 1) there's no register use in this block, and
+          // 2) the range ends before the block does, and
+          // 3) we don't have a successor, or the successor is spilled.
+          LifetimePosition block_start =
+              LifetimePosition::GapFromInstructionIndex(block->code_start());
+          LifetimePosition block_end =
+              LifetimePosition::GapFromInstructionIndex(block->code_end());
           const LiveRange* current = result.cur_cover_;
+          const LiveRange* successor = current->next();
+          if (current->End() < block_end &&
+              (successor == nullptr || successor->spilled())) {
+            // verify point 1: no register use. We can go to the end of the
+            // range, since it's all within the block.
 
+            bool uses_reg = false;
+            for (const UsePosition* use = current->NextUsePosition(block_start);
+                 use != nullptr; use = use->next()) {
+              if (use->operand()->IsAnyRegister()) {
+                uses_reg = true;
+                break;
+              }
+            }
+            if (!uses_reg) continue;
+          }
           if (current->TopLevel()->IsSpilledOnlyInDeferredBlocks() &&
               pred_block->IsDeferred()) {
             // The spill location should be defined in pred_block, so add

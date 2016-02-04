@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/compiler/move-optimizer.h"
+#include "src/compiler/pipeline.h"
 #include "test/unittests/compiler/instruction-sequence-unittest.h"
 
 namespace v8 {
@@ -227,8 +228,8 @@ TEST_F(MoveOptimizerTest, GapsCanMoveOverInstruction) {
       ctant_def->GetParallelMove(Instruction::GapPosition::END);
   ParallelMove* last_start =
       last->GetParallelMove(Instruction::GapPosition::START);
-  CHECK(inst1_start == nullptr || inst1_start->size() == 0);
-  CHECK(inst1_end == nullptr || inst1_end->size() == 0);
+  CHECK(inst1_start == nullptr || NonRedundantSize(inst1_start) == 0);
+  CHECK(inst1_end == nullptr || NonRedundantSize(inst1_end) == 0);
   CHECK(last_start->size() == 2);
   int redundants = 0;
   int assignment = 0;
@@ -321,6 +322,22 @@ TEST_F(MoveOptimizerTest, GapConflictSubsetMovesDoNotMerge) {
   CHECK(Contains(b1_move, Reg(0), Reg(1)));
 }
 
+TEST_F(MoveOptimizerTest, ClobberedDestinationsAreEliminated) {
+  StartBlock();
+  EmitNop();
+  Instruction* first_instr = LastInstruction();
+  AddMove(first_instr, Reg(0), Reg(1));
+  EmitOI(Reg(1), 0, nullptr);
+  Instruction* last_instr = LastInstruction();
+  EndBlock();
+  Optimize();
+
+  ParallelMove* first_move = first_instr->parallel_moves()[0];
+  CHECK_EQ(0, NonRedundantSize(first_move));
+
+  ParallelMove* last_move = last_instr->parallel_moves()[0];
+  CHECK_EQ(0, NonRedundantSize(last_move));
+}
 
 }  // namespace compiler
 }  // namespace internal
