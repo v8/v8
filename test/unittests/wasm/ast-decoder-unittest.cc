@@ -1913,13 +1913,11 @@ class WasmOpcodeLengthTest : public TestWithZone {
   WasmOpcodeLengthTest() : TestWithZone() {}
 };
 
-
-#define EXPECT_LENGTH(expected, opcode)                          \
-  {                                                              \
-    static const byte code[] = {opcode, 0, 0, 0, 0, 0, 0, 0, 0}; \
-    EXPECT_EQ(expected, OpcodeLength(code));                     \
+#define EXPECT_LENGTH(expected, opcode)                           \
+  {                                                               \
+    static const byte code[] = {opcode, 0, 0, 0, 0, 0, 0, 0, 0};  \
+    EXPECT_EQ(expected, OpcodeLength(code, code + sizeof(code))); \
   }
-
 
 TEST_F(WasmOpcodeLengthTest, Statements) {
   EXPECT_LENGTH(1, kExprNop);
@@ -1961,11 +1959,11 @@ TEST_F(WasmOpcodeLengthTest, VariableLength) {
   byte size5[] = {kExprLoadGlobal, 1 | 0x80, 2 | 0x80, 3 | 0x80, 4};
   byte size6[] = {kExprLoadGlobal, 1 | 0x80, 2 | 0x80, 3 | 0x80, 4 | 0x80, 5};
 
-  EXPECT_EQ(2, OpcodeLength(size2));
-  EXPECT_EQ(3, OpcodeLength(size3));
-  EXPECT_EQ(4, OpcodeLength(size4));
-  EXPECT_EQ(5, OpcodeLength(size5));
-  EXPECT_EQ(6, OpcodeLength(size6));
+  EXPECT_EQ(2, OpcodeLength(size2, size2 + sizeof(size2)));
+  EXPECT_EQ(3, OpcodeLength(size3, size3 + sizeof(size3)));
+  EXPECT_EQ(4, OpcodeLength(size4, size4 + sizeof(size4)));
+  EXPECT_EQ(5, OpcodeLength(size5, size5 + sizeof(size5)));
+  EXPECT_EQ(6, OpcodeLength(size6, size6 + sizeof(size6)));
 }
 
 
@@ -2130,13 +2128,11 @@ class WasmOpcodeArityTest : public TestWithZone {
   WasmOpcodeArityTest() : TestWithZone() {}
 };
 
-
-#define EXPECT_ARITY(expected, ...)               \
-  {                                               \
-    static const byte code[] = {__VA_ARGS__};     \
-    EXPECT_EQ(expected, OpcodeArity(&env, code)); \
+#define EXPECT_ARITY(expected, ...)                                    \
+  {                                                                    \
+    static const byte code[] = {__VA_ARGS__};                          \
+    EXPECT_EQ(expected, OpcodeArity(&env, code, code + sizeof(code))); \
   }
-
 
 TEST_F(WasmOpcodeArityTest, Control) {
   FunctionEnv env;

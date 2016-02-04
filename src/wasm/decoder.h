@@ -44,6 +44,68 @@ class Decoder {
 
   virtual ~Decoder() {}
 
+  inline bool check(const byte* base, int offset, int length, const char* msg) {
+    DCHECK_GE(base, start_);
+    if ((base + offset + length) > limit_) {
+      error(base, base + offset, msg);
+      return false;
+    }
+    return true;
+  }
+
+  // Reads a single 8-bit byte, reporting an error if out of bounds.
+  inline uint8_t checked_read_u8(const byte* base, int offset,
+                                 const char* msg = "expected 1 byte") {
+    return check(base, offset, 1, msg) ? base[offset] : 0;
+  }
+
+  // Reads 16-bit word, reporting an error if out of bounds.
+  inline uint16_t checked_read_u16(const byte* base, int offset,
+                                   const char* msg = "expected 2 bytes") {
+    return check(base, offset, 2, msg) ? read_u16(base + offset) : 0;
+  }
+
+  // Reads 32-bit word, reporting an error if out of bounds.
+  inline uint32_t checked_read_u32(const byte* base, int offset,
+                                   const char* msg = "expected 4 bytes") {
+    return check(base, offset, 4, msg) ? read_u32(base + offset) : 0;
+  }
+
+  // Reads 64-bit word, reporting an error if out of bounds.
+  inline uint64_t checked_read_u64(const byte* base, int offset,
+                                   const char* msg = "expected 8 bytes") {
+    return check(base, offset, 8, msg) ? read_u64(base + offset) : 0;
+  }
+
+  uint32_t checked_read_u32v(const byte* base, int offset, int* length,
+                             const char* msg = "expected LEB128") {
+    if (!check(base, offset, 1, msg)) {
+      *length = 0;
+      return 0;
+    }
+
+    const ptrdiff_t kMaxDiff = 5;  // maximum 5 bytes.
+    const byte* ptr = base + offset;
+    const byte* end = ptr + kMaxDiff;
+    if (end > limit_) end = limit_;
+    int shift = 0;
+    byte b = 0;
+    uint32_t result = 0;
+    while (ptr < end) {
+      b = *ptr++;
+      result = result | ((b & 0x7F) << shift);
+      if ((b & 0x80) == 0) break;
+      shift += 7;
+    }
+    DCHECK_LE(ptr - (base + offset), kMaxDiff);
+    *length = static_cast<int>(ptr - (base + offset));
+    if (ptr == end && (b & 0x80)) {
+      error(base, ptr, msg);
+      return 0;
+    }
+    return result;
+  }
+
   // Reads a single 16-bit unsigned integer (little endian).
   inline uint16_t read_u16(const byte* ptr) {
     DCHECK(ptr >= start_ && (ptr + 2) <= end_);
@@ -168,6 +230,12 @@ class Decoder {
     } else {
       return true;
     }
+  }
+
+  bool RangeOk(const byte* pc, int length) {
+    if (pc < start_ || pc_ >= limit_) return false;
+    if ((pc + length) >= limit_) return false;
+    return true;
   }
 
   void error(const char* msg) { error(pc_, nullptr, msg); }
