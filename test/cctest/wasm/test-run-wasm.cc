@@ -978,8 +978,8 @@ TEST(Run_Wasm_Return_F64) {
 
 TEST(Run_Wasm_Select) {
   WasmRunner<int32_t> r(MachineType::Int32());
-  // return select(a, 11, 22);
-  BUILD(r, WASM_SELECT(WASM_GET_LOCAL(0), WASM_I8(11), WASM_I8(22)));
+  // return select(11, 22, a);
+  BUILD(r, WASM_SELECT(WASM_I8(11), WASM_I8(22), WASM_GET_LOCAL(0)));
   FOR_INT32_INPUTS(i) {
     int32_t expected = *i ? 11 : 22;
     CHECK_EQ(expected, r.Call(*i));
@@ -989,22 +989,38 @@ TEST(Run_Wasm_Select) {
 
 TEST(Run_Wasm_Select_strict1) {
   WasmRunner<int32_t> r(MachineType::Int32());
-  // select(a, a = 11, 22); return a
-  BUILD(r,
-        WASM_BLOCK(2, WASM_SELECT(WASM_GET_LOCAL(0),
-                                  WASM_SET_LOCAL(0, WASM_I8(11)), WASM_I8(22)),
-                   WASM_GET_LOCAL(0)));
-  FOR_INT32_INPUTS(i) { CHECK_EQ(11, r.Call(*i)); }
+  // select(a=0, a=1, a=2); return a
+  BUILD(r, WASM_BLOCK(2, WASM_SELECT(WASM_SET_LOCAL(0, WASM_I8(0)),
+                                     WASM_SET_LOCAL(0, WASM_I8(1)),
+                                     WASM_SET_LOCAL(0, WASM_I8(2))),
+                      WASM_GET_LOCAL(0)));
+  FOR_INT32_INPUTS(i) { CHECK_EQ(2, r.Call(*i)); }
 }
 
 
 TEST(Run_Wasm_Select_strict2) {
   WasmRunner<int32_t> r(MachineType::Int32());
-  // select(a, 11, a = 22); return a;
-  BUILD(r, WASM_BLOCK(2, WASM_SELECT(WASM_GET_LOCAL(0), WASM_I8(11),
-                                     WASM_SET_LOCAL(0, WASM_I8(22))),
-                      WASM_GET_LOCAL(0)));
-  FOR_INT32_INPUTS(i) { CHECK_EQ(22, r.Call(*i)); }
+  r.env()->AddLocals(kAstI32, 2);
+  // select(b=5, c=6, a)
+  BUILD(r, WASM_SELECT(WASM_SET_LOCAL(1, WASM_I8(5)),
+                       WASM_SET_LOCAL(2, WASM_I8(6)), WASM_GET_LOCAL(0)));
+  FOR_INT32_INPUTS(i) {
+    int32_t expected = *i ? 5 : 6;
+    CHECK_EQ(expected, r.Call(*i));
+  }
+}
+
+TEST(Run_Wasm_Select_strict3) {
+  WasmRunner<int32_t> r(MachineType::Int32());
+  r.env()->AddLocals(kAstI32, 2);
+  // select(b=5, c=6, a=b)
+  BUILD(r, WASM_SELECT(WASM_SET_LOCAL(1, WASM_I8(5)),
+                       WASM_SET_LOCAL(2, WASM_I8(6)),
+                       WASM_SET_LOCAL(0, WASM_GET_LOCAL(1))));
+  FOR_INT32_INPUTS(i) {
+    int32_t expected = 5;
+    CHECK_EQ(expected, r.Call(*i));
+  }
 }
 
 

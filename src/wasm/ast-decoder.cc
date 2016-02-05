@@ -964,26 +964,26 @@ class LR_WasmDecoder : public WasmDecoder {
       }
       case kExprSelect: {
         if (p->index == 1) {
-          // Condition done.
-          TypeCheckLast(p, kAstI32);
-        } else if (p->index == 2) {
           // True expression done.
           p->tree->type = p->last()->type;
           if (p->tree->type == kAstStmt) {
             error(p->pc(), p->tree->children[1]->pc,
                   "select operand should be expression");
           }
-        } else {
+        } else if (p->index == 2) {
           // False expression done.
-          DCHECK(p->done());
           TypeCheckLast(p, p->tree->type);
+        } else {
+          // Condition done.
+          DCHECK(p->done());
+          TypeCheckLast(p, kAstI32);
           if (build()) {
             TFNode* controls[2];
-            builder_->Branch(p->tree->children[0]->node, &controls[0],
+            builder_->Branch(p->tree->children[2]->node, &controls[0],
                              &controls[1]);
             TFNode* merge = builder_->Merge(2, controls);
-            TFNode* vals[2] = {p->tree->children[1]->node,
-                               p->tree->children[2]->node};
+            TFNode* vals[2] = {p->tree->children[0]->node,
+                               p->tree->children[1]->node};
             TFNode* phi = builder_->Phi(p->tree->type, 2, vals, merge);
             p->tree->node = phi;
             ssa_env_->control = merge;

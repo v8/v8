@@ -1891,8 +1891,51 @@ TEST_F(WasmDecoderTest, ExprBreakNesting1) {
 
 TEST_F(WasmDecoderTest, Select) {
   EXPECT_VERIFIES_INLINE(
+      &env_i_i, WASM_SELECT(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0), WASM_ZERO));
+  EXPECT_VERIFIES_INLINE(&env_f_ff,
+                         WASM_SELECT(WASM_F32(0.0), WASM_F32(0.0), WASM_ZERO));
+  EXPECT_VERIFIES_INLINE(&env_d_dd,
+                         WASM_SELECT(WASM_F64(0.0), WASM_F64(0.0), WASM_ZERO));
+  EXPECT_VERIFIES_INLINE(&env_l_l,
+                         WASM_SELECT(WASM_I64(0), WASM_I64(0), WASM_ZERO));
+}
+
+TEST_F(WasmDecoderTest, Select_fail1) {
+  EXPECT_FAILURE_INLINE(&env_i_i, WASM_SELECT(WASM_F32(0.0), WASM_GET_LOCAL(0),
+                                              WASM_GET_LOCAL(0)));
+  EXPECT_FAILURE_INLINE(&env_i_i, WASM_SELECT(WASM_GET_LOCAL(0), WASM_F32(0.0),
+                                              WASM_GET_LOCAL(0)));
+  EXPECT_FAILURE_INLINE(
       &env_i_i,
-      WASM_SELECT(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0), WASM_GET_LOCAL(0)));
+      WASM_SELECT(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0), WASM_F32(0.0)));
+}
+
+TEST_F(WasmDecoderTest, Select_fail2) {
+  for (size_t i = 0; i < arraysize(kLocalTypes); i++) {
+    LocalType type = kLocalTypes[i];
+    if (type == kAstI32) continue;
+
+    LocalType types[] = {type, kAstI32, type};
+    FunctionSig sig(1, 2, types);
+    FunctionEnv env;
+    init_env(&env, &sig);
+
+    EXPECT_VERIFIES_INLINE(
+        &env,
+        WASM_SELECT(WASM_GET_LOCAL(1), WASM_GET_LOCAL(1), WASM_GET_LOCAL(0)));
+
+    EXPECT_FAILURE_INLINE(
+        &env,
+        WASM_SELECT(WASM_GET_LOCAL(1), WASM_GET_LOCAL(0), WASM_GET_LOCAL(0)));
+
+    EXPECT_FAILURE_INLINE(
+        &env,
+        WASM_SELECT(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1), WASM_GET_LOCAL(0)));
+
+    EXPECT_FAILURE_INLINE(
+        &env,
+        WASM_SELECT(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+  }
 }
 
 
