@@ -1471,6 +1471,9 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
     if (natives == NATIVES_CODE) {
       script->set_type(Script::TYPE_NATIVE);
       script->set_hide_source(true);
+    } else if (natives == EXTENSION_CODE) {
+      script->set_type(Script::TYPE_EXTENSION);
+      script->set_hide_source(true);
     }
     if (!script_name.is_null()) {
       script->set_name(*script_name);

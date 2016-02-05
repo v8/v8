@@ -109,7 +109,7 @@ class Bootstrapper final {
 
   static bool CompileNative(Isolate* isolate, Vector<const char> name,
                             Handle<String> source, int argc,
-                            Handle<Object> argv[]);
+                            Handle<Object> argv[], NativesFlag natives_flag);
   static bool CompileBuiltin(Isolate* isolate, int index);
   static bool CompileExperimentalBuiltin(Isolate* isolate, int index);
   static bool CompileExtraBuiltin(Isolate* isolate, int index);

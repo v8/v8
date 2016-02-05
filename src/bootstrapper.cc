@@ -1821,7 +1821,7 @@ bool Bootstrapper::CompileBuiltin(Isolate* isolate, int index) {
   Handle<Object> args[] = {global, utils, extras_utils};
 
   return Bootstrapper::CompileNative(isolate, name, source_code,
-                                     arraysize(args), args);
+                                     arraysize(args), args, NATIVES_CODE);
 }
 
 
@@ -1834,7 +1834,7 @@ bool Bootstrapper::CompileExperimentalBuiltin(Isolate* isolate, int index) {
   Handle<Object> utils = isolate->natives_utils_object();
   Handle<Object> args[] = {global, utils};
   return Bootstrapper::CompileNative(isolate, name, source_code,
-                                     arraysize(args), args);
+                                     arraysize(args), args, NATIVES_CODE);
 }
 
 
@@ -1848,7 +1848,7 @@ bool Bootstrapper::CompileExtraBuiltin(Isolate* isolate, int index) {
   Handle<Object> extras_utils = isolate->extras_utils_object();
   Handle<Object> args[] = {global, binding, extras_utils};
   return Bootstrapper::CompileNative(isolate, name, source_code,
-                                     arraysize(args), args);
+                                     arraysize(args), args, EXTENSION_CODE);
 }
 
 
@@ -1863,13 +1863,13 @@ bool Bootstrapper::CompileExperimentalExtraBuiltin(Isolate* isolate,
   Handle<Object> extras_utils = isolate->extras_utils_object();
   Handle<Object> args[] = {global, binding, extras_utils};
   return Bootstrapper::CompileNative(isolate, name, source_code,
-                                     arraysize(args), args);
+                                     arraysize(args), args, EXTENSION_CODE);
 }
-
 
 bool Bootstrapper::CompileNative(Isolate* isolate, Vector<const char> name,
                                  Handle<String> source, int argc,
-                                 Handle<Object> argv[]) {
+                                 Handle<Object> argv[],
+                                 NativesFlag natives_flag) {
   SuppressDebug compiling_natives(isolate->debug());
   // During genesis, the boilerplate for stack overflow won't work until the
   // environment has been at least partially initialized. Add a stack check
@@ -1886,7 +1886,7 @@ bool Bootstrapper::CompileNative(Isolate* isolate, Vector<const char> name,
       isolate->factory()->NewStringFromUtf8(name).ToHandleChecked();
   Handle<SharedFunctionInfo> function_info = Compiler::CompileScript(
       source, script_name, 0, 0, ScriptOriginOptions(), Handle<Object>(),
-      context, NULL, NULL, ScriptCompiler::kNoCompileOptions, NATIVES_CODE,
+      context, NULL, NULL, ScriptCompiler::kNoCompileOptions, natives_flag,
       false);
   if (function_info.is_null()) return false;
 
@@ -1944,7 +1944,7 @@ bool Genesis::CompileExtension(Isolate* isolate, v8::Extension* extension) {
     function_info = Compiler::CompileScript(
         source, script_name, 0, 0, ScriptOriginOptions(), Handle<Object>(),
         context, extension, NULL, ScriptCompiler::kNoCompileOptions,
-        NOT_NATIVES_CODE, false);
+        EXTENSION_CODE, false);
     if (function_info.is_null()) return false;
     cache->Add(name, function_info);
   }

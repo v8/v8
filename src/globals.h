@@ -529,7 +529,7 @@ enum VisitMode {
 };
 
 // Flag indicating whether code is built into the VM (one of the natives files).
-enum NativesFlag { NOT_NATIVES_CODE, NATIVES_CODE };
+enum NativesFlag { NOT_NATIVES_CODE, EXTENSION_CODE, NATIVES_CODE };
 
 // JavaScript defines two kinds of 'nil'.
 enum NilValue { kNullValue, kUndefinedValue };
