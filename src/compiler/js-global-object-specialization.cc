@@ -179,6 +179,7 @@ Reduction JSGlobalObjectSpecialization::ReduceJSStoreGlobal(Node* node) {
                            frame_state, effect, if_false);
       // TODO(bmeurer): This should be on the AdvancedReducer somehow.
       NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
+      Revisit(graph()->end());
       control = graph()->NewNode(common()->IfTrue(), branch);
       break;
     }
@@ -198,6 +199,7 @@ Reduction JSGlobalObjectSpecialization::ReduceJSStoreGlobal(Node* node) {
                              frame_state, effect, if_true);
         // TODO(bmeurer): This should be on the AdvancedReducer somehow.
         NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
+        Revisit(graph()->end());
         control = graph()->NewNode(common()->IfFalse(), branch);
 
         // Load the {value} map check against the {property_cell} map.
@@ -219,6 +221,7 @@ Reduction JSGlobalObjectSpecialization::ReduceJSStoreGlobal(Node* node) {
                            frame_state, effect, if_false);
       // TODO(bmeurer): This should be on the AdvancedReducer somehow.
       NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
+      Revisit(graph()->end());
       control = graph()->NewNode(common()->IfTrue(), branch);
       effect = graph()->NewNode(
           simplified()->StoreField(

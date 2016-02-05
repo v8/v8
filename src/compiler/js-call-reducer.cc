@@ -336,6 +336,7 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
                          frame_state, effect, if_false);
     // TODO(bmeurer): This should be on the AdvancedReducer somehow.
     NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
+    Revisit(graph()->end());
     control = graph()->NewNode(common()->IfTrue(), branch);
 
     // Turn the {node} into a {JSCreateArray} call.
@@ -361,6 +362,7 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
                            frame_state, effect, if_false);
       // TODO(bmeurer): This should be on the AdvancedReducer somehow.
       NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
+      Revisit(graph()->end());
       control = graph()->NewNode(common()->IfTrue(), branch);
 
       // Specialize the JSCallFunction node to the {target_function}.
@@ -478,6 +480,7 @@ Reduction JSCallReducer::ReduceJSCallConstruct(Node* node) {
                          frame_state, effect, if_false);
     // TODO(bmeurer): This should be on the AdvancedReducer somehow.
     NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
+    Revisit(graph()->end());
     control = graph()->NewNode(common()->IfTrue(), branch);
 
     // Turn the {node} into a {JSCreateArray} call.
@@ -509,6 +512,7 @@ Reduction JSCallReducer::ReduceJSCallConstruct(Node* node) {
                            frame_state, effect, if_false);
       // TODO(bmeurer): This should be on the AdvancedReducer somehow.
       NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
+      Revisit(graph()->end());
       control = graph()->NewNode(common()->IfTrue(), branch);
 
       // Specialize the JSCallConstruct node to the {target_function}.

@@ -146,6 +146,7 @@ Reduction JSIntrinsicLowering::ReduceDeoptimizeNow(Node* node) {
       graph()->NewNode(common()->Deoptimize(DeoptimizeKind::kEager),
                        frame_state, effect, control);
   NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
+  Revisit(graph()->end());
 
   node->TrimInputCount(0);
   NodeProperties::ChangeOp(node, common()->Dead());

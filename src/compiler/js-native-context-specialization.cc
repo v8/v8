@@ -418,6 +418,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
                        frame_state, exit_effect, exit_control);
   // TODO(bmeurer): This should be on the AdvancedReducer somehow.
   NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
+  Revisit(graph()->end());
 
   // Generate the final merge point for all (polymorphic) branches.
   int const control_count = static_cast<int>(controls.size());
@@ -850,6 +851,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
                        frame_state, exit_effect, exit_control);
   // TODO(bmeurer): This should be on the AdvancedReducer somehow.
   NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
+  Revisit(graph()->end());
 
   // Generate the final merge point for all (polymorphic) branches.
   int const control_count = static_cast<int>(controls.size());

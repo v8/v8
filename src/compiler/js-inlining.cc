@@ -205,6 +205,7 @@ Reduction JSInliner::InlineCall(Node* call, Node* new_target, Node* context,
       case IrOpcode::kThrow:
         NodeProperties::MergeControlToEnd(jsgraph_->graph(), jsgraph_->common(),
                                           input);
+        Revisit(jsgraph_->graph()->end());
         break;
       default:
         UNREACHABLE();
