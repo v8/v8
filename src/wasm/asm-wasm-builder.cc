@@ -51,7 +51,8 @@ class AsmWasmBuilderImpl : public AstVisitor {
         next_table_index_(0),
         function_tables_(HashMap::PointersMatch,
                          ZoneHashMap::kDefaultHashMapCapacity,
-                         ZoneAllocationPolicy(zone)) {
+                         ZoneAllocationPolicy(zone)),
+        imported_function_table_(this) {
     InitializeAstVisitor(isolate);
   }
 
@@ -367,34 +368,26 @@ class AsmWasmBuilderImpl : public AstVisitor {
   void VisitVariableProxy(VariableProxy* expr) {
     if (in_function_) {
       Variable* var = expr->var();
-      if (var->is_function()) {
-        DCHECK(!is_set_op_);
-        std::vector<uint8_t> index =
-            UnsignedLEB128From(LookupOrInsertFunction(var));
-        current_function_builder_->EmitCode(
-            &index[0], static_cast<uint32_t>(index.size()));
-      } else {
-        if (is_set_op_) {
-          if (var->IsContextSlot()) {
-            current_function_builder_->Emit(kExprStoreGlobal);
-          } else {
-            current_function_builder_->Emit(kExprSetLocal);
-          }
-          is_set_op_ = false;
-        } else {
-          if (var->IsContextSlot()) {
-            current_function_builder_->Emit(kExprLoadGlobal);
-          } else {
-            current_function_builder_->Emit(kExprGetLocal);
-          }
-        }
-        LocalType var_type = TypeOf(expr);
-        DCHECK(var_type != kAstStmt);
+      if (is_set_op_) {
         if (var->IsContextSlot()) {
-          AddLeb128(LookupOrInsertGlobal(var, var_type), false);
+          current_function_builder_->Emit(kExprStoreGlobal);
         } else {
-          AddLeb128(LookupOrInsertLocal(var, var_type), true);
+          current_function_builder_->Emit(kExprSetLocal);
         }
+        is_set_op_ = false;
+      } else {
+        if (var->IsContextSlot()) {
+          current_function_builder_->Emit(kExprLoadGlobal);
+        } else {
+          current_function_builder_->Emit(kExprGetLocal);
+        }
+      }
+      LocalType var_type = TypeOf(expr);
+      DCHECK(var_type != kAstStmt);
+      if (var->IsContextSlot()) {
+        AddLeb128(LookupOrInsertGlobal(var, var_type), false);
+      } else {
+        AddLeb128(LookupOrInsertLocal(var, var_type), true);
       }
     }
   }
@@ -508,11 +501,80 @@ class AsmWasmBuilderImpl : public AstVisitor {
     return reinterpret_cast<FunctionTableIndices*>(entry->value);
   }
 
+  class ImportedFunctionTable {
+   private:
+    class ImportedFunctionIndices : public ZoneObject {
+     public:
+      const unsigned char* name_;
+      int name_length_;
+      WasmModuleBuilder::SignatureMap signature_to_index_;
+
+      ImportedFunctionIndices(const unsigned char* name, int name_length,
+                              Zone* zone)
+          : name_(name), name_length_(name_length), signature_to_index_(zone) {}
+    };
+    ZoneHashMap table_;
+    AsmWasmBuilderImpl* builder_;
+
+   public:
+    explicit ImportedFunctionTable(AsmWasmBuilderImpl* builder)
+        : table_(HashMap::PointersMatch, ZoneHashMap::kDefaultHashMapCapacity,
+                 ZoneAllocationPolicy(builder->zone())),
+          builder_(builder) {}
+
+    void AddImport(Variable* v, const unsigned char* name, int name_length) {
+      ImportedFunctionIndices* indices = new (builder_->zone())
+          ImportedFunctionIndices(name, name_length, builder_->zone());
+      ZoneHashMap::Entry* entry = table_.LookupOrInsert(
+          v, ComputePointerHash(v), ZoneAllocationPolicy(builder_->zone()));
+      entry->value = indices;
+    }
+
+    uint16_t GetFunctionIndex(Variable* v, FunctionSig* sig) {
+      ZoneHashMap::Entry* entry = table_.Lookup(v, ComputePointerHash(v));
+      DCHECK(entry != nullptr);
+      ImportedFunctionIndices* indices =
+          reinterpret_cast<ImportedFunctionIndices*>(entry->value);
+      WasmModuleBuilder::SignatureMap::iterator pos =
+          indices->signature_to_index_.find(sig);
+      if (pos != indices->signature_to_index_.end()) {
+        return pos->second;
+      } else {
+        uint16_t index = builder_->builder_->AddFunction();
+        indices->signature_to_index_[sig] = index;
+        WasmFunctionBuilder* function = builder_->builder_->FunctionAt(index);
+        function->External(1);
+        function->SetName(indices->name_, indices->name_length_);
+        if (sig->return_count() > 0) {
+          function->ReturnType(sig->GetReturn());
+        }
+        for (size_t i = 0; i < sig->parameter_count(); i++) {
+          function->AddParam(sig->GetParam(i));
+        }
+        return index;
+      }
+    }
+  };
+
   void VisitAssignment(Assignment* expr) {
     bool in_init = false;
     if (!in_function_) {
       // TODO(bradnelson): Get rid of this.
       if (TypeOf(expr->value()) == kAstStmt) {
+        Property* prop = expr->value()->AsProperty();
+        if (prop != nullptr) {
+          VariableProxy* vp = prop->obj()->AsVariableProxy();
+          if (vp != nullptr && vp->var()->IsParameter() &&
+              vp->var()->index() == 1) {
+            VariableProxy* target = expr->target()->AsVariableProxy();
+            if (target->bounds().lower->Is(Type::Function())) {
+              const AstRawString* name =
+                  prop->key()->AsLiteral()->AsRawPropertyName();
+              imported_function_table_.AddImport(
+                  target->var(), name->raw_data(), name->length());
+            }
+          }
+        }
         ArrayLiteral* funcs = expr->value()->AsArrayLiteral();
         if (funcs != nullptr &&
             funcs->bounds().lower->AsArray()->Element()->IsFunction()) {
@@ -620,8 +682,29 @@ class AsmWasmBuilderImpl : public AstVisitor {
     switch (call_type) {
       case Call::OTHER_CALL: {
         DCHECK(in_function_);
+        uint16_t index;
+        VariableProxy* vp = expr->expression()->AsVariableProxy();
+        if (vp != nullptr &&
+            Type::Any()->Is(vp->bounds().lower->AsFunction()->Result())) {
+          LocalType return_type = TypeOf(expr);
+          ZoneList<Expression*>* args = expr->arguments();
+          FunctionSig::Builder sig(zone(), return_type == kAstStmt ? 0 : 1,
+                                   args->length());
+          if (return_type != kAstStmt) {
+            sig.AddReturn(return_type);
+          }
+          for (int i = 0; i < args->length(); i++) {
+            sig.AddParam(TypeOf(args->at(i)));
+          }
+          index =
+              imported_function_table_.GetFunctionIndex(vp->var(), sig.Build());
+        } else {
+          index = LookupOrInsertFunction(vp->var());
+        }
         current_function_builder_->Emit(kExprCallFunction);
-        RECURSE(Visit(expr->expression()));
+        std::vector<uint8_t> index_arr = UnsignedLEB128From(index);
+        current_function_builder_->EmitCode(
+            &index_arr[0], static_cast<uint32_t>(index_arr.size()));
         break;
       }
       case Call::KEYED_PROPERTY_CALL: {
@@ -1094,6 +1177,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
   uint16_t init_function_index_;
   uint32_t next_table_index_;
   ZoneHashMap function_tables_;
+  ImportedFunctionTable imported_function_table_;
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
 

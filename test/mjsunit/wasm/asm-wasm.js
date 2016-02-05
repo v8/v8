@@ -995,3 +995,88 @@ assertEquals(9, module.caller(0, 2, 54, 45));
 assertEquals(99, module.caller(0, 3, 54, 45));
 assertEquals(23, module.caller(0, 4, 12, 11));
 assertEquals(31, module.caller(1, 0, 30, 11));
+
+
+function TestForeignFunctions() {
+  function AsmModule(stdlib, foreign, buffer) {
+    "use asm";
+
+    var setVal = foreign.setVal;
+    var getVal = foreign.getVal;
+
+    function caller(initial_value, new_value) {
+      initial_value = initial_value|0;
+      new_value = new_value|0;
+      if ((getVal()|0) == (initial_value|0)) {
+        setVal(new_value|0);
+        return getVal()|0;
+      }
+      return 0;
+    }
+
+    return {caller:caller};
+  }
+
+  function ffi(initial_val) {
+    var val = initial_val;
+
+    function getVal() {
+      return val;
+    }
+
+    function setVal(new_val) {
+      val = new_val;
+    }
+
+    return {getVal:getVal, setVal:setVal};
+  }
+
+  var foreign = new ffi(23);
+
+  var module = _WASMEXP_.instantiateModuleFromAsm(AsmModule.toString(),
+                                                  foreign, null);
+
+  module.__init__();
+  assertEquals(103, module.caller(23, 103));
+}
+
+TestForeignFunctions();
+
+function TestForeignFunctionMultipleUse() {
+  function AsmModule(stdlib, foreign, buffer) {
+    "use asm";
+
+    var getVal = foreign.getVal;
+
+    function caller(int_val, double_val) {
+      int_val = int_val|0;
+      double_val = +double_val;
+      if ((getVal()|0) == (int_val|0)) {
+        if ((+getVal()) == (+double_val)) {
+          return 89;
+        }
+      }
+      return 0;
+    }
+
+    return {caller:caller};
+  }
+
+  function ffi() {
+    function getVal() {
+      return 83.25;
+    }
+
+    return {getVal:getVal};
+  }
+
+  var foreign = new ffi();
+
+  var module = _WASMEXP_.instantiateModuleFromAsm(AsmModule.toString(),
+                                                  foreign, null);
+
+  module.__init__();
+  assertEquals(89, module.caller(83, 83.25));
+}
+
+TestForeignFunctionMultipleUse();

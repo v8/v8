@@ -47,7 +47,7 @@ class WasmFunctionEncoder : public ZoneObject {
             local_f64_count_) > 0;
   }
 
-  bool HasName() const { return exported_ && name_.size() > 0; }
+  bool HasName() const { return (exported_ || external_) && name_.size() > 0; }
 };
 
 class WasmFunctionBuilder : public ZoneObject {
@@ -133,12 +133,12 @@ class WasmModuleBuilder : public ZoneObject {
   void AddIndirectFunction(uint16_t index);
   WasmModuleWriter* Build(Zone* zone);
 
- private:
   struct CompareFunctionSigs {
     bool operator()(FunctionSig* a, FunctionSig* b) const;
   };
   typedef ZoneMap<FunctionSig*, uint16_t, CompareFunctionSigs> SignatureMap;
 
+ private:
   Zone* zone_;
   ZoneVector<FunctionSig*> signatures_;
   ZoneVector<WasmFunctionBuilder*> functions_;

@@ -263,7 +263,7 @@ uint32_t WasmFunctionEncoder::BodySize(void) const {
 
 
 uint32_t WasmFunctionEncoder::NameSize() const {
-  return exported_ ? static_cast<uint32_t>(name_.size()) : 0;
+  return HasName() ? static_cast<uint32_t>(name_.size()) : 0;
 }
 
 
