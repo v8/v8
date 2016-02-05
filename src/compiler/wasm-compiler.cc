@@ -1035,8 +1035,12 @@ Node* WasmGraphBuilder::BuildF32Min(Node* left, Node* right) {
 
   return left_le_right.Phi(
       wasm::kAstF32, left,
-      right_lt_left.Phi(wasm::kAstF32, right,
-                        left_is_not_nan.Phi(wasm::kAstF32, right, left)));
+      right_lt_left.Phi(
+          wasm::kAstF32, right,
+          left_is_not_nan.Phi(
+              wasm::kAstF32,
+              Binop(wasm::kExprF32Mul, right, Float32Constant(1.0)),
+              Binop(wasm::kExprF32Mul, left, Float32Constant(1.0)))));
 }
 
 
@@ -1052,8 +1056,12 @@ Node* WasmGraphBuilder::BuildF32Max(Node* left, Node* right) {
 
   return left_ge_right.Phi(
       wasm::kAstF32, left,
-      right_gt_left.Phi(wasm::kAstF32, right,
-                        left_is_not_nan.Phi(wasm::kAstF32, right, left)));
+      right_gt_left.Phi(
+          wasm::kAstF32, right,
+          left_is_not_nan.Phi(
+              wasm::kAstF32,
+              Binop(wasm::kExprF32Mul, right, Float32Constant(1.0)),
+              Binop(wasm::kExprF32Mul, left, Float32Constant(1.0)))));
 }
 
 
@@ -1069,8 +1077,12 @@ Node* WasmGraphBuilder::BuildF64Min(Node* left, Node* right) {
 
   return left_le_right.Phi(
       wasm::kAstF64, left,
-      right_lt_left.Phi(wasm::kAstF64, right,
-                        left_is_not_nan.Phi(wasm::kAstF64, right, left)));
+      right_lt_left.Phi(
+          wasm::kAstF64, right,
+          left_is_not_nan.Phi(
+              wasm::kAstF64,
+              Binop(wasm::kExprF64Mul, right, Float64Constant(1.0)),
+              Binop(wasm::kExprF64Mul, left, Float64Constant(1.0)))));
 }
 
 
@@ -1086,8 +1098,12 @@ Node* WasmGraphBuilder::BuildF64Max(Node* left, Node* right) {
 
   return left_ge_right.Phi(
       wasm::kAstF64, left,
-      right_gt_left.Phi(wasm::kAstF64, right,
-                        left_is_not_nan.Phi(wasm::kAstF64, right, left)));
+      right_gt_left.Phi(
+          wasm::kAstF64, right,
+          left_is_not_nan.Phi(
+              wasm::kAstF64,
+              Binop(wasm::kExprF64Mul, right, Float64Constant(1.0)),
+              Binop(wasm::kExprF64Mul, left, Float64Constant(1.0)))));
 }
 
 

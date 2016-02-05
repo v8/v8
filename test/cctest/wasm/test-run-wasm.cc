@@ -3138,6 +3138,74 @@ TEST(Run_Wasm_F64Max) {
   }
 }
 
+// TODO(ahaas): Fix on arm and reenable.
+#if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64
+
+TEST(Run_Wasm_F32Min_Snan) {
+  // Test that the instruction does not return a signalling NaN.
+  {
+    WasmRunner<float> r;
+    BUILD(r,
+          WASM_F32_MIN(WASM_F32(bit_cast<float>(0xff80f1e2)), WASM_F32(57.67)));
+    CHECK_EQ(0xffc0f1e2, bit_cast<uint32_t>(r.Call()));
+  }
+  {
+    WasmRunner<float> r;
+    BUILD(r,
+          WASM_F32_MIN(WASM_F32(45.73), WASM_F32(bit_cast<float>(0x7f80f1e2))));
+    CHECK_EQ(0x7fc0f1e2, bit_cast<uint32_t>(r.Call()));
+  }
+}
+
+TEST(Run_Wasm_F32Max_Snan) {
+  // Test that the instruction does not return a signalling NaN.
+  {
+    WasmRunner<float> r;
+    BUILD(r,
+          WASM_F32_MAX(WASM_F32(bit_cast<float>(0xff80f1e2)), WASM_F32(57.67)));
+    CHECK_EQ(0xffc0f1e2, bit_cast<uint32_t>(r.Call()));
+  }
+  {
+    WasmRunner<float> r;
+    BUILD(r,
+          WASM_F32_MAX(WASM_F32(45.73), WASM_F32(bit_cast<float>(0x7f80f1e2))));
+    CHECK_EQ(0x7fc0f1e2, bit_cast<uint32_t>(r.Call()));
+  }
+}
+
+TEST(Run_Wasm_F64Min_Snan) {
+  // Test that the instruction does not return a signalling NaN.
+  {
+    WasmRunner<double> r;
+    BUILD(r, WASM_F64_MIN(WASM_F64(bit_cast<double>(0xfff000000000f1e2)),
+                          WASM_F64(57.67)));
+    CHECK_EQ(0xfff800000000f1e2, bit_cast<uint64_t>(r.Call()));
+  }
+  {
+    WasmRunner<double> r;
+    BUILD(r, WASM_F64_MIN(WASM_F64(45.73),
+                          WASM_F64(bit_cast<double>(0x7ff000000000f1e2))));
+    CHECK_EQ(0x7ff800000000f1e2, bit_cast<uint64_t>(r.Call()));
+  }
+}
+
+TEST(Run_Wasm_F64Max_Snan) {
+  // Test that the instruction does not return a signalling NaN.
+  {
+    WasmRunner<double> r;
+    BUILD(r, WASM_F64_MAX(WASM_F64(bit_cast<double>(0xfff000000000f1e2)),
+                          WASM_F64(57.67)));
+    CHECK_EQ(0xfff800000000f1e2, bit_cast<uint64_t>(r.Call()));
+  }
+  {
+    WasmRunner<double> r;
+    BUILD(r, WASM_F64_MAX(WASM_F64(45.73),
+                          WASM_F64(bit_cast<double>(0x7ff000000000f1e2))));
+    CHECK_EQ(0x7ff800000000f1e2, bit_cast<uint64_t>(r.Call()));
+  }
+}
+
+#endif
 
 #if WASM_64
 TEST(Run_Wasm_F32SConvertI64) {
