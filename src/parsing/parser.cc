@@ -2792,11 +2792,6 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
           is_undefined, ThisExpression(scope_, factory(), pos),
           is_object_conditional, pos);
     }
-
-    // ES6 14.6.1 Static Semantics: IsInTailPosition
-    if (FLAG_harmony_tailcalls && !is_sloppy(language_mode())) {
-      return_value->MarkTail();
-    }
   }
   ExpectSemicolon(CHECK_OK);
 
@@ -4750,6 +4745,13 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
                     RelocInfo::kNoPosition));
   }
 
+  // ES6 14.6.1 Static Semantics: IsInTailPosition
+  if (FLAG_harmony_tailcalls && !is_sloppy(language_mode())) {
+    for (int i = 0; i < body->length(); i++) {
+      Statement* stmt = body->at(i);
+      stmt->MarkTail();
+    }
+  }
   return result;
 }
 

@@ -473,7 +473,10 @@ class Block final : public BreakableStatement {
   }
 
   void MarkTail() override {
-    if (!statements_.is_empty()) statements_.last()->MarkTail();
+    for (int i = 0; i < statements_.length(); i++) {
+      Statement* stmt = statements_.at(i);
+      stmt->MarkTail();
+    }
   }
 
   Scope* scope() const { return scope_; }
@@ -962,7 +965,6 @@ class ExpressionStatement final : public Statement {
   void set_expression(Expression* e) { expression_ = e; }
   Expression* expression() const { return expression_; }
   bool IsJump() const override { return expression_->IsThrow(); }
-  void MarkTail() override { expression_->MarkTail(); }
 
  protected:
   ExpressionStatement(Zone* zone, Expression* expression, int pos)
@@ -1019,6 +1021,8 @@ class ReturnStatement final : public JumpStatement {
   Expression* expression() const { return expression_; }
 
   void set_expression(Expression* e) { expression_ = e; }
+
+  void MarkTail() override { expression_->MarkTail(); }
 
  protected:
   explicit ReturnStatement(Zone* zone, Expression* expression, int pos)
@@ -1089,7 +1093,10 @@ class CaseClause final : public Expression {
   TypeFeedbackId CompareId() { return TypeFeedbackId(local_id(1)); }
 
   void MarkTail() override {
-    if (!statements_->is_empty()) statements_->last()->MarkTail();
+    for (int i = 0; i < statements_->length(); i++) {
+      Statement* stmt = statements_->at(i);
+      stmt->MarkTail();
+    }
   }
 
   Type* compare_type() { return compare_type_; }
@@ -1125,7 +1132,10 @@ class SwitchStatement final : public BreakableStatement {
   void set_tag(Expression* t) { tag_ = t; }
 
   void MarkTail() override {
-    if (!cases_->is_empty()) cases_->last()->MarkTail();
+    for (int i = 0; i < cases_->length(); i++) {
+      CaseClause* clause = cases_->at(i);
+      clause->MarkTail();
+    }
   }
 
  protected:
