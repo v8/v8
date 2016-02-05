@@ -149,13 +149,20 @@ BreakLocation BreakLocation::FromCodeOffset(Handle<DebugInfo> debug_info,
   return it.GetBreakLocation();
 }
 
+// Move GetFirstFrameSummary Definition to here as FromFrame use it.
+FrameSummary GetFirstFrameSummary(JavaScriptFrame* frame) {
+  List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
+  frame->Summarize(&frames);
+  return frames.first();
+}
+
 BreakLocation BreakLocation::FromFrame(Handle<DebugInfo> debug_info,
                                        JavaScriptFrame* frame) {
   // Code offset to the instruction after the current one, possibly a break
   // location as well. So the "- 1" to exclude it from the search.
-  Code* code = frame->LookupCode();
-  int code_offset = static_cast<int>(frame->pc() - code->instruction_start());
-  return FromCodeOffset(debug_info, code_offset - 1);
+  // Get code offset from the unoptimized code.
+  FrameSummary summary = GetFirstFrameSummary(frame);
+  return FromCodeOffset(debug_info, summary.code_offset() - 1);
 }
 
 // Find the break point at the supplied address, or the closest one before
@@ -791,13 +798,6 @@ bool Debug::IsBreakOnException(ExceptionBreakType type) {
   } else {
     return break_on_exception_;
   }
-}
-
-
-FrameSummary GetFirstFrameSummary(JavaScriptFrame* frame) {
-  List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
-  frame->Summarize(&frames);
-  return frames.first();
 }
 
 
