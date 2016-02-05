@@ -17619,6 +17619,11 @@ Handle<Object> JSObject::PrepareElementsForSort(Handle<JSObject> object,
     return handle(Smi::FromInt(-1), isolate);
   }
 
+  if (object->HasStringWrapperElements()) {
+    int len = String::cast(Handle<JSValue>::cast(object)->value())->length();
+    return handle(Smi::FromInt(len), isolate);
+  }
+
   if (object->HasDictionaryElements()) {
     // Convert to fast elements containing only the existing properties.
     // Ordering is irrelevant, since we are going to sort anyway.

@@ -199,6 +199,15 @@ RUNTIME_FUNCTION(Runtime_GetArrayKeys) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, array, 0);
   CONVERT_NUMBER_CHECKED(uint32_t, length, Uint32, args[1]);
 
+  if (array->HasFastStringWrapperElements()) {
+    int string_length =
+        String::cast(Handle<JSValue>::cast(array)->value())->length();
+    int backing_store_length = array->elements()->length();
+    return *isolate->factory()->NewNumberFromUint(
+        Min(length,
+            static_cast<uint32_t>(Max(string_length, backing_store_length))));
+  }
+
   if (!array->elements()->IsDictionary()) {
     RUNTIME_ASSERT(array->HasFastSmiOrObjectElements() ||
                    array->HasFastDoubleElements());
@@ -207,7 +216,7 @@ RUNTIME_FUNCTION(Runtime_GetArrayKeys) {
   }
 
   KeyAccumulator accumulator(isolate, OWN_ONLY, ALL_PROPERTIES);
-  // No need to separate protoype levels since we only get numbers/element keys
+  // No need to separate prototype levels since we only get element keys.
   for (PrototypeIterator iter(isolate, array,
                               PrototypeIterator::START_AT_RECEIVER);
        !iter.IsAtEnd(); iter.Advance()) {
