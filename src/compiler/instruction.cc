@@ -615,6 +615,20 @@ InstructionBlocks* InstructionSequence::InstructionBlocksFor(
   return blocks;
 }
 
+void InstructionSequence::Validate() {
+  // Validate blocks are in edge-split form: no block with multiple successors
+  // has an edge to a block (== a successor) with more than one predecessors.
+  for (const InstructionBlock* block : instruction_blocks()) {
+    if (block->SuccessorCount() > 1) {
+      for (const RpoNumber& successor_id : block->successors()) {
+        const InstructionBlock* successor = InstructionBlockAt(successor_id);
+        // Expect precisely one predecessor: "block".
+        CHECK(successor->PredecessorCount() == 1 &&
+              successor->predecessors()[0] == block->rpo_number());
+      }
+    }
+  }
+}
 
 void InstructionSequence::ComputeAssemblyOrder(InstructionBlocks* blocks) {
   int ao = 0;
@@ -648,6 +662,10 @@ InstructionSequence::InstructionSequence(Isolate* isolate,
       representations_(zone()),
       deoptimization_entries_(zone()) {
   block_starts_.reserve(instruction_blocks_->size());
+
+#if DEBUG
+  Validate();
+#endif
 }
 
 
