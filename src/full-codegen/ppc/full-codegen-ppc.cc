@@ -1185,7 +1185,7 @@ void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info,
   // we are creating here gets a chance to have its code optimized and
   // doesn't just get a copy of the existing unoptimized code.
   if (!FLAG_always_opt && !FLAG_prepare_always_opt && !pretenure &&
-      scope()->is_function_scope()) {
+      scope()->is_function_scope() && info->num_literals() == 0) {
     FastNewClosureStub stub(isolate(), info->language_mode(), info->kind());
     __ mov(r5, Operand(info));
     __ CallStub(&stub);
