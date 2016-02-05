@@ -36,7 +36,7 @@ RUNTIME_FUNCTION(Runtime_CreateJSGeneratorObject) {
 
 RUNTIME_FUNCTION(Runtime_SuspendJSGeneratorObject) {
   HandleScope handle_scope(isolate);
-  DCHECK(args.length() == 1 || args.length() == 2);
+  DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator_object, 0);
 
   JavaScriptFrameIterator stack_iterator(isolate);
@@ -54,18 +54,6 @@ RUNTIME_FUNCTION(Runtime_SuspendJSGeneratorObject) {
   int operands_count = frame->ComputeOperandsCount();
   DCHECK_GE(operands_count, 1 + args.length());
   operands_count -= 1 + args.length();
-
-  // Second argument indicates that we need to patch the handler table because
-  // a delegating yield introduced a try-catch statement at expression level,
-  // hence the operand count was off when we statically computed it.
-  // TODO(mstarzinger): This special case disappears with do-expressions.
-  if (args.length() == 2) {
-    CONVERT_SMI_ARG_CHECKED(handler_index, 1);
-    Handle<Code> code(frame->unchecked_code());
-    Handle<HandlerTable> table(HandlerTable::cast(code->handler_table()));
-    int handler_depth = operands_count - TryBlockConstant::kElementCount;
-    table->SetRangeDepth(handler_index, handler_depth);
-  }
 
   if (operands_count == 0) {
     // Although it's semantically harmless to call this function with an

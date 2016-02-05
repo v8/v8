@@ -2596,26 +2596,6 @@ class Yield final : public Expression {
   void set_generator_object(Expression* e) { generator_object_ = e; }
   void set_expression(Expression* e) { expression_ = e; }
 
-  // Type feedback information.
-  bool HasFeedbackSlots() const { return yield_kind() == kDelegating; }
-  void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
-                                 FeedbackVectorSlotCache* cache) override {
-    if (HasFeedbackSlots()) {
-      yield_first_feedback_slot_ = spec->AddKeyedLoadICSlot();
-      keyed_load_feedback_slot_ = spec->AddLoadICSlot();
-      done_feedback_slot_ = spec->AddLoadICSlot();
-    }
-  }
-
-  FeedbackVectorSlot KeyedLoadFeedbackSlot() {
-    DCHECK(!HasFeedbackSlots() || !yield_first_feedback_slot_.IsInvalid());
-    return yield_first_feedback_slot_;
-  }
-
-  FeedbackVectorSlot DoneFeedbackSlot() { return keyed_load_feedback_slot_; }
-
-  FeedbackVectorSlot ValueFeedbackSlot() { return done_feedback_slot_; }
-
  protected:
   Yield(Zone* zone, Expression* generator_object, Expression* expression,
         Kind yield_kind, int pos)
@@ -2628,9 +2608,6 @@ class Yield final : public Expression {
   Expression* generator_object_;
   Expression* expression_;
   Kind yield_kind_;
-  FeedbackVectorSlot yield_first_feedback_slot_;
-  FeedbackVectorSlot keyed_load_feedback_slot_;
-  FeedbackVectorSlot done_feedback_slot_;
 };
 
 
