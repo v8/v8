@@ -8942,6 +8942,8 @@ static bool SecurityTestCallback(Local<v8::Context> accessing_context,
                                  Local<v8::Object> accessed_object,
                                  Local<v8::Value> data) {
   printf("a\n");
+  CHECK(!data.IsEmpty() && data->IsInt32());
+  CHECK_EQ(42, data->Int32Value(accessing_context).FromJust());
   return g_security_callback_result;
 }
 
@@ -8952,7 +8954,7 @@ TEST(SecurityHandler) {
   v8::HandleScope scope0(isolate);
   v8::Local<v8::ObjectTemplate> global_template =
       v8::ObjectTemplate::New(isolate);
-  global_template->SetAccessCheckCallback(SecurityTestCallback);
+  global_template->SetAccessCheckCallback(SecurityTestCallback, v8_num(42));
   // Create an environment
   v8::Local<Context> context0 = Context::New(isolate, NULL, global_template);
   context0->Enter();

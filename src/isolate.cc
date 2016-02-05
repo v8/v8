@@ -828,11 +828,11 @@ bool Isolate::MayAccess(Handle<Context> accessing_context,
     if (!access_check_info) return false;
     Object* fun_obj = access_check_info->callback();
     callback = v8::ToCData<v8::AccessCheckCallback>(fun_obj);
+    data = handle(access_check_info->data(), this);
     if (!callback) {
       fun_obj = access_check_info->named_callback();
       named_callback = v8::ToCData<v8::NamedSecurityCallback>(fun_obj);
       if (!named_callback) return false;
-      data = handle(access_check_info->data(), this);
     }
   }
 
