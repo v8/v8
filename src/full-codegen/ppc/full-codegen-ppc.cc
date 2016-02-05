@@ -4542,17 +4542,6 @@ void FullCodeGenerator::PushFunctionArgumentForContextAllocation() {
 
 void FullCodeGenerator::EnterFinallyBlock() {
   DCHECK(!result_register().is(r4));
-  // Store result register while executing finally block.
-  __ push(result_register());
-  // Cook return address in link register to stack (smi encoded Code* delta)
-  __ mflr(r4);
-  __ mov(ip, Operand(masm_->CodeObject()));
-  __ sub(r4, r4, ip);
-  __ SmiTag(r4);
-
-  // Store result register while executing finally block.
-  __ push(r4);
-
   // Store pending message while executing finally block.
   ExternalReference pending_message_obj =
       ExternalReference::address_of_pending_message_obj(isolate());
@@ -4572,17 +4561,6 @@ void FullCodeGenerator::ExitFinallyBlock() {
       ExternalReference::address_of_pending_message_obj(isolate());
   __ mov(ip, Operand(pending_message_obj));
   __ StoreP(r4, MemOperand(ip));
-
-  // Restore result register from stack.
-  __ pop(r4);
-
-  // Uncook return address and return.
-  __ pop(result_register());
-  __ SmiUntag(r4);
-  __ mov(ip, Operand(masm_->CodeObject()));
-  __ add(ip, ip, r4);
-  __ mtctr(ip);
-  __ bctr();
 }
 
 
@@ -4602,6 +4580,32 @@ void FullCodeGenerator::EmitLoadStoreICSlot(FeedbackVectorSlot slot) {
          Operand(SmiFromSlot(slot)));
 }
 
+void FullCodeGenerator::DeferredCommands::EmitCommands() {
+  DCHECK(!result_register().is(r4));
+  // Restore the accumulator (r3) and token (r4).
+  __ Pop(r4, result_register());
+  for (DeferredCommand cmd : commands_) {
+    Label skip;
+    __ CmpSmiLiteral(r4, Smi::FromInt(cmd.token), r0);
+    __ bne(&skip);
+    switch (cmd.command) {
+      case kReturn:
+        codegen_->EmitUnwindAndReturn();
+        break;
+      case kThrow:
+        __ Push(result_register());
+        __ CallRuntime(Runtime::kReThrow);
+        break;
+      case kContinue:
+        codegen_->EmitContinue(cmd.target);
+        break;
+      case kBreak:
+        codegen_->EmitBreak(cmd.target);
+        break;
+    }
+    __ bind(&skip);
+  }
+}
 
 #undef __
 
