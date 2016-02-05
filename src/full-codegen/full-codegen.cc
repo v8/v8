@@ -127,7 +127,7 @@ void FullCodeGenerator::PopulateHandlerTable(Handle<Code> code) {
     table->SetRangeStart(i, handler_table_[i].range_start);
     table->SetRangeEnd(i, handler_table_[i].range_end);
     table->SetRangeHandler(i, handler_table_[i].handler_offset, prediction);
-    table->SetRangeDepth(i, handler_table_[i].stack_depth);
+    table->SetRangeData(i, handler_table_[i].stack_depth);
   }
   code->set_handler_table(*table);
 }

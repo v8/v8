@@ -1199,10 +1199,8 @@ Isolate::CatchType Isolate::PredictExceptionCatcher() {
     // For JavaScript frames we perform a lookup in the handler table.
     if (frame->is_java_script()) {
       JavaScriptFrame* js_frame = static_cast<JavaScriptFrame*>(frame);
-      int stack_slots = 0;  // The computed stack slot count is not used.
       HandlerTable::CatchPrediction prediction;
-      if (js_frame->LookupExceptionHandlerInTable(&stack_slots, &prediction) >
-          0) {
+      if (js_frame->LookupExceptionHandlerInTable(nullptr, &prediction) > 0) {
         // We are conservative with our prediction: try-finally is considered
         // to always rethrow, to meet the expectation of the debugger.
         if (prediction == HandlerTable::CAUGHT) return CAUGHT_BY_JAVASCRIPT;
@@ -1612,8 +1610,7 @@ Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
   if (PredictExceptionCatcher() != CAUGHT_BY_JAVASCRIPT) return undefined;
   for (JavaScriptFrameIterator it(this); !it.done(); it.Advance()) {
     JavaScriptFrame* frame = it.frame();
-    int stack_slots = 0;  // The computed stack slot count is not used.
-    if (frame->LookupExceptionHandlerInTable(&stack_slots, NULL) > 0) {
+    if (frame->LookupExceptionHandlerInTable(nullptr, nullptr) > 0) {
       // Throwing inside a Promise only leads to a reject if not caught by an
       // inner try-catch or try-finally.
       if (frame->function() == *promise_function) {

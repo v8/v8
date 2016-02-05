@@ -4746,7 +4746,7 @@ class LiteralsArray : public FixedArray {
 // 1) Based on ranges: Used for unoptimized code. Contains one entry per
 //    exception handler and a range representing the try-block covered by that
 //    handler. Layout looks as follows:
-//      [ range-start , range-end , handler-offset , stack-depth ]
+//      [ range-start , range-end , handler-offset , handler-data ]
 // 2) Based on return addresses: Used for turbofanned code. Contains one entry
 //    per call-site that could throw an exception. Layout looks as follows:
 //      [ return-address-offset , handler-offset ]
@@ -4761,20 +4761,20 @@ class HandlerTable : public FixedArray {
   inline int GetRangeStart(int index) const;
   inline int GetRangeEnd(int index) const;
   inline int GetRangeHandler(int index) const;
-  inline int GetRangeDepth(int index) const;
+  inline int GetRangeData(int index) const;
 
   // Setters for handler table based on ranges.
   inline void SetRangeStart(int index, int value);
   inline void SetRangeEnd(int index, int value);
   inline void SetRangeHandler(int index, int offset, CatchPrediction pred);
-  inline void SetRangeDepth(int index, int value);
+  inline void SetRangeData(int index, int value);
 
   // Setters for handler table based on return addresses.
   inline void SetReturnOffset(int index, int value);
   inline void SetReturnHandler(int index, int offset, CatchPrediction pred);
 
   // Lookup handler in a table based on ranges.
-  int LookupRange(int pc_offset, int* stack_depth, CatchPrediction* prediction);
+  int LookupRange(int pc_offset, int* data, CatchPrediction* prediction);
 
   // Lookup handler in a table based on return addresses.
   int LookupReturn(int pc_offset, CatchPrediction* prediction);
@@ -4798,7 +4798,7 @@ class HandlerTable : public FixedArray {
   static const int kRangeStartIndex = 0;
   static const int kRangeEndIndex = 1;
   static const int kRangeHandlerIndex = 2;
-  static const int kRangeDepthIndex = 3;
+  static const int kRangeDataIndex = 3;
   static const int kRangeEntrySize = 4;
 
   // Layout description for handler table based on return addresses.

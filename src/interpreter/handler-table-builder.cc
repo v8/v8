@@ -27,7 +27,7 @@ Handle<HandlerTable> HandlerTableBuilder::ToHandlerTable() {
     table->SetRangeStart(i, static_cast<int>(entry.offset_start));
     table->SetRangeEnd(i, static_cast<int>(entry.offset_end));
     table->SetRangeHandler(i, static_cast<int>(entry.offset_target), pred);
-    table->SetRangeDepth(i, entry.context.index());
+    table->SetRangeData(i, entry.context.index());
   }
   return table;
 }

@@ -624,9 +624,12 @@ class JavaScriptFrame: public StandardFrame {
   virtual void Summarize(List<FrameSummary>* frames);
 
   // Lookup exception handler for current {pc}, returns -1 if none found. Also
-  // returns the expected number of stack slots at the handler site.
+  // returns data associated with the handler site specific to the frame type:
+  //  - JavaScriptFrame : Data is the stack depth at entry of the try-block.
+  //  - OptimizedFrame  : Data is the stack slot count of the entire frame.
+  //  - InterpretedFrame: Data is the register index holding the context.
   virtual int LookupExceptionHandlerInTable(
-      int* stack_slots, HandlerTable::CatchPrediction* prediction);
+      int* data, HandlerTable::CatchPrediction* prediction);
 
   // Architecture-specific register description.
   static Register fp_register();
@@ -698,10 +701,9 @@ class OptimizedFrame : public JavaScriptFrame {
 
   void Summarize(List<FrameSummary>* frames) override;
 
-  // Lookup exception handler for current {pc}, returns -1 if none found. Also
-  // returns the expected number of stack slots at the handler site.
+  // Lookup exception handler for current {pc}, returns -1 if none found.
   int LookupExceptionHandlerInTable(
-      int* stack_slots, HandlerTable::CatchPrediction* prediction) override;
+      int* data, HandlerTable::CatchPrediction* prediction) override;
 
   DeoptimizationInputData* GetDeoptimizationData(int* deopt_index) const;
 
@@ -721,10 +723,9 @@ class InterpretedFrame : public JavaScriptFrame {
  public:
   Type type() const override { return INTERPRETED; }
 
-  // Lookup exception handler for current {pc}, returns -1 if none found. Also
-  // returns the expected number of stack slots at the handler site.
+  // Lookup exception handler for current {pc}, returns -1 if none found.
   int LookupExceptionHandlerInTable(
-      int* stack_slots, HandlerTable::CatchPrediction* prediction) override;
+      int* data, HandlerTable::CatchPrediction* prediction) override;
 
   // Returns the current offset into the bytecode stream.
   int GetBytecodeOffset() const;

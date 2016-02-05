@@ -1677,9 +1677,7 @@ void BytecodeGraphBuilder::EnterAndExitExceptionHandlers(int current_offset) {
     if (current_offset < next_start) break;  // Not yet covered by range.
     int next_end = table->GetRangeEnd(current_exception_handler_);
     int next_handler = table->GetRangeHandler(current_exception_handler_);
-    // TODO(mstarzinger): We are hijacking the "depth" field in the exception
-    // handler table to hold the context register. We should rename the field.
-    int context_register = table->GetRangeDepth(current_exception_handler_);
+    int context_register = table->GetRangeData(current_exception_handler_);
     exception_handlers_.push(
         {next_start, next_end, next_handler, context_register});
     current_exception_handler_++;

@@ -3415,8 +3415,8 @@ int HandlerTable::GetRangeHandler(int index) const {
       Smi::cast(get(index * kRangeEntrySize + kRangeHandlerIndex))->value());
 }
 
-int HandlerTable::GetRangeDepth(int index) const {
-  return Smi::cast(get(index * kRangeEntrySize + kRangeDepthIndex))->value();
+int HandlerTable::GetRangeData(int index) const {
+  return Smi::cast(get(index * kRangeEntrySize + kRangeDataIndex))->value();
 }
 
 void HandlerTable::SetRangeStart(int index, int value) {
@@ -3436,9 +3436,8 @@ void HandlerTable::SetRangeHandler(int index, int offset,
   set(index * kRangeEntrySize + kRangeHandlerIndex, Smi::FromInt(value));
 }
 
-
-void HandlerTable::SetRangeDepth(int index, int value) {
-  set(index * kRangeEntrySize + kRangeDepthIndex, Smi::FromInt(value));
+void HandlerTable::SetRangeData(int index, int value) {
+  set(index * kRangeEntrySize + kRangeDataIndex, Smi::FromInt(value));
 }
 
 

@@ -808,14 +808,13 @@ void JavaScriptFrame::Summarize(List<FrameSummary>* functions) {
   functions->Add(summary);
 }
 
-
 int JavaScriptFrame::LookupExceptionHandlerInTable(
-    int* stack_slots, HandlerTable::CatchPrediction* prediction) {
+    int* stack_depth, HandlerTable::CatchPrediction* prediction) {
   Code* code = LookupCode();
   DCHECK(!code->is_optimized_code());
   HandlerTable* table = HandlerTable::cast(code->handler_table());
   int pc_offset = static_cast<int>(pc() - code->entry());
-  return table->LookupRange(pc_offset, stack_slots, prediction);
+  return table->LookupRange(pc_offset, stack_depth, prediction);
 }
 
 
@@ -1042,7 +1041,7 @@ int OptimizedFrame::LookupExceptionHandlerInTable(
   DCHECK(code->is_optimized_code());
   HandlerTable* table = HandlerTable::cast(code->handler_table());
   int pc_offset = static_cast<int>(pc() - code->entry());
-  *stack_slots = code->stack_slots();
+  if (stack_slots) *stack_slots = code->stack_slots();
   return table->LookupReturn(pc_offset, prediction);
 }
 
@@ -1135,13 +1134,12 @@ Object* OptimizedFrame::StackSlotAt(int index) const {
   return Memory::Object_at(fp() + StackSlotOffsetRelativeToFp(index));
 }
 
-
 int InterpretedFrame::LookupExceptionHandlerInTable(
-    int* stack_slots, HandlerTable::CatchPrediction* prediction) {
+    int* context_register, HandlerTable::CatchPrediction* prediction) {
   BytecodeArray* bytecode = function()->shared()->bytecode_array();
   HandlerTable* table = HandlerTable::cast(bytecode->handler_table());
   int pc_offset = GetBytecodeOffset() + 1;  // Point after current bytecode.
-  return table->LookupRange(pc_offset, stack_slots, prediction);
+  return table->LookupRange(pc_offset, context_register, prediction);
 }
 
 

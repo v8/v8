@@ -822,8 +822,7 @@ void Debug::PrepareStepOnThrow() {
   JavaScriptFrameIterator it(isolate_);
   while (!it.done()) {
     JavaScriptFrame* frame = it.frame();
-    int stack_slots = 0;  // The computed stack slot count is not used.
-    if (frame->LookupExceptionHandlerInTable(&stack_slots, NULL) > 0) break;
+    if (frame->LookupExceptionHandlerInTable(nullptr, nullptr) > 0) break;
     it.Advance();
   }
 

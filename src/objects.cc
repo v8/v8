@@ -10977,8 +10977,7 @@ Handle<LiteralsArray> LiteralsArray::New(Isolate* isolate,
   return casted_literals;
 }
 
-
-int HandlerTable::LookupRange(int pc_offset, int* stack_depth_out,
+int HandlerTable::LookupRange(int pc_offset, int* data_out,
                               CatchPrediction* prediction_out) {
   int innermost_handler = -1;
 #ifdef DEBUG
@@ -10993,7 +10992,7 @@ int HandlerTable::LookupRange(int pc_offset, int* stack_depth_out,
     int handler_field = Smi::cast(get(i + kRangeHandlerIndex))->value();
     int handler_offset = HandlerOffsetField::decode(handler_field);
     CatchPrediction prediction = HandlerPredictionField::decode(handler_field);
-    int stack_depth = Smi::cast(get(i + kRangeDepthIndex))->value();
+    int handler_data = Smi::cast(get(i + kRangeDataIndex))->value();
     if (pc_offset > start_offset && pc_offset <= end_offset) {
       DCHECK_GE(start_offset, innermost_start);
       DCHECK_LT(end_offset, innermost_end);
@@ -11002,7 +11001,7 @@ int HandlerTable::LookupRange(int pc_offset, int* stack_depth_out,
       innermost_start = start_offset;
       innermost_end = end_offset;
 #endif
-      *stack_depth_out = stack_depth;
+      if (data_out) *data_out = handler_data;
       if (prediction_out) *prediction_out = prediction;
     }
   }
@@ -14831,10 +14830,10 @@ void HandlerTable::HandlerTableRangePrint(std::ostream& os) {
     int handler_field = Smi::cast(get(i + kRangeHandlerIndex))->value();
     int handler_offset = HandlerOffsetField::decode(handler_field);
     CatchPrediction prediction = HandlerPredictionField::decode(handler_field);
-    int depth = Smi::cast(get(i + kRangeDepthIndex))->value();
+    int data = Smi::cast(get(i + kRangeDataIndex))->value();
     os << "  (" << std::setw(4) << pc_start << "," << std::setw(4) << pc_end
        << ")  ->  " << std::setw(4) << handler_offset
-       << " (prediction=" << prediction << ", depth=" << depth << ")\n";
+       << " (prediction=" << prediction << ", data=" << data << ")\n";
   }
 }
 
