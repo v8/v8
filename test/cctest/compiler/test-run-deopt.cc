@@ -84,7 +84,6 @@ TEST(DeoptExceptionHandlerCatch) {
 
 TEST(DeoptExceptionHandlerFinally) {
   FLAG_allow_natives_syntax = true;
-  FLAG_turbo_try_finally = true;
 
   FunctionTester T(
       "(function f() {"

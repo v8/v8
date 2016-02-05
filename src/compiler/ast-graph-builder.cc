@@ -1530,9 +1530,6 @@ void AstGraphBuilder::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
 
   // Dynamic dispatch after the finally-block.
   commands->ApplyDeferredCommands(token, result);
-
-  // TODO(mstarzinger): Remove bailout once everything works.
-  if (!FLAG_turbo_try_finally) SetStackOverflow();
 }
 
 
