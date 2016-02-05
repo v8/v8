@@ -777,6 +777,18 @@ function ObjectGetOwnPropertyDescriptor(obj, p) {
   return %GetOwnProperty(obj, p);
 }
 
+// ES proposal https://github.com/tc39/proposal-object-getownpropertydescriptors
+function ObjectGetOwnPropertyDescriptors(obj) {
+  if (!IS_RECEIVER(obj)) {
+    throw MakeTypeError(kCalledOnNonObject, "Object.getOwnPropertyDescriptors");
+  }
+  var names = %GetOwnPropertyKeys(obj, PROPERTY_FILTER_NONE);
+  var descriptors = new GlobalObject();
+  for (var i = 0; i < names.length; i++) {
+    descriptors[names[i]] = %GetOwnProperty(obj, names[i]);
+  }
+  return descriptors;
+}
 
 // ES5 section 15.2.3.6.
 function ObjectDefineProperty(obj, p, attributes) {
@@ -878,6 +890,7 @@ utils.InstallFunctions(GlobalObject, DONT_ENUM, [
   "getPrototypeOf", ObjectGetPrototypeOf,
   "setPrototypeOf", ObjectSetPrototypeOf,
   "getOwnPropertyDescriptor", ObjectGetOwnPropertyDescriptor,
+  "getOwnPropertyDescriptors", ObjectGetOwnPropertyDescriptors,
   // getOwnPropertySymbols is added in symbol.js.
   "is", SameValue,  // ECMA-262, Edition 6, section 19.1.2.10
   // deliverChangeRecords, getNotifier, observe and unobserve are added
