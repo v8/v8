@@ -1390,9 +1390,9 @@ void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
   SetInternalReference(obj, entry,
                        "optimized_code_map", shared->optimized_code_map(),
                        SharedFunctionInfo::kOptimizedCodeMapOffset);
-  SetInternalReference(obj, entry, "feedback_metadata",
-                       shared->feedback_metadata(),
-                       SharedFunctionInfo::kFeedbackMetadataOffset);
+  SetInternalReference(obj, entry,
+                       "feedback_vector", shared->feedback_vector(),
+                       SharedFunctionInfo::kFeedbackVectorOffset);
 }
 
 

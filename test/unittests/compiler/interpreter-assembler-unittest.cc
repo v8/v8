@@ -687,14 +687,16 @@ TARGET_TEST_F(InterpreterAssemblerTest, LoadTypeFeedbackVector) {
                  IsParameter(Linkage::kInterpreterRegisterFileParameter),
                  IsIntPtrConstant(
                      InterpreterFrameConstants::kFunctionFromRegisterPointer));
-    Matcher<Node*> load_literals_matcher = m.IsLoad(
-        MachineType::AnyTagged(), load_function_matcher,
-        IsIntPtrConstant(JSFunction::kLiteralsOffset - kHeapObjectTag));
+    Matcher<Node*> load_shared_function_info_matcher =
+        m.IsLoad(MachineType::AnyTagged(), load_function_matcher,
+                 IsIntPtrConstant(JSFunction::kSharedFunctionInfoOffset -
+                                  kHeapObjectTag));
 
-    EXPECT_THAT(feedback_vector,
-                m.IsLoad(MachineType::AnyTagged(), load_literals_matcher,
-                         IsIntPtrConstant(LiteralsArray::kFeedbackVectorOffset -
-                                          kHeapObjectTag)));
+    EXPECT_THAT(
+        feedback_vector,
+        m.IsLoad(MachineType::AnyTagged(), load_shared_function_info_matcher,
+                 IsIntPtrConstant(SharedFunctionInfo::kFeedbackVectorOffset -
+                                  kHeapObjectTag)));
   }
 }
 

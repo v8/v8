@@ -2190,11 +2190,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   Handle<SharedFunctionInfo> current_shared_info() const {
     return current_info()->shared_info();
   }
-  Handle<JSFunction> current_closure() const {
-    return current_info()->closure();
-  }
   TypeFeedbackVector* current_feedback_vector() const {
-    return current_closure()->feedback_vector();
+    return current_shared_info()->feedback_vector();
   }
   void ClearInlinedTestContext() {
     function_state()->ClearInlinedTestContext();

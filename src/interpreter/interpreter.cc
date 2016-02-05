@@ -87,7 +87,7 @@ bool Interpreter::MakeBytecode(CompilationInfo* info) {
 #endif  // DEBUG
 
   BytecodeGenerator generator(info->isolate(), info->zone());
-  info->EnsureFeedbackMetadata();
+  info->EnsureFeedbackVector();
   Handle<BytecodeArray> bytecodes = generator.MakeBytecode(info);
   if (FLAG_print_bytecode) {
     OFStream os(stdout);

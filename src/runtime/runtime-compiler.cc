@@ -34,28 +34,12 @@ RUNTIME_FUNCTION(Runtime_CompileLazy) {
   // Compile the target function.
   DCHECK(function->shared()->allows_lazy_compilation());
 
-  // There is one special case where we have optimized code but we
-  // couldn't find a literals array for the native context. That's with
-  // FLAG_turbo_cache_shared_code.
-  if (FLAG_turbo_cache_shared_code) {
-    SharedFunctionInfo* shared = function->shared();
-    CodeAndLiterals result;
-    result = shared->SearchOptimizedCodeMap(*isolate->native_context(),
-                                            BailoutId::None());
-    if (result.code != nullptr) {
-      function->ReplaceCode(result.code);
-      JSFunction::EnsureLiterals(function);
-      return result.code;
-    }
-  }
-
   Handle<Code> code;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, code,
                                      Compiler::GetLazyCode(function));
   DCHECK(code->IsJavaScriptCode());
 
   function->ReplaceCode(*code);
-  JSFunction::EnsureLiterals(function);
   return *code;
 }
 

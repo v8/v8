@@ -514,10 +514,10 @@ Node* BytecodeGraphBuilder::BuildLoadNativeContextField(int index) {
 Node* BytecodeGraphBuilder::BuildLoadFeedbackVector() {
   if (!feedback_vector_.is_set()) {
     Node* closure = GetFunctionClosure();
-    Node* literals =
-        BuildLoadImmutableObjectField(closure, JSFunction::kLiteralsOffset);
+    Node* shared = BuildLoadImmutableObjectField(
+        closure, JSFunction::kSharedFunctionInfoOffset);
     Node* vector = BuildLoadImmutableObjectField(
-        literals, LiteralsArray::kFeedbackVectorOffset);
+        shared, SharedFunctionInfo::kFeedbackVectorOffset);
     feedback_vector_.set(vector);
   }
   return feedback_vector_.get();
@@ -525,8 +525,7 @@ Node* BytecodeGraphBuilder::BuildLoadFeedbackVector() {
 
 
 VectorSlotPair BytecodeGraphBuilder::CreateVectorSlotPair(int slot_id) {
-  Handle<TypeFeedbackVector> feedback_vector =
-      handle(info()->closure()->feedback_vector());
+  Handle<TypeFeedbackVector> feedback_vector = info()->feedback_vector();
   FeedbackVectorSlot slot;
   if (slot_id >= TypeFeedbackVector::kReservedIndexCount) {
     slot = feedback_vector->ToSlot(slot_id);

@@ -340,6 +340,7 @@ class OptimizedFunctionVisitor BASE_EMBEDDED {
   V(kInsufficientTypeFeedbackForRHSOfBinaryOperation,                          \
     "Insufficient type feedback for RHS of binary operation")                  \
   V(kKeyIsNegative, "key is negative")                                         \
+  V(kLiteralsWereDisposed, "literals have been disposed")                      \
   V(kLostPrecision, "lost precision")                                          \
   V(kLostPrecisionOrNaN, "lost precision or NaN")                              \
   V(kMementoFound, "memento found")                                            \

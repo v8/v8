@@ -94,6 +94,26 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
   HValue* BuildInternalArrayConstructor(ElementsKind kind,
                                         ArgumentClass argument_class);
 
+  // BuildCheckAndInstallOptimizedCode emits code to install the optimized
+  // function found in the optimized code map at map_index in js_function, if
+  // the function at map_index matches the given native_context. Builder is
+  // left in the "Then()" state after the install.
+  void BuildCheckAndInstallOptimizedCode(HValue* js_function,
+                                         HValue* native_context,
+                                         IfBuilder* builder,
+                                         HValue* optimized_map,
+                                         HValue* map_index);
+  void BuildInstallOptimizedCode(HValue* js_function, HValue* native_context,
+                                 HValue* code_object, HValue* literals);
+  void BuildInstallCode(HValue* js_function, HValue* shared_info);
+
+  HInstruction* LoadFromOptimizedCodeMap(HValue* optimized_map,
+                                         HValue* iterator,
+                                         int field_offset);
+  void BuildInstallFromOptimizedCodeMap(HValue* js_function,
+                                        HValue* shared_info,
+                                        HValue* native_context);
+
   HValue* BuildToString(HValue* input, bool convert);
   HValue* BuildToPrimitive(HValue* input, HValue* input_map);
 
@@ -1842,14 +1862,188 @@ HValue* CodeStubGraphBuilder<ToObjectStub>::BuildCodeStub() {
 Handle<Code> ToObjectStub::GenerateCode() { return DoGenerateCode(this); }
 
 
+void CodeStubGraphBuilderBase::BuildCheckAndInstallOptimizedCode(
+    HValue* js_function,
+    HValue* native_context,
+    IfBuilder* builder,
+    HValue* optimized_map,
+    HValue* map_index) {
+  HValue* osr_ast_id_none = Add<HConstant>(BailoutId::None().ToInt());
+  HValue* context_slot = LoadFromOptimizedCodeMap(
+      optimized_map, map_index, SharedFunctionInfo::kContextOffset);
+  context_slot = Add<HLoadNamedField>(context_slot, nullptr,
+                                      HObjectAccess::ForWeakCellValue());
+  HValue* osr_ast_slot = LoadFromOptimizedCodeMap(
+      optimized_map, map_index, SharedFunctionInfo::kOsrAstIdOffset);
+  HValue* code_object = LoadFromOptimizedCodeMap(
+      optimized_map, map_index, SharedFunctionInfo::kCachedCodeOffset);
+  code_object = Add<HLoadNamedField>(code_object, nullptr,
+                                     HObjectAccess::ForWeakCellValue());
+  builder->If<HCompareObjectEqAndBranch>(native_context,
+                                         context_slot);
+  builder->AndIf<HCompareObjectEqAndBranch>(osr_ast_slot, osr_ast_id_none);
+  builder->And();
+  builder->IfNot<HCompareObjectEqAndBranch>(code_object,
+                                            graph()->GetConstant0());
+  builder->Then();
+  HValue* literals = LoadFromOptimizedCodeMap(optimized_map,
+      map_index, SharedFunctionInfo::kLiteralsOffset);
+  literals = Add<HLoadNamedField>(literals, nullptr,
+                                  HObjectAccess::ForWeakCellValue());
+  IfBuilder maybe_deopt(this);
+  maybe_deopt.If<HCompareObjectEqAndBranch>(literals, graph()->GetConstant0());
+  maybe_deopt.ThenDeopt(Deoptimizer::kLiteralsWereDisposed);
+  maybe_deopt.End();
+
+  BuildInstallOptimizedCode(js_function, native_context, code_object, literals);
+
+  // The builder continues in the "then" after this function.
+}
+
+
+void CodeStubGraphBuilderBase::BuildInstallOptimizedCode(HValue* js_function,
+                                                         HValue* native_context,
+                                                         HValue* code_object,
+                                                         HValue* literals) {
+  Counters* counters = isolate()->counters();
+  AddIncrementCounter(counters->fast_new_closure_install_optimized());
+
+  // TODO(fschneider): Idea: store proper code pointers in the optimized code
+  // map and either unmangle them on marking or do nothing as the whole map is
+  // discarded on major GC anyway.
+  Add<HStoreCodeEntry>(js_function, code_object);
+  Add<HStoreNamedField>(js_function, HObjectAccess::ForLiteralsPointer(),
+                        literals);
+
+  // Now link a function into a list of optimized functions.
+  HValue* optimized_functions_list = Add<HLoadNamedField>(
+      native_context, nullptr,
+      HObjectAccess::ForContextSlot(Context::OPTIMIZED_FUNCTIONS_LIST));
+  Add<HStoreNamedField>(js_function,
+                        HObjectAccess::ForNextFunctionLinkPointer(),
+                        optimized_functions_list);
+
+  // This store is the only one that should have a write barrier.
+  Add<HStoreNamedField>(native_context,
+           HObjectAccess::ForContextSlot(Context::OPTIMIZED_FUNCTIONS_LIST),
+           js_function);
+}
+
+
+void CodeStubGraphBuilderBase::BuildInstallCode(HValue* js_function,
+                                                HValue* shared_info) {
+  Add<HStoreNamedField>(js_function,
+                        HObjectAccess::ForNextFunctionLinkPointer(),
+                        graph()->GetConstantUndefined());
+  HValue* code_object = Add<HLoadNamedField>(shared_info, nullptr,
+                                             HObjectAccess::ForCodeOffset());
+  Add<HStoreCodeEntry>(js_function, code_object);
+}
+
+
+HInstruction* CodeStubGraphBuilderBase::LoadFromOptimizedCodeMap(
+    HValue* optimized_map,
+    HValue* iterator,
+    int field_offset) {
+  // By making sure to express these loads in the form [<hvalue> + constant]
+  // the keyed load can be hoisted.
+  DCHECK(field_offset >= 0 && field_offset < SharedFunctionInfo::kEntryLength);
+  HValue* field_slot = iterator;
+  if (field_offset > 0) {
+    HValue* field_offset_value = Add<HConstant>(field_offset);
+    field_slot = AddUncasted<HAdd>(iterator, field_offset_value);
+  }
+  HInstruction* field_entry = Add<HLoadKeyed>(optimized_map, field_slot,
+                                              nullptr, nullptr, FAST_ELEMENTS);
+  return field_entry;
+}
+
+
+void CodeStubGraphBuilderBase::BuildInstallFromOptimizedCodeMap(
+    HValue* js_function,
+    HValue* shared_info,
+    HValue* native_context) {
+  Counters* counters = isolate()->counters();
+  Factory* factory = isolate()->factory();
+  IfBuilder is_optimized(this);
+  HInstruction* optimized_map = Add<HLoadNamedField>(
+      shared_info, nullptr, HObjectAccess::ForOptimizedCodeMap());
+  HValue* null_constant = Add<HConstant>(0);
+  is_optimized.If<HCompareObjectEqAndBranch>(optimized_map, null_constant);
+  is_optimized.Then();
+  {
+    BuildInstallCode(js_function, shared_info);
+  }
+  is_optimized.Else();
+  {
+    AddIncrementCounter(counters->fast_new_closure_try_optimized());
+    // The {optimized_map} points to fixed array of 4-element entries:
+    //   (native context, optimized code, literals, ast-id).
+    // Iterate through the {optimized_map} backwards. After the loop, if no
+    // matching optimized code was found, install unoptimized code.
+    //   for(i = map.length() - SharedFunctionInfo::kEntryLength;
+    //       i >= SharedFunctionInfo::kEntriesStart;
+    //       i -= SharedFunctionInfo::kEntryLength) { ... }
+    HValue* first_entry_index =
+        Add<HConstant>(SharedFunctionInfo::kEntriesStart);
+    HValue* shared_function_entry_length =
+        Add<HConstant>(SharedFunctionInfo::kEntryLength);
+    LoopBuilder loop_builder(this, context(), LoopBuilder::kPostDecrement,
+                             shared_function_entry_length);
+    HValue* array_length = Add<HLoadNamedField>(
+        optimized_map, nullptr, HObjectAccess::ForFixedArrayLength());
+    HValue* start_pos =
+        AddUncasted<HSub>(array_length, shared_function_entry_length);
+    HValue* slot_iterator =
+        loop_builder.BeginBody(start_pos, first_entry_index, Token::GTE);
+    {
+      IfBuilder done_check(this);
+      BuildCheckAndInstallOptimizedCode(js_function, native_context,
+                                        &done_check, optimized_map,
+                                        slot_iterator);
+      // Fall out of the loop
+      loop_builder.Break();
+    }
+    loop_builder.EndBody();
+
+    // If {slot_iterator} is less than the first entry index, then we failed to
+    // find a context-dependent code and try context-independent code next.
+    IfBuilder no_optimized_code_check(this);
+    no_optimized_code_check.If<HCompareNumericAndBranch>(
+        slot_iterator, first_entry_index, Token::LT);
+    no_optimized_code_check.Then();
+    {
+      IfBuilder shared_code_check(this);
+      HValue* shared_code =
+          Add<HLoadNamedField>(optimized_map, nullptr,
+                               HObjectAccess::ForOptimizedCodeMapSharedCode());
+      shared_code = Add<HLoadNamedField>(shared_code, nullptr,
+                                         HObjectAccess::ForWeakCellValue());
+      shared_code_check.IfNot<HCompareObjectEqAndBranch>(
+          shared_code, graph()->GetConstant0());
+      shared_code_check.Then();
+      {
+        // Store the context-independent optimized code.
+        HValue* literals = Add<HConstant>(factory->empty_fixed_array());
+        BuildInstallOptimizedCode(js_function, native_context, shared_code,
+                                  literals);
+      }
+      shared_code_check.Else();
+      {
+        // Store the unoptimized code.
+        BuildInstallCode(js_function, shared_info);
+      }
+    }
+  }
+}
+
+
 template<>
 HValue* CodeStubGraphBuilder<FastNewClosureStub>::BuildCodeStub() {
   Counters* counters = isolate()->counters();
   Factory* factory = isolate()->factory();
   HInstruction* empty_fixed_array =
       Add<HConstant>(factory->empty_fixed_array());
-  HInstruction* empty_literals_array =
-      Add<HConstant>(factory->empty_literals_array());
   HValue* shared_info = GetParameter(0);
 
   AddIncrementCounter(counters->fast_new_closure_total());
@@ -1875,20 +2069,19 @@ HValue* CodeStubGraphBuilder<FastNewClosureStub>::BuildCodeStub() {
   Add<HStoreNamedField>(js_function, HObjectAccess::ForElementsPointer(),
                         empty_fixed_array);
   Add<HStoreNamedField>(js_function, HObjectAccess::ForLiteralsPointer(),
-                        empty_literals_array);
+                        empty_fixed_array);
   Add<HStoreNamedField>(js_function, HObjectAccess::ForPrototypeOrInitialMap(),
                         graph()->GetConstantHole());
   Add<HStoreNamedField>(
       js_function, HObjectAccess::ForSharedFunctionInfoPointer(), shared_info);
   Add<HStoreNamedField>(js_function, HObjectAccess::ForFunctionContextPointer(),
                         context());
-  Handle<Code> lazy_builtin(
-      isolate()->builtins()->builtin(Builtins::kCompileLazy));
-  HConstant* lazy = Add<HConstant>(lazy_builtin);
-  Add<HStoreCodeEntry>(js_function, lazy);
-  Add<HStoreNamedField>(js_function,
-                        HObjectAccess::ForNextFunctionLinkPointer(),
-                        graph()->GetConstantUndefined());
+
+  // Initialize the code pointer in the function to be the one found in the
+  // shared function info object. But first check if there is an optimized
+  // version for our context.
+  BuildInstallFromOptimizedCodeMap(js_function, shared_info, native_context);
+
   return js_function;
 }
 

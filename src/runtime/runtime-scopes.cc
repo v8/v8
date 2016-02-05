@@ -726,13 +726,6 @@ RUNTIME_FUNCTION(Runtime_NewRestParam) {
                            rest_index);
 }
 
-RUNTIME_FUNCTION(Runtime_InstallLiterals) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  JSFunction::EnsureLiterals(function);
-  return *function;
-}
 
 RUNTIME_FUNCTION(Runtime_NewClosure) {
   HandleScope scope(isolate);

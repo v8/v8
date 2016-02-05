@@ -410,9 +410,6 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
   // does not remove the code with the deoptimization support.
   info_->AddInlinedFunction(info.shared_info());
 
-  // If function was lazily compiled, it's literals array may not yet be set up.
-  JSFunction::EnsureLiterals(function);
-
   // ----------------------------------------------------------------
   // After this point, we've made a decision to inline this function.
   // We shall not bailout from inlining if we got here.

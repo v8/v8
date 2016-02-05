@@ -182,7 +182,6 @@ class FunctionTester : public InitializedHandleScope {
     }
     CHECK(Compiler::Analyze(info.parse_info()));
     CHECK(Compiler::EnsureDeoptimizationSupport(&info));
-    JSFunction::EnsureLiterals(function);
 
     Pipeline pipeline(&info);
     Handle<Code> code = pipeline.GenerateCode();
@@ -236,7 +235,6 @@ class FunctionTester : public InitializedHandleScope {
                        Handle<Code>(function->shared()->code()));
     CHECK(Compiler::Analyze(info.parse_info()));
     CHECK(Compiler::EnsureDeoptimizationSupport(&info));
-    JSFunction::EnsureLiterals(function);
 
     Handle<Code> code = Pipeline::GenerateCodeForTesting(&info, graph);
     CHECK(!code.is_null());

@@ -3379,19 +3379,11 @@ LiteralsArray* LiteralsArray::cast(Object* object) {
 
 
 TypeFeedbackVector* LiteralsArray::feedback_vector() const {
-  if (length() == 0) {
-    return TypeFeedbackVector::cast(
-        const_cast<FixedArray*>(FixedArray::cast(this)));
-  }
   return TypeFeedbackVector::cast(get(kVectorIndex));
 }
 
 
 void LiteralsArray::set_feedback_vector(TypeFeedbackVector* vector) {
-  if (length() <= kVectorIndex) {
-    DCHECK(vector->length() == 0);
-    return;
-  }
   set(kVectorIndex, vector);
 }
 
@@ -3405,9 +3397,6 @@ void LiteralsArray::set_literal(int literal_index, Object* literal) {
   set(kFirstLiteralIndex + literal_index, literal);
 }
 
-void LiteralsArray::set_literal_undefined(int literal_index) {
-  set_undefined(kFirstLiteralIndex + literal_index);
-}
 
 int LiteralsArray::literals_count() const {
   return length() - kFirstLiteralIndex;
@@ -5646,8 +5635,8 @@ ACCESSORS(SharedFunctionInfo, name, Object, kNameOffset)
 ACCESSORS(SharedFunctionInfo, optimized_code_map, FixedArray,
           kOptimizedCodeMapOffset)
 ACCESSORS(SharedFunctionInfo, construct_stub, Code, kConstructStubOffset)
-ACCESSORS(SharedFunctionInfo, feedback_metadata, TypeFeedbackMetadata,
-          kFeedbackMetadataOffset)
+ACCESSORS(SharedFunctionInfo, feedback_vector, TypeFeedbackVector,
+          kFeedbackVectorOffset)
 #if TRACE_MAPS
 SMI_ACCESSORS(SharedFunctionInfo, unique_id, kUniqueIdOffset)
 #endif
@@ -5829,26 +5818,6 @@ void SharedFunctionInfo::set_kind(FunctionKind kind) {
   set_compiler_hints(hints);
 }
 
-// static
-int SharedFunctionInfo::OffsetToPreviousContext() {
-  return FixedArray::kHeaderSize +
-         kPointerSize * (kContextOffset - kEntryLength);
-}
-
-int SharedFunctionInfo::OffsetToPreviousCachedCode() {
-  return FixedArray::kHeaderSize +
-         kPointerSize * (kCachedCodeOffset - kEntryLength);
-}
-
-int SharedFunctionInfo::OffsetToPreviousLiterals() {
-  return FixedArray::kHeaderSize +
-         kPointerSize * (kLiteralsOffset - kEntryLength);
-}
-
-int SharedFunctionInfo::OffsetToPreviousOsrAstId() {
-  return FixedArray::kHeaderSize +
-         kPointerSize * (kOsrAstIdOffset - kEntryLength);
-}
 
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, needs_home_object,
                kNeedsHomeObject)
@@ -6300,12 +6269,11 @@ bool JSFunction::is_compiled() {
          code() != builtins->builtin(Builtins::kCompileOptimizedConcurrent);
 }
 
-TypeFeedbackVector* JSFunction::feedback_vector() {
-  LiteralsArray* array = literals();
-  return array->feedback_vector();
+
+int JSFunction::NumberOfLiterals() {
+  return literals()->length();
 }
 
-int JSFunction::NumberOfLiterals() { return literals()->literals_count(); }
 
 ACCESSORS(JSProxy, target, JSReceiver, kTargetOffset)
 ACCESSORS(JSProxy, handler, Object, kHandlerOffset)

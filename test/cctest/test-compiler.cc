@@ -306,7 +306,7 @@ TEST(FeedbackVectorPreservedAcrossRecompiles) {
   // We shouldn't have deoptimization support. We want to recompile and
   // verify that our feedback vector preserves information.
   CHECK(!f->shared()->has_deoptimization_support());
-  Handle<TypeFeedbackVector> feedback_vector(f->feedback_vector());
+  Handle<TypeFeedbackVector> feedback_vector(f->shared()->feedback_vector());
 
   // Verify that we gathered feedback.
   CHECK(!feedback_vector->is_empty());
@@ -321,7 +321,7 @@ TEST(FeedbackVectorPreservedAcrossRecompiles) {
   // of the full code.
   CHECK(f->IsOptimized());
   CHECK(f->shared()->has_deoptimization_support());
-  object = f->feedback_vector()->Get(slot_for_a);
+  object = f->shared()->feedback_vector()->Get(slot_for_a);
   CHECK(object->IsWeakCell() &&
         WeakCell::cast(object)->value()->IsJSFunction());
 }
@@ -352,16 +352,18 @@ TEST(FeedbackVectorUnaffectedByScopeChanges) {
 
   // Not compiled, and so no feedback vector allocated yet.
   CHECK(!f->shared()->is_compiled());
-  CHECK(f->feedback_vector()->is_empty());
+  CHECK(f->shared()->feedback_vector()->is_empty());
 
   CompileRun("morphing_call();");
 
   // Now a feedback vector is allocated.
   CHECK(f->shared()->is_compiled());
-  CHECK(!f->feedback_vector()->is_empty());
+  CHECK(!f->shared()->feedback_vector()->is_empty());
 }
 
-// Test that optimized code for different closures is actually shared.
+
+// Test that optimized code for different closures is actually shared
+// immediately by the FastNewClosureStub when run in the same context.
 TEST(OptimizedCodeSharing1) {
   FLAG_stress_compaction = false;
   FLAG_allow_natives_syntax = true;
@@ -380,8 +382,8 @@ TEST(OptimizedCodeSharing1) {
         "%DebugPrint(closure0());"
         "%OptimizeFunctionOnNextCall(closure0);"
         "%DebugPrint(closure0());"
-        "var closure1 = MakeClosure(); closure1();"
-        "var closure2 = MakeClosure(); closure2();");
+        "var closure1 = MakeClosure();"
+        "var closure2 = MakeClosure();");
     Handle<JSFunction> fun1 = Handle<JSFunction>::cast(
         v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
             env->Global()
@@ -398,7 +400,9 @@ TEST(OptimizedCodeSharing1) {
   }
 }
 
-// Test that optimized code for different closures is actually shared.
+
+// Test that optimized code for different closures is actually shared
+// immediately by the FastNewClosureStub when run different contexts.
 TEST(OptimizedCodeSharing2) {
   if (FLAG_stress_compaction) return;
   FLAG_allow_natives_syntax = true;
@@ -449,8 +453,8 @@ TEST(OptimizedCodeSharing2) {
         "%DebugPrint(closure0());"
         "%OptimizeFunctionOnNextCall(closure0);"
         "%DebugPrint(closure0());"
-        "var closure1 = MakeClosure(); closure1();"
-        "var closure2 = MakeClosure(); closure2();");
+        "var closure1 = MakeClosure();"
+        "var closure2 = MakeClosure();");
     Handle<JSFunction> fun1 = Handle<JSFunction>::cast(
         v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
             env->Global()
@@ -468,7 +472,9 @@ TEST(OptimizedCodeSharing2) {
   }
 }
 
-// Test that optimized code for different closures is actually shared.
+
+// Test that optimized code for different closures is actually shared
+// immediately by the FastNewClosureStub without context-dependent entries.
 TEST(OptimizedCodeSharing3) {
   if (FLAG_stress_compaction) return;
   FLAG_allow_natives_syntax = true;
@@ -522,8 +528,8 @@ TEST(OptimizedCodeSharing3) {
         "%DebugPrint(closure0());"
         "%OptimizeFunctionOnNextCall(closure0);"
         "%DebugPrint(closure0());"
-        "var closure1 = MakeClosure(); closure1();"
-        "var closure2 = MakeClosure(); closure2();");
+        "var closure1 = MakeClosure();"
+        "var closure2 = MakeClosure();");
     Handle<JSFunction> fun1 = Handle<JSFunction>::cast(
         v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
             env->Global()

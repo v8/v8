@@ -649,13 +649,6 @@
   'test-run-jsexceptions/DeoptFinallyReturn': [PASS, FAIL],
   'test-serialize/SerializeInternalReference': [PASS, FAIL],
 
-  # TODO(rmcilroy,4680): Test crashes.
-  'test-serialize/PerIsolateSnapshotBlobs': [SKIP],
-  'test-serialize/PerIsolateSnapshotBlobsWithLocker': [SKIP],
-  'test-serialize/PerIsolateSnapshotBlobsOutdatedContextWithOverflow': [SKIP],
-  'test-serialize/SnapshotBlobsStackOverflow': [SKIP],
-  'test-decls/CrossScriptReferencesHarmony': [SKIP],
-
   # TODO(rmcilroy,4680): DCHECK(shared->function_data()->IsUndefined()) in
   # compiler.cc GetUnoptimizedCodeCommon() or timeout in release mode.
   'test-func-name-inference/GlobalProperty': [SKIP],
@@ -698,6 +691,10 @@
 
 ['ignition == True and arch == x64', {
   # TODO(rmcilroy,4680): The function_data field should be a BytecodeArray on interpreter entry
+  'test-serialize/PerIsolateSnapshotBlobsOutdatedContextWithOverflow': [PASS, ['mode == debug', FAIL]],
+  'test-serialize/PerIsolateSnapshotBlobsWithLocker': [PASS, ['mode == debug', FAIL]],
+  'test-serialize/SnapshotBlobsStackOverflow': [PASS, ['mode == debug', FAIL]],
+  'test-serialize/PerIsolateSnapshotBlobs': [PASS, ['mode == debug', FAIL]],
   'test-serialize/SerializationMemoryStats': [PASS, ['mode == debug', FAIL]],
 
   # TODO(rmcilroy,4680): Test assert errors.

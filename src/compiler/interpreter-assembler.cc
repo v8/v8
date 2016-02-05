@@ -435,9 +435,10 @@ Node* InterpreterAssembler::LoadTypeFeedbackVector() {
   Node* function = raw_assembler_->Load(
       MachineType::AnyTagged(), RegisterFileRawPointer(),
       IntPtrConstant(InterpreterFrameConstants::kFunctionFromRegisterPointer));
-  Node* literals = LoadObjectField(function, JSFunction::kLiteralsOffset);
+  Node* shared_info =
+      LoadObjectField(function, JSFunction::kSharedFunctionInfoOffset);
   Node* vector =
-      LoadObjectField(literals, LiteralsArray::kFeedbackVectorOffset);
+      LoadObjectField(shared_info, SharedFunctionInfo::kFeedbackVectorOffset);
   return vector;
 }
 

@@ -2710,7 +2710,7 @@ Strength BytecodeGenerator::language_mode_strength() const {
 
 
 int BytecodeGenerator::feedback_index(FeedbackVectorSlot slot) const {
-  return TypeFeedbackVector::GetIndex(slot);
+  return info()->feedback_vector()->GetIndex(slot);
 }
 
 }  // namespace interpreter

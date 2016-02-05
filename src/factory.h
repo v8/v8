@@ -624,7 +624,7 @@ class Factory final {
   Handle<SharedFunctionInfo> NewSharedFunctionInfo(
       Handle<String> name, int number_of_literals, FunctionKind kind,
       Handle<Code> code, Handle<ScopeInfo> scope_info,
-      Handle<TypeFeedbackMetadata> feedback_metadata);
+      Handle<TypeFeedbackVector> feedback_vector);
   Handle<SharedFunctionInfo> NewSharedFunctionInfo(Handle<String> name,
                                                    MaybeHandle<Code> code,
                                                    bool is_constructor);

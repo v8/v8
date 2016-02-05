@@ -302,7 +302,7 @@ class FunctionInfoWrapper : public JSArrayBasedStruct<FunctionInfoWrapper> {
 
   Handle<Code> GetFunctionCode();
 
-  MaybeHandle<TypeFeedbackMetadata> GetFeedbackMetadata();
+  MaybeHandle<TypeFeedbackVector> GetFeedbackVector();
 
   Handle<Object> GetCodeScopeInfo();
 

@@ -215,9 +215,9 @@ class CompilationInfo {
            !is_debug() && output_code_kind() == Code::FUNCTION;
   }
 
-  void EnsureFeedbackMetadata();
-  Handle<TypeFeedbackMetadata> feedback_metadata() const {
-    return feedback_metadata_;
+  void EnsureFeedbackVector();
+  Handle<TypeFeedbackVector> feedback_vector() const {
+    return feedback_vector_;
   }
   void SetCode(Handle<Code> code) { code_ = code; }
 
@@ -412,7 +412,7 @@ class CompilationInfo {
   Handle<Code> code_;
 
   // Used by codegen, ultimately kept rooted by the SharedFunctionInfo.
-  Handle<TypeFeedbackMetadata> feedback_metadata_;
+  Handle<TypeFeedbackVector> feedback_vector_;
 
   // Compilation mode flag and whether deoptimization is allowed.
   Mode mode_;

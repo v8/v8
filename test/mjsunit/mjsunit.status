@@ -759,9 +759,6 @@
   # TODO(4690): Failing in debugger DebuggerInspectableFrame.
   'for-in-opt': [FAIL],
 
-  # TODO(mstarzinger,4674): Support exception handlers in BytecodeGraphBuilder.
-  'regress/regress-568765': [SKIP],
-
   'arguments-load-across-eval': [SKIP],
   'array-constructor': [PASS, SLOW],
   'array-functions-prototype-misc': [SKIP],
