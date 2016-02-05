@@ -16,8 +16,7 @@
 namespace v8 {
 namespace internal {
 
-#define __ ACCESS_MASM(masm_)
-
+#define __ ACCESS_MASM(masm())
 
 class JumpPatchSite BASE_EMBEDDED {
  public:
@@ -67,6 +66,7 @@ class JumpPatchSite BASE_EMBEDDED {
     __ j(cc, target, near_jump);
   }
 
+  MacroAssembler* masm() { return masm_; }
   MacroAssembler* masm_;
   Label patch_site_;
 #ifdef DEBUG
@@ -1881,8 +1881,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ j(not_equal, &resume);
       __ Push(result_register());
       EmitCreateIteratorResult(true);
-      EmitUnwindBeforeReturn();
-      EmitReturnSequence();
+      EmitUnwindAndReturn();
 
       __ bind(&suspend);
       VisitForAccumulatorValue(expr->generator_object());
@@ -1913,8 +1912,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
     case Yield::kFinal: {
       // Pop value from top-of-stack slot, box result into result register.
       EmitCreateIteratorResult(true);
-      EmitUnwindBeforeReturn();
-      EmitReturnSequence();
+      EmitUnwindAndReturn();
       break;
     }
 
@@ -4487,16 +4485,6 @@ void FullCodeGenerator::PushFunctionArgumentForContextAllocation() {
 
 void FullCodeGenerator::EnterFinallyBlock() {
   DCHECK(!result_register().is(rdx));
-  DCHECK(!result_register().is(rcx));
-  // Cook return address on top of stack (smi encoded Code* delta)
-  __ PopReturnAddressTo(rdx);
-  __ Move(rcx, masm_->CodeObject());
-  __ subp(rdx, rcx);
-  __ Integer32ToSmi(rdx, rdx);
-  __ Push(rdx);
-
-  // Store result register while executing finally block.
-  __ Push(result_register());
 
   // Store pending message while executing finally block.
   ExternalReference pending_message_obj =
@@ -4510,22 +4498,11 @@ void FullCodeGenerator::EnterFinallyBlock() {
 
 void FullCodeGenerator::ExitFinallyBlock() {
   DCHECK(!result_register().is(rdx));
-  DCHECK(!result_register().is(rcx));
   // Restore pending message from stack.
   __ Pop(rdx);
   ExternalReference pending_message_obj =
       ExternalReference::address_of_pending_message_obj(isolate());
   __ Store(pending_message_obj, rdx);
-
-  // Restore result register from stack.
-  __ Pop(result_register());
-
-  // Uncook return address.
-  __ Pop(rdx);
-  __ SmiToInteger32(rdx, rdx);
-  __ Move(rcx, masm_->CodeObject());
-  __ addp(rdx, rcx);
-  __ jmp(rdx);
 }
 
 
@@ -4543,6 +4520,31 @@ void FullCodeGenerator::EmitLoadStoreICSlot(FeedbackVectorSlot slot) {
   __ Move(VectorStoreICTrampolineDescriptor::SlotRegister(), SmiFromSlot(slot));
 }
 
+void FullCodeGenerator::DeferredCommands::EmitCommands() {
+  __ Pop(result_register());  // Restore the accumulator.
+  __ Pop(rdx);                // Get the token.
+  for (DeferredCommand cmd : commands_) {
+    Label skip;
+    __ SmiCompare(rdx, Smi::FromInt(cmd.token));
+    __ j(not_equal, &skip);
+    switch (cmd.command) {
+      case kReturn:
+        codegen_->EmitUnwindAndReturn();
+        break;
+      case kThrow:
+        __ Push(result_register());
+        __ CallRuntime(Runtime::kReThrow);
+        break;
+      case kContinue:
+        codegen_->EmitContinue(cmd.target);
+        break;
+      case kBreak:
+        codegen_->EmitBreak(cmd.target);
+        break;
+    }
+    __ bind(&skip);
+  }
+}
 
 #undef __
 
@@ -4622,7 +4624,6 @@ BackEdgeTable::BackEdgeState BackEdgeTable::GetBackEdgeState(
                                          unoptimized_code));
   return OSR_AFTER_STACK_CHECK;
 }
-
 
 }  // namespace internal
 }  // namespace v8

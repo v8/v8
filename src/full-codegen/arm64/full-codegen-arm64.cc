@@ -20,7 +20,7 @@
 namespace v8 {
 namespace internal {
 
-#define __ ACCESS_MASM(masm_)
+#define __ ACCESS_MASM(masm())
 
 class JumpPatchSite BASE_EMBEDDED {
  public:
@@ -76,6 +76,7 @@ class JumpPatchSite BASE_EMBEDDED {
   }
 
  private:
+  MacroAssembler* masm() { return masm_; }
   MacroAssembler* masm_;
   Label patch_site_;
   Register reg_;
@@ -4353,8 +4354,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ B(ne, &resume);
       __ Push(result_register());
       EmitCreateIteratorResult(true);
-      EmitUnwindBeforeReturn();
-      EmitReturnSequence();
+      EmitUnwindAndReturn();
 
       __ Bind(&suspend);
       VisitForAccumulatorValue(expr->generator_object());
@@ -4383,8 +4383,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
     case Yield::kFinal: {
       // Pop value from top-of-stack slot, box result into result register.
       EmitCreateIteratorResult(true);
-      EmitUnwindBeforeReturn();
-      EmitReturnSequence();
+      EmitUnwindAndReturn();
       break;
     }
 
@@ -4588,12 +4587,6 @@ void FullCodeGenerator::PushFunctionArgumentForContextAllocation() {
 void FullCodeGenerator::EnterFinallyBlock() {
   ASM_LOCATION("FullCodeGenerator::EnterFinallyBlock");
   DCHECK(!result_register().is(x10));
-  // Preserve the result register while executing finally block.
-  // Also cook the return address in lr to the stack (smi encoded Code* delta).
-  __ Sub(x10, lr, Operand(masm_->CodeObject()));
-  __ SmiTag(x10);
-  __ Push(result_register(), x10);
-
   // Store pending message while executing finally block.
   ExternalReference pending_message_obj =
       ExternalReference::address_of_pending_message_obj(isolate());
@@ -4615,14 +4608,6 @@ void FullCodeGenerator::ExitFinallyBlock() {
       ExternalReference::address_of_pending_message_obj(isolate());
   __ Mov(x13, pending_message_obj);
   __ Str(x10, MemOperand(x13));
-
-  // Restore result register and cooked return address from the stack.
-  __ Pop(x10, result_register());
-
-  // Uncook the return address (see EnterFinallyBlock).
-  __ SmiUntag(x10);
-  __ Add(x11, x10, Operand(masm_->CodeObject()));
-  __ Br(x11);
 }
 
 
@@ -4641,6 +4626,30 @@ void FullCodeGenerator::EmitLoadStoreICSlot(FeedbackVectorSlot slot) {
   __ Mov(VectorStoreICTrampolineDescriptor::SlotRegister(), SmiFromSlot(slot));
 }
 
+void FullCodeGenerator::DeferredCommands::EmitCommands() {
+  __ Pop(result_register(), x1);  // Restore the accumulator and get the token.
+  for (DeferredCommand cmd : commands_) {
+    Label skip;
+    __ Cmp(x1, Operand(Smi::FromInt(cmd.token)));
+    __ B(ne, &skip);
+    switch (cmd.command) {
+      case kReturn:
+        codegen_->EmitUnwindAndReturn();
+        break;
+      case kThrow:
+        __ Push(result_register());
+        __ CallRuntime(Runtime::kReThrow);
+        break;
+      case kContinue:
+        codegen_->EmitContinue(cmd.target);
+        break;
+      case kBreak:
+        codegen_->EmitBreak(cmd.target);
+        break;
+    }
+    __ bind(&skip);
+  }
+}
 
 #undef __
 

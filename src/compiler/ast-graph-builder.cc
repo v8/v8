@@ -206,7 +206,6 @@ class AstGraphBuilder::ControlScope BASE_EMBEDDED {
   int stack_height_;
 };
 
-
 // Helper class for a try-finally control scope. It can record intercepted
 // control-flow commands that cause entry into a finally-block, and re-apply
 // them after again leaving that block. Special tokens are used to identify
@@ -214,7 +213,10 @@ class AstGraphBuilder::ControlScope BASE_EMBEDDED {
 class AstGraphBuilder::ControlScope::DeferredCommands : public ZoneObject {
  public:
   explicit DeferredCommands(AstGraphBuilder* owner)
-      : owner_(owner), deferred_(owner->local_zone()) {}
+      : owner_(owner),
+        deferred_(owner->local_zone()),
+        return_token_(nullptr),
+        throw_token_(nullptr) {}
 
   // One recorded control-flow command.
   struct Entry {
@@ -226,7 +228,24 @@ class AstGraphBuilder::ControlScope::DeferredCommands : public ZoneObject {
   // Records a control-flow command while entering the finally-block. This also
   // generates a new dispatch token that identifies one particular path.
   Node* RecordCommand(Command cmd, Statement* stmt, Node* value) {
-    Node* token = NewPathTokenForDeferredCommand();
+    Node* token = nullptr;
+    switch (cmd) {
+      case CMD_BREAK:
+      case CMD_CONTINUE:
+        token = NewPathToken(dispenser_.GetBreakContinueToken());
+        break;
+      case CMD_THROW:
+        if (throw_token_) return throw_token_;
+        token = NewPathToken(TokenDispenserForFinally::kThrowToken);
+        throw_token_ = token;
+        break;
+      case CMD_RETURN:
+        if (return_token_) return return_token_;
+        token = NewPathToken(TokenDispenserForFinally::kReturnToken);
+        return_token_ = token;
+        break;
+    }
+    DCHECK_NOT_NULL(token);
     deferred_.push_back({cmd, stmt, token});
     return token;
   }
@@ -255,11 +274,11 @@ class AstGraphBuilder::ControlScope::DeferredCommands : public ZoneObject {
   }
 
  protected:
-  Node* NewPathTokenForDeferredCommand() {
-    return owner_->jsgraph()->Constant(static_cast<int>(deferred_.size()));
+  Node* NewPathToken(int token_id) {
+    return owner_->jsgraph()->Constant(token_id);
   }
   Node* NewPathTokenForImplicitFallThrough() {
-    return owner_->jsgraph()->Constant(-1);
+    return NewPathToken(TokenDispenserForFinally::kFallThroughToken);
   }
   Node* NewPathDispatchCondition(Node* t1, Node* t2) {
     // TODO(mstarzinger): This should be machine()->WordEqual(), but our Phi
@@ -268,8 +287,11 @@ class AstGraphBuilder::ControlScope::DeferredCommands : public ZoneObject {
   }
 
  private:
+  TokenDispenserForFinally dispenser_;
   AstGraphBuilder* owner_;
   ZoneVector<Entry> deferred_;
+  Node* return_token_;
+  Node* throw_token_;
 };
 
 
@@ -1487,7 +1509,7 @@ void AstGraphBuilder::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   // The result value, dispatch token and message is expected on the operand
   // stack (this is in sync with FullCodeGenerator::EnterFinallyBlock).
   Node* message = NewNode(javascript()->LoadMessage());
-  environment()->Push(token);  // TODO(mstarzinger): Cook token!
+  environment()->Push(token);
   environment()->Push(result);
   environment()->Push(message);
 
@@ -1503,7 +1525,7 @@ void AstGraphBuilder::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   // stack (this is in sync with FullCodeGenerator::ExitFinallyBlock).
   message = environment()->Pop();
   result = environment()->Pop();
-  token = environment()->Pop();  // TODO(mstarzinger): Uncook token!
+  token = environment()->Pop();
   NewNode(javascript()->StoreMessage(), message);
 
   // Dynamic dispatch after the finally-block.

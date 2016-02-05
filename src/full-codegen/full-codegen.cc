@@ -853,10 +853,7 @@ void FullCodeGenerator::VisitIfStatement(IfStatement* stmt) {
   PrepareForBailoutForId(stmt->IfId(), NO_REGISTERS);
 }
 
-
-void FullCodeGenerator::VisitContinueStatement(ContinueStatement* stmt) {
-  Comment cmnt(masm_,  "[ ContinueStatement");
-  SetStatementPosition(stmt);
+void FullCodeGenerator::EmitContinue(Statement* target) {
   NestedStatement* current = nesting_stack_;
   int stack_depth = 0;
   int context_length = 0;
@@ -865,7 +862,15 @@ void FullCodeGenerator::VisitContinueStatement(ContinueStatement* stmt) {
   // try...finally on our way out, we will unconditionally preserve the
   // accumulator on the stack.
   ClearAccumulator();
-  while (!current->IsContinueTarget(stmt->target())) {
+  while (!current->IsContinueTarget(target)) {
+    if (current->IsTryFinally()) {
+      Comment cmnt(masm(), "[ Deferred continue through finally");
+      current->Exit(&stack_depth, &context_length);
+      DCHECK_EQ(0, stack_depth);
+      DCHECK_EQ(0, context_length);
+      current->AsTryFinally()->deferred_commands()->RecordContinue(target);
+      return;
+    }
     current = current->Exit(&stack_depth, &context_length);
   }
   __ Drop(stack_depth);
@@ -881,10 +886,13 @@ void FullCodeGenerator::VisitContinueStatement(ContinueStatement* stmt) {
   __ jmp(current->AsIteration()->continue_label());
 }
 
-
-void FullCodeGenerator::VisitBreakStatement(BreakStatement* stmt) {
-  Comment cmnt(masm_,  "[ BreakStatement");
+void FullCodeGenerator::VisitContinueStatement(ContinueStatement* stmt) {
+  Comment cmnt(masm_, "[ ContinueStatement");
   SetStatementPosition(stmt);
+  EmitContinue(stmt->target());
+}
+
+void FullCodeGenerator::EmitBreak(Statement* target) {
   NestedStatement* current = nesting_stack_;
   int stack_depth = 0;
   int context_length = 0;
@@ -893,7 +901,15 @@ void FullCodeGenerator::VisitBreakStatement(BreakStatement* stmt) {
   // try...finally on our way out, we will unconditionally preserve the
   // accumulator on the stack.
   ClearAccumulator();
-  while (!current->IsBreakTarget(stmt->target())) {
+  while (!current->IsBreakTarget(target)) {
+    if (current->IsTryFinally()) {
+      Comment cmnt(masm(), "[ Deferred break through finally");
+      current->Exit(&stack_depth, &context_length);
+      DCHECK_EQ(0, stack_depth);
+      DCHECK_EQ(0, context_length);
+      current->AsTryFinally()->deferred_commands()->RecordBreak(target);
+      return;
+    }
     current = current->Exit(&stack_depth, &context_length);
   }
   __ Drop(stack_depth);
@@ -909,15 +925,29 @@ void FullCodeGenerator::VisitBreakStatement(BreakStatement* stmt) {
   __ jmp(current->AsBreakable()->break_label());
 }
 
+void FullCodeGenerator::VisitBreakStatement(BreakStatement* stmt) {
+  Comment cmnt(masm_, "[ BreakStatement");
+  SetStatementPosition(stmt);
+  EmitBreak(stmt->target());
+}
 
-void FullCodeGenerator::EmitUnwindBeforeReturn() {
+void FullCodeGenerator::EmitUnwindAndReturn() {
   NestedStatement* current = nesting_stack_;
   int stack_depth = 0;
   int context_length = 0;
   while (current != NULL) {
+    if (current->IsTryFinally()) {
+      Comment cmnt(masm(), "[ Deferred return through finally");
+      current->Exit(&stack_depth, &context_length);
+      DCHECK_EQ(0, stack_depth);
+      DCHECK_EQ(0, context_length);
+      current->AsTryFinally()->deferred_commands()->RecordReturn();
+      return;
+    }
     current = current->Exit(&stack_depth, &context_length);
   }
   __ Drop(stack_depth);
+  EmitReturnSequence();
 }
 
 
@@ -935,8 +965,7 @@ void FullCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
   SetStatementPosition(stmt);
   Expression* expr = stmt->expression();
   VisitForAccumulatorValue(expr);
-  EmitUnwindBeforeReturn();
-  EmitReturnSequence();
+  EmitUnwindAndReturn();
 }
 
 
@@ -1188,24 +1217,22 @@ void FullCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   // executing the try body, and removing it again afterwards.
   //
   // The try-finally construct can enter the finally block in three ways:
-  // 1. By exiting the try-block normally. This removes the try-handler and
-  //    calls the finally block code before continuing.
+  // 1. By exiting the try-block normally. This exits the try block,
+  //    pushes the continuation token and falls through to the finally
+  //    block.
   // 2. By exiting the try-block with a function-local control flow transfer
-  //    (break/continue/return). The site of the, e.g., break removes the
-  //    try handler and calls the finally block code before continuing
-  //    its outward control transfer.
-  // 3. By exiting the try-block with a thrown exception.
-  //    This can happen in nested function calls. It traverses the try-handler
-  //    chain and consumes the try-handler entry before jumping to the
-  //    handler code. The handler code then calls the finally-block before
-  //    rethrowing the exception.
-  //
-  // The finally block must assume a return address on top of the stack
-  // (or in the link register on ARM chips) and a value (return value or
-  // exception) in the result register (rax/eax/r0), both of which must
-  // be preserved. The return address isn't GC-safe, so it should be
-  // cooked before GC.
+  //    (break/continue/return). The site of the, e.g., break exits the
+  //    try block, pushes the continuation token and jumps to the
+  //    finally block. After the finally block executes, the execution
+  //    continues based on the continuation token to a block that
+  //    continues with the control flow transfer.
+  // 3. By exiting the try-block with a thrown exception. In the handler,
+  //    we push the exception and continuation token and jump to the
+  //    finally block (which will again dispatch based on the token once
+  //    it is finished).
+
   Label try_entry, handler_entry, finally_entry;
+  DeferredCommands deferred(this, &finally_entry);
 
   // Jump to try-handler setup and try-block code.
   __ jmp(&try_entry);
@@ -1213,26 +1240,18 @@ void FullCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   PrepareForBailoutForId(stmt->HandlerId(), NO_REGISTERS);
 
   // Exception handler code.  This code is only executed when an exception
-  // is thrown.  The exception is in the result register, and must be
-  // preserved by the finally block.  Call the finally block and then
-  // rethrow the exception if it returns.
-  __ Call(&finally_entry);
-  __ Push(result_register());
-  __ CallRuntime(Runtime::kReThrow);
-
-  // Finally block implementation.
-  __ bind(&finally_entry);
-  EnterFinallyBlock();
-  { Finally finally_body(this);
-    Visit(stmt->finally_block());
+  // is thrown.  Record the continuation and jump to the finally block.
+  {
+    Comment cmt_handler(masm(), "[ Finally handler");
+    deferred.RecordThrow();
   }
-  ExitFinallyBlock();  // Return to the calling code.
 
   // Set up try handler.
   __ bind(&try_entry);
   int handler_index = NewHandlerTableEntry();
   EnterTryBlock(handler_index, &handler_entry);
-  { TryFinally try_body(this, &finally_entry);
+  {
+    TryFinally try_body(this, &deferred);
     Visit(stmt->try_block());
   }
   ExitTryBlock(handler_index);
@@ -1241,7 +1260,23 @@ void FullCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   // finally block will unconditionally preserve the result register on the
   // stack.
   ClearAccumulator();
-  __ Call(&finally_entry);
+  deferred.EmitFallThrough();
+  // Fall through to the finally block.
+
+  // Finally block implementation.
+  __ bind(&finally_entry);
+  Comment cmnt_finally(masm(), "[ Finally block");
+  EnterFinallyBlock();
+  {
+    Finally finally_body(this);
+    Visit(stmt->finally_block());
+  }
+  ExitFinallyBlock();  // Return to the calling code.
+
+  {
+    Comment cmnt_deferred(masm(), "[ Post-finally dispatch");
+    deferred.EmitCommands();
+  }
 }
 
 
@@ -1485,13 +1520,49 @@ FullCodeGenerator::NestedStatement* FullCodeGenerator::TryFinally::Exit(
     // Down to the handler block and also drop context.
     __ Drop(*stack_depth + kElementCount);
   }
-  __ Call(finally_entry_);
-
   *stack_depth = 0;
   *context_length = 0;
   return previous_;
 }
 
+void FullCodeGenerator::DeferredCommands::RecordBreak(Statement* target) {
+  TokenId token = dispenser_.GetBreakContinueToken();
+  commands_.push_back({kBreak, token, target});
+  EmitJumpToFinally(token);
+}
+
+void FullCodeGenerator::DeferredCommands::RecordContinue(Statement* target) {
+  TokenId token = dispenser_.GetBreakContinueToken();
+  commands_.push_back({kContinue, token, target});
+  EmitJumpToFinally(token);
+}
+
+void FullCodeGenerator::DeferredCommands::RecordReturn() {
+  if (return_token_ == TokenDispenserForFinally::kInvalidToken) {
+    return_token_ = TokenDispenserForFinally::kReturnToken;
+    commands_.push_back({kReturn, return_token_, nullptr});
+  }
+  EmitJumpToFinally(return_token_);
+}
+
+void FullCodeGenerator::DeferredCommands::RecordThrow() {
+  if (throw_token_ == TokenDispenserForFinally::kInvalidToken) {
+    throw_token_ = TokenDispenserForFinally::kThrowToken;
+    commands_.push_back({kThrow, throw_token_, nullptr});
+  }
+  EmitJumpToFinally(throw_token_);
+}
+
+void FullCodeGenerator::DeferredCommands::EmitFallThrough() {
+  __ Push(Smi::FromInt(TokenDispenserForFinally::kFallThroughToken));
+  __ Push(result_register());
+}
+
+void FullCodeGenerator::DeferredCommands::EmitJumpToFinally(TokenId token) {
+  __ Push(Smi::FromInt(token));
+  __ Push(result_register());
+  __ jmp(finally_entry_);
+}
 
 bool FullCodeGenerator::TryLiteralCompare(CompareOperation* expr) {
   Expression* sub_expr;

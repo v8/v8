@@ -27,8 +27,7 @@
 namespace v8 {
 namespace internal {
 
-#define __ ACCESS_MASM(masm_)
-
+#define __ ACCESS_MASM(masm())
 
 // A patch site is a location in the code which it is possible to patch. This
 // class has a number of methods to emit the code which is patchable and the
@@ -86,6 +85,7 @@ class JumpPatchSite BASE_EMBEDDED {
   }
 
  private:
+  MacroAssembler* masm() { return masm_; }
   MacroAssembler* masm_;
   Label patch_site_;
 #ifdef DEBUG
@@ -1946,8 +1946,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
                 Operand(Smi::FromInt(JSGeneratorObject::RETURN)));
       __ push(result_register());
       EmitCreateIteratorResult(true);
-      EmitUnwindBeforeReturn();
-      EmitReturnSequence();
+      EmitUnwindAndReturn();
 
       __ bind(&suspend);
       VisitForAccumulatorValue(expr->generator_object());
@@ -1975,8 +1974,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
     case Yield::kFinal: {
       // Pop value from top-of-stack slot, box result into result register.
       EmitCreateIteratorResult(true);
-      EmitUnwindBeforeReturn();
-      EmitReturnSequence();
+      EmitUnwindAndReturn();
       break;
     }
 
@@ -4574,15 +4572,6 @@ void FullCodeGenerator::PushFunctionArgumentForContextAllocation() {
 
 void FullCodeGenerator::EnterFinallyBlock() {
   DCHECK(!result_register().is(a1));
-  // Store result register while executing finally block.
-  __ push(result_register());
-  // Cook return address in link register to stack (smi encoded Code* delta).
-  __ Dsubu(a1, ra, Operand(masm_->CodeObject()));
-  __ SmiTag(a1);
-
-  // Store result register while executing finally block.
-  __ push(a1);
-
   // Store pending message while executing finally block.
   ExternalReference pending_message_obj =
       ExternalReference::address_of_pending_message_obj(isolate());
@@ -4602,16 +4591,6 @@ void FullCodeGenerator::ExitFinallyBlock() {
       ExternalReference::address_of_pending_message_obj(isolate());
   __ li(at, Operand(pending_message_obj));
   __ sd(a1, MemOperand(at));
-
-  // Restore result register from stack.
-  __ pop(a1);
-
-  // Uncook return address and return.
-  __ pop(result_register());
-
-  __ SmiUntag(a1);
-  __ Daddu(at, a1, Operand(masm_->CodeObject()));
-  __ Jump(at);
 }
 
 
@@ -4631,6 +4610,31 @@ void FullCodeGenerator::EmitLoadStoreICSlot(FeedbackVectorSlot slot) {
         Operand(SmiFromSlot(slot)));
 }
 
+void FullCodeGenerator::DeferredCommands::EmitCommands() {
+  __ Pop(result_register());  // Restore the accumulator.
+  __ Pop(a1);                 // Get the token.
+  for (DeferredCommand cmd : commands_) {
+    Label skip;
+    __ li(at, Operand(Smi::FromInt(cmd.token)));
+    __ Branch(&skip, ne, a1, Operand(at));
+    switch (cmd.command) {
+      case kReturn:
+        codegen_->EmitUnwindAndReturn();
+        break;
+      case kThrow:
+        __ Push(result_register());
+        __ CallRuntime(Runtime::kReThrow);
+        break;
+      case kContinue:
+        codegen_->EmitContinue(cmd.target);
+        break;
+      case kBreak:
+        codegen_->EmitBreak(cmd.target);
+        break;
+    }
+    __ bind(&skip);
+  }
+}
 
 #undef __
 

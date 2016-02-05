@@ -1125,6 +1125,19 @@ class BailoutId {
   int id_;
 };
 
+class TokenDispenserForFinally {
+ public:
+  int GetBreakContinueToken() { return next_token_++; }
+  static const int kFallThroughToken = 0;
+  static const int kThrowToken = 1;
+  static const int kReturnToken = 2;
+
+  static const int kFirstBreakContinueToken = 3;
+  static const int kInvalidToken = -1;
+
+ private:
+  int next_token_ = kFirstBreakContinueToken;
+};
 
 // ----------------------------------------------------------------------------
 // I/O support.
