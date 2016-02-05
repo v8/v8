@@ -24,8 +24,9 @@ class SourcePositionTableBuilder {
   explicit SourcePositionTableBuilder(Isolate* isolate, Zone* zone)
       : isolate_(isolate), entries_(zone) {}
 
-  void AddStatementPosition(int bytecode_offset, int source_position);
-  void AddExpressionPosition(int bytecode_offset, int source_position);
+  void AddStatementPosition(size_t bytecode_offset, int source_position);
+  void AddExpressionPosition(size_t bytecode_offset, int source_position);
+  void RevertPosition(size_t bytecode_offset);
   Handle<FixedArray> ToFixedArray();
 
  private:

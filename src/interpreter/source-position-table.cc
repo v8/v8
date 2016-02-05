@@ -15,20 +15,32 @@ namespace interpreter {
 class IsStatementField : public BitField<bool, 0, 1> {};
 class SourcePositionField : public BitField<int, 1, 30> {};
 
-void SourcePositionTableBuilder::AddStatementPosition(int bytecode_offset,
+void SourcePositionTableBuilder::AddStatementPosition(size_t bytecode_offset,
                                                       int source_position) {
-  AssertMonotonic(bytecode_offset);
+  int offset = static_cast<int>(bytecode_offset);
+  AssertMonotonic(offset);
   uint32_t encoded = IsStatementField::encode(true) |
                      SourcePositionField::encode(source_position);
-  entries_.push_back({bytecode_offset, encoded});
+  entries_.push_back({offset, encoded});
 }
 
-void SourcePositionTableBuilder::AddExpressionPosition(int bytecode_offset,
+void SourcePositionTableBuilder::AddExpressionPosition(size_t bytecode_offset,
                                                        int source_position) {
-  AssertMonotonic(bytecode_offset);
+  int offset = static_cast<int>(bytecode_offset);
+  AssertMonotonic(offset);
   uint32_t encoded = IsStatementField::encode(false) |
                      SourcePositionField::encode(source_position);
-  entries_.push_back({bytecode_offset, encoded});
+  entries_.push_back({offset, encoded});
+}
+
+void SourcePositionTableBuilder::RevertPosition(size_t bytecode_offset) {
+  int offset = static_cast<int>(bytecode_offset);
+  // If we already added a source position table entry, but the bytecode array
+  // builder ended up not outputting a bytecode for the corresponding bytecode
+  // offset, we have to remove that entry.
+  if (entries_.size() > 0 && entries_.back().bytecode_offset == offset) {
+    entries_.pop_back();
+  }
 }
 
 Handle<FixedArray> SourcePositionTableBuilder::ToFixedArray() {

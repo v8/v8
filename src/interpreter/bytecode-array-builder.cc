@@ -138,7 +138,10 @@ Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray() {
 template <size_t N>
 void BytecodeArrayBuilder::Output(Bytecode bytecode, uint32_t(&operands)[N]) {
   // Don't output dead code.
-  if (exit_seen_in_block_) return;
+  if (exit_seen_in_block_) {
+    source_position_table_builder_.RevertPosition(bytecodes()->size());
+    return;
+  }
 
   int operand_count = static_cast<int>(N);
   DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), operand_count);
@@ -206,7 +209,10 @@ void BytecodeArrayBuilder::Output(Bytecode bytecode, uint32_t operand0) {
 
 void BytecodeArrayBuilder::Output(Bytecode bytecode) {
   // Don't output dead code.
-  if (exit_seen_in_block_) return;
+  if (exit_seen_in_block_) {
+    source_position_table_builder_.RevertPosition(bytecodes()->size());
+    return;
+  }
 
   DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), 0);
   last_bytecode_start_ = bytecodes()->size();
@@ -886,7 +892,10 @@ void BytecodeArrayBuilder::PatchJump(
 BytecodeArrayBuilder& BytecodeArrayBuilder::OutputJump(Bytecode jump_bytecode,
                                                        BytecodeLabel* label) {
   // Don't emit dead code.
-  if (exit_seen_in_block_) return *this;
+  if (exit_seen_in_block_) {
+    source_position_table_builder_.RevertPosition(bytecodes()->size());
+    return *this;
+  }
 
   // Check if the value in accumulator is boolean, if not choose an
   // appropriate JumpIfToBoolean bytecode.
@@ -1210,14 +1219,14 @@ size_t BytecodeArrayBuilder::GetConstantPoolEntry(Handle<Object> object) {
 
 void BytecodeArrayBuilder::SetStatementPosition(Statement* stmt) {
   if (stmt->position() == RelocInfo::kNoPosition) return;
-  source_position_table_builder_.AddStatementPosition(
-      static_cast<int>(bytecodes_.size()), stmt->position());
+  source_position_table_builder_.AddStatementPosition(bytecodes_.size(),
+                                                      stmt->position());
 }
 
 void BytecodeArrayBuilder::SetExpressionPosition(Expression* expr) {
   if (expr->position() == RelocInfo::kNoPosition) return;
-  source_position_table_builder_.AddExpressionPosition(
-      static_cast<int>(bytecodes_.size()), expr->position());
+  source_position_table_builder_.AddExpressionPosition(bytecodes_.size(),
+                                                       expr->position());
 }
 
 bool BytecodeArrayBuilder::TemporaryRegisterIsLive(Register reg) const {
