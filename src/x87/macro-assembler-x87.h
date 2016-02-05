@@ -107,6 +107,16 @@ class MacroAssembler: public Assembler {
     j(not_equal, if_not_equal, if_not_equal_distance);
   }
 
+  // These functions do not arrange the registers in any particular order so
+  // they are not useful for calls that can cause a GC.  The caller can
+  // exclude up to 3 registers that do not need to be saved and restored.
+  void PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1 = no_reg,
+                       Register exclusion2 = no_reg,
+                       Register exclusion3 = no_reg);
+  void PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1 = no_reg,
+                      Register exclusion2 = no_reg,
+                      Register exclusion3 = no_reg);
+
   // ---------------------------------------------------------------------------
   // GC Support
   enum RememberedSetFinalAction { kReturnAtEnd, kFallThroughAtEnd };
@@ -206,6 +216,11 @@ class MacroAssembler: public Assembler {
       SmiCheck smi_check = INLINE_SMI_CHECK,
       PointersToHereCheck pointers_to_here_check_for_value =
           kPointersToHereMaybeInteresting);
+
+  // Notify the garbage collector that we wrote a code entry into a
+  // JSFunction. Only scratch is clobbered by the operation.
+  void RecordWriteCodeEntryField(Register js_function, Register code_entry,
+                                 Register scratch);
 
   // For page containing |object| mark the region covering the object's map
   // dirty. |object| is the object being stored into, |map| is the Map object
