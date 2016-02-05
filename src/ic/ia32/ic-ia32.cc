@@ -290,7 +290,7 @@ void KeyedLoadIC::GenerateMegamorphic(MacroAssembler* masm,
                         language_mode);
   Isolate* isolate = masm->isolate();
   Counters* counters = isolate->counters();
-  __ IncrementCounter(counters->keyed_load_generic_smi(), 1);
+  __ IncrementCounter(counters->ic_keyed_load_generic_smi(), 1);
   __ ret(0);
 
   __ bind(&check_number_dictionary);
@@ -318,7 +318,7 @@ void KeyedLoadIC::GenerateMegamorphic(MacroAssembler* masm,
 
   __ bind(&slow);
   // Slow case: jump to runtime.
-  __ IncrementCounter(counters->keyed_load_generic_slow(), 1);
+  __ IncrementCounter(counters->ic_keyed_load_generic_slow(), 1);
   GenerateRuntimeGetProperty(masm, language_mode);
 
   __ bind(&check_name);
@@ -363,7 +363,7 @@ void KeyedLoadIC::GenerateMegamorphic(MacroAssembler* masm,
   GenerateGlobalInstanceTypeCheck(masm, eax, &slow);
 
   GenerateDictionaryLoad(masm, &slow, ebx, key, eax, edi, eax);
-  __ IncrementCounter(counters->keyed_load_generic_symbol(), 1);
+  __ IncrementCounter(counters->ic_keyed_load_generic_symbol(), 1);
   __ ret(0);
 
   __ bind(&index_name);
@@ -668,7 +668,7 @@ static void LoadIC_PushArgs(MacroAssembler* masm) {
 
 void LoadIC::GenerateMiss(MacroAssembler* masm) {
   // Return address is on the stack.
-  __ IncrementCounter(masm->isolate()->counters()->load_miss(), 1);
+  __ IncrementCounter(masm->isolate()->counters()->ic_load_miss(), 1);
   LoadIC_PushArgs(masm);
 
   // Perform tail call to the entry.
@@ -696,7 +696,7 @@ void LoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm,
 
 void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
   // Return address is on the stack.
-  __ IncrementCounter(masm->isolate()->counters()->keyed_load_miss(), 1);
+  __ IncrementCounter(masm->isolate()->counters()->ic_keyed_load_miss(), 1);
 
   LoadIC_PushArgs(masm);
 
@@ -777,14 +777,14 @@ void StoreIC::GenerateNormal(MacroAssembler* masm) {
                           receiver, edi);
   __ Drop(3);
   Counters* counters = masm->isolate()->counters();
-  __ IncrementCounter(counters->store_normal_hit(), 1);
+  __ IncrementCounter(counters->ic_store_normal_hit(), 1);
   __ ret(0);
 
   __ bind(&restore_miss);
   __ pop(slot);
   __ pop(vector);
   __ pop(receiver);
-  __ IncrementCounter(counters->store_normal_miss(), 1);
+  __ IncrementCounter(counters->ic_store_normal_miss(), 1);
   GenerateMiss(masm);
 }
 

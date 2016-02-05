@@ -327,7 +327,6 @@ void FloatingPointHelper::CheckFloatOperands(MacroAssembler* masm,
 void MathPowStub::Generate(MacroAssembler* masm) {
   const Register base = edx;
   const Register scratch = ecx;
-  Counters* counters = isolate()->counters();
   Label call_runtime;
 
   // We will call runtime helper function directly.
@@ -340,7 +339,6 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     // as heap number in exponent.
     __ AllocateHeapNumber(eax, scratch, base, &call_runtime);
     __ fstp_d(FieldOperand(eax, HeapNumber::kValueOffset));
-    __ IncrementCounter(counters->math_pow(), 1);
     __ ret(2 * kPointerSize);
   } else {
     // Currently it's only called from full-compiler and exponent type is

@@ -487,7 +487,6 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ Cvtlsi2sd(double_exponent, exponent);
 
   // Returning or bailing out.
-  Counters* counters = isolate()->counters();
   if (exponent_type() == ON_STACK) {
     // The arguments are still on the stack.
     __ bind(&call_runtime);
@@ -498,7 +497,6 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     __ bind(&done);
     __ AllocateHeapNumber(rax, rcx, &call_runtime);
     __ Movsd(FieldOperand(rax, HeapNumber::kValueOffset), double_result);
-    __ IncrementCounter(counters->math_pow(), 1);
     __ ret(2 * kPointerSize);
   } else {
     __ bind(&call_runtime);
@@ -515,7 +513,6 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     __ Movsd(double_result, xmm0);
 
     __ bind(&done);
-    __ IncrementCounter(counters->math_pow(), 1);
     __ ret(0);
   }
 }

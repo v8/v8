@@ -971,8 +971,6 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     __ AllocateHeapNumber(result_tagged, &call_runtime, scratch0, scratch1,
                           result_double);
     DCHECK(result_tagged.is(x0));
-    __ IncrementCounter(
-        isolate()->counters()->math_pow(), 1, scratch0, scratch1);
     __ Ret();
   } else {
     AllowExternalCallThatCantCauseGC scope(masm);
@@ -984,8 +982,6 @@ void MathPowStub::Generate(MacroAssembler* masm) {
         0, 2);
     __ Mov(lr, saved_lr);
     __ Bind(&done);
-    __ IncrementCounter(
-        isolate()->counters()->math_pow(), 1, scratch0, scratch1);
     __ Ret();
   }
 }

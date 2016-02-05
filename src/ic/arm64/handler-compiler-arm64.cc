@@ -358,7 +358,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadGlobal(
   }
 
   Counters* counters = isolate()->counters();
-  __ IncrementCounter(counters->named_load_global_stub(), 1, x1, x3);
+  __ IncrementCounter(counters->ic_named_load_global_stub(), 1, x1, x3);
   if (IC::ICUseVector(kind())) {
     DiscardVectorAndSlot();
   }

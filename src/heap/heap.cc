@@ -2101,6 +2101,7 @@ AllocationResult Heap::AllocateMap(InstanceType instance_type,
   AllocationResult allocation = AllocateRaw(Map::kSize, MAP_SPACE);
   if (!allocation.To(&result)) return allocation;
 
+  isolate()->counters()->maps_created()->Increment();
   result->set_map_no_write_barrier(meta_map());
   Map* map = Map::cast(result);
   map->set_instance_type(instance_type);
