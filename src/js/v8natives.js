@@ -772,12 +772,6 @@ function ObjectSetPrototypeOf(obj, proto) {
 }
 
 
-// ES6 section 19.1.2.6
-function ObjectGetOwnPropertyDescriptor(obj, p) {
-  return %GetOwnProperty(obj, p);
-}
-
-
 // ES5 section 15.2.3.6.
 function ObjectDefineProperty(obj, p, attributes) {
   // The new pure-C++ implementation doesn't support O.o.
@@ -877,7 +871,6 @@ utils.InstallFunctions(GlobalObject, DONT_ENUM, [
   "defineProperties", ObjectDefineProperties,
   "getPrototypeOf", ObjectGetPrototypeOf,
   "setPrototypeOf", ObjectSetPrototypeOf,
-  "getOwnPropertyDescriptor", ObjectGetOwnPropertyDescriptor,
   // getOwnPropertySymbols is added in symbol.js.
   "is", SameValue,  // ECMA-262, Edition 6, section 19.1.2.10
   // deliverChangeRecords, getNotifier, observe and unobserve are added

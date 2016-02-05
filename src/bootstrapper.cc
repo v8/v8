@@ -1098,6 +1098,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<JSFunction> object_freeze = SimpleInstallFunction(
         object_function, "freeze", Builtins::kObjectFreeze, 1, false);
     native_context()->set_object_freeze(*object_freeze);
+    SimpleInstallFunction(object_function, "getOwnPropertyDescriptor",
+                          Builtins::kObjectGetOwnPropertyDescriptor, 2, false);
     SimpleInstallFunction(object_function, "getOwnPropertyNames",
                           Builtins::kObjectGetOwnPropertyNames, 1, false);
     SimpleInstallFunction(object_function, "getOwnPropertySymbols",
