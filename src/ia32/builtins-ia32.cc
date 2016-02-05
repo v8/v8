@@ -608,10 +608,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
          Immediate(InterpreterFrameConstants::kRegisterFilePointerFromFp));
   __ mov(kInterpreterBytecodeOffsetRegister,
          Immediate(BytecodeArray::kHeaderSize - kHeapObjectTag));
-  // Since the dispatch table root might be set after builtins are generated,
-  // load directly from the roots table.
-  __ LoadRoot(ebx, Heap::kInterpreterTableRootIndex);
-  __ add(ebx, Immediate(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ mov(ebx, Immediate(ExternalReference::interpreter_dispatch_table_address(
+                  masm->isolate())));
 
   // Push dispatch table as a stack located parameter to the bytecode handler.
   DCHECK_EQ(-1, kInterpreterDispatchTableSpillSlot);
@@ -773,8 +771,8 @@ static void Generate_EnterBytecodeDispatch(MacroAssembler* masm) {
   __ SmiUntag(kInterpreterBytecodeOffsetRegister);
 
   // Push dispatch table as a stack located parameter to the bytecode handler.
-  __ LoadRoot(ebx, Heap::kInterpreterTableRootIndex);
-  __ add(ebx, Immediate(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ mov(ebx, Immediate(ExternalReference::interpreter_dispatch_table_address(
+                  masm->isolate())));
   DCHECK_EQ(-1, kInterpreterDispatchTableSpillSlot);
   __ Pop(esi);
   __ Push(ebx);

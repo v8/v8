@@ -2871,11 +2871,6 @@ void Heap::CreateInitialObjects() {
 
   set_noscript_shared_function_infos(Smi::FromInt(0));
 
-  // Will be filled in by Interpreter::Initialize().
-  set_interpreter_table(
-      *interpreter::Interpreter::CreateUninitializedInterpreterTable(
-          isolate()));
-
   // Initialize keyed lookup cache.
   isolate_->keyed_lookup_cache()->Clear();
 
@@ -4605,8 +4600,10 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
   // on scavenge collections.
   if (mode != VISIT_ALL_IN_SCAVENGE) {
     isolate_->builtins()->IterateBuiltins(v);
+    v->Synchronize(VisitorSynchronization::kBuiltins);
+    isolate_->interpreter()->IterateDispatchTable(v);
+    v->Synchronize(VisitorSynchronization::kDispatchTable);
   }
-  v->Synchronize(VisitorSynchronization::kBuiltins);
 
   // Iterate over global handles.
   switch (mode) {

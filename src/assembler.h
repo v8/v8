@@ -897,6 +897,8 @@ class ExternalReference BASE_EMBEDDED {
   // pattern. This means that they have to be added to the
   // ExternalReferenceTable in serialize.cc manually.
 
+  static ExternalReference interpreter_dispatch_table_address(Isolate* isolate);
+
   static ExternalReference incremental_marking_record_write_function(
       Isolate* isolate);
   static ExternalReference incremental_marking_record_write_code_entry_function(

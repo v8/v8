@@ -10708,6 +10708,7 @@ class BreakPointInfo: public Struct {
   V(kDebug, "debug", "(Debugger)")                                         \
   V(kCompilationCache, "compilationcache", "(Compilation cache)")          \
   V(kHandleScope, "handlescope", "(Handle scope)")                         \
+  V(kDispatchTable, "dispatchtable", "(Dispatch table)")                   \
   V(kBuiltins, "builtins", "(Builtins)")                                   \
   V(kGlobalHandles, "globalhandles", "(Global handles)")                   \
   V(kEternalHandles, "eternalhandles", "(Eternal handles)")                \

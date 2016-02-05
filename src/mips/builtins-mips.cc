@@ -1037,10 +1037,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
           Operand(InterpreterFrameConstants::kRegisterFilePointerFromFp));
   __ li(kInterpreterBytecodeOffsetRegister,
         Operand(BytecodeArray::kHeaderSize - kHeapObjectTag));
-  __ LoadRoot(kInterpreterDispatchTableRegister,
-              Heap::kInterpreterTableRootIndex);
-  __ Addu(kInterpreterDispatchTableRegister, kInterpreterDispatchTableRegister,
-          Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ li(kInterpreterDispatchTableRegister,
+        Operand(ExternalReference::interpreter_dispatch_table_address(
+            masm->isolate())));
 
   // Dispatch to the first bytecode handler for the function.
   __ Addu(a0, kInterpreterBytecodeArrayRegister,
@@ -1141,10 +1140,9 @@ void Builtins::Generate_InterpreterPushArgsAndConstruct(MacroAssembler* masm) {
 
 static void Generate_EnterBytecodeDispatch(MacroAssembler* masm) {
   // Initialize register file register and dispatch table register.
-  __ Addu(kInterpreterRegisterFileRegister, fp,
-          Operand(InterpreterFrameConstants::kRegisterFilePointerFromFp));
-  __ LoadRoot(kInterpreterDispatchTableRegister,
-              Heap::kInterpreterTableRootIndex);
+  __ li(kInterpreterDispatchTableRegister,
+        Operand(ExternalReference::interpreter_dispatch_table_address(
+            masm->isolate())));
   __ Addu(kInterpreterDispatchTableRegister, kInterpreterDispatchTableRegister,
           Operand(FixedArray::kHeaderSize - kHeapObjectTag));
 

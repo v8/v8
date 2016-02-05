@@ -32,16 +32,18 @@ class Interpreter {
   explicit Interpreter(Isolate* isolate);
   virtual ~Interpreter() {}
 
-  // Creates an uninitialized interpreter handler table, where each handler
-  // points to the Illegal builtin.
-  static Handle<FixedArray> CreateUninitializedInterpreterTable(
-      Isolate* isolate);
-
-  // Initializes the interpreter.
+  // Initializes the interpreter dispatch table.
   void Initialize();
 
   // Generate bytecode for |info|.
   static bool MakeBytecode(CompilationInfo* info);
+
+  // GC support.
+  void IterateDispatchTable(ObjectVisitor* v);
+
+  Address dispatch_table_address() {
+    return reinterpret_cast<Address>(&dispatch_table_[0]);
+  }
 
  private:
 // Bytecode handler generator functions.
@@ -115,9 +117,12 @@ class Interpreter {
   void DoStoreLookupSlot(LanguageMode language_mode,
                          compiler::InterpreterAssembler* assembler);
 
-  bool IsInterpreterTableInitialized(Handle<FixedArray> handler_table);
+  bool IsDispatchTableInitialized();
+
+  static const int kDispatchTableSize = static_cast<int>(Bytecode::kLast) + 1;
 
   Isolate* isolate_;
+  Object* dispatch_table_[kDispatchTableSize];
 
   DISALLOW_COPY_AND_ASSIGN(Interpreter);
 };

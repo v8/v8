@@ -1926,9 +1926,6 @@ void Isolate::Deinit() {
   Sampler* sampler = logger_->sampler();
   if (sampler && sampler->IsActive()) sampler->Stop();
 
-  delete interpreter_;
-  interpreter_ = NULL;
-
   delete deoptimizer_data_;
   deoptimizer_data_ = NULL;
   builtins_.TearDown();
@@ -1947,6 +1944,9 @@ void Isolate::Deinit() {
 
   heap_.TearDown();
   logger_->TearDown();
+
+  delete interpreter_;
+  interpreter_ = NULL;
 
   cancelable_task_manager()->CancelAndWait();
 

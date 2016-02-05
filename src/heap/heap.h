@@ -188,7 +188,6 @@ namespace internal {
   V(PropertyCell, empty_property_cell, EmptyPropertyCell)                      \
   V(Object, weak_stack_trace_list, WeakStackTraceList)                         \
   V(Object, noscript_shared_function_infos, NoScriptSharedFunctionInfos)       \
-  V(FixedArray, interpreter_table, InterpreterTable)                           \
   V(Map, bytecode_array_map, BytecodeArrayMap)                                 \
   V(WeakCell, empty_weak_cell, EmptyWeakCell)
 

@@ -1030,10 +1030,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
            Operand(InterpreterFrameConstants::kRegisterFilePointerFromFp));
   __ li(kInterpreterBytecodeOffsetRegister,
         Operand(BytecodeArray::kHeaderSize - kHeapObjectTag));
-  __ LoadRoot(kInterpreterDispatchTableRegister,
-              Heap::kInterpreterTableRootIndex);
-  __ Daddu(kInterpreterDispatchTableRegister, kInterpreterDispatchTableRegister,
-           Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ li(kInterpreterDispatchTableRegister,
+        Operand(ExternalReference::interpreter_dispatch_table_address(
+            masm->isolate())));
 
   // Dispatch to the first bytecode handler for the function.
   __ Daddu(a0, kInterpreterBytecodeArrayRegister,
@@ -1136,10 +1135,9 @@ static void Generate_EnterBytecodeDispatch(MacroAssembler* masm) {
   // Initialize register file register and dispatch table register.
   __ Daddu(kInterpreterRegisterFileRegister, fp,
            Operand(InterpreterFrameConstants::kRegisterFilePointerFromFp));
-  __ LoadRoot(kInterpreterDispatchTableRegister,
-              Heap::kInterpreterTableRootIndex);
-  __ Daddu(kInterpreterDispatchTableRegister, kInterpreterDispatchTableRegister,
-           Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ li(kInterpreterDispatchTableRegister,
+        Operand(ExternalReference::interpreter_dispatch_table_address(
+            masm->isolate())));
 
   // Get the context from the frame.
   __ ld(kContextRegister,

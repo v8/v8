@@ -21,42 +21,33 @@ using compiler::Node;
 
 #define __ assembler->
 
-
-Interpreter::Interpreter(Isolate* isolate)
-    : isolate_(isolate) {}
-
-
-// static
-Handle<FixedArray> Interpreter::CreateUninitializedInterpreterTable(
-    Isolate* isolate) {
-  Handle<FixedArray> handler_table = isolate->factory()->NewFixedArray(
-      static_cast<int>(Bytecode::kLast) + 1, TENURED);
-  // We rely on the interpreter handler table being immovable, so check that
-  // it was allocated on the first page (which is always immovable).
-  DCHECK(isolate->heap()->old_space()->FirstPage()->Contains(
-      handler_table->address()));
-  return handler_table;
+Interpreter::Interpreter(Isolate* isolate) : isolate_(isolate) {
+  memset(&dispatch_table_, 0, sizeof(dispatch_table_));
 }
 
 
 void Interpreter::Initialize() {
   DCHECK(FLAG_ignition);
-  Handle<FixedArray> handler_table = isolate_->factory()->interpreter_table();
-  if (!IsInterpreterTableInitialized(handler_table)) {
-    Zone zone;
-    HandleScope scope(isolate_);
+  if (IsDispatchTableInitialized()) return;
+  Zone zone;
+  HandleScope scope(isolate_);
 
-#define GENERATE_CODE(Name, ...)                                      \
-    {                                                                 \
-      compiler::InterpreterAssembler assembler(isolate_, &zone,       \
-                                               Bytecode::k##Name);    \
-      Do##Name(&assembler);                                           \
-      Handle<Code> code = assembler.GenerateCode();                   \
-      handler_table->set(static_cast<int>(Bytecode::k##Name), *code); \
-    }
-    BYTECODE_LIST(GENERATE_CODE)
-#undef GENERATE_CODE
+#define GENERATE_CODE(Name, ...)                                 \
+  {                                                              \
+    compiler::InterpreterAssembler assembler(isolate_, &zone,    \
+                                             Bytecode::k##Name); \
+    Do##Name(&assembler);                                        \
+    Handle<Code> code = assembler.GenerateCode();                \
+    int index = static_cast<int>(Bytecode::k##Name);             \
+    dispatch_table_[index] = *code;                              \
   }
+  BYTECODE_LIST(GENERATE_CODE)
+#undef GENERATE_CODE
+}
+
+void Interpreter::IterateDispatchTable(ObjectVisitor* v) {
+  v->VisitPointers(&dispatch_table_[0],
+                   &dispatch_table_[0] + kDispatchTableSize);
 }
 
 
@@ -100,15 +91,12 @@ bool Interpreter::MakeBytecode(CompilationInfo* info) {
   return true;
 }
 
-
-bool Interpreter::IsInterpreterTableInitialized(
-    Handle<FixedArray> handler_table) {
+bool Interpreter::IsDispatchTableInitialized() {
   if (FLAG_trace_ignition) {
     // Regenerate table to add bytecode tracing operations.
     return false;
   }
-  DCHECK(handler_table->length() == static_cast<int>(Bytecode::kLast) + 1);
-  return handler_table->get(0) != isolate_->heap()->undefined_value();
+  return dispatch_table_[0] != nullptr;
 }
 
 // LdaZero

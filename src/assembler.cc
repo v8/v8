@@ -51,6 +51,7 @@
 #include "src/execution.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
+#include "src/interpreter/interpreter.h"
 #include "src/ostreams.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/regexp/jsregexp.h"
@@ -1052,6 +1053,10 @@ ExternalReference ExternalReference::isolate_address(Isolate* isolate) {
   return ExternalReference(isolate);
 }
 
+ExternalReference ExternalReference::interpreter_dispatch_table_address(
+    Isolate* isolate) {
+  return ExternalReference(isolate->interpreter()->dispatch_table_address());
+}
 
 ExternalReference::ExternalReference(StatsCounter* counter)
   : address_(reinterpret_cast<Address>(counter->GetInternalPointer())) {}

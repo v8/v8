@@ -678,10 +678,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
           Immediate(InterpreterFrameConstants::kRegisterFilePointerFromFp));
   __ movp(kInterpreterBytecodeOffsetRegister,
           Immediate(BytecodeArray::kHeaderSize - kHeapObjectTag));
-  __ LoadRoot(kInterpreterDispatchTableRegister,
-              Heap::kInterpreterTableRootIndex);
-  __ addp(kInterpreterDispatchTableRegister,
-          Immediate(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ Move(
+      kInterpreterDispatchTableRegister,
+      ExternalReference::interpreter_dispatch_table_address(masm->isolate()));
 
   // Dispatch to the first bytecode handler for the function.
   __ movzxbp(rbx, Operand(kInterpreterBytecodeArrayRegister,
@@ -805,10 +804,9 @@ static void Generate_EnterBytecodeDispatch(MacroAssembler* masm) {
   __ movp(kInterpreterRegisterFileRegister, rbp);
   __ addp(kInterpreterRegisterFileRegister,
           Immediate(InterpreterFrameConstants::kRegisterFilePointerFromFp));
-  __ LoadRoot(kInterpreterDispatchTableRegister,
-              Heap::kInterpreterTableRootIndex);
-  __ addp(kInterpreterDispatchTableRegister,
-          Immediate(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ Move(
+      kInterpreterDispatchTableRegister,
+      ExternalReference::interpreter_dispatch_table_address(masm->isolate()));
 
   // Get the context from the frame.
   __ movp(kContextRegister,
