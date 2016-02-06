@@ -505,6 +505,9 @@ class RawMachineAssembler {
   Node* RoundInt64ToFloat64(Node* a) {
     return AddNode(machine()->RoundInt64ToFloat64(), a);
   }
+  Node* RoundUint32ToFloat32(Node* a) {
+    return AddNode(machine()->RoundUint32ToFloat32(), a);
+  }
   Node* RoundUint64ToFloat32(Node* a) {
     return AddNode(machine()->RoundUint64ToFloat32(), a);
   }

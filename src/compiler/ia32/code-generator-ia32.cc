@@ -767,6 +767,13 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kSSEInt32ToFloat32:
       __ cvtsi2ss(i.OutputDoubleRegister(), i.InputOperand(0));
       break;
+    case kSSEUint32ToFloat32: {
+      Register scratch0 = i.TempRegister(0);
+      Register scratch1 = i.TempRegister(1);
+      __ mov(scratch0, i.InputOperand(0));
+      __ Cvtui2ss(i.OutputDoubleRegister(), scratch0, scratch1);
+      break;
+    }
     case kSSEInt32ToFloat64:
       __ cvtsi2sd(i.OutputDoubleRegister(), i.InputOperand(0));
       break;

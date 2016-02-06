@@ -926,6 +926,11 @@ void InstructionSelector::VisitRoundInt32ToFloat32(Node* node) {
 }
 
 
+void InstructionSelector::VisitRoundUint32ToFloat32(Node* node) {
+  VisitRR(this, kArmVcvtF32U32, node);
+}
+
+
 void InstructionSelector::VisitChangeInt32ToFloat64(Node* node) {
   VisitRR(this, kArmVcvtF64S32, node);
 }

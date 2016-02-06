@@ -123,6 +123,7 @@ namespace compiler {
   V(Arm64Int32ToFloat64)           \
   V(Arm64Int64ToFloat32)           \
   V(Arm64Int64ToFloat64)           \
+  V(Arm64Uint32ToFloat32)          \
   V(Arm64Uint32ToFloat64)          \
   V(Arm64Uint64ToFloat32)          \
   V(Arm64Uint64ToFloat64)          \

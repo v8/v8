@@ -65,6 +65,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kSSEFloat64ToInt32:
     case kSSEFloat64ToUint32:
     case kSSEInt32ToFloat32:
+    case kSSEUint32ToFloat32:
     case kSSEInt32ToFloat64:
     case kSSEUint32ToFloat64:
     case kSSEFloat64ExtractLowWord32:

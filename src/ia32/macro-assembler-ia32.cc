@@ -705,6 +705,25 @@ void MacroAssembler::Cvtsi2sd(XMMRegister dst, const Operand& src) {
 }
 
 
+void MacroAssembler::Cvtui2ss(XMMRegister dst, Register src, Register tmp) {
+  Label msb_set_src;
+  Label jmp_return;
+  test(src, src);
+  j(sign, &msb_set_src, Label::kNear);
+  cvtsi2ss(dst, src);
+  jmp(&jmp_return, Label::kNear);
+  bind(&msb_set_src);
+  mov(tmp, src);
+  shr(src, 1);
+  // Recover the least significant bit to avoid rounding errors.
+  and_(tmp, Immediate(1));
+  or_(src, tmp);
+  cvtsi2ss(dst, src);
+  addss(dst, dst);
+  bind(&jmp_return);
+}
+
+
 bool MacroAssembler::IsUnsafeImmediate(const Immediate& x) {
   static const int kMaxImmediateBits = 17;
   if (!RelocInfo::IsNone(x.rmode_)) return false;

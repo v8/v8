@@ -6095,6 +6095,13 @@ TEST(RunRoundInt32ToFloat32) {
 }
 
 
+TEST(RunRoundUint32ToFloat32) {
+  BufferedRawMachineAssemblerTester<float> m(MachineType::Uint32());
+  m.Return(m.RoundUint32ToFloat32(m.Parameter(0)));
+  FOR_UINT32_INPUTS(i) { CHECK_EQ(static_cast<float>(*i), m.Call(*i)); }
+}
+
+
 TEST(RunBitcastInt32ToFloat32) {
   int32_t input = 1;
   float output = 0.0;

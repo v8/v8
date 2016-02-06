@@ -2195,6 +2195,11 @@ Type* Typer::Visitor::TypeRoundInt64ToFloat64(Node* node) {
 }
 
 
+Type* Typer::Visitor::TypeRoundUint32ToFloat32(Node* node) {
+  return Type::Intersect(Type::PlainNumber(), Type::UntaggedFloat32(), zone());
+}
+
+
 Type* Typer::Visitor::TypeRoundUint64ToFloat32(Node* node) {
   return Type::Intersect(Type::PlainNumber(), Type::UntaggedFloat32(), zone());
 }
