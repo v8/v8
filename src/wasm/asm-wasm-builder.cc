@@ -782,9 +782,11 @@ class AsmWasmBuilderImpl : public AstVisitor {
   enum ConvertOperation { kNone, kAsIs, kToInt, kToDouble };
 
   ConvertOperation MatchOr(BinaryOperation* expr) {
-    if (MatchIntBinaryOperation(expr, Token::BIT_OR, 0)) {
-      return (TypeOf(expr->left()) == kAstI32) ? kAsIs : kToInt;
+    if (MatchIntBinaryOperation(expr, Token::BIT_OR, 0) &&
+        (TypeOf(expr->left()) == kAstI32)) {
+      return kAsIs;
     } else {
+      UNREACHABLE();
       return kNone;
     }
   }

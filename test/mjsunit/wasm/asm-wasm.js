@@ -26,7 +26,7 @@ function IntTest() {
     b = b|0;
     var c = (b + 1)|0
     var d = 3.0;
-    var e = d | 0;  // double conversion
+    var e = ~~d;  // double conversion
     return (a + c + 1)|0;
   }
 
