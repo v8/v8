@@ -724,6 +724,11 @@ void InstructionSelector::VisitTruncateFloat32ToInt32(Node* node) {
 }
 
 
+void InstructionSelector::VisitTruncateFloat32ToUint32(Node* node) {
+  VisitRO(this, node, kSSEFloat32ToUint32);
+}
+
+
 void InstructionSelector::VisitChangeFloat64ToInt32(Node* node) {
   VisitRO(this, node, kSSEFloat64ToInt32);
 }

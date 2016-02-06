@@ -534,6 +534,11 @@ void InstructionSelector::VisitTruncateFloat32ToInt32(Node* node) {
 }
 
 
+void InstructionSelector::VisitTruncateFloat32ToUint32(Node* node) {
+  UNIMPLEMENTED();
+}
+
+
 void InstructionSelector::VisitChangeFloat64ToInt32(Node* node) {
   MipsOperandGenerator g(this);
   Node* value = node->InputAt(0);

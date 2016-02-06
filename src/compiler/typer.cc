@@ -2125,6 +2125,12 @@ Type* Typer::Visitor::TypeTruncateFloat32ToInt32(Node* node) {
 }
 
 
+Type* Typer::Visitor::TypeTruncateFloat32ToUint32(Node* node) {
+  return Type::Intersect(Type::Unsigned32(), Type::UntaggedIntegral32(),
+                         zone());
+}
+
+
 Type* Typer::Visitor::TypeTryTruncateFloat32ToInt64(Node* node) {
   return Type::Internal();
 }

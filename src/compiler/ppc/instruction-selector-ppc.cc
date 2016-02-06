@@ -1025,6 +1025,11 @@ void InstructionSelector::VisitTruncateFloat32ToInt32(Node* node) {
 }
 
 
+void InstructionSelector::VisitTruncateFloat32ToUint32(Node* node) {
+  UNIMPLEMENTED();
+}
+
+
 #if V8_TARGET_ARCH_PPC64
 void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
   // TODO(mbrandy): inspect input to see if nop is appropriate.

@@ -1145,14 +1145,12 @@ Node* WasmGraphBuilder::BuildI32UConvertF32(Node* input) {
   MachineOperatorBuilder* m = jsgraph()->machine();
   // Truncation of the input value is needed for the overflow check later.
   Node* trunc = Unop(wasm::kExprF32Trunc, input);
-  // TODO(titzer): two conversions
-  Node* f64_trunc = graph()->NewNode(m->ChangeFloat32ToFloat64(), trunc);
-  Node* result = graph()->NewNode(m->ChangeFloat64ToUint32(), f64_trunc);
+  Node* result = graph()->NewNode(m->TruncateFloat32ToUint32(), trunc);
 
-  // Convert the result back to f64. If we end up at a different value than the
+  // Convert the result back to f32. If we end up at a different value than the
   // truncated input value, then there has been an overflow and we trap.
-  Node* check = Unop(wasm::kExprF64UConvertI32, result);
-  Node* overflow = Binop(wasm::kExprF64Ne, f64_trunc, check);
+  Node* check = Unop(wasm::kExprF32UConvertI32, result);
+  Node* overflow = Binop(wasm::kExprF32Ne, trunc, check);
   trap_->AddTrapIfTrue(kTrapFloatUnrepresentable, overflow);
 
   return result;

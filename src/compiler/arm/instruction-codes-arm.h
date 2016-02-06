@@ -81,6 +81,7 @@ namespace compiler {
   V(ArmVcvtF64S32)                 \
   V(ArmVcvtF64U32)                 \
   V(ArmVcvtS32F32)                 \
+  V(ArmVcvtU32F32)                 \
   V(ArmVcvtS32F64)                 \
   V(ArmVcvtU32F64)                 \
   V(ArmVmovLowU32F64)              \

@@ -4135,6 +4135,31 @@ TEST(RunTruncateFloat32ToInt32) {
 }
 
 
+TEST(RunTruncateFloat32ToUint32) {
+  BufferedRawMachineAssemblerTester<uint32_t> m(MachineType::Float32());
+  m.Return(m.TruncateFloat32ToUint32(m.Parameter(0)));
+  {
+    FOR_UINT32_INPUTS(i) {
+      float input = static_cast<float>(*i);
+      // This condition on 'input' is required because
+      // static_cast<float>(std::numeric_limits<uint32_t>::max()) results in a
+      // value outside uint32 range.
+      if (input < static_cast<float>(std::numeric_limits<uint32_t>::max())) {
+        CHECK_EQ(static_cast<uint32_t>(input), m.Call(input));
+      }
+    }
+  }
+  {
+    FOR_FLOAT32_INPUTS(i) {
+      if (*i <= static_cast<float>(std::numeric_limits<uint32_t>::max()) &&
+          *i >= static_cast<float>(std::numeric_limits<uint32_t>::min())) {
+        CheckFloatEq(static_cast<uint32_t>(*i), m.Call(*i));
+      }
+    }
+  }
+}
+
+
 TEST(RunChangeFloat64ToInt32_A) {
   BufferedRawMachineAssemblerTester<int32_t> m;
   double magic = 11.1;

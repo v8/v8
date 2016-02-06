@@ -149,6 +149,7 @@ MachineRepresentation StackSlotRepresentationOf(Operator const* op) {
   V(ChangeFloat64ToInt32, Operator::kNoProperties, 1, 0, 1)                   \
   V(ChangeFloat64ToUint32, Operator::kNoProperties, 1, 0, 1)                  \
   V(TruncateFloat32ToInt32, Operator::kNoProperties, 1, 0, 1)                 \
+  V(TruncateFloat32ToUint32, Operator::kNoProperties, 1, 0, 1)                \
   V(TryTruncateFloat32ToInt64, Operator::kNoProperties, 1, 0, 2)              \
   V(TryTruncateFloat64ToInt64, Operator::kNoProperties, 1, 0, 2)              \
   V(TryTruncateFloat32ToUint64, Operator::kNoProperties, 1, 0, 2)             \
