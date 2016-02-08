@@ -16,8 +16,8 @@ namespace internal {
 namespace {
 
 MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
-                                        Handle<ObjectTemplateInfo> data,
-                                        bool is_hidden_prototype);
+                                        Handle<ObjectTemplateInfo> data);
+
 
 MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
                                             Handle<FunctionTemplateInfo> data,
@@ -30,36 +30,32 @@ MaybeHandle<Object> Instantiate(Isolate* isolate, Handle<Object> data,
     return InstantiateFunction(isolate,
                                Handle<FunctionTemplateInfo>::cast(data), name);
   } else if (data->IsObjectTemplateInfo()) {
-    return InstantiateObject(isolate, Handle<ObjectTemplateInfo>::cast(data),
-                             false);
+    return InstantiateObject(isolate, Handle<ObjectTemplateInfo>::cast(data));
   } else {
     return data;
   }
 }
 
-MaybeHandle<Object> DefineAccessorProperty(
-    Isolate* isolate, Handle<JSObject> object, Handle<Name> name,
-    Handle<Object> getter, Handle<Object> setter, PropertyAttributes attributes,
-    bool force_instantiate) {
-  DCHECK(!getter->IsFunctionTemplateInfo() ||
-         !FunctionTemplateInfo::cast(*getter)->do_not_cache());
-  DCHECK(!setter->IsFunctionTemplateInfo() ||
-         !FunctionTemplateInfo::cast(*setter)->do_not_cache());
-  if (force_instantiate) {
-    if (getter->IsFunctionTemplateInfo()) {
-      ASSIGN_RETURN_ON_EXCEPTION(
-          isolate, getter,
-          InstantiateFunction(isolate,
-                              Handle<FunctionTemplateInfo>::cast(getter)),
-          Object);
-    }
-    if (setter->IsFunctionTemplateInfo()) {
-      ASSIGN_RETURN_ON_EXCEPTION(
-          isolate, setter,
-          InstantiateFunction(isolate,
-                              Handle<FunctionTemplateInfo>::cast(setter)),
-          Object);
-    }
+
+MaybeHandle<Object> DefineAccessorProperty(Isolate* isolate,
+                                           Handle<JSObject> object,
+                                           Handle<Name> name,
+                                           Handle<Object> getter,
+                                           Handle<Object> setter,
+                                           PropertyAttributes attributes) {
+  if (!getter->IsUndefined()) {
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, getter,
+        InstantiateFunction(isolate,
+                            Handle<FunctionTemplateInfo>::cast(getter)),
+        Object);
+  }
+  if (!setter->IsUndefined()) {
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, setter,
+        InstantiateFunction(isolate,
+                            Handle<FunctionTemplateInfo>::cast(setter)),
+        Object);
   }
   RETURN_ON_EXCEPTION(isolate, JSObject::DefineAccessor(object, name, getter,
                                                         setter, attributes),
@@ -174,8 +170,7 @@ ObjectTemplateInfo* GetParent(ObjectTemplateInfo* data) {
 
 template <typename TemplateInfoT>
 MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
-                                        Handle<TemplateInfoT> data,
-                                        bool is_hidden_prototype) {
+                                        Handle<TemplateInfoT> data) {
   HandleScope scope(isolate);
   // Disable access checks while instantiating the object.
   AccessCheckDisableScope access_check_scope(isolate, obj);
@@ -242,10 +237,10 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
       } else {
         auto getter = handle(properties.get(i++), isolate);
         auto setter = handle(properties.get(i++), isolate);
-        RETURN_ON_EXCEPTION(
-            isolate, DefineAccessorProperty(isolate, obj, name, getter, setter,
-                                            attributes, is_hidden_prototype),
-            JSObject);
+        RETURN_ON_EXCEPTION(isolate,
+                            DefineAccessorProperty(isolate, obj, name, getter,
+                                                   setter, attributes),
+                            JSObject);
       }
     } else {
       // Intrinsic data property --- Get appropriate value from the current
@@ -282,8 +277,7 @@ void UncacheTemplateInstantiation(Isolate* isolate, Handle<Smi> serial_number) {
 }
 
 MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
-                                        Handle<ObjectTemplateInfo> info,
-                                        bool is_hidden_prototype) {
+                                        Handle<ObjectTemplateInfo> info) {
   // Enter a new scope.  Recursion could otherwise create a lot of handles.
   HandleScope scope(isolate);
   // Fast path.
@@ -311,9 +305,7 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
   }
   auto object = isolate->factory()->NewJSObject(cons);
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, result,
-      ConfigureInstance(isolate, object, info, is_hidden_prototype),
-      JSFunction);
+      isolate, result, ConfigureInstance(isolate, object, info), JSFunction);
   // TODO(dcarney): is this necessary?
   JSObject::MigrateSlowToFast(result, 0, "ApiNatives::InstantiateObject");
 
@@ -349,8 +341,7 @@ MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, prototype,
           InstantiateObject(isolate,
-                            Handle<ObjectTemplateInfo>::cast(prototype_templ),
-                            data->hidden_prototype()),
+                            Handle<ObjectTemplateInfo>::cast(prototype_templ)),
           JSFunction);
     }
     auto parent = handle(data->parent_template(), isolate);
@@ -382,8 +373,7 @@ MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
     // Cache the function.
     CacheTemplateInstantiation(isolate, serial_number, function);
   }
-  auto result =
-      ConfigureInstance(isolate, function, data, data->hidden_prototype());
+  auto result = ConfigureInstance(isolate, function, data);
   if (result.is_null()) {
     // Uncache on error.
     if (serial_number->value()) {
@@ -447,7 +437,7 @@ MaybeHandle<JSObject> ApiNatives::InstantiateObject(
     Handle<ObjectTemplateInfo> data) {
   Isolate* isolate = data->GetIsolate();
   InvokeScope invoke_scope(isolate);
-  return ::v8::internal::InstantiateObject(isolate, data, false);
+  return ::v8::internal::InstantiateObject(isolate, data);
 }
 
 

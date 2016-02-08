@@ -5578,10 +5578,11 @@ static void CallApiFunctionAndReturn(
   __ jmp(&leave_exit_frame);
 }
 
+
 static void CallApiFunctionStubHelper(MacroAssembler* masm,
                                       const ParameterCount& argc,
                                       bool return_first_arg,
-                                      bool call_data_undefined, bool is_lazy) {
+                                      bool call_data_undefined) {
   // ----------- S t a t e -------------
   //  -- a0                  : callee
   //  -- a4                  : call_data
@@ -5617,10 +5618,8 @@ static void CallApiFunctionStubHelper(MacroAssembler* masm,
 
   // Save context, callee and call data.
   __ Push(context, callee, call_data);
-  if (!is_lazy) {
-    // Load context from callee.
-    __ ld(context, FieldMemOperand(callee, JSFunction::kContextOffset));
-  }
+  // Load context from callee.
+  __ ld(context, FieldMemOperand(callee, JSFunction::kContextOffset));
 
   Register scratch = call_data;
   if (!call_data_undefined) {
@@ -5705,7 +5704,7 @@ static void CallApiFunctionStubHelper(MacroAssembler* masm,
 void CallApiFunctionStub::Generate(MacroAssembler* masm) {
   bool call_data_undefined = this->call_data_undefined();
   CallApiFunctionStubHelper(masm, ParameterCount(a3), false,
-                            call_data_undefined, false);
+                            call_data_undefined);
 }
 
 
@@ -5713,9 +5712,8 @@ void CallApiAccessorStub::Generate(MacroAssembler* masm) {
   bool is_store = this->is_store();
   int argc = this->argc();
   bool call_data_undefined = this->call_data_undefined();
-  bool is_lazy = this->is_lazy();
   CallApiFunctionStubHelper(masm, ParameterCount(argc), is_store,
-                            call_data_undefined, is_lazy);
+                            call_data_undefined);
 }
 
 

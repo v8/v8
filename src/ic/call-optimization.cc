@@ -8,16 +8,8 @@
 namespace v8 {
 namespace internal {
 
-CallOptimization::CallOptimization(Handle<Object> function) {
-  constant_function_ = Handle<JSFunction>::null();
-  is_simple_api_call_ = false;
-  expected_receiver_type_ = Handle<FunctionTemplateInfo>::null();
-  api_call_info_ = Handle<CallHandlerInfo>::null();
-  if (function->IsJSFunction()) {
-    Initialize(Handle<JSFunction>::cast(function));
-  } else if (function->IsFunctionTemplateInfo()) {
-    Initialize(Handle<FunctionTemplateInfo>::cast(function));
-  }
+CallOptimization::CallOptimization(Handle<JSFunction> function) {
+  Initialize(function);
 }
 
 
@@ -88,20 +80,13 @@ bool CallOptimization::IsCompatibleReceiverMap(Handle<Map> map,
   return false;
 }
 
-void CallOptimization::Initialize(
-    Handle<FunctionTemplateInfo> function_template_info) {
-  if (function_template_info->call_code()->IsUndefined()) return;
-  api_call_info_ =
-      handle(CallHandlerInfo::cast(function_template_info->call_code()));
-
-  if (!function_template_info->signature()->IsUndefined()) {
-    expected_receiver_type_ =
-        handle(FunctionTemplateInfo::cast(function_template_info->signature()));
-  }
-  is_simple_api_call_ = true;
-}
 
 void CallOptimization::Initialize(Handle<JSFunction> function) {
+  constant_function_ = Handle<JSFunction>::null();
+  is_simple_api_call_ = false;
+  expected_receiver_type_ = Handle<FunctionTemplateInfo>::null();
+  api_call_info_ = Handle<CallHandlerInfo>::null();
+
   if (function.is_null() || !function->is_compiled()) return;
 
   constant_function_ = function;

@@ -6371,15 +6371,15 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::LoadResult(Handle<Map> map) {
     Object* raw_accessor =
         IsLoad() ? Handle<AccessorPair>::cast(accessors)->getter()
                  : Handle<AccessorPair>::cast(accessors)->setter();
-    if (!raw_accessor->IsJSFunction() &&
-        !raw_accessor->IsFunctionTemplateInfo())
-      return false;
-    Handle<Object> accessor = handle(HeapObject::cast(raw_accessor));
-    CallOptimization call_optimization(accessor);
-    if (call_optimization.is_simple_api_call()) {
-      CallOptimization::HolderLookup holder_lookup;
-      api_holder_ =
-          call_optimization.LookupHolderOfExpectedType(map_, &holder_lookup);
+    if (!raw_accessor->IsJSFunction()) return false;
+    Handle<JSFunction> accessor = handle(JSFunction::cast(raw_accessor));
+    if (accessor->shared()->IsApiFunction()) {
+      CallOptimization call_optimization(accessor);
+      if (call_optimization.is_simple_api_call()) {
+        CallOptimization::HolderLookup holder_lookup;
+        api_holder_ =
+            call_optimization.LookupHolderOfExpectedType(map_, &holder_lookup);
+      }
     }
     accessor_ = accessor;
   } else if (IsDataConstant()) {
@@ -6617,8 +6617,7 @@ HValue* HOptimizedGraphBuilder::BuildMonomorphicAccess(
       Push(value);
     }
 
-    if (info->accessor()->IsJSFunction() &&
-        info->NeedsWrappingFor(Handle<JSFunction>::cast(info->accessor()))) {
+    if (info->NeedsWrappingFor(info->accessor())) {
       HValue* function = Add<HConstant>(info->accessor());
       PushArgumentsFromEnvironment(argument_count);
       return New<HCallFunction>(function, argument_count,
@@ -6633,12 +6632,7 @@ HValue* HOptimizedGraphBuilder::BuildMonomorphicAccess(
     }
 
     PushArgumentsFromEnvironment(argument_count);
-    if (!info->accessor()->IsJSFunction()) {
-      Bailout(kInliningBailedOut);
-      return nullptr;
-    }
-    return BuildCallConstantFunction(Handle<JSFunction>::cast(info->accessor()),
-                                     argument_count);
+    return BuildCallConstantFunction(info->accessor(), argument_count);
   }
 
   DCHECK(info->IsDataConstant());
@@ -8672,25 +8666,24 @@ bool HOptimizedGraphBuilder::TryInlineConstruct(CallNew* expr,
                    CONSTRUCT_CALL_RETURN);
 }
 
-bool HOptimizedGraphBuilder::TryInlineGetter(Handle<Object> getter,
+
+bool HOptimizedGraphBuilder::TryInlineGetter(Handle<JSFunction> getter,
                                              Handle<Map> receiver_map,
                                              BailoutId ast_id,
                                              BailoutId return_id) {
   if (TryInlineApiGetter(getter, receiver_map, ast_id)) return true;
-  return getter->IsJSFunction() &&
-         TryInline(Handle<JSFunction>::cast(getter), 0, NULL, ast_id, return_id,
-                   GETTER_CALL_RETURN);
+  return TryInline(getter, 0, NULL, ast_id, return_id, GETTER_CALL_RETURN);
 }
 
-bool HOptimizedGraphBuilder::TryInlineSetter(Handle<Object> setter,
+
+bool HOptimizedGraphBuilder::TryInlineSetter(Handle<JSFunction> setter,
                                              Handle<Map> receiver_map,
                                              BailoutId id,
                                              BailoutId assignment_id,
                                              HValue* implicit_return_value) {
   if (TryInlineApiSetter(setter, receiver_map, id)) return true;
-  return setter->IsJSFunction() &&
-         TryInline(Handle<JSFunction>::cast(setter), 1, implicit_return_value,
-                   id, assignment_id, SETTER_CALL_RETURN);
+  return TryInline(setter, 1, implicit_return_value, id, assignment_id,
+                   SETTER_CALL_RETURN);
 }
 
 
@@ -9184,7 +9177,8 @@ bool HOptimizedGraphBuilder::TryInlineApiMethodCall(
                           kCallApiMethod);
 }
 
-bool HOptimizedGraphBuilder::TryInlineApiGetter(Handle<Object> function,
+
+bool HOptimizedGraphBuilder::TryInlineApiGetter(Handle<JSFunction> function,
                                                 Handle<Map> receiver_map,
                                                 BailoutId ast_id) {
   SmallMapList receiver_maps(1, zone());
@@ -9197,7 +9191,8 @@ bool HOptimizedGraphBuilder::TryInlineApiGetter(Handle<Object> function,
                           kCallApiGetter);
 }
 
-bool HOptimizedGraphBuilder::TryInlineApiSetter(Handle<Object> function,
+
+bool HOptimizedGraphBuilder::TryInlineApiSetter(Handle<JSFunction> function,
                                                 Handle<Map> receiver_map,
                                                 BailoutId ast_id) {
   SmallMapList receiver_maps(1, zone());
@@ -9210,14 +9205,15 @@ bool HOptimizedGraphBuilder::TryInlineApiSetter(Handle<Object> function,
                           kCallApiSetter);
 }
 
-bool HOptimizedGraphBuilder::TryInlineApiCall(Handle<Object> function,
-                                              HValue* receiver,
-                                              SmallMapList* receiver_maps,
-                                              int argc, BailoutId ast_id,
-                                              ApiCallType call_type) {
-  if (function->IsJSFunction() &&
-      Handle<JSFunction>::cast(function)->context()->native_context() !=
-          top_info()->closure()->context()->native_context()) {
+
+bool HOptimizedGraphBuilder::TryInlineApiCall(Handle<JSFunction> function,
+                                               HValue* receiver,
+                                               SmallMapList* receiver_maps,
+                                               int argc,
+                                               BailoutId ast_id,
+                                               ApiCallType call_type) {
+  if (function->context()->native_context() !=
+      top_info()->closure()->context()->native_context()) {
     return false;
   }
   CallOptimization optimization(function);
@@ -9232,11 +9228,8 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(Handle<Object> function,
     // Cannot embed a direct reference to the global proxy map
     // as it maybe dropped on deserialization.
     CHECK(!isolate()->serializer_enabled());
-    DCHECK(function->IsJSFunction());
     DCHECK_EQ(0, receiver_maps->length());
-    receiver_maps->Add(
-        handle(Handle<JSFunction>::cast(function)->global_proxy()->map()),
-        zone());
+    receiver_maps->Add(handle(function->global_proxy()->map()), zone());
   }
   CallOptimization::HolderLookup holder_lookup =
       CallOptimization::kHolderNotFound;
@@ -9316,8 +9309,7 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(Handle<Object> function,
 
   HInstruction* call = nullptr;
   if (!is_function) {
-    CallApiAccessorStub stub(isolate(), is_store, call_data_undefined,
-                             !optimization.is_constant_call());
+    CallApiAccessorStub stub(isolate(), is_store, call_data_undefined);
     Handle<Code> code = stub.GetCode();
     HConstant* code_value = Add<HConstant>(code);
     ApiAccessorDescriptor descriptor(isolate());

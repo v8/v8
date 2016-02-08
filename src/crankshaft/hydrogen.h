@@ -2427,10 +2427,14 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
 
   bool TryInlineCall(Call* expr);
   bool TryInlineConstruct(CallNew* expr, HValue* implicit_return_value);
-  bool TryInlineGetter(Handle<Object> getter, Handle<Map> receiver_map,
-                       BailoutId ast_id, BailoutId return_id);
-  bool TryInlineSetter(Handle<Object> setter, Handle<Map> receiver_map,
-                       BailoutId id, BailoutId assignment_id,
+  bool TryInlineGetter(Handle<JSFunction> getter,
+                       Handle<Map> receiver_map,
+                       BailoutId ast_id,
+                       BailoutId return_id);
+  bool TryInlineSetter(Handle<JSFunction> setter,
+                       Handle<Map> receiver_map,
+                       BailoutId id,
+                       BailoutId assignment_id,
                        HValue* implicit_return_value);
   bool TryInlineIndirectCall(Handle<JSFunction> function, Call* expr,
                              int arguments_count);
@@ -2448,13 +2452,18 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                               HValue* receiver,
                               SmallMapList* receiver_types);
   bool TryInlineApiFunctionCall(Call* expr, HValue* receiver);
-  bool TryInlineApiGetter(Handle<Object> function, Handle<Map> receiver_map,
+  bool TryInlineApiGetter(Handle<JSFunction> function,
+                          Handle<Map> receiver_map,
                           BailoutId ast_id);
-  bool TryInlineApiSetter(Handle<Object> function, Handle<Map> receiver_map,
+  bool TryInlineApiSetter(Handle<JSFunction> function,
+                          Handle<Map> receiver_map,
                           BailoutId ast_id);
-  bool TryInlineApiCall(Handle<Object> function, HValue* receiver,
-                        SmallMapList* receiver_maps, int argc, BailoutId ast_id,
-                        ApiCallType call_type);
+  bool TryInlineApiCall(Handle<JSFunction> function,
+                         HValue* receiver,
+                         SmallMapList* receiver_maps,
+                         int argc,
+                         BailoutId ast_id,
+                         ApiCallType call_type);
   static bool IsReadOnlyLengthDescriptor(Handle<Map> jsarray_map);
   static bool CanInlineArrayResizeOperation(Handle<Map> receiver_map);
 
@@ -2597,7 +2606,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
 
     Isolate* isolate() const { return builder_->isolate(); }
     Handle<JSObject> holder() { return holder_; }
-    Handle<Object> accessor() { return accessor_; }
+    Handle<JSFunction> accessor() { return accessor_; }
     Handle<Object> constant() { return constant_; }
     Handle<Map> transition() { return transition_; }
     SmallMapList* field_maps() { return &field_maps_; }
@@ -2703,7 +2712,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     Handle<Map> map_;
     Handle<Name> name_;
     Handle<JSObject> holder_;
-    Handle<Object> accessor_;
+    Handle<JSFunction> accessor_;
     Handle<JSObject> api_holder_;
     Handle<Object> constant_;
     SmallMapList field_maps_;
