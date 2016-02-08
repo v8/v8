@@ -1717,12 +1717,16 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   }
 
   int root_index = root_index_map_.Lookup(obj);
+  bool is_immortal_immovable_root = false;
   // We can only encode roots as such if it has already been serialized.
   // That applies to root indices below the wave front.
-  if (root_index != RootIndexMap::kInvalidRootIndex &&
-      root_index < root_index_wave_front_) {
-    PutRoot(root_index, obj, how_to_code, where_to_point, skip);
-    return;
+  if (root_index != RootIndexMap::kInvalidRootIndex) {
+    if (root_index < root_index_wave_front_) {
+      PutRoot(root_index, obj, how_to_code, where_to_point, skip);
+      return;
+    } else {
+      is_immortal_immovable_root = Heap::RootIsImmortalImmovable(root_index);
+    }
   }
 
   if (SerializeKnownObject(obj, how_to_code, where_to_point, skip)) return;
@@ -1733,6 +1737,14 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   ObjectSerializer object_serializer(this, obj, sink_, how_to_code,
                                      where_to_point);
   object_serializer.Serialize();
+
+  if (is_immortal_immovable_root) {
+    // Make sure that the immortal immovable root has been included in the first
+    // chunk of its reserved space , so that it is deserialized onto the first
+    // page of its space and stays immortal immovable.
+    BackReference ref = back_reference_map_.Lookup(obj);
+    CHECK(ref.is_valid() && ref.chunk_index() == 0);
+  }
 }
 
 
