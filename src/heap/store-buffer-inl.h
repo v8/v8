@@ -12,36 +12,25 @@
 namespace v8 {
 namespace internal {
 
-void StoreBuffer::Mark(Address addr) {
-  DCHECK(!heap_->code_space()->Contains(addr));
-  Address* top = reinterpret_cast<Address*>(heap_->store_buffer_top());
-  *top++ = addr;
-  heap_->set_store_buffer_top(reinterpret_cast<Smi*>(top));
-  if ((reinterpret_cast<uintptr_t>(top) & kStoreBufferOverflowBit) != 0) {
-    DCHECK(top == limit_);
-    Compact();
+uint32_t StoreBuffer::AddressToSlotSetAndOffset(Address addr, SlotSet** slots) {
+  MemoryChunk* chunk = MemoryChunk::FromAddress(addr);
+  uintptr_t offset = addr - chunk->address();
+  if (offset < MemoryChunk::kHeaderSize || chunk->owner() == nullptr) {
+    chunk = heap_->lo_space()->FindPage(addr);
+    offset = addr - chunk->address();
+  }
+  if (chunk->old_to_new_slots() == nullptr) {
+    chunk->AllocateOldToNewSlots();
+  }
+  if (offset < Page::kPageSize) {
+    *slots = chunk->old_to_new_slots();
   } else {
-    DCHECK(top < limit_);
+    *slots = &chunk->old_to_new_slots()[offset / Page::kPageSize];
+    offset = offset % Page::kPageSize;
   }
+  return static_cast<uint32_t>(offset);
 }
 
-
-void StoreBuffer::EnterDirectlyIntoStoreBuffer(Address addr) {
-  if (store_buffer_rebuilding_enabled_) {
-    SLOW_DCHECK(!heap_->code_space()->Contains(addr) &&
-                !heap_->new_space()->Contains(addr));
-    Address* top = old_top_;
-    *top++ = addr;
-    old_top_ = top;
-    old_buffer_is_sorted_ = false;
-    old_buffer_is_filtered_ = false;
-    if (top >= old_limit_) {
-      DCHECK(callback_ != NULL);
-      (*callback_)(heap_, MemoryChunk::FromAnyPointerAddress(heap_, addr),
-                   kStoreBufferFullEvent);
-    }
-  }
-}
 
 void LocalStoreBuffer::Record(Address addr) {
   if (top_->is_full()) top_ = new Node(top_);
@@ -56,6 +45,13 @@ void LocalStoreBuffer::Process(StoreBuffer* store_buffer) {
     }
     current = current->next;
   }
+}
+
+void StoreBuffer::Mark(Address addr) {
+  SlotSet* slots;
+  uint32_t offset;
+  offset = AddressToSlotSetAndOffset(addr, &slots);
+  slots->Insert(offset);
 }
 
 }  // namespace internal

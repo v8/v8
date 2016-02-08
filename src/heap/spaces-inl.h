@@ -216,18 +216,6 @@ bool PagedSpace::Contains(Address addr) {
 bool PagedSpace::Contains(HeapObject* o) { return Contains(o->address()); }
 
 
-void MemoryChunk::set_scan_on_scavenge(bool scan) {
-  if (scan) {
-    if (!scan_on_scavenge()) heap_->increment_scan_on_scavenge_pages();
-    SetFlag(SCAN_ON_SCAVENGE);
-  } else {
-    if (scan_on_scavenge()) heap_->decrement_scan_on_scavenge_pages();
-    ClearFlag(SCAN_ON_SCAVENGE);
-  }
-  heap_->incremental_marking()->SetOldSpacePageFlags(this);
-}
-
-
 MemoryChunk* MemoryChunk::FromAnyPointerAddress(Heap* heap, Address addr) {
   MemoryChunk* maybe = reinterpret_cast<MemoryChunk*>(
       OffsetFrom(addr) & ~Page::kPageAlignmentMask);

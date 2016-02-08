@@ -670,20 +670,6 @@ class Heap {
   // Notify the heap that a context has been disposed.
   int NotifyContextDisposed(bool dependant_context);
 
-  inline void increment_scan_on_scavenge_pages() {
-    scan_on_scavenge_pages_++;
-    if (FLAG_gc_verbose) {
-      PrintF("Scan-on-scavenge pages: %d\n", scan_on_scavenge_pages_);
-    }
-  }
-
-  inline void decrement_scan_on_scavenge_pages() {
-    scan_on_scavenge_pages_--;
-    if (FLAG_gc_verbose) {
-      PrintF("Scan-on-scavenge pages: %d\n", scan_on_scavenge_pages_);
-    }
-  }
-
   void set_native_contexts_list(Object* object) {
     native_contexts_list_ = object;
   }
@@ -783,7 +769,6 @@ class Heap {
   inline bool OldGenerationAllocationLimitReached();
 
   void QueueMemoryChunkForFree(MemoryChunk* chunk);
-  void FilterStoreBufferEntriesOnAboutToBeFreedPages();
   void FreeQueuedChunks(MemoryChunk* list_head);
   void FreeQueuedChunks();
   void WaitUntilUnmappingOfFreeChunksCompleted();
@@ -1495,9 +1480,6 @@ class Heap {
   static String* UpdateNewSpaceReferenceInExternalStringTableEntry(
       Heap* heap, Object** pointer);
 
-  static void ScavengeStoreBufferCallback(Heap* heap, MemoryChunk* page,
-                                          StoreBufferEvent event);
-
   // Selects the proper allocation space based on the pretenuring decision.
   static AllocationSpace SelectSpace(PretenureFlag pretenure) {
     return (pretenure == TENURED) ? OLD_SPACE : NEW_SPACE;
@@ -2012,8 +1994,6 @@ class Heap {
 
   int global_ic_age_;
 
-  int scan_on_scavenge_pages_;
-
   NewSpace new_space_;
   OldSpace* old_space_;
   OldSpace* code_space_;
@@ -2080,8 +2060,6 @@ class Heap {
   Object* encountered_weak_cells_;
 
   Object* encountered_transition_arrays_;
-
-  StoreBufferRebuilder store_buffer_rebuilder_;
 
   List<GCCallbackPair> gc_epilogue_callbacks_;
   List<GCCallbackPair> gc_prologue_callbacks_;

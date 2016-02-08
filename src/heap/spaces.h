@@ -31,6 +31,7 @@ class PagedSpace;
 class SemiSpace;
 class SkipList;
 class SlotsBuffer;
+class SlotSet;
 class Space;
 
 // -----------------------------------------------------------------------------
@@ -296,10 +297,8 @@ class MemoryChunk {
  public:
   enum MemoryChunkFlags {
     IS_EXECUTABLE,
-    ABOUT_TO_BE_FREED,
     POINTERS_TO_HERE_ARE_INTERESTING,
     POINTERS_FROM_HERE_ARE_INTERESTING,
-    SCAN_ON_SCAVENGE,
     IN_FROM_SPACE,  // Mutually exclusive with IN_TO_SPACE.
     IN_TO_SPACE,    // All pages in new space has one of these two set.
     NEW_SPACE_BELOW_AGE_MARK,
@@ -398,6 +397,7 @@ class MemoryChunk {
 
   static const size_t kWriteBarrierCounterOffset =
       kSlotsBufferOffset + kPointerSize  // SlotsBuffer* slots_buffer_;
+      + kPointerSize                     // SlotSet* old_to_new_slots_;
       + kPointerSize;                    // SkipList* skip_list_;
 
   static const size_t kMinHeaderSize =
@@ -502,16 +502,6 @@ class MemoryChunk {
     DCHECK_NOT_NULL(reservation);
     reservation_.TakeControl(reservation);
   }
-
-  bool scan_on_scavenge() { return IsFlagSet(SCAN_ON_SCAVENGE); }
-  void initialize_scan_on_scavenge(bool scan) {
-    if (scan) {
-      SetFlag(SCAN_ON_SCAVENGE);
-    } else {
-      ClearFlag(SCAN_ON_SCAVENGE);
-    }
-  }
-  inline void set_scan_on_scavenge(bool scan);
 
   bool Contains(Address addr) {
     return addr >= area_start() && addr < area_end();
@@ -686,6 +676,11 @@ class MemoryChunk {
 
   inline SlotsBuffer** slots_buffer_address() { return &slots_buffer_; }
 
+  inline SlotSet* old_to_new_slots() { return old_to_new_slots_; }
+
+  void AllocateOldToNewSlots();
+  void ReleaseOldToNewSlots();
+
   void MarkEvacuationCandidate() {
     DCHECK(!IsFlagSet(NEVER_EVACUATE));
     DCHECK(slots_buffer_ == NULL);
@@ -733,6 +728,10 @@ class MemoryChunk {
   // Count of bytes marked black on page.
   int live_byte_count_;
   SlotsBuffer* slots_buffer_;
+  // A single slot set for small pages (of size kPageSize) or an array of slot
+  // set for large pages. In the latter case the number of entries in the array
+  // is ceil(size() / kPageSize).
+  SlotSet* old_to_new_slots_;
   SkipList* skip_list_;
   intptr_t write_barrier_counter_;
   // Assuming the initial allocation on a page is sequential,
@@ -2233,8 +2232,7 @@ class NewSpacePage : public MemoryChunk {
   // flipping semispaces.
   static const intptr_t kCopyOnFlipFlagsMask =
       (1 << MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING) |
-      (1 << MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING) |
-      (1 << MemoryChunk::SCAN_ON_SCAVENGE);
+      (1 << MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
 
   static const int kAreaSize = Page::kAllocatableMemory;
 

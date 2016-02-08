@@ -4091,8 +4091,7 @@ void RecordWriteStub::GenerateIncremental(MacroAssembler* masm, Mode mode) {
     __ Ldr(val, MemOperand(regs_.address()));
     __ JumpIfNotInNewSpace(val, &dont_need_remembered_set);
 
-    __ CheckPageFlagSet(regs_.object(), val, 1 << MemoryChunk::SCAN_ON_SCAVENGE,
-                        &dont_need_remembered_set);
+    __ JumpIfInNewSpace(regs_.object(), &dont_need_remembered_set);
 
     // First notify the incremental marker if necessary, then update the
     // remembered set.

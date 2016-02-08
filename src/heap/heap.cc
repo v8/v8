@@ -93,7 +93,6 @@ Heap::Heap()
       contexts_disposed_(0),
       number_of_disposed_maps_(0),
       global_ic_age_(0),
-      scan_on_scavenge_pages_(0),
       new_space_(this),
       old_space_(NULL),
       code_space_(NULL),
@@ -113,7 +112,6 @@ Heap::Heap()
       old_gen_exhausted_(false),
       optimize_for_memory_usage_(false),
       inline_allocation_disabled_(false),
-      store_buffer_rebuilder_(store_buffer()),
       total_regexp_code_generated_(0),
       tracer_(nullptr),
       high_survival_rate_period_length_(0),
@@ -453,8 +451,6 @@ void Heap::GarbageCollectionPrologue() {
   ReportStatisticsBeforeGC();
 #endif  // DEBUG
 
-  store_buffer()->GCPrologue();
-
   if (isolate()->concurrent_osr_enabled()) {
     isolate()->optimizing_compile_dispatcher()->AgeBufferedOsrJobs();
   }
@@ -642,8 +638,6 @@ void Heap::DeoptMarkedAllocationSites() {
 
 
 void Heap::GarbageCollectionEpilogue() {
-  store_buffer()->GCEpilogue();
-
   // In release mode, we only zap the from space under heap verification.
   if (Heap::ShouldZapGarbage()) {
     ZapFromSpace();
@@ -1554,12 +1548,6 @@ static bool IsUnmodifiedHeapObject(Object** p) {
 }
 
 
-void Heap::ScavengeStoreBufferCallback(Heap* heap, MemoryChunk* page,
-                                       StoreBufferEvent event) {
-  heap->store_buffer_rebuilder_.Callback(page, event);
-}
-
-
 void PromotionQueue::Initialize() {
   // The last to-space page may be used for promotion queue. On promotion
   // conflict, we use the emergency stack.
@@ -1692,8 +1680,6 @@ void Heap::Scavenge() {
     // Copy objects reachable from the old generation.
     GCTracer::Scope gc_scope(tracer(),
                              GCTracer::Scope::SCAVENGER_OLD_TO_NEW_POINTERS);
-    StoreBufferRebuildScope scope(this, store_buffer(),
-                                  &ScavengeStoreBufferCallback);
     store_buffer()->IteratePointersToNewSpace(&Scavenger::ScavengeObject);
   }
 
@@ -1948,8 +1934,6 @@ Address Heap::DoScavenge(ObjectVisitor* scavenge_visitor,
 
     // Promote and process all the to-be-promoted objects.
     {
-      StoreBufferRebuildScope scope(this, store_buffer(),
-                                    &ScavengeStoreBufferCallback);
       while (!promotion_queue()->is_empty()) {
         HeapObject* target;
         int size;
@@ -4487,8 +4471,7 @@ void Heap::IterateAndMarkPointersToFromSpace(HeapObject* object, Address start,
         if (InNewSpace(new_target)) {
           SLOW_DCHECK(Heap::InToSpace(new_target));
           SLOW_DCHECK(new_target->IsHeapObject());
-          store_buffer_.EnterDirectlyIntoStoreBuffer(
-              reinterpret_cast<Address>(slot));
+          store_buffer_.Mark(reinterpret_cast<Address>(slot));
         }
         SLOW_DCHECK(!MarkCompactCollector::IsOnEvacuationCandidate(new_target));
       } else if (record_slots &&
@@ -6066,19 +6049,6 @@ void Heap::QueueMemoryChunkForFree(MemoryChunk* chunk) {
   // The chunks added to this queue will be freed by a concurrent thread.
   chunk->set_next_chunk(chunks_queued_for_free_);
   chunks_queued_for_free_ = chunk;
-}
-
-
-void Heap::FilterStoreBufferEntriesOnAboutToBeFreedPages() {
-  if (chunks_queued_for_free_ == NULL) return;
-  MemoryChunk* next;
-  MemoryChunk* chunk;
-  for (chunk = chunks_queued_for_free_; chunk != NULL; chunk = next) {
-    next = chunk->next_chunk();
-    chunk->SetFlag(MemoryChunk::ABOUT_TO_BE_FREED);
-  }
-  store_buffer()->Compact();
-  store_buffer()->Filter(MemoryChunk::ABOUT_TO_BE_FREED);
 }
 
 

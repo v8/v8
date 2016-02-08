@@ -598,7 +598,6 @@ double AggregatedMemoryHistogram<Histogram>::Aggregate(double current_ms,
   SC(pc_to_code, V8.PcToCode)                                         \
   SC(pc_to_code_cached, V8.PcToCodeCached)                            \
   /* The store-buffer implementation of the write barrier. */         \
-  SC(store_buffer_compactions, V8.StoreBufferCompactions)             \
   SC(store_buffer_overflows, V8.StoreBufferOverflows)
 
 

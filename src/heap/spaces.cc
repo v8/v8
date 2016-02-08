@@ -7,6 +7,7 @@
 #include "src/base/bits.h"
 #include "src/base/platform/platform.h"
 #include "src/full-codegen/full-codegen.h"
+#include "src/heap/slot-set.h"
 #include "src/heap/slots-buffer.h"
 #include "src/macro-assembler.h"
 #include "src/msan.h"
@@ -428,7 +429,6 @@ NewSpacePage* NewSpacePage::Initialize(Heap* heap, Address start,
   MemoryChunk* chunk =
       MemoryChunk::Initialize(heap, start, Page::kPageSize, area_start,
                               area_end, NOT_EXECUTABLE, semi_space);
-  chunk->initialize_scan_on_scavenge(true);
   bool in_to_space = (semi_space->id() != kFromSpace);
   chunk->SetFlag(in_to_space ? MemoryChunk::IN_TO_SPACE
                              : MemoryChunk::IN_FROM_SPACE);
@@ -464,14 +464,15 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   chunk->flags_ = 0;
   chunk->set_owner(owner);
   chunk->InitializeReservedMemory();
-  chunk->slots_buffer_ = NULL;
-  chunk->skip_list_ = NULL;
+  chunk->slots_buffer_ = nullptr;
+  chunk->old_to_new_slots_ = nullptr;
+  chunk->skip_list_ = nullptr;
   chunk->write_barrier_counter_ = kWriteBarrierCounterGranularity;
   chunk->progress_bar_ = 0;
   chunk->high_water_mark_.SetValue(static_cast<intptr_t>(area_start - base));
   chunk->concurrent_sweeping_state().SetValue(kSweepingDone);
   chunk->parallel_compaction_state().SetValue(kCompactingDone);
-  chunk->mutex_ = NULL;
+  chunk->mutex_ = nullptr;
   chunk->available_in_small_free_list_ = 0;
   chunk->available_in_medium_free_list_ = 0;
   chunk->available_in_large_free_list_ = 0;
@@ -479,7 +480,6 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   chunk->non_available_small_blocks_ = 0;
   chunk->ResetLiveBytes();
   Bitmap::Clear(chunk);
-  chunk->initialize_scan_on_scavenge(false);
   chunk->set_next_chunk(nullptr);
   chunk->set_prev_chunk(nullptr);
 
@@ -933,6 +933,23 @@ void MemoryChunk::ReleaseAllocatedMemory() {
   delete slots_buffer_;
   delete skip_list_;
   delete mutex_;
+  ReleaseOldToNewSlots();
+}
+
+void MemoryChunk::AllocateOldToNewSlots() {
+  size_t pages = (size_ + Page::kPageSize - 1) / Page::kPageSize;
+  DCHECK(owner() == heap_->lo_space() || pages == 1);
+  DCHECK(pages > 0);
+  DCHECK(nullptr == old_to_new_slots_);
+  old_to_new_slots_ = new SlotSet[pages];
+  for (size_t i = 0; i < pages; i++) {
+    old_to_new_slots_[i].SetPageStart(address() + i * Page::kPageSize);
+  }
+}
+
+void MemoryChunk::ReleaseOldToNewSlots() {
+  delete[] old_to_new_slots_;
+  old_to_new_slots_ = nullptr;
 }
 
 
@@ -1185,11 +1202,6 @@ void PagedSpace::ReleasePage(Page* page, bool evict_free_list_items) {
     intptr_t size = free_list_.EvictFreeListItems(page);
     accounting_stats_.AllocateBytes(size);
     DCHECK_EQ(AreaSize(), static_cast<int>(size));
-  }
-
-  if (page->IsFlagSet(MemoryChunk::SCAN_ON_SCAVENGE)) {
-    heap()->decrement_scan_on_scavenge_pages();
-    page->ClearFlag(MemoryChunk::SCAN_ON_SCAVENGE);
   }
 
   DCHECK(!free_list_.ContainsPageFreeListItems(page));
@@ -1826,7 +1838,6 @@ void SemiSpace::FlipPages(intptr_t flags, intptr_t mask) {
       page->SetFlag(MemoryChunk::IN_FROM_SPACE);
       page->ClearFlag(MemoryChunk::IN_TO_SPACE);
     }
-    DCHECK(page->IsFlagSet(MemoryChunk::SCAN_ON_SCAVENGE));
     DCHECK(page->IsFlagSet(MemoryChunk::IN_TO_SPACE) ||
            page->IsFlagSet(MemoryChunk::IN_FROM_SPACE));
   }
@@ -1900,7 +1911,6 @@ void SemiSpace::Verify() {
       // TODO(gc): Check that the live_bytes_count_ field matches the
       // black marking on the page (if we make it match in new-space).
     }
-    CHECK(page->IsFlagSet(MemoryChunk::SCAN_ON_SCAVENGE));
     CHECK_EQ(page->prev_page()->next_page(), page);
     page = page->next_page();
   }

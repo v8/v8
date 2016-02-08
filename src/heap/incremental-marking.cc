@@ -375,7 +375,6 @@ void IncrementalMarking::SetNewSpacePageFlags(MemoryChunk* chunk,
   } else {
     chunk->ClearFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
   }
-  chunk->SetFlag(MemoryChunk::SCAN_ON_SCAVENGE);
 }
 
 

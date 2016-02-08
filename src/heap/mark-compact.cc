@@ -2873,11 +2873,12 @@ void MarkCompactCollector::UpdateSlotsRecordedIn(SlotsBuffer* buffer) {
 
 static void UpdatePointer(HeapObject** address, HeapObject* object) {
   MapWord map_word = object->map_word();
-  // The store buffer can still contain stale pointers in dead large objects.
-  // Ignore these pointers here.
+  // Since we only filter invalid slots in old space, the store buffer can
+  // still contain stale pointers in large object and in map spaces. Ignore
+  // these pointers here.
   DCHECK(map_word.IsForwardingAddress() ||
-         object->GetHeap()->lo_space()->FindPage(
-             reinterpret_cast<Address>(address)) != NULL);
+         !object->GetHeap()->old_space()->Contains(
+             reinterpret_cast<Address>(address)));
   if (map_word.IsForwardingAddress()) {
     // Update the corresponding slot.
     *address = map_word.ToForwardingAddress();
@@ -3327,7 +3328,6 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
         //   entries of such pages are filtered before rescanning.
         DCHECK(p->IsEvacuationCandidate());
         p->SetFlag(Page::COMPACTION_WAS_ABORTED);
-        p->set_scan_on_scavenge(true);
         abandoned_pages++;
         break;
       case MemoryChunk::kCompactingFinalize:
@@ -3566,6 +3566,10 @@ bool MarkCompactCollector::VisitLiveObjects(MemoryChunk* page,
         page->markbits()->ClearRange(
             page->AddressToMarkbitIndex(page->area_start()),
             page->AddressToMarkbitIndex(object->address()));
+        if (page->old_to_new_slots() != nullptr) {
+          page->old_to_new_slots()->RemoveRange(
+              0, static_cast<int>(object->address() - page->address()));
+        }
         RecomputeLiveBytes(page);
       }
       return false;
@@ -3720,8 +3724,6 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
     // Update roots.
     heap_->IterateRoots(&updating_visitor, VISIT_ALL_IN_SWEEP_NEWSPACE);
 
-    StoreBufferRebuildScope scope(heap_, heap_->store_buffer(),
-                                  &Heap::ScavengeStoreBufferCallback);
     heap_->store_buffer()->IteratePointersToNewSpace(&UpdatePointer);
   }
 
@@ -3808,14 +3810,12 @@ void MarkCompactCollector::ReleaseEvacuationCandidates() {
     if (!p->IsEvacuationCandidate()) continue;
     PagedSpace* space = static_cast<PagedSpace*>(p->owner());
     space->Free(p->area_start(), p->area_size());
-    p->set_scan_on_scavenge(false);
     p->ResetLiveBytes();
     CHECK(p->SweepingDone());
     space->ReleasePage(p, true);
   }
   evacuation_candidates_.Rewind(0);
   compacting_ = false;
-  heap()->FilterStoreBufferEntriesOnAboutToBeFreedPages();
   heap()->FreeQueuedChunks();
 }
 
