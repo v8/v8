@@ -1591,6 +1591,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       map->AppendDescriptor(&d);
     }
 
+    map->SetConstructor(native_context()->object_function());
     map->SetInObjectProperties(2);
     native_context()->set_iterator_result_map(*map);
   }
@@ -2789,6 +2790,7 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
     }
 
     Map::SetPrototype(map, isolate()->initial_object_prototype());
+    map->SetConstructor(native_context()->object_function());
     map->SetInObjectProperties(4);
     map->set_unused_property_fields(0);
 
@@ -2831,6 +2833,7 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
     }
 
     Map::SetPrototype(map, isolate()->initial_object_prototype());
+    map->SetConstructor(native_context()->object_function());
     map->SetInObjectProperties(4);
     map->set_unused_property_fields(0);
 
