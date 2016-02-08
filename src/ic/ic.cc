@@ -1449,8 +1449,9 @@ bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
         }
 
         // Receiver != holder.
-        PrototypeIterator iter(it->isolate(), receiver);
         if (receiver->IsJSGlobalProxy()) {
+          PrototypeIterator iter(it->isolate(),
+                                 Handle<JSGlobalProxy>::cast(receiver));
           return it->GetHolder<Object>().is_identical_to(
               PrototypeIterator::GetCurrent(iter));
         }
@@ -2913,9 +2914,10 @@ RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
   Handle<Object> value = args.at<Object>(2);
 #ifdef DEBUG
   PrototypeIterator iter(isolate, receiver,
-                         PrototypeIterator::START_AT_RECEIVER);
+                         PrototypeIterator::START_AT_RECEIVER,
+                         PrototypeIterator::END_AT_NON_HIDDEN);
   bool found = false;
-  for (; !iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN); iter.Advance()) {
+  for (; !iter.IsAtEnd(); iter.Advance()) {
     Handle<Object> current = PrototypeIterator::GetCurrent(iter);
     if (current->IsJSObject() &&
         Handle<JSObject>::cast(current)->HasNamedInterceptor()) {

@@ -1309,14 +1309,14 @@ RUNTIME_FUNCTION(Runtime_DebugGetLoadedScripts) {
   return *result;
 }
 
-
-static bool HasInPrototypeChainIgnoringProxies(Isolate* isolate, Object* object,
+static bool HasInPrototypeChainIgnoringProxies(Isolate* isolate,
+                                               JSObject* object,
                                                Object* proto) {
   PrototypeIterator iter(isolate, object, PrototypeIterator::START_AT_RECEIVER);
   while (true) {
     iter.AdvanceIgnoringProxies();
     if (iter.IsAtEnd()) return false;
-    if (iter.IsAtEnd(proto)) return true;
+    if (iter.GetCurrent() == proto) return true;
   }
 }
 
@@ -1423,7 +1423,7 @@ RUNTIME_FUNCTION(Runtime_DebugGetPrototype) {
   // TODO(1543): Come up with a solution for clients to handle potential errors
   // thrown by an intermediate proxy.
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, prototype,
-                                     Object::GetPrototype(isolate, obj));
+                                     JSReceiver::GetPrototype(isolate, obj));
   return *prototype;
 }
 

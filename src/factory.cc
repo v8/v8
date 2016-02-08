@@ -1956,9 +1956,9 @@ MaybeHandle<JSBoundFunction> Factory::NewJSBoundFunction(
 
   // Determine the prototype of the {target_function}.
   Handle<Object> prototype;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate(), prototype,
-                             Object::GetPrototype(isolate(), target_function),
-                             JSBoundFunction);
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate(), prototype,
+      JSReceiver::GetPrototype(isolate(), target_function), JSBoundFunction);
 
   // Create the [[BoundArguments]] for the result.
   Handle<FixedArray> bound_arguments;

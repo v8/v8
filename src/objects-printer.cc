@@ -457,7 +457,7 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
   if (is_deprecated()) os << "\n - deprecated_map";
   if (is_stable()) os << "\n - stable_map";
   if (is_dictionary_map()) os << "\n - dictionary_map";
-  if (is_hidden_prototype()) os << "\n - hidden_prototype";
+  if (has_hidden_prototype()) os << "\n - has_hidden_prototype";
   if (has_named_interceptor()) os << " - named_interceptor";
   if (has_indexed_interceptor()) os << "\n - indexed_interceptor";
   if (is_undetectable()) os << "\n - undetectable";

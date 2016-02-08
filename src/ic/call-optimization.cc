@@ -27,9 +27,8 @@ Handle<JSObject> CallOptimization::LookupHolderOfExpectedType(
     return Handle<JSObject>::null();
   }
   for (int depth = 1; true; depth++) {
-    if (!object_map->prototype()->IsJSObject()) break;
+    if (!object_map->has_hidden_prototype()) break;
     Handle<JSObject> prototype(JSObject::cast(object_map->prototype()));
-    if (!prototype->map()->is_hidden_prototype()) break;
     object_map = handle(prototype->map());
     if (expected_receiver_type_->IsTemplateFor(*object_map)) {
       *holder_lookup = kHolderFound;

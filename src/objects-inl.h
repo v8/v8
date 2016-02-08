@@ -1186,16 +1186,16 @@ MaybeHandle<Object> Object::SetElement(Isolate* isolate, Handle<Object> object,
   return value;
 }
 
-
-MaybeHandle<Object> Object::GetPrototype(Isolate* isolate,
-                                         Handle<Object> receiver) {
+MaybeHandle<Object> JSReceiver::GetPrototype(Isolate* isolate,
+                                             Handle<JSReceiver> receiver) {
   // We don't expect access checks to be needed on JSProxy objects.
   DCHECK(!receiver->IsAccessCheckNeeded() || receiver->IsJSObject());
   PrototypeIterator iter(isolate, receiver,
-                         PrototypeIterator::START_AT_RECEIVER);
+                         PrototypeIterator::START_AT_RECEIVER,
+                         PrototypeIterator::END_AT_NON_HIDDEN);
   do {
     if (!iter.AdvanceFollowingProxies()) return MaybeHandle<Object>();
-  } while (!iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN));
+  } while (!iter.IsAtEnd());
   return PrototypeIterator::GetCurrent(iter);
 }
 
@@ -4482,14 +4482,12 @@ bool Map::is_constructor() const {
   return ((1 << kIsConstructor) & bit_field()) != 0;
 }
 
-
-void Map::set_is_hidden_prototype() {
-  set_bit_field3(IsHiddenPrototype::update(bit_field3(), true));
+void Map::set_has_hidden_prototype(bool value) {
+  set_bit_field3(HasHiddenPrototype::update(bit_field3(), value));
 }
 
-
-bool Map::is_hidden_prototype() const {
-  return IsHiddenPrototype::decode(bit_field3());
+bool Map::has_hidden_prototype() const {
+  return HasHiddenPrototype::decode(bit_field3());
 }
 
 

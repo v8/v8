@@ -2663,14 +2663,12 @@ static void CompatibleReceiverCheck(MacroAssembler* masm, Register receiver,
   // Load the next prototype.
   __ bind(&next_prototype);
   __ mov(receiver, FieldOperand(receiver, HeapObject::kMapOffset));
-  __ mov(receiver, FieldOperand(receiver, Map::kPrototypeOffset));
-  // End if the prototype is null or not hidden.
-  __ CompareRoot(receiver, Heap::kNullValueRootIndex);
-  __ j(equal, receiver_check_failed);
-  __ mov(scratch0, FieldOperand(receiver, HeapObject::kMapOffset));
-  __ test(FieldOperand(scratch0, Map::kBitField3Offset),
-          Immediate(Map::IsHiddenPrototype::kMask));
+  __ test(FieldOperand(receiver, Map::kBitField3Offset),
+          Immediate(Map::HasHiddenPrototype::kMask));
   __ j(zero, receiver_check_failed);
+
+  __ mov(receiver, FieldOperand(receiver, Map::kPrototypeOffset));
+  __ mov(scratch0, FieldOperand(receiver, HeapObject::kMapOffset));
   // Iterate.
   __ jmp(&prototype_loop_start, Label::kNear);
 

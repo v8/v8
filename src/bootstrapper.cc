@@ -955,7 +955,6 @@ Handle<JSGlobalObject> Genesis::CreateNewGlobals(
   }
 
   js_global_object_function->initial_map()->set_is_prototype_map(true);
-  js_global_object_function->initial_map()->set_is_hidden_prototype();
   js_global_object_function->initial_map()->set_dictionary_map(true);
   Handle<JSGlobalObject> global_object =
       factory()->NewJSGlobalObject(js_global_object_function);
@@ -976,10 +975,10 @@ Handle<JSGlobalObject> Genesis::CreateNewGlobals(
         isolate(), global_constructor, factory()->the_hole_value(),
         ApiNatives::GlobalProxyType);
   }
-
   Handle<String> global_name = factory()->global_string();
   global_proxy_function->shared()->set_instance_class_name(*global_name);
   global_proxy_function->initial_map()->set_is_access_check_needed(true);
+  global_proxy_function->initial_map()->set_has_hidden_prototype(true);
 
   // Set global_proxy.__proto__ to js_global after ConfigureGlobalObjects
   // Return the global proxy.

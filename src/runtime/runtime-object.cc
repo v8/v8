@@ -158,10 +158,10 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
 RUNTIME_FUNCTION(Runtime_GetPrototype) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, obj, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, obj, 0);
   Handle<Object> prototype;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, prototype,
-                                     Object::GetPrototype(isolate, obj));
+                                     JSReceiver::GetPrototype(isolate, obj));
   return *prototype;
 }
 
@@ -576,11 +576,10 @@ static Object* HasOwnPropertyImplementation(Isolate* isolate,
   // Handle hidden prototypes.  If there's a hidden prototype above this thing
   // then we have to check it for properties, because they are supposed to
   // look like they are on this object.
-  PrototypeIterator iter(isolate, object);
-  if (!iter.IsAtEnd() &&
-      PrototypeIterator::GetCurrent<HeapObject>(iter)
-          ->map()
-          ->is_hidden_prototype()) {
+  if (object->map()->has_hidden_prototype()) {
+    PrototypeIterator iter(isolate, object);
+    DCHECK(!iter.IsAtEnd());
+
     // TODO(verwaest): The recursion is not necessary for keys that are array
     // indices. Removing this.
     // Casting to JSObject is fine because JSProxies are never used as
@@ -625,7 +624,7 @@ RUNTIME_FUNCTION(Runtime_HasOwnProperty) {
     }
     Map* map = js_obj->map();
     if (!key_is_array_index && !map->has_named_interceptor() &&
-        !HeapObject::cast(map->prototype())->map()->is_hidden_prototype()) {
+        !map->has_hidden_prototype()) {
       return isolate->heap()->false_value();
     }
     // Slow case.
@@ -1247,7 +1246,9 @@ RUNTIME_FUNCTION(Runtime_InstanceOf) {
         NewTypeError(MessageTemplate::kInstanceofNonobjectProto, prototype));
   }
   // Return whether or not {prototype} is in the prototype chain of {object}.
-  Maybe<bool> result = Object::HasInPrototypeChain(isolate, object, prototype);
+  Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(object);
+  Maybe<bool> result =
+      JSReceiver::HasInPrototypeChain(isolate, receiver, prototype);
   MAYBE_RETURN(result, isolate->heap()->exception());
   return isolate->heap()->ToBoolean(result.FromJust());
 }
@@ -1256,9 +1257,10 @@ RUNTIME_FUNCTION(Runtime_InstanceOf) {
 RUNTIME_FUNCTION(Runtime_HasInPrototypeChain) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, prototype, 1);
-  Maybe<bool> result = Object::HasInPrototypeChain(isolate, object, prototype);
+  Maybe<bool> result =
+      JSReceiver::HasInPrototypeChain(isolate, object, prototype);
   MAYBE_RETURN(result, isolate->heap()->exception());
   return isolate->heap()->ToBoolean(result.FromJust());
 }

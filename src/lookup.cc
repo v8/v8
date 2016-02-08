@@ -122,7 +122,7 @@ Handle<Map> LookupIterator::GetReceiverMap() const {
 
 Handle<JSObject> LookupIterator::GetStoreTarget() const {
   if (receiver_->IsJSGlobalProxy()) {
-    PrototypeIterator iter(isolate(), receiver_);
+    PrototypeIterator iter(isolate(), Handle<JSGlobalProxy>::cast(receiver_));
     if (iter.IsAtEnd()) return Handle<JSGlobalProxy>::cast(receiver_);
     return PrototypeIterator::GetCurrent<JSGlobalObject>(iter);
   }
@@ -398,11 +398,13 @@ bool LookupIterator::HolderIsReceiverOrHiddenPrototype() const {
   JSReceiver* current = JSReceiver::cast(*receiver_);
   JSReceiver* object = *holder_;
   if (current == object) return true;
-  if (!object->map()->is_hidden_prototype()) return false;
+  if (!current->map()->has_hidden_prototype()) return false;
   // JSProxy do not occur as hidden prototypes.
   if (current->IsJSProxy()) return false;
-  PrototypeIterator iter(isolate(), current);
-  while (!iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN)) {
+  PrototypeIterator iter(isolate(), current,
+                         PrototypeIterator::START_AT_PROTOTYPE,
+                         PrototypeIterator::END_AT_NON_HIDDEN);
+  while (!iter.IsAtEnd()) {
     if (iter.GetCurrent<JSReceiver>() == object) return true;
     iter.Advance();
   }
@@ -553,19 +555,17 @@ JSReceiver* LookupIterator::NextHolder(Map* map) {
   DisallowHeapAllocation no_gc;
   if (!map->prototype()->IsJSReceiver()) return NULL;
 
-  JSReceiver* next = JSReceiver::cast(map->prototype());
-  DCHECK(!next->map()->IsJSGlobalObjectMap() ||
-         next->map()->is_hidden_prototype());
+  DCHECK(!map->IsJSGlobalProxyMap() || map->has_hidden_prototype());
 
   if (!check_prototype_chain() &&
-      !(check_hidden() && next->map()->is_hidden_prototype()) &&
+      !(check_hidden() && map->has_hidden_prototype()) &&
       // Always lookup behind the JSGlobalProxy into the JSGlobalObject, even
       // when not checking other hidden prototypes.
       !map->IsJSGlobalProxyMap()) {
     return NULL;
   }
 
-  return next;
+  return JSReceiver::cast(map->prototype());
 }
 
 LookupIterator::State LookupIterator::NotFound(JSReceiver* const holder) const {

@@ -1302,14 +1302,6 @@ class Object {
       Isolate* isolate, Handle<Object> object, uint32_t index,
       Handle<Object> value, LanguageMode language_mode);
 
-  // Get the first non-hidden prototype.
-  static inline MaybeHandle<Object> GetPrototype(Isolate* isolate,
-                                                 Handle<Object> receiver);
-
-  MUST_USE_RESULT static Maybe<bool> HasInPrototypeChain(Isolate* isolate,
-                                                         Handle<Object> object,
-                                                         Handle<Object> proto);
-
   // Returns the permanent hash code associated with this object. May return
   // undefined if not yet created.
   Object* GetHash();
@@ -1386,7 +1378,7 @@ class Object {
 
  private:
   friend class LookupIterator;
-  friend class PrototypeIterator;
+  friend class StringStream;
 
   // Return the map of the root of object's prototype chain.
   Map* GetRootMap(Isolate* isolate);
@@ -1811,6 +1803,13 @@ class JSReceiver: public HeapObject {
       Handle<JSReceiver> receiver, OrdinaryToPrimitiveHint hint);
 
   static MaybeHandle<Context> GetFunctionRealm(Handle<JSReceiver> receiver);
+
+  // Get the first non-hidden prototype.
+  static inline MaybeHandle<Object> GetPrototype(Isolate* isolate,
+                                                 Handle<JSReceiver> receiver);
+
+  MUST_USE_RESULT static Maybe<bool> HasInPrototypeChain(
+      Isolate* isolate, Handle<JSReceiver> object, Handle<Object> proto);
 
   // Implementation of [[HasProperty]], ECMA-262 5th edition, section 8.12.6.
   MUST_USE_RESULT static Maybe<bool> HasProperty(LookupIterator* it);
@@ -5562,7 +5561,7 @@ class Map: public HeapObject {
   STATIC_ASSERT(kDescriptorIndexBitCount + kDescriptorIndexBitCount == 20);
   class DictionaryMap : public BitField<bool, 20, 1> {};
   class OwnsDescriptors : public BitField<bool, 21, 1> {};
-  class IsHiddenPrototype : public BitField<bool, 22, 1> {};
+  class HasHiddenPrototype : public BitField<bool, 22, 1> {};
   class Deprecated : public BitField<bool, 23, 1> {};
   class IsUnstable : public BitField<bool, 24, 1> {};
   class IsMigrationTarget : public BitField<bool, 25, 1> {};
@@ -5641,10 +5640,9 @@ class Map: public HeapObject {
   inline void set_is_constructor(bool value);
   inline bool is_constructor() const;
 
-  // Tells whether the instance with this map should be ignored by the
-  // Object.getPrototypeOf() function and the __proto__ accessor.
-  inline void set_is_hidden_prototype();
-  inline bool is_hidden_prototype() const;
+  // Tells whether the instance with this map has a hidden prototype.
+  inline void set_has_hidden_prototype(bool value);
+  inline bool has_hidden_prototype() const;
 
   // Records and queries whether the instance has a named interceptor.
   inline void set_has_named_interceptor();

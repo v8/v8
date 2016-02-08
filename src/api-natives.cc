@@ -584,11 +584,6 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
     map->set_is_undetectable();
   }
 
-  // Mark as hidden for the __proto__ accessor if needed.
-  if (obj->hidden_prototype()) {
-    map->set_is_hidden_prototype();
-  }
-
   // Mark as needs_access_check if needed.
   if (obj->needs_access_check()) {
     map->set_is_access_check_needed(true);

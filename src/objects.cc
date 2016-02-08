@@ -1021,9 +1021,10 @@ Object* FunctionTemplateInfo::GetCompatibleReceiver(Isolate* isolate,
   if (recv_type->IsUndefined()) return receiver;
   FunctionTemplateInfo* signature = FunctionTemplateInfo::cast(recv_type);
   // Check the receiver.
-  for (PrototypeIterator iter(isolate, receiver,
-                              PrototypeIterator::START_AT_RECEIVER);
-       !iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN); iter.Advance()) {
+  for (PrototypeIterator iter(isolate, JSObject::cast(receiver),
+                              PrototypeIterator::START_AT_RECEIVER,
+                              PrototypeIterator::END_AT_NON_HIDDEN);
+       !iter.IsAtEnd(); iter.Advance()) {
     if (signature->IsTemplateFor(iter.GetCurrent())) return iter.GetCurrent();
   }
   return isolate->heap()->null_value();
@@ -1098,7 +1099,7 @@ MaybeHandle<Object> JSProxy::GetPrototype(Handle<JSProxy> proxy) {
                              Object);
   // 6. If trap is undefined, then return target.[[GetPrototypeOf]]().
   if (trap->IsUndefined()) {
-    return Object::GetPrototype(isolate, target);
+    return JSReceiver::GetPrototype(isolate, target);
   }
   // 7. Let handlerProto be ? Call(trap, handler, «target»).
   Handle<Object> argv[] = {target};
@@ -1120,7 +1121,7 @@ MaybeHandle<Object> JSProxy::GetPrototype(Handle<JSProxy> proxy) {
   // 11. Let targetProto be ? target.[[GetPrototypeOf]]().
   Handle<Object> target_proto;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, target_proto,
-                             Object::GetPrototype(isolate, target), Object);
+                             JSReceiver::GetPrototype(isolate, target), Object);
   // 12. If SameValue(handlerProto, targetProto) is false, throw a TypeError.
   if (!handler_proto->SameValue(*target_proto)) {
     THROW_NEW_ERROR(
@@ -1436,14 +1437,16 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object,
   }
 }
 
-
-Maybe<bool> Object::HasInPrototypeChain(Isolate* isolate, Handle<Object> object,
-                                        Handle<Object> proto) {
+Maybe<bool> JSReceiver::HasInPrototypeChain(Isolate* isolate,
+                                            Handle<JSReceiver> object,
+                                            Handle<Object> proto) {
   PrototypeIterator iter(isolate, object, PrototypeIterator::START_AT_RECEIVER);
   while (true) {
     if (!iter.AdvanceFollowingProxies()) return Nothing<bool>();
     if (iter.IsAtEnd()) return Just(false);
-    if (iter.IsAtEnd(proto)) return Just(true);
+    if (PrototypeIterator::GetCurrent(iter).is_identical_to(proto)) {
+      return Just(true);
+    }
   }
 }
 
@@ -8742,8 +8745,8 @@ static Maybe<bool> GetKeys_Internal(Isolate* isolate,
                                           ? PrototypeIterator::END_AT_NON_HIDDEN
                                           : PrototypeIterator::END_AT_NULL;
   for (PrototypeIterator iter(isolate, object,
-                              PrototypeIterator::START_AT_RECEIVER);
-       !iter.IsAtEnd(end); iter.Advance()) {
+                              PrototypeIterator::START_AT_RECEIVER, end);
+       !iter.IsAtEnd(); iter.Advance()) {
     Handle<JSReceiver> current =
         PrototypeIterator::GetCurrent<JSReceiver>(iter);
     Maybe<bool> result = Just(false);  // Dummy initialization.
@@ -12323,7 +12326,7 @@ bool CheckEquivalent(Map* first, Map* second) {
          first->is_extensible() == second->is_extensible() &&
          first->is_strong() == second->is_strong() &&
          first->new_target_is_base() == second->new_target_is_base() &&
-         first->is_hidden_prototype() == second->is_hidden_prototype();
+         first->has_hidden_prototype() == second->has_hidden_prototype();
 }
 
 }  // namespace
@@ -12886,10 +12889,22 @@ Handle<Cell> Map::GetOrCreatePrototypeChainValidityCell(Handle<Map> map,
 // static
 void Map::SetPrototype(Handle<Map> map, Handle<Object> prototype,
                        PrototypeOptimizationMode proto_mode) {
+  bool is_hidden = false;
   if (prototype->IsJSObject()) {
     Handle<JSObject> prototype_jsobj = Handle<JSObject>::cast(prototype);
     JSObject::OptimizeAsPrototype(prototype_jsobj, proto_mode);
+
+    Object* maybe_constructor = prototype_jsobj->map()->GetConstructor();
+    if (maybe_constructor->IsJSFunction()) {
+      JSFunction* constructor = JSFunction::cast(maybe_constructor);
+      Object* data = constructor->shared()->function_data();
+      is_hidden = (data->IsFunctionTemplateInfo() &&
+                   FunctionTemplateInfo::cast(data)->hidden_prototype()) ||
+                  prototype->IsJSGlobalObject();
+    }
   }
+  map->set_has_hidden_prototype(is_hidden);
+
   WriteBarrierMode wb_mode =
       prototype->IsNull() ? SKIP_WRITE_BARRIER : UPDATE_WRITE_BARRIER;
   map->set_prototype(*prototype, wb_mode);
@@ -15651,7 +15666,7 @@ Maybe<bool> JSProxy::SetPrototype(Handle<JSProxy> proxy, Handle<Object> value,
   // 11. Let targetProto be ? target.[[GetPrototypeOf]]().
   Handle<Object> target_proto;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, target_proto,
-                                   Object::GetPrototype(isolate, target),
+                                   JSReceiver::GetPrototype(isolate, target),
                                    Nothing<bool>());
   // 12. If booleanTrapResult is true and SameValue(V, targetProto) is false,
   // throw a TypeError exception.
@@ -15677,7 +15692,7 @@ Maybe<bool> JSObject::SetPrototype(Handle<JSObject> object,
   Handle<Object> old_value;
   if (observed) {
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, old_value,
-                                     Object::GetPrototype(isolate, object),
+                                     JSReceiver::GetPrototype(isolate, object),
                                      Nothing<bool>());
   }
 
@@ -15688,7 +15703,7 @@ Maybe<bool> JSObject::SetPrototype(Handle<JSObject> object,
   if (result.FromJust() && observed) {
     Handle<Object> new_value;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, new_value,
-                                     Object::GetPrototype(isolate, object),
+                                     JSReceiver::GetPrototype(isolate, object),
                                      Nothing<bool>());
     if (!new_value->SameValue(*old_value)) {
       RETURN_ON_EXCEPTION_VALUE(
@@ -15744,8 +15759,10 @@ Maybe<bool> JSObject::SetPrototypeUnobserved(Handle<JSObject> object,
   if (from_javascript) {
     // Find the first object in the chain whose prototype object is not
     // hidden.
-    PrototypeIterator iter(isolate, real_receiver);
-    while (!iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN)) {
+    PrototypeIterator iter(isolate, real_receiver,
+                           PrototypeIterator::START_AT_PROTOTYPE,
+                           PrototypeIterator::END_AT_NON_HIDDEN);
+    while (!iter.IsAtEnd()) {
       // Casting to JSObject is fine because hidden prototypes are never
       // JSProxies.
       real_receiver = PrototypeIterator::GetCurrent<JSObject>(iter);
@@ -15774,13 +15791,15 @@ Maybe<bool> JSObject::SetPrototypeUnobserved(Handle<JSObject> object,
   // Before we can set the prototype we need to be sure prototype cycles are
   // prevented.  It is sufficient to validate that the receiver is not in the
   // new prototype chain.
-  for (PrototypeIterator iter(isolate, *value,
-                              PrototypeIterator::START_AT_RECEIVER);
-       !iter.IsAtEnd(); iter.Advance()) {
-    if (iter.GetCurrent<JSReceiver>() == *object) {
-      // Cycle detected.
-      RETURN_FAILURE(isolate, should_throw,
-                     NewTypeError(MessageTemplate::kCyclicProto));
+  if (value->IsJSReceiver()) {
+    for (PrototypeIterator iter(isolate, JSReceiver::cast(*value),
+                                PrototypeIterator::START_AT_RECEIVER);
+         !iter.IsAtEnd(); iter.Advance()) {
+      if (iter.GetCurrent<JSReceiver>() == *object) {
+        // Cycle detected.
+        RETURN_FAILURE(isolate, should_throw,
+                       NewTypeError(MessageTemplate::kCyclicProto));
+      }
     }
   }
 

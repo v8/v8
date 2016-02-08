@@ -1489,7 +1489,7 @@ MaybeHandle<JSArray> Fast_ArrayConcat(Isolate* isolate, Arguments* args) {
       if (!arg->IsJSArray()) return MaybeHandle<JSArray>();
       Handle<JSArray> array(JSArray::cast(arg), isolate);
       if (!array->HasFastElements()) return MaybeHandle<JSArray>();
-      PrototypeIterator iter(isolate, arg);
+      PrototypeIterator iter(isolate, *array);
       if (iter.GetCurrent() != array_proto) return MaybeHandle<JSArray>();
       if (HasConcatSpreadableModifier(isolate, array)) {
         return MaybeHandle<JSArray>();
@@ -2079,8 +2079,9 @@ BUILTIN(ReflectGetPrototypeOf) {
                                   "Reflect.getPrototypeOf")));
   }
   Handle<Object> prototype;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, prototype,
-                                     Object::GetPrototype(isolate, target));
+  Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(target);
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, prototype, JSReceiver::GetPrototype(isolate, receiver));
   return *prototype;
 }
 
