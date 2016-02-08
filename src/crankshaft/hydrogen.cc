@@ -8388,10 +8388,12 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
   CompilationInfo target_info(&parse_info);
   Handle<SharedFunctionInfo> target_shared(target->shared());
 
-  if (IsClassConstructor(target_shared->kind())) {
+  if (inlining_kind != CONSTRUCT_CALL_RETURN &&
+      IsClassConstructor(target_shared->kind())) {
     TraceInline(target, caller, "target is classConstructor");
     return false;
   }
+
   if (target_shared->HasDebugInfo()) {
     TraceInline(target, caller, "target is being debugged");
     return false;
@@ -9903,7 +9905,7 @@ void HOptimizedGraphBuilder::BuildInlinedCallArray(
 // Checks whether allocation using the given constructor can be inlined.
 static bool IsAllocationInlineable(Handle<JSFunction> constructor) {
   return constructor->has_initial_map() &&
-         !IsClassConstructor(constructor->shared()->kind()) &&
+         !IsSubclassConstructor(constructor->shared()->kind()) &&
          constructor->initial_map()->instance_type() == JS_OBJECT_TYPE &&
          constructor->initial_map()->instance_size() <
              HAllocate::kMaxInlineSize;
