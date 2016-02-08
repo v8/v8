@@ -1139,6 +1139,8 @@ void Builtins::Generate_InterpreterPushArgsAndConstruct(MacroAssembler* masm) {
 
 static void Generate_EnterBytecodeDispatch(MacroAssembler* masm) {
   // Initialize register file register and dispatch table register.
+  __ Addu(kInterpreterRegisterFileRegister, fp,
+          Operand(InterpreterFrameConstants::kRegisterFilePointerFromFp));
   __ li(kInterpreterDispatchTableRegister,
         Operand(ExternalReference::interpreter_dispatch_table_address(
             masm->isolate())));
