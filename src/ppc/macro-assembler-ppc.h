@@ -375,18 +375,20 @@ class MacroAssembler : public Assembler {
   }
 
   // Converts the integer (untagged smi) in |src| to a double, storing
-  // the result to |double_dst|
-  void ConvertIntToDouble(Register src, DoubleRegister double_dst);
+  // the result to |dst|
+  void ConvertIntToDouble(Register src, DoubleRegister dst);
 
   // Converts the unsigned integer (untagged smi) in |src| to
-  // a double, storing the result to |double_dst|
-  void ConvertUnsignedIntToDouble(Register src, DoubleRegister double_dst);
+  // a double, storing the result to |dst|
+  void ConvertUnsignedIntToDouble(Register src, DoubleRegister dst);
 
   // Converts the integer (untagged smi) in |src| to
   // a float, storing the result in |dst|
-  // Warning: The value in |int_scrach| will be changed in the process!
-  void ConvertIntToFloat(const DoubleRegister dst, const Register src,
-                         const Register int_scratch);
+  void ConvertIntToFloat(Register src, DoubleRegister dst);
+
+  // Converts the unsigned integer (untagged smi) in |src| to
+  // a float, storing the result in |dst|
+  void ConvertUnsignedIntToFloat(Register src, DoubleRegister dst);
 
 #if V8_TARGET_ARCH_PPC64
   void ConvertInt64ToFloat(Register src, DoubleRegister double_dst);

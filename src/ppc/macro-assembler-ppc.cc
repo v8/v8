@@ -716,28 +716,27 @@ void MacroAssembler::CanonicalizeNaN(const DoubleRegister dst,
   fsub(dst, src, kDoubleRegZero);
 }
 
-
-void MacroAssembler::ConvertIntToDouble(Register src,
-                                        DoubleRegister double_dst) {
-  MovIntToDouble(double_dst, src, r0);
-  fcfid(double_dst, double_dst);
+void MacroAssembler::ConvertIntToDouble(Register src, DoubleRegister dst) {
+  MovIntToDouble(dst, src, r0);
+  fcfid(dst, dst);
 }
-
 
 void MacroAssembler::ConvertUnsignedIntToDouble(Register src,
-                                                DoubleRegister double_dst) {
-  MovUnsignedIntToDouble(double_dst, src, r0);
-  fcfid(double_dst, double_dst);
+                                                DoubleRegister dst) {
+  MovUnsignedIntToDouble(dst, src, r0);
+  fcfid(dst, dst);
 }
 
-
-void MacroAssembler::ConvertIntToFloat(const DoubleRegister dst,
-                                       const Register src,
-                                       const Register int_scratch) {
-  MovIntToDouble(dst, src, int_scratch);
+void MacroAssembler::ConvertIntToFloat(Register src, DoubleRegister dst) {
+  MovIntToDouble(dst, src, r0);
   fcfids(dst, dst);
 }
 
+void MacroAssembler::ConvertUnsignedIntToFloat(Register src,
+                                               DoubleRegister dst) {
+  MovUnsignedIntToDouble(dst, src, r0);
+  fcfids(dst, dst);
+}
 
 #if V8_TARGET_ARCH_PPC64
 void MacroAssembler::ConvertInt64ToDouble(Register src,
