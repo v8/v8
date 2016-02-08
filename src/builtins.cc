@@ -59,7 +59,8 @@ class BuiltinArguments : public Arguments {
     return Arguments::at<Object>(0);
   }
 
-  Handle<JSFunction> target();
+  template <class S>
+  Handle<S> target();
   Handle<HeapObject> new_target();
 
   // Gets the total number of arguments including the receiver (but
@@ -81,8 +82,9 @@ int BuiltinArguments<BuiltinExtraArguments::kTarget>::length() const {
 }
 
 template <>
-Handle<JSFunction> BuiltinArguments<BuiltinExtraArguments::kTarget>::target() {
-  return Arguments::at<JSFunction>(Arguments::length() - 1);
+template <class S>
+Handle<S> BuiltinArguments<BuiltinExtraArguments::kTarget>::target() {
+  return Arguments::at<S>(Arguments::length() - 1);
 }
 
 template <>
@@ -103,9 +105,10 @@ int BuiltinArguments<BuiltinExtraArguments::kTargetAndNewTarget>::length()
 }
 
 template <>
-Handle<JSFunction>
+template <class S>
+Handle<S>
 BuiltinArguments<BuiltinExtraArguments::kTargetAndNewTarget>::target() {
-  return Arguments::at<JSFunction>(Arguments::length() - 2);
+  return Arguments::at<S>(Arguments::length() - 2);
 }
 
 template <>
@@ -1939,7 +1942,7 @@ MaybeHandle<JSFunction> CompileString(Handle<Context> context,
 BUILTIN(GlobalEval) {
   HandleScope scope(isolate);
   Handle<Object> x = args.atOrUndefined(isolate, 1);
-  Handle<JSFunction> target = args.target();
+  Handle<JSFunction> target = args.target<JSFunction>();
   Handle<JSObject> target_global_proxy(target->global_proxy(), isolate);
   if (!x->IsString()) return *x;
   Handle<JSFunction> function;
@@ -2435,7 +2438,7 @@ BUILTIN(DateConstructor) {
 BUILTIN(DateConstructor_ConstructStub) {
   HandleScope scope(isolate);
   int const argc = args.length() - 1;
-  Handle<JSFunction> target = args.target();
+  Handle<JSFunction> target = args.target<JSFunction>();
   Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
   double time_val;
   if (argc == 0) {
@@ -3319,7 +3322,7 @@ MaybeHandle<JSFunction> CreateDynamicFunction(
 
   // Compile the string in the constructor and not a helper so that errors to
   // come from here.
-  Handle<JSFunction> target = args.target();
+  Handle<JSFunction> target = args.target<JSFunction>();
   Handle<JSObject> target_global_proxy(target->global_proxy(), isolate);
   Handle<JSFunction> function;
   {
@@ -3504,7 +3507,7 @@ BUILTIN(ObjectProtoToString) {
 // ES6 section 24.1.2.1 ArrayBuffer ( length ) for the [[Call]] case.
 BUILTIN(ArrayBufferConstructor) {
   HandleScope scope(isolate);
-  Handle<JSFunction> target = args.target();
+  Handle<JSFunction> target = args.target<JSFunction>();
   DCHECK(*target == target->native_context()->array_buffer_fun() ||
          *target == target->native_context()->shared_array_buffer_fun());
   THROW_NEW_ERROR_RETURN_FAILURE(
@@ -3516,7 +3519,7 @@ BUILTIN(ArrayBufferConstructor) {
 // ES6 section 24.1.2.1 ArrayBuffer ( length ) for the [[Construct]] case.
 BUILTIN(ArrayBufferConstructor_ConstructStub) {
   HandleScope scope(isolate);
-  Handle<JSFunction> target = args.target();
+  Handle<JSFunction> target = args.target<JSFunction>();
   Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
   Handle<Object> length = args.atOrUndefined(isolate, 1);
   DCHECK(*target == target->native_context()->array_buffer_fun() ||
@@ -3613,13 +3616,16 @@ template <bool is_construct>
 MUST_USE_RESULT MaybeHandle<Object> HandleApiCallHelper(
     Isolate* isolate, BuiltinArguments<BuiltinExtraArguments::kTarget> args) {
   HandleScope scope(isolate);
-  Handle<JSFunction> function = args.target();
+  Handle<HeapObject> function = args.target<HeapObject>();
   Handle<JSReceiver> receiver;
   // TODO(ishell): turn this back to a DCHECK.
-  CHECK(function->shared()->IsApiFunction());
+  CHECK(function->IsFunctionTemplateInfo() ||
+        Handle<JSFunction>::cast(function)->shared()->IsApiFunction());
 
-  Handle<FunctionTemplateInfo> fun_data(
-      function->shared()->get_api_func_data(), isolate);
+  Handle<FunctionTemplateInfo> fun_data =
+      function->IsFunctionTemplateInfo()
+          ? Handle<FunctionTemplateInfo>::cast(function)
+          : handle(JSFunction::cast(*function)->shared()->get_api_func_data());
   if (is_construct) {
     DCHECK(args.receiver()->IsTheHole());
     if (fun_data->instance_template()->IsUndefined()) {
@@ -3806,8 +3812,7 @@ class RelocatableArguments
 
 }  // namespace
 
-
-MaybeHandle<Object> Builtins::InvokeApiFunction(Handle<JSFunction> function,
+MaybeHandle<Object> Builtins::InvokeApiFunction(Handle<HeapObject> function,
                                                 Handle<Object> receiver,
                                                 int argc,
                                                 Handle<Object> args[]) {

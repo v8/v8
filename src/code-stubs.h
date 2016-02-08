@@ -1403,11 +1403,13 @@ class CallApiFunctionStub : public PlatformCodeStub {
 
 class CallApiAccessorStub : public PlatformCodeStub {
  public:
-  CallApiAccessorStub(Isolate* isolate, bool is_store, bool call_data_undefined)
+  CallApiAccessorStub(Isolate* isolate, bool is_store, bool call_data_undefined,
+                      bool is_lazy)
       : PlatformCodeStub(isolate) {
     minor_key_ = IsStoreBits::encode(is_store) |
                  CallDataUndefinedBits::encode(call_data_undefined) |
-                 ArgumentBits::encode(is_store ? 1 : 0);
+                 ArgumentBits::encode(is_store ? 1 : 0) |
+                 IsLazyAccessorBits::encode(is_lazy);
   }
 
  protected:
@@ -1422,6 +1424,7 @@ class CallApiAccessorStub : public PlatformCodeStub {
 
  private:
   bool is_store() const { return IsStoreBits::decode(minor_key_); }
+  bool is_lazy() const { return IsLazyAccessorBits::decode(minor_key_); }
   bool call_data_undefined() const {
     return CallDataUndefinedBits::decode(minor_key_);
   }
@@ -1430,6 +1433,7 @@ class CallApiAccessorStub : public PlatformCodeStub {
   class IsStoreBits: public BitField<bool, 0, 1> {};
   class CallDataUndefinedBits: public BitField<bool, 1, 1> {};
   class ArgumentBits : public BitField<int, 2, kArgBits> {};
+  class IsLazyAccessorBits : public BitField<bool, 3 + kArgBits, 1> {};
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(ApiAccessor);
   DEFINE_PLATFORM_CODE_STUB(CallApiAccessor, PlatformCodeStub);
