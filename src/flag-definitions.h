@@ -211,7 +211,6 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
   V(harmony_simd, "harmony simd")                                            \
   V(harmony_do_expressions, "harmony do-expressions")                        \
   V(harmony_tailcalls, "harmony tail calls")                                 \
-  V(harmony_species, "harmony Symbol.species")                               \
   V(harmony_object_values_entries, "harmony Object.values / Object.entries") \
   V(harmony_object_own_property_descriptors,                                 \
     "harmony Object.getOwnPropertyDescriptors()")
@@ -219,6 +218,7 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED(V)                                   \
   V(harmony_regexp_lookbehind, "harmony regexp lookbehind") \
+  V(harmony_species, "harmony Symbol.species")              \
   V(harmony_unicode_regexps, "harmony unicode regexps")
 
 // Features that are shipping (turned on by default, but internal flag remains).
