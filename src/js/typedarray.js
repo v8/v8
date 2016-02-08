@@ -300,8 +300,10 @@ function NAMESubArray(begin, end) {
   var newLength = endInt - beginInt;
   var beginByteOffset =
       %_ArrayBufferViewGetByteOffset(this) + beginInt * ELEMENT_SIZE;
-  return TypedArraySpeciesCreate(this, %TypedArrayGetBuffer(this),
-                                 beginByteOffset, newLength, true);
+  // BUG(v8:4665): For web compatibility, subarray needs to always build an
+  // instance of the default constructor.
+  // TODO(littledan): Switch to the standard or standardize the fix
+  return new GlobalNAME(%TypedArrayGetBuffer(this), beginByteOffset, newLength);
 }
 endmacro
 
