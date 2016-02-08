@@ -1827,7 +1827,7 @@ HValue* HGraphBuilder::BuildCreateIterResultObject(HValue* value,
   // Allocate the JSIteratorResult object.
   HValue* result =
       Add<HAllocate>(Add<HConstant>(JSIteratorResult::kSize), HType::JSObject(),
-                     NOT_TENURED, JS_ITERATOR_RESULT_TYPE);
+                     NOT_TENURED, JS_OBJECT_TYPE);
 
   // Initialize the JSIteratorResult object.
   HValue* native_context = BuildGetNativeContext();

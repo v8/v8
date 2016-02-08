@@ -1575,7 +1575,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
   {  // -- I t e r a t o r R e s u l t
     Handle<Map> map =
-        factory->NewMap(JS_ITERATOR_RESULT_TYPE, JSIteratorResult::kSize);
+        factory->NewMap(JS_OBJECT_TYPE, JSIteratorResult::kSize);
     Map::SetPrototype(map, isolate->initial_object_prototype());
     Map::EnsureDescriptorSlack(map, 2);
 

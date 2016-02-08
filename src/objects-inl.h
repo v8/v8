@@ -710,7 +710,6 @@ TYPE_CHECKER(JSSet, JS_SET_TYPE)
 TYPE_CHECKER(JSMap, JS_MAP_TYPE)
 TYPE_CHECKER(JSSetIterator, JS_SET_ITERATOR_TYPE)
 TYPE_CHECKER(JSMapIterator, JS_MAP_ITERATOR_TYPE)
-TYPE_CHECKER(JSIteratorResult, JS_ITERATOR_RESULT_TYPE)
 TYPE_CHECKER(JSWeakMap, JS_WEAK_MAP_TYPE)
 TYPE_CHECKER(JSWeakSet, JS_WEAK_SET_TYPE)
 TYPE_CHECKER(JSContextExtensionObject, JS_CONTEXT_EXTENSION_OBJECT_TYPE)
@@ -2112,8 +2111,6 @@ int JSObject::GetHeaderSize(InstanceType type) {
       return JSSetIterator::kSize;
     case JS_MAP_ITERATOR_TYPE:
       return JSMapIterator::kSize;
-    case JS_ITERATOR_RESULT_TYPE:
-      return JSIteratorResult::kSize;
     case JS_WEAK_MAP_TYPE:
       return JSWeakMap::kSize;
     case JS_WEAK_SET_TYPE:
@@ -3216,7 +3213,6 @@ CAST_ACCESSOR(JSReceiver)
 CAST_ACCESSOR(JSRegExp)
 CAST_ACCESSOR(JSSet)
 CAST_ACCESSOR(JSSetIterator)
-CAST_ACCESSOR(JSIteratorResult)
 CAST_ACCESSOR(JSTypedArray)
 CAST_ACCESSOR(JSValue)
 CAST_ACCESSOR(JSWeakMap)
@@ -7736,10 +7732,6 @@ Object* JSMapIterator::CurrentValue() {
   DCHECK(!value->IsTheHole());
   return value;
 }
-
-
-ACCESSORS(JSIteratorResult, done, Object, kDoneOffset)
-ACCESSORS(JSIteratorResult, value, Object, kValueOffset)
 
 
 String::SubStringRange::SubStringRange(String* string, int first, int length)

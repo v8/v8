@@ -469,11 +469,6 @@ class Factory final {
   Handle<JSMapIterator> NewJSMapIterator();
   Handle<JSSetIterator> NewJSSetIterator();
 
-  // Creates a new JSIteratorResult object with the arguments {value} and
-  // {done}.  Implemented according to ES6 section 7.4.7 CreateIterResultObject.
-  Handle<JSIteratorResult> NewJSIteratorResult(Handle<Object> value,
-                                               Handle<Object> done);
-
   // Allocates a bound function.
   MaybeHandle<JSBoundFunction> NewJSBoundFunction(
       Handle<JSReceiver> target_function, Handle<Object> bound_this,
