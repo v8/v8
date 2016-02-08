@@ -91,9 +91,6 @@ class BytecodeArrayBuilder final : public ZoneObject, private RegisterMover {
   BytecodeArrayBuilder& LoadFalse();
   BytecodeArrayBuilder& LoadBooleanConstant(bool value);
 
-  // Load object prototype (or initial map).
-  BytecodeArrayBuilder& LoadPrototypeOrInitialMap();
-
   // Global loads to the accumulator and stores from the accumulator.
   BytecodeArrayBuilder& LoadGlobal(const Handle<String> name, int feedback_slot,
                                    LanguageMode language_mode,

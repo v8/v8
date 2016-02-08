@@ -41,7 +41,6 @@ class BytecodeGraphBuilder {
   Node* GetNewTarget();
 
   // Builder for accessing a (potentially immutable) object field.
-  Node* BuildLoadObjectField(Node* object, int offset);
   Node* BuildLoadImmutableObjectField(Node* object, int offset);
 
   // Builder for accessing type feedback vector.

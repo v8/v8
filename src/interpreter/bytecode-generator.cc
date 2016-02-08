@@ -1244,15 +1244,16 @@ void BytecodeGenerator::VisitClassLiteral(ClassLiteral* expr) {
 
 void BytecodeGenerator::VisitClassLiteralContents(ClassLiteral* expr) {
   VisitClassLiteralForRuntimeDefinition(expr);
-  // The prototype is ensured to exist by Runtime_DefineClass in
-  // VisitClassForRuntimeDefinition. No access check is needed here
-  // since the constructor is created by the class literal.
+
+  // Load the "prototype" from the constructor.
   register_allocator()->PrepareForConsecutiveAllocations(2);
   Register literal = register_allocator()->NextConsecutiveRegister();
   Register prototype = register_allocator()->NextConsecutiveRegister();
+  Handle<String> name = isolate()->factory()->prototype_string();
+  FeedbackVectorSlot slot = expr->PrototypeSlot();
   builder()
       ->StoreAccumulatorInRegister(literal)
-      .LoadPrototypeOrInitialMap()
+      .LoadNamedProperty(literal, name, feedback_index(slot), language_mode())
       .StoreAccumulatorInRegister(prototype);
 
   VisitClassLiteralProperties(expr, literal, prototype);

@@ -9042,7 +9042,7 @@ DISABLED_TEST(ClassDeclarations) {
        B(Star), R(5),                                                        //
        B(CallRuntime), U16(Runtime::kDefineClass), R(2), U8(4),              //
        B(Star), R(2),                                                        //
-       B(LdaInitialMap),                                                     //
+       B(LoadICSloppy),                                                      //
        B(Star), R(3),                                                        //
        B(Mov), R(3), R(4),                                                   //
        B(LdaConstant), U8(2),                                                //
@@ -9083,7 +9083,7 @@ DISABLED_TEST(ClassDeclarations) {
        B(Star), R(5),                                                        //
        B(CallRuntime), U16(Runtime::kDefineClass), R(2), U8(4),              //
        B(Star), R(2),                                                        //
-       B(LdaInitialMap),                                                     //
+       B(LoadICSloppy),                                                      //
        B(Star), R(3),                                                        //
        B(Mov), R(3), R(4),                                                   //
        B(LdaConstant), U8(2),                                                //
@@ -9133,7 +9133,7 @@ DISABLED_TEST(ClassDeclarations) {
        B(Star), R(6),                                                        //
        B(CallRuntime), U16(Runtime::kDefineClass), R(3), U8(4),              //
        B(Star), R(3),                                                        //
-       B(LdaInitialMap),                                                     //
+       B(LoadICSloppy),                                                      //
        B(Star), R(4),                                                        //
        B(Mov), R(4), R(5),                                                   //
        B(LdaContextSlot), R(context), U8(4),                                 //
@@ -9193,7 +9193,7 @@ DISABLED_TEST(ClassDeclarations) {
        B(Star), R(6),                                                         //
        B(CallRuntime), U16(Runtime::kDefineClass), R(3), U8(4),               //
        B(Star), R(3),                                                         //
-       B(LdaInitialMap),                                                      //
+       B(LoadICSloppy),                                                       //
        B(Star), R(4),                                                         //
        B(CallRuntime), U16(Runtime::kFinalizeClassDefinition), R(3), U8(2),   //
        B(Star), R(0),                                                         //

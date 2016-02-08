@@ -142,9 +142,6 @@ namespace interpreter {
   V(KeyedStoreICStrictWide, OperandType::kReg8, OperandType::kReg8,            \
     OperandType::kIdx16)                                                       \
                                                                                \
-  /* Class information */                                                      \
-  V(LdaInitialMap, OperandType::kNone)                                         \
-                                                                               \
   /* Binary Operators */                                                       \
   V(Add, OperandType::kReg8)                                                   \
   V(Sub, OperandType::kReg8)                                                   \

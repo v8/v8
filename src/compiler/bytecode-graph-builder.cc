@@ -488,12 +488,6 @@ Node* BytecodeGraphBuilder::GetFunctionClosure() {
 }
 
 
-Node* BytecodeGraphBuilder::BuildLoadObjectField(Node* object, int offset) {
-  return NewNode(jsgraph()->machine()->Load(MachineType::AnyTagged()), object,
-                 jsgraph()->IntPtrConstant(offset - kHeapObjectTag));
-}
-
-
 Node* BytecodeGraphBuilder::BuildLoadImmutableObjectField(Node* object,
                                                           int offset) {
   return graph()->NewNode(jsgraph()->machine()->Load(MachineType::AnyTagged()),
@@ -961,13 +955,6 @@ void BytecodeGraphBuilder::VisitKeyedStoreICSloppyWide() {
 void BytecodeGraphBuilder::VisitKeyedStoreICStrictWide() {
   DCHECK(is_strict(language_mode()));
   BuildKeyedStore();
-}
-
-void BytecodeGraphBuilder::VisitLdaInitialMap() {
-  Node* js_function = environment()->LookupAccumulator();
-  Node* load = BuildLoadObjectField(js_function,
-                                    JSFunction::kPrototypeOrInitialMapOffset);
-  environment()->BindAccumulator(load);
 }
 
 void BytecodeGraphBuilder::VisitPushContext() {
