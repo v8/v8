@@ -68,14 +68,6 @@ class JSTypedLowering final : public AdvancedReducer {
   Reduction ReduceJSToString(Node* node);
   Reduction ReduceJSToObject(Node* node);
   Reduction ReduceJSConvertReceiver(Node* node);
-  Reduction ReduceJSCreate(Node* node);
-  Reduction ReduceJSCreateArguments(Node* node);
-  Reduction ReduceJSCreateArray(Node* node);
-  Reduction ReduceJSCreateIterResultObject(Node* node);
-  Reduction ReduceJSCreateFunctionContext(Node* node);
-  Reduction ReduceJSCreateWithContext(Node* node);
-  Reduction ReduceJSCreateCatchContext(Node* node);
-  Reduction ReduceJSCreateBlockContext(Node* node);
   Reduction ReduceJSCallConstruct(Node* node);
   Reduction ReduceJSCallFunction(Node* node);
   Reduction ReduceJSForInDone(Node* node);
@@ -86,19 +78,8 @@ class JSTypedLowering final : public AdvancedReducer {
   Reduction ReduceInt32Binop(Node* node, const Operator* intOp);
   Reduction ReduceUI32Shift(Node* node, Signedness left_signedness,
                             const Operator* shift_op);
-  Reduction ReduceNewArray(Node* node, Node* length, int capacity,
-                           Handle<AllocationSite> site);
 
   Node* Word32Shl(Node* const lhs, int32_t const rhs);
-  Node* AllocateArguments(Node* effect, Node* control, Node* frame_state);
-  Node* AllocateRestArguments(Node* effect, Node* control, Node* frame_state,
-                              int start_index);
-  Node* AllocateAliasedArguments(Node* effect, Node* control, Node* frame_state,
-                                 Node* context, Handle<SharedFunctionInfo>,
-                                 bool* has_aliased_arguments);
-  Node* AllocateElements(Node* effect, Node* control,
-                         ElementsKind elements_kind, int capacity,
-                         PretenureFlag pretenure);
 
   Factory* factory() const;
   Graph* graph() const;
@@ -110,10 +91,6 @@ class JSTypedLowering final : public AdvancedReducer {
   MachineOperatorBuilder* machine() const;
   CompilationDependencies* dependencies() const;
   Flags flags() const { return flags_; }
-
-  // Limits up to which context allocations are inlined.
-  static const int kFunctionContextAllocationLimit = 16;
-  static const int kBlockContextAllocationLimit = 16;
 
   CompilationDependencies* dependencies_;
   Flags flags_;

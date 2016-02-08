@@ -64,6 +64,7 @@
         'compiler/interpreter-assembler-unittest.h',
         'compiler/js-builtin-reducer-unittest.cc',
         'compiler/js-context-relaxation-unittest.cc',
+        'compiler/js-create-lowering-unittest.cc',
         'compiler/js-intrinsic-lowering-unittest.cc',
         'compiler/js-operator-unittest.cc',
         'compiler/js-typed-lowering-unittest.cc',

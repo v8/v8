@@ -32,6 +32,7 @@
 #include "src/compiler/js-call-reducer.h"
 #include "src/compiler/js-context-relaxation.h"
 #include "src/compiler/js-context-specialization.h"
+#include "src/compiler/js-create-lowering.h"
 #include "src/compiler/js-frame-specialization.h"
 #include "src/compiler/js-generic-lowering.h"
 #include "src/compiler/js-global-object-specialization.h"
@@ -612,6 +613,8 @@ struct TypedLoweringPhase {
                                               data->common());
     LoadElimination load_elimination(&graph_reducer);
     JSBuiltinReducer builtin_reducer(&graph_reducer, data->jsgraph());
+    JSCreateLowering create_lowering(
+        &graph_reducer, data->info()->dependencies(), data->jsgraph());
     JSTypedLowering::Flags typed_lowering_flags = JSTypedLowering::kNoFlags;
     if (data->info()->is_deoptimization_enabled()) {
       typed_lowering_flags |= JSTypedLowering::kDeoptimizationEnabled;
@@ -631,6 +634,9 @@ struct TypedLoweringPhase {
                                          data->common(), data->machine());
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &builtin_reducer);
+    if (data->info()->is_deoptimization_enabled()) {
+      AddReducer(data, &graph_reducer, &create_lowering);
+    }
     AddReducer(data, &graph_reducer, &typed_lowering);
     AddReducer(data, &graph_reducer, &intrinsic_lowering);
     AddReducer(data, &graph_reducer, &load_elimination);

@@ -593,6 +593,8 @@
         '../../src/compiler/js-context-relaxation.h',
         '../../src/compiler/js-context-specialization.cc',
         '../../src/compiler/js-context-specialization.h',
+        '../../src/compiler/js-create-lowering.cc',
+        '../../src/compiler/js-create-lowering.h',
         '../../src/compiler/js-frame-specialization.cc',
         '../../src/compiler/js-frame-specialization.h',
         '../../src/compiler/js-generic-lowering.cc',
