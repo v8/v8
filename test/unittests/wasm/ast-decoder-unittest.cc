@@ -35,6 +35,8 @@ static const WasmOpcode kInt32BinopOpcodes[] = {
     kExprI32Shl,  kExprI32ShrU, kExprI32ShrS, kExprI32Eq,   kExprI32LtS,
     kExprI32LeS,  kExprI32LtU,  kExprI32LeU};
 
+#define WASM_BRV_IF_ZERO(depth, val) \
+  kExprBrIf, static_cast<byte>(depth), val, WASM_ZERO
 
 #define EXPECT_VERIFIES(env, x) Verify(kSuccess, env, x, x + arraysize(x))
 
@@ -1550,19 +1552,18 @@ TEST_F(WasmDecoderTest, BreakNesting3) {
 
 TEST_F(WasmDecoderTest, BreaksWithMultipleTypes) {
   EXPECT_FAILURE_INLINE(
-      &env_i_i,
-      WASM_BLOCK(2, WASM_BRV_IF(0, WASM_ZERO, WASM_I8(7)), WASM_F32(7.7)));
+      &env_i_i, WASM_BLOCK(2, WASM_BRV_IF_ZERO(0, WASM_I8(7)), WASM_F32(7.7)));
+
   EXPECT_FAILURE_INLINE(&env_i_i,
-                        WASM_BLOCK(2, WASM_BRV_IF(0, WASM_ZERO, WASM_I8(7)),
-                                   WASM_BRV_IF(0, WASM_ZERO, WASM_F32(7.7))));
+                        WASM_BLOCK(2, WASM_BRV_IF_ZERO(0, WASM_I8(7)),
+                                   WASM_BRV_IF_ZERO(0, WASM_F32(7.7))));
   EXPECT_FAILURE_INLINE(&env_i_i,
-                        WASM_BLOCK(3, WASM_BRV_IF(0, WASM_ZERO, WASM_I8(8)),
-                                   WASM_BRV_IF(0, WASM_ZERO, WASM_I8(0)),
-                                   WASM_BRV_IF(0, WASM_ZERO, WASM_F32(7.7))));
-  EXPECT_FAILURE_INLINE(&env_i_i,
-                        WASM_BLOCK(3, WASM_BRV_IF(0, WASM_ZERO, WASM_I8(9)),
-                                   WASM_BRV_IF(0, WASM_ZERO, WASM_F32(7.7)),
-                                   WASM_BRV_IF(0, WASM_ZERO, WASM_I8(11))));
+                        WASM_BLOCK(3, WASM_BRV_IF_ZERO(0, WASM_I8(8)),
+                                   WASM_BRV_IF_ZERO(0, WASM_I8(0)),
+                                   WASM_BRV_IF_ZERO(0, WASM_F32(7.7))));
+  EXPECT_FAILURE_INLINE(&env_i_i, WASM_BLOCK(3, WASM_BRV_IF_ZERO(0, WASM_I8(9)),
+                                             WASM_BRV_IF_ZERO(0, WASM_F32(7.7)),
+                                             WASM_BRV_IF_ZERO(0, WASM_I8(11))));
 }
 
 
@@ -1625,10 +1626,9 @@ TEST_F(WasmDecoderTest, ExprBreak_TypeCheckAll) {
   byte code1[] = {WASM_BLOCK(2,
                              WASM_IF(WASM_ZERO, WASM_BRV(0, WASM_GET_LOCAL(0))),
                              WASM_GET_LOCAL(1))};
-  byte code2[] = {WASM_BLOCK(
-      2, WASM_IF(WASM_ZERO, WASM_BRV_IF(0, WASM_ZERO, WASM_GET_LOCAL(0))),
-      WASM_GET_LOCAL(1))};
-
+  byte code2[] = {
+      WASM_BLOCK(2, WASM_IF(WASM_ZERO, WASM_BRV_IF_ZERO(0, WASM_GET_LOCAL(0))),
+                 WASM_GET_LOCAL(1))};
 
   for (size_t i = 0; i < arraysize(kLocalTypes); i++) {
     for (size_t j = 0; j < arraysize(kLocalTypes); j++) {
@@ -1678,37 +1678,42 @@ TEST_F(WasmDecoderTest, ExprBr_Unify) {
   }
 }
 
-
-TEST_F(WasmDecoderTest, ExprBrIf_type) {
-  EXPECT_VERIFIES_INLINE(
-      &env_i_i,
-      WASM_BLOCK(2, WASM_BRV_IF(0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(0)),
-                 WASM_GET_LOCAL(0)));
-  EXPECT_FAILURE_INLINE(
-      &env_d_dd,
-      WASM_BLOCK(2, WASM_BRV_IF(0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(0)),
-                 WASM_GET_LOCAL(0)));
-
+TEST_F(WasmDecoderTest, ExprBrIf_cond_type) {
   FunctionEnv env;
+  byte code[] = {
+      WASM_BLOCK(1, WASM_BRV_IF(0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)))};
   for (size_t i = 0; i < arraysize(kLocalTypes); i++) {
-    LocalType type = kLocalTypes[i];
-    LocalType storage[] = {kAstI32, kAstI32, type};
-    FunctionSig sig(1, 2, storage);
-    init_env(&env, &sig);  // (i32, X) -> i32
+    for (size_t j = 0; j < arraysize(kLocalTypes); j++) {
+      LocalType types[] = {kLocalTypes[i], kLocalTypes[j]};
+      FunctionSig sig(0, 2, types);
+      init_env(&env, &sig);
 
-    byte code1[] = {
-        WASM_BLOCK(2, WASM_BRV_IF(0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
-                   WASM_GET_LOCAL(0))};
+      if (types[1] == kAstI32) {
+        EXPECT_VERIFIES(&env, code);
+      } else {
+        EXPECT_FAILURE(&env, code);
+      }
+    }
+  }
+}
 
-    byte code2[] = {
-        WASM_BLOCK(2, WASM_BRV_IF(0, WASM_GET_LOCAL(1), WASM_GET_LOCAL(0)),
-                   WASM_GET_LOCAL(0))};
-    if (type == kAstI32) {
-      EXPECT_VERIFIES(&env, code1);
-      EXPECT_VERIFIES(&env, code2);
-    } else {
-      EXPECT_FAILURE(&env, code1);
-      EXPECT_FAILURE(&env, code2);
+TEST_F(WasmDecoderTest, ExprBrIf_val_type) {
+  FunctionEnv env;
+  byte code[] = {
+      WASM_BLOCK(2, WASM_BRV_IF(0, WASM_GET_LOCAL(1), WASM_GET_LOCAL(2)),
+                 WASM_GET_LOCAL(0))};
+  for (size_t i = 0; i < arraysize(kLocalTypes); i++) {
+    for (size_t j = 0; j < arraysize(kLocalTypes); j++) {
+      LocalType types[] = {kLocalTypes[i], kLocalTypes[i], kLocalTypes[j],
+                           kAstI32};
+      FunctionSig sig(1, 3, types);
+      init_env(&env, &sig);
+
+      if (i == j) {
+        EXPECT_VERIFIES(&env, code);
+      } else {
+        EXPECT_FAILURE(&env, code);
+      }
     }
   }
 }
@@ -1724,13 +1729,10 @@ TEST_F(WasmDecoderTest, ExprBrIf_Unify) {
       FunctionSig sig(1, 2, storage);
       init_env(&env, &sig);  // (i32, X) -> i32
 
-      byte code1[] = {
-          WASM_BLOCK(2, WASM_BRV_IF(0, WASM_ZERO, WASM_GET_LOCAL(which)),
-                     WASM_GET_LOCAL(which ^ 1))};
-      byte code2[] = {
-          WASM_LOOP(2, WASM_BRV_IF(1, WASM_ZERO, WASM_GET_LOCAL(which)),
-                    WASM_GET_LOCAL(which ^ 1))};
-
+      byte code1[] = {WASM_BLOCK(2, WASM_BRV_IF_ZERO(0, WASM_GET_LOCAL(which)),
+                                 WASM_GET_LOCAL(which ^ 1))};
+      byte code2[] = {WASM_LOOP(2, WASM_BRV_IF_ZERO(1, WASM_GET_LOCAL(which)),
+                                WASM_GET_LOCAL(which ^ 1))};
 
       if (type == kAstI32) {
         EXPECT_VERIFIES(&env, code1);

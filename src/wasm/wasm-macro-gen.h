@@ -22,10 +22,10 @@
 #define WASM_SELECT(cond, tval, fval) kExprSelect, cond, tval, fval
 #define WASM_BR(depth) kExprBr, static_cast<byte>(depth), kExprNop
 #define WASM_BR_IF(depth, cond) \
-  kExprBrIf, static_cast<byte>(depth), cond, kExprNop
+  kExprBrIf, static_cast<byte>(depth), kExprNop, cond
 #define WASM_BRV(depth, val) kExprBr, static_cast<byte>(depth), val
-#define WASM_BRV_IF(depth, cond, val) \
-  kExprBrIf, static_cast<byte>(depth), cond, val
+#define WASM_BRV_IF(depth, val, cond) \
+  kExprBrIf, static_cast<byte>(depth), val, cond
 #define WASM_BREAK(depth) kExprBr, static_cast<byte>(depth + 1), kExprNop
 #define WASM_CONTINUE(depth) kExprBr, static_cast<byte>(depth), kExprNop
 #define WASM_BREAKV(depth, val) kExprBr, static_cast<byte>(depth + 1), val

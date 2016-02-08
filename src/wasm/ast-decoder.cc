@@ -998,17 +998,16 @@ class LR_WasmDecoder : public WasmDecoder {
         break;
       }
       case kExprBrIf: {
-        if (p->index == 1) {
+        if (p->done()) {
           TypeCheckLast(p, kAstI32);
-        } else if (p->done()) {
           BreakDepthOperand operand(this, p->pc());
           CHECK(Validate(p->pc(), operand, blocks_));
           SsaEnv* fenv = ssa_env_;
           SsaEnv* tenv = Split(fenv);
-          BUILD(Branch, p->tree->children[0]->node, &tenv->control,
+          BUILD(Branch, p->tree->children[1]->node, &tenv->control,
                 &fenv->control);
           ssa_env_ = tenv;
-          ReduceBreakToExprBlock(p, operand.target);
+          ReduceBreakToExprBlock(p, operand.target, p->tree->children[0]);
           ssa_env_ = fenv;
         }
         break;
@@ -1219,13 +1218,17 @@ class LR_WasmDecoder : public WasmDecoder {
   }
 
   void ReduceBreakToExprBlock(Production* p, Block* block) {
+    ReduceBreakToExprBlock(p, block, p->tree->count > 0 ? p->last() : nullptr);
+  }
+
+  void ReduceBreakToExprBlock(Production* p, Block* block, Tree* val) {
     if (block->stack_depth < 0) {
       // This is the inner loop block, which does not have a value.
       Goto(ssa_env_, block->ssa_env);
     } else {
       // Merge the value into the production for the block.
       Production* bp = &stack_[block->stack_depth];
-      MergeIntoProduction(bp, block->ssa_env, p->last());
+      MergeIntoProduction(bp, block->ssa_env, val);
     }
   }
 
@@ -1234,7 +1237,7 @@ class LR_WasmDecoder : public WasmDecoder {
 
     bool first = target->state == SsaEnv::kUnreachable;
     Goto(ssa_env_, target);
-    if (expr->type == kAstEnd) return;
+    if (expr == nullptr || expr->type == kAstEnd) return;
 
     if (first) {
       // first merge to this environment; set the type and the node.

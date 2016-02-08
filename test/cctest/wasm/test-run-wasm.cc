@@ -1320,7 +1320,7 @@ TEST(Run_Wasm_Block_If_P) {
 
 TEST(Run_Wasm_Block_BrIf_P) {
   WasmRunner<int32_t> r(MachineType::Int32());
-  BUILD(r, WASM_BLOCK(2, WASM_BRV_IF(0, WASM_GET_LOCAL(0), WASM_I8(51)),
+  BUILD(r, WASM_BLOCK(2, WASM_BRV_IF(0, WASM_I8(51), WASM_GET_LOCAL(0)),
                       WASM_I8(52)));
   FOR_INT32_INPUTS(i) {
     int32_t expected = *i ? 51 : 52;
@@ -2054,7 +2054,7 @@ TEST(Run_Wasm_Infinite_Loop_not_taken2) {
 
 TEST(Run_Wasm_Infinite_Loop_not_taken2_brif) {
   WasmRunner<int32_t> r(MachineType::Int32());
-  BUILD(r, WASM_BLOCK(2, WASM_BRV_IF(0, WASM_GET_LOCAL(0), WASM_I8(45)),
+  BUILD(r, WASM_BLOCK(2, WASM_BRV_IF(0, WASM_I8(45), WASM_GET_LOCAL(0)),
                       WASM_INFINITE_LOOP));
   // Run the code, but don't go into the infinite loop.
   CHECK_EQ(45, r.Call(1));
@@ -2725,7 +2725,7 @@ TEST(Run_Wasm_ExprBlock2b) {
 
 TEST(Run_Wasm_ExprBlock2c) {
   WasmRunner<int32_t> r(MachineType::Int32());
-  BUILD(r, WASM_BLOCK(2, WASM_BRV_IF(0, WASM_GET_LOCAL(0), WASM_I8(1)),
+  BUILD(r, WASM_BLOCK(2, WASM_BRV_IF(0, WASM_I8(1), WASM_GET_LOCAL(0)),
                       WASM_I8(1)));
   CHECK_EQ(1, r.Call(0));
   CHECK_EQ(1, r.Call(1));
@@ -2734,7 +2734,7 @@ TEST(Run_Wasm_ExprBlock2c) {
 
 TEST(Run_Wasm_ExprBlock2d) {
   WasmRunner<int32_t> r(MachineType::Int32());
-  BUILD(r, WASM_BLOCK(2, WASM_BRV_IF(0, WASM_GET_LOCAL(0), WASM_I8(1)),
+  BUILD(r, WASM_BLOCK(2, WASM_BRV_IF(0, WASM_I8(1), WASM_GET_LOCAL(0)),
                       WASM_I8(2)));
   CHECK_EQ(2, r.Call(0));
   CHECK_EQ(1, r.Call(1));
@@ -2767,16 +2767,16 @@ TEST(Run_Wasm_ExprBlock_ManualSwitch) {
 TEST(Run_Wasm_ExprBlock_ManualSwitch_brif) {
   WasmRunner<int32_t> r(MachineType::Int32());
   BUILD(r,
-        WASM_BLOCK(6, WASM_BRV_IF(0, WASM_I32_EQ(WASM_GET_LOCAL(0), WASM_I8(1)),
-                                  WASM_I8(11)),
-                   WASM_BRV_IF(0, WASM_I32_EQ(WASM_GET_LOCAL(0), WASM_I8(2)),
-                               WASM_I8(12)),
-                   WASM_BRV_IF(0, WASM_I32_EQ(WASM_GET_LOCAL(0), WASM_I8(3)),
-                               WASM_I8(13)),
-                   WASM_BRV_IF(0, WASM_I32_EQ(WASM_GET_LOCAL(0), WASM_I8(4)),
-                               WASM_I8(14)),
-                   WASM_BRV_IF(0, WASM_I32_EQ(WASM_GET_LOCAL(0), WASM_I8(5)),
-                               WASM_I8(15)),
+        WASM_BLOCK(6, WASM_BRV_IF(0, WASM_I8(11),
+                                  WASM_I32_EQ(WASM_GET_LOCAL(0), WASM_I8(1))),
+                   WASM_BRV_IF(0, WASM_I8(12),
+                               WASM_I32_EQ(WASM_GET_LOCAL(0), WASM_I8(2))),
+                   WASM_BRV_IF(0, WASM_I8(13),
+                               WASM_I32_EQ(WASM_GET_LOCAL(0), WASM_I8(3))),
+                   WASM_BRV_IF(0, WASM_I8(14),
+                               WASM_I32_EQ(WASM_GET_LOCAL(0), WASM_I8(4))),
+                   WASM_BRV_IF(0, WASM_I8(15),
+                               WASM_I32_EQ(WASM_GET_LOCAL(0), WASM_I8(5))),
                    WASM_I8(99)));
   CHECK_EQ(99, r.Call(0));
   CHECK_EQ(11, r.Call(1));
