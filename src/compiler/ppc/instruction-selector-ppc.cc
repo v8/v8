@@ -1021,12 +1021,12 @@ void InstructionSelector::VisitTruncateFloat64ToInt32(Node* node) {
 
 
 void InstructionSelector::VisitTruncateFloat32ToInt32(Node* node) {
-  return VisitRR(this, kPPC_DoubleToInt32, node);
+  VisitRR(this, kPPC_DoubleToInt32, node);
 }
 
 
 void InstructionSelector::VisitTruncateFloat32ToUint32(Node* node) {
-  UNIMPLEMENTED();
+  VisitRR(this, kPPC_DoubleToUint32, node);
 }
 
 
