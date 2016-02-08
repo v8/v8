@@ -316,9 +316,8 @@
           ['android_ndk_root==""', {
             'variables': {
               'android_sysroot': '<(android_toolchain)/sysroot/',
-              'android_stlport': '<(android_toolchain)/sources/cxx-stl/stlport/',
+              'android_stl': '<(android_toolchain)/sources/cxx-stl/',
             },
-            'android_include': '<(android_sysroot)/usr/include',
             'conditions': [
               ['target_arch=="x64"', {
                 'android_lib': '<(android_sysroot)/usr/lib64',
@@ -326,14 +325,16 @@
                 'android_lib': '<(android_sysroot)/usr/lib',
               }],
             ],
-            'android_stlport_include': '<(android_stlport)/stlport',
-            'android_stlport_libs': '<(android_stlport)/libs',
+            'android_libcpp_include': '<(android_stl)/llvm-libc++/libcxx/include',
+            'android_libcpp_abi_include': '<(android_stl)/llvm-libc++abi/libcxxabi/include',
+            'android_libcpp_libs': '<(android_stl)/llvm-libc++/libs',
+            'android_support_include': '<(android_toolchain)/sources/android/support/include',
+            'android_sysroot': '<(android_sysroot)',
           }, {
             'variables': {
               'android_sysroot': '<(android_ndk_root)/platforms/android-<(android_target_platform)/arch-<(android_target_arch)',
-              'android_stlport': '<(android_ndk_root)/sources/cxx-stl/stlport/',
+              'android_stl': '<(android_ndk_root)/sources/cxx-stl/',
             },
-            'android_include': '<(android_sysroot)/usr/include',
             'conditions': [
               ['target_arch=="x64"', {
                 'android_lib': '<(android_sysroot)/usr/lib64',
@@ -341,11 +342,14 @@
                 'android_lib': '<(android_sysroot)/usr/lib',
               }],
             ],
-            'android_stlport_include': '<(android_stlport)/stlport',
-            'android_stlport_libs': '<(android_stlport)/libs',
+            'android_libcpp_include': '<(android_stl)/llvm-libc++/libcxx/include',
+            'android_libcpp_abi_include': '<(android_stl)/llvm-libc++abi/libcxxabi/include',
+            'android_libcpp_libs': '<(android_stl)/llvm-libc++/libs',
+            'android_support_include': '<(android_ndk_root)/sources/android/support/include',
+            'android_sysroot': '<(android_sysroot)',
           }],
         ],
-        'android_stlport_library': 'stlport_static',
+        'android_libcpp_library': 'c++_static',
       }],  # OS=="android"
       ['host_clang==1', {
         'host_cc': '<(clang_dir)/bin/clang',
@@ -1008,11 +1012,7 @@
         },  # configurations
         'cflags': [ '-Wno-abi', '-Wall', '-W', '-Wno-unused-parameter'],
         'cflags_cc': [ '-Wnon-virtual-dtor', '-fno-rtti', '-fno-exceptions',
-                       # Note: Using -std=c++0x will define __STRICT_ANSI__, which
-                       # in turn will leave out some template stuff for 'long
-                       # long'.  What we want is -std=c++11, but this is not
-                       # supported by GCC 4.6 or Xcode 4.2
-                       '-std=gnu++0x' ],
+                       '-std=gnu++11' ],
         'target_conditions': [
           ['_toolset=="target"', {
             'cflags!': [
@@ -1025,19 +1025,16 @@
               '-fno-short-enums',
               '-finline-limit=64',
               '-Wa,--noexecstack',
-              # Note: This include is in cflags to ensure that it comes after
-              # all of the includes.
-              '-I<(android_include)',
-              '-I<(android_stlport_include)',
+              '--sysroot=<(android_sysroot)',
             ],
             'cflags_cc': [
-              '-Wno-error=non-virtual-dtor',  # TODO(michaelbai): Fix warnings.
+              '-isystem<(android_libcpp_include)',
+              '-isystem<(android_libcpp_abi_include)',
+              '-isystem<(android_support_include)',
             ],
             'defines': [
               'ANDROID',
               #'__GNU_SOURCE=1',  # Necessary for clone()
-              'USE_STLPORT=1',
-              '_STLP_USE_PTR_SPECIALIZATIONS=1',
               'HAVE_OFF64_T',
               'HAVE_SYS_UIO_H',
               'ANDROID_BINSIZE_HACK', # Enable temporary hacks to reduce binsize.
@@ -1046,10 +1043,9 @@
               '-pthread',  # Not supported by Android toolchain.
             ],
             'ldflags': [
-              '-nostdlib',
               '-Wl,--no-undefined',
-              '-Wl,-rpath-link=<(android_lib)',
-              '-L<(android_lib)',
+              '--sysroot=<(android_sysroot)',
+              '-nostdlib',
             ],
             'libraries!': [
                 '-lrt',  # librt is built into Bionic.
@@ -1060,12 +1056,12 @@
                 '-lpthread', '-lnss3', '-lnssutil3', '-lsmime3', '-lplds4', '-lplc4', '-lnspr4',
               ],
               'libraries': [
-                '-l<(android_stlport_library)',
+                '-l<(android_libcpp_library)',
+                '-latomic',
                 # Manually link the libgcc.a that the cross compiler uses.
                 '<!(<(android_toolchain)/*-gcc -print-libgcc-file-name)',
                 '-lc',
                 '-ldl',
-                '-lstdc++',
                 '-lm',
             ],
             'conditions': [
@@ -1082,22 +1078,22 @@
                   '-mfpu=vfp3',
                 ],
                 'ldflags': [
-                  '-L<(android_stlport_libs)/armeabi-v7a',
+                  '-L<(android_libcpp_libs)/armeabi-v7a',
                 ],
               }],
               ['target_arch=="arm" and arm_version < 7', {
                 'ldflags': [
-                  '-L<(android_stlport_libs)/armeabi',
+                  '-L<(android_libcpp_libs)/armeabi',
                 ],
               }],
               ['target_arch=="x64"', {
                 'ldflags': [
-                  '-L<(android_stlport_libs)/x86_64',
+                  '-L<(android_libcpp_libs)/x86_64',
                 ],
               }],
               ['target_arch=="arm64"', {
                 'ldflags': [
-                  '-L<(android_stlport_libs)/arm64-v8a',
+                  '-L<(android_libcpp_libs)/arm64-v8a',
                 ],
               }],
               ['target_arch=="ia32" or target_arch=="x87"', {
@@ -1109,7 +1105,7 @@
                   '-fno-stack-protector',
                 ],
                 'ldflags': [
-                  '-L<(android_stlport_libs)/x86',
+                  '-L<(android_libcpp_libs)/x86',
                 ],
               }],
               ['target_arch=="mipsel"', {
@@ -1122,7 +1118,7 @@
                   '-fno-stack-protector',
                 ],
                 'ldflags': [
-                  '-L<(android_stlport_libs)/mips',
+                  '-L<(android_libcpp_libs)/mips',
                 ],
               }],
               ['(target_arch=="arm" or target_arch=="arm64" or target_arch=="x64" or target_arch=="ia32") and component!="shared_library"', {
