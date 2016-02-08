@@ -280,19 +280,19 @@ Callable CodeFactory::FastNewClosure(Isolate* isolate,
 
 
 // static
+Callable CodeFactory::FastNewRestParameter(Isolate* isolate) {
+  FastNewRestParameterStub stub(isolate);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
+
+
+// static
 Callable CodeFactory::ArgumentsAccess(Isolate* isolate,
                                       bool is_unmapped_arguments,
                                       bool has_duplicate_parameters) {
   ArgumentsAccessStub::Type type = ArgumentsAccessStub::ComputeType(
       is_unmapped_arguments, has_duplicate_parameters);
   ArgumentsAccessStub stub(isolate, type);
-  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
-}
-
-
-// static
-Callable CodeFactory::RestArgumentsAccess(Isolate* isolate) {
-  RestParamAccessStub stub(isolate);
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
 }
 

@@ -6002,7 +6002,7 @@ TEST(CreateArguments) {
   }
 }
 
-TEST(CreateRestArguments) {
+TEST(CreateRestParameter) {
   InitializedHandleScope handle_scope;
   BytecodeGeneratorHelper helper;
   Zone zone;
@@ -6018,45 +6018,45 @@ TEST(CreateRestArguments) {
   ExpectedSnippet<int> snippets[] = {
       {"function f(...restArgs) { return restArgs; }",
        1 * kPointerSize,
-       2,
-       8,
+       1,
+       7,
        {
-           B(CreateRestArguments), U8(0),  //
+           B(CreateRestParameter),         //
            B(Star), R(0),                  //
            B(StackCheck),                  //
            B(Ldar), R(0),                  //
            B(Return),                      //
        },
-       1,
-       {0}},
+       0,
+       {}},
       {"function f(a, ...restArgs) { return restArgs; }",
        2 * kPointerSize,
-       3,
-       15,
+       2,
+       14,
        {
-           B(CreateRestArguments), U8(0),  //
+           B(CreateRestParameter),         //
            B(Star), R(0),                  //
            B(LdaTheHole),                  //
            B(Star), R(1),                  //
            B(StackCheck),                  //
-           B(Ldar), A(1, 3),               //
+           B(Ldar), A(1, 2),               //
            B(Star), R(1),                  //
            B(Ldar), R(0),                  //
            B(Return),                      //
        },
-       1,
-       {1}},
+       0,
+       {}},
       {"function f(a, ...restArgs) { return restArgs[0]; }",
        3 * kPointerSize,
-       3,
-       21,
+       2,
+       20,
        {
-           B(CreateRestArguments), U8(0),                           //
+           B(CreateRestParameter),                                  //
            B(Star), R(0),                                           //
            B(LdaTheHole),                                           //
            B(Star), R(1),                                           //
            B(StackCheck),                                           //
-           B(Ldar), A(1, 3),                                        //
+           B(Ldar), A(1, 2),                                        //
            B(Star), R(1),                                           //
            B(Ldar), R(0),                                           //
            B(Star), R(2),                                           //
@@ -6064,21 +6064,21 @@ TEST(CreateRestArguments) {
            B(KeyedLoadICSloppy), R(2), U8(vector->GetIndex(slot)),  //
            B(Return),                                               //
        },
-       1,
-       {1}},
+       0,
+       {}},
       {"function f(a, ...restArgs) { return restArgs[0] + arguments[0]; }",
        5 * kPointerSize,
-       3,
-       36,
+       2,
+       35,
        {
            B(CreateUnmappedArguments),                               //
            B(Star), R(0),                                            //
-           B(CreateRestArguments), U8(0),                            //
+           B(CreateRestParameter),                                   //
            B(Star), R(1),                                            //
            B(LdaTheHole),                                            //
            B(Star), R(2),                                            //
            B(StackCheck),                                            //
-           B(Ldar), A(1, 3),                                         //
+           B(Ldar), A(1, 2),                                         //
            B(Star), R(2),                                            //
            B(Ldar), R(1),                                            //
            B(Star), R(3),                                            //
@@ -6092,8 +6092,8 @@ TEST(CreateRestArguments) {
            B(Add), R(4),                                             //
            B(Return),                                                //
        },
-       1,
-       {1}},
+       0,
+       {}},
   };
   // clang-format on
 

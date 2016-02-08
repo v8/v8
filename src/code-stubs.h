@@ -44,7 +44,6 @@ namespace internal {
   V(MathPow)                                \
   V(ProfileEntryHook)                       \
   V(RecordWrite)                            \
-  V(RestParamAccess)                        \
   V(RegExpExec)                             \
   V(StoreBufferOverflow)                    \
   V(StoreElement)                           \
@@ -78,6 +77,7 @@ namespace internal {
   V(FastCloneShallowObject)                 \
   V(FastNewClosure)                         \
   V(FastNewContext)                         \
+  V(FastNewRestParameter)                   \
   V(GrowArrayElements)                      \
   V(InternalArrayNArgumentsConstructor)     \
   V(InternalArrayNoArgumentConstructor)     \
@@ -722,6 +722,20 @@ class FastNewContextStub final : public HydrogenCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(FastNewContext);
   DEFINE_HYDROGEN_CODE_STUB(FastNewContext, HydrogenCodeStub);
+};
+
+
+// TODO(turbofan): This stub should be possible to write in TurboFan
+// using the CodeStubAssembler very soon in a way that is as efficient
+// and easy as the current handwritten version, which is partly a copy
+// of the strict arguments object materialization code.
+class FastNewRestParameterStub final : public PlatformCodeStub {
+ public:
+  explicit FastNewRestParameterStub(Isolate* isolate)
+      : PlatformCodeStub(isolate) {}
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(FastNewRestParameter);
+  DEFINE_PLATFORM_CODE_STUB(FastNewRestParameter, PlatformCodeStub);
 };
 
 
@@ -1851,20 +1865,6 @@ class ArgumentsAccessStub: public PlatformCodeStub {
   class TypeBits : public BitField<Type, 0, 2> {};
 
   DEFINE_PLATFORM_CODE_STUB(ArgumentsAccess, PlatformCodeStub);
-};
-
-
-class RestParamAccessStub : public PlatformCodeStub {
- public:
-  explicit RestParamAccessStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
-
- private:
-  void GenerateNew(MacroAssembler* masm);
-
-  void PrintName(std::ostream& os) const override;  // NOLINT
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(RestParamAccess);
-  DEFINE_PLATFORM_CODE_STUB(RestParamAccess, PlatformCodeStub);
 };
 
 

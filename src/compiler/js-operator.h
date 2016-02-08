@@ -348,33 +348,8 @@ std::ostream& operator<<(std::ostream&, PropertyAccess const&);
 PropertyAccess const& PropertyAccessOf(const Operator* op);
 
 
-// Defines specifics about arguments object or rest parameter creation. This is
-// used as a parameter by JSCreateArguments operators.
-class CreateArgumentsParameters final {
- public:
-  enum Type { kMappedArguments, kUnmappedArguments, kRestArray };
-  CreateArgumentsParameters(Type type, int start_index)
-      : type_(type), start_index_(start_index) {}
-
-  Type type() const { return type_; }
-  int start_index() const { return start_index_; }
-
- private:
-  const Type type_;
-  const int start_index_;
-};
-
-bool operator==(CreateArgumentsParameters const&,
-                CreateArgumentsParameters const&);
-bool operator!=(CreateArgumentsParameters const&,
-                CreateArgumentsParameters const&);
-
-size_t hash_value(CreateArgumentsParameters const&);
-
-std::ostream& operator<<(std::ostream&, CreateArgumentsParameters const&);
-
-const CreateArgumentsParameters& CreateArgumentsParametersOf(
-    const Operator* op);
+// CreateArgumentsType is used as parameter to JSCreateArguments nodes.
+CreateArgumentsType const& CreateArgumentsTypeOf(const Operator* op);
 
 
 // Defines shared information for the array that should be created. This is
@@ -501,8 +476,7 @@ class JSOperatorBuilder final : public ZoneObject {
   const Operator* Yield();
 
   const Operator* Create();
-  const Operator* CreateArguments(CreateArgumentsParameters::Type type,
-                                  int start_index);
+  const Operator* CreateArguments(CreateArgumentsType type);
   const Operator* CreateArray(size_t arity, Handle<AllocationSite> site);
   const Operator* CreateClosure(Handle<SharedFunctionInfo> shared_info,
                                 PretenureFlag pretenure);

@@ -3206,11 +3206,11 @@ Node* AstGraphBuilder::BuildArgumentsObject(Variable* arguments) {
   if (arguments == nullptr) return nullptr;
 
   // Allocate and initialize a new arguments object.
-  CreateArgumentsParameters::Type type =
+  CreateArgumentsType type =
       is_strict(language_mode()) || !info()->has_simple_parameters()
-          ? CreateArgumentsParameters::kUnmappedArguments
-          : CreateArgumentsParameters::kMappedArguments;
-  const Operator* op = javascript()->CreateArguments(type, 0);
+          ? CreateArgumentsType::kUnmappedArguments
+          : CreateArgumentsType::kMappedArguments;
+  const Operator* op = javascript()->CreateArguments(type);
   Node* object = NewNode(op, GetFunctionClosure());
   PrepareFrameState(object, BailoutId::None());
 
@@ -3228,8 +3228,8 @@ Node* AstGraphBuilder::BuildRestArgumentsArray(Variable* rest, int index) {
   if (rest == nullptr) return nullptr;
 
   // Allocate and initialize a new arguments object.
-  CreateArgumentsParameters::Type type = CreateArgumentsParameters::kRestArray;
-  const Operator* op = javascript()->CreateArguments(type, index);
+  CreateArgumentsType type = CreateArgumentsType::kRestParameter;
+  const Operator* op = javascript()->CreateArguments(type);
   Node* object = NewNode(op, GetFunctionClosure());
   PrepareFrameState(object, BailoutId::None());
 

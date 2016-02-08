@@ -365,26 +365,6 @@ void ArgumentsAccessNewDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
-FunctionType*
-RestParamAccessDescriptor::BuildCallInterfaceDescriptorFunctionType(
-    Isolate* isolate, int paramater_count) {
-  Zone* zone = isolate->interface_descriptor_zone();
-  FunctionType* function =
-      Type::Function(AnyTagged(zone), Type::Undefined(), 3, zone)->AsFunction();
-  function->InitParameter(0, SmiType(zone));
-  function->InitParameter(1, ExternalPointer(zone));
-  function->InitParameter(2, SmiType(zone));
-  return function;
-}
-
-
-void RestParamAccessDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {parameter_count(), parameter_pointer(),
-                          rest_parameter_index()};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
 
 void ContextOnlyDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {

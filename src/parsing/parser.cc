@@ -4208,6 +4208,11 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
                            formals_end_position, CHECK_OK);
     Expect(Token::LBRACE, CHECK_OK);
 
+    // Don't include the rest parameter into the function's formal parameter
+    // count (esp. the SharedFunctionInfo::internal_formal_parameter_count,
+    // which says whether we need to create an arguments adaptor frame).
+    if (formals.has_rest) arity--;
+
     // Determine if the function can be parsed lazily. Lazy parsing is different
     // from lazy compilation; we need to parse more eagerly than we compile.
 

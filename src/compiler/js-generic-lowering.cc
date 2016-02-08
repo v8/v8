@@ -455,17 +455,16 @@ void JSGenericLowering::LowerJSCreate(Node* node) {
 
 
 void JSGenericLowering::LowerJSCreateArguments(Node* node) {
-  const CreateArgumentsParameters& p = CreateArgumentsParametersOf(node->op());
-  switch (p.type()) {
-    case CreateArgumentsParameters::kMappedArguments:
+  CreateArgumentsType const type = CreateArgumentsTypeOf(node->op());
+  switch (type) {
+    case CreateArgumentsType::kMappedArguments:
       ReplaceWithRuntimeCall(node, Runtime::kNewSloppyArguments_Generic);
       break;
-    case CreateArgumentsParameters::kUnmappedArguments:
+    case CreateArgumentsType::kUnmappedArguments:
       ReplaceWithRuntimeCall(node, Runtime::kNewStrictArguments_Generic);
       break;
-    case CreateArgumentsParameters::kRestArray:
-      node->InsertInput(zone(), 1, jsgraph()->Constant(p.start_index()));
-      ReplaceWithRuntimeCall(node, Runtime::kNewRestArguments_Generic);
+    case CreateArgumentsType::kRestParameter:
+      ReplaceWithRuntimeCall(node, Runtime::kNewRestParameter);
       break;
   }
 }

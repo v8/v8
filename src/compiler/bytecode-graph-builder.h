@@ -121,7 +121,7 @@ class BytecodeGraphBuilder {
   void BuildCreateRegExpLiteral();
   void BuildCreateArrayLiteral();
   void BuildCreateObjectLiteral();
-  void BuildCreateArguments(CreateArgumentsParameters::Type type, int index);
+  void BuildCreateArguments(CreateArgumentsType type);
   void BuildLoadGlobal(TypeofMode typeof_mode);
   void BuildStoreGlobal();
   void BuildNamedLoad();

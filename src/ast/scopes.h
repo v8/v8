@@ -428,7 +428,24 @@ class Scope: public ZoneObject {
   // Returns the default function arity excluding default or rest parameters.
   int default_function_length() const { return arity_; }
 
-  int num_parameters() const { return params_.length(); }
+  // Returns the number of formal parameters, up to but not including the
+  // rest parameter index (if the function has rest parameters), i.e. it
+  // says 2 for
+  //
+  //   function foo(a, b) { ... }
+  //
+  // and
+  //
+  //   function foo(a, b, ...c) { ... }
+  //
+  // but for
+  //
+  //   function foo(a, b, c = 1) { ... }
+  //
+  // we return 3 here.
+  int num_parameters() const {
+    return has_rest_parameter() ? params_.length() - 1 : params_.length();
+  }
 
   // A function can have at most one rest parameter. Returns Variable* or NULL.
   Variable* rest_parameter(int* index) const {

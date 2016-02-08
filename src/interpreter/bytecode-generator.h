@@ -79,7 +79,7 @@ class BytecodeGenerator final : public AstVisitor {
   void VisitVariableAssignment(Variable* variable, FeedbackVectorSlot slot);
 
   void VisitArgumentsObject(Variable* variable);
-  void VisitRestArgumentsArray(Variable* rest, int index);
+  void VisitRestArgumentsArray(Variable* rest);
   void VisitClassLiteralContents(ClassLiteral* expr);
   void VisitClassLiteralForRuntimeDefinition(ClassLiteral* expr);
   void VisitClassLiteralProperties(ClassLiteral* expr, Register literal,

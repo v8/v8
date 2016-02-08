@@ -27,11 +27,10 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   CHECK_EQ(builder.context_count(), 1);
   CHECK_EQ(builder.fixed_register_count(), 132);
 
-  // Emit argument creation operations. CreateRestArguments should
-  // be output before any bytecodes that change constant pool.
+  // Emit argument creation operations.
   builder.CreateArguments(CreateArgumentsType::kMappedArguments)
       .CreateArguments(CreateArgumentsType::kUnmappedArguments)
-      .CreateRestArguments(0);
+      .CreateArguments(CreateArgumentsType::kRestParameter);
 
   // Emit constant loads.
   builder.LoadLiteral(Smi::FromInt(0))

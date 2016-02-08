@@ -941,7 +941,7 @@ TEST_F(JSTypedLoweringTest, JSCreateArgumentsViaStub) {
   Node* const frame_state = FrameState(shared, graph()->start());
   Reduction r = Reduce(
       graph()->NewNode(javascript()->CreateArguments(
-                           CreateArgumentsParameters::kMappedArguments, 0),
+                           CreateArgumentsType::kMappedArguments),
                        closure, context, frame_state, effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(),
@@ -952,7 +952,7 @@ TEST_F(JSTypedLoweringTest, JSCreateArgumentsViaStub) {
 }
 
 
-TEST_F(JSTypedLoweringTest, JSCreateArgumentsRestArrayViaStub) {
+TEST_F(JSTypedLoweringTest, JSCreateArgumentsRestParameterViaStub) {
   Node* const closure = Parameter(Type::Any());
   Node* const context = UndefinedConstant();
   Node* const effect = graph()->start();
@@ -960,14 +960,14 @@ TEST_F(JSTypedLoweringTest, JSCreateArgumentsRestArrayViaStub) {
   Handle<SharedFunctionInfo> shared(isolate()->object_function()->shared());
   Node* const frame_state = FrameState(shared, graph()->start());
   Reduction r = Reduce(graph()->NewNode(
-      javascript()->CreateArguments(CreateArgumentsParameters::kRestArray, 0),
+      javascript()->CreateArguments(CreateArgumentsType::kRestParameter),
       closure, context, frame_state, effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(
       r.replacement(),
-      IsCall(_,
-             IsHeapConstant(CodeFactory::RestArgumentsAccess(isolate()).code()),
-             IsNumberConstant(0), _, IsNumberConstant(0), _, effect, control));
+      IsCall(_, IsHeapConstant(
+                    CodeFactory::FastNewRestParameter(isolate()).code()),
+             closure, context, frame_state, effect, control));
 }
 
 
@@ -981,7 +981,7 @@ TEST_F(JSTypedLoweringTest, JSCreateArgumentsInlinedMapped) {
   Node* const frame_state_inner = FrameState(shared, frame_state_outer);
   Reduction r = Reduce(
       graph()->NewNode(javascript()->CreateArguments(
-                           CreateArgumentsParameters::kMappedArguments, 0),
+                           CreateArgumentsType::kMappedArguments),
                        closure, context, frame_state_inner, effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(),
@@ -1002,7 +1002,7 @@ TEST_F(JSTypedLoweringTest, JSCreateArgumentsInlinedUnmapped) {
   Node* const frame_state_inner = FrameState(shared, frame_state_outer);
   Reduction r = Reduce(
       graph()->NewNode(javascript()->CreateArguments(
-                           CreateArgumentsParameters::kUnmappedArguments, 0),
+                           CreateArgumentsType::kUnmappedArguments),
                        closure, context, frame_state_inner, effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(),
@@ -1022,7 +1022,7 @@ TEST_F(JSTypedLoweringTest, JSCreateArgumentsInlinedRestArray) {
   Node* const frame_state_outer = FrameState(shared, graph()->start());
   Node* const frame_state_inner = FrameState(shared, frame_state_outer);
   Reduction r = Reduce(graph()->NewNode(
-      javascript()->CreateArguments(CreateArgumentsParameters::kRestArray, 0),
+      javascript()->CreateArguments(CreateArgumentsType::kRestParameter),
       closure, context, frame_state_inner, effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(),

@@ -24,10 +24,6 @@ namespace interpreter {
 class BytecodeLabel;
 class Register;
 
-// TODO(rmcilroy): Unify this with CreateArgumentsParameters::Type in Turbofan
-// when rest parameters implementation has settled down.
-enum class CreateArgumentsType { kMappedArguments, kUnmappedArguments };
-
 class BytecodeArrayBuilder final : public ZoneObject, private RegisterMover {
  public:
   BytecodeArrayBuilder(Isolate* isolate, Zone* zone, int parameter_count,
@@ -151,9 +147,6 @@ class BytecodeArrayBuilder final : public ZoneObject, private RegisterMover {
 
   // Create a new arguments object in the accumulator.
   BytecodeArrayBuilder& CreateArguments(CreateArgumentsType type);
-
-  // Create a new rest arguments object starting at |index| in the accumulator.
-  BytecodeArrayBuilder& CreateRestArguments(int index);
 
   // Literals creation.  Constant elements should be in the accumulator.
   BytecodeArrayBuilder& CreateRegExpLiteral(Handle<String> pattern,

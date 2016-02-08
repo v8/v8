@@ -228,7 +228,7 @@ namespace interpreter {
   /* Arguments allocation */                                                   \
   V(CreateMappedArguments, OperandType::kNone)                                 \
   V(CreateUnmappedArguments, OperandType::kNone)                               \
-  V(CreateRestArguments, OperandType::kIdx8)                                   \
+  V(CreateRestParameter, OperandType::kNone)                                   \
                                                                                \
   /* Control Flow */                                                           \
   V(Jump, OperandType::kImm8)                                                  \

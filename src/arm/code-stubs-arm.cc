@@ -1873,28 +1873,6 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
 }
 
 
-void RestParamAccessStub::GenerateNew(MacroAssembler* masm) {
-  // r2 : number of parameters (tagged)
-  // r3 : parameters pointer
-  // r4 : rest parameter index (tagged)
-
-  Label runtime;
-  __ ldr(r5, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-  __ ldr(r0, MemOperand(r5, StandardFrameConstants::kContextOffset));
-  __ cmp(r0, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ b(ne, &runtime);
-
-  // Patch the arguments.length and the parameters pointer.
-  __ ldr(r2, MemOperand(r5, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ add(r3, r5, Operand::PointerOffsetFromSmiKey(r2));
-  __ add(r3, r3, Operand(StandardFrameConstants::kCallerSPOffset));
-
-  __ bind(&runtime);
-  __ Push(r2, r3, r4);
-  __ TailCallRuntime(Runtime::kNewRestParam);
-}
-
-
 void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Just jump directly to runtime if native RegExp is not selected at compile
   // time or if regexp entry in generated code is turned off runtime switch or
@@ -4964,6 +4942,148 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
 
   __ bind(&fast_elements_case);
   GenerateCase(masm, FAST_ELEMENTS);
+}
+
+
+void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- r1 : function
+  //  -- cp : context
+  //  -- fp : frame pointer
+  //  -- lr : return address
+  // -----------------------------------
+  __ AssertFunction(r1);
+
+  // For Ignition we need to skip all possible handler/stub frames until
+  // we reach the JavaScript frame for the function (similar to what the
+  // runtime fallback implementation does). So make r2 point to that
+  // JavaScript frame.
+  {
+    Label loop, loop_entry;
+    __ mov(r2, fp);
+    __ b(&loop_entry);
+    __ bind(&loop);
+    __ ldr(r2, MemOperand(r2, StandardFrameConstants::kCallerFPOffset));
+    __ bind(&loop_entry);
+    __ ldr(ip, MemOperand(r2, StandardFrameConstants::kMarkerOffset));
+    __ cmp(ip, r1);
+    __ b(ne, &loop);
+  }
+
+  // Check if we have rest parameters (only possible if we have an
+  // arguments adaptor frame below the function frame).
+  Label no_rest_parameters;
+  __ ldr(r2, MemOperand(r2, StandardFrameConstants::kCallerFPOffset));
+  __ ldr(ip, MemOperand(r2, StandardFrameConstants::kContextOffset));
+  __ cmp(ip, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ b(ne, &no_rest_parameters);
+
+  // Check if the arguments adaptor frame contains more arguments than
+  // specified by the function's internal formal parameter count.
+  Label rest_parameters;
+  __ ldr(r0, MemOperand(r2, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ ldr(r1, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
+  __ ldr(r1,
+         FieldMemOperand(r1, SharedFunctionInfo::kFormalParameterCountOffset));
+  __ sub(r0, r0, r1, SetCC);
+  __ b(gt, &rest_parameters);
+
+  // Return an empty rest parameter array.
+  __ bind(&no_rest_parameters);
+  {
+    // ----------- S t a t e -------------
+    //  -- cp : context
+    //  -- lr : return address
+    // -----------------------------------
+
+    // Allocate an empty rest parameter array.
+    Label allocate, done_allocate;
+    __ Allocate(JSArray::kSize, r0, r1, r2, &allocate, TAG_OBJECT);
+    __ bind(&done_allocate);
+
+    // Setup the rest parameter array in r0.
+    __ LoadNativeContextSlot(Context::JS_ARRAY_FAST_ELEMENTS_MAP_INDEX, r1);
+    __ str(r1, FieldMemOperand(r0, JSArray::kMapOffset));
+    __ LoadRoot(r1, Heap::kEmptyFixedArrayRootIndex);
+    __ str(r1, FieldMemOperand(r0, JSArray::kPropertiesOffset));
+    __ str(r1, FieldMemOperand(r0, JSArray::kElementsOffset));
+    __ mov(r1, Operand(0));
+    __ str(r1, FieldMemOperand(r0, JSArray::kLengthOffset));
+    STATIC_ASSERT(JSArray::kSize == 4 * kPointerSize);
+    __ Ret();
+
+    // Fall back to %AllocateInNewSpace.
+    __ bind(&allocate);
+    {
+      FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
+      __ Push(Smi::FromInt(JSArray::kSize));
+      __ CallRuntime(Runtime::kAllocateInNewSpace);
+    }
+    __ jmp(&done_allocate);
+  }
+
+  __ bind(&rest_parameters);
+  {
+    // Compute the pointer to the first rest parameter (skippping the receiver).
+    __ add(r2, r2, Operand(r0, LSL, kPointerSizeLog2 - 1));
+    __ add(r2, r2,
+           Operand(StandardFrameConstants::kCallerSPOffset - 1 * kPointerSize));
+
+    // ----------- S t a t e -------------
+    //  -- cp : context
+    //  -- r0 : number of rest parameters (tagged)
+    //  -- r2 : pointer to first rest parameters
+    //  -- lr : return address
+    // -----------------------------------
+
+    // Allocate space for the rest parameter array plus the backing store.
+    Label allocate, done_allocate;
+    __ mov(r1, Operand(JSArray::kSize + FixedArray::kHeaderSize));
+    __ add(r1, r1, Operand(r0, LSL, kPointerSizeLog2 - 1));
+    __ Allocate(r1, r3, r4, r5, &allocate, TAG_OBJECT);
+    __ bind(&done_allocate);
+
+    // Setup the elements array in r3.
+    __ LoadRoot(r1, Heap::kFixedArrayMapRootIndex);
+    __ str(r1, FieldMemOperand(r3, FixedArray::kMapOffset));
+    __ str(r0, FieldMemOperand(r3, FixedArray::kLengthOffset));
+    __ add(r4, r3, Operand(FixedArray::kHeaderSize));
+    {
+      Label loop, done_loop;
+      __ add(r1, r4, Operand(r0, LSL, kPointerSizeLog2 - 1));
+      __ bind(&loop);
+      __ cmp(r4, r1);
+      __ b(eq, &done_loop);
+      __ ldr(ip, MemOperand(r2, 1 * kPointerSize, NegPostIndex));
+      __ str(ip, FieldMemOperand(r4, 0 * kPointerSize));
+      __ add(r4, r4, Operand(1 * kPointerSize));
+      __ b(&loop);
+      __ bind(&done_loop);
+    }
+
+    // Setup the rest parameter array in r4.
+    __ LoadNativeContextSlot(Context::JS_ARRAY_FAST_ELEMENTS_MAP_INDEX, r1);
+    __ str(r1, FieldMemOperand(r4, JSArray::kMapOffset));
+    __ LoadRoot(r1, Heap::kEmptyFixedArrayRootIndex);
+    __ str(r1, FieldMemOperand(r4, JSArray::kPropertiesOffset));
+    __ str(r3, FieldMemOperand(r4, JSArray::kElementsOffset));
+    __ str(r0, FieldMemOperand(r4, JSArray::kLengthOffset));
+    STATIC_ASSERT(JSArray::kSize == 4 * kPointerSize);
+    __ mov(r0, r4);
+    __ Ret();
+
+    // Fall back to %AllocateInNewSpace.
+    __ bind(&allocate);
+    {
+      FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
+      __ SmiTag(r1);
+      __ Push(r0, r2, r1);
+      __ CallRuntime(Runtime::kAllocateInNewSpace);
+      __ mov(r3, r0);
+      __ Pop(r0, r2);
+    }
+    __ jmp(&done_allocate);
+  }
 }
 
 

@@ -1517,7 +1517,7 @@ Node* GetArgumentsFrameState(Node* frame_state) {
 
 Reduction JSTypedLowering::ReduceJSCreateArguments(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateArguments, node->opcode());
-  CreateArgumentsParameters const& p = CreateArgumentsParametersOf(node->op());
+  CreateArgumentsType type = CreateArgumentsTypeOf(node->op());
   Node* const frame_state = NodeProperties::GetFrameStateInput(node, 0);
   Node* const outer_state = frame_state->InputAt(kFrameStateOuterStateInput);
   FrameStateInfo state_info = OpParameter<FrameStateInfo>(frame_state);
@@ -1525,18 +1525,18 @@ Reduction JSTypedLowering::ReduceJSCreateArguments(Node* node) {
   // Use the ArgumentsAccessStub for materializing both mapped and unmapped
   // arguments object, but only for non-inlined (i.e. outermost) frames.
   if (outer_state->opcode() != IrOpcode::kFrameState) {
-    Isolate* isolate = jsgraph()->isolate();
-    int parameter_count = state_info.parameter_count() - 1;
-    int parameter_offset = parameter_count * kPointerSize;
-    int offset = StandardFrameConstants::kCallerSPOffset + parameter_offset;
-    Node* parameter_pointer = graph()->NewNode(
-        machine()->IntAdd(), graph()->NewNode(machine()->LoadFramePointer()),
-        jsgraph()->IntPtrConstant(offset));
-
-    if (p.type() != CreateArgumentsParameters::kRestArray) {
+    if (type != CreateArgumentsType::kRestParameter) {
+      // TODO(bmeurer): Cleanup this mess at some point.
+      Isolate* isolate = jsgraph()->isolate();
+      int parameter_count = state_info.parameter_count() - 1;
+      int parameter_offset = parameter_count * kPointerSize;
+      int offset = StandardFrameConstants::kCallerSPOffset + parameter_offset;
+      Node* parameter_pointer = graph()->NewNode(
+          machine()->IntAdd(), graph()->NewNode(machine()->LoadFramePointer()),
+          jsgraph()->IntPtrConstant(offset));
       Handle<SharedFunctionInfo> shared;
       if (!state_info.shared_info().ToHandle(&shared)) return NoChange();
-      bool unmapped = p.type() == CreateArgumentsParameters::kUnmappedArguments;
+      bool unmapped = type == CreateArgumentsType::kUnmappedArguments;
       Callable callable = CodeFactory::ArgumentsAccess(
           isolate, unmapped, shared->has_duplicate_parameters());
       CallDescriptor* desc = Linkage::GetStubCallDescriptor(
@@ -1551,24 +1551,20 @@ Reduction JSTypedLowering::ReduceJSCreateArguments(Node* node) {
       NodeProperties::ChangeOp(node, new_op);
       return Changed(node);
     } else {
-      Callable callable = CodeFactory::RestArgumentsAccess(isolate);
+      Callable callable = CodeFactory::FastNewRestParameter(isolate());
       CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-          isolate, graph()->zone(), callable.descriptor(), 0,
+          isolate(), graph()->zone(), callable.descriptor(), 0,
           CallDescriptor::kNeedsFrameState);
       const Operator* new_op = common()->Call(desc);
       Node* stub_code = jsgraph()->HeapConstant(callable.code());
       node->InsertInput(graph()->zone(), 0, stub_code);
-      node->ReplaceInput(1, jsgraph()->Constant(parameter_count));
-      node->InsertInput(graph()->zone(), 2, parameter_pointer);
-      node->InsertInput(graph()->zone(), 3,
-                        jsgraph()->Constant(p.start_index()));
       NodeProperties::ChangeOp(node, new_op);
       return Changed(node);
     }
   } else if (outer_state->opcode() == IrOpcode::kFrameState) {
     // Use inline allocation for all mapped arguments objects within inlined
     // (i.e. non-outermost) frames, independent of the object size.
-    if (p.type() == CreateArgumentsParameters::kMappedArguments) {
+    if (type == CreateArgumentsType::kMappedArguments) {
       Handle<SharedFunctionInfo> shared;
       if (!state_info.shared_info().ToHandle(&shared)) return NoChange();
       Node* const callee = NodeProperties::GetValueInput(node, 0);
@@ -1610,7 +1606,7 @@ Reduction JSTypedLowering::ReduceJSCreateArguments(Node* node) {
       RelaxControls(node);
       a.FinishAndChange(node);
       return Changed(node);
-    } else if (p.type() == CreateArgumentsParameters::kUnmappedArguments) {
+    } else if (type == CreateArgumentsType::kUnmappedArguments) {
       // Use inline allocation for all unmapped arguments objects within inlined
       // (i.e. non-outermost) frames, independent of the object size.
       Node* const control = NodeProperties::GetControlInput(node);
@@ -1645,7 +1641,10 @@ Reduction JSTypedLowering::ReduceJSCreateArguments(Node* node) {
       RelaxControls(node);
       a.FinishAndChange(node);
       return Changed(node);
-    } else if (p.type() == CreateArgumentsParameters::kRestArray) {
+    } else if (type == CreateArgumentsType::kRestParameter) {
+      Handle<SharedFunctionInfo> shared;
+      if (!state_info.shared_info().ToHandle(&shared)) return NoChange();
+      int start_index = shared->internal_formal_parameter_count();
       // Use inline allocation for all unmapped arguments objects within inlined
       // (i.e. non-outermost) frames, independent of the object size.
       Node* const control = NodeProperties::GetControlInput(node);
@@ -1658,7 +1657,7 @@ Reduction JSTypedLowering::ReduceJSCreateArguments(Node* node) {
       FrameStateInfo args_state_info = OpParameter<FrameStateInfo>(args_state);
       // Prepare element backing store to be used by the rest array.
       Node* const elements =
-          AllocateRestArguments(effect, control, args_state, p.start_index());
+          AllocateRestArguments(effect, control, args_state, start_index);
       effect = elements->op()->EffectOutputCount() > 0 ? elements : effect;
       // Load the JSArray object map from the current native context.
       Node* const load_native_context = effect = graph()->NewNode(
@@ -1674,7 +1673,7 @@ Reduction JSTypedLowering::ReduceJSCreateArguments(Node* node) {
 
       // -1 to minus receiver
       int argument_count = args_state_info.parameter_count() - 1;
-      int length = std::max(0, argument_count - p.start_index());
+      int length = std::max(0, argument_count - start_index);
       STATIC_ASSERT(JSArray::kSize == 4 * kPointerSize);
       a.Allocate(JSArray::kSize);
       a.Store(AccessBuilder::ForMap(), load_jsarray_map);

@@ -838,36 +838,6 @@ void ArgumentsAccessStub::GenerateNewSloppySlow(MacroAssembler* masm) {
 }
 
 
-void RestParamAccessStub::GenerateNew(MacroAssembler* masm) {
-  // rcx : number of parameters (tagged)
-  // rdx : parameters pointer
-  // rbx : rest parameter index (tagged)
-  // rsp[0] : return address
-
-  // Check if the calling frame is an arguments adaptor frame.
-  Label runtime;
-  __ movp(r8, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
-  __ movp(rax, Operand(r8, StandardFrameConstants::kContextOffset));
-  __ Cmp(rax, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
-  __ j(not_equal, &runtime);
-
-  // Patch the arguments.length and the parameters pointer.
-  StackArgumentsAccessor args(rsp, 4, ARGUMENTS_DONT_CONTAIN_RECEIVER);
-  __ movp(rcx, Operand(r8, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ SmiToInteger64(rax, rcx);
-  __ leap(rdx, Operand(r8, rax, times_pointer_size,
-                       StandardFrameConstants::kCallerSPOffset));
-
-  __ bind(&runtime);
-  __ PopReturnAddressTo(rax);
-  __ Push(rcx);  // Push number of parameters.
-  __ Push(rdx);  // Push parameters pointer.
-  __ Push(rbx);  // Push rest parameter index.
-  __ PushReturnAddressFrom(rax);
-  __ TailCallRuntime(Runtime::kNewRestParam);
-}
-
-
 void LoadIndexedInterceptorStub::Generate(MacroAssembler* masm) {
   // Return address is on the stack.
   Label slow;
@@ -4902,6 +4872,158 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
 
   __ bind(&fast_elements_case);
   GenerateCase(masm, FAST_ELEMENTS);
+}
+
+
+void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rdi    : function
+  //  -- rsi    : context
+  //  -- rbp    : frame pointer
+  //  -- rsp[0] : return address
+  // -----------------------------------
+  __ AssertFunction(rdi);
+
+  // For Ignition we need to skip all possible handler/stub frames until
+  // we reach the JavaScript frame for the function (similar to what the
+  // runtime fallback implementation does). So make rdx point to that
+  // JavaScript frame.
+  {
+    Label loop, loop_entry;
+    __ movp(rdx, rbp);
+    __ jmp(&loop_entry, Label::kNear);
+    __ bind(&loop);
+    __ movp(rdx, Operand(rdx, StandardFrameConstants::kCallerFPOffset));
+    __ bind(&loop_entry);
+    __ cmpp(rdi, Operand(rdx, StandardFrameConstants::kMarkerOffset));
+    __ j(not_equal, &loop);
+  }
+
+  // Check if we have rest parameters (only possible if we have an
+  // arguments adaptor frame below the function frame).
+  Label no_rest_parameters;
+  __ movp(rbx, Operand(rdx, StandardFrameConstants::kCallerFPOffset));
+  __ Cmp(Operand(rbx, StandardFrameConstants::kContextOffset),
+         Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
+  __ j(not_equal, &no_rest_parameters, Label::kNear);
+
+  // Check if the arguments adaptor frame contains more arguments than
+  // specified by the function's internal formal parameter count.
+  Label rest_parameters;
+  __ movp(rcx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+  __ LoadSharedFunctionInfoSpecialField(
+      rcx, rcx, SharedFunctionInfo::kFormalParameterCountOffset);
+  __ SmiToInteger32(
+      rax, Operand(rbx, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ subl(rax, rcx);
+  __ j(greater, &rest_parameters);
+
+  // Return an empty rest parameter array.
+  __ bind(&no_rest_parameters);
+  {
+    // ----------- S t a t e -------------
+    //  -- rsi    : context
+    //  -- rsp[0] : return address
+    // -----------------------------------
+
+    // Allocate an empty rest parameter array.
+    Label allocate, done_allocate;
+    __ Allocate(JSArray::kSize, rax, rdx, rcx, &allocate, TAG_OBJECT);
+    __ bind(&done_allocate);
+
+    // Setup the rest parameter array in rax.
+    __ LoadNativeContextSlot(Context::JS_ARRAY_FAST_ELEMENTS_MAP_INDEX, rcx);
+    __ movp(FieldOperand(rax, JSArray::kMapOffset), rcx);
+    __ LoadRoot(rcx, Heap::kEmptyFixedArrayRootIndex);
+    __ movp(FieldOperand(rax, JSArray::kPropertiesOffset), rcx);
+    __ movp(FieldOperand(rax, JSArray::kElementsOffset), rcx);
+    __ movp(FieldOperand(rax, JSArray::kLengthOffset), Immediate(0));
+    STATIC_ASSERT(JSArray::kSize == 4 * kPointerSize);
+    __ Ret();
+
+    // Fall back to %AllocateInNewSpace.
+    __ bind(&allocate);
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ Push(Smi::FromInt(JSArray::kSize));
+      __ CallRuntime(Runtime::kAllocateInNewSpace);
+    }
+    __ jmp(&done_allocate);
+  }
+
+  __ bind(&rest_parameters);
+  {
+    // Compute the pointer to the first rest parameter (skippping the receiver).
+    __ leap(rbx, Operand(rbx, rax, times_pointer_size,
+                         StandardFrameConstants::kCallerSPOffset -
+                             1 * kPointerSize));
+
+    // ----------- S t a t e -------------
+    //  -- rsi    : context
+    //  -- rax    : number of rest parameters
+    //  -- rbx    : pointer to first rest parameters
+    //  -- rsp[0] : return address
+    // -----------------------------------
+
+    // Allocate space for the rest parameter array plus the backing store.
+    Label allocate, done_allocate;
+    __ leal(rcx, Operand(rax, times_pointer_size,
+                         JSArray::kSize + FixedArray::kHeaderSize));
+    __ Allocate(rcx, rdx, rdi, no_reg, &allocate, TAG_OBJECT);
+    __ bind(&done_allocate);
+
+    // Compute the arguments.length in rdi.
+    __ Integer32ToSmi(rdi, rax);
+
+    // Setup the elements array in rdx.
+    __ LoadRoot(rcx, Heap::kFixedArrayMapRootIndex);
+    __ movp(FieldOperand(rdx, FixedArray::kMapOffset), rcx);
+    __ movp(FieldOperand(rdx, FixedArray::kLengthOffset), rdi);
+    {
+      Label loop, done_loop;
+      __ Set(rcx, 0);
+      __ bind(&loop);
+      __ cmpl(rcx, rax);
+      __ j(equal, &done_loop, Label::kNear);
+      __ movp(kScratchRegister, Operand(rbx, 0 * kPointerSize));
+      __ movp(
+          FieldOperand(rdx, rcx, times_pointer_size, FixedArray::kHeaderSize),
+          kScratchRegister);
+      __ subp(rbx, Immediate(1 * kPointerSize));
+      __ addl(rcx, Immediate(1));
+      __ jmp(&loop);
+      __ bind(&done_loop);
+    }
+
+    // Setup the rest parameter array in rax.
+    __ leap(rax,
+            Operand(rdx, rax, times_pointer_size, FixedArray::kHeaderSize));
+    __ LoadNativeContextSlot(Context::JS_ARRAY_FAST_ELEMENTS_MAP_INDEX, rcx);
+    __ movp(FieldOperand(rax, JSArray::kMapOffset), rcx);
+    __ LoadRoot(rcx, Heap::kEmptyFixedArrayRootIndex);
+    __ movp(FieldOperand(rax, JSArray::kPropertiesOffset), rcx);
+    __ movp(FieldOperand(rax, JSArray::kElementsOffset), rdx);
+    __ movp(FieldOperand(rax, JSArray::kLengthOffset), rdi);
+    STATIC_ASSERT(JSArray::kSize == 4 * kPointerSize);
+    __ Ret();
+
+    // Fall back to %AllocateInNewSpace.
+    __ bind(&allocate);
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ Integer32ToSmi(rax, rax);
+      __ Integer32ToSmi(rcx, rcx);
+      __ Push(rax);
+      __ Push(rbx);
+      __ Push(rcx);
+      __ CallRuntime(Runtime::kAllocateInNewSpace);
+      __ movp(rdx, rax);
+      __ Pop(rbx);
+      __ Pop(rax);
+      __ SmiToInteger32(rax, rax);
+    }
+    __ jmp(&done_allocate);
+  }
 }
 
 

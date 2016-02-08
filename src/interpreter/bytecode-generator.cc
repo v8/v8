@@ -587,7 +587,7 @@ void BytecodeGenerator::MakeBytecodeBody() {
   // Build rest arguments array if it is used.
   int rest_index;
   Variable* rest_parameter = scope()->rest_parameter(&rest_index);
-  VisitRestArgumentsArray(rest_parameter, rest_index);
+  VisitRestArgumentsArray(rest_parameter);
 
   // Build assignment to {.this_function} variable if it is used.
   VisitThisFunctionVariable(scope()->this_function_var());
@@ -2604,12 +2604,12 @@ void BytecodeGenerator::VisitArgumentsObject(Variable* variable) {
   VisitVariableAssignment(variable, FeedbackVectorSlot::Invalid());
 }
 
-void BytecodeGenerator::VisitRestArgumentsArray(Variable* rest, int index) {
+void BytecodeGenerator::VisitRestArgumentsArray(Variable* rest) {
   if (rest == nullptr) return;
 
-  // Allocate and initialize a new arguments object and assign to the {rest}
+  // Allocate and initialize a new rest parameter and assign to the {rest}
   // variable.
-  builder()->CreateRestArguments(index);
+  builder()->CreateArguments(CreateArgumentsType::kRestParameter);
   DCHECK(rest->IsContextSlot() || rest->IsStackAllocated());
   VisitVariableAssignment(rest, FeedbackVectorSlot::Invalid());
 }

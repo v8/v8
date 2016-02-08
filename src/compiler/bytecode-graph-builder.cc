@@ -995,26 +995,23 @@ void BytecodeGraphBuilder::VisitCreateClosure() {
 
 void BytecodeGraphBuilder::VisitCreateClosureWide() { VisitCreateClosure(); }
 
-void BytecodeGraphBuilder::BuildCreateArguments(
-    CreateArgumentsParameters::Type type, int rest_index) {
+void BytecodeGraphBuilder::BuildCreateArguments(CreateArgumentsType type) {
   FrameStateBeforeAndAfter states(this);
-  const Operator* op = javascript()->CreateArguments(type, rest_index);
+  const Operator* op = javascript()->CreateArguments(type);
   Node* object = NewNode(op, GetFunctionClosure());
   environment()->BindAccumulator(object, &states);
 }
 
 void BytecodeGraphBuilder::VisitCreateMappedArguments() {
-  BuildCreateArguments(CreateArgumentsParameters::kMappedArguments, 0);
+  BuildCreateArguments(CreateArgumentsType::kMappedArguments);
 }
 
 void BytecodeGraphBuilder::VisitCreateUnmappedArguments() {
-  BuildCreateArguments(CreateArgumentsParameters::kUnmappedArguments, 0);
+  BuildCreateArguments(CreateArgumentsType::kUnmappedArguments);
 }
 
-void BytecodeGraphBuilder::VisitCreateRestArguments() {
-  int index =
-      Smi::cast(*bytecode_iterator().GetConstantForIndexOperand(0))->value();
-  BuildCreateArguments(CreateArgumentsParameters::kRestArray, index);
+void BytecodeGraphBuilder::VisitCreateRestParameter() {
+  BuildCreateArguments(CreateArgumentsType::kRestParameter);
 }
 
 void BytecodeGraphBuilder::BuildCreateLiteral(const Operator* op) {

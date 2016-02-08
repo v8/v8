@@ -259,20 +259,12 @@ void FullCodeGenerator::Generate() {
   Variable* rest_param = scope()->rest_parameter(&rest_index);
   if (rest_param) {
     Comment cmnt(masm_, "[ Allocate rest parameter array");
-
-    int num_parameters = info->scope()->num_parameters();
-    int offset = num_parameters * kPointerSize;
-
-    __ mov(RestParamAccessDescriptor::parameter_count(),
-           Immediate(Smi::FromInt(num_parameters)));
-    __ lea(RestParamAccessDescriptor::parameter_pointer(),
-           Operand(ebp, StandardFrameConstants::kCallerSPOffset + offset));
-    __ mov(RestParamAccessDescriptor::rest_parameter_index(),
-           Immediate(Smi::FromInt(rest_index)));
-    function_in_register = false;
-
-    RestParamAccessStub stub(isolate());
+    if (!function_in_register) {
+      __ mov(edi, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
+    }
+    FastNewRestParameterStub stub(isolate());
     __ CallStub(&stub);
+    function_in_register = false;
     SetVar(rest_param, eax, ebx, edx);
   }
 

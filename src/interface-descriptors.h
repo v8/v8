@@ -25,6 +25,7 @@ class PlatformInterfaceDescriptor;
   V(LoadWithVector)                           \
   V(FastNewClosure)                           \
   V(FastNewContext)                           \
+  V(FastNewRestParameter)                     \
   V(ToNumber)                                 \
   V(ToLength)                                 \
   V(ToString)                                 \
@@ -69,7 +70,6 @@ class PlatformInterfaceDescriptor;
   V(ApiGetter)                                \
   V(ArgumentsAccessRead)                      \
   V(ArgumentsAccessNew)                       \
-  V(RestParamAccess)                          \
   V(LoadGlobalViaContext)                     \
   V(StoreGlobalViaContext)                    \
   V(MathPowTagged)                            \
@@ -79,7 +79,6 @@ class PlatformInterfaceDescriptor;
   V(InterpreterPushArgsAndCall)               \
   V(InterpreterPushArgsAndConstruct)          \
   V(InterpreterCEntry)
-
 
 class CallInterfaceDescriptorData {
  public:
@@ -372,6 +371,11 @@ class FastNewClosureDescriptor : public CallInterfaceDescriptor {
 class FastNewContextDescriptor : public CallInterfaceDescriptor {
  public:
   DECLARE_DESCRIPTOR(FastNewContextDescriptor, CallInterfaceDescriptor)
+};
+
+class FastNewRestParameterDescriptor : public CallInterfaceDescriptor {
+ public:
+  DECLARE_DESCRIPTOR(FastNewRestParameterDescriptor, CallInterfaceDescriptor)
 };
 
 
@@ -714,16 +718,6 @@ class ArgumentsAccessNewDescriptor : public CallInterfaceDescriptor {
   static const Register function();
   static const Register parameter_count();
   static const Register parameter_pointer();
-};
-
-
-class RestParamAccessDescriptor : public CallInterfaceDescriptor {
- public:
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(RestParamAccessDescriptor,
-                                               CallInterfaceDescriptor)
-  static const Register parameter_count();
-  static const Register parameter_pointer();
-  static const Register rest_parameter_index();
 };
 
 

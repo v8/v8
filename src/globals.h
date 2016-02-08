@@ -770,6 +770,30 @@ inline std::ostream& operator<<(std::ostream& os, TailCallMode mode) {
   return os;
 }
 
+// Defines specifics about arguments object or rest parameter creation.
+enum class CreateArgumentsType : uint8_t {
+  kMappedArguments,
+  kUnmappedArguments,
+  kRestParameter
+};
+
+inline size_t hash_value(CreateArgumentsType type) {
+  return bit_cast<uint8_t>(type);
+}
+
+inline std::ostream& operator<<(std::ostream& os, CreateArgumentsType type) {
+  switch (type) {
+    case CreateArgumentsType::kMappedArguments:
+      return os << "MAPPED_ARGUMENTS";
+    case CreateArgumentsType::kUnmappedArguments:
+      return os << "UNMAPPED_ARGUMENTS";
+    case CreateArgumentsType::kRestParameter:
+      return os << "REST_PARAMETER";
+  }
+  UNREACHABLE();
+  return os;
+}
+
 // Used to specify if a macro instruction must perform a smi check on tagged
 // values.
 enum SmiCheckType {

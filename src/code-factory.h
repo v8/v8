@@ -94,10 +94,10 @@ class CodeFactory final {
   static Callable FastNewContext(Isolate* isolate, int slot_count);
   static Callable FastNewClosure(Isolate* isolate, LanguageMode language_mode,
                                  FunctionKind kind);
+  static Callable FastNewRestParameter(Isolate* isolate);
 
   static Callable ArgumentsAccess(Isolate* isolate, bool is_unmapped_arguments,
                                   bool has_duplicate_parameters);
-  static Callable RestArgumentsAccess(Isolate* isolate);
 
   static Callable AllocateHeapNumber(Isolate* isolate);
   static Callable AllocateMutableHeapNumber(Isolate* isolate);

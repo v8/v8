@@ -63,11 +63,6 @@ const Register ArgumentsAccessNewDescriptor::parameter_count() { return rcx; }
 const Register ArgumentsAccessNewDescriptor::parameter_pointer() { return rdx; }
 
 
-const Register RestParamAccessDescriptor::parameter_count() { return rcx; }
-const Register RestParamAccessDescriptor::parameter_pointer() { return rdx; }
-const Register RestParamAccessDescriptor::rest_parameter_index() { return rbx; }
-
-
 const Register ApiGetterDescriptor::function_address() { return r8; }
 
 
@@ -91,6 +86,13 @@ void FastNewClosureDescriptor::InitializePlatformSpecific(
 
 
 void FastNewContextDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {rdi};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+
+void FastNewRestParameterDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {rdi};
   data->InitializePlatformSpecific(arraysize(registers), registers);
