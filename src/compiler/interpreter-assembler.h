@@ -148,8 +148,17 @@ class InterpreterAssembler {
   void Jump(Node* jump_offset);
 
   // Jump relative to the current bytecode by |jump_offset| if the
+  // |condition| is true. Helper function for JumpIfWordEqual and
+  // JumpIfWordNotEqual.
+  void JumpConditional(Node* condition, Node* jump_offset);
+
+  // Jump relative to the current bytecode by |jump_offset| if the
   // word values |lhs| and |rhs| are equal.
   void JumpIfWordEqual(Node* lhs, Node* rhs, Node* jump_offset);
+
+  // Jump relative to the current bytecode by |jump_offset| if the
+  // word values |lhs| and |rhs| are not equal.
+  void JumpIfWordNotEqual(Node* lhs, Node* rhs, Node* jump_offset);
 
   // Perform a stack guard check.
   void StackCheck();

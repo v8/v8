@@ -1605,8 +1605,7 @@ void Interpreter::DoJumpIfNullConstantWide(
   DoJumpIfNullConstant(assembler);
 }
 
-
-// jumpifundefined <imm8>
+// JumpIfUndefined <imm8>
 //
 // Jump by number of bytes represented by an immediate operand if the object
 // referenced by the accumulator is the undefined constant.
@@ -1644,6 +1643,27 @@ void Interpreter::DoJumpIfUndefinedConstantWide(
   DoJumpIfUndefinedConstant(assembler);
 }
 
+// JumpIfHole <imm8>
+//
+// Jump by number of bytes represented by an immediate operand if the object
+// referenced by the accumulator is the hole.
+void Interpreter::DoJumpIfHole(compiler::InterpreterAssembler* assembler) {
+  Node* accumulator = __ GetAccumulator();
+  Node* the_hole_value = __ HeapConstant(isolate_->factory()->the_hole_value());
+  Node* relative_jump = __ BytecodeOperandImm(0);
+  __ JumpIfWordEqual(accumulator, the_hole_value, relative_jump);
+}
+
+// JumpIfNotHole <imm8>
+//
+// Jump by number of bytes represented by an immediate operand if the object
+// referenced by the accumulator is not the hole.
+void Interpreter::DoJumpIfNotHole(compiler::InterpreterAssembler* assembler) {
+  Node* accumulator = __ GetAccumulator();
+  Node* the_hole_value = __ HeapConstant(isolate_->factory()->the_hole_value());
+  Node* relative_jump = __ BytecodeOperandImm(0);
+  __ JumpIfWordNotEqual(accumulator, the_hole_value, relative_jump);
+}
 
 void Interpreter::DoCreateLiteral(Runtime::FunctionId function_id,
                                   compiler::InterpreterAssembler* assembler) {

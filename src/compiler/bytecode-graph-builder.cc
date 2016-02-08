@@ -1510,6 +1510,20 @@ void BytecodeGraphBuilder::VisitJumpIfUndefinedConstantWide() {
   BuildJumpIfEqual(jsgraph()->UndefinedConstant());
 }
 
+void BytecodeGraphBuilder::VisitJumpIfHole() {
+  BuildJumpIfEqual(jsgraph()->TheHoleConstant());
+}
+
+void BytecodeGraphBuilder::VisitJumpIfNotHole() {
+  Node* accumulator = environment()->LookupAccumulator();
+  Node* condition = NewNode(javascript()->StrictEqual(), accumulator,
+                            jsgraph()->TheHoleConstant());
+  Node* node =
+      NewNode(common()->Select(MachineRepresentation::kTagged), condition,
+              jsgraph()->FalseConstant(), jsgraph()->TrueConstant());
+  BuildConditionalJump(node);
+}
+
 void BytecodeGraphBuilder::VisitStackCheck() {
   FrameStateBeforeAndAfter states(this);
   Node* node = NewNode(javascript()->StackCheck());

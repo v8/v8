@@ -165,7 +165,11 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   BytecodeLabel start;
   builder.Bind(&start);
   // Short jumps with Imm8 operands
-  builder.Jump(&start).JumpIfNull(&start).JumpIfUndefined(&start);
+  builder.Jump(&start)
+      .JumpIfNull(&start)
+      .JumpIfUndefined(&start)
+      .JumpIfHole(&start)
+      .JumpIfNotHole(&start);
   // Perform an operation that returns boolean value to
   // generate JumpIfTrue/False
   builder.CompareOperation(Token::Value::EQ, reg, Strength::WEAK)

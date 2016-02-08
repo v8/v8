@@ -231,6 +231,8 @@ class BytecodeArrayBuilder final : public ZoneObject, private RegisterMover {
   BytecodeArrayBuilder& JumpIfFalse(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfNull(BytecodeLabel* label);
   BytecodeArrayBuilder& JumpIfUndefined(BytecodeLabel* label);
+  BytecodeArrayBuilder& JumpIfHole(BytecodeLabel* label);
+  BytecodeArrayBuilder& JumpIfNotHole(BytecodeLabel* label);
 
   BytecodeArrayBuilder& StackCheck();
 

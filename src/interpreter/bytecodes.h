@@ -252,6 +252,9 @@ namespace interpreter {
   V(JumpIfUndefined, OperandType::kImm8)                                       \
   V(JumpIfUndefinedConstant, OperandType::kIdx8)                               \
   V(JumpIfUndefinedConstantWide, OperandType::kIdx16)                          \
+  /* TODO(mythria): Replace with opcodes that throw on a hole */               \
+  V(JumpIfHole, OperandType::kImm8)                                            \
+  V(JumpIfNotHole, OperandType::kImm8)                                         \
                                                                                \
   /* Complex flow control For..in */                                           \
   V(ForInPrepare, OperandType::kRegOutTriple8)                                 \

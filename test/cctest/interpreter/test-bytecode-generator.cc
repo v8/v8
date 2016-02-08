@@ -29,7 +29,6 @@ class BytecodeGeneratorHelper {
     i::FLAG_ignition_filter = StrDup(kFunctionName);
     i::FLAG_always_opt = false;
     i::FLAG_allow_natives_syntax = true;
-    i::FLAG_legacy_const = true;
     CcTest::i_isolate()->interpreter()->Initialize();
   }
 
@@ -2539,31 +2538,35 @@ TEST(BreakableBlocks) {
        "}\n",
        5 * kPointerSize,
        1,
-       40,
+       51,
        {
-           B(StackCheck),                                                 //
-           B(LdaConstant), U8(0),                                         //
-           B(Star), R(3),                                                 //
-           B(Ldar), R(closure),                                           //
-           B(Star), R(4),                                                 //
-           B(CallRuntime), U16(Runtime::kPushBlockContext), R(3), U8(2),  //
-           B(PushContext), R(2),                                          //
-           B(LdaTheHole),                                                 //
-           B(StaContextSlot), R(context), U8(4),                          //
-           B(CreateClosure), U8(1), U8(0),                                //
-           B(Star), R(0),                                                 //
-           B(LdaSmi8), U8(10),                                            //
-           B(StaContextSlot), R(context), U8(4),                          //
-           B(Ldar), R(0),                                                 //
-           B(Star), R(1),                                                 //
-           B(Jump), U8(2),                                                //
-           B(PopContext), R(2),                                           //
-           B(LdaUndefined),                                               //
-           B(Return),                                                     //
+           B(StackCheck),                                                    //
+           B(LdaConstant), U8(0),                                            //
+           B(Star), R(3),                                                    //
+           B(Ldar), R(closure),                                              //
+           B(Star), R(4),                                                    //
+           B(CallRuntime), U16(Runtime::kPushBlockContext), R(3), U8(2),     //
+           B(PushContext), R(2),                                             //
+           B(LdaTheHole),                                                    //
+           B(StaContextSlot), R(context), U8(4),                             //
+           B(CreateClosure), U8(1), U8(0),                                   //
+           B(Star), R(0),                                                    //
+           B(LdaSmi8), U8(10),                                               //
+           B(StaContextSlot), R(context), U8(4),                             //
+           B(Ldar), R(0),                                                    //
+           B(JumpIfNotHole), U8(11),                                         //
+           B(LdaConstant), U8(2),                                            //
+           B(Star), R(3),                                                    //
+           B(CallRuntime), U16(Runtime::kThrowReferenceError), R(3), U8(1),  //
+           B(Star), R(1),                                                    //
+           B(Jump), U8(2),                                                   //
+           B(PopContext), R(2),                                              //
+           B(LdaUndefined),                                                  //
+           B(Return),                                                        //
        },
-       2,
-       {InstanceType::FIXED_ARRAY_TYPE,
-        InstanceType::SHARED_FUNCTION_INFO_TYPE}},
+       3,
+       {InstanceType::FIXED_ARRAY_TYPE, InstanceType::SHARED_FUNCTION_INFO_TYPE,
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
       {"let x = 1;\n"
        "outer: {\n"
        "  inner: {\n"
@@ -2576,45 +2579,69 @@ TEST(BreakableBlocks) {
        "x = 4;",
        6 * kPointerSize,
        1,
-       73,
+       131,
        {
-           B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure),  //
-           /*           */ U8(1),                                          //
-           B(PushContext), R(2),                                           //
-           B(LdaTheHole),                                                  //
-           B(StaContextSlot), R(context), U8(4),                           //
-           B(StackCheck),                                                  //
-           B(LdaSmi8), U8(1),                                              //
-           B(StaContextSlot), R(context), U8(4),                           //
-           B(LdaConstant), U8(0),                                          //
-           B(Star), R(4),                                                  //
-           B(Ldar), R(closure),                                            //
-           B(Star), R(5),                                                  //
-           B(CallRuntime), U16(Runtime::kPushBlockContext), R(4), U8(2),   //
-           B(PushContext), R(3),                                           //
-           B(LdaTheHole),                                                  //
-           B(StaContextSlot), R(context), U8(4),                           //
-           B(CreateClosure), U8(1), U8(0),                                 //
-           B(Star), R(0),                                                  //
-           B(LdaSmi8), U8(2),                                              //
-           B(StaContextSlot), R(context), U8(4),                           //
-           B(Ldar), R(0),                                                  //
-           B(Star), R(1),                                                  //
-           B(LdaContextSlot), R(context), U8(4),                           //
-           B(JumpIfToBooleanFalse), U8(6),                                 //
-           B(PopContext), R(3),                                            //
-           B(Jump), U8(9),                                                 //
-           B(LdaSmi8), U8(3),                                              //
-           B(StaContextSlot), R(context), U8(4),                           //
-           B(PopContext), R(3),                                            //
-           B(LdaSmi8), U8(4),                                              //
-           B(StaContextSlot), R(context), U8(4),                           //
-           B(LdaUndefined),                                                //
-           B(Return),                                                      //
-        },
-        2,
-        {InstanceType::FIXED_ARRAY_TYPE,
-         InstanceType::SHARED_FUNCTION_INFO_TYPE}},
+           B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure),    //
+           U8(1),                                                            //
+           B(PushContext), R(2),                                             //
+           B(LdaTheHole),                                                    //
+           B(StaContextSlot), R(context), U8(4),                             //
+           B(StackCheck),                                                    //
+           B(LdaSmi8), U8(1),                                                //
+           B(StaContextSlot), R(context), U8(4),                             //
+           B(LdaConstant), U8(0),                                            //
+           B(Star), R(4),                                                    //
+           B(Ldar), R(closure),                                              //
+           B(Star), R(5),                                                    //
+           B(CallRuntime), U16(Runtime::kPushBlockContext), R(4), U8(2),     //
+           B(PushContext), R(3),                                             //
+           B(LdaTheHole),                                                    //
+           B(StaContextSlot), R(context), U8(4),                             //
+           B(CreateClosure), U8(1), U8(0),                                   //
+           B(Star), R(0),                                                    //
+           B(LdaSmi8), U8(2),                                                //
+           B(StaContextSlot), R(context), U8(4),                             //
+           B(Ldar), R(0),                                                    //
+           B(JumpIfNotHole), U8(11),                                         //
+           B(LdaConstant), U8(2),                                            //
+           B(Star), R(4),                                                    //
+           B(CallRuntime), U16(Runtime::kThrowReferenceError), R(4), U8(1),  //
+           B(Star), R(1),                                                    //
+           B(LdaContextSlot), R(context), U8(4),                             //
+           B(JumpIfNotHole), U8(11),                                         //
+           B(LdaConstant), U8(3),                                            //
+           B(Star), R(4),                                                    //
+           B(CallRuntime), U16(Runtime::kThrowReferenceError), R(4), U8(1),  //
+           B(JumpIfToBooleanFalse), U8(6),                                   //
+           B(PopContext), R(3),                                              //
+           B(Jump), U8(27),                                                  //
+           B(LdaSmi8), U8(3),                                                //
+           B(Star), R(4),                                                    //
+           B(LdaContextSlot), R(context), U8(4),                             //
+           B(JumpIfNotHole), U8(11),                                         //
+           B(LdaConstant), U8(3),                                            //
+           B(Star), R(5),                                                    //
+           B(CallRuntime), U16(Runtime::kThrowReferenceError), R(5), U8(1),  //
+           B(Ldar), R(4),                                                    //
+           B(StaContextSlot), R(context), U8(4),                             //
+           B(PopContext), R(3),                                              //
+           B(LdaSmi8), U8(4),                                                //
+           B(Star), R(4),                                                    //
+           B(LdaContextSlot), R(context), U8(4),                             //
+           B(JumpIfNotHole), U8(11),                                         //
+           B(LdaConstant), U8(4),                                            //
+           B(Star), R(5),                                                    //
+           B(CallRuntime), U16(Runtime::kThrowReferenceError), R(5), U8(1),  //
+           B(Ldar), R(4),                                                    //
+           B(StaContextSlot), R(context), U8(4),                             //
+           B(LdaUndefined),                                                  //
+           B(Return),                                                        //
+       },
+       5,
+       {InstanceType::FIXED_ARRAY_TYPE, InstanceType::SHARED_FUNCTION_INFO_TYPE,
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
   };
   // clang-format on
 
@@ -3283,53 +3310,73 @@ TEST(BasicLoops) {
       {"var a = 0;\n"
        "while (a) {\n"
        "  { \n"
-        "   let z = 1;\n"
-        "   function f() { z = 2; }\n"
-        "   if (z) continue;\n"
-        "   z++;\n"
-        "  }\n"
-        "}\n",
-        6 * kPointerSize,
-        1,
-        67,
-        {
-            B(StackCheck),                                                 //
-            B(LdaZero),                                                    //
-            B(Star), R(1),                                                 //
-            B(Ldar), R(1),                                                 //
-            B(JumpIfToBooleanFalse), U8(59),                               //
-            B(StackCheck),                                                 //
-            B(LdaConstant), U8(0),                                         //
-            B(Star), R(4),                                                 //
-            B(Ldar), R(closure),                                           //
-            B(Star), R(5),                                                 //
-            B(CallRuntime), U16(Runtime::kPushBlockContext), R(4), U8(2),  //
-            B(PushContext), R(3),                                          //
-            B(LdaTheHole),                                                 //
-            B(StaContextSlot), R(context), U8(4),                          //
-            B(CreateClosure), U8(1), U8(0),                                //
-            B(Star), R(0),                                                 //
-            B(LdaSmi8), U8(1),                                             //
-            B(StaContextSlot), R(context), U8(4),                          //
-            B(Ldar), R(0),                                                 //
-            B(Star), R(2),                                                 //
-            B(LdaContextSlot), R(context), U8(4),                          //
-            B(JumpIfToBooleanFalse), U8(6),                                //
-            B(PopContext), R(3),                                           //
-            B(Jump), U8(-45),                                              //
-            B(LdaContextSlot), R(context), U8(4),                          //
-            B(ToNumber),                                                   //
-            B(Star), R(4),                                                 //
-            B(Inc),                                                        //
-            B(StaContextSlot), R(context), U8(4),                          //
-            B(PopContext), R(3),                                           //
-            B(Jump), U8(-59),                                              //
-            B(LdaUndefined),                                               //
-            B(Return),                                                     //
-        },
-        2,
-        {InstanceType::FIXED_ARRAY_TYPE,
-         InstanceType::SHARED_FUNCTION_INFO_TYPE}},
+       "   let z = 1;\n"
+       "   function f() { z = 2; }\n"
+       "   if (z) continue;\n"
+       "   z++;\n"
+       "  }\n"
+       "}\n",
+       7 * kPointerSize,
+       1,
+       118,
+       {
+           B(StackCheck),                                                    //
+           B(LdaZero),                                                       //
+           B(Star), R(1),                                                    //
+           B(Ldar), R(1),                                                    //
+           B(JumpIfToBooleanFalse), U8(110),                                 //
+           B(StackCheck),                                                    //
+           B(LdaConstant), U8(0),                                            //
+           B(Star), R(4),                                                    //
+           B(Ldar), R(closure),                                              //
+           B(Star), R(5),                                                    //
+           B(CallRuntime), U16(Runtime::kPushBlockContext), R(4), U8(2),     //
+           B(PushContext), R(3),                                             //
+           B(LdaTheHole),                                                    //
+           B(StaContextSlot), R(context), U8(4),                             //
+           B(CreateClosure), U8(1), U8(0),                                   //
+           B(Star), R(0),                                                    //
+           B(LdaSmi8), U8(1),                                                //
+           B(StaContextSlot), R(context), U8(4),                             //
+           B(Ldar), R(0),                                                    //
+           B(JumpIfNotHole), U8(11),                                         //
+           B(LdaConstant), U8(2),                                            //
+           B(Star), R(4),                                                    //
+           B(CallRuntime), U16(Runtime::kThrowReferenceError), R(4), U8(1),  //
+           B(Star), R(2),                                                    //
+           B(LdaContextSlot), R(context), U8(4),                             //
+           B(JumpIfNotHole), U8(11),                                         //
+           B(LdaConstant), U8(3),                                            //
+           B(Star), R(4),                                                    //
+           B(CallRuntime), U16(Runtime::kThrowReferenceError), R(4), U8(1),  //
+           B(JumpIfToBooleanFalse), U8(6),                                   //
+           B(PopContext), R(3),                                              //
+           B(Jump), U8(-67),                                                 //
+           B(LdaContextSlot), R(context), U8(4),                             //
+           B(JumpIfNotHole), U8(11),                                         //
+           B(LdaConstant), U8(3),                                            //
+           B(Star), R(4),                                                    //
+           B(CallRuntime), U16(Runtime::kThrowReferenceError), R(4), U8(1),  //
+           B(ToNumber),                                                      //
+           B(Star), R(4),                                                    //
+           B(Inc),                                                           //
+           B(Star), R(5),                                                    //
+           B(LdaContextSlot), R(context), U8(4),                             //
+           B(JumpIfNotHole), U8(11),                                         //
+           B(LdaConstant), U8(3),                                            //
+           B(Star), R(6),                                                    //
+           B(CallRuntime), U16(Runtime::kThrowReferenceError), R(6), U8(1),  //
+           B(Ldar), R(5),                                                    //
+           B(StaContextSlot), R(context), U8(4),                             //
+           B(PopContext), R(3),                                              //
+           B(Jump), U8(-110),                                                //
+           B(LdaUndefined),                                                  //
+           B(Return),                                                        //
+       },
+       4,
+       {InstanceType::FIXED_ARRAY_TYPE, InstanceType::SHARED_FUNCTION_INFO_TYPE,
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
   };
   // clang-format on
 
@@ -6105,6 +6152,9 @@ TEST(CreateRestParameter) {
 }
 
 TEST(IllegalRedeclaration) {
+  bool old_legacy_const_flag = FLAG_legacy_const;
+  FLAG_legacy_const = true;
+
   InitializedHandleScope handle_scope;
   BytecodeGeneratorHelper helper;
 
@@ -6136,6 +6186,8 @@ TEST(IllegalRedeclaration) {
         helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
     CheckBytecodeArrayEqual(snippets[i], bytecode_array);
   }
+
+  FLAG_legacy_const = old_legacy_const_flag;
 }
 
 
@@ -7094,29 +7146,40 @@ TEST(ThisFunction) {
   // clang-format off
   ExpectedSnippet<int> snippets[] = {
       {"var f;\n f = function f() { }",
-       1 * kPointerSize,
+       2 * kPointerSize,
        1,
-       10,
+       19,
        {
-           B(LdaTheHole),        //
-           B(Star), R(0),        //
-           B(StackCheck),        //
-           B(Ldar), R(closure),  //
-           B(Star), R(0),        //
-           B(LdaUndefined),      //
-           B(Return),            //
+           B(LdaTheHole),            //
+           B(Star), R(0),            //
+           B(StackCheck),            //
+           B(Ldar), R(closure),      //
+           B(Star), R(1),            //
+           B(Ldar), R(0),            //
+           B(JumpIfNotHole), U8(5),  //
+           B(Mov), R(1), R(0),       //
+           B(Ldar), R(1),            //
+           B(LdaUndefined),          //
+           B(Return),                //
        }},
       {"var f;\n f = function f() { return f; }",
-       1 * kPointerSize,
+       2 * kPointerSize,
        1,
-       9,
+       23,
        {
-           B(LdaTheHole),        //
-           B(Star), R(0),        //
-           B(StackCheck),        //
-           B(Ldar), R(closure),  //
-           B(Star), R(0),        //
-           B(Return),            //
+           B(LdaTheHole),            //
+           B(Star), R(0),            //
+           B(StackCheck),            //
+           B(Ldar), R(closure),      //
+           B(Star), R(1),            //
+           B(Ldar), R(0),            //
+           B(JumpIfNotHole), U8(5),  //
+           B(Mov), R(1), R(0),       //
+           B(Ldar), R(1),            //
+           B(Ldar), R(0),            //
+           B(JumpIfNotHole), U8(3),  //
+           B(LdaUndefined),          //
+           B(Return),                //
        }},
   };
   // clang-format on
@@ -7136,31 +7199,42 @@ TEST(NewTarget) {
   int new_target = Register::new_target().index();
 
   // clang-format off
-  ExpectedSnippet<int> snippets[] = {
+  ExpectedSnippet<InstanceType> snippets[] = {
       {"return new.target;",
-       1 * kPointerSize,
+       2 * kPointerSize,
        1,
-       8,
+       19,
        {
-           B(Ldar), R(new_target),  //
-           B(Star), R(0),           //
-           B(StackCheck),           //
-           B(Ldar), R(0),           //
-           B(Return),               //
-       }},
+           B(Ldar), R(new_target),                                           //
+           B(Star), R(0),                                                    //
+           B(StackCheck),                                                    //
+           B(Ldar), R(0),                                                    //
+           B(JumpIfNotHole), U8(11),                                         //
+           B(LdaConstant), U8(0),                                            //
+           B(Star), R(1),                                                    //
+           B(CallRuntime), U16(Runtime::kThrowReferenceError), R(1), U8(1),  //
+           B(Return),                                                        //
+       },
+       1,
+       {InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
       {"new.target;",
-       1 * kPointerSize,
+       2 * kPointerSize,
        1,
-       9,
+       20,
        {
-           B(Ldar), R(new_target),  //
-           B(Star), R(0),           //
-           B(StackCheck),           //
-           B(Ldar), R(0),           //
-           B(LdaUndefined),         //
-           B(Return),               //
-       }},
-  };
+           B(Ldar), R(new_target),                                           //
+           B(Star), R(0),                                                    //
+           B(StackCheck),                                                    //
+           B(Ldar), R(0),                                                    //
+           B(JumpIfNotHole), U8(11),                                         //
+           B(LdaConstant), U8(0),                                            //
+           B(Star), R(1),                                                    //
+           B(CallRuntime), U16(Runtime::kThrowReferenceError), R(1), U8(1),  //
+           B(LdaUndefined),                                                  //
+           B(Return),                                                        //
+       },
+       1,
+       {InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}}};
   // clang-format on
 
   for (size_t i = 0; i < arraysize(snippets); i++) {
@@ -8241,6 +8315,550 @@ TEST(WideRegisters) {
     std::string body = prologue + snippets[i].code_snippet;
     Handle<BytecodeArray> bytecode_array =
         helper.MakeBytecodeForFunctionBody(body.c_str());
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+}
+
+TEST(ConstVariable) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+  // clang-format off
+  ExpectedSnippet<const char*> snippets[] = {
+      {"const x = 10;",
+       1 * kPointerSize,
+       1,
+       10,
+       {
+           B(LdaTheHole),       //
+           B(Star), R(0),       //
+           B(StackCheck),       //
+           B(LdaSmi8), U8(10),  //
+           B(Star), R(0),       //
+           B(LdaUndefined),     //
+           B(Return)            //
+       },
+       0},
+      {"const x = 10; return x;",
+       2 * kPointerSize,
+       1,
+       20,
+       {
+           B(LdaTheHole),                                                    //
+           B(Star), R(0),                                                    //
+           B(StackCheck),                                                    //
+           B(LdaSmi8), U8(10),                                               //
+           B(Star), R(0),                                                    //
+           B(JumpIfNotHole), U8(11),                                         //
+           B(LdaConstant), U8(0),                                            //
+           B(Star), R(1),                                                    //
+           B(CallRuntime), U16(Runtime::kThrowReferenceError), R(1), U8(1),  //
+           B(Return)                                                         //
+       },
+       1,
+       {"x"}},
+      {"const x = ( x = 20);",
+       3 * kPointerSize,
+       1,
+       32,
+       {
+           B(LdaTheHole),                                                    //
+           B(Star), R(0),                                                    //
+           B(StackCheck),                                                    //
+           B(LdaSmi8), U8(20),                                               //
+           B(Star), R(1),                                                    //
+           B(Ldar), R(0),                                                    //
+           B(JumpIfNotHole), U8(11),                                         //
+           B(LdaConstant), U8(0),                                            //
+           B(Star), R(2),                                                    //
+           B(CallRuntime), U16(Runtime::kThrowReferenceError), R(2), U8(1),  //
+           B(CallRuntime), U16(Runtime::kThrowConstAssignError), R(0),       //
+           /*          */  U8(0),                                            //
+           B(Ldar), R(1),                                                    //
+           B(Star), R(0),                                                    //
+           B(LdaUndefined),                                                  //
+           B(Return)                                                         //
+       },
+       1,
+       {"x"}},
+      {"const x = 10; x = 20;",
+       3 * kPointerSize,
+       1,
+       36,
+       {
+           B(LdaTheHole),                                                    //
+           B(Star), R(0),                                                    //
+           B(StackCheck),                                                    //
+           B(LdaSmi8), U8(10),                                               //
+           B(Star), R(0),                                                    //
+           B(LdaSmi8), U8(20),                                               //
+           B(Star), R(1),                                                    //
+           B(Ldar), R(0),                                                    //
+           B(JumpIfNotHole), U8(11),                                         //
+           B(LdaConstant), U8(0),                                            //
+           B(Star), R(2),                                                    //
+           B(CallRuntime), U16(Runtime::kThrowReferenceError), R(2), U8(1),  //
+           B(CallRuntime), U16(Runtime::kThrowConstAssignError), R(0),       //
+           /*           */ U8(0),                                            //
+           B(Ldar), R(1),                                                    //
+           B(Star), R(0),                                                    //
+           B(LdaUndefined),                                                  //
+           B(Return)                                                         //
+       },
+       1,
+       {"x"}},
+  };
+  // clang-format on
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+}
+
+TEST(LetVariable) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+
+  // clang-format off
+  ExpectedSnippet<const char*> snippets[] = {
+      {"let x = 10;",
+       1 * kPointerSize,
+       1,
+       10,
+       {
+           B(LdaTheHole),       //
+           B(Star), R(0),       //
+           B(StackCheck),       //
+           B(LdaSmi8), U8(10),  //
+           B(Star), R(0),       //
+           B(LdaUndefined),     //
+           B(Return)            //
+       },
+       0},
+      {"let x = 10; return x;",
+       2 * kPointerSize,
+       1,
+       20,
+       {
+           B(LdaTheHole),                                                    //
+           B(Star), R(0),                                                    //
+           B(StackCheck),                                                    //
+           B(LdaSmi8), U8(10),                                               //
+           B(Star), R(0),                                                    //
+           B(JumpIfNotHole), U8(11),                                         //
+           B(LdaConstant), U8(0),                                            //
+           B(Star), R(1),                                                    //
+           B(CallRuntime), U16(Runtime::kThrowReferenceError), R(1), U8(1),  //
+           B(Return)                                                         //
+       },
+       1,
+       {"x"}},
+      {"let x = (x = 20);",
+       3 * kPointerSize,
+       1,
+       27,
+       {
+           B(LdaTheHole),                                                    //
+           B(Star), R(0),                                                    //
+           B(StackCheck),                                                    //
+           B(LdaSmi8), U8(20),                                               //
+           B(Star), R(1),                                                    //
+           B(Ldar), R(0),                                                    //
+           B(JumpIfNotHole), U8(11),                                         //
+           B(LdaConstant), U8(0),                                            //
+           B(Star), R(2),                                                    //
+           B(CallRuntime), U16(Runtime::kThrowReferenceError), R(2), U8(1),  //
+           B(Ldar), R(1),                                                    //
+           B(Star), R(0),                                                    //
+           B(LdaUndefined),                                                  //
+           B(Return)                                                         //
+       },
+       1,
+       {"x"}},
+      {"let x = 10; x = 20;",
+       3 * kPointerSize,
+       1,
+       31,
+       {
+           B(LdaTheHole),                                                    //
+           B(Star), R(0),                                                    //
+           B(StackCheck),                                                    //
+           B(LdaSmi8), U8(10),                                               //
+           B(Star), R(0),                                                    //
+           B(LdaSmi8), U8(20),                                               //
+           B(Star), R(1),                                                    //
+           B(Ldar), R(0),                                                    //
+           B(JumpIfNotHole), U8(11),                                         //
+           B(LdaConstant), U8(0),                                            //
+           B(Star), R(2),                                                    //
+           B(CallRuntime), U16(Runtime::kThrowReferenceError), R(2), U8(1),  //
+           B(Ldar), R(1),                                                    //
+           B(Star), R(0),                                                    //
+           B(LdaUndefined),                                                  //
+           B(Return)                                                         //
+       },
+       1,
+       {"x"}},
+  };
+  // clang-format on
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+}
+
+TEST(LegacyConstVariable) {
+  bool old_legacy_const_flag = FLAG_legacy_const;
+  FLAG_legacy_const = true;
+
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+
+  // clang-format off
+  ExpectedSnippet<const char*> snippets[] = {
+      {"const x = 10;",
+       2 * kPointerSize,
+       1,
+       19,
+       {
+           B(LdaTheHole),            //
+           B(Star), R(0),            //
+           B(StackCheck),            //
+           B(LdaSmi8), U8(10),       //
+           B(Star), R(1),            //
+           B(Ldar), R(0),            //
+           B(JumpIfNotHole), U8(5),  //
+           B(Mov), R(1), R(0),       //
+           B(Ldar), R(1),            //
+           B(LdaUndefined),          //
+           B(Return)                 //
+       },
+       0},
+      {"const x = 10; return x;",
+       2 * kPointerSize,
+       1,
+       23,
+       {
+           B(LdaTheHole),            //
+           B(Star), R(0),            //
+           B(StackCheck),            //
+           B(LdaSmi8), U8(10),       //
+           B(Star), R(1),            //
+           B(Ldar), R(0),            //
+           B(JumpIfNotHole), U8(5),  //
+           B(Mov), R(1), R(0),       //
+           B(Ldar), R(1),            //
+           B(Ldar), R(0),            //
+           B(JumpIfNotHole), U8(3),  //
+           B(LdaUndefined),          //
+           B(Return)                 //
+       },
+       0},
+      {"const x = ( x = 20);",
+       2 * kPointerSize,
+       1,
+       23,
+       {
+           B(LdaTheHole),            //
+           B(Star), R(0),            //
+           B(StackCheck),            //
+           B(LdaSmi8), U8(20),       //
+           B(Star), R(1),            //
+           B(Ldar), R(0),            //
+           B(Ldar), R(1),            //
+           B(Ldar), R(0),            //
+           B(JumpIfNotHole), U8(5),  //
+           B(Mov), R(1), R(0),       //
+           B(Ldar), R(1),            //
+           B(LdaUndefined),          //
+           B(Return)                 //
+       },
+       0},
+      {"const x = 10; x = 20;",
+       2 * kPointerSize,
+       1,
+       27,
+       {
+           B(LdaTheHole),            //
+           B(Star), R(0),            //
+           B(StackCheck),            //
+           B(LdaSmi8), U8(10),       //
+           B(Star), R(1),            //
+           B(Ldar), R(0),            //
+           B(JumpIfNotHole), U8(5),  //
+           B(Mov), R(1), R(0),       //
+           B(Ldar), R(1),            //
+           B(LdaSmi8), U8(20),       //
+           B(Star), R(1),            //
+           B(Ldar), R(0),            //
+           B(Ldar), R(1),            //
+           B(LdaUndefined),          //
+           B(Return)                 //
+       },
+       0},
+  };
+  // clang-format on
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+
+  FLAG_legacy_const = old_legacy_const_flag;
+}
+
+TEST(ConstVariableContextSlot) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+
+  int closure = Register::function_closure().index();
+  int context = Register::current_context().index();
+
+  // TODO(mythria): Add tests for initialization of this via super calls.
+  // TODO(mythria): Add tests that walk the context chain.
+  // clang-format off
+  ExpectedSnippet<InstanceType> snippets[] = {
+      {"const x = 10; function f1() {return x;}",
+       2 * kPointerSize,
+       1,
+       24,
+       {
+           B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure),  //
+                           U8(1),                                          //
+           B(PushContext), R(1),                                           //
+           B(LdaTheHole),                                                  //
+           B(StaContextSlot), R(context), U8(4),                           //
+           B(CreateClosure), U8(0), U8(0),                                 //
+           B(Star), R(0),                                                  //
+           B(StackCheck),                                                  //
+           B(LdaSmi8), U8(10),                                             //
+           B(StaContextSlot), R(context), U8(4),                           //
+           B(LdaUndefined),                                                //
+           B(Return)                                                       //
+       },
+       1,
+       {InstanceType::SHARED_FUNCTION_INFO_TYPE}},
+      {"const x = 10; function f1() {return x;} return x;",
+       3 * kPointerSize,
+       1,
+       37,
+       {
+           B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure),    //
+                           U8(1),                                            //
+           B(PushContext), R(1),                                             //
+           B(LdaTheHole),                                                    //
+           B(StaContextSlot), R(context), U8(4),                             //
+           B(CreateClosure), U8(0), U8(0),                                   //
+           B(Star), R(0),                                                    //
+           B(StackCheck),                                                    //
+           B(LdaSmi8), U8(10),                                               //
+           B(StaContextSlot), R(context), U8(4),                             //
+           B(LdaContextSlot), R(context), U8(4),                             //
+           B(JumpIfNotHole), U8(11),                                         //
+           B(LdaConstant), U8(1),                                            //
+           B(Star), R(2),                                                    //
+           B(CallRuntime), U16(Runtime::kThrowReferenceError), R(2), U8(1),  //
+           B(Return)                                                         //
+       },
+       2,
+       {InstanceType::SHARED_FUNCTION_INFO_TYPE,
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
+      {"const x = (x = 20); function f1() {return x;}",
+       4 * kPointerSize,
+       1,
+       50,
+       {
+           B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure),    //
+           /*          */  U8(1),                                            //
+           B(PushContext), R(1),                                             //
+           B(LdaTheHole),                                                    //
+           B(StaContextSlot), R(context), U8(4),                             //
+           B(CreateClosure), U8(0), U8(0),                                   //
+           B(Star), R(0),                                                    //
+           B(StackCheck),                                                    //
+           B(LdaSmi8), U8(20),                                               //
+           B(Star), R(2),                                                    //
+           B(LdaContextSlot), R(context), U8(4),                             //
+           B(JumpIfNotHole), U8(11),                                         //
+           B(LdaConstant), U8(1),                                            //
+           B(Star), R(3),                                                    //
+           B(CallRuntime), U16(Runtime::kThrowReferenceError), R(3), U8(1),  //
+           B(CallRuntime), U16(Runtime::kThrowConstAssignError), R(0),       //
+                           U8(0),                                            //
+           B(Ldar), R(2),                                                    //
+           B(StaContextSlot), R(context), U8(4),                             //
+           B(StaContextSlot), R(context), U8(4),                             //
+           B(LdaUndefined),                                                  //
+           B(Return)                                                         //
+       },
+       2,
+       {InstanceType::SHARED_FUNCTION_INFO_TYPE,
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
+      {"const x = 10; x = 20; function f1() {return x;}",
+       4 * kPointerSize,
+       1,
+       52,
+       {
+           B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure),    //
+           /*          */  U8(1),                                            //
+           B(PushContext), R(1),                                             //
+           B(LdaTheHole),                                                    //
+           B(StaContextSlot), R(context), U8(4),                             //
+           B(CreateClosure), U8(0), U8(0),                                   //
+           B(Star), R(0),                                                    //
+           B(StackCheck),                                                    //
+           B(LdaSmi8), U8(10),                                               //
+           B(StaContextSlot), R(context), U8(4),                             //
+           B(LdaSmi8), U8(20),                                               //
+           B(Star), R(2),                                                    //
+           B(LdaContextSlot), R(context), U8(4),                             //
+           B(JumpIfNotHole), U8(11),                                         //
+           B(LdaConstant), U8(1),                                            //
+           B(Star), R(3),                                                    //
+           B(CallRuntime), U16(Runtime::kThrowReferenceError), R(3), U8(1),  //
+           B(CallRuntime), U16(Runtime::kThrowConstAssignError), R(0),       //
+                           U8(0),                                            //
+           B(Ldar), R(2),                                                    //
+           B(StaContextSlot), R(context), U8(4),                             //
+           B(LdaUndefined),                                                  //
+           B(Return)                                                         //
+       },
+       2,
+       {InstanceType::SHARED_FUNCTION_INFO_TYPE,
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
+  };
+  // clang-format on
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+}
+
+TEST(LetVariableContextSlot) {
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+
+  int closure = Register::function_closure().index();
+  int context = Register::current_context().index();
+
+  // clang-format off
+  ExpectedSnippet<InstanceType> snippets[] = {
+      {"let x = 10; function f1() {return x;}",
+       2 * kPointerSize,
+       1,
+       24,
+       {
+           B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure),  //
+           /*          */  U8(1),                                          //
+           B(PushContext), R(1),                                           //
+           B(LdaTheHole),                                                  //
+           B(StaContextSlot), R(context), U8(4),                           //
+           B(CreateClosure), U8(0), U8(0),                                 //
+           B(Star), R(0),                                                  //
+           B(StackCheck),                                                  //
+           B(LdaSmi8), U8(10),                                             //
+           B(StaContextSlot), R(context), U8(4),                           //
+           B(LdaUndefined),                                                //
+           B(Return)                                                       //
+       },
+       1,
+       {InstanceType::SHARED_FUNCTION_INFO_TYPE}},
+      {"let x = 10; function f1() {return x;} return x;",
+       3 * kPointerSize,
+       1,
+       37,
+       {
+           B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure),    //
+           /*          */  U8(1),                                            //
+           B(PushContext), R(1),                                             //
+           B(LdaTheHole),                                                    //
+           B(StaContextSlot), R(context), U8(4),                             //
+           B(CreateClosure), U8(0), U8(0),                                   //
+           B(Star), R(0),                                                    //
+           B(StackCheck),                                                    //
+           B(LdaSmi8), U8(10),                                               //
+           B(StaContextSlot), R(context), U8(4),                             //
+           B(LdaContextSlot), R(context), U8(4),                             //
+           B(JumpIfNotHole), U8(11),                                         //
+           B(LdaConstant), U8(1),                                            //
+           B(Star), R(2),                                                    //
+           B(CallRuntime), U16(Runtime::kThrowReferenceError), R(2), U8(1),  //
+           B(Return)                                                         //
+       },
+       2,
+       {InstanceType::SHARED_FUNCTION_INFO_TYPE,
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
+      {"let x = (x = 20); function f1() {return x;}",
+       4 * kPointerSize,
+       1,
+       45,
+       {
+           B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure),    //
+           /*          */  U8(1),                                            //
+           B(PushContext), R(1),                                             //
+           B(LdaTheHole),                                                    //
+           B(StaContextSlot), R(context), U8(4),                             //
+           B(CreateClosure), U8(0), U8(0),                                   //
+           B(Star), R(0),                                                    //
+           B(StackCheck),                                                    //
+           B(LdaSmi8), U8(20),                                               //
+           B(Star), R(2),                                                    //
+           B(LdaContextSlot), R(context), U8(4),                             //
+           B(JumpIfNotHole), U8(11),                                         //
+           B(LdaConstant), U8(1),                                            //
+           B(Star), R(3),                                                    //
+           B(CallRuntime), U16(Runtime::kThrowReferenceError), R(3), U8(1),  //
+           B(Ldar), R(2),                                                    //
+           B(StaContextSlot), R(context), U8(4),                             //
+           B(StaContextSlot), R(context), U8(4),                             //
+           B(LdaUndefined),                                                  //
+           B(Return)                                                         //
+       },
+       2,
+       {InstanceType::SHARED_FUNCTION_INFO_TYPE,
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
+      {"let x = 10; x = 20; function f1() {return x;}",
+       4 * kPointerSize,
+       1,
+       47,
+       {
+           B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure),    //
+           /*          */  U8(1),                                            //
+           B(PushContext), R(1),                                             //
+           B(LdaTheHole),                                                    //
+           B(StaContextSlot), R(context), U8(4),                             //
+           B(CreateClosure), U8(0), U8(0),                                   //
+           B(Star), R(0),                                                    //
+           B(StackCheck),                                                    //
+           B(LdaSmi8), U8(10),                                               //
+           B(StaContextSlot), R(context), U8(4),                             //
+           B(LdaSmi8), U8(20),                                               //
+           B(Star), R(2),                                                    //
+           B(LdaContextSlot), R(context), U8(4),                             //
+           B(JumpIfNotHole), U8(11),                                         //
+           B(LdaConstant), U8(1),                                            //
+           B(Star), R(3),                                                    //
+           B(CallRuntime), U16(Runtime::kThrowReferenceError), R(3), U8(1),  //
+           B(Ldar), R(2),                                                    //
+           B(StaContextSlot), R(context), U8(4),                             //
+           B(LdaUndefined),                                                  //
+           B(Return)                                                         //
+       },
+       2,
+       {InstanceType::SHARED_FUNCTION_INFO_TYPE,
+        InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE}},
+  };
+  // clang-format on
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
     CheckBytecodeArrayEqual(snippets[i], bytecode_array);
   }
 }

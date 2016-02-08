@@ -661,9 +661,8 @@ Node* InterpreterAssembler::Advance(Node* delta) {
 
 void InterpreterAssembler::Jump(Node* delta) { DispatchTo(Advance(delta)); }
 
-void InterpreterAssembler::JumpIfWordEqual(Node* lhs, Node* rhs, Node* delta) {
+void InterpreterAssembler::JumpConditional(Node* condition, Node* delta) {
   RawMachineLabel match, no_match;
-  Node* condition = raw_assembler_->WordEqual(lhs, rhs);
   raw_assembler_->Branch(condition, &match, &no_match);
   raw_assembler_->Bind(&match);
   DispatchTo(Advance(delta));
@@ -671,6 +670,14 @@ void InterpreterAssembler::JumpIfWordEqual(Node* lhs, Node* rhs, Node* delta) {
   Dispatch();
 }
 
+void InterpreterAssembler::JumpIfWordEqual(Node* lhs, Node* rhs, Node* delta) {
+  JumpConditional(raw_assembler_->WordEqual(lhs, rhs), delta);
+}
+
+void InterpreterAssembler::JumpIfWordNotEqual(Node* lhs, Node* rhs,
+                                              Node* delta) {
+  JumpConditional(raw_assembler_->WordNotEqual(lhs, rhs), delta);
+}
 
 void InterpreterAssembler::Dispatch() {
   DispatchTo(Advance(interpreter::Bytecodes::Size(bytecode_)));

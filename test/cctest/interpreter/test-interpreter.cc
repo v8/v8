@@ -96,6 +96,18 @@ class InterpreterTester {
     return InterpreterCallable<A...>(isolate_, GetBytecodeFunction<A...>());
   }
 
+  Local<Message> CheckThrowsReturnMessage() {
+    TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate_));
+    auto callable = GetCallable<>();
+    MaybeHandle<Object> no_result = callable();
+    CHECK(isolate_->has_pending_exception());
+    CHECK(try_catch.HasCaught());
+    CHECK(no_result.is_null());
+    isolate_->OptionalRescheduleException(true);
+    CHECK(!try_catch.Message().IsEmpty());
+    return try_catch.Message();
+  }
+
   static Handle<Object> NewObject(const char* script) {
     return v8::Utils::OpenHandle(*CompileRun(script));
   }
@@ -3851,6 +3863,244 @@ TEST(InterpreterClassLiterals) {
     Handle<i::Object> return_value = callable().ToHandleChecked();
     CHECK(return_value->SameValue(*examples[i].second));
   }
+}
+
+TEST(InterpreterConstDeclaration) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  i::Factory* factory = isolate->factory();
+
+  std::pair<const char*, Handle<Object>> const_decl[] = {
+      {"const x = 3; return x;", handle(Smi::FromInt(3), isolate)},
+      {"let x = 10; x = x + 20; return x;", handle(Smi::FromInt(30), isolate)},
+      {"let x = 10; x = 20; return x;", handle(Smi::FromInt(20), isolate)},
+      {"let x; x = 20; return x;", handle(Smi::FromInt(20), isolate)},
+      {"let x; return x;", factory->undefined_value()},
+      {"var x = 10; { let x = 30; } return x;",
+       handle(Smi::FromInt(10), isolate)},
+      {"let x = 10; { let x = 20; } return x;",
+       handle(Smi::FromInt(10), isolate)},
+      {"var x = 10; eval('let x = 20;'); return x;",
+       handle(Smi::FromInt(10), isolate)},
+      {"var x = 10; eval('const x = 20;'); return x;",
+       handle(Smi::FromInt(10), isolate)},
+      {"var x = 10; { const x = 20; } return x;",
+       handle(Smi::FromInt(10), isolate)},
+      {"var x = 10; { const x = 20; return x;} return -1;",
+       handle(Smi::FromInt(20), isolate)},
+      {"var a = 10;\n"
+       "for (var i = 0; i < 10; ++i) {\n"
+       " const x = i;\n"  // const declarations are block scoped.
+       " a = a + x;\n"
+       "}\n"
+       "return a;\n",
+       handle(Smi::FromInt(55), isolate)},
+  };
+
+  // Tests for sloppy mode.
+  for (size_t i = 0; i < arraysize(const_decl); i++) {
+    std::string source(InterpreterTester::SourceForBody(const_decl[i].first));
+    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*const_decl[i].second));
+  }
+
+  // Tests for strict mode.
+  for (size_t i = 0; i < arraysize(const_decl); i++) {
+    std::string strict_body =
+        "'use strict'; " + std::string(const_decl[i].first);
+    std::string source(InterpreterTester::SourceForBody(strict_body.c_str()));
+    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*const_decl[i].second));
+  }
+}
+
+TEST(InterpreterConstDeclarationLookupSlots) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  i::Factory* factory = isolate->factory();
+
+  std::pair<const char*, Handle<Object>> const_decl[] = {
+      {"const x = 3; function f1() {return x;}; return x;",
+       handle(Smi::FromInt(3), isolate)},
+      {"let x = 10; x = x + 20; function f1() {return x;}; return x;",
+       handle(Smi::FromInt(30), isolate)},
+      {"let x; x = 20; function f1() {return x;}; return x;",
+       handle(Smi::FromInt(20), isolate)},
+      {"let x; function f1() {return x;}; return x;",
+       factory->undefined_value()},
+  };
+
+  // Tests for sloppy mode.
+  for (size_t i = 0; i < arraysize(const_decl); i++) {
+    std::string source(InterpreterTester::SourceForBody(const_decl[i].first));
+    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*const_decl[i].second));
+  }
+
+  // Tests for strict mode.
+  for (size_t i = 0; i < arraysize(const_decl); i++) {
+    std::string strict_body =
+        "'use strict'; " + std::string(const_decl[i].first);
+    std::string source(InterpreterTester::SourceForBody(strict_body.c_str()));
+    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*const_decl[i].second));
+  }
+}
+
+TEST(InterpreterConstInLookupContextChain) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+
+  const char* prologue =
+      "function OuterMost() {\n"
+      "  const outerConst = 10;\n"
+      "  let outerLet = 20;\n"
+      "  function Outer() {\n"
+      "    function Inner() {\n"
+      "      this.innerFunc = function() { ";
+  const char* epilogue =
+      "      }\n"
+      "    }\n"
+      "    this.getInnerFunc ="
+      "         function() {return new Inner().innerFunc;}\n"
+      "  }\n"
+      "  this.getOuterFunc ="
+      "     function() {return new Outer().getInnerFunc();}"
+      "}\n"
+      "var f = new OuterMost().getOuterFunc();\n"
+      "f();\n";
+  std::pair<const char*, Handle<Object>> const_decl[] = {
+      {"return outerConst;", handle(Smi::FromInt(10), isolate)},
+      {"return outerLet;", handle(Smi::FromInt(20), isolate)},
+      {"outerLet = 30; return outerLet;", handle(Smi::FromInt(30), isolate)},
+      {"var outerLet = 40; return outerLet;",
+       handle(Smi::FromInt(40), isolate)},
+      {"var outerConst = 50; return outerConst;",
+       handle(Smi::FromInt(50), isolate)},
+      {"try { outerConst = 30 } catch(e) { return -1; }",
+       handle(Smi::FromInt(-1), isolate)}};
+
+  for (size_t i = 0; i < arraysize(const_decl); i++) {
+    std::string script = std::string(prologue) +
+                         std::string(const_decl[i].first) +
+                         std::string(epilogue);
+    InterpreterTester tester(handles.main_isolate(), script.c_str(), "*");
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*const_decl[i].second));
+  }
+
+  // Tests for Legacy constant.
+  bool old_flag_legacy_const = FLAG_legacy_const;
+  FLAG_legacy_const = true;
+
+  std::pair<const char*, Handle<Object>> legacy_const_decl[] = {
+      {"return outerConst = 23;", handle(Smi::FromInt(23), isolate)},
+      {"outerConst = 30; return outerConst;",
+       handle(Smi::FromInt(10), isolate)},
+  };
+
+  for (size_t i = 0; i < arraysize(legacy_const_decl); i++) {
+    std::string script = std::string(prologue) +
+                         std::string(legacy_const_decl[i].first) +
+                         std::string(epilogue);
+    InterpreterTester tester(handles.main_isolate(), script.c_str(), "*");
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*legacy_const_decl[i].second));
+  }
+
+  FLAG_legacy_const = old_flag_legacy_const;
+}
+
+TEST(InterpreterIllegalConstDeclaration) {
+  HandleAndZoneScope handles;
+
+  std::pair<const char*, const char*> const_decl[] = {
+      {"const x = x = 10 + 3; return x;",
+       "Uncaught ReferenceError: x is not defined"},
+      {"const x = 10; x = 20; return x;",
+       "Uncaught TypeError: Assignment to constant variable."},
+      {"const x = 10; { x = 20; } return x;",
+       "Uncaught TypeError: Assignment to constant variable."},
+      {"const x = 10; eval('x = 20;'); return x;",
+       "Uncaught TypeError: Assignment to constant variable."},
+      {"let x = x + 10; return x;",
+       "Uncaught ReferenceError: x is not defined"},
+      {"'use strict'; (function f1() { f1 = 123; })() ",
+       "Uncaught TypeError: Assignment to constant variable."},
+  };
+
+  // Tests for sloppy mode.
+  for (size_t i = 0; i < arraysize(const_decl); i++) {
+    std::string source(InterpreterTester::SourceForBody(const_decl[i].first));
+    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    v8::Local<v8::String> message = tester.CheckThrowsReturnMessage()->Get();
+    v8::Local<v8::String> expected_string = v8_str(const_decl[i].second);
+    CHECK(
+        message->Equals(CcTest::isolate()->GetCurrentContext(), expected_string)
+            .FromJust());
+  }
+
+  // Tests for strict mode.
+  for (size_t i = 0; i < arraysize(const_decl); i++) {
+    std::string strict_body =
+        "'use strict'; " + std::string(const_decl[i].first);
+    std::string source(InterpreterTester::SourceForBody(strict_body.c_str()));
+    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    v8::Local<v8::String> message = tester.CheckThrowsReturnMessage()->Get();
+    v8::Local<v8::String> expected_string = v8_str(const_decl[i].second);
+    CHECK(
+        message->Equals(CcTest::isolate()->GetCurrentContext(), expected_string)
+            .FromJust());
+  }
+}
+
+TEST(InterpreterLegacyConstDeclaration) {
+  bool old_flag_legacy_const = FLAG_legacy_const;
+  FLAG_legacy_const = true;
+
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+
+  std::pair<const char*, Handle<Object>> const_decl[] = {
+      {"const x = (x = 10) + 3; return x;", handle(Smi::FromInt(13), isolate)},
+      {"const x = 10; x = 20; return x;", handle(Smi::FromInt(10), isolate)},
+      {"var a = 10;\n"
+       "for (var i = 0; i < 10; ++i) {\n"
+       " const x = i;\n"  // Legacy constants are not block scoped.
+       " a = a + x;\n"
+       "}\n"
+       "return a;\n",
+       handle(Smi::FromInt(10), isolate)},
+      {"const x = 20; eval('x = 10;'); return x;",
+       handle(Smi::FromInt(20), isolate)},
+  };
+
+  for (size_t i = 0; i < arraysize(const_decl); i++) {
+    std::string source(InterpreterTester::SourceForBody(const_decl[i].first));
+    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*const_decl[i].second));
+  }
+
+  FLAG_legacy_const = old_flag_legacy_const;
 }
 
 }  // namespace interpreter

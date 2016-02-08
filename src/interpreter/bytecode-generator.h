@@ -76,7 +76,13 @@ class BytecodeGenerator final : public AstVisitor {
   MUST_USE_RESULT Register
   VisitVariableLoadForRegisterValue(Variable* variable, FeedbackVectorSlot slot,
                                     TypeofMode typeof_mode = NOT_INSIDE_TYPEOF);
-  void VisitVariableAssignment(Variable* variable, FeedbackVectorSlot slot);
+  void VisitVariableAssignment(Variable* variable, Token::Value op,
+                               FeedbackVectorSlot slot);
+  void BuildThrowIfHole(Handle<String> name);
+  void BuildThrowIfNotHole(Handle<String> name);
+  void BuildThrowReassignConstant(Handle<String> name);
+  void BuildHoleCheckForVariableLoad(VariableMode mode, Handle<String> name);
+  void BuildHoleCheckForVariableAssignment(Variable* variable, Token::Value op);
 
   void VisitArgumentsObject(Variable* variable);
   void VisitRestArgumentsArray(Variable* rest);

@@ -721,7 +721,10 @@ void BytecodeGenerator::VisitFunctionDeclaration(FunctionDeclaration* decl) {
     case VariableLocation::PARAMETER:
     case VariableLocation::LOCAL: {
       VisitForAccumulatorValue(decl->fun());
-      VisitVariableAssignment(variable, FeedbackVectorSlot::Invalid());
+      DCHECK(variable->mode() == LET || variable->mode() == VAR ||
+             variable->mode() == CONST);
+      VisitVariableAssignment(variable, Token::INIT,
+                              FeedbackVectorSlot::Invalid());
       break;
     }
     case VariableLocation::CONTEXT: {
@@ -1007,7 +1010,7 @@ void BytecodeGenerator::VisitForInAssignment(Expression* expr,
   switch (assign_type) {
     case VARIABLE: {
       Variable* variable = expr->AsVariableProxy()->var();
-      VisitVariableAssignment(variable, slot);
+      VisitVariableAssignment(variable, Token::ASSIGN, slot);
       break;
     }
     case NAMED_PROPERTY: {
@@ -1260,7 +1263,7 @@ void BytecodeGenerator::VisitClassLiteralContents(ClassLiteral* expr) {
     FeedbackVectorSlot slot = expr->NeedsProxySlot()
                                   ? expr->ProxySlot()
                                   : FeedbackVectorSlot::Invalid();
-    VisitVariableAssignment(var, slot);
+    VisitVariableAssignment(var, Token::INIT, slot);
   }
   execution_result()->SetResultInAccumulator();
 }
@@ -1674,14 +1677,27 @@ void BytecodeGenerator::VisitVariableProxy(VariableProxy* proxy) {
   VisitVariableLoad(proxy->var(), proxy->VariableFeedbackSlot());
 }
 
+void BytecodeGenerator::BuildHoleCheckForVariableLoad(VariableMode mode,
+                                                      Handle<String> name) {
+  if (mode == CONST_LEGACY) {
+    BytecodeLabel end_label;
+    builder()->JumpIfNotHole(&end_label);
+    builder()->LoadUndefined();
+    builder()->Bind(&end_label);
+  } else if (mode == LET || mode == CONST) {
+    BuildThrowIfHole(name);
+  }
+}
 
 void BytecodeGenerator::VisitVariableLoad(Variable* variable,
                                           FeedbackVectorSlot slot,
                                           TypeofMode typeof_mode) {
+  VariableMode mode = variable->mode();
   switch (variable->location()) {
     case VariableLocation::LOCAL: {
       Register source(Register(variable->index()));
       builder()->LoadAccumulatorWithRegister(source);
+      BuildHoleCheckForVariableLoad(mode, variable->name());
       execution_result()->SetResultInAccumulator();
       break;
     }
@@ -1690,6 +1706,7 @@ void BytecodeGenerator::VisitVariableLoad(Variable* variable,
       // index -1 but is parameter index 0 in BytecodeArrayBuilder).
       Register source = builder()->Parameter(variable->index() + 1);
       builder()->LoadAccumulatorWithRegister(source);
+      BuildHoleCheckForVariableLoad(mode, variable->name());
       execution_result()->SetResultInAccumulator();
       break;
     }
@@ -1722,10 +1739,10 @@ void BytecodeGenerator::VisitVariableLoad(Variable* variable,
               .StoreAccumulatorInRegister(context_reg);
         }
       }
+
       builder()->LoadContextSlot(context_reg, variable->index());
+      BuildHoleCheckForVariableLoad(mode, variable->name());
       execution_result()->SetResultInAccumulator();
-      // TODO(rmcilroy): Perform check for uninitialized legacy const, const and
-      // let variables.
       break;
     }
     case VariableLocation::LOOKUP: {
@@ -1751,20 +1768,115 @@ Register BytecodeGenerator::VisitVariableLoadForRegisterValue(
   return register_scope.ResultRegister();
 }
 
+void BytecodeGenerator::BuildThrowIfHole(Handle<String> name) {
+  Register name_reg = register_allocator()->NewRegister();
+  BytecodeLabel end_label;
+  // TODO(mythria): This will be replaced by a new bytecode that throws an
+  // error if the value is the hole.
+  builder()
+      ->JumpIfNotHole(&end_label)
+      .LoadLiteral(name)
+      .StoreAccumulatorInRegister(name_reg)
+      .CallRuntime(Runtime::kThrowReferenceError, name_reg, 1)
+      .Bind(&end_label);
+}
+
+void BytecodeGenerator::BuildThrowIfNotHole(Handle<String> name) {
+  Register name_reg = register_allocator()->NewRegister();
+  BytecodeLabel end_label;
+  // TODO(mythria): This will be replaced by a new bytecode that throws an
+  // error if the value is not the hole.
+  builder()
+      ->JumpIfHole(&end_label)
+      .LoadLiteral(name)
+      .StoreAccumulatorInRegister(name_reg)
+      .CallRuntime(Runtime::kThrowReferenceError, name_reg, 1)
+      .Bind(&end_label);
+}
+
+void BytecodeGenerator::BuildThrowReassignConstant(Handle<String> name) {
+  Register name_reg = register_allocator()->NewRegister();
+  BytecodeLabel else_label;
+  // TODO(mythria): This will be replaced by a new bytecode that throws an
+  // appropriate error depending on the whether the value is a hole or not.
+  builder()
+      ->JumpIfNotHole(&else_label)
+      .LoadLiteral(name)
+      .StoreAccumulatorInRegister(name_reg)
+      .CallRuntime(Runtime::kThrowReferenceError, name_reg, 1)
+      .Bind(&else_label)
+      .CallRuntime(Runtime::kThrowConstAssignError, Register(), 0);
+}
+
+void BytecodeGenerator::BuildHoleCheckForVariableAssignment(Variable* variable,
+                                                            Token::Value op) {
+  VariableMode mode = variable->mode();
+  DCHECK(mode != CONST_LEGACY);
+  if (mode == CONST && op != Token::INIT) {
+    // Non-intializing assignments to constant is not allowed.
+    BuildThrowReassignConstant(variable->name());
+  } else if (mode == LET && op != Token::INIT) {
+    // Perform an initialization check for let declared variables.
+    // E.g. let x = (x = 20); is not allowed.
+    BuildThrowIfHole(variable->name());
+  } else {
+    DCHECK(variable->is_this() && mode == CONST && op == Token::INIT);
+    // Perform an initialization check for 'this'. 'this' variable is the
+    // only variable able to trigger bind operations outside the TDZ
+    // via 'super' calls.
+    BuildThrowIfNotHole(variable->name());
+  }
+}
 
 void BytecodeGenerator::VisitVariableAssignment(Variable* variable,
+                                                Token::Value op,
                                                 FeedbackVectorSlot slot) {
+  VariableMode mode = variable->mode();
+  RegisterAllocationScope assignment_register_scope(this);
+  BytecodeLabel end_label;
+  bool hole_check_required =
+      (mode == CONST_LEGACY) || (mode == LET && op != Token::INIT) ||
+      (mode == CONST && op != Token::INIT) ||
+      (mode == CONST && op == Token::INIT && variable->is_this());
   switch (variable->location()) {
+    case VariableLocation::PARAMETER:
     case VariableLocation::LOCAL: {
-      // TODO(rmcilroy): support const mode initialization.
-      Register destination(variable->index());
-      builder()->StoreAccumulatorInRegister(destination);
-      break;
-    }
-    case VariableLocation::PARAMETER: {
-      // The parameter indices are shifted by 1 (receiver is variable
-      // index -1 but is parameter index 0 in BytecodeArrayBuilder).
-      Register destination(builder()->Parameter(variable->index() + 1));
+      Register destination;
+      if (VariableLocation::PARAMETER == variable->location()) {
+        destination = Register(builder()->Parameter(variable->index() + 1));
+      } else {
+        destination = Register(variable->index());
+      }
+
+      if (hole_check_required) {
+        // Load destination to check for hole.
+        Register value_temp = register_allocator()->NewRegister();
+        builder()
+            ->StoreAccumulatorInRegister(value_temp)
+            .LoadAccumulatorWithRegister(destination);
+
+        if (mode == CONST_LEGACY && op == Token::INIT) {
+          // Perform an intialization check for legacy constants.
+          builder()
+              ->JumpIfNotHole(&end_label)
+              .MoveRegister(value_temp, destination)
+              .Bind(&end_label)
+              .LoadAccumulatorWithRegister(value_temp);
+          // Break here because the value should not be stored unconditionally.
+          break;
+        } else if (mode == CONST_LEGACY && op != Token::INIT) {
+          DCHECK(!is_strict(language_mode()));
+          // Ensure accumulator is in the correct state.
+          builder()->LoadAccumulatorWithRegister(value_temp);
+          // Break here, non-initializing assignments to legacy constants are
+          // ignored.
+          break;
+        } else {
+          BuildHoleCheckForVariableAssignment(variable, op);
+          builder()->LoadAccumulatorWithRegister(value_temp);
+        }
+      }
+
       builder()->StoreAccumulatorInRegister(destination);
       break;
     }
@@ -1775,10 +1887,10 @@ void BytecodeGenerator::VisitVariableAssignment(Variable* variable,
       break;
     }
     case VariableLocation::CONTEXT: {
-      // TODO(rmcilroy): support const mode initialization.
       int depth = execution_context()->ContextChainDepth(variable->scope());
       ContextScope* context = execution_context()->Previous(depth);
       Register context_reg;
+
       if (context) {
         context_reg = context->reg();
       } else {
@@ -1800,13 +1912,63 @@ void BytecodeGenerator::VisitVariableAssignment(Variable* variable,
         }
         builder()->LoadAccumulatorWithRegister(value_temp);
       }
+
+      if (hole_check_required) {
+        // Load destination to check for hole.
+        Register value_temp = register_allocator()->NewRegister();
+        builder()
+            ->StoreAccumulatorInRegister(value_temp)
+            .LoadContextSlot(context_reg, variable->index());
+
+        if (mode == CONST_LEGACY && op == Token::INIT) {
+          // Perform an intialization check for legacy constants.
+          builder()
+              ->JumpIfNotHole(&end_label)
+              .LoadAccumulatorWithRegister(value_temp)
+              .StoreContextSlot(context_reg, variable->index())
+              .Bind(&end_label);
+          builder()->LoadAccumulatorWithRegister(value_temp);
+          // Break here because the value should not be stored unconditionally.
+          // The above code performs the store conditionally.
+          break;
+        } else if (mode == CONST_LEGACY && op != Token::INIT) {
+          DCHECK(!is_strict(language_mode()));
+          // Ensure accumulator is in the correct state.
+          builder()->LoadAccumulatorWithRegister(value_temp);
+          // Break here, non-initializing assignments to legacy constants are
+          // ignored.
+          break;
+        } else {
+          BuildHoleCheckForVariableAssignment(variable, op);
+          builder()->LoadAccumulatorWithRegister(value_temp);
+        }
+      }
+
       builder()->StoreContextSlot(context_reg, variable->index());
       break;
     }
     case VariableLocation::LOOKUP: {
-      // TODO(mythria): Use Runtime::kInitializeLegacyConstLookupSlot for
-      // initializations of const declarations.
-      builder()->StoreLookupSlot(variable->name(), language_mode());
+      if (mode == CONST_LEGACY && op == Token::INIT) {
+        register_allocator()->PrepareForConsecutiveAllocations(3);
+        Register value = register_allocator()->NextConsecutiveRegister();
+        Register context = register_allocator()->NextConsecutiveRegister();
+        Register name = register_allocator()->NextConsecutiveRegister();
+
+        // InitializeLegacyConstLookupSlot runtime call returns the 'value'
+        // passed to it. So, accumulator will have its original contents when
+        // runtime call returns.
+        builder()
+            ->StoreAccumulatorInRegister(value)
+            .MoveRegister(execution_context()->reg(), context)
+            .LoadLiteral(variable->name())
+            .StoreAccumulatorInRegister(name)
+            .CallRuntime(Runtime::kInitializeLegacyConstLookupSlot, value, 3);
+      } else if (mode == CONST_LEGACY && op != Token::INIT) {
+        // Non-intializing assignments to legacy constants are ignored.
+        DCHECK(!is_strict(language_mode()));
+      } else {
+        builder()->StoreLookupSlot(variable->name(), language_mode());
+      }
       break;
     }
   }
@@ -1899,7 +2061,7 @@ void BytecodeGenerator::VisitAssignment(Assignment* expr) {
       // TODO(oth): The VisitVariableAssignment() call is hard to reason about.
       // Is the value in the accumulator safe? Yes, but scary.
       Variable* variable = expr->target()->AsVariableProxy()->var();
-      VisitVariableAssignment(variable, slot);
+      VisitVariableAssignment(variable, expr->op(), slot);
       break;
     }
     case NAMED_PROPERTY:
@@ -2324,7 +2486,7 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
   switch (assign_type) {
     case VARIABLE: {
       Variable* variable = expr->expression()->AsVariableProxy()->var();
-      VisitVariableAssignment(variable, feedback_slot);
+      VisitVariableAssignment(variable, expr->op(), feedback_slot);
       break;
     }
     case NAMED_PROPERTY: {
@@ -2601,7 +2763,8 @@ void BytecodeGenerator::VisitArgumentsObject(Variable* variable) {
           ? CreateArgumentsType::kUnmappedArguments
           : CreateArgumentsType::kMappedArguments;
   builder()->CreateArguments(type);
-  VisitVariableAssignment(variable, FeedbackVectorSlot::Invalid());
+  VisitVariableAssignment(variable, Token::ASSIGN,
+                          FeedbackVectorSlot::Invalid());
 }
 
 void BytecodeGenerator::VisitRestArgumentsArray(Variable* rest) {
@@ -2611,7 +2774,7 @@ void BytecodeGenerator::VisitRestArgumentsArray(Variable* rest) {
   // variable.
   builder()->CreateArguments(CreateArgumentsType::kRestParameter);
   DCHECK(rest->IsContextSlot() || rest->IsStackAllocated());
-  VisitVariableAssignment(rest, FeedbackVectorSlot::Invalid());
+  VisitVariableAssignment(rest, Token::ASSIGN, FeedbackVectorSlot::Invalid());
 }
 
 void BytecodeGenerator::VisitThisFunctionVariable(Variable* variable) {
@@ -2622,7 +2785,7 @@ void BytecodeGenerator::VisitThisFunctionVariable(Variable* variable) {
 
   // Store the closure we were called with in the given variable.
   builder()->LoadAccumulatorWithRegister(Register::function_closure());
-  VisitVariableAssignment(variable, FeedbackVectorSlot::Invalid());
+  VisitVariableAssignment(variable, Token::INIT, FeedbackVectorSlot::Invalid());
 }
 
 
@@ -2631,7 +2794,7 @@ void BytecodeGenerator::VisitNewTargetVariable(Variable* variable) {
 
   // Store the new target we were called with in the given variable.
   builder()->LoadAccumulatorWithRegister(Register::new_target());
-  VisitVariableAssignment(variable, FeedbackVectorSlot::Invalid());
+  VisitVariableAssignment(variable, Token::INIT, FeedbackVectorSlot::Invalid());
 }
 
 

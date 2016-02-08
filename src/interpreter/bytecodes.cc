@@ -196,7 +196,9 @@ bool Bytecodes::IsConditionalJumpImmediate(Bytecode bytecode) {
          bytecode == Bytecode::kJumpIfToBooleanTrue ||
          bytecode == Bytecode::kJumpIfToBooleanFalse ||
          bytecode == Bytecode::kJumpIfNull ||
-         bytecode == Bytecode::kJumpIfUndefined;
+         bytecode == Bytecode::kJumpIfUndefined ||
+         bytecode == Bytecode::kJumpIfHole ||
+         bytecode == Bytecode::kJumpIfNotHole;
 }
 
 

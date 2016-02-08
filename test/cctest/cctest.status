@@ -575,14 +575,6 @@
   'test-api/InterceptorShouldThrowOnError': [FAIL],
   'test-api/StrongModeAccessCheckAllowed': [FAIL],
 
-  # TODO(rmcilroy,4680): FunctionTester SameValue check fails.
-  'test-run-variables/StackInitializeVariables': [FAIL],
-  'test-run-variables/ContextInitializeVariables': [FAIL],
-  'test-run-variables/ContextStoreVariables': [FAIL],
-  'test-run-variables/StackStoreVariables': [FAIL],
-  'test-run-variables/ContextLoadVariables': [FAIL],
-  'test-run-variables/StackLoadVariables': [FAIL],
-
   # TODO(rmcilroy,4680): The function_data field should be a BytecodeArray on interpreter entry
   'test-api/SetFunctionEntryHook': [FAIL],
 
@@ -640,7 +632,6 @@
   'test-heap/CompilationCacheCachingBehavior': [FAIL],
   'test-heap/CellsInOptimizedCodeAreWeak': [FAIL],
   'test-run-inlining/InlineTwice': [FAIL],
-  'test-decls/Regress425510': [FAIL],
 
   # TODO(rmcilroy,4680): Fail on some bot configurations.
   'test-heap/CanonicalSharedFunctionInfo': [PASS, FAIL],

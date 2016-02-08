@@ -807,6 +807,8 @@ Bytecode BytecodeArrayBuilder::GetJumpWithToBoolean(Bytecode jump_bytecode) {
     case Bytecode::kJump:
     case Bytecode::kJumpIfNull:
     case Bytecode::kJumpIfUndefined:
+    case Bytecode::kJumpIfHole:
+    case Bytecode::kJumpIfNotHole:
       return jump_bytecode;
     case Bytecode::kJumpIfTrue:
       return Bytecode::kJumpIfToBooleanTrue;
@@ -970,6 +972,15 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfUndefined(
 BytecodeArrayBuilder& BytecodeArrayBuilder::StackCheck() {
   Output(Bytecode::kStackCheck);
   return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfHole(BytecodeLabel* label) {
+  return OutputJump(Bytecode::kJumpIfHole, label);
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfNotHole(
+    BytecodeLabel* label) {
+  return OutputJump(Bytecode::kJumpIfNotHole, label);
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::Throw() {
