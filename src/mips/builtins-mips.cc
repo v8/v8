@@ -1143,8 +1143,6 @@ static void Generate_EnterBytecodeDispatch(MacroAssembler* masm) {
   __ li(kInterpreterDispatchTableRegister,
         Operand(ExternalReference::interpreter_dispatch_table_address(
             masm->isolate())));
-  __ Addu(kInterpreterDispatchTableRegister, kInterpreterDispatchTableRegister,
-          Operand(FixedArray::kHeaderSize - kHeapObjectTag));
 
   // Get the context from the frame.
   __ lw(kContextRegister,
