@@ -1582,15 +1582,15 @@ void AstGraphBuilder::VisitClassLiteralContents(ClassLiteral* expr) {
   Node* literal = NewNode(opc, extends, constructor, start, end);
   PrepareFrameState(literal, expr->CreateLiteralId(),
                     OutputFrameStateCombine::Push());
-
-  // The prototype is ensured to exist by Runtime_DefineClass. No access check
-  // is needed here since the constructor is created by the class literal.
-  Node* prototype =
-      BuildLoadObjectField(literal, JSFunction::kPrototypeOrInitialMapOffset);
-
-  // The class literal and the prototype are both expected on the operand stack
-  // during evaluation of the method values.
   environment()->Push(literal);
+
+  // Load the "prototype" from the constructor.
+  FrameStateBeforeAndAfter states(this, expr->CreateLiteralId());
+  Handle<Name> name = isolate()->factory()->prototype_string();
+  VectorSlotPair pair = CreateVectorSlotPair(expr->PrototypeSlot());
+  Node* prototype = BuildNamedLoad(literal, name, pair);
+  states.AddToNode(prototype, expr->PrototypeId(),
+                   OutputFrameStateCombine::Push());
   environment()->Push(prototype);
 
   // Create nodes to store method values into the literal.
@@ -3668,12 +3668,6 @@ Node* AstGraphBuilder::BuildGlobalStore(Handle<Name> name, Node* value,
       javascript()->StoreGlobal(language_mode(), name, feedback);
   Node* node = NewNode(op, value, BuildLoadFeedbackVector());
   return node;
-}
-
-
-Node* AstGraphBuilder::BuildLoadObjectField(Node* object, int offset) {
-  return NewNode(jsgraph()->machine()->Load(MachineType::AnyTagged()), object,
-                 jsgraph()->IntPtrConstant(offset - kHeapObjectTag));
 }
 
 

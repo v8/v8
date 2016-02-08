@@ -320,7 +320,6 @@ class AstGraphBuilder : public AstVisitor {
   Node* BuildLoadFeedbackVector();
 
   // Builder for accessing a (potentially immutable) object field.
-  Node* BuildLoadObjectField(Node* object, int offset);
   Node* BuildLoadImmutableObjectField(Node* object, int offset);
 
   // Builders for automatic type conversion.

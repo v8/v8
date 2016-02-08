@@ -2835,13 +2835,14 @@ class ClassLiteral final : public Expression {
   BailoutId DeclsId() const { return BailoutId(local_id(1)); }
   BailoutId ExitId() { return BailoutId(local_id(2)); }
   BailoutId CreateLiteralId() const { return BailoutId(local_id(3)); }
+  BailoutId PrototypeId() { return BailoutId(local_id(4)); }
 
   // Return an AST id for a property that is used in simulate instructions.
-  BailoutId GetIdForProperty(int i) { return BailoutId(local_id(i + 4)); }
+  BailoutId GetIdForProperty(int i) { return BailoutId(local_id(i + 5)); }
 
   // Unlike other AST nodes, this number of bailout IDs allocated for an
   // ClassLiteral can vary, so num_ids() is not a static method.
-  int num_ids() const { return parent_num_ids() + 4 + properties()->length(); }
+  int num_ids() const { return parent_num_ids() + 5 + properties()->length(); }
 
   // Object literals need one feedback slot for each non-trivial value, as well
   // as some slots for home objects.
@@ -2853,7 +2854,8 @@ class ClassLiteral final : public Expression {
            class_variable_proxy()->var()->IsUnallocated();
   }
 
-  FeedbackVectorSlot ProxySlot() const { return slot_; }
+  FeedbackVectorSlot PrototypeSlot() const { return prototype_slot_; }
+  FeedbackVectorSlot ProxySlot() const { return proxy_slot_; }
 
   bool IsAnonymousFunctionDefinition() const final {
     return constructor()->raw_name()->length() == 0;
@@ -2883,7 +2885,8 @@ class ClassLiteral final : public Expression {
   FunctionLiteral* constructor_;
   ZoneList<Property*>* properties_;
   int end_position_;
-  FeedbackVectorSlot slot_;
+  FeedbackVectorSlot prototype_slot_;
+  FeedbackVectorSlot proxy_slot_;
 };
 
 

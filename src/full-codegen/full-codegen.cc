@@ -1366,8 +1366,22 @@ void FullCodeGenerator::VisitClassLiteral(ClassLiteral* lit) {
 
     __ CallRuntime(Runtime::kDefineClass);
     PrepareForBailoutForId(lit->CreateLiteralId(), TOS_REG);
+    __ Push(result_register());
+
+    // Load the "prototype" from the constructor.
+    __ Move(LoadDescriptor::ReceiverRegister(), result_register());
+    __ LoadRoot(LoadDescriptor::NameRegister(),
+                Heap::kprototype_stringRootIndex);
+    __ Move(LoadDescriptor::SlotRegister(), SmiFromSlot(lit->PrototypeSlot()));
+    CallLoadIC(NOT_INSIDE_TYPEOF);
+    PrepareForBailoutForId(lit->PrototypeId(), TOS_REG);
+    __ Push(result_register());
 
     EmitClassDefineProperties(lit);
+
+    // Set both the prototype and constructor to have fast properties, and also
+    // freeze them in strong mode.
+    __ CallRuntime(Runtime::kFinalizeClassDefinition);
 
     if (lit->class_variable_proxy() != nullptr) {
       EmitVariableAssignment(lit->class_variable_proxy()->var(), Token::INIT,

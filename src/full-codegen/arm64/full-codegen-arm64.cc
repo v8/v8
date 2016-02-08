@@ -2051,21 +2051,11 @@ void FullCodeGenerator::EmitBinaryOp(BinaryOperation* expr, Token::Value op) {
 
 
 void FullCodeGenerator::EmitClassDefineProperties(ClassLiteral* lit) {
-  // Constructor is in x0.
-  DCHECK(lit != NULL);
-  __ push(x0);
-
-  // No access check is needed here since the constructor is created by the
-  // class literal.
-  Register scratch = x1;
-  __ Ldr(scratch,
-         FieldMemOperand(x0, JSFunction::kPrototypeOrInitialMapOffset));
-  __ Push(scratch);
-
   for (int i = 0; i < lit->properties()->length(); i++) {
     ObjectLiteral::Property* property = lit->properties()->at(i);
     Expression* value = property->value();
 
+    Register scratch = x1;
     if (property->is_static()) {
       __ Peek(scratch, kPointerSize);  // constructor
     } else {
@@ -2113,10 +2103,6 @@ void FullCodeGenerator::EmitClassDefineProperties(ClassLiteral* lit) {
         UNREACHABLE();
     }
   }
-
-  // Set both the prototype and constructor to have fast properties, and also
-  // freeze them in strong mode.
-  __ CallRuntime(Runtime::kFinalizeClassDefinition);
 }
 
 
