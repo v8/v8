@@ -8990,6 +8990,64 @@ MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
   return keys;
 }
 
+MaybeHandle<FixedArray> GetOwnValuesOrEntries(Isolate* isolate,
+                                              Handle<JSReceiver> object,
+                                              PropertyFilter filter,
+                                              bool get_entries) {
+  PropertyFilter key_filter =
+      static_cast<PropertyFilter>(filter & ~ONLY_ENUMERABLE);
+  KeyAccumulator accumulator(isolate, OWN_ONLY, key_filter);
+  MAYBE_RETURN(GetKeys_Internal(isolate, object, object, OWN_ONLY, key_filter,
+                                &accumulator),
+               MaybeHandle<FixedArray>());
+  Handle<FixedArray> keys = accumulator.GetKeys(CONVERT_TO_STRING);
+  DCHECK(ContainsOnlyValidKeys(keys));
+
+  Handle<FixedArray> values_or_entries =
+      isolate->factory()->NewFixedArray(keys->length());
+  int length = 0;
+
+  for (int i = 0; i < keys->length(); ++i) {
+    Handle<Name> key = Handle<Name>::cast(handle(keys->get(i), isolate));
+
+    if (filter & ONLY_ENUMERABLE) {
+      PropertyDescriptor descriptor;
+      Maybe<bool> did_get_descriptor = JSReceiver::GetOwnPropertyDescriptor(
+          isolate, object, key, &descriptor);
+      MAYBE_RETURN(did_get_descriptor, MaybeHandle<FixedArray>());
+      if (!did_get_descriptor.FromJust() || !descriptor.enumerable()) continue;
+    }
+
+    Handle<Object> value;
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, value, JSReceiver::GetPropertyOrElement(object, key, STRICT),
+        MaybeHandle<FixedArray>());
+
+    if (get_entries) {
+      Handle<FixedArray> entry_storage =
+          isolate->factory()->NewUninitializedFixedArray(2);
+      entry_storage->set(0, *key);
+      entry_storage->set(1, *value);
+      value = isolate->factory()->NewJSArrayWithElements(entry_storage,
+                                                         FAST_ELEMENTS, 2);
+    }
+
+    values_or_entries->set(length, *value);
+    length++;
+  }
+  if (length < values_or_entries->length()) values_or_entries->Shrink(length);
+  return values_or_entries;
+}
+
+MaybeHandle<FixedArray> JSReceiver::GetOwnValues(Handle<JSReceiver> object,
+                                                 PropertyFilter filter) {
+  return GetOwnValuesOrEntries(object->GetIsolate(), object, filter, false);
+}
+
+MaybeHandle<FixedArray> JSReceiver::GetOwnEntries(Handle<JSReceiver> object,
+                                                  PropertyFilter filter) {
+  return GetOwnValuesOrEntries(object->GetIsolate(), object, filter, true);
+}
 
 bool Map::DictionaryElementsInPrototypeChainOnly() {
   if (IsDictionaryElementsKind(elements_kind())) {

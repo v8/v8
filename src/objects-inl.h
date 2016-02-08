@@ -2372,7 +2372,8 @@ void FixedArray::set(int index, Smi* value) {
 void FixedArray::set(int index, Object* value) {
   DCHECK_NE(GetHeap()->fixed_cow_array_map(), map());
   DCHECK(IsFixedArray());
-  DCHECK(index >= 0 && index < this->length());
+  DCHECK_GE(index, 0);
+  DCHECK_LT(index, this->length());
   int offset = kHeaderSize + index * kPointerSize;
   WRITE_FIELD(this, offset, value);
   WRITE_BARRIER(GetHeap(), this, offset, value);

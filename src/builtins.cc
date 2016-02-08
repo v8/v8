@@ -1777,22 +1777,10 @@ BUILTIN(ObjectValues) {
   Handle<JSReceiver> receiver;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, receiver,
                                      Object::ToObject(isolate, object));
-  Handle<FixedArray> keys;
+  Handle<FixedArray> values;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, keys, JSReceiver::GetKeys(receiver, OWN_ONLY, ENUMERABLE_STRINGS,
-                                         CONVERT_TO_STRING));
-
-  for (int i = 0; i < keys->length(); ++i) {
-    auto key = Handle<Name>::cast(FixedArray::get(*keys, i, isolate));
-    Handle<Object> value;
-
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, value, Object::GetPropertyOrElement(receiver, key, STRICT));
-
-    keys->set(i, *value);
-  }
-
-  return *isolate->factory()->NewJSArrayWithElements(keys);
+      isolate, values, JSReceiver::GetOwnValues(receiver, ENUMERABLE_STRINGS));
+  return *isolate->factory()->NewJSArrayWithElements(values);
 }
 
 
@@ -1802,26 +1790,11 @@ BUILTIN(ObjectEntries) {
   Handle<JSReceiver> receiver;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, receiver,
                                      Object::ToObject(isolate, object));
-  Handle<FixedArray> keys;
+  Handle<FixedArray> entries;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, keys, JSReceiver::GetKeys(receiver, OWN_ONLY, ENUMERABLE_STRINGS,
-                                         CONVERT_TO_STRING));
-
-  for (int i = 0; i < keys->length(); ++i) {
-    auto key = Handle<Name>::cast(FixedArray::get(*keys, i, isolate));
-    Handle<Object> value;
-
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, value, Object::GetPropertyOrElement(receiver, key, STRICT));
-
-    auto entry_storage = isolate->factory()->NewUninitializedFixedArray(2);
-    entry_storage->set(0, *key);
-    entry_storage->set(1, *value);
-    auto entry = isolate->factory()->NewJSArrayWithElements(entry_storage);
-    keys->set(i, *entry);
-  }
-
-  return *isolate->factory()->NewJSArrayWithElements(keys);
+      isolate, entries,
+      JSReceiver::GetOwnEntries(receiver, ENUMERABLE_STRINGS));
+  return *isolate->factory()->NewJSArrayWithElements(entries);
 }
 
 BUILTIN(ObjectGetOwnPropertyDescriptors) {
