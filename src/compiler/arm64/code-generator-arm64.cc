@@ -270,7 +270,7 @@ class OutOfLineLoadZero final : public OutOfLineCode {
 
 class OutOfLineRecordWrite final : public OutOfLineCode {
  public:
-  OutOfLineRecordWrite(CodeGenerator* gen, Register object, Register index,
+  OutOfLineRecordWrite(CodeGenerator* gen, Register object, Operand index,
                        Register value, Register scratch0, Register scratch1,
                        RecordWriteMode mode)
       : OutOfLineCode(gen),
@@ -302,7 +302,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
 
  private:
   Register const object_;
-  Register const index_;
+  Operand const index_;
   Register const value_;
   Register const scratch0_;
   Register const scratch1_;
@@ -632,8 +632,16 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArchStoreWithWriteBarrier: {
       RecordWriteMode mode =
           static_cast<RecordWriteMode>(MiscField::decode(instr->opcode()));
+      AddressingMode addressing_mode =
+          AddressingModeField::decode(instr->opcode());
       Register object = i.InputRegister(0);
-      Register index = i.InputRegister(1);
+      Operand index(0);
+      if (addressing_mode == kMode_MRI) {
+        index = Operand(i.InputInt64(1));
+      } else {
+        DCHECK_EQ(addressing_mode, kMode_MRR);
+        index = Operand(i.InputRegister(1));
+      }
       Register value = i.InputRegister(2);
       Register scratch0 = i.TempRegister(0);
       Register scratch1 = i.TempRegister(1);
