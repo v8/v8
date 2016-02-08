@@ -163,6 +163,7 @@ class MacroAssembler : public Assembler {
   }
 
   // Register move. May do nothing if the registers are identical.
+  void Move(Register dst, Smi* smi) { LoadSmiLiteral(dst, smi); }
   void Move(Register dst, Handle<Object> value);
   void Move(Register dst, Register src, Condition cond = al);
   void Move(DoubleRegister dst, DoubleRegister src);

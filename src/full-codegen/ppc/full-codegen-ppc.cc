@@ -2237,6 +2237,7 @@ void FullCodeGenerator::EmitClassDefineProperties(ClassLiteral* lit) {
     ObjectLiteral::Property* property = lit->properties()->at(i);
     Expression* value = property->value();
 
+    Register scratch = r4;
     if (property->is_static()) {
       __ LoadP(scratch, MemOperand(sp, kPointerSize));  // constructor
     } else {
