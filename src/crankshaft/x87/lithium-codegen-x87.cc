@@ -100,13 +100,6 @@ bool LCodeGen::GeneratePrologue() {
   if (info()->IsOptimizing()) {
     ProfileEntryHookStub::MaybeCallEntryHook(masm_);
 
-#ifdef DEBUG
-    if (strlen(FLAG_stop_at) > 0 &&
-        info_->literal()->name()->IsUtf8EqualTo(CStrVector(FLAG_stop_at))) {
-      __ int3();
-    }
-#endif
-
     if (support_aligned_spilled_doubles_ && dynamic_frame_alignment_) {
       // Move state of dynamic frame alignment into edx.
       __ Move(edx, Immediate(kNoAlignmentPadding));

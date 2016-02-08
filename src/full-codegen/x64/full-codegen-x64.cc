@@ -98,13 +98,6 @@ void FullCodeGenerator::Generate() {
 
   ProfileEntryHookStub::MaybeCallEntryHook(masm_);
 
-#ifdef DEBUG
-  if (strlen(FLAG_stop_at) > 0 &&
-      info->literal()->name()->IsUtf8EqualTo(CStrVector(FLAG_stop_at))) {
-    __ int3();
-  }
-#endif
-
   if (FLAG_debug_code && info->ExpectsJSReceiverAsReceiver()) {
     StackArgumentsAccessor args(rsp, info->scope()->num_parameters());
     __ movp(rcx, args.GetReceiverOperand());

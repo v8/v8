@@ -609,13 +609,6 @@ bool LCodeGen::GeneratePrologue() {
 
   if (info()->IsOptimizing()) {
     ProfileEntryHookStub::MaybeCallEntryHook(masm_);
-
-#ifdef DEBUG
-    if (strlen(FLAG_stop_at) > 0 &&
-        info()->literal()->name()->IsUtf8EqualTo(CStrVector(FLAG_stop_at))) {
-      __ Debug("stop-at", __LINE__, BREAK);
-    }
-#endif
   }
 
   DCHECK(__ StackPointer().Is(jssp));

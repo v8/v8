@@ -103,13 +103,6 @@ bool LCodeGen::GeneratePrologue() {
   if (info()->IsOptimizing()) {
     ProfileEntryHookStub::MaybeCallEntryHook(masm_);
 
-#ifdef DEBUG
-    if (strlen(FLAG_stop_at) > 0 &&
-        info_->literal()->name()->IsUtf8EqualTo(CStrVector(FLAG_stop_at))) {
-      __ stop("stop_at");
-    }
-#endif
-
     // r1: Callee's JS function.
     // cp: Callee's context.
     // pp: Callee's constant pool pointer (if enabled)

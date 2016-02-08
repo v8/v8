@@ -4214,9 +4214,6 @@ TEST(Regress169209) {
   CHECK(shared1->code()->gc_metadata() != NULL);
 
   // Optimize function and make sure the unoptimized code is replaced.
-#ifdef DEBUG
-  FLAG_stop_at = "f";
-#endif
   CompileRun("%OptimizeFunctionOnNextCall(g);"
              "g(false);");
 

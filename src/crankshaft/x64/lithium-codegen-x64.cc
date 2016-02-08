@@ -118,13 +118,6 @@ bool LCodeGen::GeneratePrologue() {
 
   if (info()->IsOptimizing()) {
     ProfileEntryHookStub::MaybeCallEntryHook(masm_);
-
-#ifdef DEBUG
-    if (strlen(FLAG_stop_at) > 0 &&
-        info_->literal()->name()->IsUtf8EqualTo(CStrVector(FLAG_stop_at))) {
-      __ int3();
-    }
-#endif
   }
 
   info()->set_prologue_offset(masm_->pc_offset());
