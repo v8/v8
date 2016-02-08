@@ -71,20 +71,9 @@
   # This tests API threading, no point in running several variants.
   'test-api/Threading*': [PASS, NO_VARIANTS],
 
-  # The cpu profiler tests are notoriously flaky.
-  # BUG(2999). (test/cpu-profiler/CollectCpuProfile)
-  # BUG(3287). (test-cpu-profiler/SampleWhenFrameIsNotSetup)
-  'test-cpu-profiler/CollectCpuProfile': [SKIP],
-  'test-cpu-profiler/CollectCpuProfileSamples': [SKIP],
-  'test-cpu-profiler/FunctionApplySample': [SKIP],
-  'test-cpu-profiler/FunctionCallSample': [SKIP],
-  'test-cpu-profiler/SampleWhenFrameIsNotSetup': [SKIP],
-  'test-cpu-profiler/HotDeoptNoFrameEntry': [SKIP],
-  'test-cpu-profiler/BoundFunctionCall': [SKIP],
+  # BUG(2999). The cpu profiler tests are notoriously flaky.
   'test-cpu-profiler/CpuProfileDeepStack': [SKIP],
-  'test-cpu-profiler/JsNativeJsSample': [SKIP],
-  'test-cpu-profiler/JsNativeJsRuntimeJsSample': [SKIP],
-  'test-cpu-profiler/JsNative1JsNative2JsSample': [SKIP],
+  'test-cpu-profiler/HotDeoptNoFrameEntry': [SKIP],
 
   # BUG(3525). Test crashes flakily.
   'test-debug/RecursiveBreakpoints': [PASS, FLAKY],
@@ -605,13 +594,23 @@
   # TODO(rmcilroy,4680): Test assert errors.
   'test-cpu-profiler/CodeEvents': [FAIL],
   'test-cpu-profiler/TickEvents': [FAIL],
+  'test-cpu-profiler/BoundFunctionCall': [FAIL],
+  'test-cpu-profiler/CollectCpuProfile': [FAIL],
   'test-cpu-profiler/CollectSampleAPI': [FAIL],
+  'test-cpu-profiler/CpuProfileDeepStack': [FAIL],
+  'test-cpu-profiler/FunctionApplySample': [FAIL],
+  'test-cpu-profiler/FunctionCallSample': [FAIL],
   'test-cpu-profiler/FunctionDetails': [FAIL],
+  'test-cpu-profiler/HotDeoptNoFrameEntry': [FAIL],
+  'test-cpu-profiler/JsNative1JsNative2JsSample': [FAIL],
+  'test-cpu-profiler/JsNativeJsRuntimeJsSample': [FAIL],
   'test-cpu-profiler/JsNativeJsRuntimeJsSampleMultiple': [FAIL],
+  'test-cpu-profiler/JsNativeJsSample': [FAIL],
   'test-cpu-profiler/NativeMethodUninitializedIC': [FAIL],
   'test-cpu-profiler/NativeMethodMonomorphicIC': [FAIL],
   'test-cpu-profiler/NativeAccessorUninitializedIC': [FAIL],
   'test-cpu-profiler/NativeAccessorMonomorphicIC': [FAIL],
+  'test-cpu-profiler/SampleWhenFrameIsNotSetup': [FAIL],
   'test-sampler-api/StackFramesConsistent': [FAIL],
   'test-profile-generator/LineNumber': [FAIL],
   'test-profile-generator/ProfileNodeScriptId': [FAIL],
