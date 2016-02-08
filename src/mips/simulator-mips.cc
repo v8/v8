@@ -3384,7 +3384,11 @@ void Simulator::DecodeTypeRegisterCOP1() {
       set_register(rt_reg(), get_fpu_register_word(fs_reg()));
       break;
     case MFHC1:
-      set_register(rt_reg(), get_fpu_register_hi_word(fs_reg()));
+      if (IsFp64Mode()) {
+        set_register(rt_reg(), get_fpu_register_hi_word(fs_reg()));
+      } else {
+        set_register(rt_reg(), get_fpu_register_word(fs_reg() + 1));
+      }
       break;
     case CTC1: {
       // At the moment only FCSR is supported.
@@ -3404,7 +3408,11 @@ void Simulator::DecodeTypeRegisterCOP1() {
       set_fpu_register_word(fs_reg(), registers_[rt_reg()]);
       break;
     case MTHC1:
-      set_fpu_register_hi_word(fs_reg(), registers_[rt_reg()]);
+      if (IsFp64Mode()) {
+        set_fpu_register_hi_word(fs_reg(), registers_[rt_reg()]);
+      } else {
+        set_fpu_register_word(fs_reg() + 1, registers_[rt_reg()]);
+      }
       break;
     case S: {
       DecodeTypeRegisterSRsType();

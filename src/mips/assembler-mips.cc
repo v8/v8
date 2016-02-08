@@ -2086,20 +2086,7 @@ void Assembler::ldc1(FPURegister fd, const MemOperand& src) {
   // Workaround for non-8-byte alignment of HeapNumber, convert 64-bit
   // load to two 32-bit loads.
   DCHECK(!src.rm().is(at));
-  if (IsFp64Mode()) {
-    if (is_int16(src.offset_) && is_int16(src.offset_ + kIntSize)) {
-      GenInstrImmediate(LWC1, src.rm(), fd,
-                        src.offset_ + Register::kMantissaOffset);
-      GenInstrImmediate(LW, src.rm(), at,
-                        src.offset_ + Register::kExponentOffset);
-      mthc1(at, fd);
-    } else {  // Offset > 16 bits, use multiple instructions to load.
-      LoadRegPlusOffsetToAt(src);
-      GenInstrImmediate(LWC1, at, fd, Register::kMantissaOffset);
-      GenInstrImmediate(LW, at, at, Register::kExponentOffset);
-      mthc1(at, fd);
-    }
-  } else {  // fp32 mode.
+  if (IsFp32Mode()) {  // fp32 mode.
     if (is_int16(src.offset_) && is_int16(src.offset_ + kIntSize)) {
       GenInstrImmediate(LWC1, src.rm(), fd,
                         src.offset_ + Register::kMantissaOffset);
@@ -2113,6 +2100,22 @@ void Assembler::ldc1(FPURegister fd, const MemOperand& src) {
       FPURegister nextfpreg;
       nextfpreg.setcode(fd.code() + 1);
       GenInstrImmediate(LWC1, at, nextfpreg, Register::kExponentOffset);
+    }
+  } else {
+    DCHECK(IsFp64Mode() || IsFpxxMode());
+    // Currently we support FPXX and FP64 on Mips32r2 and Mips32r6
+    DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6));
+    if (is_int16(src.offset_) && is_int16(src.offset_ + kIntSize)) {
+      GenInstrImmediate(LWC1, src.rm(), fd,
+                        src.offset_ + Register::kMantissaOffset);
+      GenInstrImmediate(LW, src.rm(), at,
+                        src.offset_ + Register::kExponentOffset);
+      mthc1(at, fd);
+    } else {  // Offset > 16 bits, use multiple instructions to load.
+      LoadRegPlusOffsetToAt(src);
+      GenInstrImmediate(LWC1, at, fd, Register::kMantissaOffset);
+      GenInstrImmediate(LW, at, at, Register::kExponentOffset);
+      mthc1(at, fd);
     }
   }
 }
@@ -2133,20 +2136,7 @@ void Assembler::sdc1(FPURegister fd, const MemOperand& src) {
   // store to two 32-bit stores.
   DCHECK(!src.rm().is(at));
   DCHECK(!src.rm().is(t8));
-  if (IsFp64Mode()) {
-    if (is_int16(src.offset_) && is_int16(src.offset_ + kIntSize)) {
-      GenInstrImmediate(SWC1, src.rm(), fd,
-                        src.offset_ + Register::kMantissaOffset);
-      mfhc1(at, fd);
-      GenInstrImmediate(SW, src.rm(), at,
-                        src.offset_ + Register::kExponentOffset);
-    } else {  // Offset > 16 bits, use multiple instructions to load.
-      LoadRegPlusOffsetToAt(src);
-      GenInstrImmediate(SWC1, at, fd, Register::kMantissaOffset);
-      mfhc1(t8, fd);
-      GenInstrImmediate(SW, at, t8, Register::kExponentOffset);
-    }
-  } else {  // fp32 mode.
+  if (IsFp32Mode()) {  // fp32 mode.
     if (is_int16(src.offset_) && is_int16(src.offset_ + kIntSize)) {
       GenInstrImmediate(SWC1, src.rm(), fd,
                         src.offset_ + Register::kMantissaOffset);
@@ -2160,6 +2150,22 @@ void Assembler::sdc1(FPURegister fd, const MemOperand& src) {
       FPURegister nextfpreg;
       nextfpreg.setcode(fd.code() + 1);
       GenInstrImmediate(SWC1, at, nextfpreg, Register::kExponentOffset);
+    }
+  } else {
+    DCHECK(IsFp64Mode() || IsFpxxMode());
+    // Currently we support FPXX and FP64 on Mips32r2 and Mips32r6
+    DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6));
+    if (is_int16(src.offset_) && is_int16(src.offset_ + kIntSize)) {
+      GenInstrImmediate(SWC1, src.rm(), fd,
+                        src.offset_ + Register::kMantissaOffset);
+      mfhc1(at, fd);
+      GenInstrImmediate(SW, src.rm(), at,
+                        src.offset_ + Register::kExponentOffset);
+    } else {  // Offset > 16 bits, use multiple instructions to load.
+      LoadRegPlusOffsetToAt(src);
+      GenInstrImmediate(SWC1, at, fd, Register::kMantissaOffset);
+      mfhc1(t8, fd);
+      GenInstrImmediate(SW, at, t8, Register::kExponentOffset);
     }
   }
 }

@@ -1457,19 +1457,23 @@ void MacroAssembler::Trunc_uw_d(FPURegister fd,
 
 
 void MacroAssembler::Mthc1(Register rt, FPURegister fs) {
-  if (IsFp64Mode()) {
-    mthc1(rt, fs);
-  } else {
+  if (IsFp32Mode()) {
     mtc1(rt, fs.high());
+  } else {
+    DCHECK(IsFp64Mode() || IsFpxxMode());
+    DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6));
+    mthc1(rt, fs);
   }
 }
 
 
 void MacroAssembler::Mfhc1(Register rt, FPURegister fs) {
-  if (IsFp64Mode()) {
-    mfhc1(rt, fs);
-  } else {
+  if (IsFp32Mode()) {
     mfc1(rt, fs.high());
+  } else {
+    DCHECK(IsFp64Mode() || IsFpxxMode());
+    DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6));
+    mfhc1(rt, fs);
   }
 }
 
@@ -1675,13 +1679,15 @@ void MacroAssembler::BranchShortF(SecondaryField sizeField, Label* target,
 
 
 void MacroAssembler::FmoveLow(FPURegister dst, Register src_low) {
-  if (IsFp64Mode()) {
+  if (IsFp32Mode()) {
+    mtc1(src_low, dst);
+  } else {
+    DCHECK(IsFp64Mode() || IsFpxxMode());
+    DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6));
     DCHECK(!src_low.is(at));
     mfhc1(at, dst);
     mtc1(src_low, dst);
     mthc1(at, dst);
-  } else {
-    mtc1(src_low, dst);
   }
 }
 
