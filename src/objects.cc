@@ -11,6 +11,7 @@
 #include "src/accessors.h"
 #include "src/allocation-site-scopes.h"
 #include "src/api.h"
+#include "src/api-natives.h"
 #include "src/arguments.h"
 #include "src/base/bits.h"
 #include "src/base/utils/random-number-generator.h"
@@ -1176,7 +1177,18 @@ MaybeHandle<Object> Object::GetPropertyWithAccessor(
 
   // Regular accessor.
   Handle<Object> getter(AccessorPair::cast(*structure)->getter(), isolate);
-  if (getter->IsCallable()) {
+  if (getter->IsFunctionTemplateInfo()) {
+    auto result = Builtins::InvokeApiFunction(
+        Handle<FunctionTemplateInfo>::cast(getter), receiver, 0, nullptr);
+    if (isolate->has_pending_exception()) {
+      return MaybeHandle<Object>();
+    }
+    Handle<Object> return_value;
+    if (result.ToHandle(&return_value)) {
+      return_value->VerifyApiCallResultType();
+      return handle(*return_value, isolate);
+    }
+  } else if (getter->IsCallable()) {
     // TODO(rossberg): nicer would be to cast to some JSCallable here...
     return Object::GetPropertyWithDefinedGetter(
         receiver, Handle<JSReceiver>::cast(getter));
@@ -1234,7 +1246,16 @@ Maybe<bool> Object::SetPropertyWithAccessor(LookupIterator* it,
 
   // Regular accessor.
   Handle<Object> setter(AccessorPair::cast(*structure)->setter(), isolate);
-  if (setter->IsCallable()) {
+  if (setter->IsFunctionTemplateInfo()) {
+    Handle<Object> argv[] = {value};
+    auto result =
+        Builtins::InvokeApiFunction(Handle<FunctionTemplateInfo>::cast(setter),
+                                    receiver, arraysize(argv), argv);
+    if (isolate->has_pending_exception()) {
+      return Nothing<bool>();
+    }
+    return Just(true);
+  } else if (setter->IsCallable()) {
     // TODO(rossberg): nicer would be to cast to some JSCallable here...
     return SetPropertyWithDefinedSetter(
         receiver, Handle<JSReceiver>::cast(setter), value, should_throw);
@@ -7285,9 +7306,9 @@ Maybe<bool> JSReceiver::GetOwnPropertyDescriptor(LookupIterator* it,
     Handle<AccessorPair> accessors =
         Handle<AccessorPair>::cast(it->GetAccessors());
     // 6a. Set D.[[Get]] to the value of X's [[Get]] attribute.
-    desc->set_get(handle(accessors->GetComponent(ACCESSOR_GETTER), isolate));
+    desc->set_get(AccessorPair::GetComponent(accessors, ACCESSOR_GETTER));
     // 6b. Set D.[[Set]] to the value of X's [[Set]] attribute.
-    desc->set_set(handle(accessors->GetComponent(ACCESSOR_SETTER), isolate));
+    desc->set_set(AccessorPair::GetComponent(accessors, ACCESSOR_SETTER));
   }
 
   // 7. Set D.[[Enumerable]] to the value of X's [[Enumerable]] attribute.
@@ -9132,8 +9153,10 @@ MaybeHandle<Object> JSObject::DefineAccessor(LookupIterator* it,
     }
   }
 
-  DCHECK(getter->IsCallable() || getter->IsUndefined() || getter->IsNull());
-  DCHECK(setter->IsCallable() || setter->IsUndefined() || setter->IsNull());
+  DCHECK(getter->IsCallable() || getter->IsUndefined() || getter->IsNull() ||
+         getter->IsFunctionTemplateInfo());
+  DCHECK(setter->IsCallable() || setter->IsUndefined() || setter->IsNull() ||
+         getter->IsFunctionTemplateInfo());
   // At least one of the accessors needs to be a new value.
   DCHECK(!getter->IsNull() || !setter->IsNull());
   if (!getter->IsNull()) {
@@ -9232,9 +9255,8 @@ MaybeHandle<Object> JSObject::GetAccessor(Handle<JSObject> object,
       case LookupIterator::ACCESSOR: {
         Handle<Object> maybe_pair = it.GetAccessors();
         if (maybe_pair->IsAccessorPair()) {
-          return handle(
-              AccessorPair::cast(*maybe_pair)->GetComponent(component),
-              isolate);
+          return AccessorPair::GetComponent(
+              Handle<AccessorPair>::cast(maybe_pair), component);
         }
       }
     }
@@ -11046,12 +11068,20 @@ Handle<AccessorPair> AccessorPair::Copy(Handle<AccessorPair> pair) {
   return copy;
 }
 
-
-Object* AccessorPair::GetComponent(AccessorComponent component) {
-  Object* accessor = get(component);
-  return accessor->IsTheHole() ? GetHeap()->undefined_value() : accessor;
+Handle<Object> AccessorPair::GetComponent(Handle<AccessorPair> accessor_pair,
+                                          AccessorComponent component) {
+  Object* accessor = accessor_pair->get(component);
+  if (accessor->IsFunctionTemplateInfo()) {
+    return ApiNatives::InstantiateFunction(
+               handle(FunctionTemplateInfo::cast(accessor)))
+        .ToHandleChecked();
+  }
+  Isolate* isolate = accessor_pair->GetIsolate();
+  if (accessor->IsTheHole()) {
+    return isolate->factory()->undefined_value();
+  }
+  return handle(accessor, isolate);
 }
-
 
 Handle<DeoptimizationInputData> DeoptimizationInputData::New(
     Isolate* isolate, int deopt_entry_count, PretenureFlag pretenure) {

@@ -986,17 +986,24 @@ bool IsCompatibleReceiver(LookupIterator* lookup, Handle<Map> receiver_map) {
   } else if (accessors->IsAccessorPair()) {
     Handle<Object> getter(Handle<AccessorPair>::cast(accessors)->getter(),
                           isolate);
+    if (!getter->IsJSFunction() && !getter->IsFunctionTemplateInfo())
+      return false;
     Handle<JSObject> holder = lookup->GetHolder<JSObject>();
     Handle<Object> receiver = lookup->GetReceiver();
-    if (getter->IsJSFunction() && holder->HasFastProperties()) {
-      Handle<JSFunction> function = Handle<JSFunction>::cast(getter);
-      if (receiver->IsJSObject() || function->shared()->IsBuiltin() ||
-          !is_sloppy(function->shared()->language_mode())) {
-        CallOptimization call_optimization(function);
-        if (call_optimization.is_simple_api_call() &&
-            !call_optimization.IsCompatibleReceiverMap(receiver_map, holder)) {
+    if (holder->HasFastProperties()) {
+      if (getter->IsJSFunction()) {
+        Handle<JSFunction> function = Handle<JSFunction>::cast(getter);
+        if (!receiver->IsJSObject() && !function->shared()->IsBuiltin() &&
+            is_sloppy(function->shared()->language_mode())) {
+          // Calling sloppy non-builtins with a value as the receiver
+          // requires boxing.
           return false;
         }
+      }
+      CallOptimization call_optimization(getter);
+      if (call_optimization.is_simple_api_call() &&
+          !call_optimization.IsCompatibleReceiverMap(receiver_map, holder)) {
+        return false;
       }
     }
   }
@@ -1167,48 +1174,39 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
         return stub.GetCode();
       }
 
-      Handle<Object> accessors = lookup->GetAccessors();
-      if (accessors->IsAccessorInfo()) {
-        Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(accessors);
-        if (v8::ToCData<Address>(info->getter()) == 0) break;
-        if (!AccessorInfo::IsCompatibleReceiverMap(isolate(), info, map)) {
-          // This case should be already handled in LoadIC::UpdateCaches.
-          UNREACHABLE();
-          break;
-        }
-        if (!holder->HasFastProperties()) break;
-        NamedLoadHandlerCompiler compiler(isolate(), map, holder, cache_holder);
-        return compiler.CompileLoadCallback(lookup->name(), info);
-      }
-      if (accessors->IsAccessorPair()) {
-        Handle<Object> getter(Handle<AccessorPair>::cast(accessors)->getter(),
-                              isolate());
-        if (!getter->IsJSFunction()) break;
-        if (!holder->HasFastProperties()) break;
-        // When debugging we need to go the slow path to flood the accessor.
-        if (GetSharedFunctionInfo()->HasDebugInfo()) break;
-        Handle<JSFunction> function = Handle<JSFunction>::cast(getter);
-        if (!receiver->IsJSObject() && !function->shared()->IsBuiltin() &&
-            is_sloppy(function->shared()->language_mode())) {
-          // Calling sloppy non-builtins with a value as the receiver
-          // requires boxing.
-          break;
-        }
-        CallOptimization call_optimization(function);
-        NamedLoadHandlerCompiler compiler(isolate(), map, holder, cache_holder);
-        if (call_optimization.is_simple_api_call()) {
-          if (call_optimization.IsCompatibleReceiver(receiver, holder)) {
+      if (IsCompatibleReceiver(lookup, map)) {
+        Handle<Object> accessors = lookup->GetAccessors();
+        if (accessors->IsAccessorPair()) {
+          if (!holder->HasFastProperties()) break;
+          // When debugging we need to go the slow path to flood the accessor.
+          if (GetSharedFunctionInfo()->HasDebugInfo()) break;
+          Handle<Object> getter(Handle<AccessorPair>::cast(accessors)->getter(),
+                                isolate());
+          CallOptimization call_optimization(getter);
+          NamedLoadHandlerCompiler compiler(isolate(), map, holder,
+                                            cache_holder);
+          if (call_optimization.is_simple_api_call()) {
             return compiler.CompileLoadCallback(
                 lookup->name(), call_optimization, lookup->GetAccessorIndex());
-          } else {
+          }
+          int expected_arguments = Handle<JSFunction>::cast(getter)
+                                       ->shared()
+                                       ->internal_formal_parameter_count();
+          return compiler.CompileLoadViaGetter(
+              lookup->name(), lookup->GetAccessorIndex(), expected_arguments);
+        } else if (accessors->IsAccessorInfo()) {
+          Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(accessors);
+          if (v8::ToCData<Address>(info->getter()) == 0) break;
+          if (!AccessorInfo::IsCompatibleReceiverMap(isolate(), info, map)) {
             // This case should be already handled in LoadIC::UpdateCaches.
             UNREACHABLE();
+            break;
           }
+          if (!holder->HasFastProperties()) break;
+          NamedLoadHandlerCompiler compiler(isolate(), map, holder,
+                                            cache_holder);
+          return compiler.CompileLoadCallback(lookup->name(), info);
         }
-        int expected_arguments =
-            function->shared()->internal_formal_parameter_count();
-        return compiler.CompileLoadViaGetter(
-            lookup->name(), lookup->GetAccessorIndex(), expected_arguments);
       }
       break;
     }

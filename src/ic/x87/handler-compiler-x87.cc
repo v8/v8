@@ -197,9 +197,13 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
     call_data_undefined = true;
     __ mov(data, Immediate(isolate->factory()->undefined_value()));
   } else {
-    __ mov(data, FieldOperand(callee, JSFunction::kSharedFunctionInfoOffset));
-    __ mov(data, FieldOperand(data, SharedFunctionInfo::kFunctionDataOffset));
-    __ mov(data, FieldOperand(data, FunctionTemplateInfo::kCallCodeOffset));
+    if (optimization.is_constant_call()) {
+      __ mov(data, FieldOperand(callee, JSFunction::kSharedFunctionInfoOffset));
+      __ mov(data, FieldOperand(data, SharedFunctionInfo::kFunctionDataOffset));
+      __ mov(data, FieldOperand(data, FunctionTemplateInfo::kCallCodeOffset));
+    } else {
+      __ mov(data, FieldOperand(callee, FunctionTemplateInfo::kCallCodeOffset));
+    }
     __ mov(data, FieldOperand(data, CallHandlerInfo::kDataOffset));
   }
 
@@ -214,7 +218,8 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
   __ mov(api_function_address, Immediate(function_address));
 
   // Jump to stub.
-  CallApiAccessorStub stub(isolate, is_store, call_data_undefined);
+  CallApiAccessorStub stub(isolate, is_store, call_data_undefined,
+                           !optimization.is_constant_call());
   __ TailCallStub(&stub);
 }
 
