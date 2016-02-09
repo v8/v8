@@ -122,11 +122,11 @@ class BytecodeGraphBuilder {
   void BuildCreateObjectLiteral();
   void BuildCreateArguments(CreateArgumentsType type);
   void BuildLoadGlobal(TypeofMode typeof_mode);
-  void BuildStoreGlobal();
+  void BuildStoreGlobal(LanguageMode language_mode);
   void BuildNamedLoad();
   void BuildKeyedLoad();
-  void BuildNamedStore();
-  void BuildKeyedStore();
+  void BuildNamedStore(LanguageMode language_mode);
+  void BuildKeyedStore(LanguageMode language_mode);
   void BuildLdaLookupSlot(TypeofMode typeof_mode);
   void BuildStaLookupSlot(LanguageMode language_mode);
   void BuildCall();
@@ -137,7 +137,7 @@ class BytecodeGraphBuilder {
   void BuildThrow();
   void BuildBinaryOp(const Operator* op);
   void BuildCompareOp(const Operator* op);
-  void BuildDelete();
+  void BuildDelete(LanguageMode language_mode);
   void BuildCastOperator(const Operator* op);
   void BuildForInPrepare();
   void BuildForInNext();

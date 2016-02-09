@@ -668,46 +668,38 @@ void BytecodeGraphBuilder::BuildLoadGlobal(
 }
 
 void BytecodeGraphBuilder::VisitLdaGlobalSloppy() {
-  DCHECK(is_sloppy(language_mode()));
   BuildLoadGlobal(TypeofMode::NOT_INSIDE_TYPEOF);
 }
 
 void BytecodeGraphBuilder::VisitLdaGlobalStrict() {
-  DCHECK(is_strict(language_mode()));
   BuildLoadGlobal(TypeofMode::NOT_INSIDE_TYPEOF);
 }
 
 void BytecodeGraphBuilder::VisitLdaGlobalInsideTypeofSloppy() {
-  DCHECK(is_sloppy(language_mode()));
   BuildLoadGlobal(TypeofMode::INSIDE_TYPEOF);
 }
 
 void BytecodeGraphBuilder::VisitLdaGlobalInsideTypeofStrict() {
-  DCHECK(is_strict(language_mode()));
   BuildLoadGlobal(TypeofMode::INSIDE_TYPEOF);
 }
 
 void BytecodeGraphBuilder::VisitLdaGlobalSloppyWide() {
-  DCHECK(is_sloppy(language_mode()));
   BuildLoadGlobal(TypeofMode::NOT_INSIDE_TYPEOF);
 }
 
 void BytecodeGraphBuilder::VisitLdaGlobalStrictWide() {
-  DCHECK(is_strict(language_mode()));
   BuildLoadGlobal(TypeofMode::NOT_INSIDE_TYPEOF);
 }
 
 void BytecodeGraphBuilder::VisitLdaGlobalInsideTypeofSloppyWide() {
-  DCHECK(is_sloppy(language_mode()));
   BuildLoadGlobal(TypeofMode::INSIDE_TYPEOF);
 }
 
 void BytecodeGraphBuilder::VisitLdaGlobalInsideTypeofStrictWide() {
-  DCHECK(is_strict(language_mode()));
   BuildLoadGlobal(TypeofMode::INSIDE_TYPEOF);
 }
 
-void BytecodeGraphBuilder::BuildStoreGlobal() {
+void BytecodeGraphBuilder::BuildStoreGlobal(LanguageMode language_mode) {
   FrameStateBeforeAndAfter states(this);
   Handle<Name> name =
       Handle<Name>::cast(bytecode_iterator().GetConstantForIndexOperand(0));
@@ -715,30 +707,25 @@ void BytecodeGraphBuilder::BuildStoreGlobal() {
       CreateVectorSlotPair(bytecode_iterator().GetIndexOperand(1));
   Node* value = environment()->LookupAccumulator();
 
-  const Operator* op =
-      javascript()->StoreGlobal(language_mode(), name, feedback);
+  const Operator* op = javascript()->StoreGlobal(language_mode, name, feedback);
   Node* node = NewNode(op, value, BuildLoadFeedbackVector());
   environment()->RecordAfterState(node, &states);
 }
 
 void BytecodeGraphBuilder::VisitStaGlobalSloppy() {
-  DCHECK(is_sloppy(language_mode()));
-  BuildStoreGlobal();
+  BuildStoreGlobal(LanguageMode::SLOPPY);
 }
 
 void BytecodeGraphBuilder::VisitStaGlobalStrict() {
-  DCHECK(is_strict(language_mode()));
-  BuildStoreGlobal();
+  BuildStoreGlobal(LanguageMode::STRICT);
 }
 
 void BytecodeGraphBuilder::VisitStaGlobalSloppyWide() {
-  DCHECK(is_sloppy(language_mode()));
-  BuildStoreGlobal();
+  BuildStoreGlobal(LanguageMode::SLOPPY);
 }
 
 void BytecodeGraphBuilder::VisitStaGlobalStrictWide() {
-  DCHECK(is_strict(language_mode()));
-  BuildStoreGlobal();
+  BuildStoreGlobal(LanguageMode::STRICT);
 }
 
 void BytecodeGraphBuilder::VisitLdaContextSlot() {
@@ -890,7 +877,7 @@ void BytecodeGraphBuilder::VisitKeyedLoadICStrictWide() {
   BuildKeyedLoad();
 }
 
-void BytecodeGraphBuilder::BuildNamedStore() {
+void BytecodeGraphBuilder::BuildNamedStore(LanguageMode language_mode) {
   FrameStateBeforeAndAfter states(this);
   Node* value = environment()->LookupAccumulator();
   Node* object =
@@ -900,33 +887,28 @@ void BytecodeGraphBuilder::BuildNamedStore() {
   VectorSlotPair feedback =
       CreateVectorSlotPair(bytecode_iterator().GetIndexOperand(2));
 
-  const Operator* op =
-      javascript()->StoreNamed(language_mode(), name, feedback);
+  const Operator* op = javascript()->StoreNamed(language_mode, name, feedback);
   Node* node = NewNode(op, object, value, BuildLoadFeedbackVector());
   environment()->RecordAfterState(node, &states);
 }
 
 void BytecodeGraphBuilder::VisitStoreICSloppy() {
-  DCHECK(is_sloppy(language_mode()));
-  BuildNamedStore();
+  BuildNamedStore(LanguageMode::SLOPPY);
 }
 
 void BytecodeGraphBuilder::VisitStoreICStrict() {
-  DCHECK(is_strict(language_mode()));
-  BuildNamedStore();
+  BuildNamedStore(LanguageMode::STRICT);
 }
 
 void BytecodeGraphBuilder::VisitStoreICSloppyWide() {
-  DCHECK(is_sloppy(language_mode()));
-  BuildNamedStore();
+  BuildNamedStore(LanguageMode::SLOPPY);
 }
 
 void BytecodeGraphBuilder::VisitStoreICStrictWide() {
-  DCHECK(is_strict(language_mode()));
-  BuildNamedStore();
+  BuildNamedStore(LanguageMode::STRICT);
 }
 
-void BytecodeGraphBuilder::BuildKeyedStore() {
+void BytecodeGraphBuilder::BuildKeyedStore(LanguageMode language_mode) {
   FrameStateBeforeAndAfter states(this);
   Node* value = environment()->LookupAccumulator();
   Node* object =
@@ -936,29 +918,25 @@ void BytecodeGraphBuilder::BuildKeyedStore() {
   VectorSlotPair feedback =
       CreateVectorSlotPair(bytecode_iterator().GetIndexOperand(2));
 
-  const Operator* op = javascript()->StoreProperty(language_mode(), feedback);
+  const Operator* op = javascript()->StoreProperty(language_mode, feedback);
   Node* node = NewNode(op, object, key, value, BuildLoadFeedbackVector());
   environment()->RecordAfterState(node, &states);
 }
 
 void BytecodeGraphBuilder::VisitKeyedStoreICSloppy() {
-  DCHECK(is_sloppy(language_mode()));
-  BuildKeyedStore();
+  BuildKeyedStore(LanguageMode::SLOPPY);
 }
 
 void BytecodeGraphBuilder::VisitKeyedStoreICStrict() {
-  DCHECK(is_strict(language_mode()));
-  BuildKeyedStore();
+  BuildKeyedStore(LanguageMode::STRICT);
 }
 
 void BytecodeGraphBuilder::VisitKeyedStoreICSloppyWide() {
-  DCHECK(is_sloppy(language_mode()));
-  BuildKeyedStore();
+  BuildKeyedStore(LanguageMode::SLOPPY);
 }
 
 void BytecodeGraphBuilder::VisitKeyedStoreICStrictWide() {
-  DCHECK(is_strict(language_mode()));
-  BuildKeyedStore();
+  BuildKeyedStore(LanguageMode::STRICT);
 }
 
 void BytecodeGraphBuilder::VisitPushContext() {
@@ -1328,24 +1306,22 @@ void BytecodeGraphBuilder::VisitTypeOf() {
   environment()->BindAccumulator(node);
 }
 
-void BytecodeGraphBuilder::BuildDelete() {
+void BytecodeGraphBuilder::BuildDelete(LanguageMode language_mode) {
   FrameStateBeforeAndAfter states(this);
   Node* key = environment()->LookupAccumulator();
   Node* object =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
   Node* node =
-      NewNode(javascript()->DeleteProperty(language_mode()), object, key);
+      NewNode(javascript()->DeleteProperty(language_mode), object, key);
   environment()->BindAccumulator(node, &states);
 }
 
 void BytecodeGraphBuilder::VisitDeletePropertyStrict() {
-  DCHECK(is_strict(language_mode()));
-  BuildDelete();
+  BuildDelete(LanguageMode::STRICT);
 }
 
 void BytecodeGraphBuilder::VisitDeletePropertySloppy() {
-  DCHECK(is_sloppy(language_mode()));
-  BuildDelete();
+  BuildDelete(LanguageMode::SLOPPY);
 }
 
 void BytecodeGraphBuilder::VisitDeleteLookupSlot() {
