@@ -96,6 +96,8 @@ execl(["0abc"], /[^]abc/u, "0abc");
 execl(["\u1234abc"], /[^]abc/u, "\u1234abc");
 execl(["\u{12345}abc"], /[^]abc/u, "\u{12345}abc");
 
+execl(null, /[\u{0}-\u{1F444}]/u, "\ud83d\udfff");
+
 // Backward matches of lone surrogates.
 execl(["B", "\ud803A"], /(?<=([\ud800-\ud900]A))B/u,
       "\ud801\udc00AB\udc00AB\ud802\ud803AB");

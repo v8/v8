@@ -4905,7 +4905,7 @@ UnicodeRangeSplitter::UnicodeRangeSplitter(Zone* zone,
                   kLeadSurrogates, zone_);
   table_.AddRange(CharacterRange(kTrailSurrogateStart, kTrailSurrogateEnd),
                   kTrailSurrogates, zone_);
-  table_.AddRange(CharacterRange(kTrailSurrogateEnd, kNonBmpStart - 1),
+  table_.AddRange(CharacterRange(kTrailSurrogateEnd + 1, kNonBmpStart - 1),
                   kBmpCodePoints, zone_);
   table_.AddRange(CharacterRange(kNonBmpStart, kNonBmpEnd), kNonBmpCodePoints,
                   zone_);
