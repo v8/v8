@@ -1187,6 +1187,26 @@ class Runtime : public AllStatic {
 };
 
 
+struct RuntimeCallStats {
+#define CALL_RUNTIME_COUNTER(name, nargs, ressize) \
+  uint32_t Count_Runtime_##name;                   \
+  base::TimeDelta Time_Runtime_##name;
+  FOR_EACH_INTRINSIC(CALL_RUNTIME_COUNTER)
+#undef CALL_RUNTIME_COUNTER
+
+  // Dummy counter for the unexpected stub miss.
+  uint32_t Count_UnexpectedStubMiss;
+  base::TimeDelta Time_UnexpectedStubMiss;
+
+  bool in_runtime_call = false;
+
+  void Reset();
+  void Print(std::ostream& os);
+
+  RuntimeCallStats() { Reset(); }
+};
+
+
 class RuntimeState {
  public:
   unibrow::Mapping<unibrow::ToUppercase, 128>* to_upper_mapping() {
@@ -1205,11 +1225,14 @@ class RuntimeState {
     redirected_intrinsic_functions_.Reset(redirected_intrinsic_functions);
   }
 
+  RuntimeCallStats* runtime_call_stats() { return &runtime_call_stats_; }
+
  private:
   RuntimeState() {}
   unibrow::Mapping<unibrow::ToUppercase, 128> to_upper_mapping_;
   unibrow::Mapping<unibrow::ToLowercase, 128> to_lower_mapping_;
 
+  RuntimeCallStats runtime_call_stats_;
 
   base::SmartArrayPointer<Runtime::Function> redirected_intrinsic_functions_;
 

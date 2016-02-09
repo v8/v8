@@ -2402,8 +2402,8 @@ void Isolate::DumpAndResetCompilationStats() {
   hstatistics_ = nullptr;
   if (FLAG_runtime_call_stats) {
     OFStream os(stdout);
-    counters()->runtime_call_stats()->Print(os);
-    counters()->runtime_call_stats()->Reset();
+    runtime_state()->runtime_call_stats()->Print(os);
+    runtime_state()->runtime_call_stats()->Reset();
   }
 }
 

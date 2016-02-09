@@ -482,10 +482,10 @@ RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
   std::stringstream stats_stream;
-  isolate->counters()->runtime_call_stats()->Print(stats_stream);
+  isolate->runtime_state()->runtime_call_stats()->Print(stats_stream);
   Handle<String> result =
       isolate->factory()->NewStringFromAsciiChecked(stats_stream.str().c_str());
-  isolate->counters()->runtime_call_stats()->Reset();
+  isolate->runtime_state()->runtime_call_stats()->Reset();
   return *result;
 }
 
