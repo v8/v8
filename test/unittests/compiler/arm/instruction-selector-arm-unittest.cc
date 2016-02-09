@@ -2545,7 +2545,8 @@ TEST_F(InstructionSelectorTest, Uint32ModWithParametersForSUDIVAndMLS) {
 
 
 TEST_F(InstructionSelectorTest, Word32AndWithUbfxImmediateForARMv7) {
-  TRACED_FORRANGE(int32_t, width, 1, 32) {
+  TRACED_FORRANGE(int32_t, width, 9, 23) {
+    if (width == 16) continue;  // Uxth.
     StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
     m.Return(m.Word32And(m.Parameter(0),
                          m.Int32Constant(0xffffffffu >> (32 - width))));
@@ -2556,7 +2557,8 @@ TEST_F(InstructionSelectorTest, Word32AndWithUbfxImmediateForARMv7) {
     EXPECT_EQ(0, s.ToInt32(s[0]->InputAt(1)));
     EXPECT_EQ(width, s.ToInt32(s[0]->InputAt(2)));
   }
-  TRACED_FORRANGE(int32_t, width, 1, 32) {
+  TRACED_FORRANGE(int32_t, width, 9, 23) {
+    if (width == 16) continue;  // Uxth.
     StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
     m.Return(m.Word32And(m.Int32Constant(0xffffffffu >> (32 - width)),
                          m.Parameter(0)));
@@ -2572,7 +2574,7 @@ TEST_F(InstructionSelectorTest, Word32AndWithUbfxImmediateForARMv7) {
 
 TEST_F(InstructionSelectorTest, Word32AndWithBfcImmediateForARMv7) {
   TRACED_FORRANGE(int32_t, lsb, 0, 31) {
-    TRACED_FORRANGE(int32_t, width, 9, (32 - lsb) - 1) {
+    TRACED_FORRANGE(int32_t, width, 9, (24 - lsb) - 1) {
       StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
       m.Return(m.Word32And(
           m.Parameter(0),
@@ -2589,7 +2591,7 @@ TEST_F(InstructionSelectorTest, Word32AndWithBfcImmediateForARMv7) {
     }
   }
   TRACED_FORRANGE(int32_t, lsb, 0, 31) {
-    TRACED_FORRANGE(int32_t, width, 9, (32 - lsb) - 1) {
+    TRACED_FORRANGE(int32_t, width, 9, (24 - lsb) - 1) {
       StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
       m.Return(
           m.Word32And(m.Int32Constant(~((0xffffffffu >> (32 - width)) << lsb)),
@@ -2828,8 +2830,11 @@ TEST_F(InstructionSelectorTest, Word32NotWithParameter) {
 
 
 TEST_F(InstructionSelectorTest, Word32AndWithWord32ShrWithImmediateForARMv7) {
-  TRACED_FORRANGE(int32_t, lsb, 0, 31) {
+  TRACED_FORRANGE(int32_t, lsb, 1, 31) {
     TRACED_FORRANGE(int32_t, width, 1, 32 - lsb) {
+      if (((width == 8) || (width == 16)) &&
+          ((lsb == 8) || (lsb == 16) || (lsb == 24)))
+        continue;  // Uxtb/h ror.
       StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
       m.Return(m.Word32And(m.Word32Shr(m.Parameter(0), m.Int32Constant(lsb)),
                            m.Int32Constant(0xffffffffu >> (32 - width))));
@@ -2841,8 +2846,11 @@ TEST_F(InstructionSelectorTest, Word32AndWithWord32ShrWithImmediateForARMv7) {
       EXPECT_EQ(width, s.ToInt32(s[0]->InputAt(2)));
     }
   }
-  TRACED_FORRANGE(int32_t, lsb, 0, 31) {
+  TRACED_FORRANGE(int32_t, lsb, 1, 31) {
     TRACED_FORRANGE(int32_t, width, 1, 32 - lsb) {
+      if (((width == 8) || (width == 16)) &&
+          ((lsb == 8) || (lsb == 16) || (lsb == 24)))
+        continue;  // Uxtb/h ror.
       StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
       m.Return(m.Word32And(m.Int32Constant(0xffffffffu >> (32 - width)),
                            m.Word32Shr(m.Parameter(0), m.Int32Constant(lsb))));
@@ -2853,6 +2861,62 @@ TEST_F(InstructionSelectorTest, Word32AndWithWord32ShrWithImmediateForARMv7) {
       EXPECT_EQ(lsb, s.ToInt32(s[0]->InputAt(1)));
       EXPECT_EQ(width, s.ToInt32(s[0]->InputAt(2)));
     }
+  }
+}
+
+
+TEST_F(InstructionSelectorTest, Word32AndWithWord32ShrAnd0xff) {
+  TRACED_FORRANGE(int32_t, shr, 1, 3) {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
+    Node* const p0 = m.Parameter(0);
+    Node* const r = m.Word32And(m.Word32Shr(p0, m.Int32Constant(shr * 8)),
+                                m.Int32Constant(0xff));
+    m.Return(r);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArmUxtb, s[0]->arch_opcode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(shr * 8, s.ToInt32(s[0]->InputAt(1)));
+  }
+  TRACED_FORRANGE(int32_t, shr, 1, 3) {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
+    Node* const p0 = m.Parameter(0);
+    Node* const r = m.Word32And(m.Int32Constant(0xff),
+                                m.Word32Shr(p0, m.Int32Constant(shr * 8)));
+    m.Return(r);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArmUxtb, s[0]->arch_opcode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(shr * 8, s.ToInt32(s[0]->InputAt(1)));
+  }
+}
+
+
+TEST_F(InstructionSelectorTest, Word32AndWithWord32ShrAnd0xffff) {
+  TRACED_FORRANGE(int32_t, shr, 1, 3) {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
+    Node* const p0 = m.Parameter(0);
+    Node* const r = m.Word32And(m.Word32Shr(p0, m.Int32Constant(shr * 8)),
+                                m.Int32Constant(0xffff));
+    m.Return(r);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArmUxth, s[0]->arch_opcode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(shr * 8, s.ToInt32(s[0]->InputAt(1)));
+  }
+  TRACED_FORRANGE(int32_t, shr, 1, 3) {
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
+    Node* const p0 = m.Parameter(0);
+    Node* const r = m.Word32And(m.Int32Constant(0xffff),
+                                m.Word32Shr(p0, m.Int32Constant(shr * 8)));
+    m.Return(r);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArmUxth, s[0]->arch_opcode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(shr * 8, s.ToInt32(s[0]->InputAt(1)));
   }
 }
 
