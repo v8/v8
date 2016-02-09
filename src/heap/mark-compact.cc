@@ -479,19 +479,30 @@ void MarkCompactCollector::ClearMarkbits() {
 
 class MarkCompactCollector::SweeperTask : public v8::Task {
  public:
-  SweeperTask(Heap* heap, PagedSpace* space) : heap_(heap), space_(space) {}
+  SweeperTask(Heap* heap, AllocationSpace space_to_start)
+      : heap_(heap), space_to_start_(space_to_start) {}
 
   virtual ~SweeperTask() {}
 
  private:
   // v8::Task overrides.
   void Run() override {
-    heap_->mark_compact_collector()->SweepInParallel(space_, 0);
+    DCHECK_GE(space_to_start_, FIRST_PAGED_SPACE);
+    DCHECK_LE(space_to_start_, LAST_PAGED_SPACE);
+    const int offset = space_to_start_ - FIRST_PAGED_SPACE;
+    const int num_spaces = LAST_PAGED_SPACE - FIRST_PAGED_SPACE + 1;
+    for (int i = 0; i < num_spaces; i++) {
+      const int space_id = FIRST_PAGED_SPACE + ((i + offset) % num_spaces);
+      DCHECK_GE(space_id, FIRST_PAGED_SPACE);
+      DCHECK_LE(space_id, LAST_PAGED_SPACE);
+      heap_->mark_compact_collector()->SweepInParallel(
+          heap_->paged_space(space_id), 0);
+    }
     heap_->mark_compact_collector()->pending_sweeper_tasks_semaphore_.Signal();
   }
 
   Heap* heap_;
-  PagedSpace* space_;
+  AllocationSpace space_to_start_;
 
   DISALLOW_COPY_AND_ASSIGN(SweeperTask);
 };
@@ -502,14 +513,11 @@ void MarkCompactCollector::StartSweeperThreads() {
   DCHECK(free_list_code_space_.get()->IsEmpty());
   DCHECK(free_list_map_space_.get()->IsEmpty());
   V8::GetCurrentPlatform()->CallOnBackgroundThread(
-      new SweeperTask(heap(), heap()->old_space()),
-      v8::Platform::kShortRunningTask);
+      new SweeperTask(heap(), OLD_SPACE), v8::Platform::kShortRunningTask);
   V8::GetCurrentPlatform()->CallOnBackgroundThread(
-      new SweeperTask(heap(), heap()->code_space()),
-      v8::Platform::kShortRunningTask);
+      new SweeperTask(heap(), CODE_SPACE), v8::Platform::kShortRunningTask);
   V8::GetCurrentPlatform()->CallOnBackgroundThread(
-      new SweeperTask(heap(), heap()->map_space()),
-      v8::Platform::kShortRunningTask);
+      new SweeperTask(heap(), MAP_SPACE), v8::Platform::kShortRunningTask);
 }
 
 
