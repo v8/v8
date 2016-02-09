@@ -515,12 +515,12 @@ function ArrayPop() {
 
 function ObservedArrayPush() {
   var n = TO_LENGTH(this.length);
-  var m = %_ArgumentsLength();
+  var m = arguments.length;
 
   try {
     ObserveBeginPerformSplice(this);
     for (var i = 0; i < m; i++) {
-      this[i+n] = %_Arguments(i);
+      this[i+n] = arguments[i];
     }
     var new_length = n + m;
     this.length = new_length;
@@ -543,7 +543,7 @@ function ArrayPush() {
 
   var array = TO_OBJECT(this);
   var n = TO_LENGTH(array.length);
-  var m = %_ArgumentsLength();
+  var m = arguments.length;
 
   // It appears that there is no enforced, absolute limit on the number of
   // arguments, but it would surely blow the stack to use 2**30 or more.
@@ -555,7 +555,7 @@ function ArrayPush() {
   }
 
   for (var i = 0; i < m; i++) {
-    array[i+n] = %_Arguments(i);
+    array[i+n] = arguments[i];
   }
 
   var new_length = n + m;
@@ -711,13 +711,13 @@ function ArrayShift() {
 
 function ObservedArrayUnshift() {
   var len = TO_LENGTH(this.length);
-  var num_arguments = %_ArgumentsLength();
+  var num_arguments = arguments.length;
 
   try {
     ObserveBeginPerformSplice(this);
     SimpleMove(this, 0, 0, len, num_arguments);
     for (var i = 0; i < num_arguments; i++) {
-      this[i] = %_Arguments(i);
+      this[i] = arguments[i];
     }
     var new_length = len + num_arguments;
     this.length = new_length;
@@ -738,7 +738,7 @@ function ArrayUnshift(arg1) {  // length == 1
 
   var array = TO_OBJECT(this);
   var len = TO_LENGTH(array.length);
-  var num_arguments = %_ArgumentsLength();
+  var num_arguments = arguments.length;
 
   if (len > 0 && UseSparseVariant(array, len, IS_ARRAY(array), len) &&
       !%object_is_sealed(array)) {
@@ -748,7 +748,7 @@ function ArrayUnshift(arg1) {  // length == 1
   }
 
   for (var i = 0; i < num_arguments; i++) {
-    array[i] = %_Arguments(i);
+    array[i] = arguments[i];
   }
 
   var new_length = len + num_arguments;
@@ -831,7 +831,7 @@ function ComputeSpliceDeleteCount(delete_count, num_arguments, len, start_i) {
 
 
 function ObservedArraySplice(start, delete_count) {
-  var num_arguments = %_ArgumentsLength();
+  var num_arguments = arguments.length;
   var len = TO_LENGTH(this.length);
   var start_i = ComputeSpliceStartIndex(TO_INTEGER(start), len);
   var del_count = ComputeSpliceDeleteCount(delete_count, num_arguments, len,
@@ -850,9 +850,9 @@ function ObservedArraySplice(start, delete_count) {
     // place of the deleted elements.
     var i = start_i;
     var arguments_index = 2;
-    var arguments_length = %_ArgumentsLength();
+    var arguments_length = arguments.length;
     while (arguments_index < arguments_length) {
-      this[i++] = %_Arguments(arguments_index++);
+      this[i++] = arguments[arguments_index++];
     }
     this.length = len - del_count + num_elements_to_add;
 
@@ -877,7 +877,7 @@ function ArraySplice(start, delete_count) {
   if (%IsObserved(this))
     return ObservedArraySplice.apply(this, arguments);
 
-  var num_arguments = %_ArgumentsLength();
+  var num_arguments = arguments.length;
   var array = TO_OBJECT(this);
   var len = TO_LENGTH(array.length);
   var start_i = ComputeSpliceStartIndex(TO_INTEGER(start), len);
@@ -913,9 +913,9 @@ function ArraySplice(start, delete_count) {
   // place of the deleted elements.
   var i = start_i;
   var arguments_index = 2;
-  var arguments_length = %_ArgumentsLength();
+  var arguments_length = arguments.length;
   while (arguments_index < arguments_length) {
-    array[i++] = %_Arguments(arguments_index++);
+    array[i++] = arguments[arguments_index++];
   }
   array.length = len - del_count + num_elements_to_add;
 
@@ -1469,7 +1469,7 @@ function ArrayLastIndexOf(element, index) {
 
   var length = TO_LENGTH(this.length);
   return InnerArrayLastIndexOf(this, element, index, length,
-                        %_ArgumentsLength());
+                               arguments.length);
 }
 
 
@@ -1508,7 +1508,7 @@ function ArrayReduce(callback, current) {
   var array = TO_OBJECT(this);
   var length = TO_LENGTH(array.length);
   return InnerArrayReduce(callback, current, array, length,
-                          %_ArgumentsLength());
+                          arguments.length);
 }
 
 
@@ -1548,7 +1548,7 @@ function ArrayReduceRight(callback, current) {
   var array = TO_OBJECT(this);
   var length = TO_LENGTH(array.length);
   return InnerArrayReduceRight(callback, current, array, length,
-                               %_ArgumentsLength());
+                               arguments.length);
 }
 
 
@@ -1822,13 +1822,13 @@ function ArrayFrom(arrayLike, mapfn, receiver) {
 
 
 // ES6, draft 05-22-14, section 22.1.2.3
-function ArrayOf() {
-  var length = %_ArgumentsLength();
+function ArrayOf(...args) {
+  var length = args.length;
   var constructor = this;
   // TODO: Implement IsConstructor (ES6 section 7.2.5)
   var array = %IsConstructor(constructor) ? new constructor(length) : [];
   for (var i = 0; i < length; i++) {
-    AddArrayElement(constructor, array, i, %_Arguments(i));
+    AddArrayElement(constructor, array, i, args[i]);
   }
   array.length = length;
   return array;
