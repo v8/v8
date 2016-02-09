@@ -5085,34 +5085,18 @@ void AddLoneTrailSurrogates(RegExpCompiler* compiler, ChoiceNode* result,
   result->AddAlternative(GuardedAlternative(match));
 }
 
-
-void AddUnanchoredAdvance(RegExpCompiler* compiler, ChoiceNode* result,
-                          RegExpNode* on_success) {
+RegExpNode* UnanchoredAdvance(RegExpCompiler* compiler,
+                              RegExpNode* on_success) {
   // This implements ES2015 21.2.5.2.3, AdvanceStringIndex.
   DCHECK(!compiler->read_backward());
   Zone* zone = compiler->zone();
-  // Advancing can either consume a BMP character or a trail surrogate.
-  ZoneList<CharacterRange>* bmp_and_trail =
-      new (zone) ZoneList<CharacterRange>(2, zone);
-  bmp_and_trail->Add(CharacterRange::Range(0, kLeadSurrogateStart - 1), zone);
-  bmp_and_trail->Add(
-      CharacterRange::Range(kLeadSurrogateEnd + 1, kNonBmpStart - 1), zone);
-  result->AddAlternative(GuardedAlternative(TextNode::CreateForCharacterRanges(
-      zone, bmp_and_trail, false, on_success)));
-
-  // Or it could consume a lead optionally followed by a trail surrogate.
-  ZoneList<CharacterRange>* lead_surrogates = CharacterRange::List(
-      zone, CharacterRange::Range(kLeadSurrogateStart, kLeadSurrogateEnd));
-  ZoneList<CharacterRange>* trail_surrogates = CharacterRange::List(
-      zone, CharacterRange::Range(kTrailSurrogateStart, kTrailSurrogateEnd));
-  ChoiceNode* optional_trail = new (zone) ChoiceNode(2, zone);
-  optional_trail->AddAlternative(
-      GuardedAlternative(TextNode::CreateForCharacterRanges(
-          zone, trail_surrogates, false, on_success)));
-  optional_trail->AddAlternative(GuardedAlternative(on_success));
-  RegExpNode* optional_pair = TextNode::CreateForCharacterRanges(
-      zone, lead_surrogates, false, optional_trail);
-  result->AddAlternative(GuardedAlternative(optional_pair));
+  // Advance any character. If the character happens to be a lead surrogate and
+  // we advanced into the middle of a surrogate pair, it will work out, as
+  // nothing will match from there. We will have to advance again, consuming
+  // the associated trail surrogate.
+  ZoneList<CharacterRange>* range = CharacterRange::List(
+      zone, CharacterRange::Range(0, String::kMaxUtf16CodeUnit));
+  return TextNode::CreateForCharacterRanges(zone, range, false, on_success);
 }
 
 
@@ -5174,17 +5158,17 @@ RegExpNode* RegExpCharacterClass::ToNode(RegExpCompiler* compiler,
       // No matches possible.
       return new (zone) EndNode(EndNode::BACKTRACK, zone);
     }
-    ChoiceNode* result = new (zone) ChoiceNode(2, zone);
     if (standard_type() == '*') {
-      AddUnanchoredAdvance(compiler, result, on_success);
+      return UnanchoredAdvance(compiler, on_success);
     } else {
+      ChoiceNode* result = new (zone) ChoiceNode(2, zone);
       UnicodeRangeSplitter splitter(zone, ranges);
       AddBmpCharacters(compiler, result, on_success, &splitter);
       AddNonBmpSurrogatePairs(compiler, result, on_success, &splitter);
       AddLoneLeadSurrogates(compiler, result, on_success, &splitter);
       AddLoneTrailSurrogates(compiler, result, on_success, &splitter);
+      return result;
     }
-    return result;
   } else {
     return new (zone) TextNode(this, compiler->read_backward(), on_success);
   }
