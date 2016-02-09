@@ -104,18 +104,6 @@ TEST(IsFunction) {
 }
 
 
-TEST(IsMinusZero) {
-  FunctionTester T("(function(a) { return %_IsMinusZero(a); })", flags);
-
-  T.CheckFalse(T.Val(1));
-  T.CheckFalse(T.Val(1.1));
-  T.CheckTrue(T.Val(-0.0));
-  T.CheckFalse(T.Val(-2));
-  T.CheckFalse(T.Val(-2.3));
-  T.CheckFalse(T.undefined());
-}
-
-
 TEST(IsRegExp) {
   FunctionTester T("(function(a) { return %_IsRegExp(a); })", flags);
 

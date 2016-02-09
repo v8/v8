@@ -2374,27 +2374,6 @@ void LCodeGen::DoCmpHoleAndBranch(LCmpHoleAndBranch* instr) {
 }
 
 
-void LCodeGen::DoCompareMinusZeroAndBranch(LCompareMinusZeroAndBranch* instr) {
-  Representation rep = instr->hydrogen()->value()->representation();
-  DCHECK(!rep.IsInteger32());
-  Register scratch = ToRegister(instr->temp());
-
-  if (rep.IsDouble()) {
-    DoubleRegister value = ToDoubleRegister(instr->value());
-    __ fcmpu(value, kDoubleRegZero);
-    EmitFalseBranch(instr, ne);
-    __ TestDoubleSign(value, scratch);
-    EmitBranch(instr, lt);
-  } else {
-    Register value = ToRegister(instr->value());
-    __ CheckMap(value, scratch, Heap::kHeapNumberMapRootIndex,
-                instr->FalseLabel(chunk()), DO_SMI_CHECK);
-    __ TestHeapNumberIsMinusZero(value, scratch, ip);
-    EmitBranch(instr, eq);
-  }
-}
-
-
 Condition LCodeGen::EmitIsString(Register input, Register temp1,
                                  Label* is_not_string,
                                  SmiCheck check_needed = INLINE_SMI_CHECK) {

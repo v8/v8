@@ -12232,15 +12232,6 @@ void HOptimizedGraphBuilder::GenerateIsJSReceiver(CallRuntime* call) {
 }
 
 
-void HOptimizedGraphBuilder::GenerateIsMinusZero(CallRuntime* call) {
-  DCHECK(call->arguments()->length() == 1);
-  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
-  HValue* value = Pop();
-  HCompareMinusZeroAndBranch* result = New<HCompareMinusZeroAndBranch>(value);
-  return ast_context()->ReturnControl(result, call->id());
-}
-
-
 void HOptimizedGraphBuilder::GenerateHasCachedArrayIndex(CallRuntime* call) {
   DCHECK(call->arguments()->length() == 1);
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));

@@ -2327,24 +2327,6 @@ void LCodeGen::DoCmpMapAndBranch(LCmpMapAndBranch* instr) {
 }
 
 
-void LCodeGen::DoCompareMinusZeroAndBranch(LCompareMinusZeroAndBranch* instr) {
-  Representation rep = instr->hydrogen()->value()->representation();
-  DCHECK(!rep.IsInteger32());
-  Register scratch = ToRegister(instr->temp());
-
-  if (rep.IsDouble()) {
-    __ JumpIfMinusZero(ToDoubleRegister(instr->value()),
-                       instr->TrueLabel(chunk()));
-  } else {
-    Register value = ToRegister(instr->value());
-    __ JumpIfNotHeapNumber(value, instr->FalseLabel(chunk()), DO_SMI_CHECK);
-    __ Ldr(scratch, FieldMemOperand(value, HeapNumber::kValueOffset));
-    __ JumpIfMinusZero(scratch, instr->TrueLabel(chunk()));
-  }
-  EmitGoto(instr->FalseDestination(chunk()));
-}
-
-
 void LCodeGen::DoCompareNumericAndBranch(LCompareNumericAndBranch* instr) {
   LOperand* left = instr->left();
   LOperand* right = instr->right();

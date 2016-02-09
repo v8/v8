@@ -1567,14 +1567,6 @@ LInstruction* LChunkBuilder::DoInvokeFunction(HInvokeFunction* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoCompareMinusZeroAndBranch(
-    HCompareMinusZeroAndBranch* instr) {
-  LOperand* value = UseRegister(instr->value());
-  LOperand* scratch = TempRegister();
-  return new(zone()) LCompareMinusZeroAndBranch(value, scratch);
-}
-
-
 LInstruction* LChunkBuilder::DoIsStringAndBranch(HIsStringAndBranch* instr) {
   DCHECK(instr->value()->representation().IsTagged());
   LOperand* value = UseRegisterAtStart(instr->value());

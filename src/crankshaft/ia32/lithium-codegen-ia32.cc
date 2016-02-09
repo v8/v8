@@ -2217,34 +2217,6 @@ void LCodeGen::DoCmpHoleAndBranch(LCmpHoleAndBranch* instr) {
 }
 
 
-void LCodeGen::DoCompareMinusZeroAndBranch(LCompareMinusZeroAndBranch* instr) {
-  Representation rep = instr->hydrogen()->value()->representation();
-  DCHECK(!rep.IsInteger32());
-  Register scratch = ToRegister(instr->temp());
-
-  if (rep.IsDouble()) {
-    XMMRegister value = ToDoubleRegister(instr->value());
-    XMMRegister xmm_scratch = double_scratch0();
-    __ xorps(xmm_scratch, xmm_scratch);
-    __ ucomisd(xmm_scratch, value);
-    EmitFalseBranch(instr, not_equal);
-    __ movmskpd(scratch, value);
-    __ test(scratch, Immediate(1));
-    EmitBranch(instr, not_zero);
-  } else {
-    Register value = ToRegister(instr->value());
-    Handle<Map> map = masm()->isolate()->factory()->heap_number_map();
-    __ CheckMap(value, map, instr->FalseLabel(chunk()), DO_SMI_CHECK);
-    __ cmp(FieldOperand(value, HeapNumber::kExponentOffset),
-           Immediate(0x1));
-    EmitFalseBranch(instr, no_overflow);
-    __ cmp(FieldOperand(value, HeapNumber::kMantissaOffset),
-           Immediate(0x00000000));
-    EmitBranch(instr, equal);
-  }
-}
-
-
 Condition LCodeGen::EmitIsString(Register input,
                                  Register temp1,
                                  Label* is_not_string,

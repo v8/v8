@@ -1564,7 +1564,6 @@ Type* Typer::Visitor::TypeJSCallRuntime(Node* node) {
     case Runtime::kInlineIsArray:
     case Runtime::kInlineIsDate:
     case Runtime::kInlineIsTypedArray:
-    case Runtime::kInlineIsMinusZero:
     case Runtime::kInlineIsRegExp:
       return Type::Boolean();
     case Runtime::kInlineDoubleLo:

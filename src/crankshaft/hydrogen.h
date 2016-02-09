@@ -2225,7 +2225,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   F(ToNumber)                          \
   F(IsJSReceiver)                      \
   F(MathPow)                           \
-  F(IsMinusZero)                       \
   F(HasCachedArrayIndex)               \
   F(GetCachedArrayIndex)               \
   F(FastOneByteArrayJoin)              \

@@ -79,7 +79,6 @@ class LChunkBuilder;
   V(CompareNumericAndBranch)                  \
   V(CompareHoleAndBranch)                     \
   V(CompareGeneric)                           \
-  V(CompareMinusZeroAndBranch)                \
   V(CompareObjectEqAndBranch)                 \
   V(CompareMap)                               \
   V(Constant)                                 \
@@ -4341,27 +4340,6 @@ class HCompareHoleAndBranch final : public HUnaryControlInstruction {
       : HUnaryControlInstruction(value, true_target, false_target) {
     SetFlag(kFlexibleRepresentation);
     SetFlag(kAllowUndefinedAsNaN);
-  }
-};
-
-
-class HCompareMinusZeroAndBranch final : public HUnaryControlInstruction {
- public:
-  DECLARE_INSTRUCTION_FACTORY_P1(HCompareMinusZeroAndBranch, HValue*);
-
-  void InferRepresentation(HInferRepresentationPhase* h_infer) override;
-
-  Representation RequiredInputRepresentation(int index) override {
-    return representation();
-  }
-
-  bool KnownSuccessorBlock(HBasicBlock** block) override;
-
-  DECLARE_CONCRETE_INSTRUCTION(CompareMinusZeroAndBranch)
-
- private:
-  explicit HCompareMinusZeroAndBranch(HValue* value)
-      : HUnaryControlInstruction(value, NULL, NULL) {
   }
 };
 

@@ -876,8 +876,6 @@ class MacroAssembler : public Assembler {
   // CR_EQ in cr7 holds the result.
   void TestDoubleIsMinusZero(DoubleRegister input, Register scratch1,
                              Register scratch2);
-  void TestHeapNumberIsMinusZero(Register input, Register scratch1,
-                                 Register scratch2);
 
   // Check the sign of a double.
   // CR_LT in cr7 holds the result.

@@ -2833,33 +2833,6 @@ void FullCodeGenerator::EmitIsSimdValue(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitIsMinusZero(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK(args->length() == 1);
-
-  VisitForAccumulatorValue(args->at(0));
-
-  Label materialize_true, materialize_false;
-  Label* if_true = NULL;
-  Label* if_false = NULL;
-  Label* fall_through = NULL;
-  context()->PrepareTest(&materialize_true, &materialize_false,
-                         &if_true, &if_false, &fall_through);
-
-  // Only a HeapNumber can be -0.0, so return false if we have something else.
-  __ JumpIfNotHeapNumber(x0, if_false, DO_SMI_CHECK);
-
-  // Test the bit pattern.
-  __ Ldr(x10, FieldMemOperand(x0, HeapNumber::kValueOffset));
-  __ Cmp(x10, 1);   // Set V on 0x8000000000000000.
-
-  PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
-  Split(vs, if_true, if_false, fall_through);
-
-  context()->Plug(if_true, if_false);
-}
-
-
 void FullCodeGenerator::EmitIsArray(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   DCHECK(args->length() == 1);

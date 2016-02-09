@@ -43,11 +43,11 @@ utils.ImportFromExperimental(function(from) {
 
 // ES5, section 9.12
 function SameValue(x, y) {
-  if (typeof x != typeof y) return false;
+  if (typeof x !== typeof y) return false;
   if (IS_NUMBER(x)) {
     if (NUMBER_IS_NAN(x) && NUMBER_IS_NAN(y)) return true;
     // x is +0 and y is -0 or vice versa.
-    if (x === 0 && y === 0 && %_IsMinusZero(x) != %_IsMinusZero(y)) {
+    if (x === 0 && y === 0 && 1/x !== 1/y) {
       return false;
     }
   }
@@ -58,7 +58,7 @@ function SameValue(x, y) {
 
 // ES6, section 7.2.4
 function SameValueZero(x, y) {
-  if (typeof x != typeof y) return false;
+  if (typeof x !== typeof y) return false;
   if (IS_NUMBER(x)) {
     if (NUMBER_IS_NAN(x) && NUMBER_IS_NAN(y)) return true;
   }

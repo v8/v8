@@ -238,16 +238,6 @@ RUNTIME_FUNCTION(Runtime_MathFround) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_IsMinusZero) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_CHECKED(Object, obj, 0);
-  if (!obj->IsHeapNumber()) return isolate->heap()->false_value();
-  HeapNumber* number = HeapNumber::cast(obj);
-  return isolate->heap()->ToBoolean(IsMinusZero(number->value()));
-}
-
-
 RUNTIME_FUNCTION(Runtime_GenerateRandomNumbers) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);

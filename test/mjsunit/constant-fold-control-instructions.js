@@ -26,10 +26,6 @@ function test() {
 
   assertTrue(%_IsJSReceiver(new Date()));
   assertFalse(%_IsJSReceiver(1));
-
-  assertTrue(%_IsMinusZero(-0.0));
-  assertFalse(%_IsMinusZero(1));
-  assertFalse(%_IsMinusZero(""));
 }
 
 

@@ -783,7 +783,6 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kCompareGeneric:
     case HValue::kCompareHoleAndBranch:
     case HValue::kCompareMap:
-    case HValue::kCompareMinusZeroAndBranch:
     case HValue::kCompareNumericAndBranch:
     case HValue::kCompareObjectEqAndBranch:
     case HValue::kConstant:
@@ -3323,31 +3322,6 @@ bool HCompareNumericAndBranch::KnownSuccessorBlock(HBasicBlock** block) {
   }
   *block = NULL;
   return false;
-}
-
-
-bool HCompareMinusZeroAndBranch::KnownSuccessorBlock(HBasicBlock** block) {
-  if (FLAG_fold_constants && value()->IsConstant()) {
-    HConstant* constant = HConstant::cast(value());
-    if (constant->HasDoubleValue()) {
-      *block = IsMinusZero(constant->DoubleValue())
-          ? FirstSuccessor() : SecondSuccessor();
-      return true;
-    }
-  }
-  if (value()->representation().IsSmiOrInteger32()) {
-    // A Smi or Integer32 cannot contain minus zero.
-    *block = SecondSuccessor();
-    return true;
-  }
-  *block = NULL;
-  return false;
-}
-
-
-void HCompareMinusZeroAndBranch::InferRepresentation(
-    HInferRepresentationPhase* h_infer) {
-  ChangeRepresentation(value()->representation());
 }
 
 

@@ -388,7 +388,6 @@ namespace internal {
   F(RoundNumber, 1, 1)              \
   F(MathSqrt, 1, 1)                 \
   F(MathFround, 1, 1)               \
-  F(IsMinusZero, 1, 1)              \
   F(GenerateRandomNumbers, 1, 1)
 
 
