@@ -615,7 +615,7 @@ function TypedArrayLastIndexOf(element, index) {
   var length = %_TypedArrayGetLength(this);
 
   return InnerArrayLastIndexOf(this, element, index, length,
-                               arguments.length);
+                        %_ArgumentsLength());
 }
 %FunctionSetLength(TypedArrayLastIndexOf, 1);
 
@@ -679,7 +679,7 @@ function TypedArrayReduce(callback, current) {
 
   var length = %_TypedArrayGetLength(this);
   return InnerArrayReduce(callback, current, this, length,
-                          arguments.length);
+                          %_ArgumentsLength());
 }
 %FunctionSetLength(TypedArrayReduce, 1);
 
@@ -690,7 +690,7 @@ function TypedArrayReduceRight(callback, current) {
 
   var length = %_TypedArrayGetLength(this);
   return InnerArrayReduceRight(callback, current, this, length,
-                               arguments.length);
+                               %_ArgumentsLength());
 }
 %FunctionSetLength(TypedArrayReduceRight, 1);
 
@@ -751,10 +751,10 @@ function TypedArrayIncludes(searchElement, fromIndex) {
 
 // ES6 draft 08-24-14, section 22.2.2.2
 function TypedArrayOf() {
-  var length = arguments.length;
+  var length = %_ArgumentsLength();
   var array = TypedArrayCreate(this, length);
   for (var i = 0; i < length; i++) {
-    array[i] = arguments[i];
+    array[i] = %_Arguments(i);
   }
   return array;
 }
@@ -918,10 +918,9 @@ function DataViewGetTYPENAMEJS(offset, little_endian) {
     throw MakeTypeError(kIncompatibleMethodReceiver,
                         'DataView.getTYPENAME', this);
   }
-  if (arguments.length < 1) throw MakeTypeError(kInvalidArgument);
+  if (%_ArgumentsLength() < 1) throw MakeTypeError(kInvalidArgument);
   offset = ToPositiveInteger(offset, kInvalidDataViewAccessorOffset);
-  little_endian = TO_BOOLEAN(little_endian);
-  return %DataViewGetTYPENAME(this, offset, little_endian);
+  return %DataViewGetTYPENAME(this, offset, !!little_endian);
 }
 %FunctionSetLength(DataViewGetTYPENAMEJS, 1);
 
@@ -930,10 +929,9 @@ function DataViewSetTYPENAMEJS(offset, value, little_endian) {
     throw MakeTypeError(kIncompatibleMethodReceiver,
                         'DataView.setTYPENAME', this);
   }
-  if (arguments.length < 2) throw MakeTypeError(kInvalidArgument);
+  if (%_ArgumentsLength() < 2) throw MakeTypeError(kInvalidArgument);
   offset = ToPositiveInteger(offset, kInvalidDataViewAccessorOffset);
-  little_endian = TO_BOOLEAN(little_endian);
-  %DataViewSetTYPENAME(this, offset, TO_NUMBER(value), little_endian);
+  %DataViewSetTYPENAME(this, offset, TO_NUMBER(value), !!little_endian);
 }
 %FunctionSetLength(DataViewSetTYPENAMEJS, 2);
 endmacro

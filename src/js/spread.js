@@ -18,11 +18,11 @@ utils.Import(function(from) {
 // -------------------------------------------------------------------
 
 function SpreadArguments() {
-  var count = arguments.length;
+  var count = %_ArgumentsLength();
   var args = new InternalArray();
 
   for (var i = 0; i < count; ++i) {
-    var array = arguments[i];
+    var array = %_Arguments(i);
     var length = array.length;
     for (var j = 0; j < length; ++j) {
       args.push(array[j]);
