@@ -101,6 +101,7 @@ class BytecodeGraphBuilder::FrameStateBeforeAndAfter {
       : builder_(builder),
         id_after_(BailoutId::None()),
         added_to_node_(false),
+        frame_states_unused_(false),
         output_poke_offset_(0),
         output_poke_count_(0) {
     BailoutId id_before(builder->bytecode_iterator().current_offset());
@@ -112,7 +113,8 @@ class BytecodeGraphBuilder::FrameStateBeforeAndAfter {
 
   ~FrameStateBeforeAndAfter() {
     DCHECK(added_to_node_);
-    DCHECK(builder_->environment()->StateValuesAreUpToDate(output_poke_offset_,
+    DCHECK(frame_states_unused_ ||
+           builder_->environment()->StateValuesAreUpToDate(output_poke_offset_,
                                                            output_poke_count_));
   }
 
@@ -143,6 +145,7 @@ class BytecodeGraphBuilder::FrameStateBeforeAndAfter {
       output_poke_offset_ = static_cast<int>(combine.GetOffsetToPokeAt());
       output_poke_count_ = node->op()->ValueOutputCount();
     }
+    frame_states_unused_ = count == 0;
     added_to_node_ = true;
   }
 
@@ -151,6 +154,7 @@ class BytecodeGraphBuilder::FrameStateBeforeAndAfter {
   BailoutId id_after_;
 
   bool added_to_node_;
+  bool frame_states_unused_;
   int output_poke_offset_;
   int output_poke_count_;
 };
