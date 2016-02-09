@@ -551,67 +551,43 @@ void InstructionSelector::VisitWord32And(Node* node) {
   if (m.right().HasValue()) {
     uint32_t const value = m.right().Value();
     uint32_t width = base::bits::CountPopulation32(value);
-    uint32_t leading_zeros = base::bits::CountLeadingZeros32(value);
-
-    // Try to merge SHR operations on the left hand input into this AND.
-    if (m.left().IsWord32Shr()) {
-      Int32BinopMatcher mshr(m.left().node());
-      if (mshr.right().HasValue()) {
-        uint32_t const shift = mshr.right().Value();
-
-        if (((shift == 8) || (shift == 16) || (shift == 24)) &&
-            ((value == 0xff) || (value == 0xffff))) {
-          // Merge SHR into AND by emitting a UXTB or UXTH instruction with a
-          // bytewise rotation.
-          Emit((value == 0xff) ? kArmUxtb : kArmUxth,
-               g.DefineAsRegister(m.node()), g.UseRegister(mshr.left().node()),
-               g.TempImmediate(mshr.right().Value()));
-          return;
-        } else if (IsSupported(ARMv7) && (width != 0) &&
-                   ((leading_zeros + width) == 32)) {
-          // Merge Shr into And by emitting a UBFX instruction.
-          DCHECK_EQ(0u, base::bits::CountTrailingZeros32(value));
-          if ((1 <= shift) && (shift <= 31)) {
-            // UBFX cannot extract bits past the register size, however since
-            // shifting the original value would have introduced some zeros we
-            // can still use UBFX with a smaller mask and the remaining bits
-            // will be zeros.
-            EmitUbfx(this, node, mshr.left().node(), shift,
-                     std::min(width, 32 - shift));
-            return;
-          }
+    uint32_t msb = base::bits::CountLeadingZeros32(value);
+    // Try to interpret this AND as UBFX.
+    if (IsSupported(ARMv7) && width != 0 && msb + width == 32) {
+      DCHECK_EQ(0u, base::bits::CountTrailingZeros32(value));
+      if (m.left().IsWord32Shr()) {
+        Int32BinopMatcher mleft(m.left().node());
+        if (mleft.right().IsInRange(0, 31)) {
+          // UBFX cannot extract bits past the register size, however since
+          // shifting the original value would have introduced some zeros we can
+          // still use UBFX with a smaller mask and the remaining bits will be
+          // zeros.
+          uint32_t const lsb = mleft.right().Value();
+          return EmitUbfx(this, node, mleft.left().node(), lsb,
+                          std::min(width, 32 - lsb));
         }
       }
-    } else if (value == 0xffff) {
-      // Emit UXTH for this AND. We don't bother testing for UXTB, as it's no
-      // better than AND 0xff for this operation.
-      Emit(kArmUxth, g.DefineAsRegister(m.node()),
-           g.UseRegister(m.left().node()), g.TempImmediate(0));
-      return;
+      return EmitUbfx(this, node, m.left().node(), 0, width);
     }
+    // Try to interpret this AND as BIC.
     if (g.CanBeImmediate(~value)) {
-      // Emit BIC for this AND by inverting the immediate value first.
       Emit(kArmBic | AddressingModeField::encode(kMode_Operand2_I),
            g.DefineAsRegister(node), g.UseRegister(m.left().node()),
            g.TempImmediate(~value));
       return;
     }
-    if (!g.CanBeImmediate(value) && IsSupported(ARMv7)) {
-      // If value has 9 to 23 contiguous set bits, and has the lsb set, we can
-      // replace this AND with UBFX. Other contiguous bit patterns have already
-      // been handled by BIC or will be handled by AND.
-      if ((width != 0) && ((leading_zeros + width) == 32) &&
-          (9 <= leading_zeros) && (leading_zeros <= 23)) {
-        DCHECK_EQ(0u, base::bits::CountTrailingZeros32(value));
-        EmitUbfx(this, node, m.left().node(), 0, width);
-        return;
-      }
-
+    // Try to interpret this AND as UXTH.
+    if (value == 0xffff) {
+      Emit(kArmUxth, g.DefineAsRegister(m.node()),
+           g.UseRegister(m.left().node()), g.TempImmediate(0));
+      return;
+    }
+    // Try to interpret this AND as BFC.
+    if (IsSupported(ARMv7)) {
       width = 32 - width;
-      leading_zeros = base::bits::CountLeadingZeros32(~value);
+      msb = base::bits::CountLeadingZeros32(~value);
       uint32_t lsb = base::bits::CountTrailingZeros32(~value);
-      if ((leading_zeros + width + lsb) == 32) {
-        // This AND can be replaced with BFC.
+      if (msb + width + lsb == 32) {
         Emit(kArmBfc, g.DefineSameAsFirst(node), g.UseRegister(m.left().node()),
              g.TempImmediate(lsb), g.TempImmediate(width));
         return;
