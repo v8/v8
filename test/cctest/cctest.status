@@ -636,7 +636,6 @@
   'test-heap/CanonicalSharedFunctionInfo': [PASS, FAIL],
   'test-heap/TestCodeFlushingIncrementalAbort': [PASS, FAIL],
   'test-cpu-profiler/SourceLocation': [PASS, FAIL],
-  'test-run-jsexceptions/DeoptFinallyReturn': [PASS, FAIL],
   'test-serialize/SerializeInternalReference': [PASS, FAIL],
 
   # TODO(rmcilroy,4680): DCHECK(shared->function_data()->IsUndefined()) in
@@ -669,11 +668,6 @@
 
 ['ignition == True and mode == debug and arch == x64', {
   # TODO(rmcilroy,4680): Flaky failures.
-  'test-run-jsexceptions/CatchNested': [PASS, FAIL],
-  'test-run-jsexceptions/Catch': [PASS, FAIL],
-  'test-run-jsexceptions/CatchBreak': [PASS, FAIL],
-  'test-run-jsexceptions/CatchCall': [PASS, FAIL],
-  'test-run-jsexceptions/DeoptCatch': [PASS, FAIL],
   'test-api/CallAsFunction': [PASS, FAIL],
   'test-api/ConstructorForObject': [PASS, FAIL],
   'test-api/Regress528': [PASS, FAIL],
