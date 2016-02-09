@@ -637,7 +637,8 @@ class Compiler : public AllStatic {
 
   // Generate and return code from previously queued optimization job.
   // On failure, return the empty handle.
-  static Handle<Code> GetConcurrentlyOptimizedCode(OptimizedCompileJob* job);
+  MUST_USE_RESULT static MaybeHandle<Code> GetConcurrentlyOptimizedCode(
+      OptimizedCompileJob* job);
 };
 
 
