@@ -36,6 +36,10 @@ class StoreBuffer {
   // This is used to add addresses to the store buffer non-concurrently.
   inline void Mark(Address addr);
 
+  // Removes the given slot from the store buffer non-concurrently. If the
+  // slot was never added to the store buffer, then the function does nothing.
+  void Remove(Address addr);
+
   // Slots that do not point to the ToSpace after callback invocation will be
   // removed from the set.
   void IteratePointersToNewSpace(ObjectSlotCallback callback);

@@ -5449,6 +5449,11 @@ void Heap::CheckHandleCount() {
   isolate_->handle_scope_implementer()->Iterate(&v);
 }
 
+void Heap::ClearRecordedSlot(HeapObject* object, Object** slot) {
+  if (!InNewSpace(object)) {
+    store_buffer()->Remove(reinterpret_cast<Address>(slot));
+  }
+}
 
 Space* AllSpaces::next() {
   switch (counter_++) {

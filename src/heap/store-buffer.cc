@@ -63,6 +63,15 @@ void StoreBuffer::StoreBufferOverflow(Isolate* isolate) {
   isolate->counters()->store_buffer_overflows()->Increment();
 }
 
+void StoreBuffer::Remove(Address addr) {
+  InsertEntriesFromBuffer();
+  MemoryChunk* chunk = MemoryChunk::FromAddress(addr);
+  DCHECK_EQ(chunk->owner()->identity(), OLD_SPACE);
+  uintptr_t offset = addr - chunk->address();
+  DCHECK_LT(offset, static_cast<uintptr_t>(Page::kPageSize));
+  if (chunk->old_to_new_slots() == nullptr) return;
+  chunk->old_to_new_slots()->Remove(static_cast<uint32_t>(offset));
+}
 
 #ifdef VERIFY_HEAP
 void StoreBuffer::VerifyPointers(LargeObjectSpace* space) {

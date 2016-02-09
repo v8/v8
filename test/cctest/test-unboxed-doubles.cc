@@ -1549,9 +1549,7 @@ static void TestWriteBarrierObjectShiftFieldsRight(
   }
 }
 
-
-// TODO(ishell): enable when this issue is fixed.
-DISABLED_TEST(WriteBarrierObjectShiftFieldsRight) {
+TEST(WriteBarrierObjectShiftFieldsRight) {
   TestWriteBarrierObjectShiftFieldsRight(OLD_TO_NEW_WRITE_BARRIER);
 }
 

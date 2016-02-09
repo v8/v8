@@ -1076,6 +1076,8 @@ class Heap {
     return reinterpret_cast<Address*>(&roots_[kStoreBufferTopRootIndex]);
   }
 
+  void ClearRecordedSlot(HeapObject* object, Object** slot);
+
   // ===========================================================================
   // Incremental marking API. ==================================================
   // ===========================================================================

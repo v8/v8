@@ -2998,6 +2998,8 @@ void JSObject::MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
   // From here on we cannot fail and we shouldn't GC anymore.
   DisallowHeapAllocation no_allocation;
 
+  Heap* heap = isolate->heap();
+
   // Copy (real) inobject properties. If necessary, stop at number_of_fields to
   // avoid overwriting |one_pointer_filler_map|.
   int limit = Min(inobject, number_of_fields);
@@ -3010,12 +3012,16 @@ void JSObject::MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
       DCHECK(value->IsMutableHeapNumber());
       object->RawFastDoublePropertyAtPut(index,
                                          HeapNumber::cast(value)->value());
+      if (i < old_number_of_fields && !old_map->IsUnboxedDoubleField(index)) {
+        // Transition from tagged to untagged slot.
+        heap->ClearRecordedSlot(*object,
+                                HeapObject::RawField(*object, index.offset()));
+      }
     } else {
       object->RawFastPropertyAtPut(index, value);
     }
   }
 
-  Heap* heap = isolate->heap();
 
   // If there are properties in the new backing store, trim it to the correct
   // size and install the backing store into the object.
