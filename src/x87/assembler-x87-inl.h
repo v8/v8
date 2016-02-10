@@ -267,16 +267,6 @@ void RelocInfo::WipeOut() {
 }
 
 
-bool RelocInfo::IsPatchedReturnSequence() {
-  return *pc_ == kCallOpcode;
-}
-
-
-bool RelocInfo::IsPatchedDebugBreakSlotSequence() {
-  return !Assembler::IsNop(pc());
-}
-
-
 void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
   RelocInfo::Mode mode = rmode();
   if (mode == RelocInfo::EMBEDDED_OBJECT) {

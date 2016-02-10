@@ -1021,7 +1021,7 @@ void NormalizedMapCache::NormalizedMapCacheVerify() {
 void DebugInfo::DebugInfoVerify() {
   CHECK(IsDebugInfo());
   VerifyPointer(shared());
-  VerifyPointer(code());
+  VerifyPointer(abstract_code());
   VerifyPointer(break_points());
 }
 

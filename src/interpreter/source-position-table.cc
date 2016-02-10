@@ -77,17 +77,6 @@ void SourcePositionTableIterator::Advance() {
   index_ += 2;
 }
 
-int SourcePositionTableIterator::PositionFromBytecodeOffset(
-    BytecodeArray* bytecode_array, int bytecode_offset) {
-  int last_position = 0;
-  for (SourcePositionTableIterator iterator(bytecode_array);
-       !iterator.done() && iterator.bytecode_offset() <= bytecode_offset;
-       iterator.Advance()) {
-    last_position = iterator.source_position();
-  }
-  return last_position;
-}
-
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

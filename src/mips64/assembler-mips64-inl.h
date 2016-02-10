@@ -347,28 +347,6 @@ void RelocInfo::WipeOut() {
 }
 
 
-bool RelocInfo::IsPatchedReturnSequence() {
-  Instr instr0 = Assembler::instr_at(pc_);  // lui.
-  Instr instr1 = Assembler::instr_at(pc_ + 1 * Assembler::kInstrSize);  // ori.
-  Instr instr2 = Assembler::instr_at(pc_ + 2 * Assembler::kInstrSize);  // dsll.
-  Instr instr3 = Assembler::instr_at(pc_ + 3 * Assembler::kInstrSize);  // ori.
-  Instr instr4 = Assembler::instr_at(pc_ + 4 * Assembler::kInstrSize);  // jalr.
-
-  bool patched_return = ((instr0 & kOpcodeMask) == LUI &&
-                         (instr1 & kOpcodeMask) == ORI &&
-                         (instr2 & kFunctionFieldMask) == DSLL &&
-                         (instr3 & kOpcodeMask) == ORI &&
-                         (instr4 & kFunctionFieldMask) == JALR);
-  return patched_return;
-}
-
-
-bool RelocInfo::IsPatchedDebugBreakSlotSequence() {
-  Instr current_instr = Assembler::instr_at(pc_);
-  return !Assembler::IsNop(current_instr, Assembler::DEBUG_BREAK_NOP);
-}
-
-
 void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
   RelocInfo::Mode mode = rmode();
   if (mode == RelocInfo::EMBEDDED_OBJECT) {

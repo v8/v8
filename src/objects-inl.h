@@ -5281,7 +5281,16 @@ class Code::FindAndReplacePattern {
   friend class Code;
 };
 
+int AbstractCode::Size() {
+  if (IsCode()) {
+    return GetCode()->instruction_size();
+  } else {
+    return GetBytecodeArray()->length();
+  }
+}
+
 Code* AbstractCode::GetCode() { return Code::cast(this); }
+
 BytecodeArray* AbstractCode::GetBytecodeArray() {
   return BytecodeArray::cast(this);
 }
@@ -5611,7 +5620,7 @@ void Script::set_origin_options(ScriptOriginOptions origin_options) {
 
 
 ACCESSORS(DebugInfo, shared, SharedFunctionInfo, kSharedFunctionInfoIndex)
-ACCESSORS(DebugInfo, code, Code, kCodeIndex)
+ACCESSORS(DebugInfo, abstract_code, AbstractCode, kAbstractCodeIndex)
 ACCESSORS(DebugInfo, break_points, FixedArray, kBreakPointsStateIndex)
 
 SMI_ACCESSORS(BreakPointInfo, code_offset, kCodeOffsetIndex)

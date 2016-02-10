@@ -2249,7 +2249,11 @@ Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
   Handle<DebugInfo> debug_info =
       Handle<DebugInfo>::cast(NewStruct(DEBUG_INFO_TYPE));
   debug_info->set_shared(*shared);
-  debug_info->set_code(shared->code());
+  if (shared->HasBytecodeArray()) {
+    debug_info->set_abstract_code(AbstractCode::cast(shared->bytecode_array()));
+  } else {
+    debug_info->set_abstract_code(AbstractCode::cast(shared->code()));
+  }
   debug_info->set_break_points(*break_points);
 
   // Link debug info to function.

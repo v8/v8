@@ -261,23 +261,6 @@ void RelocInfo::WipeOut() {
 }
 
 
-bool RelocInfo::IsPatchedReturnSequence() {
-  Instr current_instr = Assembler::instr_at(pc_);
-  Instr next_instr = Assembler::instr_at(pc_ + Assembler::kInstrSize);
-  // A patched return sequence is:
-  //  ldr ip, [pc, #0]
-  //  blx ip
-  return Assembler::IsLdrPcImmediateOffset(current_instr) &&
-         Assembler::IsBlxReg(next_instr);
-}
-
-
-bool RelocInfo::IsPatchedDebugBreakSlotSequence() {
-  Instr current_instr = Assembler::instr_at(pc_);
-  return !Assembler::IsNop(current_instr, Assembler::DEBUG_BREAK_NOP);
-}
-
-
 void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
   RelocInfo::Mode mode = rmode();
   if (mode == RelocInfo::EMBEDDED_OBJECT) {

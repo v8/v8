@@ -476,23 +476,6 @@ void RelocInfo::WipeOut() {
 }
 
 
-bool RelocInfo::IsPatchedReturnSequence() {
-  // The recognized call sequence is:
-  //  movq(kScratchRegister, address); call(kScratchRegister);
-  // It only needs to be distinguished from a return sequence
-  //  movq(rsp, rbp); pop(rbp); ret(n); int3 *6
-  // The 11th byte is int3 (0xCC) in the return sequence and
-  // REX.WB (0x48+register bit) for the call sequence.
-  return pc_[Assembler::kMoveAddressIntoScratchRegisterInstructionLength] !=
-         0xCC;
-}
-
-
-bool RelocInfo::IsPatchedDebugBreakSlotSequence() {
-  return !Assembler::IsNop(pc());
-}
-
-
 Handle<Object> RelocInfo::code_age_stub_handle(Assembler* origin) {
   DCHECK(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
   DCHECK(*pc_ == kCallOpcode);

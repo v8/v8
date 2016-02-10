@@ -4455,6 +4455,7 @@ class BytecodeArray : public FixedArrayBase {
   inline int instruction_size();
 
   int SourcePosition(int offset);
+  int SourceStatementPosition(int offset);
 
   DECLARE_PRINTER(BytecodeArray)
   DECLARE_VERIFIER(BytecodeArray)
@@ -5381,8 +5382,10 @@ class Code: public HeapObject {
 class AbstractCode : public HeapObject {
  public:
   int SourcePosition(int offset);
+  int SourceStatementPosition(int offset);
 
   DECLARE_CAST(AbstractCode)
+  inline int Size();
   inline Code* GetCode();
   inline BytecodeArray* GetBytecodeArray();
 };
@@ -10589,7 +10592,7 @@ class DebugInfo: public Struct {
   DECL_ACCESSORS(shared, SharedFunctionInfo)
   // Code object for the patched code. This code object is the code object
   // currently active for the function.
-  DECL_ACCESSORS(code, Code)
+  DECL_ACCESSORS(abstract_code, AbstractCode)
   // Fixed array holding status information for each active break point.
   DECL_ACCESSORS(break_points, FixedArray)
 
@@ -10619,8 +10622,8 @@ class DebugInfo: public Struct {
   DECLARE_VERIFIER(DebugInfo)
 
   static const int kSharedFunctionInfoIndex = Struct::kHeaderSize;
-  static const int kCodeIndex = kSharedFunctionInfoIndex + kPointerSize;
-  static const int kBreakPointsStateIndex = kCodeIndex + kPointerSize;
+  static const int kAbstractCodeIndex = kSharedFunctionInfoIndex + kPointerSize;
+  static const int kBreakPointsStateIndex = kAbstractCodeIndex + kPointerSize;
   static const int kSize = kBreakPointsStateIndex + kPointerSize;
 
   static const int kEstimatedNofBreakPointsInFunction = 16;

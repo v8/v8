@@ -14499,8 +14499,13 @@ void Code::ClearInlineCaches(Code::Kind* kind) {
 }
 
 int AbstractCode::SourcePosition(int offset) {
-  if (IsBytecodeArray()) return GetBytecodeArray()->SourcePosition(offset);
-  return GetCode()->SourcePosition(offset);
+  return IsBytecodeArray() ? GetBytecodeArray()->SourcePosition(offset)
+                           : GetCode()->SourcePosition(offset);
+}
+
+int AbstractCode::SourceStatementPosition(int offset) {
+  return IsBytecodeArray() ? GetBytecodeArray()->SourceStatementPosition(offset)
+                           : GetCode()->SourceStatementPosition(offset);
 }
 
 void SharedFunctionInfo::ClearTypeFeedbackInfo() {
@@ -15195,8 +15200,32 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
 #endif  // ENABLE_DISASSEMBLER
 
 int BytecodeArray::SourcePosition(int offset) {
-  return interpreter::SourcePositionTableIterator::PositionFromBytecodeOffset(
-      this, offset);
+  int last_position = 0;
+  for (interpreter::SourcePositionTableIterator iterator(this);
+       !iterator.done() && iterator.bytecode_offset() <= offset;
+       iterator.Advance()) {
+    last_position = iterator.source_position();
+  }
+  return last_position;
+}
+
+int BytecodeArray::SourceStatementPosition(int offset) {
+  // First find the position as close as possible using all position
+  // information.
+  int position = SourcePosition(offset);
+  // Now find the closest statement position before the position.
+  int statement_position = 0;
+  interpreter::SourcePositionTableIterator iterator(this);
+  while (!iterator.done()) {
+    if (iterator.is_statement()) {
+      int p = iterator.source_position();
+      if (statement_position < p && p <= position) {
+        statement_position = p;
+      }
+    }
+    iterator.Advance();
+  }
+  return statement_position;
 }
 
 void BytecodeArray::Disassemble(std::ostream& os) {

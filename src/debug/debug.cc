@@ -58,27 +58,41 @@ static v8::Local<v8::Context> GetDebugEventContext(Isolate* isolate) {
   return v8::Utils::ToLocal(native_context);
 }
 
-BreakLocation::BreakLocation(Handle<DebugInfo> debug_info, RelocInfo* rinfo,
-                             int position, int statement_position)
+BreakLocation::BreakLocation(Handle<DebugInfo> debug_info, DebugBreakType type,
+                             int code_offset, int position,
+                             int statement_position)
     : debug_info_(debug_info),
-      code_offset_(static_cast<int>(rinfo->pc() - debug_info->code()->entry())),
-      rmode_(rinfo->rmode()),
-      data_(rinfo->data()),
+      code_offset_(code_offset),
+      type_(type),
       position_(position),
       statement_position_(statement_position) {}
+
+BreakLocation::Iterator* BreakLocation::GetIterator(
+    Handle<DebugInfo> debug_info, BreakLocatorType type) {
+  if (debug_info->shared()->HasBytecodeArray()) {
+    UNIMPLEMENTED();
+    return nullptr;
+  }
+  return new CodeIterator(debug_info, type);
+}
 
 BreakLocation::Iterator::Iterator(Handle<DebugInfo> debug_info,
                                   BreakLocatorType type)
     : debug_info_(debug_info),
-      reloc_iterator_(debug_info->code(), GetModeMask(type)),
       break_index_(-1),
       position_(1),
       statement_position_(1) {
+}
+
+BreakLocation::CodeIterator::CodeIterator(Handle<DebugInfo> debug_info,
+                                          BreakLocatorType type)
+    : Iterator(debug_info, type),
+      reloc_iterator_(debug_info->abstract_code()->GetCode(),
+                      GetModeMask(type)) {
   if (!Done()) Next();
 }
 
-
-int BreakLocation::Iterator::GetModeMask(BreakLocatorType type) {
+int BreakLocation::CodeIterator::GetModeMask(BreakLocatorType type) {
   int mask = 0;
   mask |= RelocInfo::ModeMask(RelocInfo::POSITION);
   mask |= RelocInfo::ModeMask(RelocInfo::STATEMENT_POSITION);
@@ -91,8 +105,7 @@ int BreakLocation::Iterator::GetModeMask(BreakLocatorType type) {
   return mask;
 }
 
-
-void BreakLocation::Iterator::Next() {
+void BreakLocation::CodeIterator::Next() {
   DisallowHeapAllocation no_gc;
   DCHECK(!Done());
 
@@ -139,14 +152,30 @@ void BreakLocation::Iterator::Next() {
   break_index_++;
 }
 
+BreakLocation BreakLocation::CodeIterator::GetBreakLocation() {
+  DebugBreakType type;
+  if (RelocInfo::IsDebugBreakSlotAtReturn(rmode())) {
+    type = DEBUG_BREAK_SLOT_AT_RETURN;
+  } else if (RelocInfo::IsDebugBreakSlotAtCall(rmode())) {
+    type = DEBUG_BREAK_SLOT_AT_CALL;
+  } else if (RelocInfo::IsDebuggerStatement(rmode())) {
+    type = DEBUGGER_STATEMENT;
+  } else if (RelocInfo::IsDebugBreakSlot(rmode())) {
+    type = DEBUG_BREAK_SLOT;
+  } else {
+    type = NOT_DEBUG_BREAK;
+  }
+  return BreakLocation(debug_info_, type, code_offset(), position(),
+                       statement_position());
+}
 
 // Find the break point at the supplied address, or the closest one before
 // the address.
 BreakLocation BreakLocation::FromCodeOffset(Handle<DebugInfo> debug_info,
                                             int offset) {
-  Iterator it(debug_info, ALL_BREAK_LOCATIONS);
-  it.SkipTo(BreakIndexFromCodeOffset(debug_info, offset));
-  return it.GetBreakLocation();
+  base::SmartPointer<Iterator> it(GetIterator(debug_info));
+  it->SkipTo(BreakIndexFromCodeOffset(debug_info, offset));
+  return it->GetBreakLocation();
 }
 
 // Move GetFirstFrameSummary Definition to here as FromFrame use it.
@@ -170,12 +199,12 @@ BreakLocation BreakLocation::FromFrame(Handle<DebugInfo> debug_info,
 void BreakLocation::FromCodeOffsetSameStatement(
     Handle<DebugInfo> debug_info, int offset, List<BreakLocation>* result_out) {
   int break_index = BreakIndexFromCodeOffset(debug_info, offset);
-  Iterator it(debug_info, ALL_BREAK_LOCATIONS);
-  it.SkipTo(break_index);
-  int statement_position = it.statement_position();
-  while (!it.Done() && it.statement_position() == statement_position) {
-    result_out->Add(it.GetBreakLocation());
-    it.Next();
+  base::SmartPointer<Iterator> it(GetIterator(debug_info));
+  it->SkipTo(break_index);
+  int statement_position = it->statement_position();
+  while (!it->Done() && it->statement_position() == statement_position) {
+    result_out->Add(it->GetBreakLocation());
+    it->Next();
   }
 }
 
@@ -183,9 +212,10 @@ void BreakLocation::FromCodeOffsetSameStatement(
 void BreakLocation::AllForStatementPosition(Handle<DebugInfo> debug_info,
                                             int statement_position,
                                             List<BreakLocation>* result_out) {
-  for (Iterator it(debug_info, ALL_BREAK_LOCATIONS); !it.Done(); it.Next()) {
-    if (it.statement_position() == statement_position) {
-      result_out->Add(it.GetBreakLocation());
+  for (base::SmartPointer<Iterator> it(GetIterator(debug_info)); !it->Done();
+       it->Next()) {
+    if (it->statement_position() == statement_position) {
+      result_out->Add(it->GetBreakLocation());
     }
   }
 }
@@ -195,14 +225,13 @@ int BreakLocation::BreakIndexFromCodeOffset(Handle<DebugInfo> debug_info,
   // Run through all break points to locate the one closest to the address.
   int closest_break = 0;
   int distance = kMaxInt;
-  Code* code = debug_info->code();
-  DCHECK(0 <= offset && offset < code->instruction_size());
-  Address pc = code->instruction_start() + offset;
-  for (Iterator it(debug_info, ALL_BREAK_LOCATIONS); !it.Done(); it.Next()) {
+  DCHECK(0 <= offset && offset < debug_info->abstract_code()->Size());
+  for (base::SmartPointer<Iterator> it(GetIterator(debug_info)); !it->Done();
+       it->Next()) {
     // Check if this break point is closer that what was previously found.
-    if (it.pc() <= pc && pc - it.pc() < distance) {
-      closest_break = it.break_index();
-      distance = static_cast<int>(pc - it.pc());
+    if (it->code_offset() <= offset && offset - it->code_offset() < distance) {
+      closest_break = it->break_index();
+      distance = offset - it->code_offset();
       // Check whether we can't get any closer.
       if (distance == 0) break;
     }
@@ -216,28 +245,26 @@ BreakLocation BreakLocation::FromPosition(Handle<DebugInfo> debug_info,
                                           BreakPositionAlignment alignment) {
   // Run through all break points to locate the one closest to the source
   // position.
-  int closest_break = 0;
   int distance = kMaxInt;
-
-  for (Iterator it(debug_info, ALL_BREAK_LOCATIONS); !it.Done(); it.Next()) {
+  base::SmartPointer<Iterator> it(GetIterator(debug_info));
+  BreakLocation closest_break = it->GetBreakLocation();
+  while (!it->Done()) {
     int next_position;
     if (alignment == STATEMENT_ALIGNED) {
-      next_position = it.statement_position();
+      next_position = it->statement_position();
     } else {
       DCHECK(alignment == BREAK_POSITION_ALIGNED);
-      next_position = it.position();
+      next_position = it->position();
     }
     if (position <= next_position && next_position - position < distance) {
-      closest_break = it.break_index();
+      closest_break = it->GetBreakLocation();
       distance = next_position - position;
       // Check whether we can't get any closer.
       if (distance == 0) break;
     }
+    it->Next();
   }
-
-  Iterator it(debug_info, ALL_BREAK_LOCATIONS);
-  it.SkipTo(closest_break);
-  return it.GetBreakLocation();
+  return closest_break;
 }
 
 
@@ -305,12 +332,18 @@ void BreakLocation::SetDebugBreak() {
   if (IsDebugBreak()) return;
 
   DCHECK(IsDebugBreakSlot());
-  Isolate* isolate = debug_info_->GetIsolate();
-  Builtins* builtins = isolate->builtins();
-  Handle<Code> target =
-      IsReturn() ? builtins->Return_DebugBreak() : builtins->Slot_DebugBreak();
-  DebugCodegen::PatchDebugBreakSlot(isolate, pc(), target);
-  DCHECK(IsDebugBreak());
+  if (abstract_code()->IsCode()) {
+    Code* code = abstract_code()->GetCode();
+    DCHECK(code->kind() == Code::FUNCTION);
+    Builtins* builtins = isolate()->builtins();
+    Handle<Code> target = IsReturn() ? builtins->Return_DebugBreak()
+                                     : builtins->Slot_DebugBreak();
+    Address pc = code->instruction_start() + code_offset();
+    DebugCodegen::PatchDebugBreakSlot(isolate(), pc, target);
+    DCHECK(IsDebugBreak());
+  } else {
+    UNIMPLEMENTED();
+  }
 }
 
 
@@ -319,22 +352,36 @@ void BreakLocation::ClearDebugBreak() {
   if (IsDebuggerStatement()) return;
 
   DCHECK(IsDebugBreakSlot());
-  DebugCodegen::ClearDebugBreakSlot(debug_info_->GetIsolate(), pc());
-  DCHECK(!IsDebugBreak());
+  if (abstract_code()->IsCode()) {
+    Code* code = abstract_code()->GetCode();
+    DCHECK(code->kind() == Code::FUNCTION);
+    Address pc = code->instruction_start() + code_offset();
+    DebugCodegen::ClearDebugBreakSlot(isolate(), pc);
+    DCHECK(!IsDebugBreak());
+  } else {
+    UNIMPLEMENTED();
+  }
 }
 
 
 bool BreakLocation::IsDebugBreak() const {
   if (IsDebuggerStatement()) return false;
   DCHECK(IsDebugBreakSlot());
-  return rinfo().IsPatchedDebugBreakSlotSequence();
+  if (abstract_code()->IsCode()) {
+    Code* code = abstract_code()->GetCode();
+    DCHECK(code->kind() == Code::FUNCTION);
+    Address pc = code->instruction_start() + code_offset();
+    return DebugCodegen::DebugBreakSlotIsPatched(pc);
+  } else {
+    UNIMPLEMENTED();
+    return false;
+  }
 }
 
 
 Handle<Object> BreakLocation::BreakPointObjects() const {
   return debug_info_->GetBreakPointObjects(code_offset_);
 }
-
 
 void DebugFeatureTracker::Track(DebugFeatureTracker::Feature feature) {
   uint32_t mask = 1 << feature;
@@ -500,11 +547,11 @@ void Debug::Break(Arguments args, JavaScriptFrame* frame) {
       if (current_fp < target_fp) return;
     // Fall through.
     case StepIn: {
-      int offset =
-          static_cast<int>(frame->pc() - location.code()->instruction_start());
+      FrameSummary summary = GetFirstFrameSummary(frame);
+      int offset = summary.code_offset();
       step_break = location.IsReturn() || (current_fp != last_fp) ||
                    (thread_local_.last_statement_position_ !=
-                    location.code()->SourceStatementPosition(offset));
+                    location.abstract_code()->SourceStatementPosition(offset));
       break;
     }
     case StepFrame:
@@ -744,9 +791,10 @@ void Debug::ClearBreakPoint(Handle<Object> break_point_object) {
 void Debug::ClearAllBreakPoints() {
   for (DebugInfoListNode* node = debug_info_list_; node != NULL;
        node = node->next()) {
-    for (BreakLocation::Iterator it(node->debug_info(), ALL_BREAK_LOCATIONS);
-         !it.Done(); it.Next()) {
-      it.GetBreakLocation().ClearDebugBreak();
+    for (base::SmartPointer<BreakLocation::Iterator> it(
+             BreakLocation::GetIterator(node->debug_info()));
+         !it->Done(); it->Next()) {
+      it->GetBreakLocation().ClearDebugBreak();
     }
   }
   // Remove all debug info.
@@ -777,8 +825,10 @@ void Debug::FloodWithOneShot(Handle<JSFunction> function,
 
   // Flood the function with break points.
   Handle<DebugInfo> debug_info(shared->GetDebugInfo());
-  for (BreakLocation::Iterator it(debug_info, type); !it.Done(); it.Next()) {
-    it.GetBreakLocation().SetOneShot();
+  for (base::SmartPointer<BreakLocation::Iterator> it(
+           BreakLocation::GetIterator(debug_info, type));
+       !it->Done(); it->Next()) {
+    it->GetBreakLocation().SetOneShot();
   }
 }
 
@@ -898,7 +948,8 @@ void Debug::PrepareStep(StepAction step_action) {
   if (location.IsReturn()) step_action = StepOut;
 
   thread_local_.last_statement_position_ =
-      debug_info->code()->SourceStatementPosition(summary.code_offset());
+      debug_info->abstract_code()->SourceStatementPosition(
+          summary.code_offset());
   thread_local_.last_fp_ = frame->UnpaddedFP();
 
   switch (step_action) {
@@ -1005,9 +1056,10 @@ void Debug::ClearOneShot() {
   // removed from the list.
   for (DebugInfoListNode* node = debug_info_list_; node != NULL;
        node = node->next()) {
-    for (BreakLocation::Iterator it(node->debug_info(), ALL_BREAK_LOCATIONS);
-         !it.Done(); it.Next()) {
-      it.GetBreakLocation().ClearOneShot();
+    for (base::SmartPointer<BreakLocation::Iterator> it(
+             BreakLocation::GetIterator(node->debug_info()));
+         !it->Done(); it->Next()) {
+      it->GetBreakLocation().ClearOneShot();
     }
   }
 }
@@ -1438,21 +1490,14 @@ bool Debug::IsBreakAtReturn(JavaScriptFrame* frame) {
 
   // With no debug info there are no break points, so we can't be at a return.
   if (!shared->HasDebugInfo()) return false;
-  Handle<DebugInfo> debug_info(shared->GetDebugInfo());
-  Handle<Code> code(debug_info->code());
-#ifdef DEBUG
-  // Get the code which is actually executing.
-  Handle<Code> frame_code(frame->LookupCode());
-  DCHECK(frame_code.is_identical_to(code));
-#endif
 
-  // Find the reloc info matching the start of the debug break slot.
-  Address slot_pc = frame->pc() - Assembler::kDebugBreakSlotLength;
-  int mask = RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT_AT_RETURN);
-  for (RelocIterator it(*code, mask); !it.done(); it.next()) {
-    if (it.rinfo()->pc() == slot_pc) return true;
-  }
-  return false;
+  DCHECK(!frame->is_optimized());
+  FrameSummary summary = GetFirstFrameSummary(frame);
+
+  Handle<DebugInfo> debug_info(shared->GetDebugInfo());
+  BreakLocation location =
+      BreakLocation::FromCodeOffset(debug_info, summary.code_offset());
+  return location.IsReturn();
 }
 
 

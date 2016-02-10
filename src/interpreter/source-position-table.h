@@ -48,8 +48,6 @@ class SourcePositionTableIterator {
  public:
   explicit SourcePositionTableIterator(BytecodeArray* bytecode_array);
 
-  static int PositionFromBytecodeOffset(BytecodeArray* bytecode_array,
-                                        int bytecode_offset);
   void Advance();
 
   int bytecode_offset() const {
