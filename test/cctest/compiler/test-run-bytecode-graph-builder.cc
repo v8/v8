@@ -70,6 +70,7 @@ class BytecodeGraphTester {
     i::FLAG_ignition = true;
     i::FLAG_always_opt = false;
     i::FLAG_allow_natives_syntax = true;
+    i::FLAG_loop_assignment_analysis = false;
     // Set ignition filter flag via SetFlagsFromString to avoid double-free
     // (or potential leak with StrDup() based on ownership confusion).
     ScopedVector<char> ignition_filter(64);
@@ -118,13 +119,13 @@ class BytecodeGraphTester {
         Handle<JSFunction>::cast(v8::Utils::OpenHandle(*api_function));
     CHECK(function->shared()->HasBytecodeArray());
 
+    // TODO(mstarzinger): We should be able to prime CompilationInfo without
+    // having to instantiate a ParseInfo first. Fix this!
     ParseInfo parse_info(zone_, function);
 
     CompilationInfo compilation_info(&parse_info);
     compilation_info.SetOptimizing(BailoutId::None(), Handle<Code>());
     compilation_info.MarkAsDeoptimizationEnabled();
-    // TODO(mythria): Remove this step once parse_info is not needed.
-    CHECK(Compiler::ParseAndAnalyze(&parse_info));
     compiler::Pipeline pipeline(&compilation_info);
     Handle<Code> code = pipeline.GenerateCode();
     function->ReplaceCode(*code);

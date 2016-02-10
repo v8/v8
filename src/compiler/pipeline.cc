@@ -1078,13 +1078,14 @@ Handle<Code> Pipeline::GenerateCode() {
     if (json_file != nullptr) {
       OFStream json_of(json_file);
       Handle<Script> script = info()->script();
-      FunctionLiteral* function = info()->literal();
       base::SmartArrayPointer<char> function_name = info()->GetDebugName();
       int pos = info()->shared_info()->start_position();
       json_of << "{\"function\":\"" << function_name.get()
               << "\", \"sourcePosition\":" << pos << ", \"source\":\"";
-      if (!script->IsUndefined() && !script->source()->IsUndefined()) {
+      if (info()->has_literal() && !script->IsUndefined() &&
+          !script->source()->IsUndefined()) {
         DisallowHeapAllocation no_allocation;
+        FunctionLiteral* function = info()->literal();
         int start = function->start_position();
         int len = function->end_position() - start;
         String::SubStringRange source(String::cast(script->source()), start,
