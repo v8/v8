@@ -256,6 +256,8 @@
   'intl402/Collator/10.1.1_a': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=4447
+  'built-ins/Function/prototype/Symbol.hasInstance/*': [SKIP],
+  'built-ins/Symbol/hasInstance/prop-desc': [FAIL],
   'language/expressions/instanceof/prototype-getter-with-object-throws': [FAIL],
   'language/expressions/instanceof/prototype-getter-with-object': [FAIL],
   'language/expressions/instanceof/primitive-prototype-with-object': [FAIL],

@@ -441,9 +441,8 @@ TestGetOwnPropertySymbolsWithProto()
 
 function TestWellKnown() {
   var symbols = [
-    "hasInstance",
     // TODO(rossberg): reactivate once implemented.
-    // "isConcatSpreadable", "isRegExp",
+    // "hasInstance", "isConcatSpreadable", "isRegExp",
     "iterator", /* "toStringTag", */ "unscopables"
   ]
 

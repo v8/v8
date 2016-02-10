@@ -75,7 +75,8 @@ function SymbolKeyFor(symbol) {
 // -------------------------------------------------------------------
 
 utils.InstallConstants(GlobalSymbol, [
-  "hasInstance", hasInstanceSymbol,
+  // TODO(rossberg): expose when implemented.
+  // "hasInstance", hasInstanceSymbol,
   "isConcatSpreadable", isConcatSpreadableSymbol,
   "iterator", iteratorSymbol,
   // TODO(yangguo): expose when implemented.

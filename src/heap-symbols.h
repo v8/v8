@@ -181,6 +181,7 @@
   V(uninitialized_symbol)
 
 #define PUBLIC_SYMBOL_LIST(V)                \
+  V(has_instance_symbol, Symbol.hasInstance) \
   V(iterator_symbol, Symbol.iterator)        \
   V(match_symbol, Symbol.match)              \
   V(replace_symbol, Symbol.replace)          \
@@ -195,7 +196,6 @@
 // check. Because this behaviour is not specified properly as of yet, it only
 // applies to a subset of spec-defined Well-Known Symbols.
 #define WELL_KNOWN_SYMBOL_LIST(V)                           \
-  V(has_instance_symbol, Symbol.hasInstance)                \
   V(is_concat_spreadable_symbol, Symbol.isConcatSpreadable) \
   V(to_string_tag_symbol, Symbol.toStringTag)
 
