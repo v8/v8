@@ -1766,13 +1766,37 @@ BUILTIN(ObjectKeys) {
   Handle<JSReceiver> receiver;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, receiver,
                                      Object::ToObject(isolate, object));
-  Handle<FixedArray> keys;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, keys, JSReceiver::GetKeys(receiver, OWN_ONLY, ENUMERABLE_STRINGS,
-                                         CONVERT_TO_STRING));
-  return *isolate->factory()->NewJSArrayWithElements(keys);
-}
 
+  Handle<FixedArray> keys;
+  int enum_length = receiver->map()->EnumLength();
+  if (enum_length != kInvalidEnumCacheSentinel) {
+    DCHECK(receiver->IsJSObject());
+    Handle<JSObject> js_object = Handle<JSObject>::cast(receiver);
+    DCHECK(!js_object->HasNamedInterceptor());
+    DCHECK(!js_object->IsAccessCheckNeeded());
+    DCHECK(!js_object->map()->has_hidden_prototype());
+    DCHECK(js_object->HasFastProperties());
+    if (js_object->elements() == isolate->heap()->empty_fixed_array()) {
+      keys = isolate->factory()->NewFixedArray(enum_length);
+      if (enum_length != 0) {
+        Handle<FixedArray> cache(
+            js_object->map()->instance_descriptors()->GetEnumCache());
+        keys = isolate->factory()->NewFixedArray(enum_length);
+        for (int i = 0; i < enum_length; i++) {
+          keys->set(i, cache->get(i));
+        }
+      }
+    }
+  }
+
+  if (keys.is_null()) {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, keys,
+        JSReceiver::GetKeys(receiver, OWN_ONLY, ENUMERABLE_STRINGS,
+                            CONVERT_TO_STRING));
+  }
+  return *isolate->factory()->NewJSArrayWithElements(keys, FAST_ELEMENTS);
+}
 
 BUILTIN(ObjectValues) {
   HandleScope scope(isolate);

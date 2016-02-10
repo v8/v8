@@ -8742,7 +8742,8 @@ static Maybe<bool> GetKeysFromJSObject(Isolate* isolate,
     bool cache_enum_length =
         ((object->map()->GetConstructor() != *arguments_function) &&
          !object->IsJSValue() && !object->IsAccessCheckNeeded() &&
-         !object->HasNamedInterceptor() && !object->HasIndexedInterceptor());
+         !object->HasNamedInterceptor() && !object->HasIndexedInterceptor() &&
+         !object->map()->has_hidden_prototype());
     // Compute the property keys and cache them if possible.
     Handle<FixedArray> enum_keys =
         JSObject::GetEnumPropertyKeys(object, cache_enum_length);
