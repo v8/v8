@@ -53,6 +53,7 @@ class Schedule;
   V(Word32Or)                                 \
   V(Word32And)                                \
   V(Word32Xor)                                \
+  V(Word32Shl)                                \
   V(Word32Shr)                                \
   V(Word32Sar)                                \
   V(Word32Ror)                                \
@@ -63,13 +64,17 @@ class Schedule;
   V(Word64Xor)                                \
   V(Word64Shr)                                \
   V(Word64Sar)                                \
-  V(Word64Ror)
+  V(Word64Ror)                                \
+  V(UintPtrGreaterThanOrEqual)
 
 class CodeStubAssembler {
  public:
+  // |result_size| specifies the number of results returned by the stub.
+  // TODO(rmcilroy): move result_size to the CallInterfaceDescriptor.
   CodeStubAssembler(Isolate* isolate, Zone* zone,
                     const CallInterfaceDescriptor& descriptor,
-                    Code::Flags flags, const char* name);
+                    Code::Flags flags, const char* name,
+                    size_t result_size = 1);
   virtual ~CodeStubAssembler();
 
   Handle<Code> GenerateCode();
@@ -115,6 +120,20 @@ class CodeStubAssembler {
   Node* LoadFramePointer();
   Node* LoadParentFramePointer();
 
+  // Access to the stack pointer
+  Node* LoadStackPointer();
+
+  // Load raw memory location.
+  Node* Load(MachineType rep, Node* base);
+  Node* Load(MachineType rep, Node* base, Node* index);
+
+  // Store value to raw memory location.
+  Node* Store(MachineRepresentation rep, Node* base, Node* value);
+  Node* Store(MachineRepresentation rep, Node* base, Node* index, Node* value);
+  Node* StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* value);
+  Node* StoreNoWriteBarrier(MachineRepresentation rep, Node* base, Node* index,
+                            Node* value);
+
 // Basic arithmetic operations.
 #define DECLARE_CODE_STUB_ASSEMBER_BINARY_OP(name) Node* name(Node* a, Node* b);
   CODE_STUB_ASSEMBLER_BINARY_OP_LIST(DECLARE_CODE_STUB_ASSEMBER_BINARY_OP)
@@ -122,10 +141,23 @@ class CodeStubAssembler {
 
   Node* WordShl(Node* value, int shift);
 
+  // Conversions
+  Node* ChangeInt32ToInt64(Node* value);
+
+  // Projections
+  Node* Projection(int index, Node* value);
+
   // Calls
+  Node* CallRuntime(Runtime::FunctionId function_id, Node* context);
   Node* CallRuntime(Runtime::FunctionId function_id, Node* context, Node* arg1);
   Node* CallRuntime(Runtime::FunctionId function_id, Node* context, Node* arg1,
                     Node* arg2);
+  Node* CallRuntime(Runtime::FunctionId function_id, Node* context, Node* arg1,
+                    Node* arg2, Node* arg3);
+  Node* CallRuntime(Runtime::FunctionId function_id, Node* context, Node* arg1,
+                    Node* arg2, Node* arg3, Node* arg4);
+  Node* CallRuntime(Runtime::FunctionId function_id, Node* context, Node* arg1,
+                    Node* arg2, Node* arg3, Node* arg4, Node* arg5);
 
   Node* TailCallRuntime(Runtime::FunctionId function_id, Node* context,
                         Node* arg1);
@@ -136,9 +168,23 @@ class CodeStubAssembler {
   Node* TailCallRuntime(Runtime::FunctionId function_id, Node* context,
                         Node* arg1, Node* arg2, Node* arg3, Node* arg4);
 
+  Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
+                 Node* context, Node* arg1, size_t result_size = 1);
+  Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
+                 Node* context, Node* arg1, Node* arg2, size_t result_size = 1);
+  Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
+                 Node* context, Node* arg1, Node* arg2, Node* arg3,
+                 size_t result_size = 1);
+  Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
+                 Node* context, Node* arg1, Node* arg2, Node* arg3, Node* arg4,
+                 size_t result_size = 1);
+  Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
+                 Node* context, Node* arg1, Node* arg2, Node* arg3, Node* arg4,
+                 Node* arg5, size_t result_size = 1);
+
   Node* TailCallStub(CodeStub& stub, Node** args);
   Node* TailCall(const CallInterfaceDescriptor& descriptor, Node* target,
-                 Node** args);
+                 Node** args, size_t result_size = 1);
 
   // ===========================================================================
   // Macros
@@ -164,6 +210,16 @@ class CodeStubAssembler {
                                       int additional_offset = 0);
   Node* LoadFixedArrayElementConstantIndex(Node* object, int index);
 
+ protected:
+  // Protected helpers which delegate to RawMachineAssembler.
+  Graph* graph();
+  Isolate* isolate();
+  Zone* zone();
+
+  // Enables subclasses to perform operations before and after a call.
+  virtual void CallPrologue();
+  virtual void CallEpilogue();
+
  private:
   friend class CodeStubAssemblerTester;
 
@@ -171,11 +227,6 @@ class CodeStubAssembler {
   Node* TailCallN(CallDescriptor* descriptor, Node* code_target, Node** args);
 
   Node* SmiShiftBitsConstant();
-
-  // Private helpers which delegate to RawMachineAssembler.
-  Graph* graph();
-  Isolate* isolate();
-  Zone* zone();
 
   base::SmartPointer<RawMachineAssembler> raw_assembler_;
   Code::Flags flags_;

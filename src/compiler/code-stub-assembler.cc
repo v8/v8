@@ -26,11 +26,14 @@ namespace compiler {
 
 CodeStubAssembler::CodeStubAssembler(Isolate* isolate, Zone* zone,
                                      const CallInterfaceDescriptor& descriptor,
-                                     Code::Flags flags, const char* name)
+                                     Code::Flags flags, const char* name,
+                                     size_t result_size)
     : raw_assembler_(new RawMachineAssembler(
           isolate, new (zone) Graph(zone),
-          Linkage::GetStubCallDescriptor(isolate, zone, descriptor, 0,
-                                         CallDescriptor::kNoFlags))),
+          Linkage::GetStubCallDescriptor(
+              isolate, zone, descriptor, descriptor.GetStackParameterCount(),
+              CallDescriptor::kNoFlags, Operator::kNoProperties,
+              MachineType::AnyTagged(), result_size))),
       flags_(flags),
       name_(name),
       code_generated_(false),
@@ -38,6 +41,9 @@ CodeStubAssembler::CodeStubAssembler(Isolate* isolate, Zone* zone,
 
 CodeStubAssembler::~CodeStubAssembler() {}
 
+void CodeStubAssembler::CallPrologue() {}
+
+void CodeStubAssembler::CallEpilogue() {}
 
 Handle<Code> CodeStubAssembler::GenerateCode() {
   DCHECK(!code_generated_);
@@ -97,6 +103,10 @@ Node* CodeStubAssembler::LoadFramePointer() {
   return raw_assembler_->LoadFramePointer();
 }
 
+Node* CodeStubAssembler::LoadStackPointer() {
+  return raw_assembler_->LoadStackPointer();
+}
+
 Node* CodeStubAssembler::SmiShiftBitsConstant() {
   return Int32Constant(kSmiShiftSize + kSmiTagSize);
 }
@@ -117,6 +127,10 @@ Node* CodeStubAssembler::SmiUntag(Node* value) {
   }
 CODE_STUB_ASSEMBLER_BINARY_OP_LIST(DEFINE_CODE_STUB_ASSEMBER_BINARY_OP)
 #undef DEFINE_CODE_STUB_ASSEMBER_BINARY_OP
+
+Node* CodeStubAssembler::ChangeInt32ToInt64(Node* value) {
+  return raw_assembler_->ChangeInt32ToInt64(value);
+}
 
 Node* CodeStubAssembler::WordShl(Node* value, int shift) {
   return raw_assembler_->WordShl(value, Int32Constant(shift));
@@ -179,9 +193,45 @@ Node* CodeStubAssembler::LoadRoot(Heap::RootListIndex root_index) {
   return nullptr;
 }
 
+Node* CodeStubAssembler::Load(MachineType rep, Node* base) {
+  return raw_assembler_->Load(rep, base);
+}
+
+Node* CodeStubAssembler::Load(MachineType rep, Node* base, Node* index) {
+  return raw_assembler_->Load(rep, base, index);
+}
+
+Node* CodeStubAssembler::Store(MachineRepresentation rep, Node* base,
+                               Node* value) {
+  return raw_assembler_->Store(rep, base, value, kFullWriteBarrier);
+}
+
+Node* CodeStubAssembler::Store(MachineRepresentation rep, Node* base,
+                               Node* index, Node* value) {
+  return raw_assembler_->Store(rep, base, index, value, kFullWriteBarrier);
+}
+
+Node* CodeStubAssembler::StoreNoWriteBarrier(MachineRepresentation rep,
+                                             Node* base, Node* value) {
+  return raw_assembler_->Store(rep, base, value, kNoWriteBarrier);
+}
+
+Node* CodeStubAssembler::StoreNoWriteBarrier(MachineRepresentation rep,
+                                             Node* base, Node* index,
+                                             Node* value) {
+  return raw_assembler_->Store(rep, base, index, value, kNoWriteBarrier);
+}
+
+Node* CodeStubAssembler::Projection(int index, Node* value) {
+  return raw_assembler_->Projection(index, value);
+}
+
 Node* CodeStubAssembler::CallN(CallDescriptor* descriptor, Node* code_target,
                                Node** args) {
-  return raw_assembler_->CallN(descriptor, code_target, args);
+  CallPrologue();
+  Node* return_value = raw_assembler_->CallN(descriptor, code_target, args);
+  CallEpilogue();
+  return return_value;
 }
 
 
@@ -190,16 +240,49 @@ Node* CodeStubAssembler::TailCallN(CallDescriptor* descriptor,
   return raw_assembler_->TailCallN(descriptor, code_target, args);
 }
 
+Node* CodeStubAssembler::CallRuntime(Runtime::FunctionId function_id,
+                                     Node* context) {
+  CallPrologue();
+  Node* return_value = raw_assembler_->CallRuntime0(function_id, context);
+  CallEpilogue();
+  return return_value;
+}
 
 Node* CodeStubAssembler::CallRuntime(Runtime::FunctionId function_id,
                                      Node* context, Node* arg1) {
-  return raw_assembler_->CallRuntime1(function_id, arg1, context);
+  CallPrologue();
+  Node* return_value = raw_assembler_->CallRuntime1(function_id, arg1, context);
+  CallEpilogue();
+  return return_value;
 }
-
 
 Node* CodeStubAssembler::CallRuntime(Runtime::FunctionId function_id,
                                      Node* context, Node* arg1, Node* arg2) {
-  return raw_assembler_->CallRuntime2(function_id, arg1, arg2, context);
+  CallPrologue();
+  Node* return_value =
+      raw_assembler_->CallRuntime2(function_id, arg1, arg2, context);
+  CallEpilogue();
+  return return_value;
+}
+
+Node* CodeStubAssembler::CallRuntime(Runtime::FunctionId function_id,
+                                     Node* context, Node* arg1, Node* arg2,
+                                     Node* arg3) {
+  CallPrologue();
+  Node* return_value =
+      raw_assembler_->CallRuntime3(function_id, arg1, arg2, arg3, context);
+  CallEpilogue();
+  return return_value;
+}
+
+Node* CodeStubAssembler::CallRuntime(Runtime::FunctionId function_id,
+                                     Node* context, Node* arg1, Node* arg2,
+                                     Node* arg3, Node* arg4) {
+  CallPrologue();
+  Node* return_value = raw_assembler_->CallRuntime4(function_id, arg1, arg2,
+                                                    arg3, arg4, context);
+  CallEpilogue();
+  return return_value;
 }
 
 Node* CodeStubAssembler::TailCallRuntime(Runtime::FunctionId function_id,
@@ -227,6 +310,93 @@ Node* CodeStubAssembler::TailCallRuntime(Runtime::FunctionId function_id,
                                           context);
 }
 
+Node* CodeStubAssembler::CallStub(const CallInterfaceDescriptor& descriptor,
+                                  Node* target, Node* context, Node* arg1,
+                                  size_t result_size) {
+  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
+      isolate(), zone(), descriptor, descriptor.GetStackParameterCount(),
+      CallDescriptor::kNoFlags, Operator::kNoProperties,
+      MachineType::AnyTagged(), result_size);
+
+  Node** args = zone()->NewArray<Node*>(2);
+  args[0] = arg1;
+  args[1] = context;
+
+  return CallN(call_descriptor, target, args);
+}
+
+Node* CodeStubAssembler::CallStub(const CallInterfaceDescriptor& descriptor,
+                                  Node* target, Node* context, Node* arg1,
+                                  Node* arg2, size_t result_size) {
+  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
+      isolate(), zone(), descriptor, descriptor.GetStackParameterCount(),
+      CallDescriptor::kNoFlags, Operator::kNoProperties,
+      MachineType::AnyTagged(), result_size);
+
+  Node** args = zone()->NewArray<Node*>(3);
+  args[0] = arg1;
+  args[1] = arg2;
+  args[2] = context;
+
+  return CallN(call_descriptor, target, args);
+}
+
+Node* CodeStubAssembler::CallStub(const CallInterfaceDescriptor& descriptor,
+                                  Node* target, Node* context, Node* arg1,
+                                  Node* arg2, Node* arg3, size_t result_size) {
+  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
+      isolate(), zone(), descriptor, descriptor.GetStackParameterCount(),
+      CallDescriptor::kNoFlags, Operator::kNoProperties,
+      MachineType::AnyTagged(), result_size);
+
+  Node** args = zone()->NewArray<Node*>(4);
+  args[0] = arg1;
+  args[1] = arg2;
+  args[2] = arg3;
+  args[3] = context;
+
+  return CallN(call_descriptor, target, args);
+}
+
+Node* CodeStubAssembler::CallStub(const CallInterfaceDescriptor& descriptor,
+                                  Node* target, Node* context, Node* arg1,
+                                  Node* arg2, Node* arg3, Node* arg4,
+                                  size_t result_size) {
+  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
+      isolate(), zone(), descriptor, descriptor.GetStackParameterCount(),
+      CallDescriptor::kNoFlags, Operator::kNoProperties,
+      MachineType::AnyTagged(), result_size);
+
+  Node** args = zone()->NewArray<Node*>(5);
+  args[0] = arg1;
+  args[1] = arg2;
+  args[2] = arg3;
+  args[3] = arg4;
+  args[4] = context;
+
+  return CallN(call_descriptor, target, args);
+}
+
+Node* CodeStubAssembler::CallStub(const CallInterfaceDescriptor& descriptor,
+                                  Node* target, Node* context, Node* arg1,
+                                  Node* arg2, Node* arg3, Node* arg4,
+                                  Node* arg5, size_t result_size) {
+  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
+      isolate(), zone(), descriptor, descriptor.GetStackParameterCount(),
+      CallDescriptor::kNoFlags, Operator::kNoProperties,
+      MachineType::AnyTagged(), result_size);
+
+  Node** args = zone()->NewArray<Node*>(6);
+  args[0] = arg1;
+  args[1] = arg2;
+  args[2] = arg3;
+  args[3] = arg4;
+  args[4] = arg5;
+  args[5] = context;
+
+  return CallN(call_descriptor, target, args);
+}
+
 Node* CodeStubAssembler::TailCallStub(CodeStub& stub, Node** args) {
   Node* code_target = HeapConstant(stub.GetCode());
   CallDescriptor* descriptor = Linkage::GetStubCallDescriptor(
@@ -237,11 +407,12 @@ Node* CodeStubAssembler::TailCallStub(CodeStub& stub, Node** args) {
 
 Node* CodeStubAssembler::TailCall(
     const CallInterfaceDescriptor& interface_descriptor, Node* code_target,
-    Node** args) {
+    Node** args, size_t result_size) {
   CallDescriptor* descriptor = Linkage::GetStubCallDescriptor(
       isolate(), zone(), interface_descriptor,
       interface_descriptor.GetStackParameterCount(),
-      CallDescriptor::kSupportsTailCalls);
+      CallDescriptor::kSupportsTailCalls, Operator::kNoProperties,
+      MachineType::AnyTagged(), result_size);
   return raw_assembler_->TailCallN(descriptor, code_target, args);
 }
 
@@ -277,9 +448,7 @@ void CodeStubAssembler::Switch(Node* index, Label* default_label,
 // RawMachineAssembler delegate helpers:
 Isolate* CodeStubAssembler::isolate() { return raw_assembler_->isolate(); }
 
-
 Graph* CodeStubAssembler::graph() { return raw_assembler_->graph(); }
-
 
 Zone* CodeStubAssembler::zone() { return raw_assembler_->zone(); }
 

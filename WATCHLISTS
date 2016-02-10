@@ -44,7 +44,6 @@
     },
     'interpreter': {
       'filepath': 'src/interpreter/' \
-                  '|src/compiler/interpreter' \
                   '|src/compiler/bytecode' \
                   '|test/cctest/interpreter/' \
                   '|test/unittests/interpreter/',
