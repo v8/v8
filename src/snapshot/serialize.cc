@@ -54,8 +54,6 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
       "StackGuard::address_of_real_jslimit()");
   Add(ExternalReference::new_space_start(isolate).address(),
       "Heap::NewSpaceStart()");
-  Add(ExternalReference::new_space_mask(isolate).address(),
-      "Heap::NewSpaceMask()");
   Add(ExternalReference::new_space_allocation_limit_address(isolate).address(),
       "Heap::NewSpaceAllocationLimitAddress()");
   Add(ExternalReference::new_space_allocation_top_address(isolate).address(),
@@ -1016,9 +1014,11 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
     }                                                                          \
     if (emit_write_barrier && write_barrier_needed) {                          \
       Address current_address = reinterpret_cast<Address>(current);            \
+      SLOW_DCHECK(isolate->heap()->ContainsSlow(current_object_address));      \
       isolate->heap()->RecordWrite(                                            \
-          current_object_address,                                              \
-          static_cast<int>(current_address - current_object_address));         \
+          HeapObject::FromAddress(current_object_address),                     \
+          static_cast<int>(current_address - current_object_address),          \
+          *reinterpret_cast<Object**>(current_address));                       \
     }                                                                          \
     if (!current_was_incremented) {                                            \
       current++;                                                               \
@@ -1250,11 +1250,13 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
         int index = data & kHotObjectMask;
         Object* hot_object = hot_objects_.Get(index);
         UnalignedCopy(current, &hot_object);
-        if (write_barrier_needed && isolate->heap()->InNewSpace(hot_object)) {
+        if (write_barrier_needed) {
           Address current_address = reinterpret_cast<Address>(current);
+          SLOW_DCHECK(isolate->heap()->ContainsSlow(current_object_address));
           isolate->heap()->RecordWrite(
-              current_object_address,
-              static_cast<int>(current_address - current_object_address));
+              HeapObject::FromAddress(current_object_address),
+              static_cast<int>(current_address - current_object_address),
+              hot_object);
         }
         current++;
         break;

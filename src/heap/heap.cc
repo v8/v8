@@ -1099,10 +1099,8 @@ void Heap::MoveElements(FixedArray* array, int dst_index, int src_index,
   MemMove(dst_objects, array->data_start() + src_index, len * kPointerSize);
   if (!InNewSpace(array)) {
     for (int i = 0; i < len; i++) {
-      // TODO(hpayer): check store buffer for entries
-      if (InNewSpace(dst_objects[i])) {
-        RecordWrite(array->address(), array->OffsetOfElementAt(dst_index + i));
-      }
+      RecordWrite(array, array->OffsetOfElementAt(dst_index + i),
+                  dst_objects[i]);
     }
   }
   incremental_marking()->RecordWrites(array);
@@ -3074,7 +3072,7 @@ bool Heap::CanMoveObjectStart(HeapObject* object) {
   // (3) the page was already concurrently swept. This case is an optimization
   // for concurrent sweeping. The WasSwept predicate for concurrently swept
   // pages is set after sweeping all pages.
-  return !InOldSpace(address) || page->SweepingDone();
+  return !InOldSpace(object) || page->SweepingDone();
 }
 
 
@@ -4331,38 +4329,65 @@ void Heap::ReportHeapStatistics(const char* title) {
 
 #endif  // DEBUG
 
-bool Heap::Contains(HeapObject* value) { return Contains(value->address()); }
-
-
-bool Heap::Contains(Address addr) {
-  if (isolate_->memory_allocator()->IsOutsideAllocatedSpace(addr)) return false;
+bool Heap::Contains(HeapObject* value) {
+  if (isolate_->memory_allocator()->IsOutsideAllocatedSpace(value->address())) {
+    return false;
+  }
   return HasBeenSetUp() &&
-         (new_space_.ToSpaceContains(addr) || old_space_->Contains(addr) ||
-          code_space_->Contains(addr) || map_space_->Contains(addr) ||
-          lo_space_->SlowContains(addr));
+         (new_space_.ToSpaceContains(value) || old_space_->Contains(value) ||
+          code_space_->Contains(value) || map_space_->Contains(value) ||
+          lo_space_->Contains(value));
 }
 
+bool Heap::ContainsSlow(Address addr) {
+  if (isolate_->memory_allocator()->IsOutsideAllocatedSpace(addr)) {
+    return false;
+  }
+  return HasBeenSetUp() &&
+         (new_space_.ToSpaceContainsSlow(addr) ||
+          old_space_->ContainsSlow(addr) || code_space_->ContainsSlow(addr) ||
+          map_space_->ContainsSlow(addr) || lo_space_->ContainsSlow(addr));
+}
 
 bool Heap::InSpace(HeapObject* value, AllocationSpace space) {
-  return InSpace(value->address(), space);
-}
-
-
-bool Heap::InSpace(Address addr, AllocationSpace space) {
-  if (isolate_->memory_allocator()->IsOutsideAllocatedSpace(addr)) return false;
+  if (isolate_->memory_allocator()->IsOutsideAllocatedSpace(value->address())) {
+    return false;
+  }
   if (!HasBeenSetUp()) return false;
 
   switch (space) {
     case NEW_SPACE:
-      return new_space_.ToSpaceContains(addr);
+      return new_space_.ToSpaceContains(value);
     case OLD_SPACE:
-      return old_space_->Contains(addr);
+      return old_space_->Contains(value);
     case CODE_SPACE:
-      return code_space_->Contains(addr);
+      return code_space_->Contains(value);
     case MAP_SPACE:
-      return map_space_->Contains(addr);
+      return map_space_->Contains(value);
     case LO_SPACE:
-      return lo_space_->SlowContains(addr);
+      return lo_space_->Contains(value);
+  }
+  UNREACHABLE();
+  return false;
+}
+
+bool Heap::InSpaceSlow(Address addr, AllocationSpace space) {
+  if (isolate_->memory_allocator()->IsOutsideAllocatedSpace(addr)) {
+    return false;
+  }
+  if (!HasBeenSetUp()) return false;
+
+  switch (space) {
+    case NEW_SPACE:
+      return new_space_.ToSpaceContainsSlow(addr);
+    case OLD_SPACE:
+      return old_space_->ContainsSlow(addr);
+    case CODE_SPACE:
+      return code_space_->ContainsSlow(addr);
+    case MAP_SPACE:
+      return map_space_->ContainsSlow(addr);
+    case LO_SPACE:
+      return lo_space_->ContainsSlow(addr);
   }
   UNREACHABLE();
   return false;

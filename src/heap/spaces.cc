@@ -1101,8 +1101,7 @@ size_t PagedSpace::CommittedPhysicalMemory() {
   return size;
 }
 
-
-bool PagedSpace::ContainsSafe(Address addr) {
+bool PagedSpace::ContainsSlow(Address addr) {
   Page* p = Page::FromAddress(addr);
   PageIterator iterator(this);
   while (iterator.has_next()) {
@@ -1324,9 +1323,6 @@ bool NewSpace::SetUp(int reserved_semispace_capacity,
   DCHECK(!from_space_.is_committed());  // No need to use memory yet.
 
   start_ = chunk_base_;
-  address_mask_ = ~(2 * reserved_semispace_capacity - 1);
-  object_mask_ = address_mask_ | kHeapObjectTagMask;
-  object_expected_ = reinterpret_cast<uintptr_t>(start_) | kHeapObjectTag;
 
   ResetAllocationInfo();
 
@@ -1687,9 +1683,6 @@ void SemiSpace::SetUp(Address start, int initial_capacity,
   maximum_capacity_ = RoundDown(maximum_capacity, Page::kPageSize);
   committed_ = false;
   start_ = start;
-  address_mask_ = ~(maximum_capacity_ - 1);
-  object_mask_ = address_mask_ | kHeapObjectTagMask;
-  object_expected_ = reinterpret_cast<uintptr_t>(start) | kHeapObjectTag;
   age_mark_ = start_ + NewSpacePage::kObjectStartOffset;
 }
 
@@ -1815,21 +1808,18 @@ bool SemiSpace::ShrinkTo(int new_capacity) {
   return true;
 }
 
-
-void SemiSpace::FlipPages(intptr_t flags, intptr_t mask) {
+void SemiSpace::FixPagesFlags(intptr_t flags, intptr_t mask) {
   anchor_.set_owner(this);
   // Fixup back-pointers to anchor. Address of anchor changes when we swap.
   anchor_.prev_page()->set_next_page(&anchor_);
   anchor_.next_page()->set_prev_page(&anchor_);
 
-  bool becomes_to_space = (id_ == kFromSpace);
-  id_ = becomes_to_space ? kToSpace : kFromSpace;
   NewSpacePageIterator it(this);
   while (it.has_next()) {
     NewSpacePage* page = it.next();
     page->set_owner(this);
     page->SetFlags(flags, mask);
-    if (becomes_to_space) {
+    if (id_ == kToSpace) {
       page->ClearFlag(MemoryChunk::IN_FROM_SPACE);
       page->SetFlag(MemoryChunk::IN_TO_SPACE);
       page->ClearFlag(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK);
@@ -1855,19 +1845,20 @@ void SemiSpace::Swap(SemiSpace* from, SemiSpace* to) {
   DCHECK_NE(from->anchor_.next_page(), &from->anchor_);
   DCHECK_NE(to->anchor_.next_page(), &to->anchor_);
 
-  // Swap bits.
-  SemiSpace tmp = *from;
-  *from = *to;
-  *to = tmp;
+  intptr_t saved_to_space_flags = to->current_page()->GetFlags();
 
-  // Fixup back-pointers to the page list anchor now that its address
-  // has changed.
-  // Swap to/from-space bits on pages.
-  // Copy GC flags from old active space (from-space) to new (to-space).
-  intptr_t flags = from->current_page()->GetFlags();
-  to->FlipPages(flags, NewSpacePage::kCopyOnFlipFlagsMask);
+  // We swap all properties but id_.
+  std::swap(from->current_capacity_, to->current_capacity_);
+  std::swap(from->maximum_capacity_, to->maximum_capacity_);
+  std::swap(from->minimum_capacity_, to->minimum_capacity_);
+  std::swap(from->start_, to->start_);
+  std::swap(from->age_mark_, to->age_mark_);
+  std::swap(from->committed_, to->committed_);
+  std::swap(from->anchor_, to->anchor_);
+  std::swap(from->current_page_, to->current_page_);
 
-  from->FlipPages(0, 0);
+  to->FixPagesFlags(saved_to_space_flags, NewSpacePage::kCopyOnFlipFlagsMask);
+  from->FixPagesFlags(0, 0);
 }
 
 
@@ -3134,11 +3125,6 @@ bool LargeObjectSpace::Contains(HeapObject* object) {
   SLOW_DCHECK(!owned || FindObject(address)->IsHeapObject());
 
   return owned;
-}
-
-
-bool LargeObjectSpace::Contains(Address address) {
-  return FindPage(address) != NULL;
 }
 
 

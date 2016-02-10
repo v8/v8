@@ -359,10 +359,6 @@ bool Heap::InNewSpace(Object* object) {
   return result;
 }
 
-
-bool Heap::InNewSpace(Address address) { return new_space_.Contains(address); }
-
-
 bool Heap::InFromSpace(Object* object) {
   return new_space_.FromSpaceContains(object);
 }
@@ -372,14 +368,15 @@ bool Heap::InToSpace(Object* object) {
   return new_space_.ToSpaceContains(object);
 }
 
+bool Heap::InOldSpace(Object* object) { return old_space_->Contains(object); }
 
-bool Heap::InOldSpace(Address address) { return old_space_->Contains(address); }
-
-
-bool Heap::InOldSpace(Object* object) {
-  return InOldSpace(reinterpret_cast<Address>(object));
+bool Heap::InNewSpaceSlow(Address address) {
+  return new_space_.ContainsSlow(address);
 }
 
+bool Heap::InOldSpaceSlow(Address address) {
+  return old_space_->ContainsSlow(address);
+}
 
 bool Heap::OldGenerationAllocationLimitReached() {
   if (!incremental_marking()->IsStopped()) return false;
@@ -394,18 +391,11 @@ bool Heap::ShouldBePromoted(Address old_address, int object_size) {
          (!page->ContainsLimit(age_mark) || old_address < age_mark);
 }
 
-
-void Heap::RecordWrite(Address address, int offset) {
-  if (!InNewSpace(address)) store_buffer_.Mark(address + offset);
-}
-
-
-void Heap::RecordWrites(Address address, int start, int len) {
-  if (!InNewSpace(address)) {
-    for (int i = 0; i < len; i++) {
-      store_buffer_.Mark(address + start + i * kPointerSize);
-    }
+void Heap::RecordWrite(Object* object, int offset, Object* o) {
+  if (!InNewSpace(o) || !object->IsHeapObject() || InNewSpace(object)) {
+    return;
   }
+  store_buffer_.Mark(HeapObject::cast(object)->address() + offset);
 }
 
 

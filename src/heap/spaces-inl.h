@@ -178,6 +178,52 @@ void MemoryAllocator::UnprotectChunkFromPage(Page* page) {
 
 #endif
 
+// -----------------------------------------------------------------------------
+// SemiSpace
+
+bool SemiSpace::Contains(HeapObject* o) {
+  return id_ == kToSpace
+             ? MemoryChunk::FromAddress(o->address())->InToSpace()
+             : MemoryChunk::FromAddress(o->address())->InFromSpace();
+}
+
+bool SemiSpace::Contains(Object* o) {
+  return o->IsHeapObject() && Contains(HeapObject::cast(o));
+}
+
+bool SemiSpace::ContainsSlow(Address a) {
+  NewSpacePageIterator it(this);
+  while (it.has_next()) {
+    if (it.next() == MemoryChunk::FromAddress(a)) return true;
+  }
+  return false;
+}
+
+// --------------------------------------------------------------------------
+// NewSpace
+
+bool NewSpace::Contains(HeapObject* o) {
+  return MemoryChunk::FromAddress(o->address())->InNewSpace();
+}
+
+bool NewSpace::Contains(Object* o) {
+  return o->IsHeapObject() && Contains(HeapObject::cast(o));
+}
+
+bool NewSpace::ContainsSlow(Address a) {
+  return from_space_.ContainsSlow(a) || to_space_.ContainsSlow(a);
+}
+
+bool NewSpace::ToSpaceContainsSlow(Address a) {
+  return to_space_.ContainsSlow(a);
+}
+
+bool NewSpace::FromSpaceContainsSlow(Address a) {
+  return from_space_.ContainsSlow(a);
+}
+
+bool NewSpace::ToSpaceContains(Object* o) { return to_space_.Contains(o); }
+bool NewSpace::FromSpaceContains(Object* o) { return from_space_.Contains(o); }
 
 // --------------------------------------------------------------------------
 // AllocationResult
@@ -212,9 +258,12 @@ bool PagedSpace::Contains(Address addr) {
   return p->owner() == this;
 }
 
-
-bool PagedSpace::Contains(HeapObject* o) { return Contains(o->address()); }
-
+bool PagedSpace::Contains(Object* o) {
+  if (!o->IsHeapObject()) return false;
+  Page* p = Page::FromAddress(HeapObject::cast(o)->address());
+  if (!p->is_valid()) return false;
+  return p->owner() == this;
+}
 
 MemoryChunk* MemoryChunk::FromAnyPointerAddress(Heap* heap, Address addr) {
   MemoryChunk* maybe = reinterpret_cast<MemoryChunk*>(

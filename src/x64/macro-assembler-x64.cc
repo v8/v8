@@ -251,38 +251,9 @@ void MacroAssembler::InNewSpace(Register object,
                                 Condition cc,
                                 Label* branch,
                                 Label::Distance distance) {
-  if (serializer_enabled()) {
-    // Can't do arithmetic on external references if it might get serialized.
-    // The mask isn't really an address.  We load it as an external reference in
-    // case the size of the new space is different between the snapshot maker
-    // and the running system.
-    if (scratch.is(object)) {
-      Move(kScratchRegister, ExternalReference::new_space_mask(isolate()));
-      andp(scratch, kScratchRegister);
-    } else {
-      Move(scratch, ExternalReference::new_space_mask(isolate()));
-      andp(scratch, object);
-    }
-    Move(kScratchRegister, ExternalReference::new_space_start(isolate()));
-    cmpp(scratch, kScratchRegister);
-    j(cc, branch, distance);
-  } else {
-    DCHECK(kPointerSize == kInt64Size
-        ? is_int32(static_cast<int64_t>(isolate()->heap()->NewSpaceMask()))
-        : kPointerSize == kInt32Size);
-    intptr_t new_space_start =
-        reinterpret_cast<intptr_t>(isolate()->heap()->NewSpaceStart());
-    Move(kScratchRegister, reinterpret_cast<Address>(-new_space_start),
-         Assembler::RelocInfoNone());
-    if (scratch.is(object)) {
-      addp(scratch, kScratchRegister);
-    } else {
-      leap(scratch, Operand(object, kScratchRegister, times_1, 0));
-    }
-    andp(scratch,
-         Immediate(static_cast<int32_t>(isolate()->heap()->NewSpaceMask())));
-    j(cc, branch, distance);
-  }
+  const int mask =
+      (1 << MemoryChunk::IN_FROM_SPACE) | (1 << MemoryChunk::IN_TO_SPACE);
+  CheckPageFlag(object, scratch, mask, cc, branch, distance);
 }
 
 

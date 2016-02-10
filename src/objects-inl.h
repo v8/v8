@@ -1238,12 +1238,10 @@ MaybeHandle<Object> Object::GetProperty(Isolate* isolate, Handle<Object> object,
       reinterpret_cast<base::AtomicWord*>(FIELD_ADDR(p, offset)), \
       reinterpret_cast<base::AtomicWord>(value));
 
-#define WRITE_BARRIER(heap, object, offset, value)                      \
-  heap->incremental_marking()->RecordWrite(                             \
-      object, HeapObject::RawField(object, offset), value);             \
-  if (heap->InNewSpace(value)) {                                        \
-    heap->RecordWrite(object->address(), offset);                       \
-  }
+#define WRITE_BARRIER(heap, object, offset, value)          \
+  heap->incremental_marking()->RecordWrite(                 \
+      object, HeapObject::RawField(object, offset), value); \
+  heap->RecordWrite(object, offset, value);
 
 #define CONDITIONAL_WRITE_BARRIER(heap, object, offset, value, mode) \
   if (mode != SKIP_WRITE_BARRIER) {                                  \
@@ -1251,9 +1249,7 @@ MaybeHandle<Object> Object::GetProperty(Isolate* isolate, Handle<Object> object,
       heap->incremental_marking()->RecordWrite(                      \
           object, HeapObject::RawField(object, offset), value);      \
     }                                                                \
-    if (heap->InNewSpace(value)) {                                   \
-      heap->RecordWrite(object->address(), offset);                  \
-    }                                                                \
+    heap->RecordWrite(object, offset, value);                        \
   }
 
 #define READ_DOUBLE_FIELD(p, offset) \
@@ -2041,9 +2037,7 @@ void WeakCell::initialize(HeapObject* val) {
   // We just have to execute the generational barrier here because we never
   // mark through a weak cell and collect evacuation candidates when we process
   // all weak cells.
-  if (heap->InNewSpace(val)) {
-    heap->RecordWrite(address(), kValueOffset);
-  }
+  heap->RecordWrite(this, kValueOffset, val);
 }
 
 

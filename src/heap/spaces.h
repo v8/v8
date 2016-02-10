@@ -1940,10 +1940,8 @@ class PagedSpace : public Space {
 
   // Checks whether an object/address is in this space.
   inline bool Contains(Address a);
-  inline bool Contains(HeapObject* o);
-  // Unlike Contains() methods it is safe to call this one even for addresses
-  // of unmapped memory.
-  bool ContainsSafe(Address addr);
+  inline bool Contains(Object* o);
+  bool ContainsSlow(Address addr);
 
   // Given an address occupied by a live object, return that object if it is
   // in this space, or a Smi if it is not.  The implementation iterates over
@@ -2319,17 +2317,17 @@ class SemiSpace : public Space {
         minimum_capacity_(0),
         start_(nullptr),
         age_mark_(nullptr),
-        address_mask_(0),
-        object_mask_(0),
-        object_expected_(0),
         committed_(false),
         id_(semispace),
         anchor_(this),
         current_page_(nullptr) {}
 
+  inline bool Contains(HeapObject* o);
+  inline bool Contains(Object* o);
+  inline bool ContainsSlow(Address a);
+
   // Creates a space in the young generation. The constructor does not
-  // allocate memory from the OS.  A SemiSpace is given a contiguous chunk of
-  // memory of size {initial_capacity} when set up.
+  // allocate memory from the OS.
   void SetUp(Address start, int initial_capacity, int maximum_capacity);
 
   // Tear down the space.  Heap memory was not allocated by the space, so it
@@ -2377,19 +2375,6 @@ class SemiSpace : public Space {
   // Age mark accessors.
   Address age_mark() { return age_mark_; }
   void set_age_mark(Address mark);
-
-  // True if the address is in the address range of this semispace (not
-  // necessarily below the allocation pointer).
-  bool Contains(Address a) {
-    return (reinterpret_cast<uintptr_t>(a) & address_mask_) ==
-           reinterpret_cast<uintptr_t>(start_);
-  }
-
-  // True if the object is a heap object in the address range of this
-  // semispace (not necessarily below the allocation pointer).
-  bool Contains(Object* o) {
-    return (reinterpret_cast<uintptr_t>(o) & object_mask_) == object_expected_;
-  }
 
   bool is_committed() { return committed_; }
   bool Commit();
@@ -2449,9 +2434,8 @@ class SemiSpace : public Space {
     current_capacity_ = new_capacity;
   }
 
-  // Flips the semispace between being from-space and to-space. Copies the flags
-  // into the masked positions on all pages in the space.
-  void FlipPages(intptr_t flags, intptr_t flag_mask);
+  // Copies the flags into the masked positions on all pages in the space.
+  void FixPagesFlags(intptr_t flags, intptr_t flag_mask);
 
   // The currently committed space capacity.
   int current_capacity_;
@@ -2466,11 +2450,6 @@ class SemiSpace : public Space {
   Address start_;
   // Used to govern object promotion during mark-compact collection.
   Address age_mark_;
-
-  // Masks and comparison values to test for containment in this semispace.
-  uintptr_t address_mask_;
-  uintptr_t object_mask_;
-  uintptr_t object_expected_;
 
   bool committed_;
   SemiSpaceId id_;
@@ -2553,6 +2532,10 @@ class NewSpace : public Space {
         top_on_previous_step_(0),
         inline_allocation_observers_paused_(false) {}
 
+  inline bool Contains(HeapObject* o);
+  inline bool ContainsSlow(Address a);
+  inline bool Contains(Object* o);
+
   // Sets up the new space using the given chunk.
   bool SetUp(int reserved_semispace_size_, int max_semi_space_size);
 
@@ -2574,18 +2557,6 @@ class NewSpace : public Space {
 
   // Shrink the capacity of the semispaces.
   void Shrink();
-
-  // True if the address or object lies in the address range of either
-  // semispace (not necessarily below the allocation pointer).
-  bool Contains(Address a) {
-    return (reinterpret_cast<uintptr_t>(a) & address_mask_) ==
-           reinterpret_cast<uintptr_t>(start_);
-  }
-
-  bool Contains(Object* o) {
-    Address a = reinterpret_cast<Address>(o);
-    return (reinterpret_cast<uintptr_t>(a) & object_mask_) == object_expected_;
-  }
 
   // Return the allocated bytes in the active semispace.
   intptr_t Size() override {
@@ -2685,18 +2656,6 @@ class NewSpace : public Space {
   // The start address of the space and a bit mask. Anding an address in the
   // new space with the mask will result in the start address.
   Address start() { return start_; }
-  uintptr_t mask() { return address_mask_; }
-
-  INLINE(uint32_t AddressToMarkbitIndex(Address addr)) {
-    DCHECK(Contains(addr));
-    DCHECK(IsAligned(OffsetFrom(addr), kPointerSize) ||
-           IsAligned(OffsetFrom(addr) - 1, kPointerSize));
-    return static_cast<uint32_t>(addr - start_) >> kPointerSizeLog2;
-  }
-
-  INLINE(Address MarkbitIndexToAddress(uint32_t index)) {
-    return reinterpret_cast<Address>(index << kPointerSizeLog2);
-  }
 
   // The allocation top and limit address.
   Address* allocation_top_address() { return allocation_info_.top_address(); }
@@ -2749,18 +2708,10 @@ class NewSpace : public Space {
   Address ToSpaceStart() { return to_space_.space_start(); }
   Address ToSpaceEnd() { return to_space_.space_end(); }
 
-  inline bool ToSpaceContains(Address address) {
-    return to_space_.Contains(address);
-  }
-  inline bool FromSpaceContains(Address address) {
-    return from_space_.Contains(address);
-  }
-
-  // True if the object is a heap object in the address range of the
-  // respective semispace (not necessarily below the allocation pointer of the
-  // semispace).
-  inline bool ToSpaceContains(Object* o) { return to_space_.Contains(o); }
-  inline bool FromSpaceContains(Object* o) { return from_space_.Contains(o); }
+  inline bool ToSpaceContainsSlow(Address a);
+  inline bool FromSpaceContainsSlow(Address a);
+  inline bool ToSpaceContains(Object* o);
+  inline bool FromSpaceContains(Object* o);
 
   // Try to switch the active semispace to a new, empty, page.
   // Returns false if this isn't possible or reasonable (i.e., there
@@ -2824,9 +2775,6 @@ class NewSpace : public Space {
 
   // Start address and bit mask for containment testing.
   Address start_;
-  uintptr_t address_mask_;
-  uintptr_t object_mask_;
-  uintptr_t object_expected_;
 
   // Allocation pointer and limit for normal allocation and allocation during
   // mark-compact collection.
@@ -3039,7 +2987,9 @@ class LargeObjectSpace : public Space {
 
   // Checks whether a heap object is in this space; O(1).
   bool Contains(HeapObject* obj);
-  bool Contains(Address address);
+  // Checks whether an address is in the object area in this space. Iterates
+  // all objects in the space. May be slow.
+  bool ContainsSlow(Address addr) { return FindObject(addr)->IsHeapObject(); }
 
   // Checks whether the space is empty.
   bool IsEmpty() { return first_page_ == NULL; }
@@ -3055,9 +3005,6 @@ class LargeObjectSpace : public Space {
   void ReportStatistics();
   void CollectCodeStatistics();
 #endif
-  // Checks whether an address is in the object area in this space.  It
-  // iterates all objects in the space. May be slow.
-  bool SlowContains(Address addr) { return FindObject(addr)->IsHeapObject(); }
 
  private:
   // The head of the linked list of large object chunks.

@@ -5603,8 +5603,8 @@ TEST(Regress507979) {
 
   Handle<FixedArray> o1 = isolate->factory()->NewFixedArray(kFixedArrayLen);
   Handle<FixedArray> o2 = isolate->factory()->NewFixedArray(kFixedArrayLen);
-  CHECK(heap->InNewSpace(o1->address()));
-  CHECK(heap->InNewSpace(o2->address()));
+  CHECK(heap->InNewSpace(*o1));
+  CHECK(heap->InNewSpace(*o2));
 
   HeapIterator it(heap, i::HeapIterator::kFilterUnreachable);
 

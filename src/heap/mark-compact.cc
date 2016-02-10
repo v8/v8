@@ -3665,6 +3665,12 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
 
   UpdatePointersAfterEvacuation();
 
+  // Give pages that are queued to be freed back to the OS. Note that filtering
+  // slots only handles old space (for unboxed doubles), and thus map space can
+  // still contain stale pointers. We only free the chunks after pointer updates
+  // to still have access to page headers.
+  heap()->FreeQueuedChunks();
+
   {
     GCTracer::Scope gc_scope(heap()->tracer(),
                              GCTracer::Scope::MC_EVACUATE_CLEAN_UP);
@@ -3978,10 +3984,6 @@ void MarkCompactCollector::SweepSpaces() {
 
   // Deallocate unmarked large objects.
   heap_->lo_space()->FreeUnmarkedObjects();
-
-  // Give pages that are queued to be freed back to the OS. Invalid store
-  // buffer entries are already filter out. We can just release the memory.
-  heap()->FreeQueuedChunks();
 
   if (FLAG_print_cumulative_gc_stat) {
     heap_->tracer()->AddSweepingTime(heap_->MonotonicallyIncreasingTimeInMs() -

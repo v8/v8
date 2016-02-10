@@ -1516,15 +1516,15 @@ Code* InnerPointerToCodeCache::GcSafeCastToCode(HeapObject* object,
 Code* InnerPointerToCodeCache::GcSafeFindCodeForInnerPointer(
     Address inner_pointer) {
   Heap* heap = isolate_->heap();
-  if (!heap->code_space()->Contains(inner_pointer) &&
-      !heap->lo_space()->Contains(inner_pointer)) {
-    return nullptr;
-  }
 
   // Check if the inner pointer points into a large object chunk.
   LargePage* large_page = heap->lo_space()->FindPage(inner_pointer);
   if (large_page != NULL) {
     return GcSafeCastToCode(large_page->GetObject(), inner_pointer);
+  }
+
+  if (!heap->code_space()->Contains(inner_pointer)) {
+    return nullptr;
   }
 
   // Iterate through the page until we reach the end or find an object starting

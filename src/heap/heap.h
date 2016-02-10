@@ -870,7 +870,6 @@ class Heap {
   // address with the mask will result in the start address of the new space
   // for all addresses in either semispace.
   Address NewSpaceStart() { return new_space_.start(); }
-  uintptr_t NewSpaceMask() { return new_space_.mask(); }
   Address NewSpaceTop() { return new_space_.top(); }
 
   NewSpace* new_space() { return &new_space_; }
@@ -1066,11 +1065,8 @@ class Heap {
   // Store buffer API. =========================================================
   // ===========================================================================
 
-  // Write barrier support for address[offset] = o.
-  INLINE(void RecordWrite(Address address, int offset));
-
-  // Write barrier support for address[start : start + len[ = o.
-  INLINE(void RecordWrites(Address address, int start, int len));
+  // Write barrier support for object[offset] = o;
+  inline void RecordWrite(Object* object, int offset, Object* o);
 
   Address* store_buffer_top_address() {
     return reinterpret_cast<Address*>(&roots_[kStoreBufferTopRootIndex]);
@@ -1116,24 +1112,26 @@ class Heap {
 
   // Returns whether the object resides in new space.
   inline bool InNewSpace(Object* object);
-  inline bool InNewSpace(Address address);
-  inline bool InNewSpacePage(Address address);
   inline bool InFromSpace(Object* object);
   inline bool InToSpace(Object* object);
 
   // Returns whether the object resides in old space.
-  inline bool InOldSpace(Address address);
   inline bool InOldSpace(Object* object);
 
   // Checks whether an address/object in the heap (including auxiliary
   // area and unused area).
-  bool Contains(Address addr);
   bool Contains(HeapObject* value);
 
   // Checks whether an address/object in a space.
   // Currently used by tests, serialization and heap verification only.
-  bool InSpace(Address addr, AllocationSpace space);
   bool InSpace(HeapObject* value, AllocationSpace space);
+
+  // Slow methods that can be used for verification as they can also be used
+  // with off-heap Addresses.
+  bool ContainsSlow(Address addr);
+  bool InSpaceSlow(Address addr, AllocationSpace space);
+  inline bool InNewSpaceSlow(Address address);
+  inline bool InOldSpaceSlow(Address address);
 
   // ===========================================================================
   // Object statistics tracking. ===============================================

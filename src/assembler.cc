@@ -1270,12 +1270,6 @@ ExternalReference ExternalReference::store_buffer_top(Isolate* isolate) {
 }
 
 
-ExternalReference ExternalReference::new_space_mask(Isolate* isolate) {
-  return ExternalReference(reinterpret_cast<Address>(
-      isolate->heap()->NewSpaceMask()));
-}
-
-
 ExternalReference ExternalReference::new_space_allocation_top_address(
     Isolate* isolate) {
   return ExternalReference(isolate->heap()->NewSpaceAllocationTopAddress());

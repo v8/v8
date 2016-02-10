@@ -1726,6 +1726,9 @@ class MacroAssembler : public Assembler {
     Peek(src, SafepointRegisterStackIndex(dst.code()) * kPointerSize);
   }
 
+  void CheckPageFlag(const Register& object, const Register& scratch, int mask,
+                     Condition cc, Label* condition_met);
+
   void CheckPageFlagSet(const Register& object,
                         const Register& scratch,
                         int mask,

@@ -31,7 +31,6 @@ uint32_t StoreBuffer::AddressToSlotSetAndOffset(Address addr, SlotSet** slots) {
   return static_cast<uint32_t>(offset);
 }
 
-
 void LocalStoreBuffer::Record(Address addr) {
   if (top_->is_full()) top_ = new Node(top_);
   top_->buffer[top_->count++] = addr;
