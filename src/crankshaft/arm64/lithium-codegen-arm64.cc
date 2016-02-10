@@ -5544,7 +5544,7 @@ void LCodeGen::DoTypeofIsAndBranch(LTypeofIsAndBranch* instr) {
     DCHECK(instr->temp1() != NULL);
     Register scratch = ToRegister(instr->temp1());
 
-    __ JumpIfRoot(value, Heap::kUndefinedValueRootIndex, true_label);
+    __ JumpIfRoot(value, Heap::kNullValueRootIndex, false_label);
     __ JumpIfSmi(value, false_label);
     // Check for undetectable objects and jump to the true branch in this case.
     __ Ldr(scratch, FieldMemOperand(value, HeapObject::kMapOffset));

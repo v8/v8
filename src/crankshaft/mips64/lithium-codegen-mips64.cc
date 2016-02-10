@@ -5457,8 +5457,8 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     final_branch_condition = eq;
 
   } else if (String::Equals(type_name, factory->undefined_string())) {
-    __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
-    __ Branch(USE_DELAY_SLOT, true_label, eq, at, Operand(input));
+    __ LoadRoot(at, Heap::kNullValueRootIndex);
+    __ Branch(USE_DELAY_SLOT, false_label, eq, at, Operand(input));
     // The first instruction of JumpIfSmi is an And - it is safe in the delay
     // slot.
     __ JumpIfSmi(input, false_label);

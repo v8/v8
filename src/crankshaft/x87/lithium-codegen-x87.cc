@@ -5687,8 +5687,8 @@ Condition LCodeGen::EmitTypeofIs(LTypeofIsAndBranch* instr, Register input) {
     final_branch_condition = equal;
 
   } else if (String::Equals(type_name, factory()->undefined_string())) {
-    __ cmp(input, factory()->undefined_value());
-    __ j(equal, true_label, true_distance);
+    __ cmp(input, factory()->null_value());
+    __ j(equal, false_label, false_distance);
     __ JumpIfSmi(input, false_label, false_distance);
     // Check for undetectable objects => true.
     __ mov(input, FieldOperand(input, HeapObject::kMapOffset));

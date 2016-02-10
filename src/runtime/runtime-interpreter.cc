@@ -135,7 +135,7 @@ RUNTIME_FUNCTION(Runtime_InterpreterLogicalNot) {
 
 
 RUNTIME_FUNCTION(Runtime_InterpreterTypeOf) {
-  SealHandleScope shs(isolate);
+  HandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, x, 0);
   return Object::cast(*Object::TypeOf(isolate, x));

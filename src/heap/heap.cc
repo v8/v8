@@ -2256,6 +2256,7 @@ bool Heap::CreateInitialMaps() {
   if (FLAG_unbox_double_fields) {
     null_map()->set_layout_descriptor(LayoutDescriptor::FastPointerLayout());
   }
+  null_map()->set_is_undetectable();
 
   // Fix prototype object for existing maps.
   meta_map()->set_prototype(null_value());
@@ -2266,6 +2267,7 @@ bool Heap::CreateInitialMaps() {
 
   undefined_map()->set_prototype(null_value());
   undefined_map()->set_constructor_or_backpointer(null_value());
+  undefined_map()->set_is_undetectable();
 
   null_map()->set_prototype(null_value());
   null_map()->set_constructor_or_backpointer(null_value());

@@ -498,7 +498,7 @@ void FullCodeGenerator::TestContext::Plug(Handle<Object> lit) const {
                                           true,
                                           true_label_,
                                           false_label_);
-  DCHECK(!lit->IsUndetectableObject());  // There are no undetectable literals.
+  DCHECK(lit->IsNull() || lit->IsUndefined() || !lit->IsUndetectableObject());
   if (lit->IsUndefined() || lit->IsNull() || lit->IsFalse()) {
     if (false_label_ != fall_through_) __ jmp(false_label_);
   } else if (lit->IsTrue() || lit->IsJSObject()) {
@@ -4228,8 +4228,8 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     __ CompareRoot(rax, Heap::kFalseValueRootIndex);
     Split(equal, if_true, if_false, fall_through);
   } else if (String::Equals(check, factory->undefined_string())) {
-    __ CompareRoot(rax, Heap::kUndefinedValueRootIndex);
-    __ j(equal, if_true);
+    __ CompareRoot(rax, Heap::kNullValueRootIndex);
+    __ j(equal, if_false);
     __ JumpIfSmi(rax, if_false);
     // Check for undetectable objects => true.
     __ movp(rdx, FieldOperand(rax, HeapObject::kMapOffset));

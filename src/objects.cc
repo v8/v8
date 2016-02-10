@@ -413,10 +413,10 @@ bool Object::StrictEquals(Object* that) {
 // static
 Handle<String> Object::TypeOf(Isolate* isolate, Handle<Object> object) {
   if (object->IsNumber()) return isolate->factory()->number_string();
-  if (object->IsUndefined() || object->IsUndetectableObject()) {
+  if (object->IsOddball()) return handle(Oddball::cast(*object)->type_of());
+  if (object->IsUndetectableObject()) {
     return isolate->factory()->undefined_string();
   }
-  if (object->IsBoolean()) return isolate->factory()->boolean_string();
   if (object->IsString()) return isolate->factory()->string_string();
   if (object->IsSymbol()) return isolate->factory()->symbol_string();
   if (object->IsString()) return isolate->factory()->string_string();

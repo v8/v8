@@ -5241,8 +5241,8 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     final_branch_condition = eq;
 
   } else if (String::Equals(type_name, factory->undefined_string())) {
-    __ CompareRoot(input, Heap::kUndefinedValueRootIndex);
-    __ b(eq, true_label);
+    __ CompareRoot(input, Heap::kNullValueRootIndex);
+    __ b(eq, false_label);
     __ JumpIfSmi(input, false_label);
     // Check for undetectable objects => true.
     __ ldr(scratch, FieldMemOperand(input, HeapObject::kMapOffset));

@@ -1065,6 +1065,11 @@ class MacroAssembler: public Assembler {
                      Register map,
                      Register type_reg);
 
+  void GetInstanceType(Register object_map, Register object_instance_type) {
+    lbu(object_instance_type,
+        FieldMemOperand(object_map, Map::kInstanceTypeOffset));
+  }
+
   // Check if a map for a JSObject indicates that the object has fast elements.
   // Jump to the specified label if it does not.
   void CheckFastElements(Register map,

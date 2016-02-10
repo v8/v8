@@ -1695,7 +1695,7 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
     // Not strict equality.  Objects are unequal if
     // they are both JSObjects and not undetectable,
     // and their pointers are different.
-    Label return_unequal;
+    Label return_unequal, undetectable;
     // At most one is a smi, so we can test for smi by adding the two.
     // A smi plus a heap object has the low bit set, a heap object plus
     // a heap object has the low bit clear.
@@ -1704,22 +1704,30 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
     __ leap(rcx, Operand(rax, rdx, times_1, 0));
     __ testb(rcx, Immediate(kSmiTagMask));
     __ j(not_zero, &runtime_call, Label::kNear);
-    __ CmpObjectType(rax, FIRST_JS_RECEIVER_TYPE, rbx);
-    __ j(below, &runtime_call, Label::kNear);
-    __ CmpObjectType(rdx, FIRST_JS_RECEIVER_TYPE, rcx);
-    __ j(below, &runtime_call, Label::kNear);
+
+    __ movp(rbx, FieldOperand(rax, HeapObject::kMapOffset));
+    __ movp(rcx, FieldOperand(rdx, HeapObject::kMapOffset));
     __ testb(FieldOperand(rbx, Map::kBitFieldOffset),
              Immediate(1 << Map::kIsUndetectable));
-    __ j(zero, &return_unequal, Label::kNear);
+    __ j(not_zero, &undetectable);
     __ testb(FieldOperand(rcx, Map::kBitFieldOffset),
              Immediate(1 << Map::kIsUndetectable));
-    __ j(zero, &return_unequal, Label::kNear);
-    // The objects are both undetectable, so they both compare as the value
-    // undefined, and are equal.
-    __ Set(rax, EQUAL);
+    __ j(not_zero, &return_unequal);
+
+    __ CmpInstanceType(rbx, FIRST_JS_RECEIVER_TYPE);
+    __ j(below, &runtime_call, Label::kNear);
+    __ CmpInstanceType(rcx, FIRST_JS_RECEIVER_TYPE);
+    __ j(below, &runtime_call, Label::kNear);
+
     __ bind(&return_unequal);
-    // Return non-equal by returning the non-zero object pointer in rax,
-    // or return equal if we fell through to here.
+    // Return non-equal by returning the non-zero object pointer in rax.
+    __ ret(0);
+
+    __ bind(&undetectable);
+    __ testb(FieldOperand(rcx, Map::kBitFieldOffset),
+             Immediate(1 << Map::kIsUndetectable));
+    __ j(zero, &return_unequal);
+    __ Set(rax, EQUAL);
     __ ret(0);
   }
   __ bind(&runtime_call);

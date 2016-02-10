@@ -443,54 +443,49 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
 
 // Fast negative check for internalized-to-internalized equality.
 // See call site for description.
-static void EmitCheckForInternalizedStringsOrObjects(MacroAssembler* masm,
-                                                     Register left,
-                                                     Register right,
-                                                     Register left_map,
-                                                     Register right_map,
-                                                     Register left_type,
-                                                     Register right_type,
-                                                     Label* possible_strings,
-                                                     Label* not_both_strings) {
+static void EmitCheckForInternalizedStringsOrObjects(
+    MacroAssembler* masm, Register left, Register right, Register left_map,
+    Register right_map, Register left_type, Register right_type,
+    Label* possible_strings, Label* runtime_call) {
   DCHECK(!AreAliased(left, right, left_map, right_map, left_type, right_type));
   Register result = x0;
+  DCHECK(left.is(x0) || right.is(x0));
 
-  Label object_test;
+  Label object_test, return_unequal, undetectable;
   STATIC_ASSERT((kInternalizedTag == 0) && (kStringTag == 0));
   // TODO(all): reexamine this branch sequence for optimisation wrt branch
   // prediction.
   __ Tbnz(right_type, MaskToBit(kIsNotStringMask), &object_test);
   __ Tbnz(right_type, MaskToBit(kIsNotInternalizedMask), possible_strings);
-  __ Tbnz(left_type, MaskToBit(kIsNotStringMask), not_both_strings);
+  __ Tbnz(left_type, MaskToBit(kIsNotStringMask), runtime_call);
   __ Tbnz(left_type, MaskToBit(kIsNotInternalizedMask), possible_strings);
 
-  // Both are internalized. We already checked that they weren't the same
-  // pointer, so they are not equal.
-  __ Mov(result, NOT_EQUAL);
+  // Both are internalized. We already checked they weren't the same pointer so
+  // they are not equal. Return non-equal by returning the non-zero object
+  // pointer in x0.
   __ Ret();
 
   __ Bind(&object_test);
 
-  __ Cmp(right_type, FIRST_JS_RECEIVER_TYPE);
-
-  // If right >= FIRST_JS_RECEIVER_TYPE, test left.
-  // Otherwise, right < FIRST_JS_RECEIVER_TYPE, so set lt condition.
-  __ Ccmp(left_type, FIRST_JS_RECEIVER_TYPE, NFlag, ge);
-
-  __ B(lt, not_both_strings);
-
-  // If both objects are undetectable, they are equal. Otherwise, they are not
-  // equal, since they are different objects and an object is not equal to
-  // undefined.
-
-  // Returning here, so we can corrupt right_type and left_type.
-  Register right_bitfield = right_type;
   Register left_bitfield = left_type;
+  Register right_bitfield = right_type;
   __ Ldrb(right_bitfield, FieldMemOperand(right_map, Map::kBitFieldOffset));
   __ Ldrb(left_bitfield, FieldMemOperand(left_map, Map::kBitFieldOffset));
-  __ And(result, right_bitfield, left_bitfield);
-  __ And(result, result, 1 << Map::kIsUndetectable);
-  __ Eor(result, result, 1 << Map::kIsUndetectable);
+  __ Tbnz(right_bitfield, MaskToBit(1 << Map::kIsUndetectable), &undetectable);
+  __ Tbnz(left_bitfield, MaskToBit(1 << Map::kIsUndetectable), &return_unequal);
+
+  __ CompareInstanceType(right_map, right_type, FIRST_JS_RECEIVER_TYPE);
+  __ B(lt, runtime_call);
+  __ CompareInstanceType(left_map, left_type, FIRST_JS_RECEIVER_TYPE);
+  __ B(lt, runtime_call);
+
+  __ bind(&return_unequal);
+  // Return non-equal by returning the non-zero object pointer in x0.
+  __ Ret();
+
+  __ bind(&undetectable);
+  __ Tbz(left_bitfield, MaskToBit(1 << Map::kIsUndetectable), &return_unequal);
+  __ Mov(result, EQUAL);
   __ Ret();
 }
 

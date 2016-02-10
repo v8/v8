@@ -1837,7 +1837,7 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
     // Non-strict equality.  Objects are unequal if
     // they are both JSObjects and not undetectable,
     // and their pointers are different.
-    Label return_unequal;
+    Label return_unequal, undetectable;
     // At most one is a smi, so we can test for smi by adding the two.
     // A smi plus a heap object has the low bit set, a heap object plus
     // a heap object has the low bit clear.
@@ -1846,26 +1846,32 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
     __ lea(ecx, Operand(eax, edx, times_1, 0));
     __ test(ecx, Immediate(kSmiTagMask));
     __ j(not_zero, &runtime_call, Label::kNear);
-    __ CmpObjectType(eax, FIRST_JS_RECEIVER_TYPE, ecx);
+
+    __ mov(ecx, FieldOperand(eax, HeapObject::kMapOffset));
+    __ mov(ebx, FieldOperand(edx, HeapObject::kMapOffset));
+
+    __ test_b(FieldOperand(ebx, Map::kBitFieldOffset),
+              1 << Map::kIsUndetectable);
+    __ j(not_zero, &undetectable, Label::kNear);
+    __ test_b(FieldOperand(ecx, Map::kBitFieldOffset),
+              1 << Map::kIsUndetectable);
+    __ j(not_zero, &return_unequal, Label::kNear);
+
+    __ CmpInstanceType(ebx, FIRST_JS_RECEIVER_TYPE);
     __ j(below, &runtime_call, Label::kNear);
-    __ CmpObjectType(edx, FIRST_JS_RECEIVER_TYPE, ebx);
+    __ CmpInstanceType(ecx, FIRST_JS_RECEIVER_TYPE);
     __ j(below, &runtime_call, Label::kNear);
-    // We do not bail out after this point.  Both are JSObjects, and
-    // they are equal if and only if both are undetectable.
-    // The and of the undetectable flags is 1 if and only if they are equal.
+
+    __ bind(&return_unequal);
+    // Return non-equal by returning the non-zero object pointer in eax.
+    __ ret(0);  // eax, edx were pushed
+
+    __ bind(&undetectable);
     __ test_b(FieldOperand(ecx, Map::kBitFieldOffset),
               1 << Map::kIsUndetectable);
     __ j(zero, &return_unequal, Label::kNear);
-    __ test_b(FieldOperand(ebx, Map::kBitFieldOffset),
-              1 << Map::kIsUndetectable);
-    __ j(zero, &return_unequal, Label::kNear);
-    // The objects are both undetectable, so they both compare as the value
-    // undefined, and are equal.
     __ Move(eax, Immediate(EQUAL));
-    __ bind(&return_unequal);
-    // Return non-equal by returning the non-zero object pointer in eax,
-    // or return equal if we fell through to here.
-    __ ret(0);  // rax, rdx were pushed
+    __ ret(0);  // eax, edx were pushed
   }
   __ bind(&runtime_call);
 

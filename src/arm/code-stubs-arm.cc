@@ -495,44 +495,52 @@ static void EmitCheckForTwoHeapNumbers(MacroAssembler* masm,
 
 // Fast negative check for internalized-to-internalized equality.
 static void EmitCheckForInternalizedStringsOrObjects(MacroAssembler* masm,
-                                                     Register lhs,
-                                                     Register rhs,
+                                                     Register lhs, Register rhs,
                                                      Label* possible_strings,
-                                                     Label* not_both_strings) {
+                                                     Label* runtime_call) {
   DCHECK((lhs.is(r0) && rhs.is(r1)) ||
          (lhs.is(r1) && rhs.is(r0)));
 
   // r2 is object type of rhs.
-  Label object_test;
+  Label object_test, return_unequal, undetectable;
   STATIC_ASSERT(kInternalizedTag == 0 && kStringTag == 0);
   __ tst(r2, Operand(kIsNotStringMask));
   __ b(ne, &object_test);
   __ tst(r2, Operand(kIsNotInternalizedMask));
   __ b(ne, possible_strings);
   __ CompareObjectType(lhs, r3, r3, FIRST_NONSTRING_TYPE);
-  __ b(ge, not_both_strings);
+  __ b(ge, runtime_call);
   __ tst(r3, Operand(kIsNotInternalizedMask));
   __ b(ne, possible_strings);
 
-  // Both are internalized.  We already checked they weren't the same pointer
-  // so they are not equal.
-  __ mov(r0, Operand(NOT_EQUAL));
+  // Both are internalized. We already checked they weren't the same pointer so
+  // they are not equal. Return non-equal by returning the non-zero object
+  // pointer in r0.
   __ Ret();
 
   __ bind(&object_test);
-  __ cmp(r2, Operand(FIRST_JS_RECEIVER_TYPE));
-  __ b(lt, not_both_strings);
-  __ CompareObjectType(lhs, r2, r3, FIRST_JS_RECEIVER_TYPE);
-  __ b(lt, not_both_strings);
-  // If both objects are undetectable, they are equal. Otherwise, they
-  // are not equal, since they are different objects and an object is not
-  // equal to undefined.
+  __ ldr(r2, FieldMemOperand(lhs, HeapObject::kMapOffset));
   __ ldr(r3, FieldMemOperand(rhs, HeapObject::kMapOffset));
-  __ ldrb(r2, FieldMemOperand(r2, Map::kBitFieldOffset));
-  __ ldrb(r3, FieldMemOperand(r3, Map::kBitFieldOffset));
-  __ and_(r0, r2, Operand(r3));
-  __ and_(r0, r0, Operand(1 << Map::kIsUndetectable));
-  __ eor(r0, r0, Operand(1 << Map::kIsUndetectable));
+  __ ldrb(r4, FieldMemOperand(r2, Map::kBitFieldOffset));
+  __ ldrb(r5, FieldMemOperand(r3, Map::kBitFieldOffset));
+  __ tst(r4, Operand(1 << Map::kIsUndetectable));
+  __ b(ne, &undetectable);
+  __ tst(r5, Operand(1 << Map::kIsUndetectable));
+  __ b(ne, &return_unequal);
+
+  __ CompareInstanceType(r2, r2, FIRST_JS_RECEIVER_TYPE);
+  __ b(lt, runtime_call);
+  __ CompareInstanceType(r3, r3, FIRST_JS_RECEIVER_TYPE);
+  __ b(lt, runtime_call);
+
+  __ bind(&return_unequal);
+  // Return non-equal by returning the non-zero object pointer in r0.
+  __ Ret();
+
+  __ bind(&undetectable);
+  __ tst(r5, Operand(1 << Map::kIsUndetectable));
+  __ b(eq, &return_unequal);
+  __ mov(r0, Operand(EQUAL));
   __ Ret();
 }
 
