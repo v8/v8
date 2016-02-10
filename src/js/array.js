@@ -1776,23 +1776,10 @@ function ArrayFrom(arrayLike, mapfn, receiver) {
 
   if (!IS_UNDEFINED(iterable)) {
     result = %IsConstructor(this) ? new this() : [];
-
-    var iterator = GetIterator(items, iterable);
-
     k = 0;
-    while (true) {
-      var next = iterator.next();
 
-      if (!IS_RECEIVER(next)) {
-        throw MakeTypeError(kIteratorResultNotAnObject, next);
-      }
-
-      if (next.done) {
-        result.length = k;
-        return result;
-      }
-
-      nextValue = next.value;
+    for (nextValue of
+         { [iteratorSymbol]() { return GetIterator(items, iterable) } }) {
       if (mapping) {
         mappedValue = %_Call(mapfn, receiver, nextValue, k);
       } else {
@@ -1801,6 +1788,8 @@ function ArrayFrom(arrayLike, mapfn, receiver) {
       AddArrayElement(this, result, k, mappedValue);
       k++;
     }
+    result.length = k;
+    return result;
   } else {
     var len = TO_LENGTH(items.length);
     result = %IsConstructor(this) ? new this(len) : new GlobalArray(len);
