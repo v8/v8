@@ -463,9 +463,11 @@ class Bytecodes {
   // Returns true if the bytecode is a conditional jump, a jump, or a return.
   static bool IsJumpOrReturn(Bytecode bytecode);
 
-  // Returns true if |operand_type| is a maybe register operand
-  // (kMaybeReg8/kMaybeReg16).
-  static bool IsMaybeRegisterOperandType(OperandType operand_type);
+  // Returns true if |operand_type| is a register index operand (kIdx8/kIdx16).
+  static bool IsIndexOperandType(OperandType operand_type);
+
+  // Returns true if |operand_type| represents an immediate.
+  static bool IsImmediateOperandType(OperandType operand_type);
 
   // Returns true if |operand_type| is a register count operand
   // (kRegCount8/kRegCount16).
@@ -479,6 +481,10 @@ class Bytecodes {
 
   // Returns true if |operand_type| represents a register used as an output.
   static bool IsRegisterOutputOperandType(OperandType operand_type);
+
+  // Returns true if |operand_type| is a maybe register operand
+  // (kMaybeReg8/kMaybeReg16).
+  static bool IsMaybeRegisterOperandType(OperandType operand_type);
 
   // Decode a single bytecode and operands to |os|.
   static std::ostream& Decode(std::ostream& os, const uint8_t* bytecode_start,

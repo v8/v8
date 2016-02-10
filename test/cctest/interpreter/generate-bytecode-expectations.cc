@@ -146,8 +146,20 @@ void PrintBytecodeOperand(std::ostream& stream,
     if (op_size != OperandSize::kByte) stream << size_tag;
     stream << '(' << register_value.index() << ')';
   } else {
-    uint32_t raw_value = bytecode_iter.GetRawOperand(op_index, op_type);
-    stream << 'U' << size_tag << '(' << raw_value << ')';
+    stream << 'U' << size_tag << '(';
+
+    if (Bytecodes::IsImmediateOperandType(op_type)) {
+      // We need a cast, otherwise the result is printed as char.
+      stream << static_cast<int>(bytecode_iter.GetImmediateOperand(op_index));
+    } else if (Bytecodes::IsRegisterCountOperandType(op_type)) {
+      stream << bytecode_iter.GetCountOperand(op_index);
+    } else if (Bytecodes::IsIndexOperandType(op_type)) {
+      stream << bytecode_iter.GetIndexOperand(op_index);
+    } else {
+      UNREACHABLE();
+    }
+
+    stream << ')';
   }
 }
 
