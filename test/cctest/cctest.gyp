@@ -344,6 +344,27 @@
         }
       ],
     },
+    {
+      'target_name': 'generate-bytecode-expectations',
+      'type': 'executable',
+      'dependencies': [
+        '../../tools/gyp/v8.gyp:v8_libplatform',
+      ],
+      'conditions': [
+        ['component=="shared_library"', {
+          # Same as cctest, we need to depend on the underlying static target.
+          'dependencies': ['../../tools/gyp/v8.gyp:v8_maybe_snapshot'],
+        }, {
+          'dependencies': ['../../tools/gyp/v8.gyp:v8'],
+        }],
+      ],
+      'include_dirs+': [
+        '../..',
+      ],
+      'sources': [
+        '../../test/cctest/interpreter/generate-bytecode-expectations.cc',
+      ],
+    },
   ],
   'conditions': [
     ['test_isolation_mode != "noop"', {
