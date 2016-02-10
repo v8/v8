@@ -3578,7 +3578,7 @@ Node* AstGraphBuilder::BuildVariableAssignment(
 Node* AstGraphBuilder::BuildKeyedLoad(Node* object, Node* key,
                                       const VectorSlotPair& feedback) {
   const Operator* op = javascript()->LoadProperty(language_mode(), feedback);
-  Node* node = NewNode(op, object, key, BuildLoadFeedbackVector());
+  Node* node = NewNode(op, object, key, GetFunctionClosure());
   return node;
 }
 
@@ -3586,7 +3586,7 @@ Node* AstGraphBuilder::BuildKeyedLoad(Node* object, Node* key,
 Node* AstGraphBuilder::BuildNamedLoad(Node* object, Handle<Name> name,
                                       const VectorSlotPair& feedback) {
   const Operator* op = javascript()->LoadNamed(language_mode(), name, feedback);
-  Node* node = NewNode(op, object, BuildLoadFeedbackVector());
+  Node* node = NewNode(op, object, GetFunctionClosure());
   return node;
 }
 
@@ -3594,7 +3594,7 @@ Node* AstGraphBuilder::BuildNamedLoad(Node* object, Handle<Name> name,
 Node* AstGraphBuilder::BuildKeyedStore(Node* object, Node* key, Node* value,
                                        const VectorSlotPair& feedback) {
   const Operator* op = javascript()->StoreProperty(language_mode(), feedback);
-  Node* node = NewNode(op, object, key, value, BuildLoadFeedbackVector());
+  Node* node = NewNode(op, object, key, value, GetFunctionClosure());
   return node;
 }
 
@@ -3604,7 +3604,7 @@ Node* AstGraphBuilder::BuildNamedStore(Node* object, Handle<Name> name,
                                        const VectorSlotPair& feedback) {
   const Operator* op =
       javascript()->StoreNamed(language_mode(), name, feedback);
-  Node* node = NewNode(op, object, value, BuildLoadFeedbackVector());
+  Node* node = NewNode(op, object, value, GetFunctionClosure());
   return node;
 }
 
@@ -3657,7 +3657,7 @@ Node* AstGraphBuilder::BuildGlobalLoad(Handle<Name> name,
                                        const VectorSlotPair& feedback,
                                        TypeofMode typeof_mode) {
   const Operator* op = javascript()->LoadGlobal(name, feedback, typeof_mode);
-  Node* node = NewNode(op, BuildLoadFeedbackVector());
+  Node* node = NewNode(op, GetFunctionClosure());
   return node;
 }
 
@@ -3666,7 +3666,7 @@ Node* AstGraphBuilder::BuildGlobalStore(Handle<Name> name, Node* value,
                                         const VectorSlotPair& feedback) {
   const Operator* op =
       javascript()->StoreGlobal(language_mode(), name, feedback);
-  Node* node = NewNode(op, value, BuildLoadFeedbackVector());
+  Node* node = NewNode(op, value, GetFunctionClosure());
   return node;
 }
 

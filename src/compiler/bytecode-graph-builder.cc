@@ -663,7 +663,7 @@ void BytecodeGraphBuilder::BuildLoadGlobal(
       CreateVectorSlotPair(bytecode_iterator().GetIndexOperand(1));
 
   const Operator* op = javascript()->LoadGlobal(name, feedback, typeof_mode);
-  Node* node = NewNode(op, BuildLoadFeedbackVector());
+  Node* node = NewNode(op, GetFunctionClosure());
   environment()->BindAccumulator(node, &states);
 }
 
@@ -708,7 +708,7 @@ void BytecodeGraphBuilder::BuildStoreGlobal(LanguageMode language_mode) {
   Node* value = environment()->LookupAccumulator();
 
   const Operator* op = javascript()->StoreGlobal(language_mode, name, feedback);
-  Node* node = NewNode(op, value, BuildLoadFeedbackVector());
+  Node* node = NewNode(op, value, GetFunctionClosure());
   environment()->RecordAfterState(node, &states);
 }
 
@@ -820,7 +820,7 @@ void BytecodeGraphBuilder::BuildNamedLoad() {
       CreateVectorSlotPair(bytecode_iterator().GetIndexOperand(2));
 
   const Operator* op = javascript()->LoadNamed(language_mode(), name, feedback);
-  Node* node = NewNode(op, object, BuildLoadFeedbackVector());
+  Node* node = NewNode(op, object, GetFunctionClosure());
   environment()->BindAccumulator(node, &states);
 }
 
@@ -853,7 +853,7 @@ void BytecodeGraphBuilder::BuildKeyedLoad() {
       CreateVectorSlotPair(bytecode_iterator().GetIndexOperand(1));
 
   const Operator* op = javascript()->LoadProperty(language_mode(), feedback);
-  Node* node = NewNode(op, object, key, BuildLoadFeedbackVector());
+  Node* node = NewNode(op, object, key, GetFunctionClosure());
   environment()->BindAccumulator(node, &states);
 }
 
@@ -888,7 +888,7 @@ void BytecodeGraphBuilder::BuildNamedStore(LanguageMode language_mode) {
       CreateVectorSlotPair(bytecode_iterator().GetIndexOperand(2));
 
   const Operator* op = javascript()->StoreNamed(language_mode, name, feedback);
-  Node* node = NewNode(op, object, value, BuildLoadFeedbackVector());
+  Node* node = NewNode(op, object, value, GetFunctionClosure());
   environment()->RecordAfterState(node, &states);
 }
 
@@ -919,7 +919,7 @@ void BytecodeGraphBuilder::BuildKeyedStore(LanguageMode language_mode) {
       CreateVectorSlotPair(bytecode_iterator().GetIndexOperand(2));
 
   const Operator* op = javascript()->StoreProperty(language_mode, feedback);
-  Node* node = NewNode(op, object, key, value, BuildLoadFeedbackVector());
+  Node* node = NewNode(op, object, key, value, GetFunctionClosure());
   environment()->RecordAfterState(node, &states);
 }
 
