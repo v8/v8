@@ -695,6 +695,7 @@
   'test-serialize/SerializeInternalReference': [PASS, FAIL],
   'test-spaces/SizeOfFirstPageIsLargeEnough': [PASS, FAIL],
   'test-api/InitializeDefaultIsolateOnSecondaryThread1': [PASS, FAIL],
+  'test-api/FastReturnValuesWithProfiler': [PASS, FAIL],
   'test-heap/Regress538257': [PASS, FAIL],
   'test-heap/AddInstructionChangesNewSpacePromotion': [PASS, FAIL],
   'test-decls/CrossScriptReferencesHarmony': [PASS, FAIL],
