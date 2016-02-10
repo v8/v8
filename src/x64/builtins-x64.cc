@@ -60,27 +60,6 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
 }
 
 
-static void CallRuntimePassFunction(
-    MacroAssembler* masm, Runtime::FunctionId function_id) {
-  // ----------- S t a t e -------------
-  //  -- rdx : new target (preserved for callee)
-  //  -- rdi : target function (preserved for callee)
-  // -----------------------------------
-
-  FrameScope scope(masm, StackFrame::INTERNAL);
-  // Push a copy of the target function and the new target.
-  __ Push(rdi);
-  __ Push(rdx);
-  // Function is also the parameter to the runtime call.
-  __ Push(rdi);
-
-  __ CallRuntime(function_id, 1);
-  // Restore target function and new target.
-  __ Pop(rdx);
-  __ Pop(rdi);
-}
-
-
 static void GenerateTailCallToSharedCode(MacroAssembler* masm) {
   __ movp(kScratchRegister,
           FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
@@ -90,10 +69,35 @@ static void GenerateTailCallToSharedCode(MacroAssembler* masm) {
   __ jmp(kScratchRegister);
 }
 
+static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
+                                           Runtime::FunctionId function_id) {
+  // ----------- S t a t e -------------
+  //  -- rax : argument count (preserved for callee)
+  //  -- rdx : new target (preserved for callee)
+  //  -- rdi : target function (preserved for callee)
+  // -----------------------------------
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    // Push the number of arguments to the callee.
+    __ Integer32ToSmi(rax, rax);
+    __ Push(rax);
+    // Push a copy of the target function and the new target.
+    __ Push(rdi);
+    __ Push(rdx);
+    // Function is also the parameter to the runtime call.
+    __ Push(rdi);
 
-static void GenerateTailCallToReturnedCode(MacroAssembler* masm) {
-  __ leap(rax, FieldOperand(rax, Code::kHeaderSize));
-  __ jmp(rax);
+    __ CallRuntime(function_id, 1);
+    __ movp(rbx, rax);
+
+    // Restore target function and new target.
+    __ Pop(rdx);
+    __ Pop(rdi);
+    __ Pop(rax);
+    __ SmiToInteger32(rax, rax);
+  }
+  __ leap(rbx, FieldOperand(rbx, Code::kHeaderSize));
+  __ jmp(rbx);
 }
 
 
@@ -107,8 +111,7 @@ void Builtins::Generate_InOptimizationQueue(MacroAssembler* masm) {
   __ CompareRoot(rsp, Heap::kStackLimitRootIndex);
   __ j(above_equal, &ok);
 
-  CallRuntimePassFunction(masm, Runtime::kTryInstallOptimizedCode);
-  GenerateTailCallToReturnedCode(masm);
+  GenerateTailCallToReturnedCode(masm, Runtime::kTryInstallOptimizedCode);
 
   __ bind(&ok);
   GenerateTailCallToSharedCode(masm);
@@ -900,20 +903,18 @@ void Builtins::Generate_InterpreterEnterBytecodeDispatch(MacroAssembler* masm) {
 
 
 void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
-  CallRuntimePassFunction(masm, Runtime::kCompileLazy);
-  GenerateTailCallToReturnedCode(masm);
+  GenerateTailCallToReturnedCode(masm, Runtime::kCompileLazy);
 }
 
 
 void Builtins::Generate_CompileOptimized(MacroAssembler* masm) {
-  CallRuntimePassFunction(masm, Runtime::kCompileOptimized_NotConcurrent);
-  GenerateTailCallToReturnedCode(masm);
+  GenerateTailCallToReturnedCode(masm,
+                                 Runtime::kCompileOptimized_NotConcurrent);
 }
 
 
 void Builtins::Generate_CompileOptimizedConcurrent(MacroAssembler* masm) {
-  CallRuntimePassFunction(masm, Runtime::kCompileOptimized_Concurrent);
-  GenerateTailCallToReturnedCode(masm);
+  GenerateTailCallToReturnedCode(masm, Runtime::kCompileOptimized_Concurrent);
 }
 
 
