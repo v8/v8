@@ -459,9 +459,7 @@ void CompareNilICStub::UpdateStatus(Handle<Object> object) {
     state.Add(NULL_TYPE);
   } else if (object->IsUndefined()) {
     state.Add(UNDEFINED);
-  } else if (object->IsUndetectableObject() ||
-             object->IsOddball() ||
-             !object->IsHeapObject()) {
+  } else if (object->IsUndetectableObject() || object->IsSmi()) {
     state.RemoveAll();
     state.Add(GENERIC);
   } else if (IsMonomorphic()) {
@@ -940,9 +938,9 @@ bool ToBooleanStub::Types::UpdateStatus(Handle<Object> object) {
     Add(SPEC_OBJECT);
     return !object->IsUndetectableObject();
   } else if (object->IsString()) {
+    DCHECK(!object->IsUndetectableObject());
     Add(STRING);
-    return !object->IsUndetectableObject() &&
-        String::cast(*object)->length() != 0;
+    return String::cast(*object)->length() != 0;
   } else if (object->IsSymbol()) {
     Add(SYMBOL);
     return true;

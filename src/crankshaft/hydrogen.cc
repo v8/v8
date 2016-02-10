@@ -687,33 +687,28 @@ HConstant* HGraph::GetConstantBool(bool value) {
   return value ? GetConstantTrue() : GetConstantFalse();
 }
 
+#define DEFINE_GET_CONSTANT(Name, name, type, htype, boolean_value,         \
+                            undetectable)                                   \
+  HConstant* HGraph::GetConstant##Name() {                                  \
+    if (!constant_##name##_.is_set()) {                                     \
+      HConstant* constant = new (zone()) HConstant(                         \
+          Unique<Object>::CreateImmovable(                                  \
+              isolate()->factory()->name##_value()),                        \
+          Unique<Map>::CreateImmovable(isolate()->factory()->type##_map()), \
+          false, Representation::Tagged(), htype, true, boolean_value,      \
+          undetectable, ODDBALL_TYPE);                                      \
+      constant->InsertAfter(entry_block()->first());                        \
+      constant_##name##_.set(constant);                                     \
+    }                                                                       \
+    return ReinsertConstantIfNecessary(constant_##name##_.get());           \
+  }
 
-#define DEFINE_GET_CONSTANT(Name, name, type, htype, boolean_value)            \
-HConstant* HGraph::GetConstant##Name() {                                       \
-  if (!constant_##name##_.is_set()) {                                          \
-    HConstant* constant = new(zone()) HConstant(                               \
-        Unique<Object>::CreateImmovable(isolate()->factory()->name##_value()), \
-        Unique<Map>::CreateImmovable(isolate()->factory()->type##_map()),      \
-        false,                                                                 \
-        Representation::Tagged(),                                              \
-        htype,                                                                 \
-        true,                                                                  \
-        boolean_value,                                                         \
-        false,                                                                 \
-        ODDBALL_TYPE);                                                         \
-    constant->InsertAfter(entry_block()->first());                             \
-    constant_##name##_.set(constant);                                          \
-  }                                                                            \
-  return ReinsertConstantIfNecessary(constant_##name##_.get());                \
-}
-
-
-DEFINE_GET_CONSTANT(Undefined, undefined, undefined, HType::Undefined(), false)
-DEFINE_GET_CONSTANT(True, true, boolean, HType::Boolean(), true)
-DEFINE_GET_CONSTANT(False, false, boolean, HType::Boolean(), false)
-DEFINE_GET_CONSTANT(Hole, the_hole, the_hole, HType::None(), false)
-DEFINE_GET_CONSTANT(Null, null, null, HType::Null(), false)
-
+DEFINE_GET_CONSTANT(Undefined, undefined, undefined, HType::Undefined(), false,
+                    true)
+DEFINE_GET_CONSTANT(True, true, boolean, HType::Boolean(), true, false)
+DEFINE_GET_CONSTANT(False, false, boolean, HType::Boolean(), false, false)
+DEFINE_GET_CONSTANT(Hole, the_hole, the_hole, HType::None(), false, false)
+DEFINE_GET_CONSTANT(Null, null, null, HType::Null(), false, true)
 
 #undef DEFINE_GET_CONSTANT
 
@@ -3179,37 +3174,24 @@ void HGraphBuilder::BuildCompareNil(HValue* value, Type* type,
                                     HIfContinuation* continuation,
                                     MapEmbedding map_embedding) {
   IfBuilder if_nil(this);
-  bool some_case_handled = false;
-  bool some_case_missing = false;
-
-  if (type->Maybe(Type::Null())) {
-    if (some_case_handled) if_nil.Or();
-    if_nil.If<HCompareObjectEqAndBranch>(value, graph()->GetConstantNull());
-    some_case_handled = true;
-  } else {
-    some_case_missing = true;
-  }
-
-  if (type->Maybe(Type::Undefined())) {
-    if (some_case_handled) if_nil.Or();
-    if_nil.If<HCompareObjectEqAndBranch>(value,
-                                         graph()->GetConstantUndefined());
-    some_case_handled = true;
-  } else {
-    some_case_missing = true;
-  }
 
   if (type->Maybe(Type::Undetectable())) {
-    if (some_case_handled) if_nil.Or();
     if_nil.If<HIsUndetectableAndBranch>(value);
-    some_case_handled = true;
   } else {
-    some_case_missing = true;
-  }
+    bool maybe_null = type->Maybe(Type::Null());
+    if (maybe_null) {
+      if_nil.If<HCompareObjectEqAndBranch>(value, graph()->GetConstantNull());
+    }
 
-  if (some_case_missing) {
+    if (type->Maybe(Type::Undefined())) {
+      if (maybe_null) if_nil.Or();
+      if_nil.If<HCompareObjectEqAndBranch>(value,
+                                           graph()->GetConstantUndefined());
+    }
+
     if_nil.Then();
     if_nil.Else();
+
     if (type->NumClasses() == 1) {
       BuildCheckHeapObject(value);
       // For ICs, the map checked below is a sentinel map that gets replaced by

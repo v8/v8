@@ -648,9 +648,6 @@ class CompareNilIC : public IC {
   static Handle<Code> GetUninitialized();
 
   static void Clear(Address address, Code* target, Address constant_pool);
-
-  static Handle<Object> DoCompareNilSlow(Isolate* isolate, NilValue nil,
-                                         Handle<Object> object);
 };
 
 

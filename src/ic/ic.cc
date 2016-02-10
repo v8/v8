@@ -2736,15 +2736,6 @@ void CompareNilIC::Clear(Address address, Code* target, Address constant_pool) {
 }
 
 
-Handle<Object> CompareNilIC::DoCompareNilSlow(Isolate* isolate, NilValue nil,
-                                              Handle<Object> object) {
-  if (object->IsNull() || object->IsUndefined()) {
-    return isolate->factory()->true_value();
-  }
-  return isolate->factory()->ToBoolean(object->IsUndetectableObject());
-}
-
-
 Handle<Object> CompareNilIC::CompareNil(Handle<Object> object) {
   ExtraICState extra_ic_state = target()->extra_ic_state();
 
@@ -2755,8 +2746,6 @@ Handle<Object> CompareNilIC::CompareNil(Handle<Object> object) {
   bool already_monomorphic = stub.IsMonomorphic();
 
   stub.UpdateStatus(object);
-
-  NilValue nil = stub.nil_value();
 
   // Find or create the specialized stub to support the new set of types.
   Handle<Code> code;
@@ -2769,7 +2758,7 @@ Handle<Object> CompareNilIC::CompareNil(Handle<Object> object) {
     code = stub.GetCode();
   }
   set_target(*code);
-  return DoCompareNilSlow(isolate(), nil, object);
+  return isolate()->factory()->ToBoolean(object->IsUndetectableObject());
 }
 
 
