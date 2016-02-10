@@ -124,7 +124,7 @@ class BytecodeGraphTester {
     ParseInfo parse_info(zone_, function);
 
     CompilationInfo compilation_info(&parse_info);
-    compilation_info.SetOptimizing(BailoutId::None(), Handle<Code>());
+    compilation_info.SetOptimizing();
     compilation_info.MarkAsDeoptimizationEnabled();
     compiler::Pipeline pipeline(&compilation_info);
     Handle<Code> code = pipeline.GenerateCode();

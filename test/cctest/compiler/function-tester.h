@@ -170,7 +170,7 @@ class FunctionTester : public InitializedHandleScope {
     info.MarkAsDeoptimizationEnabled();
 
     CHECK(Parser::ParseStatic(info.parse_info()));
-    info.SetOptimizing(BailoutId::None(), Handle<Code>(function->code()));
+    info.SetOptimizing();
     if (flags_ & CompilationInfo::kFunctionContextSpecializing) {
       info.MarkAsFunctionContextSpecializing();
     }
@@ -231,8 +231,7 @@ class FunctionTester : public InitializedHandleScope {
     CompilationInfo info(&parse_info);
 
     CHECK(Parser::ParseStatic(info.parse_info()));
-    info.SetOptimizing(BailoutId::None(),
-                       Handle<Code>(function->shared()->code()));
+    info.SetOptimizing();
     CHECK(Compiler::Analyze(info.parse_info()));
     CHECK(Compiler::EnsureDeoptimizationSupport(&info));
 
