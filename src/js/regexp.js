@@ -278,8 +278,11 @@ function RegExpToString() {
       %IncrementUseCounter(kRegExpPrototypeToString);
       return '/(?:)/';
     }
-    throw MakeTypeError(kIncompatibleMethodReceiver,
-                        'RegExp.prototype.toString', this);
+    if (!IS_RECEIVER(this)) {
+      throw MakeTypeError(
+          kIncompatibleMethodReceiver, 'RegExp.prototype.toString', this);
+    }
+    return '/' + TO_STRING(this.pattern()) + '/' + TO_STRING(this.flags());
   }
   var result = '/' + REGEXP_SOURCE(this) + '/';
   if (REGEXP_GLOBAL(this)) result += 'g';
