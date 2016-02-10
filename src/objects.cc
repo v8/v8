@@ -15748,33 +15748,35 @@ Maybe<bool> JSProxy::SetPrototype(Handle<JSProxy> proxy, Handle<Object> value,
       Execution::Call(isolate, trap, handler, arraysize(argv), argv),
       Nothing<bool>());
   bool bool_trap_result = trap_result->BooleanValue();
-  // 9. Let extensibleTarget be ? IsExtensible(target).
+  // 9. If booleanTrapResult is false, return false.
+  if (!bool_trap_result) {
+    RETURN_FAILURE(
+        isolate, should_throw,
+        NewTypeError(MessageTemplate::kProxyTrapReturnedFalsish, trap_name));
+  }
+  // 10. Let extensibleTarget be ? IsExtensible(target).
   Maybe<bool> is_extensible = JSReceiver::IsExtensible(target);
   if (is_extensible.IsNothing()) return Nothing<bool>();
-  // 10. If extensibleTarget is true, return booleanTrapResult.
+  // 11. If extensibleTarget is true, return true.
   if (is_extensible.FromJust()) {
     if (bool_trap_result) return Just(true);
     RETURN_FAILURE(
         isolate, should_throw,
         NewTypeError(MessageTemplate::kProxyTrapReturnedFalsish, trap_name));
   }
-  // 11. Let targetProto be ? target.[[GetPrototypeOf]]().
+  // 12. Let targetProto be ? target.[[GetPrototypeOf]]().
   Handle<Object> target_proto;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, target_proto,
                                    JSReceiver::GetPrototype(isolate, target),
                                    Nothing<bool>());
-  // 12. If booleanTrapResult is true and SameValue(V, targetProto) is false,
-  // throw a TypeError exception.
+  // 13. If SameValue(V, targetProto) is false, throw a TypeError exception.
   if (bool_trap_result && !value->SameValue(*target_proto)) {
     isolate->Throw(*isolate->factory()->NewTypeError(
         MessageTemplate::kProxySetPrototypeOfNonExtensible));
     return Nothing<bool>();
   }
-  // 13. Return booleanTrapResult.
-  if (bool_trap_result) return Just(true);
-  RETURN_FAILURE(
-      isolate, should_throw,
-      NewTypeError(MessageTemplate::kProxyTrapReturnedFalsish, trap_name));
+  // 14. Return true.
+  return Just(true);
 }
 
 
