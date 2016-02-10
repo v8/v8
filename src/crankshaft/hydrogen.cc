@@ -6407,6 +6407,10 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::LoadFieldMaps(
 
 bool HOptimizedGraphBuilder::PropertyAccessInfo::LookupInPrototypes() {
   Handle<Map> map = this->map();
+  if (name_->IsPrivate()) {
+    NotFound();
+    return !map->has_hidden_prototype();
+  }
 
   while (map->prototype()->IsJSObject()) {
     holder_ = handle(JSObject::cast(map->prototype()));
