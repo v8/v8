@@ -345,6 +345,26 @@ test(function() {
   eval("/a/x.test(\"a\");");
 }, "Invalid regular expression flags", SyntaxError);
 
+//kJsonParseUnexpectedEOS
+test(function() {
+  JSON.parse("{")
+}, "Unexpected end of JSON input", SyntaxError);
+
+// kJsonParseUnexpectedTokenAt
+test(function() {
+  JSON.parse("/")
+}, "Unexpected token / in JSON at position 0", SyntaxError);
+
+// kJsonParseUnexpectedTokenNumberAt
+test(function() {
+  JSON.parse("{ 1")
+}, "Unexpected number in JSON at position 2", SyntaxError);
+
+// kJsonParseUnexpectedTokenStringAt
+test(function() {
+  JSON.parse('"""')
+}, "Unexpected string in JSON at position 2", SyntaxError);
+
 // kMalformedRegExp
 test(function() {
   /(/.test("a");
@@ -354,27 +374,6 @@ test(function() {
 test(function() {
   new Function(")", "");
 }, "Function arg string contains parenthesis", SyntaxError);
-
-// kUnexpectedEOS
-test(function() {
-  JSON.parse("{")
-}, "Unexpected end of input", SyntaxError);
-
-// kUnexpectedToken
-test(function() {
-  JSON.parse("/")
-}, "Unexpected token /", SyntaxError);
-
-// kUnexpectedTokenNumber
-test(function() {
-  JSON.parse("{ 1")
-}, "Unexpected number", SyntaxError);
-
-// kUnexpectedTokenString
-test(function() {
-  JSON.parse('"""')
-}, "Unexpected string", SyntaxError);
-
 
 // === ReferenceError ===
 

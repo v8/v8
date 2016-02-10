@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_PARSING_JSON_PARSER_H_
-#define V8_PARSING_JSON_PARSER_H_
+#ifndef V8_JSON_PARSER_H_
+#define V8_JSON_PARSER_H_
 
 #include "src/char-predicates.h"
 #include "src/conversions.h"
@@ -217,11 +217,12 @@ MaybeHandle<Object> JsonParser<seq_one_byte>::ParseJson() {
     // Parse failed. Current character is the unexpected token.
     Factory* factory = this->factory();
     MessageTemplate::Template message;
-    Handle<String> argument;
+    Handle<Object> arg1 = Handle<Smi>(Smi::FromInt(position_), isolate());
+    Handle<Object> arg2;
 
     switch (c0_) {
       case kEndOfString:
-        message = MessageTemplate::kUnexpectedEOS;
+        message = MessageTemplate::kJsonParseUnexpectedEOS;
         break;
       case '-':
       case '0':
@@ -234,14 +235,15 @@ MaybeHandle<Object> JsonParser<seq_one_byte>::ParseJson() {
       case '7':
       case '8':
       case '9':
-        message = MessageTemplate::kUnexpectedTokenNumber;
+        message = MessageTemplate::kJsonParseUnexpectedTokenNumber;
         break;
       case '"':
-        message = MessageTemplate::kUnexpectedTokenString;
+        message = MessageTemplate::kJsonParseUnexpectedTokenString;
         break;
       default:
-        message = MessageTemplate::kUnexpectedToken;
-        argument = factory->LookupSingleCharacterStringFromCode(c0_);
+        message = MessageTemplate::kJsonParseUnexpectedToken;
+        arg2 = arg1;
+        arg1 = factory->LookupSingleCharacterStringFromCode(c0_);
         break;
     }
 
@@ -250,7 +252,7 @@ MaybeHandle<Object> JsonParser<seq_one_byte>::ParseJson() {
     // separated source file.
     isolate()->debug()->OnCompileError(script);
     MessageLocation location(script, position_, position_ + 1);
-    Handle<Object> error = factory->NewSyntaxError(message, argument);
+    Handle<Object> error = factory->NewSyntaxError(message, arg1, arg2);
     return isolate()->template Throw<Object>(error, &location);
   }
   return result;
@@ -839,4 +841,4 @@ Handle<String> JsonParser<seq_one_byte>::ScanJsonString() {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_PARSING_JSON_PARSER_H_
+#endif  // V8_JSON_PARSER_H_
