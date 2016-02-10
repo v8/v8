@@ -290,9 +290,11 @@
   # TODO(titzer): SSE 4.1 required for asm-wasm test (floor).
   'wasm/asm-wasm': [SKIP],
 
-    # case-insensitive unicode regexp relies on case mapping provided by ICU.
+  # case-insensitive unicode regexp relies on case mapping provided by ICU.
   'harmony/unicode-regexp-ignore-case': [PASS, ['no_i18n == True', FAIL]],
   'harmony/unicode-regexp-ignore-case-noi18n': [FAIL, ['no_i18n == True', PASS]],
+  # desugaring regexp property class relies on ICU.
+  'harmony/unicode-regexp-property-class': [PASS, ['no_i18n == True', FAIL]],
 }],  # ALWAYS
 
 ['novfp3 == True', {

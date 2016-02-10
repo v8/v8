@@ -352,6 +352,23 @@ RegExpTree* RegExpParser::ParseDisjunction() {
             builder->AddCharacterClass(cc);
             break;
           }
+          case 'p':
+          case 'P': {
+            uc32 p = Next();
+            Advance(2);
+            if (unicode()) {
+              ZoneList<CharacterRange>* ranges = ParsePropertyClass();
+              if (ranges == nullptr) {
+                return ReportError(CStrVector("Invalid property name"));
+              }
+              RegExpCharacterClass* cc =
+                  new (zone()) RegExpCharacterClass(ranges, p == 'P');
+              builder->AddCharacterClass(cc);
+            } else {
+              builder->AddCharacter(p);
+            }
+            break;
+          }
           case '1':
           case '2':
           case '3':
@@ -801,6 +818,55 @@ bool RegExpParser::ParseUnicodeEscape(uc32* value) {
   return ParseHexEscape(4, value);
 }
 
+ZoneList<CharacterRange>* RegExpParser::ParsePropertyClass() {
+#ifdef V8_I18N_SUPPORT
+  char property_name[3];
+  memset(property_name, 0, sizeof(property_name));
+  if (current() == '{') {
+    Advance();
+    if (current() < 'A' || current() > 'Z') return nullptr;
+    property_name[0] = static_cast<char>(current());
+    Advance();
+    if (current() >= 'a' && current() <= 'z') {
+      property_name[1] = static_cast<char>(current());
+      Advance();
+    }
+    if (current() != '}') return nullptr;
+  } else if (current() >= 'A' && current() <= 'Z') {
+    property_name[0] = static_cast<char>(current());
+  } else {
+    return nullptr;
+  }
+  Advance();
+
+  int32_t category =
+      u_getPropertyValueEnum(UCHAR_GENERAL_CATEGORY_MASK, property_name);
+  if (category == UCHAR_INVALID_CODE) return nullptr;
+
+  USet* set = uset_openEmpty();
+  UErrorCode ec = U_ZERO_ERROR;
+  uset_applyIntPropertyValue(set, UCHAR_GENERAL_CATEGORY_MASK, category, &ec);
+  ZoneList<CharacterRange>* ranges = nullptr;
+  if (ec == U_ZERO_ERROR && !uset_isEmpty(set)) {
+    uset_removeAllStrings(set);
+    int item_count = uset_getItemCount(set);
+    ranges = new (zone()) ZoneList<CharacterRange>(item_count, zone());
+    int item_result = 0;
+    for (int i = 0; i < item_count; i++) {
+      uc32 start = 0;
+      uc32 end = 0;
+      item_result += uset_getItem(set, i, &start, &end, nullptr, 0, &ec);
+      ranges->Add(CharacterRange::Range(start, end), zone());
+    }
+    DCHECK_EQ(U_ZERO_ERROR, ec);
+    DCHECK_EQ(0, item_result);
+  }
+  uset_close(set);
+  return ranges;
+#else   // V8_I18N_SUPPORT
+  return nullptr;
+#endif  // V8_I18N_SUPPORT
+}
 
 bool RegExpParser::ParseUnlimitedLengthHexNumber(int max_value, uc32* value) {
   uc32 x = 0;
