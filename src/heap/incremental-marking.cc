@@ -795,8 +795,14 @@ void IncrementalMarking::UpdateMarkingDequeAfterScavenge() {
     HeapObject* obj = array[current];
     DCHECK(obj->IsHeapObject());
     current = ((current + 1) & mask);
-    if (heap_->InNewSpace(obj)) {
+    // Only pointers to from space have to be updated.
+    if (heap_->InFromSpace(obj)) {
       MapWord map_word = obj->map_word();
+      // There may be objects on the marking deque that do not exist anymore,
+      // e.g. left trimmed objects or objects from the root set (frames).
+      // If these object are dead at scavenging time, their marking deque
+      // entries will not point to forwarding addresses. Hence, we can discard
+      // them.
       if (map_word.IsForwardingAddress()) {
         HeapObject* dest = map_word.ToForwardingAddress();
         array[new_top] = dest;
