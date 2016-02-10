@@ -490,7 +490,7 @@ DEFINE_INT(frame_count, 1, "number of stack frames inspected by the profiler")
 // 0x1800 fits in the immediate field of an ARM instruction.
 DEFINE_INT(interrupt_budget, 0x1800,
            "execution budget before interrupt is triggered")
-DEFINE_INT(type_info_threshold, 25,
+DEFINE_INT(type_info_threshold, 24,
            "percentage of ICs that must have type info to allow optimization")
 DEFINE_INT(generic_ic_threshold, 30,
            "max percentage of megamorphic/generic ICs to allow optimization")
