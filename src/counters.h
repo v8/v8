@@ -9,10 +9,8 @@
 #include "src/allocation.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/platform/time.h"
-#include "src/builtins.h"
 #include "src/globals.h"
 #include "src/objects.h"
-#include "src/runtime/runtime.h"
 
 namespace v8 {
 namespace internal {
@@ -701,30 +699,6 @@ double AggregatedMemoryHistogram<Histogram>::Aggregate(double current_ms,
   /* Total count of functions compiled using the baseline compiler. */         \
   SC(total_baseline_compile_count, V8.TotalBaselineCompileCount)
 
-struct RuntimeCallStats {
-#define CALL_RUNTIME_COUNTER(name, nargs, ressize) \
-  uint32_t Count_Runtime_##name;                   \
-  base::TimeDelta Time_Runtime_##name;
-  FOR_EACH_INTRINSIC(CALL_RUNTIME_COUNTER)
-#undef CALL_RUNTIME_COUNTER
-#define CALL_BUILTIN_COUNTER(name, type) \
-  uint32_t Count_Builtin_##name;         \
-  base::TimeDelta Time_Builtin_##name;
-  BUILTIN_LIST_C(CALL_BUILTIN_COUNTER)
-#undef CALL_BUILTIN_COUNTER
-
-  // Dummy counter for the unexpected stub miss.
-  uint32_t Count_UnexpectedStubMiss;
-  base::TimeDelta Time_UnexpectedStubMiss;
-
-  bool in_runtime_call = false;
-
-  void Reset();
-  void Print(std::ostream& os);
-
-  RuntimeCallStats() { Reset(); }
-};
-
 // This file contains all the v8 counters that are in use.
 class Counters {
  public:
@@ -835,7 +809,6 @@ class Counters {
 
   void ResetCounters();
   void ResetHistograms();
-  RuntimeCallStats* runtime_call_stats() { return &runtime_call_stats_; }
 
  private:
 #define HR(name, caption, min, max, num_buckets) Histogram name##_;
@@ -896,8 +869,6 @@ class Counters {
   StatsCounter count_of_CODE_AGE_##name##_;
   CODE_AGE_LIST_COMPLETE(SC)
 #undef SC
-
-  RuntimeCallStats runtime_call_stats_;
 
   friend class Isolate;
 
