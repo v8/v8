@@ -1443,24 +1443,24 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
 
   FlagsContinuation cont(kNotEqual, tbranch, fbranch);
 
+  // Try to combine with comparisons against 0 by simply inverting the branch.
+  while (CanCover(user, value) && value->opcode() == IrOpcode::kWord32Equal) {
+    Int32BinopMatcher m(value);
+    if (m.right().Is(0)) {
+      user = value;
+      value = m.left().node();
+      cont.Negate();
+    } else {
+      break;
+    }
+  }
+
   // Try to combine the branch with a comparison.
-  while (CanCover(user, value)) {
+  if (CanCover(user, value)) {
     switch (value->opcode()) {
       case IrOpcode::kWord32Equal:
-      case IrOpcode::kWord64Equal: {
-        Int64BinopMatcher m(value);
-        if (m.right().Is(0)) {
-          user = value;
-          value = m.left().node();
-          cont.Negate();
-          continue;
-        }
         cont.OverwriteAndNegateIfEqual(kEqual);
-        return VisitWordCompare(
-            this, value,
-            value->opcode() == IrOpcode::kWord64Equal ? kX64Cmp : kX64Cmp32,
-            &cont);
-      }
+        return VisitWordCompare(this, value, kX64Cmp32, &cont);
       case IrOpcode::kInt32LessThan:
         cont.OverwriteAndNegateIfEqual(kSignedLessThan);
         return VisitWordCompare(this, value, kX64Cmp32, &cont);
@@ -1473,6 +1473,27 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
       case IrOpcode::kUint32LessThanOrEqual:
         cont.OverwriteAndNegateIfEqual(kUnsignedLessThanOrEqual);
         return VisitWordCompare(this, value, kX64Cmp32, &cont);
+      case IrOpcode::kWord64Equal: {
+        cont.OverwriteAndNegateIfEqual(kEqual);
+        Int64BinopMatcher m(value);
+        if (m.right().Is(0)) {
+          // Try to combine the branch with a comparison.
+          Node* const user = m.node();
+          Node* const value = m.left().node();
+          if (CanCover(user, value)) {
+            switch (value->opcode()) {
+              case IrOpcode::kInt64Sub:
+                return VisitWord64Compare(this, value, &cont);
+              case IrOpcode::kWord64And:
+                return VisitWordCompare(this, value, kX64Test, &cont);
+              default:
+                break;
+            }
+          }
+          return VisitCompareZero(this, value, kX64Cmp, &cont);
+        }
+        return VisitWord64Compare(this, value, &cont);
+      }
       case IrOpcode::kInt64LessThan:
         cont.OverwriteAndNegateIfEqual(kSignedLessThan);
         return VisitWord64Compare(this, value, &cont);
@@ -1542,16 +1563,9 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
         return VisitWordCompare(this, value, kX64Test32, &cont);
       case IrOpcode::kWord64And:
         return VisitWordCompare(this, value, kX64Test, &cont);
-      case IrOpcode::kLoad:
-        if (LoadRepresentationOf(value->op()).representation() ==
-            MachineRepresentation::kWord64) {
-          return VisitCompareZero(this, value, kX64Cmp, &cont);
-        }
-        break;
       default:
         break;
     }
-    break;
   }
 
   // Branch could not be combined with a compare, emit compare against 0.
