@@ -172,7 +172,7 @@ void TryFinallyBuilder::EndTry() {
 
 void TryFinallyBuilder::BeginHandler() {
   builder()->Bind(&handler_);
-  builder()->MarkHandler(handler_id_, false);
+  builder()->MarkHandler(handler_id_, will_catch_);
 }
 
 
