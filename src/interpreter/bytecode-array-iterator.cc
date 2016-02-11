@@ -63,8 +63,7 @@ int8_t BytecodeArrayIterator::GetImmediateOperand(int operand_index) const {
   return static_cast<int8_t>(operand);
 }
 
-
-int BytecodeArrayIterator::GetCountOperand(int operand_index) const {
+int BytecodeArrayIterator::GetRegisterCountOperand(int operand_index) const {
   OperandSize size =
       Bytecodes::GetOperandSize(current_bytecode(), operand_index);
   OperandType type = (size == OperandSize::kByte) ? OperandType::kRegCount8
@@ -131,7 +130,7 @@ int BytecodeArrayIterator::GetRegisterOperandRange(int operand_index) const {
         OperandType next_operand_type =
             Bytecodes::GetOperandType(current_bytecode(), operand_index + 1);
         if (Bytecodes::IsRegisterCountOperandType(next_operand_type)) {
-          return GetCountOperand(operand_index + 1);
+          return GetRegisterCountOperand(operand_index + 1);
         }
       }
       return 1;

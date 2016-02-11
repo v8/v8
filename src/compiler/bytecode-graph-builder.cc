@@ -1050,7 +1050,7 @@ void BytecodeGraphBuilder::BuildCall() {
   Node* callee =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
   interpreter::Register receiver = bytecode_iterator().GetRegisterOperand(1);
-  size_t arg_count = bytecode_iterator().GetCountOperand(2);
+  size_t arg_count = bytecode_iterator().GetRegisterCountOperand(2);
   VectorSlotPair feedback =
       CreateVectorSlotPair(bytecode_iterator().GetIndexOperand(3));
 
@@ -1070,7 +1070,7 @@ void BytecodeGraphBuilder::BuildCallJSRuntime() {
   Node* callee =
       BuildLoadNativeContextField(bytecode_iterator().GetIndexOperand(0));
   interpreter::Register receiver = bytecode_iterator().GetRegisterOperand(1);
-  size_t arg_count = bytecode_iterator().GetCountOperand(2);
+  size_t arg_count = bytecode_iterator().GetRegisterCountOperand(2);
 
   // Create node to perform the JS runtime call.
   const Operator* call =
@@ -1101,7 +1101,7 @@ void BytecodeGraphBuilder::BuildCallRuntime() {
   Runtime::FunctionId functionId =
       static_cast<Runtime::FunctionId>(bytecode_iterator().GetIndexOperand(0));
   interpreter::Register first_arg = bytecode_iterator().GetRegisterOperand(1);
-  size_t arg_count = bytecode_iterator().GetCountOperand(2);
+  size_t arg_count = bytecode_iterator().GetRegisterCountOperand(2);
 
   // Create node to perform the runtime call.
   const Operator* call = javascript()->CallRuntime(functionId, arg_count);
@@ -1118,7 +1118,7 @@ void BytecodeGraphBuilder::BuildCallRuntimeForPair() {
   Runtime::FunctionId functionId =
       static_cast<Runtime::FunctionId>(bytecode_iterator().GetIndexOperand(0));
   interpreter::Register first_arg = bytecode_iterator().GetRegisterOperand(1);
-  size_t arg_count = bytecode_iterator().GetCountOperand(2);
+  size_t arg_count = bytecode_iterator().GetRegisterCountOperand(2);
   interpreter::Register first_return =
       bytecode_iterator().GetRegisterOperand(3);
 
@@ -1157,7 +1157,7 @@ void BytecodeGraphBuilder::BuildCallConstruct() {
   FrameStateBeforeAndAfter states(this);
   interpreter::Register callee = bytecode_iterator().GetRegisterOperand(0);
   interpreter::Register first_arg = bytecode_iterator().GetRegisterOperand(1);
-  size_t arg_count = bytecode_iterator().GetCountOperand(2);
+  size_t arg_count = bytecode_iterator().GetRegisterCountOperand(2);
 
   // TODO(turbofan): Pass the feedback here.
   const Operator* call = javascript()->CallConstruct(
