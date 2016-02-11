@@ -3858,7 +3858,7 @@ int MarkCompactCollector::SweepInParallel(PagedSpace* space,
 
 int MarkCompactCollector::SweepInParallel(Page* page, PagedSpace* space) {
   int max_freed = 0;
-  if (page->TryLock()) {
+  if (page->mutex()->TryLock()) {
     // If this page was already swept in the meantime, we can return here.
     if (page->concurrent_sweeping_state().Value() != Page::kSweepingPending) {
       page->mutex()->Unlock();

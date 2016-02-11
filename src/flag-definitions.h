@@ -968,6 +968,8 @@ DEFINE_BOOL(trace_lazy, false, "trace lazy compilation")
 DEFINE_BOOL(collect_heap_spill_statistics, false,
             "report heap spill statistics along with heap_stats "
             "(requires heap_stats)")
+DEFINE_BOOL(trace_live_bytes, false,
+            "trace incrementing and resetting of live bytes")
 
 DEFINE_BOOL(trace_isolates, false, "trace isolate state changes")
 

@@ -428,7 +428,7 @@ NewSpacePage* NewSpacePage::Initialize(Heap* heap, Address start,
 
   MemoryChunk* chunk =
       MemoryChunk::Initialize(heap, start, Page::kPageSize, area_start,
-                              area_end, NOT_EXECUTABLE, semi_space);
+                              area_end, NOT_EXECUTABLE, semi_space, nullptr);
   bool in_to_space = (semi_space->id() != kFromSpace);
   chunk->SetFlag(in_to_space ? MemoryChunk::IN_TO_SPACE
                              : MemoryChunk::IN_FROM_SPACE);
@@ -449,10 +449,10 @@ void NewSpacePage::InitializeAsAnchor(SemiSpace* semi_space) {
   SetFlags(0, ~0);
 }
 
-
 MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
                                      Address area_start, Address area_end,
-                                     Executability executable, Space* owner) {
+                                     Executability executable, Space* owner,
+                                     base::VirtualMemory* reservation) {
   MemoryChunk* chunk = FromAddress(base);
 
   DCHECK(base == chunk->address());
@@ -488,6 +488,10 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
 
   if (executable == EXECUTABLE) {
     chunk->SetFlag(IS_EXECUTABLE);
+  }
+
+  if (reservation != nullptr) {
+    chunk->reservation_.TakeControl(reservation);
   }
 
   return chunk;
@@ -691,10 +695,8 @@ MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t reserve_area_size,
     PerformAllocationCallback(space, kAllocationActionAllocate, chunk_size);
   }
 
-  MemoryChunk* result = MemoryChunk::Initialize(
-      heap, base, chunk_size, area_start, area_end, executable, owner);
-  result->set_reserved_memory(&reservation);
-  return result;
+  return MemoryChunk::Initialize(heap, base, chunk_size, area_start, area_end,
+                                 executable, owner, &reservation);
 }
 
 
@@ -920,19 +922,13 @@ bool MemoryAllocator::CommitExecutableMemory(base::VirtualMemory* vm,
 // -----------------------------------------------------------------------------
 // MemoryChunk implementation
 
-void MemoryChunk::IncrementLiveBytesFromMutator(HeapObject* object, int by) {
-  MemoryChunk* chunk = MemoryChunk::FromAddress(object->address());
-  if (!chunk->InNewSpace() && !static_cast<Page*>(chunk)->SweepingDone()) {
-    static_cast<PagedSpace*>(chunk->owner())->Allocate(by);
-  }
-  chunk->IncrementLiveBytes(by);
-}
-
-
 void MemoryChunk::ReleaseAllocatedMemory() {
   delete slots_buffer_;
+  slots_buffer_ = nullptr;
   delete skip_list_;
+  skip_list_ = nullptr;
   delete mutex_;
+  mutex_ = nullptr;
   ReleaseOldToNewSlots();
 }
 

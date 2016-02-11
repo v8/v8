@@ -251,6 +251,36 @@ Page* Page::Initialize(Heap* heap, MemoryChunk* chunk, Executability executable,
   return page;
 }
 
+void MemoryChunk::IncrementLiveBytesFromGC(HeapObject* object, int by) {
+  MemoryChunk::FromAddress(object->address())->IncrementLiveBytes(by);
+}
+
+void MemoryChunk::ResetLiveBytes() {
+  if (FLAG_trace_live_bytes) {
+    PrintIsolate(heap()->isolate(), "live-bytes: reset page=%p %d->0\n", this,
+                 live_byte_count_);
+  }
+  live_byte_count_ = 0;
+}
+
+void MemoryChunk::IncrementLiveBytes(int by) {
+  if (FLAG_trace_live_bytes) {
+    PrintIsolate(heap()->isolate(),
+                 "live-bytes: update page=%p delta=%d %d->%d\n", this, by,
+                 live_byte_count_, live_byte_count_ + by);
+  }
+  live_byte_count_ += by;
+  DCHECK_GE(live_byte_count_, 0);
+  DCHECK_LE(static_cast<size_t>(live_byte_count_), size_);
+}
+
+void MemoryChunk::IncrementLiveBytesFromMutator(HeapObject* object, int by) {
+  MemoryChunk* chunk = MemoryChunk::FromAddress(object->address());
+  if (!chunk->InNewSpace() && !static_cast<Page*>(chunk)->SweepingDone()) {
+    static_cast<PagedSpace*>(chunk->owner())->Allocate(by);
+  }
+  chunk->IncrementLiveBytes(by);
+}
 
 bool PagedSpace::Contains(Address addr) {
   Page* p = Page::FromAddress(addr);

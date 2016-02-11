@@ -1383,8 +1383,9 @@ void HeapObject::VerifySmiField(int offset) {
 
 
 Heap* HeapObject::GetHeap() const {
-  Heap* heap =
-      MemoryChunk::FromAddress(reinterpret_cast<const byte*>(this))->heap();
+  Heap* heap = MemoryChunk::FromAddress(
+                   reinterpret_cast<Address>(const_cast<HeapObject*>(this)))
+                   ->heap();
   SLOW_DCHECK(heap != NULL);
   return heap;
 }

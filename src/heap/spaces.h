@@ -319,7 +319,7 @@ class MemoryChunk {
     // candidates selection cycle.
     FORCE_EVACUATION_CANDIDATE_FOR_TESTING,
 
-    // This flag is inteded to be used for testing.
+    // This flag is intended to be used for testing.
     NEVER_ALLOCATE_ON_PAGE,
 
     // The memory chunk is already logically freed, however the actual freeing
@@ -429,29 +429,16 @@ class MemoryChunk {
 
   static const int kFlagsOffset = kPointerSize;
 
-  static void IncrementLiveBytesFromMutator(HeapObject* object, int by);
+  static inline void IncrementLiveBytesFromMutator(HeapObject* object, int by);
+  static inline void IncrementLiveBytesFromGC(HeapObject* object, int by);
 
   // Only works if the pointer is in the first kPageSize of the MemoryChunk.
   static MemoryChunk* FromAddress(Address a) {
     return reinterpret_cast<MemoryChunk*>(OffsetFrom(a) & ~kAlignmentMask);
   }
 
-  static const MemoryChunk* FromAddress(const byte* a) {
-    return reinterpret_cast<const MemoryChunk*>(OffsetFrom(a) &
-                                                ~kAlignmentMask);
-  }
-
-  static void IncrementLiveBytesFromGC(HeapObject* object, int by) {
-    MemoryChunk::FromAddress(object->address())->IncrementLiveBytes(by);
-  }
-
   // Only works for addresses in pointer spaces, not data or code spaces.
   static inline MemoryChunk* FromAnyPointerAddress(Heap* heap, Address addr);
-
-  static inline uint32_t FastAddressToMarkbitIndex(Address addr) {
-    const intptr_t offset = reinterpret_cast<intptr_t>(addr) & kAlignmentMask;
-    return static_cast<uint32_t>(offset) >> kPointerSizeLog2;
-  }
 
   static inline void UpdateHighWaterMark(Address mark) {
     if (mark == nullptr) return;
@@ -471,74 +458,17 @@ class MemoryChunk {
 
   bool is_valid() { return address() != NULL; }
 
-  MemoryChunk* next_chunk() { return next_chunk_.Value(); }
-
-  MemoryChunk* prev_chunk() { return prev_chunk_.Value(); }
-
-  void set_next_chunk(MemoryChunk* next) { next_chunk_.SetValue(next); }
-
-  void set_prev_chunk(MemoryChunk* prev) { prev_chunk_.SetValue(prev); }
-
-  Space* owner() const {
-    if ((reinterpret_cast<intptr_t>(owner_) & kPageHeaderTagMask) ==
-        kPageHeaderTag) {
-      return reinterpret_cast<Space*>(reinterpret_cast<intptr_t>(owner_) -
-                                      kPageHeaderTag);
-    } else {
-      return NULL;
-    }
-  }
-
-  void set_owner(Space* space) {
-    DCHECK((reinterpret_cast<intptr_t>(space) & kPageHeaderTagMask) == 0);
-    owner_ = reinterpret_cast<Address>(space) + kPageHeaderTag;
-    DCHECK((reinterpret_cast<intptr_t>(owner_) & kPageHeaderTagMask) ==
-           kPageHeaderTag);
-  }
-
-  base::VirtualMemory* reserved_memory() { return &reservation_; }
-
-  void set_reserved_memory(base::VirtualMemory* reservation) {
-    DCHECK_NOT_NULL(reservation);
-    reservation_.TakeControl(reservation);
-  }
+  base::Mutex* mutex() { return mutex_; }
 
   bool Contains(Address addr) {
     return addr >= area_start() && addr < area_end();
   }
 
-  // Checks whether addr can be a limit of addresses in this page.
-  // It's a limit if it's in the page, or if it's just after the
-  // last byte of the page.
+  // Checks whether |addr| can be a limit of addresses in this page. It's a
+  // limit if it's in the page, or if it's just after the last byte of the page.
   bool ContainsLimit(Address addr) {
     return addr >= area_start() && addr <= area_end();
   }
-
-  void SetFlag(int flag) { flags_ |= static_cast<uintptr_t>(1) << flag; }
-
-  void ClearFlag(int flag) { flags_ &= ~(static_cast<uintptr_t>(1) << flag); }
-
-  void SetFlagTo(int flag, bool value) {
-    if (value) {
-      SetFlag(flag);
-    } else {
-      ClearFlag(flag);
-    }
-  }
-
-  bool IsFlagSet(int flag) {
-    return (flags_ & (static_cast<uintptr_t>(1) << flag)) != 0;
-  }
-
-  // Set or clear multiple flags at a time. The flags in the mask
-  // are set to the value in "flags", the rest retain the current value
-  // in flags_.
-  void SetFlags(intptr_t flags, intptr_t mask) {
-    flags_ = (flags_ & ~mask) | (flags & mask);
-  }
-
-  // Return all current flags.
-  intptr_t GetFlags() { return flags_; }
 
   AtomicValue<ConcurrentSweepingState>& concurrent_sweeping_state() {
     return concurrent_sweeping_;
@@ -548,39 +478,18 @@ class MemoryChunk {
     return parallel_compaction_;
   }
 
-  bool TryLock() { return mutex_->TryLock(); }
-
-  base::Mutex* mutex() { return mutex_; }
-
-  // Manage live byte count (count of bytes known to be live,
-  // because they are marked black).
-  void ResetLiveBytes() {
-    if (FLAG_gc_verbose) {
-      PrintF("ResetLiveBytes:%p:%x->0\n", static_cast<void*>(this),
-             live_byte_count_);
-    }
-    live_byte_count_ = 0;
-  }
-
-  void IncrementLiveBytes(int by) {
-    if (FLAG_gc_verbose) {
-      printf("UpdateLiveBytes:%p:%x%c=%x->%x\n", static_cast<void*>(this),
-             live_byte_count_, ((by < 0) ? '-' : '+'), ((by < 0) ? -by : by),
-             live_byte_count_ + by);
-    }
-    live_byte_count_ += by;
-    DCHECK_GE(live_byte_count_, 0);
-    DCHECK_LE(static_cast<unsigned>(live_byte_count_), size_);
-  }
+  // Manage live byte count, i.e., count of bytes in black objects.
+  inline void ResetLiveBytes();
+  inline void IncrementLiveBytes(int by);
 
   int LiveBytes() {
-    DCHECK_LE(static_cast<unsigned>(live_byte_count_), size_);
+    DCHECK_LE(static_cast<size_t>(live_byte_count_), size_);
     return live_byte_count_;
   }
 
   void SetLiveBytes(int live_bytes) {
     DCHECK_GE(live_bytes, 0);
-    DCHECK_LE(static_cast<unsigned>(live_bytes), size_);
+    DCHECK_LE(static_cast<size_t>(live_bytes), size_);
     live_byte_count_ = live_bytes;
   }
 
@@ -591,6 +500,32 @@ class MemoryChunk {
   void set_write_barrier_counter(int counter) {
     write_barrier_counter_ = counter;
   }
+
+  size_t size() const { return size_; }
+
+  inline Heap* heap() const { return heap_; }
+
+  inline SkipList* skip_list() { return skip_list_; }
+
+  inline void set_skip_list(SkipList* skip_list) { skip_list_ = skip_list; }
+
+  inline SlotsBuffer* slots_buffer() { return slots_buffer_; }
+
+  inline SlotsBuffer** slots_buffer_address() { return &slots_buffer_; }
+
+  inline SlotSet* old_to_new_slots() { return old_to_new_slots_; }
+
+  void AllocateOldToNewSlots();
+  void ReleaseOldToNewSlots();
+
+  Address area_start() { return area_start_; }
+  Address area_end() { return area_end_; }
+  int area_size() { return static_cast<int>(area_end() - area_start()); }
+
+  bool CommitArea(size_t requested);
+
+  // Approximate amount of physical memory committed for this chunk.
+  size_t CommittedPhysicalMemory() { return high_water_mark_.Value(); }
 
   int progress_bar() {
     DCHECK(IsFlagSet(HAS_PROGRESS_BAR));
@@ -609,34 +544,9 @@ class MemoryChunk {
     }
   }
 
-  size_t size() const { return size_; }
-
-  void set_size(size_t size) { size_ = size; }
-
-  void SetArea(Address area_start, Address area_end) {
-    area_start_ = area_start;
-    area_end_ = area_end;
-  }
-
-  Executability executable() {
-    return IsFlagSet(IS_EXECUTABLE) ? EXECUTABLE : NOT_EXECUTABLE;
-  }
-
-  bool InNewSpace() {
-    return (flags_ & ((1 << IN_FROM_SPACE) | (1 << IN_TO_SPACE))) != 0;
-  }
-
-  bool InToSpace() { return IsFlagSet(IN_TO_SPACE); }
-
-  bool InFromSpace() { return IsFlagSet(IN_FROM_SPACE); }
-
-  // Markbits support
-
   inline Bitmap* markbits() {
     return Bitmap::FromAddress(address() + kHeaderSize);
   }
-
-  void PrintMarkbits() { markbits()->Print(); }
 
   inline uint32_t AddressToMarkbitIndex(Address addr) {
     return static_cast<uint32_t>(addr - this->address()) >> kPointerSizeLog2;
@@ -646,10 +556,24 @@ class MemoryChunk {
     return this->address() + (index << kPointerSizeLog2);
   }
 
-  void InsertAfter(MemoryChunk* other);
-  void Unlink();
+  void PrintMarkbits() { markbits()->Print(); }
 
-  inline Heap* heap() const { return heap_; }
+  void SetFlag(int flag) { flags_ |= static_cast<uintptr_t>(1) << flag; }
+
+  void ClearFlag(int flag) { flags_ &= ~(static_cast<uintptr_t>(1) << flag); }
+
+  bool IsFlagSet(int flag) {
+    return (flags_ & (static_cast<uintptr_t>(1) << flag)) != 0;
+  }
+
+  // Set or clear multiple flags at a time. The flags in the mask are set to
+  // the value in "flags", the rest retain the current value in |flags_|.
+  void SetFlags(intptr_t flags, intptr_t mask) {
+    flags_ = (flags_ & ~mask) | (flags & mask);
+  }
+
+  // Return all current flags.
+  intptr_t GetFlags() { return flags_; }
 
   bool NeverEvacuate() { return IsFlagSet(NEVER_EVACUATE); }
 
@@ -664,26 +588,9 @@ class MemoryChunk {
     return !IsEvacuationCandidate() && !IsFlagSet(NEVER_ALLOCATE_ON_PAGE);
   }
 
-  bool ShouldSkipEvacuationSlotRecording() {
-    return (flags_ & kSkipEvacuationSlotsRecordingMask) != 0;
-  }
-
-  inline SkipList* skip_list() { return skip_list_; }
-
-  inline void set_skip_list(SkipList* skip_list) { skip_list_ = skip_list; }
-
-  inline SlotsBuffer* slots_buffer() { return slots_buffer_; }
-
-  inline SlotsBuffer** slots_buffer_address() { return &slots_buffer_; }
-
-  inline SlotSet* old_to_new_slots() { return old_to_new_slots_; }
-
-  void AllocateOldToNewSlots();
-  void ReleaseOldToNewSlots();
-
   void MarkEvacuationCandidate() {
     DCHECK(!IsFlagSet(NEVER_EVACUATE));
-    DCHECK(slots_buffer_ == NULL);
+    DCHECK_NULL(slots_buffer_);
     SetFlag(EVACUATION_CANDIDATE);
   }
 
@@ -692,21 +599,60 @@ class MemoryChunk {
     ClearFlag(EVACUATION_CANDIDATE);
   }
 
-  Address area_start() { return area_start_; }
-  Address area_end() { return area_end_; }
-  int area_size() { return static_cast<int>(area_end() - area_start()); }
-  bool CommitArea(size_t requested);
+  bool ShouldSkipEvacuationSlotRecording() {
+    return (flags_ & kSkipEvacuationSlotsRecordingMask) != 0;
+  }
 
-  // Approximate amount of physical memory committed for this chunk.
-  size_t CommittedPhysicalMemory() { return high_water_mark_.Value(); }
+  Executability executable() {
+    return IsFlagSet(IS_EXECUTABLE) ? EXECUTABLE : NOT_EXECUTABLE;
+  }
 
-  // Should be called when memory chunk is about to be freed.
-  void ReleaseAllocatedMemory();
+  bool InNewSpace() {
+    return (flags_ & ((1 << IN_FROM_SPACE) | (1 << IN_TO_SPACE))) != 0;
+  }
+
+  bool InToSpace() { return IsFlagSet(IN_TO_SPACE); }
+
+  bool InFromSpace() { return IsFlagSet(IN_FROM_SPACE); }
+
+  MemoryChunk* next_chunk() { return next_chunk_.Value(); }
+
+  MemoryChunk* prev_chunk() { return prev_chunk_.Value(); }
+
+  void set_next_chunk(MemoryChunk* next) { next_chunk_.SetValue(next); }
+
+  void set_prev_chunk(MemoryChunk* prev) { prev_chunk_.SetValue(prev); }
+
+  Space* owner() const {
+    if ((reinterpret_cast<intptr_t>(owner_) & kPageHeaderTagMask) ==
+        kPageHeaderTag) {
+      return reinterpret_cast<Space*>(reinterpret_cast<intptr_t>(owner_) -
+                                      kPageHeaderTag);
+    } else {
+      return nullptr;
+    }
+  }
+
+  void set_owner(Space* space) {
+    DCHECK((reinterpret_cast<intptr_t>(space) & kPageHeaderTagMask) == 0);
+    owner_ = reinterpret_cast<Address>(space) + kPageHeaderTag;
+    DCHECK((reinterpret_cast<intptr_t>(owner_) & kPageHeaderTagMask) ==
+           kPageHeaderTag);
+  }
+
+  void InsertAfter(MemoryChunk* other);
+  void Unlink();
 
  protected:
   static MemoryChunk* Initialize(Heap* heap, Address base, size_t size,
                                  Address area_start, Address area_end,
-                                 Executability executable, Space* owner);
+                                 Executability executable, Space* owner,
+                                 base::VirtualMemory* reservation);
+
+  // Should be called when memory chunk is about to be freed.
+  void ReleaseAllocatedMemory();
+
+  base::VirtualMemory* reserved_memory() { return &reservation_; }
 
   size_t size_;
   intptr_t flags_;
@@ -717,28 +663,38 @@ class MemoryChunk {
 
   // If the chunk needs to remember its memory reservation, it is stored here.
   base::VirtualMemory reservation_;
+
   // The identity of the owning space.  This is tagged as a failure pointer, but
   // no failure can be in an object, so this can be distinguished from any entry
   // in a fixed array.
   Address owner_;
+
   Heap* heap_;
+
   // Used by the incremental marker to keep track of the scanning progress in
   // large objects that have a progress bar and are scanned in increments.
   int progress_bar_;
+
   // Count of bytes marked black on page.
   int live_byte_count_;
+
   SlotsBuffer* slots_buffer_;
+
   // A single slot set for small pages (of size kPageSize) or an array of slot
   // set for large pages. In the latter case the number of entries in the array
   // is ceil(size() / kPageSize).
   SlotSet* old_to_new_slots_;
+
   SkipList* skip_list_;
+
   intptr_t write_barrier_counter_;
+
   // Assuming the initial allocation on a page is sequential,
   // count highest number of bytes ever allocated on the page.
   AtomicValue<intptr_t> high_water_mark_;
 
   base::Mutex* mutex_;
+
   AtomicValue<ConcurrentSweepingState> concurrent_sweeping_;
   AtomicValue<ParallelCompactingState> parallel_compaction_;
 
