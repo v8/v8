@@ -271,31 +271,29 @@ double ClobberDoubleRegisters(double x1, double x2, double x3, double x4);
 #define CLOBBER_DOUBLE_REGISTERS()
 #endif
 
-
-#define RUNTIME_FUNCTION_RETURNS_TYPE(Type, Name)                             \
-  static INLINE(Type __RT_impl_##Name(Arguments args, Isolate* isolate));     \
-  Type Name(int args_length, Object** args_object, Isolate* isolate) {        \
-    CLOBBER_DOUBLE_REGISTERS();                                               \
-    RuntimeCallStats* stats = isolate->runtime_state()->runtime_call_stats(); \
-    stats->Count_##Name++;                                                    \
-    base::ElapsedTimer timer;                                                 \
-    bool timing = false;                                                      \
-    if (FLAG_runtime_call_stats && !stats->in_runtime_call) {                 \
-      stats->in_runtime_call = true;                                          \
-      timing = true;                                                          \
-      timer.Start();                                                          \
-    }                                                                         \
-    Arguments args(args_length, args_object);                                 \
-    Type value = __RT_impl_##Name(args, isolate);                             \
-    if (timing) {                                                             \
-      stats->in_runtime_call = false;                                         \
-      isolate->runtime_state()->runtime_call_stats()->Time_##Name +=          \
-          timer.Elapsed();                                                    \
-    }                                                                         \
-    return value;                                                             \
-  }                                                                           \
+#define RUNTIME_FUNCTION_RETURNS_TYPE(Type, Name)                         \
+  static INLINE(Type __RT_impl_##Name(Arguments args, Isolate* isolate)); \
+  Type Name(int args_length, Object** args_object, Isolate* isolate) {    \
+    CLOBBER_DOUBLE_REGISTERS();                                           \
+    RuntimeCallStats* stats = isolate->counters()->runtime_call_stats();  \
+    stats->Count_##Name++;                                                \
+    base::ElapsedTimer timer;                                             \
+    bool timing = false;                                                  \
+    if (FLAG_runtime_call_stats && !stats->in_runtime_call) {             \
+      stats->in_runtime_call = true;                                      \
+      timing = true;                                                      \
+      timer.Start();                                                      \
+    }                                                                     \
+    Arguments args(args_length, args_object);                             \
+    Type value = __RT_impl_##Name(args, isolate);                         \
+    if (timing) {                                                         \
+      stats->in_runtime_call = false;                                     \
+      isolate->counters()->runtime_call_stats()->Time_##Name +=           \
+          timer.Elapsed();                                                \
+    }                                                                     \
+    return value;                                                         \
+  }                                                                       \
   static Type __RT_impl_##Name(Arguments args, Isolate* isolate)
-
 
 #define RUNTIME_FUNCTION(Name) RUNTIME_FUNCTION_RETURNS_TYPE(Object*, Name)
 #define RUNTIME_FUNCTION_RETURN_PAIR(Name) \
