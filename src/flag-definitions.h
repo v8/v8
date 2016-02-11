@@ -219,8 +219,7 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED(V)                                   \
   V(harmony_regexp_lookbehind, "harmony regexp lookbehind") \
-  V(harmony_species, "harmony Symbol.species")              \
-  V(harmony_unicode_regexps, "harmony unicode regexps")
+  V(harmony_species, "harmony Symbol.species")
 
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING(V)                                               \
@@ -230,6 +229,7 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
   V(harmony_object_observe, "harmony Object.observe")                     \
   V(harmony_tostring, "harmony toString")                                 \
   V(harmony_regexps, "harmony regular expression extensions")             \
+  V(harmony_unicode_regexps, "harmony unicode regexps")                   \
   V(harmony_sloppy, "harmony features in sloppy mode")                    \
   V(harmony_sloppy_let, "harmony let in sloppy mode")                     \
   V(harmony_sloppy_function, "harmony sloppy function block scoping")     \
