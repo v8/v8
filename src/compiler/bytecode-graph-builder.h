@@ -40,12 +40,6 @@ class BytecodeGraphBuilder {
   // Get or create the node that represents the incoming new target value.
   Node* GetNewTarget();
 
-  // Builder for accessing a (potentially immutable) object field.
-  Node* BuildLoadImmutableObjectField(Node* object, int offset);
-
-  // Builder for accessing type feedback vector.
-  Node* BuildLoadFeedbackVector();
-
   // Builder for loading the a native context field.
   Node* BuildLoadNativeContextField(int index);
 

@@ -103,8 +103,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .Call(reg, wide, 1, 0)
       .CallRuntime(Runtime::kIsArray, reg, 1)
       .CallRuntime(Runtime::kIsArray, wide, 1)
-      .CallRuntimeForPair(Runtime::kLoadLookupSlot, reg, 1, other)
-      .CallRuntimeForPair(Runtime::kLoadLookupSlot, wide, 1, other)
+      .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, reg, 1, other)
+      .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, wide, 1, other)
       .CallJSRuntime(Context::SPREAD_ITERABLE_INDEX, reg, 1)
       .CallJSRuntime(Context::SPREAD_ITERABLE_INDEX, wide, 1);
 

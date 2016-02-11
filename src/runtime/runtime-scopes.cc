@@ -932,17 +932,14 @@ RUNTIME_FUNCTION(Runtime_DeclareModules) {
 
 RUNTIME_FUNCTION(Runtime_DeleteLookupSlot) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-
-  CONVERT_ARG_HANDLE_CHECKED(Context, context, 0);
-  CONVERT_ARG_HANDLE_CHECKED(String, name, 1);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
 
   int index;
   PropertyAttributes attributes;
-  ContextLookupFlags flags = FOLLOW_CHAINS;
-  BindingFlags binding_flags;
-  Handle<Object> holder =
-      context->Lookup(name, flags, &index, &attributes, &binding_flags);
+  BindingFlags flags;
+  Handle<Object> holder = isolate->context()->Lookup(
+      name, FOLLOW_CHAINS, &index, &attributes, &flags);
 
   // If the slot was not found the result is true.
   if (holder.is_null()) {
@@ -966,161 +963,158 @@ RUNTIME_FUNCTION(Runtime_DeleteLookupSlot) {
 }
 
 
-static Object* ComputeReceiverForNonGlobal(Isolate* isolate, JSObject* holder) {
-  DCHECK(!holder->IsJSGlobalObject());
+namespace {
 
-  // If the holder isn't a context extension object, we just return it
-  // as the receiver. This allows arguments objects to be used as
-  // receivers, but only if they are put in the context scope chain
-  // explicitly via a with-statement.
-  if (holder->map()->instance_type() != JS_CONTEXT_EXTENSION_OBJECT_TYPE) {
-    return holder;
-  }
-  // Fall back to using the global object as the implicit receiver if
-  // the property turns out to be a local variable allocated in a
-  // context extension object - introduced via eval.
-  return isolate->heap()->undefined_value();
-}
-
-
-static ObjectPair LoadLookupSlotHelper(Arguments args, Isolate* isolate,
-                                       bool throw_error) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-
-  if (!args[0]->IsContext() || !args[1]->IsString()) {
-    return MakePair(isolate->ThrowIllegalOperation(), NULL);
-  }
-  Handle<Context> context = args.at<Context>(0);
-  Handle<String> name = args.at<String>(1);
+MaybeHandle<Object> LoadLookupSlot(Handle<String> name,
+                                   Object::ShouldThrow should_throw,
+                                   Handle<Object>* receiver_return = nullptr) {
+  Isolate* const isolate = name->GetIsolate();
 
   int index;
   PropertyAttributes attributes;
-  ContextLookupFlags flags = FOLLOW_CHAINS;
-  BindingFlags binding_flags;
-  Handle<Object> holder =
-      context->Lookup(name, flags, &index, &attributes, &binding_flags);
-  if (isolate->has_pending_exception()) {
-    return MakePair(isolate->heap()->exception(), NULL);
-  }
+  BindingFlags flags;
+  Handle<Object> holder = isolate->context()->Lookup(
+      name, FOLLOW_CHAINS, &index, &attributes, &flags);
+  if (isolate->has_pending_exception()) return MaybeHandle<Object>();
 
   if (index != Context::kNotFound) {
     DCHECK(holder->IsContext());
     // If the "property" we were looking for is a local variable, the
     // receiver is the global object; see ECMA-262, 3rd., 10.1.6 and 10.2.3.
     Handle<Object> receiver = isolate->factory()->undefined_value();
-    Object* value = Context::cast(*holder)->get(index);
+    Handle<Object> value = handle(Context::cast(*holder)->get(index), isolate);
     // Check for uninitialized bindings.
-    switch (binding_flags) {
+    switch (flags) {
       case MUTABLE_CHECK_INITIALIZED:
       case IMMUTABLE_CHECK_INITIALIZED_HARMONY:
         if (value->IsTheHole()) {
-          Handle<Object> error = isolate->factory()->NewReferenceError(
-              MessageTemplate::kNotDefined, name);
-          isolate->Throw(*error);
-          return MakePair(isolate->heap()->exception(), NULL);
+          THROW_NEW_ERROR(isolate,
+                          NewReferenceError(MessageTemplate::kNotDefined, name),
+                          Object);
+        }
+      // FALLTHROUGH
+      case IMMUTABLE_CHECK_INITIALIZED:
+        if (value->IsTheHole()) {
+          DCHECK(attributes & READ_ONLY);
+          value = isolate->factory()->undefined_value();
         }
       // FALLTHROUGH
       case MUTABLE_IS_INITIALIZED:
       case IMMUTABLE_IS_INITIALIZED:
       case IMMUTABLE_IS_INITIALIZED_HARMONY:
         DCHECK(!value->IsTheHole());
-        return MakePair(value, *receiver);
-      case IMMUTABLE_CHECK_INITIALIZED:
-        if (value->IsTheHole()) {
-          DCHECK((attributes & READ_ONLY) != 0);
-          value = isolate->heap()->undefined_value();
-        }
-        return MakePair(value, *receiver);
+        if (receiver_return) *receiver_return = receiver;
+        return value;
       case MISSING_BINDING:
-        UNREACHABLE();
-        return MakePair(NULL, NULL);
+        break;
     }
+    UNREACHABLE();
   }
 
   // Otherwise, if the slot was found the holder is a context extension
   // object, subject of a with, or a global object.  We read the named
   // property from it.
   if (!holder.is_null()) {
-    Handle<JSReceiver> object = Handle<JSReceiver>::cast(holder);
-    // GetProperty below can cause GC.
-    Handle<Object> receiver_handle(
-        object->IsJSGlobalObject()
-            ? Object::cast(isolate->heap()->undefined_value())
-            : object->IsJSProxy() ? static_cast<Object*>(*object)
-                                  : ComputeReceiverForNonGlobal(
-                                        isolate, JSObject::cast(*object)),
-        isolate);
-
     // No need to unhole the value here.  This is taken care of by the
     // GetProperty function.
     Handle<Object> value;
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, value, Object::GetProperty(object, name),
-        MakePair(isolate->heap()->exception(), NULL));
-    return MakePair(*value, *receiver_handle);
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, value, Object::GetProperty(holder, name),
+        Object);
+    if (receiver_return) {
+      *receiver_return =
+          (holder->IsJSGlobalObject() || holder->IsJSContextExtensionObject())
+              ? Handle<Object>::cast(isolate->factory()->undefined_value())
+              : holder;
+    }
+    return value;
   }
 
-  if (throw_error) {
+  if (should_throw == Object::THROW_ON_ERROR) {
     // The property doesn't exist - throw exception.
-    Handle<Object> error = isolate->factory()->NewReferenceError(
-        MessageTemplate::kNotDefined, name);
-    isolate->Throw(*error);
-    return MakePair(isolate->heap()->exception(), NULL);
-  } else {
-    // The property doesn't exist - return undefined.
-    return MakePair(isolate->heap()->undefined_value(),
-                    isolate->heap()->undefined_value());
+    THROW_NEW_ERROR(
+        isolate, NewReferenceError(MessageTemplate::kNotDefined, name), Object);
   }
+
+  // The property doesn't exist - return undefined.
+  if (receiver_return) *receiver_return = isolate->factory()->undefined_value();
+  return isolate->factory()->undefined_value();
 }
 
-
-RUNTIME_FUNCTION_RETURN_PAIR(Runtime_LoadLookupSlot) {
-  return LoadLookupSlotHelper(args, isolate, true);
-}
+}  // namespace
 
 
-RUNTIME_FUNCTION_RETURN_PAIR(Runtime_LoadLookupSlotNoReferenceError) {
-  return LoadLookupSlotHelper(args, isolate, false);
-}
-
-
-RUNTIME_FUNCTION(Runtime_StoreLookupSlot) {
+RUNTIME_FUNCTION(Runtime_LoadLookupSlot) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 4);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
+  Handle<Object> value;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, value, LoadLookupSlot(name, Object::THROW_ON_ERROR));
+  return *value;
+}
 
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Context, context, 1);
-  CONVERT_ARG_HANDLE_CHECKED(String, name, 2);
-  CONVERT_LANGUAGE_MODE_ARG_CHECKED(language_mode, 3);
+
+RUNTIME_FUNCTION(Runtime_LoadLookupSlotInsideTypeof) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
+  Handle<Object> value;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, value, LoadLookupSlot(name, Object::DONT_THROW));
+  return *value;
+}
+
+
+RUNTIME_FUNCTION_RETURN_PAIR(Runtime_LoadLookupSlotForCall) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  DCHECK(args[0]->IsString());
+  Handle<String> name = args.at<String>(0);
+  Handle<Object> value;
+  Handle<Object> receiver;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, value, LoadLookupSlot(name, Object::THROW_ON_ERROR, &receiver),
+      MakePair(isolate->heap()->exception(), nullptr));
+  return MakePair(*value, *receiver);
+}
+
+
+namespace {
+
+MaybeHandle<Object> StoreLookupSlot(Handle<String> name, Handle<Object> value,
+                                    LanguageMode language_mode) {
+  Isolate* const isolate = name->GetIsolate();
+  Handle<Context> context(isolate->context(), isolate);
 
   int index;
   PropertyAttributes attributes;
-  ContextLookupFlags flags = FOLLOW_CHAINS;
-  BindingFlags binding_flags;
+  BindingFlags flags;
   Handle<Object> holder =
-      context->Lookup(name, flags, &index, &attributes, &binding_flags);
+      context->Lookup(name, FOLLOW_CHAINS, &index, &attributes, &flags);
   if (holder.is_null()) {
     // In case of JSProxy, an exception might have been thrown.
-    if (isolate->has_pending_exception()) return isolate->heap()->exception();
+    if (isolate->has_pending_exception()) return MaybeHandle<Object>();
   }
 
   // The property was found in a context slot.
   if (index != Context::kNotFound) {
-    if ((binding_flags == MUTABLE_CHECK_INITIALIZED ||
-         binding_flags == IMMUTABLE_CHECK_INITIALIZED_HARMONY) &&
+    if ((flags == MUTABLE_CHECK_INITIALIZED ||
+         flags == IMMUTABLE_CHECK_INITIALIZED_HARMONY) &&
         Handle<Context>::cast(holder)->is_the_hole(index)) {
-      THROW_NEW_ERROR_RETURN_FAILURE(
-          isolate, NewReferenceError(MessageTemplate::kNotDefined, name));
+      THROW_NEW_ERROR(isolate,
+                      NewReferenceError(MessageTemplate::kNotDefined, name),
+                      Object);
     }
     if ((attributes & READ_ONLY) == 0) {
       Handle<Context>::cast(holder)->set(index, *value);
     } else if (is_strict(language_mode)) {
       // Setting read only property in strict mode.
-      THROW_NEW_ERROR_RETURN_FAILURE(
-          isolate, NewTypeError(MessageTemplate::kStrictCannotAssign, name));
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError(MessageTemplate::kStrictCannotAssign, name),
+                      Object);
     }
-    return *value;
+    return value;
   }
 
   // Slow case: The property is not in a context slot.  It is either in a
@@ -1132,16 +1126,40 @@ RUNTIME_FUNCTION(Runtime_StoreLookupSlot) {
     object = Handle<JSReceiver>::cast(holder);
   } else if (is_strict(language_mode)) {
     // If absent in strict mode: throw.
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewReferenceError(MessageTemplate::kNotDefined, name));
+    THROW_NEW_ERROR(
+        isolate, NewReferenceError(MessageTemplate::kNotDefined, name), Object);
   } else {
     // If absent in sloppy mode: add the property to the global object.
     object = Handle<JSReceiver>(context->global_object());
   }
 
-  RETURN_FAILURE_ON_EXCEPTION(
-      isolate, Object::SetProperty(object, name, value, language_mode));
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, value, Object::SetProperty(object, name, value, language_mode),
+      Object);
+  return value;
+}
 
+}  // namespace
+
+
+RUNTIME_FUNCTION(Runtime_StoreLookupSlot_Sloppy) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
+                                     StoreLookupSlot(name, value, SLOPPY));
+  return *value;
+}
+
+
+RUNTIME_FUNCTION(Runtime_StoreLookupSlot_Strict) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
+                                     StoreLookupSlot(name, value, STRICT));
   return *value;
 }
 

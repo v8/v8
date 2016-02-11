@@ -314,13 +314,13 @@ class AstGraphBuilder : public AstVisitor {
   Node* BuildGlobalStore(Handle<Name> name, Node* value,
                          const VectorSlotPair& feedback);
 
+  // Builders for dynamic variable loads and stores.
+  Node* BuildDynamicLoad(Handle<Name> name, TypeofMode typeof_mode);
+  Node* BuildDynamicStore(Handle<Name> name, Node* value);
+
   // Builders for accessing the function context.
   Node* BuildLoadGlobalObject();
   Node* BuildLoadNativeContextField(int index);
-  Node* BuildLoadFeedbackVector();
-
-  // Builder for accessing a (potentially immutable) object field.
-  Node* BuildLoadImmutableObjectField(Node* object, int offset);
 
   // Builders for automatic type conversion.
   Node* BuildToBoolean(Node* input, TypeFeedbackId feedback_id);

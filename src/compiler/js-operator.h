@@ -213,30 +213,6 @@ std::ostream& operator<<(std::ostream&, ContextAccess const&);
 ContextAccess const& ContextAccessOf(Operator const*);
 
 
-// Defines the name for a dynamic variable lookup. This is used as a parameter
-// by JSLoadDynamic and JSStoreDynamic operators.
-class DynamicAccess final {
- public:
-  DynamicAccess(const Handle<String>& name, TypeofMode typeof_mode);
-
-  const Handle<String>& name() const { return name_; }
-  TypeofMode typeof_mode() const { return typeof_mode_; }
-
- private:
-  const Handle<String> name_;
-  const TypeofMode typeof_mode_;
-};
-
-size_t hash_value(DynamicAccess const&);
-
-bool operator==(DynamicAccess const&, DynamicAccess const&);
-bool operator!=(DynamicAccess const&, DynamicAccess const&);
-
-std::ostream& operator<<(std::ostream&, DynamicAccess const&);
-
-DynamicAccess const& DynamicAccessOf(Operator const*);
-
-
 // Defines the property of an object for a named access. This is
 // used as a parameter by the JSLoadNamed and JSStoreNamed operators.
 class NamedAccess final {
@@ -523,9 +499,6 @@ class JSOperatorBuilder final : public ZoneObject {
 
   const Operator* LoadContext(size_t depth, size_t index, bool immutable);
   const Operator* StoreContext(size_t depth, size_t index);
-
-  const Operator* LoadDynamic(const Handle<String>& name,
-                              TypeofMode typeof_mode);
 
   const Operator* TypeOf();
   const Operator* InstanceOf();

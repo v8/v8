@@ -2175,8 +2175,8 @@ void BytecodeGenerator::VisitCall(Call* expr) {
 
   // The receiver and arguments need to be allocated consecutively for
   // Call(). We allocate the callee and receiver consecutively for calls to
-  // kLoadLookupSlot. Future optimizations could avoid this there are no
-  // arguments or the receiver and arguments are already consecutive.
+  // %LoadLookupSlotForCall. Future optimizations could avoid this there are
+  // no arguments or the receiver and arguments are already consecutive.
   ZoneList<Expression*>* args = expr->arguments();
   register_allocator()->PrepareForConsecutiveAllocations(args->length() + 2);
   Register callee = register_allocator()->NextConsecutiveRegister();
@@ -2206,18 +2206,16 @@ void BytecodeGenerator::VisitCall(Call* expr) {
     case Call::POSSIBLY_EVAL_CALL: {
       if (callee_expr->AsVariableProxy()->var()->IsLookupSlot()) {
         RegisterAllocationScope inner_register_scope(this);
-        register_allocator()->PrepareForConsecutiveAllocations(2);
-        Register context = register_allocator()->NextConsecutiveRegister();
-        Register name = register_allocator()->NextConsecutiveRegister();
+        Register name = register_allocator()->NewRegister();
 
-        // Call LoadLookupSlot to get the callee and receiver.
+        // Call %LoadLookupSlotForCall to get the callee and receiver.
         DCHECK(Register::AreContiguous(callee, receiver));
         Variable* variable = callee_expr->AsVariableProxy()->var();
         builder()
-            ->MoveRegister(Register::current_context(), context)
-            .LoadLiteral(variable->name())
+            ->LoadLiteral(variable->name())
             .StoreAccumulatorInRegister(name)
-            .CallRuntimeForPair(Runtime::kLoadLookupSlot, context, 2, callee);
+            .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, name, 1,
+                                callee);
         break;
       }
       // Fall through.

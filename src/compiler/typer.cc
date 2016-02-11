@@ -1437,9 +1437,6 @@ Type* Typer::Visitor::TypeJSStoreContext(Node* node) {
 }
 
 
-Type* Typer::Visitor::TypeJSLoadDynamic(Node* node) { return Type::Any(); }
-
-
 Type* Typer::Visitor::WrapContextTypeForInput(Node* node) {
   Type* outer = TypeOrNone(NodeProperties::GetContextInput(node));
   if (outer->Is(Type::None())) {

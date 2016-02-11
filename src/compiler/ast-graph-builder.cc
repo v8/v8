@@ -2338,8 +2338,9 @@ void AstGraphBuilder::VisitCall(Call* expr) {
       Variable* variable = callee->AsVariableProxy()->var();
       DCHECK(variable->location() == VariableLocation::LOOKUP);
       Node* name = jsgraph()->Constant(variable->name());
-      const Operator* op = javascript()->CallRuntime(Runtime::kLoadLookupSlot);
-      Node* pair = NewNode(op, current_context(), name);
+      const Operator* op =
+          javascript()->CallRuntime(Runtime::kLoadLookupSlotForCall);
+      Node* pair = NewNode(op, name);
       callee_value = NewNode(common()->Projection(0), pair);
       receiver_value = NewNode(common()->Projection(1), pair);
       PrepareFrameState(pair, expr->LookupId(),
@@ -2434,8 +2435,8 @@ void AstGraphBuilder::VisitCall(Call* expr) {
         Variable* variable = callee->AsVariableProxy()->var();
         Node* name = jsgraph()->Constant(variable->name());
         const Operator* op =
-            javascript()->CallRuntime(Runtime::kLoadLookupSlot);
-        Node* pair = NewNode(op, current_context(), name);
+            javascript()->CallRuntime(Runtime::kLoadLookupSlotForCall);
+        Node* pair = NewNode(op, name);
         callee_value = NewNode(common()->Projection(0), pair);
         receiver_value = NewNode(common()->Projection(1), pair);
         PrepareFrameState(pair, expr->LookupId(),
@@ -3402,8 +3403,7 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
                                      feedback, combine, typeof_mode)) {
         return node;
       }
-      const Operator* op = javascript()->LoadDynamic(name, typeof_mode);
-      Node* value = NewNode(op, BuildLoadFeedbackVector(), current_context());
+      Node* value = BuildDynamicLoad(name, typeof_mode);
       states.AddToNode(value, bailout_id, combine);
       return value;
     }
@@ -3438,7 +3438,7 @@ Node* AstGraphBuilder::BuildVariableDelete(Variable* variable,
       Node* name = jsgraph()->Constant(variable->name());
       const Operator* op =
           javascript()->CallRuntime(Runtime::kDeleteLookupSlot);
-      Node* result = NewNode(op, current_context(), name);
+      Node* result = NewNode(op, name);
       PrepareFrameState(result, bailout_id, combine);
       return result;
     }
@@ -3560,12 +3560,10 @@ Node* AstGraphBuilder::BuildVariableAssignment(
     }
     case VariableLocation::LOOKUP: {
       // Dynamic lookup of context variable (anywhere in the chain).
-      Node* name = jsgraph()->Constant(variable->name());
-      Node* language = jsgraph()->Constant(language_mode());
+      Handle<Name> name = variable->name();
       // TODO(mstarzinger): Use Runtime::kInitializeLegacyConstLookupSlot for
       // initializations of const declarations.
-      const Operator* op = javascript()->CallRuntime(Runtime::kStoreLookupSlot);
-      Node* store = NewNode(op, value, current_context(), name, language);
+      Node* store = BuildDynamicStore(name, value);
       PrepareFrameState(store, bailout_id, combine);
       return store;
     }
@@ -3671,11 +3669,25 @@ Node* AstGraphBuilder::BuildGlobalStore(Handle<Name> name, Node* value,
 }
 
 
-Node* AstGraphBuilder::BuildLoadImmutableObjectField(Node* object, int offset) {
-  return graph()->NewNode(jsgraph()->machine()->Load(MachineType::AnyTagged()),
-                          object,
-                          jsgraph()->IntPtrConstant(offset - kHeapObjectTag),
-                          graph()->start(), graph()->start());
+Node* AstGraphBuilder::BuildDynamicLoad(Handle<Name> name,
+                                        TypeofMode typeof_mode) {
+  Node* name_node = jsgraph()->Constant(name);
+  const Operator* op =
+      javascript()->CallRuntime(typeof_mode == TypeofMode::NOT_INSIDE_TYPEOF
+                                    ? Runtime::kLoadLookupSlot
+                                    : Runtime::kLoadLookupSlotInsideTypeof);
+  Node* node = NewNode(op, name_node);
+  return node;
+}
+
+
+Node* AstGraphBuilder::BuildDynamicStore(Handle<Name> name, Node* value) {
+  Node* name_node = jsgraph()->Constant(name);
+  const Operator* op = javascript()->CallRuntime(
+      is_strict(language_mode()) ? Runtime::kStoreLookupSlot_Strict
+                                 : Runtime::kStoreLookupSlot_Sloppy);
+  Node* node = NewNode(op, name_node, value);
+  return node;
 }
 
 
@@ -3689,19 +3701,6 @@ Node* AstGraphBuilder::BuildLoadNativeContextField(int index) {
       javascript()->LoadContext(0, Context::NATIVE_CONTEXT_INDEX, true);
   Node* native_context = NewNode(op, current_context());
   return NewNode(javascript()->LoadContext(0, index, true), native_context);
-}
-
-
-Node* AstGraphBuilder::BuildLoadFeedbackVector() {
-  if (!feedback_vector_.is_set()) {
-    Node* closure = GetFunctionClosure();
-    Node* shared = BuildLoadImmutableObjectField(
-        closure, JSFunction::kSharedFunctionInfoOffset);
-    Node* vector = BuildLoadImmutableObjectField(
-        shared, SharedFunctionInfo::kFeedbackVectorOffset);
-    feedback_vector_.set(vector);
-  }
-  return feedback_vector_.get();
 }
 
 
@@ -3923,8 +3922,7 @@ Node* AstGraphBuilder::TryLoadDynamicVariable(
     fast_block.EndBlock();
 
     // Slow case, because variable potentially shadowed. Perform dynamic lookup.
-    const Operator* op = javascript()->LoadDynamic(name, typeof_mode);
-    Node* slow = NewNode(op, BuildLoadFeedbackVector(), current_context());
+    Node* slow = BuildDynamicLoad(name, typeof_mode);
     states.AddToNode(slow, bailout_id, combine);
     environment()->Push(slow);
     slow_block.EndBlock();
@@ -3967,8 +3965,7 @@ Node* AstGraphBuilder::TryLoadDynamicVariable(
     fast_block.EndBlock();
 
     // Slow case, because variable potentially shadowed. Perform dynamic lookup.
-    const Operator* op = javascript()->LoadDynamic(name, typeof_mode);
-    Node* slow = NewNode(op, BuildLoadFeedbackVector(), current_context());
+    Node* slow = BuildDynamicLoad(name, typeof_mode);
     states.AddToNode(slow, bailout_id, combine);
     environment()->Push(slow);
     slow_block.EndBlock();

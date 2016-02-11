@@ -492,33 +492,11 @@ Node* BytecodeGraphBuilder::GetFunctionClosure() {
 }
 
 
-Node* BytecodeGraphBuilder::BuildLoadImmutableObjectField(Node* object,
-                                                          int offset) {
-  return graph()->NewNode(jsgraph()->machine()->Load(MachineType::AnyTagged()),
-                          object,
-                          jsgraph()->IntPtrConstant(offset - kHeapObjectTag),
-                          graph()->start(), graph()->start());
-}
-
-
 Node* BytecodeGraphBuilder::BuildLoadNativeContextField(int index) {
   const Operator* op =
       javascript()->LoadContext(0, Context::NATIVE_CONTEXT_INDEX, true);
   Node* native_context = NewNode(op, environment()->Context());
   return NewNode(javascript()->LoadContext(0, index, true), native_context);
-}
-
-
-Node* BytecodeGraphBuilder::BuildLoadFeedbackVector() {
-  if (!feedback_vector_.is_set()) {
-    Node* closure = GetFunctionClosure();
-    Node* shared = BuildLoadImmutableObjectField(
-        closure, JSFunction::kSharedFunctionInfoOffset);
-    Node* vector = BuildLoadImmutableObjectField(
-        shared, SharedFunctionInfo::kFeedbackVectorOffset);
-    feedback_vector_.set(vector);
-  }
-  return feedback_vector_.get();
 }
 
 
@@ -761,11 +739,13 @@ void BytecodeGraphBuilder::VisitStaContextSlotWide() { VisitStaContextSlot(); }
 
 void BytecodeGraphBuilder::BuildLdaLookupSlot(TypeofMode typeof_mode) {
   FrameStateBeforeAndAfter states(this);
-  Handle<String> name =
-      Handle<String>::cast(bytecode_iterator().GetConstantForIndexOperand(0));
-  const Operator* op = javascript()->LoadDynamic(name, typeof_mode);
-  Node* value =
-      NewNode(op, BuildLoadFeedbackVector(), environment()->Context());
+  Node* name =
+      jsgraph()->Constant(bytecode_iterator().GetConstantForIndexOperand(0));
+  const Operator* op =
+      javascript()->CallRuntime(typeof_mode == TypeofMode::NOT_INSIDE_TYPEOF
+                                    ? Runtime::kLoadLookupSlot
+                                    : Runtime::kLoadLookupSlotInsideTypeof);
+  Node* value = NewNode(op, name);
   environment()->BindAccumulator(value, &states);
 }
 
@@ -782,9 +762,10 @@ void BytecodeGraphBuilder::BuildStaLookupSlot(LanguageMode language_mode) {
   Node* value = environment()->LookupAccumulator();
   Node* name =
       jsgraph()->Constant(bytecode_iterator().GetConstantForIndexOperand(0));
-  Node* language = jsgraph()->Constant(language_mode);
-  const Operator* op = javascript()->CallRuntime(Runtime::kStoreLookupSlot);
-  Node* store = NewNode(op, value, environment()->Context(), name, language);
+  const Operator* op = javascript()->CallRuntime(
+      is_strict(language_mode) ? Runtime::kStoreLookupSlot_Strict
+                               : Runtime::kStoreLookupSlot_Sloppy);
+  Node* store = NewNode(op, name, value);
   environment()->BindAccumulator(store, &states);
 }
 
@@ -1328,7 +1309,7 @@ void BytecodeGraphBuilder::VisitDeleteLookupSlot() {
   FrameStateBeforeAndAfter states(this);
   Node* name = environment()->LookupAccumulator();
   const Operator* op = javascript()->CallRuntime(Runtime::kDeleteLookupSlot);
-  Node* result = NewNode(op, environment()->Context(), name);
+  Node* result = NewNode(op, name);
   environment()->BindAccumulator(result, &states);
 }
 

@@ -1422,12 +1422,11 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy,
       EmitDynamicLookupFastCase(proxy, typeof_mode, &slow, &done);
       __ Bind(&slow);
       Comment cmnt(masm_, "Lookup variable");
-      __ Mov(x1, Operand(var->name()));
-      __ Push(cp, x1);  // Context and name.
+      __ Push(var->name());
       Runtime::FunctionId function_id =
           typeof_mode == NOT_INSIDE_TYPEOF
               ? Runtime::kLoadLookupSlot
-              : Runtime::kLoadLookupSlotNoReferenceError;
+              : Runtime::kLoadLookupSlotInsideTypeof;
       __ CallRuntime(function_id);
       __ Bind(&done);
       context()->Plug(x0);
@@ -2250,14 +2249,11 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op,
              (var->mode() == CONST && op == Token::INIT)) {
     if (var->IsLookupSlot()) {
       // Assignment to var.
-      __ Mov(x11, Operand(var->name()));
-      __ Mov(x10, Smi::FromInt(language_mode()));
-      // jssp[0]  : mode.
-      // jssp[8]  : name.
-      // jssp[16] : context.
-      // jssp[24] : value.
-      __ Push(x0, cp, x11, x10);
-      __ CallRuntime(Runtime::kStoreLookupSlot);
+      __ Push(var->name());
+      __ Push(x0);
+      __ CallRuntime(is_strict(language_mode())
+                         ? Runtime::kStoreLookupSlot_Strict
+                         : Runtime::kStoreLookupSlot_Sloppy);
     } else {
       // Assignment to var or initializing assignment to let/const in harmony
       // mode.
@@ -2615,9 +2611,8 @@ void FullCodeGenerator::PushCalleeAndWithBaseObject(Call* expr) {
     __ Bind(&slow);
     // Call the runtime to find the function to call (returned in x0)
     // and the object holding it (returned in x1).
-    __ Mov(x10, Operand(callee->name()));
-    __ Push(context_register(), x10);
-    __ CallRuntime(Runtime::kLoadLookupSlot);
+    __ Push(callee->name());
+    __ CallRuntime(Runtime::kLoadLookupSlotForCall);
     __ Push(x0, x1);  // Receiver, function.
     PrepareForBailoutForId(expr->LookupId(), NO_REGISTERS);
 
@@ -3736,8 +3731,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
         } else {
           // Non-global variable.  Call the runtime to try to delete from the
           // context where the variable was introduced.
-          __ Mov(x2, Operand(var->name()));
-          __ Push(context_register(), x2);
+          __ Push(var->name());
           __ CallRuntime(Runtime::kDeleteLookupSlot);
           context()->Plug(x0);
         }
