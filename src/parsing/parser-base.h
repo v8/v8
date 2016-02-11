@@ -984,7 +984,6 @@ template <class Traits>
 void ParserBase<Traits>::GetUnexpectedTokenMessage(
     Token::Value token, MessageTemplate::Template* message, const char** arg,
     MessageTemplate::Template default_) {
-  // Four of the tokens are treated specially
   switch (token) {
     case Token::EOS:
       *message = MessageTemplate::kUnexpectedEOS;
@@ -1108,10 +1107,8 @@ ParserBase<Traits>::ParseAndClassifyIdentifier(ExpressionClassifier* classifier,
           scanner()->location(), MessageTemplate::kStrongUndefined);
       if (is_strong(language_mode())) {
         // TODO(dslomov): allow 'undefined' in nested patterns.
-        classifier->RecordBindingPatternError(
-            scanner()->location(), MessageTemplate::kStrongUndefined);
-        classifier->RecordAssignmentPatternError(
-            scanner()->location(), MessageTemplate::kStrongUndefined);
+        classifier->RecordPatternError(scanner()->location(),
+                                       MessageTemplate::kStrongUndefined);
       }
     }
 
@@ -1276,8 +1273,7 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
       return this->ExpressionFromLiteral(Next(), beg_pos, scanner(), factory());
     case Token::SMI:
     case Token::NUMBER:
-      classifier->RecordBindingPatternError(
-          scanner()->peek_location(), MessageTemplate::kUnexpectedTokenNumber);
+      BindingPatternUnexpectedToken(classifier);
       return this->ExpressionFromLiteral(Next(), beg_pos, scanner(), factory());
 
     case Token::IDENTIFIER:
@@ -1293,8 +1289,7 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
     }
 
     case Token::STRING: {
-      classifier->RecordBindingPatternError(
-          scanner()->peek_location(), MessageTemplate::kUnexpectedTokenString);
+      BindingPatternUnexpectedToken(classifier);
       Consume(Token::STRING);
       return this->ExpressionFromString(beg_pos, scanner(), factory());
     }
@@ -1340,9 +1335,6 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
         classifier->RecordExpressionError(scanner()->location(),
                                           MessageTemplate::kUnexpectedToken,
                                           Token::String(Token::RPAREN));
-        classifier->RecordBindingPatternError(scanner()->location(),
-                                              MessageTemplate::kUnexpectedToken,
-                                              Token::String(Token::RPAREN));
         return factory()->NewEmptyParentheses(beg_pos);
       } else if (Check(Token::ELLIPSIS)) {
         // (...x)=>x.  The continuation that looks for the => is in
@@ -1403,9 +1395,7 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
 
     case Token::TEMPLATE_SPAN:
     case Token::TEMPLATE_TAIL:
-      classifier->RecordBindingPatternError(
-          scanner()->peek_location(),
-          MessageTemplate::kUnexpectedTemplateString);
+      BindingPatternUnexpectedToken(classifier);
       return this->ParseTemplateLiteral(Traits::NoTemplateTag(), beg_pos,
                                         classifier, ok);
 
@@ -1990,7 +1980,9 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN, int flags,
   ExpressionT expression = this->ParseConditionalExpression(
       accept_IN, &arrow_formals_classifier, CHECK_OK);
   if (peek() == Token::ARROW) {
-    BindingPatternUnexpectedToken(classifier);
+    classifier->RecordPatternError(scanner()->peek_location(),
+                                   MessageTemplate::kUnexpectedToken,
+                                   Token::String(Token::ARROW));
     ValidateArrowFormalParameters(&arrow_formals_classifier, expression,
                                   parenthesized_formals, CHECK_OK);
     Scanner::Location loc(lhs_beg_pos, scanner()->location().end_pos);
@@ -2018,11 +2010,6 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN, int flags,
     }
     expression = this->ParseArrowFunctionLiteral(
         accept_IN, parameters, arrow_formals_classifier, CHECK_OK);
-    if (maybe_pattern_element) {
-      classifier->RecordPatternError(
-          Scanner::Location(lhs_beg_pos, scanner()->location().end_pos),
-          MessageTemplate::kInvalidDestructuringTarget);
-    }
 
     if (fni_ != nullptr) fni_->Infer();
 
@@ -2081,9 +2068,9 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN, int flags,
 
   Token::Value op = Next();  // Get assignment operator.
   if (op != Token::ASSIGN) {
-    classifier->RecordBindingPatternError(scanner()->location(),
-                                          MessageTemplate::kUnexpectedToken,
-                                          Token::String(op));
+    classifier->RecordPatternError(scanner()->location(),
+                                   MessageTemplate::kUnexpectedToken,
+                                   Token::String(op));
   }
   int pos = position();
 
@@ -2103,12 +2090,6 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN, int flags,
   // probably overestimate the number of properties.
   if (op == Token::ASSIGN && this->IsThisProperty(expression)) {
     function_state_->AddProperty();
-  }
-
-  if (op != Token::ASSIGN && maybe_pattern_element) {
-    classifier->RecordAssignmentPatternError(
-        Scanner::Location(lhs_beg_pos, scanner()->location().end_pos),
-        MessageTemplate::kInvalidDestructuringTarget);
   }
 
   this->CheckAssigningFunctionLiteralToProperty(expression, right);
