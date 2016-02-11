@@ -15,6 +15,16 @@ function CheckStackTrace(expected) {
   }
 }
 
+function f(expected_call_stack, a, b) {
+  CheckStackTrace(expected_call_stack);
+  return a;
+}
+
+function f_153(expected_call_stack, a) {
+  CheckStackTrace(expected_call_stack);
+  return 153;
+}
+
 
 // Tail call when caller does not have an arguments adaptor frame.
 (function test() {
@@ -174,4 +184,150 @@ function CheckStackTrace(expected) {
   var b4 = f4.bind({a: 153});
   function g4(a) { return b4(2); }
   assertEquals(12, g4());
+})();
+
+
+// Tail calling via various expressions.
+(function test() {
+  function g1(a) {
+    return f([f, g1, test], false) || f([f, test], true);
+  }
+  assertEquals(true, g1());
+
+  function g2(a) {
+    return f([f, g2, test], true) && f([f, test], true);
+  }
+  assertEquals(true, g2());
+
+  function g3(a) {
+    return f([f, g3, test], 13), f([f, test], 153);
+  }
+  assertEquals(153, g3());
+})();
+
+
+// Test tail calls from try-catch-finally constructs.
+(function test() {
+  //
+  // try-catch
+  //
+  function tc1(a) {
+    try {
+      f_153([f_153, tc1, test]);
+      return f_153([f_153, tc1, test]);
+    } catch(e) {
+      f_153([f_153, tc1, test]);
+    }
+  }
+  assertEquals(153, tc1());
+
+  function tc2(a) {
+    try {
+      f_153([f_153, tc2, test]);
+      throw new Error("boom");
+    } catch(e) {
+      f_153([f_153, tc2, test]);
+      return f_153([f_153, test]);
+    }
+  }
+  assertEquals(153, tc2());
+
+  function tc3(a) {
+    try {
+      f_153([f_153, tc3, test]);
+      throw new Error("boom");
+    } catch(e) {
+      f_153([f_153, tc3, test]);
+    }
+    f_153([f_153, tc3, test]);
+    return f_153([f_153, test]);
+  }
+  assertEquals(153, tc3());
+
+  //
+  // try-finally
+  //
+  function tf1(a) {
+    try {
+      f_153([f_153, tf1, test]);
+      return f_153([f_153, tf1, test]);
+    } finally {
+      f_153([f_153, tf1, test]);
+    }
+  }
+  assertEquals(153, tf1());
+
+  function tf2(a) {
+    try {
+      f_153([f_153, tf2, test]);
+      throw new Error("boom");
+    } finally {
+      f_153([f_153, tf2, test]);
+      return f_153([f_153, test]);
+    }
+  }
+  assertEquals(153, tf2());
+
+  function tf3(a) {
+    try {
+      f_153([f_153, tf3, test]);
+    } finally {
+      f_153([f_153, tf3, test]);
+    }
+    return f_153([f_153, test]);
+  }
+  assertEquals(153, tf3());
+
+  //
+  // try-catch-finally
+  //
+  function tcf1(a) {
+    try {
+      f_153([f_153, tcf1, test]);
+      return f_153([f_153, tcf1, test]);
+    } catch(e) {
+    } finally {
+      f_153([f_153, tcf1, test]);
+    }
+  }
+  assertEquals(153, tcf1());
+
+  function tcf2(a) {
+    try {
+      f_153([f_153, tcf2, test]);
+      throw new Error("boom");
+    } catch(e) {
+      f_153([f_153, tcf2, test]);
+      return f_153([f_153, tcf2, test]);
+    } finally {
+      f_153([f_153, tcf2, test]);
+    }
+  }
+  assertEquals(153, tcf2());
+
+  function tcf3(a) {
+    try {
+      f_153([f_153, tcf3, test]);
+      throw new Error("boom");
+    } catch(e) {
+      f_153([f_153, tcf3, test]);
+    } finally {
+      f_153([f_153, tcf3, test]);
+      return f_153([f_153, test]);
+    }
+  }
+  assertEquals(153, tcf3());
+
+  function tcf4(a) {
+    try {
+      f_153([f_153, tcf4, test]);
+      throw new Error("boom");
+    } catch(e) {
+      f_153([f_153, tcf4, test]);
+    } finally {
+      f_153([f_153, tcf4, test]);
+    }
+    return f_153([f_153, test]);
+  }
+  assertEquals(153, tcf4());
 })();

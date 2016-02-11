@@ -244,7 +244,6 @@ class Statement : public AstNode {
 
   bool IsEmpty() { return AsEmptyStatement() != NULL; }
   virtual bool IsJump() const { return false; }
-  virtual void MarkTail() {}
 };
 
 
@@ -472,13 +471,6 @@ class Block final : public BreakableStatement {
         && labels() == NULL;  // Good enough as an approximation...
   }
 
-  void MarkTail() override {
-    for (int i = 0; i < statements_.length(); i++) {
-      Statement* stmt = statements_.at(i);
-      stmt->MarkTail();
-    }
-  }
-
   Scope* scope() const { return scope_; }
   void set_scope(Scope* scope) { scope_ = scope; }
 
@@ -508,8 +500,6 @@ class DoExpression final : public Expression {
   void set_block(Block* b) { block_ = b; }
   VariableProxy* result() { return result_; }
   void set_result(VariableProxy* v) { result_ = v; }
-
-  void MarkTail() override { block_->MarkTail(); }
 
  protected:
   DoExpression(Zone* zone, Block* block, VariableProxy* result, int pos)
@@ -1022,8 +1012,6 @@ class ReturnStatement final : public JumpStatement {
 
   void set_expression(Expression* e) { expression_ = e; }
 
-  void MarkTail() override { expression_->MarkTail(); }
-
  protected:
   explicit ReturnStatement(Zone* zone, Expression* expression, int pos)
       : JumpStatement(zone, pos), expression_(expression) { }
@@ -1047,8 +1035,6 @@ class WithStatement final : public Statement {
   static int num_ids() { return parent_num_ids() + 2; }
   BailoutId ToObjectId() const { return BailoutId(local_id(0)); }
   BailoutId EntryId() const { return BailoutId(local_id(1)); }
-
-  void MarkTail() override { statement_->MarkTail(); }
 
  protected:
   WithStatement(Zone* zone, Scope* scope, Expression* expression,
@@ -1092,13 +1078,6 @@ class CaseClause final : public Expression {
   BailoutId EntryId() const { return BailoutId(local_id(0)); }
   TypeFeedbackId CompareId() { return TypeFeedbackId(local_id(1)); }
 
-  void MarkTail() override {
-    for (int i = 0; i < statements_->length(); i++) {
-      Statement* stmt = statements_->at(i);
-      stmt->MarkTail();
-    }
-  }
-
   Type* compare_type() { return compare_type_; }
   void set_compare_type(Type* type) { compare_type_ = type; }
 
@@ -1130,13 +1109,6 @@ class SwitchStatement final : public BreakableStatement {
   ZoneList<CaseClause*>* cases() const { return cases_; }
 
   void set_tag(Expression* t) { tag_ = t; }
-
-  void MarkTail() override {
-    for (int i = 0; i < cases_->length(); i++) {
-      CaseClause* clause = cases_->at(i);
-      clause->MarkTail();
-    }
-  }
 
  protected:
   SwitchStatement(Zone* zone, ZoneList<const AstRawString*>* labels, int pos)
@@ -1173,11 +1145,6 @@ class IfStatement final : public Statement {
   bool IsJump() const override {
     return HasThenStatement() && then_statement()->IsJump()
         && HasElseStatement() && else_statement()->IsJump();
-  }
-
-  void MarkTail() override {
-    then_statement_->MarkTail();
-    else_statement_->MarkTail();
   }
 
   void set_base_id(int id) { base_id_ = id; }
@@ -1249,8 +1216,6 @@ class TryCatchStatement final : public TryStatement {
   Block* catch_block() const { return catch_block_; }
   void set_catch_block(Block* b) { catch_block_ = b; }
 
-  void MarkTail() override { catch_block_->MarkTail(); }
-
  protected:
   TryCatchStatement(Zone* zone, Block* try_block, Scope* scope,
                     Variable* variable, Block* catch_block, int pos)
@@ -1272,8 +1237,6 @@ class TryFinallyStatement final : public TryStatement {
 
   Block* finally_block() const { return finally_block_; }
   void set_finally_block(Block* b) { finally_block_ = b; }
-
-  void MarkTail() override { finally_block_->MarkTail(); }
 
  protected:
   TryFinallyStatement(Zone* zone, Block* try_block, Block* finally_block,

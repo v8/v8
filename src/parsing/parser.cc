@@ -2792,6 +2792,11 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
           is_undefined, ThisExpression(scope_, factory(), pos),
           is_object_conditional, pos);
     }
+
+    // ES6 14.6.1 Static Semantics: IsInTailPosition
+    if (FLAG_harmony_tailcalls && !is_sloppy(language_mode())) {
+      function_state_->AddExpressionInTailPosition(return_value);
+    }
   }
   ExpectSemicolon(CHECK_OK);
 
@@ -2997,6 +3002,40 @@ Statement* Parser::ParseThrowStatement(bool* ok) {
       factory()->NewThrow(exception, pos), pos);
 }
 
+class Parser::DontCollectExpressionsInTailPositionScope {
+ public:
+  DontCollectExpressionsInTailPositionScope(
+      Parser::FunctionState* function_state)
+      : function_state_(function_state),
+        old_value_(function_state->collect_expressions_in_tail_position()) {
+    function_state->set_collect_expressions_in_tail_position(false);
+  }
+  ~DontCollectExpressionsInTailPositionScope() {
+    function_state_->set_collect_expressions_in_tail_position(old_value_);
+  }
+
+ private:
+  Parser::FunctionState* function_state_;
+  bool old_value_;
+};
+
+// Collects all return expressions at tail call position in this scope
+// to a separate list.
+class Parser::CollectExpressionsInTailPositionToListScope {
+ public:
+  CollectExpressionsInTailPositionToListScope(
+      Parser::FunctionState* function_state, List<Expression*>* list)
+      : function_state_(function_state), list_(list) {
+    function_state->expressions_in_tail_position().Swap(list_);
+  }
+  ~CollectExpressionsInTailPositionToListScope() {
+    function_state_->expressions_in_tail_position().Swap(list_);
+  }
+
+ private:
+  Parser::FunctionState* function_state_;
+  List<Expression*>* list_;
+};
 
 TryStatement* Parser::ParseTryStatement(bool* ok) {
   // TryStatement ::
@@ -3013,7 +3052,11 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
   Expect(Token::TRY, CHECK_OK);
   int pos = position();
 
-  Block* try_block = ParseBlock(NULL, CHECK_OK);
+  Block* try_block;
+  {
+    DontCollectExpressionsInTailPositionScope no_tail_calls(function_state_);
+    try_block = ParseBlock(NULL, CHECK_OK);
+  }
 
   Token::Value tok = peek();
   if (tok != Token::CATCH && tok != Token::FINALLY) {
@@ -3025,6 +3068,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
   Scope* catch_scope = NULL;
   Variable* catch_variable = NULL;
   Block* catch_block = NULL;
+  List<Expression*> expressions_in_tail_position_in_catch_block;
   if (tok == Token::CATCH) {
     Consume(Token::CATCH);
 
@@ -3050,6 +3094,9 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
     Expect(Token::RPAREN, CHECK_OK);
 
     {
+      CollectExpressionsInTailPositionToListScope
+          collect_expressions_in_tail_position_scope(
+              function_state_, &expressions_in_tail_position_in_catch_block);
       BlockState block_state(&scope_, catch_scope);
 
       // TODO(adamk): Make a version of ParseBlock that takes a scope and
@@ -3124,6 +3171,11 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
 
   TryStatement* result = NULL;
   if (catch_block != NULL) {
+    // For a try-catch construct append return expressions from the catch block
+    // to the list of return expressions.
+    function_state_->expressions_in_tail_position().AddAll(
+        expressions_in_tail_position_in_catch_block);
+
     DCHECK(finally_block == NULL);
     DCHECK(catch_scope != NULL && catch_variable != NULL);
     result = factory()->NewTryCatchStatement(try_block, catch_scope,
@@ -4751,11 +4803,11 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
   }
 
   // ES6 14.6.1 Static Semantics: IsInTailPosition
-  if (FLAG_harmony_tailcalls && !is_sloppy(language_mode())) {
-    for (int i = 0; i < body->length(); i++) {
-      Statement* stmt = body->at(i);
-      stmt->MarkTail();
-    }
+  // Mark collected return expressions that are in tail call position.
+  const List<Expression*>& expressions_in_tail_position =
+      function_state_->expressions_in_tail_position();
+  for (int i = 0; i < expressions_in_tail_position.length(); ++i) {
+    expressions_in_tail_position[i]->MarkTail();
   }
   return result;
 }

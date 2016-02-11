@@ -246,6 +246,22 @@ class ParserBase : public Traits {
       destructuring_assignments_to_rewrite_.Add(pair);
     }
 
+    List<ExpressionT>& expressions_in_tail_position() {
+      return expressions_in_tail_position_;
+    }
+    void AddExpressionInTailPosition(ExpressionT expression) {
+      if (collect_expressions_in_tail_position_) {
+        expressions_in_tail_position_.Add(expression);
+      }
+    }
+
+    bool collect_expressions_in_tail_position() const {
+      return collect_expressions_in_tail_position_;
+    }
+    void set_collect_expressions_in_tail_position(bool collect) {
+      collect_expressions_in_tail_position_ = collect;
+    }
+
    private:
     // Used to assign an index to each literal that needs materialization in
     // the function.  Includes regexp literals, and boilerplate for object and
@@ -276,6 +292,8 @@ class ParserBase : public Traits {
     Scope* outer_scope_;
 
     List<DestructuringAssignment> destructuring_assignments_to_rewrite_;
+    List<ExpressionT> expressions_in_tail_position_;
+    bool collect_expressions_in_tail_position_;
 
     void RewriteDestructuringAssignments();
 
@@ -933,7 +951,6 @@ class ParserBase : public Traits {
   bool allow_harmony_function_name_;
 };
 
-
 template <class Traits>
 ParserBase<Traits>::FunctionState::FunctionState(
     FunctionState** function_state_stack, Scope** scope_stack, Scope* scope,
@@ -949,6 +966,7 @@ ParserBase<Traits>::FunctionState::FunctionState(
       outer_function_state_(*function_state_stack),
       scope_stack_(scope_stack),
       outer_scope_(*scope_stack),
+      collect_expressions_in_tail_position_(true),
       factory_(factory) {
   *scope_stack_ = scope;
   *function_state_stack = this;
