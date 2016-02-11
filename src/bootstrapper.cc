@@ -1148,6 +1148,19 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(prototype, factory->toString_string(),
                           Builtins::kFunctionPrototypeToString, 0, false);
 
+    // Install the @@hasInstance function.
+    Handle<JSFunction> has_instance = InstallFunction(
+        prototype, factory->has_instance_symbol(), JS_OBJECT_TYPE,
+        JSObject::kHeaderSize, MaybeHandle<JSObject>(),
+        Builtins::kFunctionHasInstance,
+        static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY));
+
+    // Set the expected parameters for @@hasInstance to 1; required by builtin.
+    has_instance->shared()->set_internal_formal_parameter_count(1);
+
+    // Set the length for the function to satisfy ECMA-262.
+    has_instance->shared()->set_length(1);
+
     // Install the "constructor" property on the %FunctionPrototype%.
     JSObject::AddProperty(prototype, factory->constructor_string(),
                           function_fun, DONT_ENUM);
@@ -2516,8 +2529,9 @@ void Genesis::InitializeGlobal_harmony_proxies() {
   Handle<String> name = factory->Proxy_string();
   Handle<Code> code(isolate->builtins()->ProxyConstructor());
 
-  Handle<JSFunction> proxy_function = factory->NewFunction(
-      isolate->proxy_function_map(), factory->Proxy_string(), code);
+  Handle<JSFunction> proxy_function =
+      factory->NewFunction(isolate->proxy_function_map(),
+                           factory->Proxy_string(), MaybeHandle<Code>(code));
 
   JSFunction::SetInitialMap(proxy_function,
                             Handle<Map>(native_context()->proxy_map(), isolate),

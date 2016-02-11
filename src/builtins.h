@@ -102,6 +102,7 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(FunctionConstructor, kTargetAndNewTarget)                  \
   V(FunctionPrototypeBind, kNone)                              \
   V(FunctionPrototypeToString, kNone)                          \
+  V(FunctionHasInstance, kNone)                                \
                                                                \
   V(GeneratorFunctionConstructor, kTargetAndNewTarget)         \
                                                                \
