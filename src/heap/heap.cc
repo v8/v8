@@ -3446,7 +3446,6 @@ void Heap::InitializeJSObjectBody(JSObject* obj, Map* map, int start_offset) {
   if (start_offset == map->instance_size()) return;
   DCHECK_LT(start_offset, map->instance_size());
 
-  Object* filler;
   // We cannot always fill with one_pointer_filler_map because objects
   // created from API functions expect their internal fields to be initialized
   // with undefined_value.
@@ -3456,15 +3455,17 @@ void Heap::InitializeJSObjectBody(JSObject* obj, Map* map, int start_offset) {
 
   // In case of Array subclassing the |map| could already be transitioned
   // to different elements kind from the initial map on which we track slack.
-  Map* initial_map = map->FindRootMap();
-  if (initial_map->IsInobjectSlackTrackingInProgress()) {
-    // We might want to shrink the object later.
-    filler = Heap::one_pointer_filler_map();
+  bool in_progress = map->IsInobjectSlackTrackingInProgress();
+  Object* filler;
+  if (in_progress) {
+    filler = one_pointer_filler_map();
   } else {
-    filler = Heap::undefined_value();
+    filler = undefined_value();
   }
   obj->InitializeBody(map, start_offset, Heap::undefined_value(), filler);
-  initial_map->InobjectSlackTrackingStep();
+  if (in_progress) {
+    map->FindRootMap()->InobjectSlackTrackingStep();
+  }
 }
 
 

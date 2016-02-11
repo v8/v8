@@ -5584,7 +5584,11 @@ class Map: public HeapObject {
   // Builtins::kJSConstructStubGeneric stub.
   // This counter is used for in-object slack tracking.
   // The in-object slack tracking is considered enabled when the counter is
-  // non zero.
+  // non zero. The counter only has a valid count for initial maps. For
+  // transitioned maps only kNoSlackTracking has a meaning, namely that inobject
+  // slack tracking already finished for the transition tree. Any other value
+  // indicates that either inobject slack tracking is still in progress, or that
+  // the map isn't part of the transition tree anymore.
   class ConstructionCounter : public BitField<int, 29, 3> {};
   static const int kSlackTrackingCounterStart = 7;
   static const int kSlackTrackingCounterEnd = 1;

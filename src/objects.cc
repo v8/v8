@@ -9310,8 +9310,6 @@ Handle<Map> Map::RawCopy(Handle<Map> map, int instance_size) {
   if (!map->is_dictionary_map()) {
     new_bit_field3 = IsUnstable::update(new_bit_field3, false);
   }
-  new_bit_field3 =
-      ConstructionCounter::update(new_bit_field3, kNoSlackTracking);
   result->set_bit_field3(new_bit_field3);
   return result;
 }
@@ -9398,6 +9396,7 @@ Handle<Map> Map::CopyNormalized(Handle<Map> map,
 
   result->set_dictionary_map(true);
   result->set_migration_target(false);
+  result->set_construction_counter(kNoSlackTracking);
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) result->DictionaryMapVerify();
@@ -12713,6 +12712,7 @@ static void ShrinkInstanceSize(Map* map, void* data) {
   map->SetInObjectProperties(map->GetInObjectProperties() - slack);
   map->set_unused_property_fields(map->unused_property_fields() - slack);
   map->set_instance_size(map->instance_size() - slack * kPointerSize);
+  map->set_construction_counter(Map::kNoSlackTracking);
 
   // Visitor id might depend on the instance size, recalculate it.
   map->set_visitor_id(Heap::GetStaticVisitorIdForMap(map));
@@ -12722,8 +12722,6 @@ static void ShrinkInstanceSize(Map* map, void* data) {
 void Map::CompleteInobjectSlackTracking() {
   // Has to be an initial map.
   DCHECK(GetBackPointer()->IsUndefined());
-
-  set_construction_counter(kNoSlackTracking);
 
   int slack = unused_property_fields();
   TransitionArray::TraverseTransitionTree(this, &GetMinInobjectSlack, &slack);
@@ -13316,6 +13314,7 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(Isolate* isolate,
 
       JSFunction::SetInitialMap(function, map, prototype);
       map->SetConstructor(*constructor);
+      map->set_construction_counter(Map::kNoSlackTracking);
       map->StartInobjectSlackTracking();
       return map;
     }
