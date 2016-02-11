@@ -6608,8 +6608,7 @@ HValue* HOptimizedGraphBuilder::BuildMonomorphicAccess(
       HValue* function = Add<HConstant>(info->accessor());
       PushArgumentsFromEnvironment(argument_count);
       return New<HCallFunction>(function, argument_count,
-                                ConvertReceiverMode::kNotNullOrUndefined,
-                                TailCallMode::kDisallow);
+                                ConvertReceiverMode::kNotNullOrUndefined);
     } else if (FLAG_inline_accessors && can_inline_accessor) {
       bool success = info->IsLoad()
           ? TryInlineGetter(info->accessor(), info->map(), ast_id, return_id)
@@ -8189,8 +8188,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
       HInstruction* call =
           needs_wrapping ? NewUncasted<HCallFunction>(
                                function, argument_count,
-                               ConvertReceiverMode::kNotNullOrUndefined,
-                               expr->tail_call_mode())
+                               ConvertReceiverMode::kNotNullOrUndefined)
                          : BuildCallConstantFunction(target, argument_count);
       PushArgumentsFromEnvironment(argument_count);
       AddInstruction(call);
@@ -8221,8 +8219,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
     CHECK_ALIVE(VisitExpressions(expr->arguments()));
 
     HInstruction* call = New<HCallFunction>(
-        function, argument_count, ConvertReceiverMode::kNotNullOrUndefined,
-        expr->tail_call_mode());
+        function, argument_count, ConvertReceiverMode::kNotNullOrUndefined);
 
     PushArgumentsFromEnvironment(argument_count);
 
@@ -9687,6 +9684,9 @@ bool HOptimizedGraphBuilder::CanBeFunctionApplyArguments(Call* expr) {
 
 
 void HOptimizedGraphBuilder::VisitCall(Call* expr) {
+  if (expr->tail_call_mode() == TailCallMode::kAllow) {
+    return Bailout(kTailCall);
+  }
   DCHECK(!HasStackOverflow());
   DCHECK(current_block() != NULL);
   DCHECK(current_block()->HasPredecessor());
@@ -9753,8 +9753,7 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
         // TODO(verwaest): Support creation of value wrappers directly in
         // HWrapReceiver.
         call = New<HCallFunction>(function, argument_count,
-                                  ConvertReceiverMode::kNotNullOrUndefined,
-                                  expr->tail_call_mode());
+                                  ConvertReceiverMode::kNotNullOrUndefined);
       } else if (TryInlineCall(expr)) {
         return;
       } else {
@@ -9778,8 +9777,7 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
 
       CHECK_ALIVE(VisitExpressions(expr->arguments(), arguments_flag));
       call = New<HCallFunction>(function, argument_count,
-                                ConvertReceiverMode::kNotNullOrUndefined,
-                                expr->tail_call_mode());
+                                ConvertReceiverMode::kNotNullOrUndefined);
     }
     PushArgumentsFromEnvironment(argument_count);
 
@@ -9830,8 +9828,7 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
     } else {
       PushArgumentsFromEnvironment(argument_count);
       HCallFunction* call_function = New<HCallFunction>(
-          function, argument_count, ConvertReceiverMode::kNullOrUndefined,
-          expr->tail_call_mode());
+          function, argument_count, ConvertReceiverMode::kNullOrUndefined);
       call = call_function;
       if (expr->is_uninitialized() &&
           expr->IsUsingCallFeedbackICSlot(isolate())) {

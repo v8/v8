@@ -184,6 +184,7 @@ namespace internal {
   V(kStackAccessBelowStackPointer, "Stack access below stack pointer")         \
   V(kStackFrameTypesMustMatch, "Stack frame types must match")                 \
   V(kSuperReference, "Super reference")                                        \
+  V(kTailCall, "Tail call")                                                    \
   V(kTheCurrentStackPointerIsBelowCsp,                                         \
     "The current stack pointer is below csp")                                  \
   V(kTheSourceAndDestinationAreTheSame,                                        \

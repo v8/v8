@@ -3885,7 +3885,6 @@ void LCodeGen::DoCallFunction(LCallFunction* instr) {
 
   int arity = instr->arity();
   ConvertReceiverMode mode = hinstr->convert_mode();
-  TailCallMode tail_call_mode = hinstr->tail_call_mode();
   if (hinstr->HasVectorAndSlot()) {
     Register slot_register = ToRegister(instr->temp_slot());
     Register vector_register = ToRegister(instr->temp_vector());
@@ -3899,14 +3898,12 @@ void LCodeGen::DoCallFunction(LCallFunction* instr) {
     __ Move(vector_register, vector);
     __ LoadSmiLiteral(slot_register, Smi::FromInt(index));
 
-    Handle<Code> ic = CodeFactory::CallICInOptimizedCode(isolate(), arity, mode,
-                                                         tail_call_mode)
-                          .code();
+    Handle<Code> ic =
+        CodeFactory::CallICInOptimizedCode(isolate(), arity, mode).code();
     CallCode(ic, RelocInfo::CODE_TARGET, instr);
   } else {
     __ mov(r3, Operand(arity));
-    CallCode(isolate()->builtins()->Call(mode, tail_call_mode),
-             RelocInfo::CODE_TARGET, instr);
+    CallCode(isolate()->builtins()->Call(mode), RelocInfo::CODE_TARGET, instr);
   }
 }
 
