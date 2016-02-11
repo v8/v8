@@ -184,7 +184,7 @@ void PrintBytecodeOperand(std::ostream& stream,
       // We need a cast, otherwise the result is printed as char.
       stream << static_cast<int>(bytecode_iter.GetImmediateOperand(op_index));
     } else if (Bytecodes::IsRegisterCountOperandType(op_type)) {
-      stream << bytecode_iter.GetCountOperand(op_index);
+      stream << bytecode_iter.GetRegisterCountOperand(op_index);
     } else if (Bytecodes::IsIndexOperandType(op_type)) {
       stream << bytecode_iter.GetIndexOperand(op_index);
     } else {
