@@ -29,7 +29,7 @@ class BytecodeArrayIterator {
 
   int8_t GetImmediateOperand(int operand_index) const;
   int GetIndexOperand(int operand_index) const;
-  int GetRegisterCountOperand(int operand_index) const;
+  int GetCountOperand(int operand_index) const;
   Register GetRegisterOperand(int operand_index) const;
   int GetRegisterOperandRange(int operand_index) const;
   Handle<Object> GetConstantForIndexOperand(int operand_index) const;

@@ -95,7 +95,7 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
   CHECK_EQ(static_cast<Runtime::FunctionId>(iterator.GetIndexOperand(0)),
            Runtime::kLoadIC_Miss);
   CHECK_EQ(iterator.GetRegisterOperand(1).index(), reg_0.index());
-  CHECK_EQ(iterator.GetRegisterCountOperand(2), 1);
+  CHECK_EQ(iterator.GetCountOperand(2), 1);
   CHECK(!iterator.done());
   iterator.Advance();
 
