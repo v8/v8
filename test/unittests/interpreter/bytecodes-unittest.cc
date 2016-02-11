@@ -95,7 +95,6 @@ TEST(Bytecodes, HasAnyRegisterOperands) {
       2);
   CHECK_EQ(Bytecodes::NumberOfRegisterOperands(Bytecode::kDeletePropertyStrict),
            1);
-  CHECK_EQ(Bytecodes::NumberOfRegisterOperands(Bytecode::kDeleteLookupSlot), 0);
   CHECK_EQ(Bytecodes::NumberOfRegisterOperands(Bytecode::kForInPrepare), 1);
   CHECK_EQ(Bytecodes::NumberOfRegisterOperands(Bytecode::kForInPrepareWide), 1);
   CHECK_EQ(Bytecodes::NumberOfRegisterOperands(Bytecode::kInc), 0);

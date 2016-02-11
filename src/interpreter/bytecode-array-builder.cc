@@ -1204,12 +1204,6 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Delete(Register object,
 }
 
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::DeleteLookupSlot() {
-  Output(Bytecode::kDeleteLookupSlot);
-  return *this;
-}
-
-
 size_t BytecodeArrayBuilder::GetConstantPoolEntry(Handle<Object> object) {
   return constant_array_builder()->Insert(object);
 }

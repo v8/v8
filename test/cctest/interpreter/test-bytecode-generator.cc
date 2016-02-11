@@ -8028,15 +8028,16 @@ TEST(DeleteLookupSlotInEval) {
   // clang-format off
   ExpectedSnippet<const char*> snippets[] = {
       {"delete x;",
-       0 * kPointerSize,
+       1 * kPointerSize,
        1,
-       6,
+       12,
        {
-           B(StackCheck),          //
-           B(LdaConstant), U8(0),  //
-           B(DeleteLookupSlot),    //
-           B(LdaUndefined),        //
-           B(Return)               //
+           B(StackCheck),                                                 //
+           B(LdaConstant), U8(0),                                         //
+           B(Star), R(0),                                                 //
+           B(CallRuntime), U16(Runtime::kDeleteLookupSlot), R(0), U8(1),  //
+           B(LdaUndefined),                                               //
+           B(Return)                                                      //
        },
        1,
        {"x"}},
@@ -8051,14 +8052,15 @@ TEST(DeleteLookupSlotInEval) {
        },
        0},
       {"return delete z;",
-       0 * kPointerSize,
+       1 * kPointerSize,
        1,
-       5,
+       11,
        {
-           B(StackCheck),          //
-           B(LdaConstant), U8(0),  //
-           B(DeleteLookupSlot),    //
-           B(Return)               //
+           B(StackCheck),                                                 //
+           B(LdaConstant), U8(0),                                         //
+           B(Star), R(0),                                                 //
+           B(CallRuntime), U16(Runtime::kDeleteLookupSlot), R(0), U8(1),  //
+           B(Return)                                                      //
        },
        1,
        {"z"}},

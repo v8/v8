@@ -133,9 +133,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.LogicalNot().TypeOf();
 
   // Emit delete
-  builder.Delete(reg, LanguageMode::SLOPPY)
-      .Delete(reg, LanguageMode::STRICT)
-      .DeleteLookupSlot();
+  builder.Delete(reg, LanguageMode::SLOPPY).Delete(reg, LanguageMode::STRICT);
 
   // Emit new.
   builder.New(reg, reg, 0);

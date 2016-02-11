@@ -207,7 +207,6 @@ class BytecodeArrayBuilder final : public ZoneObject, private RegisterMover {
   // Deletes property from an object. This expects that accumulator contains
   // the key to be deleted and the register contains a reference to the object.
   BytecodeArrayBuilder& Delete(Register object, LanguageMode language_mode);
-  BytecodeArrayBuilder& DeleteLookupSlot();
 
   // Tests.
   BytecodeArrayBuilder& CompareOperation(Token::Value op, Register reg,

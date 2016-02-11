@@ -162,7 +162,6 @@ namespace interpreter {
   V(TypeOf, OperandType::kNone)                                                \
   V(DeletePropertyStrict, OperandType::kReg8)                                  \
   V(DeletePropertySloppy, OperandType::kReg8)                                  \
-  V(DeleteLookupSlot, OperandType::kNone)                                      \
                                                                                \
   /* Call operations */                                                        \
   V(Call, OperandType::kReg8, OperandType::kReg8, OperandType::kRegCount8,     \

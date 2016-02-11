@@ -1020,18 +1020,6 @@ void Interpreter::DoDeletePropertySloppy(InterpreterAssembler* assembler) {
 }
 
 
-// DeleteLookupSlot
-//
-// Delete the variable with the name specified in the accumulator by dynamically
-// looking it up.
-void Interpreter::DoDeleteLookupSlot(InterpreterAssembler* assembler) {
-  Node* name = __ GetAccumulator();
-  Node* context = __ GetContext();
-  Node* result = __ CallRuntime(Runtime::kDeleteLookupSlot, context, name);
-  __ SetAccumulator(result);
-  __ Dispatch();
-}
-
 void Interpreter::DoJSCall(InterpreterAssembler* assembler) {
   Node* function_reg = __ BytecodeOperandReg(0);
   Node* function = __ LoadRegister(function_reg);

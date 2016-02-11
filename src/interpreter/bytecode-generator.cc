@@ -2423,7 +2423,11 @@ void BytecodeGenerator::VisitDelete(UnaryOperation* expr) {
         break;
       }
       case VariableLocation::LOOKUP: {
-        builder()->LoadLiteral(variable->name()).DeleteLookupSlot();
+        Register name_reg = register_allocator()->NewRegister();
+        builder()
+            ->LoadLiteral(variable->name())
+            .StoreAccumulatorInRegister(name_reg)
+            .CallRuntime(Runtime::kDeleteLookupSlot, name_reg, 1);
         break;
       }
       default:
