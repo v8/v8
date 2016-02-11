@@ -375,7 +375,6 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
                           bool report_exceptions, SourceType source_type) {
   HandleScope handle_scope(isolate);
   TryCatch try_catch(isolate);
-  try_catch.SetVerbose(true);
 
   MaybeLocal<Value> maybe_result;
   {
@@ -1248,10 +1247,6 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
   return global_template;
 }
 
-static void EmptyMessageCallback(Local<Message> message, Local<Value> error) {
-  // Nothing to be done here, exceptions thrown up to the shell will be reported
-  // separately by {Shell::ReportException} after they are caught.
-}
 
 void Shell::Initialize(Isolate* isolate) {
 #ifndef V8_SHARED
@@ -1259,8 +1254,6 @@ void Shell::Initialize(Isolate* isolate) {
   if (i::StrLength(i::FLAG_map_counters) != 0)
     MapCounters(isolate, i::FLAG_map_counters);
 #endif  // !V8_SHARED
-  // Disable default message reporting.
-  isolate->AddMessageListener(EmptyMessageCallback);
 }
 
 
