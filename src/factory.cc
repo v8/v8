@@ -2119,11 +2119,14 @@ Handle<JSMessageObject> Factory::NewJSMessageObject(
 
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
     Handle<String> name, MaybeHandle<Code> maybe_code, bool is_constructor) {
+  // Function names are assumed to be flat elsewhere. Must flatten before
+  // allocating SharedFunctionInfo to avoid GC seeing the uninitialized SFI.
+  name = String::Flatten(name, TENURED);
+
   Handle<Map> map = shared_function_info_map();
   Handle<SharedFunctionInfo> share = New<SharedFunctionInfo>(map, OLD_SPACE);
 
   // Set pointer fields.
-  name = String::Flatten(name, TENURED);
   share->set_name(*name);
   Handle<Code> code;
   if (!maybe_code.ToHandle(&code)) {
