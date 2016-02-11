@@ -2151,7 +2151,8 @@ ParserBase<Traits>::ParseYieldExpression(ExpressionClassifier* classifier,
   // YieldExpression ::
   //   'yield' ([no line terminator] '*'? AssignmentExpression)?
   int pos = peek_position();
-  BindingPatternUnexpectedToken(classifier);
+  classifier->RecordPatternError(scanner()->peek_location(),
+                                 MessageTemplate::kInvalidDestructuringTarget);
   FormalParameterInitializerUnexpectedToken(classifier);
   Expect(Token::YIELD, CHECK_OK);
   ExpressionT generator_object =
