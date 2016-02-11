@@ -2360,14 +2360,13 @@ void Translation::StoreArgumentsObject(bool args_known,
 
 
 void Translation::StoreJSFrameFunction() {
-  buffer_->Add(JS_FRAME_FUNCTION, zone());
+  StoreStackSlot((StandardFrameConstants::kCallerPCOffset -
+                  StandardFrameConstants::kMarkerOffset) /
+                 kPointerSize);
 }
-
 
 int Translation::NumberOfOperandsFor(Opcode opcode) {
   switch (opcode) {
-    case JS_FRAME_FUNCTION:
-      return 0;
     case GETTER_STUB_FRAME:
     case SETTER_STUB_FRAME:
     case DUPLICATED_OBJECT:
@@ -3060,7 +3059,6 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
     case Translation::BOOL_STACK_SLOT:
     case Translation::DOUBLE_STACK_SLOT:
     case Translation::LITERAL:
-    case Translation::JS_FRAME_FUNCTION:
       break;
   }
   FATAL("We should never get here - unexpected deopt info.");
@@ -3262,16 +3260,6 @@ TranslatedValue TranslatedState::CreateNextTranslatedValue(
       }
 
       return TranslatedValue::NewTagged(this, value);
-    }
-
-    case Translation::JS_FRAME_FUNCTION: {
-      int slot_offset = JavaScriptFrameConstants::kFunctionOffset;
-      intptr_t value = *(reinterpret_cast<intptr_t*>(fp + slot_offset));
-      if (trace_file != nullptr) {
-        PrintF(trace_file, "0x%08" V8PRIxPTR " ; (frame function) ", value);
-        reinterpret_cast<Object*>(value)->ShortPrint(trace_file);
-      }
-      return TranslatedValue::NewTagged(this, reinterpret_cast<Object*>(value));
     }
   }
 

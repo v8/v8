@@ -953,7 +953,6 @@ class TranslationIterator BASE_EMBEDDED {
   int index_;
 };
 
-
 #define TRANSLATION_OPCODE_LIST(V) \
   V(BEGIN)                         \
   V(JS_FRAME)                      \
@@ -976,9 +975,7 @@ class TranslationIterator BASE_EMBEDDED {
   V(UINT32_STACK_SLOT)             \
   V(BOOL_STACK_SLOT)               \
   V(DOUBLE_STACK_SLOT)             \
-  V(LITERAL)                       \
-  V(JS_FRAME_FUNCTION)
-
+  V(LITERAL)
 
 class Translation BASE_EMBEDDED {
  public:

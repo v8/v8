@@ -969,11 +969,9 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames) {
       JSFunction* function;
       if (opcode == Translation::LITERAL) {
         function = JSFunction::cast(literal_array->get(it.Next()));
-      } else if (opcode == Translation::STACK_SLOT) {
-        function = JSFunction::cast(StackSlotAt(it.Next()));
       } else {
-        CHECK_EQ(Translation::JS_FRAME_FUNCTION, opcode);
-        function = this->function();
+        CHECK_EQ(opcode, Translation::STACK_SLOT);
+        function = JSFunction::cast(StackSlotAt(it.Next()));
       }
       DCHECK_EQ(shared_info, function->shared());
 
@@ -987,8 +985,6 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames) {
         receiver = literal_array->get(it.Next());
       } else if (opcode == Translation::STACK_SLOT) {
         receiver = StackSlotAt(it.Next());
-      } else if (opcode == Translation::JS_FRAME_FUNCTION) {
-        receiver = this->function();
       } else {
         // The receiver is not in a stack slot nor in a literal.  We give up.
         it.Skip(Translation::NumberOfOperandsFor(opcode));
@@ -1112,11 +1108,9 @@ void OptimizedFrame::GetFunctions(List<JSFunction*>* functions) const {
       Object* function;
       if (opcode == Translation::LITERAL) {
         function = literal_array->get(it.Next());
-      } else if (opcode == Translation::STACK_SLOT) {
-        function = StackSlotAt(it.Next());
       } else {
-        CHECK_EQ(Translation::JS_FRAME_FUNCTION, opcode);
-        function = this->function();
+        CHECK_EQ(Translation::STACK_SLOT, opcode);
+        function = StackSlotAt(it.Next());
       }
       functions->Add(JSFunction::cast(function));
     }
