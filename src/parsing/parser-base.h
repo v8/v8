@@ -746,8 +746,6 @@ class ParserBase : public Traits {
   ExpressionT ParseExpression(bool accept_IN, bool* ok);
   ExpressionT ParseExpression(bool accept_IN, ExpressionClassifier* classifier,
                               bool* ok);
-  ExpressionT ParseExpression(bool accept_IN, int flags,
-                              ExpressionClassifier* classifier, bool* ok);
   ExpressionT ParseArrayLiteral(ExpressionClassifier* classifier, bool* ok);
   ExpressionT ParsePropertyName(IdentifierT* name, bool* is_get, bool* is_set,
                                 bool* is_computed_name,
@@ -762,12 +760,12 @@ class ParserBase : public Traits {
       bool* ok);
 
   enum AssignmentExpressionFlags {
-    kIsNormalAssignment = 0,
-    kIsPossiblePatternElement = 1 << 0,
-    kIsPossibleArrowFormals = 1 << 1
+    kIsNormalAssignment,
+    kIsPossiblePatternElement
   };
 
-  ExpressionT ParseAssignmentExpression(bool accept_IN, int flags,
+  ExpressionT ParseAssignmentExpression(bool accept_IN,
+                                        AssignmentExpressionFlags flags,
                                         ExpressionClassifier* classifier,
                                         bool* ok);
   ExpressionT ParseAssignmentExpression(bool accept_IN,
@@ -1345,8 +1343,8 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
                                           MessageTemplate::kUnexpectedToken,
                                           Token::String(Token::ELLIPSIS));
         classifier->RecordNonSimpleParameter();
-        ExpressionT expr = this->ParseAssignmentExpression(
-            true, kIsPossibleArrowFormals, classifier, CHECK_OK);
+        ExpressionT expr =
+            this->ParseAssignmentExpression(true, classifier, CHECK_OK);
         if (!this->IsIdentifier(expr) && !expr->IsObjectLiteral() &&
             !expr->IsArrayLiteral()) {
           classifier->RecordArrowFormalParametersError(
@@ -1365,8 +1363,7 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
       // Heuristically try to detect immediately called functions before
       // seeing the call parentheses.
       parenthesized_function_ = (peek() == Token::FUNCTION);
-      ExpressionT expr = this->ParseExpression(true, kIsPossibleArrowFormals,
-                                               classifier, CHECK_OK);
+      ExpressionT expr = this->ParseExpression(true, classifier, CHECK_OK);
       Expect(Token::RPAREN, CHECK_OK);
       return expr;
     }
@@ -1436,20 +1433,13 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseExpression(
 template <class Traits>
 typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseExpression(
     bool accept_IN, ExpressionClassifier* classifier, bool* ok) {
-  return ParseExpression(accept_IN, kIsNormalAssignment, classifier, ok);
-}
-
-
-template <class Traits>
-typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseExpression(
-    bool accept_IN, int flags, ExpressionClassifier* classifier, bool* ok) {
   // Expression ::
   //   AssignmentExpression
   //   Expression ',' AssignmentExpression
 
   ExpressionClassifier binding_classifier;
-  ExpressionT result = this->ParseAssignmentExpression(
-      accept_IN, flags, &binding_classifier, CHECK_OK);
+  ExpressionT result =
+      this->ParseAssignmentExpression(accept_IN, &binding_classifier, CHECK_OK);
   classifier->Accumulate(binding_classifier,
                          ExpressionClassifier::AllProductions);
   bool is_simple_parameter_list = this->IsIdentifier(result);
@@ -1474,7 +1464,7 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseExpression(
     }
     int pos = position(), expr_pos = peek_position();
     ExpressionT right = this->ParseAssignmentExpression(
-        accept_IN, flags, &binding_classifier, CHECK_OK);
+        accept_IN, &binding_classifier, CHECK_OK);
     if (is_rest) {
       if (!this->IsIdentifier(right) && !right->IsObjectLiteral() &&
           !right->IsArrayLiteral()) {
@@ -1953,7 +1943,8 @@ typename Traits::Type::ExpressionList ParserBase<Traits>::ParseArguments(
 // Precedence = 2
 template <class Traits>
 typename ParserBase<Traits>::ExpressionT
-ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN, int flags,
+ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
+                                              AssignmentExpressionFlags flags,
                                               ExpressionClassifier* classifier,
                                               bool* ok) {
   // AssignmentExpression ::
@@ -1961,8 +1952,7 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN, int flags,
   //   ArrowFunction
   //   YieldExpression
   //   LeftHandSideExpression AssignmentOperator AssignmentExpression
-  bool maybe_pattern_element = flags & kIsPossiblePatternElement;
-  bool maybe_arrow_formals = flags & kIsPossibleArrowFormals;
+  bool maybe_pattern_element = flags == kIsPossiblePatternElement;
   bool is_destructuring_assignment = false;
   int lhs_beg_pos = peek_position();
 
@@ -2050,7 +2040,10 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN, int flags,
     classifier->ForgiveCoverInitializedNameError();
     ValidateAssignmentPattern(classifier, CHECK_OK);
     is_destructuring_assignment = true;
-  } else if (maybe_arrow_formals) {
+  } else if (allow_harmony_default_parameters() &&
+             !allow_harmony_destructuring_assignment()) {
+    // TODO(adamk): This branch should be removed once the destructuring
+    // assignment and default parameter flags are removed.
     expression = this->ClassifyAndRewriteReferenceExpression(
         classifier, expression, lhs_beg_pos, scanner()->location().end_pos,
         MessageTemplate::kInvalidLhsInAssignment);
