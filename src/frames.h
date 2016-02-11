@@ -178,28 +178,33 @@ class InterpreterFrameConstants : public AllStatic {
  public:
   // Fixed frame includes new.target and bytecode offset.
   static const int kFixedFrameSize =
-      StandardFrameConstants::kFixedFrameSize + 2 * kPointerSize;
+      StandardFrameConstants::kFixedFrameSize + 3 * kPointerSize;
   static const int kFixedFrameSizeFromFp =
-      StandardFrameConstants::kFixedFrameSizeFromFp + 2 * kPointerSize;
+      StandardFrameConstants::kFixedFrameSizeFromFp + 3 * kPointerSize;
 
   // FP-relative.
-  static const int kBytecodeOffsetFromFp =
+  static const int kNewTargetFromFp =
+      -StandardFrameConstants::kFixedFrameSizeFromFp - 1 * kPointerSize;
+  static const int kDispatchTableFromFp =
       -StandardFrameConstants::kFixedFrameSizeFromFp - 2 * kPointerSize;
-  static const int kRegisterFilePointerFromFp =
+  static const int kBytecodeOffsetFromFp =
       -StandardFrameConstants::kFixedFrameSizeFromFp - 3 * kPointerSize;
+  static const int kRegisterFilePointerFromFp =
+      -StandardFrameConstants::kFixedFrameSizeFromFp - 4 * kPointerSize;
 
   // Expression index for {StandardFrame::GetExpressionAddress}.
-  static const int kBytecodeOffsetExpressionIndex = 1;
-  static const int kRegisterFileExpressionIndex = 2;
+  static const int kBytecodeOffsetExpressionIndex = 2;
+  static const int kRegisterFileExpressionIndex = 3;
 
   // Register file pointer relative.
   static const int kLastParamFromRegisterPointer =
-      StandardFrameConstants::kFixedFrameSize + 3 * kPointerSize;
+      StandardFrameConstants::kFixedFrameSize + 4 * kPointerSize;
 
   static const int kBytecodeOffsetFromRegisterPointer = 1 * kPointerSize;
-  static const int kNewTargetFromRegisterPointer = 2 * kPointerSize;
-  static const int kFunctionFromRegisterPointer = 3 * kPointerSize;
-  static const int kContextFromRegisterPointer = 4 * kPointerSize;
+  static const int kDispatchTableFromRegisterPointer = 2 * kPointerSize;
+  static const int kNewTargetFromRegisterPointer = 3 * kPointerSize;
+  static const int kFunctionFromRegisterPointer = 4 * kPointerSize;
+  static const int kContextFromRegisterPointer = 5 * kPointerSize;
 };
 
 
@@ -723,6 +728,9 @@ class InterpretedFrame : public JavaScriptFrame {
  public:
   Type type() const override { return INTERPRETED; }
 
+  // GC support.
+  void Iterate(ObjectVisitor* v) const override;
+
   // Lookup exception handler for current {pc}, returns -1 if none found.
   int LookupExceptionHandlerInTable(
       int* data, HandlerTable::CatchPrediction* prediction) override;
@@ -733,6 +741,13 @@ class InterpretedFrame : public JavaScriptFrame {
   // Updates the current offset into the bytecode stream, mainly used for stack
   // unwinding to continue execution at a different bytecode offset.
   void PatchBytecodeOffset(int new_offset);
+
+  // Returns the current dispatch table pointer.
+  Address GetDispatchTable() const;
+
+  // Updates the current dispatch table pointer with |dispatch_table|. Used by
+  // the debugger to swap execution onto the debugger dispatch table.
+  void PatchDispatchTable(Address dispatch_table);
 
   // Access to the interpreter register file for this frame.
   Object* GetInterpreterRegister(int register_index) const;

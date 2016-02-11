@@ -979,6 +979,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ addi(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
   __ push(r6);
 
+  // Push dispatch table pointer.
+  __ mov(r3, Operand(ExternalReference::interpreter_dispatch_table_address(
+                 masm->isolate())));
+  __ push(r3);
   // Push zero for bytecode array offset.
   __ li(r3, Operand::Zero());
   __ push(r3);
@@ -1039,9 +1043,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
           Operand(InterpreterFrameConstants::kRegisterFilePointerFromFp));
   __ mov(kInterpreterBytecodeOffsetRegister,
          Operand(BytecodeArray::kHeaderSize - kHeapObjectTag));
-  __ mov(kInterpreterDispatchTableRegister,
-         Operand(ExternalReference::interpreter_dispatch_table_address(
-             masm->isolate())));
+  __ lwz(kInterpreterDispatchTableRegister,
+         MemOperand(fp, InterpreterFrameConstants::kDispatchTableFromFp));
 
   // Dispatch to the first bytecode handler for the function.
   __ lbzx(r4, MemOperand(kInterpreterBytecodeArrayRegister,

@@ -11,6 +11,7 @@
 #include "src/frames-inl.h"
 #include "src/full-codegen/full-codegen.h"
 #include "src/global-handles.h"
+#include "src/interpreter/interpreter.h"
 #include "src/macro-assembler.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/v8.h"
@@ -1183,12 +1184,20 @@ void Deoptimizer::DoComputeInterpretedFrame(int frame_index) {
   DCHECK(!is_bottommost || input_->GetFrameSlot(input_offset) == value);
   WriteValueToOutput(function, 0, frame_index, output_offset, "function    ");
 
-  // TODO(rmcilroy): Deal with new.target correctly - currently just set it to
+  // The new.target slot is only used during function activiation which is
+  // before the first deopt point, so should never be needed. Just set it to
   // undefined.
   output_offset -= kPointerSize;
   input_offset -= kPointerSize;
   Object* new_target = isolate_->heap()->undefined_value();
   WriteValueToOutput(new_target, 0, frame_index, output_offset, "new_target  ");
+
+  // Set the dispatch table pointer.
+  output_offset -= kPointerSize;
+  input_offset -= kPointerSize;
+  Address dispatch_table = isolate()->interpreter()->dispatch_table_address();
+  WriteValueToOutput(reinterpret_cast<Object*>(dispatch_table), 0, frame_index,
+                     output_offset, "dispatch_table ");
 
   // The bytecode offset was mentioned explicitly in the BEGIN_FRAME.
   output_offset -= kPointerSize;

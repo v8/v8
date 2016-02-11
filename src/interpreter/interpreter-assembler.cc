@@ -26,11 +26,16 @@ InterpreterAssembler::InterpreterAssembler(Isolate* isolate, Zone* zone,
           isolate, zone, InterpreterDispatchDescriptor(isolate),
           Code::ComputeFlags(Code::STUB), Bytecodes::ToString(bytecode), 0),
       bytecode_(bytecode),
-      accumulator_(
-          Parameter(InterpreterDispatchDescriptor::kAccumulatorParameter)),
-      context_(Parameter(InterpreterDispatchDescriptor::kContextParameter)),
+      accumulator_(this, MachineRepresentation::kTagged),
+      context_(this, MachineRepresentation::kTagged),
+      dispatch_table_(this, MachineType::PointerRepresentation()),
       disable_stack_check_across_call_(false),
       stack_pointer_before_call_(nullptr) {
+  accumulator_.Bind(
+      Parameter(InterpreterDispatchDescriptor::kAccumulatorParameter));
+  context_.Bind(Parameter(InterpreterDispatchDescriptor::kContextParameter));
+  dispatch_table_.Bind(
+      Parameter(InterpreterDispatchDescriptor::kDispatchTableParameter));
   if (FLAG_trace_ignition) {
     TraceBytecode(Runtime::kInterpreterTraceBytecodeEntry);
   }
@@ -38,15 +43,17 @@ InterpreterAssembler::InterpreterAssembler(Isolate* isolate, Zone* zone,
 
 InterpreterAssembler::~InterpreterAssembler() {}
 
-Node* InterpreterAssembler::GetAccumulator() { return accumulator_; }
+Node* InterpreterAssembler::GetAccumulator() { return accumulator_.value(); }
 
-void InterpreterAssembler::SetAccumulator(Node* value) { accumulator_ = value; }
+void InterpreterAssembler::SetAccumulator(Node* value) {
+  accumulator_.Bind(value);
+}
 
-Node* InterpreterAssembler::GetContext() { return context_; }
+Node* InterpreterAssembler::GetContext() { return context_.value(); }
 
 void InterpreterAssembler::SetContext(Node* value) {
   StoreRegister(value, Register::current_context());
-  context_ = value;
+  context_.Bind(value);
 }
 
 Node* InterpreterAssembler::BytecodeOffset() {
@@ -62,7 +69,7 @@ Node* InterpreterAssembler::BytecodeArrayTaggedPointer() {
 }
 
 Node* InterpreterAssembler::DispatchTableRawPointer() {
-  return Parameter(InterpreterDispatchDescriptor::kDispatchTableParameter);
+  return dispatch_table_.value();
 }
 
 Node* InterpreterAssembler::RegisterLocation(Node* reg_index) {
@@ -303,6 +310,8 @@ Node* InterpreterAssembler::LoadTypeFeedbackVector() {
 void InterpreterAssembler::CallPrologue() {
   StoreRegister(SmiTag(BytecodeOffset()),
                 InterpreterFrameConstants::kBytecodeOffsetFromRegisterPointer);
+  StoreRegister(DispatchTableRawPointer(),
+                InterpreterFrameConstants::kDispatchTableFromRegisterPointer);
 
   if (FLAG_debug_code && !disable_stack_check_across_call_) {
     DCHECK(stack_pointer_before_call_ == nullptr);
@@ -318,6 +327,11 @@ void InterpreterAssembler::CallEpilogue() {
     AbortIfWordNotEqual(stack_pointer_before_call, stack_pointer_after_call,
                         kUnexpectedStackPointer);
   }
+
+  // Restore dispatch table from stack frame in case the debugger has swapped us
+  // to the debugger dispatch table.
+  dispatch_table_.Bind(LoadRegister(
+      InterpreterFrameConstants::kDispatchTableFromRegisterPointer));
 }
 
 Node* InterpreterAssembler::CallJS(Node* function, Node* context,

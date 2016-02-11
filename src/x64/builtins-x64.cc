@@ -620,6 +620,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ Push(rdi);  // Callee's JS function.
   __ Push(rdx);  // Callee's new target.
 
+  // Push dispatch table pointer.
+  __ Move(rax, ExternalReference::interpreter_dispatch_table_address(
+                   masm->isolate()));
+  __ Push(rax);
   // Push zero for bytecode array offset.
   __ Push(Immediate(0));
 
@@ -680,9 +684,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
           Immediate(InterpreterFrameConstants::kRegisterFilePointerFromFp));
   __ movp(kInterpreterBytecodeOffsetRegister,
           Immediate(BytecodeArray::kHeaderSize - kHeapObjectTag));
-  __ Move(
-      kInterpreterDispatchTableRegister,
-      ExternalReference::interpreter_dispatch_table_address(masm->isolate()));
+  __ movp(kInterpreterDispatchTableRegister,
+          Operand(rbp, InterpreterFrameConstants::kDispatchTableFromFp));
 
   // Dispatch to the first bytecode handler for the function.
   __ movzxbp(rbx, Operand(kInterpreterBytecodeArrayRegister,

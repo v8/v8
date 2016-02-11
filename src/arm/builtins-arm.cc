@@ -988,11 +988,12 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ PushFixedFrame(r1);
   __ add(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
-  __ push(r3);
 
-  // Push zero for bytecode array offset.
+  // Push new.target, dispatch table pointer and zero for bytecode array offset.
   __ mov(r0, Operand(0));
-  __ push(r0);
+  __ mov(r2, Operand(ExternalReference::interpreter_dispatch_table_address(
+                 masm->isolate())));
+  __ Push(r3, r2, r0);
 
   // Get the bytecode array from the function object and load the pointer to the
   // first entry into kInterpreterBytecodeRegister.
@@ -1051,9 +1052,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
          Operand(InterpreterFrameConstants::kRegisterFilePointerFromFp));
   __ mov(kInterpreterBytecodeOffsetRegister,
          Operand(BytecodeArray::kHeaderSize - kHeapObjectTag));
-  __ mov(kInterpreterDispatchTableRegister,
-         Operand(ExternalReference::interpreter_dispatch_table_address(
-             masm->isolate())));
+  __ ldr(kInterpreterDispatchTableRegister,
+         MemOperand(fp, InterpreterFrameConstants::kDispatchTableFromFp));
 
   // Dispatch to the first bytecode handler for the function.
   __ ldrb(r1, MemOperand(kInterpreterBytecodeArrayRegister,

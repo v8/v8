@@ -176,8 +176,9 @@ class InterpreterAssembler : public compiler::CodeStubAssembler {
                            BailoutReason bailout_reason);
 
   Bytecode bytecode_;
-  compiler::Node* accumulator_;
-  compiler::Node* context_;
+  CodeStubAssembler::Variable accumulator_;
+  CodeStubAssembler::Variable context_;
+  CodeStubAssembler::Variable dispatch_table_;
 
   bool disable_stack_check_across_call_;
   compiler::Node* stack_pointer_before_call_;
