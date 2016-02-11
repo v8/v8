@@ -3585,7 +3585,7 @@ bool TranslatedState::GetAdaptedArguments(Handle<JSObject>* result,
     // recursive functions!)
     Handle<JSFunction> function =
         Handle<JSFunction>::cast(frames_[frame_index].front().GetValue());
-    *result = Handle<JSObject>::cast(Accessors::FunctionGetArguments(function));
+    *result = Accessors::FunctionGetArguments(function);
     return true;
   } else {
     TranslatedFrame* previous_frame = &(frames_[frame_index]);

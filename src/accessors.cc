@@ -944,10 +944,10 @@ static int FindFunctionInFrame(JavaScriptFrame* frame,
 }
 
 
+namespace {
+
 Handle<Object> GetFunctionArguments(Isolate* isolate,
                                     Handle<JSFunction> function) {
-  if (function->shared()->native()) return isolate->factory()->null_value();
-
   // Find the top invocation of the function by traversing frames.
   for (JavaScriptFrameIterator it(isolate); !it.done(); it.Advance()) {
     JavaScriptFrame* frame = it.frame();
@@ -986,9 +986,14 @@ Handle<Object> GetFunctionArguments(Isolate* isolate,
   return isolate->factory()->null_value();
 }
 
+}  // namespace
 
-Handle<Object> Accessors::FunctionGetArguments(Handle<JSFunction> function) {
-  return GetFunctionArguments(function->GetIsolate(), function);
+
+Handle<JSObject> Accessors::FunctionGetArguments(Handle<JSFunction> function) {
+  Handle<Object> arguments =
+      GetFunctionArguments(function->GetIsolate(), function);
+  CHECK(arguments->IsJSObject());
+  return Handle<JSObject>::cast(arguments);
 }
 
 
@@ -999,7 +1004,10 @@ void Accessors::FunctionArgumentsGetter(
   HandleScope scope(isolate);
   Handle<JSFunction> function =
       Handle<JSFunction>::cast(Utils::OpenHandle(*info.Holder()));
-  Handle<Object> result = GetFunctionArguments(isolate, function);
+  Handle<Object> result =
+      function->shared()->native()
+          ? Handle<Object>::cast(isolate->factory()->null_value())
+          : GetFunctionArguments(isolate, function);
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 

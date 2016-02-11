@@ -302,8 +302,7 @@ void DebugEvaluate::ContextBuilder::MaterializeArgumentsObject(
   if (maybe.FromJust()) return;
 
   // FunctionGetArguments can't throw an exception.
-  Handle<JSObject> arguments =
-      Handle<JSObject>::cast(Accessors::FunctionGetArguments(function));
+  Handle<JSObject> arguments = Accessors::FunctionGetArguments(function);
   Handle<String> arguments_str = isolate_->factory()->arguments_string();
   JSObject::SetOwnPropertyIgnoreAttributes(target, arguments_str, arguments,
                                            NONE)
