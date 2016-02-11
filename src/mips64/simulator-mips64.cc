@@ -2333,8 +2333,10 @@ void Simulator::SignalException(Exception e) {
            static_cast<int>(e));
 }
 
+// Min/Max template functions for Double and Single arguments.
+
 template <typename T>
-T FPAbs(T a);
+static T FPAbs(T a);
 
 template <>
 double FPAbs<double>(double a) {
@@ -2347,7 +2349,7 @@ float FPAbs<float>(float a) {
 }
 
 template <typename T>
-bool Simulator::FPUProcessNaNsAndZeros(T a, T b, IsMin min, T& result) {
+static bool FPUProcessNaNsAndZeros(T a, T b, MaxMinKind kind, T& result) {
   if (std::isnan(a) && std::isnan(b)) {
     result = a;
   } else if (std::isnan(a)) {
@@ -2356,9 +2358,9 @@ bool Simulator::FPUProcessNaNsAndZeros(T a, T b, IsMin min, T& result) {
     result = a;
   } else if (b == a) {
     // Handle -0.0 == 0.0 case.
-    // std::signbit() returns int 0 or 1 so substracting IsMin::kMax negates the
-    // result.
-    result = std::signbit(b) - static_cast<int>(min) ? b : a;
+    // std::signbit() returns int 0 or 1 so substracting MaxMinKind::kMax
+    // negates the result.
+    result = std::signbit(b) - static_cast<int>(kind) ? b : a;
   } else {
     return false;
   }
@@ -2366,9 +2368,9 @@ bool Simulator::FPUProcessNaNsAndZeros(T a, T b, IsMin min, T& result) {
 }
 
 template <typename T>
-T Simulator::FPUMin(T a, T b) {
+static T FPUMin(T a, T b) {
   T result;
-  if (FPUProcessNaNsAndZeros(a, b, IsMin::kMin, result)) {
+  if (FPUProcessNaNsAndZeros(a, b, MaxMinKind::kMin, result)) {
     return result;
   } else {
     return b < a ? b : a;
@@ -2376,9 +2378,9 @@ T Simulator::FPUMin(T a, T b) {
 }
 
 template <typename T>
-T Simulator::FPUMax(T a, T b) {
+static T FPUMax(T a, T b) {
   T result;
-  if (FPUProcessNaNsAndZeros(a, b, IsMin::kMax, result)) {
+  if (FPUProcessNaNsAndZeros(a, b, MaxMinKind::kMax, result)) {
     return result;
   } else {
     return b > a ? b : a;
@@ -2386,9 +2388,9 @@ T Simulator::FPUMax(T a, T b) {
 }
 
 template <typename T>
-T Simulator::FPUMinA(T a, T b) {
+static T FPUMinA(T a, T b) {
   T result;
-  if (!FPUProcessNaNsAndZeros(a, b, IsMin::kMin, result)) {
+  if (!FPUProcessNaNsAndZeros(a, b, MaxMinKind::kMin, result)) {
     if (FPAbs(a) < FPAbs(b)) {
       result = a;
     } else if (FPAbs(b) < FPAbs(a)) {
@@ -2401,9 +2403,9 @@ T Simulator::FPUMinA(T a, T b) {
 }
 
 template <typename T>
-T Simulator::FPUMaxA(T a, T b) {
+static T FPUMaxA(T a, T b) {
   T result;
-  if (!FPUProcessNaNsAndZeros(a, b, IsMin::kMin, result)) {
+  if (!FPUProcessNaNsAndZeros(a, b, MaxMinKind::kMin, result)) {
     if (FPAbs(a) > FPAbs(b)) {
       result = a;
     } else if (FPAbs(b) > FPAbs(a)) {

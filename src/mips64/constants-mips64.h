@@ -819,6 +819,7 @@ enum CheckForInexactConversion {
   kDontCheckForInexactConversion
 };
 
+enum class MaxMinKind : int { kMin = 0, kMax = 1 };
 
 // -----------------------------------------------------------------------------
 // Hints.

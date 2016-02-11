@@ -315,24 +315,6 @@ class Simulator {
   inline int32_t SetDoubleHIW(double* addr);
   inline int32_t SetDoubleLOW(double* addr);
 
-  // Min/Max template functions for Double and Single arguments.
-  enum class IsMin : int { kMin = 0, kMax = 1 };
-
-  template <typename T>
-  bool FPUProcessNaNsAndZeros(T a, T b, IsMin min, T& result);
-
-  template <typename T>
-  T FPUMin(T a, T b);
-
-  template <typename T>
-  T FPUMax(T a, T b);
-
-  template <typename T>
-  T FPUMinA(T a, T b);
-
-  template <typename T>
-  T FPUMaxA(T a, T b);
-
   // functions called from DecodeTypeRegister.
   void DecodeTypeRegisterCOP1();
 
