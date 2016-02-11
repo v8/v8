@@ -813,6 +813,8 @@ void Deoptimizer::DoComputeOutputFrames() {
 void Deoptimizer::DoComputeJSFrame(int frame_index) {
   TranslatedFrame* translated_frame =
       &(translated_state_.frames()[frame_index]);
+  SharedFunctionInfo* shared = translated_frame->raw_shared_info();
+
   TranslatedFrame::iterator value_iterator = translated_frame->begin();
   int input_index = 0;
 
@@ -825,14 +827,15 @@ void Deoptimizer::DoComputeJSFrame(int frame_index) {
   input_index++;
   if (trace_scope_ != NULL) {
     PrintF(trace_scope_->file(), "  translating frame ");
-    function->PrintName(trace_scope_->file());
+    base::SmartArrayPointer<char> name = shared->DebugName()->ToCString();
+    PrintF(trace_scope_->file(), "%s", name.get());
     PrintF(trace_scope_->file(),
            " => node=%d, height=%d\n", node_id.ToInt(), height_in_bytes);
   }
 
   // The 'fixed' part of the frame consists of the incoming parameters and
   // the part described by JavaScriptFrameConstants.
-  unsigned fixed_frame_size = ComputeJavascriptFixedSize(function);
+  unsigned fixed_frame_size = ComputeJavascriptFixedSize(shared);
   unsigned input_frame_size = input_->GetFrameSize();
   unsigned output_frame_size = height_in_bytes + fixed_frame_size;
 
@@ -856,9 +859,8 @@ void Deoptimizer::DoComputeJSFrame(int frame_index) {
   if (is_bottommost) {
     // Determine whether the input frame contains alignment padding.
     has_alignment_padding_ =
-        (!compiled_code_->is_turbofanned() && HasAlignmentPadding(function))
-            ? 1
-            : 0;
+        (!compiled_code_->is_turbofanned() && HasAlignmentPadding(shared)) ? 1
+                                                                           : 0;
     // 2 = context and function in the frame.
     // If the optimized frame had alignment padding, adjust the frame pointer
     // to point to the new position of the old frame pointer after padding
@@ -872,8 +874,7 @@ void Deoptimizer::DoComputeJSFrame(int frame_index) {
   output_frame->SetTop(top_address);
 
   // Compute the incoming parameter translation.
-  int parameter_count =
-      function->shared()->internal_formal_parameter_count() + 1;
+  int parameter_count = shared->internal_formal_parameter_count() + 1;
   unsigned output_offset = output_frame_size;
   unsigned input_offset = input_frame_size;
   for (int i = 0; i < parameter_count; ++i) {
@@ -988,11 +989,11 @@ void Deoptimizer::DoComputeJSFrame(int frame_index) {
   CHECK_EQ(0u, output_offset);
 
   // Compute this frame's PC, state, and continuation.
-  Code* non_optimized_code = function->shared()->code();
+  Code* non_optimized_code = shared->code();
   FixedArray* raw_data = non_optimized_code->deoptimization_data();
   DeoptimizationOutputData* data = DeoptimizationOutputData::cast(raw_data);
   Address start = non_optimized_code->instruction_start();
-  unsigned pc_and_state = GetOutputInfo(data, node_id, function->shared());
+  unsigned pc_and_state = GetOutputInfo(data, node_id, shared);
   unsigned pc_offset = FullCodeGenerator::PcField::decode(pc_and_state);
   intptr_t pc_value = reinterpret_cast<intptr_t>(start + pc_offset);
   output_frame->SetPc(pc_value);
@@ -1033,6 +1034,8 @@ void Deoptimizer::DoComputeJSFrame(int frame_index) {
 void Deoptimizer::DoComputeInterpretedFrame(int frame_index) {
   TranslatedFrame* translated_frame =
       &(translated_state_.frames()[frame_index]);
+  SharedFunctionInfo* shared = translated_frame->raw_shared_info();
+
   TranslatedFrame::iterator value_iterator = translated_frame->begin();
   int input_index = 0;
 
@@ -1044,14 +1047,15 @@ void Deoptimizer::DoComputeInterpretedFrame(int frame_index) {
   input_index++;
   if (trace_scope_ != NULL) {
     PrintF(trace_scope_->file(), "  translating interpreted frame ");
-    function->PrintName(trace_scope_->file());
+    base::SmartArrayPointer<char> name = shared->DebugName()->ToCString();
+    PrintF(trace_scope_->file(), "%s", name.get());
     PrintF(trace_scope_->file(), " => bytecode_offset=%d, height=%d\n",
            bytecode_offset.ToInt(), height_in_bytes);
   }
 
   // The 'fixed' part of the frame consists of the incoming parameters and
   // the part described by InterpreterFrameConstants.
-  unsigned fixed_frame_size = ComputeInterpretedFixedSize(function);
+  unsigned fixed_frame_size = ComputeInterpretedFixedSize(shared);
   unsigned input_frame_size = input_->GetFrameSize();
   unsigned output_frame_size = height_in_bytes + fixed_frame_size;
 
@@ -1084,8 +1088,7 @@ void Deoptimizer::DoComputeInterpretedFrame(int frame_index) {
   output_frame->SetTop(top_address);
 
   // Compute the incoming parameter translation.
-  int parameter_count =
-      function->shared()->internal_formal_parameter_count() + 1;
+  int parameter_count = shared->internal_formal_parameter_count() + 1;
   unsigned output_offset = output_frame_size;
   unsigned input_offset = input_frame_size;
   for (int i = 0; i < parameter_count; ++i) {
@@ -1981,7 +1984,12 @@ void Deoptimizer::DebugPrintOutputSlot(intptr_t value, int frame_index,
 
 
 unsigned Deoptimizer::ComputeInputFrameSize() const {
-  unsigned fixed_size = ComputeJavascriptFixedSize(function_);
+  unsigned fixed_size = StandardFrameConstants::kFixedFrameSize;
+  if (!function_->IsSmi()) {
+    fixed_size += ComputeIncomingArgumentSize(function_->shared());
+  } else {
+    CHECK_EQ(Smi::cast(function_), Smi::FromInt(StackFrame::STUB));
+  }
   // The fp-to-sp delta already takes the context, constant pool pointer and the
   // function into account so we have to avoid double counting them.
   unsigned result = fixed_size + fp_to_sp_delta_ -
@@ -1995,34 +2003,26 @@ unsigned Deoptimizer::ComputeInputFrameSize() const {
   return result;
 }
 
-
-unsigned Deoptimizer::ComputeJavascriptFixedSize(JSFunction* function) const {
+// static
+unsigned Deoptimizer::ComputeJavascriptFixedSize(SharedFunctionInfo* shared) {
   // The fixed part of the frame consists of the return address, frame
   // pointer, function, context, and all the incoming arguments.
-  return ComputeIncomingArgumentSize(function) +
+  return ComputeIncomingArgumentSize(shared) +
          StandardFrameConstants::kFixedFrameSize;
 }
 
-
-unsigned Deoptimizer::ComputeInterpretedFixedSize(JSFunction* function) const {
+// static
+unsigned Deoptimizer::ComputeInterpretedFixedSize(SharedFunctionInfo* shared) {
   // The fixed part of the frame consists of the return address, frame
   // pointer, function, context, new.target, bytecode offset and all the
   // incoming arguments.
-  return ComputeIncomingArgumentSize(function) +
+  return ComputeIncomingArgumentSize(shared) +
          InterpreterFrameConstants::kFixedFrameSize;
 }
 
-
-unsigned Deoptimizer::ComputeIncomingArgumentSize(JSFunction* function) const {
-  // The incoming arguments is the values for formal parameters and
-  // the receiver. Every slot contains a pointer.
-  if (function->IsSmi()) {
-    CHECK_EQ(Smi::cast(function), Smi::FromInt(StackFrame::STUB));
-    return 0;
-  }
-  unsigned arguments =
-      function->shared()->internal_formal_parameter_count() + 1;
-  return arguments * kPointerSize;
+// static
+unsigned Deoptimizer::ComputeIncomingArgumentSize(SharedFunctionInfo* shared) {
+  return (shared->internal_formal_parameter_count() + 1) * kPointerSize;
 }
 
 

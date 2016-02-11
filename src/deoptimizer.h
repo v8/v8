@@ -128,6 +128,11 @@ class TranslatedFrame {
   Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
   int height() const { return height_; }
 
+  SharedFunctionInfo* raw_shared_info() const {
+    CHECK_NOT_NULL(raw_shared_info_);
+    return raw_shared_info_;
+  }
+
   class iterator {
    public:
     iterator& operator++() {
@@ -611,10 +616,10 @@ class Deoptimizer : public Malloced {
                             const char* debug_hint_string);
 
   unsigned ComputeInputFrameSize() const;
-  unsigned ComputeJavascriptFixedSize(JSFunction* function) const;
-  unsigned ComputeInterpretedFixedSize(JSFunction* function) const;
+  static unsigned ComputeJavascriptFixedSize(SharedFunctionInfo* shared);
+  static unsigned ComputeInterpretedFixedSize(SharedFunctionInfo* shared);
 
-  unsigned ComputeIncomingArgumentSize(JSFunction* function) const;
+  static unsigned ComputeIncomingArgumentSize(SharedFunctionInfo* shared);
   static unsigned ComputeOutgoingArgumentSize(Code* code, unsigned bailout_id);
 
   Object* ComputeLiteral(int index) const;
@@ -656,7 +661,7 @@ class Deoptimizer : public Malloced {
 
   // Determines whether the input frame contains alignment padding by looking
   // at the dynamic alignment state slot inside the frame.
-  bool HasAlignmentPadding(JSFunction* function);
+  bool HasAlignmentPadding(SharedFunctionInfo* shared);
 
   Isolate* isolate_;
   JSFunction* function_;

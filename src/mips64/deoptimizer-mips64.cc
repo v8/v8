@@ -119,8 +119,7 @@ void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
   }
 }
 
-
-bool Deoptimizer::HasAlignmentPadding(JSFunction* function) {
+bool Deoptimizer::HasAlignmentPadding(SharedFunctionInfo* shared) {
   // There is no dynamic alignment padding on MIPS in the input frame.
   return false;
 }

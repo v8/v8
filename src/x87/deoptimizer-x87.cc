@@ -207,10 +207,8 @@ void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
   }
 }
 
-
-bool Deoptimizer::HasAlignmentPadding(JSFunction* function) {
-  int parameter_count =
-      function->shared()->internal_formal_parameter_count() + 1;
+bool Deoptimizer::HasAlignmentPadding(SharedFunctionInfo* shared) {
+  int parameter_count = shared->internal_formal_parameter_count() + 1;
   unsigned input_frame_size = input_->GetFrameSize();
   unsigned alignment_state_offset =
       input_frame_size - parameter_count * kPointerSize -
