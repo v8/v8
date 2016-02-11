@@ -1864,10 +1864,7 @@ BUILTIN(ObjectKeys) {
       if (enum_length != 0) {
         Handle<FixedArray> cache(
             js_object->map()->instance_descriptors()->GetEnumCache());
-        keys = isolate->factory()->NewFixedArray(enum_length);
-        for (int i = 0; i < enum_length; i++) {
-          keys->set(i, cache->get(i));
-        }
+        keys = isolate->factory()->CopyFixedArrayUpTo(cache, enum_length);
       }
     }
   }

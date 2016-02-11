@@ -8530,13 +8530,9 @@ static bool ContainsOnlyValidKeys(Handle<FixedArray> array) {
 
 static Handle<FixedArray> ReduceFixedArrayTo(
     Handle<FixedArray> array, int length) {
-  DCHECK(array->length() >= length);
+  DCHECK_LE(length, array->length());
   if (array->length() == length) return array;
-
-  Handle<FixedArray> new_array =
-      array->GetIsolate()->factory()->NewFixedArray(length);
-  for (int i = 0; i < length; ++i) new_array->set(i, array->get(i));
-  return new_array;
+  return array->GetIsolate()->factory()->CopyFixedArrayUpTo(array, length);
 }
 
 bool Map::OnlyHasSimpleProperties() {
