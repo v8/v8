@@ -2116,6 +2116,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
   Handle<SharedFunctionInfo> share = New<SharedFunctionInfo>(map, OLD_SPACE);
 
   // Set pointer fields.
+  name = String::Flatten(name, TENURED);
   share->set_name(*name);
   Handle<Code> code;
   if (!maybe_code.ToHandle(&code)) {
