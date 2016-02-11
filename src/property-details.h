@@ -330,6 +330,7 @@ class PropertyDetails BASE_EMBEDDED {
   bool IsReadOnly() const { return (attributes() & READ_ONLY) != 0; }
   bool IsConfigurable() const { return (attributes() & DONT_DELETE) == 0; }
   bool IsDontEnum() const { return (attributes() & DONT_ENUM) != 0; }
+  bool IsEnumerable() const { return !IsDontEnum(); }
   PropertyCellType cell_type() const {
     return PropertyCellTypeField::decode(value_);
   }

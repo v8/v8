@@ -2297,8 +2297,7 @@ class JSObject: public JSReceiver {
                                     KeyAccumulator* keys,
                                     PropertyFilter filter);
 
-  static Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
-                                                bool cache_result);
+  static Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object);
 
   // Returns a new map with all transitions dropped from the object's current
   // map and the ElementsKind set.
@@ -5847,6 +5846,10 @@ class Map: public HeapObject {
 
   inline Cell* RetrieveDescriptorsPointer();
 
+  // Checks whether all properties are stored either in the map or on the object
+  // (inobject, properties, or elements backing store), requiring no special
+  // checks.
+  bool OnlyHasSimpleProperties();
   inline int EnumLength();
   inline void SetEnumLength(int length);
 

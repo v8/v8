@@ -8539,13 +8539,22 @@ static Handle<FixedArray> ReduceFixedArrayTo(
   return new_array;
 }
 
+bool Map::OnlyHasSimpleProperties() {
+  // Wrapped string elements aren't explicitly stored in the elements backing
+  // store, but are loaded indirectly from the underlying string.
+  return !IsStringWrapperElementsKind(elements_kind()) &&
+         !is_access_check_needed() && !has_named_interceptor() &&
+         !has_indexed_interceptor() && !has_hidden_prototype() &&
+         !is_dictionary_map();
+}
 
 namespace {
 
 Handle<FixedArray> GetFastEnumPropertyKeys(Isolate* isolate,
-                                           Handle<JSObject> object,
-                                           bool cache_enum_length) {
+                                           Handle<JSObject> object) {
   Handle<Map> map(object->map());
+  bool cache_enum_length = map->OnlyHasSimpleProperties();
+
   Handle<DescriptorArray> descs =
       Handle<DescriptorArray>(map->instance_descriptors(), isolate);
   int own_property_count = map->EnumLength();
@@ -8618,12 +8627,10 @@ Handle<FixedArray> GetFastEnumPropertyKeys(Isolate* isolate,
 
 }  // namespace
 
-
-Handle<FixedArray> JSObject::GetEnumPropertyKeys(Handle<JSObject> object,
-                                                 bool cache_enum_length) {
+Handle<FixedArray> JSObject::GetEnumPropertyKeys(Handle<JSObject> object) {
   Isolate* isolate = object->GetIsolate();
   if (object->HasFastProperties()) {
-    return GetFastEnumPropertyKeys(isolate, object, cache_enum_length);
+    return GetFastEnumPropertyKeys(isolate, object);
   } else if (object->IsJSGlobalObject()) {
     Handle<GlobalDictionary> dictionary(object->global_dictionary());
     int length = dictionary->NumberOfEnumElements();
@@ -8727,26 +8734,7 @@ static Maybe<bool> GetKeysFromJSObject(Isolate* isolate,
   MAYBE_RETURN(success, Nothing<bool>());
 
   if (*filter == ENUMERABLE_STRINGS) {
-    // We can cache the computed property keys if access checks are
-    // not needed and no interceptors are involved.
-    //
-    // We do not use the cache if the object has elements and
-    // therefore it does not make sense to cache the property names
-    // for arguments objects.  Arguments objects will always have
-    // elements.
-    // Wrapped strings have elements, but don't have an elements
-    // array or dictionary.  So the fast inline test for whether to
-    // use the cache says yes, so we should not create a cache.
-    Handle<JSFunction> arguments_function(
-        JSFunction::cast(isolate->sloppy_arguments_map()->GetConstructor()));
-    bool cache_enum_length =
-        ((object->map()->GetConstructor() != *arguments_function) &&
-         !object->IsJSValue() && !object->IsAccessCheckNeeded() &&
-         !object->HasNamedInterceptor() && !object->HasIndexedInterceptor() &&
-         !object->map()->has_hidden_prototype());
-    // Compute the property keys and cache them if possible.
-    Handle<FixedArray> enum_keys =
-        JSObject::GetEnumPropertyKeys(object, cache_enum_length);
+    Handle<FixedArray> enum_keys = JSObject::GetEnumPropertyKeys(object);
     accumulator->AddKeys(enum_keys, DO_NOT_CONVERT);
   } else {
     object->CollectOwnPropertyNames(accumulator, *filter);

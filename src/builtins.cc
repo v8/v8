@@ -1578,6 +1578,75 @@ BUILTIN(ArrayIsArray) {
   return *isolate->factory()->ToBoolean(result.FromJust());
 }
 
+namespace {
+
+MUST_USE_RESULT Maybe<bool> FastAssign(Handle<JSReceiver> to,
+                                       Handle<Object> next_source) {
+  // Non-empty strings are the only non-JSReceivers that need to be handled
+  // explicitly by Object.assign.
+  if (!next_source->IsJSReceiver()) {
+    return Just(!next_source->IsString() ||
+                String::cast(*next_source)->length() == 0);
+  }
+
+  Isolate* isolate = to->GetIsolate();
+  Handle<Map> map(JSReceiver::cast(*next_source)->map(), isolate);
+
+  if (!map->IsJSObjectMap()) return Just(false);
+  if (!map->OnlyHasSimpleProperties()) return Just(false);
+
+  Handle<JSObject> from = Handle<JSObject>::cast(next_source);
+  if (from->elements() != isolate->heap()->empty_fixed_array()) {
+    return Just(false);
+  }
+
+  Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate);
+  int length = map->NumberOfOwnDescriptors();
+
+  for (int i = 0; i < length; i++) {
+    Handle<Name> next_key(descriptors->GetKey(i), isolate);
+    Handle<Object> prop_value;
+    // Directly decode from the descriptor array if |from| did not change shape.
+    if (from->map() == *map) {
+      PropertyDetails details = descriptors->GetDetails(i);
+      if (!details.IsEnumerable()) continue;
+      if (details.kind() == kData) {
+        if (details.location() == kDescriptor) {
+          prop_value = handle(descriptors->GetValue(i), isolate);
+        } else {
+          Representation representation = details.representation();
+          FieldIndex index = FieldIndex::ForDescriptor(*map, i);
+          prop_value = JSObject::FastPropertyAt(from, representation, index);
+        }
+      } else {
+        ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+            isolate, prop_value, Object::GetProperty(from, next_key, STRICT),
+            Nothing<bool>());
+      }
+    } else {
+      // If the map did change, do a slower lookup. We are still guaranteed that
+      // the object has a simple shape, and that the key is a name.
+      LookupIterator it(from, next_key, LookupIterator::OWN_SKIP_INTERCEPTOR);
+      if (!it.IsFound()) continue;
+      DCHECK(it.state() == LookupIterator::DATA ||
+             it.state() == LookupIterator::ACCESSOR);
+      if (!it.IsEnumerable()) continue;
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, prop_value,
+                                       Object::GetProperty(&it, STRICT),
+                                       Nothing<bool>());
+    }
+    Handle<Object> status;
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, status,
+        Object::SetProperty(to, next_key, prop_value, STRICT,
+                            Object::CERTAINLY_NOT_STORE_FROM_KEYED),
+        Nothing<bool>());
+  }
+
+  return Just(true);
+}
+
+}  // namespace
 
 // ES6 19.1.2.1 Object.assign
 BUILTIN(ObjectAssign) {
@@ -1595,10 +1664,13 @@ BUILTIN(ObjectAssign) {
   // 4. For each element nextSource of sources, in ascending index order,
   for (int i = 2; i < args.length(); ++i) {
     Handle<Object> next_source = args.at<Object>(i);
+    Maybe<bool> fast_assign = FastAssign(to, next_source);
+    if (fast_assign.IsNothing()) return isolate->heap()->exception();
+    if (fast_assign.FromJust()) continue;
     // 4a. If nextSource is undefined or null, let keys be an empty List.
-    if (next_source->IsUndefined() || next_source->IsNull()) continue;
     // 4b. Else,
     // 4b i. Let from be ToObject(nextSource).
+    // Only non-empty strings and JSReceivers have enumerable properties.
     Handle<JSReceiver> from =
         Object::ToObject(isolate, next_source).ToHandleChecked();
     // 4b ii. Let keys be ? from.[[OwnPropertyKeys]]().

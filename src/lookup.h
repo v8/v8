@@ -238,6 +238,7 @@ class LookupIterator final BASE_EMBEDDED {
   }
   bool IsConfigurable() const { return property_details().IsConfigurable(); }
   bool IsReadOnly() const { return property_details().IsReadOnly(); }
+  bool IsEnumerable() const { return property_details().IsEnumerable(); }
   Representation representation() const {
     return property_details().representation();
   }
