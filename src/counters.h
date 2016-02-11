@@ -701,23 +701,35 @@ double AggregatedMemoryHistogram<Histogram>::Aggregate(double current_ms,
   /* Total count of functions compiled using the baseline compiler. */         \
   SC(total_baseline_compile_count, V8.TotalBaselineCompileCount)
 
+typedef struct RuntimeCallCounter {
+  int64_t count = 0;
+  base::TimeDelta time;
+  RuntimeCallCounter* parent_counter;
+
+  void Reset();
+} RuntimeCallCounter;
+
 struct RuntimeCallStats {
 #define CALL_RUNTIME_COUNTER(name, nargs, ressize) \
-  uint32_t Count_Runtime_##name;                   \
-  base::TimeDelta Time_Runtime_##name;
+  RuntimeCallCounter Runtime_##name;
   FOR_EACH_INTRINSIC(CALL_RUNTIME_COUNTER)
 #undef CALL_RUNTIME_COUNTER
-#define CALL_BUILTIN_COUNTER(name, type) \
-  uint32_t Count_Builtin_##name;         \
-  base::TimeDelta Time_Builtin_##name;
+#define CALL_BUILTIN_COUNTER(name, type) RuntimeCallCounter Builtin_##name;
   BUILTIN_LIST_C(CALL_BUILTIN_COUNTER)
 #undef CALL_BUILTIN_COUNTER
 
   // Dummy counter for the unexpected stub miss.
-  uint32_t Count_UnexpectedStubMiss;
-  base::TimeDelta Time_UnexpectedStubMiss;
+  RuntimeCallCounter UnexpectedStubMiss;
+  // Counter to track recursive time events.
+  RuntimeCallCounter* current_counter;
 
-  bool in_runtime_call = false;
+  // Starting measuring the time for a function. This will establish the
+  // connection to the parent counter for properly calculating the own times.
+  void Enter(RuntimeCallCounter* counter);
+  // Leave a scope for a measured runtime function. This will properly add
+  // the time delta to the current_counter and subtract the delta from its
+  // parent.
+  void Leave(base::TimeDelta time);
 
   void Reset();
   void Print(std::ostream& os);

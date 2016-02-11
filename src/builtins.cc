@@ -142,22 +142,17 @@ BUILTIN_LIST_C(DEF_ARG_TYPE)
                                                      Isolate* isolate);        \
   MUST_USE_RESULT static Object* Builtin_##name(                               \
       int args_length, Object** args_object, Isolate* isolate) {               \
-    RuntimeCallStats* stats = isolate->counters()->runtime_call_stats();       \
-    stats->Count_Builtin_##name++;                                             \
+    isolate->counters()->runtime_calls()->Increment();                         \
     base::ElapsedTimer timer;                                                  \
-    bool timing = false;                                                       \
-    if (FLAG_runtime_call_stats && !stats->in_runtime_call) {                  \
-      stats->in_runtime_call = true;                                           \
-      timing = true;                                                           \
+    if (FLAG_runtime_call_stats) {                                             \
+      RuntimeCallStats* stats = isolate->counters()->runtime_call_stats();     \
+      stats->Enter(&stats->Builtin_##name);                                    \
       timer.Start();                                                           \
     }                                                                          \
     name##ArgumentsType args(args_length, args_object);                        \
-    isolate->counters()->runtime_calls()->Increment();                         \
     Object* value = Builtin_Impl_##name(args, isolate);                        \
-    if (timing) {                                                              \
-      stats->in_runtime_call = false;                                          \
-      isolate->counters()->runtime_call_stats()->Time_Builtin_##name +=        \
-          timer.Elapsed();                                                     \
+    if (FLAG_runtime_call_stats) {                                             \
+      isolate->counters()->runtime_call_stats()->Leave(timer.Elapsed());       \
     }                                                                          \
     return value;                                                              \
   }                                                                            \

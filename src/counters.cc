@@ -212,10 +212,10 @@ class RuntimeCallStatEntries {
     }
   }
 
-  void Add(const char* name, base::TimeDelta time, uint32_t count) {
-    entries.push_back(Entry(name, time, count));
-    total_time += time;
-    total_call_count += count;
+  void Add(const char* name, RuntimeCallCounter counter) {
+    entries.push_back(Entry(name, counter.time, counter.count));
+    total_time += counter.time;
+    total_call_count += counter.count;
   }
 
  private:
@@ -263,18 +263,38 @@ class RuntimeCallStatEntries {
   std::vector<Entry> entries;
 };
 
+void RuntimeCallCounter::Reset() {
+  count = 0;
+  time = base::TimeDelta();
+}
+
+void RuntimeCallStats::Enter(RuntimeCallCounter* counter) {
+  counter->count++;
+  counter->parent_counter = current_counter;
+  current_counter = counter;
+}
+void RuntimeCallStats::Leave(base::TimeDelta time) {
+  RuntimeCallCounter* counter = current_counter;
+  counter->time += time;
+  current_counter = counter->parent_counter;
+  counter->parent_counter = NULL;
+  if (current_counter != NULL) {
+    current_counter->time -= time;
+  }
+}
+
 void RuntimeCallStats::Print(std::ostream& os) {
   RuntimeCallStatEntries entries;
 
-#define PRINT_COUNTER(name, nargs, ressize)                                    \
-  if (this->Count_Runtime_##name > 0) {                                        \
-    entries.Add(#name, this->Time_Runtime_##name, this->Count_Runtime_##name); \
+#define PRINT_COUNTER(name, nargs, ressize)   \
+  if (this->Runtime_##name.count > 0) {       \
+    entries.Add(#name, this->Runtime_##name); \
   }
   FOR_EACH_INTRINSIC(PRINT_COUNTER)
 #undef PRINT_COUNTER
-#define PRINT_COUNTER(name, type)                                              \
-  if (this->Count_Builtin_##name > 0) {                                        \
-    entries.Add(#name, this->Time_Builtin_##name, this->Count_Builtin_##name); \
+#define PRINT_COUNTER(name, type)             \
+  if (this->Builtin_##name.count > 0) {       \
+    entries.Add(#name, this->Builtin_##name); \
   }
   BUILTIN_LIST_C(PRINT_COUNTER)
 #undef PRINT_COUNTER
@@ -282,14 +302,10 @@ void RuntimeCallStats::Print(std::ostream& os) {
 }
 
 void RuntimeCallStats::Reset() {
-#define RESET_COUNTER(name, nargs, ressize) \
-  Count_Runtime_##name = 0;                 \
-  Time_Runtime_##name = base::TimeDelta();
+#define RESET_COUNTER(name, nargs, ressize) this->Runtime_##name.Reset();
   FOR_EACH_INTRINSIC(RESET_COUNTER)
 #undef RESET_COUNTER
-#define RESET_COUNTER(name, type) \
-  Count_Builtin_##name = 0;       \
-  Time_Builtin_##name = base::TimeDelta();
+#define RESET_COUNTER(name, type) this->Builtin_##name.Reset();
   BUILTIN_LIST_C(RESET_COUNTER)
 #undef RESET_COUNTER
 }
