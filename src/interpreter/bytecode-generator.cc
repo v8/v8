@@ -574,6 +574,7 @@ Handle<BytecodeArray> BytecodeGenerator::MakeBytecode(CompilationInfo* info) {
     MakeBytecodeBody();
   }
 
+  builder()->EnsureReturn(info->literal());
   set_scope(nullptr);
   set_info(nullptr);
   return builder()->ToBytecodeArray();
@@ -805,6 +806,7 @@ void BytecodeGenerator::VisitStatements(ZoneList<Statement*>* statements) {
 
 
 void BytecodeGenerator::VisitExpressionStatement(ExpressionStatement* stmt) {
+  builder()->SetStatementPosition(stmt);
   VisitForEffect(stmt->expression());
 }
 
@@ -860,6 +862,7 @@ void BytecodeGenerator::VisitBreakStatement(BreakStatement* stmt) {
 
 void BytecodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
   VisitForAccumulatorValue(stmt->expression());
+  builder()->SetReturnPosition(info_->literal());
   execution_control()->ReturnAccumulator();
 }
 
@@ -1215,6 +1218,7 @@ void BytecodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
 
 
 void BytecodeGenerator::VisitDebuggerStatement(DebuggerStatement* stmt) {
+  builder()->SetStatementPosition(stmt);
   builder()->Debugger();
 }
 

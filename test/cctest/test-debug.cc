@@ -7978,3 +7978,81 @@ TEST(NoInterruptsInDebugListener) {
   v8::Debug::SetDebugEventListener(env->GetIsolate(), NoInterruptsOnDebugEvent);
   CompileRun("void(0);");
 }
+
+class TestBreakLocation : public i::BreakLocation {
+ public:
+  using i::BreakLocation::GetIterator;
+  using i::BreakLocation::Iterator;
+};
+
+TEST(BreakLocationIterator) {
+  DebugLocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  v8::HandleScope scope(isolate);
+
+  v8::Local<v8::Value> result = CompileRun(
+      "function f() {\n"
+      "  debugger;   \n"
+      "  f();        \n"
+      "  debugger;   \n"
+      "}             \n"
+      "f");
+  Handle<i::Object> function_obj = v8::Utils::OpenHandle(*result);
+  Handle<i::JSFunction> function = Handle<i::JSFunction>::cast(function_obj);
+  Handle<i::SharedFunctionInfo> shared(function->shared());
+
+  EnableDebugger(isolate);
+  CHECK(i_isolate->debug()->EnsureDebugInfo(shared, function));
+
+  Handle<i::DebugInfo> debug_info(shared->GetDebugInfo());
+  int code_size = debug_info->abstract_code()->Size();
+
+  bool found_return = false;
+  bool found_call = false;
+  bool found_debugger = false;
+
+  // Test public interface.
+  for (int i = 0; i < code_size; i++) {
+    i::BreakLocation location = i::BreakLocation::FromCodeOffset(debug_info, i);
+    if (location.IsCall()) found_call = true;
+    if (location.IsReturn()) found_return = true;
+    if (location.IsDebuggerStatement()) found_debugger = true;
+  }
+  CHECK(found_call);
+  CHECK(found_return);
+  CHECK(found_debugger);
+
+  // Test underlying implementation.
+  TestBreakLocation::Iterator* iterator =
+      TestBreakLocation::GetIterator(debug_info, i::ALL_BREAK_LOCATIONS);
+  CHECK(iterator->GetBreakLocation().IsDebuggerStatement());
+  CHECK_EQ(7, iterator->GetBreakLocation().position());
+  iterator->Next();
+  CHECK(iterator->GetBreakLocation().IsDebugBreakSlot());
+  CHECK_EQ(22, iterator->GetBreakLocation().position());
+  iterator->Next();
+  CHECK(iterator->GetBreakLocation().IsCall());
+  CHECK_EQ(22, iterator->GetBreakLocation().position());
+  iterator->Next();
+  CHECK(iterator->GetBreakLocation().IsDebuggerStatement());
+  CHECK_EQ(37, iterator->GetBreakLocation().position());
+  iterator->Next();
+  CHECK(iterator->GetBreakLocation().IsReturn());
+  CHECK_EQ(50, iterator->GetBreakLocation().position());
+  iterator->Next();
+  CHECK(iterator->Done());
+  delete iterator;
+
+  iterator = TestBreakLocation::GetIterator(debug_info, i::CALLS_AND_RETURNS);
+  CHECK(iterator->GetBreakLocation().IsCall());
+  CHECK_EQ(22, iterator->GetBreakLocation().position());
+  iterator->Next();
+  CHECK(iterator->GetBreakLocation().IsReturn());
+  CHECK_EQ(50, iterator->GetBreakLocation().position());
+  iterator->Next();
+  CHECK(iterator->Done());
+  delete iterator;
+
+  DisableDebugger(isolate);
+}

@@ -35,9 +35,10 @@ class SourcePositionTableBuilder {
     uint32_t source_position_and_type;
   };
 
-  void AssertMonotonic(int bytecode_offset) {
-    DCHECK(entries_.size() == 0 ||
-           entries_.back().bytecode_offset < bytecode_offset);
+  bool CodeOffsetHasPosition(int bytecode_offset) {
+    // Return whether bytecode offset already has a position assigned.
+    return entries_.size() > 0 &&
+           entries_.back().bytecode_offset == bytecode_offset;
   }
 
   Isolate* isolate_;

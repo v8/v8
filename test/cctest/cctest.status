@@ -578,8 +578,6 @@
   'test-compiler/OptimizedCodeSharing3': [FAIL],
 
   # TODO(rmcilroy,4689): Stack trace line number failures.
-  'test-api/CaptureStackTraceForUncaughtException': [FAIL],
-  'test-api/GetStackTraceContainsFunctionsWithFunctionName': [FAIL],
   'test-run-jsexceptions/ThrowMessagePosition': [FAIL],
   'test-api/TryCatchMixedNesting': [PASS, FAIL],
 
@@ -617,11 +615,7 @@
   'test-profile-generator/RecordStackTraceAtStartProfiling': [FAIL],
   'test-feedback-vector/VectorCallICStates': [FAIL],
   'test-compiler/FeedbackVectorPreservedAcrossRecompiles': [FAIL],
-  'test-api/DynamicWithSourceURLInStackTraceString': [FAIL],
   'test-api/PromiseRejectCallback': [FAIL],
-  'test-api/RethrowBogusErrorStackTrace': [FAIL],
-  'test-api/RethrowPrimitiveStackTrace': [FAIL],
-  'test-api/TryCatchSourceInfo': [FAIL],
   'test-api/SetJitCodeEventHandler': [FAIL],
   'test-heap/WeakFunctionInConstructor': [FAIL],
   'test-heap/Regress169209': [FAIL],

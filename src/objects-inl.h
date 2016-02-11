@@ -5947,7 +5947,8 @@ DebugInfo* SharedFunctionInfo::GetDebugInfo() {
 
 
 bool SharedFunctionInfo::HasDebugCode() {
-  return code()->kind() == Code::FUNCTION && code()->has_debug_break_slots();
+  return HasBytecodeArray() ||
+         (code()->kind() == Code::FUNCTION && code()->has_debug_break_slots());
 }
 
 

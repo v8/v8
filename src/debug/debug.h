@@ -16,6 +16,7 @@
 #include "src/flags.h"
 #include "src/frames.h"
 #include "src/hashmap.h"
+#include "src/interpreter/source-position-table.h"
 #include "src/runtime/runtime.h"
 #include "src/string-stream.h"
 #include "src/v8threads.h"
@@ -84,6 +85,10 @@ class BreakLocation {
 
   inline bool IsReturn() const { return type_ == DEBUG_BREAK_SLOT_AT_RETURN; }
   inline bool IsCall() const { return type_ == DEBUG_BREAK_SLOT_AT_CALL; }
+  inline bool IsDebugBreakSlot() const { return type_ >= DEBUG_BREAK_SLOT; }
+  inline bool IsDebuggerStatement() const {
+    return type_ == DEBUGGER_STATEMENT;
+  }
   inline bool HasBreakPoint() const {
     return debug_info_->HasBreakPoint(code_offset_);
   }
@@ -106,7 +111,7 @@ class BreakLocation {
     return debug_info_->abstract_code();
   }
 
- private:
+ protected:
   enum DebugBreakType {
     NOT_DEBUG_BREAK,
     DEBUGGER_STATEMENT,
@@ -136,7 +141,7 @@ class BreakLocation {
     inline int statement_position() const { return statement_position_; }
 
    protected:
-    Iterator(Handle<DebugInfo> debug_info, BreakLocatorType type);
+    explicit Iterator(Handle<DebugInfo> debug_info);
 
     Handle<DebugInfo> debug_info_;
     int break_index_;
@@ -151,7 +156,7 @@ class BreakLocation {
   class CodeIterator : public Iterator {
    public:
     CodeIterator(Handle<DebugInfo> debug_info, BreakLocatorType type);
-    ~CodeIterator() override{};
+    ~CodeIterator() override {}
 
     BreakLocation GetBreakLocation() override;
     bool Done() const override { return reloc_iterator_.done(); }
@@ -172,20 +177,38 @@ class BreakLocation {
     DISALLOW_COPY_AND_ASSIGN(CodeIterator);
   };
 
+  class BytecodeArrayIterator : public Iterator {
+   public:
+    BytecodeArrayIterator(Handle<DebugInfo> debug_info, BreakLocatorType type);
+    ~BytecodeArrayIterator() override {}
+
+    BreakLocation GetBreakLocation() override;
+    bool Done() const override { return source_position_iterator_.done(); }
+    void Next() override;
+
+    int code_offset() override {
+      return source_position_iterator_.bytecode_offset();
+    }
+
+   private:
+    DebugBreakType GetDebugBreakType();
+
+    interpreter::SourcePositionTableIterator source_position_iterator_;
+    BreakLocatorType break_locator_type_;
+    int start_position_;
+    DISALLOW_COPY_AND_ASSIGN(BytecodeArrayIterator);
+  };
+
   static Iterator* GetIterator(Handle<DebugInfo> debug_info,
                                BreakLocatorType type = ALL_BREAK_LOCATIONS);
 
+ private:
   friend class Debug;
 
   static int BreakIndexFromCodeOffset(Handle<DebugInfo> debug_info, int offset);
 
   void SetDebugBreak();
   void ClearDebugBreak();
-
-  inline bool IsDebuggerStatement() const {
-    return type_ == DEBUGGER_STATEMENT;
-  }
-  inline bool IsDebugBreakSlot() const { return type_ >= DEBUG_BREAK_SLOT; }
 
   Handle<DebugInfo> debug_info_;
   int code_offset_;

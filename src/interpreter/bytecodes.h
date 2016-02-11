@@ -463,6 +463,9 @@ class Bytecodes {
   // Returns true if the bytecode is a conditional jump, a jump, or a return.
   static bool IsJumpOrReturn(Bytecode bytecode);
 
+  // Returns true if the bytecode is a call or a constructor call.
+  static bool IsCallOrNew(Bytecode bytecode);
+
   // Returns true if |operand_type| is a register index operand (kIdx8/kIdx16).
   static bool IsIndexOperandType(OperandType operand_type);
 

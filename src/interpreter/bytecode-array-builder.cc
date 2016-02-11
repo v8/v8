@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/interpreter/bytecode-array-builder.h"
+#include "src/compiler.h"
 
 namespace v8 {
 namespace internal {
@@ -115,7 +116,7 @@ bool BytecodeArrayBuilder::RegisterIsParameterOrLocal(Register reg) const {
 
 Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray() {
   DCHECK_EQ(bytecode_generated_, false);
-  EnsureReturn();
+  DCHECK(exit_seen_in_block_);
 
   int bytecode_size = static_cast<int>(bytecodes_.size());
   int register_count =
@@ -1074,10 +1075,10 @@ void BytecodeArrayBuilder::LeaveBasicBlock() {
   exit_seen_in_block_ = false;
 }
 
-
-void BytecodeArrayBuilder::EnsureReturn() {
+void BytecodeArrayBuilder::EnsureReturn(FunctionLiteral* literal) {
   if (!exit_seen_in_block_) {
     LoadUndefined();
+    SetReturnPosition(literal);
     Return();
   }
 }
@@ -1211,6 +1212,11 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::DeleteLookupSlot() {
 
 size_t BytecodeArrayBuilder::GetConstantPoolEntry(Handle<Object> object) {
   return constant_array_builder()->Insert(object);
+}
+
+void BytecodeArrayBuilder::SetReturnPosition(FunctionLiteral* fun) {
+  int pos = std::max(fun->start_position(), fun->end_position() - 1);
+  source_position_table_builder_.AddStatementPosition(bytecodes_.size(), pos);
 }
 
 void BytecodeArrayBuilder::SetStatementPosition(Statement* stmt) {

@@ -260,6 +260,12 @@ bool Bytecodes::IsJump(Bytecode bytecode) {
 
 
 // static
+bool Bytecodes::IsCallOrNew(Bytecode bytecode) {
+  return bytecode == Bytecode::kCall || bytecode == Bytecode::kNew ||
+         bytecode == Bytecode::kCallWide || bytecode == Bytecode::kNewWide;
+}
+
+// static
 bool Bytecodes::IsJumpOrReturn(Bytecode bytecode) {
   return bytecode == Bytecode::kReturn || IsJump(bytecode);
 }

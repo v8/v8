@@ -18,7 +18,9 @@ class SourcePositionField : public BitField<int, 1, 30> {};
 void SourcePositionTableBuilder::AddStatementPosition(size_t bytecode_offset,
                                                       int source_position) {
   int offset = static_cast<int>(bytecode_offset);
-  AssertMonotonic(offset);
+  // If a position has already been assigned to this bytecode offset,
+  // do not reassign a new statement position.
+  if (CodeOffsetHasPosition(offset)) return;
   uint32_t encoded = IsStatementField::encode(true) |
                      SourcePositionField::encode(source_position);
   entries_.push_back({offset, encoded});
@@ -27,7 +29,9 @@ void SourcePositionTableBuilder::AddStatementPosition(size_t bytecode_offset,
 void SourcePositionTableBuilder::AddExpressionPosition(size_t bytecode_offset,
                                                        int source_position) {
   int offset = static_cast<int>(bytecode_offset);
-  AssertMonotonic(offset);
+  // If a position has already been assigned to this bytecode offset,
+  // do not reassign a new statement position.
+  if (CodeOffsetHasPosition(offset)) return;
   uint32_t encoded = IsStatementField::encode(false) |
                      SourcePositionField::encode(source_position);
   entries_.push_back({offset, encoded});
@@ -38,9 +42,7 @@ void SourcePositionTableBuilder::RevertPosition(size_t bytecode_offset) {
   // If we already added a source position table entry, but the bytecode array
   // builder ended up not outputting a bytecode for the corresponding bytecode
   // offset, we have to remove that entry.
-  if (entries_.size() > 0 && entries_.back().bytecode_offset == offset) {
-    entries_.pop_back();
-  }
+  if (CodeOffsetHasPosition(offset)) entries_.pop_back();
 }
 
 Handle<FixedArray> SourcePositionTableBuilder::ToFixedArray() {

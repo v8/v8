@@ -394,7 +394,8 @@ TEST_F(BytecodeArrayBuilderTest, Constants) {
       .LoadLiteral(large_smi)
       .LoadLiteral(heap_num_1)
       .LoadLiteral(heap_num_1)
-      .LoadLiteral(heap_num_2_copy);
+      .LoadLiteral(heap_num_2_copy)
+      .Return();
 
   Handle<BytecodeArray> array = builder.ToBytecodeArray();
   // Should only have one entry for each identical constant.

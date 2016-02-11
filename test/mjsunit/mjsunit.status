@@ -910,7 +910,6 @@
   # TODO(rmcilroy,4680): Test assert failures.
   'array-literal-feedback': [FAIL],
   'undetectable-compare': [FAIL],
-  'stack-traces': [FAIL],
   'debug-liveedit-2': [FAIL],
   'compiler/deopt-tonumber-compare': [FAIL],
   'es6/string-search': [FAIL],
