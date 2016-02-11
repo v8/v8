@@ -3333,7 +3333,7 @@ void MacroAssembler::Allocate(int object_size,
     return;
   }
 
-  DCHECK(!AreAliased(result, scratch1, scratch2, t9));
+  DCHECK(!AreAliased(result, scratch1, scratch2, t9, at));
 
   // Make object size into bytes.
   if ((flags & SIZE_IN_WORDS) != 0) {
@@ -3419,8 +3419,8 @@ void MacroAssembler::Allocate(Register object_size, Register result,
 
   // |object_size| and |result_end| may overlap if the DOUBLE_ALIGNMENT flag
   // is not specified. Other registers must not overlap.
-  DCHECK(!AreAliased(object_size, result, scratch, t9));
-  DCHECK(!AreAliased(result_end, result, scratch, t9));
+  DCHECK(!AreAliased(object_size, result, scratch, t9, at));
+  DCHECK(!AreAliased(result_end, result, scratch, t9, at));
   DCHECK((flags & DOUBLE_ALIGNMENT) == 0 || !object_size.is(result_end));
 
   // Check relative positions of allocation top and limit addresses.

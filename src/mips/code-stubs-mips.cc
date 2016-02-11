@@ -5242,7 +5242,7 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
     Label allocate, done_allocate;
     __ li(a1, Operand(JSArray::kSize + FixedArray::kHeaderSize));
     __ Lsa(a1, a1, a0, kPointerSizeLog2 - 1);
-    __ Allocate(a1, v0, a3, at, &allocate, TAG_OBJECT);
+    __ Allocate(a1, v0, a3, t0, &allocate, TAG_OBJECT);
     __ bind(&done_allocate);
 
     // Setup the elements array in v0.

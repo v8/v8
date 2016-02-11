@@ -3770,7 +3770,7 @@ void MacroAssembler::Allocate(int object_size,
     return;
   }
 
-  DCHECK(!AreAliased(result, scratch1, scratch2, t9));
+  DCHECK(!AreAliased(result, scratch1, scratch2, t9, at));
 
   // Make object size into bytes.
   if ((flags & SIZE_IN_WORDS) != 0) {
@@ -3848,8 +3848,8 @@ void MacroAssembler::Allocate(Register object_size, Register result,
   }
 
   // |object_size| and |result_end| may overlap, other registers must not.
-  DCHECK(!AreAliased(object_size, result, scratch, t9));
-  DCHECK(!AreAliased(result_end, result, scratch, t9));
+  DCHECK(!AreAliased(object_size, result, scratch, t9, at));
+  DCHECK(!AreAliased(result_end, result, scratch, t9, at));
 
   // Check relative positions of allocation top and limit addresses.
   // ARM adds additional checks to make sure the ldm instruction can be
