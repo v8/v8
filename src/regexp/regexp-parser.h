@@ -102,6 +102,7 @@ class RegExpBuilder : public ZoneObject {
   RegExpBuilder(Zone* zone, bool ignore_case, bool unicode);
   void AddCharacter(uc16 character);
   void AddUnicodeCharacter(uc32 character);
+  void AddEscapedUnicodeCharacter(uc32 character);
   // "Adds" an empty expression. Does nothing except consume a
   // following quantifier
   void AddEmpty();
