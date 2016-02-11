@@ -282,7 +282,7 @@ function RegExpToString() {
       throw MakeTypeError(
           kIncompatibleMethodReceiver, 'RegExp.prototype.toString', this);
     }
-    return '/' + TO_STRING(this.pattern()) + '/' + TO_STRING(this.flags());
+    return '/' + TO_STRING(this.source) + '/' + TO_STRING(this.flags);
   }
   var result = '/' + REGEXP_SOURCE(this) + '/';
   if (REGEXP_GLOBAL(this)) result += 'g';

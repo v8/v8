@@ -6,7 +6,7 @@ var log = [];
 
 var fake =
     {
-      pattern: function() {
+      get source() {
         log.push("p");
         return {
           toString: function() {
@@ -15,7 +15,7 @@ var fake =
           }
         };
       },
-      flags: function() {
+      get flags() {
         log.push("f");
         return {
           toString: function() {
@@ -38,8 +38,8 @@ function testThrows(x) {
 
 testThrows(1);
 testThrows(null);
-Number.prototype.pattern = () => "a";
-Number.prototype.flags = () => "b";
+Number.prototype.source = "a";
+Number.prototype.flags = "b";
 testThrows(1);
 
 assertEquals("/pattern/flags", RegExp.prototype.toString.call(fake));
