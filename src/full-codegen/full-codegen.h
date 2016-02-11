@@ -505,6 +505,7 @@ class FullCodeGenerator: public AstVisitor {
 
   // Platform-specific return sequence
   void EmitReturnSequence();
+  void EmitProfilingCounterHandlingForReturnSequence(bool is_tail_call);
 
   // Platform-specific code sequences for calls
   void EmitCall(Call* expr, ConvertReceiverMode = ConvertReceiverMode::kAny);

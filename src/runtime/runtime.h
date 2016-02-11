@@ -919,7 +919,6 @@ namespace internal {
   F(SymbolRegistry, 0, 1)            \
   F(SymbolIsPrivate, 1, 1)
 
-
 #define FOR_EACH_INTRINSIC_TEST(F)            \
   F(DeoptimizeFunction, 1, 1)                 \
   F(DeoptimizeNow, 0, 1)                      \
@@ -947,6 +946,7 @@ namespace internal {
   F(DisassembleFunction, 1, 1)                \
   F(TraceEnter, 0, 1)                         \
   F(TraceExit, 1, 1)                          \
+  F(TraceTailCall, 0, 1)                      \
   F(HaveSameMap, 2, 1)                        \
   F(InNewSpace, 1, 1)                         \
   F(HasFastSmiElements, 1, 1)                 \
@@ -967,7 +967,6 @@ namespace internal {
   F(HasFixedFloat32Elements, 1, 1)            \
   F(HasFixedFloat64Elements, 1, 1)            \
   F(HasFixedUint8ClampedElements, 1, 1)
-
 
 #define FOR_EACH_INTRINSIC_TYPEDARRAY(F)     \
   F(ArrayBufferGetByteLength, 1, 1)          \

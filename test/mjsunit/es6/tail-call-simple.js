@@ -15,6 +15,8 @@
     return f(n - 1);
   }
   assertThrows(()=>{ f(1e6) });
+  %OptimizeFunctionOnNextCall(f);
+  assertThrows(()=>{ f(1e6) });
 })();
 
 
@@ -29,6 +31,8 @@
     }
     return f(n - 1);
   }
+  assertEquals("foo", f(1e6));
+  %OptimizeFunctionOnNextCall(f);
   assertEquals("foo", f(1e6));
 })();
 
@@ -49,6 +53,9 @@
   }
   assertEquals("foo", f(1e6));
   assertEquals("bar", f(1e6 + 1));
+  %OptimizeFunctionOnNextCall(f);
+  assertEquals("foo", f(1e6));
+  assertEquals("bar", f(1e6 + 1));
 })();
 
 
@@ -61,9 +68,14 @@
     if (n <= 0) {
       return "foo";
     }
-    return f(n - 1);
+    return f_bound(n - 1);
   }
-  var f = f0.bind({});
+  var f_bound = f0.bind({});
+  function f(n) {
+    return f_bound(n);
+  }
+  assertEquals("foo", f(1e6));
+  %OptimizeFunctionOnNextCall(f);
   assertEquals("foo", f(1e6));
 })();
 
@@ -74,17 +86,22 @@
     if (n <= 0) {
       return "foo";
     }
-    return g(n - 1);
+    return g_bound(n - 1);
   }
   function g0(n){
     if (n <= 0) {
       return "bar";
     }
-    return f(n - 1);
+    return f_bound(n - 1);
   }
-  var f = f0.bind({});
-  var g = g0.bind({});
-
+  var f_bound = f0.bind({});
+  var g_bound = g0.bind({});
+  function f(n) {
+    return f_bound(n);
+  }
+  assertEquals("foo", f(1e6));
+  assertEquals("bar", f(1e6 + 1));
+  %OptimizeFunctionOnNextCall(f);
   assertEquals("foo", f(1e6));
   assertEquals("bar", f(1e6 + 1));
 })();
