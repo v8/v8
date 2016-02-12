@@ -2442,12 +2442,15 @@ LifetimePosition RegisterAllocator::FindOptimalSplitPos(LifetimePosition start,
 
   const InstructionBlock* block = end_block;
   // Find header of outermost loop.
-  // TODO(titzer): fix redundancy below.
-  while (GetContainingLoop(code(), block) != nullptr &&
-         GetContainingLoop(code(), block)->rpo_number().ToInt() >
-             start_block->rpo_number().ToInt()) {
-    block = GetContainingLoop(code(), block);
-  }
+  do {
+    const InstructionBlock* loop = GetContainingLoop(code(), block);
+    if (loop == nullptr ||
+        loop->rpo_number().ToInt() <= start_block->rpo_number().ToInt()) {
+      // No more loops or loop starts before the lifetime start.
+      break;
+    }
+    block = loop;
+  } while (true);
 
   // We did not find any suitable outer loop. Split at the latest possible
   // position unless end_block is a loop header itself.
