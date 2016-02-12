@@ -534,7 +534,7 @@ void JSGenericLowering::LowerJSCreateArguments(Node* node) {
       ReplaceWithRuntimeCall(node, Runtime::kNewSloppyArguments_Generic);
       break;
     case CreateArgumentsType::kUnmappedArguments:
-      ReplaceWithRuntimeCall(node, Runtime::kNewStrictArguments_Generic);
+      ReplaceWithRuntimeCall(node, Runtime::kNewStrictArguments);
       break;
     case CreateArgumentsType::kRestParameter:
       ReplaceWithRuntimeCall(node, Runtime::kNewRestParameter);

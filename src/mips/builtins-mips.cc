@@ -1965,9 +1965,7 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
 
     // Try to create the list from an arguments object.
     __ bind(&create_arguments);
-    __ lw(a2,
-          FieldMemOperand(a0, JSObject::kHeaderSize +
-                                  Heap::kArgumentsLengthIndex * kPointerSize));
+    __ lw(a2, FieldMemOperand(a0, JSArgumentsObject::kLengthOffset));
     __ lw(t0, FieldMemOperand(a0, JSObject::kElementsOffset));
     __ lw(at, FieldMemOperand(t0, FixedArray::kLengthOffset));
     __ Branch(&create_runtime, ne, a2, Operand(at));

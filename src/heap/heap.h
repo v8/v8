@@ -519,20 +519,6 @@ class Heap {
   static const double kMaxHeapGrowingFactorIdle;
   static const double kTargetMutatorUtilization;
 
-  // Sloppy mode arguments object size.
-  static const int kSloppyArgumentsObjectSize =
-      JSObject::kHeaderSize + 2 * kPointerSize;
-
-  // Strict mode arguments has no callee so it is smaller.
-  static const int kStrictArgumentsObjectSize =
-      JSObject::kHeaderSize + 1 * kPointerSize;
-
-  // Indicies for direct access into argument objects.
-  static const int kArgumentsLengthIndex = 0;
-
-  // callee is only valid in sloppy mode.
-  static const int kArgumentsCalleeIndex = 1;
-
   static const int kNoGCFlags = 0;
   static const int kReduceMemoryFootprintMask = 1;
   static const int kAbortIncrementalMarkingMask = 2;

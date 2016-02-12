@@ -1664,18 +1664,20 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     function->shared()->set_instance_class_name(*arguments_string);
 
     Handle<Map> map = factory->NewMap(
-        JS_OBJECT_TYPE, Heap::kSloppyArgumentsObjectSize, FAST_ELEMENTS);
+        JS_OBJECT_TYPE, JSSloppyArgumentsObject::kSize, FAST_ELEMENTS);
     // Create the descriptor array for the arguments object.
     Map::EnsureDescriptorSlack(map, 2);
 
     {  // length
-      DataDescriptor d(factory->length_string(), Heap::kArgumentsLengthIndex,
-                       DONT_ENUM, Representation::Tagged());
+      DataDescriptor d(factory->length_string(),
+                       JSSloppyArgumentsObject::kLengthIndex, DONT_ENUM,
+                       Representation::Tagged());
       map->AppendDescriptor(&d);
     }
     {  // callee
-      DataDescriptor d(factory->callee_string(), Heap::kArgumentsCalleeIndex,
-                       DONT_ENUM, Representation::Tagged());
+      DataDescriptor d(factory->callee_string(),
+                       JSSloppyArgumentsObject::kCalleeIndex, DONT_ENUM,
+                       Representation::Tagged());
       map->AppendDescriptor(&d);
     }
     // @@iterator method is added later.
@@ -1687,8 +1689,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     JSFunction::SetInitialMap(function, map,
                               isolate->initial_object_prototype());
 
-    DCHECK(map->GetInObjectProperties() > Heap::kArgumentsCalleeIndex);
-    DCHECK(map->GetInObjectProperties() > Heap::kArgumentsLengthIndex);
     DCHECK(!map->is_dictionary_map());
     DCHECK(IsFastObjectElementsKind(map->elements_kind()));
   }
@@ -1724,13 +1724,14 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     // Create the map. Allocate one in-object field for length.
     Handle<Map> map = factory->NewMap(
-        JS_OBJECT_TYPE, Heap::kStrictArgumentsObjectSize, FAST_ELEMENTS);
+        JS_OBJECT_TYPE, JSStrictArgumentsObject::kSize, FAST_ELEMENTS);
     // Create the descriptor array for the arguments object.
     Map::EnsureDescriptorSlack(map, 3);
 
     {  // length
-      DataDescriptor d(factory->length_string(), Heap::kArgumentsLengthIndex,
-                       DONT_ENUM, Representation::Tagged());
+      DataDescriptor d(factory->length_string(),
+                       JSStrictArgumentsObject::kLengthIndex, DONT_ENUM,
+                       Representation::Tagged());
       map->AppendDescriptor(&d);
     }
     {  // callee
@@ -1756,7 +1757,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     native_context()->set_strict_arguments_map(*map);
 
-    DCHECK(map->GetInObjectProperties() > Heap::kArgumentsLengthIndex);
     DCHECK(!map->is_dictionary_map());
     DCHECK(IsFastObjectElementsKind(map->elements_kind()));
   }

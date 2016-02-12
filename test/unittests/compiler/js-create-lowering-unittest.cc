@@ -88,15 +88,14 @@ TEST_F(JSCreateLoweringTest, JSCreateArgumentsViaStub) {
   Handle<SharedFunctionInfo> shared(isolate()->object_function()->shared());
   Node* const frame_state = FrameState(shared, graph()->start());
   Reduction r = Reduce(graph()->NewNode(
-      javascript()->CreateArguments(CreateArgumentsType::kMappedArguments),
+      javascript()->CreateArguments(CreateArgumentsType::kUnmappedArguments),
       closure, context, frame_state, effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(
       r.replacement(),
-      IsCall(_,
-             IsHeapConstant(
-                 CodeFactory::ArgumentsAccess(isolate(), false, false).code()),
-             closure, IsNumberConstant(0), _, effect, control));
+      IsCall(_, IsHeapConstant(
+                    CodeFactory::FastNewStrictArguments(isolate()).code()),
+             closure, context, frame_state, effect, control));
 }
 
 TEST_F(JSCreateLoweringTest, JSCreateArgumentsRestParameterViaStub) {
@@ -131,7 +130,7 @@ TEST_F(JSCreateLoweringTest, JSCreateArgumentsInlinedMapped) {
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(),
               IsFinishRegion(
-                  IsAllocate(IsNumberConstant(Heap::kSloppyArgumentsObjectSize),
+                  IsAllocate(IsNumberConstant(JSSloppyArgumentsObject::kSize),
                              _, control),
                   _));
 }
@@ -150,7 +149,7 @@ TEST_F(JSCreateLoweringTest, JSCreateArgumentsInlinedUnmapped) {
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(),
               IsFinishRegion(
-                  IsAllocate(IsNumberConstant(Heap::kStrictArgumentsObjectSize),
+                  IsAllocate(IsNumberConstant(JSStrictArgumentsObject::kSize),
                              _, control),
                   _));
 }

@@ -78,6 +78,7 @@ namespace internal {
   V(FastNewClosure)                         \
   V(FastNewContext)                         \
   V(FastNewRestParameter)                   \
+  V(FastNewStrictArguments)               \
   V(GrowArrayElements)                      \
   V(InternalArrayNArgumentsConstructor)     \
   V(InternalArrayNoArgumentConstructor)     \
@@ -736,6 +737,20 @@ class FastNewRestParameterStub final : public PlatformCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(FastNewRestParameter);
   DEFINE_PLATFORM_CODE_STUB(FastNewRestParameter, PlatformCodeStub);
+};
+
+
+// TODO(turbofan): This stub should be possible to write in TurboFan
+// using the CodeStubAssembler very soon in a way that is as efficient
+// and easy as the current handwritten version, which is partly a copy
+// of the strict arguments object materialization code.
+class FastNewStrictArgumentsStub final : public PlatformCodeStub {
+ public:
+  explicit FastNewStrictArgumentsStub(Isolate* isolate)
+      : PlatformCodeStub(isolate) {}
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(FastNewStrictArguments);
+  DEFINE_PLATFORM_CODE_STUB(FastNewStrictArguments, PlatformCodeStub);
 };
 
 
@@ -1831,7 +1846,6 @@ class ArgumentsAccessStub: public PlatformCodeStub {
     READ_ELEMENT,
     NEW_SLOPPY_FAST,
     NEW_SLOPPY_SLOW,
-    NEW_STRICT
   };
 
   ArgumentsAccessStub(Isolate* isolate, Type type) : PlatformCodeStub(isolate) {
@@ -1846,10 +1860,8 @@ class ArgumentsAccessStub: public PlatformCodeStub {
     }
   }
 
-  static Type ComputeType(bool is_unmapped, bool has_duplicate_parameters) {
-    if (is_unmapped) {
-      return Type::NEW_STRICT;
-    } else if (has_duplicate_parameters) {
+  static Type ComputeType(bool has_duplicate_parameters) {
+    if (has_duplicate_parameters) {
       return Type::NEW_SLOPPY_SLOW;
     } else {
       return Type::NEW_SLOPPY_FAST;
@@ -1860,7 +1872,6 @@ class ArgumentsAccessStub: public PlatformCodeStub {
   Type type() const { return TypeBits::decode(minor_key_); }
 
   void GenerateReadElement(MacroAssembler* masm);
-  void GenerateNewStrict(MacroAssembler* masm);
   void GenerateNewSloppyFast(MacroAssembler* masm);
   void GenerateNewSloppySlow(MacroAssembler* masm);
 

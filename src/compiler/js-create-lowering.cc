@@ -212,41 +212,56 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
   // Use the ArgumentsAccessStub for materializing both mapped and unmapped
   // arguments object, but only for non-inlined (i.e. outermost) frames.
   if (outer_state->opcode() != IrOpcode::kFrameState) {
-    if (type != CreateArgumentsType::kRestParameter) {
-      // TODO(bmeurer): Cleanup this mess at some point.
-      int parameter_count = state_info.parameter_count() - 1;
-      int parameter_offset = parameter_count * kPointerSize;
-      int offset = StandardFrameConstants::kCallerSPOffset + parameter_offset;
-      Node* parameter_pointer = graph()->NewNode(
-          machine()->IntAdd(), graph()->NewNode(machine()->LoadFramePointer()),
-          jsgraph()->IntPtrConstant(offset));
-      Handle<SharedFunctionInfo> shared;
-      if (!state_info.shared_info().ToHandle(&shared)) return NoChange();
-      bool unmapped = type == CreateArgumentsType::kUnmappedArguments;
-      Callable callable = CodeFactory::ArgumentsAccess(
-          isolate(), unmapped, shared->has_duplicate_parameters());
-      CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-          isolate(), graph()->zone(), callable.descriptor(), 0,
-          CallDescriptor::kNeedsFrameState);
-      const Operator* new_op = common()->Call(desc);
-      Node* stub_code = jsgraph()->HeapConstant(callable.code());
-      node->InsertInput(graph()->zone(), 0, stub_code);
-      node->InsertInput(graph()->zone(), 2,
-                        jsgraph()->Constant(parameter_count));
-      node->InsertInput(graph()->zone(), 3, parameter_pointer);
-      NodeProperties::ChangeOp(node, new_op);
-      return Changed(node);
-    } else {
-      Callable callable = CodeFactory::FastNewRestParameter(isolate());
-      CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-          isolate(), graph()->zone(), callable.descriptor(), 0,
-          CallDescriptor::kNeedsFrameState);
-      const Operator* new_op = common()->Call(desc);
-      Node* stub_code = jsgraph()->HeapConstant(callable.code());
-      node->InsertInput(graph()->zone(), 0, stub_code);
-      NodeProperties::ChangeOp(node, new_op);
-      return Changed(node);
+    switch (type) {
+      case CreateArgumentsType::kMappedArguments: {
+        // TODO(bmeurer): Cleanup this mess at some point.
+        int parameter_count = state_info.parameter_count() - 1;
+        int parameter_offset = parameter_count * kPointerSize;
+        int offset = StandardFrameConstants::kCallerSPOffset + parameter_offset;
+        Node* parameter_pointer =
+            graph()->NewNode(machine()->IntAdd(),
+                             graph()->NewNode(machine()->LoadFramePointer()),
+                             jsgraph()->IntPtrConstant(offset));
+        Handle<SharedFunctionInfo> shared;
+        if (!state_info.shared_info().ToHandle(&shared)) return NoChange();
+        Callable callable = CodeFactory::ArgumentsAccess(
+            isolate(), shared->has_duplicate_parameters());
+        CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+            isolate(), graph()->zone(), callable.descriptor(), 0,
+            CallDescriptor::kNeedsFrameState);
+        const Operator* new_op = common()->Call(desc);
+        Node* stub_code = jsgraph()->HeapConstant(callable.code());
+        node->InsertInput(graph()->zone(), 0, stub_code);
+        node->InsertInput(graph()->zone(), 2,
+                          jsgraph()->Constant(parameter_count));
+        node->InsertInput(graph()->zone(), 3, parameter_pointer);
+        NodeProperties::ChangeOp(node, new_op);
+        return Changed(node);
+      }
+      case CreateArgumentsType::kUnmappedArguments: {
+        Callable callable = CodeFactory::FastNewStrictArguments(isolate());
+        CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+            isolate(), graph()->zone(), callable.descriptor(), 0,
+            CallDescriptor::kNeedsFrameState);
+        const Operator* new_op = common()->Call(desc);
+        Node* stub_code = jsgraph()->HeapConstant(callable.code());
+        node->InsertInput(graph()->zone(), 0, stub_code);
+        NodeProperties::ChangeOp(node, new_op);
+        return Changed(node);
+      }
+      case CreateArgumentsType::kRestParameter: {
+        Callable callable = CodeFactory::FastNewRestParameter(isolate());
+        CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+            isolate(), graph()->zone(), callable.descriptor(), 0,
+            CallDescriptor::kNeedsFrameState);
+        const Operator* new_op = common()->Call(desc);
+        Node* stub_code = jsgraph()->HeapConstant(callable.code());
+        node->InsertInput(graph()->zone(), 0, stub_code);
+        NodeProperties::ChangeOp(node, new_op);
+        return Changed(node);
+      }
     }
+    UNREACHABLE();
   } else if (outer_state->opcode() == IrOpcode::kFrameState) {
     // Use inline allocation for all mapped arguments objects within inlined
     // (i.e. non-outermost) frames, independent of the object size.
@@ -282,8 +297,8 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
       AllocationBuilder a(jsgraph(), effect, control);
       Node* properties = jsgraph()->EmptyFixedArrayConstant();
       int length = args_state_info.parameter_count() - 1;  // Minus receiver.
-      STATIC_ASSERT(Heap::kSloppyArgumentsObjectSize == 5 * kPointerSize);
-      a.Allocate(Heap::kSloppyArgumentsObjectSize);
+      STATIC_ASSERT(JSSloppyArgumentsObject::kSize == 5 * kPointerSize);
+      a.Allocate(JSSloppyArgumentsObject::kSize);
       a.Store(AccessBuilder::ForMap(), load_arguments_map);
       a.Store(AccessBuilder::ForJSObjectProperties(), properties);
       a.Store(AccessBuilder::ForJSObjectElements(), elements);
@@ -318,8 +333,8 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
       AllocationBuilder a(jsgraph(), effect, control);
       Node* properties = jsgraph()->EmptyFixedArrayConstant();
       int length = args_state_info.parameter_count() - 1;  // Minus receiver.
-      STATIC_ASSERT(Heap::kStrictArgumentsObjectSize == 4 * kPointerSize);
-      a.Allocate(Heap::kStrictArgumentsObjectSize);
+      STATIC_ASSERT(JSStrictArgumentsObject::kSize == 4 * kPointerSize);
+      a.Allocate(JSStrictArgumentsObject::kSize);
       a.Store(AccessBuilder::ForMap(), load_arguments_map);
       a.Store(AccessBuilder::ForJSObjectProperties(), properties);
       a.Store(AccessBuilder::ForJSObjectElements(), elements);

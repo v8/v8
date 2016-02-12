@@ -2071,9 +2071,7 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
 
     // Try to create the list from an arguments object.
     __ bind(&create_arguments);
-    __ movp(rbx,
-            FieldOperand(rax, JSObject::kHeaderSize +
-                                  Heap::kArgumentsLengthIndex * kPointerSize));
+    __ movp(rbx, FieldOperand(rax, JSArgumentsObject::kLengthOffset));
     __ movp(rcx, FieldOperand(rax, JSObject::kElementsOffset));
     __ cmpp(rbx, FieldOperand(rcx, FixedArray::kLengthOffset));
     __ j(not_equal, &create_runtime);

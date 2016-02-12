@@ -208,7 +208,7 @@ inline bool GetSloppyArgumentsLength(Isolate* isolate, Handle<JSObject> object,
   Map* arguments_map = isolate->native_context()->sloppy_arguments_map();
   if (object->map() != arguments_map) return false;
   DCHECK(object->HasFastElements());
-  Object* len_obj = object->InObjectPropertyAt(Heap::kArgumentsLengthIndex);
+  Object* len_obj = object->InObjectPropertyAt(JSArgumentsObject::kLengthIndex);
   if (!len_obj->IsSmi()) return false;
   *out = Max(0, Smi::cast(len_obj)->value());
   return *out <= object->elements()->length();

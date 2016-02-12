@@ -1718,10 +1718,11 @@ void Interpreter::DoCreateMappedArguments(InterpreterAssembler* assembler) {
 //
 // Creates a new unmapped arguments object.
 void Interpreter::DoCreateUnmappedArguments(InterpreterAssembler* assembler) {
-  Node* closure = __ LoadRegister(Register::function_closure());
+  Callable callable = CodeFactory::FastNewStrictArguments(isolate_);
+  Node* target = __ HeapConstant(callable.code());
   Node* context = __ GetContext();
-  Node* result =
-      __ CallRuntime(Runtime::kNewStrictArguments_Generic, context, closure);
+  Node* closure = __ LoadRegister(Register::function_closure());
+  Node* result = __ CallStub(callable.descriptor(), target, context, closure);
   __ SetAccumulator(result);
   __ Dispatch();
 }
@@ -1730,10 +1731,11 @@ void Interpreter::DoCreateUnmappedArguments(InterpreterAssembler* assembler) {
 //
 // Creates a new rest parameter array.
 void Interpreter::DoCreateRestParameter(InterpreterAssembler* assembler) {
-  // TODO(ignition): Use FastNewRestParameterStub here.
+  Callable callable = CodeFactory::FastNewRestParameter(isolate_);
+  Node* target = __ HeapConstant(callable.code());
   Node* closure = __ LoadRegister(Register::function_closure());
   Node* context = __ GetContext();
-  Node* result = __ CallRuntime(Runtime::kNewRestParameter, context, closure);
+  Node* result = __ CallStub(callable.descriptor(), target, context, closure);
   __ SetAccumulator(result);
   __ Dispatch();
 }

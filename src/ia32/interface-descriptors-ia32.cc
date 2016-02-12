@@ -104,6 +104,13 @@ void FastNewRestParameterDescriptor::InitializePlatformSpecific(
 }
 
 
+void FastNewStrictArgumentsDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {edi};
+  data->InitializePlatformSpecific(arraysize(registers), registers, NULL);
+}
+
+
 void ToNumberDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   // ToNumberStub invokes a function, and therefore needs a context.

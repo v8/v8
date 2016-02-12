@@ -1623,7 +1623,7 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   __ add(r9, r9, Operand(FixedArray::kHeaderSize));
 
   // 3. Arguments object.
-  __ add(r9, r9, Operand(Heap::kSloppyArgumentsObjectSize));
+  __ add(r9, r9, Operand(JSSloppyArgumentsObject::kSize));
 
   // Do the allocation of all three objects in one go.
   __ Allocate(r9, r0, r9, r4, &runtime, TAG_OBJECT);
@@ -1651,23 +1651,17 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   __ str(r9, FieldMemOperand(r0, JSObject::kElementsOffset));
 
   // Set up the callee in-object property.
-  STATIC_ASSERT(Heap::kArgumentsCalleeIndex == 1);
   __ AssertNotSmi(r1);
-  const int kCalleeOffset = JSObject::kHeaderSize +
-      Heap::kArgumentsCalleeIndex * kPointerSize;
-  __ str(r1, FieldMemOperand(r0, kCalleeOffset));
+  __ str(r1, FieldMemOperand(r0, JSSloppyArgumentsObject::kCalleeOffset));
 
   // Use the length (smi tagged) and set that as an in-object property too.
   __ AssertSmi(r5);
-  STATIC_ASSERT(Heap::kArgumentsLengthIndex == 0);
-  const int kLengthOffset = JSObject::kHeaderSize +
-      Heap::kArgumentsLengthIndex * kPointerSize;
-  __ str(r5, FieldMemOperand(r0, kLengthOffset));
+  __ str(r5, FieldMemOperand(r0, JSSloppyArgumentsObject::kLengthOffset));
 
   // Set up the elements pointer in the allocated arguments object.
   // If we allocated a parameter map, r4 will point there, otherwise
   // it will point to the backing store.
-  __ add(r4, r0, Operand(Heap::kSloppyArgumentsObjectSize));
+  __ add(r4, r0, Operand(JSSloppyArgumentsObject::kSize));
   __ str(r4, FieldMemOperand(r0, JSObject::kElementsOffset));
 
   // r0 = address of new object (tagged)
@@ -1728,8 +1722,8 @@ void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   __ b(ne, &parameters_loop);
 
   // Restore r0 = new object (tagged) and r5 = argument count (tagged).
-  __ sub(r0, r4, Operand(Heap::kSloppyArgumentsObjectSize));
-  __ ldr(r5, FieldMemOperand(r0, kLengthOffset));
+  __ sub(r0, r4, Operand(JSSloppyArgumentsObject::kSize));
+  __ ldr(r5, FieldMemOperand(r0, JSSloppyArgumentsObject::kLengthOffset));
 
   __ bind(&skip_parameter_map);
   // r0 = address of new object (tagged)
@@ -1789,95 +1783,6 @@ void LoadIndexedInterceptorStub::Generate(MacroAssembler* masm) {
   __ bind(&slow);
   PropertyAccessCompiler::TailCallBuiltin(
       masm, PropertyAccessCompiler::MissBuiltin(Code::KEYED_LOAD_IC));
-}
-
-
-void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
-  // r1 : function
-  // r2 : number of parameters (tagged)
-  // r3 : parameters pointer
-
-  DCHECK(r1.is(ArgumentsAccessNewDescriptor::function()));
-  DCHECK(r2.is(ArgumentsAccessNewDescriptor::parameter_count()));
-  DCHECK(r3.is(ArgumentsAccessNewDescriptor::parameter_pointer()));
-
-  // Check if the calling frame is an arguments adaptor frame.
-  Label try_allocate, runtime;
-  __ ldr(r4, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-  __ ldr(r0, MemOperand(r4, StandardFrameConstants::kContextOffset));
-  __ cmp(r0, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ b(ne, &try_allocate);
-
-  // Patch the arguments.length and the parameters pointer.
-  __ ldr(r2, MemOperand(r4, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ add(r4, r4, Operand::PointerOffsetFromSmiKey(r2));
-  __ add(r3, r4, Operand(StandardFrameConstants::kCallerSPOffset));
-
-  // Try the new space allocation. Start out with computing the size
-  // of the arguments object and the elements array in words.
-  Label add_arguments_object;
-  __ bind(&try_allocate);
-  __ SmiUntag(r9, r2, SetCC);
-  __ b(eq, &add_arguments_object);
-  __ add(r9, r9, Operand(FixedArray::kHeaderSize / kPointerSize));
-  __ bind(&add_arguments_object);
-  __ add(r9, r9, Operand(Heap::kStrictArgumentsObjectSize / kPointerSize));
-
-  // Do the allocation of both objects in one go.
-  __ Allocate(r9, r0, r4, r5, &runtime,
-              static_cast<AllocationFlags>(TAG_OBJECT | SIZE_IN_WORDS));
-
-  // Get the arguments boilerplate from the current native context.
-  __ LoadNativeContextSlot(Context::STRICT_ARGUMENTS_MAP_INDEX, r4);
-
-  __ str(r4, FieldMemOperand(r0, JSObject::kMapOffset));
-  __ LoadRoot(r5, Heap::kEmptyFixedArrayRootIndex);
-  __ str(r5, FieldMemOperand(r0, JSObject::kPropertiesOffset));
-  __ str(r5, FieldMemOperand(r0, JSObject::kElementsOffset));
-
-  // Get the length (smi tagged) and set that as an in-object property too.
-  STATIC_ASSERT(Heap::kArgumentsLengthIndex == 0);
-  __ AssertSmi(r2);
-  __ str(r2,
-         FieldMemOperand(r0, JSObject::kHeaderSize +
-                                 Heap::kArgumentsLengthIndex * kPointerSize));
-
-  // If there are no actual arguments, we're done.
-  Label done;
-  __ cmp(r2, Operand::Zero());
-  __ b(eq, &done);
-
-  // Set up the elements pointer in the allocated arguments object and
-  // initialize the header in the elements fixed array.
-  __ add(r4, r0, Operand(Heap::kStrictArgumentsObjectSize));
-  __ str(r4, FieldMemOperand(r0, JSObject::kElementsOffset));
-  __ LoadRoot(r5, Heap::kFixedArrayMapRootIndex);
-  __ str(r5, FieldMemOperand(r4, FixedArray::kMapOffset));
-  __ str(r2, FieldMemOperand(r4, FixedArray::kLengthOffset));
-  __ SmiUntag(r2);
-
-  // Copy the fixed array slots.
-  Label loop;
-  // Set up r4 to point to the first array slot.
-  __ add(r4, r4, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ bind(&loop);
-  // Pre-decrement r3 with kPointerSize on each iteration.
-  // Pre-decrement in order to skip receiver.
-  __ ldr(r5, MemOperand(r3, kPointerSize, NegPreIndex));
-  // Post-increment r4 with kPointerSize on each iteration.
-  __ str(r5, MemOperand(r4, kPointerSize, PostIndex));
-  __ sub(r2, r2, Operand(1));
-  __ cmp(r2, Operand::Zero());
-  __ b(ne, &loop);
-
-  // Return.
-  __ bind(&done);
-  __ Ret();
-
-  // Do the runtime call to allocate the arguments object.
-  __ bind(&runtime);
-  __ Push(r1, r3, r2);
-  __ TailCallRuntime(Runtime::kNewStrictArguments);
 }
 
 
@@ -5092,6 +4997,112 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
     }
     __ jmp(&done_allocate);
   }
+}
+
+
+void FastNewStrictArgumentsStub::Generate(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- r1 : function
+  //  -- cp : context
+  //  -- fp : frame pointer
+  //  -- lr : return address
+  // -----------------------------------
+  __ AssertFunction(r1);
+
+  // For Ignition we need to skip all possible handler/stub frames until
+  // we reach the JavaScript frame for the function (similar to what the
+  // runtime fallback implementation does). So make r2 point to that
+  // JavaScript frame.
+  {
+    Label loop, loop_entry;
+    __ mov(r2, fp);
+    __ b(&loop_entry);
+    __ bind(&loop);
+    __ ldr(r2, MemOperand(r2, StandardFrameConstants::kCallerFPOffset));
+    __ bind(&loop_entry);
+    __ ldr(ip, MemOperand(r2, StandardFrameConstants::kMarkerOffset));
+    __ cmp(ip, r1);
+    __ b(ne, &loop);
+  }
+
+  // Check if we have an arguments adaptor frame below the function frame.
+  Label arguments_adaptor, arguments_done;
+  __ ldr(r3, MemOperand(r2, StandardFrameConstants::kCallerFPOffset));
+  __ ldr(ip, MemOperand(r3, StandardFrameConstants::kContextOffset));
+  __ cmp(ip, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ b(eq, &arguments_adaptor);
+  {
+    __ ldr(r1, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
+    __ ldr(r0, FieldMemOperand(
+                   r1, SharedFunctionInfo::kFormalParameterCountOffset));
+    __ add(r2, r2, Operand(r0, LSL, kPointerSizeLog2 - 1));
+    __ add(r2, r2,
+           Operand(StandardFrameConstants::kCallerSPOffset - 1 * kPointerSize));
+  }
+  __ b(&arguments_done);
+  __ bind(&arguments_adaptor);
+  {
+    __ ldr(r0, MemOperand(r3, ArgumentsAdaptorFrameConstants::kLengthOffset));
+    __ add(r2, r3, Operand(r0, LSL, kPointerSizeLog2 - 1));
+    __ add(r2, r2,
+           Operand(StandardFrameConstants::kCallerSPOffset - 1 * kPointerSize));
+  }
+  __ bind(&arguments_done);
+
+  // ----------- S t a t e -------------
+  //  -- cp : context
+  //  -- r0 : number of rest parameters (tagged)
+  //  -- r2 : pointer to first rest parameters
+  //  -- lr : return address
+  // -----------------------------------
+
+  // Allocate space for the strict arguments object plus the backing store.
+  Label allocate, done_allocate;
+  __ mov(r1, Operand(JSStrictArgumentsObject::kSize + FixedArray::kHeaderSize));
+  __ add(r1, r1, Operand(r0, LSL, kPointerSizeLog2 - 1));
+  __ Allocate(r1, r3, r4, r5, &allocate, TAG_OBJECT);
+  __ bind(&done_allocate);
+
+  // Setup the elements array in r3.
+  __ LoadRoot(r1, Heap::kFixedArrayMapRootIndex);
+  __ str(r1, FieldMemOperand(r3, FixedArray::kMapOffset));
+  __ str(r0, FieldMemOperand(r3, FixedArray::kLengthOffset));
+  __ add(r4, r3, Operand(FixedArray::kHeaderSize));
+  {
+    Label loop, done_loop;
+    __ add(r1, r4, Operand(r0, LSL, kPointerSizeLog2 - 1));
+    __ bind(&loop);
+    __ cmp(r4, r1);
+    __ b(eq, &done_loop);
+    __ ldr(ip, MemOperand(r2, 1 * kPointerSize, NegPostIndex));
+    __ str(ip, FieldMemOperand(r4, 0 * kPointerSize));
+    __ add(r4, r4, Operand(1 * kPointerSize));
+    __ b(&loop);
+    __ bind(&done_loop);
+  }
+
+  // Setup the strict arguments object in r4.
+  __ LoadNativeContextSlot(Context::STRICT_ARGUMENTS_MAP_INDEX, r1);
+  __ str(r1, FieldMemOperand(r4, JSStrictArgumentsObject::kMapOffset));
+  __ LoadRoot(r1, Heap::kEmptyFixedArrayRootIndex);
+  __ str(r1, FieldMemOperand(r4, JSStrictArgumentsObject::kPropertiesOffset));
+  __ str(r3, FieldMemOperand(r4, JSStrictArgumentsObject::kElementsOffset));
+  __ str(r0, FieldMemOperand(r4, JSStrictArgumentsObject::kLengthOffset));
+  STATIC_ASSERT(JSStrictArgumentsObject::kSize == 4 * kPointerSize);
+  __ mov(r0, r4);
+  __ Ret();
+
+  // Fall back to %AllocateInNewSpace.
+  __ bind(&allocate);
+  {
+    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
+    __ SmiTag(r1);
+    __ Push(r0, r2, r1);
+    __ CallRuntime(Runtime::kAllocateInNewSpace);
+    __ mov(r3, r0);
+    __ Pop(r0, r2);
+  }
+  __ b(&done_allocate);
 }
 
 

@@ -268,20 +268,16 @@ FieldAccess AccessBuilder::ForValue() {
 
 // static
 FieldAccess AccessBuilder::ForArgumentsLength() {
-  int offset =
-      JSObject::kHeaderSize + Heap::kArgumentsLengthIndex * kPointerSize;
-  FieldAccess access = {kTaggedBase, offset, Handle<Name>(), Type::Any(),
-                        MachineType::AnyTagged()};
+  FieldAccess access = {kTaggedBase, JSArgumentsObject::kLengthOffset,
+                        Handle<Name>(), Type::Any(), MachineType::AnyTagged()};
   return access;
 }
 
 
 // static
 FieldAccess AccessBuilder::ForArgumentsCallee() {
-  int offset =
-      JSObject::kHeaderSize + Heap::kArgumentsCalleeIndex * kPointerSize;
-  FieldAccess access = {kTaggedBase, offset, Handle<Name>(), Type::Any(),
-                        MachineType::AnyTagged()};
+  FieldAccess access = {kTaggedBase, JSSloppyArgumentsObject::kCalleeOffset,
+                        Handle<Name>(), Type::Any(), MachineType::AnyTagged()};
   return access;
 }
 

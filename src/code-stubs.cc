@@ -831,9 +831,6 @@ void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
     case NEW_SLOPPY_SLOW:
       GenerateNewSloppySlow(masm);
       break;
-    case NEW_STRICT:
-      GenerateNewStrict(masm);
-      break;
   }
 }
 
@@ -849,9 +846,6 @@ void ArgumentsAccessStub::PrintName(std::ostream& os) const {  // NOLINT
       break;
     case NEW_SLOPPY_SLOW:
       os << "NewSloppySlow";
-      break;
-    case NEW_STRICT:
-      os << "NewStrict";
       break;
   }
   return;
