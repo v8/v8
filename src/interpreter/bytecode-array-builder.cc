@@ -761,6 +761,8 @@ Bytecode BytecodeArrayBuilder::GetJumpWithConstantOperand(
       return Bytecode::kJumpIfToBooleanTrueConstant;
     case Bytecode::kJumpIfToBooleanFalse:
       return Bytecode::kJumpIfToBooleanFalseConstant;
+    case Bytecode::kJumpIfNotHole:
+      return Bytecode::kJumpIfNotHoleConstant;
     case Bytecode::kJumpIfNull:
       return Bytecode::kJumpIfNullConstant;
     case Bytecode::kJumpIfUndefined:
@@ -786,6 +788,8 @@ Bytecode BytecodeArrayBuilder::GetJumpWithConstantWideOperand(
       return Bytecode::kJumpIfToBooleanTrueConstantWide;
     case Bytecode::kJumpIfToBooleanFalse:
       return Bytecode::kJumpIfToBooleanFalseConstantWide;
+    case Bytecode::kJumpIfNotHole:
+      return Bytecode::kJumpIfNotHoleConstantWide;
     case Bytecode::kJumpIfNull:
       return Bytecode::kJumpIfNullConstantWide;
     case Bytecode::kJumpIfUndefined:
@@ -803,7 +807,6 @@ Bytecode BytecodeArrayBuilder::GetJumpWithToBoolean(Bytecode jump_bytecode) {
     case Bytecode::kJump:
     case Bytecode::kJumpIfNull:
     case Bytecode::kJumpIfUndefined:
-    case Bytecode::kJumpIfHole:
     case Bytecode::kJumpIfNotHole:
       return jump_bytecode;
     case Bytecode::kJumpIfTrue:
@@ -968,10 +971,6 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfUndefined(
 BytecodeArrayBuilder& BytecodeArrayBuilder::StackCheck() {
   Output(Bytecode::kStackCheck);
   return *this;
-}
-
-BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfHole(BytecodeLabel* label) {
-  return OutputJump(Bytecode::kJumpIfHole, label);
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfNotHole(

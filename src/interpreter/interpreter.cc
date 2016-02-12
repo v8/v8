@@ -1580,26 +1580,36 @@ void Interpreter::DoJumpIfUndefinedConstantWide(
   DoJumpIfUndefinedConstant(assembler);
 }
 
-// JumpIfHole <imm8>
-//
-// Jump by number of bytes represented by an immediate operand if the object
-// referenced by the accumulator is the hole.
-void Interpreter::DoJumpIfHole(InterpreterAssembler* assembler) {
-  Node* accumulator = __ GetAccumulator();
-  Node* the_hole_value = __ HeapConstant(isolate_->factory()->the_hole_value());
-  Node* relative_jump = __ BytecodeOperandImm(0);
-  __ JumpIfWordEqual(accumulator, the_hole_value, relative_jump);
-}
-
 // JumpIfNotHole <imm8>
 //
 // Jump by number of bytes represented by an immediate operand if the object
-// referenced by the accumulator is not the hole.
+// referenced by the accumulator is the hole.
 void Interpreter::DoJumpIfNotHole(InterpreterAssembler* assembler) {
   Node* accumulator = __ GetAccumulator();
   Node* the_hole_value = __ HeapConstant(isolate_->factory()->the_hole_value());
   Node* relative_jump = __ BytecodeOperandImm(0);
   __ JumpIfWordNotEqual(accumulator, the_hole_value, relative_jump);
+}
+
+// JumpIfNotHoleConstant <idx8>
+//
+// Jump by number of bytes in the Smi in the |idx8| entry in the constant pool
+// if the object referenced by the accumulator is the hole constant.
+void Interpreter::DoJumpIfNotHoleConstant(InterpreterAssembler* assembler) {
+  Node* accumulator = __ GetAccumulator();
+  Node* the_hole_value = __ HeapConstant(isolate_->factory()->the_hole_value());
+  Node* index = __ BytecodeOperandIdx(0);
+  Node* constant = __ LoadConstantPoolEntry(index);
+  Node* relative_jump = __ SmiUntag(constant);
+  __ JumpIfWordNotEqual(accumulator, the_hole_value, relative_jump);
+}
+
+// JumpIfNotHoleConstantWide <idx16>
+//
+// Jump by number of bytes in the Smi in the |idx16| entry in the constant pool
+// if the object referenced by the accumulator is the hole constant.
+void Interpreter::DoJumpIfNotHoleConstantWide(InterpreterAssembler* assembler) {
+  DoJumpIfNotHoleConstant(assembler);
 }
 
 void Interpreter::DoCreateLiteral(Runtime::FunctionId function_id,

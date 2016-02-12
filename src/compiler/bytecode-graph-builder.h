@@ -141,6 +141,7 @@ class BytecodeGraphBuilder {
   void BuildConditionalJump(Node* condition);
   void BuildJumpIfEqual(Node* comperand);
   void BuildJumpIfToBooleanEqual(Node* boolean_comperand);
+  void BuildJumpIfNotHole();
 
   // Simulates control flow by forward-propagating environments.
   void MergeIntoSuccessorEnvironment(int target_offset);

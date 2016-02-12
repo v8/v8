@@ -1426,6 +1426,16 @@ void BytecodeGraphBuilder::VisitJumpIfToBooleanFalseConstantWide() {
   BuildJumpIfToBooleanEqual(jsgraph()->FalseConstant());
 }
 
+void BytecodeGraphBuilder::VisitJumpIfNotHole() { BuildJumpIfNotHole(); }
+
+void BytecodeGraphBuilder::VisitJumpIfNotHoleConstant() {
+  BuildJumpIfNotHole();
+}
+
+void BytecodeGraphBuilder::VisitJumpIfNotHoleConstantWide() {
+  BuildJumpIfNotHole();
+}
+
 void BytecodeGraphBuilder::VisitJumpIfNull() {
   BuildJumpIfEqual(jsgraph()->NullConstant());
 }
@@ -1448,20 +1458,6 @@ void BytecodeGraphBuilder::VisitJumpIfUndefinedConstant() {
 
 void BytecodeGraphBuilder::VisitJumpIfUndefinedConstantWide() {
   BuildJumpIfEqual(jsgraph()->UndefinedConstant());
-}
-
-void BytecodeGraphBuilder::VisitJumpIfHole() {
-  BuildJumpIfEqual(jsgraph()->TheHoleConstant());
-}
-
-void BytecodeGraphBuilder::VisitJumpIfNotHole() {
-  Node* accumulator = environment()->LookupAccumulator();
-  Node* condition = NewNode(javascript()->StrictEqual(), accumulator,
-                            jsgraph()->TheHoleConstant());
-  Node* node =
-      NewNode(common()->Select(MachineRepresentation::kTagged), condition,
-              jsgraph()->FalseConstant(), jsgraph()->TrueConstant());
-  BuildConditionalJump(node);
 }
 
 void BytecodeGraphBuilder::VisitStackCheck() {
@@ -1601,6 +1597,15 @@ void BytecodeGraphBuilder::BuildJumpIfToBooleanEqual(Node* comperand) {
   BuildConditionalJump(condition);
 }
 
+void BytecodeGraphBuilder::BuildJumpIfNotHole() {
+  Node* accumulator = environment()->LookupAccumulator();
+  Node* condition = NewNode(javascript()->StrictEqual(), accumulator,
+                            jsgraph()->TheHoleConstant());
+  Node* node =
+      NewNode(common()->Select(MachineRepresentation::kTagged), condition,
+              jsgraph()->FalseConstant(), jsgraph()->TrueConstant());
+  BuildConditionalJump(node);
+}
 
 Node** BytecodeGraphBuilder::EnsureInputBufferSize(int size) {
   if (size > input_buffer_size_) {

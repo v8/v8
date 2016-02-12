@@ -1698,9 +1698,7 @@ void BytecodeGenerator::BuildHoleCheckForVariableLoad(VariableMode mode,
                                                       Handle<String> name) {
   if (mode == CONST_LEGACY) {
     BytecodeLabel end_label;
-    builder()->JumpIfNotHole(&end_label);
-    builder()->LoadUndefined();
-    builder()->Bind(&end_label);
+    builder()->JumpIfNotHole(&end_label).LoadUndefined().Bind(&end_label);
   } else if (mode == LET || mode == CONST) {
     BuildThrowIfHole(name);
   }
@@ -1770,13 +1768,11 @@ void BytecodeGenerator::VisitVariableLoad(Variable* variable,
   }
 }
 
-
 void BytecodeGenerator::VisitVariableLoadForAccumulatorValue(
     Variable* variable, FeedbackVectorSlot slot, TypeofMode typeof_mode) {
   AccumulatorResultScope accumulator_result(this);
   VisitVariableLoad(variable, slot, typeof_mode);
 }
-
 
 Register BytecodeGenerator::VisitVariableLoadForRegisterValue(
     Variable* variable, FeedbackVectorSlot slot, TypeofMode typeof_mode) {
@@ -1785,43 +1781,42 @@ Register BytecodeGenerator::VisitVariableLoadForRegisterValue(
   return register_scope.ResultRegister();
 }
 
-void BytecodeGenerator::BuildThrowIfHole(Handle<String> name) {
+void BytecodeGenerator::BuildThrowReferenceError(Handle<String> name) {
+  RegisterAllocationScope register_scope(this);
   Register name_reg = register_allocator()->NewRegister();
-  BytecodeLabel end_label;
-  // TODO(mythria): This will be replaced by a new bytecode that throws an
-  // error if the value is the hole.
-  builder()
-      ->JumpIfNotHole(&end_label)
-      .LoadLiteral(name)
-      .StoreAccumulatorInRegister(name_reg)
-      .CallRuntime(Runtime::kThrowReferenceError, name_reg, 1)
-      .Bind(&end_label);
+  builder()->LoadLiteral(name).StoreAccumulatorInRegister(name_reg).CallRuntime(
+      Runtime::kThrowReferenceError, name_reg, 1);
+}
+
+void BytecodeGenerator::BuildThrowIfHole(Handle<String> name) {
+  // TODO(interpreter): Can the parser reduce the number of checks
+  // performed? Or should there be a ThrowIfHole bytecode.
+  BytecodeLabel no_reference_error;
+  builder()->JumpIfNotHole(&no_reference_error);
+  BuildThrowReferenceError(name);
+  builder()->Bind(&no_reference_error);
 }
 
 void BytecodeGenerator::BuildThrowIfNotHole(Handle<String> name) {
-  Register name_reg = register_allocator()->NewRegister();
-  BytecodeLabel end_label;
-  // TODO(mythria): This will be replaced by a new bytecode that throws an
-  // error if the value is not the hole.
+  // TODO(interpreter): Can the parser reduce the number of checks
+  // performed? Or should there be a ThrowIfNotHole bytecode.
+  BytecodeLabel no_reference_error, reference_error;
   builder()
-      ->JumpIfHole(&end_label)
-      .LoadLiteral(name)
-      .StoreAccumulatorInRegister(name_reg)
-      .CallRuntime(Runtime::kThrowReferenceError, name_reg, 1)
-      .Bind(&end_label);
+      ->JumpIfNotHole(&reference_error)
+      .Jump(&no_reference_error)
+      .Bind(&reference_error);
+  BuildThrowReferenceError(name);
+  builder()->Bind(&no_reference_error);
 }
 
 void BytecodeGenerator::BuildThrowReassignConstant(Handle<String> name) {
-  Register name_reg = register_allocator()->NewRegister();
-  BytecodeLabel else_label;
   // TODO(mythria): This will be replaced by a new bytecode that throws an
   // appropriate error depending on the whether the value is a hole or not.
+  BytecodeLabel const_assign_error;
+  builder()->JumpIfNotHole(&const_assign_error);
+  BuildThrowReferenceError(name);
   builder()
-      ->JumpIfNotHole(&else_label)
-      .LoadLiteral(name)
-      .StoreAccumulatorInRegister(name_reg)
-      .CallRuntime(Runtime::kThrowReferenceError, name_reg, 1)
-      .Bind(&else_label)
+      ->Bind(&const_assign_error)
       .CallRuntime(Runtime::kThrowConstAssignError, Register(), 0);
 }
 
@@ -1841,7 +1836,7 @@ void BytecodeGenerator::BuildHoleCheckForVariableAssignment(Variable* variable,
     // Perform an initialization check for 'this'. 'this' variable is the
     // only variable able to trigger bind operations outside the TDZ
     // via 'super' calls.
-    BuildThrowIfNotHole(variable->name());
+    BuildThrowIfHole(variable->name());
   }
 }
 

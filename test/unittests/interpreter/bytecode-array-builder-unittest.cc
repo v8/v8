@@ -163,8 +163,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.Jump(&start)
       .JumpIfNull(&start)
       .JumpIfUndefined(&start)
-      .JumpIfHole(&start)
       .JumpIfNotHole(&start);
+
   // Perform an operation that returns boolean value to
   // generate JumpIfTrue/False
   builder.CompareOperation(Token::Value::EQ, reg, Strength::WEAK)
@@ -182,7 +182,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
     builder.LoadTrue();
   }
   // Longer jumps requiring Constant operand
-  builder.Jump(&start).JumpIfNull(&start).JumpIfUndefined(&start);
+  builder.Jump(&start).JumpIfNull(&start).JumpIfUndefined(&start).JumpIfNotHole(
+      &start);
   // Perform an operation that returns boolean value to
   // generate JumpIfTrue/False
   builder.CompareOperation(Token::Value::EQ, reg, Strength::WEAK)
@@ -265,7 +266,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CreateObjectLiteral(factory->NewFixedArray(2), 0, 0);
 
   // Longer jumps requiring ConstantWide operand
-  builder.Jump(&start).JumpIfNull(&start).JumpIfUndefined(&start);
+  builder.Jump(&start).JumpIfNull(&start).JumpIfUndefined(&start).JumpIfNotHole(
+      &start);
   // Perform an operation that returns boolean value to
   // generate JumpIfTrue/False
   builder.CompareOperation(Token::Value::EQ, reg, Strength::WEAK)
