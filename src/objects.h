@@ -4844,6 +4844,9 @@ class HandlerTable : public FixedArray {
   // Lookup handler in a table based on return addresses.
   int LookupReturn(int pc_offset, CatchPrediction* prediction);
 
+  // Returns the conservative catch predication.
+  inline CatchPrediction GetRangePrediction(int index) const;
+
   // Returns the number of entries in the table.
   inline int NumberOfRangeEntries() const;
 
