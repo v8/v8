@@ -301,12 +301,7 @@ class BytecodeGenerator::ControlScopeForTryCatch final
  public:
   ControlScopeForTryCatch(BytecodeGenerator* generator,
                           TryCatchBuilder* try_catch_builder)
-      : ControlScope(generator) {
-    generator->try_catch_nesting_level_++;
-  }
-  virtual ~ControlScopeForTryCatch() {
-    generator()->try_catch_nesting_level_--;
-  }
+      : ControlScope(generator) {}
 
  protected:
   bool Execute(Command command, Statement* statement) override {
@@ -333,12 +328,7 @@ class BytecodeGenerator::ControlScopeForTryFinally final
                             DeferredCommands* commands)
       : ControlScope(generator),
         try_finally_builder_(try_finally_builder),
-        commands_(commands) {
-    generator->try_finally_nesting_level_++;
-  }
-  virtual ~ControlScopeForTryFinally() {
-    generator()->try_finally_nesting_level_--;
-  }
+        commands_(commands) {}
 
  protected:
   bool Execute(Command command, Statement* statement) override {
@@ -553,9 +543,7 @@ BytecodeGenerator::BytecodeGenerator(Isolate* isolate, Zone* zone)
       execution_control_(nullptr),
       execution_context_(nullptr),
       execution_result_(nullptr),
-      register_allocator_(nullptr),
-      try_catch_nesting_level_(0),
-      try_finally_nesting_level_(0) {
+      register_allocator_(nullptr) {
   InitializeAstVisitor(isolate);
 }
 
@@ -1165,7 +1153,7 @@ void BytecodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
 
 
 void BytecodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
-  TryFinallyBuilder try_control_builder(builder(), IsInsideTryCatch());
+  TryFinallyBuilder try_control_builder(builder());
   Register no_reg;
 
   // We keep a record of all paths that enter the finally-block to be able to

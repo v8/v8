@@ -124,10 +124,6 @@ class BytecodeGenerator final : public AstVisitor {
   void RecordStoreToRegister(Register reg);
   Register LoadFromAliasedRegister(Register reg);
 
-  // Methods for tracking try-block nesting.
-  bool IsInsideTryCatch() const { return try_catch_nesting_level_ > 0; }
-  bool IsInsideTryFinally() const { return try_finally_nesting_level_ > 0; }
-
   inline void set_builder(BytecodeArrayBuilder* builder) { builder_ = builder; }
   inline BytecodeArrayBuilder* builder() const { return builder_; }
 
@@ -174,8 +170,6 @@ class BytecodeGenerator final : public AstVisitor {
   ContextScope* execution_context_;
   ExpressionResultScope* execution_result_;
   RegisterAllocationScope* register_allocator_;
-  int try_catch_nesting_level_;
-  int try_finally_nesting_level_;
 };
 
 }  // namespace interpreter

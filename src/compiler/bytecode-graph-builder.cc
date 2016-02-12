@@ -1629,10 +1629,8 @@ void BytecodeGraphBuilder::EnterAndExitExceptionHandlers(int current_offset) {
     int next_end = table->GetRangeEnd(current_exception_handler_);
     int next_handler = table->GetRangeHandler(current_exception_handler_);
     int context_register = table->GetRangeData(current_exception_handler_);
-    CatchPrediction pred =
-        table->GetRangePrediction(current_exception_handler_);
     exception_handlers_.push(
-        {next_start, next_end, next_handler, context_register, pred});
+        {next_start, next_end, next_handler, context_register});
     current_exception_handler_++;
   }
 }
@@ -1690,11 +1688,9 @@ Node* BytecodeGraphBuilder::MakeNode(const Operator* op, int value_input_count,
     if (!result->op()->HasProperty(Operator::kNoThrow) && inside_handler) {
       int handler_offset = exception_handlers_.top().handler_offset_;
       int context_index = exception_handlers_.top().context_register_;
-      CatchPrediction prediction = exception_handlers_.top().pred_;
       interpreter::Register context_register(context_index);
-      IfExceptionHint hint = prediction == CatchPrediction::CAUGHT
-                                 ? IfExceptionHint::kLocallyCaught
-                                 : IfExceptionHint::kLocallyUncaught;
+      // TODO(mstarzinger): Thread through correct prediction!
+      IfExceptionHint hint = IfExceptionHint::kLocallyCaught;
       Environment* success_env = environment()->CopyForConditional();
       const Operator* op = common()->IfException(hint);
       Node* effect = environment()->GetEffectDependency();
