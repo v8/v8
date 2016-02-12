@@ -605,7 +605,7 @@ static const char* hot_deopt_no_frame_entry_test_source =
 //     2     2    (program) [-1]
 //     6     6    (garbage collector) [-1]
 //
-// The test checks no FP ranges are present in a deoptimized funcion.
+// The test checks no FP ranges are present in a deoptimized function.
 // If 'foo' has no ranges the samples falling into the prologue will miss the
 // 'start' function on the stack, so 'foo' will be attached to the (root).
 TEST(HotDeoptNoFrameEntry) {

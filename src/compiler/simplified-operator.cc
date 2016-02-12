@@ -254,7 +254,6 @@ NO_THROW_OP_LIST(GET_FROM_CACHE)
 
 
 const Operator* SimplifiedOperatorBuilder::ReferenceEqual(Type* type) {
-  // TODO(titzer): What about the type parameter?
   return new (zone()) Operator(IrOpcode::kReferenceEqual,
                                Operator::kCommutative | Operator::kPure,
                                "ReferenceEqual", 2, 0, 0, 1, 0, 0);

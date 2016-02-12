@@ -383,8 +383,8 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
     element = next;
   }
 
-  // TODO(titzer): we need a handle scope only because of the macro assembler,
-  // which is only used in EnsureCodeForDeoptimizationEntry.
+  // We need a handle scope only because of the macro assembler,
+  // which is used in code patching in EnsureCodeForDeoptimizationEntry.
   HandleScope scope(isolate);
 
   // Now patch all the codes for deoptimization.

@@ -97,7 +97,6 @@ bool Truncation::LessGeneral(TruncationKind rep1, TruncationKind rep2) {
 
 namespace {
 
-// TODO(titzer): should Word64 also be implicitly convertable to others?
 bool IsWord(MachineRepresentation rep) {
   return rep == MachineRepresentation::kWord8 ||
          rep == MachineRepresentation::kWord16 ||

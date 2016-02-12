@@ -7301,7 +7301,7 @@ static void DebugEventBreakWithOptimizedStack(
         CHECK(argument_name->Equals(context, v8_str(isolate, "count"))
                   .FromJust());
         // Get the value of the first argument in frame i. If the
-        // funtion is optimized the value will be undefined, otherwise
+        // function is optimized the value will be undefined, otherwise
         // the value will be '1 - i'.
         //
         // TODO(3141533): We should be able to get the real value for

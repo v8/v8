@@ -401,7 +401,6 @@ class Uint32BinopTester : public BinopTester<uint32_t, USE_RETURN_REGISTER> {
 
 // A helper class for testing code sequences that take two float parameters and
 // return a float value.
-// TODO(titzer): figure out how to return floats correctly on ia32.
 class Float32BinopTester : public BinopTester<float, USE_RESULT_BUFFER> {
  public:
   explicit Float32BinopTester(RawMachineAssemblerTester<int32_t>* tester)
@@ -411,7 +410,6 @@ class Float32BinopTester : public BinopTester<float, USE_RESULT_BUFFER> {
 
 // A helper class for testing code sequences that take two double parameters and
 // return a double value.
-// TODO(titzer): figure out how to return doubles correctly on ia32.
 class Float64BinopTester : public BinopTester<double, USE_RESULT_BUFFER> {
  public:
   explicit Float64BinopTester(RawMachineAssemblerTester<int32_t>* tester)

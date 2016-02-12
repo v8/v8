@@ -6428,7 +6428,7 @@ class Script: public Struct {
   // [line_ends]: FixedArray of line ends positions.
   DECL_ACCESSORS(line_ends, Object)
 
-  // [eval_from_shared]: for eval scripts the shared funcion info for the
+  // [eval_from_shared]: for eval scripts the shared function info for the
   // function from which eval was called.
   DECL_ACCESSORS(eval_from_shared, Object)
 

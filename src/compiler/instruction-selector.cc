@@ -768,7 +768,7 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
       DCHECK_EQ(IrOpcode::kThrow, input->opcode());
       return VisitThrow(input->InputAt(0));
     case BasicBlock::kNone: {
-      // TODO(titzer): exit block doesn't have control.
+      // Exit block doesn't have control.
       DCHECK_NULL(input);
       break;
     }
@@ -1611,7 +1611,7 @@ void InstructionSelector::VisitDeoptimize(DeoptimizeKind kind, Node* value) {
 
 void InstructionSelector::VisitThrow(Node* value) {
   OperandGenerator g(this);
-  Emit(kArchThrowTerminator, g.NoOutput());  // TODO(titzer)
+  Emit(kArchThrowTerminator, g.NoOutput());
 }
 
 
