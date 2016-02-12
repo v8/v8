@@ -197,6 +197,8 @@ class PreParserExpression {
            ExpressionTypeField::decode(code_) == kAssignment;
   }
 
+  bool IsRewritableAssignmentExpression() const { return IsAssignment(); }
+
   bool IsObjectLiteral() const {
     return TypeField::decode(code_) == kObjectLiteralExpression;
   }
