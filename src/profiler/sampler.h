@@ -100,12 +100,12 @@ class Sampler {
   }
 
   // Used in tests to make sure that stack sampling is performed.
-  unsigned js_and_external_sample_count() const {
-    return js_and_external_sample_count_;
-  }
+  unsigned js_sample_count() const { return js_sample_count_; }
+  unsigned external_sample_count() const { return external_sample_count_; }
   void StartCountingSamples() {
-      is_counting_samples_ = true;
-      js_and_external_sample_count_ = 0;
+    js_sample_count_ = 0;
+    external_sample_count_ = 0;
+    is_counting_samples_ = true;
   }
 
   class PlatformData;
@@ -125,9 +125,10 @@ class Sampler {
   base::Atomic32 has_processing_thread_;
   base::Atomic32 active_;
   PlatformData* data_;  // Platform specific data.
+  // Counts stack samples taken in various VM states.
   bool is_counting_samples_;
-  // Counts stack samples taken in JS VM state.
-  unsigned js_and_external_sample_count_;
+  unsigned js_sample_count_;
+  unsigned external_sample_count_;
   DISALLOW_IMPLICIT_CONSTRUCTORS(Sampler);
 };
 

@@ -417,11 +417,11 @@ TEST(ProfileStartEndTime) {
   CHECK(profile->GetStartTime() <= profile->GetEndTime());
 }
 
-
 static v8::CpuProfile* RunProfiler(v8::Local<v8::Context> env,
                                    v8::Local<v8::Function> function,
                                    v8::Local<v8::Value> argv[], int argc,
-                                   unsigned min_js_samples,
+                                   unsigned min_js_samples = 0,
+                                   unsigned min_external_samples = 0,
                                    bool collect_samples = false) {
   v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
   v8::Local<v8::String> profile_name = v8_str("my_profile");
@@ -434,7 +434,8 @@ static v8::CpuProfile* RunProfiler(v8::Local<v8::Context> env,
   sampler->StartCountingSamples();
   do {
     function->Call(env, env->Global(), argc, argv).ToLocalChecked();
-  } while (sampler->js_and_external_sample_count() < min_js_samples);
+  } while (sampler->js_sample_count() < min_js_samples ||
+           sampler->external_sample_count() < min_external_samples);
 
   v8::CpuProfile* profile = cpu_profiler->StopProfiling(profile_name);
 
@@ -642,7 +643,7 @@ TEST(CollectCpuProfileSamples) {
   v8::Local<v8::Value> args[] = {
       v8::Integer::New(env->GetIsolate(), profiling_interval_ms)};
   v8::CpuProfile* profile =
-      RunProfiler(env.local(), function, args, arraysize(args), 1000, true);
+      RunProfiler(env.local(), function, args, arraysize(args), 1000, 0, true);
 
   CHECK_LE(200, profile->GetSamplesCount());
   uint64_t end_time = profile->GetEndTime();
@@ -792,7 +793,7 @@ TEST(NativeAccessorUninitializedIC) {
   int32_t repeat_count = 1;
   v8::Local<v8::Value> args[] = {v8::Integer::New(isolate, repeat_count)};
   v8::CpuProfile* profile =
-      RunProfiler(env.local(), function, args, arraysize(args), 180);
+      RunProfiler(env.local(), function, args, arraysize(args), 0, 100);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   const v8::CpuProfileNode* start_node = GetChild(env.local(), root, "start");
@@ -845,7 +846,7 @@ TEST(NativeAccessorMonomorphicIC) {
   int32_t repeat_count = 100;
   v8::Local<v8::Value> args[] = {v8::Integer::New(isolate, repeat_count)};
   v8::CpuProfile* profile =
-      RunProfiler(env.local(), function, args, arraysize(args), 200);
+      RunProfiler(env.local(), function, args, arraysize(args), 0, 100);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   const v8::CpuProfileNode* start_node = GetChild(env.local(), root, "start");
@@ -896,7 +897,7 @@ TEST(NativeMethodUninitializedIC) {
   int32_t repeat_count = 1;
   v8::Local<v8::Value> args[] = {v8::Integer::New(isolate, repeat_count)};
   v8::CpuProfile* profile =
-      RunProfiler(env.local(), function, args, arraysize(args), 100);
+      RunProfiler(env.local(), function, args, arraysize(args), 0, 100);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   const v8::CpuProfileNode* start_node = GetChild(env.local(), root, "start");
@@ -950,7 +951,7 @@ TEST(NativeMethodMonomorphicIC) {
   int32_t repeat_count = 100;
   v8::Local<v8::Value> args[] = {v8::Integer::New(isolate, repeat_count)};
   v8::CpuProfile* profile =
-      RunProfiler(env.local(), function, args, arraysize(args), 100);
+      RunProfiler(env.local(), function, args, arraysize(args), 0, 200);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   GetChild(env.local(), root, "start");
@@ -979,7 +980,7 @@ TEST(BoundFunctionCall) {
   CompileRun(bound_function_test_source);
   v8::Local<v8::Function> function = GetFunction(env, "start");
 
-  v8::CpuProfile* profile = RunProfiler(env, function, NULL, 0, 0);
+  v8::CpuProfile* profile = RunProfiler(env, function, NULL, 0);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
 
@@ -1497,7 +1498,7 @@ TEST(JsNativeJsRuntimeJsSampleMultiple) {
   CompileRun(js_native_js_runtime_multiple_test_source);
   v8::Local<v8::Function> function = GetFunction(env, "start");
 
-  v8::CpuProfile* profile = RunProfiler(env, function, NULL, 0, 1000);
+  v8::CpuProfile* profile = RunProfiler(env, function, NULL, 0, 500, 500);
 
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
   const v8::CpuProfileNode* start_node = GetChild(env, root, "start");
