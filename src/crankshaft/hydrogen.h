@@ -2214,7 +2214,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   F(StringCharAt)                      \
   F(OneByteSeqStringSetChar)           \
   F(TwoByteSeqStringSetChar)           \
-  F(ObjectEquals)                      \
   F(ToInteger)                         \
   F(ToName)                            \
   F(ToObject)                          \

@@ -136,19 +136,6 @@ TEST(IsSmi) {
 }
 
 
-TEST(ObjectEquals) {
-  FunctionTester T("(function(a,b) { return %_ObjectEquals(a,b); })", flags);
-  CompileRun("var o = {}");
-
-  T.CheckTrue(T.NewObject("(o)"), T.NewObject("(o)"));
-  T.CheckTrue(T.Val("internal"), T.Val("internal"));
-  T.CheckTrue(T.true_value(), T.true_value());
-  T.CheckFalse(T.true_value(), T.false_value());
-  T.CheckFalse(T.NewObject("({})"), T.NewObject("({})"));
-  T.CheckFalse(T.Val("a"), T.Val("b"));
-}
-
-
 TEST(OneByteSeqStringGetChar) {
   FunctionTester T("(function(a,b) { return %_OneByteSeqStringGetChar(a,b); })",
                    flags);

@@ -12576,19 +12576,6 @@ void HOptimizedGraphBuilder::GenerateStringCharAt(CallRuntime* call) {
 }
 
 
-// Fast support for object equality testing.
-void HOptimizedGraphBuilder::GenerateObjectEquals(CallRuntime* call) {
-  DCHECK(call->arguments()->length() == 2);
-  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
-  CHECK_ALIVE(VisitForValue(call->arguments()->at(1)));
-  HValue* right = Pop();
-  HValue* left = Pop();
-  HCompareObjectEqAndBranch* result =
-      New<HCompareObjectEqAndBranch>(left, right);
-  return ast_context()->ReturnControl(result, call->id());
-}
-
-
 // Fast support for SubString.
 void HOptimizedGraphBuilder::GenerateSubString(CallRuntime* call) {
   DCHECK_EQ(3, call->arguments()->length());

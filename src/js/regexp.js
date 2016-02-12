@@ -257,7 +257,7 @@ function RegExpTest(string) {
 }
 
 function TrimRegExp(regexp) {
-  if (!%_ObjectEquals(regexp_key, regexp)) {
+  if (regexp_key !== regexp) {
     regexp_key = regexp;
     regexp_val =
       new GlobalRegExp(
