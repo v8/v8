@@ -373,6 +373,9 @@
 
   # BUG(v8:3097)
   'debug-references': [SKIP],
+
+  # BUG(v8:4754).
+  'debug-referenced-by': [PASS, NO_VARIANTS],
 }],  # 'gc_stress == True'
 
 ##############################################################################
