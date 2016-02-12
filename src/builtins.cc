@@ -1852,24 +1852,22 @@ BUILTIN(ObjectKeys) {
 
   Handle<FixedArray> keys;
   int enum_length = receiver->map()->EnumLength();
-  if (enum_length != kInvalidEnumCacheSentinel) {
+  if (enum_length != kInvalidEnumCacheSentinel &&
+      JSObject::cast(*receiver)->elements() ==
+          isolate->heap()->empty_fixed_array()) {
     DCHECK(receiver->IsJSObject());
-    Handle<JSObject> js_object = Handle<JSObject>::cast(receiver);
-    DCHECK(!js_object->HasNamedInterceptor());
-    DCHECK(!js_object->IsAccessCheckNeeded());
-    DCHECK(!js_object->map()->has_hidden_prototype());
-    DCHECK(js_object->HasFastProperties());
-    if (js_object->elements() == isolate->heap()->empty_fixed_array()) {
-      keys = isolate->factory()->NewFixedArray(enum_length);
-      if (enum_length != 0) {
-        Handle<FixedArray> cache(
-            js_object->map()->instance_descriptors()->GetEnumCache());
-        keys = isolate->factory()->CopyFixedArrayUpTo(cache, enum_length);
-      }
+    DCHECK(!JSObject::cast(*receiver)->HasNamedInterceptor());
+    DCHECK(!JSObject::cast(*receiver)->IsAccessCheckNeeded());
+    DCHECK(!receiver->map()->has_hidden_prototype());
+    DCHECK(JSObject::cast(*receiver)->HasFastProperties());
+    if (enum_length == 0) {
+      keys = isolate->factory()->empty_fixed_array();
+    } else {
+      Handle<FixedArray> cache(
+          receiver->map()->instance_descriptors()->GetEnumCache());
+      keys = isolate->factory()->CopyFixedArrayUpTo(cache, enum_length);
     }
-  }
-
-  if (keys.is_null()) {
+  } else {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, keys,
         JSReceiver::GetKeys(receiver, OWN_ONLY, ENUMERABLE_STRINGS,
