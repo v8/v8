@@ -81,41 +81,34 @@ function StringCharCodeAtJS(pos) {
 
 // ECMA-262, section 15.5.4.6
 function StringConcat(other /* and more */) {  // length == 1
+  "use strict";
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.concat");
-  var len = %_ArgumentsLength();
-  var this_as_string = TO_STRING(this);
-  if (len === 1) {
-    return this_as_string + TO_STRING(other);
+  var s = TO_STRING(this);
+  var len = arguments.length;
+  for (var i = 0; i < len; ++i) {
+    s = s + TO_STRING(arguments[i]);
   }
-  var parts = new InternalArray(len + 1);
-  parts[0] = this_as_string;
-  for (var i = 0; i < len; i++) {
-    var part = %_Arguments(i);
-    parts[i + 1] = TO_STRING(part);
-  }
-  return %StringBuilderConcat(parts, len + 1, "");
+  return s;
 }
 
 
 // ECMA-262 section 15.5.4.7
-function StringIndexOfJS(pattern /* position */) {  // length == 1
+function StringIndexOf(pattern, position) {  // length == 1
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.indexOf");
 
   var subject = TO_STRING(this);
   pattern = TO_STRING(pattern);
-  var index = 0;
-  if (%_ArgumentsLength() > 1) {
-    index = %_Arguments(1);  // position
-    index = TO_INTEGER(index);
-    if (index < 0) index = 0;
-    if (index > subject.length) index = subject.length;
-  }
+  var index = TO_INTEGER(position);
+  if (index < 0) index = 0;
+  if (index > subject.length) index = subject.length;
   return %StringIndexOf(subject, pattern, index);
 }
 
+%FunctionSetLength(StringIndexOf, 1);
+
 
 // ECMA-262 section 15.5.4.8
-function StringLastIndexOfJS(pat /* position */) {  // length == 1
+function StringLastIndexOf(pat, pos) {  // length == 1
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.lastIndexOf");
 
   var sub = TO_STRING(this);
@@ -123,16 +116,14 @@ function StringLastIndexOfJS(pat /* position */) {  // length == 1
   var pat = TO_STRING(pat);
   var patLength = pat.length;
   var index = subLength - patLength;
-  if (%_ArgumentsLength() > 1) {
-    var position = TO_NUMBER(%_Arguments(1));
-    if (!NUMBER_IS_NAN(position)) {
-      position = TO_INTEGER(position);
-      if (position < 0) {
-        position = 0;
-      }
-      if (position + patLength < subLength) {
-        index = position;
-      }
+  var position = TO_NUMBER(pos);
+  if (!NUMBER_IS_NAN(position)) {
+    position = TO_INTEGER(position);
+    if (position < 0) {
+      position = 0;
+    }
+    if (position + patLength < subLength) {
+      index = position;
     }
   }
   if (index < 0) {
@@ -140,6 +131,8 @@ function StringLastIndexOfJS(pat /* position */) {  // length == 1
   }
   return %StringLastIndexOf(sub, pat, index);
 }
+
+%FunctionSetLength(StringLastIndexOf, 1);
 
 
 // ECMA-262 section 15.5.4.9
@@ -177,11 +170,10 @@ function StringMatchJS(pattern) {
 // For now we do nothing, as proper normalization requires big tables.
 // If Intl is enabled, then i18n.js will override it and provide the the
 // proper functionality.
-function StringNormalizeJS() {
+function StringNormalize(formArg) {  // length == 0
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.normalize");
   var s = TO_STRING(this);
 
-  var formArg = %_Arguments(0);
   var form = IS_UNDEFINED(formArg) ? 'NFC' : TO_STRING(formArg);
 
   var NORMALIZATION_FORMS = ['NFC', 'NFD', 'NFKC', 'NFKD'];
@@ -193,6 +185,8 @@ function StringNormalizeJS() {
 
   return s;
 }
+
+%FunctionSetLength(StringNormalize, 0);
 
 
 // This has the same size as the RegExpLastMatchInfo array, and can be used
@@ -567,7 +561,7 @@ function StringTrimRight() {
 // ECMA-262, section 15.5.3.2
 function StringFromCharCode(code) {
   var n = %_ArgumentsLength();
-  if (n == 1) return %_StringCharFromCode(code & 0xffff);
+  if (n === 1) return %_StringCharFromCode(code & 0xffff);
 
   var one_byte = %NewString(n, NEW_ONE_BYTE_STRING);
   var i;
@@ -716,7 +710,7 @@ function StringRepeat(count) {
 
 
 // ES6 draft 04-05-14, section 21.1.3.18
-function StringStartsWith(searchString /* position */) {  // length == 1
+function StringStartsWith(searchString, position) {  // length == 1
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.startsWith");
 
   var s = TO_STRING(this);
@@ -726,13 +720,7 @@ function StringStartsWith(searchString /* position */) {  // length == 1
   }
 
   var ss = TO_STRING(searchString);
-  var pos = 0;
-  if (%_ArgumentsLength() > 1) {
-    var arg = %_Arguments(1);  // position
-    if (!IS_UNDEFINED(arg)) {
-      pos = TO_INTEGER(arg);
-    }
-  }
+  var pos = TO_INTEGER(position);
 
   var s_len = s.length;
   var start = MinSimple(MaxSimple(pos, 0), s_len);
@@ -744,9 +732,11 @@ function StringStartsWith(searchString /* position */) {  // length == 1
   return %_SubString(s, start, start + ss_len) === ss;
 }
 
+%FunctionSetLength(StringStartsWith, 1);
+
 
 // ES6 draft 04-05-14, section 21.1.3.7
-function StringEndsWith(searchString /* position */) {  // length == 1
+function StringEndsWith(searchString, position) {  // length == 1
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.endsWith");
 
   var s = TO_STRING(this);
@@ -757,13 +747,7 @@ function StringEndsWith(searchString /* position */) {  // length == 1
 
   var ss = TO_STRING(searchString);
   var s_len = s.length;
-  var pos = s_len;
-  if (%_ArgumentsLength() > 1) {
-    var arg = %_Arguments(1);  // position
-    if (!IS_UNDEFINED(arg)) {
-      pos = TO_INTEGER(arg);
-    }
-  }
+  var pos = !IS_UNDEFINED(position) ? TO_INTEGER(position) : s_len
 
   var end = MinSimple(MaxSimple(pos, 0), s_len);
   var ss_len = ss.length;
@@ -775,9 +759,11 @@ function StringEndsWith(searchString /* position */) {  // length == 1
   return %_SubString(s, start, start + ss_len) === ss;
 }
 
+%FunctionSetLength(StringEndsWith, 1);
+
 
 // ES6 draft 04-05-14, section 21.1.3.6
-function StringIncludes(searchString /* position */) {  // length == 1
+function StringIncludes(searchString, position) {  // length == 1
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.includes");
 
   var string = TO_STRING(this);
@@ -787,11 +773,7 @@ function StringIncludes(searchString /* position */) {  // length == 1
   }
 
   searchString = TO_STRING(searchString);
-  var pos = 0;
-  if (%_ArgumentsLength() > 1) {
-    pos = %_Arguments(1);  // position
-    pos = TO_INTEGER(pos);
-  }
+  var pos = TO_INTEGER(position);
 
   var stringLength = string.length;
   if (pos < 0) pos = 0;
@@ -804,6 +786,8 @@ function StringIncludes(searchString /* position */) {  // length == 1
 
   return %StringIndexOf(string, searchString, pos) !== -1;
 }
+
+%FunctionSetLength(StringIncludes, 1);
 
 
 // ES6 Draft 05-22-2014, section 21.1.3.3
@@ -830,12 +814,13 @@ function StringCodePointAt(pos) {
 
 // ES6 Draft 05-22-2014, section 21.1.2.2
 function StringFromCodePoint(_) {  // length = 1
+  "use strict";
   var code;
-  var length = %_ArgumentsLength();
+  var length = arguments.length;
   var index;
   var result = "";
   for (index = 0; index < length; index++) {
-    code = %_Arguments(index);
+    code = arguments[index];
     if (!%_IsSmi(code)) {
       code = TO_NUMBER(code);
     }
@@ -859,8 +844,8 @@ function StringFromCodePoint(_) {  // length = 1
 
 // ES6 Draft 03-17-2015, section 21.1.2.4
 function StringRaw(callSite) {
-  // TODO(caitp): Use rest parameters when implemented
-  var numberOfSubstitutions = %_ArgumentsLength();
+  "use strict";
+  var numberOfSubstitutions = arguments.length;
   var cooked = TO_OBJECT(callSite);
   var raw = TO_OBJECT(cooked.raw);
   var literalSegments = TO_LENGTH(raw.length);
@@ -870,7 +855,7 @@ function StringRaw(callSite) {
 
   for (var i = 1; i < literalSegments; ++i) {
     if (i < numberOfSubstitutions) {
-      result += TO_STRING(%_Arguments(i));
+      result += TO_STRING(arguments[i]);
     }
     result += TO_STRING(raw[i]);
   }
@@ -904,11 +889,11 @@ utils.InstallFunctions(GlobalString.prototype, DONT_ENUM, [
   "concat", StringConcat,
   "endsWith", StringEndsWith,
   "includes", StringIncludes,
-  "indexOf", StringIndexOfJS,
-  "lastIndexOf", StringLastIndexOfJS,
+  "indexOf", StringIndexOf,
+  "lastIndexOf", StringLastIndexOf,
   "localeCompare", StringLocaleCompareJS,
   "match", StringMatchJS,
-  "normalize", StringNormalizeJS,
+  "normalize", StringNormalize,
   "repeat", StringRepeat,
   "replace", StringReplace,
   "search", StringSearch,
@@ -946,8 +931,8 @@ utils.InstallFunctions(GlobalString.prototype, DONT_ENUM, [
 utils.Export(function(to) {
   to.ExpandReplacement = ExpandReplacement;
   to.StringCharAt = StringCharAtJS;
-  to.StringIndexOf = StringIndexOfJS;
-  to.StringLastIndexOf = StringLastIndexOfJS;
+  to.StringIndexOf = StringIndexOf;
+  to.StringLastIndexOf = StringLastIndexOf;
   to.StringMatch = StringMatchJS;
   to.StringReplace = StringReplace;
   to.StringSlice = StringSlice;
