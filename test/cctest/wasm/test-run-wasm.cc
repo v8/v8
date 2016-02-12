@@ -196,9 +196,6 @@ TEST(Run_WasmInt32Add_P2) {
 }
 
 
-// TODO(titzer): Fix for nosee4 and re-enable.
-#if 0
-
 TEST(Run_WasmFloat32Add) {
   WasmRunner<int32_t> r;
   // int(11.5f + 44.5f)
@@ -214,8 +211,6 @@ TEST(Run_WasmFloat64Add) {
   BUILD(r, WASM_I32_SCONVERT_F64(WASM_F64_ADD(WASM_F64(13.5), WASM_F64(43.5))));
   CHECK_EQ(57, r.Call());
 }
-
-#endif
 
 
 void TestInt32Binop(WasmOpcode opcode, int32_t expected, int32_t a, int32_t b) {
@@ -809,10 +804,6 @@ void TestFloat64UnopWithConvert(WasmOpcode opcode, int32_t expected, double a) {
   }
 }
 
-
-// TODO(titzer): Fix for nosee4 and re-enable.
-#if 0
-
 TEST(Run_WasmFloat32Binops) {
   TestFloat32Binop(kExprF32Eq, 1, 8.125f, 8.125f);
   TestFloat32Binop(kExprF32Ne, 1, 8.125f, 8.127f);
@@ -827,14 +818,12 @@ TEST(Run_WasmFloat32Binops) {
   TestFloat32BinopWithConvert(kExprF32Div, 11, 22.1f, 2.0f);
 }
 
-
 TEST(Run_WasmFloat32Unops) {
   TestFloat32UnopWithConvert(kExprF32Abs, 8, 8.125f);
   TestFloat32UnopWithConvert(kExprF32Abs, 9, -9.125f);
   TestFloat32UnopWithConvert(kExprF32Neg, -213, 213.125f);
   TestFloat32UnopWithConvert(kExprF32Sqrt, 12, 144.4f);
 }
-
 
 TEST(Run_WasmFloat64Binops) {
   TestFloat64Binop(kExprF64Eq, 1, 16.25, 16.25);
@@ -850,16 +839,12 @@ TEST(Run_WasmFloat64Binops) {
   TestFloat64BinopWithConvert(kExprF64Div, -1111, -2222.3, 2);
 }
 
-
 TEST(Run_WasmFloat64Unops) {
   TestFloat64UnopWithConvert(kExprF64Abs, 108, 108.125);
   TestFloat64UnopWithConvert(kExprF64Abs, 209, -209.125);
   TestFloat64UnopWithConvert(kExprF64Neg, -209, 209.125);
   TestFloat64UnopWithConvert(kExprF64Sqrt, 13, 169.4);
 }
-
-#endif
-
 
 TEST(Run_WasmFloat32Neg) {
   WasmRunner<float> r(MachineType::Float32());
