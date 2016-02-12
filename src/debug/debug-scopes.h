@@ -96,8 +96,7 @@ class ScopeIterator {
   }
 
   inline Handle<JSFunction> GetFunction() {
-    return Handle<JSFunction>(
-        JSFunction::cast(frame_inspector_->GetFunction()));
+    return Handle<JSFunction>::cast(frame_inspector_->GetFunction());
   }
 
   static bool InternalizedStringMatch(void* key1, void* key2) {

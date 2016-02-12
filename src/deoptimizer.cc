@@ -36,7 +36,6 @@ static MemoryChunk* AllocateCodeChunk(MemoryAllocator* allocator) {
 
 DeoptimizerData::DeoptimizerData(MemoryAllocator* allocator)
     : allocator_(allocator),
-      deoptimized_frame_info_(NULL),
       current_(NULL) {
   for (int i = 0; i < Deoptimizer::kBailoutTypesWithCodeEntry; ++i) {
     deopt_entry_code_entries_[i] = -1;
@@ -49,13 +48,6 @@ DeoptimizerData::~DeoptimizerData() {
   for (int i = 0; i < Deoptimizer::kBailoutTypesWithCodeEntry; ++i) {
     allocator_->Free(deopt_entry_code_[i]);
     deopt_entry_code_[i] = NULL;
-  }
-}
-
-
-void DeoptimizerData::Iterate(ObjectVisitor* v) {
-  if (deoptimized_frame_info_ != NULL) {
-    deoptimized_frame_info_->Iterate(v);
   }
 }
 
@@ -141,7 +133,6 @@ DeoptimizedFrameInfo* Deoptimizer::DebuggerInspectableFrame(
     int jsframe_index,
     Isolate* isolate) {
   CHECK(frame->is_optimized());
-  CHECK(isolate->deoptimizer_data()->deoptimized_frame_info_ == NULL);
 
   // Get the function and code from the frame.
   JSFunction* function = frame->function();
@@ -197,7 +188,6 @@ DeoptimizedFrameInfo* Deoptimizer::DebuggerInspectableFrame(
                                                         frame_index,
                                                         has_arguments_adaptor,
                                                         has_construct_stub);
-  isolate->deoptimizer_data()->deoptimized_frame_info_ = info;
 
   // Done with the GC-unsafe frame descriptions. This re-enables allocation.
   deoptimizer->DeleteFrameDescriptions();
@@ -215,9 +205,7 @@ DeoptimizedFrameInfo* Deoptimizer::DebuggerInspectableFrame(
 
 void Deoptimizer::DeleteDebuggerInspectableFrame(DeoptimizedFrameInfo* info,
                                                  Isolate* isolate) {
-  CHECK_EQ(isolate->deoptimizer_data()->deoptimized_frame_info_, info);
   delete info;
-  isolate->deoptimizer_data()->deoptimized_frame_info_ = NULL;
 }
 
 
@@ -1920,7 +1908,7 @@ void Deoptimizer::MaterializeHeapNumbersForDebuggerInspectableFrame(
   arg_iter++;  // Skip the receiver.
   for (int i = 0; i < parameter_count; i++, arg_iter++) {
     if (!arg_iter->IsMaterializedObject()) {
-      info->SetParameter(i, *(arg_iter->GetValue()));
+      info->SetParameter(i, arg_iter->GetValue());
     }
   }
 
@@ -1931,7 +1919,7 @@ void Deoptimizer::MaterializeHeapNumbersForDebuggerInspectableFrame(
 
   for (int i = 0; i < expression_count; i++, iter++) {
     if (!iter->IsMaterializedObject()) {
-      info->SetExpression(i, *(iter->GetValue()));
+      info->SetExpression(i, iter->GetValue());
     }
   }
 }
@@ -2508,24 +2496,27 @@ DeoptimizedFrameInfo::DeoptimizedFrameInfo(Deoptimizer* deoptimizer,
                                            bool has_arguments_adaptor,
                                            bool has_construct_stub) {
   FrameDescription* output_frame = deoptimizer->output_[frame_index];
-  function_ = output_frame->GetFunction();
-  context_ = reinterpret_cast<Object*>(output_frame->GetContext());
+  function_ =
+      Handle<JSFunction>(output_frame->GetFunction(), deoptimizer->isolate());
+  context_ =
+      Handle<Object>(reinterpret_cast<Object*>(output_frame->GetContext()),
+                     deoptimizer->isolate());
   has_construct_stub_ = has_construct_stub;
-  expression_count_ = output_frame->GetExpressionCount();
-  expression_stack_ = new Object* [expression_count_];
+  expression_stack_.resize(
+      static_cast<size_t>(output_frame->GetExpressionCount()));
   // Get the source position using the unoptimized code.
   Address pc = reinterpret_cast<Address>(output_frame->GetPc());
   Code* code = Code::cast(deoptimizer->isolate()->FindCodeObject(pc));
   int offset = static_cast<int>(pc - code->instruction_start());
   source_position_ = code->SourcePosition(offset);
 
-  for (int i = 0; i < expression_count_; i++) {
+  for (int i = 0; i < static_cast<int>(expression_count()); i++) {
     Object* value = output_frame->GetExpression(i);
     // Replace materialization markers with the undefined value.
     if (value == deoptimizer->isolate()->heap()->arguments_marker()) {
       value = deoptimizer->isolate()->heap()->undefined_value();
     }
-    SetExpression(i, value);
+    SetExpression(i, Handle<Object>(value, deoptimizer->isolate()));
   }
 
   if (has_arguments_adaptor) {
@@ -2533,30 +2524,16 @@ DeoptimizedFrameInfo::DeoptimizedFrameInfo(Deoptimizer* deoptimizer,
     CHECK_EQ(output_frame->GetFrameType(), StackFrame::ARGUMENTS_ADAPTOR);
   }
 
-  parameters_count_ = output_frame->ComputeParametersCount();
-  parameters_ = new Object* [parameters_count_];
-  for (int i = 0; i < parameters_count_; i++) {
+  parameters_.resize(
+      static_cast<size_t>(output_frame->ComputeParametersCount()));
+  for (int i = 0; i < output_frame->ComputeParametersCount(); i++) {
     Object* value = output_frame->GetParameter(i);
     // Replace materialization markers with the undefined value.
     if (value == deoptimizer->isolate()->heap()->arguments_marker()) {
       value = deoptimizer->isolate()->heap()->undefined_value();
     }
-    SetParameter(i, value);
+    SetParameter(i, Handle<Object>(value, deoptimizer->isolate()));
   }
-}
-
-
-DeoptimizedFrameInfo::~DeoptimizedFrameInfo() {
-  delete[] expression_stack_;
-  delete[] parameters_;
-}
-
-
-void DeoptimizedFrameInfo::Iterate(ObjectVisitor* v) {
-  v->VisitPointer(bit_cast<Object**>(&function_));
-  v->VisitPointer(&context_);
-  v->VisitPointers(parameters_, parameters_ + parameters_count_);
-  v->VisitPointers(expression_stack_, expression_stack_ + expression_count_);
 }
 
 

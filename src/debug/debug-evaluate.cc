@@ -128,7 +128,7 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
       inlined_jsframe_index_(inlined_jsframe_index) {
   FrameInspector frame_inspector(frame, inlined_jsframe_index, isolate);
   Handle<JSFunction> local_function =
-      handle(JSFunction::cast(frame_inspector.GetFunction()));
+      Handle<JSFunction>::cast(frame_inspector.GetFunction());
   Handle<Context> outer_context(local_function->context());
   native_context_ = Handle<Context>(outer_context->native_context());
   Handle<JSFunction> global_function(native_context_->closure());

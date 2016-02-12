@@ -907,14 +907,10 @@ class DeoptimizerData {
   explicit DeoptimizerData(MemoryAllocator* allocator);
   ~DeoptimizerData();
 
-  void Iterate(ObjectVisitor* v);
-
  private:
   MemoryAllocator* allocator_;
   int deopt_entry_code_entries_[Deoptimizer::kBailoutTypesWithCodeEntry];
   MemoryChunk* deopt_entry_code_[Deoptimizer::kBailoutTypesWithCodeEntry];
-
-  DeoptimizedFrameInfo* deoptimized_frame_info_;
 
   Deoptimizer* current_;
 
@@ -1077,24 +1073,17 @@ class DeoptimizedFrameInfo : public Malloced {
                        int frame_index,
                        bool has_arguments_adaptor,
                        bool has_construct_stub);
-  virtual ~DeoptimizedFrameInfo();
-
-  // GC support.
-  void Iterate(ObjectVisitor* v);
-
   // Return the number of incoming arguments.
-  int parameters_count() { return parameters_count_; }
+  int parameters_count() { return static_cast<int>(parameters_.size()); }
 
   // Return the height of the expression stack.
-  int expression_count() { return expression_count_; }
+  int expression_count() { return static_cast<int>(expression_stack_.size()); }
 
   // Get the frame function.
-  JSFunction* GetFunction() {
-    return function_;
-  }
+  Handle<JSFunction> GetFunction() { return function_; }
 
   // Get the frame context.
-  Object* GetContext() { return context_; }
+  Handle<Object> GetContext() { return context_; }
 
   // Check if this frame is preceded by construct stub frame.  The bottom-most
   // inlined frame might still be called by an uninlined construct stub.
@@ -1103,13 +1092,13 @@ class DeoptimizedFrameInfo : public Malloced {
   }
 
   // Get an incoming argument.
-  Object* GetParameter(int index) {
+  Handle<Object> GetParameter(int index) {
     DCHECK(0 <= index && index < parameters_count());
     return parameters_[index];
   }
 
   // Get an expression from the expression stack.
-  Object* GetExpression(int index) {
+  Handle<Object> GetExpression(int index) {
     DCHECK(0 <= index && index < expression_count());
     return expression_stack_[index];
   }
@@ -1120,24 +1109,22 @@ class DeoptimizedFrameInfo : public Malloced {
 
  private:
   // Set an incoming argument.
-  void SetParameter(int index, Object* obj) {
+  void SetParameter(int index, Handle<Object> obj) {
     DCHECK(0 <= index && index < parameters_count());
     parameters_[index] = obj;
   }
 
   // Set an expression on the expression stack.
-  void SetExpression(int index, Object* obj) {
+  void SetExpression(int index, Handle<Object> obj) {
     DCHECK(0 <= index && index < expression_count());
     expression_stack_[index] = obj;
   }
 
-  JSFunction* function_;
-  Object* context_;
+  Handle<JSFunction> function_;
+  Handle<Object> context_;
   bool has_construct_stub_;
-  int parameters_count_;
-  int expression_count_;
-  Object** parameters_;
-  Object** expression_stack_;
+  std::vector<Handle<Object> > parameters_;
+  std::vector<Handle<Object> > expression_stack_;
   int source_position_;
 
   friend class Deoptimizer;

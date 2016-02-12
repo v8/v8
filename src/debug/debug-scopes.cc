@@ -28,7 +28,7 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
     return;
   }
 
-  context_ = Handle<Context>(Context::cast(frame_inspector->GetContext()));
+  context_ = Handle<Context>::cast(frame_inspector->GetContext());
 
   // Catch the case when the debugger stops in an internal function.
   Handle<JSFunction> function = GetFunction();
@@ -458,7 +458,8 @@ MaybeHandle<JSObject> ScopeIterator::MaterializeLocalScope() {
       isolate_->factory()->NewJSObject(isolate_->object_function());
   frame_inspector_->MaterializeStackLocals(local_scope, function);
 
-  Handle<Context> frame_context(Context::cast(frame_inspector_->GetContext()));
+  Handle<Context> frame_context =
+      Handle<Context>::cast(frame_inspector_->GetContext());
 
   HandleScope scope(isolate_);
   Handle<SharedFunctionInfo> shared(function->shared());

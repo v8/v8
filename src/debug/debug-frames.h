@@ -21,12 +21,12 @@ class FrameInspector {
   ~FrameInspector();
 
   int GetParametersCount();
-  Object* GetFunction();
-  Object* GetParameter(int index);
-  Object* GetExpression(int index);
+  Handle<Object> GetFunction();
+  Handle<Object> GetParameter(int index);
+  Handle<Object> GetExpression(int index);
   int GetSourcePosition();
   bool IsConstructor();
-  Object* GetContext();
+  Handle<Object> GetContext();
 
   JavaScriptFrame* GetArgumentsFrame() { return frame_; }
   void SetArgumentsFrame(JavaScriptFrame* frame);
