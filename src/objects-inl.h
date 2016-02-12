@@ -1143,8 +1143,8 @@ bool Object::FitsRepresentation(Representation representation) {
 // static
 MaybeHandle<JSReceiver> Object::ToObject(Isolate* isolate,
                                          Handle<Object> object) {
-  return ToObject(
-      isolate, object, handle(isolate->context()->native_context(), isolate));
+  if (object->IsJSReceiver()) return Handle<JSReceiver>::cast(object);
+  return ToObject(isolate, object, isolate->native_context());
 }
 
 
