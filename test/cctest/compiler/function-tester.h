@@ -162,8 +162,19 @@ class FunctionTester : public InitializedHandleScope {
 
   Handle<Object> false_value() { return isolate->factory()->false_value(); }
 
+  static Handle<JSFunction> ForMachineGraph(Graph* graph, int param_count) {
+    JSFunction* p = NULL;
+    {  // because of the implicit handle scope of FunctionTester.
+      FunctionTester f(graph, param_count);
+      p = *f.function;
+    }
+    return Handle<JSFunction>(p);  // allocated in outer handle scope.
+  }
+
+ private:
+  uint32_t flags_;
+
   Handle<JSFunction> Compile(Handle<JSFunction> function) {
-// TODO(titzer): make this method private.
     Zone zone;
     ParseInfo parse_info(&zone, function);
     CompilationInfo info(&parse_info);
@@ -191,18 +202,6 @@ class FunctionTester : public InitializedHandleScope {
     function->ReplaceCode(*code);
     return function;
   }
-
-  static Handle<JSFunction> ForMachineGraph(Graph* graph, int param_count) {
-    JSFunction* p = NULL;
-    {  // because of the implicit handle scope of FunctionTester.
-      FunctionTester f(graph, param_count);
-      p = *f.function;
-    }
-    return Handle<JSFunction>(p);  // allocated in outer handle scope.
-  }
-
- private:
-  uint32_t flags_;
 
   std::string BuildFunction(int param_count) {
     std::string function_string = "(function(";
