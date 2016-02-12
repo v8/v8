@@ -20,35 +20,31 @@ class RandomNumberGenerator;
 
 namespace internal {
 
+class SamplingAllocationObserver;
 
 class AllocationProfile : public v8::AllocationProfile {
  public:
   AllocationProfile() : nodes_() {}
 
-  Node* GetRootNode() override {
+  v8::AllocationProfile::Node* GetRootNode() override {
     return nodes_.size() == 0 ? nullptr : &nodes_.front();
   }
 
-  std::deque<Node>& nodes() { return nodes_; }
+  std::deque<v8::AllocationProfile::Node>& nodes() { return nodes_; }
 
  private:
-  std::deque<Node> nodes_;
+  std::deque<v8::AllocationProfile::Node> nodes_;
 
   DISALLOW_COPY_AND_ASSIGN(AllocationProfile);
 };
 
-class SamplingHeapProfiler : public InlineAllocationObserver {
+class SamplingHeapProfiler {
  public:
   SamplingHeapProfiler(Heap* heap, StringsStorage* names, uint64_t rate,
                        int stack_depth);
   ~SamplingHeapProfiler();
 
   v8::AllocationProfile* GetAllocationProfile();
-
-  void Step(int bytes_allocated, Address soon_object, size_t size) override;
-  intptr_t GetNextStepSize() override {
-    return GetNextSampleInterval(random_, rate_);
-  }
 
   StringsStorage* names() const { return names_; }
 
@@ -99,35 +95,61 @@ class SamplingHeapProfiler : public InlineAllocationObserver {
   };
 
  private:
-  using Node = v8::AllocationProfile::Node;
-
   Heap* heap() const { return heap_; }
 
   void SampleObject(Address soon_object, size_t size);
 
-  static intptr_t GetNextSampleInterval(base::RandomNumberGenerator* random,
-                                        uint64_t rate);
-
   // Methods that construct v8::AllocationProfile.
-  Node* AddStack(AllocationProfile* profile,
-                 const std::map<int, Script*>& scripts,
-                 const std::vector<FunctionInfo*>& stack);
-  Node* FindOrAddChildNode(AllocationProfile* profile,
-                           const std::map<int, Script*>& scripts, Node* parent,
-                           FunctionInfo* function_info);
-  Node* AllocateNode(AllocationProfile* profile,
-                     const std::map<int, Script*>& scripts,
-                     FunctionInfo* function_info);
+  v8::AllocationProfile::Node* AddStack(
+      AllocationProfile* profile, const std::map<int, Script*>& scripts,
+      const std::vector<FunctionInfo*>& stack);
+  v8::AllocationProfile::Node* FindOrAddChildNode(
+      AllocationProfile* profile, const std::map<int, Script*>& scripts,
+      v8::AllocationProfile::Node* parent, FunctionInfo* function_info);
+  v8::AllocationProfile::Node* AllocateNode(
+      AllocationProfile* profile, const std::map<int, Script*>& scripts,
+      FunctionInfo* function_info);
 
   Isolate* const isolate_;
   Heap* const heap_;
-  base::RandomNumberGenerator* const random_;
+  base::SmartPointer<SamplingAllocationObserver> new_space_observer_;
+  base::SmartPointer<SamplingAllocationObserver> other_spaces_observer_;
   StringsStorage* const names_;
   std::set<SampledAllocation*> samples_;
-  const uint64_t rate_;
   const int stack_depth_;
+
+  friend class SamplingAllocationObserver;
 };
 
+class SamplingAllocationObserver : public AllocationObserver {
+ public:
+  SamplingAllocationObserver(Heap* heap, intptr_t step_size, uint64_t rate,
+                             SamplingHeapProfiler* profiler,
+                             base::RandomNumberGenerator* random)
+      : AllocationObserver(step_size),
+        profiler_(profiler),
+        heap_(heap),
+        random_(random),
+        rate_(rate) {}
+  virtual ~SamplingAllocationObserver() {}
+
+ protected:
+  void Step(int bytes_allocated, Address soon_object, size_t size) override {
+    USE(heap_);
+    DCHECK(heap_->gc_state() == Heap::NOT_IN_GC);
+    DCHECK(soon_object);
+    profiler_->SampleObject(soon_object, size);
+  }
+
+  intptr_t GetNextStepSize() override { return GetNextSampleInterval(rate_); }
+
+ private:
+  intptr_t GetNextSampleInterval(uint64_t rate);
+  SamplingHeapProfiler* const profiler_;
+  Heap* const heap_;
+  base::RandomNumberGenerator* const random_;
+  uint64_t const rate_;
+};
 
 }  // namespace internal
 }  // namespace v8

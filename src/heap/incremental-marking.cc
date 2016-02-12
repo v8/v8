@@ -23,7 +23,6 @@ IncrementalMarking::StepActions IncrementalMarking::IdleStepActions() {
                      IncrementalMarking::DO_NOT_FORCE_COMPLETION);
 }
 
-
 IncrementalMarking::IncrementalMarking(Heap* heap)
     : heap_(heap),
       observer_(*this, kAllocatedThreshold),
@@ -45,7 +44,6 @@ IncrementalMarking::IncrementalMarking(Heap* heap)
       finalize_marking_completed_(false),
       incremental_marking_finalization_rounds_(0),
       request_type_(COMPLETE_MARKING) {}
-
 
 bool IncrementalMarking::BaseRecordWrite(HeapObject* obj, Object* value) {
   HeapObject* value_heap_obj = HeapObject::cast(value);
@@ -549,7 +547,7 @@ void IncrementalMarking::Start(const char* reason) {
     state_ = SWEEPING;
   }
 
-  heap_->new_space()->AddInlineAllocationObserver(&observer_);
+  heap_->new_space()->AddAllocationObserver(&observer_);
 
   incremental_marking_job()->Start(heap_);
 }
@@ -953,7 +951,7 @@ void IncrementalMarking::Stop() {
     PrintF("[IncrementalMarking] Stopping.\n");
   }
 
-  heap_->new_space()->RemoveInlineAllocationObserver(&observer_);
+  heap_->new_space()->RemoveAllocationObserver(&observer_);
   IncrementalMarking::set_should_hurry(false);
   ResetStepCounters();
   if (IsMarking()) {

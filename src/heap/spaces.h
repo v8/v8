@@ -20,10 +20,10 @@ namespace v8 {
 namespace internal {
 
 class AllocationInfo;
+class AllocationObserver;
 class CompactionSpace;
 class CompactionSpaceCollection;
 class FreeList;
-class InlineAllocationObserver;
 class Isolate;
 class MemoryAllocator;
 class MemoryChunk;
@@ -902,7 +902,9 @@ class LargePage : public MemoryChunk {
 class Space : public Malloced {
  public:
   Space(Heap* heap, AllocationSpace id, Executability executable)
-      : heap_(heap),
+      : allocation_observers_(new List<AllocationObserver*>()),
+        allocation_observers_paused_(false),
+        heap_(heap),
         id_(id),
         executable_(executable),
         committed_(0),
@@ -917,6 +919,26 @@ class Space : public Malloced {
 
   // Identity used in error reporting.
   AllocationSpace identity() { return id_; }
+
+  virtual void AddAllocationObserver(AllocationObserver* observer) {
+    allocation_observers_->Add(observer);
+  }
+
+  virtual void RemoveAllocationObserver(AllocationObserver* observer) {
+    bool removed = allocation_observers_->RemoveElement(observer);
+    USE(removed);
+    DCHECK(removed);
+  }
+
+  virtual void PauseAllocationObservers() {
+    allocation_observers_paused_ = true;
+  }
+
+  virtual void ResumeAllocationObservers() {
+    allocation_observers_paused_ = false;
+  }
+
+  void AllocationStep(Address soon_object, int size);
 
   // Return the total amount committed memory for this space, i.e., allocatable
   // memory and page headers.
@@ -963,6 +985,9 @@ class Space : public Malloced {
     committed_ -= bytes;
     DCHECK_GE(committed_, 0);
   }
+
+  v8::base::SmartPointer<List<AllocationObserver*>> allocation_observers_;
+  bool allocation_observers_paused_;
 
  private:
   Heap* heap_;
@@ -2485,8 +2510,7 @@ class NewSpace : public Space {
         to_space_(heap, kToSpace),
         from_space_(heap, kFromSpace),
         reservation_(),
-        top_on_previous_step_(0),
-        inline_allocation_observers_paused_(false) {}
+        top_on_previous_step_(0) {}
 
   inline bool Contains(HeapObject* o);
   inline bool ContainsSlow(Address a);
@@ -2636,21 +2660,25 @@ class NewSpace : public Space {
   // Reset the allocation pointer to the beginning of the active semispace.
   void ResetAllocationInfo();
 
+  // When inline allocation stepping is active, either because of incremental
+  // marking, idle scavenge, or allocation statistics gathering, we 'interrupt'
+  // inline allocation every once in a while. This is done by setting
+  // allocation_info_.limit to be lower than the actual limit and and increasing
+  // it in steps to guarantee that the observers are notified periodically.
   void UpdateInlineAllocationLimit(int size_in_bytes);
-
-  // Allows observation of inline allocation. The observer->Step() method gets
-  // called after every step_size bytes have been allocated (approximately).
-  // This works by adjusting the allocation limit to a lower value and adjusting
-  // it after each step.
-  void AddInlineAllocationObserver(InlineAllocationObserver* observer);
-
-  // Removes a previously installed observer.
-  void RemoveInlineAllocationObserver(InlineAllocationObserver* observer);
 
   void DisableInlineAllocationSteps() {
     top_on_previous_step_ = 0;
     UpdateInlineAllocationLimit(0);
   }
+
+  // Allows observation of inline allocation. The observer->Step() method gets
+  // called after every step_size bytes have been allocated (approximately).
+  // This works by adjusting the allocation limit to a lower value and adjusting
+  // it after each step.
+  void AddAllocationObserver(AllocationObserver* observer) override;
+
+  void RemoveAllocationObserver(AllocationObserver* observer) override;
 
   // Get the extent of the inactive semispace (for use as a marking stack,
   // or to zap it). Notice: space-addresses are not necessarily on the
@@ -2714,6 +2742,9 @@ class NewSpace : public Space {
 
   SemiSpace* active_space() { return &to_space_; }
 
+  void PauseAllocationObservers() override;
+  void ResumeAllocationObservers() override;
+
  private:
   // Update allocation info to match the current to-space page.
   void UpdateAllocationInfo();
@@ -2736,14 +2767,7 @@ class NewSpace : public Space {
   // mark-compact collection.
   AllocationInfo allocation_info_;
 
-  // When inline allocation stepping is active, either because of incremental
-  // marking or because of idle scavenge, we 'interrupt' inline allocation every
-  // once in a while. This is done by setting allocation_info_.limit to be lower
-  // than the actual limit and and increasing it in steps to guarantee that the
-  // observers are notified periodically.
-  List<InlineAllocationObserver*> inline_allocation_observers_;
   Address top_on_previous_step_;
-  bool inline_allocation_observers_paused_;
 
   HistogramInfo* allocated_histogram_;
   HistogramInfo* promoted_histogram_;
@@ -2760,26 +2784,18 @@ class NewSpace : public Space {
                             size_t size);
   intptr_t GetNextInlineAllocationStepSize();
   void StartNextInlineAllocationStep();
-  void PauseInlineAllocationObservers();
-  void ResumeInlineAllocationObservers();
 
-  friend class PauseInlineAllocationObserversScope;
   friend class SemiSpaceIterator;
 };
 
-class PauseInlineAllocationObserversScope {
+class PauseAllocationObserversScope {
  public:
-  explicit PauseInlineAllocationObserversScope(NewSpace* new_space)
-      : new_space_(new_space) {
-    new_space_->PauseInlineAllocationObservers();
-  }
-  ~PauseInlineAllocationObserversScope() {
-    new_space_->ResumeInlineAllocationObservers();
-  }
+  explicit PauseAllocationObserversScope(Heap* heap);
+  ~PauseAllocationObserversScope();
 
  private:
-  NewSpace* new_space_;
-  DISALLOW_COPY_AND_ASSIGN(PauseInlineAllocationObserversScope);
+  Heap* heap_;
+  DISALLOW_COPY_AND_ASSIGN(PauseAllocationObserversScope);
 };
 
 // -----------------------------------------------------------------------------

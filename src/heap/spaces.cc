@@ -71,6 +71,20 @@ bool HeapObjectIterator::AdvanceToNextPage() {
   return true;
 }
 
+PauseAllocationObserversScope::PauseAllocationObserversScope(Heap* heap)
+    : heap_(heap) {
+  AllSpaces spaces(heap_);
+  for (Space* space = spaces.next(); space != NULL; space = spaces.next()) {
+    space->PauseAllocationObservers();
+  }
+}
+
+PauseAllocationObserversScope::~PauseAllocationObserversScope() {
+  AllSpaces spaces(heap_);
+  for (Space* space = spaces.next(); space != NULL; space = spaces.next()) {
+    space->ResumeAllocationObservers();
+  }
+}
 
 // -----------------------------------------------------------------------------
 // CodeRange
@@ -961,6 +975,14 @@ STATIC_ASSERT(static_cast<ObjectSpace>(1 << AllocationSpace::CODE_SPACE) ==
 STATIC_ASSERT(static_cast<ObjectSpace>(1 << AllocationSpace::MAP_SPACE) ==
               ObjectSpace::kObjectSpaceMapSpace);
 
+void Space::AllocationStep(Address soon_object, int size) {
+  if (!allocation_observers_paused_) {
+    for (int i = 0; i < allocation_observers_->length(); ++i) {
+      AllocationObserver* o = (*allocation_observers_)[i];
+      o->AllocationStep(size, soon_object, size);
+    }
+  }
+}
 
 PagedSpace::PagedSpace(Heap* heap, AllocationSpace space,
                        Executability executable)
@@ -1466,8 +1488,7 @@ void NewSpace::UpdateInlineAllocationLimit(int size_in_bytes) {
     Address high = to_space_.page_high();
     Address new_top = allocation_info_.top() + size_in_bytes;
     allocation_info_.set_limit(Min(new_top, high));
-  } else if (inline_allocation_observers_paused_ ||
-             top_on_previous_step_ == 0) {
+  } else if (allocation_observers_paused_ || top_on_previous_step_ == 0) {
     // Normal limit is the end of the current page.
     allocation_info_.set_limit(to_space_.page_high());
   } else {
@@ -1548,9 +1569,9 @@ bool NewSpace::EnsureAllocation(int size_in_bytes,
 
 
 void NewSpace::StartNextInlineAllocationStep() {
-  if (!inline_allocation_observers_paused_) {
+  if (!allocation_observers_paused_) {
     top_on_previous_step_ =
-        inline_allocation_observers_.length() ? allocation_info_.top() : 0;
+        allocation_observers_->length() ? allocation_info_.top() : 0;
     UpdateInlineAllocationLimit(0);
   }
 }
@@ -1558,44 +1579,36 @@ void NewSpace::StartNextInlineAllocationStep() {
 
 intptr_t NewSpace::GetNextInlineAllocationStepSize() {
   intptr_t next_step = 0;
-  for (int i = 0; i < inline_allocation_observers_.length(); ++i) {
-    InlineAllocationObserver* o = inline_allocation_observers_[i];
+  for (int i = 0; i < allocation_observers_->length(); ++i) {
+    AllocationObserver* o = (*allocation_observers_)[i];
     next_step = next_step ? Min(next_step, o->bytes_to_next_step())
                           : o->bytes_to_next_step();
   }
-  DCHECK(inline_allocation_observers_.length() == 0 || next_step != 0);
+  DCHECK(allocation_observers_->length() == 0 || next_step != 0);
   return next_step;
 }
 
-
-void NewSpace::AddInlineAllocationObserver(InlineAllocationObserver* observer) {
-  inline_allocation_observers_.Add(observer);
+void NewSpace::AddAllocationObserver(AllocationObserver* observer) {
+  Space::AddAllocationObserver(observer);
   StartNextInlineAllocationStep();
 }
 
-
-void NewSpace::RemoveInlineAllocationObserver(
-    InlineAllocationObserver* observer) {
-  bool removed = inline_allocation_observers_.RemoveElement(observer);
-  // Only used in assertion. Suppress unused variable warning.
-  static_cast<void>(removed);
-  DCHECK(removed);
+void NewSpace::RemoveAllocationObserver(AllocationObserver* observer) {
+  Space::RemoveAllocationObserver(observer);
   StartNextInlineAllocationStep();
 }
 
-
-void NewSpace::PauseInlineAllocationObservers() {
+void NewSpace::PauseAllocationObservers() {
   // Do a step to account for memory allocated so far.
   InlineAllocationStep(top(), top(), nullptr, 0);
-  inline_allocation_observers_paused_ = true;
+  Space::PauseAllocationObservers();
   top_on_previous_step_ = 0;
   UpdateInlineAllocationLimit(0);
 }
 
-
-void NewSpace::ResumeInlineAllocationObservers() {
+void NewSpace::ResumeAllocationObservers() {
   DCHECK(top_on_previous_step_ == 0);
-  inline_allocation_observers_paused_ = false;
+  Space::ResumeAllocationObservers();
   StartNextInlineAllocationStep();
 }
 
@@ -1604,9 +1617,9 @@ void NewSpace::InlineAllocationStep(Address top, Address new_top,
                                     Address soon_object, size_t size) {
   if (top_on_previous_step_) {
     int bytes_allocated = static_cast<int>(top - top_on_previous_step_);
-    for (int i = 0; i < inline_allocation_observers_.length(); ++i) {
-      inline_allocation_observers_[i]->InlineAllocationStep(bytes_allocated,
-                                                            soon_object, size);
+    for (int i = 0; i < allocation_observers_->length(); ++i) {
+      (*allocation_observers_)[i]->AllocationStep(bytes_allocated, soon_object,
+                                                  size);
     }
     top_on_previous_step_ = new_top;
   }
@@ -2500,6 +2513,7 @@ HeapObject* FreeList::Allocate(int size_in_bytes) {
   int new_node_size = 0;
   FreeSpace* new_node = FindNodeFor(size_in_bytes, &new_node_size);
   if (new_node == nullptr) return nullptr;
+  owner_->AllocationStep(new_node->address(), size_in_bytes);
 
   int bytes_left = new_node_size - size_in_bytes;
   DCHECK(bytes_left >= 0);
@@ -3011,6 +3025,7 @@ AllocationResult LargeObjectSpace::AllocateRaw(int object_size,
   }
 
   heap()->incremental_marking()->OldSpaceStep(object_size);
+  AllocationStep(object->address(), object_size);
   return object;
 }
 

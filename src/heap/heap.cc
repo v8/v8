@@ -53,10 +53,10 @@ struct Heap::StrongRootsList {
   StrongRootsList* next;
 };
 
-class IdleScavengeObserver : public InlineAllocationObserver {
+class IdleScavengeObserver : public AllocationObserver {
  public:
   IdleScavengeObserver(Heap& heap, intptr_t step_size)
-      : InlineAllocationObserver(step_size), heap_(heap) {}
+      : AllocationObserver(step_size), heap_(heap) {}
 
   void Step(int bytes_allocated, Address, size_t) override {
     heap_.ScheduleIdleScavengeIfNeeded(bytes_allocated);
@@ -1414,7 +1414,7 @@ void Heap::CallGCEpilogueCallbacks(GCType gc_type,
 
 
 void Heap::MarkCompact() {
-  PauseInlineAllocationObserversScope pause_observers(new_space());
+  PauseAllocationObserversScope pause_observers(this);
 
   gc_state_ = MARK_COMPACT;
   LOG(isolate_, ResourceEvent("markcompact", "begin"));
@@ -1615,7 +1615,7 @@ void Heap::Scavenge() {
 
   // Bump-pointer allocations done during scavenge are not real allocations.
   // Pause the inline allocation steps.
-  PauseInlineAllocationObserversScope pause_observers(new_space());
+  PauseAllocationObserversScope pause_observers(this);
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) VerifyNonPointerSpacePointers(this);
@@ -5166,7 +5166,7 @@ bool Heap::SetUp() {
 
   idle_scavenge_observer_ = new IdleScavengeObserver(
       *this, ScavengeJob::kBytesAllocatedBeforeNextIdleTask);
-  new_space()->AddInlineAllocationObserver(idle_scavenge_observer_);
+  new_space()->AddAllocationObserver(idle_scavenge_observer_);
 
   return true;
 }
@@ -5266,7 +5266,7 @@ void Heap::TearDown() {
     PrintAlloctionsHash();
   }
 
-  new_space()->RemoveInlineAllocationObserver(idle_scavenge_observer_);
+  new_space()->RemoveAllocationObserver(idle_scavenge_observer_);
   delete idle_scavenge_observer_;
   idle_scavenge_observer_ = nullptr;
 

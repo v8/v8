@@ -492,12 +492,18 @@ AllocationResult PagedSpace::AllocateRawAligned(int size_in_bytes,
 AllocationResult PagedSpace::AllocateRaw(int size_in_bytes,
                                          AllocationAlignment alignment) {
 #ifdef V8_HOST_ARCH_32_BIT
-  return alignment == kDoubleAligned
-             ? AllocateRawAligned(size_in_bytes, kDoubleAligned)
-             : AllocateRawUnaligned(size_in_bytes);
+  AllocationResult result =
+      alignment == kDoubleAligned
+          ? AllocateRawAligned(size_in_bytes, kDoubleAligned)
+          : AllocateRawUnaligned(size_in_bytes);
 #else
-  return AllocateRawUnaligned(size_in_bytes);
+  AllocationResult result = AllocateRawUnaligned(size_in_bytes);
 #endif
+  HeapObject* heap_obj = nullptr;
+  if (!result.IsRetry() && result.To(&heap_obj)) {
+    AllocationStep(heap_obj->address(), size_in_bytes);
+  }
+  return result;
 }
 
 

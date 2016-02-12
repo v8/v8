@@ -275,6 +275,7 @@ namespace internal {
   PRIVATE_SYMBOL_LIST(V)
 
 // Forward declarations.
+class AllocationObserver;
 class ArrayBufferTracker;
 class GCIdleTimeAction;
 class GCIdleTimeHandler;
@@ -283,7 +284,6 @@ class GCTracer;
 class HeapObjectsFilter;
 class HeapStats;
 class HistogramTimer;
-class InlineAllocationObserver;
 class Isolate;
 class MemoryReducer;
 class ObjectStats;
@@ -2119,7 +2119,7 @@ class Heap {
 
   ScavengeJob* scavenge_job_;
 
-  InlineAllocationObserver* idle_scavenge_observer_;
+  AllocationObserver* idle_scavenge_observer_;
 
   // These two counters are monotomically increasing and never reset.
   size_t full_codegen_bytes_generated_;
@@ -2572,20 +2572,19 @@ class PathTracer : public ObjectVisitor {
 #endif  // DEBUG
 
 // -----------------------------------------------------------------------------
-// Allows observation of inline allocation in the new space.
-class InlineAllocationObserver {
+// Allows observation of allocations.
+class AllocationObserver {
  public:
-  explicit InlineAllocationObserver(intptr_t step_size)
+  explicit AllocationObserver(intptr_t step_size)
       : step_size_(step_size), bytes_to_next_step_(step_size) {
     DCHECK(step_size >= kPointerSize);
   }
-  virtual ~InlineAllocationObserver() {}
+  virtual ~AllocationObserver() {}
 
-  // Called each time the new space does an inline allocation step. This may be
+  // Called each time the observed space does an allocation step. This may be
   // more frequently than the step_size we are monitoring (e.g. when there are
   // multiple observers, or when page or space boundary is encountered.)
-  void InlineAllocationStep(int bytes_allocated, Address soon_object,
-                            size_t size) {
+  void AllocationStep(int bytes_allocated, Address soon_object, size_t size) {
     bytes_to_next_step_ -= bytes_allocated;
     if (bytes_to_next_step_ <= 0) {
       Step(static_cast<int>(step_size_ - bytes_to_next_step_), soon_object,
@@ -2620,8 +2619,10 @@ class InlineAllocationObserver {
   intptr_t bytes_to_next_step_;
 
  private:
+  friend class LargeObjectSpace;
   friend class NewSpace;
-  DISALLOW_COPY_AND_ASSIGN(InlineAllocationObserver);
+  friend class PagedSpace;
+  DISALLOW_COPY_AND_ASSIGN(AllocationObserver);
 };
 
 }  // namespace internal

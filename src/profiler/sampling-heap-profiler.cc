@@ -16,23 +16,52 @@
 namespace v8 {
 namespace internal {
 
+// We sample with a Poisson process, with constant average sampling interval.
+// This follows the exponential probability distribution with parameter
+// λ = 1/rate where rate is the average number of bytes between samples.
+//
+// Let u be a uniformly distributed random number between 0 and 1, then
+// next_sample = (- ln u) / λ
+intptr_t SamplingAllocationObserver::GetNextSampleInterval(uint64_t rate) {
+  if (FLAG_sampling_heap_profiler_suppress_randomness) {
+    return rate;
+  }
+  double u = random_->NextDouble();
+  double next = (-std::log(u)) * rate;
+  return next < kPointerSize
+             ? kPointerSize
+             : (next > INT_MAX ? INT_MAX : static_cast<intptr_t>(next));
+}
+
 SamplingHeapProfiler::SamplingHeapProfiler(Heap* heap, StringsStorage* names,
                                            uint64_t rate, int stack_depth)
-    : InlineAllocationObserver(GetNextSampleInterval(
-          heap->isolate()->random_number_generator(), rate)),
-      isolate_(heap->isolate()),
+    : isolate_(heap->isolate()),
       heap_(heap),
-      random_(isolate_->random_number_generator()),
+      new_space_observer_(new SamplingAllocationObserver(
+          heap_, rate, rate, this, heap->isolate()->random_number_generator())),
+      other_spaces_observer_(new SamplingAllocationObserver(
+          heap_, rate, rate, this, heap->isolate()->random_number_generator())),
       names_(names),
       samples_(),
-      rate_(rate),
       stack_depth_(stack_depth) {
-  heap->new_space()->AddInlineAllocationObserver(this);
+  heap->new_space()->AddAllocationObserver(new_space_observer_.get());
+  AllSpaces spaces(heap);
+  for (Space* space = spaces.next(); space != NULL; space = spaces.next()) {
+    if (space != heap->new_space()) {
+      space->AddAllocationObserver(other_spaces_observer_.get());
+    }
+  }
 }
 
 
 SamplingHeapProfiler::~SamplingHeapProfiler() {
-  heap_->new_space()->RemoveInlineAllocationObserver(this);
+  heap_->new_space()->RemoveAllocationObserver(new_space_observer_.get());
+  AllSpaces spaces(heap_);
+  for (Space* space = spaces.next(); space != NULL; space = spaces.next()) {
+    if (space != heap_->new_space()) {
+      space->RemoveAllocationObserver(other_spaces_observer_.get());
+    }
+  }
 
   // Clear samples and drop all the weak references we are keeping.
   std::set<SampledAllocation*>::iterator it;
@@ -41,13 +70,6 @@ SamplingHeapProfiler::~SamplingHeapProfiler() {
   }
   std::set<SampledAllocation*> empty;
   samples_.swap(empty);
-}
-
-void SamplingHeapProfiler::Step(int bytes_allocated, Address soon_object,
-                                size_t size) {
-  DCHECK(heap_->gc_state() == Heap::NOT_IN_GC);
-  DCHECK(soon_object);
-  SampleObject(soon_object, size);
 }
 
 
@@ -67,25 +89,6 @@ void SamplingHeapProfiler::SampleObject(Address soon_object, size_t size) {
   SampledAllocation* sample =
       new SampledAllocation(this, isolate_, loc, size, stack_depth_);
   samples_.insert(sample);
-}
-
-
-// We sample with a Poisson process, with constant average sampling interval.
-// This follows the exponential probability distribution with parameter
-// λ = 1/rate where rate is the average number of bytes between samples.
-//
-// Let u be a uniformly distributed random number between 0 and 1, then
-// next_sample = (- ln u) / λ
-intptr_t SamplingHeapProfiler::GetNextSampleInterval(
-    base::RandomNumberGenerator* random, uint64_t rate) {
-  if (FLAG_sampling_heap_profiler_suppress_randomness) {
-    return rate;
-  }
-  double u = random->NextDouble();
-  double next = (-std::log(u)) * rate;
-  return next < kPointerSize
-             ? kPointerSize
-             : (next > INT_MAX ? INT_MAX : static_cast<intptr_t>(next));
 }
 
 
@@ -159,8 +162,7 @@ SamplingHeapProfiler::SampledAllocation::SampledAllocation(
   }
 }
 
-
-SamplingHeapProfiler::Node* SamplingHeapProfiler::AllocateNode(
+v8::AllocationProfile::Node* SamplingHeapProfiler::AllocateNode(
     AllocationProfile* profile, const std::map<int, Script*>& scripts,
     FunctionInfo* function_info) {
   DCHECK(function_info->get_name());
@@ -180,37 +182,36 @@ SamplingHeapProfiler::Node* SamplingHeapProfiler::AllocateNode(
                                          function_info->get_start_position());
   }
 
-  profile->nodes().push_back(
-      Node({ToApiHandle<v8::String>(isolate_->factory()->InternalizeUtf8String(
-                function_info->get_name())),
-            ToApiHandle<v8::String>(isolate_->factory()->InternalizeUtf8String(
-                function_info->get_script_name())),
-            function_info->get_script_id(), function_info->get_start_position(),
-            line, column, std::vector<Node*>(),
-            std::vector<v8::AllocationProfile::Allocation>()}));
+  profile->nodes().push_back(v8::AllocationProfile::Node(
+      {ToApiHandle<v8::String>(isolate_->factory()->InternalizeUtf8String(
+           function_info->get_name())),
+       ToApiHandle<v8::String>(isolate_->factory()->InternalizeUtf8String(
+           function_info->get_script_name())),
+       function_info->get_script_id(), function_info->get_start_position(),
+       line, column, std::vector<v8::AllocationProfile::Node*>(),
+       std::vector<v8::AllocationProfile::Allocation>()}));
 
   return &profile->nodes().back();
 }
 
-
-SamplingHeapProfiler::Node* SamplingHeapProfiler::FindOrAddChildNode(
+v8::AllocationProfile::Node* SamplingHeapProfiler::FindOrAddChildNode(
     AllocationProfile* profile, const std::map<int, Script*>& scripts,
-    Node* parent, FunctionInfo* function_info) {
-  for (Node* child : parent->children) {
+    v8::AllocationProfile::Node* parent, FunctionInfo* function_info) {
+  for (v8::AllocationProfile::Node* child : parent->children) {
     if (child->script_id == function_info->get_script_id() &&
         child->start_position == function_info->get_start_position())
       return child;
   }
-  Node* child = AllocateNode(profile, scripts, function_info);
+  v8::AllocationProfile::Node* child =
+      AllocateNode(profile, scripts, function_info);
   parent->children.push_back(child);
   return child;
 }
 
-
-SamplingHeapProfiler::Node* SamplingHeapProfiler::AddStack(
+v8::AllocationProfile::Node* SamplingHeapProfiler::AddStack(
     AllocationProfile* profile, const std::map<int, Script*>& scripts,
     const std::vector<FunctionInfo*>& stack) {
-  Node* node = profile->GetRootNode();
+  v8::AllocationProfile::Node* node = profile->GetRootNode();
 
   // We need to process the stack in reverse order as the top of the stack is
   // the first element in the list.
@@ -241,7 +242,8 @@ v8::AllocationProfile* SamplingHeapProfiler::GetAllocationProfile() {
   AllocateNode(profile, scripts, &function_info);
 
   for (SampledAllocation* allocation : samples_) {
-    Node* node = AddStack(profile, scripts, allocation->get_stack());
+    v8::AllocationProfile::Node* node =
+        AddStack(profile, scripts, allocation->get_stack());
     node->allocations.push_back({allocation->get_size(), 1});
   }
 
