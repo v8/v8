@@ -1584,7 +1584,7 @@ TEST_P(InstructionSelectorF32ComparisonTest, NegatedWithParameters) {
   StreamBuilder m(this, MachineType::Int32(), MachineType::Float32(),
                   MachineType::Float32());
   m.Return(
-      m.WordBinaryNot((m.*cmp.constructor)(m.Parameter(0), m.Parameter(1))));
+      m.Word32BinaryNot((m.*cmp.constructor)(m.Parameter(0), m.Parameter(1))));
   Stream const s = m.Build();
   ASSERT_EQ(1U, s.size());
   EXPECT_EQ(kArmVcmpF32, s[0]->arch_opcode());
@@ -1667,7 +1667,7 @@ TEST_P(InstructionSelectorF64ComparisonTest, NegatedWithParameters) {
   StreamBuilder m(this, MachineType::Int32(), MachineType::Float64(),
                   MachineType::Float64());
   m.Return(
-      m.WordBinaryNot((m.*cmp.constructor)(m.Parameter(0), m.Parameter(1))));
+      m.Word32BinaryNot((m.*cmp.constructor)(m.Parameter(0), m.Parameter(1))));
   Stream const s = m.Build();
   ASSERT_EQ(1U, s.size());
   EXPECT_EQ(kArmVcmpF64, s[0]->arch_opcode());

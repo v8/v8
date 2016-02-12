@@ -150,20 +150,13 @@ class RawMachineAssembler {
     return AddNode(machine()->WordEqual(), a, b);
   }
   Node* WordNotEqual(Node* a, Node* b) {
-    return WordBinaryNot(WordEqual(a, b));
+    return Word32BinaryNot(WordEqual(a, b));
   }
   Node* WordNot(Node* a) {
     if (machine()->Is32()) {
       return Word32Not(a);
     } else {
       return Word64Not(a);
-    }
-  }
-  Node* WordBinaryNot(Node* a) {
-    if (machine()->Is32()) {
-      return Word32BinaryNot(a);
-    } else {
-      return Word64BinaryNot(a);
     }
   }
 
@@ -224,10 +217,9 @@ class RawMachineAssembler {
     return AddNode(machine()->Word64Equal(), a, b);
   }
   Node* Word64NotEqual(Node* a, Node* b) {
-    return Word64BinaryNot(Word64Equal(a, b));
+    return Word32BinaryNot(Word64Equal(a, b));
   }
   Node* Word64Not(Node* a) { return Word64Xor(a, Int64Constant(-1)); }
-  Node* Word64BinaryNot(Node* a) { return Word64Equal(a, Int64Constant(0)); }
 
   Node* Int32Add(Node* a, Node* b) {
     return AddNode(machine()->Int32Add(), a, b);
@@ -387,7 +379,7 @@ class RawMachineAssembler {
     return AddNode(machine()->Float32Equal(), a, b);
   }
   Node* Float32NotEqual(Node* a, Node* b) {
-    return WordBinaryNot(Float32Equal(a, b));
+    return Word32BinaryNot(Float32Equal(a, b));
   }
   Node* Float32LessThan(Node* a, Node* b) {
     return AddNode(machine()->Float32LessThan(), a, b);
@@ -427,7 +419,7 @@ class RawMachineAssembler {
     return AddNode(machine()->Float64Equal(), a, b);
   }
   Node* Float64NotEqual(Node* a, Node* b) {
-    return WordBinaryNot(Float64Equal(a, b));
+    return Word32BinaryNot(Float64Equal(a, b));
   }
   Node* Float64LessThan(Node* a, Node* b) {
     return AddNode(machine()->Float64LessThan(), a, b);
