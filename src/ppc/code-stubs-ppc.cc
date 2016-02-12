@@ -1540,62 +1540,6 @@ void LoadIndexedStringStub::Generate(MacroAssembler* masm) {
 }
 
 
-void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
-  // The displacement is the offset of the last parameter (if any)
-  // relative to the frame pointer.
-  const int kDisplacement =
-      StandardFrameConstants::kCallerSPOffset - kPointerSize;
-  DCHECK(r4.is(ArgumentsAccessReadDescriptor::index()));
-  DCHECK(r3.is(ArgumentsAccessReadDescriptor::parameter_count()));
-
-  // Check that the key is a smi.
-  Label slow;
-  __ JumpIfNotSmi(r4, &slow);
-
-  // Check if the calling frame is an arguments adaptor frame.
-  Label adaptor;
-  __ LoadP(r5, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-  __ LoadP(r6, MemOperand(r5, StandardFrameConstants::kContextOffset));
-  STATIC_ASSERT(StackFrame::ARGUMENTS_ADAPTOR < 0x3fffu);
-  __ CmpSmiLiteral(r6, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR), r0);
-  __ beq(&adaptor);
-
-  // Check index against formal parameters count limit passed in
-  // through register r3. Use unsigned comparison to get negative
-  // check for free.
-  __ cmpl(r4, r3);
-  __ bge(&slow);
-
-  // Read the argument from the stack and return it.
-  __ sub(r6, r3, r4);
-  __ SmiToPtrArrayOffset(r6, r6);
-  __ add(r6, fp, r6);
-  __ LoadP(r3, MemOperand(r6, kDisplacement));
-  __ blr();
-
-  // Arguments adaptor case: Check index against actual arguments
-  // limit found in the arguments adaptor frame. Use unsigned
-  // comparison to get negative check for free.
-  __ bind(&adaptor);
-  __ LoadP(r3, MemOperand(r5, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ cmpl(r4, r3);
-  __ bge(&slow);
-
-  // Read the argument from the adaptor frame and return it.
-  __ sub(r6, r3, r4);
-  __ SmiToPtrArrayOffset(r6, r6);
-  __ add(r6, r5, r6);
-  __ LoadP(r3, MemOperand(r6, kDisplacement));
-  __ blr();
-
-  // Slow-case: Handle non-smi or out-of-bounds access to arguments
-  // by calling the runtime system.
-  __ bind(&slow);
-  __ push(r4);
-  __ TailCallRuntime(Runtime::kArguments);
-}
-
-
 void ArgumentsAccessStub::GenerateNewSloppySlow(MacroAssembler* masm) {
   // r4 : function
   // r5 : number of parameters (tagged)

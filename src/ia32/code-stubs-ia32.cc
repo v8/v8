@@ -727,67 +727,6 @@ void LoadIndexedStringStub::Generate(MacroAssembler* masm) {
 }
 
 
-void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
-  // The key is in edx and the parameter count is in eax.
-  DCHECK(edx.is(ArgumentsAccessReadDescriptor::index()));
-  DCHECK(eax.is(ArgumentsAccessReadDescriptor::parameter_count()));
-
-  // The displacement is used for skipping the frame pointer on the
-  // stack. It is the offset of the last parameter (if any) relative
-  // to the frame pointer.
-  static const int kDisplacement = 1 * kPointerSize;
-
-  // Check that the key is a smi.
-  Label slow;
-  __ JumpIfNotSmi(edx, &slow, Label::kNear);
-
-  // Check if the calling frame is an arguments adaptor frame.
-  Label adaptor;
-  __ mov(ebx, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
-  __ mov(ecx, Operand(ebx, StandardFrameConstants::kContextOffset));
-  __ cmp(ecx, Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ j(equal, &adaptor, Label::kNear);
-
-  // Check index against formal parameters count limit passed in
-  // through register eax. Use unsigned comparison to get negative
-  // check for free.
-  __ cmp(edx, eax);
-  __ j(above_equal, &slow, Label::kNear);
-
-  // Read the argument from the stack and return it.
-  STATIC_ASSERT(kSmiTagSize == 1);
-  STATIC_ASSERT(kSmiTag == 0);  // Shifting code depends on these.
-  __ lea(ebx, Operand(ebp, eax, times_2, 0));
-  __ neg(edx);
-  __ mov(eax, Operand(ebx, edx, times_2, kDisplacement));
-  __ ret(0);
-
-  // Arguments adaptor case: Check index against actual arguments
-  // limit found in the arguments adaptor frame. Use unsigned
-  // comparison to get negative check for free.
-  __ bind(&adaptor);
-  __ mov(ecx, Operand(ebx, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ cmp(edx, ecx);
-  __ j(above_equal, &slow, Label::kNear);
-
-  // Read the argument from the stack and return it.
-  STATIC_ASSERT(kSmiTagSize == 1);
-  STATIC_ASSERT(kSmiTag == 0);  // Shifting code depends on these.
-  __ lea(ebx, Operand(ebx, ecx, times_2, 0));
-  __ neg(edx);
-  __ mov(eax, Operand(ebx, edx, times_2, kDisplacement));
-  __ ret(0);
-
-  // Slow-case: Handle non-smi or out-of-bounds access to arguments
-  // by calling the runtime system.
-  __ bind(&slow);
-  __ pop(ebx);  // Return address.
-  __ push(edx);
-  __ push(ebx);
-  __ TailCallRuntime(Runtime::kArguments);
-}
-
-
 void ArgumentsAccessStub::GenerateNewSloppySlow(MacroAssembler* masm) {
   // ecx : number of parameters (tagged)
   // edx : parameters pointer

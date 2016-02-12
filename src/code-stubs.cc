@@ -822,9 +822,6 @@ void StoreFastElementStub::GenerateAheadOfTime(Isolate* isolate) {
 
 void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
   switch (type()) {
-    case READ_ELEMENT:
-      GenerateReadElement(masm);
-      break;
     case NEW_SLOPPY_FAST:
       GenerateNewSloppyFast(masm);
       break;
@@ -838,9 +835,6 @@ void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
 void ArgumentsAccessStub::PrintName(std::ostream& os) const {  // NOLINT
   os << "ArgumentsAccessStub_";
   switch (type()) {
-    case READ_ELEMENT:
-      os << "ReadElement";
-      break;
     case NEW_SLOPPY_FAST:
       os << "NewSloppyFast";
       break;

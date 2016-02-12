@@ -2958,41 +2958,6 @@ void FullCodeGenerator::EmitObjectEquals(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitArguments(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK(args->length() == 1);
-
-  // ArgumentsAccessStub expects the key in x1.
-  VisitForAccumulatorValue(args->at(0));
-  __ Mov(x1, x0);
-  __ Mov(x0, Smi::FromInt(info_->scope()->num_parameters()));
-  ArgumentsAccessStub stub(isolate(), ArgumentsAccessStub::READ_ELEMENT);
-  __ CallStub(&stub);
-  context()->Plug(x0);
-}
-
-
-void FullCodeGenerator::EmitArgumentsLength(CallRuntime* expr) {
-  DCHECK(expr->arguments()->length() == 0);
-  Label exit;
-  // Get the number of formal parameters.
-  __ Mov(x0, Smi::FromInt(info_->scope()->num_parameters()));
-
-  // Check if the calling frame is an arguments adaptor frame.
-  __ Ldr(x12, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-  __ Ldr(x13, MemOperand(x12, StandardFrameConstants::kContextOffset));
-  __ Cmp(x13, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
-  __ B(ne, &exit);
-
-  // Arguments adaptor case: Read the arguments length from the
-  // adaptor frame.
-  __ Ldr(x0, MemOperand(x12, ArgumentsAdaptorFrameConstants::kLengthOffset));
-
-  __ Bind(&exit);
-  context()->Plug(x0);
-}
-
-
 void FullCodeGenerator::EmitClassOf(CallRuntime* expr) {
   ASM_LOCATION("FullCodeGenerator::EmitClassOf");
   ZoneList<Expression*>* args = expr->arguments();

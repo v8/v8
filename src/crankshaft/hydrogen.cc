@@ -12422,48 +12422,6 @@ void HOptimizedGraphBuilder::GenerateHasFastPackedElements(CallRuntime* call) {
 }
 
 
-// Support for arguments.length and arguments[?].
-void HOptimizedGraphBuilder::GenerateArgumentsLength(CallRuntime* call) {
-  DCHECK(call->arguments()->length() == 0);
-  HInstruction* result = NULL;
-  if (function_state()->outer() == NULL) {
-    HInstruction* elements = Add<HArgumentsElements>(false);
-    result = New<HArgumentsLength>(elements);
-  } else {
-    // Number of arguments without receiver.
-    int argument_count = environment()->
-        arguments_environment()->parameter_count() - 1;
-    result = New<HConstant>(argument_count);
-  }
-  return ast_context()->ReturnInstruction(result, call->id());
-}
-
-
-void HOptimizedGraphBuilder::GenerateArguments(CallRuntime* call) {
-  DCHECK(call->arguments()->length() == 1);
-  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
-  HValue* index = Pop();
-  HInstruction* result = NULL;
-  if (function_state()->outer() == NULL) {
-    HInstruction* elements = Add<HArgumentsElements>(false);
-    HInstruction* length = Add<HArgumentsLength>(elements);
-    HInstruction* checked_index = Add<HBoundsCheck>(index, length);
-    result = New<HAccessArgumentsAt>(elements, length, checked_index);
-  } else {
-    EnsureArgumentsArePushedForAccess();
-
-    // Number of arguments without receiver.
-    HInstruction* elements = function_state()->arguments_elements();
-    int argument_count = environment()->
-        arguments_environment()->parameter_count() - 1;
-    HInstruction* length = Add<HConstant>(argument_count);
-    HInstruction* checked_key = Add<HBoundsCheck>(index, length);
-    result = New<HAccessArgumentsAt>(elements, length, checked_key);
-  }
-  return ast_context()->ReturnInstruction(result, call->id());
-}
-
-
 void HOptimizedGraphBuilder::GenerateValueOf(CallRuntime* call) {
   DCHECK(call->arguments()->length() == 1);
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));

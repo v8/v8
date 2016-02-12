@@ -339,13 +339,6 @@ void ApiGetterDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
-
-void ArgumentsAccessReadDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {index(), parameter_count()};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
 FunctionType*
 ArgumentsAccessNewDescriptor::BuildCallInterfaceDescriptorFunctionType(
     Isolate* isolate, int paramater_count) {

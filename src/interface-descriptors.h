@@ -69,7 +69,6 @@ class PlatformInterfaceDescriptor;
   V(ApiFunction)                              \
   V(ApiAccessor)                              \
   V(ApiGetter)                                \
-  V(ArgumentsAccessRead)                      \
   V(ArgumentsAccessNew)                       \
   V(LoadGlobalViaContext)                     \
   V(StoreGlobalViaContext)                    \
@@ -706,15 +705,6 @@ class ApiGetterDescriptor : public CallInterfaceDescriptor {
                                                CallInterfaceDescriptor)
 
   static const Register function_address();
-};
-
-
-class ArgumentsAccessReadDescriptor : public CallInterfaceDescriptor {
- public:
-  DECLARE_DESCRIPTOR(ArgumentsAccessReadDescriptor, CallInterfaceDescriptor)
-
-  static const Register index();
-  static const Register parameter_count();
 };
 
 

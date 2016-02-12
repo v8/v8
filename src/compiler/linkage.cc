@@ -168,8 +168,6 @@ int Linkage::FrameStateInputCount(Runtime::FunctionId function) {
     case Runtime::kTraceEnter:
     case Runtime::kTraceExit:
       return 0;
-    case Runtime::kInlineArguments:
-    case Runtime::kInlineArgumentsLength:
     case Runtime::kInlineGetPrototype:
     case Runtime::kInlineRegExpConstructResult:
     case Runtime::kInlineRegExpExec:

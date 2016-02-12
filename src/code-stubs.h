@@ -1843,7 +1843,6 @@ class JSEntryStub : public PlatformCodeStub {
 class ArgumentsAccessStub: public PlatformCodeStub {
  public:
   enum Type {
-    READ_ELEMENT,
     NEW_SLOPPY_FAST,
     NEW_SLOPPY_SLOW,
   };
@@ -1853,11 +1852,7 @@ class ArgumentsAccessStub: public PlatformCodeStub {
   }
 
   CallInterfaceDescriptor GetCallInterfaceDescriptor() const override {
-    if (type() == READ_ELEMENT) {
-      return ArgumentsAccessReadDescriptor(isolate());
-    } else {
-      return ArgumentsAccessNewDescriptor(isolate());
-    }
+    return ArgumentsAccessNewDescriptor(isolate());
   }
 
   static Type ComputeType(bool has_duplicate_parameters) {
@@ -1871,13 +1866,12 @@ class ArgumentsAccessStub: public PlatformCodeStub {
  private:
   Type type() const { return TypeBits::decode(minor_key_); }
 
-  void GenerateReadElement(MacroAssembler* masm);
   void GenerateNewSloppyFast(MacroAssembler* masm);
   void GenerateNewSloppySlow(MacroAssembler* masm);
 
   void PrintName(std::ostream& os) const override;  // NOLINT
 
-  class TypeBits : public BitField<Type, 0, 2> {};
+  class TypeBits : public BitField<Type, 0, 1> {};
 
   DEFINE_PLATFORM_CODE_STUB(ArgumentsAccess, PlatformCodeStub);
 };

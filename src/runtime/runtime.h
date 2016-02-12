@@ -562,9 +562,7 @@ namespace internal {
   F(LoadLookupSlot, 1, 1)                  \
   F(LoadLookupSlotInsideTypeof, 1, 1)      \
   F(StoreLookupSlot_Sloppy, 2, 1)          \
-  F(StoreLookupSlot_Strict, 2, 1)          \
-  F(ArgumentsLength, 0, 1)                 \
-  F(Arguments, 1, 1)
+  F(StoreLookupSlot_Strict, 2, 1)
 
 #define FOR_EACH_INTRINSIC_SIMD(F)     \
   F(IsSimdValue, 1, 1)                 \

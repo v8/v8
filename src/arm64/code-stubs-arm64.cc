@@ -1626,57 +1626,6 @@ void InstanceOfStub::Generate(MacroAssembler* masm) {
 }
 
 
-void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
-  Register arg_count = ArgumentsAccessReadDescriptor::parameter_count();
-  Register key = ArgumentsAccessReadDescriptor::index();
-  DCHECK(arg_count.is(x0));
-  DCHECK(key.is(x1));
-
-  // The displacement is the offset of the last parameter (if any) relative
-  // to the frame pointer.
-  static const int kDisplacement =
-      StandardFrameConstants::kCallerSPOffset - kPointerSize;
-
-  // Check that the key is a smi.
-  Label slow;
-  __ JumpIfNotSmi(key, &slow);
-
-  // Check if the calling frame is an arguments adaptor frame.
-  Register local_fp = x11;
-  Register caller_fp = x11;
-  Register caller_ctx = x12;
-  Label skip_adaptor;
-  __ Ldr(caller_fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-  __ Ldr(caller_ctx, MemOperand(caller_fp,
-                                StandardFrameConstants::kContextOffset));
-  __ Cmp(caller_ctx, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
-  __ Csel(local_fp, fp, caller_fp, ne);
-  __ B(ne, &skip_adaptor);
-
-  // Load the actual arguments limit found in the arguments adaptor frame.
-  __ Ldr(arg_count, MemOperand(caller_fp,
-                               ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ Bind(&skip_adaptor);
-
-  // Check index against formal parameters count limit. Use unsigned comparison
-  // to get negative check for free: branch if key < 0 or key >= arg_count.
-  __ Cmp(key, arg_count);
-  __ B(hs, &slow);
-
-  // Read the argument from the stack and return it.
-  __ Sub(x10, arg_count, key);
-  __ Add(x10, local_fp, Operand::UntagSmiAndScale(x10, kPointerSizeLog2));
-  __ Ldr(x0, MemOperand(x10, kDisplacement));
-  __ Ret();
-
-  // Slow case: handle non-smi or out-of-bounds access to arguments by calling
-  // the runtime system.
-  __ Bind(&slow);
-  __ Push(key);
-  __ TailCallRuntime(Runtime::kArguments);
-}
-
-
 void ArgumentsAccessStub::GenerateNewSloppySlow(MacroAssembler* masm) {
   // x1 : function
   // x2 : number of parameters (tagged)

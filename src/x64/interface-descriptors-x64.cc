@@ -54,10 +54,6 @@ const Register StringCompareDescriptor::LeftRegister() { return rdx; }
 const Register StringCompareDescriptor::RightRegister() { return rax; }
 
 
-const Register ArgumentsAccessReadDescriptor::index() { return rdx; }
-const Register ArgumentsAccessReadDescriptor::parameter_count() { return rax; }
-
-
 const Register ArgumentsAccessNewDescriptor::function() { return rdi; }
 const Register ArgumentsAccessNewDescriptor::parameter_count() { return rcx; }
 const Register ArgumentsAccessNewDescriptor::parameter_pointer() { return rdx; }

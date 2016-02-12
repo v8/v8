@@ -534,64 +534,6 @@ void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
 }
 
 
-void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
-  // The key is in rdx and the parameter count is in rax.
-  DCHECK(rdx.is(ArgumentsAccessReadDescriptor::index()));
-  DCHECK(rax.is(ArgumentsAccessReadDescriptor::parameter_count()));
-
-  // Check that the key is a smi.
-  Label slow;
-  __ JumpIfNotSmi(rdx, &slow);
-
-  // Check if the calling frame is an arguments adaptor frame.  We look at the
-  // context offset, and if the frame is not a regular one, then we find a
-  // Smi instead of the context.  We can't use SmiCompare here, because that
-  // only works for comparing two smis.
-  Label adaptor;
-  __ movp(rbx, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
-  __ Cmp(Operand(rbx, StandardFrameConstants::kContextOffset),
-         Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
-  __ j(equal, &adaptor);
-
-  // Check index against formal parameters count limit passed in
-  // through register rax. Use unsigned comparison to get negative
-  // check for free.
-  __ cmpp(rdx, rax);
-  __ j(above_equal, &slow);
-
-  // Read the argument from the stack and return it.
-  __ SmiSub(rax, rax, rdx);
-  __ SmiToInteger32(rax, rax);
-  StackArgumentsAccessor args(rbp, rax, ARGUMENTS_DONT_CONTAIN_RECEIVER);
-  __ movp(rax, args.GetArgumentOperand(0));
-  __ Ret();
-
-  // Arguments adaptor case: Check index against actual arguments
-  // limit found in the arguments adaptor frame. Use unsigned
-  // comparison to get negative check for free.
-  __ bind(&adaptor);
-  __ movp(rcx, Operand(rbx, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ cmpp(rdx, rcx);
-  __ j(above_equal, &slow);
-
-  // Read the argument from the stack and return it.
-  __ SmiSub(rcx, rcx, rdx);
-  __ SmiToInteger32(rcx, rcx);
-  StackArgumentsAccessor adaptor_args(rbx, rcx,
-                                      ARGUMENTS_DONT_CONTAIN_RECEIVER);
-  __ movp(rax, adaptor_args.GetArgumentOperand(0));
-  __ Ret();
-
-  // Slow-case: Handle non-smi or out-of-bounds access to arguments
-  // by calling the runtime system.
-  __ bind(&slow);
-  __ PopReturnAddressTo(rbx);
-  __ Push(rdx);
-  __ PushReturnAddressFrom(rbx);
-  __ TailCallRuntime(Runtime::kArguments);
-}
-
-
 void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
   // rcx : number of parameters (tagged)
   // rdx : parameters pointer
