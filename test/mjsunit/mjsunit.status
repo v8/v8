@@ -353,9 +353,6 @@
   # TODO(jkummerow): Doesn't work correctly in GC stress.
   'regress/regress-crbug-500497': [SKIP],
 
-  # TODO(turbofan): Seems related to try-catch/try-finally in TF.
-  'es6/block-conflicts': [PASS, NO_VARIANTS],
-
   # Too slow for gc stress.
   'asm/embenchen/box2d': [SKIP],
 
