@@ -581,10 +581,6 @@
   'test-run-jsexceptions/ThrowMessagePosition': [FAIL],
   'test-api/TryCatchMixedNesting': [PASS, FAIL],
 
-  # TODO(rmcilroy,4689): Stack frame calling frame is_javascript() failure.
-  'test-log-stack-tracer/CFromJSStackTrace': [FAIL],
-  'test-log-stack-tracer/PureJSStackTrace': [FAIL],
-
   # TODO(rmcilroy,4680): Exception message assert failure.
   'test-api/CallICFastApi_SimpleSignature_Miss2WithProfiler': [PASS, FAIL],
   'test-api/InterceptorCallICFastApi_SimpleSignature_Miss3WithProfiler': [PASS, FAIL],
