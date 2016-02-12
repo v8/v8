@@ -99,9 +99,8 @@ void VerifyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (result.val) delete result.val;
 }
 
-
-v8::internal::wasm::WasmModuleIndex* TranslateAsmModule(i::ParseInfo* info,
-                                                        ErrorThrower* thrower) {
+v8::internal::wasm::WasmModuleIndex* TranslateAsmModule(
+    i::ParseInfo* info, i::Handle<i::Object> foreign, ErrorThrower* thrower) {
   info->set_global();
   info->set_lazy(false);
   info->set_allow_lazy_parsing(false);
@@ -125,7 +124,7 @@ v8::internal::wasm::WasmModuleIndex* TranslateAsmModule(i::ParseInfo* info,
   }
 
   auto module = v8::internal::wasm::AsmWasmBuilder(
-                    info->isolate(), info->zone(), info->literal())
+                    info->isolate(), info->zone(), info->literal(), foreign)
                     .Run();
   return module;
 }
@@ -189,7 +188,13 @@ void InstantiateModuleFromAsm(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i::Handle<i::Script> script = factory->NewScript(Utils::OpenHandle(*source));
   i::ParseInfo info(&zone, script);
 
-  auto module = TranslateAsmModule(&info, &thrower);
+  i::Handle<i::Object> foreign;
+  if (args.Length() > 1 && args[1]->IsObject()) {
+    Local<Object> local_foreign = Local<Object>::Cast(args[1]);
+    foreign = v8::Utils::OpenHandle(*local_foreign);
+  }
+
+  auto module = TranslateAsmModule(&info, foreign, &thrower);
   if (module == nullptr) {
     return;
   }

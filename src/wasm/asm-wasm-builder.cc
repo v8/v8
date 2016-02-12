@@ -27,7 +27,8 @@ namespace wasm {
 
 class AsmWasmBuilderImpl : public AstVisitor {
  public:
-  AsmWasmBuilderImpl(Isolate* isolate, Zone* zone, FunctionLiteral* literal)
+  AsmWasmBuilderImpl(Isolate* isolate, Zone* zone, FunctionLiteral* literal,
+                     Handle<Object> foreign)
       : local_variables_(HashMap::PointersMatch,
                          ZoneHashMap::kDefaultHashMapCapacity,
                          ZoneAllocationPolicy(zone)),
@@ -44,6 +45,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
         literal_(literal),
         isolate_(isolate),
         zone_(zone),
+        foreign_(foreign),
         cache_(TypeCache::Get()),
         breakable_blocks_(zone),
         block_size_(0),
@@ -559,6 +561,30 @@ class AsmWasmBuilderImpl : public AstVisitor {
   void VisitAssignment(Assignment* expr) {
     bool in_init = false;
     if (!in_function_) {
+      BinaryOperation* binop = expr->value()->AsBinaryOperation();
+      if (binop != nullptr) {
+        Property* prop = binop->left()->AsProperty();
+        DCHECK(prop != nullptr);
+        LoadInitFunction();
+        is_set_op_ = true;
+        RECURSE(Visit(expr->target()));
+        DCHECK(!is_set_op_);
+        if (binop->op() == Token::MUL) {
+          DCHECK(binop->right()->IsLiteral());
+          DCHECK(binop->right()->AsLiteral()->raw_value()->AsNumber() == 1.0);
+          DCHECK(binop->right()->AsLiteral()->raw_value()->ContainsDot());
+          VisitForeignVariable(true, prop);
+        } else if (binop->op() == Token::BIT_OR) {
+          DCHECK(binop->right()->IsLiteral());
+          DCHECK(binop->right()->AsLiteral()->raw_value()->AsNumber() == 0.0);
+          DCHECK(!binop->right()->AsLiteral()->raw_value()->ContainsDot());
+          VisitForeignVariable(false, prop);
+        } else {
+          UNREACHABLE();
+        }
+        UnLoadInitFunction();
+        return;
+      }
       // TODO(bradnelson): Get rid of this.
       if (TypeOf(expr->value()) == kAstStmt) {
         Property* prop = expr->value()->AsProperty();
@@ -609,6 +635,55 @@ class AsmWasmBuilderImpl : public AstVisitor {
   void VisitYield(Yield* expr) { UNREACHABLE(); }
 
   void VisitThrow(Throw* expr) { UNREACHABLE(); }
+
+  void VisitForeignVariable(bool is_float, Property* expr) {
+    DCHECK(expr->obj()->AsVariableProxy());
+    DCHECK(expr->obj()->AsVariableProxy()->var()->location() ==
+           VariableLocation::PARAMETER);
+    DCHECK(expr->obj()->AsVariableProxy()->var()->index() == 1);
+    Literal* key_literal = expr->key()->AsLiteral();
+    DCHECK(key_literal != nullptr);
+    if (!key_literal->value().is_null() && !foreign_.is_null() &&
+        foreign_->IsObject()) {
+      Handle<Name> name =
+          i::Object::ToName(isolate_, key_literal->value()).ToHandleChecked();
+      MaybeHandle<Object> maybe_value = i::Object::GetProperty(foreign_, name);
+      if (!maybe_value.is_null()) {
+        Handle<Object> value = maybe_value.ToHandleChecked();
+        if (is_float) {
+          MaybeHandle<Object> maybe_nvalue = i::Object::ToNumber(value);
+          if (!maybe_nvalue.is_null()) {
+            Handle<Object> nvalue = maybe_nvalue.ToHandleChecked();
+            if (nvalue->IsNumber()) {
+              double val = nvalue->Number();
+              byte code[] = {WASM_F64(val)};
+              current_function_builder_->EmitCode(code, sizeof(code));
+              return;
+            }
+          }
+        } else {
+          MaybeHandle<Object> maybe_nvalue =
+              i::Object::ToInt32(isolate_, value);
+          if (!maybe_nvalue.is_null()) {
+            Handle<Object> nvalue = maybe_nvalue.ToHandleChecked();
+            if (nvalue->IsNumber()) {
+              int32_t val = static_cast<int32_t>(nvalue->Number());
+              byte code[] = {WASM_I32(val)};
+              current_function_builder_->EmitCode(code, sizeof(code));
+              return;
+            }
+          }
+        }
+      }
+    }
+    if (is_float) {
+      byte code[] = {WASM_F64(std::numeric_limits<double>::quiet_NaN())};
+      current_function_builder_->EmitCode(code, sizeof(code));
+    } else {
+      byte code[] = {WASM_I32(0)};
+      current_function_builder_->EmitCode(code, sizeof(code));
+    }
+  }
 
   void VisitProperty(Property* expr) {
     Expression* obj = expr->obj();
@@ -1173,6 +1248,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
   FunctionLiteral* literal_;
   Isolate* isolate_;
   Zone* zone_;
+  Handle<Object> foreign_;
   TypeCache const& cache_;
   ZoneVector<std::pair<BreakableStatement*, bool>> breakable_blocks_;
   int block_size_;
@@ -1188,13 +1264,13 @@ class AsmWasmBuilderImpl : public AstVisitor {
 };
 
 AsmWasmBuilder::AsmWasmBuilder(Isolate* isolate, Zone* zone,
-                               FunctionLiteral* literal)
-    : isolate_(isolate), zone_(zone), literal_(literal) {}
+                               FunctionLiteral* literal, Handle<Object> foreign)
+    : isolate_(isolate), zone_(zone), literal_(literal), foreign_(foreign) {}
 
 // TODO(aseemgarg): probably should take zone (to write wasm to) as input so
 // that zone in constructor may be thrown away once wasm module is written.
 WasmModuleIndex* AsmWasmBuilder::Run() {
-  AsmWasmBuilderImpl impl(isolate_, zone_, literal_);
+  AsmWasmBuilderImpl impl(isolate_, zone_, literal_, foreign_);
   impl.Compile();
   WasmModuleWriter* writer = impl.builder_->Build(zone_);
   return writer->WriteTo(zone_);
