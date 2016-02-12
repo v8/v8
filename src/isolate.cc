@@ -1112,6 +1112,13 @@ Object* Isolate::UnwindAndFindHandler() {
 
         // Gather information from the frame.
         code = frame->LookupCode();
+        if (code->marked_for_deoptimization()) {
+          // If the target code is lazy deoptimized, we jump to the original
+          // return address, but we make a note that we are throwing, so that
+          // the deoptimizer can do the right thing.
+          offset = static_cast<int>(frame->pc() - code->entry());
+          set_deoptimizer_lazy_throw(true);
+        }
         handler_sp = return_sp;
         handler_fp = frame->fp();
         break;
@@ -1755,7 +1762,6 @@ void Isolate::ThreadDataTable::RemoveAllThreads(Isolate* isolate) {
 #define TRACE_ISOLATE(tag)
 #endif
 
-
 Isolate::Isolate(bool enable_serializer)
     : embedder_data_(),
       entry_stack_(NULL),
@@ -1771,6 +1777,7 @@ Isolate::Isolate(bool enable_serializer)
       stub_cache_(NULL),
       code_aging_helper_(NULL),
       deoptimizer_data_(NULL),
+      deoptimizer_lazy_throw_(false),
       materialized_object_store_(NULL),
       capture_stack_trace_for_uncaught_exceptions_(false),
       stack_trace_for_uncaught_exceptions_frame_limit_(0),

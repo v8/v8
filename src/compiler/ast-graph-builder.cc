@@ -431,10 +431,13 @@ class AstGraphBuilder::FrameStateBeforeAndAfter {
       DCHECK_EQ(IrOpcode::kDead,
                 NodeProperties::GetFrameStateInput(node, 0)->opcode());
 
+      bool node_has_exception = NodeProperties::IsExceptionalCall(node);
+
       Node* frame_state_after =
           id_after == BailoutId::None()
               ? builder_->jsgraph()->EmptyFrameState()
-              : builder_->environment()->Checkpoint(id_after, combine);
+              : builder_->environment()->Checkpoint(id_after, combine,
+                                                    node_has_exception);
 
       NodeProperties::ReplaceFrameStateInput(node, 0, frame_state_after);
     }
@@ -869,9 +872,9 @@ void AstGraphBuilder::Environment::UpdateStateValuesWithCache(
       env_values, static_cast<size_t>(count));
 }
 
-
-Node* AstGraphBuilder::Environment::Checkpoint(
-    BailoutId ast_id, OutputFrameStateCombine combine) {
+Node* AstGraphBuilder::Environment::Checkpoint(BailoutId ast_id,
+                                               OutputFrameStateCombine combine,
+                                               bool owner_has_exception) {
   if (!builder()->info()->is_deoptimization_enabled()) {
     return builder()->jsgraph()->EmptyFrameState();
   }
@@ -891,7 +894,15 @@ Node* AstGraphBuilder::Environment::Checkpoint(
 
   DCHECK(IsLivenessBlockConsistent());
   if (liveness_block() != nullptr) {
-    liveness_block()->Checkpoint(result);
+    // If the owning node has an exception, register the checkpoint to the
+    // predecessor so that the checkpoint is used for both the normal and the
+    // exceptional paths. Yes, this is a terrible hack and we might want
+    // to use an explicit frame state for the exceptional path.
+    if (owner_has_exception) {
+      liveness_block()->GetPredecessor()->Checkpoint(result);
+    } else {
+      liveness_block()->Checkpoint(result);
+    }
   }
   return result;
 }
@@ -4042,8 +4053,10 @@ void AstGraphBuilder::PrepareFrameState(Node* node, BailoutId ast_id,
 
     DCHECK_EQ(IrOpcode::kDead,
               NodeProperties::GetFrameStateInput(node, 0)->opcode());
+    bool node_has_exception = NodeProperties::IsExceptionalCall(node);
     NodeProperties::ReplaceFrameStateInput(
-        node, 0, environment()->Checkpoint(ast_id, combine));
+        node, 0,
+        environment()->Checkpoint(ast_id, combine, node_has_exception));
   }
 }
 

@@ -96,6 +96,8 @@ class FullCodeGenerator: public AstVisitor {
 #error Unsupported target architecture.
 #endif
 
+  static Register result_register();
+
  private:
   class Breakable;
   class Iteration;
@@ -741,7 +743,6 @@ class FullCodeGenerator: public AstVisitor {
   FunctionLiteral* literal() const { return info_->literal(); }
   Scope* scope() { return scope_; }
 
-  static Register result_register();
   static Register context_register();
 
   // Set fields in the stack frame. Offsets are the frame pointer relative

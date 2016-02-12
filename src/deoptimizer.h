@@ -597,8 +597,8 @@ class Deoptimizer : public Malloced {
   void DeleteFrameDescriptions();
 
   void DoComputeOutputFrames();
-  void DoComputeJSFrame(int frame_index);
-  void DoComputeInterpretedFrame(int frame_index);
+  void DoComputeJSFrame(int frame_index, bool goto_catch_handler);
+  void DoComputeInterpretedFrame(int frame_index, bool goto_catch_handler);
   void DoComputeArgumentsAdaptorFrame(int frame_index);
   void DoComputeConstructStubFrame(int frame_index);
   void DoComputeAccessorStubFrame(int frame_index, bool is_setter_stub_frame);
@@ -671,6 +671,9 @@ class Deoptimizer : public Malloced {
   Address from_;
   int fp_to_sp_delta_;
   int has_alignment_padding_;
+  bool deoptimizing_throw_;
+  int catch_handler_data_;
+  int catch_handler_pc_offset_;
 
   // Input frame description.
   FrameDescription* input_;

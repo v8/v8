@@ -502,7 +502,6 @@ const char* Deoptimizer::MessageFor(BailoutType type) {
   return NULL;
 }
 
-
 Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction* function,
                          BailoutType type, unsigned bailout_id, Address from,
                          int fp_to_sp_delta, Code* optimized_code)
@@ -513,11 +512,19 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction* function,
       from_(from),
       fp_to_sp_delta_(fp_to_sp_delta),
       has_alignment_padding_(0),
+      deoptimizing_throw_(false),
+      catch_handler_data_(-1),
+      catch_handler_pc_offset_(-1),
       input_(nullptr),
       output_count_(0),
       jsframe_count_(0),
       output_(nullptr),
       trace_scope_(nullptr) {
+  if (isolate->deoptimizer_lazy_throw()) {
+    isolate->set_deoptimizer_lazy_throw(false);
+    deoptimizing_throw_ = true;
+  }
+
   // For COMPILED_STUBs called from builtins, the function pointer is a SMI
   // indicating an internal frame.
   if (function->IsSmi()) {
@@ -691,6 +698,41 @@ int Deoptimizer::GetDeoptimizedCodeCount(Isolate* isolate) {
   return length;
 }
 
+namespace {
+
+int LookupCatchHandler(TranslatedFrame* translated_frame, int* data_out) {
+  switch (translated_frame->kind()) {
+    case TranslatedFrame::kFunction: {
+      BailoutId node_id = translated_frame->node_id();
+      JSFunction* function =
+          JSFunction::cast(translated_frame->begin()->GetRawValue());
+      Code* non_optimized_code = function->shared()->code();
+      FixedArray* raw_data = non_optimized_code->deoptimization_data();
+      DeoptimizationOutputData* data = DeoptimizationOutputData::cast(raw_data);
+      unsigned pc_and_state =
+          Deoptimizer::GetOutputInfo(data, node_id, function->shared());
+      unsigned pc_offset = FullCodeGenerator::PcField::decode(pc_and_state);
+      HandlerTable* table =
+          HandlerTable::cast(non_optimized_code->handler_table());
+      HandlerTable::CatchPrediction prediction;
+      return table->LookupRange(pc_offset, data_out, &prediction);
+    }
+    case TranslatedFrame::kInterpretedFunction: {
+      int bytecode_offset = translated_frame->node_id().ToInt();
+      JSFunction* function =
+          JSFunction::cast(translated_frame->begin()->GetRawValue());
+      BytecodeArray* bytecode = function->shared()->bytecode_array();
+      HandlerTable* table = HandlerTable::cast(bytecode->handler_table());
+      HandlerTable::CatchPrediction prediction;
+      return table->LookupRange(bytecode_offset, data_out, &prediction);
+    }
+    default:
+      break;
+  }
+  return -1;
+}
+
+}  // namespace
 
 // We rely on this function not causing a GC.  It is called from generated code
 // without having a real stack frame in place.
@@ -731,6 +773,22 @@ void Deoptimizer::DoComputeOutputFrames() {
 
   // Do the input frame to output frame(s) translation.
   size_t count = translated_state_.frames().size();
+  // If we are supposed to go to the catch handler, find the catching frame
+  // for the catch and make sure we only deoptimize upto that frame.
+  if (deoptimizing_throw_) {
+    size_t catch_handler_frame_index = count;
+    for (size_t i = count; i-- > 0;) {
+      catch_handler_pc_offset_ = LookupCatchHandler(
+          &(translated_state_.frames()[i]), &catch_handler_data_);
+      if (catch_handler_pc_offset_ >= 0) {
+        catch_handler_frame_index = i;
+        break;
+      }
+    }
+    CHECK_LT(catch_handler_frame_index, count);
+    count = catch_handler_frame_index + 1;
+  }
+
   DCHECK(output_ == NULL);
   output_ = new FrameDescription*[count];
   for (size_t i = 0; i < count; ++i) {
@@ -749,11 +807,12 @@ void Deoptimizer::DoComputeOutputFrames() {
     int frame_index = static_cast<int>(i);
     switch (translated_state_.frames()[i].kind()) {
       case TranslatedFrame::kFunction:
-        DoComputeJSFrame(frame_index);
+        DoComputeJSFrame(frame_index, deoptimizing_throw_ && i == count - 1);
         jsframe_count_++;
         break;
       case TranslatedFrame::kInterpretedFunction:
-        DoComputeInterpretedFrame(frame_index);
+        DoComputeInterpretedFrame(frame_index,
+                                  deoptimizing_throw_ && i == count - 1);
         jsframe_count_++;
         break;
       case TranslatedFrame::kArgumentsAdaptor:
@@ -798,19 +857,28 @@ void Deoptimizer::DoComputeOutputFrames() {
   }
 }
 
-
-void Deoptimizer::DoComputeJSFrame(int frame_index) {
+void Deoptimizer::DoComputeJSFrame(int frame_index, bool goto_catch_handler) {
   TranslatedFrame* translated_frame =
       &(translated_state_.frames()[frame_index]);
   SharedFunctionInfo* shared = translated_frame->raw_shared_info();
 
   TranslatedFrame::iterator value_iterator = translated_frame->begin();
+  bool is_bottommost = (0 == frame_index);
+  bool is_topmost = (output_count_ - 1 == frame_index);
   int input_index = 0;
 
   BailoutId node_id = translated_frame->node_id();
   unsigned height =
       translated_frame->height() - 1;  // Do not count the context.
   unsigned height_in_bytes = height * kPointerSize;
+  if (goto_catch_handler) {
+    // Take the stack height from the handler table.
+    height = catch_handler_data_;
+    // We also make space for the exception itself.
+    height_in_bytes = (height + 1) * kPointerSize;
+    DCHECK(is_topmost);
+  }
+
   JSFunction* function = JSFunction::cast(value_iterator->GetRawValue());
   value_iterator++;
   input_index++;
@@ -820,6 +888,8 @@ void Deoptimizer::DoComputeJSFrame(int frame_index) {
     PrintF(trace_scope_->file(), "%s", name.get());
     PrintF(trace_scope_->file(),
            " => node=%d, height=%d\n", node_id.ToInt(), height_in_bytes);
+    PrintF(trace_scope_->file(), " => node=%d, height=%d%s\n", node_id.ToInt(),
+           height_in_bytes, goto_catch_handler ? " (throw)" : "");
   }
 
   // The 'fixed' part of the frame consists of the incoming parameters and
@@ -833,8 +903,6 @@ void Deoptimizer::DoComputeJSFrame(int frame_index) {
       new(output_frame_size) FrameDescription(output_frame_size, function);
   output_frame->SetFrameType(StackFrame::JAVA_SCRIPT);
 
-  bool is_bottommost = (0 == frame_index);
-  bool is_topmost = (output_count_ - 1 == frame_index);
   CHECK(frame_index >= 0 && frame_index < output_count_);
   CHECK_NULL(output_[frame_index]);
   output_[frame_index] = output_frame;
@@ -935,8 +1003,20 @@ void Deoptimizer::DoComputeJSFrame(int frame_index) {
   Register context_reg = JavaScriptFrame::context_register();
   output_offset -= kPointerSize;
   input_offset -= kPointerSize;
+
+  TranslatedFrame::iterator context_pos = value_iterator;
+  int context_input_index = input_index;
+  // When deoptimizing into a catch block, we need to take the context
+  // from just above the top of the operand stack (we push the context
+  // at the entry of the try block).
+  if (goto_catch_handler) {
+    for (unsigned i = 0; i < height + 1; ++i) {
+      context_pos++;
+      context_input_index++;
+    }
+  }
   // Read the context from the translations.
-  Object* context = value_iterator->GetRawValue();
+  Object* context = context_pos->GetRawValue();
   if (context == isolate_->heap()->undefined_value()) {
     // If the context was optimized away, just use the context from
     // the activation. This should only apply to Crankshaft code.
@@ -949,13 +1029,13 @@ void Deoptimizer::DoComputeJSFrame(int frame_index) {
   value = reinterpret_cast<intptr_t>(context);
   output_frame->SetContext(value);
   if (is_topmost) output_frame->SetRegister(context_reg.code(), value);
-  WriteValueToOutput(context, input_index, frame_index, output_offset,
+  WriteValueToOutput(context, context_input_index, frame_index, output_offset,
                      "context    ");
   if (context == isolate_->heap()->arguments_marker()) {
     Address output_address =
         reinterpret_cast<Address>(output_[frame_index]->GetTop()) +
         output_offset;
-    values_to_materialize_.push_back({output_address, value_iterator});
+    values_to_materialize_.push_back({output_address, context_pos});
   }
   value_iterator++;
   input_index++;
@@ -975,19 +1055,19 @@ void Deoptimizer::DoComputeJSFrame(int frame_index) {
     WriteTranslatedValueToOutput(&value_iterator, &input_index, frame_index,
                                  output_offset);
   }
+  if (goto_catch_handler) {
+    // Write out the exception for the catch handler.
+    output_offset -= kPointerSize;
+    Object* exception_obj = reinterpret_cast<Object*>(
+        input_->GetRegister(FullCodeGenerator::result_register().code()));
+    WriteValueToOutput(exception_obj, input_index, frame_index, output_offset,
+                       "exception   ");
+    input_index++;
+  }
   CHECK_EQ(0u, output_offset);
 
-  // Compute this frame's PC, state, and continuation.
-  Code* non_optimized_code = shared->code();
-  FixedArray* raw_data = non_optimized_code->deoptimization_data();
-  DeoptimizationOutputData* data = DeoptimizationOutputData::cast(raw_data);
-  Address start = non_optimized_code->instruction_start();
-  unsigned pc_and_state = GetOutputInfo(data, node_id, shared);
-  unsigned pc_offset = FullCodeGenerator::PcField::decode(pc_and_state);
-  intptr_t pc_value = reinterpret_cast<intptr_t>(start + pc_offset);
-  output_frame->SetPc(pc_value);
-
   // Update constant pool.
+  Code* non_optimized_code = shared->code();
   if (FLAG_enable_embedded_constant_pool) {
     intptr_t constant_pool_value =
         reinterpret_cast<intptr_t>(non_optimized_code->constant_pool());
@@ -999,8 +1079,22 @@ void Deoptimizer::DoComputeJSFrame(int frame_index) {
     }
   }
 
+  // Compute this frame's PC, state, and continuation.
+  FixedArray* raw_data = non_optimized_code->deoptimization_data();
+  DeoptimizationOutputData* data = DeoptimizationOutputData::cast(raw_data);
+  Address start = non_optimized_code->instruction_start();
+  unsigned pc_and_state = GetOutputInfo(data, node_id, function->shared());
+  unsigned pc_offset = goto_catch_handler
+                           ? catch_handler_pc_offset_
+                           : FullCodeGenerator::PcField::decode(pc_and_state);
+  intptr_t pc_value = reinterpret_cast<intptr_t>(start + pc_offset);
+  output_frame->SetPc(pc_value);
+
+  // If we are going to the catch handler, then the exception lives in
+  // the accumulator.
   FullCodeGenerator::State state =
-      FullCodeGenerator::StateField::decode(pc_and_state);
+      goto_catch_handler ? FullCodeGenerator::TOS_REG
+                         : FullCodeGenerator::StateField::decode(pc_and_state);
   output_frame->SetState(Smi::FromInt(state));
 
   // Set the continuation for the topmost frame.
@@ -1019,8 +1113,8 @@ void Deoptimizer::DoComputeJSFrame(int frame_index) {
   }
 }
 
-
-void Deoptimizer::DoComputeInterpretedFrame(int frame_index) {
+void Deoptimizer::DoComputeInterpretedFrame(int frame_index,
+                                            bool goto_catch_handler) {
   TranslatedFrame* translated_frame =
       &(translated_state_.frames()[frame_index]);
   SharedFunctionInfo* shared = translated_frame->raw_shared_info();
@@ -1028,7 +1122,7 @@ void Deoptimizer::DoComputeInterpretedFrame(int frame_index) {
   TranslatedFrame::iterator value_iterator = translated_frame->begin();
   int input_index = 0;
 
-  BailoutId bytecode_offset = translated_frame->node_id();
+  int bytecode_offset = translated_frame->node_id().ToInt();
   unsigned height = translated_frame->height();
   unsigned height_in_bytes = height * kPointerSize;
   JSFunction* function = JSFunction::cast(value_iterator->GetRawValue());
@@ -1038,8 +1132,12 @@ void Deoptimizer::DoComputeInterpretedFrame(int frame_index) {
     PrintF(trace_scope_->file(), "  translating interpreted frame ");
     base::SmartArrayPointer<char> name = shared->DebugName()->ToCString();
     PrintF(trace_scope_->file(), "%s", name.get());
-    PrintF(trace_scope_->file(), " => bytecode_offset=%d, height=%d\n",
-           bytecode_offset.ToInt(), height_in_bytes);
+    PrintF(trace_scope_->file(), " => bytecode_offset=%d, height=%d%s\n",
+           bytecode_offset, height_in_bytes,
+           goto_catch_handler ? " (throw)" : "");
+  }
+  if (goto_catch_handler) {
+    bytecode_offset = catch_handler_pc_offset_;
   }
 
   // The 'fixed' part of the frame consists of the incoming parameters and
@@ -1151,14 +1249,27 @@ void Deoptimizer::DoComputeInterpretedFrame(int frame_index) {
   Register context_reg = InterpretedFrame::context_register();
   output_offset -= kPointerSize;
   input_offset -= kPointerSize;
+
+  // When deoptimizing into a catch block, we need to take the context
+  // from a register that was specified in the handler table.
+  TranslatedFrame::iterator context_pos = value_iterator;
+  int context_input_index = input_index;
+  if (goto_catch_handler) {
+    // Skip to the translated value of the register specified
+    // in the handler table.
+    for (int i = 0; i < catch_handler_data_ + 1; ++i) {
+      context_pos++;
+      context_input_index++;
+    }
+  }
   // Read the context from the translations.
-  Object* context = value_iterator->GetRawValue();
+  Object* context = context_pos->GetRawValue();
   // The context should not be a placeholder for a materialized object.
   CHECK(context != isolate_->heap()->arguments_marker());
   value = reinterpret_cast<intptr_t>(context);
   output_frame->SetContext(value);
   if (is_topmost) output_frame->SetRegister(context_reg.code(), value);
-  WriteValueToOutput(context, input_index, frame_index, output_offset,
+  WriteValueToOutput(context, context_input_index, frame_index, output_offset,
                      "context    ");
   value_iterator++;
   input_index++;
@@ -1191,7 +1302,7 @@ void Deoptimizer::DoComputeInterpretedFrame(int frame_index) {
   output_offset -= kPointerSize;
   input_offset -= kPointerSize;
   int raw_bytecode_offset =
-      BytecodeArray::kHeaderSize - kHeapObjectTag + bytecode_offset.ToInt();
+      BytecodeArray::kHeaderSize - kHeapObjectTag + bytecode_offset;
   Smi* smi_bytecode_offset = Smi::FromInt(raw_bytecode_offset);
   WriteValueToOutput(smi_bytecode_offset, 0, frame_index, output_offset,
                      "bytecode offset ");
@@ -1204,10 +1315,15 @@ void Deoptimizer::DoComputeInterpretedFrame(int frame_index) {
   }
   CHECK_EQ(0u, output_offset);
 
-  // Set the accumulator register.
-  output_frame->SetRegister(
-      kInterpreterAccumulatorRegister.code(),
-      reinterpret_cast<intptr_t>(value_iterator->GetRawValue()));
+  // Set the accumulator register. If we are lazy deopting to a catch handler,
+  // we set the accumulator to the exception (which lives in the result
+  // register).
+  intptr_t accumulator_value =
+      goto_catch_handler
+          ? input_->GetRegister(FullCodeGenerator::result_register().code())
+          : reinterpret_cast<intptr_t>(value_iterator->GetRawValue());
+  output_frame->SetRegister(kInterpreterAccumulatorRegister.code(),
+                            accumulator_value);
   value_iterator++;
 
   Builtins* builtins = isolate_->builtins();

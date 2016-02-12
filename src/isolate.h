@@ -820,6 +820,10 @@ class Isolate {
   StubCache* stub_cache() { return stub_cache_; }
   CodeAgingHelper* code_aging_helper() { return code_aging_helper_; }
   DeoptimizerData* deoptimizer_data() { return deoptimizer_data_; }
+  bool deoptimizer_lazy_throw() const { return deoptimizer_lazy_throw_; }
+  void set_deoptimizer_lazy_throw(bool value) {
+    deoptimizer_lazy_throw_ = value;
+  }
   ThreadLocalTop* thread_local_top() { return &thread_local_top_; }
   MaterializedObjectStore* materialized_object_store() {
     return materialized_object_store_;
@@ -1218,6 +1222,7 @@ class Isolate {
   StubCache* stub_cache_;
   CodeAgingHelper* code_aging_helper_;
   DeoptimizerData* deoptimizer_data_;
+  bool deoptimizer_lazy_throw_;
   MaterializedObjectStore* materialized_object_store_;
   ThreadLocalTop thread_local_top_;
   bool capture_stack_trace_for_uncaught_exceptions_;

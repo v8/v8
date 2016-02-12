@@ -518,7 +518,8 @@ class AstGraphBuilder::Environment : public ZoneObject {
   // Preserve a checkpoint of the environment for the IR graph. Any
   // further mutation of the environment will not affect checkpoints.
   Node* Checkpoint(BailoutId ast_id, OutputFrameStateCombine combine =
-                                         OutputFrameStateCombine::Ignore());
+                                         OutputFrameStateCombine::Ignore(),
+                   bool node_has_exception = false);
 
   // Control dependency tracked by this environment.
   Node* GetControlDependency() { return control_dependency_; }
