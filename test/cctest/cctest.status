@@ -627,33 +627,6 @@
   'test-heap/TestCodeFlushingIncrementalAbort': [PASS, FAIL],
   'test-cpu-profiler/SourceLocation': [PASS, FAIL],
   'test-serialize/SerializeInternalReference': [PASS, FAIL],
-
-  # TODO(rmcilroy,4680): DCHECK(shared->function_data()->IsUndefined()) in
-  # compiler.cc GetUnoptimizedCodeCommon() or timeout in release mode.
-  'test-func-name-inference/GlobalProperty': [SKIP],
-  'test-func-name-inference/GlobalVar': [SKIP],
-  'test-func-name-inference/InConstructor': [SKIP],
-  'test-func-name-inference/Static': [SKIP],
-  'test-func-name-inference/LocalVar': [SKIP],
-  'test-func-name-inference/Factory': [SKIP],
-  'test-func-name-inference/MultipleFuncsConditional': [SKIP],
-  'test-func-name-inference/AsParameter': [SKIP],
-  'test-func-name-inference/Prototype': [SKIP],
-  'test-func-name-inference/MultipleFuncsInLiteral': [SKIP],
-  'test-func-name-inference/ObjectLiteral': [SKIP],
-  'test-func-name-inference/AnonymousInAnonymousClosure1': [SKIP],
-  'test-func-name-inference/AnonymousInAnonymousClosure2': [SKIP],
-  'test-func-name-inference/MultipleAssignments': [SKIP],
-  'test-func-name-inference/Issue380': [SKIP],
-  'test-func-name-inference/NamedInAnonymousClosure': [SKIP],
-  'test-func-name-inference/AsConstructorParameter': [SKIP],
-  'test-func-name-inference/GlobalAssignmentAndCall': [SKIP],
-  'test-func-name-inference/FactoryHashmapConditional': [SKIP],
-  'test-func-name-inference/FactoryHashmap': [SKIP],
-  'test-func-name-inference/FactoryHashmapVariable': [SKIP],
-  'test-func-name-inference/MethodAssignmentInAnonymousFunctionCall': [SKIP],
-  'test-func-name-inference/AssignmentAndCall': [SKIP],
-  'test-func-name-inference/ReturnAnonymousFunction': [SKIP],
 }],  # ignition == True
 
 ['ignition == True and mode == debug and arch == x64', {
