@@ -501,9 +501,6 @@
   # TODO(yangguo,4690): Required DebuggerStatement support.
   'test-profile-generator/BailoutReason': [FAIL],
 
-  # TODO(mstarzinger,4674): Support exception handlers in BytecodeGraphBuilder.
-  'test-run-deopt/DeoptExceptionHandlerCatch': [PASS, FAIL],
-
   # TODO(rmcilroy,4680): Check failed: toplevel_test_code_event_found.
   'test-serialize/SerializeToplevelIsolates': [FAIL],
 
