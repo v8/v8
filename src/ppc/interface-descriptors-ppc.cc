@@ -93,6 +93,11 @@ void FastNewRestParameterDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
+void FastNewStrictArgumentsDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {r4};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
 
 void ToNumberDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {

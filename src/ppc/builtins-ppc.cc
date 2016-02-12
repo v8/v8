@@ -1988,9 +1988,7 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
 
     // Try to create the list from an arguments object.
     __ bind(&create_arguments);
-    __ LoadP(r5, FieldMemOperand(
-                     r3, JSObject::kHeaderSize +
-                             Heap::kArgumentsLengthIndex * kPointerSize));
+    __ LoadP(r5, FieldMemOperand(r3, JSArgumentsObject::kLengthOffset));
     __ LoadP(r7, FieldMemOperand(r3, JSObject::kElementsOffset));
     __ LoadP(ip, FieldMemOperand(r7, FixedArray::kLengthOffset));
     __ cmp(r5, ip);
