@@ -2101,6 +2101,62 @@ TEST(BadVariableReference) {
            Validate(zone, test_function, &types));
 }
 
+TEST(BadForeignVariableReferenceValueOr) {
+  const char test_function[] =
+      "function TestModule(stdlib, foreign, buffer) {\n"
+      "  \"use asm\";\n"
+      "  var fint = foreign.bar | 1;\n"
+      "}\n";
+  v8::V8::Initialize();
+  HandleAndZoneScope handles;
+  Zone* zone = handles.main_zone();
+  ZoneVector<ExpressionTypeEntry> types(zone);
+  CHECK_EQ("asm: line 3: illegal integer annotation value\n",
+           Validate(zone, test_function, &types));
+}
+
+TEST(BadForeignVariableReferenceValueOrDot) {
+  const char test_function[] =
+      "function TestModule(stdlib, foreign, buffer) {\n"
+      "  \"use asm\";\n"
+      "  var fint = foreign.bar | 1.0;\n"
+      "}\n";
+  v8::V8::Initialize();
+  HandleAndZoneScope handles;
+  Zone* zone = handles.main_zone();
+  ZoneVector<ExpressionTypeEntry> types(zone);
+  CHECK_EQ("asm: line 3: illegal integer annotation value\n",
+           Validate(zone, test_function, &types));
+}
+
+TEST(BadForeignVariableReferenceValueMul) {
+  const char test_function[] =
+      "function TestModule(stdlib, foreign, buffer) {\n"
+      "  \"use asm\";\n"
+      "  var fint = foreign.bar * 2.0;\n"
+      "}\n";
+  v8::V8::Initialize();
+  HandleAndZoneScope handles;
+  Zone* zone = handles.main_zone();
+  ZoneVector<ExpressionTypeEntry> types(zone);
+  CHECK_EQ("asm: line 3: illegal double annotation value\n",
+           Validate(zone, test_function, &types));
+}
+
+TEST(BadForeignVariableReferenceValueMulNoDot) {
+  const char test_function[] =
+      "function TestModule(stdlib, foreign, buffer) {\n"
+      "  \"use asm\";\n"
+      "  var fint = foreign.bar * 1;\n"
+      "}\n";
+  v8::V8::Initialize();
+  HandleAndZoneScope handles;
+  Zone* zone = handles.main_zone();
+  ZoneVector<ExpressionTypeEntry> types(zone);
+  CHECK_EQ("asm: line 3: ill-typed arithmetic operation\n",
+           Validate(zone, test_function, &types));
+}
+
 TEST(Imports) {
   const char test_function[] =
       "function TestModule(stdlib, foreign, buffer) {\n"

@@ -1121,6 +1121,18 @@ void AsmTyper::VisitBinaryOperation(BinaryOperation* expr) {
         !expr->right()->IsLiteral()) {
       FAIL(expr, "illegal computation inside module body");
     }
+    DCHECK(expr->right()->AsLiteral() != nullptr);
+    const AstValue* right_value = expr->right()->AsLiteral()->raw_value();
+    if (expr->op() == Token::BIT_OR) {
+      if (right_value->AsNumber() != 0.0 || right_value->ContainsDot()) {
+        FAIL(expr, "illegal integer annotation value");
+      }
+    }
+    if (expr->op() == Token::MUL) {
+      if (right_value->AsNumber() != 1.0 && right_value->ContainsDot()) {
+        FAIL(expr, "illegal double annotation value");
+      }
+    }
   }
   switch (expr->op()) {
     case Token::COMMA: {
