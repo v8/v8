@@ -725,29 +725,38 @@ class AsmWasmBuilderImpl : public AstVisitor {
         WasmOpcodes::LoadStoreOpcodeOf(mtype, is_set_op_),
         WasmOpcodes::LoadStoreAccessOf(false));
     is_set_op_ = false;
-    Literal* value = expr->key()->AsLiteral();
-    if (value) {
-      DCHECK(value->raw_value()->IsNumber());
-      DCHECK(kAstI32 == TypeOf(value));
-      int val = static_cast<int>(value->raw_value()->AsNumber());
-      byte code[] = {WASM_I32(val * size)};
-      current_function_builder_->EmitCode(code, sizeof(code));
+    if (size == 1) {
+      // Allow more general expression in byte arrays than the spec
+      // strictly permits.
+      // Early versions of Emscripten emit HEAP8[HEAP32[..]|0] in
+      // places that strictly should be HEAP8[HEAP32[..]>>0].
+      RECURSE(Visit(expr->key()));
       return;
-    }
-    BinaryOperation* binop = expr->key()->AsBinaryOperation();
-    if (binop) {
-      DCHECK(Token::SAR == binop->op());
-      DCHECK(binop->right()->AsLiteral()->raw_value()->IsNumber());
-      DCHECK(kAstI32 == TypeOf(binop->right()->AsLiteral()));
-      DCHECK(size ==
-             1 << static_cast<int>(
-                 binop->right()->AsLiteral()->raw_value()->AsNumber()));
-      // Mask bottom bits to match asm.js behavior.
-      current_function_builder_->Emit(kExprI32And);
-      byte code[] = {WASM_I8(~(size - 1))};
-      current_function_builder_->EmitCode(code, sizeof(code));
-      RECURSE(Visit(binop->left()));
-      return;
+    } else {
+      Literal* value = expr->key()->AsLiteral();
+      if (value) {
+        DCHECK(value->raw_value()->IsNumber());
+        DCHECK(kAstI32 == TypeOf(value));
+        int val = static_cast<int>(value->raw_value()->AsNumber());
+        byte code[] = {WASM_I32(val * size)};
+        current_function_builder_->EmitCode(code, sizeof(code));
+        return;
+      }
+      BinaryOperation* binop = expr->key()->AsBinaryOperation();
+      if (binop) {
+        DCHECK(Token::SAR == binop->op());
+        DCHECK(binop->right()->AsLiteral()->raw_value()->IsNumber());
+        DCHECK(kAstI32 == TypeOf(binop->right()->AsLiteral()));
+        DCHECK(size ==
+               1 << static_cast<int>(
+                   binop->right()->AsLiteral()->raw_value()->AsNumber()));
+        // Mask bottom bits to match asm.js behavior.
+        current_function_builder_->Emit(kExprI32And);
+        byte code[] = {WASM_I8(~(size - 1))};
+        current_function_builder_->EmitCode(code, sizeof(code));
+        RECURSE(Visit(binop->left()));
+        return;
+      }
     }
     UNREACHABLE();
   }

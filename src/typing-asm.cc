@@ -765,24 +765,28 @@ void AsmTyper::VisitHeapAccess(Property* expr, bool assigning,
       RECURSE(VisitWithExpectation(literal, cache_.kAsmSigned,
                                    "array index expected to be integer"));
     } else {
-      BinaryOperation* bin = expr->key()->AsBinaryOperation();
-      if (bin == NULL || bin->op() != Token::SAR) {
-        FAIL(expr->key(), "expected >> in heap access");
-      }
-      RECURSE(VisitWithExpectation(bin->left(), cache_.kAsmSigned,
-                                   "array index expected to be integer"));
-      Literal* right = bin->right()->AsLiteral();
-      if (right == NULL || right->raw_value()->ContainsDot()) {
-        FAIL(right, "heap access shift must be integer");
-      }
-      RECURSE(VisitWithExpectation(bin->right(), cache_.kAsmSigned,
-                                   "array shift expected to be integer"));
-      int n = static_cast<int>(right->raw_value()->AsNumber());
       int expected_shift = ElementShiftSize(type);
-      if (expected_shift < 0 || n != expected_shift) {
-        FAIL(right, "heap access shift must match element size");
+      if (expected_shift == 0) {
+        RECURSE(Visit(expr->key()));
+      } else {
+        BinaryOperation* bin = expr->key()->AsBinaryOperation();
+        if (bin == NULL || bin->op() != Token::SAR) {
+          FAIL(expr->key(), "expected >> in heap access");
+        }
+        RECURSE(VisitWithExpectation(bin->left(), cache_.kAsmSigned,
+                                     "array index expected to be integer"));
+        Literal* right = bin->right()->AsLiteral();
+        if (right == NULL || right->raw_value()->ContainsDot()) {
+          FAIL(right, "heap access shift must be integer");
+        }
+        RECURSE(VisitWithExpectation(bin->right(), cache_.kAsmSigned,
+                                     "array shift expected to be integer"));
+        int n = static_cast<int>(right->raw_value()->AsNumber());
+        if (expected_shift < 0 || n != expected_shift) {
+          FAIL(right, "heap access shift must match element size");
+        }
       }
-      bin->set_bounds(Bounds(cache_.kAsmSigned));
+      expr->key()->set_bounds(Bounds(cache_.kAsmSigned));
     }
     Type* result_type;
     if (type->Is(cache_.kAsmIntArrayElement)) {
@@ -900,7 +904,8 @@ void AsmTyper::VisitProperty(Property* expr) {
 
   // Only recurse at this point so that we avoid needing
   // stdlib.Math to have a real type.
-  RECURSE(VisitWithExpectation(expr->obj(), Type::Any(), "bad propety object"));
+  RECURSE(
+      VisitWithExpectation(expr->obj(), Type::Any(), "bad property object"));
 
   // For heap view or function table access.
   if (computed_type_->IsArray()) {

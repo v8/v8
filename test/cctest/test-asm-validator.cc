@@ -1326,7 +1326,7 @@ TEST(Load1) {
           CHECK_EXPR(Property, Bounds(cache.kAsmInt)) {
             CHECK_VAR(i8, Bounds(cache.kInt8Array));
             CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
-              CHECK_VAR(x, Bounds(cache.kAsmSigned));
+              CHECK_VAR(x, Bounds(cache.kAsmInt));
               CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
             }
           }
@@ -1386,7 +1386,7 @@ TEST(Store1) {
         CHECK_EXPR(Property, Bounds::Unbounded()) {
           CHECK_VAR(i8, Bounds(cache.kInt8Array));
           CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmSigned)) {
-            CHECK_VAR(x, Bounds(cache.kAsmSigned));
+            CHECK_VAR(x, Bounds(cache.kAsmInt));
             CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
           }
         }
@@ -1750,6 +1750,28 @@ TEST(ForeignFunction) {
   CHECK_FUNC_TYPES_END_2()
 }
 
+TEST(ByteArray) {
+  // Forbidden by asm.js spec, present in embenchen.
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { var x = 0; i8[x] = 2; }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_V_TYPE) {
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(x, Bounds(cache.kAsmInt));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+      }
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_EXPR(Property, Bounds::Unbounded()) {
+          CHECK_VAR(i8, Bounds(cache.kInt8Array));
+          CHECK_VAR(x, Bounds(cache.kAsmSigned));
+        }
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+      }
+    }
+    CHECK_SKIP();
+  }
+  CHECK_FUNC_TYPES_END
+}
 
 TEST(BadExports) {
   HARNESS_PREAMBLE()
@@ -1768,7 +1790,14 @@ TEST(BadExports) {
 
 TEST(NestedHeapAssignment) {
   CHECK_FUNC_ERROR(
-      "function bar() { var x = 0; i8[x = 1] = 2; }\n"
+      "function bar() { var x = 0; i16[x = 1] = 2; }\n"
+      "function foo() { bar(); }",
+      "asm: line 39: expected >> in heap access\n");
+}
+
+TEST(BadOperatorHeapAssignment) {
+  CHECK_FUNC_ERROR(
+      "function bar() { var x = 0; i16[x & 1] = 2; }\n"
       "function foo() { bar(); }",
       "asm: line 39: expected >> in heap access\n");
 }

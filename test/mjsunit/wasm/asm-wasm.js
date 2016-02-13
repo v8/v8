@@ -1170,3 +1170,52 @@ function TestForeignVariables() {
 }
 
 TestForeignVariables();
+
+
+(function() {
+  function TestByteHeapAccessCompat(stdlib, foreign, buffer) {
+    "use asm";
+
+    var HEAP8 = new stdlib.Uint8Array(buffer);
+    var HEAP32 = new stdlib.Int32Array(buffer);
+
+    function store(i, v) {
+      i = i | 0;
+      v = v | 0;
+      HEAP32[i >> 2] = v;
+    }
+
+    function storeb(i, v) {
+      i = i | 0;
+      v = v | 0;
+      HEAP8[i | 0] = v;
+    }
+
+    function load(i) {
+      i = i | 0;
+      return HEAP8[i] | 0;
+    }
+
+    function iload(i) {
+      i = i | 0;
+      return HEAP8[HEAP32[i >> 2] | 0] | 0;
+    }
+
+    return {load: load, iload: iload, store: store, storeb: storeb};
+  }
+
+  var m = _WASMEXP_.instantiateModuleFromAsm(
+      TestByteHeapAccessCompat.toString());
+  m.store(0, 20);
+  m.store(4, 21);
+  m.store(8, 22);
+  m.storeb(20, 123);
+  m.storeb(21, 42);
+  m.storeb(22, 77);
+  assertEquals(123, m.load(20));
+  assertEquals(42, m.load(21));
+  assertEquals(77, m.load(22));
+  assertEquals(123, m.iload(0));
+  assertEquals(42, m.iload(4));
+  assertEquals(77, m.iload(8));
+})();
