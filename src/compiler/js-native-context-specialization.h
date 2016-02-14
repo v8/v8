@@ -50,6 +50,7 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   Reduction Reduce(Node* node) final;
 
  private:
+  Reduction ReduceJSLoadContext(Node* node);
   Reduction ReduceJSLoadNamed(Node* node);
   Reduction ReduceJSStoreNamed(Node* node);
   Reduction ReduceJSLoadProperty(Node* node);
