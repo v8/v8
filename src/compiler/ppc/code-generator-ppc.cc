@@ -167,6 +167,19 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       : OutOfLineCode(gen),
         object_(object),
         offset_(offset),
+        offset_immediate_(0),
+        value_(value),
+        scratch0_(scratch0),
+        scratch1_(scratch1),
+        mode_(mode) {}
+
+  OutOfLineRecordWrite(CodeGenerator* gen, Register object, int32_t offset,
+                       Register value, Register scratch0, Register scratch1,
+                       RecordWriteMode mode)
+      : OutOfLineCode(gen),
+        object_(object),
+        offset_(no_reg),
+        offset_immediate_(offset),
         value_(value),
         scratch0_(scratch0),
         scratch1_(scratch1),
@@ -187,13 +200,19 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     // and restore lr properly here if the frame was elided.
     RecordWriteStub stub(isolate(), object_, scratch0_, scratch1_,
                          EMIT_REMEMBERED_SET, save_fp_mode);
-    __ add(scratch1_, object_, offset_);
+    if (offset_.is(no_reg)) {
+      __ addi(scratch1_, object_, Operand(offset_immediate_));
+    } else {
+      DCHECK_EQ(0, offset_immediate_);
+      __ add(scratch1_, object_, offset_);
+    }
     __ CallStub(&stub);
   }
 
  private:
   Register const object_;
   Register const offset_;
+  int32_t const offset_immediate_;  // Valid if offset_.is(no_reg).
   Register const value_;
   Register const scratch0_;
   Register const scratch1_;
@@ -810,13 +829,25 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       RecordWriteMode mode =
           static_cast<RecordWriteMode>(MiscField::decode(instr->opcode()));
       Register object = i.InputRegister(0);
-      Register offset = i.InputRegister(1);
       Register value = i.InputRegister(2);
       Register scratch0 = i.TempRegister(0);
       Register scratch1 = i.TempRegister(1);
-      auto ool = new (zone()) OutOfLineRecordWrite(this, object, offset, value,
-                                                   scratch0, scratch1, mode);
-      __ StorePX(value, MemOperand(object, offset));
+      OutOfLineRecordWrite* ool;
+
+      AddressingMode addressing_mode =
+          AddressingModeField::decode(instr->opcode());
+      if (addressing_mode == kMode_MRI) {
+        int32_t offset = i.InputInt32(1);
+        ool = new (zone()) OutOfLineRecordWrite(this, object, offset, value,
+                                                scratch0, scratch1, mode);
+        __ StoreP(value, MemOperand(object, offset));
+      } else {
+        DCHECK_EQ(kMode_MRR, addressing_mode);
+        Register offset(i.InputRegister(1));
+        ool = new (zone()) OutOfLineRecordWrite(this, object, offset, value,
+                                                scratch0, scratch1, mode);
+        __ StorePX(value, MemOperand(object, offset));
+      }
       __ CheckPageFlag(object, scratch0,
                        MemoryChunk::kPointersFromHereAreInterestingMask, ne,
                        ool->entry());
