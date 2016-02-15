@@ -1789,8 +1789,14 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
     __ BranchF(&return_left, NULL, ne, left_reg, kDoubleRegZero);
     // At this point, both left and right are either 0 or -0.
     if (operation == HMathMinMax::kMathMin) {
+      // The algorithm is: -((-L) + (-R)), which in case of L and R being
+      // different registers is most efficiently expressed as -((-L) - R).
       __ neg_d(left_reg, left_reg);
-      __ sub_d(result_reg, left_reg, right_reg);
+      if (left_reg.is(right_reg)) {
+        __ add_d(result_reg, left_reg, right_reg);
+      } else {
+        __ sub_d(result_reg, left_reg, right_reg);
+      }
       __ neg_d(result_reg, result_reg);
     } else {
       __ add_d(result_reg, left_reg, right_reg);

@@ -1932,8 +1932,14 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
     // At this point, both left and right are either 0 or -0.
     if (operation == HMathMinMax::kMathMin) {
       // We could use a single 'vorr' instruction here if we had NEON support.
+      // The algorithm is: -((-L) + (-R)), which in case of L and R being
+      // different registers is most efficiently expressed as -((-L) - R).
       __ vneg(left_reg, left_reg);
-      __ vsub(result_reg, left_reg, right_reg);
+      if (left_reg.is(right_reg)) {
+        __ vadd(result_reg, left_reg, right_reg);
+      } else {
+        __ vsub(result_reg, left_reg, right_reg);
+      }
       __ vneg(result_reg, result_reg);
     } else {
       // Since we operate on +0 and/or -0, vadd and vand have the same effect;
