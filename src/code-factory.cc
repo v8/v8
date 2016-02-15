@@ -287,18 +287,15 @@ Callable CodeFactory::FastNewRestParameter(Isolate* isolate) {
 
 
 // static
-Callable CodeFactory::FastNewStrictArguments(Isolate* isolate) {
-  FastNewStrictArgumentsStub stub(isolate);
+Callable CodeFactory::FastNewSloppyArguments(Isolate* isolate) {
+  FastNewSloppyArgumentsStub stub(isolate);
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
 }
 
 
 // static
-Callable CodeFactory::ArgumentsAccess(Isolate* isolate,
-                                      bool has_duplicate_parameters) {
-  ArgumentsAccessStub::Type type =
-      ArgumentsAccessStub::ComputeType(has_duplicate_parameters);
-  ArgumentsAccessStub stub(isolate, type);
+Callable CodeFactory::FastNewStrictArguments(Isolate* isolate) {
+  FastNewStrictArgumentsStub stub(isolate);
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
 }
 
