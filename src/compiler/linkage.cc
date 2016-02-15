@@ -345,10 +345,10 @@ CallDescriptor* Linkage::GetJSCallDescriptor(Zone* zone, bool is_osr,
 
   // The target for JS function calls is the JSFunction object.
   MachineType target_type = MachineType::AnyTagged();
-  // TODO(titzer): When entering into an OSR function from unoptimized code,
-  // the JSFunction is not in a register, but it is on the stack in an
-  // unaddressable spill slot. We hack this in the OSR prologue. Fix.
-  LinkageLocation target_loc = regloc(kJSFunctionRegister);
+  // When entering into an OSR function from unoptimized code the JSFunction
+  // is not in a register, but it is on the stack in the marker spill slot.
+  LinkageLocation target_loc = is_osr ? LinkageLocation::ForSavedCallerMarker()
+                                      : regloc(kJSFunctionRegister);
   return new (zone) CallDescriptor(     // --
       CallDescriptor::kCallJSFunction,  // kind
       target_type,                      // target MachineType

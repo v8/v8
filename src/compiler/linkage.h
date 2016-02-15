@@ -76,6 +76,12 @@ class LinkageLocation {
                               kPointerSize);
   }
 
+  static LinkageLocation ForSavedCallerMarker() {
+    return ForCalleeFrameSlot((StandardFrameConstants::kCallerPCOffset -
+                               StandardFrameConstants::kMarkerOffset) /
+                              kPointerSize);
+  }
+
   static LinkageLocation ConvertToTailCallerLocation(
       LinkageLocation caller_location, int stack_param_delta) {
     if (!caller_location.IsRegister()) {

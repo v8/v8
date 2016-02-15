@@ -1871,8 +1871,6 @@ void CodeGenerator::AssemblePrologue() {
     // remaining stack slots.
     if (FLAG_code_comments) __ RecordComment("-- OSR entrypoint --");
     osr_pc_offset_ = __ pc_offset();
-    // TODO(titzer): cannot address target function == local #-1
-    __ movq(rdi, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
     stack_shrink_slots -=
         static_cast<int>(OsrHelper(info()).UnoptimizedFrameSlots());
   }
