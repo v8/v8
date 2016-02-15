@@ -286,25 +286,31 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
   if (outer_state->opcode() != IrOpcode::kFrameState) {
     switch (type) {
       case CreateArgumentsType::kMappedArguments: {
-        // TODO(mstarzinger): Duplicate parameters are not handled yet.
-        Handle<SharedFunctionInfo> shared_info;
-        if (!state_info.shared_info().ToHandle(&shared_info) ||
-            shared_info->has_duplicate_parameters()) {
-          return NoChange();
-        }
-        // TODO(bmeurer): Actually we don't need a frame state here.
-        Callable callable = CodeFactory::FastNewSloppyArguments(isolate());
+        // TODO(bmeurer): Cleanup this mess at some point.
+        int parameter_count = state_info.parameter_count() - 1;
+        int parameter_offset = parameter_count * kPointerSize;
+        int offset = StandardFrameConstants::kCallerSPOffset + parameter_offset;
+        Node* parameter_pointer =
+            graph()->NewNode(machine()->IntAdd(),
+                             graph()->NewNode(machine()->LoadFramePointer()),
+                             jsgraph()->IntPtrConstant(offset));
+        Handle<SharedFunctionInfo> shared;
+        if (!state_info.shared_info().ToHandle(&shared)) return NoChange();
+        Callable callable = CodeFactory::ArgumentsAccess(
+            isolate(), shared->has_duplicate_parameters());
         CallDescriptor* desc = Linkage::GetStubCallDescriptor(
             isolate(), graph()->zone(), callable.descriptor(), 0,
             CallDescriptor::kNeedsFrameState);
         const Operator* new_op = common()->Call(desc);
         Node* stub_code = jsgraph()->HeapConstant(callable.code());
         node->InsertInput(graph()->zone(), 0, stub_code);
+        node->InsertInput(graph()->zone(), 2,
+                          jsgraph()->Constant(parameter_count));
+        node->InsertInput(graph()->zone(), 3, parameter_pointer);
         NodeProperties::ChangeOp(node, new_op);
         return Changed(node);
       }
       case CreateArgumentsType::kUnmappedArguments: {
-        // TODO(bmeurer): Actually we don't need a frame state here.
         Callable callable = CodeFactory::FastNewStrictArguments(isolate());
         CallDescriptor* desc = Linkage::GetStubCallDescriptor(
             isolate(), graph()->zone(), callable.descriptor(), 0,
@@ -316,7 +322,6 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
         return Changed(node);
       }
       case CreateArgumentsType::kRestParameter: {
-        // TODO(bmeurer): Actually we don't need a frame state here.
         Callable callable = CodeFactory::FastNewRestParameter(isolate());
         CallDescriptor* desc = Linkage::GetStubCallDescriptor(
             isolate(), graph()->zone(), callable.descriptor(), 0,

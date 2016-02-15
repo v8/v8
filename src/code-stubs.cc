@@ -820,6 +820,32 @@ void StoreFastElementStub::GenerateAheadOfTime(Isolate* isolate) {
 }
 
 
+void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
+  switch (type()) {
+    case NEW_SLOPPY_FAST:
+      GenerateNewSloppyFast(masm);
+      break;
+    case NEW_SLOPPY_SLOW:
+      GenerateNewSloppySlow(masm);
+      break;
+  }
+}
+
+
+void ArgumentsAccessStub::PrintName(std::ostream& os) const {  // NOLINT
+  os << "ArgumentsAccessStub_";
+  switch (type()) {
+    case NEW_SLOPPY_FAST:
+      os << "NewSloppyFast";
+      break;
+    case NEW_SLOPPY_SLOW:
+      os << "NewSloppySlow";
+      break;
+  }
+  return;
+}
+
+
 void ArrayConstructorStub::PrintName(std::ostream& os) const {  // NOLINT
   os << "ArrayConstructorStub";
   switch (argument_count()) {

@@ -95,8 +95,10 @@ class CodeFactory final {
   static Callable FastNewClosure(Isolate* isolate, LanguageMode language_mode,
                                  FunctionKind kind);
   static Callable FastNewRestParameter(Isolate* isolate);
-  static Callable FastNewSloppyArguments(Isolate* isolate);
   static Callable FastNewStrictArguments(Isolate* isolate);
+
+  static Callable ArgumentsAccess(Isolate* isolate,
+                                  bool has_duplicate_parameters);
 
   static Callable AllocateHeapNumber(Isolate* isolate);
   static Callable AllocateMutableHeapNumber(Isolate* isolate);
