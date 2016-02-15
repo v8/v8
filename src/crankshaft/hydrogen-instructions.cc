@@ -765,7 +765,6 @@ void HInstruction::Verify() {
 
 
 bool HInstruction::CanDeoptimize() {
-  // TODO(titzer): make this a virtual method?
   switch (opcode()) {
     case HValue::kAbnormalExit:
     case HValue::kAccessArgumentsAt:
@@ -2731,7 +2730,6 @@ HConstant::HConstant(Handle<Object> object, Representation r)
         bit_field_, has_int32_value && Smi::IsValid(int32_value_));
     double_value_ = n;
     bit_field_ = HasDoubleValueField::update(bit_field_, true);
-    // TODO(titzer): if this heap number is new space, tenure a new one.
   }
 
   Initialize(r);
@@ -2904,7 +2902,6 @@ bool HConstant::EmitAtUses() {
   DCHECK(IsLinked());
   if (block()->graph()->has_osr() &&
       block()->graph()->IsStandardConstant(this)) {
-    // TODO(titzer): this seems like a hack that should be fixed by custom OSR.
     return true;
   }
   if (HasNoUses()) return true;

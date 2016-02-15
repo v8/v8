@@ -2789,8 +2789,6 @@ class HCheckValue final : public HUnaryOperation {
     bool in_new_space = isolate->heap()->InNewSpace(*func);
     // NOTE: We create an uninitialized Unique and initialize it later.
     // This is because a JSFunction can move due to GC during graph creation.
-    // TODO(titzer): This is a migration crutch. Replace with some kind of
-    // Uniqueness scope later.
     Unique<JSFunction> target = Unique<JSFunction>::CreateUninitialized(func);
     HCheckValue* check = new(zone) HCheckValue(value, target, in_new_space);
     return check;
@@ -3320,7 +3318,6 @@ class HPhi final : public HValue {
   Representation representation_from_non_phi_uses_ = Representation::None();
   bool has_type_feedback_from_uses_ = false;
 
-  // TODO(titzer): we can't eliminate the receiver for generating backtraces
   bool IsDeletable() const override { return !IsReceiver(); }
 };
 
