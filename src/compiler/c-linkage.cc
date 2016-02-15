@@ -136,20 +136,19 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(
     Zone* zone, const MachineSignature* msig, bool set_initialize_root_flag) {
   LocationSignature::Builder locations(zone, msig->return_count(),
                                        msig->parameter_count());
-#if 0  // TODO(titzer): instruction selector tests break here.
   // Check the types of the signature.
   // Currently no floating point parameters or returns are allowed because
   // on x87 and ia32, the FP top of stack is involved.
-
   for (size_t i = 0; i < msig->return_count(); i++) {
-    MachineType type = RepresentationOf(msig->GetReturn(i));
-    CHECK(type != kRepFloat32 && type != kRepFloat64);
+    MachineRepresentation rep = msig->GetReturn(i).representation();
+    CHECK_NE(MachineRepresentation::kFloat32, rep);
+    CHECK_NE(MachineRepresentation::kFloat64, rep);
   }
   for (size_t i = 0; i < msig->parameter_count(); i++) {
-    MachineType type = RepresentationOf(msig->GetParam(i));
-    CHECK(type != kRepFloat32 && type != kRepFloat64);
+    MachineRepresentation rep = msig->GetParam(i).representation();
+    CHECK_NE(MachineRepresentation::kFloat32, rep);
+    CHECK_NE(MachineRepresentation::kFloat64, rep);
   }
-#endif
 
 #ifdef UNSUPPORTED_C_LINKAGE
   // This method should not be called on unknown architectures.
