@@ -2883,6 +2883,68 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map,
 void JSObject::MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
   Isolate* isolate = object->GetIsolate();
   Handle<Map> old_map(object->map());
+  // In case of a regular transition.
+  if (new_map->GetBackPointer() == *old_map) {
+    // If the map does not add named properties, simply set the map.
+    if (old_map->NumberOfOwnDescriptors() ==
+        new_map->NumberOfOwnDescriptors()) {
+      object->synchronized_set_map(*new_map);
+      return;
+    }
+
+    PropertyDetails details = new_map->GetLastDescriptorDetails();
+    // Either new_map adds an kDescriptor property, or a kField property for
+    // which there is still space, and which does not require a mutable double
+    // box (an out-of-object double).
+    if (details.location() == kDescriptor ||
+        (old_map->unused_property_fields() > 0 &&
+         ((FLAG_unbox_double_fields && object->properties()->length() == 0) ||
+          !details.representation().IsDouble()))) {
+      object->synchronized_set_map(*new_map);
+      return;
+    }
+
+    // If there is still space in the object, we need to allocate a mutable
+    // double box.
+    if (old_map->unused_property_fields() > 0) {
+      FieldIndex index =
+          FieldIndex::ForDescriptor(*new_map, new_map->LastAdded());
+      DCHECK(details.representation().IsDouble());
+      DCHECK(!new_map->IsUnboxedDoubleField(index));
+      Handle<Object> value = isolate->factory()->NewHeapNumber(0, MUTABLE);
+      object->RawFastPropertyAtPut(index, *value);
+      object->synchronized_set_map(*new_map);
+      return;
+    }
+
+    // This migration is a transition from a map that has run out of property
+    // space. Extend the backing store.
+    int grow_by = new_map->unused_property_fields() + 1;
+    Handle<FixedArray> old_storage = handle(object->properties(), isolate);
+    Handle<FixedArray> new_storage =
+        isolate->factory()->CopyFixedArrayAndGrow(old_storage, grow_by);
+
+    // Properly initialize newly added property.
+    Handle<Object> value;
+    if (details.representation().IsDouble()) {
+      value = isolate->factory()->NewHeapNumber(0, MUTABLE);
+    } else {
+      value = isolate->factory()->uninitialized_value();
+    }
+    DCHECK_EQ(DATA, details.type());
+    int target_index = details.field_index() - new_map->GetInObjectProperties();
+    DCHECK(target_index >= 0);  // Must be a backing store index.
+    new_storage->set(target_index, *value);
+
+    // From here on we cannot fail and we shouldn't GC anymore.
+    DisallowHeapAllocation no_allocation;
+
+    // Set the new property value and do the map transition.
+    object->set_properties(*new_storage);
+    object->synchronized_set_map(*new_map);
+    return;
+  }
+
   int old_number_of_fields;
   int number_of_fields = new_map->NumberOfFields();
   int inobject = new_map->GetInObjectProperties();
@@ -2899,53 +2961,6 @@ void JSObject::MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
   int total_size = number_of_fields + unused;
   int external = total_size - inobject;
 
-  if (number_of_fields != old_number_of_fields &&
-      new_map->GetBackPointer() == *old_map) {
-    PropertyDetails details = new_map->GetLastDescriptorDetails();
-
-    if (old_map->unused_property_fields() > 0) {
-      if (details.representation().IsDouble()) {
-        FieldIndex index =
-            FieldIndex::ForDescriptor(*new_map, new_map->LastAdded());
-        if (new_map->IsUnboxedDoubleField(index)) {
-          object->RawFastDoublePropertyAtPut(index, 0);
-        } else {
-          Handle<Object> value = isolate->factory()->NewHeapNumber(0, MUTABLE);
-          object->RawFastPropertyAtPut(index, *value);
-        }
-      }
-      object->synchronized_set_map(*new_map);
-      return;
-    }
-
-    DCHECK(number_of_fields == old_number_of_fields + 1);
-    // This migration is a transition from a map that has run out of property
-    // space. Therefore it could be done by extending the backing store.
-    int grow_by = external - object->properties()->length();
-    Handle<FixedArray> old_storage = handle(object->properties(), isolate);
-    Handle<FixedArray> new_storage =
-        isolate->factory()->CopyFixedArrayAndGrow(old_storage, grow_by);
-
-    // Properly initialize newly added property.
-    Handle<Object> value;
-    if (details.representation().IsDouble()) {
-      value = isolate->factory()->NewHeapNumber(0, MUTABLE);
-    } else {
-      value = isolate->factory()->uninitialized_value();
-    }
-    DCHECK(details.type() == DATA);
-    int target_index = details.field_index() - inobject;
-    DCHECK(target_index >= 0);  // Must be a backing store index.
-    new_storage->set(target_index, *value);
-
-    // From here on we cannot fail and we shouldn't GC anymore.
-    DisallowHeapAllocation no_allocation;
-
-    // Set the new property value and do the map transition.
-    object->set_properties(*new_storage);
-    object->synchronized_set_map(*new_map);
-    return;
-  }
   Handle<FixedArray> array = isolate->factory()->NewFixedArray(total_size);
 
   Handle<DescriptorArray> old_descriptors(old_map->instance_descriptors());
