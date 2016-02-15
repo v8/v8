@@ -764,12 +764,6 @@
   'regress/debug*': [SKIP],
   'regress/regress-debug*': [SKIP],
 
-  # TODO(yangguo,4690): Failing in debugger DebuggerInspectableFrame.
-  'for-in-opt': [FAIL],
-  'regress/regress-4309-2': [FAIL],
-  'regress/regress-4309-3': [FAIL],
-  'regress/regress-4309-1': [FAIL],
-
   # TODO(yangguo,4690): debug-scopes.cc failure in ScopeIterator::Type
   # DCHECK(context_->IsFunctionContext() || !scope_info->HasContext());
   'regress/regress-crbug-582051': [SKIP],

@@ -27,6 +27,7 @@ class TranslatedValue {
   Handle<Object> GetValue();
 
   bool IsMaterializedObject() const;
+  bool IsMaterializableByDebugger() const;
 
  private:
   friend class TranslatedState;
@@ -508,10 +509,6 @@ class Deoptimizer : public Malloced {
 
   void MaterializeHeapObjects(JavaScriptFrameIterator* it);
 
-  void MaterializeHeapNumbersForDebuggerInspectableFrame(
-      int frame_index, int parameter_count, int expression_count,
-      DeoptimizedFrameInfo* info);
-
   static void ComputeOutputFrames(Deoptimizer* deoptimizer);
 
 
@@ -645,11 +642,6 @@ class Deoptimizer : public Malloced {
   // searching all code objects).
   Code* FindDeoptimizingCode(Address addr);
 
-  // Fill the input from from a JavaScript frame. This is used when
-  // the debugger needs to inspect an optimized frame. For normal
-  // deoptimizations the input frame is filled in generated code.
-  void FillInputFrame(Address tos, JavaScriptFrame* frame);
-
   // Fill the given output frame's registers to contain the failure handler
   // address and the number of parameters for a stub failure trampoline.
   void SetPlatformCompiledStubRegisters(FrameDescription* output_frame,
@@ -744,8 +736,7 @@ class RegisterValues {
 
 class FrameDescription {
  public:
-  FrameDescription(uint32_t frame_size,
-                   JSFunction* function);
+  explicit FrameDescription(uint32_t frame_size, int parameter_count = 0);
 
   void* operator new(size_t size, uint32_t frame_size) {
     // Subtracts kPointerSize, as the member frame_content_ already supplies
@@ -766,8 +757,6 @@ class FrameDescription {
     return static_cast<uint32_t>(frame_size_);
   }
 
-  JSFunction* GetFunction() const { return function_; }
-
   unsigned GetOffsetFromSlotIndex(int slot_index);
 
   intptr_t GetFrameSlot(unsigned offset) {
@@ -775,8 +764,7 @@ class FrameDescription {
   }
 
   Address GetFramePointerAddress() {
-    int fp_offset = GetFrameSize() -
-                    (ComputeParametersCount() + 1) * kPointerSize -
+    int fp_offset = GetFrameSize() - parameter_count() * kPointerSize -
                     StandardFrameConstants::kCallerSPOffset;
     return reinterpret_cast<Address>(GetFrameSlotPointer(fp_offset));
   }
@@ -834,17 +822,8 @@ class FrameDescription {
   StackFrame::Type GetFrameType() const { return type_; }
   void SetFrameType(StackFrame::Type type) { type_ = type; }
 
-  // Get the incoming arguments count.
-  int ComputeParametersCount();
-
-  // Get a parameter value for an unoptimized frame.
-  Object* GetParameter(int index);
-
-  // Get the expression stack height for a unoptimized frame.
-  unsigned GetExpressionCount();
-
-  // Get the expression stack value for an unoptimized frame.
-  Object* GetExpression(int index);
+  // Argument count, including receiver.
+  int parameter_count() { return parameter_count_; }
 
   static int registers_offset() {
     return OFFSET_OF(FrameDescription, register_values_.registers_);
@@ -877,7 +856,7 @@ class FrameDescription {
   // keep the variable-size array frame_content_ of type intptr_t at
   // the end of the structure aligned.
   uintptr_t frame_size_;  // Number of bytes.
-  JSFunction* function_;
+  int parameter_count_;
   RegisterValues register_values_;
   intptr_t top_;
   intptr_t pc_;
@@ -1072,10 +1051,9 @@ class MaterializedObjectStore {
 // formal parameter count.
 class DeoptimizedFrameInfo : public Malloced {
  public:
-  DeoptimizedFrameInfo(Deoptimizer* deoptimizer,
-                       int frame_index,
-                       bool has_arguments_adaptor,
-                       bool has_construct_stub);
+  DeoptimizedFrameInfo(TranslatedState* state,
+                       TranslatedState::iterator frame_it, Isolate* isolate);
+
   // Return the number of incoming arguments.
   int parameters_count() { return static_cast<int>(parameters_.size()); }
 
