@@ -1529,8 +1529,14 @@ Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
         case kMathClz32:
           return t->cache_.kZeroToThirtyTwo;
         // String functions.
+        case kStringCharCodeAt:
+          return Type::Union(Type::Range(0, kMaxUInt16, t->zone()), Type::NaN(),
+                             t->zone());
         case kStringCharAt:
+        case kStringConcat:
         case kStringFromCharCode:
+        case kStringToLowerCase:
+        case kStringToUpperCase:
           return Type::String();
         // Array functions.
         case kArrayIndexOf:
@@ -1580,6 +1586,7 @@ Type* Typer::Visitor::TypeJSCallRuntime(Node* node) {
     case Runtime::kInlineRegExpConstructResult:
       return Type::OtherObject();
     case Runtime::kInlineSubString:
+    case Runtime::kInlineStringCharFromCode:
       return Type::String();
     case Runtime::kInlineToInteger:
       return TypeUnaryOp(node, ToInteger);
