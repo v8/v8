@@ -219,9 +219,9 @@ struct FunctionEnv {
         UNREACHABLE();
     }
     total_locals += count;
-    DCHECK(total_locals ==
-           (sig->parameter_count() + local_i32_count + local_i64_count +
-            local_f32_count + local_f64_count));
+    DCHECK_EQ(total_locals,
+              (sig->parameter_count() + local_i32_count + local_i64_count +
+               local_f32_count + local_f64_count));
   }
 
   void SumLocals() {
