@@ -691,7 +691,8 @@ void InstructionSelector::VisitTruncateFloat32ToInt32(Node* node) {
 
 
 void InstructionSelector::VisitTruncateFloat32ToUint32(Node* node) {
-  UNIMPLEMENTED();
+  X87OperandGenerator g(this);
+  Emit(kX87Float32ToUint32, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
 }
 
 

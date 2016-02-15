@@ -1209,6 +1209,26 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       }
       break;
     }
+    case kX87Float32ToUint32: {
+      if (!instr->InputAt(0)->IsDoubleRegister()) {
+        __ fld_s(i.InputOperand(0));
+      }
+      Label success;
+      __ TruncateX87TOSToI(i.OutputRegister(0));
+      __ test(i.OutputRegister(0), i.OutputRegister(0));
+      __ j(positive, &success);
+      __ push(Immediate(INT32_MIN));
+      __ fild_s(Operand(esp, 0));
+      __ lea(esp, Operand(esp, kPointerSize));
+      __ faddp();
+      __ TruncateX87TOSToI(i.OutputRegister(0));
+      __ or_(i.OutputRegister(0), Immediate(0x80000000));
+      __ bind(&success);
+      if (!instr->InputAt(0)->IsDoubleRegister()) {
+        __ fstp(0);
+      }
+      break;
+    }
     case kX87Float64ToInt32: {
       if (!instr->InputAt(0)->IsDoubleRegister()) {
         __ fld_d(i.InputOperand(0));

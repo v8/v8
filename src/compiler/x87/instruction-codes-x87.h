@@ -60,6 +60,7 @@ namespace compiler {
   V(X87Uint32ToFloat64)            \
   V(X87Float64ToInt32)             \
   V(X87Float32ToInt32)             \
+  V(X87Float32ToUint32)            \
   V(X87Float64ToFloat32)           \
   V(X87Float64ToUint32)            \
   V(X87Float64ExtractHighWord32)   \
