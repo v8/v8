@@ -3533,7 +3533,7 @@ static void RunLoadImmIndex(MachineType rep) {
   const int kNumElems = 3;
   Type buffer[kNumElems];
 
-  // initialize the buffer with raw data.
+  // initialize the buffer with some raw data.
   byte* raw = reinterpret_cast<byte*>(buffer);
   for (size_t i = 0; i < sizeof(buffer); i++) {
     raw[i] = static_cast<byte>((i + sizeof(buffer)) ^ 0xAA);
@@ -3542,14 +3542,14 @@ static void RunLoadImmIndex(MachineType rep) {
   // Test with various large and small offsets.
   for (int offset = -1; offset <= 200000; offset *= -5) {
     for (int i = 0; i < kNumElems; i++) {
-      RawMachineAssemblerTester<Type> m;
+      BufferedRawMachineAssemblerTester<Type> m;
       Node* base = m.PointerConstant(buffer - offset);
       Node* index = m.Int32Constant((offset + i) * sizeof(buffer[0]));
       m.Return(m.Load(rep, base, index));
 
-      Type expected = buffer[i];
-      Type actual = m.Call();
-      CHECK(expected == actual);
+      volatile Type expected = buffer[i];
+      volatile Type actual = m.Call();
+      CHECK_EQ(expected, actual);
     }
   }
 }
@@ -3563,9 +3563,11 @@ TEST(RunLoadImmIndex) {
   RunLoadImmIndex<int32_t>(MachineType::Int32());
   RunLoadImmIndex<uint32_t>(MachineType::Uint32());
   RunLoadImmIndex<int32_t*>(MachineType::AnyTagged());
-
-  // TODO(titzer): test kRepBit loads
-  // TODO(titzer): test MachineType::Float64() loads
+  RunLoadImmIndex<float>(MachineType::Float32());
+  RunLoadImmIndex<double>(MachineType::Float64());
+  if (kPointerSize == 8) {
+    RunLoadImmIndex<int64_t>(MachineType::Int64());
+  }
   // TODO(titzer): test various indexing modes.
 }
 
