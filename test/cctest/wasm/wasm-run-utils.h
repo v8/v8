@@ -164,7 +164,9 @@ class TestingModule : public ModuleEnv {
       module->functions = new std::vector<WasmFunction>();
       instance->function_code = new std::vector<Handle<Code>>();
     }
-    module->functions->push_back({sig, 0, 0, 0, 0, 0, 0, 0, false, false});
+    uint32_t index = static_cast<uint32_t>(module->functions->size());
+    module->functions->push_back(
+        {sig, index, 0, 0, 0, 0, 0, 0, 0, false, false});
     instance->function_code->push_back(code);
     return &module->functions->back();
   }

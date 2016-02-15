@@ -2072,15 +2072,11 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, wasm::ModuleEnv* module,
 // Helper function to compile a single function.
 Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
                                  wasm::ModuleEnv* module_env,
-                                 const wasm::WasmFunction& function,
-                                 int index) {
+                                 const wasm::WasmFunction& function) {
   if (FLAG_trace_wasm_compiler || FLAG_trace_wasm_decode_time) {
-    // TODO(titzer): clean me up a bit.
     OFStream os(stdout);
-    os << "Compiling WASM function #" << index << ":";
-    if (function.name_offset > 0) {
-      os << module_env->module->GetName(function.name_offset);
-    }
+    os << "Compiling WASM function "
+       << wasm::WasmFunctionName(&function, module_env) << std::endl;
     os << std::endl;
   }
   // Initialize the function environment for decoding.
@@ -2115,7 +2111,8 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
     }
     // Add the function as another context for the exception
     ScopedVector<char> buffer(128);
-    SNPrintF(buffer, "Compiling WASM function #%d:%s failed:", index,
+    SNPrintF(buffer, "Compiling WASM function #%d:%s failed:",
+             function.func_index,
              module_env->module->GetName(function.name_offset));
     thrower.Failed(buffer.start(), result);
     return Handle<Code>::null();
@@ -2132,7 +2129,7 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
   Vector<char> buffer;
   if (debugging) {
     buffer = Vector<char>::New(128);
-    SNPrintF(buffer, "WASM_function_#%d:%s", index,
+    SNPrintF(buffer, "WASM_function_#%d:%s", function.func_index,
              module_env->module->GetName(function.name_offset));
     func_name = buffer.start();
   }
@@ -2145,7 +2142,7 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
   }
   if (!code.is_null()) {
     RecordFunctionCompilation(
-        Logger::FUNCTION_TAG, &info, "WASM_function", index,
+        Logger::FUNCTION_TAG, &info, "WASM_function", function.func_index,
         module_env->module->GetName(function.name_offset));
   }
 

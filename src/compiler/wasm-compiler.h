@@ -35,7 +35,7 @@ namespace compiler {
 // Compiles a single function, producing a code object.
 Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
                                  wasm::ModuleEnv* module_env,
-                                 const wasm::WasmFunction& function, int index);
+                                 const wasm::WasmFunction& function);
 
 // Wraps a JS function, producing a code object that can be called from WASM.
 Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, wasm::ModuleEnv* module,

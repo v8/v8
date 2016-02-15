@@ -111,7 +111,7 @@ class ModuleDecoder : public Decoder {
                   static_cast<int>(pc_ - start_));
 
             module->functions->push_back(
-                {nullptr, 0, 0, 0, 0, 0, 0, false, false});
+                {nullptr, i, 0, 0, 0, 0, 0, 0, false, false});
             WasmFunction* function = &module->functions->back();
             DecodeFunctionInModule(module, function, false);
           }
@@ -400,12 +400,9 @@ class ModuleDecoder : public Decoder {
   void VerifyFunctionBody(uint32_t func_num, ModuleEnv* menv,
                           WasmFunction* function) {
     if (FLAG_trace_wasm_decode_time) {
-      // TODO(titzer): clean me up a bit.
       OFStream os(stdout);
-      os << "Verifying WASM function:";
-      if (function->name_offset > 0) {
-        os << menv->module->GetName(function->name_offset);
-      }
+      os << "Verifying WASM function " << WasmFunctionName(function, menv)
+         << std::endl;
       os << std::endl;
     }
     FunctionEnv fenv;
@@ -423,8 +420,7 @@ class ModuleDecoder : public Decoder {
     if (result.failed()) {
       // Wrap the error message from the function decoder.
       std::ostringstream str;
-      str << "in function #" << func_num << ": ";
-      // TODO(titzer): add function name for the user?
+      str << "in function " << WasmFunctionName(function, menv) << ": ";
       str << result;
       std::string strval = str.str();
       const char* raw = strval.c_str();

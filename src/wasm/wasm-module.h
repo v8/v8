@@ -52,6 +52,7 @@ static const size_t kDeclDataSegmentSize = 13;
 // Static representation of a wasm function.
 struct WasmFunction {
   FunctionSig* sig;      // signature of the function.
+  uint32_t func_index;   // index into the function table.
   uint16_t sig_index;    // index into the signature table.
   uint32_t name_offset;  // offset in the module bytes of the name, if any.
   uint32_t code_start_offset;    // offset in the module bytes of code start.
@@ -106,14 +107,14 @@ struct WasmModule {
   ~WasmModule();
 
   // Get a pointer to a string stored in the module bytes representing a name.
-  const char* GetName(uint32_t offset) {
+  const char* GetName(uint32_t offset) const {
     if (offset == 0) return "<?>";  // no name.
     CHECK(BoundsCheck(offset, offset + 1));
     return reinterpret_cast<const char*>(module_start + offset);
   }
 
   // Checks the given offset range is contained within the module bytes.
-  bool BoundsCheck(uint32_t start, uint32_t end) {
+  bool BoundsCheck(uint32_t start, uint32_t end) const {
     size_t size = module_end - module_start;
     return start < size && end < size;
   }
@@ -193,8 +194,17 @@ struct ModuleEnv {
   compiler::CallDescriptor* GetCallDescriptor(Zone* zone, uint32_t index);
 };
 
+// A helper for printing out the names of functions.
+struct WasmFunctionName {
+  const WasmFunction* function_;
+  const WasmModule* module_;
+  WasmFunctionName(const WasmFunction* function, const ModuleEnv* menv)
+      : function_(function), module_(menv ? menv->module : nullptr) {}
+};
+
 std::ostream& operator<<(std::ostream& os, const WasmModule& module);
 std::ostream& operator<<(std::ostream& os, const WasmFunction& function);
+std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name);
 
 typedef Result<WasmModule*> ModuleResult;
 typedef Result<WasmFunction*> FunctionResult;
@@ -207,6 +217,7 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
 // For testing. Decode, verify, and run the last exported function in the
 // given decoded module.
 int32_t CompileAndRunWasmModule(Isolate* isolate, WasmModule* module);
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

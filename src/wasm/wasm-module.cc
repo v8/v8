@@ -44,6 +44,19 @@ std::ostream& operator<<(std::ostream& os, const WasmFunction& function) {
   return os;
 }
 
+std::ostream& operator<<(std::ostream& os, const WasmFunctionName& pair) {
+  os << "#" << pair.function_->func_index << ":";
+  if (pair.function_->name_offset > 0) {
+    if (pair.module_) {
+      os << pair.module_->GetName(pair.function_->name_offset);
+    } else {
+      os << "+" << pair.function_->func_index;
+    }
+  } else {
+    os << "?";
+  }
+  return os;
+}
 
 // A helper class for compiling multiple wasm functions that offers
 // placeholder code objects for calling functions that are not yet compiled.
@@ -341,7 +354,7 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
   // Compile all functions in the module.
   //-------------------------------------------------------------------------
   instance.function_table = BuildFunctionTable(isolate, this);
-  int index = 0;
+  uint32_t index = 0;
   WasmLinker linker(isolate, functions->size());
   ModuleEnv module_env;
   module_env.module = this;
@@ -352,6 +365,7 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
   // First pass: compile each function and initialize the code table.
   for (const WasmFunction& func : *functions) {
     if (thrower.error()) break;
+    DCHECK_EQ(index, func.func_index);
 
     const char* cstr = GetName(func.name_offset);
     Handle<String> name = factory->InternalizeUtf8String(cstr);
@@ -382,8 +396,7 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
       }
     } else {
       // Compile the function.
-      code = compiler::CompileWasmFunction(thrower, isolate, &module_env, func,
-                                           index);
+      code = compiler::CompileWasmFunction(thrower, isolate, &module_env, func);
       if (code.is_null()) {
         thrower.Error("Compilation of #%d:%s failed.", index, cstr);
         return MaybeHandle<JSObject>();
@@ -503,13 +516,14 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, WasmModule* module) {
 
   // Compile all functions.
   Handle<Code> main_code = Handle<Code>::null();  // record last code.
-  int index = 0;
+  uint32_t index = 0;
   int main_index = 0;
   for (const WasmFunction& func : *module->functions) {
+    DCHECK_EQ(index, func.func_index);
     if (!func.external) {
       // Compile the function and install it in the code table.
-      Handle<Code> code = compiler::CompileWasmFunction(
-          thrower, isolate, &module_env, func, index);
+      Handle<Code> code =
+          compiler::CompileWasmFunction(thrower, isolate, &module_env, func);
       if (!code.is_null()) {
         if (func.exported) {
           main_code = code;
