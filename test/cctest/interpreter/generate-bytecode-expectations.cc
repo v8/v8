@@ -2,8 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <cstring>
 #include <fstream>
-#include <iostream>
+
+#include "test/cctest/interpreter/bytecode-expectations-printer.h"
 
 #include "include/libplatform/libplatform.h"
 #include "include/v8.h"
@@ -11,24 +13,42 @@
 #include "src/base/logging.h"
 #include "src/base/smart-pointers.h"
 #include "src/compiler.h"
-
-#include "src/interpreter/bytecode-array-iterator.h"
-#include "src/interpreter/bytecode-generator.h"
-#include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter.h"
 
-using namespace i::interpreter;
+using v8::internal::interpreter::BytecodeExpectationsPrinter;
 
 namespace {
 
-const char* kIndent = "       ";
+class ProgramOptions {
+ public:
+  static ProgramOptions FromCommandLine(int argc, char** argv);
 
-enum ConstantPoolType {
-  kConstantPoolTypeUnknown,
-  kConstantPoolTypeString,
-  kConstantPoolTypeInteger,
-  kConstantPoolTypeDouble,
-  kConstantPoolTypeMixed,
+  ProgramOptions()
+      : parsing_failed_(false),
+        print_help_(false),
+        read_raw_js_snippet_(false),
+        read_from_stdin_(false),
+        const_pool_type_(
+            BytecodeExpectationsPrinter::ConstantPoolType::kMixed) {}
+
+  bool Validate() const;
+
+  bool parsing_failed() const { return parsing_failed_; }
+  bool print_help() const { return print_help_; }
+  bool read_raw_js_snippet() const { return read_raw_js_snippet_; }
+  bool read_from_stdin() const { return read_from_stdin_; }
+  std::string filename() const { return filename_; }
+  BytecodeExpectationsPrinter::ConstantPoolType const_pool_type() const {
+    return const_pool_type_;
+  }
+
+ private:
+  bool parsing_failed_;
+  bool print_help_;
+  bool read_raw_js_snippet_;
+  bool read_from_stdin_;
+  BytecodeExpectationsPrinter::ConstantPoolType const_pool_type_;
+  std::string filename_;
 };
 
 class ArrayBufferAllocator final : public v8::ArrayBuffer::Allocator {
@@ -57,8 +77,73 @@ class V8InitializationScope final {
   DISALLOW_COPY_AND_ASSIGN(V8InitializationScope);
 };
 
-i::Isolate* GetInternalIsolate(v8::Isolate* isolate) {
-  return reinterpret_cast<i::Isolate*>(isolate);
+BytecodeExpectationsPrinter::ConstantPoolType ParseConstantPoolType(
+    const char* type_string) {
+  if (strcmp(type_string, "int") == 0) {
+    return BytecodeExpectationsPrinter::ConstantPoolType::kInteger;
+  } else if (strcmp(type_string, "double") == 0) {
+    return BytecodeExpectationsPrinter::ConstantPoolType::kDouble;
+  } else if (strcmp(type_string, "string") == 0) {
+    return BytecodeExpectationsPrinter::ConstantPoolType::kString;
+  } else if (strcmp(type_string, "mixed") == 0) {
+    return BytecodeExpectationsPrinter::ConstantPoolType::kMixed;
+  }
+  return BytecodeExpectationsPrinter::ConstantPoolType::kUnknown;
+}
+
+// static
+ProgramOptions ProgramOptions::FromCommandLine(int argc, char** argv) {
+  ProgramOptions options;
+
+  if (argc <= 1) return options;
+
+  for (int i = 1; i < argc; ++i) {
+    if (strcmp(argv[i], "--help") == 0) {
+      options.print_help_ = true;
+    } else if (strcmp(argv[i], "--raw-js") == 0) {
+      options.read_raw_js_snippet_ = true;
+    } else if (strncmp(argv[i], "--pool-type=", 12) == 0) {
+      options.const_pool_type_ = ParseConstantPoolType(argv[i] + 12);
+    } else if (strcmp(argv[i], "--stdin") == 0) {
+      options.read_from_stdin_ = true;
+    } else if (strncmp(argv[i], "--", 2) != 0) {  // It doesn't start with --
+      if (!options.filename_.empty()) {
+        std::cerr << "ERROR: More than one input file specified\n";
+        options.parsing_failed_ = true;
+        break;
+      }
+      options.filename_ = argv[i];
+    } else {
+      std::cerr << "ERROR: Unknonwn option " << argv[i] << "\n";
+      options.parsing_failed_ = true;
+      break;
+    }
+  }
+
+  return options;
+}
+
+bool ProgramOptions::Validate() const {
+  if (parsing_failed_) return false;
+  if (print_help_) return true;
+
+  if (const_pool_type_ ==
+      BytecodeExpectationsPrinter::ConstantPoolType::kUnknown) {
+    std::cerr << "ERROR: Unknown constant pool type.\n";
+    return false;
+  }
+
+  if (!read_from_stdin_ && filename_.empty()) {
+    std::cerr << "ERROR: No input file specified.\n";
+    return false;
+  }
+
+  if (read_from_stdin_ && !filename_.empty()) {
+    std::cerr << "ERROR: Reading from stdin, but input files supplied.\n";
+    return false;
+  }
+
+  return true;
 }
 
 V8InitializationScope::V8InitializationScope(const char* exec_path)
@@ -77,7 +162,6 @@ V8InitializationScope::V8InitializationScope(const char* exec_path)
   create_params.array_buffer_allocator = &allocator;
 
   isolate_ = v8::Isolate::New(create_params);
-  GetInternalIsolate(isolate_)->interpreter()->Initialize();
 }
 
 V8InitializationScope::~V8InitializationScope() {
@@ -86,255 +170,65 @@ V8InitializationScope::~V8InitializationScope() {
   v8::V8::ShutdownPlatform();
 }
 
-v8::Local<v8::String> V8StringFromUTF8(v8::Isolate* isolate, const char* data) {
-  return v8::String::NewFromUtf8(isolate, data, v8::NewStringType::kNormal)
-      .ToLocalChecked();
+std::string ReadRawJSSnippet(std::istream& stream) {  // NOLINT
+  std::stringstream body_buffer;
+  CHECK(body_buffer << stream.rdbuf());
+  return body_buffer.str();
 }
 
-std::string WrapCodeInFunction(const char* function_name,
-                               const std::string& function_body) {
-  std::ostringstream program_stream;
-  program_stream << "function " << function_name << "() {" << function_body
-                 << "}\n"
-                 << function_name << "();";
-
-  return program_stream.str();
-}
-
-v8::Local<v8::Value> CompileAndRun(v8::Isolate* isolate,
-                                   const v8::Local<v8::Context>& context,
-                                   const char* program) {
-  v8::Local<v8::String> source = V8StringFromUTF8(isolate, program);
-  v8::Local<v8::Script> script =
-      v8::Script::Compile(context, source).ToLocalChecked();
-
-  v8::Local<v8::Value> result;
-  CHECK(script->Run(context).ToLocal(&result));
-
-  return result;
-}
-
-i::Handle<v8::internal::BytecodeArray> GetBytecodeArrayForGlobal(
-    v8::Isolate* isolate, const v8::Local<v8::Context>& context,
-    const char* global_name) {
-  v8::Local<v8::String> v8_global_name = V8StringFromUTF8(isolate, global_name);
-  v8::Local<v8::Function> function = v8::Local<v8::Function>::Cast(
-      context->Global()->Get(context, v8_global_name).ToLocalChecked());
-  i::Handle<i::JSFunction> js_function =
-      i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*function));
-
-  i::Handle<i::BytecodeArray> bytecodes = i::handle(
-      js_function->shared()->bytecode_array(), GetInternalIsolate(isolate));
-
-  return bytecodes;
-}
-
-std::string QuoteCString(const std::string& source) {
-  std::string quoted_buffer;
-  for (char c : source) {
-    switch (c) {
-      case '"':
-        quoted_buffer += "\\\"";
-        break;
-      case '\n':
-        quoted_buffer += "\\n";
-        break;
-      case '\t':
-        quoted_buffer += "\\t";
-        break;
-      case '\\':
-        quoted_buffer += "\\\\";
-        break;
-      default:
-        quoted_buffer += c;
-        break;
+bool ReadNextSnippet(std::istream& stream, std::string* string_out) {  // NOLINT
+  std::string line;
+  bool found_begin_snippet = false;
+  string_out->clear();
+  while (std::getline(stream, line)) {
+    if (line == "snippet: \"") {
+      found_begin_snippet = true;
+      continue;
     }
+    if (!found_begin_snippet) continue;
+    if (line == "\"") return true;
+    CHECK_GE(line.size(), 2u);  // We should have the indent
+    string_out->append(line.begin() + 2, line.end());
+    *string_out += '\n';
   }
-  return quoted_buffer;
+  return false;
 }
 
-void PrintBytecodeOperand(std::ostream& stream,
-                          const BytecodeArrayIterator& bytecode_iter,
-                          const Bytecode& bytecode, int op_index) {
-  OperandType op_type = Bytecodes::GetOperandType(bytecode, op_index);
-  OperandSize op_size = Bytecodes::GetOperandSize(bytecode, op_index);
-
-  const char* size_tag;
-  switch (op_size) {
-    case OperandSize::kByte:
-      size_tag = "8";
-      break;
-    case OperandSize::kShort:
-      size_tag = "16";
-      break;
-    default:
-      UNREACHABLE();
-      return;
-  }
-
-  if (Bytecodes::IsRegisterOperandType(op_type)) {
-    Register register_value = bytecode_iter.GetRegisterOperand(op_index);
-    stream << 'R';
-    if (op_size != OperandSize::kByte) stream << size_tag;
-    stream << '(' << register_value.index() << ')';
+void ExtractSnippetsFromStream(std::vector<std::string>* snippet_list,
+                               std::istream& body_stream,  // NOLINT
+                               bool read_raw_js_snippet) {
+  if (read_raw_js_snippet) {
+    snippet_list->push_back(ReadRawJSSnippet(body_stream));
   } else {
-    stream << 'U' << size_tag << '(';
-
-    if (Bytecodes::IsImmediateOperandType(op_type)) {
-      // We need a cast, otherwise the result is printed as char.
-      stream << static_cast<int>(bytecode_iter.GetImmediateOperand(op_index));
-    } else if (Bytecodes::IsRegisterCountOperandType(op_type)) {
-      stream << bytecode_iter.GetRegisterCountOperand(op_index);
-    } else if (Bytecodes::IsIndexOperandType(op_type)) {
-      stream << bytecode_iter.GetIndexOperand(op_index);
-    } else {
-      UNREACHABLE();
+    std::string snippet;
+    while (ReadNextSnippet(body_stream, &snippet)) {
+      snippet_list->push_back(snippet);
     }
-
-    stream << ')';
   }
 }
 
-void PrintBytecode(std::ostream& stream,
-                   const BytecodeArrayIterator& bytecode_iter) {
-  Bytecode bytecode = bytecode_iter.current_bytecode();
-
-  stream << "B(" << Bytecodes::ToString(bytecode) << ')';
-
-  int operands_count = Bytecodes::NumberOfOperands(bytecode);
-  for (int op_index = 0; op_index < operands_count; ++op_index) {
-    stream << ", ";
-    PrintBytecodeOperand(stream, bytecode_iter, bytecode, op_index);
-  }
-}
-
-void PrintV8String(std::ostream& stream, i::String* string) {
-  stream << '"';
-  for (int i = 0, length = string->length(); i < length; ++i) {
-    stream << i::AsEscapedUC16ForJSON(string->Get(i));
-  }
-  stream << '"';
-}
-
-void PrintConstant(std::ostream& stream,
-                   ConstantPoolType expected_constant_type,
-                   i::Handle<i::Object> constant) {
-  switch (expected_constant_type) {
-    case kConstantPoolTypeString:
-      CHECK(constant->IsString());
-      PrintV8String(stream, i::String::cast(*constant));
-      break;
-    case kConstantPoolTypeInteger:
-      if (constant->IsSmi()) {
-        i::Smi::cast(*constant)->SmiPrint(stream);
-      } else if (constant->IsHeapNumber()) {
-        i::HeapNumber::cast(*constant)->HeapNumberPrint(stream);
-      } else {
-        UNREACHABLE();
-      }
-      break;
-    case kConstantPoolTypeDouble:
-      i::HeapNumber::cast(*constant)->HeapNumberPrint(stream);
-      break;
-    case kConstantPoolTypeMixed:
-      if (constant->IsSmi()) {
-        stream << "kInstanceTypeDontCare";
-      } else {
-        stream << "InstanceType::"
-               << i::HeapObject::cast(*constant)->map()->instance_type();
-      }
-      break;
-    default:
-      UNREACHABLE();
-      return;
-  }
-}
-
-void PrintFrameSize(std::ostream& stream,
-                    i::Handle<i::BytecodeArray> bytecode_array) {
-  const int kPointerSize = sizeof(void*);
-  int frame_size = bytecode_array->frame_size();
-
-  stream << kIndent;
-
-  DCHECK(frame_size % kPointerSize == 0);
-  if (frame_size > kPointerSize) {
-    stream << ' ' << frame_size / kPointerSize << " * kPointerSize,\n"
-           << kIndent;
-  } else if (frame_size == kPointerSize) {
-    stream << " kPointerSize,\n" << kIndent;
-  } else if (frame_size == 0) {
-    stream << " 0,\n" << kIndent;
-  }
-
-  stream << ' ' << bytecode_array->parameter_count() << ",\n";
-}
-
-void PrintBytecodeSequence(std::ostream& stream,
-                           i::Handle<i::BytecodeArray> bytecode_array) {
-  stream << kIndent << ' ' << bytecode_array->length() << ",\n"
-         << kIndent << " {\n"
-         << kIndent << "     ";
-
-  BytecodeArrayIterator bytecode_iter{bytecode_array};
-  for (; !bytecode_iter.done(); bytecode_iter.Advance()) {
-    // Print separator before each instruction, except the first one.
-    if (bytecode_iter.current_offset() > 0) {
-      stream << ",\n" << kIndent << "     ";
+bool ExtractSnippets(std::vector<std::string>* snippet_list,
+                     const ProgramOptions& options) {
+  if (options.read_from_stdin()) {
+    ExtractSnippetsFromStream(snippet_list, std::cin,
+                              options.read_raw_js_snippet());
+  } else {
+    std::ifstream body_file(options.filename().c_str());
+    if (!body_file.is_open()) {
+      std::cerr << "ERROR: Could not open '" << options.filename() << "'.\n";
+      return false;
     }
-    PrintBytecode(stream, bytecode_iter);
+    ExtractSnippetsFromStream(snippet_list, body_file,
+                              options.read_raw_js_snippet());
   }
+  return true;
 }
 
-void PrintConstantPool(std::ostream& stream, i::FixedArray* constant_pool,
-                       ConstantPoolType expected_constant_type,
-                       v8::Isolate* isolate) {
-  int num_constants = constant_pool->length();
-  stream << "\n" << kIndent << " },\n" << kIndent << ' ' << num_constants;
-  if (num_constants > 0) {
-    stream << ",\n" << kIndent << " {";
-    for (int i = 0; i < num_constants; ++i) {
-      // Print separator before each constant, except the first one
-      if (i != 0) stream << ", ";
-      PrintConstant(
-          stream, expected_constant_type,
-          i::FixedArray::get(constant_pool, i, GetInternalIsolate(isolate)));
-    }
-    stream << '}';
-  }
-  stream << '\n';
-}
-
-void PrintBytecodeArray(std::ostream& stream,
-                        i::Handle<i::BytecodeArray> bytecode_array,
-                        const std::string& body, v8::Isolate* isolate,
-                        ConstantPoolType constant_pool_type,
-                        bool print_banner = true) {
-  if (print_banner) {
-    stream << kIndent << "// === ExpectedSnippet generated by "
-                         "generate-bytecode-expectations. ===\n";
-  }
-
-  // Print the code snippet as a quoted C string.
-  stream << kIndent << "{" << '"' << QuoteCString(body) << "\",\n";
-
-  PrintFrameSize(stream, bytecode_array);
-  PrintBytecodeSequence(stream, bytecode_array);
-  PrintConstantPool(stream, bytecode_array->constant_pool(), constant_pool_type,
-                    isolate);
-
-  // TODO(ssanfilippo) print handlers.
-  i::HandlerTable* handlers =
-      i::HandlerTable::cast(bytecode_array->handler_table());
-  CHECK_EQ(handlers->NumberOfRangeEntries(), 0);
-
-  stream << kIndent << "}\n";
-}
-
-void PrintExpectedSnippet(ConstantPoolType constant_pool_type, char* exec_path,
-                          std::string body) {
-  const char* wrapper_function_name = "__genbckexp_wrapper__";
-
+void GenerateExpectationsFile(
+    std::ostream& stream,  // NOLINT
+    const std::vector<std::string>& snippet_list,
+    BytecodeExpectationsPrinter::ConstantPoolType const_pool_type,
+    const char* exec_path) {
   V8InitializationScope platform(exec_path);
   {
     v8::Isolate::Scope isolate_scope(platform.isolate());
@@ -342,77 +236,48 @@ void PrintExpectedSnippet(ConstantPoolType constant_pool_type, char* exec_path,
     v8::Local<v8::Context> context = v8::Context::New(platform.isolate());
     v8::Context::Scope context_scope(context);
 
-    std::string source_code = WrapCodeInFunction(wrapper_function_name, body);
-    CompileAndRun(platform.isolate(), context, source_code.c_str());
+    stream << "#\n# Autogenerated by generate-bytecode-expectations\n#\n\n";
 
-    i::Handle<i::BytecodeArray> bytecode_array = GetBytecodeArrayForGlobal(
-        platform.isolate(), context, wrapper_function_name);
-
-    PrintBytecodeArray(std::cout, bytecode_array, body, platform.isolate(),
-                       constant_pool_type);
+    BytecodeExpectationsPrinter printer(platform.isolate(), const_pool_type);
+    for (const std::string& snippet : snippet_list) {
+      printer.PrintExpectation(stream, snippet);
+    }
   }
-}
-
-bool ReadFromFileOrStdin(std::string* body, const char* body_filename) {
-  std::stringstream body_buffer;
-  if (strcmp(body_filename, "-") == 0) {
-    body_buffer << std::cin.rdbuf();
-  } else {
-    std::ifstream body_file{body_filename};
-    if (!body_file) return false;
-    body_buffer << body_file.rdbuf();
-  }
-  *body = body_buffer.str();
-  return true;
-}
-
-ConstantPoolType ParseConstantPoolType(const char* type_string) {
-  if (strcmp(type_string, "int") == 0) {
-    return kConstantPoolTypeInteger;
-  } else if (strcmp(type_string, "double") == 0) {
-    return kConstantPoolTypeDouble;
-  } else if (strcmp(type_string, "string") == 0) {
-    return kConstantPoolTypeString;
-  } else if (strcmp(type_string, "mixed") == 0) {
-    return kConstantPoolTypeMixed;
-  }
-  return kConstantPoolTypeUnknown;
 }
 
 void PrintUsage(const char* exec_path) {
-  std::cerr << "Usage: " << exec_path
-            << " (int|double|string|mixed) [filename.js|-]\n\n"
-               "First argument is the type of objects in the constant pool.\n\n"
-               "Omitting the second argument or - reads from standard input.\n"
-               "Anything else is interpreted as a filename.\n\n"
-               "This tool is intended as a help in writing tests.\n"
-               "Please, DO NOT blindly copy and paste the output "
-               "into the test suite.\n";
+  std::cerr
+      << "\nUsage: " << exec_path
+      << " [OPTIONS]... [INPUT FILE]\n\n"
+         "Options:\n"
+         "  --help    Print this help message.\n"
+         "  --raw-js  Read raw JavaScript, instead of the output format.\n"
+         "  --stdin   Read from standard input instead of file.\n"
+         "  --pool-type=(int|double|string|mixed)\n"
+         "      specify the type of the entries in the constant pool "
+         "(default: mixed).\n"
+         "\n"
+         "Each raw JavaScript file is interpreted as a single snippet.\n\n"
+         "This tool is intended as a help in writing tests.\n"
+         "Please, DO NOT blindly copy and paste the output "
+         "into the test suite.\n";
 }
 
 }  // namespace
 
 int main(int argc, char** argv) {
-  if (argc < 2) {
+  ProgramOptions options = ProgramOptions::FromCommandLine(argc, argv);
+
+  if (!options.Validate() || options.print_help()) {
     PrintUsage(argv[0]);
-    return 1;
+    return options.print_help() ? 0 : 1;
   }
 
-  if (argc > 1 && strcmp(argv[1], "--help") == 0) {
-    PrintUsage(argv[0]);
-    return 0;
+  std::vector<std::string> snippet_list;
+  if (!ExtractSnippets(&snippet_list, options)) {
+    return 2;
   }
 
-  const char* body_filename = (argc > 2 ? argv[2] : "-");
-  const char* const_pool_type_string = argv[1];
-
-  std::string body;
-  if (!ReadFromFileOrStdin(&body, body_filename)) {
-    std::cerr << "Could not open '" << body_filename << "'.\n\n";
-    PrintUsage(argv[0]);
-    return 1;
-  }
-
-  PrintExpectedSnippet(ParseConstantPoolType(const_pool_type_string), argv[0],
-                       body);
+  GenerateExpectationsFile(std::cout, snippet_list, options.const_pool_type(),
+                           argv[0]);
 }
