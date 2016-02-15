@@ -1960,14 +1960,18 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
     __ bne(&return_left);  // left == right != 0.
 
     // At this point, both left and right are either 0 or -0.
-    // N.B. The following works because +0 + -0 == +0
     if (operation == HMathMinMax::kMathMin) {
-      // For min we want logical-or of sign bit: -(-L + -R)
+      // Min: The algorithm is: -((-L) + (-R)), which in case of L and R being
+      // different registers is most efficiently expressed as -((-L) - R).
       __ fneg(left_reg, left_reg);
-      __ fsub(result_reg, left_reg, right_reg);
+      if (left_reg.is(right_reg)) {
+        __ fadd(result_reg, left_reg, right_reg);
+      } else {
+        __ fsub(result_reg, left_reg, right_reg);
+      }
       __ fneg(result_reg, result_reg);
     } else {
-      // For max we want logical-and of sign bit: (L + R)
+      // Max: The following works because +0 + -0 == +0
       __ fadd(result_reg, left_reg, right_reg);
     }
     __ b(&done);
