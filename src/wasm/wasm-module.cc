@@ -256,14 +256,20 @@ bool AllocateGlobals(ErrorThrower* thrower, Isolate* isolate,
 }
 }  // namespace
 
-
 WasmModule::WasmModule()
-    : globals(nullptr),
+    : shared_isolate(nullptr),
+      module_start(nullptr),
+      module_end(nullptr),
+      min_mem_size_log2(0),
+      max_mem_size_log2(0),
+      mem_export(false),
+      mem_external(false),
+      start_function_index(-1),
+      globals(nullptr),
       signatures(nullptr),
       functions(nullptr),
       data_segments(nullptr),
       function_table(nullptr) {}
-
 
 WasmModule::~WasmModule() {
   if (globals) delete globals;
@@ -403,6 +409,25 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
   linker.Link(instance.function_table, this->function_table);
   instance.js_object->SetInternalField(kWasmModuleFunctionTable,
                                        Smi::FromInt(0));
+
+  // Run the start function if one was specified.
+  if (this->start_function_index >= 0) {
+    HandleScope scope(isolate);
+    uint32_t index = static_cast<uint32_t>(this->start_function_index);
+    Handle<String> name = isolate->factory()->NewStringFromStaticChars("start");
+    Handle<Code> code = linker.GetFunctionCode(index);
+    Handle<JSFunction> jsfunc = compiler::CompileJSToWasmWrapper(
+        isolate, &module_env, name, code, instance.js_object, index);
+
+    // Call the JS function.
+    Handle<Object> undefined(isolate->heap()->undefined_value(), isolate);
+    MaybeHandle<Object> retval =
+        Execution::Call(isolate, jsfunc, undefined, 0, nullptr);
+
+    if (retval.is_null()) {
+      thrower.Error("WASM.instantiateModule(): start function failed");
+    }
+  }
   return instance.js_object;
 }
 

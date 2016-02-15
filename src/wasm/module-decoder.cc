@@ -180,6 +180,29 @@ class ModuleDecoder : public Decoder {
           }
           break;
         }
+        case kDeclStartFunction: {
+          // Declares a start function for a module.
+          CheckForPreviousSection(sections, kDeclFunctions, true);
+          if (module->start_function_index >= 0) {
+            error("start function already declared");
+            break;
+          }
+          int length;
+          const byte* before = pc_;
+          uint32_t index = consume_u32v(&length, "start function index");
+          if (index >= module->functions->size()) {
+            error(before, "invalid start function index");
+            break;
+          }
+          module->start_function_index = static_cast<int>(index);
+          FunctionSig* sig =
+              module->signatures->at(module->functions->at(index).sig_index);
+          if (sig->parameter_count() > 0) {
+            error(before, "invalid start function: non-zero parameter count");
+            break;
+          }
+          break;
+        }
         case kDeclWLL: {
           // Reserved for experimentation by the Web Low-level Language project
           // which is augmenting the binary encoding with source code meta

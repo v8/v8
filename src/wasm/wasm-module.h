@@ -32,6 +32,7 @@ enum WasmSectionDeclCode {
   kDeclFunctionTable = 0x05,
   kDeclWLL = 0x11,
   kDeclEnd = 0x06,
+  kDeclStartFunction = 0x07,
 };
 
 static const int kMaxModuleSectionCode = 6;
@@ -93,6 +94,7 @@ struct WasmModule {
   uint8_t max_mem_size_log2;  // maximum size of the memory (log base 2).
   bool mem_export;            // true if the memory is exported.
   bool mem_external;          // true if the memory is external.
+  int start_function_index;   // start function, if any.
 
   std::vector<WasmGlobal>* globals;             // globals in this module.
   std::vector<FunctionSig*>* signatures;        // signatures in this module.

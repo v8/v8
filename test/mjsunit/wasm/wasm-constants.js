@@ -22,6 +22,7 @@ var kDeclFunctions = 0x02;
 var kDeclGlobals = 0x03;
 var kDeclDataSegments = 0x04;
 var kDeclFunctionTable = 0x05;
+var kDeclStartFunction = 0x07;
 var kDeclEnd = 0x06;
 
 // Function declaration flags
