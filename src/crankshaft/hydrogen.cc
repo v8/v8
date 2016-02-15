@@ -6780,18 +6780,48 @@ void HOptimizedGraphBuilder::HandlePolymorphicNamedFieldAccess(
   }
 }
 
-
-static bool ComputeReceiverTypes(Expression* expr,
-                                 HValue* receiver,
+static bool ComputeReceiverTypes(Expression* expr, HValue* receiver,
                                  SmallMapList** t,
-                                 Zone* zone) {
+                                 HOptimizedGraphBuilder* builder) {
+  Zone* zone = builder->zone();
   SmallMapList* maps = expr->GetReceiverTypes();
   *t = maps;
   bool monomorphic = expr->IsMonomorphic();
   if (maps != NULL && receiver->HasMonomorphicJSObjectType()) {
-    Map* root_map = receiver->GetMonomorphicJSObjectMap()->FindRootMap();
-    maps->FilterForPossibleTransitions(root_map);
-    monomorphic = maps->length() == 1;
+    if (maps->length() > 0) {
+      Map* root_map = receiver->GetMonomorphicJSObjectMap()->FindRootMap();
+      maps->FilterForPossibleTransitions(root_map);
+      monomorphic = maps->length() == 1;
+    } else {
+      // No type feedback, see if we can infer the type. This is safely
+      // possible if the receiver had a known map at some point, and no
+      // map-changing stores have happened to it since.
+      Handle<Map> candidate_map = receiver->GetMonomorphicJSObjectMap();
+      if (candidate_map->is_observed()) return false;
+      for (HInstruction* current = builder->current_block()->last();
+           current != nullptr; current = current->previous()) {
+        if (current->IsBlockEntry()) break;
+        if (current->CheckChangesFlag(kMaps)) {
+          // Only allow map changes that store the candidate map. We don't
+          // need to care which object the map is being written into.
+          if (!current->IsStoreNamedField()) break;
+          HStoreNamedField* map_change = HStoreNamedField::cast(current);
+          if (!map_change->value()->IsConstant()) break;
+          HConstant* map_constant = HConstant::cast(map_change->value());
+          if (!map_constant->representation().IsTagged()) break;
+          Handle<Object> map = map_constant->handle(builder->isolate());
+          if (!map.is_identical_to(candidate_map)) break;
+        }
+        if (current == receiver) {
+          // We made it all the way back to the receiver without encountering
+          // a map change! So we can assume that the receiver still has the
+          // candidate_map we know about.
+          maps->Add(candidate_map, zone);
+          monomorphic = true;
+          break;
+        }
+      }
+    }
   }
   return monomorphic && CanInlinePropertyAccess(maps->first());
 }
@@ -7700,7 +7730,7 @@ HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
   HInstruction* instr = NULL;
 
   SmallMapList* maps;
-  bool monomorphic = ComputeReceiverTypes(expr, obj, &maps, zone());
+  bool monomorphic = ComputeReceiverTypes(expr, obj, &maps, this);
 
   bool force_generic = false;
   if (expr->GetKeyType() == PROPERTY) {
@@ -7857,7 +7887,7 @@ HValue* HOptimizedGraphBuilder::BuildNamedAccess(
     Expression* expr, FeedbackVectorSlot slot, HValue* object,
     Handle<Name> name, HValue* value, bool is_uninitialized) {
   SmallMapList* maps;
-  ComputeReceiverTypes(expr, object, &maps, zone());
+  ComputeReceiverTypes(expr, object, &maps, this);
   DCHECK(maps != NULL);
 
   if (maps->length() > 0) {
@@ -9701,7 +9731,7 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
     HValue* receiver = Top();
 
     SmallMapList* maps;
-    ComputeReceiverTypes(expr, receiver, &maps, zone());
+    ComputeReceiverTypes(expr, receiver, &maps, this);
 
     if (prop->key()->IsPropertyName() && maps->length() > 0) {
       Handle<String> name = prop->key()->AsLiteral()->AsPropertyName();

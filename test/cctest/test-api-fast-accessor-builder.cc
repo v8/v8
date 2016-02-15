@@ -112,6 +112,9 @@ void AddInternalFieldAccessor(v8::Isolate* isolate,
 
 // "Fast" accessor that accesses an internal field.
 TEST(FastAccessorWithInternalField) {
+  // Crankshaft support for fast accessors is not implemented; crankshafted
+  // code uses the slow accessor which breaks this test's expectations.
+  v8::internal::FLAG_always_opt = false;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -142,6 +145,9 @@ TEST(FastAccessorWithInternalField) {
 
 // "Fast" accessor with control flow via ...OrReturnNull methods.
 TEST(FastAccessorOrReturnNull) {
+  // Crankshaft support for fast accessors is not implemented; crankshafted
+  // code uses the slow accessor which breaks this test's expectations.
+  v8::internal::FLAG_always_opt = false;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -191,6 +197,9 @@ TEST(FastAccessorOrReturnNull) {
 
 // "Fast" accessor with simple control flow via explicit labels.
 TEST(FastAccessorControlFlowWithLabels) {
+  // Crankshaft support for fast accessors is not implemented; crankshafted
+  // code uses the slow accessor which breaks this test's expectations.
+  v8::internal::FLAG_always_opt = false;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -226,6 +235,9 @@ TEST(FastAccessorControlFlowWithLabels) {
 
 // "Fast" accessor, loading things.
 TEST(FastAccessorLoad) {
+  // Crankshaft support for fast accessors is not implemented; crankshafted
+  // code uses the slow accessor which breaks this test's expectations.
+  v8::internal::FLAG_always_opt = false;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -305,6 +317,9 @@ void ApiCallbackParam(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 // "Fast" accessor, callback to embedder
 TEST(FastAccessorCallback) {
+  // Crankshaft support for fast accessors is not implemented; crankshafted
+  // code uses the slow accessor which breaks this test's expectations.
+  v8::internal::FLAG_always_opt = false;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
