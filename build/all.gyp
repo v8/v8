@@ -37,6 +37,7 @@
             '../test/test262/test262.gyp:*',
             '../test/webkit/webkit.gyp:*',
             '../tools/check-static-initializers.gyp:*',
+            '../tools/run-valgrind.gyp:*',
           ],
         }],
       ]
