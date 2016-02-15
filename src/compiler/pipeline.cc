@@ -1502,6 +1502,8 @@ void Pipeline::AllocateRegisters(const RegisterConfiguration* config,
   data->DeleteRegisterAllocationZone();
 }
 
+Isolate* Pipeline::isolate() const { return info()->isolate(); }
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
