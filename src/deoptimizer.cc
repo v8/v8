@@ -371,6 +371,7 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
 
 
 void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
+  TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   if (FLAG_trace_deopt) {
     CodeTracer::Scope scope(isolate->GetCodeTracer());
     PrintF(scope.file(), "[deoptimize all code in all contexts]\n");
@@ -388,6 +389,7 @@ void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
 
 
 void Deoptimizer::DeoptimizeMarkedCode(Isolate* isolate) {
+  TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   if (FLAG_trace_deopt) {
     CodeTracer::Scope scope(isolate->GetCodeTracer());
     PrintF(scope.file(), "[deoptimize marked code in all contexts]\n");
@@ -415,6 +417,7 @@ void Deoptimizer::MarkAllCodeForContext(Context* context) {
 
 
 void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
+  TimerEventScope<TimerEventDeoptimizeCode> timer(function->GetIsolate());
   Code* code = function->code();
   if (code->kind() == Code::OPTIMIZED_FUNCTION) {
     // Mark the code for deoptimization and unlink any functions that also

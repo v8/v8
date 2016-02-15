@@ -927,6 +927,7 @@ bool Compiler::ParseAndAnalyze(ParseInfo* info) {
 static bool GetOptimizedCodeNow(CompilationInfo* info) {
   Isolate* isolate = info->isolate();
   CanonicalHandleScope canonical(isolate);
+  TimerEventScope<TimerEventOptimizeCode> optimize_code_timer(isolate);
 
   if (!Compiler::ParseAndAnalyze(info->parse_info())) return false;
 
@@ -956,6 +957,7 @@ static bool GetOptimizedCodeNow(CompilationInfo* info) {
 static bool GetOptimizedCodeLater(CompilationInfo* info) {
   Isolate* isolate = info->isolate();
   CanonicalHandleScope canonical(isolate);
+  TimerEventScope<TimerEventOptimizeCode> optimize_code_timer(isolate);
 
   if (!isolate->optimizing_compile_dispatcher()->IsQueueAvailable()) {
     if (FLAG_trace_concurrent_recompilation) {
@@ -1013,6 +1015,7 @@ MaybeHandle<Code> Compiler::GetLazyCode(Handle<JSFunction> function) {
   Isolate* isolate = function->GetIsolate();
   DCHECK(!isolate->has_pending_exception());
   DCHECK(!function->is_compiled());
+  TimerEventScope<TimerEventCompileCode> compile_timer(isolate);
   AggregatedHistogramTimerScope timer(isolate->counters()->compile_lazy());
   // If the debugger is active, do not compile with turbofan unless we can
   // deopt from turbofan code.
@@ -1220,6 +1223,7 @@ void Compiler::CompileForLiveEdit(Handle<Script> script) {
 
 static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
   Isolate* isolate = info->isolate();
+  TimerEventScope<TimerEventCompileCode> timer(isolate);
   PostponeInterruptsScope postpone(isolate);
   DCHECK(!isolate->native_context().is_null());
   ParseInfo* parse_info = info->parse_info();
@@ -1617,6 +1621,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   bool lazy = FLAG_lazy && allow_lazy && !literal->should_eager_compile();
 
   // Generate code
+  TimerEventScope<TimerEventCompileCode> timer(isolate);
   Handle<ScopeInfo> scope_info;
   if (lazy) {
     Handle<Code> code = isolate->builtins()->CompileLazy();

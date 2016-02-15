@@ -330,8 +330,9 @@ class AggregatableHistogramTimer : public Histogram {
   base::TimeDelta time_;
 };
 
-
-// A helper class for use with AggregatableHistogramTimer.
+// A helper class for use with AggregatableHistogramTimer. This is the
+// outer-most timer scope used with an AggregatableHistogramTimer. It will
+// aggregate the information from the inner AggregatedHistogramTimerScope.
 class AggregatingHistogramTimerScope {
  public:
   explicit AggregatingHistogramTimerScope(AggregatableHistogramTimer* histogram)
@@ -344,8 +345,8 @@ class AggregatingHistogramTimerScope {
   AggregatableHistogramTimer* histogram_;
 };
 
-
-// A helper class for use with AggregatableHistogramTimer.
+// A helper class for use with AggregatableHistogramTimer, the "inner" scope
+// which defines the events to be timed.
 class AggregatedHistogramTimerScope {
  public:
   explicit AggregatedHistogramTimerScope(AggregatableHistogramTimer* histogram)
