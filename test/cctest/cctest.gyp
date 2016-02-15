@@ -370,10 +370,23 @@
     ['test_isolation_mode != "noop"', {
       'targets': [
         {
-          'target_name': 'cctest_run',
+          'target_name': 'cctest_exe_run',
           'type': 'none',
           'dependencies': [
             'cctest',
+          ],
+          'includes': [
+            '../../build/isolate.gypi',
+          ],
+          'sources': [
+            'cctest_exe.isolate',
+          ],
+        },
+        {
+          'target_name': 'cctest_run',
+          'type': 'none',
+          'dependencies': [
+            'cctest_exe_run',
           ],
           'includes': [
             '../../build/isolate.gypi',

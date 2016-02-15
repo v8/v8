@@ -31,6 +31,7 @@
             '../test/mjsunit/mjsunit.gyp:*',
             '../test/mozilla/mozilla.gyp:*',
             '../test/optimize_for_size.gyp:*',
+            '../test/perf.gyp:*',
             '../test/preparser/preparser.gyp:*',
             '../test/simdjs/simdjs.gyp:*',
             '../test/test262/test262.gyp:*',
