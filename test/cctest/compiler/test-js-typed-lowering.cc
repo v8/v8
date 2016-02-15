@@ -163,17 +163,8 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
   }
 
   Node* UseForEffect(Node* node) {
-    // TODO(titzer): use EffectPhi after fixing EffectCount
-    if (OperatorProperties::GetFrameStateInputCount(javascript.ToNumber()) >
-        0) {
-      CHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(
-                      javascript.ToNumber()));
-      return graph.NewNode(javascript.ToNumber(), node, context(),
-                           EmptyFrameState(context()), node, control());
-    } else {
-      return graph.NewNode(javascript.ToNumber(), node, context(), node,
-                           control());
-    }
+    Node* merge = graph.NewNode(common.Merge(1), start());
+    return graph.NewNode(common.EffectPhi(1), node, merge);
   }
 
   void CheckEffectInput(Node* effect, Node* use) {
@@ -558,7 +549,6 @@ TEST(JSToString1) {
 
   {  // ToString(number)
     Node* r = R.ReduceUnop(op, Type::Number());
-    // TODO(titzer): could remove effects
     CHECK_EQ(IrOpcode::kJSToString, r->opcode());
   }
 
@@ -896,9 +886,16 @@ TEST(StrictEqualityForRefEqualTypes) {
     Node* p1 = R.Parameter(types[i]);
     CheckEqualityReduction(&R, true, p0, p1, IrOpcode::kReferenceEqual);
   }
-  // TODO(titzer): Equal(RefEqualTypes)
 }
 
+TEST(StrictEqualityForUnique) {
+  JSTypedLoweringTester R;
+
+  Node* p0 = R.Parameter(Type::Unique());
+  Node* p1 = R.Parameter(Type::Unique());
+  CheckEqualityReduction(&R, true, p0, p1, IrOpcode::kReferenceEqual);
+  CheckEqualityReduction(&R, true, p1, p0, IrOpcode::kReferenceEqual);
+}
 
 TEST(StringEquality) {
   JSTypedLoweringTester R;
