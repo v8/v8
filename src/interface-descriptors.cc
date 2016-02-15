@@ -339,25 +339,6 @@ void ApiGetterDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
-FunctionType*
-ArgumentsAccessNewDescriptor::BuildCallInterfaceDescriptorFunctionType(
-    Isolate* isolate, int paramater_count) {
-  Zone* zone = isolate->interface_descriptor_zone();
-  FunctionType* function =
-      Type::Function(AnyTagged(zone), Type::Undefined(), 3, zone)->AsFunction();
-  function->InitParameter(0, AnyTagged(zone));
-  function->InitParameter(1, SmiType(zone));
-  function->InitParameter(2, ExternalPointer(zone));
-  return function;
-}
-
-
-void ArgumentsAccessNewDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {function(), parameter_count(), parameter_pointer()};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
 
 void ContextOnlyDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {

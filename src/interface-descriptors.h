@@ -26,7 +26,8 @@ class PlatformInterfaceDescriptor;
   V(FastNewClosure)                           \
   V(FastNewContext)                           \
   V(FastNewRestParameter)                     \
-  V(FastNewStrictArguments)                 \
+  V(FastNewSloppyArguments)                   \
+  V(FastNewStrictArguments)                   \
   V(ToNumber)                                 \
   V(ToLength)                                 \
   V(ToString)                                 \
@@ -69,7 +70,6 @@ class PlatformInterfaceDescriptor;
   V(ApiFunction)                              \
   V(ApiAccessor)                              \
   V(ApiGetter)                                \
-  V(ArgumentsAccessNew)                       \
   V(LoadGlobalViaContext)                     \
   V(StoreGlobalViaContext)                    \
   V(MathPowTagged)                            \
@@ -377,6 +377,12 @@ class FastNewContextDescriptor : public CallInterfaceDescriptor {
 class FastNewRestParameterDescriptor : public CallInterfaceDescriptor {
  public:
   DECLARE_DESCRIPTOR(FastNewRestParameterDescriptor, CallInterfaceDescriptor)
+};
+
+class FastNewSloppyArgumentsDescriptor : public CallInterfaceDescriptor {
+ public:
+  DECLARE_DESCRIPTOR(FastNewSloppyArgumentsDescriptor,
+                     CallInterfaceDescriptor)
 };
 
 class FastNewStrictArgumentsDescriptor : public CallInterfaceDescriptor {
@@ -705,17 +711,6 @@ class ApiGetterDescriptor : public CallInterfaceDescriptor {
                                                CallInterfaceDescriptor)
 
   static const Register function_address();
-};
-
-
-class ArgumentsAccessNewDescriptor : public CallInterfaceDescriptor {
- public:
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(ArgumentsAccessNewDescriptor,
-                                               CallInterfaceDescriptor)
-
-  static const Register function();
-  static const Register parameter_count();
-  static const Register parameter_pointer();
 };
 
 

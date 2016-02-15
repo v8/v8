@@ -534,246 +534,6 @@ void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
 }
 
 
-void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
-  // rcx : number of parameters (tagged)
-  // rdx : parameters pointer
-  // rdi : function
-  // rsp[0] : return address
-  // Registers used over the whole function:
-  //  rbx: the mapped parameter count (untagged)
-  //  rax: the allocated object (tagged).
-  Factory* factory = isolate()->factory();
-
-  DCHECK(rdi.is(ArgumentsAccessNewDescriptor::function()));
-  DCHECK(rcx.is(ArgumentsAccessNewDescriptor::parameter_count()));
-  DCHECK(rdx.is(ArgumentsAccessNewDescriptor::parameter_pointer()));
-
-  __ SmiToInteger64(rbx, rcx);
-  // rbx = parameter count (untagged)
-
-  // Check if the calling frame is an arguments adaptor frame.
-  Label adaptor_frame, try_allocate, runtime;
-  __ movp(rax, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
-  __ movp(r8, Operand(rax, StandardFrameConstants::kContextOffset));
-  __ Cmp(r8, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
-  __ j(equal, &adaptor_frame);
-
-  // No adaptor, parameter count = argument count.
-  __ movp(r11, rbx);
-  __ jmp(&try_allocate, Label::kNear);
-
-  // We have an adaptor frame. Patch the parameters pointer.
-  __ bind(&adaptor_frame);
-  __ SmiToInteger64(
-      r11, Operand(rax, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ leap(rdx, Operand(rax, r11, times_pointer_size,
-                       StandardFrameConstants::kCallerSPOffset));
-
-  // rbx = parameter count (untagged)
-  // r11 = argument count (untagged)
-  // Compute the mapped parameter count = min(rbx, r11) in rbx.
-  __ cmpp(rbx, r11);
-  __ j(less_equal, &try_allocate, Label::kNear);
-  __ movp(rbx, r11);
-
-  __ bind(&try_allocate);
-
-  // Compute the sizes of backing store, parameter map, and arguments object.
-  // 1. Parameter map, has 2 extra words containing context and backing store.
-  const int kParameterMapHeaderSize =
-      FixedArray::kHeaderSize + 2 * kPointerSize;
-  Label no_parameter_map;
-  __ xorp(r8, r8);
-  __ testp(rbx, rbx);
-  __ j(zero, &no_parameter_map, Label::kNear);
-  __ leap(r8, Operand(rbx, times_pointer_size, kParameterMapHeaderSize));
-  __ bind(&no_parameter_map);
-
-  // 2. Backing store.
-  __ leap(r8, Operand(r8, r11, times_pointer_size, FixedArray::kHeaderSize));
-
-  // 3. Arguments object.
-  __ addp(r8, Immediate(JSSloppyArgumentsObject::kSize));
-
-  // Do the allocation of all three objects in one go.
-  __ Allocate(r8, rax, r9, no_reg, &runtime, TAG_OBJECT);
-
-  // rax = address of new object(s) (tagged)
-  // r11 = argument count (untagged)
-  // Get the arguments map from the current native context into r9.
-  Label has_mapped_parameters, instantiate;
-  __ movp(r9, NativeContextOperand());
-  __ testp(rbx, rbx);
-  __ j(not_zero, &has_mapped_parameters, Label::kNear);
-
-  const int kIndex = Context::SLOPPY_ARGUMENTS_MAP_INDEX;
-  __ movp(r9, Operand(r9, Context::SlotOffset(kIndex)));
-  __ jmp(&instantiate, Label::kNear);
-
-  const int kAliasedIndex = Context::FAST_ALIASED_ARGUMENTS_MAP_INDEX;
-  __ bind(&has_mapped_parameters);
-  __ movp(r9, Operand(r9, Context::SlotOffset(kAliasedIndex)));
-  __ bind(&instantiate);
-
-  // rax = address of new object (tagged)
-  // rbx = mapped parameter count (untagged)
-  // r11 = argument count (untagged)
-  // r9 = address of arguments map (tagged)
-  __ movp(FieldOperand(rax, JSObject::kMapOffset), r9);
-  __ LoadRoot(kScratchRegister, Heap::kEmptyFixedArrayRootIndex);
-  __ movp(FieldOperand(rax, JSObject::kPropertiesOffset), kScratchRegister);
-  __ movp(FieldOperand(rax, JSObject::kElementsOffset), kScratchRegister);
-
-  // Set up the callee in-object property.
-  __ AssertNotSmi(rdi);
-  __ movp(FieldOperand(rax, JSSloppyArgumentsObject::kCalleeOffset), rdi);
-
-  // Use the length (smi tagged) and set that as an in-object property too.
-  // Note: r11 is tagged from here on.
-  __ Integer32ToSmi(r11, r11);
-  __ movp(FieldOperand(rax, JSSloppyArgumentsObject::kLengthOffset), r11);
-
-  // Set up the elements pointer in the allocated arguments object.
-  // If we allocated a parameter map, rdi will point there, otherwise to the
-  // backing store.
-  __ leap(rdi, Operand(rax, JSSloppyArgumentsObject::kSize));
-  __ movp(FieldOperand(rax, JSObject::kElementsOffset), rdi);
-
-  // rax = address of new object (tagged)
-  // rbx = mapped parameter count (untagged)
-  // r11 = argument count (tagged)
-  // rdi = address of parameter map or backing store (tagged)
-
-  // Initialize parameter map. If there are no mapped arguments, we're done.
-  Label skip_parameter_map;
-  __ testp(rbx, rbx);
-  __ j(zero, &skip_parameter_map);
-
-  __ LoadRoot(kScratchRegister, Heap::kSloppyArgumentsElementsMapRootIndex);
-  // rbx contains the untagged argument count. Add 2 and tag to write.
-  __ movp(FieldOperand(rdi, FixedArray::kMapOffset), kScratchRegister);
-  __ Integer64PlusConstantToSmi(r9, rbx, 2);
-  __ movp(FieldOperand(rdi, FixedArray::kLengthOffset), r9);
-  __ movp(FieldOperand(rdi, FixedArray::kHeaderSize + 0 * kPointerSize), rsi);
-  __ leap(r9, Operand(rdi, rbx, times_pointer_size, kParameterMapHeaderSize));
-  __ movp(FieldOperand(rdi, FixedArray::kHeaderSize + 1 * kPointerSize), r9);
-
-  // Copy the parameter slots and the holes in the arguments.
-  // We need to fill in mapped_parameter_count slots. They index the context,
-  // where parameters are stored in reverse order, at
-  //   MIN_CONTEXT_SLOTS .. MIN_CONTEXT_SLOTS+parameter_count-1
-  // The mapped parameter thus need to get indices
-  //   MIN_CONTEXT_SLOTS+parameter_count-1 ..
-  //       MIN_CONTEXT_SLOTS+parameter_count-mapped_parameter_count
-  // We loop from right to left.
-  Label parameters_loop, parameters_test;
-
-  // Load tagged parameter count into r9.
-  __ Integer32ToSmi(r9, rbx);
-  __ Move(r8, Smi::FromInt(Context::MIN_CONTEXT_SLOTS));
-  __ addp(r8, rcx);
-  __ subp(r8, r9);
-  __ movp(rcx, rdi);
-  __ leap(rdi, Operand(rdi, rbx, times_pointer_size, kParameterMapHeaderSize));
-  __ SmiToInteger64(r9, r9);
-  // r9 = loop variable (untagged)
-  // r8 = mapping index (tagged)
-  // rcx = address of parameter map (tagged)
-  // rdi = address of backing store (tagged)
-  __ jmp(&parameters_test, Label::kNear);
-
-  __ bind(&parameters_loop);
-  __ subp(r9, Immediate(1));
-  __ LoadRoot(kScratchRegister, Heap::kTheHoleValueRootIndex);
-  __ movp(FieldOperand(rcx, r9, times_pointer_size, kParameterMapHeaderSize),
-          r8);
-  __ movp(FieldOperand(rdi, r9, times_pointer_size, FixedArray::kHeaderSize),
-          kScratchRegister);
-  __ SmiAddConstant(r8, r8, Smi::FromInt(1));
-  __ bind(&parameters_test);
-  __ testp(r9, r9);
-  __ j(not_zero, &parameters_loop, Label::kNear);
-
-  __ bind(&skip_parameter_map);
-
-  // r11 = argument count (tagged)
-  // rdi = address of backing store (tagged)
-  // Copy arguments header and remaining slots (if there are any).
-  __ Move(FieldOperand(rdi, FixedArray::kMapOffset),
-          factory->fixed_array_map());
-  __ movp(FieldOperand(rdi, FixedArray::kLengthOffset), r11);
-
-  Label arguments_loop, arguments_test;
-  __ movp(r8, rbx);
-  // Untag r11 for the loop below.
-  __ SmiToInteger64(r11, r11);
-  __ leap(kScratchRegister, Operand(r8, times_pointer_size, 0));
-  __ subp(rdx, kScratchRegister);
-  __ jmp(&arguments_test, Label::kNear);
-
-  __ bind(&arguments_loop);
-  __ subp(rdx, Immediate(kPointerSize));
-  __ movp(r9, Operand(rdx, 0));
-  __ movp(FieldOperand(rdi, r8,
-                       times_pointer_size,
-                       FixedArray::kHeaderSize),
-          r9);
-  __ addp(r8, Immediate(1));
-
-  __ bind(&arguments_test);
-  __ cmpp(r8, r11);
-  __ j(less, &arguments_loop, Label::kNear);
-
-  // Return.
-  __ ret(0);
-
-  // Do the runtime call to allocate the arguments object.
-  // r11 = argument count (untagged)
-  __ bind(&runtime);
-  __ Integer32ToSmi(r11, r11);
-  __ PopReturnAddressTo(rax);
-  __ Push(rdi);  // Push function.
-  __ Push(rdx);  // Push parameters pointer.
-  __ Push(r11);  // Push parameter count.
-  __ PushReturnAddressFrom(rax);
-  __ TailCallRuntime(Runtime::kNewSloppyArguments);
-}
-
-
-void ArgumentsAccessStub::GenerateNewSloppySlow(MacroAssembler* masm) {
-  // rcx : number of parameters (tagged)
-  // rdx : parameters pointer
-  // rdi : function
-  // rsp[0] : return address
-
-  DCHECK(rdi.is(ArgumentsAccessNewDescriptor::function()));
-  DCHECK(rcx.is(ArgumentsAccessNewDescriptor::parameter_count()));
-  DCHECK(rdx.is(ArgumentsAccessNewDescriptor::parameter_pointer()));
-
-  // Check if the calling frame is an arguments adaptor frame.
-  Label runtime;
-  __ movp(rbx, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
-  __ movp(rax, Operand(rbx, StandardFrameConstants::kContextOffset));
-  __ Cmp(rax, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
-  __ j(not_equal, &runtime);
-
-  // Patch the arguments.length and the parameters pointer.
-  StackArgumentsAccessor args(rsp, 3, ARGUMENTS_DONT_CONTAIN_RECEIVER);
-  __ movp(rcx, Operand(rbx, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ SmiToInteger64(rax, rcx);
-  __ leap(rdx, Operand(rbx, rax, times_pointer_size,
-                       StandardFrameConstants::kCallerSPOffset));
-
-  __ bind(&runtime);
-  __ PopReturnAddressTo(rax);
-  __ Push(rdi);  // Push function.
-  __ Push(rdx);  // Push parameters pointer.
-  __ Push(rcx);  // Push parameter count.
-  __ PushReturnAddressFrom(rax);
-  __ TailCallRuntime(Runtime::kNewSloppyArguments);
-}
-
-
 void LoadIndexedInterceptorStub::Generate(MacroAssembler* masm) {
   // Return address is on the stack.
   Label slow;
@@ -4871,6 +4631,224 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
     }
     __ jmp(&done_allocate);
   }
+}
+
+
+void FastNewSloppyArgumentsStub::Generate(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rdi    : function
+  //  -- rsi    : context
+  //  -- rbp    : frame pointer
+  //  -- rsp[0] : return address
+  // -----------------------------------
+  __ AssertFunction(rdi);
+
+  // TODO(bmeurer): Cleanup to match the FastNewStrictArgumentsStub.
+  __ movp(rcx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+  __ LoadSharedFunctionInfoSpecialField(
+      rcx, rcx, SharedFunctionInfo::kFormalParameterCountOffset);
+  __ leap(rdx, Operand(rbp, rcx, times_pointer_size,
+                       StandardFrameConstants::kCallerSPOffset));
+  __ Integer32ToSmi(rcx, rcx);
+
+  // rcx : number of parameters (tagged)
+  // rdx : parameters pointer
+  // rdi : function
+  // rsp[0] : return address
+  // Registers used over the whole function:
+  //  rbx: the mapped parameter count (untagged)
+  //  rax: the allocated object (tagged).
+  Factory* factory = isolate()->factory();
+
+  __ SmiToInteger64(rbx, rcx);
+  // rbx = parameter count (untagged)
+
+  // Check if the calling frame is an arguments adaptor frame.
+  Label adaptor_frame, try_allocate, runtime;
+  __ movp(rax, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
+  __ movp(r8, Operand(rax, StandardFrameConstants::kContextOffset));
+  __ Cmp(r8, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
+  __ j(equal, &adaptor_frame);
+
+  // No adaptor, parameter count = argument count.
+  __ movp(r11, rbx);
+  __ jmp(&try_allocate, Label::kNear);
+
+  // We have an adaptor frame. Patch the parameters pointer.
+  __ bind(&adaptor_frame);
+  __ SmiToInteger64(
+      r11, Operand(rax, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ leap(rdx, Operand(rax, r11, times_pointer_size,
+                       StandardFrameConstants::kCallerSPOffset));
+
+  // rbx = parameter count (untagged)
+  // r11 = argument count (untagged)
+  // Compute the mapped parameter count = min(rbx, r11) in rbx.
+  __ cmpp(rbx, r11);
+  __ j(less_equal, &try_allocate, Label::kNear);
+  __ movp(rbx, r11);
+
+  __ bind(&try_allocate);
+
+  // Compute the sizes of backing store, parameter map, and arguments object.
+  // 1. Parameter map, has 2 extra words containing context and backing store.
+  const int kParameterMapHeaderSize =
+      FixedArray::kHeaderSize + 2 * kPointerSize;
+  Label no_parameter_map;
+  __ xorp(r8, r8);
+  __ testp(rbx, rbx);
+  __ j(zero, &no_parameter_map, Label::kNear);
+  __ leap(r8, Operand(rbx, times_pointer_size, kParameterMapHeaderSize));
+  __ bind(&no_parameter_map);
+
+  // 2. Backing store.
+  __ leap(r8, Operand(r8, r11, times_pointer_size, FixedArray::kHeaderSize));
+
+  // 3. Arguments object.
+  __ addp(r8, Immediate(JSSloppyArgumentsObject::kSize));
+
+  // Do the allocation of all three objects in one go.
+  __ Allocate(r8, rax, r9, no_reg, &runtime, TAG_OBJECT);
+
+  // rax = address of new object(s) (tagged)
+  // r11 = argument count (untagged)
+  // Get the arguments map from the current native context into r9.
+  Label has_mapped_parameters, instantiate;
+  __ movp(r9, NativeContextOperand());
+  __ testp(rbx, rbx);
+  __ j(not_zero, &has_mapped_parameters, Label::kNear);
+
+  const int kIndex = Context::SLOPPY_ARGUMENTS_MAP_INDEX;
+  __ movp(r9, Operand(r9, Context::SlotOffset(kIndex)));
+  __ jmp(&instantiate, Label::kNear);
+
+  const int kAliasedIndex = Context::FAST_ALIASED_ARGUMENTS_MAP_INDEX;
+  __ bind(&has_mapped_parameters);
+  __ movp(r9, Operand(r9, Context::SlotOffset(kAliasedIndex)));
+  __ bind(&instantiate);
+
+  // rax = address of new object (tagged)
+  // rbx = mapped parameter count (untagged)
+  // r11 = argument count (untagged)
+  // r9 = address of arguments map (tagged)
+  __ movp(FieldOperand(rax, JSObject::kMapOffset), r9);
+  __ LoadRoot(kScratchRegister, Heap::kEmptyFixedArrayRootIndex);
+  __ movp(FieldOperand(rax, JSObject::kPropertiesOffset), kScratchRegister);
+  __ movp(FieldOperand(rax, JSObject::kElementsOffset), kScratchRegister);
+
+  // Set up the callee in-object property.
+  __ AssertNotSmi(rdi);
+  __ movp(FieldOperand(rax, JSSloppyArgumentsObject::kCalleeOffset), rdi);
+
+  // Use the length (smi tagged) and set that as an in-object property too.
+  // Note: r11 is tagged from here on.
+  __ Integer32ToSmi(r11, r11);
+  __ movp(FieldOperand(rax, JSSloppyArgumentsObject::kLengthOffset), r11);
+
+  // Set up the elements pointer in the allocated arguments object.
+  // If we allocated a parameter map, rdi will point there, otherwise to the
+  // backing store.
+  __ leap(rdi, Operand(rax, JSSloppyArgumentsObject::kSize));
+  __ movp(FieldOperand(rax, JSObject::kElementsOffset), rdi);
+
+  // rax = address of new object (tagged)
+  // rbx = mapped parameter count (untagged)
+  // r11 = argument count (tagged)
+  // rdi = address of parameter map or backing store (tagged)
+
+  // Initialize parameter map. If there are no mapped arguments, we're done.
+  Label skip_parameter_map;
+  __ testp(rbx, rbx);
+  __ j(zero, &skip_parameter_map);
+
+  __ LoadRoot(kScratchRegister, Heap::kSloppyArgumentsElementsMapRootIndex);
+  // rbx contains the untagged argument count. Add 2 and tag to write.
+  __ movp(FieldOperand(rdi, FixedArray::kMapOffset), kScratchRegister);
+  __ Integer64PlusConstantToSmi(r9, rbx, 2);
+  __ movp(FieldOperand(rdi, FixedArray::kLengthOffset), r9);
+  __ movp(FieldOperand(rdi, FixedArray::kHeaderSize + 0 * kPointerSize), rsi);
+  __ leap(r9, Operand(rdi, rbx, times_pointer_size, kParameterMapHeaderSize));
+  __ movp(FieldOperand(rdi, FixedArray::kHeaderSize + 1 * kPointerSize), r9);
+
+  // Copy the parameter slots and the holes in the arguments.
+  // We need to fill in mapped_parameter_count slots. They index the context,
+  // where parameters are stored in reverse order, at
+  //   MIN_CONTEXT_SLOTS .. MIN_CONTEXT_SLOTS+parameter_count-1
+  // The mapped parameter thus need to get indices
+  //   MIN_CONTEXT_SLOTS+parameter_count-1 ..
+  //       MIN_CONTEXT_SLOTS+parameter_count-mapped_parameter_count
+  // We loop from right to left.
+  Label parameters_loop, parameters_test;
+
+  // Load tagged parameter count into r9.
+  __ Integer32ToSmi(r9, rbx);
+  __ Move(r8, Smi::FromInt(Context::MIN_CONTEXT_SLOTS));
+  __ addp(r8, rcx);
+  __ subp(r8, r9);
+  __ movp(rcx, rdi);
+  __ leap(rdi, Operand(rdi, rbx, times_pointer_size, kParameterMapHeaderSize));
+  __ SmiToInteger64(r9, r9);
+  // r9 = loop variable (untagged)
+  // r8 = mapping index (tagged)
+  // rcx = address of parameter map (tagged)
+  // rdi = address of backing store (tagged)
+  __ jmp(&parameters_test, Label::kNear);
+
+  __ bind(&parameters_loop);
+  __ subp(r9, Immediate(1));
+  __ LoadRoot(kScratchRegister, Heap::kTheHoleValueRootIndex);
+  __ movp(FieldOperand(rcx, r9, times_pointer_size, kParameterMapHeaderSize),
+          r8);
+  __ movp(FieldOperand(rdi, r9, times_pointer_size, FixedArray::kHeaderSize),
+          kScratchRegister);
+  __ SmiAddConstant(r8, r8, Smi::FromInt(1));
+  __ bind(&parameters_test);
+  __ testp(r9, r9);
+  __ j(not_zero, &parameters_loop, Label::kNear);
+
+  __ bind(&skip_parameter_map);
+
+  // r11 = argument count (tagged)
+  // rdi = address of backing store (tagged)
+  // Copy arguments header and remaining slots (if there are any).
+  __ Move(FieldOperand(rdi, FixedArray::kMapOffset),
+          factory->fixed_array_map());
+  __ movp(FieldOperand(rdi, FixedArray::kLengthOffset), r11);
+
+  Label arguments_loop, arguments_test;
+  __ movp(r8, rbx);
+  // Untag r11 for the loop below.
+  __ SmiToInteger64(r11, r11);
+  __ leap(kScratchRegister, Operand(r8, times_pointer_size, 0));
+  __ subp(rdx, kScratchRegister);
+  __ jmp(&arguments_test, Label::kNear);
+
+  __ bind(&arguments_loop);
+  __ subp(rdx, Immediate(kPointerSize));
+  __ movp(r9, Operand(rdx, 0));
+  __ movp(FieldOperand(rdi, r8,
+                       times_pointer_size,
+                       FixedArray::kHeaderSize),
+          r9);
+  __ addp(r8, Immediate(1));
+
+  __ bind(&arguments_test);
+  __ cmpp(r8, r11);
+  __ j(less, &arguments_loop, Label::kNear);
+
+  // Return.
+  __ ret(0);
+
+  // Do the runtime call to allocate the arguments object.
+  // r11 = argument count (untagged)
+  __ bind(&runtime);
+  __ Integer32ToSmi(r11, r11);
+  __ PopReturnAddressTo(rax);
+  __ Push(rdi);  // Push function.
+  __ Push(rdx);  // Push parameters pointer.
+  __ Push(r11);  // Push parameter count.
+  __ PushReturnAddressFrom(rax);
+  __ TailCallRuntime(Runtime::kNewSloppyArguments);
 }
 
 

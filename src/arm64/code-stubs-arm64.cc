@@ -1626,307 +1626,6 @@ void InstanceOfStub::Generate(MacroAssembler* masm) {
 }
 
 
-void ArgumentsAccessStub::GenerateNewSloppySlow(MacroAssembler* masm) {
-  // x1 : function
-  // x2 : number of parameters (tagged)
-  // x3 : parameters pointer
-
-  DCHECK(x1.is(ArgumentsAccessNewDescriptor::function()));
-  DCHECK(x2.is(ArgumentsAccessNewDescriptor::parameter_count()));
-  DCHECK(x3.is(ArgumentsAccessNewDescriptor::parameter_pointer()));
-
-  // Check if the calling frame is an arguments adaptor frame.
-  Label runtime;
-  Register caller_fp = x10;
-  __ Ldr(caller_fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-  // Load and untag the context.
-  __ Ldr(w11, UntagSmiMemOperand(caller_fp,
-                                 StandardFrameConstants::kContextOffset));
-  __ Cmp(w11, StackFrame::ARGUMENTS_ADAPTOR);
-  __ B(ne, &runtime);
-
-  // Patch the arguments.length and parameters pointer in the current frame.
-  __ Ldr(x2,
-         MemOperand(caller_fp, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ Add(x3, caller_fp, Operand::UntagSmiAndScale(x2, kPointerSizeLog2));
-  __ Add(x3, x3, StandardFrameConstants::kCallerSPOffset);
-
-  __ Bind(&runtime);
-  __ Push(x1, x3, x2);
-  __ TailCallRuntime(Runtime::kNewSloppyArguments);
-}
-
-
-void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
-  // x1 : function
-  // x2 : number of parameters (tagged)
-  // x3 : parameters pointer
-  //
-  // Returns pointer to result object in x0.
-
-  DCHECK(x1.is(ArgumentsAccessNewDescriptor::function()));
-  DCHECK(x2.is(ArgumentsAccessNewDescriptor::parameter_count()));
-  DCHECK(x3.is(ArgumentsAccessNewDescriptor::parameter_pointer()));
-
-  // Make an untagged copy of the parameter count.
-  // Note: arg_count_smi is an alias of param_count_smi.
-  Register function = x1;
-  Register arg_count_smi = x2;
-  Register param_count_smi = x2;
-  Register recv_arg = x3;
-  Register param_count = x7;
-  __ SmiUntag(param_count, param_count_smi);
-
-  // Check if the calling frame is an arguments adaptor frame.
-  Register caller_fp = x11;
-  Register caller_ctx = x12;
-  Label runtime;
-  Label adaptor_frame, try_allocate;
-  __ Ldr(caller_fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-  __ Ldr(caller_ctx, MemOperand(caller_fp,
-                                StandardFrameConstants::kContextOffset));
-  __ Cmp(caller_ctx, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
-  __ B(eq, &adaptor_frame);
-
-  // No adaptor, parameter count = argument count.
-
-  //   x1   function      function pointer
-  //   x2   arg_count_smi number of function arguments (smi)
-  //   x3   recv_arg      pointer to receiver arguments
-  //   x4   mapped_params number of mapped params, min(params, args) (uninit)
-  //   x7   param_count   number of function parameters
-  //   x11  caller_fp     caller's frame pointer
-  //   x14  arg_count     number of function arguments (uninit)
-
-  Register arg_count = x14;
-  Register mapped_params = x4;
-  __ Mov(arg_count, param_count);
-  __ Mov(mapped_params, param_count);
-  __ B(&try_allocate);
-
-  // We have an adaptor frame. Patch the parameters pointer.
-  __ Bind(&adaptor_frame);
-  __ Ldr(arg_count_smi,
-         MemOperand(caller_fp,
-                    ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ SmiUntag(arg_count, arg_count_smi);
-  __ Add(x10, caller_fp, Operand(arg_count, LSL, kPointerSizeLog2));
-  __ Add(recv_arg, x10, StandardFrameConstants::kCallerSPOffset);
-
-  // Compute the mapped parameter count = min(param_count, arg_count)
-  __ Cmp(param_count, arg_count);
-  __ Csel(mapped_params, param_count, arg_count, lt);
-
-  __ Bind(&try_allocate);
-
-  //   x0   alloc_obj     pointer to allocated objects: param map, backing
-  //                      store, arguments (uninit)
-  //   x1   function      function pointer
-  //   x2   arg_count_smi number of function arguments (smi)
-  //   x3   recv_arg      pointer to receiver arguments
-  //   x4   mapped_params number of mapped parameters, min(params, args)
-  //   x7   param_count   number of function parameters
-  //   x10  size          size of objects to allocate (uninit)
-  //   x14  arg_count     number of function arguments
-
-  // Compute the size of backing store, parameter map, and arguments object.
-  // 1. Parameter map, has two extra words containing context and backing
-  // store.
-  const int kParameterMapHeaderSize =
-      FixedArray::kHeaderSize + 2 * kPointerSize;
-
-  // Calculate the parameter map size, assuming it exists.
-  Register size = x10;
-  __ Mov(size, Operand(mapped_params, LSL, kPointerSizeLog2));
-  __ Add(size, size, kParameterMapHeaderSize);
-
-  // If there are no mapped parameters, set the running size total to zero.
-  // Otherwise, use the parameter map size calculated earlier.
-  __ Cmp(mapped_params, 0);
-  __ CzeroX(size, eq);
-
-  // 2. Add the size of the backing store and arguments object.
-  __ Add(size, size, Operand(arg_count, LSL, kPointerSizeLog2));
-  __ Add(size, size, FixedArray::kHeaderSize + JSSloppyArgumentsObject::kSize);
-
-  // Do the allocation of all three objects in one go. Assign this to x0, as it
-  // will be returned to the caller.
-  Register alloc_obj = x0;
-  __ Allocate(size, alloc_obj, x11, x12, &runtime, TAG_OBJECT);
-
-  // Get the arguments boilerplate from the current (global) context.
-
-  //   x0   alloc_obj       pointer to allocated objects (param map, backing
-  //                        store, arguments)
-  //   x1   function        function pointer
-  //   x2   arg_count_smi   number of function arguments (smi)
-  //   x3   recv_arg        pointer to receiver arguments
-  //   x4   mapped_params   number of mapped parameters, min(params, args)
-  //   x7   param_count     number of function parameters
-  //   x11  sloppy_args_map offset to args (or aliased args) map (uninit)
-  //   x14  arg_count       number of function arguments
-
-  Register global_ctx = x10;
-  Register sloppy_args_map = x11;
-  Register aliased_args_map = x10;
-  __ Ldr(global_ctx, NativeContextMemOperand());
-
-  __ Ldr(sloppy_args_map,
-         ContextMemOperand(global_ctx, Context::SLOPPY_ARGUMENTS_MAP_INDEX));
-  __ Ldr(
-      aliased_args_map,
-      ContextMemOperand(global_ctx, Context::FAST_ALIASED_ARGUMENTS_MAP_INDEX));
-  __ Cmp(mapped_params, 0);
-  __ CmovX(sloppy_args_map, aliased_args_map, ne);
-
-  // Copy the JS object part.
-  __ Str(sloppy_args_map, FieldMemOperand(alloc_obj, JSObject::kMapOffset));
-  __ LoadRoot(x10, Heap::kEmptyFixedArrayRootIndex);
-  __ Str(x10, FieldMemOperand(alloc_obj, JSObject::kPropertiesOffset));
-  __ Str(x10, FieldMemOperand(alloc_obj, JSObject::kElementsOffset));
-
-  // Set up the callee in-object property.
-  __ AssertNotSmi(function);
-  __ Str(function,
-         FieldMemOperand(alloc_obj, JSSloppyArgumentsObject::kCalleeOffset));
-
-  // Use the length and set that as an in-object property.
-  __ Str(arg_count_smi,
-         FieldMemOperand(alloc_obj, JSSloppyArgumentsObject::kLengthOffset));
-
-  // Set up the elements pointer in the allocated arguments object.
-  // If we allocated a parameter map, "elements" will point there, otherwise
-  // it will point to the backing store.
-
-  //   x0   alloc_obj     pointer to allocated objects (param map, backing
-  //                      store, arguments)
-  //   x1   function      function pointer
-  //   x2   arg_count_smi number of function arguments (smi)
-  //   x3   recv_arg      pointer to receiver arguments
-  //   x4   mapped_params number of mapped parameters, min(params, args)
-  //   x5   elements      pointer to parameter map or backing store (uninit)
-  //   x6   backing_store pointer to backing store (uninit)
-  //   x7   param_count   number of function parameters
-  //   x14  arg_count     number of function arguments
-
-  Register elements = x5;
-  __ Add(elements, alloc_obj, JSSloppyArgumentsObject::kSize);
-  __ Str(elements, FieldMemOperand(alloc_obj, JSObject::kElementsOffset));
-
-  // Initialize parameter map. If there are no mapped arguments, we're done.
-  Label skip_parameter_map;
-  __ Cmp(mapped_params, 0);
-  // Set up backing store address, because it is needed later for filling in
-  // the unmapped arguments.
-  Register backing_store = x6;
-  __ CmovX(backing_store, elements, eq);
-  __ B(eq, &skip_parameter_map);
-
-  __ LoadRoot(x10, Heap::kSloppyArgumentsElementsMapRootIndex);
-  __ Str(x10, FieldMemOperand(elements, FixedArray::kMapOffset));
-  __ Add(x10, mapped_params, 2);
-  __ SmiTag(x10);
-  __ Str(x10, FieldMemOperand(elements, FixedArray::kLengthOffset));
-  __ Str(cp, FieldMemOperand(elements,
-                             FixedArray::kHeaderSize + 0 * kPointerSize));
-  __ Add(x10, elements, Operand(mapped_params, LSL, kPointerSizeLog2));
-  __ Add(x10, x10, kParameterMapHeaderSize);
-  __ Str(x10, FieldMemOperand(elements,
-                              FixedArray::kHeaderSize + 1 * kPointerSize));
-
-  // Copy the parameter slots and the holes in the arguments.
-  // We need to fill in mapped_parameter_count slots. Then index the context,
-  // where parameters are stored in reverse order, at:
-  //
-  //   MIN_CONTEXT_SLOTS .. MIN_CONTEXT_SLOTS + parameter_count - 1
-  //
-  // The mapped parameter thus needs to get indices:
-  //
-  //   MIN_CONTEXT_SLOTS + parameter_count - 1 ..
-  //     MIN_CONTEXT_SLOTS + parameter_count - mapped_parameter_count
-  //
-  // We loop from right to left.
-
-  //   x0   alloc_obj     pointer to allocated objects (param map, backing
-  //                      store, arguments)
-  //   x1   function      function pointer
-  //   x2   arg_count_smi number of function arguments (smi)
-  //   x3   recv_arg      pointer to receiver arguments
-  //   x4   mapped_params number of mapped parameters, min(params, args)
-  //   x5   elements      pointer to parameter map or backing store (uninit)
-  //   x6   backing_store pointer to backing store (uninit)
-  //   x7   param_count   number of function parameters
-  //   x11  loop_count    parameter loop counter (uninit)
-  //   x12  index         parameter index (smi, uninit)
-  //   x13  the_hole      hole value (uninit)
-  //   x14  arg_count     number of function arguments
-
-  Register loop_count = x11;
-  Register index = x12;
-  Register the_hole = x13;
-  Label parameters_loop, parameters_test;
-  __ Mov(loop_count, mapped_params);
-  __ Add(index, param_count, static_cast<int>(Context::MIN_CONTEXT_SLOTS));
-  __ Sub(index, index, mapped_params);
-  __ SmiTag(index);
-  __ LoadRoot(the_hole, Heap::kTheHoleValueRootIndex);
-  __ Add(backing_store, elements, Operand(loop_count, LSL, kPointerSizeLog2));
-  __ Add(backing_store, backing_store, kParameterMapHeaderSize);
-
-  __ B(&parameters_test);
-
-  __ Bind(&parameters_loop);
-  __ Sub(loop_count, loop_count, 1);
-  __ Mov(x10, Operand(loop_count, LSL, kPointerSizeLog2));
-  __ Add(x10, x10, kParameterMapHeaderSize - kHeapObjectTag);
-  __ Str(index, MemOperand(elements, x10));
-  __ Sub(x10, x10, kParameterMapHeaderSize - FixedArray::kHeaderSize);
-  __ Str(the_hole, MemOperand(backing_store, x10));
-  __ Add(index, index, Smi::FromInt(1));
-  __ Bind(&parameters_test);
-  __ Cbnz(loop_count, &parameters_loop);
-
-  __ Bind(&skip_parameter_map);
-  // Copy arguments header and remaining slots (if there are any.)
-  __ LoadRoot(x10, Heap::kFixedArrayMapRootIndex);
-  __ Str(x10, FieldMemOperand(backing_store, FixedArray::kMapOffset));
-  __ Str(arg_count_smi, FieldMemOperand(backing_store,
-                                        FixedArray::kLengthOffset));
-
-  //   x0   alloc_obj     pointer to allocated objects (param map, backing
-  //                      store, arguments)
-  //   x1   function      function pointer
-  //   x2   arg_count_smi number of function arguments (smi)
-  //   x3   recv_arg      pointer to receiver arguments
-  //   x4   mapped_params number of mapped parameters, min(params, args)
-  //   x6   backing_store pointer to backing store (uninit)
-  //   x14  arg_count     number of function arguments
-
-  Label arguments_loop, arguments_test;
-  __ Mov(x10, mapped_params);
-  __ Sub(recv_arg, recv_arg, Operand(x10, LSL, kPointerSizeLog2));
-  __ B(&arguments_test);
-
-  __ Bind(&arguments_loop);
-  __ Sub(recv_arg, recv_arg, kPointerSize);
-  __ Ldr(x11, MemOperand(recv_arg));
-  __ Add(x12, backing_store, Operand(x10, LSL, kPointerSizeLog2));
-  __ Str(x11, FieldMemOperand(x12, FixedArray::kHeaderSize));
-  __ Add(x10, x10, 1);
-
-  __ Bind(&arguments_test);
-  __ Cmp(x10, arg_count);
-  __ B(lt, &arguments_loop);
-
-  __ Ret();
-
-  // Do the runtime call to allocate the arguments object.
-  __ Bind(&runtime);
-  __ Push(function, recv_arg, arg_count_smi);
-  __ TailCallRuntime(Runtime::kNewSloppyArguments);
-}
-
-
 void LoadIndexedInterceptorStub::Generate(MacroAssembler* masm) {
   // Return address is in lr.
   Label slow;
@@ -5298,6 +4997,288 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
     }
     __ B(&done_allocate);
   }
+}
+
+
+void FastNewSloppyArgumentsStub::Generate(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- x1 : function
+  //  -- cp : context
+  //  -- fp : frame pointer
+  //  -- lr : return address
+  // -----------------------------------
+  __ AssertFunction(x1);
+
+  // TODO(bmeurer): Cleanup to match the FastNewStrictArgumentsStub.
+  __ Ldr(x2, FieldMemOperand(x1, JSFunction::kSharedFunctionInfoOffset));
+  __ Ldrsw(
+      x2, FieldMemOperand(x2, SharedFunctionInfo::kFormalParameterCountOffset));
+  __ Add(x3, fp, Operand(x2, LSL, kPointerSizeLog2));
+  __ Add(x3, x3, Operand(StandardFrameConstants::kCallerSPOffset));
+  __ SmiTag(x2);
+
+  // x1 : function
+  // x2 : number of parameters (tagged)
+  // x3 : parameters pointer
+  //
+  // Returns pointer to result object in x0.
+
+  // Make an untagged copy of the parameter count.
+  // Note: arg_count_smi is an alias of param_count_smi.
+  Register function = x1;
+  Register arg_count_smi = x2;
+  Register param_count_smi = x2;
+  Register recv_arg = x3;
+  Register param_count = x7;
+  __ SmiUntag(param_count, param_count_smi);
+
+  // Check if the calling frame is an arguments adaptor frame.
+  Register caller_fp = x11;
+  Register caller_ctx = x12;
+  Label runtime;
+  Label adaptor_frame, try_allocate;
+  __ Ldr(caller_fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+  __ Ldr(caller_ctx, MemOperand(caller_fp,
+                                StandardFrameConstants::kContextOffset));
+  __ Cmp(caller_ctx, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
+  __ B(eq, &adaptor_frame);
+
+  // No adaptor, parameter count = argument count.
+
+  //   x1   function      function pointer
+  //   x2   arg_count_smi number of function arguments (smi)
+  //   x3   recv_arg      pointer to receiver arguments
+  //   x4   mapped_params number of mapped params, min(params, args) (uninit)
+  //   x7   param_count   number of function parameters
+  //   x11  caller_fp     caller's frame pointer
+  //   x14  arg_count     number of function arguments (uninit)
+
+  Register arg_count = x14;
+  Register mapped_params = x4;
+  __ Mov(arg_count, param_count);
+  __ Mov(mapped_params, param_count);
+  __ B(&try_allocate);
+
+  // We have an adaptor frame. Patch the parameters pointer.
+  __ Bind(&adaptor_frame);
+  __ Ldr(arg_count_smi,
+         MemOperand(caller_fp,
+                    ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ SmiUntag(arg_count, arg_count_smi);
+  __ Add(x10, caller_fp, Operand(arg_count, LSL, kPointerSizeLog2));
+  __ Add(recv_arg, x10, StandardFrameConstants::kCallerSPOffset);
+
+  // Compute the mapped parameter count = min(param_count, arg_count)
+  __ Cmp(param_count, arg_count);
+  __ Csel(mapped_params, param_count, arg_count, lt);
+
+  __ Bind(&try_allocate);
+
+  //   x0   alloc_obj     pointer to allocated objects: param map, backing
+  //                      store, arguments (uninit)
+  //   x1   function      function pointer
+  //   x2   arg_count_smi number of function arguments (smi)
+  //   x3   recv_arg      pointer to receiver arguments
+  //   x4   mapped_params number of mapped parameters, min(params, args)
+  //   x7   param_count   number of function parameters
+  //   x10  size          size of objects to allocate (uninit)
+  //   x14  arg_count     number of function arguments
+
+  // Compute the size of backing store, parameter map, and arguments object.
+  // 1. Parameter map, has two extra words containing context and backing
+  // store.
+  const int kParameterMapHeaderSize =
+      FixedArray::kHeaderSize + 2 * kPointerSize;
+
+  // Calculate the parameter map size, assuming it exists.
+  Register size = x10;
+  __ Mov(size, Operand(mapped_params, LSL, kPointerSizeLog2));
+  __ Add(size, size, kParameterMapHeaderSize);
+
+  // If there are no mapped parameters, set the running size total to zero.
+  // Otherwise, use the parameter map size calculated earlier.
+  __ Cmp(mapped_params, 0);
+  __ CzeroX(size, eq);
+
+  // 2. Add the size of the backing store and arguments object.
+  __ Add(size, size, Operand(arg_count, LSL, kPointerSizeLog2));
+  __ Add(size, size, FixedArray::kHeaderSize + JSSloppyArgumentsObject::kSize);
+
+  // Do the allocation of all three objects in one go. Assign this to x0, as it
+  // will be returned to the caller.
+  Register alloc_obj = x0;
+  __ Allocate(size, alloc_obj, x11, x12, &runtime, TAG_OBJECT);
+
+  // Get the arguments boilerplate from the current (global) context.
+
+  //   x0   alloc_obj       pointer to allocated objects (param map, backing
+  //                        store, arguments)
+  //   x1   function        function pointer
+  //   x2   arg_count_smi   number of function arguments (smi)
+  //   x3   recv_arg        pointer to receiver arguments
+  //   x4   mapped_params   number of mapped parameters, min(params, args)
+  //   x7   param_count     number of function parameters
+  //   x11  sloppy_args_map offset to args (or aliased args) map (uninit)
+  //   x14  arg_count       number of function arguments
+
+  Register global_ctx = x10;
+  Register sloppy_args_map = x11;
+  Register aliased_args_map = x10;
+  __ Ldr(global_ctx, NativeContextMemOperand());
+
+  __ Ldr(sloppy_args_map,
+         ContextMemOperand(global_ctx, Context::SLOPPY_ARGUMENTS_MAP_INDEX));
+  __ Ldr(
+      aliased_args_map,
+      ContextMemOperand(global_ctx, Context::FAST_ALIASED_ARGUMENTS_MAP_INDEX));
+  __ Cmp(mapped_params, 0);
+  __ CmovX(sloppy_args_map, aliased_args_map, ne);
+
+  // Copy the JS object part.
+  __ Str(sloppy_args_map, FieldMemOperand(alloc_obj, JSObject::kMapOffset));
+  __ LoadRoot(x10, Heap::kEmptyFixedArrayRootIndex);
+  __ Str(x10, FieldMemOperand(alloc_obj, JSObject::kPropertiesOffset));
+  __ Str(x10, FieldMemOperand(alloc_obj, JSObject::kElementsOffset));
+
+  // Set up the callee in-object property.
+  __ AssertNotSmi(function);
+  __ Str(function,
+         FieldMemOperand(alloc_obj, JSSloppyArgumentsObject::kCalleeOffset));
+
+  // Use the length and set that as an in-object property.
+  __ Str(arg_count_smi,
+         FieldMemOperand(alloc_obj, JSSloppyArgumentsObject::kLengthOffset));
+
+  // Set up the elements pointer in the allocated arguments object.
+  // If we allocated a parameter map, "elements" will point there, otherwise
+  // it will point to the backing store.
+
+  //   x0   alloc_obj     pointer to allocated objects (param map, backing
+  //                      store, arguments)
+  //   x1   function      function pointer
+  //   x2   arg_count_smi number of function arguments (smi)
+  //   x3   recv_arg      pointer to receiver arguments
+  //   x4   mapped_params number of mapped parameters, min(params, args)
+  //   x5   elements      pointer to parameter map or backing store (uninit)
+  //   x6   backing_store pointer to backing store (uninit)
+  //   x7   param_count   number of function parameters
+  //   x14  arg_count     number of function arguments
+
+  Register elements = x5;
+  __ Add(elements, alloc_obj, JSSloppyArgumentsObject::kSize);
+  __ Str(elements, FieldMemOperand(alloc_obj, JSObject::kElementsOffset));
+
+  // Initialize parameter map. If there are no mapped arguments, we're done.
+  Label skip_parameter_map;
+  __ Cmp(mapped_params, 0);
+  // Set up backing store address, because it is needed later for filling in
+  // the unmapped arguments.
+  Register backing_store = x6;
+  __ CmovX(backing_store, elements, eq);
+  __ B(eq, &skip_parameter_map);
+
+  __ LoadRoot(x10, Heap::kSloppyArgumentsElementsMapRootIndex);
+  __ Str(x10, FieldMemOperand(elements, FixedArray::kMapOffset));
+  __ Add(x10, mapped_params, 2);
+  __ SmiTag(x10);
+  __ Str(x10, FieldMemOperand(elements, FixedArray::kLengthOffset));
+  __ Str(cp, FieldMemOperand(elements,
+                             FixedArray::kHeaderSize + 0 * kPointerSize));
+  __ Add(x10, elements, Operand(mapped_params, LSL, kPointerSizeLog2));
+  __ Add(x10, x10, kParameterMapHeaderSize);
+  __ Str(x10, FieldMemOperand(elements,
+                              FixedArray::kHeaderSize + 1 * kPointerSize));
+
+  // Copy the parameter slots and the holes in the arguments.
+  // We need to fill in mapped_parameter_count slots. Then index the context,
+  // where parameters are stored in reverse order, at:
+  //
+  //   MIN_CONTEXT_SLOTS .. MIN_CONTEXT_SLOTS + parameter_count - 1
+  //
+  // The mapped parameter thus needs to get indices:
+  //
+  //   MIN_CONTEXT_SLOTS + parameter_count - 1 ..
+  //     MIN_CONTEXT_SLOTS + parameter_count - mapped_parameter_count
+  //
+  // We loop from right to left.
+
+  //   x0   alloc_obj     pointer to allocated objects (param map, backing
+  //                      store, arguments)
+  //   x1   function      function pointer
+  //   x2   arg_count_smi number of function arguments (smi)
+  //   x3   recv_arg      pointer to receiver arguments
+  //   x4   mapped_params number of mapped parameters, min(params, args)
+  //   x5   elements      pointer to parameter map or backing store (uninit)
+  //   x6   backing_store pointer to backing store (uninit)
+  //   x7   param_count   number of function parameters
+  //   x11  loop_count    parameter loop counter (uninit)
+  //   x12  index         parameter index (smi, uninit)
+  //   x13  the_hole      hole value (uninit)
+  //   x14  arg_count     number of function arguments
+
+  Register loop_count = x11;
+  Register index = x12;
+  Register the_hole = x13;
+  Label parameters_loop, parameters_test;
+  __ Mov(loop_count, mapped_params);
+  __ Add(index, param_count, static_cast<int>(Context::MIN_CONTEXT_SLOTS));
+  __ Sub(index, index, mapped_params);
+  __ SmiTag(index);
+  __ LoadRoot(the_hole, Heap::kTheHoleValueRootIndex);
+  __ Add(backing_store, elements, Operand(loop_count, LSL, kPointerSizeLog2));
+  __ Add(backing_store, backing_store, kParameterMapHeaderSize);
+
+  __ B(&parameters_test);
+
+  __ Bind(&parameters_loop);
+  __ Sub(loop_count, loop_count, 1);
+  __ Mov(x10, Operand(loop_count, LSL, kPointerSizeLog2));
+  __ Add(x10, x10, kParameterMapHeaderSize - kHeapObjectTag);
+  __ Str(index, MemOperand(elements, x10));
+  __ Sub(x10, x10, kParameterMapHeaderSize - FixedArray::kHeaderSize);
+  __ Str(the_hole, MemOperand(backing_store, x10));
+  __ Add(index, index, Smi::FromInt(1));
+  __ Bind(&parameters_test);
+  __ Cbnz(loop_count, &parameters_loop);
+
+  __ Bind(&skip_parameter_map);
+  // Copy arguments header and remaining slots (if there are any.)
+  __ LoadRoot(x10, Heap::kFixedArrayMapRootIndex);
+  __ Str(x10, FieldMemOperand(backing_store, FixedArray::kMapOffset));
+  __ Str(arg_count_smi, FieldMemOperand(backing_store,
+                                        FixedArray::kLengthOffset));
+
+  //   x0   alloc_obj     pointer to allocated objects (param map, backing
+  //                      store, arguments)
+  //   x1   function      function pointer
+  //   x2   arg_count_smi number of function arguments (smi)
+  //   x3   recv_arg      pointer to receiver arguments
+  //   x4   mapped_params number of mapped parameters, min(params, args)
+  //   x6   backing_store pointer to backing store (uninit)
+  //   x14  arg_count     number of function arguments
+
+  Label arguments_loop, arguments_test;
+  __ Mov(x10, mapped_params);
+  __ Sub(recv_arg, recv_arg, Operand(x10, LSL, kPointerSizeLog2));
+  __ B(&arguments_test);
+
+  __ Bind(&arguments_loop);
+  __ Sub(recv_arg, recv_arg, kPointerSize);
+  __ Ldr(x11, MemOperand(recv_arg));
+  __ Add(x12, backing_store, Operand(x10, LSL, kPointerSizeLog2));
+  __ Str(x11, FieldMemOperand(x12, FixedArray::kHeaderSize));
+  __ Add(x10, x10, 1);
+
+  __ Bind(&arguments_test);
+  __ Cmp(x10, arg_count);
+  __ B(lt, &arguments_loop);
+
+  __ Ret();
+
+  // Do the runtime call to allocate the arguments object.
+  __ Bind(&runtime);
+  __ Push(function, recv_arg, arg_count_smi);
+  __ TailCallRuntime(Runtime::kNewSloppyArguments);
 }
 
 
