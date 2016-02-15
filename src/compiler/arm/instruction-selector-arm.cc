@@ -355,10 +355,19 @@ void InstructionSelector::VisitStore(Node* node) {
 
   if (write_barrier_kind != kNoWriteBarrier) {
     DCHECK_EQ(MachineRepresentation::kTagged, rep);
+    AddressingMode addressing_mode;
     InstructionOperand inputs[3];
     size_t input_count = 0;
     inputs[input_count++] = g.UseUniqueRegister(base);
-    inputs[input_count++] = g.UseUniqueRegister(index);
+    // OutOfLineRecordWrite uses the index in an 'add' instruction as well as
+    // for the store itself, so we must check compatibility with both.
+    if (g.CanBeImmediate(index, kArmAdd) && g.CanBeImmediate(index, kArmStr)) {
+      inputs[input_count++] = g.UseImmediate(index);
+      addressing_mode = kMode_Offset_RI;
+    } else {
+      inputs[input_count++] = g.UseUniqueRegister(index);
+      addressing_mode = kMode_Offset_RR;
+    }
     inputs[input_count++] = (write_barrier_kind == kMapWriteBarrier)
                                 ? g.UseRegister(value)
                                 : g.UseUniqueRegister(value);
@@ -380,6 +389,7 @@ void InstructionSelector::VisitStore(Node* node) {
     InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
     size_t const temp_count = arraysize(temps);
     InstructionCode code = kArchStoreWithWriteBarrier;
+    code |= AddressingModeField::encode(addressing_mode);
     code |= MiscField::encode(static_cast<int>(record_write_mode));
     Emit(code, 0, nullptr, input_count, inputs, temp_count, temps);
   } else {
