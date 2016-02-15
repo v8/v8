@@ -613,8 +613,13 @@ struct TypedLoweringPhase {
                                               data->common());
     LoadElimination load_elimination(&graph_reducer);
     JSBuiltinReducer builtin_reducer(&graph_reducer, data->jsgraph());
+    MaybeHandle<LiteralsArray> literals_array =
+        data->info()->is_native_context_specializing()
+            ? handle(data->info()->closure()->literals(), data->isolate())
+            : MaybeHandle<LiteralsArray>();
     JSCreateLowering create_lowering(
-        &graph_reducer, data->info()->dependencies(), data->jsgraph());
+        &graph_reducer, data->info()->dependencies(), data->jsgraph(),
+        literals_array, temp_zone);
     JSTypedLowering::Flags typed_lowering_flags = JSTypedLowering::kNoFlags;
     if (data->info()->is_deoptimization_enabled()) {
       typed_lowering_flags |= JSTypedLowering::kDeoptimizationEnabled;

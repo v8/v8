@@ -4,6 +4,7 @@
 
 #include "src/compiler/js-create-lowering.h"
 
+#include "src/allocation-site-scopes.h"
 #include "src/code-factory.h"
 #include "src/compilation-dependencies.h"
 #include "src/compiler/access-builder.h"
@@ -13,6 +14,7 @@
 #include "src/compiler/linkage.h"
 #include "src/compiler/node.h"
 #include "src/compiler/node-properties.h"
+#include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/state-values-utils.h"
 
@@ -127,6 +129,73 @@ const int kElementLoopUnrollLimit = 16;
 const int kFunctionContextAllocationLimit = 16;
 const int kBlockContextAllocationLimit = 16;
 
+// Determines whether the given array or object literal boilerplate satisfies
+// all limits to be considered for fast deep-copying and computes the total
+// size of all objects that are part of the graph.
+bool IsFastLiteral(Handle<JSObject> boilerplate, int max_depth,
+                   int* max_properties) {
+  DCHECK_GE(max_depth, 0);
+  DCHECK_GE(*max_properties, 0);
+
+  // Make sure the boilerplate map is not deprecated.
+  if (!JSObject::TryMigrateInstance(boilerplate)) return false;
+
+  // Check for too deep nesting.
+  if (max_depth == 0) return false;
+
+  // Check the elements.
+  Isolate* const isolate = boilerplate->GetIsolate();
+  Handle<FixedArrayBase> elements(boilerplate->elements(), isolate);
+  if (elements->length() > 0 &&
+      elements->map() != isolate->heap()->fixed_cow_array_map()) {
+    if (boilerplate->HasFastSmiOrObjectElements()) {
+      Handle<FixedArray> fast_elements = Handle<FixedArray>::cast(elements);
+      int length = elements->length();
+      for (int i = 0; i < length; i++) {
+        if ((*max_properties)-- == 0) return false;
+        Handle<Object> value(fast_elements->get(i), isolate);
+        if (value->IsJSObject()) {
+          Handle<JSObject> value_object = Handle<JSObject>::cast(value);
+          if (!IsFastLiteral(value_object, max_depth - 1, max_properties)) {
+            return false;
+          }
+        }
+      }
+    } else if (!boilerplate->HasFastDoubleElements()) {
+      return false;
+    }
+  }
+
+  // TODO(turbofan): Do we want to support out-of-object properties?
+  Handle<FixedArray> properties(boilerplate->properties(), isolate);
+  if (properties->length() > 0) return false;
+
+  // Check the in-object properties.
+  Handle<DescriptorArray> descriptors(
+      boilerplate->map()->instance_descriptors(), isolate);
+  int limit = boilerplate->map()->NumberOfOwnDescriptors();
+  for (int i = 0; i < limit; i++) {
+    PropertyDetails details = descriptors->GetDetails(i);
+    if (details.type() != DATA) continue;
+    if ((*max_properties)-- == 0) return false;
+    FieldIndex field_index = FieldIndex::ForDescriptor(boilerplate->map(), i);
+    if (boilerplate->IsUnboxedDoubleField(field_index)) continue;
+    Handle<Object> value(boilerplate->RawFastPropertyAt(field_index), isolate);
+    if (value->IsJSObject()) {
+      Handle<JSObject> value_object = Handle<JSObject>::cast(value);
+      if (!IsFastLiteral(value_object, max_depth - 1, max_properties)) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+// Maximum depth and total number of elements and properties for literal
+// graphs to be considered for fast deep-copying.
+const int kMaxFastLiteralDepth = 3;
+const int kMaxFastLiteralProperties = 8;
+
 }  // namespace
 
 Reduction JSCreateLowering::Reduce(Node* node) {
@@ -139,6 +208,9 @@ Reduction JSCreateLowering::Reduce(Node* node) {
       return ReduceJSCreateArray(node);
     case IrOpcode::kJSCreateIterResultObject:
       return ReduceJSCreateIterResultObject(node);
+    case IrOpcode::kJSCreateLiteralArray:
+    case IrOpcode::kJSCreateLiteralObject:
+      return ReduceJSCreateLiteral(node);
     case IrOpcode::kJSCreateFunctionContext:
       return ReduceJSCreateFunctionContext(node);
     case IrOpcode::kJSCreateWithContext:
@@ -504,6 +576,36 @@ Reduction JSCreateLowering::ReduceJSCreateIterResultObject(Node* node) {
   return Changed(node);
 }
 
+Reduction JSCreateLowering::ReduceJSCreateLiteral(Node* node) {
+  DCHECK(node->opcode() == IrOpcode::kJSCreateLiteralArray ||
+         node->opcode() == IrOpcode::kJSCreateLiteralObject);
+  CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  Handle<LiteralsArray> literals_array;
+  if (GetSpecializationLiterals(node).ToHandle(&literals_array)) {
+    Handle<Object> literal(literals_array->literal(p.index()), isolate());
+    if (literal->IsAllocationSite()) {
+      Handle<AllocationSite> site = Handle<AllocationSite>::cast(literal);
+      Handle<JSObject> boilerplate(JSObject::cast(site->transition_info()),
+                                   isolate());
+      int max_properties = kMaxFastLiteralProperties;
+      if (IsFastLiteral(boilerplate, kMaxFastLiteralDepth, &max_properties)) {
+        AllocationSiteUsageContext site_context(isolate(), site, false);
+        site_context.EnterNewScope();
+        Node* value = effect =
+            AllocateFastLiteral(effect, control, boilerplate, &site_context);
+        site_context.ExitScope(site, boilerplate);
+        ReplaceWithValue(node, value, effect, control);
+        return Replace(value);
+      }
+    }
+  }
+
+  return NoChange();
+}
+
 Reduction JSCreateLowering::ReduceJSCreateFunctionContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateFunctionContext, node->opcode());
   int slot_count = OpParameter<int>(node->op());
@@ -752,6 +854,225 @@ Node* JSCreateLowering::AllocateElements(Node* effect, Node* control,
     a.Store(access, index, value);
   }
   return a.Finish();
+}
+
+Node* JSCreateLowering::AllocateFastLiteral(
+    Node* effect, Node* control, Handle<JSObject> boilerplate,
+    AllocationSiteUsageContext* site_context) {
+  Handle<AllocationSite> current_site(*site_context->current(), isolate());
+  dependencies()->AssumeTransitionStable(current_site);
+
+  PretenureFlag pretenure = NOT_TENURED;
+  if (FLAG_allocation_site_pretenuring) {
+    Handle<AllocationSite> top_site(*site_context->top(), isolate());
+    pretenure = top_site->GetPretenureMode();
+    if (current_site.is_identical_to(top_site)) {
+      // We install a dependency for pretenuring only on the outermost literal.
+      dependencies()->AssumeTenuringDecision(top_site);
+    }
+  }
+
+  // Setup the properties backing store.
+  Node* properties = jsgraph()->EmptyFixedArrayConstant();
+
+  // Setup the elements backing store.
+  Node* elements = AllocateFastLiteralElements(effect, control, boilerplate,
+                                               pretenure, site_context);
+  if (elements->op()->EffectOutputCount() > 0) effect = elements;
+
+  // Compute the in-object properties to store first (might have effects).
+  Handle<Map> boilerplate_map(boilerplate->map(), isolate());
+  ZoneVector<std::pair<FieldAccess, Node*>> inobject_fields(zone());
+  inobject_fields.reserve(boilerplate_map->GetInObjectProperties());
+  int const boilerplate_nof = boilerplate_map->NumberOfOwnDescriptors();
+  for (int i = 0; i < boilerplate_nof; ++i) {
+    PropertyDetails const property_details =
+        boilerplate_map->instance_descriptors()->GetDetails(i);
+    if (property_details.type() != DATA) continue;
+    Handle<Name> property_name(
+        boilerplate_map->instance_descriptors()->GetKey(i), isolate());
+    FieldIndex index = FieldIndex::ForDescriptor(*boilerplate_map, i);
+    FieldAccess access = {kTaggedBase, index.offset(), property_name,
+                          Type::Tagged(), MachineType::AnyTagged()};
+    Node* value;
+    if (boilerplate->IsUnboxedDoubleField(index)) {
+      access.machine_type = MachineType::Float64();
+      access.type = Type::Number();
+      value = jsgraph()->Constant(boilerplate->RawFastDoublePropertyAt(index));
+    } else {
+      Handle<Object> boilerplate_value(boilerplate->RawFastPropertyAt(index),
+                                       isolate());
+      if (boilerplate_value->IsJSObject()) {
+        Handle<JSObject> boilerplate_object =
+            Handle<JSObject>::cast(boilerplate_value);
+        Handle<AllocationSite> current_site = site_context->EnterNewScope();
+        value = effect = AllocateFastLiteral(effect, control,
+                                             boilerplate_object, site_context);
+        site_context->ExitScope(current_site, boilerplate_object);
+      } else if (property_details.representation().IsDouble()) {
+        // Allocate a mutable HeapNumber box and store the value into it.
+        value = effect = AllocateMutableHeapNumber(
+            Handle<HeapNumber>::cast(boilerplate_value)->value(),
+            effect, control);
+      } else if (property_details.representation().IsSmi()) {
+        // Ensure that value is stored as smi.
+        value = boilerplate_value->IsUninitialized()
+                    ? jsgraph()->ZeroConstant()
+                    : jsgraph()->Constant(boilerplate_value);
+      } else {
+        value = jsgraph()->Constant(boilerplate_value);
+      }
+    }
+    inobject_fields.push_back(std::make_pair(access, value));
+  }
+
+  // Fill slack at the end of the boilerplate object with filler maps.
+  int const boilerplate_length = boilerplate_map->GetInObjectProperties();
+  for (int index = static_cast<int>(inobject_fields.size());
+       index < boilerplate_length; ++index) {
+    FieldAccess access =
+        AccessBuilder::ForJSObjectInObjectProperty(boilerplate_map, index);
+    Node* value = jsgraph()->HeapConstant(factory()->one_pointer_filler_map());
+    inobject_fields.push_back(std::make_pair(access, value));
+  }
+
+  // Actually allocate and initialize the object.
+  AllocationBuilder builder(jsgraph(), effect, control);
+  builder.Allocate(boilerplate_map->instance_size(), pretenure);
+  builder.Store(AccessBuilder::ForMap(), boilerplate_map);
+  builder.Store(AccessBuilder::ForJSObjectProperties(), properties);
+  builder.Store(AccessBuilder::ForJSObjectElements(), elements);
+  if (boilerplate_map->IsJSArrayMap()) {
+    Handle<JSArray> boilerplate_array = Handle<JSArray>::cast(boilerplate);
+    builder.Store(
+        AccessBuilder::ForJSArrayLength(boilerplate_array->GetElementsKind()),
+        handle(boilerplate_array->length(), isolate()));
+  }
+  for (auto const inobject_field : inobject_fields) {
+    builder.Store(inobject_field.first, inobject_field.second);
+  }
+  return builder.Finish();
+}
+
+Node* JSCreateLowering::AllocateFastLiteralElements(
+    Node* effect, Node* control, Handle<JSObject> boilerplate,
+    PretenureFlag pretenure, AllocationSiteUsageContext* site_context) {
+  Handle<FixedArrayBase> boilerplate_elements(boilerplate->elements(),
+                                              isolate());
+
+  // Empty or copy-on-write elements just store a constant.
+  if (boilerplate_elements->length() == 0 ||
+      boilerplate_elements->map() == isolate()->heap()->fixed_cow_array_map()) {
+    if (pretenure == TENURED &&
+        isolate()->heap()->InNewSpace(*boilerplate_elements)) {
+      // If we would like to pretenure a fixed cow array, we must ensure that
+      // the array is already in old space, otherwise we'll create too many
+      // old-to-new-space pointers (overflowing the store buffer).
+      boilerplate_elements = Handle<FixedArrayBase>(
+          isolate()->factory()->CopyAndTenureFixedCOWArray(
+              Handle<FixedArray>::cast(boilerplate_elements)));
+      boilerplate->set_elements(*boilerplate_elements);
+    }
+    return jsgraph()->HeapConstant(boilerplate_elements);
+  }
+
+  // Compute the elements to store first (might have effects).
+  int const elements_length = boilerplate_elements->length();
+  Handle<Map> elements_map(boilerplate_elements->map(), isolate());
+  ZoneVector<Node*> elements_values(elements_length, zone());
+  if (elements_map->instance_type() == FIXED_DOUBLE_ARRAY_TYPE) {
+    Handle<FixedDoubleArray> elements =
+        Handle<FixedDoubleArray>::cast(boilerplate_elements);
+    for (int i = 0; i < elements_length; ++i) {
+      if (elements->is_the_hole(i)) {
+        // TODO(turbofan): We cannot currently safely pass thru the (signaling)
+        // hole NaN in C++ code, as the C++ compiler on Intel might use FPU
+        // instructions/registers for doubles and therefore make the NaN quiet.
+        // We should consider passing doubles in the compiler as raw int64
+        // values to prevent this.
+        elements_values[i] = effect =
+            graph()->NewNode(simplified()->LoadElement(
+                                 AccessBuilder::ForFixedDoubleArrayElement()),
+                             jsgraph()->HeapConstant(elements),
+                             jsgraph()->Constant(i), effect, control);
+      } else {
+        elements_values[i] = jsgraph()->Constant(elements->get_scalar(i));
+      }
+    }
+  } else {
+    Handle<FixedArray> elements =
+        Handle<FixedArray>::cast(boilerplate_elements);
+    for (int i = 0; i < elements_length; ++i) {
+      if (elements->is_the_hole(i)) {
+        elements_values[i] = jsgraph()->TheHoleConstant();
+      } else {
+        Handle<Object> element_value(elements->get(i), isolate());
+        if (element_value->IsJSObject()) {
+          Handle<JSObject> boilerplate_object =
+              Handle<JSObject>::cast(element_value);
+          Handle<AllocationSite> current_site = site_context->EnterNewScope();
+          elements_values[i] = effect = AllocateFastLiteral(
+              effect, control, boilerplate_object, site_context);
+          site_context->ExitScope(current_site, boilerplate_object);
+        } else {
+          elements_values[i] = jsgraph()->Constant(element_value);
+        }
+      }
+    }
+  }
+
+  // Allocate the backing store array and store the elements.
+  AllocationBuilder builder(jsgraph(), effect, control);
+  builder.AllocateArray(elements_length, elements_map, pretenure);
+  ElementAccess const access =
+      (elements_map->instance_type() == FIXED_DOUBLE_ARRAY_TYPE)
+          ? AccessBuilder::ForFixedDoubleArrayElement()
+          : AccessBuilder::ForFixedArrayElement();
+  for (int i = 0; i < elements_length; ++i) {
+    builder.Store(access, jsgraph()->Constant(i), elements_values[i]);
+  }
+  return builder.Finish();
+}
+
+Node* JSCreateLowering::AllocateMutableHeapNumber(double value, Node* effect,
+                                                  Node* control) {
+  // TODO(turbofan): Support inline allocation of MutableHeapNumber
+  // (requires proper alignment on Allocate, and Begin/FinishRegion).
+  Callable callable = CodeFactory::AllocateMutableHeapNumber(isolate());
+  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+      isolate(), jsgraph()->zone(), callable.descriptor(), 0,
+      CallDescriptor::kNoFlags, Operator::kNoThrow);
+  Node* result = effect = graph()->NewNode(
+      common()->Call(desc), jsgraph()->HeapConstant(callable.code()),
+      jsgraph()->NoContextConstant(), effect, control);
+  effect = graph()->NewNode(
+      simplified()->StoreField(AccessBuilder::ForHeapNumberValue()), result,
+      jsgraph()->Constant(value), effect, control);
+  return result;
+}
+
+MaybeHandle<LiteralsArray> JSCreateLowering::GetSpecializationLiterals(
+    Node* node) {
+  Node* const closure = NodeProperties::GetValueInput(node, 0);
+  switch (closure->opcode()) {
+    case IrOpcode::kHeapConstant: {
+      Handle<HeapObject> object = OpParameter<Handle<HeapObject>>(closure);
+      return handle(Handle<JSFunction>::cast(object)->literals());
+    }
+    case IrOpcode::kParameter: {
+      int const index = ParameterIndexOf(closure->op());
+      // The closure is always the last parameter to a JavaScript function, and
+      // {Parameter} indices start at -1, so value outputs of {Start} look like
+      // this: closure, receiver, param0, ..., paramN, context.
+      if (index == -1) {
+        return literals_array_;
+      }
+      break;
+    }
+    default:
+      break;
+  }
+  return MaybeHandle<LiteralsArray>();
 }
 
 Factory* JSCreateLowering::factory() const { return isolate()->factory(); }
