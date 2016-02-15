@@ -5174,7 +5174,7 @@ void FastNewStrictArgumentsStub::Generate(MacroAssembler* masm) {
             Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
   {
     __ ld(a1, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
-    __ ld(a0,
+    __ lw(a0,
           FieldMemOperand(a1, SharedFunctionInfo::kFormalParameterCountOffset));
     __ Dlsa(a2, a2, a0, kPointerSizeLog2);
     __ Daddu(a2, a2, Operand(StandardFrameConstants::kCallerSPOffset -
@@ -5184,7 +5184,7 @@ void FastNewStrictArgumentsStub::Generate(MacroAssembler* masm) {
   __ bind(&arguments_adaptor);
   {
     __ SmiLoadUntag(
-        a0, MemOperand(a2, ArgumentsAdaptorFrameConstants::kLengthOffset));
+        a0, MemOperand(a3, ArgumentsAdaptorFrameConstants::kLengthOffset));
     __ Dlsa(a2, a3, a0, kPointerSizeLog2);
     __ Daddu(a2, a2, Operand(StandardFrameConstants::kCallerSPOffset -
                              1 * kPointerSize));
@@ -5222,7 +5222,7 @@ void FastNewStrictArgumentsStub::Generate(MacroAssembler* masm) {
     __ sd(at, FieldMemOperand(a3, 0 * kPointerSize));
     __ Dsubu(a2, a2, Operand(1 * kPointerSize));
     __ Daddu(a3, a3, Operand(1 * kPointerSize));
-    __ b(&loop);
+    __ Branch(&loop);
     __ bind(&done_loop);
   }
 
