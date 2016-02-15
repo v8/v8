@@ -287,11 +287,13 @@ class LookupIterator final BASE_EMBEDDED {
     return (configuration_ & kInterceptor) != 0;
   }
   int descriptor_number() const {
+    DCHECK(!IsElement());
     DCHECK(has_property_);
     DCHECK(!holder_map_->is_dictionary_map());
     return number_;
   }
   int dictionary_entry() const {
+    DCHECK(!IsElement());
     DCHECK(has_property_);
     DCHECK(holder_map_->is_dictionary_map());
     return number_;

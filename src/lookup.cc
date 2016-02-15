@@ -166,18 +166,32 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
     ElementsKind to = value->OptimalElementsKind();
     if (IsHoleyElementsKind(kind)) to = GetHoleyElementsKind(to);
     to = GetMoreGeneralElementsKind(kind, to);
-    JSObject::TransitionElementsKind(holder, to);
-    holder_map_ = handle(holder->map(), isolate_);
+
+    if (kind != to) {
+      JSObject::TransitionElementsKind(holder, to);
+      holder_map_ = handle(holder->map(), isolate_);
+    }
 
     // Copy the backing store if it is copy-on-write.
     if (IsFastSmiOrObjectElementsKind(to)) {
       JSObject::EnsureWritableFastElements(holder);
     }
 
+    if (kind == to) return;
+
   } else {
     if (holder_map_->is_dictionary_map()) return;
     holder_map_ =
         Map::PrepareForDataProperty(holder_map_, descriptor_number(), value);
+
+    if (holder->map() == *holder_map_) {
+      // Update the property details if the representation was None.
+      if (representation().IsNone()) {
+        property_details_ = holder_map_->instance_descriptors()->GetDetails(
+            descriptor_number());
+      }
+      return;
+    }
   }
 
   JSObject::MigrateToMap(holder, holder_map_);
@@ -263,9 +277,19 @@ void LookupIterator::ApplyTransitionToDataProperty() {
   Handle<JSObject> receiver = GetStoreTarget();
   if (receiver->IsJSGlobalObject()) return;
   holder_ = receiver;
-  holder_map_ = transition_map();
+  Handle<Map> transition = transition_map();
+  bool simple_transition = transition->GetBackPointer() == receiver->map();
+  holder_map_ = transition;
   JSObject::MigrateToMap(receiver, holder_map_);
-  ReloadPropertyInformation();
+
+  if (simple_transition) {
+    int number = transition->LastAdded();
+    number_ = static_cast<uint32_t>(number);
+    property_details_ = transition->GetLastDescriptorDetails();
+    state_ = DATA;
+  } else {
+    ReloadPropertyInformation();
+  }
 }
 
 
