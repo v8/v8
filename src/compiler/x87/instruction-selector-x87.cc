@@ -664,7 +664,9 @@ void InstructionSelector::VisitRoundInt32ToFloat32(Node* node) {
 
 
 void InstructionSelector::VisitRoundUint32ToFloat32(Node* node) {
-  UNIMPLEMENTED();
+  X87OperandGenerator g(this);
+  Emit(kX87Uint32ToFloat32, g.DefineAsFixed(node, stX_0),
+       g.Use(node->InputAt(0)));
 }
 
 

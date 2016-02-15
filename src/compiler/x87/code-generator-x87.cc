@@ -1114,6 +1114,49 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       }
       break;
     }
+    case kX87Uint32ToFloat32: {
+      InstructionOperand* input = instr->InputAt(0);
+      DCHECK(input->IsRegister() || input->IsStackSlot());
+      if (FLAG_debug_code && FLAG_enable_slow_asserts) {
+        __ VerifyX87StackDepth(1);
+      }
+      __ fstp(0);
+      Label msb_set_src;
+      Label jmp_return;
+      // Put input integer into eax(tmporarilly)
+      __ push(eax);
+      if (input->IsRegister())
+        __ mov(eax, i.InputRegister(0));
+      else
+        __ mov(eax, i.InputOperand(0));
+
+      __ test(eax, eax);
+      __ j(sign, &msb_set_src, Label::kNear);
+      __ push(eax);
+      __ fild_s(Operand(esp, 0));
+      __ pop(eax);
+
+      __ jmp(&jmp_return, Label::kNear);
+      __ bind(&msb_set_src);
+      // Need another temp reg
+      __ push(ebx);
+      __ mov(ebx, eax);
+      __ shr(eax, 1);
+      // Recover the least significant bit to avoid rounding errors.
+      __ and_(ebx, Immediate(1));
+      __ or_(eax, ebx);
+      __ push(eax);
+      __ fild_s(Operand(esp, 0));
+      __ pop(eax);
+      __ fld(0);
+      __ faddp();
+      // Restore the ebx
+      __ pop(ebx);
+      __ bind(&jmp_return);
+      // Restore the eax
+      __ pop(eax);
+      break;
+    }
     case kX87Int32ToFloat64: {
       InstructionOperand* input = instr->InputAt(0);
       DCHECK(input->IsRegister() || input->IsStackSlot());
