@@ -790,34 +790,6 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
 }
 
 
-void RestParamAccessStub::GenerateNew(MacroAssembler* masm) {
-  // ecx : number of parameters (tagged)
-  // edx : parameters pointer
-  // ebx : rest parameter index (tagged)
-  // esp[0] : return address
-
-  // Check if the calling frame is an arguments adaptor frame.
-  Label runtime;
-  __ mov(edi, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
-  __ mov(eax, Operand(edi, StandardFrameConstants::kContextOffset));
-  __ cmp(eax, Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ j(not_equal, &runtime);
-
-  // Patch the arguments.length and the parameters pointer.
-  __ mov(ecx, Operand(edi, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ lea(edx,
-         Operand(edi, ecx, times_2, StandardFrameConstants::kCallerSPOffset));
-
-  __ bind(&runtime);
-  __ pop(eax);   // Save return address.
-  __ push(ecx);  // Push number of parameters.
-  __ push(edx);  // Push parameters pointer.
-  __ push(ebx);  // Push rest parameter index.
-  __ push(eax);  // Push return address.
-  __ TailCallRuntime(Runtime::kNewRestParam);
-}
-
-
 void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Just jump directly to runtime if native RegExp is not selected at compile
   // time or if regexp entry in generated code is turned off runtime switch or
@@ -4817,6 +4789,151 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
   GenerateCase(masm, FAST_ELEMENTS);
 }
 
+void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- edi    : function
+  //  -- esi    : context
+  //  -- ebp    : frame pointer
+  //  -- esp[0] : return address
+  // -----------------------------------
+  __ AssertFunction(edi);
+
+  // For Ignition we need to skip all possible handler/stub frames until
+  // we reach the JavaScript frame for the function (similar to what the
+  // runtime fallback implementation does). So make edx point to that
+  // JavaScript frame.
+  {
+    Label loop, loop_entry;
+    __ mov(edx, ebp);
+    __ jmp(&loop_entry, Label::kNear);
+    __ bind(&loop);
+    __ mov(edx, Operand(edx, StandardFrameConstants::kCallerFPOffset));
+    __ bind(&loop_entry);
+    __ cmp(edi, Operand(edx, StandardFrameConstants::kMarkerOffset));
+    __ j(not_equal, &loop);
+  }
+
+  // Check if we have rest parameters (only possible if we have an
+  // arguments adaptor frame below the function frame).
+  Label no_rest_parameters;
+  __ mov(ebx, Operand(edx, StandardFrameConstants::kCallerFPOffset));
+  __ cmp(Operand(ebx, StandardFrameConstants::kContextOffset),
+         Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ j(not_equal, &no_rest_parameters, Label::kNear);
+
+  // Check if the arguments adaptor frame contains more arguments than
+  // specified by the function's internal formal parameter count.
+  Label rest_parameters;
+  __ mov(ecx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+  __ mov(eax, Operand(ebx, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ sub(eax,
+         FieldOperand(ecx, SharedFunctionInfo::kFormalParameterCountOffset));
+  __ j(greater, &rest_parameters);
+
+  // Return an empty rest parameter array.
+  __ bind(&no_rest_parameters);
+  {
+    // ----------- S t a t e -------------
+    //  -- esi    : context
+    //  -- esp[0] : return address
+    // -----------------------------------
+
+    // Allocate an empty rest parameter array.
+    Label allocate, done_allocate;
+    __ Allocate(JSArray::kSize, eax, edx, ecx, &allocate, TAG_OBJECT);
+    __ bind(&done_allocate);
+
+    // Setup the rest parameter array in rax.
+    __ LoadGlobalFunction(Context::JS_ARRAY_FAST_ELEMENTS_MAP_INDEX, ecx);
+    __ mov(FieldOperand(eax, JSArray::kMapOffset), ecx);
+    __ mov(ecx, isolate()->factory()->empty_fixed_array());
+    __ mov(FieldOperand(eax, JSArray::kPropertiesOffset), ecx);
+    __ mov(FieldOperand(eax, JSArray::kElementsOffset), ecx);
+    __ mov(FieldOperand(eax, JSArray::kLengthOffset),
+           Immediate(Smi::FromInt(0)));
+    STATIC_ASSERT(JSArray::kSize == 4 * kPointerSize);
+    __ Ret();
+
+    // Fall back to %AllocateInNewSpace.
+    __ bind(&allocate);
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ Push(Smi::FromInt(JSArray::kSize));
+      __ CallRuntime(Runtime::kAllocateInNewSpace);
+    }
+    __ jmp(&done_allocate);
+  }
+
+  __ bind(&rest_parameters);
+  {
+    // Compute the pointer to the first rest parameter (skippping the receiver).
+    __ lea(ebx,
+           Operand(ebx, eax, times_half_pointer_size,
+                   StandardFrameConstants::kCallerSPOffset - 1 * kPointerSize));
+
+    // ----------- S t a t e -------------
+    //  -- esi    : context
+    //  -- eax    : number of rest parameters (tagged)
+    //  -- ebx    : pointer to first rest parameters
+    //  -- esp[0] : return address
+    // -----------------------------------
+
+    // Allocate space for the rest parameter array plus the backing store.
+    Label allocate, done_allocate;
+    __ lea(ecx, Operand(eax, times_half_pointer_size,
+                        JSArray::kSize + FixedArray::kHeaderSize));
+    __ Allocate(ecx, edx, edi, no_reg, &allocate, TAG_OBJECT);
+    __ bind(&done_allocate);
+
+    // Setup the elements array in edx.
+    __ mov(FieldOperand(edx, FixedArray::kMapOffset),
+           isolate()->factory()->fixed_array_map());
+    __ mov(FieldOperand(edx, FixedArray::kLengthOffset), eax);
+    {
+      Label loop, done_loop;
+      __ Move(ecx, Smi::FromInt(0));
+      __ bind(&loop);
+      __ cmp(ecx, eax);
+      __ j(equal, &done_loop, Label::kNear);
+      __ mov(edi, Operand(ebx, 0 * kPointerSize));
+      __ mov(FieldOperand(edx, ecx, times_half_pointer_size,
+                          FixedArray::kHeaderSize),
+             edi);
+      __ sub(ebx, Immediate(1 * kPointerSize));
+      __ add(ecx, Immediate(Smi::FromInt(1)));
+      __ jmp(&loop);
+      __ bind(&done_loop);
+    }
+
+    // Setup the rest parameter array in edi.
+    __ lea(edi,
+           Operand(edx, eax, times_half_pointer_size, FixedArray::kHeaderSize));
+    __ LoadGlobalFunction(Context::JS_ARRAY_FAST_ELEMENTS_MAP_INDEX, ecx);
+    __ mov(FieldOperand(edi, JSArray::kMapOffset), ecx);
+    __ mov(FieldOperand(edi, JSArray::kPropertiesOffset),
+           isolate()->factory()->empty_fixed_array());
+    __ mov(FieldOperand(edi, JSArray::kElementsOffset), edx);
+    __ mov(FieldOperand(edi, JSArray::kLengthOffset), eax);
+    STATIC_ASSERT(JSArray::kSize == 4 * kPointerSize);
+    __ mov(eax, edi);
+    __ Ret();
+
+    // Fall back to %AllocateInNewSpace.
+    __ bind(&allocate);
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ SmiTag(ecx);
+      __ Push(eax);
+      __ Push(ebx);
+      __ Push(ecx);
+      __ CallRuntime(Runtime::kAllocateInNewSpace);
+      __ mov(edx, eax);
+      __ Pop(ebx);
+      __ Pop(eax);
+    }
+    __ jmp(&done_allocate);
+  }
+}
 
 void LoadGlobalViaContextStub::Generate(MacroAssembler* masm) {
   Register context_reg = esi;
