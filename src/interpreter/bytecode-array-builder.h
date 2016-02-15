@@ -114,7 +114,7 @@ class BytecodeArrayBuilder final : public ZoneObject, private RegisterMover {
 
   // Named load property.
   BytecodeArrayBuilder& LoadNamedProperty(Register object,
-                                          const Handle<String> name,
+                                          const Handle<Name> name,
                                           int feedback_slot,
                                           LanguageMode language_mode);
   // Keyed load property. The key should be in the accumulator.
@@ -123,7 +123,7 @@ class BytecodeArrayBuilder final : public ZoneObject, private RegisterMover {
 
   // Store properties. The value to be stored should be in the accumulator.
   BytecodeArrayBuilder& StoreNamedProperty(Register object,
-                                           const Handle<String> name,
+                                           const Handle<Name> name,
                                            int feedback_slot,
                                            LanguageMode language_mode);
   BytecodeArrayBuilder& StoreKeyedProperty(Register object, Register key,
@@ -167,9 +167,10 @@ class BytecodeArrayBuilder final : public ZoneObject, private RegisterMover {
   BytecodeArrayBuilder& Call(Register callable, Register receiver_args,
                              size_t receiver_arg_count, int feedback_slot);
 
-  // Call the new operator. The |constructor| register is followed by
-  // |arg_count| consecutive registers containing arguments to be
-  // applied to the constructor.
+  // Call the new operator. The accumulator holds the |new_target|.
+  // The |constructor| is in a register followed by |arg_count|
+  // consecutive arguments starting at |first_arg| for the constuctor
+  // invocation.
   BytecodeArrayBuilder& New(Register constructor, Register first_arg,
                             size_t arg_count);
 

@@ -3865,6 +3865,65 @@ TEST(InterpreterClassLiterals) {
   }
 }
 
+TEST(InterpreterClassAndSuperClass) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  std::pair<const char*, Handle<Object>> examples[] = {
+      {"class A {\n"
+       "  constructor(x) { this.x_ = x; }\n"
+       "  method() { return this.x_; }\n"
+       "}\n"
+       "class B extends A {\n"
+       "   constructor(x, y) { super(x); this.y_ = y; }\n"
+       "   method() { return super.method() + 1; }\n"
+       "}\n"
+       "return new B(998, 0).method();\n",
+       handle(Smi::FromInt(999), isolate)},
+      {"class A {\n"
+       "  constructor() { this.x_ = 2; this.y_ = 3; }\n"
+       "}\n"
+       "class B extends A {\n"
+       "  constructor() { super(); }"
+       "  method() { this.x_++; this.y_++; return this.x_ + this.y_; }\n"
+       "}\n"
+       "return new B().method();\n",
+       handle(Smi::FromInt(7), isolate)},
+      {"var calls = 0;\n"
+       "class B {}\n"
+       "B.prototype.x = 42;\n"
+       "class C extends B {\n"
+       "  constructor() {\n"
+       "    super();\n"
+       "    calls++;\n"
+       "  }\n"
+       "}\n"
+       "new C;\n"
+       "return calls;\n",
+       handle(Smi::FromInt(1), isolate)},
+      {"class A {\n"
+       "  method() { return 1; }\n"
+       "  get x() { return 2; }\n"
+       "}\n"
+       "class B extends A {\n"
+       "  method() { return super.x === 2 ? super.method() : -1; }\n"
+       "}\n"
+       "return new B().method();\n",
+       handle(Smi::FromInt(1), isolate)},
+      {"var object = { setY(v) { super.y = v; }};\n"
+       "object.setY(10);\n"
+       "return object.y;\n",
+       handle(Smi::FromInt(10), isolate)},
+  };
+
+  for (size_t i = 0; i < arraysize(examples); ++i) {
+    std::string source(InterpreterTester::SourceForBody(examples[i].first));
+    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    auto callable = tester.GetCallable<>();
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*examples[i].second));
+  }
+}
+
 TEST(InterpreterConstDeclaration) {
   HandleAndZoneScope handles;
   i::Isolate* isolate = handles.main_isolate();

@@ -74,11 +74,22 @@ class BytecodeRegisterAllocator final {
   ~BytecodeRegisterAllocator();
   Register NewRegister();
 
+  // Ensure |count| consecutive allocations are available.
   void PrepareForConsecutiveAllocations(size_t count);
+
+  // Get the next consecutive allocation after calling
+  // PrepareForConsecutiveAllocations.
   Register NextConsecutiveRegister();
 
+  // Prepare consecutive register allocations and initialize an array
+  // of registers with the allocations.
+  void PrepareAndInitializeConsecutiveAllocations(Register* registers,
+                                                  size_t count);
+
+  // Returns true if |reg| is allocated in this allocator.
   bool RegisterIsAllocatedInThisScope(Register reg) const;
 
+  // Returns true if unused consecutive allocations remain.
   bool HasConsecutiveAllocations() const { return next_consecutive_count_ > 0; }
 
  private:

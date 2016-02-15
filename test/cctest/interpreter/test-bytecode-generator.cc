@@ -5048,13 +5048,14 @@ TEST(CallNew) {
        "f()",
        2 * kPointerSize,
        1,
-       15,
+       17,
        {
            B(StackCheck),                                           //
            B(LdaGlobalSloppy), U8(0), U8(vector->GetIndex(slot2)),  //
            B(Star), R(0),                                           //
            B(LdaSmi8), U8(3),                                       //
            B(Star), R(1),                                           //
+           B(Ldar), R(0),                                           //
            B(New), R(0), R(1), U8(1),                               //
            B(Return),                                               //
        },
@@ -5070,7 +5071,7 @@ TEST(CallNew) {
        "f()",
        4 * kPointerSize,
        1,
-       23,
+       25,
        {
            B(StackCheck),                                           //
            B(LdaGlobalSloppy), U8(0), U8(vector->GetIndex(slot2)),  //
@@ -5081,6 +5082,7 @@ TEST(CallNew) {
            B(Star), R(2),                                           //
            B(LdaSmi8), U8(5),                                       //
            B(Star), R(3),                                           //
+           B(Ldar), R(0),                                           //
            B(New), R(0), R(1), U8(3),                               //
            B(Return),                                               //
        },
@@ -9231,6 +9233,8 @@ TEST(ClassDeclarations) {
     CheckBytecodeArrayEqual(snippets[i], bytecode_array);
   }
 }
+
+// TODO(oth): Add tests for super keyword.
 
 }  // namespace interpreter
 }  // namespace internal

@@ -1166,14 +1166,15 @@ void Interpreter::DoCallJSRuntimeWide(InterpreterAssembler* assembler) {
 
 void Interpreter::DoCallConstruct(InterpreterAssembler* assembler) {
   Callable ic = CodeFactory::InterpreterPushArgsAndConstruct(isolate_);
+  Node* new_target = __ GetAccumulator();
   Node* constructor_reg = __ BytecodeOperandReg(0);
   Node* constructor = __ LoadRegister(constructor_reg);
   Node* first_arg_reg = __ BytecodeOperandReg(1);
   Node* first_arg = __ RegisterLocation(first_arg_reg);
   Node* args_count = __ BytecodeOperandCount(2);
   Node* context = __ GetContext();
-  Node* result = __ CallConstruct(constructor, context, constructor, first_arg,
-                                  args_count);
+  Node* result =
+      __ CallConstruct(constructor, context, new_target, first_arg, args_count);
   __ SetAccumulator(result);
   __ Dispatch();
 }
@@ -1183,6 +1184,7 @@ void Interpreter::DoCallConstruct(InterpreterAssembler* assembler) {
 //
 // Call operator new with |constructor| and the first argument in
 // register |first_arg| and |arg_count| arguments in subsequent
+// registers. The new.target is in the accumulator.
 //
 void Interpreter::DoNew(InterpreterAssembler* assembler) {
   DoCallConstruct(assembler);
@@ -1193,6 +1195,7 @@ void Interpreter::DoNew(InterpreterAssembler* assembler) {
 //
 // Call operator new with |constructor| and the first argument in
 // register |first_arg| and |arg_count| arguments in subsequent
+// registers. The new.target is in the accumulator.
 //
 void Interpreter::DoNewWide(InterpreterAssembler* assembler) {
   DoCallConstruct(assembler);

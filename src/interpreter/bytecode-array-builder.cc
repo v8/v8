@@ -484,9 +484,8 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreLookupSlot(
   return *this;
 }
 
-
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadNamedProperty(
-    Register object, const Handle<String> name, int feedback_slot,
+    Register object, const Handle<Name> name, int feedback_slot,
     LanguageMode language_mode) {
   Bytecode bytecode = BytecodeForLoadIC(language_mode);
   size_t name_index = GetConstantPoolEntry(name);
@@ -520,9 +519,8 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadKeyedProperty(
   return *this;
 }
 
-
 BytecodeArrayBuilder& BytecodeArrayBuilder::StoreNamedProperty(
-    Register object, const Handle<String> name, int feedback_slot,
+    Register object, const Handle<Name> name, int feedback_slot,
     LanguageMode language_mode) {
   Bytecode bytecode = BytecodeForStoreIC(language_mode);
   size_t name_index = GetConstantPoolEntry(name);
@@ -1106,7 +1104,6 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Call(Register callable,
   }
   return *this;
 }
-
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::New(Register constructor,
                                                 Register first_arg,

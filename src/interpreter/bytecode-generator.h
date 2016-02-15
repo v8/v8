@@ -42,6 +42,7 @@ class BytecodeGenerator final : public AstVisitor {
   class AccumulatorResultScope;
   class RegisterResultScope;
   class RegisterAllocationScope;
+  class SuperPropertyArguments;
 
   void MakeBytecodeBody();
 
@@ -65,6 +66,20 @@ class BytecodeGenerator final : public AstVisitor {
   // Helper visitors which perform common operations.
   Register VisitArguments(ZoneList<Expression*>* arguments);
 
+  // Visit a keyed super property load. The optional
+  // |opt_receiver_out| register will have the receiver stored to it
+  // if it's a valid register. The loaded value is placed in the
+  // accumulator.
+  void VisitKeyedSuperPropertyLoad(Property* property,
+                                   Register opt_receiver_out);
+
+  // Visit a named super property load. The optional
+  // |opt_receiver_out| register will have the receiver stored to it
+  // if it's a valid register. The loaded value is placed in the
+  // accumulator.
+  void VisitNamedSuperPropertyLoad(Property* property,
+                                   Register opt_receiver_out);
+
   void VisitPropertyLoad(Register obj, Property* expr);
   void VisitPropertyLoadForAccumulator(Register obj, Property* expr);
 
@@ -79,6 +94,19 @@ class BytecodeGenerator final : public AstVisitor {
   void VisitVariableAssignment(Variable* variable, Token::Value op,
                                FeedbackVectorSlot slot);
 
+  void PrepareNamedSuperPropertyArguments(
+      SuperPropertyReference* super_property, Handle<Name> name,
+      SuperPropertyArguments* super_property_args);
+  void PrepareKeyedSuperPropertyArguments(
+      SuperPropertyReference* super_property, Expression* key,
+      SuperPropertyArguments* super_property_args);
+  void BuildNamedSuperPropertyLoad(SuperPropertyArguments* super_property_args);
+  void BuildKeyedSuperPropertyLoad(SuperPropertyArguments* super_property_args);
+  void BuildNamedSuperPropertyStore(
+      SuperPropertyArguments* super_property_args);
+  void BuildKeyedSuperPropertyStore(
+      SuperPropertyArguments* super_property_args);
+
   void BuildThrowIfHole(Handle<String> name);
   void BuildThrowIfNotHole(Handle<String> name);
   void BuildThrowReassignConstant(Handle<String> name);
@@ -88,6 +116,7 @@ class BytecodeGenerator final : public AstVisitor {
 
   void VisitArgumentsObject(Variable* variable);
   void VisitRestArgumentsArray(Variable* rest);
+  void VisitCallSuper(Call* call);
   void VisitClassLiteralContents(ClassLiteral* expr);
   void VisitClassLiteralForRuntimeDefinition(ClassLiteral* expr);
   void VisitClassLiteralProperties(ClassLiteral* expr, Register literal,
@@ -129,6 +158,10 @@ class BytecodeGenerator final : public AstVisitor {
   // Methods for tracking try-block nesting.
   bool IsInsideTryCatch() const { return try_catch_nesting_level_ > 0; }
   bool IsInsideTryFinally() const { return try_finally_nesting_level_ > 0; }
+
+  // Initialize an array of temporary registers with consecutive registers.
+  template <size_t N>
+  void InitializeWithConsecutiveRegisters(Register (&registers)[N]);
 
   inline void set_builder(BytecodeArrayBuilder* builder) { builder_ = builder; }
   inline BytecodeArrayBuilder* builder() const { return builder_; }

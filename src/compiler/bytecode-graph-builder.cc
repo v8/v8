@@ -1136,33 +1136,34 @@ void BytecodeGraphBuilder::VisitCallRuntimeForPairWide() {
   BuildCallRuntimeForPair();
 }
 
-
 Node* BytecodeGraphBuilder::ProcessCallNewArguments(
-    const Operator* call_new_op, interpreter::Register callee,
+    const Operator* call_new_op, Node* callee, Node* new_target,
     interpreter::Register first_arg, size_t arity) {
   Node** all = info()->zone()->NewArray<Node*>(arity);
-  all[0] = environment()->LookupRegister(callee);
+  all[0] = new_target;
   int first_arg_index = first_arg.index();
   for (int i = 1; i < static_cast<int>(arity) - 1; ++i) {
     all[i] = environment()->LookupRegister(
         interpreter::Register(first_arg_index + i - 1));
   }
-  // Original constructor is the same as the callee.
-  all[arity - 1] = environment()->LookupRegister(callee);
+  all[arity - 1] = callee;
   Node* value = MakeNode(call_new_op, static_cast<int>(arity), all, false);
   return value;
 }
 
 void BytecodeGraphBuilder::BuildCallConstruct() {
   FrameStateBeforeAndAfter states(this);
-  interpreter::Register callee = bytecode_iterator().GetRegisterOperand(0);
+  interpreter::Register callee_reg = bytecode_iterator().GetRegisterOperand(0);
   interpreter::Register first_arg = bytecode_iterator().GetRegisterOperand(1);
   size_t arg_count = bytecode_iterator().GetRegisterCountOperand(2);
 
+  Node* new_target = environment()->LookupAccumulator();
+  Node* callee = environment()->LookupRegister(callee_reg);
   // TODO(turbofan): Pass the feedback here.
   const Operator* call = javascript()->CallConstruct(
       static_cast<int>(arg_count) + 2, VectorSlotPair());
-  Node* value = ProcessCallNewArguments(call, callee, first_arg, arg_count + 2);
+  Node* value = ProcessCallNewArguments(call, callee, new_target, first_arg,
+                                        arg_count + 2);
   environment()->BindAccumulator(value, &states);
 }
 

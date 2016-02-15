@@ -504,45 +504,6 @@
   # TODO(rmcilroy,4680): Check failed: toplevel_test_code_event_found.
   'test-serialize/SerializeToplevelIsolates': [FAIL],
 
-  # TODO(rmcilroy,4682): Requires support for classes.
-  'test-inobject-slack-tracking/SubclassBasicNoBaseClassInstancesNoInlineNew': [FAIL],
-  'test-inobject-slack-tracking/SubclassBasicNoBaseClassInstances': [FAIL],
-  'test-inobject-slack-tracking/LongSubclassChain2': [FAIL],
-  'test-inobject-slack-tracking/LongSubclassChain1': [FAIL],
-  'test-inobject-slack-tracking/LongSubclassChain3': [FAIL],
-  'test-inobject-slack-tracking/SubclassBasicNoInlineNew': [FAIL],
-  'test-inobject-slack-tracking/InobjectPropetiesCountOverflowInSubclass': [FAIL],
-  'test-inobject-slack-tracking/SlowModeSubclass': [FAIL],
-  'test-inobject-slack-tracking/SubclassObjectBuiltin': [FAIL],
-  'test-inobject-slack-tracking/SubclassObjectBuiltinNoInlineNew': [FAIL],
-  'test-inobject-slack-tracking/SubclassFunctionBuiltin': [FAIL],
-  'test-inobject-slack-tracking/SubclassBasic': [FAIL],
-  'test-inobject-slack-tracking/SubclassFunctionBuiltinNoInlineNew': [FAIL],
-  'test-inobject-slack-tracking/SubclassNumberBuiltin': [FAIL],
-  'test-inobject-slack-tracking/SubclassBooleanBuiltinNoInlineNew': [FAIL],
-  'test-inobject-slack-tracking/SubclassErrorBuiltinNoInlineNew': [FAIL],
-  'test-inobject-slack-tracking/SubclassErrorBuiltin': [FAIL],
-  'test-inobject-slack-tracking/SubclassStringBuiltin': [FAIL],
-  'test-inobject-slack-tracking/SubclassDateBuiltin': [FAIL],
-  'test-inobject-slack-tracking/SubclassRegExpBuiltin': [FAIL],
-  'test-inobject-slack-tracking/SubclassStringBuiltinNoInlineNew': [FAIL],
-  'test-inobject-slack-tracking/SubclassBooleanBuiltin': [FAIL],
-  'test-inobject-slack-tracking/SubclassDateBuiltinNoInlineNew': [FAIL],
-  'test-inobject-slack-tracking/SubclassArrayBuiltin': [FAIL],
-  'test-inobject-slack-tracking/SubclassRegExpBuiltinNoInlineNew': [FAIL],
-  'test-inobject-slack-tracking/SubclassNumberBuiltinNoInlineNew': [FAIL],
-  'test-inobject-slack-tracking/SubclassArrayBuiltinNoInlineNew': [FAIL],
-  'test-inobject-slack-tracking/SubclassTypedArrayBuiltin': [FAIL],
-  'test-inobject-slack-tracking/SubclassTypedArrayBuiltinNoInlineNew': [FAIL],
-  'test-inobject-slack-tracking/SubclassCollectionBuiltin': [FAIL],
-  'test-inobject-slack-tracking/SubclassCollectionBuiltinNoInlineNew': [FAIL],
-  'test-inobject-slack-tracking/SubclassArrayBufferBuiltin': [FAIL],
-  'test-inobject-slack-tracking/SubclassArrayBufferBuiltinNoInlineNew': [FAIL],
-  'test-inobject-slack-tracking/SubclassPromiseBuiltinNoInlineNew': [FAIL],
-  'test-inobject-slack-tracking/SubclassPromiseBuiltin': [FAIL],
-  'test-api/Regress470113': [FAIL],
-  'test-api/SubclassGetConstructorName': [FAIL],
-
   # BUG(4333). Function name inferrer does not work for ES6 clases.
   'test-func-name-inference/UpperCaseClass': [TIMEOUT],
   'test-func-name-inference/LowerCaseClass': [TIMEOUT],
@@ -649,6 +610,7 @@
 ['ignition == True and arch == arm64', {
   # TODO(rmcilroy,4680): Arm64 specific crashes.
   'test-api/ExternalWrap': [SKIP],
+  'test-api/Regress470113': [SKIP],
   'test-heap/NoWeakHashTableLeakWithIncrementalMarking': [SKIP],
 
   # TODO(rmcilroy,4680): Arm64 flakes.
