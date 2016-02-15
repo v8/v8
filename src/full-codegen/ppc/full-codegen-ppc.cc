@@ -283,23 +283,11 @@ void FullCodeGenerator::Generate() {
     if (is_strict(language_mode()) || !has_simple_parameters()) {
       FastNewStrictArgumentsStub stub(isolate());
       __ CallStub(&stub);
+    } else if (literal()->has_duplicate_parameters()) {
+      __ Push(r4);
+      __ CallRuntime(Runtime::kNewSloppyArguments_Generic);
     } else {
-      DCHECK(r4.is(ArgumentsAccessNewDescriptor::function()));
-      // Receiver is just before the parameters on the caller's stack.
-      int num_parameters = info->scope()->num_parameters();
-      int offset = num_parameters * kPointerSize;
-      __ LoadSmiLiteral(ArgumentsAccessNewDescriptor::parameter_count(),
-                        Smi::FromInt(num_parameters));
-      __ addi(ArgumentsAccessNewDescriptor::parameter_pointer(), fp,
-              Operand(StandardFrameConstants::kCallerSPOffset + offset));
-
-      // Arguments to ArgumentsAccessStub:
-      //   function, parameter pointer, parameter count.
-      // The stub will rewrite parameter pointer and parameter count if the
-      // previous stack frame was an arguments adapter frame.
-      ArgumentsAccessStub::Type type = ArgumentsAccessStub::ComputeType(
-          literal()->has_duplicate_parameters());
-      ArgumentsAccessStub stub(isolate(), type);
+      FastNewSloppyArgumentsStub stub(isolate());
       __ CallStub(&stub);
     }
 
