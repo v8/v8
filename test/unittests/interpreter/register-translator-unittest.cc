@@ -73,7 +73,9 @@ TEST_F(RegisterTranslatorTest, TestFrameSizeAdjustmentsForTranslationWindow) {
             RegisterTranslator::RegisterCountAdjustment(173, 137));
   EXPECT_EQ(window_width(),
             RegisterTranslator::RegisterCountAdjustment(173, 137));
-  EXPECT_EQ(0, RegisterTranslator::RegisterCountAdjustment(0, 120));
+  // TODO(oth): Add a kMaxParameters8 that derives this info from the frame.
+  int param_limit = FLAG_enable_embedded_constant_pool ? 119 : 120;
+  EXPECT_EQ(0, RegisterTranslator::RegisterCountAdjustment(0, param_limit));
   EXPECT_EQ(window_limit(),
             RegisterTranslator::RegisterCountAdjustment(0, 128));
   EXPECT_EQ(window_limit(),
