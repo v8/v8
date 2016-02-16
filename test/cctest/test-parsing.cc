@@ -8007,3 +8007,39 @@ TEST(MiscSyntaxErrors) {
 
   RunParserSyncTest(context_data, error_data, kError, NULL, 0, NULL, 0);
 }
+
+TEST(FunctionSentErrors) {
+  // clang-format off
+  const char* context_data[][2] = {
+    { "'use strict'", "" },
+    { "", "" },
+    { NULL, NULL }
+  };
+  const char* error_data[] = {
+    "var x = function.sent",
+    "function* g() { yield function.s\\u0065nt; }",
+    NULL
+  };
+  // clang-format on
+
+  bool old_flag = i::FLAG_harmony_function_sent;
+  i::FLAG_harmony_function_sent = true;
+  RunParserSyncTest(context_data, error_data, kError);
+  i::FLAG_harmony_function_sent = old_flag;
+}
+
+TEST(NewTargetErrors) {
+  // clang-format off
+  const char* context_data[][2] = {
+    { "'use strict'", "" },
+    { "", "" },
+    { NULL, NULL }
+  };
+  const char* error_data[] = {
+    "var x = new.target",
+    "function f() { return new.t\\u0061rget; }",
+    NULL
+  };
+  // clang-format on
+  RunParserSyncTest(context_data, error_data, kError);
+}

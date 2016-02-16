@@ -454,6 +454,9 @@ class ParserBase : public Traits {
            scanner()->is_next_contextual_keyword(keyword);
   }
 
+  void ExpectMetaProperty(Vector<const char> property_name,
+                          const char* full_name, int pos, bool* ok);
+
   void ExpectContextualKeyword(Vector<const char> keyword, bool* ok) {
     Expect(Token::IDENTIFIER, ok);
     if (!*ok) return;
@@ -2540,11 +2543,10 @@ ParserBase<Traits>::ParseMemberExpression(ExpressionClassifier* classifier,
     Consume(Token::FUNCTION);
     int function_token_position = position();
 
-    if (FLAG_harmony_function_sent && Check(Token::PERIOD)) {
+    if (FLAG_harmony_function_sent && peek() == Token::PERIOD) {
       // function.sent
-
       int pos = position();
-      ExpectContextualKeyword(CStrVector("sent"), CHECK_OK);
+      ExpectMetaProperty(CStrVector("sent"), "function.sent", pos, CHECK_OK);
 
       if (!is_generator()) {
         // TODO(neis): allow escaping into closures?
@@ -2769,13 +2771,26 @@ ParserBase<Traits>::ParseSuperExpression(bool is_new,
   return this->EmptyExpression();
 }
 
+template <class Traits>
+void ParserBase<Traits>::ExpectMetaProperty(Vector<const char> property_name,
+                                            const char* full_name, int pos,
+                                            bool* ok) {
+  Consume(Token::PERIOD);
+  ExpectContextualKeyword(property_name, ok);
+  if (!*ok) return;
+  if (scanner()->literal_contains_escapes()) {
+    Traits::ReportMessageAt(
+        Scanner::Location(pos, scanner()->location().end_pos),
+        MessageTemplate::kInvalidEscapedMetaProperty, full_name);
+    *ok = false;
+  }
+}
 
 template <class Traits>
 typename ParserBase<Traits>::ExpressionT
 ParserBase<Traits>::ParseNewTargetExpression(bool* ok) {
   int pos = position();
-  Consume(Token::PERIOD);
-  ExpectContextualKeyword(CStrVector("target"), CHECK_OK);
+  ExpectMetaProperty(CStrVector("target"), "new.target", pos, CHECK_OK);
 
   if (!scope_->ReceiverScope()->is_function_scope()) {
     ReportMessageAt(scanner()->location(),
