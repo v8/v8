@@ -2812,59 +2812,7 @@ void JSObject::UpdatePrototypeUserRegistration(Handle<Map> old_map,
   }
 }
 
-
-void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map,
-                            int expected_additional_properties) {
-  if (object->map() == *new_map) return;
-  // If this object is a prototype (the callee will check), invalidate any
-  // prototype chains involving it.
-  InvalidatePrototypeChains(object->map());
-  Handle<Map> old_map(object->map());
-
-  // If the map was registered with its prototype before, ensure that it
-  // registers with its new prototype now. This preserves the invariant that
-  // when a map on a prototype chain is registered with its prototype, then
-  // all prototypes further up the chain are also registered with their
-  // respective prototypes.
-  UpdatePrototypeUserRegistration(old_map, new_map, new_map->GetIsolate());
-
-  if (object->HasFastProperties()) {
-    if (!new_map->is_dictionary_map()) {
-      MigrateFastToFast(object, new_map);
-      if (old_map->is_prototype_map()) {
-        DCHECK(!old_map->is_stable());
-        DCHECK(new_map->is_stable());
-        // Clear out the old descriptor array to avoid problems to sharing
-        // the descriptor array without using an explicit.
-        old_map->InitializeDescriptors(
-            old_map->GetHeap()->empty_descriptor_array(),
-            LayoutDescriptor::FastPointerLayout());
-        // Ensure that no transition was inserted for prototype migrations.
-        DCHECK_EQ(0, TransitionArray::NumberOfTransitions(
-                         old_map->raw_transitions()));
-        DCHECK(new_map->GetBackPointer()->IsUndefined());
-      }
-    } else {
-      MigrateFastToSlow(object, new_map, expected_additional_properties);
-    }
-  } else {
-    // For slow-to-fast migrations JSObject::MigrateSlowToFast()
-    // must be used instead.
-    CHECK(new_map->is_dictionary_map());
-
-    // Slow-to-slow migration is trivial.
-    object->set_map(*new_map);
-  }
-
-  // Careful: Don't allocate here!
-  // For some callers of this method, |object| might be in an inconsistent
-  // state now: the new map might have a new elements_kind, but the object's
-  // elements pointer hasn't been updated yet. Callers will fix this, but in
-  // the meantime, (indirectly) calling JSObjectVerify() must be avoided.
-  // When adding code here, add a DisallowHeapAllocation too.
-}
-
-
+namespace {
 // To migrate a fast instance to a fast map:
 // - First check whether the instance needs to be rewritten. If not, simply
 //   change the map.
@@ -2880,7 +2828,7 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map,
 //     to temporarily store the inobject properties.
 //   * If there are properties left in the backing store, install the backing
 //     store.
-void JSObject::MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
+void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
   Isolate* isolate = object->GetIsolate();
   Handle<Map> old_map(object->map());
   // In case of a regular transition.
@@ -3084,6 +3032,173 @@ void JSObject::MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
   object->synchronized_set_map(*new_map);
 }
 
+void MigrateFastToSlow(Handle<JSObject> object, Handle<Map> new_map,
+                       int expected_additional_properties) {
+  // The global object is always normalized.
+  DCHECK(!object->IsJSGlobalObject());
+  // JSGlobalProxy must never be normalized
+  DCHECK(!object->IsJSGlobalProxy());
+
+  Isolate* isolate = object->GetIsolate();
+  HandleScope scope(isolate);
+  Handle<Map> map(object->map());
+
+  // Allocate new content.
+  int real_size = map->NumberOfOwnDescriptors();
+  int property_count = real_size;
+  if (expected_additional_properties > 0) {
+    property_count += expected_additional_properties;
+  } else {
+    property_count += 2;  // Make space for two more properties.
+  }
+  Handle<NameDictionary> dictionary =
+      NameDictionary::New(isolate, property_count);
+
+  Handle<DescriptorArray> descs(map->instance_descriptors());
+  for (int i = 0; i < real_size; i++) {
+    PropertyDetails details = descs->GetDetails(i);
+    Handle<Name> key(descs->GetKey(i));
+    switch (details.type()) {
+      case DATA_CONSTANT: {
+        Handle<Object> value(descs->GetConstant(i), isolate);
+        PropertyDetails d(details.attributes(), DATA, i + 1,
+                          PropertyCellType::kNoCell);
+        dictionary = NameDictionary::Add(dictionary, key, value, d);
+        break;
+      }
+      case DATA: {
+        FieldIndex index = FieldIndex::ForDescriptor(*map, i);
+        Handle<Object> value;
+        if (object->IsUnboxedDoubleField(index)) {
+          double old_value = object->RawFastDoublePropertyAt(index);
+          value = isolate->factory()->NewHeapNumber(old_value);
+        } else {
+          value = handle(object->RawFastPropertyAt(index), isolate);
+          if (details.representation().IsDouble()) {
+            DCHECK(value->IsMutableHeapNumber());
+            Handle<HeapNumber> old = Handle<HeapNumber>::cast(value);
+            value = isolate->factory()->NewHeapNumber(old->value());
+          }
+        }
+        PropertyDetails d(details.attributes(), DATA, i + 1,
+                          PropertyCellType::kNoCell);
+        dictionary = NameDictionary::Add(dictionary, key, value, d);
+        break;
+      }
+      case ACCESSOR: {
+        FieldIndex index = FieldIndex::ForDescriptor(*map, i);
+        Handle<Object> value(object->RawFastPropertyAt(index), isolate);
+        PropertyDetails d(details.attributes(), ACCESSOR_CONSTANT, i + 1,
+                          PropertyCellType::kNoCell);
+        dictionary = NameDictionary::Add(dictionary, key, value, d);
+        break;
+      }
+      case ACCESSOR_CONSTANT: {
+        Handle<Object> value(descs->GetCallbacksObject(i), isolate);
+        PropertyDetails d(details.attributes(), ACCESSOR_CONSTANT, i + 1,
+                          PropertyCellType::kNoCell);
+        dictionary = NameDictionary::Add(dictionary, key, value, d);
+        break;
+      }
+    }
+  }
+
+  // Copy the next enumeration index from instance descriptor.
+  dictionary->SetNextEnumerationIndex(real_size + 1);
+
+  // From here on we cannot fail and we shouldn't GC anymore.
+  DisallowHeapAllocation no_allocation;
+
+  // Resize the object in the heap if necessary.
+  int new_instance_size = new_map->instance_size();
+  int instance_size_delta = map->instance_size() - new_instance_size;
+  DCHECK(instance_size_delta >= 0);
+
+  if (instance_size_delta > 0) {
+    Heap* heap = isolate->heap();
+    heap->CreateFillerObjectAt(object->address() + new_instance_size,
+                               instance_size_delta);
+    heap->AdjustLiveBytes(*object, -instance_size_delta,
+                          Heap::CONCURRENT_TO_SWEEPER);
+  }
+
+  // We are storing the new map using release store after creating a filler for
+  // the left-over space to avoid races with the sweeper thread.
+  object->synchronized_set_map(*new_map);
+
+  object->set_properties(*dictionary);
+
+  // Ensure that in-object space of slow-mode object does not contain random
+  // garbage.
+  int inobject_properties = new_map->GetInObjectProperties();
+  for (int i = 0; i < inobject_properties; i++) {
+    FieldIndex index = FieldIndex::ForPropertyIndex(*new_map, i);
+    object->RawFastPropertyAtPut(index, Smi::FromInt(0));
+  }
+
+  isolate->counters()->props_to_dictionary()->Increment();
+
+#ifdef DEBUG
+  if (FLAG_trace_normalization) {
+    OFStream os(stdout);
+    os << "Object properties have been normalized:\n";
+    object->Print(os);
+  }
+#endif
+}
+
+}  // namespace
+
+void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map,
+                            int expected_additional_properties) {
+  if (object->map() == *new_map) return;
+  // If this object is a prototype (the callee will check), invalidate any
+  // prototype chains involving it.
+  InvalidatePrototypeChains(object->map());
+  Handle<Map> old_map(object->map());
+
+  // If the map was registered with its prototype before, ensure that it
+  // registers with its new prototype now. This preserves the invariant that
+  // when a map on a prototype chain is registered with its prototype, then
+  // all prototypes further up the chain are also registered with their
+  // respective prototypes.
+  UpdatePrototypeUserRegistration(old_map, new_map, new_map->GetIsolate());
+
+  if (object->HasFastProperties()) {
+    if (!new_map->is_dictionary_map()) {
+      MigrateFastToFast(object, new_map);
+      if (old_map->is_prototype_map()) {
+        DCHECK(!old_map->is_stable());
+        DCHECK(new_map->is_stable());
+        // Clear out the old descriptor array to avoid problems to sharing
+        // the descriptor array without using an explicit.
+        old_map->InitializeDescriptors(
+            old_map->GetHeap()->empty_descriptor_array(),
+            LayoutDescriptor::FastPointerLayout());
+        // Ensure that no transition was inserted for prototype migrations.
+        DCHECK_EQ(0, TransitionArray::NumberOfTransitions(
+                         old_map->raw_transitions()));
+        DCHECK(new_map->GetBackPointer()->IsUndefined());
+      }
+    } else {
+      MigrateFastToSlow(object, new_map, expected_additional_properties);
+    }
+  } else {
+    // For slow-to-fast migrations JSObject::MigrateSlowToFast()
+    // must be used instead.
+    CHECK(new_map->is_dictionary_map());
+
+    // Slow-to-slow migration is trivial.
+    object->set_map(*new_map);
+  }
+
+  // Careful: Don't allocate here!
+  // For some callers of this method, |object| might be in an inconsistent
+  // state now: the new map might have a new elements_kind, but the object's
+  // elements pointer hasn't been updated yet. Callers will fix this, but in
+  // the meantime, (indirectly) calling JSObjectVerify() must be avoided.
+  // When adding code here, add a DisallowHeapAllocation too.
+}
 
 int Map::NumberOfFields() {
   DescriptorArray* descriptors = instance_descriptors();
@@ -5563,123 +5678,6 @@ void JSObject::NormalizeProperties(Handle<JSObject> object,
   Handle<Map> new_map = Map::Normalize(map, mode, reason);
 
   MigrateToMap(object, new_map, expected_additional_properties);
-}
-
-
-void JSObject::MigrateFastToSlow(Handle<JSObject> object,
-                                 Handle<Map> new_map,
-                                 int expected_additional_properties) {
-  // The global object is always normalized.
-  DCHECK(!object->IsJSGlobalObject());
-  // JSGlobalProxy must never be normalized
-  DCHECK(!object->IsJSGlobalProxy());
-
-  Isolate* isolate = object->GetIsolate();
-  HandleScope scope(isolate);
-  Handle<Map> map(object->map());
-
-  // Allocate new content.
-  int real_size = map->NumberOfOwnDescriptors();
-  int property_count = real_size;
-  if (expected_additional_properties > 0) {
-    property_count += expected_additional_properties;
-  } else {
-    property_count += 2;  // Make space for two more properties.
-  }
-  Handle<NameDictionary> dictionary =
-      NameDictionary::New(isolate, property_count);
-
-  Handle<DescriptorArray> descs(map->instance_descriptors());
-  for (int i = 0; i < real_size; i++) {
-    PropertyDetails details = descs->GetDetails(i);
-    Handle<Name> key(descs->GetKey(i));
-    switch (details.type()) {
-      case DATA_CONSTANT: {
-        Handle<Object> value(descs->GetConstant(i), isolate);
-        PropertyDetails d(details.attributes(), DATA, i + 1,
-                          PropertyCellType::kNoCell);
-        dictionary = NameDictionary::Add(dictionary, key, value, d);
-        break;
-      }
-      case DATA: {
-        FieldIndex index = FieldIndex::ForDescriptor(*map, i);
-        Handle<Object> value;
-        if (object->IsUnboxedDoubleField(index)) {
-          double old_value = object->RawFastDoublePropertyAt(index);
-          value = isolate->factory()->NewHeapNumber(old_value);
-        } else {
-          value = handle(object->RawFastPropertyAt(index), isolate);
-          if (details.representation().IsDouble()) {
-            DCHECK(value->IsMutableHeapNumber());
-            Handle<HeapNumber> old = Handle<HeapNumber>::cast(value);
-            value = isolate->factory()->NewHeapNumber(old->value());
-          }
-        }
-        PropertyDetails d(details.attributes(), DATA, i + 1,
-                          PropertyCellType::kNoCell);
-        dictionary = NameDictionary::Add(dictionary, key, value, d);
-        break;
-      }
-      case ACCESSOR: {
-        FieldIndex index = FieldIndex::ForDescriptor(*map, i);
-        Handle<Object> value(object->RawFastPropertyAt(index), isolate);
-        PropertyDetails d(details.attributes(), ACCESSOR_CONSTANT, i + 1,
-                          PropertyCellType::kNoCell);
-        dictionary = NameDictionary::Add(dictionary, key, value, d);
-        break;
-      }
-      case ACCESSOR_CONSTANT: {
-        Handle<Object> value(descs->GetCallbacksObject(i), isolate);
-        PropertyDetails d(details.attributes(), ACCESSOR_CONSTANT, i + 1,
-                          PropertyCellType::kNoCell);
-        dictionary = NameDictionary::Add(dictionary, key, value, d);
-        break;
-      }
-    }
-  }
-
-  // Copy the next enumeration index from instance descriptor.
-  dictionary->SetNextEnumerationIndex(real_size + 1);
-
-  // From here on we cannot fail and we shouldn't GC anymore.
-  DisallowHeapAllocation no_allocation;
-
-  // Resize the object in the heap if necessary.
-  int new_instance_size = new_map->instance_size();
-  int instance_size_delta = map->instance_size() - new_instance_size;
-  DCHECK(instance_size_delta >= 0);
-
-  if (instance_size_delta > 0) {
-    Heap* heap = isolate->heap();
-    heap->CreateFillerObjectAt(object->address() + new_instance_size,
-                               instance_size_delta);
-    heap->AdjustLiveBytes(*object, -instance_size_delta,
-                          Heap::CONCURRENT_TO_SWEEPER);
-  }
-
-  // We are storing the new map using release store after creating a filler for
-  // the left-over space to avoid races with the sweeper thread.
-  object->synchronized_set_map(*new_map);
-
-  object->set_properties(*dictionary);
-
-  // Ensure that in-object space of slow-mode object does not contain random
-  // garbage.
-  int inobject_properties = new_map->GetInObjectProperties();
-  for (int i = 0; i < inobject_properties; i++) {
-    FieldIndex index = FieldIndex::ForPropertyIndex(*new_map, i);
-    object->RawFastPropertyAtPut(index, Smi::FromInt(0));
-  }
-
-  isolate->counters()->props_to_dictionary()->Increment();
-
-#ifdef DEBUG
-  if (FLAG_trace_normalization) {
-    OFStream os(stdout);
-    os << "Object properties have been normalized:\n";
-    object->Print(os);
-  }
-#endif
 }
 
 

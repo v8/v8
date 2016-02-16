@@ -2498,11 +2498,6 @@ class JSObject: public JSReceiver {
   friend class JSReceiver;
   friend class Object;
 
-  static void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map);
-  static void MigrateFastToSlow(Handle<JSObject> object,
-                                Handle<Map> new_map,
-                                int expected_additional_properties);
-
   // Used from Object::GetProperty().
   MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithFailedAccessCheck(
       LookupIterator* it);
