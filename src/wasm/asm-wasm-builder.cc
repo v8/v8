@@ -1026,6 +1026,10 @@ class AsmWasmBuilderImpl : public AstVisitor {
           }
           break;
         }
+        case Token::COMMA: {
+          current_function_builder_->EmitWithU8(kExprBlock, 2);
+          break;
+        }
         default:
           UNREACHABLE();
       }

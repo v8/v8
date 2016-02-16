@@ -1042,6 +1042,7 @@ function TestForeignFunctions() {
 
 TestForeignFunctions();
 
+
 function TestForeignFunctionMultipleUse() {
   function AsmModule(stdlib, foreign, buffer) {
     "use asm";
@@ -1218,4 +1219,29 @@ TestForeignVariables();
   assertEquals(123, m.iload(0));
   assertEquals(42, m.iload(4));
   assertEquals(77, m.iload(8));
+})();
+
+
+(function TestComma() {
+  function CommaModule() {
+    "use asm";
+
+    function ifunc(a, b) {
+      a = +a;
+      b = b | 0;
+      return (a, b) | 0;
+    }
+
+    function dfunc(a, b) {
+      a = a | 0;
+      b = +b;
+      return +(a, b);
+    }
+
+    return {ifunc: ifunc, dfunc: dfunc};
+  }
+
+  var m = _WASMEXP_.instantiateModuleFromAsm(CommaModule.toString());
+  assertEquals(123, m.ifunc(456.7, 123));
+  assertEquals(123.4, m.dfunc(456, 123.4));
 })();
