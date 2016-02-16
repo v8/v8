@@ -768,10 +768,6 @@
   'regress/debug*': [SKIP],
   'regress/regress-debug*': [SKIP],
 
-  # TODO(yangguo,4690): debug-scopes.cc failure in ScopeIterator::Type
-  # DCHECK(context_->IsFunctionContext() || !scope_info->HasContext());
-  'regress/regress-crbug-582051': [SKIP],
-
   # TODO(yangguo,4690): Check failure in debug.cc BreakLocation::SetBreakPoint
   # DCHECK(IsDebugBreak() || IsDebuggerStatement());
   'regress/regress-1523': [FAIL],
@@ -841,7 +837,7 @@
   'regress/regress-123919': [FAIL],
 
   # TODO(rmcilroy,4680): Pass on debug, fail on release.
-  'compiler/regress-stacktrace-methods': [PASS, FAIL],
+  'compiler/regress-stacktrace-methods': [PASS, ['mode == release', FAIL]],
 
   # TODO(rmcilroy,4680): Test assert failures.
   'array-literal-feedback': [FAIL],
@@ -867,6 +863,7 @@
   'regress/regress-crbug-568477-3': [FAIL],
   'regress/regress-crbug-568477-1': [FAIL],
   'regress/regress-2318': [FAIL],
+  'regress/regress-crbug-582051': [FAIL],
 
   # TODO(rmcilroy,4680): Test crashes.
   'compiler/regress-funarguments': [SKIP],
