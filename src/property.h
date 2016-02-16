@@ -9,8 +9,8 @@
 
 #include "src/factory.h"
 #include "src/field-index.h"
+#include "src/field-type.h"
 #include "src/isolate.h"
-#include "src/types.h"
 
 namespace v8 {
 namespace internal {

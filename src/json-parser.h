@@ -13,7 +13,6 @@
 #include "src/parsing/scanner.h"
 #include "src/parsing/token.h"
 #include "src/transitions.h"
-#include "src/types.h"
 
 namespace v8 {
 namespace internal {

@@ -11,7 +11,6 @@
 #include "src/profiler/allocation-tracker.h"
 #include "src/profiler/heap-profiler.h"
 #include "src/profiler/heap-snapshot-generator-inl.h"
-#include "src/types.h"
 
 namespace v8 {
 namespace internal {

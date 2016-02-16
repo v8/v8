@@ -964,30 +964,6 @@ struct Bounds {
   }
 };
 
-class FieldType : public Object {
- public:
-  static FieldType* None();
-  static FieldType* Any();
-  static Handle<FieldType> None(Isolate* isolate);
-  static Handle<FieldType> Any(Isolate* isolate);
-  static FieldType* Class(i::Map* map);
-  static Handle<FieldType> Class(i::Handle<i::Map> map, Isolate* isolate);
-  static FieldType* cast(Object* object);
-
-  bool NowContains(Object* value);
-  bool NowContains(Handle<Object> value);
-  bool IsClass();
-  Handle<i::Map> AsClass();
-  bool IsNone() { return this == None(); }
-  bool IsAny() { return this == Any(); }
-  bool NowStable();
-  bool NowIs(FieldType* other);
-  bool NowIs(Handle<FieldType> other);
-  Type* Convert(Zone* zone);
-
-  void PrintTo(std::ostream& os);
-};
-
 }  // namespace internal
 }  // namespace v8
 

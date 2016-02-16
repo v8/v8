@@ -843,6 +843,8 @@
         '../../src/fast-dtoa.h',
         '../../src/field-index.h',
         '../../src/field-index-inl.h',
+        '../../src/field-type.cc',
+        '../../src/field-type.h',
         '../../src/fixed-dtoa.cc',
         '../../src/fixed-dtoa.h',
         '../../src/flag-definitions.h',
