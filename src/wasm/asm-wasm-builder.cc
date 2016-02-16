@@ -110,11 +110,15 @@ class AsmWasmBuilderImpl : public AstVisitor {
         }
       }
     }
-    DCHECK(in_function_);
-    BlockVisitor visitor(this, stmt->AsBreakableStatement(), kExprBlock, false,
-                         static_cast<byte>(stmt->statements()->length()));
-    RECURSE(VisitStatements(stmt->statements()));
-    DCHECK(block_size_ >= 0);
+    if (in_function_) {
+      BlockVisitor visitor(this, stmt->AsBreakableStatement(), kExprBlock,
+                           false,
+                           static_cast<byte>(stmt->statements()->length()));
+      RECURSE(VisitStatements(stmt->statements()));
+      DCHECK(block_size_ >= 0);
+    } else {
+      RECURSE(VisitStatements(stmt->statements()));
+    }
   }
 
   class BlockVisitor {

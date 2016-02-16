@@ -1222,6 +1222,26 @@ TestForeignVariables();
 })();
 
 
+(function TestGlobalBlock() {
+  function Module(stdlib, foreign, buffer) {
+    "use asm";
+
+    var x = foreign.x | 0, y = foreign.y | 0;
+
+    function test() {
+      return (x + y) | 0;
+    }
+
+    return {test: test};
+  }
+
+  var m = _WASMEXP_.instantiateModuleFromAsm(
+      Module.toString(), { x: 4, y: 11 });
+  m.__init__();
+  assertEquals(15, m.test());
+})();
+
+
 (function TestComma() {
   function CommaModule() {
     "use asm";
