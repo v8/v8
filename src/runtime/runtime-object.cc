@@ -944,25 +944,6 @@ RUNTIME_FUNCTION(Runtime_ValueOf) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_SetValueOf) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 2);
-  CONVERT_ARG_CHECKED(Object, obj, 0);
-  CONVERT_ARG_CHECKED(Object, value, 1);
-  if (!obj->IsJSValue()) return value;
-  JSValue::cast(obj)->set_value(value);
-  return value;
-}
-
-
-RUNTIME_FUNCTION(Runtime_JSValueGetValue) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_CHECKED(JSValue, obj, 0);
-  return JSValue::cast(obj)->value();
-}
-
-
 RUNTIME_FUNCTION(Runtime_IsJSReceiver) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);

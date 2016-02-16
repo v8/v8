@@ -167,15 +167,6 @@ TEST(OneByteSeqStringSetChar) {
 }
 
 
-TEST(SetValueOf) {
-  FunctionTester T("(function(a,b) { return %_SetValueOf(a,b); })", flags);
-
-  T.CheckCall(T.Val("a"), T.NewObject("(new String)"), T.Val("a"));
-  T.CheckCall(T.Val(123), T.NewObject("(new Number)"), T.Val(123));
-  T.CheckCall(T.Val("x"), T.undefined(), T.Val("x"));
-}
-
-
 TEST(StringAdd) {
   FunctionTester T("(function(a,b) { return %_StringAdd(a,b); })", flags);
 

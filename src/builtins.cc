@@ -2317,6 +2317,36 @@ BUILTIN(ReflectSetPrototypeOf) {
 
 
 // -----------------------------------------------------------------------------
+// ES6 section 19.3 Boolean Objects
+
+
+// ES6 section 19.3.1.1 Boolean ( value ) for the [[Call]] case.
+BUILTIN(BooleanConstructor) {
+  HandleScope scope(isolate);
+  Handle<Object> value = args.atOrUndefined(isolate, 1);
+  return isolate->heap()->ToBoolean(value->BooleanValue());
+}
+
+
+// ES6 section 19.3.1.1 Boolean ( value ) for the [[Construct]] case.
+BUILTIN(BooleanConstructor_ConstructStub) {
+  HandleScope scope(isolate);
+  Handle<Object> value = args.atOrUndefined(isolate, 1);
+  Handle<JSFunction> target = args.target<JSFunction>();
+  Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
+  DCHECK(*target == target->native_context()->boolean_function());
+  Handle<Map> initial_map;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, initial_map,
+      JSFunction::GetDerivedMap(isolate, target, new_target));
+  Handle<JSValue> result = Handle<JSValue>::cast(
+      isolate->factory()->NewJSObjectFromMap(initial_map));
+  result->set_value(isolate->heap()->ToBoolean(value->BooleanValue()));
+  return *result;
+}
+
+
+// -----------------------------------------------------------------------------
 // ES6 section 20.3 Date Objects
 
 

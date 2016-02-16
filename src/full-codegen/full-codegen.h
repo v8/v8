@@ -526,7 +526,6 @@ class FullCodeGenerator: public AstVisitor {
   F(IsJSProxy)                          \
   F(Call)                               \
   F(ValueOf)                            \
-  F(SetValueOf)                         \
   F(IsDate)                             \
   F(StringCharFromCode)                 \
   F(StringCharAt)                       \

@@ -2199,7 +2199,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   F(IsJSProxy)                         \
   F(Call)                              \
   F(ValueOf)                           \
-  F(SetValueOf)                        \
   F(IsDate)                            \
   F(StringCharFromCode)                \
   F(StringCharAt)                      \
@@ -2256,9 +2255,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   /* ES6 Iterators */                  \
   F(CreateIterResultObject)            \
   /* Arrays */                         \
-  F(HasFastPackedElements)             \
-  /* JSValue */                        \
-  F(JSValueGetValue)
+  F(HasFastPackedElements)
 
 #define GENERATOR_DECLARATION(Name) void Generate##Name(CallRuntime* call);
   FOR_EACH_HYDROGEN_INTRINSIC(GENERATOR_DECLARATION)

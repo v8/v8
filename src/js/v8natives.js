@@ -881,17 +881,6 @@ utils.InstallFunctions(GlobalObject, DONT_ENUM, [
 // ----------------------------------------------------------------------------
 // Boolean
 
-function BooleanConstructor(x) {
-  // TODO(bmeurer): Move this to toplevel.
-  "use strict";
-  if (!IS_UNDEFINED(new.target)) {
-    %_SetValueOf(this, TO_BOOLEAN(x));
-  } else {
-    return TO_BOOLEAN(x);
-  }
-}
-
-
 function BooleanToString() {
   // NOTE: Both Boolean objects and values can enter here as
   // 'this'. This is not as dictated by ECMA-262.
@@ -918,7 +907,6 @@ function BooleanValueOf() {
 
 // ----------------------------------------------------------------------------
 
-%SetCode(GlobalBoolean, BooleanConstructor);
 %FunctionSetPrototype(GlobalBoolean, new GlobalBoolean(false));
 %AddNamedProperty(GlobalBoolean.prototype, "constructor", GlobalBoolean,
                   DONT_ENUM);

@@ -12452,17 +12452,6 @@ void HOptimizedGraphBuilder::GenerateValueOf(CallRuntime* call) {
 }
 
 
-void HOptimizedGraphBuilder::GenerateJSValueGetValue(CallRuntime* call) {
-  DCHECK(call->arguments()->length() == 1);
-  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
-  HValue* value = Pop();
-  HInstruction* result = Add<HLoadNamedField>(
-      value, nullptr,
-      HObjectAccess::ForObservableJSObjectOffset(JSValue::kValueOffset));
-  return ast_context()->ReturnInstruction(result, call->id());
-}
-
-
 void HOptimizedGraphBuilder::GenerateIsDate(CallRuntime* call) {
   DCHECK_EQ(1, call->arguments()->length());
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
@@ -12502,43 +12491,6 @@ void HOptimizedGraphBuilder::GenerateTwoByteSeqStringSetChar(
                          index, value);
   Add<HSimulate>(call->id(), FIXED_SIMULATE);
   return ast_context()->ReturnValue(graph()->GetConstantUndefined());
-}
-
-
-void HOptimizedGraphBuilder::GenerateSetValueOf(CallRuntime* call) {
-  DCHECK(call->arguments()->length() == 2);
-  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
-  CHECK_ALIVE(VisitForValue(call->arguments()->at(1)));
-  HValue* value = Pop();
-  HValue* object = Pop();
-
-  // Check if object is a JSValue.
-  IfBuilder if_objectisvalue(this);
-  if_objectisvalue.If<HHasInstanceTypeAndBranch>(object, JS_VALUE_TYPE);
-  if_objectisvalue.Then();
-  {
-    // Create in-object property store to kValueOffset.
-    Add<HStoreNamedField>(object,
-        HObjectAccess::ForObservableJSObjectOffset(JSValue::kValueOffset),
-        value);
-    if (!ast_context()->IsEffect()) {
-      Push(value);
-    }
-    Add<HSimulate>(call->id(), FIXED_SIMULATE);
-  }
-  if_objectisvalue.Else();
-  {
-    // Nothing to do in this case.
-    if (!ast_context()->IsEffect()) {
-      Push(value);
-    }
-    Add<HSimulate>(call->id(), FIXED_SIMULATE);
-  }
-  if_objectisvalue.End();
-  if (!ast_context()->IsEffect()) {
-    Drop(1);
-  }
-  return ast_context()->ReturnValue(value);
 }
 
 

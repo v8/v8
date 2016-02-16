@@ -69,6 +69,9 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(ArrayBufferConstructor_ConstructStub, kTargetAndNewTarget) \
   V(ArrayBufferIsView, kNone)                                  \
                                                                \
+  V(BooleanConstructor, kNone)                                 \
+  V(BooleanConstructor_ConstructStub, kTargetAndNewTarget)     \
+                                                               \
   V(DateConstructor, kNone)                                    \
   V(DateConstructor_ConstructStub, kTargetAndNewTarget)        \
   V(DateNow, kNone)                                            \

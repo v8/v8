@@ -271,24 +271,6 @@ TEST_F(JSIntrinsicLoweringTest, InlineIsJSReceiver) {
 
 
 // -----------------------------------------------------------------------------
-// %_JSValueGetValue
-
-
-TEST_F(JSIntrinsicLoweringTest, InlineJSValueGetValue) {
-  Node* const input = Parameter(0);
-  Node* const context = Parameter(1);
-  Node* const effect = graph()->start();
-  Node* const control = graph()->start();
-  Reduction const r = Reduce(graph()->NewNode(
-      javascript()->CallRuntime(Runtime::kInlineJSValueGetValue, 1), input,
-      context, effect, control));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(),
-              IsLoadField(AccessBuilder::ForValue(), input, effect, control));
-}
-
-
-// -----------------------------------------------------------------------------
 // %_MathFloor
 
 

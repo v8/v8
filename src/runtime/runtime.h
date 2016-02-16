@@ -451,8 +451,6 @@ namespace internal {
   F(GetDataProperty, 2, 1)                           \
   F(HasFastPackedElements, 1, 1)                     \
   F(ValueOf, 1, 1)                                   \
-  F(SetValueOf, 2, 1)                                \
-  F(JSValueGetValue, 1, 1)                           \
   F(IsJSReceiver, 1, 1)                              \
   F(IsStrong, 1, 1)                                  \
   F(ClassOf, 1, 1)                                   \

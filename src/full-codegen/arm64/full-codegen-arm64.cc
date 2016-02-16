@@ -3074,35 +3074,6 @@ void FullCodeGenerator::EmitTwoByteSeqStringSetChar(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitSetValueOf(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK(args->length() == 2);
-  VisitForStackValue(args->at(0));  // Load the object.
-  VisitForAccumulatorValue(args->at(1));  // Load the value.
-  __ Pop(x1);
-  // x0 = value.
-  // x1 = object.
-
-  Label done;
-  // If the object is a smi, return the value.
-  __ JumpIfSmi(x1, &done);
-
-  // If the object is not a value type, return the value.
-  __ JumpIfNotObjectType(x1, x10, x11, JS_VALUE_TYPE, &done);
-
-  // Store the value.
-  __ Str(x0, FieldMemOperand(x1, JSValue::kValueOffset));
-  // Update the write barrier. Save the value as it will be
-  // overwritten by the write barrier code and is needed afterward.
-  __ Mov(x10, x0);
-  __ RecordWriteField(
-      x1, JSValue::kValueOffset, x10, x11, kLRHasBeenSaved, kDontSaveFPRegs);
-
-  __ Bind(&done);
-  context()->Plug(x0);
-}
-
-
 void FullCodeGenerator::EmitToInteger(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   DCHECK_EQ(1, args->length());

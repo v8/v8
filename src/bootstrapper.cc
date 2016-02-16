@@ -1237,7 +1237,11 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<JSFunction> boolean_fun =
         InstallFunction(global, "Boolean", JS_VALUE_TYPE, JSValue::kSize,
                         isolate->initial_object_prototype(),
-                        Builtins::kIllegal);
+                        Builtins::kBooleanConstructor);
+    boolean_fun->shared()->DontAdaptArguments();
+    boolean_fun->shared()->set_construct_stub(
+        *isolate->builtins()->BooleanConstructor_ConstructStub());
+    boolean_fun->shared()->set_length(1);
     InstallWithIntrinsicDefaultProto(isolate, boolean_fun,
                                      Context::BOOLEAN_FUNCTION_INDEX);
   }
