@@ -2841,16 +2841,16 @@ void AstGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
       op = javascript()->StrictNotEqual();
       break;
     case Token::LT:
-      op = javascript()->LessThan(language_mode());
+      op = javascript()->LessThan();
       break;
     case Token::GT:
-      op = javascript()->GreaterThan(language_mode());
+      op = javascript()->GreaterThan();
       break;
     case Token::LTE:
-      op = javascript()->LessThanOrEqual(language_mode());
+      op = javascript()->LessThanOrEqual();
       break;
     case Token::GTE:
-      op = javascript()->GreaterThanOrEqual(language_mode());
+      op = javascript()->GreaterThanOrEqual();
       break;
     case Token::INSTANCEOF:
       op = javascript()->InstanceOf();
@@ -3825,37 +3825,37 @@ Node* AstGraphBuilder::BuildBinaryOp(Node* left, Node* right, Token::Value op,
   }
   switch (op) {
     case Token::BIT_OR:
-      js_op = javascript()->BitwiseOr(language_mode(), hints);
+      js_op = javascript()->BitwiseOr(hints);
       break;
     case Token::BIT_AND:
-      js_op = javascript()->BitwiseAnd(language_mode(), hints);
+      js_op = javascript()->BitwiseAnd(hints);
       break;
     case Token::BIT_XOR:
-      js_op = javascript()->BitwiseXor(language_mode(), hints);
+      js_op = javascript()->BitwiseXor(hints);
       break;
     case Token::SHL:
-      js_op = javascript()->ShiftLeft(language_mode(), hints);
+      js_op = javascript()->ShiftLeft(hints);
       break;
     case Token::SAR:
-      js_op = javascript()->ShiftRight(language_mode(), hints);
+      js_op = javascript()->ShiftRight(hints);
       break;
     case Token::SHR:
-      js_op = javascript()->ShiftRightLogical(language_mode(), hints);
+      js_op = javascript()->ShiftRightLogical(hints);
       break;
     case Token::ADD:
-      js_op = javascript()->Add(language_mode(), hints);
+      js_op = javascript()->Add(hints);
       break;
     case Token::SUB:
-      js_op = javascript()->Subtract(language_mode(), hints);
+      js_op = javascript()->Subtract(hints);
       break;
     case Token::MUL:
-      js_op = javascript()->Multiply(language_mode(), hints);
+      js_op = javascript()->Multiply(hints);
       break;
     case Token::DIV:
-      js_op = javascript()->Divide(language_mode(), hints);
+      js_op = javascript()->Divide(hints);
       break;
     case Token::MOD:
-      js_op = javascript()->Modulus(language_mode(), hints);
+      js_op = javascript()->Modulus(hints);
       break;
     default:
       UNREACHABLE();

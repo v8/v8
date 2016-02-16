@@ -2582,8 +2582,8 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
         HObjectAccess::ForFixedTypedArrayBaseExternalPointer());
     HValue* base_pointer = Add<HLoadNamedField>(
         elements, nullptr, HObjectAccess::ForFixedTypedArrayBaseBasePointer());
-    HValue* backing_store = AddUncasted<HAdd>(
-        external_pointer, base_pointer, Strength::WEAK, AddOfExternalAndTagged);
+    HValue* backing_store = AddUncasted<HAdd>(external_pointer, base_pointer,
+                                              AddOfExternalAndTagged);
 
     if (store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS) {
       NoObservableSideEffectsScope no_effects(this);
@@ -10309,7 +10309,7 @@ HValue* HOptimizedGraphBuilder::BuildAllocateFixedTypedArray(
 
     HValue* backing_store = AddUncasted<HAdd>(
         Add<HConstant>(ExternalReference::fixed_typed_array_base_data_offset()),
-        elements, Strength::WEAK, AddOfExternalAndTagged);
+        elements, AddOfExternalAndTagged);
 
     HValue* key = builder.BeginBody(
         Add<HConstant>(static_cast<int32_t>(0)),
@@ -10694,8 +10694,7 @@ HInstruction* HOptimizedGraphBuilder::BuildIncrement(
   HConstant* delta = (expr->op() == Token::INC)
       ? graph()->GetConstant1()
       : graph()->GetConstantMinus1();
-  HInstruction* instr =
-      AddUncasted<HAdd>(Top(), delta, strength(function_language_mode()));
+  HInstruction* instr = AddUncasted<HAdd>(Top(), delta);
   if (instr->IsAdd()) {
     HAdd* add = HAdd::cast(instr);
     add->set_observed_input_representation(1, rep);
@@ -10989,8 +10988,7 @@ HValue* HOptimizedGraphBuilder::BuildBinaryOperation(
   }
   HValue* result = HGraphBuilder::BuildBinaryOperation(
       expr->op(), left, right, left_type, right_type, result_type,
-      fixed_right_arg, allocation_mode, strength(function_language_mode()),
-      expr->id());
+      fixed_right_arg, allocation_mode, expr->id());
   // Add a simulate after instructions with observable side effects, and
   // after phis, which are the result of BuildBinaryOperation when we
   // inlined some complex subgraph.
@@ -11006,11 +11004,12 @@ HValue* HOptimizedGraphBuilder::BuildBinaryOperation(
   return result;
 }
 
-
-HValue* HGraphBuilder::BuildBinaryOperation(
-    Token::Value op, HValue* left, HValue* right, Type* left_type,
-    Type* right_type, Type* result_type, Maybe<int> fixed_right_arg,
-    HAllocationMode allocation_mode, Strength strength, BailoutId opt_id) {
+HValue* HGraphBuilder::BuildBinaryOperation(Token::Value op, HValue* left,
+                                            HValue* right, Type* left_type,
+                                            Type* right_type, Type* result_type,
+                                            Maybe<int> fixed_right_arg,
+                                            HAllocationMode allocation_mode,
+                                            BailoutId opt_id) {
   bool maybe_string_add = false;
   if (op == Token::ADD) {
     // If we are adding constant string with something for which we don't have
@@ -11053,7 +11052,7 @@ HValue* HGraphBuilder::BuildBinaryOperation(
     maybe_string_add = op == Token::ADD;
   }
 
-  if (!maybe_string_add && !is_strong(strength)) {
+  if (!maybe_string_add) {
     left = TruncateToNumber(left, &left_type);
     right = TruncateToNumber(right, &right_type);
   }
@@ -11061,43 +11060,36 @@ HValue* HGraphBuilder::BuildBinaryOperation(
   // Special case for string addition here.
   if (op == Token::ADD &&
       (left_type->Is(Type::String()) || right_type->Is(Type::String()))) {
-    if (is_strong(strength)) {
-      // In strong mode, if the one side of an addition is a string,
-      // the other side must be a string too.
+    // Validate type feedback for left argument.
+    if (left_type->Is(Type::String())) {
       left = BuildCheckString(left);
+    }
+
+    // Validate type feedback for right argument.
+    if (right_type->Is(Type::String())) {
       right = BuildCheckString(right);
-    } else {
-      // Validate type feedback for left argument.
-      if (left_type->Is(Type::String())) {
-        left = BuildCheckString(left);
-      }
+    }
 
-      // Validate type feedback for right argument.
-      if (right_type->Is(Type::String())) {
-        right = BuildCheckString(right);
-      }
+    // Convert left argument as necessary.
+    if (left_type->Is(Type::Number())) {
+      DCHECK(right_type->Is(Type::String()));
+      left = BuildNumberToString(left, left_type);
+    } else if (!left_type->Is(Type::String())) {
+      DCHECK(right_type->Is(Type::String()));
+      return AddUncasted<HStringAdd>(
+          left, right, allocation_mode.GetPretenureMode(),
+          STRING_ADD_CONVERT_LEFT, allocation_mode.feedback_site());
+    }
 
-      // Convert left argument as necessary.
-      if (left_type->Is(Type::Number())) {
-        DCHECK(right_type->Is(Type::String()));
-        left = BuildNumberToString(left, left_type);
-      } else if (!left_type->Is(Type::String())) {
-        DCHECK(right_type->Is(Type::String()));
-        return AddUncasted<HStringAdd>(
-            left, right, allocation_mode.GetPretenureMode(),
-            STRING_ADD_CONVERT_LEFT, allocation_mode.feedback_site());
-      }
-
-      // Convert right argument as necessary.
-      if (right_type->Is(Type::Number())) {
-        DCHECK(left_type->Is(Type::String()));
-        right = BuildNumberToString(right, right_type);
-      } else if (!right_type->Is(Type::String())) {
-        DCHECK(left_type->Is(Type::String()));
-        return AddUncasted<HStringAdd>(
-            left, right, allocation_mode.GetPretenureMode(),
-            STRING_ADD_CONVERT_RIGHT, allocation_mode.feedback_site());
-      }
+    // Convert right argument as necessary.
+    if (right_type->Is(Type::Number())) {
+      DCHECK(left_type->Is(Type::String()));
+      right = BuildNumberToString(right, right_type);
+    } else if (!right_type->Is(Type::String())) {
+      DCHECK(left_type->Is(Type::String()));
+      return AddUncasted<HStringAdd>(
+          left, right, allocation_mode.GetPretenureMode(),
+          STRING_ADD_CONVERT_RIGHT, allocation_mode.feedback_site());
     }
 
     // Fast paths for empty constant strings.
@@ -11166,78 +11158,51 @@ HValue* HGraphBuilder::BuildBinaryOperation(
       default:
         UNREACHABLE();
       case Token::ADD:
-        function_id =
-            is_strong(strength) ? Runtime::kAdd_Strong : Runtime::kAdd;
+        function_id = Runtime::kAdd;
         break;
       case Token::SUB:
-        function_id = is_strong(strength) ? Runtime::kSubtract_Strong
-                                          : Runtime::kSubtract;
+        function_id = Runtime::kSubtract;
         break;
       case Token::MUL:
-        function_id = is_strong(strength) ? Runtime::kMultiply_Strong
-                                          : Runtime::kMultiply;
+        function_id = Runtime::kMultiply;
         break;
       case Token::DIV:
-        function_id =
-            is_strong(strength) ? Runtime::kDivide_Strong : Runtime::kDivide;
+        function_id = Runtime::kDivide;
         break;
       case Token::MOD:
-        function_id =
-            is_strong(strength) ? Runtime::kModulus_Strong : Runtime::kModulus;
+        function_id = Runtime::kModulus;
         break;
       case Token::BIT_OR:
-        function_id = is_strong(strength) ? Runtime::kBitwiseOr_Strong
-                                          : Runtime::kBitwiseOr;
+        function_id = Runtime::kBitwiseOr;
         break;
       case Token::BIT_AND:
-        function_id = is_strong(strength) ? Runtime::kBitwiseAnd_Strong
-                                          : Runtime::kBitwiseAnd;
+        function_id = Runtime::kBitwiseAnd;
         break;
       case Token::BIT_XOR:
-        function_id = is_strong(strength) ? Runtime::kBitwiseXor_Strong
-                                          : Runtime::kBitwiseXor;
+        function_id = Runtime::kBitwiseXor;
         break;
       case Token::SAR:
-        function_id = is_strong(strength) ? Runtime::kShiftRight_Strong
-                                          : Runtime::kShiftRight;
+        function_id = Runtime::kShiftRight;
         break;
       case Token::SHR:
-        function_id = is_strong(strength) ? Runtime::kShiftRightLogical_Strong
-                                          : Runtime::kShiftRightLogical;
+        function_id = Runtime::kShiftRightLogical;
         break;
       case Token::SHL:
-        function_id = is_strong(strength) ? Runtime::kShiftLeft_Strong
-                                          : Runtime::kShiftLeft;
+        function_id = Runtime::kShiftLeft;
         break;
     }
     Add<HPushArguments>(left, right);
     instr = AddUncasted<HCallRuntime>(Runtime::FunctionForId(function_id), 2);
   } else {
-    if (is_strong(strength) && Token::IsBitOp(op)) {
-      // TODO(conradw): This is not efficient, but is necessary to prevent
-      // conversion of oddball values to numbers in strong mode. It would be
-      // better to prevent the conversion rather than adding a runtime check.
-      IfBuilder if_builder(this);
-      if_builder.If<HHasInstanceTypeAndBranch>(left, ODDBALL_TYPE);
-      if_builder.OrIf<HHasInstanceTypeAndBranch>(right, ODDBALL_TYPE);
-      if_builder.Then();
-      Add<HCallRuntime>(
-          Runtime::FunctionForId(Runtime::kThrowStrongModeImplicitConversion),
-          0);
-      if (!graph()->info()->IsStub()) {
-        Add<HSimulate>(opt_id, REMOVABLE_SIMULATE);
-      }
-      if_builder.End();
-    }
     switch (op) {
       case Token::ADD:
-        instr = AddUncasted<HAdd>(left, right, strength);
+        instr = AddUncasted<HAdd>(left, right);
         break;
       case Token::SUB:
-        instr = AddUncasted<HSub>(left, right, strength);
+        instr = AddUncasted<HSub>(left, right);
         break;
       case Token::MUL:
-        instr = AddUncasted<HMul>(left, right, strength);
+        instr = AddUncasted<HMul>(left, right);
         break;
       case Token::MOD: {
         if (fixed_right_arg.IsJust() &&
@@ -11250,38 +11215,38 @@ HValue* HGraphBuilder::BuildBinaryOperation(
           if_same.ElseDeopt(Deoptimizer::kUnexpectedRHSOfBinaryOperation);
           right = fixed_right;
         }
-        instr = AddUncasted<HMod>(left, right, strength);
+        instr = AddUncasted<HMod>(left, right);
         break;
       }
       case Token::DIV:
-        instr = AddUncasted<HDiv>(left, right, strength);
+        instr = AddUncasted<HDiv>(left, right);
         break;
       case Token::BIT_XOR:
       case Token::BIT_AND:
-        instr = AddUncasted<HBitwise>(op, left, right, strength);
+        instr = AddUncasted<HBitwise>(op, left, right);
         break;
       case Token::BIT_OR: {
         HValue *operand, *shift_amount;
         if (left_type->Is(Type::Signed32()) &&
             right_type->Is(Type::Signed32()) &&
             MatchRotateRight(left, right, &operand, &shift_amount)) {
-          instr = AddUncasted<HRor>(operand, shift_amount, strength);
+          instr = AddUncasted<HRor>(operand, shift_amount);
         } else {
-          instr = AddUncasted<HBitwise>(op, left, right, strength);
+          instr = AddUncasted<HBitwise>(op, left, right);
         }
         break;
       }
       case Token::SAR:
-        instr = AddUncasted<HSar>(left, right, strength);
+        instr = AddUncasted<HSar>(left, right);
         break;
       case Token::SHR:
-        instr = AddUncasted<HShr>(left, right, strength);
+        instr = AddUncasted<HShr>(left, right);
         if (instr->IsShr() && CanBeZero(right)) {
           graph()->RecordUint32Instruction(instr);
         }
         break;
       case Token::SHL:
-        instr = AddUncasted<HShl>(left, right, strength);
+        instr = AddUncasted<HShl>(left, right);
         break;
       default:
         UNREACHABLE();
@@ -11739,8 +11704,7 @@ HControlInstruction* HOptimizedGraphBuilder::BuildCompareInstruction(
     return result;
   } else {
     if (combined_rep.IsTagged() || combined_rep.IsNone()) {
-      HCompareGeneric* result = Add<HCompareGeneric>(
-          left, right, op, strength(function_language_mode()));
+      HCompareGeneric* result = Add<HCompareGeneric>(left, right, op);
       result->set_observed_input_representation(1, left_rep);
       result->set_observed_input_representation(2, right_rep);
       if (result->HasObservableSideEffects()) {
@@ -11756,8 +11720,8 @@ HControlInstruction* HOptimizedGraphBuilder::BuildCompareInstruction(
       HBranch* branch = New<HBranch>(result);
       return branch;
     } else {
-      HCompareNumericAndBranch* result = New<HCompareNumericAndBranch>(
-          left, right, op, strength(function_language_mode()));
+      HCompareNumericAndBranch* result =
+          New<HCompareNumericAndBranch>(left, right, op);
       result->set_observed_input_representation(left_rep, right_rep);
       if (top_info()->is_tracking_positions()) {
         result->SetOperandPositions(zone(), left_position, right_position);

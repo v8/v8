@@ -1236,16 +1236,11 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
       // Check for undefined.  undefined OP undefined is false even though
       // undefined == undefined.
       __ cmp(edx, isolate()->factory()->undefined_value());
-      if (is_strong(strength())) {
-        // In strong mode, this comparison must throw, so call the runtime.
-        __ j(equal, &runtime_call, Label::kFar);
-      } else {
-        Label check_for_nan;
-        __ j(not_equal, &check_for_nan, Label::kNear);
-        __ Move(eax, Immediate(Smi::FromInt(NegativeComparisonResult(cc))));
-        __ ret(0);
-        __ bind(&check_for_nan);
-      }
+      Label check_for_nan;
+      __ j(not_equal, &check_for_nan, Label::kNear);
+      __ Move(eax, Immediate(Smi::FromInt(NegativeComparisonResult(cc))));
+      __ ret(0);
+      __ bind(&check_for_nan);
     }
 
     // Test for NaN. Compare heap numbers in a general way,
@@ -1265,12 +1260,6 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
       // Call runtime on identical SIMD values since we must throw a TypeError.
       __ cmpb(ecx, static_cast<uint8_t>(SIMD128_VALUE_TYPE));
       __ j(equal, &runtime_call, Label::kFar);
-      if (is_strong(strength())) {
-        // We have already tested for smis and heap numbers, so if both
-        // arguments are not strings we must proceed to the slow case.
-        __ test(ecx, Immediate(kIsNotStringMask));
-        __ j(not_zero, &runtime_call, Label::kFar);
-      }
     }
     __ Move(eax, Immediate(Smi::FromInt(EQUAL)));
     __ ret(0);
@@ -1470,8 +1459,7 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
 
     // Call the native; it returns -1 (less), 0 (equal), or 1 (greater)
     // tagged as a small integer.
-    __ TailCallRuntime(is_strong(strength()) ? Runtime::kCompare_Strong
-                                             : Runtime::kCompare);
+    __ TailCallRuntime(Runtime::kCompare);
   }
 
   __ bind(&miss);
@@ -2951,21 +2939,17 @@ void CompareICStub::GenerateBooleans(MacroAssembler* masm) {
   __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
   __ JumpIfNotRoot(ecx, Heap::kBooleanMapRootIndex, &miss, miss_distance);
   __ JumpIfNotRoot(ebx, Heap::kBooleanMapRootIndex, &miss, miss_distance);
-  if (op() != Token::EQ_STRICT && is_strong(strength())) {
-    __ TailCallRuntime(Runtime::kThrowStrongModeImplicitConversion);
-  } else {
-    if (!Token::IsEqualityOp(op())) {
-      __ mov(eax, FieldOperand(eax, Oddball::kToNumberOffset));
-      __ AssertSmi(eax);
-      __ mov(edx, FieldOperand(edx, Oddball::kToNumberOffset));
-      __ AssertSmi(edx);
-      __ push(eax);
-      __ mov(eax, edx);
-      __ pop(edx);
-    }
-    __ sub(eax, edx);
-    __ Ret();
+  if (!Token::IsEqualityOp(op())) {
+    __ mov(eax, FieldOperand(eax, Oddball::kToNumberOffset));
+    __ AssertSmi(eax);
+    __ mov(edx, FieldOperand(edx, Oddball::kToNumberOffset));
+    __ AssertSmi(edx);
+    __ push(eax);
+    __ mov(eax, edx);
+    __ pop(edx);
   }
+  __ sub(eax, edx);
+  __ Ret();
 
   __ bind(&miss);
   GenerateMiss(masm);
@@ -3055,7 +3039,7 @@ void CompareICStub::GenerateNumbers(MacroAssembler* masm) {
 
   __ bind(&unordered);
   __ bind(&generic_stub);
-  CompareICStub stub(isolate(), op(), strength(), CompareICState::GENERIC,
+  CompareICStub stub(isolate(), op(), CompareICState::GENERIC,
                      CompareICState::GENERIC, CompareICState::GENERIC);
   __ jmp(stub.GetCode(), RelocInfo::CODE_TARGET);
 
@@ -3298,8 +3282,6 @@ void CompareICStub::GenerateKnownReceivers(MacroAssembler* masm) {
   if (Token::IsEqualityOp(op())) {
     __ sub(eax, edx);
     __ ret(0);
-  } else if (is_strong(strength())) {
-    __ TailCallRuntime(Runtime::kThrowStrongModeImplicitConversion);
   } else {
     __ PopReturnAddressTo(ecx);
     __ Push(edx);

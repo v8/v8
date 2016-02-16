@@ -1203,63 +1203,62 @@ void BytecodeGraphBuilder::BuildBinaryOp(const Operator* js_op) {
 
 void BytecodeGraphBuilder::VisitAdd() {
   BinaryOperationHints hints = BinaryOperationHints::Any();
-  BuildBinaryOp(javascript()->Add(language_mode(), hints));
+  BuildBinaryOp(javascript()->Add(hints));
 }
 
 void BytecodeGraphBuilder::VisitSub() {
   BinaryOperationHints hints = BinaryOperationHints::Any();
-  BuildBinaryOp(javascript()->Subtract(language_mode(), hints));
+  BuildBinaryOp(javascript()->Subtract(hints));
 }
 
 void BytecodeGraphBuilder::VisitMul() {
   BinaryOperationHints hints = BinaryOperationHints::Any();
-  BuildBinaryOp(javascript()->Multiply(language_mode(), hints));
+  BuildBinaryOp(javascript()->Multiply(hints));
 }
 
 void BytecodeGraphBuilder::VisitDiv() {
   BinaryOperationHints hints = BinaryOperationHints::Any();
-  BuildBinaryOp(javascript()->Divide(language_mode(), hints));
+  BuildBinaryOp(javascript()->Divide(hints));
 }
 
 void BytecodeGraphBuilder::VisitMod() {
   BinaryOperationHints hints = BinaryOperationHints::Any();
-  BuildBinaryOp(javascript()->Modulus(language_mode(), hints));
+  BuildBinaryOp(javascript()->Modulus(hints));
 }
 
 void BytecodeGraphBuilder::VisitBitwiseOr() {
   BinaryOperationHints hints = BinaryOperationHints::Any();
-  BuildBinaryOp(javascript()->BitwiseOr(language_mode(), hints));
+  BuildBinaryOp(javascript()->BitwiseOr(hints));
 }
 
 void BytecodeGraphBuilder::VisitBitwiseXor() {
   BinaryOperationHints hints = BinaryOperationHints::Any();
-  BuildBinaryOp(javascript()->BitwiseXor(language_mode(), hints));
+  BuildBinaryOp(javascript()->BitwiseXor(hints));
 }
 
 void BytecodeGraphBuilder::VisitBitwiseAnd() {
   BinaryOperationHints hints = BinaryOperationHints::Any();
-  BuildBinaryOp(javascript()->BitwiseAnd(language_mode(), hints));
+  BuildBinaryOp(javascript()->BitwiseAnd(hints));
 }
 
 void BytecodeGraphBuilder::VisitShiftLeft() {
   BinaryOperationHints hints = BinaryOperationHints::Any();
-  BuildBinaryOp(javascript()->ShiftLeft(language_mode(), hints));
+  BuildBinaryOp(javascript()->ShiftLeft(hints));
 }
 
 void BytecodeGraphBuilder::VisitShiftRight() {
   BinaryOperationHints hints = BinaryOperationHints::Any();
-  BuildBinaryOp(javascript()->ShiftRight(language_mode(), hints));
+  BuildBinaryOp(javascript()->ShiftRight(hints));
 }
 
 void BytecodeGraphBuilder::VisitShiftRightLogical() {
   BinaryOperationHints hints = BinaryOperationHints::Any();
-  BuildBinaryOp(javascript()->ShiftRightLogical(language_mode(), hints));
+  BuildBinaryOp(javascript()->ShiftRightLogical(hints));
 }
 
 void BytecodeGraphBuilder::VisitInc() {
   FrameStateBeforeAndAfter states(this);
-  const Operator* js_op =
-      javascript()->Add(language_mode(), BinaryOperationHints::Any());
+  const Operator* js_op = javascript()->Add(BinaryOperationHints::Any());
   Node* node = NewNode(js_op, environment()->LookupAccumulator(),
                        jsgraph()->OneConstant());
   environment()->BindAccumulator(node, &states);
@@ -1267,8 +1266,7 @@ void BytecodeGraphBuilder::VisitInc() {
 
 void BytecodeGraphBuilder::VisitDec() {
   FrameStateBeforeAndAfter states(this);
-  const Operator* js_op =
-      javascript()->Subtract(language_mode(), BinaryOperationHints::Any());
+  const Operator* js_op = javascript()->Subtract(BinaryOperationHints::Any());
   Node* node = NewNode(js_op, environment()->LookupAccumulator(),
                        jsgraph()->OneConstant());
   environment()->BindAccumulator(node, &states);
@@ -1332,19 +1330,19 @@ void BytecodeGraphBuilder::VisitTestNotEqualStrict() {
 }
 
 void BytecodeGraphBuilder::VisitTestLessThan() {
-  BuildCompareOp(javascript()->LessThan(language_mode()));
+  BuildCompareOp(javascript()->LessThan());
 }
 
 void BytecodeGraphBuilder::VisitTestGreaterThan() {
-  BuildCompareOp(javascript()->GreaterThan(language_mode()));
+  BuildCompareOp(javascript()->GreaterThan());
 }
 
 void BytecodeGraphBuilder::VisitTestLessThanOrEqual() {
-  BuildCompareOp(javascript()->LessThanOrEqual(language_mode()));
+  BuildCompareOp(javascript()->LessThanOrEqual());
 }
 
 void BytecodeGraphBuilder::VisitTestGreaterThanOrEqual() {
-  BuildCompareOp(javascript()->GreaterThanOrEqual(language_mode()));
+  BuildCompareOp(javascript()->GreaterThanOrEqual());
 }
 
 void BytecodeGraphBuilder::VisitTestIn() {

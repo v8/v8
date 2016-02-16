@@ -195,11 +195,10 @@ class BytecodeArrayBuilder final : public ZoneObject, private RegisterMover {
                                       size_t receiver_args_count);
 
   // Operators (register holds the lhs value, accumulator holds the rhs value).
-  BytecodeArrayBuilder& BinaryOperation(Token::Value binop, Register reg,
-                                        Strength strength);
+  BytecodeArrayBuilder& BinaryOperation(Token::Value binop, Register reg);
 
   // Count Operators (value stored in accumulator).
-  BytecodeArrayBuilder& CountOperation(Token::Value op, Strength strength);
+  BytecodeArrayBuilder& CountOperation(Token::Value op);
 
   // Unary Operators.
   BytecodeArrayBuilder& LogicalNot();
@@ -210,8 +209,7 @@ class BytecodeArrayBuilder final : public ZoneObject, private RegisterMover {
   BytecodeArrayBuilder& Delete(Register object, LanguageMode language_mode);
 
   // Tests.
-  BytecodeArrayBuilder& CompareOperation(Token::Value op, Register reg,
-                                         Strength strength);
+  BytecodeArrayBuilder& CompareOperation(Token::Value op, Register reg);
 
   // Casts.
   BytecodeArrayBuilder& CastAccumulatorToBoolean();

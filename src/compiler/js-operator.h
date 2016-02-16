@@ -51,34 +51,6 @@ ConvertReceiverMode ConvertReceiverModeOf(Operator const* op);
 ToBooleanHints ToBooleanHintsOf(Operator const* op);
 
 
-// Defines the language mode and hints for a JavaScript binary operations.
-// This is used as parameter by JSAdd, JSSubtract, etc. operators.
-class BinaryOperationParameters final {
- public:
-  BinaryOperationParameters(LanguageMode language_mode,
-                            BinaryOperationHints hints)
-      : language_mode_(language_mode), hints_(hints) {}
-
-  LanguageMode language_mode() const { return language_mode_; }
-  BinaryOperationHints hints() const { return hints_; }
-
- private:
-  LanguageMode const language_mode_;
-  BinaryOperationHints const hints_;
-};
-
-bool operator==(BinaryOperationParameters const&,
-                BinaryOperationParameters const&);
-bool operator!=(BinaryOperationParameters const&,
-                BinaryOperationParameters const&);
-
-size_t hash_value(BinaryOperationParameters const&);
-
-std::ostream& operator<<(std::ostream&, BinaryOperationParameters const&);
-
-BinaryOperationParameters const& BinaryOperationParametersOf(Operator const*);
-
-
 // Defines the arity and the feedback for a JavaScript constructor call. This is
 // used as a parameter by JSCallConstruct operators.
 class CallConstructParameters final {
@@ -418,31 +390,21 @@ class JSOperatorBuilder final : public ZoneObject {
   const Operator* NotEqual();
   const Operator* StrictEqual();
   const Operator* StrictNotEqual();
-  const Operator* LessThan(LanguageMode language_mode);
-  const Operator* GreaterThan(LanguageMode language_mode);
-  const Operator* LessThanOrEqual(LanguageMode language_mode);
-  const Operator* GreaterThanOrEqual(LanguageMode language_mode);
-  const Operator* BitwiseOr(LanguageMode language_mode,
-                            BinaryOperationHints hints);
-  const Operator* BitwiseXor(LanguageMode language_mode,
-                             BinaryOperationHints hints);
-  const Operator* BitwiseAnd(LanguageMode language_mode,
-                             BinaryOperationHints hints);
-  const Operator* ShiftLeft(LanguageMode language_mode,
-                            BinaryOperationHints hints);
-  const Operator* ShiftRight(LanguageMode language_mode,
-                             BinaryOperationHints hints);
-  const Operator* ShiftRightLogical(LanguageMode language_mode,
-                                    BinaryOperationHints hints);
-  const Operator* Add(LanguageMode language_mode, BinaryOperationHints hints);
-  const Operator* Subtract(LanguageMode language_mode,
-                           BinaryOperationHints hints);
-  const Operator* Multiply(LanguageMode language_mode,
-                           BinaryOperationHints hints);
-  const Operator* Divide(LanguageMode language_mode,
-                         BinaryOperationHints hints);
-  const Operator* Modulus(LanguageMode language_mode,
-                          BinaryOperationHints hints);
+  const Operator* LessThan();
+  const Operator* GreaterThan();
+  const Operator* LessThanOrEqual();
+  const Operator* GreaterThanOrEqual();
+  const Operator* BitwiseOr(BinaryOperationHints hints);
+  const Operator* BitwiseXor(BinaryOperationHints hints);
+  const Operator* BitwiseAnd(BinaryOperationHints hints);
+  const Operator* ShiftLeft(BinaryOperationHints hints);
+  const Operator* ShiftRight(BinaryOperationHints hints);
+  const Operator* ShiftRightLogical(BinaryOperationHints hints);
+  const Operator* Add(BinaryOperationHints hints);
+  const Operator* Subtract(BinaryOperationHints hints);
+  const Operator* Multiply(BinaryOperationHints hints);
+  const Operator* Divide(BinaryOperationHints hints);
+  const Operator* Modulus(BinaryOperationHints hints);
 
   const Operator* ToBoolean(ToBooleanHints hints);
   const Operator* ToNumber();

@@ -547,8 +547,7 @@ void CompareIC::Clear(Isolate* isolate, Address address, Code* target,
   CompareICStub stub(target->stub_key(), isolate);
   // Only clear CompareICs that can retain objects.
   if (stub.state() != CompareICState::KNOWN_RECEIVER) return;
-  SetTargetAtAddress(address,
-                     GetRawUninitialized(isolate, stub.op(), stub.strength()),
+  SetTargetAtAddress(address, GetRawUninitialized(isolate, stub.op()),
                      constant_pool);
   PatchInlinedSmiCode(isolate, address, DISABLE_INLINED_SMI_CHECK);
 }
@@ -2504,60 +2503,52 @@ MaybeHandle<Object> BinaryOpIC::Transition(
     default:
       UNREACHABLE();
     case Token::ADD:
-      ASSIGN_RETURN_ON_EXCEPTION(
-          isolate(), result,
-          Object::Add(isolate(), left, right, state.strength()), Object);
+      ASSIGN_RETURN_ON_EXCEPTION(isolate(), result,
+                                 Object::Add(isolate(), left, right), Object);
       break;
     case Token::SUB:
       ASSIGN_RETURN_ON_EXCEPTION(
-          isolate(), result,
-          Object::Subtract(isolate(), left, right, state.strength()), Object);
+          isolate(), result, Object::Subtract(isolate(), left, right), Object);
       break;
     case Token::MUL:
       ASSIGN_RETURN_ON_EXCEPTION(
-          isolate(), result,
-          Object::Multiply(isolate(), left, right, state.strength()), Object);
+          isolate(), result, Object::Multiply(isolate(), left, right), Object);
       break;
     case Token::DIV:
       ASSIGN_RETURN_ON_EXCEPTION(
-          isolate(), result,
-          Object::Divide(isolate(), left, right, state.strength()), Object);
+          isolate(), result, Object::Divide(isolate(), left, right), Object);
       break;
     case Token::MOD:
       ASSIGN_RETURN_ON_EXCEPTION(
-          isolate(), result,
-          Object::Modulus(isolate(), left, right, state.strength()), Object);
+          isolate(), result, Object::Modulus(isolate(), left, right), Object);
       break;
     case Token::BIT_OR:
       ASSIGN_RETURN_ON_EXCEPTION(
-          isolate(), result,
-          Object::BitwiseOr(isolate(), left, right, state.strength()), Object);
+          isolate(), result, Object::BitwiseOr(isolate(), left, right), Object);
       break;
     case Token::BIT_AND:
-      ASSIGN_RETURN_ON_EXCEPTION(
-          isolate(), result,
-          Object::BitwiseAnd(isolate(), left, right, state.strength()), Object);
+      ASSIGN_RETURN_ON_EXCEPTION(isolate(), result,
+                                 Object::BitwiseAnd(isolate(), left, right),
+                                 Object);
       break;
     case Token::BIT_XOR:
-      ASSIGN_RETURN_ON_EXCEPTION(
-          isolate(), result,
-          Object::BitwiseXor(isolate(), left, right, state.strength()), Object);
+      ASSIGN_RETURN_ON_EXCEPTION(isolate(), result,
+                                 Object::BitwiseXor(isolate(), left, right),
+                                 Object);
       break;
     case Token::SAR:
-      ASSIGN_RETURN_ON_EXCEPTION(
-          isolate(), result,
-          Object::ShiftRight(isolate(), left, right, state.strength()), Object);
+      ASSIGN_RETURN_ON_EXCEPTION(isolate(), result,
+                                 Object::ShiftRight(isolate(), left, right),
+                                 Object);
       break;
     case Token::SHR:
       ASSIGN_RETURN_ON_EXCEPTION(
-          isolate(), result,
-          Object::ShiftRightLogical(isolate(), left, right, state.strength()),
+          isolate(), result, Object::ShiftRightLogical(isolate(), left, right),
           Object);
       break;
     case Token::SHL:
       ASSIGN_RETURN_ON_EXCEPTION(
-          isolate(), result,
-          Object::ShiftLeft(isolate(), left, right, state.strength()), Object);
+          isolate(), result, Object::ShiftLeft(isolate(), left, right), Object);
       break;
   }
 
@@ -2653,10 +2644,8 @@ RUNTIME_FUNCTION(Runtime_BinaryOpIC_MissWithAllocationSite) {
   return *result;
 }
 
-
-Code* CompareIC::GetRawUninitialized(Isolate* isolate, Token::Value op,
-                                     Strength strength) {
-  CompareICStub stub(isolate, op, strength, CompareICState::UNINITIALIZED,
+Code* CompareIC::GetRawUninitialized(Isolate* isolate, Token::Value op) {
+  CompareICStub stub(isolate, op, CompareICState::UNINITIALIZED,
                      CompareICState::UNINITIALIZED,
                      CompareICState::UNINITIALIZED);
   Code* code = NULL;
@@ -2664,10 +2653,8 @@ Code* CompareIC::GetRawUninitialized(Isolate* isolate, Token::Value op,
   return code;
 }
 
-
-Handle<Code> CompareIC::GetUninitialized(Isolate* isolate, Token::Value op,
-                                         Strength strength) {
-  CompareICStub stub(isolate, op, strength, CompareICState::UNINITIALIZED,
+Handle<Code> CompareIC::GetUninitialized(Isolate* isolate, Token::Value op) {
+  CompareICStub stub(isolate, op, CompareICState::UNINITIALIZED,
                      CompareICState::UNINITIALIZED,
                      CompareICState::UNINITIALIZED);
   return stub.GetCode();
@@ -2684,8 +2671,7 @@ Code* CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
   CompareICState::State state = CompareICState::TargetState(
       old_stub.state(), old_stub.left(), old_stub.right(), op_,
       HasInlinedSmiCode(address()), x, y);
-  CompareICStub stub(isolate(), op_, old_stub.strength(), new_left, new_right,
-                     state);
+  CompareICStub stub(isolate(), op_, new_left, new_right, state);
   if (state == CompareICState::KNOWN_RECEIVER) {
     stub.set_known_map(
         Handle<Map>(Handle<JSReceiver>::cast(x)->map(), isolate()));

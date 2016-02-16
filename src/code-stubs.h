@@ -1496,9 +1496,9 @@ class CallApiGetterStub : public PlatformCodeStub {
 
 class BinaryOpICStub : public HydrogenCodeStub {
  public:
-  BinaryOpICStub(Isolate* isolate, Token::Value op, Strength strength)
+  BinaryOpICStub(Isolate* isolate, Token::Value op)
       : HydrogenCodeStub(isolate, UNINITIALIZED) {
-    BinaryOpICState state(isolate, op, strength);
+    BinaryOpICState state(isolate, op);
     set_sub_minor_key(state.GetExtraICState());
   }
 
@@ -1579,9 +1579,8 @@ class BinaryOpICWithAllocationSiteStub final : public PlatformCodeStub {
 
 class BinaryOpWithAllocationSiteStub final : public BinaryOpICStub {
  public:
-  BinaryOpWithAllocationSiteStub(Isolate* isolate, Token::Value op,
-                                 Strength strength)
-      : BinaryOpICStub(isolate, op, strength) {}
+  BinaryOpWithAllocationSiteStub(Isolate* isolate, Token::Value op)
+      : BinaryOpICStub(isolate, op) {}
 
   BinaryOpWithAllocationSiteStub(Isolate* isolate, const BinaryOpICState& state)
       : BinaryOpICStub(isolate, state) {}
@@ -1632,13 +1631,11 @@ class StringAddStub final : public HydrogenCodeStub {
 
 class CompareICStub : public PlatformCodeStub {
  public:
-  CompareICStub(Isolate* isolate, Token::Value op, Strength strength,
-                CompareICState::State left, CompareICState::State right,
-                CompareICState::State state)
+  CompareICStub(Isolate* isolate, Token::Value op, CompareICState::State left,
+                CompareICState::State right, CompareICState::State state)
       : PlatformCodeStub(isolate) {
     DCHECK(Token::IsCompareOp(op));
     minor_key_ = OpBits::encode(op - Token::EQ) |
-                 StrengthBits::encode(is_strong(strength)) |
                  LeftStateBits::encode(left) | RightStateBits::encode(right) |
                  StateBits::encode(state);
   }
@@ -1649,10 +1646,6 @@ class CompareICStub : public PlatformCodeStub {
 
   Token::Value op() const {
     return static_cast<Token::Value>(Token::EQ + OpBits::decode(minor_key_));
-  }
-
-  Strength strength() const {
-    return StrengthBits::decode(minor_key_) ? Strength::STRONG : Strength::WEAK;
   }
 
   CompareICState::State left() const {
@@ -1687,10 +1680,9 @@ class CompareICStub : public PlatformCodeStub {
   }
 
   class OpBits : public BitField<int, 0, 3> {};
-  class StrengthBits : public BitField<bool, 3, 1> {};
-  class LeftStateBits : public BitField<CompareICState::State, 4, 4> {};
-  class RightStateBits : public BitField<CompareICState::State, 8, 4> {};
-  class StateBits : public BitField<CompareICState::State, 12, 4> {};
+  class LeftStateBits : public BitField<CompareICState::State, 3, 4> {};
+  class RightStateBits : public BitField<CompareICState::State, 7, 4> {};
+  class StateBits : public BitField<CompareICState::State, 11, 4> {};
 
   Handle<Map> known_map_;
 

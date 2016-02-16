@@ -196,7 +196,6 @@ class BytecodeGenerator final : public AstVisitor {
 
   ZoneVector<Handle<Object>>* globals() { return &globals_; }
   inline LanguageMode language_mode() const;
-  Strength language_mode_strength() const;
   int feedback_index(FeedbackVectorSlot slot) const;
 
   Isolate* isolate_;

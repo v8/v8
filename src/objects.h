@@ -1104,8 +1104,8 @@ class Object {
   bool BooleanValue();                                      // ECMA-262 9.2.
 
   // ES6 section 7.2.11 Abstract Relational Comparison
-  MUST_USE_RESULT static Maybe<ComparisonResult> Compare(
-      Handle<Object> x, Handle<Object> y, Strength strength = Strength::WEAK);
+  MUST_USE_RESULT static Maybe<ComparisonResult> Compare(Handle<Object> x,
+                                                         Handle<Object> y);
 
   // ES6 section 7.2.12 Abstract Equality Comparison
   MUST_USE_RESULT static Maybe<bool> Equals(Handle<Object> x, Handle<Object> y);
@@ -1166,55 +1166,54 @@ class Object {
   static Handle<String> TypeOf(Isolate* isolate, Handle<Object> object);
 
   // ES6 section 12.6 Multiplicative Operators
-  MUST_USE_RESULT static MaybeHandle<Object> Multiply(
-      Isolate* isolate, Handle<Object> lhs, Handle<Object> rhs,
-      Strength strength = Strength::WEAK);
-  MUST_USE_RESULT static MaybeHandle<Object> Divide(
-      Isolate* isolate, Handle<Object> lhs, Handle<Object> rhs,
-      Strength strength = Strength::WEAK);
-  MUST_USE_RESULT static MaybeHandle<Object> Modulus(
-      Isolate* isolate, Handle<Object> lhs, Handle<Object> rhs,
-      Strength strength = Strength::WEAK);
+  MUST_USE_RESULT static MaybeHandle<Object> Multiply(Isolate* isolate,
+                                                      Handle<Object> lhs,
+                                                      Handle<Object> rhs);
+  MUST_USE_RESULT static MaybeHandle<Object> Divide(Isolate* isolate,
+                                                    Handle<Object> lhs,
+                                                    Handle<Object> rhs);
+  MUST_USE_RESULT static MaybeHandle<Object> Modulus(Isolate* isolate,
+                                                     Handle<Object> lhs,
+                                                     Handle<Object> rhs);
 
   // ES6 section 12.7 Additive Operators
-  MUST_USE_RESULT static MaybeHandle<Object> Add(
-      Isolate* isolate, Handle<Object> lhs, Handle<Object> rhs,
-      Strength strength = Strength::WEAK);
-  MUST_USE_RESULT static MaybeHandle<Object> Subtract(
-      Isolate* isolate, Handle<Object> lhs, Handle<Object> rhs,
-      Strength strength = Strength::WEAK);
+  MUST_USE_RESULT static MaybeHandle<Object> Add(Isolate* isolate,
+                                                 Handle<Object> lhs,
+                                                 Handle<Object> rhs);
+  MUST_USE_RESULT static MaybeHandle<Object> Subtract(Isolate* isolate,
+                                                      Handle<Object> lhs,
+                                                      Handle<Object> rhs);
 
   // ES6 section 12.8 Bitwise Shift Operators
-  MUST_USE_RESULT static MaybeHandle<Object> ShiftLeft(
-      Isolate* isolate, Handle<Object> lhs, Handle<Object> rhs,
-      Strength strength = Strength::WEAK);
-  MUST_USE_RESULT static MaybeHandle<Object> ShiftRight(
-      Isolate* isolate, Handle<Object> lhs, Handle<Object> rhs,
-      Strength strength = Strength::WEAK);
+  MUST_USE_RESULT static MaybeHandle<Object> ShiftLeft(Isolate* isolate,
+                                                       Handle<Object> lhs,
+                                                       Handle<Object> rhs);
+  MUST_USE_RESULT static MaybeHandle<Object> ShiftRight(Isolate* isolate,
+                                                        Handle<Object> lhs,
+                                                        Handle<Object> rhs);
   MUST_USE_RESULT static MaybeHandle<Object> ShiftRightLogical(
-      Isolate* isolate, Handle<Object> lhs, Handle<Object> rhs,
-      Strength strength = Strength::WEAK);
+      Isolate* isolate, Handle<Object> lhs, Handle<Object> rhs);
 
   // ES6 section 12.9 Relational Operators
-  MUST_USE_RESULT static inline Maybe<bool> GreaterThan(
-      Handle<Object> x, Handle<Object> y, Strength strength = Strength::WEAK);
+  MUST_USE_RESULT static inline Maybe<bool> GreaterThan(Handle<Object> x,
+                                                        Handle<Object> y);
   MUST_USE_RESULT static inline Maybe<bool> GreaterThanOrEqual(
-      Handle<Object> x, Handle<Object> y, Strength strength = Strength::WEAK);
-  MUST_USE_RESULT static inline Maybe<bool> LessThan(
-      Handle<Object> x, Handle<Object> y, Strength strength = Strength::WEAK);
-  MUST_USE_RESULT static inline Maybe<bool> LessThanOrEqual(
-      Handle<Object> x, Handle<Object> y, Strength strength = Strength::WEAK);
+      Handle<Object> x, Handle<Object> y);
+  MUST_USE_RESULT static inline Maybe<bool> LessThan(Handle<Object> x,
+                                                     Handle<Object> y);
+  MUST_USE_RESULT static inline Maybe<bool> LessThanOrEqual(Handle<Object> x,
+                                                            Handle<Object> y);
 
   // ES6 section 12.11 Binary Bitwise Operators
-  MUST_USE_RESULT static MaybeHandle<Object> BitwiseAnd(
-      Isolate* isolate, Handle<Object> lhs, Handle<Object> rhs,
-      Strength strength = Strength::WEAK);
-  MUST_USE_RESULT static MaybeHandle<Object> BitwiseOr(
-      Isolate* isolate, Handle<Object> lhs, Handle<Object> rhs,
-      Strength strength = Strength::WEAK);
-  MUST_USE_RESULT static MaybeHandle<Object> BitwiseXor(
-      Isolate* isolate, Handle<Object> lhs, Handle<Object> rhs,
-      Strength strength = Strength::WEAK);
+  MUST_USE_RESULT static MaybeHandle<Object> BitwiseAnd(Isolate* isolate,
+                                                        Handle<Object> lhs,
+                                                        Handle<Object> rhs);
+  MUST_USE_RESULT static MaybeHandle<Object> BitwiseOr(Isolate* isolate,
+                                                       Handle<Object> lhs,
+                                                       Handle<Object> rhs);
+  MUST_USE_RESULT static MaybeHandle<Object> BitwiseXor(Isolate* isolate,
+                                                        Handle<Object> lhs,
+                                                        Handle<Object> rhs);
 
   MUST_USE_RESULT static MaybeHandle<Object> GetProperty(
       LookupIterator* it, LanguageMode language_mode = SLOPPY);

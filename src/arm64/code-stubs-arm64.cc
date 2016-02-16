@@ -207,8 +207,7 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
 static void EmitIdenticalObjectComparison(MacroAssembler* masm, Register left,
                                           Register right, Register scratch,
                                           FPRegister double_scratch,
-                                          Label* slow, Condition cond,
-                                          Strength strength) {
+                                          Label* slow, Condition cond) {
   DCHECK(!AreAliased(left, right, scratch));
   Label not_identical, return_equal, heap_number;
   Register result = x0;
@@ -231,14 +230,6 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm, Register left,
     // Call runtime on identical SIMD values since we must throw a TypeError.
     __ Cmp(right_type, SIMD128_VALUE_TYPE);
     __ B(eq, slow);
-    if (is_strong(strength)) {
-      // Call the runtime on anything that is converted in the semantics, since
-      // we need to throw a TypeError. Smis have already been ruled out.
-      __ Cmp(right_type, Operand(HEAP_NUMBER_TYPE));
-      __ B(eq, &return_equal);
-      __ Tst(right_type, Operand(kIsNotStringMask));
-      __ B(ne, slow);
-    }
   } else if (cond == eq) {
     __ JumpIfHeapNumber(right, &heap_number);
   } else {
@@ -253,13 +244,6 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm, Register left,
     // Call runtime on identical SIMD values since we must throw a TypeError.
     __ Cmp(right_type, SIMD128_VALUE_TYPE);
     __ B(eq, slow);
-    if (is_strong(strength)) {
-      // Call the runtime on anything that is converted in the semantics,
-      // since we need to throw a TypeError. Smis and heap numbers have
-      // already been ruled out.
-      __ Tst(right_type, Operand(kIsNotStringMask));
-      __ B(ne, slow);
-    }
     // Normally here we fall through to return_equal, but undefined is
     // special: (undefined == undefined) == true, but
     // (undefined <= undefined) == false!  See ECMAScript 11.8.5.
@@ -531,8 +515,7 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
 
   // Handle the case where the objects are identical. Either returns the answer
   // or goes to slow. Only falls through if the objects were not identical.
-  EmitIdenticalObjectComparison(masm, lhs, rhs, x10, d0, &slow, cond,
-                                strength());
+  EmitIdenticalObjectComparison(masm, lhs, rhs, x10, d0, &slow, cond);
 
   // If either is a smi (we know that at least one is not a smi), then they can
   // only be strictly equal if the other is a HeapNumber.
@@ -662,8 +645,7 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
 
     // Call the native; it returns -1 (less), 0 (equal), or 1 (greater)
     // tagged as a small integer.
-    __ TailCallRuntime(is_strong(strength()) ? Runtime::kCompare_Strong
-                                             : Runtime::kCompare);
+    __ TailCallRuntime(Runtime::kCompare);
   }
 
   __ Bind(&miss);
@@ -2629,18 +2611,14 @@ void CompareICStub::GenerateBooleans(MacroAssembler* masm) {
 
   __ CheckMap(x1, x2, Heap::kBooleanMapRootIndex, &miss, DO_SMI_CHECK);
   __ CheckMap(x0, x3, Heap::kBooleanMapRootIndex, &miss, DO_SMI_CHECK);
-  if (op() != Token::EQ_STRICT && is_strong(strength())) {
-    __ TailCallRuntime(Runtime::kThrowStrongModeImplicitConversion);
-  } else {
-    if (!Token::IsEqualityOp(op())) {
-      __ Ldr(x1, FieldMemOperand(x1, Oddball::kToNumberOffset));
-      __ AssertSmi(x1);
-      __ Ldr(x0, FieldMemOperand(x0, Oddball::kToNumberOffset));
-      __ AssertSmi(x0);
-    }
-    __ Sub(x0, x1, x0);
-    __ Ret();
+  if (!Token::IsEqualityOp(op())) {
+    __ Ldr(x1, FieldMemOperand(x1, Oddball::kToNumberOffset));
+    __ AssertSmi(x1);
+    __ Ldr(x0, FieldMemOperand(x0, Oddball::kToNumberOffset));
+    __ AssertSmi(x0);
   }
+  __ Sub(x0, x1, x0);
+  __ Ret();
 
   __ Bind(&miss);
   GenerateMiss(masm);
@@ -2714,7 +2692,7 @@ void CompareICStub::GenerateNumbers(MacroAssembler* masm) {
   __ Ret();
 
   __ Bind(&unordered);
-  CompareICStub stub(isolate(), op(), strength(), CompareICState::GENERIC,
+  CompareICStub stub(isolate(), op(), CompareICState::GENERIC,
                      CompareICState::GENERIC, CompareICState::GENERIC);
   __ Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
 
@@ -2945,8 +2923,6 @@ void CompareICStub::GenerateKnownReceivers(MacroAssembler* masm) {
   if (Token::IsEqualityOp(op())) {
   __ Sub(result, rhs, lhs);
   __ Ret();
-  } else if (is_strong(strength())) {
-    __ TailCallRuntime(Runtime::kThrowStrongModeImplicitConversion);
   } else {
     Register ncr = x2;
     if (op() == Token::LT || op() == Token::LTE) {

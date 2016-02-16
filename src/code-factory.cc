@@ -120,9 +120,8 @@ Callable CodeFactory::KeyedStoreICInOptimizedCode(
 
 
 // static
-Callable CodeFactory::CompareIC(Isolate* isolate, Token::Value op,
-                                Strength strength) {
-  Handle<Code> code = CompareIC::GetUninitialized(isolate, op, strength);
+Callable CodeFactory::CompareIC(Isolate* isolate, Token::Value op) {
+  Handle<Code> code = CompareIC::GetUninitialized(isolate, op);
   return Callable(code, CompareDescriptor(isolate));
 }
 
@@ -135,9 +134,8 @@ Callable CodeFactory::CompareNilIC(Isolate* isolate, NilValue nil_value) {
 
 
 // static
-Callable CodeFactory::BinaryOpIC(Isolate* isolate, Token::Value op,
-                                 Strength strength) {
-  BinaryOpICStub stub(isolate, op, strength);
+Callable CodeFactory::BinaryOpIC(Isolate* isolate, Token::Value op) {
+  BinaryOpICStub stub(isolate, op);
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
 }
 

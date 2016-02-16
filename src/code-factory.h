@@ -57,12 +57,10 @@ class CodeFactory final {
       Isolate* isolate, LanguageMode mode,
       InlineCacheState initialization_state);
 
-  static Callable CompareIC(Isolate* isolate, Token::Value op,
-                            Strength strength);
+  static Callable CompareIC(Isolate* isolate, Token::Value op);
   static Callable CompareNilIC(Isolate* isolate, NilValue nil_value);
 
-  static Callable BinaryOpIC(Isolate* isolate, Token::Value op,
-                             Strength strength);
+  static Callable BinaryOpIC(Isolate* isolate, Token::Value op);
 
   // Code stubs. Add methods here as needed to reduce dependency on
   // code-stubs.h.

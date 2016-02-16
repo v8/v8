@@ -137,17 +137,6 @@ class JSBinopReduction final {
     return ChangeToPureOperator(op, false, type);
   }
 
-  // TODO(turbofan): Strong mode should be killed soonish!
-  bool IsStrong() const {
-    if (node_->opcode() == IrOpcode::kJSLessThan ||
-        node_->opcode() == IrOpcode::kJSLessThanOrEqual ||
-        node_->opcode() == IrOpcode::kJSGreaterThan ||
-        node_->opcode() == IrOpcode::kJSGreaterThanOrEqual) {
-      return is_strong(OpParameter<LanguageMode>(node_));
-    }
-    return is_strong(BinaryOperationParametersOf(node_->op()).language_mode());
-  }
-
   bool LeftInputIs(Type* t) { return left_type()->Is(t); }
 
   bool RightInputIs(Type* t) { return right_type()->Is(t); }
@@ -376,7 +365,7 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
     // JSAdd(x:number, y:number) => NumberAdd(x, y)
     return r.ChangeToPureOperator(simplified()->NumberAdd(), Type::Number());
   }
-  if (r.NeitherInputCanBe(Type::StringOrReceiver()) && !r.IsStrong()) {
+  if (r.NeitherInputCanBe(Type::StringOrReceiver())) {
     // JSAdd(x:-string, y:-string) => NumberAdd(ToNumber(x), ToNumber(y))
     Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
     r.ConvertInputsToNumber(frame_state);
@@ -418,7 +407,7 @@ Reduction JSTypedLowering::ReduceNumberBinop(Node* node,
   if (flags() & kDisableBinaryOpReduction) return NoChange();
 
   JSBinopReduction r(this, node);
-  if (r.IsStrong() || numberOp == simplified()->NumberModulus()) {
+  if (numberOp == simplified()->NumberModulus()) {
     if (r.BothInputsAre(Type::Number())) {
       return r.ChangeToPureOperator(numberOp, Type::Number());
     }
@@ -434,13 +423,6 @@ Reduction JSTypedLowering::ReduceInt32Binop(Node* node, const Operator* intOp) {
   if (flags() & kDisableBinaryOpReduction) return NoChange();
 
   JSBinopReduction r(this, node);
-  if (r.IsStrong()) {
-    if (r.BothInputsAre(Type::Number())) {
-      r.ConvertInputsToUI32(kSigned, kSigned);
-      return r.ChangeToPureOperator(intOp, Type::Integral32());
-    }
-    return NoChange();
-  }
   Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
   r.ConvertInputsToNumber(frame_state);
   r.ConvertInputsToUI32(kSigned, kSigned);
@@ -454,13 +436,6 @@ Reduction JSTypedLowering::ReduceUI32Shift(Node* node,
   if (flags() & kDisableBinaryOpReduction) return NoChange();
 
   JSBinopReduction r(this, node);
-  if (r.IsStrong()) {
-    if (r.BothInputsAre(Type::Number())) {
-      r.ConvertInputsToUI32(left_signedness, kUnsigned);
-      return r.ChangeToPureOperator(shift_op);
-    }
-    return NoChange();
-  }
   Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
   r.ConvertInputsToNumber(frame_state);
   r.ConvertInputsToUI32(left_signedness, kUnsigned);
@@ -507,9 +482,6 @@ Reduction JSTypedLowering::ReduceJSComparison(Node* node) {
       less_than_or_equal = machine()->Int32LessThanOrEqual();
     } else {
       // TODO(turbofan): mixed signed/unsigned int32 comparisons.
-      if (r.IsStrong() && !r.BothInputsAre(Type::Number())) {
-        return NoChange();
-      }
       Node* frame_state = NodeProperties::GetFrameStateInput(node, 1);
       r.ConvertInputsToNumber(frame_state);
       less_than = simplified()->NumberLessThan();

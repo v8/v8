@@ -618,8 +618,7 @@ class CompareIC : public IC {
   static Condition ComputeCondition(Token::Value op);
 
   // Factory method for getting an uninitialized compare stub.
-  static Handle<Code> GetUninitialized(Isolate* isolate, Token::Value op,
-                                       Strength strength);
+  static Handle<Code> GetUninitialized(Isolate* isolate, Token::Value op);
 
  private:
   static bool HasInlinedSmiCode(Address address);
@@ -627,8 +626,7 @@ class CompareIC : public IC {
   bool strict() const { return op_ == Token::EQ_STRICT; }
   Condition GetCondition() const { return ComputeCondition(op_); }
 
-  static Code* GetRawUninitialized(Isolate* isolate, Token::Value op,
-                                   Strength strength);
+  static Code* GetRawUninitialized(Isolate* isolate, Token::Value op);
 
   static void Clear(Isolate* isolate, Address address, Code* target,
                     Address constant_pool);

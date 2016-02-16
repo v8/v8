@@ -423,15 +423,12 @@ TEST_F(JSTypedLoweringTest, JSShiftLeftWithSigned32AndConstant) {
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
   TRACED_FORRANGE(double, rhs, 0, 31) {
-    TRACED_FOREACH(LanguageMode, language_mode, kLanguageModes) {
-      Reduction r = Reduce(
-          graph()->NewNode(javascript()->ShiftLeft(language_mode, hints), lhs,
-                           NumberConstant(rhs), context, EmptyFrameState(),
-                           EmptyFrameState(), effect, control));
-      ASSERT_TRUE(r.Changed());
-      EXPECT_THAT(r.replacement(),
-                  IsNumberShiftLeft(lhs, IsNumberConstant(BitEq(rhs))));
-    }
+    Reduction r = Reduce(graph()->NewNode(
+        javascript()->ShiftLeft(hints), lhs, NumberConstant(rhs), context,
+        EmptyFrameState(), EmptyFrameState(), effect, control));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(),
+                IsNumberShiftLeft(lhs, IsNumberConstant(BitEq(rhs))));
   }
 }
 
@@ -443,13 +440,11 @@ TEST_F(JSTypedLoweringTest, JSShiftLeftWithSigned32AndUnsigned32) {
   Node* const context = UndefinedConstant();
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
-  TRACED_FOREACH(LanguageMode, language_mode, kLanguageModes) {
-    Reduction r = Reduce(graph()->NewNode(
-        javascript()->ShiftLeft(language_mode, hints), lhs, rhs, context,
-        EmptyFrameState(), EmptyFrameState(), effect, control));
-    ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(), IsNumberShiftLeft(lhs, rhs));
-  }
+  Reduction r = Reduce(graph()->NewNode(javascript()->ShiftLeft(hints), lhs,
+                                        rhs, context, EmptyFrameState(),
+                                        EmptyFrameState(), effect, control));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsNumberShiftLeft(lhs, rhs));
 }
 
 
@@ -464,15 +459,12 @@ TEST_F(JSTypedLoweringTest, JSShiftRightWithSigned32AndConstant) {
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
   TRACED_FORRANGE(double, rhs, 0, 31) {
-    TRACED_FOREACH(LanguageMode, language_mode, kLanguageModes) {
-      Reduction r = Reduce(
-          graph()->NewNode(javascript()->ShiftRight(language_mode, hints), lhs,
-                           NumberConstant(rhs), context, EmptyFrameState(),
-                           EmptyFrameState(), effect, control));
-      ASSERT_TRUE(r.Changed());
-      EXPECT_THAT(r.replacement(),
-                  IsNumberShiftRight(lhs, IsNumberConstant(BitEq(rhs))));
-    }
+    Reduction r = Reduce(graph()->NewNode(
+        javascript()->ShiftRight(hints), lhs, NumberConstant(rhs), context,
+        EmptyFrameState(), EmptyFrameState(), effect, control));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(),
+                IsNumberShiftRight(lhs, IsNumberConstant(BitEq(rhs))));
   }
 }
 
@@ -484,13 +476,11 @@ TEST_F(JSTypedLoweringTest, JSShiftRightWithSigned32AndUnsigned32) {
   Node* const context = UndefinedConstant();
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
-  TRACED_FOREACH(LanguageMode, language_mode, kLanguageModes) {
-    Reduction r = Reduce(graph()->NewNode(
-        javascript()->ShiftRight(language_mode, hints), lhs, rhs, context,
-        EmptyFrameState(), EmptyFrameState(), effect, control));
-    ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(), IsNumberShiftRight(lhs, rhs));
-  }
+  Reduction r = Reduce(graph()->NewNode(javascript()->ShiftRight(hints), lhs,
+                                        rhs, context, EmptyFrameState(),
+                                        EmptyFrameState(), effect, control));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsNumberShiftRight(lhs, rhs));
 }
 
 
@@ -506,15 +496,12 @@ TEST_F(JSTypedLoweringTest,
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
   TRACED_FORRANGE(double, rhs, 0, 31) {
-    TRACED_FOREACH(LanguageMode, language_mode, kLanguageModes) {
-      Reduction r = Reduce(graph()->NewNode(
-          javascript()->ShiftRightLogical(language_mode, hints), lhs,
-          NumberConstant(rhs), context, EmptyFrameState(), EmptyFrameState(),
-          effect, control));
-      ASSERT_TRUE(r.Changed());
-      EXPECT_THAT(r.replacement(),
-                  IsNumberShiftRightLogical(lhs, IsNumberConstant(BitEq(rhs))));
-    }
+    Reduction r = Reduce(graph()->NewNode(
+        javascript()->ShiftRightLogical(hints), lhs, NumberConstant(rhs),
+        context, EmptyFrameState(), EmptyFrameState(), effect, control));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(),
+                IsNumberShiftRightLogical(lhs, IsNumberConstant(BitEq(rhs))));
   }
 }
 
@@ -526,13 +513,11 @@ TEST_F(JSTypedLoweringTest, JSShiftRightLogicalWithUnsigned32AndUnsigned32) {
   Node* const context = UndefinedConstant();
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
-  TRACED_FOREACH(LanguageMode, language_mode, kLanguageModes) {
-    Reduction r = Reduce(graph()->NewNode(
-        javascript()->ShiftRightLogical(language_mode, hints), lhs, rhs,
-        context, EmptyFrameState(), EmptyFrameState(), effect, control));
-    ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(), IsNumberShiftRightLogical(lhs, rhs));
-  }
+  Reduction r = Reduce(graph()->NewNode(javascript()->ShiftRightLogical(hints),
+                                        lhs, rhs, context, EmptyFrameState(),
+                                        EmptyFrameState(), effect, control));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsNumberShiftRightLogical(lhs, rhs));
 }
 
 
@@ -874,7 +859,6 @@ TEST_F(JSTypedLoweringTest, JSLoadNamedFunctionPrototype) {
 
 TEST_F(JSTypedLoweringTest, JSAddWithString) {
   BinaryOperationHints const hints = BinaryOperationHints::Any();
-  TRACED_FOREACH(LanguageMode, language_mode, kLanguageModes) {
     Node* lhs = Parameter(Type::String(), 0);
     Node* rhs = Parameter(Type::String(), 1);
     Node* context = Parameter(Type::Any(), 2);
@@ -882,16 +866,15 @@ TEST_F(JSTypedLoweringTest, JSAddWithString) {
     Node* frame_state1 = EmptyFrameState();
     Node* effect = graph()->start();
     Node* control = graph()->start();
-    Reduction r = Reduce(
-        graph()->NewNode(javascript()->Add(language_mode, hints), lhs, rhs,
-                         context, frame_state0, frame_state1, effect, control));
+    Reduction r =
+        Reduce(graph()->NewNode(javascript()->Add(hints), lhs, rhs, context,
+                                frame_state0, frame_state1, effect, control));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(),
                 IsCall(_, IsHeapConstant(CodeFactory::StringAdd(
                                              isolate(), STRING_ADD_CHECK_NONE,
                                              NOT_TENURED).code()),
                        lhs, rhs, context, frame_state0, effect, control));
-  }
 }
 
 

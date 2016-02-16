@@ -6859,9 +6859,8 @@ String* String::GetForwardedInternalizedString() {
 
 
 // static
-Maybe<bool> Object::GreaterThan(Handle<Object> x, Handle<Object> y,
-                                Strength strength) {
-  Maybe<ComparisonResult> result = Compare(x, y, strength);
+Maybe<bool> Object::GreaterThan(Handle<Object> x, Handle<Object> y) {
+  Maybe<ComparisonResult> result = Compare(x, y);
   if (result.IsJust()) {
     switch (result.FromJust()) {
       case ComparisonResult::kGreaterThan:
@@ -6877,9 +6876,8 @@ Maybe<bool> Object::GreaterThan(Handle<Object> x, Handle<Object> y,
 
 
 // static
-Maybe<bool> Object::GreaterThanOrEqual(Handle<Object> x, Handle<Object> y,
-                                       Strength strength) {
-  Maybe<ComparisonResult> result = Compare(x, y, strength);
+Maybe<bool> Object::GreaterThanOrEqual(Handle<Object> x, Handle<Object> y) {
+  Maybe<ComparisonResult> result = Compare(x, y);
   if (result.IsJust()) {
     switch (result.FromJust()) {
       case ComparisonResult::kEqual:
@@ -6895,9 +6893,8 @@ Maybe<bool> Object::GreaterThanOrEqual(Handle<Object> x, Handle<Object> y,
 
 
 // static
-Maybe<bool> Object::LessThan(Handle<Object> x, Handle<Object> y,
-                             Strength strength) {
-  Maybe<ComparisonResult> result = Compare(x, y, strength);
+Maybe<bool> Object::LessThan(Handle<Object> x, Handle<Object> y) {
+  Maybe<ComparisonResult> result = Compare(x, y);
   if (result.IsJust()) {
     switch (result.FromJust()) {
       case ComparisonResult::kLessThan:
@@ -6913,9 +6910,8 @@ Maybe<bool> Object::LessThan(Handle<Object> x, Handle<Object> y,
 
 
 // static
-Maybe<bool> Object::LessThanOrEqual(Handle<Object> x, Handle<Object> y,
-                                    Strength strength) {
-  Maybe<ComparisonResult> result = Compare(x, y, strength);
+Maybe<bool> Object::LessThanOrEqual(Handle<Object> x, Handle<Object> y) {
+  Maybe<ComparisonResult> result = Compare(x, y);
   if (result.IsJust()) {
     switch (result.FromJust()) {
       case ComparisonResult::kEqual:

@@ -220,25 +220,13 @@ void BytecodeArrayBuilder::Output(Bytecode bytecode) {
   bytecodes()->push_back(Bytecodes::ToByte(bytecode));
 }
 
-
 BytecodeArrayBuilder& BytecodeArrayBuilder::BinaryOperation(Token::Value op,
-                                                            Register reg,
-                                                            Strength strength) {
-  if (is_strong(strength)) {
-    UNIMPLEMENTED();
-  }
-
+                                                            Register reg) {
   Output(BytecodeForBinaryOperation(op), reg.ToRawOperand());
   return *this;
 }
 
-
-BytecodeArrayBuilder& BytecodeArrayBuilder::CountOperation(Token::Value op,
-                                                           Strength strength) {
-  if (is_strong(strength)) {
-    UNIMPLEMENTED();
-  }
-
+BytecodeArrayBuilder& BytecodeArrayBuilder::CountOperation(Token::Value op) {
   Output(BytecodeForCountOperation(op));
   return *this;
 }
@@ -255,13 +243,8 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::TypeOf() {
   return *this;
 }
 
-
-BytecodeArrayBuilder& BytecodeArrayBuilder::CompareOperation(
-    Token::Value op, Register reg, Strength strength) {
-  if (is_strong(strength)) {
-    UNIMPLEMENTED();
-  }
-
+BytecodeArrayBuilder& BytecodeArrayBuilder::CompareOperation(Token::Value op,
+                                                             Register reg) {
   Output(BytecodeForCompareOperation(op), reg.ToRawOperand());
   return *this;
 }

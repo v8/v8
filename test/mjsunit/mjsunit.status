@@ -123,6 +123,11 @@
   'debug-enable-disable-breakpoints': [PASS, NO_VARIANTS],  #arm64 nosnap with turbofan.
 
   # TODO(rossberg)
+  # TODO(mstarzinger): Strong mode is deprecating. The expectations inside the
+  # following tests should be updated once deprecation is complete.
+  'strong/implicit-conversions': [SKIP],
+  'strong/implicit-conversions-count': [SKIP],
+  'strong/implicit-conversions-inlining': [SKIP],
   'strong/literals': [SKIP], # Rest arguments do not respect strongness in Turbofan.
 
   # Issue 4035: unexpected frame->context() in debugger
@@ -285,7 +290,6 @@
   'readonly': [PASS, SLOW],
   'regress/regress-1200351': [PASS, ['mode == debug', SLOW]],
   'regress/regress-crbug-474297': [PASS, ['mode == debug', SLOW]],
-  'strong/implicit-conversions': [PASS, SLOW],
   'strong/load-element-mutate-backing-store': [PASS, SLOW],
 
   # TODO(titzer): correct WASM adapter frame alignment on arm64

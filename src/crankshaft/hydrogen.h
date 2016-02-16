@@ -1427,7 +1427,6 @@ class HGraphBuilder {
                                Type* left_type, Type* right_type,
                                Type* result_type, Maybe<int> fixed_right_arg,
                                HAllocationMode allocation_mode,
-                               Strength strength,
                                BailoutId opt_id = BailoutId::None());
 
   HLoadNamedField* AddLoadFixedArrayLength(HValue *object,

@@ -109,25 +109,24 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CallJSRuntime(Context::SPREAD_ITERABLE_INDEX, wide, 1);
 
   // Emit binary operator invocations.
-  builder.BinaryOperation(Token::Value::ADD, reg, Strength::WEAK)
-      .BinaryOperation(Token::Value::SUB, reg, Strength::WEAK)
-      .BinaryOperation(Token::Value::MUL, reg, Strength::WEAK)
-      .BinaryOperation(Token::Value::DIV, reg, Strength::WEAK)
-      .BinaryOperation(Token::Value::MOD, reg, Strength::WEAK);
+  builder.BinaryOperation(Token::Value::ADD, reg)
+      .BinaryOperation(Token::Value::SUB, reg)
+      .BinaryOperation(Token::Value::MUL, reg)
+      .BinaryOperation(Token::Value::DIV, reg)
+      .BinaryOperation(Token::Value::MOD, reg);
 
   // Emit bitwise operator invocations
-  builder.BinaryOperation(Token::Value::BIT_OR, reg, Strength::WEAK)
-      .BinaryOperation(Token::Value::BIT_XOR, reg, Strength::WEAK)
-      .BinaryOperation(Token::Value::BIT_AND, reg, Strength::WEAK);
+  builder.BinaryOperation(Token::Value::BIT_OR, reg)
+      .BinaryOperation(Token::Value::BIT_XOR, reg)
+      .BinaryOperation(Token::Value::BIT_AND, reg);
 
   // Emit shift operator invocations
-  builder.BinaryOperation(Token::Value::SHL, reg, Strength::WEAK)
-      .BinaryOperation(Token::Value::SAR, reg, Strength::WEAK)
-      .BinaryOperation(Token::Value::SHR, reg, Strength::WEAK);
+  builder.BinaryOperation(Token::Value::SHL, reg)
+      .BinaryOperation(Token::Value::SAR, reg)
+      .BinaryOperation(Token::Value::SHR, reg);
 
   // Emit count operatior invocations
-  builder.CountOperation(Token::Value::ADD, Strength::WEAK)
-      .CountOperation(Token::Value::SUB, Strength::WEAK);
+  builder.CountOperation(Token::Value::ADD).CountOperation(Token::Value::SUB);
 
   // Emit unary operator invocations.
   builder.LogicalNot().TypeOf();
@@ -140,16 +139,16 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.New(wide, wide, 0);
 
   // Emit test operator invocations.
-  builder.CompareOperation(Token::Value::EQ, reg, Strength::WEAK)
-      .CompareOperation(Token::Value::NE, reg, Strength::WEAK)
-      .CompareOperation(Token::Value::EQ_STRICT, reg, Strength::WEAK)
-      .CompareOperation(Token::Value::NE_STRICT, reg, Strength::WEAK)
-      .CompareOperation(Token::Value::LT, reg, Strength::WEAK)
-      .CompareOperation(Token::Value::GT, reg, Strength::WEAK)
-      .CompareOperation(Token::Value::LTE, reg, Strength::WEAK)
-      .CompareOperation(Token::Value::GTE, reg, Strength::WEAK)
-      .CompareOperation(Token::Value::INSTANCEOF, reg, Strength::WEAK)
-      .CompareOperation(Token::Value::IN, reg, Strength::WEAK);
+  builder.CompareOperation(Token::Value::EQ, reg)
+      .CompareOperation(Token::Value::NE, reg)
+      .CompareOperation(Token::Value::EQ_STRICT, reg)
+      .CompareOperation(Token::Value::NE_STRICT, reg)
+      .CompareOperation(Token::Value::LT, reg)
+      .CompareOperation(Token::Value::GT, reg)
+      .CompareOperation(Token::Value::LTE, reg)
+      .CompareOperation(Token::Value::GTE, reg)
+      .CompareOperation(Token::Value::INSTANCEOF, reg)
+      .CompareOperation(Token::Value::IN, reg);
 
   // Emit cast operator invocations.
   builder.CastAccumulatorToNumber()
@@ -167,15 +166,15 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   // Perform an operation that returns boolean value to
   // generate JumpIfTrue/False
-  builder.CompareOperation(Token::Value::EQ, reg, Strength::WEAK)
+  builder.CompareOperation(Token::Value::EQ, reg)
       .JumpIfTrue(&start)
-      .CompareOperation(Token::Value::EQ, reg, Strength::WEAK)
+      .CompareOperation(Token::Value::EQ, reg)
       .JumpIfFalse(&start);
   // Perform an operation that returns a non-boolean operation to
   // generate JumpIfToBooleanTrue/False.
-  builder.BinaryOperation(Token::Value::ADD, reg, Strength::WEAK)
+  builder.BinaryOperation(Token::Value::ADD, reg)
       .JumpIfTrue(&start)
-      .BinaryOperation(Token::Value::ADD, reg, Strength::WEAK)
+      .BinaryOperation(Token::Value::ADD, reg)
       .JumpIfFalse(&start);
   // Insert dummy ops to force longer jumps
   for (int i = 0; i < 128; i++) {
@@ -186,15 +185,15 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       &start);
   // Perform an operation that returns boolean value to
   // generate JumpIfTrue/False
-  builder.CompareOperation(Token::Value::EQ, reg, Strength::WEAK)
+  builder.CompareOperation(Token::Value::EQ, reg)
       .JumpIfTrue(&start)
-      .CompareOperation(Token::Value::EQ, reg, Strength::WEAK)
+      .CompareOperation(Token::Value::EQ, reg)
       .JumpIfFalse(&start);
   // Perform an operation that returns a non-boolean operation to
   // generate JumpIfToBooleanTrue/False.
-  builder.BinaryOperation(Token::Value::ADD, reg, Strength::WEAK)
+  builder.BinaryOperation(Token::Value::ADD, reg)
       .JumpIfTrue(&start)
-      .BinaryOperation(Token::Value::ADD, reg, Strength::WEAK)
+      .BinaryOperation(Token::Value::ADD, reg)
       .JumpIfFalse(&start);
 
   // Emit stack check bytecode.
@@ -270,15 +269,15 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       &start);
   // Perform an operation that returns boolean value to
   // generate JumpIfTrue/False
-  builder.CompareOperation(Token::Value::EQ, reg, Strength::WEAK)
+  builder.CompareOperation(Token::Value::EQ, reg)
       .JumpIfTrue(&start)
-      .CompareOperation(Token::Value::EQ, reg, Strength::WEAK)
+      .CompareOperation(Token::Value::EQ, reg)
       .JumpIfFalse(&start);
   // Perform an operation that returns a non-boolean operation to
   // generate JumpIfToBooleanTrue/False.
-  builder.BinaryOperation(Token::Value::ADD, reg, Strength::WEAK)
+  builder.BinaryOperation(Token::Value::ADD, reg)
       .JumpIfTrue(&start)
-      .BinaryOperation(Token::Value::ADD, reg, Strength::WEAK)
+      .BinaryOperation(Token::Value::ADD, reg)
       .JumpIfFalse(&start);
 
   builder.Debugger();
@@ -412,13 +411,13 @@ TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
   BytecodeLabel near0, near1, near2, near3, near4;
 
   builder.Jump(&near0)
-      .CompareOperation(Token::Value::EQ, reg, Strength::WEAK)
+      .CompareOperation(Token::Value::EQ, reg)
       .JumpIfTrue(&near1)
-      .CompareOperation(Token::Value::EQ, reg, Strength::WEAK)
+      .CompareOperation(Token::Value::EQ, reg)
       .JumpIfFalse(&near2)
-      .BinaryOperation(Token::Value::ADD, reg, Strength::WEAK)
+      .BinaryOperation(Token::Value::ADD, reg)
       .JumpIfTrue(&near3)
-      .BinaryOperation(Token::Value::ADD, reg, Strength::WEAK)
+      .BinaryOperation(Token::Value::ADD, reg)
       .JumpIfFalse(&near4)
       .Bind(&near0)
       .Bind(&near1)
@@ -426,13 +425,13 @@ TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
       .Bind(&near3)
       .Bind(&near4)
       .Jump(&far0)
-      .CompareOperation(Token::Value::EQ, reg, Strength::WEAK)
+      .CompareOperation(Token::Value::EQ, reg)
       .JumpIfTrue(&far1)
-      .CompareOperation(Token::Value::EQ, reg, Strength::WEAK)
+      .CompareOperation(Token::Value::EQ, reg)
       .JumpIfFalse(&far2)
-      .BinaryOperation(Token::Value::ADD, reg, Strength::WEAK)
+      .BinaryOperation(Token::Value::ADD, reg)
       .JumpIfTrue(&far3)
-      .BinaryOperation(Token::Value::ADD, reg, Strength::WEAK)
+      .BinaryOperation(Token::Value::ADD, reg)
       .JumpIfFalse(&far4);
   for (int i = 0; i < kFarJumpDistance - 18; i++) {
     builder.LoadUndefined();
@@ -525,28 +524,24 @@ TEST_F(BytecodeArrayBuilderTest, BackwardJumps) {
   builder.Bind(&label0)
       .Jump(&label0)
       .Bind(&label1)
-      .CompareOperation(Token::Value::EQ, reg, Strength::WEAK)
+      .CompareOperation(Token::Value::EQ, reg)
       .JumpIfTrue(&label1)
       .Bind(&label2)
-      .CompareOperation(Token::Value::EQ, reg, Strength::WEAK)
+      .CompareOperation(Token::Value::EQ, reg)
       .JumpIfFalse(&label2)
       .Bind(&label3)
-      .BinaryOperation(Token::Value::ADD, reg, Strength::WEAK)
+      .BinaryOperation(Token::Value::ADD, reg)
       .JumpIfTrue(&label3)
       .Bind(&label4)
-      .BinaryOperation(Token::Value::ADD, reg, Strength::WEAK)
+      .BinaryOperation(Token::Value::ADD, reg)
       .JumpIfFalse(&label4);
   for (int i = 0; i < 63; i++) {
     builder.Jump(&label4);
   }
-  builder.BinaryOperation(Token::Value::ADD, reg, Strength::WEAK)
-      .JumpIfFalse(&label4);
-  builder.BinaryOperation(Token::Value::ADD, reg, Strength::WEAK)
-      .JumpIfTrue(&label3);
-  builder.CompareOperation(Token::Value::EQ, reg, Strength::WEAK)
-      .JumpIfFalse(&label2);
-  builder.CompareOperation(Token::Value::EQ, reg, Strength::WEAK)
-      .JumpIfTrue(&label1);
+  builder.BinaryOperation(Token::Value::ADD, reg).JumpIfFalse(&label4);
+  builder.BinaryOperation(Token::Value::ADD, reg).JumpIfTrue(&label3);
+  builder.CompareOperation(Token::Value::EQ, reg).JumpIfFalse(&label2);
+  builder.CompareOperation(Token::Value::EQ, reg).JumpIfTrue(&label1);
   builder.Jump(&label0);
   builder.Return();
 

@@ -3732,9 +3732,8 @@ class HConstant final : public HTemplateInstruction<0> {
 class HBinaryOperation : public HTemplateInstruction<3> {
  public:
   HBinaryOperation(HValue* context, HValue* left, HValue* right,
-                   Strength strength, HType type = HType::Tagged())
+                   HType type = HType::Tagged())
       : HTemplateInstruction<3>(type),
-        strength_(strength),
         observed_output_representation_(Representation::None()) {
     DCHECK(left != NULL && right != NULL);
     SetOperandAt(0, context);
@@ -3747,7 +3746,6 @@ class HBinaryOperation : public HTemplateInstruction<3> {
   HValue* context() const { return OperandAt(0); }
   HValue* left() const { return OperandAt(1); }
   HValue* right() const { return OperandAt(2); }
-  Strength strength() const { return strength_; }
 
   // True if switching left and right operands likely generates better code.
   bool AreOperandsBetterSwitched() {
@@ -3823,13 +3821,10 @@ class HBinaryOperation : public HTemplateInstruction<3> {
     return base::bits::IsPowerOfTwo32(static_cast<uint32_t>(value));
   }
 
-  Strength strength() { return strength_; }
-
   DECLARE_ABSTRACT_INSTRUCTION(BinaryOperation)
 
  private:
   bool IgnoreObservedOutputRepresentation(Representation current_rep);
-  Strength strength_;
 
   Representation observed_input_representation_[2];
   Representation observed_output_representation_;
@@ -4099,11 +4094,10 @@ class HBoundsCheckBaseIndexInformation final : public HTemplateInstruction<2> {
 class HBitwiseBinaryOperation : public HBinaryOperation {
  public:
   HBitwiseBinaryOperation(HValue* context, HValue* left, HValue* right,
-                          Strength strength, HType type = HType::TaggedNumber())
-      : HBinaryOperation(context, left, right, strength, type) {
+                          HType type = HType::TaggedNumber())
+      : HBinaryOperation(context, left, right, type) {
     SetFlag(kFlexibleRepresentation);
     SetFlag(kTruncatingToInt32);
-    if (!is_strong(strength)) SetFlag(kAllowUndefinedAsNaN);
     SetAllSideEffects();
   }
 
@@ -4158,7 +4152,7 @@ class HMathFloorOfDiv final : public HBinaryOperation {
 
  private:
   HMathFloorOfDiv(HValue* context, HValue* left, HValue* right)
-      : HBinaryOperation(context, left, right, Strength::WEAK) {
+      : HBinaryOperation(context, left, right) {
     set_representation(Representation::Integer32());
     SetFlag(kUseGVN);
     SetFlag(kCanOverflow);
@@ -4177,13 +4171,11 @@ class HMathFloorOfDiv final : public HBinaryOperation {
 
 class HArithmeticBinaryOperation : public HBinaryOperation {
  public:
-  HArithmeticBinaryOperation(HValue* context, HValue* left, HValue* right,
-                             Strength strength)
-      : HBinaryOperation(context, left, right, strength,
-                         HType::TaggedNumber()) {
+  HArithmeticBinaryOperation(HValue* context, HValue* left, HValue* right)
+      : HBinaryOperation(context, left, right, HType::TaggedNumber()) {
     SetAllSideEffects();
     SetFlag(kFlexibleRepresentation);
-    if (!is_strong(strength)) SetFlag(kAllowUndefinedAsNaN);
+    SetFlag(kAllowUndefinedAsNaN);
   }
 
   void RepresentationChanged(Representation to) override {
@@ -4208,9 +4200,8 @@ class HArithmeticBinaryOperation : public HBinaryOperation {
 class HCompareGeneric final : public HBinaryOperation {
  public:
   static HCompareGeneric* New(Isolate* isolate, Zone* zone, HValue* context,
-                              HValue* left, HValue* right, Token::Value token,
-                              Strength strength = Strength::WEAK) {
-    return new (zone) HCompareGeneric(context, left, right, token, strength);
+                              HValue* left, HValue* right, Token::Value token) {
+    return new (zone) HCompareGeneric(context, left, right, token);
   }
 
   Representation RequiredInputRepresentation(int index) override {
@@ -4226,8 +4217,8 @@ class HCompareGeneric final : public HBinaryOperation {
 
  private:
   HCompareGeneric(HValue* context, HValue* left, HValue* right,
-                  Token::Value token, Strength strength)
-      : HBinaryOperation(context, left, right, strength, HType::Boolean()),
+                  Token::Value token)
+      : HBinaryOperation(context, left, right, HType::Boolean()),
         token_(token) {
     DCHECK(Token::IsCompareOp(token));
     set_representation(Representation::Tagged());
@@ -4244,17 +4235,9 @@ class HCompareNumericAndBranch : public HTemplateControlInstruction<2, 2> {
                                        HValue* context, HValue* left,
                                        HValue* right, Token::Value token,
                                        HBasicBlock* true_target = NULL,
-                                       HBasicBlock* false_target = NULL,
-                                       Strength strength = Strength::WEAK) {
-    return new (zone) HCompareNumericAndBranch(left, right, token, true_target,
-                                               false_target, strength);
-  }
-  static HCompareNumericAndBranch* New(Isolate* isolate, Zone* zone,
-                                       HValue* context, HValue* left,
-                                       HValue* right, Token::Value token,
-                                       Strength strength) {
+                                       HBasicBlock* false_target = NULL) {
     return new (zone)
-        HCompareNumericAndBranch(left, right, token, NULL, NULL, strength);
+        HCompareNumericAndBranch(left, right, token, true_target, false_target);
   }
 
   HValue* left() const { return OperandAt(0); }
@@ -4278,8 +4261,6 @@ class HCompareNumericAndBranch : public HTemplateControlInstruction<2, 2> {
 
   bool KnownSuccessorBlock(HBasicBlock** block) override;
 
-  Strength strength() const { return strength_; }
-
   std::ostream& PrintDataTo(std::ostream& os) const override;  // NOLINT
 
   void SetOperandPositions(Zone* zone, SourcePosition left_pos,
@@ -4292,9 +4273,8 @@ class HCompareNumericAndBranch : public HTemplateControlInstruction<2, 2> {
 
  private:
   HCompareNumericAndBranch(HValue* left, HValue* right, Token::Value token,
-                           HBasicBlock* true_target, HBasicBlock* false_target,
-                           Strength strength)
-      : token_(token), strength_(strength) {
+                           HBasicBlock* true_target, HBasicBlock* false_target)
+      : token_(token) {
     SetFlag(kFlexibleRepresentation);
     DCHECK(Token::IsCompareOp(token));
     SetOperandAt(0, left);
@@ -4305,7 +4285,6 @@ class HCompareNumericAndBranch : public HTemplateControlInstruction<2, 2> {
 
   Representation observed_input_representation_[2];
   Token::Value token_;
-  Strength strength_;
 };
 
 
@@ -4637,8 +4616,7 @@ class HInstanceOf final : public HBinaryOperation {
 
  private:
   HInstanceOf(HValue* context, HValue* left, HValue* right)
-      : HBinaryOperation(context, left, right, Strength::WEAK,
-                         HType::Boolean()) {
+      : HBinaryOperation(context, left, right, HType::Boolean()) {
     set_representation(Representation::Tagged());
     SetAllSideEffects();
   }
@@ -4721,10 +4699,9 @@ enum ExternalAddType {
 class HAdd final : public HArithmeticBinaryOperation {
  public:
   static HInstruction* New(Isolate* isolate, Zone* zone, HValue* context,
-                           HValue* left, HValue* right,
-                           Strength strength = Strength::WEAK);
+                           HValue* left, HValue* right);
   static HInstruction* New(Isolate* isolate, Zone* zone, HValue* context,
-                           HValue* left, HValue* right, Strength strength,
+                           HValue* left, HValue* right,
                            ExternalAddType external_add_type);
 
   // Add is only commutative if two integer values are added and not if two
@@ -4786,9 +4763,9 @@ class HAdd final : public HArithmeticBinaryOperation {
   Range* InferRange(Zone* zone) override;
 
  private:
-  HAdd(HValue* context, HValue* left, HValue* right, Strength strength,
+  HAdd(HValue* context, HValue* left, HValue* right,
        ExternalAddType external_add_type = NoExternalAdd)
-      : HArithmeticBinaryOperation(context, left, right, strength),
+      : HArithmeticBinaryOperation(context, left, right),
         external_add_type_(external_add_type) {
     SetFlag(kCanOverflow);
     switch (external_add_type_) {
@@ -4823,8 +4800,7 @@ class HAdd final : public HArithmeticBinaryOperation {
 class HSub final : public HArithmeticBinaryOperation {
  public:
   static HInstruction* New(Isolate* isolate, Zone* zone, HValue* context,
-                           HValue* left, HValue* right,
-                           Strength strength = Strength::WEAK);
+                           HValue* left, HValue* right);
 
   HValue* Canonicalize() override;
 
@@ -4845,8 +4821,8 @@ class HSub final : public HArithmeticBinaryOperation {
   Range* InferRange(Zone* zone) override;
 
  private:
-  HSub(HValue* context, HValue* left, HValue* right, Strength strength)
-      : HArithmeticBinaryOperation(context, left, right, strength) {
+  HSub(HValue* context, HValue* left, HValue* right)
+      : HArithmeticBinaryOperation(context, left, right) {
     SetFlag(kCanOverflow);
   }
 };
@@ -4855,14 +4831,11 @@ class HSub final : public HArithmeticBinaryOperation {
 class HMul final : public HArithmeticBinaryOperation {
  public:
   static HInstruction* New(Isolate* isolate, Zone* zone, HValue* context,
-                           HValue* left, HValue* right,
-                           Strength strength = Strength::WEAK);
+                           HValue* left, HValue* right);
 
   static HInstruction* NewImul(Isolate* isolate, Zone* zone, HValue* context,
-                               HValue* left, HValue* right,
-                               Strength strength = Strength::WEAK) {
-    HInstruction* instr =
-        HMul::New(isolate, zone, context, left, right, strength);
+                               HValue* left, HValue* right) {
+    HInstruction* instr = HMul::New(isolate, zone, context, left, right);
     if (!instr->IsMul()) return instr;
     HMul* mul = HMul::cast(instr);
     // TODO(mstarzinger): Prevent bailout on minus zero for imul.
@@ -4892,8 +4865,8 @@ class HMul final : public HArithmeticBinaryOperation {
   Range* InferRange(Zone* zone) override;
 
  private:
-  HMul(HValue* context, HValue* left, HValue* right, Strength strength)
-      : HArithmeticBinaryOperation(context, left, right, strength) {
+  HMul(HValue* context, HValue* left, HValue* right)
+      : HArithmeticBinaryOperation(context, left, right) {
     SetFlag(kCanOverflow);
   }
 };
@@ -4902,8 +4875,7 @@ class HMul final : public HArithmeticBinaryOperation {
 class HMod final : public HArithmeticBinaryOperation {
  public:
   static HInstruction* New(Isolate* isolate, Zone* zone, HValue* context,
-                           HValue* left, HValue* right,
-                           Strength strength = Strength::WEAK);
+                           HValue* left, HValue* right);
 
   HValue* Canonicalize() override;
 
@@ -4922,8 +4894,8 @@ class HMod final : public HArithmeticBinaryOperation {
   Range* InferRange(Zone* zone) override;
 
  private:
-  HMod(HValue* context, HValue* left, HValue* right, Strength strength)
-      : HArithmeticBinaryOperation(context, left, right, strength) {
+  HMod(HValue* context, HValue* left, HValue* right)
+      : HArithmeticBinaryOperation(context, left, right) {
     SetFlag(kCanBeDivByZero);
     SetFlag(kCanOverflow);
     SetFlag(kLeftCanBeNegative);
@@ -4934,8 +4906,7 @@ class HMod final : public HArithmeticBinaryOperation {
 class HDiv final : public HArithmeticBinaryOperation {
  public:
   static HInstruction* New(Isolate* isolate, Zone* zone, HValue* context,
-                           HValue* left, HValue* right,
-                           Strength strength = Strength::WEAK);
+                           HValue* left, HValue* right);
 
   HValue* Canonicalize() override;
 
@@ -4954,8 +4925,8 @@ class HDiv final : public HArithmeticBinaryOperation {
   Range* InferRange(Zone* zone) override;
 
  private:
-  HDiv(HValue* context, HValue* left, HValue* right, Strength strength)
-      : HArithmeticBinaryOperation(context, left, right, strength) {
+  HDiv(HValue* context, HValue* left, HValue* right)
+      : HArithmeticBinaryOperation(context, left, right) {
     SetFlag(kCanBeDivByZero);
     SetFlag(kCanOverflow);
   }
@@ -5001,8 +4972,7 @@ class HMathMinMax final : public HArithmeticBinaryOperation {
 
  private:
   HMathMinMax(HValue* context, HValue* left, HValue* right, Operation op)
-      : HArithmeticBinaryOperation(context, left, right, Strength::WEAK),
-        operation_(op) {}
+      : HArithmeticBinaryOperation(context, left, right), operation_(op) {}
 
   Operation operation_;
 };
@@ -5011,8 +4981,7 @@ class HMathMinMax final : public HArithmeticBinaryOperation {
 class HBitwise final : public HBitwiseBinaryOperation {
  public:
   static HInstruction* New(Isolate* isolate, Zone* zone, HValue* context,
-                           Token::Value op, HValue* left, HValue* right,
-                           Strength strength = Strength::WEAK);
+                           Token::Value op, HValue* left, HValue* right);
 
   Token::Value op() const { return op_; }
 
@@ -5032,9 +5001,8 @@ class HBitwise final : public HBitwiseBinaryOperation {
   Range* InferRange(Zone* zone) override;
 
  private:
-  HBitwise(HValue* context, Token::Value op, HValue* left, HValue* right,
-           Strength strength)
-      : HBitwiseBinaryOperation(context, left, right, strength), op_(op) {
+  HBitwise(HValue* context, Token::Value op, HValue* left, HValue* right)
+      : HBitwiseBinaryOperation(context, left, right), op_(op) {
     DCHECK(op == Token::BIT_AND || op == Token::BIT_OR || op == Token::BIT_XOR);
     // BIT_AND with a smi-range positive value will always unset the
     // entire sign-extension of the smi-sign.
@@ -5068,8 +5036,7 @@ class HBitwise final : public HBitwiseBinaryOperation {
 class HShl final : public HBitwiseBinaryOperation {
  public:
   static HInstruction* New(Isolate* isolate, Zone* zone, HValue* context,
-                           HValue* left, HValue* right,
-                           Strength strength = Strength::WEAK);
+                           HValue* left, HValue* right);
 
   Range* InferRange(Zone* zone) override;
 
@@ -5090,16 +5057,15 @@ class HShl final : public HBitwiseBinaryOperation {
   bool DataEquals(HValue* other) override { return true; }
 
  private:
-  HShl(HValue* context, HValue* left, HValue* right, Strength strength)
-      : HBitwiseBinaryOperation(context, left, right, strength) {}
+  HShl(HValue* context, HValue* left, HValue* right)
+      : HBitwiseBinaryOperation(context, left, right) {}
 };
 
 
 class HShr final : public HBitwiseBinaryOperation {
  public:
   static HInstruction* New(Isolate* isolate, Zone* zone, HValue* context,
-                           HValue* left, HValue* right,
-                           Strength strength = Strength::WEAK);
+                           HValue* left, HValue* right);
 
   bool TryDecompose(DecompositionResult* decomposition) override {
     if (right()->IsInteger32Constant()) {
@@ -5128,16 +5094,15 @@ class HShr final : public HBitwiseBinaryOperation {
   bool DataEquals(HValue* other) override { return true; }
 
  private:
-  HShr(HValue* context, HValue* left, HValue* right, Strength strength)
-      : HBitwiseBinaryOperation(context, left, right, strength) {}
+  HShr(HValue* context, HValue* left, HValue* right)
+      : HBitwiseBinaryOperation(context, left, right) {}
 };
 
 
 class HSar final : public HBitwiseBinaryOperation {
  public:
   static HInstruction* New(Isolate* isolate, Zone* zone, HValue* context,
-                           HValue* left, HValue* right,
-                           Strength strength = Strength::WEAK);
+                           HValue* left, HValue* right);
 
   bool TryDecompose(DecompositionResult* decomposition) override {
     if (right()->IsInteger32Constant()) {
@@ -5166,17 +5131,16 @@ class HSar final : public HBitwiseBinaryOperation {
   bool DataEquals(HValue* other) override { return true; }
 
  private:
-  HSar(HValue* context, HValue* left, HValue* right, Strength strength)
-      : HBitwiseBinaryOperation(context, left, right, strength) {}
+  HSar(HValue* context, HValue* left, HValue* right)
+      : HBitwiseBinaryOperation(context, left, right) {}
 };
 
 
 class HRor final : public HBitwiseBinaryOperation {
  public:
   static HInstruction* New(Isolate* isolate, Zone* zone, HValue* context,
-                           HValue* left, HValue* right,
-                           Strength strength = Strength::WEAK) {
-    return new (zone) HRor(context, left, right, strength);
+                           HValue* left, HValue* right) {
+    return new (zone) HRor(context, left, right);
   }
 
   void UpdateRepresentation(Representation new_rep,
@@ -5192,8 +5156,8 @@ class HRor final : public HBitwiseBinaryOperation {
   bool DataEquals(HValue* other) override { return true; }
 
  private:
-  HRor(HValue* context, HValue* left, HValue* right, Strength strength)
-      : HBitwiseBinaryOperation(context, left, right, strength) {
+  HRor(HValue* context, HValue* left, HValue* right)
+      : HBitwiseBinaryOperation(context, left, right) {
     ChangeRepresentation(Representation::Integer32());
   }
 };
@@ -7258,7 +7222,7 @@ class HStringAdd final : public HBinaryOperation {
   HStringAdd(HValue* context, HValue* left, HValue* right,
              PretenureFlag pretenure_flag, StringAddFlags flags,
              Handle<AllocationSite> allocation_site)
-      : HBinaryOperation(context, left, right, Strength::WEAK, HType::String()),
+      : HBinaryOperation(context, left, right, HType::String()),
         flags_(flags),
         pretenure_flag_(pretenure_flag) {
     set_representation(Representation::Tagged());

@@ -178,8 +178,7 @@ class BytecodeGenerator::ControlScope::DeferredCommands final {
     for (size_t i = 0; i < deferred_.size(); ++i) {
       Entry& entry = deferred_[i];
       builder()->LoadLiteral(Smi::FromInt(entry.token));
-      builder()->CompareOperation(Token::EQ_STRICT, token_register_,
-                                  Strength::WEAK);
+      builder()->CompareOperation(Token::EQ_STRICT, token_register_);
       dispatch.Case(static_cast<int>(i));
     }
     dispatch.DefaultAt(static_cast<int>(deferred_.size()));
@@ -935,8 +934,7 @@ void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
 
     // Perform label comparison as if via '===' with tag.
     VisitForAccumulatorValue(clause->label());
-    builder()->CompareOperation(Token::Value::EQ_STRICT, tag,
-                                language_mode_strength());
+    builder()->CompareOperation(Token::Value::EQ_STRICT, tag);
     switch_builder.Case(i);
   }
 
@@ -1433,7 +1431,7 @@ void BytecodeGenerator::VisitClassLiteralStaticPrototypeWithComputedName(
   BytecodeLabel done;
   builder()
       ->LoadLiteral(isolate()->factory()->prototype_string())
-      .CompareOperation(Token::Value::EQ_STRICT, key, Strength::WEAK)
+      .CompareOperation(Token::Value::EQ_STRICT, key)
       .JumpIfFalse(&done)
       .CallRuntime(Runtime::kThrowStaticPrototypeError, Register(0), 0)
       .Bind(&done);
@@ -2199,8 +2197,7 @@ void BytecodeGenerator::VisitAssignment(Assignment* expr) {
       }
     }
     VisitForAccumulatorValue(expr->value());
-    builder()->BinaryOperation(expr->binary_op(), old_value,
-                               language_mode_strength());
+    builder()->BinaryOperation(expr->binary_op(), old_value);
   } else {
     VisitForAccumulatorValue(expr->value());
   }
@@ -2726,7 +2723,7 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
   }
 
   // Perform +1/-1 operation.
-  builder()->CountOperation(expr->binary_op(), language_mode_strength());
+  builder()->CountOperation(expr->binary_op());
 
   // Store the value.
   FeedbackVectorSlot feedback_slot = expr->CountSlot();
@@ -2786,7 +2783,7 @@ void BytecodeGenerator::VisitBinaryOperation(BinaryOperation* binop) {
 void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
   Register lhs = VisitForRegisterValue(expr->left());
   VisitForAccumulatorValue(expr->right());
-  builder()->CompareOperation(expr->op(), lhs, language_mode_strength());
+  builder()->CompareOperation(expr->op(), lhs);
   execution_result()->SetResultInAccumulator();
 }
 
@@ -2794,7 +2791,7 @@ void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
 void BytecodeGenerator::VisitArithmeticExpression(BinaryOperation* expr) {
   Register lhs = VisitForRegisterValue(expr->left());
   VisitForAccumulatorValue(expr->right());
-  builder()->BinaryOperation(expr->op(), lhs, language_mode_strength());
+  builder()->BinaryOperation(expr->op(), lhs);
   execution_result()->SetResultInAccumulator();
 }
 
@@ -3118,11 +3115,6 @@ void BytecodeGenerator::VisitInScope(Statement* stmt, Scope* scope) {
 
 LanguageMode BytecodeGenerator::language_mode() const {
   return info()->language_mode();
-}
-
-
-Strength BytecodeGenerator::language_mode_strength() const {
-  return strength(language_mode());
 }
 
 
