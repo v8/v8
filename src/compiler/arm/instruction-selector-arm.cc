@@ -733,14 +733,23 @@ void InstructionSelector::VisitWord32Sar(Node* node) {
   Int32BinopMatcher m(node);
   if (CanCover(m.node(), m.left().node()) && m.left().IsWord32Shl()) {
     Int32BinopMatcher mleft(m.left().node());
-    if (mleft.right().Is(16) && m.right().Is(16)) {
-      Emit(kArmSxth, g.DefineAsRegister(node),
-           g.UseRegister(mleft.left().node()), g.TempImmediate(0));
-      return;
-    } else if (mleft.right().Is(24) && m.right().Is(24)) {
-      Emit(kArmSxtb, g.DefineAsRegister(node),
-           g.UseRegister(mleft.left().node()), g.TempImmediate(0));
-      return;
+    if (m.right().HasValue() && mleft.right().HasValue()) {
+      uint32_t sar = m.right().Value();
+      uint32_t shl = mleft.right().Value();
+      if ((sar == shl) && (sar == 16)) {
+        Emit(kArmSxth, g.DefineAsRegister(node),
+             g.UseRegister(mleft.left().node()), g.TempImmediate(0));
+        return;
+      } else if ((sar == shl) && (sar == 24)) {
+        Emit(kArmSxtb, g.DefineAsRegister(node),
+             g.UseRegister(mleft.left().node()), g.TempImmediate(0));
+        return;
+      } else if (IsSupported(ARMv7) && (sar >= shl)) {
+        Emit(kArmSbfx, g.DefineAsRegister(node),
+             g.UseRegister(mleft.left().node()), g.TempImmediate(sar - shl),
+             g.TempImmediate(32 - sar));
+        return;
+      }
     }
   }
   VisitShift(this, node, TryMatchASR);

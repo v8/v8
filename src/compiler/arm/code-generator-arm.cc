@@ -672,6 +672,13 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
+    case kArmSbfx: {
+      CpuFeatureScope scope(masm(), ARMv7);
+      __ sbfx(i.OutputRegister(), i.InputRegister(0), i.InputInt8(1),
+              i.InputInt8(2));
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    }
     case kArmSxtb:
       __ sxtb(i.OutputRegister(), i.InputRegister(0), i.InputInt32(1));
       DCHECK_EQ(LeaveCC, i.OutputSBit());

@@ -36,6 +36,7 @@ namespace compiler {
   V(ArmMvn)                        \
   V(ArmBfc)                        \
   V(ArmUbfx)                       \
+  V(ArmSbfx)                       \
   V(ArmSxtb)                       \
   V(ArmSxth)                       \
   V(ArmSxtab)                      \

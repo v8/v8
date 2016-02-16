@@ -2544,6 +2544,25 @@ TEST_F(InstructionSelectorTest, Uint32ModWithParametersForSUDIVAndMLS) {
 }
 
 
+TEST_F(InstructionSelectorTest, Word32ShlWord32SarForSbfx) {
+  TRACED_FORRANGE(int32_t, shl, 1, 31) {
+    TRACED_FORRANGE(int32_t, sar, shl, 31) {
+      if ((shl == sar) && (sar == 16)) continue;  // Sxth.
+      if ((shl == sar) && (sar == 24)) continue;  // Sxtb.
+      StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
+      m.Return(m.Word32Sar(m.Word32Shl(m.Parameter(0), m.Int32Constant(shl)),
+                           m.Int32Constant(sar)));
+      Stream s = m.Build(ARMv7);
+      ASSERT_EQ(1U, s.size());
+      EXPECT_EQ(kArmSbfx, s[0]->arch_opcode());
+      ASSERT_EQ(3U, s[0]->InputCount());
+      EXPECT_EQ(sar - shl, s.ToInt32(s[0]->InputAt(1)));
+      EXPECT_EQ(32 - sar, s.ToInt32(s[0]->InputAt(2)));
+    }
+  }
+}
+
+
 TEST_F(InstructionSelectorTest, Word32AndWithUbfxImmediateForARMv7) {
   TRACED_FORRANGE(int32_t, width, 9, 23) {
     if (width == 16) continue;  // Uxth.
