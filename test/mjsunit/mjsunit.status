@@ -836,6 +836,10 @@
   # TODO(rmcilroy,4680): Check failed: osr_normal_entry.
   'regress/regress-123919': [FAIL],
 
+  # TODO(rmcilroy,4680): Fails due to debugger loading bytecodearray as an
+  # expression local.
+  'harmony/default-parameters-debug': [FAIL],
+
   # TODO(rmcilroy,4680): Pass on debug, fail on release.
   'compiler/regress-stacktrace-methods': [PASS, FAIL],
 

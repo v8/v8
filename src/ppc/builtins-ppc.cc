@@ -978,12 +978,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ PushFixedFrame(r4);
   __ addi(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
 
-  // Push new.target, dispatch table pointer and zero for bytecode array offset.
-  __ li(r3, Operand::Zero());
-  __ mov(r5, Operand(ExternalReference::interpreter_dispatch_table_address(
-                 masm->isolate())));
-  __ Push(r6, r5, r3);
-
   // Get the bytecode array from the function object and load the pointer to the
   // first entry into kInterpreterBytecodeRegister.
   __ LoadP(r3, FieldMemOperand(r4, JSFunction::kSharedFunctionInfoOffset));
@@ -998,6 +992,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
                          BYTECODE_ARRAY_TYPE);
     __ Assert(eq, kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry);
   }
+
+  // Push new.target, bytecode array and zero for bytecode array offset.
+  __ li(r3, Operand::Zero());
+  __ Push(r6, kInterpreterBytecodeArrayRegister, r3);
 
   // Allocate the local and temporary register file on the stack.
   {
@@ -1040,8 +1038,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
           Operand(InterpreterFrameConstants::kRegisterFilePointerFromFp));
   __ mov(kInterpreterBytecodeOffsetRegister,
          Operand(BytecodeArray::kHeaderSize - kHeapObjectTag));
-  __ LoadP(kInterpreterDispatchTableRegister,
-           MemOperand(fp, InterpreterFrameConstants::kDispatchTableFromFp));
+  __ mov(kInterpreterDispatchTableRegister,
+         Operand(ExternalReference::interpreter_dispatch_table_address(
+             masm->isolate())));
 
   // Dispatch to the first bytecode handler for the function.
   __ lbzx(r4, MemOperand(kInterpreterBytecodeArrayRegister,
@@ -1150,12 +1149,10 @@ static void Generate_EnterBytecodeDispatch(MacroAssembler* masm) {
                       InterpreterFrameConstants::kContextFromRegisterPointer));
 
   // Get the bytecode array pointer from the frame.
-  __ LoadP(r4,
-           MemOperand(kInterpreterRegisterFileRegister,
-                      InterpreterFrameConstants::kFunctionFromRegisterPointer));
-  __ LoadP(r4, FieldMemOperand(r4, JSFunction::kSharedFunctionInfoOffset));
-  __ LoadP(kInterpreterBytecodeArrayRegister,
-           FieldMemOperand(r4, SharedFunctionInfo::kFunctionDataOffset));
+  __ LoadP(
+      kInterpreterBytecodeArrayRegister,
+      MemOperand(kInterpreterRegisterFileRegister,
+                 InterpreterFrameConstants::kBytecodeArrayFromRegisterPointer));
 
   if (FLAG_debug_code) {
     // Check function data field is actually a BytecodeArray object.

@@ -620,13 +620,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ Push(rdi);  // Callee's JS function.
   __ Push(rdx);  // Callee's new target.
 
-  // Push dispatch table pointer.
-  __ Move(rax, ExternalReference::interpreter_dispatch_table_address(
-                   masm->isolate()));
-  __ Push(rax);
-  // Push zero for bytecode array offset.
-  __ Push(Immediate(0));
-
   // Get the bytecode array from the function object and load the pointer to the
   // first entry into edi (InterpreterBytecodeRegister).
   __ movp(rax, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
@@ -640,6 +633,11 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
                      rax);
     __ Assert(equal, kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry);
   }
+
+  // Push bytecode array.
+  __ Push(kInterpreterBytecodeArrayRegister);
+  // Push zero for bytecode array offset.
+  __ Push(Immediate(0));
 
   // Allocate the local and temporary register file on the stack.
   {
@@ -684,8 +682,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
           Immediate(InterpreterFrameConstants::kRegisterFilePointerFromFp));
   __ movp(kInterpreterBytecodeOffsetRegister,
           Immediate(BytecodeArray::kHeaderSize - kHeapObjectTag));
-  __ movp(kInterpreterDispatchTableRegister,
-          Operand(rbp, InterpreterFrameConstants::kDispatchTableFromFp));
+  __ Move(
+      kInterpreterDispatchTableRegister,
+      ExternalReference::interpreter_dispatch_table_address(masm->isolate()));
 
   // Dispatch to the first bytecode handler for the function.
   __ movzxbp(rbx, Operand(kInterpreterBytecodeArrayRegister,
@@ -819,12 +818,10 @@ static void Generate_EnterBytecodeDispatch(MacroAssembler* masm) {
                   InterpreterFrameConstants::kContextFromRegisterPointer));
 
   // Get the bytecode array pointer from the frame.
-  __ movp(rbx,
-          Operand(kInterpreterRegisterFileRegister,
-                  InterpreterFrameConstants::kFunctionFromRegisterPointer));
-  __ movp(rbx, FieldOperand(rbx, JSFunction::kSharedFunctionInfoOffset));
-  __ movp(kInterpreterBytecodeArrayRegister,
-          FieldOperand(rbx, SharedFunctionInfo::kFunctionDataOffset));
+  __ movp(
+      kInterpreterBytecodeArrayRegister,
+      Operand(kInterpreterRegisterFileRegister,
+              InterpreterFrameConstants::kBytecodeArrayFromRegisterPointer));
 
   if (FLAG_debug_code) {
     // Check function data field is actually a BytecodeArray object.

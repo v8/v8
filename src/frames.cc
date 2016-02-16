@@ -1152,22 +1152,25 @@ void InterpretedFrame::PatchBytecodeOffset(int new_offset) {
   SetExpression(index, Smi::FromInt(raw_offset));
 }
 
+Object* InterpretedFrame::GetBytecodeArray() const {
+  const int index = InterpreterFrameConstants::kBytecodeArrayExpressionIndex;
+  DCHECK_EQ(InterpreterFrameConstants::kBytecodeArrayFromFp,
+            StandardFrameConstants::kExpressionsOffset - index * kPointerSize);
+  return GetExpression(index);
+}
+
+void InterpretedFrame::PatchBytecodeArray(Object* bytecode_array) {
+  const int index = InterpreterFrameConstants::kBytecodeArrayExpressionIndex;
+  DCHECK_EQ(InterpreterFrameConstants::kBytecodeArrayFromFp,
+            StandardFrameConstants::kExpressionsOffset - index * kPointerSize);
+  SetExpression(index, bytecode_array);
+}
+
 Object* InterpretedFrame::GetInterpreterRegister(int register_index) const {
   const int index = InterpreterFrameConstants::kRegisterFileExpressionIndex;
   DCHECK_EQ(InterpreterFrameConstants::kRegisterFilePointerFromFp,
             StandardFrameConstants::kExpressionsOffset - index * kPointerSize);
   return GetExpression(index + register_index);
-}
-
-Address InterpretedFrame::GetDispatchTable() const {
-  return Memory::Address_at(
-      fp() + InterpreterFrameConstants::kDispatchTableFromFp);
-}
-
-void InterpretedFrame::PatchDispatchTable(Address dispatch_table) {
-  Address* dispatch_table_address = reinterpret_cast<Address*>(
-      fp() + InterpreterFrameConstants::kDispatchTableFromFp);
-  *dispatch_table_address = dispatch_table;
 }
 
 void InterpretedFrame::Summarize(List<FrameSummary>* functions) {
@@ -1418,23 +1421,6 @@ void StandardFrame::IterateExpressions(ObjectVisitor* v) const {
 
 void JavaScriptFrame::Iterate(ObjectVisitor* v) const {
   IterateExpressions(v);
-  IteratePc(v, pc_address(), constant_pool_address(), LookupCode());
-}
-
-void InterpretedFrame::Iterate(ObjectVisitor* v) const {
-  // Visit tagged pointers in the fixed frame.
-  Object** fixed_frame_base =
-      &Memory::Object_at(fp() + InterpreterFrameConstants::kNewTargetFromFp);
-  Object** fixed_frame_limit =
-      &Memory::Object_at(fp() + StandardFrameConstants::kLastObjectOffset) + 1;
-  v->VisitPointers(fixed_frame_base, fixed_frame_limit);
-
-  // Visit the expressions.
-  Object** expression_base = &Memory::Object_at(sp());
-  Object** expression_limit = &Memory::Object_at(
-      fp() + InterpreterFrameConstants::kBytecodeOffsetFromFp) + 1;
-  v->VisitPointers(expression_base, expression_limit);
-
   IteratePc(v, pc_address(), constant_pool_address(), LookupCode());
 }
 

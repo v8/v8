@@ -1254,12 +1254,12 @@ void Deoptimizer::DoComputeInterpretedFrame(int frame_index,
   Object* new_target = isolate_->heap()->undefined_value();
   WriteValueToOutput(new_target, 0, frame_index, output_offset, "new_target  ");
 
-  // Set the dispatch table pointer.
+  // Set the bytecode array pointer.
   output_offset -= kPointerSize;
   input_offset -= kPointerSize;
-  Address dispatch_table = isolate()->interpreter()->dispatch_table_address();
-  WriteValueToOutput(reinterpret_cast<Object*>(dispatch_table), 0, frame_index,
-                     output_offset, "dispatch_table ");
+  Object* bytecode_array = shared->bytecode_array();
+  WriteValueToOutput(bytecode_array, 0, frame_index, output_offset,
+                     "bytecode array ");
 
   // The bytecode offset was mentioned explicitly in the BEGIN_FRAME.
   output_offset -= kPointerSize;

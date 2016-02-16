@@ -185,7 +185,7 @@ class InterpreterFrameConstants : public AllStatic {
   // FP-relative.
   static const int kNewTargetFromFp =
       -StandardFrameConstants::kFixedFrameSizeFromFp - 1 * kPointerSize;
-  static const int kDispatchTableFromFp =
+  static const int kBytecodeArrayFromFp =
       -StandardFrameConstants::kFixedFrameSizeFromFp - 2 * kPointerSize;
   static const int kBytecodeOffsetFromFp =
       -StandardFrameConstants::kFixedFrameSizeFromFp - 3 * kPointerSize;
@@ -193,6 +193,7 @@ class InterpreterFrameConstants : public AllStatic {
       -StandardFrameConstants::kFixedFrameSizeFromFp - 4 * kPointerSize;
 
   // Expression index for {StandardFrame::GetExpressionAddress}.
+  static const int kBytecodeArrayExpressionIndex = 1;
   static const int kBytecodeOffsetExpressionIndex = 2;
   static const int kRegisterFileExpressionIndex = 3;
 
@@ -201,7 +202,7 @@ class InterpreterFrameConstants : public AllStatic {
       StandardFrameConstants::kFixedFrameSize + 4 * kPointerSize;
 
   static const int kBytecodeOffsetFromRegisterPointer = 1 * kPointerSize;
-  static const int kDispatchTableFromRegisterPointer = 2 * kPointerSize;
+  static const int kBytecodeArrayFromRegisterPointer = 2 * kPointerSize;
   static const int kNewTargetFromRegisterPointer = 3 * kPointerSize;
   static const int kFunctionFromRegisterPointer = 4 * kPointerSize;
   static const int kContextFromRegisterPointer = 5 * kPointerSize;
@@ -728,9 +729,6 @@ class InterpretedFrame : public JavaScriptFrame {
  public:
   Type type() const override { return INTERPRETED; }
 
-  // GC support.
-  void Iterate(ObjectVisitor* v) const override;
-
   // Lookup exception handler for current {pc}, returns -1 if none found.
   int LookupExceptionHandlerInTable(
       int* data, HandlerTable::CatchPrediction* prediction) override;
@@ -742,12 +740,12 @@ class InterpretedFrame : public JavaScriptFrame {
   // unwinding to continue execution at a different bytecode offset.
   void PatchBytecodeOffset(int new_offset);
 
-  // Returns the current dispatch table pointer.
-  Address GetDispatchTable() const;
+  // Returns the frame's current bytecode array.
+  Object* GetBytecodeArray() const;
 
-  // Updates the current dispatch table pointer with |dispatch_table|. Used by
-  // the debugger to swap execution onto the debugger dispatch table.
-  void PatchDispatchTable(Address dispatch_table);
+  // Updates the frame's BytecodeArray with |bytecode_array|. Used by the
+  // debugger to swap execution onto a BytecodeArray patched with breakpoints.
+  void PatchBytecodeArray(Object* bytecode_array);
 
   // Access to the interpreter register file for this frame.
   Object* GetInterpreterRegister(int register_index) const;

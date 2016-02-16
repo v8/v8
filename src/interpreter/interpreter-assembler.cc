@@ -28,14 +28,14 @@ InterpreterAssembler::InterpreterAssembler(Isolate* isolate, Zone* zone,
       bytecode_(bytecode),
       accumulator_(this, MachineRepresentation::kTagged),
       context_(this, MachineRepresentation::kTagged),
-      dispatch_table_(this, MachineType::PointerRepresentation()),
+      bytecode_array_(this, MachineRepresentation::kTagged),
       disable_stack_check_across_call_(false),
       stack_pointer_before_call_(nullptr) {
   accumulator_.Bind(
       Parameter(InterpreterDispatchDescriptor::kAccumulatorParameter));
   context_.Bind(Parameter(InterpreterDispatchDescriptor::kContextParameter));
-  dispatch_table_.Bind(
-      Parameter(InterpreterDispatchDescriptor::kDispatchTableParameter));
+  bytecode_array_.Bind(
+      Parameter(InterpreterDispatchDescriptor::kBytecodeArrayParameter));
   if (FLAG_trace_ignition) {
     TraceBytecode(Runtime::kInterpreterTraceBytecodeEntry);
   }
@@ -65,11 +65,11 @@ Node* InterpreterAssembler::RegisterFileRawPointer() {
 }
 
 Node* InterpreterAssembler::BytecodeArrayTaggedPointer() {
-  return Parameter(InterpreterDispatchDescriptor::kBytecodeArrayParameter);
+  return bytecode_array_.value();
 }
 
 Node* InterpreterAssembler::DispatchTableRawPointer() {
-  return dispatch_table_.value();
+  return Parameter(InterpreterDispatchDescriptor::kDispatchTableParameter);
 }
 
 Node* InterpreterAssembler::RegisterLocation(Node* reg_index) {
@@ -310,8 +310,8 @@ Node* InterpreterAssembler::LoadTypeFeedbackVector() {
 void InterpreterAssembler::CallPrologue() {
   StoreRegister(SmiTag(BytecodeOffset()),
                 InterpreterFrameConstants::kBytecodeOffsetFromRegisterPointer);
-  StoreRegister(DispatchTableRawPointer(),
-                InterpreterFrameConstants::kDispatchTableFromRegisterPointer);
+  StoreRegister(BytecodeArrayTaggedPointer(),
+                InterpreterFrameConstants::kBytecodeArrayFromRegisterPointer);
 
   if (FLAG_debug_code && !disable_stack_check_across_call_) {
     DCHECK(stack_pointer_before_call_ == nullptr);
@@ -328,10 +328,10 @@ void InterpreterAssembler::CallEpilogue() {
                         kUnexpectedStackPointer);
   }
 
-  // Restore dispatch table from stack frame in case the debugger has swapped us
-  // to the debugger dispatch table.
-  dispatch_table_.Bind(LoadRegister(
-      InterpreterFrameConstants::kDispatchTableFromRegisterPointer));
+  // Restore bytecode array from stack frame in case the debugger has swapped us
+  // to the patched debugger bytecode array.
+  bytecode_array_.Bind(LoadRegister(
+      InterpreterFrameConstants::kBytecodeArrayFromRegisterPointer));
 }
 
 Node* InterpreterAssembler::CallJS(Node* function, Node* context,
