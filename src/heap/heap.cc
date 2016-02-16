@@ -2646,7 +2646,7 @@ void Heap::CreateInitialObjects() {
   set_arguments_marker(
       *factory->NewOddball(factory->arguments_marker_map(), "arguments_marker",
                            handle(Smi::FromInt(-4), isolate()), "undefined",
-                           Oddball::kArgumentMarker));
+                           Oddball::kArgumentsMarker));
 
   set_no_interceptor_result_sentinel(*factory->NewOddball(
       factory->no_interceptor_result_sentinel_map(),

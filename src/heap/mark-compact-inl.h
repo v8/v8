@@ -94,7 +94,7 @@ void MarkCompactCollector::ForceRecordSlot(HeapObject* object, Object** slot,
 
 
 void CodeFlusher::AddCandidate(SharedFunctionInfo* shared_info) {
-  if (GetNextCandidate(shared_info) == NULL) {
+  if (GetNextCandidate(shared_info) == nullptr) {
     SetNextCandidate(shared_info, shared_function_info_candidates_head_);
     shared_function_info_candidates_head_ = shared_info;
   }
@@ -103,7 +103,7 @@ void CodeFlusher::AddCandidate(SharedFunctionInfo* shared_info) {
 
 void CodeFlusher::AddCandidate(JSFunction* function) {
   DCHECK(function->code() == function->shared()->code());
-  if (GetNextCandidate(function)->IsUndefined()) {
+  if (function->next_function_link()->IsUndefined()) {
     SetNextCandidate(function, jsfunction_candidates_head_);
     jsfunction_candidates_head_ = function;
   }

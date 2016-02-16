@@ -868,10 +868,11 @@ template <class C> inline bool Is(Object* obj);
 #define DECLARE_PRINTER(Name)
 #endif
 
-
 #define OBJECT_TYPE_LIST(V) \
   V(Smi)                    \
+  V(LayoutDescriptor)       \
   V(HeapObject)             \
+  V(Primitive)              \
   V(Number)
 
 #define HEAP_OBJECT_TYPE_LIST(V)   \
@@ -920,7 +921,6 @@ template <class C> inline bool Is(Object* obj);
   V(JSContextExtensionObject)      \
   V(JSGeneratorObject)             \
   V(JSModule)                      \
-  V(LayoutDescriptor)              \
   V(Map)                           \
   V(DescriptorArray)               \
   V(TransitionArray)               \
@@ -973,17 +973,34 @@ template <class C> inline bool Is(Object* obj);
   V(CodeCacheHashTable)            \
   V(PolymorphicCodeCacheHashTable) \
   V(MapCache)                      \
-  V(Primitive)                     \
   V(JSGlobalObject)                \
   V(JSGlobalProxy)                 \
   V(UndetectableObject)            \
   V(AccessCheckNeeded)             \
+  V(Callable)                      \
+  V(Function)                      \
+  V(Constructor)                   \
+  V(TemplateInfo)                  \
+  V(Filler)                        \
+  V(FixedArrayBase)                \
+  V(External)                      \
+  V(Struct)                        \
   V(Cell)                          \
   V(PropertyCell)                  \
   V(WeakCell)                      \
   V(ObjectHashTable)               \
   V(WeakHashTable)                 \
   V(OrderedHashTable)
+
+#define ODDBALL_LIST(V) \
+  V(Undefined)          \
+  V(Null)               \
+  V(TheHole)            \
+  V(Exception)          \
+  V(Uninitialized)      \
+  V(True)               \
+  V(False)              \
+  V(ArgumentsMarker)
 
 // The element types selection for CreateListFromArrayLike.
 enum class ElementTypes { kAll, kStringAndSymbol };
@@ -1002,6 +1019,7 @@ class Object {
 #define IS_TYPE_FUNCTION_DECL(type_)  INLINE(bool Is##type_() const);
   OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
   HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
+  ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
 #undef IS_TYPE_FUNCTION_DECL
 
   // A non-keyed store is of the form a.x = foo or a["x"] = foo whereas
@@ -1030,10 +1048,6 @@ class Object {
 
 #define MAYBE_RETURN_NULL(call) MAYBE_RETURN(call, MaybeHandle<Object>())
 
-  INLINE(bool IsFixedArrayBase() const);
-  INLINE(bool IsExternal() const);
-
-  INLINE(bool IsStruct() const);
 #define DECLARE_STRUCT_PREDICATE(NAME, Name, name) \
   INLINE(bool Is##Name() const);
   STRUCT_LIST(DECLARE_STRUCT_PREDICATE)
@@ -1042,16 +1056,6 @@ class Object {
   // ES6, section 7.2.2 IsArray.  NOT to be confused with %_IsArray.
   MUST_USE_RESULT static Maybe<bool> IsArray(Handle<Object> object);
 
-  // Test for JSBoundFunction or JSFunction.
-  INLINE(bool IsFunction() const);
-
-  // ES6, section 7.2.3 IsCallable.
-  INLINE(bool IsCallable() const);
-
-  // ES6, section 7.2.4 IsConstructor.
-  INLINE(bool IsConstructor() const);
-
-  INLINE(bool IsTemplateInfo()) const;
   INLINE(bool IsNameDictionary() const);
   INLINE(bool IsGlobalDictionary() const);
   INLINE(bool IsSeededNumberDictionary() const);
@@ -1059,19 +1063,6 @@ class Object {
   INLINE(bool IsOrderedHashSet() const);
   INLINE(bool IsOrderedHashMap() const);
   static bool IsPromise(Handle<Object> object);
-
-  // Oddball testing.
-  INLINE(bool IsUndefined() const);
-  INLINE(bool IsNull() const);
-  INLINE(bool IsTheHole() const);
-  INLINE(bool IsException() const);
-  INLINE(bool IsUninitialized() const);
-  INLINE(bool IsTrue() const);
-  INLINE(bool IsFalse() const);
-  INLINE(bool IsArgumentsMarker() const);
-
-  // Filler objects (fillers and free space objects).
-  INLINE(bool IsFiller() const);
 
   // Extract the number.
   inline double Number() const;
@@ -1531,6 +1522,15 @@ class HeapObject: public Object {
 
   // Convenience method to get current isolate.
   inline Isolate* GetIsolate() const;
+
+#define IS_TYPE_FUNCTION_DECL(type_) INLINE(bool Is##type_() const);
+  HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
+  ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
+#undef IS_TYPE_FUNCTION_DECL
+#define DECLARE_STRUCT_PREDICATE(NAME, Name, name) \
+  INLINE(bool Is##Name() const);
+  STRUCT_LIST(DECLARE_STRUCT_PREDICATE)
+#undef DECLARE_STRUCT_PREDICATE
 
   // Converts an address to a HeapObject pointer.
   static inline HeapObject* FromAddress(Address address) {
@@ -4381,7 +4381,7 @@ class NormalizedMapCache: public FixedArray {
 
   DECLARE_CAST(NormalizedMapCache)
 
-  static inline bool IsNormalizedMapCache(const Object* obj);
+  static inline bool IsNormalizedMapCache(const HeapObject* obj);
 
   DECLARE_VERIFIER(NormalizedMapCache)
  private:
@@ -9555,7 +9555,7 @@ class Oddball: public HeapObject {
   static const byte kNotBooleanMask = ~1;
   static const byte kTheHole = 2;
   static const byte kNull = 3;
-  static const byte kArgumentMarker = 4;
+  static const byte kArgumentsMarker = 4;
   static const byte kUndefined = 5;
   static const byte kUninitialized = 6;
   static const byte kOther = 7;
