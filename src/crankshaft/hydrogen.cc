@@ -4664,12 +4664,11 @@ void HOptimizedGraphBuilder::SetUpScope(Scope* scope) {
   }
 
   AddInstruction(arguments_object);
-  graph()->SetArgumentsObject(arguments_object);
 
   // Handle the arguments and arguments shadow variables specially (they do
   // not have declarations).
   if (scope->arguments() != NULL) {
-    environment()->Bind(scope->arguments(), graph()->GetArgumentsObject());
+    environment()->Bind(scope->arguments(), arguments_object);
   }
 
   int rest_index;
@@ -7856,7 +7855,7 @@ bool HOptimizedGraphBuilder::TryArgumentsAccess(Property* expr) {
       result = New<HConstant>(argument_count);
     }
   } else {
-    Push(graph()->GetArgumentsObject());
+    CHECK_ALIVE_OR_RETURN(VisitForValue(expr->obj(), ARGUMENTS_ALLOWED), true);
     CHECK_ALIVE_OR_RETURN(VisitForValue(expr->key()), true);
     HValue* key = Pop();
     Drop(1);  // Arguments object.

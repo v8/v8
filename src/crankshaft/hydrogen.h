@@ -346,13 +346,6 @@ class HGraph final : public ZoneObject {
   bool IsStandardConstant(HConstant* constant);
 
   HBasicBlock* CreateBasicBlock();
-  HArgumentsObject* GetArgumentsObject() const {
-    return arguments_object_.get();
-  }
-
-  void SetArgumentsObject(HArgumentsObject* object) {
-    arguments_object_.set(object);
-  }
 
   int GetMaximumValueID() const { return values_.length(); }
   int GetNextBlockID() { return next_block_id_++; }
@@ -482,7 +475,6 @@ class HGraph final : public ZoneObject {
   SetOncePointer<HConstant> constant_the_hole_;
   SetOncePointer<HConstant> constant_null_;
   SetOncePointer<HConstant> constant_invalid_context_;
-  SetOncePointer<HArgumentsObject> arguments_object_;
 
   HOsrBuilder* osr_;
 
