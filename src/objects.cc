@@ -3164,32 +3164,30 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map,
   // respective prototypes.
   UpdatePrototypeUserRegistration(old_map, new_map, new_map->GetIsolate());
 
-  if (object->HasFastProperties()) {
-    if (!new_map->is_dictionary_map()) {
-      MigrateFastToFast(object, new_map);
-      if (old_map->is_prototype_map()) {
-        DCHECK(!old_map->is_stable());
-        DCHECK(new_map->is_stable());
-        // Clear out the old descriptor array to avoid problems to sharing
-        // the descriptor array without using an explicit.
-        old_map->InitializeDescriptors(
-            old_map->GetHeap()->empty_descriptor_array(),
-            LayoutDescriptor::FastPointerLayout());
-        // Ensure that no transition was inserted for prototype migrations.
-        DCHECK_EQ(0, TransitionArray::NumberOfTransitions(
-                         old_map->raw_transitions()));
-        DCHECK(new_map->GetBackPointer()->IsUndefined());
-      }
-    } else {
-      MigrateFastToSlow(object, new_map, expected_additional_properties);
-    }
-  } else {
+  if (old_map->is_dictionary_map()) {
     // For slow-to-fast migrations JSObject::MigrateSlowToFast()
     // must be used instead.
     CHECK(new_map->is_dictionary_map());
 
     // Slow-to-slow migration is trivial.
     object->set_map(*new_map);
+  } else if (!new_map->is_dictionary_map()) {
+    MigrateFastToFast(object, new_map);
+    if (old_map->is_prototype_map()) {
+      DCHECK(!old_map->is_stable());
+      DCHECK(new_map->is_stable());
+      // Clear out the old descriptor array to avoid problems to sharing
+      // the descriptor array without using an explicit.
+      old_map->InitializeDescriptors(
+          old_map->GetHeap()->empty_descriptor_array(),
+          LayoutDescriptor::FastPointerLayout());
+      // Ensure that no transition was inserted for prototype migrations.
+      DCHECK_EQ(
+          0, TransitionArray::NumberOfTransitions(old_map->raw_transitions()));
+      DCHECK(new_map->GetBackPointer()->IsUndefined());
+    }
+  } else {
+    MigrateFastToSlow(object, new_map, expected_additional_properties);
   }
 
   // Careful: Don't allocate here!
@@ -9930,6 +9928,23 @@ bool DescriptorArray::CanHoldValue(int descriptor, Object* value) {
   return false;
 }
 
+namespace {
+
+Handle<Map> UpdateDescriptorForValue(Handle<Map> map, int descriptor,
+                                     Handle<Object> value) {
+  if (map->instance_descriptors()->CanHoldValue(descriptor, *value)) return map;
+
+  Isolate* isolate = map->GetIsolate();
+  PropertyAttributes attributes =
+      map->instance_descriptors()->GetDetails(descriptor).attributes();
+  Representation representation = value->OptimalRepresentation();
+  Handle<FieldType> type = value->OptimalType(isolate, representation);
+
+  return Map::ReconfigureProperty(map, descriptor, kData, attributes,
+                                  representation, type, FORCE_FIELD);
+}
+
+}  // namespace
 
 // static
 Handle<Map> Map::PrepareForDataProperty(Handle<Map> map, int descriptor,
@@ -9937,21 +9952,8 @@ Handle<Map> Map::PrepareForDataProperty(Handle<Map> map, int descriptor,
   // Dictionaries can store any property value.
   if (map->is_dictionary_map()) return map;
 
-  // Migrate to the newest map before storing the property.
-  map = Update(map);
-
-  Handle<DescriptorArray> descriptors(map->instance_descriptors());
-
-  if (descriptors->CanHoldValue(descriptor, *value)) return map;
-
-  Isolate* isolate = map->GetIsolate();
-  PropertyAttributes attributes =
-      descriptors->GetDetails(descriptor).attributes();
-  Representation representation = value->OptimalRepresentation();
-  Handle<FieldType> type = value->OptimalType(isolate, representation);
-
-  return ReconfigureProperty(map, descriptor, kData, attributes, representation,
-                             type, FORCE_FIELD);
+  // Update to the newest map before storing the property.
+  return UpdateDescriptorForValue(Update(map), descriptor, value);
 }
 
 
@@ -9975,7 +9977,7 @@ Handle<Map> Map::TransitionToDataProperty(Handle<Map> map, Handle<Name> name,
                               ->GetDetails(descriptor)
                               .attributes());
 
-    return Map::PrepareForDataProperty(transition, descriptor, value);
+    return UpdateDescriptorForValue(transition, descriptor, value);
   }
 
   TransitionFlag flag = INSERT_TRANSITION;
