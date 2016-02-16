@@ -728,6 +728,10 @@ Node* WasmGraphBuilder::Unop(wasm::WasmOpcode opcode, Node* input) {
       if (m->Word32Ctz().IsSupported()) {
         op = m->Word32Ctz().op();
         break;
+      } else if (m->Word32ReverseBits().IsSupported()) {
+        Node* reversed = graph()->NewNode(m->Word32ReverseBits().op(), input);
+        Node* result = graph()->NewNode(m->Word32Clz(), reversed);
+        return result;
       } else {
         return BuildI32Ctz(input);
       }
@@ -855,6 +859,10 @@ Node* WasmGraphBuilder::Unop(wasm::WasmOpcode opcode, Node* input) {
       if (m->Word64Ctz().IsSupported()) {
         op = m->Word64Ctz().op();
         break;
+      } else if (m->Word64ReverseBits().IsSupported()) {
+        Node* reversed = graph()->NewNode(m->Word64ReverseBits().op(), input);
+        Node* result = graph()->NewNode(m->Word64Clz(), reversed);
+        return result;
       } else {
         return BuildI64Ctz(input);
       }

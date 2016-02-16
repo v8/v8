@@ -760,6 +760,12 @@ void InstructionSelector::VisitWord32Clz(Node* node) {
 void InstructionSelector::VisitWord32Ctz(Node* node) { UNREACHABLE(); }
 
 
+void InstructionSelector::VisitWord32ReverseBits(Node* node) {
+  DCHECK(IsSupported(ARMv7));
+  VisitRR(this, kArmRbit, node);
+}
+
+
 void InstructionSelector::VisitWord32Popcnt(Node* node) { UNREACHABLE(); }
 
 
@@ -1645,6 +1651,9 @@ InstructionSelector::SupportedMachineOperatorFlags() {
   MachineOperatorBuilder::Flags flags =
       MachineOperatorBuilder::kInt32DivIsSafe |
       MachineOperatorBuilder::kUint32DivIsSafe;
+  if (CpuFeatures::IsSupported(ARMv7)) {
+    flags |= MachineOperatorBuilder::kWord32ReverseBits;
+  }
   if (CpuFeatures::IsSupported(ARMv8)) {
     flags |= MachineOperatorBuilder::kFloat32RoundDown |
              MachineOperatorBuilder::kFloat64RoundDown |

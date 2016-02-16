@@ -362,6 +362,7 @@ TEST(Type3) {
   SET_UP();
 
   if (CpuFeatures::IsSupported(ARMv7)) {
+    CpuFeatureScope scope(&assm, ARMv7);
     COMPARE(ubfx(r0, r1, 5, 10),
             "e7e902d1       ubfx r0, r1, #5, #10");
     COMPARE(ubfx(r1, r0, 5, 10),
@@ -437,6 +438,9 @@ TEST(Type3) {
     COMPARE(uxth(r3, r4, 8), "e6ff3474       uxth r3, r4, ror #8");
 
     COMPARE(uxtah(r3, r4, r5, 24), "e6f43c75       uxtah r3, r4, r5, ror #24");
+
+    COMPARE(rbit(r1, r2), "e6ff1f32       rbit r1, r2");
+    COMPARE(rbit(r10, ip), "e6ffaf3c       rbit r10, ip");
   }
 
   COMPARE(smmla(r0, r1, r2, r3), "e7503211       smmla r0, r1, r2, r3");

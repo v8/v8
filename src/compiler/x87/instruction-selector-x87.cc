@@ -550,6 +550,9 @@ void InstructionSelector::VisitWord32Clz(Node* node) {
 void InstructionSelector::VisitWord32Ctz(Node* node) { UNREACHABLE(); }
 
 
+void InstructionSelector::VisitWord32ReverseBits(Node* node) { UNREACHABLE(); }
+
+
 void InstructionSelector::VisitWord32Popcnt(Node* node) {
   X87OperandGenerator g(this);
   Emit(kX87Popcnt, g.DefineAsRegister(node), g.Use(node->InputAt(0)));

@@ -838,6 +838,14 @@ void InstructionSelector::VisitWord64Ctz(Node* node) { UNREACHABLE(); }
 #endif
 
 
+void InstructionSelector::VisitWord32ReverseBits(Node* node) { UNREACHABLE(); }
+
+
+#if V8_TARGET_ARCH_PPC64
+void InstructionSelector::VisitWord64ReverseBits(Node* node) { UNREACHABLE(); }
+#endif
+
+
 void InstructionSelector::VisitInt32Add(Node* node) {
   VisitBinop<Int32BinopMatcher>(this, node, kPPC_Add, kInt16Imm);
 }

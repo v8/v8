@@ -983,6 +983,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArm64Clz32:
       __ Clz(i.OutputRegister32(), i.InputRegister32(0));
       break;
+    case kArm64Rbit:
+      __ Rbit(i.OutputRegister64(), i.InputRegister64(0));
+      break;
+    case kArm64Rbit32:
+      __ Rbit(i.OutputRegister32(), i.InputRegister32(0));
+      break;
     case kArm64Cmp:
       __ Cmp(i.InputOrZeroRegister64(0), i.InputOperand(1));
       break;

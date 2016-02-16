@@ -708,6 +708,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
                i.InputInt32(2));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
+    case kArmRbit: {
+      CpuFeatureScope scope(masm(), ARMv7);
+      __ rbit(i.OutputRegister(), i.InputRegister(0));
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    }
     case kArmClz:
       __ clz(i.OutputRegister(), i.InputRegister(0));
       DCHECK_EQ(LeaveCC, i.OutputSBit());

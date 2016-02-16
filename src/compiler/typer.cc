@@ -1967,6 +1967,11 @@ Type* Typer::Visitor::TypeWord32Clz(Node* node) { return Type::Integral32(); }
 Type* Typer::Visitor::TypeWord32Ctz(Node* node) { return Type::Integral32(); }
 
 
+Type* Typer::Visitor::TypeWord32ReverseBits(Node* node) {
+  return Type::Integral32();
+}
+
+
 Type* Typer::Visitor::TypeWord32Popcnt(Node* node) {
   return Type::Integral32();
 }
@@ -1997,6 +2002,11 @@ Type* Typer::Visitor::TypeWord64Clz(Node* node) { return Type::Internal(); }
 
 
 Type* Typer::Visitor::TypeWord64Ctz(Node* node) { return Type::Internal(); }
+
+
+Type* Typer::Visitor::TypeWord64ReverseBits(Node* node) {
+  return Type::Internal();
+}
 
 
 Type* Typer::Visitor::TypeWord64Popcnt(Node* node) { return Type::Internal(); }

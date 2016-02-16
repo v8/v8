@@ -974,6 +974,16 @@ void InstructionSelector::VisitWord32Ctz(Node* node) { UNREACHABLE(); }
 void InstructionSelector::VisitWord64Ctz(Node* node) { UNREACHABLE(); }
 
 
+void InstructionSelector::VisitWord32ReverseBits(Node* node) {
+  VisitRR(this, kArm64Rbit32, node);
+}
+
+
+void InstructionSelector::VisitWord64ReverseBits(Node* node) {
+  VisitRR(this, kArm64Rbit, node);
+}
+
+
 void InstructionSelector::VisitWord32Popcnt(Node* node) { UNREACHABLE(); }
 
 
@@ -2219,7 +2229,9 @@ InstructionSelector::SupportedMachineOperatorFlags() {
          MachineOperatorBuilder::kFloat64RoundTiesEven |
          MachineOperatorBuilder::kWord32ShiftIsSafe |
          MachineOperatorBuilder::kInt32DivIsSafe |
-         MachineOperatorBuilder::kUint32DivIsSafe;
+         MachineOperatorBuilder::kUint32DivIsSafe |
+         MachineOperatorBuilder::kWord32ReverseBits |
+         MachineOperatorBuilder::kWord64ReverseBits;
 }
 
 }  // namespace compiler

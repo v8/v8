@@ -401,6 +401,9 @@ void InstructionSelector::VisitWord32Clz(Node* node) {
 }
 
 
+void InstructionSelector::VisitWord32ReverseBits(Node* node) { UNREACHABLE(); }
+
+
 void InstructionSelector::VisitWord32Ctz(Node* node) {
   MipsOperandGenerator g(this);
   Emit(kMipsCtz, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));

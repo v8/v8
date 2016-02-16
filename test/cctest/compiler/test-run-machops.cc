@@ -29,6 +29,25 @@ TEST(RunInt32Add) {
 }
 
 
+TEST(RunWord32ReverseBits) {
+  BufferedRawMachineAssemblerTester<uint32_t> m(MachineType::Uint32());
+  if (!m.machine()->Word32ReverseBits().IsSupported()) {
+    // We can only test the operator if it exists on the testing platform.
+    return;
+  }
+  m.Return(m.AddNode(m.machine()->Word32ReverseBits().op(), m.Parameter(0)));
+
+  CHECK_EQ(uint32_t(0x00000000), m.Call(uint32_t(0x00000000)));
+  CHECK_EQ(uint32_t(0x12345678), m.Call(uint32_t(0x1e6a2c48)));
+  CHECK_EQ(uint32_t(0xfedcba09), m.Call(uint32_t(0x905d3b7f)));
+  CHECK_EQ(uint32_t(0x01010101), m.Call(uint32_t(0x80808080)));
+  CHECK_EQ(uint32_t(0x01020408), m.Call(uint32_t(0x10204080)));
+  CHECK_EQ(uint32_t(0xf0703010), m.Call(uint32_t(0x080c0e0f)));
+  CHECK_EQ(uint32_t(0x1f8d0a3a), m.Call(uint32_t(0x5c50b1f8)));
+  CHECK_EQ(uint32_t(0xffffffff), m.Call(uint32_t(0xffffffff)));
+}
+
+
 TEST(RunWord32Ctz) {
   BufferedRawMachineAssemblerTester<int32_t> m(MachineType::Uint32());
   if (!m.machine()->Word32Ctz().IsSupported()) {
@@ -132,6 +151,25 @@ TEST(RunWord32Popcnt) {
 
 
 #if V8_TARGET_ARCH_64_BIT
+TEST(RunWord64ReverseBits) {
+  RawMachineAssemblerTester<uint64_t> m(MachineType::Uint64());
+  if (!m.machine()->Word64ReverseBits().IsSupported()) {
+    return;
+  }
+
+  m.Return(m.AddNode(m.machine()->Word64ReverseBits().op(), m.Parameter(0)));
+
+  CHECK_EQ(uint64_t(0x0000000000000000), m.Call(uint64_t(0x0000000000000000)));
+  CHECK_EQ(uint64_t(0x1234567890abcdef), m.Call(uint64_t(0xf7b3d5091e6a2c48)));
+  CHECK_EQ(uint64_t(0xfedcba0987654321), m.Call(uint64_t(0x84c2a6e1905d3b7f)));
+  CHECK_EQ(uint64_t(0x0101010101010101), m.Call(uint64_t(0x8080808080808080)));
+  CHECK_EQ(uint64_t(0x0102040803060c01), m.Call(uint64_t(0x803060c010204080)));
+  CHECK_EQ(uint64_t(0xf0703010e060200f), m.Call(uint64_t(0xf0040607080c0e0f)));
+  CHECK_EQ(uint64_t(0x2f8a6df01c21fa3b), m.Call(uint64_t(0xdc5f84380fb651f4)));
+  CHECK_EQ(uint64_t(0xffffffffffffffff), m.Call(uint64_t(0xffffffffffffffff)));
+}
+
+
 TEST(RunWord64Clz) {
   BufferedRawMachineAssemblerTester<int32_t> m(MachineType::Uint64());
   m.Return(m.Word64Clz(m.Parameter(0)));

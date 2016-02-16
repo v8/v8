@@ -73,6 +73,8 @@ namespace compiler {
   V(Arm64Ubfx32)                   \
   V(Arm64Ubfiz32)                  \
   V(Arm64Bfi)                      \
+  V(Arm64Rbit)                     \
+  V(Arm64Rbit32)                   \
   V(Arm64TestAndBranch32)          \
   V(Arm64TestAndBranch)            \
   V(Arm64CompareAndBranch32)       \
@@ -148,7 +150,6 @@ namespace compiler {
   V(Arm64StrW)                     \
   V(Arm64Ldr)                      \
   V(Arm64Str)
-
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes

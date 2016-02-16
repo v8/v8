@@ -863,6 +863,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsWord32(node), VisitWord32Clz(node);
     case IrOpcode::kWord32Ctz:
       return MarkAsWord32(node), VisitWord32Ctz(node);
+    case IrOpcode::kWord32ReverseBits:
+      return MarkAsWord32(node), VisitWord32ReverseBits(node);
     case IrOpcode::kWord32Popcnt:
       return MarkAsWord32(node), VisitWord32Popcnt(node);
     case IrOpcode::kWord64Popcnt:
@@ -885,6 +887,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsWord64(node), VisitWord64Clz(node);
     case IrOpcode::kWord64Ctz:
       return MarkAsWord64(node), VisitWord64Ctz(node);
+    case IrOpcode::kWord64ReverseBits:
+      return MarkAsWord64(node), VisitWord64ReverseBits(node);
     case IrOpcode::kWord64Equal:
       return VisitWord64Equal(node);
     case IrOpcode::kInt32Add:
@@ -1180,6 +1184,11 @@ void InstructionSelector::VisitWord64Clz(Node* node) { UNIMPLEMENTED(); }
 
 
 void InstructionSelector::VisitWord64Ctz(Node* node) { UNIMPLEMENTED(); }
+
+
+void InstructionSelector::VisitWord64ReverseBits(Node* node) {
+  UNIMPLEMENTED();
+}
 
 
 void InstructionSelector::VisitWord64Popcnt(Node* node) { UNIMPLEMENTED(); }

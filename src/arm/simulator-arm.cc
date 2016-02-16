@@ -2920,7 +2920,15 @@ void Simulator::DecodeType3(Instruction* instr) {
                   }
                 }
               } else {
-                UNIMPLEMENTED();
+                // PU == 0b01, BW == 0b11, Bits(9, 6) != 0b0001
+                if ((instr->Bits(20, 16) == 0x1f) &&
+                    (instr->Bits(11, 4) == 0xf3)) {
+                  // Rbit.
+                  uint32_t rm_val = get_register(instr->RmValue());
+                  set_register(rd, base::bits::ReverseBits(rm_val));
+                } else {
+                  UNIMPLEMENTED();
+                }
               }
               break;
           }

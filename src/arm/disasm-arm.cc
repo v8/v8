@@ -1188,7 +1188,13 @@ void Decoder::DecodeType3(Instruction* instr) {
                   }
                 }
               } else {
-                UNREACHABLE();
+                // PU == 0b01, BW == 0b11, Bits(9, 6) != 0b0001
+                if ((instr->Bits(20, 16) == 0x1f) &&
+                    (instr->Bits(11, 4) == 0xf3)) {
+                  Format(instr, "rbit'cond 'rd, 'rm");
+                } else {
+                  UNREACHABLE();
+                }
               }
               break;
           }

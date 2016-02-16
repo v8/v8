@@ -1996,10 +1996,10 @@ void Simulator::VisitDataProcessing1Source(Instruction* instr) {
 
   switch (instr->Mask(DataProcessing1SourceMask)) {
     case RBIT_w:
-      set_wreg(dst, ReverseBits(wreg(src)));
+      set_wreg(dst, base::bits::ReverseBits(wreg(src)));
       break;
     case RBIT_x:
-      set_xreg(dst, ReverseBits(xreg(src)));
+      set_xreg(dst, base::bits::ReverseBits(xreg(src)));
       break;
     case REV16_w:
       set_wreg(dst, ReverseBytes(wreg(src), 1));

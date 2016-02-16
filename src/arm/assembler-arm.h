@@ -950,6 +950,9 @@ class Assembler : public AssemblerBase {
   void uxtah(Register dst, Register src1, Register src2, int rotate = 0,
              Condition cond = al);
 
+  // Reverse the bits in a register.
+  void rbit(Register dst, Register src, Condition cond = al);
+
   // Status register access instructions
 
   void mrs(Register dst, SRegister s, Condition cond = al);
