@@ -122,9 +122,10 @@ Handle<Map> LookupIterator::GetReceiverMap() const {
 
 Handle<JSObject> LookupIterator::GetStoreTarget() const {
   if (receiver_->IsJSGlobalProxy()) {
-    PrototypeIterator iter(isolate(), Handle<JSGlobalProxy>::cast(receiver_));
-    if (iter.IsAtEnd()) return Handle<JSGlobalProxy>::cast(receiver_);
-    return PrototypeIterator::GetCurrent<JSGlobalObject>(iter);
+    Object* prototype = JSGlobalProxy::cast(*receiver_)->map()->prototype();
+    if (!prototype->IsNull()) {
+      return handle(JSGlobalObject::cast(prototype), isolate_);
+    }
   }
   return Handle<JSObject>::cast(receiver_);
 }
@@ -232,25 +233,18 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
 #endif
 }
 
-
+// Can only be called when the receiver is a JSObject. JSProxy has to be handled
+// via a trap. Adding properties to primitive values is not observable.
 void LookupIterator::PrepareTransitionToDataProperty(
-    Handle<Object> value, PropertyAttributes attributes,
-    Object::StoreFromKeyed store_mode) {
+    Handle<JSObject> receiver, Handle<Object> value,
+    PropertyAttributes attributes, Object::StoreFromKeyed store_mode) {
+  DCHECK(receiver.is_identical_to(GetStoreTarget()));
   if (state_ == TRANSITION) return;
   DCHECK(state_ != LookupIterator::ACCESSOR ||
          (GetAccessors()->IsAccessorInfo() &&
           AccessorInfo::cast(*GetAccessors())->is_special_data_property()));
   DCHECK_NE(INTEGER_INDEXED_EXOTIC, state_);
   DCHECK(state_ == NOT_FOUND || !HolderIsReceiverOrHiddenPrototype());
-  // Can only be called when the receiver is a JSObject. JSProxy has to be
-  // handled via a trap. Adding properties to primitive values is not
-  // observable.
-  Handle<JSObject> receiver = GetStoreTarget();
-
-  if (!isolate()->IsInternallyUsedPropertyName(name()) &&
-      !receiver->map()->is_extensible()) {
-    return;
-  }
 
   auto transition = Map::TransitionToDataProperty(
       handle(receiver->map(), isolate_), name_, value, attributes, store_mode);
@@ -270,11 +264,11 @@ void LookupIterator::PrepareTransitionToDataProperty(
   }
 }
 
-
-void LookupIterator::ApplyTransitionToDataProperty() {
+void LookupIterator::ApplyTransitionToDataProperty(Handle<JSObject> receiver) {
   DCHECK_EQ(TRANSITION, state_);
 
-  Handle<JSObject> receiver = GetStoreTarget();
+  DCHECK(receiver.is_identical_to(GetStoreTarget()));
+
   if (receiver->IsJSGlobalObject()) return;
   holder_ = receiver;
   Handle<Map> transition = transition_map();

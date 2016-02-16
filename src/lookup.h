@@ -210,17 +210,23 @@ class LookupIterator final BASE_EMBEDDED {
   bool HasAccess() const;
 
   /* PROPERTY */
+  bool ExtendingNonExtensible(Handle<JSObject> receiver) {
+    DCHECK(receiver.is_identical_to(GetStoreTarget()));
+    return !receiver->map()->is_extensible() &&
+           (IsElement() || !isolate_->IsInternallyUsedPropertyName(name_));
+  }
   void PrepareForDataProperty(Handle<Object> value);
-  void PrepareTransitionToDataProperty(Handle<Object> value,
+  void PrepareTransitionToDataProperty(Handle<JSObject> receiver,
+                                       Handle<Object> value,
                                        PropertyAttributes attributes,
                                        Object::StoreFromKeyed store_mode);
   bool IsCacheableTransition() {
-    if (state_ != TRANSITION) return false;
+    DCHECK_EQ(TRANSITION, state_);
     return transition_->IsPropertyCell() ||
            (!transition_map()->is_dictionary_map() &&
             transition_map()->GetBackPointer()->IsMap());
   }
-  void ApplyTransitionToDataProperty();
+  void ApplyTransitionToDataProperty(Handle<JSObject> receiver);
   void ReconfigureDataProperty(Handle<Object> value,
                                PropertyAttributes attributes);
   void Delete();

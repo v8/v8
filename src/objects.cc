@@ -4606,8 +4606,7 @@ Maybe<bool> Object::AddDataProperty(LookupIterator* it, Handle<Object> value,
 
   Isolate* isolate = it->isolate();
 
-  if (!receiver->map()->is_extensible() &&
-      (it->IsElement() || !isolate->IsInternallyUsedPropertyName(it->name()))) {
+  if (it->ExtendingNonExtensible(receiver)) {
     RETURN_FAILURE(
         isolate, should_throw,
         NewTypeError(MessageTemplate::kObjectNotExtensible, it->GetName()));
@@ -4640,9 +4639,10 @@ Maybe<bool> Object::AddDataProperty(LookupIterator* it, Handle<Object> value,
   } else {
     // Migrate to the most up-to-date map that will be able to store |value|
     // under it->name() with |attributes|.
-    it->PrepareTransitionToDataProperty(value, attributes, store_mode);
+    it->PrepareTransitionToDataProperty(receiver, value, attributes,
+                                        store_mode);
     DCHECK_EQ(LookupIterator::TRANSITION, it->state());
-    it->ApplyTransitionToDataProperty();
+    it->ApplyTransitionToDataProperty(receiver);
 
     // TODO(verwaest): Encapsulate dictionary handling better.
     if (receiver->map()->is_dictionary_map()) {

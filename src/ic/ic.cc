@@ -1406,9 +1406,10 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
 bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
                              JSReceiver::StoreFromKeyed store_mode) {
   // Disable ICs for non-JSObjects for now.
-  Handle<Object> receiver = it->GetReceiver();
-  if (!receiver->IsJSObject()) return false;
-  DCHECK(!Handle<JSObject>::cast(receiver)->map()->is_deprecated());
+  Handle<Object> object = it->GetReceiver();
+  if (!object->IsJSObject()) return false;
+  Handle<JSObject> receiver = Handle<JSObject>::cast(object);
+  DCHECK(!receiver->map()->is_deprecated());
 
   for (; it->IsFound(); it->Next()) {
     switch (it->state()) {
@@ -1448,21 +1449,23 @@ bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
 
         // Receiver != holder.
         if (receiver->IsJSGlobalProxy()) {
-          PrototypeIterator iter(it->isolate(),
-                                 Handle<JSGlobalProxy>::cast(receiver));
+          PrototypeIterator iter(it->isolate(), receiver);
           return it->GetHolder<Object>().is_identical_to(
               PrototypeIterator::GetCurrent(iter));
         }
 
         if (it->HolderIsReceiverOrHiddenPrototype()) return false;
 
-        it->PrepareTransitionToDataProperty(value, NONE, store_mode);
+        if (it->ExtendingNonExtensible(receiver)) return false;
+        it->PrepareTransitionToDataProperty(receiver, value, NONE, store_mode);
         return it->IsCacheableTransition();
       }
     }
   }
 
-  it->PrepareTransitionToDataProperty(value, NONE, store_mode);
+  receiver = it->GetStoreTarget();
+  if (it->ExtendingNonExtensible(receiver)) return false;
+  it->PrepareTransitionToDataProperty(receiver, value, NONE, store_mode);
   return it->IsCacheableTransition();
 }
 
