@@ -412,7 +412,6 @@ class PerfTest(unittest.TestCase):
     platform.PreExecution = MagicMock(return_value=None)
     platform.PostExecution = MagicMock(return_value=None)
     platform.PreTests = MagicMock(return_value=None)
-    platform.PrintResult = MagicMock(return_value=None)
     platform.Run = MagicMock(
         return_value=("Richards: 1.234\nDeltaBlue: 10657567\n", None))
     run_perf.AndroidPlatform = MagicMock(return_value=platform)
