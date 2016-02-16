@@ -34,6 +34,7 @@
 #include "src/crankshaft/hydrogen-uint32-analysis.h"
 #include "src/crankshaft/lithium-allocator.h"
 #include "src/crankshaft/typing.h"
+#include "src/field-type.h"
 #include "src/full-codegen/full-codegen.h"
 #include "src/ic/call-optimization.h"
 #include "src/ic/ic.h"
@@ -6258,6 +6259,13 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
   return instr;
 }
 
+Handle<FieldType>
+HOptimizedGraphBuilder::PropertyAccessInfo::GetFieldTypeFromMap(
+    Handle<Map> map) const {
+  DCHECK(IsFound());
+  DCHECK(number_ < map->NumberOfOwnDescriptors());
+  return handle(map->instance_descriptors()->GetFieldType(number_), isolate());
+}
 
 bool HOptimizedGraphBuilder::PropertyAccessInfo::IsCompatible(
     PropertyAccessInfo* info) {

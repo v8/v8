@@ -35,6 +35,7 @@
 #endif
 
 #include "src/d8.h"
+#include "src/ostreams.h"
 
 #include "include/libplatform/libplatform.h"
 #ifndef V8_SHARED

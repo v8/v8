@@ -33,6 +33,7 @@
 #include "src/deoptimizer.h"
 #include "src/execution.h"
 #include "src/factory.h"
+#include "src/field-type.h"
 #include "src/global-handles.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/memory-reducer.h"

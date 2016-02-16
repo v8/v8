@@ -11,6 +11,7 @@
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/isolate-inl.h"
+#include "src/ostreams.h"
 
 namespace v8 {
 namespace internal {

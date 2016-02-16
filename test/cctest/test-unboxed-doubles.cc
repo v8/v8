@@ -10,6 +10,7 @@
 #include "src/compilation-cache.h"
 #include "src/execution.h"
 #include "src/factory.h"
+#include "src/field-type.h"
 #include "src/global-handles.h"
 #include "src/heap/slots-buffer.h"
 #include "src/ic/ic.h"

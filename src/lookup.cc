@@ -7,6 +7,7 @@
 #include "src/bootstrapper.h"
 #include "src/deoptimizer.h"
 #include "src/elements.h"
+#include "src/field-type.h"
 #include "src/isolate-inl.h"
 
 namespace v8 {

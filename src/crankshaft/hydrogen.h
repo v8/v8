@@ -2622,12 +2622,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     Handle<Object> GetAccessorsFromMap(Handle<Map> map) const {
       return GetConstantFromMap(map);
     }
-    Handle<FieldType> GetFieldTypeFromMap(Handle<Map> map) const {
-      DCHECK(IsFound());
-      DCHECK(number_ < map->NumberOfOwnDescriptors());
-      return handle(map->instance_descriptors()->GetFieldType(number_),
-                    isolate());
-    }
+    Handle<FieldType> GetFieldTypeFromMap(Handle<Map> map) const;
     Handle<Map> GetFieldOwnerFromMap(Handle<Map> map) const {
       DCHECK(IsFound());
       DCHECK(number_ < map->NumberOfOwnDescriptors());

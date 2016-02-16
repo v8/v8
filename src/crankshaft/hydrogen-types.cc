@@ -4,6 +4,7 @@
 
 #include "src/crankshaft/hydrogen-types.h"
 
+#include "src/field-type.h"
 #include "src/handles-inl.h"
 #include "src/ostreams.h"
 
