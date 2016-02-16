@@ -196,8 +196,11 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     }
     SaveFPRegsMode const save_fp_mode =
         frame()->DidAllocateDoubleRegisters() ? kSaveFPRegs : kDontSaveFPRegs;
-    // TODO(turbofan): Once we get frame elision working, we need to save
-    // and restore lr properly here if the frame was elided.
+    if (!frame()->needs_frame()) {
+      // We need to save and restore lr if the frame was elided.
+      __ mflr(scratch1_);
+      __ Push(scratch1_);
+    }
     RecordWriteStub stub(isolate(), object_, scratch0_, scratch1_,
                          EMIT_REMEMBERED_SET, save_fp_mode);
     if (offset_.is(no_reg)) {
@@ -207,6 +210,11 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       __ add(scratch1_, object_, offset_);
     }
     __ CallStub(&stub);
+    if (!frame()->needs_frame()) {
+      // We need to save and restore lr if the frame was elided.
+      __ Pop(scratch1_);
+      __ mtlr(scratch1_);
+    }
   }
 
  private:

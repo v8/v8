@@ -607,21 +607,4 @@
   'test-api/InitializeDefaultIsolateOnSecondaryThread1': [PASS, ['mode == debug', FAIL]],
 }],
 
-['ignition == True and arch == arm64', {
-  # TODO(rmcilroy,4680): Arm64 specific crashes.
-  'test-api/ExternalWrap': [SKIP],
-  'test-api/Regress470113': [SKIP],
-  'test-heap/NoWeakHashTableLeakWithIncrementalMarking': [SKIP],
-
-  # TODO(rmcilroy,4680): Arm64 flakes.
-  'test-serialize/SerializeInternalReference': [PASS, FAIL],
-  'test-spaces/SizeOfFirstPageIsLargeEnough': [PASS, FAIL],
-  'test-api/InitializeDefaultIsolateOnSecondaryThread1': [PASS, FAIL],
-  'test-api/FastReturnValuesWithProfiler': [PASS, FAIL],
-  'test-heap/Regress538257': [PASS, FAIL],
-  'test-heap/AddInstructionChangesNewSpacePromotion': [PASS, FAIL],
-  'test-decls/CrossScriptReferencesHarmony': [PASS, FAIL],
-  'test-lockers/IsolateNestedLocking': [PASS, FAIL],
-}],  # ignition == True and arch == arm64
-
 ]
