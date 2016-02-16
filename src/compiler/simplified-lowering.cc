@@ -1409,6 +1409,7 @@ class RepresentationSelector {
                           NodeOutputInfo::Float64());
       case IrOpcode::kLoadStackPointer:
       case IrOpcode::kLoadFramePointer:
+      case IrOpcode::kLoadParentFramePointer:
         return VisitLeaf(node, NodeOutputInfo::Pointer());
       case IrOpcode::kStateValues:
         VisitStateValues(node);

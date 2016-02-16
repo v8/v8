@@ -6196,6 +6196,27 @@ TEST(RunComputedCodeObject) {
   CHECK_EQ(44, r.Call(0));
 }
 
+TEST(ParentFramePointer) {
+  RawMachineAssemblerTester<int32_t> r(MachineType::Int32());
+  RawMachineLabel tlabel;
+  RawMachineLabel flabel;
+  RawMachineLabel merge;
+  Node* frame = r.LoadFramePointer();
+  Node* parent_frame = r.LoadParentFramePointer();
+  frame = r.Load(MachineType::IntPtr(), frame);
+  r.Branch(r.WordEqual(frame, parent_frame), &tlabel, &flabel);
+  r.Bind(&tlabel);
+  Node* fa = r.Int32Constant(1);
+  r.Goto(&merge);
+  r.Bind(&flabel);
+  Node* fb = r.Int32Constant(0);
+  r.Goto(&merge);
+  r.Bind(&merge);
+  Node* phi = r.Phi(MachineRepresentation::kWord32, fa, fb);
+  r.Return(phi);
+  CHECK_EQ(1, r.Call(1));
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

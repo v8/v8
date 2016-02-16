@@ -2405,6 +2405,9 @@ Type* Typer::Visitor::TypeLoadFramePointer(Node* node) {
   return Type::Internal();
 }
 
+Type* Typer::Visitor::TypeLoadParentFramePointer(Node* node) {
+  return Type::Internal();
+}
 
 Type* Typer::Visitor::TypeCheckedLoad(Node* node) { return Type::Any(); }
 

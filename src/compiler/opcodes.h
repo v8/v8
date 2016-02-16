@@ -326,6 +326,7 @@
   V(Float64InsertHighWord32)    \
   V(LoadStackPointer)           \
   V(LoadFramePointer)           \
+  V(LoadParentFramePointer)     \
   V(CheckedLoad)                \
   V(CheckedStore)
 

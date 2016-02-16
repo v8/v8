@@ -103,6 +103,10 @@ Node* CodeStubAssembler::LoadFramePointer() {
   return raw_assembler_->LoadFramePointer();
 }
 
+Node* CodeStubAssembler::LoadParentFramePointer() {
+  return raw_assembler_->LoadParentFramePointer();
+}
+
 Node* CodeStubAssembler::LoadStackPointer() {
   return raw_assembler_->LoadStackPointer();
 }

@@ -566,6 +566,9 @@ class RawMachineAssembler {
   // Stack operations.
   Node* LoadStackPointer() { return AddNode(machine()->LoadStackPointer()); }
   Node* LoadFramePointer() { return AddNode(machine()->LoadFramePointer()); }
+  Node* LoadParentFramePointer() {
+    return AddNode(machine()->LoadParentFramePointer());
+  }
 
   // Parameters.
   Node* Parameter(size_t index);
