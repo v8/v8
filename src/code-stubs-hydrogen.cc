@@ -180,6 +180,7 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
 
   context_ = Add<HContext>();
   start_environment->BindContext(context_);
+  start_environment->Bind(param_count, context_);
 
   Add<HSimulate>(BailoutId::StubEntry());
 

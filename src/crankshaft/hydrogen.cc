@@ -3651,8 +3651,9 @@ HGraph::HGraph(CompilationInfo* info, CallInterfaceDescriptor descriptor)
       no_side_effects_scope_count_(0),
       disallow_adding_new_values_(false) {
   if (info->IsStub()) {
-    start_environment_ =
-        new (zone_) HEnvironment(zone_, descriptor.GetRegisterParameterCount());
+    // For stubs, explicitly add the context to the environment.
+    start_environment_ = new (zone_)
+        HEnvironment(zone_, descriptor.GetRegisterParameterCount() + 1);
   } else {
     if (info->is_tracking_positions()) {
       info->TraceInlinedFunction(info->shared_info(), SourcePosition::Unknown(),

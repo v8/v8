@@ -1737,7 +1737,9 @@ void Deoptimizer::DoComputeCompiledStubFrame(int frame_index) {
   // object to the stub failure handler.
   int param_count = descriptor.GetRegisterParameterCount();
   int stack_param_count = descriptor.GetStackParameterCount();
-  CHECK_EQ(translated_frame->height(), param_count);
+  // The translated frame contains all of the register parameters
+  // plus the context.
+  CHECK_EQ(translated_frame->height(), param_count + 1);
   CHECK_GE(param_count, 0);
 
   int height_in_bytes = kPointerSize * (param_count + stack_param_count) +
@@ -1796,15 +1798,10 @@ void Deoptimizer::DoComputeCompiledStubFrame(int frame_index) {
                          "caller's constant_pool\n");
   }
 
-  // The context can be gotten from the input frame.
-  Register context_reg = StubFailureTrampolineFrame::context_register();
-  input_frame_offset -= kPointerSize;
-  value = input_->GetFrameSlot(input_frame_offset);
-  output_frame->SetRegister(context_reg.code(), value);
+  // Remember where the context will need to be written back from the deopt
+  // translation.
   output_frame_offset -= kPointerSize;
-  output_frame->SetFrameSlot(output_frame_offset, value);
-  CHECK(reinterpret_cast<Object*>(value)->IsContext());
-  DebugPrintOutputSlot(value, frame_index, output_frame_offset, "context\n");
+  unsigned context_frame_offset = output_frame_offset;
 
   // A marker value is used in place of the function.
   output_frame_offset -= kPointerSize;
@@ -1861,6 +1858,15 @@ void Deoptimizer::DoComputeCompiledStubFrame(int frame_index) {
       arguments_length_offset = output_frame_offset;
     }
   }
+
+  Object* maybe_context = value_iterator->GetRawValue();
+  CHECK(maybe_context->IsContext());
+  Register context_reg = StubFailureTrampolineFrame::context_register();
+  value = reinterpret_cast<intptr_t>(maybe_context);
+  output_frame->SetRegister(context_reg.code(), value);
+  output_frame->SetFrameSlot(context_frame_offset, value);
+  DebugPrintOutputSlot(value, frame_index, context_frame_offset, "context\n");
+  ++value_iterator;
 
   // Copy constant stack parameters to the failure frame. If the number of stack
   // parameters is not known in the descriptor, the arguments object is the way
