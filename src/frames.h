@@ -192,10 +192,12 @@ class InterpreterFrameConstants : public AllStatic {
   static const int kRegisterFilePointerFromFp =
       -StandardFrameConstants::kFixedFrameSizeFromFp - 4 * kPointerSize;
 
+  static const int kExpressionsOffset = kRegisterFilePointerFromFp;
+
   // Expression index for {StandardFrame::GetExpressionAddress}.
-  static const int kBytecodeArrayExpressionIndex = 1;
-  static const int kBytecodeOffsetExpressionIndex = 2;
-  static const int kRegisterFileExpressionIndex = 3;
+  static const int kBytecodeArrayExpressionIndex = -2;
+  static const int kBytecodeOffsetExpressionIndex = -1;
+  static const int kRegisterFileExpressionIndex = 0;
 
   // Register file pointer relative.
   static const int kLastParamFromRegisterPointer =
@@ -498,7 +500,6 @@ class StandardFrame: public StackFrame {
   inline Object* GetExpression(int index) const;
   inline void SetExpression(int index, Object* value);
   int ComputeExpressionsCount() const;
-  static Object* GetExpression(Address fp, int index);
 
   void SetCallerFp(Address caller_fp) override;
 
@@ -529,8 +530,7 @@ class StandardFrame: public StackFrame {
   void IterateExpressions(ObjectVisitor* v) const;
 
   // Returns the address of the n'th expression stack element.
-  Address GetExpressionAddress(int n) const;
-  static Address GetExpressionAddress(Address fp, int n);
+  virtual Address GetExpressionAddress(int n) const;
 
   // Determines if the standard frame for the given frame pointer is
   // an arguments adaptor frame.
@@ -756,6 +756,8 @@ class InterpretedFrame : public JavaScriptFrame {
  protected:
   inline explicit InterpretedFrame(StackFrameIteratorBase* iterator);
 
+  Address GetExpressionAddress(int n) const override;
+
  private:
   friend class StackFrameIteratorBase;
 };
@@ -779,6 +781,8 @@ class ArgumentsAdaptorFrame: public JavaScriptFrame {
   // Printing support.
   void Print(StringStream* accumulator, PrintMode mode,
              int index) const override;
+
+  static int GetLength(Address fp);
 
  protected:
   inline explicit ArgumentsAdaptorFrame(StackFrameIteratorBase* iterator);

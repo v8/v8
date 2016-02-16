@@ -602,23 +602,14 @@ Address StandardFrame::GetExpressionAddress(int n) const {
   return fp() + offset - n * kPointerSize;
 }
 
-
-Object* StandardFrame::GetExpression(Address fp, int index) {
-  return Memory::Object_at(GetExpressionAddress(fp, index));
+Address InterpretedFrame::GetExpressionAddress(int n) const {
+  const int offset = InterpreterFrameConstants::kExpressionsOffset;
+  return fp() + offset - n * kPointerSize;
 }
-
-
-Address StandardFrame::GetExpressionAddress(Address fp, int n) {
-  const int offset = StandardFrameConstants::kExpressionsOffset;
-  return fp + offset - n * kPointerSize;
-}
-
 
 int StandardFrame::ComputeExpressionsCount() const {
-  const int offset =
-      StandardFrameConstants::kExpressionsOffset + kPointerSize;
-  Address base = fp() + offset;
-  Address limit = sp();
+  Address base = GetExpressionAddress(0);
+  Address limit = sp() - kPointerSize;
   DCHECK(base >= limit);  // stack grows downwards
   // Include register-allocated locals in number of expressions.
   return static_cast<int>((base - limit) / kPointerSize);
@@ -765,9 +756,7 @@ bool JavaScriptFrame::HasInlinedFrames() const {
 int JavaScriptFrame::GetArgumentsLength() const {
   // If there is an arguments adaptor frame get the arguments length from it.
   if (has_adapted_arguments()) {
-    STATIC_ASSERT(ArgumentsAdaptorFrameConstants::kLengthOffset ==
-                  StandardFrameConstants::kExpressionsOffset);
-    return Smi::cast(GetExpression(caller_fp(), 0))->value();
+    return ArgumentsAdaptorFrame::GetLength(caller_fp());
   } else {
     return GetNumberOfIncomingArguments();
   }
@@ -1138,38 +1127,43 @@ int InterpretedFrame::LookupExceptionHandlerInTable(
 
 int InterpretedFrame::GetBytecodeOffset() const {
   const int index = InterpreterFrameConstants::kBytecodeOffsetExpressionIndex;
-  DCHECK_EQ(InterpreterFrameConstants::kBytecodeOffsetFromFp,
-            StandardFrameConstants::kExpressionsOffset - index * kPointerSize);
+  DCHECK_EQ(
+      InterpreterFrameConstants::kBytecodeOffsetFromFp,
+      InterpreterFrameConstants::kExpressionsOffset - index * kPointerSize);
   int raw_offset = Smi::cast(GetExpression(index))->value();
   return raw_offset - BytecodeArray::kHeaderSize + kHeapObjectTag;
 }
 
 void InterpretedFrame::PatchBytecodeOffset(int new_offset) {
   const int index = InterpreterFrameConstants::kBytecodeOffsetExpressionIndex;
-  DCHECK_EQ(InterpreterFrameConstants::kBytecodeOffsetFromFp,
-            StandardFrameConstants::kExpressionsOffset - index * kPointerSize);
+  DCHECK_EQ(
+      InterpreterFrameConstants::kBytecodeOffsetFromFp,
+      InterpreterFrameConstants::kExpressionsOffset - index * kPointerSize);
   int raw_offset = new_offset + BytecodeArray::kHeaderSize - kHeapObjectTag;
   SetExpression(index, Smi::FromInt(raw_offset));
 }
 
 Object* InterpretedFrame::GetBytecodeArray() const {
   const int index = InterpreterFrameConstants::kBytecodeArrayExpressionIndex;
-  DCHECK_EQ(InterpreterFrameConstants::kBytecodeArrayFromFp,
-            StandardFrameConstants::kExpressionsOffset - index * kPointerSize);
+  DCHECK_EQ(
+      InterpreterFrameConstants::kBytecodeArrayFromFp,
+      InterpreterFrameConstants::kExpressionsOffset - index * kPointerSize);
   return GetExpression(index);
 }
 
 void InterpretedFrame::PatchBytecodeArray(Object* bytecode_array) {
   const int index = InterpreterFrameConstants::kBytecodeArrayExpressionIndex;
-  DCHECK_EQ(InterpreterFrameConstants::kBytecodeArrayFromFp,
-            StandardFrameConstants::kExpressionsOffset - index * kPointerSize);
+  DCHECK_EQ(
+      InterpreterFrameConstants::kBytecodeArrayFromFp,
+      InterpreterFrameConstants::kExpressionsOffset - index * kPointerSize);
   SetExpression(index, bytecode_array);
 }
 
 Object* InterpretedFrame::GetInterpreterRegister(int register_index) const {
   const int index = InterpreterFrameConstants::kRegisterFileExpressionIndex;
-  DCHECK_EQ(InterpreterFrameConstants::kRegisterFilePointerFromFp,
-            StandardFrameConstants::kExpressionsOffset - index * kPointerSize);
+  DCHECK_EQ(
+      InterpreterFrameConstants::kRegisterFilePointerFromFp,
+      InterpreterFrameConstants::kExpressionsOffset - index * kPointerSize);
   return GetExpression(index + register_index);
 }
 
@@ -1191,19 +1185,21 @@ Address ArgumentsAdaptorFrame::GetCallerStackPointer() const {
   return fp() + StandardFrameConstants::kCallerSPOffset;
 }
 
-
-Address InternalFrame::GetCallerStackPointer() const {
-  // Internal frames have no arguments. The stack pointer of the
-  // caller is at a fixed offset from the frame pointer.
-  return fp() + StandardFrameConstants::kCallerSPOffset;
+int ArgumentsAdaptorFrame::GetLength(Address fp) {
+  const int offset = ArgumentsAdaptorFrameConstants::kLengthOffset;
+  return Smi::cast(Memory::Object_at(fp + offset))->value();
 }
-
 
 Code* ArgumentsAdaptorFrame::unchecked_code() const {
   return isolate()->builtins()->builtin(
       Builtins::kArgumentsAdaptorTrampoline);
 }
 
+Address InternalFrame::GetCallerStackPointer() const {
+  // Internal frames have no arguments. The stack pointer of the
+  // caller is at a fixed offset from the frame pointer.
+  return fp() + StandardFrameConstants::kCallerSPOffset;
+}
 
 Code* InternalFrame::unchecked_code() const {
   const int offset = InternalFrameConstants::kCodeOffset;
