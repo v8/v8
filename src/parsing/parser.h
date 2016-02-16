@@ -878,10 +878,10 @@ class Parser : public ParserBase<ParserTraits> {
     bool* ok_;
   };
 
-
-  void ParseVariableDeclarations(VariableDeclarationContext var_context,
-                                 DeclarationParsingResult* parsing_result,
-                                 bool* ok);
+  Block* ParseVariableDeclarations(VariableDeclarationContext var_context,
+                                   DeclarationParsingResult* parsing_result,
+                                   ZoneList<const AstRawString*>* names,
+                                   bool* ok);
   Statement* ParseExpressionOrLabelledStatement(
       ZoneList<const AstRawString*>* labels, bool* ok);
   IfStatement* ParseIfStatement(ZoneList<const AstRawString*>* labels,

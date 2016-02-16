@@ -2332,17 +2332,16 @@ Block* Parser::ParseVariableStatement(VariableDeclarationContext var_context,
   // is inside an initializer block, it is ignored.
 
   DeclarationParsingResult parsing_result;
-  ParseVariableDeclarations(var_context, &parsing_result, CHECK_OK);
+  Block* result =
+      ParseVariableDeclarations(var_context, &parsing_result, names, CHECK_OK);
   ExpectSemicolon(CHECK_OK);
-
-  Block* result = parsing_result.BuildInitializationBlock(names, CHECK_OK);
   return result;
 }
 
-
-void Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
-                                       DeclarationParsingResult* parsing_result,
-                                       bool* ok) {
+Block* Parser::ParseVariableDeclarations(
+    VariableDeclarationContext var_context,
+    DeclarationParsingResult* parsing_result,
+    ZoneList<const AstRawString*>* names, bool* ok) {
   // VariableDeclarations ::
   //   ('var' | 'const' | 'let') (Identifier ('=' AssignmentExpression)?)+[',']
   //
@@ -2362,12 +2361,19 @@ void Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
   parsing_result->descriptor.declaration_pos = peek_position();
   parsing_result->descriptor.initialization_pos = peek_position();
   parsing_result->descriptor.mode = VAR;
+
+  Block* init_block = nullptr;
+  if (var_context != kForStatement) {
+    init_block = factory()->NewBlock(
+        NULL, 1, true, parsing_result->descriptor.declaration_pos);
+  }
+
   if (peek() == Token::VAR) {
     if (is_strong(language_mode())) {
       Scanner::Location location = scanner()->peek_location();
       ReportMessageAt(location, MessageTemplate::kStrongVar);
       *ok = false;
-      return;
+      return nullptr;
     }
     Consume(Token::VAR);
   } else if (peek() == Token::CONST && allow_const()) {
@@ -2405,18 +2411,15 @@ void Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
     {
       ExpressionClassifier pattern_classifier;
       Token::Value next = peek();
-      pattern = ParsePrimaryExpression(&pattern_classifier, ok);
-      if (!*ok) return;
-      ValidateBindingPattern(&pattern_classifier, ok);
-      if (!*ok) return;
+      pattern = ParsePrimaryExpression(&pattern_classifier, CHECK_OK);
+      ValidateBindingPattern(&pattern_classifier, CHECK_OK);
       if (IsLexicalVariableMode(parsing_result->descriptor.mode)) {
-        ValidateLetPattern(&pattern_classifier, ok);
-        if (!*ok) return;
+        ValidateLetPattern(&pattern_classifier, CHECK_OK);
       }
       if (!allow_harmony_destructuring_bind() && !pattern->IsVariableProxy()) {
         ReportUnexpectedToken(next);
         *ok = false;
-        return;
+        return nullptr;
       }
     }
 
@@ -2433,10 +2436,8 @@ void Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
     if (Check(Token::ASSIGN)) {
       ExpressionClassifier classifier;
       value = ParseAssignmentExpression(var_context != kForStatement,
-                                        &classifier, ok);
-      if (!*ok) return;
-      value = ParserTraits::RewriteNonPattern(value, &classifier, ok);
-      if (!*ok) return;
+                                        &classifier, CHECK_OK);
+      value = ParserTraits::RewriteNonPattern(value, &classifier, CHECK_OK);
       variable_loc.end_pos = scanner()->location().end_pos;
 
       if (!parsing_result->first_initializer_loc.IsValid()) {
@@ -2471,7 +2472,7 @@ void Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
               MessageTemplate::kDeclarationMissingInitializer,
               !pattern->IsVariableProxy() ? "destructuring" : "const");
           *ok = false;
-          return;
+          return nullptr;
         }
 
         // 'let x' and (legacy) 'const x' initialize 'x' to undefined.
@@ -2485,13 +2486,28 @@ void Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
       initializer_position = position();
     }
 
-    parsing_result->declarations.Add(DeclarationParsingResult::Declaration(
-        pattern, initializer_position, value));
+    DeclarationParsingResult::Declaration decl(pattern, initializer_position,
+                                               value);
+    if (var_context == kForStatement) {
+      // Save the declaration for further handling in ParseForStatement.
+      parsing_result->declarations.Add(decl);
+    } else {
+      // Immediately declare the variable otherwise. This avoids O(N^2)
+      // behavior (where N is the number of variables in a single
+      // declaration) in the PatternRewriter having to do with removing
+      // and adding VariableProxies to the Scope (see bug 4699).
+      DCHECK_NOT_NULL(init_block);
+      PatternRewriter::DeclareAndInitializeVariables(
+          init_block, &parsing_result->descriptor, &decl, names, CHECK_OK);
+    }
     first_declaration = false;
   } while (peek() == Token::COMMA);
 
   parsing_result->bindings_loc =
       Scanner::Location(bindings_start, scanner()->location().end_pos);
+
+  DCHECK(*ok);
+  return init_block;
 }
 
 
@@ -3632,7 +3648,8 @@ Statement* Parser::ParseForStatement(ZoneList<const AstRawString*>* labels,
   if (peek() != Token::SEMICOLON) {
     if (peek() == Token::VAR || (peek() == Token::CONST && allow_const()) ||
         (peek() == Token::LET && IsNextLetKeyword())) {
-      ParseVariableDeclarations(kForStatement, &parsing_result, CHECK_OK);
+      ParseVariableDeclarations(kForStatement, &parsing_result, nullptr,
+                                CHECK_OK);
 
       ForEachStatement::VisitMode mode;
       int each_beg_pos = scanner()->location().beg_pos;
