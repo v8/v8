@@ -2309,14 +2309,10 @@ void FreeListCategory::RepairFreeList(Heap* heap) {
   }
 }
 
-
-FreeList::FreeList(PagedSpace* owner)
-    : owner_(owner),
-      wasted_bytes_(0),
-      small_list_(this, kSmall),
-      medium_list_(this, kMedium),
-      large_list_(this, kLarge),
-      huge_list_(this, kHuge) {
+FreeList::FreeList(PagedSpace* owner) : owner_(owner), wasted_bytes_(0) {
+  for (int i = kFirstCategory; i < kNumberOfCategories; i++) {
+    category_[i].Initialize(this, static_cast<FreeListCategoryType>(i));
+  }
   Reset();
 }
 
@@ -2336,10 +2332,10 @@ intptr_t FreeList::Concatenate(FreeList* other) {
   wasted_bytes_ += wasted_bytes;
   other->wasted_bytes_ = 0;
 
-  usable_bytes += small_list_.Concatenate(other->GetFreeListCategory(kSmall));
-  usable_bytes += medium_list_.Concatenate(other->GetFreeListCategory(kMedium));
-  usable_bytes += large_list_.Concatenate(other->GetFreeListCategory(kLarge));
-  usable_bytes += huge_list_.Concatenate(other->GetFreeListCategory(kHuge));
+  for (int i = kFirstCategory; i < kNumberOfCategories; i++) {
+    usable_bytes += category_[i].Concatenate(
+        other->GetFreeListCategory(static_cast<FreeListCategoryType>(i)));
+  }
 
   if (!other->owner()->is_local()) other->mutex()->Unlock();
   if (!owner()->is_local()) mutex_.Unlock();
@@ -2348,10 +2344,9 @@ intptr_t FreeList::Concatenate(FreeList* other) {
 
 
 void FreeList::Reset() {
-  small_list_.Reset();
-  medium_list_.Reset();
-  large_list_.Reset();
-  huge_list_.Reset();
+  for (int i = kFirstCategory; i < kNumberOfCategories; i++) {
+    category_[i].Reset();
+  }
   ResetStats();
 }
 
@@ -2374,16 +2369,16 @@ int FreeList::Free(Address start, int size_in_bytes) {
   // Insert other blocks at the head of a free list of the appropriate
   // magnitude.
   if (size_in_bytes <= kSmallListMax) {
-    small_list_.Free(free_space, size_in_bytes);
+    category_[kSmall].Free(free_space, size_in_bytes);
     page->add_available_in_small_free_list(size_in_bytes);
   } else if (size_in_bytes <= kMediumListMax) {
-    medium_list_.Free(free_space, size_in_bytes);
+    category_[kMedium].Free(free_space, size_in_bytes);
     page->add_available_in_medium_free_list(size_in_bytes);
   } else if (size_in_bytes <= kLargeListMax) {
-    large_list_.Free(free_space, size_in_bytes);
+    category_[kLarge].Free(free_space, size_in_bytes);
     page->add_available_in_large_free_list(size_in_bytes);
   } else {
-    huge_list_.Free(free_space, size_in_bytes);
+    category_[kHuge].Free(free_space, size_in_bytes);
     page->add_available_in_huge_free_list(size_in_bytes);
   }
 
@@ -2422,7 +2417,7 @@ FreeSpace* FreeList::FindNodeFor(int size_in_bytes, int* node_size) {
     if (node != nullptr) return node;
   }
 
-  node = huge_list_.SearchForNodeInList(size_in_bytes, node_size);
+  node = category_[kHuge].SearchForNodeInList(size_in_bytes, node_size);
   if (node != nullptr) {
     page = Page::FromAddress(node->address());
     page->add_available_in_large_free_list(-(*node_size));
@@ -2431,21 +2426,21 @@ FreeSpace* FreeList::FindNodeFor(int size_in_bytes, int* node_size) {
   }
 
   if (size_in_bytes <= kSmallListMax) {
-    node = small_list_.PickNodeFromList(size_in_bytes, node_size);
+    node = category_[kSmall].PickNodeFromList(size_in_bytes, node_size);
     if (node != NULL) {
       DCHECK(size_in_bytes <= *node_size);
       page = Page::FromAddress(node->address());
       page->add_available_in_small_free_list(-(*node_size));
     }
   } else if (size_in_bytes <= kMediumListMax) {
-    node = medium_list_.PickNodeFromList(size_in_bytes, node_size);
+    node = category_[kMedium].PickNodeFromList(size_in_bytes, node_size);
     if (node != NULL) {
       DCHECK(size_in_bytes <= *node_size);
       page = Page::FromAddress(node->address());
       page->add_available_in_medium_free_list(-(*node_size));
     }
   } else if (size_in_bytes <= kLargeListMax) {
-    node = large_list_.PickNodeFromList(size_in_bytes, node_size);
+    node = category_[kLarge].PickNodeFromList(size_in_bytes, node_size);
     if (node != NULL) {
       DCHECK(size_in_bytes <= *node_size);
       page = Page::FromAddress(node->address());
@@ -2564,29 +2559,30 @@ HeapObject* FreeList::Allocate(int size_in_bytes) {
 
 
 intptr_t FreeList::EvictFreeListItems(Page* p) {
-  intptr_t sum = huge_list_.EvictFreeListItemsInList(p);
+  intptr_t sum = category_[kHuge].EvictFreeListItemsInList(p);
   if (sum < p->area_size()) {
-    sum += small_list_.EvictFreeListItemsInList(p) +
-           medium_list_.EvictFreeListItemsInList(p) +
-           large_list_.EvictFreeListItemsInList(p);
+    for (int i = kFirstCategory; i <= kLarge; i++) {
+      sum += category_[i].EvictFreeListItemsInList(p);
+    }
   }
   return sum;
 }
 
 
 bool FreeList::ContainsPageFreeListItems(Page* p) {
-  return huge_list_.EvictFreeListItemsInList(p) ||
-         small_list_.EvictFreeListItemsInList(p) ||
-         medium_list_.EvictFreeListItemsInList(p) ||
-         large_list_.EvictFreeListItemsInList(p);
+  for (int i = kFirstCategory; i < kNumberOfCategories; i++) {
+    if (category_[i].EvictFreeListItemsInList(p)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 
 void FreeList::RepairLists(Heap* heap) {
-  small_list_.RepairFreeList(heap);
-  medium_list_.RepairFreeList(heap);
-  large_list_.RepairFreeList(heap);
-  huge_list_.RepairFreeList(heap);
+  for (int i = kFirstCategory; i < kNumberOfCategories; i++) {
+    category_[i].RepairFreeList(heap);
+  }
 }
 
 
@@ -2621,8 +2617,12 @@ bool FreeListCategory::IsVeryLong() {
 
 
 bool FreeList::IsVeryLong() {
-  return small_list_.IsVeryLong() || medium_list_.IsVeryLong() ||
-         large_list_.IsVeryLong() || huge_list_.IsVeryLong();
+  for (int i = kFirstCategory; i < kNumberOfCategories; i++) {
+    if (category_[i].IsVeryLong()) {
+      return true;
+    }
+  }
+  return false;
 }
 
 
@@ -2630,10 +2630,10 @@ bool FreeList::IsVeryLong() {
 // on the free list, so it should not be called if FreeListLength returns
 // kVeryLongFreeList.
 intptr_t FreeList::SumFreeLists() {
-  intptr_t sum = small_list_.SumFreeList();
-  sum += medium_list_.SumFreeList();
-  sum += large_list_.SumFreeList();
-  sum += huge_list_.SumFreeList();
+  intptr_t sum = 0;
+  for (int i = kFirstCategory; i < kNumberOfCategories; i++) {
+    sum += category_[i].SumFreeList();
+  }
   return sum;
 }
 #endif

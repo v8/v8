@@ -717,9 +717,16 @@ class MemoryChunk {
   friend class MemoryChunkValidator;
 };
 
+enum FreeListCategoryType {
+  kSmall,
+  kMedium,
+  kLarge,
+  kHuge,
 
-enum FreeListCategoryType { kSmall, kMedium, kLarge, kHuge };
-
+  kFirstCategory = kSmall,
+  kLastCategory = kHuge,
+  kNumberOfCategories = kLastCategory + 1
+};
 
 // -----------------------------------------------------------------------------
 // A page is a memory chunk of a size 1MB. Large object pages may be larger.
@@ -1590,12 +1597,12 @@ class AllocationStats BASE_EMBEDDED {
 // A free list category maintains a linked list of free memory blocks.
 class FreeListCategory {
  public:
-  explicit FreeListCategory(FreeList* owner, FreeListCategoryType type)
-      : type_(type),
-        top_(nullptr),
-        end_(nullptr),
-        available_(0),
-        owner_(owner) {}
+  FreeListCategory() : top_(nullptr), end_(nullptr), available_(0) {}
+
+  void Initialize(FreeList* owner, FreeListCategoryType type) {
+    owner_ = owner;
+    type_ = type;
+  }
 
   // Concatenates {category} into {this}.
   //
@@ -1725,8 +1732,11 @@ class FreeList {
 
   // Return the number of bytes available on the free list.
   intptr_t Available() {
-    return small_list_.available() + medium_list_.available() +
-           large_list_.available() + huge_list_.available();
+    intptr_t available = 0;
+    for (int i = kFirstCategory; i < kNumberOfCategories; i++) {
+      available += category_[i].available();
+    }
+    return available;
   }
 
   // The method tries to find a {FreeSpace} node of at least {size_in_bytes}
@@ -1738,8 +1748,10 @@ class FreeList {
   MUST_USE_RESULT FreeSpace* TryRemoveMemory(intptr_t hint_size_in_bytes);
 
   bool IsEmpty() {
-    return small_list_.IsEmpty() && medium_list_.IsEmpty() &&
-           large_list_.IsEmpty() && huge_list_.IsEmpty();
+    for (int i = kFirstCategory; i < kNumberOfCategories; i++) {
+      if (!category_[i].IsEmpty()) return false;
+    }
+    return true;
   }
 
   // Used after booting the VM.
@@ -1775,29 +1787,13 @@ class FreeList {
   FreeSpace* FindNodeIn(FreeListCategoryType category, int* node_size);
 
   FreeListCategory* GetFreeListCategory(FreeListCategoryType category) {
-    switch (category) {
-      case kSmall:
-        return &small_list_;
-      case kMedium:
-        return &medium_list_;
-      case kLarge:
-        return &large_list_;
-      case kHuge:
-        return &huge_list_;
-      default:
-        UNREACHABLE();
-    }
-    UNREACHABLE();
-    return nullptr;
+    return &category_[category];
   }
 
   PagedSpace* owner_;
   base::Mutex mutex_;
   intptr_t wasted_bytes_;
-  FreeListCategory small_list_;
-  FreeListCategory medium_list_;
-  FreeListCategory large_list_;
-  FreeListCategory huge_list_;
+  FreeListCategory category_[kNumberOfCategories];
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(FreeList);
 };
