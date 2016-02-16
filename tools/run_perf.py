@@ -405,7 +405,10 @@ class GraphConfig(Node):
     # TODO(machenbach): Currently that makes only sense for the leaf level.
     # Multiple place holders for multiple levels are not supported.
     if parent.results_regexp:
-      regexp_default = parent.results_regexp % re.escape(suite["name"])
+      try:
+        regexp_default = parent.results_regexp % re.escape(suite["name"])
+      except TypeError:
+        regexp_default = parent.results_regexp
     else:
       regexp_default = None
     self.results_regexp = suite.get("results_regexp", regexp_default)
@@ -587,6 +590,25 @@ class Platform(object):
     else:
       return DesktopPlatform(options)
 
+  def GetPrettyFormatted(self, options):
+    return self
+
+  def PreExecution(self):
+    pass
+
+  def PostExecution(self):
+    pass
+
+  def PreTests(self, node, path):
+    pass
+
+  def PrintResult(self, result):
+    pass
+
+  def _PrintStdout(self, title, output):
+    print title % "Stdout"
+    print output.stdout
+
   def _Run(self, runnable, count, no_patch=False):
     raise NotImplementedError()  # pragma: no cover
 
@@ -609,15 +631,72 @@ class Platform(object):
       return stdout, None
 
 
+class PlatformFormattedMixin(object):
+  """
+  Helper mixin that adds formatted output used when running benchmarks
+  with the --pretty flag.
+  """
+
+  def _PrintStdout(self, title, output):
+    sys.stdout.write("\r")
+    if output.exit_code != 0:
+      print output.stdout
+      return
+    # Assume the time is on the last line
+    result_line = output.stdout.splitlines()[-1].strip()
+    sys.stdout.write(result_line)
+    # Fill with spaces up to 80 characters.
+    sys.stdout.write(' '*max(0, 80-len(result_line)))
+    sys.stdout.flush()
+
+  def _GetMean(self, trace):
+    results = trace['results']
+    if len(results) == 0:
+      return 0
+    # If the tests provided a stddev the results consists of one single average
+    # value, so return that instead.
+    if trace['stddev']:
+      return results[0]
+    # For a non-zero length results list calculate the average here.
+    return sum([float(x) for x in results]) / len(results)
+
+  def _GetDeviation(self, trace):
+    # If the benchmark provided a stddev use that directly.
+    stddev = trace['stddev']
+    if stddev:
+      return stddev
+    # If no stddev was provided calculate it from the results.
+    results = trace['results']
+    if len(results) == 0:
+      return 0
+    mean = self._GetMean(trace)
+    square_deviation = sum((float(x)-mean)**2 for x in results)
+    return (square_deviation / len(results)) ** 0.5
+
+  def PrintResult(self, result):
+    if result.errors:
+      print "\r:Errors:"
+      print "\n".join(set(result.errors))
+    else:
+      trace = result.traces[0]
+      average = self._GetMean(trace)
+      stdev = self._GetDeviation(trace)
+      stdev_percentage = 100 * stdev / average if average != 0 else 0
+      result_string = "\r    %s +/- %3.2f%% %s" % (
+                        average, stdev_percentage, trace['units'])
+      sys.stdout.write(result_string)
+      # Fill with spaces up to 80 characters.
+      sys.stdout.write(' '*max(0, 80-len(result_string)))
+      sys.stdout.write("\n")
+      sys.stdout.flush()
+
+
 class DesktopPlatform(Platform):
   def __init__(self, options):
     super(DesktopPlatform, self).__init__(options)
 
-  def PreExecution(self):
-    pass
-
-  def PostExecution(self):
-    pass
+  def GetPrettyFormatted(self, options):
+    return PrettyFormattedDesktopPlatform(options)
 
   def PreTests(self, node, path):
     if isinstance(node, RunnableConfig):
@@ -636,8 +715,7 @@ class DesktopPlatform(Platform):
       print title % "OSError"
       print e
       return ""
-    print title % "Stdout"
-    print output.stdout
+    self._PrintStdout(title, output)
     if output.stderr:  # pragma: no cover
       # Print stderr for debugging.
       print title % "Stderr"
@@ -652,6 +730,10 @@ class DesktopPlatform(Platform):
       else:  # pragma: no cover
         print "Profiler option currently supported on Linux and Mac OS."
     return output.stdout
+
+
+class PrettyFormattedDesktopPlatform(PlatformFormattedMixin, DesktopPlatform):
+  pass
 
 
 class AndroidPlatform(Platform):  # pragma: no cover
@@ -670,6 +752,9 @@ class AndroidPlatform(Platform):  # pragma: no cover
       options.device = str(devices[0])
     self.adb_wrapper = adb_wrapper.AdbWrapper(options.device)
     self.device = device_utils.DeviceUtils(self.adb_wrapper)
+
+  def GetPrettyFormatted(self, options):
+    return PrettyFormattedAndroidPlatform(options)
 
   def PreExecution(self):
     perf = perf_control.PerfControl(self.device)
@@ -757,6 +842,10 @@ class AndroidPlatform(Platform):  # pragma: no cover
     for resource in node.resources:
       self._PushFile(bench_abs, resource, bench_rel)
 
+  def _PrintStdout(self, title, output):
+    print title % "Stdout"
+    print "\n".join(output)
+
   def _Run(self, runnable, count, no_patch=False):
     suffix = ' - without patch' if no_patch else ''
     target_dir = "bin_no_patch" if no_patch else "bin"
@@ -780,13 +869,15 @@ class AndroidPlatform(Platform):  # pragma: no cover
           timeout=runnable.timeout,
           retries=0,
       )
-      stdout = "\n".join(output)
-      print title % "Stdout"
-      print stdout
+      self._PrintStdout(title, output)
     except device_errors.CommandTimeoutError:
       print ">>> Test timed out after %ss." % runnable.timeout
       stdout = ""
     return stdout
+
+
+class PrettyFormattedAndroidPlatform(PlatformFormattedMixin, AndroidPlatform):
+  pass
 
 
 # TODO: Implement results_processor.
@@ -818,6 +909,9 @@ def Main(args):
                     default="out")
   parser.add_option("--outdir-no-patch",
                     help="Base directory with compile output without patch")
+  parser.add_option("--pretty",
+                    help="Print human readable output",
+                    default=False, action="store_true")
   parser.add_option("--binary-override-path",
                     help="JavaScript engine binary. By default, d8 under "
                     "architecture-specific build dir. "
@@ -873,6 +967,8 @@ def Main(args):
     options.shell_dir_no_patch = None
 
   platform = Platform.GetPlatform(options)
+  if options.pretty:
+    platform = platform.GetPrettyFormatted(options)
 
   results = Results()
   results_no_patch = Results()
@@ -914,6 +1010,7 @@ def Main(args):
       # Let runnable iterate over all runs and handle output.
       result, result_no_patch = runnable.Run(
           Runner, trybot=options.shell_dir_no_patch)
+      platform.PrintResult(result)
       results += result
       results_no_patch += result_no_patch
     platform.PostExecution()
@@ -921,12 +1018,14 @@ def Main(args):
   if options.json_test_results:
     results.WriteToFile(options.json_test_results)
   else:  # pragma: no cover
-    print results
+    if not options.pretty:
+      print results
 
   if options.json_test_results_no_patch:
     results_no_patch.WriteToFile(options.json_test_results_no_patch)
   else:  # pragma: no cover
-    print results_no_patch
+    if not options.pretty:
+      print results_no_patch
 
   return min(1, len(results.errors))
 
