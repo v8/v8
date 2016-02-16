@@ -102,6 +102,14 @@ hooks = [
                 "-s", "v8/buildtools/linux64/clang-format.sha1",
     ],
   },
+  {
+    'name': 'gcmole',
+    'pattern': '.',
+    'action': [
+        'python',
+        'v8/tools/gcmole/download_gcmole_tools.py',
+    ],
+  },
   # Pull luci-go binaries (isolate, swarming) using checked-in hashes.
   {
     'name': 'luci-go_win',

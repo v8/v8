@@ -66,6 +66,8 @@ shell_g
 /third_party/llvm
 /third_party/llvm-build
 /tools/clang
+/tools/gcmole/gcmole-tools
+/tools/gcmole/gcmole-tools.tar.gz
 /tools/jsfunfuzz
 /tools/jsfunfuzz.zip
 /tools/luci-go/linux64/isolate
