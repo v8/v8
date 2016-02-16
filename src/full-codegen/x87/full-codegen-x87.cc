@@ -1346,7 +1346,8 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy,
       // Generate code for loading from variables potentially shadowed
       // by eval-introduced variables.
       EmitDynamicLookupFastCase(proxy, typeof_mode, &slow, &done);
-      __ Push(var->name());
+      __ bind(&slow);
+      __ push(Immediate(var->name()));
       Runtime::FunctionId function_id =
           typeof_mode == NOT_INSIDE_TYPEOF
               ? Runtime::kLoadLookupSlot
@@ -2339,7 +2340,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op,
              (var->mode() == CONST && op == Token::INIT)) {
     if (var->IsLookupSlot()) {
       // Assignment to var.
-      __ Push(var->name());
+      __ Push(Immediate(var->name()));
       __ Push(eax);
       __ CallRuntime(is_strict(language_mode())
                          ? Runtime::kStoreLookupSlot_Strict
