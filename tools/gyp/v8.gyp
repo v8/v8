@@ -891,6 +891,8 @@
         '../../src/heap/objects-visiting-inl.h',
         '../../src/heap/objects-visiting.cc',
         '../../src/heap/objects-visiting.h',
+        '../../src/heap/remembered-set.cc',
+        '../../src/heap/remembered-set.h',
         '../../src/heap/scavenge-job.h',
         '../../src/heap/scavenge-job.cc',
         '../../src/heap/scavenger-inl.h',

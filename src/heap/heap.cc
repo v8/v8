@@ -27,6 +27,7 @@
 #include "src/heap/object-stats.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/objects-visiting.h"
+#include "src/heap/remembered-set.h"
 #include "src/heap/scavenge-job.h"
 #include "src/heap/scavenger-inl.h"
 #include "src/heap/store-buffer.h"
@@ -462,6 +463,7 @@ void Heap::GarbageCollectionPrologue() {
   }
   CheckNewSpaceExpansionCriteria();
   UpdateNewSpaceAllocationCounter();
+  store_buffer()->MoveEntriesToRememberedSet();
 }
 
 
@@ -1678,7 +1680,8 @@ void Heap::Scavenge() {
     // Copy objects reachable from the old generation.
     GCTracer::Scope gc_scope(tracer(),
                              GCTracer::Scope::SCAVENGER_OLD_TO_NEW_POINTERS);
-    store_buffer()->IteratePointersToNewSpace(&Scavenger::ScavengeObject);
+    RememberedSet<OLD_TO_NEW>::IterateWithWrapper(this,
+                                                  Scavenger::ScavengeObject);
   }
 
   {
@@ -4460,8 +4463,6 @@ void Heap::Verify() {
   CHECK(HasBeenSetUp());
   HandleScope scope(isolate());
 
-  store_buffer()->Verify();
-
   if (mark_compact_collector()->sweeping_in_progress()) {
     // We have to wait here for the sweeper threads to have an iterable heap.
     mark_compact_collector()->EnsureSweepingCompleted();
@@ -4509,14 +4510,11 @@ void Heap::IterateAndMarkPointersToFromSpace(HeapObject* object, Address start,
                                              Address end, bool record_slots,
                                              ObjectSlotCallback callback) {
   Address slot_address = start;
+  Page* page = Page::FromAddress(start);
 
   while (slot_address < end) {
     Object** slot = reinterpret_cast<Object**>(slot_address);
     Object* target = *slot;
-    // If the store buffer becomes overfull we mark pages as being exempt from
-    // the store buffer.  These pages are scanned to find pointers that point
-    // to the new space.  In that case we may hit newly promoted objects and
-    // fix the pointers before the promotion queue gets to them.  Thus the 'if'.
     if (target->IsHeapObject()) {
       if (Heap::InFromSpace(target)) {
         callback(reinterpret_cast<HeapObject**>(slot),
@@ -4525,7 +4523,7 @@ void Heap::IterateAndMarkPointersToFromSpace(HeapObject* object, Address start,
         if (InNewSpace(new_target)) {
           SLOW_DCHECK(Heap::InToSpace(new_target));
           SLOW_DCHECK(new_target->IsHeapObject());
-          store_buffer_.Mark(reinterpret_cast<Address>(slot));
+          RememberedSet<OLD_TO_NEW>::Insert(page, slot_address);
         }
         SLOW_DCHECK(!MarkCompactCollector::IsOnEvacuationCandidate(new_target));
       } else if (record_slots &&
@@ -5527,7 +5525,11 @@ void Heap::CheckHandleCount() {
 
 void Heap::ClearRecordedSlot(HeapObject* object, Object** slot) {
   if (!InNewSpace(object)) {
-    store_buffer()->Remove(reinterpret_cast<Address>(slot));
+    store_buffer()->MoveEntriesToRememberedSet();
+    Address slot_addr = reinterpret_cast<Address>(slot);
+    Page* page = Page::FromAddress(slot_addr);
+    DCHECK_EQ(page->owner()->identity(), OLD_SPACE);
+    RememberedSet<OLD_TO_NEW>::Remove(page, slot_addr);
   }
 }
 

@@ -398,6 +398,7 @@ class MemoryChunk {
   static const size_t kWriteBarrierCounterOffset =
       kSlotsBufferOffset + kPointerSize  // SlotsBuffer* slots_buffer_;
       + kPointerSize                     // SlotSet* old_to_new_slots_;
+      + kPointerSize                     // SlotSet* old_to_old_slots_;
       + kPointerSize;                    // SkipList* skip_list_;
 
   static const size_t kMinHeaderSize =
@@ -437,7 +438,6 @@ class MemoryChunk {
     return reinterpret_cast<MemoryChunk*>(OffsetFrom(a) & ~kAlignmentMask);
   }
 
-  // Only works for addresses in pointer spaces, not data or code spaces.
   static inline MemoryChunk* FromAnyPointerAddress(Heap* heap, Address addr);
 
   static inline void UpdateHighWaterMark(Address mark) {
@@ -514,9 +514,12 @@ class MemoryChunk {
   inline SlotsBuffer** slots_buffer_address() { return &slots_buffer_; }
 
   inline SlotSet* old_to_new_slots() { return old_to_new_slots_; }
+  inline SlotSet* old_to_old_slots() { return old_to_old_slots_; }
 
   void AllocateOldToNewSlots();
   void ReleaseOldToNewSlots();
+  void AllocateOldToOldSlots();
+  void ReleaseOldToOldSlots();
 
   Address area_start() { return area_start_; }
   Address area_end() { return area_end_; }
@@ -640,6 +643,8 @@ class MemoryChunk {
            kPageHeaderTag);
   }
 
+  bool HasPageHeader() { return owner() != nullptr; }
+
   void InsertAfter(MemoryChunk* other);
   void Unlink();
 
@@ -684,6 +689,7 @@ class MemoryChunk {
   // set for large pages. In the latter case the number of entries in the array
   // is ceil(size() / kPageSize).
   SlotSet* old_to_new_slots_;
+  SlotSet* old_to_old_slots_;
 
   SkipList* skip_list_;
 
@@ -743,6 +749,9 @@ class Page : public MemoryChunk {
   INLINE(static Page* FromAddress(Address a)) {
     return reinterpret_cast<Page*>(OffsetFrom(a) & ~kPageAlignmentMask);
   }
+
+  // Only works for addresses in pointer spaces, not code space.
+  inline static Page* FromAnyPointerAddress(Heap* heap, Address addr);
 
   // Returns the page containing an allocation top. Because an allocation
   // top address can be the upper bound of the page, we need to subtract

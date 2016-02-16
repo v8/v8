@@ -315,7 +315,7 @@ void MarkCompactCollector::ClearInvalidStoreAndSlotsBufferEntries() {
   {
     GCTracer::Scope gc_scope(heap()->tracer(),
                              GCTracer::Scope::MC_CLEAR_STORE_BUFFER);
-    heap_->store_buffer()->ClearInvalidStoreBufferEntries();
+    RememberedSet<OLD_TO_NEW>::ClearInvalidSlots(heap());
   }
 
   {
@@ -344,7 +344,7 @@ static void VerifyValidSlotsBufferEntries(Heap* heap, PagedSpace* space) {
 
 
 void MarkCompactCollector::VerifyValidStoreAndSlotsBufferEntries() {
-  heap()->store_buffer()->VerifyValidStoreBufferEntries();
+  RememberedSet<OLD_TO_NEW>::VerifyValidSlots(heap());
 
   VerifyValidSlotsBufferEntries(heap(), heap()->old_space());
   VerifyValidSlotsBufferEntries(heap(), heap()->code_space());
@@ -2550,7 +2550,8 @@ void MarkCompactCollector::RecordMigratedSlot(
     if (compaction_in_progress_) {
       local_store_buffer->Record(slot);
     } else {
-      heap_->store_buffer()->Mark(slot);
+      Page* page = Page::FromAddress(slot);
+      RememberedSet<OLD_TO_NEW>::Insert(page, slot);
     }
   } else if (value->IsHeapObject() && IsOnEvacuationCandidate(value)) {
     SlotsBuffer::AddTo(slots_buffer_allocator_, evacuation_slots_buffer,
@@ -3089,7 +3090,7 @@ class MarkCompactCollector::Evacuator : public Malloced {
         newspace_evacuation_candidates_(newspace_evacuation_candidates),
         compaction_spaces_(collector->heap()),
         local_slots_buffer_(nullptr),
-        local_store_buffer_(),
+        local_store_buffer_(collector->heap()),
         local_pretenuring_feedback_(HashMap::PointersMatch,
                                     kInitialLocalPretenuringFeedbackCapacity),
         new_space_visitor_(collector->heap(), &compaction_spaces_,
@@ -3738,7 +3739,7 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
     // Update roots.
     heap_->IterateRoots(&updating_visitor, VISIT_ALL_IN_SWEEP_NEWSPACE);
 
-    heap_->store_buffer()->IteratePointersToNewSpace(&UpdatePointer);
+    RememberedSet<OLD_TO_NEW>::IterateWithWrapper(heap_, UpdatePointer);
   }
 
   {

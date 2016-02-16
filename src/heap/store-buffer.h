@@ -14,14 +14,8 @@
 namespace v8 {
 namespace internal {
 
-class Page;
-class PagedSpace;
-class StoreBuffer;
-
-typedef void (*ObjectSlotCallback)(HeapObject** from, HeapObject* to);
-
-// Used to implement the write barrier by collecting addresses of pointers
-// between spaces.
+// Intermediate buffer that accumulates old-to-new stores from the generated
+// code. On buffer overflow the slots are moved to the remembered set.
 class StoreBuffer {
  public:
   explicit StoreBuffer(Heap* heap);
@@ -33,25 +27,7 @@ class StoreBuffer {
   static const int kStoreBufferSize = kStoreBufferOverflowBit;
   static const int kStoreBufferLength = kStoreBufferSize / sizeof(Address);
 
-  // This is used to add addresses to the store buffer non-concurrently.
-  inline void Mark(Address addr);
-
-  // Removes the given slot from the store buffer non-concurrently. If the
-  // slot was never added to the store buffer, then the function does nothing.
-  void Remove(Address addr);
-
-  // Slots that do not point to the ToSpace after callback invocation will be
-  // removed from the set.
-  void IteratePointersToNewSpace(ObjectSlotCallback callback);
-
-  void Verify();
-
-  // Eliminates all stale store buffer entries from the store buffer, i.e.,
-  // slots that are not part of live objects anymore. This method must be
-  // called after marking, when the whole transitive closure is known and
-  // must be called before sweeping when mark bits are still intact.
-  void ClearInvalidStoreBufferEntries();
-  void VerifyValidStoreBufferEntries();
+  void MoveEntriesToRememberedSet();
 
  private:
   Heap* heap_;
@@ -62,27 +38,13 @@ class StoreBuffer {
   Address* limit_;
 
   base::VirtualMemory* virtual_memory_;
-
-  // Used for synchronization of concurrent store buffer access.
-  base::Mutex mutex_;
-
-  void InsertEntriesFromBuffer();
-
-  inline uint32_t AddressToSlotSetAndOffset(Address slot_address,
-                                            SlotSet** slots);
-
-  template <typename Callback>
-  void Iterate(Callback callback);
-
-#ifdef VERIFY_HEAP
-  void VerifyPointers(LargeObjectSpace* space);
-#endif
 };
 
 
 class LocalStoreBuffer BASE_EMBEDDED {
  public:
-  LocalStoreBuffer() : top_(new Node(nullptr)) {}
+  explicit LocalStoreBuffer(Heap* heap)
+      : top_(new Node(nullptr)), heap_(heap) {}
 
   ~LocalStoreBuffer() {
     Node* current = top_;
@@ -110,6 +72,7 @@ class LocalStoreBuffer BASE_EMBEDDED {
   };
 
   Node* top_;
+  Heap* heap_;
 };
 
 }  // namespace internal

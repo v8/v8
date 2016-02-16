@@ -111,6 +111,7 @@ class SlotSet : public Malloced {
 
   // Iterate over all slots in the set and for each slot invoke the callback.
   // If the callback returns REMOVE_SLOT then the slot is removed from the set.
+  // Returns the new number of slots.
   //
   // Sample usage:
   // Iterate([](Address slot_address) {
@@ -118,10 +119,11 @@ class SlotSet : public Malloced {
   //    else return REMOVE_SLOT;
   // });
   template <typename Callback>
-  void Iterate(Callback callback) {
+  int Iterate(Callback callback) {
+    int new_count = 0;
     for (int bucket_index = 0; bucket_index < kBuckets; bucket_index++) {
       if (bucket[bucket_index] != nullptr) {
-        bool bucket_is_empty = true;
+        int in_bucket_count = 0;
         uint32_t* current_bucket = bucket[bucket_index];
         int cell_offset = bucket_index * kBitsPerBucket;
         for (int i = 0; i < kCellsPerBucket; i++, cell_offset += kBitsPerCell) {
@@ -134,7 +136,7 @@ class SlotSet : public Malloced {
               uint32_t bit_mask = 1u << bit_offset;
               uint32_t slot = (cell_offset + bit_offset) << kPointerSizeLog2;
               if (callback(page_start_ + slot) == KEEP_SLOT) {
-                bucket_is_empty = false;
+                ++in_bucket_count;
               } else {
                 new_cell ^= bit_mask;
               }
@@ -145,11 +147,13 @@ class SlotSet : public Malloced {
             }
           }
         }
-        if (bucket_is_empty) {
+        if (in_bucket_count == 0) {
           ReleaseBucket(bucket_index);
         }
+        new_count += in_bucket_count;
       }
     }
+    return new_count;
   }
 
  private:

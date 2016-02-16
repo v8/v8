@@ -296,22 +296,16 @@ bool PagedSpace::Contains(Object* o) {
 }
 
 MemoryChunk* MemoryChunk::FromAnyPointerAddress(Heap* heap, Address addr) {
-  MemoryChunk* maybe = reinterpret_cast<MemoryChunk*>(
-      OffsetFrom(addr) & ~Page::kPageAlignmentMask);
-  if (maybe->owner() != NULL) return maybe;
-  LargeObjectIterator iterator(heap->lo_space());
-  for (HeapObject* o = iterator.Next(); o != NULL; o = iterator.Next()) {
-    // Fixed arrays are the only pointer-containing objects in large object
-    // space.
-    if (o->IsFixedArray()) {
-      MemoryChunk* chunk = MemoryChunk::FromAddress(o->address());
-      if (chunk->Contains(addr)) {
-        return chunk;
-      }
-    }
+  MemoryChunk* chunk = MemoryChunk::FromAddress(addr);
+  uintptr_t offset = addr - chunk->address();
+  if (offset < MemoryChunk::kHeaderSize || !chunk->HasPageHeader()) {
+    chunk = heap->lo_space()->FindPage(addr);
   }
-  UNREACHABLE();
-  return NULL;
+  return chunk;
+}
+
+Page* Page::FromAnyPointerAddress(Heap* heap, Address addr) {
+  return static_cast<Page*>(MemoryChunk::FromAnyPointerAddress(heap, addr));
 }
 
 

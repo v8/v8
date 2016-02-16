@@ -395,7 +395,9 @@ void Heap::RecordWrite(Object* object, int offset, Object* o) {
   if (!InNewSpace(o) || !object->IsHeapObject() || InNewSpace(object)) {
     return;
   }
-  store_buffer_.Mark(HeapObject::cast(object)->address() + offset);
+  Page* page = Page::FromAddress(reinterpret_cast<Address>(object));
+  Address slot = HeapObject::cast(object)->address() + offset;
+  RememberedSet<OLD_TO_NEW>::Insert(page, slot);
 }
 
 

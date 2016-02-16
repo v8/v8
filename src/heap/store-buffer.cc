@@ -59,169 +59,21 @@ void StoreBuffer::TearDown() {
 
 
 void StoreBuffer::StoreBufferOverflow(Isolate* isolate) {
-  isolate->heap()->store_buffer()->InsertEntriesFromBuffer();
+  isolate->heap()->store_buffer()->MoveEntriesToRememberedSet();
   isolate->counters()->store_buffer_overflows()->Increment();
 }
 
-void StoreBuffer::Remove(Address addr) {
-  InsertEntriesFromBuffer();
-  MemoryChunk* chunk = MemoryChunk::FromAddress(addr);
-  DCHECK_EQ(chunk->owner()->identity(), OLD_SPACE);
-  uintptr_t offset = addr - chunk->address();
-  DCHECK_LT(offset, static_cast<uintptr_t>(Page::kPageSize));
-  if (chunk->old_to_new_slots() == nullptr) return;
-  chunk->old_to_new_slots()->Remove(static_cast<uint32_t>(offset));
-}
-
-#ifdef VERIFY_HEAP
-void StoreBuffer::VerifyPointers(LargeObjectSpace* space) {
-  LargeObjectIterator it(space);
-  for (HeapObject* object = it.Next(); object != NULL; object = it.Next()) {
-    if (object->IsFixedArray()) {
-      Address slot_address = object->address();
-      Address end = object->address() + object->Size();
-      while (slot_address < end) {
-        HeapObject** slot = reinterpret_cast<HeapObject**>(slot_address);
-        // When we are not in GC the Heap::InNewSpace() predicate
-        // checks that pointers which satisfy predicate point into
-        // the active semispace.
-        Object* object = *slot;
-        heap_->InNewSpace(object);
-        slot_address += kPointerSize;
-      }
-    }
-  }
-}
-#endif
-
-
-void StoreBuffer::Verify() {
-#ifdef VERIFY_HEAP
-  VerifyPointers(heap_->lo_space());
-#endif
-}
-
-void StoreBuffer::InsertEntriesFromBuffer() {
+void StoreBuffer::MoveEntriesToRememberedSet() {
   Address* top = reinterpret_cast<Address*>(heap_->store_buffer_top());
   if (top == start_) return;
-  // There's no check of the limit in the loop below so we check here for
-  // the worst case (compaction doesn't eliminate any pointers).
   DCHECK(top <= limit_);
   heap_->set_store_buffer_top(reinterpret_cast<Smi*>(start_));
-  Page* last_page = nullptr;
-  SlotSet* last_slot_set = nullptr;
   for (Address* current = start_; current < top; current++) {
     DCHECK(!heap_->code_space()->Contains(*current));
     Address addr = *current;
-    Page* page = Page::FromAddress(addr);
-    SlotSet* slot_set;
-    uint32_t offset;
-    if (page == last_page) {
-      slot_set = last_slot_set;
-      offset = static_cast<uint32_t>(addr - page->address());
-    } else {
-      offset = AddressToSlotSetAndOffset(addr, &slot_set);
-      last_page = page;
-      last_slot_set = slot_set;
-    }
-    slot_set->Insert(offset);
+    Page* page = Page::FromAnyPointerAddress(heap_, addr);
+    RememberedSet<OLD_TO_NEW>::Insert(page, addr);
   }
-}
-
-static SlotSet::CallbackResult ProcessOldToNewSlot(
-    Heap* heap, Address slot_address, ObjectSlotCallback slot_callback) {
-  Object** slot = reinterpret_cast<Object**>(slot_address);
-  Object* object = *slot;
-  if (heap->InFromSpace(object)) {
-    HeapObject* heap_object = reinterpret_cast<HeapObject*>(object);
-    DCHECK(heap_object->IsHeapObject());
-    slot_callback(reinterpret_cast<HeapObject**>(slot), heap_object);
-    object = *slot;
-    // If the object was in from space before and is after executing the
-    // callback in to space, the object is still live.
-    // Unfortunately, we do not know about the slot. It could be in a
-    // just freed free space object.
-    if (heap->InToSpace(object)) {
-      return SlotSet::KEEP_SLOT;
-    }
-  } else {
-    DCHECK(!heap->InNewSpace(object));
-  }
-  return SlotSet::REMOVE_SLOT;
-}
-
-void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback) {
-  Heap* heap = heap_;
-  Iterate([heap, slot_callback](Address addr) {
-    return ProcessOldToNewSlot(heap, addr, slot_callback);
-  });
-}
-
-template <typename Callback>
-void StoreBuffer::Iterate(Callback callback) {
-  InsertEntriesFromBuffer();
-  PointerChunkIterator it(heap_);
-  MemoryChunk* chunk;
-  while ((chunk = it.next()) != nullptr) {
-    if (chunk->old_to_new_slots() != nullptr) {
-      SlotSet* slots = chunk->old_to_new_slots();
-      size_t pages = (chunk->size() + Page::kPageSize - 1) / Page::kPageSize;
-      for (size_t page = 0; page < pages; page++) {
-        slots[page].Iterate(callback);
-      }
-    }
-  }
-}
-
-
-void StoreBuffer::ClearInvalidStoreBufferEntries() {
-  InsertEntriesFromBuffer();
-
-  Heap* heap = heap_;
-  PageIterator it(heap->old_space());
-  MemoryChunk* chunk;
-  while (it.has_next()) {
-    chunk = it.next();
-    if (chunk->old_to_new_slots() != nullptr) {
-      SlotSet* slots = chunk->old_to_new_slots();
-      size_t pages = (chunk->size() + Page::kPageSize - 1) / Page::kPageSize;
-      if (pages > 1) {
-        // Large pages were processed above.
-        continue;
-      }
-      slots->Iterate([heap](Address addr) {
-        Object** slot = reinterpret_cast<Object**>(addr);
-        Object* object = *slot;
-        if (heap->InNewSpace(object)) {
-          DCHECK(object->IsHeapObject());
-          // If the target object is not black, the source slot must be part
-          // of a non-black (dead) object.
-          HeapObject* heap_object = HeapObject::cast(object);
-          bool live = Marking::IsBlack(Marking::MarkBitFrom(heap_object)) &&
-                      heap->mark_compact_collector()->IsSlotInLiveObject(addr);
-          return live ? SlotSet::KEEP_SLOT : SlotSet::REMOVE_SLOT;
-        }
-        return SlotSet::REMOVE_SLOT;
-      });
-    }
-  }
-}
-
-
-void StoreBuffer::VerifyValidStoreBufferEntries() {
-  Heap* heap = heap_;
-  Iterate([heap](Address addr) {
-    Object** slot = reinterpret_cast<Object**>(addr);
-    Object* object = *slot;
-    if (Page::FromAddress(addr)->owner() != nullptr &&
-        Page::FromAddress(addr)->owner()->identity() == OLD_SPACE) {
-      CHECK(object->IsHeapObject());
-      CHECK(heap->InNewSpace(object));
-      heap->mark_compact_collector()->VerifyIsSlotInLiveObject(
-          reinterpret_cast<Address>(slot), HeapObject::cast(object));
-    }
-    return SlotSet::KEEP_SLOT;
-  });
 }
 
 }  // namespace internal

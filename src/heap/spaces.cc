@@ -480,6 +480,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   chunk->InitializeReservedMemory();
   chunk->slots_buffer_ = nullptr;
   chunk->old_to_new_slots_ = nullptr;
+  chunk->old_to_old_slots_ = nullptr;
   chunk->skip_list_ = nullptr;
   chunk->write_barrier_counter_ = kWriteBarrierCounterGranularity;
   chunk->progress_bar_ = 0;
@@ -944,17 +945,22 @@ void MemoryChunk::ReleaseAllocatedMemory() {
   delete mutex_;
   mutex_ = nullptr;
   ReleaseOldToNewSlots();
+  ReleaseOldToOldSlots();
+}
+
+static SlotSet* AllocateSlotSet(size_t size, Address page_start) {
+  size_t pages = (size + Page::kPageSize - 1) / Page::kPageSize;
+  DCHECK(pages > 0);
+  SlotSet* slot_set = new SlotSet[pages];
+  for (size_t i = 0; i < pages; i++) {
+    slot_set[i].SetPageStart(page_start + i * Page::kPageSize);
+  }
+  return slot_set;
 }
 
 void MemoryChunk::AllocateOldToNewSlots() {
-  size_t pages = (size_ + Page::kPageSize - 1) / Page::kPageSize;
-  DCHECK(owner() == heap_->lo_space() || pages == 1);
-  DCHECK(pages > 0);
   DCHECK(nullptr == old_to_new_slots_);
-  old_to_new_slots_ = new SlotSet[pages];
-  for (size_t i = 0; i < pages; i++) {
-    old_to_new_slots_[i].SetPageStart(address() + i * Page::kPageSize);
-  }
+  old_to_new_slots_ = AllocateSlotSet(size_, address());
 }
 
 void MemoryChunk::ReleaseOldToNewSlots() {
@@ -962,6 +968,15 @@ void MemoryChunk::ReleaseOldToNewSlots() {
   old_to_new_slots_ = nullptr;
 }
 
+void MemoryChunk::AllocateOldToOldSlots() {
+  DCHECK(nullptr == old_to_old_slots_);
+  old_to_old_slots_ = AllocateSlotSet(size_, address());
+}
+
+void MemoryChunk::ReleaseOldToOldSlots() {
+  delete[] old_to_old_slots_;
+  old_to_old_slots_ = nullptr;
+}
 
 // -----------------------------------------------------------------------------
 // PagedSpace implementation

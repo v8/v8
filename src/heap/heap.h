@@ -291,6 +291,7 @@ class Scavenger;
 class ScavengeJob;
 class WeakObjectRetainer;
 
+typedef void (*ObjectSlotCallback)(HeapObject** from, HeapObject* to);
 
 // A queue of objects promoted during scavenge. Each object is accompanied
 // by it's size to avoid dereferencing a map pointer for scanning.
