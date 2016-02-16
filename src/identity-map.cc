@@ -4,7 +4,7 @@
 
 #include "src/identity-map.h"
 
-#include "src/heap/heap.h"
+#include "src/base/functional.h"
 #include "src/heap/heap-inl.h"
 #include "src/zone-containers.h"
 
@@ -42,8 +42,7 @@ IdentityMapBase::RawEntry IdentityMapBase::Insert(Object* key) {
 int IdentityMapBase::Hash(Object* address) {
   CHECK_NE(address, heap_->not_mapped_symbol());
   uintptr_t raw_address = reinterpret_cast<uintptr_t>(address);
-  // Xor some of the upper bits, since the lower 2 or 3 are usually aligned.
-  return static_cast<int>((raw_address >> 11) ^ raw_address);
+  return static_cast<int>(hasher_(raw_address));
 }
 
 

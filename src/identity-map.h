@@ -5,6 +5,7 @@
 #ifndef V8_IDENTITY_MAP_H_
 #define V8_IDENTITY_MAP_H_
 
+#include "src/base/functional.h"
 #include "src/handles.h"
 
 namespace v8 {
@@ -48,6 +49,7 @@ class IdentityMapBase {
   RawEntry Insert(Object* key);
   int Hash(Object* address);
 
+  base::hash<uintptr_t> hasher_;
   Heap* heap_;
   Zone* zone_;
   int gc_counter_;
