@@ -301,10 +301,11 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadInterceptor(
         Handle<JSObject> property_holder(it->GetHolder<JSObject>());
         Handle<Object> getter(Handle<AccessorPair>::cast(accessors)->getter(),
                               isolate());
-        if (!getter->IsJSFunction()) break;
+        if (!(getter->IsJSFunction() || getter->IsFunctionTemplateInfo())) {
+          break;
+        }
         if (!property_holder->HasFastProperties()) break;
-        auto function = Handle<JSFunction>::cast(getter);
-        CallOptimization call_optimization(function);
+        CallOptimization call_optimization(getter);
         Handle<Map> receiver_map = map();
         inline_followup = call_optimization.is_simple_api_call() &&
                           call_optimization.IsCompatibleReceiverMap(
@@ -397,8 +398,8 @@ void NamedLoadHandlerCompiler::GenerateLoadPostInterceptor(
         DCHECK_NOT_NULL(info->getter());
         GenerateLoadCallback(reg, info);
       } else {
-        auto function = handle(JSFunction::cast(
-            AccessorPair::cast(*it->GetAccessors())->getter()));
+        Handle<Object> function = handle(
+            AccessorPair::cast(*it->GetAccessors())->getter(), isolate());
         CallOptimization call_optimization(function);
         GenerateApiAccessorCall(masm(), call_optimization, holder_map,
                                 receiver(), scratch2(), false, no_reg, reg,
