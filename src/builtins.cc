@@ -251,6 +251,9 @@ MUST_USE_RESULT
 inline MaybeHandle<FixedArrayBase> EnsureJSArrayWithWritableFastElements(
     Isolate* isolate, Handle<Object> receiver, Arguments* args,
     int first_added_arg) {
+  // We explicitly add a HandleScope to avoid creating several copies of the
+  // same handle which would otherwise cause issue when left-trimming later-on.
+  HandleScope scope(isolate);
   if (!receiver->IsJSArray()) return MaybeHandle<FixedArrayBase>();
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
   // If there may be elements accessors in the prototype chain, the fast path
@@ -264,12 +267,18 @@ inline MaybeHandle<FixedArrayBase> EnsureJSArrayWithWritableFastElements(
   Handle<FixedArrayBase> elms(array->elements(), isolate);
   Map* map = elms->map();
   if (map == heap->fixed_array_map()) {
-    if (args == NULL || array->HasFastObjectElements()) return elms;
+    if (args == NULL || array->HasFastObjectElements()) {
+      return scope.CloseAndEscape(elms);
+    }
   } else if (map == heap->fixed_cow_array_map()) {
     elms = JSObject::EnsureWritableFastElements(array);
-    if (args == NULL || array->HasFastObjectElements()) return elms;
+    if (args == NULL || array->HasFastObjectElements()) {
+      return scope.CloseAndEscape(elms);
+    }
   } else if (map == heap->fixed_double_array_map()) {
-    if (args == NULL) return elms;
+    if (args == NULL) {
+      return scope.CloseAndEscape(elms);
+    }
   } else {
     return MaybeHandle<FixedArrayBase>();
   }
@@ -283,7 +292,9 @@ inline MaybeHandle<FixedArrayBase> EnsureJSArrayWithWritableFastElements(
   // Need to ensure that the arguments passed in args can be contained in
   // the array.
   int args_length = args->length();
-  if (first_added_arg >= args_length) return handle(array->elements(), isolate);
+  if (first_added_arg >= args_length) {
+    return scope.CloseAndEscape(elms);
+  }
 
   ElementsKind origin_kind = array->map()->elements_kind();
   DCHECK(!IsFastObjectElementsKind(origin_kind));
@@ -306,9 +317,9 @@ inline MaybeHandle<FixedArrayBase> EnsureJSArrayWithWritableFastElements(
   }
   if (target_kind != origin_kind) {
     JSObject::TransitionElementsKind(array, target_kind);
-    return handle(array->elements(), isolate);
+    elms = handle(array->elements(), isolate);
   }
-  return elms;
+  return scope.CloseAndEscape(elms);
 }
 
 
