@@ -473,11 +473,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       frame_access_state()->ClearSPDelta();
       break;
     }
-    case kArchLazyBailout: {
-      EnsureSpaceForLazyDeopt();
-      RecordCallPosition(instr);
-      break;
-    }
     case kArchPrepareCallCFunction: {
       int const num_parameters = MiscField::decode(instr->opcode());
       __ PrepareCallCFunction(num_parameters, kScratchReg);

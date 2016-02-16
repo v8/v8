@@ -568,10 +568,6 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
           g.UseLocation(callee, buffer->descriptor->GetInputLocation(0),
                         buffer->descriptor->GetInputType(0).representation()));
       break;
-    case CallDescriptor::kLazyBailout:
-      // The target is ignored, but we still need to pass a value here.
-      buffer->instruction_args.push_back(g.UseImmediate(callee));
-      break;
   }
   DCHECK_EQ(1u, buffer->instruction_args.size());
 
@@ -1458,9 +1454,6 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
       break;
     case CallDescriptor::kCallJSFunction:
       opcode = kArchCallJSFunction | MiscField::encode(flags);
-      break;
-    case CallDescriptor::kLazyBailout:
-      opcode = kArchLazyBailout | MiscField::encode(flags);
       break;
   }
 

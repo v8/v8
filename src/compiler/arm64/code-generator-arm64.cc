@@ -573,11 +573,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       frame_access_state()->ClearSPDelta();
       break;
     }
-    case kArchLazyBailout: {
-      EnsureSpaceForLazyDeopt();
-      RecordCallPosition(instr);
-      break;
-    }
     case kArchPrepareCallCFunction:
       // We don't need kArchPrepareCallCFunction on arm64 as the instruction
       // selector already perform a Claim to reserve space on the stack and

@@ -761,13 +761,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       frame_access_state()->ClearSPDelta();
       break;
     }
-    case kArchLazyBailout: {
-      v8::internal::Assembler::BlockTrampolinePoolScope block_trampoline_pool(
-          masm());
-      EnsureSpaceForLazyDeopt();
-      RecordCallPosition(instr);
-      break;
-    }
     case kArchPrepareCallCFunction: {
       int const num_parameters = MiscField::decode(instr->opcode());
       __ PrepareCallCFunction(num_parameters, kScratchReg);

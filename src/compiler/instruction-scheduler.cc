@@ -184,7 +184,6 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
     case kArchCallCFunction:
     case kArchCallCodeObject:
     case kArchCallJSFunction:
-    case kArchLazyBailout:
       return kHasSideEffect;
 
     case kArchTailCallCodeObject:

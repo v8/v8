@@ -803,11 +803,6 @@ const Operator* CommonOperatorBuilder::Call(const CallDescriptor* descriptor) {
 }
 
 
-const Operator* CommonOperatorBuilder::LazyBailout() {
-  return Call(Linkage::GetLazyBailoutDescriptor(zone()));
-}
-
-
 const Operator* CommonOperatorBuilder::TailCall(
     const CallDescriptor* descriptor) {
   class TailCallOperator final : public Operator1<const CallDescriptor*> {

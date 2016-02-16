@@ -1183,27 +1183,12 @@ class TryStatement : public Statement {
   Block* try_block() const { return try_block_; }
   void set_try_block(Block* b) { try_block_ = b; }
 
-  void set_base_id(int id) { base_id_ = id; }
-  static int num_ids() { return parent_num_ids() + 1; }
-  BailoutId HandlerId() const { return BailoutId(local_id(0)); }
-
  protected:
   TryStatement(Zone* zone, Block* try_block, int pos)
-      : Statement(zone, pos),
-        try_block_(try_block),
-        base_id_(BailoutId::None().ToInt()) {}
-  static int parent_num_ids() { return 0; }
-
-  int base_id() const {
-    DCHECK(!BailoutId(base_id_).IsNone());
-    return base_id_;
-  }
+      : Statement(zone, pos), try_block_(try_block) {}
 
  private:
-  int local_id(int n) const { return base_id() + parent_num_ids() + n; }
-
   Block* try_block_;
-  int base_id_;
 };
 
 

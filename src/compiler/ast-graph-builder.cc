@@ -1449,14 +1449,6 @@ void AstGraphBuilder::VisitTryCatchStatement(TryCatchStatement* stmt) {
   }
   try_control.EndTry();
 
-  // Insert lazy bailout point.
-  // TODO(mstarzinger): We are only using a 'call' to get a lazy bailout
-  // point. Ideally, we whould not re-enter optimized code when deoptimized
-  // lazily. Tracked by issue v8:4195.
-  NewNode(common()->LazyBailout(),
-          jsgraph()->ZeroConstant(),                      // dummy target.
-          environment()->Checkpoint(stmt->HandlerId()));  // frame state.
-
   // Clear message object as we enter the catch block.
   Node* the_hole = jsgraph()->TheHoleConstant();
   NewNode(javascript()->StoreMessage(), the_hole);
@@ -1500,14 +1492,6 @@ void AstGraphBuilder::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
     environment()->Pop();
   }
   try_control.EndTry(commands->GetFallThroughToken(), fallthrough_result);
-
-  // Insert lazy bailout point.
-  // TODO(mstarzinger): We are only using a 'call' to get a lazy bailout
-  // point. Ideally, we whould not re-enter optimized code when deoptimized
-  // lazily. Tracked by issue v8:4195.
-  NewNode(common()->LazyBailout(),
-          jsgraph()->ZeroConstant(),                      // dummy target.
-          environment()->Checkpoint(stmt->HandlerId()));  // frame state.
 
   // The result value semantics depend on how the block was entered:
   //  - ReturnStatement: It represents the return value being returned.

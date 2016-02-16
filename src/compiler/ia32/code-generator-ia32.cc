@@ -413,11 +413,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       frame_access_state()->ClearSPDelta();
       break;
     }
-    case kArchLazyBailout: {
-      EnsureSpaceForLazyDeopt();
-      RecordCallPosition(instr);
-      break;
-    }
     case kArchPrepareCallCFunction: {
       // Frame alignment requires using FP-relative frame addressing.
       frame_access_state()->SetFrameAccessToFP();
