@@ -488,11 +488,8 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   chunk->concurrent_sweeping_state().SetValue(kSweepingDone);
   chunk->parallel_compaction_state().SetValue(kCompactingDone);
   chunk->mutex_ = nullptr;
-  chunk->available_in_small_free_list_ = 0;
-  chunk->available_in_medium_free_list_ = 0;
-  chunk->available_in_large_free_list_ = 0;
-  chunk->available_in_huge_free_list_ = 0;
-  chunk->non_available_small_blocks_ = 0;
+  chunk->available_in_free_list_ = 0;
+  chunk->wasted_memory_ = 0;
   chunk->ResetLiveBytes();
   Bitmap::Clear(chunk);
   chunk->set_next_chunk(nullptr);
@@ -716,11 +713,8 @@ MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t reserve_area_size,
 
 
 void Page::ResetFreeListStatistics() {
-  non_available_small_blocks_ = 0;
-  available_in_small_free_list_ = 0;
-  available_in_medium_free_list_ = 0;
-  available_in_large_free_list_ = 0;
-  available_in_huge_free_list_ = 0;
+  wasted_memory_ = 0;
+  available_in_free_list_ = 0;
 }
 
 
@@ -2208,8 +2202,7 @@ intptr_t FreeListCategory::EvictFreeListItemsInList(Page* p) {
     }
     prev_node = cur_node;
   }
-  DCHECK_EQ(p->available_in_free_list(type_), sum);
-  p->add_available_in_free_list(type_, -sum);
+  p->add_available_in_free_list(-sum);
   available_ -= sum;
   return sum;
 }
@@ -2232,7 +2225,7 @@ FreeSpace* FreeListCategory::PickNodeFromList(int* node_size) {
   Page* page = Page::FromAddress(node->address());
   while ((node != nullptr) && !page->CanAllocate()) {
     available_ -= node->size();
-    page->add_available_in_free_list(type_, -(node->Size()));
+    page->add_available_in_free_list(-(node->Size()));
     node = node->next();
   }
 
@@ -2287,7 +2280,7 @@ FreeSpace* FreeListCategory::SearchForNodeInList(int size_in_bytes,
       }
       // For evacuation candidates we continue.
       if (!page_for_node->CanAllocate()) {
-        page_for_node->add_available_in_free_list(type_, -size);
+        page_for_node->add_available_in_free_list(-size);
         continue;
       }
       // Otherwise we have a large enough node and can return.
@@ -2375,7 +2368,7 @@ int FreeList::Free(Address start, int size_in_bytes) {
 
   // Early return to drop too-small blocks on the floor.
   if (size_in_bytes <= kSmallListMin) {
-    page->add_non_available_small_blocks(size_in_bytes);
+    page->add_wasted_memory(size_in_bytes);
     wasted_bytes_ += size_in_bytes;
     return size_in_bytes;
   }
@@ -2383,19 +2376,9 @@ int FreeList::Free(Address start, int size_in_bytes) {
   FreeSpace* free_space = FreeSpace::cast(HeapObject::FromAddress(start));
   // Insert other blocks at the head of a free list of the appropriate
   // magnitude.
-  if (size_in_bytes <= kSmallListMax) {
-    category_[kSmall].Free(free_space, size_in_bytes);
-    page->add_available_in_small_free_list(size_in_bytes);
-  } else if (size_in_bytes <= kMediumListMax) {
-    category_[kMedium].Free(free_space, size_in_bytes);
-    page->add_available_in_medium_free_list(size_in_bytes);
-  } else if (size_in_bytes <= kLargeListMax) {
-    category_[kLarge].Free(free_space, size_in_bytes);
-    page->add_available_in_large_free_list(size_in_bytes);
-  } else {
-    category_[kHuge].Free(free_space, size_in_bytes);
-    page->add_available_in_huge_free_list(size_in_bytes);
-  }
+  FreeListCategoryType type = SelectFreeListCategoryType(size_in_bytes);
+  category_[type].Free(free_space, size_in_bytes);
+  page->add_available_in_free_list(size_in_bytes);
 
   DCHECK(IsVeryLong() || Available() == SumFreeLists());
   return 0;
@@ -2406,7 +2389,7 @@ FreeSpace* FreeList::FindNodeIn(FreeListCategoryType category, int* node_size) {
   FreeSpace* node = GetFreeListCategory(category)->PickNodeFromList(node_size);
   if (node != nullptr) {
     Page::FromAddress(node->address())
-        ->add_available_in_free_list(category, -(*node_size));
+        ->add_available_in_free_list(-(*node_size));
     DCHECK(IsVeryLong() || Available() == SumFreeLists());
   }
   return node;
@@ -2417,50 +2400,37 @@ FreeSpace* FreeList::FindNodeFor(int size_in_bytes, int* node_size) {
   FreeSpace* node = nullptr;
   Page* page = nullptr;
 
-  if (size_in_bytes <= kSmallAllocationMax) {
-    node = FindNodeIn(kSmall, node_size);
+  // First try the allocation fast path: try to allocate the minimum element
+  // size of a free list category. This operation is constant time.
+  FreeListCategoryType type =
+      SelectFastAllocationFreeListCategoryType(size_in_bytes);
+  for (int i = type; i < kHuge; i++) {
+    node = FindNodeIn(static_cast<FreeListCategoryType>(i), node_size);
     if (node != nullptr) return node;
   }
 
-  if (size_in_bytes <= kMediumAllocationMax) {
-    node = FindNodeIn(kMedium, node_size);
-    if (node != nullptr) return node;
-  }
-
-  if (size_in_bytes <= kLargeAllocationMax) {
-    node = FindNodeIn(kLarge, node_size);
-    if (node != nullptr) return node;
-  }
-
+  // Next search the huge list for free list nodes. This takes linear time in
+  // the number of huge elements.
   node = category_[kHuge].SearchForNodeInList(size_in_bytes, node_size);
   if (node != nullptr) {
     page = Page::FromAddress(node->address());
-    page->add_available_in_large_free_list(-(*node_size));
+    page->add_available_in_free_list(-(*node_size));
     DCHECK(IsVeryLong() || Available() == SumFreeLists());
     return node;
   }
 
-  if (size_in_bytes <= kSmallListMax) {
-    node = category_[kSmall].PickNodeFromList(size_in_bytes, node_size);
-    if (node != NULL) {
-      DCHECK(size_in_bytes <= *node_size);
-      page = Page::FromAddress(node->address());
-      page->add_available_in_small_free_list(-(*node_size));
-    }
-  } else if (size_in_bytes <= kMediumListMax) {
-    node = category_[kMedium].PickNodeFromList(size_in_bytes, node_size);
-    if (node != NULL) {
-      DCHECK(size_in_bytes <= *node_size);
-      page = Page::FromAddress(node->address());
-      page->add_available_in_medium_free_list(-(*node_size));
-    }
-  } else if (size_in_bytes <= kLargeListMax) {
-    node = category_[kLarge].PickNodeFromList(size_in_bytes, node_size);
-    if (node != NULL) {
-      DCHECK(size_in_bytes <= *node_size);
-      page = Page::FromAddress(node->address());
-      page->add_available_in_large_free_list(-(*node_size));
-    }
+  // We need a huge block of memory, but we didn't find anything in the huge
+  // list.
+  if (type == kHuge) return nullptr;
+
+  // Now search the best fitting free list for a node that has at least the
+  // requested size. This takes linear time in the number of elements.
+  type = SelectFreeListCategoryType(size_in_bytes);
+  node = category_[type].PickNodeFromList(size_in_bytes, node_size);
+  if (node != nullptr) {
+    DCHECK(size_in_bytes <= *node_size);
+    page = Page::FromAddress(node->address());
+    page->add_available_in_free_list(-(*node_size));
   }
 
   DCHECK(IsVeryLong() || Available() == SumFreeLists());
@@ -2687,7 +2657,7 @@ void PagedSpace::RepairFreeListsAfterDeserialization() {
   PageIterator iterator(this);
   while (iterator.has_next()) {
     Page* page = iterator.next();
-    int size = static_cast<int>(page->non_available_small_blocks());
+    int size = static_cast<int>(page->wasted_memory());
     if (size == 0) continue;
     Address address = page->OffsetToAddress(Page::kPageSize - size);
     heap()->CreateFillerObjectAt(address, size);

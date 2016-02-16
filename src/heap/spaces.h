@@ -408,7 +408,7 @@ class MemoryChunk {
       + kPointerSize      // base::Mutex* mutex_
       + kPointerSize      // base::AtomicWord parallel_sweeping_
       + kPointerSize      // AtomicValue parallel_compaction_
-      + 5 * kPointerSize  // AtomicNumber free-list statistics
+      + 2 * kPointerSize  // AtomicNumber free-list statistics
       + kPointerSize      // AtomicValue next_chunk_
       + kPointerSize;     // AtomicValue prev_chunk_
 
@@ -705,11 +705,8 @@ class MemoryChunk {
   AtomicValue<ParallelCompactingState> parallel_compaction_;
 
   // PagedSpace free-list statistics.
-  AtomicNumber<intptr_t> available_in_small_free_list_;
-  AtomicNumber<intptr_t> available_in_medium_free_list_;
-  AtomicNumber<intptr_t> available_in_large_free_list_;
-  AtomicNumber<intptr_t> available_in_huge_free_list_;
-  AtomicNumber<intptr_t> non_available_small_blocks_;
+  AtomicNumber<intptr_t> available_in_free_list_;
+  AtomicNumber<intptr_t> wasted_memory_;
 
   // next_chunk_ holds a pointer of type MemoryChunk
   AtomicValue<MemoryChunk*> next_chunk_;
@@ -833,10 +830,8 @@ class Page : public MemoryChunk {
   void ResetFreeListStatistics();
 
   int LiveBytesFromFreeList() {
-    return static_cast<int>(
-        area_size() - non_available_small_blocks() -
-        available_in_small_free_list() - available_in_medium_free_list() -
-        available_in_large_free_list() - available_in_huge_free_list());
+    return static_cast<int>(area_size() - wasted_memory() -
+                            available_in_free_list());
   }
 
 #define FRAGMENTATION_STATS_ACCESSORS(type, name)        \
@@ -844,49 +839,10 @@ class Page : public MemoryChunk {
   void set_##name(type name) { name##_.SetValue(name); } \
   void add_##name(type name) { name##_.Increment(name); }
 
-  FRAGMENTATION_STATS_ACCESSORS(intptr_t, non_available_small_blocks)
-  FRAGMENTATION_STATS_ACCESSORS(intptr_t, available_in_small_free_list)
-  FRAGMENTATION_STATS_ACCESSORS(intptr_t, available_in_medium_free_list)
-  FRAGMENTATION_STATS_ACCESSORS(intptr_t, available_in_large_free_list)
-  FRAGMENTATION_STATS_ACCESSORS(intptr_t, available_in_huge_free_list)
+  FRAGMENTATION_STATS_ACCESSORS(intptr_t, wasted_memory)
+  FRAGMENTATION_STATS_ACCESSORS(intptr_t, available_in_free_list)
 
 #undef FRAGMENTATION_STATS_ACCESSORS
-
-  void add_available_in_free_list(FreeListCategoryType type, intptr_t bytes) {
-    switch (type) {
-      case kSmall:
-        add_available_in_small_free_list(bytes);
-        break;
-      case kMedium:
-        add_available_in_medium_free_list(bytes);
-        break;
-      case kLarge:
-        add_available_in_large_free_list(bytes);
-        break;
-      case kHuge:
-        add_available_in_huge_free_list(bytes);
-        break;
-      default:
-        UNREACHABLE();
-    }
-  }
-
-  intptr_t available_in_free_list(FreeListCategoryType type) {
-    switch (type) {
-      case kSmall:
-        return available_in_small_free_list();
-      case kMedium:
-        return available_in_medium_free_list();
-      case kLarge:
-        return available_in_large_free_list();
-      case kHuge:
-        return available_in_huge_free_list();
-      default:
-        UNREACHABLE();
-    }
-    UNREACHABLE();
-    return 0;
-  }
 
 #ifdef DEBUG
   void Print();
@@ -1797,6 +1753,29 @@ class FreeList {
 
   FreeListCategory* GetFreeListCategory(FreeListCategoryType category) {
     return &category_[category];
+  }
+
+  FreeListCategoryType SelectFreeListCategoryType(size_t size_in_bytes) {
+    if (size_in_bytes <= kSmallListMax) {
+      return kSmall;
+    } else if (size_in_bytes <= kMediumListMax) {
+      return kMedium;
+    } else if (size_in_bytes <= kLargeListMax) {
+      return kLarge;
+    }
+    return kHuge;
+  }
+
+  FreeListCategoryType SelectFastAllocationFreeListCategoryType(
+      size_t size_in_bytes) {
+    if (size_in_bytes <= kSmallAllocationMax) {
+      return kSmall;
+    } else if (size_in_bytes <= kMediumAllocationMax) {
+      return kMedium;
+    } else if (size_in_bytes <= kLargeAllocationMax) {
+      return kLarge;
+    }
+    return kHuge;
   }
 
   PagedSpace* owner_;
