@@ -16,6 +16,14 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+#define SHARD_TEST_BY_2(x)    \
+  TEST(x##_0) { Test##x(0); } \
+  TEST(x##_1) { Test##x(1); }
+#define SHARD_TEST_BY_4(x)    \
+  TEST(x##_0) { Test##x(0); } \
+  TEST(x##_1) { Test##x(1); } \
+  TEST(x##_2) { Test##x(2); } \
+  TEST(x##_3) { Test##x(3); }
 
 static const char kFunctionName[] = "f";
 
@@ -205,8 +213,7 @@ TEST(BytecodeGraphBuilderReturnStatements) {
       {"return 'catfood';", {factory->NewStringFromStaticChars("catfood")}},
       {"return NaN;", {factory->nan_value()}}};
 
-  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
-  for (size_t i = 0; i < num_snippets; i++) {
+  for (size_t i = 0; i < arraysize(snippets); i++) {
     ScopedVector<char> script(1024);
     SNPrintF(script, "function %s() { %s }\n%s();", kFunctionName,
              snippets[i].code_snippet, kFunctionName);
@@ -233,8 +240,7 @@ TEST(BytecodeGraphBuilderPrimitiveExpressions) {
       {"return 25 % 7;", {factory->NewNumberFromInt(4)}},
   };
 
-  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
-  for (size_t i = 0; i < num_snippets; i++) {
+  for (size_t i = 0; i < arraysize(snippets); i++) {
     ScopedVector<char> script(1024);
     SNPrintF(script, "function %s() { %s }\n%s();", kFunctionName,
              snippets[i].code_snippet, kFunctionName);
@@ -292,8 +298,7 @@ TEST(BytecodeGraphBuilderTwoParameterTests) {
         factory->NewStringFromStaticChars("abc"),
         factory->NewStringFromStaticChars("def")}}};
 
-  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
-  for (size_t i = 0; i < num_snippets; i++) {
+  for (size_t i = 0; i < arraysize(snippets); i++) {
     ScopedVector<char> script(1024);
     SNPrintF(script, "function %s(p1, p2) { %s }\n%s(0, 0);", kFunctionName,
              snippets[i].code_snippet, kFunctionName);
@@ -337,8 +342,7 @@ TEST(BytecodeGraphBuilderNamedLoad) {
         BytecodeGraphTester::NewObject("({ name : 'abc'})")}},
   };
 
-  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
-  for (size_t i = 0; i < num_snippets; i++) {
+  for (size_t i = 0; i < arraysize(snippets); i++) {
     ScopedVector<char> script(2048);
     SNPrintF(script, "function %s(p1) { %s };\n%s(0);", kFunctionName,
              snippets[i].code_snippet, kFunctionName);
@@ -394,8 +398,7 @@ TEST(BytecodeGraphBuilderKeyedLoad) {
         factory->NewNumberFromInt(100)}},
   };
 
-  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
-  for (size_t i = 0; i < num_snippets; i++) {
+  for (size_t i = 0; i < arraysize(snippets); i++) {
     ScopedVector<char> script(2048);
     SNPrintF(script, "function %s(p1, p2) { %s };\n%s(0);", kFunctionName,
              snippets[i].code_snippet, kFunctionName);
@@ -409,8 +412,7 @@ TEST(BytecodeGraphBuilderKeyedLoad) {
   }
 }
 
-
-TEST(BytecodeGraphBuilderNamedStore) {
+void TestBytecodeGraphBuilderNamedStore(size_t shard) {
   HandleAndZoneScope scope;
   Isolate* isolate = scope.main_isolate();
   Zone* zone = scope.main_zone();
@@ -445,8 +447,8 @@ TEST(BytecodeGraphBuilderNamedStore) {
         BytecodeGraphTester::NewObject("({ name : 'abc'})")}},
   };
 
-  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
-  for (size_t i = 0; i < num_snippets; i++) {
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    if ((i % 2) != shard) continue;
     ScopedVector<char> script(3072);
     SNPrintF(script, "function %s(p1) { %s };\n%s({});", kFunctionName,
              snippets[i].code_snippet, kFunctionName);
@@ -459,8 +461,9 @@ TEST(BytecodeGraphBuilderNamedStore) {
   }
 }
 
+SHARD_TEST_BY_2(BytecodeGraphBuilderNamedStore)
 
-TEST(BytecodeGraphBuilderKeyedStore) {
+void TestBytecodeGraphBuilderKeyedStore(size_t shard) {
   HandleAndZoneScope scope;
   Isolate* isolate = scope.main_isolate();
   Zone* zone = scope.main_zone();
@@ -503,8 +506,8 @@ TEST(BytecodeGraphBuilderKeyedStore) {
         factory->NewNumberFromInt(100)}},
   };
 
-  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
-  for (size_t i = 0; i < num_snippets; i++) {
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    if ((i % 2) != shard) continue;
     ScopedVector<char> script(2048);
     SNPrintF(script, "function %s(p1, p2) { %s };\n%s({});", kFunctionName,
              snippets[i].code_snippet, kFunctionName);
@@ -517,6 +520,7 @@ TEST(BytecodeGraphBuilderKeyedStore) {
   }
 }
 
+SHARD_TEST_BY_2(BytecodeGraphBuilderKeyedStore)
 
 TEST(BytecodeGraphBuilderPropertyCall) {
   HandleAndZoneScope scope;
@@ -538,8 +542,7 @@ TEST(BytecodeGraphBuilderPropertyCall) {
             "  return a + b + c + d + e + f + g + h;}})")}},
   };
 
-  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
-  for (size_t i = 0; i < num_snippets; i++) {
+  for (size_t i = 0; i < arraysize(snippets); i++) {
     ScopedVector<char> script(2048);
     SNPrintF(script, "function %s(p1) { %s };\n%s({func() {}});", kFunctionName,
              snippets[i].code_snippet, kFunctionName);
@@ -582,8 +585,7 @@ TEST(BytecodeGraphBuilderCallNew) {
        {factory->NewNumberFromInt(25)}},
   };
 
-  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
-  for (size_t i = 0; i < num_snippets; i++) {
+  for (size_t i = 0; i < arraysize(snippets); i++) {
     BytecodeGraphTester tester(isolate, zone, snippets[i].code_snippet);
     auto callable = tester.GetCallable<>();
     Handle<Object> return_value = callable().ToHandleChecked();
@@ -621,8 +623,7 @@ TEST(BytecodeGraphBuilderCreateClosure) {
        {factory->NewNumberFromInt(25)}},
   };
 
-  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
-  for (size_t i = 0; i < num_snippets; i++) {
+  for (size_t i = 0; i < arraysize(snippets); i++) {
     BytecodeGraphTester tester(isolate, zone, snippets[i].code_snippet);
     auto callable = tester.GetCallable<>();
     Handle<Object> return_value = callable().ToHandleChecked();
@@ -649,8 +650,7 @@ TEST(BytecodeGraphBuilderCallRuntime) {
         BytecodeGraphTester::NewObject("[1, 2, 3]")}},
   };
 
-  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
-  for (size_t i = 0; i < num_snippets; i++) {
+  for (size_t i = 0; i < arraysize(snippets); i++) {
     BytecodeGraphTester tester(isolate, zone, snippets[i].code_snippet);
     auto callable = tester.GetCallable<Handle<Object>>();
     Handle<Object> return_value =
@@ -659,8 +659,7 @@ TEST(BytecodeGraphBuilderCallRuntime) {
   }
 }
 
-
-TEST(BytecodeGraphBuilderGlobals) {
+void TestBytecodeGraphBuilderGlobals(size_t shard) {
   HandleAndZoneScope scope;
   Isolate* isolate = scope.main_isolate();
   Zone* zone = scope.main_zone();
@@ -700,8 +699,8 @@ TEST(BytecodeGraphBuilderGlobals) {
        {factory->NewStringFromStaticChars("number")}},
   };
 
-  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
-  for (size_t i = 0; i < num_snippets; i++) {
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    if ((i % 2) != shard) continue;
     BytecodeGraphTester tester(isolate, zone, snippets[i].code_snippet);
     auto callable = tester.GetCallable<>();
     Handle<Object> return_value = callable().ToHandleChecked();
@@ -709,6 +708,7 @@ TEST(BytecodeGraphBuilderGlobals) {
   }
 }
 
+SHARD_TEST_BY_2(BytecodeGraphBuilderGlobals)
 
 TEST(BytecodeGraphBuilderToObject) {
   // TODO(mythria): tests for ToObject. Needs ForIn.
@@ -746,8 +746,7 @@ TEST(BytecodeGraphBuilderToName) {
        {factory->NewNumberFromInt(10)}},
   };
 
-  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
-  for (size_t i = 0; i < num_snippets; i++) {
+  for (size_t i = 0; i < arraysize(snippets); i++) {
     ScopedVector<char> script(1024);
     SNPrintF(script, "function %s() { %s }\n%s({});", kFunctionName,
              snippets[i].code_snippet, kFunctionName);
@@ -778,8 +777,7 @@ TEST(BytecodeGraphBuilderLogicalNot) {
        {factory->false_value(), factory->NewStringFromStaticChars("abc")}},
   };
 
-  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
-  for (size_t i = 0; i < num_snippets; i++) {
+  for (size_t i = 0; i < arraysize(snippets); i++) {
     ScopedVector<char> script(1024);
     SNPrintF(script, "function %s(p1) { %s }\n%s({});", kFunctionName,
              snippets[i].code_snippet, kFunctionName);
@@ -816,8 +814,7 @@ TEST(BytecodeGraphBuilderTypeOf) {
         factory->NewStringFromStaticChars("abc")}},
   };
 
-  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
-  for (size_t i = 0; i < num_snippets; i++) {
+  for (size_t i = 0; i < arraysize(snippets); i++) {
     ScopedVector<char> script(1024);
     SNPrintF(script, "function %s(p1) { %s }\n%s({});", kFunctionName,
              snippets[i].code_snippet, kFunctionName);
@@ -871,8 +868,7 @@ TEST(BytecodeGraphBuilderCountOperation) {
        {factory->nan_value(), factory->NewStringFromStaticChars("String")}},
   };
 
-  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
-  for (size_t i = 0; i < num_snippets; i++) {
+  for (size_t i = 0; i < arraysize(snippets); i++) {
     ScopedVector<char> script(1024);
     SNPrintF(script, "function %s(p1) { %s }\n%s({});", kFunctionName,
              snippets[i].code_snippet, kFunctionName);
@@ -911,8 +907,7 @@ TEST(BytecodeGraphBuilderDelete) {
         BytecodeGraphTester::NewObject("({val : 10, name:'abc'})")}},
   };
 
-  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
-  for (size_t i = 0; i < num_snippets; i++) {
+  for (size_t i = 0; i < arraysize(snippets); i++) {
     ScopedVector<char> script(1024);
     SNPrintF(script, "function %s(p1) { %s }\n%s({});", kFunctionName,
              snippets[i].code_snippet, kFunctionName);
@@ -966,8 +961,7 @@ TEST(BytecodeGraphBuilderDeleteGlobal) {
        {factory->true_value()}},
   };
 
-  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
-  for (size_t i = 0; i < num_snippets; i++) {
+  for (size_t i = 0; i < arraysize(snippets); i++) {
     ScopedVector<char> script(1024);
     SNPrintF(script, "%s %s({});", snippets[i].code_snippet, kFunctionName);
 
@@ -1003,8 +997,7 @@ TEST(BytecodeGraphBuilderDeleteLookupSlot) {
       {"return delete z;", {factory->false_value()}},
   };
 
-  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
-  for (size_t i = 0; i < num_snippets; i++) {
+  for (size_t i = 0; i < arraysize(snippets); i++) {
     ScopedVector<char> script(1024);
     SNPrintF(script, "%s %s %s", function_prologue, snippets[i].code_snippet,
              function_epilogue);
@@ -1045,8 +1038,7 @@ TEST(BytecodeGraphBuilderLookupSlot) {
       {"'use strict'; obj.val = 23.456; return obj.val;",
        {factory->NewNumber(23.456)}}};
 
-  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
-  for (size_t i = 0; i < num_snippets; i++) {
+  for (size_t i = 0; i < arraysize(snippets); i++) {
     ScopedVector<char> script(1024);
     SNPrintF(script, "%s %s %s", function_prologue, snippets[i].code_snippet,
              function_epilogue);
@@ -1089,8 +1081,7 @@ TEST(BytecodeGraphBuilderLookupSlotWide) {
       {"'use strict';" REPEAT_256(SPACE, "y = 2.3;") "return obj.val = 23.456;",
        {factory->NewNumber(23.456)}}};
 
-  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
-  for (size_t i = 0; i < num_snippets; i++) {
+  for (size_t i = 0; i < arraysize(snippets); i++) {
     ScopedVector<char> script(3072);
     SNPrintF(script, "%s %s %s", function_prologue, snippets[i].code_snippet,
              function_epilogue);
@@ -1120,8 +1111,7 @@ TEST(BytecodeGraphBuilderCallLookupSlot) {
        {handle(Smi::FromInt(30), isolate)}},
   };
 
-  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
-  for (size_t i = 0; i < num_snippets; i++) {
+  for (size_t i = 0; i < arraysize(snippets); i++) {
     ScopedVector<char> script(1024);
     SNPrintF(script, "function %s() { %s }\n%s();", kFunctionName,
              snippets[i].code_snippet, kFunctionName);
@@ -1173,8 +1163,7 @@ TEST(BytecodeGraphBuilderEval) {
        {factory->NewStringFromStaticChars("object")}},
   };
 
-  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
-  for (size_t i = 0; i < num_snippets; i++) {
+  for (size_t i = 0; i < arraysize(snippets); i++) {
     ScopedVector<char> script(1024);
     SNPrintF(script, "function %s() { %s }\n%s();", kFunctionName,
              snippets[i].code_snippet, kFunctionName);
@@ -1202,8 +1191,7 @@ TEST(BytecodeGraphBuilderEvalParams) {
        {handle(Smi::FromInt(30), isolate), handle(Smi::FromInt(20), isolate)}},
   };
 
-  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
-  for (size_t i = 0; i < num_snippets; i++) {
+  for (size_t i = 0; i < arraysize(snippets); i++) {
     ScopedVector<char> script(1024);
     SNPrintF(script, "function %s(p1) { %s }\n%s(0);", kFunctionName,
              snippets[i].code_snippet, kFunctionName);
@@ -1234,8 +1222,7 @@ TEST(BytecodeGraphBuilderEvalGlobal) {
        {factory->NewStringFromStaticChars("undefined")}},
   };
 
-  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
-  for (size_t i = 0; i < num_snippets; i++) {
+  for (size_t i = 0; i < arraysize(snippets); i++) {
     BytecodeGraphTester tester(isolate, zone, snippets[i].code_snippet);
     auto callable = tester.GetCallable<>();
     Handle<Object> return_value = callable().ToHandleChecked();
@@ -1366,8 +1353,7 @@ TEST(BytecodeGraphBuilderTestIn) {
         factory->NewNumberFromInt(1)}},
   };
 
-  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
-  for (size_t i = 0; i < num_snippets; i++) {
+  for (size_t i = 0; i < arraysize(snippets); i++) {
     ScopedVector<char> script(1024);
     SNPrintF(script, "function %s(p1, p2) { %s }\n%s({}, {});", kFunctionName,
              snippets[i].code_snippet, kFunctionName);
@@ -1399,8 +1385,7 @@ TEST(BytecodeGraphBuilderTestInstanceOf) {
        {factory->true_value(), factory->undefined_value()}},
   };
 
-  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
-  for (size_t i = 0; i < num_snippets; i++) {
+  for (size_t i = 0; i < arraysize(snippets); i++) {
     ScopedVector<char> script(1024);
     SNPrintF(script, "function %s(p1) { %s }\n%s({});", kFunctionName,
              snippets[i].code_snippet, kFunctionName);
@@ -1430,8 +1415,7 @@ TEST(BytecodeGraphBuilderTryCatch) {
        {handle(Smi::FromInt(6), isolate)}},
   };
 
-  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
-  for (size_t i = 0; i < num_snippets; i++) {
+  for (size_t i = 0; i < arraysize(snippets); i++) {
     ScopedVector<char> script(1024);
     SNPrintF(script, "function %s() { %s }\n%s();", kFunctionName,
              snippets[i].code_snippet, kFunctionName);
@@ -1469,8 +1453,7 @@ TEST(BytecodeGraphBuilderTryFinally1) {
        {handle(Smi::FromInt(27), isolate)}},
   };
 
-  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
-  for (size_t i = 0; i < num_snippets; i++) {
+  for (size_t i = 0; i < arraysize(snippets); i++) {
     ScopedVector<char> script(1024);
     SNPrintF(script, "function %s() { %s }\n%s();", kFunctionName,
              snippets[i].code_snippet, kFunctionName);
@@ -1494,8 +1477,7 @@ TEST(BytecodeGraphBuilderTryFinally2) {
        {"Uncaught 42"}},
   };
 
-  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
-  for (size_t i = 0; i < num_snippets; i++) {
+  for (size_t i = 0; i < arraysize(snippets); i++) {
     ScopedVector<char> script(1024);
     SNPrintF(script, "function %s() { %s }\n%s();", kFunctionName,
              snippets[i].code_snippet, kFunctionName);
@@ -1524,8 +1506,7 @@ TEST(BytecodeGraphBuilderThrow) {
       {"var a = true; if (a) { throw 'Error'; }", {"Uncaught Error"}},
   };
 
-  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
-  for (size_t i = 0; i < num_snippets; i++) {
+  for (size_t i = 0; i < arraysize(snippets); i++) {
     ScopedVector<char> script(1024);
     SNPrintF(script, "function %s() { %s }\n%s();", kFunctionName,
              snippets[i].code_snippet, kFunctionName);
@@ -1587,8 +1568,7 @@ TEST(BytecodeGraphBuilderContext) {
        {factory->NewStringFromStaticChars("innermost inner_changed outer")}},
   };
 
-  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
-  for (size_t i = 0; i < num_snippets; i++) {
+  for (size_t i = 0; i < arraysize(snippets); i++) {
     ScopedVector<char> script(1024);
     SNPrintF(script, "%s", snippets[i].code_snippet);
 
@@ -1653,8 +1633,7 @@ TEST(BytecodeGraphBuilderLoadContext) {
        "f(0);",
        {factory->NewNumberFromInt(24), factory->NewNumberFromInt(4)}}};
 
-  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
-  for (size_t i = 0; i < num_snippets; i++) {
+  for (size_t i = 0; i < arraysize(snippets); i++) {
     ScopedVector<char> script(1024);
     SNPrintF(script, "%s", snippets[i].code_snippet);
 
@@ -1686,8 +1665,7 @@ TEST(BytecodeGraphBuilderCreateArgumentsNoParameters) {
        {factory->undefined_value()}},
   };
 
-  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
-  for (size_t i = 0; i < num_snippets; i++) {
+  for (size_t i = 0; i < arraysize(snippets); i++) {
     ScopedVector<char> script(1024);
     SNPrintF(script, "%s\n%s();", snippets[i].code_snippet, kFunctionName);
 
@@ -1730,8 +1708,7 @@ TEST(BytecodeGraphBuilderCreateArguments) {
         factory->NewNumberFromInt(2), factory->NewNumberFromInt(30)}},
   };
 
-  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
-  for (size_t i = 0; i < num_snippets; i++) {
+  for (size_t i = 0; i < arraysize(snippets); i++) {
     ScopedVector<char> script(1024);
     SNPrintF(script, "%s\n%s();", snippets[i].code_snippet, kFunctionName);
 
@@ -1774,8 +1751,7 @@ TEST(BytecodeGraphBuilderCreateRestArguments) {
         factory->NewNumberFromInt(2), factory->NewNumberFromInt(30)}},
   };
 
-  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
-  for (size_t i = 0; i < num_snippets; i++) {
+  for (size_t i = 0; i < arraysize(snippets); i++) {
     ScopedVector<char> script(1024);
     SNPrintF(script, "%s\n%s();", snippets[i].code_snippet, kFunctionName);
 
@@ -1813,8 +1789,7 @@ TEST(BytecodeGraphBuilderRegExpLiterals) {
        {factory->NewStringFromStaticChars("AbC")}},
   };
 
-  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
-  for (size_t i = 0; i < num_snippets; i++) {
+  for (size_t i = 0; i < arraysize(snippets); i++) {
     ScopedVector<char> script(4096);
     SNPrintF(script, "function %s() { %s }\n%s();", kFunctionName,
              snippets[i].code_snippet, kFunctionName);
@@ -1854,8 +1829,7 @@ TEST(BytecodeGraphBuilderArrayLiterals) {
       {"var t = 't'; return [[t, t + 'est'], [1 + t]][1][0];",
        {factory->NewStringFromStaticChars("1t")}}};
 
-  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
-  for (size_t i = 0; i < num_snippets; i++) {
+  for (size_t i = 0; i < arraysize(snippets); i++) {
     ScopedVector<char> script(4096);
     SNPrintF(script, "function %s() { %s }\n%s();", kFunctionName,
              snippets[i].code_snippet, kFunctionName);
@@ -1920,8 +1894,7 @@ TEST(BytecodeGraphBuilderObjectLiterals) {
        {factory->NewNumberFromInt(987)}},
   };
 
-  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
-  for (size_t i = 0; i < num_snippets; i++) {
+  for (size_t i = 0; i < arraysize(snippets); i++) {
     ScopedVector<char> script(4096);
     SNPrintF(script, "function %s() { %s }\n%s();", kFunctionName,
              snippets[i].code_snippet, kFunctionName);
@@ -2029,8 +2002,7 @@ TEST(BytecodeGraphBuilderIf) {
        {factory->NewNumberFromInt(5), factory->NewNumberFromInt(-1)}},
   };
 
-  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
-  for (size_t i = 0; i < num_snippets; i++) {
+  for (size_t i = 0; i < arraysize(snippets); i++) {
     ScopedVector<char> script(2048);
     SNPrintF(script, "function %s(p1) { %s };\n%s(0);", kFunctionName,
              snippets[i].code_snippet, kFunctionName);
@@ -2061,8 +2033,7 @@ TEST(BytecodeGraphBuilderConditionalOperator) {
        {factory->NewNumberFromInt(-10), factory->NewNumberFromInt(20)}},
   };
 
-  size_t num_snippets = sizeof(snippets) / sizeof(snippets[0]);
-  for (size_t i = 0; i < num_snippets; i++) {
+  for (size_t i = 0; i < arraysize(snippets); i++) {
     ScopedVector<char> script(2048);
     SNPrintF(script, "function %s(p1) { %s };\n%s(0);", kFunctionName,
              snippets[i].code_snippet, kFunctionName);
@@ -2605,11 +2576,10 @@ TEST(BytecodeGraphBuilderForOf) {
   }
 }
 
-
-TEST(JumpWithConstantsAndWideConstants) {
-  const int kStep = 19;
-  int start = 7;
-  for (int constants = start; constants < 256 + 3 * kStep; constants += kStep) {
+void TestJumpWithConstantsAndWideConstants(size_t shard) {
+  const int kStep = 46;
+  int start = static_cast<int>(7 + 17 * shard);
+  for (int constants = start; constants < 300; constants += kStep) {
     std::stringstream filler_os;
     // Generate a string that consumes constant pool entries and
     // spread out branch distances in script below.
@@ -2636,9 +2606,9 @@ TEST(JumpWithConstantsAndWideConstants) {
     auto isolate = scope.main_isolate();
     auto factory = isolate->factory();
     auto zone = scope.main_zone();
+    BytecodeGraphTester tester(isolate, zone, script.c_str());
+    auto callable = tester.GetCallable<Handle<Object>>();
     for (int a = 0; a < 3; a++) {
-      BytecodeGraphTester tester(isolate, zone, script.c_str());
-      auto callable = tester.GetCallable<Handle<Object>>();
       Handle<Object> return_val =
           callable(factory->NewNumberFromInt(a)).ToHandleChecked();
       static const int results[] = {11, 12, 2};
@@ -2646,6 +2616,8 @@ TEST(JumpWithConstantsAndWideConstants) {
     }
   }
 }
+
+SHARD_TEST_BY_4(JumpWithConstantsAndWideConstants)
 
 TEST(BytecodeGraphBuilderDoExpressions) {
   bool old_flag = FLAG_harmony_do_expressions;
