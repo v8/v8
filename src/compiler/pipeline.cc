@@ -722,6 +722,30 @@ struct ControlFlowOptimizationPhase {
 };
 
 
+struct ChangeLoweringPhase {
+  static const char* phase_name() { return "change lowering"; }
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
+    DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
+                                              data->common());
+    SimplifiedOperatorReducer simple_reducer(data->jsgraph());
+    ValueNumberingReducer value_numbering(temp_zone);
+    ChangeLowering lowering(data->jsgraph());
+    MachineOperatorReducer machine_reducer(data->jsgraph());
+    CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
+                                         data->common(), data->machine());
+    AddReducer(data, &graph_reducer, &dead_code_elimination);
+    AddReducer(data, &graph_reducer, &simple_reducer);
+    AddReducer(data, &graph_reducer, &value_numbering);
+    AddReducer(data, &graph_reducer, &lowering);
+    AddReducer(data, &graph_reducer, &machine_reducer);
+    AddReducer(data, &graph_reducer, &common_reducer);
+    graph_reducer.ReduceGraph();
+  }
+};
+
+
 struct EarlyGraphTrimmingPhase {
   static const char* phase_name() { return "early graph trimming"; }
   void Run(PipelineData* data, Zone* temp_zone) {
@@ -769,10 +793,6 @@ struct GenericLoweringPhase {
                                               data->common());
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->common(), data->machine());
-    SimplifiedOperatorReducer simple_reducer(data->jsgraph());
-    ValueNumberingReducer value_numbering(temp_zone);
-    ChangeLowering change_lowering(data->jsgraph());
-    MachineOperatorReducer machine_reducer(data->jsgraph());
     JSGenericLowering generic_lowering(data->info()->is_typing_enabled(),
                                        data->jsgraph());
     SelectLowering select_lowering(data->jsgraph()->graph(),
@@ -781,12 +801,6 @@ struct GenericLoweringPhase {
     AddReducer(data, &graph_reducer, &context_relaxing);
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &common_reducer);
-    if (data->info()->is_typing_enabled()) {
-      AddReducer(data, &graph_reducer, &simple_reducer);
-      AddReducer(data, &graph_reducer, &value_numbering);
-      AddReducer(data, &graph_reducer, &change_lowering);
-      AddReducer(data, &graph_reducer, &machine_reducer);
-    }
     AddReducer(data, &graph_reducer, &generic_lowering);
     AddReducer(data, &graph_reducer, &select_lowering);
     AddReducer(data, &graph_reducer, &tco);
@@ -1178,9 +1192,14 @@ Handle<Code> Pipeline::GenerateCode() {
       Run<ControlFlowOptimizationPhase>();
       RunPrintAndVerify("Control flow optimized");
     }
+
+    // Lower changes that have been inserted before.
+    Run<ChangeLoweringPhase>();
+    // TODO(jarin, rossberg): Remove UNTYPED once machine typing works.
+    RunPrintAndVerify("Lowered changes", true);
   }
 
-  // Lower changes inserted earlier and any remaining generic JSOperators.
+  // Lower any remaining generic JSOperators.
   Run<GenericLoweringPhase>();
   // TODO(jarin, rossberg): Remove UNTYPED once machine typing works.
   RunPrintAndVerify("Lowered generic", true);
