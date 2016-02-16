@@ -410,8 +410,7 @@ void InterpreterDispatchDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {
       kInterpreterAccumulatorRegister, kInterpreterRegisterFileRegister,
-      kInterpreterBytecodeOffsetRegister, kInterpreterBytecodeArrayRegister,
-      kInterpreterDispatchTableRegister};
+      kInterpreterBytecodeOffsetRegister, kInterpreterBytecodeArrayRegister};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
