@@ -4869,7 +4869,7 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
       __ sd(at, FieldMemOperand(a3, 0 * kPointerSize));
       __ Dsubu(a2, a2, Operand(1 * kPointerSize));
       __ Daddu(a3, a3, Operand(1 * kPointerSize));
-      __ b(&loop);
+      __ Branch(&loop);
       __ bind(&done_loop);
     }
 
@@ -5204,8 +5204,8 @@ void FastNewStrictArgumentsStub::Generate(MacroAssembler* masm) {
     __ bind(&done_loop);
   }
 
-  // Setup the rest parameter array in a3.
-  __ LoadNativeContextSlot(Context::JS_ARRAY_FAST_ELEMENTS_MAP_INDEX, at);
+  // Setup the strict arguments object in a3.
+  __ LoadNativeContextSlot(Context::STRICT_ARGUMENTS_MAP_INDEX, at);
   __ sd(at, FieldMemOperand(a3, JSStrictArgumentsObject::kMapOffset));
   __ LoadRoot(at, Heap::kEmptyFixedArrayRootIndex);
   __ sd(at, FieldMemOperand(a3, JSStrictArgumentsObject::kPropertiesOffset));
