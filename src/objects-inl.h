@@ -1018,20 +1018,16 @@ bool Object::HasSpecificClassOf(String* name) {
   return this->IsJSObject() && (JSObject::cast(this)->class_name() == name);
 }
 
-
 MaybeHandle<Object> Object::GetProperty(Handle<Object> object,
-                                        Handle<Name> name,
-                                        LanguageMode language_mode) {
+                                        Handle<Name> name) {
   LookupIterator it(object, name);
-  return GetProperty(&it, language_mode);
+  return GetProperty(&it);
 }
 
-
 MaybeHandle<Object> Object::GetElement(Isolate* isolate, Handle<Object> object,
-                                       uint32_t index,
-                                       LanguageMode language_mode) {
+                                       uint32_t index) {
   LookupIterator it(isolate, object, index);
-  return GetProperty(&it, language_mode);
+  return GetProperty(&it);
 }
 
 
@@ -1057,12 +1053,10 @@ MaybeHandle<Object> JSReceiver::GetPrototype(Isolate* isolate,
   return PrototypeIterator::GetCurrent(iter);
 }
 
-
 MaybeHandle<Object> Object::GetProperty(Isolate* isolate, Handle<Object> object,
-                                        const char* name,
-                                        LanguageMode language_mode) {
+                                        const char* name) {
   Handle<String> str = isolate->factory()->InternalizeUtf8String(name);
-  return GetProperty(object, str, language_mode);
+  return GetProperty(object, str);
 }
 
 
@@ -6924,22 +6918,19 @@ Maybe<bool> Object::LessThanOrEqual(Handle<Object> x, Handle<Object> y) {
   return Nothing<bool>();
 }
 
-
 MaybeHandle<Object> Object::GetPropertyOrElement(Handle<Object> object,
-                                                 Handle<Name> name,
-                                                 LanguageMode language_mode) {
+                                                 Handle<Name> name) {
   LookupIterator it =
       LookupIterator::PropertyOrElement(name->GetIsolate(), object, name);
-  return GetProperty(&it, language_mode);
+  return GetProperty(&it);
 }
 
 MaybeHandle<Object> Object::GetPropertyOrElement(Handle<Object> receiver,
                                                  Handle<Name> name,
-                                                 Handle<JSReceiver> holder,
-                                                 LanguageMode language_mode) {
+                                                 Handle<JSReceiver> holder) {
   LookupIterator it = LookupIterator::PropertyOrElement(
       name->GetIsolate(), receiver, name, holder);
-  return GetProperty(&it, language_mode);
+  return GetProperty(&it);
 }
 
 

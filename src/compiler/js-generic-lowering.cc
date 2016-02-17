@@ -270,8 +270,8 @@ void JSGenericLowering::LowerJSLoadProperty(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
   const PropertyAccess& p = PropertyAccessOf(node->op());
-  Callable callable = CodeFactory::KeyedLoadICInOptimizedCode(
-      isolate(), p.language_mode(), UNINITIALIZED);
+  Callable callable =
+      CodeFactory::KeyedLoadICInOptimizedCode(isolate(), UNINITIALIZED);
   // Load the type feedback vector from the closure.
   Node* shared_info = effect = graph()->NewNode(
       machine()->Load(MachineType::AnyTagged()), closure,
@@ -297,7 +297,7 @@ void JSGenericLowering::LowerJSLoadNamed(Node* node) {
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
   NamedAccess const& p = NamedAccessOf(node->op());
   Callable callable = CodeFactory::LoadICInOptimizedCode(
-      isolate(), NOT_INSIDE_TYPEOF, p.language_mode(), UNINITIALIZED);
+      isolate(), NOT_INSIDE_TYPEOF, UNINITIALIZED);
   // Load the type feedback vector from the closure.
   Node* shared_info = effect = graph()->NewNode(
       machine()->Load(MachineType::AnyTagged()), closure,
@@ -325,7 +325,7 @@ void JSGenericLowering::LowerJSLoadGlobal(Node* node) {
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
   const LoadGlobalParameters& p = LoadGlobalParametersOf(node->op());
   Callable callable = CodeFactory::LoadICInOptimizedCode(
-      isolate(), p.typeof_mode(), SLOPPY, UNINITIALIZED);
+      isolate(), p.typeof_mode(), UNINITIALIZED);
   // Load the type feedback vector from the closure.
   Node* shared_info = effect = graph()->NewNode(
       machine()->Load(MachineType::AnyTagged()), closure,

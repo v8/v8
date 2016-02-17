@@ -42,7 +42,7 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
       .LoadLiteral(smi_0)
       .LoadLiteral(smi_1)
       .LoadAccumulatorWithRegister(reg_0)
-      .LoadNamedProperty(reg_1, name, feedback_slot, LanguageMode::SLOPPY)
+      .LoadNamedProperty(reg_1, name, feedback_slot)
       .StoreAccumulatorInRegister(reg_2)
       .CallRuntime(Runtime::kLoadIC_Miss, reg_0, 1)
       .Debugger()
@@ -79,7 +79,7 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
   CHECK(!iterator.done());
   iterator.Advance();
 
-  CHECK_EQ(iterator.current_bytecode(), Bytecode::kLoadICSloppy);
+  CHECK_EQ(iterator.current_bytecode(), Bytecode::kLoadIC);
   CHECK_EQ(iterator.GetRegisterOperand(0).index(), reg_1.index());
   CHECK_EQ(iterator.GetIndexOperand(1), name_index);
   CHECK_EQ(iterator.GetIndexOperand(2), feedback_slot);

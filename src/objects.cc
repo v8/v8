@@ -708,8 +708,7 @@ Maybe<bool> JSReceiver::HasProperty(LookupIterator* it) {
 
 
 // static
-MaybeHandle<Object> Object::GetProperty(LookupIterator* it,
-                                        LanguageMode language_mode) {
+MaybeHandle<Object> Object::GetProperty(LookupIterator* it) {
   for (; it->IsFound(); it->Next()) {
     switch (it->state()) {
       case LookupIterator::NOT_FOUND:
@@ -717,8 +716,7 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it,
         UNREACHABLE();
       case LookupIterator::JSPROXY:
         return JSProxy::GetProperty(it->isolate(), it->GetHolder<JSProxy>(),
-                                    it->GetName(), it->GetReceiver(),
-                                    language_mode);
+                                    it->GetName(), it->GetReceiver());
       case LookupIterator::INTERCEPTOR: {
         bool done;
         Handle<Object> result;
@@ -732,14 +730,14 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it,
         if (it->HasAccess()) break;
         return JSObject::GetPropertyWithFailedAccessCheck(it);
       case LookupIterator::ACCESSOR:
-        return GetPropertyWithAccessor(it, language_mode);
+        return GetPropertyWithAccessor(it);
       case LookupIterator::INTEGER_INDEXED_EXOTIC:
-        return ReadAbsentProperty(it, language_mode);
+        return ReadAbsentProperty(it);
       case LookupIterator::DATA:
         return it->GetDataValue();
     }
   }
-  return ReadAbsentProperty(it, language_mode);
+  return ReadAbsentProperty(it);
 }
 
 
@@ -758,8 +756,7 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it,
 MaybeHandle<Object> JSProxy::GetProperty(Isolate* isolate,
                                          Handle<JSProxy> proxy,
                                          Handle<Name> name,
-                                         Handle<Object> receiver,
-                                         LanguageMode language_mode) {
+                                         Handle<Object> receiver) {
   if (receiver->IsJSGlobalObject()) {
     THROW_NEW_ERROR(
         isolate,
@@ -792,7 +789,7 @@ MaybeHandle<Object> JSProxy::GetProperty(Isolate* isolate,
     // 7.a Return target.[[Get]](P, Receiver).
     LookupIterator it =
         LookupIterator::PropertyOrElement(isolate, receiver, name, target);
-    return Object::GetProperty(&it, language_mode);
+    return Object::GetProperty(&it);
   }
   // 8. Let trapResult be ? Call(trap, handler, «target, P, Receiver»).
   Handle<Object> trap_result;
@@ -1062,9 +1059,7 @@ MaybeHandle<Object> JSProxy::GetPrototype(Handle<JSProxy> proxy) {
   return handler_proto;
 }
 
-
-MaybeHandle<Object> Object::GetPropertyWithAccessor(
-    LookupIterator* it, LanguageMode language_mode) {
+MaybeHandle<Object> Object::GetPropertyWithAccessor(LookupIterator* it) {
   Isolate* isolate = it->isolate();
   Handle<Object> structure = it->GetAccessors();
   Handle<Object> receiver = it->GetReceiver();
@@ -1095,7 +1090,7 @@ MaybeHandle<Object> Object::GetPropertyWithAccessor(
     v8::Local<v8::Value> result = args.Call(call_fun, v8::Utils::ToLocal(name));
     RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
     if (result.IsEmpty()) {
-      return ReadAbsentProperty(isolate, receiver, name, language_mode);
+      return ReadAbsentProperty(isolate, receiver, name);
     }
     Handle<Object> return_value = v8::Utils::OpenHandle(*result);
     return_value->VerifyApiCallResultType();
@@ -1122,7 +1117,7 @@ MaybeHandle<Object> Object::GetPropertyWithAccessor(
         receiver, Handle<JSReceiver>::cast(getter));
   }
   // Getter is not a function.
-  return ReadAbsentProperty(isolate, receiver, it->GetName(), language_mode);
+  return ReadAbsentProperty(isolate, receiver, it->GetName());
 }
 
 
@@ -1272,7 +1267,7 @@ MaybeHandle<Object> JSObject::GetPropertyWithFailedAccessCheck(
   Handle<JSObject> checked = it->GetHolder<JSObject>();
   while (AllCanRead(it)) {
     if (it->state() == LookupIterator::ACCESSOR) {
-      return GetPropertyWithAccessor(it, SLOPPY);
+      return GetPropertyWithAccessor(it);
     }
     DCHECK_EQ(LookupIterator::INTERCEPTOR, it->state());
     bool done;
@@ -4343,28 +4338,13 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it, Handle<Object> value,
                                    store_mode);
 }
 
-
-MaybeHandle<Object> Object::ReadAbsentProperty(LookupIterator* it,
-                                               LanguageMode language_mode) {
-  if (is_strong(language_mode)) {
-    THROW_NEW_ERROR(it->isolate(),
-                    NewTypeError(MessageTemplate::kStrongPropertyAccess,
-                                 it->GetName(), it->GetReceiver()),
-                    Object);
-  }
+MaybeHandle<Object> Object::ReadAbsentProperty(LookupIterator* it) {
   return it->isolate()->factory()->undefined_value();
 }
 
 MaybeHandle<Object> Object::ReadAbsentProperty(Isolate* isolate,
                                                Handle<Object> receiver,
-                                               Handle<Object> name,
-                                               LanguageMode language_mode) {
-  if (is_strong(language_mode)) {
-    THROW_NEW_ERROR(
-        isolate,
-        NewTypeError(MessageTemplate::kStrongPropertyAccess, name, receiver),
-        Object);
-  }
+                                               Handle<Object> name) {
   return isolate->factory()->undefined_value();
 }
 
@@ -8964,7 +8944,7 @@ MaybeHandle<FixedArray> GetOwnValuesOrEntries(Isolate* isolate,
 
     Handle<Object> value;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, value, JSReceiver::GetPropertyOrElement(object, key, STRICT),
+        isolate, value, JSReceiver::GetPropertyOrElement(object, key),
         MaybeHandle<FixedArray>());
 
     if (get_entries) {

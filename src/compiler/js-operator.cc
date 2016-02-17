@@ -603,11 +603,9 @@ const Operator* JSOperatorBuilder::ConvertReceiver(
       convert_mode);                                     // parameter
 }
 
-
-const Operator* JSOperatorBuilder::LoadNamed(LanguageMode language_mode,
-                                             Handle<Name> name,
+const Operator* JSOperatorBuilder::LoadNamed(Handle<Name> name,
                                              const VectorSlotPair& feedback) {
-  NamedAccess access(language_mode, name, feedback);
+  NamedAccess access(SLOPPY, name, feedback);
   return new (zone()) Operator1<NamedAccess>(           // --
       IrOpcode::kJSLoadNamed, Operator::kNoProperties,  // opcode
       "JSLoadNamed",                                    // name
@@ -615,10 +613,9 @@ const Operator* JSOperatorBuilder::LoadNamed(LanguageMode language_mode,
       access);                                          // parameter
 }
 
-
 const Operator* JSOperatorBuilder::LoadProperty(
-    LanguageMode language_mode, VectorSlotPair const& feedback) {
-  PropertyAccess access(language_mode, feedback);
+    VectorSlotPair const& feedback) {
+  PropertyAccess access(SLOPPY, feedback);
   return new (zone()) Operator1<PropertyAccess>(           // --
       IrOpcode::kJSLoadProperty, Operator::kNoProperties,  // opcode
       "JSLoadProperty",                                    // name

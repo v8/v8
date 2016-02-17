@@ -561,10 +561,8 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
 
 #undef __
 
-
 void ElementHandlerCompiler::CompileElementHandlers(
-    MapHandleList* receiver_maps, CodeHandleList* handlers,
-    LanguageMode language_mode) {
+    MapHandleList* receiver_maps, CodeHandleList* handlers) {
   for (int i = 0; i < receiver_maps->length(); ++i) {
     Handle<Map> receiver_map = receiver_maps->at(i);
     Handle<Code> cached_stub;
@@ -572,9 +570,7 @@ void ElementHandlerCompiler::CompileElementHandlers(
     if (receiver_map->IsStringMap()) {
       cached_stub = LoadIndexedStringStub(isolate()).GetCode();
     } else if (receiver_map->instance_type() < FIRST_JS_RECEIVER_TYPE) {
-      cached_stub = is_strong(language_mode)
-                        ? isolate()->builtins()->KeyedLoadIC_Slow_Strong()
-                        : isolate()->builtins()->KeyedLoadIC_Slow();
+      cached_stub = isolate()->builtins()->KeyedLoadIC_Slow();
     } else {
       bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
       ElementsKind elements_kind = receiver_map->elements_kind();
@@ -583,9 +579,7 @@ void ElementHandlerCompiler::CompileElementHandlers(
       // generated stub code needs to check that dynamically anyway.
       bool convert_hole_to_undefined =
           (is_js_array && elements_kind == FAST_HOLEY_ELEMENTS &&
-           *receiver_map ==
-               isolate()->get_initial_js_array_map(elements_kind)) &&
-          !is_strong(language_mode);
+           *receiver_map == isolate()->get_initial_js_array_map(elements_kind));
 
       if (receiver_map->has_indexed_interceptor()) {
         cached_stub = LoadIndexedInterceptorStub(isolate()).GetCode();
@@ -597,9 +591,7 @@ void ElementHandlerCompiler::CompileElementHandlers(
                                           convert_hole_to_undefined).GetCode();
       } else {
         DCHECK(elements_kind == DICTIONARY_ELEMENTS);
-        LoadICState state =
-            LoadICState(is_strong(language_mode) ? LoadICState::kStrongModeState
-                                                 : kNoExtraICState);
+        LoadICState state = LoadICState(kNoExtraICState);
         cached_stub = LoadDictionaryElementStub(isolate(), state).GetCode();
       }
     }

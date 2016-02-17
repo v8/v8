@@ -84,8 +84,8 @@ namespace internal {
   F(HomeObjectSymbol, 0, 1)                 \
   F(DefineClass, 4, 1)                      \
   F(FinalizeClassDefinition, 2, 1)          \
-  F(LoadFromSuper, 4, 1)                    \
-  F(LoadKeyedFromSuper, 4, 1)               \
+  F(LoadFromSuper, 3, 1)                    \
+  F(LoadKeyedFromSuper, 3, 1)               \
   F(StoreToSuper_Strict, 4, 1)              \
   F(StoreToSuper_Sloppy, 4, 1)              \
   F(StoreKeyedToSuper_Strict, 4, 1)         \
@@ -419,9 +419,7 @@ namespace internal {
   F(GetOwnProperty_Legacy, 2, 1)                     \
   F(OptimizeObjectForAddingMultipleProperties, 2, 1) \
   F(GetProperty, 2, 1)                               \
-  F(GetPropertyStrong, 2, 1)                         \
   F(KeyedGetProperty, 2, 1)                          \
-  F(KeyedGetPropertyStrong, 2, 1)                    \
   F(LoadGlobalViaContext, 1, 1)                      \
   F(StoreGlobalViaContext_Sloppy, 2, 1)              \
   F(StoreGlobalViaContext_Strict, 2, 1)              \
@@ -1134,8 +1132,7 @@ class Runtime : public AllStatic {
       Handle<Object> value, LanguageMode language_mode);
 
   MUST_USE_RESULT static MaybeHandle<Object> GetObjectProperty(
-      Isolate* isolate, Handle<Object> object, Handle<Object> key,
-      LanguageMode language_mode = SLOPPY);
+      Isolate* isolate, Handle<Object> object, Handle<Object> key);
 
   enum TypedArrayId {
     // arrayIds below should be synchronized with typedarray.js natives.

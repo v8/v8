@@ -32,16 +32,13 @@ class Callable final BASE_EMBEDDED {
 class CodeFactory final {
  public:
   // Initial states for ICs.
-  static Callable LoadIC(Isolate* isolate, TypeofMode typeof_mode,
-                         LanguageMode language_mode);
+  static Callable LoadIC(Isolate* isolate, TypeofMode typeof_mode);
   static Callable LoadICInOptimizedCode(Isolate* isolate,
                                         TypeofMode typeof_mode,
-                                        LanguageMode language_mode,
                                         InlineCacheState initialization_state);
-  static Callable KeyedLoadIC(Isolate* isolate, LanguageMode language_mode);
+  static Callable KeyedLoadIC(Isolate* isolate);
   static Callable KeyedLoadICInOptimizedCode(
-      Isolate* isolate, LanguageMode language_mode,
-      InlineCacheState initialization_state);
+      Isolate* isolate, InlineCacheState initialization_state);
   static Callable CallIC(Isolate* isolate, int argc,
                          ConvertReceiverMode mode = ConvertReceiverMode::kAny,
                          TailCallMode tail_call_mode = TailCallMode::kDisallow);

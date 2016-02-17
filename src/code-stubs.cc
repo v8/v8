@@ -601,9 +601,7 @@ void LoadDictionaryElementStub::InitializeDescriptor(
 void KeyedLoadGenericStub::InitializeDescriptor(
     CodeStubDescriptor* descriptor) {
   descriptor->Initialize(
-      Runtime::FunctionForId(is_strong(language_mode())
-                                 ? Runtime::kKeyedGetPropertyStrong
-                                 : Runtime::kKeyedGetProperty)->entry);
+      Runtime::FunctionForId(Runtime::kKeyedGetProperty)->entry);
 }
 
 

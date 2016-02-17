@@ -75,14 +75,10 @@ namespace interpreter {
   V(LdaConstantWide, OperandType::kIdx16)                                      \
                                                                                \
   /* Globals */                                                                \
-  V(LdaGlobalSloppy, OperandType::kIdx8, OperandType::kIdx8)                   \
-  V(LdaGlobalStrict, OperandType::kIdx8, OperandType::kIdx8)                   \
-  V(LdaGlobalInsideTypeofSloppy, OperandType::kIdx8, OperandType::kIdx8)       \
-  V(LdaGlobalInsideTypeofStrict, OperandType::kIdx8, OperandType::kIdx8)       \
-  V(LdaGlobalSloppyWide, OperandType::kIdx16, OperandType::kIdx16)             \
-  V(LdaGlobalStrictWide, OperandType::kIdx16, OperandType::kIdx16)             \
-  V(LdaGlobalInsideTypeofSloppyWide, OperandType::kIdx16, OperandType::kIdx16) \
-  V(LdaGlobalInsideTypeofStrictWide, OperandType::kIdx16, OperandType::kIdx16) \
+  V(LdaGlobal, OperandType::kIdx8, OperandType::kIdx8)                         \
+  V(LdaGlobalInsideTypeof, OperandType::kIdx8, OperandType::kIdx8)             \
+  V(LdaGlobalWide, OperandType::kIdx16, OperandType::kIdx16)                   \
+  V(LdaGlobalInsideTypeofWide, OperandType::kIdx16, OperandType::kIdx16)       \
   V(StaGlobalSloppy, OperandType::kIdx8, OperandType::kIdx8)                   \
   V(StaGlobalStrict, OperandType::kIdx8, OperandType::kIdx8)                   \
   V(StaGlobalSloppyWide, OperandType::kIdx16, OperandType::kIdx16)             \
@@ -115,16 +111,10 @@ namespace interpreter {
   V(MovWide, OperandType::kReg16, OperandType::kRegOut16)                      \
                                                                                \
   /* LoadIC operations */                                                      \
-  V(LoadICSloppy, OperandType::kReg8, OperandType::kIdx8, OperandType::kIdx8)  \
-  V(LoadICStrict, OperandType::kReg8, OperandType::kIdx8, OperandType::kIdx8)  \
-  V(KeyedLoadICSloppy, OperandType::kReg8, OperandType::kIdx8)                 \
-  V(KeyedLoadICStrict, OperandType::kReg8, OperandType::kIdx8)                 \
-  V(LoadICSloppyWide, OperandType::kReg8, OperandType::kIdx16,                 \
-    OperandType::kIdx16)                                                       \
-  V(LoadICStrictWide, OperandType::kReg8, OperandType::kIdx16,                 \
-    OperandType::kIdx16)                                                       \
-  V(KeyedLoadICSloppyWide, OperandType::kReg8, OperandType::kIdx16)            \
-  V(KeyedLoadICStrictWide, OperandType::kReg8, OperandType::kIdx16)            \
+  V(LoadIC, OperandType::kReg8, OperandType::kIdx8, OperandType::kIdx8)        \
+  V(KeyedLoadIC, OperandType::kReg8, OperandType::kIdx8)                       \
+  V(LoadICWide, OperandType::kReg8, OperandType::kIdx16, OperandType::kIdx16)  \
+  V(KeyedLoadICWide, OperandType::kReg8, OperandType::kIdx16)                  \
                                                                                \
   /* StoreIC operations */                                                     \
   V(StoreICSloppy, OperandType::kReg8, OperandType::kIdx8, OperandType::kIdx8) \

@@ -93,7 +93,6 @@ class BytecodeArrayBuilder final : public ZoneObject, private RegisterMover {
 
   // Global loads to the accumulator and stores from the accumulator.
   BytecodeArrayBuilder& LoadGlobal(const Handle<String> name, int feedback_slot,
-                                   LanguageMode language_mode,
                                    TypeofMode typeof_mode);
   BytecodeArrayBuilder& StoreGlobal(const Handle<String> name,
                                     int feedback_slot,
@@ -115,11 +114,9 @@ class BytecodeArrayBuilder final : public ZoneObject, private RegisterMover {
   // Named load property.
   BytecodeArrayBuilder& LoadNamedProperty(Register object,
                                           const Handle<Name> name,
-                                          int feedback_slot,
-                                          LanguageMode language_mode);
+                                          int feedback_slot);
   // Keyed load property. The key should be in the accumulator.
-  BytecodeArrayBuilder& LoadKeyedProperty(Register object, int feedback_slot,
-                                          LanguageMode language_mode);
+  BytecodeArrayBuilder& LoadKeyedProperty(Register object, int feedback_slot);
 
   // Store properties. The value to be stored should be in the accumulator.
   BytecodeArrayBuilder& StoreNamedProperty(Register object,
@@ -276,12 +273,9 @@ class BytecodeArrayBuilder final : public ZoneObject, private RegisterMover {
   static Bytecode BytecodeForCountOperation(Token::Value op);
   static Bytecode BytecodeForCompareOperation(Token::Value op);
   static Bytecode BytecodeForWideOperands(Bytecode bytecode);
-  static Bytecode BytecodeForLoadIC(LanguageMode language_mode);
-  static Bytecode BytecodeForKeyedLoadIC(LanguageMode language_mode);
   static Bytecode BytecodeForStoreIC(LanguageMode language_mode);
   static Bytecode BytecodeForKeyedStoreIC(LanguageMode language_mode);
-  static Bytecode BytecodeForLoadGlobal(LanguageMode language_mode,
-                                        TypeofMode typeof_mode);
+  static Bytecode BytecodeForLoadGlobal(TypeofMode typeof_mode);
   static Bytecode BytecodeForStoreGlobal(LanguageMode language_mode);
   static Bytecode BytecodeForStoreLookupSlot(LanguageMode language_mode);
   static Bytecode BytecodeForCreateArguments(CreateArgumentsType type);

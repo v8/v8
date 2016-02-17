@@ -202,37 +202,23 @@ class CompareICState {
 class LoadICState final BASE_EMBEDDED {
  private:
   class TypeofModeBits : public BitField<TypeofMode, 0, 1> {};
-  class LanguageModeBits
-      : public BitField<LanguageMode, TypeofModeBits::kNext, 2> {};
   STATIC_ASSERT(static_cast<int>(INSIDE_TYPEOF) == 0);
   const ExtraICState state_;
 
  public:
-  static const uint32_t kNextBitFieldOffset = LanguageModeBits::kNext;
-
-  static const ExtraICState kStrongModeState = STRONG
-                                               << LanguageModeBits::kShift;
+  static const uint32_t kNextBitFieldOffset = TypeofModeBits::kNext;
 
   explicit LoadICState(ExtraICState extra_ic_state) : state_(extra_ic_state) {}
 
-  explicit LoadICState(TypeofMode typeof_mode, LanguageMode language_mode)
-      : state_(TypeofModeBits::encode(typeof_mode) |
-               LanguageModeBits::encode(language_mode)) {}
+  explicit LoadICState(TypeofMode typeof_mode)
+      : state_(TypeofModeBits::encode(typeof_mode)) {}
 
   ExtraICState GetExtraICState() const { return state_; }
 
   TypeofMode typeof_mode() const { return TypeofModeBits::decode(state_); }
 
-  LanguageMode language_mode() const {
-    return LanguageModeBits::decode(state_);
-  }
-
   static TypeofMode GetTypeofMode(ExtraICState state) {
     return LoadICState(state).typeof_mode();
-  }
-
-  static LanguageMode GetLanguageMode(ExtraICState state) {
-    return LoadICState(state).language_mode();
   }
 };
 

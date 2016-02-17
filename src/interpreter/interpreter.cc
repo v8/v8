@@ -263,97 +263,46 @@ void Interpreter::DoLoadGlobal(Callable ic, InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
-
-// LdaGlobalSloppy <name_index> <slot>
+// LdaGlobal <name_index> <slot>
 //
 // Load the global with name in constant pool entry <name_index> into the
-// accumulator using FeedBackVector slot <slot> in sloppy mode.
-void Interpreter::DoLdaGlobalSloppy(InterpreterAssembler* assembler) {
+// accumulator using FeedBackVector slot <slot> outside of a typeof.
+void Interpreter::DoLdaGlobal(InterpreterAssembler* assembler) {
   Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, NOT_INSIDE_TYPEOF,
-                                                   SLOPPY, UNINITIALIZED);
+                                                   UNINITIALIZED);
   DoLoadGlobal(ic, assembler);
 }
 
-
-// LdaGlobalSloppy <name_index> <slot>
+// LdaGlobalInsideTypeof <name_index> <slot>
 //
 // Load the global with name in constant pool entry <name_index> into the
-// accumulator using FeedBackVector slot <slot> in strict mode.
-void Interpreter::DoLdaGlobalStrict(InterpreterAssembler* assembler) {
+// accumulator using FeedBackVector slot <slot> inside of a typeof.
+void Interpreter::DoLdaGlobalInsideTypeof(InterpreterAssembler* assembler) {
+  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, INSIDE_TYPEOF,
+                                                   UNINITIALIZED);
+  DoLoadGlobal(ic, assembler);
+}
+
+// LdaGlobalWide <name_index> <slot>
+//
+// Load the global with name in constant pool entry <name_index> into the
+// accumulator using FeedBackVector slot <slot> outside of a typeof.
+void Interpreter::DoLdaGlobalWide(InterpreterAssembler* assembler) {
   Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, NOT_INSIDE_TYPEOF,
-                                                   STRICT, UNINITIALIZED);
+                                                   UNINITIALIZED);
   DoLoadGlobal(ic, assembler);
 }
 
-
-// LdaGlobalInsideTypeofSloppy <name_index> <slot>
+// LdaGlobalInsideTypeofWide <name_index> <slot>
 //
 // Load the global with name in constant pool entry <name_index> into the
-// accumulator using FeedBackVector slot <slot> in sloppy mode.
-void Interpreter::DoLdaGlobalInsideTypeofSloppy(
-    InterpreterAssembler* assembler) {
+// accumulator using FeedBackVector slot <slot> inside of a typeof.
+void Interpreter::DoLdaGlobalInsideTypeofWide(InterpreterAssembler* assembler) {
   Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, INSIDE_TYPEOF,
-                                                   SLOPPY, UNINITIALIZED);
+                                                   UNINITIALIZED);
   DoLoadGlobal(ic, assembler);
 }
 
-
-// LdaGlobalInsideTypeofStrict <name_index> <slot>
-//
-// Load the global with name in constant pool entry <name_index> into the
-// accumulator using FeedBackVector slot <slot> in strict mode.
-void Interpreter::DoLdaGlobalInsideTypeofStrict(
-    InterpreterAssembler* assembler) {
-  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, INSIDE_TYPEOF,
-                                                   STRICT, UNINITIALIZED);
-  DoLoadGlobal(ic, assembler);
-}
-
-
-// LdaGlobalSloppyWide <name_index> <slot>
-//
-// Load the global with name in constant pool entry <name_index> into the
-// accumulator using FeedBackVector slot <slot> in sloppy mode.
-void Interpreter::DoLdaGlobalSloppyWide(InterpreterAssembler* assembler) {
-  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, NOT_INSIDE_TYPEOF,
-                                                   SLOPPY, UNINITIALIZED);
-  DoLoadGlobal(ic, assembler);
-}
-
-
-// LdaGlobalSloppyWide <name_index> <slot>
-//
-// Load the global with name in constant pool entry <name_index> into the
-// accumulator using FeedBackVector slot <slot> in strict mode.
-void Interpreter::DoLdaGlobalStrictWide(InterpreterAssembler* assembler) {
-  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, NOT_INSIDE_TYPEOF,
-                                                   STRICT, UNINITIALIZED);
-  DoLoadGlobal(ic, assembler);
-}
-
-
-// LdaGlobalInsideTypeofSloppyWide <name_index> <slot>
-//
-// Load the global with name in constant pool entry <name_index> into the
-// accumulator using FeedBackVector slot <slot> in sloppy mode.
-void Interpreter::DoLdaGlobalInsideTypeofSloppyWide(
-    InterpreterAssembler* assembler) {
-  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, INSIDE_TYPEOF,
-                                                   SLOPPY, UNINITIALIZED);
-  DoLoadGlobal(ic, assembler);
-}
-
-
-// LdaGlobalInsideTypeofSloppyWide <name_index> <slot>
-//
-// Load the global with name in constant pool entry <name_index> into the
-// accumulator using FeedBackVector slot <slot> in strict mode.
-void Interpreter::DoLdaGlobalInsideTypeofStrictWide(
-    InterpreterAssembler* assembler) {
-  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, INSIDE_TYPEOF,
-                                                   STRICT, UNINITIALIZED);
-  DoLoadGlobal(ic, assembler);
-}
 
 void Interpreter::DoStoreGlobal(Callable ic, InterpreterAssembler* assembler) {
   // Get the global object.
@@ -575,49 +524,26 @@ void Interpreter::DoLoadIC(Callable ic, InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
-
-// LoadICSloppy <object> <name_index> <slot>
+// LoadIC <object> <name_index> <slot>
 //
-// Calls the sloppy mode LoadIC at FeedBackVector slot <slot> for <object> and
-// the name at constant pool entry <name_index>.
-void Interpreter::DoLoadICSloppy(InterpreterAssembler* assembler) {
+// Calls the LoadIC at FeedBackVector slot <slot> for <object> and the name at
+// constant pool entry <name_index>.
+void Interpreter::DoLoadIC(InterpreterAssembler* assembler) {
   Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, NOT_INSIDE_TYPEOF,
-                                                   SLOPPY, UNINITIALIZED);
+                                                   UNINITIALIZED);
   DoLoadIC(ic, assembler);
 }
 
-
-// LoadICStrict <object> <name_index> <slot>
+// LoadICWide <object> <name_index> <slot>
 //
-// Calls the sloppy mode LoadIC at FeedBackVector slot <slot> for <object> and
-// the name at constant pool entry <name_index>.
-void Interpreter::DoLoadICStrict(InterpreterAssembler* assembler) {
+// Calls the LoadIC at FeedBackVector slot <slot> for <object> and the name at
+// constant pool entry <name_index>.
+void Interpreter::DoLoadICWide(InterpreterAssembler* assembler) {
   Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, NOT_INSIDE_TYPEOF,
-                                                   STRICT, UNINITIALIZED);
+                                                   UNINITIALIZED);
   DoLoadIC(ic, assembler);
 }
 
-
-// LoadICSloppyWide <object> <name_index> <slot>
-//
-// Calls the sloppy mode LoadIC at FeedBackVector slot <slot> for <object> and
-// the name at constant pool entry <name_index>.
-void Interpreter::DoLoadICSloppyWide(InterpreterAssembler* assembler) {
-  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, NOT_INSIDE_TYPEOF,
-                                                   SLOPPY, UNINITIALIZED);
-  DoLoadIC(ic, assembler);
-}
-
-
-// LoadICStrictWide <object> <name_index> <slot>
-//
-// Calls the sloppy mode LoadIC at FeedBackVector slot <slot> for <object> and
-// the name at constant pool entry <name_index>.
-void Interpreter::DoLoadICStrictWide(InterpreterAssembler* assembler) {
-  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_, NOT_INSIDE_TYPEOF,
-                                                   STRICT, UNINITIALIZED);
-  DoLoadIC(ic, assembler);
-}
 
 void Interpreter::DoKeyedLoadIC(Callable ic, InterpreterAssembler* assembler) {
   Node* code_target = __ HeapConstant(ic.code());
@@ -634,49 +560,26 @@ void Interpreter::DoKeyedLoadIC(Callable ic, InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
-
-// KeyedLoadICSloppy <object> <slot>
+// KeyedLoadIC <object> <slot>
 //
-// Calls the sloppy mode KeyedLoadIC at FeedBackVector slot <slot> for <object>
-// and the key in the accumulator.
-void Interpreter::DoKeyedLoadICSloppy(InterpreterAssembler* assembler) {
+// Calls the KeyedLoadIC at FeedBackVector slot <slot> for <object> and the key
+// in the accumulator.
+void Interpreter::DoKeyedLoadIC(InterpreterAssembler* assembler) {
   Callable ic =
-      CodeFactory::KeyedLoadICInOptimizedCode(isolate_, SLOPPY, UNINITIALIZED);
+      CodeFactory::KeyedLoadICInOptimizedCode(isolate_, UNINITIALIZED);
   DoKeyedLoadIC(ic, assembler);
 }
 
-
-// KeyedLoadICStrict <object> <slot>
+// KeyedLoadICWide <object> <slot>
 //
-// Calls the strict mode KeyedLoadIC at FeedBackVector slot <slot> for <object>
-// and the key in the accumulator.
-void Interpreter::DoKeyedLoadICStrict(InterpreterAssembler* assembler) {
+// Calls the KeyedLoadIC at FeedBackVector slot <slot> for <object> and the key
+// in the accumulator.
+void Interpreter::DoKeyedLoadICWide(InterpreterAssembler* assembler) {
   Callable ic =
-      CodeFactory::KeyedLoadICInOptimizedCode(isolate_, STRICT, UNINITIALIZED);
+      CodeFactory::KeyedLoadICInOptimizedCode(isolate_, UNINITIALIZED);
   DoKeyedLoadIC(ic, assembler);
 }
 
-
-// KeyedLoadICSloppyWide <object> <slot>
-//
-// Calls the sloppy mode KeyedLoadIC at FeedBackVector slot <slot> for <object>
-// and the key in the accumulator.
-void Interpreter::DoKeyedLoadICSloppyWide(InterpreterAssembler* assembler) {
-  Callable ic =
-      CodeFactory::KeyedLoadICInOptimizedCode(isolate_, SLOPPY, UNINITIALIZED);
-  DoKeyedLoadIC(ic, assembler);
-}
-
-
-// KeyedLoadICStrictWide <object> <slot>
-//
-// Calls the strict mode KeyedLoadIC at FeedBackVector slot <slot> for <object>
-// and the key in the accumulator.
-void Interpreter::DoKeyedLoadICStrictWide(InterpreterAssembler* assembler) {
-  Callable ic =
-      CodeFactory::KeyedLoadICInOptimizedCode(isolate_, STRICT, UNINITIALIZED);
-  DoKeyedLoadIC(ic, assembler);
-}
 
 void Interpreter::DoStoreIC(Callable ic, InterpreterAssembler* assembler) {
   Node* code_target = __ HeapConstant(ic.code());

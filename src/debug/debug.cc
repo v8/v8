@@ -707,7 +707,7 @@ MaybeHandle<Object> Debug::CallFunction(const char* name, int argc,
   AssertDebugContext();
   Handle<Object> holder = isolate_->natives_utils_object();
   Handle<JSFunction> fun = Handle<JSFunction>::cast(
-      Object::GetProperty(isolate_, holder, name, STRICT).ToHandleChecked());
+      Object::GetProperty(isolate_, holder, name).ToHandleChecked());
   Handle<Object> undefined = isolate_->factory()->undefined_value();
   return Execution::TryCall(isolate_, fun, undefined, argc, args);
 }

@@ -438,10 +438,8 @@ class JSOperatorBuilder final : public ZoneObject {
 
   const Operator* ConvertReceiver(ConvertReceiverMode convert_mode);
 
-  const Operator* LoadProperty(LanguageMode language_mode,
-                               VectorSlotPair const& feedback);
-  const Operator* LoadNamed(LanguageMode language_mode, Handle<Name> name,
-                            VectorSlotPair const& feedback);
+  const Operator* LoadProperty(VectorSlotPair const& feedback);
+  const Operator* LoadNamed(Handle<Name> name, VectorSlotPair const& feedback);
 
   const Operator* StoreProperty(LanguageMode language_mode,
                                 VectorSlotPair const& feedback);

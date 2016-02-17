@@ -744,8 +744,7 @@ TEST(InterpreterLoadNamedProperty) {
 
   BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone(), 1,
                                0, 0);
-  builder.LoadNamedProperty(builder.Parameter(0), name, vector->GetIndex(slot),
-                            i::SLOPPY)
+  builder.LoadNamedProperty(builder.Parameter(0), name, vector->GetIndex(slot))
       .Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
 
@@ -799,8 +798,7 @@ TEST(InterpreterLoadKeyedProperty) {
   BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone(), 1,
                                0, 1);
   builder.LoadLiteral(key)
-      .LoadKeyedProperty(builder.Parameter(0), vector->GetIndex(slot),
-                         i::STRICT)
+      .LoadKeyedProperty(builder.Parameter(0), vector->GetIndex(slot))
       .Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
 
@@ -951,7 +949,7 @@ TEST(InterpreterCall) {
   {
     BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone(), 1,
                                  0, 1);
-    builder.LoadNamedProperty(builder.Parameter(0), name, slot_index, i::SLOPPY)
+    builder.LoadNamedProperty(builder.Parameter(0), name, slot_index)
         .StoreAccumulatorInRegister(Register(0))
         .Call(Register(0), builder.Parameter(0), 1, 0)
         .Return();
@@ -970,7 +968,7 @@ TEST(InterpreterCall) {
   {
     BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone(), 1,
                                  0, 1);
-    builder.LoadNamedProperty(builder.Parameter(0), name, slot_index, i::SLOPPY)
+    builder.LoadNamedProperty(builder.Parameter(0), name, slot_index)
         .StoreAccumulatorInRegister(Register(0))
         .Call(Register(0), builder.Parameter(0), 1, 0)
         .Return();
@@ -992,7 +990,7 @@ TEST(InterpreterCall) {
   {
     BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone(), 1,
                                  0, 4);
-    builder.LoadNamedProperty(builder.Parameter(0), name, slot_index, i::SLOPPY)
+    builder.LoadNamedProperty(builder.Parameter(0), name, slot_index)
         .StoreAccumulatorInRegister(Register(0))
         .LoadAccumulatorWithRegister(builder.Parameter(0))
         .StoreAccumulatorInRegister(Register(1))
@@ -1019,7 +1017,7 @@ TEST(InterpreterCall) {
   {
     BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone(), 1,
                                  0, 12);
-    builder.LoadNamedProperty(builder.Parameter(0), name, slot_index, i::SLOPPY)
+    builder.LoadNamedProperty(builder.Parameter(0), name, slot_index)
         .StoreAccumulatorInRegister(Register(0))
         .LoadAccumulatorWithRegister(builder.Parameter(0))
         .StoreAccumulatorInRegister(Register(1))

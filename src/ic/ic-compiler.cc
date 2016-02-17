@@ -43,8 +43,7 @@ Handle<Code> PropertyICCompiler::ComputeKeyedLoadMonomorphicHandler(
   // stub code needs to check that dynamically anyway.
   bool convert_hole_to_undefined =
       is_js_array && elements_kind == FAST_HOLEY_ELEMENTS &&
-      *receiver_map == isolate->get_initial_js_array_map(elements_kind) &&
-      !(is_strong(LoadICState::GetLanguageMode(extra_ic_state)));
+      *receiver_map == isolate->get_initial_js_array_map(elements_kind);
   Handle<Code> stub;
   if (receiver_map->has_indexed_interceptor()) {
     stub = LoadIndexedInterceptorStub(isolate).GetCode();

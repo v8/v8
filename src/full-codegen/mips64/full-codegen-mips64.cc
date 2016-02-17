@@ -2097,7 +2097,7 @@ void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
   __ li(LoadDescriptor::NameRegister(), Operand(key->value()));
   __ li(LoadDescriptor::SlotRegister(),
         Operand(SmiFromSlot(prop->PropertyFeedbackSlot())));
-  CallLoadIC(NOT_INSIDE_TYPEOF, language_mode());
+  CallLoadIC(NOT_INSIDE_TYPEOF);
 }
 
 
@@ -2110,7 +2110,6 @@ void FullCodeGenerator::EmitNamedSuperPropertyLoad(Property* prop) {
   DCHECK(prop->IsSuperAccess());
 
   __ Push(key->value());
-  __ Push(Smi::FromInt(language_mode()));
   __ CallRuntime(Runtime::kLoadFromSuper);
 }
 
@@ -2119,7 +2118,7 @@ void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
   // Call keyed load IC. It has register arguments receiver and key.
   SetExpressionPosition(prop);
 
-  Handle<Code> ic = CodeFactory::KeyedLoadIC(isolate(), language_mode()).code();
+  Handle<Code> ic = CodeFactory::KeyedLoadIC(isolate()).code();
   __ li(LoadDescriptor::SlotRegister(),
         Operand(SmiFromSlot(prop->PropertyFeedbackSlot())));
   CallIC(ic);
@@ -2129,7 +2128,6 @@ void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
 void FullCodeGenerator::EmitKeyedSuperPropertyLoad(Property* prop) {
   // Stack: receiver, home_object, key.
   SetExpressionPosition(prop);
-  __ Push(Smi::FromInt(language_mode()));
   __ CallRuntime(Runtime::kLoadKeyedFromSuper);
 }
 
@@ -2652,7 +2650,6 @@ void FullCodeGenerator::EmitSuperCallWithLoadIC(Call* expr) {
   VisitForAccumulatorValue(super_ref->this_var());
   __ Push(scratch, v0, v0, scratch);
   __ Push(key->value());
-  __ Push(Smi::FromInt(language_mode()));
 
   // Stack here:
   //  - home_object
@@ -2660,7 +2657,6 @@ void FullCodeGenerator::EmitSuperCallWithLoadIC(Call* expr) {
   //  - this (receiver) <-- LoadFromSuper will pop here and below.
   //  - home_object
   //  - key
-  //  - language_mode
   __ CallRuntime(Runtime::kLoadFromSuper);
 
   // Replace home_object with target function.
@@ -2712,7 +2708,6 @@ void FullCodeGenerator::EmitKeyedSuperCallWithLoadIC(Call* expr) {
   VisitForAccumulatorValue(super_ref->this_var());
   __ Push(scratch, v0, v0, scratch);
   VisitForStackValue(prop->key());
-  __ Push(Smi::FromInt(language_mode()));
 
   // Stack here:
   //  - home_object
@@ -2720,7 +2715,6 @@ void FullCodeGenerator::EmitKeyedSuperCallWithLoadIC(Call* expr) {
   //  - this (receiver) <-- LoadKeyedFromSuper will pop here and below.
   //  - home_object
   //  - key
-  //  - language_mode
   __ CallRuntime(Runtime::kLoadKeyedFromSuper);
 
   // Replace home_object with target function.

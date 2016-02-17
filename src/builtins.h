@@ -224,9 +224,6 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(LoadIC_Getter_ForDeopt, LOAD_IC, MONOMORPHIC, kNoExtraICState)             \
   V(KeyedLoadIC_Megamorphic, KEYED_LOAD_IC, MEGAMORPHIC, kNoExtraICState)      \
                                                                                \
-  V(KeyedLoadIC_Megamorphic_Strong, KEYED_LOAD_IC, MEGAMORPHIC,                \
-    LoadICState::kStrongModeState)                                             \
-                                                                               \
   V(StoreIC_Setter_ForDeopt, STORE_IC, MONOMORPHIC,                            \
     StoreICState::kStrictModeState)                                            \
                                                                                \
@@ -292,13 +289,10 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
 // Define list of builtin handlers implemented in assembly.
 #define BUILTIN_LIST_H(V)                    \
   V(LoadIC_Slow,             LOAD_IC)        \
-  V(LoadIC_Slow_Strong,      LOAD_IC)        \
   V(KeyedLoadIC_Slow,        KEYED_LOAD_IC)  \
-  V(KeyedLoadIC_Slow_Strong, KEYED_LOAD_IC)  \
   V(StoreIC_Slow,            STORE_IC)       \
   V(KeyedStoreIC_Slow,       KEYED_STORE_IC) \
   V(LoadIC_Normal,           LOAD_IC)        \
-  V(LoadIC_Normal_Strong,    LOAD_IC)        \
   V(StoreIC_Normal,          STORE_IC)
 
 // Define list of builtins used by the debugger implemented in assembly.

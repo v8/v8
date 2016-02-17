@@ -1675,10 +1675,10 @@ HValue* HGraphBuilder::BuildElementIndexHash(HValue* index) {
   return AddUncasted<HBitwise>(Token::BIT_XOR, hash, shifted_hash);
 }
 
-
-HValue* HGraphBuilder::BuildUncheckedDictionaryElementLoad(
-    HValue* receiver, HValue* elements, HValue* key, HValue* hash,
-    LanguageMode language_mode) {
+HValue* HGraphBuilder::BuildUncheckedDictionaryElementLoad(HValue* receiver,
+                                                           HValue* elements,
+                                                           HValue* key,
+                                                           HValue* hash) {
   HValue* capacity =
       Add<HLoadKeyed>(elements, Add<HConstant>(NameDictionary::kCapacityIndex),
                       nullptr, nullptr, FAST_ELEMENTS);
@@ -1721,11 +1721,8 @@ HValue* HGraphBuilder::BuildUncheckedDictionaryElementLoad(
     // element == undefined means "not found". Call the runtime.
     // TODO(jkummerow): walk the prototype chain instead.
     Add<HPushArguments>(receiver, key);
-    Push(Add<HCallRuntime>(
-        Runtime::FunctionForId(is_strong(language_mode)
-                                   ? Runtime::kKeyedGetPropertyStrong
-                                   : Runtime::kKeyedGetProperty),
-        2));
+    Push(Add<HCallRuntime>(Runtime::FunctionForId(Runtime::kKeyedGetProperty),
+                           2));
   }
   if_undefined.Else();
   {
@@ -1784,11 +1781,8 @@ HValue* HGraphBuilder::BuildUncheckedDictionaryElementLoad(
                          FAST_ELEMENTS));
     details_compare.Else();
     Add<HPushArguments>(receiver, key);
-    Push(Add<HCallRuntime>(
-        Runtime::FunctionForId(is_strong(language_mode)
-                                   ? Runtime::kKeyedGetPropertyStrong
-                                   : Runtime::kKeyedGetProperty),
-        2));
+    Push(Add<HCallRuntime>(Runtime::FunctionForId(Runtime::kKeyedGetProperty),
+                           2));
     details_compare.End();
 
     found_key_match.Else();
@@ -7335,14 +7329,14 @@ HInstruction* HOptimizedGraphBuilder::BuildNamedGeneric(
       // use a generic Keyed Load if we are using the type vector, because
       // it has to share information with full code.
       HConstant* key = Add<HConstant>(name);
-      HLoadKeyedGeneric* result = New<HLoadKeyedGeneric>(
-          object, key, function_language_mode(), PREMONOMORPHIC);
+      HLoadKeyedGeneric* result =
+          New<HLoadKeyedGeneric>(object, key, PREMONOMORPHIC);
       result->SetVectorAndSlot(vector, slot);
       return result;
     }
 
-    HLoadNamedGeneric* result = New<HLoadNamedGeneric>(
-        object, name, function_language_mode(), PREMONOMORPHIC);
+    HLoadNamedGeneric* result =
+        New<HLoadNamedGeneric>(object, name, PREMONOMORPHIC);
     result->SetVectorAndSlot(vector, slot);
     return result;
   } else {
@@ -7376,8 +7370,8 @@ HInstruction* HOptimizedGraphBuilder::BuildKeyedGeneric(
     HValue* object, HValue* key, HValue* value) {
   if (access_type == LOAD) {
     InlineCacheState initial_state = expr->AsProperty()->GetInlineCacheState();
-    HLoadKeyedGeneric* result = New<HLoadKeyedGeneric>(
-        object, key, function_language_mode(), initial_state);
+    HLoadKeyedGeneric* result =
+        New<HLoadKeyedGeneric>(object, key, initial_state);
     // HLoadKeyedGeneric with vector ics benefits from being encoded as
     // MEGAMORPHIC because the vector/slot combo becomes unnecessary.
     if (initial_state != MEGAMORPHIC) {

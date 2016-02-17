@@ -675,7 +675,7 @@ class FullCodeGenerator: public AstVisitor {
               TypeFeedbackId id = TypeFeedbackId::None());
 
   // Inside typeof reference errors are never thrown.
-  void CallLoadIC(TypeofMode typeof_mode, LanguageMode language_mode = SLOPPY,
+  void CallLoadIC(TypeofMode typeof_mode,
                   TypeFeedbackId id = TypeFeedbackId::None());
   void CallStoreIC(TypeFeedbackId id = TypeFeedbackId::None());
 

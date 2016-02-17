@@ -1348,8 +1348,7 @@ class HGraphBuilder {
 
   HValue* BuildUncheckedDictionaryElementLoad(HValue* receiver,
                                               HValue* elements, HValue* key,
-                                              HValue* hash,
-                                              LanguageMode language_mode);
+                                              HValue* hash);
 
   // ES6 section 7.4.7 CreateIterResultObject ( value, done )
   HValue* BuildCreateIterResultObject(HValue* value, HValue* done);

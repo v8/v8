@@ -12,44 +12,36 @@ namespace internal {
 
 
 // static
-Callable CodeFactory::LoadIC(Isolate* isolate, TypeofMode typeof_mode,
-                             LanguageMode language_mode) {
-  return Callable(
-      LoadIC::initialize_stub(
-          isolate, LoadICState(typeof_mode, language_mode).GetExtraICState()),
-      LoadDescriptor(isolate));
+Callable CodeFactory::LoadIC(Isolate* isolate, TypeofMode typeof_mode) {
+  return Callable(LoadIC::initialize_stub(
+                      isolate, LoadICState(typeof_mode).GetExtraICState()),
+                  LoadDescriptor(isolate));
 }
 
 
 // static
 Callable CodeFactory::LoadICInOptimizedCode(
-    Isolate* isolate, TypeofMode typeof_mode, LanguageMode language_mode,
+    Isolate* isolate, TypeofMode typeof_mode,
     InlineCacheState initialization_state) {
   auto code = LoadIC::initialize_stub_in_optimized_code(
-      isolate, LoadICState(typeof_mode, language_mode).GetExtraICState(),
+      isolate, LoadICState(typeof_mode).GetExtraICState(),
       initialization_state);
   return Callable(code, LoadWithVectorDescriptor(isolate));
 }
 
 
 // static
-Callable CodeFactory::KeyedLoadIC(Isolate* isolate,
-                                  LanguageMode language_mode) {
-  ExtraICState state = is_strong(language_mode) ? LoadICState::kStrongModeState
-                                                : kNoExtraICState;
-  return Callable(KeyedLoadIC::initialize_stub(isolate, state),
+Callable CodeFactory::KeyedLoadIC(Isolate* isolate) {
+  return Callable(KeyedLoadIC::initialize_stub(isolate, kNoExtraICState),
                   LoadDescriptor(isolate));
 }
 
 
 // static
 Callable CodeFactory::KeyedLoadICInOptimizedCode(
-    Isolate* isolate, LanguageMode language_mode,
-    InlineCacheState initialization_state) {
-  ExtraICState state = is_strong(language_mode) ? LoadICState::kStrongModeState
-                                                : kNoExtraICState;
+    Isolate* isolate, InlineCacheState initialization_state) {
   auto code = KeyedLoadIC::initialize_stub_in_optimized_code(
-      isolate, initialization_state, state);
+      isolate, initialization_state, kNoExtraICState);
   if (initialization_state != MEGAMORPHIC) {
     return Callable(code, LoadWithVectorDescriptor(isolate));
   }

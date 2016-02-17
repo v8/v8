@@ -57,11 +57,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Emit global load / store operations.
   Factory* factory = isolate()->factory();
   Handle<String> name = factory->NewStringFromStaticChars("var_name");
-  builder.LoadGlobal(name, 1, LanguageMode::SLOPPY,
-                     TypeofMode::NOT_INSIDE_TYPEOF)
-      .LoadGlobal(name, 1, LanguageMode::STRICT, TypeofMode::NOT_INSIDE_TYPEOF)
-      .LoadGlobal(name, 1, LanguageMode::SLOPPY, TypeofMode::INSIDE_TYPEOF)
-      .LoadGlobal(name, 1, LanguageMode::STRICT, TypeofMode::INSIDE_TYPEOF)
+  builder.LoadGlobal(name, 1, TypeofMode::NOT_INSIDE_TYPEOF)
+      .LoadGlobal(name, 1, TypeofMode::INSIDE_TYPEOF)
       .StoreGlobal(name, 1, LanguageMode::SLOPPY)
       .StoreGlobal(name, 1, LanguageMode::STRICT);
 
@@ -72,12 +69,10 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .StoreContextSlot(reg, 1);
 
   // Emit load / store property operations.
-  builder.LoadNamedProperty(reg, name, 0, LanguageMode::SLOPPY)
-      .LoadKeyedProperty(reg, 0, LanguageMode::SLOPPY)
+  builder.LoadNamedProperty(reg, name, 0)
+      .LoadKeyedProperty(reg, 0)
       .StoreNamedProperty(reg, name, 0, LanguageMode::SLOPPY)
       .StoreKeyedProperty(reg, reg, 0, LanguageMode::SLOPPY)
-      .LoadNamedProperty(reg, name, 0, LanguageMode::STRICT)
-      .LoadKeyedProperty(reg, 0, LanguageMode::STRICT)
       .StoreNamedProperty(reg, name, 0, LanguageMode::STRICT)
       .StoreKeyedProperty(reg, reg, 0, LanguageMode::STRICT);
 
@@ -224,22 +219,16 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   Handle<String> wide_name = factory->NewStringFromStaticChars("var_wide_name");
 
   // Emit wide global load / store operations.
-  builder.LoadGlobal(name, 1024, LanguageMode::SLOPPY,
-                     TypeofMode::NOT_INSIDE_TYPEOF)
-      .LoadGlobal(wide_name, 1, LanguageMode::STRICT,
-                  TypeofMode::NOT_INSIDE_TYPEOF)
-      .LoadGlobal(name, 1024, LanguageMode::SLOPPY, TypeofMode::INSIDE_TYPEOF)
-      .LoadGlobal(wide_name, 1, LanguageMode::STRICT, TypeofMode::INSIDE_TYPEOF)
+  builder.LoadGlobal(name, 1024, TypeofMode::NOT_INSIDE_TYPEOF)
+      .LoadGlobal(name, 1024, TypeofMode::INSIDE_TYPEOF)
       .StoreGlobal(name, 1024, LanguageMode::SLOPPY)
       .StoreGlobal(wide_name, 1, LanguageMode::STRICT);
 
   // Emit wide load / store property operations.
-  builder.LoadNamedProperty(reg, wide_name, 0, LanguageMode::SLOPPY)
-      .LoadKeyedProperty(reg, 2056, LanguageMode::SLOPPY)
+  builder.LoadNamedProperty(reg, wide_name, 0)
+      .LoadKeyedProperty(reg, 2056)
       .StoreNamedProperty(reg, wide_name, 0, LanguageMode::SLOPPY)
       .StoreKeyedProperty(reg, reg, 2056, LanguageMode::SLOPPY)
-      .LoadNamedProperty(reg, wide_name, 0, LanguageMode::STRICT)
-      .LoadKeyedProperty(reg, 2056, LanguageMode::STRICT)
       .StoreNamedProperty(reg, wide_name, 0, LanguageMode::STRICT)
       .StoreKeyedProperty(reg, reg, 2056, LanguageMode::STRICT);
 

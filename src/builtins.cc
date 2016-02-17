@@ -1625,9 +1625,9 @@ MUST_USE_RESULT Maybe<bool> FastAssign(Handle<JSReceiver> to,
           prop_value = JSObject::FastPropertyAt(from, representation, index);
         }
       } else {
-        ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-            isolate, prop_value, Object::GetProperty(from, next_key, STRICT),
-            Nothing<bool>());
+        ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, prop_value,
+                                         Object::GetProperty(from, next_key),
+                                         Nothing<bool>());
       }
     } else {
       // If the map did change, do a slower lookup. We are still guaranteed that
@@ -1637,9 +1637,8 @@ MUST_USE_RESULT Maybe<bool> FastAssign(Handle<JSReceiver> to,
       DCHECK(it.state() == LookupIterator::DATA ||
              it.state() == LookupIterator::ACCESSOR);
       if (!it.IsEnumerable()) continue;
-      ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, prop_value,
-                                       Object::GetProperty(&it, STRICT),
-                                       Nothing<bool>());
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, prop_value, Object::GetProperty(&it), Nothing<bool>());
     }
     Handle<Object> status;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -1698,7 +1697,7 @@ BUILTIN(ObjectAssign) {
         Handle<Object> prop_value;
         ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
             isolate, prop_value,
-            Runtime::GetObjectProperty(isolate, from, next_key, STRICT));
+            Runtime::GetObjectProperty(isolate, from, next_key));
         // 4c ii 2. Let status be ? Set(to, nextKey, propValue, true).
         Handle<Object> status;
         ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
@@ -4075,12 +4074,7 @@ static void Generate_LoadIC_Miss(MacroAssembler* masm) {
 
 
 static void Generate_LoadIC_Normal(MacroAssembler* masm) {
-  LoadIC::GenerateNormal(masm, SLOPPY);
-}
-
-
-static void Generate_LoadIC_Normal_Strong(MacroAssembler* masm) {
-  LoadIC::GenerateNormal(masm, STRONG);
+  LoadIC::GenerateNormal(masm);
 }
 
 
@@ -4090,22 +4084,12 @@ static void Generate_LoadIC_Getter_ForDeopt(MacroAssembler* masm) {
 
 
 static void Generate_LoadIC_Slow(MacroAssembler* masm) {
-  LoadIC::GenerateRuntimeGetProperty(masm, SLOPPY);
-}
-
-
-static void Generate_LoadIC_Slow_Strong(MacroAssembler* masm) {
-  LoadIC::GenerateRuntimeGetProperty(masm, STRONG);
+  LoadIC::GenerateRuntimeGetProperty(masm);
 }
 
 
 static void Generate_KeyedLoadIC_Slow(MacroAssembler* masm) {
-  KeyedLoadIC::GenerateRuntimeGetProperty(masm, SLOPPY);
-}
-
-
-static void Generate_KeyedLoadIC_Slow_Strong(MacroAssembler* masm) {
-  KeyedLoadIC::GenerateRuntimeGetProperty(masm, STRONG);
+  KeyedLoadIC::GenerateRuntimeGetProperty(masm);
 }
 
 
@@ -4115,12 +4099,7 @@ static void Generate_KeyedLoadIC_Miss(MacroAssembler* masm) {
 
 
 static void Generate_KeyedLoadIC_Megamorphic(MacroAssembler* masm) {
-  KeyedLoadIC::GenerateMegamorphic(masm, SLOPPY);
-}
-
-
-static void Generate_KeyedLoadIC_Megamorphic_Strong(MacroAssembler* masm) {
-  KeyedLoadIC::GenerateMegamorphic(masm, STRONG);
+  KeyedLoadIC::GenerateMegamorphic(masm);
 }
 
 

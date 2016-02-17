@@ -89,6 +89,10 @@
   'test-func-name-inference/UpperCaseClass': [FAIL],
   'test-func-name-inference/LowerCaseClass': [FAIL],
 
+  # BUG(3956). Strong mode is being deprecated. Decide about these tests.
+  'test-api/StrongModeAccessCheckAllowed': [FAIL],
+  'test-api/StrongModeAccessCheckBlocked': [FAIL],
+
   ##############################################################################
   # TurboFan compiler failures.
 
@@ -514,13 +518,8 @@
   'test-api/IsGeneratorFunctionOrObject': [FAIL],
 
   # TODO(rmcilroy,4680): Strong mode failures.
-  'test-parsing/StrongModeFreeVariablesDeclaredByLanguage': [FAIL],
-  'test-parsing/StrongModeFreeVariablesDeclaredInGlobalPrototype': [FAIL],
-  'test-parsing/StrongModeFreeVariablesDeclaredByPreviousScript': [FAIL],
-  'test-api/StrongModeAccessCheckBlocked': [FAIL],
   'test-api/AccessorShouldThrowOnError': [FAIL],
   'test-api/InterceptorShouldThrowOnError': [FAIL],
-  'test-api/StrongModeAccessCheckAllowed': [FAIL],
 
   # TODO(rmcilroy,4680): The function_data field should be a BytecodeArray on interpreter entry
   'test-api/SetFunctionEntryHook': [FAIL],

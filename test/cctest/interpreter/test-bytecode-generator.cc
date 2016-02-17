@@ -1065,8 +1065,6 @@ TEST(PropertyLoads) {
   // These are a hack used by the LoadICXXXWide tests below.
   int wide_idx_1 = vector->GetIndex(slot1) - 2;
   int wide_idx_2 = vector->GetIndex(slot1) - 2;
-  int wide_idx_3 = vector->GetIndex(slot1) - 2;
-  int wide_idx_4 = vector->GetIndex(slot1) - 2;
 
   // clang-format off
   ExpectedSnippet<const char*> snippets[] = {
@@ -1078,7 +1076,7 @@ TEST(PropertyLoads) {
            B(StackCheck),                                              //
            B(Ldar), A(1, 2),                                           //
            B(Star), R(0),                                              //
-           B(LoadICSloppy), R(0), U8(0), U8(vector->GetIndex(slot1)),  //
+           B(LoadIC), R(0), U8(0), U8(vector->GetIndex(slot1)),  //
            B(Return),                                                  //
        },
        1,
@@ -1091,7 +1089,7 @@ TEST(PropertyLoads) {
            B(StackCheck),                                              //
            B(Ldar), A(1, 2),                                           //
            B(Star), R(0),                                              //
-           B(LoadICSloppy), R(0), U8(0), U8(vector->GetIndex(slot1)),  //
+           B(LoadIC), R(0), U8(0), U8(vector->GetIndex(slot1)),  //
            B(Return)                                                   //
        },
        1,
@@ -1105,7 +1103,7 @@ TEST(PropertyLoads) {
            B(Ldar), A(1, 2),                                         //
            B(Star), R(0),                                            //
            B(LdaSmi8), U8(100),                                      //
-           B(KeyedLoadICSloppy), R(0), U8(vector->GetIndex(slot1)),  //
+           B(KeyedLoadIC), R(0), U8(vector->GetIndex(slot1)),  //
            B(Return)                                                 //
        },
        0},
@@ -1118,7 +1116,7 @@ TEST(PropertyLoads) {
            B(Ldar), A(1, 3),                                         //
            B(Star), R(0),                                            //
            B(Ldar), A(1, 2),                                         //
-           B(KeyedLoadICSloppy), R(0), U8(vector->GetIndex(slot1)),  //
+           B(KeyedLoadIC), R(0), U8(vector->GetIndex(slot1)),  //
            B(Return)                                                 //
        },
        0},
@@ -1131,43 +1129,16 @@ TEST(PropertyLoads) {
            B(StackCheck),                                              //
            B(Ldar), A(1, 2),                                           //
            B(Star), R(1),                                              //
-           B(LoadICSloppy), R(1), U8(0), U8(vector->GetIndex(slot1)),  //
+           B(LoadIC), R(1), U8(0), U8(vector->GetIndex(slot1)),  //
            B(Star), R(0),                                              //
            B(Ldar), A(1, 2),                                           //
            B(Star), R(1),                                              //
            B(LdaSmi8), U8(-124),                                       //
-           B(KeyedLoadICSloppy), R(1), U8(vector->GetIndex(slot2)),    //
+           B(KeyedLoadIC), R(1), U8(vector->GetIndex(slot2)),    //
            B(Return),                                                  //
        },
        1,
        {"name"}},
-      {"function f(a) { \"use strict\"; return a.name; }\nf({name : \"test\"})",
-       1 * kPointerSize,
-       2,
-       10,
-       {
-           B(StackCheck),                                              //
-           B(Ldar), A(1, 2),                                           //
-           B(Star), R(0),                                              //
-           B(LoadICStrict), R(0), U8(0), U8(vector->GetIndex(slot1)),  //
-           B(Return),                                                  //
-       },
-       1,
-       {"name"}},
-      {"function f(a, b) { \"use strict\"; return a[b]; }\n"
-       "f({arg : \"test\"}, \"arg\")",
-       1 * kPointerSize,
-       3,
-       11,
-       {
-           B(StackCheck),                                            //
-           B(Ldar), A(1, 3),                                         //
-           B(Star), R(0),                                            //
-           B(Ldar), A(2, 3),                                         //
-           B(KeyedLoadICStrict), R(0), U8(vector->GetIndex(slot1)),  //
-           B(Return),                                                //
-       },
-       0},
       {"function f(a) {\n"
        " var b;\n"
        "b = a.name;"
@@ -1181,45 +1152,17 @@ TEST(PropertyLoads) {
            B(StackCheck),                                           //
            B(Ldar), A(1, 2),                                        //
            B(Star), R(1),                                           //
-           B(LoadICSloppy), R(1), U8(0), U8(wide_idx_1 += 2),       //
+           B(LoadIC), R(1), U8(0), U8(wide_idx_1 += 2),       //
            B(Star), R(0),                                           //
            REPEAT_127(COMMA,                                        //
                       B(Ldar), A(1, 2),                             //
                       B(Star), R(1),                                //
-                      B(LoadICSloppy), R(1), U8(0),                 //
+                      B(LoadIC), R(1), U8(0),                 //
                                        U8((wide_idx_1 += 2)),       //
                       B(Star), R(0)),                               //
            B(Ldar), A(1, 2),                                        //
            B(Star), R(1),                                           //
-           B(LoadICSloppyWide), R(1), U16(0), U16(wide_idx_1 + 2),  //
-           B(Return),                                               //
-       },
-       1,
-       {"name"}},
-      {"function f(a) {\n"
-       " 'use strict'; var b;\n"
-       "  b = a.name;\n"
-       REPEAT_127(SPACE, " b = a.name; ")
-       " return a.name; }\n"
-       "f({name : \"test\"})\n",
-       2 * kPointerSize,
-       2,
-       1292,
-       {
-           B(StackCheck),                                           //
-           B(Ldar), A(1, 2),                                        //
-           B(Star), R(1),                                           //
-           B(LoadICStrict), R(1), U8(0), U8((wide_idx_2 += 2)),     //
-           B(Star), R(0),                                           //
-           REPEAT_127(COMMA,                                        //
-                      B(Ldar), A(1, 2),                             //
-                      B(Star), R(1),                                //
-                      B(LoadICStrict), R(1), U8(0),                 //
-                                       U8((wide_idx_2 += 2)),       //
-                      B(Star), R(0)),                               //
-           B(Ldar), A(1, 2),                                        //
-           B(Star), R(1),                                           //
-           B(LoadICStrictWide), R(1), U16(0), U16(wide_idx_2 + 2),  //
+           B(LoadICWide), R(1), U16(0), U16(wide_idx_1 + 2),  //
            B(Return),                                               //
        },
        1,
@@ -1238,46 +1181,18 @@ TEST(PropertyLoads) {
            B(Ldar), A(1, 3),                                              //
            B(Star), R(1),                                                 //
            B(Ldar), A(2, 3),                                              //
-           B(KeyedLoadICSloppy), R(1), U8((wide_idx_3 += 2)),             //
+           B(KeyedLoadIC), R(1), U8((wide_idx_2 += 2)),             //
            B(Star), R(0),                                                 //
            REPEAT_127(COMMA,                                              //
                       B(Ldar), A(1, 3),                                   //
                       B(Star), R(1),                                      //
                       B(Ldar), A(2, 3),                                   //
-                      B(KeyedLoadICSloppy), R(1), U8((wide_idx_3 += 2)),  //
+                      B(KeyedLoadIC), R(1), U8((wide_idx_2 += 2)),  //
                       B(Star), R(0)),                                     //
            B(Ldar), A(1, 3),                                              //
            B(Star), R(1),                                                 //
            B(Ldar), A(2, 3),                                              //
-           B(KeyedLoadICSloppyWide), R(1), U16(wide_idx_3 + 2),           //
-           B(Return),                                                     //
-       }},
-      {"function f(a, b) {\n"
-       " 'use strict'; var c;\n"
-       "  c = a[b];"
-       REPEAT_127(SPACE, " c = a[b]; ")
-       " return a[b]; }\n"
-       "f({name : \"test\"}, \"name\")\n",
-       2 * kPointerSize,
-       3,
-       1420,
-       {
-           B(StackCheck),                                                 //
-           B(Ldar), A(1, 3),                                              //
-           B(Star), R(1),                                                 //
-           B(Ldar), A(2, 3),                                              //
-           B(KeyedLoadICStrict), R(1), U8((wide_idx_4 += 2)),             //
-           B(Star), R(0),                                                 //
-           REPEAT_127(COMMA,                                              //
-                      B(Ldar), A(1, 3),                                   //
-                      B(Star), R(1),                                      //
-                      B(Ldar), A(2, 3),                                   //
-                      B(KeyedLoadICStrict), R(1), U8((wide_idx_4 += 2)),  //
-                      B(Star), R(0)),                                     //
-           B(Ldar), A(1, 3),                                              //
-           B(Star), R(1),                                                 //
-           B(Ldar), A(2, 3),                                              //
-           B(KeyedLoadICStrictWide), R(1), U16(wide_idx_4 + 2),           //
+           B(KeyedLoadICWide), R(1), U16(wide_idx_2 + 2),           //
            B(Return),                                                     //
        }},
   };
@@ -1389,7 +1304,7 @@ TEST(PropertyStores) {
            B(Ldar), A(1, 2),                                            //
            B(Star), R(1),                                               //
            B(LdaSmi8), U8(-124),                                        //
-           B(KeyedLoadICSloppy), R(1), U8(vector->GetIndex(slot1)),     //
+           B(KeyedLoadIC), R(1), U8(vector->GetIndex(slot1)),     //
            B(StoreICSloppy), R(0), U8(0), U8(vector->GetIndex(slot2)),  //
            B(LdaUndefined),                                             //
            B(Return),                                                   //
@@ -1595,7 +1510,7 @@ TEST(PropertyCall) {
            B(StackCheck),                                              //
            B(Ldar), A(1, 2),                                           //
            B(Star), R(1),                                              //
-           B(LoadICSloppy), R(1), U8(0), U8(vector->GetIndex(slot2)),  //
+           B(LoadIC), R(1), U8(0), U8(vector->GetIndex(slot2)),  //
            B(Star), R(0),                                              //
            B(Call), R(0), R(1), U8(1), U8(vector->GetIndex(slot1)),    //
            B(Return),                                                  //
@@ -1610,7 +1525,7 @@ TEST(PropertyCall) {
            B(StackCheck),                                              //
            B(Ldar), A(1, 4),                                           //
            B(Star), R(1),                                              //
-           B(LoadICSloppy), R(1), U8(0), U8(vector->GetIndex(slot2)),  //
+           B(LoadIC), R(1), U8(0), U8(vector->GetIndex(slot2)),  //
            B(Star), R(0),                                              //
            B(Ldar), A(2, 4),                                           //
            B(Star), R(2),                                              //
@@ -1629,7 +1544,7 @@ TEST(PropertyCall) {
            B(StackCheck),                                              //
            B(Ldar), A(1, 3),                                           //
            B(Star), R(1),                                              //
-           B(LoadICSloppy), R(1), U8(0), U8(vector->GetIndex(slot2)),  //
+           B(LoadIC), R(1), U8(0), U8(vector->GetIndex(slot2)),  //
            B(Star), R(0),                                              //
            B(Ldar), A(2, 3),                                           //
            B(Star), R(3),                                              //
@@ -1653,14 +1568,14 @@ TEST(PropertyCall) {
            B(StackCheck),                                                  //
            B(Ldar), A(1, 2),                                               //
            B(Star), R(0),                                                  //
-           B(LoadICSloppy), R(0), U8(0), U8(wide_idx += 2),                //
+           B(LoadIC), R(0), U8(0), U8(wide_idx += 2),                //
            REPEAT_127(COMMA,                                               //
                       B(Ldar), A(1, 2),                                    //
                       B(Star), R(0),                                       //
-                      B(LoadICSloppy), R(0), U8(0), U8((wide_idx += 2))),  //
+                      B(LoadIC), R(0), U8(0), U8((wide_idx += 2))),  //
            B(Ldar), A(1, 2),                                               //
            B(Star), R(1),                                                  //
-           B(LoadICSloppyWide), R(1), U16(0), U16(wide_idx + 4),           //
+           B(LoadICWide), R(1), U16(0), U16(wide_idx + 4),           //
            B(Star), R(0),                                                  //
            B(CallWide), R16(0), R16(1), U16(1), U16(wide_idx + 2),         //
            B(Return),                                                      //
@@ -1691,7 +1606,6 @@ TEST(LoadGlobal) {
 
   // These are a hack used by the LdaGlobalXXXWide tests below.
   int wide_idx_1 = vector->GetIndex(slot) - 2;
-  int wide_idx_2 = vector->GetIndex(slot) - 2;
 
   // clang-format off
   ExpectedSnippet<const char*> snippets[] = {
@@ -1701,7 +1615,7 @@ TEST(LoadGlobal) {
        5,
        {
            B(StackCheck),                                          //
-           B(LdaGlobalSloppy), U8(0), U8(vector->GetIndex(slot)),  //
+           B(LdaGlobal), U8(0), U8(vector->GetIndex(slot)),  //
            B(Return)                                               //
        },
        1,
@@ -1712,29 +1626,18 @@ TEST(LoadGlobal) {
        5,
        {
            B(StackCheck),                                          //
-           B(LdaGlobalSloppy), U8(0), U8(vector->GetIndex(slot)),  //
+           B(LdaGlobal), U8(0), U8(vector->GetIndex(slot)),  //
            B(Return)                                               //
        },
        1,
        {"t"}},
-      {"'use strict'; var a = 1;\nfunction f() { return a; }\nf()",
-       0,
-       1,
-       5,
-       {
-           B(StackCheck),                                          //
-           B(LdaGlobalStrict), U8(0), U8(vector->GetIndex(slot)),  //
-           B(Return)                                               //
-       },
-       1,
-       {"a"}},
       {"a = 1;\nfunction f() { return a; }\nf()",
        0,
        1,
        5,
        {
            B(StackCheck),                                          //
-           B(LdaGlobalSloppy), U8(0), U8(vector->GetIndex(slot)),  //
+           B(LdaGlobal), U8(0), U8(vector->GetIndex(slot)),  //
            B(Return)                                               //
        },
        1,
@@ -1752,36 +1655,12 @@ TEST(LoadGlobal) {
            B(StackCheck),                                                  //
            B(Ldar), A(1, 2),                                               //
            B(Star), R(0),                                                  //
-           B(LoadICSloppy), R(0), U8(0), U8(wide_idx_1 += 2),              //
+           B(LoadIC), R(0), U8(0), U8(wide_idx_1 += 2),              //
            REPEAT_127(COMMA,                                               //
                       B(Ldar), A(1, 2),                                    //
                       B(Star), R(0),                                       //
-                      B(LoadICSloppy), R(0), U8(0), U8(wide_idx_1 += 2)),  //
-           B(LdaGlobalSloppyWide), U16(1), U16(wide_idx_1 + 2),            //
-           B(Return),                                                      //
-       },
-       2,
-       {"name", "a"}},
-      {"a = 1;"
-       "function f(b) {\n"
-       " 'use strict';\n"
-       "  b.name\n"
-          REPEAT_127(SPACE, "b.name; ")
-       "  return a;"
-       "}\nf({name: 1});",
-       kPointerSize,
-       2,
-       1031,
-       {
-           B(StackCheck),                                                  //
-           B(Ldar), A(1, 2),                                               //
-           B(Star), R(0),                                                  //
-           B(LoadICStrict), R(0), U8(0), U8(wide_idx_2 += 2),              //
-           REPEAT_127(COMMA,                                               //
-                      B(Ldar), A(1, 2),                                    //
-                      B(Star), R(0),                                       //
-                      B(LoadICStrict), R(0), U8(0), U8(wide_idx_2 += 2)),  //
-           B(LdaGlobalStrictWide), U16(1), U16(wide_idx_2 + 2),            //
+                      B(LoadIC), R(0), U8(0), U8(wide_idx_1 += 2)),  //
+           B(LdaGlobalWide), U16(1), U16(wide_idx_1 + 2),            //
            B(Return),                                                      //
        },
        2,
@@ -1879,11 +1758,11 @@ TEST(StoreGlobal) {
            B(StackCheck),                                                  //
            B(Ldar), A(1, 2),                                               //
            B(Star), R(0),                                                  //
-           B(LoadICSloppy), R(0), U8(0), U8(wide_idx_1 += 2),              //
+           B(LoadIC), R(0), U8(0), U8(wide_idx_1 += 2),              //
            REPEAT_127(COMMA,                                               //
                       B(Ldar), A(1, 2),                                    //
                       B(Star), R(0),                                       //
-                      B(LoadICSloppy), R(0), U8(0), U8(wide_idx_1 += 2)),  //
+                      B(LoadIC), R(0), U8(0), U8(wide_idx_1 += 2)),  //
            B(LdaSmi8), U8(2),                                              //
            B(StaGlobalSloppyWide), U16(1), U16(wide_idx_1 + 2),            //
            B(LdaUndefined),                                                //
@@ -1905,11 +1784,11 @@ TEST(StoreGlobal) {
            B(StackCheck),                                                  //
            B(Ldar), A(1, 2),                                               //
            B(Star), R(0),                                                  //
-           B(LoadICStrict), R(0), U8(0), U8(wide_idx_2 += 2),              //
+           B(LoadIC), R(0), U8(0), U8(wide_idx_2 += 2),              //
            REPEAT_127(COMMA,                                               //
                       B(Ldar), A(1, 2),                                    //
                       B(Star), R(0),                                       //
-                      B(LoadICStrict), R(0), U8(0), U8(wide_idx_2 += 2)),  //
+                      B(LoadIC), R(0), U8(0), U8(wide_idx_2 += 2)),  //
            B(LdaSmi8), U8(2),                                              //
            B(StaGlobalStrictWide), U16(1), U16(wide_idx_2 + 2),            //
            B(LdaUndefined),                                                //
@@ -1950,7 +1829,7 @@ TEST(CallGlobal) {
            B(StackCheck),                                            //
            B(LdaUndefined),                                          //
            B(Star), R(1),                                            //
-           B(LdaGlobalSloppy), U8(0), U8(vector->GetIndex(slot2)),   //
+           B(LdaGlobal), U8(0), U8(vector->GetIndex(slot2)),   //
            B(Star), R(0),                                            //
            B(Call), R(0), R(1), U8(1), U8(vector->GetIndex(slot1)),  //
            B(Return)                                                 //
@@ -1965,7 +1844,7 @@ TEST(CallGlobal) {
            B(StackCheck),                                            //
            B(LdaUndefined),                                          //
            B(Star), R(1),                                            //
-           B(LdaGlobalSloppy), U8(0), U8(vector->GetIndex(slot2)),   //
+           B(LdaGlobal), U8(0), U8(vector->GetIndex(slot2)),   //
            B(Star), R(0),                                            //
            B(LdaSmi8), U8(1),                                        //
            B(Star), R(2),                                            //
@@ -2419,8 +2298,7 @@ TEST(DeclareGlobals) {
            B(StackCheck),                                                //
            B(LdaUndefined),                                              //
            B(Star), R(2),                                                //
-           B(LdaGlobalSloppy), U8(1),                                    //
-           /*               */ U8(load_vector->GetIndex(load_slot_1)),   //
+           B(LdaGlobal), U8(1), U8(load_vector->GetIndex(load_slot_1)),  //
            B(Star), R(1),                                                //
            B(Call), R(1), R(2), U8(1),                                   //
            /*                */ U8(load_vector->GetIndex(call_slot_1)),  //
@@ -3659,28 +3537,10 @@ TEST(Typeof) {
        1,
        6,
        {
-           B(StackCheck),                                               //
-           B(LdaGlobalInsideTypeofSloppy), U8(0),                       //
-           /*                           */ U8(vector->GetIndex(slot)),  //
-           B(TypeOf),                                                   //
-           B(Return),                                                   //
-       },
-       1,
-       {"x"}},
-      {"var x = 13;\n"
-       "function f() {\n"
-       " 'use strict';\n"
-       " return typeof(x);\n"
-       "}; f();",
-       0,
-       1,
-       6,
-       {
-           B(StackCheck),                                               //
-           B(LdaGlobalInsideTypeofStrict), U8(0),                       //
-           /*                           */ U8(vector->GetIndex(slot)),  //
-           B(TypeOf),                                                   //
-           B(Return),                                                   //
+           B(StackCheck),                                                //
+           B(LdaGlobalInsideTypeof), U8(0), U8(vector->GetIndex(slot)),  //
+           B(TypeOf),                                                    //
+           B(Return),                                                    //
        },
        1,
        {"x"}},
@@ -3825,7 +3685,7 @@ TEST(GlobalDelete) {
        1,
        11,
        {B(StackCheck),                                          //
-        B(LdaGlobalSloppy), U8(0), U8(vector->GetIndex(slot)),  //
+        B(LdaGlobal), U8(0), U8(vector->GetIndex(slot)),  //
         B(Star), R(0),                                          //
         B(LdaConstant), U8(1),                                  //
         B(DeletePropertySloppy), R(0),                          //
@@ -3839,7 +3699,7 @@ TEST(GlobalDelete) {
        1,
        11,
        {B(StackCheck),                                          //
-        B(LdaGlobalStrict), U8(0), U8(vector->GetIndex(slot)),  //
+        B(LdaGlobal), U8(0), U8(vector->GetIndex(slot)),  //
         B(Star), R(0),                                          //
         B(LdaSmi8), U8(1),                                      //
         B(DeletePropertyStrict), R(0),                          //
@@ -3997,7 +3857,7 @@ TEST(RegExpLiterals) {
            B(StackCheck),                                              //
            B(CreateRegExpLiteral), U8(0), U8(0), U8(0),                //
            B(Star), R(1),                                              //
-           B(LoadICSloppy), R(1), U8(1), U8(vector->GetIndex(slot2)),  //
+           B(LoadIC), R(1), U8(1), U8(vector->GetIndex(slot2)),  //
            B(Star), R(0),                                              //
            B(LdaConstant), U8(2),                                      //
            B(Star), R(2),                                              //
@@ -5036,7 +4896,7 @@ TEST(CallNew) {
        11,
        {
            B(StackCheck),                                           //
-           B(LdaGlobalSloppy), U8(0), U8(vector->GetIndex(slot2)),  //
+           B(LdaGlobal), U8(0), U8(vector->GetIndex(slot2)),  //
            B(Star), R(0),                                           //
            B(New), R(0), R(0), U8(0),                               //
            B(Return),                                               //
@@ -5051,7 +4911,7 @@ TEST(CallNew) {
        17,
        {
            B(StackCheck),                                           //
-           B(LdaGlobalSloppy), U8(0), U8(vector->GetIndex(slot2)),  //
+           B(LdaGlobal), U8(0), U8(vector->GetIndex(slot2)),  //
            B(Star), R(0),                                           //
            B(LdaSmi8), U8(3),                                       //
            B(Star), R(1),                                           //
@@ -5074,7 +4934,7 @@ TEST(CallNew) {
        25,
        {
            B(StackCheck),                                           //
-           B(LdaGlobalSloppy), U8(0), U8(vector->GetIndex(slot2)),  //
+           B(LdaGlobal), U8(0), U8(vector->GetIndex(slot2)),  //
            B(Star), R(0),                                           //
            B(LdaSmi8), U8(3),                                       //
            B(Star), R(1),                                           //
@@ -5244,7 +5104,7 @@ TEST(ContextVariables) {
                       B(StaContextSlot), R(context), U8(wide_slot++)),     //
            B(LdaUndefined),                                                //
            B(Star), R(2),                                                  //
-           B(LdaGlobalStrict), U8(0), U8(1),                               //
+           B(LdaGlobal), U8(0), U8(1),                               //
            B(Star), R(1),                                                  //
            B(Call), R(1), R(2), U8(1), U8(0),                              //
            B(LdaSmi8), U8(100),                                            //
@@ -5514,7 +5374,7 @@ TEST(CountOperators) {
            B(Star), R(1),                                                   //
            B(Star), R(0),                                                   //
            B(Star), R(1),                                                   //
-           B(LoadICSloppy), R(1), U8(1), U8(vector->GetIndex(slot1)),       //
+           B(LoadIC), R(1), U8(1), U8(vector->GetIndex(slot1)),       //
            B(ToNumber),                                                     //
            B(Star), R(2),                                                   //
            B(Inc),                                                          //
@@ -5535,7 +5395,7 @@ TEST(CountOperators) {
            B(Star), R(1),                                                   //
            B(Star), R(0),                                                   //
            B(Star), R(1),                                                   //
-           B(LoadICSloppy), R(1), U8(1), U8(vector->GetIndex(slot1)),       //
+           B(LoadIC), R(1), U8(1), U8(vector->GetIndex(slot1)),       //
            B(ToNumber),                                                     //
            B(Dec),                                                          //
            B(StoreICSloppy), R(1), U8(1), U8(vector->GetIndex(slot2)),      //
@@ -5558,7 +5418,7 @@ TEST(CountOperators) {
            B(Star), R(2),                                                   //
            B(Ldar), R(0),                                                   //
            B(Star), R(3),                                                   //
-           B(KeyedLoadICSloppy), R(2), U8(vector->GetIndex(slot1)),         //
+           B(KeyedLoadIC), R(2), U8(vector->GetIndex(slot1)),         //
            B(ToNumber),                                                     //
            B(Star), R(4),                                                   //
            B(Dec),                                                          //
@@ -5583,7 +5443,7 @@ TEST(CountOperators) {
            B(Star), R(2),                                                   //
            B(Ldar), R(0),                                                   //
            B(Star), R(3),                                                   //
-           B(KeyedLoadICSloppy), R(2), U8(vector->GetIndex(slot1)),         //
+           B(KeyedLoadIC), R(2), U8(vector->GetIndex(slot1)),         //
            B(ToNumber),                                                     //
            B(Inc),                                                          //
            B(KeyedStoreICSloppy), R(2), R(3), U8(vector->GetIndex(slot2)),  //
@@ -5690,7 +5550,7 @@ TEST(GlobalCountOperators) {
        10,
        {
            B(StackCheck),                                            //
-           B(LdaGlobalSloppy), U8(0), U8(vector->GetIndex(slot1)),  //
+           B(LdaGlobal), U8(0), U8(vector->GetIndex(slot1)),  //
            B(ToNumber),                                             //
            B(Inc),                                                  //
            B(StaGlobalSloppy), U8(0), U8(vector->GetIndex(slot2)),  //
@@ -5704,7 +5564,7 @@ TEST(GlobalCountOperators) {
        14,
        {
            B(StackCheck),                                           //
-           B(LdaGlobalSloppy), U8(0), U8(vector->GetIndex(slot1)),  //
+           B(LdaGlobal), U8(0), U8(vector->GetIndex(slot1)),  //
            B(ToNumber),                                             //
            B(Star), R(0),                                           //
            B(Dec),                                                  //
@@ -5721,7 +5581,7 @@ TEST(GlobalCountOperators) {
        10,
        {
            B(StackCheck),                                           //
-           B(LdaGlobalStrict), U8(0), U8(vector->GetIndex(slot1)),  //
+           B(LdaGlobal), U8(0), U8(vector->GetIndex(slot1)),  //
            B(ToNumber),                                             //
            B(Dec),                                                  //
            B(StaGlobalStrict), U8(0), U8(vector->GetIndex(slot2)),  //
@@ -5735,7 +5595,7 @@ TEST(GlobalCountOperators) {
        14,
        {
            B(StackCheck),                                            //
-           B(LdaGlobalSloppy), U8(0), U8(vector->GetIndex(slot1)),  //
+           B(LdaGlobal), U8(0), U8(vector->GetIndex(slot1)),  //
            B(ToNumber),                                             //
            B(Star), R(0),                                           //
            B(Inc),                                                  //
@@ -5817,7 +5677,7 @@ TEST(CompoundExpressions) {
            B(Star), R(1),                                                   //
            B(Star), R(0),                                                   //
            B(Star), R(1),                                                   //
-           B(LoadICSloppy), R(1), U8(1), U8(vector->GetIndex(slot1)),       //
+           B(LoadIC), R(1), U8(1), U8(vector->GetIndex(slot1)),       //
            B(Star), R(2),                                                   //
            B(LdaSmi8), U8(2),                                               //
            B(Mul), R(2),                                                    //
@@ -5840,7 +5700,7 @@ TEST(CompoundExpressions) {
            B(Star), R(1),                                                   //
            B(LdaSmi8), U8(1),                                               //
            B(Star), R(2),                                                   //
-           B(KeyedLoadICSloppy), R(1), U8(vector->GetIndex(slot1)),         //
+           B(KeyedLoadIC), R(1), U8(vector->GetIndex(slot1)),         //
            B(Star), R(3),                                                   //
            B(LdaSmi8), U8(2),                                               //
            B(BitwiseXor), R(3),                                             //
@@ -5903,7 +5763,7 @@ TEST(GlobalCompoundExpressions) {
        14,
        {
            B(StackCheck),                                           //
-           B(LdaGlobalSloppy), U8(0), U8(vector->GetIndex(slot1)),  //
+           B(LdaGlobal), U8(0), U8(vector->GetIndex(slot1)),  //
            B(Star), R(0),                                           //
            B(LdaSmi8), U8(1),                                       //
            B(BitwiseAnd), R(0),                                     //
@@ -5918,7 +5778,7 @@ TEST(GlobalCompoundExpressions) {
        14,
        {
            B(StackCheck),                                           //
-           B(LdaGlobalSloppy), U8(0), U8(vector->GetIndex(slot1)),  //
+           B(LdaGlobal), U8(0), U8(vector->GetIndex(slot1)),  //
            B(Star), R(0),                                           //
            B(LdaSmi8), U8(1),                                       //
            B(Add), R(0),                                            //
@@ -5977,7 +5837,7 @@ TEST(CreateArguments) {
            B(Ldar), R(0),                                           //
            B(Star), R(1),                                           //
            B(LdaZero),                                              //
-           B(KeyedLoadICSloppy), R(1), U8(vector->GetIndex(slot)),  //
+           B(KeyedLoadIC), R(1), U8(vector->GetIndex(slot)),  //
            B(Return),                                               //
        }},
       {"function f() { 'use strict'; return arguments; }",
@@ -6007,7 +5867,7 @@ TEST(CreateArguments) {
            B(Ldar), R(0),                                                  //
            B(Star), R(2),                                                  //
            B(LdaZero),                                                     //
-           B(KeyedLoadICSloppy), R(2), U8(vector->GetIndex(slot)),         //
+           B(KeyedLoadIC), R(2), U8(vector->GetIndex(slot)),         //
            B(Return),                                                      //
        }},
       {"function f(a, b, c) { return arguments; }",
@@ -6110,7 +5970,7 @@ TEST(CreateRestParameter) {
            B(Ldar), R(0),                                           //
            B(Star), R(2),                                           //
            B(LdaZero),                                              //
-           B(KeyedLoadICSloppy), R(2), U8(vector->GetIndex(slot)),  //
+           B(KeyedLoadIC), R(2), U8(vector->GetIndex(slot)),  //
            B(Return),                                               //
        },
        0,
@@ -6132,12 +5992,12 @@ TEST(CreateRestParameter) {
            B(Ldar), R(1),                                            //
            B(Star), R(3),                                            //
            B(LdaZero),                                               //
-           B(KeyedLoadICSloppy), R(3), U8(vector->GetIndex(slot)),   //
+           B(KeyedLoadIC), R(3), U8(vector->GetIndex(slot)),   //
            B(Star), R(4),                                            //
            B(Ldar), R(0),                                            //
            B(Star), R(3),                                            //
            B(LdaZero),                                               //
-           B(KeyedLoadICSloppy), R(3), U8(vector->GetIndex(slot1)),  //
+           B(KeyedLoadIC), R(3), U8(vector->GetIndex(slot1)),  //
            B(Add), R(4),                                             //
            B(Return),                                                //
        },
@@ -6350,7 +6210,7 @@ TEST(ForIn) {
            B(StackCheck),                                                  //
            B(Ldar), R(0),                                                  //
            B(Star), R(6),                                                  //
-           B(LoadICSloppy), R(6), U8(2), U8(vector->GetIndex(slot2)),      //
+           B(LoadIC), R(6), U8(2), U8(vector->GetIndex(slot2)),      //
            B(Star), R(7),                                                  //
            B(LdaSmi8), U8(10),                                             //
            B(TestEqual), R(7),                                             //
@@ -6358,7 +6218,7 @@ TEST(ForIn) {
            B(Jump), U8(20),                                                //
            B(Ldar), R(0),                                                  //
            B(Star), R(6),                                                  //
-           B(LoadICSloppy), R(6), U8(2), U8(vector->GetIndex(slot3)),      //
+           B(LoadIC), R(6), U8(2), U8(vector->GetIndex(slot3)),      //
            B(Star), R(7),                                                  //
            B(LdaSmi8), U8(20),                                             //
            B(TestEqual), R(7),                                             //
@@ -6406,7 +6266,7 @@ TEST(ForIn) {
            B(Ldar), R(0),                                                   //
            B(Star), R(6),                                                   //
            B(LdaSmi8), U8(3),                                               //
-           B(KeyedLoadICSloppy), R(6), U8(vector->GetIndex(slot2)),         //
+           B(KeyedLoadIC), R(6), U8(vector->GetIndex(slot2)),         //
            B(Return),                                                       //
            B(ForInStep), R(5),                                              //
            B(Star), R(5),                                                   //
@@ -6460,13 +6320,13 @@ TEST(ForOf) {
            B(CreateArrayLiteral), U8(0), U8(0), U8(array_literal_flags),    //
            B(Star), R(5),                                                   //
            B(LdaConstant), U8(1),                                           //
-           B(KeyedLoadICSloppy), R(5), U8(vector->GetIndex(slot2)),         //
+           B(KeyedLoadIC), R(5), U8(vector->GetIndex(slot2)),         //
            B(Star), R(4),                                                   //
            B(Call), R(4), R(5), U8(1), U8(vector->GetIndex(slot1)),         //
            B(Star), R(1),                                                   //
            B(Ldar), R(1),                                                   //
            B(Star), R(6),                                                   //
-           B(LoadICSloppy), R(6), U8(2), U8(vector->GetIndex(slot4)),       //
+           B(LoadIC), R(6), U8(2), U8(vector->GetIndex(slot4)),       //
            B(Star), R(5),                                                   //
            B(Call), R(5), R(6), U8(1), U8(vector->GetIndex(slot3)),         //
            B(Star), R(2),                                                   //
@@ -6480,11 +6340,11 @@ TEST(ForOf) {
            /*           */ R(4), U8(1),                                     //
            B(Ldar), R(2),                                                   //
            B(Star), R(4),                                                   //
-           B(LoadICSloppy), R(4), U8(3), U8(vector->GetIndex(slot5)),       //
+           B(LoadIC), R(4), U8(3), U8(vector->GetIndex(slot5)),       //
            B(JumpIfToBooleanTrue), U8(19),                                  //
            B(Ldar), R(2),                                                   //
            B(Star), R(4),                                                   //
-           B(LoadICSloppy), R(4), U8(4), U8(vector->GetIndex(slot6)),       //
+           B(LoadIC), R(4), U8(4), U8(vector->GetIndex(slot6)),       //
            B(Star), R(0),                                                   //
            B(StackCheck),                                                   //
            B(Ldar), R(0),                                                   //
@@ -6509,13 +6369,13 @@ TEST(ForOf) {
            B(Star), R(3),                                                   //
            B(Star), R(6),                                                   //
            B(LdaConstant), U8(1),                                           //
-           B(KeyedLoadICSloppy), R(6), U8(vector->GetIndex(slot2)),         //
+           B(KeyedLoadIC), R(6), U8(vector->GetIndex(slot2)),         //
            B(Star), R(5),                                                   //
            B(Call), R(5), R(6), U8(1), U8(vector->GetIndex(slot1)),         //
            B(Star), R(1),                                                   //
            B(Ldar), R(1),                                                   //
            B(Star), R(7),                                                   //
-           B(LoadICSloppy), R(7), U8(2), U8(vector->GetIndex(slot4)),       //
+           B(LoadIC), R(7), U8(2), U8(vector->GetIndex(slot4)),       //
            B(Star), R(6),                                                   //
            B(Call), R(6), R(7), U8(1), U8(vector->GetIndex(slot3)),         //
            B(Star), R(2),                                                   //
@@ -6529,11 +6389,11 @@ TEST(ForOf) {
            /*           */ R(5), U8(1),                                     //
            B(Ldar), R(2),                                                   //
            B(Star), R(5),                                                   //
-           B(LoadICSloppy), R(5), U8(3), U8(vector->GetIndex(slot5)),       //
+           B(LoadIC), R(5), U8(3), U8(vector->GetIndex(slot5)),       //
            B(JumpIfToBooleanTrue), U8(18),                                  //
            B(Ldar), R(2),                                                   //
            B(Star), R(5),                                                   //
-           B(LoadICSloppy), R(5), U8(4), U8(vector->GetIndex(slot6)),       //
+           B(LoadIC), R(5), U8(4), U8(vector->GetIndex(slot6)),       //
            B(Star), R(0),                                                   //
            B(StackCheck),                                                   //
            B(Ldar), R(0),                                                   //
@@ -6560,13 +6420,13 @@ TEST(ForOf) {
            B(CreateArrayLiteral), U8(0), U8(0), U8(array_literal_flags),    //
            B(Star), R(5),                                                   //
            B(LdaConstant), U8(1),                                           //
-           B(KeyedLoadICSloppy), R(5), U8(vector->GetIndex(slot2)),         //
+           B(KeyedLoadIC), R(5), U8(vector->GetIndex(slot2)),         //
            B(Star), R(4),                                                   //
            B(Call), R(4), R(5), U8(1), U8(vector->GetIndex(slot1)),         //
            B(Star), R(1),                                                   //
            B(Ldar), R(1),                                                   //
            B(Star), R(6),                                                   //
-           B(LoadICSloppy), R(6), U8(2), U8(vector->GetIndex(slot4)),       //
+           B(LoadIC), R(6), U8(2), U8(vector->GetIndex(slot4)),       //
            B(Star), R(5),                                                   //
            B(Call), R(5), R(6), U8(1), U8(vector->GetIndex(slot3)),         //
            B(Star), R(2),                                                   //
@@ -6580,11 +6440,11 @@ TEST(ForOf) {
            /*           */ R(4), U8(1),                                     //
            B(Ldar), R(2),                                                   //
            B(Star), R(4),                                                   //
-           B(LoadICSloppy), R(4), U8(3), U8(vector->GetIndex(slot5)),       //
+           B(LoadIC), R(4), U8(3), U8(vector->GetIndex(slot5)),       //
            B(JumpIfToBooleanTrue), U8(41),                                  //
            B(Ldar), R(2),                                                   //
            B(Star), R(4),                                                   //
-           B(LoadICSloppy), R(4), U8(4), U8(vector->GetIndex(slot6)),       //
+           B(LoadIC), R(4), U8(4), U8(vector->GetIndex(slot6)),       //
            B(Star), R(0),                                                   //
            B(StackCheck),                                                   //
            B(Ldar), R(0),                                                   //
@@ -6622,13 +6482,13 @@ TEST(ForOf) {
            B(CreateArrayLiteral), U8(1), U8(1), U8(array_literal_flags),    //
            B(Star), R(4),                                                   //
            B(LdaConstant), U8(2),                                           //
-           B(KeyedLoadICSloppy), R(4), U8(vector->GetIndex(slot2)),         //
+           B(KeyedLoadIC), R(4), U8(vector->GetIndex(slot2)),         //
            B(Star), R(3),                                                   //
            B(Call), R(3), R(4), U8(1), U8(vector->GetIndex(slot1)),         //
            B(Star), R(0),                                                   //
            B(Ldar), R(0),                                                   //
            B(Star), R(5),                                                   //
-           B(LoadICSloppy), R(5), U8(3), U8(vector->GetIndex(slot4)),       //
+           B(LoadIC), R(5), U8(3), U8(vector->GetIndex(slot4)),       //
            B(Star), R(4),                                                   //
            B(Call), R(4), R(5), U8(1), U8(vector->GetIndex(slot3)),         //
            B(Star), R(1),                                                   //
@@ -6642,18 +6502,18 @@ TEST(ForOf) {
            /*           */ R(3), U8(1),                                     //
            B(Ldar), R(1),                                                   //
            B(Star), R(3),                                                   //
-           B(LoadICSloppy), R(3), U8(4), U8(vector->GetIndex(slot5)),       //
+           B(LoadIC), R(3), U8(4), U8(vector->GetIndex(slot5)),       //
            B(JumpIfToBooleanTrue), U8(28),                                  //
            B(Ldar), R(2),                                                   //
            B(Star), R(3),                                                   //
            B(Ldar), R(1),                                                   //
            B(Star), R(4),                                                   //
-           B(LoadICSloppy), R(4), U8(5), U8(vector->GetIndex(slot6)),       //
+           B(LoadIC), R(4), U8(5), U8(vector->GetIndex(slot6)),       //
            B(StoreICSloppy), R(3), U8(6), U8(vector->GetIndex(slot7)),      //
            B(StackCheck),                   //
            B(Ldar), R(2),                                                   //
            B(Star), R(3),                                                   //
-           B(LoadICSloppy), R(3), U8(6), U8(vector->GetIndex(slot8)),       //
+           B(LoadIC), R(3), U8(6), U8(vector->GetIndex(slot8)),       //
            B(Return),                                                       //
            B(LdaUndefined),                                                 //
            B(Return),                                                       //
@@ -9040,7 +8900,7 @@ TEST(ClassDeclarations) {
        B(Star), R(5),                                                        //
        B(CallRuntime), U16(Runtime::kDefineClass), R(2), U8(4),              //
        B(Star), R(2),                                                        //
-       B(LoadICSloppy), R(2), U8(2), U8(1),                                  //
+       B(LoadIC), R(2), U8(2), U8(1),                                  //
        B(Star), R(3),                                                        //
        B(Mov), R(3), R(4),                                                   //
        B(LdaConstant), U8(3),                                                //
@@ -9086,7 +8946,7 @@ TEST(ClassDeclarations) {
        B(Star), R(5),                                                        //
        B(CallRuntime), U16(Runtime::kDefineClass), R(2), U8(4),              //
        B(Star), R(2),                                                        //
-       B(LoadICSloppy), R(2), U8(2), U8(1),                                  //
+       B(LoadIC), R(2), U8(2), U8(1),                                  //
        B(Star), R(3),                                                        //
        B(Mov), R(3), R(4),                                                   //
        B(LdaConstant), U8(3),                                                //
@@ -9141,7 +9001,7 @@ TEST(ClassDeclarations) {
        B(Star), R(6),                                                        //
        B(CallRuntime), U16(Runtime::kDefineClass), R(3), U8(4),              //
        B(Star), R(3),                                                        //
-       B(LoadICSloppy), R(3), U8(3), U8(1),                                  //
+       B(LoadIC), R(3), U8(3), U8(1),                                  //
        B(Star), R(4),                                                        //
        B(Mov), R(4), R(5),                                                   //
        B(LdaContextSlot), R(context), U8(4),                                 //
@@ -9207,7 +9067,7 @@ TEST(ClassDeclarations) {
        B(Star), R(6),                                                         //
        B(CallRuntime), U16(Runtime::kDefineClass), R(3), U8(4),               //
        B(Star), R(3),                                                         //
-       B(LoadICSloppy), R(3), U8(1), U8(1),                                   //
+       B(LoadIC), R(3), U8(1), U8(1),                                   //
        B(Star), R(4),                                                         //
        B(CallRuntime), U16(Runtime::kFinalizeClassDefinition), R(3), U8(2),   //
        B(Star), R(0),                                                         //

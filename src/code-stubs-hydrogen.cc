@@ -2157,8 +2157,7 @@ HValue* CodeStubGraphBuilder<LoadDictionaryElementStub>::BuildCodeStub() {
 
   HValue* hash = BuildElementIndexHash(key);
 
-  return BuildUncheckedDictionaryElementLoad(receiver, elements, key, hash,
-                                             casted_stub()->language_mode());
+  return BuildUncheckedDictionaryElementLoad(receiver, elements, key, hash);
 }
 
 
@@ -2292,8 +2291,7 @@ HValue* CodeStubGraphBuilder<KeyedLoadGenericStub>::BuildCodeStub() {
 
       HValue* hash = BuildElementIndexHash(key);
 
-      Push(BuildUncheckedDictionaryElementLoad(receiver, elements, key, hash,
-                                               casted_stub()->language_mode()));
+      Push(BuildUncheckedDictionaryElementLoad(receiver, elements, key, hash));
     }
     kind_if.Else();
 
@@ -2337,8 +2335,8 @@ HValue* CodeStubGraphBuilder<KeyedLoadGenericStub>::BuildCodeStub() {
 
       hash = AddUncasted<HShr>(hash, Add<HConstant>(Name::kHashShift));
 
-      HValue* value = BuildUncheckedDictionaryElementLoad(
-          receiver, properties, key, hash, casted_stub()->language_mode());
+      HValue* value =
+          BuildUncheckedDictionaryElementLoad(receiver, properties, key, hash);
       Push(value);
     }
     if_dict_properties.Else();
@@ -2415,10 +2413,7 @@ HValue* CodeStubGraphBuilder<KeyedLoadGenericStub>::BuildCodeStub() {
         // KeyedLookupCache miss; call runtime.
         Add<HPushArguments>(receiver, key);
         Push(Add<HCallRuntime>(
-            Runtime::FunctionForId(is_strong(casted_stub()->language_mode())
-                                       ? Runtime::kKeyedGetPropertyStrong
-                                       : Runtime::kKeyedGetProperty),
-            2));
+            Runtime::FunctionForId(Runtime::kKeyedGetProperty), 2));
       }
       inline_or_runtime.End();
     }

@@ -2074,10 +2074,6 @@ class LoadDictionaryElementStub : public HydrogenCodeStub {
     return LoadWithVectorDescriptor(isolate());
   }
 
-  LanguageMode language_mode() const {
-    return LoadICState::GetLanguageMode(MinorKey());
-  }
-
   DEFINE_HYDROGEN_CODE_STUB(LoadDictionaryElement, HydrogenCodeStub);
 };
 
@@ -2091,10 +2087,6 @@ class KeyedLoadGenericStub : public HydrogenCodeStub {
 
   Code::Kind GetCodeKind() const override { return Code::KEYED_LOAD_IC; }
   InlineCacheState GetICState() const override { return GENERIC; }
-
-  LanguageMode language_mode() const {
-    return LoadICState::GetLanguageMode(MinorKey());
-  }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(Load);
 

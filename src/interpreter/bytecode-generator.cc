@@ -1312,7 +1312,7 @@ void BytecodeGenerator::VisitClassLiteralContents(ClassLiteral* expr) {
   FeedbackVectorSlot slot = expr->PrototypeSlot();
   builder()
       ->StoreAccumulatorInRegister(literal)
-      .LoadNamedProperty(literal, name, feedback_index(slot), language_mode())
+      .LoadNamedProperty(literal, name, feedback_index(slot))
       .StoreAccumulatorInRegister(prototype);
 
   VisitClassLiteralProperties(expr, literal, prototype);
@@ -1781,7 +1781,7 @@ void BytecodeGenerator::VisitVariableLoad(Variable* variable,
     case VariableLocation::GLOBAL:
     case VariableLocation::UNALLOCATED: {
       builder()->LoadGlobal(variable->name(), feedback_index(slot),
-                            language_mode(), typeof_mode);
+                            typeof_mode);
       execution_result()->SetResultInAccumulator();
       break;
     }
@@ -1864,20 +1864,15 @@ void BytecodeGenerator::PrepareKeyedSuperPropertyArguments(
 
 void BytecodeGenerator::BuildNamedSuperPropertyLoad(
     SuperPropertyArguments* super_args) {
-  builder()
-      ->LoadLiteral(Smi::FromInt(static_cast<int>(language_mode())))
-      .StoreAccumulatorInRegister(super_args->language_mode());
-  builder()->CallRuntime(Runtime::kLoadFromSuper, super_args->receiver(),
-                         super_args->count());
+  // TODO(oth): Abstraction not suitable for 3 args, will over-allocate regs.
+  builder()->CallRuntime(Runtime::kLoadFromSuper, super_args->receiver(), 3);
 }
 
 void BytecodeGenerator::BuildKeyedSuperPropertyLoad(
     SuperPropertyArguments* super_args) {
-  builder()
-      ->LoadLiteral(Smi::FromInt(static_cast<int>(language_mode())))
-      .StoreAccumulatorInRegister(super_args->language_mode());
+  // TODO(oth): Abstraction not suitable for 3 args, will over-allocate regs.
   builder()->CallRuntime(Runtime::kLoadKeyedFromSuper, super_args->receiver(),
-                         super_args->count());
+                         3);
 }
 
 void BytecodeGenerator::BuildNamedSuperPropertyStore(
@@ -2168,8 +2163,7 @@ void BytecodeGenerator::VisitAssignment(Assignment* expr) {
         FeedbackVectorSlot slot = property->PropertyFeedbackSlot();
         old_value = register_allocator()->NewRegister();
         builder()
-            ->LoadNamedProperty(object, name, feedback_index(slot),
-                                language_mode())
+            ->LoadNamedProperty(object, name, feedback_index(slot))
             .StoreAccumulatorInRegister(old_value);
         break;
       }
@@ -2179,7 +2173,7 @@ void BytecodeGenerator::VisitAssignment(Assignment* expr) {
         FeedbackVectorSlot slot = property->PropertyFeedbackSlot();
         old_value = register_allocator()->NewRegister();
         builder()
-            ->LoadKeyedProperty(object, feedback_index(slot), language_mode())
+            ->LoadKeyedProperty(object, feedback_index(slot))
             .StoreAccumulatorInRegister(old_value);
         break;
       }
@@ -2256,12 +2250,12 @@ void BytecodeGenerator::VisitPropertyLoad(Register obj, Property* expr) {
     case NAMED_PROPERTY: {
       builder()->LoadNamedProperty(obj,
                                    expr->key()->AsLiteral()->AsPropertyName(),
-                                   feedback_index(slot), language_mode());
+                                   feedback_index(slot));
       break;
     }
     case KEYED_PROPERTY: {
       VisitForAccumulatorValue(expr->key());
-      builder()->LoadKeyedProperty(obj, feedback_index(slot), language_mode());
+      builder()->LoadKeyedProperty(obj, feedback_index(slot));
       break;
     }
     case NAMED_SUPER_PROPERTY:
@@ -2680,8 +2674,7 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
       FeedbackVectorSlot slot = property->PropertyFeedbackSlot();
       object = VisitForRegisterValue(property->obj());
       name = property->key()->AsLiteral()->AsPropertyName();
-      builder()->LoadNamedProperty(object, name, feedback_index(slot),
-                                   language_mode());
+      builder()->LoadNamedProperty(object, name, feedback_index(slot));
       break;
     }
     case KEYED_PROPERTY: {
@@ -2692,7 +2685,7 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
       key = register_allocator()->NewRegister();
       VisitForAccumulatorValue(property->key());
       builder()->StoreAccumulatorInRegister(key).LoadKeyedProperty(
-          object, feedback_index(slot), language_mode());
+          object, feedback_index(slot));
       break;
     }
     case NAMED_SUPER_PROPERTY: {

@@ -3570,7 +3570,7 @@ Node* AstGraphBuilder::BuildVariableAssignment(
 
 Node* AstGraphBuilder::BuildKeyedLoad(Node* object, Node* key,
                                       const VectorSlotPair& feedback) {
-  const Operator* op = javascript()->LoadProperty(language_mode(), feedback);
+  const Operator* op = javascript()->LoadProperty(feedback);
   Node* node = NewNode(op, object, key, GetFunctionClosure());
   return node;
 }
@@ -3578,7 +3578,7 @@ Node* AstGraphBuilder::BuildKeyedLoad(Node* object, Node* key,
 
 Node* AstGraphBuilder::BuildNamedLoad(Node* object, Handle<Name> name,
                                       const VectorSlotPair& feedback) {
-  const Operator* op = javascript()->LoadNamed(language_mode(), name, feedback);
+  const Operator* op = javascript()->LoadNamed(name, feedback);
   Node* node = NewNode(op, object, GetFunctionClosure());
   return node;
 }
@@ -3606,9 +3606,8 @@ Node* AstGraphBuilder::BuildNamedSuperLoad(Node* receiver, Node* home_object,
                                            Handle<Name> name,
                                            const VectorSlotPair& feedback) {
   Node* name_node = jsgraph()->Constant(name);
-  Node* language = jsgraph()->Constant(language_mode());
   const Operator* op = javascript()->CallRuntime(Runtime::kLoadFromSuper);
-  Node* node = NewNode(op, receiver, home_object, name_node, language);
+  Node* node = NewNode(op, receiver, home_object, name_node);
   return node;
 }
 
@@ -3616,9 +3615,8 @@ Node* AstGraphBuilder::BuildNamedSuperLoad(Node* receiver, Node* home_object,
 Node* AstGraphBuilder::BuildKeyedSuperLoad(Node* receiver, Node* home_object,
                                            Node* key,
                                            const VectorSlotPair& feedback) {
-  Node* language = jsgraph()->Constant(language_mode());
   const Operator* op = javascript()->CallRuntime(Runtime::kLoadKeyedFromSuper);
-  Node* node = NewNode(op, receiver, home_object, key, language);
+  Node* node = NewNode(op, receiver, home_object, key);
   return node;
 }
 

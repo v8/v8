@@ -295,8 +295,7 @@ class ElementHandlerCompiler : public PropertyHandlerCompiler {
   virtual ~ElementHandlerCompiler() {}
 
   void CompileElementHandlers(MapHandleList* receiver_maps,
-                              CodeHandleList* handlers,
-                              LanguageMode language_mode);
+                              CodeHandleList* handlers);
 
   static void GenerateStoreSlow(MacroAssembler* masm);
 };

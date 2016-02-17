@@ -1215,8 +1215,7 @@ class Object {
                                                         Handle<Object> lhs,
                                                         Handle<Object> rhs);
 
-  MUST_USE_RESULT static MaybeHandle<Object> GetProperty(
-      LookupIterator* it, LanguageMode language_mode = SLOPPY);
+  MUST_USE_RESULT static MaybeHandle<Object> GetProperty(LookupIterator* it);
 
   // ES6 [[Set]] (when passed DONT_THROW)
   // Invariants for this and related functions (unless stated otherwise):
@@ -1239,10 +1238,9 @@ class Object {
       StoreFromKeyed store_mode);
 
   MUST_USE_RESULT static MaybeHandle<Object> ReadAbsentProperty(
-      LookupIterator* it, LanguageMode language_mode);
+      LookupIterator* it);
   MUST_USE_RESULT static MaybeHandle<Object> ReadAbsentProperty(
-      Isolate* isolate, Handle<Object> receiver, Handle<Object> name,
-      LanguageMode language_mode);
+      Isolate* isolate, Handle<Object> receiver, Handle<Object> name);
   MUST_USE_RESULT static Maybe<bool> CannotCreateProperty(
       Isolate* isolate, Handle<Object> receiver, Handle<Object> name,
       Handle<Object> value, ShouldThrow should_throw);
@@ -1260,20 +1258,16 @@ class Object {
       LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
       ShouldThrow should_throw, StoreFromKeyed store_mode);
   MUST_USE_RESULT static inline MaybeHandle<Object> GetPropertyOrElement(
-      Handle<Object> object, Handle<Name> name,
-      LanguageMode language_mode = SLOPPY);
+      Handle<Object> object, Handle<Name> name);
   MUST_USE_RESULT static inline MaybeHandle<Object> GetPropertyOrElement(
-      Handle<Object> receiver, Handle<Name> name, Handle<JSReceiver> holder,
-      LanguageMode language_mode = SLOPPY);
+      Handle<Object> receiver, Handle<Name> name, Handle<JSReceiver> holder);
   MUST_USE_RESULT static inline MaybeHandle<Object> GetProperty(
-      Isolate* isolate, Handle<Object> object, const char* key,
-      LanguageMode language_mode = SLOPPY);
+      Isolate* isolate, Handle<Object> object, const char* key);
   MUST_USE_RESULT static inline MaybeHandle<Object> GetProperty(
-      Handle<Object> object, Handle<Name> name,
-      LanguageMode language_mode = SLOPPY);
+      Handle<Object> object, Handle<Name> name);
 
   MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithAccessor(
-      LookupIterator* it, LanguageMode language_mode);
+      LookupIterator* it);
   MUST_USE_RESULT static Maybe<bool> SetPropertyWithAccessor(
       LookupIterator* it, Handle<Object> value, ShouldThrow should_throw);
 
@@ -1285,8 +1279,7 @@ class Object {
       ShouldThrow should_throw);
 
   MUST_USE_RESULT static inline MaybeHandle<Object> GetElement(
-      Isolate* isolate, Handle<Object> object, uint32_t index,
-      LanguageMode language_mode = SLOPPY);
+      Isolate* isolate, Handle<Object> object, uint32_t index);
 
   MUST_USE_RESULT static inline MaybeHandle<Object> SetElement(
       Isolate* isolate, Handle<Object> object, uint32_t index,
@@ -9745,7 +9738,7 @@ class JSProxy: public JSReceiver {
   // ES6 9.5.8
   MUST_USE_RESULT static MaybeHandle<Object> GetProperty(
       Isolate* isolate, Handle<JSProxy> proxy, Handle<Name> name,
-      Handle<Object> receiver, LanguageMode language_mode);
+      Handle<Object> receiver);
 
   // ES6 9.5.9
   MUST_USE_RESULT static Maybe<bool> SetProperty(Handle<JSProxy> proxy,

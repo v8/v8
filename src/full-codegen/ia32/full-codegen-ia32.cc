@@ -2009,7 +2009,7 @@ void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
   __ mov(LoadDescriptor::NameRegister(), Immediate(key->value()));
   __ mov(LoadDescriptor::SlotRegister(),
          Immediate(SmiFromSlot(prop->PropertyFeedbackSlot())));
-  CallLoadIC(NOT_INSIDE_TYPEOF, language_mode());
+  CallLoadIC(NOT_INSIDE_TYPEOF);
 }
 
 
@@ -2021,14 +2021,13 @@ void FullCodeGenerator::EmitNamedSuperPropertyLoad(Property* prop) {
   DCHECK(prop->IsSuperAccess());
 
   __ push(Immediate(key->value()));
-  __ push(Immediate(Smi::FromInt(language_mode())));
   __ CallRuntime(Runtime::kLoadFromSuper);
 }
 
 
 void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
   SetExpressionPosition(prop);
-  Handle<Code> ic = CodeFactory::KeyedLoadIC(isolate(), language_mode()).code();
+  Handle<Code> ic = CodeFactory::KeyedLoadIC(isolate()).code();
   __ mov(LoadDescriptor::SlotRegister(),
          Immediate(SmiFromSlot(prop->PropertyFeedbackSlot())));
   CallIC(ic);
@@ -2038,7 +2037,6 @@ void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
 void FullCodeGenerator::EmitKeyedSuperPropertyLoad(Property* prop) {
   // Stack: receiver, home_object, key.
   SetExpressionPosition(prop);
-  __ push(Immediate(Smi::FromInt(language_mode())));
   __ CallRuntime(Runtime::kLoadKeyedFromSuper);
 }
 
@@ -2549,14 +2547,12 @@ void FullCodeGenerator::EmitSuperCallWithLoadIC(Call* expr) {
   __ push(eax);
   __ push(Operand(esp, kPointerSize * 2));
   __ push(Immediate(key->value()));
-  __ push(Immediate(Smi::FromInt(language_mode())));
   // Stack here:
   //  - home_object
   //  - this (receiver)
   //  - this (receiver) <-- LoadFromSuper will pop here and below.
   //  - home_object
   //  - key
-  //  - language_mode
   __ CallRuntime(Runtime::kLoadFromSuper);
 
   // Replace home_object with target function.
@@ -2607,14 +2603,12 @@ void FullCodeGenerator::EmitKeyedSuperCallWithLoadIC(Call* expr) {
   __ push(eax);
   __ push(Operand(esp, kPointerSize * 2));
   VisitForStackValue(prop->key());
-  __ push(Immediate(Smi::FromInt(language_mode())));
   // Stack here:
   //  - home_object
   //  - this (receiver)
   //  - this (receiver) <-- LoadKeyedFromSuper will pop here and below.
   //  - home_object
   //  - key
-  //  - language_mode
   __ CallRuntime(Runtime::kLoadKeyedFromSuper);
 
   // Replace home_object with target function.
