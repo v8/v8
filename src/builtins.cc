@@ -2345,6 +2345,40 @@ BUILTIN(BooleanConstructor_ConstructStub) {
 }
 
 
+// ES6 section 19.3.3.2 Boolean.prototype.toString ( )
+BUILTIN(BooleanPrototypeToString) {
+  HandleScope scope(isolate);
+  Handle<Object> receiver = args.receiver();
+  if (receiver->IsJSValue()) {
+    receiver = handle(Handle<JSValue>::cast(receiver)->value(), isolate);
+  }
+  if (!receiver->IsBoolean()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kNotGeneric,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  "Boolean.prototype.toString")));
+  }
+  return Handle<Oddball>::cast(receiver)->to_string();
+}
+
+
+// ES6 section 19.3.3.3 Boolean.prototype.valueOf ( )
+BUILTIN(BooleanPrototypeValueOf) {
+  HandleScope scope(isolate);
+  Handle<Object> receiver = args.receiver();
+  if (receiver->IsJSValue()) {
+    receiver = handle(Handle<JSValue>::cast(receiver)->value(), isolate);
+  }
+  if (!receiver->IsBoolean()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kNotGeneric,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  "Boolean.prototype.valueOf")));
+  }
+  return *receiver;
+}
+
+
 // -----------------------------------------------------------------------------
 // ES6 section 20.3 Date Objects
 

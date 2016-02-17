@@ -1244,6 +1244,22 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     boolean_fun->shared()->set_length(1);
     InstallWithIntrinsicDefaultProto(isolate, boolean_fun,
                                      Context::BOOLEAN_FUNCTION_INDEX);
+
+    // Create the %BooleanPrototype%
+    Handle<JSValue> prototype =
+        Handle<JSValue>::cast(factory->NewJSObject(boolean_fun, TENURED));
+    prototype->set_value(isolate->heap()->false_value());
+    Accessors::FunctionSetPrototype(boolean_fun, prototype).Assert();
+
+    // Install the "constructor" property on the {prototype}.
+    JSObject::AddProperty(prototype, factory->constructor_string(), boolean_fun,
+                          DONT_ENUM);
+
+    // Install the Boolean.prototype methods.
+    SimpleInstallFunction(prototype, "toString",
+                          Builtins::kBooleanPrototypeToString, 0, false);
+    SimpleInstallFunction(prototype, "valueOf",
+                          Builtins::kBooleanPrototypeValueOf, 0, false);
   }
 
   {  // --- S t r i n g ---

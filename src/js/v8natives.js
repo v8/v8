@@ -10,7 +10,6 @@
 // Imports
 
 var GlobalArray = global.Array;
-var GlobalBoolean = global.Boolean;
 var GlobalNumber = global.Number;
 var GlobalObject = global.Object;
 var InternalArray = utils.InternalArray;
@@ -877,44 +876,6 @@ utils.InstallFunctions(GlobalObject, DONT_ENUM, [
   // in object-observe.js.
 ]);
 
-
-// ----------------------------------------------------------------------------
-// Boolean
-
-function BooleanToString() {
-  // NOTE: Both Boolean objects and values can enter here as
-  // 'this'. This is not as dictated by ECMA-262.
-  var b = this;
-  if (!IS_BOOLEAN(b)) {
-    if (!IS_BOOLEAN_WRAPPER(b)) {
-      throw MakeTypeError(kNotGeneric, 'Boolean.prototype.toString');
-    }
-    b = %_ValueOf(b);
-  }
-  return b ? 'true' : 'false';
-}
-
-
-function BooleanValueOf() {
-  // NOTE: Both Boolean objects and values can enter here as
-  // 'this'. This is not as dictated by ECMA-262.
-  if (!IS_BOOLEAN(this) && !IS_BOOLEAN_WRAPPER(this)) {
-    throw MakeTypeError(kNotGeneric, 'Boolean.prototype.valueOf');
-  }
-  return %_ValueOf(this);
-}
-
-
-// ----------------------------------------------------------------------------
-
-%FunctionSetPrototype(GlobalBoolean, new GlobalBoolean(false));
-%AddNamedProperty(GlobalBoolean.prototype, "constructor", GlobalBoolean,
-                  DONT_ENUM);
-
-utils.InstallFunctions(GlobalBoolean.prototype, DONT_ENUM, [
-  "toString", BooleanToString,
-  "valueOf", BooleanValueOf
-]);
 
 
 // ----------------------------------------------------------------------------
