@@ -1500,7 +1500,6 @@ i::Handle<i::String> FormatMessage(i::Vector<unsigned> data) {
   return i::MessageTemplate::FormatMessage(isolate, message, arg_object);
 }
 
-
 enum ParserFlag {
   kAllowLazy,
   kAllowNatives,
@@ -1511,9 +1510,9 @@ enum ParserFlag {
   kAllowHarmonyDestructuringAssignment,
   kAllowHarmonyNewTarget,
   kAllowStrongMode,
-  kNoLegacyConst
+  kNoLegacyConst,
+  kAllowHarmonyFunctionSent
 };
-
 
 enum ParserSyncTestResult {
   kSuccessOrError,
@@ -1536,6 +1535,8 @@ void SetParserFlags(i::ParserBase<Traits>* parser,
       flags.Contains(kAllowHarmonyDestructuringAssignment));
   parser->set_allow_strong_mode(flags.Contains(kAllowStrongMode));
   parser->set_allow_legacy_const(!flags.Contains(kNoLegacyConst));
+  parser->set_allow_harmony_function_sent(
+      flags.Contains(kAllowHarmonyFunctionSent));
 }
 
 
@@ -8022,10 +8023,9 @@ TEST(FunctionSentErrors) {
   };
   // clang-format on
 
-  bool old_flag = i::FLAG_harmony_function_sent;
-  i::FLAG_harmony_function_sent = true;
-  RunParserSyncTest(context_data, error_data, kError);
-  i::FLAG_harmony_function_sent = old_flag;
+  static const ParserFlag always_flags[] = {kAllowHarmonyFunctionSent};
+  RunParserSyncTest(context_data, error_data, kError, always_flags,
+                    arraysize(always_flags));
 }
 
 TEST(NewTargetErrors) {

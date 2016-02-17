@@ -116,7 +116,8 @@ class ParserBase : public Traits {
         allow_strong_mode_(false),
         allow_legacy_const_(true),
         allow_harmony_do_expressions_(false),
-        allow_harmony_function_name_(false) {}
+        allow_harmony_function_name_(false),
+        allow_harmony_function_sent_(false) {}
 
 #define ALLOW_ACCESSORS(name)                           \
   bool allow_##name() const { return allow_##name##_; } \
@@ -134,6 +135,7 @@ class ParserBase : public Traits {
   ALLOW_ACCESSORS(legacy_const);
   ALLOW_ACCESSORS(harmony_do_expressions);
   ALLOW_ACCESSORS(harmony_function_name);
+  ALLOW_ACCESSORS(harmony_function_sent);
 #undef ALLOW_ACCESSORS
 
   uintptr_t stack_limit() const { return stack_limit_; }
@@ -947,6 +949,7 @@ class ParserBase : public Traits {
   bool allow_legacy_const_;
   bool allow_harmony_do_expressions_;
   bool allow_harmony_function_name_;
+  bool allow_harmony_function_sent_;
 };
 
 template <class Traits>
@@ -2543,7 +2546,7 @@ ParserBase<Traits>::ParseMemberExpression(ExpressionClassifier* classifier,
     Consume(Token::FUNCTION);
     int function_token_position = position();
 
-    if (FLAG_harmony_function_sent && peek() == Token::PERIOD) {
+    if (allow_harmony_function_sent() && peek() == Token::PERIOD) {
       // function.sent
       int pos = position();
       ExpectMetaProperty(CStrVector("sent"), "function.sent", pos, CHECK_OK);

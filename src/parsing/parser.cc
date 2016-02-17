@@ -773,6 +773,7 @@ Parser::Parser(ParseInfo* info)
   set_allow_legacy_const(FLAG_legacy_const);
   set_allow_harmony_do_expressions(FLAG_harmony_do_expressions);
   set_allow_harmony_function_name(FLAG_harmony_function_name);
+  set_allow_harmony_function_sent(FLAG_harmony_function_sent);
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
     use_counts_[feature] = 0;
@@ -4853,6 +4854,7 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
     SET_ALLOW(strong_mode);
     SET_ALLOW(harmony_do_expressions);
     SET_ALLOW(harmony_function_name);
+    SET_ALLOW(harmony_function_sent);
 #undef SET_ALLOW
   }
   PreParser::PreParseResult result = reusable_preparser_->PreParseLazyFunction(
