@@ -2667,17 +2667,6 @@ void Heap::CreateInitialObjects() {
     roots_[constant_string_table[i].index] = *str;
   }
 
-  // The {hidden_string} is special because it is an empty string, but does not
-  // match any string (even the {empty_string}) when looked up in properties.
-  // Allocate the hidden string which is used to identify the hidden properties
-  // in JSObjects. The hash code has a special value so that it will not match
-  // the empty string when searching for the property. It cannot be part of the
-  // loop above because it needs to be allocated manually with the special
-  // hash code in place. The hash code for the hidden_string is zero to ensure
-  // that it will always be at the first entry in property descriptors.
-  set_hidden_string(*factory->NewOneByteInternalizedString(
-      OneByteVector("", 0), String::kEmptyStringHash));
-
   // Create the code_stubs dictionary. The initial size is set to avoid
   // expanding the dictionary during bootstrapping.
   set_code_stubs(*UnseededNumberDictionary::New(isolate(), 128));
@@ -2705,6 +2694,14 @@ void Heap::CreateInitialObjects() {
     PRIVATE_SYMBOL_LIST(SYMBOL_INIT)
 #undef SYMBOL_INIT
   }
+
+  // The {hidden_properties_symbol} is special because it is the only name with
+  // hash code zero. This ensures that it will always be the first entry as
+  // sorted by hash code in descriptor arrays. It is used to identify the hidden
+  // properties in JSObjects.
+  // kIsNotArrayIndexMask is a computed hash with value zero.
+  Symbol::cast(roots_[khidden_properties_symbolRootIndex])
+      ->set_hash_field(Name::kIsNotArrayIndexMask);
 
   {
     HandleScope scope(isolate());

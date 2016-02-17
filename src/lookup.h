@@ -209,7 +209,7 @@ class LookupIterator final BASE_EMBEDDED {
   bool ExtendingNonExtensible(Handle<JSObject> receiver) {
     DCHECK(receiver.is_identical_to(GetStoreTarget()));
     return !receiver->map()->is_extensible() &&
-           (IsElement() || !isolate_->IsInternallyUsedPropertyName(name_));
+           (IsElement() || !name_->IsPrivate());
   }
   void PrepareForDataProperty(Handle<Object> value);
   void PrepareTransitionToDataProperty(Handle<JSObject> receiver,

@@ -4395,8 +4395,7 @@ Maybe<bool> Object::SetDataProperty(LookupIterator* it, Handle<Object> value) {
   // Fetch before transforming the object since the encoding may become
   // incompatible with what's cached in |it|.
   bool is_observed = receiver->map()->is_observed() &&
-                     (it->IsElement() ||
-                      !it->isolate()->IsInternallyUsedPropertyName(it->name()));
+                     (it->IsElement() || !it->name()->IsPrivate());
   MaybeHandle<Object> maybe_old;
   if (is_observed) maybe_old = it->GetDataValue();
 
@@ -4551,8 +4550,7 @@ Maybe<bool> Object::AddDataProperty(LookupIterator* it, Handle<Object> value,
     }
 
     // Send the change record if there are observers.
-    if (receiver->map()->is_observed() &&
-        !isolate->IsInternallyUsedPropertyName(it->name())) {
+    if (receiver->map()->is_observed() && !it->name()->IsPrivate()) {
       RETURN_ON_EXCEPTION_VALUE(isolate, JSObject::EnqueueChangeRecord(
                                              receiver, "add", it->name(),
                                              it->factory()->the_hole_value()),
@@ -5253,8 +5251,7 @@ void JSObject::AddProperty(Handle<JSObject> object, Handle<Name> name,
   Maybe<PropertyAttributes> maybe = GetPropertyAttributes(&it);
   DCHECK(maybe.IsJust());
   DCHECK(!it.IsFound());
-  DCHECK(object->map()->is_extensible() ||
-         it.isolate()->IsInternallyUsedPropertyName(name));
+  DCHECK(object->map()->is_extensible() || name->IsPrivate());
 #endif
   CHECK(AddDataProperty(&it, value, attributes, THROW_ON_ERROR,
                         CERTAINLY_NOT_STORE_FROM_KEYED)
@@ -5280,8 +5277,7 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
     ShouldThrow should_throw, AccessorInfoHandling handling) {
   Handle<JSObject> object = Handle<JSObject>::cast(it->GetReceiver());
   bool is_observed = object->map()->is_observed() &&
-                     (it->IsElement() ||
-                      !it->isolate()->IsInternallyUsedPropertyName(it->name()));
+                     (it->IsElement() || !it->name()->IsPrivate());
 
   for (; it->IsFound(); it->Next()) {
     switch (it->state()) {
@@ -6008,10 +6004,12 @@ void JSObject::DeleteHiddenProperty(Handle<JSObject> object, Handle<Name> key) {
 
 
 bool JSObject::HasHiddenProperties(Handle<JSObject> object) {
-  Handle<Name> hidden = object->GetIsolate()->factory()->hidden_string();
-  LookupIterator it(object, hidden, LookupIterator::OWN_SKIP_INTERCEPTOR);
+  Isolate* isolate = object->GetIsolate();
+  Handle<Symbol> hidden = isolate->factory()->hidden_properties_symbol();
+  LookupIterator it(object, hidden);
   Maybe<PropertyAttributes> maybe = GetPropertyAttributes(&it);
-  // Cannot get an exception since the hidden_string isn't accessible to JS.
+  // Cannot get an exception since the hidden_properties_symbol isn't exposed to
+  // JS.
   DCHECK(maybe.IsJust());
   return maybe.FromJust() != ABSENT;
 }
@@ -6027,7 +6025,8 @@ Object* JSObject::GetHiddenPropertiesHashTable() {
     DescriptorArray* descriptors = this->map()->instance_descriptors();
     if (descriptors->number_of_descriptors() > 0) {
       int sorted_index = descriptors->GetSortedKeyIndex(0);
-      if (descriptors->GetKey(sorted_index) == GetHeap()->hidden_string() &&
+      if (descriptors->GetKey(sorted_index) ==
+              GetHeap()->hidden_properties_symbol() &&
           sorted_index < map()->NumberOfOwnDescriptors()) {
         DCHECK(descriptors->GetType(sorted_index) == DATA);
         DCHECK(descriptors->GetDetails(sorted_index).representation().
@@ -6042,9 +6041,8 @@ Object* JSObject::GetHiddenPropertiesHashTable() {
       return GetHeap()->undefined_value();
     }
   } else {
-    Isolate* isolate = GetIsolate();
-    LookupIterator it(handle(this), isolate->factory()->hidden_string(),
-                      LookupIterator::OWN_SKIP_INTERCEPTOR);
+    Handle<Symbol> hidden = GetIsolate()->factory()->hidden_properties_symbol();
+    LookupIterator it(handle(this), hidden);
     // Access check is always skipped for the hidden string anyways.
     return *GetDataProperty(&it);
   }
@@ -6073,7 +6071,7 @@ Handle<Object> JSObject::SetHiddenPropertiesHashTable(Handle<JSObject> object,
                                                       Handle<Object> value) {
   DCHECK(!object->IsJSGlobalProxy());
   Isolate* isolate = object->GetIsolate();
-  Handle<Name> name = isolate->factory()->hidden_string();
+  Handle<Symbol> name = isolate->factory()->hidden_properties_symbol();
   SetOwnPropertyIgnoreAttributes(object, name, value, DONT_ENUM).Assert();
   return object;
 }
@@ -6173,9 +6171,8 @@ Maybe<bool> JSReceiver::DeleteProperty(LookupIterator* it,
   }
   Handle<JSObject> receiver = Handle<JSObject>::cast(it->GetReceiver());
 
-  bool is_observed =
-      receiver->map()->is_observed() &&
-      (it->IsElement() || !isolate->IsInternallyUsedPropertyName(it->name()));
+  bool is_observed = receiver->map()->is_observed() &&
+                     (it->IsElement() || !it->name()->IsPrivate());
 
   Handle<Object> old_value = it->factory()->the_hole_value();
 
@@ -9033,7 +9030,7 @@ MaybeHandle<Object> JSObject::DefineAccessor(LookupIterator* it,
 
   Handle<Object> old_value = isolate->factory()->the_hole_value();
   bool is_observed = object->map()->is_observed() &&
-                     !isolate->IsInternallyUsedPropertyName(it->GetName());
+                     (it->IsElement() || !it->name()->IsPrivate());
   bool preexists = false;
   if (is_observed) {
     CHECK(GetPropertyAttributes(it).IsJust());

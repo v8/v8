@@ -2186,12 +2186,11 @@ class JSObject: public JSReceiver {
 
   // Accessors for hidden properties object.
   //
-  // Hidden properties are not own properties of the object itself.
-  // Instead they are stored in an auxiliary structure kept as an own
-  // property with a special name Heap::hidden_string(). But if the
-  // receiver is a JSGlobalProxy then the auxiliary object is a property
-  // of its prototype, and if it's a detached proxy, then you can't have
-  // hidden properties.
+  // Hidden properties are not own properties of the object itself.  Instead
+  // they are stored in an auxiliary structure kept as an own property with a
+  // special name Heap::hidden_properties_symbol(). But if the receiver is a
+  // JSGlobalProxy then the auxiliary object is a property of its prototype, and
+  // if it's a detached proxy, then you can't have hidden properties.
 
   // Sets a hidden property on this object. Returns this object if successful,
   // undefined if called on a detached proxy.
@@ -8970,9 +8969,6 @@ class String: public Name {
   static const int kMaxUtf16CodeUnit = 0xffff;
   static const uint32_t kMaxUtf16CodeUnitU = kMaxUtf16CodeUnit;
   static const uc32 kMaxCodePoint = 0x10ffff;
-
-  // Value of hash field containing computed hash equal to zero.
-  static const int kEmptyStringHash = kIsNotArrayIndexMask;
 
   // Maximal string length.
   static const int kMaxLength = (1 << 28) - 16;

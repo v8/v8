@@ -782,14 +782,6 @@ void Isolate::ReportFailedAccessCheck(Handle<JSObject> receiver) {
 }
 
 
-bool Isolate::IsInternallyUsedPropertyName(Handle<Object> name) {
-  if (name->IsSymbol()) {
-    return Handle<Symbol>::cast(name)->is_private();
-  }
-  return name.is_identical_to(factory()->hidden_string());
-}
-
-
 bool Isolate::MayAccess(Handle<Context> accessing_context,
                         Handle<JSObject> receiver) {
   DCHECK(receiver->IsJSGlobalProxy() || receiver->IsAccessCheckNeeded());

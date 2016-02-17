@@ -606,9 +606,8 @@ LookupIterator::State LookupIterator::LookupInHolder(Map* const map,
         // Do not leak private property names.
         if (IsElement() || !name_->IsPrivate()) return JSPROXY;
       }
-      if (map->is_access_check_needed() &&
-          (IsElement() || !isolate_->IsInternallyUsedPropertyName(name_))) {
-        return ACCESS_CHECK;
+      if (map->is_access_check_needed()) {
+        if (IsElement() || !name_->IsPrivate()) return ACCESS_CHECK;
       }
     // Fall through.
     case ACCESS_CHECK:
