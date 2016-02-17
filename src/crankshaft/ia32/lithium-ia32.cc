@@ -2666,16 +2666,6 @@ LInstruction* LChunkBuilder::DoStoreFrameContext(HStoreFrameContext* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoAllocateBlockContext(
-    HAllocateBlockContext* instr) {
-  LOperand* context = UseFixed(instr->context(), esi);
-  LOperand* function = UseRegisterAtStart(instr->function());
-  LAllocateBlockContext* result =
-      new(zone()) LAllocateBlockContext(context, function);
-  return MarkAsCall(DefineFixed(result, esi), instr);
-}
-
-
 }  // namespace internal
 }  // namespace v8
 

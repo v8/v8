@@ -48,7 +48,6 @@ class LChunkBuilder;
   V(AbnormalExit)                             \
   V(AccessArgumentsAt)                        \
   V(Add)                                      \
-  V(AllocateBlockContext)                     \
   V(Allocate)                                 \
   V(ApplyArguments)                           \
   V(ArgumentsElements)                        \
@@ -7665,36 +7664,6 @@ class HStoreFrameContext: public HUnaryOperation {
     set_representation(Representation::Tagged());
     SetChangesFlag(kContextSlots);
   }
-};
-
-
-class HAllocateBlockContext: public HTemplateInstruction<2> {
- public:
-  DECLARE_INSTRUCTION_FACTORY_P3(HAllocateBlockContext, HValue*,
-                                 HValue*, Handle<ScopeInfo>);
-  HValue* context() const { return OperandAt(0); }
-  HValue* function() const { return OperandAt(1); }
-  Handle<ScopeInfo> scope_info() const { return scope_info_; }
-
-  Representation RequiredInputRepresentation(int index) override {
-    return Representation::Tagged();
-  }
-
-  std::ostream& PrintDataTo(std::ostream& os) const override;  // NOLINT
-
-  DECLARE_CONCRETE_INSTRUCTION(AllocateBlockContext)
-
- private:
-  HAllocateBlockContext(HValue* context,
-                        HValue* function,
-                        Handle<ScopeInfo> scope_info)
-      : scope_info_(scope_info) {
-    SetOperandAt(0, context);
-    SetOperandAt(1, function);
-    set_representation(Representation::Tagged());
-  }
-
-  Handle<ScopeInfo> scope_info_;
 };
 
 

@@ -5586,15 +5586,6 @@ void LCodeGen::DoStoreFrameContext(LStoreFrameContext* instr) {
 }
 
 
-void LCodeGen::DoAllocateBlockContext(LAllocateBlockContext* instr) {
-  Handle<ScopeInfo> scope_info = instr->scope_info();
-  __ Push(scope_info);
-  __ Push(ToRegister(instr->function()));
-  CallRuntime(Runtime::kPushBlockContext, instr);
-  RecordSafepoint(Safepoint::kNoLazyDeopt);
-}
-
-
 #undef __
 
 }  // namespace internal

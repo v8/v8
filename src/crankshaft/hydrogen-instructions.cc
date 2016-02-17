@@ -828,7 +828,6 @@ bool HInstruction::CanDeoptimize() {
       return false;
 
     case HValue::kAdd:
-    case HValue::kAllocateBlockContext:
     case HValue::kApplyArguments:
     case HValue::kBitwise:
     case HValue::kBoundsCheck:
@@ -1100,12 +1099,6 @@ std::ostream& HAccessArgumentsAt::PrintDataTo(
     std::ostream& os) const {  // NOLINT
   return os << NameOf(arguments()) << "[" << NameOf(index()) << "], length "
             << NameOf(length());
-}
-
-
-std::ostream& HAllocateBlockContext::PrintDataTo(
-    std::ostream& os) const {  // NOLINT
-  return os << NameOf(context()) << " " << NameOf(function());
 }
 
 
