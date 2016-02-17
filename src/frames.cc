@@ -414,6 +414,12 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
     // the VM with a signal at any arbitrary instruction, with essentially
     // anything on the stack. So basically none of these checks are 100%
     // reliable.
+#if defined(USE_SIMULATOR)
+    MSAN_MEMORY_IS_INITIALIZED(
+        state->fp + StandardFrameConstants::kContextOffset, kPointerSize);
+    MSAN_MEMORY_IS_INITIALIZED(
+        state->fp + StandardFrameConstants::kMarkerOffset, kPointerSize);
+#endif
     if (StandardFrame::IsArgumentsAdaptorFrame(state->fp)) {
       // An adapter frame has a special SMI constant for the context and
       // is not distinguished through the marker.
