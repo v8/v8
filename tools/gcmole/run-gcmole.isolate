@@ -13,9 +13,11 @@
       'run-gcmole.py',
       # The following contains all relevant source and gyp files.
       '../gyp/v8.gyp',
+      '../../base/',
       '../../include/',
       '../../src/',
       '../../test/cctest/',
+      '../../third_party/icu/source/',
     ],
   },
   'conditions': [
