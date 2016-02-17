@@ -1062,20 +1062,21 @@ void BytecodeArrayBuilder::EnsureReturn(FunctionLiteral* literal) {
 BytecodeArrayBuilder& BytecodeArrayBuilder::Call(Register callable,
                                                  Register receiver_args,
                                                  size_t receiver_args_count,
-                                                 int feedback_slot) {
+                                                 int feedback_slot,
+                                                 TailCallMode tail_call_mode) {
+  Bytecode bytecode = BytecodeForCall(tail_call_mode);
   if (FitsInReg8Operand(callable) && FitsInReg8Operand(receiver_args) &&
       FitsInIdx8Operand(receiver_args_count) &&
       FitsInIdx8Operand(feedback_slot)) {
-    Output(Bytecode::kCall, callable.ToRawOperand(),
-           receiver_args.ToRawOperand(),
+    Output(bytecode, callable.ToRawOperand(), receiver_args.ToRawOperand(),
            static_cast<uint8_t>(receiver_args_count),
            static_cast<uint8_t>(feedback_slot));
   } else if (FitsInReg16Operand(callable) &&
              FitsInReg16Operand(receiver_args) &&
              FitsInIdx16Operand(receiver_args_count) &&
              FitsInIdx16Operand(feedback_slot)) {
-    Output(Bytecode::kCallWide, callable.ToRawOperand(),
-           receiver_args.ToRawOperand(),
+    bytecode = BytecodeForWideOperands(bytecode);
+    Output(bytecode, callable.ToRawOperand(), receiver_args.ToRawOperand(),
            static_cast<uint16_t>(receiver_args_count),
            static_cast<uint16_t>(feedback_slot));
   } else {
@@ -1425,6 +1426,10 @@ Bytecode BytecodeArrayBuilder::BytecodeForCompareOperation(Token::Value op) {
 // static
 Bytecode BytecodeArrayBuilder::BytecodeForWideOperands(Bytecode bytecode) {
   switch (bytecode) {
+    case Bytecode::kCall:
+      return Bytecode::kCallWide;
+    case Bytecode::kTailCall:
+      return Bytecode::kTailCallWide;
     case Bytecode::kLoadIC:
       return Bytecode::kLoadICWide;
     case Bytecode::kKeyedLoadIC:
@@ -1564,6 +1569,18 @@ Bytecode BytecodeArrayBuilder::BytecodeForDelete(LanguageMode language_mode) {
   return static_cast<Bytecode>(-1);
 }
 
+// static
+Bytecode BytecodeArrayBuilder::BytecodeForCall(TailCallMode tail_call_mode) {
+  switch (tail_call_mode) {
+    case TailCallMode::kDisallow:
+      return Bytecode::kCall;
+    case TailCallMode::kAllow:
+      return Bytecode::kTailCall;
+    default:
+      UNREACHABLE();
+  }
+  return static_cast<Bytecode>(-1);
+}
 
 // static
 bool BytecodeArrayBuilder::FitsInIdx8Operand(int value) {

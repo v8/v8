@@ -44,7 +44,6 @@
   'regress/regress-crbug-160010': [SKIP],
 
   # Issue 4698: not fully supported by Turbofan yet
-  'es6/tail-call-simple': [SKIP],
   'es6/tail-call': [PASS, NO_VARIANTS],
 
   # Issue 3389: deopt_every_n_garbage_collections is unsafe
@@ -850,9 +849,6 @@
   'debug-liveedit-2': [FAIL],
   'compiler/deopt-tonumber-compare': [FAIL],
   'es6/string-search': [FAIL],
-  'es6/tail-call-proxies': [FAIL],
-  'es6/tail-call': [FAIL],
-  'es6/tail-call-simple': [FAIL],
   'es6/mirror-collections': [FAIL],
   'es6/regress/regress-468661': [FAIL],
   'harmony/string-replace': [FAIL],

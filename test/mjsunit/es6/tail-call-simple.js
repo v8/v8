@@ -14,9 +14,9 @@
     }
     return f(n - 1);
   }
-  assertThrows(()=>{ f(1e6) });
+  assertThrows(()=>{ f(1e5) });
   %OptimizeFunctionOnNextCall(f);
-  assertThrows(()=>{ f(1e6) });
+  assertThrows(()=>{ f(1e5) });
 })();
 
 
@@ -31,9 +31,9 @@
     }
     return f(n - 1);
   }
-  assertEquals("foo", f(1e6));
+  assertEquals("foo", f(1e5));
   %OptimizeFunctionOnNextCall(f);
-  assertEquals("foo", f(1e6));
+  assertEquals("foo", f(1e5));
 })();
 
 
@@ -51,11 +51,11 @@
     }
     return f(n - 1);
   }
-  assertEquals("foo", f(1e6));
-  assertEquals("bar", f(1e6 + 1));
+  assertEquals("foo", f(1e5));
+  assertEquals("bar", f(1e5 + 1));
   %OptimizeFunctionOnNextCall(f);
-  assertEquals("foo", f(1e6));
-  assertEquals("bar", f(1e6 + 1));
+  assertEquals("foo", f(1e5));
+  assertEquals("bar", f(1e5 + 1));
 })();
 
 
@@ -74,9 +74,9 @@
   function f(n) {
     return f_bound(n);
   }
-  assertEquals("foo", f(1e6));
+  assertEquals("foo", f(1e5));
   %OptimizeFunctionOnNextCall(f);
-  assertEquals("foo", f(1e6));
+  assertEquals("foo", f(1e5));
 })();
 
 
@@ -99,9 +99,9 @@
   function f(n) {
     return f_bound(n);
   }
-  assertEquals("foo", f(1e6));
-  assertEquals("bar", f(1e6 + 1));
+  assertEquals("foo", f(1e5));
+  assertEquals("bar", f(1e5 + 1));
   %OptimizeFunctionOnNextCall(f);
-  assertEquals("foo", f(1e6));
-  assertEquals("bar", f(1e6 + 1));
+  assertEquals("foo", f(1e5));
+  assertEquals("bar", f(1e5 + 1));
 })();

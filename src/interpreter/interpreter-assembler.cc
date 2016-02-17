@@ -335,8 +335,10 @@ void InterpreterAssembler::CallEpilogue() {
 }
 
 Node* InterpreterAssembler::CallJS(Node* function, Node* context,
-                                   Node* first_arg, Node* arg_count) {
-  Callable callable = CodeFactory::InterpreterPushArgsAndCall(isolate());
+                                   Node* first_arg, Node* arg_count,
+                                   TailCallMode tail_call_mode) {
+  Callable callable =
+      CodeFactory::InterpreterPushArgsAndCall(isolate(), tail_call_mode);
   Node* code_target = HeapConstant(callable.code());
   return CallStub(callable.descriptor(), code_target, context, arg_count,
                   first_arg, function);

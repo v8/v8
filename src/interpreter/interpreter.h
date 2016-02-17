@@ -86,7 +86,7 @@ class Interpreter {
   void DoKeyedStoreIC(Callable ic, InterpreterAssembler* assembler);
 
   // Generates code to perform a JS call.
-  void DoJSCall(InterpreterAssembler* assembler);
+  void DoJSCall(InterpreterAssembler* assembler, TailCallMode tail_call_mode);
 
   // Generates code to perform a runtime call.
   void DoCallRuntimeCommon(InterpreterAssembler* assembler);

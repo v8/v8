@@ -643,21 +643,27 @@ TARGET_TEST_F(InterpreterAssemblerTest, CallRuntime) {
 }
 
 TARGET_TEST_F(InterpreterAssemblerTest, CallJS) {
-  TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
-    InterpreterAssemblerForTest m(this, bytecode);
-    Callable builtin = CodeFactory::InterpreterPushArgsAndCall(isolate());
-    Node* function = m.Int32Constant(0);
-    Node* first_arg = m.Int32Constant(1);
-    Node* arg_count = m.Int32Constant(2);
-    Node* context =
-        m.Parameter(InterpreterDispatchDescriptor::kContextParameter);
-    Node* call_js = m.CallJS(function, context, first_arg, arg_count);
-    EXPECT_THAT(
-        call_js,
-        IsCall(_, IsHeapConstant(builtin.code()), arg_count, first_arg,
-               function,
-               IsParameter(InterpreterDispatchDescriptor::kContextParameter), _,
-               _));
+  TailCallMode tail_call_modes[] = {TailCallMode::kDisallow,
+                                    TailCallMode::kAllow};
+  TRACED_FOREACH(TailCallMode, tail_call_mode, tail_call_modes) {
+    TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
+      InterpreterAssemblerForTest m(this, bytecode);
+      Callable builtin =
+          CodeFactory::InterpreterPushArgsAndCall(isolate(), tail_call_mode);
+      Node* function = m.Int32Constant(0);
+      Node* first_arg = m.Int32Constant(1);
+      Node* arg_count = m.Int32Constant(2);
+      Node* context =
+          m.Parameter(InterpreterDispatchDescriptor::kContextParameter);
+      Node* call_js =
+          m.CallJS(function, context, first_arg, arg_count, tail_call_mode);
+      EXPECT_THAT(
+          call_js,
+          IsCall(_, IsHeapConstant(builtin.code()), arg_count, first_arg,
+                 function,
+                 IsParameter(InterpreterDispatchDescriptor::kContextParameter),
+                 _, _));
+    }
   }
 }
 

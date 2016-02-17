@@ -928,8 +928,7 @@ TEST(InterpreterStoreKeyedProperty) {
   CHECK_EQ(Smi::cast(*result), Smi::FromInt(999));
 }
 
-
-TEST(InterpreterCall) {
+static void TestInterpreterCall(TailCallMode tail_call_mode) {
   HandleAndZoneScope handles;
   i::Isolate* isolate = handles.main_isolate();
   i::Factory* factory = isolate->factory();
@@ -951,7 +950,7 @@ TEST(InterpreterCall) {
                                  0, 1);
     builder.LoadNamedProperty(builder.Parameter(0), name, slot_index)
         .StoreAccumulatorInRegister(Register(0))
-        .Call(Register(0), builder.Parameter(0), 1, 0)
+        .Call(Register(0), builder.Parameter(0), 1, 0, tail_call_mode)
         .Return();
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
 
@@ -970,7 +969,7 @@ TEST(InterpreterCall) {
                                  0, 1);
     builder.LoadNamedProperty(builder.Parameter(0), name, slot_index)
         .StoreAccumulatorInRegister(Register(0))
-        .Call(Register(0), builder.Parameter(0), 1, 0)
+        .Call(Register(0), builder.Parameter(0), 1, 0, tail_call_mode)
         .Return();
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
 
@@ -998,7 +997,7 @@ TEST(InterpreterCall) {
         .StoreAccumulatorInRegister(Register(2))
         .LoadLiteral(Smi::FromInt(11))
         .StoreAccumulatorInRegister(Register(3))
-        .Call(Register(0), Register(1), 3, 0)
+        .Call(Register(0), Register(1), 3, 0, tail_call_mode)
         .Return();
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
 
@@ -1041,7 +1040,7 @@ TEST(InterpreterCall) {
         .StoreAccumulatorInRegister(Register(10))
         .LoadLiteral(factory->NewStringFromAsciiChecked("j"))
         .StoreAccumulatorInRegister(Register(11))
-        .Call(Register(0), Register(1), 11, 0)
+        .Call(Register(0), Register(1), 11, 0, tail_call_mode)
         .Return();
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
 
@@ -1062,6 +1061,9 @@ TEST(InterpreterCall) {
   }
 }
 
+TEST(InterpreterCall) { TestInterpreterCall(TailCallMode::kDisallow); }
+
+TEST(InterpreterTailCall) { TestInterpreterCall(TailCallMode::kAllow); }
 
 static BytecodeArrayBuilder& SetRegister(BytecodeArrayBuilder& builder,
                                          Register reg, int value,

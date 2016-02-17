@@ -123,7 +123,7 @@ class BytecodeGraphBuilder {
   void BuildKeyedStore(LanguageMode language_mode);
   void BuildLdaLookupSlot(TypeofMode typeof_mode);
   void BuildStaLookupSlot(LanguageMode language_mode);
-  void BuildCall();
+  void BuildCall(TailCallMode tail_call_mode);
   void BuildCallJSRuntime();
   void BuildCallRuntime();
   void BuildCallRuntimeForPair();

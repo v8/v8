@@ -2462,7 +2462,8 @@ void BytecodeGenerator::VisitCall(Call* expr) {
 
   builder()->SetExpressionPosition(expr);
   builder()->Call(callee, receiver, 1 + args->length(),
-                  feedback_index(expr->CallFeedbackICSlot()));
+                  feedback_index(expr->CallFeedbackICSlot()),
+                  expr->tail_call_mode());
   execution_result()->SetResultInAccumulator();
 }
 

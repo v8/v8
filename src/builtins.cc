@@ -3989,6 +3989,16 @@ Handle<Code> Builtins::CallBoundFunction(TailCallMode tail_call_mode) {
   return Handle<Code>::null();
 }
 
+Handle<Code> Builtins::InterpreterPushArgsAndCall(TailCallMode tail_call_mode) {
+  switch (tail_call_mode) {
+    case TailCallMode::kDisallow:
+      return InterpreterPushArgsAndCall();
+    case TailCallMode::kAllow:
+      return InterpreterPushArgsAndTailCall();
+  }
+  UNREACHABLE();
+  return Handle<Code>::null();
+}
 
 namespace {
 

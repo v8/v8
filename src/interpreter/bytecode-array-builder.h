@@ -161,8 +161,15 @@ class BytecodeArrayBuilder final : public ZoneObject, private RegisterMover {
   // |callable|, the receiver should be in |receiver_args| and all subsequent
   // arguments should be in registers <receiver_args + 1> to
   // <receiver_args + receiver_arg_count - 1>.
-  BytecodeArrayBuilder& Call(Register callable, Register receiver_args,
-                             size_t receiver_arg_count, int feedback_slot);
+  BytecodeArrayBuilder& Call(
+      Register callable, Register receiver_args, size_t receiver_arg_count,
+      int feedback_slot, TailCallMode tail_call_mode = TailCallMode::kDisallow);
+
+  BytecodeArrayBuilder& TailCall(Register callable, Register receiver_args,
+                                 size_t receiver_arg_count, int feedback_slot) {
+    return Call(callable, receiver_args, receiver_arg_count, feedback_slot,
+                TailCallMode::kAllow);
+  }
 
   // Call the new operator. The accumulator holds the |new_target|.
   // The |constructor| is in a register followed by |arg_count|
@@ -280,6 +287,7 @@ class BytecodeArrayBuilder final : public ZoneObject, private RegisterMover {
   static Bytecode BytecodeForStoreLookupSlot(LanguageMode language_mode);
   static Bytecode BytecodeForCreateArguments(CreateArgumentsType type);
   static Bytecode BytecodeForDelete(LanguageMode language_mode);
+  static Bytecode BytecodeForCall(TailCallMode tail_call_mode);
 
   static bool FitsInIdx8Operand(int value);
   static bool FitsInIdx8Operand(size_t value);

@@ -755,7 +755,8 @@ static void Generate_InterpreterPushArgs(MacroAssembler* masm,
 
 
 // static
-void Builtins::Generate_InterpreterPushArgsAndCall(MacroAssembler* masm) {
+void Builtins::Generate_InterpreterPushArgsAndCallImpl(
+    MacroAssembler* masm, TailCallMode tail_call_mode) {
   // ----------- S t a t e -------------
   //  -- rax : the number of arguments (not including the receiver)
   //  -- rbx : the address of the first argument to be pushed. Subsequent
@@ -771,7 +772,9 @@ void Builtins::Generate_InterpreterPushArgsAndCall(MacroAssembler* masm) {
 
   // Call the target.
   __ PushReturnAddressFrom(kScratchRegister);  // Re-push return address.
-  __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
+  __ Jump(masm->isolate()->builtins()->Call(ConvertReceiverMode::kAny,
+                                            tail_call_mode),
+          RelocInfo::CODE_TARGET);
 }
 
 
@@ -2187,7 +2190,17 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
       ExternalReference::debug_is_active_address(masm->isolate());
   __ Move(kScratchRegister, debug_is_active);
   __ cmpb(Operand(kScratchRegister, 0), Immediate(0));
-  __ j(not_equal, &done, Label::kNear);
+  __ j(not_equal, &done);
+
+  // Drop possible interpreter handler/stub frame.
+  {
+    Label no_interpreter_frame;
+    __ Cmp(Operand(rbp, StandardFrameConstants::kMarkerOffset),
+           Smi::FromInt(StackFrame::STUB));
+    __ j(not_equal, &no_interpreter_frame, Label::kNear);
+    __ movp(rbp, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
+    __ bind(&no_interpreter_frame);
+  }
 
   // Check if next frame is an arguments adaptor frame.
   Label no_arguments_adaptor, formal_parameter_count_loaded;

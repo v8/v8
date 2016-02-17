@@ -993,7 +993,7 @@ Node* BytecodeGraphBuilder::ProcessCallArguments(const Operator* call_op,
   return value;
 }
 
-void BytecodeGraphBuilder::BuildCall() {
+void BytecodeGraphBuilder::BuildCall(TailCallMode tail_call_mode) {
   FrameStateBeforeAndAfter states(this);
   // TODO(rmcilroy): Set receiver_hint correctly based on whether the receiver
   // register has been loaded with null / undefined explicitly or we are sure it
@@ -1006,16 +1006,23 @@ void BytecodeGraphBuilder::BuildCall() {
   VectorSlotPair feedback =
       CreateVectorSlotPair(bytecode_iterator().GetIndexOperand(3));
 
-  // TODO(ishell): provide correct tail_call_mode value to CallFunction.
-  const Operator* call =
-      javascript()->CallFunction(arg_count + 1, feedback, receiver_hint);
+  const Operator* call = javascript()->CallFunction(
+      arg_count + 1, feedback, receiver_hint, tail_call_mode);
   Node* value = ProcessCallArguments(call, callee, receiver, arg_count + 1);
   environment()->BindAccumulator(value, &states);
 }
 
-void BytecodeGraphBuilder::VisitCall() { BuildCall(); }
+void BytecodeGraphBuilder::VisitCall() { BuildCall(TailCallMode::kDisallow); }
 
-void BytecodeGraphBuilder::VisitCallWide() { BuildCall(); }
+void BytecodeGraphBuilder::VisitCallWide() {
+  BuildCall(TailCallMode::kDisallow);
+}
+
+void BytecodeGraphBuilder::VisitTailCall() { BuildCall(TailCallMode::kAllow); }
+
+void BytecodeGraphBuilder::VisitTailCallWide() {
+  BuildCall(TailCallMode::kAllow);
+}
 
 void BytecodeGraphBuilder::BuildCallJSRuntime() {
   FrameStateBeforeAndAfter states(this);

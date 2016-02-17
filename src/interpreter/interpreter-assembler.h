@@ -84,7 +84,8 @@ class InterpreterAssembler : public compiler::CodeStubAssembler {
   // arguments (not including receiver) and the first argument
   // located at |first_arg|.
   compiler::Node* CallJS(compiler::Node* function, compiler::Node* context,
-                         compiler::Node* first_arg, compiler::Node* arg_count);
+                         compiler::Node* first_arg, compiler::Node* arg_count,
+                         TailCallMode tail_call_mode);
 
   // Call constructor |constructor| with |arg_count| arguments (not
   // including receiver) and the first argument located at

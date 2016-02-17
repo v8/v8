@@ -676,7 +676,8 @@ static void Generate_InterpreterPushArgs(MacroAssembler* masm,
 
 
 // static
-void Builtins::Generate_InterpreterPushArgsAndCall(MacroAssembler* masm) {
+void Builtins::Generate_InterpreterPushArgsAndCallImpl(
+    MacroAssembler* masm, TailCallMode tail_call_mode) {
   // ----------- S t a t e -------------
   //  -- eax : the number of arguments (not including the receiver)
   //  -- ebx : the address of the first argument to be pushed. Subsequent
@@ -699,7 +700,9 @@ void Builtins::Generate_InterpreterPushArgsAndCall(MacroAssembler* masm) {
 
   // Call the target.
   __ Push(edx);  // Re-push return address.
-  __ Jump(masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
+  __ Jump(masm->isolate()->builtins()->Call(ConvertReceiverMode::kAny,
+                                            tail_call_mode),
+          RelocInfo::CODE_TARGET);
 }
 
 
@@ -1988,6 +1991,16 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   __ movzx_b(scratch1, Operand::StaticVariable(debug_is_active));
   __ cmp(scratch1, Immediate(0));
   __ j(not_equal, &done, Label::kNear);
+
+  // Drop possible interpreter handler/stub frame.
+  {
+    Label no_interpreter_frame;
+    __ cmp(Operand(ebp, StandardFrameConstants::kMarkerOffset),
+           Immediate(Smi::FromInt(StackFrame::STUB)));
+    __ j(not_equal, &no_interpreter_frame, Label::kNear);
+    __ mov(ebp, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
+    __ bind(&no_interpreter_frame);
+  }
 
   // Check if next frame is an arguments adaptor frame.
   Label no_arguments_adaptor, formal_parameter_count_loaded;

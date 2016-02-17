@@ -105,7 +105,8 @@ class CodeFactory final {
   static Callable Construct(Isolate* isolate);
   static Callable ConstructFunction(Isolate* isolate);
 
-  static Callable InterpreterPushArgsAndCall(Isolate* isolate);
+  static Callable InterpreterPushArgsAndCall(Isolate* isolate,
+                                             TailCallMode tail_call_mode);
   static Callable InterpreterPushArgsAndConstruct(Isolate* isolate);
   static Callable InterpreterCEntry(Isolate* isolate, int result_size = 1);
 };
