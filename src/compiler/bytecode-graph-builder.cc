@@ -1007,8 +1007,8 @@ void BytecodeGraphBuilder::BuildCall() {
       CreateVectorSlotPair(bytecode_iterator().GetIndexOperand(3));
 
   // TODO(ishell): provide correct tail_call_mode value to CallFunction.
-  const Operator* call = javascript()->CallFunction(
-      arg_count + 1, language_mode(), feedback, receiver_hint);
+  const Operator* call =
+      javascript()->CallFunction(arg_count + 1, feedback, receiver_hint);
   Node* value = ProcessCallArguments(call, callee, receiver, arg_count + 1);
   environment()->BindAccumulator(value, &states);
 }
@@ -1025,8 +1025,7 @@ void BytecodeGraphBuilder::BuildCallJSRuntime() {
   size_t arg_count = bytecode_iterator().GetRegisterCountOperand(2);
 
   // Create node to perform the JS runtime call.
-  const Operator* call =
-      javascript()->CallFunction(arg_count + 1, language_mode());
+  const Operator* call = javascript()->CallFunction(arg_count + 1);
   Node* value = ProcessCallArguments(call, callee, receiver, arg_count + 1);
   environment()->BindAccumulator(value, &states);
 }

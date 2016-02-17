@@ -80,20 +80,15 @@ CallConstructParameters const& CallConstructParametersOf(Operator const*);
 // used as a parameter by JSCallFunction operators.
 class CallFunctionParameters final {
  public:
-  CallFunctionParameters(size_t arity, LanguageMode language_mode,
-                         VectorSlotPair const& feedback,
+  CallFunctionParameters(size_t arity, VectorSlotPair const& feedback,
                          TailCallMode tail_call_mode,
                          ConvertReceiverMode convert_mode)
       : bit_field_(ArityField::encode(arity) |
                    ConvertReceiverModeField::encode(convert_mode) |
-                   LanguageModeField::encode(language_mode) |
                    TailCallModeField::encode(tail_call_mode)),
         feedback_(feedback) {}
 
   size_t arity() const { return ArityField::decode(bit_field_); }
-  LanguageMode language_mode() const {
-    return LanguageModeField::decode(bit_field_);
-  }
   ConvertReceiverMode convert_mode() const {
     return ConvertReceiverModeField::decode(bit_field_);
   }
@@ -115,9 +110,8 @@ class CallFunctionParameters final {
     return base::hash_combine(p.bit_field_, p.feedback_);
   }
 
-  typedef BitField<size_t, 0, 27> ArityField;
-  typedef BitField<ConvertReceiverMode, 27, 2> ConvertReceiverModeField;
-  typedef BitField<LanguageMode, 29, 2> LanguageModeField;
+  typedef BitField<size_t, 0, 29> ArityField;
+  typedef BitField<ConvertReceiverMode, 29, 2> ConvertReceiverModeField;
   typedef BitField<TailCallMode, 31, 1> TailCallModeField;
 
   const uint32_t bit_field_;
@@ -427,8 +421,7 @@ class JSOperatorBuilder final : public ZoneObject {
                                       int literal_flags, int literal_index);
 
   const Operator* CallFunction(
-      size_t arity, LanguageMode language_mode,
-      VectorSlotPair const& feedback = VectorSlotPair(),
+      size_t arity, VectorSlotPair const& feedback = VectorSlotPair(),
       ConvertReceiverMode convert_mode = ConvertReceiverMode::kAny,
       TailCallMode tail_call_mode = TailCallMode::kDisallow);
   const Operator* CallRuntime(Runtime::FunctionId id);

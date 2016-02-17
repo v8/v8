@@ -81,8 +81,7 @@ CallConstructParameters const& CallConstructParametersOf(Operator const* op) {
 
 
 std::ostream& operator<<(std::ostream& os, CallFunctionParameters const& p) {
-  os << p.arity() << ", " << p.language_mode() << ", " << p.convert_mode()
-     << ", " << p.tail_call_mode();
+  os << p.arity() << ", " << p.convert_mode() << ", " << p.tail_call_mode();
   return os;
 }
 
@@ -544,12 +543,11 @@ const Operator* JSOperatorBuilder::ToBoolean(ToBooleanHints hints) {
       hints);                                           // parameter
 }
 
-
 const Operator* JSOperatorBuilder::CallFunction(
-    size_t arity, LanguageMode language_mode, VectorSlotPair const& feedback,
+    size_t arity, VectorSlotPair const& feedback,
     ConvertReceiverMode convert_mode, TailCallMode tail_call_mode) {
-  CallFunctionParameters parameters(arity, language_mode, feedback,
-                                    tail_call_mode, convert_mode);
+  CallFunctionParameters parameters(arity, feedback, tail_call_mode,
+                                    convert_mode);
   return new (zone()) Operator1<CallFunctionParameters>(   // --
       IrOpcode::kJSCallFunction, Operator::kNoProperties,  // opcode
       "JSCallFunction",                                    // name

@@ -167,8 +167,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
   }
   // Change {node} to the new {JSCallFunction} operator.
   NodeProperties::ChangeOp(
-      node, javascript()->CallFunction(arity, p.language_mode(),
-                                       CallCountFeedback(p.feedback()),
+      node, javascript()->CallFunction(arity, CallCountFeedback(p.feedback()),
                                        convert_mode, p.tail_call_mode()));
   // Change context of {node} to the Function.prototype.apply context,
   // to ensure any exception is thrown in the correct context.
@@ -208,8 +207,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeCall(Node* node) {
     --arity;
   }
   NodeProperties::ChangeOp(
-      node, javascript()->CallFunction(arity, p.language_mode(),
-                                       CallCountFeedback(p.feedback()),
+      node, javascript()->CallFunction(arity, CallCountFeedback(p.feedback()),
                                        convert_mode, p.tail_call_mode()));
   // Try to further reduce the JSCallFunction {node}.
   Reduction const reduction = ReduceJSCallFunction(node);
@@ -291,10 +289,9 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
             jsgraph()->Constant(handle(bound_arguments->get(i), isolate())));
         arity++;
       }
-      NodeProperties::ChangeOp(
-          node, javascript()->CallFunction(arity, p.language_mode(),
-                                           CallCountFeedback(p.feedback()),
-                                           convert_mode, p.tail_call_mode()));
+      NodeProperties::ChangeOp(node, javascript()->CallFunction(
+                                         arity, CallCountFeedback(p.feedback()),
+                                         convert_mode, p.tail_call_mode()));
       // Try to further reduce the JSCallFunction {node}.
       Reduction const reduction = ReduceJSCallFunction(node);
       return reduction.Changed() ? reduction : Changed(node);
