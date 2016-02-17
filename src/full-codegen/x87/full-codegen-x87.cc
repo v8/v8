@@ -260,29 +260,34 @@ void FullCodeGenerator::Generate() {
 
   Variable* arguments = scope()->arguments();
   if (arguments != NULL) {
-    // Function uses arguments object.
+    // Arguments object must be allocated after the context object, in
+    // case the "arguments" or ".arguments" variables are in the context.
     Comment cmnt(masm_, "[ Allocate arguments object");
-    DCHECK(edi.is(ArgumentsAccessNewDescriptor::function()));
     if (!function_in_register) {
       __ mov(edi, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
     }
-    // Receiver is just before the parameters on the caller's stack.
-    int num_parameters = info->scope()->num_parameters();
-    int offset = num_parameters * kPointerSize;
-    __ mov(ArgumentsAccessNewDescriptor::parameter_count(),
-           Immediate(Smi::FromInt(num_parameters)));
-    __ lea(ArgumentsAccessNewDescriptor::parameter_pointer(),
-           Operand(ebp, StandardFrameConstants::kCallerSPOffset + offset));
+    if (is_strict(language_mode()) || !has_simple_parameters()) {
+      FastNewStrictArgumentsStub stub(isolate());
+      __ CallStub(&stub);
+    } else {
+      DCHECK(edi.is(ArgumentsAccessNewDescriptor::function()));
+      // Receiver is just before the parameters on the caller's stack.
+      int num_parameters = info->scope()->num_parameters();
+      int offset = num_parameters * kPointerSize;
+      __ mov(ArgumentsAccessNewDescriptor::parameter_count(),
+             Immediate(Smi::FromInt(num_parameters)));
+      __ lea(ArgumentsAccessNewDescriptor::parameter_pointer(),
+             Operand(ebp, StandardFrameConstants::kCallerSPOffset + offset));
 
-    // Arguments to ArgumentsAccessStub:
-    //   function, parameter pointer, parameter count.
-    // The stub will rewrite parameter pointer and parameter count if the
-    // previous stack frame was an arguments adapter frame.
-    bool is_unmapped = is_strict(language_mode()) || !has_simple_parameters();
-    ArgumentsAccessStub::Type type = ArgumentsAccessStub::ComputeType(
-        is_unmapped, literal()->has_duplicate_parameters());
-    ArgumentsAccessStub stub(isolate(), type);
-    __ CallStub(&stub);
+      // Arguments to ArgumentsAccessStub:
+      //   function, parameter pointer, parameter count.
+      // The stub will rewrite parameter pointer and parameter count if the
+      // previous stack frame was an arguments adapter frame.
+      ArgumentsAccessStub::Type type = ArgumentsAccessStub::ComputeType(
+          literal()->has_duplicate_parameters());
+      ArgumentsAccessStub stub(isolate(), type);
+      __ CallStub(&stub);
+    }
 
     SetVar(arguments, eax, ebx, edx);
   }
