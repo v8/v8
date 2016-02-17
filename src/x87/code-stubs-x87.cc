@@ -429,268 +429,6 @@ void LoadIndexedStringStub::Generate(MacroAssembler* masm) {
 }
 
 
-void ArgumentsAccessStub::GenerateNewSloppySlow(MacroAssembler* masm) {
-  // ecx : number of parameters (tagged)
-  // edx : parameters pointer
-  // edi : function
-  // esp[0] : return address
-
-  DCHECK(edi.is(ArgumentsAccessNewDescriptor::function()));
-  DCHECK(ecx.is(ArgumentsAccessNewDescriptor::parameter_count()));
-  DCHECK(edx.is(ArgumentsAccessNewDescriptor::parameter_pointer()));
-
-  // Check if the calling frame is an arguments adaptor frame.
-  Label runtime;
-  __ mov(ebx, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
-  __ mov(eax, Operand(ebx, StandardFrameConstants::kContextOffset));
-  __ cmp(eax, Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ j(not_equal, &runtime, Label::kNear);
-
-  // Patch the arguments.length and the parameters pointer.
-  __ mov(ecx, Operand(ebx, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ lea(edx,
-         Operand(ebx, ecx, times_2, StandardFrameConstants::kCallerSPOffset));
-
-  __ bind(&runtime);
-  __ pop(eax);   // Pop return address.
-  __ push(edi);  // Push function.
-  __ push(edx);  // Push parameters pointer.
-  __ push(ecx);  // Push parameter count.
-  __ push(eax);  // Push return address.
-  __ TailCallRuntime(Runtime::kNewSloppyArguments);
-}
-
-
-void ArgumentsAccessStub::GenerateNewSloppyFast(MacroAssembler* masm) {
-  // ecx : number of parameters (tagged)
-  // edx : parameters pointer
-  // edi : function
-  // esp[0] : return address
-
-  DCHECK(edi.is(ArgumentsAccessNewDescriptor::function()));
-  DCHECK(ecx.is(ArgumentsAccessNewDescriptor::parameter_count()));
-  DCHECK(edx.is(ArgumentsAccessNewDescriptor::parameter_pointer()));
-
-  // Check if the calling frame is an arguments adaptor frame.
-  Label adaptor_frame, try_allocate, runtime;
-  __ mov(ebx, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
-  __ mov(eax, Operand(ebx, StandardFrameConstants::kContextOffset));
-  __ cmp(eax, Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ j(equal, &adaptor_frame, Label::kNear);
-
-  // No adaptor, parameter count = argument count.
-  __ mov(ebx, ecx);
-  __ push(ecx);
-  __ jmp(&try_allocate, Label::kNear);
-
-  // We have an adaptor frame. Patch the parameters pointer.
-  __ bind(&adaptor_frame);
-  __ mov(ebx, ecx);
-  __ push(ecx);
-  __ mov(edx, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
-  __ mov(ecx, Operand(edx, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ lea(edx, Operand(edx, ecx, times_2,
-                      StandardFrameConstants::kCallerSPOffset));
-
-  // ebx = parameter count (tagged)
-  // ecx = argument count (smi-tagged)
-  // Compute the mapped parameter count = min(ebx, ecx) in ebx.
-  __ cmp(ebx, ecx);
-  __ j(less_equal, &try_allocate, Label::kNear);
-  __ mov(ebx, ecx);
-
-  // Save mapped parameter count and function.
-  __ bind(&try_allocate);
-  __ push(edi);
-  __ push(ebx);
-
-  // Compute the sizes of backing store, parameter map, and arguments object.
-  // 1. Parameter map, has 2 extra words containing context and backing store.
-  const int kParameterMapHeaderSize =
-      FixedArray::kHeaderSize + 2 * kPointerSize;
-  Label no_parameter_map;
-  __ test(ebx, ebx);
-  __ j(zero, &no_parameter_map, Label::kNear);
-  __ lea(ebx, Operand(ebx, times_2, kParameterMapHeaderSize));
-  __ bind(&no_parameter_map);
-
-  // 2. Backing store.
-  __ lea(ebx, Operand(ebx, ecx, times_2, FixedArray::kHeaderSize));
-
-  // 3. Arguments object.
-  __ add(ebx, Immediate(JSSloppyArgumentsObject::kSize));
-
-  // Do the allocation of all three objects in one go.
-  __ Allocate(ebx, eax, edi, no_reg, &runtime, TAG_OBJECT);
-
-  // eax = address of new object(s) (tagged)
-  // ecx = argument count (smi-tagged)
-  // esp[0] = mapped parameter count (tagged)
-  // esp[4] = function
-  // esp[8] = parameter count (tagged)
-  // Get the arguments map from the current native context into edi.
-  Label has_mapped_parameters, instantiate;
-  __ mov(edi, NativeContextOperand());
-  __ mov(ebx, Operand(esp, 0 * kPointerSize));
-  __ test(ebx, ebx);
-  __ j(not_zero, &has_mapped_parameters, Label::kNear);
-  __ mov(
-      edi,
-      Operand(edi, Context::SlotOffset(Context::SLOPPY_ARGUMENTS_MAP_INDEX)));
-  __ jmp(&instantiate, Label::kNear);
-
-  __ bind(&has_mapped_parameters);
-  __ mov(edi, Operand(edi, Context::SlotOffset(
-                               Context::FAST_ALIASED_ARGUMENTS_MAP_INDEX)));
-  __ bind(&instantiate);
-
-  // eax = address of new object (tagged)
-  // ebx = mapped parameter count (tagged)
-  // ecx = argument count (smi-tagged)
-  // edi = address of arguments map (tagged)
-  // esp[0] = mapped parameter count (tagged)
-  // esp[4] = function
-  // esp[8] = parameter count (tagged)
-  // Copy the JS object part.
-  __ mov(FieldOperand(eax, JSObject::kMapOffset), edi);
-  __ mov(FieldOperand(eax, JSObject::kPropertiesOffset),
-         masm->isolate()->factory()->empty_fixed_array());
-  __ mov(FieldOperand(eax, JSObject::kElementsOffset),
-         masm->isolate()->factory()->empty_fixed_array());
-
-  // Set up the callee in-object property.
-  STATIC_ASSERT(JSSloppyArgumentsObject::kCalleeIndex == 1);
-  __ mov(edi, Operand(esp, 1 * kPointerSize));
-  __ AssertNotSmi(edi);
-  __ mov(FieldOperand(eax, JSSloppyArgumentsObject::kCalleeOffset), edi);
-
-  // Use the length (smi tagged) and set that as an in-object property too.
-  __ AssertSmi(ecx);
-  __ mov(FieldOperand(eax, JSSloppyArgumentsObject::kLengthOffset), ecx);
-
-  // Set up the elements pointer in the allocated arguments object.
-  // If we allocated a parameter map, edi will point there, otherwise to the
-  // backing store.
-  __ lea(edi, Operand(eax, JSSloppyArgumentsObject::kSize));
-  __ mov(FieldOperand(eax, JSObject::kElementsOffset), edi);
-
-  // eax = address of new object (tagged)
-  // ebx = mapped parameter count (tagged)
-  // ecx = argument count (tagged)
-  // edx = address of receiver argument
-  // edi = address of parameter map or backing store (tagged)
-  // esp[0] = mapped parameter count (tagged)
-  // esp[4] = function
-  // esp[8] = parameter count (tagged)
-  // Free two registers.
-  __ push(edx);
-  __ push(eax);
-
-  // Initialize parameter map. If there are no mapped arguments, we're done.
-  Label skip_parameter_map;
-  __ test(ebx, ebx);
-  __ j(zero, &skip_parameter_map);
-
-  __ mov(FieldOperand(edi, FixedArray::kMapOffset),
-         Immediate(isolate()->factory()->sloppy_arguments_elements_map()));
-  __ lea(eax, Operand(ebx, reinterpret_cast<intptr_t>(Smi::FromInt(2))));
-  __ mov(FieldOperand(edi, FixedArray::kLengthOffset), eax);
-  __ mov(FieldOperand(edi, FixedArray::kHeaderSize + 0 * kPointerSize), esi);
-  __ lea(eax, Operand(edi, ebx, times_2, kParameterMapHeaderSize));
-  __ mov(FieldOperand(edi, FixedArray::kHeaderSize + 1 * kPointerSize), eax);
-
-  // Copy the parameter slots and the holes in the arguments.
-  // We need to fill in mapped_parameter_count slots. They index the context,
-  // where parameters are stored in reverse order, at
-  //   MIN_CONTEXT_SLOTS .. MIN_CONTEXT_SLOTS+parameter_count-1
-  // The mapped parameter thus need to get indices
-  //   MIN_CONTEXT_SLOTS+parameter_count-1 ..
-  //       MIN_CONTEXT_SLOTS+parameter_count-mapped_parameter_count
-  // We loop from right to left.
-  Label parameters_loop, parameters_test;
-  __ push(ecx);
-  __ mov(eax, Operand(esp, 3 * kPointerSize));
-  __ mov(ebx, Immediate(Smi::FromInt(Context::MIN_CONTEXT_SLOTS)));
-  __ add(ebx, Operand(esp, 5 * kPointerSize));
-  __ sub(ebx, eax);
-  __ mov(ecx, isolate()->factory()->the_hole_value());
-  __ mov(edx, edi);
-  __ lea(edi, Operand(edi, eax, times_2, kParameterMapHeaderSize));
-  // eax = loop variable (tagged)
-  // ebx = mapping index (tagged)
-  // ecx = the hole value
-  // edx = address of parameter map (tagged)
-  // edi = address of backing store (tagged)
-  // esp[0] = argument count (tagged)
-  // esp[4] = address of new object (tagged)
-  // esp[8] = address of receiver argument
-  // esp[12] = mapped parameter count (tagged)
-  // esp[16] = function
-  // esp[20] = parameter count (tagged)
-  __ jmp(&parameters_test, Label::kNear);
-
-  __ bind(&parameters_loop);
-  __ sub(eax, Immediate(Smi::FromInt(1)));
-  __ mov(FieldOperand(edx, eax, times_2, kParameterMapHeaderSize), ebx);
-  __ mov(FieldOperand(edi, eax, times_2, FixedArray::kHeaderSize), ecx);
-  __ add(ebx, Immediate(Smi::FromInt(1)));
-  __ bind(&parameters_test);
-  __ test(eax, eax);
-  __ j(not_zero, &parameters_loop, Label::kNear);
-  __ pop(ecx);
-
-  __ bind(&skip_parameter_map);
-
-  // ecx = argument count (tagged)
-  // edi = address of backing store (tagged)
-  // esp[0] = address of new object (tagged)
-  // esp[4] = address of receiver argument
-  // esp[8] = mapped parameter count (tagged)
-  // esp[12] = function
-  // esp[16] = parameter count (tagged)
-  // Copy arguments header and remaining slots (if there are any).
-  __ mov(FieldOperand(edi, FixedArray::kMapOffset),
-         Immediate(isolate()->factory()->fixed_array_map()));
-  __ mov(FieldOperand(edi, FixedArray::kLengthOffset), ecx);
-
-  Label arguments_loop, arguments_test;
-  __ mov(ebx, Operand(esp, 2 * kPointerSize));
-  __ mov(edx, Operand(esp, 1 * kPointerSize));
-  __ sub(edx, ebx);  // Is there a smarter way to do negative scaling?
-  __ sub(edx, ebx);
-  __ jmp(&arguments_test, Label::kNear);
-
-  __ bind(&arguments_loop);
-  __ sub(edx, Immediate(kPointerSize));
-  __ mov(eax, Operand(edx, 0));
-  __ mov(FieldOperand(edi, ebx, times_2, FixedArray::kHeaderSize), eax);
-  __ add(ebx, Immediate(Smi::FromInt(1)));
-
-  __ bind(&arguments_test);
-  __ cmp(ebx, ecx);
-  __ j(less, &arguments_loop, Label::kNear);
-
-  // Restore.
-  __ pop(eax);  // Address of arguments object.
-  __ Drop(4);
-
-  // Return.
-  __ ret(0);
-
-  // Do the runtime call to allocate the arguments object.
-  __ bind(&runtime);
-  __ pop(eax);   // Remove saved mapped parameter count.
-  __ pop(edi);   // Pop saved function.
-  __ pop(eax);   // Remove saved parameter count.
-  __ pop(eax);   // Pop return address.
-  __ push(edi);  // Push function.
-  __ push(edx);  // Push parameters pointer.
-  __ push(ecx);  // Push parameter count.
-  __ push(eax);  // Push return address.
-  __ TailCallRuntime(Runtime::kNewSloppyArguments);
-}
-
-
 void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Just jump directly to runtime if native RegExp is not selected at compile
   // time or if regexp entry in generated code is turned off runtime switch or
@@ -4230,7 +3968,6 @@ static void HandlePolymorphicKeyedStoreCase(MacroAssembler* masm,
   __ jmp(&compare_map);
 }
 
-
 void VectorKeyedStoreICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
   Register receiver = VectorStoreICDescriptor::ReceiverRegister();  // edx
   Register key = VectorStoreICDescriptor::NameRegister();           // ecx
@@ -4286,13 +4023,11 @@ void VectorKeyedStoreICStub::GenerateImpl(MacroAssembler* masm, bool in_frame) {
   KeyedStoreIC::GenerateMiss(masm);
 }
 
-
 void CallICTrampolineStub::Generate(MacroAssembler* masm) {
   __ EmitLoadTypeFeedbackVector(ebx);
   CallICStub stub(isolate(), state());
   __ jmp(stub.GetCode(), RelocInfo::CODE_TARGET);
 }
-
 
 void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
   if (masm->isolate()->function_entry_hook() != NULL) {
@@ -4300,7 +4035,6 @@ void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
     masm->CallStub(&stub);
   }
 }
-
 
 void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   // Save volatile registers.
@@ -4333,18 +4067,15 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   __ ret(0);
 }
 
-
-template<class T>
+template <class T>
 static void CreateArrayDispatch(MacroAssembler* masm,
                                 AllocationSiteOverrideMode mode) {
   if (mode == DISABLE_ALLOCATION_SITES) {
-    T stub(masm->isolate(),
-           GetInitialFastElementsKind(),
-           mode);
+    T stub(masm->isolate(), GetInitialFastElementsKind(), mode);
     __ TailCallStub(&stub);
   } else if (mode == DONT_OVERRIDE) {
-    int last_index = GetSequenceIndexFromFastElementsKind(
-        TERMINAL_FAST_ELEMENTS_KIND);
+    int last_index =
+        GetSequenceIndexFromFastElementsKind(TERMINAL_FAST_ELEMENTS_KIND);
     for (int i = 0; i <= last_index; ++i) {
       Label next;
       ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
@@ -4361,7 +4092,6 @@ static void CreateArrayDispatch(MacroAssembler* masm,
     UNREACHABLE();
   }
 }
-
 
 static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
                                            AllocationSiteOverrideMode mode) {
@@ -4394,14 +4124,12 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
     ElementsKind initial = GetInitialFastElementsKind();
     ElementsKind holey_initial = GetHoleyElementsKind(initial);
 
-    ArraySingleArgumentConstructorStub stub_holey(masm->isolate(),
-                                                  holey_initial,
-                                                  DISABLE_ALLOCATION_SITES);
+    ArraySingleArgumentConstructorStub stub_holey(
+        masm->isolate(), holey_initial, DISABLE_ALLOCATION_SITES);
     __ TailCallStub(&stub_holey);
 
     __ bind(&normal_sequence);
-    ArraySingleArgumentConstructorStub stub(masm->isolate(),
-                                            initial,
+    ArraySingleArgumentConstructorStub stub(masm->isolate(), initial,
                                             DISABLE_ALLOCATION_SITES);
     __ TailCallStub(&stub);
   } else if (mode == DONT_OVERRIDE) {
@@ -4424,8 +4152,8 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
            Immediate(Smi::FromInt(kFastElementsKindPackedToHoley)));
 
     __ bind(&normal_sequence);
-    int last_index = GetSequenceIndexFromFastElementsKind(
-        TERMINAL_FAST_ELEMENTS_KIND);
+    int last_index =
+        GetSequenceIndexFromFastElementsKind(TERMINAL_FAST_ELEMENTS_KIND);
     for (int i = 0; i <= last_index; ++i) {
       Label next;
       ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
@@ -4443,11 +4171,10 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
   }
 }
 
-
-template<class T>
+template <class T>
 static void ArrayConstructorStubAheadOfTimeHelper(Isolate* isolate) {
-  int to_index = GetSequenceIndexFromFastElementsKind(
-      TERMINAL_FAST_ELEMENTS_KIND);
+  int to_index =
+      GetSequenceIndexFromFastElementsKind(TERMINAL_FAST_ELEMENTS_KIND);
   for (int i = 0; i <= to_index; ++i) {
     ElementsKind kind = GetFastElementsKindFromSequenceIndex(i);
     T stub(isolate, kind);
@@ -4459,7 +4186,6 @@ static void ArrayConstructorStubAheadOfTimeHelper(Isolate* isolate) {
   }
 }
 
-
 void ArrayConstructorStubBase::GenerateStubsAheadOfTime(Isolate* isolate) {
   ArrayConstructorStubAheadOfTimeHelper<ArrayNoArgumentConstructorStub>(
       isolate);
@@ -4469,10 +4195,9 @@ void ArrayConstructorStubBase::GenerateStubsAheadOfTime(Isolate* isolate) {
       isolate);
 }
 
-
 void InternalArrayConstructorStubBase::GenerateStubsAheadOfTime(
     Isolate* isolate) {
-  ElementsKind kinds[2] = { FAST_ELEMENTS, FAST_HOLEY_ELEMENTS };
+  ElementsKind kinds[2] = {FAST_ELEMENTS, FAST_HOLEY_ELEMENTS};
   for (int i = 0; i < 2; i++) {
     // For internal arrays we only need a few things
     InternalArrayNoArgumentConstructorStub stubh1(isolate, kinds[i]);
@@ -4484,10 +4209,8 @@ void InternalArrayConstructorStubBase::GenerateStubsAheadOfTime(
   }
 }
 
-
 void ArrayConstructorStub::GenerateDispatchToArrayStub(
-    MacroAssembler* masm,
-    AllocationSiteOverrideMode mode) {
+    MacroAssembler* masm, AllocationSiteOverrideMode mode) {
   if (argument_count() == ANY) {
     Label not_zero_case, not_one_case;
     __ test(eax, eax);
@@ -4511,7 +4234,6 @@ void ArrayConstructorStub::GenerateDispatchToArrayStub(
     UNREACHABLE();
   }
 }
-
 
 void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   // ----------- S t a t e -------------
@@ -4586,9 +4308,8 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   __ JumpToExternalReference(ExternalReference(Runtime::kNewArray, isolate()));
 }
 
-
-void InternalArrayConstructorStub::GenerateCase(
-    MacroAssembler* masm, ElementsKind kind) {
+void InternalArrayConstructorStub::GenerateCase(MacroAssembler* masm,
+                                                ElementsKind kind) {
   Label not_zero_case, not_one_case;
   Label normal_sequence;
 
@@ -4608,8 +4329,8 @@ void InternalArrayConstructorStub::GenerateCase(
     __ test(ecx, ecx);
     __ j(zero, &normal_sequence);
 
-    InternalArraySingleArgumentConstructorStub
-        stub1_holey(isolate(), GetHoleyElementsKind(kind));
+    InternalArraySingleArgumentConstructorStub stub1_holey(
+        isolate(), GetHoleyElementsKind(kind));
     __ TailCallStub(&stub1_holey);
   }
 
@@ -4621,7 +4342,6 @@ void InternalArrayConstructorStub::GenerateCase(
   InternalArrayNArgumentsConstructorStub stubN(isolate(), kind);
   __ TailCallStub(&stubN);
 }
-
 
 void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
   // ----------- S t a t e -------------
@@ -4658,8 +4378,7 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ cmp(ecx, Immediate(FAST_ELEMENTS));
     __ j(equal, &done);
     __ cmp(ecx, Immediate(FAST_HOLEY_ELEMENTS));
-    __ Assert(equal,
-              kInvalidElementsKindForInternalArrayOrInternalPackedArray);
+    __ Assert(equal, kInvalidElementsKindForInternalArrayOrInternalPackedArray);
     __ bind(&done);
   }
 
@@ -4816,6 +4535,246 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
     }
     __ jmp(&done_allocate);
   }
+}
+
+void FastNewSloppyArgumentsStub::Generate(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- edi    : function
+  //  -- esi    : context
+  //  -- ebp    : frame pointer
+  //  -- esp[0] : return address
+  // -----------------------------------
+  __ AssertFunction(edi);
+
+  // TODO(bmeurer): Cleanup to match the FastNewStrictArgumentsStub.
+  __ mov(ecx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+  __ mov(ecx,
+         FieldOperand(ecx, SharedFunctionInfo::kFormalParameterCountOffset));
+  __ lea(edx, Operand(ebp, ecx, times_half_pointer_size,
+                      StandardFrameConstants::kCallerSPOffset));
+
+  // ecx : number of parameters (tagged)
+  // edx : parameters pointer
+  // edi : function
+  // esp[0] : return address
+
+  // Check if the calling frame is an arguments adaptor frame.
+  Label adaptor_frame, try_allocate, runtime;
+  __ mov(ebx, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
+  __ mov(eax, Operand(ebx, StandardFrameConstants::kContextOffset));
+  __ cmp(eax, Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ j(equal, &adaptor_frame, Label::kNear);
+
+  // No adaptor, parameter count = argument count.
+  __ mov(ebx, ecx);
+  __ push(ecx);
+  __ jmp(&try_allocate, Label::kNear);
+
+  // We have an adaptor frame. Patch the parameters pointer.
+  __ bind(&adaptor_frame);
+  __ mov(ebx, ecx);
+  __ push(ecx);
+  __ mov(edx, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
+  __ mov(ecx, Operand(edx, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ lea(edx,
+         Operand(edx, ecx, times_2, StandardFrameConstants::kCallerSPOffset));
+
+  // ebx = parameter count (tagged)
+  // ecx = argument count (smi-tagged)
+  // Compute the mapped parameter count = min(ebx, ecx) in ebx.
+  __ cmp(ebx, ecx);
+  __ j(less_equal, &try_allocate, Label::kNear);
+  __ mov(ebx, ecx);
+
+  // Save mapped parameter count and function.
+  __ bind(&try_allocate);
+  __ push(edi);
+  __ push(ebx);
+
+  // Compute the sizes of backing store, parameter map, and arguments object.
+  // 1. Parameter map, has 2 extra words containing context and backing store.
+  const int kParameterMapHeaderSize =
+      FixedArray::kHeaderSize + 2 * kPointerSize;
+  Label no_parameter_map;
+  __ test(ebx, ebx);
+  __ j(zero, &no_parameter_map, Label::kNear);
+  __ lea(ebx, Operand(ebx, times_2, kParameterMapHeaderSize));
+  __ bind(&no_parameter_map);
+
+  // 2. Backing store.
+  __ lea(ebx, Operand(ebx, ecx, times_2, FixedArray::kHeaderSize));
+
+  // 3. Arguments object.
+  __ add(ebx, Immediate(JSSloppyArgumentsObject::kSize));
+
+  // Do the allocation of all three objects in one go.
+  __ Allocate(ebx, eax, edi, no_reg, &runtime, TAG_OBJECT);
+
+  // eax = address of new object(s) (tagged)
+  // ecx = argument count (smi-tagged)
+  // esp[0] = mapped parameter count (tagged)
+  // esp[4] = function
+  // esp[8] = parameter count (tagged)
+  // Get the arguments map from the current native context into edi.
+  Label has_mapped_parameters, instantiate;
+  __ mov(edi, NativeContextOperand());
+  __ mov(ebx, Operand(esp, 0 * kPointerSize));
+  __ test(ebx, ebx);
+  __ j(not_zero, &has_mapped_parameters, Label::kNear);
+  __ mov(
+      edi,
+      Operand(edi, Context::SlotOffset(Context::SLOPPY_ARGUMENTS_MAP_INDEX)));
+  __ jmp(&instantiate, Label::kNear);
+
+  __ bind(&has_mapped_parameters);
+  __ mov(edi, Operand(edi, Context::SlotOffset(
+                               Context::FAST_ALIASED_ARGUMENTS_MAP_INDEX)));
+  __ bind(&instantiate);
+
+  // eax = address of new object (tagged)
+  // ebx = mapped parameter count (tagged)
+  // ecx = argument count (smi-tagged)
+  // edi = address of arguments map (tagged)
+  // esp[0] = mapped parameter count (tagged)
+  // esp[4] = function
+  // esp[8] = parameter count (tagged)
+  // Copy the JS object part.
+  __ mov(FieldOperand(eax, JSObject::kMapOffset), edi);
+  __ mov(FieldOperand(eax, JSObject::kPropertiesOffset),
+         masm->isolate()->factory()->empty_fixed_array());
+  __ mov(FieldOperand(eax, JSObject::kElementsOffset),
+         masm->isolate()->factory()->empty_fixed_array());
+
+  // Set up the callee in-object property.
+  STATIC_ASSERT(JSSloppyArgumentsObject::kCalleeIndex == 1);
+  __ mov(edi, Operand(esp, 1 * kPointerSize));
+  __ AssertNotSmi(edi);
+  __ mov(FieldOperand(eax, JSSloppyArgumentsObject::kCalleeOffset), edi);
+
+  // Use the length (smi tagged) and set that as an in-object property too.
+  __ AssertSmi(ecx);
+  __ mov(FieldOperand(eax, JSSloppyArgumentsObject::kLengthOffset), ecx);
+
+  // Set up the elements pointer in the allocated arguments object.
+  // If we allocated a parameter map, edi will point there, otherwise to the
+  // backing store.
+  __ lea(edi, Operand(eax, JSSloppyArgumentsObject::kSize));
+  __ mov(FieldOperand(eax, JSObject::kElementsOffset), edi);
+
+  // eax = address of new object (tagged)
+  // ebx = mapped parameter count (tagged)
+  // ecx = argument count (tagged)
+  // edx = address of receiver argument
+  // edi = address of parameter map or backing store (tagged)
+  // esp[0] = mapped parameter count (tagged)
+  // esp[4] = function
+  // esp[8] = parameter count (tagged)
+  // Free two registers.
+  __ push(edx);
+  __ push(eax);
+
+  // Initialize parameter map. If there are no mapped arguments, we're done.
+  Label skip_parameter_map;
+  __ test(ebx, ebx);
+  __ j(zero, &skip_parameter_map);
+
+  __ mov(FieldOperand(edi, FixedArray::kMapOffset),
+         Immediate(isolate()->factory()->sloppy_arguments_elements_map()));
+  __ lea(eax, Operand(ebx, reinterpret_cast<intptr_t>(Smi::FromInt(2))));
+  __ mov(FieldOperand(edi, FixedArray::kLengthOffset), eax);
+  __ mov(FieldOperand(edi, FixedArray::kHeaderSize + 0 * kPointerSize), esi);
+  __ lea(eax, Operand(edi, ebx, times_2, kParameterMapHeaderSize));
+  __ mov(FieldOperand(edi, FixedArray::kHeaderSize + 1 * kPointerSize), eax);
+
+  // Copy the parameter slots and the holes in the arguments.
+  // We need to fill in mapped_parameter_count slots. They index the context,
+  // where parameters are stored in reverse order, at
+  //   MIN_CONTEXT_SLOTS .. MIN_CONTEXT_SLOTS+parameter_count-1
+  // The mapped parameter thus need to get indices
+  //   MIN_CONTEXT_SLOTS+parameter_count-1 ..
+  //       MIN_CONTEXT_SLOTS+parameter_count-mapped_parameter_count
+  // We loop from right to left.
+  Label parameters_loop, parameters_test;
+  __ push(ecx);
+  __ mov(eax, Operand(esp, 3 * kPointerSize));
+  __ mov(ebx, Immediate(Smi::FromInt(Context::MIN_CONTEXT_SLOTS)));
+  __ add(ebx, Operand(esp, 5 * kPointerSize));
+  __ sub(ebx, eax);
+  __ mov(ecx, isolate()->factory()->the_hole_value());
+  __ mov(edx, edi);
+  __ lea(edi, Operand(edi, eax, times_2, kParameterMapHeaderSize));
+  // eax = loop variable (tagged)
+  // ebx = mapping index (tagged)
+  // ecx = the hole value
+  // edx = address of parameter map (tagged)
+  // edi = address of backing store (tagged)
+  // esp[0] = argument count (tagged)
+  // esp[4] = address of new object (tagged)
+  // esp[8] = address of receiver argument
+  // esp[12] = mapped parameter count (tagged)
+  // esp[16] = function
+  // esp[20] = parameter count (tagged)
+  __ jmp(&parameters_test, Label::kNear);
+
+  __ bind(&parameters_loop);
+  __ sub(eax, Immediate(Smi::FromInt(1)));
+  __ mov(FieldOperand(edx, eax, times_2, kParameterMapHeaderSize), ebx);
+  __ mov(FieldOperand(edi, eax, times_2, FixedArray::kHeaderSize), ecx);
+  __ add(ebx, Immediate(Smi::FromInt(1)));
+  __ bind(&parameters_test);
+  __ test(eax, eax);
+  __ j(not_zero, &parameters_loop, Label::kNear);
+  __ pop(ecx);
+
+  __ bind(&skip_parameter_map);
+
+  // ecx = argument count (tagged)
+  // edi = address of backing store (tagged)
+  // esp[0] = address of new object (tagged)
+  // esp[4] = address of receiver argument
+  // esp[8] = mapped parameter count (tagged)
+  // esp[12] = function
+  // esp[16] = parameter count (tagged)
+  // Copy arguments header and remaining slots (if there are any).
+  __ mov(FieldOperand(edi, FixedArray::kMapOffset),
+         Immediate(isolate()->factory()->fixed_array_map()));
+  __ mov(FieldOperand(edi, FixedArray::kLengthOffset), ecx);
+
+  Label arguments_loop, arguments_test;
+  __ mov(ebx, Operand(esp, 2 * kPointerSize));
+  __ mov(edx, Operand(esp, 1 * kPointerSize));
+  __ sub(edx, ebx);  // Is there a smarter way to do negative scaling?
+  __ sub(edx, ebx);
+  __ jmp(&arguments_test, Label::kNear);
+
+  __ bind(&arguments_loop);
+  __ sub(edx, Immediate(kPointerSize));
+  __ mov(eax, Operand(edx, 0));
+  __ mov(FieldOperand(edi, ebx, times_2, FixedArray::kHeaderSize), eax);
+  __ add(ebx, Immediate(Smi::FromInt(1)));
+
+  __ bind(&arguments_test);
+  __ cmp(ebx, ecx);
+  __ j(less, &arguments_loop, Label::kNear);
+
+  // Restore.
+  __ pop(eax);  // Address of arguments object.
+  __ Drop(4);
+
+  // Return.
+  __ ret(0);
+
+  // Do the runtime call to allocate the arguments object.
+  __ bind(&runtime);
+  __ pop(eax);   // Remove saved mapped parameter count.
+  __ pop(edi);   // Pop saved function.
+  __ pop(eax);   // Remove saved parameter count.
+  __ pop(eax);   // Pop return address.
+  __ push(edi);  // Push function.
+  __ push(edx);  // Push parameters pointer.
+  __ push(ecx);  // Push parameter count.
+  __ push(eax);  // Push return address.
+  __ TailCallRuntime(Runtime::kNewSloppyArguments);
 }
 
 void FastNewStrictArgumentsStub::Generate(MacroAssembler* masm) {
