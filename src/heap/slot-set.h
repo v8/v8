@@ -74,28 +74,40 @@ class SlotSet : public Malloced {
       MaskCell(start_bucket, start_cell, start_mask | end_mask);
       return;
     }
-    MaskCell(start_bucket, start_cell, start_mask);
-    start_cell++;
-    if (bucket[start_bucket] != nullptr && start_bucket < end_bucket) {
-      while (start_cell < kCellsPerBucket) {
-        bucket[start_bucket][start_cell] = 0;
-        start_cell++;
+    int current_bucket = start_bucket;
+    int current_cell = start_cell;
+    MaskCell(current_bucket, current_cell, start_mask);
+    current_cell++;
+    if (current_bucket < end_bucket) {
+      if (bucket[current_bucket] != nullptr) {
+        while (current_cell < kCellsPerBucket) {
+          bucket[current_bucket][current_cell] = 0;
+          current_cell++;
+        }
       }
+      // The rest of the current bucket is cleared.
+      // Move on to the next bucket.
+      current_bucket++;
+      current_cell = 0;
     }
-    while (start_bucket < end_bucket) {
-      delete[] bucket[start_bucket];
-      bucket[start_bucket] = nullptr;
-      start_bucket++;
+    DCHECK(current_bucket == end_bucket ||
+           (current_bucket < end_bucket && current_cell == 0));
+    while (current_bucket < end_bucket) {
+      ReleaseBucket(current_bucket);
+      current_bucket++;
     }
-    if (start_bucket < kBuckets && bucket[start_bucket] != nullptr) {
-      while (start_cell < end_cell) {
-        bucket[start_bucket][start_cell] = 0;
-        start_cell++;
-      }
+    // All buckets between start_bucket and end_bucket are cleared.
+    DCHECK(current_bucket == end_bucket && current_cell <= end_cell);
+    if (current_bucket == kBuckets || bucket[current_bucket] == nullptr) {
+      return;
     }
-    if (end_bucket < kBuckets) {
-      MaskCell(end_bucket, end_cell, end_mask);
+    while (current_cell < end_cell) {
+      bucket[current_bucket][current_cell] = 0;
+      current_cell++;
     }
+    // All cells between start_cell and end_cell are cleared.
+    DCHECK(current_bucket == end_bucket && current_cell == end_cell);
+    MaskCell(end_bucket, end_cell, end_mask);
   }
 
   // The slot offset specifies a slot at address page_start_ + slot_offset.

@@ -28,8 +28,8 @@
   V(StressHandles)                                        \
   V(TestMemoryReducerSampleJsCalls)                       \
   V(TestSizeOfObjects)                                    \
+  V(Regress587004)                                        \
   V(WriteBarriersInCopyJSObject)
-
 
 #define HEAP_TEST(Name)                                                       \
   CcTest register_test_##Name(v8::internal::HeapTester::Test##Name, __FILE__, \

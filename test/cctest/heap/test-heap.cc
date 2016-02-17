@@ -6492,6 +6492,43 @@ HEAP_TEST(TestMemoryReducerSampleJsCalls) {
   CheckDoubleEquals(2, calls_per_ms);
 }
 
+HEAP_TEST(Regress587004) {
+  FLAG_concurrent_sweeping = false;
+#ifdef VERIFY_HEAP
+  FLAG_verify_heap = false;
+#endif
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Heap* heap = CcTest::heap();
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  const int N = (Page::kMaxRegularHeapObjectSize - FixedArray::kHeaderSize) /
+                kPointerSize;
+  Handle<FixedArray> array = factory->NewFixedArray(N, TENURED);
+  CHECK(heap->old_space()->Contains(*array));
+  Handle<Object> number = factory->NewHeapNumber(1.0);
+  CHECK(heap->InNewSpace(*number));
+  for (int i = 0; i < N; i++) {
+    array->set(i, *number);
+  }
+  heap->CollectGarbage(OLD_SPACE);
+  SimulateFullSpace(heap->old_space());
+  heap->RightTrimFixedArray<Heap::CONCURRENT_TO_SWEEPER>(*array, N - 1);
+  heap->mark_compact_collector()->EnsureSweepingCompleted();
+  ByteArray* byte_array;
+  const int M = 256;
+  // Don't allow old space expansion. The test works without this flag too,
+  // but becomes very slow.
+  heap->set_force_oom(true);
+  while (heap->AllocateByteArray(M, TENURED).To(&byte_array)) {
+    for (int j = 0; j < M; j++) {
+      byte_array->set(j, 0x31);
+    }
+  }
+  // Re-enable old space expansion to avoid OOM crash.
+  heap->set_force_oom(false);
+  heap->CollectGarbage(NEW_SPACE);
+}
 
 }  // namespace internal
 }  // namespace v8

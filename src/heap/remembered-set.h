@@ -41,6 +41,20 @@ class RememberedSet {
     }
   }
 
+  // Given a page and a range of slots in that page, this function removes the
+  // slots from the remembered set.
+  static void RemoveRange(Page* page, Address start, Address end) {
+    SlotSet* slot_set = GetSlotSet(page);
+    if (slot_set != nullptr) {
+      uintptr_t start_offset = start - page->address();
+      uintptr_t end_offset = end - page->address();
+      DCHECK_LT(start_offset, end_offset);
+      DCHECK_LE(end_offset, static_cast<uintptr_t>(Page::kPageSize));
+      slot_set->RemoveRange(static_cast<uint32_t>(start_offset),
+                            static_cast<uint32_t>(end_offset));
+    }
+  }
+
   // Iterates and filters the remembered set with the given callback.
   // The callback should take (Address slot) and return SlotSet::CallbackResult.
   template <typename Callback>
