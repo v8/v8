@@ -67,7 +67,7 @@ macro IS_ARRAYBUFFER(arg)       = (%_ClassOf(arg) === 'ArrayBuffer');
 macro IS_BOOLEAN(arg)           = (typeof(arg) === 'boolean');
 macro IS_BOOLEAN_WRAPPER(arg)   = (%_ClassOf(arg) === 'Boolean');
 macro IS_DATAVIEW(arg)          = (%_ClassOf(arg) === 'DataView');
-macro IS_DATE(arg)              = (%_IsDate(arg));
+macro IS_DATE(arg)              = (%IsDate(arg));
 macro IS_ERROR(arg)             = (%_ClassOf(arg) === 'Error');
 macro IS_FUNCTION(arg)          = (%IsFunction(arg));
 macro IS_GENERATOR(arg)         = (%_ClassOf(arg) === 'Generator');

@@ -12452,16 +12452,6 @@ void HOptimizedGraphBuilder::GenerateValueOf(CallRuntime* call) {
 }
 
 
-void HOptimizedGraphBuilder::GenerateIsDate(CallRuntime* call) {
-  DCHECK_EQ(1, call->arguments()->length());
-  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
-  HValue* value = Pop();
-  HHasInstanceTypeAndBranch* result =
-      New<HHasInstanceTypeAndBranch>(value, JS_DATE_TYPE);
-  return ast_context()->ReturnControl(result, call->id());
-}
-
-
 void HOptimizedGraphBuilder::GenerateOneByteSeqStringSetChar(
     CallRuntime* call) {
   DCHECK(call->arguments()->length() == 3);

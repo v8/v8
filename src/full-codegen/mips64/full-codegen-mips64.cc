@@ -3176,28 +3176,6 @@ void FullCodeGenerator::EmitValueOf(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitIsDate(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK_EQ(1, args->length());
-
-  VisitForAccumulatorValue(args->at(0));
-
-  Label materialize_true, materialize_false;
-  Label* if_true = nullptr;
-  Label* if_false = nullptr;
-  Label* fall_through = nullptr;
-  context()->PrepareTest(&materialize_true, &materialize_false, &if_true,
-                         &if_false, &fall_through);
-
-  __ JumpIfSmi(v0, if_false);
-  __ GetObjectType(v0, a1, a1);
-  PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
-  Split(eq, a1, Operand(JS_DATE_TYPE), if_true, if_false, fall_through);
-
-  context()->Plug(if_true, if_false);
-}
-
-
 void FullCodeGenerator::EmitOneByteSeqStringSetChar(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   DCHECK_EQ(3, args->length());
