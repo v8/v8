@@ -990,6 +990,11 @@ class Assembler : public AssemblerBase {
   void bkpt(uint32_t imm16);  // v5 and above
   void svc(uint32_t imm24, Condition cond = al);
 
+  // Synchronization instructions
+  void dmb(BarrierOption option);
+  void dsb(BarrierOption option);
+  void isb(BarrierOption option);
+
   // Coprocessor instructions
 
   void cdp(Coprocessor coproc, int opcode_1,

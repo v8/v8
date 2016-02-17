@@ -2145,6 +2145,21 @@ void Assembler::svc(uint32_t imm24, Condition cond) {
 }
 
 
+void Assembler::dmb(BarrierOption option) {
+  emit(kSpecialCondition | 0x57ff*B12 | 5*B4 | option);
+}
+
+
+void Assembler::dsb(BarrierOption option) {
+  emit(kSpecialCondition | 0x57ff*B12 | 4*B4 | option);
+}
+
+
+void Assembler::isb(BarrierOption option) {
+  emit(kSpecialCondition | 0x57ff*B12 | 6*B4 | option);
+}
+
+
 // Coprocessor instructions.
 void Assembler::cdp(Coprocessor coproc,
                     int opcode_1,

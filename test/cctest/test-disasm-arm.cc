@@ -1031,3 +1031,45 @@ TEST(LoadStore) {
 
   VERIFY_RUN();
 }
+
+
+TEST(Barrier) {
+  SET_UP();
+
+  if (CpuFeatures::IsSupported(ARMv7)) {
+    CpuFeatureScope scope(&assm, ARMv7);
+
+    COMPARE(dmb(OSHLD),
+            "f57ff051       dmb oshld");
+    COMPARE(dmb(OSHST),
+            "f57ff052       dmb oshst");
+    COMPARE(dmb(OSH),
+            "f57ff053       dmb osh");
+    COMPARE(dmb(NSHLD),
+            "f57ff055       dmb nshld");
+    COMPARE(dmb(NSHST),
+            "f57ff056       dmb nshst");
+    COMPARE(dmb(NSH),
+            "f57ff057       dmb nsh");
+    COMPARE(dmb(ISHLD),
+            "f57ff059       dmb ishld");
+    COMPARE(dmb(ISHST),
+            "f57ff05a       dmb ishst");
+    COMPARE(dmb(ISH),
+            "f57ff05b       dmb ish");
+    COMPARE(dmb(LD),
+            "f57ff05d       dmb ld");
+    COMPARE(dmb(ST),
+            "f57ff05e       dmb st");
+    COMPARE(dmb(SY),
+            "f57ff05f       dmb sy");
+
+    COMPARE(dsb(ISH),
+            "f57ff04b       dsb ish");
+
+    COMPARE(isb(ISH),
+            "f57ff06b       isb ish");
+  }
+
+  VERIFY_RUN();
+}
