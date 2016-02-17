@@ -181,8 +181,9 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
 
     if (kind == to) return;
 
+  } else if (holder_map_->is_dictionary_map()) {
+    return;
   } else {
-    if (holder_map_->is_dictionary_map()) return;
     holder_map_ =
         Map::PrepareForDataProperty(holder_map_, descriptor_number(), value);
 
@@ -247,19 +248,30 @@ void LookupIterator::PrepareTransitionToDataProperty(
   DCHECK_NE(INTEGER_INDEXED_EXOTIC, state_);
   DCHECK(state_ == NOT_FOUND || !HolderIsReceiverOrHiddenPrototype());
 
-  auto transition = Map::TransitionToDataProperty(
-      handle(receiver->map(), isolate_), name_, value, attributes, store_mode);
+  Handle<Map> map(receiver->map(), isolate_);
+
+  // Dictionary maps can always have additional data properties.
+  if (map->is_dictionary_map()) {
+    state_ = TRANSITION;
+    if (map->IsJSGlobalObjectMap()) {
+      // Install a property cell.
+      InternalizeName();
+      auto cell = JSGlobalObject::EnsurePropertyCell(
+          Handle<JSGlobalObject>::cast(receiver), name());
+      DCHECK(cell->value()->IsTheHole());
+      transition_ = cell;
+    } else {
+      transition_ = map;
+    }
+    return;
+  }
+
+  Handle<Map> transition =
+      Map::TransitionToDataProperty(map, name_, value, attributes, store_mode);
   state_ = TRANSITION;
   transition_ = transition;
 
-  if (receiver->IsJSGlobalObject()) {
-    // Install a property cell.
-    InternalizeName();
-    auto cell = JSGlobalObject::EnsurePropertyCell(
-        Handle<JSGlobalObject>::cast(receiver), name());
-    DCHECK(cell->value()->IsTheHole());
-    transition_ = cell;
-  } else if (!transition->is_dictionary_map()) {
+  if (!transition->is_dictionary_map()) {
     property_details_ = transition->GetLastDescriptorDetails();
     has_property_ = true;
   }

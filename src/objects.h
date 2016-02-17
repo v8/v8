@@ -2958,8 +2958,6 @@ class DescriptorArray: public FixedArray {
                            Isolate* isolate, Handle<FixedArray> new_cache,
                            Handle<FixedArray> new_index_cache);
 
-  bool CanHoldValue(int descriptor, Object* value);
-
   // Accessors for fetching instance descriptor at descriptor number.
   inline Name* GetKey(int descriptor_number);
   inline Object** GetKeySlot(int descriptor_number);

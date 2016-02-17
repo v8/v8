@@ -45,17 +45,6 @@ FieldType* FieldType::cast(Object* object) {
   return reinterpret_cast<FieldType*>(object);
 }
 
-bool FieldType::NowContains(Object* value) {
-  if (this == Any()) return true;
-  if (this == None()) return false;
-  if (!value->IsHeapObject()) return false;
-  return HeapObject::cast(value)->map() == Map::cast(this);
-}
-
-bool FieldType::NowContains(Handle<Object> value) {
-  return NowContains(*value);
-}
-
 bool FieldType::IsClass() { return this->IsMap(); }
 
 Handle<i::Map> FieldType::AsClass() {

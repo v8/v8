@@ -6608,9 +6608,8 @@ bool JSObject::HasSlowStringWrapperElements() {
 }
 
 bool JSObject::HasFixedTypedArrayElements() {
-  HeapObject* array = elements();
-  DCHECK(array != NULL);
-  return array->IsFixedTypedArrayBase();
+  DCHECK_NOT_NULL(elements());
+  return map()->has_fixed_typed_array_elements();
 }
 
 #define FIXED_TYPED_ELEMENTS_CHECK(Type, type, TYPE, ctype, size)      \

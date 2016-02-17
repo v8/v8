@@ -9844,17 +9844,19 @@ FieldType* DescriptorArray::GetFieldType(int descriptor_number) {
   return FieldType::cast(value);
 }
 
-bool DescriptorArray::CanHoldValue(int descriptor, Object* value) {
-  PropertyDetails details = GetDetails(descriptor);
+namespace {
+
+bool CanHoldValue(DescriptorArray* descriptors, int descriptor, Object* value) {
+  PropertyDetails details = descriptors->GetDetails(descriptor);
   switch (details.type()) {
     case DATA:
       return value->FitsRepresentation(details.representation()) &&
-             GetFieldType(descriptor)->NowContains(value);
+             descriptors->GetFieldType(descriptor)->NowContains(value);
 
     case DATA_CONSTANT:
-      DCHECK(GetConstant(descriptor) != value ||
+      DCHECK(descriptors->GetConstant(descriptor) != value ||
              value->FitsRepresentation(details.representation()));
-      return GetConstant(descriptor) == value;
+      return descriptors->GetConstant(descriptor) == value;
 
     case ACCESSOR:
     case ACCESSOR_CONSTANT:
@@ -9865,11 +9867,9 @@ bool DescriptorArray::CanHoldValue(int descriptor, Object* value) {
   return false;
 }
 
-namespace {
-
 Handle<Map> UpdateDescriptorForValue(Handle<Map> map, int descriptor,
                                      Handle<Object> value) {
-  if (map->instance_descriptors()->CanHoldValue(descriptor, *value)) return map;
+  if (CanHoldValue(map->instance_descriptors(), descriptor, *value)) return map;
 
   Isolate* isolate = map->GetIsolate();
   PropertyAttributes attributes =
@@ -9887,8 +9887,7 @@ Handle<Map> UpdateDescriptorForValue(Handle<Map> map, int descriptor,
 Handle<Map> Map::PrepareForDataProperty(Handle<Map> map, int descriptor,
                                         Handle<Object> value) {
   // Dictionaries can store any property value.
-  if (map->is_dictionary_map()) return map;
-
+  DCHECK(!map->is_dictionary_map());
   // Update to the newest map before storing the property.
   return UpdateDescriptorForValue(Update(map), descriptor, value);
 }
@@ -9898,8 +9897,7 @@ Handle<Map> Map::TransitionToDataProperty(Handle<Map> map, Handle<Name> name,
                                           Handle<Object> value,
                                           PropertyAttributes attributes,
                                           StoreFromKeyed store_mode) {
-  // Dictionary maps can always have additional data properties.
-  if (map->is_dictionary_map()) return map;
+  DCHECK(!map->is_dictionary_map());
 
   // Migrate to the newest map before storing the property.
   map = Update(map);
