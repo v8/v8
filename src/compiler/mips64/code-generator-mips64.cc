@@ -616,7 +616,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     case kArchParentFramePointer:
       if (frame_access_state()->frame()->needs_frame()) {
-        __ lw(i.OutputRegister(), MemOperand(fp, 0));
+        __ ld(i.OutputRegister(), MemOperand(fp, 0));
       } else {
         __ mov(i.OutputRegister(), fp);
       }
