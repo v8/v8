@@ -489,6 +489,15 @@ RUNTIME_FUNCTION(Runtime_GetCachedArrayIndex) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_FastOneByteArrayJoin) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 2);
+  // Returning undefined means that this fast path fails and one has to resort
+  // to a slow path.
+  return isolate->heap()->undefined_value();
+}
+
+
 RUNTIME_FUNCTION(Runtime_ArraySpeciesConstructor) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);

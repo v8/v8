@@ -51,6 +51,7 @@ namespace internal {
   F(GetCachedArrayIndex, 1, 1)       \
   F(FixedArrayGet, 2, 1)             \
   F(FixedArraySet, 3, 1)             \
+  F(FastOneByteArrayJoin, 2, 1)      \
   F(ArraySpeciesConstructor, 1, 1)
 
 

@@ -3422,6 +3422,240 @@ void FullCodeGenerator::EmitGetSuperConstructor(CallRuntime* expr) {
 }
 
 
+void FullCodeGenerator::EmitFastOneByteArrayJoin(CallRuntime* expr) {
+  Label bailout, done, one_char_separator, long_separator,
+      non_trivial_array, not_size_one_array, loop,
+      empty_separator_loop, one_char_separator_loop,
+      one_char_separator_loop_entry, long_separator_loop;
+  ZoneList<Expression*>* args = expr->arguments();
+  DCHECK(args->length() == 2);
+  VisitForStackValue(args->at(1));
+  VisitForAccumulatorValue(args->at(0));
+
+  // All aliases of the same register have disjoint lifetimes.
+  Register array = v0;
+  Register elements = no_reg;  // Will be v0.
+  Register result = no_reg;  // Will be v0.
+  Register separator = a1;
+  Register array_length = a2;
+  Register result_pos = no_reg;  // Will be a2.
+  Register string_length = a3;
+  Register string = a4;
+  Register element = a5;
+  Register elements_end = a6;
+  Register scratch1 = a7;
+  Register scratch2 = t1;
+  Register scratch3 = t0;
+
+  // Separator operand is on the stack.
+  __ pop(separator);
+
+  // Check that the array is a JSArray.
+  __ JumpIfSmi(array, &bailout);
+  __ GetObjectType(array, scratch1, scratch2);
+  __ Branch(&bailout, ne, scratch2, Operand(JS_ARRAY_TYPE));
+
+  // Check that the array has fast elements.
+  __ CheckFastElements(scratch1, scratch2, &bailout);
+
+  // If the array has length zero, return the empty string.
+  __ ld(array_length, FieldMemOperand(array, JSArray::kLengthOffset));
+  __ SmiUntag(array_length);
+  __ Branch(&non_trivial_array, ne, array_length, Operand(zero_reg));
+  __ LoadRoot(v0, Heap::kempty_stringRootIndex);
+  __ Branch(&done);
+
+  __ bind(&non_trivial_array);
+
+  // Get the FixedArray containing array's elements.
+  elements = array;
+  __ ld(elements, FieldMemOperand(array, JSArray::kElementsOffset));
+  array = no_reg;  // End of array's live range.
+
+  // Check that all array elements are sequential one-byte strings, and
+  // accumulate the sum of their lengths, as a smi-encoded value.
+  __ mov(string_length, zero_reg);
+  __ Daddu(element,
+          elements, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ Dlsa(elements_end, element, array_length, kPointerSizeLog2);
+  // Loop condition: while (element < elements_end).
+  // Live values in registers:
+  //   elements: Fixed array of strings.
+  //   array_length: Length of the fixed array of strings (not smi)
+  //   separator: Separator string
+  //   string_length: Accumulated sum of string lengths (smi).
+  //   element: Current array element.
+  //   elements_end: Array end.
+  if (generate_debug_code_) {
+    __ Assert(gt, kNoEmptyArraysHereInEmitFastOneByteArrayJoin, array_length,
+              Operand(zero_reg));
+  }
+  __ bind(&loop);
+  __ ld(string, MemOperand(element));
+  __ Daddu(element, element, kPointerSize);
+  __ JumpIfSmi(string, &bailout);
+  __ ld(scratch1, FieldMemOperand(string, HeapObject::kMapOffset));
+  __ lbu(scratch1, FieldMemOperand(scratch1, Map::kInstanceTypeOffset));
+  __ JumpIfInstanceTypeIsNotSequentialOneByte(scratch1, scratch2, &bailout);
+  __ ld(scratch1, FieldMemOperand(string, SeqOneByteString::kLengthOffset));
+  __ DadduAndCheckForOverflow(string_length, string_length, scratch1, scratch3);
+  __ BranchOnOverflow(&bailout, scratch3);
+  __ Branch(&loop, lt, element, Operand(elements_end));
+
+  // If array_length is 1, return elements[0], a string.
+  __ Branch(&not_size_one_array, ne, array_length, Operand(1));
+  __ ld(v0, FieldMemOperand(elements, FixedArray::kHeaderSize));
+  __ Branch(&done);
+
+  __ bind(&not_size_one_array);
+
+  // Live values in registers:
+  //   separator: Separator string
+  //   array_length: Length of the array.
+  //   string_length: Sum of string lengths (smi).
+  //   elements: FixedArray of strings.
+
+  // Check that the separator is a flat one-byte string.
+  __ JumpIfSmi(separator, &bailout);
+  __ ld(scratch1, FieldMemOperand(separator, HeapObject::kMapOffset));
+  __ lbu(scratch1, FieldMemOperand(scratch1, Map::kInstanceTypeOffset));
+  __ JumpIfInstanceTypeIsNotSequentialOneByte(scratch1, scratch2, &bailout);
+
+  // Add (separator length times array_length) - separator length to the
+  // string_length to get the length of the result string. array_length is not
+  // smi but the other values are, so the result is a smi.
+  __ ld(scratch1, FieldMemOperand(separator, SeqOneByteString::kLengthOffset));
+  __ Dsubu(string_length, string_length, Operand(scratch1));
+  __ SmiUntag(scratch1);
+  __ Dmul(scratch2, array_length, scratch1);
+  // Check for smi overflow. No overflow if higher 33 bits of 64-bit result are
+  // zero.
+  __ dsra32(scratch1, scratch2, 0);
+  __ Branch(&bailout, ne, scratch2, Operand(zero_reg));
+  __ SmiUntag(string_length);
+  __ AdduAndCheckForOverflow(string_length, string_length, scratch2, scratch3);
+  __ BranchOnOverflow(&bailout, scratch3);
+
+  // Bailout for large object allocations.
+  __ Branch(&bailout, gt, string_length,
+            Operand(Page::kMaxRegularHeapObjectSize));
+
+  // Get first element in the array to free up the elements register to be used
+  // for the result.
+  __ Daddu(element,
+          elements, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+  result = elements;  // End of live range for elements.
+  elements = no_reg;
+  // Live values in registers:
+  //   element: First array element
+  //   separator: Separator string
+  //   string_length: Length of result string (not smi)
+  //   array_length: Length of the array.
+  __ AllocateOneByteString(result, string_length, scratch1, scratch2,
+                           elements_end, &bailout);
+  // Prepare for looping. Set up elements_end to end of the array. Set
+  // result_pos to the position of the result where to write the first
+  // character.
+  __ Dlsa(elements_end, element, array_length, kPointerSizeLog2);
+  result_pos = array_length;  // End of live range for array_length.
+  array_length = no_reg;
+  __ Daddu(result_pos,
+          result,
+          Operand(SeqOneByteString::kHeaderSize - kHeapObjectTag));
+
+  // Check the length of the separator.
+  __ ld(scratch1, FieldMemOperand(separator, SeqOneByteString::kLengthOffset));
+  __ li(at, Operand(Smi::FromInt(1)));
+  __ Branch(&one_char_separator, eq, scratch1, Operand(at));
+  __ Branch(&long_separator, gt, scratch1, Operand(at));
+
+  // Empty separator case.
+  __ bind(&empty_separator_loop);
+  // Live values in registers:
+  //   result_pos: the position to which we are currently copying characters.
+  //   element: Current array element.
+  //   elements_end: Array end.
+
+  // Copy next array element to the result.
+  __ ld(string, MemOperand(element));
+  __ Daddu(element, element, kPointerSize);
+  __ ld(string_length, FieldMemOperand(string, String::kLengthOffset));
+  __ SmiUntag(string_length);
+  __ Daddu(string, string, SeqOneByteString::kHeaderSize - kHeapObjectTag);
+  __ CopyBytes(string, result_pos, string_length, scratch1);
+  // End while (element < elements_end).
+  __ Branch(&empty_separator_loop, lt, element, Operand(elements_end));
+  DCHECK(result.is(v0));
+  __ Branch(&done);
+
+  // One-character separator case.
+  __ bind(&one_char_separator);
+  // Replace separator with its one-byte character value.
+  __ lbu(separator, FieldMemOperand(separator, SeqOneByteString::kHeaderSize));
+  // Jump into the loop after the code that copies the separator, so the first
+  // element is not preceded by a separator.
+  __ jmp(&one_char_separator_loop_entry);
+
+  __ bind(&one_char_separator_loop);
+  // Live values in registers:
+  //   result_pos: the position to which we are currently copying characters.
+  //   element: Current array element.
+  //   elements_end: Array end.
+  //   separator: Single separator one-byte char (in lower byte).
+
+  // Copy the separator character to the result.
+  __ sb(separator, MemOperand(result_pos));
+  __ Daddu(result_pos, result_pos, 1);
+
+  // Copy next array element to the result.
+  __ bind(&one_char_separator_loop_entry);
+  __ ld(string, MemOperand(element));
+  __ Daddu(element, element, kPointerSize);
+  __ ld(string_length, FieldMemOperand(string, String::kLengthOffset));
+  __ SmiUntag(string_length);
+  __ Daddu(string, string, SeqOneByteString::kHeaderSize - kHeapObjectTag);
+  __ CopyBytes(string, result_pos, string_length, scratch1);
+  // End while (element < elements_end).
+  __ Branch(&one_char_separator_loop, lt, element, Operand(elements_end));
+  DCHECK(result.is(v0));
+  __ Branch(&done);
+
+  // Long separator case (separator is more than one character). Entry is at the
+  // label long_separator below.
+  __ bind(&long_separator_loop);
+  // Live values in registers:
+  //   result_pos: the position to which we are currently copying characters.
+  //   element: Current array element.
+  //   elements_end: Array end.
+  //   separator: Separator string.
+
+  // Copy the separator to the result.
+  __ ld(string_length, FieldMemOperand(separator, String::kLengthOffset));
+  __ SmiUntag(string_length);
+  __ Daddu(string,
+          separator,
+          Operand(SeqOneByteString::kHeaderSize - kHeapObjectTag));
+  __ CopyBytes(string, result_pos, string_length, scratch1);
+
+  __ bind(&long_separator);
+  __ ld(string, MemOperand(element));
+  __ Daddu(element, element, kPointerSize);
+  __ ld(string_length, FieldMemOperand(string, String::kLengthOffset));
+  __ SmiUntag(string_length);
+  __ Daddu(string, string, SeqOneByteString::kHeaderSize - kHeapObjectTag);
+  __ CopyBytes(string, result_pos, string_length, scratch1);
+  // End while (element < elements_end).
+  __ Branch(&long_separator_loop, lt, element, Operand(elements_end));
+  DCHECK(result.is(v0));
+  __ Branch(&done);
+
+  __ bind(&bailout);
+  __ LoadRoot(v0, Heap::kUndefinedValueRootIndex);
+  __ bind(&done);
+  context()->Plug(v0);
+}
+
+
 void FullCodeGenerator::EmitDebugIsActive(CallRuntime* expr) {
   DCHECK(expr->arguments()->length() == 0);
   ExternalReference debug_is_active =
