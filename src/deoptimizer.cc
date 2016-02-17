@@ -3647,7 +3647,8 @@ bool TranslatedState::GetAdaptedArguments(Handle<JSObject>* result,
 TranslatedFrame* TranslatedState::GetArgumentsInfoFromJSFrameIndex(
     int jsframe_index, int* args_count) {
   for (size_t i = 0; i < frames_.size(); i++) {
-    if (frames_[i].kind() == TranslatedFrame::kFunction) {
+    if (frames_[i].kind() == TranslatedFrame::kFunction ||
+        frames_[i].kind() == TranslatedFrame::kInterpretedFunction) {
       if (jsframe_index > 0) {
         jsframe_index--;
       } else {
@@ -3710,7 +3711,8 @@ void TranslatedState::StoreMaterializedValuesAndDeopt() {
   if (new_store && value_changed) {
     materialized_store->Set(stack_frame_pointer_,
                             previously_materialized_objects);
-    CHECK_EQ(TranslatedFrame::kFunction, frames_[0].kind());
+    CHECK(frames_[0].kind() == TranslatedFrame::kFunction ||
+          frames_[0].kind() == TranslatedFrame::kInterpretedFunction);
     Object* const function = frames_[0].front().GetRawValue();
     Deoptimizer::DeoptimizeFunction(JSFunction::cast(function));
   }

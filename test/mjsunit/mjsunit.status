@@ -865,13 +865,6 @@
   'regress/regress-2318': [FAIL],
   'regress/regress-crbug-582051': [FAIL],
 
-  # TODO(rmcilroy,4680): Test crashes.
-  'compiler/regress-funarguments': [SKIP],
-  'regress/regress-3985': [SKIP],
-  'regress/regress-457935': [SKIP],
-  'regress/regress-arg-materialize-store': [SKIP],
-  'regress/regress-514362': [SKIP],
-
   # TODO(rmcilroy,4680): Test timeouts.
   'array-literal-transitions': [SKIP],
   'regress/regress-crbug-517592': [SKIP],
