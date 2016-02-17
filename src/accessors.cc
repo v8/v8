@@ -99,7 +99,7 @@ bool Accessors::IsJSArrayBufferViewFieldAccessor(Handle<Map> map,
 
       // Check if the property is overridden on the instance.
       DescriptorArray* descriptors = map->instance_descriptors();
-      int descriptor = descriptors->SearchWithCache(*name, *map);
+      int descriptor = descriptors->SearchWithCache(isolate, *name, *map);
       if (descriptor != DescriptorArray::kNotFound) return false;
 
       Handle<Object> proto = Handle<Object>(map->prototype(), isolate);

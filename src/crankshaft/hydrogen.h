@@ -2632,7 +2632,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
 
     void LookupDescriptor(Map* map, Name* name) {
       DescriptorArray* descriptors = map->instance_descriptors();
-      int number = descriptors->SearchWithCache(name, map);
+      int number = descriptors->SearchWithCache(isolate(), name, map);
       if (number == DescriptorArray::kNotFound) return NotFound();
       lookup_type_ = DESCRIPTOR_TYPE;
       details_ = descriptors->GetDetails(number);

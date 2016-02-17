@@ -3001,7 +3001,7 @@ class DescriptorArray: public FixedArray {
 
   // As the above, but uses DescriptorLookupCache and updates it when
   // necessary.
-  INLINE(int SearchWithCache(Name* name, Map* map));
+  INLINE(int SearchWithCache(Isolate* isolate, Name* name, Map* map));
 
   bool IsEqualUpTo(DescriptorArray* desc, int nof_descriptors);
 

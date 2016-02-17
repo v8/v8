@@ -9979,7 +9979,7 @@ Handle<Map> Map::TransitionToAccessorProperty(Handle<Map> map,
 
   Handle<AccessorPair> pair;
   DescriptorArray* old_descriptors = map->instance_descriptors();
-  int descriptor = old_descriptors->SearchWithCache(*name, *map);
+  int descriptor = old_descriptors->SearchWithCache(isolate, *name, *map);
   if (descriptor != DescriptorArray::kNotFound) {
     if (descriptor != map->LastAdded()) {
       return Map::Normalize(map, mode, "AccessorsOverwritingNonLast");
@@ -10060,7 +10060,8 @@ Handle<Map> Map::CopyInsertDescriptor(Handle<Map> map,
   descriptor->KeyToUniqueName();
 
   // We replace the key if it is already present.
-  int index = old_descriptors->SearchWithCache(*descriptor->GetKey(), *map);
+  int index = old_descriptors->SearchWithCache(map->GetIsolate(),
+                                               *descriptor->GetKey(), *map);
   if (index != DescriptorArray::kNotFound) {
     return CopyReplaceDescriptor(map, old_descriptors, descriptor, index, flag);
   }

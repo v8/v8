@@ -2650,12 +2650,11 @@ int DescriptorArray::Search(Name* name, int valid_descriptors) {
   return internal::Search<VALID_ENTRIES>(this, name, valid_descriptors, NULL);
 }
 
-
-int DescriptorArray::SearchWithCache(Name* name, Map* map) {
+int DescriptorArray::SearchWithCache(Isolate* isolate, Name* name, Map* map) {
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   if (number_of_own_descriptors == 0) return kNotFound;
 
-  DescriptorLookupCache* cache = GetIsolate()->descriptor_lookup_cache();
+  DescriptorLookupCache* cache = isolate->descriptor_lookup_cache();
   int number = cache->Lookup(map, name);
 
   if (number == DescriptorLookupCache::kAbsent) {

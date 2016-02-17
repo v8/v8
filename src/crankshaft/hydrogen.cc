@@ -8783,7 +8783,8 @@ bool HOptimizedGraphBuilder::IsReadOnlyLengthDescriptor(
   Isolate* isolate = jsarray_map->GetIsolate();
   Handle<Name> length_string = isolate->factory()->length_string();
   DescriptorArray* descriptors = jsarray_map->instance_descriptors();
-  int number = descriptors->SearchWithCache(*length_string, *jsarray_map);
+  int number =
+      descriptors->SearchWithCache(isolate, *length_string, *jsarray_map);
   DCHECK_NE(DescriptorArray::kNotFound, number);
   return descriptors->GetDetails(number).IsReadOnly();
 }

@@ -630,7 +630,7 @@ LookupIterator::State LookupIterator::LookupInHolder(Map* const map,
         property_details_ = accessor->GetDetails(js_object, number_);
       } else if (!map->is_dictionary_map()) {
         DescriptorArray* descriptors = map->instance_descriptors();
-        int number = descriptors->SearchWithCache(*name_, map);
+        int number = descriptors->SearchWithCache(isolate_, *name_, map);
         if (number == DescriptorArray::kNotFound) return NotFound(holder);
         number_ = static_cast<uint32_t>(number);
         property_details_ = descriptors->GetDetails(number_);

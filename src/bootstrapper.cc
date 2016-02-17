@@ -825,7 +825,7 @@ static void ReplaceAccessors(Handle<Map> map,
                              PropertyAttributes attributes,
                              Handle<AccessorPair> accessor_pair) {
   DescriptorArray* descriptors = map->instance_descriptors();
-  int idx = descriptors->SearchWithCache(*name, *map);
+  int idx = descriptors->SearchWithCache(map->GetIsolate(), *name, *map);
   AccessorConstantDescriptor descriptor(name, accessor_pair, attributes);
   descriptors->Replace(idx, &descriptor);
 }
@@ -2903,7 +2903,7 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
           array_function->initial_map()->instance_descriptors());
       Handle<String> length = factory()->length_string();
       int old = array_descriptors->SearchWithCache(
-          *length, array_function->initial_map());
+          isolate(), *length, array_function->initial_map());
       DCHECK(old != DescriptorArray::kNotFound);
       AccessorConstantDescriptor desc(
           length, handle(array_descriptors->GetValue(old), isolate()),
