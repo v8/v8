@@ -2057,6 +2057,21 @@ HValue* HGraphBuilder::BuildNumberToString(HValue* object, Type* type) {
 }
 
 
+HValue* HGraphBuilder::BuildToNumber(HValue* input, Type* input_type) {
+  if (input->type().IsTaggedNumber() || input_type->Is(Type::Number())) {
+    return input;
+  }
+  Callable callable = CodeFactory::ToNumber(isolate());
+  HValue* stub = Add<HConstant>(callable.code());
+  HValue* values[] = {context(), input};
+  HCallWithDescriptor* instr =
+      Add<HCallWithDescriptor>(stub, 0, callable.descriptor(),
+                               Vector<HValue*>(values, arraysize(values)));
+  instr->set_type(HType::TaggedNumber());
+  return instr;
+}
+
+
 HValue* HGraphBuilder::BuildToObject(HValue* receiver) {
   NoObservableSideEffectsScope scope(this);
 
@@ -11138,6 +11153,16 @@ HValue* HGraphBuilder::BuildBinaryOperation(Token::Value op, HValue* left,
         allocation_mode.feedback_site());
   }
 
+  // Special case for +x here.
+  if (op == Token::MUL) {
+    if (left->EqualsInteger32Constant(1)) {
+      return BuildToNumber(right, right_type);
+    }
+    if (right->EqualsInteger32Constant(1)) {
+      return BuildToNumber(left, left_type);
+    }
+  }
+
   if (graph()->info()->IsStub()) {
     left = EnforceNumberType(left, left_type);
     right = EnforceNumberType(right, right_type);
@@ -12362,16 +12387,14 @@ void HOptimizedGraphBuilder::GenerateToNumber(CallRuntime* call) {
   CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
   Callable callable = CodeFactory::ToNumber(isolate());
   HValue* input = Pop();
-  if (input->type().IsTaggedNumber()) {
-    return ast_context()->ReturnValue(input);
-  } else {
-    HValue* stub = Add<HConstant>(callable.code());
-    HValue* values[] = {context(), input};
-    HInstruction* result =
-        New<HCallWithDescriptor>(stub, 0, callable.descriptor(),
-                                 Vector<HValue*>(values, arraysize(values)));
-    return ast_context()->ReturnInstruction(result, call->id());
+  Type* input_type = Type::Any();
+  HValue* result = BuildToNumber(input, input_type);
+  if (result->HasObservableSideEffects()) {
+    if (!ast_context()->IsEffect()) Push(result);
+    Add<HSimulate>(call->id(), REMOVABLE_SIMULATE);
+    if (!ast_context()->IsEffect()) result = Pop();
   }
+  return ast_context()->ReturnValue(result);
 }
 
 

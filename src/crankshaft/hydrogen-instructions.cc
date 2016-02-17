@@ -2958,6 +2958,8 @@ Maybe<HConstant*> HConstant::CopyToTruncatedNumber(Isolate* isolate,
     res = new (zone) HConstant(std::numeric_limits<double>::quiet_NaN());
   } else if (handle->IsNull()) {
     res = new(zone) HConstant(0);
+  } else if (handle->IsString()) {
+    res = new(zone) HConstant(String::ToNumber(Handle<String>::cast(handle)));
   }
   return res != NULL ? Just(res) : Nothing<HConstant*>();
 }

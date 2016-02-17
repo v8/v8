@@ -1321,6 +1321,7 @@ class HGraphBuilder {
                                    bool is_jsarray);
 
   HValue* BuildNumberToString(HValue* object, Type* type);
+  HValue* BuildToNumber(HValue* input, Type* input_type);
   HValue* BuildToObject(HValue* receiver);
 
   void BuildJSObjectCheck(HValue* receiver,
