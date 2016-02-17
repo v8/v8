@@ -355,7 +355,7 @@ void BytecodeGraphBuilder::Environment::PrepareForLoop() {
 
 bool BytecodeGraphBuilder::Environment::StateValuesRequireUpdate(
     Node** state_values, int offset, int count) {
-  if (!builder()->info()->is_deoptimization_enabled()) {
+  if (!builder()->deoptimization_enabled_) {
     return false;
   }
   if (*state_values == nullptr) {
@@ -385,7 +385,7 @@ void BytecodeGraphBuilder::Environment::UpdateStateValues(Node** state_values,
 
 Node* BytecodeGraphBuilder::Environment::Checkpoint(
     BailoutId bailout_id, OutputFrameStateCombine combine) {
-  if (!builder()->info()->is_deoptimization_enabled()) {
+  if (!builder()->deoptimization_enabled_) {
     return builder()->jsgraph()->EmptyFrameState();
   }
 
@@ -423,7 +423,7 @@ bool BytecodeGraphBuilder::Environment::StateValuesAreUpToDate(
 
 bool BytecodeGraphBuilder::Environment::StateValuesAreUpToDate(
     int output_poke_offset, int output_poke_count) {
-  if (!builder()->info()->is_deoptimization_enabled()) return true;
+  if (!builder()->deoptimization_enabled_) return true;
   // Poke offset is relative to the top of the stack (i.e., the accumulator).
   int output_poke_start = accumulator_base() - output_poke_offset;
   int output_poke_end = output_poke_start + output_poke_count;
@@ -437,19 +437,20 @@ bool BytecodeGraphBuilder::Environment::StateValuesAreUpToDate(
 }
 
 BytecodeGraphBuilder::BytecodeGraphBuilder(Zone* local_zone,
-                                           CompilationInfo* compilation_info,
+                                           CompilationInfo* info,
                                            JSGraph* jsgraph)
     : local_zone_(local_zone),
-      info_(compilation_info),
       jsgraph_(jsgraph),
-      bytecode_array_(handle(info()->shared_info()->bytecode_array())),
+      bytecode_array_(handle(info->shared_info()->bytecode_array())),
       exception_handler_table_(
           handle(HandlerTable::cast(bytecode_array()->handler_table()))),
+      feedback_vector_(info->feedback_vector()),
       frame_state_function_info_(common()->CreateFrameStateFunctionInfo(
           FrameStateType::kInterpretedFunction,
           bytecode_array()->parameter_count(),
-          bytecode_array()->register_count(), info()->shared_info(),
+          bytecode_array()->register_count(), info->shared_info(),
           CALL_MAINTAINS_NATIVE_CONTEXT)),
+      deoptimization_enabled_(info->is_deoptimization_enabled()),
       merge_environments_(local_zone),
       exception_handlers_(local_zone),
       current_exception_handler_(0),
@@ -501,12 +502,11 @@ Node* BytecodeGraphBuilder::BuildLoadNativeContextField(int index) {
 
 
 VectorSlotPair BytecodeGraphBuilder::CreateVectorSlotPair(int slot_id) {
-  Handle<TypeFeedbackVector> feedback_vector = info()->feedback_vector();
   FeedbackVectorSlot slot;
   if (slot_id >= TypeFeedbackVector::kReservedIndexCount) {
-    slot = feedback_vector->ToSlot(slot_id);
+    slot = feedback_vector()->ToSlot(slot_id);
   }
-  return VectorSlotPair(feedback_vector, slot);
+  return VectorSlotPair(feedback_vector(), slot);
 }
 
 bool BytecodeGraphBuilder::CreateGraph() {
@@ -981,7 +981,7 @@ Node* BytecodeGraphBuilder::ProcessCallArguments(const Operator* call_op,
                                                  Node* callee,
                                                  interpreter::Register receiver,
                                                  size_t arity) {
-  Node** all = info()->zone()->NewArray<Node*>(static_cast<int>(arity));
+  Node** all = local_zone()->NewArray<Node*>(static_cast<int>(arity));
   all[0] = callee;
   all[1] = environment()->LookupRegister(receiver);
   int receiver_index = receiver.index();
@@ -1037,7 +1037,7 @@ void BytecodeGraphBuilder::VisitCallJSRuntimeWide() { BuildCallJSRuntime(); }
 Node* BytecodeGraphBuilder::ProcessCallRuntimeArguments(
     const Operator* call_runtime_op, interpreter::Register first_arg,
     size_t arity) {
-  Node** all = info()->zone()->NewArray<Node*>(arity);
+  Node** all = local_zone()->NewArray<Node*>(arity);
   int first_arg_index = first_arg.index();
   for (int i = 0; i < static_cast<int>(arity); ++i) {
     all[i] = environment()->LookupRegister(
@@ -1090,7 +1090,7 @@ void BytecodeGraphBuilder::VisitCallRuntimeForPairWide() {
 Node* BytecodeGraphBuilder::ProcessCallNewArguments(
     const Operator* call_new_op, Node* callee, Node* new_target,
     interpreter::Register first_arg, size_t arity) {
-  Node** all = info()->zone()->NewArray<Node*>(arity);
+  Node** all = local_zone()->NewArray<Node*>(arity);
   all[0] = new_target;
   int first_arg_index = first_arg.index();
   for (int i = 1; i < static_cast<int>(arity) - 1; ++i) {

@@ -177,7 +177,6 @@ class BytecodeGraphBuilder {
   Graph* graph() const { return jsgraph_->graph(); }
   CommonOperatorBuilder* common() const { return jsgraph_->common(); }
   Zone* graph_zone() const { return graph()->zone(); }
-  CompilationInfo* info() const { return info_; }
   JSGraph* jsgraph() const { return jsgraph_; }
   JSOperatorBuilder* javascript() const { return jsgraph_->javascript(); }
   Zone* local_zone() const { return local_zone_; }
@@ -187,13 +186,11 @@ class BytecodeGraphBuilder {
   const Handle<HandlerTable>& exception_handler_table() const {
     return exception_handler_table_;
   }
+  const Handle<TypeFeedbackVector>& feedback_vector() const {
+    return feedback_vector_;
+  }
   const FrameStateFunctionInfo* frame_state_function_info() const {
     return frame_state_function_info_;
-  }
-
-  LanguageMode language_mode() const {
-    // TODO(mythria): Don't rely on parse information to get language mode.
-    return info()->language_mode();
   }
 
   const interpreter::BytecodeArrayIterator& bytecode_iterator() const {
@@ -218,14 +215,18 @@ class BytecodeGraphBuilder {
 #undef DECLARE_VISIT_BYTECODE
 
   Zone* local_zone_;
-  CompilationInfo* info_;
   JSGraph* jsgraph_;
   Handle<BytecodeArray> bytecode_array_;
   Handle<HandlerTable> exception_handler_table_;
+  Handle<TypeFeedbackVector> feedback_vector_;
   const FrameStateFunctionInfo* frame_state_function_info_;
   const interpreter::BytecodeArrayIterator* bytecode_iterator_;
   const BytecodeBranchAnalysis* branch_analysis_;
   Environment* environment_;
+
+  // Indicates whether deoptimization support is enabled for this compilation
+  // and whether valid frame states need to be attached to deoptimizing nodes.
+  bool deoptimization_enabled_;
 
   // Merge environments are snapshots of the environment at points where the
   // control flow merges. This models a forward data flow propagation of all
@@ -244,9 +245,6 @@ class BytecodeGraphBuilder {
   SetOncePointer<Node> function_context_;
   SetOncePointer<Node> function_closure_;
   SetOncePointer<Node> new_target_;
-
-  // Optimization to cache loaded feedback vector.
-  SetOncePointer<Node> feedback_vector_;
 
   // Control nodes that exit the function body.
   ZoneVector<Node*> exit_controls_;
