@@ -2213,7 +2213,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   F(MathPow)                           \
   F(HasCachedArrayIndex)               \
   F(GetCachedArrayIndex)               \
-  F(FastOneByteArrayJoin)              \
   F(DebugBreakInOptimizedCode)         \
   F(StringCharCodeAt)                  \
   F(SubString)                         \
