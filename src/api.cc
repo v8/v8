@@ -58,6 +58,7 @@
 #include "src/snapshot/natives.h"
 #include "src/snapshot/snapshot.h"
 #include "src/startup-data-util.h"
+#include "src/tracing/trace-event.h"
 #include "src/unicode-inl.h"
 #include "src/v8.h"
 #include "src/v8threads.h"
@@ -79,6 +80,7 @@ namespace v8 {
   if (IsExecutionTerminatingCheck(isolate)) {                          \
     return bailout_value;                                              \
   }                                                                    \
+  TRACE_EVENT_SCOPED_CONTEXT("v8", "Isolate", isolate);                \
   HandleScopeClass handle_scope(isolate);                              \
   CallDepthScope call_depth_scope(isolate, context, do_callback);      \
   LOG_API(isolate, function_name);                                     \
@@ -195,6 +197,7 @@ class CallDepthScope {
 
 static ScriptOrigin GetScriptOriginForScript(i::Isolate* isolate,
                                              i::Handle<i::Script> script) {
+  TRACE_EVENT_SCOPED_CONTEXT("v8", "Isolate", isolate);
   i::Handle<i::Object> scriptName(i::Script::GetNameOrSourceURL(script));
   i::Handle<i::Object> source_map_url(script->source_mapping_url(), isolate);
   v8::Isolate* v8_isolate =
@@ -373,6 +376,7 @@ StartupData V8::CreateSnapshotDataBlob(const char* custom_source) {
   ArrayBufferAllocator allocator;
   internal_isolate->set_array_buffer_allocator(&allocator);
   Isolate* isolate = reinterpret_cast<Isolate*>(internal_isolate);
+  TRACE_EVENT_SCOPED_CONTEXT("v8", "Isolate", isolate);
   StartupData result = {NULL, 0};
   {
     base::ElapsedTimer timer;
@@ -1850,6 +1854,7 @@ MaybeLocal<Script> ScriptCompiler::CompileModule(Local<Context> context,
                                                  CompileOptions options) {
   CHECK(i::FLAG_harmony_modules);
   auto isolate = context->GetIsolate();
+  TRACE_EVENT_SCOPED_CONTEXT("V8", "Isolate", isolate);
   auto maybe = CompileUnboundInternal(isolate, source, options, true);
   Local<UnboundScript> generic;
   if (!maybe.ToLocal(&generic)) return MaybeLocal<Script>();
@@ -2276,6 +2281,7 @@ void v8::TryCatch::SetCaptureMessage(bool value) {
 
 Local<String> Message::Get() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  TRACE_EVENT_SCOPED_CONTEXT("v8", "Isolate", isolate);
   ENTER_V8(isolate);
   EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
@@ -2302,6 +2308,7 @@ v8::Local<Value> Message::GetScriptResourceName() const {
 
 v8::Local<v8::StackTrace> Message::GetStackTrace() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  TRACE_EVENT_SCOPED_CONTEXT("v8", "Isolate", isolate);
   ENTER_V8(isolate);
   EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));
   auto message = i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
@@ -5510,6 +5517,7 @@ Local<Context> v8::Context::New(v8::Isolate* external_isolate,
                                 v8::Local<ObjectTemplate> global_template,
                                 v8::Local<Value> global_object) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(external_isolate);
+  TRACE_EVENT_SCOPED_CONTEXT("v8", "Isolate", isolate);
   LOG_API(isolate, "Context::New");
   i::HandleScope scope(isolate);
   ExtensionConfiguration no_extensions;
@@ -7148,6 +7156,7 @@ Isolate* Isolate::GetCurrent() {
 Isolate* Isolate::New(const Isolate::CreateParams& params) {
   i::Isolate* isolate = new i::Isolate(false);
   Isolate* v8_isolate = reinterpret_cast<Isolate*>(isolate);
+  TRACE_EVENT_SCOPED_CONTEXT("v8", "Isolate", isolate);
   CHECK(params.array_buffer_allocator != NULL);
   isolate->set_array_buffer_allocator(params.array_buffer_allocator);
   if (params.snapshot_blob != NULL) {
