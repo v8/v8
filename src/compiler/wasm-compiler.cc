@@ -2132,7 +2132,11 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
   Code::Flags flags = Code::ComputeFlags(Code::WASM_FUNCTION);
   // add flags here if a meaningful name is helpful for debugging.
   bool debugging =
+#if DEBUG
+      true;
+#else
       FLAG_print_opt_code || FLAG_trace_turbo || FLAG_trace_turbo_graph;
+#endif
   const char* func_name = "wasm";
   Vector<char> buffer;
   if (debugging) {
