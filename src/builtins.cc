@@ -2344,13 +2344,11 @@ BUILTIN(BooleanConstructor_ConstructStub) {
   Handle<JSFunction> target = args.target<JSFunction>();
   Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
   DCHECK(*target == target->native_context()->boolean_function());
-  Handle<Map> initial_map;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, initial_map,
-      JSFunction::GetDerivedMap(isolate, target, new_target));
-  Handle<JSValue> result = Handle<JSValue>::cast(
-      isolate->factory()->NewJSObjectFromMap(initial_map));
-  result->set_value(isolate->heap()->ToBoolean(value->BooleanValue()));
+  Handle<JSObject> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
+                                     JSObject::New(target, new_target));
+  Handle<JSValue>::cast(result)->set_value(
+      isolate->heap()->ToBoolean(value->BooleanValue()));
   return *result;
 }
 
@@ -3730,22 +3728,20 @@ BUILTIN(ArrayBufferConstructor_ConstructStub) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferLength));
   }
-  Handle<Map> initial_map;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, initial_map,
-      JSFunction::GetDerivedMap(isolate, target, new_target));
+  Handle<JSObject> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
+                                     JSObject::New(target, new_target));
   size_t byte_length;
   if (!TryNumberToSize(isolate, *number_length, &byte_length)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kInvalidArrayBufferLength));
   }
-  Handle<JSArrayBuffer> result = Handle<JSArrayBuffer>::cast(
-      isolate->factory()->NewJSObjectFromMap(initial_map));
   SharedFlag shared_flag =
       (*target == target->native_context()->array_buffer_fun())
           ? SharedFlag::kNotShared
           : SharedFlag::kShared;
-  if (!JSArrayBuffer::SetupAllocatingData(result, isolate, byte_length, true,
+  if (!JSArrayBuffer::SetupAllocatingData(Handle<JSArrayBuffer>::cast(result),
+                                          isolate, byte_length, true,
                                           shared_flag)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kArrayBufferAllocationFailed));
