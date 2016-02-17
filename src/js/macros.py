@@ -85,7 +85,7 @@ macro IS_SCRIPT(arg)            = (%_ClassOf(arg) === 'Script');
 macro IS_SET(arg)               = (%_ClassOf(arg) === 'Set');
 macro IS_SET_ITERATOR(arg)      = (%_ClassOf(arg) === 'Set Iterator');
 macro IS_SHAREDARRAYBUFFER(arg) = (%_ClassOf(arg) === 'SharedArrayBuffer');
-macro IS_SIMD_VALUE(arg)        = (%_IsSimdValue(arg));
+macro IS_SIMD_VALUE(arg)        = (%IsSimdValue(arg));
 macro IS_STRING(arg)            = (typeof(arg) === 'string');
 macro IS_STRING_WRAPPER(arg)    = (%_ClassOf(arg) === 'String');
 macro IS_STRONG(arg)            = (%IsStrong(arg));
