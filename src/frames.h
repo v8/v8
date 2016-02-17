@@ -111,6 +111,43 @@ class StackHandler BASE_EMBEDDED {
   V(CONSTRUCT, ConstructFrame)                           \
   V(ARGUMENTS_ADAPTOR, ArgumentsAdaptorFrame)
 
+// Every pointer in a frame has a slot id. On 32-bit platforms, doubles consume
+// two slots.
+//
+// Stack slot indices >= 0 access the callee stack with slot 0 corresponding to
+// the callee's saved return address and 1 corresponding to the saved frame
+// pointer. Some frames have additional information stored in the fixed header,
+// for example JSFunctions store the function context and marker in the fixed
+// header, with slot index 2 corresponding to the current function context and 3
+// corresponding to the frame marker/JSFunction.
+//
+//  slot      JS frame
+//       +-----------------+--------------------------------
+//  -n-1 |   parameter 0   |                            ^
+//       |- - - - - - - - -|                            |
+//  -n   |                 |                          Caller
+//  ...  |       ...       |                       frame slots
+//  -2   |  parameter n-1  |                       (slot < 0)
+//       |- - - - - - - - -|                            |
+//  -1   |   parameter n   |                            v
+//  -----+-----------------+--------------------------------
+//   0   |   return addr   |   ^                        ^
+//       |- - - - - - - - -|   |                        |
+//   1   | saved frame ptr | Fixed                      |
+//       |- - - - - - - - -| Header <-- frame ptr       |
+//   2   | [Constant Pool] |   |                        |
+//       |- - - - - - - - -|   |                        |
+// 2+cp  |     Context     |   |   if a constant pool   |
+//       |- - - - - - - - -|   |    is used, cp = 1,    |
+// 3+cp  |JSFunction/Marker|   v   otherwise, cp = 0    |
+//       +-----------------+----                        |
+// 4+cp  |                 |   ^                      Callee
+//       |- - - - - - - - -|   |                   frame slots
+//  ...  |                 | Frame slots           (slot >= 0)
+//       |- - - - - - - - -|   |                        |
+//       |                 |   v                        |
+//  -----+-----------------+----- <-- stack ptr -------------
+//
 
 class StandardFrameConstants : public AllStatic {
  public:
@@ -210,6 +247,15 @@ class InterpreterFrameConstants : public AllStatic {
   static const int kContextFromRegisterPointer = 5 * kPointerSize;
 };
 
+inline static int FPOffsetToFrameSlot(int frame_offset) {
+  return StandardFrameConstants::kFixedSlotCountAboveFp - 1 -
+         frame_offset / kPointerSize;
+}
+
+inline static int FrameSlotToFPOffset(int slot) {
+  return (StandardFrameConstants::kFixedSlotCountAboveFp - 1 - slot) *
+         kPointerSize;
+}
 
 // Abstract base class for all stack frames.
 class StackFrame BASE_EMBEDDED {
