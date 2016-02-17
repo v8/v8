@@ -574,6 +574,13 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArchStackPointer:
       __ mov(i.OutputRegister(), esp);
       break;
+    case kArchParentFramePointer:
+      if (frame_access_state()->frame()->needs_frame()) {
+        __ mov(i.OutputRegister(), Operand(ebp, 0));
+      } else {
+        __ mov(i.OutputRegister(), ebp);
+      }
+      break;
     case kArchTruncateDoubleToI: {
       if (!instr->InputAt(0)->IsDoubleRegister()) {
         __ fld_d(i.InputOperand(0));
