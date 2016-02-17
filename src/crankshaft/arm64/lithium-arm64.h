@@ -37,7 +37,6 @@ class LCodeGen;
   V(CallJSFunction)                          \
   V(CallNewArray)                            \
   V(CallRuntime)                             \
-  V(CallStub)                                \
   V(CallWithDescriptor)                      \
   V(CheckArrayBufferNotNeutered)             \
   V(CheckInstanceType)                       \
@@ -880,19 +879,6 @@ class LCallRuntime final : public LTemplateInstruction<1, 1, 0> {
   const Runtime::Function* function() const { return hydrogen()->function(); }
   int arity() const { return hydrogen()->argument_count(); }
   SaveFPRegsMode save_doubles() const { return hydrogen()->save_doubles(); }
-};
-
-
-class LCallStub final : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LCallStub(LOperand* context) {
-    inputs_[0] = context;
-  }
-
-  LOperand* context() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(CallStub, "call-stub")
-  DECLARE_HYDROGEN_ACCESSOR(CallStub)
 };
 
 

@@ -12542,7 +12542,13 @@ void HOptimizedGraphBuilder::GenerateSubString(CallRuntime* call) {
   DCHECK_EQ(3, call->arguments()->length());
   CHECK_ALIVE(VisitExpressions(call->arguments()));
   PushArgumentsFromEnvironment(call->arguments()->length());
-  HCallStub* result = New<HCallStub>(CodeStub::SubString, 3);
+  Callable callable = CodeFactory::SubString(isolate());
+  HValue* stub = Add<HConstant>(callable.code());
+  HValue* values[] = {context()};
+  HInstruction* result = New<HCallWithDescriptor>(
+      stub, call->arguments()->length(), callable.descriptor(),
+      Vector<HValue*>(values, arraysize(values)));
+  result->set_type(HType::String());
   return ast_context()->ReturnInstruction(result, call->id());
 }
 
@@ -12552,7 +12558,12 @@ void HOptimizedGraphBuilder::GenerateRegExpExec(CallRuntime* call) {
   DCHECK_EQ(4, call->arguments()->length());
   CHECK_ALIVE(VisitExpressions(call->arguments()));
   PushArgumentsFromEnvironment(call->arguments()->length());
-  HCallStub* result = New<HCallStub>(CodeStub::RegExpExec, 4);
+  Callable callable = CodeFactory::RegExpExec(isolate());
+  HValue* stub = Add<HConstant>(callable.code());
+  HValue* values[] = {context()};
+  HInstruction* result = New<HCallWithDescriptor>(
+      stub, call->arguments()->length(), callable.descriptor(),
+      Vector<HValue*>(values, arraysize(values)));
   return ast_context()->ReturnInstruction(result, call->id());
 }
 

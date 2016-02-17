@@ -1084,12 +1084,6 @@ LInstruction* LChunkBuilder::DoCallRuntime(HCallRuntime* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoCallStub(HCallStub* instr) {
-  LOperand* context = UseFixed(instr->context(), cp);
-  return MarkAsCall(DefineFixed(new(zone()) LCallStub(context), x0), instr);
-}
-
-
 LInstruction* LChunkBuilder::DoCapturedObject(HCapturedObject* instr) {
   instr->ReplayEnvironment(current_block_->last_environment());
 

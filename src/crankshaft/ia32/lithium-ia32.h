@@ -39,7 +39,6 @@ class LCodeGen;
   V(CallFunction)                            \
   V(CallNewArray)                            \
   V(CallRuntime)                             \
-  V(CallStub)                                \
   V(CheckArrayBufferNotNeutered)             \
   V(CheckInstanceType)                       \
   V(CheckMaps)                               \
@@ -450,19 +449,6 @@ class LParameter final : public LTemplateInstruction<1, 0, 0> {
  public:
   bool HasInterestingComment(LCodeGen* gen) const override { return false; }
   DECLARE_CONCRETE_INSTRUCTION(Parameter, "parameter")
-};
-
-
-class LCallStub final : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LCallStub(LOperand* context) {
-    inputs_[0] = context;
-  }
-
-  LOperand* context() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(CallStub, "call-stub")
-  DECLARE_HYDROGEN_ACCESSOR(CallStub)
 };
 
 

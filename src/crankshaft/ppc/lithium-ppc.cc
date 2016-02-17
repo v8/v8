@@ -2414,12 +2414,6 @@ LInstruction* LChunkBuilder::DoUnknownOSRValue(HUnknownOSRValue* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoCallStub(HCallStub* instr) {
-  LOperand* context = UseFixed(instr->context(), cp);
-  return MarkAsCall(DefineFixed(new (zone()) LCallStub(context), r3), instr);
-}
-
-
 LInstruction* LChunkBuilder::DoArgumentsObject(HArgumentsObject* instr) {
   // There are no real uses of the arguments object.
   // arguments.length and element access are supported directly on

@@ -64,7 +64,6 @@ class LChunkBuilder;
   V(CallFunction)                             \
   V(CallNewArray)                             \
   V(CallRuntime)                              \
-  V(CallStub)                                 \
   V(CapturedObject)                           \
   V(Change)                                   \
   V(CheckArrayBufferNotNeutered)              \
@@ -5232,27 +5231,6 @@ class HParameter final : public HTemplateInstruction<0> {
 
   unsigned index_;
   ParameterKind kind_;
-};
-
-
-class HCallStub final : public HUnaryCall {
- public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P2(HCallStub, CodeStub::Major, int);
-  CodeStub::Major major_key() { return major_key_; }
-
-  HValue* context() { return value(); }
-
-  std::ostream& PrintDataTo(std::ostream& os) const override;  // NOLINT
-
-  DECLARE_CONCRETE_INSTRUCTION(CallStub)
-
- private:
-  HCallStub(HValue* context, CodeStub::Major major_key, int argument_count)
-      : HUnaryCall(context, argument_count),
-        major_key_(major_key) {
-  }
-
-  CodeStub::Major major_key_;
 };
 
 

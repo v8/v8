@@ -776,7 +776,6 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kBoundsCheckBaseIndexInformation:
     case HValue::kCallFunction:
     case HValue::kCallNewArray:
-    case HValue::kCallStub:
     case HValue::kCapturedObject:
     case HValue::kClassOfTestAndBranch:
     case HValue::kCompareGeneric:
@@ -1727,12 +1726,6 @@ std::ostream& HCheckInstanceType::PrintDataTo(
     std::ostream& os) const {  // NOLINT
   os << GetCheckName() << " ";
   return HUnaryOperation::PrintDataTo(os);
-}
-
-
-std::ostream& HCallStub::PrintDataTo(std::ostream& os) const {  // NOLINT
-  os << CodeStub::MajorName(major_key_) << " ";
-  return HUnaryCall::PrintDataTo(os);
 }
 
 
