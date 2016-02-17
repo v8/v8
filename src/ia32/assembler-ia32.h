@@ -184,6 +184,8 @@ DOUBLE_REGISTERS(DECLARE_REGISTER)
 #undef DECLARE_REGISTER
 const DoubleRegister no_double_reg = {DoubleRegister::kCode_no_reg};
 
+typedef DoubleRegister Simd128Register;
+
 typedef DoubleRegister XMMRegister;
 
 enum Condition {

@@ -221,6 +221,7 @@ MachineRepresentation StackSlotRepresentationOf(Operator const* op) {
 #define MACHINE_TYPE_LIST(V) \
   V(Float32)                 \
   V(Float64)                 \
+  V(Simd128)                 \
   V(Int8)                    \
   V(Uint8)                   \
   V(Int16)                   \
@@ -232,16 +233,15 @@ MachineRepresentation StackSlotRepresentationOf(Operator const* op) {
   V(Pointer)                 \
   V(AnyTagged)
 
-
 #define MACHINE_REPRESENTATION_LIST(V) \
   V(kFloat32)                          \
   V(kFloat64)                          \
+  V(kSimd128)                          \
   V(kWord8)                            \
   V(kWord16)                           \
   V(kWord32)                           \
   V(kWord64)                           \
   V(kTagged)
-
 
 struct MachineOperatorGlobalCache {
 #define PURE(Name, properties, value_input_count, control_input_count,         \

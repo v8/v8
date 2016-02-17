@@ -159,6 +159,7 @@ void InstructionSelector::VisitLoad(Node* node) {
     case MachineRepresentation::kWord64:
       opcode = kMips64Ld;
       break;
+    case MachineRepresentation::kSimd128:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
@@ -241,6 +242,7 @@ void InstructionSelector::VisitStore(Node* node) {
       case MachineRepresentation::kWord64:
         opcode = kMips64Sd;
         break;
+      case MachineRepresentation::kSimd128:  // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
         return;
@@ -1347,6 +1349,7 @@ void InstructionSelector::VisitCheckedLoad(Node* node) {
       break;
     case MachineRepresentation::kBit:
     case MachineRepresentation::kTagged:
+    case MachineRepresentation::kSimd128:
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
@@ -1396,6 +1399,7 @@ void InstructionSelector::VisitCheckedStore(Node* node) {
       break;
     case MachineRepresentation::kBit:
     case MachineRepresentation::kTagged:
+    case MachineRepresentation::kSimd128:
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;

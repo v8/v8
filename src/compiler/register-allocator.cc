@@ -104,6 +104,8 @@ int GetByteWidth(MachineRepresentation rep) {
     case MachineRepresentation::kWord64:
     case MachineRepresentation::kFloat64:
       return 8;
+    case MachineRepresentation::kSimd128:
+      return 16;
     case MachineRepresentation::kNone:
       break;
   }

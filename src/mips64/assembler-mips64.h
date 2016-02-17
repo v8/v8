@@ -306,6 +306,8 @@ struct FPUControlRegister {
 const FPUControlRegister no_fpucreg = { kInvalidFPUControlRegister };
 const FPUControlRegister FCSR = { kFCSRRegister };
 
+// TODO(mips64) Define SIMD registers.
+typedef DoubleRegister Simd128Register;
 
 // -----------------------------------------------------------------------------
 // Machine instruction Operands.

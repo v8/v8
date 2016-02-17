@@ -142,6 +142,7 @@ UseInfo TruncatingUseInfoFromRepresentation(MachineRepresentation rep) {
     return UseInfo::TruncatingWord32();
     case MachineRepresentation::kBit:
       return UseInfo::Bool();
+    case MachineRepresentation::kSimd128:  // Fall through.
     case MachineRepresentation::kNone:
       break;
   }
@@ -198,6 +199,9 @@ bool MachineRepresentationIsSubtype(MachineRepresentation r1,
              r2 == MachineRepresentation::kTagged;
     case MachineRepresentation::kFloat64:
       return r2 == MachineRepresentation::kFloat64 ||
+             r2 == MachineRepresentation::kTagged;
+    case MachineRepresentation::kSimd128:
+      return r2 == MachineRepresentation::kSimd128 ||
              r2 == MachineRepresentation::kTagged;
     case MachineRepresentation::kTagged:
       return r2 == MachineRepresentation::kTagged;

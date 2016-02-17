@@ -186,6 +186,9 @@ const DoubleRegister no_double_reg = {DoubleRegister::kCode_no_reg};
 
 typedef DoubleRegister X87Register;
 
+// TODO(x87) Define SIMD registers.
+typedef DoubleRegister Simd128Register;
+
 enum Condition {
   // any value < 0 is considered no_condition
   no_condition  = -1,

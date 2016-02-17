@@ -145,6 +145,9 @@ Node* RepresentationChanger::GetRepresentationFor(
       return GetWord32RepresentationFor(node, output_rep, output_type);
     case MachineRepresentation::kWord64:
       return GetWord64RepresentationFor(node, output_rep, output_type);
+    case MachineRepresentation::kSimd128:  // Fall through.
+      // TODO(bbudge) Handle conversions between tagged and untagged.
+      break;
     case MachineRepresentation::kNone:
       return node;
   }

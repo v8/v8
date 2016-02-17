@@ -291,6 +291,9 @@ const CRegister cr13 = {13};
 const CRegister cr14 = {14};
 const CRegister cr15 = {15};
 
+// TODO(ppc) Define SIMD registers.
+typedef DoubleRegister Simd128Register;
+
 // -----------------------------------------------------------------------------
 // Machine instruction Operands
 

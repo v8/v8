@@ -369,6 +369,8 @@ bool AreSameSizeAndType(const CPURegister& reg1,
 
 typedef FPRegister DoubleRegister;
 
+// TODO(arm64) Define SIMD registers.
+typedef FPRegister Simd128Register;
 
 // -----------------------------------------------------------------------------
 // Lists of registers.

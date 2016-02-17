@@ -67,8 +67,10 @@ class InstructionOperand {
   inline bool IsAnyRegister() const;
   inline bool IsRegister() const;
   inline bool IsDoubleRegister() const;
+  inline bool IsSimd128Register() const;
   inline bool IsStackSlot() const;
   inline bool IsDoubleStackSlot() const;
+  inline bool IsSimd128StackSlot() const;
 
   template <typename SubKindOperand>
   static SubKindOperand* New(Zone* zone, const SubKindOperand& op) {
@@ -411,7 +413,7 @@ class LocationOperand : public InstructionOperand {
   }
 
   int index() const {
-    DCHECK(IsStackSlot() || IsDoubleStackSlot());
+    DCHECK(IsStackSlot() || IsDoubleStackSlot() || IsSimd128StackSlot());
     return static_cast<int64_t>(value_) >> IndexField::kShift;
   }
 
@@ -425,6 +427,12 @@ class LocationOperand : public InstructionOperand {
     DCHECK(IsDoubleRegister());
     return DoubleRegister::from_code(static_cast<int64_t>(value_) >>
                                      IndexField::kShift);
+  }
+
+  Simd128Register GetSimd128Register() const {
+    DCHECK(IsSimd128Register());
+    return Simd128Register::from_code(static_cast<int64_t>(value_) >>
+                                      IndexField::kShift);
   }
 
   LocationKind location_kind() const {
@@ -441,6 +449,7 @@ class LocationOperand : public InstructionOperand {
       case MachineRepresentation::kWord64:
       case MachineRepresentation::kFloat32:
       case MachineRepresentation::kFloat64:
+      case MachineRepresentation::kSimd128:
       case MachineRepresentation::kTagged:
         return true;
       case MachineRepresentation::kBit:
@@ -522,6 +531,12 @@ bool InstructionOperand::IsDoubleRegister() const {
          IsFloatingPoint(LocationOperand::cast(this)->representation());
 }
 
+bool InstructionOperand::IsSimd128Register() const {
+  return IsAnyRegister() &&
+         LocationOperand::cast(this)->representation() ==
+             MachineRepresentation::kSimd128;
+}
+
 bool InstructionOperand::IsStackSlot() const {
   return (IsAllocated() || IsExplicit()) &&
          LocationOperand::cast(this)->location_kind() ==
@@ -534,6 +549,14 @@ bool InstructionOperand::IsDoubleStackSlot() const {
          LocationOperand::cast(this)->location_kind() ==
              LocationOperand::STACK_SLOT &&
          IsFloatingPoint(LocationOperand::cast(this)->representation());
+}
+
+bool InstructionOperand::IsSimd128StackSlot() const {
+  return (IsAllocated() || IsExplicit()) &&
+         LocationOperand::cast(this)->location_kind() ==
+             LocationOperand::STACK_SLOT &&
+         LocationOperand::cast(this)->representation() ==
+             MachineRepresentation::kSimd128;
 }
 
 uint64_t InstructionOperand::GetCanonicalizedValue() const {
