@@ -344,11 +344,11 @@ void LAccessArgumentsAt::PrintDataTo(StringStream* stream) {
 int LPlatformChunk::GetNextSpillIndex(RegisterKind kind) {
   // Skip a slot if for a double-width slot.
   if (kind == DOUBLE_REGISTERS) {
-    current_frame_slots_++;
-    current_frame_slots_ |= 1;
+    spill_slot_count_++;
+    spill_slot_count_ |= 1;
     num_double_slots_++;
   }
-  return current_frame_slots_++;
+  return spill_slot_count_++;
 }
 
 
@@ -437,7 +437,7 @@ LPlatformChunk* LChunkBuilder::Build() {
   // Reserve the first spill slot for the state of dynamic alignment.
   if (info()->IsOptimizing()) {
     int alignment_state_index = chunk_->GetNextSpillIndex(GENERAL_REGISTERS);
-    DCHECK_EQ(alignment_state_index, 4);
+    DCHECK_EQ(alignment_state_index, 0);
     USE(alignment_state_index);
   }
 
@@ -2512,7 +2512,6 @@ LInstruction* LChunkBuilder::DoUnknownOSRValue(HUnknownOSRValue* instr) {
       // The first local is saved at the end of the unoptimized frame.
       spill_index = graph()->osr()->UnoptimizedFrameSlots();
     }
-    spill_index += StandardFrameConstants::kFixedSlotCount;
   }
   return DefineAsSpilled(new(zone()) LUnknownOSRValue, spill_index);
 }

@@ -355,7 +355,7 @@ bool LCodeGen::GenerateJumpTable() {
 
 bool LCodeGen::GenerateSafepointTable() {
   DCHECK(is_done());
-  safepoints_.Emit(masm(), GetTotalFrameSlotCount());
+  safepoints_.Emit(masm(), GetStackSlotCount());
   return !is_aborted();
 }
 
@@ -530,7 +530,7 @@ MemOperand LCodeGen::ToMemOperand(LOperand* op) const {
   DCHECK(!op->IsDoubleRegister());
   DCHECK(op->IsStackSlot() || op->IsDoubleStackSlot());
   if (NeedsEagerFrame()) {
-    return MemOperand(fp, FrameSlotToFPOffset(op->index()));
+    return MemOperand(fp, StackSlotOffset(op->index()));
   } else {
     // Retrieve parameter without eager stack-frame relative to the
     // stack-pointer.
@@ -542,8 +542,8 @@ MemOperand LCodeGen::ToMemOperand(LOperand* op) const {
 MemOperand LCodeGen::ToHighMemOperand(LOperand* op) const {
   DCHECK(op->IsDoubleStackSlot());
   if (NeedsEagerFrame()) {
-    // return MemOperand(fp, FrameSlotToFPOffset(op->index()) + kPointerSize);
-    return MemOperand(fp, FrameSlotToFPOffset(op->index()) + kIntSize);
+    // return MemOperand(fp, StackSlotOffset(op->index()) + kPointerSize);
+    return MemOperand(fp, StackSlotOffset(op->index()) + kIntSize);
   } else {
     // Retrieve parameter without eager stack-frame relative to the
     // stack-pointer.
@@ -614,6 +614,9 @@ void LCodeGen::AddToTranslation(LEnvironment* environment,
 
   if (op->IsStackSlot()) {
     int index = op->index();
+    if (index >= 0) {
+      index += StandardFrameConstants::kFixedFrameSize / kPointerSize;
+    }
     if (is_tagged) {
       translation->StoreStackSlot(index);
     } else if (is_uint32) {
@@ -623,6 +626,9 @@ void LCodeGen::AddToTranslation(LEnvironment* environment,
     }
   } else if (op->IsDoubleStackSlot()) {
     int index = op->index();
+    if (index >= 0) {
+      index += StandardFrameConstants::kFixedFrameSize / kPointerSize;
+    }
     translation->StoreDoubleStackSlot(index);
   } else if (op->IsRegister()) {
     Register reg = ToRegister(op);

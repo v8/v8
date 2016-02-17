@@ -9,7 +9,6 @@
 #include "src/compiler/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
-#include "src/frames.h"
 #include "src/ia32/assembler-ia32.h"
 #include "src/ia32/frames-ia32.h"
 #include "src/ia32/macro-assembler-ia32.h"
@@ -57,7 +56,7 @@ class IA32OperandConverter : public InstructionOperandConverter {
 
   Operand ToMaterializableOperand(int materializable_offset) {
     FrameOffset offset = frame_access_state()->GetFrameOffset(
-        FPOffsetToFrameSlot(materializable_offset));
+        Frame::FPOffsetToSlot(materializable_offset));
     return Operand(offset.from_stack_pointer() ? esp : ebp, offset.offset());
   }
 

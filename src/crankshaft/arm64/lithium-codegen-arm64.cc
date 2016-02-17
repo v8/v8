@@ -277,6 +277,9 @@ void LCodeGen::AddToTranslation(LEnvironment* environment,
 
   if (op->IsStackSlot()) {
     int index = op->index();
+    if (index >= 0) {
+      index += StandardFrameConstants::kFixedFrameSize / kPointerSize;
+    }
     if (is_tagged) {
       translation->StoreStackSlot(index);
     } else if (is_uint32) {
@@ -286,6 +289,9 @@ void LCodeGen::AddToTranslation(LEnvironment* environment,
     }
   } else if (op->IsDoubleStackSlot()) {
     int index = op->index();
+    if (index >= 0) {
+      index += StandardFrameConstants::kFixedFrameSize / kPointerSize;
+    }
     translation->StoreDoubleStackSlot(index);
   } else if (op->IsRegister()) {
     Register reg = ToRegister(op);
@@ -858,7 +864,7 @@ bool LCodeGen::GenerateSafepointTable() {
   // We do not know how much data will be emitted for the safepoint table, so
   // force emission of the veneer pool.
   masm()->CheckVeneerPool(true, true);
-  safepoints_.Emit(masm(), GetTotalFrameSlotCount());
+  safepoints_.Emit(masm(), GetStackSlotCount());
   return !is_aborted();
 }
 
@@ -1149,7 +1155,7 @@ MemOperand LCodeGen::ToMemOperand(LOperand* op, StackMode stack_mode) const {
   DCHECK(!op->IsDoubleRegister());
   DCHECK(op->IsStackSlot() || op->IsDoubleStackSlot());
   if (NeedsEagerFrame()) {
-    int fp_offset = FrameSlotToFPOffset(op->index());
+    int fp_offset = StackSlotOffset(op->index());
     // Loads and stores have a bigger reach in positive offset than negative.
     // We try to access using jssp (positive offset) first, then fall back to
     // fp (negative offset) if that fails.

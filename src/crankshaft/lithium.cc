@@ -246,9 +246,22 @@ void LPointerMap::PrintTo(StringStream* stream) {
   stream->Add("}");
 }
 
+
+int StackSlotOffset(int index) {
+  if (index >= 0) {
+    // Local or spill slot. Skip the frame pointer, function, and
+    // context in the fixed part of the frame.
+    return -(index + 1) * kPointerSize -
+        StandardFrameConstants::kFixedFrameSizeFromFp;
+  } else {
+    // Incoming parameter. Skip the return address.
+    return -(index + 1) * kPointerSize + kFPOnStackSize + kPCOnStackSize;
+  }
+}
+
+
 LChunk::LChunk(CompilationInfo* info, HGraph* graph)
-    : base_frame_slots_(StandardFrameConstants::kFixedFrameSize / kPointerSize),
-      current_frame_slots_(base_frame_slots_),
+    : spill_slot_count_(0),
       info_(info),
       graph_(graph),
       instructions_(32, info->zone()),
@@ -256,6 +269,7 @@ LChunk::LChunk(CompilationInfo* info, HGraph* graph)
       inlined_functions_(1, info->zone()),
       deprecation_dependencies_(32, info->zone()),
       stability_dependencies_(8, info->zone()) {}
+
 
 LLabel* LChunk::GetLabel(int block_id) const {
   HBasicBlock* block = graph_->blocks()->at(block_id);
@@ -481,9 +495,9 @@ void LChunk::set_allocated_double_registers(BitVector* allocated_registers) {
   while (!iterator.Done()) {
     if (info()->saves_caller_doubles()) {
       if (kDoubleSize == kPointerSize * 2) {
-        current_frame_slots_ += 2;
+        spill_slot_count_ += 2;
       } else {
-        current_frame_slots_++;
+        spill_slot_count_++;
       }
     }
     iterator.Advance();
