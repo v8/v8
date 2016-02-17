@@ -1103,6 +1103,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kObjectGetOwnPropertyNames, 1, false);
     SimpleInstallFunction(object_function, "getOwnPropertySymbols",
                           Builtins::kObjectGetOwnPropertySymbols, 1, false);
+    SimpleInstallFunction(object_function, "is", Builtins::kObjectIs, 2, true);
     Handle<JSFunction> object_is_extensible =
         SimpleInstallFunction(object_function, "isExtensible",
                               Builtins::kObjectIsExtensible, 1, false);

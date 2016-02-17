@@ -23,7 +23,6 @@ var ObjectToString = utils.ImportNow("object_to_string");
 var ObserveBeginPerformSplice;
 var ObserveEndPerformSplice;
 var ObserveEnqueueSpliceRecord;
-var SameValue = utils.ImportNow("SameValue");
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
@@ -544,17 +543,17 @@ function DefineObjectProperty(obj, p, desc, should_throw) {
     if ((IsGenericDescriptor(desc) ||
          IsDataDescriptor(desc) == IsDataDescriptor(current)) &&
         (!desc.hasEnumerable() ||
-         SameValue(desc.isEnumerable(), current.isEnumerable())) &&
+         %SameValue(desc.isEnumerable(), current.isEnumerable())) &&
         (!desc.hasConfigurable() ||
-         SameValue(desc.isConfigurable(), current.isConfigurable())) &&
+         %SameValue(desc.isConfigurable(), current.isConfigurable())) &&
         (!desc.hasWritable() ||
-         SameValue(desc.isWritable(), current.isWritable())) &&
+         %SameValue(desc.isWritable(), current.isWritable())) &&
         (!desc.hasValue() ||
-         SameValue(desc.getValue(), current.getValue())) &&
+         %SameValue(desc.getValue(), current.getValue())) &&
         (!desc.hasGetter() ||
-         SameValue(desc.getGet(), current.getGet())) &&
+         %SameValue(desc.getGet(), current.getGet())) &&
         (!desc.hasSetter() ||
-         SameValue(desc.getSet(), current.getSet()))) {
+         %SameValue(desc.getSet(), current.getSet()))) {
       return true;
     }
     if (!current.isConfigurable()) {
@@ -593,7 +592,7 @@ function DefineObjectProperty(obj, p, desc, should_throw) {
             }
           }
           if (!currentIsWritable && desc.hasValue() &&
-              !SameValue(desc.getValue(), current.getValue())) {
+              !%SameValue(desc.getValue(), current.getValue())) {
             if (should_throw) {
               throw MakeTypeError(kRedefineDisallowed, p);
             } else {
@@ -604,14 +603,14 @@ function DefineObjectProperty(obj, p, desc, should_throw) {
         // Step 11
         if (IsAccessorDescriptor(desc) && IsAccessorDescriptor(current)) {
           if (desc.hasSetter() &&
-              !SameValue(desc.getSet(), current.getSet())) {
+              !%SameValue(desc.getSet(), current.getSet())) {
             if (should_throw) {
               throw MakeTypeError(kRedefineDisallowed, p);
             } else {
               return false;
             }
           }
-          if (desc.hasGetter() && !SameValue(desc.getGet(),current.getGet())) {
+          if (desc.hasGetter() && !%SameValue(desc.getGet(),current.getGet())) {
             if (should_throw) {
               throw MakeTypeError(kRedefineDisallowed, p);
             } else {
@@ -871,7 +870,7 @@ utils.InstallFunctions(GlobalObject, DONT_ENUM, [
   "getPrototypeOf", ObjectGetPrototypeOf,
   "setPrototypeOf", ObjectSetPrototypeOf,
   // getOwnPropertySymbols is added in symbol.js.
-  "is", SameValue,  // ECMA-262, Edition 6, section 19.1.2.10
+  // is is added in bootstrapper.cc.
   // deliverChangeRecords, getNotifier, observe and unobserve are added
   // in object-observe.js.
 ]);

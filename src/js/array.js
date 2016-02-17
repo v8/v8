@@ -27,7 +27,6 @@ var ObjectToString = utils.ImportNow("object_to_string");
 var ObserveBeginPerformSplice;
 var ObserveEndPerformSplice;
 var ObserveEnqueueSpliceRecord;
-var SameValueZero;
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
 var unscopablesSymbol = utils.ImportNow("unscopables_symbol");
 
@@ -43,7 +42,6 @@ utils.Import(function(from) {
   ObserveBeginPerformSplice = from.ObserveBeginPerformSplice;
   ObserveEndPerformSplice = from.ObserveEndPerformSplice;
   ObserveEnqueueSpliceRecord = from.ObserveEnqueueSpliceRecord;
-  SameValueZero = from.SameValueZero;
 });
 
 utils.ImportFromExperimental(function(from) {
@@ -1724,7 +1722,7 @@ function InnerArrayIncludes(searchElement, fromIndex, array, length) {
 
   while (k < length) {
     var elementK = array[k];
-    if (SameValueZero(searchElement, elementK)) {
+    if (%SameValueZero(searchElement, elementK)) {
       return true;
     }
 

@@ -1491,25 +1491,22 @@ bool Object::SameValue(Object* other) {
   if (IsString() && other->IsString()) {
     return String::cast(this)->Equals(String::cast(other));
   }
-  if (IsSimd128Value() && other->IsSimd128Value()) {
-    if (IsFloat32x4() && other->IsFloat32x4()) {
-      Float32x4* a = Float32x4::cast(this);
-      Float32x4* b = Float32x4::cast(other);
-      for (int i = 0; i < 4; i++) {
-        float x = a->get_lane(i);
-        float y = b->get_lane(i);
-        // Implements the ES5 SameValue operation for floating point types.
-        // http://www.ecma-international.org/ecma-262/6.0/#sec-samevalue
-        if (x != y && !(std::isnan(x) && std::isnan(y))) return false;
-        if (std::signbit(x) != std::signbit(y)) return false;
-      }
-      return true;
-    } else {
-      Simd128Value* a = Simd128Value::cast(this);
-      Simd128Value* b = Simd128Value::cast(other);
-      return a->map()->instance_type() == b->map()->instance_type() &&
-             a->BitwiseEquals(b);
+  if (IsFloat32x4() && other->IsFloat32x4()) {
+    Float32x4* a = Float32x4::cast(this);
+    Float32x4* b = Float32x4::cast(other);
+    for (int i = 0; i < 4; i++) {
+      float x = a->get_lane(i);
+      float y = b->get_lane(i);
+      // Implements the ES5 SameValue operation for floating point types.
+      // http://www.ecma-international.org/ecma-262/6.0/#sec-samevalue
+      if (x != y && !(std::isnan(x) && std::isnan(y))) return false;
+      if (std::signbit(x) != std::signbit(y)) return false;
     }
+    return true;
+  } else if (IsSimd128Value() && other->IsSimd128Value()) {
+    Simd128Value* a = Simd128Value::cast(this);
+    Simd128Value* b = Simd128Value::cast(other);
+    return a->map() == b->map() && a->BitwiseEquals(b);
   }
   return false;
 }
@@ -1530,25 +1527,22 @@ bool Object::SameValueZero(Object* other) {
   if (IsString() && other->IsString()) {
     return String::cast(this)->Equals(String::cast(other));
   }
-  if (IsSimd128Value() && other->IsSimd128Value()) {
-    if (IsFloat32x4() && other->IsFloat32x4()) {
-      Float32x4* a = Float32x4::cast(this);
-      Float32x4* b = Float32x4::cast(other);
-      for (int i = 0; i < 4; i++) {
-        float x = a->get_lane(i);
-        float y = b->get_lane(i);
-        // Implements the ES6 SameValueZero operation for floating point types.
-        // http://www.ecma-international.org/ecma-262/6.0/#sec-samevaluezero
-        if (x != y && !(std::isnan(x) && std::isnan(y))) return false;
-        // SameValueZero doesn't distinguish between 0 and -0.
-      }
-      return true;
-    } else {
-      Simd128Value* a = Simd128Value::cast(this);
-      Simd128Value* b = Simd128Value::cast(other);
-      return a->map()->instance_type() == b->map()->instance_type() &&
-             a->BitwiseEquals(b);
+  if (IsFloat32x4() && other->IsFloat32x4()) {
+    Float32x4* a = Float32x4::cast(this);
+    Float32x4* b = Float32x4::cast(other);
+    for (int i = 0; i < 4; i++) {
+      float x = a->get_lane(i);
+      float y = b->get_lane(i);
+      // Implements the ES6 SameValueZero operation for floating point types.
+      // http://www.ecma-international.org/ecma-262/6.0/#sec-samevaluezero
+      if (x != y && !(std::isnan(x) && std::isnan(y))) return false;
+      // SameValueZero doesn't distinguish between 0 and -0.
     }
+    return true;
+  } else if (IsSimd128Value() && other->IsSimd128Value()) {
+    Simd128Value* a = Simd128Value::cast(this);
+    Simd128Value* b = Simd128Value::cast(other);
+    return a->map() == b->map() && a->BitwiseEquals(b);
   }
   return false;
 }

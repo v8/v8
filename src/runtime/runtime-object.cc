@@ -1095,6 +1095,24 @@ RUNTIME_FUNCTION(Runtime_StrictEquals) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_SameValue) {
+  SealHandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_CHECKED(Object, x, 0);
+  CONVERT_ARG_CHECKED(Object, y, 1);
+  return isolate->heap()->ToBoolean(x->SameValue(y));
+}
+
+
+RUNTIME_FUNCTION(Runtime_SameValueZero) {
+  SealHandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_CHECKED(Object, x, 0);
+  CONVERT_ARG_CHECKED(Object, y, 1);
+  return isolate->heap()->ToBoolean(x->SameValueZero(y));
+}
+
+
 // TODO(bmeurer): Kill this special wrapper and use TF compatible LessThan,
 // GreaterThan, etc. which return true or false.
 RUNTIME_FUNCTION(Runtime_Compare) {

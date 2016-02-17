@@ -187,7 +187,6 @@ function PostNatives(utils) {
     "PromiseChain",
     "PromiseDeferred",
     "PromiseResolved",
-    "SameValueZero",
     "SetIterator",
     "SetIteratorNext",
     "SetValues",
