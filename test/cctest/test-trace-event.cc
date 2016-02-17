@@ -256,27 +256,3 @@ TEST(TestEventWithId) {
 
   i::V8::SetPlatformForTesting(old_platform);
 }
-
-TEST(TestEventInContext) {
-  v8::Platform* old_platform = i::V8::GetCurrentPlatform();
-  MockTracingPlatform platform(old_platform);
-  i::V8::SetPlatformForTesting(&platform);
-
-  static uint64_t isolate_id = 0x20151021;
-  {
-    TRACE_EVENT_SCOPED_CONTEXT("v8-cat", "Isolate", isolate_id);
-    TRACE_EVENT0("v8-cat", "e");
-  }
-
-  CHECK_EQ(3, GET_TRACE_OBJECTS_LIST->length());
-  CHECK_EQ(TRACE_EVENT_PHASE_ENTER_CONTEXT, GET_TRACE_OBJECT(0)->phase);
-  CHECK_EQ("Isolate", GET_TRACE_OBJECT(0)->name);
-  CHECK_EQ(isolate_id, GET_TRACE_OBJECT(0)->id);
-  CHECK_EQ(TRACE_EVENT_PHASE_COMPLETE, GET_TRACE_OBJECT(1)->phase);
-  CHECK_EQ("e", GET_TRACE_OBJECT(1)->name);
-  CHECK_EQ(TRACE_EVENT_PHASE_LEAVE_CONTEXT, GET_TRACE_OBJECT(2)->phase);
-  CHECK_EQ("Isolate", GET_TRACE_OBJECT(2)->name);
-  CHECK_EQ(isolate_id, GET_TRACE_OBJECT(2)->id);
-
-  i::V8::SetPlatformForTesting(old_platform);
-}

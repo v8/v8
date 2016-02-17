@@ -38,9 +38,6 @@ void Logger::CallEventLogger(Isolate* isolate, const char* name, StartEnd se,
       isolate->event_logger()(name, se);
     }
   }
-
-  // We make 2 different macro calls instead of precalculating the category
-  // name because the category enabled status is cached based on its line no.
   if (expose_to_api) {
     if (se == START) {
       TRACE_EVENT_BEGIN0("v8", name);
