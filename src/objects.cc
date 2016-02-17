@@ -3069,17 +3069,19 @@ void MigrateFastToSlow(Handle<JSObject> object, Handle<Map> new_map,
 void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map,
                             int expected_additional_properties) {
   if (object->map() == *new_map) return;
-  // If this object is a prototype (the callee will check), invalidate any
-  // prototype chains involving it.
-  InvalidatePrototypeChains(object->map());
   Handle<Map> old_map(object->map());
+  if (old_map->is_prototype_map()) {
+    // If this object is a prototype (the callee will check), invalidate any
+    // prototype chains involving it.
+    InvalidatePrototypeChains(object->map());
 
-  // If the map was registered with its prototype before, ensure that it
-  // registers with its new prototype now. This preserves the invariant that
-  // when a map on a prototype chain is registered with its prototype, then
-  // all prototypes further up the chain are also registered with their
-  // respective prototypes.
-  UpdatePrototypeUserRegistration(old_map, new_map, new_map->GetIsolate());
+    // If the map was registered with its prototype before, ensure that it
+    // registers with its new prototype now. This preserves the invariant that
+    // when a map on a prototype chain is registered with its prototype, then
+    // all prototypes further up the chain are also registered with their
+    // respective prototypes.
+    UpdatePrototypeUserRegistration(old_map, new_map, new_map->GetIsolate());
+  }
 
   if (old_map->is_dictionary_map()) {
     // For slow-to-fast migrations JSObject::MigrateSlowToFast()
