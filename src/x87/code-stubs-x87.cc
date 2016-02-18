@@ -1688,6 +1688,16 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // Compute the handler entry address and jump to it.
   __ mov(edi, Operand::StaticVariable(pending_handler_code_address));
   __ mov(edx, Operand::StaticVariable(pending_handler_offset_address));
+  // Check whether it's a turbofanned exception handler code before jump to it.
+  Label not_turbo;
+  __ push(eax);
+  __ mov(eax, Operand(edi, Code::kKindSpecificFlags1Offset - kHeapObjectTag));
+  __ and_(eax, Immediate(1 << Code::kIsTurbofannedBit));
+  __ j(zero, &not_turbo);
+  __ fninit();
+  __ fld1();
+  __ bind(&not_turbo);
+  __ pop(eax);
   __ lea(edi, FieldOperand(edi, edx, times_1, Code::kHeaderSize));
   __ jmp(edi);
 }

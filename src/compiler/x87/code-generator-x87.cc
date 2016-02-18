@@ -360,41 +360,18 @@ void CodeGenerator::AssemblePrepareTailCall(int stack_param_delta) {
   frame_access_state()->SetFrameAccessToSP();
 }
 
-thread_local bool is_handler_entry_point = false;
-static void DoEnsureSpaceForLazyDeopt(CompilationInfo* info,
-                                      MacroAssembler* masm,
-                                      int last_lazy_deopt_pc) {
-  if (!info->ShouldEnsureSpaceForLazyDeopt()) {
-    return;
-  }
-
-  int space_needed = Deoptimizer::patch_size();
-  // Ensure that we have enough space after the previous lazy-bailout
-  // instruction for patching the code here.
-  int current_pc = masm->pc_offset();
-  if (current_pc < last_lazy_deopt_pc + space_needed) {
-    int padding_size = last_lazy_deopt_pc + space_needed - current_pc;
-    masm->Nop(padding_size);
-  }
-}
 
 // Assembles an instruction after register allocation, producing machine code.
 void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
   X87OperandConverter i(this, instr);
-  if (is_handler_entry_point) {
-    // Lazy Bailout entry, need to re-initialize FPU state.
-    __ fninit();
-    __ fld1();
-    is_handler_entry_point = false;
-  }
 
   switch (ArchOpcodeField::decode(instr->opcode())) {
     case kArchCallCodeObject: {
-      DoEnsureSpaceForLazyDeopt(info(), masm(), last_lazy_deopt_pc_);
       if (FLAG_debug_code && FLAG_enable_slow_asserts) {
         __ VerifyX87StackDepth(1);
       }
       __ fstp(0);
+      EnsureSpaceForLazyDeopt();
       if (HasImmediateInput(instr, 0)) {
         Handle<Code> code = Handle<Code>::cast(i.InputHeapObject(0));
         __ call(code, RelocInfo::CODE_TARGET);
@@ -439,7 +416,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     }
     case kArchCallJSFunction: {
-      DoEnsureSpaceForLazyDeopt(info(), masm(), last_lazy_deopt_pc_);
+      EnsureSpaceForLazyDeopt();
       Register func = i.InputRegister(0);
       if (FLAG_debug_code) {
         // Check the function's context matches the context argument.
@@ -2239,8 +2216,18 @@ void CodeGenerator::AddNopForSmiCodeInlining() { __ nop(); }
 
 
 void CodeGenerator::EnsureSpaceForLazyDeopt() {
-  is_handler_entry_point = true;
-  DoEnsureSpaceForLazyDeopt(info(), masm(), last_lazy_deopt_pc_);
+  if (!info()->ShouldEnsureSpaceForLazyDeopt()) {
+    return;
+  }
+
+  int space_needed = Deoptimizer::patch_size();
+  // Ensure that we have enough space after the previous lazy-bailout
+  // instruction for patching the code here.
+  int current_pc = masm()->pc_offset();
+  if (current_pc < last_lazy_deopt_pc_ + space_needed) {
+    int padding_size = last_lazy_deopt_pc_ + space_needed - current_pc;
+    __ Nop(padding_size);
+  }
 }
 
 #undef __
