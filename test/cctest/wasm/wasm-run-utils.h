@@ -46,6 +46,7 @@
   CHECK_EQ(0xdeadbeefdeadbeef, (bit_cast<uint64_t>(x)) & 0xFFFFFFFFFFFFFFFF)
 #define CHECK_TRAP(x) CHECK_TRAP32(x)
 
+#define WASM_RUNNER_MAX_NUM_PARAMETERS 4
 #define WASM_WRAPPER_RETURN_VALUE 8754
 
 namespace {
@@ -260,10 +261,12 @@ class WasmFunctionWrapper : public HandleAndZoneScope,
       : GraphAndBuilders(main_zone()),
         inner_code_node_(nullptr),
         signature_(nullptr) {
-    Signature<MachineType>::Builder sig_builder(zone(), 1, 5);
+    // One additional parameter for the pointer to the return value memory.
+    Signature<MachineType>::Builder sig_builder(
+        zone(), 1, WASM_RUNNER_MAX_NUM_PARAMETERS + 1);
 
     sig_builder.AddReturn(MachineType::Int32());
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < WASM_RUNNER_MAX_NUM_PARAMETERS + 1; i++) {
       sig_builder.AddParam(MachineType::Pointer());
     }
     signature_ = sig_builder.Build();
@@ -278,7 +281,8 @@ class WasmFunctionWrapper : public HandleAndZoneScope,
     // the actual test function.
 
     // Function, effect, and control.
-    Node** parameters = zone()->template NewArray<Node*>(4 + 3);
+    Node** parameters =
+        zone()->template NewArray<Node*>(WASM_RUNNER_MAX_NUM_PARAMETERS + 3);
     graph()->SetStart(graph()->NewNode(common()->Start(6)));
     Node* effect = graph()->start();
     int parameter_count = 0;
@@ -329,7 +333,8 @@ class WasmFunctionWrapper : public HandleAndZoneScope,
         machine()->Store(
             StoreRepresentation(MachineTypeForC<ReturnType>().representation(),
                                 WriteBarrierKind::kNoWriteBarrier)),
-        graph()->NewNode(common()->Parameter(4), graph()->start()),
+        graph()->NewNode(common()->Parameter(WASM_RUNNER_MAX_NUM_PARAMETERS),
+                         graph()->start()),
         graph()->NewNode(common()->Int32Constant(0)), call, effect,
         graph()->start());
     Node* r = graph()->NewNode(
@@ -350,6 +355,20 @@ class WasmFunctionWrapper : public HandleAndZoneScope,
 
       CallDescriptor* descriptor =
           Linkage::GetSimplifiedCDescriptor(zone(), signature_, true);
+
+      if (kPointerSize == 4) {
+        // One additional parameter for the pointer of the return value.
+        Signature<MachineRepresentation>::Builder rep_builder(
+            zone(), 1, WASM_RUNNER_MAX_NUM_PARAMETERS + 1);
+
+        rep_builder.AddReturn(MachineRepresentation::kWord32);
+        for (int i = 0; i < WASM_RUNNER_MAX_NUM_PARAMETERS + 1; i++) {
+          rep_builder.AddParam(MachineRepresentation::kWord32);
+        }
+        Int64Lowering r(graph(), machine(), common(), zone(),
+                        rep_builder.Build());
+        r.LowerGraph();
+      }
 
       CompilationInfo info("testing", isolate, graph()->zone());
       code_ =
@@ -418,9 +437,13 @@ class WasmFunctionCompiler : public HandleAndZoneScope,
 
   Handle<Code> Compile(ModuleEnv* module) {
     InitializeDescriptor();
+    CallDescriptor* desc = descriptor_;
+    if (kPointerSize == 4) {
+      desc = module->GetI32WasmCallDescriptor(this->zone(), desc);
+    }
     CompilationInfo info("wasm compile", this->isolate(), this->zone());
     Handle<Code> result =
-        Pipeline::GenerateCodeForTesting(&info, descriptor_, this->graph());
+        Pipeline::GenerateCodeForTesting(&info, desc, this->graph());
 #ifdef ENABLE_DISASSEMBLER
     if (!result.is_null() && FLAG_print_opt_code) {
       OFStream os(stdout);
@@ -529,7 +552,7 @@ class WasmRunner {
   }
 
  private:
-  LocalType storage_[5];
+  LocalType storage_[WASM_RUNNER_MAX_NUM_PARAMETERS];
   FunctionSig signature_;
   WasmFunctionCompiler compiler_;
   WasmFunctionWrapper<ReturnType> wrapper_;

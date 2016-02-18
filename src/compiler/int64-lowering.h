@@ -18,12 +18,10 @@ namespace compiler {
 class Int64Lowering {
  public:
   Int64Lowering(Graph* graph, MachineOperatorBuilder* machine,
-                CommonOperatorBuilder* common, Zone* zone);
+                CommonOperatorBuilder* common, Zone* zone,
+                Signature<MachineRepresentation>* signature);
 
-  void ReduceGraph();
-  Graph* graph() const { return graph_; }
-  MachineOperatorBuilder* machine() const { return machine_; }
-  CommonOperatorBuilder* common() const { return common_; }
+  void LowerGraph();
 
  private:
   enum class State : uint8_t { kUnvisited, kOnStack, kInputsPushed, kVisited };
@@ -33,15 +31,29 @@ class Int64Lowering {
     Node* high;
   };
 
-  void ReduceTop();
-  void ReduceNode(Node* node);
+  Zone* zone() const { return zone_; }
+  Graph* graph() const { return graph_; }
+  MachineOperatorBuilder* machine() const { return machine_; }
+  CommonOperatorBuilder* common() const { return common_; }
+  Signature<MachineRepresentation>* signature() const { return signature_; }
 
+  void LowerNode(Node* node);
+  bool DefaultLowering(Node* node);
+
+  void ReplaceNode(Node* old, Node* new_low, Node* new_high);
+  bool HasReplacementLow(Node* node);
+  Node* GetReplacementLow(Node* node);
+  bool HasReplacementHigh(Node* node);
+  Node* GetReplacementHigh(Node* node);
+
+  Zone* zone_;
   Graph* const graph_;
   MachineOperatorBuilder* machine_;
   CommonOperatorBuilder* common_;
   NodeMarker<State> state_;
   ZoneStack<Node*> stack_;
   Replacement* replacements_;
+  Signature<MachineRepresentation>* signature_;
 };
 
 }  // namespace compiler

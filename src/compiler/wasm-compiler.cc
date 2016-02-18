@@ -1484,8 +1484,9 @@ Node* WasmGraphBuilder::BuildWasmCall(wasm::FunctionSig* sig, Node** args) {
   args[params + 1] = *effect_;
   args[params + 2] = *control_;
 
-  const Operator* op = jsgraph()->common()->Call(
-      module_->GetWasmCallDescriptor(jsgraph()->zone(), sig));
+  CallDescriptor* descriptor =
+      module_->GetWasmCallDescriptor(jsgraph()->zone(), sig);
+  const Operator* op = jsgraph()->common()->Call(descriptor);
   Node* call = graph()->NewNode(op, static_cast<int>(count), args);
 
   *effect_ = call;
@@ -1909,11 +1910,12 @@ Node* WasmGraphBuilder::String(const char* string) {
 Graph* WasmGraphBuilder::graph() { return jsgraph()->graph(); }
 
 void WasmGraphBuilder::Int64LoweringForTesting() {
-#if !WASM_64
-  Int64Lowering r(jsgraph()->graph(), jsgraph()->machine(), jsgraph()->common(),
-                  jsgraph()->zone());
-  r.ReduceGraph();
-#endif
+  if (kPointerSize == 4) {
+    Int64Lowering r(jsgraph()->graph(), jsgraph()->machine(),
+                    jsgraph()->common(), jsgraph()->zone(),
+                    function_signature_);
+    r.LowerGraph();
+  }
 }
 
 static void RecordFunctionCompilation(Logger::LogEventsAndTags tag,
@@ -2127,8 +2129,11 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
   }
 
   // Run the compiler pipeline to generate machine code.
-  CallDescriptor* descriptor = const_cast<CallDescriptor*>(
-      module_env->GetWasmCallDescriptor(&zone, function.sig));
+  CallDescriptor* descriptor =
+      module_env->GetWasmCallDescriptor(&zone, function.sig);
+  if (kPointerSize == 4) {
+    descriptor = module_env->GetI32WasmCallDescriptor(&zone, descriptor);
+  }
   Code::Flags flags = Code::ComputeFlags(Code::WASM_FUNCTION);
   // add flags here if a meaningful name is helpful for debugging.
   bool debugging =
