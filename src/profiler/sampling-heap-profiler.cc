@@ -24,7 +24,7 @@ namespace internal {
 // next_sample = (- ln u) / λ
 intptr_t SamplingAllocationObserver::GetNextSampleInterval(uint64_t rate) {
   if (FLAG_sampling_heap_profiler_suppress_randomness) {
-    return rate;
+    return static_cast<intptr_t>(rate);
   }
   double u = random_->NextDouble();
   double next = (-std::log(u)) * rate;
@@ -38,9 +38,11 @@ SamplingHeapProfiler::SamplingHeapProfiler(Heap* heap, StringsStorage* names,
     : isolate_(heap->isolate()),
       heap_(heap),
       new_space_observer_(new SamplingAllocationObserver(
-          heap_, rate, rate, this, heap->isolate()->random_number_generator())),
+          heap_, static_cast<intptr_t>(rate), rate, this,
+          heap->isolate()->random_number_generator())),
       other_spaces_observer_(new SamplingAllocationObserver(
-          heap_, rate, rate, this, heap->isolate()->random_number_generator())),
+          heap_, static_cast<intptr_t>(rate), rate, this,
+          heap->isolate()->random_number_generator())),
       names_(names),
       samples_(),
       stack_depth_(stack_depth) {

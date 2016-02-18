@@ -113,7 +113,7 @@ class BufferedRawMachineAssemblerTester
 
   ReturnType Call() {
     ReturnType return_value;
-    test_graph_signature_->VerifyParams();
+    CSignature::VerifyParams(test_graph_signature_);
     CallHelper<int32_t>::Call(reinterpret_cast<void*>(&return_value));
     return return_value;
   }
@@ -121,7 +121,7 @@ class BufferedRawMachineAssemblerTester
   template <typename P0>
   ReturnType Call(P0 p0) {
     ReturnType return_value;
-    test_graph_signature_->VerifyParams<P0>();
+    CSignature::VerifyParams<P0>(test_graph_signature_);
     CallHelper<int32_t>::Call(reinterpret_cast<void*>(&p0),
                               reinterpret_cast<void*>(&return_value));
     return return_value;
@@ -130,7 +130,7 @@ class BufferedRawMachineAssemblerTester
   template <typename P0, typename P1>
   ReturnType Call(P0 p0, P1 p1) {
     ReturnType return_value;
-    test_graph_signature_->VerifyParams<P0, P1>();
+    CSignature::VerifyParams<P0, P1>(test_graph_signature_);
     CallHelper<int32_t>::Call(reinterpret_cast<void*>(&p0),
                               reinterpret_cast<void*>(&p1),
                               reinterpret_cast<void*>(&return_value));
@@ -140,7 +140,7 @@ class BufferedRawMachineAssemblerTester
   template <typename P0, typename P1, typename P2>
   ReturnType Call(P0 p0, P1 p1, P2 p2) {
     ReturnType return_value;
-    test_graph_signature_->VerifyParams<P0, P1, P2>();
+    CSignature::VerifyParams<P0, P1, P2>(test_graph_signature_);
     CallHelper<int32_t>::Call(
         reinterpret_cast<void*>(&p0), reinterpret_cast<void*>(&p1),
         reinterpret_cast<void*>(&p2), reinterpret_cast<void*>(&return_value));
@@ -150,7 +150,7 @@ class BufferedRawMachineAssemblerTester
   template <typename P0, typename P1, typename P2, typename P3>
   ReturnType Call(P0 p0, P1 p1, P2 p2, P3 p3) {
     ReturnType return_value;
-    test_graph_signature_->VerifyParams<P0, P1, P2, P3>();
+    CSignature::VerifyParams<P0, P1, P2, P3>(test_graph_signature_);
     CallHelper<int32_t>::Call(
         reinterpret_cast<void*>(&p0), reinterpret_cast<void*>(&p1),
         reinterpret_cast<void*>(&p2), reinterpret_cast<void*>(&p3),
@@ -262,26 +262,26 @@ class BufferedRawMachineAssemblerTester<void>
 
 
   void Call() {
-    test_graph_signature_->VerifyParams();
+    CSignature::VerifyParams(test_graph_signature_);
     CallHelper<void>::Call();
   }
 
   template <typename P0>
   void Call(P0 p0) {
-    test_graph_signature_->VerifyParams<P0>();
+    CSignature::VerifyParams<P0>(test_graph_signature_);
     CallHelper<void>::Call(reinterpret_cast<void*>(&p0));
   }
 
   template <typename P0, typename P1>
   void Call(P0 p0, P1 p1) {
-    test_graph_signature_->VerifyParams<P0, P1>();
+    CSignature::VerifyParams<P0, P1>(test_graph_signature_);
     CallHelper<void>::Call(reinterpret_cast<void*>(&p0),
                            reinterpret_cast<void*>(&p1));
   }
 
   template <typename P0, typename P1, typename P2>
   void Call(P0 p0, P1 p1, P2 p2) {
-    test_graph_signature_->VerifyParams<P0, P1, P2>();
+    CSignature::VerifyParams<P0, P1, P2>(test_graph_signature_);
     CallHelper<void>::Call(reinterpret_cast<void*>(&p0),
                            reinterpret_cast<void*>(&p1),
                            reinterpret_cast<void*>(&p2));
@@ -289,7 +289,7 @@ class BufferedRawMachineAssemblerTester<void>
 
   template <typename P0, typename P1, typename P2, typename P3>
   void Call(P0 p0, P1 p1, P2 p2, P3 p3) {
-    test_graph_signature_->VerifyParams<P0, P1, P2, P3>();
+    CSignature::VerifyParams<P0, P1, P2, P3>(test_graph_signature_);
     CallHelper<void>::Call(
         reinterpret_cast<void*>(&p0), reinterpret_cast<void*>(&p1),
         reinterpret_cast<void*>(&p2), reinterpret_cast<void*>(&p3));
@@ -540,24 +540,6 @@ class Int32BinopInputShapeTester {
   void RunLeft(RawMachineAssemblerTester<int32_t>* m);
   void RunRight(RawMachineAssemblerTester<int32_t>* m);
 };
-
-// TODO(bmeurer): Drop this crap once we switch to GTest/Gmock.
-static inline void CheckFloatEq(volatile float x, volatile float y) {
-  if (std::isnan(x)) {
-    CHECK(std::isnan(y));
-  } else {
-    CHECK_EQ(x, y);
-  }
-}
-
-static inline void CheckDoubleEq(volatile double x, volatile double y) {
-  if (std::isnan(x)) {
-    CHECK(std::isnan(y));
-  } else {
-    CHECK_EQ(x, y);
-  }
-}
-
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

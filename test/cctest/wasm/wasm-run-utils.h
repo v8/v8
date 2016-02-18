@@ -14,6 +14,8 @@
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/int64-lowering.h"
 #include "src/compiler/js-graph.h"
+#include "src/compiler/node.h"
+#include "src/compiler/pipeline.h"
 #include "src/compiler/wasm-compiler.h"
 
 #include "src/wasm/ast-decoder.h"
@@ -21,8 +23,10 @@
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
 
+#include "src/zone.h"
+
 #include "test/cctest/cctest.h"
-#include "test/cctest/compiler/codegen-tester.h"
+#include "test/cctest/compiler/call-tester.h"
 #include "test/cctest/compiler/graph-builder-tester.h"
 
 // TODO(titzer): pull WASM_64 up to a common header.
@@ -41,6 +45,8 @@
 #define CHECK_TRAP64(x) \
   CHECK_EQ(0xdeadbeefdeadbeef, (bit_cast<uint64_t>(x)) & 0xFFFFFFFFFFFFFFFF)
 #define CHECK_TRAP(x) CHECK_TRAP32(x)
+
+#define WASM_WRAPPER_RETURN_VALUE 8754
 
 namespace {
 using namespace v8::base;
@@ -246,6 +252,127 @@ inline void TestBuildingGraph(Zone* zone, JSGraph* jsgraph, FunctionEnv* env,
   }
 }
 
+template <typename ReturnType>
+class WasmFunctionWrapper : public HandleAndZoneScope,
+                            private GraphAndBuilders {
+ public:
+  WasmFunctionWrapper()
+      : GraphAndBuilders(main_zone()),
+        inner_code_node_(nullptr),
+        signature_(nullptr) {
+    Signature<MachineType>::Builder sig_builder(zone(), 1, 5);
+
+    sig_builder.AddReturn(MachineType::Int32());
+    for (int i = 0; i < 5; i++) {
+      sig_builder.AddParam(MachineType::Pointer());
+    }
+    signature_ = sig_builder.Build();
+  }
+
+  void Init(CallDescriptor* descriptor, MachineType p0 = MachineType::None(),
+            MachineType p1 = MachineType::None(),
+            MachineType p2 = MachineType::None(),
+            MachineType p3 = MachineType::None()) {
+    // Create the TF graph for the wrapper. The wrapper always takes four
+    // pointers as parameters, but may not pass the values of all pointers to
+    // the actual test function.
+
+    // Function, effect, and control.
+    Node** parameters = zone()->template NewArray<Node*>(4 + 3);
+    graph()->SetStart(graph()->NewNode(common()->Start(6)));
+    Node* effect = graph()->start();
+    int parameter_count = 0;
+
+    // Dummy node which gets replaced in SetInnerCode.
+    inner_code_node_ = graph()->NewNode(common()->Int32Constant(0));
+    parameters[parameter_count++] = inner_code_node_;
+
+    if (p0 != MachineType::None()) {
+      parameters[parameter_count] = graph()->NewNode(
+          machine()->Load(p0),
+          graph()->NewNode(common()->Parameter(0), graph()->start()),
+          graph()->NewNode(common()->Int32Constant(0)), effect,
+          graph()->start());
+      effect = parameters[parameter_count++];
+    }
+    if (p1 != MachineType::None()) {
+      parameters[parameter_count] = graph()->NewNode(
+          machine()->Load(p0),
+          graph()->NewNode(common()->Parameter(1), graph()->start()),
+          graph()->NewNode(common()->Int32Constant(0)), effect,
+          graph()->start());
+      effect = parameters[parameter_count++];
+    }
+    if (p2 != MachineType::None()) {
+      parameters[parameter_count] = graph()->NewNode(
+          machine()->Load(p0),
+          graph()->NewNode(common()->Parameter(2), graph()->start()),
+          graph()->NewNode(common()->Int32Constant(0)), effect,
+          graph()->start());
+      effect = parameters[parameter_count++];
+    }
+    if (p3 != MachineType::None()) {
+      parameters[parameter_count] = graph()->NewNode(
+          machine()->Load(p0),
+          graph()->NewNode(common()->Parameter(3), graph()->start()),
+          graph()->NewNode(common()->Int32Constant(0)), effect,
+          graph()->start());
+      effect = parameters[parameter_count++];
+    }
+
+    parameters[parameter_count++] = effect;
+    parameters[parameter_count++] = graph()->start();
+    Node* call = graph()->NewNode(common()->Call(descriptor), parameter_count,
+                                  parameters);
+
+    effect = graph()->NewNode(
+        machine()->Store(
+            StoreRepresentation(MachineTypeForC<ReturnType>().representation(),
+                                WriteBarrierKind::kNoWriteBarrier)),
+        graph()->NewNode(common()->Parameter(4), graph()->start()),
+        graph()->NewNode(common()->Int32Constant(0)), call, effect,
+        graph()->start());
+    Node* r = graph()->NewNode(
+        common()->Return(),
+        graph()->NewNode(common()->Int32Constant(WASM_WRAPPER_RETURN_VALUE)),
+        effect, graph()->start());
+    graph()->SetEnd(graph()->NewNode(common()->End(2), r, graph()->start()));
+  }
+
+  void SetInnerCode(Handle<Code> code_handle) {
+    NodeProperties::ChangeOp(inner_code_node_,
+                             common()->HeapConstant(code_handle));
+  }
+
+  Handle<Code> GetWrapperCode() {
+    if (code_.is_null()) {
+      Isolate* isolate = CcTest::InitIsolateOnce();
+
+      CallDescriptor* descriptor =
+          Linkage::GetSimplifiedCDescriptor(zone(), signature_, true);
+
+      CompilationInfo info("testing", isolate, graph()->zone());
+      code_ =
+          Pipeline::GenerateCodeForTesting(&info, descriptor, graph(), nullptr);
+      CHECK(!code_.is_null());
+#ifdef ENABLE_DISASSEMBLER
+      if (FLAG_print_opt_code) {
+        OFStream os(stdout);
+        code_->Disassemble("wasm wrapper", os);
+      }
+#endif
+    }
+
+    return code_;
+  }
+
+  Signature<MachineType>* signature() const { return signature_; }
+
+ private:
+  Node* inner_code_node_;
+  Handle<Code> code_;
+  Signature<MachineType>* signature_;
+};
 
 // A helper for compiling functions that are only internally callable WASM code.
 class WasmFunctionCompiler : public HandleAndZoneScope,
@@ -270,6 +397,11 @@ class WasmFunctionCompiler : public HandleAndZoneScope,
   Zone* zone() const { return graph()->zone(); }
   CommonOperatorBuilder* common() { return &main_common_; }
   MachineOperatorBuilder* machine() { return &main_machine_; }
+  void InitializeDescriptor() {
+    if (descriptor_ == nullptr) {
+      descriptor_ = env.module->GetWasmCallDescriptor(main_zone(), env.sig);
+    }
+  }
   CallDescriptor* descriptor() { return descriptor_; }
 
   void Build(const byte* start, const byte* end) {
@@ -285,7 +417,7 @@ class WasmFunctionCompiler : public HandleAndZoneScope,
   }
 
   Handle<Code> Compile(ModuleEnv* module) {
-    descriptor_ = module->GetWasmCallDescriptor(this->zone(), env.sig);
+    InitializeDescriptor();
     CompilationInfo info("wasm compile", this->isolate(), this->zone());
     Handle<Code> result =
         Pipeline::GenerateCodeForTesting(&info, descriptor_, this->graph());
@@ -323,7 +455,6 @@ class WasmRunner {
       : signature_(MachineTypeForC<ReturnType>() == MachineType::None() ? 0 : 1,
                    GetParameterCount(p0, p1, p2, p3), storage_),
         compiler_(&signature_),
-        call_wrapper_(p0, p1, p2, p3),
         compilation_done_(false) {
     int index = 0;
     MachineType ret = MachineTypeForC<ReturnType>();
@@ -338,6 +469,9 @@ class WasmRunner {
       storage_[index++] = WasmOpcodes::LocalTypeFor(p2);
     if (p3 != MachineType::None())
       storage_[index++] = WasmOpcodes::LocalTypeFor(p3);
+
+    compiler_.InitializeDescriptor();
+    wrapper_.Init(compiler_.descriptor(), p0, p1, p2, p3);
   }
 
 
@@ -355,39 +489,35 @@ class WasmRunner {
     // Generate code.
     Handle<Code> code = compiler_.Compile(env()->module);
 
-    // Construct the call wrapper.
-    Node* inputs[5];
-    int input_count = 0;
-    inputs[input_count++] = call_wrapper_.HeapConstant(code);
-    for (size_t i = 0; i < signature_.parameter_count(); i++) {
-      inputs[input_count++] = call_wrapper_.Parameter(i);
-    }
-
-    call_wrapper_.Return(call_wrapper_.AddNode(
-        call_wrapper_.common()->Call(compiler_.descriptor()), input_count,
-        inputs));
+    wrapper_.SetInnerCode(code);
   }
 
-  ReturnType Call() { return call_wrapper_.Call(); }
+  ReturnType Call() { return Call(nullptr, nullptr, nullptr, nullptr); }
 
   template <typename P0>
   ReturnType Call(P0 p0) {
-    return call_wrapper_.Call(p0);
+    return Call(p0, nullptr, nullptr, nullptr);
   }
 
   template <typename P0, typename P1>
   ReturnType Call(P0 p0, P1 p1) {
-    return call_wrapper_.Call(p0, p1);
+    return Call(p0, p1, nullptr, nullptr);
   }
 
   template <typename P0, typename P1, typename P2>
   ReturnType Call(P0 p0, P1 p1, P2 p2) {
-    return call_wrapper_.Call(p0, p1, p2);
+    return Call(p0, p1, p2, nullptr);
   }
 
   template <typename P0, typename P1, typename P2, typename P3>
   ReturnType Call(P0 p0, P1 p1, P2 p2, P3 p3) {
-    return call_wrapper_.Call(p0, p1, p2, p3);
+    CodeRunner<int32_t> runner(CcTest::InitIsolateOnce(),
+                               wrapper_.GetWrapperCode(), wrapper_.signature());
+    ReturnType return_value;
+    int32_t result = runner.Call<void*, void*, void*, void*, void*>(
+        &p0, &p1, &p2, &p3, &return_value);
+    CHECK_EQ(WASM_WRAPPER_RETURN_VALUE, result);
+    return return_value;
   }
 
   byte AllocateLocal(LocalType type) {
@@ -402,7 +532,7 @@ class WasmRunner {
   LocalType storage_[5];
   FunctionSig signature_;
   WasmFunctionCompiler compiler_;
-  BufferedRawMachineAssemblerTester<ReturnType> call_wrapper_;
+  WasmFunctionWrapper<ReturnType> wrapper_;
   bool compilation_done_;
 
   static size_t GetParameterCount(MachineType p0, MachineType p1,

@@ -1276,16 +1276,43 @@ TEST(Run_Wasm_ReturnStore) {
 
 
 TEST(Run_Wasm_VoidReturn1) {
-  WasmRunner<void> r;
-  BUILD(r, kExprNop);
-  r.Call();
+  // We use a wrapper function because WasmRunner<void> does not exist.
+
+  // Build the test function.
+  TestSignatures sigs;
+  TestingModule module;
+  WasmFunctionCompiler t(sigs.v_v());
+  BUILD(t, kExprNop);
+  uint32_t index = t.CompileAndAdd(&module);
+
+  const int32_t kExpected = -414444;
+  // Build the calling function.
+  WasmRunner<int32_t> r;
+  r.env()->module = &module;
+  BUILD(r, WASM_BLOCK(2, WASM_CALL_FUNCTION0(index), WASM_I32(kExpected)));
+
+  int32_t result = r.Call();
+  CHECK_EQ(kExpected, result);
 }
 
 
 TEST(Run_Wasm_VoidReturn2) {
-  WasmRunner<void> r;
-  BUILD(r, WASM_RETURN0);
-  r.Call();
+  // We use a wrapper function because WasmRunner<void> does not exist.
+  // Build the test function.
+  TestSignatures sigs;
+  TestingModule module;
+  WasmFunctionCompiler t(sigs.v_v());
+  BUILD(t, WASM_RETURN0);
+  uint32_t index = t.CompileAndAdd(&module);
+
+  const int32_t kExpected = -414444;
+  // Build the calling function.
+  WasmRunner<int32_t> r;
+  r.env()->module = &module;
+  BUILD(r, WASM_BLOCK(2, WASM_CALL_FUNCTION0(index), WASM_I32(kExpected)));
+
+  int32_t result = r.Call();
+  CHECK_EQ(kExpected, result);
 }
 
 
