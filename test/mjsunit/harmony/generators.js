@@ -238,7 +238,7 @@
     assertEquals({value: 1, done: false}, x.next());
     assertEquals({value: 42, done: false}, x.next());
     assertEquals({value: 43, done: false}, x.return(666));
-    assertEquals({value: 666, done: false}, x.next());
+    assertEquals({value: undefined, done: false}, x.next());
     assertEquals({value: undefined, done: true}, x.next());
   }
 

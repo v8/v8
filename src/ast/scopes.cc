@@ -535,7 +535,7 @@ Variable* Scope::DeclareLocal(const AstRawString* name, VariableMode mode,
                               int declaration_group_start) {
   DCHECK(!already_resolved());
   // This function handles VAR, LET, and CONST modes.  DYNAMIC variables are
-  // introduces during variable allocation, and TEMPORARY variables are
+  // introduced during variable allocation, and TEMPORARY variables are
   // allocated via NewTemporary().
   DCHECK(IsDeclaredVariableMode(mode));
   ++num_var_or_const_;
@@ -1646,7 +1646,7 @@ void Scope::AllocateVariablesRecursively(Isolate* isolate) {
   }
 
   // If scope is already resolved, we still need to allocate
-  // variables in inner scopes which might not had been resolved yet.
+  // variables in inner scopes which might not have been resolved yet.
   if (already_resolved()) return;
   // The number of slots required for variables.
   num_heap_slots_ = Context::MIN_CONTEXT_SLOTS;

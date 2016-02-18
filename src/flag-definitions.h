@@ -209,6 +209,7 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
   V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")                  \
   V(harmony_simd, "harmony simd")                                            \
   V(harmony_do_expressions, "harmony do-expressions")                        \
+  V(harmony_iterator_close, "harmony iterator finalization")                 \
   V(harmony_tailcalls, "harmony tail calls")                                 \
   V(harmony_object_values_entries, "harmony Object.values / Object.entries") \
   V(harmony_object_own_property_descriptors,                                 \

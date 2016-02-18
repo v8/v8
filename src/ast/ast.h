@@ -199,8 +199,8 @@ class AstNode: public ZoneObject {
 #ifdef DEBUG
   void PrettyPrint(Isolate* isolate);
   void PrettyPrint();
-  void PrintAst(Isolate* isolate);
-  void PrintAst();
+  void Print(Isolate* isolate);
+  void Print();
 #endif  // DEBUG
 
   // Type testing & conversion functions overridden by concrete subclasses.
@@ -883,11 +883,13 @@ class ForOfStatement final : public ForEachStatement {
   void Initialize(Expression* each,
                   Expression* subject,
                   Statement* body,
+                  Variable* iterator,
                   Expression* assign_iterator,
                   Expression* next_result,
                   Expression* result_done,
                   Expression* assign_each) {
     ForEachStatement::Initialize(each, subject, body);
+    iterator_ = iterator;
     assign_iterator_ = assign_iterator;
     next_result_ = next_result;
     result_done_ = result_done;
@@ -896,6 +898,10 @@ class ForOfStatement final : public ForEachStatement {
 
   Expression* iterable() const {
     return subject();
+  }
+
+  Variable* iterator() const {
+    return iterator_;
   }
 
   // iterator = subject[Symbol.iterator]()
@@ -932,6 +938,7 @@ class ForOfStatement final : public ForEachStatement {
  protected:
   ForOfStatement(Zone* zone, ZoneList<const AstRawString*>* labels, int pos)
       : ForEachStatement(zone, labels, pos),
+        iterator_(NULL),
         assign_iterator_(NULL),
         next_result_(NULL),
         result_done_(NULL),
@@ -941,6 +948,7 @@ class ForOfStatement final : public ForEachStatement {
  private:
   int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
+  Variable* iterator_;
   Expression* assign_iterator_;
   Expression* next_result_;
   Expression* result_done_;

@@ -461,6 +461,8 @@ class ParserTraits {
                             MessageTemplate::Template message,
                             const AstRawString* arg, int pos);
 
+  Statement* FinalizeForOfStatement(ForOfStatement* loop, int pos);
+
   // Reporting errors.
   void ReportMessageAt(Scanner::Location source_location,
                        MessageTemplate::Template message,
@@ -662,8 +664,12 @@ class ParserTraits {
  private:
   Parser* parser_;
 
-  void BuildIteratorClose(ZoneList<Statement*>* statements, Variable* iterator,
-                          Maybe<Variable*> input, Maybe<Variable*> output);
+  void BuildIteratorClose(
+      ZoneList<Statement*>* statements, Variable* iterator,
+      Expression* input, Variable* output);
+  void BuildIteratorCloseForCompletion(
+      ZoneList<Statement*>* statements, Variable* iterator,
+      Variable* body_threw);
 };
 
 

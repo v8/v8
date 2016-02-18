@@ -295,6 +295,7 @@ class CallSite {
   T(RestrictedFunctionProperties,                                              \
     "'caller' and 'arguments' are restricted function properties and cannot "  \
     "be accessed in this context.")                                            \
+  T(ReturnMethodNotCallable, "The iterator's 'return' method is not callable") \
   T(StaticPrototype, "Classes may not have static property named prototype")   \
   T(StrictCannotAssign, "Cannot assign to read only '%' in strict mode")       \
   T(StrictDeleteProperty, "Cannot delete property '%' of %")                   \

@@ -829,6 +829,7 @@
   'harmony/regress/regress-4482': [FAIL],
   'harmony/reflect': [FAIL],
   'harmony/generators': [FAIL],
+  'harmony/iterator-close': [FAIL],
   'regress/regress-572589': [FAIL],
   'harmony/reflect-construct': [FAIL],
   'es6/promises': [FAIL],

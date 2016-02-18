@@ -31,6 +31,7 @@ class Processor: public AstVisitor {
         result_assigned_(false),
         replacement_(nullptr),
         is_set_(false),
+        zone_(ast_value_factory->zone()),
         scope_(scope),
         factory_(ast_value_factory) {
     InitializeAstVisitor(parser->stack_limit());

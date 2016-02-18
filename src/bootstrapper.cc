@@ -2350,6 +2350,7 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_object_observe)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexps)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_unicode_regexps)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_do_expressions)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_iterator_close)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexp_lookbehind)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexp_property)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_function_name)
@@ -2975,6 +2976,7 @@ bool Genesis::InstallExperimentalNatives() {
   static const char* harmony_regexps_natives[] = {"native harmony-regexp.js",
                                                   nullptr};
   static const char* harmony_tostring_natives[] = {nullptr};
+  static const char* harmony_iterator_close_natives[] = {nullptr};
   static const char* harmony_sloppy_natives[] = {nullptr};
   static const char* harmony_sloppy_function_natives[] = {nullptr};
   static const char* harmony_sloppy_let_natives[] = {nullptr};
