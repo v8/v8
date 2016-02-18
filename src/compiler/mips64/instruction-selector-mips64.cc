@@ -830,7 +830,7 @@ void InstructionSelector::VisitRoundInt32ToFloat32(Node* node) {
 
 
 void InstructionSelector::VisitRoundUint32ToFloat32(Node* node) {
-  UNIMPLEMENTED();
+  VisitRR(this, kMips64CvtSUw, node);
 }
 
 

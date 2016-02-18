@@ -832,6 +832,10 @@ class MacroAssembler: public Assembler {
   void Cvt_d_ul(FPURegister fd, FPURegister fs);
   void Cvt_d_ul(FPURegister fd, Register rs);
 
+  // Convert unsigned word to float.
+  void Cvt_s_uw(FPURegister fd, FPURegister fs);
+  void Cvt_s_uw(FPURegister fd, Register rs);
+
   // Convert unsigned long to float.
   void Cvt_s_ul(FPURegister fd, FPURegister fs);
   void Cvt_s_ul(FPURegister fd, Register rs);

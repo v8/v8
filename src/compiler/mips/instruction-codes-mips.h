@@ -82,6 +82,7 @@ namespace compiler {
   V(MipsCvtDW)                     \
   V(MipsCvtDUw)                    \
   V(MipsCvtSW)                     \
+  V(MipsCvtSUw)                    \
   V(MipsLb)                        \
   V(MipsLbu)                       \
   V(MipsSb)                        \

@@ -1652,6 +1652,22 @@ void MacroAssembler::Cvt_d_ul(FPURegister fd, Register rs) {
   bind(&conversion_done);
 }
 
+void MacroAssembler::Cvt_s_uw(FPURegister fd, FPURegister fs) {
+  // Move the data from fs to t8.
+  mfc1(t8, fs);
+  Cvt_s_uw(fd, t8);
+}
+
+void MacroAssembler::Cvt_s_uw(FPURegister fd, Register rs) {
+  // Convert rs to a FP value in fd.
+  DCHECK(!rs.is(t9));
+  DCHECK(!rs.is(at));
+
+  // Zero extend int32 in rs.
+  Dext(t9, rs, 0, 32);
+  dmtc1(t9, fd);
+  cvt_s_l(fd, fd);
+}
 
 void MacroAssembler::Cvt_s_ul(FPURegister fd, FPURegister fs) {
   // Move the data from fs to t8.
