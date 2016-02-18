@@ -850,7 +850,7 @@ void InstructionSelector::VisitTruncateFloat32ToInt32(Node* node) {
 
 
 void InstructionSelector::VisitTruncateFloat32ToUint32(Node* node) {
-  UNIMPLEMENTED();
+  VisitRR(this, kMips64TruncUwS, node);
 }
 
 

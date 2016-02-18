@@ -1378,6 +1378,11 @@ void MacroAssembler::Trunc_uw_d(FPURegister fd,
   mtc1(t8, fd);
 }
 
+void MacroAssembler::Trunc_uw_s(FPURegister fd, FPURegister fs,
+                                FPURegister scratch) {
+  Trunc_uw_s(fs, t8, scratch);
+  mtc1(t8, fd);
+}
 
 void MacroAssembler::Trunc_w_d(FPURegister fd, FPURegister fs) {
   if (IsMipsArchVariant(kLoongson) && fd.is(fs)) {
@@ -1455,6 +1460,35 @@ void MacroAssembler::Trunc_uw_d(FPURegister fd,
   bind(&done);
 }
 
+void MacroAssembler::Trunc_uw_s(FPURegister fd, Register rs,
+                                FPURegister scratch) {
+  DCHECK(!fd.is(scratch));
+  DCHECK(!rs.is(at));
+
+  // Load 2^31 into scratch as its float representation.
+  li(at, 0x4F000000);
+  mtc1(at, scratch);
+  // Test if scratch > fd.
+  // If fd < 2^31 we can convert it normally.
+  Label simple_convert;
+  BranchF32(&simple_convert, NULL, lt, fd, scratch);
+
+  // First we subtract 2^31 from fd, then trunc it to rs
+  // and add 2^31 to rs.
+  sub_s(scratch, fd, scratch);
+  trunc_w_s(scratch, scratch);
+  mfc1(rs, scratch);
+  Or(rs, rs, 1 << 31);
+
+  Label done;
+  Branch(&done);
+  // Simple conversion.
+  bind(&simple_convert);
+  trunc_w_s(scratch, fd);
+  mfc1(rs, scratch);
+
+  bind(&done);
+}
 
 void MacroAssembler::Mthc1(Register rt, FPURegister fs) {
   if (IsFp32Mode()) {

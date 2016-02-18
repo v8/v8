@@ -1088,6 +1088,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ Trunc_uw_d(i.InputDoubleRegister(0), i.OutputRegister(), scratch);
       break;
     }
+    case kMipsTruncUwS: {
+      FPURegister scratch = kScratchDoubleReg;
+      // TODO(plind): Fix wrong param order of Trunc_uw_s() macro-asm function.
+      __ Trunc_uw_s(i.InputDoubleRegister(0), i.OutputRegister(), scratch);
+      break;
+    }
     case kMipsFloat64ExtractLowWord32:
       __ FmoveLow(i.OutputRegister(), i.InputDoubleRegister(0));
       break;

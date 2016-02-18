@@ -782,6 +782,10 @@ class MacroAssembler: public Assembler {
   // Convert unsigned word to double.
   void Cvt_d_uw(FPURegister fd, Register rs, FPURegister scratch);
 
+  // Convert single to unsigned word.
+  void Trunc_uw_s(FPURegister fd, FPURegister fs, FPURegister scratch);
+  void Trunc_uw_s(FPURegister fd, Register rs, FPURegister scratch);
+
   // Convert double to unsigned word.
   void Trunc_uw_d(FPURegister fd, FPURegister fs, FPURegister scratch);
   void Trunc_uw_d(FPURegister fd, Register rs, FPURegister scratch);

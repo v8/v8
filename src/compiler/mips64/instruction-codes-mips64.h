@@ -97,6 +97,7 @@ namespace compiler {
   V(Mips64TruncLS)                  \
   V(Mips64TruncLD)                  \
   V(Mips64TruncUwD)                 \
+  V(Mips64TruncUwS)                 \
   V(Mips64TruncUlS)                 \
   V(Mips64TruncUlD)                 \
   V(Mips64CvtDW)                    \
@@ -133,7 +134,6 @@ namespace compiler {
   V(Mips64Push)                     \
   V(Mips64StoreToStackSlot)         \
   V(Mips64StackClaim)
-
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes
