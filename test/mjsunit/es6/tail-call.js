@@ -5,10 +5,16 @@
 // Flags: --allow-natives-syntax --harmony-tailcalls
 "use strict";
 
-Error.prepareStackTrace = (e,s) => s;
+Error.prepareStackTrace = (error,stack) => {
+  error.strace = stack;
+  return error.message + "\n    at " + stack.join("\n    at ");
+}
+
 
 function CheckStackTrace(expected) {
-  var stack = (new Error()).stack;
+  var e = new Error();
+  e.stack;  // prepare stack trace
+  var stack = e.strace;
   assertEquals("CheckStackTrace", stack[0].getFunctionName());
   for (var i = 0; i < expected.length; i++) {
     assertEquals(expected[i].name, stack[i + 1].getFunctionName());
@@ -27,14 +33,13 @@ function f_153(expected_call_stack, a) {
 
 
 // Tail call when caller does not have an arguments adaptor frame.
-(function test() {
+(function() {
   // Caller and callee have same number of arguments.
   function f1(a) {
     CheckStackTrace([f1, test]);
     return 10 + a;
   }
   function g1(a) { return f1(2); }
-  assertEquals(12, g1(1));
 
   // Caller has more arguments than callee.
   function f2(a) {
@@ -42,7 +47,6 @@ function f_153(expected_call_stack, a) {
     return 10 + a;
   }
   function g2(a, b, c) { return f2(2); }
-  assertEquals(12, g2(1, 2, 3));
 
   // Caller has less arguments than callee.
   function f3(a, b, c) {
@@ -50,7 +54,6 @@ function f_153(expected_call_stack, a) {
     return 10 + a + b + c;
   }
   function g3(a) { return f3(2, 3, 4); }
-  assertEquals(19, g3(1));
 
   // Callee has arguments adaptor frame.
   function f4(a, b, c) {
@@ -58,19 +61,27 @@ function f_153(expected_call_stack, a) {
     return 10 + a;
   }
   function g4(a) { return f4(2); }
-  assertEquals(12, g4(1));
+
+  function test() {
+    assertEquals(12, g1(1));
+    assertEquals(12, g2(1, 2, 3));
+    assertEquals(19, g3(1));
+    assertEquals(12, g4(1));
+  }
+  test();
+  %OptimizeFunctionOnNextCall(test);
+  test();
 })();
 
 
 // Tail call when caller has an arguments adaptor frame.
-(function test() {
+(function() {
   // Caller and callee have same number of arguments.
   function f1(a) {
     CheckStackTrace([f1, test]);
     return 10 + a;
   }
   function g1(a) { return f1(2); }
-  assertEquals(12, g1());
 
   // Caller has more arguments than callee.
   function f2(a) {
@@ -78,7 +89,6 @@ function f_153(expected_call_stack, a) {
     return 10 + a;
   }
   function g2(a, b, c) { return f2(2); }
-  assertEquals(12, g2());
 
   // Caller has less arguments than callee.
   function f3(a, b, c) {
@@ -86,7 +96,6 @@ function f_153(expected_call_stack, a) {
     return 10 + a + b + c;
   }
   function g3(a) { return f3(2, 3, 4); }
-  assertEquals(19, g3());
 
   // Callee has arguments adaptor frame.
   function f4(a, b, c) {
@@ -94,13 +103,22 @@ function f_153(expected_call_stack, a) {
     return 10 + a;
   }
   function g4(a) { return f4(2); }
-  assertEquals(12, g4());
+
+  function test() {
+    assertEquals(12, g1());
+    assertEquals(12, g2());
+    assertEquals(19, g3());
+    assertEquals(12, g4());
+  }
+  test();
+  %OptimizeFunctionOnNextCall(test);
+  test();
 })();
 
 
 // Tail call bound function when caller does not have an arguments
 // adaptor frame.
-(function test() {
+(function() {
   // Caller and callee have same number of arguments.
   function f1(a) {
     assertEquals(153, this.a);
@@ -109,7 +127,6 @@ function f_153(expected_call_stack, a) {
   }
   var b1 = f1.bind({a: 153});
   function g1(a) { return b1(2); }
-  assertEquals(12, g1(1));
 
   // Caller has more arguments than callee.
   function f2(a) {
@@ -119,7 +136,6 @@ function f_153(expected_call_stack, a) {
   }
   var b2 = f2.bind({a: 153});
   function g2(a, b, c) { return b2(2); }
-  assertEquals(12, g2(1, 2, 3));
 
   // Caller has less arguments than callee.
   function f3(a, b, c) {
@@ -129,7 +145,6 @@ function f_153(expected_call_stack, a) {
   }
   var b3 = f3.bind({a: 153});
   function g3(a) { return b3(2, 3, 4); }
-  assertEquals(19, g3(1));
 
   // Callee has arguments adaptor frame.
   function f4(a, b, c) {
@@ -139,12 +154,21 @@ function f_153(expected_call_stack, a) {
   }
   var b4 = f4.bind({a: 153});
   function g4(a) { return b4(2); }
-  assertEquals(12, g4(1));
+
+  function test() {
+    assertEquals(12, g1(1));
+    assertEquals(12, g2(1, 2, 3));
+    assertEquals(19, g3(1));
+    assertEquals(12, g4(1));
+  }
+  test();
+  %OptimizeFunctionOnNextCall(test);
+  test();
 })();
 
 
 // Tail call bound function when caller has an arguments adaptor frame.
-(function test() {
+(function() {
   // Caller and callee have same number of arguments.
   function f1(a) {
     assertEquals(153, this.a);
@@ -153,7 +177,6 @@ function f_153(expected_call_stack, a) {
   }
   var b1 = f1.bind({a: 153});
   function g1(a) { return b1(2); }
-  assertEquals(12, g1());
 
   // Caller has more arguments than callee.
   function f2(a) {
@@ -163,7 +186,6 @@ function f_153(expected_call_stack, a) {
   }
   var b2 = f2.bind({a: 153});
   function g2(a, b, c) { return b2(2); }
-  assertEquals(12, g2());
 
   // Caller has less arguments than callee.
   function f3(a, b, c) {
@@ -173,7 +195,6 @@ function f_153(expected_call_stack, a) {
   }
   var b3 = f3.bind({a: 153});
   function g3(a) { return b3(2, 3, 4); }
-  assertEquals(19, g3());
 
   // Callee has arguments adaptor frame.
   function f4(a, b, c) {
@@ -183,34 +204,46 @@ function f_153(expected_call_stack, a) {
   }
   var b4 = f4.bind({a: 153});
   function g4(a) { return b4(2); }
-  assertEquals(12, g4());
+
+  function test() {
+    assertEquals(12, g1());
+    assertEquals(12, g2());
+    assertEquals(19, g3());
+    assertEquals(12, g4());
+  }
+  test();
+  %OptimizeFunctionOnNextCall(test);
+  test();
 })();
 
 
 // Tail calling via various expressions.
-(function test() {
+(function() {
   function g1(a) {
     return f([f, g1, test], false) || f([f, test], true);
   }
-  assertEquals(true, g1());
 
   function g2(a) {
     return f([f, g2, test], true) && f([f, test], true);
   }
-  assertEquals(true, g2());
 
   function g3(a) {
     return f([f, g3, test], 13), f([f, test], 153);
   }
-  assertEquals(153, g3());
+
+  function test() {
+    assertEquals(true, g1());
+    assertEquals(true, g2());
+    assertEquals(153, g3());
+  }
+  test();
+  %OptimizeFunctionOnNextCall(test);
+  test();
 })();
 
 
-// Test tail calls from try-catch-finally constructs.
-(function test() {
-  //
-  // try-catch
-  //
+// Test tail calls from try-catch constructs.
+(function() {
   function tc1(a) {
     try {
       f_153([f_153, tc1, test]);
@@ -219,7 +252,6 @@ function f_153(expected_call_stack, a) {
       f_153([f_153, tc1, test]);
     }
   }
-  assertEquals(153, tc1());
 
   function tc2(a) {
     try {
@@ -230,7 +262,6 @@ function f_153(expected_call_stack, a) {
       return f_153([f_153, test]);
     }
   }
-  assertEquals(153, tc2());
 
   function tc3(a) {
     try {
@@ -242,11 +273,20 @@ function f_153(expected_call_stack, a) {
     f_153([f_153, tc3, test]);
     return f_153([f_153, test]);
   }
-  assertEquals(153, tc3());
 
-  //
-  // try-finally
-  //
+  function test() {
+    assertEquals(153, tc1());
+    assertEquals(153, tc2());
+    assertEquals(153, tc3());
+  }
+  test();
+  %OptimizeFunctionOnNextCall(test);
+  test();
+})();
+
+
+// Test tail calls from try-finally constructs.
+(function() {
   function tf1(a) {
     try {
       f_153([f_153, tf1, test]);
@@ -255,7 +295,6 @@ function f_153(expected_call_stack, a) {
       f_153([f_153, tf1, test]);
     }
   }
-  assertEquals(153, tf1());
 
   function tf2(a) {
     try {
@@ -266,7 +305,6 @@ function f_153(expected_call_stack, a) {
       return f_153([f_153, test]);
     }
   }
-  assertEquals(153, tf2());
 
   function tf3(a) {
     try {
@@ -276,11 +314,20 @@ function f_153(expected_call_stack, a) {
     }
     return f_153([f_153, test]);
   }
-  assertEquals(153, tf3());
 
-  //
-  // try-catch-finally
-  //
+  function test() {
+    assertEquals(153, tf1());
+    assertEquals(153, tf2());
+    assertEquals(153, tf3());
+  }
+  test();
+  %OptimizeFunctionOnNextCall(test);
+  test();
+})();
+
+
+// Test tail calls from try-catch-finally constructs.
+(function() {
   function tcf1(a) {
     try {
       f_153([f_153, tcf1, test]);
@@ -290,7 +337,6 @@ function f_153(expected_call_stack, a) {
       f_153([f_153, tcf1, test]);
     }
   }
-  assertEquals(153, tcf1());
 
   function tcf2(a) {
     try {
@@ -303,7 +349,6 @@ function f_153(expected_call_stack, a) {
       f_153([f_153, tcf2, test]);
     }
   }
-  assertEquals(153, tcf2());
 
   function tcf3(a) {
     try {
@@ -316,7 +361,6 @@ function f_153(expected_call_stack, a) {
       return f_153([f_153, test]);
     }
   }
-  assertEquals(153, tcf3());
 
   function tcf4(a) {
     try {
@@ -329,5 +373,14 @@ function f_153(expected_call_stack, a) {
     }
     return f_153([f_153, test]);
   }
-  assertEquals(153, tcf4());
+
+  function test() {
+    assertEquals(153, tcf1());
+    assertEquals(153, tcf2());
+    assertEquals(153, tcf3());
+    assertEquals(153, tcf4());
+  }
+  test();
+  %OptimizeFunctionOnNextCall(test);
+  test();
 })();

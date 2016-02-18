@@ -578,12 +578,28 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
   size_t frame_state_entries = 0;
   USE(frame_state_entries);  // frame_state_entries is only used for debug.
   if (buffer->frame_state_descriptor != nullptr) {
+    Node* frame_state =
+        call->InputAt(static_cast<int>(buffer->descriptor->InputCount()));
+
+    // If it was a syntactic tail call we need to drop the current frame and
+    // an arguments adaptor frame on top of it (if the latter is present).
+    if (buffer->descriptor->SupportsTailCalls()) {
+      frame_state = NodeProperties::GetFrameStateInput(frame_state, 0);
+      buffer->frame_state_descriptor =
+          buffer->frame_state_descriptor->outer_state();
+
+      if (buffer->frame_state_descriptor != nullptr &&
+          buffer->frame_state_descriptor->type() ==
+              FrameStateType::kArgumentsAdaptor) {
+        frame_state = NodeProperties::GetFrameStateInput(frame_state, 0);
+        buffer->frame_state_descriptor =
+            buffer->frame_state_descriptor->outer_state();
+      }
+    }
+
     InstructionSequence::StateId state_id =
         sequence()->AddFrameStateDescriptor(buffer->frame_state_descriptor);
     buffer->instruction_args.push_back(g.TempImmediate(state_id.ToInt()));
-
-    Node* frame_state =
-        call->InputAt(static_cast<int>(buffer->descriptor->InputCount()));
 
     StateObjectDeduplicator deduplicator(instruction_zone());
 
