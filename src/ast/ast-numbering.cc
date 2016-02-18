@@ -505,7 +505,7 @@ void AstNumberingVisitor::VisitArrayLiteral(ArrayLiteral* node) {
 void AstNumberingVisitor::VisitCall(Call* node) {
   IncrementNodeCount();
   if (node->tail_call_mode() == TailCallMode::kAllow) {
-    DisableCrankshaft(kTailCall);
+    DisableOptimization(kTailCall);
   }
   ReserveFeedbackSlots(node);
   node->set_base_id(ReserveIdRange(Call::num_ids()));
