@@ -52,7 +52,7 @@ fi
 # Deprecated download method. A prepatched archive is downloaded as a hook
 # if jsfunfuzz=1 is specified as a gyp flag. Requires google.com authentication
 # for google storage.
-if [ "$2" == "--download" ]; then
+if [ "$3" == "--download" ]; then
 
   jsfunfuzz_file="$v8_root/tools/jsfunfuzz.zip"
   if [ ! -f "$jsfunfuzz_file" ]; then
@@ -92,7 +92,12 @@ python -u "$jsfunfuzz_dir/jsfunfuzz/multi_timed_run.py" 300 \
     "$d8" $flags "$jsfunfuzz_dir/jsfunfuzz/jsfunfuzz.js"
 exit_code=$(cat w* | grep " looking good" -c)
 exit_code=$((100-exit_code))
-archive=fuzz-results-$(date +%Y%m%d%H%M%S).tar.bz2
+
+if [ -n "$2" ]; then
+  archive="$2"
+else
+  archive=fuzz-results-$(date +%Y%m%d%H%M%S).tar.bz2
+fi
 echo "Creating archive $archive"
 tar -cjf $archive err-* w*
 rm -f err-* w*
