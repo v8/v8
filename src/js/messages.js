@@ -618,6 +618,11 @@ function CallSiteGetFunctionName() {
   return %CallSiteGetFunctionNameRT(this);
 }
 
+function CallSiteGetDebugName() {
+  // See if the function knows its own name
+  return %CallSiteGetDebugNameRT(this);
+}
+
 function CallSiteGetMethodName() {
   // See if we can find a unique property on the receiver that holds
   // this function.
@@ -676,10 +681,13 @@ function CallSiteToString() {
 
   var line = "";
   var functionName = this.getFunctionName();
-  var addSuffix = true;
+  var debugName = this.getDebugName();
   var isConstructor = this.isConstructor();
   var isMethodCall = !(this.isToplevel() || isConstructor);
-  if (isMethodCall) {
+  if (debugName) {
+    if (isConstructor) line += "new ";
+    line += debugName;
+  } else if (isMethodCall) {
     var typeName = GetTypeName(GET_PRIVATE(this, callSiteReceiverSymbol), true);
     var methodName = this.getMethodName();
     if (functionName) {
@@ -700,13 +708,9 @@ function CallSiteToString() {
   } else if (functionName) {
     line += functionName;
   } else {
-    line += fileLocation;
-    addSuffix = false;
+    return line + fileLocation;
   }
-  if (addSuffix) {
-    line += " (" + fileLocation + ")";
-  }
-  return line;
+  return line + " (" + fileLocation + ")";
 }
 
 utils.SetUpLockedPrototype(CallSite, ["receiver", "fun", "pos"], [
@@ -718,6 +722,7 @@ utils.SetUpLockedPrototype(CallSite, ["receiver", "fun", "pos"], [
   "getScriptNameOrSourceURL", CallSiteGetScriptNameOrSourceURL,
   "getFunction", CallSiteGetFunction,
   "getFunctionName", CallSiteGetFunctionName,
+  "getDebugName", CallSiteGetDebugName,
   "getMethodName", CallSiteGetMethodName,
   "getFileName", CallSiteGetFileName,
   "getLineNumber", CallSiteGetLineNumber,

@@ -294,7 +294,6 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_I18N(F)
 #endif
 
-
 #define FOR_EACH_INTRINSIC_INTERNAL(F)              \
   F(CheckIsBootstrapping, 0, 1)                     \
   F(ExportFromRuntime, 1, 1)                        \
@@ -325,6 +324,7 @@ namespace internal {
   F(FormatMessageString, 4, 1)                      \
   F(CallSiteGetFileNameRT, 1, 1)                    \
   F(CallSiteGetFunctionNameRT, 1, 1)                \
+  F(CallSiteGetDebugNameRT, 1, 1)                   \
   F(CallSiteGetScriptNameOrSourceUrlRT, 1, 1)       \
   F(CallSiteGetMethodNameRT, 1, 1)                  \
   F(CallSiteGetLineNumberRT, 1, 1)                  \
@@ -341,7 +341,6 @@ namespace internal {
   F(CreateListFromArrayLike, 1, 1)                  \
   F(IncrementUseCounter, 1, 1)                      \
   F(GetAndResetRuntimeCallStats, 0, 1)
-
 
 #define FOR_EACH_INTRINSIC_JSON(F) \
   F(QuoteJSONString, 1, 1)         \

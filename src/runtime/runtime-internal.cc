@@ -348,6 +348,7 @@ static inline Object* ReturnBoolean(bool value, Isolate* isolate) {
 
 CALLSITE_GET(GetFileName, ReturnDereferencedHandle)
 CALLSITE_GET(GetFunctionName, ReturnDereferencedHandle)
+CALLSITE_GET(GetDebugName, ReturnDereferencedHandle)
 CALLSITE_GET(GetScriptNameOrSourceUrl, ReturnDereferencedHandle)
 CALLSITE_GET(GetMethodName, ReturnDereferencedHandle)
 CALLSITE_GET(GetLineNumber, ReturnPositiveNumberOrNull)
