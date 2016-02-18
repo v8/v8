@@ -38,7 +38,7 @@ LookupIterator LookupIterator::PropertyOrElement(Isolate* isolate,
     LookupIterator it(isolate, receiver, index, configuration);
     // Here we try to avoid having to rebuild the string later
     // by storing it on the indexed LookupIterator.
-    it.name_ = name;
+    it.name_ = isolate->factory()->InternalizeName(name);
     return it;
   }
 
@@ -239,7 +239,6 @@ void LookupIterator::PrepareTransitionToDataProperty(
     state_ = TRANSITION;
     if (map->IsJSGlobalObjectMap()) {
       // Install a property cell.
-      InternalizeName();
       auto cell = JSGlobalObject::EnsurePropertyCell(
           Handle<JSGlobalObject>::cast(receiver), name());
       DCHECK(cell->value()->IsTheHole());
@@ -531,12 +530,6 @@ void LookupIterator::WriteDataValue(Handle<Object> value) {
   } else {
     DCHECK_EQ(v8::internal::DATA_CONSTANT, property_details_.type());
   }
-}
-
-
-void LookupIterator::InternalizeName() {
-  if (name_->IsUniqueName()) return;
-  name_ = factory()->InternalizeString(Handle<String>::cast(name_));
 }
 
 

@@ -20,13 +20,6 @@ namespace internal {
 // optionally a piece of data.
 class Descriptor BASE_EMBEDDED {
  public:
-  void KeyToUniqueName() {
-    if (!key_->IsUniqueName()) {
-      key_ = key_->GetIsolate()->factory()->InternalizeString(
-          Handle<String>::cast(key_));
-    }
-  }
-
   Handle<Name> GetKey() const { return key_; }
   Handle<Object> GetValue() const { return value_; }
   PropertyDetails GetDetails() const { return details_; }
@@ -42,25 +35,25 @@ class Descriptor BASE_EMBEDDED {
   Descriptor() : details_(Smi::FromInt(0)) {}
 
   void Init(Handle<Name> key, Handle<Object> value, PropertyDetails details) {
+    DCHECK(key->IsUniqueName());
     key_ = key;
     value_ = value;
     details_ = details;
   }
 
   Descriptor(Handle<Name> key, Handle<Object> value, PropertyDetails details)
-      : key_(key),
-        value_(value),
-        details_(details) { }
+      : key_(key), value_(value), details_(details) {
+    DCHECK(key->IsUniqueName());
+  }
 
-  Descriptor(Handle<Name> key,
-             Handle<Object> value,
-             PropertyAttributes attributes,
-             PropertyType type,
-             Representation representation,
-             int field_index = 0)
+  Descriptor(Handle<Name> key, Handle<Object> value,
+             PropertyAttributes attributes, PropertyType type,
+             Representation representation, int field_index = 0)
       : key_(key),
         value_(value),
-        details_(attributes, type, representation, field_index) { }
+        details_(attributes, type, representation, field_index) {
+    DCHECK(key->IsUniqueName());
+  }
 
   friend class DescriptorArray;
   friend class Map;

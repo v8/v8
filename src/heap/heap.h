@@ -2480,16 +2480,7 @@ class DescriptorLookupCache {
     }
   }
 
-  static int Hash(Object* source, Name* name) {
-    // Uses only lower 32 bits if pointers are larger.
-    uint32_t source_hash =
-        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(source)) >>
-        kPointerSizeLog2;
-    uint32_t name_hash =
-        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(name)) >>
-        kPointerSizeLog2;
-    return (source_hash ^ name_hash) % kLength;
-  }
+  static inline int Hash(Object* source, Name* name);
 
   static const int kLength = 64;
   struct Key {

@@ -70,7 +70,7 @@ class Factory final {
   Handle<String> InternalizeUtf8String(const char* str) {
     return InternalizeUtf8String(CStrVector(str));
   }
-  Handle<String> InternalizeString(Handle<String> str);
+
   Handle<String> InternalizeOneByteString(Vector<const uint8_t> str);
   Handle<String> InternalizeOneByteString(
       Handle<SeqOneByteString>, int from, int length);
@@ -80,8 +80,16 @@ class Factory final {
   template<class StringTableKey>
   Handle<String> InternalizeStringWithKey(StringTableKey* key);
 
-  Handle<Name> InternalizeName(Handle<Name> name);
+  // Internalized strings are created in the old generation (data space).
+  Handle<String> InternalizeString(Handle<String> string) {
+    if (string->IsInternalizedString()) return string;
+    return StringTable::LookupString(isolate(), string);
+  }
 
+  Handle<Name> InternalizeName(Handle<Name> name) {
+    if (name->IsUniqueName()) return name;
+    return StringTable::LookupString(isolate(), Handle<String>::cast(name));
+  }
 
   // String creation functions.  Most of the string creation functions take
   // a Heap::PretenureFlag argument to optionally request that they be

@@ -232,6 +232,9 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
   // Compute the receiver type.
   Handle<Map> receiver_map = map;
 
+  // Property lookups require the name to be internalized.
+  name = isolate()->factory()->InternalizeName(name);
+
   // We support fast inline cases for certain JSObject getters.
   if (access_mode == AccessMode::kLoad &&
       LookupSpecialFieldAccessor(map, name, access_info)) {

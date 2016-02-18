@@ -32,7 +32,7 @@ Handle<AccessorInfo> Accessors::MakeAccessor(
   info->set_all_can_read(false);
   info->set_all_can_write(false);
   info->set_is_special_data_property(true);
-  info->set_name(*name);
+  info->set_name(*factory->InternalizeName(name));
   Handle<Object> get = v8::FromCData(isolate, getter);
   if (setter == nullptr) setter = &ReconfigureToDataProperty;
   Handle<Object> set = v8::FromCData(isolate, setter);
@@ -82,6 +82,7 @@ bool Accessors::IsJSObjectFieldAccessor(Handle<Map> map, Handle<Name> name,
 bool Accessors::IsJSArrayBufferViewFieldAccessor(Handle<Map> map,
                                                  Handle<Name> name,
                                                  int* object_offset) {
+  DCHECK(name->IsUniqueName());
   Isolate* isolate = name->GetIsolate();
 
   switch (map->instance_type()) {

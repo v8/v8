@@ -8572,10 +8572,7 @@ class Name: public HeapObject {
   // If the name is private, it can only name own properties.
   inline bool IsPrivate();
 
-  // If the name is a non-flat string, this method returns a flat version of the
-  // string. Otherwise it'll just return the input.
-  static inline Handle<Name> Flatten(Handle<Name> name,
-                                     PretenureFlag pretenure = NOT_TENURED);
+  inline bool IsUniqueName() const;
 
   // Return a string version of this name that is converted according to the
   // rules described in ES6 section 9.2.11.

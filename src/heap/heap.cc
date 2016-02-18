@@ -1631,9 +1631,6 @@ void Heap::Scavenge() {
   // Implements Cheney's copying algorithm
   LOG(isolate_, ResourceEvent("scavenge", "begin"));
 
-  // Clear descriptor cache.
-  isolate_->descriptor_lookup_cache()->Clear();
-
   // Used for updating survived_since_last_expansion_ at function end.
   intptr_t survived_watermark = PromotedSpaceSizeOfObjects();
 

@@ -51,7 +51,7 @@ class LookupIterator final BASE_EMBEDDED {
         interceptor_state_(InterceptorState::kUninitialized),
         property_details_(PropertyDetails::Empty()),
         isolate_(name->GetIsolate()),
-        name_(Name::Flatten(name)),
+        name_(isolate_->factory()->InternalizeName(name)),
         // kMaxUInt32 isn't a valid index.
         index_(kMaxUInt32),
         receiver_(receiver),
@@ -73,7 +73,7 @@ class LookupIterator final BASE_EMBEDDED {
         interceptor_state_(InterceptorState::kUninitialized),
         property_details_(PropertyDetails::Empty()),
         isolate_(name->GetIsolate()),
-        name_(Name::Flatten(name)),
+        name_(isolate_->factory()->InternalizeName(name)),
         // kMaxUInt32 isn't a valid index.
         index_(kMaxUInt32),
         receiver_(receiver),
@@ -127,7 +127,7 @@ class LookupIterator final BASE_EMBEDDED {
   static LookupIterator PropertyOrElement(
       Isolate* isolate, Handle<Object> receiver, Handle<Name> name,
       Configuration configuration = DEFAULT) {
-    name = Name::Flatten(name);
+    name = isolate->factory()->InternalizeName(name);
     uint32_t index;
     LookupIterator it =
         name->AsArrayIndex(&index)
@@ -140,7 +140,7 @@ class LookupIterator final BASE_EMBEDDED {
   static LookupIterator PropertyOrElement(
       Isolate* isolate, Handle<Object> receiver, Handle<Name> name,
       Handle<JSReceiver> holder, Configuration configuration = DEFAULT) {
-    name = Name::Flatten(name);
+    name = isolate->factory()->InternalizeName(name);
     uint32_t index;
     LookupIterator it =
         name->AsArrayIndex(&index)
@@ -256,7 +256,6 @@ class LookupIterator final BASE_EMBEDDED {
   }
   Handle<Object> GetDataValue() const;
   void WriteDataValue(Handle<Object> value);
-  void InternalizeName();
 
  private:
   enum class InterceptorState {

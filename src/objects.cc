@@ -4542,8 +4542,6 @@ Maybe<bool> Object::AddDataProperty(LookupIterator* it, Handle<Object> value,
 
     // TODO(verwaest): Encapsulate dictionary handling better.
     if (receiver->map()->is_dictionary_map()) {
-      // TODO(verwaest): Probably should ensure this is done beforehand.
-      it->InternalizeName();
       // TODO(dcarney): just populate TransitionPropertyCell here?
       JSObject::AddSlowProperty(receiver, it->name(), value, attributes);
     } else {
@@ -9863,6 +9861,7 @@ Handle<Map> Map::TransitionToDataProperty(Handle<Map> map, Handle<Name> name,
                                           Handle<Object> value,
                                           PropertyAttributes attributes,
                                           StoreFromKeyed store_mode) {
+  DCHECK(name->IsUniqueName());
   DCHECK(!map->is_dictionary_map());
 
   // Migrate to the newest map before storing the property.
@@ -9943,6 +9942,7 @@ Handle<Map> Map::TransitionToAccessorProperty(Handle<Map> map,
                                               AccessorComponent component,
                                               Handle<Object> accessor,
                                               PropertyAttributes attributes) {
+  DCHECK(name->IsUniqueName());
   Isolate* isolate = name->GetIsolate();
 
   // Dictionary maps can always have additional data properties.
@@ -10027,9 +10027,6 @@ Handle<Map> Map::CopyAddDescriptor(Handle<Map> map,
                                    TransitionFlag flag) {
   Handle<DescriptorArray> descriptors(map->instance_descriptors());
 
-  // Ensure the key is unique.
-  descriptor->KeyToUniqueName();
-
   // Share descriptors only if map owns descriptors and it not an initial map.
   if (flag == INSERT_TRANSITION && map->owns_descriptors() &&
       !map->GetBackPointer()->IsUndefined() &&
@@ -10057,9 +10054,6 @@ Handle<Map> Map::CopyInsertDescriptor(Handle<Map> map,
                                       Descriptor* descriptor,
                                       TransitionFlag flag) {
   Handle<DescriptorArray> old_descriptors(map->instance_descriptors());
-
-  // Ensure the key is unique.
-  descriptor->KeyToUniqueName();
 
   // We replace the key if it is already present.
   int index = old_descriptors->SearchWithCache(map->GetIsolate(),
@@ -10146,9 +10140,6 @@ Handle<Map> Map::CopyReplaceDescriptor(Handle<Map> map,
                                        Descriptor* descriptor,
                                        int insertion_index,
                                        TransitionFlag flag) {
-  // Ensure the key is unique.
-  descriptor->KeyToUniqueName();
-
   Handle<Name> key = descriptor->GetKey();
   DCHECK(*key == descriptors->GetKey(insertion_index));
 

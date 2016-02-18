@@ -172,6 +172,12 @@ bool HeapObject::IsUniqueName() const {
   return IsInternalizedString() || IsSymbol();
 }
 
+bool Name::IsUniqueName() const {
+  uint32_t type = map()->instance_type();
+  return (type & (kIsNotStringMask | kIsNotInternalizedMask)) !=
+         (kStringTag | kNotInternalizedTag);
+}
+
 bool HeapObject::IsFunction() const {
   STATIC_ASSERT(LAST_FUNCTION_TYPE == LAST_TYPE);
   return map()->instance_type() >= FIRST_FUNCTION_TYPE;
@@ -2538,15 +2544,14 @@ Object** DescriptorArray::GetEnumCacheSlot() {
                               kEnumCacheOffset);
 }
 
-
-// Perform a binary search in a fixed array. Low and high are entry indices. If
-// there are three entries in this array it should be called with low=0 and
-// high=2.
+// Perform a binary search in a fixed array.
 template <SearchMode search_mode, typename T>
-int BinarySearch(T* array, Name* name, int low, int high, int valid_entries,
+int BinarySearch(T* array, Name* name, int valid_entries,
                  int* out_insertion_index) {
   DCHECK(search_mode == ALL_ENTRIES || out_insertion_index == NULL);
-  uint32_t hash = name->Hash();
+  int low = 0;
+  int high = array->number_of_entries() - 1;
+  uint32_t hash = name->hash_field();
   int limit = high;
 
   DCHECK(low <= high);
@@ -2554,7 +2559,7 @@ int BinarySearch(T* array, Name* name, int low, int high, int valid_entries,
   while (low != high) {
     int mid = low + (high - low) / 2;
     Name* mid_name = array->GetSortedKey(mid);
-    uint32_t mid_hash = mid_name->Hash();
+    uint32_t mid_hash = mid_name->hash_field();
 
     if (mid_hash >= hash) {
       high = mid;
@@ -2566,14 +2571,14 @@ int BinarySearch(T* array, Name* name, int low, int high, int valid_entries,
   for (; low <= limit; ++low) {
     int sort_index = array->GetSortedKeyIndex(low);
     Name* entry = array->GetKey(sort_index);
-    uint32_t current_hash = entry->Hash();
+    uint32_t current_hash = entry->hash_field();
     if (current_hash != hash) {
-      if (out_insertion_index != NULL) {
+      if (search_mode == ALL_ENTRIES && out_insertion_index != nullptr) {
         *out_insertion_index = sort_index + (current_hash > hash ? 0 : 1);
       }
       return T::kNotFound;
     }
-    if (entry->Equals(name)) {
+    if (entry == name) {
       if (search_mode == ALL_ENTRIES || sort_index < valid_entries) {
         return sort_index;
       }
@@ -2581,7 +2586,9 @@ int BinarySearch(T* array, Name* name, int low, int high, int valid_entries,
     }
   }
 
-  if (out_insertion_index != NULL) *out_insertion_index = limit + 1;
+  if (search_mode == ALL_ENTRIES && out_insertion_index != nullptr) {
+    *out_insertion_index = limit + 1;
+  }
   return T::kNotFound;
 }
 
@@ -2589,27 +2596,28 @@ int BinarySearch(T* array, Name* name, int low, int high, int valid_entries,
 // Perform a linear search in this fixed array. len is the number of entry
 // indices that are valid.
 template <SearchMode search_mode, typename T>
-int LinearSearch(T* array, Name* name, int len, int valid_entries,
+int LinearSearch(T* array, Name* name, int valid_entries,
                  int* out_insertion_index) {
-  if (search_mode == ALL_ENTRIES) {
-    uint32_t hash = name->Hash();
+  if (search_mode == ALL_ENTRIES && out_insertion_index != nullptr) {
+    uint32_t hash = name->hash_field();
+    int len = array->number_of_entries();
     for (int number = 0; number < len; number++) {
       int sorted_index = array->GetSortedKeyIndex(number);
       Name* entry = array->GetKey(sorted_index);
-      uint32_t current_hash = entry->Hash();
+      uint32_t current_hash = entry->hash_field();
       if (current_hash > hash) {
-        if (out_insertion_index != NULL) *out_insertion_index = sorted_index;
+        *out_insertion_index = sorted_index;
         return T::kNotFound;
       }
-      if (current_hash == hash && entry->Equals(name)) return sorted_index;
+      if (entry == name) return sorted_index;
     }
-    if (out_insertion_index != NULL) *out_insertion_index = len;
+    *out_insertion_index = len;
     return T::kNotFound;
   } else {
-    DCHECK(len >= valid_entries);
+    DCHECK_LE(valid_entries, array->number_of_entries());
     DCHECK_NULL(out_insertion_index);  // Not supported here.
     for (int number = 0; number < valid_entries; number++) {
-      if (array->GetKey(number)->Equals(name)) return number;
+      if (array->GetKey(number) == name) return number;
     }
     return T::kNotFound;
   }
@@ -2618,39 +2626,35 @@ int LinearSearch(T* array, Name* name, int len, int valid_entries,
 
 template <SearchMode search_mode, typename T>
 int Search(T* array, Name* name, int valid_entries, int* out_insertion_index) {
-  if (search_mode == VALID_ENTRIES) {
-    SLOW_DCHECK(array->IsSortedNoDuplicates(valid_entries));
-  } else {
-    SLOW_DCHECK(array->IsSortedNoDuplicates());
-  }
+  SLOW_DCHECK(array->IsSortedNoDuplicates());
 
-  int nof = array->number_of_entries();
-  if (nof == 0) {
-    if (out_insertion_index != NULL) *out_insertion_index = 0;
+  if (valid_entries == 0) {
+    if (search_mode == ALL_ENTRIES && out_insertion_index != nullptr) {
+      *out_insertion_index = 0;
+    }
     return T::kNotFound;
   }
 
   // Fast case: do linear search for small arrays.
   const int kMaxElementsForLinearSearch = 8;
-  if ((search_mode == ALL_ENTRIES &&
-       nof <= kMaxElementsForLinearSearch) ||
-      (search_mode == VALID_ENTRIES &&
-       valid_entries <= (kMaxElementsForLinearSearch * 3))) {
-    return LinearSearch<search_mode>(array, name, nof, valid_entries,
+  if (valid_entries <= kMaxElementsForLinearSearch) {
+    return LinearSearch<search_mode>(array, name, valid_entries,
                                      out_insertion_index);
   }
 
   // Slow case: perform binary search.
-  return BinarySearch<search_mode>(array, name, 0, nof - 1, valid_entries,
+  return BinarySearch<search_mode>(array, name, valid_entries,
                                    out_insertion_index);
 }
 
 
 int DescriptorArray::Search(Name* name, int valid_descriptors) {
+  DCHECK(name->IsUniqueName());
   return internal::Search<VALID_ENTRIES>(this, name, valid_descriptors, NULL);
 }
 
 int DescriptorArray::SearchWithCache(Isolate* isolate, Name* name, Map* map) {
+  DCHECK(name->IsUniqueName());
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   if (number_of_own_descriptors == 0) return kNotFound;
 
@@ -2664,7 +2668,6 @@ int DescriptorArray::SearchWithCache(Isolate* isolate, Name* name, Map* map) {
 
   return number;
 }
-
 
 PropertyDetails Map::GetLastDescriptorDetails() {
   return instance_descriptors()->GetDetails(LastAdded());
@@ -3419,12 +3422,6 @@ Handle<String> String::Flatten(Handle<String> string, PretenureFlag pretenure) {
   Handle<ConsString> cons = Handle<ConsString>::cast(string);
   if (cons->IsFlat()) return handle(cons->first());
   return SlowFlatten(cons, pretenure);
-}
-
-
-Handle<Name> Name::Flatten(Handle<Name> name, PretenureFlag pretenure) {
-  if (name->IsSymbol()) return name;
-  return String::Flatten(Handle<String>::cast(name));
 }
 
 

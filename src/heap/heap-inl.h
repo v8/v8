@@ -622,9 +622,18 @@ void Heap::ExternalStringTable::ShrinkNewStrings(int position) {
 #endif
 }
 
+// static
+int DescriptorLookupCache::Hash(Object* source, Name* name) {
+  DCHECK(name->IsUniqueName());
+  // Uses only lower 32 bits if pointers are larger.
+  uint32_t source_hash =
+      static_cast<uint32_t>(reinterpret_cast<uintptr_t>(source)) >>
+      kPointerSizeLog2;
+  uint32_t name_hash = name->hash_field();
+  return (source_hash ^ name_hash) % kLength;
+}
 
 int DescriptorLookupCache::Lookup(Map* source, Name* name) {
-  if (!name->IsUniqueName()) return kAbsent;
   int index = Hash(source, name);
   Key& key = keys_[index];
   if ((key.source == source) && (key.name == name)) return results_[index];
@@ -634,13 +643,11 @@ int DescriptorLookupCache::Lookup(Map* source, Name* name) {
 
 void DescriptorLookupCache::Update(Map* source, Name* name, int result) {
   DCHECK(result != kAbsent);
-  if (name->IsUniqueName()) {
-    int index = Hash(source, name);
-    Key& key = keys_[index];
-    key.source = source;
-    key.name = name;
-    results_[index] = result;
-  }
+  int index = Hash(source, name);
+  Key& key = keys_[index];
+  key.source = source;
+  key.name = name;
+  results_[index] = result;
 }
 
 

@@ -5703,9 +5703,10 @@ TEST(Regress388880) {
   Heap* heap = isolate->heap();
 
   Handle<Map> map1 = Map::Create(isolate, 1);
+  Handle<String> name = factory->NewStringFromStaticChars("foo");
+  name = factory->InternalizeString(name);
   Handle<Map> map2 =
-      Map::CopyWithField(map1, factory->NewStringFromStaticChars("foo"),
-                         FieldType::Any(isolate), NONE,
+      Map::CopyWithField(map1, name, FieldType::Any(isolate), NONE,
                          Representation::Tagged(), OMIT_TRANSITION)
           .ToHandleChecked();
 

@@ -128,7 +128,9 @@ class JsonParser BASE_EMBEDDED {
   }
 
   Handle<String> ParseJsonInternalizedString() {
-    return ScanJsonString<true>();
+    Handle<String> result = ScanJsonString<true>();
+    if (result.is_null()) return result;
+    return factory()->InternalizeString(result);
   }
 
   template <bool is_internalized>
