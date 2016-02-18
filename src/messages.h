@@ -51,7 +51,6 @@ class CallSite {
 
   Handle<Object> GetFileName();
   Handle<Object> GetFunctionName();
-  Handle<Object> GetDebugName();
   Handle<Object> GetScriptNameOrSourceUrl();
   Handle<Object> GetMethodName();
   // Return 1-based line number, including line offset.

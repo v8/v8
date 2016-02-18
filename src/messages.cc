@@ -191,14 +191,6 @@ Handle<Object> CallSite::GetFunctionName() {
   return isolate_->factory()->null_value();
 }
 
-Handle<Object> CallSite::GetDebugName() {
-  Handle<Object> name = JSReceiver::GetDataProperty(
-      fun_, isolate_->factory()->display_name_string());
-  if (name->IsString() && String::cast(*name)->length() != 0) {
-    return Handle<String>::cast(name);
-  }
-  return isolate_->factory()->null_value();
-}
 
 Handle<Object> CallSite::GetScriptNameOrSourceUrl() {
   Handle<Object> script_obj(fun_->shared()->script(), isolate_);
