@@ -17,6 +17,7 @@
 #include "src/isolate-inl.h"
 #include "src/macro-assembler.h"
 #include "src/snapshot/snapshot.h"
+#include "src/tracing/trace-event.h"
 
 namespace v8 {
 namespace internal {
@@ -27,6 +28,7 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   Isolate* isolate = info->isolate();
 
   TimerEventScope<TimerEventCompileFullCode> timer(info->isolate());
+  TRACE_EVENT0("v8", "V8.CompileFullCode");
 
   // Ensure that the feedback vector is large enough.
   info->EnsureFeedbackVector();

@@ -7,6 +7,7 @@
 #include "src/base/atomicops.h"
 #include "src/full-codegen/full-codegen.h"
 #include "src/isolate.h"
+#include "src/tracing/trace-event.h"
 #include "src/v8.h"
 
 namespace v8 {
@@ -59,6 +60,7 @@ class OptimizingCompileDispatcher::CompileTask : public v8::Task {
         isolate_->optimizing_compile_dispatcher();
     {
       TimerEventScope<TimerEventRecompileConcurrent> timer(isolate_);
+      TRACE_EVENT0("v8", "V8.RecompileConcurrent");
 
       if (dispatcher->recompilation_delay_ != 0) {
         base::OS::Sleep(base::TimeDelta::FromMilliseconds(

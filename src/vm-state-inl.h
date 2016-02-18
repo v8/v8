@@ -8,6 +8,7 @@
 #include "src/vm-state.h"
 #include "src/log.h"
 #include "src/simulator.h"
+#include "src/tracing/trace-event.h"
 
 namespace v8 {
 namespace internal {
@@ -39,8 +40,11 @@ inline const char* StateToString(StateTag state) {
 template <StateTag Tag>
 VMState<Tag>::VMState(Isolate* isolate)
     : isolate_(isolate), previous_tag_(isolate->current_vm_state()) {
-  if (FLAG_log_timer_events && previous_tag_ != EXTERNAL && Tag == EXTERNAL) {
-    LOG(isolate_, TimerEvent(Logger::START, TimerEventExternal::name()));
+  if (previous_tag_ != EXTERNAL && Tag == EXTERNAL) {
+    if (FLAG_log_timer_events) {
+      LOG(isolate_, TimerEvent(Logger::START, TimerEventExternal::name()));
+    }
+    TRACE_EVENT_BEGIN0(TRACE_DISABLED_BY_DEFAULT("v8"), "V8.External");
   }
   isolate_->set_current_vm_state(Tag);
 }
@@ -48,8 +52,11 @@ VMState<Tag>::VMState(Isolate* isolate)
 
 template <StateTag Tag>
 VMState<Tag>::~VMState() {
-  if (FLAG_log_timer_events && previous_tag_ != EXTERNAL && Tag == EXTERNAL) {
-    LOG(isolate_, TimerEvent(Logger::END, TimerEventExternal::name()));
+  if (previous_tag_ != EXTERNAL && Tag == EXTERNAL) {
+    if (FLAG_log_timer_events) {
+      LOG(isolate_, TimerEvent(Logger::END, TimerEventExternal::name()));
+    }
+    TRACE_EVENT_END0(TRACE_DISABLED_BY_DEFAULT("v8"), "V8.External");
   }
   isolate_->set_current_vm_state(previous_tag_);
 }

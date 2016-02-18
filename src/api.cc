@@ -58,6 +58,7 @@
 #include "src/snapshot/natives.h"
 #include "src/snapshot/snapshot.h"
 #include "src/startup-data-util.h"
+#include "src/tracing/trace-event.h"
 #include "src/unicode-inl.h"
 #include "src/v8.h"
 #include "src/v8threads.h"
@@ -1709,6 +1710,7 @@ MaybeLocal<Value> Script::Run(Local<Context> context) {
   PREPARE_FOR_EXECUTION_WITH_CALLBACK(context, "v8::Script::Run()", Value)
   i::AggregatingHistogramTimerScope timer(isolate->counters()->compile_lazy());
   i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
+  TRACE_EVENT0("v8", "V8.Execute");
   auto fun = i::Handle<i::JSFunction>::cast(Utils::OpenHandle(this));
   i::Handle<i::Object> receiver(isolate->global_proxy(), isolate);
   Local<Value> result;
@@ -1762,6 +1764,7 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
   i::Handle<i::SharedFunctionInfo> result;
   {
     i::HistogramTimerScope total(isolate->counters()->compile_script(), true);
+    TRACE_EVENT0("v8", "V8.CompileScript");
     i::Handle<i::Object> name_obj;
     i::Handle<i::Object> source_map_url;
     int line_offset = 0;
@@ -4281,6 +4284,7 @@ MaybeLocal<Value> Object::CallAsFunction(Local<Context> context,
   PREPARE_FOR_EXECUTION_WITH_CALLBACK(context, "v8::Object::CallAsFunction()",
                                       Value);
   i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
+  TRACE_EVENT0("v8", "V8.Execute");
   auto self = Utils::OpenHandle(this);
   auto recv_obj = Utils::OpenHandle(*recv);
   STATIC_ASSERT(sizeof(v8::Local<v8::Value>) == sizeof(i::Object**));
@@ -4307,6 +4311,7 @@ MaybeLocal<Value> Object::CallAsConstructor(Local<Context> context, int argc,
   PREPARE_FOR_EXECUTION_WITH_CALLBACK(context,
                                       "v8::Object::CallAsConstructor()", Value);
   i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
+  TRACE_EVENT0("v8", "V8.Execute");
   auto self = Utils::OpenHandle(this);
   STATIC_ASSERT(sizeof(v8::Local<v8::Value>) == sizeof(i::Object**));
   i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
@@ -4356,6 +4361,7 @@ MaybeLocal<Object> Function::NewInstance(Local<Context> context, int argc,
   PREPARE_FOR_EXECUTION_WITH_CALLBACK(context, "v8::Function::NewInstance()",
                                       Object);
   i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
+  TRACE_EVENT0("v8", "V8.Execute");
   auto self = Utils::OpenHandle(this);
   STATIC_ASSERT(sizeof(v8::Local<v8::Value>) == sizeof(i::Object**));
   i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
@@ -4379,6 +4385,7 @@ MaybeLocal<v8::Value> Function::Call(Local<Context> context,
                                      v8::Local<v8::Value> argv[]) {
   PREPARE_FOR_EXECUTION_WITH_CALLBACK(context, "v8::Function::Call()", Value);
   i::TimerEventScope<i::TimerEventExecute> timer_scope(isolate);
+  TRACE_EVENT0("v8", "V8.Execute");
   auto self = Utils::OpenHandle(this);
   i::Handle<i::Object> recv_obj = Utils::OpenHandle(*recv);
   STATIC_ASSERT(sizeof(v8::Local<v8::Value>) == sizeof(i::Object**));
@@ -7476,6 +7483,7 @@ void Isolate::LowMemoryNotification() {
   {
     i::HistogramTimerScope idle_notification_scope(
         isolate->counters()->gc_low_memory_notification());
+    TRACE_EVENT0("v8", "V8.GCLowMemoryNotification");
     isolate->heap()->CollectAllAvailableGarbage("low memory notification");
   }
 }

@@ -198,6 +198,8 @@ class Histogram {
     lookup_done_ = false;
   }
 
+  const char* name() { return name_; }
+
  protected:
   // Returns the handle to the histogram.
   void* GetHistogram() {
@@ -208,7 +210,6 @@ class Histogram {
     return histogram_;
   }
 
-  const char* name() { return name_; }
   Isolate* isolate() const { return isolate_; }
 
  private:

@@ -38,6 +38,7 @@
 #include "src/snapshot/natives.h"
 #include "src/snapshot/serialize.h"
 #include "src/snapshot/snapshot.h"
+#include "src/tracing/trace-event.h"
 #include "src/type-feedback-vector.h"
 #include "src/utils.h"
 #include "src/v8.h"
@@ -817,6 +818,7 @@ void Heap::FinalizeIncrementalMarking(const char* gc_reason) {
   GCTracer::Scope gc_scope(tracer(), GCTracer::Scope::MC_INCREMENTAL_FINALIZE);
   HistogramTimerScope incremental_marking_scope(
       isolate()->counters()->gc_incremental_marking_finalize());
+  TRACE_EVENT0("v8", "V8.GCIncrementalMarkingFinalize");
 
   {
     GCCallbacksScope scope(this);
@@ -857,7 +859,6 @@ HistogramTimer* Heap::GCTypeTimer(GarbageCollector collector) {
     }
   }
 }
-
 
 void Heap::CollectAllGarbage(int flags, const char* gc_reason,
                              const v8::GCCallbackFlags gc_callback_flags) {
@@ -1006,7 +1007,9 @@ bool Heap::CollectGarbage(GarbageCollector collector, const char* gc_reason,
     GarbageCollectionPrologue();
 
     {
-      HistogramTimerScope histogram_timer_scope(GCTypeTimer(collector));
+      HistogramTimer* gc_type_timer = GCTypeTimer(collector);
+      HistogramTimerScope histogram_timer_scope(gc_type_timer);
+      TRACE_EVENT0("v8", gc_type_timer->name());
 
       next_gc_likely_to_collect_more =
           PerformGarbageCollection(collector, gc_callback_flags);
@@ -4204,6 +4207,7 @@ bool Heap::PerformIdleTimeAction(GCIdleTimeAction action,
     case DO_FULL_GC: {
       DCHECK(contexts_disposed_ > 0);
       HistogramTimerScope scope(isolate_->counters()->gc_context());
+      TRACE_EVENT0("v8", "V8.GCContext");
       CollectAllGarbage(kNoGCFlags, "idle notification: contexts disposed");
       break;
     }
@@ -4289,6 +4293,7 @@ bool Heap::IdleNotification(double deadline_in_seconds) {
       static_cast<double>(base::Time::kMillisecondsPerSecond);
   HistogramTimerScope idle_notification_scope(
       isolate_->counters()->gc_idle_notification());
+  TRACE_EVENT0("v8", "V8.GCIdleNotification");
   double start_ms = MonotonicallyIncreasingTimeInMs();
   double idle_time_in_ms = deadline_in_ms - start_ms;
 

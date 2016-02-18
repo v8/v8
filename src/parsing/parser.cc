@@ -23,6 +23,7 @@
 #include "src/parsing/scanner-character-streams.h"
 #include "src/runtime/runtime.h"
 #include "src/string-stream.h"
+#include "src/tracing/trace-event.h"
 
 namespace v8 {
 namespace internal {
@@ -796,6 +797,7 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
   DCHECK(parsing_on_main_thread_);
 
   HistogramTimerScope timer_scope(isolate->counters()->parse(), true);
+  TRACE_EVENT0("v8", "V8.Parse");
   Handle<String> source(String::cast(info->script()->source()));
   isolate->counters()->total_parse_size()->Increment(source->length());
   base::ElapsedTimer timer;
@@ -964,6 +966,7 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info) {
   // called in the main thread.
   DCHECK(parsing_on_main_thread_);
   HistogramTimerScope timer_scope(isolate->counters()->parse_lazy());
+  TRACE_EVENT0("v8", "V8.ParseLazy");
   Handle<String> source(String::cast(info->script()->source()));
   isolate->counters()->total_parse_size()->Increment(source->length());
   base::ElapsedTimer timer;
@@ -4838,6 +4841,8 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
   if (pre_parse_timer_ != NULL) {
     pre_parse_timer_->Start();
   }
+  TRACE_EVENT0("v8", "V8.PreParse");
+
   DCHECK_EQ(Token::LBRACE, scanner()->current_token());
 
   if (reusable_preparser_ == NULL) {

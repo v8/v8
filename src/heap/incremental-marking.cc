@@ -12,6 +12,7 @@
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/objects-visiting.h"
 #include "src/heap/objects-visiting-inl.h"
+#include "src/tracing/trace-event.h"
 #include "src/v8.h"
 
 namespace v8 {
@@ -534,6 +535,7 @@ void IncrementalMarking::Start(const char* reason) {
 
   HistogramTimerScope incremental_marking_scope(
       heap_->isolate()->counters()->gc_incremental_marking_start());
+  TRACE_EVENT0("v8", "V8.GCIncrementalMarkingStart");
   ResetStepCounters();
 
   was_activated_ = true;
@@ -1151,6 +1153,7 @@ intptr_t IncrementalMarking::Step(intptr_t allocated_bytes,
   {
     HistogramTimerScope incremental_marking_scope(
         heap_->isolate()->counters()->gc_incremental_marking());
+    TRACE_EVENT0("v8", "V8.GCIncrementalMarking");
     double start = heap_->MonotonicallyIncreasingTimeInMs();
 
     // The marking speed is driven either by the allocation rate or by the rate
