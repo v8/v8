@@ -3603,8 +3603,27 @@ bool v8::Object::ForceSet(v8::Local<Value> key, v8::Local<Value> value,
 
 Maybe<bool> v8::Object::SetPrivate(Local<Context> context, Local<Private> key,
                                    Local<Value> value) {
-  return DefineOwnProperty(context, Local<Name>(reinterpret_cast<Name*>(*key)),
-                           value, DontEnum);
+  PREPARE_FOR_EXECUTION_PRIMITIVE(context, "v8::Object::SetPrivate()", bool);
+  auto self = Utils::OpenHandle(this);
+  auto key_obj = Utils::OpenHandle(reinterpret_cast<Name*>(*key));
+  auto value_obj = Utils::OpenHandle(*value);
+  if (self->IsJSProxy()) {
+    i::PropertyDescriptor desc;
+    desc.set_writable(true);
+    desc.set_enumerable(false);
+    desc.set_configurable(true);
+    desc.set_value(value_obj);
+    return i::JSProxy::SetPrivateProperty(
+        isolate, i::Handle<i::JSProxy>::cast(self),
+        i::Handle<i::Symbol>::cast(key_obj), &desc, i::Object::DONT_THROW);
+  }
+  auto js_object = i::Handle<i::JSObject>::cast(self);
+  i::LookupIterator it(js_object, key_obj);
+  has_pending_exception = i::JSObject::DefineOwnPropertyIgnoreAttributes(
+                              &it, value_obj, i::DONT_ENUM)
+                              .is_null();
+  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+  return Just(true);
 }
 
 

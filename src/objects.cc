@@ -7015,7 +7015,7 @@ Maybe<bool> JSProxy::DefineOwnProperty(Isolate* isolate, Handle<JSProxy> proxy,
                                        ShouldThrow should_throw) {
   STACK_CHECK(Nothing<bool>());
   if (key->IsSymbol() && Handle<Symbol>::cast(key)->IsPrivate()) {
-    return AddPrivateProperty(isolate, proxy, Handle<Symbol>::cast(key), desc,
+    return SetPrivateProperty(isolate, proxy, Handle<Symbol>::cast(key), desc,
                               should_throw);
   }
   Handle<String> trap_name = isolate->factory()->defineProperty_string();
@@ -7121,7 +7121,7 @@ Maybe<bool> JSProxy::DefineOwnProperty(Isolate* isolate, Handle<JSProxy> proxy,
 
 
 // static
-Maybe<bool> JSProxy::AddPrivateProperty(Isolate* isolate, Handle<JSProxy> proxy,
+Maybe<bool> JSProxy::SetPrivateProperty(Isolate* isolate, Handle<JSProxy> proxy,
                                         Handle<Symbol> private_name,
                                         PropertyDescriptor* desc,
                                         ShouldThrow should_throw) {

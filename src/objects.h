@@ -9778,12 +9778,12 @@ class JSProxy: public JSReceiver {
 
   static Handle<Smi> GetOrCreateIdentityHash(Handle<JSProxy> proxy);
 
- private:
-  static Maybe<bool> AddPrivateProperty(Isolate* isolate, Handle<JSProxy> proxy,
+  static Maybe<bool> SetPrivateProperty(Isolate* isolate, Handle<JSProxy> proxy,
                                         Handle<Symbol> private_name,
                                         PropertyDescriptor* desc,
                                         ShouldThrow should_throw);
 
+ private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSProxy);
 };
 
