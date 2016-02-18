@@ -396,8 +396,8 @@ void LTransitionElementsKind::PrintDataTo(StringStream* stream) {
 
 int LPlatformChunk::GetNextSpillIndex(RegisterKind kind) {
   // Skip a slot if for a double-width slot.
-  if (kind == DOUBLE_REGISTERS) spill_slot_count_++;
-  return spill_slot_count_++;
+  if (kind == DOUBLE_REGISTERS) current_frame_slots_++;
+  return current_frame_slots_++;
 }
 
 
@@ -2409,6 +2409,7 @@ LInstruction* LChunkBuilder::DoUnknownOSRValue(HUnknownOSRValue* instr) {
       Retry(kTooManySpillSlotsNeededForOSR);
       spill_index = 0;
     }
+    spill_index += StandardFrameConstants::kFixedSlotCount;
   }
   return DefineAsSpilled(new (zone()) LUnknownOSRValue, spill_index);
 }
