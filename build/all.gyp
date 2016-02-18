@@ -38,6 +38,7 @@
             '../test/webkit/webkit.gyp:*',
             '../tools/check-static-initializers.gyp:*',
             '../tools/gcmole/run_gcmole.gyp:*',
+            '../tools/jsfunfuzz/jsfunfuzz.gyp:*',
             '../tools/run-deopt-fuzzer.gyp:*',
             '../tools/run-valgrind.gyp:*',
           ],
