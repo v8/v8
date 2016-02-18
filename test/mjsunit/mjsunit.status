@@ -602,6 +602,7 @@
 ['arch == x87', {
   # Turbofan will hit the known issue that x87 changes sNaN to qNaN by default.
   'regress/regress-undefined-nan': [SKIP],
+  'regress/regress-crbug-242924': [SKIP],
 }],  # 'arch == x87'
 
 ##############################################################################
