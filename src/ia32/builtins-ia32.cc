@@ -803,22 +803,20 @@ static void Generate_InterpreterNotifyDeoptimizedHelper(
   // Enter an internal frame.
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    __ Push(kInterpreterAccumulatorRegister);  // Save accumulator register.
 
     // Pass the deoptimization type to the runtime system.
     __ Push(Smi::FromInt(static_cast<int>(type)));
-
     __ CallRuntime(Runtime::kNotifyDeoptimized);
-
-    __ Pop(kInterpreterAccumulatorRegister);  // Restore accumulator register.
     // Tear down internal frame.
   }
 
-  // Drop state (we don't use these for interpreter deopts) and push PC at top
+  // Drop state (we don't use these for interpreter deopts) and and pop the
+  // accumulator value into the accumulator register and push PC at top
   // of stack (to simulate initial call to bytecode handler in interpreter entry
   // trampoline).
   __ Pop(ebx);
   __ Drop(1);
+  __ Pop(kInterpreterAccumulatorRegister);
   __ Push(ebx);
 
   // Enter the bytecode dispatch.

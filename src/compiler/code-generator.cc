@@ -591,7 +591,7 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
     case FrameStateType::kInterpretedFunction:
       translation->BeginInterpretedFrame(
           descriptor->bailout_id(), shared_info_id,
-          static_cast<unsigned int>(descriptor->locals_count()));
+          static_cast<unsigned int>(descriptor->locals_count() + 1));
       break;
     case FrameStateType::kArgumentsAdaptor:
       translation->BeginArgumentsAdaptorFrame(

@@ -1191,14 +1191,15 @@ static void Generate_InterpreterNotifyDeoptimizedHelper(
     // Save accumulator register and pass the deoptimization type to
     // the runtime system.
     __ LoadSmiLiteral(r4, Smi::FromInt(static_cast<int>(type)));
-    __ Push(kInterpreterAccumulatorRegister, r4);
+    __ Push(r4);
     __ CallRuntime(Runtime::kNotifyDeoptimized);
-    __ pop(kInterpreterAccumulatorRegister);  // Restore accumulator register.
     // Tear down internal frame.
   }
 
-  // Drop state (we don't use these for interpreter deopts).
+  // Drop state (we don't use these for interpreter deopts) and and pop the
+  // accumulator value into the accumulator register.
   __ Drop(1);
+  __ Pop(kInterpreterAccumulatorRegister);
 
   // Enter the bytecode dispatch.
   Generate_EnterBytecodeDispatch(masm);

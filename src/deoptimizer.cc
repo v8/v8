@@ -1275,23 +1275,28 @@ void Deoptimizer::DoComputeInterpretedFrame(int frame_index,
                      "bytecode offset ");
 
   // Translate the rest of the interpreter registers in the frame.
-  for (unsigned i = 0; i < height; ++i) {
+  for (unsigned i = 0; i < height - 1; ++i) {
     output_offset -= kPointerSize;
     WriteTranslatedValueToOutput(&value_iterator, &input_index, frame_index,
                                  output_offset);
   }
-  CHECK_EQ(0u, output_offset);
 
-  // Set the accumulator register. If we are lazy deopting to a catch handler,
-  // we set the accumulator to the exception (which lives in the result
-  // register).
-  intptr_t accumulator_value =
-      goto_catch_handler
-          ? input_->GetRegister(FullCodeGenerator::result_register().code())
-          : reinterpret_cast<intptr_t>(value_iterator->GetRawValue());
-  output_frame->SetRegister(kInterpreterAccumulatorRegister.code(),
-                            accumulator_value);
-  value_iterator++;
+  // Put the accumulator on the stack. It will be popped by the
+  // InterpreterNotifyDeopt builtin (possibly after materialization).
+  output_offset -= kPointerSize;
+  if (goto_catch_handler) {
+    // If we are lazy deopting to a catch handler, we set the accumulator to
+    // the exception (which lives in the result register).
+    intptr_t accumulator_value =
+        input_->GetRegister(FullCodeGenerator::result_register().code());
+    WriteValueToOutput(reinterpret_cast<Object*>(accumulator_value), 0,
+                       frame_index, output_offset, "accumulator ");
+    value_iterator++;
+  } else {
+    WriteTranslatedValueToOutput(&value_iterator, &input_index, frame_index,
+                                 output_offset);
+  }
+  CHECK_EQ(0u, output_offset);
 
   Builtins* builtins = isolate_->builtins();
   Code* dispatch_builtin =
@@ -2573,8 +2578,10 @@ DeoptimizedFrameInfo::DeoptimizedFrameInfo(TranslatedState* state,
 
   // Get the expression stack.
   int stack_height = frame_it->height();
-  if (frame_it->kind() == TranslatedFrame::kFunction) {
+  if (frame_it->kind() == TranslatedFrame::kFunction ||
+      frame_it->kind() == TranslatedFrame::kInterpretedFunction) {
     // For full-code frames, we should not count the context.
+    // For interpreter frames, we should not count the accumulator.
     // TODO(jarin): Clean up the indexing in translated frames.
     stack_height--;
   }
@@ -2586,7 +2593,7 @@ DeoptimizedFrameInfo::DeoptimizedFrameInfo(TranslatedState* state,
   }
 
   // For interpreter frame, skip the accumulator.
-  if (parameter_frame->kind() == TranslatedFrame::kInterpretedFunction) {
+  if (frame_it->kind() == TranslatedFrame::kInterpretedFunction) {
     stack_it++;
   }
   CHECK(stack_it == frame_it->end());
@@ -2953,8 +2960,8 @@ int TranslatedFrame::GetValueCount() {
     case kInterpretedFunction: {
       int parameter_count =
           raw_shared_info_->internal_formal_parameter_count() + 1;
-      // + 3 for function, context and accumulator.
-      return height_ + parameter_count + 3;
+      // + 2 for function and context.
+      return height_ + parameter_count + 2;
     }
 
     case kGetter:
