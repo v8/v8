@@ -1188,8 +1188,8 @@ static void Generate_InterpreterNotifyDeoptimizedHelper(
   // Enter an internal frame.
   {
     FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
-    // Save accumulator register and pass the deoptimization type to
-    // the runtime system.
+
+    // Pass the deoptimization type to the runtime system.
     __ LoadSmiLiteral(r4, Smi::FromInt(static_cast<int>(type)));
     __ Push(r4);
     __ CallRuntime(Runtime::kNotifyDeoptimized);
