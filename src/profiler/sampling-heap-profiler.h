@@ -48,50 +48,50 @@ class SamplingHeapProfiler {
 
   StringsStorage* names() const { return names_; }
 
-  class AllocationNode;
-
-  struct Sample {
+  class FunctionInfo {
    public:
-    Sample(size_t size_, AllocationNode* owner_, Local<Value> local_,
-           SamplingHeapProfiler* profiler_)
-        : size(size_),
-          owner(owner_),
-          global(Global<Value>(
-              reinterpret_cast<v8::Isolate*>(profiler_->isolate_), local_)),
-          profiler(profiler_) {}
-    ~Sample() { global.Reset(); }
-    const size_t size;
-    AllocationNode* const owner;
-    Global<Value> global;
-    SamplingHeapProfiler* const profiler;
+    FunctionInfo(SharedFunctionInfo* shared, StringsStorage* names);
+    explicit FunctionInfo(const char* name)
+        : name_(name),
+          script_name_(""),
+          script_id_(v8::UnboundScript::kNoScriptId),
+          start_position_(0) {}
+
+    const char* get_name() const { return name_; }
+    const char* get_script_name() const { return script_name_; }
+    int get_script_id() const { return script_id_; }
+    int get_start_position() const { return start_position_; }
 
    private:
-    DISALLOW_COPY_AND_ASSIGN(Sample);
+    const char* const name_;
+    const char* script_name_;
+    int script_id_;
+    const int start_position_;
   };
 
-  class AllocationNode {
+  class SampledAllocation {
    public:
-    AllocationNode(const char* const name, int script_id,
-                   const int start_position)
-        : script_id_(script_id),
-          script_position_(start_position),
-          name_(name) {}
-    ~AllocationNode() {
-      for (auto child : children_) {
-        delete child;
+    SampledAllocation(SamplingHeapProfiler* sampling_heap_profiler,
+                      Isolate* isolate, Local<Value> local, size_t size,
+                      int max_frames);
+    ~SampledAllocation() {
+      for (auto info : stack_) {
+        delete info;
       }
+      global_.Reset();  // drop the reference.
     }
+    size_t get_size() const { return size_; }
+    const std::vector<FunctionInfo*>& get_stack() const { return stack_; }
 
    private:
-    std::map<size_t, unsigned int> allocations_;
-    std::vector<AllocationNode*> children_;
-    const int script_id_;
-    const int script_position_;
-    const char* const name_;
+    static void OnWeakCallback(const WeakCallbackInfo<SampledAllocation>& data);
 
-    friend class SamplingHeapProfiler;
+    SamplingHeapProfiler* const sampling_heap_profiler_;
+    Global<Value> global_;
+    std::vector<FunctionInfo*> stack_;
+    const size_t size_;
 
-    DISALLOW_COPY_AND_ASSIGN(AllocationNode);
+    DISALLOW_COPY_AND_ASSIGN(SampledAllocation);
   };
 
  private:
@@ -99,29 +99,23 @@ class SamplingHeapProfiler {
 
   void SampleObject(Address soon_object, size_t size);
 
-  static void OnWeakCallback(const WeakCallbackInfo<Sample>& data);
-
   // Methods that construct v8::AllocationProfile.
-
-  // Translates the provided AllocationNode *node* returning an equivalent
-  // AllocationProfile::Node. The newly created AllocationProfile::Node is added
-  // to the provided AllocationProfile *profile*. Line numbers, column numbers,
-  // and script names are resolved using *scripts* which maps all currently
-  // loaded scripts keyed by their script id.
-  v8::AllocationProfile::Node* TranslateAllocationNode(
-      AllocationProfile* profile, SamplingHeapProfiler::AllocationNode* node,
-      const std::map<int, Script*>& scripts);
-  AllocationNode* AddStack();
-  AllocationNode* FindOrAddChildNode(AllocationNode* parent, const char* name,
-                                     int script_id, int start_position);
+  v8::AllocationProfile::Node* AddStack(
+      AllocationProfile* profile, const std::map<int, Script*>& scripts,
+      const std::vector<FunctionInfo*>& stack);
+  v8::AllocationProfile::Node* FindOrAddChildNode(
+      AllocationProfile* profile, const std::map<int, Script*>& scripts,
+      v8::AllocationProfile::Node* parent, FunctionInfo* function_info);
+  v8::AllocationProfile::Node* AllocateNode(
+      AllocationProfile* profile, const std::map<int, Script*>& scripts,
+      FunctionInfo* function_info);
 
   Isolate* const isolate_;
   Heap* const heap_;
   base::SmartPointer<SamplingAllocationObserver> new_space_observer_;
   base::SmartPointer<SamplingAllocationObserver> other_spaces_observer_;
   StringsStorage* const names_;
-  AllocationNode profile_root_;
-  std::set<Sample*> samples_;
+  std::set<SampledAllocation*> samples_;
   const int stack_depth_;
 
   friend class SamplingAllocationObserver;
