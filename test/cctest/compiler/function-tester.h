@@ -206,11 +206,10 @@ class FunctionTester : public InitializedHandleScope {
   std::string BuildFunction(int param_count) {
     std::string function_string = "(function(";
     if (param_count > 0) {
-      char next = 'a';
-      function_string += next;
-      while (param_count-- > 0) {
+      function_string += 'a';
+      for (int i = 1; i < param_count; i++) {
         function_string += ',';
-        function_string += ++next;
+        function_string += static_cast<char>('a' + i);
       }
     }
     function_string += "){})";
