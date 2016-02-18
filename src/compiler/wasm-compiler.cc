@@ -2007,9 +2007,29 @@ Handle<JSFunction> CompileJSToWasmWrapper(
         &zone, false, params + 1, CallDescriptor::kNoFlags);
     // TODO(titzer): this is technically a WASM wrapper, not a wasm function.
     Code::Flags flags = Code::ComputeFlags(Code::WASM_FUNCTION);
-    CompilationInfo info("js-to-wasm", isolate, &zone, flags);
+    bool debugging =
+#if DEBUG
+        true;
+#else
+        FLAG_print_opt_code || FLAG_trace_turbo || FLAG_trace_turbo_graph;
+#endif
+    const char* func_name = "js-to-wasm";
+
+    static unsigned id = 0;
+    Vector<char> buffer;
+    if (debugging) {
+      buffer = Vector<char>::New(128);
+      SNPrintF(buffer, "js-to-wasm#%d", id);
+      func_name = buffer.start();
+    }
+
+    CompilationInfo info(func_name, isolate, &zone, flags);
     Handle<Code> code =
         Pipeline::GenerateCodeForTesting(&info, incoming, &graph, nullptr);
+    if (debugging) {
+      buffer.Dispose();
+    }
+
     RecordFunctionCompilation(Logger::FUNCTION_TAG, &info, "js-to-wasm", index,
                               module->module->GetName(func->name_offset));
     // Set the JSFunction's machine code.
@@ -2069,8 +2089,26 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, wasm::ModuleEnv* module,
     CallDescriptor* incoming = module->GetWasmCallDescriptor(&zone, func->sig);
     // TODO(titzer): this is technically a WASM wrapper, not a wasm function.
     Code::Flags flags = Code::ComputeFlags(Code::WASM_FUNCTION);
-    CompilationInfo info("wasm-to-js", isolate, &zone, flags);
+    bool debugging =
+#if DEBUG
+        true;
+#else
+        FLAG_print_opt_code || FLAG_trace_turbo || FLAG_trace_turbo_graph;
+#endif
+    const char* func_name = "wasm-to-js";
+    static unsigned id = 0;
+    Vector<char> buffer;
+    if (debugging) {
+      buffer = Vector<char>::New(128);
+      SNPrintF(buffer, "wasm-to-js#%d", id);
+      func_name = buffer.start();
+    }
+
+    CompilationInfo info(func_name, isolate, &zone, flags);
     code = Pipeline::GenerateCodeForTesting(&info, incoming, &graph, nullptr);
+    if (debugging) {
+      buffer.Dispose();
+    }
 
     RecordFunctionCompilation(Logger::FUNCTION_TAG, &info, "wasm-to-js", index,
                               module->module->GetName(func->name_offset));
