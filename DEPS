@@ -110,6 +110,14 @@ hooks = [
         'v8/tools/gcmole/download_gcmole_tools.py',
     ],
   },
+  {
+    'name': 'jsfunfuzz',
+    'pattern': '.',
+    'action': [
+        'python',
+        'v8/tools/jsfunfuzz/download_jsfunfuzz.py',
+    ],
+  },
   # Pull luci-go binaries (isolate, swarming) using checked-in hashes.
   {
     'name': 'luci-go_win',
