@@ -1270,20 +1270,10 @@ Statement* Parser::ParseStatementListItem(bool* ok) {
   //    Statement
   //    Declaration
 
-  if (peek() != Token::CLASS) {
-    // No more classes follow; reset the start position for the consecutive
-    // class declaration group.
-    scope_->set_class_declaration_group_start(-1);
-  }
-
   switch (peek()) {
     case Token::FUNCTION:
       return ParseFunctionDeclaration(NULL, ok);
     case Token::CLASS:
-      if (scope_->class_declaration_group_start() < 0) {
-        scope_->set_class_declaration_group_start(
-            scanner()->peek_location().beg_pos);
-      }
       Consume(Token::CLASS);
       return ParseClassDeclaration(NULL, ok);
     case Token::CONST:
@@ -1961,18 +1951,11 @@ Variable* Parser::Declare(Declaration* declaration,
     if (var == NULL) {
       // Declare the name.
       Variable::Kind kind = Variable::NORMAL;
-      int declaration_group_start = -1;
       if (is_function_declaration) {
         kind = Variable::FUNCTION;
-      } else if (declaration->IsVariableDeclaration() &&
-                 declaration->AsVariableDeclaration()->is_class_declaration()) {
-        kind = Variable::CLASS;
-        declaration_group_start =
-            declaration->AsVariableDeclaration()->declaration_group_start();
       }
       var = declaration_scope->DeclareLocal(
-          name, mode, declaration->initialization(), kind, kNotAssigned,
-          declaration_group_start);
+          name, mode, declaration->initialization(), kind, kNotAssigned);
     } else if ((mode == CONST_LEGACY || var->mode() == CONST_LEGACY) &&
                !declaration_scope->is_script_scope()) {
       // Duplicate legacy const definitions throw at runtime.
@@ -2232,30 +2215,10 @@ Statement* Parser::ParseClassDeclaration(ZoneList<const AstRawString*>* names,
 
   VariableMode mode = is_strong(language_mode()) ? CONST : LET;
   VariableProxy* proxy = NewUnresolved(name, mode);
-  const bool is_class_declaration = true;
-  Declaration* declaration = factory()->NewVariableDeclaration(
-      proxy, mode, scope_, pos, is_class_declaration,
-      scope_->class_declaration_group_start());
-  Variable* outer_class_variable =
-      Declare(declaration, DeclarationDescriptor::NORMAL, true, CHECK_OK);
+  Declaration* declaration =
+      factory()->NewVariableDeclaration(proxy, mode, scope_, pos);
+  Declare(declaration, DeclarationDescriptor::NORMAL, true, CHECK_OK);
   proxy->var()->set_initializer_position(position());
-  // This is needed because a class ("class Name { }") creates two bindings (one
-  // in the outer scope, and one in the class scope). The method is a function
-  // scope inside the inner scope (class scope). The consecutive class
-  // declarations are in the outer scope.
-  if (value->class_variable_proxy() && value->class_variable_proxy()->var() &&
-      outer_class_variable->is_class()) {
-    // In some cases, the outer variable is not detected as a class variable;
-    // this happens e.g., for lazy methods. They are excluded from strong mode
-    // checks for now. TODO(marja, rossberg): re-create variables with the
-    // correct Kind and remove this hack.
-    value->class_variable_proxy()
-        ->var()
-        ->AsClassVariable()
-        ->set_declaration_group_start(
-            outer_class_variable->AsClassVariable()->declaration_group_start());
-  }
-
   Assignment* assignment =
       factory()->NewAssignment(Token::INIT, proxy, value, pos);
   Statement* assignment_statement =
@@ -4912,10 +4875,8 @@ ClassLiteral* Parser::ParseClassLiteral(const AstRawString* name,
   VariableProxy* proxy = NULL;
   if (name != NULL) {
     proxy = NewUnresolved(name, CONST);
-    const bool is_class_declaration = true;
-    Declaration* declaration = factory()->NewVariableDeclaration(
-        proxy, CONST, block_scope, pos, is_class_declaration,
-        scope_->class_declaration_group_start());
+    Declaration* declaration =
+        factory()->NewVariableDeclaration(proxy, CONST, block_scope, pos);
     Declare(declaration, DeclarationDescriptor::NORMAL, true, CHECK_OK);
   }
 

@@ -1604,32 +1604,7 @@ Local<Script> UnboundScript::BindToCurrentContext() {
       function_info(i::SharedFunctionInfo::cast(*obj), obj->GetIsolate());
   i::Isolate* isolate = obj->GetIsolate();
 
-  i::ScopeInfo* scope_info = function_info->scope_info();
   i::Handle<i::JSReceiver> global(isolate->native_context()->global_object());
-  for (int i = 0; i < scope_info->StrongModeFreeVariableCount(); ++i) {
-    i::Handle<i::String> name_string(scope_info->StrongModeFreeVariableName(i));
-    i::ScriptContextTable::LookupResult result;
-    i::Handle<i::ScriptContextTable> script_context_table(
-        isolate->native_context()->script_context_table());
-    if (!i::ScriptContextTable::Lookup(script_context_table, name_string,
-                                       &result)) {
-      i::Handle<i::Name> name(scope_info->StrongModeFreeVariableName(i));
-      Maybe<bool> has = i::JSReceiver::HasProperty(global, name);
-      if (has.IsJust() && !has.FromJust()) {
-        i::PendingCompilationErrorHandler pending_error_handler_;
-        pending_error_handler_.ReportMessageAt(
-            scope_info->StrongModeFreeVariableStartPosition(i),
-            scope_info->StrongModeFreeVariableEndPosition(i),
-            i::MessageTemplate::kStrongUnboundGlobal, name_string,
-            i::kReferenceError);
-        i::Handle<i::Script> script(i::Script::cast(function_info->script()));
-        pending_error_handler_.ThrowPendingError(isolate, script);
-        isolate->ReportPendingMessages();
-        isolate->OptionalRescheduleException(true);
-        return Local<Script>();
-      }
-    }
-  }
   i::Handle<i::JSFunction> function =
       obj->GetIsolate()->factory()->NewFunctionFromSharedFunctionInfo(
           function_info, isolate->native_context());

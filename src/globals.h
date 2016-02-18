@@ -984,15 +984,10 @@ enum FunctionKind {
   kDefaultConstructor = 1 << 4,
   kSubclassConstructor = 1 << 5,
   kBaseConstructor = 1 << 6,
-  kInObjectLiteral = 1 << 7,
   kDefaultBaseConstructor = kDefaultConstructor | kBaseConstructor,
   kDefaultSubclassConstructor = kDefaultConstructor | kSubclassConstructor,
   kClassConstructor =
       kBaseConstructor | kSubclassConstructor | kDefaultConstructor,
-  kConciseMethodInObjectLiteral = kConciseMethod | kInObjectLiteral,
-  kConciseGeneratorMethodInObjectLiteral =
-      kConciseGeneratorMethod | kInObjectLiteral,
-  kAccessorFunctionInObjectLiteral = kAccessorFunction | kInObjectLiteral,
 };
 
 
@@ -1006,10 +1001,7 @@ inline bool IsValidFunctionKind(FunctionKind kind) {
          kind == FunctionKind::kDefaultBaseConstructor ||
          kind == FunctionKind::kDefaultSubclassConstructor ||
          kind == FunctionKind::kBaseConstructor ||
-         kind == FunctionKind::kSubclassConstructor ||
-         kind == FunctionKind::kConciseMethodInObjectLiteral ||
-         kind == FunctionKind::kConciseGeneratorMethodInObjectLiteral ||
-         kind == FunctionKind::kAccessorFunctionInObjectLiteral;
+         kind == FunctionKind::kSubclassConstructor;
 }
 
 
@@ -1070,18 +1062,6 @@ inline bool IsConstructable(FunctionKind kind, LanguageMode mode) {
   return true;
 }
 
-
-inline bool IsInObjectLiteral(FunctionKind kind) {
-  DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kInObjectLiteral;
-}
-
-
-inline FunctionKind WithObjectLiteralBit(FunctionKind kind) {
-  kind = static_cast<FunctionKind>(kind | FunctionKind::kInObjectLiteral);
-  DCHECK(IsValidFunctionKind(kind));
-  return kind;
-}
 
 inline uint32_t ObjectHash(Address address) {
   // All objects are at least pointer aligned, so we can remove the trailing

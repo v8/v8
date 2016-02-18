@@ -4170,10 +4170,6 @@ class ScopeInfo : public FixedArray {
   // exposed to the user in a debugger.
   bool LocalIsSynthetic(int var);
 
-  String* StrongModeFreeVariableName(int var);
-  int StrongModeFreeVariableStartPosition(int var);
-  int StrongModeFreeVariableEndPosition(int var);
-
   // Lookup support for serialized scope info. Returns the
   // the stack slot index for a given slot name if the slot is
   // present; otherwise returns a value < 0. The name must be an internalized
@@ -4243,8 +4239,7 @@ class ScopeInfo : public FixedArray {
   V(ParameterCount)                          \
   V(StackLocalCount)                         \
   V(ContextLocalCount)                       \
-  V(ContextGlobalCount)                      \
-  V(StrongModeFreeVariableCount)
+  V(ContextGlobalCount)
 
 #define FIELD_ACCESSORS(name)       \
   inline void Set##name(int value); \
@@ -4286,15 +4281,10 @@ class ScopeInfo : public FixedArray {
   //    the context locals in ContextLocalNameEntries. One slot is used per
   //    context local, so in total this part occupies ContextLocalCount()
   //    slots in the array.
-  // 6. StrongModeFreeVariableNameEntries:
-  //    Stores the names of strong mode free variables.
-  // 7. StrongModeFreeVariablePositionEntries:
-  //    Stores the locations (start and end position) of strong mode free
-  //    variables.
-  // 8. RecieverEntryIndex:
+  // 6. RecieverEntryIndex:
   //    If the scope binds a "this" value, one slot is reserved to hold the
   //    context or stack slot index for the variable.
-  // 9. FunctionNameEntryIndex:
+  // 7. FunctionNameEntryIndex:
   //    If the scope belongs to a named function expression this part contains
   //    information about the function variable. It always occupies two array
   //    slots:  a. The name of the function variable.
@@ -4306,8 +4296,6 @@ class ScopeInfo : public FixedArray {
   int ContextGlobalNameEntriesIndex();
   int ContextLocalInfoEntriesIndex();
   int ContextGlobalInfoEntriesIndex();
-  int StrongModeFreeVariableNameEntriesIndex();
-  int StrongModeFreeVariablePositionEntriesIndex();
   int ReceiverEntryIndex();
   int FunctionNameEntryIndex();
 
@@ -7159,7 +7147,6 @@ class SharedFunctionInfo: public HeapObject {
     kIsDefaultConstructor,
     kIsSubclassConstructor,
     kIsBaseConstructor,
-    kIsInObjectLiteral,
     // byte 3
     kDeserialized,
     kNeverCompiled,
@@ -7180,10 +7167,9 @@ class SharedFunctionInfo: public HeapObject {
   ASSERT_FUNCTION_KIND_ORDER(kDefaultConstructor, kIsDefaultConstructor);
   ASSERT_FUNCTION_KIND_ORDER(kSubclassConstructor, kIsSubclassConstructor);
   ASSERT_FUNCTION_KIND_ORDER(kBaseConstructor, kIsBaseConstructor);
-  ASSERT_FUNCTION_KIND_ORDER(kInObjectLiteral, kIsInObjectLiteral);
 #undef ASSERT_FUNCTION_KIND_ORDER
 
-  class FunctionKindBits : public BitField<FunctionKind, kIsArrow, 8> {};
+  class FunctionKindBits : public BitField<FunctionKind, kIsArrow, 7> {};
 
   class DeoptCountBits : public BitField<int, 0, 4> {};
   class OptReenableTriesBits : public BitField<int, 4, 18> {};

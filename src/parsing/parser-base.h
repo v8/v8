@@ -1735,8 +1735,6 @@ ParserBase<Traits>::ParsePropertyDefinition(
                          : FunctionKind::kBaseConstructor;
     }
 
-    if (!in_class) kind = WithObjectLiteralBit(kind);
-
     value = this->ParseFunctionLiteral(
         *name, scanner()->location(), kSkipFunctionNameCheck, kind,
         RelocInfo::kNoPosition, FunctionLiteral::kAnonymousExpression,
@@ -1778,11 +1776,10 @@ ParserBase<Traits>::ParsePropertyDefinition(
                              CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
     }
 
-    FunctionKind kind = FunctionKind::kAccessorFunction;
-    if (!in_class) kind = WithObjectLiteralBit(kind);
     typename Traits::Type::FunctionLiteral value = this->ParseFunctionLiteral(
-        *name, scanner()->location(), kSkipFunctionNameCheck, kind,
-        RelocInfo::kNoPosition, FunctionLiteral::kAnonymousExpression,
+        *name, scanner()->location(), kSkipFunctionNameCheck,
+        FunctionKind::kAccessorFunction, RelocInfo::kNoPosition,
+        FunctionLiteral::kAnonymousExpression,
         is_get ? FunctionLiteral::kGetterArity : FunctionLiteral::kSetterArity,
         language_mode(), CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 

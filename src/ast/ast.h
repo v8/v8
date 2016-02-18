@@ -549,24 +549,10 @@ class VariableDeclaration final : public Declaration {
     return mode() == VAR ? kCreatedInitialized : kNeedsInitialization;
   }
 
-  bool is_class_declaration() const { return is_class_declaration_; }
-
-  // VariableDeclarations can be grouped into consecutive declaration
-  // groups. Each VariableDeclaration is associated with the start position of
-  // the group it belongs to. The positions are used for strong mode scope
-  // checks for classes and functions.
-  int declaration_group_start() const { return declaration_group_start_; }
-
  protected:
   VariableDeclaration(Zone* zone, VariableProxy* proxy, VariableMode mode,
-                      Scope* scope, int pos, bool is_class_declaration = false,
-                      int declaration_group_start = -1)
-      : Declaration(zone, proxy, mode, scope, pos),
-        is_class_declaration_(is_class_declaration),
-        declaration_group_start_(declaration_group_start) {}
-
-  bool is_class_declaration_;
-  int declaration_group_start_;
+                      Scope* scope, int pos)
+      : Declaration(zone, proxy, mode, scope, pos) {}
 };
 
 
@@ -3074,12 +3060,11 @@ class AstNodeFactory final BASE_EMBEDDED {
 
   AstValueFactory* ast_value_factory() const { return ast_value_factory_; }
 
-  VariableDeclaration* NewVariableDeclaration(
-      VariableProxy* proxy, VariableMode mode, Scope* scope, int pos,
-      bool is_class_declaration = false, int declaration_group_start = -1) {
+  VariableDeclaration* NewVariableDeclaration(VariableProxy* proxy,
+                                              VariableMode mode, Scope* scope,
+                                              int pos) {
     return new (parser_zone_)
-        VariableDeclaration(parser_zone_, proxy, mode, scope, pos,
-                            is_class_declaration, declaration_group_start);
+        VariableDeclaration(parser_zone_, proxy, mode, scope, pos);
   }
 
   FunctionDeclaration* NewFunctionDeclaration(VariableProxy* proxy,

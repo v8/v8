@@ -24,8 +24,7 @@ class VariableMap: public ZoneHashMap {
 
   Variable* Declare(Scope* scope, const AstRawString* name, VariableMode mode,
                     Variable::Kind kind, InitializationFlag initialization_flag,
-                    MaybeAssignedFlag maybe_assigned_flag = kNotAssigned,
-                    int declaration_group_start = -1);
+                    MaybeAssignedFlag maybe_assigned_flag = kNotAssigned);
 
   Variable* Lookup(const AstRawString* name);
 
@@ -163,8 +162,7 @@ class Scope: public ZoneObject {
   // declared before, the previously declared variable is returned.
   Variable* DeclareLocal(const AstRawString* name, VariableMode mode,
                          InitializationFlag init_flag, Variable::Kind kind,
-                         MaybeAssignedFlag maybe_assigned_flag = kNotAssigned,
-                         int declaration_group_start = -1);
+                         MaybeAssignedFlag maybe_assigned_flag = kNotAssigned);
 
   // Declare an implicit global variable in this scope which must be a
   // script scope.  The variable was introduced (possibly from an inner
@@ -377,12 +375,6 @@ class Scope: public ZoneObject {
              IsClassConstructor(function_kind())));
   }
 
-  const Scope* NearestOuterEvalScope() const {
-    if (is_eval_scope()) return this;
-    if (outer_scope() == nullptr) return nullptr;
-    return outer_scope()->NearestOuterEvalScope();
-  }
-
   // ---------------------------------------------------------------------------
   // Accessors.
 
@@ -503,25 +495,15 @@ class Scope: public ZoneObject {
   // The ModuleDescriptor for this scope; only for module scopes.
   ModuleDescriptor* module() const { return module_descriptor_; }
 
-
-  void set_class_declaration_group_start(int position) {
-    class_declaration_group_start_ = position;
-  }
-
-  int class_declaration_group_start() const {
-    return class_declaration_group_start_;
-  }
-
   // ---------------------------------------------------------------------------
   // Variable allocation.
 
   // Collect stack and context allocated local variables in this scope. Note
   // that the function variable - if present - is not collected and should be
   // handled separately.
-  void CollectStackAndContextLocals(
-      ZoneList<Variable*>* stack_locals, ZoneList<Variable*>* context_locals,
-      ZoneList<Variable*>* context_globals,
-      ZoneList<Variable*>* strong_mode_free_variables = nullptr);
+  void CollectStackAndContextLocals(ZoneList<Variable*>* stack_locals,
+                                    ZoneList<Variable*>* context_locals,
+                                    ZoneList<Variable*>* context_globals);
 
   // Current number of var or const locals.
   int num_var_or_const() { return num_var_or_const_; }
@@ -784,12 +766,6 @@ class Scope: public ZoneObject {
   MUST_USE_RESULT
   bool ResolveVariablesRecursively(ParseInfo* info, AstNodeFactory* factory);
 
-  bool CheckStrongModeDeclaration(VariableProxy* proxy, Variable* var);
-
-  // If this scope is a method scope of a class, return the corresponding
-  // class variable, otherwise nullptr.
-  ClassVariable* ClassVariableForMethod() const;
-
   // Scope analysis.
   void PropagateScopeInfo(bool outer_scope_calls_sloppy_eval);
   bool HasTrivialContext() const;
@@ -854,10 +830,6 @@ class Scope: public ZoneObject {
   Zone* zone_;
 
   PendingCompilationErrorHandler pending_error_handler_;
-
-  // For tracking which classes are declared consecutively. Needed for strong
-  // mode.
-  int class_declaration_group_start_;
 };
 
 }  // namespace internal
