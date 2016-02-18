@@ -36,6 +36,8 @@
 #define WASM_64 0
 #endif
 
+static const uint32_t kMaxFunctions = 10;
+
 // TODO(titzer): check traps more robustly in tests.
 // Currently, in tests, we just return 0xdeadbeef from the function in which
 // the trap occurs if the runtime context is not available to throw a JavaScript
@@ -68,17 +70,20 @@ inline void init_env(FunctionEnv* env, FunctionSig* sig) {
 const uint32_t kMaxGlobalsSize = 128;
 
 // A helper for module environments that adds the ability to allocate memory
-// and global variables. Contains a built-in {WasmModuleInstance}.
+// and global variables. Contains a built-in {WasmModule} and
+// {WasmModuleInstance}.
 class TestingModule : public ModuleEnv {
  public:
-  TestingModule() : instance_(nullptr), global_offset(0) {
+  TestingModule() : instance_(&module_), global_offset(0) {
+    module_.shared_isolate = CcTest::InitIsolateOnce();
+    module = &module_;
     instance = &instance_;
+    instance->module = &module_;
     instance->globals_start = global_data;
     instance->globals_size = kMaxGlobalsSize;
     instance->mem_start = nullptr;
     instance->mem_size = 0;
     instance->function_code = nullptr;
-    module = nullptr;
     linker = nullptr;
     asm_js = false;
     memset(global_data, 0, sizeof(global_data));
@@ -88,8 +93,9 @@ class TestingModule : public ModuleEnv {
     if (instance->mem_start) {
       free(instance->mem_start);
     }
-    if (instance->function_code) delete instance->function_code;
-    if (module) delete module;
+    if (instance->function_code) {
+      delete instance->function_code;
+    }
   }
 
   byte* AddMemory(size_t size) {
@@ -115,7 +121,6 @@ class TestingModule : public ModuleEnv {
   }
 
   byte AddSignature(FunctionSig* sig) {
-    AllocModule();
     if (!module->signatures) {
       module->signatures = new std::vector<FunctionSig*>();
     }
@@ -165,21 +170,27 @@ class TestingModule : public ModuleEnv {
     rng.NextBytes(raw, end - raw);
   }
 
-  WasmFunction* AddFunction(FunctionSig* sig, Handle<Code> code) {
-    AllocModule();
+  int AddFunction(FunctionSig* sig, Handle<Code> code) {
     if (module->functions == nullptr) {
       module->functions = new std::vector<WasmFunction>();
+      // TODO(titzer): Reserving space here to avoid the underlying WasmFunction
+      // structs from moving.
+      module->functions->reserve(kMaxFunctions);
       instance->function_code = new std::vector<Handle<Code>>();
     }
     uint32_t index = static_cast<uint32_t>(module->functions->size());
     module->functions->push_back(
         {sig, index, 0, 0, 0, 0, 0, 0, 0, false, false});
     instance->function_code->push_back(code);
-    return &module->functions->back();
+    DCHECK_LT(index, kMaxFunctions);  // limited for testing.
+    return index;
+  }
+
+  void SetFunctionCode(uint32_t index, Handle<Code> code) {
+    instance->function_code->at(index) = code;
   }
 
   void AddIndirectFunctionTable(int* functions, int table_size) {
-    AllocModule();
     Isolate* isolate = module->shared_isolate;
     Handle<FixedArray> fixed =
         isolate->factory()->NewFixedArray(2 * table_size);
@@ -202,14 +213,13 @@ class TestingModule : public ModuleEnv {
     }
   }
 
-
  private:
+  WasmModule module_;
   WasmModuleInstance instance_;
   uint32_t global_offset;
   V8_ALIGNED(8) byte global_data[kMaxGlobalsSize];  // preallocated global data.
 
   WasmGlobal* AddGlobal(MachineType mem_type) {
-    AllocModule();
     if (!module->globals) {
       module->globals = new std::vector<WasmGlobal>();
     }
@@ -220,15 +230,6 @@ class TestingModule : public ModuleEnv {
     // limit number of globals.
     CHECK_LT(global_offset, kMaxGlobalsSize);
     return &module->globals->back();
-  }
-  void AllocModule() {
-    if (module == nullptr) {
-      module = new WasmModule();
-      module->shared_isolate = CcTest::InitIsolateOnce();
-      module->globals = nullptr;
-      module->functions = nullptr;
-      module->data_segments = nullptr;
-    }
   }
 };
 
@@ -393,23 +394,44 @@ class WasmFunctionWrapper : public HandleAndZoneScope,
   Signature<MachineType>* signature_;
 };
 
-// A helper for compiling functions that are only internally callable WASM code.
+// A helper for compiling WASM functions for testing. This class can create a
+// standalone function if {module} is NULL or a function within a
+// {TestingModule}. It contains the internal state for compilation (i.e.
+// TurboFan graph) and, later, interpretation.
 class WasmFunctionCompiler : public HandleAndZoneScope,
                              private GraphAndBuilders {
  public:
-  explicit WasmFunctionCompiler(FunctionSig* sig, ModuleEnv* module = nullptr)
+  explicit WasmFunctionCompiler(FunctionSig* sig, TestingModule* module)
       : GraphAndBuilders(main_zone()),
         jsgraph(this->isolate(), this->graph(), this->common(), nullptr,
                 nullptr, this->machine()),
-        descriptor_(nullptr) {
+        descriptor_(nullptr),
+        testing_module_(module) {
     init_env(&env, sig);
     env.module = module;
+    if (module) {
+      // Get a new function from the testing module.
+      function_ = nullptr;
+      function_index_ = module->AddFunction(sig, Handle<Code>::null());
+    } else {
+      // Create our own function.
+      function_ = new WasmFunction();
+      function_->sig = sig;
+      function_index_ = 0;
+    }
+  }
+
+  ~WasmFunctionCompiler() {
+    if (function_) delete function_;
   }
 
   JSGraph jsgraph;
   FunctionEnv env;
   // The call descriptor is initialized when the function is compiled.
   CallDescriptor* descriptor_;
+  TestingModule* testing_module_;
+  WasmFunction* function_;
+  int function_index_;
 
   Isolate* isolate() { return main_isolate(); }
   Graph* graph() const { return main_graph_; }
@@ -424,6 +446,13 @@ class WasmFunctionCompiler : public HandleAndZoneScope,
   CallDescriptor* descriptor() { return descriptor_; }
 
   void Build(const byte* start, const byte* end) {
+    // Transfer local counts before compiling.
+    function()->local_i32_count = env.local_i32_count;
+    function()->local_i64_count = env.local_i64_count;
+    function()->local_f32_count = env.local_f32_count;
+    function()->local_f64_count = env.local_f64_count;
+
+    // Build the TurboFan graph.
     TestBuildingGraph(main_zone(), &jsgraph, &env, start, end);
   }
 
@@ -435,11 +464,12 @@ class WasmFunctionCompiler : public HandleAndZoneScope,
     return b;
   }
 
-  Handle<Code> Compile(ModuleEnv* module) {
+  // TODO(titzer): remove me.
+  Handle<Code> Compile() {
     InitializeDescriptor();
     CallDescriptor* desc = descriptor_;
     if (kPointerSize == 4) {
-      desc = module->GetI32WasmCallDescriptor(this->zone(), desc);
+      desc = testing_module_->GetI32WasmCallDescriptor(this->zone(), desc);
     }
     CompilationInfo info("wasm compile", this->isolate(), this->zone());
     Handle<Code> result =
@@ -454,17 +484,20 @@ class WasmFunctionCompiler : public HandleAndZoneScope,
     return result;
   }
 
-  uint32_t CompileAndAdd(TestingModule* module, int sig_index = 0) {
-    uint32_t index = 0;
-    if (module->module && module->module->functions) {
-      index = static_cast<uint32_t>(module->module->functions->size());
-    }
-    WasmFunction* function = module->AddFunction(env.sig, Compile(module));
-    function->sig_index = sig_index;
-    return index;
+  // TODO(titzer): remove me.
+  uint32_t CompileAndAdd(uint16_t sig_index = 0) {
+    CHECK(testing_module_);
+    function()->sig_index = sig_index;
+    Handle<Code> code = Compile();
+    testing_module_->SetFunctionCode(function_index_, code);
+    return static_cast<uint32_t>(function_index_);
+  }
+
+  WasmFunction* function() {
+    if (function_) return function_;
+    return &testing_module_->module->functions->at(function_index_);
   }
 };
-
 
 // A helper class to build graphs from Wasm bytecode, generate machine
 // code, and run that code.
@@ -475,10 +508,28 @@ class WasmRunner {
              MachineType p1 = MachineType::None(),
              MachineType p2 = MachineType::None(),
              MachineType p3 = MachineType::None())
-      : signature_(MachineTypeForC<ReturnType>() == MachineType::None() ? 0 : 1,
+      : compiled_(false),
+
+        signature_(MachineTypeForC<ReturnType>() == MachineType::None() ? 0 : 1,
                    GetParameterCount(p0, p1, p2, p3), storage_),
-        compiler_(&signature_),
-        compilation_done_(false) {
+        compiler_(&signature_, nullptr) {
+    InitSigStorage(p0, p1, p2, p3);
+  }
+
+  WasmRunner(TestingModule* module, MachineType p0 = MachineType::None(),
+             MachineType p1 = MachineType::None(),
+             MachineType p2 = MachineType::None(),
+             MachineType p3 = MachineType::None())
+      : compiled_(false),
+        signature_(MachineTypeForC<ReturnType>() == MachineType::None() ? 0 : 1,
+                   GetParameterCount(p0, p1, p2, p3), storage_),
+        compiler_(&signature_, module) {
+    DCHECK(module);
+    InitSigStorage(p0, p1, p2, p3);
+  }
+
+  void InitSigStorage(MachineType p0, MachineType p1, MachineType p2,
+                      MachineType p3) {
     int index = 0;
     MachineType ret = MachineTypeForC<ReturnType>();
     if (ret != MachineType::None()) {
@@ -497,39 +548,44 @@ class WasmRunner {
     wrapper_.Init(compiler_.descriptor(), p0, p1, p2, p3);
   }
 
-
   FunctionEnv* env() { return &compiler_.env; }
 
-
-  // Builds a graph from the given Wasm code, and generates the machine
+  // Builds a graph from the given Wasm code and generates the machine
   // code and call wrapper for that graph. This method must not be called
   // more than once.
   void Build(const byte* start, const byte* end) {
-    DCHECK(!compilation_done_);
-    compilation_done_ = true;
-    // Build the TF graph.
+    CHECK(!compiled_);
+    compiled_ = true;
+
+    // Build the TF graph within the compiler.
     compiler_.Build(start, end);
     // Generate code.
-    Handle<Code> code = compiler_.Compile(env()->module);
+    Handle<Code> code = compiler_.Compile();
+
+    if (compiler_.testing_module_) {
+      // Update the table of function code in the module.
+      compiler_.testing_module_->SetFunctionCode(compiler_.function_index_,
+                                                 code);
+    }
 
     wrapper_.SetInnerCode(code);
   }
 
-  ReturnType Call() { return Call(nullptr, nullptr, nullptr, nullptr); }
+  ReturnType Call() { return Call(0, 0, 0, 0); }
 
   template <typename P0>
   ReturnType Call(P0 p0) {
-    return Call(p0, nullptr, nullptr, nullptr);
+    return Call(p0, 0, 0, 0);
   }
 
   template <typename P0, typename P1>
   ReturnType Call(P0 p0, P1 p1) {
-    return Call(p0, p1, nullptr, nullptr);
+    return Call(p0, p1, 0, 0);
   }
 
   template <typename P0, typename P1, typename P2>
   ReturnType Call(P0 p0, P1 p1, P2 p2) {
-    return Call(p0, p1, p2, nullptr);
+    return Call(p0, p1, p2, 0);
   }
 
   template <typename P0, typename P1, typename P2, typename P3>
@@ -551,12 +607,13 @@ class WasmRunner {
     return b;
   }
 
- private:
+ protected:
+  Zone zone;
+  bool compiled_;
   LocalType storage_[WASM_RUNNER_MAX_NUM_PARAMETERS];
   FunctionSig signature_;
   WasmFunctionCompiler compiler_;
   WasmFunctionWrapper<ReturnType> wrapper_;
-  bool compilation_done_;
 
   static size_t GetParameterCount(MachineType p0, MachineType p1,
                                   MachineType p2, MachineType p3) {

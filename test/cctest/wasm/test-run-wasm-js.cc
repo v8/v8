@@ -122,9 +122,9 @@ void EXPECT_CALL(double expected, Handle<JSFunction> jsfunc, double a,
 TEST(Run_Int32Sub_jswrapped) {
   TestSignatures sigs;
   TestingModule module;
-  WasmFunctionCompiler t(sigs.i_ii());
+  WasmFunctionCompiler t(sigs.i_ii(), &module);
   BUILD(t, WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-  Handle<JSFunction> jsfunc = WrapCode(&module, t.CompileAndAdd(&module));
+  Handle<JSFunction> jsfunc = WrapCode(&module, t.CompileAndAdd());
 
   EXPECT_CALL(33, jsfunc, 44, 11);
   EXPECT_CALL(-8723487, jsfunc, -8000000, 723487);
@@ -134,9 +134,9 @@ TEST(Run_Int32Sub_jswrapped) {
 TEST(Run_Float32Div_jswrapped) {
   TestSignatures sigs;
   TestingModule module;
-  WasmFunctionCompiler t(sigs.f_ff());
+  WasmFunctionCompiler t(sigs.f_ff(), &module);
   BUILD(t, WASM_F32_DIV(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-  Handle<JSFunction> jsfunc = WrapCode(&module, t.CompileAndAdd(&module));
+  Handle<JSFunction> jsfunc = WrapCode(&module, t.CompileAndAdd());
 
   EXPECT_CALL(92, jsfunc, 46, 0.5);
   EXPECT_CALL(64, jsfunc, -16, -0.25);
@@ -146,9 +146,9 @@ TEST(Run_Float32Div_jswrapped) {
 TEST(Run_Float64Add_jswrapped) {
   TestSignatures sigs;
   TestingModule module;
-  WasmFunctionCompiler t(sigs.d_dd());
+  WasmFunctionCompiler t(sigs.d_dd(), &module);
   BUILD(t, WASM_F64_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-  Handle<JSFunction> jsfunc = WrapCode(&module, t.CompileAndAdd(&module));
+  Handle<JSFunction> jsfunc = WrapCode(&module, t.CompileAndAdd());
 
   EXPECT_CALL(3, jsfunc, 2, 1);
   EXPECT_CALL(-5.5, jsfunc, -5.25, -0.25);
@@ -158,9 +158,9 @@ TEST(Run_Float64Add_jswrapped) {
 TEST(Run_I32Popcount_jswrapped) {
   TestSignatures sigs;
   TestingModule module;
-  WasmFunctionCompiler t(sigs.i_i());
+  WasmFunctionCompiler t(sigs.i_i(), &module);
   BUILD(t, WASM_I32_POPCNT(WASM_GET_LOCAL(0)));
-  Handle<JSFunction> jsfunc = WrapCode(&module, t.CompileAndAdd(&module));
+  Handle<JSFunction> jsfunc = WrapCode(&module, t.CompileAndAdd());
 
   EXPECT_CALL(2, jsfunc, 9, 0);
   EXPECT_CALL(3, jsfunc, 11, 0);
@@ -180,7 +180,7 @@ TEST(Run_CallJS_Add_jswrapped) {
       AddJsFunction(&module, sigs.i_i(), "(function(a) { return a + 99; })");
   BUILD(t, WASM_CALL_FUNCTION(js_index, WASM_GET_LOCAL(0)));
 
-  Handle<JSFunction> jsfunc = WrapCode(&module, t.CompileAndAdd(&module));
+  Handle<JSFunction> jsfunc = WrapCode(&module, t.CompileAndAdd());
 
   EXPECT_CALL(101, jsfunc, 2, -8);
   EXPECT_CALL(199, jsfunc, 100, -1);
@@ -218,7 +218,7 @@ void RunJSSelectTest(int which) {
       t.Build(&code[0], &code[end]);
     }
 
-    Handle<JSFunction> jsfunc = WrapCode(&module, t.CompileAndAdd(&module));
+    Handle<JSFunction> jsfunc = WrapCode(&module, t.CompileAndAdd());
     double expected = inputs.arg_d(which);
     EXPECT_CALL(expected, jsfunc, 0.0, 0.0);
   }
@@ -256,7 +256,7 @@ void RunWASMSelectTest(int which) {
     TestingModule module;
     WasmFunctionCompiler t(&sig, &module);
     BUILD(t, WASM_GET_LOCAL(which));
-    Handle<JSFunction> jsfunc = WrapCode(&module, t.CompileAndAdd(&module));
+    Handle<JSFunction> jsfunc = WrapCode(&module, t.CompileAndAdd());
 
     Handle<Object> args[] = {
         isolate->factory()->NewNumber(inputs.arg_d(0)),
@@ -305,7 +305,7 @@ void RunWASMSelectAlignTest(int num_args, int num_params) {
     TestingModule module;
     WasmFunctionCompiler t(&sig, &module);
     BUILD(t, WASM_GET_LOCAL(which));
-    Handle<JSFunction> jsfunc = WrapCode(&module, t.CompileAndAdd(&module));
+    Handle<JSFunction> jsfunc = WrapCode(&module, t.CompileAndAdd());
 
     Handle<Object> args[] = {
         isolate->factory()->NewNumber(inputs.arg_d(0)),
@@ -382,7 +382,7 @@ void RunJSSelectAlignTest(int num_args, int num_params) {
     WasmFunctionCompiler t(&sig, &module);
     t.Build(&code[0], &code[end]);
 
-    Handle<JSFunction> jsfunc = WrapCode(&module, t.CompileAndAdd(&module));
+    Handle<JSFunction> jsfunc = WrapCode(&module, t.CompileAndAdd());
 
     Handle<Object> args[] = {
         factory->NewNumber(inputs.arg_d(0)),

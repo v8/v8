@@ -26,7 +26,7 @@ using namespace v8::internal::wasm;
 
 
 TEST(Run_WasmInt8Const) {
-  WasmRunner<int8_t> r;
+  WasmRunner<int32_t> r;
   const byte kExpectedValue = 121;
   // return(kExpectedValue)
   BUILD(r, WASM_I8(kExpectedValue));
@@ -35,7 +35,7 @@ TEST(Run_WasmInt8Const) {
 
 
 TEST(Run_WasmInt8Const_fallthru1) {
-  WasmRunner<int8_t> r;
+  WasmRunner<int32_t> r;
   const byte kExpectedValue = 122;
   // kExpectedValue
   BUILD(r, WASM_I8(kExpectedValue));
@@ -44,7 +44,7 @@ TEST(Run_WasmInt8Const_fallthru1) {
 
 
 TEST(Run_WasmInt8Const_fallthru2) {
-  WasmRunner<int8_t> r;
+  WasmRunner<int32_t> r;
   const byte kExpectedValue = 123;
   // -99 kExpectedValue
   BUILD(r, WASM_I8(-99), WASM_I8(kExpectedValue));
@@ -54,10 +54,10 @@ TEST(Run_WasmInt8Const_fallthru2) {
 
 TEST(Run_WasmInt8Const_all) {
   for (int value = -128; value <= 127; value++) {
-    WasmRunner<int8_t> r;
+    WasmRunner<int32_t> r;
     // return(value)
     BUILD(r, WASM_I8(value));
-    int8_t result = r.Call();
+    int32_t result = r.Call();
     CHECK_EQ(value, result);
   }
 }
@@ -84,10 +84,9 @@ TEST(Run_WasmInt32Const_many) {
 
 
 TEST(Run_WasmMemorySize) {
-  WasmRunner<int32_t> r;
   TestingModule module;
+  WasmRunner<int32_t> r(&module);
   module.AddMemory(1024);
-  r.env()->module = &module;
   BUILD(r, kExprMemorySize);
   CHECK_EQ(1024, r.Call());
 }
@@ -605,10 +604,9 @@ TEST(Run_WASM_Int32DivU_byzero_const) {
 
 
 TEST(Run_WASM_Int32DivS_trap_effect) {
-  WasmRunner<int32_t> r(MachineType::Int32(), MachineType::Int32());
   TestingModule module;
   module.AddMemoryElems<int32_t>(8);
-  r.env()->module = &module;
+  WasmRunner<int32_t> r(&module, MachineType::Int32(), MachineType::Int32());
 
   BUILD(r,
         WASM_IF_ELSE(WASM_GET_LOCAL(0),
@@ -1223,10 +1221,9 @@ TEST(Run_Wasm_TableSwitch4_fallthru_br) {
 
 
 TEST(Run_Wasm_F32ReinterpretI32) {
-  WasmRunner<int32_t> r;
   TestingModule module;
   int32_t* memory = module.AddMemoryElems<int32_t>(8);
-  r.env()->module = &module;
+  WasmRunner<int32_t> r(&module);
 
   BUILD(r, WASM_I32_REINTERPRET_F32(
                WASM_LOAD_MEM(MachineType::Float32(), WASM_ZERO)));
@@ -1240,10 +1237,9 @@ TEST(Run_Wasm_F32ReinterpretI32) {
 
 
 TEST(Run_Wasm_I32ReinterpretF32) {
-  WasmRunner<int32_t> r(MachineType::Int32());
   TestingModule module;
   int32_t* memory = module.AddMemoryElems<int32_t>(8);
-  r.env()->module = &module;
+  WasmRunner<int32_t> r(&module, MachineType::Int32());
 
   BUILD(r, WASM_BLOCK(
                2, WASM_STORE_MEM(MachineType::Float32(), WASM_ZERO,
@@ -1259,10 +1255,9 @@ TEST(Run_Wasm_I32ReinterpretF32) {
 
 
 TEST(Run_Wasm_ReturnStore) {
-  WasmRunner<int32_t> r;
   TestingModule module;
   int32_t* memory = module.AddMemoryElems<int32_t>(8);
-  r.env()->module = &module;
+  WasmRunner<int32_t> r(&module);
 
   BUILD(r, WASM_STORE_MEM(MachineType::Int32(), WASM_ZERO,
                           WASM_LOAD_MEM(MachineType::Int32(), WASM_ZERO)));
@@ -1281,9 +1276,9 @@ TEST(Run_Wasm_VoidReturn1) {
   // Build the test function.
   TestSignatures sigs;
   TestingModule module;
-  WasmFunctionCompiler t(sigs.v_v());
+  WasmFunctionCompiler t(sigs.v_v(), &module);
   BUILD(t, kExprNop);
-  uint32_t index = t.CompileAndAdd(&module);
+  uint32_t index = t.CompileAndAdd();
 
   const int32_t kExpected = -414444;
   // Build the calling function.
@@ -1301,9 +1296,9 @@ TEST(Run_Wasm_VoidReturn2) {
   // Build the test function.
   TestSignatures sigs;
   TestingModule module;
-  WasmFunctionCompiler t(sigs.v_v());
+  WasmFunctionCompiler t(sigs.v_v(), &module);
   BUILD(t, WASM_RETURN0);
-  uint32_t index = t.CompileAndAdd(&module);
+  uint32_t index = t.CompileAndAdd();
 
   const int32_t kExpected = -414444;
   // Build the calling function.
@@ -1499,11 +1494,10 @@ TEST(Run_Wasm_Loop_if_break_fallthru) {
 
 
 TEST(Run_Wasm_LoadMemI32) {
-  WasmRunner<int32_t> r(MachineType::Int32());
   TestingModule module;
   int32_t* memory = module.AddMemoryElems<int32_t>(8);
+  WasmRunner<int32_t> r(&module, MachineType::Int32());
   module.RandomizeMemory(1111);
-  r.env()->module = &module;
 
   BUILD(r, WASM_LOAD_MEM(MachineType::Int32(), WASM_I8(0)));
 
@@ -1519,11 +1513,10 @@ TEST(Run_Wasm_LoadMemI32) {
 
 
 TEST(Run_Wasm_LoadMemI32_oob) {
-  WasmRunner<int32_t> r(MachineType::Uint32());
   TestingModule module;
   int32_t* memory = module.AddMemoryElems<int32_t>(8);
+  WasmRunner<int32_t> r(&module, MachineType::Uint32());
   module.RandomizeMemory(1111);
-  r.env()->module = &module;
 
   BUILD(r, WASM_LOAD_MEM(MachineType::Int32(), WASM_GET_LOCAL(0)));
 
@@ -1540,12 +1533,11 @@ TEST(Run_Wasm_LoadMemI32_oob) {
 
 
 TEST(Run_Wasm_LoadMemI32_oob_asm) {
-  WasmRunner<int32_t> r(MachineType::Uint32());
   TestingModule module;
   module.asm_js = true;
   int32_t* memory = module.AddMemoryElems<int32_t>(8);
+  WasmRunner<int32_t> r(&module, MachineType::Uint32());
   module.RandomizeMemory(1112);
-  r.env()->module = &module;
 
   BUILD(r, WASM_LOAD_MEM(MachineType::Int32(), WASM_GET_LOCAL(0)));
 
@@ -1574,8 +1566,7 @@ TEST(Run_Wasm_LoadMem_offset_oob) {
 
   for (size_t m = 0; m < arraysize(machineTypes); m++) {
     module.RandomizeMemory(1116 + static_cast<int>(m));
-    WasmRunner<int32_t> r(MachineType::Uint32());
-    r.env()->module = &module;
+    WasmRunner<int32_t> r(&module, MachineType::Uint32());
     uint32_t boundary = 24 - WasmOpcodes::MemSize(machineTypes[m]);
 
     BUILD(r, WASM_LOAD_MEM_OFFSET(machineTypes[m], 8, WASM_GET_LOCAL(0)),
@@ -1591,11 +1582,10 @@ TEST(Run_Wasm_LoadMem_offset_oob) {
 
 
 TEST(Run_Wasm_LoadMemI32_offset) {
-  WasmRunner<int32_t> r(MachineType::Int32());
   TestingModule module;
   int32_t* memory = module.AddMemoryElems<int32_t>(4);
+  WasmRunner<int32_t> r(&module, MachineType::Int32());
   module.RandomizeMemory(1111);
-  r.env()->module = &module;
 
   BUILD(r, WASM_LOAD_MEM_OFFSET(MachineType::Int32(), 4, WASM_GET_LOCAL(0)));
 
@@ -1620,15 +1610,14 @@ TEST(Run_Wasm_LoadMemI32_offset) {
 #if !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
 
 TEST(Run_Wasm_LoadMemI32_const_oob_misaligned) {
-  // TODO(titzer): Fix misaligned accesses on MIPS and re-enable.
-  TestingModule module;
   const int kMemSize = 12;
-  module.AddMemoryElems<byte>(kMemSize);
-
+  // TODO(titzer): Fix misaligned accesses on MIPS and re-enable.
   for (int offset = 0; offset < kMemSize + 5; offset++) {
     for (int index = 0; index < kMemSize + 5; index++) {
-      WasmRunner<int32_t> r;
-      r.env()->module = &module;
+      TestingModule module;
+      module.AddMemoryElems<byte>(kMemSize);
+
+      WasmRunner<int32_t> r(&module);
       module.RandomizeMemory();
 
       BUILD(r,
@@ -1647,14 +1636,13 @@ TEST(Run_Wasm_LoadMemI32_const_oob_misaligned) {
 
 
 TEST(Run_Wasm_LoadMemI32_const_oob) {
-  TestingModule module;
   const int kMemSize = 24;
-  module.AddMemoryElems<byte>(kMemSize);
-
   for (int offset = 0; offset < kMemSize + 5; offset += 4) {
     for (int index = 0; index < kMemSize + 5; index += 4) {
-      WasmRunner<int32_t> r;
-      r.env()->module = &module;
+      TestingModule module;
+      module.AddMemoryElems<byte>(kMemSize);
+
+      WasmRunner<int32_t> r(&module);
       module.RandomizeMemory();
 
       BUILD(r,
@@ -1671,11 +1659,10 @@ TEST(Run_Wasm_LoadMemI32_const_oob) {
 
 
 TEST(Run_Wasm_StoreMemI32_offset) {
-  WasmRunner<int32_t> r(MachineType::Int32());
-  const int32_t kWritten = 0xaabbccdd;
   TestingModule module;
   int32_t* memory = module.AddMemoryElems<int32_t>(4);
-  r.env()->module = &module;
+  WasmRunner<int32_t> r(&module, MachineType::Int32());
+  const int32_t kWritten = 0xaabbccdd;
 
   BUILD(r, WASM_STORE_MEM_OFFSET(MachineType::Int32(), 4, WASM_GET_LOCAL(0),
                                  WASM_I32(kWritten)));
@@ -1714,8 +1701,7 @@ TEST(Run_Wasm_StoreMem_offset_oob) {
 
   for (size_t m = 0; m < arraysize(machineTypes); m++) {
     module.RandomizeMemory(1119 + static_cast<int>(m));
-    WasmRunner<int32_t> r(MachineType::Uint32());
-    r.env()->module = &module;
+    WasmRunner<int32_t> r(&module, MachineType::Uint32());
 
     BUILD(r, WASM_STORE_MEM_OFFSET(machineTypes[m], 8, WASM_GET_LOCAL(0),
                                    WASM_LOAD_MEM(machineTypes[m], WASM_ZERO)),
@@ -1735,10 +1721,9 @@ TEST(Run_Wasm_StoreMem_offset_oob) {
 
 #if WASM_64
 TEST(Run_Wasm_F64ReinterpretI64) {
-  WasmRunner<int64_t> r;
   TestingModule module;
   int64_t* memory = module.AddMemoryElems<int64_t>(8);
-  r.env()->module = &module;
+  WasmRunner<int64_t> r(&module);
 
   BUILD(r, WASM_I64_REINTERPRET_F64(
                WASM_LOAD_MEM(MachineType::Float64(), WASM_ZERO)));
@@ -1752,10 +1737,9 @@ TEST(Run_Wasm_F64ReinterpretI64) {
 
 
 TEST(Run_Wasm_I64ReinterpretF64) {
-  WasmRunner<int64_t> r(MachineType::Int64());
   TestingModule module;
   int64_t* memory = module.AddMemoryElems<int64_t>(8);
-  r.env()->module = &module;
+  WasmRunner<int64_t> r(&module, MachineType::Int64());
 
   BUILD(r, WASM_BLOCK(
                2, WASM_STORE_MEM(MachineType::Float64(), WASM_ZERO,
@@ -1771,11 +1755,10 @@ TEST(Run_Wasm_I64ReinterpretF64) {
 
 
 TEST(Run_Wasm_LoadMemI64) {
-  WasmRunner<int64_t> r;
   TestingModule module;
   int64_t* memory = module.AddMemoryElems<int64_t>(8);
   module.RandomizeMemory(1111);
-  r.env()->module = &module;
+  WasmRunner<int64_t> r(&module);
 
   BUILD(r, WASM_LOAD_MEM(MachineType::Int64(), WASM_I8(0)));
 
@@ -1793,11 +1776,10 @@ TEST(Run_Wasm_LoadMemI64) {
 
 TEST(Run_Wasm_LoadMemI32_P) {
   const int kNumElems = 8;
-  WasmRunner<int32_t> r(MachineType::Int32());
   TestingModule module;
   int32_t* memory = module.AddMemoryElems<int32_t>(kNumElems);
+  WasmRunner<int32_t> r(&module, MachineType::Int32());
   module.RandomizeMemory(2222);
-  r.env()->module = &module;
 
   BUILD(r, WASM_LOAD_MEM(MachineType::Int32(), WASM_GET_LOCAL(0)));
 
@@ -1808,12 +1790,11 @@ TEST(Run_Wasm_LoadMemI32_P) {
 
 
 TEST(Run_Wasm_MemI32_Sum) {
-  WasmRunner<uint32_t> r(MachineType::Int32());
   const int kNumElems = 20;
-  const byte kSum = r.AllocateLocal(kAstI32);
   TestingModule module;
   uint32_t* memory = module.AddMemoryElems<uint32_t>(kNumElems);
-  r.env()->module = &module;
+  WasmRunner<uint32_t> r(&module, MachineType::Int32());
+  const byte kSum = r.AllocateLocal(kAstI32);
 
   BUILD(r, WASM_BLOCK(
                2, WASM_WHILE(
@@ -1842,11 +1823,10 @@ TEST(Run_Wasm_MemI32_Sum) {
 
 
 TEST(Run_Wasm_CheckMachIntsZero) {
-  WasmRunner<uint32_t> r(MachineType::Int32());
   const int kNumElems = 55;
   TestingModule module;
   module.AddMemoryElems<uint32_t>(kNumElems);
-  r.env()->module = &module;
+  WasmRunner<uint32_t> r(&module, MachineType::Int32());
 
   BUILD(r, kExprBlock, 2, kExprLoop, 1, kExprIf, kExprGetLocal, 0, kExprBr, 0,
         kExprIfElse, kExprI32LoadMem, 0, kExprGetLocal, 0, kExprBr, 2,
@@ -1859,8 +1839,6 @@ TEST(Run_Wasm_CheckMachIntsZero) {
 
 
 TEST(Run_Wasm_MemF32_Sum) {
-  WasmRunner<int32_t> r(MachineType::Int32());
-  const byte kSum = r.AllocateLocal(kAstF32);
   const int kSize = 5;
   TestingModule module;
   module.AddMemoryElems<float>(kSize);
@@ -1870,7 +1848,8 @@ TEST(Run_Wasm_MemF32_Sum) {
   buffer[2] = -77.25;
   buffer[3] = 66666.25;
   buffer[4] = 5555.25;
-  r.env()->module = &module;
+  WasmRunner<int32_t> r(&module, MachineType::Int32());
+  const byte kSum = r.AllocateLocal(kAstF32);
 
   BUILD(r, WASM_BLOCK(
                3, WASM_WHILE(
@@ -1895,12 +1874,11 @@ TEST(Run_Wasm_MemF32_Sum) {
 
 #if WASM_64
 TEST(Run_Wasm_MemI64_Sum) {
-  WasmRunner<uint64_t> r(MachineType::Int32());
   const int kNumElems = 20;
-  const byte kSum = r.AllocateLocal(kAstI64);
   TestingModule module;
   uint64_t* memory = module.AddMemoryElems<uint64_t>(kNumElems);
-  r.env()->module = &module;
+  WasmRunner<uint64_t> r(&module, MachineType::Int32());
+  const byte kSum = r.AllocateLocal(kAstI64);
 
   BUILD(r, WASM_BLOCK(
                2, WASM_WHILE(
@@ -1932,14 +1910,13 @@ TEST(Run_Wasm_MemI64_Sum) {
 template <typename T>
 T GenerateAndRunFold(WasmOpcode binop, T* buffer, size_t size,
                      LocalType astType, MachineType memType) {
-  WasmRunner<int32_t> r(MachineType::Int32());
-  const byte kAccum = r.AllocateLocal(astType);
   TestingModule module;
   module.AddMemoryElems<T>(size);
   for (size_t i = 0; i < size; i++) {
     module.raw_mem_start<T>()[i] = buffer[i];
   }
-  r.env()->module = &module;
+  WasmRunner<int32_t> r(&module, MachineType::Int32());
+  const byte kAccum = r.AllocateLocal(astType);
 
   BUILD(
       r,
@@ -1978,10 +1955,9 @@ TEST(Build_Wasm_Infinite_Loop) {
 
 
 TEST(Build_Wasm_Infinite_Loop_effect) {
-  WasmRunner<int32_t> r(MachineType::Int32());
   TestingModule module;
   module.AddMemoryElems<int8_t>(16);
-  r.env()->module = &module;
+  WasmRunner<int32_t> r(&module, MachineType::Int32());
 
   // Only build the graph and compile, don't run.
   BUILD(r, WASM_LOOP(1, WASM_LOAD_MEM(MachineType::Int32(), WASM_ZERO)));
@@ -2118,8 +2094,7 @@ TEST(Run_Wasm_Int32LoadInt8_signext) {
   int8_t* memory = module.AddMemoryElems<int8_t>(kNumElems);
   module.RandomizeMemory();
   memory[0] = -1;
-  WasmRunner<int32_t> r(MachineType::Int32());
-  r.env()->module = &module;
+  WasmRunner<int32_t> r(&module, MachineType::Int32());
   BUILD(r, WASM_LOAD_MEM(MachineType::Int8(), WASM_GET_LOCAL(0)));
 
   for (size_t i = 0; i < kNumElems; i++) {
@@ -2134,8 +2109,7 @@ TEST(Run_Wasm_Int32LoadInt8_zeroext) {
   byte* memory = module.AddMemory(kNumElems);
   module.RandomizeMemory(77);
   memory[0] = 255;
-  WasmRunner<int32_t> r(MachineType::Int32());
-  r.env()->module = &module;
+  WasmRunner<int32_t> r(&module, MachineType::Int32());
   BUILD(r, WASM_LOAD_MEM(MachineType::Uint8(), WASM_GET_LOCAL(0)));
 
   for (size_t i = 0; i < kNumElems; i++) {
@@ -2150,8 +2124,7 @@ TEST(Run_Wasm_Int32LoadInt16_signext) {
   byte* memory = module.AddMemory(kNumBytes);
   module.RandomizeMemory(888);
   memory[1] = 200;
-  WasmRunner<int32_t> r(MachineType::Int32());
-  r.env()->module = &module;
+  WasmRunner<int32_t> r(&module, MachineType::Int32());
   BUILD(r, WASM_LOAD_MEM(MachineType::Int16(), WASM_GET_LOCAL(0)));
 
   for (size_t i = 0; i < kNumBytes; i += 2) {
@@ -2167,8 +2140,7 @@ TEST(Run_Wasm_Int32LoadInt16_zeroext) {
   byte* memory = module.AddMemory(kNumBytes);
   module.RandomizeMemory(9999);
   memory[1] = 204;
-  WasmRunner<int32_t> r(MachineType::Int32());
-  r.env()->module = &module;
+  WasmRunner<int32_t> r(&module, MachineType::Int32());
   BUILD(r, WASM_LOAD_MEM(MachineType::Uint16(), WASM_GET_LOCAL(0)));
 
   for (size_t i = 0; i < kNumBytes; i += 2) {
@@ -2181,8 +2153,7 @@ TEST(Run_Wasm_Int32LoadInt16_zeroext) {
 TEST(Run_WasmInt32Global) {
   TestingModule module;
   int32_t* global = module.AddGlobal<int32_t>(MachineType::Int32());
-  WasmRunner<int32_t> r(MachineType::Int32());
-  r.env()->module = &module;
+  WasmRunner<int32_t> r(&module, MachineType::Int32());
   // global = global + p0
   BUILD(r, WASM_STORE_GLOBAL(
                0, WASM_I32_ADD(WASM_LOAD_GLOBAL(0), WASM_GET_LOCAL(0))));
@@ -2205,8 +2176,7 @@ TEST(Run_WasmInt32Globals_DontAlias) {
 
   for (int g = 0; g < kNumGlobals; g++) {
     // global = global + p0
-    WasmRunner<int32_t> r(MachineType::Int32());
-    r.env()->module = &module;
+    WasmRunner<int32_t> r(&module, MachineType::Int32());
     BUILD(r, WASM_STORE_GLOBAL(
                  g, WASM_I32_ADD(WASM_LOAD_GLOBAL(g), WASM_GET_LOCAL(0))));
 
@@ -2230,8 +2200,7 @@ TEST(Run_WasmInt32Globals_DontAlias) {
 TEST(Run_WasmInt64Global) {
   TestingModule module;
   int64_t* global = module.AddGlobal<int64_t>(MachineType::Int64());
-  WasmRunner<int32_t> r(MachineType::Int32());
-  r.env()->module = &module;
+  WasmRunner<int32_t> r(&module, MachineType::Int32());
   // global = global + p0
   BUILD(r, WASM_BLOCK(2, WASM_STORE_GLOBAL(
                              0, WASM_I64_ADD(
@@ -2252,8 +2221,7 @@ TEST(Run_WasmInt64Global) {
 TEST(Run_WasmFloat32Global) {
   TestingModule module;
   float* global = module.AddGlobal<float>(MachineType::Float32());
-  WasmRunner<int32_t> r(MachineType::Int32());
-  r.env()->module = &module;
+  WasmRunner<int32_t> r(&module, MachineType::Int32());
   // global = global + p0
   BUILD(r, WASM_BLOCK(2, WASM_STORE_GLOBAL(
                              0, WASM_F32_ADD(
@@ -2273,8 +2241,7 @@ TEST(Run_WasmFloat32Global) {
 TEST(Run_WasmFloat64Global) {
   TestingModule module;
   double* global = module.AddGlobal<double>(MachineType::Float64());
-  WasmRunner<int32_t> r(MachineType::Int32());
-  r.env()->module = &module;
+  WasmRunner<int32_t> r(&module, MachineType::Int32());
   // global = global + p0
   BUILD(r, WASM_BLOCK(2, WASM_STORE_GLOBAL(
                              0, WASM_F64_ADD(
@@ -2305,8 +2272,7 @@ TEST(Run_WasmMixedGlobals) {
   float* var_float = module.AddGlobal<float>(MachineType::Float32());
   double* var_double = module.AddGlobal<double>(MachineType::Float64());
 
-  WasmRunner<int32_t> r(MachineType::Int32());
-  r.env()->module = &module;
+  WasmRunner<int32_t> r(&module, MachineType::Int32());
 
   BUILD(
       r,
@@ -2408,13 +2374,12 @@ TEST(Run_WasmCallEmpty) {
   // Build the target function.
   TestSignatures sigs;
   TestingModule module;
-  WasmFunctionCompiler t(sigs.i_v());
+  WasmFunctionCompiler t(sigs.i_v(), &module);
   BUILD(t, WASM_I32(kExpected));
-  uint32_t index = t.CompileAndAdd(&module);
+  uint32_t index = t.CompileAndAdd();
 
   // Build the calling function.
-  WasmRunner<int32_t> r;
-  r.env()->module = &module;
+  WasmRunner<int32_t> r(&module);
   BUILD(r, WASM_CALL_FUNCTION0(index));
 
   int32_t result = r.Call();
@@ -2428,13 +2393,12 @@ TEST(Run_WasmCallF32StackParameter) {
   for (int i = 0; i < 20; i++) param_types[i] = kAstF32;
   FunctionSig sig(1, 19, param_types);
   TestingModule module;
-  WasmFunctionCompiler t(&sig);
+  WasmFunctionCompiler t(&sig, &module);
   BUILD(t, WASM_GET_LOCAL(17));
-  uint32_t index = t.CompileAndAdd(&module);
+  uint32_t index = t.CompileAndAdd();
 
   // Build the calling function.
-  WasmRunner<float> r;
-  r.env()->module = &module;
+  WasmRunner<float> r(&module);
   BUILD(r, WASM_CALL_FUNCTION(
                index, WASM_F32(1.0f), WASM_F32(2.0f), WASM_F32(4.0f),
                WASM_F32(8.0f), WASM_F32(16.0f), WASM_F32(32.0f),
@@ -2454,13 +2418,12 @@ TEST(Run_WasmCallF64StackParameter) {
   for (int i = 0; i < 20; i++) param_types[i] = kAstF64;
   FunctionSig sig(1, 19, param_types);
   TestingModule module;
-  WasmFunctionCompiler t(&sig);
+  WasmFunctionCompiler t(&sig, &module);
   BUILD(t, WASM_GET_LOCAL(17));
-  uint32_t index = t.CompileAndAdd(&module);
+  uint32_t index = t.CompileAndAdd();
 
   // Build the calling function.
-  WasmRunner<double> r;
-  r.env()->module = &module;
+  WasmRunner<double> r(&module);
   BUILD(r, WASM_CALL_FUNCTION(index, WASM_F64(1.0), WASM_F64(2.0),
                               WASM_F64(4.0), WASM_F64(8.0), WASM_F64(16.0),
                               WASM_F64(32.0), WASM_F64(64.0), WASM_F64(128.0),
@@ -2482,13 +2445,13 @@ TEST(Run_WasmCallI64Parameter) {
   FunctionSig sig(1, 19, param_types);
   for (int i = 0; i < 19; i++) {
     TestingModule module;
-    WasmFunctionCompiler t(&sig);
+    WasmFunctionCompiler t(&sig, &module);
     if (i == 2 || i == 3) {
       continue;
     } else {
       BUILD(t, WASM_GET_LOCAL(i));
     }
-    uint32_t index = t.CompileAndAdd(&module);
+    uint32_t index = t.CompileAndAdd();
 
     // Build the calling function.
     WasmRunner<int32_t> r;
@@ -2527,15 +2490,13 @@ TEST(Run_WasmCallVoid) {
   TestingModule module;
   module.AddMemory(16);
   module.RandomizeMemory();
-  WasmFunctionCompiler t(sigs.v_v());
-  t.env.module = &module;
+  WasmFunctionCompiler t(sigs.v_v(), &module);
   BUILD(t, WASM_STORE_MEM(MachineType::Int32(), WASM_I8(kMemOffset),
                           WASM_I32(kExpected)));
-  uint32_t index = t.CompileAndAdd(&module);
+  uint32_t index = t.CompileAndAdd();
 
   // Build the calling function.
-  WasmRunner<int32_t> r;
-  r.env()->module = &module;
+  WasmRunner<int32_t> r(&module);
   BUILD(r, WASM_CALL_FUNCTION0(index),
         WASM_LOAD_MEM(MachineType::Int32(), WASM_I8(kMemOffset)));
 
@@ -2549,13 +2510,12 @@ TEST(Run_WasmCall_Int32Add) {
   // Build the target function.
   TestSignatures sigs;
   TestingModule module;
-  WasmFunctionCompiler t(sigs.i_ii());
+  WasmFunctionCompiler t(sigs.i_ii(), &module);
   BUILD(t, WASM_I32_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-  uint32_t index = t.CompileAndAdd(&module);
+  uint32_t index = t.CompileAndAdd();
 
   // Build the caller function.
-  WasmRunner<int32_t> r(MachineType::Int32(), MachineType::Int32());
-  r.env()->module = &module;
+  WasmRunner<int32_t> r(&module, MachineType::Int32(), MachineType::Int32());
   BUILD(r, WASM_CALL_FUNCTION(index, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
 
   FOR_INT32_INPUTS(i) {
@@ -2573,13 +2533,12 @@ TEST(Run_WasmCall_Int64Sub) {
   // Build the target function.
   TestSignatures sigs;
   TestingModule module;
-  WasmFunctionCompiler t(sigs.l_ll());
+  WasmFunctionCompiler t(sigs.l_ll(), &module);
   BUILD(t, WASM_I64_SUB(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-  uint32_t index = t.CompileAndAdd(&module);
+  uint32_t index = t.CompileAndAdd();
 
   // Build the caller function.
-  WasmRunner<int64_t> r(MachineType::Int64(), MachineType::Int64());
-  r.env()->module = &module;
+  WasmRunner<int64_t> r(&module, MachineType::Int64(), MachineType::Int64());
   BUILD(r, WASM_CALL_FUNCTION(index, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
 
   FOR_INT32_INPUTS(i) {
@@ -2600,16 +2559,15 @@ TEST(Run_WasmCall_Int64Sub) {
 
 TEST(Run_WasmCall_Float32Sub) {
   TestSignatures sigs;
-  WasmFunctionCompiler t(sigs.f_ff());
+  TestingModule module;
+  WasmFunctionCompiler t(sigs.f_ff(), &module);
 
   // Build the target function.
-  TestingModule module;
   BUILD(t, WASM_F32_SUB(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-  uint32_t index = t.CompileAndAdd(&module);
+  uint32_t index = t.CompileAndAdd();
 
   // Builder the caller function.
-  WasmRunner<float> r(MachineType::Float32(), MachineType::Float32());
-  r.env()->module = &module;
+  WasmRunner<float> r(&module, MachineType::Float32(), MachineType::Float32());
   BUILD(r, WASM_CALL_FUNCTION(index, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
 
   FOR_FLOAT32_INPUTS(i) {
@@ -2622,10 +2580,9 @@ TEST(Run_WasmCall_Float32Sub) {
 
 
 TEST(Run_WasmCall_Float64Sub) {
-  WasmRunner<int32_t> r;
   TestingModule module;
   double* memory = module.AddMemoryElems<double>(16);
-  r.env()->module = &module;
+  WasmRunner<int32_t> r(&module);
 
   // TODO(titzer): convert to a binop test.
   BUILD(r, WASM_BLOCK(
@@ -2695,35 +2652,31 @@ static void Run_WasmMixedCall_N(int start) {
     for (int i = 0; i < num_params; i++) {
       b.AddParam(WasmOpcodes::LocalTypeFor(memtypes[i]));
     }
-    WasmFunctionCompiler t(b.Build());
-    t.env.module = &module;
+    WasmFunctionCompiler t(b.Build(), &module);
     BUILD(t, WASM_GET_LOCAL(which));
-    index = t.CompileAndAdd(&module);
+    index = t.CompileAndAdd();
 
     // =========================================================================
     // Build the calling function.
     // =========================================================================
-    WasmRunner<int32_t> r;
-    r.env()->module = &module;
+    WasmRunner<int32_t> r(&module);
 
-    {
-      std::vector<byte> code;
-      ADD_CODE(code,
-               static_cast<byte>(WasmOpcodes::LoadStoreOpcodeOf(result, true)),
-               WasmOpcodes::LoadStoreAccessOf(false));
-      ADD_CODE(code, WASM_ZERO);
-      ADD_CODE(code, kExprCallFunction, static_cast<byte>(index));
+    std::vector<byte> code;
+    ADD_CODE(code,
+             static_cast<byte>(WasmOpcodes::LoadStoreOpcodeOf(result, true)),
+             WasmOpcodes::LoadStoreAccessOf(false));
+    ADD_CODE(code, WASM_ZERO);
+    ADD_CODE(code, kExprCallFunction, static_cast<byte>(index));
 
-      for (int i = 0; i < num_params; i++) {
-        int offset = (i + 1) * kElemSize;
-        ADD_CODE(code, WASM_LOAD_MEM(memtypes[i], WASM_I8(offset)));
-      }
-
-      ADD_CODE(code, WASM_I32(kExpected));
-      size_t end = code.size();
-      code.push_back(0);
-      r.Build(&code[0], &code[end]);
+    for (int i = 0; i < num_params; i++) {
+      int offset = (i + 1) * kElemSize;
+      ADD_CODE(code, WASM_LOAD_MEM(memtypes[i], WASM_I8(offset)));
     }
+
+    ADD_CODE(code, WASM_I32(kExpected));
+    size_t end = code.size();
+    code.push_back(0);
+    r.Build(&code[0], &code[end]);
 
     // Run the code.
     for (int t = 0; t < 10; t++) {
@@ -2747,6 +2700,27 @@ TEST(Run_WasmMixedCall_1) { Run_WasmMixedCall_N(1); }
 TEST(Run_WasmMixedCall_2) { Run_WasmMixedCall_N(2); }
 TEST(Run_WasmMixedCall_3) { Run_WasmMixedCall_N(3); }
 
+TEST(Run_Wasm_AddCall) {
+  TestSignatures sigs;
+  TestingModule module;
+  WasmFunctionCompiler t1(sigs.i_ii(), &module);
+  BUILD(t1, WASM_I32_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+  t1.CompileAndAdd();
+
+  WasmRunner<int32_t> r(&module, MachineType::Int32());
+  byte local = r.AllocateLocal(kAstI32);
+  BUILD(r,
+        WASM_BLOCK(2, WASM_SET_LOCAL(local, WASM_I8(99)),
+                   WASM_I32_ADD(
+                       WASM_CALL_FUNCTION(t1.function_index_, WASM_GET_LOCAL(0),
+                                          WASM_GET_LOCAL(0)),
+                       WASM_CALL_FUNCTION(t1.function_index_, WASM_GET_LOCAL(1),
+                                          WASM_GET_LOCAL(local)))));
+
+  CHECK_EQ(198, r.Call(0));
+  CHECK_EQ(200, r.Call(1));
+  CHECK_EQ(100, r.Call(-49));
+}
 
 TEST(Run_Wasm_CountDown_expr) {
   WasmRunner<int32_t> r(MachineType::Int32());
@@ -2916,10 +2890,9 @@ TEST(Run_Wasm_LoadStoreI64_sx) {
                   kExprI64LoadMem};
 
   for (size_t m = 0; m < arraysize(loads); m++) {
-    WasmRunner<int64_t> r;
     TestingModule module;
     byte* memory = module.AddMemoryElems<byte>(16);
-    r.env()->module = &module;
+    WasmRunner<int64_t> r(&module);
 
     byte code[] = {kExprI64StoreMem, 0, kExprI8Const, 8,
                    loads[m],         0, kExprI8Const, 0};
@@ -2948,17 +2921,16 @@ TEST(Run_Wasm_LoadStoreI64_sx) {
 
 
 TEST(Run_Wasm_SimpleCallIndirect) {
-  WasmRunner<int32_t> r(MachineType::Int32());
   TestSignatures sigs;
   TestingModule module;
-  r.env()->module = &module;
-  WasmFunctionCompiler t1(sigs.i_ii());
-  BUILD(t1, WASM_I32_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-  t1.CompileAndAdd(&module, /*sig_index*/ 1);
 
-  WasmFunctionCompiler t2(sigs.i_ii());
+  WasmFunctionCompiler t1(sigs.i_ii(), &module);
+  BUILD(t1, WASM_I32_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+  t1.CompileAndAdd(/*sig_index*/ 1);
+
+  WasmFunctionCompiler t2(sigs.i_ii(), &module);
   BUILD(t2, WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-  t2.CompileAndAdd(&module, /*sig_index*/ 1);
+  t2.CompileAndAdd(/*sig_index*/ 1);
 
   // Signature table.
   module.AddSignature(sigs.f_ff());
@@ -2971,6 +2943,7 @@ TEST(Run_Wasm_SimpleCallIndirect) {
   module.PopulateIndirectFunctionTable();
 
   // Builder the caller function.
+  WasmRunner<int32_t> r(&module, MachineType::Int32());
   BUILD(r, WASM_CALL_INDIRECT(1, WASM_GET_LOCAL(0), WASM_I8(66), WASM_I8(22)));
 
   CHECK_EQ(88, r.Call(0));
@@ -2980,18 +2953,16 @@ TEST(Run_Wasm_SimpleCallIndirect) {
 
 
 TEST(Run_Wasm_MultipleCallIndirect) {
-  WasmRunner<int32_t> r(MachineType::Int32(), MachineType::Int32(),
-                        MachineType::Int32());
   TestSignatures sigs;
   TestingModule module;
-  r.env()->module = &module;
-  WasmFunctionCompiler t1(sigs.i_ii());
-  BUILD(t1, WASM_I32_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-  t1.CompileAndAdd(&module, /*sig_index*/ 1);
 
-  WasmFunctionCompiler t2(sigs.i_ii());
+  WasmFunctionCompiler t1(sigs.i_ii(), &module);
+  BUILD(t1, WASM_I32_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+  t1.CompileAndAdd(/*sig_index*/ 1);
+
+  WasmFunctionCompiler t2(sigs.i_ii(), &module);
   BUILD(t2, WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-  t2.CompileAndAdd(&module, /*sig_index*/ 1);
+  t2.CompileAndAdd(/*sig_index*/ 1);
 
   // Signature table.
   module.AddSignature(sigs.f_ff());
@@ -3004,6 +2975,8 @@ TEST(Run_Wasm_MultipleCallIndirect) {
   module.PopulateIndirectFunctionTable();
 
   // Builder the caller function.
+  WasmRunner<int32_t> r(&module, MachineType::Int32(), MachineType::Int32(),
+                        MachineType::Int32());
   BUILD(r,
         WASM_I32_ADD(WASM_CALL_INDIRECT(1, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
                                         WASM_GET_LOCAL(2)),
@@ -3022,20 +2995,20 @@ TEST(Run_Wasm_MultipleCallIndirect) {
 }
 
 TEST(Run_Wasm_CallIndirect_NoTable) {
-  WasmRunner<int32_t> r(MachineType::Int32());
   TestSignatures sigs;
   TestingModule module;
-  r.env()->module = &module;
+
   // One function.
-  WasmFunctionCompiler t1(sigs.i_ii());
+  WasmFunctionCompiler t1(sigs.i_ii(), &module);
   BUILD(t1, WASM_I32_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-  t1.CompileAndAdd(&module, /*sig_index*/ 1);
+  t1.CompileAndAdd(/*sig_index*/ 1);
 
   // Signature table.
   module.AddSignature(sigs.f_ff());
   module.AddSignature(sigs.i_ii());
 
   // Builder the caller function.
+  WasmRunner<int32_t> r(&module, MachineType::Int32());
   BUILD(r, WASM_CALL_INDIRECT(1, WASM_GET_LOCAL(0), WASM_I8(66), WASM_I8(22)));
 
   CHECK_TRAP(r.Call(0));
@@ -3458,8 +3431,7 @@ void CompileCallIndirectMany(LocalType param) {
     module.AddSignature(sig);
     module.AddIndirectFunctionTable(nullptr, 0);
 
-    WasmFunctionCompiler t(sig);
-    t.env.module = &module;
+    WasmFunctionCompiler t(sig, &module);
 
     std::vector<byte> code;
     ADD_CODE(code, kExprCallIndirect, 1);
@@ -3469,7 +3441,7 @@ void CompileCallIndirectMany(LocalType param) {
     }
 
     t.Build(&code[0], &code[0] + code.size());
-    t.Compile(&module);
+    t.Compile();
   }
 }
 
