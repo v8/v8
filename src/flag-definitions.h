@@ -201,6 +201,7 @@ DEFINE_NEG_IMPLICATION(harmony, promise_extra)
 // Activate on ClusterFuzz.
 DEFINE_IMPLICATION(es_staging, harmony_regexp_lookbehind)
 DEFINE_IMPLICATION(es_staging, move_object_start)
+DEFINE_IMPLICATION(es_staging, harmony_tailcalls)
 
 // Features that are still work in progress (behind individual flags).
 #define HARMONY_INPROGRESS(V)                                                \
