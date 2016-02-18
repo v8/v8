@@ -648,7 +648,8 @@ void StandardFrame::IterateCompiledFrame(ObjectVisitor* v) const {
   SafepointEntry safepoint_entry;
   Code* code = StackFrame::GetSafepointData(
       isolate(), pc(), &safepoint_entry, &stack_slots);
-  unsigned slot_space = stack_slots * kPointerSize;
+  unsigned slot_space =
+      stack_slots * kPointerSize - StandardFrameConstants::kFixedFrameSize;
 
   // Visit the outgoing parameters.
   Object** parameters_base = &Memory::Object_at(sp());

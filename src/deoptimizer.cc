@@ -2040,7 +2040,9 @@ unsigned Deoptimizer::ComputeInputFrameSize() const {
     unsigned stack_slots = compiled_code_->stack_slots();
     unsigned outgoing_size =
         ComputeOutgoingArgumentSize(compiled_code_, bailout_id_);
-    CHECK(result == fixed_size + (stack_slots * kPointerSize) + outgoing_size);
+    CHECK(result ==
+          fixed_size + (stack_slots * kPointerSize) -
+              StandardFrameConstants::kFixedFrameSize + outgoing_size);
   }
   return result;
 }
