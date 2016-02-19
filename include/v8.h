@@ -5009,8 +5009,10 @@ typedef void (*MemoryAllocationCallback)(ObjectSpace space,
                                          AllocationAction action,
                                          int size);
 
-// --- Leave Script Callback ---
-typedef void (*CallCompletedCallback)();
+// --- Enter/Leave Script Callback ---
+typedef void (*BeforeCallEnteredCallback)(Isolate*);
+typedef void (*CallCompletedCallback)(Isolate*);
+typedef void (*DeprecatedCallCompletedCallback)();
 
 // --- Promise Reject Callback ---
 enum PromiseRejectEvent {
@@ -5813,6 +5815,19 @@ class V8_EXPORT Isolate {
   void SetEventLogger(LogEventCallback that);
 
   /**
+   * Adds a callback to notify the host application right before a script
+   * is about to run. If a script re-enters the runtime during executing, the
+   * BeforeCallEnteredCallback is invoked for each re-entrance.
+   * Executing scripts inside the callback will re-trigger the callback.
+   */
+  void AddBeforeCallEnteredCallback(BeforeCallEnteredCallback callback);
+
+  /**
+   * Removes callback that was installed by AddBeforeCallEnteredCallback.
+   */
+  void RemoveBeforeCallEnteredCallback(BeforeCallEnteredCallback callback);
+
+  /**
    * Adds a callback to notify the host application when a script finished
    * running.  If a script re-enters the runtime during executing, the
    * CallCompletedCallback is only invoked when the outer-most script
@@ -5820,12 +5835,18 @@ class V8_EXPORT Isolate {
    * further callbacks.
    */
   void AddCallCompletedCallback(CallCompletedCallback callback);
+  V8_DEPRECATE_SOON(
+      "Use callback with parameter",
+      void AddCallCompletedCallback(DeprecatedCallCompletedCallback callback));
 
   /**
    * Removes callback that was installed by AddCallCompletedCallback.
    */
   void RemoveCallCompletedCallback(CallCompletedCallback callback);
-
+  V8_DEPRECATE_SOON(
+      "Use callback with parameter",
+      void RemoveCallCompletedCallback(
+          DeprecatedCallCompletedCallback callback));
 
   /**
    * Set callback to notify about promise reject with no handler, or

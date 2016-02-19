@@ -1055,6 +1055,10 @@ class Isolate {
   void RemoveCallCompletedCallback(CallCompletedCallback callback);
   void FireCallCompletedCallback();
 
+  void AddBeforeCallEnteredCallback(BeforeCallEnteredCallback callback);
+  void RemoveBeforeCallEnteredCallback(BeforeCallEnteredCallback callback);
+  void FireBeforeCallEnteredCallback();
+
   void SetPromiseRejectCallback(PromiseRejectCallback callback);
   void ReportPromiseReject(Handle<JSObject> promise, Handle<Object> value,
                            v8::PromiseRejectEvent event);
@@ -1317,6 +1321,9 @@ class Isolate {
 #if TRACE_MAPS
   int next_unique_sfi_id_;
 #endif
+
+  // List of callbacks before a Call starts execution.
+  List<BeforeCallEnteredCallback> before_call_entered_callbacks_;
 
   // List of callbacks when a Call completes.
   List<CallCompletedCallback> call_completed_callbacks_;

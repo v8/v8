@@ -2608,6 +2608,31 @@ Handle<JSObject> Isolate::GetSymbolRegistry() {
 }
 
 
+void Isolate::AddBeforeCallEnteredCallback(BeforeCallEnteredCallback callback) {
+  for (int i = 0; i < before_call_entered_callbacks_.length(); i++) {
+    if (callback == before_call_entered_callbacks_.at(i)) return;
+  }
+  before_call_entered_callbacks_.Add(callback);
+}
+
+
+void Isolate::RemoveBeforeCallEnteredCallback(
+    BeforeCallEnteredCallback callback) {
+  for (int i = 0; i < before_call_entered_callbacks_.length(); i++) {
+    if (callback == before_call_entered_callbacks_.at(i)) {
+      before_call_entered_callbacks_.Remove(i);
+    }
+  }
+}
+
+
+void Isolate::FireBeforeCallEnteredCallback() {
+  for (int i = 0; i < before_call_entered_callbacks_.length(); i++) {
+    before_call_entered_callbacks_.at(i)(reinterpret_cast<v8::Isolate*>(this));
+  }
+}
+
+
 void Isolate::AddCallCompletedCallback(CallCompletedCallback callback) {
   for (int i = 0; i < call_completed_callbacks_.length(); i++) {
     if (callback == call_completed_callbacks_.at(i)) return;
@@ -2633,10 +2658,10 @@ void Isolate::FireCallCompletedCallback() {
   if (!handle_scope_implementer()->CallDepthIsZero()) return;
   if (run_microtasks) RunMicrotasks();
   // Fire callbacks.  Increase call depth to prevent recursive callbacks.
-  v8::Isolate::SuppressMicrotaskExecutionScope suppress(
-      reinterpret_cast<v8::Isolate*>(this));
+  v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(this);
+  v8::Isolate::SuppressMicrotaskExecutionScope suppress(isolate);
   for (int i = 0; i < call_completed_callbacks_.length(); i++) {
-    call_completed_callbacks_.at(i)();
+    call_completed_callbacks_.at(i)(isolate);
   }
 }
 

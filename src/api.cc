@@ -168,6 +168,7 @@ class CallDepthScope {
     isolate_->IncrementJsCallsFromApiCounter();
     isolate_->handle_scope_implementer()->IncrementCallDepth();
     if (!context_.IsEmpty()) context_->Enter();
+    if (do_callback_) isolate_->FireBeforeCallEnteredCallback();
   }
   ~CallDepthScope() {
     if (!context_.IsEmpty()) context_->Exit();
@@ -7372,6 +7373,20 @@ void Isolate::SetEventLogger(LogEventCallback that) {
 }
 
 
+void Isolate::AddBeforeCallEnteredCallback(BeforeCallEnteredCallback callback) {
+  if (callback == NULL) return;
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->AddBeforeCallEnteredCallback(callback);
+}
+
+
+void Isolate::RemoveBeforeCallEnteredCallback(
+    BeforeCallEnteredCallback callback) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->RemoveBeforeCallEnteredCallback(callback);
+}
+
+
 void Isolate::AddCallCompletedCallback(CallCompletedCallback callback) {
   if (callback == NULL) return;
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
@@ -7382,6 +7397,19 @@ void Isolate::AddCallCompletedCallback(CallCompletedCallback callback) {
 void Isolate::RemoveCallCompletedCallback(CallCompletedCallback callback) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   isolate->RemoveCallCompletedCallback(callback);
+}
+
+
+void Isolate::AddCallCompletedCallback(
+    DeprecatedCallCompletedCallback callback) {
+  AddCallCompletedCallback(reinterpret_cast<CallCompletedCallback>(callback));
+}
+
+
+void Isolate::RemoveCallCompletedCallback(
+    DeprecatedCallCompletedCallback callback) {
+  RemoveCallCompletedCallback(
+      reinterpret_cast<CallCompletedCallback>(callback));
 }
 
 

@@ -20790,17 +20790,31 @@ THREADED_TEST(ForeignFunctionReceiver) {
 
 
 uint8_t callback_fired = 0;
+uint8_t before_call_entered_callback_count1 = 0;
+uint8_t before_call_entered_callback_count2 = 0;
 
 
-void CallCompletedCallback1() {
+void CallCompletedCallback1(v8::Isolate*) {
   v8::base::OS::Print("Firing callback 1.\n");
   callback_fired ^= 1;  // Toggle first bit.
 }
 
 
-void CallCompletedCallback2() {
+void CallCompletedCallback2(v8::Isolate*) {
   v8::base::OS::Print("Firing callback 2.\n");
   callback_fired ^= 2;  // Toggle second bit.
+}
+
+
+void BeforeCallEnteredCallback1(v8::Isolate*) {
+  v8::base::OS::Print("Firing before call entered callback 1.\n");
+  before_call_entered_callback_count1++;
+}
+
+
+void BeforeCallEnteredCallback2(v8::Isolate*) {
+  v8::base::OS::Print("Firing before call entered callback 2.\n");
+  before_call_entered_callback_count2++;
 }
 
 
@@ -20836,36 +20850,54 @@ TEST(CallCompletedCallback) {
   env->GetIsolate()->AddCallCompletedCallback(CallCompletedCallback1);
   env->GetIsolate()->AddCallCompletedCallback(CallCompletedCallback1);
   env->GetIsolate()->AddCallCompletedCallback(CallCompletedCallback2);
+  env->GetIsolate()->AddBeforeCallEnteredCallback(BeforeCallEnteredCallback1);
+  env->GetIsolate()->AddBeforeCallEnteredCallback(BeforeCallEnteredCallback2);
+  env->GetIsolate()->AddBeforeCallEnteredCallback(BeforeCallEnteredCallback1);
   v8::base::OS::Print("--- Script (1) ---\n");
+  callback_fired = 0;
+  before_call_entered_callback_count1 = 0;
+  before_call_entered_callback_count2 = 0;
   Local<Script> script =
       v8::Script::Compile(env.local(), v8_str("recursion(0)")).ToLocalChecked();
   script->Run(env.local()).ToLocalChecked();
   CHECK_EQ(3, callback_fired);
+  CHECK_EQ(4, before_call_entered_callback_count1);
+  CHECK_EQ(4, before_call_entered_callback_count2);
 
   v8::base::OS::Print("\n--- Script (2) ---\n");
   callback_fired = 0;
+  before_call_entered_callback_count1 = 0;
+  before_call_entered_callback_count2 = 0;
   env->GetIsolate()->RemoveCallCompletedCallback(CallCompletedCallback1);
+  env->GetIsolate()->RemoveBeforeCallEnteredCallback(
+      BeforeCallEnteredCallback1);
   script->Run(env.local()).ToLocalChecked();
   CHECK_EQ(2, callback_fired);
+  CHECK_EQ(0, before_call_entered_callback_count1);
+  CHECK_EQ(4, before_call_entered_callback_count2);
 
   v8::base::OS::Print("\n--- Function ---\n");
   callback_fired = 0;
+  before_call_entered_callback_count1 = 0;
+  before_call_entered_callback_count2 = 0;
   Local<Function> recursive_function = Local<Function>::Cast(
       env->Global()->Get(env.local(), v8_str("recursion")).ToLocalChecked());
   v8::Local<Value> args[] = {v8_num(0)};
   recursive_function->Call(env.local(), env->Global(), 1, args)
       .ToLocalChecked();
   CHECK_EQ(2, callback_fired);
+  CHECK_EQ(0, before_call_entered_callback_count1);
+  CHECK_EQ(4, before_call_entered_callback_count2);
 }
 
 
-void CallCompletedCallbackNoException() {
+void CallCompletedCallbackNoException(v8::Isolate*) {
   v8::HandleScope scope(CcTest::isolate());
   CompileRun("1+1;");
 }
 
 
-void CallCompletedCallbackException() {
+void CallCompletedCallbackException(v8::Isolate*) {
   v8::HandleScope scope(CcTest::isolate());
   CompileRun("throw 'second exception';");
 }
