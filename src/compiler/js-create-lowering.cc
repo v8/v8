@@ -108,17 +108,12 @@ Node* GetArgumentsFrameState(Node* frame_state) {
              : frame_state;
 }
 
-// Maximum instance size for which allocations will be inlined.
-const int kMaxInlineInstanceSize = 64 * kPointerSize;
-
-// Checks whether allocation using the given constructor can be inlined.
-bool IsAllocationInlineable(Handle<JSFunction> constructor) {
-  // TODO(bmeurer): Further relax restrictions on inlining, i.e.
-  // instance type and maybe instance size (inobject properties
-  // are limited anyways by the runtime).
-  return constructor->has_initial_map() &&
-         constructor->initial_map()->instance_type() == JS_OBJECT_TYPE &&
-         constructor->initial_map()->instance_size() < kMaxInlineInstanceSize;
+// Checks whether allocation using the given target and new.target can be
+// inlined.
+bool IsAllocationInlineable(Handle<JSFunction> target,
+                            Handle<JSFunction> new_target) {
+  return new_target->has_initial_map() &&
+         new_target->initial_map()->constructor_or_backpointer() == *target;
 }
 
 // When initializing arrays, we'll unfold the loop if the number of
@@ -230,30 +225,36 @@ Reduction JSCreateLowering::ReduceJSCreate(Node* node) {
   Node* const target = NodeProperties::GetValueInput(node, 0);
   Type* const target_type = NodeProperties::GetType(target);
   Node* const new_target = NodeProperties::GetValueInput(node, 1);
+  Type* const new_target_type = NodeProperties::GetType(new_target);
   Node* const effect = NodeProperties::GetEffectInput(node);
-  // TODO(turbofan): Add support for NewTarget passed to JSCreate.
-  if (target != new_target) return NoChange();
-  // Extract constructor function.
+  // Extract constructor and original constructor function.
   if (target_type->IsConstant() &&
-      target_type->AsConstant()->Value()->IsJSFunction()) {
+      new_target_type->IsConstant() &&
+      new_target_type->AsConstant()->Value()->IsJSFunction()) {
     Handle<JSFunction> constructor =
         Handle<JSFunction>::cast(target_type->AsConstant()->Value());
+    Handle<JSFunction> original_constructor =
+        Handle<JSFunction>::cast(new_target_type->AsConstant()->Value());
     DCHECK(constructor->IsConstructor());
-    // Force completion of inobject slack tracking before
-    // generating code to finalize the instance size.
-    constructor->CompleteInobjectSlackTrackingIfActive();
+    DCHECK(original_constructor->IsConstructor());
 
     // Check if we can inline the allocation.
-    if (IsAllocationInlineable(constructor)) {
-      // Compute instance size from initial map of {constructor}.
-      Handle<Map> initial_map(constructor->initial_map(), isolate());
+    if (IsAllocationInlineable(constructor, original_constructor)) {
+      // Force completion of inobject slack tracking before
+      // generating code to finalize the instance size.
+      original_constructor->CompleteInobjectSlackTrackingIfActive();
+
+      // Compute instance size from initial map of {original_constructor}.
+      Handle<Map> initial_map(original_constructor->initial_map(), isolate());
       int const instance_size = initial_map->instance_size();
 
       // Add a dependency on the {initial_map} to make sure that this code is
-      // deoptimized whenever the {initial_map} of the {constructor} changes.
+      // deoptimized whenever the {initial_map} of the {original_constructor}
+      // changes.
       dependencies()->AssumeInitialMapCantChange(initial_map);
 
-      // Emit code to allocate the JSObject instance for the {constructor}.
+      // Emit code to allocate the JSObject instance for the
+      // {original_constructor}.
       AllocationBuilder a(jsgraph(), effect, graph()->start());
       a.Allocate(instance_size);
       a.Store(AccessBuilder::ForMap(), initial_map);
