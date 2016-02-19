@@ -991,14 +991,14 @@ ElementsKind Object::OptimalElementsKind() {
 
 
 bool Object::FitsRepresentation(Representation representation) {
-  if (FLAG_track_fields && representation.IsNone()) {
-    return false;
-  } else if (FLAG_track_fields && representation.IsSmi()) {
+  if (FLAG_track_fields && representation.IsSmi()) {
     return IsSmi();
   } else if (FLAG_track_double_fields && representation.IsDouble()) {
     return IsMutableHeapNumber() || IsNumber();
   } else if (FLAG_track_heap_object_fields && representation.IsHeapObject()) {
     return IsHeapObject();
+  } else if (FLAG_track_fields && representation.IsNone()) {
+    return false;
   }
   return true;
 }
@@ -2088,15 +2088,10 @@ void JSObject::FastPropertyAtPut(FieldIndex index, Object* value) {
   }
 }
 
-
-void JSObject::WriteToField(int descriptor, Object* value) {
-  DisallowHeapAllocation no_gc;
-
-  DescriptorArray* desc = map()->instance_descriptors();
-  PropertyDetails details = desc->GetDetails(descriptor);
-
+void JSObject::WriteToField(int descriptor, PropertyDetails details,
+                            Object* value) {
   DCHECK(details.type() == DATA);
-
+  DisallowHeapAllocation no_gc;
   FieldIndex index = FieldIndex::ForDescriptor(map(), descriptor);
   if (details.representation().IsDouble()) {
     // Nothing more to be done.
@@ -2113,6 +2108,11 @@ void JSObject::WriteToField(int descriptor, Object* value) {
   }
 }
 
+void JSObject::WriteToField(int descriptor, Object* value) {
+  DescriptorArray* desc = map()->instance_descriptors();
+  PropertyDetails details = desc->GetDetails(descriptor);
+  WriteToField(descriptor, details, value);
+}
 
 int JSObject::GetInObjectPropertyOffset(int index) {
   return map()->GetInObjectPropertyOffset(index);

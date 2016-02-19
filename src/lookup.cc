@@ -517,18 +517,21 @@ void LookupIterator::WriteDataValue(Handle<Object> value) {
     Handle<JSObject> object = Handle<JSObject>::cast(holder);
     ElementsAccessor* accessor = object->GetElementsAccessor();
     accessor->Set(object, number_, *value);
+  } else if (holder->HasFastProperties()) {
+    if (property_details_.type() == v8::internal::DATA) {
+      JSObject::cast(*holder)->WriteToField(descriptor_number(),
+                                            property_details_, *value);
+    } else {
+      DCHECK_EQ(v8::internal::DATA_CONSTANT, property_details_.type());
+    }
   } else if (holder->IsJSGlobalObject()) {
     Handle<GlobalDictionary> property_dictionary =
         handle(JSObject::cast(*holder)->global_dictionary());
     PropertyCell::UpdateCell(property_dictionary, dictionary_entry(), value,
                              property_details_);
-  } else if (!holder->HasFastProperties()) {
+  } else {
     NameDictionary* property_dictionary = holder->property_dictionary();
     property_dictionary->ValueAtPut(dictionary_entry(), *value);
-  } else if (property_details_.type() == v8::internal::DATA) {
-    JSObject::cast(*holder)->WriteToField(descriptor_number(), *value);
-  } else {
-    DCHECK_EQ(v8::internal::DATA_CONSTANT, property_details_.type());
   }
 }
 
