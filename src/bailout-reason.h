@@ -97,8 +97,6 @@ namespace internal {
   V(kImportDeclaration, "Import declaration")                                  \
   V(kIndexIsNegative, "Index is negative")                                     \
   V(kIndexIsTooLarge, "Index is too large")                                    \
-  V(kInlinedRuntimeFunctionFastOneByteArrayJoin,                               \
-    "Inlined runtime function: FastOneByteArrayJoin")                          \
   V(kInliningBailedOut, "Inlining bailed out")                                 \
   V(kInputGPRIsExpectedToHaveUpper32Cleared,                                   \
     "Input GPR is expected to have upper32 cleared")                           \
@@ -129,8 +127,6 @@ namespace internal {
   V(kNativeFunctionLiteral, "Native function literal")                         \
   V(kNeedSmiLiteral, "Need a Smi literal here")                                \
   V(kNoCasesLeft, "No cases left")                                             \
-  V(kNoEmptyArraysHereInEmitFastOneByteArrayJoin,                              \
-    "No empty arrays here in EmitFastOneByteArrayJoin")                        \
   V(kNonInitializerAssignmentToConst, "Non-initializer assignment to const")   \
   V(kNonSmiIndex, "Non-smi index")                                             \
   V(kNonSmiKeyInArrayLiteral, "Non-smi key in array literal")                  \

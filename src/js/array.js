@@ -209,8 +209,6 @@ function Join(array, length, separator, convert) {
         elements[elements_length++] = e;
       }
       elements.length = elements_length;
-      var result = %_FastOneByteArrayJoin(elements, '');
-      if (!IS_UNDEFINED(result)) return result;
       return %StringBuilderConcat(elements, elements_length, '');
     }
     // Non-empty separator case.
@@ -233,9 +231,6 @@ function Join(array, length, separator, convert) {
         elements[i] = e;
       }
     }
-    var result = %_FastOneByteArrayJoin(elements, separator);
-    if (!IS_UNDEFINED(result)) return result;
-
     return %StringBuilderJoin(elements, length, separator);
   } finally {
     // Make sure to remove the last element of the visited array no
@@ -446,9 +441,6 @@ function InnerArrayJoin(separator, array, length) {
   } else {
     separator = TO_STRING(separator);
   }
-
-  var result = %_FastOneByteArrayJoin(array, separator);
-  if (!IS_UNDEFINED(result)) return result;
 
   // Fast case for one-element arrays.
   if (length === 1) {
