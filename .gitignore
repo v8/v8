@@ -59,6 +59,7 @@ shell_g
 /test/promises-aplus/sinon
 /test/simdjs/data
 /test/test262/data
+/test/test262/data.tar
 /testing/gmock
 /testing/gtest
 /third_party
