@@ -5,6 +5,7 @@
 #include "test/cctest/interpreter/bytecode-expectations-printer.h"
 
 #include <iostream>
+#include <vector>
 
 #include "include/libplatform/libplatform.h"
 #include "include/v8.h"
@@ -22,6 +23,10 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
+// static
+const char* const BytecodeExpectationsPrinter::kDefaultTopFunctionName =
+    "__genbckexp_wrapper__";
+
 v8::Local<v8::String> BytecodeExpectationsPrinter::V8StringFromUTF8(
     const char* data) const {
   return v8::String::NewFromUtf8(isolate_, data, v8::NewStringType::kNormal)
@@ -38,17 +43,15 @@ std::string BytecodeExpectationsPrinter::WrapCodeInFunction(
   return program_stream.str();
 }
 
-v8::Local<v8::Value> BytecodeExpectationsPrinter::CompileAndRun(
+v8::Local<v8::Script> BytecodeExpectationsPrinter::Compile(
     const char* program) const {
   v8::Local<v8::String> source = V8StringFromUTF8(program);
-  v8::Local<v8::Script> script =
-      v8::Script::Compile(isolate_->GetCurrentContext(), source)
-          .ToLocalChecked();
+  return v8::Script::Compile(isolate_->GetCurrentContext(), source)
+      .ToLocalChecked();
+}
 
-  v8::Local<v8::Value> result;
-  CHECK(script->Run(isolate_->GetCurrentContext()).ToLocal(&result));
-
-  return result;
+void BytecodeExpectationsPrinter::Run(v8::Local<v8::Script> script) const {
+  (void)script->Run(isolate_->GetCurrentContext());
 }
 
 i::Handle<v8::internal::BytecodeArray>
@@ -65,6 +68,13 @@ BytecodeExpectationsPrinter::GetBytecodeArrayForGlobal(
       i::handle(js_function->shared()->bytecode_array(), i_isolate());
 
   return bytecodes;
+}
+
+i::Handle<i::BytecodeArray>
+BytecodeExpectationsPrinter::GetBytecodeArrayForScript(
+    v8::Local<v8::Script> script) const {
+  i::Handle<i::JSFunction> js_function = v8::Utils::OpenHandle(*script);
+  return i::handle(js_function->shared()->bytecode_array(), i_isolate());
 }
 
 void BytecodeExpectationsPrinter::PrintEscapedString(
@@ -86,7 +96,7 @@ void BytecodeExpectationsPrinter::PrintEscapedString(
 
 void BytecodeExpectationsPrinter::PrintBytecodeOperand(
     std::ostream& stream, const BytecodeArrayIterator& bytecode_iter,
-    const Bytecode& bytecode, int op_index) const {
+    const Bytecode& bytecode, int op_index, int parameter_count) const {
   OperandType op_type = Bytecodes::GetOperandType(bytecode, op_index);
   OperandSize op_size = Bytecodes::GetOperandSize(bytecode, op_index);
 
@@ -107,7 +117,22 @@ void BytecodeExpectationsPrinter::PrintBytecodeOperand(
     Register register_value = bytecode_iter.GetRegisterOperand(op_index);
     stream << 'R';
     if (op_size != OperandSize::kByte) stream << size_tag;
-    stream << '(' << register_value.index() << ')';
+    if (register_value.is_new_target()) {
+      stream << "(new_target)";
+    } else if (register_value.is_current_context()) {
+      stream << "(context)";
+    } else if (register_value.is_function_closure()) {
+      stream << "(closure)";
+    } else if (register_value.is_parameter()) {
+      int parameter_index = register_value.ToParameterIndex(parameter_count);
+      if (parameter_index == 0) {
+        stream << "(this)";
+      } else {
+        stream << "(arg" << (parameter_index - 1) << ')';
+      }
+    } else {
+      stream << '(' << register_value.index() << ')';
+    }
   } else {
     stream << 'U' << size_tag << '(';
 
@@ -127,7 +152,8 @@ void BytecodeExpectationsPrinter::PrintBytecodeOperand(
 }
 
 void BytecodeExpectationsPrinter::PrintBytecode(
-    std::ostream& stream, const BytecodeArrayIterator& bytecode_iter) const {
+    std::ostream& stream, const BytecodeArrayIterator& bytecode_iter,
+    int parameter_count) const {
   Bytecode bytecode = bytecode_iter.current_bytecode();
 
   stream << "B(" << Bytecodes::ToString(bytecode) << ')';
@@ -135,7 +161,8 @@ void BytecodeExpectationsPrinter::PrintBytecode(
   int operands_count = Bytecodes::NumberOfOperands(bytecode);
   for (int op_index = 0; op_index < operands_count; ++op_index) {
     stream << ", ";
-    PrintBytecodeOperand(stream, bytecode_iter, bytecode, op_index);
+    PrintBytecodeOperand(stream, bytecode_iter, bytecode, op_index,
+                         parameter_count);
   }
 }
 
@@ -155,7 +182,7 @@ void BytecodeExpectationsPrinter::PrintConstant(
       CHECK(constant->IsString());
       PrintV8String(stream, i::String::cast(*constant));
       break;
-    case ConstantPoolType::kInteger:
+    case ConstantPoolType::kNumber:
       if (constant->IsSmi()) {
         i::Smi::cast(*constant)->SmiPrint(stream);
       } else if (constant->IsHeapNumber()) {
@@ -163,9 +190,6 @@ void BytecodeExpectationsPrinter::PrintConstant(
       } else {
         UNREACHABLE();
       }
-      break;
-    case ConstantPoolType::kDouble:
-      i::HeapNumber::cast(*constant)->HeapNumberPrint(stream);
       break;
     case ConstantPoolType::kMixed:
       if (constant->IsSmi()) {
@@ -199,7 +223,7 @@ void BytecodeExpectationsPrinter::PrintBytecodeSequence(
   BytecodeArrayIterator bytecode_iter(bytecode_array);
   for (; !bytecode_iter.done(); bytecode_iter.Advance()) {
     stream << "  ";
-    PrintBytecode(stream, bytecode_iter);
+    PrintBytecode(stream, bytecode_iter, bytecode_array->parameter_count());
     stream << ",\n";
   }
   stream << "]\n";
@@ -232,32 +256,43 @@ void BytecodeExpectationsPrinter::PrintCodeSnippet(
   stream << "\"\n";
 }
 
+void BytecodeExpectationsPrinter::PrintHandlers(
+    std::ostream& stream, i::Handle<i::BytecodeArray> bytecode_array) const {
+  stream << "handlers: [\n";
+  HandlerTable* table = HandlerTable::cast(bytecode_array->handler_table());
+  for (int i = 0, num_entries = table->NumberOfRangeEntries(); i < num_entries;
+       ++i) {
+    stream << "  [" << table->GetRangeStart(i) << ", " << table->GetRangeEnd(i)
+           << ", " << table->GetRangeHandler(i) << "],\n";
+  }
+  stream << "]\n";
+}
+
 void BytecodeExpectationsPrinter::PrintBytecodeArray(
-    std::ostream& stream, const std::string& body,
-    i::Handle<i::BytecodeArray> bytecode_array) const {
-  stream << "---\n";
-  PrintCodeSnippet(stream, body);
+    std::ostream& stream, i::Handle<i::BytecodeArray> bytecode_array) const {
   PrintFrameSize(stream, bytecode_array);
   PrintBytecodeSequence(stream, bytecode_array);
   PrintConstantPool(stream, bytecode_array->constant_pool());
-
-  // TODO(ssanfilippo) print handlers.
-  i::HandlerTable* handlers =
-      i::HandlerTable::cast(bytecode_array->handler_table());
-  CHECK_EQ(handlers->NumberOfRangeEntries(), 0);
+  PrintHandlers(stream, bytecode_array);
 }
 
 void BytecodeExpectationsPrinter::PrintExpectation(
     std::ostream& stream, const std::string& snippet) const {
-  const char* wrapper_function_name = "__genbckexp_wrapper__";
+  std::string source_code =
+      wrap_ ? WrapCodeInFunction(test_function_name_.c_str(), snippet)
+            : snippet;
 
-  std::string source_code = WrapCodeInFunction(wrapper_function_name, snippet);
-  CompileAndRun(source_code.c_str());
+  v8::Local<v8::Script> script = Compile(source_code.c_str());
+
+  if (execute_) Run(script);
 
   i::Handle<i::BytecodeArray> bytecode_array =
-      GetBytecodeArrayForGlobal(wrapper_function_name);
+      top_level_ ? GetBytecodeArrayForScript(script)
+                 : GetBytecodeArrayForGlobal(test_function_name_.c_str());
 
-  PrintBytecodeArray(stream, snippet, bytecode_array);
+  stream << "---\n";
+  PrintCodeSnippet(stream, snippet);
+  PrintBytecodeArray(stream, bytecode_array);
   stream << '\n';
 }
 
