@@ -4283,8 +4283,16 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it, Handle<Object> value,
         }
         break;
 
-      case LookupIterator::INTEGER_INDEXED_EXOTIC:
       case LookupIterator::ACCESSOR:
+        if (own_lookup.GetAccessors()->IsAccessorInfo()) {
+          if (own_lookup.IsReadOnly()) {
+            return WriteToReadOnlyProperty(&own_lookup, value, should_throw);
+          }
+          return JSObject::SetPropertyWithAccessor(&own_lookup, value,
+                                                   should_throw);
+        }
+      // Fall through.
+      case LookupIterator::INTEGER_INDEXED_EXOTIC:
         return RedefineIncompatibleProperty(isolate, it->GetName(), value,
                                             should_throw);
 
