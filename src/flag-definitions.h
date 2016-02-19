@@ -472,6 +472,8 @@ DEFINE_BOOL(turbo_preserve_shared_code, false, "keep context-independent code")
 DEFINE_BOOL(turbo_escape, false, "enable escape analysis")
 DEFINE_BOOL(turbo_instruction_scheduling, false,
             "enable instruction scheduling in TurboFan")
+DEFINE_BOOL(turbo_stress_instruction_scheduling, false,
+            "randomly schedule instructions to stress dependency tracking")
 
 // Flags for native WebAssembly.
 DEFINE_BOOL(expose_wasm, false, "expose WASM interface to JavaScript")
