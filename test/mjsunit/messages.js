@@ -150,7 +150,7 @@ TypeError);
 // kInstanceofFunctionExpected
 test(function() {
   1 instanceof 1;
-}, "Expecting a function in instanceof check, but got 1", TypeError);
+}, "Expecting an object in instanceof check", TypeError);
 
 // kInstanceofNonobjectProto
 test(function() {

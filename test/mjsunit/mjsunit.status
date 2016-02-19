@@ -866,6 +866,9 @@
   'regress/regress-2318': [FAIL],
   'regress/regress-crbug-582051': [FAIL],
 
+  # TODO(rmcilroy, 4680): new ES6 instanceof support
+  'harmony/instanceof-es6': [SKIP],
+
   # TODO(rmcilroy,4680): Test timeouts.
   'array-literal-transitions': [SKIP],
   'regress/regress-crbug-517592': [SKIP],

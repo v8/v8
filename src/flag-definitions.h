@@ -221,7 +221,8 @@ DEFINE_IMPLICATION(es_staging, harmony_tailcalls)
 #define HARMONY_STAGED(V)                                     \
   V(harmony_function_name, "harmony Function name inference") \
   V(harmony_regexp_lookbehind, "harmony regexp lookbehind")   \
-  V(harmony_species, "harmony Symbol.species")
+  V(harmony_species, "harmony Symbol.species")                \
+  V(harmony_instanceof, "harmony instanceof support")
 
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING(V)                                               \

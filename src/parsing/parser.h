@@ -665,6 +665,8 @@ class ParserTraits {
   Expression* RewriteYieldStar(
       Expression* generator, Expression* expression, int pos);
 
+  Expression* RewriteInstanceof(Expression* lhs, Expression* rhs, int pos);
+
  private:
   Parser* parser_;
 
@@ -674,6 +676,7 @@ class ParserTraits {
   void BuildIteratorCloseForCompletion(
       ZoneList<Statement*>* statements, Variable* iterator,
       Variable* body_threw);
+  Statement* CheckCallable(Variable* var, Expression* error);
 };
 
 

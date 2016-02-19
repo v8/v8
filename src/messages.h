@@ -94,6 +94,7 @@ class CallSite {
   T(ArrayFunctionsOnSealed, "Cannot add/remove sealed array elements")         \
   T(ArrayNotSubclassable, "Subclassing Arrays is not currently supported.")    \
   T(CalledNonCallable, "% is not a function")                                  \
+  T(CalledNonCallableInstanceOf, "right-hand side is not a function")          \
   T(CalledOnNonObject, "% called on non-object")                               \
   T(CalledOnNullOrUndefined, "% called on null or undefined")                  \
   T(CallSiteExpectsFunction,                                                   \
@@ -516,6 +517,8 @@ class CallSite {
   T(UnterminatedRegExp, "Invalid regular expression: missing /")               \
   T(UnterminatedTemplate, "Unterminated template literal")                     \
   T(UnterminatedTemplateExpr, "Missing } in template expression")              \
+  T(FoundNonCallableHasInstance, "Found non-callable @@hasInstance")           \
+  T(NonObjectInInstanceOfCheck, "Expecting an object in instanceof check")     \
   /* EvalError */                                                              \
   T(CodeGenFromStrings, "%")                                                   \
   /* URIError */                                                               \

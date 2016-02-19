@@ -938,6 +938,9 @@ class PreParserTraits {
 
   inline PreParserExpression RewriteYieldStar(
       PreParserExpression generator, PreParserExpression expr, int pos);
+  inline PreParserExpression RewriteInstanceof(PreParserExpression lhs,
+                                               PreParserExpression rhs,
+                                               int pos);
 
  private:
   PreParser* pre_parser_;
@@ -1141,6 +1144,11 @@ PreParserExpression PreParserTraits::RewriteYieldStar(
       generator, expression, Yield::kDelegating, pos);
 }
 
+PreParserExpression PreParserTraits::RewriteInstanceof(PreParserExpression lhs,
+                                                       PreParserExpression rhs,
+                                                       int pos) {
+  return PreParserExpression::Default();
+}
 
 PreParserStatementList PreParser::ParseEagerFunctionBody(
     PreParserIdentifier function_name, int pos,

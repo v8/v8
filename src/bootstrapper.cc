@@ -1162,6 +1162,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // Set the length for the function to satisfy ECMA-262.
     has_instance->shared()->set_length(1);
 
+    // Install in the native context
+    native_context()->set_ordinary_has_instance(*has_instance);
+
     // Install the "constructor" property on the %FunctionPrototype%.
     JSObject::AddProperty(prototype, factory->constructor_string(),
                           function_fun, DONT_ENUM);
@@ -2358,6 +2361,7 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_function_name)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_function_sent)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(promise_extra)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_tailcalls)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_instanceof)
 
 void InstallPublicSymbol(Factory* factory, Handle<Context> native_context,
                          const char* name, Handle<Symbol> value) {
@@ -3000,6 +3004,7 @@ bool Genesis::InstallExperimentalNatives() {
   static const char* harmony_do_expressions_natives[] = {nullptr};
   static const char* harmony_regexp_subclass_natives[] = {nullptr};
   static const char* harmony_regexp_lookbehind_natives[] = {nullptr};
+  static const char* harmony_instanceof_natives[] = {nullptr};
   static const char* harmony_regexp_property_natives[] = {nullptr};
   static const char* harmony_function_name_natives[] = {nullptr};
   static const char* harmony_function_sent_natives[] = {nullptr};

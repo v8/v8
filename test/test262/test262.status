@@ -192,14 +192,6 @@
   # https://code.google.com/p/v8/issues/detail?id=4361
   'intl402/Collator/10.1.1_a': [FAIL],
 
-  # https://code.google.com/p/v8/issues/detail?id=4447
-  'language/expressions/instanceof/prototype-getter-with-object-throws': [FAIL],
-  'language/expressions/instanceof/prototype-getter-with-object': [FAIL],
-  'language/expressions/instanceof/primitive-prototype-with-object': [FAIL],
-  'language/expressions/instanceof/symbol-hasinstance-get-err': [FAIL],
-  'language/expressions/instanceof/symbol-hasinstance-invocation': [FAIL],
-  'language/expressions/instanceof/symbol-hasinstance-to-boolean': [FAIL],
-
   # https://code.google.com/p/v8/issues/detail?id=4476
   'built-ins/String/prototype/toLocaleLowerCase/special_casing_conditional': [FAIL],
   'built-ins/String/prototype/toLocaleLowerCase/supplementary_plane': [FAIL],
@@ -536,6 +528,7 @@
   'language/object-literal/concise-generator': [SKIP],
   'language/statements/do-while/S12.6.1_A4_T5': [SKIP],
   'language/statements/while/S12.6.2_A4_T5': [SKIP],
+  'language/expressions/instanceof/symbol-hasinstance-not-callable': [SKIP],
 
 }],  # ignition == True
 

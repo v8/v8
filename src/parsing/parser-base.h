@@ -2241,13 +2241,15 @@ ParserBase<Traits>::ParseBinaryExpression(int prec, bool accept_IN,
           ReportMessageAt(op_location, MessageTemplate::kStrongEqual);
           *ok = false;
           return this->EmptyExpression();
+        } else if (FLAG_harmony_instanceof && cmp == Token::INSTANCEOF) {
+          x = Traits::RewriteInstanceof(x, y, pos);
+        } else {
+          x = factory()->NewCompareOperation(cmp, x, y, pos);
+          if (cmp != op) {
+            // The comparison was negated - add a NOT.
+            x = factory()->NewUnaryOperation(Token::NOT, x, pos);
+          }
         }
-        x = factory()->NewCompareOperation(cmp, x, y, pos);
-        if (cmp != op) {
-          // The comparison was negated - add a NOT.
-          x = factory()->NewUnaryOperation(Token::NOT, x, pos);
-        }
-
       } else {
         // We have a "normal" binary operation.
         x = factory()->NewBinaryOperation(op, x, y, pos);

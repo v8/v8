@@ -247,7 +247,6 @@ namespace internal {
   F(IsFunction, 1, 1)                      \
   F(FunctionToString, 1, 1)
 
-
 #define FOR_EACH_INTRINSIC_GENERATOR(F) \
   F(CreateJSGeneratorObject, 0, 1)      \
   F(SuspendJSGeneratorObject, 1, 1)     \

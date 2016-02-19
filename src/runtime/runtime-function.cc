@@ -236,7 +236,6 @@ RUNTIME_FUNCTION(Runtime_IsConstructor) {
   return isolate->heap()->ToBoolean(object->IsConstructor());
 }
 
-
 RUNTIME_FUNCTION(Runtime_SetForceInlineFlag) {
   SealHandleScope shs(isolate);
   RUNTIME_ASSERT(args.length() == 1);
