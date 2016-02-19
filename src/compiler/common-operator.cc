@@ -861,11 +861,9 @@ const Operator* CommonOperatorBuilder::ResizeMergeOrPhi(const Operator* op,
 const FrameStateFunctionInfo*
 CommonOperatorBuilder::CreateFrameStateFunctionInfo(
     FrameStateType type, int parameter_count, int local_count,
-    Handle<SharedFunctionInfo> shared_info,
-    ContextCallingMode context_calling_mode) {
+    Handle<SharedFunctionInfo> shared_info) {
   return new (zone()->New(sizeof(FrameStateFunctionInfo)))
-      FrameStateFunctionInfo(type, parameter_count, local_count, shared_info,
-                             context_calling_mode);
+      FrameStateFunctionInfo(type, parameter_count, local_count, shared_info);
 }
 
 }  // namespace compiler

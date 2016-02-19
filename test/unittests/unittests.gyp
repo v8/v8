@@ -61,7 +61,6 @@
         'compiler/instruction-sequence-unittest.cc',
         'compiler/instruction-sequence-unittest.h',
         'compiler/js-builtin-reducer-unittest.cc',
-        'compiler/js-context-relaxation-unittest.cc',
         'compiler/js-create-lowering-unittest.cc',
         'compiler/js-intrinsic-lowering-unittest.cc',
         'compiler/js-operator-unittest.cc',

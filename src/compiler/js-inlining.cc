@@ -244,8 +244,7 @@ Node* JSInliner::CreateArtificialFrameState(Node* node, Node* outer_frame_state,
                                             Handle<SharedFunctionInfo> shared) {
   const FrameStateFunctionInfo* state_info =
       jsgraph_->common()->CreateFrameStateFunctionInfo(
-          frame_state_type, parameter_count + 1, 0, shared,
-          CALL_MAINTAINS_NATIVE_CONTEXT);
+          frame_state_type, parameter_count + 1, 0, shared);
 
   const Operator* op = jsgraph_->common()->FrameState(
       BailoutId(-1), OutputFrameStateCombine::Ignore(), state_info);

@@ -610,8 +610,6 @@
         '../../src/compiler/js-builtin-reducer.h',
         '../../src/compiler/js-call-reducer.cc',
         '../../src/compiler/js-call-reducer.h',
-        '../../src/compiler/js-context-relaxation.cc',
-        '../../src/compiler/js-context-relaxation.h',
         '../../src/compiler/js-context-specialization.cc',
         '../../src/compiler/js-context-specialization.h',
         '../../src/compiler/js-create-lowering.cc',

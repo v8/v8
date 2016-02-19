@@ -46,11 +46,10 @@ class JSCreateLoweringTest : public TypedGraphTest {
   Node* FrameState(Handle<SharedFunctionInfo> shared, Node* outer_frame_state) {
     Node* state_values = graph()->NewNode(common()->StateValues(0));
     return graph()->NewNode(
-        common()->FrameState(BailoutId::None(),
-                             OutputFrameStateCombine::Ignore(),
-                             common()->CreateFrameStateFunctionInfo(
-                                 FrameStateType::kJavaScriptFunction, 1, 0,
-                                 shared, CALL_MAINTAINS_NATIVE_CONTEXT)),
+        common()->FrameState(
+            BailoutId::None(), OutputFrameStateCombine::Ignore(),
+            common()->CreateFrameStateFunctionInfo(
+                FrameStateType::kJavaScriptFunction, 1, 0, shared)),
         state_values, state_values, state_values, NumberConstant(0),
         UndefinedConstant(), outer_frame_state);
   }

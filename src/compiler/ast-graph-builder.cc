@@ -480,8 +480,7 @@ AstGraphBuilder::AstGraphBuilder(Zone* local_zone, CompilationInfo* info,
                          local_zone),
       frame_state_function_info_(common()->CreateFrameStateFunctionInfo(
           FrameStateType::kJavaScriptFunction, info->num_parameters() + 1,
-          info->scope()->num_stack_slots(), info->shared_info(),
-          CALL_MAINTAINS_NATIVE_CONTEXT)) {
+          info->scope()->num_stack_slots(), info->shared_info())) {
   InitializeAstVisitor(info->isolate());
 }
 

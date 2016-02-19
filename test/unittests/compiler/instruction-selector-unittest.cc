@@ -148,7 +148,7 @@ InstructionSelectorTest::StreamBuilder::GetFrameStateFunctionInfo(
     int parameter_count, int local_count) {
   return common()->CreateFrameStateFunctionInfo(
       FrameStateType::kJavaScriptFunction, parameter_count, local_count,
-      Handle<SharedFunctionInfo>(), CALL_MAINTAINS_NATIVE_CONTEXT);
+      Handle<SharedFunctionInfo>());
 }
 
 

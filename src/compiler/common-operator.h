@@ -178,8 +178,7 @@ class CommonOperatorBuilder final : public ZoneObject {
   // Constructs function info for frame state construction.
   const FrameStateFunctionInfo* CreateFrameStateFunctionInfo(
       FrameStateType type, int parameter_count, int local_count,
-      Handle<SharedFunctionInfo> shared_info,
-      ContextCallingMode context_calling_mode);
+      Handle<SharedFunctionInfo> shared_info);
 
  private:
   Zone* zone() const { return zone_; }
