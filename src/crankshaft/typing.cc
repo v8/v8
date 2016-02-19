@@ -770,8 +770,7 @@ void AstTyper::VisitSuperPropertyReference(SuperPropertyReference* expr) {}
 void AstTyper::VisitSuperCallReference(SuperCallReference* expr) {}
 
 
-void AstTyper::VisitRewritableAssignmentExpression(
-    RewritableAssignmentExpression* expr) {
+void AstTyper::VisitRewritableExpression(RewritableExpression* expr) {
   Visit(expr->expression());
 }
 

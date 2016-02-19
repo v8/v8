@@ -91,7 +91,7 @@ namespace internal {
   V(CaseClause)                 \
   V(EmptyParentheses)           \
   V(DoExpression)               \
-  V(RewritableAssignmentExpression)
+  V(RewritableExpression)
 
 #define AST_NODE_LIST(V)                        \
   DECLARATION_NODE_LIST(V)                      \
@@ -205,13 +205,9 @@ class AstNode: public ZoneObject {
 
   // Type testing & conversion functions overridden by concrete subclasses.
 #define DECLARE_NODE_FUNCTIONS(type) \
-  bool Is##type() const { return node_type() == AstNode::k##type; } \
-  type* As##type() { \
-    return Is##type() ? reinterpret_cast<type*>(this) : NULL; \
-  } \
-  const type* As##type() const { \
-    return Is##type() ? reinterpret_cast<const type*>(this) : NULL; \
-  }
+  V8_INLINE bool Is##type() const;   \
+  V8_INLINE type* As##type();        \
+  V8_INLINE const type* As##type() const;
   AST_NODE_LIST(DECLARE_NODE_FUNCTIONS)
 #undef DECLARE_NODE_FUNCTIONS
 
@@ -2486,18 +2482,32 @@ class Assignment final : public Expression {
 };
 
 
-class RewritableAssignmentExpression : public Expression {
+// The RewritableExpression class is a wrapper for AST nodes that wait
+// for some potential rewriting.  However, even if such nodes are indeed
+// rewritten, the RewritableExpression wrapper nodes will survive in the
+// final AST and should be just ignored, i.e., they should be treated as
+// equivalent to the wrapped nodes.  For this reason and to simplify later
+// phases, RewritableExpressions are considered as exceptions of AST nodes
+// in the following sense:
+//
+// 1. IsRewritableExpression and AsRewritableExpression behave as usual.
+// 2. All other Is* and As* methods are practically delegated to the
+//    wrapped node, i.e. IsArrayLiteral() will return true iff the
+//    wrapped node is an array literal.
+//
+// Furthermore, an invariant that should be respected is that the wrapped
+// node is not a RewritableExpression.
+class RewritableExpression : public Expression {
  public:
-  DECLARE_NODE_TYPE(RewritableAssignmentExpression)
+  DECLARE_NODE_TYPE(RewritableExpression)
 
-  Expression* expression() { return expr_; }
+  Expression* expression() const { return expr_; }
   bool is_rewritten() const { return is_rewritten_; }
-
-  void set_expression(Expression* e) { expr_ = e; }
 
   void Rewrite(Expression* new_expression) {
     DCHECK(!is_rewritten());
     DCHECK_NOT_NULL(new_expression);
+    DCHECK(!new_expression->IsRewritableExpression());
     expr_ = new_expression;
     is_rewritten_ = true;
   }
@@ -2505,10 +2515,12 @@ class RewritableAssignmentExpression : public Expression {
   static int num_ids() { return parent_num_ids(); }
 
  protected:
-  RewritableAssignmentExpression(Zone* zone, Expression* expression)
+  RewritableExpression(Zone* zone, Expression* expression)
       : Expression(zone, expression->position()),
         is_rewritten_(false),
-        expr_(expression) {}
+        expr_(expression) {
+    DCHECK(!expression->IsRewritableExpression());
+  }
 
  private:
   int local_id(int n) const { return base_id() + parent_num_ids() + n; }
@@ -3365,12 +3377,9 @@ class AstNodeFactory final BASE_EMBEDDED {
         local_zone_, condition, then_expression, else_expression, position);
   }
 
-  RewritableAssignmentExpression* NewRewritableAssignmentExpression(
-      Expression* expression) {
+  RewritableExpression* NewRewritableExpression(Expression* expression) {
     DCHECK_NOT_NULL(expression);
-    DCHECK(expression->IsAssignment());
-    return new (local_zone_)
-        RewritableAssignmentExpression(local_zone_, expression);
+    return new (local_zone_) RewritableExpression(local_zone_, expression);
   }
 
   Assignment* NewAssignment(Token::Value op,
@@ -3506,6 +3515,46 @@ class AstNodeFactory final BASE_EMBEDDED {
   Zone* parser_zone_;
   AstValueFactory* ast_value_factory_;
 };
+
+
+// Type testing & conversion functions overridden by concrete subclasses.
+// Inline functions for AstNode.
+
+#define DECLARE_NODE_FUNCTIONS(type)                                          \
+  bool AstNode::Is##type() const {                                            \
+    NodeType mine = node_type();                                              \
+    if (mine == AstNode::kRewritableExpression &&                             \
+        AstNode::k##type != AstNode::kRewritableExpression)                   \
+      mine = reinterpret_cast<const RewritableExpression*>(this)              \
+                 ->expression()                                               \
+                 ->node_type();                                               \
+    return mine == AstNode::k##type;                                          \
+  }                                                                           \
+  type* AstNode::As##type() {                                                 \
+    NodeType mine = node_type();                                              \
+    AstNode* result = this;                                                   \
+    if (mine == AstNode::kRewritableExpression &&                             \
+        AstNode::k##type != AstNode::kRewritableExpression) {                 \
+      result =                                                                \
+          reinterpret_cast<const RewritableExpression*>(this)->expression();  \
+      mine = result->node_type();                                             \
+    }                                                                         \
+    return mine == AstNode::k##type ? reinterpret_cast<type*>(result) : NULL; \
+  }                                                                           \
+  const type* AstNode::As##type() const {                                     \
+    NodeType mine = node_type();                                              \
+    const AstNode* result = this;                                             \
+    if (mine == AstNode::kRewritableExpression &&                             \
+        AstNode::k##type != AstNode::kRewritableExpression) {                 \
+      result =                                                                \
+          reinterpret_cast<const RewritableExpression*>(this)->expression();  \
+      mine = result->node_type();                                             \
+    }                                                                         \
+    return mine == AstNode::k##type ? reinterpret_cast<const type*>(result)   \
+                                    : NULL;                                   \
+  }
+AST_NODE_LIST(DECLARE_NODE_FUNCTIONS)
+#undef DECLARE_NODE_FUNCTIONS
 
 
 }  // namespace internal

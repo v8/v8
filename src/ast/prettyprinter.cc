@@ -412,8 +412,7 @@ void CallPrinter::VisitSuperCallReference(SuperCallReference* node) {
 }
 
 
-void CallPrinter::VisitRewritableAssignmentExpression(
-    RewritableAssignmentExpression* node) {
+void CallPrinter::VisitRewritableExpression(RewritableExpression* node) {
   Find(node->expression());
 }
 
@@ -929,8 +928,7 @@ void PrettyPrinter::VisitSuperCallReference(SuperCallReference* node) {
 }
 
 
-void PrettyPrinter::VisitRewritableAssignmentExpression(
-    RewritableAssignmentExpression* node) {
+void PrettyPrinter::VisitRewritableExpression(RewritableExpression* node) {
   Visit(node->expression());
 }
 
@@ -1705,8 +1703,7 @@ void AstPrinter::VisitSuperCallReference(SuperCallReference* node) {
 }
 
 
-void AstPrinter::VisitRewritableAssignmentExpression(
-    RewritableAssignmentExpression* node) {
+void AstPrinter::VisitRewritableExpression(RewritableExpression* node) {
   Visit(node->expression());
 }
 

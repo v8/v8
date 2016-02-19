@@ -1507,8 +1507,7 @@ void FullCodeGenerator::VisitEmptyParentheses(EmptyParentheses* expr) {
 }
 
 
-void FullCodeGenerator::VisitRewritableAssignmentExpression(
-    RewritableAssignmentExpression* expr) {
+void FullCodeGenerator::VisitRewritableExpression(RewritableExpression* expr) {
   Visit(expr->expression());
 }
 

@@ -12194,8 +12194,8 @@ void HOptimizedGraphBuilder::VisitExportDeclaration(
 }
 
 
-void HOptimizedGraphBuilder::VisitRewritableAssignmentExpression(
-    RewritableAssignmentExpression* node) {
+void HOptimizedGraphBuilder::VisitRewritableExpression(
+    RewritableExpression* node) {
   CHECK_ALIVE(Visit(node->expression()));
 }
 
