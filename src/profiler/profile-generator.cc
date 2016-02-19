@@ -360,7 +360,7 @@ void CpuProfile::AddPath(base::TimeTicks timestamp,
                          bool update_stats) {
   ProfileNode* top_frame_node =
       top_down_.AddPathFromEnd(path, src_line, update_stats);
-  if (record_samples_) {
+  if (record_samples_ && !timestamp.IsNull()) {
     timestamps_.Add(timestamp);
     samples_.Add(top_frame_node);
   }
@@ -636,10 +636,9 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
       }
     }
 
-    for (const Address* stack_pos = sample.stack,
-           *stack_end = stack_pos + sample.frames_count;
-         stack_pos != stack_end;
-         ++stack_pos) {
+    for (const Address *stack_pos = sample.stack,
+                       *stack_end = stack_pos + sample.frames_count;
+         stack_pos != stack_end; ++stack_pos) {
       *entry = code_map_.FindEntry(*stack_pos);
 
       // Skip unresolved frames (e.g. internal frame) and get source line of

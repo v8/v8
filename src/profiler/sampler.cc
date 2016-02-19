@@ -671,6 +671,8 @@ DISABLE_ASAN void TickSample::Init(Isolate* isolate,
   if (js_entry_sp == 0) return;  // Not executing JS now.
 
   if (pc && IsNoFrameRegion(pc)) {
+    // Can't collect stack. Mark the sample as spoiled.
+    timestamp = base::TimeTicks();
     pc = 0;
     return;
   }
@@ -701,6 +703,12 @@ DISABLE_ASAN void TickSample::Init(Isolate* isolate,
   GetStackSample(isolate, regs, record_c_entry_frame,
                  reinterpret_cast<void**>(&stack[0]), kMaxFramesCount, &info);
   frames_count = static_cast<unsigned>(info.frames_count);
+  if (!frames_count) {
+    // It is executing JS but failed to collect a stack trace.
+    // Mark the sample as spoiled.
+    timestamp = base::TimeTicks();
+    pc = 0;
+  }
 }
 
 
@@ -797,7 +805,7 @@ void Sampler::SampleStack(const v8::RegisterState& state) {
   TickSample sample_obj;
   if (sample == NULL) sample = &sample_obj;
   sample->Init(isolate_, state, TickSample::kIncludeCEntryFrame, true);
-  if (is_counting_samples_) {
+  if (is_counting_samples_ && !sample->timestamp.IsNull()) {
     if (sample->state == JS) ++js_sample_count_;
     if (sample->state == EXTERNAL) ++external_sample_count_;
   }
