@@ -285,11 +285,9 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     if (mode_ > RecordWriteMode::kValueIsPointer) {
       __ JumpIfSmi(value_, exit());
     }
-    if (mode_ > RecordWriteMode::kValueIsMap) {
-      __ CheckPageFlagClear(value_, scratch0_,
-                            MemoryChunk::kPointersToHereAreInterestingMask,
-                            exit());
-    }
+    __ CheckPageFlagClear(value_, scratch0_,
+                          MemoryChunk::kPointersToHereAreInterestingMask,
+                          exit());
     SaveFPRegsMode const save_fp_mode =
         frame()->DidAllocateDoubleRegisters() ? kSaveFPRegs : kDontSaveFPRegs;
     if (!frame()->needs_frame()) {
