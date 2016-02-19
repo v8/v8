@@ -408,7 +408,7 @@ void PrintUsage(const char* exec_path) {
          "  --output=file.name\n"
          "      Specify the output file. If not specified, output goes to "
          "stdout.\n"
-         "  --pool-type=(int|double|string|mixed)\n"
+         "  --pool-type=(number|string|mixed)\n"
          "      Specify the type of the entries in the constant pool "
          "(default: mixed).\n"
          "\n"
