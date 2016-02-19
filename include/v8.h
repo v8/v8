@@ -4759,7 +4759,7 @@ class V8_EXPORT ObjectTemplate : public Template {
    */
   void SetAccessCheckCallback(AccessCheckCallback callback,
                               Local<Value> data = Local<Value>());
-  V8_DEPRECATE_SOON(
+  V8_DEPRECATED(
       "Use SetAccessCheckCallback with new AccessCheckCallback signature.",
       void SetAccessCheckCallback(DeprecatedAccessCheckCallback callback,
                                   Local<Value> data = Local<Value>()));
