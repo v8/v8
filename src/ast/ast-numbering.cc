@@ -554,10 +554,10 @@ void AstNumberingVisitor::VisitFunctionLiteral(FunctionLiteral* node) {
 }
 
 
-void AstNumberingVisitor::VisitRewritableExpression(
-    RewritableExpression* node) {
+void AstNumberingVisitor::VisitRewritableAssignmentExpression(
+    RewritableAssignmentExpression* node) {
   IncrementNodeCount();
-  node->set_base_id(ReserveIdRange(RewritableExpression::num_ids()));
+  node->set_base_id(ReserveIdRange(RewritableAssignmentExpression::num_ids()));
   Visit(node->expression());
 }
 

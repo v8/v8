@@ -335,9 +335,6 @@ class ParserTraits {
 
     typedef v8::internal::AstProperties AstProperties;
 
-    typedef v8::internal::ExpressionClassifier<ParserTraits>
-        ExpressionClassifier;
-
     // Return types for traversing functions.
     typedef const AstRawString* Identifier;
     typedef v8::internal::Expression* Expression;
@@ -552,7 +549,7 @@ class ParserTraits {
                                     int initializer_end_position, bool is_rest);
   V8_INLINE void DeclareFormalParameter(
       Scope* scope, const ParserFormalParameters::Parameter& parameter,
-      Type::ExpressionClassifier* classifier);
+      ExpressionClassifier* classifier);
   void ParseArrowFunctionFormalParameters(ParserFormalParameters* parameters,
                                           Expression* params,
                                           const Scanner::Location& params_loc,
@@ -646,7 +643,6 @@ class ParserTraits {
 
   V8_INLINE void QueueDestructuringAssignmentForRewriting(
       Expression* assignment);
-  V8_INLINE void QueueNonPatternForRewriting(Expression* expr);
 
   void SetFunctionNameFromPropertyName(ObjectLiteralProperty* property,
                                        const AstRawString* name);
@@ -655,12 +651,11 @@ class ParserTraits {
                                         Expression* identifier);
 
   // Rewrite expressions that are not used as patterns
-  V8_INLINE void RewriteNonPattern(Type::ExpressionClassifier* classifier,
-                                   bool* ok);
-
-  V8_INLINE Zone* zone() const;
-
-  V8_INLINE ZoneList<Expression*>* GetNonPatternList() const;
+  V8_INLINE Expression* RewriteNonPattern(
+      Expression* expr, const ExpressionClassifier* classifier, bool* ok);
+  V8_INLINE ObjectLiteralProperty* RewriteNonPatternObjectLiteralProperty(
+      ObjectLiteralProperty* property, const ExpressionClassifier* classifier,
+      bool* ok);
 
   Expression* RewriteYieldStar(
       Expression* generator, Expression* expression, int pos);
@@ -817,9 +812,8 @@ class Parser : public ParserBase<ParserTraits> {
         const DeclarationParsingResult::Declaration* declaration,
         ZoneList<const AstRawString*>* names, bool* ok);
 
-    static void RewriteDestructuringAssignment(Parser* parser,
-                                               RewritableExpression* expr,
-                                               Scope* Scope);
+    static void RewriteDestructuringAssignment(
+        Parser* parser, RewritableAssignmentExpression* expr, Scope* Scope);
 
     static Expression* RewriteDestructuringAssignment(Parser* parser,
                                                       Assignment* assignment,
@@ -1035,7 +1029,11 @@ class Parser : public ParserBase<ParserTraits> {
   friend class NonPatternRewriter;
   V8_INLINE Expression* RewriteSpreads(ArrayLiteral* lit);
 
-  V8_INLINE void RewriteNonPattern(ExpressionClassifier* classifier, bool* ok);
+  V8_INLINE Expression* RewriteNonPattern(
+      Expression* expr, const ExpressionClassifier* classifier, bool* ok);
+  V8_INLINE ObjectLiteralProperty* RewriteNonPatternObjectLiteralProperty(
+      ObjectLiteralProperty* property, const ExpressionClassifier* classifier,
+      bool* ok);
 
   friend class InitializerRewriter;
   void RewriteParameterInitializer(Expression* expr, Scope* scope);
@@ -1186,7 +1184,7 @@ void ParserTraits::AddFormalParameter(ParserFormalParameters* parameters,
 
 void ParserTraits::DeclareFormalParameter(
     Scope* scope, const ParserFormalParameters::Parameter& parameter,
-    Type::ExpressionClassifier* classifier) {
+    ExpressionClassifier* classifier) {
   bool is_duplicate = false;
   bool is_simple = classifier->is_simple_parameter_list();
   auto name = is_simple || parameter.is_rest

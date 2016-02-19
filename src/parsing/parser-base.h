@@ -88,7 +88,6 @@ class ParserBase : public Traits {
   typedef typename Traits::Type::Literal LiteralT;
   typedef typename Traits::Type::ObjectLiteralProperty ObjectLiteralPropertyT;
   typedef typename Traits::Type::StatementList StatementListT;
-  typedef typename Traits::Type::ExpressionClassifier ExpressionClassifier;
 
   ParserBase(Zone* zone, Scanner* scanner, uintptr_t stack_limit,
              v8::Extension* extension, AstValueFactory* ast_value_factory,
@@ -245,6 +244,10 @@ class ParserBase : public Traits {
       return destructuring_assignments_to_rewrite_;
     }
 
+    void AddDestructuringAssignment(DestructuringAssignment pair) {
+      destructuring_assignments_to_rewrite_.Add(pair);
+    }
+
     List<ExpressionT>& expressions_in_tail_position() {
       return expressions_in_tail_position_;
     }
@@ -261,21 +264,7 @@ class ParserBase : public Traits {
       collect_expressions_in_tail_position_ = collect;
     }
 
-    ZoneList<ExpressionT>* non_patterns_to_rewrite() {
-      return &non_patterns_to_rewrite_;
-    }
-
    private:
-    void AddDestructuringAssignment(DestructuringAssignment pair) {
-      destructuring_assignments_to_rewrite_.Add(pair);
-    }
-
-    V8_INLINE Scope* scope() { return *scope_stack_; }
-
-    void AddNonPatternForRewriting(ExpressionT expr) {
-      non_patterns_to_rewrite_.Add(expr, (*scope_stack_)->zone());
-    }
-
     // Used to assign an index to each literal that needs materialization in
     // the function.  Includes regexp literals, and boilerplate for object and
     // array literals.
@@ -307,12 +296,12 @@ class ParserBase : public Traits {
     List<DestructuringAssignment> destructuring_assignments_to_rewrite_;
     List<ExpressionT> expressions_in_tail_position_;
     bool collect_expressions_in_tail_position_;
-    ZoneList<ExpressionT> non_patterns_to_rewrite_;
+
+    void RewriteDestructuringAssignments();
 
     typename Traits::Type::Factory* factory_;
 
     friend class ParserTraits;
-    friend class PreParserTraits;
     friend class Checkpoint;
   };
 
@@ -601,8 +590,8 @@ class ParserBase : public Traits {
       Scanner::Location location, Token::Value token,
       MessageTemplate::Template message = MessageTemplate::kUnexpectedToken);
 
-  void ReportClassifierError(
-      const typename ExpressionClassifier::Error& error) {
+
+  void ReportClassifierError(const ExpressionClassifier::Error& error) {
     Traits::ReportMessageAt(error.location, error.message, error.arg,
                             error.type);
   }
@@ -680,7 +669,7 @@ class ParserBase : public Traits {
       // neither a valid binding pattern nor a valid parenthesized formal
       // parameter list, show the "arrow formal parameters" error if the formals
       // started with a parenthesis, and the binding pattern error otherwise.
-      const typename ExpressionClassifier::Error& error =
+      const ExpressionClassifier::Error& error =
           parenthesized_formals ? classifier->arrow_formal_parameters_error()
                                 : classifier->binding_pattern_error();
       ReportClassifierError(error);
@@ -848,6 +837,11 @@ class ParserBase : public Traits {
     return true;
   }
 
+  bool IsAssignmentExpression(ExpressionT expression) {
+    return expression->IsAssignment() ||
+           expression->IsRewritableAssignmentExpression();
+  }
+
   bool IsValidPattern(ExpressionT expression) {
     return expression->IsObjectLiteral() || expression->IsArrayLiteral();
   }
@@ -974,7 +968,6 @@ ParserBase<Traits>::FunctionState::FunctionState(
       scope_stack_(scope_stack),
       outer_scope_(*scope_stack),
       collect_expressions_in_tail_position_(true),
-      non_patterns_to_rewrite_(0, scope->zone()),
       factory_(factory) {
   *scope_stack_ = scope;
   *function_state_stack = this;
@@ -1061,7 +1054,7 @@ void ParserBase<Traits>::ReportUnexpectedTokenAt(
 template <class Traits>
 typename ParserBase<Traits>::IdentifierT ParserBase<Traits>::ParseIdentifier(
     AllowRestrictedIdentifiers allow_restricted_identifiers, bool* ok) {
-  ExpressionClassifier classifier(this);
+  ExpressionClassifier classifier;
   auto result = ParseAndClassifyIdentifier(&classifier, ok);
   if (!*ok) return Traits::EmptyIdentifier();
 
@@ -1432,9 +1425,9 @@ ParserBase<Traits>::ParsePrimaryExpression(ExpressionClassifier* classifier,
 template <class Traits>
 typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseExpression(
     bool accept_IN, bool* ok) {
-  ExpressionClassifier classifier(this);
+  ExpressionClassifier classifier;
   ExpressionT result = ParseExpression(accept_IN, &classifier, CHECK_OK);
-  Traits::RewriteNonPattern(&classifier, CHECK_OK);
+  result = Traits::RewriteNonPattern(result, &classifier, CHECK_OK);
   return result;
 }
 
@@ -1446,10 +1439,10 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseExpression(
   //   AssignmentExpression
   //   Expression ',' AssignmentExpression
 
-  ExpressionClassifier binding_classifier(this);
+  ExpressionClassifier binding_classifier;
   ExpressionT result =
       this->ParseAssignmentExpression(accept_IN, &binding_classifier, CHECK_OK);
-  classifier->Accumulate(&binding_classifier,
+  classifier->Accumulate(binding_classifier,
                          ExpressionClassifier::AllProductions);
   bool is_simple_parameter_list = this->IsIdentifier(result);
   bool seen_rest = false;
@@ -1474,8 +1467,6 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseExpression(
     int pos = position(), expr_pos = peek_position();
     ExpressionT right = this->ParseAssignmentExpression(
         accept_IN, &binding_classifier, CHECK_OK);
-    classifier->Accumulate(&binding_classifier,
-                           ExpressionClassifier::AllProductions);
     if (is_rest) {
       if (!this->IsIdentifier(right) && !IsValidPattern(right)) {
         classifier->RecordArrowFormalParametersError(
@@ -1486,6 +1477,8 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseExpression(
     }
     is_simple_parameter_list =
         is_simple_parameter_list && this->IsIdentifier(right);
+    classifier->Accumulate(binding_classifier,
+                           ExpressionClassifier::AllProductions);
     result = factory()->NewBinaryOperation(Token::COMMA, result, right, pos);
   }
   if (!is_simple_parameter_list || seen_rest) {
@@ -1529,7 +1522,7 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseArrayLiteral(
         first_spread_index = values->length();
       }
 
-      if (argument->IsAssignment()) {
+      if (IsAssignmentExpression(argument)) {
         classifier->RecordPatternError(
             Scanner::Location(start_pos, scanner()->location().end_pos),
             MessageTemplate::kInvalidDestructuringTarget);
@@ -1559,14 +1552,8 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseArrayLiteral(
   // Update the scope information before the pre-parsing bailout.
   int literal_index = function_state_->NextMaterializedLiteralIndex();
 
-  ExpressionT result =
-      factory()->NewArrayLiteral(values, first_spread_index, literal_index,
-                                 is_strong(language_mode()), pos);
-  if (first_spread_index >= 0) {
-    result = factory()->NewRewritableExpression(result);
-    Traits::QueueNonPatternForRewriting(result);
-  }
-  return result;
+  return factory()->NewArrayLiteral(values, first_spread_index, literal_index,
+                                    is_strong(language_mode()), pos);
 }
 
 
@@ -1605,11 +1592,12 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParsePropertyName(
     case Token::LBRACK: {
       *is_computed_name = true;
       Consume(Token::LBRACK);
-      ExpressionClassifier computed_name_classifier(this);
+      ExpressionClassifier computed_name_classifier;
       ExpressionT expression =
           ParseAssignmentExpression(true, &computed_name_classifier, CHECK_OK);
-      Traits::RewriteNonPattern(&computed_name_classifier, CHECK_OK);
-      classifier->Accumulate(&computed_name_classifier,
+      expression = Traits::RewriteNonPattern(
+          expression, &computed_name_classifier, CHECK_OK);
+      classifier->Accumulate(computed_name_classifier,
                              ExpressionClassifier::ExpressionProductions);
       Expect(Token::RBRACK, CHECK_OK);
       return expression;
@@ -1697,12 +1685,12 @@ ParserBase<Traits>::ParsePropertyDefinition(
 
       if (peek() == Token::ASSIGN) {
         Consume(Token::ASSIGN);
-        ExpressionClassifier rhs_classifier(this);
+        ExpressionClassifier rhs_classifier;
         ExpressionT rhs = this->ParseAssignmentExpression(
             true, &rhs_classifier, CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
-        Traits::RewriteNonPattern(&rhs_classifier,
-                                  CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
-        classifier->Accumulate(&rhs_classifier,
+        rhs = Traits::RewriteNonPattern(
+            rhs, &rhs_classifier, CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+        classifier->Accumulate(rhs_classifier,
                                ExpressionClassifier::ExpressionProductions);
         value = factory()->NewAssignment(Token::ASSIGN, lhs, rhs,
                                          RelocInfo::kNoPosition);
@@ -1764,7 +1752,8 @@ ParserBase<Traits>::ParsePropertyDefinition(
     ObjectLiteralPropertyT property = ParsePropertyDefinition(
         checker, true, has_extends, true, is_computed_name, nullptr, classifier,
         name, ok);
-    Traits::RewriteNonPattern(classifier, ok);
+    property = Traits::RewriteNonPatternObjectLiteralProperty(property,
+                                                              classifier, ok);
     return property;
   }
 
@@ -1903,7 +1892,8 @@ typename Traits::Type::ExpressionList ParserBase<Traits>::ParseArguments(
 
     ExpressionT argument = this->ParseAssignmentExpression(
         true, classifier, CHECK_OK_CUSTOM(NullExpressionList));
-    Traits::RewriteNonPattern(classifier, CHECK_OK_CUSTOM(NullExpressionList));
+    argument = Traits::RewriteNonPattern(argument, classifier,
+                                         CHECK_OK_CUSTOM(NullExpressionList));
     if (is_spread) {
       if (!spread_arg.IsValid()) {
         spread_arg.beg_pos = start_pos;
@@ -1970,8 +1960,7 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
 
   FuncNameInferrer::State fni_state(fni_);
   ParserBase<Traits>::Checkpoint checkpoint(this);
-  ExpressionClassifier arrow_formals_classifier(this,
-                                                classifier->duplicate_finder());
+  ExpressionClassifier arrow_formals_classifier(classifier->duplicate_finder());
   bool parenthesized_formals = peek() == Token::LPAREN;
   if (!parenthesized_formals) {
     ArrowFormalParametersUnexpectedToken(&arrow_formals_classifier);
@@ -2021,23 +2010,16 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
 
   // "expression" was not itself an arrow function parameter list, but it might
   // form part of one.  Propagate speculative formal parameter error locations.
-  // Do not merge pending non-pattern expressions yet!
   classifier->Accumulate(
-      &arrow_formals_classifier,
+      arrow_formals_classifier,
       ExpressionClassifier::StandardProductions |
-      ExpressionClassifier::FormalParametersProductions |
-      ExpressionClassifier::CoverInitializedNameProduction,
-      false);
+          ExpressionClassifier::FormalParametersProductions |
+          ExpressionClassifier::CoverInitializedNameProduction);
 
   if (!Token::IsAssignmentOp(peek())) {
     // Parsed conditional expression only (no assignment).
-    // Now pending non-pattern expressions must be merged.
-    classifier->MergeNonPatterns(&arrow_formals_classifier);
     return expression;
   }
-
-  // Now pending non-pattern expressions must be discarded.
-  arrow_formals_classifier.Discard();
 
   if (!(allow_harmony_destructuring_bind() ||
         allow_harmony_default_parameters())) {
@@ -2072,14 +2054,14 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
   }
   int pos = position();
 
-  ExpressionClassifier rhs_classifier(this);
+  ExpressionClassifier rhs_classifier;
 
   ExpressionT right =
       this->ParseAssignmentExpression(accept_IN, &rhs_classifier, CHECK_OK);
-  Traits::RewriteNonPattern(&rhs_classifier, CHECK_OK);
+  right = Traits::RewriteNonPattern(right, &rhs_classifier, CHECK_OK);
   classifier->Accumulate(
-      &rhs_classifier, ExpressionClassifier::ExpressionProductions |
-                       ExpressionClassifier::CoverInitializedNameProduction);
+      rhs_classifier, ExpressionClassifier::ExpressionProductions |
+                          ExpressionClassifier::CoverInitializedNameProduction);
 
   // TODO(1231235): We try to estimate the set of properties set by
   // constructors. We define a new property whenever there is an
@@ -2111,7 +2093,7 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN,
   ExpressionT result = factory()->NewAssignment(op, expression, right, pos);
 
   if (is_destructuring_assignment) {
-    result = factory()->NewRewritableExpression(result);
+    result = factory()->NewRewritableAssignmentExpression(result);
     Traits::QueueDestructuringAssignmentForRewriting(result);
   }
 
@@ -2153,7 +2135,8 @@ ParserBase<Traits>::ParseYieldExpression(ExpressionClassifier* classifier,
         // Delegating yields require an RHS; fall through.
       default:
         expression = ParseAssignmentExpression(false, classifier, CHECK_OK);
-        Traits::RewriteNonPattern(classifier, CHECK_OK);
+        expression =
+            Traits::RewriteNonPattern(expression, classifier, CHECK_OK);
         break;
     }
   }
@@ -2183,7 +2166,7 @@ ParserBase<Traits>::ParseConditionalExpression(bool accept_IN,
   ExpressionT expression =
       this->ParseBinaryExpression(4, accept_IN, classifier, CHECK_OK);
   if (peek() != Token::CONDITIONAL) return expression;
-  Traits::RewriteNonPattern(classifier, CHECK_OK);
+  expression = Traits::RewriteNonPattern(expression, classifier, CHECK_OK);
   ArrowFormalParametersUnexpectedToken(classifier);
   BindingPatternUnexpectedToken(classifier);
   Consume(Token::CONDITIONAL);
@@ -2191,11 +2174,11 @@ ParserBase<Traits>::ParseConditionalExpression(bool accept_IN,
   // expressions we always accept the 'in' keyword; see ECMA-262,
   // section 11.12, page 58.
   ExpressionT left = ParseAssignmentExpression(true, classifier, CHECK_OK);
-  Traits::RewriteNonPattern(classifier, CHECK_OK);
+  left = Traits::RewriteNonPattern(left, classifier, CHECK_OK);
   Expect(Token::COLON, CHECK_OK);
   ExpressionT right =
       ParseAssignmentExpression(accept_IN, classifier, CHECK_OK);
-  Traits::RewriteNonPattern(classifier, CHECK_OK);
+  right = Traits::RewriteNonPattern(right, classifier, CHECK_OK);
   return factory()->NewConditional(expression, left, right, pos);
 }
 
@@ -2211,7 +2194,7 @@ ParserBase<Traits>::ParseBinaryExpression(int prec, bool accept_IN,
   for (int prec1 = Precedence(peek(), accept_IN); prec1 >= prec; prec1--) {
     // prec1 >= 4
     while (Precedence(peek(), accept_IN) == prec1) {
-      Traits::RewriteNonPattern(classifier, CHECK_OK);
+      x = Traits::RewriteNonPattern(x, classifier, CHECK_OK);
       BindingPatternUnexpectedToken(classifier);
       ArrowFormalParametersUnexpectedToken(classifier);
       Token::Value op = Next();
@@ -2219,7 +2202,7 @@ ParserBase<Traits>::ParseBinaryExpression(int prec, bool accept_IN,
       int pos = position();
       ExpressionT y =
           ParseBinaryExpression(prec1 + 1, accept_IN, classifier, CHECK_OK);
-      Traits::RewriteNonPattern(classifier, CHECK_OK);
+      y = Traits::RewriteNonPattern(y, classifier, CHECK_OK);
 
       if (this->ShortcutNumericLiteralBinaryExpression(&x, y, op, pos,
                                                        factory())) {
@@ -2282,7 +2265,7 @@ ParserBase<Traits>::ParseUnaryExpression(ExpressionClassifier* classifier,
     op = Next();
     int pos = position();
     ExpressionT expression = ParseUnaryExpression(classifier, CHECK_OK);
-    Traits::RewriteNonPattern(classifier, CHECK_OK);
+    expression = Traits::RewriteNonPattern(expression, classifier, CHECK_OK);
 
     if (op == Token::DELETE && is_strict(language_mode())) {
       if (is_strong(language_mode())) {
@@ -2309,7 +2292,7 @@ ParserBase<Traits>::ParseUnaryExpression(ExpressionClassifier* classifier,
         expression, beg_pos, scanner()->location().end_pos,
         MessageTemplate::kInvalidLhsInPrefixOp, CHECK_OK);
     this->MarkExpressionAsAssigned(expression);
-    Traits::RewriteNonPattern(classifier, CHECK_OK);
+    expression = Traits::RewriteNonPattern(expression, classifier, CHECK_OK);
 
     return factory()->NewCountOperation(op,
                                         true /* prefix */,
@@ -2341,7 +2324,7 @@ ParserBase<Traits>::ParsePostfixExpression(ExpressionClassifier* classifier,
         expression, lhs_beg_pos, scanner()->location().end_pos,
         MessageTemplate::kInvalidLhsInPostfixOp, CHECK_OK);
     expression = this->MarkExpressionAsAssigned(expression);
-    Traits::RewriteNonPattern(classifier, CHECK_OK);
+    expression = Traits::RewriteNonPattern(expression, classifier, CHECK_OK);
 
     Token::Value next = Next();
     expression =
@@ -2367,20 +2350,20 @@ ParserBase<Traits>::ParseLeftHandSideExpression(
   while (true) {
     switch (peek()) {
       case Token::LBRACK: {
-        Traits::RewriteNonPattern(classifier, CHECK_OK);
+        result = Traits::RewriteNonPattern(result, classifier, CHECK_OK);
         BindingPatternUnexpectedToken(classifier);
         ArrowFormalParametersUnexpectedToken(classifier);
         Consume(Token::LBRACK);
         int pos = position();
         ExpressionT index = ParseExpression(true, classifier, CHECK_OK);
-        Traits::RewriteNonPattern(classifier, CHECK_OK);
+        index = Traits::RewriteNonPattern(index, classifier, CHECK_OK);
         result = factory()->NewProperty(result, index, pos);
         Expect(Token::RBRACK, CHECK_OK);
         break;
       }
 
       case Token::LPAREN: {
-        Traits::RewriteNonPattern(classifier, CHECK_OK);
+        result = Traits::RewriteNonPattern(result, classifier, CHECK_OK);
         BindingPatternUnexpectedToken(classifier);
         ArrowFormalParametersUnexpectedToken(classifier);
 
@@ -2444,7 +2427,7 @@ ParserBase<Traits>::ParseLeftHandSideExpression(
       }
 
       case Token::PERIOD: {
-        Traits::RewriteNonPattern(classifier, CHECK_OK);
+        result = Traits::RewriteNonPattern(result, classifier, CHECK_OK);
         BindingPatternUnexpectedToken(classifier);
         ArrowFormalParametersUnexpectedToken(classifier);
         Consume(Token::PERIOD);
@@ -2458,7 +2441,7 @@ ParserBase<Traits>::ParseLeftHandSideExpression(
 
       case Token::TEMPLATE_SPAN:
       case Token::TEMPLATE_TAIL: {
-        Traits::RewriteNonPattern(classifier, CHECK_OK);
+        result = Traits::RewriteNonPattern(result, classifier, CHECK_OK);
         BindingPatternUnexpectedToken(classifier);
         ArrowFormalParametersUnexpectedToken(classifier);
         result = ParseTemplateLiteral(result, position(), classifier, CHECK_OK);
@@ -2510,7 +2493,7 @@ ParserBase<Traits>::ParseMemberWithNewPrefixesExpression(
     } else {
       result = this->ParseMemberWithNewPrefixesExpression(classifier, CHECK_OK);
     }
-    Traits::RewriteNonPattern(classifier, CHECK_OK);
+    result = Traits::RewriteNonPattern(result, classifier, CHECK_OK);
     if (peek() == Token::LPAREN) {
       // NewExpression with arguments.
       Scanner::Location spread_pos;
@@ -2626,7 +2609,7 @@ ParserBase<Traits>::ParseStrongInitializationExpression(
       Consume(Token::LBRACK);
       int pos = position();
       ExpressionT index = this->ParseExpression(true, classifier, CHECK_OK);
-      Traits::RewriteNonPattern(classifier, CHECK_OK);
+      index = Traits::RewriteNonPattern(index, classifier, CHECK_OK);
       left = factory()->NewProperty(this_expr, index, pos);
       if (fni_ != NULL) {
         this->PushPropertyName(fni_, index);
@@ -2662,7 +2645,7 @@ ParserBase<Traits>::ParseStrongInitializationExpression(
 
   ExpressionT right =
       this->ParseAssignmentExpression(true, classifier, CHECK_OK);
-  Traits::RewriteNonPattern(classifier, CHECK_OK);
+  right = Traits::RewriteNonPattern(right, classifier, CHECK_OK);
   this->CheckAssigningFunctionLiteralToProperty(left, right);
   function_state_->AddProperty();
   if (fni_ != NULL) {
@@ -2826,14 +2809,15 @@ ParserBase<Traits>::ParseMemberExpressionContinuation(
   while (true) {
     switch (peek()) {
       case Token::LBRACK: {
-        Traits::RewriteNonPattern(classifier, CHECK_OK);
+        expression =
+            Traits::RewriteNonPattern(expression, classifier, CHECK_OK);
         BindingPatternUnexpectedToken(classifier);
         ArrowFormalParametersUnexpectedToken(classifier);
 
         Consume(Token::LBRACK);
         int pos = position();
         ExpressionT index = this->ParseExpression(true, classifier, CHECK_OK);
-        Traits::RewriteNonPattern(classifier, CHECK_OK);
+        index = Traits::RewriteNonPattern(index, classifier, CHECK_OK);
         expression = factory()->NewProperty(expression, index, pos);
         if (fni_ != NULL) {
           this->PushPropertyName(fni_, index);
@@ -2842,7 +2826,8 @@ ParserBase<Traits>::ParseMemberExpressionContinuation(
         break;
       }
       case Token::PERIOD: {
-        Traits::RewriteNonPattern(classifier, CHECK_OK);
+        expression =
+            Traits::RewriteNonPattern(expression, classifier, CHECK_OK);
         BindingPatternUnexpectedToken(classifier);
         ArrowFormalParametersUnexpectedToken(classifier);
 
@@ -2858,7 +2843,8 @@ ParserBase<Traits>::ParseMemberExpressionContinuation(
       }
       case Token::TEMPLATE_SPAN:
       case Token::TEMPLATE_TAIL: {
-        Traits::RewriteNonPattern(classifier, CHECK_OK);
+        expression =
+            Traits::RewriteNonPattern(expression, classifier, CHECK_OK);
         BindingPatternUnexpectedToken(classifier);
         ArrowFormalParametersUnexpectedToken(classifier);
         int pos;
@@ -2913,14 +2899,13 @@ void ParserBase<Traits>::ParseFormalParameter(
 
   ExpressionT initializer = Traits::EmptyExpression();
   if (!is_rest && allow_harmony_default_parameters() && Check(Token::ASSIGN)) {
-    ExpressionClassifier init_classifier(this);
+    ExpressionClassifier init_classifier;
     initializer = ParseAssignmentExpression(true, &init_classifier, ok);
     if (!*ok) return;
-    Traits::RewriteNonPattern(&init_classifier, ok);
+    initializer = Traits::RewriteNonPattern(initializer, &init_classifier, ok);
     ValidateFormalParameterInitializer(&init_classifier, ok);
     if (!*ok) return;
     parameters->is_simple = false;
-    init_classifier.Discard();
     classifier->RecordNonSimpleParameter();
 
     if (allow_harmony_function_name()) {
@@ -3088,10 +3073,10 @@ ParserBase<Traits>::ParseArrowFunctionLiteral(
       // Single-expression body
       int pos = position();
       parenthesized_function_ = false;
-      ExpressionClassifier classifier(this);
+      ExpressionClassifier classifier;
       ExpressionT expression =
           ParseAssignmentExpression(accept_IN, &classifier, CHECK_OK);
-      Traits::RewriteNonPattern(&classifier, CHECK_OK);
+      expression = Traits::RewriteNonPattern(expression, &classifier, CHECK_OK);
       body = this->NewStatementList(1, zone());
       this->AddParameterInitializationBlock(formal_parameters, body, CHECK_OK);
       body->Add(factory()->NewReturnStatement(expression, pos), zone());
@@ -3197,7 +3182,7 @@ ParserBase<Traits>::ParseTemplateLiteral(ExpressionT tag, int start,
 
     int expr_pos = peek_position();
     ExpressionT expression = this->ParseExpression(true, classifier, CHECK_OK);
-    Traits::RewriteNonPattern(classifier, CHECK_OK);
+    expression = Traits::RewriteNonPattern(expression, classifier, CHECK_OK);
     Traits::AddTemplateExpression(&ts, expression);
 
     if (peek() != Token::RBRACE) {
@@ -3251,7 +3236,7 @@ typename ParserBase<Traits>::ExpressionT
 ParserBase<Traits>::CheckAndRewriteReferenceExpression(
     ExpressionT expression, int beg_pos, int end_pos,
     MessageTemplate::Template message, ParseErrorType type, bool* ok) {
-  ExpressionClassifier classifier(this);
+  ExpressionClassifier classifier;
   ExpressionT result = ClassifyAndRewriteReferenceExpression(
       &classifier, expression, beg_pos, end_pos, message, type);
   ValidateExpression(&classifier, ok);
@@ -3305,7 +3290,7 @@ template <typename Traits>
 void ParserBase<Traits>::CheckDestructuringElement(
     ExpressionT expression, ExpressionClassifier* classifier, int begin,
     int end) {
-  if (!IsValidPattern(expression) && !expression->IsAssignment() &&
+  if (!IsValidPattern(expression) && !IsAssignmentExpression(expression) &&
       !IsValidReferenceExpression(expression)) {
     classifier->RecordAssignmentPatternError(
         Scanner::Location(begin, end),
@@ -3371,8 +3356,6 @@ void ParserBase<Traits>::ClassLiteralChecker::CheckProperty(
     return;
   }
 }
-
-
 }  // namespace internal
 }  // namespace v8
 

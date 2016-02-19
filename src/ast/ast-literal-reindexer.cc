@@ -77,8 +77,8 @@ void AstLiteralReindexer::VisitSuperCallReference(SuperCallReference* node) {
 }
 
 
-void AstLiteralReindexer::VisitRewritableExpression(
-    RewritableExpression* node) {
+void AstLiteralReindexer::VisitRewritableAssignmentExpression(
+    RewritableAssignmentExpression* node) {
   Visit(node->expression());
 }
 

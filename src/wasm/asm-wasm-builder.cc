@@ -1177,7 +1177,10 @@ class AsmWasmBuilderImpl : public AstVisitor {
 
   void VisitDoExpression(DoExpression* expr) { UNREACHABLE(); }
 
-  void VisitRewritableExpression(RewritableExpression* expr) { UNREACHABLE(); }
+  void VisitRewritableAssignmentExpression(
+      RewritableAssignmentExpression* expr) {
+    UNREACHABLE();
+  }
 
   struct IndexContainer : public ZoneObject {
     uint16_t index;

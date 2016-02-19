@@ -1551,7 +1551,8 @@ void AsmTyper::VisitWithExpectation(Expression* expr, Type* expected_type,
 }
 
 
-void AsmTyper::VisitRewritableExpression(RewritableExpression* expr) {
+void AsmTyper::VisitRewritableAssignmentExpression(
+    RewritableAssignmentExpression* expr) {
   RECURSE(Visit(expr->expression()));
 }
 

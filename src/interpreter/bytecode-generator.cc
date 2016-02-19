@@ -2860,7 +2860,8 @@ void BytecodeGenerator::VisitLogicalAndExpression(BinaryOperation* binop) {
 }
 
 
-void BytecodeGenerator::VisitRewritableExpression(RewritableExpression* expr) {
+void BytecodeGenerator::VisitRewritableAssignmentExpression(
+    RewritableAssignmentExpression* expr) {
   Visit(expr->expression());
 }
 
