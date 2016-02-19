@@ -172,12 +172,16 @@ void InstructionScheduler::ScheduleBlock() {
 int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
   switch (instr->arch_opcode()) {
     case kArchNop:
-    case kArchStackPointer:
     case kArchFramePointer:
     case kArchParentFramePointer:
     case kArchTruncateDoubleToI:
     case kArchStackSlot:
       return kNoOpcodeFlags;
+
+    case kArchStackPointer:
+      // ArchStackPointer instruction loads the current stack pointer value and
+      // must not be reordered with instruction with side effects.
+      return kIsLoadOperation;
 
     case kArchPrepareCallCFunction:
     case kArchPrepareTailCall:
