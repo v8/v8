@@ -9,6 +9,7 @@
 #include "src/compiler/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
+#include "src/frames.h"
 #include "src/x87/assembler-x87.h"
 #include "src/x87/frames-x87.h"
 #include "src/x87/macro-assembler-x87.h"
@@ -50,7 +51,7 @@ class X87OperandConverter : public InstructionOperandConverter {
 
   Operand ToMaterializableOperand(int materializable_offset) {
     FrameOffset offset = frame_access_state()->GetFrameOffset(
-        Frame::FPOffsetToSlot(materializable_offset));
+        FPOffsetToFrameSlot(materializable_offset));
     return Operand(offset.from_stack_pointer() ? esp : ebp, offset.offset());
   }
 
