@@ -1609,11 +1609,13 @@ MUST_USE_RESULT Maybe<bool> FastAssign(Handle<JSReceiver> to,
   Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate);
   int length = map->NumberOfOwnDescriptors();
 
+  bool stable = true;
+
   for (int i = 0; i < length; i++) {
     Handle<Name> next_key(descriptors->GetKey(i), isolate);
     Handle<Object> prop_value;
     // Directly decode from the descriptor array if |from| did not change shape.
-    if (from->map() == *map) {
+    if (stable) {
       PropertyDetails details = descriptors->GetDetails(i);
       if (!details.IsEnumerable()) continue;
       if (details.kind() == kData) {
@@ -1628,6 +1630,7 @@ MUST_USE_RESULT Maybe<bool> FastAssign(Handle<JSReceiver> to,
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, prop_value,
                                          Object::GetProperty(from, next_key),
                                          Nothing<bool>());
+        stable = from->map() == *map;
       }
     } else {
       // If the map did change, do a slower lookup. We are still guaranteed that
@@ -1640,12 +1643,12 @@ MUST_USE_RESULT Maybe<bool> FastAssign(Handle<JSReceiver> to,
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           isolate, prop_value, Object::GetProperty(&it), Nothing<bool>());
     }
-    Handle<Object> status;
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, status,
-        Object::SetProperty(to, next_key, prop_value, STRICT,
-                            Object::CERTAINLY_NOT_STORE_FROM_KEYED),
-        Nothing<bool>());
+    LookupIterator it(to, next_key);
+    bool call_to_js = it.IsFound() && it.state() != LookupIterator::DATA;
+    Maybe<bool> result = Object::SetProperty(
+        &it, prop_value, STRICT, Object::CERTAINLY_NOT_STORE_FROM_KEYED);
+    if (result.IsNothing()) return result;
+    if (stable && call_to_js) stable = from->map() == *map;
   }
 
   return Just(true);
