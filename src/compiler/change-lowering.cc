@@ -596,36 +596,42 @@ Node* ChangeLowering::IsSmi(Node* value) {
       jsgraph()->IntPtrConstant(kSmiTag));
 }
 
-Node* ChangeLowering::LoadHeapObjectMap(Node* object, Node* control) {
+Node* ChangeLowering::LoadHeapObjectMap(Node* object, Node* effect,
+                                        Node* control) {
   return graph()->NewNode(
       machine()->Load(MachineType::AnyTagged()), object,
       jsgraph()->IntPtrConstant(HeapObject::kMapOffset - kHeapObjectTag),
-      graph()->start(), control);
+      effect, control);
 }
 
-Node* ChangeLowering::LoadMapInstanceType(Node* map) {
+Node* ChangeLowering::LoadMapInstanceType(Node* map, Node* effect,
+                                          Node* control) {
   return graph()->NewNode(
       machine()->Load(MachineType::Uint8()), map,
       jsgraph()->IntPtrConstant(Map::kInstanceTypeOffset - kHeapObjectTag),
-      graph()->start(), graph()->start());
+      effect, control);
 }
 
 Reduction ChangeLowering::ObjectIsNumber(Node* node) {
   Node* input = NodeProperties::GetValueInput(node, 0);
+  Node* control = NodeProperties::GetControlInput(node, 0);
+  Node* effect = NodeProperties::GetEffectInput(node, 0);
   // TODO(bmeurer): Optimize somewhat based on input type.
   Node* check = IsSmi(input);
-  Node* branch = graph()->NewNode(common()->Branch(), check, graph()->start());
+  Node* branch = graph()->NewNode(common()->Branch(), check, control);
   Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
   Node* vtrue = jsgraph()->Int32Constant(1);
   Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Node* load_map = LoadHeapObjectMap(input, effect, if_false);
   Node* vfalse = graph()->NewNode(
-      machine()->WordEqual(), LoadHeapObjectMap(input, if_false),
+      machine()->WordEqual(), load_map,
       jsgraph()->HeapConstant(isolate()->factory()->heap_number_map()));
-  Node* control = graph()->NewNode(common()->Merge(2), if_true, if_false);
-  node->ReplaceInput(0, vtrue);
-  node->AppendInput(graph()->zone(), vfalse);
-  node->AppendInput(graph()->zone(), control);
-  NodeProperties::ChangeOp(node, common()->Phi(MachineRepresentation::kBit, 2));
+  Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
+  Node* ephi =
+      graph()->NewNode(common()->EffectPhi(2), effect, load_map, merge);
+  Node* phi = graph()->NewNode(common()->Phi(MachineRepresentation::kBit, 2),
+                               vtrue, vfalse, merge);
+  ReplaceWithValue(node, phi, ephi, merge);
   return Changed(node);
 }
 
@@ -638,10 +644,12 @@ Reduction ChangeLowering::ObjectIsReceiver(Node* node) {
   Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
   Node* vtrue = jsgraph()->Int32Constant(0);
   Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-  Node* vfalse =
-      graph()->NewNode(machine()->Uint32LessThanOrEqual(),
-                       jsgraph()->Uint32Constant(FIRST_JS_RECEIVER_TYPE),
-                       LoadMapInstanceType(LoadHeapObjectMap(input, if_false)));
+  Node* load_map = LoadHeapObjectMap(input, graph()->start(), if_false);
+  Node* load_instance_type =
+      LoadMapInstanceType(load_map, graph()->start(), graph()->start());
+  Node* vfalse = graph()->NewNode(
+      machine()->Uint32LessThanOrEqual(),
+      jsgraph()->Uint32Constant(FIRST_JS_RECEIVER_TYPE), load_instance_type);
   Node* control = graph()->NewNode(common()->Merge(2), if_true, if_false);
   node->ReplaceInput(0, vtrue);
   node->AppendInput(graph()->zone(), vfalse);

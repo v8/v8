@@ -1987,9 +1987,9 @@ Handle<JSFunction> CompileJSToWasmWrapper(
     typer.Run(roots);
 
     // Run generic and change lowering.
-    JSGenericLowering generic(true, &jsgraph);
-    ChangeLowering changes(&jsgraph);
     GraphReducer graph_reducer(&zone, &graph, jsgraph.Dead());
+    JSGenericLowering generic(true, &jsgraph);
+    ChangeLowering changes(&graph_reducer, &jsgraph);
     graph_reducer.AddReducer(&changes);
     graph_reducer.AddReducer(&generic);
     graph_reducer.ReduceGraph();
@@ -2072,9 +2072,9 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, wasm::ModuleEnv* module,
     typer.Run(roots);
 
     // Run generic and change lowering.
-    JSGenericLowering generic(true, &jsgraph);
-    ChangeLowering changes(&jsgraph);
     GraphReducer graph_reducer(&zone, &graph, jsgraph.Dead());
+    JSGenericLowering generic(true, &jsgraph);
+    ChangeLowering changes(&graph_reducer, &jsgraph);
     graph_reducer.AddReducer(&changes);
     graph_reducer.AddReducer(&generic);
     graph_reducer.ReduceGraph();

@@ -1240,6 +1240,7 @@ class RepresentationSelector {
       }
       case IrOpcode::kObjectIsNumber: {
         ProcessInput(node, 0, UseInfo::AnyTagged());
+        ProcessRemainingInputs(node, 1);
         SetOutput(node, NodeOutputInfo::Bool());
         break;
       }

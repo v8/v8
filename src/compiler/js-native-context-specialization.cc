@@ -290,8 +290,9 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
       } else {
         DCHECK_EQ(AccessMode::kStore, access_mode);
         if (field_type->Is(Type::UntaggedFloat64())) {
-          Node* check =
-              graph()->NewNode(simplified()->ObjectIsNumber(), this_value);
+          Node* check = this_control = this_effect =
+              graph()->NewNode(simplified()->ObjectIsNumber(), this_value,
+                               this_effect, this_control);
           Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
                                           check, this_control);
           exit_controls.push_back(
@@ -652,8 +653,9 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
 
     // Check that the {index} is actually a Number.
     if (!NumberMatcher(this_index).HasValue()) {
-      Node* check =
-          graph()->NewNode(simplified()->ObjectIsNumber(), this_index);
+      Node* check = this_control = this_effect =
+          graph()->NewNode(simplified()->ObjectIsNumber(), this_index,
+                           this_effect, this_control);
       Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
                                       check, this_control);
       exit_controls.push_back(graph()->NewNode(common()->IfFalse(), branch));
@@ -825,8 +827,9 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
         this_value = graph()->NewNode(common()->Guard(type_cache_.kSmi),
                                       this_value, this_control);
       } else if (IsFastDoubleElementsKind(elements_kind)) {
-        Node* check =
-            graph()->NewNode(simplified()->ObjectIsNumber(), this_value);
+        Node* check = this_control = this_effect =
+            graph()->NewNode(simplified()->ObjectIsNumber(), this_value,
+                             this_effect, this_control);
         Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
                                         check, this_control);
         exit_controls.push_back(graph()->NewNode(common()->IfFalse(), branch));
