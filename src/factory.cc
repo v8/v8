@@ -2229,9 +2229,6 @@ Handle<String> Factory::NumberToString(Handle<Object> number,
   // We tenure the allocated string since it is referenced from the
   // number-string cache which lives in the old space.
   Handle<String> js_string = NewStringFromAsciiChecked(str, TENURED);
-  // Make sure the string cached in the number cache is also the internalized
-  // version of the same string.
-  js_string = InternalizeString(js_string);
   SetNumberStringCache(number, js_string);
   return js_string;
 }

@@ -127,27 +127,27 @@ class LookupIterator final BASE_EMBEDDED {
   static LookupIterator PropertyOrElement(
       Isolate* isolate, Handle<Object> receiver, Handle<Name> name,
       Configuration configuration = DEFAULT) {
-    name = isolate->factory()->InternalizeName(name);
     uint32_t index;
-    LookupIterator it =
-        name->AsArrayIndex(&index)
-            ? LookupIterator(isolate, receiver, index, configuration)
-            : LookupIterator(receiver, name, configuration);
-    it.name_ = name;
-    return it;
+    if (name->AsArrayIndex(&index)) {
+      LookupIterator it =
+          LookupIterator(isolate, receiver, index, configuration);
+      it.name_ = name;
+      return it;
+    }
+    return LookupIterator(receiver, name, configuration);
   }
 
   static LookupIterator PropertyOrElement(
       Isolate* isolate, Handle<Object> receiver, Handle<Name> name,
       Handle<JSReceiver> holder, Configuration configuration = DEFAULT) {
-    name = isolate->factory()->InternalizeName(name);
     uint32_t index;
-    LookupIterator it =
-        name->AsArrayIndex(&index)
-            ? LookupIterator(isolate, receiver, index, holder, configuration)
-            : LookupIterator(receiver, name, holder, configuration);
-    it.name_ = name;
-    return it;
+    if (name->AsArrayIndex(&index)) {
+      LookupIterator it =
+          LookupIterator(isolate, receiver, index, holder, configuration);
+      it.name_ = name;
+      return it;
+    }
+    return LookupIterator(receiver, name, holder, configuration);
   }
 
   static LookupIterator PropertyOrElement(

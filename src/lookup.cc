@@ -38,7 +38,7 @@ LookupIterator LookupIterator::PropertyOrElement(Isolate* isolate,
     LookupIterator it(isolate, receiver, index, configuration);
     // Here we try to avoid having to rebuild the string later
     // by storing it on the indexed LookupIterator.
-    it.name_ = isolate->factory()->InternalizeName(name);
+    it.name_ = name;
     return it;
   }
 
