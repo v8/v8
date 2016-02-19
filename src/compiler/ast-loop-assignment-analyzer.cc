@@ -287,8 +287,7 @@ void ALAA::VisitCountOperation(CountOperation* e) {
 }
 
 
-void ALAA::VisitRewritableAssignmentExpression(
-    RewritableAssignmentExpression* expr) {
+void ALAA::VisitRewritableExpression(RewritableExpression* expr) {
   Visit(expr->expression());
 }
 

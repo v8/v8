@@ -400,8 +400,8 @@ void AstExpressionVisitor::VisitSuperCallReference(SuperCallReference* expr) {
 }
 
 
-void AstExpressionVisitor::VisitRewritableAssignmentExpression(
-    RewritableAssignmentExpression* expr) {
+void AstExpressionVisitor::VisitRewritableExpression(
+    RewritableExpression* expr) {
   VisitExpression(expr);
   RECURSE(Visit(expr->expression()));
 }
