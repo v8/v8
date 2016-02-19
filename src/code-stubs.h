@@ -76,6 +76,7 @@ namespace internal {
   V(FastCloneShallowObject)                 \
   V(FastNewClosure)                         \
   V(FastNewContext)                         \
+  V(FastNewObject)                          \
   V(FastNewRestParameter)                   \
   V(FastNewSloppyArguments)                 \
   V(FastNewStrictArguments)                 \
@@ -723,6 +724,15 @@ class FastNewContextStub final : public HydrogenCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(FastNewContext);
   DEFINE_HYDROGEN_CODE_STUB(FastNewContext, HydrogenCodeStub);
+};
+
+
+class FastNewObjectStub final : public PlatformCodeStub {
+ public:
+  explicit FastNewObjectStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(FastNewObject);
+  DEFINE_PLATFORM_CODE_STUB(FastNewObject, PlatformCodeStub);
 };
 
 

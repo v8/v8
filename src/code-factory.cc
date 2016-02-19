@@ -270,6 +270,13 @@ Callable CodeFactory::FastNewClosure(Isolate* isolate,
 
 
 // static
+Callable CodeFactory::FastNewObject(Isolate* isolate) {
+  FastNewObjectStub stub(isolate);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
+}
+
+
+// static
 Callable CodeFactory::FastNewRestParameter(Isolate* isolate) {
   FastNewRestParameterStub stub(isolate);
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());

@@ -140,152 +140,23 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ Push(rcx);
 
     if (create_implicit_receiver) {
-      // Try to allocate the object without transitioning into C code. If any of
-      // the preconditions is not met, the code bails out to the runtime call.
-      Label rt_call, allocated;
-      if (FLAG_inline_new) {
-        // Verify that the new target is a JSFunction.
-        __ CmpObjectType(rdx, JS_FUNCTION_TYPE, rbx);
-        __ j(not_equal, &rt_call);
-
-        // Load the initial map and verify that it is in fact a map.
-        // rdx: new target
-        __ movp(rax,
-                FieldOperand(rdx, JSFunction::kPrototypeOrInitialMapOffset));
-        // Will both indicate a NULL and a Smi
-        DCHECK(kSmiTag == 0);
-        __ JumpIfSmi(rax, &rt_call);
-        // rdi: constructor
-        // rax: initial map (if proven valid below)
-        __ CmpObjectType(rax, MAP_TYPE, rbx);
-        __ j(not_equal, &rt_call);
-
-        // Fall back to runtime if the expected base constructor and base
-        // constructor differ.
-        __ cmpp(rdi, FieldOperand(rax, Map::kConstructorOrBackPointerOffset));
-        __ j(not_equal, &rt_call);
-
-        // Now allocate the JSObject on the heap.
-        __ movzxbp(r9, FieldOperand(rax, Map::kInstanceSizeOffset));
-        __ shlp(r9, Immediate(kPointerSizeLog2));
-        // r9: size of new object
-        __ Allocate(r9, rbx, r9, no_reg, &rt_call, NO_ALLOCATION_FLAGS);
-        // Allocated the JSObject, now initialize the fields.
-        // rdi: constructor
-        // rdx: new target
-        // rax: initial map
-        // rbx: JSObject (not HeapObject tagged - the actual address).
-        // r9: start of next object
-        __ movp(Operand(rbx, JSObject::kMapOffset), rax);
-        __ LoadRoot(rcx, Heap::kEmptyFixedArrayRootIndex);
-        __ movp(Operand(rbx, JSObject::kPropertiesOffset), rcx);
-        __ movp(Operand(rbx, JSObject::kElementsOffset), rcx);
-        __ leap(rcx, Operand(rbx, JSObject::kHeaderSize));
-
-        // Add the object tag to make the JSObject real, so that we can continue
-        // and jump into the continuation code at any time from now on.
-        __ orp(rbx, Immediate(kHeapObjectTag));
-
-        // Fill all the in-object properties with the appropriate filler.
-        // rbx: JSObject (tagged)
-        // rcx: First in-object property of JSObject (not tagged)
-        __ LoadRoot(r11, Heap::kUndefinedValueRootIndex);
-
-        if (!is_api_function) {
-          Label no_inobject_slack_tracking;
-
-          // The code below relies on these assumptions.
-          STATIC_ASSERT(Map::kNoSlackTracking == 0);
-          STATIC_ASSERT(Map::ConstructionCounter::kNext == 32);
-          // Check if slack tracking is enabled.
-          __ movl(rsi, FieldOperand(rax, Map::kBitField3Offset));
-          __ shrl(rsi, Immediate(Map::ConstructionCounter::kShift));
-          __ j(zero, &no_inobject_slack_tracking);  // Map::kNoSlackTracking
-          __ Push(rsi);  // Save allocation count value.
-          // Decrease generous allocation count.
-          __ subl(FieldOperand(rax, Map::kBitField3Offset),
-                  Immediate(1 << Map::ConstructionCounter::kShift));
-
-          // Allocate object with a slack.
-          __ movzxbp(rsi, FieldOperand(rax, Map::kUnusedPropertyFieldsOffset));
-          __ negp(rsi);
-          __ leap(rsi, Operand(r9, rsi, times_pointer_size, 0));
-          // rsi: offset of first field after pre-allocated fields
-          if (FLAG_debug_code) {
-            __ cmpp(rcx, rsi);
-            __ Assert(less_equal,
-                      kUnexpectedNumberOfPreAllocatedPropertyFields);
-          }
-          __ InitializeFieldsWithFiller(rcx, rsi, r11);
-
-          // To allow truncation fill the remaining fields with one pointer
-          // filler map.
-          __ LoadRoot(r11, Heap::kOnePointerFillerMapRootIndex);
-          __ InitializeFieldsWithFiller(rcx, r9, r11);
-
-          __ Pop(rsi);  // Restore allocation count value before decreasing.
-          __ cmpl(rsi, Immediate(Map::kSlackTrackingCounterEnd));
-          __ j(not_equal, &allocated);
-
-          // Push the constructor, new_target and the object to the stack,
-          // and then the initial map as an argument to the runtime call.
-          __ Push(rdi);
-          __ Push(rdx);
-          __ Push(rbx);
-
-          __ Push(rax);  // initial map
-          __ CallRuntime(Runtime::kFinalizeInstanceSize);
-
-          __ Pop(rbx);
-          __ Pop(rdx);
-          __ Pop(rdi);
-
-          // Continue with JSObject being successfully allocated.
-          // rdi: constructor
-          // rdx: new target
-          // rbx: JSObject (tagged)
-          __ jmp(&allocated);
-
-          __ bind(&no_inobject_slack_tracking);
-        }
-
-        __ InitializeFieldsWithFiller(rcx, r9, r11);
-
-        // Continue with JSObject being successfully allocated
-        // rdi: constructor
-        // rdx: new target
-        // rbx: JSObject (tagged)
-        __ jmp(&allocated);
-      }
-
-      // Allocate the new receiver object using the runtime call.
-      // rdi: constructor
-      // rdx: new target
-      __ bind(&rt_call);
-
-      // Must restore rsi (context) before calling runtime.
-      __ movp(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
-
-      // Push the constructor and new_target twice, second pair as arguments
-      // to the runtime call.
+      // Allocate the new receiver object.
       __ Push(rdi);
       __ Push(rdx);
-      __ Push(rdi);  // constructor function
-      __ Push(rdx);  // new target
-      __ CallRuntime(Runtime::kNewObject);
-      __ movp(rbx, rax);  // store result in rbx
+      FastNewObjectStub stub(masm->isolate());
+      __ CallStub(&stub);
+      __ movp(rbx, rax);
       __ Pop(rdx);
       __ Pop(rdi);
 
-      // Receiver for constructor call allocated.
-      // rdi: constructor
-      // rdx: new target
-      // rbx: newly allocated object
-      __ bind(&allocated);
+      // ----------- S t a t e -------------
+      //  -- rdi: constructor function
+      //  -- rbx: newly allocated object
+      //  -- rdx: new target
+      // -----------------------------------
 
       // Retrieve smi-tagged arguments count from the stack.
-      __ movp(rax, Operand(rsp, 0));
-      __ SmiToInteger32(rax, rax);
+      __ SmiToInteger32(rax, Operand(rsp, 0 * kPointerSize));
     }
 
     if (create_implicit_receiver) {
@@ -1680,9 +1551,8 @@ void Builtins::Generate_NumberConstructor_ConstructStub(MacroAssembler* masm) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     __ Push(rbx);  // the first argument
-    __ Push(rdi);  // constructor function
-    __ Push(rdx);  // new target
-    __ CallRuntime(Runtime::kNewObject);
+    FastNewObjectStub stub(masm->isolate());
+    __ CallStub(&stub);
     __ Pop(FieldOperand(rax, JSValue::kValueOffset));
   }
   __ Ret();
@@ -1816,9 +1686,8 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     __ Push(rbx);  // the first argument
-    __ Push(rdi);  // constructor function
-    __ Push(rdx);  // new target
-    __ CallRuntime(Runtime::kNewObject);
+    FastNewObjectStub stub(masm->isolate());
+    __ CallStub(&stub);
     __ Pop(FieldOperand(rax, JSValue::kValueOffset));
   }
   __ Ret();

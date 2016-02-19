@@ -89,6 +89,7 @@ class CodeFactory final {
   static Callable FastNewContext(Isolate* isolate, int slot_count);
   static Callable FastNewClosure(Isolate* isolate, LanguageMode language_mode,
                                  FunctionKind kind);
+  static Callable FastNewObject(Isolate* isolate);
   static Callable FastNewRestParameter(Isolate* isolate);
   static Callable FastNewSloppyArguments(Isolate* isolate);
   static Callable FastNewStrictArguments(Isolate* isolate);

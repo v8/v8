@@ -243,9 +243,7 @@ Reduction JSCreateLowering::ReduceJSCreate(Node* node) {
     // generating code to finalize the instance size.
     constructor->CompleteInobjectSlackTrackingIfActive();
 
-    // TODO(bmeurer): We fall back to the runtime in case we cannot inline
-    // the allocation here, which is sort of expensive. We should think about
-    // a soft fallback to some NewObjectCodeStub.
+    // Check if we can inline the allocation.
     if (IsAllocationInlineable(constructor)) {
       // Compute instance size from initial map of {constructor}.
       Handle<Map> initial_map(constructor->initial_map(), isolate());

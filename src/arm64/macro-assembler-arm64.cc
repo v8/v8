@@ -1638,6 +1638,20 @@ void MacroAssembler::AssertBoundFunction(Register object) {
 }
 
 
+void MacroAssembler::AssertReceiver(Register object) {
+  if (emit_debug_code()) {
+    AssertNotSmi(object, kOperandIsASmiAndNotAReceiver);
+
+    UseScratchRegisterScope temps(this);
+    Register temp = temps.AcquireX();
+
+    STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+    CompareObjectType(object, temp, temp, FIRST_JS_RECEIVER_TYPE);
+    Check(hs, kOperandIsNotAReceiver);
+  }
+}
+
+
 void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
                                                      Register scratch) {
   if (emit_debug_code()) {
