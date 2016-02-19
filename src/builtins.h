@@ -74,6 +74,9 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
   V(BooleanPrototypeToString, kNone)                           \
   V(BooleanPrototypeValueOf, kNone)                            \
                                                                \
+  V(DataViewConstructor, kNone)                                \
+  V(DataViewConstructor_ConstructStub, kTargetAndNewTarget)    \
+                                                               \
   V(DateConstructor, kNone)                                    \
   V(DateConstructor_ConstructStub, kTargetAndNewTarget)        \
   V(DateNow, kNone)                                            \

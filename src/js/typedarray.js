@@ -847,36 +847,6 @@ TYPED_ARRAYS(SETUP_TYPED_ARRAY)
 
 // --------------------------- DataView -----------------------------
 
-function DataViewConstructor(buffer, byteOffset, byteLength) { // length = 3
-  if (IS_UNDEFINED(new.target)) {
-    throw MakeTypeError(kConstructorNotFunction, "DataView");
-  }
-
-  // TODO(binji): support SharedArrayBuffers?
-  if (!IS_ARRAYBUFFER(buffer)) throw MakeTypeError(kDataViewNotArrayBuffer);
-  if (!IS_UNDEFINED(byteOffset)) {
-    byteOffset = ToPositiveInteger(byteOffset, kInvalidDataViewOffset);
-  }
-  if (!IS_UNDEFINED(byteLength)) {
-    byteLength = TO_INTEGER(byteLength);
-  }
-
-  var bufferByteLength = %_ArrayBufferGetByteLength(buffer);
-
-  var offset = IS_UNDEFINED(byteOffset) ?  0 : byteOffset;
-  if (offset > bufferByteLength) throw MakeRangeError(kInvalidDataViewOffset);
-
-  var length = IS_UNDEFINED(byteLength)
-      ? bufferByteLength - offset
-      : byteLength;
-  if (length < 0 || offset + length > bufferByteLength) {
-    throw new MakeRangeError(kInvalidDataViewLength);
-  }
-  var result = %NewObject(GlobalDataView, new.target);
-  %_DataViewInitialize(result, buffer, offset, length);
-  return result;
-}
-
 function DataViewGetBufferJS() {
   if (!IS_DATAVIEW(this)) {
     throw MakeTypeError(kIncompatibleMethodReceiver, 'DataView.buffer', this);
@@ -939,7 +909,6 @@ endmacro
 DATA_VIEW_TYPES(DATA_VIEW_GETTER_SETTER)
 
 // Setup the DataView constructor.
-%SetCode(GlobalDataView, DataViewConstructor);
 %FunctionSetPrototype(GlobalDataView, new GlobalObject);
 
 // Set up constructor property on the DataView prototype.

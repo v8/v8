@@ -1579,16 +1579,16 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     TYPED_ARRAYS(INSTALL_TYPED_ARRAY)
 #undef INSTALL_TYPED_ARRAY
 
-    Handle<JSFunction> data_view_fun =
-        InstallFunction(
-            global, "DataView", JS_DATA_VIEW_TYPE,
-            JSDataView::kSizeWithInternalFields,
-            isolate->initial_object_prototype(),
-            Builtins::kIllegal);
+    Handle<JSFunction> data_view_fun = InstallFunction(
+        global, "DataView", JS_DATA_VIEW_TYPE,
+        JSDataView::kSizeWithInternalFields,
+        isolate->initial_object_prototype(), Builtins::kDataViewConstructor);
     InstallWithIntrinsicDefaultProto(isolate, data_view_fun,
                                      Context::DATA_VIEW_FUN_INDEX);
     data_view_fun->shared()->set_construct_stub(
-        *isolate->builtins()->JSBuiltinsConstructStub());
+        *isolate->builtins()->DataViewConstructor_ConstructStub());
+    data_view_fun->shared()->set_length(3);
+    data_view_fun->shared()->DontAdaptArguments();
   }
 
   {  // -- M a p

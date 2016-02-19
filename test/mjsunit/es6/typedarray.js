@@ -674,7 +674,6 @@ function TestDataViewConstructor() {
 
   // error cases
   assertThrows(function() { new DataView(ab, -1); }, RangeError);
-  assertThrows(function() { new DataView(ab, 1, -1); }, RangeError);
   assertThrows(function() { new DataView(); }, TypeError);
   assertThrows(function() { new DataView([]); }, TypeError);
   assertThrows(function() { new DataView(ab, 257); }, RangeError);

@@ -2225,7 +2225,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   F(DebugIsActive)                     \
   /* Typed Arrays */                   \
   F(TypedArrayInitialize)              \
-  F(DataViewInitialize)                \
   F(MaxSmi)                            \
   F(TypedArrayMaxSizeInHeap)           \
   F(ArrayBufferViewGetByteLength)      \
