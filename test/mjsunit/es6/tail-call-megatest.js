@@ -4,7 +4,6 @@
 
 // Flags: --allow-natives-syntax --harmony-tailcalls --no-turbo-inlining
 
-"use strict";
 
 Error.prepareStackTrace = (error,stack) => {
   error.strace = stack;
@@ -46,76 +45,178 @@ function ident_source(source, ident) {
   return ident + source.replace(/\n/gi, "\n" + ident);
 }
 
+var global = Function('return this')();
+var the_receiver = {receiver: 1};
 
 function run_tests() {
-
-  function f_template_normal(f_inlinable, f_args) {
-    var f_comment = f_inlinable ? CAN_INLINE_COMMENT : DONT_INLINE_COMMENT;
-    var lines = [
-      `function f(a) {`,
-      `  ${f_comment}`,
-      `  assertEquals(undefined, this);`,
-      `  CheckArguments([${f_args}], arguments);`,
-      `  CheckStackTrace([f, test]);`,
-      `  %DeoptimizeNow();`,
-      `  CheckArguments([${f_args}], arguments);`,
-      `  CheckStackTrace([f, test]);`,
-      `  return 42;`,
-      `}`,
-    ];
-    return lines.join("\n");
+  function inlinable_comment(inlinable) {
+    return inlinable ? CAN_INLINE_COMMENT : DONT_INLINE_COMMENT;
   }
 
-  function f_template_bound(f_inlinable, f_args) {
-    var f_comment = f_inlinable ? CAN_INLINE_COMMENT : DONT_INLINE_COMMENT;
-    var lines = [
-      `function ff(a) {`,
-      `  ${f_comment}`,
-      `  assertEquals(153, this.a);`,
-      `  CheckArguments([${f_args}], arguments);`,
-      `  CheckStackTrace([ff, test]);`,
-      `  %DeoptimizeNow();`,
-      `  CheckArguments([${f_args}], arguments);`,
-      `  CheckStackTrace([ff, test]);`,
-      `  return 42;`,
-      `}`,
-      `var f = ff.bind({a: 153});`,
-    ];
-    return lines.join("\n");
-  }
+  var f_cfg_sloppy = {
+    func_name: 'f',
+    source_template: function(cfg) {
+      var receiver = cfg.f_receiver != undefined ? cfg.f_receiver
+                                                 : "global";
+      var lines = [
+        `function f(a) {`,
+        `  ${inlinable_comment(cfg.f_inlinable)}`,
+        `  assertEquals(${receiver}, this);`,
+        `  CheckArguments([${cfg.f_args}], arguments);`,
+        `  CheckStackTrace([f, test]);`,
+        `  %DeoptimizeNow();`,
+        `  CheckArguments([${cfg.f_args}], arguments);`,
+        `  CheckStackTrace([f, test]);`,
+        `  return 42;`,
+        `}`,
+      ];
+      return lines.join("\n");
+    },
+  };
 
-  function f_template_proxy(f_inlinable, f_args) {
-    var f_comment = f_inlinable ? CAN_INLINE_COMMENT : DONT_INLINE_COMMENT;
-    var lines = [
-      `function ff(a) {`,
-      `  ${f_comment}`,
-      `  assertEquals(undefined, this);`,
-      `  CheckArguments([${f_args}], arguments);`,
-      `  CheckStackTrace([f, test]);`,
-      `  %DeoptimizeNow();`,
-      `  CheckArguments([${f_args}], arguments);`,
-      `  CheckStackTrace([f, test]);`,
-      `  return 42;`,
-      `}`,
-      `var f = new Proxy(ff, {});`,
-    ];
-    return lines.join("\n");
-  }
+  var f_cfg_strict = {
+    func_name: 'f',
+    source_template: function(cfg) {
+      var receiver = cfg.f_receiver != undefined ? cfg.f_receiver
+                                                 : "undefined";
+      var lines = [
+        `function f(a) {`,
+        `  "use strict";`,
+        `  ${inlinable_comment(cfg.f_inlinable)}`,
+        `  assertEquals(${receiver}, this);`,
+        `  CheckArguments([${cfg.f_args}], arguments);`,
+        `  CheckStackTrace([f, test]);`,
+        `  %DeoptimizeNow();`,
+        `  CheckArguments([${cfg.f_args}], arguments);`,
+        `  CheckStackTrace([f, test]);`,
+        `  return 42;`,
+        `}`,
+      ];
+      return lines.join("\n");
+    },
+  };
 
-  function g_template(g_inlinable, f_args, g_args) {
-    var g_comment = g_inlinable ? CAN_INLINE_COMMENT : DONT_INLINE_COMMENT;
-    var lines = [
-      `function g(a) {`,
-      `  ${g_comment}`,
-      `  CheckArguments([${g_args}], arguments);`,
-      `  return f(${f_args});`,
-      `}`,
-    ];
-    return lines.join("\n");
-  }
+  var f_cfg_possibly_eval = {
+    func_name: 'eval',
+    source_template: function(cfg) {
+      var receiver = cfg.f_receiver != undefined ? cfg.f_receiver
+                                                 : "global";
+      var lines = [
+        `function f(a) {`,
+        `  ${inlinable_comment(cfg.f_inlinable)}`,
+        `  assertEquals(${receiver}, this);`,
+        `  CheckArguments([${cfg.f_args}], arguments);`,
+        `  CheckStackTrace([f, test]);`,
+        `  %DeoptimizeNow();`,
+        `  CheckArguments([${cfg.f_args}], arguments);`,
+        `  CheckStackTrace([f, test]);`,
+        `  return 42;`,
+        `}`,
+        `var eval = f;`,
+      ];
+      return lines.join("\n");
+    },
+  };
 
-  function test_template(f_source, g_source, g_args,
-                         f_inlinable, g_inlinable) {
+  var f_cfg_bound = {
+    func_name: 'bound',
+    source_template: function(cfg) {
+      var lines = [
+        `function f(a) {`,
+        `  "use strict";`,
+        `  ${inlinable_comment(cfg.f_inlinable)}`,
+        `  assertEquals(receiver, this);`,
+        `  CheckArguments([${cfg.f_args}], arguments);`,
+        `  CheckStackTrace([f, test]);`,
+        `  %DeoptimizeNow();`,
+        `  CheckArguments([${cfg.f_args}], arguments);`,
+        `  CheckStackTrace([f, test]);`,
+        `  return 42;`,
+        `}`,
+        `var receiver = {a: 153};`,
+        `var bound = f.bind(receiver);`,
+      ];
+      return lines.join("\n");
+    },
+  };
+
+  var f_cfg_proxy = {
+    func_name: 'p',
+    source_template: function(cfg) {
+      var receiver = cfg.f_receiver != undefined ? cfg.f_receiver
+                                                 : "global";
+      var lines = [
+        `function f(a) {`,
+        `  ${inlinable_comment(cfg.f_inlinable)}`,
+        `  assertEquals(${receiver}, this);`,
+        `  CheckArguments([${cfg.f_args}], arguments);`,
+        `  CheckStackTrace([f, test]);`,
+        `  %DeoptimizeNow();`,
+        `  CheckArguments([${cfg.f_args}], arguments);`,
+        `  CheckStackTrace([f, test]);`,
+        `  return 42;`,
+        `}`,
+        `var p = new Proxy(f, {});`,
+      ];
+      return lines.join("\n");
+    },
+  };
+
+  var g_cfg_normal = {
+    receiver: undefined,
+    source_template: function(cfg) {
+      var lines = [
+        `function g(a) {`,
+        `  "use strict";`,
+        `  ${inlinable_comment(cfg.g_inlinable)}`,
+        `  CheckArguments([${cfg.g_args}], arguments);`,
+        `  return ${cfg.f_name}(${cfg.f_args});`,
+        `}`,
+      ];
+      return lines.join("\n");
+    },
+  };
+
+
+  var g_cfg_function_apply = {
+    receiver: "the_receiver",
+    source_template: function(cfg) {
+      var lines = [
+        `function g(a) {`,
+        `  "use strict";`,
+        `  ${inlinable_comment(cfg.g_inlinable)}`,
+        `  CheckArguments([${cfg.g_args}], arguments);`,
+        `  return ${cfg.f_name}.apply(the_receiver, [${cfg.f_args}]);`,
+        `}`,
+      ];
+      return lines.join("\n");
+    },
+  };
+
+
+  var g_cfg_function_call = {
+    receiver: "the_receiver",
+    source_template: function(cfg) {
+      var f_args = "the_receiver";
+      if (cfg.f_args !== "") f_args += ", ";
+      f_args += cfg.f_args;
+
+      var lines = [
+        `function g(a) {`,
+        `  "use strict";`,
+        `  ${inlinable_comment(cfg.g_inlinable)}`,
+        `  CheckArguments([${cfg.g_args}], arguments);`,
+        `  return ${cfg.f_name}.call(${f_args});`,
+        `}`,
+      ];
+      return lines.join("\n");
+    },
+  };
+
+
+  function test_template(cfg) {
+    var f_source = cfg.f_source_template(cfg);
+    var g_source = cfg.g_source_template(cfg);
     f_source = ident_source(f_source, 2);
     g_source = ident_source(g_source, 2);
 
@@ -124,15 +225,15 @@ function run_tests() {
       f_source,
       g_source,
       `  function test() {`,
-      `    assertEquals(42, g(${g_args}));`,
+      `    "use strict";`,
+      `    assertEquals(42, g(${cfg.g_args}));`,
       `  }`,
-      `  ${f_inlinable ? "%SetForceInlineFlag(f)" : ""};`,
-      `  ${g_inlinable ? "%SetForceInlineFlag(g)" : ""};`,
+      `  ${cfg.f_inlinable ? "%SetForceInlineFlag(f)" : ""};`,
+      `  ${cfg.g_inlinable ? "%SetForceInlineFlag(g)" : ""};`,
       ``,
       `  test();`,
       `  %OptimizeFunctionOnNextCall(test);`,
-      `  try { %OptimizeFunctionOnNextCall(f); } catch(e) {}`,
-      `  try { %OptimizeFunctionOnNextCall(ff); } catch(e) {}`,
+      `  %OptimizeFunctionOnNextCall(f);`,
       `  %OptimizeFunctionOnNextCall(g);`,
       `  test();`,
       `})();`,
@@ -148,23 +249,39 @@ function run_tests() {
   var f_inlinable_variants = [/*true,*/ false];
   var g_inlinable_variants = [true, false];
   var f_variants = [
-      f_template_normal,
-      f_template_bound,
-      f_template_proxy
+      f_cfg_sloppy,
+      f_cfg_strict,
+      f_cfg_bound,
+      f_cfg_proxy,
+      f_cfg_possibly_eval,
+  ];
+  var g_variants = [
+      g_cfg_normal,
+      g_cfg_function_call,
+      g_cfg_function_apply,
   ];
 
-  f_variants.forEach((f_template) => {
-    f_args_variants.forEach((f_args) => {
-      g_args_variants.forEach((g_args) => {
-        f_inlinable_variants.forEach((f_inlinable) => {
-          g_inlinable_variants.forEach((g_inlinable) => {
-            var f_source = f_template(f_inlinable, f_args);
-            var g_source = g_template(g_inlinable, f_args, g_args);
-            var source = test_template(f_source, g_source, g_args,
-                                       f_inlinable, g_inlinable);
-            print("====================");
-            print(source);
-            eval(source);
+  f_variants.forEach((f_cfg) => {
+    g_variants.forEach((g_cfg) => {
+      f_args_variants.forEach((f_args) => {
+        g_args_variants.forEach((g_args) => {
+          f_inlinable_variants.forEach((f_inlinable) => {
+            g_inlinable_variants.forEach((g_inlinable) => {
+              var cfg = {
+                f_source_template: f_cfg.source_template,
+                f_inlinable,
+                f_args,
+                f_name: f_cfg.func_name,
+                f_receiver: g_cfg.receiver,
+                g_source_template: g_cfg.source_template,
+                g_inlinable,
+                g_args,
+              };
+              var source = test_template(cfg);
+              print("====================");
+              print(source);
+              eval(source);
+            });
           });
         });
       });
