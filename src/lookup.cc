@@ -599,7 +599,6 @@ LookupIterator::State LookupIterator::LookupInHolder(Map* const map,
   switch (state_) {
     case NOT_FOUND:
       if (map->IsJSProxyMap()) {
-        // Do not leak private property names.
         if (IsElement() || !name_->IsPrivate()) return JSPROXY;
       }
       if (map->is_access_check_needed()) {
@@ -609,9 +608,7 @@ LookupIterator::State LookupIterator::LookupInHolder(Map* const map,
     case ACCESS_CHECK:
       if (check_interceptor() && HasInterceptor(map) &&
           !SkipInterceptor(JSObject::cast(holder))) {
-        // Do not leak private property names.
-        if (!name_.is_null() && name_->IsPrivate()) return NOT_FOUND;
-        return INTERCEPTOR;
+        if (IsElement() || !name_->IsPrivate()) return INTERCEPTOR;
       }
     // Fall through.
     case INTERCEPTOR:

@@ -4238,16 +4238,12 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
 Maybe<bool> Object::SetProperty(LookupIterator* it, Handle<Object> value,
                                 LanguageMode language_mode,
                                 StoreFromKeyed store_mode) {
-  ShouldThrow should_throw =
-      is_sloppy(language_mode) ? DONT_THROW : THROW_ON_ERROR;
-  if (it->GetReceiver()->IsJSProxy() && it->GetName()->IsPrivate()) {
-    RETURN_FAILURE(it->isolate(), should_throw,
-                   NewTypeError(MessageTemplate::kProxyPrivate));
-  }
   bool found = false;
   Maybe<bool> result =
       SetPropertyInternal(it, value, language_mode, store_mode, &found);
   if (found) return result;
+  ShouldThrow should_throw =
+      is_sloppy(language_mode) ? DONT_THROW : THROW_ON_ERROR;
   return AddDataProperty(it, value, NONE, should_throw, store_mode);
 }
 
@@ -4255,13 +4251,7 @@ Maybe<bool> Object::SetProperty(LookupIterator* it, Handle<Object> value,
 Maybe<bool> Object::SetSuperProperty(LookupIterator* it, Handle<Object> value,
                                      LanguageMode language_mode,
                                      StoreFromKeyed store_mode) {
-  ShouldThrow should_throw =
-      is_sloppy(language_mode) ? DONT_THROW : THROW_ON_ERROR;
   Isolate* isolate = it->isolate();
-  if (it->GetReceiver()->IsJSProxy() && it->GetName()->IsPrivate()) {
-    RETURN_FAILURE(isolate, should_throw,
-                   NewTypeError(MessageTemplate::kProxyPrivate));
-  }
 
   bool found = false;
   Maybe<bool> result =
@@ -4270,6 +4260,9 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it, Handle<Object> value,
 
   // The property either doesn't exist on the holder or exists there as a data
   // property.
+
+  ShouldThrow should_throw =
+      is_sloppy(language_mode) ? DONT_THROW : THROW_ON_ERROR;
 
   if (!it->GetReceiver()->IsJSReceiver()) {
     return WriteToReadOnlyProperty(it, value, should_throw);
@@ -4486,8 +4479,11 @@ Maybe<bool> Object::AddDataProperty(LookupIterator* it, Handle<Object> value,
                                     PropertyAttributes attributes,
                                     ShouldThrow should_throw,
                                     StoreFromKeyed store_mode) {
-  DCHECK(!it->GetReceiver()->IsJSProxy());
   if (!it->GetReceiver()->IsJSObject()) {
+    if (it->GetReceiver()->IsJSProxy() && it->GetName()->IsPrivate()) {
+      RETURN_FAILURE(it->isolate(), should_throw,
+                     NewTypeError(MessageTemplate::kProxyPrivate));
+    }
     return CannotCreateProperty(it->isolate(), it->GetReceiver(), it->GetName(),
                                 value, should_throw);
   }
@@ -6164,7 +6160,7 @@ Maybe<bool> JSReceiver::DeleteProperty(LookupIterator* it,
   if (it->GetReceiver()->IsJSProxy()) {
     if (it->state() != LookupIterator::NOT_FOUND) {
       DCHECK_EQ(LookupIterator::DATA, it->state());
-      DCHECK(it->GetName()->IsPrivate());
+      DCHECK(it->name()->IsPrivate());
       it->Delete();
     }
     return Just(true);
