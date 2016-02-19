@@ -207,7 +207,8 @@
   'regress/regress-crbug-491062': [PASS, NO_VARIANTS],
 
   # Issue 488: this test sometimes times out.
-  'array-constructor': [PASS, TIMEOUT],
+  # TODO(arm): This seems to flush out a bug on arm with simulator.
+  'array-constructor': [PASS, TIMEOUT, ['arch == arm and simulator == True', SKIP]],
 
   # Issue 4413: this test sometimes times out with TSAN because we trigger
   # the slow path in C++ with holey arrays in Function.prototype.apply.
