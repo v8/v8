@@ -263,9 +263,6 @@
   'built-ins/Object/entries/*': [SKIP],
   'built-ins/Object/values/*': [SKIP],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4708
-  'annexB/Date/prototype/toGMTString/name': [FAIL],
-
   ######################## NEEDS INVESTIGATION ###########################
 
   # These test failures are specific to the intl402 suite and need investigation

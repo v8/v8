@@ -1339,12 +1339,13 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kDatePrototypeToDateString, 0, false);
     SimpleInstallFunction(prototype, "toTimeString",
                           Builtins::kDatePrototypeToTimeString, 0, false);
-    SimpleInstallFunction(prototype, "toGMTString",
-                          Builtins::kDatePrototypeToUTCString, 0, false);
     SimpleInstallFunction(prototype, "toISOString",
                           Builtins::kDatePrototypeToISOString, 0, false);
-    SimpleInstallFunction(prototype, "toUTCString",
-                          Builtins::kDatePrototypeToUTCString, 0, false);
+    Handle<JSFunction> to_utc_string =
+        SimpleInstallFunction(prototype, "toUTCString",
+                              Builtins::kDatePrototypeToUTCString, 0, false);
+    InstallFunction(prototype, to_utc_string,
+                    factory->InternalizeUtf8String("toGMTString"), DONT_ENUM);
     SimpleInstallFunction(prototype, "getDate", Builtins::kDatePrototypeGetDate,
                           0, true);
     SimpleInstallFunction(prototype, "setDate", Builtins::kDatePrototypeSetDate,
