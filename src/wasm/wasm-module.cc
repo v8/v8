@@ -282,7 +282,8 @@ WasmModule::WasmModule()
       signatures(nullptr),
       functions(nullptr),
       data_segments(nullptr),
-      function_table(nullptr) {}
+      function_table(nullptr),
+      import_table(nullptr) {}
 
 WasmModule::~WasmModule() {
   if (globals) delete globals;
@@ -290,8 +291,33 @@ WasmModule::~WasmModule() {
   if (functions) delete functions;
   if (data_segments) delete data_segments;
   if (function_table) delete function_table;
+  if (import_table) delete import_table;
 }
 
+static MaybeHandle<JSFunction> LookupFunction(ErrorThrower& thrower,
+                                              Handle<JSObject> ffi,
+                                              uint32_t index,
+                                              Handle<String> name,
+                                              const char* cstr) {
+  if (!ffi.is_null()) {
+    MaybeHandle<Object> result = Object::GetProperty(ffi, name);
+    if (!result.is_null()) {
+      Handle<Object> obj = result.ToHandleChecked();
+      if (obj->IsJSFunction()) {
+        return Handle<JSFunction>::cast(obj);
+      } else {
+        thrower.Error("FFI function #%d:%s is not a JSFunction.", index, cstr);
+        return MaybeHandle<JSFunction>();
+      }
+    } else {
+      thrower.Error("FFI function #%d:%s not found.", index, cstr);
+      return MaybeHandle<JSFunction>();
+    }
+  } else {
+    thrower.Error("FFI table is not an object.");
+    return MaybeHandle<JSFunction>();
+  }
+}
 
 // Instantiates a wasm module as a JSObject.
 //  * allocates a backing store of {mem_size} bytes.
@@ -312,6 +338,7 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
       JS_OBJECT_TYPE,
       JSObject::kHeaderSize + kWasmModuleInternalFieldCount * kPointerSize);
   WasmModuleInstance instance(this);
+  std::vector<Handle<Code>> import_code;
   instance.context = isolate->native_context();
   instance.js_object = factory->NewJSObjectFromMap(map, TENURED);
   Handle<FixedArray> code_table =
@@ -351,10 +378,10 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
   }
 
   //-------------------------------------------------------------------------
-  // Compile all functions in the module.
+  // Compile wrappers to imported functions.
   //-------------------------------------------------------------------------
-  instance.function_table = BuildFunctionTable(isolate, this);
   uint32_t index = 0;
+  instance.function_table = BuildFunctionTable(isolate, this);
   WasmLinker linker(isolate, functions->size());
   ModuleEnv module_env;
   module_env.module = this;
@@ -362,7 +389,28 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
   module_env.linker = &linker;
   module_env.asm_js = false;
 
+  if (import_table->size() > 0) {
+    instance.import_code = &import_code;
+    instance.import_code->reserve(import_table->size());
+    for (const WasmImport& import : *import_table) {
+      const char* cstr = GetName(import.function_name_offset);
+      Handle<String> name = factory->InternalizeUtf8String(cstr);
+      MaybeHandle<JSFunction> function =
+          LookupFunction(thrower, ffi, index, name, cstr);
+      if (function.is_null()) return MaybeHandle<JSObject>();
+      Handle<Code> code = compiler::CompileWasmToJSWrapper(
+          isolate, &module_env, function.ToHandleChecked(), import.sig, cstr);
+      instance.import_code->push_back(code);
+      index++;
+    }
+  }
+
+  //-------------------------------------------------------------------------
+  // Compile all functions in the module.
+  //-------------------------------------------------------------------------
+
   // First pass: compile each function and initialize the code table.
+  index = 0;
   for (const WasmFunction& func : *functions) {
     if (thrower.error()) break;
     DCHECK_EQ(index, func.func_index);
@@ -373,27 +421,11 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
     Handle<JSFunction> function = Handle<JSFunction>::null();
     if (func.external) {
       // Lookup external function in FFI object.
-      if (!ffi.is_null()) {
-        MaybeHandle<Object> result = Object::GetProperty(ffi, name);
-        if (!result.is_null()) {
-          Handle<Object> obj = result.ToHandleChecked();
-          if (obj->IsJSFunction()) {
-            function = Handle<JSFunction>::cast(obj);
-            code = compiler::CompileWasmToJSWrapper(isolate, &module_env,
-                                                    function, index);
-          } else {
-            thrower.Error("FFI function #%d:%s is not a JSFunction.", index,
-                          cstr);
-            return MaybeHandle<JSObject>();
-          }
-        } else {
-          thrower.Error("FFI function #%d:%s not found.", index, cstr);
-          return MaybeHandle<JSObject>();
-        }
-      } else {
-        thrower.Error("FFI table is not an object.");
-        return MaybeHandle<JSObject>();
-      }
+      MaybeHandle<JSFunction> function =
+          LookupFunction(thrower, ffi, index, name, cstr);
+      if (function.is_null()) return MaybeHandle<JSObject>();
+      code = compiler::CompileWasmToJSWrapper(
+          isolate, &module_env, function.ToHandleChecked(), func.sig, cstr);
     } else {
       // Compile the function.
       code = compiler::CompileWasmFunction(thrower, isolate, &module_env, func);
@@ -454,6 +486,13 @@ Handle<Code> ModuleEnv::GetFunctionCode(uint32_t index) {
   return Handle<Code>::null();
 }
 
+Handle<Code> ModuleEnv::GetImportCode(uint32_t index) {
+  DCHECK(IsValidImport(index));
+  if (instance && instance->import_code) {
+    return instance->import_code->at(index);
+  }
+  return Handle<Code>::null();
+}
 
 compiler::CallDescriptor* ModuleEnv::GetCallDescriptor(Zone* zone,
                                                        uint32_t index) {

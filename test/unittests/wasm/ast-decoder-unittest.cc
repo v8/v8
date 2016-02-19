@@ -1192,6 +1192,7 @@ class TestModuleEnv : public ModuleEnv {
     mod.globals = new std::vector<WasmGlobal>;
     mod.signatures = new std::vector<FunctionSig*>;
     mod.functions = new std::vector<WasmFunction>;
+    mod.import_table = new std::vector<WasmImport>;
   }
   byte AddGlobal(MachineType mem_type) {
     mod.globals->push_back({0, mem_type, 0, false});
@@ -1207,6 +1208,11 @@ class TestModuleEnv : public ModuleEnv {
     mod.functions->push_back({sig, 0, 0, 0, 0, 0, 0, 0, false, false});
     CHECK(mod.functions->size() <= 127);
     return static_cast<byte>(mod.functions->size() - 1);
+  }
+  byte AddImport(FunctionSig* sig) {
+    mod.import_table->push_back({sig, 0, 0});
+    CHECK(mod.import_table->size() <= 127);
+    return static_cast<byte>(mod.import_table->size() - 1);
   }
 
  private:
@@ -1364,6 +1370,39 @@ TEST_F(WasmDecoderTest, IndirectCallsWithMismatchedSigs3) {
   EXPECT_FAILURE_INLINE(env, WASM_CALL_INDIRECT(f1, WASM_ZERO, WASM_F32(17.6)));
 }
 
+TEST_F(WasmDecoderTest, SimpleImportCalls) {
+  FunctionEnv* env = &env_i_i;
+  TestModuleEnv module_env;
+  env->module = &module_env;
+
+  byte f0 = module_env.AddImport(sigs.i_v());
+  byte f1 = module_env.AddImport(sigs.i_i());
+  byte f2 = module_env.AddImport(sigs.i_ii());
+
+  EXPECT_VERIFIES_INLINE(env, WASM_CALL_IMPORT0(f0));
+  EXPECT_VERIFIES_INLINE(env, WASM_CALL_IMPORT(f1, WASM_I8(22)));
+  EXPECT_VERIFIES_INLINE(env, WASM_CALL_IMPORT(f2, WASM_I8(32), WASM_I8(72)));
+}
+
+TEST_F(WasmDecoderTest, ImportCallsWithMismatchedSigs3) {
+  FunctionEnv* env = &env_i_i;
+  TestModuleEnv module_env;
+  env->module = &module_env;
+
+  byte f0 = module_env.AddImport(sigs.i_f());
+
+  EXPECT_FAILURE_INLINE(env, WASM_CALL_IMPORT0(f0));
+  EXPECT_FAILURE_INLINE(env, WASM_CALL_IMPORT(f0, WASM_I8(17)));
+  EXPECT_FAILURE_INLINE(env, WASM_CALL_IMPORT(f0, WASM_I64(27)));
+  EXPECT_FAILURE_INLINE(env, WASM_CALL_IMPORT(f0, WASM_F64(37.2)));
+
+  byte f1 = module_env.AddImport(sigs.i_d());
+
+  EXPECT_FAILURE_INLINE(env, WASM_CALL_IMPORT0(f1));
+  EXPECT_FAILURE_INLINE(env, WASM_CALL_IMPORT(f1, WASM_I8(16)));
+  EXPECT_FAILURE_INLINE(env, WASM_CALL_IMPORT(f1, WASM_I64(16)));
+  EXPECT_FAILURE_INLINE(env, WASM_CALL_IMPORT(f1, WASM_F32(17.6)));
+}
 
 TEST_F(WasmDecoderTest, Int32Globals) {
   FunctionEnv* env = &env_i_i;
@@ -1987,6 +2026,7 @@ TEST_F(WasmOpcodeLengthTest, MiscExpressions) {
   EXPECT_LENGTH(2, kExprLoadGlobal);
   EXPECT_LENGTH(2, kExprStoreGlobal);
   EXPECT_LENGTH(2, kExprCallFunction);
+  EXPECT_LENGTH(2, kExprCallImport);
   EXPECT_LENGTH(2, kExprCallIndirect);
   EXPECT_LENGTH(1, kExprIf);
   EXPECT_LENGTH(1, kExprIfElse);
@@ -2237,12 +2277,16 @@ TEST_F(WasmOpcodeArityTest, Calls) {
   module.AddSignature(sigs.f_ff());
   module.AddSignature(sigs.i_d());
 
+  module.AddImport(sigs.f_ff());
+  module.AddImport(sigs.i_d());
+
   {
     FunctionEnv env;
     WasmDecoderTest::init_env(&env, sigs.i_ii());
     env.module = &module;
 
     EXPECT_ARITY(2, kExprCallFunction, 0);
+    EXPECT_ARITY(2, kExprCallImport, 0);
     EXPECT_ARITY(3, kExprCallIndirect, 0);
     EXPECT_ARITY(1, kExprBr);
     EXPECT_ARITY(2, kExprBrIf);
@@ -2254,6 +2298,7 @@ TEST_F(WasmOpcodeArityTest, Calls) {
     env.module = &module;
 
     EXPECT_ARITY(1, kExprCallFunction, 1);
+    EXPECT_ARITY(1, kExprCallImport, 1);
     EXPECT_ARITY(2, kExprCallIndirect, 1);
     EXPECT_ARITY(1, kExprBr);
     EXPECT_ARITY(2, kExprBrIf);

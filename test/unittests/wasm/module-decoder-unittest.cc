@@ -70,7 +70,7 @@ TEST_F(WasmModuleVerifyTest, DecodeEmpty) {
 
 
 TEST_F(WasmModuleVerifyTest, OneGlobal) {
-  const byte data[] = {
+  static const byte data[] = {
       kDeclGlobals,
       1,
       0,
@@ -109,7 +109,7 @@ TEST_F(WasmModuleVerifyTest, OneGlobal) {
 
 
 TEST_F(WasmModuleVerifyTest, ZeroGlobals) {
-  const byte data[] = {
+  static const byte data[] = {
       kDeclGlobals, 0,  // declare 0 globals
   };
   ModuleResult result = DecodeModule(data, data + arraysize(data));
@@ -134,7 +134,7 @@ static void AppendUint32v(std::vector<byte>& buffer, uint32_t val) {
 
 
 TEST_F(WasmModuleVerifyTest, NGlobals) {
-  const byte data[] = {
+  static const byte data[] = {
       0,       0, 0, 0,  // name offset
       kMemI32,           // memory type
       0,                 // exported
@@ -155,7 +155,7 @@ TEST_F(WasmModuleVerifyTest, NGlobals) {
 
 
 TEST_F(WasmModuleVerifyTest, GlobalWithInvalidNameOffset) {
-  const byte data[] = {
+  static const byte data[] = {
       kDeclGlobals,
       1,  // declare one global
       0,
@@ -171,7 +171,7 @@ TEST_F(WasmModuleVerifyTest, GlobalWithInvalidNameOffset) {
 
 
 TEST_F(WasmModuleVerifyTest, GlobalWithInvalidMemoryType) {
-  const byte data[] = {
+  static const byte data[] = {
       kDeclGlobals,
       1,  // declare one global
       0,
@@ -187,7 +187,7 @@ TEST_F(WasmModuleVerifyTest, GlobalWithInvalidMemoryType) {
 
 
 TEST_F(WasmModuleVerifyTest, TwoGlobals) {
-  const byte data[] = {
+  static const byte data[] = {
       kDeclGlobals,
       2,
       0,
@@ -904,7 +904,7 @@ class WasmFunctionVerifyTest : public TestWithZone {};
 
 
 TEST_F(WasmFunctionVerifyTest, Ok_v_v_empty) {
-  byte data[] = {
+  static const byte data[] = {
       0,       kLocalVoid,  // signature
       3,       0,           // local int32 count
       4,       0,           // local int64 count
@@ -945,7 +945,7 @@ TEST_F(WasmModuleVerifyTest, WLLSectionNoLen) {
 
 
 TEST_F(WasmModuleVerifyTest, WLLSectionEmpty) {
-  const byte data[] = {
+  static const byte data[] = {
       kDeclWLL, 0,  // empty section
   };
   ModuleResult result = DecodeModule(data, data + arraysize(data));
@@ -955,7 +955,7 @@ TEST_F(WasmModuleVerifyTest, WLLSectionEmpty) {
 
 
 TEST_F(WasmModuleVerifyTest, WLLSectionOne) {
-  const byte data[] = {
+  static const byte data[] = {
       kDeclWLL,
       1,  // LEB128 1
       0,  // one byte section
@@ -967,10 +967,10 @@ TEST_F(WasmModuleVerifyTest, WLLSectionOne) {
 
 
 TEST_F(WasmModuleVerifyTest, WLLSectionTen) {
-  const byte data[] = {
+  static const byte data[] = {
       kDeclWLL,
-      10,                             // LEB128 10
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10,  // 10 byte section
+      10,                                    // LEB128 10
+      1,        2, 3, 4, 5, 6, 7, 8, 9, 10,  // 10 byte section
   };
   ModuleResult result = DecodeModule(data, data + arraysize(data));
   EXPECT_TRUE(result.ok());
@@ -979,20 +979,19 @@ TEST_F(WasmModuleVerifyTest, WLLSectionTen) {
 
 
 TEST_F(WasmModuleVerifyTest, WLLSectionOverflow) {
-  const byte data[] = {
+  static const byte data[] = {
       kDeclWLL,
-      11,                             // LEB128 11
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10,  // 10 byte section
+      11,                                    // LEB128 11
+      1,        2, 3, 4, 5, 6, 7, 8, 9, 10,  // 10 byte section
   };
   EXPECT_FAILURE(data);
 }
 
 
 TEST_F(WasmModuleVerifyTest, WLLSectionUnderflow) {
-  const byte data[] = {
-    kDeclWLL,
-    0xff, 0xff, 0xff, 0xff, 0x0f,  // LEB128 0xffffffff
-    1, 2, 3, 4,                    // 4 byte section
+  static const byte data[] = {
+      kDeclWLL, 0xff, 0xff, 0xff, 0xff, 0x0f,  // LEB128 0xffffffff
+      1,        2,    3,    4,                 // 4 byte section
   };
   EXPECT_FAILURE(data);
 }
@@ -1000,12 +999,90 @@ TEST_F(WasmModuleVerifyTest, WLLSectionUnderflow) {
 
 TEST_F(WasmModuleVerifyTest, WLLSectionLoop) {
   // Would infinite loop decoding if wrapping and allowed.
-  const byte data[] = {
-    kDeclWLL,
-    0xfa, 0xff, 0xff, 0xff, 0x0f,  // LEB128 0xfffffffa
-    1, 2, 3, 4,                    // 4 byte section
+  static const byte data[] = {
+      kDeclWLL, 0xfa, 0xff, 0xff, 0xff, 0x0f,  // LEB128 0xfffffffa
+      1,        2,    3,    4,                 // 4 byte section
   };
   EXPECT_FAILURE(data);
+}
+
+TEST_F(WasmModuleVerifyTest, ImportTable_empty) {
+  static const byte data[] = {kDeclSignatures, 0, kDeclImportTable, 0};
+  EXPECT_VERIFIES(data);
+}
+
+TEST_F(WasmModuleVerifyTest, ImportTable_nosigs) {
+  static const byte data[] = {kDeclImportTable, 0};
+  EXPECT_FAILURE(data);
+}
+
+TEST_F(WasmModuleVerifyTest, ImportTable_invalid_sig) {
+  static const byte data[] = {
+      kDeclSignatures,
+      0,
+      kDeclImportTable,
+      1,
+      0,
+      0,  // sig index
+      1,
+      0,
+      0,
+      0,  // module name
+      1,
+      0,
+      0,
+      0  // function name
+  };
+  EXPECT_FAILURE(data);
+}
+
+TEST_F(WasmModuleVerifyTest, ImportTable_one_sig) {
+  static const byte data[] = {
+      kDeclSignatures,
+      1,
+      0,
+      static_cast<byte>(kAstStmt),
+      kDeclImportTable,
+      1,
+      0,
+      0,  // sig index
+      1,
+      0,
+      0,
+      0,  // module name
+      1,
+      0,
+      0,
+      0  // function name
+  };
+  EXPECT_VERIFIES(data);
+}
+
+TEST_F(WasmModuleVerifyTest, ImportTable_off_end) {
+  static const byte data[] = {
+      kDeclSignatures,
+      1,
+      0,
+      static_cast<byte>(kAstStmt),
+      kDeclImportTable,
+      1,
+      0,
+      0,  // sig index
+      1,
+      0,
+      0,
+      0,  // module name
+      1,
+      0,
+      0,
+      0  // function name
+  };
+
+  for (size_t length = 5; length < sizeof(data); length++) {
+    ModuleResult result = DecodeModule(data, data + length);
+    EXPECT_FALSE(result.ok());
+    if (result.val) delete result.val;
+  }
 }
 
 }  // namespace wasm

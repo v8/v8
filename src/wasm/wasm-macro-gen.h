@@ -104,9 +104,12 @@
       static_cast<byte>(offset), index, val
 #define WASM_CALL_FUNCTION(index, ...) \
   kExprCallFunction, static_cast<byte>(index), __VA_ARGS__
+#define WASM_CALL_IMPORT(index, ...) \
+  kExprCallImport, static_cast<byte>(index), __VA_ARGS__
 #define WASM_CALL_INDIRECT(index, func, ...) \
   kExprCallIndirect, static_cast<byte>(index), func, __VA_ARGS__
 #define WASM_CALL_FUNCTION0(index) kExprCallFunction, static_cast<byte>(index)
+#define WASM_CALL_IMPORT0(index) kExprCallImport, static_cast<byte>(index)
 #define WASM_CALL_INDIRECT0(index, func) \
   kExprCallIndirect, static_cast<byte>(index), func
 #define WASM_NOT(x) kExprBoolNot, x

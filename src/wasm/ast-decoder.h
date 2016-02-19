@@ -132,6 +132,16 @@ struct FunctionIndexOperand {
   }
 };
 
+struct ImportIndexOperand {
+  uint32_t index;
+  FunctionSig* sig;
+  int length;
+  inline ImportIndexOperand(Decoder* decoder, const byte* pc) {
+    index = decoder->checked_read_u32v(pc, 1, &length, "import index");
+    sig = nullptr;
+  }
+};
+
 struct TableSwitchOperand {
   uint32_t case_count;
   uint32_t table_count;

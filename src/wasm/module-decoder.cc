@@ -54,6 +54,7 @@ class ModuleDecoder : public Decoder {
     module->functions = new std::vector<WasmFunction>();
     module->data_segments = new std::vector<WasmDataSegment>();
     module->function_table = new std::vector<uint16_t>();
+    module->import_table = new std::vector<WasmImport>();
 
     bool sections[kMaxModuleSectionCode];
     memset(sections, 0, sizeof(sections));
@@ -200,6 +201,36 @@ class ModuleDecoder : public Decoder {
           if (sig->parameter_count() > 0) {
             error(before, "invalid start function: non-zero parameter count");
             break;
+          }
+          break;
+        }
+        case kDeclImportTable: {
+          // Declares an import table.
+          CheckForPreviousSection(sections, kDeclSignatures, true);
+          int length;
+          uint32_t import_table_count =
+              consume_u32v(&length, "import table count");
+          module->import_table->reserve(SafeReserve(import_table_count));
+          // Decode import table.
+          for (uint32_t i = 0; i < import_table_count; i++) {
+            if (failed()) break;
+            TRACE("DecodeImportTable[%d] module+%d\n", i,
+                  static_cast<int>(pc_ - start_));
+
+            module->import_table->push_back({nullptr, 0, 0});
+            WasmImport* import = &module->import_table->back();
+
+            const byte* sigpos = pc_;
+            import->sig_index = consume_u16("signature index");
+
+            if (import->sig_index >= module->signatures->size()) {
+              error(sigpos, "invalid signature index");
+            } else {
+              import->sig = module->signatures->at(import->sig_index);
+            }
+            import->module_name_offset = consume_string("import module name");
+            import->function_name_offset =
+                consume_string("import function name");
           }
           break;
         }

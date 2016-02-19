@@ -30,12 +30,13 @@ enum WasmSectionDeclCode {
   kDeclGlobals = 0x03,
   kDeclDataSegments = 0x04,
   kDeclFunctionTable = 0x05,
-  kDeclWLL = 0x11,
   kDeclEnd = 0x06,
   kDeclStartFunction = 0x07,
+  kDeclImportTable = 0x08,
+  kDeclWLL = 0x11,
 };
 
-static const int kMaxModuleSectionCode = 6;
+static const int kMaxModuleSectionCode = 0x11;
 
 enum WasmFunctionDeclBit {
   kDeclFunctionName = 0x01,
@@ -49,7 +50,7 @@ static const size_t kDeclMemorySize = 3;
 static const size_t kDeclGlobalSize = 6;
 static const size_t kDeclDataSegmentSize = 13;
 
-// Static representation of a wasm function.
+// Static representation of a WASM function.
 struct WasmFunction {
   FunctionSig* sig;      // signature of the function.
   uint32_t func_index;   // index into the function table.
@@ -65,7 +66,13 @@ struct WasmFunction {
   bool external;  // true if this function is externally supplied.
 };
 
-struct ModuleEnv;  // forward declaration of decoder interface.
+// Static representation of an imported WASM function.
+struct WasmImport {
+  FunctionSig* sig;               // signature of the function.
+  uint16_t sig_index;             // index into the signature table.
+  uint32_t module_name_offset;    // offset in module bytes of the module name.
+  uint32_t function_name_offset;  // offset in module bytes of the import name.
+};
 
 // Static representation of a wasm global variable.
 struct WasmGlobal {
@@ -102,6 +109,7 @@ struct WasmModule {
   std::vector<WasmFunction>* functions;         // functions in this module.
   std::vector<WasmDataSegment>* data_segments;  // data segments in this module.
   std::vector<uint16_t>* function_table;        // function table.
+  std::vector<WasmImport>* import_table;        // import table.
 
   WasmModule();
   ~WasmModule();
@@ -134,6 +142,7 @@ struct WasmModuleInstance {
   Handle<JSArrayBuffer> globals_buffer;  // Handle to array buffer of globals.
   Handle<FixedArray> function_table;     // indirect function table.
   std::vector<Handle<Code>>* function_code;  // code objects for each function.
+  std::vector<Handle<Code>>* import_code;   // code objects for each import.
   // -- raw memory ------------------------------------------------------------
   byte* mem_start;  // start of linear memory.
   size_t mem_size;  // size of the linear memory.
@@ -170,6 +179,9 @@ struct ModuleEnv {
   bool IsValidSignature(uint32_t index) {
     return module && index < module->signatures->size();
   }
+  bool IsValidImport(uint32_t index) {
+    return module && index < module->import_table->size();
+  }
   MachineType GetGlobalType(uint32_t index) {
     DCHECK(IsValidGlobal(index));
     return module->globals->at(index).type;
@@ -177,6 +189,10 @@ struct ModuleEnv {
   FunctionSig* GetFunctionSignature(uint32_t index) {
     DCHECK(IsValidFunction(index));
     return module->functions->at(index).sig;
+  }
+  FunctionSig* GetImportSignature(uint32_t index) {
+    DCHECK(IsValidImport(index));
+    return module->import_table->at(index).sig;
   }
   FunctionSig* GetSignature(uint32_t index) {
     DCHECK(IsValidSignature(index));
@@ -188,6 +204,7 @@ struct ModuleEnv {
   }
 
   Handle<Code> GetFunctionCode(uint32_t index);
+  Handle<Code> GetImportCode(uint32_t index);
   Handle<FixedArray> GetFunctionTable();
 
   compiler::CallDescriptor* GetWasmCallDescriptor(Zone* zone, FunctionSig* sig);

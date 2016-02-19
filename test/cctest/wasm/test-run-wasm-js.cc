@@ -56,7 +56,8 @@ uint32_t AddJsFunction(TestingModule* module, FunctionSig* sig,
   module->AddFunction(sig, Handle<Code>::null());
   uint32_t index = static_cast<uint32_t>(module->module->functions->size() - 1);
   Isolate* isolate = CcTest::InitIsolateOnce();
-  Handle<Code> code = CompileWasmToJSWrapper(isolate, module, jsfunc, index);
+  Handle<Code> code =
+      CompileWasmToJSWrapper(isolate, module, jsfunc, sig, "test");
   module->instance->function_code->at(index) = code;
   return index;
 }

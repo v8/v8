@@ -175,6 +175,16 @@ class WasmDecoder : public Decoder {
     return false;
   }
 
+  inline bool Validate(const byte* pc, ImportIndexOperand& operand) {
+    ModuleEnv* m = function_env_->module;
+    if (m && m->module && operand.index < m->module->import_table->size()) {
+      operand.sig = m->module->import_table->at(operand.index).sig;
+      return true;
+    }
+    error(pc, pc + 1, "invalid signature index");
+    return false;
+  }
+
   inline bool Validate(const byte* pc, BreakDepthOperand& operand,
                        ZoneVector<Block>& blocks) {
     if (operand.depth < blocks.size()) {
@@ -261,6 +271,12 @@ class WasmDecoder : public Decoder {
                        function_env_->module->GetSignature(operand.index)
                            ->parameter_count());
       }
+      case kExprCallImport: {
+        ImportIndexOperand operand(this, pc);
+        return static_cast<int>(
+            function_env_->module->GetImportSignature(operand.index)
+                ->parameter_count());
+      }
       case kExprReturn: {
         return static_cast<int>(function_env_->sig->return_count());
       }
@@ -315,6 +331,10 @@ class WasmDecoder : public Decoder {
       }
       case kExprCallIndirect: {
         SignatureIndexOperand operand(this, pc);
+        return 1 + operand.length;
+      }
+      case kExprCallImport: {
+        ImportIndexOperand operand(this, pc);
         return 1 + operand.length;
       }
 
@@ -790,6 +810,17 @@ class LR_WasmDecoder : public WasmDecoder {
           len = 1 + operand.length;
           break;
         }
+        case kExprCallImport: {
+          ImportIndexOperand operand(this, pc_);
+          if (Validate(pc_, operand)) {
+            LocalType type = operand.sig->return_count() == 0
+                                 ? kAstStmt
+                                 : operand.sig->GetReturn();
+            Shift(type, static_cast<int>(operand.sig->parameter_count()));
+          }
+          len = 1 + operand.length;
+          break;
+        }
         default:
           error("Invalid opcode");
           return;
@@ -1209,6 +1240,23 @@ class LR_WasmDecoder : public WasmDecoder {
             buffer[i] = p->tree->children[i]->node;
           }
           p->tree->node = builder_->CallIndirect(operand.index, buffer);
+        }
+        break;
+      }
+      case kExprCallImport: {
+        ImportIndexOperand operand(this, p->pc());
+        CHECK(Validate(p->pc(), operand));
+        if (p->index > 0) {
+          TypeCheckLast(p, operand.sig->GetParam(p->index - 1));
+        }
+        if (p->done() && build()) {
+          uint32_t count = p->tree->count + 1;
+          TFNode** buffer = builder_->Buffer(count);
+          buffer[0] = nullptr;  // reserved for code object.
+          for (uint32_t i = 1; i < count; i++) {
+            buffer[i] = p->tree->children[i - 1]->node;
+          }
+          p->tree->node = builder_->CallImport(operand.index, buffer);
         }
         break;
       }

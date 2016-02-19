@@ -1504,6 +1504,15 @@ Node* WasmGraphBuilder::CallDirect(uint32_t index, Node** args) {
   return BuildWasmCall(sig, args);
 }
 
+Node* WasmGraphBuilder::CallImport(uint32_t index, Node** args) {
+  DCHECK_NULL(args[0]);
+
+  // Add code object as constant.
+  args[0] = Constant(module_->GetImportCode(index));
+  wasm::FunctionSig* sig = module_->GetFunctionSignature(index);
+
+  return BuildWasmCall(sig, args);
+}
 
 Node* WasmGraphBuilder::CallIndirect(uint32_t index, Node** args) {
   DCHECK_NOT_NULL(args[0]);
@@ -2038,12 +2047,9 @@ Handle<JSFunction> CompileJSToWasmWrapper(
   return function;
 }
 
-
 Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, wasm::ModuleEnv* module,
                                     Handle<JSFunction> function,
-                                    uint32_t index) {
-  wasm::WasmFunction* func = &module->module->functions->at(index);
-
+                                    wasm::FunctionSig* sig, const char* name) {
   //----------------------------------------------------------------------------
   // Create the Graph
   //----------------------------------------------------------------------------
@@ -2057,11 +2063,11 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, wasm::ModuleEnv* module,
   Node* control = nullptr;
   Node* effect = nullptr;
 
-  WasmGraphBuilder builder(&zone, &jsgraph, func->sig);
+  WasmGraphBuilder builder(&zone, &jsgraph, sig);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
   builder.set_module(module);
-  builder.BuildWasmToJSWrapper(function, func->sig);
+  builder.BuildWasmToJSWrapper(function, sig);
 
   Handle<Code> code = Handle<Code>::null();
   {
@@ -2086,7 +2092,7 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, wasm::ModuleEnv* module,
     }
 
     // Schedule and compile to machine code.
-    CallDescriptor* incoming = module->GetWasmCallDescriptor(&zone, func->sig);
+    CallDescriptor* incoming = module->GetWasmCallDescriptor(&zone, sig);
     // TODO(titzer): this is technically a WASM wrapper, not a wasm function.
     Code::Flags flags = Code::ComputeFlags(Code::WASM_FUNCTION);
     bool debugging =
@@ -2110,8 +2116,8 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, wasm::ModuleEnv* module,
       buffer.Dispose();
     }
 
-    RecordFunctionCompilation(Logger::FUNCTION_TAG, &info, "wasm-to-js", index,
-                              module->module->GetName(func->name_offset));
+    RecordFunctionCompilation(Logger::FUNCTION_TAG, &info, "wasm-to-js", 0,
+                              name);
   }
   return code;
 }
