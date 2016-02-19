@@ -222,8 +222,7 @@ void GraphReducer::ReplaceWithValue(Node* node, Node* value, Node* effect,
         edge.UpdateTo(dead_);
         Revisit(user);
       } else {
-        edge.UpdateTo(control);
-        Revisit(user);
+        UNREACHABLE();
       }
     } else if (NodeProperties::IsEffectEdge(edge)) {
       DCHECK_NOT_NULL(effect);

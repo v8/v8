@@ -19,10 +19,9 @@ class Linkage;
 class MachineOperatorBuilder;
 class Operator;
 
-class ChangeLowering final : public AdvancedReducer {
+class ChangeLowering final : public Reducer {
  public:
-  ChangeLowering(Editor* editor, JSGraph* jsgraph)
-      : AdvancedReducer(editor), jsgraph_(jsgraph) {}
+  explicit ChangeLowering(JSGraph* jsgraph) : jsgraph_(jsgraph) {}
   ~ChangeLowering() final;
 
   Reduction Reduce(Node* node) final;
@@ -58,8 +57,8 @@ class ChangeLowering final : public AdvancedReducer {
   Reduction Allocate(Node* node);
 
   Node* IsSmi(Node* value);
-  Node* LoadHeapObjectMap(Node* object, Node* effect, Node* control);
-  Node* LoadMapInstanceType(Node* map, Node* effect, Node* control);
+  Node* LoadHeapObjectMap(Node* object, Node* control);
+  Node* LoadMapInstanceType(Node* map);
 
   Reduction ObjectIsNumber(Node* node);
   Reduction ObjectIsReceiver(Node* node);

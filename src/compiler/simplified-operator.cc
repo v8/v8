@@ -186,6 +186,7 @@ const ElementAccess& ElementAccessOf(const Operator* op) {
   V(ChangeFloat64ToTagged, Operator::kNoProperties, 1)   \
   V(ChangeBoolToBit, Operator::kNoProperties, 1)         \
   V(ChangeBitToBool, Operator::kNoProperties, 1)         \
+  V(ObjectIsNumber, Operator::kNoProperties, 1)          \
   V(ObjectIsReceiver, Operator::kNoProperties, 1)        \
   V(ObjectIsSmi, Operator::kNoProperties, 1)
 
@@ -193,8 +194,6 @@ const ElementAccess& ElementAccessOf(const Operator* op) {
   V(StringEqual, Operator::kCommutative, 2) \
   V(StringLessThan, Operator::kNoThrow, 2)  \
   V(StringLessThanOrEqual, Operator::kNoThrow, 2)
-
-#define STATEFUL_OP_LIST(V) V(ObjectIsNumber)
 
 struct SimplifiedOperatorGlobalCache final {
 #define PURE(Name, properties, input_count)                                \
@@ -206,16 +205,6 @@ struct SimplifiedOperatorGlobalCache final {
   Name##Operator k##Name;
   PURE_OP_LIST(PURE)
 #undef PURE
-
-#define STATEFUL(Name)                                                         \
-  struct Name##Operator final : public Operator {                              \
-    Name##Operator()                                                           \
-        : Operator(IrOpcode::k##Name, Operator::kNoProperties, #Name, 1, 1, 1, \
-                   1, 1, 1) {}                                                 \
-  };                                                                           \
-  Name##Operator k##Name;
-  STATEFUL_OP_LIST(STATEFUL)
-#undef STATEFUL
 
 #define NO_THROW(Name, properties, input_count)                               \
   struct Name##Operator final : public Operator {                             \
@@ -263,10 +252,6 @@ PURE_OP_LIST(GET_FROM_CACHE)
 NO_THROW_OP_LIST(GET_FROM_CACHE)
 #undef GET_FROM_CACHE
 
-#define GET_FROM_CACHE(Name) \
-  const Operator* SimplifiedOperatorBuilder::Name() { return &cache_.k##Name; }
-STATEFUL_OP_LIST(GET_FROM_CACHE)
-#undef GET_FROM_CACHE
 
 const Operator* SimplifiedOperatorBuilder::ReferenceEqual(Type* type) {
   return new (zone()) Operator(IrOpcode::kReferenceEqual,

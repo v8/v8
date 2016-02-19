@@ -730,7 +730,7 @@ struct ChangeLoweringPhase {
                                               data->common());
     SimplifiedOperatorReducer simple_reducer(data->jsgraph());
     ValueNumberingReducer value_numbering(temp_zone);
-    ChangeLowering lowering(&graph_reducer, data->jsgraph());
+    ChangeLowering lowering(data->jsgraph());
     MachineOperatorReducer machine_reducer(data->jsgraph());
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->common(), data->machine());

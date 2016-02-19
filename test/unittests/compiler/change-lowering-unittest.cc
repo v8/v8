@@ -42,8 +42,7 @@ class ChangeLoweringTest : public TypedGraphTest {
     JSOperatorBuilder javascript(zone());
     JSGraph jsgraph(isolate(), graph(), common(), &javascript, nullptr,
                     &machine);
-    GraphReducer graph_reducer(zone(), graph());
-    ChangeLowering reducer(&graph_reducer, &jsgraph);
+    ChangeLowering reducer(&jsgraph);
     return reducer.Reduce(node);
   }
 

@@ -60,8 +60,8 @@ class SimplifiedLoweringTester : public GraphBuilderTester<ReturnType> {
     typer.Run();
     lowering.LowerAllNodes();
 
+    ChangeLowering lowering(&jsgraph);
     GraphReducer reducer(this->zone(), this->graph());
-    ChangeLowering lowering(&reducer, &jsgraph);
     reducer.AddReducer(&lowering);
     reducer.ReduceGraph();
     Verifier::Run(this->graph());
@@ -726,8 +726,8 @@ class TestingGraph : public HandleAndZoneScope, public GraphAndBuilders {
     SourcePositionTable table(jsgraph.graph());
     SimplifiedLowering(&jsgraph, jsgraph.zone(), &table).LowerAllNodes();
 
+    ChangeLowering lowering(&jsgraph);
     GraphReducer reducer(this->zone(), this->graph());
-    ChangeLowering lowering(&reducer, &jsgraph);
     reducer.AddReducer(&lowering);
     reducer.ReduceGraph();
     Verifier::Run(this->graph());
