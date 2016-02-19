@@ -33,6 +33,9 @@ class Interpreter {
   // Initializes the interpreter dispatch table.
   void Initialize();
 
+  // Returns the interrupt budget which should be used for the profiler counter.
+  static int InterruptBudget();
+
   // Generate bytecode for |info|.
   static bool MakeBytecode(CompilationInfo* info);
 

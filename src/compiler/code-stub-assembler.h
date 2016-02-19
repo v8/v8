@@ -39,6 +39,7 @@ class Schedule;
   V(Int32Add)                                 \
   V(Int32Sub)                                 \
   V(Int32Mul)                                 \
+  V(Int32GreaterThanOrEqual)                  \
   V(WordEqual)                                \
   V(WordNotEqual)                             \
   V(WordOr)                                   \

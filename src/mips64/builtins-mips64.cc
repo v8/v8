@@ -1016,7 +1016,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
   // TODO(rmcilroy): List of things not currently dealt with here but done in
   // fullcodegen's prologue:
-  //  - Support profiler (specifically profiling_counter).
   //  - Call ProfileEntryHookStub when isolate has a function_entry_hook.
   //  - Code aging of the BytecodeArray object.
 

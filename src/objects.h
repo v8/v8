@@ -4451,6 +4451,10 @@ class BytecodeArray : public FixedArrayBase {
   inline int parameter_count() const;
   inline void set_parameter_count(int number_of_parameters);
 
+  // Accessors for profiling count.
+  inline int interrupt_budget() const;
+  inline void set_interrupt_budget(int interrupt_budget);
+
   // Accessors for the constant pool.
   DECL_ACCESSORS(constant_pool, FixedArray)
 
@@ -4477,13 +4481,14 @@ class BytecodeArray : public FixedArrayBase {
   void Disassemble(std::ostream& os);
 
   // Layout description.
-  static const int kFrameSizeOffset = FixedArrayBase::kHeaderSize;
-  static const int kParameterSizeOffset = kFrameSizeOffset + kIntSize;
-  static const int kConstantPoolOffset = kParameterSizeOffset + kIntSize;
+  static const int kConstantPoolOffset = FixedArrayBase::kHeaderSize;
   static const int kHandlerTableOffset = kConstantPoolOffset + kPointerSize;
   static const int kSourcePositionTableOffset =
       kHandlerTableOffset + kPointerSize;
-  static const int kHeaderSize = kSourcePositionTableOffset + kPointerSize;
+  static const int kFrameSizeOffset = kSourcePositionTableOffset + kPointerSize;
+  static const int kParameterSizeOffset = kFrameSizeOffset + kIntSize;
+  static const int kInterruptBudgetOffset = kParameterSizeOffset + kIntSize;
+  static const int kHeaderSize = kInterruptBudgetOffset + kIntSize;
 
   // Maximal memory consumption for a single BytecodeArray.
   static const int kMaxSize = 512 * MB;

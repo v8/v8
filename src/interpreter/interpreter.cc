@@ -49,6 +49,13 @@ void Interpreter::IterateDispatchTable(ObjectVisitor* v) {
                    &dispatch_table_[0] + kDispatchTableSize);
 }
 
+// static
+int Interpreter::InterruptBudget() {
+  // TODO(ignition): Tune code size multiplier.
+  const int kCodeSizeMultiplier = 32;
+  return FLAG_interrupt_budget * kCodeSizeMultiplier;
+}
+
 bool Interpreter::MakeBytecode(CompilationInfo* info) {
   if (FLAG_print_bytecode || FLAG_print_source || FLAG_print_ast) {
     OFStream os(stdout);

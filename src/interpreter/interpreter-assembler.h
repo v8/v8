@@ -156,6 +156,10 @@ class InterpreterAssembler : public compiler::CodeStubAssembler {
   // Traces the current bytecode by calling |function_id|.
   void TraceBytecode(Runtime::FunctionId function_id);
 
+  // Updates the bytecode array's interrupt budget by |weight| and calls
+  // Runtime::kInterrupt if counter reaches zero.
+  void UpdateInterruptBudget(compiler::Node* weight);
+
   // Returns the offset of register |index| relative to RegisterFilePointer().
   compiler::Node* RegisterFrameOffset(compiler::Node* index);
 

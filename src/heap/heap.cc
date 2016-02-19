@@ -3029,6 +3029,7 @@ AllocationResult Heap::AllocateBytecodeArray(int length,
   instance->set_length(length);
   instance->set_frame_size(frame_size);
   instance->set_parameter_count(parameter_count);
+  instance->set_interrupt_budget(interpreter::Interpreter::InterruptBudget());
   instance->set_constant_pool(constant_pool);
   instance->set_handler_table(empty_fixed_array());
   instance->set_source_position_table(empty_fixed_array());

@@ -840,9 +840,6 @@
   # BytecodeGenerator::VisitFunctionLiteral - !shared_info.is_null().
   'regress/regress-crbug-429159': [FAIL],
 
-  # TODO(rmcilroy,4680): Check failed: osr_normal_entry.
-  'regress/regress-123919': [FAIL],
-
   # TODO(rmcilroy,4680): Pass on debug, fail on release.
   'compiler/regress-stacktrace-methods': [PASS, ['mode == release', FAIL]],
 

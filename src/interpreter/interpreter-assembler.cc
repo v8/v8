@@ -10,6 +10,7 @@
 #include "src/frames.h"
 #include "src/interface-descriptors.h"
 #include "src/interpreter/bytecodes.h"
+#include "src/interpreter/interpreter.h"
 #include "src/machine-type.h"
 #include "src/macro-assembler.h"
 #include "src/zone.h"
@@ -373,6 +374,36 @@ Node* InterpreterAssembler::CallRuntimeN(Node* function_id, Node* context,
                   first_arg, function_entry, result_size);
 }
 
+void InterpreterAssembler::UpdateInterruptBudget(Node* weight) {
+  CodeStubAssembler::Label ok(this);
+  CodeStubAssembler::Label interrupt_check(this);
+  CodeStubAssembler::Label end(this);
+  Node* budget_offset =
+      IntPtrConstant(BytecodeArray::kInterruptBudgetOffset - kHeapObjectTag);
+
+  // Update budget by |weight| and check if it reaches zero.
+  Node* old_budget =
+      Load(MachineType::Int32(), BytecodeArrayTaggedPointer(), budget_offset);
+  Node* new_budget = Int32Add(old_budget, weight);
+  Node* condition = Int32GreaterThanOrEqual(new_budget, Int32Constant(0));
+  Branch(condition, &ok, &interrupt_check);
+
+  // Perform interrupt and reset budget.
+  Bind(&interrupt_check);
+  CallRuntime(Runtime::kInterrupt, GetContext());
+  StoreNoWriteBarrier(MachineRepresentation::kWord32,
+                      BytecodeArrayTaggedPointer(), budget_offset,
+                      Int32Constant(Interpreter::InterruptBudget()));
+  Goto(&end);
+
+  // Update budget.
+  Bind(&ok);
+  StoreNoWriteBarrier(MachineRepresentation::kWord32,
+                      BytecodeArrayTaggedPointer(), budget_offset, new_budget);
+  Goto(&end);
+  Bind(&end);
+}
+
 Node* InterpreterAssembler::Advance(int delta) {
   return IntPtrAdd(BytecodeOffset(), Int32Constant(delta));
 }
@@ -381,7 +412,10 @@ Node* InterpreterAssembler::Advance(Node* delta) {
   return IntPtrAdd(BytecodeOffset(), delta);
 }
 
-void InterpreterAssembler::Jump(Node* delta) { DispatchTo(Advance(delta)); }
+void InterpreterAssembler::Jump(Node* delta) {
+  UpdateInterruptBudget(delta);
+  DispatchTo(Advance(delta));
+}
 
 void InterpreterAssembler::JumpConditional(Node* condition, Node* delta) {
   CodeStubAssembler::Label match(this);
@@ -389,7 +423,7 @@ void InterpreterAssembler::JumpConditional(Node* condition, Node* delta) {
 
   Branch(condition, &match, &no_match);
   Bind(&match);
-  DispatchTo(Advance(delta));
+  Jump(delta);
   Bind(&no_match);
   Dispatch();
 }
@@ -431,6 +465,17 @@ void InterpreterAssembler::InterpreterReturn() {
   if (FLAG_trace_ignition) {
     TraceBytecode(Runtime::kInterpreterTraceBytecodeExit);
   }
+
+  // TODO(rmcilroy): Investigate whether it is worth supporting self
+  // optimization of primitive functions like FullCodegen.
+
+  // Update profiling count by -BytecodeOffset to simulate backedge to start of
+  // function.
+  Node* profiling_weight =
+      Int32Sub(Int32Constant(kHeapObjectTag + BytecodeArray::kHeaderSize),
+               BytecodeOffset());
+  UpdateInterruptBudget(profiling_weight);
+
   InterpreterDispatchDescriptor descriptor(isolate());
   Node* exit_trampoline_code_object =
       HeapConstant(isolate()->builtins()->InterpreterExitTrampoline());

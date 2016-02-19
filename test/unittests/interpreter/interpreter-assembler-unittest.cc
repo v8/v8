@@ -223,6 +223,9 @@ TARGET_TEST_F(InterpreterAssemblerTest, Dispatch) {
 }
 
 TARGET_TEST_F(InterpreterAssemblerTest, Jump) {
+  // If debug code is enabled we emit extra code in Jump.
+  if (FLAG_debug_code) return;
+
   int jump_offsets[] = {-9710, -77, 0, +3, +97109};
   TRACED_FOREACH(int, jump_offset, jump_offsets) {
     TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
@@ -236,10 +239,8 @@ TARGET_TEST_F(InterpreterAssemblerTest, Jump) {
       Matcher<Node*> next_bytecode_offset_matcher = IsIntPtrAdd(
           IsParameter(InterpreterDispatchDescriptor::kBytecodeOffsetParameter),
           IsInt32Constant(jump_offset));
-      Matcher<Node*> target_bytecode_matcher = m.IsLoad(
-          MachineType::Uint8(),
-          IsParameter(InterpreterDispatchDescriptor::kBytecodeArrayParameter),
-          next_bytecode_offset_matcher);
+      Matcher<Node*> target_bytecode_matcher =
+          m.IsLoad(MachineType::Uint8(), _, next_bytecode_offset_matcher);
       Matcher<Node*> code_target_matcher = m.IsLoad(
           MachineType::Pointer(),
           IsParameter(InterpreterDispatchDescriptor::kDispatchTableParameter),
@@ -253,9 +254,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, Jump) {
               IsParameter(InterpreterDispatchDescriptor::kAccumulatorParameter),
               IsParameter(
                   InterpreterDispatchDescriptor::kRegisterFileParameter),
-              next_bytecode_offset_matcher,
-              IsParameter(
-                  InterpreterDispatchDescriptor::kBytecodeArrayParameter),
+              next_bytecode_offset_matcher, _,
               IsParameter(
                   InterpreterDispatchDescriptor::kDispatchTableParameter),
               IsParameter(InterpreterDispatchDescriptor::kContextParameter), _,
@@ -266,6 +265,9 @@ TARGET_TEST_F(InterpreterAssemblerTest, Jump) {
 
 TARGET_TEST_F(InterpreterAssemblerTest, JumpIfWordEqual) {
   static const int kJumpIfTrueOffset = 73;
+
+  // If debug code is enabled we emit extra code in Jump.
+  if (FLAG_debug_code) return;
 
   MachineOperatorBuilder machine(zone());
 
@@ -284,10 +286,8 @@ TARGET_TEST_F(InterpreterAssemblerTest, JumpIfWordEqual) {
       Matcher<Node*> next_bytecode_offset_matcher = IsIntPtrAdd(
           IsParameter(InterpreterDispatchDescriptor::kBytecodeOffsetParameter),
           IsInt32Constant(jump_offsets[i]));
-      Matcher<Node*> target_bytecode_matcher = m.IsLoad(
-          MachineType::Uint8(),
-          IsParameter(InterpreterDispatchDescriptor::kBytecodeArrayParameter),
-          next_bytecode_offset_matcher);
+      Matcher<Node*> target_bytecode_matcher =
+          m.IsLoad(MachineType::Uint8(), _, next_bytecode_offset_matcher);
       Matcher<Node*> code_target_matcher = m.IsLoad(
           MachineType::Pointer(),
           IsParameter(InterpreterDispatchDescriptor::kDispatchTableParameter),
@@ -300,9 +300,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, JumpIfWordEqual) {
               IsParameter(InterpreterDispatchDescriptor::kAccumulatorParameter),
               IsParameter(
                   InterpreterDispatchDescriptor::kRegisterFileParameter),
-              next_bytecode_offset_matcher,
-              IsParameter(
-                  InterpreterDispatchDescriptor::kBytecodeArrayParameter),
+              next_bytecode_offset_matcher, _,
               IsParameter(
                   InterpreterDispatchDescriptor::kDispatchTableParameter),
               IsParameter(InterpreterDispatchDescriptor::kContextParameter), _,
@@ -314,6 +312,9 @@ TARGET_TEST_F(InterpreterAssemblerTest, JumpIfWordEqual) {
 }
 
 TARGET_TEST_F(InterpreterAssemblerTest, InterpreterReturn) {
+  // If debug code is enabled we emit extra code in InterpreterReturn.
+  if (FLAG_debug_code) return;
+
   TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
     InterpreterAssemblerForTest m(this, bytecode);
     m.InterpreterReturn();
@@ -333,7 +334,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, InterpreterReturn) {
             IsParameter(InterpreterDispatchDescriptor::kRegisterFileParameter),
             IsParameter(
                 InterpreterDispatchDescriptor::kBytecodeOffsetParameter),
-            IsParameter(InterpreterDispatchDescriptor::kBytecodeArrayParameter),
+            _,
             IsParameter(InterpreterDispatchDescriptor::kDispatchTableParameter),
             IsParameter(InterpreterDispatchDescriptor::kContextParameter), _,
             _));
