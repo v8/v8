@@ -973,23 +973,23 @@ enum MinusZeroMode {
 
 enum Signedness { kSigned, kUnsigned };
 
-
 enum FunctionKind {
   kNormalFunction = 0,
   kArrowFunction = 1 << 0,
   kGeneratorFunction = 1 << 1,
   kConciseMethod = 1 << 2,
   kConciseGeneratorMethod = kGeneratorFunction | kConciseMethod,
-  kAccessorFunction = 1 << 3,
-  kDefaultConstructor = 1 << 4,
-  kSubclassConstructor = 1 << 5,
-  kBaseConstructor = 1 << 6,
+  kDefaultConstructor = 1 << 3,
+  kSubclassConstructor = 1 << 4,
+  kBaseConstructor = 1 << 5,
+  kGetterFunction = 1 << 6,
+  kSetterFunction = 1 << 7,
+  kAccessorFunction = kGetterFunction | kSetterFunction,
   kDefaultBaseConstructor = kDefaultConstructor | kBaseConstructor,
   kDefaultSubclassConstructor = kDefaultConstructor | kSubclassConstructor,
   kClassConstructor =
       kBaseConstructor | kSubclassConstructor | kDefaultConstructor,
 };
-
 
 inline bool IsValidFunctionKind(FunctionKind kind) {
   return kind == FunctionKind::kNormalFunction ||
@@ -997,6 +997,8 @@ inline bool IsValidFunctionKind(FunctionKind kind) {
          kind == FunctionKind::kGeneratorFunction ||
          kind == FunctionKind::kConciseMethod ||
          kind == FunctionKind::kConciseGeneratorMethod ||
+         kind == FunctionKind::kGetterFunction ||
+         kind == FunctionKind::kSetterFunction ||
          kind == FunctionKind::kAccessorFunction ||
          kind == FunctionKind::kDefaultBaseConstructor ||
          kind == FunctionKind::kDefaultSubclassConstructor ||
@@ -1022,6 +1024,15 @@ inline bool IsConciseMethod(FunctionKind kind) {
   return kind & FunctionKind::kConciseMethod;
 }
 
+inline bool IsGetterFunction(FunctionKind kind) {
+  DCHECK(IsValidFunctionKind(kind));
+  return kind & FunctionKind::kGetterFunction;
+}
+
+inline bool IsSetterFunction(FunctionKind kind) {
+  DCHECK(IsValidFunctionKind(kind));
+  return kind & FunctionKind::kSetterFunction;
+}
 
 inline bool IsAccessorFunction(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));

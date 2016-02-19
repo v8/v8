@@ -275,6 +275,12 @@ ObjectLiteralProperty::ObjectLiteralProperty(AstValueFactory* ast_value_factory,
   }
 }
 
+bool ObjectLiteralProperty::NeedsSetFunctionName() const {
+  return is_computed_name_ &&
+         (value_->IsAnonymousFunctionDefinition() ||
+          (value_->IsFunctionLiteral() &&
+           IsConciseMethod(value_->AsFunctionLiteral()->kind())));
+}
 
 void ClassLiteral::AssignFeedbackVectorSlots(Isolate* isolate,
                                              FeedbackVectorSpec* spec,

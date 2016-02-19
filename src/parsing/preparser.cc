@@ -94,11 +94,10 @@ PreParserExpression PreParserTraits::ParseFunctionLiteral(
     PreParserIdentifier name, Scanner::Location function_name_location,
     FunctionNameValidity function_name_validity, FunctionKind kind,
     int function_token_position, FunctionLiteral::FunctionType type,
-    FunctionLiteral::ArityRestriction arity_restriction,
     LanguageMode language_mode, bool* ok) {
   return pre_parser_->ParseFunctionLiteral(
       name, function_name_location, function_name_validity, kind,
-      function_token_position, type, arity_restriction, language_mode, ok);
+      function_token_position, type, language_mode, ok);
 }
 
 
@@ -451,8 +450,7 @@ PreParser::Statement PreParser::ParseFunctionDeclaration(bool* ok) {
                                           : kFunctionNameValidityUnknown,
                        is_generator ? FunctionKind::kGeneratorFunction
                                     : FunctionKind::kNormalFunction,
-                       pos, FunctionLiteral::kDeclaration,
-                       FunctionLiteral::kNormalArity, language_mode(),
+                       pos, FunctionLiteral::kDeclaration, language_mode(),
                        CHECK_OK);
   return Statement::FunctionDeclaration();
 }
@@ -1104,7 +1102,6 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     Identifier function_name, Scanner::Location function_name_location,
     FunctionNameValidity function_name_validity, FunctionKind kind,
     int function_token_pos, FunctionLiteral::FunctionType function_type,
-    FunctionLiteral::ArityRestriction arity_restriction,
     LanguageMode language_mode, bool* ok) {
   // Function ::
   //   '(' FormalParameterList? ')' '{' FunctionBody '}'
@@ -1127,8 +1124,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   Expect(Token::RPAREN, CHECK_OK);
   int formals_end_position = scanner()->location().end_pos;
 
-  CheckArityRestrictions(formals.arity, arity_restriction,
-                         formals.has_rest, start_position,
+  CheckArityRestrictions(formals.arity, kind, formals.has_rest, start_position,
                          formals_end_position, CHECK_OK);
 
   // See Parser::ParseFunctionLiteral for more information about lazy parsing

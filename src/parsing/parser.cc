@@ -728,11 +728,10 @@ FunctionLiteral* ParserTraits::ParseFunctionLiteral(
     const AstRawString* name, Scanner::Location function_name_location,
     FunctionNameValidity function_name_validity, FunctionKind kind,
     int function_token_position, FunctionLiteral::FunctionType type,
-    FunctionLiteral::ArityRestriction arity_restriction,
     LanguageMode language_mode, bool* ok) {
   return parser_->ParseFunctionLiteral(
       name, function_name_location, function_name_validity, kind,
-      function_token_position, type, arity_restriction, language_mode, ok);
+      function_token_position, type, language_mode, ok);
 }
 
 
@@ -944,13 +943,9 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
 
     if (ok) {
       ParserTraits::RewriteDestructuringAssignments();
-      result = factory()->NewFunctionLiteral(
-          ast_value_factory()->empty_string(), scope_, body,
-          function_state.materialized_literal_count(),
-          function_state.expected_property_count(), 0,
-          FunctionLiteral::kNoDuplicateParameters,
-          FunctionLiteral::kGlobalOrEval, FunctionLiteral::kShouldLazyCompile,
-          FunctionKind::kNormalFunction, 0);
+      result = factory()->NewScriptOrEvalFunctionLiteral(
+          scope_, body, function_state.materialized_literal_count(),
+          function_state.expected_property_count());
     }
   }
 
@@ -1000,6 +995,18 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info) {
   return result;
 }
 
+static FunctionLiteral::FunctionType ComputeFunctionType(
+    Handle<SharedFunctionInfo> shared_info) {
+  if (shared_info->is_declaration()) {
+    return FunctionLiteral::kDeclaration;
+  } else if (shared_info->is_named_expression()) {
+    return FunctionLiteral::kNamedExpression;
+  } else if (IsConciseMethod(shared_info->kind()) ||
+             IsAccessorFunction(shared_info->kind())) {
+    return FunctionLiteral::kAccessorOrMethod;
+  }
+  return FunctionLiteral::kAnonymousExpression;
+}
 
 FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
                                    Utf16CharacterStream* source) {
@@ -1038,11 +1045,7 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
            is_strict(info->language_mode()));
     DCHECK(info->language_mode() == shared_info->language_mode());
     FunctionLiteral::FunctionType function_type =
-        shared_info->is_expression()
-            ? (shared_info->is_anonymous()
-                   ? FunctionLiteral::kAnonymousExpression
-                   : FunctionLiteral::kNamedExpression)
-            : FunctionLiteral::kDeclaration;
+        ComputeFunctionType(shared_info);
     bool ok = true;
 
     if (shared_info->is_arrow()) {
@@ -1111,10 +1114,10 @@ FunctionLiteral* Parser::ParseLazy(Isolate* isolate, ParseInfo* info,
           shared_info->start_position(), shared_info->end_position(),
           shared_info->language_mode());
     } else {
-      result = ParseFunctionLiteral(
-          raw_name, Scanner::Location::invalid(), kSkipFunctionNameCheck,
-          shared_info->kind(), RelocInfo::kNoPosition, function_type,
-          FunctionLiteral::kNormalArity, shared_info->language_mode(), &ok);
+      result = ParseFunctionLiteral(raw_name, Scanner::Location::invalid(),
+                                    kSkipFunctionNameCheck, shared_info->kind(),
+                                    RelocInfo::kNoPosition, function_type,
+                                    shared_info->language_mode(), &ok);
     }
     // Make sure the results agree.
     DCHECK(ok == (result != NULL));
@@ -1578,8 +1581,7 @@ Statement* Parser::ParseExportDefault(bool* ok) {
             kSkipFunctionNameCheck,
             is_generator ? FunctionKind::kGeneratorFunction
                          : FunctionKind::kNormalFunction,
-            pos, FunctionLiteral::kDeclaration, FunctionLiteral::kNormalArity,
-            language_mode(), CHECK_OK);
+            pos, FunctionLiteral::kDeclaration, language_mode(), CHECK_OK);
         result = factory()->NewEmptyStatement(RelocInfo::kNoPosition);
       } else {
         result = ParseFunctionDeclaration(pos, is_generator, &names, CHECK_OK);
@@ -2150,8 +2152,7 @@ Statement* Parser::ParseFunctionDeclaration(
                          : kFunctionNameValidityUnknown,
       is_generator ? FunctionKind::kGeneratorFunction
                    : FunctionKind::kNormalFunction,
-      pos, FunctionLiteral::kDeclaration, FunctionLiteral::kNormalArity,
-      language_mode(), CHECK_OK);
+      pos, FunctionLiteral::kDeclaration, language_mode(), CHECK_OK);
 
   // Even if we're not at the top-level of the global or a function
   // scope, we treat it as such and introduce the function with its
@@ -4146,7 +4147,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     const AstRawString* function_name, Scanner::Location function_name_location,
     FunctionNameValidity function_name_validity, FunctionKind kind,
     int function_token_pos, FunctionLiteral::FunctionType function_type,
-    FunctionLiteral::ArityRestriction arity_restriction,
     LanguageMode language_mode, bool* ok) {
   // Function ::
   //   '(' FormalParameterList? ')' '{' FunctionBody '}'
@@ -4249,8 +4249,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     Expect(Token::RPAREN, CHECK_OK);
     int formals_end_position = scanner()->location().end_pos;
 
-    CheckArityRestrictions(arity, arity_restriction,
-                           formals.has_rest, start_position,
+    CheckArityRestrictions(arity, kind, formals.has_rest, start_position,
                            formals_end_position, CHECK_OK);
     Expect(Token::LBRACE, CHECK_OK);
 
@@ -5758,29 +5757,37 @@ void ParserTraits::QueueDestructuringAssignmentForRewriting(Expression* expr) {
 void ParserTraits::SetFunctionNameFromPropertyName(
     ObjectLiteralProperty* property, const AstRawString* name) {
   Expression* value = property->value();
-  if (!value->IsAnonymousFunctionDefinition()) return;
 
   // Computed name setting must happen at runtime.
   if (property->is_computed_name()) return;
 
+  // Getter and setter names are handled here because their names
+  // change in ES2015, even though they are not anonymous.
+  auto function = value->AsFunctionLiteral();
+  if (function != nullptr) {
+    bool is_getter = property->kind() == ObjectLiteralProperty::GETTER;
+    bool is_setter = property->kind() == ObjectLiteralProperty::SETTER;
+    if (is_getter || is_setter) {
+      DCHECK_NOT_NULL(name);
+      const AstRawString* prefix =
+          is_getter ? parser_->ast_value_factory()->get_space_string()
+                    : parser_->ast_value_factory()->set_space_string();
+      function->set_raw_name(
+          parser_->ast_value_factory()->NewConsString(prefix, name));
+      return;
+    }
+  }
+
+  if (!value->IsAnonymousFunctionDefinition()) return;
   DCHECK_NOT_NULL(name);
 
   // Ignore "__proto__" as a name when it's being used to set the [[Prototype]]
   // of an object literal.
   if (property->kind() == ObjectLiteralProperty::PROTOTYPE) return;
 
-  auto function = value->AsFunctionLiteral();
   if (function != nullptr) {
-    if (property->kind() == ObjectLiteralProperty::GETTER) {
-      function->set_raw_name(parser_->ast_value_factory()->NewConsString(
-          parser_->ast_value_factory()->get_space_string(), name));
-    } else if (property->kind() == ObjectLiteralProperty::SETTER) {
-      function->set_raw_name(parser_->ast_value_factory()->NewConsString(
-          parser_->ast_value_factory()->set_space_string(), name));
-    } else {
-      function->set_raw_name(name);
-      DCHECK_EQ(ObjectLiteralProperty::COMPUTED, property->kind());
-    }
+    function->set_raw_name(name);
+    DCHECK_EQ(ObjectLiteralProperty::COMPUTED, property->kind());
   } else {
     DCHECK(value->IsClassLiteral());
     DCHECK_EQ(ObjectLiteralProperty::COMPUTED, property->kind());

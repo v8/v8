@@ -886,10 +886,16 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   // Script files are often large, hard to read.
   // os << "\n - script =";
   // script()->Print(os);
+  if (is_named_expression()) {
+    os << "\n - named expression";
+  } else if (is_anonymous_expression()) {
+    os << "\n - anonymous expression";
+  } else if (is_declaration()) {
+    os << "\n - declaration";
+  }
   os << "\n - function token position = " << function_token_position();
   os << "\n - start position = " << start_position();
   os << "\n - end position = " << end_position();
-  os << "\n - is expression = " << is_expression();
   os << "\n - debug info = " << Brief(debug_info());
   os << "\n - length = " << length();
   os << "\n - optimized_code_map = " << Brief(optimized_code_map());

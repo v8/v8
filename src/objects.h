@@ -6774,8 +6774,8 @@ class SharedFunctionInfo: public HeapObject {
   inline int end_position() const;
   inline void set_end_position(int end_position);
 
-  // Is this function a function expression in the source code.
-  DECL_BOOLEAN_ACCESSORS(is_expression)
+  // Is this function a named function expression in the source code.
+  DECL_BOOLEAN_ACCESSORS(is_named_expression)
 
   // Is this function a top-level function (scripts, evals).
   DECL_BOOLEAN_ACCESSORS(is_toplevel)
@@ -6843,9 +6843,10 @@ class SharedFunctionInfo: public HeapObject {
   // see a binding for it.
   DECL_BOOLEAN_ACCESSORS(name_should_print_as_anonymous)
 
-  // Indicates that the function is anonymous (the name field can be set
-  // through the API, which does not change this flag).
-  DECL_BOOLEAN_ACCESSORS(is_anonymous)
+  // Indicates that the function is either an anonymous expression
+  // or an arrow function (the name field can be set through the API,
+  // which does not change this flag).
+  DECL_BOOLEAN_ACCESSORS(is_anonymous_expression)
 
   // Is this a function or top-level/eval code.
   DECL_BOOLEAN_ACCESSORS(is_function)
@@ -6865,8 +6866,11 @@ class SharedFunctionInfo: public HeapObject {
   // Indicates that this function is a concise method.
   DECL_BOOLEAN_ACCESSORS(is_concise_method)
 
-  // Indicates that this function is an accessor (getter or setter).
-  DECL_BOOLEAN_ACCESSORS(is_accessor_function)
+  // Indicates that this function is a getter.
+  DECL_BOOLEAN_ACCESSORS(is_getter_function)
+
+  // Indicates that this function is a setter.
+  DECL_BOOLEAN_ACCESSORS(is_setter_function)
 
   // Indicates that this function is a default constructor.
   DECL_BOOLEAN_ACCESSORS(is_default_constructor)
@@ -6879,6 +6883,9 @@ class SharedFunctionInfo: public HeapObject {
 
   // Indicates that the the shared function info has never been compiled before.
   DECL_BOOLEAN_ACCESSORS(never_compiled)
+
+  // Whether this function was created from a FunctionDeclaration.
+  DECL_BOOLEAN_ACCESSORS(is_declaration)
 
   inline FunctionKind kind();
   inline void set_kind(FunctionKind kind);
@@ -7113,10 +7120,10 @@ class SharedFunctionInfo: public HeapObject {
   // Bit positions in start_position_and_type.
   // The source code start position is in the 30 most significant bits of
   // the start_position_and_type field.
-  static const int kIsExpressionBit    = 0;
-  static const int kIsTopLevelBit      = 1;
+  static const int kIsNamedExpressionBit = 0;
+  static const int kIsTopLevelBit = 1;
   static const int kStartPositionShift = 2;
-  static const int kStartPositionMask  = ~((1 << kStartPositionShift) - 1);
+  static const int kStartPositionMask = ~((1 << kStartPositionShift) - 1);
 
   // Bit positions in compiler_hints.
   enum CompilerHints {
@@ -7133,7 +7140,7 @@ class SharedFunctionInfo: public HeapObject {
     kHasDuplicateParameters,
     kForceInline,
     kIsAsmFunction,
-    kIsAnonymous,
+    kIsAnonymousExpression,
     kNameShouldPrintAsAnonymous,
     kIsFunction,
     kDontCrankshaft,
@@ -7143,13 +7150,15 @@ class SharedFunctionInfo: public HeapObject {
     kIsArrow = kFunctionKind,
     kIsGenerator,
     kIsConciseMethod,
-    kIsAccessorFunction,
     kIsDefaultConstructor,
     kIsSubclassConstructor,
     kIsBaseConstructor,
+    kIsGetterFunction,
+    kIsSetterFunction,
     // byte 3
     kDeserialized,
     kNeverCompiled,
+    kIsDeclaration,
     kCompilerHintsCount,  // Pseudo entry
   };
   // Add hints for other modes when they're added.
@@ -7163,13 +7172,14 @@ class SharedFunctionInfo: public HeapObject {
   ASSERT_FUNCTION_KIND_ORDER(kArrowFunction, kIsArrow);
   ASSERT_FUNCTION_KIND_ORDER(kGeneratorFunction, kIsGenerator);
   ASSERT_FUNCTION_KIND_ORDER(kConciseMethod, kIsConciseMethod);
-  ASSERT_FUNCTION_KIND_ORDER(kAccessorFunction, kIsAccessorFunction);
   ASSERT_FUNCTION_KIND_ORDER(kDefaultConstructor, kIsDefaultConstructor);
   ASSERT_FUNCTION_KIND_ORDER(kSubclassConstructor, kIsSubclassConstructor);
   ASSERT_FUNCTION_KIND_ORDER(kBaseConstructor, kIsBaseConstructor);
+  ASSERT_FUNCTION_KIND_ORDER(kGetterFunction, kIsGetterFunction);
+  ASSERT_FUNCTION_KIND_ORDER(kSetterFunction, kIsSetterFunction);
 #undef ASSERT_FUNCTION_KIND_ORDER
 
-  class FunctionKindBits : public BitField<FunctionKind, kIsArrow, 7> {};
+  class FunctionKindBits : public BitField<FunctionKind, kIsArrow, 8> {};
 
   class DeoptCountBits : public BitField<int, 0, 4> {};
   class OptReenableTriesBits : public BitField<int, 4, 18> {};

@@ -802,9 +802,9 @@ class ParserBase : public Traits {
                             ExpressionClassifier* classifier, bool* ok);
   void ParseFormalParameterList(FormalParametersT* parameters,
                                 ExpressionClassifier* classifier, bool* ok);
-  void CheckArityRestrictions(
-      int param_count, FunctionLiteral::ArityRestriction arity_restriction,
-      bool has_rest, int formals_start_pos, int formals_end_pos, bool* ok);
+  void CheckArityRestrictions(int param_count, FunctionKind function_type,
+                              bool has_rest, int formals_start_pos,
+                              int formals_end_pos, bool* ok);
 
   bool IsNextLetKeyword();
 
@@ -1737,9 +1737,8 @@ ParserBase<Traits>::ParsePropertyDefinition(
 
     value = this->ParseFunctionLiteral(
         *name, scanner()->location(), kSkipFunctionNameCheck, kind,
-        RelocInfo::kNoPosition, FunctionLiteral::kAnonymousExpression,
-        FunctionLiteral::kNormalArity, language_mode(),
-        CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+        RelocInfo::kNoPosition, FunctionLiteral::kAccessorOrMethod,
+        language_mode(), CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
     return factory()->NewObjectLiteralProperty(name_expression, value,
                                                ObjectLiteralProperty::COMPUTED,
@@ -1778,9 +1777,8 @@ ParserBase<Traits>::ParsePropertyDefinition(
 
     typename Traits::Type::FunctionLiteral value = this->ParseFunctionLiteral(
         *name, scanner()->location(), kSkipFunctionNameCheck,
-        FunctionKind::kAccessorFunction, RelocInfo::kNoPosition,
-        FunctionLiteral::kAnonymousExpression,
-        is_get ? FunctionLiteral::kGetterArity : FunctionLiteral::kSetterArity,
+        is_get ? FunctionKind::kGetterFunction : FunctionKind::kSetterFunction,
+        RelocInfo::kNoPosition, FunctionLiteral::kAccessorOrMethod,
         language_mode(), CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
     // Make sure the name expression is a string since we need a Name for
@@ -2577,8 +2575,7 @@ ParserBase<Traits>::ParseMemberExpression(ExpressionClassifier* classifier,
                                 : kFunctionNameValidityUnknown,
         is_generator ? FunctionKind::kGeneratorFunction
                      : FunctionKind::kNormalFunction,
-        function_token_position, function_type, FunctionLiteral::kNormalArity,
-        language_mode(), CHECK_OK);
+        function_token_position, function_type, language_mode(), CHECK_OK);
   } else if (peek() == Token::SUPER) {
     const bool is_new = false;
     result = ParseSuperExpression(is_new, classifier, CHECK_OK);
@@ -2970,33 +2967,29 @@ void ParserBase<Traits>::ParseFormalParameterList(
   }
 }
 
-
 template <class Traits>
-void ParserBase<Traits>::CheckArityRestrictions(
-    int param_count, FunctionLiteral::ArityRestriction arity_restriction,
-    bool has_rest, int formals_start_pos, int formals_end_pos, bool* ok) {
-  switch (arity_restriction) {
-    case FunctionLiteral::kGetterArity:
-      if (param_count != 0) {
-        ReportMessageAt(Scanner::Location(formals_start_pos, formals_end_pos),
-                        MessageTemplate::kBadGetterArity);
-        *ok = false;
-      }
-      break;
-    case FunctionLiteral::kSetterArity:
-      if (param_count != 1) {
-        ReportMessageAt(Scanner::Location(formals_start_pos, formals_end_pos),
-                        MessageTemplate::kBadSetterArity);
-        *ok = false;
-      }
-      if (has_rest) {
-        ReportMessageAt(Scanner::Location(formals_start_pos, formals_end_pos),
-                        MessageTemplate::kBadSetterRestParameter);
-        *ok = false;
-      }
-      break;
-    default:
-      break;
+void ParserBase<Traits>::CheckArityRestrictions(int param_count,
+                                                FunctionKind function_kind,
+                                                bool has_rest,
+                                                int formals_start_pos,
+                                                int formals_end_pos, bool* ok) {
+  if (IsGetterFunction(function_kind)) {
+    if (param_count != 0) {
+      ReportMessageAt(Scanner::Location(formals_start_pos, formals_end_pos),
+                      MessageTemplate::kBadGetterArity);
+      *ok = false;
+    }
+  } else if (IsSetterFunction(function_kind)) {
+    if (param_count != 1) {
+      ReportMessageAt(Scanner::Location(formals_start_pos, formals_end_pos),
+                      MessageTemplate::kBadSetterArity);
+      *ok = false;
+    }
+    if (has_rest) {
+      ReportMessageAt(Scanner::Location(formals_start_pos, formals_end_pos),
+                      MessageTemplate::kBadSetterRestParameter);
+      *ok = false;
+    }
   }
 }
 

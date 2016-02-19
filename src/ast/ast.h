@@ -1429,9 +1429,7 @@ class ObjectLiteralProperty final : public ZoneObject {
 
   void set_receiver_type(Handle<Map> map) { receiver_type_ = map; }
 
-  bool NeedsSetFunctionName() const {
-    return is_computed_name_ && value_->IsAnonymousFunctionDefinition();
-  }
+  bool NeedsSetFunctionName() const;
 
  protected:
   friend class AstNodeFactory;
@@ -2575,14 +2573,12 @@ class FunctionLiteral final : public Expression {
     kAnonymousExpression,
     kNamedExpression,
     kDeclaration,
-    kGlobalOrEval
+    kAccessorOrMethod
   };
 
   enum ParameterFlag { kNoDuplicateParameters, kHasDuplicateParameters };
 
   enum EagerCompileHint { kShouldEagerCompile, kShouldLazyCompile };
-
-  enum ArityRestriction { kNormalArity, kGetterArity, kSetterArity };
 
   DECLARE_NODE_TYPE(FunctionLiteral)
 
@@ -2596,8 +2592,13 @@ class FunctionLiteral final : public Expression {
   int start_position() const;
   int end_position() const;
   int SourceSize() const { return end_position() - start_position(); }
-  bool is_expression() const { return IsExpression::decode(bitfield_); }
-  bool is_anonymous() const { return IsAnonymous::decode(bitfield_); }
+  bool is_declaration() const { return IsDeclaration::decode(bitfield_); }
+  bool is_named_expression() const {
+    return IsNamedExpression::decode(bitfield_);
+  }
+  bool is_anonymous_expression() const {
+    return IsAnonymousExpression::decode(bitfield_);
+  }
   LanguageMode language_mode() const;
 
   static bool NeedsHomeObject(Expression* expr);
@@ -2690,10 +2691,7 @@ class FunctionLiteral final : public Expression {
   }
 
   bool IsAnonymousFunctionDefinition() const final {
-    // TODO(adamk): This isn't quite accurate, as many non-expressions
-    // (such as concise methods) are marked as anonymous, but it's
-    // sufficient for the current callers.
-    return is_anonymous();
+    return is_anonymous_expression();
   }
 
  protected:
@@ -2704,7 +2702,7 @@ class FunctionLiteral final : public Expression {
                   FunctionType function_type,
                   ParameterFlag has_duplicate_parameters,
                   EagerCompileHint eager_compile_hint, FunctionKind kind,
-                  int position)
+                  int position, bool is_function)
       : Expression(zone, position),
         raw_name_(name),
         scope_(scope),
@@ -2717,26 +2715,28 @@ class FunctionLiteral final : public Expression {
         parameter_count_(parameter_count),
         function_token_position_(RelocInfo::kNoPosition) {
     bitfield_ =
-        IsExpression::encode(function_type != kDeclaration) |
-        IsAnonymous::encode(function_type == kAnonymousExpression) |
+        IsDeclaration::encode(function_type == kDeclaration) |
+        IsNamedExpression::encode(function_type == kNamedExpression) |
+        IsAnonymousExpression::encode(function_type == kAnonymousExpression) |
         Pretenure::encode(false) |
         HasDuplicateParameters::encode(has_duplicate_parameters ==
                                        kHasDuplicateParameters) |
-        IsFunction::encode(function_type != kGlobalOrEval) |
+        IsFunction::encode(is_function) |
         ShouldEagerCompile::encode(eager_compile_hint == kShouldEagerCompile) |
         FunctionKindBits::encode(kind) | ShouldBeUsedOnceHint::encode(false);
     DCHECK(IsValidFunctionKind(kind));
   }
 
  private:
-  class IsExpression : public BitField16<bool, 0, 1> {};
-  class IsAnonymous : public BitField16<bool, 1, 1> {};
-  class Pretenure : public BitField16<bool, 2, 1> {};
-  class HasDuplicateParameters : public BitField16<bool, 3, 1> {};
-  class IsFunction : public BitField16<bool, 4, 1> {};
-  class ShouldEagerCompile : public BitField16<bool, 5, 1> {};
-  class FunctionKindBits : public BitField16<FunctionKind, 6, 8> {};
-  class ShouldBeUsedOnceHint : public BitField16<bool, 15, 1> {};
+  class IsDeclaration : public BitField16<bool, 0, 1> {};
+  class IsNamedExpression : public BitField16<bool, 1, 1> {};
+  class IsAnonymousExpression : public BitField16<bool, 2, 1> {};
+  class Pretenure : public BitField16<bool, 3, 1> {};
+  class HasDuplicateParameters : public BitField16<bool, 4, 1> {};
+  class IsFunction : public BitField16<bool, 5, 1> {};
+  class ShouldEagerCompile : public BitField16<bool, 6, 1> {};
+  class ShouldBeUsedOnceHint : public BitField16<bool, 7, 1> {};
+  class FunctionKindBits : public BitField16<FunctionKind, 8, 8> {};
 
   // Start with 16-bit field, which should get packed together
   // with Expression's trailing 16-bit field.
@@ -3413,7 +3413,22 @@ class AstNodeFactory final BASE_EMBEDDED {
         parser_zone_, name, ast_value_factory_, scope, body,
         materialized_literal_count, expected_property_count, parameter_count,
         function_type, has_duplicate_parameters, eager_compile_hint, kind,
-        position);
+        position, true);
+  }
+
+  // Creates a FunctionLiteral representing a top-level script, the
+  // result of an eval (top-level or otherwise), or the result of calling
+  // the Function constructor.
+  FunctionLiteral* NewScriptOrEvalFunctionLiteral(
+      Scope* scope, ZoneList<Statement*>* body, int materialized_literal_count,
+      int expected_property_count) {
+    return new (parser_zone_) FunctionLiteral(
+        parser_zone_, ast_value_factory_->empty_string(), ast_value_factory_,
+        scope, body, materialized_literal_count, expected_property_count, 0,
+        FunctionLiteral::kAnonymousExpression,
+        FunctionLiteral::kNoDuplicateParameters,
+        FunctionLiteral::kShouldLazyCompile, FunctionKind::kNormalFunction, 0,
+        false);
   }
 
   ClassLiteral* NewClassLiteral(Scope* scope, VariableProxy* proxy,

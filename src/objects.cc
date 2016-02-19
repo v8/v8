@@ -13423,7 +13423,7 @@ Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
     }
     if (shared_info->name_should_print_as_anonymous()) {
       builder.AppendCString("anonymous");
-    } else {
+    } else if (!shared_info->is_anonymous_expression()) {
       builder.AppendString(handle(String::cast(shared_info->name()), isolate));
     }
   }
@@ -13858,8 +13858,9 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   shared_info->set_function_token_position(lit->function_token_position());
   shared_info->set_start_position(lit->start_position());
   shared_info->set_end_position(lit->end_position());
-  shared_info->set_is_expression(lit->is_expression());
-  shared_info->set_is_anonymous(lit->is_anonymous());
+  shared_info->set_is_declaration(lit->is_declaration());
+  shared_info->set_is_named_expression(lit->is_named_expression());
+  shared_info->set_is_anonymous_expression(lit->is_anonymous_expression());
   shared_info->set_inferred_name(*lit->inferred_name());
   shared_info->set_allows_lazy_compilation(lit->AllowsLazyCompilation());
   shared_info->set_allows_lazy_compilation_without_context(
