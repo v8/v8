@@ -64,6 +64,7 @@ class CompilationInfo {
     kDeoptimizationEnabled = 1 << 16,
     kSourcePositionsEnabled = 1 << 17,
     kFirstCompile = 1 << 18,
+    kBailoutOnUninitialized = 1 << 19,
   };
 
   explicit CompilationInfo(ParseInfo* parse_info);
@@ -206,6 +207,12 @@ class CompilationInfo {
   void MarkAsCompiled() { SetFlag(kFirstCompile, false); }
 
   bool is_first_compile() const { return GetFlag(kFirstCompile); }
+
+  void MarkAsBailoutOnUninitialized() { SetFlag(kBailoutOnUninitialized); }
+
+  bool is_bailout_on_uninitialized() const {
+    return GetFlag(kBailoutOnUninitialized);
+  }
 
   bool GeneratePreagedPrologue() const {
     // Generate a pre-aged prologue if we are optimizing for size, which

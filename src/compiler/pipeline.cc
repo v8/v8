@@ -554,12 +554,17 @@ struct InliningPhase {
     JSGlobalObjectSpecialization global_object_specialization(
         &graph_reducer, data->jsgraph(), data->native_context(),
         data->info()->dependencies());
+    JSNativeContextSpecialization::Flags flags =
+        JSNativeContextSpecialization::kNoFlags;
+    if (data->info()->is_bailout_on_uninitialized()) {
+      flags |= JSNativeContextSpecialization::kBailoutOnUninitialized;
+    }
+    if (data->info()->is_deoptimization_enabled()) {
+      flags |= JSNativeContextSpecialization::kDeoptimizationEnabled;
+    }
     JSNativeContextSpecialization native_context_specialization(
-        &graph_reducer, data->jsgraph(),
-        data->info()->is_deoptimization_enabled()
-            ? JSNativeContextSpecialization::kDeoptimizationEnabled
-            : JSNativeContextSpecialization::kNoFlags,
-        data->native_context(), data->info()->dependencies(), temp_zone);
+        &graph_reducer, data->jsgraph(), flags, data->native_context(),
+        data->info()->dependencies(), temp_zone);
     JSInliningHeuristic inlining(&graph_reducer,
                                  data->info()->is_inlining_enabled()
                                      ? JSInliningHeuristic::kGeneralInlining

@@ -421,10 +421,14 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
     if (info()->shared_info()->asm_function()) {
       if (info()->osr_frame()) info()->MarkAsFrameSpecializing();
       info()->MarkAsFunctionContextSpecializing();
-    } else if (info()->has_global_object() &&
-               FLAG_native_context_specialization) {
-      info()->MarkAsNativeContextSpecializing();
-      info()->MarkAsTypingEnabled();
+    } else {
+      if (!FLAG_always_opt) {
+        info()->MarkAsBailoutOnUninitialized();
+      }
+      if (FLAG_native_context_specialization) {
+        info()->MarkAsNativeContextSpecializing();
+        info()->MarkAsTypingEnabled();
+      }
     }
     if (!info()->shared_info()->asm_function() ||
         FLAG_turbo_asm_deoptimization) {

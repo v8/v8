@@ -38,7 +38,8 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   // Flags that control the mode of operation.
   enum Flag {
     kNoFlags = 0u,
-    kDeoptimizationEnabled = 1u << 0,
+    kBailoutOnUninitialized = 1u << 0,
+    kDeoptimizationEnabled = 1u << 1,
   };
   typedef base::Flags<Flag> Flags;
 
@@ -67,10 +68,16 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
                               LanguageMode language_mode,
                               KeyedAccessStoreMode store_mode);
   Reduction ReduceNamedAccess(Node* node, Node* value,
+                              FeedbackNexus const& nexus, Handle<Name> name,
+                              AccessMode access_mode,
+                              LanguageMode language_mode);
+  Reduction ReduceNamedAccess(Node* node, Node* value,
                               MapHandleList const& receiver_maps,
                               Handle<Name> name, AccessMode access_mode,
                               LanguageMode language_mode,
                               Node* index = nullptr);
+
+  Reduction ReduceSoftDeoptimize(Node* node);
 
   // Adds stability dependencies on all prototypes of every class in
   // {receiver_type} up to (and including) the {holder}.
