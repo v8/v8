@@ -234,6 +234,9 @@ function JSONStringify(value, replacer, space) {
   } else {
     gap = "";
   }
+  if (!IS_CALLABLE(replacer) && !property_list && !gap && !IS_PROXY(value)) {
+    return %BasicJSONStringify(value);
+  }
   return JSONSerialize('', {'': value}, replacer, new InternalArray(), "", gap);
 }
 
