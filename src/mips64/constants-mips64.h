@@ -1206,6 +1206,7 @@ Instruction::Type Instruction::InstructionType(TypeChecks checks) const {
     case SPECIAL3:
       switch (FunctionFieldRaw()) {
         case INS:
+        case DINS:
         case EXT:
         case DEXT:
         case DEXTM:
