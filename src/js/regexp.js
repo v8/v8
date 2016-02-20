@@ -112,7 +112,10 @@ function RegExpCompileJS(pattern, flags) {
     pattern = REGEXP_SOURCE(pattern);
   }
 
-  return RegExpInitialize(this, pattern, flags);
+  RegExpInitialize(this, pattern, flags);
+
+  // Return undefined for compatibility with JSC.
+  // See http://crbug.com/585775 for web compat details.
 }
 
 
