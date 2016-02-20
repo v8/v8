@@ -1376,39 +1376,71 @@ void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
         ori(rd, rd, (j.imm64_ & kImm16Mask));
       }
     } else {
-      if (is_int48(j.imm64_)) {
-        if ((j.imm64_ >> 32) & kImm16Mask) {
-          lui(rd, (j.imm64_ >> 32) & kImm16Mask);
-          if ((j.imm64_ >> 16) & kImm16Mask) {
-            ori(rd, rd, (j.imm64_ >> 16) & kImm16Mask);
-          }
-        } else {
-          ori(rd, zero_reg, (j.imm64_ >> 16) & kImm16Mask);
+      if (kArchVariant == kMips64r6) {
+        int64_t imm = j.imm64_;
+        bool lui_emited = false;
+        if (((imm >> kLuiShift) & kImm16Mask) != 0) {
+          lui(rd, (imm >> kLuiShift) & kImm16Mask);
+          lui_emited = true;
         }
-        dsll(rd, rd, 16);
-        if (j.imm64_ & kImm16Mask) {
-          ori(rd, rd, j.imm64_ & kImm16Mask);
+        if ((imm & kImm16Mask) != 0) {
+          ori(rd, rd, (imm & kImm16Mask));
+        } else if (!lui_emited) {
+          or_(rd, zero_reg, zero_reg);
+        }
+        if ((imm >> 31) & 0x1) {
+          imm = (imm >> 32) + 1;
+        } else {
+          imm = imm >> 32;
+        }
+        if (imm & kImm16Mask) {
+          dahi(rd, imm & kImm16Mask);
+        }
+        if (!is_int48(j.imm64_)) {
+          if ((imm >> 15) & 0x1) {
+            imm = (imm >> 16) + 1;
+          } else {
+            imm = imm >> 16;
+          }
+          if (imm & kImm16Mask) {
+            dati(rd, imm & kImm16Mask);
+          }
         }
       } else {
-        lui(rd, (j.imm64_ >> 48) & kImm16Mask);
-        if ((j.imm64_ >> 32) & kImm16Mask) {
-          ori(rd, rd, (j.imm64_ >> 32) & kImm16Mask);
-        }
-        if ((j.imm64_ >> 16) & kImm16Mask) {
-          dsll(rd, rd, 16);
-          ori(rd, rd, (j.imm64_ >> 16) & kImm16Mask);
-          if (j.imm64_ & kImm16Mask) {
-            dsll(rd, rd, 16);
-            ori(rd, rd, j.imm64_ & kImm16Mask);
+        if (is_int48(j.imm64_)) {
+          if ((j.imm64_ >> 32) & kImm16Mask) {
+            lui(rd, (j.imm64_ >> 32) & kImm16Mask);
+            if ((j.imm64_ >> 16) & kImm16Mask) {
+              ori(rd, rd, (j.imm64_ >> 16) & kImm16Mask);
+            }
           } else {
-            dsll(rd, rd, 16);
+            ori(rd, zero_reg, (j.imm64_ >> 16) & kImm16Mask);
+          }
+          dsll(rd, rd, 16);
+          if (j.imm64_ & kImm16Mask) {
+            ori(rd, rd, j.imm64_ & kImm16Mask);
           }
         } else {
-          if (j.imm64_ & kImm16Mask) {
-            dsll32(rd, rd, 0);
-            ori(rd, rd, j.imm64_ & kImm16Mask);
+          lui(rd, (j.imm64_ >> 48) & kImm16Mask);
+          if ((j.imm64_ >> 32) & kImm16Mask) {
+            ori(rd, rd, (j.imm64_ >> 32) & kImm16Mask);
+          }
+          if ((j.imm64_ >> 16) & kImm16Mask) {
+            dsll(rd, rd, 16);
+            ori(rd, rd, (j.imm64_ >> 16) & kImm16Mask);
+            if (j.imm64_ & kImm16Mask) {
+              dsll(rd, rd, 16);
+              ori(rd, rd, j.imm64_ & kImm16Mask);
+            } else {
+              dsll(rd, rd, 16);
+            }
           } else {
-            dsll32(rd, rd, 0);
+            if (j.imm64_ & kImm16Mask) {
+              dsll32(rd, rd, 0);
+              ori(rd, rd, j.imm64_ & kImm16Mask);
+            } else {
+              dsll32(rd, rd, 0);
+            }
           }
         }
       }
@@ -1427,12 +1459,32 @@ void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
     dsll(rd, rd, 16);
     ori(rd, rd, j.imm64_ & kImm16Mask);
   } else {
-    lui(rd, (j.imm64_ >> 48) & kImm16Mask);
-    ori(rd, rd, (j.imm64_ >> 32) & kImm16Mask);
-    dsll(rd, rd, 16);
-    ori(rd, rd, (j.imm64_ >> 16) & kImm16Mask);
-    dsll(rd, rd, 16);
-    ori(rd, rd, j.imm64_ & kImm16Mask);
+    if (kArchVariant == kMips64r6) {
+      int64_t imm = j.imm64_;
+      lui(rd, (imm >> kLuiShift) & kImm16Mask);
+      if (imm & kImm16Mask) {
+        ori(rd, rd, (imm & kImm16Mask));
+      }
+      if ((imm >> 31) & 0x1) {
+        imm = (imm >> 32) + 1;
+      } else {
+        imm = imm >> 32;
+      }
+      dahi(rd, imm & kImm16Mask);
+      if ((imm >> 15) & 0x1) {
+        imm = (imm >> 16) + 1;
+      } else {
+        imm = imm >> 16;
+      }
+      dati(rd, imm & kImm16Mask);
+    } else {
+      lui(rd, (j.imm64_ >> 48) & kImm16Mask);
+      ori(rd, rd, (j.imm64_ >> 32) & kImm16Mask);
+      dsll(rd, rd, 16);
+      ori(rd, rd, (j.imm64_ >> 16) & kImm16Mask);
+      dsll(rd, rd, 16);
+      ori(rd, rd, j.imm64_ & kImm16Mask);
+    }
   }
 }
 
