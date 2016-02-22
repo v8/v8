@@ -5471,6 +5471,11 @@ class V8_EXPORT Isolate {
     kHtmlComment = 21,
     kSloppyModeBlockScopedFunctionRedefinition = 22,
     kForInInitializer = 23,
+    kArrayProtectorDirtied = 24,
+    kArraySpeciesModified = 25,
+    kArrayPrototypeConstructorModified = 26,
+    kArrayInstanceProtoModified = 27,
+    kArrayInstanceConstructorModified = 28,
 
     // If you add new values here, you'll also need to update V8Initializer.cpp
     // in Chromium.

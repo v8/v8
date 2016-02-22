@@ -1551,8 +1551,14 @@ bool Object::SameValueZero(Object* other) {
 MaybeHandle<Object> Object::ArraySpeciesConstructor(
     Isolate* isolate, Handle<Object> original_array) {
   Handle<Context> native_context = isolate->native_context();
+  Handle<Object> default_species = isolate->array_function();
   if (!FLAG_harmony_species) {
-    return Handle<Object>(native_context->array_function(), isolate);
+    return default_species;
+  }
+  if (original_array->IsJSArray() &&
+      Handle<JSReceiver>::cast(original_array)->map()->new_target_is_base() &&
+      isolate->IsArraySpeciesLookupChainIntact()) {
+    return default_species;
   }
   Handle<Object> constructor = isolate->factory()->undefined_value();
   Maybe<bool> is_array = Object::IsArray(original_array);
@@ -1586,7 +1592,7 @@ MaybeHandle<Object> Object::ArraySpeciesConstructor(
     }
   }
   if (constructor->IsUndefined()) {
-    return Handle<Object>(native_context->array_function(), isolate);
+    return default_species;
   } else {
     if (!constructor->IsConstructor()) {
       THROW_NEW_ERROR(isolate,
@@ -4144,6 +4150,7 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
                                         LanguageMode language_mode,
                                         StoreFromKeyed store_mode,
                                         bool* found) {
+  it->UpdateProtector();
   ShouldThrow should_throw =
       is_sloppy(language_mode) ? DONT_THROW : THROW_ON_ERROR;
 
@@ -5279,6 +5286,7 @@ MaybeHandle<Object> JSObject::DefineOwnPropertyIgnoreAttributes(
 Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
     LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
     ShouldThrow should_throw, AccessorInfoHandling handling) {
+  it->UpdateProtector();
   Handle<JSObject> object = Handle<JSObject>::cast(it->GetReceiver());
   bool is_observed = object->map()->is_observed() &&
                      (it->IsElement() || !it->name()->IsPrivate());
@@ -6158,6 +6166,8 @@ void JSReceiver::DeleteNormalizedProperty(Handle<JSReceiver> object,
 
 Maybe<bool> JSReceiver::DeleteProperty(LookupIterator* it,
                                        LanguageMode language_mode) {
+  it->UpdateProtector();
+
   Isolate* isolate = it->isolate();
 
   if (it->state() == LookupIterator::JSPROXY) {
@@ -15711,6 +15721,16 @@ Maybe<bool> JSObject::SetPrototype(Handle<JSObject> object,
                                    Handle<Object> value, bool from_javascript,
                                    ShouldThrow should_throw) {
   Isolate* isolate = object->GetIsolate();
+
+  // Setting the prototype of an Array instance invalidates the species
+  // protector
+  // because it could change the constructor property of the instance, which
+  // could change the @@species constructor.
+  if (object->IsJSArray() && isolate->IsArraySpeciesLookupChainIntact()) {
+    isolate->CountUsage(
+        v8::Isolate::UseCounterFeature::kArrayInstanceProtoModified);
+    isolate->InvalidateArraySpeciesProtector();
+  }
 
   const bool observed = from_javascript && object->map()->is_observed();
   Handle<Object> old_value;

@@ -142,6 +142,52 @@ void LookupIterator::ReloadPropertyInformation() {
   DCHECK(IsFound() || !holder_->HasFastProperties());
 }
 
+bool LookupIterator::HolderIsInContextIndex(uint32_t index) const {
+  DisallowHeapAllocation no_gc;
+
+  Object* context = heap()->native_contexts_list();
+  while (!context->IsUndefined()) {
+    Context* current_context = Context::cast(context);
+    if (current_context->get(index) == *holder_) {
+      return true;
+    }
+    context = current_context->get(Context::NEXT_CONTEXT_LINK);
+  }
+  return false;
+}
+
+void LookupIterator::UpdateProtector() {
+  if (!FLAG_harmony_species) return;
+
+  if (IsElement()) return;
+  if (isolate_->bootstrapper()->IsActive()) return;
+  if (!isolate_->IsArraySpeciesLookupChainIntact()) return;
+
+  if (*name_ == *isolate_->factory()->constructor_string()) {
+    // Setting the constructor property could change an instance's @@species
+    if (holder_->IsJSArray()) {
+      isolate_->CountUsage(
+          v8::Isolate::UseCounterFeature::kArrayInstanceConstructorModified);
+      isolate_->InvalidateArraySpeciesProtector();
+    } else if (holder_->map()->is_prototype_map()) {
+      // Setting the constructor of Array.prototype of any realm also needs
+      // to invalidate the species protector
+      if (HolderIsInContextIndex(Context::INITIAL_ARRAY_PROTOTYPE_INDEX)) {
+        isolate_->CountUsage(v8::Isolate::UseCounterFeature::
+                                 kArrayPrototypeConstructorModified);
+        isolate_->InvalidateArraySpeciesProtector();
+      }
+    }
+  } else if (*name_ == *isolate_->factory()->species_symbol()) {
+    // Setting the Symbol.species property of any Array constructor invalidates
+    // the species protector
+    if (HolderIsInContextIndex(Context::ARRAY_FUNCTION_INDEX)) {
+      isolate_->CountUsage(
+          v8::Isolate::UseCounterFeature::kArraySpeciesModified);
+      isolate_->InvalidateArraySpeciesProtector();
+    }
+  }
+}
 
 void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
   DCHECK(state_ == DATA || state_ == ACCESSOR);

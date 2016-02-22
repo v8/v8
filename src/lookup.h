@@ -256,6 +256,7 @@ class LookupIterator final BASE_EMBEDDED {
   }
   Handle<Object> GetDataValue() const;
   void WriteDataValue(Handle<Object> value);
+  void UpdateProtector();
 
  private:
   enum class InterceptorState {
@@ -319,6 +320,8 @@ class LookupIterator final BASE_EMBEDDED {
   }
 
   State NotFound(JSReceiver* const holder) const;
+
+  bool HolderIsInContextIndex(uint32_t index) const;
 
   // If configuration_ becomes mutable, update
   // HolderIsReceiverOrHiddenPrototype.
