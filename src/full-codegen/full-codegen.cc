@@ -165,14 +165,7 @@ bool FullCodeGenerator::MustCreateArrayLiteralWithRuntime(
 
 void FullCodeGenerator::Initialize() {
   InitializeAstVisitor(info_->isolate());
-  // The generation of debug code must match between the snapshot code and the
-  // code that is generated later.  This is assumed by the debugger when it is
-  // calculating PC offsets after generating a debug version of code.  Therefore
-  // we disable the production of debug code in the full compiler if we are
-  // either generating a snapshot or we booted from a snapshot.
-  generate_debug_code_ = FLAG_debug_code && !masm_->serializer_enabled() &&
-                         !info_->isolate()->snapshot_available();
-  masm_->set_emit_debug_code(generate_debug_code_);
+  masm_->set_emit_debug_code(FLAG_debug_code);
   masm_->set_predictable_code_size(true);
 }
 

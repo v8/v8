@@ -996,7 +996,6 @@ class FullCodeGenerator: public AstVisitor {
   ZoneVector<HandlerTableEntry> handler_table_;
   int ic_total_count_;
   Handle<Cell> profiling_counter_;
-  bool generate_debug_code_;
 
   friend class NestedStatement;
 

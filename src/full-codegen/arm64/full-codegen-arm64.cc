@@ -771,7 +771,7 @@ void FullCodeGenerator::EmitDebugCheckDeclarationContext(Variable* variable) {
   // The variable in the declaration always resides in the current function
   // context.
   DCHECK_EQ(0, scope()->ContextChainLength(variable->scope()));
-  if (generate_debug_code_) {
+  if (FLAG_debug_code) {
     // Check that we're not inside a with or catch context.
     __ Ldr(x1, FieldMemOperand(cp, HeapObject::kMapOffset));
     __ CompareRoot(x1, Heap::kWithContextMapRootIndex);
