@@ -8368,9 +8368,8 @@ class AllocationSite: public Struct {
   static const int kPointerFieldsEndOffset = kWeakNextOffset;
 
   // For other visitors, use the fixed body descriptor below.
-  typedef FixedBodyDescriptor<HeapObject::kHeaderSize,
-                              kDependentCodeOffset + kPointerSize,
-                              kSize> BodyDescriptor;
+  typedef FixedBodyDescriptor<HeapObject::kHeaderSize, kSize, kSize>
+      BodyDescriptor;
 
  private:
   inline bool PretenuringDecisionMade();

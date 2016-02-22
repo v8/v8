@@ -1532,7 +1532,7 @@ void V8HeapExplorer::ExtractAllocationSiteReferences(int entry,
   // Do not visit weak_next as it is not visited by the StaticVisitor,
   // and we're not very interested in weak_next field here.
   STATIC_ASSERT(AllocationSite::kWeakNextOffset >=
-                AllocationSite::BodyDescriptor::kEndOffset);
+                AllocationSite::kPointerFieldsEndOffset);
 }
 
 

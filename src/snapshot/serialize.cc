@@ -1972,24 +1972,36 @@ void Serializer::ObjectSerializer::SerializeExternalString() {
   sink_->PutInt(bytes_to_output, "SkipDistance");
 }
 
-
-// Clear and later restore the next link in the weak cell, if the object is one.
-class UnlinkWeakCellScope {
+// Clear and later restore the next link in the weak cell or allocation site.
+// TODO(all): replace this with proper iteration of weak slots in serializer.
+class UnlinkWeakNextScope {
  public:
-  explicit UnlinkWeakCellScope(HeapObject* object) : weak_cell_(NULL) {
+  explicit UnlinkWeakNextScope(HeapObject* object) : object_(nullptr) {
     if (object->IsWeakCell()) {
-      weak_cell_ = WeakCell::cast(object);
-      next_ = weak_cell_->next();
-      weak_cell_->clear_next(object->GetHeap()->the_hole_value());
+      object_ = object;
+      next_ = WeakCell::cast(object)->next();
+      WeakCell::cast(object)->clear_next(object->GetHeap()->the_hole_value());
+    } else if (object->IsAllocationSite()) {
+      object_ = object;
+      next_ = AllocationSite::cast(object)->weak_next();
+      AllocationSite::cast(object)
+          ->set_weak_next(object->GetHeap()->undefined_value());
     }
   }
 
-  ~UnlinkWeakCellScope() {
-    if (weak_cell_) weak_cell_->set_next(next_, UPDATE_WEAK_WRITE_BARRIER);
+  ~UnlinkWeakNextScope() {
+    if (object_ != nullptr) {
+      if (object_->IsWeakCell()) {
+        WeakCell::cast(object_)->set_next(next_, UPDATE_WEAK_WRITE_BARRIER);
+      } else {
+        AllocationSite::cast(object_)
+            ->set_weak_next(next_, UPDATE_WEAK_WRITE_BARRIER);
+      }
+    }
   }
 
  private:
-  WeakCell* weak_cell_;
+  HeapObject* object_;
   Object* next_;
   DisallowHeapAllocation no_gc_;
 };
@@ -2047,7 +2059,7 @@ void Serializer::ObjectSerializer::Serialize() {
     return;
   }
 
-  UnlinkWeakCellScope unlink_weak_cell(object_);
+  UnlinkWeakNextScope unlink_weak_next(object_);
 
   object_->IterateBody(map->instance_type(), size, this);
   OutputRawData(object_->address() + size);
@@ -2074,7 +2086,7 @@ void Serializer::ObjectSerializer::SerializeDeferred() {
   serializer_->PutBackReference(object_, reference);
   sink_->PutInt(size >> kPointerSizeLog2, "deferred object size");
 
-  UnlinkWeakCellScope unlink_weak_cell(object_);
+  UnlinkWeakNextScope unlink_weak_next(object_);
 
   object_->IterateBody(map->instance_type(), size, this);
   OutputRawData(object_->address() + size);
