@@ -821,7 +821,7 @@ class Heap {
   bool HasHighFragmentation(intptr_t used, intptr_t committed);
 
   void SetOptimizeForLatency() { optimize_for_memory_usage_ = false; }
-  void SetOptimizeForMemoryUsage() { optimize_for_memory_usage_ = true; }
+  void SetOptimizeForMemoryUsage();
   bool ShouldOptimizeForMemoryUsage() { return optimize_for_memory_usage_; }
 
   // ===========================================================================

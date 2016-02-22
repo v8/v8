@@ -1063,9 +1063,9 @@ int Heap::NotifyContextDisposed(bool dependant_context) {
     tracer()->ResetSurvivalEvents();
     old_generation_size_configured_ = false;
     MemoryReducer::Event event;
-    event.type = MemoryReducer::kContextDisposed;
+    event.type = MemoryReducer::kPossibleGarbage;
     event.time_ms = MonotonicallyIncreasingTimeInMs();
-    memory_reducer_->NotifyContextDisposed(event);
+    memory_reducer_->NotifyPossibleGarbage(event);
   }
   if (isolate()->concurrent_recompilation_enabled()) {
     // Flush the queued recompilation tasks.
@@ -4113,6 +4113,20 @@ bool Heap::HasHighFragmentation(intptr_t used, intptr_t committed) {
   return committed - used > used + kSlack;
 }
 
+void Heap::SetOptimizeForMemoryUsage() {
+  // Activate memory reducer when switching to background if
+  // - there was no mark compact since the start.
+  // - the committed memory can be potentially reduced.
+  // 2 pages for the old, code, and map space + 1 page for new space.
+  const int kMinCommittedMemory = 7 * Page::kPageSize;
+  if (ms_count_ == 0 && CommittedMemory() > kMinCommittedMemory) {
+    MemoryReducer::Event event;
+    event.type = MemoryReducer::kPossibleGarbage;
+    event.time_ms = MonotonicallyIncreasingTimeInMs();
+    memory_reducer_->NotifyPossibleGarbage(event);
+  }
+  optimize_for_memory_usage_ = true;
+}
 
 void Heap::ReduceNewSpaceSize() {
   // TODO(ulan): Unify this constant with the similar constant in
