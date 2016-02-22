@@ -139,148 +139,20 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ push(eax);
 
     if (create_implicit_receiver) {
-      __ push(edi);
-      __ push(edx);
+      // Allocate the new receiver object.
+      __ Push(edi);
+      __ Push(edx);
+      FastNewObjectStub stub(masm->isolate());
+      __ CallStub(&stub);
+      __ mov(ebx, eax);
+      __ Pop(edx);
+      __ Pop(edi);
 
-      // Try to allocate the object without transitioning into C code. If any of
-      // the preconditions is not met, the code bails out to the runtime call.
-      Label rt_call, allocated;
-      if (FLAG_inline_new) {
-        // Verify that the new target is a JSFunction.
-        __ CmpObjectType(edx, JS_FUNCTION_TYPE, ebx);
-        __ j(not_equal, &rt_call);
-
-        // Load the initial map and verify that it is in fact a map.
-        // edx: new target
-        __ mov(eax,
-               FieldOperand(edx, JSFunction::kPrototypeOrInitialMapOffset));
-        // Will both indicate a NULL and a Smi
-        __ JumpIfSmi(eax, &rt_call);
-        // edi: constructor
-        // eax: initial map (if proven valid below)
-        __ CmpObjectType(eax, MAP_TYPE, ebx);
-        __ j(not_equal, &rt_call);
-
-        // Fall back to runtime if the expected base constructor and base
-        // constructor differ.
-        __ cmp(edi, FieldOperand(eax, Map::kConstructorOrBackPointerOffset));
-        __ j(not_equal, &rt_call);
-
-        // Check that the constructor is not constructing a JSFunction (see
-        // comments in Runtime_NewObject in runtime.cc). In which case the
-        // initial map's instance type would be JS_FUNCTION_TYPE.
-        // edi: constructor
-        // eax: initial map
-        __ CmpInstanceType(eax, JS_FUNCTION_TYPE);
-        __ j(equal, &rt_call);
-
-        // Now allocate the JSObject on the heap.
-        // edi: constructor
-        // eax: initial map
-        __ movzx_b(edi, FieldOperand(eax, Map::kInstanceSizeOffset));
-        __ shl(edi, kPointerSizeLog2);
-
-        __ Allocate(edi, ebx, edi, no_reg, &rt_call, NO_ALLOCATION_FLAGS);
-
-        Factory* factory = masm->isolate()->factory();
-
-        // Allocated the JSObject, now initialize the fields.
-        // eax: initial map
-        // ebx: JSObject (not HeapObject tagged - the actual address).
-        // edi: start of next object
-        __ mov(Operand(ebx, JSObject::kMapOffset), eax);
-        __ mov(ecx, factory->empty_fixed_array());
-        __ mov(Operand(ebx, JSObject::kPropertiesOffset), ecx);
-        __ mov(Operand(ebx, JSObject::kElementsOffset), ecx);
-        __ lea(ecx, Operand(ebx, JSObject::kHeaderSize));
-
-        // Add the object tag to make the JSObject real, so that we can continue
-        // and jump into the continuation code at any time from now on.
-        __ or_(ebx, Immediate(kHeapObjectTag));
-
-        // Fill all the in-object properties with the appropriate filler.
-        // ebx: JSObject (tagged)
-        // ecx: First in-object property of JSObject (not tagged)
-        __ mov(edx, factory->undefined_value());
-
-        if (!is_api_function) {
-          Label no_inobject_slack_tracking;
-
-          // The code below relies on these assumptions.
-          STATIC_ASSERT(Map::kNoSlackTracking == 0);
-          STATIC_ASSERT(Map::ConstructionCounter::kNext == 32);
-          // Check if slack tracking is enabled.
-          __ mov(esi, FieldOperand(eax, Map::kBitField3Offset));
-          __ shr(esi, Map::ConstructionCounter::kShift);
-          __ j(zero, &no_inobject_slack_tracking);  // Map::kNoSlackTracking
-          __ push(esi);  // Save allocation count value.
-          // Decrease generous allocation count.
-          __ sub(FieldOperand(eax, Map::kBitField3Offset),
-                 Immediate(1 << Map::ConstructionCounter::kShift));
-
-          // Allocate object with a slack.
-          __ movzx_b(esi, FieldOperand(eax, Map::kUnusedPropertyFieldsOffset));
-          __ neg(esi);
-          __ lea(esi, Operand(edi, esi, times_pointer_size, 0));
-          // esi: offset of first field after pre-allocated fields
-          if (FLAG_debug_code) {
-            __ cmp(ecx, esi);
-            __ Assert(less_equal,
-                      kUnexpectedNumberOfPreAllocatedPropertyFields);
-          }
-          __ InitializeFieldsWithFiller(ecx, esi, edx);
-
-          // To allow truncation fill the remaining fields with one pointer
-          // filler map.
-          __ mov(edx, factory->one_pointer_filler_map());
-          __ InitializeFieldsWithFiller(ecx, edi, edx);
-
-          __ pop(esi);  // Restore allocation count value before decreasing.
-          __ cmp(esi, Map::kSlackTrackingCounterEnd);
-          __ j(not_equal, &allocated);
-
-          // Push the object to the stack, and then the initial map as
-          // an argument to the runtime call.
-          __ push(ebx);
-          __ push(eax);  // initial map
-          __ CallRuntime(Runtime::kFinalizeInstanceSize);
-          __ pop(ebx);
-
-          // Continue with JSObject being successfully allocated
-          // ebx: JSObject (tagged)
-          __ jmp(&allocated);
-
-          __ bind(&no_inobject_slack_tracking);
-        }
-
-        __ InitializeFieldsWithFiller(ecx, edi, edx);
-
-        // Continue with JSObject being successfully allocated
-        // ebx: JSObject (tagged)
-        __ jmp(&allocated);
-      }
-
-      // Allocate the new receiver object using the runtime call.
-      // edx: new target
-      __ bind(&rt_call);
-      int offset = kPointerSize;
-
-      // Must restore esi (context) and edi (constructor) before calling
-      // runtime.
-      __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
-      __ mov(edi, Operand(esp, offset));
-      __ push(edi);  // constructor function
-      __ push(edx);  // new target
-      __ CallRuntime(Runtime::kNewObject);
-      __ mov(ebx, eax);  // store result in ebx
-
-      // New object allocated.
-      // ebx: newly allocated object
-      __ bind(&allocated);
-
-      // Restore the parameters.
-      __ pop(edx);  // new.target
-      __ pop(edi);  // Constructor function.
+      // ----------- S t a t e -------------
+      //  -- edi: constructor function
+      //  -- ebx: newly allocated object
+      //  -- edx: new target
+      // -----------------------------------
 
       // Retrieve smi-tagged arguments count from the stack.
       __ mov(eax, Operand(esp, 0));
@@ -1630,9 +1502,8 @@ void Builtins::Generate_NumberConstructor_ConstructStub(MacroAssembler* masm) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     __ Push(ebx);  // the first argument
-    __ Push(edi);  // constructor function
-    __ Push(edx);  // new target
-    __ CallRuntime(Runtime::kNewObject);
+    FastNewObjectStub stub(masm->isolate());
+    __ CallStub(&stub);
     __ Pop(FieldOperand(eax, JSValue::kValueOffset));
   }
   __ Ret();
@@ -1764,9 +1635,8 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     __ Push(ebx);  // the first argument
-    __ Push(edi);  // constructor function
-    __ Push(edx);  // new target
-    __ CallRuntime(Runtime::kNewObject);
+    FastNewObjectStub stub(masm->isolate());
+    __ CallStub(&stub);
     __ Pop(FieldOperand(eax, JSValue::kValueOffset));
   }
   __ Ret();

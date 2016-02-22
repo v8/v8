@@ -4401,6 +4401,142 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
   GenerateCase(masm, FAST_ELEMENTS);
 }
 
+void FastNewObjectStub::Generate(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- edi    : target
+  //  -- edx    : new target
+  //  -- esi    : context
+  //  -- esp[0] : return address
+  // -----------------------------------
+  __ AssertFunction(edi);
+  __ AssertReceiver(edx);
+
+  // Verify that the new target is a JSFunction.
+  Label new_object;
+  __ CmpObjectType(edx, JS_FUNCTION_TYPE, ebx);
+  __ j(not_equal, &new_object);
+
+  // Load the initial map and verify that it's in fact a map.
+  __ mov(ecx, FieldOperand(edx, JSFunction::kPrototypeOrInitialMapOffset));
+  __ JumpIfSmi(ecx, &new_object);
+  __ CmpObjectType(ecx, MAP_TYPE, ebx);
+  __ j(not_equal, &new_object);
+
+  // Fall back to runtime if the target differs from the new target's
+  // initial map constructor.
+  __ cmp(edi, FieldOperand(ecx, Map::kConstructorOrBackPointerOffset));
+  __ j(not_equal, &new_object);
+
+  // Allocate the JSObject on the heap.
+  Label allocate, done_allocate;
+  __ movzx_b(ebx, FieldOperand(ecx, Map::kInstanceSizeOffset));
+  __ lea(ebx, Operand(ebx, times_pointer_size, 0));
+  __ Allocate(ebx, eax, edi, no_reg, &allocate, NO_ALLOCATION_FLAGS);
+  __ bind(&done_allocate);
+
+  // Initialize the JSObject fields.
+  __ mov(Operand(eax, JSObject::kMapOffset), ecx);
+  __ mov(Operand(eax, JSObject::kPropertiesOffset),
+         masm->isolate()->factory()->empty_fixed_array());
+  __ mov(Operand(eax, JSObject::kElementsOffset),
+         masm->isolate()->factory()->empty_fixed_array());
+  STATIC_ASSERT(JSObject::kHeaderSize == 3 * kPointerSize);
+  __ lea(ebx, Operand(eax, JSObject::kHeaderSize));
+
+  // ----------- S t a t e -------------
+  //  -- eax    : result (untagged)
+  //  -- ebx    : result fields (untagged)
+  //  -- edi    : result end (untagged)
+  //  -- ecx    : initial map
+  //  -- esi    : context
+  //  -- esp[0] : return address
+  // -----------------------------------
+
+  // Perform in-object slack tracking if requested.
+  Label slack_tracking;
+  STATIC_ASSERT(Map::kNoSlackTracking == 0);
+  __ test(FieldOperand(ecx, Map::kBitField3Offset),
+          Immediate(Map::ConstructionCounter::kMask));
+  __ j(not_zero, &slack_tracking, Label::kNear);
+  {
+    // Initialize all in-object fields with undefined.
+    __ LoadRoot(edx, Heap::kUndefinedValueRootIndex);
+    __ InitializeFieldsWithFiller(ebx, edi, edx);
+
+    // Add the object tag to make the JSObject real.
+    STATIC_ASSERT(kHeapObjectTag == 1);
+    __ inc(eax);
+    __ Ret();
+  }
+  __ bind(&slack_tracking);
+  {
+    // Decrease generous allocation count.
+    STATIC_ASSERT(Map::ConstructionCounter::kNext == 32);
+    __ sub(FieldOperand(ecx, Map::kBitField3Offset),
+           Immediate(1 << Map::ConstructionCounter::kShift));
+
+    // Initialize the in-object fields with undefined.
+    __ movzx_b(edx, FieldOperand(ecx, Map::kUnusedPropertyFieldsOffset));
+    __ neg(edx);
+    __ lea(edx, Operand(edi, edx, times_pointer_size, 0));
+    __ LoadRoot(edi, Heap::kUndefinedValueRootIndex);
+    __ InitializeFieldsWithFiller(ebx, edx, edi);
+
+    // Initialize the remaining (reserved) fields with one pointer filler map.
+    __ movzx_b(edx, FieldOperand(ecx, Map::kUnusedPropertyFieldsOffset));
+    __ lea(edx, Operand(ebx, edx, times_pointer_size, 0));
+    __ LoadRoot(edi, Heap::kOnePointerFillerMapRootIndex);
+    __ InitializeFieldsWithFiller(ebx, edx, edi);
+
+    // Add the object tag to make the JSObject real.
+    STATIC_ASSERT(kHeapObjectTag == 1);
+    __ inc(eax);
+
+    // Check if we can finalize the instance size.
+    Label finalize;
+    STATIC_ASSERT(Map::kSlackTrackingCounterEnd == 1);
+    __ test(FieldOperand(ecx, Map::kBitField3Offset),
+            Immediate(Map::ConstructionCounter::kMask));
+    __ j(zero, &finalize, Label::kNear);
+    __ Ret();
+
+    // Finalize the instance size.
+    __ bind(&finalize);
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ Push(eax);
+      __ Push(ecx);
+      __ CallRuntime(Runtime::kFinalizeInstanceSize);
+      __ Pop(eax);
+    }
+    __ Ret();
+  }
+
+  // Fall back to %AllocateInNewSpace.
+  __ bind(&allocate);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ SmiTag(ebx);
+    __ Push(ecx);
+    __ Push(ebx);
+    __ CallRuntime(Runtime::kAllocateInNewSpace);
+    __ Pop(ecx);
+  }
+  STATIC_ASSERT(kHeapObjectTag == 1);
+  __ dec(eax);
+  __ movzx_b(ebx, FieldOperand(ecx, Map::kInstanceSizeOffset));
+  __ lea(edi, Operand(eax, ebx, times_pointer_size, 0));
+  __ jmp(&done_allocate);
+
+  // Fall back to %NewObject.
+  __ bind(&new_object);
+  __ PopReturnAddressTo(ecx);
+  __ Push(edi);
+  __ Push(edx);
+  __ PushReturnAddressFrom(ecx);
+  __ TailCallRuntime(Runtime::kNewObject);
+}
+
 void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- edi    : function
