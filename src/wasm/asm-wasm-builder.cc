@@ -874,7 +874,6 @@ class AsmWasmBuilderImpl : public AstVisitor {
         (TypeOf(expr->left()) == kAstI32)) {
       return kAsIs;
     } else {
-      UNREACHABLE();
       return kNone;
     }
   }

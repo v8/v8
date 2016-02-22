@@ -1265,3 +1265,51 @@ TestForeignVariables();
   assertEquals(123, m.ifunc(456.7, 123));
   assertEquals(123.4, m.dfunc(456, 123.4));
 })();
+
+
+(function TestOr() {
+  function Module() {
+    "use asm";
+    function func() {
+      var x = 1;
+      var y = 2;
+      return (x | y) | 0;
+    }
+    return {func: func};
+  }
+
+  var m = _WASMEXP_.instantiateModuleFromAsm(Module.toString());
+  assertEquals(3, m.func());
+})();
+
+
+(function TestAnd() {
+  function Module() {
+    "use asm";
+    function func() {
+      var x = 3;
+      var y = 2;
+      return (x & y) | 0;
+    }
+    return {func: func};
+  }
+
+  var m = _WASMEXP_.instantiateModuleFromAsm(Module.toString());
+  assertEquals(2, m.func());
+})();
+
+
+(function TestXor() {
+  function Module() {
+    "use asm";
+    function func() {
+      var x = 3;
+      var y = 2;
+      return (x ^ y) | 0;
+    }
+    return {func: func};
+  }
+
+  var m = _WASMEXP_.instantiateModuleFromAsm(Module.toString());
+  assertEquals(1, m.func());
+})();
