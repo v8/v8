@@ -989,6 +989,46 @@ bool InstructionSelector::IsTailCallAddressImmediate() { return true; }
 
 namespace {
 
+void VisitCompareWithMemoryOperand(InstructionSelector* selector,
+                                   InstructionCode opcode, Node* left,
+                                   InstructionOperand right,
+                                   FlagsContinuation* cont) {
+  DCHECK(left->opcode() == IrOpcode::kLoad);
+  IA32OperandGenerator g(selector);
+  size_t input_count = 0;
+  InstructionOperand inputs[6];
+  AddressingMode addressing_mode =
+      g.GetEffectiveAddressMemoryOperand(left, inputs, &input_count);
+  opcode |= AddressingModeField::encode(addressing_mode);
+  opcode = cont->Encode(opcode);
+  inputs[input_count++] = right;
+
+  if (cont->IsBranch()) {
+    inputs[input_count++] = g.Label(cont->true_block());
+    inputs[input_count++] = g.Label(cont->false_block());
+    selector->Emit(opcode, 0, nullptr, input_count, inputs);
+  } else {
+    DCHECK(cont->IsSet());
+    InstructionOperand output = g.DefineAsRegister(cont->result());
+    selector->Emit(opcode, 1, &output, input_count, inputs);
+  }
+}
+
+// Determines if {input} of {node} can be replaced by a memory operand.
+bool CanUseMemoryOperand(InstructionSelector* selector, InstructionCode opcode,
+                         Node* node, Node* input) {
+  if (input->opcode() != IrOpcode::kLoad || !selector->CanCover(node, input)) {
+    return false;
+  }
+  MachineRepresentation load_representation =
+      LoadRepresentationOf(input->op()).representation();
+  if (load_representation == MachineRepresentation::kWord32 ||
+      load_representation == MachineRepresentation::kTagged) {
+    return opcode == kIA32Cmp || opcode == kIA32Test;
+  }
+  return false;
+}
+
 // Shared routine for multiple compare operations.
 void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
                   InstructionOperand left, InstructionOperand right,
@@ -1034,26 +1074,41 @@ void VisitFloat64Compare(InstructionSelector* selector, Node* node,
   VisitCompare(selector, kSSEFloat64Cmp, right, left, cont, false);
 }
 
-
 // Shared routine for multiple word compare operations.
 void VisitWordCompare(InstructionSelector* selector, Node* node,
                       InstructionCode opcode, FlagsContinuation* cont) {
   IA32OperandGenerator g(selector);
-  Node* const left = node->InputAt(0);
-  Node* const right = node->InputAt(1);
+  Node* left = node->InputAt(0);
+  Node* right = node->InputAt(1);
 
-  // Match immediates on left or right side of comparison.
-  if (g.CanBeImmediate(right)) {
-    VisitCompare(selector, opcode, g.Use(left), g.UseImmediate(right), cont);
-  } else if (g.CanBeImmediate(left)) {
+  // If one of the two inputs is an immediate, make sure it's on the right.
+  if (!g.CanBeImmediate(right) && g.CanBeImmediate(left)) {
     if (!node->op()->HasProperty(Operator::kCommutative)) cont->Commute();
-    VisitCompare(selector, opcode, g.Use(right), g.UseImmediate(left), cont);
-  } else {
-    VisitCompare(selector, opcode, left, right, cont,
-                 node->op()->HasProperty(Operator::kCommutative));
+    std::swap(left, right);
   }
-}
 
+  // Match immediates on right side of comparison.
+  if (g.CanBeImmediate(right)) {
+    if (CanUseMemoryOperand(selector, opcode, node, left)) {
+      return VisitCompareWithMemoryOperand(selector, opcode, left,
+                                           g.UseImmediate(right), cont);
+    }
+    return VisitCompare(selector, opcode, g.Use(left), g.UseImmediate(right),
+                        cont);
+  }
+
+  if (g.CanBeBetterLeftOperand(right)) {
+    if (!node->op()->HasProperty(Operator::kCommutative)) cont->Commute();
+    std::swap(left, right);
+  }
+
+  if (CanUseMemoryOperand(selector, opcode, node, left)) {
+    return VisitCompareWithMemoryOperand(selector, opcode, left,
+                                         g.UseRegister(right), cont);
+  }
+  return VisitCompare(selector, opcode, left, right, cont,
+                      node->op()->HasProperty(Operator::kCommutative));
+}
 
 void VisitWordCompare(InstructionSelector* selector, Node* node,
                       FlagsContinuation* cont) {

@@ -259,6 +259,32 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     }                                                          \
   } while (0)
 
+#define ASSEMBLE_COMPARE(asm_instr)                                   \
+  do {                                                                \
+    if (AddressingModeField::decode(instr->opcode()) != kMode_None) { \
+      size_t index = 0;                                               \
+      Operand left = i.MemoryOperand(&index);                         \
+      if (HasImmediateInput(instr, index)) {                          \
+        __ asm_instr(left, i.InputImmediate(index));                  \
+      } else {                                                        \
+        __ asm_instr(left, i.InputRegister(index));                   \
+      }                                                               \
+    } else {                                                          \
+      if (HasImmediateInput(instr, 1)) {                              \
+        if (instr->InputAt(0)->IsRegister()) {                        \
+          __ asm_instr(i.InputRegister(0), i.InputImmediate(1));      \
+        } else {                                                      \
+          __ asm_instr(i.InputOperand(0), i.InputImmediate(1));       \
+        }                                                             \
+      } else {                                                        \
+        if (instr->InputAt(1)->IsRegister()) {                        \
+          __ asm_instr(i.InputRegister(0), i.InputRegister(1));       \
+        } else {                                                      \
+          __ asm_instr(i.InputRegister(0), i.InputOperand(1));        \
+        }                                                             \
+      }                                                               \
+    }                                                                 \
+  } while (0)
 
 #define ASSEMBLE_MULT(asm_instr)                              \
   do {                                                        \
@@ -771,16 +797,16 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       ASSEMBLE_BINOP(andq);
       break;
     case kX64Cmp32:
-      ASSEMBLE_BINOP(cmpl);
+      ASSEMBLE_COMPARE(cmpl);
       break;
     case kX64Cmp:
-      ASSEMBLE_BINOP(cmpq);
+      ASSEMBLE_COMPARE(cmpq);
       break;
     case kX64Test32:
-      ASSEMBLE_BINOP(testl);
+      ASSEMBLE_COMPARE(testl);
       break;
     case kX64Test:
-      ASSEMBLE_BINOP(testq);
+      ASSEMBLE_COMPARE(testq);
       break;
     case kX64Imul32:
       ASSEMBLE_MULT(imull);

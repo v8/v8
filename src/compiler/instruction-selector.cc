@@ -34,6 +34,7 @@ InstructionSelector::InstructionSelector(
       instructions_(zone),
       defined_(node_count, false, zone),
       used_(node_count, false, zone),
+      effect_level_(node_count, 0, zone),
       virtual_registers_(node_count,
                          InstructionOperand::kInvalidVirtualRegister, zone),
       scheduler_(nullptr),
@@ -218,9 +219,10 @@ Instruction* InstructionSelector::Emit(Instruction* instr) {
 
 bool InstructionSelector::CanCover(Node* user, Node* node) const {
   return node->OwnedBy(user) &&
-         schedule()->block(node) == schedule()->block(user);
+         schedule()->block(node) == schedule()->block(user) &&
+         (node->op()->HasProperty(Operator::kPure) ||
+          GetEffectLevel(node) == GetEffectLevel(user));
 }
-
 
 int InstructionSelector::GetVirtualRegister(const Node* node) {
   DCHECK_NOT_NULL(node);
@@ -280,6 +282,19 @@ void InstructionSelector::MarkAsUsed(Node* node) {
   used_[id] = true;
 }
 
+int InstructionSelector::GetEffectLevel(Node* node) const {
+  DCHECK_NOT_NULL(node);
+  size_t const id = node->id();
+  DCHECK_LT(id, effect_level_.size());
+  return effect_level_[id];
+}
+
+void InstructionSelector::SetEffectLevel(Node* node, int effect_level) {
+  DCHECK_NOT_NULL(node);
+  size_t const id = node->id();
+  DCHECK_LT(id, effect_level_.size());
+  effect_level_[id] = effect_level;
+}
 
 void InstructionSelector::MarkAsRepresentation(MachineRepresentation rep,
                                                const InstructionOperand& op) {
@@ -668,6 +683,16 @@ void InstructionSelector::VisitBlock(BasicBlock* block) {
   DCHECK(!current_block_);
   current_block_ = block;
   int current_block_end = static_cast<int>(instructions_.size());
+
+  int effect_level = 0;
+  for (Node* const node : *block) {
+    if (node->opcode() == IrOpcode::kStore ||
+        node->opcode() == IrOpcode::kCheckedStore ||
+        node->opcode() == IrOpcode::kCall) {
+      ++effect_level;
+    }
+    SetEffectLevel(node, effect_level);
+  }
 
   // Generate code for the block control "top down", but schedule the code
   // "bottom up".

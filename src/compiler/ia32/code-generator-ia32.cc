@@ -527,17 +527,37 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       }
       break;
     case kIA32Cmp:
-      if (HasImmediateInput(instr, 1)) {
-        __ cmp(i.InputOperand(0), i.InputImmediate(1));
+      if (AddressingModeField::decode(instr->opcode()) != kMode_None) {
+        size_t index = 0;
+        Operand operand = i.MemoryOperand(&index);
+        if (HasImmediateInput(instr, index)) {
+          __ cmp(operand, i.InputImmediate(index));
+        } else {
+          __ cmp(operand, i.InputRegister(index));
+        }
       } else {
-        __ cmp(i.InputRegister(0), i.InputOperand(1));
+        if (HasImmediateInput(instr, 1)) {
+          __ cmp(i.InputOperand(0), i.InputImmediate(1));
+        } else {
+          __ cmp(i.InputRegister(0), i.InputOperand(1));
+        }
       }
       break;
     case kIA32Test:
-      if (HasImmediateInput(instr, 1)) {
-        __ test(i.InputOperand(0), i.InputImmediate(1));
+      if (AddressingModeField::decode(instr->opcode()) != kMode_None) {
+        size_t index = 0;
+        Operand operand = i.MemoryOperand(&index);
+        if (HasImmediateInput(instr, index)) {
+          __ test(operand, i.InputImmediate(index));
+        } else {
+          __ test(i.InputRegister(index), operand);
+        }
       } else {
-        __ test(i.InputRegister(0), i.InputOperand(1));
+        if (HasImmediateInput(instr, 1)) {
+          __ test(i.InputOperand(0), i.InputImmediate(1));
+        } else {
+          __ test(i.InputRegister(0), i.InputOperand(1));
+        }
       }
       break;
     case kIA32Imul:
