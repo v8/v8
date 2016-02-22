@@ -734,8 +734,7 @@
             'cflags': [ '-fPIC', ],
           }],
           [ 'coverage==1', {
-            'cflags!': [ '-O3', '-O2', '-O1', ],
-            'cflags': [ '-fprofile-arcs', '-ftest-coverage', '-O0'],
+            'cflags': [ '-fprofile-arcs', '-ftest-coverage'],
             'ldflags': [ '-fprofile-arcs'],
           }],
         ],
