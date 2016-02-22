@@ -15182,6 +15182,12 @@ void BytecodeArray::Disassemble(std::ostream& os) {
 #endif
 }
 
+void BytecodeArray::CopyBytecodesTo(BytecodeArray* to) {
+  BytecodeArray* from = this;
+  DCHECK_EQ(from->length(), to->length());
+  CopyBytes(to->GetFirstBytecodeAddress(), from->GetFirstBytecodeAddress(),
+            from->length());
+}
 
 // static
 void JSArray::Initialize(Handle<JSArray> array, int capacity, int length) {

@@ -60,6 +60,21 @@ namespace interpreter {
   NON_REGISTER_OPERAND_TYPE_LIST(V) \
   REGISTER_OPERAND_TYPE_LIST(V)
 
+// Define one debug break bytecode for each operands size.
+#define DEBUG_BREAK_BYTECODE_LIST(V)                                           \
+  V(DebugBreak0, OperandType::kNone)                                           \
+  V(DebugBreak1, OperandType::kReg8)                                           \
+  V(DebugBreak2, OperandType::kReg16)                                          \
+  V(DebugBreak3, OperandType::kReg16, OperandType::kReg8)                      \
+  V(DebugBreak4, OperandType::kReg16, OperandType::kReg16)                     \
+  V(DebugBreak5, OperandType::kReg16, OperandType::kReg16, OperandType::kReg8) \
+  V(DebugBreak6, OperandType::kReg16, OperandType::kReg16,                     \
+    OperandType::kReg16)                                                       \
+  V(DebugBreak7, OperandType::kReg16, OperandType::kReg16,                     \
+    OperandType::kReg16, OperandType::kReg8)                                   \
+  V(DebugBreak8, OperandType::kReg16, OperandType::kReg16,                     \
+    OperandType::kReg16, OperandType::kReg16)
+
 // The list of bytecodes which are interpreted by the interpreter.
 #define BYTECODE_LIST(V)                                                       \
                                                                                \
@@ -264,7 +279,8 @@ namespace interpreter {
   V(Return, OperandType::kNone)                                                \
                                                                                \
   /* Debugger */                                                               \
-  V(Debugger, OperandType::kNone)
+  V(Debugger, OperandType::kNone)                                              \
+  DEBUG_BREAK_BYTECODE_LIST(V)
 
 // Enumeration of the size classes of operand types used by bytecodes.
 enum class OperandSize : uint8_t {
@@ -415,6 +431,9 @@ class Bytecodes {
   // |bytecode|.
   static int GetRegisterOperandBitmap(Bytecode bytecode);
 
+  // Returns a debug break bytecode with a matching operand size.
+  static Bytecode GetDebugBreak(Bytecode bytecode);
+
   // Returns the size of the bytecode including its operands.
   static int Size(Bytecode bytecode);
 
@@ -458,6 +477,9 @@ class Bytecodes {
 
   // Returns true if the bytecode is a call or a constructor call.
   static bool IsCallOrNew(Bytecode bytecode);
+
+  // Returns true if the bytecode is a debug break.
+  static bool IsDebugBreak(Bytecode bytecode);
 
   // Returns true if |operand_type| is a register index operand (kIdx8/kIdx16).
   static bool IsIndexOperandType(OperandType operand_type);

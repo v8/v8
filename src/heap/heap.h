@@ -1790,6 +1790,9 @@ class Heap {
 
   MUST_USE_RESULT AllocationResult CopyCode(Code* code);
 
+  MUST_USE_RESULT AllocationResult
+  CopyBytecodeArray(BytecodeArray* bytecode_array);
+
   // Allocates a fixed array initialized with undefined values
   MUST_USE_RESULT AllocationResult
   AllocateFixedArray(int length, PretenureFlag pretenure = NOT_TENURED);

@@ -897,7 +897,7 @@ void BytecodeGenerator::VisitBreakStatement(BreakStatement* stmt) {
 
 void BytecodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
   VisitForAccumulatorValue(stmt->expression());
-  builder()->SetReturnPosition(info_->literal());
+  builder()->SetStatementPosition(stmt);
   execution_control()->ReturnAccumulator();
 }
 

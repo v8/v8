@@ -442,9 +442,6 @@ void InterpreterAssembler::Dispatch() {
 }
 
 void InterpreterAssembler::DispatchTo(Node* new_bytecode_offset) {
-  if (FLAG_trace_ignition) {
-    TraceBytecode(Runtime::kInterpreterTraceBytecodeExit);
-  }
   Node* target_bytecode = Load(
       MachineType::Uint8(), BytecodeArrayTaggedPointer(), new_bytecode_offset);
 
@@ -454,18 +451,23 @@ void InterpreterAssembler::DispatchTo(Node* new_bytecode_offset) {
       Load(MachineType::Pointer(), DispatchTableRawPointer(),
            Word32Shl(target_bytecode, Int32Constant(kPointerSizeLog2)));
 
-  InterpreterDispatchDescriptor descriptor(isolate());
-  Node* args[] = {GetAccumulator(),          RegisterFileRawPointer(),
-                  new_bytecode_offset,       BytecodeArrayTaggedPointer(),
-                  DispatchTableRawPointer(), GetContext()};
-  TailCall(descriptor, target_code_object, args, 0);
+  DispatchToBytecodeHandler(target_code_object, new_bytecode_offset);
 }
 
-void InterpreterAssembler::InterpreterReturn() {
+void InterpreterAssembler::DispatchToBytecodeHandler(Node* handler,
+                                                     Node* bytecode_offset) {
   if (FLAG_trace_ignition) {
     TraceBytecode(Runtime::kInterpreterTraceBytecodeExit);
   }
 
+  InterpreterDispatchDescriptor descriptor(isolate());
+  Node* args[] = {GetAccumulator(),          RegisterFileRawPointer(),
+                  bytecode_offset,           BytecodeArrayTaggedPointer(),
+                  DispatchTableRawPointer(), GetContext()};
+  TailCall(descriptor, handler, args, 0);
+}
+
+void InterpreterAssembler::InterpreterReturn() {
   // TODO(rmcilroy): Investigate whether it is worth supporting self
   // optimization of primitive functions like FullCodegen.
 
@@ -476,13 +478,9 @@ void InterpreterAssembler::InterpreterReturn() {
                BytecodeOffset());
   UpdateInterruptBudget(profiling_weight);
 
-  InterpreterDispatchDescriptor descriptor(isolate());
   Node* exit_trampoline_code_object =
       HeapConstant(isolate()->builtins()->InterpreterExitTrampoline());
-  Node* args[] = {GetAccumulator(),          RegisterFileRawPointer(),
-                  BytecodeOffset(),          BytecodeArrayTaggedPointer(),
-                  DispatchTableRawPointer(), GetContext()};
-  TailCall(descriptor, exit_trampoline_code_object, args, 0);
+  DispatchToBytecodeHandler(exit_trampoline_code_object);
 }
 
 void InterpreterAssembler::StackCheck() {

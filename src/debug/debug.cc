@@ -17,6 +17,7 @@
 #include "src/full-codegen/full-codegen.h"
 #include "src/global-handles.h"
 #include "src/interpreter/bytecodes.h"
+#include "src/interpreter/interpreter.h"
 #include "src/isolate-inl.h"
 #include "src/list.h"
 #include "src/log.h"
@@ -193,10 +194,12 @@ void BreakLocation::BytecodeArrayIterator::Next() {
     DCHECK(statement_position_ >= 0);
     break_index_++;
 
+    enum DebugBreakType type = GetDebugBreakType();
+    if (type == NOT_DEBUG_BREAK) continue;
+
     if (break_locator_type_ == ALL_BREAK_LOCATIONS) break;
 
     DCHECK_EQ(CALLS_AND_RETURNS, break_locator_type_);
-    enum DebugBreakType type = GetDebugBreakType();
     if (type == DEBUG_BREAK_SLOT_AT_CALL ||
         type == DEBUG_BREAK_SLOT_AT_RETURN) {
       break;
@@ -206,10 +209,9 @@ void BreakLocation::BytecodeArrayIterator::Next() {
 
 BreakLocation::DebugBreakType
 BreakLocation::BytecodeArrayIterator::GetDebugBreakType() {
-  BytecodeArray* bytecode_array =
-      debug_info_->abstract_code()->GetBytecodeArray();
+  BytecodeArray* bytecode_array = debug_info_->original_bytecode_array();
   interpreter::Bytecode bytecode =
-      static_cast<interpreter::Bytecode>(bytecode_array->get(code_offset()));
+      interpreter::Bytecodes::FromByte(bytecode_array->get(code_offset()));
 
   if (bytecode == interpreter::Bytecode::kDebugger) {
     return DEBUGGER_STATEMENT;
@@ -238,20 +240,25 @@ BreakLocation BreakLocation::FromCodeOffset(Handle<DebugInfo> debug_info,
   return it->GetBreakLocation();
 }
 
-// Move GetFirstFrameSummary Definition to here as FromFrame use it.
 FrameSummary GetFirstFrameSummary(JavaScriptFrame* frame) {
   List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
   frame->Summarize(&frames);
   return frames.first();
 }
 
+int CallOffsetFromCodeOffset(int code_offset, bool is_interpreted) {
+  // Code offset points to the instruction after the call. Subtract 1 to
+  // exclude that instruction from the search. For bytecode, the code offset
+  // still points to the call.
+  return is_interpreted ? code_offset : code_offset - 1;
+}
+
 BreakLocation BreakLocation::FromFrame(Handle<DebugInfo> debug_info,
                                        JavaScriptFrame* frame) {
-  // Code offset to the instruction after the current one, possibly a break
-  // location as well. So the "- 1" to exclude it from the search.
-  // Get code offset from the unoptimized code.
   FrameSummary summary = GetFirstFrameSummary(frame);
-  return FromCodeOffset(debug_info, summary.code_offset() - 1);
+  int call_offset =
+      CallOffsetFromCodeOffset(summary.code_offset(), frame->is_interpreted());
+  return FromCodeOffset(debug_info, call_offset);
 }
 
 // Find the break point at the supplied address, or the closest one before
@@ -400,10 +407,16 @@ void BreakLocation::SetDebugBreak() {
                                      : builtins->Slot_DebugBreak();
     Address pc = code->instruction_start() + code_offset();
     DebugCodegen::PatchDebugBreakSlot(isolate(), pc, target);
-    DCHECK(IsDebugBreak());
   } else {
-    // TODO(yangguo): implement this once we have a way to record break points.
+    BytecodeArray* bytecode_array = abstract_code()->GetBytecodeArray();
+    interpreter::Bytecode bytecode =
+        interpreter::Bytecodes::FromByte(bytecode_array->get(code_offset()));
+    interpreter::Bytecode debugbreak =
+        interpreter::Bytecodes::GetDebugBreak(bytecode);
+    bytecode_array->set(code_offset(),
+                        interpreter::Bytecodes::ToByte(debugbreak));
   }
+  DCHECK(IsDebugBreak());
 }
 
 
@@ -417,10 +430,12 @@ void BreakLocation::ClearDebugBreak() {
     DCHECK(code->kind() == Code::FUNCTION);
     Address pc = code->instruction_start() + code_offset();
     DebugCodegen::ClearDebugBreakSlot(isolate(), pc);
-    DCHECK(!IsDebugBreak());
   } else {
-    // TODO(yangguo): implement this once we have a way to record break points.
+    BytecodeArray* bytecode_array = abstract_code()->GetBytecodeArray();
+    BytecodeArray* original = debug_info_->original_bytecode_array();
+    bytecode_array->set(code_offset(), original->get(code_offset()));
   }
+  DCHECK(!IsDebugBreak());
 }
 
 
@@ -433,8 +448,10 @@ bool BreakLocation::IsDebugBreak() const {
     Address pc = code->instruction_start() + code_offset();
     return DebugCodegen::DebugBreakSlotIsPatched(pc);
   } else {
-    // TODO(yangguo): implement this once we have a way to record break points.
-    return false;
+    BytecodeArray* bytecode_array = abstract_code()->GetBytecodeArray();
+    interpreter::Bytecode bytecode =
+        interpreter::Bytecodes::FromByte(bytecode_array->get(code_offset()));
+    return interpreter::Bytecodes::IsDebugBreak(bytecode);
   }
 }
 
@@ -999,10 +1016,10 @@ void Debug::PrepareStep(StepAction step_action) {
     summary = GetFirstFrameSummary(frame);
   }
 
-  // PC points to the instruction after the current one, possibly a break
-  // location as well. So the "- 1" to exclude it from the search.
+  int call_offset =
+      CallOffsetFromCodeOffset(summary.code_offset(), frame->is_interpreted());
   BreakLocation location =
-      BreakLocation::FromCodeOffset(debug_info, summary.code_offset() - 1);
+      BreakLocation::FromCodeOffset(debug_info, call_offset);
 
   // At a return statement we will step out either way.
   if (location.IsReturn()) step_action = StepOut;
@@ -1523,7 +1540,7 @@ void Debug::RemoveDebugInfoAndClearFromShared(Handle<DebugInfo> debug_info) {
         prev->set_next(current->next());
       }
       delete current;
-      shared->set_debug_info(isolate_->heap()->undefined_value());
+      shared->set_debug_info(DebugInfo::uninitialized());
       return;
     }
     // Move to next in list.
@@ -1534,14 +1551,25 @@ void Debug::RemoveDebugInfoAndClearFromShared(Handle<DebugInfo> debug_info) {
   UNREACHABLE();
 }
 
-
-void Debug::SetAfterBreakTarget(JavaScriptFrame* frame) {
-  after_break_target_ = NULL;
-
-  if (LiveEdit::SetAfterBreakTarget(this)) return;  // LiveEdit did the job.
-
-  // Continue just after the slot.
-  after_break_target_ = frame->pc();
+Object* Debug::SetAfterBreakTarget(JavaScriptFrame* frame) {
+  if (frame->is_interpreted()) {
+    // Find the handler from the original bytecode array.
+    InterpretedFrame* interpreted_frame =
+        reinterpret_cast<InterpretedFrame*>(frame);
+    SharedFunctionInfo* shared = interpreted_frame->function()->shared();
+    BytecodeArray* bytecode_array = shared->bytecode_array();
+    int bytecode_offset = interpreted_frame->GetBytecodeOffset();
+    interpreter::Bytecode bytecode =
+        interpreter::Bytecodes::FromByte(bytecode_array->get(bytecode_offset));
+    return isolate_->interpreter()->GetBytecodeHandler(bytecode);
+  } else {
+    after_break_target_ = NULL;
+    if (!LiveEdit::SetAfterBreakTarget(this)) {
+      // Continue just after the slot.
+      after_break_target_ = frame->pc();
+    }
+    return isolate_->heap()->undefined_value();
+  }
 }
 
 
@@ -1623,10 +1651,8 @@ void Debug::GetStepinPositions(JavaScriptFrame* frame, StackFrame::Id frame_id,
     summary = GetFirstFrameSummary(frame);
   }
 
-  // Find range of break points starting from the break point where execution
-  // has stopped. The code offset points to the instruction after the current
-  // possibly a break location, too. Subtract one to exclude it from the search.
-  int call_offset = summary.code_offset() - 1;
+  int call_offset =
+      CallOffsetFromCodeOffset(summary.code_offset(), frame->is_interpreted());
   List<BreakLocation> locations;
   BreakLocation::FromCodeOffsetSameStatement(debug_info, call_offset,
                                              &locations);

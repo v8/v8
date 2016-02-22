@@ -155,6 +155,18 @@ TEST(Bytecodes, RegisterOperands) {
 #undef IS_NOT_REGISTER_INPUT_OPERAND_TYPE
 }
 
+TEST(Bytecodes, DebugBreak) {
+  for (uint32_t i = 0; i < Bytecodes::ToByte(Bytecode::kLast); i++) {
+    Bytecode bytecode = Bytecodes::FromByte(i);
+    Bytecode debugbreak = Bytecodes::GetDebugBreak(bytecode);
+    if (!Bytecodes::IsDebugBreak(debugbreak)) {
+      PrintF("Bytecode %s has no matching debug break with length %d\n",
+             Bytecodes::ToString(bytecode), Bytecodes::Size(bytecode));
+      CHECK(false);
+    }
+  }
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

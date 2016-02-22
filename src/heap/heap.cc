@@ -3358,6 +3358,25 @@ AllocationResult Heap::CopyCode(Code* code) {
   return new_code;
 }
 
+AllocationResult Heap::CopyBytecodeArray(BytecodeArray* bytecode_array) {
+  int size = BytecodeArray::SizeFor(bytecode_array->length());
+  HeapObject* result = nullptr;
+  {
+    AllocationResult allocation = AllocateRaw(size, OLD_SPACE);
+    if (!allocation.To(&result)) return allocation;
+  }
+
+  result->set_map_no_write_barrier(bytecode_array_map());
+  BytecodeArray* copy = BytecodeArray::cast(result);
+  copy->set_length(bytecode_array->length());
+  copy->set_frame_size(bytecode_array->frame_size());
+  copy->set_parameter_count(bytecode_array->parameter_count());
+  copy->set_constant_pool(bytecode_array->constant_pool());
+  copy->set_handler_table(bytecode_array->handler_table());
+  copy->set_source_position_table(bytecode_array->source_position_table());
+  bytecode_array->CopyBytecodesTo(copy);
+  return copy;
+}
 
 AllocationResult Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
   // Allocate ByteArray before the Code object, so that we do not risk

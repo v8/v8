@@ -7,7 +7,6 @@
 
 #include <iosfwd>
 
-#include "src/allocation.h"
 #include "src/assert-scope.h"
 #include "src/bailout-reason.h"
 #include "src/base/bits.h"
@@ -4479,6 +4478,8 @@ class BytecodeArray : public FixedArrayBase {
   DECLARE_VERIFIER(BytecodeArray)
 
   void Disassemble(std::ostream& os);
+
+  void CopyBytecodesTo(BytecodeArray* to);
 
   // Layout description.
   static const int kConstantPoolOffset = FixedArrayBase::kHeaderSize;
@@ -10649,6 +10650,10 @@ class DebugInfo: public Struct {
                                            Handle<Object> break_point_object);
   // Get the number of break points for this function.
   int GetBreakPointCount();
+
+  static Smi* uninitialized() { return Smi::FromInt(0); }
+
+  inline BytecodeArray* original_bytecode_array();
 
   DECLARE_CAST(DebugInfo)
 

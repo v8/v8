@@ -132,6 +132,13 @@ class InterpreterAssembler : public compiler::CodeStubAssembler {
   // Dispatch to the bytecode.
   void Dispatch();
 
+  // Dispatch to bytecode handler.
+  void DispatchToBytecodeHandler(compiler::Node* handler,
+                                 compiler::Node* bytecode_offset);
+  void DispatchToBytecodeHandler(compiler::Node* handler) {
+    DispatchToBytecodeHandler(handler, BytecodeOffset());
+  }
+
   // Abort with the given bailout reason.
   void Abort(BailoutReason bailout_reason);
 

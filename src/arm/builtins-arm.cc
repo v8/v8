@@ -861,8 +861,15 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // Get the bytecode array from the function object and load the pointer to the
   // first entry into kInterpreterBytecodeRegister.
   __ ldr(r0, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
+  Register debug_info = kInterpreterBytecodeArrayRegister;
+  DCHECK(!debug_info.is(r0));
+  __ ldr(debug_info, FieldMemOperand(r0, SharedFunctionInfo::kDebugInfoOffset));
+  __ cmp(debug_info, Operand(DebugInfo::uninitialized()));
+  // Load original bytecode array or the debug copy.
   __ ldr(kInterpreterBytecodeArrayRegister,
-         FieldMemOperand(r0, SharedFunctionInfo::kFunctionDataOffset));
+         FieldMemOperand(r0, SharedFunctionInfo::kFunctionDataOffset), eq);
+  __ ldr(kInterpreterBytecodeArrayRegister,
+         FieldMemOperand(debug_info, DebugInfo::kAbstractCodeIndex), ne);
 
   if (FLAG_debug_code) {
     // Check function data field is actually a BytecodeArray object.

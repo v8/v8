@@ -549,6 +549,8 @@ class Factory final {
 
   Handle<Code> CopyCode(Handle<Code> code, Vector<byte> reloc_info);
 
+  Handle<BytecodeArray> CopyBytecodeArray(Handle<BytecodeArray>);
+
   // Interface for creating error objects.
   Handle<Object> NewError(Handle<JSFunction> constructor,
                           Handle<String> message);

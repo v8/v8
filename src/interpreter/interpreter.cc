@@ -37,16 +37,21 @@ void Interpreter::Initialize() {
     Do##Name(&assembler);                                               \
     Handle<Code> code = assembler.GenerateCode();                       \
     TraceCodegen(code, #Name);                                          \
-    int index = static_cast<int>(Bytecode::k##Name);                    \
-    dispatch_table_[index] = *code;                                     \
+    dispatch_table_[Bytecodes::ToByte(Bytecode::k##Name)] = *code;      \
   }
   BYTECODE_LIST(GENERATE_CODE)
 #undef GENERATE_CODE
 }
 
+Code* Interpreter::GetBytecodeHandler(Bytecode bytecode) {
+  DCHECK(IsDispatchTableInitialized());
+  return dispatch_table_[Bytecodes::ToByte(bytecode)];
+}
+
 void Interpreter::IterateDispatchTable(ObjectVisitor* v) {
-  v->VisitPointers(&dispatch_table_[0],
-                   &dispatch_table_[0] + kDispatchTableSize);
+  v->VisitPointers(
+      reinterpret_cast<Object**>(&dispatch_table_[0]),
+      reinterpret_cast<Object**>(&dispatch_table_[0] + kDispatchTableSize));
 }
 
 // static
@@ -1728,6 +1733,18 @@ void Interpreter::DoDebugger(InterpreterAssembler* assembler) {
   __ CallRuntime(Runtime::kHandleDebuggerStatement, context);
   __ Dispatch();
 }
+
+// DebugBreak
+//
+// Call runtime to handle a debug break.
+#define DEBUG_BREAK(Name, ...)                                              \
+  void Interpreter::Do##Name(InterpreterAssembler* assembler) {             \
+    Node* context = __ GetContext();                                        \
+    Node* original_handler = __ CallRuntime(Runtime::kDebugBreak, context); \
+    __ DispatchToBytecodeHandler(original_handler);                         \
+  }
+DEBUG_BREAK_BYTECODE_LIST(DEBUG_BREAK);
+#undef DEBUG_BREAK
 
 // ForInPrepare <cache_info_triple>
 //

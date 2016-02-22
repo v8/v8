@@ -22,8 +22,7 @@ RUNTIME_FUNCTION(Runtime_DebugBreak) {
   // Get the top-most JavaScript frame.
   JavaScriptFrameIterator it(isolate);
   isolate->debug()->Break(args, it.frame());
-  isolate->debug()->SetAfterBreakTarget(it.frame());
-  return isolate->heap()->undefined_value();
+  return isolate->debug()->SetAfterBreakTarget(it.frame());
 }
 
 

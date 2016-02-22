@@ -297,9 +297,11 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   CHECK_EQ(final_bytecode, Bytecode::kReturn);
   CHECK_EQ(scorecard[Bytecodes::ToByte(final_bytecode)], 1);
 
-#define CHECK_BYTECODE_PRESENT(Name, ...)     \
-  /* Check Bytecode is marked in scorecard */ \
-  CHECK_GE(scorecard[Bytecodes::ToByte(Bytecode::k##Name)], 1);
+#define CHECK_BYTECODE_PRESENT(Name, ...)                                \
+  /* Check Bytecode is marked in scorecard, unless it's a debug break */ \
+  if (!Bytecodes::IsDebugBreak(Bytecode::k##Name)) {                     \
+    CHECK_GE(scorecard[Bytecodes::ToByte(Bytecode::k##Name)], 1);        \
+  }
   BYTECODE_LIST(CHECK_BYTECODE_PRESENT)
 #undef CHECK_BYTECODE_PRESENT
 }

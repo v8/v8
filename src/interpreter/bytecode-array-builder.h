@@ -257,7 +257,6 @@ class BytecodeArrayBuilder final : public ZoneObject, private RegisterMover {
   // entry, so that it can be referenced by above exception handling support.
   int NewHandlerEntry() { return handler_table_builder()->NewHandlerEntry(); }
 
-  void SetReturnPosition(FunctionLiteral* fun);
   void SetStatementPosition(Statement* stmt);
   void SetExpressionPosition(Expression* expr);
 
@@ -334,6 +333,9 @@ class BytecodeArrayBuilder final : public ZoneObject, private RegisterMover {
   bool LastBytecodeInSameBlock() const;
   bool NeedToBooleanCast();
   bool IsRegisterInAccumulator(Register reg);
+
+  // Set position for implicit return.
+  void SetReturnPosition(FunctionLiteral* fun);
 
   // Gets a constant pool entry for the |object|.
   size_t GetConstantPoolEntry(Handle<Object> object);

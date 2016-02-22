@@ -778,15 +778,10 @@
   # DCHECK(IsDebugBreak() || IsDebuggerStatement());
   'regress/regress-1523': [FAIL],
   'regress/regress-102153': [FAIL],
-  'regress/regress-1586': [FAIL],
   'regress/regress-2825': [FAIL],
-  'regress/regress-3960': [FAIL],
   'regress/regress-crbug-119800': [FAIL],
   'regress/regress-crbug-467180': [FAIL],
-  'regress/regress-998565': [FAIL],
-  'regress/regress-crbug-432493': [FAIL],
   'regress/regress-opt-after-debug-deopt': [FAIL],
-  'regress/regress-crbug-481896': [FAIL],
 
   # TODO(rmcilroy,4681): Requires support for generators.
   'messages': [FAIL],
@@ -859,12 +854,10 @@
   'regress/regress-4266': [FAIL],
   'harmony/simd': [FAIL],
   'regress/regress-crbug-109362': [FAIL],
-  'regress/regress-131994': [FAIL],
   'regress/regress-crbug-568477-2': [FAIL],
   'regress/regress-crbug-568477-3': [FAIL],
   'regress/regress-crbug-568477-1': [FAIL],
   'regress/regress-2318': [FAIL],
-  'regress/regress-crbug-582051': [FAIL],
 
   # TODO(rmcilroy, 4680): new ES6 instanceof support
   'harmony/instanceof-es6': [SKIP],
@@ -878,20 +871,6 @@
   'regress/regress-1853': [SKIP],
   'regress/regress-crbug-424142': [SKIP],
 }],  # ignition == True
-
-['ignition == True and (mode == debug or dcheck_always_on == True)', {
-  # TODO(yangguo,4690): Check failure in debug.cc BreakLocation::SetBreakPoint
-  # DCHECK(IsDebugBreak() || IsDebuggerStatement());
-  'regress/regress-419663': [FAIL],
-  'regress/regress-4320': [FAIL],
-  'regress/regress-1639': [FAIL],
-  'regress/regress-94873': [FAIL],
-  'regress/regress-1639-2': [FAIL],
-  'regress/regress-crbug-387599': [FAIL],
-  'regress/regress-prepare-break-while-recompile': [FAIL],
-  'regress/regress-crbug-506443': [FAIL],
-  'regress/regress-crbug-507070': [FAIL],
-}], # ignition == True and mode == debug
 
 ['ignition == True and arch == arm64', {
   # TODO(rmcilroy,4680): Fails on Arm64 due to expecting to take less than 3

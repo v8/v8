@@ -431,7 +431,7 @@ class Debug {
   // Internal logic
   bool Load();
   void Break(Arguments args, JavaScriptFrame*);
-  void SetAfterBreakTarget(JavaScriptFrame* frame);
+  Object* SetAfterBreakTarget(JavaScriptFrame* frame);
 
   // Scripts handling.
   Handle<FixedArray> GetLoadedScripts();

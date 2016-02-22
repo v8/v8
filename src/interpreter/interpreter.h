@@ -39,6 +39,9 @@ class Interpreter {
   // Generate bytecode for |info|.
   static bool MakeBytecode(CompilationInfo* info);
 
+  // Return bytecode handler for |bytecode|.
+  Code* GetBytecodeHandler(Bytecode bytecode);
+
   // GC support.
   void IterateDispatchTable(ObjectVisitor* v);
 
@@ -124,7 +127,7 @@ class Interpreter {
   static const int kDispatchTableSize = static_cast<int>(Bytecode::kLast) + 1;
 
   Isolate* isolate_;
-  Object* dispatch_table_[kDispatchTableSize];
+  Code* dispatch_table_[kDispatchTableSize];
 
   DISALLOW_COPY_AND_ASSIGN(Interpreter);
 };
