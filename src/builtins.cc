@@ -881,49 +881,6 @@ uint32_t EstimateElementCount(Handle<JSArray> array) {
 }
 
 
-template <class ExternalArrayClass, class ElementType>
-bool IterateTypedArrayElements(Isolate* isolate, Handle<JSObject> receiver,
-                               bool elements_are_ints,
-                               bool elements_are_guaranteed_smis,
-                               ArrayConcatVisitor* visitor) {
-  Handle<ExternalArrayClass> array(
-      ExternalArrayClass::cast(receiver->elements()));
-  uint32_t len = static_cast<uint32_t>(array->length());
-
-  DCHECK(visitor != NULL);
-  if (elements_are_ints) {
-    if (elements_are_guaranteed_smis) {
-      for (uint32_t j = 0; j < len; j++) {
-        HandleScope loop_scope(isolate);
-        Handle<Smi> e(Smi::FromInt(static_cast<int>(array->get_scalar(j))),
-                      isolate);
-        if (!visitor->visit(j, e)) return false;
-      }
-    } else {
-      for (uint32_t j = 0; j < len; j++) {
-        HandleScope loop_scope(isolate);
-        int64_t val = static_cast<int64_t>(array->get_scalar(j));
-        if (Smi::IsValid(static_cast<intptr_t>(val))) {
-          Handle<Smi> e(Smi::FromInt(static_cast<int>(val)), isolate);
-          if (!visitor->visit(j, e)) return false;
-        } else {
-          Handle<Object> e =
-              isolate->factory()->NewNumber(static_cast<ElementType>(val));
-          if (!visitor->visit(j, e)) return false;
-        }
-      }
-    }
-  } else {
-    for (uint32_t j = 0; j < len; j++) {
-      HandleScope loop_scope(isolate);
-      Handle<Object> e = isolate->factory()->NewNumber(array->get_scalar(j));
-      if (!visitor->visit(j, e)) return false;
-    }
-  }
-  return true;
-}
-
-
 // Used for sorting indices in a List<uint32_t>.
 int compareUInt32(const uint32_t* ap, const uint32_t* bp) {
   uint32_t a = *ap;
@@ -1098,7 +1055,7 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
     }
   }
 
-  if (!(receiver->IsJSArray() || receiver->IsJSTypedArray())) {
+  if (!receiver->IsJSArray()) {
     // For classes which are not known to be safe to access via elements alone,
     // use the slow case.
     return IterateElementsSlow(isolate, receiver, length, visitor);
@@ -1172,6 +1129,7 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
       }
       break;
     }
+
     case DICTIONARY_ELEMENTS: {
       // CollectElementIndices() can't be called when there's a JSProxy
       // on the prototype chain.
@@ -1203,63 +1161,6 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
       }
       break;
     }
-    case UINT8_CLAMPED_ELEMENTS: {
-      Handle<FixedUint8ClampedArray> pixels(
-          FixedUint8ClampedArray::cast(array->elements()));
-      for (uint32_t j = 0; j < length; j++) {
-        Handle<Smi> e(Smi::FromInt(pixels->get_scalar(j)), isolate);
-        visitor->visit(j, e);
-      }
-      break;
-    }
-    case INT8_ELEMENTS: {
-      if (!IterateTypedArrayElements<FixedInt8Array, int8_t>(
-              isolate, array, true, true, visitor))
-        return false;
-      break;
-    }
-    case UINT8_ELEMENTS: {
-      if (!IterateTypedArrayElements<FixedUint8Array, uint8_t>(
-              isolate, array, true, true, visitor))
-        return false;
-      break;
-    }
-    case INT16_ELEMENTS: {
-      if (!IterateTypedArrayElements<FixedInt16Array, int16_t>(
-              isolate, array, true, true, visitor))
-        return false;
-      break;
-    }
-    case UINT16_ELEMENTS: {
-      if (!IterateTypedArrayElements<FixedUint16Array, uint16_t>(
-              isolate, array, true, true, visitor))
-        return false;
-      break;
-    }
-    case INT32_ELEMENTS: {
-      if (!IterateTypedArrayElements<FixedInt32Array, int32_t>(
-              isolate, array, true, false, visitor))
-        return false;
-      break;
-    }
-    case UINT32_ELEMENTS: {
-      if (!IterateTypedArrayElements<FixedUint32Array, uint32_t>(
-              isolate, array, true, false, visitor))
-        return false;
-      break;
-    }
-    case FLOAT32_ELEMENTS: {
-      if (!IterateTypedArrayElements<FixedFloat32Array, float>(
-              isolate, array, false, false, visitor))
-        return false;
-      break;
-    }
-    case FLOAT64_ELEMENTS: {
-      if (!IterateTypedArrayElements<FixedFloat64Array, double>(
-              isolate, array, false, false, visitor))
-        return false;
-      break;
-    }
     case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
     case SLOW_SLOPPY_ARGUMENTS_ELEMENTS: {
       for (uint32_t index = 0; index < length; index++) {
@@ -1273,6 +1174,9 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
     }
     case NO_ELEMENTS:
       break;
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) case TYPE##_ELEMENTS:
+      TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
     case FAST_STRING_WRAPPER_ELEMENTS:
     case SLOW_STRING_WRAPPER_ELEMENTS:
       // |array| is guaranteed to be an array or typed array.
