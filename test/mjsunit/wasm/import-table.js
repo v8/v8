@@ -334,3 +334,54 @@ function testCallPrint() {
 
 testCallPrint();
 testCallPrint();
+
+
+function testCallImport2(foo, bar, expected) {
+  var kBodySize = 5;
+  var kNameFooOffset = 37 + kBodySize + 1;
+  var kNameBarOffset = kNameFooOffset + 4;
+  var kNameMainOffset = kNameBarOffset + 4;
+
+  var ffi = new Object();
+  ffi.foo = foo;
+  ffi.bar = bar;
+
+  var data = bytes(
+    // signatures
+    kDeclSignatures, 1,
+    0, kAstI32,                  // void -> i32
+    // -- main function
+    kDeclFunctions,
+    1,
+    kDeclFunctionName | kDeclFunctionExport,
+    0, 0,
+    kNameMainOffset, 0, 0, 0,    // name offset
+    kBodySize, 0,
+    // main body
+    kExprI32Add,                 // --
+    kExprCallImport, 0,          // --
+    kExprCallImport, 1,          // --
+    // imports
+    kDeclImportTable,
+    2,
+    0, 0,                        // sig index
+    0, 0, 0, 0,                  // module name offset
+    kNameFooOffset, 0, 0, 0,     // function name offset
+    0, 0,                        // sig index
+    0, 0, 0, 0,                  // module name offset
+    kNameBarOffset, 0, 0, 0,     // function name offset
+    // names
+    kDeclEnd,
+    'f', 'o', 'o', 0,            // --
+    'b', 'a', 'r', 0,            // --
+    'm', 'a', 'i', 'n', 0        // --
+  );
+
+  var module = _WASMEXP_.instantiateModule(data, ffi);
+
+  assertEquals("function", typeof module.main);
+
+  assertEquals(expected, module.main());
+}
+
+testCallImport2(function() { return 33; }, function () { return 44; }, 77);

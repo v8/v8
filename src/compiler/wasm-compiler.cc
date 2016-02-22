@@ -1509,7 +1509,7 @@ Node* WasmGraphBuilder::CallImport(uint32_t index, Node** args) {
 
   // Add code object as constant.
   args[0] = Constant(module_->GetImportCode(index));
-  wasm::FunctionSig* sig = module_->GetFunctionSignature(index);
+  wasm::FunctionSig* sig = module_->GetImportSignature(index);
 
   return BuildWasmCall(sig, args);
 }
