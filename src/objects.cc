@@ -8680,15 +8680,9 @@ static Maybe<bool> GetKeys_Internal(Isolate* isolate,
         PrototypeIterator::GetCurrent<JSReceiver>(iter);
     Maybe<bool> result = Just(false);  // Dummy initialization.
     if (current->IsJSProxy()) {
-      if (type == OWN_ONLY) {
-        result = JSProxy::OwnPropertyKeys(isolate, receiver,
-                                          Handle<JSProxy>::cast(current),
-                                          filter, accumulator);
-      } else {
-        DCHECK(type == INCLUDE_PROTOS);
-        result = JSProxy::Enumerate(
-            isolate, receiver, Handle<JSProxy>::cast(current), accumulator);
-      }
+      result = JSProxy::OwnPropertyKeys(isolate, receiver,
+                                        Handle<JSProxy>::cast(current), filter,
+                                        accumulator);
     } else {
       DCHECK(current->IsJSObject());
       result = GetKeysFromJSObject(isolate, receiver,
@@ -8698,54 +8692,6 @@ static Maybe<bool> GetKeys_Internal(Isolate* isolate,
     MAYBE_RETURN(result, Nothing<bool>());
     if (!result.FromJust()) break;  // |false| means "stop iterating".
   }
-  return Just(true);
-}
-
-
-// ES6 9.5.11
-// Returns false in case of exception.
-// static
-Maybe<bool> JSProxy::Enumerate(Isolate* isolate, Handle<JSReceiver> receiver,
-                               Handle<JSProxy> proxy,
-                               KeyAccumulator* accumulator) {
-  STACK_CHECK(Nothing<bool>());
-  // 1. Let handler be the value of the [[ProxyHandler]] internal slot of O.
-  Handle<Object> handler(proxy->handler(), isolate);
-  // 2. If handler is null, throw a TypeError exception.
-  // 3. Assert: Type(handler) is Object.
-  if (proxy->IsRevoked()) {
-    isolate->Throw(*isolate->factory()->NewTypeError(
-        MessageTemplate::kProxyRevoked,
-        isolate->factory()->enumerate_string()));
-    return Nothing<bool>();
-  }
-  // 4. Let target be the value of the [[ProxyTarget]] internal slot of O.
-  Handle<JSReceiver> target(proxy->target(), isolate);
-  // 5. Let trap be ? GetMethod(handler, "enumerate").
-  Handle<Object> trap;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, trap, Object::GetMethod(Handle<JSReceiver>::cast(handler),
-                                       isolate->factory()->enumerate_string()),
-      Nothing<bool>());
-  // 6. If trap is undefined, then
-  if (trap->IsUndefined()) {
-    // 6a. Return target.[[Enumerate]]().
-    return GetKeys_Internal(isolate, receiver, target, INCLUDE_PROTOS,
-                            ENUMERABLE_STRINGS, accumulator);
-  }
-  // The "proxy_enumerate" helper calls the trap (steps 7 - 9), which returns
-  // a generator; it then iterates over that generator until it's exhausted
-  // and returns an array containing the generated values.
-  Handle<Object> trap_result_array;
-  Handle<Object> args[] = {trap, handler, target};
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, trap_result_array,
-      Execution::Call(isolate, isolate->proxy_enumerate(),
-                      isolate->factory()->undefined_value(), arraysize(args),
-                      args),
-      Nothing<bool>());
-  accumulator->NextPrototype();
-  accumulator->AddKeysFromProxy(Handle<JSObject>::cast(trap_result_array));
   return Just(true);
 }
 

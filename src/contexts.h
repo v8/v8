@@ -140,7 +140,6 @@ enum BindingFlags {
   V(PROMISE_REJECT_INDEX, JSFunction, promise_reject)                         \
   V(PROMISE_RESOLVE_INDEX, JSFunction, promise_resolve)                       \
   V(PROMISE_THEN_INDEX, JSFunction, promise_then)                             \
-  V(PROXY_ENUMERATE_INDEX, JSFunction, proxy_enumerate)                       \
   V(RANGE_ERROR_FUNCTION_INDEX, JSFunction, range_error_function)             \
   V(REFERENCE_ERROR_FUNCTION_INDEX, JSFunction, reference_error_function)     \
   V(SET_ADD_METHOD_INDEX, JSFunction, set_add)                                \

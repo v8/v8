@@ -28,13 +28,14 @@ var deopt_has = false;
 var deopt_enum = false;
 
 var handler = {
-  enumerate(target) {
+  ownKeys() {
     if (deopt_enum) {
       %DeoptimizeFunction(f2);
       deopt_enum = false;
     }
-    return keys[Symbol.iterator]();
+    return keys;
   },
+  getOwnPropertyDescriptor() { return { enumerable: true, configurable: true }},
 
   has(target, k) {
     if (deopt_has) {
@@ -42,7 +43,7 @@ var handler = {
       deopt_has = false;
     }
     has_keys.push(k);
-    return {value: 10, configurable: true, writable: false, enumerable: true};
+    return true;
   }
 };
 
@@ -136,14 +137,13 @@ function listener(event, exec_state, event_data, data) {
 }
 
 var handler3 = {
-  enumerate(target) {
-    return ["a", "b"][Symbol.iterator]();
-  },
+  ownKeys() { return ["a", "b"] },
+  getOwnPropertyDescriptor() { return { enumerable: true, configurable: true }},
 
   has(target, k) {
     if (k == "a") count++;
     if (x) %ScheduleBreak();
-    return {value: 10, configurable: true, writable: false, enumerable: true};
+    return true;
   }
 };
 
