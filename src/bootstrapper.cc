@@ -2082,24 +2082,6 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
 #undef EXPORT_PUBLIC_SYMBOL
 
   {
-    Handle<JSFunction> apply = InstallFunction(
-        container, "reflect_apply", JS_OBJECT_TYPE, JSObject::kHeaderSize,
-        MaybeHandle<JSObject>(), Builtins::kReflectApply);
-    apply->shared()->DontAdaptArguments();
-    apply->shared()->set_length(3);
-    native_context->set_reflect_apply(*apply);
-  }
-
-  {
-    Handle<JSFunction> construct = InstallFunction(
-        container, "reflect_construct", JS_OBJECT_TYPE, JSObject::kHeaderSize,
-        MaybeHandle<JSObject>(), Builtins::kReflectConstruct);
-    construct->shared()->DontAdaptArguments();
-    construct->shared()->set_length(2);
-    native_context->set_reflect_construct(*construct);
-  }
-
-  {
     Handle<JSFunction> to_string = InstallFunction(
         container, "object_to_string", JS_OBJECT_TYPE, JSObject::kHeaderSize,
         MaybeHandle<JSObject>(), Builtins::kObjectProtoToString);
@@ -2413,6 +2395,15 @@ void Genesis::InitializeGlobal_harmony_reflect() {
                            Builtins::kReflectDeleteProperty, 2, true);
   native_context()->set_reflect_delete_property(*delete_property);
 
+  Handle<JSFunction> apply = SimpleCreateFunction(
+      isolate(), factory->apply_string(), Builtins::kReflectApply, 3, false);
+  native_context()->set_reflect_apply(*apply);
+
+  Handle<JSFunction> construct =
+      SimpleCreateFunction(isolate(), factory->construct_string(),
+                           Builtins::kReflectConstruct, 2, false);
+  native_context()->set_reflect_construct(*construct);
+
   if (!FLAG_harmony_reflect) return;
 
   Handle<JSGlobalObject> global(JSGlobalObject::cast(
@@ -2424,6 +2415,8 @@ void Genesis::InitializeGlobal_harmony_reflect() {
 
   InstallFunction(reflect, define_property, factory->defineProperty_string());
   InstallFunction(reflect, delete_property, factory->deleteProperty_string());
+  InstallFunction(reflect, apply, factory->apply_string());
+  InstallFunction(reflect, construct, factory->construct_string());
 
   SimpleInstallFunction(reflect, factory->get_string(),
                         Builtins::kReflectGet, 2, false);

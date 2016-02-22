@@ -47,13 +47,10 @@
 
   ###################### MISSING ES6 FEATURES #######################
 
-  # It's unclear what the right behavior for [[Enumerate]] is; we're awaiting
-  # clarification in the spec. Currently, our for-in implementation for
-  # Proxies checks all trap result values for being strings...
-  'built-ins/Proxy/enumerate/return-trap-result': [FAIL],
-  # ...and our Reflect.enumerate implementation is built on for-in by wrapping
-  # the iteration's results in a new generator; this postpones exceptions.
-  'built-ins/Reflect/enumerate/return-abrupt-from-result': [FAIL],
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4768
+  # The Reflect.enumerate trap is removed
+  'built-ins/Reflect/enumerate/*': [SKIP],
+  'built-ins/Proxy/enumerate/*': [SKIP],
 
   # https://code.google.com/p/v8/issues/detail?id=4163
   'built-ins/GeneratorPrototype/next/context-constructor-invocation': [FAIL],

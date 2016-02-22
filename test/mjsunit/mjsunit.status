@@ -810,12 +810,9 @@
   'es6/typedarray': [FAIL],
   'es6/regress/regress-2681': [FAIL],
   'es6/regress/regress-2691': [FAIL],
-  'es6/regress/regress-455141': [FAIL],
   'es6/regress/regress-3280': [FAIL],
-  'harmony/destructuring-parameters-literalcount-nolazy': [FAIL],
   'harmony/destructuring-assignment': [FAIL],
   'harmony/function-sent': [FAIL],
-  'harmony/private-symbols': [FAIL],
   'harmony/reflect-enumerate-delete': [FAIL],
   'harmony/reflect-enumerate-special-cases': [FAIL],
   'harmony/proxies-enumerate': [FAIL],
@@ -823,13 +820,10 @@
   'harmony/reflect-enumerate': [FAIL],
   'harmony/destructuring': [FAIL],
   'harmony/regress/regress-4482': [FAIL],
-  'harmony/reflect': [FAIL],
   'harmony/generators': [FAIL],
   'harmony/iterator-close': [FAIL],
-  'regress/regress-572589': [FAIL],
   'harmony/reflect-construct': [FAIL],
   'es6/promises': [FAIL],
-  'deserialize-optimize-inner': [FAIL],
 
   # TODO(rmcilroy,4680): Check failed in
   # BytecodeGenerator::VisitFunctionLiteral - !shared_info.is_null().
