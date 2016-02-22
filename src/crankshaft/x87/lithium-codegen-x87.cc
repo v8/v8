@@ -2080,7 +2080,7 @@ void LCodeGen::DoMathMinMax(LMathMinMax* instr) {
       __ fstp_s(MemOperand(esp, 0));
       __ fstp_s(MemOperand(esp, kPointerSize));
       __ pop(scratch_reg);
-      __ xor_(MemOperand(esp, 0), scratch_reg);
+      __ or_(MemOperand(esp, 0), scratch_reg);
       X87Mov(left_reg, MemOperand(esp, 0), kX87FloatOperand);
       __ pop(scratch_reg);  // restore esp
     } else {
