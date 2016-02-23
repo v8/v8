@@ -143,17 +143,10 @@ BUILTIN_LIST_C(DEF_ARG_TYPE)
   MUST_USE_RESULT static Object* Builtin_##name(                               \
       int args_length, Object** args_object, Isolate* isolate) {               \
     isolate->counters()->runtime_calls()->Increment();                         \
-    base::ElapsedTimer timer;                                                  \
-    if (FLAG_runtime_call_stats) {                                             \
-      RuntimeCallStats* stats = isolate->counters()->runtime_call_stats();     \
-      stats->Enter(&stats->Builtin_##name);                                    \
-      timer.Start();                                                           \
-    }                                                                          \
+    RuntimeCallStats* stats = isolate->counters()->runtime_call_stats();       \
+    RuntimeCallTimerScope timer(isolate, &stats->Builtin_##name);              \
     name##ArgumentsType args(args_length, args_object);                        \
     Object* value = Builtin_Impl_##name(args, isolate);                        \
-    if (FLAG_runtime_call_stats) {                                             \
-      isolate->counters()->runtime_call_stats()->Leave(timer.Elapsed());       \
-    }                                                                          \
     return value;                                                              \
   }                                                                            \
                                                                                \

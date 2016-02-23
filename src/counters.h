@@ -332,8 +332,8 @@ class AggregatableHistogramTimer : public Histogram {
 };
 
 // A helper class for use with AggregatableHistogramTimer. This is the
-// outer-most timer scope used with an AggregatableHistogramTimer. It will
-// aggregate the information from the inner AggregatedHistogramTimerScope.
+// // outer-most timer scope used with an AggregatableHistogramTimer. It will
+// // aggregate the information from the inner AggregatedHistogramTimerScope.
 class AggregatingHistogramTimerScope {
  public:
   explicit AggregatingHistogramTimerScope(AggregatableHistogramTimer* histogram)
@@ -347,7 +347,7 @@ class AggregatingHistogramTimerScope {
 };
 
 // A helper class for use with AggregatableHistogramTimer, the "inner" scope
-// which defines the events to be timed.
+// // which defines the events to be timed.
 class AggregatedHistogramTimerScope {
  public:
   explicit AggregatedHistogramTimerScope(AggregatableHistogramTimer* histogram)
@@ -479,6 +479,91 @@ double AggregatedMemoryHistogram<Histogram>::Aggregate(double current_ms,
          value * ((current_ms - last_ms_) / interval_ms);
 }
 
+struct RuntimeCallCounter {
+  explicit RuntimeCallCounter(const char* name) : name(name) {}
+  void Reset();
+
+  const char* name;
+  int64_t count = 0;
+  base::TimeDelta time;
+};
+
+// RuntimeCallTimer is used to keep track of the stack of currently active
+// timers used for properly measuring the own time of a RuntimeCallCounter.
+class RuntimeCallTimer {
+ public:
+  RuntimeCallTimer(RuntimeCallCounter* counter, RuntimeCallTimer* parent)
+      : counter_(counter), parent_(parent) {}
+
+  inline void Start() {
+    timer_.Start();
+    counter_->count++;
+  }
+
+  inline RuntimeCallTimer* Stop() {
+    base::TimeDelta delta = timer_.Elapsed();
+    counter_->time += delta;
+    if (parent_ != NULL) {
+      parent_->AdjustForSubTimer(delta);
+    }
+    return parent_;
+  }
+
+  void AdjustForSubTimer(base::TimeDelta delta) { counter_->time -= delta; }
+
+ private:
+  RuntimeCallCounter* counter_;
+  RuntimeCallTimer* parent_;
+  base::ElapsedTimer timer_;
+};
+
+struct RuntimeCallStats {
+  // Dummy counter for the unexpected stub miss.
+  RuntimeCallCounter UnexpectedStubMiss =
+      RuntimeCallCounter("UnexpectedStubMiss");
+  // Counter for runtime callbacks into JavaScript.
+  RuntimeCallCounter ExternalCallback = RuntimeCallCounter("ExternalCallback");
+#define CALL_RUNTIME_COUNTER(name, nargs, ressize) \
+  RuntimeCallCounter Runtime_##name = RuntimeCallCounter(#name);
+  FOR_EACH_INTRINSIC(CALL_RUNTIME_COUNTER)
+#undef CALL_RUNTIME_COUNTER
+#define CALL_BUILTIN_COUNTER(name, type) \
+  RuntimeCallCounter Builtin_##name = RuntimeCallCounter(#name);
+  BUILTIN_LIST_C(CALL_BUILTIN_COUNTER)
+#undef CALL_BUILTIN_COUNTER
+
+  // Counter to track recursive time events.
+  RuntimeCallTimer* current_timer_ = NULL;
+
+  // Starting measuring the time for a function. This will establish the
+  // connection to the parent counter for properly calculating the own times.
+  void Enter(RuntimeCallCounter* counter);
+  void Enter(RuntimeCallTimer* timer);
+  // Leave a scope for a measured runtime function. This will properly add
+  // the time delta to the current_counter and subtract the delta from its
+  // parent.
+  void Leave();
+  void Leave(RuntimeCallTimer* timer);
+
+  RuntimeCallTimer* current_timer() { return current_timer_; }
+
+  void Reset();
+  void Print(std::ostream& os);
+
+  RuntimeCallStats() { Reset(); }
+};
+
+// A RuntimeCallTimerScopes wraps around a RuntimeCallTimer to measure the
+// the time of C++ scope.
+class RuntimeCallTimerScope {
+ public:
+  explicit RuntimeCallTimerScope(Isolate* isolate, RuntimeCallCounter* counter);
+  ~RuntimeCallTimerScope();
+
+ private:
+  Isolate* isolate_;
+  RuntimeCallTimer timer_;
+};
 
 #define HISTOGRAM_RANGE_LIST(HR)                                              \
   /* Generic range histograms */                                              \
@@ -702,42 +787,6 @@ double AggregatedMemoryHistogram<Histogram>::Aggregate(double current_ms,
   SC(total_baseline_code_size, V8.TotalBaselineCodeSize)                       \
   /* Total count of functions compiled using the baseline compiler. */         \
   SC(total_baseline_compile_count, V8.TotalBaselineCompileCount)
-
-typedef struct RuntimeCallCounter {
-  int64_t count = 0;
-  base::TimeDelta time;
-  RuntimeCallCounter* parent_counter;
-
-  void Reset();
-} RuntimeCallCounter;
-
-struct RuntimeCallStats {
-#define CALL_RUNTIME_COUNTER(name, nargs, ressize) \
-  RuntimeCallCounter Runtime_##name;
-  FOR_EACH_INTRINSIC(CALL_RUNTIME_COUNTER)
-#undef CALL_RUNTIME_COUNTER
-#define CALL_BUILTIN_COUNTER(name, type) RuntimeCallCounter Builtin_##name;
-  BUILTIN_LIST_C(CALL_BUILTIN_COUNTER)
-#undef CALL_BUILTIN_COUNTER
-
-  // Dummy counter for the unexpected stub miss.
-  RuntimeCallCounter UnexpectedStubMiss;
-  // Counter to track recursive time events.
-  RuntimeCallCounter* current_counter;
-
-  // Starting measuring the time for a function. This will establish the
-  // connection to the parent counter for properly calculating the own times.
-  void Enter(RuntimeCallCounter* counter);
-  // Leave a scope for a measured runtime function. This will properly add
-  // the time delta to the current_counter and subtract the delta from its
-  // parent.
-  void Leave(base::TimeDelta time);
-
-  void Reset();
-  void Print(std::ostream& os);
-
-  RuntimeCallStats() { Reset(); }
-};
 
 // This file contains all the v8 counters that are in use.
 class Counters {

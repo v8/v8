@@ -61,18 +61,25 @@ VMState<Tag>::~VMState() {
   isolate_->set_current_vm_state(previous_tag_);
 }
 
-
 ExternalCallbackScope::ExternalCallbackScope(Isolate* isolate, Address callback)
     : isolate_(isolate),
       callback_(callback),
-      previous_scope_(isolate->external_callback_scope()) {
+      previous_scope_(isolate->external_callback_scope()),
+      timer_(&isolate->counters()->runtime_call_stats()->ExternalCallback,
+             isolate->counters()->runtime_call_stats()->current_timer()) {
 #ifdef USE_SIMULATOR
   scope_address_ = Simulator::current(isolate)->get_sp();
 #endif
   isolate_->set_external_callback_scope(this);
+  if (FLAG_runtime_call_stats) {
+    isolate_->counters()->runtime_call_stats()->Enter(&timer_);
+  }
 }
 
 ExternalCallbackScope::~ExternalCallbackScope() {
+  if (FLAG_runtime_call_stats) {
+    isolate_->counters()->runtime_call_stats()->Leave(&timer_);
+  }
   isolate_->set_external_callback_scope(previous_scope_);
 }
 
