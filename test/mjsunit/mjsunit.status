@@ -301,6 +301,9 @@
   'wasm/*': [PASS, ['arch == arm64', SKIP]],
   'wasm/asm-wasm': [PASS, ['arch == arm or arch == arm64', SKIP]],
 
+  # TODO(bradnelson): Enable tests as the fixs land.
+  'wasm/embenchen/*': [SKIP],
+
   # case-insensitive unicode regexp relies on case mapping provided by ICU.
   'harmony/unicode-regexp-ignore-case': [PASS, ['no_i18n == True', FAIL]],
   'harmony/unicode-regexp-ignore-case-noi18n': [FAIL, ['no_i18n == True', PASS]],
