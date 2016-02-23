@@ -57,6 +57,7 @@ PARSE_INFO_GETTER(bool, is_native)
 PARSE_INFO_GETTER(bool, is_module)
 PARSE_INFO_GETTER(FunctionLiteral*, literal)
 PARSE_INFO_GETTER_WITH_DEFAULT(LanguageMode, language_mode, STRICT)
+PARSE_INFO_GETTER_WITH_DEFAULT(bool, is_typed, false)
 PARSE_INFO_GETTER_WITH_DEFAULT(Handle<JSFunction>, closure,
                                Handle<JSFunction>::null())
 PARSE_INFO_GETTER_WITH_DEFAULT(Scope*, scope, nullptr)
@@ -1144,6 +1145,7 @@ bool CompileEvalForDebugging(Handle<JSFunction> function,
   parse_info.set_toplevel();
   parse_info.set_allow_lazy_parsing(false);
   parse_info.set_language_mode(shared->language_mode());
+  parse_info.set_typed(FLAG_use_types);
   parse_info.set_parse_restriction(NO_PARSE_RESTRICTION);
   info.MarkAsDebug();
 
@@ -1378,6 +1380,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     parse_info.set_eval();
     if (context->IsNativeContext()) parse_info.set_global();
     parse_info.set_language_mode(language_mode);
+    parse_info.set_typed(FLAG_use_types);
     parse_info.set_parse_restriction(restriction);
     parse_info.set_context(context);
 
@@ -1525,6 +1528,7 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
 
     parse_info.set_language_mode(
         static_cast<LanguageMode>(info.language_mode() | language_mode));
+    parse_info.set_typed(info.is_typed() || FLAG_use_types);
     result = CompileToplevel(&info);
     if (extension == NULL && !result.is_null()) {
       compilation_cache->PutScript(source, context, language_mode, result);
@@ -1564,6 +1568,7 @@ Handle<SharedFunctionInfo> Compiler::CompileStreamedScript(
       construct_language_mode(FLAG_use_strict, FLAG_use_strong);
   parse_info->set_language_mode(
       static_cast<LanguageMode>(parse_info->language_mode() | language_mode));
+  parse_info->set_typed(FLAG_use_types);
 
   CompilationInfo compile_info(parse_info);
 
@@ -1609,6 +1614,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   parse_info.set_literal(literal);
   parse_info.set_scope(literal->scope());
   parse_info.set_language_mode(literal->scope()->language_mode());
+  parse_info.set_typed(literal->scope()->typed());
   if (outer_info->will_serialize()) info.PrepareForSerializing();
   if (outer_info->is_first_compile()) info.MarkAsFirstCompile();
   if (outer_info->is_debug()) info.MarkAsDebug();

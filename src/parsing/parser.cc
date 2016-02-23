@@ -904,6 +904,7 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
     // Don't count the mode in the use counters--give the program a chance
     // to enable script/module-wide strict/strong mode below.
     scope_->SetLanguageMode(info->language_mode());
+    if (info->is_typed()) scope_->SetTyped();
     ZoneList<Statement*>* body = new(zone()) ZoneList<Statement*>(16, zone());
     bool ok = true;
     int beg_pos = scanner()->location().beg_pos;
@@ -4781,6 +4782,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
     DCHECK_NOT_NULL(inner_scope);
     DCHECK_EQ(body, inner_block->statements());
     SetLanguageMode(scope_, inner_scope->language_mode());
+    if (inner_scope->typed()) scope_->SetTyped();
     Block* init_block = BuildParameterInitializationBlock(parameters, CHECK_OK);
     DCHECK_NOT_NULL(init_block);
 

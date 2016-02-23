@@ -15,6 +15,13 @@ function CheckValidInTypedMode(code, exception) {
         + code +
       "\n}\
     }");
+  assertDoesNotThrow("\
+    'use types';\
+    (function outer() {\
+      (function inner() {\
+        eval(\'" + code + "\')\
+      })()\
+    })()");
 }
 
 function CheckInvalidInTypedMode(code, exception) {
@@ -28,7 +35,18 @@ function CheckInvalidInTypedMode(code, exception) {
         + code +
       "\n}\
     }", exception);
+  assertThrows("\
+    'use types';\
+    (function outer() {\
+      (function inner() {\
+        eval(\'" + code + "\')\
+      })()\
+    })()", exception);
 }
+
+(function UseTypesWorks() {
+  CheckValidInTypedMode("var x: number = 42", SyntaxError);
+})();
 
 (function UseTypesIllegalInFunctionScope() {
   assertThrows("function f() { 'use types'; }", SyntaxError);

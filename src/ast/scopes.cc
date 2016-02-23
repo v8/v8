@@ -200,6 +200,7 @@ void Scope::SetDefaults(ScopeType scope_type, Scope* outer_scope,
   if (!scope_info.is_null()) {
     scope_calls_eval_ = scope_info->CallsEval();
     language_mode_ = scope_info->language_mode();
+    typed_ = scope_info->IsTyped();
     is_declaration_scope_ = scope_info->is_declaration_scope();
     function_kind_ = scope_info->function_kind();
   }
@@ -999,6 +1000,9 @@ void Scope::Print(int n) {
   }
   if (is_strict(language_mode())) {
     Indent(n1, "// strict mode scope\n");
+  }
+  if (typed()) {
+    Indent(n1, "// typed mode scope\n");
   }
   if (scope_inside_with_) Indent(n1, "// scope inside 'with'\n");
   if (scope_contains_with_) Indent(n1, "// scope contains 'with'\n");

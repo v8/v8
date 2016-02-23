@@ -59,6 +59,7 @@ class ParseInfo {
   FLAG_ACCESSOR(kAllowLazyParsing, allow_lazy_parsing, set_allow_lazy_parsing)
   FLAG_ACCESSOR(kAstValueFactoryOwned, ast_value_factory_owned,
                 set_ast_value_factory_owned)
+  FLAG_ACCESSOR(kTyped, is_typed, set_typed)
 
 #undef FLAG_ACCESSOR
 
@@ -170,6 +171,7 @@ class ParseInfo {
     kParseRestriction = 1 << 7,
     kModule = 1 << 8,
     kAllowLazyParsing = 1 << 9,
+    kTyped = 1 << 11,  // TODO(nikolaos): OK to use 11 here?
     // ---------- Output flags --------------------------
     kAstValueFactoryOwned = 1 << 10
   };

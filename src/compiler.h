@@ -82,6 +82,7 @@ class CompilationInfo {
   bool is_native() const;
   bool is_module() const;
   LanguageMode language_mode() const;
+  bool is_typed() const;
   Handle<JSFunction> closure() const;
   FunctionLiteral* literal() const;
   Scope* scope() const;
