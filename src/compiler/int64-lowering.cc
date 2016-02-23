@@ -209,8 +209,7 @@ void Int64Lowering::LowerNode(Node* node) {
           signature()->parameter_count()) {
         int old_index = ParameterIndexOf(node->op());
         int new_index = GetParameterIndexAfterLowering(signature(), old_index);
-        Node* low_node =
-            graph()->NewNode(common()->Parameter(new_index), graph()->start());
+        NodeProperties::ChangeOp(node, common()->Parameter(new_index));
 
         Node* high_node = nullptr;
         if (signature()->GetParam(old_index) ==
@@ -218,7 +217,7 @@ void Int64Lowering::LowerNode(Node* node) {
           high_node = graph()->NewNode(common()->Parameter(new_index + 1),
                                        graph()->start());
         }
-        ReplaceNode(node, low_node, high_node);
+        ReplaceNode(node, node, high_node);
       }
       break;
     }

@@ -67,6 +67,10 @@ Matcher<Node*> IsFinishRegion(const Matcher<Node*>& value_matcher,
 Matcher<Node*> IsReturn(const Matcher<Node*>& value_matcher,
                         const Matcher<Node*>& effect_matcher,
                         const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsReturn2(const Matcher<Node*>& value_matcher,
+                         const Matcher<Node*>& value2_matcher,
+                         const Matcher<Node*>& effect_matcher,
+                         const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsTerminate(const Matcher<Node*>& effect_matcher,
                            const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsExternalConstant(

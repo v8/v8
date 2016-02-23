@@ -207,7 +207,8 @@ struct ModuleEnv {
   Handle<Code> GetImportCode(uint32_t index);
   Handle<FixedArray> GetFunctionTable();
 
-  compiler::CallDescriptor* GetWasmCallDescriptor(Zone* zone, FunctionSig* sig);
+  static compiler::CallDescriptor* GetWasmCallDescriptor(Zone* zone,
+                                                         FunctionSig* sig);
   static compiler::CallDescriptor* GetI32WasmCallDescriptor(
       Zone* zone, compiler::CallDescriptor* descriptor);
   compiler::CallDescriptor* GetCallDescriptor(Zone* zone, uint32_t index);

@@ -1485,7 +1485,7 @@ Node* WasmGraphBuilder::BuildWasmCall(wasm::FunctionSig* sig, Node** args) {
   args[params + 2] = *control_;
 
   CallDescriptor* descriptor =
-      module_->GetWasmCallDescriptor(jsgraph()->zone(), sig);
+      wasm::ModuleEnv::GetWasmCallDescriptor(jsgraph()->zone(), sig);
   const Operator* op = jsgraph()->common()->Call(descriptor);
   Node* call = graph()->NewNode(op, static_cast<int>(count), args);
 
@@ -1673,7 +1673,8 @@ void WasmGraphBuilder::BuildJSToWasmWrapper(Handle<Code> wasm_code,
   args[pos++] = *control_;
 
   // Call the WASM code.
-  CallDescriptor* desc = module_->GetWasmCallDescriptor(jsgraph()->zone(), sig);
+  CallDescriptor* desc =
+      wasm::ModuleEnv::GetWasmCallDescriptor(jsgraph()->zone(), sig);
   Node* call = graph()->NewNode(jsgraph()->common()->Call(desc), count, args);
   Node* jsval =
       ToJS(call, context,
@@ -2092,7 +2093,8 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, wasm::ModuleEnv* module,
     }
 
     // Schedule and compile to machine code.
-    CallDescriptor* incoming = module->GetWasmCallDescriptor(&zone, sig);
+    CallDescriptor* incoming =
+        wasm::ModuleEnv::GetWasmCallDescriptor(&zone, sig);
     // TODO(titzer): this is technically a WASM wrapper, not a wasm function.
     Code::Flags flags = Code::ComputeFlags(Code::WASM_FUNCTION);
     bool debugging =
@@ -2174,7 +2176,7 @@ Handle<Code> CompileWasmFunction(wasm::ErrorThrower& thrower, Isolate* isolate,
 
   // Run the compiler pipeline to generate machine code.
   CallDescriptor* descriptor =
-      module_env->GetWasmCallDescriptor(&zone, function.sig);
+      wasm::ModuleEnv::GetWasmCallDescriptor(&zone, function.sig);
   if (kPointerSize == 4) {
     descriptor = module_env->GetI32WasmCallDescriptor(&zone, descriptor);
   }

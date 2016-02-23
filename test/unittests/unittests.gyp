@@ -60,6 +60,7 @@
         'compiler/instruction-selector-unittest.h',
         'compiler/instruction-sequence-unittest.cc',
         'compiler/instruction-sequence-unittest.h',
+        'compiler/int64-lowering-unittest.cc',
         'compiler/js-builtin-reducer-unittest.cc',
         'compiler/js-create-lowering-unittest.cc',
         'compiler/js-intrinsic-lowering-unittest.cc',
