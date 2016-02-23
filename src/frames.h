@@ -97,13 +97,13 @@ class StackHandler BASE_EMBEDDED {
   DISALLOW_IMPLICIT_CONSTRUCTORS(StackHandler);
 };
 
+
 #define STACK_FRAME_TYPE_LIST(V)                         \
   V(ENTRY, EntryFrame)                                   \
   V(ENTRY_CONSTRUCT, EntryConstructFrame)                \
   V(EXIT, ExitFrame)                                     \
   V(JAVA_SCRIPT, JavaScriptFrame)                        \
   V(OPTIMIZED, OptimizedFrame)                           \
-  V(WASM, WasmFrame)                                     \
   V(INTERPRETED, InterpretedFrame)                       \
   V(STUB, StubFrame)                                     \
   V(STUB_FAILURE_TRAMPOLINE, StubFailureTrampolineFrame) \
@@ -310,7 +310,6 @@ class StackFrame BASE_EMBEDDED {
   bool is_exit() const { return type() == EXIT; }
   bool is_optimized() const { return type() == OPTIMIZED; }
   bool is_interpreted() const { return type() == INTERPRETED; }
-  bool is_wasm() const { return type() == WASM; }
   bool is_arguments_adaptor() const { return type() == ARGUMENTS_ADAPTOR; }
   bool is_internal() const { return type() == INTERNAL; }
   bool is_stub_failure_trampoline() const {
@@ -618,7 +617,8 @@ class FrameSummary BASE_EMBEDDED {
   bool is_constructor_;
 };
 
-class JavaScriptFrame : public StandardFrame {
+
+class JavaScriptFrame: public StandardFrame {
  public:
   Type type() const override { return JAVA_SCRIPT; }
 
@@ -841,28 +841,6 @@ class ArgumentsAdaptorFrame: public JavaScriptFrame {
   friend class StackFrameIteratorBase;
 };
 
-class WasmFrame : public StandardFrame {
- public:
-  Type type() const override { return WASM; }
-
-  // GC support.
-  void Iterate(ObjectVisitor* v) const override;
-
-  // Printing support.
-  void Print(StringStream* accumulator, PrintMode mode,
-             int index) const override;
-
-  // Determine the code for the frame.
-  Code* unchecked_code() const override;
-
- protected:
-  inline explicit WasmFrame(StackFrameIteratorBase* iterator);
-
-  Address GetCallerStackPointer() const override;
-
- private:
-  friend class StackFrameIteratorBase;
-};
 
 class InternalFrame: public StandardFrame {
  public:
@@ -996,6 +974,7 @@ class StackFrameIterator: public StackFrameIteratorBase {
   DISALLOW_COPY_AND_ASSIGN(StackFrameIterator);
 };
 
+
 // Iterator that supports iterating through all JavaScript frames.
 class JavaScriptFrameIterator BASE_EMBEDDED {
  public:
@@ -1017,6 +996,7 @@ class JavaScriptFrameIterator BASE_EMBEDDED {
  private:
   StackFrameIterator iterator_;
 };
+
 
 // NOTE: The stack trace frame iterator is an iterator that only
 // traverse proper JavaScript frames; that is JavaScript frames that

@@ -338,21 +338,6 @@ static bool IsVisibleInStackTrace(JSFunction* fun,
   return true;
 }
 
-static Handle<FixedArray> MaybeGrow(Isolate* isolate,
-                                    Handle<FixedArray> elements,
-                                    int cur_position, int new_size) {
-  if (new_size > elements->length()) {
-    int new_capacity = JSObject::NewElementsCapacity(elements->length());
-    Handle<FixedArray> new_elements =
-        isolate->factory()->NewFixedArrayWithHoles(new_capacity);
-    for (int i = 0; i < cur_position; i++) {
-      new_elements->set(i, elements->get(i));
-    }
-    elements = new_elements;
-  }
-  DCHECK(new_size <= elements->length());
-  return elements;
-}
 
 Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSObject> error_object,
                                                 Handle<Object> caller) {
@@ -379,68 +364,51 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSObject> error_object,
   int frames_seen = 0;
   int sloppy_frames = 0;
   bool encountered_strict_function = false;
-  for (StackFrameIterator iter(this); !iter.done() && frames_seen < limit;
+  for (JavaScriptFrameIterator iter(this);
+       !iter.done() && frames_seen < limit;
        iter.Advance()) {
-    StackFrame* frame = iter.frame();
-
-    switch (frame->type()) {
-      case StackFrame::JAVA_SCRIPT:
-      case StackFrame::OPTIMIZED:
-      case StackFrame::INTERPRETED: {
-        JavaScriptFrame* js_frame = JavaScriptFrame::cast(frame);
-        // Set initial size to the maximum inlining level + 1 for the outermost
-        // function.
-        List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
-        js_frame->Summarize(&frames);
-        for (int i = frames.length() - 1; i >= 0; i--) {
-          Handle<JSFunction> fun = frames[i].function();
-          Handle<Object> recv = frames[i].receiver();
-          // Filter out internal frames that we do not want to show.
-          if (!IsVisibleInStackTrace(*fun, *caller, *recv, &seen_caller)) {
-            continue;
-          }
-          // Filter out frames from other security contexts.
-          if (!this->context()->HasSameSecurityTokenAs(fun->context())) {
-            continue;
-          }
-          elements = MaybeGrow(this, elements, cursor, cursor + 4);
-
-          Handle<AbstractCode> abstract_code = frames[i].abstract_code();
-
-          Handle<Smi> offset(Smi::FromInt(frames[i].code_offset()), this);
-          // The stack trace API should not expose receivers and function
-          // objects on frames deeper than the top-most one with a strict mode
-          // function. The number of sloppy frames is stored as first element in
-          // the result array.
-          if (!encountered_strict_function) {
-            if (is_strict(fun->shared()->language_mode())) {
-              encountered_strict_function = true;
-            } else {
-              sloppy_frames++;
-            }
-          }
-          elements->set(cursor++, *recv);
-          elements->set(cursor++, *fun);
-          elements->set(cursor++, *abstract_code);
-          elements->set(cursor++, *offset);
-          frames_seen++;
+    JavaScriptFrame* frame = iter.frame();
+    // Set initial size to the maximum inlining level + 1 for the outermost
+    // function.
+    List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
+    frame->Summarize(&frames);
+    for (int i = frames.length() - 1; i >= 0; i--) {
+      Handle<JSFunction> fun = frames[i].function();
+      Handle<Object> recv = frames[i].receiver();
+      // Filter out internal frames that we do not want to show.
+      if (!IsVisibleInStackTrace(*fun, *caller, *recv, &seen_caller)) continue;
+      // Filter out frames from other security contexts.
+      if (!this->context()->HasSameSecurityTokenAs(fun->context())) continue;
+      if (cursor + 4 > elements->length()) {
+        int new_capacity = JSObject::NewElementsCapacity(elements->length());
+        Handle<FixedArray> new_elements =
+            factory()->NewFixedArrayWithHoles(new_capacity);
+        for (int i = 0; i < cursor; i++) {
+          new_elements->set(i, elements->get(i));
         }
-      } break;
+        elements = new_elements;
+      }
+      DCHECK(cursor + 4 <= elements->length());
 
-      case StackFrame::WASM: {
-        elements = MaybeGrow(this, elements, cursor, cursor + 4);
-        // TODO(jfb) Pass module object.
-        elements->set(cursor++, *factory()->undefined_value());
-        elements->set(cursor++,
-                      *factory()->NewFunction(
-                          factory()->NewStringFromAsciiChecked("<WASM>")));
-        elements->set(cursor++, Internals::IntToSmi(0));
-        elements->set(cursor++, Internals::IntToSmi(0));
-        frames_seen++;
-      } break;
+      Handle<AbstractCode> abstract_code = frames[i].abstract_code();
 
-      default:
-        break;
+      Handle<Smi> offset(Smi::FromInt(frames[i].code_offset()), this);
+      // The stack trace API should not expose receivers and function
+      // objects on frames deeper than the top-most one with a strict
+      // mode function.  The number of sloppy frames is stored as
+      // first element in the result array.
+      if (!encountered_strict_function) {
+        if (is_strict(fun->shared()->language_mode())) {
+          encountered_strict_function = true;
+        } else {
+          sloppy_frames++;
+        }
+      }
+      elements->set(cursor++, *recv);
+      elements->set(cursor++, *fun);
+      elements->set(cursor++, *abstract_code);
+      elements->set(cursor++, *offset);
+      frames_seen++;
     }
   }
   elements->set(0, Smi::FromInt(sloppy_frames));
@@ -450,6 +418,7 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSObject> error_object,
   // TODO(yangguo): Queue this structured stack trace for preprocessing on GC.
   return result;
 }
+
 
 MaybeHandle<JSObject> Isolate::CaptureAndSetDetailedStackTrace(
     Handle<JSObject> error_object) {

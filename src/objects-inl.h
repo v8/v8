@@ -4980,7 +4980,7 @@ bool Code::is_compare_ic_stub() { return kind() == COMPARE_IC; }
 bool Code::is_compare_nil_ic_stub() { return kind() == COMPARE_NIL_IC; }
 bool Code::is_to_boolean_ic_stub() { return kind() == TO_BOOLEAN_IC; }
 bool Code::is_optimized_code() { return kind() == OPTIMIZED_FUNCTION; }
-bool Code::is_wasm_code() { return kind() == WASM_FUNCTION; }
+
 
 bool Code::embeds_maps_weakly() {
   Kind k = kind();
