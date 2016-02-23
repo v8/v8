@@ -1,7 +1,5 @@
 // Modified embenchen to direct to asm-wasm.
 // Flags: --expose-wasm
-// TODO(mtrofin): Drop when verifier is fixed.
-// Flags: --noturbo-verify-allocation
 
 var EXPECTED_OUTPUT = 'final: 840.\n';
 var Module = {
