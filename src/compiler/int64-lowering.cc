@@ -167,27 +167,6 @@ void Int64Lowering::LowerNode(Node* node) {
       }
       break;
     }
-    case IrOpcode::kWord64And: {
-      DCHECK(node->InputCount() == 2);
-      Node* left = node->InputAt(0);
-      Node* right = node->InputAt(1);
-
-      Node* low_node =
-          graph()->NewNode(machine()->Word32And(), GetReplacementLow(left),
-                           GetReplacementLow(right));
-      Node* high_node =
-          graph()->NewNode(machine()->Word32And(), GetReplacementHigh(left),
-                           GetReplacementHigh(right));
-      ReplaceNode(node, low_node, high_node);
-      break;
-    }
-    case IrOpcode::kTruncateInt64ToInt32: {
-      DCHECK(node->InputCount() == 1);
-      Node* input = node->InputAt(0);
-      ReplaceNode(node, GetReplacementLow(input), nullptr);
-      node->NullAllInputs();
-      break;
-    }
     case IrOpcode::kStart: {
       int parameter_count = GetParameterCountAfterLowering(signature());
       // Only exchange the node if the parameter count actually changed.
@@ -248,6 +227,85 @@ void Int64Lowering::LowerNode(Node* node) {
       }
       break;
     }
+    case IrOpcode::kWord64And: {
+      DCHECK(node->InputCount() == 2);
+      Node* left = node->InputAt(0);
+      Node* right = node->InputAt(1);
+
+      Node* low_node =
+          graph()->NewNode(machine()->Word32And(), GetReplacementLow(left),
+                           GetReplacementLow(right));
+      Node* high_node =
+          graph()->NewNode(machine()->Word32And(), GetReplacementHigh(left),
+                           GetReplacementHigh(right));
+      ReplaceNode(node, low_node, high_node);
+      break;
+    }
+    case IrOpcode::kTruncateInt64ToInt32: {
+      DCHECK(node->InputCount() == 1);
+      Node* input = node->InputAt(0);
+      ReplaceNode(node, GetReplacementLow(input), nullptr);
+      node->NullAllInputs();
+      break;
+    }
+    // todo(ahaas): I added a list of missing instructions here to make merging
+    // easier when I do them one by one.
+    // kExprI64Add:
+    // kExprI64Sub:
+    // kExprI64Mul:
+    // kExprI64DivS:
+    // kExprI64DivU:
+    // kExprI64RemS:
+    // kExprI64RemU:
+    // kExprI64Ior:
+    case IrOpcode::kWord64Or: {
+      DCHECK(node->InputCount() == 2);
+      Node* left = node->InputAt(0);
+      Node* right = node->InputAt(1);
+
+      Node* low_node =
+          graph()->NewNode(machine()->Word32Or(), GetReplacementLow(left),
+                           GetReplacementLow(right));
+      Node* high_node =
+          graph()->NewNode(machine()->Word32Or(), GetReplacementHigh(left),
+                           GetReplacementHigh(right));
+      ReplaceNode(node, low_node, high_node);
+      break;
+    }
+
+    // kExprI64Xor:
+    // kExprI64Shl:
+    // kExprI64ShrU:
+    // kExprI64ShrS:
+    // kExprI64Eq:
+    // kExprI64Ne:
+    // kExprI64LtS:
+    // kExprI64LeS:
+    // kExprI64LtU:
+    // kExprI64LeU:
+    // kExprI64GtS:
+    // kExprI64GeS:
+    // kExprI64GtU:
+    // kExprI64GeU:
+
+    // kExprI64SConvertI32:
+    // kExprI64UConvertI32:
+
+    // kExprF64ReinterpretI64:
+    // kExprI64ReinterpretF64:
+
+    // kExprI64Clz:
+    // kExprI64Ctz:
+    // kExprI64Popcnt:
+
+    // kExprF32SConvertI64:
+    // kExprF32UConvertI64:
+    // kExprF64SConvertI64:
+    // kExprF64UConvertI64:
+    // kExprI64SConvertF32:
+    // kExprI64SConvertF64:
+    // kExprI64UConvertF32:
+    // kExprI64UConvertF64:
     default: { DefaultLowering(node); }
   }
 }

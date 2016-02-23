@@ -294,6 +294,66 @@ TEST_F(Int64LoweringTest, CallI64Parameter) {
       wasm::ModuleEnv::GetI32WasmCallDescriptor(zone(), desc));
 }
 
+// todo(ahaas): I added a list of missing instructions here to make merging
+// easier when I do them one by one.
+// kExprI64Add:
+// kExprI64Sub:
+// kExprI64Mul:
+// kExprI64DivS:
+// kExprI64DivU:
+// kExprI64RemS:
+// kExprI64RemU:
+// kExprI64And:
+// kExprI64Ior:
+TEST_F(Int64LoweringTest, Int64Ior) {
+  if (4 != kPointerSize) return;
+
+  LowerGraph(graph()->NewNode(machine()->Word64Or(), Int64Constant(value(0)),
+                              Int64Constant(value(1))),
+             MachineRepresentation::kWord64);
+  EXPECT_THAT(graph()->end()->InputAt(1),
+              IsReturn2(IsWord32Or(IsInt32Constant(low_word_value(0)),
+                                   IsInt32Constant(low_word_value(1))),
+                        IsWord32Or(IsInt32Constant(high_word_value(0)),
+                                   IsInt32Constant(high_word_value(1))),
+                        start(), start()));
+}
+
+// kExprI64Xor:
+// kExprI64Shl:
+// kExprI64ShrU:
+// kExprI64ShrS:
+// kExprI64Eq:
+// kExprI64Ne:
+// kExprI64LtS:
+// kExprI64LeS:
+// kExprI64LtU:
+// kExprI64LeU:
+// kExprI64GtS:
+// kExprI64GeS:
+// kExprI64GtU:
+// kExprI64GeU:
+
+// kExprI32ConvertI64:
+// kExprI64SConvertI32:
+// kExprI64UConvertI32:
+
+// kExprF64ReinterpretI64:
+// kExprI64ReinterpretF64:
+
+// kExprI64Clz:
+// kExprI64Ctz:
+// kExprI64Popcnt:
+
+// kExprF32SConvertI64:
+// kExprF32UConvertI64:
+// kExprF64SConvertI64:
+// kExprF64UConvertI64:
+// kExprI64SConvertF32:
+// kExprI64SConvertF64:
+// kExprI64UConvertF32:
+// kExprI64UConvertF64:
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

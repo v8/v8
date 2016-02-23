@@ -51,6 +51,12 @@ static const uint32_t kMaxFunctions = 10;
 #define WASM_RUNNER_MAX_NUM_PARAMETERS 4
 #define WASM_WRAPPER_RETURN_VALUE 8754
 
+#define BUILD(r, ...)                      \
+  do {                                     \
+    byte code[] = {__VA_ARGS__};           \
+    r.Build(code, code + arraysize(code)); \
+  } while (false)
+
 namespace {
 using namespace v8::base;
 using namespace v8::internal;

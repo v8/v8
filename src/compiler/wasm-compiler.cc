@@ -485,6 +485,54 @@ Node* WasmGraphBuilder::Binop(wasm::WasmOpcode opcode, Node* left,
     case wasm::kExprI64And:
       op = m->Word64And();
       break;
+    // todo(ahaas): I added a list of missing instructions here to make merging
+    // easier when I do them one by one.
+    // kExprI64Add:
+    // kExprI64Sub:
+    // kExprI64Mul:
+    // kExprI64DivS:
+    // kExprI64DivU:
+    // kExprI64RemS:
+    // kExprI64RemU:
+    // kExprI64And:
+    // kExprI64Ior:
+    case wasm::kExprI64Ior:
+      op = m->Word64Or();
+      break;
+// kExprI64Xor:
+// kExprI64Shl:
+// kExprI64ShrU:
+// kExprI64ShrS:
+// kExprI64Eq:
+// kExprI64Ne:
+// kExprI64LtS:
+// kExprI64LeS:
+// kExprI64LtU:
+// kExprI64LeU:
+// kExprI64GtS:
+// kExprI64GeS:
+// kExprI64GtU:
+// kExprI64GeU:
+
+// kExprI32ConvertI64:
+// kExprI64SConvertI32:
+// kExprI64UConvertI32:
+
+// kExprF64ReinterpretI64:
+// kExprI64ReinterpretF64:
+
+// kExprI64Clz:
+// kExprI64Ctz:
+// kExprI64Popcnt:
+
+// kExprF32SConvertI64:
+// kExprF32UConvertI64:
+// kExprF64SConvertI64:
+// kExprF64UConvertI64:
+// kExprI64SConvertF32:
+// kExprI64SConvertF64:
+// kExprI64UConvertF32:
+// kExprI64UConvertF64:
 #if WASM_64
     // Opcodes only supported on 64-bit platforms.
     // TODO(titzer): query the machine operator builder here instead of #ifdef.
@@ -535,9 +583,6 @@ Node* WasmGraphBuilder::Binop(wasm::WasmOpcode opcode, Node* left,
       op = m->Uint64Mod();
       return graph()->NewNode(op, left, right,
                               trap_->ZeroCheck64(kTrapRemByZero, right));
-    case wasm::kExprI64Ior:
-      op = m->Word64Or();
-      break;
     case wasm::kExprI64Xor:
       op = m->Word64Xor();
       break;
