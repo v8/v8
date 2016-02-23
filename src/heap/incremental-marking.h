@@ -165,15 +165,13 @@ class IncrementalMarking {
   // the incremental cycle (stays white).
   INLINE(bool BaseRecordWrite(HeapObject* obj, Object* value));
   INLINE(void RecordWrite(HeapObject* obj, Object** slot, Object* value));
-  INLINE(void RecordWriteIntoCode(HeapObject* obj, RelocInfo* rinfo,
-                                  Object* value));
+  INLINE(void RecordWriteIntoCode(Code* host, RelocInfo* rinfo, Object* value));
   INLINE(void RecordWriteOfCodeEntry(JSFunction* host, Object** slot,
                                      Code* value));
 
 
   void RecordWriteSlow(HeapObject* obj, Object** slot, Object* value);
-  void RecordWriteIntoCodeSlow(HeapObject* obj, RelocInfo* rinfo,
-                               Object* value);
+  void RecordWriteIntoCodeSlow(Code* host, RelocInfo* rinfo, Object* value);
   void RecordWriteOfCodeEntrySlow(JSFunction* host, Object** slot, Code* value);
   void RecordCodeTargetPatch(Code* host, Address pc, HeapObject* value);
   void RecordCodeTargetPatch(Address pc, HeapObject* value);

@@ -110,6 +110,7 @@
         'heap/heap-unittest.cc',
         'heap/scavenge-job-unittest.cc',
         'heap/slot-set-unittest.cc',
+        'heap/remembered-set-unittest.cc',
         'locked-queue-unittest.cc',
         'run-all-unittests.cc',
         'runtime/runtime-interpreter-unittest.cc',
