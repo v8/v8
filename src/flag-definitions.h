@@ -637,6 +637,9 @@ DEFINE_INT(max_stack_trace_source_length, 300,
 // full-codegen.cc
 DEFINE_BOOL(always_inline_smi_code, false,
             "always inline smi code in non-opt code")
+DEFINE_BOOL(verify_operand_stack_depth, false,
+            "emit debug code that verifies the static tracking of the operand "
+            "stack depth")
 
 // heap.cc
 DEFINE_INT(min_semi_space_size, 0,

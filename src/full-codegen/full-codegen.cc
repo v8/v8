@@ -272,7 +272,7 @@ void FullCodeGenerator::AccumulatorValueContext::Plug(Register reg) const {
 
 
 void FullCodeGenerator::StackValueContext::Plug(Register reg) const {
-  __ Push(reg);
+  codegen()->PushOperand(reg);
 }
 
 
@@ -286,14 +286,36 @@ void FullCodeGenerator::TestContext::Plug(Register reg) const {
 
 void FullCodeGenerator::EffectContext::Plug(bool flag) const {}
 
+void FullCodeGenerator::EffectContext::DropAndPlug(int count,
+                                                   Register reg) const {
+  DCHECK(count > 0);
+  codegen()->DropOperands(count);
+}
+
+void FullCodeGenerator::AccumulatorValueContext::DropAndPlug(
+    int count, Register reg) const {
+  DCHECK(count > 0);
+  codegen()->DropOperands(count);
+  __ Move(result_register(), reg);
+}
+
+void FullCodeGenerator::TestContext::DropAndPlug(int count,
+                                                 Register reg) const {
+  DCHECK(count > 0);
+  // For simplicity we always test the accumulator register.
+  codegen()->DropOperands(count);
+  __ Move(result_register(), reg);
+  codegen()->PrepareForBailoutBeforeSplit(condition(), false, NULL, NULL);
+  codegen()->DoTest(this);
+}
 
 void FullCodeGenerator::EffectContext::PlugTOS() const {
-  __ Drop(1);
+  codegen()->DropOperands(1);
 }
 
 
 void FullCodeGenerator::AccumulatorValueContext::PlugTOS() const {
-  __ Pop(result_register());
+  codegen()->PopOperand(result_register());
 }
 
 
@@ -303,7 +325,7 @@ void FullCodeGenerator::StackValueContext::PlugTOS() const {
 
 void FullCodeGenerator::TestContext::PlugTOS() const {
   // For simplicity we always test the accumulator register.
-  __ Pop(result_register());
+  codegen()->PopOperand(result_register());
   codegen()->PrepareForBailoutBeforeSplit(condition(), false, NULL, NULL);
   codegen()->DoTest(this);
 }
@@ -433,6 +455,47 @@ int FullCodeGenerator::DeclareGlobalsFlags() {
          DeclareGlobalsLanguageMode::encode(language_mode());
 }
 
+void FullCodeGenerator::PushOperand(Handle<Object> handle) {
+  OperandStackDepthIncrement(1);
+  __ Push(handle);
+}
+
+void FullCodeGenerator::PushOperand(Smi* smi) {
+  OperandStackDepthIncrement(1);
+  __ Push(smi);
+}
+
+void FullCodeGenerator::PushOperand(Register reg) {
+  OperandStackDepthIncrement(1);
+  __ Push(reg);
+}
+
+void FullCodeGenerator::PopOperand(Register reg) {
+  OperandStackDepthDecrement(1);
+  __ Pop(reg);
+}
+
+void FullCodeGenerator::DropOperands(int count) {
+  OperandStackDepthDecrement(count);
+  __ Drop(count);
+}
+
+void FullCodeGenerator::CallRuntimeWithOperands(Runtime::FunctionId id) {
+  OperandStackDepthDecrement(Runtime::FunctionForId(id)->nargs);
+  __ CallRuntime(id);
+}
+
+void FullCodeGenerator::OperandStackDepthIncrement(int count) {
+  DCHECK_GE(count, 0);
+  DCHECK_GE(operand_stack_depth_, 0);
+  operand_stack_depth_ += count;
+}
+
+void FullCodeGenerator::OperandStackDepthDecrement(int count) {
+  DCHECK_GE(count, 0);
+  DCHECK_GE(operand_stack_depth_, count);
+  operand_stack_depth_ -= count;
+}
 
 void FullCodeGenerator::EmitSubString(CallRuntime* expr) {
   // Load the arguments on the stack and call the stub.
@@ -443,6 +506,7 @@ void FullCodeGenerator::EmitSubString(CallRuntime* expr) {
   VisitForStackValue(args->at(1));
   VisitForStackValue(args->at(2));
   __ CallStub(&stub);
+  OperandStackDepthDecrement(3);
   context()->Plug(result_register());
 }
 
@@ -457,19 +521,20 @@ void FullCodeGenerator::EmitRegExpExec(CallRuntime* expr) {
   VisitForStackValue(args->at(2));
   VisitForStackValue(args->at(3));
   __ CallStub(&stub);
+  OperandStackDepthDecrement(4);
   context()->Plug(result_register());
 }
 
 
 void FullCodeGenerator::EmitMathPow(CallRuntime* expr) {
   // Load the arguments on the stack and call the runtime function.
+  MathPowStub stub(isolate(), MathPowStub::ON_STACK);
   ZoneList<Expression*>* args = expr->arguments();
   DCHECK(args->length() == 2);
   VisitForStackValue(args->at(0));
   VisitForStackValue(args->at(1));
-
-  MathPowStub stub(isolate(), MathPowStub::ON_STACK);
   __ CallStub(&stub);
+  OperandStackDepthDecrement(2);
   context()->Plug(result_register());
 }
 
@@ -493,7 +558,7 @@ void FullCodeGenerator::EmitIntrinsicAsStubCall(CallRuntime* expr,
     __ Move(callable.descriptor().GetRegisterParameter(last),
             result_register());
     for (int i = last; i-- > 0;) {
-      __ Pop(callable.descriptor().GetRegisterParameter(i));
+      PopOperand(callable.descriptor().GetRegisterParameter(i));
     }
   }
   __ Call(callable.code(), RelocInfo::CODE_TARGET);
@@ -943,13 +1008,37 @@ void FullCodeGenerator::EmitUnwindAndReturn() {
   EmitReturnSequence();
 }
 
+void FullCodeGenerator::EmitNamedSuperPropertyLoad(Property* prop) {
+  // Stack: receiver, home_object
+  SetExpressionPosition(prop);
+  Literal* key = prop->key()->AsLiteral();
+  DCHECK(!key->value()->IsSmi());
+  DCHECK(prop->IsSuperAccess());
+
+  PushOperand(key->value());
+  CallRuntimeWithOperands(Runtime::kLoadFromSuper);
+}
+
+void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
+  SetExpressionPosition(prop);
+  Handle<Code> ic = CodeFactory::KeyedLoadIC(isolate()).code();
+  __ Move(LoadDescriptor::SlotRegister(),
+          SmiFromSlot(prop->PropertyFeedbackSlot()));
+  CallIC(ic);
+}
+
+void FullCodeGenerator::EmitKeyedSuperPropertyLoad(Property* prop) {
+  // Stack: receiver, home_object, key.
+  SetExpressionPosition(prop);
+  CallRuntimeWithOperands(Runtime::kLoadKeyedFromSuper);
+}
 
 void FullCodeGenerator::EmitPropertyKey(ObjectLiteralProperty* property,
                                         BailoutId bailout_id) {
   VisitForStackValue(property->key());
-  __ CallRuntime(Runtime::kToName);
+  CallRuntimeWithOperands(Runtime::kToName);
   PrepareForBailoutForId(bailout_id, NO_REGISTERS);
-  __ Push(result_register());
+  PushOperand(result_register());
 }
 
 
@@ -971,9 +1060,9 @@ void FullCodeGenerator::VisitWithStatement(WithStatement* stmt) {
   __ Move(callable.descriptor().GetRegisterParameter(0), result_register());
   __ Call(callable.code(), RelocInfo::CODE_TARGET);
   PrepareForBailoutForId(stmt->ToObjectId(), NO_REGISTERS);
-  __ Push(result_register());
+  PushOperand(result_register());
   PushFunctionArgumentForContextAllocation();
-  __ CallRuntime(Runtime::kPushWithContext);
+  CallRuntimeWithOperands(Runtime::kPushWithContext);
   StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());
   PrepareForBailoutForId(stmt->EntryId(), NO_REGISTERS);
 
@@ -1166,10 +1255,10 @@ void FullCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
   // Exception handler code, the exception is in the result register.
   // Extend the context before executing the catch block.
   { Comment cmnt(masm_, "[ Extend catch context");
-    __ Push(stmt->variable()->name());
-    __ Push(result_register());
+    PushOperand(stmt->variable()->name());
+    PushOperand(result_register());
     PushFunctionArgumentForContextAllocation();
-    __ CallRuntime(Runtime::kPushCatchContext);
+    CallRuntimeWithOperands(Runtime::kPushCatchContext);
     StoreToFrameField(StandardFrameConstants::kContextOffset,
                       context_register());
   }
@@ -1257,16 +1346,18 @@ void FullCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   // Finally block implementation.
   __ bind(&finally_entry);
   Comment cmnt_finally(masm(), "[ Finally block");
+  OperandStackDepthIncrement(2);  // Token and accumulator are on stack.
   EnterFinallyBlock();
   {
     Finally finally_body(this);
     Visit(stmt->finally_block());
   }
-  ExitFinallyBlock();  // Return to the calling code.
+  ExitFinallyBlock();
+  OperandStackDepthDecrement(2);  // Token and accumulator were on stack.
 
   {
     Comment cmnt_deferred(masm(), "[ Post-finally dispatch");
-    deferred.EmitCommands();
+    deferred.EmitCommands();  // Return to the calling code.
   }
 }
 
@@ -1292,6 +1383,7 @@ void FullCodeGenerator::VisitConditional(Conditional* expr) {
   Label true_case, false_case, done;
   VisitForControl(expr->condition(), &true_case, &false_case, &true_case);
 
+  int original_stack_depth = operand_stack_depth_;
   PrepareForBailoutForId(expr->ThenId(), NO_REGISTERS);
   __ bind(&true_case);
   SetExpressionPosition(expr->then_expression());
@@ -1306,6 +1398,7 @@ void FullCodeGenerator::VisitConditional(Conditional* expr) {
     __ jmp(&done);
   }
 
+  operand_stack_depth_ = original_stack_depth;
   PrepareForBailoutForId(expr->ElseId(), NO_REGISTERS);
   __ bind(&false_case);
   SetExpressionPosition(expr->else_expression());
@@ -1347,17 +1440,17 @@ void FullCodeGenerator::VisitClassLiteral(ClassLiteral* lit) {
     if (lit->extends() != NULL) {
       VisitForStackValue(lit->extends());
     } else {
-      __ Push(isolate()->factory()->the_hole_value());
+      PushOperand(isolate()->factory()->the_hole_value());
     }
 
     VisitForStackValue(lit->constructor());
 
-    __ Push(Smi::FromInt(lit->start_position()));
-    __ Push(Smi::FromInt(lit->end_position()));
+    PushOperand(Smi::FromInt(lit->start_position()));
+    PushOperand(Smi::FromInt(lit->end_position()));
 
-    __ CallRuntime(Runtime::kDefineClass);
+    CallRuntimeWithOperands(Runtime::kDefineClass);
     PrepareForBailoutForId(lit->CreateLiteralId(), TOS_REG);
-    __ Push(result_register());
+    PushOperand(result_register());
 
     // Load the "prototype" from the constructor.
     __ Move(LoadDescriptor::ReceiverRegister(), result_register());
@@ -1366,13 +1459,13 @@ void FullCodeGenerator::VisitClassLiteral(ClassLiteral* lit) {
     __ Move(LoadDescriptor::SlotRegister(), SmiFromSlot(lit->PrototypeSlot()));
     CallLoadIC(NOT_INSIDE_TYPEOF);
     PrepareForBailoutForId(lit->PrototypeId(), TOS_REG);
-    __ Push(result_register());
+    PushOperand(result_register());
 
     EmitClassDefineProperties(lit);
 
     // Set both the prototype and constructor to have fast properties, and also
     // freeze them in strong mode.
-    __ CallRuntime(Runtime::kFinalizeClassDefinition);
+    CallRuntimeWithOperands(Runtime::kFinalizeClassDefinition);
 
     if (lit->class_variable_proxy() != nullptr) {
       EmitVariableAssignment(lit->class_variable_proxy()->var(), Token::INIT,
@@ -1397,8 +1490,12 @@ void FullCodeGenerator::VisitThrow(Throw* expr) {
   Comment cmnt(masm_, "[ Throw");
   VisitForStackValue(expr->exception());
   SetExpressionPosition(expr);
-  __ CallRuntime(Runtime::kThrow);
+  CallRuntimeWithOperands(Runtime::kThrow);
   // Never returns here.
+
+  // Even though this expression doesn't produce a value, we need to simulate
+  // plugging of the value context to ensure stack depth tracking is in sync.
+  if (context()->IsStackValue()) OperandStackDepthIncrement(1);
 }
 
 
@@ -1407,17 +1504,14 @@ void FullCodeGenerator::EnterTryBlock(int handler_index, Label* handler) {
   entry->range_start = masm()->pc_offset();
   entry->handler_offset = handler->pos();
   entry->try_catch_depth = try_catch_depth_;
+  entry->stack_depth = operand_stack_depth_;
 
-  // Determine expression stack depth of try statement.
-  int stack_depth = info_->scope()->num_stack_slots();  // Include stack locals.
-  for (NestedStatement* current = nesting_stack_; current != NULL; /*nop*/) {
-    current = current->AccumulateDepth(&stack_depth);
-  }
-  entry->stack_depth = stack_depth;
+  // We are using the operand stack depth, check for accuracy.
+  EmitOperandStackDepthCheck();
 
   // Push context onto operand stack.
   STATIC_ASSERT(TryBlockConstant::kElementCount == 1);
-  __ Push(context_register());
+  PushOperand(context_register());
 }
 
 
@@ -1426,7 +1520,7 @@ void FullCodeGenerator::ExitTryBlock(int handler_index) {
   entry->range_end = masm()->pc_offset();
 
   // Drop context from operand stack.
-  __ Drop(TryBlockConstant::kElementCount);
+  DropOperands(TryBlockConstant::kElementCount);
 }
 
 
@@ -1479,6 +1573,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     case Call::OTHER_CALL:
       // Call to an arbitrary expression not handled specially above.
       VisitForStackValue(callee);
+      OperandStackDepthIncrement(1);
       __ PushRoot(Heap::kUndefinedValueRootIndex);
       // Emit function call.
       EmitCall(expr);
@@ -1694,9 +1789,9 @@ FullCodeGenerator::EnterBlockScopeIfNeeded::EnterBlockScopeIfNeeded(
     {
       if (needs_block_context_) {
         Comment cmnt(masm(), "[ Extend block context");
-        __ Push(scope->GetScopeInfo(codegen->isolate()));
+        codegen_->PushOperand(scope->GetScopeInfo(codegen->isolate()));
         codegen_->PushFunctionArgumentForContextAllocation();
-        __ CallRuntime(Runtime::kPushBlockContext);
+        codegen_->CallRuntimeWithOperands(Runtime::kPushBlockContext);
 
         // Replace the context stored in the frame.
         codegen_->StoreToFrameField(StandardFrameConstants::kContextOffset,

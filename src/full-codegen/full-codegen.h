@@ -42,6 +42,7 @@ class FullCodeGenerator: public AstVisitor {
         nesting_stack_(NULL),
         loop_depth_(0),
         try_catch_depth_(0),
+        operand_stack_depth_(0),
         globals_(NULL),
         context_(NULL),
         bailout_entries_(info->HasDeoptimizationSupport()
@@ -136,11 +137,6 @@ class FullCodeGenerator: public AstVisitor {
       return previous_;
     }
 
-    // Like the Exit() method above, but limited to accumulating stack depth.
-    virtual NestedStatement* AccumulateDepth(int* stack_depth) {
-      return previous_;
-    }
-
    protected:
     MacroAssembler* masm() { return codegen_->masm(); }
 
@@ -216,10 +212,6 @@ class FullCodeGenerator: public AstVisitor {
       *stack_depth += kElementCount;
       return previous_;
     }
-    NestedStatement* AccumulateDepth(int* stack_depth) override {
-      *stack_depth += kElementCount;
-      return previous_;
-    }
   };
 
   class DeferredCommands {
@@ -268,10 +260,6 @@ class FullCodeGenerator: public AstVisitor {
         : NestedStatement(codegen), deferred_commands_(commands) {}
 
     NestedStatement* Exit(int* stack_depth, int* context_length) override;
-    NestedStatement* AccumulateDepth(int* stack_depth) override {
-      *stack_depth += kElementCount;
-      return previous_;
-    }
 
     bool IsTryFinally() override { return true; }
     TryFinally* AsTryFinally() override { return this; }
@@ -293,10 +281,6 @@ class FullCodeGenerator: public AstVisitor {
       *stack_depth += kElementCount;
       return previous_;
     }
-    NestedStatement* AccumulateDepth(int* stack_depth) override {
-      *stack_depth += kElementCount;
-      return previous_;
-    }
   };
 
   // The body of a for/in loop.
@@ -309,10 +293,6 @@ class FullCodeGenerator: public AstVisitor {
     }
 
     NestedStatement* Exit(int* stack_depth, int* context_length) override {
-      *stack_depth += kElementCount;
-      return previous_;
-    }
-    NestedStatement* AccumulateDepth(int* stack_depth) override {
       *stack_depth += kElementCount;
       return previous_;
     }
@@ -400,18 +380,21 @@ class FullCodeGenerator: public AstVisitor {
   MemOperand VarOperand(Variable* var, Register scratch);
 
   void VisitForEffect(Expression* expr) {
+    if (FLAG_verify_operand_stack_depth) EmitOperandStackDepthCheck();
     EffectContext context(this);
     Visit(expr);
     PrepareForBailout(expr, NO_REGISTERS);
   }
 
   void VisitForAccumulatorValue(Expression* expr) {
+    if (FLAG_verify_operand_stack_depth) EmitOperandStackDepthCheck();
     AccumulatorValueContext context(this);
     Visit(expr);
     PrepareForBailout(expr, TOS_REG);
   }
 
   void VisitForStackValue(Expression* expr) {
+    if (FLAG_verify_operand_stack_depth) EmitOperandStackDepthCheck();
     StackValueContext context(this);
     Visit(expr);
     PrepareForBailout(expr, NO_REGISTERS);
@@ -421,6 +404,7 @@ class FullCodeGenerator: public AstVisitor {
                        Label* if_true,
                        Label* if_false,
                        Label* fall_through) {
+    if (FLAG_verify_operand_stack_depth) EmitOperandStackDepthCheck();
     TestContext context(this, expr, if_true, if_false, fall_through);
     Visit(expr);
     // For test contexts, we prepare for bailout before branching, not at
@@ -434,6 +418,34 @@ class FullCodeGenerator: public AstVisitor {
   void DeclareModules(Handle<FixedArray> descriptions);
   void DeclareGlobals(Handle<FixedArray> pairs);
   int DeclareGlobalsFlags();
+
+  // Push, pop or drop values onto/from the operand stack.
+  void PushOperand(Register reg);
+  void PopOperand(Register reg);
+  void DropOperands(int count);
+
+  // Convenience helpers for pushing onto the operand stack.
+  void PushOperand(MemOperand operand);
+  void PushOperand(Handle<Object> handle);
+  void PushOperand(Smi* smi);
+
+  // Convenience helpers for pushing/popping multiple operands.
+  void PushOperands(Register reg1, Register reg2);
+  void PushOperands(Register reg1, Register reg2, Register reg3);
+  void PushOperands(Register reg1, Register reg2, Register reg3, Register reg4);
+  void PopOperands(Register reg1, Register reg2);
+
+  // Convenience helper for calling a runtime function that consumes arguments
+  // from the operand stack (only usable for functions with known arity).
+  void CallRuntimeWithOperands(Runtime::FunctionId function_id);
+
+  // Static tracking of the operand stack depth.
+  void OperandStackDepthDecrement(int count);
+  void OperandStackDepthIncrement(int count);
+
+  // Generate debug code that verifies that our static tracking of the operand
+  // stack depth is in sync with the actual operand stack during runtime.
+  void EmitOperandStackDepthCheck();
 
   // Generate code to create an iterator result object.  The "value" property is
   // set to a value popped from the stack, and "done" is set according to the
@@ -987,6 +999,7 @@ class FullCodeGenerator: public AstVisitor {
   NestedStatement* nesting_stack_;
   int loop_depth_;
   int try_catch_depth_;
+  int operand_stack_depth_;
   ZoneList<Handle<Object> >* globals_;
   Handle<FixedArray> modules_;
   int module_index_;

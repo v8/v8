@@ -232,6 +232,7 @@ namespace internal {
     "Unexpected number of pre-allocated property fields")                      \
   V(kUnexpectedFPCRMode, "Unexpected FPCR mode.")                              \
   V(kUnexpectedSmi, "Unexpected smi value")                                    \
+  V(kUnexpectedStackDepth, "Unexpected operand stack depth in full-codegen")   \
   V(kUnexpectedStackPointer, "The stack pointer is not the expected value")    \
   V(kUnexpectedStringType, "Unexpected string type")                           \
   V(kUnexpectedTypeForRegExpDataFixedArrayExpected,                            \
