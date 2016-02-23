@@ -1240,12 +1240,17 @@ class RedirectActiveFunctions : public ThreadVisitor {
     for (JavaScriptFrameIterator it(isolate, top); !it.done(); it.Advance()) {
       JavaScriptFrame* frame = it.frame();
       JSFunction* function = frame->function();
-      if (frame->is_interpreted()) {
-        // TODO(yangguo): replace dispatch table for activated frames.
-        continue;
-      }
       if (frame->is_optimized()) continue;
       if (!function->Inlines(shared_)) continue;
+
+      if (frame->is_interpreted()) {
+        InterpretedFrame* interpreted_frame =
+            reinterpret_cast<InterpretedFrame*>(frame);
+        BytecodeArray* debug_copy =
+            shared_->GetDebugInfo()->abstract_code()->GetBytecodeArray();
+        interpreted_frame->PatchBytecodeArray(debug_copy);
+        continue;
+      }
 
       Code* frame_code = frame->LookupCode();
       DCHECK(frame_code->kind() == Code::FUNCTION);
@@ -1304,11 +1309,15 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
   // Make sure we abort incremental marking.
   isolate_->heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask,
                                       "prepare for break points");
+  bool is_interpreted = shared->HasBytecodeArray();
 
   {
+    // TODO(yangguo): with bytecode, we still walk the heap to find all
+    // optimized code for the function to deoptimize. We can probably be
+    // smarter here and avoid the heap walk.
     HeapIterator iterator(isolate_->heap());
     HeapObject* obj;
-    bool include_generators = shared->is_generator();
+    bool include_generators = !is_interpreted && shared->is_generator();
 
     while ((obj = iterator.next())) {
       if (obj->IsJSFunction()) {
@@ -1317,6 +1326,7 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
         if (function->code()->kind() == Code::OPTIMIZED_FUNCTION) {
           Deoptimizer::DeoptimizeFunction(function);
         }
+        if (is_interpreted) continue;
         if (function->shared() == *shared) functions.Add(handle(function));
       } else if (include_generators && obj->IsJSGeneratorObject()) {
         JSGeneratorObject* generator_obj = JSGeneratorObject::cast(obj);
@@ -1332,7 +1342,12 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
     }
   }
 
-  if (!shared->HasDebugCode()) {
+  // We do not need to replace code to debug bytecode.
+  DCHECK(!is_interpreted || functions.length() == 0);
+  DCHECK(!is_interpreted || suspended_generators.length() == 0);
+
+  // We do not need to recompile to debug bytecode.
+  if (!is_interpreted && !shared->HasDebugCode()) {
     DCHECK(functions.length() > 0);
     if (!Compiler::CompileDebugCode(functions.first())) return false;
   }
@@ -1503,10 +1518,16 @@ bool Debug::EnsureDebugInfo(Handle<SharedFunctionInfo> shared,
     return false;
   }
 
-  if (!PrepareFunctionForBreakPoints(shared)) return false;
-
-  CreateDebugInfo(shared);
-
+  if (shared->HasBytecodeArray()) {
+    // To prepare bytecode for debugging, we already need to have the debug
+    // info (containing the debug copy) upfront, but since we do not recompile,
+    // preparing for break points cannot fail.
+    CreateDebugInfo(shared);
+    CHECK(PrepareFunctionForBreakPoints(shared));
+  } else {
+    if (!PrepareFunctionForBreakPoints(shared)) return false;
+    CreateDebugInfo(shared);
+  }
   return true;
 }
 
