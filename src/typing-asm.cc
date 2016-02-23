@@ -690,7 +690,7 @@ void AsmTyper::VisitAssignment(Assignment* expr) {
     expected_type_ = target_type;
     VisitVariableProxy(expr->target()->AsVariableProxy(), true);
   } else if (expr->target()->IsProperty()) {
-    int value_intish = intish_;
+    int32_t value_intish = intish_;
     Property* property = expr->target()->AsProperty();
     RECURSE(VisitWithExpectation(property->obj(), Type::Any(),
                                  "bad propety object"));
@@ -1083,7 +1083,7 @@ void AsmTyper::VisitIntegerBitwiseOperator(BinaryOperation* expr,
                                            Type* result_type, bool conversion) {
   RECURSE(VisitWithExpectation(expr->left(), Type::Number(),
                                "left bitwise operand expected to be a number"));
-  int left_intish = intish_;
+  int32_t left_intish = intish_;
   Type* left_type = computed_type_;
   if (!left_type->Is(left_expected)) {
     FAIL(expr->left(), "left bitwise operand expected to be an integer");
@@ -1095,7 +1095,7 @@ void AsmTyper::VisitIntegerBitwiseOperator(BinaryOperation* expr,
   RECURSE(
       VisitWithExpectation(expr->right(), Type::Number(),
                            "right bitwise operand expected to be a number"));
-  int right_intish = intish_;
+  int32_t right_intish = intish_;
   Type* right_type = computed_type_;
   if (!right_type->Is(right_expected)) {
     FAIL(expr->right(), "right bitwise operand expected to be an integer");
@@ -1204,28 +1204,33 @@ void AsmTyper::VisitBinaryOperation(BinaryOperation* expr) {
           expr->left(), Type::Number(),
           "left arithmetic operand expected to be number"));
       Type* left_type = computed_type_;
-      int left_intish = intish_;
+      int32_t left_intish = intish_;
       RECURSE(VisitWithExpectation(
           expr->right(), Type::Number(),
           "right arithmetic operand expected to be number"));
       Type* right_type = computed_type_;
-      int right_intish = intish_;
+      int32_t right_intish = intish_;
       Type* type = Type::Union(left_type, right_type, zone());
       if (type->Is(cache_.kAsmInt)) {
         if (expr->op() == Token::MUL) {
-          Literal* right = expr->right()->AsLiteral();
-          if (!right) {
-            FAIL(expr, "direct integer multiply forbidden");
-          }
-          if (!right->value()->IsNumber()) {
-            FAIL(expr, "multiply must be by an integer");
-          }
           int32_t i;
-          if (!right->value()->ToInt32(&i)) {
-            FAIL(expr, "multiply must be a signed integer");
+          Literal* left = expr->left()->AsLiteral();
+          Literal* right = expr->right()->AsLiteral();
+          if (left != nullptr && left->value()->IsNumber() &&
+              left->value()->ToInt32(&i)) {
+            if (right_intish != 0) {
+              FAIL(expr, "intish not allowed in multiply");
+            }
+          } else if (right != nullptr && right->value()->IsNumber() &&
+                     right->value()->ToInt32(&i)) {
+            if (left_intish != 0) {
+              FAIL(expr, "intish not allowed in multiply");
+            }
+          } else {
+            FAIL(expr, "multiply must be by an integer literal");
           }
           i = abs(i);
-          if (i >= 1 << 20) {
+          if (i >= (1 << 20)) {
             FAIL(expr, "multiply must be by value in -2^20 < n < 2^20");
           }
           intish_ = i;

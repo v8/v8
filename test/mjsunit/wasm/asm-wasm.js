@@ -1441,4 +1441,34 @@ TestForeignVariables();
 
   var m = _WASMEXP_.instantiateModuleFromAsm(Module.toString());
   assertEquals(3, m.func());
-})  // TODO(bradnelson): Enable when Math.fround implementation lands.
+});  // TODO(bradnelson): Enable when Math.fround implementation lands.
+
+
+(function TestIntegerMultiplyBothWays() {
+  function Module(stdlib, foreign, heap) {
+    "use asm";
+    function func() {
+      var a = 1;
+      return ((a * 3) + (4 * a)) | 0;
+    }
+    return {func: func};
+  }
+
+  var m = _WASMEXP_.instantiateModuleFromAsm(Module.toString());
+  assertEquals(7, m.func());
+})();
+
+
+(function TestBadMultiplyIntish() {
+  function Module(stdlib, foreign, heap) {
+    "use asm";
+    function func() {
+      var a = 1;
+      return ((a + a) * 4) | 0;
+    }
+    return {func: func};
+  }
+  assertThrows(function() {
+    _WASMEXP_.instantiateModuleFromAsm(Module.toString());
+  });
+})();

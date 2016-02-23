@@ -1171,6 +1171,12 @@ TEST(TernaryBadCondition) {
       "asm: line 39: condition must be of type int\n");
 }
 
+TEST(BadIntishMultiply) {
+  CHECK_FUNC_ERROR(
+      "function bar() { var x = 1; return ((x + x) * 4) | 0; }\n"
+      "function foo() { bar(); }",
+      "asm: line 39: intish not allowed in multiply\n");
+}
 
 TEST(FroundFloat32) {
   CHECK_FUNC_TYPES_BEGIN(
@@ -1229,7 +1235,7 @@ TEST(Multiplication2) {
   CHECK_FUNC_ERROR(
       "function bar() { var x = 1; var y = 2; return (x*y)|0; }\n"
       "function foo() { bar(); }",
-      "asm: line 39: direct integer multiply forbidden\n");
+      "asm: line 39: multiply must be by an integer literal\n");
 }
 
 
