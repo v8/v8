@@ -222,7 +222,6 @@ DEFINE_IMPLICATION(es_staging, harmony_tailcalls)
 #define HARMONY_STAGED(V)                                     \
   V(harmony_function_name, "harmony Function name inference") \
   V(harmony_regexp_lookbehind, "harmony regexp lookbehind")   \
-  V(harmony_species, "harmony Symbol.species")                \
   V(harmony_instanceof, "harmony instanceof support")
 
 // Features that are shipping (turned on by default, but internal flag remains).
@@ -238,7 +237,8 @@ DEFINE_IMPLICATION(es_staging, harmony_tailcalls)
   V(harmony_sloppy_function, "harmony sloppy function block scoping")     \
   V(harmony_proxies, "harmony proxies")                                   \
   V(harmony_reflect, "harmony Reflect API")                               \
-  V(harmony_regexp_subclass, "harmony regexp subclassing")
+  V(harmony_regexp_subclass, "harmony regexp subclassing")                \
+  V(harmony_species, "harmony Symbol.species")
 
 // Once a shipping feature has proved stable in the wild, it will be dropped
 // from HARMONY_SHIPPING, all occurrences of the FLAG_ variable are removed,

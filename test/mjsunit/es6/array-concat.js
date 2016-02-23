@@ -811,9 +811,10 @@ logger.get = function(t, trap, r) {
 
   log.length = 0;
   assertEquals([obj], Array.prototype.concat.apply(obj));
-  assertEquals(1, log.length);
+  assertEquals(2, log.length);  // An extra read for the constructor
   for (var i in log) assertSame(target, log[i][1]);
-  assertEquals(["get", target, Symbol.isConcatSpreadable, obj], log[0]);
+  assertEquals(["get", target, "constructor", obj], log[0]);
+  assertEquals(["get", target, Symbol.isConcatSpreadable, obj], log[1]);
 })();
 
 
@@ -835,14 +836,15 @@ logger.get = function(t, trap, r) {
 
   log.length = 0;
   assertEquals(["a", "b"], Array.prototype.concat.apply(obj));
-  assertEquals(6, log.length);
+  assertEquals(7, log.length);
   for (var i in log) assertSame(target, log[i][1]);
-  assertEquals(["get", target, Symbol.isConcatSpreadable, obj], log[0]);
-  assertEquals(["get", target, "length", obj], log[1]);
-  assertEquals(["has", target, "0"], log[2]);
-  assertEquals(["get", target, "0", obj], log[3]);
-  assertEquals(["has", target, "1"], log[4]);
-  assertEquals(["get", target, "1", obj], log[5]);
+  assertEquals(["get", target, "constructor", obj], log[0]);
+  assertEquals(["get", target, Symbol.isConcatSpreadable, obj], log[1]);
+  assertEquals(["get", target, "length", obj], log[2]);
+  assertEquals(["has", target, "0"], log[3]);
+  assertEquals(["get", target, "0", obj], log[4]);
+  assertEquals(["has", target, "1"], log[5]);
+  assertEquals(["get", target, "1", obj], log[6]);
 })();
 
 
