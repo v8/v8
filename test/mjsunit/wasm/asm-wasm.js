@@ -1313,3 +1313,40 @@ TestForeignVariables();
   var m = _WASMEXP_.instantiateModuleFromAsm(Module.toString());
   assertEquals(1, m.func());
 })();
+
+
+(function TestIntishAssignment() {
+  function Module(stdlib, foreign, heap) {
+    "use asm";
+    var HEAP32 = new stdlib.Int32Array(heap);
+    function func() {
+      var a = 1;
+      var b = 2;
+      HEAP32[0] = a + b;
+      return HEAP32[0] | 0;
+    }
+    return {func: func};
+  }
+
+  var m = _WASMEXP_.instantiateModuleFromAsm(Module.toString());
+  assertEquals(3, m.func());
+})();
+
+
+(function TestFloatishAssignment() {
+  function Module(stdlib, foreign, heap) {
+    "use asm";
+    var HEAPF32 = new stdlib.Float32Array(heap);
+    var fround = stdlib.Math.fround;
+    function func() {
+      var a = fround(1.0);
+      var b = fround(2.0);
+      HEAPF32[0] = a + b;
+      return +HEAPF32[0];
+    }
+    return {func: func};
+  }
+
+  var m = _WASMEXP_.instantiateModuleFromAsm(Module.toString());
+  assertEquals(3, m.func());
+})  // TODO(bradnelson): Enable when Math.fround implementation lands.

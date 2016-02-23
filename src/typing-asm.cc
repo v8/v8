@@ -683,18 +683,22 @@ void AsmTyper::VisitAssignment(Assignment* expr) {
   RECURSE(VisitWithExpectation(
       expr->value(), type, "assignment value expected to match surrounding"));
   Type* target_type = StorageType(computed_type_);
-  if (intish_ != 0) {
-    FAIL(expr, "intish or floatish assignment");
-  }
   if (expr->target()->IsVariableProxy()) {
+    if (intish_ != 0) {
+      FAIL(expr, "intish or floatish assignment");
+    }
     expected_type_ = target_type;
     VisitVariableProxy(expr->target()->AsVariableProxy(), true);
   } else if (expr->target()->IsProperty()) {
+    int value_intish = intish_;
     Property* property = expr->target()->AsProperty();
     RECURSE(VisitWithExpectation(property->obj(), Type::Any(),
                                  "bad propety object"));
     if (!computed_type_->IsArray()) {
       FAIL(property->obj(), "array expected");
+    }
+    if (value_intish != 0 && computed_type_->Is(cache_.kFloat64Array)) {
+      FAIL(expr, "floatish assignment to double array");
     }
     VisitHeapAccess(property, true, target_type);
   }

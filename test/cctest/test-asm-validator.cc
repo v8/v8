@@ -1434,6 +1434,71 @@ TEST(StoreFloat) {
   CHECK_FUNC_TYPES_END
 }
 
+TEST(StoreIntish) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { var x = 1; var y = 1; i32[0] = x + y; }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_V_TYPE) {
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(x, Bounds(cache.kAsmInt));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+      }
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_VAR(y, Bounds(cache.kAsmInt));
+        CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+      }
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmInt)) {
+        CHECK_EXPR(Property, Bounds::Unbounded()) {
+          CHECK_VAR(i32, Bounds(cache.kInt32Array));
+          CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+        }
+        CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmInt)) {
+          CHECK_VAR(x, Bounds(cache.kAsmInt));
+          CHECK_VAR(y, Bounds(cache.kAsmInt));
+        }
+      }
+    }
+    CHECK_SKIP();
+  }
+  CHECK_FUNC_TYPES_END
+}
+
+TEST(StoreFloatish) {
+  CHECK_FUNC_TYPES_BEGIN(
+      "function bar() { "
+      "var x = fround(1.0); "
+      "var y = fround(1.0); f32[0] = x + y; }\n"
+      "function foo() { bar(); }") {
+    CHECK_EXPR(FunctionLiteral, FUNC_V_TYPE) {
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmFloat)) {
+        CHECK_VAR(x, Bounds(cache.kAsmFloat));
+        CHECK_EXPR(Call, Bounds(cache.kAsmFloat)) {
+          CHECK_VAR(fround, FUNC_N2F_TYPE);
+          CHECK_EXPR(Literal, Bounds(cache.kAsmDouble));
+        }
+      }
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmFloat)) {
+        CHECK_VAR(y, Bounds(cache.kAsmFloat));
+        CHECK_EXPR(Call, Bounds(cache.kAsmFloat)) {
+          CHECK_VAR(fround, FUNC_N2F_TYPE);
+          CHECK_EXPR(Literal, Bounds(cache.kAsmDouble));
+        }
+      }
+      CHECK_EXPR(Assignment, Bounds(cache.kAsmFloat)) {
+        CHECK_EXPR(Property, Bounds::Unbounded()) {
+          CHECK_VAR(f32, Bounds(cache.kFloat32Array));
+          CHECK_EXPR(Literal, Bounds(cache.kAsmFixnum));
+        }
+        CHECK_EXPR(BinaryOperation, Bounds(cache.kAsmFloat)) {
+          CHECK_VAR(x, Bounds(cache.kAsmFloat));
+          CHECK_VAR(y, Bounds(cache.kAsmFloat));
+        }
+      }
+    }
+    CHECK_SKIP();
+  }
+  CHECK_FUNC_TYPES_END
+}
 
 TEST(Load1Constant) {
   CHECK_FUNC_TYPES_BEGIN(
@@ -1712,9 +1777,9 @@ TEST(MismatchedReturnTypeExpression) {
 
 TEST(AssignToFloatishToF64) {
   CHECK_FUNC_ERROR(
-      "function bar() { var v = fround(1.0); f32[0] = v + fround(1.0); }\n"
+      "function bar() { var v = fround(1.0); f64[0] = v + fround(1.0); }\n"
       "function foo() { bar(); }",
-      "asm: line 39: intish or floatish assignment\n");
+      "asm: line 39: floatish assignment to double array\n");
 }
 
 
