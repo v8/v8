@@ -13,6 +13,7 @@
 #include "src/base/logging.h"
 #include "src/base/smart-pointers.h"
 #include "src/compiler.h"
+#include "src/runtime/runtime.h"
 
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-generator.h"
@@ -94,6 +95,12 @@ void BytecodeExpectationsPrinter::PrintEscapedString(
   }
 }
 
+namespace {
+i::Runtime::FunctionId IndexToFunctionId(int index) {
+  return static_cast<i::Runtime::FunctionId>(index);
+}
+}  // namespace
+
 void BytecodeExpectationsPrinter::PrintBytecodeOperand(
     std::ostream& stream, const BytecodeArrayIterator& bytecode_iter,
     const Bytecode& bytecode, int op_index, int parameter_count) const {
@@ -136,7 +143,12 @@ void BytecodeExpectationsPrinter::PrintBytecodeOperand(
   } else {
     stream << 'U' << size_tag << '(';
 
-    if (Bytecodes::IsImmediateOperandType(op_type)) {
+    if (op_index == 0 && Bytecodes::IsCallRuntime(bytecode)) {
+      DCHECK_EQ(op_type, OperandType::kIdx16);
+      int operand = bytecode_iter.GetIndexOperand(op_index);
+      stream << "Runtime::k"
+             << i::Runtime::FunctionForId(IndexToFunctionId(operand))->name;
+    } else if (Bytecodes::IsImmediateOperandType(op_type)) {
       // We need a cast, otherwise the result is printed as char.
       stream << static_cast<int>(bytecode_iter.GetImmediateOperand(op_index));
     } else if (Bytecodes::IsRegisterCountOperandType(op_type)) {

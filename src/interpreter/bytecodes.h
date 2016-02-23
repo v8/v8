@@ -478,6 +478,9 @@ class Bytecodes {
   // Returns true if the bytecode is a call or a constructor call.
   static bool IsCallOrNew(Bytecode bytecode);
 
+  // Returns true if the bytecode is a call to the runtime.
+  static bool IsCallRuntime(Bytecode bytecode);
+
   // Returns true if the bytecode is a debug break.
   static bool IsDebugBreak(Bytecode bytecode);
 

@@ -283,6 +283,14 @@ bool Bytecodes::IsCallOrNew(Bytecode bytecode) {
 }
 
 // static
+bool Bytecodes::IsCallRuntime(Bytecode bytecode) {
+  return bytecode == Bytecode::kCallRuntime ||
+         bytecode == Bytecode::kCallRuntimeWide ||
+         bytecode == Bytecode::kCallRuntimeForPair ||
+         bytecode == Bytecode::kCallRuntimeForPairWide;
+}
+
+// static
 bool Bytecodes::IsDebugBreak(Bytecode bytecode) {
   switch (bytecode) {
 #define CASE(Name, ...) case Bytecode::k##Name:
