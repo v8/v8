@@ -123,9 +123,10 @@ v8::internal::wasm::WasmModuleIndex* TranslateAsmModule(
     return nullptr;
   }
 
-  auto module = v8::internal::wasm::AsmWasmBuilder(
-                    info->isolate(), info->zone(), info->literal(), foreign)
-                    .Run();
+  auto module =
+      v8::internal::wasm::AsmWasmBuilder(info->isolate(), info->zone(),
+                                         info->literal(), foreign, &typer)
+          .Run();
 
   if (i::FLAG_dump_asmjs_wasm) {
     FILE* wasm_file = fopen(i::FLAG_asmjs_wasm_dumpfile, "wb");
