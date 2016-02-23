@@ -1113,7 +1113,7 @@ void AsmTyper::VisitIntegerBitwiseOperator(BinaryOperation* expr,
     right_type = left_type;
   }
   if (!conversion) {
-    if (!left_type->Is(right_type) || !right_type->Is(left_type)) {
+    if (!left_type->Is(cache_.kAsmInt) || !right_type->Is(cache_.kAsmInt)) {
       FAIL(expr, "ill-typed bitwise operation");
     }
   }

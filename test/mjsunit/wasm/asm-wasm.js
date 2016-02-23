@@ -1472,3 +1472,54 @@ TestForeignVariables();
     _WASMEXP_.instantiateModuleFromAsm(Module.toString());
   });
 })();
+
+
+(function TestAndNegative() {
+  function Module() {
+    "use asm";
+    function func() {
+      var x = 1;
+      var y = 2;
+      var z = 0;
+      z = x + y & -1;
+      return z | 0;
+    }
+    return {func: func};
+  }
+
+  var m = _WASMEXP_.instantiateModuleFromAsm(Module.toString());
+  assertEquals(3, m.func());
+})();
+
+
+(function TestNegativeDouble() {
+  function Module() {
+    "use asm";
+    function func() {
+      var x = -(34359738368.25);
+      var y = -2.5;
+      return +(x + y);
+    }
+    return {func: func};
+  }
+
+  var m = _WASMEXP_.instantiateModuleFromAsm(Module.toString());
+  assertEquals(-34359738370.75, m.func());
+})();
+
+
+(function TestBadAndDouble() {
+  function Module() {
+    "use asm";
+    function func() {
+      var x = 1.0;
+      var y = 2.0;
+      return (x & y) | 0;
+    }
+    return {func: func};
+  }
+
+  assertThrows(function() {
+    _WASMEXP_.instantiateModuleFromAsm(Module.toString());
+  });
+})();
