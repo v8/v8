@@ -499,8 +499,28 @@
 }],  # 'arch == ppc64 and simulator_run == True'
 
 ['ignition == True', {
-  # TODO(yangguo,4690): Enable debugger support for Ignition.
-  'test-debug/*' : [SKIP],
+  # TODO(yangguo,4690): Test failures in debugger tests.
+  'test-debug/DebugStepLocals': [FAIL],
+  'test-debug/DebugStepKeyedLoadLoop': [FAIL],
+  'test-debug/DebugStepKeyedStoreLoop': [FAIL],
+  'test-debug/DebugStepIf': [FAIL],
+  'test-debug/DebugStepNamedLoadLoop': [FAIL],
+  'test-debug/DebugStepDeclarations': [FAIL],
+  'test-debug/BreakPointConstructCallWithGC': [PASS, FAIL],
+  'test-debug/DebugStepNamedStoreLoop': [FAIL],
+  'test-debug/DebugStepLinearMixedICs': [FAIL],
+  'test-debug/DebugStepSwitch': [FAIL],
+  'test-debug/DebugStepWhile': [FAIL],
+  'test-debug/DebugStepFor': [FAIL],
+  'test-debug/DebugStepForContinue': [FAIL],
+  'test-debug/DebugStepForIn': [FAIL],
+  'test-debug/DebugStepDoWhile': [FAIL],
+  'test-debug/DebugConditional': [FAIL],
+  'test-debug/DebugStepForBreak': [FAIL],
+  'test-debug/DebugStepWith': [FAIL],
+  'test-debug/DebugStepFunctionApply': [FAIL],
+  'test-debug/StepInOutBranch': [FAIL],
+  'test-debug/DebugStepFunctionCall': [FAIL],
 
   # TODO(yangguo,4690): Required DebuggerStatement support.
   'test-profile-generator/BailoutReason': [FAIL],

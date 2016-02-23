@@ -768,11 +768,37 @@
   'strong/*': [SKIP],
 
   # TODO(yangguo,4690): Requires debugger support.
-  'debug-*': [SKIP],
   'es6/debug*': [SKIP],
   'harmony/debug*': [SKIP],
   'regress/debug*': [SKIP],
   'regress/regress-debug*': [SKIP],
+
+  # TODO(yangguo,4690): assertion failures in debugger tests.
+  'debug-allscopes-on-debugger': [FAIL],
+  'debug-liveedit-restart-frame': [FAIL],
+  'debug-return-value': [FAIL],
+  'debug-liveedit-literals': [FAIL],
+  'debug-liveedit-3': [FAIL],
+  'debug-liveedit-1': [FAIL],
+  'debug-step-into-json': [FAIL],
+  'debug-liveedit-patch-positions-replace': [FAIL],
+  'debug-step-into-valueof': [FAIL],
+  'debug-liveedit-patch-positions': [FAIL],
+  'debug-liveedit-stepin': [FAIL],
+  'debug-step-4': [FAIL],
+  'debug-liveedit-newsource': [FAIL],
+  'debug-liveedit-stack-padding': [FAIL],
+  'debug-stepframe': [FAIL],
+  'debug-negative-break-points': [FAIL],
+  'debug-stepin-accessor': [FAIL],
+  'debug-step-stub-callfunction': [FAIL],
+  'debug-liveedit-breakpoints': [FAIL],
+  'debug-stepin-accessor-ic': [FAIL],
+  'debug-stepin-builtin': [FAIL],
+  'debug-stepin-foreach': [FAIL],
+  'debug-stepnext-do-while': [FAIL],
+  'debug-stepin-builtin-callback-opt': [FAIL],
+  'debug-stepin-function-call': [FAIL],
 
   # TODO(yangguo,4690): Check failure in debug.cc BreakLocation::SetBreakPoint
   # DCHECK(IsDebugBreak() || IsDebuggerStatement());
