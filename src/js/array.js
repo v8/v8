@@ -1347,7 +1347,7 @@ function InnerArrayIndexOf(array, element, index, length) {
   if (IS_UNDEFINED(index)) {
     index = 0;
   } else {
-    index = TO_INTEGER(index);
+    index = TO_INTEGER(index) + 0;  // Add 0 to convert -0 to 0
     // If index is negative, index from the end of the array.
     if (index < 0) {
       index = length + index;
@@ -1409,7 +1409,7 @@ function InnerArrayLastIndexOf(array, element, index, length, argumentsLength) {
   if (argumentsLength < 2) {
     index = length - 1;
   } else {
-    index = TO_INTEGER(index);
+    index = TO_INTEGER(index) + 0;  // Add 0 to convert -0 to 0
     // If index is negative, index from end of the array.
     if (index < 0) index += length;
     // If index is still negative, do not search the array.
