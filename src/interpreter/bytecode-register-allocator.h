@@ -81,11 +81,6 @@ class BytecodeRegisterAllocator final {
   // PrepareForConsecutiveAllocations.
   Register NextConsecutiveRegister();
 
-  // Prepare consecutive register allocations and initialize an array
-  // of registers with the allocations.
-  void PrepareAndInitializeConsecutiveAllocations(Register* registers,
-                                                  size_t count);
-
   // Returns true if |reg| is allocated in this allocator.
   bool RegisterIsAllocatedInThisScope(Register reg) const;
 

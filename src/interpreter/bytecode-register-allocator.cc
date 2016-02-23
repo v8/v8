@@ -224,14 +224,6 @@ Register BytecodeRegisterAllocator::NextConsecutiveRegister() {
   return Register(next_consecutive_register_++);
 }
 
-void BytecodeRegisterAllocator::PrepareAndInitializeConsecutiveAllocations(
-    Register* registers, size_t count) {
-  PrepareForConsecutiveAllocations(count);
-  for (size_t i = 0; i < count; i++) {
-    registers[i] = NextConsecutiveRegister();
-  }
-}
-
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

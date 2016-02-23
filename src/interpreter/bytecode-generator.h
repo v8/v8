@@ -42,7 +42,6 @@ class BytecodeGenerator final : public AstVisitor {
   class AccumulatorResultScope;
   class RegisterResultScope;
   class RegisterAllocationScope;
-  class SuperPropertyArguments;
 
   void MakeBytecodeBody();
 
@@ -94,18 +93,14 @@ class BytecodeGenerator final : public AstVisitor {
   void VisitVariableAssignment(Variable* variable, Token::Value op,
                                FeedbackVectorSlot slot);
 
-  void PrepareNamedSuperPropertyArguments(
-      SuperPropertyReference* super_property, Handle<Name> name,
-      SuperPropertyArguments* super_property_args);
-  void PrepareKeyedSuperPropertyArguments(
-      SuperPropertyReference* super_property, Expression* key,
-      SuperPropertyArguments* super_property_args);
-  void BuildNamedSuperPropertyLoad(SuperPropertyArguments* super_property_args);
-  void BuildKeyedSuperPropertyLoad(SuperPropertyArguments* super_property_args);
-  void BuildNamedSuperPropertyStore(
-      SuperPropertyArguments* super_property_args);
-  void BuildKeyedSuperPropertyStore(
-      SuperPropertyArguments* super_property_args);
+  void BuildNamedSuperPropertyStore(Register receiver, Register home_object,
+                                    Register name, Register value);
+  void BuildKeyedSuperPropertyStore(Register receiver, Register home_object,
+                                    Register key, Register value);
+  void BuildNamedSuperPropertyLoad(Register receiver, Register home_object,
+                                   Register name);
+  void BuildKeyedSuperPropertyLoad(Register receiver, Register home_object,
+                                   Register key);
 
   void BuildThrowIfHole(Handle<String> name);
   void BuildThrowIfNotHole(Handle<String> name);
@@ -149,6 +144,7 @@ class BytecodeGenerator final : public AstVisitor {
   void VisitForAccumulatorValue(Expression* expr);
   void VisitForAccumulatorValueOrTheHole(Expression* expr);
   MUST_USE_RESULT Register VisitForRegisterValue(Expression* expr);
+  void VisitForRegisterValue(Expression* expr, Register destination);
   void VisitForEffect(Expression* expr);
 
   // Methods for tracking and remapping register.
