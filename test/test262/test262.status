@@ -55,20 +55,16 @@
   # https://code.google.com/p/v8/issues/detail?id=4163
   'built-ins/GeneratorPrototype/next/context-constructor-invocation': [FAIL],
 
-  # https://code.google.com/p/v8/issues/detail?id=3566
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4775
   'built-ins/Array/from/iter-map-fn-err': [FAIL],
-  'built-ins/Array/from/iter-set-elem-prop-err': [FAIL],
   'built-ins/Map/iterator-close-after-set-failure': [FAIL],
   'built-ins/Map/iterator-item-first-entry-returns-abrupt': [FAIL],
   'built-ins/Map/iterator-item-second-entry-returns-abrupt': [FAIL],
-  'built-ins/Map/iterator-items-are-not-object-close-iterator': [FAIL],
-  'built-ins/Promise/all/iter-close': [FAIL],
   'built-ins/Promise/race/iter-close': [PASS, FAIL],
   'built-ins/Set/set-iterator-close-after-add-failure': [FAIL],
   'built-ins/WeakMap/iterator-close-after-set-failure': [FAIL],
   'built-ins/WeakMap/iterator-item-first-entry-returns-abrupt': [FAIL],
   'built-ins/WeakMap/iterator-item-second-entry-returns-abrupt': [FAIL],
-  'built-ins/WeakMap/iterator-items-are-not-object-close-iterator': [FAIL],
   'built-ins/WeakSet/iterator-close-after-add-failure': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=4348
@@ -80,17 +76,9 @@
   'language/computed-property-names/class/static/method-symbol': [FAIL, FAIL_SLOPPY],
   'language/computed-property-names/class/static/method-string': [FAIL, FAIL_SLOPPY],
 
-  # https://code.google.com/p/v8/issues/detail?id=3566
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4776
   'language/statements/for-of/body-dstr-assign-error': [FAIL],
   'language/statements/for-of/body-put-error': [FAIL],
-  'language/statements/for-of/generator-close-via-break': [FAIL],
-  'language/statements/for-of/generator-close-via-return': [FAIL],
-  'language/statements/for-of/generator-close-via-throw': [FAIL],
-  'language/statements/for-of/iterator-close-get-method-error': [FAIL],
-  'language/statements/for-of/iterator-close-non-object': [FAIL],
-  'language/statements/for-of/iterator-close-via-break': [FAIL],
-  'language/statements/for-of/iterator-close-via-return': [FAIL],
-  'language/statements/for-of/iterator-close-via-throw': [FAIL],
 
   # We do not expose Array.prototype.values
   # https://code.google.com/p/v8/issues/detail?id=4247

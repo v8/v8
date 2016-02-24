@@ -211,7 +211,6 @@ DEFINE_IMPLICATION(es_staging, harmony_tailcalls)
   V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")                  \
   V(harmony_simd, "harmony simd")                                            \
   V(harmony_do_expressions, "harmony do-expressions")                        \
-  V(harmony_iterator_close, "harmony iterator finalization")                 \
   V(harmony_tailcalls, "harmony tail calls")                                 \
   V(harmony_object_values_entries, "harmony Object.values / Object.entries") \
   V(harmony_object_own_property_descriptors,                                 \
@@ -222,6 +221,7 @@ DEFINE_IMPLICATION(es_staging, harmony_tailcalls)
 #define HARMONY_STAGED(V)                                     \
   V(harmony_function_name, "harmony Function name inference") \
   V(harmony_regexp_lookbehind, "harmony regexp lookbehind")   \
+  V(harmony_iterator_close, "harmony iterator finalization")  \
   V(harmony_instanceof, "harmony instanceof support")
 
 // Features that are shipping (turned on by default, but internal flag remains).
