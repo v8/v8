@@ -110,7 +110,12 @@ enum AddressingMode {
 std::ostream& operator<<(std::ostream& os, const AddressingMode& am);
 
 // The mode of the flags continuation (see below).
-enum FlagsMode { kFlags_none = 0, kFlags_branch = 1, kFlags_set = 2 };
+enum FlagsMode {
+  kFlags_none = 0,
+  kFlags_branch = 1,
+  kFlags_deoptimize = 2,
+  kFlags_set = 3
+};
 
 std::ostream& operator<<(std::ostream& os, const FlagsMode& fm);
 

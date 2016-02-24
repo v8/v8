@@ -393,6 +393,8 @@ std::ostream& operator<<(std::ostream& os, const FlagsMode& fm) {
       return os;
     case kFlags_branch:
       return os << "branch";
+    case kFlags_deoptimize:
+      return os << "deoptimize";
     case kFlags_set:
       return os << "set";
   }

@@ -404,10 +404,11 @@ void InstructionSelector::VisitCheckedStore(Node* node) {
   }
 }
 
+namespace {
 
 // Shared routine for multiple binary operations.
-static void VisitBinop(InstructionSelector* selector, Node* node,
-                       InstructionCode opcode, FlagsContinuation* cont) {
+void VisitBinop(InstructionSelector* selector, Node* node,
+                InstructionCode opcode, FlagsContinuation* cont) {
   IA32OperandGenerator g(selector);
   Int32BinopMatcher m(node);
   Node* left = m.left().node();
@@ -456,18 +457,24 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
   DCHECK_GE(arraysize(inputs), input_count);
   DCHECK_GE(arraysize(outputs), output_count);
 
-  selector->Emit(cont->Encode(opcode), output_count, outputs, input_count,
-                 inputs);
+  opcode = cont->Encode(opcode);
+  if (cont->IsDeoptimize()) {
+    selector->EmitDeoptimize(opcode, output_count, outputs, input_count, inputs,
+                             cont->frame_state());
+  } else {
+    selector->Emit(opcode, output_count, outputs, input_count, inputs);
+  }
 }
 
 
 // Shared routine for multiple binary operations.
-static void VisitBinop(InstructionSelector* selector, Node* node,
-                       InstructionCode opcode) {
+void VisitBinop(InstructionSelector* selector, Node* node,
+                InstructionCode opcode) {
   FlagsContinuation cont;
   VisitBinop(selector, node, opcode, &cont);
 }
 
+}  // namespace
 
 void InstructionSelector::VisitWord32And(Node* node) {
   VisitBinop(this, node, kIA32And);
@@ -1007,6 +1014,9 @@ void VisitCompareWithMemoryOperand(InstructionSelector* selector,
     inputs[input_count++] = g.Label(cont->true_block());
     inputs[input_count++] = g.Label(cont->false_block());
     selector->Emit(opcode, 0, nullptr, input_count, inputs);
+  } else if (cont->IsDeoptimize()) {
+    selector->EmitDeoptimize(opcode, 0, nullptr, input_count, inputs,
+                             cont->frame_state());
   } else {
     DCHECK(cont->IsSet());
     InstructionOperand output = g.DefineAsRegister(cont->result());
@@ -1034,13 +1044,16 @@ void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
                   InstructionOperand left, InstructionOperand right,
                   FlagsContinuation* cont) {
   IA32OperandGenerator g(selector);
+  opcode = cont->Encode(opcode);
   if (cont->IsBranch()) {
-    selector->Emit(cont->Encode(opcode), g.NoOutput(), left, right,
+    selector->Emit(opcode, g.NoOutput(), left, right,
                    g.Label(cont->true_block()), g.Label(cont->false_block()));
+  } else if (cont->IsDeoptimize()) {
+    selector->EmitDeoptimize(opcode, g.NoOutput(), left, right,
+                             cont->frame_state());
   } else {
     DCHECK(cont->IsSet());
-    selector->Emit(cont->Encode(opcode), g.DefineAsByteRegister(cont->result()),
-                   left, right);
+    selector->Emit(opcode, g.DefineAsByteRegister(cont->result()), left, right);
   }
 }
 
@@ -1125,6 +1138,9 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
       if (cont->IsBranch()) {
         selector->Emit(opcode, g.NoOutput(), g.Label(cont->true_block()),
                        g.Label(cont->false_block()));
+      } else if (cont->IsDeoptimize()) {
+        selector->EmitDeoptimize(opcode, 0, nullptr, 0, nullptr,
+                                 cont->frame_state());
       } else {
         DCHECK(cont->IsSet());
         selector->Emit(opcode, g.DefineAsRegister(cont->result()));
@@ -1227,13 +1243,23 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
 
 }  // namespace
 
-
 void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
                                       BasicBlock* fbranch) {
   FlagsContinuation cont(kNotEqual, tbranch, fbranch);
   VisitWordCompareZero(this, branch, branch->InputAt(0), &cont);
 }
 
+void InstructionSelector::VisitDeoptimizeIf(Node* node) {
+  FlagsContinuation cont =
+      FlagsContinuation::ForDeoptimize(kNotEqual, node->InputAt(1));
+  VisitWordCompareZero(this, node, node->InputAt(0), &cont);
+}
+
+void InstructionSelector::VisitDeoptimizeUnless(Node* node) {
+  FlagsContinuation cont =
+      FlagsContinuation::ForDeoptimize(kEqual, node->InputAt(1));
+  VisitWordCompareZero(this, node, node->InputAt(0), &cont);
+}
 
 void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
   IA32OperandGenerator g(this);
@@ -1264,7 +1290,7 @@ void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
 
 
 void InstructionSelector::VisitWord32Equal(Node* const node) {
-  FlagsContinuation cont(kEqual, node);
+  FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
   Int32BinopMatcher m(node);
   if (m.right().Is(0)) {
     return VisitWordCompareZero(this, m.node(), m.left().node(), &cont);
@@ -1274,32 +1300,34 @@ void InstructionSelector::VisitWord32Equal(Node* const node) {
 
 
 void InstructionSelector::VisitInt32LessThan(Node* node) {
-  FlagsContinuation cont(kSignedLessThan, node);
+  FlagsContinuation cont = FlagsContinuation::ForSet(kSignedLessThan, node);
   VisitWordCompare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitInt32LessThanOrEqual(Node* node) {
-  FlagsContinuation cont(kSignedLessThanOrEqual, node);
+  FlagsContinuation cont =
+      FlagsContinuation::ForSet(kSignedLessThanOrEqual, node);
   VisitWordCompare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitUint32LessThan(Node* node) {
-  FlagsContinuation cont(kUnsignedLessThan, node);
+  FlagsContinuation cont = FlagsContinuation::ForSet(kUnsignedLessThan, node);
   VisitWordCompare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitUint32LessThanOrEqual(Node* node) {
-  FlagsContinuation cont(kUnsignedLessThanOrEqual, node);
+  FlagsContinuation cont =
+      FlagsContinuation::ForSet(kUnsignedLessThanOrEqual, node);
   VisitWordCompare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitInt32AddWithOverflow(Node* node) {
   if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
-    FlagsContinuation cont(kOverflow, ovf);
+    FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
     return VisitBinop(this, node, kIA32Add, &cont);
   }
   FlagsContinuation cont;
@@ -1309,7 +1337,7 @@ void InstructionSelector::VisitInt32AddWithOverflow(Node* node) {
 
 void InstructionSelector::VisitInt32SubWithOverflow(Node* node) {
   if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
-    FlagsContinuation cont(kOverflow, ovf);
+    FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
     return VisitBinop(this, node, kIA32Sub, &cont);
   }
   FlagsContinuation cont;
@@ -1318,37 +1346,41 @@ void InstructionSelector::VisitInt32SubWithOverflow(Node* node) {
 
 
 void InstructionSelector::VisitFloat32Equal(Node* node) {
-  FlagsContinuation cont(kUnorderedEqual, node);
+  FlagsContinuation cont = FlagsContinuation::ForSet(kUnorderedEqual, node);
   VisitFloat32Compare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitFloat32LessThan(Node* node) {
-  FlagsContinuation cont(kUnsignedGreaterThan, node);
+  FlagsContinuation cont =
+      FlagsContinuation::ForSet(kUnsignedGreaterThan, node);
   VisitFloat32Compare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitFloat32LessThanOrEqual(Node* node) {
-  FlagsContinuation cont(kUnsignedGreaterThanOrEqual, node);
+  FlagsContinuation cont =
+      FlagsContinuation::ForSet(kUnsignedGreaterThanOrEqual, node);
   VisitFloat32Compare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitFloat64Equal(Node* node) {
-  FlagsContinuation cont(kUnorderedEqual, node);
+  FlagsContinuation cont = FlagsContinuation::ForSet(kUnorderedEqual, node);
   VisitFloat64Compare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitFloat64LessThan(Node* node) {
-  FlagsContinuation cont(kUnsignedGreaterThan, node);
+  FlagsContinuation cont =
+      FlagsContinuation::ForSet(kUnsignedGreaterThan, node);
   VisitFloat64Compare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitFloat64LessThanOrEqual(Node* node) {
-  FlagsContinuation cont(kUnsignedGreaterThanOrEqual, node);
+  FlagsContinuation cont =
+      FlagsContinuation::ForSet(kUnsignedGreaterThanOrEqual, node);
   VisitFloat64Compare(this, node, &cont);
 }
 

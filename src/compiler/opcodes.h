@@ -21,6 +21,8 @@
   V(IfDefault)             \
   V(Merge)                 \
   V(Deoptimize)            \
+  V(DeoptimizeIf)          \
+  V(DeoptimizeUnless)      \
   V(Return)                \
   V(TailCall)              \
   V(Terminate)             \

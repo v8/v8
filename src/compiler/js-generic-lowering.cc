@@ -45,6 +45,8 @@ Reduction JSGenericLowering::Reduce(Node* node) {
     JS_OP_LIST(DECLARE_CASE)
 #undef DECLARE_CASE
     case IrOpcode::kBranch:
+    case IrOpcode::kDeoptimizeIf:
+    case IrOpcode::kDeoptimizeUnless:
       // TODO(mstarzinger): If typing is enabled then simplified lowering will
       // have inserted the correct ChangeBoolToBit, otherwise we need to perform
       // poor-man's representation inference here and insert manual change.

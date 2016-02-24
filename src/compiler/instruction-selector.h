@@ -100,6 +100,17 @@ class InstructionSelector final {
   Instruction* Emit(Instruction* instr);
 
   // ===========================================================================
+  // ===== Architecture-independent deoptimization exit emission methods. ======
+  // ===========================================================================
+
+  Instruction* EmitDeoptimize(InstructionCode opcode, InstructionOperand output,
+                              InstructionOperand a, InstructionOperand b,
+                              Node* frame_state);
+  Instruction* EmitDeoptimize(InstructionCode opcode, size_t output_count,
+                              InstructionOperand* outputs, size_t input_count,
+                              InstructionOperand* inputs, Node* frame_state);
+
+  // ===========================================================================
   // ============== Architecture-independent CPU feature methods. ==============
   // ===========================================================================
 
@@ -243,6 +254,8 @@ class InstructionSelector final {
   void VisitProjection(Node* node);
   void VisitConstant(Node* node);
   void VisitCall(Node* call, BasicBlock* handler = nullptr);
+  void VisitDeoptimizeIf(Node* node);
+  void VisitDeoptimizeUnless(Node* node);
   void VisitTailCall(Node* call);
   void VisitGoto(BasicBlock* target);
   void VisitBranch(Node* input, BasicBlock* tbranch, BasicBlock* fbranch);
