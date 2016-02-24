@@ -108,7 +108,9 @@ class FullCodeGenerator: public AstVisitor {
 
   class NestedStatement BASE_EMBEDDED {
    public:
-    explicit NestedStatement(FullCodeGenerator* codegen) : codegen_(codegen) {
+    explicit NestedStatement(FullCodeGenerator* codegen)
+        : codegen_(codegen),
+          stack_depth_at_target_(codegen->operand_stack_depth_) {
       // Link into codegen's nesting stack.
       previous_ = codegen->nesting_stack_;
       codegen->nesting_stack_ = this;
@@ -130,18 +132,20 @@ class FullCodeGenerator: public AstVisitor {
     // Notify the statement that we are exiting it via break, continue, or
     // return and give it a chance to generate cleanup code.  Return the
     // next outer statement in the nesting stack.  We accumulate in
-    // *stack_depth the amount to drop the stack and in *context_length the
-    // number of context chain links to unwind as we traverse the nesting
-    // stack from an exit to its target.
-    virtual NestedStatement* Exit(int* stack_depth, int* context_length) {
-      return previous_;
-    }
+    // {*context_length} the number of context chain links to unwind as we
+    // traverse the nesting stack from an exit to its target.
+    virtual NestedStatement* Exit(int* context_length) { return previous_; }
+
+    // Determine the expected operand stack depth when this statement is being
+    // used as the target of an exit. The caller will drop to this depth.
+    int GetStackDepthAtTarget() { return stack_depth_at_target_; }
 
    protected:
     MacroAssembler* masm() { return codegen_->masm(); }
 
     FullCodeGenerator* codegen_;
     NestedStatement* previous_;
+    int stack_depth_at_target_;
 
    private:
     DISALLOW_COPY_AND_ASSIGN(NestedStatement);
@@ -192,24 +196,11 @@ class FullCodeGenerator: public AstVisitor {
         : Breakable(codegen, block) {
     }
 
-    NestedStatement* Exit(int* stack_depth, int* context_length) override {
+    NestedStatement* Exit(int* context_length) override {
       auto block_scope = statement()->AsBlock()->scope();
       if (block_scope != nullptr) {
         if (block_scope->ContextLocalCount() > 0) ++(*context_length);
       }
-      return previous_;
-    }
-  };
-
-  // The try block of a try/catch statement.
-  class TryCatch : public NestedStatement {
-   public:
-    static const int kElementCount = TryBlockConstant::kElementCount;
-
-    explicit TryCatch(FullCodeGenerator* codegen) : NestedStatement(codegen) {}
-
-    NestedStatement* Exit(int* stack_depth, int* context_length) override {
-      *stack_depth += kElementCount;
       return previous_;
     }
   };
@@ -254,12 +245,10 @@ class FullCodeGenerator: public AstVisitor {
   // The try block of a try/finally statement.
   class TryFinally : public NestedStatement {
    public:
-    static const int kElementCount = TryBlockConstant::kElementCount;
-
     TryFinally(FullCodeGenerator* codegen, DeferredCommands* commands)
         : NestedStatement(codegen), deferred_commands_(commands) {}
 
-    NestedStatement* Exit(int* stack_depth, int* context_length) override;
+    NestedStatement* Exit(int* context_length) override;
 
     bool IsTryFinally() override { return true; }
     TryFinally* AsTryFinally() override { return this; }
@@ -270,35 +259,6 @@ class FullCodeGenerator: public AstVisitor {
     DeferredCommands* deferred_commands_;
   };
 
-  // The finally block of a try/finally statement.
-  class Finally : public NestedStatement {
-   public:
-    static const int kElementCount = 3;
-
-    explicit Finally(FullCodeGenerator* codegen) : NestedStatement(codegen) {}
-
-    NestedStatement* Exit(int* stack_depth, int* context_length) override {
-      *stack_depth += kElementCount;
-      return previous_;
-    }
-  };
-
-  // The body of a for/in loop.
-  class ForIn : public Iteration {
-   public:
-    static const int kElementCount = 5;
-
-    ForIn(FullCodeGenerator* codegen, ForInStatement* statement)
-        : Iteration(codegen, statement) {
-    }
-
-    NestedStatement* Exit(int* stack_depth, int* context_length) override {
-      *stack_depth += kElementCount;
-      return previous_;
-    }
-  };
-
-
   // The body of a with or catch.
   class WithOrCatch : public NestedStatement {
    public:
@@ -306,7 +266,7 @@ class FullCodeGenerator: public AstVisitor {
         : NestedStatement(codegen) {
     }
 
-    NestedStatement* Exit(int* stack_depth, int* context_length) override {
+    NestedStatement* Exit(int* context_length) override {
       ++(*context_length);
       return previous_;
     }

@@ -913,7 +913,6 @@ void FullCodeGenerator::VisitIfStatement(IfStatement* stmt) {
 
 void FullCodeGenerator::EmitContinue(Statement* target) {
   NestedStatement* current = nesting_stack_;
-  int stack_depth = 0;
   int context_length = 0;
   // When continuing, we clobber the unpredictable value in the accumulator
   // with one that's safe for GC.  If we hit an exit from the try block of
@@ -923,15 +922,17 @@ void FullCodeGenerator::EmitContinue(Statement* target) {
   while (!current->IsContinueTarget(target)) {
     if (current->IsTryFinally()) {
       Comment cmnt(masm(), "[ Deferred continue through finally");
-      current->Exit(&stack_depth, &context_length);
-      DCHECK_EQ(0, stack_depth);
-      DCHECK_EQ(0, context_length);
+      current->Exit(&context_length);
+      DCHECK_EQ(-1, context_length);
       current->AsTryFinally()->deferred_commands()->RecordContinue(target);
       return;
     }
-    current = current->Exit(&stack_depth, &context_length);
+    current = current->Exit(&context_length);
   }
-  __ Drop(stack_depth);
+  int stack_depth = current->GetStackDepthAtTarget();
+  int stack_drop = operand_stack_depth_ - stack_depth;
+  DCHECK_GE(stack_drop, 0);
+  __ Drop(stack_drop);
   if (context_length > 0) {
     while (context_length > 0) {
       LoadContextField(context_register(), Context::PREVIOUS_INDEX);
@@ -952,7 +953,6 @@ void FullCodeGenerator::VisitContinueStatement(ContinueStatement* stmt) {
 
 void FullCodeGenerator::EmitBreak(Statement* target) {
   NestedStatement* current = nesting_stack_;
-  int stack_depth = 0;
   int context_length = 0;
   // When breaking, we clobber the unpredictable value in the accumulator
   // with one that's safe for GC.  If we hit an exit from the try block of
@@ -962,15 +962,17 @@ void FullCodeGenerator::EmitBreak(Statement* target) {
   while (!current->IsBreakTarget(target)) {
     if (current->IsTryFinally()) {
       Comment cmnt(masm(), "[ Deferred break through finally");
-      current->Exit(&stack_depth, &context_length);
-      DCHECK_EQ(0, stack_depth);
-      DCHECK_EQ(0, context_length);
+      current->Exit(&context_length);
+      DCHECK_EQ(-1, context_length);
       current->AsTryFinally()->deferred_commands()->RecordBreak(target);
       return;
     }
-    current = current->Exit(&stack_depth, &context_length);
+    current = current->Exit(&context_length);
   }
-  __ Drop(stack_depth);
+  int stack_depth = current->GetStackDepthAtTarget();
+  int stack_drop = operand_stack_depth_ - stack_depth;
+  DCHECK_GE(stack_drop, 0);
+  __ Drop(stack_drop);
   if (context_length > 0) {
     while (context_length > 0) {
       LoadContextField(context_register(), Context::PREVIOUS_INDEX);
@@ -991,20 +993,17 @@ void FullCodeGenerator::VisitBreakStatement(BreakStatement* stmt) {
 
 void FullCodeGenerator::EmitUnwindAndReturn() {
   NestedStatement* current = nesting_stack_;
-  int stack_depth = 0;
   int context_length = 0;
   while (current != NULL) {
     if (current->IsTryFinally()) {
       Comment cmnt(masm(), "[ Deferred return through finally");
-      current->Exit(&stack_depth, &context_length);
-      DCHECK_EQ(0, stack_depth);
-      DCHECK_EQ(0, context_length);
+      current->Exit(&context_length);
+      DCHECK_EQ(-1, context_length);
       current->AsTryFinally()->deferred_commands()->RecordReturn();
       return;
     }
-    current = current->Exit(&stack_depth, &context_length);
+    current = current->Exit(&context_length);
   }
-  __ Drop(stack_depth);
   EmitReturnSequence();
 }
 
@@ -1281,7 +1280,8 @@ void FullCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
   try_catch_depth_++;
   int handler_index = NewHandlerTableEntry();
   EnterTryBlock(handler_index, &handler_entry);
-  { TryCatch try_body(this);
+  {
+    Comment cmnt_try(masm(), "[ Try block");
     Visit(stmt->try_block());
   }
   ExitTryBlock(handler_index);
@@ -1322,7 +1322,7 @@ void FullCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   // Exception handler code.  This code is only executed when an exception
   // is thrown.  Record the continuation and jump to the finally block.
   {
-    Comment cmt_handler(masm(), "[ Finally handler");
+    Comment cmnt_handler(masm(), "[ Finally handler");
     deferred.RecordThrow();
   }
 
@@ -1331,6 +1331,7 @@ void FullCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   int handler_index = NewHandlerTableEntry();
   EnterTryBlock(handler_index, &handler_entry);
   {
+    Comment cmnt_try(masm(), "[ Try block");
     TryFinally try_body(this, &deferred);
     Visit(stmt->try_block());
   }
@@ -1345,15 +1346,14 @@ void FullCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
 
   // Finally block implementation.
   __ bind(&finally_entry);
-  Comment cmnt_finally(masm(), "[ Finally block");
-  OperandStackDepthIncrement(2);  // Token and accumulator are on stack.
-  EnterFinallyBlock();
   {
-    Finally finally_body(this);
+    Comment cmnt_finally(masm(), "[ Finally block");
+    OperandStackDepthIncrement(2);  // Token and accumulator are on stack.
+    EnterFinallyBlock();
     Visit(stmt->finally_block());
+    ExitFinallyBlock();
+    OperandStackDepthDecrement(2);  // Token and accumulator were on stack.
   }
-  ExitFinallyBlock();
-  OperandStackDepthDecrement(2);  // Token and accumulator were on stack.
 
   {
     Comment cmnt_deferred(masm(), "[ Post-finally dispatch");
@@ -1599,28 +1599,32 @@ void FullCodeGenerator::VisitRewritableExpression(RewritableExpression* expr) {
   Visit(expr->expression());
 }
 
-
 FullCodeGenerator::NestedStatement* FullCodeGenerator::TryFinally::Exit(
-    int* stack_depth, int* context_length) {
+    int* context_length) {
   // The macros used here must preserve the result register.
+
+  // Calculate how many operands to drop to get down to handler block.
+  int stack_drop = codegen_->operand_stack_depth_ - GetStackDepthAtTarget();
+  DCHECK_GE(stack_drop, 0);
 
   // Because the handler block contains the context of the finally
   // code, we can restore it directly from there for the finally code
   // rather than iteratively unwinding contexts via their previous
   // links.
   if (*context_length > 0) {
-    __ Drop(*stack_depth);  // Down to the handler block.
+    __ Drop(stack_drop);  // Down to the handler block.
     // Restore the context to its dedicated register and the stack.
-    STATIC_ASSERT(TryFinally::kElementCount == 1);
+    STATIC_ASSERT(TryBlockConstant::kElementCount == 1);
     __ Pop(codegen_->context_register());
     codegen_->StoreToFrameField(StandardFrameConstants::kContextOffset,
                                 codegen_->context_register());
   } else {
     // Down to the handler block and also drop context.
-    __ Drop(*stack_depth + kElementCount);
+    __ Drop(stack_drop + TryBlockConstant::kElementCount);
   }
-  *stack_depth = 0;
-  *context_length = 0;
+
+  // The caller will ignore outputs.
+  *context_length = -1;
   return previous_;
 }
 
