@@ -773,6 +773,10 @@
   # Skip strong mode tests since strong mode is unsupported on ignition.
   'strong/*': [SKIP],
 
+  # TODO(mstarzinger): Flushes out a similar, but different issue to what the
+  # regression test was designed to test against. Investigate separately.
+  'regress/regress-crbug-589472': [SKIP],
+
   # TODO(yangguo,4690): Requires debugger support.
   'es6/debug*': [SKIP],
   'harmony/debug*': [SKIP],

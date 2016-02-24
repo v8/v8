@@ -486,14 +486,14 @@ void FullCodeGenerator::CallRuntimeWithOperands(Runtime::FunctionId id) {
 }
 
 void FullCodeGenerator::OperandStackDepthIncrement(int count) {
+  DCHECK_IMPLIES(!HasStackOverflow(), operand_stack_depth_ >= 0);
   DCHECK_GE(count, 0);
-  DCHECK_GE(operand_stack_depth_, 0);
   operand_stack_depth_ += count;
 }
 
 void FullCodeGenerator::OperandStackDepthDecrement(int count) {
+  DCHECK_IMPLIES(!HasStackOverflow(), operand_stack_depth_ >= count);
   DCHECK_GE(count, 0);
-  DCHECK_GE(operand_stack_depth_, count);
   operand_stack_depth_ -= count;
 }
 
