@@ -8791,6 +8791,9 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
       if (argument_count == 2) {
         HValue* argument = Pop();
         Drop(2);  // Receiver and function.
+        argument = AddUncasted<HForceRepresentation>(
+            argument, Representation::Integer32());
+        argument->SetFlag(HValue::kTruncatingToInt32);
         HInstruction* result = NewUncasted<HStringCharFromCode>(argument);
         ast_context()->ReturnInstruction(result, expr->id());
         return true;
