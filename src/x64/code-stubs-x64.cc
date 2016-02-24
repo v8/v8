@@ -1500,11 +1500,12 @@ void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
   // rdi - function
   // rdx - slot id
   // rbx - vector
-  // rax - number of arguments if argc_in_register() is true.
   // rcx - allocation site (loaded from vector[slot]).
   __ LoadNativeContextSlot(Context::ARRAY_FUNCTION_INDEX, r8);
   __ cmpp(rdi, r8);
   __ j(not_equal, miss);
+
+  __ movp(rax, Immediate(arg_count()));
 
   // Increment the call count for monomorphic function calls.
   __ SmiAddConstant(FieldOperand(rbx, rdx, times_pointer_size,
@@ -1513,17 +1514,8 @@ void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
 
   __ movp(rbx, rcx);
   __ movp(rdx, rdi);
-  if (argc_in_register()) {
-    // Pass a default ArgumentCountKey::Any since the argc is only available
-    // in rax. We do not have the actual count here.
-    ArrayConstructorStub stub(masm->isolate());
-    __ TailCallStub(&stub);
-  } else {
-    // arg_count() is expected in rax if the arg_count() >= 2
-    // (ArgumentCountKey::MORE_THAN_ONE).
-    ArrayConstructorStub stub(masm->isolate(), arg_count());
-    __ TailCallStub(&stub);
-  }
+  ArrayConstructorStub stub(masm->isolate(), arg_count());
+  __ TailCallStub(&stub);
 }
 
 
@@ -1532,14 +1524,12 @@ void CallICStub::Generate(MacroAssembler* masm) {
   // -- rdi - function
   // -- rdx - slot id
   // -- rbx - vector
-  // -- rax - number of arguments if argc_in_register() is true.
   // -----------------------------------
   Isolate* isolate = masm->isolate();
   Label extra_checks_or_miss, call, call_function;
-  if (!argc_in_register()) {
-    int argc = arg_count();
-    __ Set(rax, argc);
-  }
+  int argc = arg_count();
+  StackArgumentsAccessor args(rsp, argc);
+  ParameterCount actual(argc);
 
   // The checks. First, does rdi match the recorded monomorphic target?
   __ SmiToInteger32(rdx, rdx);
@@ -1573,6 +1563,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
                     Smi::FromInt(CallICNexus::kCallCountIncrement));
 
   __ bind(&call_function);
+  __ Set(rax, argc);
   __ Jump(masm->isolate()->builtins()->CallFunction(convert_mode(),
                                                     tail_call_mode()),
           RelocInfo::CODE_TARGET);
@@ -1611,6 +1602,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
           TypeFeedbackVector::MegamorphicSentinel(isolate));
 
   __ bind(&call);
+  __ Set(rax, argc);
   __ Jump(masm->isolate()->builtins()->Call(convert_mode(), tail_call_mode()),
           RelocInfo::CODE_TARGET);
 
@@ -1648,16 +1640,10 @@ void CallICStub::Generate(MacroAssembler* masm) {
     FrameScope scope(masm, StackFrame::INTERNAL);
     CreateWeakCellStub create_stub(isolate);
 
-    __ Integer32ToSmi(rax, rax);
-    __ Push(rax);
     __ Integer32ToSmi(rdx, rdx);
     __ Push(rdi);
-
     __ CallStub(&create_stub);
-
     __ Pop(rdi);
-    __ Pop(rax);
-    __ SmiToInteger32(rax, rax);
   }
 
   __ jmp(&call_function);
@@ -1677,10 +1663,6 @@ void CallICStub::Generate(MacroAssembler* masm) {
 void CallICStub::GenerateMiss(MacroAssembler* masm) {
   FrameScope scope(masm, StackFrame::INTERNAL);
 
-  // Store the number of arguments to be used later.
-  __ Integer32ToSmi(rax, rax);
-  __ Push(rax);
-
   // Push the receiver and the function and feedback info.
   __ Push(rdi);
   __ Push(rbx);
@@ -1692,10 +1674,6 @@ void CallICStub::GenerateMiss(MacroAssembler* masm) {
 
   // Move result to edi and exit the internal frame.
   __ movp(rdi, rax);
-  // rdi, rbx, rdx are arguments to CallIC_Miss. They will be popped by
-  // Runtime_CallIC_Miss.
-  __ Pop(rax);
-  __ SmiToInteger32(rax, rax);
 }
 
 

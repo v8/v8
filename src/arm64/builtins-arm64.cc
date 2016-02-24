@@ -1981,17 +1981,6 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   __ Cmp(scratch1, Operand(0));
   __ B(ne, &done);
 
-  // Drop possible internal frame pushed for calling CallICStub.
-  // TODO(mythria): when we tail call the CallICStub, remove this.
-  {
-    Label no_internal_callic_frame;
-    __ Ldr(scratch3, MemOperand(fp, StandardFrameConstants::kMarkerOffset));
-    __ Cmp(scratch3, Operand(Smi::FromInt(StackFrame::INTERNAL)));
-    __ B(ne, &no_internal_callic_frame);
-    __ Ldr(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-    __ bind(&no_internal_callic_frame);
-  }
-
   // Drop possible interpreter handler/stub frame.
   {
     Label no_interpreter_frame;
@@ -2475,57 +2464,6 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
           RelocInfo::CODE_TARGET);
 }
 
-static void Generate_InterpreterPushArgs(MacroAssembler* masm,
-                                         Register num_args,
-                                         Register start_addr) {
-  // Find the address of the last argument.
-  __ add(x5, num_args, Operand(1));  // Add one for receiver.
-  __ lsl(x5, x5, kPointerSizeLog2);
-  __ sub(x6, start_addr, x5);
-
-  // Push the arguments.
-  Label loop_header, loop_check;
-  __ Mov(x7, jssp);
-  __ Claim(x5, 1);
-  __ B(&loop_check);
-  __ Bind(&loop_header);
-  // TODO(rmcilroy): Push two at a time once we ensure we keep stack aligned.
-  __ Ldr(x5, MemOperand(start_addr, -kPointerSize, PostIndex));
-  __ Str(x5, MemOperand(x7, -kPointerSize, PreIndex));
-  __ Bind(&loop_check);
-  __ Cmp(start_addr, x6);
-  __ B(gt, &loop_header);
-}
-
-// static
-void Builtins::Generate_InterpreterPushArgsAndCallICImpl(
-    MacroAssembler* masm, TailCallMode tail_call_mode) {
-  // ----------- S t a t e -------------
-  //  -- x0 : the number of arguments (not including the receiver)
-  //  -- x4 : the address of the first argument to be pushed. Subsequent
-  //          arguments should be consecutive above this, in the same order as
-  //          they are to be pushed onto the stack.
-  //  -- x1 : the target to call (can be any Object).
-  //  -- x3 : feedback vector slot id
-  //  -- x2 : type feedback vector
-  // -----------------------------------
-
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-
-    // Push arguments to stack. Clobbers x5-x7 registers.
-    Generate_InterpreterPushArgs(masm, x0, x4);
-
-    // Call via the CallIC stub.
-    CallICState call_ic_state(0, ConvertReceiverMode::kAny, tail_call_mode,
-                              true);
-    CallICStub stub(masm->isolate(), call_ic_state);
-    // TODO(mythria): This should be replaced by a TailCallStub, when we
-    // update the code to find the target IC from jump instructions.
-    __ CallStub(&stub);
-  }
-  __ Ret();
-}
 
 // static
 void Builtins::Generate_InterpreterPushArgsAndCallImpl(
@@ -2538,8 +2476,23 @@ void Builtins::Generate_InterpreterPushArgsAndCallImpl(
   //  -- x1 : the target to call (can be any Object).
   // -----------------------------------
 
-  // Push arguments to stack. Clobbers x5-x7 registers.
-  Generate_InterpreterPushArgs(masm, x0, x2);
+  // Find the address of the last argument.
+  __ add(x3, x0, Operand(1));  // Add one for receiver.
+  __ lsl(x3, x3, kPointerSizeLog2);
+  __ sub(x4, x2, x3);
+
+  // Push the arguments.
+  Label loop_header, loop_check;
+  __ Mov(x5, jssp);
+  __ Claim(x3, 1);
+  __ B(&loop_check);
+  __ Bind(&loop_header);
+  // TODO(rmcilroy): Push two at a time once we ensure we keep stack aligned.
+  __ Ldr(x3, MemOperand(x2, -kPointerSize, PostIndex));
+  __ Str(x3, MemOperand(x5, -kPointerSize, PreIndex));
+  __ Bind(&loop_check);
+  __ Cmp(x2, x4);
+  __ B(gt, &loop_header);
 
   // Call the target.
   __ Jump(masm->isolate()->builtins()->Call(ConvertReceiverMode::kAny,

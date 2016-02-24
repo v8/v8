@@ -918,12 +918,6 @@
   'unicodelctest-no-optimization': [SKIP],
 }],  # ignition == True and (arch == arm or arch == arm64)
 
-['ignition == True and arch == x64', {
-  # TODO(mythria,4680): Stack call size exceeds limit.
-  # Try to tail call CallICStub from PushArgsAndCallIC builtin.
-  'regress/regress-353551': [FAIL],
-}],  # ignition == True and arch == x64
-
 ##############################################################################
 ['gcov_coverage', {
   # Tests taking too long.

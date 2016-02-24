@@ -2224,7 +2224,6 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
 
 
 void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
-  // a0 - number of arguments - if argc_in_register() is true.
   // a1 - function
   // a3 - slot id
   // a2 - vector
@@ -2232,42 +2231,32 @@ void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
   __ LoadNativeContextSlot(Context::ARRAY_FUNCTION_INDEX, at);
   __ Branch(miss, ne, a1, Operand(at));
 
+  __ li(a0, Operand(arg_count()));
+
   // Increment the call count for monomorphic function calls.
-  __ dsrl(a5, a3, kSmiShiftSize + 1 - kPointerSizeLog2);
-  __ Daddu(a3, a2, Operand(a5));
-  __ ld(a5, FieldMemOperand(a3, FixedArray::kHeaderSize + kPointerSize));
-  __ Daddu(a5, a5, Operand(Smi::FromInt(CallICNexus::kCallCountIncrement)));
-  __ sd(a5, FieldMemOperand(a3, FixedArray::kHeaderSize + kPointerSize));
+  __ dsrl(t0, a3, 32 - kPointerSizeLog2);
+  __ Daddu(a3, a2, Operand(t0));
+  __ ld(t0, FieldMemOperand(a3, FixedArray::kHeaderSize + kPointerSize));
+  __ Daddu(t0, t0, Operand(Smi::FromInt(CallICNexus::kCallCountIncrement)));
+  __ sd(t0, FieldMemOperand(a3, FixedArray::kHeaderSize + kPointerSize));
 
   __ mov(a2, a4);
   __ mov(a3, a1);
-  if (argc_in_register()) {
-    // Pass a default ArgumentCountKey::Any since the argc is only available
-    // in a0. We do not have the actual count here.
-    ArrayConstructorStub stub(masm->isolate());
-    __ TailCallStub(&stub);
-  } else {
-    // arg_count() is expected in a0 if the arg_count() >= 2
-    // (ArgumentCountKey::MORE_THAN_ONE).
-    ArrayConstructorStub stub(masm->isolate(), arg_count());
-    __ TailCallStub(&stub);
-  }
+  ArrayConstructorStub stub(masm->isolate(), arg_count());
+  __ TailCallStub(&stub);
 }
 
 
 void CallICStub::Generate(MacroAssembler* masm) {
-  // a0 - number of arguments - if argc_in_register() is true.
   // a1 - function
   // a3 - slot id (Smi)
   // a2 - vector
   Label extra_checks_or_miss, call, call_function;
-  if (!argc_in_register()) {
-    int argc = arg_count();
-    __ li(a0, argc);
-  }
+  int argc = arg_count();
+  ParameterCount actual(argc);
 
-  // The checks. First, does a1 match the recorded monomorphic target?
-  __ dsrl(a4, a3, kSmiShiftSize + 1 - kPointerSizeLog2);
+  // The checks. First, does r1 match the recorded monomorphic target?
+  __ dsrl(a4, a3, 32 - kPointerSizeLog2);
   __ Daddu(a4, a2, Operand(a4));
   __ ld(a4, FieldMemOperand(a4, FixedArray::kHeaderSize));
 
@@ -2302,7 +2291,9 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ bind(&call_function);
   __ Jump(masm->isolate()->builtins()->CallFunction(convert_mode(),
                                                     tail_call_mode()),
-          RelocInfo::CODE_TARGET, al, zero_reg, Operand(zero_reg));
+          RelocInfo::CODE_TARGET, al, zero_reg, Operand(zero_reg),
+          USE_DELAY_SLOT);
+  __ li(a0, Operand(argc));  // In delay slot.
 
   __ bind(&extra_checks_or_miss);
   Label uninitialized, miss, not_allocation_site;
@@ -2340,7 +2331,9 @@ void CallICStub::Generate(MacroAssembler* masm) {
 
   __ bind(&call);
   __ Jump(masm->isolate()->builtins()->Call(convert_mode(), tail_call_mode()),
-          RelocInfo::CODE_TARGET, al, zero_reg, Operand(zero_reg));
+          RelocInfo::CODE_TARGET, al, zero_reg, Operand(zero_reg),
+          USE_DELAY_SLOT);
+  __ li(a0, Operand(argc));  // In delay slot.
 
   __ bind(&uninitialized);
 
@@ -2375,11 +2368,9 @@ void CallICStub::Generate(MacroAssembler* masm) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     CreateWeakCellStub create_stub(masm->isolate());
-    __ SmiTag(a0);
-    __ Push(a0, a1);
+    __ Push(a1);
     __ CallStub(&create_stub);
-    __ Pop(a0, a1);
-    __ SmiUntag(a0);
+    __ Pop(a1);
   }
 
   __ Branch(&call_function);
@@ -2396,19 +2387,14 @@ void CallICStub::Generate(MacroAssembler* masm) {
 void CallICStub::GenerateMiss(MacroAssembler* masm) {
   FrameScope scope(masm, StackFrame::INTERNAL);
 
-  __ SmiTag(a0);
-  // Push number of arguments, receiver, function and feedback info.
-  __ Push(a0, a1, a2, a3);
+  // Push the receiver and the function and feedback info.
+  __ Push(a1, a2, a3);
 
   // Call the entry.
   __ CallRuntime(Runtime::kCallIC_Miss);
 
   // Move result to a1 and exit the internal frame.
   __ mov(a1, v0);
-
-  // Restore a0.
-  __ Pop(a0);
-  __ SmiUntag(a0);
 }
 
 

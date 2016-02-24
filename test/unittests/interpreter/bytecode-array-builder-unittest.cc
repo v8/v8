@@ -94,14 +94,10 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CreateObjectLiteral(factory->NewFixedArray(1), 0, 0);
 
   // Call operations.
-  builder.Call(reg, other, 1)
-      .Call(reg, wide, 1)
-      .TailCall(reg, other, 1)
-      .TailCall(reg, wide, 1)
-      .CallIC(reg, other, 1, 0, TailCallMode::kDisallow)
-      .CallIC(reg, other, 1, 0, TailCallMode::kAllow)
-      .CallIC(reg, wide, 1, 0, TailCallMode::kDisallow)
-      .CallIC(reg, wide, 1, 0, TailCallMode::kAllow)
+  builder.Call(reg, other, 1, 0)
+      .Call(reg, wide, 1, 0)
+      .TailCall(reg, other, 1, 0)
+      .TailCall(reg, wide, 1, 0)
       .CallRuntime(Runtime::kIsArray, reg, 1)
       .CallRuntime(Runtime::kIsArray, wide, 1)
       .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, reg, 1, other)

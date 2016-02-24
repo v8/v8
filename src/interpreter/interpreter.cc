@@ -934,58 +934,6 @@ void Interpreter::DoDeletePropertySloppy(InterpreterAssembler* assembler) {
   DoDelete(Runtime::kDeleteProperty_Sloppy, assembler);
 }
 
-void Interpreter::DoJSCallWithFeedback(InterpreterAssembler* assembler,
-                                       TailCallMode tail_call_mode) {
-  Node* function_reg = __ BytecodeOperandReg(0);
-  Node* function = __ LoadRegister(function_reg);
-  Node* receiver_reg = __ BytecodeOperandReg(1);
-  Node* receiver_arg = __ RegisterLocation(receiver_reg);
-  Node* receiver_args_count = __ BytecodeOperandCount(2);
-  Node* receiver_count = __ Int32Constant(1);
-  Node* args_count = __ Int32Sub(receiver_args_count, receiver_count);
-  Node* slot_id_raw = __ BytecodeOperandIdx(3);
-  Node* slot_id = __ SmiTag(slot_id_raw);
-  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
-  Node* context = __ GetContext();
-  Node* result =
-      __ CallJSWithFeedback(function, context, receiver_arg, args_count,
-                            slot_id, type_feedback_vector, tail_call_mode);
-  __ SetAccumulator(result);
-  __ Dispatch();
-}
-
-// Call <callable> <receiver> <arg_count>
-//
-// Call a JSfunction or Callable in |callable| with the |receiver| and
-// |arg_count| arguments in subsequent registers.
-void Interpreter::DoCallIC(InterpreterAssembler* assembler) {
-  DoJSCallWithFeedback(assembler, TailCallMode::kDisallow);
-}
-
-// CallWide <callable> <receiver> <arg_count>
-//
-// Call a JSfunction or Callable in |callable| with the |receiver| and
-// |arg_count| arguments in subsequent registers.
-void Interpreter::DoCallICWide(InterpreterAssembler* assembler) {
-  DoJSCallWithFeedback(assembler, TailCallMode::kDisallow);
-}
-
-// Call <callable> <receiver> <arg_count>
-//
-// Call a JSfunction or Callable in |callable| with the |receiver| and
-// |arg_count| arguments in subsequent registers.
-void Interpreter::DoTailCallIC(InterpreterAssembler* assembler) {
-  DoJSCallWithFeedback(assembler, TailCallMode::kAllow);
-}
-
-// CallWide <callable> <receiver> <arg_count>
-//
-// Call a JSfunction or Callable in |callable| with the |receiver| and
-// |arg_count| arguments in subsequent registers.
-void Interpreter::DoTailCallICWide(InterpreterAssembler* assembler) {
-  DoJSCallWithFeedback(assembler, TailCallMode::kAllow);
-}
-
 void Interpreter::DoJSCall(InterpreterAssembler* assembler,
                            TailCallMode tail_call_mode) {
   Node* function_reg = __ BytecodeOperandReg(0);
@@ -996,6 +944,7 @@ void Interpreter::DoJSCall(InterpreterAssembler* assembler,
   Node* receiver_count = __ Int32Constant(1);
   Node* args_count = __ Int32Sub(receiver_args_count, receiver_count);
   Node* context = __ GetContext();
+  // TODO(rmcilroy): Use the call type feedback slot to call via CallStub.
   Node* result =
       __ CallJS(function, context, receiver_arg, args_count, tail_call_mode);
   __ SetAccumulator(result);

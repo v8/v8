@@ -640,38 +640,6 @@ static void Generate_InterpreterPushArgs(MacroAssembler* masm,
 
 
 // static
-void Builtins::Generate_InterpreterPushArgsAndCallICImpl(
-    MacroAssembler* masm, TailCallMode tail_call_mode) {
-  // ----------- S t a t e -------------
-  //  -- rax : the number of arguments (not including the receiver)
-  //  -- rbx : the address of the first argument to be pushed. Subsequent
-  //           arguments should be consecutive above this, in the same order as
-  //           they are to be pushed onto the stack.
-  //  -- rdi : the target to call (can be any Object).
-  //  -- rdx : Feedback vector slot-id.
-  //  -- r9 : type feedback vector. // TODO(mythria): move to rbx to match
-  //                                   CallICStub expectation.
-  // -----------------------------------
-
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-
-    Generate_InterpreterPushArgs(masm, true);
-
-    __ Move(rbx, r9);
-
-    // Call via the CallIC stub.
-    CallICState call_ic_state(0, ConvertReceiverMode::kAny, tail_call_mode,
-                              true);
-    CallICStub stub(masm->isolate(), call_ic_state);
-    // TODO(mythria): This should be replaced by a TailCallStub, when we
-    // update the code to find the target IC from jump instructions.
-    __ CallStub(&stub);
-  }
-  __ Ret();
-}
-
-// static
 void Builtins::Generate_InterpreterPushArgsAndCallImpl(
     MacroAssembler* masm, TailCallMode tail_call_mode) {
   // ----------- S t a t e -------------
@@ -693,6 +661,7 @@ void Builtins::Generate_InterpreterPushArgsAndCallImpl(
                                             tail_call_mode),
           RelocInfo::CODE_TARGET);
 }
+
 
 // static
 void Builtins::Generate_InterpreterPushArgsAndConstruct(MacroAssembler* masm) {
@@ -2103,17 +2072,6 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   __ Move(kScratchRegister, debug_is_active);
   __ cmpb(Operand(kScratchRegister, 0), Immediate(0));
   __ j(not_equal, &done);
-
-  // Drop possible internal frame pushed for calling CallICStub.
-  // TODO(mythria): when we tail call the CallICStub, remove this.
-  {
-    Label no_internal_callic_frame;
-    __ Cmp(Operand(rbp, StandardFrameConstants::kMarkerOffset),
-           Smi::FromInt(StackFrame::INTERNAL));
-    __ j(not_equal, &no_internal_callic_frame, Label::kNear);
-    __ movp(rbp, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
-    __ bind(&no_internal_callic_frame);
-  }
 
   // Drop possible interpreter handler/stub frame.
   {

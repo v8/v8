@@ -563,18 +563,6 @@
   'test-run-jsexceptions/ThrowMessagePosition': [FAIL],
   'test-api/TryCatchMixedNesting': [FAIL],
 
-  # TODO(4680): Related to lack of code-ageing in interpreter.
-  'test-heap/Regress169209': [FAIL],
-
-  # TODO(4680): Related to lack of code-ageing and/or lack of compilation cache
-  # in interpreter.
-  'test-heap/CompilationCacheCachingBehavior': [FAIL],
-
-  # TODO(4680): Use CallConstructStub for new operator.
-  'test-heap/IncrementalMarkingPreservesMonomorphicConstructor': [FAIL],
-  'test-heap/IncrementalMarkingClearsMonomorphicConstructor': [FAIL],
-  'test-heap/WeakFunctionInConstructor': [FAIL],
-
   # TODO(rmcilroy,4680): Test assert errors.
   'test-cpu-profiler/CodeEvents': [FAIL],
   'test-cpu-profiler/TickEvents': [FAIL],
@@ -599,8 +587,17 @@
   'test-profile-generator/LineNumber': [FAIL],
   'test-profile-generator/ProfileNodeScriptId': [FAIL],
   'test-profile-generator/RecordStackTraceAtStartProfiling': [FAIL],
+  'test-feedback-vector/VectorCallICStates': [FAIL],
+  'test-compiler/FeedbackVectorPreservedAcrossRecompiles': [FAIL],
   'test-api/PromiseRejectCallback': [FAIL],
   'test-api/SetJitCodeEventHandler': [FAIL],
+  'test-heap/WeakFunctionInConstructor': [FAIL],
+  'test-heap/Regress169209': [FAIL],
+  'test-heap/IncrementalMarkingClearsMonomorphicConstructor': [FAIL],
+  'test-heap/IncrementalMarkingPreservesMonomorphicConstructor': [FAIL],
+  'test-heap/IncrementalMarkingPreservesMonomorphicCallIC': [FAIL],
+  'test-heap/CompilationCacheCachingBehavior': [FAIL],
+  'test-heap/CellsInOptimizedCodeAreWeak': [FAIL],
   'test-run-inlining/InlineTwice': [FAIL],
   'test-serialize/SerializeInternalReference': [FAIL, ['arch == arm or arch == arm64', PASS]],
 }],  # ignition == True

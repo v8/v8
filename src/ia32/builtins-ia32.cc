@@ -559,58 +559,6 @@ static void Generate_InterpreterPushArgs(MacroAssembler* masm,
   __ j(greater, &loop_header, Label::kNear);
 }
 
-static void Generate_InterpreterComputeLastArgumentAddress(MacroAssembler* masm,
-                                                           Register r) {
-  // Find the address of the last argument.
-  // ----------- S t a t e -------------
-  //  input: eax : Number of arguments.
-  //  input: ebx : Address of the first argument.
-  //  output: Register |r|: Address of the last argument.
-  // -----------------------------------
-  __ mov(r, eax);
-  __ add(r, Immediate(1));  // Add one for receiver.
-  __ shl(r, kPointerSizeLog2);
-  __ neg(r);
-  __ add(r, ebx);
-}
-
-// static
-void Builtins::Generate_InterpreterPushArgsAndCallICImpl(
-    MacroAssembler* masm, TailCallMode tail_call_mode) {
-  // ----------- S t a t e -------------
-  //  -- eax : the number of arguments (not including the receiver)
-  //  -- ebx : the address of the first argument to be pushed. Subsequent
-  //           arguments should be consecutive above this, in the same order as
-  //           they are to be pushed onto the stack.
-  //  -- edi : the target to call (can be any Object).
-  //  -- edx : feedback slot id.
-  //  -- ecx : type feedback vector.
-  // -----------------------------------
-
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-    // Store type feedback vector on the stack since we ran out of registers.
-    __ Push(ecx);
-
-    // computes the address of last argument in ecx.
-    // ecx = ebx - (eax + 1) * kPointerSize.
-    Generate_InterpreterComputeLastArgumentAddress(masm, ecx);
-    Generate_InterpreterPushArgs(masm, ecx);
-
-    // Restore feedback vector to ebx from the stack. It was pushed
-    // before the arguments were pushed, so compute the correct offset.
-    __ mov(ebx, Operand(esp, eax, times_pointer_size, 1 * kPointerSize));
-
-    // Call via the CallIC stub.
-    CallICState call_ic_state(0, ConvertReceiverMode::kAny, tail_call_mode,
-                              true);
-    CallICStub stub(masm->isolate(), call_ic_state);
-    // TODO(mythria): This should be replaced by a TailCallStub, when we
-    // update the code to find the target IC from jump instructions.
-    __ CallStub(&stub);
-  }
-  __ Ret();
-}
 
 // static
 void Builtins::Generate_InterpreterPushArgsAndCallImpl(
@@ -626,9 +574,13 @@ void Builtins::Generate_InterpreterPushArgsAndCallImpl(
   // Pop return address to allow tail-call after pushing arguments.
   __ Pop(edx);
 
-  // computes the address of last argument in ecx.
-  // ecx = ebx - (eax + 1) * kPointerSize.
-  Generate_InterpreterComputeLastArgumentAddress(masm, ecx);
+  // Find the address of the last argument.
+  __ mov(ecx, eax);
+  __ add(ecx, Immediate(1));  // Add one for receiver.
+  __ shl(ecx, kPointerSizeLog2);
+  __ neg(ecx);
+  __ add(ecx, ebx);
+
   Generate_InterpreterPushArgs(masm, ecx);
 
   // Call the target.
@@ -637,6 +589,7 @@ void Builtins::Generate_InterpreterPushArgsAndCallImpl(
                                             tail_call_mode),
           RelocInfo::CODE_TARGET);
 }
+
 
 // static
 void Builtins::Generate_InterpreterPushArgsAndConstruct(MacroAssembler* masm) {
@@ -649,24 +602,27 @@ void Builtins::Generate_InterpreterPushArgsAndConstruct(MacroAssembler* masm) {
   //           they are to be pushed onto the stack.
   // -----------------------------------
 
+  // Save number of arguments on the stack below where arguments are going
+  // to be pushed.
+  __ mov(ecx, eax);
+  __ neg(ecx);
+  __ mov(Operand(esp, ecx, times_pointer_size, -kPointerSize), eax);
+  __ mov(eax, ecx);
+
   // Pop return address to allow tail-call after pushing arguments.
   __ Pop(ecx);
 
-  // Push edi in the slot meant for receiver. We need an extra register so
-  // store edi temporarily on the stack.
-  __ Push(edi);
-
   // Find the address of the last argument.
-  __ mov(edi, eax);
-  __ neg(edi);
-  __ shl(edi, kPointerSizeLog2);
-  __ add(edi, ebx);
+  __ shl(eax, kPointerSizeLog2);
+  __ add(eax, ebx);
 
-  Generate_InterpreterPushArgs(masm, edi);
+  // Push padding for receiver.
+  __ Push(Immediate(0));
 
-  // Restore number of arguments from slot on stack. edi was pushed at
-  // the slot meant for receiver.
-  __ mov(edi, Operand(esp, eax, times_pointer_size, 0));
+  Generate_InterpreterPushArgs(masm, eax);
+
+  // Restore number of arguments from slot on stack.
+  __ mov(eax, Operand(esp, -kPointerSize));
 
   // Re-push return address.
   __ Push(ecx);
@@ -1916,17 +1872,6 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   __ movzx_b(scratch1, Operand::StaticVariable(debug_is_active));
   __ cmp(scratch1, Immediate(0));
   __ j(not_equal, &done, Label::kNear);
-
-  // Drop possible internal frame pushed for calling CallICStub.
-  // TODO(mythria): when we tail call the CallICStub, remove this.
-  {
-    Label no_internal_callic_frame;
-    __ cmp(Operand(ebp, StandardFrameConstants::kMarkerOffset),
-           Immediate(Smi::FromInt(StackFrame::INTERNAL)));
-    __ j(not_equal, &no_internal_callic_frame, Label::kNear);
-    __ mov(ebp, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
-    __ bind(&no_internal_callic_frame);
-  }
 
   // Drop possible interpreter handler/stub frame.
   {

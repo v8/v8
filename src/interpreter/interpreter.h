@@ -94,10 +94,6 @@ class Interpreter {
   // Generates code to perform a JS call.
   void DoJSCall(InterpreterAssembler* assembler, TailCallMode tail_call_mode);
 
-  // Generates code to perform a JS call with feedback.
-  void DoJSCallWithFeedback(InterpreterAssembler* assembler,
-                            TailCallMode tail_call_mode);
-
   // Generates code to perform a runtime call.
   void DoCallRuntimeCommon(InterpreterAssembler* assembler);
 

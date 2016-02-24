@@ -345,19 +345,6 @@ Node* InterpreterAssembler::CallJS(Node* function, Node* context,
                   first_arg, function);
 }
 
-Node* InterpreterAssembler::CallJSWithFeedback(Node* function, Node* context,
-                                               Node* first_arg, Node* arg_count,
-                                               Node* slot_id,
-                                               Node* type_feedback_vector,
-                                               TailCallMode tail_call_mode) {
-  Callable callable =
-      CodeFactory::InterpreterPushArgsAndCallIC(isolate(), tail_call_mode);
-  Node* code_target = HeapConstant(callable.code());
-
-  return CallStub(callable.descriptor(), code_target, context, arg_count,
-                  first_arg, function, slot_id, type_feedback_vector);
-}
-
 Node* InterpreterAssembler::CallConstruct(Node* constructor, Node* context,
                                           Node* new_target, Node* first_arg,
                                           Node* arg_count) {

@@ -124,7 +124,6 @@ class BytecodeGraphBuilder {
   void BuildLdaLookupSlot(TypeofMode typeof_mode);
   void BuildStaLookupSlot(LanguageMode language_mode);
   void BuildCall(TailCallMode tail_call_mode);
-  void BuildCallWithFeedbackSlot(TailCallMode tail_call_mode);
   void BuildCallJSRuntime();
   void BuildCallRuntime();
   void BuildCallRuntimeForPair();

@@ -501,7 +501,10 @@ Node* BytecodeGraphBuilder::BuildLoadNativeContextField(int index) {
 
 
 VectorSlotPair BytecodeGraphBuilder::CreateVectorSlotPair(int slot_id) {
-  FeedbackVectorSlot slot = feedback_vector()->ToSlot(slot_id);
+  FeedbackVectorSlot slot;
+  if (slot_id >= TypeFeedbackVector::kReservedIndexCount) {
+    slot = feedback_vector()->ToSlot(slot_id);
+  }
   return VectorSlotPair(feedback_vector(), slot);
 }
 
@@ -989,42 +992,6 @@ Node* BytecodeGraphBuilder::ProcessCallArguments(const Operator* call_op,
   return value;
 }
 
-void BytecodeGraphBuilder::BuildCallWithFeedbackSlot(
-    TailCallMode tail_call_mode) {
-  FrameStateBeforeAndAfter states(this);
-  // TODO(rmcilroy): Set receiver_hint correctly based on whether the receiver
-  // register has been loaded with null / undefined explicitly or we are sure it
-  // is not null / undefined.
-  ConvertReceiverMode receiver_hint = ConvertReceiverMode::kAny;
-  Node* callee =
-      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
-  interpreter::Register receiver = bytecode_iterator().GetRegisterOperand(1);
-  size_t arg_count = bytecode_iterator().GetRegisterCountOperand(2);
-  int slot_id = bytecode_iterator().GetIndexOperand(3);
-  VectorSlotPair feedback = CreateVectorSlotPair(slot_id);
-
-  const Operator* call = javascript()->CallFunction(
-      arg_count + 1, feedback, receiver_hint, tail_call_mode);
-  Node* value = ProcessCallArguments(call, callee, receiver, arg_count + 1);
-  environment()->BindAccumulator(value, &states);
-}
-
-void BytecodeGraphBuilder::VisitCallIC() {
-  BuildCallWithFeedbackSlot(TailCallMode::kDisallow);
-}
-
-void BytecodeGraphBuilder::VisitCallICWide() {
-  BuildCallWithFeedbackSlot(TailCallMode::kDisallow);
-}
-
-void BytecodeGraphBuilder::VisitTailCallIC() {
-  BuildCallWithFeedbackSlot(TailCallMode::kAllow);
-}
-
-void BytecodeGraphBuilder::VisitTailCallICWide() {
-  BuildCallWithFeedbackSlot(TailCallMode::kAllow);
-}
-
 void BytecodeGraphBuilder::BuildCall(TailCallMode tail_call_mode) {
   FrameStateBeforeAndAfter states(this);
   // TODO(rmcilroy): Set receiver_hint correctly based on whether the receiver
@@ -1035,9 +1002,11 @@ void BytecodeGraphBuilder::BuildCall(TailCallMode tail_call_mode) {
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
   interpreter::Register receiver = bytecode_iterator().GetRegisterOperand(1);
   size_t arg_count = bytecode_iterator().GetRegisterCountOperand(2);
+  VectorSlotPair feedback =
+      CreateVectorSlotPair(bytecode_iterator().GetIndexOperand(3));
 
   const Operator* call = javascript()->CallFunction(
-      arg_count + 1, VectorSlotPair(), receiver_hint, tail_call_mode);
+      arg_count + 1, feedback, receiver_hint, tail_call_mode);
   Node* value = ProcessCallArguments(call, callee, receiver, arg_count + 1);
   environment()->BindAccumulator(value, &states);
 }
