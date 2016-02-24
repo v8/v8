@@ -1113,7 +1113,7 @@ void AsmTyper::VisitIntegerBitwiseOperator(BinaryOperation* expr,
     right_type = left_type;
   }
   if (!conversion) {
-    if (!left_type->Is(cache_.kAsmInt) || !right_type->Is(cache_.kAsmInt)) {
+    if (!left_type->Is(cache_.kAsmIntQ) || !right_type->Is(cache_.kAsmIntQ)) {
       FAIL(expr, "ill-typed bitwise operation");
     }
   }
@@ -1157,7 +1157,7 @@ void AsmTyper::VisitBinaryOperation(BinaryOperation* expr) {
       FAIL(expr, "illegal logical operator");
     case Token::BIT_OR: {
       // BIT_OR allows Any since it is used as a type coercion.
-      VisitIntegerBitwiseOperator(expr, Type::Any(), cache_.kAsmInt,
+      VisitIntegerBitwiseOperator(expr, Type::Any(), cache_.kAsmIntQ,
                                   cache_.kAsmSigned, true);
       if (expr->left()->IsCall() && expr->op() == Token::BIT_OR) {
         expr->left()->set_bounds(Bounds(cache_.kAsmSigned));
@@ -1170,7 +1170,7 @@ void AsmTyper::VisitBinaryOperation(BinaryOperation* expr) {
       if (left && left->value()->IsBoolean()) {
         if (left->ToBooleanIsTrue()) {
           left->set_bounds(Bounds(cache_.kSingletonOne));
-          RECURSE(VisitWithExpectation(expr->right(), cache_.kAsmInt,
+          RECURSE(VisitWithExpectation(expr->right(), cache_.kAsmIntQ,
                                        "not operator expects an integer"));
           IntersectResult(expr, cache_.kAsmSigned);
           return;
@@ -1178,20 +1178,20 @@ void AsmTyper::VisitBinaryOperation(BinaryOperation* expr) {
           FAIL(left, "unexpected false");
         }
       }
-      // BIT_XOR allows Number since it is used as a type coercion (via ~~).
-      VisitIntegerBitwiseOperator(expr, Type::Number(), cache_.kAsmInt,
+      // BIT_XOR allows Any since it is used as a type coercion (via ~~).
+      VisitIntegerBitwiseOperator(expr, Type::Any(), cache_.kAsmIntQ,
                                   cache_.kAsmSigned, true);
       return;
     }
     case Token::SHR: {
-      VisitIntegerBitwiseOperator(expr, cache_.kAsmInt, cache_.kAsmInt,
+      VisitIntegerBitwiseOperator(expr, cache_.kAsmIntQ, cache_.kAsmIntQ,
                                   cache_.kAsmUnsigned, false);
       return;
     }
     case Token::SHL:
     case Token::SAR:
     case Token::BIT_AND: {
-      VisitIntegerBitwiseOperator(expr, cache_.kAsmInt, cache_.kAsmInt,
+      VisitIntegerBitwiseOperator(expr, cache_.kAsmIntQ, cache_.kAsmIntQ,
                                   cache_.kAsmSigned, false);
       return;
     }

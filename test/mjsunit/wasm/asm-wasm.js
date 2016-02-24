@@ -1523,3 +1523,20 @@ TestForeignVariables();
     _WASMEXP_.instantiateModuleFromAsm(Module.toString());
   });
 })();
+
+
+(function TestAndIntAndHeapValue() {
+  function Module(stdlib, foreign, buffer) {
+    "use asm";
+    var HEAP32 = new stdlib.Int32Array(buffer);
+    function func() {
+      var x = 0;
+      x = HEAP32[0] & -1;
+      return x | 0;
+    }
+    return {func: func};
+  }
+
+  var m = _WASMEXP_.instantiateModuleFromAsm(Module.toString());
+  assertEquals(0, m.func());
+})();
