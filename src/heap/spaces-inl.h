@@ -147,19 +147,6 @@ HeapObject* HeapObjectIterator::FromCurrentPage() {
   return NULL;
 }
 
-// -----------------------------------------------------------------------------
-// LargePageIterator
-
-LargePageIterator::LargePageIterator(LargeObjectSpace* space)
-    : next_page_(space->first_page()) {}
-
-LargePage* LargePageIterator::next() {
-  LargePage* result = next_page_;
-  if (next_page_ != nullptr) {
-    next_page_ = next_page_->next_page();
-  }
-  return result;
-}
 
 // -----------------------------------------------------------------------------
 // MemoryAllocator
@@ -321,15 +308,15 @@ Page* Page::FromAnyPointerAddress(Heap* heap, Address addr) {
   return static_cast<Page*>(MemoryChunk::FromAnyPointerAddress(heap, addr));
 }
 
-MemoryChunkIterator::MemoryChunkIterator(Heap* heap, Mode mode)
+
+PointerChunkIterator::PointerChunkIterator(Heap* heap)
     : state_(kOldSpaceState),
-      mode_(mode),
       old_iterator_(heap->old_space()),
-      code_iterator_(heap->code_space()),
       map_iterator_(heap->map_space()),
       lo_iterator_(heap->lo_space()) {}
 
-MemoryChunk* MemoryChunkIterator::next() {
+
+MemoryChunk* PointerChunkIterator::next() {
   switch (state_) {
     case kOldSpaceState: {
       if (old_iterator_.has_next()) {
@@ -339,34 +326,33 @@ MemoryChunk* MemoryChunkIterator::next() {
       // Fall through.
     }
     case kMapState: {
-      if (mode_ != ALL_BUT_MAP_SPACE && map_iterator_.has_next()) {
+      if (map_iterator_.has_next()) {
         return map_iterator_.next();
-      }
-      state_ = kCodeState;
-      // Fall through.
-    }
-    case kCodeState: {
-      if (mode_ != ALL_BUT_CODE_SPACE && code_iterator_.has_next()) {
-        return code_iterator_.next();
       }
       state_ = kLargeObjectState;
       // Fall through.
     }
     case kLargeObjectState: {
-      MemoryChunk* answer = lo_iterator_.next();
-      if (answer != nullptr) {
-        return answer;
-      }
-      state_ = kFinishedState;
-      // Fall through;
+      HeapObject* heap_object;
+      do {
+        heap_object = lo_iterator_.Next();
+        if (heap_object == NULL) {
+          state_ = kFinishedState;
+          return NULL;
+        }
+        // Fixed arrays are the only pointer-containing objects in large
+        // object space.
+      } while (!heap_object->IsFixedArray());
+      MemoryChunk* answer = MemoryChunk::FromAddress(heap_object->address());
+      return answer;
     }
     case kFinishedState:
-      return nullptr;
+      return NULL;
     default:
       break;
   }
   UNREACHABLE();
-  return nullptr;
+  return NULL;
 }
 
 

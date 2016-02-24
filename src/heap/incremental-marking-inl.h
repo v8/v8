@@ -26,10 +26,11 @@ void IncrementalMarking::RecordWriteOfCodeEntry(JSFunction* host, Object** slot,
   }
 }
 
-void IncrementalMarking::RecordWriteIntoCode(Code* host, RelocInfo* rinfo,
+
+void IncrementalMarking::RecordWriteIntoCode(HeapObject* obj, RelocInfo* rinfo,
                                              Object* value) {
   if (IsMarking() && value->IsHeapObject()) {
-    RecordWriteIntoCodeSlow(host, rinfo, value);
+    RecordWriteIntoCodeSlow(obj, rinfo, value);
   }
 }
 

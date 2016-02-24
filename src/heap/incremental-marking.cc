@@ -131,11 +131,13 @@ void IncrementalMarking::RecordWriteOfCodeEntrySlow(JSFunction* host,
   }
 }
 
-void IncrementalMarking::RecordWriteIntoCodeSlow(Code* host, RelocInfo* rinfo,
+
+void IncrementalMarking::RecordWriteIntoCodeSlow(HeapObject* obj,
+                                                 RelocInfo* rinfo,
                                                  Object* value) {
-  if (BaseRecordWrite(host, value)) {
-    // Object is not going to be rescanned.  We need to record the slot.
-    heap_->mark_compact_collector()->RecordRelocSlot(host, rinfo, value);
+  if (BaseRecordWrite(obj, value)) {
+      // Object is not going to be rescanned.  We need to record the slot.
+      heap_->mark_compact_collector()->RecordRelocSlot(rinfo, value);
   }
 }
 

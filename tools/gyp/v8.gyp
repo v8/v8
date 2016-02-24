@@ -897,6 +897,8 @@
         '../../src/heap/scavenger.cc',
         '../../src/heap/scavenger.h',
         '../../src/heap/slot-set.h',
+        '../../src/heap/slots-buffer.cc',
+        '../../src/heap/slots-buffer.h',
         '../../src/heap/spaces-inl.h',
         '../../src/heap/spaces.cc',
         '../../src/heap/spaces.h',
