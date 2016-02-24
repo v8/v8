@@ -124,8 +124,8 @@ Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray() {
   int frame_size = register_count * kPointerSize;
   Handle<FixedArray> constant_pool = constant_array_builder()->ToFixedArray();
   Handle<FixedArray> handler_table = handler_table_builder()->ToHandlerTable();
-  Handle<FixedArray> source_position_table =
-      source_position_table_builder()->ToFixedArray();
+  Handle<ByteArray> source_position_table =
+      source_position_table_builder()->ToSourcePositionTable();
   Handle<BytecodeArray> output = isolate_->factory()->NewBytecodeArray(
       bytecode_size, &bytecodes_.front(), frame_size, parameter_count(),
       constant_pool);
@@ -139,10 +139,7 @@ Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray() {
 template <size_t N>
 void BytecodeArrayBuilder::Output(Bytecode bytecode, uint32_t(&operands)[N]) {
   // Don't output dead code.
-  if (exit_seen_in_block_) {
-    source_position_table_builder_.RevertPosition(bytecodes()->size());
-    return;
-  }
+  if (exit_seen_in_block_) return;
 
   int operand_count = static_cast<int>(N);
   DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), operand_count);
@@ -210,10 +207,7 @@ void BytecodeArrayBuilder::Output(Bytecode bytecode, uint32_t operand0) {
 
 void BytecodeArrayBuilder::Output(Bytecode bytecode) {
   // Don't output dead code.
-  if (exit_seen_in_block_) {
-    source_position_table_builder_.RevertPosition(bytecodes()->size());
-    return;
-  }
+  if (exit_seen_in_block_) return;
 
   DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), 0);
   last_bytecode_start_ = bytecodes()->size();
@@ -860,10 +854,7 @@ void BytecodeArrayBuilder::PatchJump(
 BytecodeArrayBuilder& BytecodeArrayBuilder::OutputJump(Bytecode jump_bytecode,
                                                        BytecodeLabel* label) {
   // Don't emit dead code.
-  if (exit_seen_in_block_) {
-    source_position_table_builder_.RevertPosition(bytecodes()->size());
-    return *this;
-  }
+  if (exit_seen_in_block_) return *this;
 
   // Check if the value in accumulator is boolean, if not choose an
   // appropriate JumpIfToBoolean bytecode.
@@ -1057,6 +1048,7 @@ void BytecodeArrayBuilder::EnsureReturn(FunctionLiteral* literal) {
     SetReturnPosition(literal);
     Return();
   }
+  DCHECK(exit_seen_in_block_);
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CallIC(
@@ -1203,18 +1195,23 @@ size_t BytecodeArrayBuilder::GetConstantPoolEntry(Handle<Object> object) {
 }
 
 void BytecodeArrayBuilder::SetReturnPosition(FunctionLiteral* fun) {
+  // Don't emit dead code.
+  if (exit_seen_in_block_) return;
+
   int pos = std::max(fun->start_position(), fun->end_position() - 1);
   source_position_table_builder_.AddStatementPosition(bytecodes_.size(), pos);
 }
 
 void BytecodeArrayBuilder::SetStatementPosition(Statement* stmt) {
   if (stmt->position() == RelocInfo::kNoPosition) return;
+  if (exit_seen_in_block_) return;
   source_position_table_builder_.AddStatementPosition(bytecodes_.size(),
                                                       stmt->position());
 }
 
 void BytecodeArrayBuilder::SetExpressionPosition(Expression* expr) {
   if (expr->position() == RelocInfo::kNoPosition) return;
+  if (exit_seen_in_block_) return;
   source_position_table_builder_.AddExpressionPosition(bytecodes_.size(),
                                                        expr->position());
 }
