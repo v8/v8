@@ -613,6 +613,9 @@
   # TODO(rmcilroy,4680): Test assert errors.
   'test-heap-profiler/HeapSnapshotSimd': [PASS, ['mode == debug', FAIL]],
   'test-api/InitializeDefaultIsolateOnSecondaryThread1': [PASS, ['mode == debug', FAIL]],
+
+  # TODO(rmcilroy,mattloring).
+  'test-heap-profiler/SamplingHeapProfiler': [PASS, ['mode == debug', SKIP]],
 }],
 
 ]
