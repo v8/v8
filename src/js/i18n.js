@@ -202,44 +202,33 @@ function GetTimezoneNameLocationPartRE() {
  */
 function addBoundMethod(obj, methodName, implementation, length) {
   %CheckIsBootstrapping();
+  var internalName = %CreatePrivateSymbol(methodName);
   function getter() {
     if (!%IsInitializedIntlObject(this)) {
       throw MakeTypeError(kMethodCalledOnWrongObject, methodName);
     }
-    var internalName = '__bound' + methodName + '__';
     if (IS_UNDEFINED(this[internalName])) {
-      var that = this;
       var boundMethod;
       if (IS_UNDEFINED(length) || length === 2) {
-        boundMethod = function(x, y) {
-          if (!IS_UNDEFINED(new.target)) {
-            throw MakeTypeError(kOrdinaryFunctionCalledAsConstructor);
-          }
-          return implementation(that, x, y);
-        }
+        boundMethod = (x, y) => implementation(this, x, y);
       } else if (length === 1) {
-        boundMethod = function(x) {
-          if (!IS_UNDEFINED(new.target)) {
-            throw MakeTypeError(kOrdinaryFunctionCalledAsConstructor);
-          }
-          return implementation(that, x);
-        }
+        boundMethod = x => implementation(this, x);
       } else {
-        boundMethod = function() {
-          if (!IS_UNDEFINED(new.target)) {
-            throw MakeTypeError(kOrdinaryFunctionCalledAsConstructor);
-          }
+        boundMethod = (...args) => {
           // DateTimeFormat.format needs to be 0 arg method, but can stil
           // receive optional dateValue param. If one was provided, pass it
           // along.
-          if (arguments.length > 0) {
-            return implementation(that, arguments[0]);
+          if (args.length > 0) {
+            return implementation(this, args[0]);
           } else {
-            return implementation(that);
+            return implementation(this);
           }
         }
       }
-      %FunctionSetName(boundMethod, internalName);
+      // TODO(littledan): Once function name reform is shipped, remove the
+      // following line and wrap the boundMethod definition in an anonymous
+      // function macro.
+      %FunctionSetName(boundMethod, '__bound' + methodName + '__');
       %FunctionRemovePrototype(boundMethod);
       %SetNativeFlag(boundMethod);
       this[internalName] = boundMethod;
