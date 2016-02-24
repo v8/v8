@@ -90,6 +90,7 @@ LinkageLocation regloc(Register reg) {
 // ===========================================================================
 // == mips ===================================================================
 // ===========================================================================
+#define STACK_SHADOW_WORDS 4
 #define PARAM_REGISTERS a0, a1, a2, a3
 #define CALLEE_SAVE_REGISTERS                                                  \
   s0.bit() | s1.bit() | s2.bit() | s3.bit() | s4.bit() | s5.bit() | s6.bit() | \
