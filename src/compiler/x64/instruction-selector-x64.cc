@@ -36,6 +36,22 @@ class X64OperandGenerator final : public OperandGenerator {
     }
   }
 
+  bool CanBeMemoryOperand(InstructionCode opcode, Node* node, Node* input) {
+    if (input->opcode() != IrOpcode::kLoad ||
+        !selector()->CanCover(node, input)) {
+      return false;
+    }
+    MachineRepresentation rep =
+        LoadRepresentationOf(input->op()).representation();
+    if (rep == MachineRepresentation::kWord64 ||
+        rep == MachineRepresentation::kTagged) {
+      return opcode == kX64Cmp || opcode == kX64Test;
+    } else if (rep == MachineRepresentation::kWord32) {
+      return opcode == kX64Cmp32 || opcode == kX64Test32;
+    }
+    return false;
+  }
+
   AddressingMode GenerateMemoryOperandInputs(Node* index, int scale_exponent,
                                              Node* base, Node* displacement,
                                              InstructionOperand inputs[],
@@ -1371,23 +1387,6 @@ void VisitCompareWithMemoryOperand(InstructionSelector* selector,
   }
 }
 
-// Determines if {input} of {node} can be replaced by a memory operand.
-bool CanUseMemoryOperand(InstructionSelector* selector, InstructionCode opcode,
-                         Node* node, Node* input) {
-  if (input->opcode() != IrOpcode::kLoad || !selector->CanCover(node, input)) {
-    return false;
-  }
-  MachineRepresentation rep =
-      LoadRepresentationOf(input->op()).representation();
-  if (rep == MachineRepresentation::kWord64 ||
-      rep == MachineRepresentation::kTagged) {
-    return opcode == kX64Cmp || opcode == kX64Test;
-  } else if (rep == MachineRepresentation::kWord32) {
-    return opcode == kX64Cmp32 || opcode == kX64Test32;
-  }
-  return false;
-}
-
 // Shared routine for multiple compare operations.
 void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
                   InstructionOperand left, InstructionOperand right,
@@ -1425,15 +1424,18 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
   Node* left = node->InputAt(0);
   Node* right = node->InputAt(1);
 
-  // If one of the two inputs is an immediate, make sure it's on the right.
-  if (!g.CanBeImmediate(right) && g.CanBeImmediate(left)) {
+  // If one of the two inputs is an immediate, make sure it's on the right, or
+  // if one of the two inputs is a memory operand, make sure it's on the left.
+  if ((!g.CanBeImmediate(right) && g.CanBeImmediate(left)) ||
+      (g.CanBeMemoryOperand(opcode, node, right) &&
+       !g.CanBeMemoryOperand(opcode, node, left))) {
     if (!node->op()->HasProperty(Operator::kCommutative)) cont->Commute();
     std::swap(left, right);
   }
 
   // Match immediates on right side of comparison.
   if (g.CanBeImmediate(right)) {
-    if (CanUseMemoryOperand(selector, opcode, node, left)) {
+    if (g.CanBeMemoryOperand(opcode, node, left)) {
       return VisitCompareWithMemoryOperand(selector, opcode, left,
                                            g.UseImmediate(right), cont);
     }
@@ -1441,15 +1443,17 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
                         cont);
   }
 
+  // Match memory operands on left side of comparison.
+  if (g.CanBeMemoryOperand(opcode, node, left)) {
+    return VisitCompareWithMemoryOperand(selector, opcode, left,
+                                         g.UseRegister(right), cont);
+  }
+
   if (g.CanBeBetterLeftOperand(right)) {
     if (!node->op()->HasProperty(Operator::kCommutative)) cont->Commute();
     std::swap(left, right);
   }
 
-  if (CanUseMemoryOperand(selector, opcode, node, left)) {
-    return VisitCompareWithMemoryOperand(selector, opcode, left,
-                                         g.UseRegister(right), cont);
-  }
   return VisitCompare(selector, opcode, left, right, cont,
                       node->op()->HasProperty(Operator::kCommutative));
 }

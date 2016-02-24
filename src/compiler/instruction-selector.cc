@@ -218,10 +218,25 @@ Instruction* InstructionSelector::Emit(Instruction* instr) {
 
 
 bool InstructionSelector::CanCover(Node* user, Node* node) const {
-  return node->OwnedBy(user) &&
-         schedule()->block(node) == schedule()->block(user) &&
-         (node->op()->HasProperty(Operator::kPure) ||
-          GetEffectLevel(node) == GetEffectLevel(user));
+  // 1. Both {user} and {node} must be in the same basic block.
+  if (schedule()->block(node) != schedule()->block(user)) {
+    return false;
+  }
+  // 2. Pure {node}s must be owned by the {user}.
+  if (node->op()->HasProperty(Operator::kPure)) {
+    return node->OwnedBy(user);
+  }
+  // 3. Impure {node}s must match the effect level of {user}.
+  if (GetEffectLevel(node) != GetEffectLevel(user)) {
+    return false;
+  }
+  // 4. Only {node} must have value edges pointing to {user}.
+  for (Edge const edge : node->use_edges()) {
+    if (edge.from() != user && NodeProperties::IsValueEdge(edge)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 int InstructionSelector::GetVirtualRegister(const Node* node) {
