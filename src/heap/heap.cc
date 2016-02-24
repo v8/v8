@@ -3036,7 +3036,7 @@ AllocationResult Heap::AllocateBytecodeArray(int length,
   instance->set_interrupt_budget(interpreter::Interpreter::InterruptBudget());
   instance->set_constant_pool(constant_pool);
   instance->set_handler_table(empty_fixed_array());
-  instance->set_source_position_table(empty_byte_array());
+  instance->set_source_position_table(empty_fixed_array());
   CopyBytes(instance->GetFirstBytecodeAddress(), raw_bytecodes, length);
 
   return result;

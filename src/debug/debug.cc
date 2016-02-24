@@ -171,9 +171,8 @@ BreakLocation BreakLocation::CodeIterator::GetBreakLocation() {
 BreakLocation::BytecodeArrayIterator::BytecodeArrayIterator(
     Handle<DebugInfo> debug_info, BreakLocatorType type)
     : Iterator(debug_info),
-      source_position_iterator_(debug_info->abstract_code()
-                                    ->GetBytecodeArray()
-                                    ->source_position_table()),
+      source_position_iterator_(
+          debug_info->abstract_code()->GetBytecodeArray()),
       break_locator_type_(type),
       start_position_(debug_info->shared()->start_position()) {
   if (!Done()) Next();

@@ -6,80 +6,72 @@
 #define V8_INTERPRETER_SOURCE_POSITION_TABLE_H_
 
 #include "src/assert-scope.h"
-#include "src/checks.h"
 #include "src/handles.h"
+#include "src/zone.h"
 #include "src/zone-containers.h"
 
 namespace v8 {
 namespace internal {
 
 class BytecodeArray;
-class ByteArray;
+class FixedArray;
 class Isolate;
-class Zone;
 
 namespace interpreter {
-
-struct PositionTableEntry {
-  PositionTableEntry()
-      : bytecode_offset(0), source_position(0), is_statement(false) {}
-  PositionTableEntry(int bytecode, int source, bool statement)
-      : bytecode_offset(bytecode),
-        source_position(source),
-        is_statement(statement) {}
-
-  int bytecode_offset;
-  int source_position;
-  bool is_statement;
-};
 
 class SourcePositionTableBuilder {
  public:
   explicit SourcePositionTableBuilder(Isolate* isolate, Zone* zone)
-      : isolate_(isolate), bytes_(zone), previous_() {}
+      : isolate_(isolate), entries_(zone) {}
 
   void AddStatementPosition(size_t bytecode_offset, int source_position);
   void AddExpressionPosition(size_t bytecode_offset, int source_position);
-  Handle<ByteArray> ToSourcePositionTable();
+  void RevertPosition(size_t bytecode_offset);
+  Handle<FixedArray> ToFixedArray();
 
  private:
-  void AddEntry(const PositionTableEntry& entry);
+  struct Entry {
+    int bytecode_offset;
+    uint32_t source_position_and_type;
+  };
+
+  bool CodeOffsetHasPosition(int bytecode_offset) {
+    // Return whether bytecode offset already has a position assigned.
+    return entries_.size() > 0 &&
+           entries_.back().bytecode_offset == bytecode_offset;
+  }
 
   Isolate* isolate_;
-  ZoneVector<byte> bytes_;
-  PositionTableEntry previous_;
-
-#ifdef ENABLE_SLOW_DCHECKS
-  std::vector<PositionTableEntry> raw_entries_;
-#endif
+  ZoneVector<Entry> entries_;
 };
 
 class SourcePositionTableIterator {
  public:
-  explicit SourcePositionTableIterator(ByteArray* byte_array);
+  explicit SourcePositionTableIterator(BytecodeArray* bytecode_array);
 
   void Advance();
 
   int bytecode_offset() const {
     DCHECK(!done());
-    return current_.bytecode_offset;
+    return bytecode_offset_;
   }
   int source_position() const {
     DCHECK(!done());
-    return current_.source_position;
+    return source_position_;
   }
   bool is_statement() const {
     DCHECK(!done());
-    return current_.is_statement;
+    return is_statement_;
   }
-  bool done() const { return index_ == kDone; }
+  bool done() const { return index_ > length_; }
 
  private:
-  static const int kDone = -1;
-
-  ByteArray* table_;
+  FixedArray* table_;
   int index_;
-  PositionTableEntry current_;
+  int length_;
+  bool is_statement_;
+  int bytecode_offset_;
+  int source_position_;
   DisallowHeapAllocation no_gc;
 };
 
