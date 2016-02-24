@@ -2901,9 +2901,9 @@ TEST(SamplingHeapProfiler) {
     CHECK(profile == nullptr);
   }
 
-  int count_512kb = 0;
+  int count_1024 = 0;
   {
-    heap_profiler->StartSamplingHeapProfiler(512 * 1024);
+    heap_profiler->StartSamplingHeapProfiler(1024);
     CompileRun(script_source);
 
     v8::base::SmartPointer<v8::AllocationProfile> profile(
@@ -2917,7 +2917,7 @@ TEST(SamplingHeapProfiler) {
 
     // Count the number of allocations we sampled from bar.
     for (auto allocation : node_bar->allocations) {
-      count_512kb += allocation.count;
+      count_1024 += allocation.count;
     }
 
     heap_profiler->StopSamplingHeapProfiler();
@@ -2929,9 +2929,9 @@ TEST(SamplingHeapProfiler) {
     CHECK(profile == nullptr);
   }
 
-  // Sampling at a higher rate should give us more sampled objects.
+  // Sampling at a higher rate should give us similar numbers of objects.
   {
-    heap_profiler->StartSamplingHeapProfiler(32 * 1024);
+    heap_profiler->StartSamplingHeapProfiler(128);
     CompileRun(script_source);
 
     v8::base::SmartPointer<v8::AllocationProfile> profile(
@@ -2944,15 +2944,21 @@ TEST(SamplingHeapProfiler) {
     CHECK(node_bar);
 
     // Count the number of allocations we sampled from bar.
-    int count_32kb = 0;
+    int count_128 = 0;
     for (auto allocation : node_bar->allocations) {
-      count_32kb += allocation.count;
+      count_128 += allocation.count;
     }
 
-    // We should have roughly 16x as many sampled allocations. However,
-    // alignment and boundaries might tweak the numbers slightly. We use a
-    // slightly weaker test to account for this.
-    CHECK_GT(count_32kb, 8 * count_512kb);
+    // We should have similar unsampled counts of allocations. Though
+    // we will sample different numbers of objects at different rates,
+    // the unsampling process should produce similar final estimates
+    // at the true number of allocations. However, the process to
+    // determine these unsampled counts is probabilisitic so we need to
+    // account for error.
+    double max_count = std::max(count_128, count_1024);
+    double min_count = std::min(count_128, count_1024);
+    double percent_difference = (max_count - min_count) / min_count;
+    CHECK_LT(percent_difference, 0.15);
 
     heap_profiler->StopSamplingHeapProfiler();
   }
