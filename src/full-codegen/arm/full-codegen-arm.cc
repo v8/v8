@@ -4039,10 +4039,11 @@ void FullCodeGenerator::EmitLiteralCompareNil(CompareOperation* expr,
     __ cmp(r0, r1);
     Split(eq, if_true, if_false, fall_through);
   } else {
-    Handle<Code> ic = CompareNilICStub::GetUninitialized(isolate(), nil);
-    CallIC(ic, expr->CompareOperationFeedbackId());
-    __ CompareRoot(r0, Heap::kTrueValueRootIndex);
-    Split(eq, if_true, if_false, fall_through);
+    __ JumpIfSmi(r0, if_false);
+    __ ldr(r0, FieldMemOperand(r0, HeapObject::kMapOffset));
+    __ ldrb(r1, FieldMemOperand(r0, Map::kBitFieldOffset));
+    __ tst(r1, Operand(1 << Map::kIsUndetectable));
+    Split(ne, if_true, if_false, fall_through);
   }
   context()->Plug(if_true, if_false);
 }

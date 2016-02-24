@@ -1238,17 +1238,10 @@ class RepresentationSelector {
         SetOutput(node, NodeOutputInfo::None());
         break;
       }
-      case IrOpcode::kObjectIsNumber: {
-        ProcessInput(node, 0, UseInfo::AnyTagged());
-        SetOutput(node, NodeOutputInfo::Bool());
-        break;
-      }
-      case IrOpcode::kObjectIsReceiver: {
-        ProcessInput(node, 0, UseInfo::AnyTagged());
-        SetOutput(node, NodeOutputInfo::Bool());
-        break;
-      }
-      case IrOpcode::kObjectIsSmi: {
+      case IrOpcode::kObjectIsNumber:
+      case IrOpcode::kObjectIsReceiver:
+      case IrOpcode::kObjectIsSmi:
+      case IrOpcode::kObjectIsUndetectable: {
         ProcessInput(node, 0, UseInfo::AnyTagged());
         SetOutput(node, NodeOutputInfo::Bool());
         break;

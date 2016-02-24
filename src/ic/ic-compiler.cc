@@ -132,29 +132,6 @@ Handle<Code> PropertyICCompiler::ComputeStore(Isolate* isolate,
 }
 
 
-Handle<Code> PropertyICCompiler::ComputeCompareNil(Handle<Map> receiver_map,
-                                                   CompareNilICStub* stub) {
-  Isolate* isolate = receiver_map->GetIsolate();
-  Handle<String> name(isolate->heap()->empty_string());
-  if (!receiver_map->is_dictionary_map()) {
-    Handle<Code> cached_ic =
-        Find(name, receiver_map, Code::COMPARE_NIL_IC, stub->GetExtraICState());
-    if (!cached_ic.is_null()) return cached_ic;
-  }
-
-  Code::FindAndReplacePattern pattern;
-  Handle<WeakCell> cell = Map::WeakCellForMap(receiver_map);
-  pattern.Add(isolate->factory()->meta_map(), cell);
-  Handle<Code> ic = stub->GetCodeCopy(pattern);
-
-  if (!receiver_map->is_dictionary_map()) {
-    Map::UpdateCodeCache(receiver_map, name, ic);
-  }
-
-  return ic;
-}
-
-
 void PropertyICCompiler::ComputeKeyedStorePolymorphicHandlers(
     MapHandleList* receiver_maps, MapHandleList* transitioned_maps,
     CodeHandleList* handlers, KeyedAccessStoreMode store_mode,

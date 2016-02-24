@@ -3180,58 +3180,6 @@ HValue* HGraphBuilder::BuildCloneShallowArrayNonEmpty(HValue* boilerplate,
 }
 
 
-void HGraphBuilder::BuildCompareNil(HValue* value, Type* type,
-                                    HIfContinuation* continuation,
-                                    MapEmbedding map_embedding) {
-  IfBuilder if_nil(this);
-
-  if (type->Maybe(Type::Undetectable())) {
-    if_nil.If<HIsUndetectableAndBranch>(value);
-  } else {
-    bool maybe_null = type->Maybe(Type::Null());
-    if (maybe_null) {
-      if_nil.If<HCompareObjectEqAndBranch>(value, graph()->GetConstantNull());
-    }
-
-    if (type->Maybe(Type::Undefined())) {
-      if (maybe_null) if_nil.Or();
-      if_nil.If<HCompareObjectEqAndBranch>(value,
-                                           graph()->GetConstantUndefined());
-    }
-
-    if_nil.Then();
-    if_nil.Else();
-
-    if (type->NumClasses() == 1) {
-      BuildCheckHeapObject(value);
-      // For ICs, the map checked below is a sentinel map that gets replaced by
-      // the monomorphic map when the code is used as a template to generate a
-      // new IC. For optimized functions, there is no sentinel map, the map
-      // emitted below is the actual monomorphic map.
-      if (map_embedding == kEmbedMapsViaWeakCells) {
-        HValue* cell =
-            Add<HConstant>(Map::WeakCellForMap(type->Classes().Current()));
-        HValue* expected_map = Add<HLoadNamedField>(
-            cell, nullptr, HObjectAccess::ForWeakCellValue());
-        HValue* map =
-            Add<HLoadNamedField>(value, nullptr, HObjectAccess::ForMap());
-        IfBuilder map_check(this);
-        map_check.IfNot<HCompareObjectEqAndBranch>(expected_map, map);
-        map_check.ThenDeopt(Deoptimizer::kUnknownMap);
-        map_check.End();
-      } else {
-        DCHECK(map_embedding == kEmbedMapsDirectly);
-        Add<HCheckMaps>(value, type->Classes().Current());
-      }
-    } else {
-      if_nil.Deopt(Deoptimizer::kTooManyUndetectableTypes);
-    }
-  }
-
-  if_nil.CaptureContinuation(continuation);
-}
-
-
 void HGraphBuilder::BuildCreateAllocationMemento(
     HValue* previous_object,
     HValue* previous_object_size,
@@ -11740,22 +11688,17 @@ void HOptimizedGraphBuilder::HandleLiteralCompareNil(CompareOperation* expr,
   if (!top_info()->is_tracking_positions()) SetSourcePosition(expr->position());
   CHECK_ALIVE(VisitForValue(sub_expr));
   HValue* value = Pop();
+  HControlInstruction* instr;
   if (expr->op() == Token::EQ_STRICT) {
     HConstant* nil_constant = nil == kNullValue
         ? graph()->GetConstantNull()
         : graph()->GetConstantUndefined();
-    HCompareObjectEqAndBranch* instr =
-        New<HCompareObjectEqAndBranch>(value, nil_constant);
-    return ast_context()->ReturnControl(instr, expr->id());
+    instr = New<HCompareObjectEqAndBranch>(value, nil_constant);
   } else {
     DCHECK_EQ(Token::EQ, expr->op());
-    Type* type = expr->combined_type()->Is(Type::None())
-                     ? Type::Any()
-                     : expr->combined_type();
-    HIfContinuation continuation;
-    BuildCompareNil(value, type, &continuation);
-    return ast_context()->ReturnContinuation(&continuation, expr->id());
+    instr = New<HIsUndetectableAndBranch>(value);
   }
+  return ast_context()->ReturnControl(instr, expr->id());
 }
 
 
