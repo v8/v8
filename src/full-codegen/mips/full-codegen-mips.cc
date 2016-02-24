@@ -2092,18 +2092,6 @@ void FullCodeGenerator::EmitCreateIteratorResult(bool done) {
 }
 
 
-void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
-  SetExpressionPosition(prop);
-  Literal* key = prop->key()->AsLiteral();
-  DCHECK(!prop->IsSuperAccess());
-
-  __ li(LoadDescriptor::NameRegister(), Operand(key->value()));
-  __ li(LoadDescriptor::SlotRegister(),
-        Operand(SmiFromSlot(prop->PropertyFeedbackSlot())));
-  CallLoadIC(NOT_INSIDE_TYPEOF);
-}
-
-
 void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
                                               Token::Value op,
                                               Expression* left_expr,

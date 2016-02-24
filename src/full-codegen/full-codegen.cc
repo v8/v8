@@ -1007,6 +1007,18 @@ void FullCodeGenerator::EmitUnwindAndReturn() {
   EmitReturnSequence();
 }
 
+void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
+  SetExpressionPosition(prop);
+  Literal* key = prop->key()->AsLiteral();
+  DCHECK(!key->value()->IsSmi());
+  DCHECK(!prop->IsSuperAccess());
+
+  __ Move(LoadDescriptor::NameRegister(), key->value());
+  __ Move(LoadDescriptor::SlotRegister(),
+          SmiFromSlot(prop->PropertyFeedbackSlot()));
+  CallLoadIC(NOT_INSIDE_TYPEOF);
+}
+
 void FullCodeGenerator::EmitNamedSuperPropertyLoad(Property* prop) {
   // Stack: receiver, home_object
   SetExpressionPosition(prop);
