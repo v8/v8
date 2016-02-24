@@ -973,9 +973,13 @@ class CallICStub: public PlatformCodeStub {
   }
 
  protected:
-  int arg_count() const { return state().argc(); }
+  int arg_count() const {
+    DCHECK(!argc_in_register());
+    return state().argc();
+  }
   ConvertReceiverMode convert_mode() const { return state().convert_mode(); }
   TailCallMode tail_call_mode() const { return state().tail_call_mode(); }
+  bool argc_in_register() const { return state().argc_in_register(); }
 
   CallICState state() const {
     return CallICState(static_cast<ExtraICState>(minor_key_));

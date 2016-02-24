@@ -87,6 +87,18 @@ class InterpreterAssembler : public compiler::CodeStubAssembler {
                          compiler::Node* first_arg, compiler::Node* arg_count,
                          TailCallMode tail_call_mode);
 
+  // Call JSFunction or Callable |function| with |arg_count|
+  // arguments (not including receiver) and the first argument
+  // located at |first_arg| with feedback slot id |slot_id| and
+  // type feedback vector |type_feedback_vector|.
+  compiler::Node* CallJSWithFeedback(compiler::Node* function,
+                                     compiler::Node* context,
+                                     compiler::Node* first_arg,
+                                     compiler::Node* arg_count,
+                                     compiler::Node* slot_id,
+                                     compiler::Node* type_feedback_vector,
+                                     TailCallMode tail_call_mode);
+
   // Call constructor |constructor| with |arg_count| arguments (not
   // including receiver) and the first argument located at
   // |first_arg|. The |new_target| is the same as the

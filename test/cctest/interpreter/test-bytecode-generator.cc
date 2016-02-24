@@ -1512,7 +1512,7 @@ TEST(PropertyCall) {
            B(Star), R(1),                                              //
            B(LoadIC), R(1), U8(0), U8(vector->GetIndex(slot2)),  //
            B(Star), R(0),                                              //
-           B(Call), R(0), R(1), U8(1), U8(vector->GetIndex(slot1)),    //
+           B(CallIC), R(0), R(1), U8(1), U8(vector->GetIndex(slot1)),  //
            B(Return),                                                  //
        },
        1,
@@ -1531,7 +1531,7 @@ TEST(PropertyCall) {
            B(Star), R(2),                                              //
            B(Ldar), A(3, 4),                                           //
            B(Star), R(3),                                              //
-           B(Call), R(0), R(1), U8(3), U8(vector->GetIndex(slot1)),    //
+           B(CallIC), R(0), R(1), U8(3), U8(vector->GetIndex(slot1)),  //
            B(Return)                                                   //
        },
        1,
@@ -1553,7 +1553,7 @@ TEST(PropertyCall) {
            B(Star), R(2),                                              //
            B(Ldar), A(2, 3),                                           //
            B(Star), R(3),                                              //
-           B(Call), R(0), R(1), U8(3), U8(vector->GetIndex(slot1)),    //
+           B(CallIC), R(0), R(1), U8(3), U8(vector->GetIndex(slot1)),  //
            B(Return),                                                  //
        },
        1,
@@ -1577,7 +1577,7 @@ TEST(PropertyCall) {
            B(Star), R(1),                                                  //
            B(LoadICWide), R(1), U16(0), U16(wide_idx + 4),           //
            B(Star), R(0),                                                  //
-           B(CallWide), R16(0), R16(1), U16(1), U16(wide_idx + 2),         //
+           B(CallICWide), R16(0), R16(1), U16(1), U16(wide_idx + 2),       //
            B(Return),                                                      //
        },
        1,
@@ -1826,13 +1826,13 @@ TEST(CallGlobal) {
        1,
        15,
        {
-           B(StackCheck),                                            //
-           B(LdaUndefined),                                          //
-           B(Star), R(1),                                            //
-           B(LdaGlobal), U8(0), U8(vector->GetIndex(slot2)),   //
-           B(Star), R(0),                                            //
-           B(Call), R(0), R(1), U8(1), U8(vector->GetIndex(slot1)),  //
-           B(Return)                                                 //
+           B(StackCheck),                                              //
+           B(LdaUndefined),                                            //
+           B(Star), R(1),                                              //
+           B(LdaGlobal), U8(0), U8(vector->GetIndex(slot2)),           //
+           B(Star), R(0),                                              //
+           B(CallIC), R(0), R(1), U8(1), U8(vector->GetIndex(slot1)),  //
+           B(Return)                                                   //
        },
        1,
        {"t"}},
@@ -1841,19 +1841,19 @@ TEST(CallGlobal) {
        1,
        27,
        {
-           B(StackCheck),                                            //
-           B(LdaUndefined),                                          //
-           B(Star), R(1),                                            //
-           B(LdaGlobal), U8(0), U8(vector->GetIndex(slot2)),   //
-           B(Star), R(0),                                            //
-           B(LdaSmi8), U8(1),                                        //
-           B(Star), R(2),                                            //
-           B(LdaSmi8), U8(2),                                        //
-           B(Star), R(3),                                            //
-           B(LdaSmi8), U8(3),                                        //
-           B(Star), R(4),                                            //
-           B(Call), R(0), R(1), U8(4), U8(vector->GetIndex(slot1)),  //
-           B(Return)                                                 //
+           B(StackCheck),                                              //
+           B(LdaUndefined),                                            //
+           B(Star), R(1),                                              //
+           B(LdaGlobal), U8(0), U8(vector->GetIndex(slot2)),           //
+           B(Star), R(0),                                              //
+           B(LdaSmi8), U8(1),                                          //
+           B(Star), R(2),                                              //
+           B(LdaSmi8), U8(2),                                          //
+           B(Star), R(3),                                              //
+           B(LdaSmi8), U8(3),                                          //
+           B(Star), R(4),                                              //
+           B(CallIC), R(0), R(1), U8(4), U8(vector->GetIndex(slot1)),  //
+           B(Return)                                                   //
        },
        1,
        {"t"}},
@@ -2300,7 +2300,7 @@ TEST(DeclareGlobals) {
            B(Star), R(2),                                                //
            B(LdaGlobal), U8(1), U8(load_vector->GetIndex(load_slot_1)),  //
            B(Star), R(1),                                                //
-           B(Call), R(1), R(2), U8(1),                                   //
+           B(CallIC), R(1), R(2), U8(1),                                 //
            /*                */ U8(load_vector->GetIndex(call_slot_1)),  //
            B(Star), R(0),                                                //
            B(Return)                                                     //
@@ -3774,13 +3774,13 @@ TEST(FunctionLiterals) {
        1,
        15,
        {
-           B(StackCheck),                                           //
-           B(LdaUndefined),                                         //
-           B(Star), R(1),                                           //
-           B(CreateClosure), U8(0), U8(0),                          //
-           B(Star), R(0),                                           //
-           B(Call), R(0), R(1), U8(1), U8(vector->GetIndex(slot)),  //
-           B(Return)                                                //
+           B(StackCheck),                                             //
+           B(LdaUndefined),                                           //
+           B(Star), R(1),                                             //
+           B(CreateClosure), U8(0), U8(0),                            //
+           B(Star), R(0),                                             //
+           B(CallIC), R(0), R(1), U8(1), U8(vector->GetIndex(slot)),  //
+           B(Return)                                                  //
        },
        1,
        {InstanceType::SHARED_FUNCTION_INFO_TYPE}},
@@ -3789,15 +3789,15 @@ TEST(FunctionLiterals) {
        1,
        19,
        {
-           B(StackCheck),                                           //
-           B(LdaUndefined),                                         //
-           B(Star), R(1),                                           //
-           B(CreateClosure), U8(0), U8(0),                          //
-           B(Star), R(0),                                           //
-           B(LdaSmi8), U8(1),                                       //
-           B(Star), R(2),                                           //
-           B(Call), R(0), R(1), U8(2), U8(vector->GetIndex(slot)),  //
-           B(Return)                                                //
+           B(StackCheck),                                             //
+           B(LdaUndefined),                                           //
+           B(Star), R(1),                                             //
+           B(CreateClosure), U8(0), U8(0),                            //
+           B(Star), R(0),                                             //
+           B(LdaSmi8), U8(1),                                         //
+           B(Star), R(2),                                             //
+           B(CallIC), R(0), R(1), U8(2), U8(vector->GetIndex(slot)),  //
+           B(Return)                                                  //
        },
        1,
        {InstanceType::SHARED_FUNCTION_INFO_TYPE}},
@@ -3861,7 +3861,7 @@ TEST(RegExpLiterals) {
            B(Star), R(0),                                              //
            B(LdaConstant), U8(2),                                      //
            B(Star), R(2),                                              //
-           B(Call), R(0), R(1), U8(2), U8(vector->GetIndex(slot1)),    //
+           B(CallIC), R(0), R(1), U8(2), U8(vector->GetIndex(slot1)),  //
            B(Return),                                                  //
        },
        3,
@@ -5036,17 +5036,17 @@ TEST(ContextVariables) {
        1,
        25,
        {
-           B(CallRuntime), U16(Runtime::kNewFunctionContext),       //
-           /*           */ R(closure), U8(1),                       //
-           B(PushContext), R(0),                                    //
-           B(StackCheck),                                           //
-           B(LdaUndefined),                                         //
-           B(Star), R(2),                                           //
-           B(CreateClosure), U8(0), U8(0),                          //
-           B(Star), R(1),                                           //
-           B(Call), R(1), R(2), U8(1), U8(vector->GetIndex(slot)),  //
-           B(LdaContextSlot), R(context), U8(first_context_slot),   //
-           B(Return),                                               //
+           B(CallRuntime), U16(Runtime::kNewFunctionContext),         //
+           /*           */ R(closure), U8(1),                         //
+           B(PushContext), R(0),                                      //
+           B(StackCheck),                                             //
+           B(LdaUndefined),                                           //
+           B(Star), R(2),                                             //
+           B(CreateClosure), U8(0), U8(0),                            //
+           B(Star), R(1),                                             //
+           B(CallIC), R(1), R(2), U8(1), U8(vector->GetIndex(slot)),  //
+           B(LdaContextSlot), R(context), U8(first_context_slot),     //
+           B(Return),                                                 //
        },
        1,
        {InstanceType::SHARED_FUNCTION_INFO_TYPE}},
@@ -5087,7 +5087,7 @@ TEST(ContextVariables) {
        "return b",
        3 * kPointerSize,
        1,
-       1042,
+       1041,
        {
            B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure),  //
            /*           */ U8(1),                                          //
@@ -5104,9 +5104,9 @@ TEST(ContextVariables) {
                       B(StaContextSlot), R(context), U8(wide_slot++)),     //
            B(LdaUndefined),                                                //
            B(Star), R(2),                                                  //
-           B(LdaGlobal), U8(0), U8(1),                               //
+           B(LdaGlobal), U8(0), U8(1),                                     //
            B(Star), R(1),                                                  //
-           B(Call), R(1), R(2), U8(1), U8(0),                              //
+           B(Call), R(1), R(2), U8(1),                                     //
            B(LdaSmi8), U8(100),                                            //
            B(StaContextSlotWide), R(context), U16(256),                    //
            B(LdaContextSlotWide), R(context), U16(256),                    //
@@ -6324,13 +6324,13 @@ DISABLED_TEST(ForOf) {
            B(LdaConstant), U8(1),                                           //
            B(KeyedLoadIC), R(5), U8(vector->GetIndex(slot2)),         //
            B(Star), R(4),                                                   //
-           B(Call), R(4), R(5), U8(1), U8(vector->GetIndex(slot1)),         //
+           B(CallIC), R(4), R(5), U8(1), U8(vector->GetIndex(slot1)),       //
            B(Star), R(1),                                                   //
            B(Ldar), R(1),                                                   //
            B(Star), R(6),                                                   //
            B(LoadIC), R(6), U8(2), U8(vector->GetIndex(slot4)),       //
            B(Star), R(5),                                                   //
-           B(Call), R(5), R(6), U8(1), U8(vector->GetIndex(slot3)),         //
+           B(CallIC), R(5), R(6), U8(1), U8(vector->GetIndex(slot3)),       //
            B(Star), R(2),                                                   //
            B(Star), R(4),                                                   //
            B(CallRuntime), U16(Runtime::kInlineIsJSReceiver), R(4), U8(1),  //
@@ -6373,13 +6373,13 @@ DISABLED_TEST(ForOf) {
            B(LdaConstant), U8(1),                                           //
            B(KeyedLoadIC), R(6), U8(vector->GetIndex(slot2)),         //
            B(Star), R(5),                                                   //
-           B(Call), R(5), R(6), U8(1), U8(vector->GetIndex(slot1)),         //
+           B(CallIC), R(5), R(6), U8(1), U8(vector->GetIndex(slot1)),       //
            B(Star), R(1),                                                   //
            B(Ldar), R(1),                                                   //
            B(Star), R(7),                                                   //
            B(LoadIC), R(7), U8(2), U8(vector->GetIndex(slot4)),       //
            B(Star), R(6),                                                   //
-           B(Call), R(6), R(7), U8(1), U8(vector->GetIndex(slot3)),         //
+           B(CallIC), R(6), R(7), U8(1), U8(vector->GetIndex(slot3)),       //
            B(Star), R(2),                                                   //
            B(Star), R(5),                                                   //
            B(CallRuntime), U16(Runtime::kInlineIsJSReceiver), R(5), U8(1),  //
@@ -6424,13 +6424,13 @@ DISABLED_TEST(ForOf) {
            B(LdaConstant), U8(1),                                           //
            B(KeyedLoadIC), R(5), U8(vector->GetIndex(slot2)),         //
            B(Star), R(4),                                                   //
-           B(Call), R(4), R(5), U8(1), U8(vector->GetIndex(slot1)),         //
+           B(CallIC), R(4), R(5), U8(1), U8(vector->GetIndex(slot1)),       //
            B(Star), R(1),                                                   //
            B(Ldar), R(1),                                                   //
            B(Star), R(6),                                                   //
            B(LoadIC), R(6), U8(2), U8(vector->GetIndex(slot4)),       //
            B(Star), R(5),                                                   //
-           B(Call), R(5), R(6), U8(1), U8(vector->GetIndex(slot3)),         //
+           B(CallIC), R(5), R(6), U8(1), U8(vector->GetIndex(slot3)),       //
            B(Star), R(2),                                                   //
            B(Star), R(4),                                                   //
            B(CallRuntime), U16(Runtime::kInlineIsJSReceiver), R(4), U8(1),  //
@@ -6486,13 +6486,13 @@ DISABLED_TEST(ForOf) {
            B(LdaConstant), U8(2),                                           //
            B(KeyedLoadIC), R(4), U8(vector->GetIndex(slot2)),         //
            B(Star), R(3),                                                   //
-           B(Call), R(3), R(4), U8(1), U8(vector->GetIndex(slot1)),         //
+           B(CallIC), R(3), R(4), U8(1), U8(vector->GetIndex(slot1)),       //
            B(Star), R(0),                                                   //
            B(Ldar), R(0),                                                   //
            B(Star), R(5),                                                   //
            B(LoadIC), R(5), U8(3), U8(vector->GetIndex(slot4)),       //
            B(Star), R(4),                                                   //
-           B(Call), R(4), R(5), U8(1), U8(vector->GetIndex(slot3)),         //
+           B(CallIC), R(4), R(5), U8(1), U8(vector->GetIndex(slot3)),       //
            B(Star), R(1),                                                   //
            B(Star), R(3),                                                   //
            B(CallRuntime), U16(Runtime::kInlineIsJSReceiver), R(3), U8(1),  //
@@ -7440,7 +7440,7 @@ TEST(Eval) {
       {"return eval('1;');",
        9 * kPointerSize,
        1,
-       65,
+       64,
        {
            B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure),   //
            /*           */ U8(1),                                           //
@@ -7468,7 +7468,7 @@ TEST(Eval) {
            B(CallRuntime), U16(Runtime::kResolvePossiblyDirectEval), R(4),  //
            /*           */ U8(5),                                           //
            B(Star), R(1),                                                   //
-           B(Call), R(1), R(2), U8(2), U8(0),                               //
+           B(Call), R(1), R(2), U8(2),                                      //
            B(Return),                                                       //
        },
        2,
@@ -7498,7 +7498,7 @@ TEST(LookupSlot) {
       {"eval('var x = 10;'); return x;",
        9 * kPointerSize,
        1,
-       67,
+       66,
        {
            B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure),   //
            /*           */ U8(1),                                           //
@@ -7526,7 +7526,7 @@ TEST(LookupSlot) {
            B(CallRuntime), U16(Runtime::kResolvePossiblyDirectEval), R(4),  //
                            U8(5),                                           //
            B(Star), R(1),                                                   //
-           B(Call), R(1), R(2), U8(2), U8(0),                               //
+           B(Call), R(1), R(2), U8(2),                                      //
            B(LdaLookupSlot), U8(2),                                         //
            B(Return),                                                       //
        },
@@ -7535,7 +7535,7 @@ TEST(LookupSlot) {
       {"eval('var x = 10;'); return typeof x;",
        9 * kPointerSize,
        1,
-       68,
+       67,
        {
            B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure),   //
            /*           */ U8(1),                                           //
@@ -7563,7 +7563,7 @@ TEST(LookupSlot) {
            B(CallRuntime), U16(Runtime::kResolvePossiblyDirectEval), R(4),  //
            /*           */ U8(5),                                           //
            B(Star), R(1),                                                   //
-           B(Call), R(1), R(2), U8(2), U8(0),                               //
+           B(Call), R(1), R(2), U8(2),                                      //
            B(LdaLookupSlotInsideTypeof), U8(2),                             //
            B(TypeOf),                                                       //
            B(Return),                                                       //
@@ -7573,7 +7573,7 @@ TEST(LookupSlot) {
       {"x = 20; return eval('');",
        9 * kPointerSize,
        1,
-       69,
+       68,
        {
            B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure),   //
                            U8(1),                                           //
@@ -7603,7 +7603,7 @@ TEST(LookupSlot) {
            B(CallRuntime), U16(Runtime::kResolvePossiblyDirectEval), R(4),  //
            /*           */ U8(5),                                           //
            B(Star), R(1),                                                   //
-           B(Call), R(1), R(2), U8(2), U8(0),                               //
+           B(Call), R(1), R(2), U8(2),                                      //
            B(Return),                                                       //
        },
        3,
@@ -7641,7 +7641,7 @@ TEST(CallLookupSlot) {
       {"g = function(){}; eval(''); return g();",
        9 * kPointerSize,
        1,
-       85,
+       84,
        {
            B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure),   //
            /*           */ U8(1),                                           //
@@ -7671,12 +7671,12 @@ TEST(CallLookupSlot) {
            B(CallRuntime), U16(Runtime::kResolvePossiblyDirectEval), R(4),  //
                            U8(5),                                           //
            B(Star), R(1),                                                   //
-           B(Call), R(1), R(2), U8(2), U8(0),                               //
+           B(Call), R(1), R(2), U8(2),                                      //
            B(LdaConstant), U8(1),                                           //
            B(Star), R(3),                                                   //
            B(CallRuntimeForPair), U16(Runtime::kLoadLookupSlotForCall),     //
                                   R(3), U8(1), R(1),                        //
-           B(Call), R(1), R(2), U8(1), U8(vector->GetIndex(slot2)),         //
+           B(CallIC), R(1), R(2), U8(1), U8(vector->GetIndex(slot2)),       //
            B(Return),                                                       //
        },
        4,
@@ -9069,7 +9069,7 @@ TEST(ClassDeclarations) {
        B(Star), R(6),                                                         //
        B(CallRuntime), U16(Runtime::kDefineClass), R(3), U8(4),               //
        B(Star), R(3),                                                         //
-       B(LoadIC), R(3), U8(1), U8(1),                                   //
+       B(LoadIC), R(3), U8(1), U8(1),                                         //
        B(Star), R(4),                                                         //
        B(CallRuntime), U16(Runtime::kFinalizeClassDefinition), R(3), U8(2),   //
        B(Star), R(0),                                                         //
@@ -9094,6 +9094,113 @@ TEST(ClassDeclarations) {
         helper.MakeBytecodeForFunctionBody(snippets[i].code_snippet);
     CheckBytecodeArrayEqual(snippets[i], bytecode_array);
   }
+}
+
+TEST(TailCall) {
+  bool old_tailcall_flag = FLAG_harmony_tailcalls;
+  FLAG_harmony_tailcalls = true;
+
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+
+  int closure = Register::function_closure().index();
+  int context = Register::current_context().index();
+  int new_target = Register::new_target().index();
+
+  // clang-format off
+  ExpectedSnippet<const char*> snippets[] = {
+      {"function g() { throw new Error('foo'); };"
+       "var eval = g;"
+       "function f() {"
+       " 'use strict';"
+       " return eval('g()');"
+       "}",
+       9 * kPointerSize,
+       1,
+       63,
+       {
+           B(CallRuntime), U16(Runtime::kNewFunctionContext), R(closure),   //
+                           U8(1),                                           //
+           B(PushContext), R(0),                                            //
+           B(Ldar), THIS(1),                                                //
+           B(StaContextSlot), R(context), U8(4),                            //
+           B(CreateUnmappedArguments),                                      //
+           B(StaContextSlot), R(context), U8(5),                            //
+           B(Ldar), R(new_target),                                          //
+           B(StaContextSlot), R(context), U8(6),                            //
+           B(StackCheck),                                                   //
+           B(LdaUndefined),                                                 //
+           B(Star), R(2),                                                   //
+           B(LdaGlobal), U8(0), U8(1),                                      //
+           B(Star), R(1),                                                   //
+           B(LdaConstant), U8(1),                                           //
+           B(Star), R(3),                                                   //
+           B(Mov), R(1), R(4),                                              //
+           B(Mov), R(3), R(5),                                              //
+           B(Mov), R(closure), R(6),                                        //
+           B(LdaSmi8), U8(1),                                               //
+           B(Star), R(7),                                                   //
+           B(LdaSmi8), U8(64),                                              //
+           B(Star), R(8),                                                   //
+           B(CallRuntime), U16(Runtime::kResolvePossiblyDirectEval), R(4),  //
+                           U8(5),                                           //
+           B(Star), R(1),                                                   //
+           B(TailCall), R(1), R(2), U8(2),                                  //
+           B(Return),                                                       //
+       },
+       2,
+       {"eval",
+        "g()"}}
+  };
+  // clang-format on
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecodeForFunction(snippets[i].code_snippet);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+
+  FLAG_harmony_tailcalls = old_tailcall_flag;
+}
+
+TEST(TailCallIC) {
+  bool old_tailcall_flag = FLAG_harmony_tailcalls;
+  FLAG_harmony_tailcalls = true;
+
+  InitializedHandleScope handle_scope;
+  BytecodeGeneratorHelper helper;
+
+  // clang-format off
+  ExpectedSnippet<const char*> snippets[] = {
+      {"function g() { return 0; };"
+       "function f() {"
+       " 'use strict';"
+       " return g();"
+       "}",
+       2 * kPointerSize,
+       1,
+       15,
+       {
+           B(StackCheck),                            //
+           B(LdaUndefined),                          //
+           B(Star), R(1),                            //
+           B(LdaGlobal), U8(0), U8(3),               //
+           B(Star), R(0),                            //
+           B(TailCallIC), R(0), R(1), U8(1), U8(1),  //
+           B(Return),
+       },
+       1,
+       {"g"}}
+  };
+  // clang-format on
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    Handle<BytecodeArray> bytecode_array =
+        helper.MakeBytecodeForFunction(snippets[i].code_snippet);
+    CheckBytecodeArrayEqual(snippets[i], bytecode_array);
+  }
+
+  FLAG_harmony_tailcalls = old_tailcall_flag;
 }
 
 // TODO(oth): Add tests for super keyword.

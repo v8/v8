@@ -136,6 +136,9 @@ class BytecodeGraphTester {
     compilation_info.MarkAsDeoptimizationEnabled();
     compiler::Pipeline pipeline(&compilation_info);
     Handle<Code> code = pipeline.GenerateCode();
+    // We do not actually record weak dependencies between objects and
+    // code objects. We just clear the dependencies for now.
+    compilation_info.dependencies()->Commit(compilation_info.code());
     function->ReplaceCode(*code);
 
     return function;

@@ -345,6 +345,13 @@ Callable CodeFactory::ConstructFunction(Isolate* isolate) {
                   ConstructTrampolineDescriptor(isolate));
 }
 
+// static
+Callable CodeFactory::InterpreterPushArgsAndCallIC(
+    Isolate* isolate, TailCallMode tail_call_mode) {
+  return Callable(
+      isolate->builtins()->InterpreterPushArgsAndCallIC(tail_call_mode),
+      InterpreterPushArgsAndCallICDescriptor(isolate));
+}
 
 // static
 Callable CodeFactory::InterpreterPushArgsAndCall(Isolate* isolate,
@@ -353,7 +360,6 @@ Callable CodeFactory::InterpreterPushArgsAndCall(Isolate* isolate,
       isolate->builtins()->InterpreterPushArgsAndCall(tail_call_mode),
       InterpreterPushArgsAndCallDescriptor(isolate));
 }
-
 
 // static
 Callable CodeFactory::InterpreterPushArgsAndConstruct(Isolate* isolate) {

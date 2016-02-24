@@ -78,6 +78,7 @@ class PlatformInterfaceDescriptor;
   V(GrowArrayElements)                        \
   V(InterpreterDispatch)                      \
   V(InterpreterPushArgsAndCall)               \
+  V(InterpreterPushArgsAndCallIC)             \
   V(InterpreterPushArgsAndConstruct)          \
   V(InterpreterCEntry)
 
@@ -757,12 +758,17 @@ class InterpreterDispatchDescriptor  : public CallInterfaceDescriptor {
   static const int kContextParameter = 5;
 };
 
+class InterpreterPushArgsAndCallICDescriptor : public CallInterfaceDescriptor {
+ public:
+  DECLARE_DESCRIPTOR(InterpreterPushArgsAndCallICDescriptor,
+                     CallInterfaceDescriptor)
+};
+
 class InterpreterPushArgsAndCallDescriptor : public CallInterfaceDescriptor {
  public:
   DECLARE_DESCRIPTOR(InterpreterPushArgsAndCallDescriptor,
                      CallInterfaceDescriptor)
 };
-
 
 class InterpreterPushArgsAndConstructDescriptor
     : public CallInterfaceDescriptor {

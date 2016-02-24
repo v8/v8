@@ -169,14 +169,20 @@ namespace interpreter {
   V(DeletePropertySloppy, OperandType::kReg8)                                  \
                                                                                \
   /* Call operations */                                                        \
-  V(Call, OperandType::kReg8, OperandType::kReg8, OperandType::kRegCount8,     \
+  V(CallIC, OperandType::kReg8, OperandType::kReg8, OperandType::kRegCount8,   \
     OperandType::kIdx8)                                                        \
+  V(CallICWide, OperandType::kReg16, OperandType::kReg16,                      \
+    OperandType::kRegCount16, OperandType::kIdx16)                             \
+  V(TailCallIC, OperandType::kReg8, OperandType::kReg8,                        \
+    OperandType::kRegCount8, OperandType::kIdx8)                               \
+  V(TailCallICWide, OperandType::kReg16, OperandType::kReg16,                  \
+    OperandType::kRegCount16, OperandType::kIdx16)                             \
+  V(Call, OperandType::kReg8, OperandType::kReg8, OperandType::kRegCount8)     \
   V(CallWide, OperandType::kReg16, OperandType::kReg16,                        \
-    OperandType::kRegCount16, OperandType::kIdx16)                             \
-  V(TailCall, OperandType::kReg8, OperandType::kReg8, OperandType::kRegCount8, \
-    OperandType::kIdx8)                                                        \
+    OperandType::kRegCount16)                                                  \
+  V(TailCall, OperandType::kReg8, OperandType::kReg8, OperandType::kRegCount8) \
   V(TailCallWide, OperandType::kReg16, OperandType::kReg16,                    \
-    OperandType::kRegCount16, OperandType::kIdx16)                             \
+    OperandType::kRegCount16)                                                  \
   V(CallRuntime, OperandType::kIdx16, OperandType::kMaybeReg8,                 \
     OperandType::kRegCount8)                                                   \
   V(CallRuntimeWide, OperandType::kIdx16, OperandType::kMaybeReg16,            \

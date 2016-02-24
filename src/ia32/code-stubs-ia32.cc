@@ -1624,11 +1624,11 @@ void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
   // edi - function
   // edx - slot id
   // ebx - vector
+  // eax - number of arguments - if argc_in_register() is true.
   __ LoadGlobalFunction(Context::ARRAY_FUNCTION_INDEX, ecx);
   __ cmp(edi, ecx);
   __ j(not_equal, miss);
 
-  __ mov(eax, arg_count());
   // Reload ecx.
   __ mov(ecx, FieldOperand(ebx, edx, times_half_pointer_size,
                            FixedArray::kHeaderSize));
@@ -1640,9 +1640,17 @@ void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
 
   __ mov(ebx, ecx);
   __ mov(edx, edi);
-  ArrayConstructorStub stub(masm->isolate(), arg_count());
-  __ TailCallStub(&stub);
-
+  if (argc_in_register()) {
+    // Pass a default ArgumentCountKey::Any since the argc is only available
+    // in eax. We do not have the actual count here.
+    ArrayConstructorStub stub(masm->isolate());
+    __ TailCallStub(&stub);
+  } else {
+    // arg_count() is expected in rax if the arg_count() >= 2
+    // (ArgumentCountKey::MORE_THAN_ONE).
+    ArrayConstructorStub stub(masm->isolate(), arg_count());
+    __ TailCallStub(&stub);
+  }
   // Unreachable.
 }
 
@@ -1651,10 +1659,13 @@ void CallICStub::Generate(MacroAssembler* masm) {
   // edi - function
   // edx - slot id
   // ebx - vector
+  // eax - number of arguments - if argc_in_register() is true.
   Isolate* isolate = masm->isolate();
   Label extra_checks_or_miss, call, call_function;
-  int argc = arg_count();
-  ParameterCount actual(argc);
+  if (!argc_in_register()) {
+    int argc = arg_count();
+    __ Set(eax, argc);
+  }
 
   // The checks. First, does edi match the recorded monomorphic target?
   __ mov(ecx, FieldOperand(ebx, edx, times_half_pointer_size,
@@ -1687,7 +1698,6 @@ void CallICStub::Generate(MacroAssembler* masm) {
          Immediate(Smi::FromInt(CallICNexus::kCallCountIncrement)));
 
   __ bind(&call_function);
-  __ Set(eax, argc);
   __ Jump(masm->isolate()->builtins()->CallFunction(convert_mode(),
                                                     tail_call_mode()),
           RelocInfo::CODE_TARGET);
@@ -1727,7 +1737,6 @@ void CallICStub::Generate(MacroAssembler* masm) {
       Immediate(TypeFeedbackVector::MegamorphicSentinel(isolate)));
 
   __ bind(&call);
-  __ Set(eax, argc);
   __ Jump(masm->isolate()->builtins()->Call(convert_mode(), tail_call_mode()),
           RelocInfo::CODE_TARGET);
 
@@ -1764,9 +1773,15 @@ void CallICStub::Generate(MacroAssembler* masm) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     CreateWeakCellStub create_stub(isolate);
+    __ SmiTag(eax);
+    __ push(eax);
     __ push(edi);
+
     __ CallStub(&create_stub);
+
     __ pop(edi);
+    __ pop(eax);
+    __ SmiUntag(eax);
   }
 
   __ jmp(&call_function);
@@ -1786,6 +1801,9 @@ void CallICStub::Generate(MacroAssembler* masm) {
 void CallICStub::GenerateMiss(MacroAssembler* masm) {
   FrameScope scope(masm, StackFrame::INTERNAL);
 
+  // Store eax since we need it later.
+  __ SmiTag(eax);
+  __ push(eax);
   // Push the function and feedback info.
   __ push(edi);
   __ push(ebx);
@@ -1796,6 +1814,10 @@ void CallICStub::GenerateMiss(MacroAssembler* masm) {
 
   // Move result to edi and exit the internal frame.
   __ mov(edi, eax);
+
+  // Restore eax.
+  __ pop(eax);
+  __ SmiUntag(eax);
 }
 
 

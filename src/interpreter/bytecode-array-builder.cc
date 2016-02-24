@@ -1059,12 +1059,10 @@ void BytecodeArrayBuilder::EnsureReturn(FunctionLiteral* literal) {
   }
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::Call(Register callable,
-                                                 Register receiver_args,
-                                                 size_t receiver_args_count,
-                                                 int feedback_slot,
-                                                 TailCallMode tail_call_mode) {
-  Bytecode bytecode = BytecodeForCall(tail_call_mode);
+BytecodeArrayBuilder& BytecodeArrayBuilder::CallIC(
+    Register callable, Register receiver_args, size_t receiver_args_count,
+    int feedback_slot, TailCallMode tail_call_mode) {
+  Bytecode bytecode = BytecodeForCallIC(tail_call_mode);
   if (FitsInReg8Operand(callable) && FitsInReg8Operand(receiver_args) &&
       FitsInIdx8Operand(receiver_args_count) &&
       FitsInIdx8Operand(feedback_slot)) {
@@ -1085,6 +1083,26 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Call(Register callable,
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::Call(Register callable,
+                                                 Register receiver_args,
+                                                 size_t receiver_args_count,
+                                                 TailCallMode tail_call_mode) {
+  Bytecode bytecode = BytecodeForCall(tail_call_mode);
+  if (FitsInReg8Operand(callable) && FitsInReg8Operand(receiver_args) &&
+      FitsInIdx8Operand(receiver_args_count)) {
+    Output(bytecode, callable.ToRawOperand(), receiver_args.ToRawOperand(),
+           static_cast<uint8_t>(receiver_args_count));
+  } else if (FitsInReg16Operand(callable) &&
+             FitsInReg16Operand(receiver_args) &&
+             FitsInIdx16Operand(receiver_args_count)) {
+    bytecode = BytecodeForWideOperands(bytecode);
+    Output(bytecode, callable.ToRawOperand(), receiver_args.ToRawOperand(),
+           static_cast<uint16_t>(receiver_args_count));
+  } else {
+    UNIMPLEMENTED();
+  }
+  return *this;
+}
 BytecodeArrayBuilder& BytecodeArrayBuilder::New(Register constructor,
                                                 Register first_arg,
                                                 size_t arg_count) {
@@ -1426,6 +1444,10 @@ Bytecode BytecodeArrayBuilder::BytecodeForCompareOperation(Token::Value op) {
 // static
 Bytecode BytecodeArrayBuilder::BytecodeForWideOperands(Bytecode bytecode) {
   switch (bytecode) {
+    case Bytecode::kCallIC:
+      return Bytecode::kCallICWide;
+    case Bytecode::kTailCallIC:
+      return Bytecode::kTailCallICWide;
     case Bytecode::kCall:
       return Bytecode::kCallWide;
     case Bytecode::kTailCall:
@@ -1563,6 +1585,19 @@ Bytecode BytecodeArrayBuilder::BytecodeForDelete(LanguageMode language_mode) {
       return Bytecode::kDeletePropertyStrict;
     case STRONG:
       UNIMPLEMENTED();
+    default:
+      UNREACHABLE();
+  }
+  return static_cast<Bytecode>(-1);
+}
+
+// static
+Bytecode BytecodeArrayBuilder::BytecodeForCallIC(TailCallMode tail_call_mode) {
+  switch (tail_call_mode) {
+    case TailCallMode::kDisallow:
+      return Bytecode::kCallIC;
+    case TailCallMode::kAllow:
+      return Bytecode::kTailCallIC;
     default:
       UNREACHABLE();
   }

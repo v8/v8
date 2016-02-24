@@ -216,6 +216,8 @@ inline bool operator&(BuiltinExtraArguments lhs, BuiltinExtraArguments rhs) {
                                                                                \
   V(InterpreterEntryTrampoline, BUILTIN, UNINITIALIZED, kNoExtraICState)       \
   V(InterpreterExitTrampoline, BUILTIN, UNINITIALIZED, kNoExtraICState)        \
+  V(InterpreterPushArgsAndCallIC, BUILTIN, UNINITIALIZED, kNoExtraICState)     \
+  V(InterpreterPushArgsAndTailCallIC, BUILTIN, UNINITIALIZED, kNoExtraICState) \
   V(InterpreterPushArgsAndCall, BUILTIN, UNINITIALIZED, kNoExtraICState)       \
   V(InterpreterPushArgsAndTailCall, BUILTIN, UNINITIALIZED, kNoExtraICState)   \
   V(InterpreterPushArgsAndConstruct, BUILTIN, UNINITIALIZED, kNoExtraICState)  \
@@ -367,6 +369,7 @@ class Builtins {
                     TailCallMode tail_call_mode = TailCallMode::kDisallow);
   Handle<Code> CallBoundFunction(TailCallMode tail_call_mode);
   Handle<Code> InterpreterPushArgsAndCall(TailCallMode tail_call_mode);
+  Handle<Code> InterpreterPushArgsAndCallIC(TailCallMode tail_call_mode);
 
   Code* builtin(Name name) {
     // Code::cast cannot be used here since we access builtins
@@ -582,6 +585,16 @@ class Builtins {
 
   static void Generate_InterpreterEntryTrampoline(MacroAssembler* masm);
   static void Generate_InterpreterExitTrampoline(MacroAssembler* masm);
+  static void Generate_InterpreterPushArgsAndCallIC(MacroAssembler* masm) {
+    return Generate_InterpreterPushArgsAndCallICImpl(masm,
+                                                     TailCallMode::kDisallow);
+  }
+  static void Generate_InterpreterPushArgsAndTailCallIC(MacroAssembler* masm) {
+    return Generate_InterpreterPushArgsAndCallICImpl(masm,
+                                                     TailCallMode::kAllow);
+  }
+  static void Generate_InterpreterPushArgsAndCallICImpl(
+      MacroAssembler* masm, TailCallMode tail_call_mode);
   static void Generate_InterpreterPushArgsAndCall(MacroAssembler* masm) {
     return Generate_InterpreterPushArgsAndCallImpl(masm,
                                                    TailCallMode::kDisallow);

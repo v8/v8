@@ -3999,6 +3999,18 @@ Handle<Code> Builtins::InterpreterPushArgsAndCall(TailCallMode tail_call_mode) {
   return Handle<Code>::null();
 }
 
+Handle<Code> Builtins::InterpreterPushArgsAndCallIC(
+    TailCallMode tail_call_mode) {
+  switch (tail_call_mode) {
+    case TailCallMode::kDisallow:
+      return InterpreterPushArgsAndCallIC();
+    case TailCallMode::kAllow:
+      return InterpreterPushArgsAndTailCallIC();
+  }
+  UNREACHABLE();
+  return Handle<Code>::null();
+}
+
 namespace {
 
 class RelocatableArguments

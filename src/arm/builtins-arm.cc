@@ -976,6 +976,46 @@ static void Generate_InterpreterPushArgs(MacroAssembler* masm, Register index,
   __ b(gt, &loop_header);
 }
 
+static void Generate_InterpreterComputeLastArgumentAddress(
+    MacroAssembler* masm, Register num_args, Register start_address,
+    Register output_reg) {
+  __ add(output_reg, num_args, Operand(1));  // Add one for receiver.
+  __ mov(output_reg, Operand(output_reg, LSL, kPointerSizeLog2));
+  __ sub(output_reg, start_address, output_reg);
+}
+
+// static
+void Builtins::Generate_InterpreterPushArgsAndCallICImpl(
+    MacroAssembler* masm, TailCallMode tail_call_mode) {
+  // ----------- S t a t e -------------
+  //  -- r0 : the number of arguments (not including the receiver)
+  //  -- r4 : the address of the first argument to be pushed. Subsequent
+  //          arguments should be consecutive above this, in the same order as
+  //          they are to be pushed onto the stack.
+  //  -- r1 : the target to call (can be any Object).
+  //  -- r3 : feedback vector slot id
+  //  -- r2 : type feedback vector
+  // -----------------------------------
+
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+
+    // Find the address of the last argument.
+    Generate_InterpreterComputeLastArgumentAddress(masm, r0, r4, r5);
+
+    // Push the arguments.
+    Generate_InterpreterPushArgs(masm, r4, r5, r6);
+
+    // Call via the CallIC stub.
+    CallICState call_ic_state(0, ConvertReceiverMode::kAny, tail_call_mode,
+                              true);
+    CallICStub stub(masm->isolate(), call_ic_state);
+    // TODO(mythria): This should be replaced by a TailCallStub, when we
+    // update the code to find the target IC from jump instructions.
+    __ CallStub(&stub);
+  }
+  __ Ret();
+}
 
 // static
 void Builtins::Generate_InterpreterPushArgsAndCallImpl(
@@ -989,9 +1029,7 @@ void Builtins::Generate_InterpreterPushArgsAndCallImpl(
   // -----------------------------------
 
   // Find the address of the last argument.
-  __ add(r3, r0, Operand(1));  // Add one for receiver.
-  __ mov(r3, Operand(r3, LSL, kPointerSizeLog2));
-  __ sub(r3, r2, r3);
+  Generate_InterpreterComputeLastArgumentAddress(masm, r0, r2, r3);
 
   // Push the arguments.
   Generate_InterpreterPushArgs(masm, r2, r3, r4);
@@ -1941,6 +1979,17 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   __ ldrb(scratch1, MemOperand(scratch1));
   __ cmp(scratch1, Operand(0));
   __ b(ne, &done);
+
+  // Drop possible internal frame pushed for calling CallICStub.
+  // TODO(mythria): when we tail call the CallICStub, remove this.
+  {
+    Label no_internal_callic_frame;
+    __ ldr(scratch3, MemOperand(fp, StandardFrameConstants::kMarkerOffset));
+    __ cmp(scratch3, Operand(Smi::FromInt(StackFrame::INTERNAL)));
+    __ b(ne, &no_internal_callic_frame);
+    __ ldr(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+    __ bind(&no_internal_callic_frame);
+  }
 
   // Drop possible interpreter handler/stub frame.
   {

@@ -278,8 +278,10 @@ bool Bytecodes::IsJump(Bytecode bytecode) {
 // static
 bool Bytecodes::IsCallOrNew(Bytecode bytecode) {
   return bytecode == Bytecode::kCall || bytecode == Bytecode::kTailCall ||
-         bytecode == Bytecode::kNew || bytecode == Bytecode::kCallWide ||
-         bytecode == Bytecode::kTailCallWide || bytecode == Bytecode::kNewWide;
+         bytecode == Bytecode::kNew || bytecode == Bytecode::kCallIC ||
+         bytecode == Bytecode::kCallWide ||
+         bytecode == Bytecode::kTailCallWide ||
+         bytecode == Bytecode::kNewWide || bytecode == Bytecode::kCallICWide;
 }
 
 // static

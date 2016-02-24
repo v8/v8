@@ -2289,6 +2289,7 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
 
 
 void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
+  // x0 - number of arguments
   // x1 - function
   // x3 - slot id
   // x2 - vector
@@ -2302,8 +2303,6 @@ void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
   __ LoadNativeContextSlot(Context::ARRAY_FUNCTION_INDEX, scratch);
   __ Cmp(function, scratch);
   __ B(ne, miss);
-
-  __ Mov(x0, Operand(arg_count()));
 
   // Increment the call count for monomorphic function calls.
   __ Add(feedback_vector, feedback_vector,
@@ -2319,20 +2318,31 @@ void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
   Register new_target_arg = index;
   __ Mov(allocation_site_arg, allocation_site);
   __ Mov(new_target_arg, function);
-  ArrayConstructorStub stub(masm->isolate(), arg_count());
-  __ TailCallStub(&stub);
+  if (argc_in_register()) {
+    // Pass a default ArgumentCountKey::Any since the argc is only available
+    // in r0. We do not have the actual count here.
+    ArrayConstructorStub stub(masm->isolate());
+    __ TailCallStub(&stub);
+  } else {
+    // arg_count() is expected in r0 if the arg_count() >= 2
+    // (ArgumentCountKey::MORE_THAN_ONE).
+    ArrayConstructorStub stub(masm->isolate(), arg_count());
+    __ TailCallStub(&stub);
+  }
 }
 
 
 void CallICStub::Generate(MacroAssembler* masm) {
   ASM_LOCATION("CallICStub");
 
+  // x0 - number of arguments if argc_in_register() is true
   // x1 - function
   // x3 - slot id (Smi)
   // x2 - vector
   Label extra_checks_or_miss, call, call_function;
-  int argc = arg_count();
-  ParameterCount actual(argc);
+  if (!argc_in_register()) {
+    __ Mov(x0, arg_count());
+  }
 
   Register function = x1;
   Register feedback_vector = x2;
@@ -2375,7 +2385,6 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ Str(index, FieldMemOperand(feedback_vector, 0));
 
   __ Bind(&call_function);
-  __ Mov(x0, argc);
   __ Jump(masm->isolate()->builtins()->CallFunction(convert_mode(),
                                                     tail_call_mode()),
           RelocInfo::CODE_TARGET);
@@ -2410,7 +2419,6 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ Str(x5, FieldMemOperand(x4, FixedArray::kHeaderSize));
 
   __ Bind(&call);
-  __ Mov(x0, argc);
   __ Jump(masm->isolate()->builtins()->Call(convert_mode(), tail_call_mode()),
           RelocInfo::CODE_TARGET);
 
@@ -2448,9 +2456,13 @@ void CallICStub::Generate(MacroAssembler* masm) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     CreateWeakCellStub create_stub(masm->isolate());
+    __ SmiTag(x0);
+    __ Push(x0);
     __ Push(function);
     __ CallStub(&create_stub);
     __ Pop(function);
+    __ Pop(x0);
+    __ SmiUntag(x0);
   }
 
   __ B(&call_function);
@@ -2469,6 +2481,10 @@ void CallICStub::GenerateMiss(MacroAssembler* masm) {
 
   FrameScope scope(masm, StackFrame::INTERNAL);
 
+  // Store number of arguments.
+  __ SmiTag(x0);
+  __ Push(x0);
+
   // Push the receiver and the function and feedback info.
   __ Push(x1, x2, x3);
 
@@ -2477,6 +2493,10 @@ void CallICStub::GenerateMiss(MacroAssembler* masm) {
 
   // Move result to edi and exit the internal frame.
   __ Mov(x1, x0);
+
+  // Restore number of arguments.
+  __ Pop(x0);
+  __ SmiUntag(x0);
 }
 
 
