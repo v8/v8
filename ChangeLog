@@ -1,7 +1,409 @@
-2016-02-17: Sentinel
+2016-02-24: Version 5.0.75
 
-        The ChangeLog file is no longer maintained on master. This
-        sentinel should stay on top of this list.
+        Performance and stability improvements on all platforms.
+
+
+2016-02-24: Version 5.0.74
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-23: Version 5.0.73
+
+        Intl: Use private symbols to memoize bound functions (issue 3785).
+
+        Ensure Array.prototype.indexOf returns +0 rather than -0.
+
+        Ship ES2015 Symbol.species (issue 4093).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-23: Version 5.0.72
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-23: Version 5.0.71
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-23: Version 5.0.70
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-23: Version 5.0.69
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-23: Version 5.0.68
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-23: Version 5.0.67
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-23: Version 5.0.66
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-22: Version 5.0.65
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-22: Version 5.0.64
+
+        ES2015 web compat workaround: RegExp.prototype.flags => "" (Chromium
+        issue 581577).
+
+        Remove the Proxy enumerate trap (issue 4768).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-22: Version 5.0.63
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-22: Version 5.0.62
+
+        Remove Reflect.enumerate (issue 4768).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-22: Version 5.0.61
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-22: Version 5.0.60
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-22: Version 5.0.59
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-22: Version 5.0.58
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-22: Version 5.0.57
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-22: Version 5.0.56
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-22: Version 5.0.55
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-22: Version 5.0.54
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-21: Version 5.0.53
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-21: Version 5.0.52
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-21: Version 5.0.51
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-21: Version 5.0.50
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-21: Version 5.0.49
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-21: Version 5.0.48
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-20: Version 5.0.47
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-20: Version 5.0.46
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-19: Version 5.0.45
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-19: Version 5.0.44
+
+        Return undefined from RegExp.prototype.compile (Chromium issue 585775).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-19: Version 5.0.43
+
+        Disable --harmony-object-observe (Chromium issue 552100).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-19: Version 5.0.42
+
+        Introduce BeforeCallEnteredCallback (Chromium issue 585949).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-19: Version 5.0.41
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-19: Version 5.0.40
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-19: Version 5.0.39
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-19: Version 5.0.38
+
+        [wasm] Add support for import section (Chromium issue 575167).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-19: Version 5.0.37
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-19: Version 5.0.36
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-19: Version 5.0.35
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-19: Version 5.0.34
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-19: Version 5.0.33
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-19: Version 5.0.32
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-19: Version 5.0.31
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-19: Version 5.0.30
+
+        Mark old SetAccessCheckCallback as deprecated.
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-19: Version 5.0.29
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-19: Version 5.0.28
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-19: Version 5.0.27
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-19: Version 5.0.26
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-18: Version 5.0.25
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-18: Version 5.0.24
+
+        Make Date.prototype.toGMTString an alias for Date.prototype.toUTCString
+        (issue 4708).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-18: Version 5.0.23
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-18: Version 5.0.22
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-18: Version 5.0.21
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-18: Version 5.0.20
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-18: Version 5.0.19
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-18: Version 5.0.18
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-18: Version 5.0.17
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-18: Version 5.0.16
+
+        [es6] Implement for-of iterator finalization (issue 2214).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-18: Version 5.0.15
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-18: Version 5.0.14
+
+        Use displayName in Error.stack rendering if present (issue 4761).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-18: Version 5.0.13
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-18: Version 5.0.12
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-18: Version 5.0.11
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-17: Version 5.0.10
+
+        [Atomics] Add dmb/dsb/isb instructions to ARM (issue 4614).
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-17: Version 5.0.9
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-17: Version 5.0.8
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-17: Version 5.0.7
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-17: Version 5.0.6
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-17: Version 5.0.5
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-17: Version 5.0.4
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-17: Version 5.0.3
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-17: Version 5.0.2
+
+        Performance and stability improvements on all platforms.
+
+
+2016-02-17: Version 5.0.1
+
+        Performance and stability improvements on all platforms.
+
 
 2016-02-17: Version 4.10.253
 
@@ -5129,6 +5531,12 @@
         493156).
 
         Performance and stability improvements on all platforms.
+
+
+2015-05-17: Sentinel
+
+        The ChangeLog file is no longer maintained on bleeding_edge. This
+        sentinel should stay on top of this list.
 
 
 2015-05-17: Version 4.5.2
