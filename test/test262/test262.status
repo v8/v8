@@ -55,18 +55,6 @@
   # https://code.google.com/p/v8/issues/detail?id=4163
   'built-ins/GeneratorPrototype/next/context-constructor-invocation': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4775
-  'built-ins/Array/from/iter-map-fn-err': [FAIL],
-  'built-ins/Map/iterator-close-after-set-failure': [FAIL],
-  'built-ins/Map/iterator-item-first-entry-returns-abrupt': [FAIL],
-  'built-ins/Map/iterator-item-second-entry-returns-abrupt': [FAIL],
-  'built-ins/Promise/race/iter-close': [PASS, FAIL],
-  'built-ins/Set/set-iterator-close-after-add-failure': [FAIL],
-  'built-ins/WeakMap/iterator-close-after-set-failure': [FAIL],
-  'built-ins/WeakMap/iterator-item-first-entry-returns-abrupt': [FAIL],
-  'built-ins/WeakMap/iterator-item-second-entry-returns-abrupt': [FAIL],
-  'built-ins/WeakSet/iterator-close-after-add-failure': [FAIL],
-
   # https://code.google.com/p/v8/issues/detail?id=4348
   'built-ins/String/prototype/Symbol.iterator/this-val-non-obj-coercible': [FAIL],
 
