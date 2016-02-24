@@ -337,6 +337,23 @@ TEST_F(Int64LoweringTest, Int64Xor) {
 // kExprI64ShrU:
 // kExprI64ShrS:
 // kExprI64Eq:
+TEST_F(Int64LoweringTest, Int64Eq) {
+  if (4 != kPointerSize) return;
+
+  LowerGraph(graph()->NewNode(machine()->Word64Equal(), Int64Constant(value(0)),
+                              Int64Constant(value(1))),
+             MachineRepresentation::kWord32);
+  EXPECT_THAT(
+      graph()->end()->InputAt(1),
+      IsReturn(IsWord32Equal(
+                   IsWord32Or(IsWord32Xor(IsInt32Constant(low_word_value(0)),
+                                          IsInt32Constant(low_word_value(1))),
+                              IsWord32Xor(IsInt32Constant(high_word_value(0)),
+                                          IsInt32Constant(high_word_value(1)))),
+                   IsInt32Constant(0)),
+               start(), start()));
+}
+
 // kExprI64Ne:
 // kExprI64LtS:
 // kExprI64LeS:

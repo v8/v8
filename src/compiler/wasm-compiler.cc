@@ -507,6 +507,9 @@ Node* WasmGraphBuilder::Binop(wasm::WasmOpcode opcode, Node* left,
 // kExprI64ShrU:
 // kExprI64ShrS:
 // kExprI64Eq:
+    case wasm::kExprI64Eq:
+      op = m->Word64Equal();
+      break;
 // kExprI64Ne:
 // kExprI64LtS:
 // kExprI64LeS:
@@ -594,9 +597,6 @@ Node* WasmGraphBuilder::Binop(wasm::WasmOpcode opcode, Node* left,
       break;
     case wasm::kExprI64ShrS:
       op = m->Word64Sar();
-      break;
-    case wasm::kExprI64Eq:
-      op = m->Word64Equal();
       break;
     case wasm::kExprI64Ne:
       return Invert(Binop(wasm::kExprI64Eq, left, right));

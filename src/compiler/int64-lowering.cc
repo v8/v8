@@ -292,6 +292,25 @@ void Int64Lowering::LowerNode(Node* node) {
     // kExprI64ShrU:
     // kExprI64ShrS:
     // kExprI64Eq:
+    case IrOpcode::kWord64Equal: {
+      DCHECK(node->InputCount() == 2);
+      Node* left = node->InputAt(0);
+      Node* right = node->InputAt(1);
+
+      // TODO(wasm): Use explicit comparisons and && here?
+      Node* replacement = graph()->NewNode(
+          machine()->Word32Equal(),
+          graph()->NewNode(
+              machine()->Word32Or(),
+              graph()->NewNode(machine()->Word32Xor(), GetReplacementLow(left),
+                               GetReplacementLow(right)),
+              graph()->NewNode(machine()->Word32Xor(), GetReplacementHigh(left),
+                               GetReplacementHigh(right))),
+          graph()->NewNode(common()->Int32Constant(0)));
+
+      ReplaceNode(node, replacement, nullptr);
+      break;
+    }
     // kExprI64Ne:
     // kExprI64LtS:
     // kExprI64LeS:
