@@ -64,10 +64,6 @@
   'language/computed-property-names/class/static/method-symbol': [FAIL, FAIL_SLOPPY],
   'language/computed-property-names/class/static/method-string': [FAIL, FAIL_SLOPPY],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4776
-  'language/statements/for-of/body-dstr-assign-error': [FAIL],
-  'language/statements/for-of/body-put-error': [FAIL],
-
   # We do not expose Array.prototype.values
   # https://code.google.com/p/v8/issues/detail?id=4247
   'built-ins/Array/prototype/Symbol.iterator': [FAIL],

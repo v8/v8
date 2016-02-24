@@ -155,6 +155,13 @@ function* g() { yield 42; return 88 };
   log = [];
   assertEquals(42, eval('for (x of g()) { x; }'));
   assertEquals([], log);
+
+  // Even if doing the assignment throws, still call return
+  x = { set attr(_) { throw 1234; } };
+  assertThrowsEquals(() => {
+    for (x.attr of g()) { throw 456; }
+  }, 1234);
+  assertEquals([[]], log);
 }
 
 

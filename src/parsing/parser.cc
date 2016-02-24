@@ -6740,6 +6740,7 @@ Statement* ParserTraits::FinalizeForOfStatement(ForOfStatement* loop, int pos) {
   // This function replaces the loop with the following wrapping:
   //
   //   let completion = BODY_COMPLETED;
+  //   let each;
   //   try {
   //     #loop;
   //   } catch(e) {
@@ -6754,10 +6755,16 @@ Statement* ParserTraits::FinalizeForOfStatement(ForOfStatement* loop, int pos) {
   // where the loop's body is wrapped as follows:
   //
   //   {
-  //     {{completion = BODY_ABORTED;}}
   //     #loop-body
   //     {{completion = BODY_COMPLETED;}}
   //   }
+  //
+  // and assign_each is wrapped as follows
+  //
+  //   do {
+  //     {{completion = BODY_ABORTED;}}
+  //     #assign-each
+  //   } into each
 
   const int nopos = RelocInfo::kNoPosition;
   auto factory = parser_->factory();
@@ -6774,6 +6781,18 @@ Statement* ParserTraits::FinalizeForOfStatement(ForOfStatement* loop, int pos) {
         Token::ASSIGN, proxy,
         factory->NewSmiLiteral(BODY_COMPLETED, nopos), nopos);
     initialize_completion =
+        factory->NewExpressionStatement(assignment, nopos);
+  }
+
+  // let each;
+  Variable* var_each = scope->NewTemporary(avfactory->empty_string());
+  Statement* initialize_each;
+  {
+    Expression* proxy = factory->NewVariableProxy(var_each);
+    Expression* assignment = factory->NewAssignment(
+        Token::ASSIGN, proxy,
+        factory->NewUndefinedLiteral(nopos), nopos);
+    initialize_each =
         factory->NewExpressionStatement(assignment, nopos);
   }
 
@@ -6858,27 +6877,15 @@ Statement* ParserTraits::FinalizeForOfStatement(ForOfStatement* loop, int pos) {
   }
 
   // #initialize_completion;
+  // #initialize_each;
   // #try_finally;
   Statement* final_loop;
   {
     Block* block = factory->NewBlock(nullptr, 2, false, nopos);
     block->statements()->Add(initialize_completion, zone);
+    block->statements()->Add(initialize_each, zone);
     block->statements()->Add(try_finally, zone);
     final_loop = block;
-  }
-
-  // {{completion = BODY_ABORTED;}}
-  Statement* set_completion_break;
-  {
-    Expression* proxy = factory->NewVariableProxy(var_completion);
-    Expression* assignment = factory->NewAssignment(
-        Token::ASSIGN, proxy,
-        factory->NewSmiLiteral(BODY_ABORTED, nopos), nopos);
-
-    Block* block = factory->NewBlock(nullptr, 1, true, nopos);
-    block->statements()->Add(
-        factory->NewExpressionStatement(assignment, nopos), zone);
-    set_completion_break = block;
   }
 
   // {{completion = BODY_COMPLETED;}}
@@ -6895,13 +6902,37 @@ Statement* ParserTraits::FinalizeForOfStatement(ForOfStatement* loop, int pos) {
     set_completion_normal = block;
   }
 
-  // { #set_completion_break; #loop-body; #set_completion_normal }
+  // { #loop-body; #set_completion_normal }
   Block* new_body = factory->NewBlock(nullptr, 2, false, nopos);
-  new_body->statements()->Add(set_completion_break, zone);
   new_body->statements()->Add(loop->body(), zone);
   new_body->statements()->Add(set_completion_normal, zone);
 
   loop->set_body(new_body);
+
+  // {{completion = BODY_ABORTED;}}
+  Statement* set_completion_break;
+  {
+    Expression* proxy = factory->NewVariableProxy(var_completion);
+    Expression* assignment = factory->NewAssignment(
+        Token::ASSIGN, proxy, factory->NewSmiLiteral(BODY_ABORTED, nopos),
+        nopos);
+
+    Block* block = factory->NewBlock(nullptr, 1, true, nopos);
+    block->statements()->Add(factory->NewExpressionStatement(assignment, nopos),
+                             zone);
+    set_completion_break = block;
+  }
+
+  // { #set_completion_break; #assign-each }
+  Block* new_assign_each = factory->NewBlock(nullptr, 2, false, nopos);
+  new_assign_each->statements()->Add(set_completion_break, zone);
+  new_assign_each->statements()->Add(
+      factory->NewExpressionStatement(loop->assign_each(), nopos), zone);
+
+  Expression* do_each =
+      factory->NewDoExpression(new_assign_each, var_each, nopos);
+  loop->set_assign_each(do_each);
+
   return final_loop;
 }
 
