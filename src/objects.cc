@@ -15048,7 +15048,8 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
 
 int BytecodeArray::SourcePosition(int offset) {
   int last_position = 0;
-  for (interpreter::SourcePositionTableIterator iterator(this);
+  for (interpreter::SourcePositionTableIterator iterator(
+           source_position_table());
        !iterator.done() && iterator.bytecode_offset() <= offset;
        iterator.Advance()) {
     last_position = iterator.source_position();
@@ -15062,7 +15063,7 @@ int BytecodeArray::SourceStatementPosition(int offset) {
   int position = SourcePosition(offset);
   // Now find the closest statement position before the position.
   int statement_position = 0;
-  interpreter::SourcePositionTableIterator iterator(this);
+  interpreter::SourcePositionTableIterator iterator(source_position_table());
   while (!iterator.done()) {
     if (iterator.is_statement()) {
       int p = iterator.source_position();
@@ -15083,7 +15084,8 @@ void BytecodeArray::Disassemble(std::ostream& os) {
   const uint8_t* first_bytecode_address = GetFirstBytecodeAddress();
   int bytecode_size = 0;
 
-  interpreter::SourcePositionTableIterator source_positions(this);
+  interpreter::SourcePositionTableIterator source_positions(
+      source_position_table());
 
   for (int i = 0; i < this->length(); i += bytecode_size) {
     const uint8_t* bytecode_start = &first_bytecode_address[i];
