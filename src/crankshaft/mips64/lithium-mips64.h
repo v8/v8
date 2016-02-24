@@ -33,7 +33,6 @@ class LCodeGen;
   V(Branch)                                  \
   V(CallJSFunction)                          \
   V(CallWithDescriptor)                      \
-  V(CallFunction)                            \
   V(CallNewArray)                            \
   V(CallRuntime)                             \
   V(CheckArrayBufferNotNeutered)             \
@@ -1822,29 +1821,6 @@ class LInvokeFunction final : public LTemplateInstruction<1, 2, 0> {
   void PrintDataTo(StringStream* stream) override;
 
   int arity() const { return hydrogen()->argument_count() - 1; }
-};
-
-
-class LCallFunction final : public LTemplateInstruction<1, 2, 2> {
- public:
-  LCallFunction(LOperand* context, LOperand* function, LOperand* slot,
-                LOperand* vector) {
-    inputs_[0] = context;
-    inputs_[1] = function;
-    temps_[0] = slot;
-    temps_[1] = vector;
-  }
-
-  LOperand* context() { return inputs_[0]; }
-  LOperand* function() { return inputs_[1]; }
-  LOperand* temp_slot() { return temps_[0]; }
-  LOperand* temp_vector() { return temps_[1]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(CallFunction, "call-function")
-  DECLARE_HYDROGEN_ACCESSOR(CallFunction)
-
-  int arity() const { return hydrogen()->argument_count() - 1; }
-  void PrintDataTo(StringStream* stream) override;
 };
 
 

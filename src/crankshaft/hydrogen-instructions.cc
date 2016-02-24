@@ -774,7 +774,6 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kArgumentsObject:
     case HValue::kBlockEntry:
     case HValue::kBoundsCheckBaseIndexInformation:
-    case HValue::kCallFunction:
     case HValue::kCallNewArray:
     case HValue::kCapturedObject:
     case HValue::kClassOfTestAndBranch:
@@ -932,16 +931,6 @@ HCallJSFunction* HCallJSFunction::New(Isolate* isolate, Zone* zone,
 std::ostream& HBinaryCall::PrintDataTo(std::ostream& os) const {  // NOLINT
   return os << NameOf(first()) << " " << NameOf(second()) << " #"
             << argument_count();
-}
-
-
-std::ostream& HCallFunction::PrintDataTo(std::ostream& os) const {  // NOLINT
-  os << NameOf(context()) << " " << NameOf(function());
-  if (HasVectorAndSlot()) {
-    os << " (type-feedback-vector icslot " << slot().ToInt() << ")";
-  }
-  os << " (convert mode" << convert_mode() << ")";
-  return os;
 }
 
 

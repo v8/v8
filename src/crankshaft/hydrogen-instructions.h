@@ -60,7 +60,6 @@ class LChunkBuilder;
   V(Branch)                                   \
   V(CallWithDescriptor)                       \
   V(CallJSFunction)                           \
-  V(CallFunction)                             \
   V(CallNewArray)                             \
   V(CallRuntime)                              \
   V(CapturedObject)                           \
@@ -2264,7 +2263,7 @@ class HCallWithDescriptor final : public HInstruction {
                                   CallMode call_mode = NORMAL_CALL) {
     HCallWithDescriptor* res = new (zone) HCallWithDescriptor(
         target, argument_count, descriptor, operands, call_mode, zone);
-    DCHECK(operands.length() == res->GetParameterCount());
+    DCHECK_EQ(operands.length(), res->GetParameterCount());
     return res;
   }
 
@@ -2387,49 +2386,6 @@ class HInvokeFunction final : public HBinaryCall {
   Handle<JSFunction> known_function_;
   int formal_parameter_count_;
   bool has_stack_check_;
-};
-
-
-class HCallFunction final : public HBinaryCall {
- public:
-  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P3(HCallFunction, HValue*, int,
-                                              ConvertReceiverMode);
-
-  HValue* context() const { return first(); }
-  HValue* function() const { return second(); }
-
-  ConvertReceiverMode convert_mode() const {
-    return ConvertReceiverModeField::decode(bit_field_);
-  }
-  FeedbackVectorSlot slot() const { return slot_; }
-  Handle<TypeFeedbackVector> feedback_vector() const {
-    return feedback_vector_;
-  }
-  bool HasVectorAndSlot() const { return !feedback_vector_.is_null(); }
-  void SetVectorAndSlot(Handle<TypeFeedbackVector> vector,
-                        FeedbackVectorSlot slot) {
-    feedback_vector_ = vector;
-    slot_ = slot;
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(CallFunction)
-
-  std::ostream& PrintDataTo(std::ostream& os) const override;  // NOLINT
-
-  int argument_delta() const override { return -argument_count(); }
-
- private:
-  HCallFunction(HValue* context, HValue* function, int argument_count,
-                ConvertReceiverMode convert_mode)
-      : HBinaryCall(context, function, argument_count),
-        bit_field_(ConvertReceiverModeField::encode(convert_mode)) {}
-  Handle<TypeFeedbackVector> feedback_vector_;
-  FeedbackVectorSlot slot_;
-
-  class ConvertReceiverModeField : public BitField<ConvertReceiverMode, 0, 2> {
-  };
-
-  uint32_t bit_field_;
 };
 
 

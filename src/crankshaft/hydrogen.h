@@ -2821,11 +2821,17 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   void AddCheckPrototypeMaps(Handle<JSObject> holder,
                              Handle<Map> receiver_map);
 
-  HInstruction* NewPlainFunctionCall(HValue* fun, int argument_count);
+  HInstruction* NewPlainFunctionCall(HValue* function, int argument_count);
 
-  HInstruction* NewArgumentAdaptorCall(HValue* fun, HValue* context,
-                                       int argument_count,
+  HInstruction* NewArgumentAdaptorCall(HValue* function, int argument_count,
                                        HValue* expected_param_count);
+
+  HInstruction* NewCallFunction(HValue* function, int argument_count,
+                                ConvertReceiverMode convert_mode);
+
+  HInstruction* NewCallFunctionViaIC(HValue* function, int argument_count,
+                                     ConvertReceiverMode convert_mode,
+                                     FeedbackVectorSlot slot);
 
   HInstruction* BuildCallConstantFunction(Handle<JSFunction> target,
                                           int argument_count);
