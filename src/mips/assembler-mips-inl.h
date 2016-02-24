@@ -160,19 +160,30 @@ Address Assembler::target_address_from_return_address(Address pc) {
 
 void Assembler::set_target_internal_reference_encoded_at(Address pc,
                                                          Address target) {
-  // Encoded internal references are lui/ori load of 32-bit abolute address.
-  Instr instr_lui = Assembler::instr_at(pc + 0 * Assembler::kInstrSize);
-  Instr instr_ori = Assembler::instr_at(pc + 1 * Assembler::kInstrSize);
-  DCHECK(Assembler::IsLui(instr_lui));
-  DCHECK(Assembler::IsOri(instr_ori));
-  instr_lui &= ~kImm16Mask;
-  instr_ori &= ~kImm16Mask;
+  Instr instr1 = Assembler::instr_at(pc + 0 * Assembler::kInstrSize);
+  Instr instr2 = Assembler::instr_at(pc + 1 * Assembler::kInstrSize);
+  DCHECK(Assembler::IsLui(instr1));
+  DCHECK(Assembler::IsOri(instr2) || Assembler::IsJicOrJialc(instr2));
+  instr1 &= ~kImm16Mask;
+  instr2 &= ~kImm16Mask;
   int32_t imm = reinterpret_cast<int32_t>(target);
   DCHECK((imm & 3) == 0);
-  Assembler::instr_at_put(pc + 0 * Assembler::kInstrSize,
-                          instr_lui | ((imm >> kLuiShift) & kImm16Mask));
-  Assembler::instr_at_put(pc + 1 * Assembler::kInstrSize,
-                          instr_ori | (imm & kImm16Mask));
+  if (Assembler::IsJicOrJialc(instr2)) {
+    // Encoded internal references are lui/jic load of 32-bit absolute address.
+    uint32_t lui_offset_u, jic_offset_u;
+    Assembler::UnpackTargetAddressUnsigned(imm, lui_offset_u, jic_offset_u);
+
+    Assembler::instr_at_put(pc + 0 * Assembler::kInstrSize,
+                            instr1 | lui_offset_u);
+    Assembler::instr_at_put(pc + 1 * Assembler::kInstrSize,
+                            instr2 | jic_offset_u);
+  } else {
+    // Encoded internal references are lui/ori load of 32-bit absolute address.
+    Assembler::instr_at_put(pc + 0 * Assembler::kInstrSize,
+                            instr1 | ((imm >> kLuiShift) & kImm16Mask));
+    Assembler::instr_at_put(pc + 1 * Assembler::kInstrSize,
+                            instr2 | (imm & kImm16Mask));
+  }
 
   // Currently used only by deserializer, and all code will be flushed
   // after complete deserialization, no need to flush on each reference.
@@ -230,14 +241,19 @@ Address RelocInfo::target_internal_reference() {
   if (rmode_ == INTERNAL_REFERENCE) {
     return Memory::Address_at(pc_);
   } else {
-    // Encoded internal references are lui/ori load of 32-bit abolute address.
+    // Encoded internal references are lui/ori or lui/jic load of 32-bit
+    // absolute address.
     DCHECK(rmode_ == INTERNAL_REFERENCE_ENCODED);
-    Instr instr_lui = Assembler::instr_at(pc_ + 0 * Assembler::kInstrSize);
-    Instr instr_ori = Assembler::instr_at(pc_ + 1 * Assembler::kInstrSize);
-    DCHECK(Assembler::IsLui(instr_lui));
-    DCHECK(Assembler::IsOri(instr_ori));
-    int32_t imm = (instr_lui & static_cast<int32_t>(kImm16Mask)) << kLuiShift;
-    imm |= (instr_ori & static_cast<int32_t>(kImm16Mask));
+    Instr instr1 = Assembler::instr_at(pc_ + 0 * Assembler::kInstrSize);
+    Instr instr2 = Assembler::instr_at(pc_ + 1 * Assembler::kInstrSize);
+    DCHECK(Assembler::IsLui(instr1));
+    DCHECK(Assembler::IsOri(instr2) || Assembler::IsJicOrJialc(instr2));
+    if (Assembler::IsJicOrJialc(instr2)) {
+      return reinterpret_cast<Address>(
+          Assembler::CreateTargetAddress(instr1, instr2));
+    }
+    int32_t imm = (instr1 & static_cast<int32_t>(kImm16Mask)) << kLuiShift;
+    imm |= (instr2 & static_cast<int32_t>(kImm16Mask));
     return reinterpret_cast<Address>(imm);
   }
 }

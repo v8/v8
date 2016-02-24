@@ -1082,6 +1082,7 @@ class Assembler : public AssemblerBase {
   static bool IsBnezc(Instr instr);
   static bool IsBeqc(Instr instr);
   static bool IsBnec(Instr instr);
+  static bool IsJicOrJialc(Instr instr);
 
   static bool IsJump(Instr instr);
   static bool IsJ(Instr instr);
@@ -1121,12 +1122,20 @@ class Assembler : public AssemblerBase {
   static int32_t GetBranchOffset(Instr instr);
   static bool IsLw(Instr instr);
   static int16_t GetLwOffset(Instr instr);
+  static int16_t GetJicOrJialcOffset(Instr instr);
+  static int16_t GetLuiOffset(Instr instr);
   static Instr SetLwOffset(Instr instr, int16_t offset);
 
   static bool IsSw(Instr instr);
   static Instr SetSwOffset(Instr instr, int16_t offset);
   static bool IsAddImmediate(Instr instr);
   static Instr SetAddImmediateOffset(Instr instr, int16_t offset);
+  static uint32_t CreateTargetAddress(Instr instr_lui, Instr instr_jic);
+  static void UnpackTargetAddress(uint32_t address, int16_t& lui_offset,
+                                  int16_t& jic_offset);
+  static void UnpackTargetAddressUnsigned(uint32_t address,
+                                          uint32_t& lui_offset,
+                                          uint32_t& jic_offset);
 
   static bool IsAndImmediate(Instr instr);
   static bool IsEmittedConstant(Instr instr);
@@ -1213,6 +1222,8 @@ class Assembler : public AssemblerBase {
 
   inline void CheckTrampolinePoolQuick(int extra_instructions = 0);
 
+  inline void CheckBuffer();
+
  private:
   inline static void set_target_internal_reference_encoded_at(Address pc,
                                                               Address target);
@@ -1259,7 +1270,6 @@ class Assembler : public AssemblerBase {
   enum class CompactBranchType : bool { NO = false, COMPACT_BRANCH = true };
 
   // Code emission.
-  inline void CheckBuffer();
   void GrowBuffer();
   inline void emit(Instr x,
                    CompactBranchType is_compact_branch = CompactBranchType::NO);
@@ -1406,7 +1416,11 @@ class Assembler : public AssemblerBase {
   // branch instruction generation, where we use jump instructions rather
   // than regular branch instructions.
   bool trampoline_emitted_;
+#ifdef _MIPS_ARCH_MIPS32R6
+  static const int kTrampolineSlotsSize = 2 * kInstrSize;
+#else
   static const int kTrampolineSlotsSize = 4 * kInstrSize;
+#endif
   static const int kMaxBranchOffset = (1 << (18 - 1)) - 1;
   static const int kMaxCompactBranchOffset = (1 << (28 - 1)) - 1;
   static const int kInvalidSlotPos = -1;
