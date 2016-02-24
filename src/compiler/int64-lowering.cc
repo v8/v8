@@ -274,6 +274,20 @@ void Int64Lowering::LowerNode(Node* node) {
     }
 
     // kExprI64Xor:
+    case IrOpcode::kWord64Xor: {
+      DCHECK(node->InputCount() == 2);
+      Node* left = node->InputAt(0);
+      Node* right = node->InputAt(1);
+
+      Node* low_node =
+          graph()->NewNode(machine()->Word32Xor(), GetReplacementLow(left),
+                           GetReplacementLow(right));
+      Node* high_node =
+          graph()->NewNode(machine()->Word32Xor(), GetReplacementHigh(left),
+                           GetReplacementHigh(right));
+      ReplaceNode(node, low_node, high_node);
+      break;
+    }
     // kExprI64Shl:
     // kExprI64ShrU:
     // kExprI64ShrS:

@@ -320,6 +320,19 @@ TEST_F(Int64LoweringTest, Int64Ior) {
 }
 
 // kExprI64Xor:
+TEST_F(Int64LoweringTest, Int64Xor) {
+  if (4 != kPointerSize) return;
+
+  LowerGraph(graph()->NewNode(machine()->Word64Xor(), Int64Constant(value(0)),
+                              Int64Constant(value(1))),
+             MachineRepresentation::kWord64);
+  EXPECT_THAT(graph()->end()->InputAt(1),
+              IsReturn2(IsWord32Xor(IsInt32Constant(low_word_value(0)),
+                                    IsInt32Constant(low_word_value(1))),
+                        IsWord32Xor(IsInt32Constant(high_word_value(0)),
+                                    IsInt32Constant(high_word_value(1))),
+                        start(), start()));
+}
 // kExprI64Shl:
 // kExprI64ShrU:
 // kExprI64ShrS:

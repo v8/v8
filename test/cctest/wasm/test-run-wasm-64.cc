@@ -43,6 +43,13 @@ TEST(Run_WasmI64Ior) {
   }
 }
 // kExprI64Xor:
+TEST(Run_WasmI64Xor) {
+  WasmRunner<int64_t> r(MachineType::Int64(), MachineType::Int64());
+  BUILD(r, WASM_I64_XOR(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+  FOR_INT64_INPUTS(i) {
+    FOR_INT64_INPUTS(j) { CHECK_EQ((*i) ^ (*j), r.Call(*i, *j)); }
+  }
+}
 // kExprI64Shl:
 // kExprI64ShrU:
 // kExprI64ShrS:
