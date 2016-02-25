@@ -201,10 +201,13 @@ class Test262TestSuite(testsuite.TestSuite):
       for f in archive_files:
         os.remove(os.path.join(self.root, f))
 
-    print "Extracting archive..."
-    tar = tarfile.open(ARCHIVE)
-    tar.extractall(path=os.path.dirname(ARCHIVE))
-    tar.close()
+    # The archive is created only on swarming. Local checkouts have the
+    # data folder.
+    if os.path.exists(ARCHIVE):
+      print "Extracting archive..."
+      tar = tarfile.open(ARCHIVE)
+      tar.extractall(path=os.path.dirname(ARCHIVE))
+      tar.close()
 
 
 def GetSuite(name, root):
