@@ -5576,6 +5576,7 @@ void Heap::ClearRecordedSlot(HeapObject* object, Object** slot) {
     Page* page = Page::FromAddress(slot_addr);
     DCHECK_EQ(page->owner()->identity(), OLD_SPACE);
     RememberedSet<OLD_TO_NEW>::Remove(page, slot_addr);
+    RememberedSet<OLD_TO_OLD>::Remove(page, slot_addr);
   }
 }
 
@@ -5585,6 +5586,7 @@ void Heap::ClearRecordedSlotRange(Address start, Address end) {
     store_buffer()->MoveEntriesToRememberedSet();
     DCHECK_EQ(page->owner()->identity(), OLD_SPACE);
     RememberedSet<OLD_TO_NEW>::RemoveRange(page, start, end);
+    RememberedSet<OLD_TO_OLD>::RemoveRange(page, start, end);
   }
 }
 
