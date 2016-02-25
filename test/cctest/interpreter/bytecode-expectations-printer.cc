@@ -224,14 +224,14 @@ void BytecodeExpectationsPrinter::PrintFrameSize(
   int frame_size = bytecode_array->frame_size();
 
   DCHECK_EQ(frame_size % kPointerSize, 0);
-  stream << "frame size: " << frame_size / kPointerSize;
-  if (frame_size > 0) stream << "  # in multiples of sizeof(void*)";
-  stream << "\nparameter count: " << bytecode_array->parameter_count() << '\n';
+  stream << "frame size: " << frame_size / kPointerSize
+         << "\nparameter count: " << bytecode_array->parameter_count() << '\n';
 }
 
 void BytecodeExpectationsPrinter::PrintBytecodeSequence(
     std::ostream& stream, i::Handle<i::BytecodeArray> bytecode_array) const {
-  stream << "bytecodes: [\n";
+  stream << "bytecode array length: " << bytecode_array->length()
+         << "\nbytecodes: [\n";
   BytecodeArrayIterator bytecode_iter(bytecode_array);
   for (; !bytecode_iter.done(); bytecode_iter.Advance()) {
     stream << "  ";
