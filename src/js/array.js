@@ -1247,10 +1247,19 @@ function InnerArrayForEach(f, receiver, array, length) {
   if (!IS_CALLABLE(f)) throw MakeTypeError(kCalledNonCallable, f);
 
   var is_array = IS_ARRAY(array);
-  for (var i = 0; i < length; i++) {
-    if (HAS_INDEX(array, i, is_array)) {
-      var element = array[i];
-      %_Call(f, receiver, element, i, array);
+  if (IS_UNDEFINED(receiver)) {
+    for (var i = 0; i < length; i++) {
+      if (HAS_INDEX(array, i, is_array)) {
+        var element = array[i];
+        f(element, i, array);
+      }
+    }
+  } else {
+    for (var i = 0; i < length; i++) {
+      if (HAS_INDEX(array, i, is_array)) {
+        var element = array[i];
+        %_Call(f, receiver, element, i, array);
+      }
     }
   }
 }
