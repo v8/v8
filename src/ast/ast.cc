@@ -36,15 +36,9 @@ AST_NODE_LIST(DECL_ACCEPT)
 
 #ifdef DEBUG
 
-void AstNode::Print() { Print(Isolate::Current()); }
-
-
 void AstNode::Print(Isolate* isolate) {
   AstPrinter::PrintOut(isolate, this);
 }
-
-
-void AstNode::PrettyPrint() { PrettyPrint(Isolate::Current()); }
 
 
 void AstNode::PrettyPrint(Isolate* isolate) {

@@ -198,9 +198,7 @@ class AstNode: public ZoneObject {
 
 #ifdef DEBUG
   void PrettyPrint(Isolate* isolate);
-  void PrettyPrint();
   void Print(Isolate* isolate);
-  void Print();
 #endif  // DEBUG
 
   // Type testing & conversion functions overridden by concrete subclasses.
