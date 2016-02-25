@@ -2726,9 +2726,7 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
   }
 
   // Convert old value into a number.
-  if (!is_strong(language_mode())) {
-    builder()->CastAccumulatorToNumber();
-  }
+  builder()->CastAccumulatorToNumber();
 
   // Save result for postfix expressions.
   if (is_postfix) {
