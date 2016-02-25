@@ -2766,7 +2766,12 @@ void Isolate::RunMicrotasks() {
   // Increase call depth to prevent recursive callbacks.
   v8::Isolate::SuppressMicrotaskExecutionScope suppress(
       reinterpret_cast<v8::Isolate*>(this));
+  RunMicrotasksInternal();
+  FireMicrotasksCompletedCallback();
+}
 
+
+void Isolate::RunMicrotasksInternal() {
   while (pending_microtask_count() > 0) {
     HandleScope scope(this);
     int num_tasks = pending_microtask_count();
@@ -2804,6 +2809,32 @@ void Isolate::RunMicrotasks() {
         callback(data);
       }
     }
+  }
+}
+
+
+void Isolate::AddMicrotasksCompletedCallback(
+    MicrotasksCompletedCallback callback) {
+  for (int i = 0; i < microtasks_completed_callbacks_.length(); i++) {
+    if (callback == microtasks_completed_callbacks_.at(i)) return;
+  }
+  microtasks_completed_callbacks_.Add(callback);
+}
+
+
+void Isolate::RemoveMicrotasksCompletedCallback(
+    MicrotasksCompletedCallback callback) {
+  for (int i = 0; i < microtasks_completed_callbacks_.length(); i++) {
+    if (callback == microtasks_completed_callbacks_.at(i)) {
+      microtasks_completed_callbacks_.Remove(i);
+    }
+  }
+}
+
+
+void Isolate::FireMicrotasksCompletedCallback() {
+  for (int i = 0; i < microtasks_completed_callbacks_.length(); i++) {
+    microtasks_completed_callbacks_.at(i)(reinterpret_cast<v8::Isolate*>(this));
   }
 }
 
