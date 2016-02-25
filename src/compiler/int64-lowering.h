@@ -39,6 +39,8 @@ class Int64Lowering {
 
   void LowerNode(Node* node);
   bool DefaultLowering(Node* node);
+  void LowerComparison(Node* node, const Operator* signed_op,
+                       const Operator* unsigned_op);
 
   void ReplaceNode(Node* old, Node* new_low, Node* new_high);
   bool HasReplacementLow(Node* node);

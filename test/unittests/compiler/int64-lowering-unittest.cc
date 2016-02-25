@@ -86,6 +86,28 @@ class Int64LoweringTest : public GraphTest {
     return static_cast<int32_t>(value_[i] >> 32);
   }
 
+  void TestComparison(
+      const Operator* op,
+      Matcher<Node*> (*high_word_matcher)(const Matcher<Node*>& lhs_matcher,
+                                          const Matcher<Node*>& rhs_matcher),
+      Matcher<Node*> (*low_word_matcher)(const Matcher<Node*>& lhs_matcher,
+                                         const Matcher<Node*>& rhs_matcher)) {
+    LowerGraph(
+        graph()->NewNode(op, Int64Constant(value(0)), Int64Constant(value(1))),
+        MachineRepresentation::kWord32);
+    EXPECT_THAT(
+        graph()->end()->InputAt(1),
+        IsReturn(IsWord32Or(
+                     high_word_matcher(IsInt32Constant(high_word_value(0)),
+                                       IsInt32Constant(high_word_value(1))),
+                     IsWord32And(
+                         IsWord32Equal(IsInt32Constant(high_word_value(0)),
+                                       IsInt32Constant(high_word_value(1))),
+                         low_word_matcher(IsInt32Constant(low_word_value(0)),
+                                          IsInt32Constant(low_word_value(1))))),
+                 start(), start()));
+  }
+
  private:
   MachineOperatorBuilder machine_;
   int64_t value_[3];
@@ -356,13 +378,28 @@ TEST_F(Int64LoweringTest, Int64Eq) {
 
 // kExprI64Ne:
 // kExprI64LtS:
+TEST_F(Int64LoweringTest, Int64LtS) {
+  if (4 != kPointerSize) return;
+  TestComparison(machine()->Int64LessThan(), IsInt32LessThan, IsUint32LessThan);
+}
 // kExprI64LeS:
+TEST_F(Int64LoweringTest, Int64LeS) {
+  if (4 != kPointerSize) return;
+  TestComparison(machine()->Int64LessThanOrEqual(), IsInt32LessThan,
+                 IsUint32LessThanOrEqual);
+}
 // kExprI64LtU:
+TEST_F(Int64LoweringTest, Int64LtU) {
+  if (4 != kPointerSize) return;
+  TestComparison(machine()->Uint64LessThan(), IsUint32LessThan,
+                 IsUint32LessThan);
+}
 // kExprI64LeU:
-// kExprI64GtS:
-// kExprI64GeS:
-// kExprI64GtU:
-// kExprI64GeU:
+TEST_F(Int64LoweringTest, Int64LeU) {
+  if (4 != kPointerSize) return;
+  TestComparison(machine()->Uint64LessThanOrEqual(), IsUint32LessThan,
+                 IsUint32LessThanOrEqual);
+}
 
 // kExprI32ConvertI64:
 // kExprI64SConvertI32:

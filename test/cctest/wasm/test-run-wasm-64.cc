@@ -70,14 +70,64 @@ TEST(Run_WasmI64Ne) {
   }
 }
 // kExprI64LtS:
-// kExprI64LeS:
-// kExprI64LtU:
-// kExprI64LeU:
-// kExprI64GtS:
-// kExprI64GeS:
-// kExprI64GtU:
-// kExprI64GeU:
+TEST(Run_WasmI64LtS) {
+  WasmRunner<int32_t> r(MachineType::Int64(), MachineType::Int64());
+  BUILD(r, WASM_I64_LTS(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+  FOR_INT64_INPUTS(i) {
+    FOR_INT64_INPUTS(j) { CHECK_EQ(*i < *j ? 1 : 0, r.Call(*i, *j)); }
+  }
+}
+TEST(Run_WasmI64LeS) {
+  WasmRunner<int32_t> r(MachineType::Int64(), MachineType::Int64());
+  BUILD(r, WASM_I64_LES(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+  FOR_INT64_INPUTS(i) {
+    FOR_INT64_INPUTS(j) { CHECK_EQ(*i <= *j ? 1 : 0, r.Call(*i, *j)); }
+  }
+}
+TEST(Run_WasmI64LtU) {
+  WasmRunner<int32_t> r(MachineType::Int64(), MachineType::Int64());
+  BUILD(r, WASM_I64_LTU(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+  FOR_UINT64_INPUTS(i) {
+    FOR_UINT64_INPUTS(j) { CHECK_EQ(*i < *j ? 1 : 0, r.Call(*i, *j)); }
+  }
+}
+TEST(Run_WasmI64LeU) {
+  WasmRunner<int32_t> r(MachineType::Int64(), MachineType::Int64());
+  BUILD(r, WASM_I64_LEU(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+  FOR_UINT64_INPUTS(i) {
+    FOR_UINT64_INPUTS(j) { CHECK_EQ(*i <= *j ? 1 : 0, r.Call(*i, *j)); }
+  }
+}
+TEST(Run_WasmI64GtS) {
+  WasmRunner<int32_t> r(MachineType::Int64(), MachineType::Int64());
+  BUILD(r, WASM_I64_GTS(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+  FOR_INT64_INPUTS(i) {
+    FOR_INT64_INPUTS(j) { CHECK_EQ(*i > *j ? 1 : 0, r.Call(*i, *j)); }
+  }
+}
+TEST(Run_WasmI64GeS) {
+  WasmRunner<int32_t> r(MachineType::Int64(), MachineType::Int64());
+  BUILD(r, WASM_I64_GES(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+  FOR_INT64_INPUTS(i) {
+    FOR_INT64_INPUTS(j) { CHECK_EQ(*i >= *j ? 1 : 0, r.Call(*i, *j)); }
+  }
+}
 
+TEST(Run_WasmI64GtU) {
+  WasmRunner<int32_t> r(MachineType::Int64(), MachineType::Int64());
+  BUILD(r, WASM_I64_GTU(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+  FOR_UINT64_INPUTS(i) {
+    FOR_UINT64_INPUTS(j) { CHECK_EQ(*i > *j ? 1 : 0, r.Call(*i, *j)); }
+  }
+}
+
+TEST(Run_WasmI64GeU) {
+  WasmRunner<int32_t> r(MachineType::Int64(), MachineType::Int64());
+  BUILD(r, WASM_I64_GEU(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+  FOR_UINT64_INPUTS(i) {
+    FOR_UINT64_INPUTS(j) { CHECK_EQ(*i >= *j ? 1 : 0, r.Call(*i, *j)); }
+  }
+}
 // kExprI32ConvertI64:
 TEST(Run_WasmI32ConvertI64) {
   FOR_INT64_INPUTS(i) {

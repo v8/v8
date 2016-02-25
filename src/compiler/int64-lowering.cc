@@ -313,13 +313,26 @@ void Int64Lowering::LowerNode(Node* node) {
     }
     // kExprI64Ne:
     // kExprI64LtS:
-    // kExprI64LeS:
-    // kExprI64LtU:
-    // kExprI64LeU:
-    // kExprI64GtS:
-    // kExprI64GeS:
-    // kExprI64GtU:
-    // kExprI64GeU:
+    case IrOpcode::kInt64LessThan: {
+      LowerComparison(node, machine()->Int32LessThan(),
+                      machine()->Uint32LessThan());
+      break;
+    }
+    case IrOpcode::kInt64LessThanOrEqual: {
+      LowerComparison(node, machine()->Int32LessThan(),
+                      machine()->Uint32LessThanOrEqual());
+      break;
+    }
+    case IrOpcode::kUint64LessThan: {
+      LowerComparison(node, machine()->Uint32LessThan(),
+                      machine()->Uint32LessThan());
+      break;
+    }
+    case IrOpcode::kUint64LessThanOrEqual: {
+      LowerComparison(node, machine()->Uint32LessThan(),
+                      machine()->Uint32LessThanOrEqual());
+      break;
+    }
 
     // kExprI64SConvertI32:
     // kExprI64UConvertI32:
@@ -341,6 +354,25 @@ void Int64Lowering::LowerNode(Node* node) {
     // kExprI64UConvertF64:
     default: { DefaultLowering(node); }
   }
+}
+
+void Int64Lowering::LowerComparison(Node* node, const Operator* high_word_op,
+                                    const Operator* low_word_op) {
+  DCHECK(node->InputCount() == 2);
+  Node* left = node->InputAt(0);
+  Node* right = node->InputAt(1);
+  Node* replacement = graph()->NewNode(
+      machine()->Word32Or(),
+      graph()->NewNode(high_word_op, GetReplacementHigh(left),
+                       GetReplacementHigh(right)),
+      graph()->NewNode(
+          machine()->Word32And(),
+          graph()->NewNode(machine()->Word32Equal(), GetReplacementHigh(left),
+                           GetReplacementHigh(right)),
+          graph()->NewNode(low_word_op, GetReplacementLow(left),
+                           GetReplacementLow(right))));
+
+  ReplaceNode(node, replacement, nullptr);
 }
 
 bool Int64Lowering::DefaultLowering(Node* node) {

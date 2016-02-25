@@ -514,13 +514,34 @@ Node* WasmGraphBuilder::Binop(wasm::WasmOpcode opcode, Node* left,
     case wasm::kExprI64Ne:
       return Invert(Binop(wasm::kExprI64Eq, left, right));
 // kExprI64LtS:
-// kExprI64LeS:
-// kExprI64LtU:
-// kExprI64LeU:
-// kExprI64GtS:
-// kExprI64GeS:
-// kExprI64GtU:
-// kExprI64GeU:
+    case wasm::kExprI64LtS:
+      op = m->Int64LessThan();
+      break;
+    case wasm::kExprI64LeS:
+      op = m->Int64LessThanOrEqual();
+      break;
+    case wasm::kExprI64LtU:
+      op = m->Uint64LessThan();
+      break;
+    case wasm::kExprI64LeU:
+      op = m->Uint64LessThanOrEqual();
+      break;
+    case wasm::kExprI64GtS:
+      op = m->Int64LessThan();
+      std::swap(left, right);
+      break;
+    case wasm::kExprI64GeS:
+      op = m->Int64LessThanOrEqual();
+      std::swap(left, right);
+      break;
+    case wasm::kExprI64GtU:
+      op = m->Uint64LessThan();
+      std::swap(left, right);
+      break;
+    case wasm::kExprI64GeU:
+      op = m->Uint64LessThanOrEqual();
+      std::swap(left, right);
+      break;
 
 // kExprI32ConvertI64:
 // kExprI64SConvertI32:
@@ -599,34 +620,6 @@ Node* WasmGraphBuilder::Binop(wasm::WasmOpcode opcode, Node* left,
       break;
     case wasm::kExprI64ShrS:
       op = m->Word64Sar();
-      break;
-    case wasm::kExprI64LtS:
-      op = m->Int64LessThan();
-      break;
-    case wasm::kExprI64LeS:
-      op = m->Int64LessThanOrEqual();
-      break;
-    case wasm::kExprI64LtU:
-      op = m->Uint64LessThan();
-      break;
-    case wasm::kExprI64LeU:
-      op = m->Uint64LessThanOrEqual();
-      break;
-    case wasm::kExprI64GtS:
-      op = m->Int64LessThan();
-      std::swap(left, right);
-      break;
-    case wasm::kExprI64GeS:
-      op = m->Int64LessThanOrEqual();
-      std::swap(left, right);
-      break;
-    case wasm::kExprI64GtU:
-      op = m->Uint64LessThan();
-      std::swap(left, right);
-      break;
-    case wasm::kExprI64GeU:
-      op = m->Uint64LessThanOrEqual();
-      std::swap(left, right);
       break;
 #endif
 
