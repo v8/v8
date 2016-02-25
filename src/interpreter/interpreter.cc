@@ -1573,7 +1573,20 @@ void Interpreter::DoCreateLiteral(Runtime::FunctionId function_id,
 // Creates a regular expression literal for literal index <literal_idx> with
 // <flags> and the pattern in <pattern_idx>.
 void Interpreter::DoCreateRegExpLiteral(InterpreterAssembler* assembler) {
-  DoCreateLiteral(Runtime::kCreateRegExpLiteral, assembler);
+  Callable callable = CodeFactory::FastCloneRegExp(isolate_);
+  Node* target = __ HeapConstant(callable.code());
+  Node* index = __ BytecodeOperandIdx(0);
+  Node* pattern = __ LoadConstantPoolEntry(index);
+  Node* literal_index_raw = __ BytecodeOperandIdx(1);
+  Node* literal_index = __ SmiTag(literal_index_raw);
+  Node* flags_raw = __ BytecodeOperandImm(2);
+  Node* flags = __ SmiTag(flags_raw);
+  Node* closure = __ LoadRegister(Register::function_closure());
+  Node* context = __ GetContext();
+  Node* result = __ CallStub(callable.descriptor(), target, context, closure,
+                             literal_index, pattern, flags);
+  __ SetAccumulator(result);
+  __ Dispatch();
 }
 
 
@@ -1582,7 +1595,7 @@ void Interpreter::DoCreateRegExpLiteral(InterpreterAssembler* assembler) {
 // Creates a regular expression literal for literal index <literal_idx> with
 // <flags> and the pattern in <pattern_idx>.
 void Interpreter::DoCreateRegExpLiteralWide(InterpreterAssembler* assembler) {
-  DoCreateLiteral(Runtime::kCreateRegExpLiteral, assembler);
+  DoCreateRegExpLiteral(assembler);
 }
 
 
