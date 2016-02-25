@@ -1938,6 +1938,68 @@ BUILTIN(GlobalEval) {
 }
 
 
+// -----------------------------------------------------------------------------
+// ES6 section 20.2.2 Function Properties of the Math Object
+
+
+// ES6 section 20.2.2.2 Math.acos ( x )
+BUILTIN(MathAcos) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  Handle<Object> x = args.at<Object>(1);
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, x, Object::ToNumber(x));
+  return *isolate->factory()->NewHeapNumber(std::acos(x->Number()));
+}
+
+
+// ES6 section 20.2.2.4 Math.asin ( x )
+BUILTIN(MathAsin) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  Handle<Object> x = args.at<Object>(1);
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, x, Object::ToNumber(x));
+  return *isolate->factory()->NewHeapNumber(std::asin(x->Number()));
+}
+
+
+// ES6 section 20.2.2.6 Math.atan ( x )
+BUILTIN(MathAtan) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  Handle<Object> x = args.at<Object>(1);
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, x, Object::ToNumber(x));
+  return *isolate->factory()->NewHeapNumber(std::atan(x->Number()));
+}
+
+
+// ES6 section 20.2.2.17 Math.fround ( x )
+BUILTIN(MathFround) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  Handle<Object> x = args.at<Object>(1);
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, x, Object::ToNumber(x));
+  float x32 = DoubleToFloat32(x->Number());
+  return *isolate->factory()->NewNumber(x32);
+}
+
+
+// ES6 section 20.2.2.19 Math.imul ( x, y )
+BUILTIN(MathImul) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  Handle<Object> x = args.at<Object>(1);
+  Handle<Object> y = args.at<Object>(2);
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, x, Object::ToNumber(x));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, y, Object::ToNumber(y));
+  int product = static_cast<int>(NumberToUint32(*x) * NumberToUint32(*y));
+  return *isolate->factory()->NewNumberFromInt(product);
+}
+
+
+// -----------------------------------------------------------------------------
+// ES6 section 26.1 The Reflect Object
+
+
 // ES6 section 26.1.3 Reflect.defineProperty
 BUILTIN(ReflectDefineProperty) {
   HandleScope scope(isolate);

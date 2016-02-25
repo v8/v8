@@ -742,9 +742,6 @@ class RuntimeCallTimerScope {
   SC(regexp_entry_native, V8.RegExpEntryNative)                                \
   SC(number_to_string_native, V8.NumberToStringNative)                         \
   SC(number_to_string_runtime, V8.NumberToStringRuntime)                       \
-  SC(math_acos_runtime, V8.MathAcosRuntime)                                    \
-  SC(math_asin_runtime, V8.MathAsinRuntime)                                    \
-  SC(math_atan_runtime, V8.MathAtanRuntime)                                    \
   SC(math_atan2_runtime, V8.MathAtan2Runtime)                                  \
   SC(math_clz32_runtime, V8.MathClz32Runtime)                                  \
   SC(math_exp_runtime, V8.MathExpRuntime)                                      \
