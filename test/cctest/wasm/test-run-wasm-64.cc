@@ -62,6 +62,13 @@ TEST(Run_WasmI64Eq) {
   }
 }
 // kExprI64Ne:
+TEST(Run_WasmI64Ne) {
+  WasmRunner<int32_t> r(MachineType::Int64(), MachineType::Int64());
+  BUILD(r, WASM_I64_NE(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+  FOR_INT64_INPUTS(i) {
+    FOR_INT64_INPUTS(j) { CHECK_EQ(*i != *j ? 1 : 0, r.Call(*i, *j)); }
+  }
+}
 // kExprI64LtS:
 // kExprI64LeS:
 // kExprI64LtU:
