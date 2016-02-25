@@ -420,13 +420,6 @@ LPlatformChunk* LChunkBuilder::Build() {
   LPhase phase("L_Building chunk", chunk_);
   status_ = BUILDING;
 
-  // Reserve the first spill slot for the state of dynamic alignment.
-  if (info()->IsOptimizing()) {
-    int alignment_state_index = chunk_->GetNextSpillIndex(GENERAL_REGISTERS);
-    DCHECK_EQ(alignment_state_index, 4);
-    USE(alignment_state_index);
-  }
-
   // If compiling for OSR, reserve space for the unoptimized frame,
   // which will be subsumed into this frame.
   if (graph()->has_osr()) {
@@ -2476,11 +2469,6 @@ LInstruction* LChunkBuilder::DoUnknownOSRValue(HUnknownOSRValue* instr) {
     if (spill_index > LUnallocated::kMaxFixedSlotIndex) {
       Retry(kNotEnoughSpillSlotsForOsr);
       spill_index = 0;
-    }
-    if (spill_index == 0) {
-      // The dynamic frame alignment state overwrites the first local.
-      // The first local is saved at the end of the unoptimized frame.
-      spill_index = graph()->osr()->UnoptimizedFrameSlots();
     }
     spill_index += StandardFrameConstants::kFixedSlotCount;
   }

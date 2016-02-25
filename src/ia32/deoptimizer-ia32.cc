@@ -187,16 +187,8 @@ void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
 }
 
 bool Deoptimizer::HasAlignmentPadding(SharedFunctionInfo* shared) {
-  int parameter_count = shared->internal_formal_parameter_count() + 1;
-  unsigned input_frame_size = input_->GetFrameSize();
-  unsigned alignment_state_offset =
-      input_frame_size - parameter_count * kPointerSize -
-      StandardFrameConstants::kFixedFrameSize -
-      kPointerSize;
-  DCHECK(JavaScriptFrameConstants::kDynamicAlignmentStateOffset ==
-      JavaScriptFrameConstants::kLocal0Offset);
-  int32_t alignment_state = input_->GetFrameSlot(alignment_state_offset);
-  return (alignment_state == kAlignmentPaddingPushed);
+  // There is no dynamic alignment padding on ia32 in the input frame.
+  return false;
 }
 
 
@@ -310,18 +302,6 @@ void Deoptimizer::TableEntryGenerator::Generate() {
         ExternalReference::compute_output_frames_function(isolate()), 1);
   }
   __ pop(eax);
-
-  // If frame was dynamically aligned, pop padding.
-  Label no_padding;
-  __ cmp(Operand(eax, Deoptimizer::has_alignment_padding_offset()),
-         Immediate(0));
-  __ j(equal, &no_padding);
-  __ pop(ecx);
-  if (FLAG_debug_code) {
-    __ cmp(ecx, Immediate(kAlignmentZapValue));
-    __ Assert(equal, kAlignmentMarkerExpected);
-  }
-  __ bind(&no_padding);
 
   // Replace the current frame with the output frames.
   Label outer_push_loop, inner_push_loop,

@@ -57,13 +57,6 @@ bool LCodeGen::GenerateCode() {
   // the frame (that is done in GeneratePrologue).
   FrameScope frame_scope(masm_, StackFrame::MANUAL);
 
-  support_aligned_spilled_doubles_ = info()->IsOptimizing();
-
-  dynamic_frame_alignment_ = info()->IsOptimizing() &&
-      ((chunk()->num_double_slots() > 2 &&
-        !chunk()->graph()->is_recursive()) ||
-       !info()->osr_ast_id().IsNone());
-
   return GeneratePrologue() &&
       GenerateBody() &&
       GenerateDeferredCode() &&
@@ -130,31 +123,6 @@ bool LCodeGen::GeneratePrologue() {
 
   if (info()->IsOptimizing()) {
     ProfileEntryHookStub::MaybeCallEntryHook(masm_);
-
-    if (support_aligned_spilled_doubles_ && dynamic_frame_alignment_) {
-      // Move state of dynamic frame alignment into edx.
-      __ Move(edx, Immediate(kNoAlignmentPadding));
-
-      Label do_not_pad, align_loop;
-      STATIC_ASSERT(kDoubleSize == 2 * kPointerSize);
-      // Align esp + 4 to a multiple of 2 * kPointerSize.
-      __ test(esp, Immediate(kPointerSize));
-      __ j(not_zero, &do_not_pad, Label::kNear);
-      __ push(Immediate(0));
-      __ mov(ebx, esp);
-      __ mov(edx, Immediate(kAlignmentPaddingPushed));
-      // Copy arguments, receiver, and return address.
-      __ mov(ecx, Immediate(scope()->num_parameters() + 2));
-
-      __ bind(&align_loop);
-      __ mov(eax, Operand(ebx, 1 * kPointerSize));
-      __ mov(Operand(ebx, 0), eax);
-      __ add(Operand(ebx), Immediate(kPointerSize));
-      __ dec(ecx);
-      __ j(not_zero, &align_loop, Label::kNear);
-      __ mov(Operand(ebx, 0), Immediate(kAlignmentZapValue));
-      __ bind(&do_not_pad);
-    }
   }
 
   info()->set_prologue_offset(masm_->pc_offset());
@@ -168,55 +136,23 @@ bool LCodeGen::GeneratePrologue() {
     }
   }
 
-  if (info()->IsOptimizing() &&
-      dynamic_frame_alignment_ &&
-      FLAG_debug_code) {
-    __ test(esp, Immediate(kPointerSize));
-    __ Assert(zero, kFrameIsExpectedToBeAligned);
-  }
-
   // Reserve space for the stack slots needed by the code.
   int slots = GetStackSlotCount();
   DCHECK(slots != 0 || !info()->IsOptimizing());
   if (slots > 0) {
-    if (slots == 1) {
-      if (dynamic_frame_alignment_) {
-        __ push(edx);
-      } else {
-        __ push(Immediate(kNoAlignmentPadding));
-      }
-    } else {
-      if (FLAG_debug_code) {
-        __ sub(Operand(esp), Immediate(slots * kPointerSize));
+    __ sub(Operand(esp), Immediate(slots * kPointerSize));
 #ifdef _MSC_VER
-        MakeSureStackPagesMapped(slots * kPointerSize);
+    MakeSureStackPagesMapped(slots * kPointerSize);
 #endif
-        __ push(eax);
-        __ mov(Operand(eax), Immediate(slots));
-        Label loop;
-        __ bind(&loop);
-        __ mov(MemOperand(esp, eax, times_4, 0),
-               Immediate(kSlotsZapValue));
-        __ dec(eax);
-        __ j(not_zero, &loop);
-        __ pop(eax);
-      } else {
-        __ sub(Operand(esp), Immediate(slots * kPointerSize));
-#ifdef _MSC_VER
-        MakeSureStackPagesMapped(slots * kPointerSize);
-#endif
-      }
-
-      if (support_aligned_spilled_doubles_) {
-        Comment(";;; Store dynamic frame alignment tag for spilled doubles");
-        // Store dynamic frame alignment state in the first local.
-        int offset = JavaScriptFrameConstants::kDynamicAlignmentStateOffset;
-        if (dynamic_frame_alignment_) {
-          __ mov(Operand(ebp, offset), edx);
-        } else {
-          __ mov(Operand(ebp, offset), Immediate(kNoAlignmentPadding));
-        }
-      }
+    if (FLAG_debug_code) {
+      __ push(eax);
+      __ mov(Operand(eax), Immediate(slots));
+      Label loop;
+      __ bind(&loop);
+      __ mov(MemOperand(esp, eax, times_4, 0), Immediate(kSlotsZapValue));
+      __ dec(eax);
+      __ j(not_zero, &loop);
+      __ pop(eax);
     }
 
     if (info()->saves_caller_doubles()) SaveCallerDoubles();
@@ -298,47 +234,11 @@ void LCodeGen::GenerateOsrPrologue() {
 
   osr_pc_offset_ = masm()->pc_offset();
 
-    // Move state of dynamic frame alignment into edx.
-  __ Move(edx, Immediate(kNoAlignmentPadding));
-
-  if (support_aligned_spilled_doubles_ && dynamic_frame_alignment_) {
-    Label do_not_pad, align_loop;
-    // Align ebp + 4 to a multiple of 2 * kPointerSize.
-    __ test(ebp, Immediate(kPointerSize));
-    __ j(zero, &do_not_pad, Label::kNear);
-    __ push(Immediate(0));
-    __ mov(ebx, esp);
-    __ mov(edx, Immediate(kAlignmentPaddingPushed));
-
-    // Move all parts of the frame over one word. The frame consists of:
-    // unoptimized frame slots, alignment state, context, frame pointer, return
-    // address, receiver, and the arguments.
-    __ mov(ecx, Immediate(scope()->num_parameters() +
-           5 + graph()->osr()->UnoptimizedFrameSlots()));
-
-    __ bind(&align_loop);
-    __ mov(eax, Operand(ebx, 1 * kPointerSize));
-    __ mov(Operand(ebx, 0), eax);
-    __ add(Operand(ebx), Immediate(kPointerSize));
-    __ dec(ecx);
-    __ j(not_zero, &align_loop, Label::kNear);
-    __ mov(Operand(ebx, 0), Immediate(kAlignmentZapValue));
-    __ sub(Operand(ebp), Immediate(kPointerSize));
-    __ bind(&do_not_pad);
-  }
-
-  // Save the first local, which is overwritten by the alignment state.
-  Operand alignment_loc = MemOperand(ebp, -3 * kPointerSize);
-  __ push(alignment_loc);
-
-  // Set the dynamic frame alignment state.
-  __ mov(alignment_loc, edx);
-
   // Adjust the frame size, subsuming the unoptimized frame into the
   // optimized frame.
   int slots = GetStackSlotCount() - graph()->osr()->UnoptimizedFrameSlots();
-  DCHECK(slots >= 1);
-  __ sub(esp, Immediate((slots - 1) * kPointerSize));
+  DCHECK(slots >= 0);
+  __ sub(esp, Immediate(slots * kPointerSize));
 }
 
 
@@ -2462,18 +2362,11 @@ void LCodeGen::DoCmpT(LCmpT* instr) {
   __ bind(&done);
 }
 
-
-void LCodeGen::EmitReturn(LReturn* instr, bool dynamic_frame_alignment) {
-  int extra_value_count = dynamic_frame_alignment ? 2 : 1;
+void LCodeGen::EmitReturn(LReturn* instr) {
+  int extra_value_count = 1;
 
   if (instr->has_constant_parameter_count()) {
     int parameter_count = ToInteger32(instr->constant_parameter_count());
-    if (dynamic_frame_alignment && FLAG_debug_code) {
-      __ cmp(Operand(esp,
-                     (parameter_count + extra_value_count) * kPointerSize),
-             Immediate(kAlignmentZapValue));
-      __ Assert(equal, kExpectedAlignmentMarker);
-    }
     __ Ret((parameter_count + extra_value_count) * kPointerSize, ecx);
   } else {
     DCHECK(info()->IsStub());  // Functions would need to drop one more value.
@@ -2481,20 +2374,9 @@ void LCodeGen::EmitReturn(LReturn* instr, bool dynamic_frame_alignment) {
     // The argument count parameter is a smi
     __ SmiUntag(reg);
     Register return_addr_reg = reg.is(ecx) ? ebx : ecx;
-    if (dynamic_frame_alignment && FLAG_debug_code) {
-      DCHECK(extra_value_count == 2);
-      __ cmp(Operand(esp, reg, times_pointer_size,
-                     extra_value_count * kPointerSize),
-             Immediate(kAlignmentZapValue));
-      __ Assert(equal, kExpectedAlignmentMarker);
-    }
 
     // emit code to restore stack based on instr->parameter_count()
     __ pop(return_addr_reg);  // save return address
-    if (dynamic_frame_alignment) {
-      __ inc(reg);  // 1 more for alignment
-    }
-
     __ shl(reg, kPointerSizeLog2);
     __ add(esp, reg);
     __ jmp(return_addr_reg);
@@ -2513,25 +2395,12 @@ void LCodeGen::DoReturn(LReturn* instr) {
     __ CallRuntime(Runtime::kTraceExit);
   }
   if (info()->saves_caller_doubles()) RestoreCallerDoubles();
-  if (dynamic_frame_alignment_) {
-    // Fetch the state of the dynamic frame alignment.
-    __ mov(edx, Operand(ebp,
-      JavaScriptFrameConstants::kDynamicAlignmentStateOffset));
-  }
   if (NeedsEagerFrame()) {
     __ mov(esp, ebp);
     __ pop(ebp);
   }
-  if (dynamic_frame_alignment_) {
-    Label no_padding;
-    __ cmp(edx, Immediate(kNoAlignmentPadding));
-    __ j(equal, &no_padding, Label::kNear);
 
-    EmitReturn(instr, true);
-    __ bind(&no_padding);
-  }
-
-  EmitReturn(instr, false);
+  EmitReturn(instr);
 }
 
 

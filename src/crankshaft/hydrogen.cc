@@ -3601,7 +3601,6 @@ HGraph::HGraph(CompilationInfo* info, CallInterfaceDescriptor descriptor)
       info_(info),
       descriptor_(descriptor),
       zone_(info->zone()),
-      is_recursive_(false),
       use_optimistic_licm_(false),
       depends_on_empty_array_proto_elements_(false),
       type_change_checksum_(0),
@@ -8056,9 +8055,6 @@ HInstruction* HOptimizedGraphBuilder::BuildCallConstantFunction(
   bool can_invoke_directly =
       dont_adapt_arguments || formal_parameter_count == arity;
   if (can_invoke_directly) {
-    if (jsfun.is_identical_to(current_info()->closure())) {
-      graph()->MarkRecursive();
-    }
     return NewPlainFunctionCall(target, argument_count);
   } else {
     HValue* param_count_value = Add<HConstant>(formal_parameter_count);
