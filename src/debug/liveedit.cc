@@ -1909,8 +1909,9 @@ Handle<JSArray> LiveEdit::CheckAndDropActivations(
       FixedArray::cast(old_shared_array->elements()));
 
   Handle<JSArray> result = isolate->factory()->NewJSArray(len);
+  JSObject::EnsureWritableFastElements(result);
   Handle<FixedArray> result_elements =
-      JSObject::EnsureWritableFastElements(result);
+      handle(FixedArray::cast(result->elements()), isolate);
 
   // Fill the default values.
   for (int i = 0; i < len; i++) {

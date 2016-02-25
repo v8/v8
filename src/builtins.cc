@@ -238,55 +238,57 @@ inline bool IsJSArrayFastElementMovingAllowed(Isolate* isolate,
   return PrototypeHasNoElements(&iter);
 }
 
-
-// Returns empty handle if not applicable.
+// Returns |false| if not applicable.
 MUST_USE_RESULT
-inline MaybeHandle<FixedArrayBase> EnsureJSArrayWithWritableFastElements(
-    Isolate* isolate, Handle<Object> receiver, Arguments* args,
-    int first_added_arg) {
-  // We explicitly add a HandleScope to avoid creating several copies of the
-  // same handle which would otherwise cause issue when left-trimming later-on.
-  HandleScope scope(isolate);
-  if (!receiver->IsJSArray()) return MaybeHandle<FixedArrayBase>();
+inline bool EnsureJSArrayWithWritableFastElements(Isolate* isolate,
+                                                  Handle<Object> receiver,
+                                                  Arguments* args,
+                                                  int first_added_arg) {
+  if (!receiver->IsJSArray()) return false;
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
   // If there may be elements accessors in the prototype chain, the fast path
   // cannot be used if there arguments to add to the array.
   Heap* heap = isolate->heap();
   if (args != NULL && !IsJSArrayFastElementMovingAllowed(isolate, *array)) {
-    return MaybeHandle<FixedArrayBase>();
+    return false;
   }
-  if (array->map()->is_observed()) return MaybeHandle<FixedArrayBase>();
-  if (!array->map()->is_extensible()) return MaybeHandle<FixedArrayBase>();
-  Handle<FixedArrayBase> elms(array->elements(), isolate);
-  Map* map = elms->map();
+  if (array->map()->is_observed()) return false;
+  if (!array->map()->is_extensible()) return false;
+  Map* map = array->elements()->map();
   if (map == heap->fixed_array_map()) {
     if (args == NULL || array->HasFastObjectElements()) {
-      return scope.CloseAndEscape(elms);
+      return true;
     }
   } else if (map == heap->fixed_cow_array_map()) {
-    elms = JSObject::EnsureWritableFastElements(array);
+    // Use a short-lived HandleScope to avoid creating several copies of the
+    // elements handle which would cause issues when left-trimming later-on.
+    HandleScope scope(isolate);
+    // TODO(jkummerow/verwaest): Move this call (or this entire function?)
+    // into the ElementsAccessor so it's only done when needed (e.g. ArrayPush
+    // can skip it because it must grow the backing store anyway).
+    JSObject::EnsureWritableFastElements(array);
     if (args == NULL || array->HasFastObjectElements()) {
-      return scope.CloseAndEscape(elms);
+      return true;
     }
   } else if (map == heap->fixed_double_array_map()) {
     if (args == NULL) {
-      return scope.CloseAndEscape(elms);
+      return true;
     }
   } else {
-    return MaybeHandle<FixedArrayBase>();
+    return false;
   }
 
   // Adding elements to the array prototype would break code that makes sure
   // it has no elements. Handle that elsewhere.
   if (isolate->IsAnyInitialArrayPrototype(array)) {
-    return MaybeHandle<FixedArrayBase>();
+    return false;
   }
 
   // Need to ensure that the arguments passed in args can be contained in
   // the array.
   int args_length = args->length();
   if (first_added_arg >= args_length) {
-    return scope.CloseAndEscape(elms);
+    return true;
   }
 
   ElementsKind origin_kind = array->map()->elements_kind();
@@ -309,10 +311,12 @@ inline MaybeHandle<FixedArrayBase> EnsureJSArrayWithWritableFastElements(
     }
   }
   if (target_kind != origin_kind) {
+    // Use a short-lived HandleScope to avoid creating several copies of the
+    // elements handle which would cause issues when left-trimming later-on.
+    HandleScope scope(isolate);
     JSObject::TransitionElementsKind(array, target_kind);
-    elms = handle(array->elements(), isolate);
   }
-  return scope.CloseAndEscape(elms);
+  return true;
 }
 
 
@@ -352,10 +356,7 @@ BUILTIN(EmptyFunction) { return isolate->heap()->undefined_value(); }
 BUILTIN(ArrayPush) {
   HandleScope scope(isolate);
   Handle<Object> receiver = args.receiver();
-  MaybeHandle<FixedArrayBase> maybe_elms_obj =
-      EnsureJSArrayWithWritableFastElements(isolate, receiver, &args, 1);
-  Handle<FixedArrayBase> elms_obj;
-  if (!maybe_elms_obj.ToHandle(&elms_obj)) {
+  if (!EnsureJSArrayWithWritableFastElements(isolate, receiver, &args, 1)) {
     return CallJsIntrinsic(isolate, isolate->array_push(), args);
   }
   // Fast Elements Path
@@ -365,13 +366,14 @@ BUILTIN(ArrayPush) {
   if (push_size == 0) {
     return Smi::FromInt(len);
   }
-  if (push_size > 0 &&
-      JSArray::WouldChangeReadOnlyLength(array, len + push_size)) {
+  DCHECK(push_size > 0);
+  if (JSArray::HasReadOnlyLength(array)) {
     return CallJsIntrinsic(isolate, isolate->array_push(), args);
   }
   DCHECK(!array->map()->is_observed());
   ElementsAccessor* accessor = array->GetElementsAccessor();
-  int new_length = accessor->Push(array, elms_obj, &args, push_size);
+  int new_length = accessor->Push(array, handle(array->elements(), isolate),
+                                  &args, push_size);
   return Smi::FromInt(new_length);
 }
 
@@ -379,10 +381,7 @@ BUILTIN(ArrayPush) {
 BUILTIN(ArrayPop) {
   HandleScope scope(isolate);
   Handle<Object> receiver = args.receiver();
-  MaybeHandle<FixedArrayBase> maybe_elms_obj =
-      EnsureJSArrayWithWritableFastElements(isolate, receiver, NULL, 0);
-  Handle<FixedArrayBase> elms_obj;
-  if (!maybe_elms_obj.ToHandle(&elms_obj)) {
+  if (!EnsureJSArrayWithWritableFastElements(isolate, receiver, NULL, 0)) {
     return CallJsIntrinsic(isolate, isolate->array_pop(), args);
   }
 
@@ -399,7 +398,8 @@ BUILTIN(ArrayPop) {
   Handle<Object> result;
   if (IsJSArrayFastElementMovingAllowed(isolate, JSArray::cast(*receiver))) {
     // Fast Elements Path
-    result = array->GetElementsAccessor()->Pop(array, elms_obj);
+    result = array->GetElementsAccessor()->Pop(
+        array, handle(array->elements(), isolate));
   } else {
     // Use Slow Lookup otherwise
     uint32_t new_length = len - 1;
@@ -415,10 +415,7 @@ BUILTIN(ArrayShift) {
   HandleScope scope(isolate);
   Heap* heap = isolate->heap();
   Handle<Object> receiver = args.receiver();
-  MaybeHandle<FixedArrayBase> maybe_elms_obj =
-      EnsureJSArrayWithWritableFastElements(isolate, receiver, NULL, 0);
-  Handle<FixedArrayBase> elms_obj;
-  if (!maybe_elms_obj.ToHandle(&elms_obj) ||
+  if (!EnsureJSArrayWithWritableFastElements(isolate, receiver, NULL, 0) ||
       !IsJSArrayFastElementMovingAllowed(isolate, JSArray::cast(*receiver))) {
     return CallJsIntrinsic(isolate, isolate->array_shift(), args);
   }
@@ -432,7 +429,8 @@ BUILTIN(ArrayShift) {
     return CallJsIntrinsic(isolate, isolate->array_shift(), args);
   }
 
-  Handle<Object> first = array->GetElementsAccessor()->Shift(array, elms_obj);
+  Handle<Object> first = array->GetElementsAccessor()->Shift(
+      array, handle(array->elements(), isolate));
   return *first;
 }
 
@@ -440,10 +438,7 @@ BUILTIN(ArrayShift) {
 BUILTIN(ArrayUnshift) {
   HandleScope scope(isolate);
   Handle<Object> receiver = args.receiver();
-  MaybeHandle<FixedArrayBase> maybe_elms_obj =
-      EnsureJSArrayWithWritableFastElements(isolate, receiver, &args, 1);
-  Handle<FixedArrayBase> elms_obj;
-  if (!maybe_elms_obj.ToHandle(&elms_obj)) {
+  if (!EnsureJSArrayWithWritableFastElements(isolate, receiver, &args, 1)) {
     return CallJsIntrinsic(isolate, isolate->array_unshift(), args);
   }
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
@@ -461,7 +456,8 @@ BUILTIN(ArrayUnshift) {
   }
 
   ElementsAccessor* accessor = array->GetElementsAccessor();
-  int new_length = accessor->Unshift(array, elms_obj, &args, to_add);
+  int new_length = accessor->Unshift(array, handle(array->elements(), isolate),
+                                     &args, to_add);
   return Smi::FromInt(new_length);
 }
 
@@ -558,13 +554,10 @@ BUILTIN(ArraySlice) {
 BUILTIN(ArraySplice) {
   HandleScope scope(isolate);
   Handle<Object> receiver = args.receiver();
-  MaybeHandle<FixedArrayBase> maybe_elms_obj =
-      EnsureJSArrayWithWritableFastElements(isolate, receiver, &args, 3);
-  Handle<FixedArrayBase> elms_obj;
-  if (!maybe_elms_obj.ToHandle(&elms_obj) ||
-      // If this is a subclass of Array, then call out to JS
+  if (!EnsureJSArrayWithWritableFastElements(isolate, receiver, &args, 3) ||
+      // If this is a subclass of Array, then call out to JS.
       !JSArray::cast(*receiver)->map()->new_target_is_base() ||
-      // If anything with @@species has been messed with, call out to JS
+      // If anything with @@species has been messed with, call out to JS.
       !isolate->IsArraySpeciesLookupChainIntact()) {
     return CallJsIntrinsic(isolate, isolate->array_splice(), args);
   }
@@ -613,8 +606,9 @@ BUILTIN(ArraySplice) {
     return CallJsIntrinsic(isolate, isolate->array_splice(), args);
   }
   ElementsAccessor* accessor = array->GetElementsAccessor();
-  Handle<JSArray> result_array = accessor->Splice(
-      array, elms_obj, actual_start, actual_delete_count, &args, add_count);
+  Handle<JSArray> result_array =
+      accessor->Splice(array, handle(array->elements(), isolate), actual_start,
+                       actual_delete_count, &args, add_count);
   return *result_array;
 }
 
