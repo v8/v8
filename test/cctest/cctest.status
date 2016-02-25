@@ -498,6 +498,7 @@
 
 }],  # 'arch == ppc64 and simulator_run == True'
 
+##############################################################################
 ['ignition == True', {
   # TODO(yangguo,4690): Test failures in debugger tests.
   'test-debug/DebugStepLocals': [FAIL],
@@ -593,18 +594,5 @@
   'test-run-inlining/InlineTwice': [FAIL],
   'test-serialize/SerializeInternalReference': [FAIL, ['arch == arm or arch == arm64', PASS]],
 }],  # ignition == True
-
-['ignition == True and arch == x64', {
-  # TODO(rmcilroy,4680): The function_data field should be a BytecodeArray on interpreter entry
-  'test-serialize/PerIsolateSnapshotBlobsOutdatedContextWithOverflow': [PASS, ['mode == debug', FAIL]],
-  'test-serialize/PerIsolateSnapshotBlobsWithLocker': [PASS, ['mode == debug', FAIL]],
-  'test-serialize/SnapshotBlobsStackOverflow': [PASS, ['mode == debug', FAIL]],
-  'test-serialize/PerIsolateSnapshotBlobs': [PASS, ['mode == debug', FAIL]],
-  'test-serialize/SerializationMemoryStats': [PASS, ['mode == debug', FAIL]],
-
-  # TODO(rmcilroy,4680): Test assert errors.
-  'test-heap-profiler/HeapSnapshotSimd': [PASS, ['mode == debug', FAIL]],
-  'test-api/InitializeDefaultIsolateOnSecondaryThread1': [PASS, ['mode == debug', FAIL]],
-}],
 
 ]
