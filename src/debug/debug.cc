@@ -2340,7 +2340,7 @@ void Debug::PrintBreakLocation() {
     int column = Script::GetColumnNumber(script, source_position);
     Handle<FixedArray> line_ends(FixedArray::cast(script->line_ends()));
     int line_start =
-        line == 0 ? 0 : Smi::cast(line_ends->get(line - 1))->value();
+        line == 0 ? 0 : Smi::cast(line_ends->get(line - 1))->value() + 1;
     int line_end = Smi::cast(line_ends->get(line))->value();
     DisallowHeapAllocation no_gc;
     String::FlatContent content = source->GetFlatContent();
