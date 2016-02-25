@@ -72,6 +72,9 @@ Node* CodeStubAssembler::NumberConstant(double value) {
   return raw_assembler_->NumberConstant(value);
 }
 
+Node* CodeStubAssembler::SmiConstant(Smi* value) {
+  return IntPtrConstant(bit_cast<intptr_t>(value));
+}
 
 Node* CodeStubAssembler::HeapConstant(Handle<HeapObject> object) {
   return raw_assembler_->HeapConstant(object);
@@ -124,6 +127,8 @@ Node* CodeStubAssembler::SmiTag(Node* value) {
 Node* CodeStubAssembler::SmiUntag(Node* value) {
   return raw_assembler_->WordSar(value, SmiShiftBitsConstant());
 }
+
+Node* CodeStubAssembler::SmiAdd(Node* a, Node* b) { return IntPtrAdd(a, b); }
 
 #define DEFINE_CODE_STUB_ASSEMBER_BINARY_OP(name)   \
   Node* CodeStubAssembler::name(Node* a, Node* b) { \

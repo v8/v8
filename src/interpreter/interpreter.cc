@@ -1833,11 +1833,10 @@ void Interpreter::DoForInDone(InterpreterAssembler* assembler) {
 // Increments the loop counter in register |index| and stores the result
 // in the accumulator.
 void Interpreter::DoForInStep(InterpreterAssembler* assembler) {
-  // TODO(oth): Implement directly rather than making a runtime call.
   Node* index_reg = __ BytecodeOperandReg(0);
   Node* index = __ LoadRegister(index_reg);
-  Node* context = __ GetContext();
-  Node* result = __ CallRuntime(Runtime::kForInStep, context, index);
+  Node* one = __ SmiConstant(Smi::FromInt(1));
+  Node* result = __ SmiAdd(index, one);
   __ SetAccumulator(result);
   __ Dispatch();
 }

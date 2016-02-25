@@ -103,6 +103,7 @@ class CodeStubAssembler {
   Node* Int32Constant(int value);
   Node* IntPtrConstant(intptr_t value);
   Node* NumberConstant(double value);
+  Node* SmiConstant(Smi* value);
   Node* HeapConstant(Handle<HeapObject> object);
   Node* BooleanConstant(bool value);
   Node* ExternalConstant(ExternalReference address);
@@ -194,6 +195,9 @@ class CodeStubAssembler {
   // Tag and untag Smi values.
   Node* SmiTag(Node* value);
   Node* SmiUntag(Node* value);
+
+  // Smi operations.
+  Node* SmiAdd(Node* lhs, Node* rhs);
 
   // Load a value from the root array.
   Node* LoadRoot(Heap::RootListIndex root_index);
