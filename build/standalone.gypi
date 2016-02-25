@@ -1262,11 +1262,36 @@
     #  make generator doesn't support CC_wrapper without CC
     #  in make_global_settings yet.
     ['use_goma==1 and ("<(GENERATOR)"=="ninja" or clang==1)', {
-      'make_global_settings': [
-       ['CC_wrapper', '<(gomadir)/gomacc'],
-       ['CXX_wrapper', '<(gomadir)/gomacc'],
-       ['CC.host_wrapper', '<(gomadir)/gomacc'],
-       ['CXX.host_wrapper', '<(gomadir)/gomacc'],
+      'conditions': [
+        ['coverage==1', {
+          # Wrap goma with coverage wrapper.
+          'make_global_settings': [
+            ['CC_wrapper', '<(base_dir)/build/coverage_wrapper.py <(gomadir)/gomacc'],
+            ['CXX_wrapper', '<(base_dir)/build/coverage_wrapper.py <(gomadir)/gomacc'],
+            ['CC.host_wrapper', '<(base_dir)/build/coverage_wrapper.py <(gomadir)/gomacc'],
+            ['CXX.host_wrapper', '<(base_dir)/build/coverage_wrapper.py <(gomadir)/gomacc'],
+          ],
+        }, {
+          # Use only goma wrapper.
+          'make_global_settings': [
+            ['CC_wrapper', '<(gomadir)/gomacc'],
+            ['CXX_wrapper', '<(gomadir)/gomacc'],
+            ['CC.host_wrapper', '<(gomadir)/gomacc'],
+            ['CXX.host_wrapper', '<(gomadir)/gomacc'],
+          ],
+        }],
+      ],
+    }, {
+      'conditions': [
+        ['coverage==1', {
+          # Use only coverage wrapper.
+          'make_global_settings': [
+            ['CC_wrapper', '<(base_dir)/build/coverage_wrapper.py'],
+            ['CXX_wrapper', '<(base_dir)/build/coverage_wrapper.py'],
+            ['CC.host_wrapper', '<(base_dir)/build/coverage_wrapper.py'],
+            ['CXX.host_wrapper', '<(base_dir)/build/coverage_wrapper.py'],
+          ],
+        }],
       ],
     }],
     ['use_lto==1', {
