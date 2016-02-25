@@ -2197,8 +2197,22 @@ void LiveRangeBuilder::ProcessPhis(const InstructionBlock* block,
     int phi_vreg = phi->virtual_register();
     live->Remove(phi_vreg);
     InstructionOperand* hint = nullptr;
-    Instruction* instr = GetLastInstruction(
-        code(), code()->InstructionBlockAt(block->predecessors()[0]));
+    const InstructionBlock::Predecessors& predecessors = block->predecessors();
+    const InstructionBlock* predecessor_block =
+        code()->InstructionBlockAt(predecessors[0]);
+    const Instruction* instr = GetLastInstruction(code(), predecessor_block);
+    if (predecessor_block->IsDeferred()) {
+      // "Prefer the hint from the first non-deferred predecessor, if any.
+      for (size_t i = 1; i < predecessors.size(); ++i) {
+        predecessor_block = code()->InstructionBlockAt(predecessors[i]);
+        if (!predecessor_block->IsDeferred()) {
+          instr = GetLastInstruction(code(), predecessor_block);
+          break;
+        }
+      }
+    }
+    DCHECK_NOT_NULL(instr);
+
     for (MoveOperands* move : *instr->GetParallelMove(Instruction::END)) {
       InstructionOperand& to = move->destination();
       if (to.IsUnallocated() &&
