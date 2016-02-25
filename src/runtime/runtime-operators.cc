@@ -140,5 +140,41 @@ RUNTIME_FUNCTION(Runtime_BitwiseXor) {
   return *result;
 }
 
+RUNTIME_FUNCTION(Runtime_Equals) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, x, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, y, 1);
+  Maybe<bool> result = Object::Equals(x, y);
+  if (!result.IsJust()) return isolate->heap()->exception();
+  return isolate->heap()->ToBoolean(result.FromJust());
+}
+
+RUNTIME_FUNCTION(Runtime_NotEquals) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, x, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, y, 1);
+  Maybe<bool> result = Object::Equals(x, y);
+  if (!result.IsJust()) return isolate->heap()->exception();
+  return isolate->heap()->ToBoolean(!result.FromJust());
+}
+
+RUNTIME_FUNCTION(Runtime_StrictEquals) {
+  SealHandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_CHECKED(Object, x, 0);
+  CONVERT_ARG_CHECKED(Object, y, 1);
+  return isolate->heap()->ToBoolean(x->StrictEquals(y));
+}
+
+RUNTIME_FUNCTION(Runtime_StrictNotEquals) {
+  SealHandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_CHECKED(Object, x, 0);
+  CONVERT_ARG_CHECKED(Object, y, 1);
+  return isolate->heap()->ToBoolean(!x->StrictEquals(y));
+}
+
 }  // namespace internal
 }  // namespace v8

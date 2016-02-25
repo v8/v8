@@ -77,10 +77,6 @@ TEST_F(RuntimeInterpreterTest, TestOperatorsWithIntegers) {
     TRACED_FOREACH(int, rhs, inputs) {
 #define INTEGER_OPERATOR_CHECK(r, op, x, y) \
   CHECK(TestOperator(Runtime_Interpreter##r, x, y, x op y))
-      INTEGER_OPERATOR_CHECK(Equals, ==, lhs, rhs);
-      INTEGER_OPERATOR_CHECK(NotEquals, !=, lhs, rhs);
-      INTEGER_OPERATOR_CHECK(StrictEquals, ==, lhs, rhs);
-      INTEGER_OPERATOR_CHECK(StrictNotEquals, !=, lhs, rhs);
       INTEGER_OPERATOR_CHECK(LessThan, <, lhs, rhs);
       INTEGER_OPERATOR_CHECK(GreaterThan, >, lhs, rhs);
       INTEGER_OPERATOR_CHECK(LessThanOrEqual, <=, lhs, rhs);
@@ -102,10 +98,6 @@ TEST_F(RuntimeInterpreterTest, TestOperatorsWithDoubles) {
     TRACED_FOREACH(double, rhs, inputs) {
 #define DOUBLE_OPERATOR_CHECK(r, op, x, y) \
   CHECK(TestOperator(Runtime_Interpreter##r, x, y, x op y))
-      DOUBLE_OPERATOR_CHECK(Equals, ==, lhs, rhs);
-      DOUBLE_OPERATOR_CHECK(NotEquals, !=, lhs, rhs);
-      DOUBLE_OPERATOR_CHECK(StrictEquals, ==, lhs, rhs);
-      DOUBLE_OPERATOR_CHECK(StrictNotEquals, !=, lhs, rhs);
       DOUBLE_OPERATOR_CHECK(LessThan, <, lhs, rhs);
       DOUBLE_OPERATOR_CHECK(GreaterThan, >, lhs, rhs);
       DOUBLE_OPERATOR_CHECK(LessThanOrEqual, <=, lhs, rhs);
@@ -123,10 +115,6 @@ TEST_F(RuntimeInterpreterTest, TestOperatorsWithString) {
 #define STRING_OPERATOR_CHECK(r, op, x, y)         \
   CHECK(TestOperator(Runtime_Interpreter##r, x, y, \
                      std::string(x) op std::string(y)))
-      STRING_OPERATOR_CHECK(Equals, ==, lhs, rhs);
-      STRING_OPERATOR_CHECK(NotEquals, !=, lhs, rhs);
-      STRING_OPERATOR_CHECK(StrictEquals, ==, lhs, rhs);
-      STRING_OPERATOR_CHECK(StrictNotEquals, !=, lhs, rhs);
       STRING_OPERATOR_CHECK(LessThan, <, lhs, rhs);
       STRING_OPERATOR_CHECK(GreaterThan, >, lhs, rhs);
       STRING_OPERATOR_CHECK(LessThanOrEqual, <=, lhs, rhs);

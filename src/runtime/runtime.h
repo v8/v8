@@ -206,10 +206,6 @@ namespace internal {
   F(ForInStep, 1, 1)
 
 #define FOR_EACH_INTRINSIC_INTERPRETER(F) \
-  F(InterpreterEquals, 2, 1)              \
-  F(InterpreterNotEquals, 2, 1)           \
-  F(InterpreterStrictEquals, 2, 1)        \
-  F(InterpreterStrictNotEquals, 2, 1)     \
   F(InterpreterLessThan, 2, 1)            \
   F(InterpreterGreaterThan, 2, 1)         \
   F(InterpreterLessThanOrEqual, 2, 1)     \
@@ -455,8 +451,6 @@ namespace internal {
   F(ToLength, 1, 1)                                  \
   F(ToString, 1, 1)                                  \
   F(ToName, 1, 1)                                    \
-  F(Equals, 2, 1)                                    \
-  F(StrictEquals, 2, 1)                              \
   F(SameValue, 2, 1)                                 \
   F(SameValueZero, 2, 1)                             \
   F(Compare, 3, 1)                                   \
@@ -491,7 +485,11 @@ namespace internal {
   F(ShiftRightLogical, 2, 1)            \
   F(BitwiseAnd, 2, 1)                   \
   F(BitwiseOr, 2, 1)                    \
-  F(BitwiseXor, 2, 1)
+  F(BitwiseXor, 2, 1)                   \
+  F(Equals, 2, 1)                       \
+  F(NotEquals, 2, 1)                    \
+  F(StrictEquals, 2, 1)                 \
+  F(StrictNotEquals, 2, 1)
 
 #define FOR_EACH_INTRINSIC_PROXY(F)     \
   F(IsJSProxy, 1, 1)                    \

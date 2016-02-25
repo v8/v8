@@ -1144,7 +1144,7 @@ void Interpreter::DoNewWide(InterpreterAssembler* assembler) {
 //
 // Test if the value in the <src> register equals the accumulator.
 void Interpreter::DoTestEqual(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kInterpreterEquals, assembler);
+  DoBinaryOp(Runtime::kEquals, assembler);
 }
 
 
@@ -1152,7 +1152,7 @@ void Interpreter::DoTestEqual(InterpreterAssembler* assembler) {
 //
 // Test if the value in the <src> register is not equal to the accumulator.
 void Interpreter::DoTestNotEqual(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kInterpreterNotEquals, assembler);
+  DoBinaryOp(Runtime::kNotEquals, assembler);
 }
 
 
@@ -1160,7 +1160,7 @@ void Interpreter::DoTestNotEqual(InterpreterAssembler* assembler) {
 //
 // Test if the value in the <src> register is strictly equal to the accumulator.
 void Interpreter::DoTestEqualStrict(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kInterpreterStrictEquals, assembler);
+  DoBinaryOp(Runtime::kStrictEquals, assembler);
 }
 
 
@@ -1169,7 +1169,7 @@ void Interpreter::DoTestEqualStrict(InterpreterAssembler* assembler) {
 // Test if the value in the <src> register is not strictly equal to the
 // accumulator.
 void Interpreter::DoTestNotEqualStrict(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kInterpreterStrictNotEquals, assembler);
+  DoBinaryOp(Runtime::kStrictNotEquals, assembler);
 }
 
 

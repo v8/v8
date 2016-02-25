@@ -16,35 +16,6 @@
 namespace v8 {
 namespace internal {
 
-
-RUNTIME_FUNCTION(Runtime_InterpreterEquals) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, x, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, y, 1);
-  Maybe<bool> result = Object::Equals(x, y);
-  if (result.IsJust()) {
-    return isolate->heap()->ToBoolean(result.FromJust());
-  } else {
-    return isolate->heap()->exception();
-  }
-}
-
-
-RUNTIME_FUNCTION(Runtime_InterpreterNotEquals) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, x, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, y, 1);
-  Maybe<bool> result = Object::Equals(x, y);
-  if (result.IsJust()) {
-    return isolate->heap()->ToBoolean(!result.FromJust());
-  } else {
-    return isolate->heap()->exception();
-  }
-}
-
-
 RUNTIME_FUNCTION(Runtime_InterpreterLessThan) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
@@ -98,24 +69,6 @@ RUNTIME_FUNCTION(Runtime_InterpreterGreaterThanOrEqual) {
   } else {
     return isolate->heap()->exception();
   }
-}
-
-
-RUNTIME_FUNCTION(Runtime_InterpreterStrictEquals) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_CHECKED(Object, x, 0);
-  CONVERT_ARG_CHECKED(Object, y, 1);
-  return isolate->heap()->ToBoolean(x->StrictEquals(y));
-}
-
-
-RUNTIME_FUNCTION(Runtime_InterpreterStrictNotEquals) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_CHECKED(Object, x, 0);
-  CONVERT_ARG_CHECKED(Object, y, 1);
-  return isolate->heap()->ToBoolean(!x->StrictEquals(y));
 }
 
 
