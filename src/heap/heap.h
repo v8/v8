@@ -403,6 +403,7 @@ enum ArrayStorageAllocationMode {
   INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE
 };
 
+enum class ClearRecordedSlots { kYes, kNo };
 
 class Heap {
  public:
@@ -632,8 +633,10 @@ class Heap {
   void MoveElements(FixedArray* array, int dst_index, int src_index, int len);
 
   // Initialize a filler object to keep the ability to iterate over the heap
-  // when introducing gaps within pages.
-  void CreateFillerObjectAt(Address addr, int size);
+  // when introducing gaps within pages. If slots could have been recorded in
+  // the freed area, then pass ClearRecordedSlots::kYes as the mode. Otherwise,
+  // pass ClearRecordedSlots::kNo.
+  void CreateFillerObjectAt(Address addr, int size, ClearRecordedSlots mode);
 
   bool CanMoveObjectStart(HeapObject* object);
 
@@ -1060,7 +1063,7 @@ class Heap {
   }
 
   void ClearRecordedSlot(HeapObject* object, Object** slot);
-  void ClearRecordedSlotRange(HeapObject* object, Object** start, Object** end);
+  void ClearRecordedSlotRange(Address start, Address end);
 
   // ===========================================================================
   // Incremental marking API. ==================================================

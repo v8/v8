@@ -519,7 +519,8 @@ static HeapObject* AllocateUnaligned(NewSpace* space, int size) {
   CHECK(!allocation.IsRetry());
   HeapObject* filler = NULL;
   CHECK(allocation.To(&filler));
-  space->heap()->CreateFillerObjectAt(filler->address(), size);
+  space->heap()->CreateFillerObjectAt(filler->address(), size,
+                                      ClearRecordedSlots::kNo);
   return filler;
 }
 
@@ -528,7 +529,8 @@ static HeapObject* AllocateUnaligned(PagedSpace* space, int size) {
   CHECK(!allocation.IsRetry());
   HeapObject* filler = NULL;
   CHECK(allocation.To(&filler));
-  space->heap()->CreateFillerObjectAt(filler->address(), size);
+  space->heap()->CreateFillerObjectAt(filler->address(), size,
+                                      ClearRecordedSlots::kNo);
   return filler;
 }
 

@@ -945,7 +945,8 @@ void Heap::EnsureFillerObjectAtTop() {
     Page* page = Page::FromAddress(from_top);
     if (page->Contains(from_top)) {
       int remaining_in_page = static_cast<int>(page->area_end() - from_top);
-      CreateFillerObjectAt(from_top, remaining_in_page);
+      CreateFillerObjectAt(from_top, remaining_in_page,
+                           ClearRecordedSlots::kNo);
     }
   }
 }
@@ -1166,7 +1167,8 @@ bool Heap::ReserveSpace(Reservation* reservations) {
             // Mark with a free list node, in case we have a GC before
             // deserializing.
             Address free_space_address = free_space->address();
-            CreateFillerObjectAt(free_space_address, size);
+            CreateFillerObjectAt(free_space_address, size,
+                                 ClearRecordedSlots::kNo);
             DCHECK(space < Serializer::kNumberOfPreallocatedSpaces);
             chunk.start = free_space_address;
             chunk.end = free_space_address + size;
@@ -1999,7 +2001,7 @@ int Heap::GetFillToAlign(Address address, AllocationAlignment alignment) {
 
 
 HeapObject* Heap::PrecedeWithFiller(HeapObject* object, int filler_size) {
-  CreateFillerObjectAt(object->address(), filler_size);
+  CreateFillerObjectAt(object->address(), filler_size, ClearRecordedSlots::kNo);
   return HeapObject::FromAddress(object->address() + filler_size);
 }
 
@@ -2015,7 +2017,8 @@ HeapObject* Heap::AlignWithFiller(HeapObject* object, int object_size,
     filler_size -= pre_filler;
   }
   if (filler_size)
-    CreateFillerObjectAt(object->address() + object_size, filler_size);
+    CreateFillerObjectAt(object->address() + object_size, filler_size,
+                         ClearRecordedSlots::kNo);
   return object;
 }
 
@@ -2133,7 +2136,7 @@ AllocationResult Heap::AllocateFillerObject(int size, bool double_align,
   MemoryChunk* chunk = MemoryChunk::FromAddress(obj->address());
   DCHECK(chunk->owner()->identity() == space);
 #endif
-  CreateFillerObjectAt(obj->address(), size);
+  CreateFillerObjectAt(obj->address(), size, ClearRecordedSlots::kNo);
   return obj;
 }
 
@@ -3042,8 +3045,8 @@ AllocationResult Heap::AllocateBytecodeArray(int length,
   return result;
 }
 
-
-void Heap::CreateFillerObjectAt(Address addr, int size) {
+void Heap::CreateFillerObjectAt(Address addr, int size,
+                                ClearRecordedSlots mode) {
   if (size == 0) return;
   HeapObject* filler = HeapObject::FromAddress(addr);
   if (size == kPointerSize) {
@@ -3057,6 +3060,9 @@ void Heap::CreateFillerObjectAt(Address addr, int size) {
     filler->set_map_no_write_barrier(
         reinterpret_cast<Map*>(root(kFreeSpaceMapRootIndex)));
     FreeSpace::cast(filler)->nobarrier_set_size(size);
+  }
+  if (mode == ClearRecordedSlots::kYes) {
+    ClearRecordedSlotRange(addr, addr + size);
   }
   // At this point, we may be deserializing the heap from a snapshot, and
   // none of the maps have been created yet and are NULL.
@@ -3131,7 +3137,8 @@ FixedArrayBase* Heap::LeftTrimFixedArray(FixedArrayBase* object,
   // Technically in new space this write might be omitted (except for
   // debug mode which iterates through the heap), but to play safer
   // we still do it.
-  CreateFillerObjectAt(object->address(), bytes_to_trim);
+  CreateFillerObjectAt(object->address(), bytes_to_trim,
+                       ClearRecordedSlots::kYes);
 
   // Initialize header of the trimmed array. Since left trimming is only
   // performed on pages which are not concurrently swept creating a filler
@@ -3146,11 +3153,6 @@ FixedArrayBase* Heap::LeftTrimFixedArray(FixedArrayBase* object,
 
   // Maintain consistency of live bytes during incremental marking
   Marking::TransferMark(this, object->address(), new_start);
-  if (mark_compact_collector()->sweeping_in_progress()) {
-    // Array trimming during sweeping can add invalid slots in free list.
-    ClearRecordedSlotRange(object, former_start,
-                           HeapObject::RawField(new_object, 0));
-  }
   AdjustLiveBytes(new_object, -bytes_to_trim, Heap::CONCURRENT_TO_SWEEPER);
 
   // Notify the heap profiler of change in object layout.
@@ -3210,12 +3212,7 @@ void Heap::RightTrimFixedArray(FixedArrayBase* object, int elements_to_trim) {
   // TODO(hpayer): We should shrink the large object page if the size
   // of the object changed significantly.
   if (!lo_space()->Contains(object)) {
-    CreateFillerObjectAt(new_end, bytes_to_trim);
-    if (mark_compact_collector()->sweeping_in_progress()) {
-      // Array trimming during sweeping can add invalid slots in free list.
-      ClearRecordedSlotRange(object, reinterpret_cast<Object**>(new_end),
-                             reinterpret_cast<Object**>(old_end));
-    }
+    CreateFillerObjectAt(new_end, bytes_to_trim, ClearRecordedSlots::kYes);
   }
 
   // Initialize header of the trimmed array. We are storing the new length
@@ -3319,7 +3316,8 @@ AllocationResult Heap::AllocateCode(int object_size, bool immovable) {
         MemoryChunk::FromAddress(address)->owner()->identity() != LO_SPACE) {
       // Discard the first code allocation, which was on a page where it could
       // be moved.
-      CreateFillerObjectAt(result->address(), object_size);
+      CreateFillerObjectAt(result->address(), object_size,
+                           ClearRecordedSlots::kNo);
       allocation = lo_space_->AllocateRaw(object_size, EXECUTABLE);
       if (!allocation.To(&result)) return allocation;
       OnAllocationEvent(result, object_size);
@@ -5581,15 +5579,12 @@ void Heap::ClearRecordedSlot(HeapObject* object, Object** slot) {
   }
 }
 
-void Heap::ClearRecordedSlotRange(HeapObject* object, Object** start,
-                                  Object** end) {
-  if (!InNewSpace(object)) {
+void Heap::ClearRecordedSlotRange(Address start, Address end) {
+  Page* page = Page::FromAddress(start);
+  if (!page->InNewSpace()) {
     store_buffer()->MoveEntriesToRememberedSet();
-    Address start_addr = reinterpret_cast<Address>(start);
-    Address end_addr = reinterpret_cast<Address>(end);
-    Page* page = Page::FromAddress(start_addr);
     DCHECK_EQ(page->owner()->identity(), OLD_SPACE);
-    RememberedSet<OLD_TO_NEW>::RemoveRange(page, start_addr, end_addr);
+    RememberedSet<OLD_TO_NEW>::RemoveRange(page, start, end);
   }
 }
 

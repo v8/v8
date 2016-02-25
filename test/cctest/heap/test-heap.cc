@@ -2068,7 +2068,7 @@ static HeapObject* NewSpaceAllocateAligned(int size,
       heap->new_space()->AllocateRawAligned(size, alignment);
   HeapObject* obj = NULL;
   allocation.To(&obj);
-  heap->CreateFillerObjectAt(obj->address(), size);
+  heap->CreateFillerObjectAt(obj->address(), size, ClearRecordedSlots::kNo);
   return obj;
 }
 
@@ -2171,7 +2171,7 @@ static HeapObject* OldSpaceAllocateAligned(int size,
       heap->old_space()->AllocateRawAligned(size, alignment);
   HeapObject* obj = NULL;
   allocation.To(&obj);
-  heap->CreateFillerObjectAt(obj->address(), size);
+  heap->CreateFillerObjectAt(obj->address(), size, ClearRecordedSlots::kNo);
   return obj;
 }
 
@@ -4285,8 +4285,9 @@ TEST(Regress169928) {
           AllocationMemento::kSize + kPointerSize);
   CHECK(allocation.To(&obj));
   Address addr_obj = obj->address();
-  CcTest::heap()->CreateFillerObjectAt(
-      addr_obj, AllocationMemento::kSize + kPointerSize);
+  CcTest::heap()->CreateFillerObjectAt(addr_obj,
+                                       AllocationMemento::kSize + kPointerSize,
+                                       ClearRecordedSlots::kNo);
 
   // Give the array a name, making sure not to allocate strings.
   v8::Local<v8::Object> array_obj = v8::Utils::ToLocal(array);

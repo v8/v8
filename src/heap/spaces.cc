@@ -1432,7 +1432,8 @@ void LocalAllocationBuffer::Close() {
   if (IsValid()) {
     heap_->CreateFillerObjectAt(
         allocation_info_.top(),
-        static_cast<int>(allocation_info_.limit() - allocation_info_.top()));
+        static_cast<int>(allocation_info_.limit() - allocation_info_.top()),
+        ClearRecordedSlots::kNo);
   }
 }
 
@@ -1443,7 +1444,8 @@ LocalAllocationBuffer::LocalAllocationBuffer(Heap* heap,
   if (IsValid()) {
     heap_->CreateFillerObjectAt(
         allocation_info_.top(),
-        static_cast<int>(allocation_info_.limit() - allocation_info_.top()));
+        static_cast<int>(allocation_info_.limit() - allocation_info_.top()),
+        ClearRecordedSlots::kNo);
   }
 }
 
@@ -1526,7 +1528,7 @@ bool NewSpace::AddFreshPage() {
   }
 
   int remaining_in_page = static_cast<int>(limit - top);
-  heap()->CreateFillerObjectAt(top, remaining_in_page);
+  heap()->CreateFillerObjectAt(top, remaining_in_page, ClearRecordedSlots::kNo);
   pages_used_++;
   UpdateAllocationInfo();
 
@@ -2362,7 +2364,8 @@ void FreeList::Reset() {
 int FreeList::Free(Address start, int size_in_bytes) {
   if (size_in_bytes == 0) return 0;
 
-  owner()->heap()->CreateFillerObjectAt(start, size_in_bytes);
+  owner()->heap()->CreateFillerObjectAt(start, size_in_bytes,
+                                        ClearRecordedSlots::kNo);
 
   Page* page = Page::FromAddress(start);
 
@@ -2660,7 +2663,7 @@ void PagedSpace::RepairFreeListsAfterDeserialization() {
     int size = static_cast<int>(page->wasted_memory());
     if (size == 0) continue;
     Address address = page->OffsetToAddress(Page::kPageSize - size);
-    heap()->CreateFillerObjectAt(address, size);
+    heap()->CreateFillerObjectAt(address, size, ClearRecordedSlots::kNo);
   }
 }
 
@@ -2672,7 +2675,8 @@ void PagedSpace::EvictEvacuationCandidatesFromLinearAllocationArea() {
     // Create filler object to keep page iterable if it was iterable.
     int remaining =
         static_cast<int>(allocation_info_.limit() - allocation_info_.top());
-    heap()->CreateFillerObjectAt(allocation_info_.top(), remaining);
+    heap()->CreateFillerObjectAt(allocation_info_.top(), remaining,
+                                 ClearRecordedSlots::kNo);
     allocation_info_.Reset(nullptr, nullptr);
   }
 }
