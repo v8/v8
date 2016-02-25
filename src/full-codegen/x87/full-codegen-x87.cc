@@ -926,14 +926,14 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   FeedbackVectorSlot slot = stmt->ForInFeedbackSlot();
 
-  Label loop, exit;
-  ForIn loop_statement(this, stmt);
-  increment_loop_depth();
-
   // Get the object to enumerate over.
   SetExpressionAsStatementPosition(stmt->enumerable());
   VisitForAccumulatorValue(stmt->enumerable());
-  OperandStackDepthIncrement(ForIn::kElementCount);
+  OperandStackDepthIncrement(5);
+
+  Label loop, exit;
+  Iteration loop_statement(this, stmt);
+  increment_loop_depth();
 
   // If the object is null or undefined, skip over the loop, otherwise convert
   // it to a JS receiver.  See ECMA-262 version 5, section 12.6.4.
@@ -1081,8 +1081,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // Remove the pointers stored on the stack.
   __ bind(loop_statement.break_label());
-  __ add(esp, Immediate(5 * kPointerSize));
-  OperandStackDepthDecrement(ForIn::kElementCount);
+  DropOperands(5);
 
   // Exit and decrement the loop depth.
   PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
@@ -1772,7 +1771,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
     case Yield::kSuspend:
       // Pop value from top-of-stack slot; box result into result register.
       EmitCreateIteratorResult(false);
-      __ push(result_register());
+      PushOperand(result_register());
       // Fall through.
     case Yield::kInitial: {
       Label suspend, continuation, post_runtime, resume;
@@ -1791,6 +1790,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       EmitUnwindAndReturn();
 
       __ bind(&suspend);
+      OperandStackDepthIncrement(1);  // Not popped on this path.
       VisitForAccumulatorValue(expr->generator_object());
       DCHECK(continuation.pos() > 0 && Smi::IsValid(continuation.pos()));
       __ mov(FieldOperand(eax, JSGeneratorObject::kContinuationOffset),
@@ -1817,7 +1817,6 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
 
     case Yield::kFinal: {
       // Pop value from top-of-stack slot, box result into result register.
-      OperandStackDepthDecrement(1);
       EmitCreateIteratorResult(true);
       EmitUnwindAndReturn();
       break;
@@ -1958,6 +1957,7 @@ void FullCodeGenerator::EmitCreateIteratorResult(bool done) {
   __ mov(FieldOperand(eax, JSIteratorResult::kDoneOffset),
          isolate()->factory()->ToBoolean(done));
   STATIC_ASSERT(JSIteratorResult::kSize == 5 * kPointerSize);
+  OperandStackDepthDecrement(1);
 }
 
 
