@@ -900,10 +900,12 @@ void Interpreter::DoLogicalNot(InterpreterAssembler* assembler) {
 // Load the accumulator with the string representating type of the
 // object in the accumulator.
 void Interpreter::DoTypeOf(InterpreterAssembler* assembler) {
+  Callable callable = CodeFactory::Typeof(isolate_);
+  Node* target = __ HeapConstant(callable.code());
   Node* accumulator = __ GetAccumulator();
   Node* context = __ GetContext();
   Node* result =
-      __ CallRuntime(Runtime::kInterpreterTypeOf, context, accumulator);
+      __ CallStub(callable.descriptor(), target, context, accumulator);
   __ SetAccumulator(result);
   __ Dispatch();
 }
