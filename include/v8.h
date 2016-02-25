@@ -4886,7 +4886,6 @@ V8_INLINE Local<Primitive> Null(Isolate* isolate);
 V8_INLINE Local<Boolean> True(Isolate* isolate);
 V8_INLINE Local<Boolean> False(Isolate* isolate);
 
-
 /**
  * A set of constraints that specifies the limits of the runtime's memory use.
  * You must set the heap size before initializing the VM - the size cannot be
@@ -4895,6 +4894,9 @@ V8_INLINE Local<Boolean> False(Isolate* isolate);
  * If you are using threads then you should hold the V8::Locker lock while
  * setting the stack limit and you must set a non-default stack limit separately
  * for each thread.
+ *
+ * The arguments for set_max_semi_space_size, set_max_old_space_size,
+ * set_max_executable_size, set_code_range_size specify limits in MB.
  */
 class V8_EXPORT ResourceConstraints {
  public:
@@ -4913,17 +4915,23 @@ class V8_EXPORT ResourceConstraints {
                          uint64_t virtual_memory_limit);
 
   int max_semi_space_size() const { return max_semi_space_size_; }
-  void set_max_semi_space_size(int value) { max_semi_space_size_ = value; }
+  void set_max_semi_space_size(int limit_in_mb) {
+    max_semi_space_size_ = limit_in_mb;
+  }
   int max_old_space_size() const { return max_old_space_size_; }
-  void set_max_old_space_size(int value) { max_old_space_size_ = value; }
+  void set_max_old_space_size(int limit_in_mb) {
+    max_old_space_size_ = limit_in_mb;
+  }
   int max_executable_size() const { return max_executable_size_; }
-  void set_max_executable_size(int value) { max_executable_size_ = value; }
+  void set_max_executable_size(int limit_in_mb) {
+    max_executable_size_ = limit_in_mb;
+  }
   uint32_t* stack_limit() const { return stack_limit_; }
   // Sets an address beyond which the VM's stack may not grow.
   void set_stack_limit(uint32_t* value) { stack_limit_ = value; }
   size_t code_range_size() const { return code_range_size_; }
-  void set_code_range_size(size_t value) {
-    code_range_size_ = value;
+  void set_code_range_size(size_t limit_in_mb) {
+    code_range_size_ = limit_in_mb;
   }
 
  private:
