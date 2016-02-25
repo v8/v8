@@ -90,6 +90,9 @@ bool Interpreter::MakeBytecode(CompilationInfo* info) {
   BytecodeGenerator generator(info->isolate(), info->zone());
   info->EnsureFeedbackVector();
   Handle<BytecodeArray> bytecodes = generator.MakeBytecode(info);
+
+  if (generator.HasStackOverflow()) return false;
+
   if (FLAG_print_bytecode) {
     OFStream os(stdout);
     bytecodes->Print(os);
