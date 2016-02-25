@@ -113,6 +113,8 @@
       # Check if valgrind directories are present.
       'has_valgrind%': '<!pymod_do_main(has_valgrind)',
 
+      'test_isolation_mode%': 'noop',
+
       'conditions': [
         # Set default gomadir.
         ['OS=="win"', {
@@ -135,14 +137,6 @@
           'linux_use_bundled_gold%': 1,
         }, {
           'linux_use_bundled_gold%': 0,
-        }],
-
-        # TODO(machenbach): Remove the conditions as more configurations are
-        # supported.
-        ['OS=="linux" or OS=="win"', {
-          'test_isolation_mode%': 'check',
-        }, {
-          'test_isolation_mode%': 'noop',
         }],
       ],
     },
