@@ -1358,6 +1358,27 @@ void MacroAssembler::li(Register dst, Handle<Object> value, LiFlags mode) {
   }
 }
 
+static inline int64_t ShiftAndFixSignExtension(int64_t imm, int bitnum) {
+  if ((imm >> (bitnum - 1)) & 0x1) {
+    imm = (imm >> bitnum) + 1;
+  } else {
+    imm = imm >> bitnum;
+  }
+  return imm;
+}
+
+void MacroAssembler::LiLower32BitHelper(Register rd, Operand j) {
+  if (is_int16(j.imm64_)) {
+    daddiu(rd, zero_reg, (j.imm64_ & kImm16Mask));
+  } else if (!(j.imm64_ & kHiMask)) {
+    ori(rd, zero_reg, (j.imm64_ & kImm16Mask));
+  } else if (!(j.imm64_ & kImm16Mask)) {
+    lui(rd, (j.imm64_ >> kLuiShift) & kImm16Mask);
+  } else {
+    lui(rd, (j.imm64_ >> kLuiShift) & kImm16Mask);
+    ori(rd, rd, (j.imm64_ & kImm16Mask));
+  }
+}
 
 void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
   DCHECK(!j.is_reg());
@@ -1365,43 +1386,17 @@ void MacroAssembler::li(Register rd, Operand j, LiFlags mode) {
   if (!MustUseReg(j.rmode_) && mode == OPTIMIZE_SIZE) {
     // Normal load of an immediate value which does not need Relocation Info.
     if (is_int32(j.imm64_)) {
-      if (is_int16(j.imm64_)) {
-        daddiu(rd, zero_reg, (j.imm64_ & kImm16Mask));
-      } else if (!(j.imm64_ & kHiMask)) {
-        ori(rd, zero_reg, (j.imm64_ & kImm16Mask));
-      } else if (!(j.imm64_ & kImm16Mask)) {
-        lui(rd, (j.imm64_ >> kLuiShift) & kImm16Mask);
-      } else {
-        lui(rd, (j.imm64_ >> kLuiShift) & kImm16Mask);
-        ori(rd, rd, (j.imm64_ & kImm16Mask));
-      }
+      LiLower32BitHelper(rd, j);
     } else {
       if (kArchVariant == kMips64r6) {
         int64_t imm = j.imm64_;
-        bool lui_emited = false;
-        if (((imm >> kLuiShift) & kImm16Mask) != 0) {
-          lui(rd, (imm >> kLuiShift) & kImm16Mask);
-          lui_emited = true;
-        }
-        if ((imm & kImm16Mask) != 0) {
-          ori(rd, rd, (imm & kImm16Mask));
-        } else if (!lui_emited) {
-          or_(rd, zero_reg, zero_reg);
-        }
-        if ((imm >> 31) & 0x1) {
-          imm = (imm >> 32) + 1;
-        } else {
-          imm = imm >> 32;
-        }
+        LiLower32BitHelper(rd, j);
+        imm = ShiftAndFixSignExtension(imm, 32);
         if (imm & kImm16Mask) {
           dahi(rd, imm & kImm16Mask);
         }
         if (!is_int48(j.imm64_)) {
-          if ((imm >> 15) & 0x1) {
-            imm = (imm >> 16) + 1;
-          } else {
-            imm = imm >> 16;
-          }
+          imm = ShiftAndFixSignExtension(imm, 16);
           if (imm & kImm16Mask) {
             dati(rd, imm & kImm16Mask);
           }
