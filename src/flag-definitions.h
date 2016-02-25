@@ -221,7 +221,6 @@ DEFINE_IMPLICATION(es_staging, harmony_tailcalls)
 #define HARMONY_STAGED(V)                                     \
   V(harmony_function_name, "harmony Function name inference") \
   V(harmony_regexp_lookbehind, "harmony regexp lookbehind")   \
-  V(harmony_iterator_close, "harmony iterator finalization")  \
   V(harmony_instanceof, "harmony instanceof support")
 
 // Features that are shipping (turned on by default, but internal flag remains).
@@ -229,6 +228,7 @@ DEFINE_IMPLICATION(es_staging, harmony_tailcalls)
   V(harmony_default_parameters, "harmony default parameters")             \
   V(harmony_destructuring_assignment, "harmony destructuring assignment") \
   V(harmony_destructuring_bind, "harmony destructuring bind")             \
+  V(harmony_iterator_close, "harmony iterator finalization")              \
   V(harmony_tostring, "harmony toString")                                 \
   V(harmony_regexps, "harmony regular expression extensions")             \
   V(harmony_unicode_regexps, "harmony unicode regexps")                   \

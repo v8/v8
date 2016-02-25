@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-do-expressions
+// Flags: --harmony-do-expressions --noharmony-iterator-close
 
 (function testWithSimpleLoopVariable() {
   var f = (x, y = (do { var s=0; for (var e of x) s += e; s; })) => y*(y+1);
