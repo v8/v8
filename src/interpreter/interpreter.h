@@ -103,8 +103,11 @@ class Interpreter {
   // Generates code to perform a JS runtime call.
   void DoCallJSRuntimeCommon(InterpreterAssembler* assembler);
 
-  // Generates code to perform a constructor call..
+  // Generates code to perform a constructor call.
   void DoCallConstruct(InterpreterAssembler* assembler);
+
+  // Generates code to perform a type conversion.
+  void DoTypeConversionOp(Callable callable, InterpreterAssembler* assembler);
 
   // Generates code ro create a literal via |function_id|.
   void DoCreateLiteral(Runtime::FunctionId function_id,

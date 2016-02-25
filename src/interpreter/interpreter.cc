@@ -1224,16 +1224,22 @@ void Interpreter::DoTestInstanceOf(InterpreterAssembler* assembler) {
   DoBinaryOp(Runtime::kInstanceOf, assembler);
 }
 
+void Interpreter::DoTypeConversionOp(Callable callable,
+                                     InterpreterAssembler* assembler) {
+  Node* target = __ HeapConstant(callable.code());
+  Node* accumulator = __ GetAccumulator();
+  Node* context = __ GetContext();
+  Node* result =
+      __ CallStub(callable.descriptor(), target, context, accumulator);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
 
 // ToName
 //
 // Cast the object referenced by the accumulator to a name.
 void Interpreter::DoToName(InterpreterAssembler* assembler) {
-  Node* accumulator = __ GetAccumulator();
-  Node* context = __ GetContext();
-  Node* result = __ CallRuntime(Runtime::kToName, context, accumulator);
-  __ SetAccumulator(result);
-  __ Dispatch();
+  DoTypeConversionOp(CodeFactory::ToName(isolate_), assembler);
 }
 
 
@@ -1241,11 +1247,7 @@ void Interpreter::DoToName(InterpreterAssembler* assembler) {
 //
 // Cast the object referenced by the accumulator to a number.
 void Interpreter::DoToNumber(InterpreterAssembler* assembler) {
-  Node* accumulator = __ GetAccumulator();
-  Node* context = __ GetContext();
-  Node* result = __ CallRuntime(Runtime::kToNumber, context, accumulator);
-  __ SetAccumulator(result);
-  __ Dispatch();
+  DoTypeConversionOp(CodeFactory::ToNumber(isolate_), assembler);
 }
 
 
@@ -1253,11 +1255,7 @@ void Interpreter::DoToNumber(InterpreterAssembler* assembler) {
 //
 // Cast the object referenced by the accumulator to a JSObject.
 void Interpreter::DoToObject(InterpreterAssembler* assembler) {
-  Node* accumulator = __ GetAccumulator();
-  Node* context = __ GetContext();
-  Node* result = __ CallRuntime(Runtime::kToObject, context, accumulator);
-  __ SetAccumulator(result);
-  __ Dispatch();
+  DoTypeConversionOp(CodeFactory::ToObject(isolate_), assembler);
 }
 
 
