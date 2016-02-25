@@ -617,6 +617,8 @@ class Debug {
 
   void ThreadInit();
 
+  void PrintBreakLocation();
+
   // Global handles.
   Handle<Context> debug_context_;
   Handle<Object> event_listener_;

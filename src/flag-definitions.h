@@ -991,6 +991,9 @@ DEFINE_BOOL(trace_regexp_assembler, false,
             "trace regexp macro assembler calls.")
 DEFINE_BOOL(trace_regexp_parser, false, "trace regexp parsing")
 
+// Debugger
+DEFINE_BOOL(print_break_location, false, "print source location on debug break")
+
 //
 // Logging and profiling flags
 //
