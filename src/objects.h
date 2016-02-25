@@ -6728,10 +6728,14 @@ class SharedFunctionInfo: public HeapObject {
 
   inline bool IsApiFunction();
   inline FunctionTemplateInfo* get_api_func_data();
+  inline void set_api_func_data(FunctionTemplateInfo* data);
   inline bool HasBuiltinFunctionId();
   inline BuiltinFunctionId builtin_function_id();
+  inline void set_builtin_function_id(BuiltinFunctionId id);
   inline bool HasBytecodeArray();
   inline BytecodeArray* bytecode_array();
+  inline void set_bytecode_array(BytecodeArray* bytecode);
+  inline void ClearBytecodeArray();
 
   // [script info]: Script from which the function originates.
   DECL_ACCESSORS(script, Object)

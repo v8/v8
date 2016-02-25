@@ -540,10 +540,6 @@
   # TODO(rmcilroy,4680): The function_data field should be a BytecodeArray on interpreter entry
   'test-api/SetFunctionEntryHook': [FAIL],
 
-  # TODO(rmcilroy,4680): Fail on shared_function_data()->IsUndefined in
-  #compiler.cc
-  'test-heap/CanonicalSharedFunctionInfo': [PASS, ['mode == debug or dcheck_always_on == True', FAIL]],
-
   # TODO(rmcilroy,4680): Check failed: !function->shared()->is_compiled() || function->IsOptimized().
   'test-heap/TestCodeFlushingPreAged': [FAIL],
   'test-heap/TestCodeFlushingIncrementalScavenge': [FAIL],

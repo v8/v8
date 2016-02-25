@@ -838,8 +838,8 @@ MUST_USE_RESULT static MaybeHandle<Code> GetUnoptimizedCodeCommon(
   shared->ReplaceCode(*info->code());
   shared->set_feedback_vector(*info->feedback_vector());
   if (info->has_bytecode_array()) {
-    DCHECK(shared->function_data()->IsUndefined());
-    shared->set_function_data(*info->bytecode_array());
+    DCHECK(!shared->HasBytecodeArray());  // Only compiled once.
+    shared->set_bytecode_array(*info->bytecode_array());
   }
 
   return info->code();
@@ -1308,8 +1308,8 @@ static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
         ScopeInfo::Create(info->isolate(), info->zone(), info->scope()),
         info->feedback_vector());
     if (info->has_bytecode_array()) {
-      DCHECK(result->function_data()->IsUndefined());
-      result->set_function_data(*info->bytecode_array());
+      DCHECK(!result->HasBytecodeArray());  // Only compiled once.
+      result->set_bytecode_array(*info->bytecode_array());
     }
 
     DCHECK_EQ(RelocInfo::kNoPosition, lit->function_token_position());
@@ -1669,8 +1669,8 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
             literal->name(), literal->materialized_literal_count(),
             literal->kind(), info.code(), scope_info, info.feedback_vector());
     if (info.has_bytecode_array()) {
-      DCHECK(result->function_data()->IsUndefined());
-      result->set_function_data(*info.bytecode_array());
+      DCHECK(!result->HasBytecodeArray());  // Only compiled once.
+      result->set_bytecode_array(*info.bytecode_array());
     }
 
     SharedFunctionInfo::InitFromFunctionLiteral(result, literal);

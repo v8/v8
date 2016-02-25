@@ -6278,6 +6278,7 @@ static void RemoveCodeAndGC(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Handle<JSFunction> fun = Handle<JSFunction>::cast(obj);
   fun->ReplaceCode(*isolate->builtins()->CompileLazy());
   fun->shared()->ReplaceCode(*isolate->builtins()->CompileLazy());
+  fun->shared()->ClearBytecodeArray();  // Bytecode is code too.
   isolate->heap()->CollectAllAvailableGarbage("remove code and gc");
 }
 

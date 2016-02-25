@@ -1180,7 +1180,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                         isolate->initial_object_prototype(),
                         Builtins::kArrayCode);
     array_function->shared()->DontAdaptArguments();
-    array_function->shared()->set_function_data(Smi::FromInt(kArrayCode));
+    array_function->shared()->set_builtin_function_id(kArrayCode);
 
     // This seems a bit hackish, but we need to make sure Array.length
     // is 1.
@@ -3082,7 +3082,7 @@ static void InstallBuiltinFunctionId(Handle<JSObject> holder,
   Handle<Object> function_object =
       Object::GetProperty(isolate, holder, function_name).ToHandleChecked();
   Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
-  function->shared()->set_function_data(Smi::FromInt(id));
+  function->shared()->set_builtin_function_id(id);
 }
 
 

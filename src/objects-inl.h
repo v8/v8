@@ -5817,6 +5817,10 @@ FunctionTemplateInfo* SharedFunctionInfo::get_api_func_data() {
   return FunctionTemplateInfo::cast(function_data());
 }
 
+void SharedFunctionInfo::set_api_func_data(FunctionTemplateInfo* data) {
+  DCHECK(function_data()->IsUndefined());
+  set_function_data(data);
+}
 
 bool SharedFunctionInfo::HasBuiltinFunctionId() {
   return function_data()->IsSmi();
@@ -5828,6 +5832,10 @@ BuiltinFunctionId SharedFunctionInfo::builtin_function_id() {
   return static_cast<BuiltinFunctionId>(Smi::cast(function_data())->value());
 }
 
+void SharedFunctionInfo::set_builtin_function_id(BuiltinFunctionId id) {
+  DCHECK(function_data()->IsUndefined() || HasBuiltinFunctionId());
+  set_function_data(Smi::FromInt(id));
+}
 
 bool SharedFunctionInfo::HasBytecodeArray() {
   return function_data()->IsBytecodeArray();
@@ -5839,6 +5847,15 @@ BytecodeArray* SharedFunctionInfo::bytecode_array() {
   return BytecodeArray::cast(function_data());
 }
 
+void SharedFunctionInfo::set_bytecode_array(BytecodeArray* bytecode) {
+  DCHECK(function_data()->IsUndefined());
+  set_function_data(bytecode);
+}
+
+void SharedFunctionInfo::ClearBytecodeArray() {
+  DCHECK(function_data()->IsUndefined() || HasBytecodeArray());
+  set_function_data(GetHeap()->undefined_value());
+}
 
 int SharedFunctionInfo::ic_age() {
   return ICAgeBits::decode(counters());

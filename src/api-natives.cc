@@ -564,7 +564,7 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
     result->shared()->set_instance_class_name(*class_name);
     result->shared()->set_name(*class_name);
   }
-  result->shared()->set_function_data(*obj);
+  result->shared()->set_api_func_data(*obj);
   result->shared()->set_construct_stub(*construct_stub);
   result->shared()->DontAdaptArguments();
 
