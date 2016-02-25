@@ -773,9 +773,6 @@
 }],  # 'arch == ppc and simulator_run == True'
 
 ['ignition == True', {
-  # Skip strong mode tests since strong mode is unsupported on ignition.
-  'strong/*': [SKIP],
-
   # TODO(yangguo,4690): Requires debugger support.
   'es6/debug*': [SKIP],
   'harmony/debug*': [SKIP],
@@ -859,6 +856,8 @@
   'harmony/iterator-close': [FAIL],
   'harmony/reflect-construct': [FAIL],
   'es6/promises': [FAIL],
+  'strong/function-arity': [FAIL],
+  'strong/undefined': [FAIL],
 
   # TODO(rmcilroy,4680): Pass on debug, fail on release. Fails in both modes.
   # the line numbers in the stack trace are incorrect. In debug mode somehow

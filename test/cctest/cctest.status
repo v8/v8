@@ -537,10 +537,6 @@
   'test-inobject-slack-tracking/JSGeneratorObjectBasicNoInlineNew': [FAIL],
   'test-api/IsGeneratorFunctionOrObject': [FAIL],
 
-  # TODO(rmcilroy,4680): Strong mode failures.
-  'test-api/AccessorShouldThrowOnError': [FAIL],
-  'test-api/InterceptorShouldThrowOnError': [FAIL],
-
   # TODO(rmcilroy,4680): The function_data field should be a BytecodeArray on interpreter entry
   'test-api/SetFunctionEntryHook': [FAIL],
 

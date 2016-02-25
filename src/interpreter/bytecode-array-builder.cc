@@ -1468,9 +1468,8 @@ Bytecode BytecodeArrayBuilder::BytecodeForStoreIC(LanguageMode language_mode) {
     case SLOPPY:
       return Bytecode::kStoreICSloppy;
     case STRICT:
-      return Bytecode::kStoreICStrict;
     case STRONG:
-      UNIMPLEMENTED();
+      return Bytecode::kStoreICStrict;
     default:
       UNREACHABLE();
   }
@@ -1485,9 +1484,8 @@ Bytecode BytecodeArrayBuilder::BytecodeForKeyedStoreIC(
     case SLOPPY:
       return Bytecode::kKeyedStoreICSloppy;
     case STRICT:
-      return Bytecode::kKeyedStoreICStrict;
     case STRONG:
-      UNIMPLEMENTED();
+      return Bytecode::kKeyedStoreICStrict;
     default:
       UNREACHABLE();
   }
