@@ -267,61 +267,6 @@ RUNTIME_FUNCTION(Runtime_Call) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_TailCall) {
-  HandleScope scope(isolate);
-  DCHECK_LE(2, args.length());
-  int const argc = args.length() - 2;
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, target, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 1);
-  ScopedVector<Handle<Object>> argv(argc);
-  for (int i = 0; i < argc; ++i) {
-    argv[i] = args.at<Object>(2 + i);
-  }
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      Execution::Call(isolate, target, receiver, argc, argv.start()));
-  return *result;
-}
-
-
-RUNTIME_FUNCTION(Runtime_Apply) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 5);
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, fun, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, arguments, 2);
-  CONVERT_INT32_ARG_CHECKED(offset, 3);
-  CONVERT_INT32_ARG_CHECKED(argc, 4);
-  RUNTIME_ASSERT(offset >= 0);
-  // Loose upper bound to allow fuzzing. We'll most likely run out of
-  // stack space before hitting this limit.
-  static int kMaxArgc = 1000000;
-  RUNTIME_ASSERT(argc >= 0 && argc <= kMaxArgc);
-
-  // If there are too many arguments, allocate argv via malloc.
-  const int argv_small_size = 10;
-  Handle<Object> argv_small_buffer[argv_small_size];
-  base::SmartArrayPointer<Handle<Object> > argv_large_buffer;
-  Handle<Object>* argv = argv_small_buffer;
-  if (argc > argv_small_size) {
-    argv = new Handle<Object>[argc];
-    if (argv == NULL) return isolate->StackOverflow();
-    argv_large_buffer = base::SmartArrayPointer<Handle<Object> >(argv);
-  }
-
-  for (int i = 0; i < argc; ++i) {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, argv[i], Object::GetElement(isolate, arguments, offset + i));
-  }
-
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, Execution::Call(isolate, fun, receiver, argc, argv));
-  return *result;
-}
-
-
 // ES6 section 9.2.1.2, OrdinaryCallBindThis for sloppy callee.
 RUNTIME_FUNCTION(Runtime_ConvertReceiver) {
   HandleScope scope(isolate);

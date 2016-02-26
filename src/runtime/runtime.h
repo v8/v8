@@ -236,8 +236,6 @@ namespace internal {
   F(IsConstructor, 1, 1)                   \
   F(SetForceInlineFlag, 1, 1)              \
   F(Call, -1 /* >= 2 */, 1)                \
-  F(TailCall, -1 /* >= 2 */, 1)            \
-  F(Apply, 5, 1)                           \
   F(ConvertReceiver, 1, 1)                 \
   F(IsFunction, 1, 1)                      \
   F(FunctionToString, 1, 1)

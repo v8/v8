@@ -458,7 +458,7 @@ function StringReplaceGlobalRegExpWithFunction(subject, regexp, replace) {
       if (!%_IsSmi(elem)) {
         // elem must be an Array.
         // Use the apply argument as backing for global RegExp properties.
-        var func_result = %Apply(replace, UNDEFINED, elem, 0, elem.length);
+        var func_result = %reflect_apply(replace, UNDEFINED, elem);
         // Overwrite the i'th element in the results with the string we got
         // back from the callback function.
         res[i] = TO_STRING(func_result);
@@ -512,7 +512,7 @@ function StringReplaceNonGlobalRegExpWithFunction(subject, regexp, replace) {
     parameters[j] = index;
     parameters[j + 1] = subject;
 
-    replacement = %Apply(replace, UNDEFINED, parameters, 0, j + 2);
+    replacement = %reflect_apply(replace, UNDEFINED, parameters);
   }
 
   result += replacement;  // The add method converts to string if necessary.
