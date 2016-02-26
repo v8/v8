@@ -442,7 +442,7 @@ class CallSite {
   T(StrictEvalArguments, "Unexpected eval or arguments in strict mode")        \
   T(StrictFunction,                                                            \
     "In strict mode code, functions can only be declared at top level or "     \
-    "immediately within another function.")                                    \
+    "inside a block.")                                                         \
   T(StrictOctalLiteral, "Octal literals are not allowed in strict mode.")      \
   T(StrictWith, "Strict mode code may not include a with statement")           \
   T(StrongArguments,                                                           \
