@@ -6641,8 +6641,8 @@ HValue* HOptimizedGraphBuilder::BuildMonomorphicAccess(
       Bailout(kInliningBailedOut);
       return nullptr;
     }
-    return BuildCallConstantFunction(Handle<JSFunction>::cast(info->accessor()),
-                                     argument_count);
+    return NewCallConstantFunction(Handle<JSFunction>::cast(info->accessor()),
+                                   argument_count);
   }
 
   DCHECK(info->IsDataConstant());
@@ -8040,28 +8040,6 @@ void HOptimizedGraphBuilder::AddCheckPrototypeMaps(Handle<JSObject> holder,
   }
 }
 
-HInstruction* HOptimizedGraphBuilder::NewPlainFunctionCall(HValue* function,
-                                                           int argument_count) {
-  return New<HCallJSFunction>(function, argument_count);
-}
-
-HInstruction* HOptimizedGraphBuilder::NewArgumentAdaptorCall(
-    HValue* function, int argument_count, HValue* expected_param_count) {
-  HValue* context = Add<HLoadNamedField>(
-      function, nullptr, HObjectAccess::ForFunctionContextPointer());
-  HValue* new_target = graph()->GetConstantUndefined();
-  HValue* arity = Add<HConstant>(argument_count - 1);
-
-  HValue* op_vals[] = {context, function, new_target, arity,
-                       expected_param_count};
-
-  Callable callable = CodeFactory::ArgumentAdaptor(isolate());
-  HConstant* stub = Add<HConstant>(callable.code());
-
-  return New<HCallWithDescriptor>(stub, argument_count, callable.descriptor(),
-                                  Vector<HValue*>(op_vals, arraysize(op_vals)));
-}
-
 HInstruction* HOptimizedGraphBuilder::NewCallFunction(
     HValue* function, int argument_count, ConvertReceiverMode convert_mode) {
   HValue* arity = Add<HConstant>(argument_count - 1);
@@ -8093,27 +8071,10 @@ HInstruction* HOptimizedGraphBuilder::NewCallFunctionViaIC(
                                   Vector<HValue*>(op_vals, arraysize(op_vals)));
 }
 
-HInstruction* HOptimizedGraphBuilder::BuildCallConstantFunction(
-    Handle<JSFunction> jsfun, int argument_count) {
-  HValue* target = Add<HConstant>(jsfun);
-  // For constant functions, we try to avoid calling the
-  // argument adaptor and instead call the function directly
-  int formal_parameter_count =
-      jsfun->shared()->internal_formal_parameter_count();
-  bool dont_adapt_arguments =
-      (formal_parameter_count ==
-       SharedFunctionInfo::kDontAdaptArgumentsSentinel);
-  int arity = argument_count - 1;
-  bool can_invoke_directly =
-      dont_adapt_arguments || formal_parameter_count == arity;
-  if (can_invoke_directly) {
-    return NewPlainFunctionCall(target, argument_count);
-  } else {
-    HValue* param_count_value = Add<HConstant>(formal_parameter_count);
-    return NewArgumentAdaptorCall(target, argument_count, param_count_value);
-  }
-  UNREACHABLE();
-  return NULL;
+HInstruction* HOptimizedGraphBuilder::NewCallConstantFunction(
+    Handle<JSFunction> function, int argument_count) {
+  HValue* target = Add<HConstant>(function);
+  return New<HInvokeFunction>(target, function, argument_count);
 }
 
 
@@ -8262,7 +8223,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
           needs_wrapping
               ? NewCallFunction(function, argument_count,
                                 ConvertReceiverMode::kNotNullOrUndefined)
-              : BuildCallConstantFunction(target, argument_count);
+              : NewCallConstantFunction(target, argument_count);
       PushArgumentsFromEnvironment(argument_count);
       AddInstruction(call);
       Drop(1);  // Drop the function.
@@ -9081,7 +9042,7 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
 
       Drop(args_count_no_receiver);
       HValue* receiver = Pop();
-      HValue* function = Pop();
+      Drop(1);  // Function.
       HValue* result;
 
       {
@@ -9157,7 +9118,7 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
           if_inline.Else();
           {
             Add<HPushArguments>(receiver);
-            result = Add<HCallJSFunction>(function, 1);
+            result = AddInstruction(NewCallConstantFunction(function, 1));
             if (!ast_context()->IsEffect()) Push(result);
           }
           if_inline.End();
@@ -9834,7 +9795,7 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
       } else if (TryInlineCall(expr)) {
         return;
       } else {
-        call = BuildCallConstantFunction(known_function, argument_count);
+        call = NewCallConstantFunction(known_function, argument_count);
       }
 
     } else {
@@ -9901,7 +9862,7 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
       if (TryInlineCall(expr)) return;
 
       PushArgumentsFromEnvironment(argument_count);
-      call = BuildCallConstantFunction(expr->target(), argument_count);
+      call = NewCallConstantFunction(expr->target(), argument_count);
     } else {
       PushArgumentsFromEnvironment(argument_count);
       if (expr->is_uninitialized() &&

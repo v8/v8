@@ -32,7 +32,6 @@ class LCodeGen;
   V(BitS)                                    \
   V(BoundsCheck)                             \
   V(Branch)                                  \
-  V(CallJSFunction)                          \
   V(CallNewArray)                            \
   V(CallRuntime)                             \
   V(CallWithDescriptor)                      \
@@ -797,23 +796,6 @@ class LBranch final : public LControlInstruction<1, 2> {
   DECLARE_HYDROGEN_ACCESSOR(Branch)
 
   void PrintDataTo(StringStream* stream) override;
-};
-
-
-class LCallJSFunction final : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LCallJSFunction(LOperand* function) {
-    inputs_[0] = function;
-  }
-
-  LOperand* function() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(CallJSFunction, "call-js-function")
-  DECLARE_HYDROGEN_ACCESSOR(CallJSFunction)
-
-  void PrintDataTo(StringStream* stream) override;
-
-  int arity() const { return hydrogen()->argument_count() - 1; }
 };
 
 

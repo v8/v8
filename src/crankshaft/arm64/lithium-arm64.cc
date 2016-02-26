@@ -66,13 +66,6 @@ void LBranch::PrintDataTo(StringStream* stream) {
 }
 
 
-void LCallJSFunction::PrintDataTo(StringStream* stream) {
-  stream->Add("= ");
-  function()->PrintTo(stream);
-  stream->Add("#%d / ", arity());
-}
-
-
 void LCallWithDescriptor::PrintDataTo(StringStream* stream) {
   for (int i = 0; i < InputCount(); i++) {
     InputAt(i)->PrintTo(stream);
@@ -994,16 +987,6 @@ LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
           new(zone()) LBranch(UseRegister(value), temp1, temp2));
     }
   }
-}
-
-
-LInstruction* LChunkBuilder::DoCallJSFunction(
-    HCallJSFunction* instr) {
-  LOperand* function = UseFixed(instr->function(), x1);
-
-  LCallJSFunction* result = new(zone()) LCallJSFunction(function);
-
-  return MarkAsCall(DefineFixed(result, x0), instr);
 }
 
 

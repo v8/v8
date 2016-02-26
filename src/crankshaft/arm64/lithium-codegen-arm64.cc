@@ -1927,26 +1927,6 @@ void LCodeGen::DoCallWithDescriptor(LCallWithDescriptor* instr) {
 }
 
 
-void LCodeGen::DoCallJSFunction(LCallJSFunction* instr) {
-  DCHECK(instr->IsMarkedAsCall());
-  DCHECK(ToRegister(instr->function()).is(x1));
-
-  // Change context.
-  __ Ldr(cp, FieldMemOperand(x1, JSFunction::kContextOffset));
-
-  // Always initialize new target and number of actual arguments.
-  __ LoadRoot(x3, Heap::kUndefinedValueRootIndex);
-  __ Mov(x0, instr->arity());
-
-  // Load the code entry address
-  __ Ldr(x10, FieldMemOperand(x1, JSFunction::kCodeEntryOffset));
-  __ Call(x10);
-
-  RecordSafepointWithLazyDeopt(instr, RECORD_SIMPLE_SAFEPOINT);
-  RecordPushedArgumentsDelta(instr->hydrogen()->argument_delta());
-}
-
-
 void LCodeGen::DoCallRuntime(LCallRuntime* instr) {
   CallRuntime(instr->function(), instr->arity(), instr);
   RecordPushedArgumentsDelta(instr->hydrogen()->argument_delta());

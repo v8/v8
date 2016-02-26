@@ -831,7 +831,6 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kBitwise:
     case HValue::kBoundsCheck:
     case HValue::kBranch:
-    case HValue::kCallJSFunction:
     case HValue::kCallRuntime:
     case HValue::kCallWithDescriptor:
     case HValue::kChange:
@@ -903,28 +902,6 @@ std::ostream& HEnvironmentMarker::PrintDataTo(
 
 std::ostream& HUnaryCall::PrintDataTo(std::ostream& os) const {  // NOLINT
   return os << NameOf(value()) << " #" << argument_count();
-}
-
-
-std::ostream& HCallJSFunction::PrintDataTo(std::ostream& os) const {  // NOLINT
-  return os << NameOf(function()) << " #" << argument_count();
-}
-
-
-HCallJSFunction* HCallJSFunction::New(Isolate* isolate, Zone* zone,
-                                      HValue* context, HValue* function,
-                                      int argument_count) {
-  bool has_stack_check = false;
-  if (function->IsConstant()) {
-    HConstant* fun_const = HConstant::cast(function);
-    Handle<JSFunction> jsfun =
-        Handle<JSFunction>::cast(fun_const->handle(isolate));
-    has_stack_check = !jsfun.is_null() &&
-        (jsfun->code()->kind() == Code::FUNCTION ||
-         jsfun->code()->kind() == Code::OPTIMIZED_FUNCTION);
-  }
-
-  return new (zone) HCallJSFunction(function, argument_count, has_stack_check);
 }
 
 

@@ -3059,35 +3059,6 @@ void LCodeGen::DoCallWithDescriptor(LCallWithDescriptor* instr) {
 }
 
 
-void LCodeGen::DoCallJSFunction(LCallJSFunction* instr) {
-  DCHECK(ToRegister(instr->function()).is(edi));
-  DCHECK(ToRegister(instr->result()).is(eax));
-
-  // Change context.
-  __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
-
-  // Always initialize new target and number of actual arguments.
-  __ mov(edx, factory()->undefined_value());
-  __ mov(eax, instr->arity());
-
-  bool is_self_call = false;
-  if (instr->hydrogen()->function()->IsConstant()) {
-    HConstant* fun_const = HConstant::cast(instr->hydrogen()->function());
-    Handle<JSFunction> jsfun =
-      Handle<JSFunction>::cast(fun_const->handle(isolate()));
-    is_self_call = jsfun.is_identical_to(info()->closure());
-  }
-
-  if (is_self_call) {
-    __ CallSelf();
-  } else {
-    __ call(FieldOperand(edi, JSFunction::kCodeEntryOffset));
-  }
-
-  RecordSafepointWithLazyDeopt(instr, RECORD_SIMPLE_SAFEPOINT);
-}
-
-
 void LCodeGen::DoDeferredMathAbsTaggedHeapNumber(LMathAbs* instr) {
   Register input_reg = ToRegister(instr->value());
   __ cmp(FieldOperand(input_reg, HeapObject::kMapOffset),

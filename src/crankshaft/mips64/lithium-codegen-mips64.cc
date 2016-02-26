@@ -3799,25 +3799,6 @@ void LCodeGen::DoCallWithDescriptor(LCallWithDescriptor* instr) {
 }
 
 
-void LCodeGen::DoCallJSFunction(LCallJSFunction* instr) {
-  DCHECK(ToRegister(instr->function()).is(a1));
-  DCHECK(ToRegister(instr->result()).is(v0));
-
-  // Change context.
-  __ ld(cp, FieldMemOperand(a1, JSFunction::kContextOffset));
-
-  // Always initialize new target and number of actual arguments.
-  __ LoadRoot(a3, Heap::kUndefinedValueRootIndex);
-  __ li(a0, Operand(instr->arity()));
-
-  // Load the code entry address
-  __ ld(at, FieldMemOperand(a1, JSFunction::kCodeEntryOffset));
-  __ Call(at);
-
-  RecordSafepointWithLazyDeopt(instr, RECORD_SIMPLE_SAFEPOINT);
-}
-
-
 void LCodeGen::DoCallNewArray(LCallNewArray* instr) {
   DCHECK(ToRegister(instr->context()).is(cp));
   DCHECK(ToRegister(instr->constructor()).is(a1));

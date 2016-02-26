@@ -248,13 +248,6 @@ void LInnerAllocatedObject::PrintDataTo(StringStream* stream) {
 }
 
 
-void LCallJSFunction::PrintDataTo(StringStream* stream) {
-  stream->Add("= ");
-  function()->PrintTo(stream);
-  stream->Add("#%d / ", arity());
-}
-
-
 void LCallWithDescriptor::PrintDataTo(StringStream* stream) {
   for (int i = 0; i < InputCount(); i++) {
     InputAt(i)->PrintTo(stream);
@@ -1042,16 +1035,6 @@ LInstruction* LChunkBuilder::DoContext(HContext* instr) {
 LInstruction* LChunkBuilder::DoDeclareGlobals(HDeclareGlobals* instr) {
   LOperand* context = UseFixed(instr->context(), cp);
   return MarkAsCall(new(zone()) LDeclareGlobals(context), instr);
-}
-
-
-LInstruction* LChunkBuilder::DoCallJSFunction(
-    HCallJSFunction* instr) {
-  LOperand* function = UseFixed(instr->function(), r1);
-
-  LCallJSFunction* result = new(zone()) LCallJSFunction(function);
-
-  return MarkAsCall(DefineFixed(result, r0), instr);
 }
 
 

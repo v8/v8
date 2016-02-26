@@ -59,7 +59,6 @@ class LChunkBuilder;
   V(BoundsCheckBaseIndexInformation)          \
   V(Branch)                                   \
   V(CallWithDescriptor)                       \
-  V(CallJSFunction)                           \
   V(CallNewArray)                             \
   V(CallRuntime)                              \
   V(CapturedObject)                           \
@@ -2216,38 +2215,6 @@ class HBinaryCall : public HCall<2> {
 
   HValue* first() const { return OperandAt(0); }
   HValue* second() const { return OperandAt(1); }
-};
-
-
-class HCallJSFunction final : public HCall<1> {
- public:
-  static HCallJSFunction* New(Isolate* isolate, Zone* zone, HValue* context,
-                              HValue* function, int argument_count);
-
-  HValue* function() const { return OperandAt(0); }
-
-  std::ostream& PrintDataTo(std::ostream& os) const override;  // NOLINT
-
-  Representation RequiredInputRepresentation(int index) final {
-    DCHECK(index == 0);
-    return Representation::Tagged();
-  }
-
-  bool HasStackCheck() final { return has_stack_check_; }
-
-  DECLARE_CONCRETE_INSTRUCTION(CallJSFunction)
-
- private:
-  // The argument count includes the receiver.
-  HCallJSFunction(HValue* function,
-                  int argument_count,
-                  bool has_stack_check)
-      : HCall<1>(argument_count),
-        has_stack_check_(has_stack_check) {
-      SetOperandAt(0, function);
-  }
-
-  bool has_stack_check_;
 };
 
 
