@@ -266,17 +266,17 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
   return obj;
 }
 
-void CacheTemplateInstantiation(Isolate* isolate, Handle<Smi> serial_number,
+void CacheTemplateInstantiation(Isolate* isolate, uint32_t serial_number,
                                 Handle<JSObject> object) {
   auto cache = isolate->template_instantiations_cache();
-  auto new_cache = UnseededNumberDictionary::AtNumberPut(
-      cache, static_cast<uint32_t>(serial_number->value()), object);
+  auto new_cache =
+      UnseededNumberDictionary::AtNumberPut(cache, serial_number, object);
   isolate->native_context()->set_template_instantiations_cache(*new_cache);
 }
 
-void UncacheTemplateInstantiation(Isolate* isolate, Handle<Smi> serial_number) {
+void UncacheTemplateInstantiation(Isolate* isolate, uint32_t serial_number) {
   auto cache = isolate->template_instantiations_cache();
-  int entry = cache->FindEntry(static_cast<uint32_t>(serial_number->value()));
+  int entry = cache->FindEntry(serial_number);
   DCHECK(entry != UnseededNumberDictionary::kNotFound);
   Handle<Object> result =
       UnseededNumberDictionary::DeleteProperty(cache, entry);
@@ -291,11 +291,12 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
                                         bool is_hidden_prototype) {
   // Fast path.
   Handle<JSObject> result;
-  auto serial_number = handle(Smi::cast(info->serial_number()), isolate);
-  if (serial_number->value()) {
+  uint32_t serial_number =
+      static_cast<uint32_t>(Smi::cast(info->serial_number())->value());
+  if (serial_number) {
     // Probe cache.
     auto cache = isolate->template_instantiations_cache();
-    int entry = cache->FindEntry(static_cast<uint32_t>(serial_number->value()));
+    int entry = cache->FindEntry(serial_number);
     if (entry != UnseededNumberDictionary::kNotFound) {
       Object* boilerplate = cache->ValueAt(entry);
       result = handle(JSObject::cast(boilerplate), isolate);
@@ -323,7 +324,7 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
   // TODO(dcarney): is this necessary?
   JSObject::MigrateSlowToFast(result, 0, "ApiNatives::InstantiateObject");
 
-  if (serial_number->value()) {
+  if (serial_number) {
     CacheTemplateInstantiation(isolate, serial_number, result);
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, result, JSObject::DeepCopyApiBoilerplate(result), JSObject);
@@ -335,11 +336,12 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
 MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
                                             Handle<FunctionTemplateInfo> data,
                                             Handle<Name> name) {
-  auto serial_number = handle(Smi::cast(data->serial_number()), isolate);
-  if (serial_number->value()) {
+  uint32_t serial_number =
+      static_cast<uint32_t>(Smi::cast(data->serial_number())->value());
+  if (serial_number) {
     // Probe cache.
     auto cache = isolate->template_instantiations_cache();
-    int entry = cache->FindEntry(static_cast<uint32_t>(serial_number->value()));
+    int entry = cache->FindEntry(serial_number);
     if (entry != UnseededNumberDictionary::kNotFound) {
       Object* element = cache->ValueAt(entry);
       return handle(JSFunction::cast(element), isolate);
@@ -385,7 +387,7 @@ MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
   if (!name.is_null() && name->IsString()) {
     function->shared()->set_name(*name);
   }
-  if (serial_number->value()) {
+  if (serial_number) {
     // Cache the function.
     CacheTemplateInstantiation(isolate, serial_number, function);
   }
@@ -393,7 +395,7 @@ MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
       ConfigureInstance(isolate, function, data, data->hidden_prototype());
   if (result.is_null()) {
     // Uncache on error.
-    if (serial_number->value()) {
+    if (serial_number) {
       UncacheTemplateInstantiation(isolate, serial_number);
     }
     return MaybeHandle<JSFunction>();
