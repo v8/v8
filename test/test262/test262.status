@@ -47,11 +47,6 @@
 
   ###################### MISSING ES6 FEATURES #######################
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4768
-  # The Reflect.enumerate trap is removed
-  'built-ins/Reflect/enumerate/*': [SKIP],
-  'built-ins/Proxy/enumerate/*': [SKIP],
-
   # https://code.google.com/p/v8/issues/detail?id=4163
   'built-ins/GeneratorPrototype/next/context-constructor-invocation': [FAIL],
 
@@ -111,6 +106,14 @@
   'language/expressions/class/name': [FAIL],
   'language/expressions/function/name': [FAIL],
   'language/expressions/generators/name': [FAIL],
+  'intl402/NumberFormat/prototype/format/format-function-name': [FAIL],
+  'intl402/DateTimeFormat/prototype/format/format-function-name': [FAIL],
+  'intl402/Collator/prototype/compare/compare-function-name': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4778
+  'intl402/Collator/prototype/compare/name': [FAIL],
+  'intl402/DateTimeFormat/prototype/format/name': [FAIL],
+  'intl402/NumberFormat/prototype/format/name': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=4251
   'language/expressions/postfix-increment/S11.3.1_A5_T1': [FAIL],
@@ -219,8 +222,6 @@
   'language/statements/class/subclass/builtin-objects/Error/message-property-assignment': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4663
-  'built-ins/object/entries/*': [SKIP],
-  'built-ins/object/values/*': [SKIP],
   'built-ins/Object/entries/*': [SKIP],
   'built-ins/Object/values/*': [SKIP],
 
@@ -229,6 +230,72 @@
   'built-ins/RegExp/prototype/global/15.10.7.2-1': [FAIL],
   'built-ins/RegExp/prototype/ignoreCase/15.10.7.3-1': [FAIL],
   'built-ins/RegExp/prototype/multiline/15.10.7.4-1': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4698
+  'language/expressions/call/tco-call-args': [FAIL],
+  'language/expressions/call/tco-member-args': [FAIL],
+  'language/expressions/comma/tco-final': [FAIL],
+  'language/expressions/conditional/tco-cond': [FAIL],
+  'language/expressions/conditional/tco-pos': [FAIL],
+  'language/expressions/logical-and/tco-right': [FAIL],
+  'language/expressions/logical-or/tco-right': [FAIL],
+  'language/expressions/tagged-template/tco-call': [FAIL],
+  'language/expressions/tagged-template/tco-member': [FAIL],
+  'language/expressions/tco-pos': [FAIL],
+  'language/statements/block/tco-stmt': [FAIL],
+  'language/statements/block/tco-stmt-list': [FAIL],
+  'language/statements/do-while/tco-body': [FAIL],
+  'language/statements/for/tco-const-body': [FAIL],
+  'language/statements/for/tco-let-body': [FAIL],
+  'language/statements/for/tco-lhs-body': [FAIL],
+  'language/statements/for/tco-var-body': [FAIL],
+  'language/statements/if/tco-else-body': [FAIL],
+  'language/statements/if/tco-if-body': [FAIL],
+  'language/statements/labeled/tco': [FAIL],
+  'language/statements/return/tco': [FAIL],
+  'language/statements/switch/tco-case-body': [FAIL],
+  'language/statements/switch/tco-case-body-dflt': [FAIL],
+  'language/statements/switch/tco-dftl-body': [FAIL],
+  'language/statements/try/tco-catch': [FAIL],
+  'language/statements/try/tco-catch-finally': [FAIL],
+  'language/statements/try/tco-finally': [FAIL],
+  'language/statements/while/tco-body': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4725
+  'built-ins/Object/getOwnPropertyDescriptors/*': [SKIP],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4726
+  'built-ins/TypedArrays/typedarray-arg-other-ctor-buffer-ctor-access-throws': [FAIL],
+  'built-ins/TypedArrays/typedarray-arg-other-ctor-buffer-ctor-custom-species': [FAIL],
+  'built-ins/TypedArrays/typedarray-arg-other-ctor-buffer-ctor-not-object-throws': [FAIL],
+  'built-ins/TypedArrays/typedarray-arg-other-ctor-buffer-ctor-species-access-throws': [FAIL],
+  'built-ins/TypedArrays/typedarray-arg-other-ctor-buffer-ctor-species-not-ctor-throws': [FAIL],
+  'built-ins/TypedArrays/typedarray-arg-other-ctor-buffer-ctor-species-prototype-throws': [FAIL],
+  'built-ins/TypedArrays/typedarray-arg-same-ctor-buffer-ctor-access-throws': [FAIL],
+  'built-ins/TypedArrays/typedarray-arg-same-ctor-buffer-ctor-species-custom': [FAIL],
+  'built-ins/TypedArrays/typedarray-arg-same-ctor-buffer-ctor-species-not-ctor': [FAIL],
+  'built-ins/TypedArrays/typedarray-arg-same-ctor-buffer-ctor-species-prototype-throws': [FAIL],
+  'built-ins/TypedArrays/typedarray-arg-same-ctor-buffer-ctor-species-throws': [FAIL],
+  'built-ins/TypedArrays/typedarray-arg-same-ctor-buffer-ctor-value-not-obj-throws': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4782
+  'built-ins/TypedArrays/from/set-value-abrupt-completion': [FAIL],
+  'built-ins/TypedArray/from/mapfn-is-not-callable': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4727
+  'built-ins/TypedArrays/length-arg-is-undefined-throws': [FAIL],
+  'built-ins/TypedArrays/length-arg-is-symbol-throws': [FAIL],
+  'built-ins/TypedArrays/length-arg-is-float-throws-rangeerror': [FAIL],
+  'built-ins/TypedArrays/length-arg-is-nan-throws-rangeerror': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4784
+  'built-ins/TypedArrays/buffer-arg-defined-negative-length': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4785
+  'built-ins/TypedArray/prototype/entries/invoked-as-method': [FAIL],
+  'built-ins/TypedArray/prototype/keys/invoked-as-method': [FAIL],
+  'built-ins/TypedArray/prototype/values/invoked-as-method': [FAIL],
+  'built-ins/TypedArray/prototype/toString': [FAIL],
 
   ######################## NEEDS INVESTIGATION ###########################
 
@@ -296,16 +363,8 @@
   'built-ins/Object/keys/15.2.3.14-1-2': [PASS, FAIL_OK],
   'built-ins/Object/keys/15.2.3.14-1-3': [PASS, FAIL_OK],
 
-  # Test bug https://github.com/tc39/test262/issues/405
-  'intl402/Collator/prototype/compare/10.3.2_1_c': [PASS, FAIL_OK],
-  'intl402/Collator/prototype/compare/10.3.2_CS_b_NN': [PASS, FAIL_OK],
-  'intl402/Collator/prototype/compare/10.3.2_CS_c_NN': [PASS, FAIL_OK],
-  'intl402/Collator/prototype/compare/10.3.2_CS_d_NN': [PASS, FAIL_OK],
-  'intl402/Date/prototype/13.3.0_7': [PASS, FAIL_OK],
-
-  # https://github.com/tc39/test262/issues/489
-  # Test will pass in 0 or -GMT, but fail in +GMT
-  'language/statements/class/subclass/builtin-objects/Date/regular-subclassing': [PASS, FAIL_OK],
+  # Test bug https://github.com/tc39/test262/issues/518
+  'built-ins/TypedArrays/object-arg-throws-setting-typedarray-property': [FAIL],
 
   ############################ SKIPPED TESTS #############################
 
