@@ -763,9 +763,9 @@ function TypedArrayOf() {
 function TypedArrayFrom(source, mapfn, thisArg) {
   // TODO(littledan): Investigate if there is a receiver which could be
   // faster to accumulate on than Array, e.g., a TypedVector.
-  // TODO(littledan) BUG(v8:4782): Rewrite this code to ensure that things
-  // happen in the right order, e.g., the constructor needs to be called
-  // before the mapping function on array-likes.
+  // TODO(littledan): Rewrite this code to ensure that things happen
+  // in the right order, e.g., the constructor needs to be called before
+  // the mapping function on array-likes.
   var array = %_Call(ArrayFrom, GlobalArray, source, mapfn, thisArg);
   return TypedArrayCreate(this, array);
 }
