@@ -785,7 +785,7 @@ function TypedArray() {
 %FunctionSetPrototype(TypedArray, new GlobalObject());
 %AddNamedProperty(TypedArray.prototype,
                   "constructor", TypedArray, DONT_ENUM);
-utils.InstallFunctions(TypedArray, DONT_ENUM | DONT_DELETE | READ_ONLY, [
+utils.InstallFunctions(TypedArray, DONT_ENUM, [
   "from", TypedArrayFrom,
   "of", TypedArrayOf
 ]);
