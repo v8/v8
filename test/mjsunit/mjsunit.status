@@ -134,6 +134,9 @@
   'strong/load-property-mutate-backing-store': [SKIP],
   'strong/load-super': [SKIP],
   'strong/literals': [SKIP], # Rest arguments do not respect strongness in Turbofan.
+  'strong/object-delete': [SKIP],
+  'strong/object-freeze-property': [SKIP],
+  'strong/object-set-prototype': [SKIP],
 
   # Issue 4035: unexpected frame->context() in debugger
   'regress/regress-crbug-107996': [PASS, NO_VARIANTS],

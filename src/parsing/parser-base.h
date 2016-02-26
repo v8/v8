@@ -1218,8 +1218,7 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseRegExpLiteral(
   }
   int js_flags = flags.FromJust();
   Next();
-  return factory()->NewRegExpLiteral(js_pattern, js_flags, literal_index,
-                                     is_strong(language_mode()), pos);
+  return factory()->NewRegExpLiteral(js_pattern, js_flags, literal_index, pos);
 }
 
 
@@ -1559,9 +1558,8 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseArrayLiteral(
   // Update the scope information before the pre-parsing bailout.
   int literal_index = function_state_->NextMaterializedLiteralIndex();
 
-  ExpressionT result =
-      factory()->NewArrayLiteral(values, first_spread_index, literal_index,
-                                 is_strong(language_mode()), pos);
+  ExpressionT result = factory()->NewArrayLiteral(values, first_spread_index,
+                                                  literal_index, pos);
   if (first_spread_index >= 0) {
     result = factory()->NewRewritableExpression(result);
     Traits::QueueNonPatternForRewriting(result);
@@ -1877,7 +1875,6 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseObjectLiteral(
                                      literal_index,
                                      number_of_boilerplate_properties,
                                      has_function,
-                                     is_strong(language_mode()),
                                      pos);
 }
 

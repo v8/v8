@@ -488,8 +488,7 @@ void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
         empty_exprs,
         // Reuse pattern's literal index - it is unused since there is no
         // actual literal allocated.
-        node->literal_index(), is_strong(scope()->language_mode()),
-        RelocInfo::kNoPosition));
+        node->literal_index(), RelocInfo::kNoPosition));
 
     auto arguments = new (zone()) ZoneList<Expression*>(2, zone());
     arguments->Add(factory()->NewVariableProxy(array), zone());

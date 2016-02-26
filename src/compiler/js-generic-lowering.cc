@@ -649,7 +649,6 @@ void JSGenericLowering::LowerJSCreateLiteralArray(Node* node) {
   // Use the FastCloneShallowArrayStub only for shallow boilerplates up to the
   // initial length limit for arrays with "fast" elements kind.
   if ((p.flags() & ArrayLiteral::kShallowElements) != 0 &&
-      (p.flags() & ArrayLiteral::kIsStrong) == 0 &&
       length < JSArray::kInitialMaxFastElementArray) {
     Callable callable = CodeFactory::FastCloneShallowArray(isolate());
     ReplaceWithStubCall(node, callable, flags);

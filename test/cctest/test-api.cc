@@ -24454,30 +24454,6 @@ TEST(StrongModeArityCallFromApi2) {
 }
 
 
-TEST(StrongObjectDelete) {
-  i::FLAG_strong_mode = true;
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
-  Local<Object> obj;
-  {
-    v8::TryCatch try_catch(isolate);
-    obj = Local<Object>::Cast(CompileRun(
-        "'use strong';"
-        "({});"));
-    CHECK(!try_catch.HasCaught());
-  }
-  obj->DefineOwnProperty(env.local(), v8_str("foo"), v8_num(1), v8::None)
-      .FromJust();
-  obj->DefineOwnProperty(env.local(), v8_str("2"), v8_num(1), v8::None)
-      .FromJust();
-  CHECK(obj->HasOwnProperty(env.local(), v8_str("foo")).FromJust());
-  CHECK(obj->HasOwnProperty(env.local(), v8_str("2")).FromJust());
-  CHECK(!obj->Delete(env.local(), v8_str("foo")).FromJust());
-  CHECK(!obj->Delete(env.local(), 2).FromJust());
-}
-
-
 static void ExtrasBindingTestRuntimeFunction(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   CHECK_EQ(
