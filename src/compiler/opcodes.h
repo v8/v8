@@ -204,8 +204,7 @@
   V(StoreElement)                  \
   V(ObjectIsNumber)                \
   V(ObjectIsReceiver)              \
-  V(ObjectIsSmi)                   \
-  V(ObjectIsUndetectable)
+  V(ObjectIsSmi)
 
 // Opcodes for Machine-level operators.
 #define MACHINE_COMPARE_BINOP_LIST(V) \

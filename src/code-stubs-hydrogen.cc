@@ -1419,6 +1419,31 @@ Handle<Code> InternalArrayNArgumentsConstructorStub::GenerateCode() {
 
 
 template <>
+HValue* CodeStubGraphBuilder<CompareNilICStub>::BuildCodeInitializedStub() {
+  Isolate* isolate = graph()->isolate();
+  CompareNilICStub* stub = casted_stub();
+  HIfContinuation continuation;
+  Handle<Map> sentinel_map(isolate->heap()->meta_map());
+  Type* type = stub->GetType(zone(), sentinel_map);
+  BuildCompareNil(GetParameter(0), type, &continuation, kEmbedMapsViaWeakCells);
+  IfBuilder if_nil(this, &continuation);
+  if_nil.Then();
+  if (continuation.IsFalseReachable()) {
+    if_nil.Else();
+    if_nil.Return(graph()->GetConstantFalse());
+  }
+  if_nil.End();
+  return continuation.IsTrueReachable() ? graph()->GetConstantTrue()
+                                        : graph()->GetConstantUndefined();
+}
+
+
+Handle<Code> CompareNilICStub::GenerateCode() {
+  return DoGenerateCode(this);
+}
+
+
+template <>
 HValue* CodeStubGraphBuilder<BinaryOpICStub>::BuildCodeInitializedStub() {
   BinaryOpICState state = casted_stub()->state();
 

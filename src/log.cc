@@ -1613,6 +1613,7 @@ void Logger::LogCodeObject(Object* object) {
       return;  // We log this later using LogCompiledFunctions.
     case Code::BINARY_OP_IC:
     case Code::COMPARE_IC:  // fall through
+    case Code::COMPARE_NIL_IC:   // fall through
     case Code::TO_BOOLEAN_IC:  // fall through
     case Code::STUB:
       description = CodeStub::MajorName(CodeStub::GetMajorKey(code_object));

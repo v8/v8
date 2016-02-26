@@ -533,11 +533,15 @@ Reduction JSTypedLowering::ReduceJSEqual(Node* node, bool invert) {
     return r.ChangeToPureOperator(
         simplified()->ReferenceEqual(Type::Receiver()), invert);
   }
-  if (r.OneInputIs(Type::Undetectable())) {
-    RelaxEffectsAndControls(node);
-    node->RemoveInput(r.LeftInputIs(Type::Undetectable()) ? 0 : 1);
-    node->TrimInputCount(1);
-    NodeProperties::ChangeOp(node, simplified()->ObjectIsUndetectable());
+  if (r.OneInputIs(Type::NullOrUndefined())) {
+    Callable const callable = CodeFactory::CompareNilIC(isolate(), kNullValue);
+    CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
+        isolate(), graph()->zone(), callable.descriptor(), 0,
+        CallDescriptor::kNeedsFrameState, node->op()->properties());
+    node->RemoveInput(r.LeftInputIs(Type::NullOrUndefined()) ? 0 : 1);
+    node->InsertInput(graph()->zone(), 0,
+                      jsgraph()->HeapConstant(callable.code()));
+    NodeProperties::ChangeOp(node, common()->Call(desc));
     if (invert) {
       // Insert an boolean not to invert the value.
       Node* value = graph()->NewNode(simplified()->BooleanNot(), node);

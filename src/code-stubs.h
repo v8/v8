@@ -67,6 +67,7 @@ namespace internal {
   V(ArraySingleArgumentConstructor)         \
   V(BinaryOpIC)                             \
   V(BinaryOpWithAllocationSite)             \
+  V(CompareNilIC)                           \
   V(CreateAllocationSite)                   \
   V(CreateWeakCell)                         \
   V(ElementsTransitionAndStore)             \
@@ -1698,6 +1699,96 @@ class CompareICStub : public PlatformCodeStub {
   DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
   DEFINE_PLATFORM_CODE_STUB(CompareIC, PlatformCodeStub);
 };
+
+
+class CompareNilICStub : public HydrogenCodeStub  {
+ public:
+  Type* GetType(Zone* zone, Handle<Map> map = Handle<Map>());
+  Type* GetInputType(Zone* zone, Handle<Map> map);
+
+  CompareNilICStub(Isolate* isolate, NilValue nil) : HydrogenCodeStub(isolate) {
+    set_sub_minor_key(NilValueBits::encode(nil));
+  }
+
+  CompareNilICStub(Isolate* isolate, ExtraICState ic_state,
+                   InitializationState init_state = INITIALIZED)
+      : HydrogenCodeStub(isolate, init_state) {
+    set_sub_minor_key(ic_state);
+  }
+
+  static Handle<Code> GetUninitialized(Isolate* isolate,
+                                       NilValue nil) {
+    return CompareNilICStub(isolate, nil, UNINITIALIZED).GetCode();
+  }
+
+  InlineCacheState GetICState() const override {
+    State state = this->state();
+    if (state.Contains(GENERIC)) {
+      return MEGAMORPHIC;
+    } else if (state.Contains(MONOMORPHIC_MAP)) {
+      return MONOMORPHIC;
+    } else {
+      return PREMONOMORPHIC;
+    }
+  }
+
+  Code::Kind GetCodeKind() const override { return Code::COMPARE_NIL_IC; }
+
+  ExtraICState GetExtraICState() const override { return sub_minor_key(); }
+
+  void UpdateStatus(Handle<Object> object);
+
+  bool IsMonomorphic() const { return state().Contains(MONOMORPHIC_MAP); }
+
+  NilValue nil_value() const { return NilValueBits::decode(sub_minor_key()); }
+
+  void ClearState() {
+    set_sub_minor_key(TypesBits::update(sub_minor_key(), 0));
+  }
+
+  void PrintState(std::ostream& os) const override;     // NOLINT
+  void PrintBaseName(std::ostream& os) const override;  // NOLINT
+
+ private:
+  CompareNilICStub(Isolate* isolate, NilValue nil,
+                   InitializationState init_state)
+      : HydrogenCodeStub(isolate, init_state) {
+    set_sub_minor_key(NilValueBits::encode(nil));
+  }
+
+  enum CompareNilType {
+    UNDEFINED,
+    NULL_TYPE,
+    MONOMORPHIC_MAP,
+    GENERIC,
+    NUMBER_OF_TYPES
+  };
+
+  // At most 6 different types can be distinguished, because the Code object
+  // only has room for a single byte to hold a set and there are two more
+  // boolean flags we need to store. :-P
+  STATIC_ASSERT(NUMBER_OF_TYPES <= 6);
+
+  class State : public EnumSet<CompareNilType, byte> {
+   public:
+    State() : EnumSet<CompareNilType, byte>(0) { }
+    explicit State(byte bits) : EnumSet<CompareNilType, byte>(bits) { }
+  };
+  friend std::ostream& operator<<(std::ostream& os, const State& s);
+
+  State state() const { return State(TypesBits::decode(sub_minor_key())); }
+
+  class NilValueBits : public BitField<NilValue, 0, 1> {};
+  class TypesBits : public BitField<byte, 1, NUMBER_OF_TYPES> {};
+
+  friend class CompareNilIC;
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(CompareNil);
+  DEFINE_HYDROGEN_CODE_STUB(CompareNilIC, HydrogenCodeStub);
+};
+
+
+std::ostream& operator<<(std::ostream& os, const CompareNilICStub::State& s);
 
 
 class CEntryStub : public PlatformCodeStub {

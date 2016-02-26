@@ -624,6 +624,18 @@ class CompareIC : public IC {
 };
 
 
+class CompareNilIC : public IC {
+ public:
+  explicit CompareNilIC(Isolate* isolate) : IC(EXTRA_CALL_FRAME, isolate) {}
+
+  Handle<Object> CompareNil(Handle<Object> object);
+
+  static Handle<Code> GetUninitialized();
+
+  static void Clear(Address address, Code* target, Address constant_pool);
+};
+
+
 class ToBooleanIC : public IC {
  public:
   explicit ToBooleanIC(Isolate* isolate) : IC(EXTRA_CALL_FRAME, isolate) {}

@@ -167,7 +167,6 @@ class SimplifiedOperatorBuilder final : public ZoneObject {
   const Operator* ObjectIsNumber();
   const Operator* ObjectIsReceiver();
   const Operator* ObjectIsSmi();
-  const Operator* ObjectIsUndetectable();
 
   const Operator* Allocate(PretenureFlag pretenure = NOT_TENURED);
 

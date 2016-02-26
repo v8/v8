@@ -941,7 +941,7 @@ struct Tests {
     CheckSub(T.Object, T.Receiver);
     CheckSub(T.Proxy, T.Receiver);
     CheckSub(T.OtherObject, T.Object);
-    CheckSub(T.OtherUndetectable, T.Object);
+    CheckSub(T.Undetectable, T.Object);
     CheckSub(T.OtherObject, T.Object);
 
     CheckUnordered(T.Object, T.Proxy);

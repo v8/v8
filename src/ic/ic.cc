@@ -465,6 +465,8 @@ void IC::Clear(Isolate* isolate, Address address, Address constant_pool) {
       return;
     case Code::COMPARE_IC:
       return CompareIC::Clear(isolate, address, target, constant_pool);
+    case Code::COMPARE_NIL_IC:
+      return CompareNilIC::Clear(address, target, constant_pool);
     case Code::CALL_IC:  // CallICs are vector-based and cleared differently.
     case Code::BINARY_OP_IC:
     case Code::TO_BOOLEAN_IC:
@@ -2709,6 +2711,57 @@ RUNTIME_FUNCTION(Runtime_CompareIC_Miss) {
   DCHECK(args.length() == 3);
   CompareIC ic(isolate, static_cast<Token::Value>(args.smi_at(2)));
   return ic.UpdateCaches(args.at<Object>(0), args.at<Object>(1));
+}
+
+
+void CompareNilIC::Clear(Address address, Code* target, Address constant_pool) {
+  if (IsCleared(target)) return;
+  ExtraICState state = target->extra_ic_state();
+
+  CompareNilICStub stub(target->GetIsolate(), state,
+                        HydrogenCodeStub::UNINITIALIZED);
+  stub.ClearState();
+
+  Code* code = NULL;
+  CHECK(stub.FindCodeInCache(&code));
+
+  SetTargetAtAddress(address, code, constant_pool);
+}
+
+
+Handle<Object> CompareNilIC::CompareNil(Handle<Object> object) {
+  ExtraICState extra_ic_state = target()->extra_ic_state();
+
+  CompareNilICStub stub(isolate(), extra_ic_state);
+
+  // Extract the current supported types from the patched IC and calculate what
+  // types must be supported as a result of the miss.
+  bool already_monomorphic = stub.IsMonomorphic();
+
+  stub.UpdateStatus(object);
+
+  // Find or create the specialized stub to support the new set of types.
+  Handle<Code> code;
+  if (stub.IsMonomorphic()) {
+    Handle<Map> monomorphic_map(already_monomorphic && FirstTargetMap() != NULL
+                                    ? FirstTargetMap()
+                                    : HeapObject::cast(*object)->map());
+    code = PropertyICCompiler::ComputeCompareNil(monomorphic_map, &stub);
+  } else {
+    code = stub.GetCode();
+  }
+  set_target(*code);
+  return isolate()->factory()->ToBoolean(object->IsUndetectableObject());
+}
+
+
+RUNTIME_FUNCTION(Runtime_CompareNilIC_Miss) {
+  TimerEventScope<TimerEventIcMiss> timer(isolate);
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8"), "V8.IcMiss");
+  HandleScope scope(isolate);
+  Handle<Object> object = args.at<Object>(0);
+  CompareNilIC ic(isolate);
+  return *ic.CompareNil(object);
 }
 
 

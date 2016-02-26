@@ -198,20 +198,17 @@ Type::bitset BitsetType::Lub(i::Map* map) {
       return kNumber & kTaggedPointer;
     case SIMD128_VALUE_TYPE:
       return kSimd;
-    case JS_OBJECT_TYPE:
-    case JS_GLOBAL_OBJECT_TYPE:
-    case JS_GLOBAL_PROXY_TYPE:
-      if (map->is_undetectable()) return kOtherUndetectable;
-      return kOtherObject;
     case JS_VALUE_TYPE:
     case JS_MESSAGE_OBJECT_TYPE:
     case JS_DATE_TYPE:
+    case JS_OBJECT_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
     case JS_MODULE_TYPE:
+    case JS_GLOBAL_OBJECT_TYPE:
+    case JS_GLOBAL_PROXY_TYPE:
     case JS_ARRAY_BUFFER_TYPE:
     case JS_ARRAY_TYPE:
-    case JS_REGEXP_TYPE:  // TODO(rossberg): there should be a RegExp type.
     case JS_TYPED_ARRAY_TYPE:
     case JS_DATA_VIEW_TYPE:
     case JS_SET_TYPE:
@@ -222,15 +219,26 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case JS_WEAK_SET_TYPE:
     case JS_PROMISE_TYPE:
     case JS_BOUND_FUNCTION_TYPE:
-      DCHECK(!map->is_undetectable());
+      if (map->is_undetectable()) return kUndetectable;
       return kOtherObject;
     case JS_FUNCTION_TYPE:
-      DCHECK(!map->is_undetectable());
+      if (map->is_undetectable()) return kUndetectable;
       return kFunction;
+    case JS_REGEXP_TYPE:
+      return kOtherObject;  // TODO(rossberg): there should be a RegExp type.
     case JS_PROXY_TYPE:
-      DCHECK(!map->is_undetectable());
       return kProxy;
     case MAP_TYPE:
+      // When compiling stub templates, the meta map is used as a place holder
+      // for the actual map with which the template is later instantiated.
+      // We treat it as a kind of type variable whose upper bound is Any.
+      // TODO(rossberg): for caching of CompareNilIC stubs to work correctly,
+      // we must exclude Undetectable here. This makes no sense, really,
+      // because it means that the template isn't actually parametric.
+      // Also, it doesn't apply elsewhere. 8-(
+      // We ought to find a cleaner solution for compiling stubs parameterised
+      // over type or class variables, esp ones with bounds...
+      return kDetectable & kTaggedPointer;
     case ALLOCATION_SITE_TYPE:
     case ACCESSOR_INFO_TYPE:
     case SHARED_FUNCTION_INFO_TYPE:
