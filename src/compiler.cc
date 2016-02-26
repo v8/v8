@@ -717,8 +717,9 @@ static void RecordFunctionCompilation(Logger::LogEventsAndTags tag,
   if (info->isolate()->logger()->is_logging_code_events() ||
       info->isolate()->cpu_profiler()->is_profiling()) {
     Handle<Script> script = info->parse_info()->script();
-    Handle<Code> code = info->code();
-    if (code.is_identical_to(info->isolate()->builtins()->CompileLazy())) {
+    Handle<AbstractCode> abstract_code = info->abstract_code();
+    if (abstract_code.is_identical_to(
+            info->isolate()->builtins()->CompileLazy())) {
       return;
     }
     int line_num = Script::GetLineNumber(script, shared->start_position()) + 1;
@@ -729,7 +730,7 @@ static void RecordFunctionCompilation(Logger::LogEventsAndTags tag,
                               : info->isolate()->heap()->empty_string();
     Logger::LogEventsAndTags log_tag = Logger::ToNativeByScript(tag, *script);
     PROFILE(info->isolate(),
-            CodeCreateEvent(log_tag, *code, *shared, info, script_name,
+            CodeCreateEvent(log_tag, *abstract_code, *shared, info, script_name,
                             line_num, column_num));
   }
 }
@@ -824,9 +825,7 @@ MUST_USE_RESULT static MaybeHandle<Code> GetUnoptimizedCodeCommon(
 
   // Compile either unoptimized code or bytecode for the interpreter.
   if (!CompileBaselineCode(info)) return MaybeHandle<Code>();
-  if (info->code()->kind() == Code::FUNCTION) {  // Only for full code.
-    RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info, shared);
-  }
+  RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info, shared);
 
   // Update the shared function info with the scope info. Allocating the
   // ScopeInfo object may cause a GC.
@@ -1329,8 +1328,8 @@ static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
         ? Logger::EVAL_TAG
         : Logger::ToNativeByScript(Logger::SCRIPT_TAG, *script);
 
-    PROFILE(isolate, CodeCreateEvent(
-                log_tag, *info->code(), *result, info, *script_name));
+    PROFILE(isolate, CodeCreateEvent(log_tag, *info->abstract_code(), *result,
+                                     info, *script_name));
 
     // Hint to the runtime system used when allocating space for initial
     // property space by setting the expected number of properties for

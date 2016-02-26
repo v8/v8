@@ -604,6 +604,7 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
       // Find out, if top of stack was pointing inside a JS function
       // meaning that we have encountered a frameless invocation.
       if (!pc_entry && (sample.top_frame_type == StackFrame::JAVA_SCRIPT ||
+                        sample.top_frame_type == StackFrame::INTERPRETED ||
                         sample.top_frame_type == StackFrame::OPTIMIZED)) {
         pc_entry = code_map_.FindEntry(sample.tos);
       }

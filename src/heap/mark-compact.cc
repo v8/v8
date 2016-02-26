@@ -2630,11 +2630,14 @@ void MarkCompactCollector::MigrateObject(HeapObject* dst, HeapObject* src,
     DCHECK(IsAligned(size, kPointerSize));
 
     heap()->MoveBlock(dst->address(), src->address(), size);
+    if (FLAG_ignition && dst->IsBytecodeArray()) {
+      PROFILE(isolate(), CodeMoveEvent(AbstractCode::cast(src), dst_addr));
+    }
     RecordMigratedSlotVisitor visitor(this, old_to_old_slots, old_to_new_slots);
     dst->IterateBody(&visitor);
   } else if (dest == CODE_SPACE) {
     DCHECK_CODEOBJECT_SIZE(size, heap()->code_space());
-    PROFILE(isolate(), CodeMoveEvent(src_addr, dst_addr));
+    PROFILE(isolate(), CodeMoveEvent(AbstractCode::cast(src), dst_addr));
     heap()->MoveBlock(dst_addr, src_addr, size);
     old_to_old_slots->Record(RELOCATED_CODE_OBJECT, dst_addr);
     Code::cast(dst)->Relocate(dst_addr - src_addr);
@@ -3875,18 +3878,6 @@ void MarkCompactCollector::ParallelSweepSpacesComplete() {
   sweeping_list(heap()->code_space()).clear();
   sweeping_list(heap()->map_space()).clear();
 }
-
-
-// TODO(1466) ReportDeleteIfNeeded is not called currently.
-// Our profiling tools do not expect intersections between
-// code objects. We should either reenable it or change our tools.
-void MarkCompactCollector::ReportDeleteIfNeeded(HeapObject* obj,
-                                                Isolate* isolate) {
-  if (obj->IsCode()) {
-    PROFILE(isolate, CodeDeleteEvent(obj->address()));
-  }
-}
-
 
 Isolate* MarkCompactCollector::isolate() const { return heap_->isolate(); }
 

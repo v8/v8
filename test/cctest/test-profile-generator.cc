@@ -649,7 +649,7 @@ int GetFunctionLineNumber(LocalContext* env, const char* name) {
               ->Get(v8::Isolate::GetCurrent()->GetCurrentContext(),
                     v8_str(name))
               .ToLocalChecked())));
-  CodeEntry* func_entry = code_map->FindEntry(func->code()->address());
+  CodeEntry* func_entry = code_map->FindEntry(func->abstract_code()->address());
   if (!func_entry)
     FATAL(name);
   return func_entry->line_number();

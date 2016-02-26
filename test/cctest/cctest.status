@@ -527,9 +527,6 @@
   'test-debug/StepInOutBranch': [FAIL],
   'test-debug/DebugStepFunctionCall': [FAIL],
 
-  # TODO(yangguo,4690): Required DebuggerStatement support.
-  'test-profile-generator/BailoutReason': [FAIL],
-
   # TODO(rmcilroy,4680): Check failed: toplevel_test_code_event_found.
   'test-serialize/SerializeToplevelIsolates': [FAIL],
 
@@ -561,33 +558,9 @@
   'test-api/TryCatchMixedNesting': [FAIL],
 
   # TODO(rmcilroy,4680): Test assert errors.
-  'test-cpu-profiler/CodeEvents': [FAIL],
-  'test-cpu-profiler/TickEvents': [FAIL],
-  'test-cpu-profiler/BoundFunctionCall': [FAIL],
-  'test-cpu-profiler/CollectCpuProfile': [FAIL],
-  'test-cpu-profiler/CollectSampleAPI': [FAIL],
-  'test-cpu-profiler/CpuProfileDeepStack': [FAIL],
-  'test-cpu-profiler/FunctionApplySample': [FAIL],
-  'test-cpu-profiler/FunctionCallSample': [FAIL],
-  'test-cpu-profiler/FunctionDetails': [FAIL],
-  'test-cpu-profiler/HotDeoptNoFrameEntry': [FAIL],
-  'test-cpu-profiler/JsNative1JsNative2JsSample': [FAIL],
-  'test-cpu-profiler/JsNativeJsRuntimeJsSample': [FAIL],
-  'test-cpu-profiler/JsNativeJsRuntimeJsSampleMultiple': [FAIL],
-  'test-cpu-profiler/JsNativeJsSample': [FAIL],
-  'test-cpu-profiler/NativeMethodUninitializedIC': [FAIL],
-  'test-cpu-profiler/NativeMethodMonomorphicIC': [FAIL],
-  'test-cpu-profiler/NativeAccessorUninitializedIC': [FAIL],
-  'test-cpu-profiler/NativeAccessorMonomorphicIC': [FAIL],
-  'test-cpu-profiler/SampleWhenFrameIsNotSetup': [FAIL],
-  'test-sampler-api/StackFramesConsistent': [FAIL],
-  'test-profile-generator/LineNumber': [FAIL],
-  'test-profile-generator/ProfileNodeScriptId': [FAIL],
-  'test-profile-generator/RecordStackTraceAtStartProfiling': [FAIL],
   'test-feedback-vector/VectorCallICStates': [FAIL],
   'test-compiler/FeedbackVectorPreservedAcrossRecompiles': [FAIL],
   'test-api/PromiseRejectCallback': [FAIL],
-  'test-api/SetJitCodeEventHandler': [FAIL],
   'test-heap/WeakFunctionInConstructor': [FAIL],
   'test-heap/Regress169209': [FAIL],
   'test-heap/IncrementalMarkingClearsMonomorphicConstructor': [FAIL],

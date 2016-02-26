@@ -224,30 +224,24 @@ class Logger {
   void GetterCallbackEvent(Name* name, Address entry_point);
   void SetterCallbackEvent(Name* name, Address entry_point);
   // Emits a code create event.
-  void CodeCreateEvent(LogEventsAndTags tag,
-                       Code* code, const char* source);
-  void CodeCreateEvent(LogEventsAndTags tag,
-                       Code* code, Name* name);
-  void CodeCreateEvent(LogEventsAndTags tag,
-                       Code* code,
-                       SharedFunctionInfo* shared,
-                       CompilationInfo* info,
+  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
+                       const char* source);
+  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code, Name* name);
+  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
+                       SharedFunctionInfo* shared, CompilationInfo* info,
                        Name* name);
-  void CodeCreateEvent(LogEventsAndTags tag,
-                       Code* code,
-                       SharedFunctionInfo* shared,
-                       CompilationInfo* info,
+  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
+                       SharedFunctionInfo* shared, CompilationInfo* info,
                        Name* source, int line, int column);
-  void CodeCreateEvent(LogEventsAndTags tag, Code* code, int args_count);
+  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
+                       int args_count);
   // Emits a code deoptimization event.
-  void CodeDisableOptEvent(Code* code, SharedFunctionInfo* shared);
+  void CodeDisableOptEvent(AbstractCode* code, SharedFunctionInfo* shared);
   void CodeMovingGCEvent();
   // Emits a code create event for a RegExp.
-  void RegExpCodeCreateEvent(Code* code, String* source);
+  void RegExpCodeCreateEvent(AbstractCode* code, String* source);
   // Emits a code move event.
-  void CodeMoveEvent(Address from, Address to);
-  // Emits a code delete event.
-  void CodeDeleteEvent(Address from);
+  void CodeMoveEvent(AbstractCode* from, Address to);
   // Emits a code line info add event with Postion type.
   void CodeLinePosInfoAddPositionEvent(void* jit_handler_data,
                                        int pc_offset,
@@ -260,7 +254,8 @@ class Logger {
   void CodeStartLinePosInfoRecordEvent(PositionsRecorder* pos_recorder);
   // Emits a code line info finish record event.
   // It's the callee's responsibility to dispose the parameter jit_handler_data.
-  void CodeEndLinePosInfoRecordEvent(Code* code, void* jit_handler_data);
+  void CodeEndLinePosInfoRecordEvent(AbstractCode* code,
+                                     void* jit_handler_data);
 
   void SharedFunctionInfoMoveEvent(Address from, Address to);
 
@@ -316,7 +311,7 @@ class Logger {
   void StopProfiler();
 
   void LogExistingFunction(Handle<SharedFunctionInfo> shared,
-                           Handle<Code> code);
+                           Handle<AbstractCode> code);
   // Logs all compiled functions found in the heap.
   void LogCompiledFunctions();
   // Logs all accessor callbacks found in the heap.
@@ -451,78 +446,61 @@ class CodeEventListener {
  public:
   virtual ~CodeEventListener() {}
 
-  virtual void CodeCreateEvent(Logger::LogEventsAndTags tag,
-                               Code* code,
+  virtual void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
                                const char* comment) = 0;
-  virtual void CodeCreateEvent(Logger::LogEventsAndTags tag,
-                               Code* code,
+  virtual void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
                                Name* name) = 0;
-  virtual void CodeCreateEvent(Logger::LogEventsAndTags tag,
-                               Code* code,
+  virtual void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
                                SharedFunctionInfo* shared,
-                               CompilationInfo* info,
-                               Name* name) = 0;
-  virtual void CodeCreateEvent(Logger::LogEventsAndTags tag,
-                               Code* code,
+                               CompilationInfo* info, Name* name) = 0;
+  virtual void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
                                SharedFunctionInfo* shared,
-                               CompilationInfo* info,
-                               Name* source,
-                               int line, int column) = 0;
-  virtual void CodeCreateEvent(Logger::LogEventsAndTags tag,
-                               Code* code,
+                               CompilationInfo* info, Name* source, int line,
+                               int column) = 0;
+  virtual void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
                                int args_count) = 0;
   virtual void CallbackEvent(Name* name, Address entry_point) = 0;
   virtual void GetterCallbackEvent(Name* name, Address entry_point) = 0;
   virtual void SetterCallbackEvent(Name* name, Address entry_point) = 0;
-  virtual void RegExpCodeCreateEvent(Code* code, String* source) = 0;
-  virtual void CodeMoveEvent(Address from, Address to) = 0;
-  virtual void CodeDeleteEvent(Address from) = 0;
+  virtual void RegExpCodeCreateEvent(AbstractCode* code, String* source) = 0;
+  virtual void CodeMoveEvent(AbstractCode* from, Address to) = 0;
   virtual void SharedFunctionInfoMoveEvent(Address from, Address to) = 0;
   virtual void CodeMovingGCEvent() = 0;
-  virtual void CodeDisableOptEvent(Code* code, SharedFunctionInfo* shared) = 0;
+  virtual void CodeDisableOptEvent(AbstractCode* code,
+                                   SharedFunctionInfo* shared) = 0;
 };
 
 
 class CodeEventLogger : public CodeEventListener {
  public:
   CodeEventLogger();
-  virtual ~CodeEventLogger();
+  ~CodeEventLogger() override;
 
-  virtual void CodeCreateEvent(Logger::LogEventsAndTags tag,
-                               Code* code,
-                               const char* comment);
-  virtual void CodeCreateEvent(Logger::LogEventsAndTags tag,
-                               Code* code,
-                               Name* name);
-  virtual void CodeCreateEvent(Logger::LogEventsAndTags tag,
-                               Code* code,
-                               int args_count);
-  virtual void CodeCreateEvent(Logger::LogEventsAndTags tag,
-                               Code* code,
-                               SharedFunctionInfo* shared,
-                               CompilationInfo* info,
-                               Name* name);
-  virtual void CodeCreateEvent(Logger::LogEventsAndTags tag,
-                               Code* code,
-                               SharedFunctionInfo* shared,
-                               CompilationInfo* info,
-                               Name* source,
-                               int line, int column);
-  virtual void RegExpCodeCreateEvent(Code* code, String* source);
+  void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
+                       const char* comment) override;
+  void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
+                       Name* name) override;
+  void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
+                       int args_count) override;
+  void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
+                       SharedFunctionInfo* shared, CompilationInfo* info,
+                       Name* name) override;
+  void CodeCreateEvent(Logger::LogEventsAndTags tag, AbstractCode* code,
+                       SharedFunctionInfo* shared, CompilationInfo* info,
+                       Name* source, int line, int column) override;
+  void RegExpCodeCreateEvent(AbstractCode* code, String* source) override;
 
-  virtual void CallbackEvent(Name* name, Address entry_point) { }
-  virtual void GetterCallbackEvent(Name* name, Address entry_point) { }
-  virtual void SetterCallbackEvent(Name* name, Address entry_point) { }
-  virtual void SharedFunctionInfoMoveEvent(Address from, Address to) { }
-  virtual void CodeMovingGCEvent() { }
+  void CallbackEvent(Name* name, Address entry_point) override {}
+  void GetterCallbackEvent(Name* name, Address entry_point) override {}
+  void SetterCallbackEvent(Name* name, Address entry_point) override {}
+  void SharedFunctionInfoMoveEvent(Address from, Address to) override {}
+  void CodeMovingGCEvent() override {}
 
  private:
   class NameBuffer;
 
-  virtual void LogRecordedBuffer(Code* code,
-                                 SharedFunctionInfo* shared,
-                                 const char* name,
-                                 int length) = 0;
+  virtual void LogRecordedBuffer(AbstractCode* code, SharedFunctionInfo* shared,
+                                 const char* name, int length) = 0;
 
   NameBuffer* name_buffer_;
 };

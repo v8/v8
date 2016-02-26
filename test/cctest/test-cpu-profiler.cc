@@ -119,8 +119,7 @@ class TestSetup {
 
 }  // namespace
 
-
-i::Code* CreateCode(LocalContext* env) {
+i::AbstractCode* CreateCode(LocalContext* env) {
   static int counter = 0;
   i::EmbeddedVector<char, 256> script;
   i::EmbeddedVector<char, 32> name;
@@ -138,9 +137,8 @@ i::Code* CreateCode(LocalContext* env) {
 
   i::Handle<i::JSFunction> fun = i::Handle<i::JSFunction>::cast(
       v8::Utils::OpenHandle(*GetFunction(env->local(), name_start)));
-  return fun->code();
+  return fun->abstract_code();
 }
-
 
 TEST(CodeEvents) {
   CcTest::InitializeVM();
@@ -151,13 +149,13 @@ TEST(CodeEvents) {
 
   i::HandleScope scope(isolate);
 
-  i::Code* aaa_code = CreateCode(&env);
-  i::Code* comment_code = CreateCode(&env);
-  i::Code* args5_code = CreateCode(&env);
-  i::Code* comment2_code = CreateCode(&env);
-  i::Code* moved_code = CreateCode(&env);
-  i::Code* args3_code = CreateCode(&env);
-  i::Code* args4_code = CreateCode(&env);
+  i::AbstractCode* aaa_code = CreateCode(&env);
+  i::AbstractCode* comment_code = CreateCode(&env);
+  i::AbstractCode* args5_code = CreateCode(&env);
+  i::AbstractCode* comment2_code = CreateCode(&env);
+  i::AbstractCode* moved_code = CreateCode(&env);
+  i::AbstractCode* args3_code = CreateCode(&env);
+  i::AbstractCode* args4_code = CreateCode(&env);
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate->heap());
   profiles->StartProfiling("", false);
@@ -174,7 +172,7 @@ TEST(CodeEvents) {
   profiler.CodeCreateEvent(i::Logger::BUILTIN_TAG, comment_code, "comment");
   profiler.CodeCreateEvent(i::Logger::STUB_TAG, args5_code, 5);
   profiler.CodeCreateEvent(i::Logger::BUILTIN_TAG, comment2_code, "comment2");
-  profiler.CodeMoveEvent(comment2_code->address(), moved_code->address());
+  profiler.CodeMoveEvent(comment2_code, moved_code->address());
   profiler.CodeCreateEvent(i::Logger::STUB_TAG, args3_code, 3);
   profiler.CodeCreateEvent(i::Logger::STUB_TAG, args4_code, 4);
 
@@ -203,12 +201,10 @@ TEST(CodeEvents) {
   CHECK_EQ(0, strcmp("comment2", comment2->name()));
 }
 
-
 template<typename T>
 static int CompareProfileNodes(const T* p1, const T* p2) {
   return strcmp((*p1)->entry()->name(), (*p2)->entry()->name());
 }
-
 
 TEST(TickEvents) {
   TestSetup test_setup;
@@ -216,9 +212,9 @@ TEST(TickEvents) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
 
-  i::Code* frame1_code = CreateCode(&env);
-  i::Code* frame2_code = CreateCode(&env);
-  i::Code* frame3_code = CreateCode(&env);
+  i::AbstractCode* frame1_code = CreateCode(&env);
+  i::AbstractCode* frame2_code = CreateCode(&env);
+  i::AbstractCode* frame3_code = CreateCode(&env);
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate->heap());
   profiles->StartProfiling("", false);
@@ -265,7 +261,6 @@ TEST(TickEvents) {
   CHECK_EQ(0, top_down_ddd_children->length());
 }
 
-
 // http://crbug/51594
 // This test must not crash.
 TEST(CrashIfStoppingLastNonExistentProfile) {
@@ -278,7 +273,6 @@ TEST(CrashIfStoppingLastNonExistentProfile) {
   profiler->StopProfiling("");
 }
 
-
 // http://code.google.com/p/v8/issues/detail?id=1398
 // Long stacks (exceeding max frames limit) must not be erased.
 TEST(Issue1398) {
@@ -287,7 +281,7 @@ TEST(Issue1398) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
 
-  i::Code* code = CreateCode(&env);
+  i::AbstractCode* code = CreateCode(&env);
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate->heap());
   profiles->StartProfiling("", false);
@@ -321,7 +315,6 @@ TEST(Issue1398) {
 
   CHECK_EQ(1 + i::TickSample::kMaxFramesCount, actual_depth);  // +1 for PC.
 }
-
 
 TEST(DeleteAllCpuProfiles) {
   CcTest::InitializeVM();
@@ -1020,13 +1013,14 @@ TEST(TickLines) {
   i::Handle<i::JSFunction> func = i::Handle<i::JSFunction>::cast(
       v8::Utils::OpenHandle(*GetFunction(env.local(), func_name)));
   CHECK(func->shared());
-  CHECK(func->shared()->code());
-  i::Code* code = NULL;
-  if (func->code()->is_optimized_code()) {
-    code = func->code();
+  CHECK(func->shared()->abstract_code());
+  i::AbstractCode* code = NULL;
+  if (func->abstract_code()->kind() == i::AbstractCode::OPTIMIZED_FUNCTION) {
+    code = func->abstract_code();
   } else {
-    CHECK(func->shared()->code() == func->code() || !i::FLAG_crankshaft);
-    code = func->shared()->code();
+    CHECK(func->shared()->abstract_code() == func->abstract_code() ||
+          !i::FLAG_crankshaft);
+    code = func->shared()->abstract_code();
   }
   CHECK(code);
   i::Address code_address = code->instruction_start();

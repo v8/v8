@@ -461,7 +461,8 @@ Handle<Code> LChunk::Codegen() {
     void* jit_handler_data =
         assembler.positions_recorder()->DetachJITHandlerData();
     LOG_CODE_EVENT(info()->isolate(),
-                   CodeEndLinePosInfoRecordEvent(*code, jit_handler_data));
+                   CodeEndLinePosInfoRecordEvent(AbstractCode::cast(*code),
+                                                 jit_handler_data));
 
     CodeGenerator::PrintCode(code, info());
     DCHECK(!(info()->isolate()->serializer_enabled() &&

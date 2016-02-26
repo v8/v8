@@ -365,7 +365,6 @@ class LogReader(object):
 
   _CODE_CREATE_TAG = "C"
   _CODE_MOVE_TAG = "M"
-  _CODE_DELETE_TAG = "D"
   _SNAPSHOT_POSITION_TAG = "P"
   _CODE_MOVING_GC_TAG = "G"
 
@@ -457,19 +456,6 @@ class LogReader(object):
         code.start_address = new_start_address
         code.end_address = new_start_address + size
         self.code_map.Add(code)
-        continue
-
-      if tag == LogReader._CODE_DELETE_TAG:
-        event = self.code_delete_struct.from_buffer(self.log, self.log_pos)
-        self.log_pos += ctypes.sizeof(event)
-        old_start_address = event.address
-        code = self.code_map.Find(old_start_address)
-        if not code:
-          print >>sys.stderr, "Warning: Not found %x" % old_start_address
-          continue
-        assert code.start_address == old_start_address, \
-            "Inexact delete address %x for %s" % (old_start_address, code)
-        self.code_map.Remove(code)
         continue
 
       if tag == LogReader._SNAPSHOT_POSITION_TAG:

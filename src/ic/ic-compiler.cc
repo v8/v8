@@ -175,7 +175,8 @@ void PropertyICCompiler::ComputeKeyedStorePolymorphicHandlers(
 Handle<Code> PropertyICCompiler::CompileLoadInitialize(Code::Flags flags) {
   LoadIC::GenerateInitialize(masm());
   Handle<Code> code = GetCodeWithFlags(flags, "CompileLoadInitialize");
-  PROFILE(isolate(), CodeCreateEvent(Logger::LOAD_INITIALIZE_TAG, *code, 0));
+  PROFILE(isolate(), CodeCreateEvent(Logger::LOAD_INITIALIZE_TAG,
+                                     AbstractCode::cast(*code), 0));
   return code;
 }
 
@@ -183,7 +184,8 @@ Handle<Code> PropertyICCompiler::CompileLoadInitialize(Code::Flags flags) {
 Handle<Code> PropertyICCompiler::CompileStoreInitialize(Code::Flags flags) {
   StoreIC::GenerateInitialize(masm());
   Handle<Code> code = GetCodeWithFlags(flags, "CompileStoreInitialize");
-  PROFILE(isolate(), CodeCreateEvent(Logger::STORE_INITIALIZE_TAG, *code, 0));
+  PROFILE(isolate(), CodeCreateEvent(Logger::STORE_INITIALIZE_TAG,
+                                     AbstractCode::cast(*code), 0));
   return code;
 }
 
@@ -191,8 +193,8 @@ Handle<Code> PropertyICCompiler::CompileStoreInitialize(Code::Flags flags) {
 Handle<Code> PropertyICCompiler::CompileStorePreMonomorphic(Code::Flags flags) {
   StoreIC::GeneratePreMonomorphic(masm());
   Handle<Code> code = GetCodeWithFlags(flags, "CompileStorePreMonomorphic");
-  PROFILE(isolate(),
-          CodeCreateEvent(Logger::STORE_PREMONOMORPHIC_TAG, *code, 0));
+  PROFILE(isolate(), CodeCreateEvent(Logger::STORE_PREMONOMORPHIC_TAG,
+                                     AbstractCode::cast(*code), 0));
   return code;
 }
 
@@ -202,7 +204,8 @@ Handle<Code> PropertyICCompiler::CompileStoreGeneric(Code::Flags flags) {
   LanguageMode language_mode = StoreICState::GetLanguageMode(extra_state);
   GenerateRuntimeSetProperty(masm(), language_mode);
   Handle<Code> code = GetCodeWithFlags(flags, "CompileStoreGeneric");
-  PROFILE(isolate(), CodeCreateEvent(Logger::STORE_GENERIC_TAG, *code, 0));
+  PROFILE(isolate(), CodeCreateEvent(Logger::STORE_GENERIC_TAG,
+                                     AbstractCode::cast(*code), 0));
   return code;
 }
 
@@ -210,7 +213,8 @@ Handle<Code> PropertyICCompiler::CompileStoreGeneric(Code::Flags flags) {
 Handle<Code> PropertyICCompiler::CompileStoreMegamorphic(Code::Flags flags) {
   StoreIC::GenerateMegamorphic(masm());
   Handle<Code> code = GetCodeWithFlags(flags, "CompileStoreMegamorphic");
-  PROFILE(isolate(), CodeCreateEvent(Logger::STORE_MEGAMORPHIC_TAG, *code, 0));
+  PROFILE(isolate(), CodeCreateEvent(Logger::STORE_MEGAMORPHIC_TAG,
+                                     AbstractCode::cast(*code), 0));
   return code;
 }
 
@@ -221,7 +225,8 @@ Handle<Code> PropertyICCompiler::GetCode(Code::Kind kind, Code::StubType type,
   Code::Flags flags =
       Code::ComputeFlags(kind, state, extra_ic_state_, type, cache_holder());
   Handle<Code> code = GetCodeWithFlags(flags, name);
-  PROFILE(isolate(), CodeCreateEvent(log_kind(code), *code, *name));
+  PROFILE(isolate(),
+          CodeCreateEvent(log_kind(code), AbstractCode::cast(*code), *name));
 #ifdef DEBUG
   code->VerifyEmbeddedObjects();
 #endif

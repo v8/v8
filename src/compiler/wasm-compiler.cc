@@ -1982,8 +1982,8 @@ static void RecordFunctionCompilation(Logger::LogEventsAndTags tag,
     Handle<Code> code = info->code();
     Handle<SharedFunctionInfo> shared =
         isolate->factory()->NewSharedFunctionInfo(name_str, code, false);
-    PROFILE(isolate,
-            CodeCreateEvent(tag, *code, *shared, info, *script_str, 0, 0));
+    PROFILE(isolate, CodeCreateEvent(tag, AbstractCode::cast(*code), *shared,
+                                     info, *script_str, 0, 0));
   }
 }
 

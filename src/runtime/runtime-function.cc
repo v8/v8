@@ -204,8 +204,8 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
 
   if (isolate->logger()->is_logging_code_events() ||
       isolate->cpu_profiler()->is_profiling()) {
-    isolate->logger()->LogExistingFunction(source_shared,
-                                           Handle<Code>(source_shared->code()));
+    isolate->logger()->LogExistingFunction(
+        source_shared, Handle<AbstractCode>(source_shared->abstract_code()));
   }
 
   return *target;

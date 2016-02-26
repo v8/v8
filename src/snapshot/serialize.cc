@@ -387,15 +387,12 @@ class CodeAddressMap: public CodeEventLogger {
     isolate_->logger()->removeCodeEventListener(this);
   }
 
-  void CodeMoveEvent(Address from, Address to) override {
-    address_to_name_map_.Move(from, to);
+  void CodeMoveEvent(AbstractCode* from, Address to) override {
+    address_to_name_map_.Move(from->address(), to);
   }
 
-  void CodeDisableOptEvent(Code* code, SharedFunctionInfo* shared) override {}
-
-  void CodeDeleteEvent(Address from) override {
-    address_to_name_map_.Remove(from);
-  }
+  void CodeDisableOptEvent(AbstractCode* code,
+                           SharedFunctionInfo* shared) override {}
 
   const char* Lookup(Address address) {
     return address_to_name_map_.Lookup(address);
@@ -473,8 +470,8 @@ class CodeAddressMap: public CodeEventLogger {
     DISALLOW_COPY_AND_ASSIGN(NameMap);
   };
 
-  void LogRecordedBuffer(Code* code, SharedFunctionInfo*, const char* name,
-                         int length) override {
+  void LogRecordedBuffer(AbstractCode* code, SharedFunctionInfo*,
+                         const char* name, int length) override {
     address_to_name_map_.Insert(code->address(), name, length);
   }
 
@@ -2635,7 +2632,8 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
       Script* script = Script::cast(result->script());
       if (script->name()->IsString()) name = String::cast(script->name());
     }
-    isolate->logger()->CodeCreateEvent(Logger::SCRIPT_TAG, result->code(),
+    isolate->logger()->CodeCreateEvent(Logger::SCRIPT_TAG,
+                                       AbstractCode::cast(result->code()),
                                        *result, NULL, name);
   }
   return scope.CloseAndEscape(result);

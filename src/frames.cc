@@ -401,6 +401,17 @@ void StackFrame::SetReturnAddressLocationResolver(
   return_address_location_resolver_ = resolver;
 }
 
+static bool IsInterpreterFramePc(Isolate* isolate, Address pc) {
+  Code* interpreter_entry_trampoline =
+      isolate->builtins()->builtin(Builtins::kInterpreterEntryTrampoline);
+  Code* interpreter_bytecode_dispatch =
+      isolate->builtins()->builtin(Builtins::kInterpreterEnterBytecodeDispatch);
+
+  return (pc >= interpreter_entry_trampoline->instruction_start() &&
+          pc < interpreter_entry_trampoline->instruction_end()) ||
+         (pc >= interpreter_bytecode_dispatch->instruction_start() &&
+          pc < interpreter_bytecode_dispatch->instruction_end());
+}
 
 StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
                                          State* state) {
@@ -427,6 +438,9 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
         Memory::Object_at(state->fp + StandardFrameConstants::kMarkerOffset);
     if (marker->IsSmi()) {
       return static_cast<StackFrame::Type>(Smi::cast(marker)->value());
+    } else if (FLAG_ignition && IsInterpreterFramePc(iterator->isolate(),
+                                                     *(state->pc_address))) {
+      return INTERPRETED;
     } else {
       return JAVA_SCRIPT;
     }

@@ -3102,8 +3102,6 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
       }
 
       // Free the chunk.
-      heap()->mark_compact_collector()->ReportDeleteIfNeeded(object,
-                                                             heap()->isolate());
       size_ -= static_cast<int>(page->size());
       AccountUncommitted(static_cast<intptr_t>(page->size()));
       objects_size_ -= object->Size();

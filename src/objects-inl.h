@@ -5130,11 +5130,50 @@ class Code::FindAndReplacePattern {
   friend class Code;
 };
 
-int AbstractCode::Size() {
+int AbstractCode::instruction_size() {
   if (IsCode()) {
     return GetCode()->instruction_size();
   } else {
     return GetBytecodeArray()->length();
+  }
+}
+
+int AbstractCode::ExecutableSize() {
+  if (IsCode()) {
+    return GetCode()->ExecutableSize();
+  } else {
+    return GetBytecodeArray()->BytecodeArraySize();
+  }
+}
+
+Address AbstractCode::instruction_start() {
+  if (IsCode()) {
+    return GetCode()->instruction_start();
+  } else {
+    return GetBytecodeArray()->GetFirstBytecodeAddress();
+  }
+}
+
+Address AbstractCode::instruction_end() {
+  if (IsCode()) {
+    return GetCode()->instruction_end();
+  } else {
+    return GetBytecodeArray()->GetFirstBytecodeAddress() +
+           GetBytecodeArray()->length();
+  }
+}
+
+bool AbstractCode::contains(byte* inner_pointer) {
+  return (address() <= inner_pointer) && (inner_pointer <= address() + Size());
+}
+
+AbstractCode::Kind AbstractCode::kind() {
+  if (IsCode()) {
+    STATIC_ASSERT(AbstractCode::FUNCTION ==
+                  static_cast<AbstractCode::Kind>(Code::FUNCTION));
+    return static_cast<AbstractCode::Kind>(GetCode()->kind());
+  } else {
+    return INTERPRETED_FUNCTION;
   }
 }
 
@@ -5629,6 +5668,13 @@ BOOL_GETTER(SharedFunctionInfo,
             optimization_disabled,
             kOptimizationDisabled)
 
+AbstractCode* SharedFunctionInfo::abstract_code() {
+  if (HasBytecodeArray()) {
+    return AbstractCode::cast(bytecode_array());
+  } else {
+    return AbstractCode::cast(code());
+  }
+}
 
 void SharedFunctionInfo::set_optimization_disabled(bool disable) {
   set_compiler_hints(BooleanBit::set(compiler_hints(),
@@ -6020,6 +6066,14 @@ void Map::InobjectSlackTrackingStep() {
   }
 }
 
+AbstractCode* JSFunction::abstract_code() {
+  Code* code = this->code();
+  if (code->is_interpreter_entry_trampoline()) {
+    return AbstractCode::cast(shared()->bytecode_array());
+  } else {
+    return AbstractCode::cast(code);
+  }
+}
 
 Code* JSFunction::code() {
   return Code::cast(
