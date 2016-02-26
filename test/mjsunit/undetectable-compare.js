@@ -92,5 +92,15 @@ for (var i = 0; i < 5; i++) {
 }
 
 
-assertFalse(undetectable == %GetUndetectable());
+assertTrue(undetectable == %GetUndetectable());
 assertFalse(undetectable === %GetUndetectable());
+
+
+function test2(a, b) {
+  assertTrue(a == b);
+}
+test2(1, 1);
+test2(undetectable, undetectable);
+for (var i = 0; i < 5; ++i) {
+  test2(undetectable, %GetUndetectable());
+}
