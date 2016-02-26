@@ -2713,9 +2713,8 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
 
   if (!CallUtilsFunction(isolate(), "PostNatives")) return false;
 
-  auto template_instantiations_cache =
-      ObjectHashTable::New(isolate(), ApiNatives::kInitialFunctionCacheSize,
-                           USE_CUSTOM_MINIMUM_CAPACITY);
+  auto template_instantiations_cache = UnseededNumberDictionary::New(
+      isolate(), ApiNatives::kInitialFunctionCacheSize);
   native_context()->set_template_instantiations_cache(
       *template_instantiations_cache);
 

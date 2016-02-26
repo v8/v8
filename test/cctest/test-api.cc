@@ -22475,7 +22475,8 @@ THREADED_TEST(FunctionNew) {
                        ->serial_number()),
       i_isolate);
   auto cache = i_isolate->template_instantiations_cache();
-  CHECK(cache->Lookup(serial_number)->IsTheHole());
+  CHECK(cache->FindEntry(static_cast<uint32_t>(serial_number->value())) ==
+        i::UnseededNumberDictionary::kNotFound);
   // Verify that each Function::New creates a new function instance
   Local<Object> data2 = v8::Object::New(isolate);
   function_new_expected_env = data2;

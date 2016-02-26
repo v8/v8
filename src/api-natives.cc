@@ -269,15 +269,20 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
 void CacheTemplateInstantiation(Isolate* isolate, Handle<Smi> serial_number,
                                 Handle<JSObject> object) {
   auto cache = isolate->template_instantiations_cache();
-  auto new_cache = ObjectHashTable::Put(cache, serial_number, object);
+  auto new_cache = UnseededNumberDictionary::AtNumberPut(
+      cache, static_cast<uint32_t>(serial_number->value()), object);
   isolate->native_context()->set_template_instantiations_cache(*new_cache);
 }
 
 void UncacheTemplateInstantiation(Isolate* isolate, Handle<Smi> serial_number) {
   auto cache = isolate->template_instantiations_cache();
-  bool was_present = false;
-  auto new_cache = ObjectHashTable::Remove(cache, serial_number, &was_present);
-  DCHECK(was_present);
+  int entry = cache->FindEntry(static_cast<uint32_t>(serial_number->value()));
+  DCHECK(entry != UnseededNumberDictionary::kNotFound);
+  Handle<Object> result =
+      UnseededNumberDictionary::DeleteProperty(cache, entry);
+  USE(result);
+  DCHECK(result->IsTrue());
+  auto new_cache = UnseededNumberDictionary::Shrink(cache, entry);
   isolate->native_context()->set_template_instantiations_cache(*new_cache);
 }
 
@@ -301,8 +306,9 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
   if (serial_number->value()) {
     // Probe cache.
     auto cache = isolate->template_instantiations_cache();
-    Object* boilerplate = cache->Lookup(serial_number);
-    if (boilerplate->IsJSObject()) {
+    int entry = cache->FindEntry(static_cast<uint32_t>(serial_number->value()));
+    if (entry != UnseededNumberDictionary::kNotFound) {
+      Object* boilerplate = cache->ValueAt(entry);
       result = handle(JSObject::cast(boilerplate), isolate);
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, result, JSObject::DeepCopyApiBoilerplate(result), JSObject);
@@ -333,8 +339,9 @@ MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
   if (serial_number->value()) {
     // Probe cache.
     auto cache = isolate->template_instantiations_cache();
-    Object* element = cache->Lookup(serial_number);
-    if (element->IsJSFunction()) {
+    int entry = cache->FindEntry(static_cast<uint32_t>(serial_number->value()));
+    if (entry != UnseededNumberDictionary::kNotFound) {
+      Object* element = cache->ValueAt(entry);
       return handle(JSFunction::cast(element), isolate);
     }
   }
