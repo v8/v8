@@ -289,19 +289,8 @@ void UncacheTemplateInstantiation(Isolate* isolate, Handle<Smi> serial_number) {
 MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
                                         Handle<ObjectTemplateInfo> info,
                                         bool is_hidden_prototype) {
-  // Enter a new scope.  Recursion could otherwise create a lot of handles.
-  HandleScope scope(isolate);
   // Fast path.
   Handle<JSObject> result;
-  auto constructor = handle(info->constructor(), isolate);
-  Handle<JSFunction> cons;
-  if (constructor->IsUndefined()) {
-    cons = isolate->object_function();
-  } else {
-    auto cons_templ = Handle<FunctionTemplateInfo>::cast(constructor);
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, cons, InstantiateFunction(isolate, cons_templ), JSFunction);
-  }
   auto serial_number = handle(Smi::cast(info->serial_number()), isolate);
   if (serial_number->value()) {
     // Probe cache.
@@ -312,8 +301,19 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
       result = handle(JSObject::cast(boilerplate), isolate);
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, result, JSObject::DeepCopyApiBoilerplate(result), JSObject);
-      return scope.CloseAndEscape(result);
+      return result;
     }
+  }
+  // Enter a new scope.  Recursion could otherwise create a lot of handles.
+  HandleScope scope(isolate);
+  auto constructor = handle(info->constructor(), isolate);
+  Handle<JSFunction> cons;
+  if (constructor->IsUndefined()) {
+    cons = isolate->object_function();
+  } else {
+    auto cons_templ = Handle<FunctionTemplateInfo>::cast(constructor);
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, cons, InstantiateFunction(isolate, cons_templ), JSFunction);
   }
   auto object = isolate->factory()->NewJSObject(cons);
   ASSIGN_RETURN_ON_EXCEPTION(
