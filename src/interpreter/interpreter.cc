@@ -1144,7 +1144,7 @@ void Interpreter::DoNewWide(InterpreterAssembler* assembler) {
 //
 // Test if the value in the <src> register equals the accumulator.
 void Interpreter::DoTestEqual(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kEquals, assembler);
+  DoBinaryOp(Runtime::kEqual, assembler);
 }
 
 
@@ -1152,7 +1152,7 @@ void Interpreter::DoTestEqual(InterpreterAssembler* assembler) {
 //
 // Test if the value in the <src> register is not equal to the accumulator.
 void Interpreter::DoTestNotEqual(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kNotEquals, assembler);
+  DoBinaryOp(Runtime::kNotEqual, assembler);
 }
 
 
@@ -1160,7 +1160,7 @@ void Interpreter::DoTestNotEqual(InterpreterAssembler* assembler) {
 //
 // Test if the value in the <src> register is strictly equal to the accumulator.
 void Interpreter::DoTestEqualStrict(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kStrictEquals, assembler);
+  DoBinaryOp(Runtime::kStrictEqual, assembler);
 }
 
 
@@ -1169,7 +1169,7 @@ void Interpreter::DoTestEqualStrict(InterpreterAssembler* assembler) {
 // Test if the value in the <src> register is not strictly equal to the
 // accumulator.
 void Interpreter::DoTestNotEqualStrict(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kStrictNotEquals, assembler);
+  DoBinaryOp(Runtime::kStrictNotEqual, assembler);
 }
 
 
@@ -1177,7 +1177,7 @@ void Interpreter::DoTestNotEqualStrict(InterpreterAssembler* assembler) {
 //
 // Test if the value in the <src> register is less than the accumulator.
 void Interpreter::DoTestLessThan(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kInterpreterLessThan, assembler);
+  DoBinaryOp(Runtime::kLessThan, assembler);
 }
 
 
@@ -1185,7 +1185,7 @@ void Interpreter::DoTestLessThan(InterpreterAssembler* assembler) {
 //
 // Test if the value in the <src> register is greater than the accumulator.
 void Interpreter::DoTestGreaterThan(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kInterpreterGreaterThan, assembler);
+  DoBinaryOp(Runtime::kGreaterThan, assembler);
 }
 
 
@@ -1194,7 +1194,7 @@ void Interpreter::DoTestGreaterThan(InterpreterAssembler* assembler) {
 // Test if the value in the <src> register is less than or equal to the
 // accumulator.
 void Interpreter::DoTestLessThanOrEqual(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kInterpreterLessThanOrEqual, assembler);
+  DoBinaryOp(Runtime::kLessThanOrEqual, assembler);
 }
 
 
@@ -1203,7 +1203,7 @@ void Interpreter::DoTestLessThanOrEqual(InterpreterAssembler* assembler) {
 // Test if the value in the <src> register is greater than or equal to the
 // accumulator.
 void Interpreter::DoTestGreaterThanOrEqual(InterpreterAssembler* assembler) {
-  DoBinaryOp(Runtime::kInterpreterGreaterThanOrEqual, assembler);
+  DoBinaryOp(Runtime::kGreaterThanOrEqual, assembler);
 }
 
 

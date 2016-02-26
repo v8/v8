@@ -865,7 +865,6 @@
   # TODO(rmcilroy,4680): Test assert failures.
   'array-literal-feedback': [FAIL],
   'debug-liveedit-2': [FAIL],
-  'compiler/deopt-tonumber-compare': [FAIL],
   'es6/mirror-collections': [FAIL],
   'es6/regress/regress-468661': [FAIL],
   'regress/regress-2618': [FAIL],
