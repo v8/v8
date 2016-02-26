@@ -93,10 +93,6 @@
   'test-api/StrongModeAccessCheckAllowed': [FAIL],
   'test-api/StrongModeAccessCheckBlocked': [FAIL],
 
-  # Iterator finalization was implemented, which changed the bytecode
-  # generated from for-of loops
-  'test-bytecode-generator/ForOf': [FAIL],
-
   ##############################################################################
   # TurboFan compiler failures.
 
