@@ -4,6 +4,7 @@
 
 #include <cstring>
 #include <fstream>
+#include <vector>
 
 #include "test/cctest/interpreter/bytecode-expectations-printer.h"
 
@@ -15,9 +16,19 @@
 #include "src/compiler.h"
 #include "src/interpreter/interpreter.h"
 
+#ifdef V8_OS_POSIX
+#include <dirent.h>
+#endif
+
 using v8::internal::interpreter::BytecodeExpectationsPrinter;
 
+#define REPORT_ERROR(MESSAGE) (((std::cerr << "ERROR: ") << MESSAGE) << '\n')
+
 namespace {
+
+#ifdef V8_OS_POSIX
+const char* kGoldenFilesPath = "test/cctest/interpreter/bytecode_expectations/";
+#endif
 
 class ProgramOptions final {
  public:
@@ -34,6 +45,7 @@ class ProgramOptions final {
         top_level_(false),
         legacy_const_(false),
         do_expressions_(false),
+        verbose_(false),
         const_pool_type_(
             BytecodeExpectationsPrinter::ConstantPoolType::kMixed) {}
 
@@ -54,10 +66,11 @@ class ProgramOptions final {
   bool top_level() const { return top_level_; }
   bool legacy_const() const { return legacy_const_; }
   bool do_expressions() const { return do_expressions_; }
+  bool verbose() const { return verbose_; }
   BytecodeExpectationsPrinter::ConstantPoolType const_pool_type() const {
     return const_pool_type_;
   }
-  std::string input_filename() const { return input_filename_; }
+  std::vector<std::string> input_filenames() const { return input_filenames_; }
   std::string output_filename() const { return output_filename_; }
   std::string test_function_name() const { return test_function_name_; }
 
@@ -72,8 +85,9 @@ class ProgramOptions final {
   bool top_level_;
   bool legacy_const_;
   bool do_expressions_;
+  bool verbose_;
   BytecodeExpectationsPrinter::ConstantPoolType const_pool_type_;
-  std::string input_filename_;
+  std::vector<std::string> input_filenames_;
   std::string output_filename_;
   std::string test_function_name_;
 };
@@ -144,6 +158,39 @@ bool ParseBoolean(const char* string) {
 
 const char* BooleanToString(bool value) { return value ? "yes" : "no"; }
 
+#ifdef V8_OS_POSIX
+
+bool StrEndsWith(const char* string, const char* suffix) {
+  int string_size = i::StrLength(string);
+  int suffix_size = i::StrLength(suffix);
+  if (string_size < suffix_size) return false;
+
+  return strcmp(string + (string_size - suffix_size), suffix) == 0;
+}
+
+bool CollectGoldenFiles(std::vector<std::string>* golden_file_list,
+                        const char* directory_path) {
+  DIR* directory = opendir(directory_path);
+  if (!directory) return false;
+
+  dirent entry_buffer;
+  dirent* entry;
+
+  while (readdir_r(directory, &entry_buffer, &entry) == 0 && entry) {
+    if (StrEndsWith(entry->d_name, ".golden")) {
+      std::string golden_filename(kGoldenFilesPath);
+      golden_filename += entry->d_name;
+      golden_file_list->push_back(golden_filename);
+    }
+  }
+
+  closedir(directory);
+
+  return true;
+}
+
+#endif  // V8_OS_POSIX
+
 // static
 ProgramOptions ProgramOptions::FromCommandLine(int argc, char** argv) {
   ProgramOptions options;
@@ -169,22 +216,34 @@ ProgramOptions ProgramOptions::FromCommandLine(int argc, char** argv) {
       options.legacy_const_ = true;
     } else if (strcmp(argv[i], "--do-expressions") == 0) {
       options.do_expressions_ = true;
+    } else if (strcmp(argv[i], "--verbose") == 0) {
+      options.verbose_ = true;
     } else if (strncmp(argv[i], "--output=", 9) == 0) {
       options.output_filename_ = argv[i] + 9;
     } else if (strncmp(argv[i], "--test-function-name=", 21) == 0) {
       options.test_function_name_ = argv[i] + 21;
     } else if (strncmp(argv[i], "--", 2) != 0) {  // It doesn't start with --
-      if (!options.input_filename_.empty()) {
-        std::cerr << "ERROR: More than one input file specified\n";
-        options.parsing_failed_ = true;
-        break;
-      }
-      options.input_filename_ = argv[i];
+      options.input_filenames_.push_back(argv[i]);
     } else {
-      std::cerr << "ERROR: Unknonwn option " << argv[i] << "\n";
+      REPORT_ERROR("Unknonwn option " << argv[i]);
       options.parsing_failed_ = true;
       break;
     }
+  }
+
+  if (options.rebaseline_ && options.input_filenames_.empty()) {
+#ifdef V8_OS_POSIX
+    if (options.verbose_) {
+      std::cout << "Looking for golden files in " << kGoldenFilesPath << '\n';
+    }
+    if (!CollectGoldenFiles(&options.input_filenames_, kGoldenFilesPath)) {
+      REPORT_ERROR("Golden files autodiscovery failed.");
+      options.parsing_failed_ = true;
+    }
+#else
+    REPORT_ERROR("Golden files autodiscovery requires a POSIX OS, sorry.");
+    options.parsing_failed_ = true;
+#endif
   }
 
   return options;
@@ -196,28 +255,44 @@ bool ProgramOptions::Validate() const {
 
   if (const_pool_type_ ==
       BytecodeExpectationsPrinter::ConstantPoolType::kUnknown) {
-    std::cerr << "ERROR: Unknown constant pool type.\n";
+    REPORT_ERROR("Unknown constant pool type.");
     return false;
   }
 
-  if (!read_from_stdin_ && input_filename_.empty()) {
-    std::cerr << "ERROR: No input file specified.\n";
+  if (!read_from_stdin_ && input_filenames_.empty()) {
+    REPORT_ERROR("No input file specified.");
     return false;
   }
 
-  if (read_from_stdin_ && !input_filename_.empty()) {
-    std::cerr << "ERROR: Reading from stdin, but input files supplied.\n";
+  if (read_from_stdin_ && !input_filenames_.empty()) {
+    REPORT_ERROR("Reading from stdin, but input files supplied.");
     return false;
   }
 
   if (rebaseline_ && read_raw_js_snippet_) {
-    std::cerr << "ERROR: Cannot use --rebaseline on a raw JS snippet.\n";
+    REPORT_ERROR("Cannot use --rebaseline on a raw JS snippet.");
+    return false;
+  }
+
+  if (rebaseline_ && !output_filename_.empty()) {
+    REPORT_ERROR("Output file cannot be specified together with --rebaseline.");
+    return false;
+  }
+
+  if (rebaseline_ && read_from_stdin_) {
+    REPORT_ERROR("Cannot --rebaseline when input is --stdin.");
+    return false;
+  }
+
+  if (input_filenames_.size() > 1 && !rebaseline_ && !read_raw_js_snippet()) {
+    REPORT_ERROR(
+        "Multiple input files, but no --rebaseline or --raw-js specified.");
     return false;
   }
 
   if (top_level_ && !test_function_name_.empty()) {
-    std::cerr << "ERROR: test function name specified while processing "
-                 "top level code.\n";
+    REPORT_ERROR(
+        "Test function name specified while processing top level code.");
     return false;
   }
 
@@ -360,41 +435,62 @@ void ExtractSnippets(std::vector<std::string>* snippet_list,
 
 void GenerateExpectationsFile(std::ostream& stream,  // NOLINT
                               const std::vector<std::string>& snippet_list,
-                              const ProgramOptions& options,
-                              const char* exec_path) {
-  V8InitializationScope platform(exec_path);
-  {
-    v8::Isolate::Scope isolate_scope(platform.isolate());
-    v8::HandleScope handle_scope(platform.isolate());
-    v8::Local<v8::Context> context = v8::Context::New(platform.isolate());
-    v8::Context::Scope context_scope(context);
+                              const V8InitializationScope& platform,
+                              const ProgramOptions& options) {
+  v8::Isolate::Scope isolate_scope(platform.isolate());
+  v8::HandleScope handle_scope(platform.isolate());
+  v8::Local<v8::Context> context = v8::Context::New(platform.isolate());
+  v8::Context::Scope context_scope(context);
 
-    BytecodeExpectationsPrinter printer(platform.isolate(),
-                                        options.const_pool_type());
-    printer.set_wrap(options.wrap());
-    printer.set_execute(options.execute());
-    printer.set_top_level(options.top_level());
-    if (!options.test_function_name().empty()) {
-      printer.set_test_function_name(options.test_function_name());
-    }
+  BytecodeExpectationsPrinter printer(platform.isolate(),
+                                      options.const_pool_type());
+  printer.set_wrap(options.wrap());
+  printer.set_execute(options.execute());
+  printer.set_top_level(options.top_level());
+  if (!options.test_function_name().empty()) {
+    printer.set_test_function_name(options.test_function_name());
+  }
 
-    if (options.legacy_const()) i::FLAG_legacy_const = true;
-    if (options.do_expressions()) i::FLAG_harmony_do_expressions = true;
+  if (options.legacy_const()) i::FLAG_legacy_const = true;
+  if (options.do_expressions()) i::FLAG_harmony_do_expressions = true;
 
-    stream << "#\n# Autogenerated by generate-bytecode-expectations.\n#\n\n";
-    options.PrintHeader(stream);
-    for (const std::string& snippet : snippet_list) {
-      printer.PrintExpectation(stream, snippet);
+  stream << "#\n# Autogenerated by generate-bytecode-expectations.\n#\n\n";
+  options.PrintHeader(stream);
+  for (const std::string& snippet : snippet_list) {
+    printer.PrintExpectation(stream, snippet);
+  }
+
+  i::FLAG_legacy_const = false;
+  i::FLAG_harmony_do_expressions = false;
+}
+
+bool WriteExpectationsFile(const std::vector<std::string>& snippet_list,
+                           const V8InitializationScope& platform,
+                           const ProgramOptions& options,
+                           const std::string& output_filename) {
+  std::ofstream output_file_handle;
+  if (!options.write_to_stdout()) {
+    output_file_handle.open(output_filename.c_str());
+    if (!output_file_handle.is_open()) {
+      REPORT_ERROR("Could not open " << output_filename << " for writing.");
+      return false;
     }
   }
+  std::ostream& output_stream =
+      options.write_to_stdout() ? std::cout : output_file_handle;
+
+  GenerateExpectationsFile(output_stream, snippet_list, platform, options);
+
+  return true;
 }
 
 void PrintUsage(const char* exec_path) {
   std::cerr
       << "\nUsage: " << exec_path
-      << " [OPTIONS]... [INPUT FILE]\n\n"
+      << " [OPTIONS]... [INPUT FILES]...\n\n"
          "Options:\n"
          "  --help    Print this help message.\n"
+         "  --verbose Emit messages about the progress of the tool.\n"
          "  --raw-js  Read raw JavaScript, instead of the output format.\n"
          "  --stdin   Read from standard input instead of file.\n"
          "  --rebaseline  Rebaseline input snippet file.\n"
@@ -402,7 +498,7 @@ void PrintUsage(const char* exec_path) {
          "  --no-execute  Do not execute after compilation.\n"
          "  --test-function-name=foo  "
          "Specify the name of the test function.\n"
-         "  --top-level   Process top level code, not the top-level function."
+         "  --top-level   Process top level code, not the top-level function.\n"
          "  --legacy-const  Enable legacy_const flag.\n"
          "  --do-expressions  Enable harmony_do_expressions flag.\n"
          "  --output=file.name\n"
@@ -431,39 +527,50 @@ int main(int argc, char** argv) {
     return options.print_help() ? 0 : 1;
   }
 
-  std::ifstream input_file_handle;
-  if (!options.read_from_stdin()) {
-    input_file_handle.open(options.input_filename().c_str());
-    if (!input_file_handle.is_open()) {
-      std::cerr << "ERROR: Could not open '" << options.input_filename()
-                << "' for reading.\n";
-      return 2;
-    }
-  }
-  std::istream& input_stream =
-      options.read_from_stdin() ? std::cin : input_file_handle;
-
-  if (options.rebaseline()) {
-    options.UpdateFromHeader(input_stream);
-    CHECK(options.Validate());
-  }
+  V8InitializationScope platform(argv[0]);
 
   std::vector<std::string> snippet_list;
-  ExtractSnippets(&snippet_list, input_stream, options.read_raw_js_snippet());
 
-  std::ofstream output_file_handle;
-  if (!options.write_to_stdout()) {
-    output_file_handle.open(options.rebaseline()
-                                ? options.input_filename().c_str()
-                                : options.output_filename().c_str());
-    if (!output_file_handle.is_open()) {
-      std::cerr << "ERROR: Could not open '" << options.output_filename()
-                << "' for writing.\n";
+  if (options.read_from_stdin()) {
+    // Rebaseline will never get here, so we will always take the
+    // GenerateExpectationsFile at the end of this function.
+    DCHECK(!options.rebaseline());
+    ExtractSnippets(&snippet_list, std::cin, options.read_raw_js_snippet());
+  } else {
+    for (const std::string& input_filename : options.input_filenames()) {
+      if (options.verbose()) {
+        std::cerr << "Processing " << input_filename << '\n';
+      }
+
+      std::ifstream input_stream(input_filename.c_str());
+      if (!input_stream.is_open()) {
+        REPORT_ERROR("Could not open " << input_filename << " for reading.");
+        return 2;
+      }
+
+      ProgramOptions updated_options = options;
+      if (options.rebaseline()) {
+        updated_options.UpdateFromHeader(input_stream);
+        CHECK(updated_options.Validate());
+      }
+
+      ExtractSnippets(&snippet_list, input_stream,
+                      options.read_raw_js_snippet());
+
+      if (options.rebaseline()) {
+        if (!WriteExpectationsFile(snippet_list, platform, updated_options,
+                                   input_filename)) {
+          return 3;
+        }
+        snippet_list.clear();
+      }
+    }
+  }
+
+  if (!options.rebaseline()) {
+    if (!WriteExpectationsFile(snippet_list, platform, options,
+                               options.output_filename())) {
       return 3;
     }
   }
-  std::ostream& output_stream =
-      options.write_to_stdout() ? std::cout : output_file_handle;
-
-  GenerateExpectationsFile(output_stream, snippet_list, options, argv[0]);
 }
