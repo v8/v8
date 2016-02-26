@@ -278,6 +278,8 @@ inline void USE(T) { }
 #if V8_OS_MACOSX
 #undef V8PRIxPTR
 #define V8PRIxPTR "lx"
+#undef V8PRIuPTR
+#define V8PRIuPTR "lxu"
 #endif
 
 // The following macro works on both 32 and 64-bit platforms.
