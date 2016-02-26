@@ -8,6 +8,7 @@
 #include "src/base/platform/platform.h"
 #include "src/full-codegen/full-codegen.h"
 #include "src/heap/slot-set.h"
+#include "src/heap/slots-buffer.h"
 #include "src/macro-assembler.h"
 #include "src/msan.h"
 #include "src/snapshot/snapshot.h"
@@ -477,9 +478,9 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   chunk->flags_ = 0;
   chunk->set_owner(owner);
   chunk->InitializeReservedMemory();
+  chunk->slots_buffer_ = nullptr;
   chunk->old_to_new_slots_ = nullptr;
   chunk->old_to_old_slots_ = nullptr;
-  chunk->typed_old_to_old_slots_ = nullptr;
   chunk->skip_list_ = nullptr;
   chunk->write_barrier_counter_ = kWriteBarrierCounterGranularity;
   chunk->progress_bar_ = 0;
@@ -731,10 +732,6 @@ LargePage* MemoryAllocator::AllocateLargePage(intptr_t object_size,
   MemoryChunk* chunk =
       AllocateChunk(object_size, object_size, executable, owner);
   if (chunk == NULL) return NULL;
-  if (executable && chunk->size() > LargePage::kMaxCodePageSize) {
-    STATIC_ASSERT(LargePage::kMaxCodePageSize <= TypedSlotSet::kMaxOffset);
-    FATAL("Code page is too large.");
-  }
   return LargePage::Initialize(isolate_->heap(), chunk);
 }
 
@@ -935,6 +932,8 @@ bool MemoryAllocator::CommitExecutableMemory(base::VirtualMemory* vm,
 // MemoryChunk implementation
 
 void MemoryChunk::ReleaseAllocatedMemory() {
+  delete slots_buffer_;
+  slots_buffer_ = nullptr;
   delete skip_list_;
   skip_list_ = nullptr;
   delete mutex_;
@@ -973,15 +972,6 @@ void MemoryChunk::ReleaseOldToOldSlots() {
   old_to_old_slots_ = nullptr;
 }
 
-void MemoryChunk::AllocateTypedOldToOldSlots() {
-  DCHECK(nullptr == typed_old_to_old_slots_);
-  typed_old_to_old_slots_ = new TypedSlotSet(address());
-}
-
-void MemoryChunk::ReleaseTypedOldToOldSlots() {
-  delete typed_old_to_old_slots_;
-  typed_old_to_old_slots_ = nullptr;
-}
 // -----------------------------------------------------------------------------
 // PagedSpace implementation
 

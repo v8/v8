@@ -56,12 +56,10 @@ class RememberedSet {
   }
 
   // Iterates and filters the remembered set with the given callback.
-  // The callback should take (Address slot) and return SlotCallbackResult.
+  // The callback should take (Address slot) and return SlotSet::CallbackResult.
   template <typename Callback>
   static void Iterate(Heap* heap, Callback callback) {
-    MemoryChunkIterator it(heap, direction == OLD_TO_OLD
-                                     ? MemoryChunkIterator::ALL
-                                     : MemoryChunkIterator::ALL_BUT_CODE_SPACE);
+    PointerChunkIterator it(heap);
     MemoryChunk* chunk;
     while ((chunk = it.next()) != nullptr) {
       SlotSet* slots = GetSlotSet(chunk);
@@ -89,60 +87,6 @@ class RememberedSet {
     Iterate(heap, [heap, callback](Address addr) {
       return Wrapper(heap, addr, callback);
     });
-  }
-
-  // Given a page and a typed slot in that page, this function adds the slot
-  // to the remembered set.
-  static void InsertTyped(Page* page, SlotType slot_type, Address slot_addr) {
-    STATIC_ASSERT(direction == OLD_TO_OLD);
-    TypedSlotSet* slot_set = page->typed_old_to_old_slots();
-    if (slot_set == nullptr) {
-      page->AllocateTypedOldToOldSlots();
-      slot_set = page->typed_old_to_old_slots();
-    }
-    uintptr_t offset = slot_addr - page->address();
-    DCHECK_LT(offset, static_cast<uintptr_t>(TypedSlotSet::kMaxOffset));
-    slot_set->Insert(slot_type, static_cast<uint32_t>(offset));
-  }
-
-  // Given a page and a range of typed slots in that page, this function removes
-  // the slots from the remembered set.
-  static void RemoveRangeTyped(Page* page, Address start, Address end) {
-    TypedSlotSet* slots = page->typed_old_to_old_slots();
-    if (slots != nullptr) {
-      slots->Iterate([start, end](SlotType slot_type, Address slot_addr) {
-        return start <= slot_addr && slot_addr < end ? REMOVE_SLOT : KEEP_SLOT;
-      });
-    }
-  }
-
-  // Iterates and filters typed old to old pointers with the given callback.
-  // The callback should take (SlotType slot_type, Address slot_addr) and
-  // return SlotCallbackResult.
-  template <typename Callback>
-  static void IterateTyped(Heap* heap, Callback callback) {
-    MemoryChunkIterator it(heap, MemoryChunkIterator::ALL_BUT_MAP_SPACE);
-    MemoryChunk* chunk;
-    while ((chunk = it.next()) != nullptr) {
-      TypedSlotSet* slots = chunk->typed_old_to_old_slots();
-      if (slots != nullptr) {
-        int new_count = slots->Iterate(callback);
-        if (new_count == 0) {
-          chunk->ReleaseTypedOldToOldSlots();
-        }
-      }
-    }
-  }
-
-  // Clear all old to old slots from the remembered set.
-  static void ClearAll(Heap* heap) {
-    STATIC_ASSERT(direction == OLD_TO_OLD);
-    MemoryChunkIterator it(heap, MemoryChunkIterator::ALL);
-    MemoryChunk* chunk;
-    while ((chunk = it.next()) != nullptr) {
-      chunk->ReleaseOldToOldSlots();
-      chunk->ReleaseTypedOldToOldSlots();
-    }
   }
 
   // Eliminates all stale slots from the remembered set, i.e.
@@ -181,8 +125,8 @@ class RememberedSet {
   }
 
   template <typename Callback>
-  static SlotCallbackResult Wrapper(Heap* heap, Address slot_address,
-                                    Callback slot_callback) {
+  static SlotSet::CallbackResult Wrapper(Heap* heap, Address slot_address,
+                                         Callback slot_callback) {
     STATIC_ASSERT(direction == OLD_TO_NEW);
     Object** slot = reinterpret_cast<Object**>(slot_address);
     Object* object = *slot;
@@ -196,95 +140,15 @@ class RememberedSet {
       // Unfortunately, we do not know about the slot. It could be in a
       // just freed free space object.
       if (heap->InToSpace(object)) {
-        return KEEP_SLOT;
+        return SlotSet::KEEP_SLOT;
       }
     } else {
       DCHECK(!heap->InNewSpace(object));
     }
-    return REMOVE_SLOT;
+    return SlotSet::REMOVE_SLOT;
   }
 
   static bool IsValidSlot(Heap* heap, Object** slot);
-};
-
-// Buffer for keeping thead local migration slots during compaction.
-// TODO(ulan): Remove this once every thread gets local pages in compaction
-// space.
-class LocalSlotsBuffer BASE_EMBEDDED {
- public:
-  LocalSlotsBuffer() : top_(new Node(nullptr)) {}
-
-  ~LocalSlotsBuffer() {
-    Node* current = top_;
-    while (current != nullptr) {
-      Node* tmp = current->next;
-      delete current;
-      current = tmp;
-    }
-  }
-
-  void Record(Address addr) {
-    EnsureSpaceFor(1);
-    uintptr_t entry = reinterpret_cast<uintptr_t>(addr);
-    DCHECK_GE(entry, static_cast<uintptr_t>(NUMBER_OF_SLOT_TYPES));
-    Insert(entry);
-  }
-
-  void Record(SlotType type, Address addr) {
-    EnsureSpaceFor(2);
-    Insert(static_cast<uintptr_t>(type));
-    uintptr_t entry = reinterpret_cast<uintptr_t>(addr);
-    DCHECK_GE(entry, static_cast<uintptr_t>(NUMBER_OF_SLOT_TYPES));
-    Insert(entry);
-  }
-
-  template <typename UntypedCallback, typename TypedCallback>
-  void Iterate(UntypedCallback untyped_callback, TypedCallback typed_callback) {
-    Node* current = top_;
-    bool typed = false;
-    SlotType type;
-    Address addr;
-    while (current != nullptr) {
-      for (int i = 0; i < current->count; i++) {
-        uintptr_t entry = current->buffer[i];
-        if (entry < NUMBER_OF_SLOT_TYPES) {
-          DCHECK(!typed);
-          typed = true;
-          type = static_cast<SlotType>(entry);
-        } else {
-          addr = reinterpret_cast<Address>(entry);
-          if (typed) {
-            typed_callback(type, addr);
-            typed = false;
-          } else {
-            untyped_callback(addr);
-          }
-        }
-      }
-      current = current->next;
-    }
-  }
-
- private:
-  void EnsureSpaceFor(int count) {
-    if (top_->remaining_free_slots() < count) top_ = new Node(top_);
-  }
-
-  void Insert(uintptr_t entry) { top_->buffer[top_->count++] = entry; }
-
-  static const int kBufferSize = 16 * KB;
-
-  struct Node : Malloced {
-    explicit Node(Node* next_node) : next(next_node), count(0) {}
-
-    inline int remaining_free_slots() { return kBufferSize - count; }
-
-    Node* next;
-    uintptr_t buffer[kBufferSize];
-    int count;
-  };
-
-  Node* top_;
 };
 
 }  // namespace internal

@@ -24,7 +24,8 @@ void RememberedSet<direction>::ClearInvalidSlots(Heap* heap) {
     if (slots != nullptr) {
       slots->Iterate([heap](Address addr) {
         Object** slot = reinterpret_cast<Object**>(addr);
-        return IsValidSlot(heap, slot) ? KEEP_SLOT : REMOVE_SLOT;
+        return IsValidSlot(heap, slot) ? SlotSet::KEEP_SLOT
+                                       : SlotSet::REMOVE_SLOT;
       });
     }
   }
@@ -32,24 +33,17 @@ void RememberedSet<direction>::ClearInvalidSlots(Heap* heap) {
 
 template <PointerDirection direction>
 void RememberedSet<direction>::VerifyValidSlots(Heap* heap) {
+  STATIC_ASSERT(direction == OLD_TO_NEW);
   Iterate(heap, [heap](Address addr) {
-    HeapObject* obj =
-        heap->mark_compact_collector()->FindBlackObjectBySlotSlow(addr);
-    if (obj == nullptr) {
-      // The slot is in dead object.
-      MemoryChunk* chunk = MemoryChunk::FromAnyPointerAddress(heap, addr);
-      AllocationSpace owner = chunk->owner()->identity();
-      // The old to old remembered set can have slots in dead objects. This is
-      // OK because the set is cleared after every mark-compact GC.
-      // The old to new remembered set is allowed to have slots in dead
-      // objects only in map and large object space because these spaces cannot
-      // have raw untaged pointers.
-      CHECK(direction == OLD_TO_OLD || owner == MAP_SPACE || owner == LO_SPACE);
-    } else {
-      int offset = static_cast<int>(addr - obj->address());
-      CHECK(obj->IsValidSlot(offset));
+    Object** slot = reinterpret_cast<Object**>(addr);
+    Object* object = *slot;
+    if (Page::FromAddress(addr)->owner() != nullptr &&
+        Page::FromAddress(addr)->owner()->identity() == OLD_SPACE) {
+      CHECK(IsValidSlot(heap, slot));
+      heap->mark_compact_collector()->VerifyIsSlotInLiveObject(
+          reinterpret_cast<Address>(slot), HeapObject::cast(object));
     }
-    return KEEP_SLOT;
+    return SlotSet::KEEP_SLOT;
   });
 }
 
@@ -70,7 +64,6 @@ bool RememberedSet<direction>::IsValidSlot(Heap* heap, Object** slot) {
 
 template void RememberedSet<OLD_TO_NEW>::ClearInvalidSlots(Heap* heap);
 template void RememberedSet<OLD_TO_NEW>::VerifyValidSlots(Heap* heap);
-template void RememberedSet<OLD_TO_OLD>::VerifyValidSlots(Heap* heap);
 
 }  // namespace internal
 }  // namespace v8
