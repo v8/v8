@@ -663,7 +663,8 @@ void JSGenericLowering::LowerJSCreateLiteralArray(Node* node) {
 void JSGenericLowering::LowerJSCreateLiteralObject(Node* node) {
   CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
-  int const length = Handle<FixedArray>::cast(p.constant())->length();
+  // Constants are pairs, see ObjectLiteral::properties_count().
+  int const length = Handle<FixedArray>::cast(p.constant())->length() / 2;
   node->InsertInput(zone(), 1, jsgraph()->SmiConstant(p.index()));
   node->InsertInput(zone(), 2, jsgraph()->HeapConstant(p.constant()));
   node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.flags()));
