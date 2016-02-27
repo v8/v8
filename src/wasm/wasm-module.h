@@ -33,6 +33,7 @@ enum WasmSectionDeclCode {
   kDeclEnd = 0x06,
   kDeclStartFunction = 0x07,
   kDeclImportTable = 0x08,
+  kDeclExportTable = 0x09,
   kDeclWLL = 0x11,
 };
 
@@ -74,6 +75,12 @@ struct WasmImport {
   uint32_t function_name_offset;  // offset in module bytes of the import name.
 };
 
+// Static representation of an exported WASM function.
+struct WasmExport {
+  uint16_t func_index;   // index into the function table.
+  uint32_t name_offset;  // offset in module bytes of the name to export.
+};
+
 // Static representation of a wasm global variable.
 struct WasmGlobal {
   uint32_t name_offset;  // offset in the module bytes of the name, if any.
@@ -110,6 +117,7 @@ struct WasmModule {
   std::vector<WasmDataSegment>* data_segments;  // data segments in this module.
   std::vector<uint16_t>* function_table;        // function table.
   std::vector<WasmImport>* import_table;        // import table.
+  std::vector<WasmExport>* export_table;        // export table.
 
   WasmModule();
   ~WasmModule();

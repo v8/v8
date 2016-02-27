@@ -283,7 +283,8 @@ WasmModule::WasmModule()
       functions(nullptr),
       data_segments(nullptr),
       function_table(nullptr),
-      import_table(nullptr) {}
+      import_table(nullptr),
+      export_table(nullptr) {}
 
 WasmModule::~WasmModule() {
   if (globals) delete globals;
@@ -292,6 +293,7 @@ WasmModule::~WasmModule() {
   if (data_segments) delete data_segments;
   if (function_table) delete function_table;
   if (import_table) delete import_table;
+  if (export_table) delete export_table;
 }
 
 static MaybeHandle<JSFunction> LookupFunction(ErrorThrower& thrower,
@@ -454,6 +456,32 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
   linker.Link(instance.function_table, this->function_table);
   instance.js_object->SetInternalField(kWasmModuleFunctionTable,
                                        Smi::FromInt(0));
+
+  //-------------------------------------------------------------------------
+  // Create and populate the exports object.
+  //-------------------------------------------------------------------------
+  if (export_table->size() > 0) {
+    index = 0;
+    // Create the "exports" object.
+    Handle<JSFunction> object_function = Handle<JSFunction>(
+        isolate->native_context()->object_function(), isolate);
+    Handle<JSObject> exports_object =
+        factory->NewJSObject(object_function, TENURED);
+    Handle<String> exports_name = factory->InternalizeUtf8String("exports");
+    JSObject::AddProperty(instance.js_object, exports_name, exports_object,
+                          READ_ONLY);
+
+    // Compile wrappers and add them to the exports object.
+    for (const WasmExport& exp : *export_table) {
+      if (thrower.error()) break;
+      const char* cstr = GetName(exp.name_offset);
+      Handle<String> name = factory->InternalizeUtf8String(cstr);
+      Handle<Code> code = linker.GetFunctionCode(exp.func_index);
+      Handle<JSFunction> function = compiler::CompileJSToWasmWrapper(
+          isolate, &module_env, name, code, instance.js_object, exp.func_index);
+      JSObject::AddProperty(exports_object, name, function, READ_ONLY);
+    }
+  }
 
   // Run the start function if one was specified.
   if (this->start_function_index >= 0) {

@@ -11,6 +11,21 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+#define VOID_VOID_SIG 0, kLocalVoid
+#define INT_INT_SIG 1, kLocalI32, kLocalI32
+
+#define U32(v)                                                                 \
+  static_cast<byte>(v), static_cast<byte>(v >> 8), static_cast<byte>(v >> 16), \
+      static_cast<byte>(v >> 24)
+#define U16(v) static_cast<byte>(v), static_cast<byte>(v >> 8)
+#define U8(v) static_cast<byte>(v)
+
+#define SIG_INDEX(v) U16(v)
+#define FUNC_INDEX(v) U16(v)
+#define NAME_OFFSET(v) U32(v)
+
+#define EMPTY_FUNCTION(sig_index) 0, SIG_INDEX(sig_index), U16(0)
+
 class WasmModuleVerifyTest : public TestWithZone {
  public:
   ModuleResult DecodeModule(const byte* module_start, const byte* module_end) {
@@ -45,15 +60,6 @@ struct LocalTypePair {
                    {kLocalF64, kAstF64}};
 
 
-// TODO(titzer): use these macros everywhere below.
-#define U32_LE(v)                                    \
-  static_cast<byte>(v), static_cast<byte>((v) >> 8), \
-      static_cast<byte>((v) >> 16), static_cast<byte>((v) >> 24)
-
-
-#define U16_LE(v) static_cast<byte>(v), static_cast<byte>((v) >> 8)
-
-
 TEST_F(WasmModuleVerifyTest, DecodeEmpty) {
   static const byte data[1]{kDeclEnd};
   {
@@ -73,10 +79,7 @@ TEST_F(WasmModuleVerifyTest, OneGlobal) {
   static const byte data[] = {
       kDeclGlobals,
       1,
-      0,
-      0,
-      0,
-      0,        // name offset
+      NAME_OFFSET(0),
       kMemI32,  // memory type
       0,        // exported
   };
@@ -135,9 +138,9 @@ static void AppendUint32v(std::vector<byte>& buffer, uint32_t val) {
 
 TEST_F(WasmModuleVerifyTest, NGlobals) {
   static const byte data[] = {
-      0,       0, 0, 0,  // name offset
-      kMemI32,           // memory type
-      0,                 // exported
+      NAME_OFFSET(0),  // name offset
+      kMemI32,         // memory type
+      0,               // exported
   };
   for (uint32_t i = 0; i < 1000000; i = i * 7 + 1) {
     std::vector<byte> buffer;
@@ -157,13 +160,10 @@ TEST_F(WasmModuleVerifyTest, NGlobals) {
 TEST_F(WasmModuleVerifyTest, GlobalWithInvalidNameOffset) {
   static const byte data[] = {
       kDeclGlobals,
-      1,  // declare one global
-      0,
-      3,
-      0,
-      0,        // name offset
-      kMemI32,  // memory type
-      0,        // exported
+      1,                 // declare one global
+      NAME_OFFSET(300),  // name offset
+      kMemI32,           // memory type
+      0,                 // exported
   };
 
   EXPECT_FAILURE(data);
@@ -173,13 +173,10 @@ TEST_F(WasmModuleVerifyTest, GlobalWithInvalidNameOffset) {
 TEST_F(WasmModuleVerifyTest, GlobalWithInvalidMemoryType) {
   static const byte data[] = {
       kDeclGlobals,
-      1,  // declare one global
-      0,
-      0,
-      0,
-      0,   // name offset
-      33,  // memory type
-      0,   // exported
+      1,               // declare one global
+      NAME_OFFSET(0),  // name offset
+      33,              // memory type
+      0,               // exported
   };
 
   EXPECT_FAILURE(data);
@@ -190,18 +187,12 @@ TEST_F(WasmModuleVerifyTest, TwoGlobals) {
   static const byte data[] = {
       kDeclGlobals,
       2,
-      0,
-      0,
-      0,
-      0,        // #0: name offset
-      kMemF32,  // memory type
-      0,        // exported
-      0,
-      0,
-      0,
-      0,        // #1: name offset
-      kMemF64,  // memory type
-      1,        // exported
+      NAME_OFFSET(0),  // #0: name offset
+      kMemF32,         // memory type
+      0,               // exported
+      NAME_OFFSET(0),  // #1: name offset
+      kMemF64,         // memory type
+      1,               // exported
   };
 
   {
@@ -238,10 +229,15 @@ TEST_F(WasmModuleVerifyTest, TwoGlobals) {
 
 
 TEST_F(WasmModuleVerifyTest, OneSignature) {
-  static const byte data[] = {
-      kDeclSignatures, 1, 0, kLocalVoid  // void -> void
-  };
-  EXPECT_VERIFIES(data);
+  {
+    static const byte data[] = {kDeclSignatures, 1, VOID_VOID_SIG};
+    EXPECT_VERIFIES(data);
+  }
+
+  {
+    static const byte data[] = {kDeclSignatures, 1, INT_INT_SIG};
+    EXPECT_VERIFIES(data);
+  }
 }
 
 
@@ -287,16 +283,16 @@ TEST_F(WasmModuleVerifyTest, FunctionWithoutSig) {
   static const byte data[] = {
       kDeclFunctions, 1,
       // func#0 ------------------------------------------------------
-      0, 0,        // signature index
-      0, 0, 0, 0,  // name offset
-      0, 0, 0, 0,  // code start offset
-      0, 0, 0, 0,  // code end offset
-      1, 2,        // local int32 count
-      3, 4,        // local int64 count
-      5, 6,        // local float32 count
-      7, 8,        // local float64 count
-      0,           // exported
-      1            // external
+      SIG_INDEX(0),    // signature index
+      NAME_OFFSET(0),  // name offset
+      U32(0),          // code start offset
+      U32(0),          // code end offset
+      U16(899),        // local int32 count
+      U16(799),        // local int64 count
+      U16(699),        // local float32 count
+      U16(599),        // local float64 count
+      0,               // exported
+      1                // external
   };
 
   ModuleResult result = DecodeModule(data, data + arraysize(data));
@@ -312,17 +308,17 @@ TEST_F(WasmModuleVerifyTest, OneEmptyVoidVoidFunction) {
   static const byte data[] = {
       kDeclSignatures, 1,
       // sig#0 -------------------------------------------------------
-      0, 0,  // void -> void
+      VOID_VOID_SIG,
       // func#0 ------------------------------------------------------
       kDeclFunctions, 1,
-      kDeclFunctionLocals | kDeclFunctionExport | kDeclFunctionName, 0,
-      0,           // signature index
-      9, 0, 0, 0,  // name offset
-      11, 2,       // local int32 count
-      13, 4,       // local int64 count
-      15, 6,       // local float32 count
-      17, 8,       // local float64 count
-      1, 0,        // size
+      kDeclFunctionLocals | kDeclFunctionExport | kDeclFunctionName,
+      SIG_INDEX(0),    // signature index
+      NAME_OFFSET(9),  // name offset
+      U16(1466),       // local int32 count
+      U16(1355),       // local int64 count
+      U16(1244),       // local float32 count
+      U16(1133),       // local float64 count
+      1, 0,            // size
       kExprNop,
   };
 
@@ -342,10 +338,10 @@ TEST_F(WasmModuleVerifyTest, OneEmptyVoidVoidFunction) {
     EXPECT_EQ(kCodeStartOffset, function->code_start_offset);
     EXPECT_EQ(kCodeEndOffset, function->code_end_offset);
 
-    EXPECT_EQ(523, function->local_i32_count);
-    EXPECT_EQ(1037, function->local_i64_count);
-    EXPECT_EQ(1551, function->local_f32_count);
-    EXPECT_EQ(2065, function->local_f64_count);
+    EXPECT_EQ(1466, function->local_i32_count);
+    EXPECT_EQ(1355, function->local_i64_count);
+    EXPECT_EQ(1244, function->local_f32_count);
+    EXPECT_EQ(1133, function->local_f64_count);
 
     EXPECT_TRUE(function->exported);
     EXPECT_FALSE(function->external);
@@ -366,11 +362,10 @@ TEST_F(WasmModuleVerifyTest, OneFunctionImported) {
   static const byte data[] = {
       kDeclSignatures, 1,
       // sig#0 -------------------------------------------------------
-      0, 0,  // void -> void
-      kDeclFunctions, 1,
+      VOID_VOID_SIG, kDeclFunctions, 1,
       // func#0 ------------------------------------------------------
       kDeclFunctionImport,  // no name, no locals, imported
-      0, 0,                 // signature index
+      SIG_INDEX(0),
   };
 
   ModuleResult result = DecodeModule(data, data + arraysize(data));
@@ -643,9 +638,9 @@ TEST_F(WasmModuleVerifyTest, DataSegmentWithInvalidSource) {
           1,
           kDeclDataSegments,
           1,
-          U32_LE(dest_addr),
-          U32_LE(source_offset),
-          U32_LE(source_size),
+          U32(dest_addr),
+          U32(source_offset),
+          U32(source_size),
           1,  // init
       };
 
@@ -678,9 +673,9 @@ TEST_F(WasmModuleVerifyTest, DataSegmentWithInvalidDest) {
           1,
           kDeclDataSegments,
           1,
-          U32_LE(dest_addr),
-          U32_LE(source_offset),
-          U32_LE(source_size),
+          U32(dest_addr),
+          U32(source_offset),
+          U32(source_size),
           1,  // init
       };
 
@@ -1018,20 +1013,10 @@ TEST_F(WasmModuleVerifyTest, ImportTable_nosigs) {
 
 TEST_F(WasmModuleVerifyTest, ImportTable_invalid_sig) {
   static const byte data[] = {
-      kDeclSignatures,
-      0,
-      kDeclImportTable,
-      1,
-      0,
-      0,  // sig index
-      1,
-      0,
-      0,
-      0,  // module name
-      1,
-      0,
-      0,
-      0  // function name
+      kDeclSignatures, 0, kDeclImportTable, 1,
+      SIG_INDEX(0),    // sig index
+      NAME_OFFSET(1),  // module name
+      NAME_OFFSET(1),  // function name
   };
   EXPECT_FAILURE(data);
 }
@@ -1040,45 +1025,128 @@ TEST_F(WasmModuleVerifyTest, ImportTable_one_sig) {
   static const byte data[] = {
       kDeclSignatures,
       1,
-      0,
-      static_cast<byte>(kAstStmt),
+      VOID_VOID_SIG,
       kDeclImportTable,
-      1,
-      0,
-      0,  // sig index
-      1,
-      0,
-      0,
-      0,  // module name
-      1,
-      0,
-      0,
-      0  // function name
+      1,               // --
+      SIG_INDEX(0),    // sig index
+      NAME_OFFSET(1),  // module name
+      NAME_OFFSET(1)   // function name
   };
   EXPECT_VERIFIES(data);
 }
 
 TEST_F(WasmModuleVerifyTest, ImportTable_off_end) {
   static const byte data[] = {
-      kDeclSignatures,
-      1,
-      0,
-      static_cast<byte>(kAstStmt),
-      kDeclImportTable,
-      1,
-      0,
-      0,  // sig index
-      1,
-      0,
-      0,
-      0,  // module name
-      1,
-      0,
-      0,
-      0  // function name
+      kDeclSignatures, 1, VOID_VOID_SIG, kDeclImportTable, 1,
+      SIG_INDEX(0),    // sig index
+      NAME_OFFSET(1),  // module name
+      NAME_OFFSET(1),  // function name
   };
 
   for (size_t length = 5; length < sizeof(data); length++) {
+    ModuleResult result = DecodeModule(data, data + length);
+    EXPECT_FALSE(result.ok());
+    if (result.val) delete result.val;
+  }
+}
+
+TEST_F(WasmModuleVerifyTest, ExportTable_empty) {
+  static const byte data[] = {kDeclSignatures,  0, kDeclFunctions, 0,
+                              kDeclExportTable, 0};
+  EXPECT_VERIFIES(data);
+}
+
+TEST_F(WasmModuleVerifyTest, ExportTable_NoFunctions1) {
+  static const byte data[] = {kDeclSignatures, 0, kDeclExportTable, 0};
+  EXPECT_FAILURE(data);
+}
+
+TEST_F(WasmModuleVerifyTest, ExportTable_NoFunctions2) {
+  static const byte data[] = {kDeclExportTable, 0};
+  EXPECT_FAILURE(data);
+}
+
+TEST_F(WasmModuleVerifyTest, ExportTableOne) {
+  static const byte data[] = {
+      kDeclSignatures,   1,  // sigs
+      VOID_VOID_SIG,         // --
+      kDeclFunctions,    1,  // functions
+      EMPTY_FUNCTION(0),     // --
+      kDeclExportTable,  1,  // exports
+      FUNC_INDEX(0),         // --
+      NAME_OFFSET(0)         // --
+  };
+  EXPECT_VERIFIES(data);
+}
+
+TEST_F(WasmModuleVerifyTest, ExportTableTwo) {
+  static const byte data[] = {
+      kDeclSignatures,   1,  // sigs
+      VOID_VOID_SIG,         // --
+      kDeclFunctions,    1,  // functions
+      EMPTY_FUNCTION(0),     // --
+      kDeclExportTable,  2,  // exports
+      FUNC_INDEX(0),         // --
+      NAME_OFFSET(1),        // --
+      FUNC_INDEX(0),         // --
+      NAME_OFFSET(2)         // --
+  };
+  EXPECT_VERIFIES(data);
+}
+
+TEST_F(WasmModuleVerifyTest, ExportTableThree) {
+  static const byte data[] = {
+      kDeclSignatures,   1,  // sigs
+      VOID_VOID_SIG,         // --
+      kDeclFunctions,    3,  // functions
+      EMPTY_FUNCTION(0),     // --
+      EMPTY_FUNCTION(0),     // --
+      EMPTY_FUNCTION(0),     // --
+      kDeclExportTable,  3,  // exports
+      FUNC_INDEX(0),         // --
+      NAME_OFFSET(1),        // --
+      FUNC_INDEX(1),         // --
+      NAME_OFFSET(2),        // --
+      FUNC_INDEX(2),         // --
+      NAME_OFFSET(2)         // --
+  };
+  EXPECT_VERIFIES(data);
+}
+
+TEST_F(WasmModuleVerifyTest, ExportTableThreeOne) {
+  for (int i = 0; i < 6; i++) {
+    const byte data[] = {
+        kDeclSignatures,   1,  // sigs
+        VOID_VOID_SIG,         // --
+        kDeclFunctions,    3,  // functions
+        EMPTY_FUNCTION(0),     // --
+        EMPTY_FUNCTION(0),     // --
+        EMPTY_FUNCTION(0),     // --
+        kDeclExportTable,  1,  // exports
+        FUNC_INDEX(i),         // --
+        NAME_OFFSET(1)         // --
+    };
+
+    if (i < 3) {
+      EXPECT_VERIFIES(data);
+    } else {
+      EXPECT_FAILURE(data);
+    }
+  }
+}
+
+TEST_F(WasmModuleVerifyTest, ExportTableOne_off_end) {
+  static const byte data[] = {
+      kDeclSignatures,   1,  // sigs
+      VOID_VOID_SIG,         // --
+      kDeclFunctions,    1,  // functions
+      EMPTY_FUNCTION(0),     // --
+      kDeclExportTable,  1,  // exports
+      FUNC_INDEX(0),         // --
+      NAME_OFFSET(0)         // --
+  };
+
+  for (int length = 13; length < sizeof(data); length++) {
     ModuleResult result = DecodeModule(data, data + length);
     EXPECT_FALSE(result.ok());
     if (result.val) delete result.val;

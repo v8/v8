@@ -24,6 +24,7 @@ var kDeclDataSegments = 0x04;
 var kDeclFunctionTable = 0x05;
 var kDeclStartFunction = 0x07;
 var kDeclImportTable = 0x08;
+var kDeclExportTable = 0x09;
 var kDeclEnd = 0x06;
 
 // Function declaration flags

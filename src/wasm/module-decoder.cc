@@ -55,6 +55,7 @@ class ModuleDecoder : public Decoder {
     module->data_segments = new std::vector<WasmDataSegment>();
     module->function_table = new std::vector<uint16_t>();
     module->import_table = new std::vector<WasmImport>();
+    module->export_table = new std::vector<WasmExport>();
 
     bool sections[kMaxModuleSectionCode];
     memset(sections, 0, sizeof(sections));
@@ -231,6 +232,34 @@ class ModuleDecoder : public Decoder {
             import->module_name_offset = consume_string("import module name");
             import->function_name_offset =
                 consume_string("import function name");
+          }
+          break;
+        }
+        case kDeclExportTable: {
+          // Declares an export table.
+          CheckForPreviousSection(sections, kDeclFunctions, true);
+          int length;
+          uint32_t export_table_count =
+              consume_u32v(&length, "export table count");
+          module->export_table->reserve(SafeReserve(export_table_count));
+          // Decode export table.
+          for (uint32_t i = 0; i < export_table_count; i++) {
+            if (failed()) break;
+            TRACE("DecodeExportTable[%d] module+%d\n", i,
+                  static_cast<int>(pc_ - start_));
+
+            module->export_table->push_back({0, 0});
+            WasmExport* exp = &module->export_table->back();
+
+            const byte* sigpos = pc_;
+            exp->func_index = consume_u16("function index");
+            if (exp->func_index >= module->functions->size()) {
+              error(sigpos, sigpos,
+                    "function index %u out of bounds (%d functions)",
+                    exp->func_index,
+                    static_cast<int>(module->functions->size()));
+            }
+            exp->name_offset = consume_string("export name");
           }
           break;
         }
