@@ -1534,7 +1534,6 @@ void Logger::LogCodeObject(Object* object) {
       return;  // We log this later using LogCompiledFunctions.
     case AbstractCode::BINARY_OP_IC:    // fall through
     case AbstractCode::COMPARE_IC:      // fall through
-    case AbstractCode::COMPARE_NIL_IC:  // fall through
     case AbstractCode::TO_BOOLEAN_IC:   // fall through
 
     case AbstractCode::STUB:
