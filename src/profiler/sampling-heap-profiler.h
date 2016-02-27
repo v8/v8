@@ -111,6 +111,8 @@ class SamplingHeapProfiler {
   v8::AllocationProfile::Node* TranslateAllocationNode(
       AllocationProfile* profile, SamplingHeapProfiler::AllocationNode* node,
       const std::map<int, Script*>& scripts);
+  v8::AllocationProfile::Allocation ScaleSample(size_t size,
+                                                unsigned int count);
   AllocationNode* AddStack();
   AllocationNode* FindOrAddChildNode(AllocationNode* parent, const char* name,
                                      int script_id, int start_position);
@@ -123,6 +125,7 @@ class SamplingHeapProfiler {
   AllocationNode profile_root_;
   std::set<Sample*> samples_;
   const int stack_depth_;
+  const uint64_t rate_;
 
   friend class SamplingAllocationObserver;
 };
