@@ -91,7 +91,7 @@ class TestingModule : public ModuleEnv {
     instance->mem_size = 0;
     instance->function_code = nullptr;
     linker = nullptr;
-    asm_js = false;
+    origin = kWasmOrigin;
     memset(global_data, 0, sizeof(global_data));
   }
 

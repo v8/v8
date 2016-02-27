@@ -278,6 +278,7 @@ WasmModule::WasmModule()
       mem_export(false),
       mem_external(false),
       start_function_index(-1),
+      origin(kWasmOrigin),
       globals(nullptr),
       signatures(nullptr),
       functions(nullptr),
@@ -389,7 +390,7 @@ MaybeHandle<JSObject> WasmModule::Instantiate(Isolate* isolate,
   module_env.module = this;
   module_env.instance = &instance;
   module_env.linker = &linker;
-  module_env.asm_js = false;
+  module_env.origin = origin;
 
   if (import_table->size() > 0) {
     instance.import_code = &import_code;
@@ -538,8 +539,8 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
   Zone zone;
   // Decode the module, but don't verify function bodies, since we'll
   // be compiling them anyway.
-  ModuleResult result =
-      DecodeWasmModule(isolate, &zone, module_start, module_end, false, false);
+  ModuleResult result = DecodeWasmModule(isolate, &zone, module_start,
+                                         module_end, false, kWasmOrigin);
   if (result.failed()) {
     // Module verification failed. throw.
     std::ostringstream str;
@@ -579,7 +580,7 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, WasmModule* module) {
   module_env.module = module;
   module_env.instance = &instance;
   module_env.linker = &linker;
-  module_env.asm_js = false;
+  module_env.origin = module->origin;
 
   // Compile all functions.
   Handle<Code> main_code = Handle<Code>::null();  // record last code.

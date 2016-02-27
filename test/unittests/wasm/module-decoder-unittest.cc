@@ -30,7 +30,7 @@ class WasmModuleVerifyTest : public TestWithZone {
  public:
   ModuleResult DecodeModule(const byte* module_start, const byte* module_end) {
     return DecodeWasmModule(nullptr, zone(), module_start, module_end, false,
-                            false);
+                            kWasmOrigin);
   }
 };
 

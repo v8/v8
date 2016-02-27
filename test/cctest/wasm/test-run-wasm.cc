@@ -1510,7 +1510,7 @@ TEST(Run_Wasm_LoadMemI32_oob) {
 
 TEST(Run_Wasm_LoadMemI32_oob_asm) {
   TestingModule module;
-  module.asm_js = true;
+  module.origin = kAsmJsOrigin;
   int32_t* memory = module.AddMemoryElems<int32_t>(8);
   WasmRunner<int32_t> r(&module, MachineType::Uint32());
   module.RandomizeMemory(1112);

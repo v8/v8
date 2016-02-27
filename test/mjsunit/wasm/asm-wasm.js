@@ -1540,3 +1540,18 @@ TestForeignVariables();
   var m = _WASMEXP_.instantiateModuleFromAsm(Module.toString());
   assertEquals(0, m.func());
 })();
+
+(function TestOutOfBoundsConversion() {
+  function asmModule($a,$b,$c){'use asm';
+    function aaa() {
+      var f = 0.0;
+      var a = 0;
+      f = 5616315000.000001;
+      a = ~~f >>>0;
+      return a | 0;
+    }
+    return { main : aaa };
+  }
+  var wasm = _WASMEXP_.instantiateModuleFromAsm(asmModule.toString());
+  assertEquals(1321347704, wasm.main());
+})();

@@ -97,6 +97,8 @@ struct WasmDataSegment {
   bool init;               // true if loaded upon instantiation.
 };
 
+enum ModuleOrigin { kWasmOrigin, kAsmJsOrigin };
+
 // Static representation of a module.
 struct WasmModule {
   static const uint8_t kMinMemSize = 12;  // Minimum memory size = 4kb
@@ -110,6 +112,7 @@ struct WasmModule {
   bool mem_export;            // true if the memory is exported.
   bool mem_external;          // true if the memory is external.
   int start_function_index;   // start function, if any.
+  ModuleOrigin origin;        // origin of the module
 
   std::vector<WasmGlobal>* globals;             // globals in this module.
   std::vector<FunctionSig*>* signatures;        // signatures in this module.
@@ -176,7 +179,7 @@ struct ModuleEnv {
   WasmModule* module;
   WasmModuleInstance* instance;
   WasmLinker* linker;
-  bool asm_js;  // true if the module originated from asm.js.
+  ModuleOrigin origin;
 
   bool IsValidGlobal(uint32_t index) {
     return module && index < module->globals->size();
@@ -210,6 +213,8 @@ struct ModuleEnv {
     return module && module->function_table ? module->function_table->size()
                                             : 0;
   }
+
+  bool asm_js() { return origin == kAsmJsOrigin; }
 
   Handle<Code> GetFunctionCode(uint32_t index);
   Handle<Code> GetImportCode(uint32_t index);

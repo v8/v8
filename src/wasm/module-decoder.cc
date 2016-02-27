@@ -27,8 +27,8 @@ namespace wasm {
 class ModuleDecoder : public Decoder {
  public:
   ModuleDecoder(Zone* zone, const byte* module_start, const byte* module_end,
-                bool asm_js)
-      : Decoder(module_start, module_end), module_zone(zone), asm_js_(asm_js) {
+                ModuleOrigin origin)
+      : Decoder(module_start, module_end), module_zone(zone), origin_(origin) {
     result_.start = start_;
     if (limit_ < start_) {
       error(start_, "end is less than start");
@@ -49,6 +49,7 @@ class ModuleDecoder : public Decoder {
     module->max_mem_size_log2 = 0;
     module->mem_export = false;
     module->mem_external = false;
+    module->origin = origin_;
     module->globals = new std::vector<WasmGlobal>();
     module->signatures = new std::vector<FunctionSig*>();
     module->functions = new std::vector<WasmFunction>();
@@ -105,7 +106,7 @@ class ModuleDecoder : public Decoder {
           ModuleEnv menv;
           menv.module = module;
           menv.instance = nullptr;
-          menv.asm_js = asm_js_;
+          menv.origin = origin_;
           // Decode functions.
           for (uint32_t i = 0; i < functions_count; i++) {
             if (failed()) break;
@@ -360,7 +361,7 @@ class ModuleDecoder : public Decoder {
  private:
   Zone* module_zone;
   ModuleResult result_;
-  bool asm_js_;
+  ModuleOrigin origin_;
 
   uint32_t off(const byte* ptr) { return static_cast<uint32_t>(ptr - start_); }
 
@@ -608,22 +609,21 @@ class FunctionError : public FunctionResult {
   }
 };
 
-
 ModuleResult DecodeWasmModule(Isolate* isolate, Zone* zone,
                               const byte* module_start, const byte* module_end,
-                              bool verify_functions, bool asm_js) {
+                              bool verify_functions, ModuleOrigin origin) {
   size_t size = module_end - module_start;
   if (module_start > module_end) return ModuleError("start > end");
   if (size >= kMaxModuleSize) return ModuleError("size > maximum module size");
   WasmModule* module = new WasmModule();
-  ModuleDecoder decoder(zone, module_start, module_end, asm_js);
+  ModuleDecoder decoder(zone, module_start, module_end, origin);
   return decoder.DecodeModule(module, verify_functions);
 }
 
 
 FunctionSig* DecodeWasmSignatureForTesting(Zone* zone, const byte* start,
                                            const byte* end) {
-  ModuleDecoder decoder(zone, start, end, false);
+  ModuleDecoder decoder(zone, start, end, kWasmOrigin);
   return decoder.DecodeFunctionSignature(start);
 }
 
@@ -637,7 +637,7 @@ FunctionResult DecodeWasmFunction(Isolate* isolate, Zone* zone,
   if (size > kMaxFunctionSize)
     return FunctionError("size > maximum function size");
   WasmFunction* function = new WasmFunction();
-  ModuleDecoder decoder(zone, function_start, function_end, false);
+  ModuleDecoder decoder(zone, function_start, function_end, kWasmOrigin);
   return decoder.DecodeSingleFunction(module_env, function);
 }
 }  // namespace wasm
