@@ -107,11 +107,11 @@ TEST_F(WasmModuleVerifyTest, OneGlobal) {
     // Should decode to exactly one global.
     ModuleResult result = DecodeModule(data, data + arraysize(data));
     EXPECT_TRUE(result.ok());
-    EXPECT_EQ(1, result.val->globals->size());
-    EXPECT_EQ(0, result.val->functions->size());
-    EXPECT_EQ(0, result.val->data_segments->size());
+    EXPECT_EQ(1, result.val->globals.size());
+    EXPECT_EQ(0, result.val->functions.size());
+    EXPECT_EQ(0, result.val->data_segments.size());
 
-    WasmGlobal* global = &result.val->globals->back();
+    WasmGlobal* global = &result.val->globals.back();
 
     EXPECT_EQ(0, global->name_offset);
     EXPECT_EQ(MachineType::Int32(), global->type);
@@ -214,12 +214,12 @@ TEST_F(WasmModuleVerifyTest, TwoGlobals) {
     // Should decode to exactly two globals.
     ModuleResult result = DecodeModule(data, data + arraysize(data));
     EXPECT_TRUE(result.ok());
-    EXPECT_EQ(2, result.val->globals->size());
-    EXPECT_EQ(0, result.val->functions->size());
-    EXPECT_EQ(0, result.val->data_segments->size());
+    EXPECT_EQ(2, result.val->globals.size());
+    EXPECT_EQ(0, result.val->functions.size());
+    EXPECT_EQ(0, result.val->data_segments.size());
 
-    WasmGlobal* g0 = &result.val->globals->at(0);
-    WasmGlobal* g1 = &result.val->globals->at(1);
+    WasmGlobal* g0 = &result.val->globals[0];
+    WasmGlobal* g1 = &result.val->globals[1];
 
     EXPECT_EQ(0, g0->name_offset);
     EXPECT_EQ(MachineType::Float32(), g0->type);
@@ -268,15 +268,15 @@ TEST_F(WasmModuleVerifyTest, MultipleSignatures) {
 
   ModuleResult result = DecodeModule(data, data + arraysize(data));
   EXPECT_TRUE(result.ok());
-  EXPECT_EQ(3, result.val->signatures->size());
-  if (result.val->signatures->size() == 3) {
-    EXPECT_EQ(0, result.val->signatures->at(0)->return_count());
-    EXPECT_EQ(1, result.val->signatures->at(1)->return_count());
-    EXPECT_EQ(1, result.val->signatures->at(2)->return_count());
+  EXPECT_EQ(3, result.val->signatures.size());
+  if (result.val->signatures.size() == 3) {
+    EXPECT_EQ(0, result.val->signatures[0]->return_count());
+    EXPECT_EQ(1, result.val->signatures[1]->return_count());
+    EXPECT_EQ(1, result.val->signatures[2]->return_count());
 
-    EXPECT_EQ(0, result.val->signatures->at(0)->parameter_count());
-    EXPECT_EQ(1, result.val->signatures->at(1)->parameter_count());
-    EXPECT_EQ(2, result.val->signatures->at(2)->parameter_count());
+    EXPECT_EQ(0, result.val->signatures[0]->parameter_count());
+    EXPECT_EQ(1, result.val->signatures[1]->parameter_count());
+    EXPECT_EQ(2, result.val->signatures[2]->parameter_count());
   }
   if (result.val) delete result.val;
 
@@ -331,13 +331,13 @@ TEST_F(WasmModuleVerifyTest, OneEmptyVoidVoidFunction) {
     // Should decode to exactly one function.
     ModuleResult result = DecodeModule(data, data + arraysize(data));
     EXPECT_TRUE(result.ok());
-    EXPECT_EQ(0, result.val->globals->size());
-    EXPECT_EQ(1, result.val->signatures->size());
-    EXPECT_EQ(1, result.val->functions->size());
-    EXPECT_EQ(0, result.val->data_segments->size());
-    EXPECT_EQ(0, result.val->function_table->size());
+    EXPECT_EQ(0, result.val->globals.size());
+    EXPECT_EQ(1, result.val->signatures.size());
+    EXPECT_EQ(1, result.val->functions.size());
+    EXPECT_EQ(0, result.val->data_segments.size());
+    EXPECT_EQ(0, result.val->function_table.size());
 
-    WasmFunction* function = &result.val->functions->back();
+    WasmFunction* function = &result.val->functions.back();
 
     EXPECT_EQ(9, function->name_offset);
     EXPECT_EQ(kCodeStartOffset, function->code_start_offset);
@@ -370,8 +370,8 @@ TEST_F(WasmModuleVerifyTest, OneFunctionImported) {
 
   ModuleResult result = DecodeModule(data, data + arraysize(data));
   EXPECT_TRUE(result.ok());
-  EXPECT_EQ(1, result.val->functions->size());
-  WasmFunction* function = &result.val->functions->back();
+  EXPECT_EQ(1, result.val->functions.size());
+  WasmFunction* function = &result.val->functions.back();
 
   EXPECT_EQ(0, function->name_offset);
   EXPECT_EQ(0, function->code_start_offset);
@@ -407,8 +407,8 @@ TEST_F(WasmModuleVerifyTest, OneFunctionWithNopBody) {
 
   ModuleResult result = DecodeModule(data, data + arraysize(data));
   EXPECT_TRUE(result.ok());
-  EXPECT_EQ(1, result.val->functions->size());
-  WasmFunction* function = &result.val->functions->back();
+  EXPECT_EQ(1, result.val->functions.size());
+  WasmFunction* function = &result.val->functions.back();
 
   EXPECT_EQ(0, function->name_offset);
   EXPECT_EQ(kCodeStartOffset, function->code_start_offset);
@@ -447,8 +447,8 @@ TEST_F(WasmModuleVerifyTest, OneFunctionWithNopBody_WithLocals) {
 
   ModuleResult result = DecodeModule(data, data + arraysize(data));
   EXPECT_TRUE(result.ok());
-  EXPECT_EQ(1, result.val->functions->size());
-  WasmFunction* function = &result.val->functions->back();
+  EXPECT_EQ(1, result.val->functions.size());
+  WasmFunction* function = &result.val->functions.back();
 
   EXPECT_EQ(0, function->name_offset);
   EXPECT_EQ(kCodeStartOffset, function->code_start_offset);
@@ -504,18 +504,18 @@ TEST_F(WasmModuleVerifyTest, OneGlobalOneFunctionWithNopBodyOneDataSegment) {
   {
     ModuleResult result = DecodeModule(data, data + arraysize(data));
     EXPECT_TRUE(result.ok());
-    EXPECT_EQ(1, result.val->globals->size());
-    EXPECT_EQ(1, result.val->functions->size());
-    EXPECT_EQ(1, result.val->data_segments->size());
+    EXPECT_EQ(1, result.val->globals.size());
+    EXPECT_EQ(1, result.val->functions.size());
+    EXPECT_EQ(1, result.val->data_segments.size());
 
-    WasmGlobal* global = &result.val->globals->back();
+    WasmGlobal* global = &result.val->globals.back();
 
     EXPECT_EQ(0, global->name_offset);
     EXPECT_EQ(MachineType::Uint8(), global->type);
     EXPECT_EQ(0, global->offset);
     EXPECT_FALSE(global->exported);
 
-    WasmFunction* function = &result.val->functions->back();
+    WasmFunction* function = &result.val->functions.back();
 
     EXPECT_EQ(9, function->name_offset);
     EXPECT_EQ(kCodeStartOffset, function->code_start_offset);
@@ -524,7 +524,7 @@ TEST_F(WasmModuleVerifyTest, OneGlobalOneFunctionWithNopBodyOneDataSegment) {
     EXPECT_FALSE(function->exported);
     EXPECT_FALSE(function->external);
 
-    WasmDataSegment* segment = &result.val->data_segments->back();
+    WasmDataSegment* segment = &result.val->data_segments.back();
 
     EXPECT_EQ(0x8b3ae, segment->dest_addr);
     EXPECT_EQ(15, segment->source_offset);
@@ -551,11 +551,11 @@ TEST_F(WasmModuleVerifyTest, OneDataSegment) {
     EXPECT_VERIFIES(data);
     ModuleResult result = DecodeModule(data, data + arraysize(data));
     EXPECT_TRUE(result.ok());
-    EXPECT_EQ(0, result.val->globals->size());
-    EXPECT_EQ(0, result.val->functions->size());
-    EXPECT_EQ(1, result.val->data_segments->size());
+    EXPECT_EQ(0, result.val->globals.size());
+    EXPECT_EQ(0, result.val->functions.size());
+    EXPECT_EQ(1, result.val->data_segments.size());
 
-    WasmDataSegment* segment = &result.val->data_segments->back();
+    WasmDataSegment* segment = &result.val->data_segments.back();
 
     EXPECT_EQ(0x9bbaa, segment->dest_addr);
     EXPECT_EQ(11, segment->source_offset);
@@ -590,12 +590,12 @@ TEST_F(WasmModuleVerifyTest, TwoDataSegments) {
   {
     ModuleResult result = DecodeModule(data, data + arraysize(data));
     EXPECT_TRUE(result.ok());
-    EXPECT_EQ(0, result.val->globals->size());
-    EXPECT_EQ(0, result.val->functions->size());
-    EXPECT_EQ(2, result.val->data_segments->size());
+    EXPECT_EQ(0, result.val->globals.size());
+    EXPECT_EQ(0, result.val->functions.size());
+    EXPECT_EQ(2, result.val->data_segments.size());
 
-    WasmDataSegment* s0 = &result.val->data_segments->at(0);
-    WasmDataSegment* s1 = &result.val->data_segments->at(1);
+    WasmDataSegment* s0 = &result.val->data_segments[0];
+    WasmDataSegment* s1 = &result.val->data_segments[1];
 
     EXPECT_EQ(0x7ffee, s0->dest_addr);
     EXPECT_EQ(9, s0->source_offset);
@@ -699,10 +699,10 @@ TEST_F(WasmModuleVerifyTest, OneIndirectFunction) {
   ModuleResult result = DecodeModule(data, data + arraysize(data));
   EXPECT_TRUE(result.ok());
   if (result.ok()) {
-    EXPECT_EQ(1, result.val->signatures->size());
-    EXPECT_EQ(1, result.val->functions->size());
-    EXPECT_EQ(1, result.val->function_table->size());
-    EXPECT_EQ(0, result.val->function_table->at(0));
+    EXPECT_EQ(1, result.val->signatures.size());
+    EXPECT_EQ(1, result.val->functions.size());
+    EXPECT_EQ(1, result.val->function_table.size());
+    EXPECT_EQ(0, result.val->function_table[0]);
   }
   if (result.val) delete result.val;
 }
@@ -714,20 +714,30 @@ TEST_F(WasmModuleVerifyTest, MultipleIndirectFunctions) {
       kDeclSignatures, 2, 0, 0,  // void -> void
       0, kLocalI32,              // void -> i32
       // func#0 ------------------------------------------------------
-      kDeclFunctions, 4, FUNCTION(0, 1), FUNCTION(1, 1), FUNCTION(0, 1),
-      FUNCTION(1, 1),
+      kDeclFunctions, 4, FUNCTION(0, 1),  // --
+      FUNCTION(1, 1),                     // --
+      FUNCTION(0, 1),                     // --
+      FUNCTION(1, 1),                     // --
       // indirect table ----------------------------------------------
-      kDeclFunctionTable, 8, 0, 0, 1, 0, 2, 0, 3, 0, 0, 0, 1, 0, 2, 0, 3, 0,
+      kDeclFunctionTable, 8,
+      U16_LE(0),  // --
+      U16_LE(1),  // --
+      U16_LE(2),  // --
+      U16_LE(3),  // --
+      U16_LE(0),  // --
+      U16_LE(1),  // --
+      U16_LE(2),  // --
+      U16_LE(3),  // --
   };
 
   ModuleResult result = DecodeModule(data, data + arraysize(data));
   EXPECT_TRUE(result.ok());
   if (result.ok()) {
-    EXPECT_EQ(2, result.val->signatures->size());
-    EXPECT_EQ(4, result.val->functions->size());
-    EXPECT_EQ(8, result.val->function_table->size());
+    EXPECT_EQ(2, result.val->signatures.size());
+    EXPECT_EQ(4, result.val->functions.size());
+    EXPECT_EQ(8, result.val->function_table.size());
     for (int i = 0; i < 8; i++) {
-      EXPECT_EQ(i & 3, result.val->function_table->at(i));
+      EXPECT_EQ(i & 3, result.val->function_table[i]);
     }
   }
   if (result.val) delete result.val;

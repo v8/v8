@@ -146,8 +146,8 @@ class WasmDecoder : public Decoder {
 
   inline bool Validate(const byte* pc, GlobalIndexOperand& operand) {
     ModuleEnv* m = function_env_->module;
-    if (m && m->module && operand.index < m->module->globals->size()) {
-      operand.machine_type = m->module->globals->at(operand.index).type;
+    if (m && m->module && operand.index < m->module->globals.size()) {
+      operand.machine_type = m->module->globals[operand.index].type;
       operand.type = WasmOpcodes::LocalTypeFor(operand.machine_type);
       return true;
     }
@@ -157,8 +157,8 @@ class WasmDecoder : public Decoder {
 
   inline bool Validate(const byte* pc, FunctionIndexOperand& operand) {
     ModuleEnv* m = function_env_->module;
-    if (m && m->module && operand.index < m->module->functions->size()) {
-      operand.sig = m->module->functions->at(operand.index).sig;
+    if (m && m->module && operand.index < m->module->functions.size()) {
+      operand.sig = m->module->functions[operand.index].sig;
       return true;
     }
     error(pc, pc + 1, "invalid function index");
@@ -167,8 +167,8 @@ class WasmDecoder : public Decoder {
 
   inline bool Validate(const byte* pc, SignatureIndexOperand& operand) {
     ModuleEnv* m = function_env_->module;
-    if (m && m->module && operand.index < m->module->signatures->size()) {
-      operand.sig = m->module->signatures->at(operand.index);
+    if (m && m->module && operand.index < m->module->signatures.size()) {
+      operand.sig = m->module->signatures[operand.index];
       return true;
     }
     error(pc, pc + 1, "invalid signature index");
@@ -177,8 +177,8 @@ class WasmDecoder : public Decoder {
 
   inline bool Validate(const byte* pc, ImportIndexOperand& operand) {
     ModuleEnv* m = function_env_->module;
-    if (m && m->module && operand.index < m->module->import_table->size()) {
-      operand.sig = m->module->import_table->at(operand.index).sig;
+    if (m && m->module && operand.index < m->module->import_table.size()) {
+      operand.sig = m->module->import_table[operand.index].sig;
       return true;
     }
     error(pc, pc + 1, "invalid signature index");

@@ -50,13 +50,6 @@ class ModuleDecoder : public Decoder {
     module->mem_export = false;
     module->mem_external = false;
     module->origin = origin_;
-    module->globals = new std::vector<WasmGlobal>();
-    module->signatures = new std::vector<FunctionSig*>();
-    module->functions = new std::vector<WasmFunction>();
-    module->data_segments = new std::vector<WasmDataSegment>();
-    module->function_table = new std::vector<uint16_t>();
-    module->import_table = new std::vector<WasmImport>();
-    module->export_table = new std::vector<WasmExport>();
 
     bool sections[kMaxModuleSectionCode];
     memset(sections, 0, sizeof(sections));
@@ -106,14 +99,14 @@ class ModuleDecoder : public Decoder {
         case kDeclSignatures: {
           int length;
           uint32_t signatures_count = consume_u32v(&length, "signatures count");
-          module->signatures->reserve(SafeReserve(signatures_count));
+          module->signatures.reserve(SafeReserve(signatures_count));
           // Decode signatures.
           for (uint32_t i = 0; i < signatures_count; i++) {
             if (failed()) break;
             TRACE("DecodeSignature[%d] module+%d\n", i,
                   static_cast<int>(pc_ - start_));
             FunctionSig* s = consume_sig();  // read function sig.
-            module->signatures->push_back(s);
+            module->signatures.push_back(s);
           }
           break;
         }
@@ -122,7 +115,7 @@ class ModuleDecoder : public Decoder {
           CheckForPreviousSection(sections, kDeclSignatures, true);
           int length;
           uint32_t functions_count = consume_u32v(&length, "functions count");
-          module->functions->reserve(SafeReserve(functions_count));
+          module->functions.reserve(SafeReserve(functions_count));
           // Set up module environment for verification.
           ModuleEnv menv;
           menv.module = module;
@@ -134,15 +127,15 @@ class ModuleDecoder : public Decoder {
             TRACE("DecodeFunction[%d] module+%d\n", i,
                   static_cast<int>(pc_ - start_));
 
-            module->functions->push_back(
+            module->functions.push_back(
                 {nullptr, i, 0, 0, 0, 0, 0, 0, false, false});
-            WasmFunction* function = &module->functions->back();
+            WasmFunction* function = &module->functions.back();
             DecodeFunctionInModule(module, function, false);
           }
           if (ok() && verify_functions) {
             for (uint32_t i = 0; i < functions_count; i++) {
               if (failed()) break;
-              WasmFunction* function = &module->functions->at(i);
+              WasmFunction* function = &module->functions[i];
               if (!function->external) {
                 VerifyFunctionBody(i, &menv, function);
                 if (result_.failed())
@@ -155,14 +148,14 @@ class ModuleDecoder : public Decoder {
         case kDeclGlobals: {
           int length;
           uint32_t globals_count = consume_u32v(&length, "globals count");
-          module->globals->reserve(SafeReserve(globals_count));
+          module->globals.reserve(SafeReserve(globals_count));
           // Decode globals.
           for (uint32_t i = 0; i < globals_count; i++) {
             if (failed()) break;
             TRACE("DecodeGlobal[%d] module+%d\n", i,
                   static_cast<int>(pc_ - start_));
-            module->globals->push_back({0, MachineType::Int32(), 0, false});
-            WasmGlobal* global = &module->globals->back();
+            module->globals.push_back({0, MachineType::Int32(), 0, false});
+            WasmGlobal* global = &module->globals.back();
             DecodeGlobalInModule(global);
           }
           break;
@@ -171,14 +164,14 @@ class ModuleDecoder : public Decoder {
           int length;
           uint32_t data_segments_count =
               consume_u32v(&length, "data segments count");
-          module->data_segments->reserve(SafeReserve(data_segments_count));
+          module->data_segments.reserve(SafeReserve(data_segments_count));
           // Decode data segments.
           for (uint32_t i = 0; i < data_segments_count; i++) {
             if (failed()) break;
             TRACE("DecodeDataSegment[%d] module+%d\n", i,
                   static_cast<int>(pc_ - start_));
-            module->data_segments->push_back({0, 0, 0});
-            WasmDataSegment* segment = &module->data_segments->back();
+            module->data_segments.push_back({0, 0, 0});
+            WasmDataSegment* segment = &module->data_segments.back();
             DecodeDataSegmentInModule(module, segment);
           }
           break;
@@ -189,18 +182,18 @@ class ModuleDecoder : public Decoder {
           int length;
           uint32_t function_table_count =
               consume_u32v(&length, "function table count");
-          module->function_table->reserve(SafeReserve(function_table_count));
+          module->function_table.reserve(SafeReserve(function_table_count));
           // Decode function table.
           for (uint32_t i = 0; i < function_table_count; i++) {
             if (failed()) break;
             TRACE("DecodeFunctionTable[%d] module+%d\n", i,
                   static_cast<int>(pc_ - start_));
             uint16_t index = consume_u16();
-            if (index >= module->functions->size()) {
+            if (index >= module->functions.size()) {
               error(pc_ - 2, "invalid function index");
               break;
             }
-            module->function_table->push_back(index);
+            module->function_table.push_back(index);
           }
           break;
         }
@@ -214,13 +207,13 @@ class ModuleDecoder : public Decoder {
           int length;
           const byte* before = pc_;
           uint32_t index = consume_u32v(&length, "start function index");
-          if (index >= module->functions->size()) {
+          if (index >= module->functions.size()) {
             error(before, "invalid start function index");
             break;
           }
           module->start_function_index = static_cast<int>(index);
           FunctionSig* sig =
-              module->signatures->at(module->functions->at(index).sig_index);
+              module->signatures[module->functions[index].sig_index];
           if (sig->parameter_count() > 0) {
             error(before, "invalid start function: non-zero parameter count");
             break;
@@ -233,23 +226,23 @@ class ModuleDecoder : public Decoder {
           int length;
           uint32_t import_table_count =
               consume_u32v(&length, "import table count");
-          module->import_table->reserve(SafeReserve(import_table_count));
+          module->import_table.reserve(SafeReserve(import_table_count));
           // Decode import table.
           for (uint32_t i = 0; i < import_table_count; i++) {
             if (failed()) break;
             TRACE("DecodeImportTable[%d] module+%d\n", i,
                   static_cast<int>(pc_ - start_));
 
-            module->import_table->push_back({nullptr, 0, 0});
-            WasmImport* import = &module->import_table->back();
+            module->import_table.push_back({nullptr, 0, 0});
+            WasmImport* import = &module->import_table.back();
 
             const byte* sigpos = pc_;
             import->sig_index = consume_u16("signature index");
 
-            if (import->sig_index >= module->signatures->size()) {
+            if (import->sig_index >= module->signatures.size()) {
               error(sigpos, "invalid signature index");
             } else {
-              import->sig = module->signatures->at(import->sig_index);
+              import->sig = module->signatures[import->sig_index];
             }
             import->module_name_offset = consume_string("import module name");
             import->function_name_offset =
@@ -263,23 +256,23 @@ class ModuleDecoder : public Decoder {
           int length;
           uint32_t export_table_count =
               consume_u32v(&length, "export table count");
-          module->export_table->reserve(SafeReserve(export_table_count));
+          module->export_table.reserve(SafeReserve(export_table_count));
           // Decode export table.
           for (uint32_t i = 0; i < export_table_count; i++) {
             if (failed()) break;
             TRACE("DecodeExportTable[%d] module+%d\n", i,
                   static_cast<int>(pc_ - start_));
 
-            module->export_table->push_back({0, 0});
-            WasmExport* exp = &module->export_table->back();
+            module->export_table.push_back({0, 0});
+            WasmExport* exp = &module->export_table.back();
 
             const byte* sigpos = pc_;
             exp->func_index = consume_u16("function index");
-            if (exp->func_index >= module->functions->size()) {
+            if (exp->func_index >= module->functions.size()) {
               error(sigpos, sigpos,
                     "function index %u out of bounds (%d functions)",
                     exp->func_index,
-                    static_cast<int>(module->functions->size()));
+                    static_cast<int>(module->functions.size()));
             }
             exp->name_offset = consume_string("export name");
           }
@@ -402,10 +395,10 @@ class ModuleDecoder : public Decoder {
     const byte* sigpos = pc_;
     function->sig_index = consume_u16("signature index");
 
-    if (function->sig_index >= module->signatures->size()) {
+    if (function->sig_index >= module->signatures.size()) {
       return error(sigpos, "invalid signature index");
     } else {
-      function->sig = module->signatures->at(function->sig_index);
+      function->sig = module->signatures[function->sig_index];
     }
 
     TRACE("  +%d  <function attributes:%s%s%s%s%s>\n",

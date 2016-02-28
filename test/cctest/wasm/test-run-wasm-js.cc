@@ -54,11 +54,11 @@ uint32_t AddJsFunction(TestingModule* module, FunctionSig* sig,
   Handle<JSFunction> jsfunc = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
       *v8::Local<v8::Function>::Cast(CompileRun(source))));
   module->AddFunction(sig, Handle<Code>::null());
-  uint32_t index = static_cast<uint32_t>(module->module->functions->size() - 1);
+  uint32_t index = static_cast<uint32_t>(module->module->functions.size() - 1);
   Isolate* isolate = CcTest::InitIsolateOnce();
   Handle<Code> code =
       CompileWasmToJSWrapper(isolate, module, jsfunc, sig, "test");
-  module->instance->function_code->at(index) = code;
+  module->instance->function_code[index] = code;
   return index;
 }
 
@@ -86,7 +86,7 @@ Handle<JSFunction> WrapCode(ModuleEnv* module, uint32_t index) {
   // Wrap the code so it can be called as a JS function.
   Handle<String> name = isolate->factory()->NewStringFromStaticChars("main");
   Handle<JSObject> module_object = Handle<JSObject>(0, isolate);
-  Handle<Code> code = module->instance->function_code->at(index);
+  Handle<Code> code = module->instance->function_code[index];
   WasmJs::InstallWasmFunctionMap(isolate, isolate->native_context());
   return compiler::CompileJSToWasmWrapper(isolate, module, name, code,
                                           module_object, index);

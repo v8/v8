@@ -1854,7 +1854,7 @@ Node* WasmGraphBuilder::LoadGlobal(uint32_t index) {
   MachineType mem_type = module_->GetGlobalType(index);
   Node* addr = jsgraph()->IntPtrConstant(
       reinterpret_cast<uintptr_t>(module_->instance->globals_start +
-                                  module_->module->globals->at(index).offset));
+                                  module_->module->globals[index].offset));
   const Operator* op = jsgraph()->machine()->Load(mem_type);
   Node* node = graph()->NewNode(op, addr, jsgraph()->Int32Constant(0), *effect_,
                                 *control_);
@@ -1868,7 +1868,7 @@ Node* WasmGraphBuilder::StoreGlobal(uint32_t index, Node* val) {
   MachineType mem_type = module_->GetGlobalType(index);
   Node* addr = jsgraph()->IntPtrConstant(
       reinterpret_cast<uintptr_t>(module_->instance->globals_start +
-                                  module_->module->globals->at(index).offset));
+                                  module_->module->globals[index].offset));
   const Operator* op = jsgraph()->machine()->Store(
       StoreRepresentation(mem_type.representation(), kNoWriteBarrier));
   Node* node = graph()->NewNode(op, addr, jsgraph()->Int32Constant(0), val,
@@ -2006,7 +2006,7 @@ static void RecordFunctionCompilation(Logger::LogEventsAndTags tag,
 Handle<JSFunction> CompileJSToWasmWrapper(
     Isolate* isolate, wasm::ModuleEnv* module, Handle<String> name,
     Handle<Code> wasm_code, Handle<JSObject> module_object, uint32_t index) {
-  wasm::WasmFunction* func = &module->module->functions->at(index);
+  wasm::WasmFunction* func = &module->module->functions[index];
 
   //----------------------------------------------------------------------------
   // Create the JSFunction object.
