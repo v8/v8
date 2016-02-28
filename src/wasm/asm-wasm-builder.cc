@@ -318,7 +318,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
     if (stmt->cond() != nullptr) {
       block_size_++;
       current_function_builder_->Emit(kExprIf);
-      current_function_builder_->Emit(kExprBoolNot);
+      current_function_builder_->Emit(kExprI32Eqz);
       RECURSE(Visit(stmt->cond()));
       current_function_builder_->EmitWithU8(kExprBr, 1);
       current_function_builder_->Emit(kExprNop);
@@ -1045,7 +1045,7 @@ class AsmWasmBuilderImpl : public AstVisitor {
     switch (expr->op()) {
       case Token::NOT: {
         DCHECK_EQ(kAstI32, TypeOf(expr->expression()));
-        current_function_builder_->Emit(kExprBoolNot);
+        current_function_builder_->Emit(kExprI32Eqz);
         break;
       }
       default:

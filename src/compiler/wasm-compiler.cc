@@ -708,7 +708,7 @@ Node* WasmGraphBuilder::Unop(wasm::WasmOpcode opcode, Node* input) {
   const Operator* op;
   MachineOperatorBuilder* m = jsgraph()->machine();
   switch (opcode) {
-    case wasm::kExprBoolNot:
+    case wasm::kExprI32Eqz:
       op = m->Word32Equal();
       return graph()->NewNode(op, input, jsgraph()->Int32Constant(0));
     case wasm::kExprF32Abs:
@@ -1696,7 +1696,7 @@ Node* WasmGraphBuilder::FromJS(Node* node, Node* context,
 
 
 Node* WasmGraphBuilder::Invert(Node* node) {
-  return Unop(wasm::kExprBoolNot, node);
+  return Unop(wasm::kExprI32Eqz, node);
 }
 
 

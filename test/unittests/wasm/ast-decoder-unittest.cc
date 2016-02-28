@@ -2113,7 +2113,7 @@ TEST_F(WasmOpcodeLengthTest, SimpleExpressions) {
   EXPECT_LENGTH(1, kExprI32Clz);
   EXPECT_LENGTH(1, kExprI32Ctz);
   EXPECT_LENGTH(1, kExprI32Popcnt);
-  EXPECT_LENGTH(1, kExprBoolNot);
+  EXPECT_LENGTH(1, kExprI32Eqz);
   EXPECT_LENGTH(1, kExprI64Add);
   EXPECT_LENGTH(1, kExprI64Sub);
   EXPECT_LENGTH(1, kExprI64Mul);
@@ -2374,7 +2374,7 @@ TEST_F(WasmOpcodeArityTest, SimpleExpressions) {
   EXPECT_ARITY(1, kExprI32Clz);
   EXPECT_ARITY(1, kExprI32Ctz);
   EXPECT_ARITY(1, kExprI32Popcnt);
-  EXPECT_ARITY(1, kExprBoolNot);
+  EXPECT_ARITY(1, kExprI32Eqz);
   EXPECT_ARITY(2, kExprI64Add);
   EXPECT_ARITY(2, kExprI64Sub);
   EXPECT_ARITY(2, kExprI64Mul);

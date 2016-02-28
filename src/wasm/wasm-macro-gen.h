@@ -112,7 +112,7 @@
 #define WASM_CALL_IMPORT0(index) kExprCallImport, static_cast<byte>(index)
 #define WASM_CALL_INDIRECT0(index, func) \
   kExprCallIndirect, static_cast<byte>(index), func
-#define WASM_NOT(x) kExprBoolNot, x
+#define WASM_NOT(x) kExprI32Eqz, x
 
 //------------------------------------------------------------------------------
 // Constructs that are composed of multiple bytecodes.
