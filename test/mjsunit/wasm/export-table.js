@@ -9,9 +9,9 @@ load("test/mjsunit/wasm/wasm-constants.js");
 (function testExportedMain() {
   var kBodySize = 3;
   var kReturnValue = 99;
-  var kNameMainOffset = 4 + 7 + kBodySize + 8 + 1;
+  var kNameMainOffset = kHeaderSize + 4 + 7 + kBodySize + 8 + 1;
 
-  var data = bytes(
+  var data = bytesWithHeader(
     // signatures
     kDeclSignatures, 1,
     0, kAstI32,                  // void -> i32
@@ -47,10 +47,10 @@ load("test/mjsunit/wasm/wasm-constants.js");
 (function testExportedTwice() {
   var kBodySize = 3;
   var kReturnValue = 99;
-  var kNameMainOffset = 4 + 7 + kBodySize + 14 + 1;
+  var kNameMainOffset = kHeaderSize + 4 + 7 + kBodySize + 14 + 1;
   var kNameFooOffset = kNameMainOffset + 5;
 
-  var data = bytes(
+  var data = bytesWithHeader(
     // signatures
     kDeclSignatures, 1,
     0, kAstI32,                  // void -> i32

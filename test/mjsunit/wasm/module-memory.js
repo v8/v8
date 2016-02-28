@@ -10,9 +10,9 @@ var kMemSize = 4096;
 
 function genModule(memory) {
   var kBodySize = 27;
-  var kNameMainOffset = 28 + kBodySize + 1;
+  var kNameMainOffset = kHeaderSize + 28 + kBodySize + 1;
 
-  var data = bytes(
+  var data = bytesWithHeader(
     kDeclMemory,
     12, 12, 1,                  // memory
     // -- signatures
@@ -133,9 +133,9 @@ testOuterMemorySurvivalAcrossGc();
 
 function testOOBThrows() {
   var kBodySize = 8;
-  var kNameMainOffset = 29 + kBodySize + 1;
+  var kNameMainOffset = kHeaderSize + 29 + kBodySize + 1;
 
-  var data = bytes(
+  var data = bytesWithHeader(
     kDeclMemory,
     12, 12, 1,                     // memory = 4KB
     // -- signatures

@@ -8,13 +8,13 @@ load("test/mjsunit/wasm/wasm-constants.js");
 
 function testStack(func, check) {
   var kBodySize = 2;
-  var kNameFunOffset = 22 + kBodySize + 1;
+  var kNameFunOffset = kHeaderSize + 22 + kBodySize + 1;
   var kNameMainOffset = kNameFunOffset + 4;
 
   var ffi = new Object();
   ffi.fun = func;
 
-  var data = bytes(
+  var data = bytesWithHeader(
       // signatures
       kDeclSignatures, 1,  //  --
       0, kAstStmt,         // () -> void

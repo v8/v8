@@ -9,9 +9,9 @@ load("test/mjsunit/wasm/wasm-constants.js");
 var kReturnValue = 117;
 
 var kBodySize = 2;
-var kNameOffset = 19 + kBodySize + 1;
+var kNameOffset = kHeaderSize + 19 + kBodySize + 1;
 
-var data = bytes(
+var data = bytesWithHeader(
   // -- memory
   kDeclMemory,
   10, 10, 1,

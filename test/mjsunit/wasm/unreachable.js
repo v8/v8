@@ -10,12 +10,12 @@ var module = (function () {
   var kFuncWithBody = 9;
   var kFuncImported = 7;
   var kBodySize1 = 1;
-  var kMainOffset = 6 + kFuncWithBody + kBodySize1 + 1;
+  var kMainOffset = kHeaderSize + 6 + kFuncWithBody + kBodySize1 + 1;
 
   var ffi = new Object();
   ffi.add = (function(a, b) { return a + b | 0; });
 
-  return _WASMEXP_.instantiateModule(bytes(
+  return _WASMEXP_.instantiateModule(bytesWithHeader(
     // -- signatures
     kDeclSignatures, 1,
     0, kAstStmt, // void -> void

@@ -61,6 +61,27 @@ class ModuleDecoder : public Decoder {
     bool sections[kMaxModuleSectionCode];
     memset(sections, 0, sizeof(sections));
 
+    const byte* pos = pc_;
+    uint32_t magic_word = consume_u32("wasm magic");
+#define BYTES(x) (x & 0xff), (x >> 8) & 0xff, (x >> 16) & 0xff, (x >> 24) & 0xff
+    if (magic_word != kWasmMagic) {
+      error(pos, pos,
+            "expected magic word %02x %02x %02x %02x, "
+            "found %02x %02x %02x %02x",
+            BYTES(kWasmMagic), BYTES(magic_word));
+      return toResult(module);
+    }
+
+    pos = pc_;
+    uint32_t magic_version = consume_u32("wasm version");
+    if (magic_version != kWasmVersion) {
+      error(pos, pos,
+            "expected version %02x %02x %02x %02x, "
+            "found %02x %02x %02x %02x",
+            BYTES(kWasmVersion), BYTES(magic_version));
+      return toResult(module);
+    }
+
     // Decode the module sections.
     while (pc_ < limit_) {
       TRACE("DecodeSection\n");

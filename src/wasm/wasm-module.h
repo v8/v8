@@ -22,6 +22,8 @@ namespace wasm {
 const size_t kMaxModuleSize = 1024 * 1024 * 1024;
 const size_t kMaxFunctionSize = 128 * 1024;
 const size_t kMaxStringSize = 256;
+const uint32_t kWasmMagic = 0x6d736100;
+const uint32_t kWasmVersion = 0x0a;
 
 enum WasmSectionDeclCode {
   kDeclMemory = 0x00,

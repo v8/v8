@@ -12,12 +12,12 @@ function runSelect2(module, which, a, b) {
 
 function testSelect2(type) {
   var kBodySize = 2;
-  var kNameOffset = 21 + kBodySize + 1;
+  var kNameOffset = kHeaderSize + 21 + kBodySize + 1;
 
   for (var which = 0; which < 2; which++) {
     print("type = " + type + ", which = " + which);
 
-    var data = bytes(
+    var data = bytesWithHeader(
       // -- memory
       kDeclMemory,
       12, 12, 1,                  // memory
@@ -88,13 +88,13 @@ function runSelect10(module, which, a, b) {
 
 function testSelect10(type) {
   var kBodySize = 2;
-  var kNameOffset = 29 + kBodySize + 1;
+  var kNameOffset = kHeaderSize + 29 + kBodySize + 1;
 
   for (var which = 0; which < 10; which++) {
     print("type = " + type + ", which = " + which);
 
     var t = type;
-    var data = bytes(
+    var data = bytesWithHeader(
       kDeclMemory,
       12, 12, 1,                  // memory
       // signatures

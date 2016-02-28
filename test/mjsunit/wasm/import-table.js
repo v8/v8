@@ -8,13 +8,13 @@ load("test/mjsunit/wasm/wasm-constants.js");
 
 function testCallImport(func, check) {
   var kBodySize = 6;
-  var kNameFunOffset = 29 + kBodySize + 1;
+  var kNameFunOffset = kHeaderSize + 29 + kBodySize + 1;
   var kNameMainOffset = kNameFunOffset + 4;
 
   var ffi = new Object();
   ffi.fun = func;
 
-  var data = bytes(
+  var data = bytesWithHeader(
     // signatures
     kDeclSignatures, 1,
     2, kAstI32, kAstF64, kAstF64, // (f64,f64) -> int
@@ -193,7 +193,7 @@ testCallImport(returnValue(objWithValueOf), checkReturn(198));
 
 function testCallBinopVoid(type, func, check) {
   var kBodySize = 10;
-  var kNameFunOffset = 28 + kBodySize + 1;
+  var kNameFunOffset = kHeaderSize + 28 + kBodySize + 1;
   var kNameMainOffset = kNameFunOffset + 4;
 
   var ffi = new Object();
@@ -212,7 +212,7 @@ function testCallBinopVoid(type, func, check) {
     args_b = arguments[1];
   }
 
-  var data = bytes(
+  var data = bytesWithHeader(
     // -- signatures
     kDeclSignatures, 2,
     2, kAstStmt, type, type,    // (type,type)->void
@@ -286,13 +286,13 @@ testCallBinopVoid(kAstF64);
 
 function testCallPrint() {
   var kBodySize = 10;
-  var kNamePrintOffset = 10 + 7 + 7 + 9 + kBodySize + 1;
+  var kNamePrintOffset = kHeaderSize + 10 + 7 + 7 + 9 + kBodySize + 1;
   var kNameMainOffset = kNamePrintOffset + 6;
 
   var ffi = new Object();
   ffi.print = print;
 
-  var data = bytes(
+  var data = bytesWithHeader(
     // -- signatures
     kDeclSignatures, 2,
     1, kAstStmt, kAstI32,       // i32->void
@@ -338,7 +338,7 @@ testCallPrint();
 
 function testCallImport2(foo, bar, expected) {
   var kBodySize = 5;
-  var kNameFooOffset = 37 + kBodySize + 1;
+  var kNameFooOffset = kHeaderSize + 37 + kBodySize + 1;
   var kNameBarOffset = kNameFooOffset + 4;
   var kNameMainOffset = kNameBarOffset + 4;
 
@@ -346,7 +346,7 @@ function testCallImport2(foo, bar, expected) {
   ffi.foo = foo;
   ffi.bar = bar;
 
-  var data = bytes(
+  var data = bytesWithHeader(
     // signatures
     kDeclSignatures, 1,
     0, kAstI32,                  // void -> i32

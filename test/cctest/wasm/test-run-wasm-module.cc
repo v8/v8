@@ -36,6 +36,7 @@ void TestModule(WasmModuleIndex* module, int32_t expected_result) {
 // A raw test that skips the WasmModuleBuilder.
 TEST(Run_WasmModule_CallAdd_rev) {
   static const byte data[] = {
+      WASM_MODULE_HEADER,
       // sig#0 ------------------------------------------
       kDeclSignatures, 2, 0, kLocalI32,    // void -> int
       2, kLocalI32, kLocalI32, kLocalI32,  // int,int -> int

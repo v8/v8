@@ -461,6 +461,8 @@ struct Sizes {
 WasmModuleIndex* WasmModuleWriter::WriteTo(Zone* zone) const {
   Sizes sizes = {0, 0};
 
+  sizes.Add(2 * sizeof(uint32_t), 0);  // header
+
   sizes.Add(1, 0);
   sizes.Add(kDeclMemorySize, 0);
 
@@ -494,6 +496,10 @@ WasmModuleIndex* WasmModuleWriter::WriteTo(Zone* zone) const {
   byte* buffer = &buffer_vector[0];
   byte* header = buffer;
   byte* body = buffer + sizes.header_size;
+
+  // -- emit magic -------------------------------------------------------------
+  EmitUint32(&header, kWasmMagic);
+  EmitUint32(&header, kWasmVersion);
 
   // -- emit memory declaration ------------------------------------------------
   EmitUint8(&header, kDeclMemory);
