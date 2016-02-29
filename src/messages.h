@@ -208,9 +208,6 @@ class CallSite {
   T(ProxyDeletePropertyNonConfigurable,                                        \
     "'deleteProperty' on proxy: trap returned truish for property '%' which "  \
     "is non-configurable in the proxy target")                                 \
-  T(ProxyEnumerateNonObject, "'enumerate' on proxy: trap returned non-object") \
-  T(ProxyEnumerateNonString,                                                   \
-    "'enumerate' on proxy: trap result includes non-string")                   \
   T(ProxyGetNonConfigurableData,                                               \
     "'get' on proxy: property '%' is a read-only and "                         \
     "non-configurable data property on the proxy target but the proxy "        \

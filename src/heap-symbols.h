@@ -45,7 +45,6 @@
   V(dot_string, ".")                                               \
   V(entries_string, "entries")                                     \
   V(enumerable_string, "enumerable")                               \
-  V(enumerate_string, "enumerate")                                 \
   V(Error_string, "Error")                                         \
   V(eval_string, "eval")                                           \
   V(false_string, "false")                                         \
