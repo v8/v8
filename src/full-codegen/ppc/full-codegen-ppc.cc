@@ -3994,10 +3994,11 @@ void FullCodeGenerator::EmitLiteralCompareNil(CompareOperation* expr,
     __ cmp(r3, r4);
     Split(eq, if_true, if_false, fall_through);
   } else {
-    Handle<Code> ic = CompareNilICStub::GetUninitialized(isolate(), nil);
-    CallIC(ic, expr->CompareOperationFeedbackId());
-    __ CompareRoot(r3, Heap::kTrueValueRootIndex);
-    Split(eq, if_true, if_false, fall_through);
+    __ JumpIfSmi(r3, if_false);
+    __ LoadP(r3, FieldMemOperand(r3, HeapObject::kMapOffset));
+    __ lbz(r4, FieldMemOperand(r3, Map::kBitFieldOffset));
+    __ andi(r0, r4, Operand(1 << Map::kIsUndetectable));
+    Split(ne, if_true, if_false, fall_through, cr0);
   }
   context()->Plug(if_true, if_false);
 }
