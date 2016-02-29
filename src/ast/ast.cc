@@ -30,10 +30,10 @@ namespace internal {
 AST_NODE_LIST(DECL_ACCEPT)
 #undef DECL_ACCEPT
 
-// Dummy accept member functions for OTS node types.
+// Dummy accept member functions for type system nodes.
 #define DECL_ACCEPT(type)                       \
-  void type::Accept(AstVisitor* v) {}
-OTSTYPE_NODE_LIST(DECL_ACCEPT)
+  void typesystem::type::Accept(AstVisitor* v) {}
+TYPESYSTEM_NODE_LIST(DECL_ACCEPT)
 #undef DECL_ACCEPT
 
 

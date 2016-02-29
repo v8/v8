@@ -353,11 +353,16 @@ class ParserTraits {
     typedef ParserFormalParameters::Parameter FormalParameter;
     typedef ParserFormalParameters FormalParameters;
     typedef ZoneList<v8::internal::Statement*>* StatementList;
-    typedef v8::internal::OTSType* OTSType;
-    typedef v8::internal::OTSTypeParameter* OTSTypeParameter;
-    typedef ZoneList<v8::internal::OTSTypeParameter*>* OTSTypeParameters;
-    typedef v8::internal::OTSFormalParameter* OTSFormalParameter;
-    typedef ZoneList<v8::internal::OTSFormalParameter*>* OTSFormalParameters;
+
+    struct TypeSystem {
+      typedef v8::internal::typesystem::Type* Type;
+      typedef v8::internal::typesystem::TypeParameter* TypeParameter;
+      typedef ZoneList<v8::internal::typesystem::TypeParameter*>*
+          TypeParameters;
+      typedef v8::internal::typesystem::FormalParameter* FormalParameter;
+      typedef ZoneList<v8::internal::typesystem::FormalParameter*>*
+          FormalParameters;
+    };
 
     // For constructing objects returned by the traversing functions.
     typedef AstNodeFactory Factory;
@@ -502,9 +507,12 @@ class ParserTraits {
   static ObjectLiteralProperty* EmptyObjectLiteralProperty() { return NULL; }
   static FunctionLiteral* EmptyFunctionLiteral() { return NULL; }
 
-  static OTSType* EmptyOTSType() { return NULL; }
-  static ZoneList<OTSTypeParameter*>* EmptyOTSTypeParameters() { return NULL; }
-  static bool IsEmptyOTSTypeParameters(ZoneList<OTSTypeParameter*>* typ_pars) {
+  static typesystem::Type* EmptyType() { return NULL; }
+  static ZoneList<typesystem::TypeParameter*>* EmptyTypeParameters() {
+    return NULL;
+  }
+  static bool IsEmptyTypeParameters(
+      ZoneList<typesystem::TypeParameter*>* typ_pars) {
     return typ_pars == nullptr;
   }
 

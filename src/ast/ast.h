@@ -98,15 +98,14 @@ namespace internal {
   STATEMENT_NODE_LIST(V)                        \
   EXPRESSION_NODE_LIST(V)
 
-// OTS type nodes are intentionally not in in AST_NODE_LIST.
+// Optional type nodes are intentionally not in in AST_NODE_LIST.
 // Visitors should not have to worry about them.
-#define OTSTYPE_NODE_LIST(V)                    \
-  V(OTSPredefinedType)                          \
-  V(OTSFunctionType)                            \
-  V(OTSConstructorType)                         \
-  V(OTSTypeParameter)                           \
-  V(OTSFormalParameter)
-
+#define TYPESYSTEM_NODE_LIST(V) \
+  V(PredefinedType)             \
+  V(FunctionType)               \
+  V(ConstructorType)            \
+  V(TypeParameter)              \
+  V(FormalParameter)
 
 // Forward declarations
 class AstNodeFactory;
@@ -119,11 +118,15 @@ class IterationStatement;
 class MaterializedLiteral;
 class Statement;
 class TypeFeedbackOracle;
-class OTSType;
 
 #define DEF_FORWARD_DECLARATION(type) class type;
 AST_NODE_LIST(DEF_FORWARD_DECLARATION)
-OTSTYPE_NODE_LIST(DEF_FORWARD_DECLARATION)
+
+namespace typesystem {
+class Type;
+TYPESYSTEM_NODE_LIST(DEF_FORWARD_DECLARATION)
+}  // namespace typesystem
+
 #undef DEF_FORWARD_DECLARATION
 
 
@@ -135,12 +138,12 @@ typedef ZoneList<Handle<Object>> ZoneObjectList;
 #define DECLARE_NODE_TYPE(type)                                          \
   void Accept(AstVisitor* v) override;                                   \
   AstNode::NodeType node_type() const final { return AstNode::k##type; } \
-  friend class AstNodeFactory;
+  friend class v8::internal::AstNodeFactory;
 
 #define DECLARE_NODE_TYPE_INHERITABLE(type)                                 \
   void Accept(AstVisitor* v) override;                                      \
   AstNode::NodeType node_type() const override { return AstNode::k##type; } \
-  friend class AstNodeFactory;
+  friend class v8::internal::AstNodeFactory;
 
 
 class FeedbackVectorSlotCache {
@@ -200,7 +203,7 @@ class AstNode: public ZoneObject {
 #define DECLARE_TYPE_ENUM(type) k##type,
   enum NodeType {
     AST_NODE_LIST(DECLARE_TYPE_ENUM)
-    OTSTYPE_NODE_LIST(DECLARE_TYPE_ENUM)
+    TYPESYSTEM_NODE_LIST(DECLARE_TYPE_ENUM)
     kInvalid = -1
   };
 #undef DECLARE_TYPE_ENUM
@@ -225,7 +228,13 @@ class AstNode: public ZoneObject {
   V8_INLINE type* As##type();        \
   V8_INLINE const type* As##type() const;
   AST_NODE_LIST(DECLARE_NODE_FUNCTIONS)
-  OTSTYPE_NODE_LIST(DECLARE_NODE_FUNCTIONS)
+#undef DECLARE_NODE_FUNCTIONS
+
+#define DECLARE_NODE_FUNCTIONS(type)      \
+  V8_INLINE bool Is##type() const;        \
+  V8_INLINE typesystem::type* As##type(); \
+  V8_INLINE const typesystem::type* As##type() const;
+  TYPESYSTEM_NODE_LIST(DECLARE_NODE_FUNCTIONS)
 #undef DECLARE_NODE_FUNCTIONS
 
   virtual BreakableStatement* AsBreakableStatement() { return NULL; }
@@ -2925,28 +2934,30 @@ class EmptyParentheses final : public Expression {
 
 
 // Nodes for the optional type system.
-class OTSFormalParameter;
+namespace typesystem {
 
-class OTSType : public AstNode {
+class FormalParameter;
+
+class Type : public AstNode {
  public:
   bool IsValidParameterList() const {
     // wrong!!!
     return true;
   }
 
-  ZoneList<OTSFormalParameter*>* AsParameterList() const {
+  ZoneList<FormalParameter*>* AsParameterList() const {
     // wrong!!!
     return nullptr;
   }
 
  protected:
-  explicit OTSType(Zone* zone, int position) : AstNode(position) {}
+  explicit Type(Zone* zone, int position) : AstNode(position) {}
 };
 
 
-class OTSPredefinedType : public OTSType {
+class PredefinedType : public Type {
  public:
-  DECLARE_NODE_TYPE(OTSPredefinedType)
+  DECLARE_NODE_TYPE(PredefinedType)
 
   enum Kind {
     kAnyType,
@@ -2960,55 +2971,56 @@ class OTSPredefinedType : public OTSType {
   Kind kind() const { return kind_; }
 
  protected:
-  OTSPredefinedType(Zone* zone, Kind kind, int pos)
-      : OTSType(zone, pos), kind_(kind) {}
+  PredefinedType(Zone* zone, Kind kind, int pos)
+      : Type(zone, pos), kind_(kind) {}
 
  private:
   Kind kind_;
 };
 
 
-class OTSTypeParameter : public AstNode {
+class TypeParameter : public AstNode {
  public:
-  DECLARE_NODE_TYPE(OTSTypeParameter)
+  DECLARE_NODE_TYPE(TypeParameter)
 
  protected:
-  OTSTypeParameter(Zone* zone, int pos) : AstNode(pos) {}
+  TypeParameter(Zone* zone, int pos) : AstNode(pos) {}
 };
 
 
-class OTSFormalParameter : public AstNode {
+class FormalParameter : public AstNode {
  public:
-  DECLARE_NODE_TYPE(OTSFormalParameter)
+  DECLARE_NODE_TYPE(FormalParameter)
 
  protected:
-  OTSFormalParameter(Zone* zone, int pos) : AstNode(pos) {}
+  FormalParameter(Zone* zone, int pos) : AstNode(pos) {}
 };
 
 
-class OTSFunctionType : public OTSType {
+class FunctionType : public Type {
  public:
-  DECLARE_NODE_TYPE_INHERITABLE(OTSFunctionType)
+  DECLARE_NODE_TYPE_INHERITABLE(FunctionType)
 
  protected:
-  OTSFunctionType(Zone* zone, ZoneList<OTSTypeParameter*>* type_parameters,
-                  ZoneList<OTSFormalParameter*>* parameters,
-                  OTSType* result_type, int pos)
-      : OTSType(zone, pos) {}
+  FunctionType(Zone* zone, ZoneList<TypeParameter*>* type_parameters,
+               ZoneList<FormalParameter*>* parameters, Type* result_type,
+               int pos)
+      : Type(zone, pos) {}
 };
 
 
-class OTSConstructorType : public OTSFunctionType {
+class ConstructorType : public FunctionType {
  public:
-  DECLARE_NODE_TYPE(OTSConstructorType)
+  DECLARE_NODE_TYPE(ConstructorType)
 
  protected:
-  OTSConstructorType(Zone* zone, ZoneList<OTSTypeParameter*>* type_parameters,
-                     ZoneList<OTSFormalParameter*>* parameters,
-                     OTSType* result_type, int pos) :
-      OTSFunctionType(zone, type_parameters, parameters, result_type, pos) {}
+  ConstructorType(Zone* zone, ZoneList<TypeParameter*>* type_parameters,
+                  ZoneList<FormalParameter*>* parameters, Type* result_type,
+                  int pos)
+      : FunctionType(zone, type_parameters, parameters, result_type, pos) {}
 };
 
+}  // namespace typesystem
 
 #undef DECLARE_NODE_TYPE
 
@@ -3556,25 +3568,25 @@ class AstNodeFactory final BASE_EMBEDDED {
     return new (local_zone_) EmptyParentheses(local_zone_, pos);
   }
 
-  OTSPredefinedType* NewOTSPredefinedType(OTSPredefinedType::Kind kind,
-                                          int pos) {
-    return new (local_zone_) OTSPredefinedType(local_zone_, kind, pos);
+  typesystem::PredefinedType* NewPredefinedType(
+      typesystem::PredefinedType::Kind kind, int pos) {
+    return new (local_zone_) typesystem::PredefinedType(local_zone_, kind, pos);
   }
 
-  OTSFunctionType* NewOTSFunctionType(
-      ZoneList<OTSTypeParameter*>* type_parameters,
-      ZoneList<OTSFormalParameter*>* parameters,
-      OTSType* result_type, int pos) {
-    return new (local_zone_) OTSFunctionType(local_zone_, type_parameters,
-                                             parameters, result_type, pos);
+  typesystem::FunctionType* NewFunctionType(
+      ZoneList<typesystem::TypeParameter*>* type_parameters,
+      ZoneList<typesystem::FormalParameter*>* parameters,
+      typesystem::Type* result_type, int pos) {
+    return new (local_zone_) typesystem::FunctionType(
+        local_zone_, type_parameters, parameters, result_type, pos);
   }
 
-  OTSConstructorType* NewOTSConstructorType(
-      ZoneList<OTSTypeParameter*>* type_parameters,
-      ZoneList<OTSFormalParameter*>* parameters,
-      OTSType* result_type, int pos) {
-    return new (local_zone_) OTSConstructorType(local_zone_, type_parameters,
-                                                parameters, result_type, pos);
+  typesystem::ConstructorType* NewConstructorType(
+      ZoneList<typesystem::TypeParameter*>* type_parameters,
+      ZoneList<typesystem::FormalParameter*>* parameters,
+      typesystem::Type* result_type, int pos) {
+    return new (local_zone_) typesystem::ConstructorType(
+        local_zone_, type_parameters, parameters, result_type, pos);
   }
 
   Zone* zone() const { return local_zone_; }

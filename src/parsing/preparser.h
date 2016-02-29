@@ -429,65 +429,67 @@ class PreParserStatement {
 typedef PreParserList<PreParserStatement> PreParserStatementList;
 
 
-class PreParserOTSTypeParameter {};
+namespace typesystem {
 
 
-class PreParserOTSTypeParameters {
+class PreParserTypeParameter {};
+
+
+class PreParserTypeParameters {
  public:
-  static PreParserOTSTypeParameters Default() {
-    return PreParserOTSTypeParameters();
-  }
+  static PreParserTypeParameters Default() { return PreParserTypeParameters(); }
 
   // Dummy implementation for making type_parameters->somefunc() work in
   // both Parser and PreParser.
-  PreParserOTSTypeParameters* operator->() { return this; }
+  PreParserTypeParameters* operator->() { return this; }
 
   bool is_empty() const { return is_empty_; }
-  void Add(const PreParserOTSTypeParameter& p, void*) { is_empty_ = false; }
+  void Add(const PreParserTypeParameter& p, void*) { is_empty_ = false; }
 
  private:
-  explicit PreParserOTSTypeParameters() : is_empty_(true) {}
+  explicit PreParserTypeParameters() : is_empty_(true) {}
 
   bool is_empty_;
 };
 
 
-class PreParserOTSFormalParameter {};
+class PreParserFormalParameter {};
 
 
-class PreParserOTSFormalParameters {
+class PreParserFormalParameters {
  public:
-  static PreParserOTSFormalParameters Default() {
-    return PreParserOTSFormalParameters();
+  static PreParserFormalParameters Default() {
+    return PreParserFormalParameters();
   }
 
  private:
-  explicit PreParserOTSFormalParameters() {}
+  explicit PreParserFormalParameters() {}
 };
 
 
-class PreParserOTSType {
+class PreParserType {
  public:
-  static PreParserOTSType Default() {
-    return PreParserOTSType();
-  }
+  static PreParserType Default() { return PreParserType(); }
 
   // Dummy implementation for making type->somefunc() work in both Parser
   // and PreParser.
-  PreParserOTSType* operator->() { return this; }
+  PreParserType* operator->() { return this; }
 
   bool IsValidParameterList() const {
     // wrong!!!
     return true;
   }
 
-  PreParserOTSFormalParameters AsParameterList() const {
-    return PreParserOTSFormalParameters::Default();
+  PreParserFormalParameters AsParameterList() const {
+    return PreParserFormalParameters::Default();
   }
 
  private:
-  PreParserOTSType() {}
+  explicit PreParserType() {}
 };
+
+
+}  // namespace typesystem
 
 
 class PreParserFactory {
@@ -628,23 +630,23 @@ class PreParserFactory {
     return PreParserExpression::Default();
   }
 
-  PreParserOTSType NewOTSPredefinedType(OTSPredefinedType::Kind kind,
-                                        int pos) {
-    return PreParserOTSType::Default();
+  typesystem::PreParserType NewPredefinedType(
+      typesystem::PredefinedType::Kind kind, int pos) {
+    return typesystem::PreParserType::Default();
   }
 
-  PreParserOTSType NewOTSFunctionType(
-      const PreParserOTSTypeParameters& type_parameters,
-      const PreParserOTSFormalParameters& parameters,
-      PreParserOTSType result_type, int pos) {
-    return PreParserOTSType::Default();
+  typesystem::PreParserType NewFunctionType(
+      const typesystem::PreParserTypeParameters& type_parameters,
+      const typesystem::PreParserFormalParameters& parameters,
+      typesystem::PreParserType result_type, int pos) {
+    return typesystem::PreParserType::Default();
   }
 
-  PreParserOTSType NewOTSConstructorType(
-      const PreParserOTSTypeParameters& type_parameters,
-      const PreParserOTSFormalParameters& parameters,
-      PreParserOTSType result_type, int pos) {
-    return PreParserOTSType::Default();
+  typesystem::PreParserType NewConstructorType(
+      const typesystem::PreParserTypeParameters& type_parameters,
+      const typesystem::PreParserFormalParameters& parameters,
+      typesystem::PreParserType result_type, int pos) {
+    return typesystem::PreParserType::Default();
   }
 
   // Return the object itself as AstVisitor and implement the needed
@@ -697,11 +699,14 @@ class PreParserTraits {
     typedef PreParserIdentifier FormalParameter;
     typedef PreParserFormalParameters FormalParameters;
     typedef PreParserStatementList StatementList;
-    typedef PreParserOTSType OTSType;
-    typedef PreParserOTSTypeParameter OTSTypeParameter;
-    typedef PreParserOTSTypeParameters OTSTypeParameters;
-    typedef PreParserOTSFormalParameter OTSFormalParameter;
-    typedef PreParserOTSFormalParameters OTSFormalParameters;
+
+    struct TypeSystem {
+      typedef typesystem::PreParserType Type;
+      typedef typesystem::PreParserTypeParameter TypeParameter;
+      typedef typesystem::PreParserTypeParameters TypeParameters;
+      typedef typesystem::PreParserFormalParameter FormalParameter;
+      typedef typesystem::PreParserFormalParameters FormalParameters;
+    };
 
     // For constructing objects returned by the traversing functions.
     typedef PreParserFactory Factory;
@@ -859,14 +864,14 @@ class PreParserTraits {
   static PreParserExpressionList NullExpressionList() {
     return PreParserExpressionList();
   }
-  static PreParserOTSType EmptyOTSType() {
-    return PreParserOTSType::Default();
+  static typesystem::PreParserType EmptyType() {
+    return typesystem::PreParserType::Default();
   }
-  static PreParserOTSTypeParameters EmptyOTSTypeParameters() {
-    return PreParserOTSTypeParameters::Default();
+  static typesystem::PreParserTypeParameters EmptyTypeParameters() {
+    return typesystem::PreParserTypeParameters::Default();
   }
-  static bool IsEmptyOTSTypeParameters(
-      const PreParserOTSTypeParameters& typ_pars) {
+  static bool IsEmptyTypeParameters(
+      const typesystem::PreParserTypeParameters& typ_pars) {
     return typ_pars.is_empty();
   }
 

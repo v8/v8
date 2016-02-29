@@ -51,7 +51,7 @@ class CallPrinter : public AstVisitor {
 
 #ifdef DEBUG
 
-// TODO(nikolaos): Think about how to pretty print OTS types.
+// TODO(nikolaos): Think about how to pretty print optional types.
 
 class PrettyPrinter: public AstVisitor {
  public:

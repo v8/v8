@@ -514,7 +514,7 @@ class CallSite {
   T(UnterminatedTemplateExpr, "Missing } in template expression")              \
   T(FoundNonCallableHasInstance, "Found non-callable @@hasInstance")           \
   T(NonObjectInInstanceOfCheck, "Expecting an object in instanceof check")     \
-  /* SyntaxError for the OTS */                                                \
+  /* SyntaxError for the optional type system */                               \
   T(BadFunctionOrConstructorType,                                              \
     "Expecting '=>' in function or constructor type.")                         \
   /* EvalError */                                                              \

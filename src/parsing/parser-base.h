@@ -89,11 +89,7 @@ class ParserBase : public Traits {
   typedef typename Traits::Type::ObjectLiteralProperty ObjectLiteralPropertyT;
   typedef typename Traits::Type::StatementList StatementListT;
   typedef typename Traits::Type::ExpressionClassifier ExpressionClassifier;
-  typedef typename Traits::Type::OTSType OTSTypeT;
-  typedef typename Traits::Type::OTSTypeParameter OTSTypeParameterT;
-  typedef typename Traits::Type::OTSTypeParameters OTSTypeParametersT;
-  typedef typename Traits::Type::OTSFormalParameter OTSFormalParameterT;
-  typedef typename Traits::Type::OTSFormalParameters OTSFormalParametersT;
+  typedef typename Traits::Type::TypeSystem TypeSystem;
 
   ParserBase(Zone* zone, Scanner* scanner, uintptr_t stack_limit,
              v8::Extension* extension, AstValueFactory* ast_value_factory,
@@ -873,10 +869,10 @@ class ParserBase : public Traits {
   }
 
   // Parsing optional types.
-  OTSTypeT ParseOTSType(bool* ok);
-  OTSTypeT ParseOTSUnionOrIntersectionOrPrimaryType(bool* ok);
-  OTSTypeT ParseOTSPrimaryTypeOrParameterList(bool* ok);
-  OTSTypeParametersT ParseOTSTypeParameters(bool* ok);
+  typename TypeSystem::Type ParseType(bool* ok);
+  typename TypeSystem::Type ParseUnionOrIntersectionOrPrimaryType(bool* ok);
+  typename TypeSystem::Type ParsePrimaryTypeOrParameterList(bool* ok);
+  typename TypeSystem::TypeParameters ParseTypeParameters(bool* ok);
 
   // Used to validate property names in object literals and class literals
   enum PropertyKind {
@@ -1249,8 +1245,8 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseRegExpLiteral(
 #undef DUMMY
 
 // Used in functions for parsing optional types.
-#define CHECK_OK_TYPE  ok);              \
-  if (!*ok) return this->EmptyOTSType(); \
+#define CHECK_OK_TYPE  ok);           \
+  if (!*ok) return this->EmptyType(); \
   ((void)0
 #define DUMMY )  // to make indentation work
 #undef DUMMY
@@ -3332,10 +3328,9 @@ void ParserBase<Traits>::CheckDestructuringElement(
   }
 }
 
-
 template <typename Traits>
-typename ParserBase<Traits>::OTSTypeT
-ParserBase<Traits>::ParseOTSType(bool* ok) {
+typename ParserBase<Traits>::TypeSystem::Type ParserBase<Traits>::ParseType(
+    bool* ok) {
   // Type ::
   //   UnionOrIntersectionOrPrimaryType
   //   FunctionType
@@ -3350,36 +3345,38 @@ ParserBase<Traits>::ParseOTSType(bool* ok) {
   int pos = peek_position();
   // Parse optional 'new' and type parameters.
   bool has_new = Check(Token::NEW);
-  OTSTypeParametersT type_parameters = this->EmptyOTSTypeParameters();
+  typename TypeSystem::TypeParameters type_parameters =
+      this->EmptyTypeParameters();
   if (peek() == Token::LT)
-    type_parameters = ParseOTSTypeParameters(CHECK_OK_TYPE);
+    type_parameters = ParseTypeParameters(CHECK_OK_TYPE);
   // If any of those were present, then only allow a parenthesized primary
   // type or a parameter list), else also allow unions and intersections.
-  OTSTypeT type = (has_new || !this->IsEmptyOTSTypeParameters(type_parameters))
-      ? ParseOTSPrimaryTypeOrParameterList(ok)
-      : ParseOTSUnionOrIntersectionOrPrimaryType(ok);
-  if (!*ok) return this->EmptyOTSType();
+  typename TypeSystem::Type type =
+      (has_new || !this->IsEmptyTypeParameters(type_parameters))
+          ? ParsePrimaryTypeOrParameterList(ok)
+          : ParseUnionOrIntersectionOrPrimaryType(ok);
+  if (!*ok) return this->EmptyType();
   // Parse function and constructor types.
   if (peek() == Token::ARROW) {
     if (!type->IsValidParameterList()) {
       ReportUnexpectedToken(Token::ARROW);
       *ok = false;
-      return this->EmptyOTSType();
+      return this->EmptyType();
     }
     Consume(Token::ARROW);
-    OTSFormalParametersT parameters = type->AsParameterList();
-    OTSTypeT result_type = ParseOTSType(CHECK_OK_TYPE);
+    typename TypeSystem::FormalParameters parameters = type->AsParameterList();
+    typename TypeSystem::Type result_type = ParseType(CHECK_OK_TYPE);
     return has_new
-        ? factory()->NewOTSConstructorType(type_parameters, parameters,
-                                           result_type, pos)
-        : factory()->NewOTSFunctionType(type_parameters, parameters,
-                                        result_type, pos);
+               ? factory()->NewConstructorType(type_parameters, parameters,
+                                               result_type, pos)
+               : factory()->NewFunctionType(type_parameters, parameters,
+                                            result_type, pos);
   }
   // Report invalid function or constructor type.
-  if (has_new || !this->IsEmptyOTSTypeParameters(type_parameters)) {
+  if (has_new || !this->IsEmptyTypeParameters(type_parameters)) {
     ReportMessage(MessageTemplate::kBadFunctionOrConstructorType);
     *ok = false;
-    return this->EmptyOTSType();
+    return this->EmptyType();
   }
   // Just return the union, intersection, or primary type.
   return type;
@@ -3387,29 +3384,30 @@ ParserBase<Traits>::ParseOTSType(bool* ok) {
 
 
 template <typename Traits>
-typename ParserBase<Traits>::OTSTypeParametersT
-ParserBase<Traits>::ParseOTSTypeParameters(bool* ok) {
+typename ParserBase<Traits>::TypeSystem::TypeParameters
+ParserBase<Traits>::ParseTypeParameters(bool* ok) {
   // wrong!!!
-  return this->EmptyOTSTypeParameters();
+  return this->EmptyTypeParameters();
 }
 
 
 template <typename Traits>
-typename ParserBase<Traits>::OTSTypeT
-ParserBase<Traits>::ParseOTSUnionOrIntersectionOrPrimaryType(bool* ok) {
+typename ParserBase<Traits>::TypeSystem::Type
+ParserBase<Traits>::ParseUnionOrIntersectionOrPrimaryType(bool* ok) {
   // wrong!!!
-  return ParseOTSPrimaryTypeOrParameterList(ok);
+  return ParsePrimaryTypeOrParameterList(ok);
 }
 
 
 template <typename Traits>
-typename ParserBase<Traits>::OTSTypeT
-ParserBase<Traits>::ParseOTSPrimaryTypeOrParameterList(bool* ok) {
+typename ParserBase<Traits>::TypeSystem::Type
+ParserBase<Traits>::ParsePrimaryTypeOrParameterList(bool* ok) {
   // wrong!!!
   int pos = peek_position();
   IdentifierT name = ParseIdentifierName(CHECK_OK_TYPE);
   USE(name);
-  return factory()->NewOTSPredefinedType(OTSPredefinedType::kNumberType, pos);
+  return factory()->NewPredefinedType(
+      typesystem::PredefinedType::kNumberType, pos);
 }
 
 
