@@ -34,6 +34,7 @@ var Int8x16ToString;
 var InternalArray = utils.InternalArray;
 var internalErrorSymbol = utils.ImportNow("internal_error_symbol");
 var ObjectDefineProperty;
+var ObjectHasOwnProperty;
 var ObjectToString = utils.ImportNow("object_to_string");
 var Script = utils.ImportNow("Script");
 var stackTraceSymbol = utils.ImportNow("stack_trace_symbol");
@@ -56,6 +57,7 @@ utils.Import(function(from) {
   Int32x4ToString = from.Int32x4ToString;
   Int8x16ToString = from.Int8x16ToString;
   ObjectDefineProperty = from.ObjectDefineProperty;
+  ObjectHasOwnProperty = from.ObjectHasOwnProperty;
   StringCharAt = from.StringCharAt;
   StringIndexOf = from.StringIndexOf;
   StringSubstring = from.StringSubstring;

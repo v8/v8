@@ -1121,6 +1121,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kObjectPreventExtensions, 1, false);
     SimpleInstallFunction(object_function, "seal", Builtins::kObjectSeal, 1,
                           false);
+
+    SimpleInstallFunction(isolate->initial_object_prototype(), "hasOwnProperty",
+                          Builtins::kObjectHasOwnProperty, 1, false);
   }
 
   Handle<JSObject> global(native_context()->global_object());

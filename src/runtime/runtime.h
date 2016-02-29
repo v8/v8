@@ -411,7 +411,6 @@ namespace internal {
   F(AppendElement, 2, 1)                             \
   F(DeleteProperty_Sloppy, 2, 1)                     \
   F(DeleteProperty_Strict, 2, 1)                     \
-  F(HasOwnProperty, 2, 1)                            \
   F(HasProperty, 2, 1)                               \
   F(PropertyIsEnumerable, 2, 1)                      \
   F(GetOwnPropertyKeys, 2, 1)                        \

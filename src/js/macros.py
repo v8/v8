@@ -122,12 +122,12 @@ macro TO_PRIMITIVE_NUMBER(arg) = (%_ToPrimitive_Number(arg));
 macro TO_PRIMITIVE_STRING(arg) = (%_ToPrimitive_String(arg));
 macro TO_NAME(arg) = (%_ToName(arg));
 macro JSON_NUMBER_TO_STRING(arg) = ((%_IsSmi(%IS_VAR(arg)) || arg - arg == 0) ? %_NumberToString(arg) : "null");
-macro HAS_OWN_PROPERTY(arg, index) = (%_Call(ObjectHasOwnProperty, arg, index));
+macro HAS_OWN_PROPERTY(obj, key) = (%_Call(ObjectHasOwnProperty, obj, key));
 macro HAS_INDEX(array, index, is_array) = ((is_array && %_HasFastPackedElements(%IS_VAR(array)) && (index < array.length)) ||  (index in array));
 
 # Private names.
 macro IS_PRIVATE(sym) = (%SymbolIsPrivate(sym));
-macro HAS_PRIVATE(obj, sym) = (%HasOwnProperty(obj, sym));
+macro HAS_PRIVATE(obj, key) = HAS_OWN_PROPERTY(obj, key);
 macro HAS_DEFINED_PRIVATE(obj, sym) = (!IS_UNDEFINED(obj[sym]));
 macro GET_PRIVATE(obj, sym) = (obj[sym]);
 macro SET_PRIVATE(obj, sym, val) = (obj[sym] = val);

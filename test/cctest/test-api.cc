@@ -22065,7 +22065,7 @@ TEST(AccessCheckThrows) {
   CheckCorrectThrow("%DeleteProperty_Strict(other, 'x')");
   CheckCorrectThrow("%DeleteProperty_Sloppy(other, '1')");
   CheckCorrectThrow("%DeleteProperty_Strict(other, '1')");
-  CheckCorrectThrow("%HasOwnProperty(other, 'x')");
+  CheckCorrectThrow("Object.prototype.hasOwnProperty.call(other, 'x')");
   CheckCorrectThrow("%HasProperty('x', other)");
   CheckCorrectThrow("%PropertyIsEnumerable(other, 'x')");
   // PROPERTY_ATTRIBUTES_NONE = 0

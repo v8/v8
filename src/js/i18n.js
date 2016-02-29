@@ -35,6 +35,7 @@ var MakeTypeError;
 var MathFloor;
 var ObjectDefineProperties = utils.ImportNow("ObjectDefineProperties");
 var ObjectDefineProperty = utils.ImportNow("ObjectDefineProperty");
+var ObjectHasOwnProperty = utils.ImportNow("ObjectHasOwnProperty");
 var patternSymbol = utils.ImportNow("intl_pattern_symbol");
 var RegExpTest;
 var resolvedSymbol = utils.ImportNow("intl_resolved_symbol");
@@ -545,7 +546,7 @@ function setOptions(inOptions, extensionMap, keyValues, getOption, outOptions) {
   }
 
   for (var key in keyValues) {
-    if (%HasOwnProperty(keyValues, key)) {
+    if (HAS_OWN_PROPERTY(keyValues, key)) {
       var value = UNDEFINED;
       var map = keyValues[key];
       if (!IS_UNDEFINED(map.property)) {
@@ -561,7 +562,7 @@ function setOptions(inOptions, extensionMap, keyValues, getOption, outOptions) {
       // User options didn't have it, check Unicode extension.
       // Here we want to convert strings 'true', 'false' into proper Boolean
       // values (not a user error).
-      if (%HasOwnProperty(extensionMap, key)) {
+      if (HAS_OWN_PROPERTY(extensionMap, key)) {
         value = extensionMap[key];
         if (!IS_UNDEFINED(value)) {
           updateProperty(map.property, map.type, value);
@@ -637,7 +638,7 @@ function getAvailableLocalesOf(service) {
   var available = %AvailableLocalesOf(service);
 
   for (var i in available) {
-    if (%HasOwnProperty(available, i)) {
+    if (HAS_OWN_PROPERTY(available, i)) {
       var parts =
           %_Call(StringMatch, i, /^([a-z]{2,3})-([A-Z][a-z]{3})-([A-Z]{2})$/);
       if (parts !== null) {
@@ -953,7 +954,7 @@ function initializeCollator(collator, locales, options) {
 
   var collation = 'default';
   var extension = '';
-  if (%HasOwnProperty(extensionMap, 'co') && internalOptions.usage === 'sort') {
+  if (HAS_OWN_PROPERTY(extensionMap, 'co') && internalOptions.usage === 'sort') {
 
     /**
      * Allowed -u-co- values. List taken from:
@@ -1226,10 +1227,10 @@ function initializeNumberFormat(numberFormat, locales, options) {
     style: {value: internalOptions.style, writable: true},
     useGrouping: {writable: true}
   });
-  if (%HasOwnProperty(internalOptions, 'minimumSignificantDigits')) {
+  if (HAS_OWN_PROPERTY(internalOptions, 'minimumSignificantDigits')) {
     defineWEProperty(resolved, 'minimumSignificantDigits', UNDEFINED);
   }
-  if (%HasOwnProperty(internalOptions, 'maximumSignificantDigits')) {
+  if (HAS_OWN_PROPERTY(internalOptions, 'maximumSignificantDigits')) {
     defineWEProperty(resolved, 'maximumSignificantDigits', UNDEFINED);
   }
   var formatter = %CreateNumberFormat(requestedLocale,
@@ -1301,12 +1302,12 @@ InstallFunction(Intl.NumberFormat.prototype, 'resolvedOptions', function() {
                         format[resolvedSymbol].currencyDisplay);
     }
 
-    if (%HasOwnProperty(format[resolvedSymbol], 'minimumSignificantDigits')) {
+    if (HAS_OWN_PROPERTY(format[resolvedSymbol], 'minimumSignificantDigits')) {
       defineWECProperty(result, 'minimumSignificantDigits',
                         format[resolvedSymbol].minimumSignificantDigits);
     }
 
-    if (%HasOwnProperty(format[resolvedSymbol], 'maximumSignificantDigits')) {
+    if (HAS_OWN_PROPERTY(format[resolvedSymbol], 'maximumSignificantDigits')) {
       defineWECProperty(result, 'maximumSignificantDigits',
                         format[resolvedSymbol].maximumSignificantDigits);
     }
@@ -1486,7 +1487,7 @@ function fromLDMLString(ldmlString) {
 
 function appendToDateTimeObject(options, option, match, pairs) {
   if (IS_NULL(match)) {
-    if (!%HasOwnProperty(options, option)) {
+    if (!HAS_OWN_PROPERTY(options, option)) {
       defineWEProperty(options, option, UNDEFINED);
     }
     return options;
