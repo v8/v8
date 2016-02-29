@@ -790,10 +790,6 @@ class ForEachStatement : public IterationStatement {
   void set_each(Expression* e) { each_ = e; }
   void set_subject(Expression* e) { subject_ = e; }
 
-  void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
-                                 FeedbackVectorSlotCache* cache) override;
-  FeedbackVectorSlot EachFeedbackSlot() const { return each_slot_; }
-
   static const char* VisitModeString(VisitMode mode) {
     return mode == ITERATE ? "for-of" : "for-in";
   }
@@ -805,7 +801,6 @@ class ForEachStatement : public IterationStatement {
  private:
   Expression* each_;
   Expression* subject_;
-  FeedbackVectorSlot each_slot_;
 };
 
 
@@ -819,11 +814,8 @@ class ForInStatement final : public ForEachStatement {
 
   // Type feedback information.
   void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
-                                 FeedbackVectorSlotCache* cache) override {
-    ForEachStatement::AssignFeedbackVectorSlots(isolate, spec, cache);
-    for_in_feedback_slot_ = spec->AddGeneralSlot();
-  }
-
+                                 FeedbackVectorSlotCache* cache) override;
+  FeedbackVectorSlot EachFeedbackSlot() const { return each_slot_; }
   FeedbackVectorSlot ForInFeedbackSlot() {
     DCHECK(!for_in_feedback_slot_.IsInvalid());
     return for_in_feedback_slot_;
@@ -852,6 +844,7 @@ class ForInStatement final : public ForEachStatement {
   int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
   ForInType for_in_type_;
+  FeedbackVectorSlot each_slot_;
   FeedbackVectorSlot for_in_feedback_slot_;
 };
 
