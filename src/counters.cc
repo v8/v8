@@ -309,6 +309,7 @@ void RuntimeCallStats::Print(std::ostream& os) {
 }
 
 void RuntimeCallStats::Reset() {
+  if (!FLAG_runtime_call_stats) return;
 #define RESET_COUNTER(name, nargs, ressize) this->Runtime_##name.Reset();
   FOR_EACH_INTRINSIC(RESET_COUNTER)
 #undef RESET_COUNTER
