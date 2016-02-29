@@ -1302,9 +1302,9 @@ HValue* HGraphBuilder::BuildCheckString(HValue* string) {
   return string;
 }
 
-
-HValue* HGraphBuilder::BuildWrapReceiver(HValue* object, HValue* function) {
+HValue* HGraphBuilder::BuildWrapReceiver(HValue* object, HValue* checked) {
   if (object->type().IsJSObject()) return object;
+  HValue* function = checked->ActualValue();
   if (function->IsConstant() &&
       HConstant::cast(function)->handle(isolate())->IsJSFunction()) {
     Handle<JSFunction> f = Handle<JSFunction>::cast(
@@ -1312,7 +1312,7 @@ HValue* HGraphBuilder::BuildWrapReceiver(HValue* object, HValue* function) {
     SharedFunctionInfo* shared = f->shared();
     if (is_strict(shared->language_mode()) || shared->native()) return object;
   }
-  return Add<HWrapReceiver>(object, function);
+  return Add<HWrapReceiver>(object, checked);
 }
 
 
