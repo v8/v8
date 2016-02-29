@@ -1003,6 +1003,24 @@ bool Object::FitsRepresentation(Representation representation) {
   return true;
 }
 
+bool Object::ToUint32(uint32_t* value) {
+  if (IsSmi()) {
+    int num = Smi::cast(this)->value();
+    if (num < 0) return false;
+    *value = static_cast<uint32_t>(num);
+    return true;
+  }
+  if (IsHeapNumber()) {
+    double num = HeapNumber::cast(this)->value();
+    if (num < 0) return false;
+    uint32_t uint_value = FastD2UI(num);
+    if (FastUI2D(uint_value) == num) {
+      *value = uint_value;
+      return true;
+    }
+  }
+  return false;
+}
 
 // static
 MaybeHandle<JSReceiver> Object::ToObject(Isolate* isolate,
@@ -1011,6 +1029,12 @@ MaybeHandle<JSReceiver> Object::ToObject(Isolate* isolate,
   return ToObject(isolate, object, isolate->native_context());
 }
 
+
+// static
+MaybeHandle<Name> Object::ToName(Isolate* isolate, Handle<Object> input) {
+  if (input->IsName()) return Handle<Name>::cast(input);
+  return ConvertToName(isolate, input);
+}
 
 // static
 MaybeHandle<Object> Object::ToPrimitive(Handle<Object> input,
