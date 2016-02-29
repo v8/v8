@@ -1912,6 +1912,11 @@
           'toolsets': ['target'],
         }],
       ],
+      'direct_dependent_settings': {
+        'include_dirs': [
+          '../../include',
+        ],
+      },
     },
     {
       'target_name': 'natives_blob',

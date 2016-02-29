@@ -77,6 +77,11 @@ config("internal_config_base") {
   include_dirs = [ "." ]
 }
 
+# This config should be applied to code using the libplatform.
+config("libplatform_config") {
+  include_dirs = [ "include" ]
+}
+
 # This config should only be applied to code using V8 and not any V8 code
 # itself.
 config("external_config") {
@@ -1865,6 +1870,7 @@ if (current_toolchain == snapshot_toolchain) {
     configs += [ "//build/config/compiler:no_chromium_code" ]
     configs += [
       ":internal_config",
+      ":libplatform_config",
       ":features",
       ":toolchain",
     ]
@@ -1977,6 +1983,7 @@ source_set("json_fuzzer") {
   configs += [ "//build/config/compiler:no_chromium_code" ]
   configs += [
     ":internal_config",
+    ":libplatform_config",
     ":features",
     ":toolchain",
   ]
@@ -1995,6 +2002,7 @@ source_set("parser_fuzzer") {
   configs += [ "//build/config/compiler:no_chromium_code" ]
   configs += [
     ":internal_config",
+    ":libplatform_config",
     ":features",
     ":toolchain",
   ]
@@ -2013,6 +2021,7 @@ source_set("regexp_fuzzer") {
   configs += [ "//build/config/compiler:no_chromium_code" ]
   configs += [
     ":internal_config",
+    ":libplatform_config",
     ":features",
     ":toolchain",
   ]
