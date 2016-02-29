@@ -277,4 +277,28 @@
 #define FUNC_INDEX(v) U16_LE(v)
 #define NAME_OFFSET(v) U32_LE(v)
 
+#define MASK_7 ((1 << 7) - 1)
+#define MASK_14 ((1 << 14) - 1)
+#define MASK_21 ((1 << 21) - 1)
+#define MASK_28 ((1 << 28) - 1)
+
+#define U32V_1(x) static_cast<byte>(x & MASK_7)
+#define U32V_2(x) \
+  static_cast<byte>((x & MASK_7) | 0x80), static_cast<byte>((x >> 7) & MASK_7)
+#define U32V_3(x)                                    \
+  static_cast<byte>((x & MASK_7) | 0x80),            \
+      static_cast<byte>(((x >> 7) & MASK_7) | 0x80), \
+      static_cast<byte>((x >> 14) & MASK_7)
+#define U32V_4(x)                                     \
+  static_cast<byte>((x & MASK_7) | 0x80),             \
+      static_cast<byte>(((x >> 7) & MASK_7) | 0x80),  \
+      static_cast<byte>(((x >> 14) & MASK_7) | 0x80), \
+      static_cast<byte>((x >> 21) & MASK_7)
+#define U32V_5(x)                                     \
+  static_cast<byte>((x & MASK_7) | 0x80),             \
+      static_cast<byte>(((x >> 7) & MASK_7) | 0x80),  \
+      static_cast<byte>(((x >> 14) & MASK_7) | 0x80), \
+      static_cast<byte>(((x >> 21) & MASK_7) | 0x80), \
+      static_cast<byte>((x >> 28) & 0xF)
+
 #endif  // V8_WASM_MACRO_GEN_H_

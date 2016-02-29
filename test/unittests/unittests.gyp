@@ -118,6 +118,7 @@
         'test-utils.h',
         'test-utils.cc',
         'wasm/ast-decoder-unittest.cc',
+        'wasm/decoder-unittest.cc',
         'wasm/encoder-unittest.cc',
         'wasm/loop-assignment-analysis-unittest.cc',
         'wasm/module-decoder-unittest.cc',
