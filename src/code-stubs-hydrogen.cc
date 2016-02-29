@@ -1681,10 +1681,9 @@ Handle<Code> StringAddStub::GenerateCode() {
   return DoGenerateCode(this);
 }
 
-
 template <>
-HValue* CodeStubGraphBuilder<ToBooleanStub>::BuildCodeInitializedStub() {
-  ToBooleanStub* stub = casted_stub();
+HValue* CodeStubGraphBuilder<ToBooleanICStub>::BuildCodeInitializedStub() {
+  ToBooleanICStub* stub = casted_stub();
   IfBuilder if_true(this);
   if_true.If<HBranch>(GetParameter(0), stub->types());
   if_true.Then();
@@ -1694,11 +1693,7 @@ HValue* CodeStubGraphBuilder<ToBooleanStub>::BuildCodeInitializedStub() {
   return graph()->GetConstantFalse();
 }
 
-
-Handle<Code> ToBooleanStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
+Handle<Code> ToBooleanICStub::GenerateCode() { return DoGenerateCode(this); }
 
 template <>
 HValue* CodeStubGraphBuilder<StoreGlobalStub>::BuildCodeInitializedStub() {

@@ -400,7 +400,8 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
       properties,                       // properties
       kNoCalleeSaved,                   // callee-saved registers
       kNoCalleeSaved,                   // callee-saved fp
-      flags,                            // flags
+      CallDescriptor::kCanUseRoots |    // flags
+          flags,                        // flags
       descriptor.DebugName(isolate));
 }
 

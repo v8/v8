@@ -1095,23 +1095,23 @@ std::ostream& HReturn::PrintDataTo(std::ostream& os) const {  // NOLINT
 
 
 Representation HBranch::observed_input_representation(int index) {
-  if (expected_input_types_.Contains(ToBooleanStub::NULL_TYPE) ||
-      expected_input_types_.Contains(ToBooleanStub::SPEC_OBJECT) ||
-      expected_input_types_.Contains(ToBooleanStub::STRING) ||
-      expected_input_types_.Contains(ToBooleanStub::SYMBOL) ||
-      expected_input_types_.Contains(ToBooleanStub::SIMD_VALUE)) {
+  if (expected_input_types_.Contains(ToBooleanICStub::NULL_TYPE) ||
+      expected_input_types_.Contains(ToBooleanICStub::SPEC_OBJECT) ||
+      expected_input_types_.Contains(ToBooleanICStub::STRING) ||
+      expected_input_types_.Contains(ToBooleanICStub::SYMBOL) ||
+      expected_input_types_.Contains(ToBooleanICStub::SIMD_VALUE)) {
     return Representation::Tagged();
   }
-  if (expected_input_types_.Contains(ToBooleanStub::UNDEFINED)) {
-    if (expected_input_types_.Contains(ToBooleanStub::HEAP_NUMBER)) {
+  if (expected_input_types_.Contains(ToBooleanICStub::UNDEFINED)) {
+    if (expected_input_types_.Contains(ToBooleanICStub::HEAP_NUMBER)) {
       return Representation::Double();
     }
     return Representation::Tagged();
   }
-  if (expected_input_types_.Contains(ToBooleanStub::HEAP_NUMBER)) {
+  if (expected_input_types_.Contains(ToBooleanICStub::HEAP_NUMBER)) {
     return Representation::Double();
   }
-  if (expected_input_types_.Contains(ToBooleanStub::SMI)) {
+  if (expected_input_types_.Contains(ToBooleanICStub::SMI)) {
     return Representation::Smi();
   }
   return Representation::None();

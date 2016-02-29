@@ -906,8 +906,8 @@ void HGraphBuilder::IfBuilder::Then() {
     // so that the graph builder visits it and sees any live range extending
     // constructs within it.
     HConstant* constant_false = builder()->graph()->GetConstantFalse();
-    ToBooleanStub::Types boolean_type = ToBooleanStub::Types();
-    boolean_type.Add(ToBooleanStub::BOOLEAN);
+    ToBooleanICStub::Types boolean_type = ToBooleanICStub::Types();
+    boolean_type.Add(ToBooleanICStub::BOOLEAN);
     HBranch* branch = builder()->New<HBranch>(
         constant_false, boolean_type, first_true_block_, first_false_block_);
     builder()->FinishCurrentBlock(branch);
@@ -4298,7 +4298,7 @@ void TestContext::BuildBranch(HValue* value) {
   if (value != NULL && value->CheckFlag(HValue::kIsArguments)) {
     builder->Bailout(kArgumentsObjectValueInATestContext);
   }
-  ToBooleanStub::Types expected(condition()->to_boolean_types());
+  ToBooleanICStub::Types expected(condition()->to_boolean_types());
   ReturnControl(owner()->New<HBranch>(value, expected), BailoutId::None());
 }
 
@@ -11293,7 +11293,7 @@ void HOptimizedGraphBuilder::VisitLogicalExpression(BinaryOperation* expr) {
     // We need an extra block to maintain edge-split form.
     HBasicBlock* empty_block = graph()->CreateBasicBlock();
     HBasicBlock* eval_right = graph()->CreateBasicBlock();
-    ToBooleanStub::Types expected(expr->left()->to_boolean_types());
+    ToBooleanICStub::Types expected(expr->left()->to_boolean_types());
     HBranch* test = is_logical_and
         ? New<HBranch>(left_value, expected, eval_right, empty_block)
         : New<HBranch>(left_value, expected, empty_block, eval_right);

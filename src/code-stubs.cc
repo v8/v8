@@ -473,6 +473,144 @@ void StringLengthStub::GenerateAssembly(
   assembler->Return(result);
 }
 
+void ToBooleanStub::GenerateAssembly(
+    compiler::CodeStubAssembler* assembler) const {
+  typedef compiler::Node Node;
+  typedef compiler::CodeStubAssembler::Label Label;
+
+  Node* value = assembler->Parameter(0);
+  Label if_valueissmi(assembler), if_valueisnotsmi(assembler);
+
+  // Check if {value} is a Smi or a HeapObject.
+  assembler->Branch(assembler->WordIsSmi(value), &if_valueissmi,
+                    &if_valueisnotsmi);
+
+  assembler->Bind(&if_valueissmi);
+  {
+    // The {value} is a Smi, only need to check against zero.
+    Label if_valueiszero(assembler), if_valueisnotzero(assembler);
+    assembler->Branch(assembler->SmiEqual(value, assembler->SmiConstant(0)),
+                      &if_valueiszero, &if_valueisnotzero);
+
+    assembler->Bind(&if_valueiszero);
+    assembler->Return(assembler->BooleanConstant(false));
+
+    assembler->Bind(&if_valueisnotzero);
+    assembler->Return(assembler->BooleanConstant(true));
+  }
+
+  assembler->Bind(&if_valueisnotsmi);
+  {
+    Label if_valueisstring(assembler), if_valueisheapnumber(assembler),
+        if_valueisoddball(assembler), if_valueisother(assembler);
+
+    // The {value} is a HeapObject, load its map.
+    Node* value_map = assembler->LoadObjectField(value, HeapObject::kMapOffset);
+
+    // Load the {value}s instance type.
+    Node* value_instancetype = assembler->Load(
+        MachineType::Uint8(), value_map,
+        assembler->IntPtrConstant(Map::kInstanceTypeOffset - kHeapObjectTag));
+
+    // Dispatch based on the instance type; we distinguish all String instance
+    // types, the HeapNumber type and the Oddball type.
+    size_t const kNumCases = FIRST_NONSTRING_TYPE + 2;
+    Label* case_labels[kNumCases];
+    int32_t case_values[kNumCases];
+    for (int32_t i = 0; i < FIRST_NONSTRING_TYPE; ++i) {
+      case_labels[i] = new Label(assembler);
+      case_values[i] = i;
+    }
+    case_labels[FIRST_NONSTRING_TYPE + 0] = &if_valueisheapnumber;
+    case_values[FIRST_NONSTRING_TYPE + 0] = HEAP_NUMBER_TYPE;
+    case_labels[FIRST_NONSTRING_TYPE + 1] = &if_valueisoddball;
+    case_values[FIRST_NONSTRING_TYPE + 1] = ODDBALL_TYPE;
+    assembler->Switch(value_instancetype, &if_valueisother, case_values,
+                      case_labels, arraysize(case_values));
+    for (int32_t i = 0; i < FIRST_NONSTRING_TYPE; ++i) {
+      assembler->Bind(case_labels[i]);
+      assembler->Goto(&if_valueisstring);
+      delete case_labels[i];
+    }
+
+    assembler->Bind(&if_valueisstring);
+    {
+      // Load the string length field of the {value}.
+      Node* value_length =
+          assembler->LoadObjectField(value, String::kLengthOffset);
+
+      // Check if the {value} is the empty string.
+      Label if_valueisempty(assembler), if_valueisnotempty(assembler);
+      assembler->Branch(
+          assembler->SmiEqual(value_length, assembler->SmiConstant(0)),
+          &if_valueisempty, &if_valueisnotempty);
+
+      assembler->Bind(&if_valueisempty);
+      assembler->Return(assembler->BooleanConstant(false));
+
+      assembler->Bind(&if_valueisnotempty);
+      assembler->Return(assembler->BooleanConstant(true));
+    }
+
+    assembler->Bind(&if_valueisheapnumber);
+    {
+      Node* value_value = assembler->Load(
+          MachineType::Float64(), value,
+          assembler->IntPtrConstant(HeapNumber::kValueOffset - kHeapObjectTag));
+
+      Label if_valueispositive(assembler), if_valueisnotpositive(assembler),
+          if_valueisnegative(assembler), if_valueisnanorzero(assembler);
+      assembler->Branch(assembler->Float64LessThan(
+                            assembler->Float64Constant(0.0), value_value),
+                        &if_valueispositive, &if_valueisnotpositive);
+
+      assembler->Bind(&if_valueispositive);
+      assembler->Return(assembler->BooleanConstant(true));
+
+      assembler->Bind(&if_valueisnotpositive);
+      assembler->Branch(assembler->Float64LessThan(
+                            value_value, assembler->Float64Constant(0.0)),
+                        &if_valueisnegative, &if_valueisnanorzero);
+
+      assembler->Bind(&if_valueisnegative);
+      assembler->Return(assembler->BooleanConstant(true));
+
+      assembler->Bind(&if_valueisnanorzero);
+      assembler->Return(assembler->BooleanConstant(false));
+    }
+
+    assembler->Bind(&if_valueisoddball);
+    {
+      // The {value} is an Oddball, and every Oddball knows its boolean value.
+      Node* value_toboolean =
+          assembler->LoadObjectField(value, Oddball::kToBooleanOffset);
+      assembler->Return(value_toboolean);
+    }
+
+    assembler->Bind(&if_valueisother);
+    {
+      Node* value_map_bitfield = assembler->Load(
+          MachineType::Uint8(), value_map,
+          assembler->IntPtrConstant(Map::kBitFieldOffset - kHeapObjectTag));
+      Node* value_map_undetectable = assembler->Word32And(
+          value_map_bitfield,
+          assembler->Int32Constant(1 << Map::kIsUndetectable));
+
+      // Check if the {value} is undetectable.
+      Label if_valueisundetectable(assembler),
+          if_valueisnotundetectable(assembler);
+      assembler->Branch(assembler->Word32Equal(value_map_undetectable,
+                                               assembler->Int32Constant(0)),
+                        &if_valueisnotundetectable, &if_valueisundetectable);
+
+      assembler->Bind(&if_valueisundetectable);
+      assembler->Return(assembler->BooleanConstant(false));
+
+      assembler->Bind(&if_valueisnotundetectable);
+      assembler->Return(assembler->BooleanConstant(true));
+    }
+  }
+}
 
 template<class StateType>
 void HydrogenCodeStub::TraceTransition(StateType from, StateType to) {
@@ -667,8 +805,7 @@ void AllocateInNewSpaceStub::InitializeDescriptor(
   descriptor->Initialize();
 }
 
-
-void ToBooleanStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
+void ToBooleanICStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
   descriptor->Initialize(FUNCTION_ADDR(Runtime_ToBooleanIC_Miss));
   descriptor->SetMissHandler(ExternalReference(
       Runtime::FunctionForId(Runtime::kToBooleanIC_Miss), isolate()));
@@ -770,8 +907,7 @@ std::ostream& ArrayConstructorStubBase::BasePrintName(
   return os;
 }
 
-
-bool ToBooleanStub::UpdateStatus(Handle<Object> object) {
+bool ToBooleanICStub::UpdateStatus(Handle<Object> object) {
   Types new_types = types();
   Types old_types = new_types;
   bool to_boolean_value = new_types.UpdateStatus(object);
@@ -780,30 +916,27 @@ bool ToBooleanStub::UpdateStatus(Handle<Object> object) {
   return to_boolean_value;
 }
 
-
-void ToBooleanStub::PrintState(std::ostream& os) const {  // NOLINT
+void ToBooleanICStub::PrintState(std::ostream& os) const {  // NOLINT
   os << types();
 }
 
-
-std::ostream& operator<<(std::ostream& os, const ToBooleanStub::Types& s) {
+std::ostream& operator<<(std::ostream& os, const ToBooleanICStub::Types& s) {
   os << "(";
   SimpleListPrinter p(os);
   if (s.IsEmpty()) p.Add("None");
-  if (s.Contains(ToBooleanStub::UNDEFINED)) p.Add("Undefined");
-  if (s.Contains(ToBooleanStub::BOOLEAN)) p.Add("Bool");
-  if (s.Contains(ToBooleanStub::NULL_TYPE)) p.Add("Null");
-  if (s.Contains(ToBooleanStub::SMI)) p.Add("Smi");
-  if (s.Contains(ToBooleanStub::SPEC_OBJECT)) p.Add("SpecObject");
-  if (s.Contains(ToBooleanStub::STRING)) p.Add("String");
-  if (s.Contains(ToBooleanStub::SYMBOL)) p.Add("Symbol");
-  if (s.Contains(ToBooleanStub::HEAP_NUMBER)) p.Add("HeapNumber");
-  if (s.Contains(ToBooleanStub::SIMD_VALUE)) p.Add("SimdValue");
+  if (s.Contains(ToBooleanICStub::UNDEFINED)) p.Add("Undefined");
+  if (s.Contains(ToBooleanICStub::BOOLEAN)) p.Add("Bool");
+  if (s.Contains(ToBooleanICStub::NULL_TYPE)) p.Add("Null");
+  if (s.Contains(ToBooleanICStub::SMI)) p.Add("Smi");
+  if (s.Contains(ToBooleanICStub::SPEC_OBJECT)) p.Add("SpecObject");
+  if (s.Contains(ToBooleanICStub::STRING)) p.Add("String");
+  if (s.Contains(ToBooleanICStub::SYMBOL)) p.Add("Symbol");
+  if (s.Contains(ToBooleanICStub::HEAP_NUMBER)) p.Add("HeapNumber");
+  if (s.Contains(ToBooleanICStub::SIMD_VALUE)) p.Add("SimdValue");
   return os << ")";
 }
 
-
-bool ToBooleanStub::Types::UpdateStatus(Handle<Object> object) {
+bool ToBooleanICStub::Types::UpdateStatus(Handle<Object> object) {
   if (object->IsUndefined()) {
     Add(UNDEFINED);
     return false;
@@ -841,12 +974,12 @@ bool ToBooleanStub::Types::UpdateStatus(Handle<Object> object) {
   }
 }
 
-
-bool ToBooleanStub::Types::NeedsMap() const {
-  return Contains(ToBooleanStub::SPEC_OBJECT) ||
-         Contains(ToBooleanStub::STRING) || Contains(ToBooleanStub::SYMBOL) ||
-         Contains(ToBooleanStub::HEAP_NUMBER) ||
-         Contains(ToBooleanStub::SIMD_VALUE);
+bool ToBooleanICStub::Types::NeedsMap() const {
+  return Contains(ToBooleanICStub::SPEC_OBJECT) ||
+         Contains(ToBooleanICStub::STRING) ||
+         Contains(ToBooleanICStub::SYMBOL) ||
+         Contains(ToBooleanICStub::HEAP_NUMBER) ||
+         Contains(ToBooleanICStub::SIMD_VALUE);
 }
 
 

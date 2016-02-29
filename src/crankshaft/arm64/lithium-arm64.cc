@@ -972,7 +972,7 @@ LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
       return new(zone()) LBranch(UseRegister(value), TempRegister(), NULL);
     }
 
-    ToBooleanStub::Types expected = instr->expected_input_types();
+    ToBooleanICStub::Types expected = instr->expected_input_types();
     bool needs_temps = expected.NeedsMap() || expected.IsEmpty();
     LOperand* temp1 = needs_temps ? TempRegister() : NULL;
     LOperand* temp2 = needs_temps ? TempRegister() : NULL;

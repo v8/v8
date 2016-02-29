@@ -34,6 +34,9 @@ class RawMachineLabel;
 class Schedule;
 
 #define CODE_STUB_ASSEMBLER_BINARY_OP_LIST(V) \
+  V(Float64Equal)                             \
+  V(Float64LessThan)                          \
+  V(Float64LessThanOrEqual)                   \
   V(IntPtrAdd)                                \
   V(IntPtrSub)                                \
   V(Int32Add)                                 \
@@ -107,6 +110,7 @@ class CodeStubAssembler {
   Node* HeapConstant(Handle<HeapObject> object);
   Node* BooleanConstant(bool value);
   Node* ExternalConstant(ExternalReference address);
+  Node* Float64Constant(double value);
 
   Node* Parameter(int value);
   void Return(Node* value);
@@ -197,7 +201,8 @@ class CodeStubAssembler {
   Node* SmiUntag(Node* value);
 
   // Smi operations.
-  Node* SmiAdd(Node* lhs, Node* rhs);
+  Node* SmiAdd(Node* a, Node* b);
+  Node* SmiEqual(Node* a, Node* b);
 
   // Load a value from the root array.
   Node* LoadRoot(Heap::RootListIndex root_index);

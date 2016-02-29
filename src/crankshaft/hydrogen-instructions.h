@@ -1366,10 +1366,8 @@ class HUnaryControlInstruction : public HTemplateControlInstruction<2, 1> {
 class HBranch final : public HUnaryControlInstruction {
  public:
   DECLARE_INSTRUCTION_FACTORY_P1(HBranch, HValue*);
-  DECLARE_INSTRUCTION_FACTORY_P2(HBranch, HValue*,
-                                 ToBooleanStub::Types);
-  DECLARE_INSTRUCTION_FACTORY_P4(HBranch, HValue*,
-                                 ToBooleanStub::Types,
+  DECLARE_INSTRUCTION_FACTORY_P2(HBranch, HValue*, ToBooleanICStub::Types);
+  DECLARE_INSTRUCTION_FACTORY_P4(HBranch, HValue*, ToBooleanICStub::Types,
                                  HBasicBlock*, HBasicBlock*);
 
   Representation RequiredInputRepresentation(int index) override {
@@ -1381,23 +1379,22 @@ class HBranch final : public HUnaryControlInstruction {
 
   std::ostream& PrintDataTo(std::ostream& os) const override;  // NOLINT
 
-  ToBooleanStub::Types expected_input_types() const {
+  ToBooleanICStub::Types expected_input_types() const {
     return expected_input_types_;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(Branch)
 
  private:
-  HBranch(HValue* value,
-          ToBooleanStub::Types expected_input_types = ToBooleanStub::Types(),
-          HBasicBlock* true_target = NULL,
-          HBasicBlock* false_target = NULL)
+  HBranch(HValue* value, ToBooleanICStub::Types expected_input_types =
+                             ToBooleanICStub::Types(),
+          HBasicBlock* true_target = NULL, HBasicBlock* false_target = NULL)
       : HUnaryControlInstruction(value, true_target, false_target),
         expected_input_types_(expected_input_types) {
     SetFlag(kAllowUndefinedAsNaN);
   }
 
-  ToBooleanStub::Types expected_input_types_;
+  ToBooleanICStub::Types expected_input_types_;
 };
 
 

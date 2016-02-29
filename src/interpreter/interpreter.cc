@@ -886,14 +886,28 @@ void Interpreter::DoDec(InterpreterAssembler* assembler) {
 // Perform logical-not on the accumulator, first casting the
 // accumulator to a boolean value if required.
 void Interpreter::DoLogicalNot(InterpreterAssembler* assembler) {
+  Callable callable = CodeFactory::ToBoolean(isolate_);
+  Node* target = __ HeapConstant(callable.code());
   Node* accumulator = __ GetAccumulator();
   Node* context = __ GetContext();
-  Node* result =
-      __ CallRuntime(Runtime::kInterpreterLogicalNot, context, accumulator);
-  __ SetAccumulator(result);
-  __ Dispatch();
+  Node* to_boolean_value =
+      __ CallStub(callable.descriptor(), target, context, accumulator);
+  InterpreterAssembler::Label if_true(assembler), if_false(assembler);
+  Node* true_value = __ BooleanConstant(true);
+  Node* false_value = __ BooleanConstant(false);
+  Node* condition = __ WordEqual(to_boolean_value, true_value);
+  __ Branch(condition, &if_true, &if_false);
+  __ Bind(&if_true);
+  {
+    __ SetAccumulator(false_value);
+    __ Dispatch();
+  }
+  __ Bind(&if_false);
+  {
+    __ SetAccumulator(true_value);
+    __ Dispatch();
+  }
 }
-
 
 // TypeOf
 //
@@ -1363,10 +1377,12 @@ void Interpreter::DoJumpIfFalseConstantWide(InterpreterAssembler* assembler) {
 // Jump by number of bytes represented by an immediate operand if the object
 // referenced by the accumulator is true when the object is cast to boolean.
 void Interpreter::DoJumpIfToBooleanTrue(InterpreterAssembler* assembler) {
+  Callable callable = CodeFactory::ToBoolean(isolate_);
+  Node* target = __ HeapConstant(callable.code());
   Node* accumulator = __ GetAccumulator();
   Node* context = __ GetContext();
   Node* to_boolean_value =
-      __ CallRuntime(Runtime::kInterpreterToBoolean, context, accumulator);
+      __ CallStub(callable.descriptor(), target, context, accumulator);
   Node* relative_jump = __ BytecodeOperandImm(0);
   Node* true_value = __ BooleanConstant(true);
   __ JumpIfWordEqual(to_boolean_value, true_value, relative_jump);
@@ -1380,10 +1396,12 @@ void Interpreter::DoJumpIfToBooleanTrue(InterpreterAssembler* assembler) {
 // to boolean.
 void Interpreter::DoJumpIfToBooleanTrueConstant(
     InterpreterAssembler* assembler) {
+  Callable callable = CodeFactory::ToBoolean(isolate_);
+  Node* target = __ HeapConstant(callable.code());
   Node* accumulator = __ GetAccumulator();
   Node* context = __ GetContext();
   Node* to_boolean_value =
-      __ CallRuntime(Runtime::kInterpreterToBoolean, context, accumulator);
+      __ CallStub(callable.descriptor(), target, context, accumulator);
   Node* index = __ BytecodeOperandIdx(0);
   Node* constant = __ LoadConstantPoolEntry(index);
   Node* relative_jump = __ SmiUntag(constant);
@@ -1408,10 +1426,12 @@ void Interpreter::DoJumpIfToBooleanTrueConstantWide(
 // Jump by number of bytes represented by an immediate operand if the object
 // referenced by the accumulator is false when the object is cast to boolean.
 void Interpreter::DoJumpIfToBooleanFalse(InterpreterAssembler* assembler) {
+  Callable callable = CodeFactory::ToBoolean(isolate_);
+  Node* target = __ HeapConstant(callable.code());
   Node* accumulator = __ GetAccumulator();
   Node* context = __ GetContext();
   Node* to_boolean_value =
-      __ CallRuntime(Runtime::kInterpreterToBoolean, context, accumulator);
+      __ CallStub(callable.descriptor(), target, context, accumulator);
   Node* relative_jump = __ BytecodeOperandImm(0);
   Node* false_value = __ BooleanConstant(false);
   __ JumpIfWordEqual(to_boolean_value, false_value, relative_jump);
@@ -1425,10 +1445,12 @@ void Interpreter::DoJumpIfToBooleanFalse(InterpreterAssembler* assembler) {
 // to boolean.
 void Interpreter::DoJumpIfToBooleanFalseConstant(
     InterpreterAssembler* assembler) {
+  Callable callable = CodeFactory::ToBoolean(isolate_);
+  Node* target = __ HeapConstant(callable.code());
   Node* accumulator = __ GetAccumulator();
   Node* context = __ GetContext();
   Node* to_boolean_value =
-      __ CallRuntime(Runtime::kInterpreterToBoolean, context, accumulator);
+      __ CallStub(callable.descriptor(), target, context, accumulator);
   Node* index = __ BytecodeOperandIdx(0);
   Node* constant = __ LoadConstantPoolEntry(index);
   Node* relative_jump = __ SmiUntag(constant);

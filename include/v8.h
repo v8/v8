@@ -7164,7 +7164,7 @@ class Internals {
       1 * kApiPointerSize + kApiIntSize;
   static const int kStringResourceOffset = 3 * kApiPointerSize;
 
-  static const int kOddballKindOffset = 4 * kApiPointerSize;
+  static const int kOddballKindOffset = 5 * kApiPointerSize;
   static const int kForeignAddressOffset = kApiPointerSize;
   static const int kJSObjectHeaderSize = 3 * kApiPointerSize;
   static const int kFixedArrayHeaderSize = 2 * kApiPointerSize;

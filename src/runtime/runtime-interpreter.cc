@@ -16,22 +16,6 @@
 namespace v8 {
 namespace internal {
 
-RUNTIME_FUNCTION(Runtime_InterpreterToBoolean) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_CHECKED(Object, x, 0);
-  return isolate->heap()->ToBoolean(x->BooleanValue());
-}
-
-
-RUNTIME_FUNCTION(Runtime_InterpreterLogicalNot) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_CHECKED(Object, x, 0);
-  return isolate->heap()->ToBoolean(!x->BooleanValue());
-}
-
-
 RUNTIME_FUNCTION(Runtime_InterpreterNewClosure) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());

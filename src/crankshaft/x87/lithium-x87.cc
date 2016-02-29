@@ -952,8 +952,8 @@ LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
   HValue* value = instr->value();
   Representation r = value->representation();
   HType type = value->type();
-  ToBooleanStub::Types expected = instr->expected_input_types();
-  if (expected.IsEmpty()) expected = ToBooleanStub::Types::Generic();
+  ToBooleanICStub::Types expected = instr->expected_input_types();
+  if (expected.IsEmpty()) expected = ToBooleanICStub::Types::Generic();
 
   bool easy_case = !r.IsTagged() || type.IsBoolean() || type.IsSmi() ||
       type.IsJSArray() || type.IsHeapNumber() || type.IsString();
@@ -962,7 +962,7 @@ LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
       temp != NULL ? new (zone()) LBranch(UseRegister(value), temp)
                    : new (zone()) LBranch(UseRegisterAtStart(value), temp);
   if (!easy_case &&
-      ((!expected.Contains(ToBooleanStub::SMI) && expected.NeedsMap()) ||
+      ((!expected.Contains(ToBooleanICStub::SMI) && expected.NeedsMap()) ||
        !expected.IsGeneric())) {
     branch = AssignEnvironment(branch);
   }

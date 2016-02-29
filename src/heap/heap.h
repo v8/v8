@@ -652,7 +652,7 @@ class Heap {
   void RightTrimFixedArray(FixedArrayBase* obj, int elements_to_trim);
 
   // Converts the given boolean condition to JavaScript boolean value.
-  inline Object* ToBoolean(bool condition);
+  inline Oddball* ToBoolean(bool condition);
 
   // Check whether the heap is currently iterable.
   bool IsHeapIterable();

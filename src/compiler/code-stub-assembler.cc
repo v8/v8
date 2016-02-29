@@ -89,6 +89,10 @@ Node* CodeStubAssembler::ExternalConstant(ExternalReference address) {
   return raw_assembler_->ExternalConstant(address);
 }
 
+Node* CodeStubAssembler::Float64Constant(double value) {
+  return raw_assembler_->Float64Constant(value);
+}
+
 Node* CodeStubAssembler::Parameter(int value) {
   return raw_assembler_->Parameter(value);
 }
@@ -129,6 +133,8 @@ Node* CodeStubAssembler::SmiUntag(Node* value) {
 }
 
 Node* CodeStubAssembler::SmiAdd(Node* a, Node* b) { return IntPtrAdd(a, b); }
+
+Node* CodeStubAssembler::SmiEqual(Node* a, Node* b) { return WordEqual(a, b); }
 
 #define DEFINE_CODE_STUB_ASSEMBER_BINARY_OP(name)   \
   Node* CodeStubAssembler::name(Node* a, Node* b) { \

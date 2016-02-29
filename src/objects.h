@@ -9546,6 +9546,9 @@ class Oddball: public HeapObject {
   // [to_number]: Cached to_number computed at startup.
   DECL_ACCESSORS(to_number, Object)
 
+  // [to_number]: Cached to_boolean computed at startup.
+  DECL_ACCESSORS(to_boolean, Oddball)
+
   // [typeof]: Cached type_of computed at startup.
   DECL_ACCESSORS(type_of, String)
 
@@ -9563,12 +9566,13 @@ class Oddball: public HeapObject {
   // Initialize the fields.
   static void Initialize(Isolate* isolate, Handle<Oddball> oddball,
                          const char* to_string, Handle<Object> to_number,
-                         const char* type_of, byte kind);
+                         bool to_boolean, const char* type_of, byte kind);
 
   // Layout description.
   static const int kToStringOffset = HeapObject::kHeaderSize;
   static const int kToNumberOffset = kToStringOffset + kPointerSize;
-  static const int kTypeOfOffset = kToNumberOffset + kPointerSize;
+  static const int kToBooleanOffset = kToNumberOffset + kPointerSize;
+  static const int kTypeOfOffset = kToBooleanOffset + kPointerSize;
   static const int kKindOffset = kTypeOfOffset + kPointerSize;
   static const int kSize = kKindOffset + kPointerSize;
 

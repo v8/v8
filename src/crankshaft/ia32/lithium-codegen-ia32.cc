@@ -1869,15 +1869,16 @@ void LCodeGen::DoBranch(LBranch* instr) {
       __ cmp(FieldOperand(reg, String::kLengthOffset), Immediate(0));
       EmitBranch(instr, not_equal);
     } else {
-      ToBooleanStub::Types expected = instr->hydrogen()->expected_input_types();
-      if (expected.IsEmpty()) expected = ToBooleanStub::Types::Generic();
+      ToBooleanICStub::Types expected =
+          instr->hydrogen()->expected_input_types();
+      if (expected.IsEmpty()) expected = ToBooleanICStub::Types::Generic();
 
-      if (expected.Contains(ToBooleanStub::UNDEFINED)) {
+      if (expected.Contains(ToBooleanICStub::UNDEFINED)) {
         // undefined -> false.
         __ cmp(reg, factory()->undefined_value());
         __ j(equal, instr->FalseLabel(chunk_));
       }
-      if (expected.Contains(ToBooleanStub::BOOLEAN)) {
+      if (expected.Contains(ToBooleanICStub::BOOLEAN)) {
         // true -> true.
         __ cmp(reg, factory()->true_value());
         __ j(equal, instr->TrueLabel(chunk_));
@@ -1885,13 +1886,13 @@ void LCodeGen::DoBranch(LBranch* instr) {
         __ cmp(reg, factory()->false_value());
         __ j(equal, instr->FalseLabel(chunk_));
       }
-      if (expected.Contains(ToBooleanStub::NULL_TYPE)) {
+      if (expected.Contains(ToBooleanICStub::NULL_TYPE)) {
         // 'null' -> false.
         __ cmp(reg, factory()->null_value());
         __ j(equal, instr->FalseLabel(chunk_));
       }
 
-      if (expected.Contains(ToBooleanStub::SMI)) {
+      if (expected.Contains(ToBooleanICStub::SMI)) {
         // Smis: 0 -> false, all other -> true.
         __ test(reg, Operand(reg));
         __ j(equal, instr->FalseLabel(chunk_));
@@ -1916,13 +1917,13 @@ void LCodeGen::DoBranch(LBranch* instr) {
         }
       }
 
-      if (expected.Contains(ToBooleanStub::SPEC_OBJECT)) {
+      if (expected.Contains(ToBooleanICStub::SPEC_OBJECT)) {
         // spec object -> true.
         __ CmpInstanceType(map, FIRST_JS_RECEIVER_TYPE);
         __ j(above_equal, instr->TrueLabel(chunk_));
       }
 
-      if (expected.Contains(ToBooleanStub::STRING)) {
+      if (expected.Contains(ToBooleanICStub::STRING)) {
         // String value -> false iff empty.
         Label not_string;
         __ CmpInstanceType(map, FIRST_NONSTRING_TYPE);
@@ -1933,19 +1934,19 @@ void LCodeGen::DoBranch(LBranch* instr) {
         __ bind(&not_string);
       }
 
-      if (expected.Contains(ToBooleanStub::SYMBOL)) {
+      if (expected.Contains(ToBooleanICStub::SYMBOL)) {
         // Symbol value -> true.
         __ CmpInstanceType(map, SYMBOL_TYPE);
         __ j(equal, instr->TrueLabel(chunk_));
       }
 
-      if (expected.Contains(ToBooleanStub::SIMD_VALUE)) {
+      if (expected.Contains(ToBooleanICStub::SIMD_VALUE)) {
         // SIMD value -> true.
         __ CmpInstanceType(map, SIMD128_VALUE_TYPE);
         __ j(equal, instr->TrueLabel(chunk_));
       }
 
-      if (expected.Contains(ToBooleanStub::HEAP_NUMBER)) {
+      if (expected.Contains(ToBooleanICStub::HEAP_NUMBER)) {
         // heap number -> false iff +0, -0, or NaN.
         Label not_heap_number;
         __ cmp(FieldOperand(reg, HeapObject::kMapOffset),

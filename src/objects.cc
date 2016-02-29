@@ -13396,14 +13396,14 @@ Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
   return builder.Finish().ToHandleChecked();
 }
 
-
 void Oddball::Initialize(Isolate* isolate, Handle<Oddball> oddball,
                          const char* to_string, Handle<Object> to_number,
-                         const char* type_of, byte kind) {
+                         bool to_boolean, const char* type_of, byte kind) {
   Handle<String> internalized_to_string =
       isolate->factory()->InternalizeUtf8String(to_string);
   Handle<String> internalized_type_of =
       isolate->factory()->InternalizeUtf8String(type_of);
+  oddball->set_to_boolean(isolate->heap()->ToBoolean(to_boolean));
   oddball->set_to_number(*to_number);
   oddball->set_to_string(*internalized_to_string);
   oddball->set_type_of(*internalized_type_of);

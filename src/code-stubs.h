@@ -95,12 +95,13 @@ namespace internal {
   V(StoreGlobalViaContext)                  \
   V(StoreScriptContextField)                \
   V(StringAdd)                              \
-  V(ToBoolean)                              \
+  V(ToBooleanIC)                            \
   V(TransitionElementsKind)                 \
   V(KeyedLoadIC)                            \
   V(LoadIC)                                 \
   /* TurboFanCodeStubs */                   \
   V(StringLength)                           \
+  V(ToBoolean)                              \
   /* IC Handler stubs */                    \
   V(ArrayBufferViewLoadField)               \
   V(LoadConstant)                           \
@@ -630,6 +631,15 @@ class StringLengthStub : public TurboFanCodeStub {
   DEFINE_CODE_STUB(StringLength, TurboFanCodeStub);
 };
 
+class ToBooleanStub final : public TurboFanCodeStub {
+ public:
+  explicit ToBooleanStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
+
+  void GenerateAssembly(compiler::CodeStubAssembler* assembler) const final;
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(ToBoolean);
+  DEFINE_CODE_STUB(ToBoolean, TurboFanCodeStub);
+};
 
 enum StringAddFlags {
   // Omit both parameter checks.
@@ -2636,8 +2646,7 @@ class StoreElementStub : public PlatformCodeStub {
   DEFINE_PLATFORM_CODE_STUB(StoreElement, PlatformCodeStub);
 };
 
-
-class ToBooleanStub: public HydrogenCodeStub {
+class ToBooleanICStub : public HydrogenCodeStub {
  public:
   enum Type {
     UNDEFINED,
@@ -2664,14 +2673,14 @@ class ToBooleanStub: public HydrogenCodeStub {
     bool UpdateStatus(Handle<Object> object);
     bool NeedsMap() const;
     bool CanBeUndetectable() const {
-      return Contains(ToBooleanStub::SPEC_OBJECT);
+      return Contains(ToBooleanICStub::SPEC_OBJECT);
     }
     bool IsGeneric() const { return ToIntegral() == Generic().ToIntegral(); }
 
     static Types Generic() { return Types((1 << NUMBER_OF_TYPES) - 1); }
   };
 
-  ToBooleanStub(Isolate* isolate, ExtraICState state)
+  ToBooleanICStub(Isolate* isolate, ExtraICState state)
       : HydrogenCodeStub(isolate) {
     set_sub_minor_key(TypesBits::encode(static_cast<uint16_t>(state)));
   }
@@ -2685,7 +2694,7 @@ class ToBooleanStub: public HydrogenCodeStub {
   bool SometimesSetsUpAFrame() override { return false; }
 
   static Handle<Code> GetUninitialized(Isolate* isolate) {
-    return ToBooleanStub(isolate, UNINITIALIZED).GetCode();
+    return ToBooleanICStub(isolate, UNINITIALIZED).GetCode();
   }
 
   ExtraICState GetExtraICState() const override { return types().ToIntegral(); }
@@ -2699,19 +2708,16 @@ class ToBooleanStub: public HydrogenCodeStub {
   }
 
  private:
-  ToBooleanStub(Isolate* isolate, InitializationState init_state)
-      : HydrogenCodeStub(isolate, init_state) {
-  }
+  ToBooleanICStub(Isolate* isolate, InitializationState init_state)
+      : HydrogenCodeStub(isolate, init_state) {}
 
   class TypesBits : public BitField<uint16_t, 0, NUMBER_OF_TYPES> {};
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(ToBoolean);
-  DEFINE_HYDROGEN_CODE_STUB(ToBoolean, HydrogenCodeStub);
+  DEFINE_HYDROGEN_CODE_STUB(ToBooleanIC, HydrogenCodeStub);
 };
 
-
-std::ostream& operator<<(std::ostream& os, const ToBooleanStub::Types& t);
-
+std::ostream& operator<<(std::ostream& os, const ToBooleanICStub::Types& t);
 
 class ElementsTransitionAndStoreStub : public HydrogenCodeStub {
  public:

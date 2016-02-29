@@ -134,8 +134,8 @@ Callable CodeFactory::InstanceOf(Isolate* isolate) {
 
 // static
 Callable CodeFactory::ToBoolean(Isolate* isolate) {
-  Handle<Code> code = ToBooleanStub::GetUninitialized(isolate);
-  return Callable(code, ToBooleanDescriptor(isolate));
+  ToBooleanStub stub(isolate);
+  return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
 }
 
 

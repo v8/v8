@@ -1711,23 +1711,27 @@ void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
   Mips64OperandGenerator g(this);
   InstructionOperand value_operand = g.UseRegister(node->InputAt(0));
 
-  // Emit either ArchTableSwitch or ArchLookupSwitch.
-  size_t table_space_cost = 10 + 2 * sw.value_range;
-  size_t table_time_cost = 3;
-  size_t lookup_space_cost = 2 + 2 * sw.case_count;
-  size_t lookup_time_cost = sw.case_count;
-  if (sw.case_count > 0 &&
-      table_space_cost + 3 * table_time_cost <=
-          lookup_space_cost + 3 * lookup_time_cost &&
-      sw.min_value > std::numeric_limits<int32_t>::min()) {
-    InstructionOperand index_operand = value_operand;
-    if (sw.min_value) {
-      index_operand = g.TempRegister();
-      Emit(kMips64Sub, index_operand, value_operand,
-           g.TempImmediate(sw.min_value));
+  // TODO(mips): TableSwitch is broken, as it messes with ra without saving it
+  // properly (which breaks with frame elision, i.e. inside stubs).
+  if (false) {
+    // Emit either ArchTableSwitch or ArchLookupSwitch.
+    size_t table_space_cost = 10 + 2 * sw.value_range;
+    size_t table_time_cost = 3;
+    size_t lookup_space_cost = 2 + 2 * sw.case_count;
+    size_t lookup_time_cost = sw.case_count;
+    if (sw.case_count > 0 &&
+        table_space_cost + 3 * table_time_cost <=
+            lookup_space_cost + 3 * lookup_time_cost &&
+        sw.min_value > std::numeric_limits<int32_t>::min()) {
+      InstructionOperand index_operand = value_operand;
+      if (sw.min_value) {
+        index_operand = g.TempRegister();
+        Emit(kMips64Sub, index_operand, value_operand,
+             g.TempImmediate(sw.min_value));
+      }
+      // Generate a table lookup.
+      return EmitTableSwitch(sw, index_operand);
     }
-    // Generate a table lookup.
-    return EmitTableSwitch(sw, index_operand);
   }
 
   // Generate a sequence of conditional jumps.

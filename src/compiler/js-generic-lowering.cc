@@ -139,8 +139,7 @@ void JSGenericLowering::LowerJSTypeOf(Node* node) {
 void JSGenericLowering::LowerJSToBoolean(Node* node) {
   CallDescriptor::Flags flags = AdjustFrameStatesForCall(node);
   Callable callable = CodeFactory::ToBoolean(isolate());
-  ReplaceWithStubCall(node, callable,
-                      CallDescriptor::kPatchableCallSite | flags);
+  ReplaceWithStubCall(node, callable, flags);
 }
 
 

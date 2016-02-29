@@ -115,7 +115,6 @@
         'heap/remembered-set-unittest.cc',
         'locked-queue-unittest.cc',
         'run-all-unittests.cc',
-        'runtime/runtime-interpreter-unittest.cc',
         'test-utils.h',
         'test-utils.cc',
         'wasm/ast-decoder-unittest.cc',

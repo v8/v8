@@ -2403,6 +2403,20 @@ bool Heap::CreateInitialMaps() {
 #undef ALLOCATE_MAP
   }
 
+  {
+    AllocationResult allocation = Allocate(boolean_map(), OLD_SPACE);
+    if (!allocation.To(&obj)) return false;
+  }
+  set_true_value(Oddball::cast(obj));
+  Oddball::cast(obj)->set_kind(Oddball::kTrue);
+
+  {
+    AllocationResult allocation = Allocate(boolean_map(), OLD_SPACE);
+    if (!allocation.To(&obj)) return false;
+  }
+  set_false_value(Oddball::cast(obj));
+  Oddball::cast(obj)->set_kind(Oddball::kFalse);
+
   {  // Empty arrays
     {
       ByteArray* byte_array;
@@ -2620,48 +2634,54 @@ void Heap::CreateInitialObjects() {
   // Allocate initial string table.
   set_string_table(*StringTable::New(isolate(), kInitialStringTableSize));
 
+  // Allocate
+
   // Finish initializing oddballs after creating the string table.
   Oddball::Initialize(isolate(), factory->undefined_value(), "undefined",
-                      factory->nan_value(), "undefined", Oddball::kUndefined);
+                      factory->nan_value(), false, "undefined",
+                      Oddball::kUndefined);
 
   // Initialize the null_value.
   Oddball::Initialize(isolate(), factory->null_value(), "null",
-                      handle(Smi::FromInt(0), isolate()), "object",
+                      handle(Smi::FromInt(0), isolate()), false, "object",
                       Oddball::kNull);
 
-  set_true_value(*factory->NewOddball(factory->boolean_map(), "true",
-                                      handle(Smi::FromInt(1), isolate()),
-                                      "boolean", Oddball::kTrue));
+  // Initialize the true_value.
+  Oddball::Initialize(isolate(), factory->true_value(), "true",
+                      handle(Smi::FromInt(1), isolate()), true, "boolean",
+                      Oddball::kTrue);
 
-  set_false_value(*factory->NewOddball(factory->boolean_map(), "false",
-                                       handle(Smi::FromInt(0), isolate()),
-                                       "boolean", Oddball::kFalse));
+  // Initialize the false_value.
+  Oddball::Initialize(isolate(), factory->false_value(), "false",
+                      handle(Smi::FromInt(0), isolate()), false, "boolean",
+                      Oddball::kFalse);
 
-  set_the_hole_value(*factory->NewOddball(factory->the_hole_map(), "hole",
-                                          handle(Smi::FromInt(-1), isolate()),
-                                          "undefined", Oddball::kTheHole));
+  set_the_hole_value(*factory->NewOddball(
+      factory->the_hole_map(), "hole", handle(Smi::FromInt(-1), isolate()),
+      false, "undefined", Oddball::kTheHole));
 
   set_uninitialized_value(
       *factory->NewOddball(factory->uninitialized_map(), "uninitialized",
-                           handle(Smi::FromInt(-1), isolate()), "undefined",
-                           Oddball::kUninitialized));
+                           handle(Smi::FromInt(-1), isolate()), false,
+                           "undefined", Oddball::kUninitialized));
 
   set_arguments_marker(
       *factory->NewOddball(factory->arguments_marker_map(), "arguments_marker",
-                           handle(Smi::FromInt(-4), isolate()), "undefined",
-                           Oddball::kArgumentsMarker));
+                           handle(Smi::FromInt(-4), isolate()), false,
+                           "undefined", Oddball::kArgumentsMarker));
 
   set_no_interceptor_result_sentinel(*factory->NewOddball(
       factory->no_interceptor_result_sentinel_map(),
       "no_interceptor_result_sentinel", handle(Smi::FromInt(-2), isolate()),
-      "undefined", Oddball::kOther));
+      false, "undefined", Oddball::kOther));
 
   set_termination_exception(*factory->NewOddball(
       factory->termination_exception_map(), "termination_exception",
-      handle(Smi::FromInt(-3), isolate()), "undefined", Oddball::kOther));
+      handle(Smi::FromInt(-3), isolate()), false, "undefined",
+      Oddball::kOther));
 
   set_exception(*factory->NewOddball(factory->exception_map(), "exception",
-                                     handle(Smi::FromInt(-5), isolate()),
+                                     handle(Smi::FromInt(-5), isolate()), false,
                                      "undefined", Oddball::kException));
 
   for (unsigned i = 0; i < arraysize(constant_string_table); i++) {

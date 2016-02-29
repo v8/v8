@@ -2720,7 +2720,7 @@ RUNTIME_FUNCTION(Runtime_Unreachable) {
 
 
 Handle<Object> ToBooleanIC::ToBoolean(Handle<Object> object) {
-  ToBooleanStub stub(isolate(), target()->extra_ic_state());
+  ToBooleanICStub stub(isolate(), target()->extra_ic_state());
   bool to_boolean_value = stub.UpdateStatus(object);
   Handle<Code> code = stub.GetCode();
   set_target(*code);

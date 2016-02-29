@@ -637,7 +637,7 @@ void FullCodeGenerator::DoTest(Expression* condition,
                                Label* if_false,
                                Label* fall_through) {
   __ mov(a0, result_register());
-  Handle<Code> ic = ToBooleanStub::GetUninitialized(isolate());
+  Handle<Code> ic = ToBooleanICStub::GetUninitialized(isolate());
   CallIC(ic, condition->test_id());
   __ LoadRoot(at, Heap::kTrueValueRootIndex);
   Split(eq, result_register(), Operand(at), if_true, if_false, fall_through);
