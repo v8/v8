@@ -429,10 +429,60 @@ class PreParserStatement {
 typedef PreParserList<PreParserStatement> PreParserStatementList;
 
 
+class PreParserOTSTypeParameter {};
+
+
+class PreParserOTSTypeParameters {
+ public:
+  static PreParserOTSTypeParameters Default() {
+    return PreParserOTSTypeParameters();
+  }
+
+  // Dummy implementation for making type_parameters->somefunc() work in
+  // both Parser and PreParser.
+  PreParserOTSTypeParameters* operator->() { return this; }
+
+  bool is_empty() const { return is_empty_; }
+  void Add(const PreParserOTSTypeParameter& p, void*) { is_empty_ = false; }
+
+ private:
+  explicit PreParserOTSTypeParameters() : is_empty_(true) {}
+
+  bool is_empty_;
+};
+
+
+class PreParserOTSFormalParameter {};
+
+
+class PreParserOTSFormalParameters {
+ public:
+  static PreParserOTSFormalParameters Default() {
+    return PreParserOTSFormalParameters();
+  }
+
+ private:
+  explicit PreParserOTSFormalParameters() {}
+};
+
+
 class PreParserOTSType {
  public:
   static PreParserOTSType Default() {
     return PreParserOTSType();
+  }
+
+  // Dummy implementation for making type->somefunc() work in both Parser
+  // and PreParser.
+  PreParserOTSType* operator->() { return this; }
+
+  bool IsValidParameterList() const {
+    // wrong!!!
+    return true;
+  }
+
+  PreParserOTSFormalParameters AsParameterList() const {
+    return PreParserOTSFormalParameters::Default();
   }
 
  private:
@@ -578,7 +628,22 @@ class PreParserFactory {
     return PreParserExpression::Default();
   }
 
-  PreParserOTSType NewPredefinedType(PredefinedType::Kind kind, int pos) {
+  PreParserOTSType NewOTSPredefinedType(OTSPredefinedType::Kind kind,
+                                        int pos) {
+    return PreParserOTSType::Default();
+  }
+
+  PreParserOTSType NewOTSFunctionType(
+      const PreParserOTSTypeParameters& type_parameters,
+      const PreParserOTSFormalParameters& parameters,
+      PreParserOTSType result_type, int pos) {
+    return PreParserOTSType::Default();
+  }
+
+  PreParserOTSType NewOTSConstructorType(
+      const PreParserOTSTypeParameters& type_parameters,
+      const PreParserOTSFormalParameters& parameters,
+      PreParserOTSType result_type, int pos) {
     return PreParserOTSType::Default();
   }
 
@@ -633,6 +698,10 @@ class PreParserTraits {
     typedef PreParserFormalParameters FormalParameters;
     typedef PreParserStatementList StatementList;
     typedef PreParserOTSType OTSType;
+    typedef PreParserOTSTypeParameter OTSTypeParameter;
+    typedef PreParserOTSTypeParameters OTSTypeParameters;
+    typedef PreParserOTSFormalParameter OTSFormalParameter;
+    typedef PreParserOTSFormalParameters OTSFormalParameters;
 
     // For constructing objects returned by the traversing functions.
     typedef PreParserFactory Factory;
@@ -792,6 +861,13 @@ class PreParserTraits {
   }
   static PreParserOTSType EmptyOTSType() {
     return PreParserOTSType::Default();
+  }
+  static PreParserOTSTypeParameters EmptyOTSTypeParameters() {
+    return PreParserOTSTypeParameters::Default();
+  }
+  static bool IsEmptyOTSTypeParameters(
+      const PreParserOTSTypeParameters& typ_pars) {
+    return typ_pars.is_empty();
   }
 
   // Odd-ball literal creators.

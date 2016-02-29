@@ -8165,26 +8165,22 @@ TEST(TypedModeChecks) {
 TEST(TypedModeIllegalInFunctionScope) {
   const char* context_data[][2] = {
     { "", "" },
-    //{ "'use types'", "" },
+    { "'use types';", "" },
     { NULL, NULL }
   };
 
   const char* error_data[] = {
-    /*
     "function f() { 'use types'; }",
     "function f() { 'use types'; 'use strict'; }",
     "function f() { 'use types'; 'use strong'; }",
     "function f() { 'use strict'; 'use types'; }",
-    */
     "function f() { 'use strong'; 'use types'; }",
-    /*
     "function f() { 'use strict'; 'use strong'; 'use types'; }",
     "function f() { 'use strict'; 'use types'; 'use strong'; }",
     "function f() { 'use strong'; 'use strict'; 'use types'; }",
     "function f() { 'use strong'; 'use types'; 'use strict'; }",
     "function f() { 'use types'; 'use strict'; 'use strong'; }",
     "function f() { 'use types'; 'use strong'; 'use strict'; }",
-    */
     NULL};
 
   static const ParserFlag varying_flags[] = {kAllowStrongMode};

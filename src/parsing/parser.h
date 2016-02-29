@@ -354,6 +354,10 @@ class ParserTraits {
     typedef ParserFormalParameters FormalParameters;
     typedef ZoneList<v8::internal::Statement*>* StatementList;
     typedef v8::internal::OTSType* OTSType;
+    typedef v8::internal::OTSTypeParameter* OTSTypeParameter;
+    typedef ZoneList<v8::internal::OTSTypeParameter*>* OTSTypeParameters;
+    typedef v8::internal::OTSFormalParameter* OTSFormalParameter;
+    typedef ZoneList<v8::internal::OTSFormalParameter*>* OTSFormalParameters;
 
     // For constructing objects returned by the traversing functions.
     typedef AstNodeFactory Factory;
@@ -497,7 +501,12 @@ class ParserTraits {
   }
   static ObjectLiteralProperty* EmptyObjectLiteralProperty() { return NULL; }
   static FunctionLiteral* EmptyFunctionLiteral() { return NULL; }
+
   static OTSType* EmptyOTSType() { return NULL; }
+  static ZoneList<OTSTypeParameter*>* EmptyOTSTypeParameters() { return NULL; }
+  static bool IsEmptyOTSTypeParameters(ZoneList<OTSTypeParameter*>* typ_pars) {
+    return typ_pars == nullptr;
+  }
 
   // Used in error return values.
   static ZoneList<Expression*>* NullExpressionList() {

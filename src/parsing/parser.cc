@@ -2422,7 +2422,7 @@ Block* Parser::ParseVariableDeclarations(
 
     // Optional type annotation.
     if (scope_->typed() && Check(Token::COLON)) {
-      OTSTypeT type = ParseType(CHECK_OK);
+      OTSTypeT type = ParseOTSType(CHECK_OK);
       USE(type);
     }
 
