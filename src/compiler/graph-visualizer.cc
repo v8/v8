@@ -231,8 +231,8 @@ class GraphC1Visualizer {
   void PrintInputs(InputIterator* i, int count, const char* prefix);
   void PrintType(Node* node);
 
-  void PrintLiveRange(LiveRange* range, const char* type, int vreg);
-  void PrintLiveRangeChain(TopLevelLiveRange* range, const char* type);
+  void PrintLiveRange(const LiveRange* range, const char* type, int vreg);
+  void PrintLiveRangeChain(const TopLevelLiveRange* range, const char* type);
 
   class Tag final BASE_EMBEDDED {
    public:
@@ -505,31 +505,30 @@ void GraphC1Visualizer::PrintLiveRanges(const char* phase,
   Tag tag(this, "intervals");
   PrintStringProperty("name", phase);
 
-  for (auto range : data->fixed_double_live_ranges()) {
+  for (const TopLevelLiveRange* range : data->fixed_double_live_ranges()) {
     PrintLiveRangeChain(range, "fixed");
   }
 
-  for (auto range : data->fixed_live_ranges()) {
+  for (const TopLevelLiveRange* range : data->fixed_live_ranges()) {
     PrintLiveRangeChain(range, "fixed");
   }
 
-  for (auto range : data->live_ranges()) {
+  for (const TopLevelLiveRange* range : data->live_ranges()) {
     PrintLiveRangeChain(range, "object");
   }
 }
 
-
-void GraphC1Visualizer::PrintLiveRangeChain(TopLevelLiveRange* range,
+void GraphC1Visualizer::PrintLiveRangeChain(const TopLevelLiveRange* range,
                                             const char* type) {
   if (range == nullptr || range->IsEmpty()) return;
   int vreg = range->vreg();
-  for (LiveRange* child = range; child != nullptr; child = child->next()) {
+  for (const LiveRange* child = range; child != nullptr;
+       child = child->next()) {
     PrintLiveRange(child, type, vreg);
   }
 }
 
-
-void GraphC1Visualizer::PrintLiveRange(LiveRange* range, const char* type,
+void GraphC1Visualizer::PrintLiveRange(const LiveRange* range, const char* type,
                                        int vreg) {
   if (range != nullptr && !range->IsEmpty()) {
     PrintIndent();
@@ -545,7 +544,7 @@ void GraphC1Visualizer::PrintLiveRange(LiveRange* range, const char* type,
         os_ << " \"" << assigned_reg.ToString() << "\"";
       }
     } else if (range->spilled()) {
-      auto top = range->TopLevel();
+      const TopLevelLiveRange* top = range->TopLevel();
       int index = -1;
       if (top->HasSpillRange()) {
         index = kMaxInt;  // This hasn't been set yet.
@@ -564,8 +563,8 @@ void GraphC1Visualizer::PrintLiveRange(LiveRange* range, const char* type,
     }
 
     os_ << " " << vreg;
-    for (auto interval = range->first_interval(); interval != nullptr;
-         interval = interval->next()) {
+    for (const UseInterval* interval = range->first_interval();
+         interval != nullptr; interval = interval->next()) {
       os_ << " [" << interval->start().value() << ", "
           << interval->end().value() << "[";
     }

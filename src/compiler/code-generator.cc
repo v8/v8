@@ -87,7 +87,8 @@ Handle<Code> CodeGenerator::GenerateCode() {
 
   // Define deoptimization literals for all inlined functions.
   DCHECK_EQ(0u, deoptimization_literals_.size());
-  for (auto& inlined : info->inlined_functions()) {
+  for (const CompilationInfo::InlinedFunctionHolder& inlined :
+       info->inlined_functions()) {
     if (!inlined.shared_info.is_identical_to(info->shared_info())) {
       DefineDeoptimizationLiteral(inlined.shared_info);
     }
@@ -96,7 +97,8 @@ Handle<Code> CodeGenerator::GenerateCode() {
 
   // Define deoptimization literals for all unoptimized code objects of inlined
   // functions. This ensures unoptimized code is kept alive by optimized code.
-  for (auto& inlined : info->inlined_functions()) {
+  for (const CompilationInfo::InlinedFunctionHolder& inlined :
+       info->inlined_functions()) {
     if (!inlined.shared_info.is_identical_to(info->shared_info())) {
       DefineDeoptimizationLiteral(inlined.inlined_code_object_root);
     }
@@ -104,7 +106,7 @@ Handle<Code> CodeGenerator::GenerateCode() {
 
   // Assemble all non-deferred blocks, followed by deferred ones.
   for (int deferred = 0; deferred < 2; ++deferred) {
-    for (auto const block : code()->instruction_blocks()) {
+    for (const InstructionBlock* block : code()->instruction_blocks()) {
       if (block->IsDeferred() == (deferred == 0)) {
         continue;
       }
@@ -239,7 +241,7 @@ void CodeGenerator::RecordSafepoint(ReferenceMap* references,
       safepoints()->DefineSafepoint(masm(), kind, arguments, deopt_mode);
   int stackSlotToSpillSlotDelta =
       frame()->GetTotalFrameSlotCount() - frame()->GetSpillSlotCount();
-  for (auto& operand : references->reference_operands()) {
+  for (const InstructionOperand& operand : references->reference_operands()) {
     if (operand.IsStackSlot()) {
       int index = LocationOperand::cast(operand).index();
       DCHECK(index >= 0);

@@ -29,13 +29,13 @@ namespace compiler {
 
 
 static bool IsDefUseChainLinkPresent(Node* def, Node* use) {
-  auto const uses = def->uses();
+  const Node::Uses uses = def->uses();
   return std::find(uses.begin(), uses.end(), use) != uses.end();
 }
 
 
 static bool IsUseDefChainLinkPresent(Node* def, Node* use) {
-  auto const inputs = use->inputs();
+  const Node::Inputs inputs = use->inputs();
   return std::find(inputs.begin(), inputs.end(), def) != inputs.end();
 }
 
@@ -194,7 +194,7 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kBranch: {
       // Branch uses are IfTrue and IfFalse.
       int count_true = 0, count_false = 0;
-      for (auto use : node->uses()) {
+      for (const Node* use : node->uses()) {
         CHECK(use->opcode() == IrOpcode::kIfTrue ||
               use->opcode() == IrOpcode::kIfFalse);
         if (use->opcode() == IrOpcode::kIfTrue) ++count_true;
@@ -232,10 +232,10 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kSwitch: {
       // Switch uses are Case and Default.
       int count_case = 0, count_default = 0;
-      for (auto use : node->uses()) {
+      for (const Node* use : node->uses()) {
         switch (use->opcode()) {
           case IrOpcode::kIfValue: {
-            for (auto user : node->uses()) {
+            for (const Node* user : node->uses()) {
               if (user != use && user->opcode() == IrOpcode::kIfValue) {
                 CHECK_NE(OpParameter<int32_t>(use->op()),
                          OpParameter<int32_t>(user->op()));
@@ -283,7 +283,7 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kReturn:
     case IrOpcode::kThrow:
       // Deoptimize, Return and Throw uses are End.
-      for (auto use : node->uses()) {
+      for (const Node* use : node->uses()) {
         CHECK_EQ(IrOpcode::kEnd, use->opcode());
       }
       // Type is empty.
@@ -297,7 +297,7 @@ void Verifier::Visitor::Check(Node* node) {
       CHECK_EQ(IrOpcode::kLoop,
                NodeProperties::GetControlInput(node)->opcode());
       // Terminate uses are End.
-      for (auto use : node->uses()) {
+      for (const Node* use : node->uses()) {
         CHECK_EQ(IrOpcode::kEnd, use->opcode());
       }
       // Type is empty.

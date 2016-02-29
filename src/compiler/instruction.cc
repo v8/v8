@@ -114,7 +114,7 @@ std::ostream& operator<<(std::ostream& os,
       return os << "[constant:" << ConstantOperand::cast(op).virtual_register()
                 << "]";
     case InstructionOperand::IMMEDIATE: {
-      auto imm = ImmediateOperand::cast(op);
+      ImmediateOperand imm = ImmediateOperand::cast(op);
       switch (imm.type()) {
         case ImmediateOperand::INLINE:
           return os << "#" << imm.inline_value();
@@ -124,7 +124,7 @@ std::ostream& operator<<(std::ostream& os,
     }
     case InstructionOperand::EXPLICIT:
     case InstructionOperand::ALLOCATED: {
-      auto allocated = LocationOperand::cast(op);
+      LocationOperand allocated = LocationOperand::cast(op);
       if (op.IsStackSlot()) {
         os << "[stack:" << LocationOperand::cast(op).index();
       } else if (op.IsDoubleStackSlot()) {
@@ -214,7 +214,7 @@ std::ostream& operator<<(std::ostream& os,
 
 
 bool ParallelMove::IsRedundant() const {
-  for (auto move : *this) {
+  for (MoveOperands* move : *this) {
     if (!move->IsRedundant()) return false;
   }
   return true;
@@ -224,7 +224,7 @@ bool ParallelMove::IsRedundant() const {
 MoveOperands* ParallelMove::PrepareInsertAfter(MoveOperands* move) const {
   MoveOperands* replacement = nullptr;
   MoveOperands* to_eliminate = nullptr;
-  for (auto curr : *this) {
+  for (MoveOperands* curr : *this) {
     if (curr->IsEliminated()) continue;
     if (curr->destination().EqualsCanonicalized(move->source())) {
       DCHECK(!replacement);
@@ -321,7 +321,7 @@ std::ostream& operator<<(std::ostream& os,
                          const PrintableParallelMove& printable) {
   const ParallelMove& pm = *printable.parallel_move_;
   bool first = true;
-  for (auto move : pm) {
+  for (MoveOperands* move : pm) {
     if (move->IsEliminated()) continue;
     if (!first) os << " ";
     first = false;
@@ -346,7 +346,7 @@ std::ostream& operator<<(std::ostream& os, const ReferenceMap& pm) {
   PrintableInstructionOperand poi = {
       RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN),
       InstructionOperand()};
-  for (auto& op : pm.reference_operands_) {
+  for (const InstructionOperand& op : pm.reference_operands_) {
     if (!first) {
       os << ";";
     } else {
@@ -637,12 +637,12 @@ void InstructionSequence::Validate() {
 
 void InstructionSequence::ComputeAssemblyOrder(InstructionBlocks* blocks) {
   int ao = 0;
-  for (auto const block : *blocks) {
+  for (InstructionBlock* const block : *blocks) {
     if (!block->IsDeferred()) {
       block->set_ao_number(RpoNumber::FromInt(ao++));
     }
   }
-  for (auto const block : *blocks) {
+  for (InstructionBlock* const block : *blocks) {
     if (block->IsDeferred()) {
       block->set_ao_number(RpoNumber::FromInt(ao++));
     }
@@ -732,7 +732,7 @@ InstructionBlock* InstructionSequence::GetInstructionBlock(
   if (end == block_starts_.end() || *end > instruction_index) --end;
   DCHECK(*end <= instruction_index);
   size_t index = std::distance(begin, end);
-  auto block = instruction_blocks_->at(index);
+  InstructionBlock* block = instruction_blocks_->at(index);
   DCHECK(block->code_start() <= instruction_index &&
          instruction_index < block->code_end());
   return block;
@@ -863,15 +863,15 @@ void InstructionSequence::PrintBlock(const RegisterConfiguration* config,
   os << "  instructions: [" << block->code_start() << ", " << block->code_end()
      << ")\n  predecessors:";
 
-  for (auto pred : block->predecessors()) {
+  for (RpoNumber pred : block->predecessors()) {
     os << " B" << pred.ToInt();
   }
   os << "\n";
 
-  for (auto phi : block->phis()) {
+  for (const PhiInstruction* phi : block->phis()) {
     PrintableInstructionOperand printable_op = {config, phi->output()};
     os << "     phi: " << printable_op << " =";
-    for (auto input : phi->operands()) {
+    for (int input : phi->operands()) {
       os << " v" << input;
     }
     os << "\n";
@@ -888,7 +888,7 @@ void InstructionSequence::PrintBlock(const RegisterConfiguration* config,
     os << "   " << buf.start() << ": " << printable_instr << "\n";
   }
 
-  for (auto succ : block->successors()) {
+  for (RpoNumber succ : block->successors()) {
     os << " B" << succ.ToInt();
   }
   os << "\n";
