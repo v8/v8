@@ -933,8 +933,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArm64ClaimCSP: {
       int count = i.InputInt32(0);
       Register prev = __ StackPointer();
-      __ SetStackPointer(csp);
-      __ Claim(count);
+      if (prev.Is(jssp)) {
+        __ AlignAndSetCSPForFrame();
+      }
+      if (count > 0) {
+        __ Claim(count);
+      }
       __ SetStackPointer(prev);
       frame_access_state()->IncreaseSPDelta(count);
       break;

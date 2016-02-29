@@ -1643,7 +1643,7 @@ void InstructionSelector::EmitPrepareArguments(
   }
   // TODO(titzer): claim and poke probably take small immediates.
   // Bump the stack pointer(s).
-  if (claim_count > 0) {
+  if (claim_count > 0 || to_native_stack) {
     // TODO(titzer): it would be better to bump the csp here only
     //                and emit paired stores with increment for non c frames.
     ArchOpcode claim = to_native_stack ? kArm64ClaimCSP : kArm64ClaimJSSP;
