@@ -28,10 +28,6 @@ const int kNumJSCallerSaved = 5;
 // Number of registers for which space is reserved in safepoints.
 const int kNumSafepointRegisters = 8;
 
-const int kNoAlignmentPadding = 0;
-const int kAlignmentPaddingPushed = 2;
-const int kAlignmentZapValue = 0x12345678;  // Not heap object tagged.
-
 // ----------------------------------------------------
 
 
@@ -75,8 +71,6 @@ class JavaScriptFrameConstants : public AllStatic {
   // Caller SP-relative.
   static const int kParam0Offset   = -2 * kPointerSize;
   static const int kReceiverOffset = -1 * kPointerSize;
-
-  static const int kDynamicAlignmentStateOffset = kLocal0Offset;
 };
 
 
