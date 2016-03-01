@@ -800,7 +800,6 @@
 
   # TODO(yangguo,4690): Check failure in debug.cc BreakLocation::SetBreakPoint
   # DCHECK(IsDebugBreak() || IsDebuggerStatement());
-  'regress/regress-1523': [FAIL],
   'regress/regress-crbug-119800': [FAIL],
   'regress/regress-crbug-467180': [FAIL],
   'regress/regress-opt-after-debug-deopt': [FAIL],
