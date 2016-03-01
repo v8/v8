@@ -4993,7 +4993,7 @@ Expression* Parser::ParseV8Intrinsic(bool* ok) {
 
     // Check that the expected number of arguments are being passed.
     if (function->nargs != -1 && function->nargs != args->length()) {
-      ReportMessage(MessageTemplate::kIllegalAccess);
+      ReportMessage(MessageTemplate::kRuntimeWrongNumArgs);
       *ok = false;
       return NULL;
     }

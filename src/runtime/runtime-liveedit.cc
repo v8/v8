@@ -186,7 +186,7 @@ RUNTIME_FUNCTION(Runtime_LiveEditPatchFunctionPositions) {
   DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, shared_array, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, position_change_array, 1);
-  RUNTIME_ASSERT(SharedInfoWrapper::IsInstance(shared_array))
+  RUNTIME_ASSERT(SharedInfoWrapper::IsInstance(shared_array));
 
   LiveEdit::PatchFunctionPositions(shared_array, position_change_array);
   return isolate->heap()->undefined_value();
@@ -207,8 +207,8 @@ RUNTIME_FUNCTION(Runtime_LiveEditCheckAndDropActivations) {
   USE(new_shared_array);
   RUNTIME_ASSERT(old_shared_array->length()->IsSmi());
   RUNTIME_ASSERT(new_shared_array->length() == old_shared_array->length());
-  RUNTIME_ASSERT(old_shared_array->HasFastElements())
-  RUNTIME_ASSERT(new_shared_array->HasFastElements())
+  RUNTIME_ASSERT(old_shared_array->HasFastElements());
+  RUNTIME_ASSERT(new_shared_array->HasFastElements());
   int array_length = Smi::cast(old_shared_array->length())->value();
   for (int i = 0; i < array_length; i++) {
     Handle<Object> old_element;
