@@ -142,6 +142,7 @@ class BreakLocation {
 
    protected:
     explicit Iterator(Handle<DebugInfo> debug_info);
+    int ReturnPosition();
 
     Handle<DebugInfo> debug_info_;
     int break_index_;

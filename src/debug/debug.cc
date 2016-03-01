@@ -84,6 +84,15 @@ BreakLocation::Iterator::Iterator(Handle<DebugInfo> debug_info)
       position_(1),
       statement_position_(1) {}
 
+int BreakLocation::Iterator::ReturnPosition() {
+  if (debug_info_->shared()->HasSourceCode()) {
+    return debug_info_->shared()->end_position() -
+           debug_info_->shared()->start_position() - 1;
+  } else {
+    return 0;
+  }
+}
+
 BreakLocation::CodeIterator::CodeIterator(Handle<DebugInfo> debug_info,
                                           BreakLocatorType type)
     : Iterator(debug_info),
@@ -137,13 +146,7 @@ void BreakLocation::CodeIterator::Next() {
 
     if (RelocInfo::IsDebugBreakSlotAtReturn(rmode())) {
       // Set the positions to the end of the function.
-      if (debug_info_->shared()->HasSourceCode()) {
-        position_ = debug_info_->shared()->end_position() -
-                    debug_info_->shared()->start_position() - 1;
-      } else {
-        position_ = 0;
-      }
-      statement_position_ = position_;
+      statement_position_ = position_ = ReturnPosition();
     }
 
     break;
@@ -201,8 +204,10 @@ void BreakLocation::BytecodeArrayIterator::Next() {
     if (break_locator_type_ == ALL_BREAK_LOCATIONS) break;
 
     DCHECK_EQ(CALLS_AND_RETURNS, break_locator_type_);
-    if (type == DEBUG_BREAK_SLOT_AT_CALL ||
-        type == DEBUG_BREAK_SLOT_AT_RETURN) {
+    if (type == DEBUG_BREAK_SLOT_AT_CALL) break;
+    if (type == DEBUG_BREAK_SLOT_AT_RETURN) {
+      DCHECK_EQ(ReturnPosition(), position_);
+      DCHECK_EQ(ReturnPosition(), statement_position_);
       break;
     }
   }

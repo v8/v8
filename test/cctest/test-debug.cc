@@ -2747,7 +2747,7 @@ TEST(DebugStepKeyedLoadLoop) {
   foo->Call(context, env->Global(), kArgc, args).ToLocalChecked();
 
   // With stepping all break locations are hit.
-  CHECK_EQ(45, break_point_hit_count);
+  CHECK_EQ(44, break_point_hit_count);
 
   v8::Debug::SetDebugEventListener(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded(env->GetIsolate());
@@ -2917,7 +2917,7 @@ TEST(DebugStepLinearMixedICs) {
   foo->Call(context, env->Global(), 0, NULL).ToLocalChecked();
 
   // With stepping all break locations are hit.
-  CHECK_EQ(11, break_point_hit_count);
+  CHECK_EQ(10, break_point_hit_count);
 
   v8::Debug::SetDebugEventListener(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded(env->GetIsolate());
@@ -2964,7 +2964,7 @@ TEST(DebugStepDeclarations) {
   step_action = StepIn;
   break_point_hit_count = 0;
   foo->Call(context, env->Global(), 0, NULL).ToLocalChecked();
-  CHECK_EQ(6, break_point_hit_count);
+  CHECK_EQ(5, break_point_hit_count);
 
   // Get rid of the debug event listener.
   v8::Debug::SetDebugEventListener(env->GetIsolate(), nullptr);
@@ -2998,7 +2998,7 @@ TEST(DebugStepLocals) {
   step_action = StepIn;
   break_point_hit_count = 0;
   foo->Call(context, env->Global(), 0, NULL).ToLocalChecked();
-  CHECK_EQ(6, break_point_hit_count);
+  CHECK_EQ(5, break_point_hit_count);
 
   // Get rid of the debug event listener.
   v8::Debug::SetDebugEventListener(env->GetIsolate(), nullptr);
@@ -3471,14 +3471,14 @@ TEST(DebugConditional) {
   step_action = StepIn;
   break_point_hit_count = 0;
   foo->Call(context, env->Global(), 0, NULL).ToLocalChecked();
-  CHECK_EQ(4, break_point_hit_count);
+  CHECK_EQ(3, break_point_hit_count);
 
   step_action = StepIn;
   break_point_hit_count = 0;
   const int argc = 1;
   v8::Local<v8::Value> argv_true[argc] = {v8::True(isolate)};
   foo->Call(context, env->Global(), argc, argv_true).ToLocalChecked();
-  CHECK_EQ(4, break_point_hit_count);
+  CHECK_EQ(3, break_point_hit_count);
 
   // Get rid of the debug event listener.
   v8::Debug::SetDebugEventListener(isolate, nullptr);

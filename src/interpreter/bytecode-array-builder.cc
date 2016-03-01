@@ -67,7 +67,8 @@ class BytecodeArrayBuilder::PreviousBytecodeHelper BASE_EMBEDDED {
 
 BytecodeArrayBuilder::BytecodeArrayBuilder(Isolate* isolate, Zone* zone,
                                            int parameter_count,
-                                           int context_count, int locals_count)
+                                           int context_count, int locals_count,
+                                           FunctionLiteral* literal)
     : isolate_(isolate),
       zone_(zone),
       bytecodes_(zone),
@@ -87,6 +88,9 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(Isolate* isolate, Zone* zone,
   DCHECK_GE(parameter_count_, 0);
   DCHECK_GE(context_register_count_, 0);
   DCHECK_GE(local_register_count_, 0);
+  return_position_ =
+      literal ? std::max(literal->start_position(), literal->end_position() - 1)
+              : RelocInfo::kNoPosition;
 }
 
 BytecodeArrayBuilder::~BytecodeArrayBuilder() { DCHECK_EQ(0, unbound_jumps_); }
@@ -961,6 +965,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::ReThrow() {
 
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::Return() {
+  SetReturnPosition();
   Output(Bytecode::kReturn);
   exit_seen_in_block_ = true;
   return *this;
@@ -1042,10 +1047,9 @@ void BytecodeArrayBuilder::LeaveBasicBlock() {
   exit_seen_in_block_ = false;
 }
 
-void BytecodeArrayBuilder::EnsureReturn(FunctionLiteral* literal) {
+void BytecodeArrayBuilder::EnsureReturn() {
   if (!exit_seen_in_block_) {
     LoadUndefined();
-    SetReturnPosition(literal);
     Return();
   }
   DCHECK(exit_seen_in_block_);
@@ -1176,12 +1180,11 @@ size_t BytecodeArrayBuilder::GetConstantPoolEntry(Handle<Object> object) {
   return constant_array_builder()->Insert(object);
 }
 
-void BytecodeArrayBuilder::SetReturnPosition(FunctionLiteral* fun) {
-  // Don't emit dead code.
+void BytecodeArrayBuilder::SetReturnPosition() {
+  if (return_position_ == RelocInfo::kNoPosition) return;
   if (exit_seen_in_block_) return;
-
-  int pos = std::max(fun->start_position(), fun->end_position() - 1);
-  source_position_table_builder_.AddStatementPosition(bytecodes_.size(), pos);
+  source_position_table_builder_.AddStatementPosition(bytecodes_.size(),
+                                                      return_position_);
 }
 
 void BytecodeArrayBuilder::SetStatementPosition(Statement* stmt) {

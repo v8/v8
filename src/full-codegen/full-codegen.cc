@@ -851,7 +851,6 @@ void FullCodeGenerator::VisitForTypeofValue(Expression* expr) {
 void FullCodeGenerator::VisitBlock(Block* stmt) {
   Comment cmnt(masm_, "[ Block");
   NestedBlock nested_block(this, stmt);
-  SetStatementPosition(stmt);
 
   {
     EnterBlockScopeIfNeeded block_scope_state(

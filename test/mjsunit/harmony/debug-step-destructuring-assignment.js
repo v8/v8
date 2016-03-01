@@ -32,55 +32,55 @@ function f() {
   var a, b, c, d;
   debugger;                                       // B0
   [                                               // B1
-    a,                                            // B3
-    b,                                            // B4
-    c = 3                                         // B5
-  ] = [1, 2];                                     // B2
-  assertEquals({a:1,b:2,c:3}, {a, b, c});         // B6
+    a,                                            // B2
+    b,                                            // B3
+    c = 3                                         // B4
+  ] = [1, 2];
+  assertEquals({a:1,b:2,c:3}, {a, b, c});         // B5
 
-  [                                               // B7
-    a,                                            // B9
+  [                                               // B6
+    a,                                            // B7
     [
-      b,                                          // B10
-      c                                           // B11
+      b,                                          // B8
+      c                                           // B9
     ],
-    d                                             // B12
-  ] = [5, [6, 7], 8];                             // B8
-  assertEquals({a:5,b:6,c:7,d:8}, {a, b, c, d});  // B13
+    d                                             // B10
+  ] = [5, [6, 7], 8];
+  assertEquals({a:5,b:6,c:7,d:8}, {a, b, c, d});  // B11
 
-  [                                               // B14
-    a,                                            // B16
-    b,                                            // B17
-    ...c                                          // B18
-  ] = [1, 2, 3, 4];                               // B15
-  assertEquals({a:1,b:2,c:[3,4]}, {a, b, c});     // B19
+  [                                               // B12
+    a,                                            // B13
+    b,                                            // B14
+    ...c                                          // B15
+  ] = [1, 2, 3, 4];
+  assertEquals({a:1,b:2,c:[3,4]}, {a, b, c});     // B16
 
-  ({                                              // B20
-    a,                                            // B22
-    b,                                            // B23
-    c = 7                                         // B24
-  } = {a: 5, b: 6});                              // B21
-  assertEquals({a:5,b:6,c:7}, {a, b, c});         // B25
+  ({                                              // B17
+    a,                                            // B18
+    b,                                            // B19
+    c = 7                                         // B20
+  } = {a: 5, b: 6});
+  assertEquals({a:5,b:6,c:7}, {a, b, c});         // B21
 
-  ({                                              // B26
-    a,                                            // B28
-    b = return1(),                                // B29
-    c = return1()                                 // B30
-  } = {a: 5, b: 6});                              // B27
-  assertEquals({a:5,b:6,c:1}, {a, b, c});         // B33
+  ({                                              // B22
+    a,                                            // B23
+    b = return1(),                                // B24
+    c = return1()                                 // B25
+  } = {a: 5, b: 6});
+  assertEquals({a:5,b:6,c:1}, {a, b, c});         // B28
 
-  ({                                              // B34
-    x : a,                                        // B36
-    y : b,                                        // B37
-    z : c = 3                                     // B38
-  } = {x: 1, y: 2});                              // B35
-  assertEquals({a:1,b:2,c:3}, {a, b, c});         // B39
-}                                                 // B40
+  ({                                              // B29
+    x : a,                                        // B30
+    y : b,                                        // B31
+    z : c = 3                                     // B32
+  } = {x: 1, y: 2});
+  assertEquals({a:1,b:2,c:3}, {a, b, c});         // B33
+}                                                 // B34
 
 function return1() {
-  return 1;                                       // B31
-}                                                 // B32
+  return 1;                                       // B26
+}                                                 // B27
 
 f();
-Debug.setListener(null);                          // B41
+Debug.setListener(null);                          // B35
 assertNull(exception);

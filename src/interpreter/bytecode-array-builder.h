@@ -27,7 +27,8 @@ class Register;
 class BytecodeArrayBuilder final : public ZoneObject, private RegisterMover {
  public:
   BytecodeArrayBuilder(Isolate* isolate, Zone* zone, int parameter_count,
-                       int context_count, int locals_count);
+                       int context_count, int locals_count,
+                       FunctionLiteral* literal = nullptr);
   ~BytecodeArrayBuilder();
 
   Handle<BytecodeArray> ToBytecodeArray();
@@ -257,6 +258,8 @@ class BytecodeArrayBuilder final : public ZoneObject, private RegisterMover {
   // entry, so that it can be referenced by above exception handling support.
   int NewHandlerEntry() { return handler_table_builder()->NewHandlerEntry(); }
 
+  void InitializeReturnPosition(FunctionLiteral* literal);
+
   void SetStatementPosition(Statement* stmt);
   void SetExpressionPosition(Expression* expr);
 
@@ -269,7 +272,7 @@ class BytecodeArrayBuilder final : public ZoneObject, private RegisterMover {
     return &temporary_allocator_;
   }
 
-  void EnsureReturn(FunctionLiteral* literal);
+  void EnsureReturn();
 
  private:
   class PreviousBytecodeHelper;
@@ -334,8 +337,8 @@ class BytecodeArrayBuilder final : public ZoneObject, private RegisterMover {
   bool NeedToBooleanCast();
   bool IsRegisterInAccumulator(Register reg);
 
-  // Set position for implicit return.
-  void SetReturnPosition(FunctionLiteral* fun);
+  // Set position for return.
+  void SetReturnPosition();
 
   // Gets a constant pool entry for the |object|.
   size_t GetConstantPoolEntry(Handle<Object> object);
@@ -371,6 +374,7 @@ class BytecodeArrayBuilder final : public ZoneObject, private RegisterMover {
   int parameter_count_;
   int local_register_count_;
   int context_register_count_;
+  int return_position_;
   TemporaryRegisterAllocator temporary_allocator_;
   RegisterTranslator register_translator_;
 

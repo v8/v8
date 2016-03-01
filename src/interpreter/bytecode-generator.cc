@@ -571,7 +571,8 @@ Handle<BytecodeArray> BytecodeGenerator::MakeBytecode(CompilationInfo* info) {
   // Initialize bytecode array builder.
   set_builder(new (zone()) BytecodeArrayBuilder(
       isolate(), zone(), info->num_parameters_including_this(),
-      scope()->MaxNestedContextChainLength(), scope()->num_stack_slots()));
+      scope()->MaxNestedContextChainLength(), scope()->num_stack_slots(),
+      info->literal()));
 
   // Initialize the incoming context.
   ContextScope incoming_context(this, scope(), false);
@@ -590,7 +591,7 @@ Handle<BytecodeArray> BytecodeGenerator::MakeBytecode(CompilationInfo* info) {
     MakeBytecodeBody();
   }
 
-  builder()->EnsureReturn(info->literal());
+  builder()->EnsureReturn();
   set_scope(nullptr);
   set_info(nullptr);
   return builder()->ToBytecodeArray();
@@ -877,8 +878,8 @@ void BytecodeGenerator::VisitBreakStatement(BreakStatement* stmt) {
 
 
 void BytecodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
-  VisitForAccumulatorValue(stmt->expression());
   builder()->SetStatementPosition(stmt);
+  VisitForAccumulatorValue(stmt->expression());
   execution_control()->ReturnAccumulator();
 }
 
