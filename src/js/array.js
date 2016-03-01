@@ -214,15 +214,19 @@ function Join(array, length, separator, convert) {
     // Non-empty separator case.
     // If the first element is a number then use the heuristic that the
     // remaining elements are also likely to be numbers.
-    if (!IS_NUMBER(array[0])) {
-      for (var i = 0; i < length; i++) {
-        var e = array[i];
+    var e = array[0];
+    if (!IS_NUMBER(e)) {
+      if (!IS_STRING(e)) e = convert(e);
+      elements[0] = e;
+      for (var i = 1; i < length; i++) {
+        e = array[i];
         if (!IS_STRING(e)) e = convert(e);
         elements[i] = e;
       }
     } else {
-      for (var i = 0; i < length; i++) {
-        var e = array[i];
+      elements[0] = %_NumberToString(e);
+      for (var i = 1; i < length; i++) {
+        e = array[i];
         if (IS_NUMBER(e)) {
           e = %_NumberToString(e);
         } else if (!IS_STRING(e)) {
