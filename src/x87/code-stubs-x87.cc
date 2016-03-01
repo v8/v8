@@ -1155,7 +1155,7 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
       FrameScope scope(masm, StackFrame::INTERNAL);
       __ Push(edx);
       __ Push(eax);
-      __ CallRuntime(strict() ? Runtime::kStrictEquals : Runtime::kEquals);
+      __ CallRuntime(strict() ? Runtime::kStrictEqual : Runtime::kEqual);
     }
     // Turn true into 0 and false into some non-zero value.
     STATIC_ASSERT(EQUAL == 0);
