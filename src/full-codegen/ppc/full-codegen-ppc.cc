@@ -1038,11 +1038,6 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // We got a fixed array in register r3. Iterate through that.
   __ bind(&fixed_array);
 
-  int const vector_index = SmiFromSlot(slot)->value();
-  __ EmitLoadTypeFeedbackVector(r4);
-  __ mov(r5, Operand(TypeFeedbackVector::MegamorphicSentinel(isolate())));
-  __ StoreP(
-      r5, FieldMemOperand(r4, FixedArray::OffsetOfElementAt(vector_index)), r0);
   __ LoadSmiLiteral(r4, Smi::FromInt(1));  // Smi(1) indicates slow check
   __ Push(r4, r3);  // Smi and array
   __ LoadP(r4, FieldMemOperand(r3, FixedArray::kLengthOffset));
@@ -1079,12 +1074,8 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ cmp(r7, r5);
   __ beq(&update_each);
 
-  // We might get here from TurboFan or Crankshaft when something in the
-  // for-in loop body deopts and only now notice in fullcodegen, that we
-  // can now longer use the enum cache, i.e. left fast mode. So better record
-  // this information here, in case we later OSR back into this loop or
-  // reoptimize the whole function w/o rerunning the loop with the slow
-  // mode object in fullcodegen (which would result in a deopt loop).
+  // We need to filter the key, record slow-path here.
+  int const vector_index = SmiFromSlot(slot)->value();
   __ EmitLoadTypeFeedbackVector(r3);
   __ mov(r5, Operand(TypeFeedbackVector::MegamorphicSentinel(isolate())));
   __ StoreP(

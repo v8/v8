@@ -1000,11 +1000,6 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // We got a fixed array in register eax. Iterate through that.
   __ bind(&fixed_array);
 
-  // No need for a write barrier, we are storing a Smi in the feedback vector.
-  int const vector_index = SmiFromSlot(slot)->value();
-  __ EmitLoadTypeFeedbackVector(ebx);
-  __ mov(FieldOperand(ebx, FixedArray::OffsetOfElementAt(vector_index)),
-         Immediate(TypeFeedbackVector::MegamorphicSentinel(isolate())));
   __ push(Immediate(Smi::FromInt(1)));  // Smi(1) undicates slow check
   __ push(eax);  // Array
   __ mov(eax, FieldOperand(eax, FixedArray::kLengthOffset));
@@ -1035,12 +1030,8 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ cmp(edx, FieldOperand(ecx, HeapObject::kMapOffset));
   __ j(equal, &update_each, Label::kNear);
 
-  // We might get here from TurboFan or Crankshaft when something in the
-  // for-in loop body deopts and only now notice in fullcodegen, that we
-  // can now longer use the enum cache, i.e. left fast mode. So better record
-  // this information here, in case we later OSR back into this loop or
-  // reoptimize the whole function w/o rerunning the loop with the slow
-  // mode object in fullcodegen (which would result in a deopt loop).
+  // We need to filter the key, record slow-path here.
+  int const vector_index = SmiFromSlot(slot)->value();
   __ EmitLoadTypeFeedbackVector(edx);
   __ mov(FieldOperand(edx, FixedArray::OffsetOfElementAt(vector_index)),
          Immediate(TypeFeedbackVector::MegamorphicSentinel(isolate())));
