@@ -1558,6 +1558,12 @@
         }],
         ['v8_target_arch=="s390" or v8_target_arch=="s390x"', {
           'sources': [  ### gcmole(arch:s390) ###
+            '../../src/debug/s390/debug-s390.cc',
+            '../../src/ic/s390/access-compiler-s390.cc',
+            '../../src/ic/s390/handler-compiler-s390.cc',
+            '../../src/ic/s390/ic-compiler-s390.cc',
+            '../../src/ic/s390/ic-s390.cc',
+            '../../src/ic/s390/stub-cache-s390.cc',
             '../../src/s390/assembler-s390-inl.h',
             '../../src/s390/assembler-s390.cc',
             '../../src/s390/assembler-s390.h',
