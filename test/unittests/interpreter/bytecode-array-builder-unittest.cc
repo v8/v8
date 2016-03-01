@@ -205,11 +205,11 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   builder.ForInPrepare(reg)
       .ForInDone(reg, reg)
-      .ForInNext(reg, reg, reg)
+      .ForInNext(reg, reg, reg, 1)
       .ForInStep(reg);
   builder.ForInPrepare(wide)
       .ForInDone(reg, other)
-      .ForInNext(wide, wide, wide)
+      .ForInNext(wide, wide, wide, 1024)
       .ForInStep(reg);
 
   // Wide constant pool loads

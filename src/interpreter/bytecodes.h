@@ -265,9 +265,10 @@ namespace interpreter {
   V(ForInPrepare, OperandType::kRegOutTriple8)                                 \
   V(ForInPrepareWide, OperandType::kRegOutTriple16)                            \
   V(ForInDone, OperandType::kReg8, OperandType::kReg8)                         \
-  V(ForInNext, OperandType::kReg8, OperandType::kReg8, OperandType::kRegPair8) \
+  V(ForInNext, OperandType::kReg8, OperandType::kReg8, OperandType::kRegPair8, \
+    OperandType::kIdx8)                                                        \
   V(ForInNextWide, OperandType::kReg16, OperandType::kReg16,                   \
-    OperandType::kRegPair16)                                                   \
+    OperandType::kRegPair16, OperandType::kIdx16)                              \
   V(ForInStep, OperandType::kReg8)                                             \
                                                                                \
   /* Perform a stack guard check */                                            \

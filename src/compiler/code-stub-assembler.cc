@@ -192,6 +192,16 @@ Node* CodeStubAssembler::LoadFixedArrayElementConstantIndex(Node* object,
   return raw_assembler_->Load(MachineType::AnyTagged(), object, offset);
 }
 
+Node* CodeStubAssembler::StoreFixedArrayElementNoWriteBarrier(Node* object,
+                                                              Node* index,
+                                                              Node* value) {
+  Node* offset =
+      IntPtrAdd(WordShl(index, IntPtrConstant(kPointerSizeLog2)),
+                IntPtrConstant(FixedArray::kHeaderSize - kHeapObjectTag));
+  return StoreNoWriteBarrier(MachineRepresentation::kTagged, object, offset,
+                             value);
+}
+
 Node* CodeStubAssembler::LoadRoot(Heap::RootListIndex root_index) {
   if (isolate()->heap()->RootCanBeTreatedAsConstant(root_index)) {
     Handle<Object> root = isolate()->heap()->root_handle(root_index);

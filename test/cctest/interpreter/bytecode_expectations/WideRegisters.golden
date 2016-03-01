@@ -1125,7 +1125,7 @@ snippet: "
 "
 frame size: 167
 parameter count: 1
-bytecode array length: 109
+bytecode array length: 111
 bytecodes: [
   B(StackCheck),
   B(LdaConstant), U8(0),
@@ -1133,8 +1133,8 @@ bytecodes: [
   B(LdaZero),
   B(Star), R(1),
   B(Ldar), R(0),
-  B(JumpIfUndefined), U8(96),
-  B(JumpIfNull), U8(94),
+  B(JumpIfUndefined), U8(98),
+  B(JumpIfNull), U8(96),
   B(ToObject),
   B(Star), R(125),
   B(MovWide), R16(125), R16(161),
@@ -1145,8 +1145,8 @@ bytecodes: [
   B(MovWide), R16(165), R16(125),
   B(MovWide), R16(164), R16(126),
   B(ForInDone), R(125), R(126),
-  B(JumpIfTrue), U8(60),
-  B(ForInNextWide), R16(161), R16(165), R16(162),
+  B(JumpIfTrue), U8(62),
+  B(ForInNextWide), R16(161), R16(165), R16(162), U16(1),
   B(JumpIfUndefined), U8(35),
   B(Star), R(125),
   B(MovWide), R16(125), R16(132),
@@ -1163,7 +1163,7 @@ bytecodes: [
   B(ForInStep), R(125),
   B(Star), R(125),
   B(MovWide), R16(125), R16(165),
-  B(Jump), U8(-71),
+  B(Jump), U8(-73),
   B(Ldar), R(1),
   B(Return),
 ]

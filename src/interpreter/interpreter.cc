@@ -1830,11 +1830,38 @@ void Interpreter::DoForInNext(InterpreterAssembler* assembler) {
   Node* cache_type = __ LoadRegister(cache_type_reg);
   Node* cache_array_reg = __ NextRegister(cache_type_reg);
   Node* cache_array = __ LoadRegister(cache_array_reg);
-  Node* context = __ GetContext();
-  Node* result = __ CallRuntime(Runtime::kForInNext, context, receiver,
-                                cache_array, cache_type, index);
-  __ SetAccumulator(result);
-  __ Dispatch();
+
+  // Load the next key from the enumeration array.
+  Node* key = __ LoadFixedArrayElementSmiIndex(cache_array, index);
+
+  // Check if we can use the for-in fast path potentially using the enum cache.
+  InterpreterAssembler::Label if_fast(assembler), if_slow(assembler);
+  Node* receiver_map = __ LoadObjectField(receiver, HeapObject::kMapOffset);
+  Node* condition = __ WordEqual(receiver_map, cache_type);
+  __ Branch(condition, &if_fast, &if_slow);
+  __ Bind(&if_fast);
+  {
+    // Enum cache in use for {receiver}, the {key} is definitely valid.
+    __ SetAccumulator(key);
+    __ Dispatch();
+  }
+  __ Bind(&if_slow);
+  {
+    // Record the fact that we hit the for-in slow path.
+    Node* vector_index = __ BytecodeOperandIdx(3);
+    Node* type_feedback_vector = __ LoadTypeFeedbackVector();
+    Node* megamorphic_sentinel =
+        __ HeapConstant(TypeFeedbackVector::MegamorphicSentinel(isolate_));
+    __ StoreFixedArrayElementNoWriteBarrier(type_feedback_vector, vector_index,
+                                            megamorphic_sentinel);
+
+    // Need to filter the {key} for the {receiver}.
+    Node* context = __ GetContext();
+    Node* result =
+        __ CallRuntime(Runtime::kForInFilter, context, receiver, key);
+    __ SetAccumulator(result);
+    __ Dispatch();
+  }
 }
 
 

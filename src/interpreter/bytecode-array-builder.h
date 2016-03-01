@@ -246,7 +246,8 @@ class BytecodeArrayBuilder final : public ZoneObject, private RegisterMover {
   BytecodeArrayBuilder& ForInPrepare(Register cache_info_triple);
   BytecodeArrayBuilder& ForInDone(Register index, Register cache_length);
   BytecodeArrayBuilder& ForInNext(Register receiver, Register index,
-                                  Register cache_type_array_pair);
+                                  Register cache_type_array_pair,
+                                  int feedback_slot);
   BytecodeArrayBuilder& ForInStep(Register index);
 
   // Exception handling.

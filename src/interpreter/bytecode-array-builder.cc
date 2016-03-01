@@ -996,17 +996,21 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::ForInDone(Register index,
   return *this;
 }
 
-
 BytecodeArrayBuilder& BytecodeArrayBuilder::ForInNext(
-    Register receiver, Register index, Register cache_type_array_pair) {
+    Register receiver, Register index, Register cache_type_array_pair,
+    int feedback_slot) {
   if (FitsInReg8Operand(receiver) && FitsInReg8Operand(index) &&
-      FitsInReg8Operand(cache_type_array_pair)) {
+      FitsInReg8Operand(cache_type_array_pair) &&
+      FitsInIdx8Operand(feedback_slot)) {
     Output(Bytecode::kForInNext, receiver.ToRawOperand(), index.ToRawOperand(),
-           cache_type_array_pair.ToRawOperand());
+           cache_type_array_pair.ToRawOperand(),
+           static_cast<uint8_t>(feedback_slot));
   } else if (FitsInReg16Operand(receiver) && FitsInReg16Operand(index) &&
-             FitsInReg16Operand(cache_type_array_pair)) {
+             FitsInReg16Operand(cache_type_array_pair) &&
+             FitsInIdx16Operand(feedback_slot)) {
     Output(Bytecode::kForInNextWide, receiver.ToRawOperand(),
-           index.ToRawOperand(), cache_type_array_pair.ToRawOperand());
+           index.ToRawOperand(), cache_type_array_pair.ToRawOperand(),
+           static_cast<uint16_t>(feedback_slot));
   } else {
     UNIMPLEMENTED();
   }

@@ -221,6 +221,10 @@ class CodeStubAssembler {
                                       int additional_offset = 0);
   Node* LoadFixedArrayElementConstantIndex(Node* object, int index);
 
+  // Store an array element to a FixedArray.
+  Node* StoreFixedArrayElementNoWriteBarrier(Node* object, Node* index,
+                                             Node* value);
+
  protected:
   // Protected helpers which delegate to RawMachineAssembler.
   Graph* graph();
