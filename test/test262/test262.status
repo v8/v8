@@ -278,10 +278,6 @@
   'built-ins/TypedArrays/typedarray-arg-same-ctor-buffer-ctor-species-throws': [FAIL],
   'built-ins/TypedArrays/typedarray-arg-same-ctor-buffer-ctor-value-not-obj-throws': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4782
-  'built-ins/TypedArrays/from/set-value-abrupt-completion': [FAIL],
-  'built-ins/TypedArray/from/mapfn-is-not-callable': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=4727
   'built-ins/TypedArrays/length-arg-is-undefined-throws': [FAIL],
   'built-ins/TypedArrays/length-arg-is-symbol-throws': [FAIL],
@@ -365,6 +361,9 @@
 
   # Test bug https://github.com/tc39/test262/issues/518
   'built-ins/TypedArrays/object-arg-throws-setting-typedarray-property': [FAIL],
+
+  # Test bug https://github.com/tc39/test262/issues/521
+  'built-ins/TypedArray/from/mapfn-is-not-callable': [FAIL],
 
   ############################ SKIPPED TESTS #############################
 
