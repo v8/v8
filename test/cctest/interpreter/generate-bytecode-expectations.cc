@@ -67,6 +67,7 @@ class ProgramOptions final {
   bool legacy_const() const { return legacy_const_; }
   bool do_expressions() const { return do_expressions_; }
   bool verbose() const { return verbose_; }
+  bool suppress_runtime_errors() const { return rebaseline_ && !verbose_; }
   BytecodeExpectationsPrinter::ConstantPoolType const_pool_type() const {
     return const_pool_type_;
   }
@@ -484,6 +485,12 @@ bool WriteExpectationsFile(const std::vector<std::string>& snippet_list,
   return true;
 }
 
+void PrintMessage(v8::Local<v8::Message> message, v8::Local<v8::Value>) {
+  std::cerr << "INFO: " << *v8::String::Utf8Value(message->Get()) << '\n';
+}
+
+void DiscardMessage(v8::Local<v8::Message>, v8::Local<v8::Value>) {}
+
 void PrintUsage(const char* exec_path) {
   std::cerr
       << "\nUsage: " << exec_path
@@ -528,6 +535,8 @@ int main(int argc, char** argv) {
   }
 
   V8InitializationScope platform(argv[0]);
+  platform.isolate()->AddMessageListener(
+      options.suppress_runtime_errors() ? DiscardMessage : PrintMessage);
 
   std::vector<std::string> snippet_list;
 
