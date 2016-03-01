@@ -155,21 +155,6 @@ class Platform {
       const char* scope, uint64_t id, uint64_t bind_id, int32_t num_args,
       const char** arg_names, const uint8_t* arg_types,
       const uint64_t* arg_values, unsigned int flags) {
-    return AddTraceEvent(phase, category_enabled_flag, name, id, bind_id,
-                         num_args, arg_names, arg_types, arg_values, flags);
-  }
-
-  /**
-   * This method will soon be depreacted in favor of the version with the 'const
-   * char* scope' parameter. If you do not already override this method, please
-   * implement the other version instead.
-   */
-  // TODO(fmeawad): Remove once all embedders implement the scope version.
-  virtual uint64_t AddTraceEvent(
-      char phase, const uint8_t* category_enabled_flag, const char* name,
-      uint64_t id, uint64_t bind_id, int32_t num_args, const char** arg_names,
-      const uint8_t* arg_types, const uint64_t* arg_values,
-      unsigned int flags) {
     return 0;
   }
 
