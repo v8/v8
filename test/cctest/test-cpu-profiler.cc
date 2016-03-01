@@ -1504,6 +1504,68 @@ TEST(JsNativeJsRuntimeJsSampleMultiple) {
   profile->Delete();
 }
 
+static const char* inlining_test_source =
+    "%NeverOptimizeFunction(action);\n"
+    "%NeverOptimizeFunction(start);\n"
+    "%OptimizeFunctionOnNextCall(level1);\n"
+    "%OptimizeFunctionOnNextCall(level2);\n"
+    "%OptimizeFunctionOnNextCall(level3);\n"
+    "var finish = false;\n"
+    "function action(n) {\n"
+    "  var s = 0;\n"
+    "  for (var i = 0; i < n; ++i) s += i*i*i;\n"
+    "  if (finish)\n"
+    "    startProfiling('my_profile');\n"
+    "  return s;\n"
+    "}\n"
+    "function level3() { return action(100); }\n"
+    "function level2() { return level3() * 2; }\n"
+    "function level1() { return level2(); }\n"
+    "function start() {\n"
+    "  var n = 100;\n"
+    "  while (--n)\n"
+    "    level1();\n"
+    "  finish = true;\n"
+    "  level1();\n"
+    "}";
+
+// The test check multiple entrances/exits between JS and native code.
+//
+// [Top down]:
+//    (root) #0 1
+//      start #16 3
+//        level1 #0 4
+//          level2 #16 5
+//            level3 #16 6
+//              action #16 7
+//      (program) #0 2
+TEST(Inlining) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> env = CcTest::NewContext(PROFILER_EXTENSION);
+  v8::Context::Scope context_scope(env);
+
+  CompileRun(inlining_test_source);
+  v8::Local<v8::Function> function = GetFunction(env, "start");
+
+  v8::CpuProfiler* cpu_profiler = env->GetIsolate()->GetCpuProfiler();
+  v8::Local<v8::String> profile_name = v8_str("my_profile");
+  function->Call(env, env->Global(), 0, NULL).ToLocalChecked();
+  v8::CpuProfile* profile = cpu_profiler->StopProfiling(profile_name);
+  CHECK(profile);
+  // Dump collected profile to have a better diagnostic in case of failure.
+  reinterpret_cast<i::CpuProfile*>(profile)->Print();
+
+  const v8::CpuProfileNode* root = profile->GetTopDownRoot();
+  const v8::CpuProfileNode* start_node = GetChild(env, root, "start");
+  const v8::CpuProfileNode* level1_node = GetChild(env, start_node, "level1");
+  const v8::CpuProfileNode* level2_node = GetChild(env, level1_node, "level2");
+  const v8::CpuProfileNode* level3_node = GetChild(env, level2_node, "level3");
+  GetChild(env, level3_node, "action");
+
+  profile->Delete();
+}
+
 // [Top down]:
 //     0   (root) #0 1
 //     2    (program) #0 2

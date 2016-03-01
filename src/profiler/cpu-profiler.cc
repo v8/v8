@@ -220,6 +220,7 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
       tag, profiles_->GetFunctionName(name), CodeEntry::kEmptyNamePrefix,
       CodeEntry::kEmptyResourceName, CpuProfileNode::kNoLineNumberInfo,
       CpuProfileNode::kNoColumnNumberInfo, NULL, code->instruction_start());
+  RecordInliningInfo(rec->entry, code);
   rec->size = code->ExecutableSize();
   processor_->Enqueue(evt_rec);
 }
@@ -233,6 +234,7 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
       tag, profiles_->GetFunctionName(name), CodeEntry::kEmptyNamePrefix,
       CodeEntry::kEmptyResourceName, CpuProfileNode::kNoLineNumberInfo,
       CpuProfileNode::kNoColumnNumberInfo, NULL, code->instruction_start());
+  RecordInliningInfo(rec->entry, code);
   rec->size = code->ExecutableSize();
   processor_->Enqueue(evt_rec);
 }
@@ -249,6 +251,7 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
       CodeEntry::kEmptyNamePrefix, profiles_->GetName(script_name),
       CpuProfileNode::kNoLineNumberInfo, CpuProfileNode::kNoColumnNumberInfo,
       NULL, code->instruction_start());
+  RecordInliningInfo(rec->entry, code);
   if (info) {
     rec->entry->set_inlined_function_infos(info->inlined_function_infos());
   }
@@ -292,6 +295,7 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
       tag, profiles_->GetFunctionName(shared->DebugName()),
       CodeEntry::kEmptyNamePrefix, profiles_->GetName(script_name), line,
       column, line_table, abstract_code->instruction_start());
+  RecordInliningInfo(rec->entry, abstract_code);
   if (info) {
     rec->entry->set_inlined_function_infos(info->inlined_function_infos());
   }
@@ -309,6 +313,7 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
       tag, profiles_->GetName(args_count), "args_count: ",
       CodeEntry::kEmptyResourceName, CpuProfileNode::kNoLineNumberInfo,
       CpuProfileNode::kNoColumnNumberInfo, NULL, code->instruction_start());
+  RecordInliningInfo(rec->entry, code);
   rec->size = code->ExecutableSize();
   processor_->Enqueue(evt_rec);
 }
@@ -379,6 +384,53 @@ void CpuProfiler::SetterCallbackEvent(Name* name, Address entry_point) {
   processor_->Enqueue(evt_rec);
 }
 
+void CpuProfiler::RecordInliningInfo(CodeEntry* entry,
+                                     AbstractCode* abstract_code) {
+  if (!abstract_code->IsCode()) return;
+  Code* code = abstract_code->GetCode();
+  if (code->kind() != Code::OPTIMIZED_FUNCTION) return;
+  DeoptimizationInputData* deopt_input_data =
+      DeoptimizationInputData::cast(code->deoptimization_data());
+  int deopt_count = deopt_input_data->DeoptCount();
+  for (int i = 0; i < deopt_count; i++) {
+    int pc_offset = deopt_input_data->Pc(i)->value();
+    if (pc_offset == -1) continue;
+    int translation_index = deopt_input_data->TranslationIndex(i)->value();
+    TranslationIterator it(deopt_input_data->TranslationByteArray(),
+                           translation_index);
+    Translation::Opcode opcode = static_cast<Translation::Opcode>(it.Next());
+    DCHECK_EQ(Translation::BEGIN, opcode);
+    it.Skip(Translation::NumberOfOperandsFor(opcode));
+    int depth = 0;
+    std::vector<CodeEntry*> inline_stack;
+    while (it.HasNext() &&
+           Translation::BEGIN !=
+               (opcode = static_cast<Translation::Opcode>(it.Next()))) {
+      if (opcode != Translation::JS_FRAME &&
+          opcode != Translation::INTERPRETED_FRAME) {
+        it.Skip(Translation::NumberOfOperandsFor(opcode));
+        continue;
+      }
+      it.Next();  // Skip ast_id
+      int shared_info_id = it.Next();
+      it.Next();  // Skip height
+      SharedFunctionInfo* shared_info = SharedFunctionInfo::cast(
+          deopt_input_data->LiteralArray()->get(shared_info_id));
+      if (!depth++) continue;  // Skip the current function itself.
+      CodeEntry* inline_entry = new CodeEntry(
+          entry->tag(), profiles_->GetFunctionName(shared_info->DebugName()),
+          CodeEntry::kEmptyNamePrefix, entry->resource_name(),
+          CpuProfileNode::kNoLineNumberInfo,
+          CpuProfileNode::kNoColumnNumberInfo, NULL, code->instruction_start());
+      inline_entry->FillFunctionInfo(shared_info);
+      inline_stack.push_back(inline_entry);
+    }
+    if (!inline_stack.empty()) {
+      entry->AddInlineStack(pc_offset, inline_stack);
+      DCHECK(inline_stack.empty());
+    }
+  }
+}
 
 CpuProfiler::CpuProfiler(Isolate* isolate)
     : isolate_(isolate),

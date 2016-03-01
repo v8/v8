@@ -258,6 +258,7 @@ class CpuProfiler : public CodeEventListener {
   void StopProcessor();
   void ResetProfiles();
   void LogBuiltins();
+  void RecordInliningInfo(CodeEntry* entry, AbstractCode* abstract_code);
 
   Isolate* isolate_;
   base::TimeDelta sampling_interval_;
