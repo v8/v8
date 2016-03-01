@@ -415,7 +415,6 @@ function TestInt32HeapAccessExternal() {
   var memory_int32 = new Int32Array(memory);
   var module = _WASMEXP_.instantiateModuleFromAsm(
       TestInt32HeapAccess.toString(), null, memory);
-  module.__init__();
   assertEquals(7, module.caller());
   assertEquals(7, memory_int32[2]);
 }
@@ -439,7 +438,6 @@ function TestHeapAccessIntTypes() {
     var memory = new ArrayBuffer(1024);
     var memory_view = new types[i][0](memory);
     var module = _WASMEXP_.instantiateModuleFromAsm(code, null, memory);
-    module.__init__();
     assertEquals(7, module.caller());
     assertEquals(7, memory_view[2]);
     assertEquals(7, _WASMEXP_.instantiateModuleFromAsm(code).caller());
@@ -480,7 +478,6 @@ function TestFloatHeapAccessExternal() {
   var memory_float64 = new Float64Array(memory);
   var module = _WASMEXP_.instantiateModuleFromAsm(
       TestFloatHeapAccess.toString(), null, memory);
-  module.__init__();
   assertEquals(1, module.caller());
   assertEquals(9.0, memory_float64[1]);
 }
@@ -656,7 +653,6 @@ function TestGlobalsWithInit() {
 }
 
 var module = _WASMEXP_.instantiateModuleFromAsm(TestGlobalsWithInit.toString());
-module.__init__();
 assertEquals(77.5, module.add());
 
 
@@ -879,7 +875,6 @@ function TestInitFunctionWithNoGlobals() {
 
 var module = _WASMEXP_.instantiateModuleFromAsm(
     TestInitFunctionWithNoGlobals.toString());
-module.__init__();
 assertEquals(51, module.caller());
 
 
@@ -893,7 +888,6 @@ function TestExportNameDifferentFromFunctionName() {
 
 var module = _WASMEXP_.instantiateModuleFromAsm(
     TestExportNameDifferentFromFunctionName.toString());
-module.__init__();
 assertEquals(55, module.alt_caller());
 
 
@@ -988,7 +982,6 @@ function TestFunctionTable() {
 }
 
 var module = _WASMEXP_.instantiateModuleFromAsm(TestFunctionTable.toString());
-module.__init__();
 assertEquals(55, module.caller(0, 0, 33, 22));
 assertEquals(11, module.caller(0, 1, 33, 22));
 assertEquals(9, module.caller(0, 2, 54, 45));
@@ -1036,7 +1029,6 @@ function TestForeignFunctions() {
   var module = _WASMEXP_.instantiateModuleFromAsm(AsmModule.toString(),
                                                   foreign, null);
 
-  module.__init__();
   assertEquals(103, module.caller(23, 103));
 }
 
@@ -1076,7 +1068,6 @@ function TestForeignFunctionMultipleUse() {
   var module = _WASMEXP_.instantiateModuleFromAsm(AsmModule.toString(),
                                                   foreign, null);
 
-  module.__init__();
   assertEquals(89, module.caller(83, 83.25));
 }
 
@@ -1114,7 +1105,6 @@ function TestForeignVariables() {
   function TestCase(env, i1, f1, i2, f2) {
     var module = _WASMEXP_.instantiateModuleFromAsm(
         AsmModule.toString(), env);
-    module.__init__();
     assertEquals(i1, module.geti1());
     assertEquals(f1, module.getf1());
     assertEquals(i2, module.geti2());
@@ -1237,7 +1227,6 @@ TestForeignVariables();
 
   var m = _WASMEXP_.instantiateModuleFromAsm(
       Module.toString(), { x: 4, y: 11 });
-  m.__init__();
   assertEquals(15, m.test());
 })();
 

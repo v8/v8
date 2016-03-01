@@ -120,6 +120,7 @@ class WasmModuleWriter : public ZoneObject {
   ZoneVector<FunctionSig*> signatures_;
   ZoneVector<uint16_t> indirect_functions_;
   ZoneVector<std::pair<MachineType, bool>> globals_;
+  int start_function_index_;
 };
 
 class WasmModuleBuilder : public ZoneObject {
@@ -131,6 +132,7 @@ class WasmModuleBuilder : public ZoneObject {
   void AddDataSegment(WasmDataSegmentEncoder* data);
   uint16_t AddSignature(FunctionSig* sig);
   void AddIndirectFunction(uint16_t index);
+  void MarkStartFunction(uint16_t index);
   WasmModuleWriter* Build(Zone* zone);
 
   struct CompareFunctionSigs {
@@ -146,6 +148,7 @@ class WasmModuleBuilder : public ZoneObject {
   ZoneVector<uint16_t> indirect_functions_;
   ZoneVector<std::pair<MachineType, bool>> globals_;
   SignatureMap signature_map_;
+  int start_function_index_;
 };
 
 std::vector<uint8_t> UnsignedLEB128From(uint32_t result);

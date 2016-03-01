@@ -66,12 +66,10 @@ class AsmWasmBuilderImpl : public AstVisitor {
   }
 
   void InitializeInitFunction() {
-    unsigned char init[] = "__init__";
     init_function_index_ = builder_->AddFunction();
     current_function_builder_ = builder_->FunctionAt(init_function_index_);
-    current_function_builder_->SetName(init, 8);
     current_function_builder_->ReturnType(kAstStmt);
-    current_function_builder_->Exported(1);
+    builder_->MarkStartFunction(init_function_index_);
     current_function_builder_ = nullptr;
   }
 
