@@ -78,11 +78,6 @@ function checkPrototypeChain(object, constructors) {
     constructor(...args) {
       assertFalse(new.target === undefined);
       super(...args);
-      // Strong functions are not extensible, so don't add fields.
-      if (args[args.length - 1].indexOf("use strong") >= 0) {
-        assertThrows(()=>{ this.a = 10; }, TypeError);
-        return;
-      }
       this.a = 42;
       this.d = 4.2;
       this.o = {foo:153};
@@ -658,15 +653,6 @@ function TestMapSetSubclassing(container, is_map) {
 
   var strict_func1 = new A("'use strict'; yield 312;");
   assertTrue(%HaveSameMap(strict_func, strict_func1));
-
-  // Strong generator function
-  var strong_func = new A("'use strong'; " + source);
-  assertFalse(%HaveSameMap(strong_func, sloppy_func));
-  assertFalse(%HaveSameMap(strong_func, strict_func));
-  CheckFunction(strong_func, true);
-
-  var strong_func1 = new A("'use strong'; yield 312;");
-  assertTrue(%HaveSameMap(strong_func, strong_func1));
 
   gc();
 })();

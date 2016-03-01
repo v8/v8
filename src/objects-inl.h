@@ -4538,16 +4538,6 @@ bool Map::is_migration_target() {
 }
 
 
-void Map::set_is_strong() {
-  set_bit_field3(IsStrong::update(bit_field3(), true));
-}
-
-
-bool Map::is_strong() {
-  return IsStrong::decode(bit_field3());
-}
-
-
 void Map::set_new_target_is_base(bool value) {
   set_bit_field3(NewTargetIsBase::update(bit_field3(), value));
 }

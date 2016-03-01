@@ -410,34 +410,30 @@ class Factory final {
   // according to the specified mode.
   Handle<JSArray> NewJSArray(
       ElementsKind elements_kind, int length, int capacity,
-      Strength strength = Strength::WEAK,
       ArrayStorageAllocationMode mode = DONT_INITIALIZE_ARRAY_ELEMENTS,
       PretenureFlag pretenure = NOT_TENURED);
 
   Handle<JSArray> NewJSArray(
       int capacity, ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
-      Strength strength = Strength::WEAK,
       PretenureFlag pretenure = NOT_TENURED) {
     if (capacity != 0) {
       elements_kind = GetHoleyElementsKind(elements_kind);
     }
-    return NewJSArray(elements_kind, 0, capacity, strength,
+    return NewJSArray(elements_kind, 0, capacity,
                       INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE, pretenure);
   }
 
   // Create a JSArray with the given elements.
   Handle<JSArray> NewJSArrayWithElements(Handle<FixedArrayBase> elements,
                                          ElementsKind elements_kind, int length,
-                                         Strength strength = Strength::WEAK,
                                          PretenureFlag pretenure = NOT_TENURED);
 
   Handle<JSArray> NewJSArrayWithElements(
       Handle<FixedArrayBase> elements,
       ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
-      Strength strength = Strength::WEAK,
       PretenureFlag pretenure = NOT_TENURED) {
     return NewJSArrayWithElements(elements, elements_kind, elements->length(),
-                                  strength, pretenure);
+                                  pretenure);
   }
 
   void NewJSArrayStorage(
@@ -651,7 +647,6 @@ class Factory final {
   // native context.
   Handle<Map> ObjectLiteralMapFromCache(Handle<Context> context,
                                         int number_of_properties,
-                                        bool is_strong,
                                         bool* is_result_from_cache);
 
   // Creates a new FixedArray that holds the data associated with the
@@ -710,7 +705,6 @@ class Factory final {
 
   // Create a JSArray with no elements and no length.
   Handle<JSArray> NewJSArray(ElementsKind elements_kind,
-                             Strength strength = Strength::WEAK,
                              PretenureFlag pretenure = NOT_TENURED);
 };
 

@@ -573,11 +573,9 @@ function DefineObjectProperty(obj, p, desc, should_throw) {
         if (IsDataDescriptor(current) && IsDataDescriptor(desc)) {
           var currentIsWritable = current.isWritable();
           if (currentIsWritable != desc.isWritable()) {
-            if (!currentIsWritable || IS_STRONG(obj)) {
+            if (!currentIsWritable) {
               if (should_throw) {
-                throw currentIsWritable
-                    ? MakeTypeError(kStrongRedefineDisallowed, obj, p)
-                    : MakeTypeError(kRedefineDisallowed, p);
+                throw MakeTypeError(kRedefineDisallowed, p);
               } else {
                 return false;
               }

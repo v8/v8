@@ -503,7 +503,7 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
   // Allocate a fixed array to hold all the object literals.
   Handle<JSArray> array = isolate->factory()->NewJSArray(
       FAST_HOLEY_SMI_ELEMENTS, constants_length, constants_length,
-      Strength::WEAK, INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
+      INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
 
   // Fill in the literals.
   bool is_simple = true;

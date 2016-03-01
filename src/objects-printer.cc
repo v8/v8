@@ -466,7 +466,6 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
   if (is_access_check_needed()) os << "\n - access_check_needed";
   if (!is_extensible()) os << "\n - non-extensible";
   if (is_observed()) os << "\n - observed";
-  if (is_strong()) os << "\n - strong_map";
   if (is_prototype_map()) {
     os << "\n - prototype_map";
     os << "\n - prototype info: " << Brief(prototype_info());

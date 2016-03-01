@@ -304,16 +304,8 @@ class CallSite {
   T(StrictCannotCreateProperty, "Cannot create property '%' on % '%'")         \
   T(StrongArity,                                                               \
     "In strong mode, calling a function with too few arguments is deprecated") \
-  T(StrongDeleteProperty,                                                      \
-    "Deleting property '%' of strong object '%' is deprecated")                \
-  T(StrongExtendNull, "In strong mode, classes extending null are deprecated") \
   T(StrongImplicitConversion,                                                  \
     "In strong mode, implicit conversions are deprecated")                     \
-  T(StrongRedefineDisallowed,                                                  \
-    "On strong object %, redefining writable, non-configurable property '%' "  \
-    "to be non-writable is deprecated")                                        \
-  T(StrongSetProto,                                                            \
-    "On strong object %, redefining the internal prototype is deprecated")     \
   T(SymbolIteratorInvalid,                                                     \
     "Result of the Symbol.iterator method is not an object")                   \
   T(SymbolKeyFor, "% is not a symbol")                                         \

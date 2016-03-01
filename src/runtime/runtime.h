@@ -429,7 +429,6 @@ namespace internal {
   F(HasFastPackedElements, 1, 1)                     \
   F(ValueOf, 1, 1)                                   \
   F(IsJSReceiver, 1, 1)                              \
-  F(IsStrong, 1, 1)                                  \
   F(ClassOf, 1, 1)                                   \
   F(DefineGetterPropertyUnchecked, 4, 1)             \
   F(DefineSetterPropertyUnchecked, 4, 1)             \

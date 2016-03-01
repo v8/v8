@@ -5624,7 +5624,7 @@ class Map: public HeapObject {
   class Deprecated : public BitField<bool, 23, 1> {};
   class IsUnstable : public BitField<bool, 24, 1> {};
   class IsMigrationTarget : public BitField<bool, 25, 1> {};
-  class IsStrong : public BitField<bool, 26, 1> {};
+  // Bit 26 is free.
   class NewTargetIsBase : public BitField<bool, 27, 1> {};
   // Bit 28 is free.
 
@@ -5733,8 +5733,6 @@ class Map: public HeapObject {
   inline void set_is_callable();
   inline bool is_callable() const;
 
-  inline void set_is_strong();
-  inline bool is_strong();
   inline void set_new_target_is_base(bool value);
   inline bool new_target_is_base();
   inline void set_is_extensible(bool value);

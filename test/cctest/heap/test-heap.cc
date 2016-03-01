@@ -1164,7 +1164,7 @@ TEST(Iteration) {
   // Allocate a JS array to OLD_SPACE and NEW_SPACE
   objs[next_objs_index++] = factory->NewJSArray(10);
   objs[next_objs_index++] =
-      factory->NewJSArray(10, FAST_HOLEY_ELEMENTS, Strength::WEAK, TENURED);
+      factory->NewJSArray(10, FAST_HOLEY_ELEMENTS, TENURED);
 
   // Allocate a small string to OLD_DATA_SPACE and NEW_SPACE
   objs[next_objs_index++] = factory->NewStringFromStaticChars("abcdefghij");

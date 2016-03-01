@@ -300,35 +300,6 @@ inline LanguageMode construct_language_mode(bool strict_bit, bool strong_bit) {
 }
 
 
-// Strong mode behaviour must sometimes be signalled by a two valued enum where
-// caching is involved, to prevent sloppy and strict mode from being incorrectly
-// differentiated.
-enum class Strength : bool {
-  WEAK,   // sloppy, strict behaviour
-  STRONG  // strong behaviour
-};
-
-
-inline bool is_strong(Strength strength) {
-  return strength == Strength::STRONG;
-}
-
-
-inline std::ostream& operator<<(std::ostream& os, const Strength& strength) {
-  return os << (is_strong(strength) ? "strong" : "weak");
-}
-
-
-inline Strength strength(LanguageMode language_mode) {
-  return is_strong(language_mode) ? Strength::STRONG : Strength::WEAK;
-}
-
-
-inline size_t hash_value(Strength strength) {
-  return static_cast<size_t>(strength);
-}
-
-
 // Mask for the sign bit in a smi.
 const intptr_t kSmiSignMask = kIntptrSignBit;
 

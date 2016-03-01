@@ -123,7 +123,11 @@
 
   # Issue 3956: Strong mode is deprecating. The expectations inside the
   # following tests should be updated once deprecation is complete.
+  'strong/class-extend-null': [SKIP],
+  'strong/class-literals': [SKIP],
+  'strong/class-object-frozen': [SKIP],
   'strong/destructuring': [SKIP],
+  'strong/functions': [SKIP],
   'strong/implicit-conversions': [SKIP],
   'strong/implicit-conversions-count': [SKIP],
   'strong/implicit-conversions-inlining': [SKIP],

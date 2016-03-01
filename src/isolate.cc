@@ -2462,12 +2462,11 @@ CodeTracer* Isolate::GetCodeTracer() {
   return code_tracer();
 }
 
-
-Map* Isolate::get_initial_js_array_map(ElementsKind kind, Strength strength) {
+Map* Isolate::get_initial_js_array_map(ElementsKind kind) {
   if (IsFastElementsKind(kind)) {
     DisallowHeapAllocation no_gc;
-    Object* const initial_js_array_map = context()->native_context()->get(
-        Context::ArrayMapIndex(kind, strength));
+    Object* const initial_js_array_map =
+        context()->native_context()->get(Context::ArrayMapIndex(kind));
     if (!initial_js_array_map->IsUndefined()) {
       return Map::cast(initial_js_array_map);
     }

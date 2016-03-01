@@ -4829,11 +4829,9 @@ Handle<Map> Map::TransitionElementsTo(Handle<Map> map,
   } else if (IsFastElementsKind(from_kind) && IsFastElementsKind(to_kind)) {
     // Reuse map transitions for JSArrays.
     DisallowHeapAllocation no_gc;
-    Strength strength = map->is_strong() ? Strength::STRONG : Strength::WEAK;
-    if (native_context->get(Context::ArrayMapIndex(from_kind, strength)) ==
-        *map) {
+    if (native_context->get(Context::ArrayMapIndex(from_kind)) == *map) {
       Object* maybe_transitioned_map =
-          native_context->get(Context::ArrayMapIndex(to_kind, strength));
+          native_context->get(Context::ArrayMapIndex(to_kind));
       if (maybe_transitioned_map->IsMap()) {
         return handle(Map::cast(maybe_transitioned_map), isolate);
       }
@@ -6203,15 +6201,12 @@ Maybe<bool> JSReceiver::DeleteProperty(LookupIterator* it,
         }
       // Fall through.
       case LookupIterator::ACCESSOR: {
-        if (!it->IsConfigurable() || receiver->map()->is_strong()) {
-          // Fail if the property is not configurable, or on a strong object.
+        if (!it->IsConfigurable()) {
+          // Fail if the property is not configurable.
           if (is_strict(language_mode)) {
-            MessageTemplate::Template templ =
-                receiver->map()->is_strong()
-                    ? MessageTemplate::kStrongDeleteProperty
-                    : MessageTemplate::kStrictDeleteProperty;
             isolate->Throw(*isolate->factory()->NewTypeError(
-                templ, it->GetName(), receiver));
+                MessageTemplate::kStrictDeleteProperty, it->GetName(),
+                receiver));
             return Nothing<bool>();
           }
           return Just(false);
@@ -6631,14 +6626,6 @@ Maybe<bool> JSReceiver::ValidateAndApplyPropertyDescriptor(
   } else if (current_is_data_descriptor && desc_is_data_descriptor) {
     // 8a. If the [[Configurable]] field of current is false, then:
     if (!current->configurable()) {
-      // [Strong mode] Disallow changing writable -> readonly for
-      // non-configurable properties.
-      if (it != NULL && current->writable() && desc->has_writable() &&
-          !desc->writable() && object->map()->is_strong()) {
-        RETURN_FAILURE(isolate, should_throw,
-                       NewTypeError(MessageTemplate::kStrongRedefineDisallowed,
-                                    object, it->GetName()));
-      }
       // 8a i. Return false, if the [[Writable]] field of current is false and
       // the [[Writable]] field of Desc is true.
       if (!current->writable() && desc->has_writable() && desc->writable()) {
@@ -7482,8 +7469,7 @@ Maybe<bool> JSReceiver::SetIntegrityLevel(Handle<JSReceiver> receiver,
   if (receiver->IsJSObject()) {
     Handle<JSObject> object = Handle<JSObject>::cast(receiver);
     if (!object->HasSloppyArgumentsElements() &&
-        !object->map()->is_observed() &&
-        (!object->map()->is_strong() || level == SEALED)) {  // Fast path.
+        !object->map()->is_observed()) {  // Fast path.
       if (level == SEALED) {
         return JSObject::PreventExtensionsWithTransition<SEALED>(object,
                                                                  should_throw);
@@ -9258,16 +9244,14 @@ Handle<Map> Map::CopyInitialMap(Handle<Map> map, int instance_size,
                                 int unused_property_fields) {
 #ifdef DEBUG
   Isolate* isolate = map->GetIsolate();
-  // Strict and strong function maps have Function as a constructor but the
+  // Strict function maps have Function as a constructor but the
   // Function's initial map is a sloppy function map. Same holds for
   // GeneratorFunction and its initial map.
   Object* constructor = map->GetConstructor();
   DCHECK(constructor->IsJSFunction());
   DCHECK(*map == JSFunction::cast(constructor)->initial_map() ||
          *map == *isolate->strict_function_map() ||
-         *map == *isolate->strong_function_map() ||
-         *map == *isolate->strict_generator_function_map() ||
-         *map == *isolate->strong_generator_function_map());
+         *map == *isolate->strict_generator_function_map());
 #endif
   // Initial maps must always own their descriptors and it's descriptor array
   // does not contain descriptors that do not belong to the map.
@@ -12256,7 +12240,6 @@ bool CheckEquivalent(Map* first, Map* second) {
          first->instance_type() == second->instance_type() &&
          first->bit_field() == second->bit_field() &&
          first->is_extensible() == second->is_extensible() &&
-         first->is_strong() == second->is_strong() &&
          first->new_target_is_base() == second->new_target_is_base() &&
          first->has_hidden_prototype() == second->has_hidden_prototype();
 }
@@ -12846,12 +12829,10 @@ Handle<Object> CacheInitialJSArrayMaps(
     Handle<Context> native_context, Handle<Map> initial_map) {
   // Replace all of the cached initial array maps in the native context with
   // the appropriate transitioned elements kind maps.
-  Strength strength =
-      initial_map->is_strong() ? Strength::STRONG : Strength::WEAK;
   Handle<Map> current_map = initial_map;
   ElementsKind kind = current_map->elements_kind();
   DCHECK_EQ(GetInitialFastElementsKind(), kind);
-  native_context->set(Context::ArrayMapIndex(kind, strength), *current_map);
+  native_context->set(Context::ArrayMapIndex(kind), *current_map);
   for (int i = GetSequenceIndexFromFastElementsKind(kind) + 1;
        i < kFastElementsKindCount; ++i) {
     Handle<Map> new_map;
@@ -12863,7 +12844,7 @@ Handle<Object> CacheInitialJSArrayMaps(
           current_map, next_kind, INSERT_TRANSITION);
     }
     DCHECK_EQ(next_kind, new_map->elements_kind());
-    native_context->set(Context::ArrayMapIndex(next_kind, strength), *new_map);
+    native_context->set(Context::ArrayMapIndex(next_kind), *new_map);
     current_map = new_map;
   }
   return initial_map;
@@ -12895,9 +12876,6 @@ void JSFunction::SetInstancePrototype(Handle<JSFunction> function,
       function->set_prototype_or_initial_map(*value);
     } else {
       Handle<Map> new_map = Map::Copy(initial_map, "SetInstancePrototype");
-      if (function->map()->is_strong()) {
-        new_map->set_is_strong();
-      }
       JSFunction::SetInitialMap(function, new_map, value);
 
       // If the function is used as the global Array function, cache the
@@ -12909,9 +12887,6 @@ void JSFunction::SetInstancePrototype(Handle<JSFunction> function,
       if (array_function->IsJSFunction() &&
           *function == JSFunction::cast(*array_function)) {
         CacheInitialJSArrayMaps(native_context, new_map);
-        Handle<Map> new_strong_map = Map::Copy(new_map, "SetInstancePrototype");
-        new_strong_map->set_is_strong();
-        CacheInitialJSArrayMaps(native_context, new_strong_map);
       }
     }
 
@@ -13096,9 +13071,6 @@ void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
                                   &in_object_properties);
 
   Handle<Map> map = isolate->factory()->NewMap(instance_type, instance_size);
-  if (function->map()->is_strong()) {
-    map->set_is_strong();
-  }
 
   // Fetch or allocate prototype.
   Handle<Object> prototype;
@@ -15719,12 +15691,6 @@ Maybe<bool> JSObject::SetPrototypeUnobserved(Handle<JSObject> object,
     DCHECK(!object->IsAccessCheckNeeded());
   }
 
-  // Strong objects may not have their prototype set via __proto__ or
-  // setPrototypeOf.
-  if (from_javascript && object->map()->is_strong()) {
-    RETURN_FAILURE(isolate, should_throw,
-                   NewTypeError(MessageTemplate::kStrongSetProto, object));
-  }
   Heap* heap = isolate->heap();
   // Silently ignore the change if value is not a JSObject or null.
   // SpiderMonkey behaves this way.

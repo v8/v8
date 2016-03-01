@@ -157,7 +157,6 @@ class Genesis BASE_EMBEDDED {
   Handle<JSFunction> GetThrowTypeErrorIntrinsic(Builtins::Name builtin_name);
 
   void CreateStrictModeFunctionMaps(Handle<JSFunction> empty);
-  void CreateStrongModeFunctionMaps(Handle<JSFunction> empty);
   void CreateIteratorMaps();
 
   // Make the "arguments" and "caller" properties throw a TypeError on access.
@@ -284,8 +283,6 @@ class Genesis BASE_EMBEDDED {
 
   Handle<Map> CreateStrictFunctionMap(FunctionMode function_mode,
                                       Handle<JSFunction> empty_function);
-  Handle<Map> CreateStrongFunctionMap(Handle<JSFunction> empty_function,
-                                      bool is_constructor);
 
 
   void SetStrictFunctionInstanceDescriptor(Handle<Map> map,
@@ -547,12 +544,6 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
     native_context()->set_initial_array_prototype(*object_function_prototype);
     Accessors::FunctionSetPrototype(object_fun, object_function_prototype)
         .Assert();
-
-    // Allocate initial strong object map.
-    Handle<Map> strong_object_map =
-        Map::Copy(Handle<Map>(object_fun->initial_map()), "EmptyStrongObject");
-    strong_object_map->set_is_strong();
-    native_context()->set_js_object_strong_map(*strong_object_map);
   }
 
   // Allocate the empty function as the prototype for function - ES6 19.2.3
@@ -722,19 +713,6 @@ Handle<Map> Genesis::CreateStrictFunctionMap(
 }
 
 
-Handle<Map> Genesis::CreateStrongFunctionMap(
-    Handle<JSFunction> empty_function, bool is_constructor) {
-  Handle<Map> map = factory()->NewMap(JS_FUNCTION_TYPE, JSFunction::kSize);
-  SetStrongFunctionInstanceDescriptor(map);
-  map->set_is_constructor(is_constructor);
-  Map::SetPrototype(map, empty_function);
-  map->set_is_callable();
-  map->set_is_extensible(is_constructor);
-  map->set_is_strong();
-  return map;
-}
-
-
 void Genesis::CreateStrictModeFunctionMaps(Handle<JSFunction> empty) {
   // Allocate map for the prototype-less strict mode instances.
   Handle<Map> strict_function_without_prototype_map =
@@ -753,16 +731,6 @@ void Genesis::CreateStrictModeFunctionMaps(Handle<JSFunction> empty) {
   // This map is installed in MakeFunctionInstancePrototypeWritable.
   strict_function_map_writable_prototype_ =
       CreateStrictFunctionMap(FUNCTION_WITH_WRITEABLE_PROTOTYPE, empty);
-}
-
-
-void Genesis::CreateStrongModeFunctionMaps(Handle<JSFunction> empty) {
-  // Allocate map for strong mode instances, which never have prototypes.
-  Handle<Map> strong_function_map = CreateStrongFunctionMap(empty, false);
-  native_context()->set_strong_function_map(*strong_function_map);
-  // Constructors do, though.
-  Handle<Map> strong_constructor_map = CreateStrongFunctionMap(empty, true);
-  native_context()->set_strong_constructor_map(*strong_constructor_map);
 }
 
 
@@ -802,15 +770,6 @@ void Genesis::CreateIteratorMaps() {
                     generator_function_prototype);
   native_context()->set_strict_generator_function_map(
       *strict_generator_function_map);
-
-  Handle<Map> strong_function_map(native_context()->strong_function_map());
-  Handle<Map> strong_generator_function_map =
-      Map::Copy(strong_function_map, "StrongGeneratorFunction");
-  strong_generator_function_map->set_is_constructor(false);
-  Map::SetPrototype(strong_generator_function_map,
-                    generator_function_prototype);
-  native_context()->set_strong_generator_function_map(
-      *strong_generator_function_map);
 
   Handle<JSFunction> object_function(native_context()->object_function());
   Handle<Map> generator_object_prototype_map = Map::Create(isolate(), 0);
@@ -1174,7 +1133,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     sloppy_function_map_writable_prototype_->SetConstructor(*function_fun);
     strict_function_map_writable_prototype_->SetConstructor(*function_fun);
-    native_context()->strong_function_map()->SetConstructor(*function_fun);
   }
 
   {  // --- A r r a y ---
@@ -1216,11 +1174,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     ArrayConstructorStub array_constructor_stub(isolate);
     Handle<Code> code = array_constructor_stub.GetCode();
     array_function->shared()->set_construct_stub(*code);
-
-    Handle<Map> initial_strong_map =
-        Map::Copy(initial_map, "SetInstancePrototype");
-    initial_strong_map->set_is_strong();
-    CacheInitialJSArrayMaps(native_context(), initial_strong_map);
 
     Handle<JSFunction> is_arraylike = SimpleInstallFunction(
         array_function, isolate->factory()->InternalizeUtf8String("isArray"),
@@ -2136,8 +2089,6 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
     native_context->sloppy_generator_function_map()->SetConstructor(
         *generator_function_function);
     native_context->strict_generator_function_map()->SetConstructor(
-        *generator_function_function);
-    native_context->strong_generator_function_map()->SetConstructor(
         *generator_function_function);
   }
 
@@ -3603,7 +3554,6 @@ Genesis::Genesis(Isolate* isolate,
     CreateRoots();
     Handle<JSFunction> empty_function = CreateEmptyFunction(isolate);
     CreateStrictModeFunctionMaps(empty_function);
-    CreateStrongModeFunctionMaps(empty_function);
     CreateIteratorMaps();
     Handle<JSGlobalObject> global_object =
         CreateNewGlobals(global_proxy_template, global_proxy);

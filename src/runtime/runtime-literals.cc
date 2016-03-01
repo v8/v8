@@ -30,7 +30,7 @@ static Handle<Map> ComputeObjectLiteralMap(
   }
   Isolate* isolate = context->GetIsolate();
   return isolate->factory()->ObjectLiteralMapFromCache(
-      context, number_of_properties, false, is_result_from_cache);
+      context, number_of_properties, is_result_from_cache);
 }
 
 MUST_USE_RESULT static MaybeHandle<Object> CreateLiteralBoilerplate(
