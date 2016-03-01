@@ -10,13 +10,13 @@
 #include "src/allocation.h"
 #include "src/base/logging.h"
 #include "src/char-predicates.h"
+#include "src/collector.h"
 #include "src/globals.h"
 #include "src/hashmap.h"
 #include "src/list.h"
 #include "src/parsing/token.h"
 #include "src/unicode.h"
 #include "src/unicode-decoder.h"
-#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
