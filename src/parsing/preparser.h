@@ -376,7 +376,8 @@ class PreParserStatement {
   }
 
   bool IsStringLiteral() {
-    return code_ == kStringLiteralExpressionStatement;
+    return code_ == kStringLiteralExpressionStatement
+        || IsUseStrictLiteral() || IsUseStrongLiteral();
   }
 
   bool IsUseStrictLiteral() {
