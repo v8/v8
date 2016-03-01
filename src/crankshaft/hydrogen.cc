@@ -8752,6 +8752,22 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
   }
   // Try to inline calls like Math.* as operations in the calling function.
   switch (id) {
+    case kObjectHasOwnProperty: {
+      if (argument_count != 2) return false;
+      HValue* key = Top();
+      if (!key->IsLoadKeyed()) return false;
+      HValue* elements = HLoadKeyed::cast(key)->elements();
+      if (!elements->IsPhi() || elements->OperandCount() != 1) return false;
+      if (!elements->OperandAt(0)->IsForInCacheArray()) return false;
+      HForInCacheArray* cache = HForInCacheArray::cast(elements->OperandAt(0));
+      HValue* receiver = environment()->ExpressionStackAt(1);
+      if (!receiver->IsPhi() || receiver->OperandCount() != 1) return false;
+      if (cache->enumerable() != receiver->OperandAt(0)) return false;
+      Drop(3);  // key, receiver, function
+      Add<HCheckMapValue>(receiver, cache->map());
+      ast_context()->ReturnValue(graph()->GetConstantTrue());
+      return true;
+    }
     case kStringCharCodeAt:
     case kStringCharAt:
       if (argument_count == 2) {
