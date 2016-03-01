@@ -2380,10 +2380,6 @@ class JSObject: public JSReceiver {
       Handle<JSObject> object,
       AllocationSiteUsageContext* site_context,
       DeepCopyHints hints = kNoHints);
-  // Deep copies given object with special handling for JSFunctions which
-  // 1) must be Api functions and 2) are not copied but left as is.
-  MUST_USE_RESULT static MaybeHandle<JSObject> DeepCopyApiBoilerplate(
-      Handle<JSObject> object);
   MUST_USE_RESULT static MaybeHandle<JSObject> DeepWalk(
       Handle<JSObject> object,
       AllocationSiteCreationContext* site_context);

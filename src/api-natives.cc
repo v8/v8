@@ -300,9 +300,7 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
     if (entry != UnseededNumberDictionary::kNotFound) {
       Object* boilerplate = cache->ValueAt(entry);
       result = handle(JSObject::cast(boilerplate), isolate);
-      ASSIGN_RETURN_ON_EXCEPTION(
-          isolate, result, JSObject::DeepCopyApiBoilerplate(result), JSObject);
-      return result;
+      return isolate->factory()->CopyJSObject(result);
     }
   }
   // Enter a new scope.  Recursion could otherwise create a lot of handles.
@@ -326,8 +324,7 @@ MaybeHandle<JSObject> InstantiateObject(Isolate* isolate,
 
   if (serial_number) {
     CacheTemplateInstantiation(isolate, serial_number, result);
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, result, JSObject::DeepCopyApiBoilerplate(result), JSObject);
+    result = isolate->factory()->CopyJSObject(result);
   }
   return scope.CloseAndEscape(result);
 }

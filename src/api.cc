@@ -940,9 +940,16 @@ void Template::Set(v8::Local<Name> name, v8::Local<Data> value,
   i::Isolate* isolate = templ->GetIsolate();
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
+  auto value_obj = Utils::OpenHandle(*value);
+  if (value_obj->IsObjectTemplateInfo()) {
+    templ->set_serial_number(i::Smi::FromInt(0));
+    if (templ->IsFunctionTemplateInfo()) {
+      i::Handle<i::FunctionTemplateInfo>::cast(templ)->set_do_not_cache(true);
+    }
+  }
   // TODO(dcarney): split api to allow values of v8::Value or v8::TemplateInfo.
   i::ApiNatives::AddDataProperty(isolate, templ, Utils::OpenHandle(*name),
-                                 Utils::OpenHandle(*value),
+                                 value_obj,
                                  static_cast<i::PropertyAttributes>(attribute));
 }
 
