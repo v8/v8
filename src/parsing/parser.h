@@ -670,9 +670,8 @@ class ParserTraits {
  private:
   Parser* parser_;
 
-  void BuildIteratorClose(
-      ZoneList<Statement*>* statements, Variable* iterator,
-      Expression* input, Variable* output);
+  void BuildIteratorClose(ZoneList<Statement*>* statements, Variable* iterator,
+                          Maybe<Variable*> input, Variable* output);
   void BuildIteratorCloseForCompletion(
       ZoneList<Statement*>* statements, Variable* iterator,
       Variable* body_threw);
