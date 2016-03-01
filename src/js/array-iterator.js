@@ -117,8 +117,6 @@ utils.InstallFunctions(ArrayIterator.prototype, DONT_ENUM, [
   'next', ArrayIteratorNext
 ]);
 utils.SetFunctionName(ArrayIteratorIterator, iteratorSymbol);
-%AddNamedProperty(ArrayIterator.prototype, iteratorSymbol,
-                  ArrayIteratorIterator, DONT_ENUM);
 %AddNamedProperty(ArrayIterator.prototype, toStringTagSymbol,
                   "Array Iterator", READ_ONLY | DONT_ENUM);
 
