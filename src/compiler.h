@@ -387,7 +387,18 @@ class CompilationInfo {
 
   void DisableFutureOptimization() {
     if (GetFlag(kDisableFutureOptimization) && has_shared_info()) {
-      shared_info()->DisableOptimization(bailout_reason());
+      // If Crankshaft tried to optimize this function, bailed out, and
+      // doesn't want to try again, then use TurboFan next time.
+      if (!shared_info()->dont_crankshaft()) {
+        shared_info()->set_dont_crankshaft(true);
+        if (FLAG_trace_opt) {
+          PrintF("[disabled Crankshaft for ");
+          shared_info()->ShortPrint();
+          PrintF(", reason: %s]\n", GetBailoutReason(bailout_reason()));
+        }
+      } else {
+        shared_info()->DisableOptimization(bailout_reason());
+      }
     }
   }
 

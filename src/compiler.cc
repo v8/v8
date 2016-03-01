@@ -904,8 +904,9 @@ static bool Renumber(ParseInfo* parse_info) {
     FunctionLiteral* lit = parse_info->literal();
     shared_info->set_ast_node_count(lit->ast_node_count());
     MaybeDisableOptimization(shared_info, lit->dont_optimize_reason());
-    shared_info->set_dont_crankshaft(lit->flags() &
-                                     AstProperties::kDontCrankshaft);
+    shared_info->set_dont_crankshaft(
+        shared_info->dont_crankshaft() ||
+        (lit->flags() & AstProperties::kDontCrankshaft));
   }
   return true;
 }
