@@ -694,6 +694,12 @@ class AsmWasmBuilderImpl : public AstVisitor {
     is_set_op_ = true;
     RECURSE(Visit(expr->target()));
     DCHECK(!is_set_op_);
+    // Assignment to heapf32 from float64 converts.
+    if (TypeOf(expr->value()) == kAstF64 && expr->target()->IsProperty() &&
+        expr->target()->AsProperty()->obj()->bounds().lower->Is(
+            cache_.kFloat32Array)) {
+      current_function_builder_->Emit(kExprF32ConvertF64);
+    }
     RECURSE(Visit(expr->value()));
     if (in_init) {
       UnLoadInitFunction();

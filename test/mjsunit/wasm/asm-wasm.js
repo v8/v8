@@ -1433,6 +1433,24 @@ TestForeignVariables();
 });  // TODO(bradnelson): Enable when Math.fround implementation lands.
 
 
+(function TestDoubleToFloatAssignment() {
+  function Module(stdlib, foreign, heap) {
+    "use asm";
+    var HEAPF32 = new stdlib.Float32Array(heap);
+    var fround = stdlib.Math.fround;
+    function func() {
+      var a = 1.23;
+      HEAPF32[0] = a;
+      return +HEAPF32[0];
+    }
+    return {func: func};
+  }
+
+  var m = _WASMEXP_.instantiateModuleFromAsm(Module.toString());
+  assertEquals(1.23, m.func());
+});
+
+
 (function TestIntegerMultiplyBothWays() {
   function Module(stdlib, foreign, heap) {
     "use asm";
