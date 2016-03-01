@@ -6562,41 +6562,40 @@ class Script: public Struct {
 //
 // Installation of ids for the selected builtin functions is handled
 // by the bootstrapper.
-#define FUNCTIONS_WITH_ID_LIST(V)                           \
-  V(Array.prototype, indexOf, ArrayIndexOf)                 \
-  V(Array.prototype, lastIndexOf, ArrayLastIndexOf)         \
-  V(Array.prototype, push, ArrayPush)                       \
-  V(Array.prototype, pop, ArrayPop)                         \
-  V(Array.prototype, shift, ArrayShift)                     \
-  V(Function.prototype, apply, FunctionApply)               \
-  V(Function.prototype, call, FunctionCall)                 \
-  V(Object.prototype, hasOwnProperty, ObjectHasOwnProperty) \
-  V(String.prototype, charCodeAt, StringCharCodeAt)         \
-  V(String.prototype, charAt, StringCharAt)                 \
-  V(String.prototype, concat, StringConcat)                 \
-  V(String.prototype, toLowerCase, StringToLowerCase)       \
-  V(String.prototype, toUpperCase, StringToUpperCase)       \
-  V(String, fromCharCode, StringFromCharCode)               \
-  V(Math, random, MathRandom)                               \
-  V(Math, floor, MathFloor)                                 \
-  V(Math, round, MathRound)                                 \
-  V(Math, ceil, MathCeil)                                   \
-  V(Math, abs, MathAbs)                                     \
-  V(Math, log, MathLog)                                     \
-  V(Math, exp, MathExp)                                     \
-  V(Math, sqrt, MathSqrt)                                   \
-  V(Math, pow, MathPow)                                     \
-  V(Math, max, MathMax)                                     \
-  V(Math, min, MathMin)                                     \
-  V(Math, cos, MathCos)                                     \
-  V(Math, sin, MathSin)                                     \
-  V(Math, tan, MathTan)                                     \
-  V(Math, acos, MathAcos)                                   \
-  V(Math, asin, MathAsin)                                   \
-  V(Math, atan, MathAtan)                                   \
-  V(Math, atan2, MathAtan2)                                 \
-  V(Math, imul, MathImul)                                   \
-  V(Math, clz32, MathClz32)                                 \
+#define FUNCTIONS_WITH_ID_LIST(V)                     \
+  V(Array.prototype, indexOf, ArrayIndexOf)           \
+  V(Array.prototype, lastIndexOf, ArrayLastIndexOf)   \
+  V(Array.prototype, push, ArrayPush)                 \
+  V(Array.prototype, pop, ArrayPop)                   \
+  V(Array.prototype, shift, ArrayShift)               \
+  V(Function.prototype, apply, FunctionApply)         \
+  V(Function.prototype, call, FunctionCall)           \
+  V(String.prototype, charCodeAt, StringCharCodeAt)   \
+  V(String.prototype, charAt, StringCharAt)           \
+  V(String.prototype, concat, StringConcat)           \
+  V(String.prototype, toLowerCase, StringToLowerCase) \
+  V(String.prototype, toUpperCase, StringToUpperCase) \
+  V(String, fromCharCode, StringFromCharCode)         \
+  V(Math, random, MathRandom)                         \
+  V(Math, floor, MathFloor)                           \
+  V(Math, round, MathRound)                           \
+  V(Math, ceil, MathCeil)                             \
+  V(Math, abs, MathAbs)                               \
+  V(Math, log, MathLog)                               \
+  V(Math, exp, MathExp)                               \
+  V(Math, sqrt, MathSqrt)                             \
+  V(Math, pow, MathPow)                               \
+  V(Math, max, MathMax)                               \
+  V(Math, min, MathMin)                               \
+  V(Math, cos, MathCos)                               \
+  V(Math, sin, MathSin)                               \
+  V(Math, tan, MathTan)                               \
+  V(Math, acos, MathAcos)                             \
+  V(Math, asin, MathAsin)                             \
+  V(Math, atan, MathAtan)                             \
+  V(Math, atan2, MathAtan2)                           \
+  V(Math, imul, MathImul)                             \
+  V(Math, clz32, MathClz32)                           \
   V(Math, fround, MathFround)
 
 #define ATOMIC_FUNCTIONS_WITH_ID_LIST(V) \
