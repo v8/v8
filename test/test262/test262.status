@@ -634,18 +634,6 @@
   'language/statements/generators/yield-newline': [FAIL],
   'language/statements/generators/yield-star-before-newline': [FAIL],
 
-  # TODO(4680,oth): Failing on DCHECK_EQ(array_index, fixed_array->length()) in constant-array-builder.cc.
-  'language/expressions/left-shift/S11.7.1_A4_T1': [PASS, ['mode == debug or dcheck_always_on == True', FAIL]],
-  'language/expressions/left-shift/S11.7.1_A4_T2': [PASS, ['mode == debug or dcheck_always_on == True', FAIL]],
-  'language/expressions/right-shift/S11.7.2_A4_T2': [PASS, ['mode == debug or dcheck_always_on == True', FAIL]],
-  'language/expressions/right-shift/S11.7.2_A4_T1': [PASS, ['mode == debug or dcheck_always_on == True', FAIL]],
-  'language/expressions/right-shift/S11.7.2_A4_T3': [PASS, ['mode == debug or dcheck_always_on == True', FAIL]],
-  'language/expressions/right-shift/S11.7.2_A4_T4': [PASS, ['mode == debug or dcheck_always_on == True', FAIL]],
-  'language/expressions/unsigned-right-shift/S11.7.3_A4_T2': [PASS, ['mode == debug or dcheck_always_on == True', FAIL]],
-  'language/expressions/unsigned-right-shift/S11.7.3_A4_T3': [PASS, ['mode == debug or dcheck_always_on == True', FAIL]],
-  'language/expressions/unsigned-right-shift/S11.7.3_A4_T1': [PASS, ['mode == debug or dcheck_always_on == True', FAIL]],
-  'language/expressions/unsigned-right-shift/S11.7.3_A4_T4': [PASS, ['mode == debug or dcheck_always_on == True', FAIL]],
-
   # TODO(4680,rmcilroy): Test262Error: Expected a RangeError to be thrown but no exception was thrown at all
   'built-ins/Date/prototype/toISOString/15.9.5.43-0-13': [FAIL],
 }],  # ignition == True

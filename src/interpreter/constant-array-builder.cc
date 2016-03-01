@@ -87,6 +87,7 @@ Handle<Object> ConstantArrayBuilder::At(size_t index) const {
   if (index < slice->start_index() + slice->size()) {
     return slice->At(index);
   } else {
+    DCHECK_LT(index, slice->capacity());
     return isolate_->factory()->the_hole_value();
   }
 }
@@ -99,6 +100,8 @@ Handle<FixedArray> ConstantArrayBuilder::ToFixedArray() {
     if (array_index == fixed_array->length()) {
       break;
     }
+    DCHECK(array_index == 0 ||
+           base::bits::IsPowerOfTwo32(static_cast<uint32_t>(array_index)));
     // Copy objects from slice into array.
     for (size_t i = 0; i < slice->size(); ++i) {
       fixed_array->set(array_index++, *slice->At(slice->start_index() + i));
@@ -107,8 +110,7 @@ Handle<FixedArray> ConstantArrayBuilder::ToFixedArray() {
     size_t padding =
         std::min(static_cast<size_t>(fixed_array->length() - array_index),
                  slice->capacity() - slice->size());
-    for (size_t i = slice->start_index() + slice->size();
-         i < slice->start_index() + padding; ++i) {
+    for (size_t i = 0; i < padding; i++) {
       fixed_array->set(array_index++, *isolate_->factory()->the_hole_value());
     }
   }
