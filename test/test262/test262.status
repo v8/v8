@@ -221,10 +221,6 @@
   'language/statements/class/subclass/builtin-objects/NativeError/URIError-message': [FAIL],
   'language/statements/class/subclass/builtin-objects/Error/message-property-assignment': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4663
-  'built-ins/Object/entries/*': [SKIP],
-  'built-ins/Object/values/*': [SKIP],
-
   # https://code.google.com/p/chromium/issues/detail?id=581577
   'built-ins/RegExp/prototype/source/15.10.7.1-1': [FAIL],
   'built-ins/RegExp/prototype/global/15.10.7.2-1': [FAIL],
@@ -260,9 +256,6 @@
   'language/statements/try/tco-catch-finally': [FAIL],
   'language/statements/try/tco-finally': [FAIL],
   'language/statements/while/tco-body': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4725
-  'built-ins/Object/getOwnPropertyDescriptors/*': [SKIP],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4726
   'built-ins/TypedArrays/typedarray-arg-other-ctor-buffer-ctor-access-throws': [FAIL],
@@ -361,6 +354,9 @@
 
   # Test bug https://github.com/tc39/test262/issues/518
   'built-ins/TypedArrays/object-arg-throws-setting-typedarray-property': [FAIL],
+  'built-ins/Object/getOwnPropertyDescriptors/duplicate-keys': [FAIL],
+  'built-ins/Object/getOwnPropertyDescriptors/symbols-included': [FAIL],
+
 
   # Test bug https://github.com/tc39/test262/issues/521
   'built-ins/TypedArray/from/mapfn-is-not-callable': [FAIL],
