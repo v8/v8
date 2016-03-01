@@ -622,6 +622,8 @@ class RawMachineAssembler {
 
   // Tail call the given call descriptor and the given arguments.
   Node* TailCallN(CallDescriptor* call_descriptor, Node* function, Node** args);
+  // Tail call to a runtime function with zero arguments.
+  Node* TailCallRuntime0(Runtime::FunctionId function, Node* context);
   // Tail call to a runtime function with one argument.
   Node* TailCallRuntime1(Runtime::FunctionId function, Node* arg0,
                          Node* context);

@@ -39,6 +39,18 @@ CodeStubAssembler::CodeStubAssembler(Isolate* isolate, Zone* zone,
       code_generated_(false),
       variables_(zone) {}
 
+CodeStubAssembler::CodeStubAssembler(Isolate* isolate, Zone* zone,
+                                     int parameter_count, Code::Flags flags,
+                                     const char* name)
+    : raw_assembler_(new RawMachineAssembler(
+          isolate, new (zone) Graph(zone),
+          Linkage::GetJSCallDescriptor(zone, false, parameter_count,
+                                       CallDescriptor::kNoFlags))),
+      flags_(flags),
+      name_(name),
+      code_generated_(false),
+      variables_(zone) {}
+
 CodeStubAssembler::~CodeStubAssembler() {}
 
 void CodeStubAssembler::CallPrologue() {}
@@ -132,6 +144,14 @@ Node* CodeStubAssembler::SmiUntag(Node* value) {
   return raw_assembler_->WordSar(value, SmiShiftBitsConstant());
 }
 
+Node* CodeStubAssembler::SmiToInt32(Node* value) {
+  Node* result = raw_assembler_->WordSar(value, SmiShiftBitsConstant());
+  if (raw_assembler_->machine()->Is64()) {
+    result = raw_assembler_->TruncateInt64ToInt32(result);
+  }
+  return result;
+}
+
 Node* CodeStubAssembler::SmiAdd(Node* a, Node* b) { return IntPtrAdd(a, b); }
 
 Node* CodeStubAssembler::SmiEqual(Node* a, Node* b) { return WordEqual(a, b); }
@@ -143,17 +163,14 @@ Node* CodeStubAssembler::SmiEqual(Node* a, Node* b) { return WordEqual(a, b); }
 CODE_STUB_ASSEMBLER_BINARY_OP_LIST(DEFINE_CODE_STUB_ASSEMBER_BINARY_OP)
 #undef DEFINE_CODE_STUB_ASSEMBER_BINARY_OP
 
-Node* CodeStubAssembler::ChangeInt32ToInt64(Node* value) {
-  return raw_assembler_->ChangeInt32ToInt64(value);
-}
-
-Node* CodeStubAssembler::ChangeUint32ToUint64(Node* value) {
-  return raw_assembler_->ChangeUint32ToUint64(value);
-}
-
 Node* CodeStubAssembler::WordShl(Node* value, int shift) {
   return raw_assembler_->WordShl(value, IntPtrConstant(shift));
 }
+
+#define DEFINE_CODE_STUB_ASSEMBER_UNARY_OP(name) \
+  Node* CodeStubAssembler::name(Node* a) { return raw_assembler_->name(a); }
+CODE_STUB_ASSEMBLER_UNARY_OP_LIST(DEFINE_CODE_STUB_ASSEMBER_UNARY_OP)
+#undef DEFINE_CODE_STUB_ASSEMBER_UNARY_OP
 
 Node* CodeStubAssembler::WordIsSmi(Node* a) {
   return WordEqual(raw_assembler_->WordAnd(a, IntPtrConstant(kSmiTagMask)),
@@ -168,6 +185,12 @@ Node* CodeStubAssembler::LoadBufferObject(Node* buffer, int offset) {
 Node* CodeStubAssembler::LoadObjectField(Node* object, int offset) {
   return raw_assembler_->Load(MachineType::AnyTagged(), object,
                               IntPtrConstant(offset - kHeapObjectTag));
+}
+
+Node* CodeStubAssembler::LoadHeapNumberValue(Node* object) {
+  return raw_assembler_->Load(
+      MachineType::Float64(), object,
+      IntPtrConstant(HeapNumber::kValueOffset - kHeapObjectTag));
 }
 
 Node* CodeStubAssembler::LoadFixedArrayElementSmiIndex(Node* object,
@@ -255,6 +278,20 @@ Node* CodeStubAssembler::Projection(int index, Node* value) {
   return raw_assembler_->Projection(index, value);
 }
 
+Node* CodeStubAssembler::LoadInstanceType(Node* object) {
+  return raw_assembler_->Word32And(
+      LoadObjectField(LoadObjectField(object, HeapObject::kMapOffset),
+                      Map::kInstanceTypeOffset),
+      raw_assembler_->Int32Constant(255));
+}
+
+Node* CodeStubAssembler::BitFieldDecode(Node* word32, uint32_t shift,
+                                        uint32_t mask) {
+  return raw_assembler_->Word32Shr(
+      raw_assembler_->Word32And(word32, raw_assembler_->Int32Constant(mask)),
+      raw_assembler_->Int32Constant(shift));
+}
+
 Node* CodeStubAssembler::CallN(CallDescriptor* descriptor, Node* code_target,
                                Node** args) {
   CallPrologue();
@@ -312,6 +349,11 @@ Node* CodeStubAssembler::CallRuntime(Runtime::FunctionId function_id,
                                                     arg3, arg4, context);
   CallEpilogue();
   return return_value;
+}
+
+Node* CodeStubAssembler::TailCallRuntime(Runtime::FunctionId function_id,
+                                         Node* context) {
+  return raw_assembler_->TailCallRuntime0(function_id, context);
 }
 
 Node* CodeStubAssembler::TailCallRuntime(Runtime::FunctionId function_id,
