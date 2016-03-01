@@ -1844,6 +1844,7 @@ source_set("fuzzer_support") {
   configs += [ "//build/config/compiler:no_chromium_code" ]
   configs += [
     ":internal_config_base",
+    ":libplatform_config",
     ":features",
     ":toolchain",
   ]
