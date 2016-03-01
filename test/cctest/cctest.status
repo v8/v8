@@ -561,6 +561,9 @@
   'test-heap/CellsInOptimizedCodeAreWeak': [FAIL],
   'test-run-inlining/InlineTwice': [FAIL],
   'test-serialize/SerializeInternalReference': [FAIL, ['arch == arm or arch == arm64', PASS]],
+
+  # TODO(mythria,4680): This is flaky for ia32. Sometimes crashes. Skipping for now.
+  'test-cpu-profiler/SampleWhenFrameIsNotSetup': [SKIP],
 }],  # ignition == True
 
 ]

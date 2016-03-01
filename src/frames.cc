@@ -955,7 +955,7 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames) {
     if (frame_opcode == Translation::JS_FRAME ||
         frame_opcode == Translation::INTERPRETED_FRAME) {
       jsframe_count--;
-      BailoutId const ast_id = BailoutId(it.Next());
+      BailoutId const bailout_id = BailoutId(it.Next());
       SharedFunctionInfo* const shared_info =
           SharedFunctionInfo::cast(literal_array->get(it.Next()));
       it.Next();  // Skip height.
@@ -1002,14 +1002,12 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames) {
         DeoptimizationOutputData* const output_data =
             DeoptimizationOutputData::cast(code->deoptimization_data());
         unsigned const entry =
-            Deoptimizer::GetOutputInfo(output_data, ast_id, shared_info);
+            Deoptimizer::GetOutputInfo(output_data, bailout_id, shared_info);
         code_offset = FullCodeGenerator::PcField::decode(entry);
         abstract_code = AbstractCode::cast(code);
       } else {
-        // TODO(rmcilroy): Modify FrameSummary to enable us to summarize
-        // based on the BytecodeArray and bytecode offset.
         DCHECK_EQ(frame_opcode, Translation::INTERPRETED_FRAME);
-        code_offset = 0;
+        code_offset = bailout_id.ToInt();
         abstract_code = AbstractCode::cast(shared_info->bytecode_array());
       }
       FrameSummary summary(receiver, function, abstract_code, code_offset,

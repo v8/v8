@@ -844,24 +844,19 @@
   'strong/function-arity': [FAIL],
   'strong/undefined': [FAIL],
 
-  # TODO(rmcilroy,4680): Pass on debug, fail on release. Fails in both modes.
-  # the line numbers in the stack trace are incorrect. In debug mode somehow
-  # does not get flagged as a failure.
-  'compiler/regress-stacktrace-methods': [PASS, ['mode == release', FAIL]],
+  # TODO(mythria, 4780): Related to type feedback for calls in interpreter.
+  'array-literal-feedback': [FAIL],
+  'regress/regress-4121': [FAIL],
+
+  # TODO(mythria, 4764): lack of osr support.
+  'regress/regress-2618': [FAIL],
 
   # TODO(rmcilroy,4680): Test assert failures.
-  'array-literal-feedback': [FAIL],
   'debug-liveedit-2': [FAIL],
   'es6/mirror-collections': [FAIL],
   'es6/regress/regress-468661': [FAIL],
-  'regress/regress-2618': [FAIL],
-  'regress/regress-4121': [FAIL],
-  'regress/regress-4266': [FAIL],
   'regress/regress-crbug-109362': [FAIL],
   'regress/regress-crbug-568477-2': [FAIL],
-
-  # TODO(rmcilroy, 4680): new ES6 instanceof support
-  'harmony/instanceof-es6': [SKIP],
 
   # TODO(rmcilroy,4680): Test timeouts.
   'array-literal-transitions': [SKIP],
